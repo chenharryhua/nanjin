@@ -13,6 +13,7 @@ val shapeless    = "2.3.3"
 val avro         = "2.0.4"
 val akkaStream   = "1.0.4"
 val fs2Stream    = "0.19.9"
+val silencer     = "1.4.1"
 
 lazy val commonSettings = Seq(
   version      := "0.0.1-SNAPSHOT",
@@ -24,6 +25,7 @@ lazy val commonSettings = Seq(
     "Confluent Maven Repo" at "https://packages.confluent.io/maven/"),
   addCompilerPlugin("org.typelevel" %% "kind-projector"  % "0.10.3"),
   addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
+  addCompilerPlugin("com.github.ghik" %% "silencer-plugin" % silencer),
   addCompilerPlugin("org.scalamacros" %% "paradise"      % "2.1.1" cross CrossVersion.full),
   scalacOptions ++= Seq(
     "-Ypartial-unification",
@@ -48,8 +50,9 @@ lazy val kafka = (project in file("kafka"))
   .settings(name := "kafka")
   .settings(
     libraryDependencies ++= Seq(
-      "org.scala-lang"                            % "scala-reflect" % scalaVersion.value % "provided",
-      "org.scala-lang"                            % "scala-compiler" % scalaVersion.value % "provided",
+      "com.github.ghik" %% "silencer-lib" % silencer % Provided,
+      "org.scala-lang"                            % "scala-reflect" % scalaVersion.value % Provided,
+      "org.scala-lang"                            % "scala-compiler" % scalaVersion.value % Provided,
       "io.confluent"                              % "kafka-avro-serializer" % confluent classifier "",
       "org.apache.kafka"                          % "kafka-clients" % kafkaVersion,
       "org.apache.kafka"                          % "kafka-streams" % kafkaVersion,

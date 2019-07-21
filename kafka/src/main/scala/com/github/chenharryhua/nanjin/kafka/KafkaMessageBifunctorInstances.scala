@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.{Bifunctor, Monad, Traverse}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
+import com.github.ghik.silencer.silent
 
 trait KafkaMessageBifunctorInstances {
   implicit final val consumerRecordBifunctor: Bifunctor[ConsumerRecord[?, ?]] =
@@ -16,7 +17,7 @@ trait KafkaMessageBifunctorInstances {
           cr.offset,
           cr.timestamp,
           cr.timestampType,
-          -1L, //just make compiler happy.. checksum is deprecated.
+          cr.checksum: @silent,
           cr.serializedKeySize,
           cr.serializedValueSize,
           k(cr.key),
