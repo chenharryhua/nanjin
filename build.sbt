@@ -14,6 +14,7 @@ val avro         = "2.0.4"
 val akkaStream   = "1.0.4"
 val fs2Stream    = "0.19.9"
 val silencer     = "1.4.1"
+val monocle      = "1.5.1-cats"
 
 lazy val commonSettings = Seq(
   version      := "0.0.1-SNAPSHOT",
@@ -23,10 +24,10 @@ lazy val commonSettings = Seq(
     Resolver.sonatypeRepo("public"),
     Resolver.sonatypeRepo("releases"),
     "Confluent Maven Repo" at "https://packages.confluent.io/maven/"),
-  addCompilerPlugin("org.typelevel" %% "kind-projector"  % "0.10.3"),
-  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
+  addCompilerPlugin("org.typelevel" %% "kind-projector"    % "0.10.3"),
+  addCompilerPlugin("com.olegpy" %% "better-monadic-for"   % "0.3.1"),
   addCompilerPlugin("com.github.ghik" %% "silencer-plugin" % silencer),
-  addCompilerPlugin("org.scalamacros" %% "paradise"      % "2.1.1" cross CrossVersion.full),
+  addCompilerPlugin("org.scalamacros" %% "paradise"        % "2.1.1" cross CrossVersion.full),
   scalacOptions ++= Seq(
     "-Ypartial-unification",
     "-deprecation",
@@ -50,7 +51,7 @@ lazy val kafka = (project in file("kafka"))
   .settings(name := "kafka")
   .settings(
     libraryDependencies ++= Seq(
-      "com.github.ghik" %% "silencer-lib" % silencer % Provided,
+      "com.github.ghik" %% "silencer-lib"         % silencer % Provided,
       "org.scala-lang"                            % "scala-reflect" % scalaVersion.value % Provided,
       "org.scala-lang"                            % "scala-compiler" % scalaVersion.value % Provided,
       "io.confluent"                              % "kafka-avro-serializer" % confluent classifier "",
@@ -66,14 +67,20 @@ lazy val kafka = (project in file("kafka"))
       "io.circe" %% "circe-parser"  % circeVersion,
       "io.circe" %% "circe-refined" % circeVersion,
 //base
-      "org.typelevel" %% "cats-core"     % catsCore,
-      "org.typelevel" %% "cats-mtl-core" % catsMtl,
-      "org.typelevel" %% "kittens"       % kittens,
-      "com.chuusai" %% "shapeless"       % shapeless,
-      "co.fs2" %% "fs2-core"             % fs2Version,
-      "co.fs2" %% "fs2-io"               % fs2Version,
-      "co.fs2" %% "fs2-reactive-streams" % fs2Version,
-      "org.typelevel" %% "cats-effect"   % catsEffect
+      "org.typelevel" %% "cats-core"                    % catsCore,
+      "org.typelevel" %% "cats-mtl-core"                % catsMtl,
+      "org.typelevel" %% "kittens"                      % kittens,
+      "com.chuusai" %% "shapeless"                      % shapeless,
+      "co.fs2" %% "fs2-core"                            % fs2Version,
+      "co.fs2" %% "fs2-io"                              % fs2Version,
+      "co.fs2" %% "fs2-reactive-streams"                % fs2Version,
+      "org.typelevel" %% "cats-effect"                  % catsEffect,
+      "com.github.julien-truffaut" %% "monocle-core"    % monocle,
+      "com.github.julien-truffaut" %% "monocle-generic" % monocle,
+      "com.github.julien-truffaut" %% "monocle-macro"   % monocle,
+      "com.github.julien-truffaut" %% "monocle-state"   % monocle,
+      "com.github.julien-truffaut" %% "monocle-refined" % monocle,
+      "com.github.julien-truffaut" %% "monocle-unsafe"  % monocle
     ),
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
