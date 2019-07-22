@@ -22,7 +22,9 @@ trait KafkaMessageBifunctor {
           cr.serializedKeySize,
           cr.serializedValueSize,
           k(cr.key),
-          v(cr.value))
+          v(cr.value),
+          cr.headers,
+          cr.leaderEpoch)
     }
   implicit final val producerRecordBifunctor: Bifunctor[ProducerRecord[?, ?]] =
     new Bifunctor[ProducerRecord[?, ?]] {
