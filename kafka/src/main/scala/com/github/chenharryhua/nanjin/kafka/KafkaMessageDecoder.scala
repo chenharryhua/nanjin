@@ -11,7 +11,7 @@ import scala.util.Try
 import scala.util.Failure
 import scala.util.Success
 
-sealed abstract class KafkaMessageDecoder[F[_, _]: Bifunctor, K, V](
+abstract class KafkaMessageDecoder[F[_, _]: Bifunctor, K, V](
   topicName: KafkaTopicName,
   keySerde: Serde[K],
   valueSerde: Serde[V])
@@ -60,14 +60,15 @@ object decoders extends Fs2MessageBifunctor with AkkaMessageBifunctor {
   }
 
   trait Fs2MessageDecoder[F[_], K, V]
-      extends KafkaMessageDecoder[Fs2CommittableMessage[F, ?, ?], K, V] {
+      extends KafkaMessageDecoder[Fs2CommittableMessage[F, ?, ?], K, V] with Fs2MessageBifunctor {
     final override protected def key[A, B](data: Fs2CommittableMessage[F, A, B]): A =
       data.record.key
     final override protected def value[A, B](data: Fs2CommittableMessage[F, A, B]): B =
       data.record.value
   }
 
-  trait AkkaMessageDecoder[K, V] extends KafkaMessageDecoder[AkkaCommittableMessage, K, V] {
+  trait AkkaMessageDecoder[K, V]
+      extends KafkaMessageDecoder[AkkaCommittableMessage, K, V] with AkkaMessageBifunctor {
     final override protected def key[A, B](data: AkkaCommittableMessage[A, B]): A =
       data.record.key
     final override protected def value[A, B](data: AkkaCommittableMessage[A, B]): B =

@@ -65,7 +65,6 @@ lazy val kafka = (project in file("kafka"))
       "io.circe" %% "circe-core"    % circeVersion,
       "io.circe" %% "circe-generic" % circeVersion,
       "io.circe" %% "circe-parser"  % circeVersion,
-      "io.circe" %% "circe-refined" % circeVersion,
 //base
       "org.typelevel" %% "cats-core"                    % catsCore,
       "org.typelevel" %% "cats-mtl-core"                % catsMtl,
@@ -79,7 +78,6 @@ lazy val kafka = (project in file("kafka"))
       "com.github.julien-truffaut" %% "monocle-generic" % monocle,
       "com.github.julien-truffaut" %% "monocle-macro"   % monocle,
       "com.github.julien-truffaut" %% "monocle-state"   % monocle,
-      "com.github.julien-truffaut" %% "monocle-refined" % monocle,
       "com.github.julien-truffaut" %% "monocle-unsafe"  % monocle
     ),
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
