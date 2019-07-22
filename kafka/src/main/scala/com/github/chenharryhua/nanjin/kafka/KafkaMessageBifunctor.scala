@@ -113,7 +113,7 @@ trait AkkaMessageBifunctor extends KafkaMessageBifunctor {
       override def bimap[K1, V1, K2, V2](
         m: Message[K1, V1, P]
       )(k: K1 => K2, v: V1 => V2): Message[K2, V2, P] =
-        new Message[K2, V2, P](Bifunctor[ProducerRecord].bimap(m.record)(k, v), m.passThrough)
+        m.copy(record = Bifunctor[ProducerRecord].bimap(m.record)(k, v))
     }
 
   implicit final val akkaCommittableMessageBifunctor: Bifunctor[CommittableMessage[?, ?]] =
@@ -123,5 +123,4 @@ trait AkkaMessageBifunctor extends KafkaMessageBifunctor {
       )(k: K1 => K2, v: V1 => V2): CommittableMessage[K2, V2] =
         cm.copy(record = Bifunctor[ConsumerRecord].bimap(cm.record)(k, v))
     }
-
 }
