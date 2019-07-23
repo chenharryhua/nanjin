@@ -6,18 +6,15 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.CodecException._
 import fs2.kafka.{CommittableMessage => Fs2CommittableMessage}
 import org.apache.kafka.clients.consumer.ConsumerRecord
-import org.apache.kafka.common.serialization.{Deserializer, Serde}
+import org.apache.kafka.common.serialization.Deserializer
 
 import scala.util.{Failure, Success, Try}
 
 abstract class KafkaMessageDecoder[F[_, _]: Bitraverse, K, V](
   topicName: KafkaTopicName,
-  keySerde: Serde[K],
-  valueSerde: Serde[V])
+  keyDeser: Deserializer[K],
+  valueDeser: Deserializer[V])
     extends Serializable {
-
-  private val keyDeser: Deserializer[K]   = keySerde.deserializer
-  private val valueDeser: Deserializer[V] = valueSerde.deserializer
 
   private def keyDecode(data: Array[Byte]): Try[K] =
     Option(data)
@@ -46,9 +43,9 @@ object decoders extends Fs2MessageBitraverse with AkkaMessageBitraverse {
 
   final class ConsumerRecordDecoder[K, V](
     topicName: KafkaTopicName,
-    keySerde: Serde[K],
-    valueSerde: Serde[V]
-  ) extends KafkaMessageDecoder[ConsumerRecord, K, V](topicName, keySerde, valueSerde)
+    keyDeser: Deserializer[K],
+    valueDeser: Deserializer[V]
+  ) extends KafkaMessageDecoder[ConsumerRecord, K, V](topicName, keyDeser, valueDeser)
 
   trait Fs2MessageDecoder[F[_], K, V]
       extends KafkaMessageDecoder[Fs2CommittableMessage[F, ?, ?], K, V]
