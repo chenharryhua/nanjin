@@ -20,21 +20,21 @@ final class KafkaAvroSerde[A >: Null: SchemaFor: Encoder: Decoder] extends Serde
   override val serializer: Serializer[KafkaAvro[A]] =
     (topic: String, data: KafkaAvro[A]) =>
       Option(data).flatMap(x => Option(x.value)) match {
-        case None => null.asInstanceOf[Array[Byte]]
         case Some(d) =>
           val baos   = new ByteArrayOutputStream()
           val output = AvroOutputStream.binary[A].to(baos).build(schema)
           output.write(d)
           output.close()
           baos.toByteArray
+        case None => null.asInstanceOf[Array[Byte]]
       }
 
   override val deserializer: Deserializer[KafkaAvro[A]] =
     (topic: String, data: Array[Byte]) =>
       Option(data) match {
-        case None => null.asInstanceOf[KafkaAvro[A]]
         case Some(d) =>
           val input = AvroInputStream.binary[A].from(d).build(schema)
           KafkaAvro(input.iterator.next)
+        case None => null.asInstanceOf[KafkaAvro[A]]
       }
 }

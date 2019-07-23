@@ -3,16 +3,18 @@ package com.github.chenharryhua.nanjin.kafka
 import java.util.Properties
 
 import cats.Show
-import monocle.macros.Lenses
-import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Serializer}
 import cats.implicits._
+import monocle.Traversal
+import monocle.function.At.at
+import monocle.macros.Lenses
+import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Serializer}
 
 @Lenses final case class Fs2Settings(
   consumerProps: Map[String, String],
   producerProps: Map[String, String]
 ) {
-  import fs2.kafka.ConsumerSettings
-  import fs2.kafka.ProducerSettings
+  import fs2.kafka.{ConsumerSettings, ProducerSettings}
 
   def consumerSettings: ConsumerSettings[Array[Byte], Array[Byte]] =
     ConsumerSettings[Array[Byte], Array[Byte]](new ByteArrayDeserializer, new ByteArrayDeserializer)
@@ -34,9 +36,7 @@ import cats.implicits._
   producerProps: Map[String, String]
 ) {
   import akka.actor.ActorSystem
-  import akka.kafka.ConsumerSettings
-  import akka.kafka.ProducerSettings
-  import akka.kafka.CommitterSettings
+  import akka.kafka.{CommitterSettings, ConsumerSettings, ProducerSettings}
 
   def consumerSettings(system: ActorSystem): ConsumerSettings[Array[Byte], Array[Byte]] =
     akka.kafka
@@ -121,10 +121,32 @@ import cats.implicits._
   fs2Settings: Fs2Settings,
   akkaSettings: AkkaSettings,
   streamSettings: KafkaStreamSettings,
-  schemaRegistrySettings: SchemaRegistrySettings,
   sharedAdminSettings: SharedAdminSettings,
   sharedConsumerSettings: SharedConsumerSettings,
-  sharedProducerSettings: SharedProducerSettings) {
+  sharedProducerSettings: SharedProducerSettings,
+  schemaRegistrySettings: SchemaRegistrySettings) {
+
+  def schemaRegistry(url: String, cacheSize: Int): KafkaSettings =
+    copy(schemaRegistrySettings = SchemaRegistrySettings(url, cacheSize))
+
+  private def updateAll(key: String, value: String): KafkaSettings = {
+    Traversal
+      .applyN[KafkaSettings, Map[String, String]](
+        KafkaSettings.fs2Settings.composeLens(Fs2Settings.consumerProps),
+        KafkaSettings.fs2Settings.composeLens(Fs2Settings.producerProps),
+        KafkaSettings.akkaSettings.composeLens(AkkaSettings.consumerProps),
+        KafkaSettings.akkaSettings.composeLens(AkkaSettings.producerProps),
+        KafkaSettings.streamSettings.composeLens(KafkaStreamSettings.settings),
+        KafkaSettings.sharedAdminSettings.composeLens(SharedAdminSettings.settings),
+        KafkaSettings.sharedConsumerSettings.composeLens(SharedConsumerSettings.settings),
+        KafkaSettings.sharedProducerSettings.composeLens(SharedProducerSettings.settings)
+      )
+      .composeLens(at(key))
+      .set(Some(value))(this)
+  }
+
+  def brokers(brokers: String): KafkaSettings =
+    updateAll(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers)
 
   def show: String =
     s"""
@@ -140,5 +162,16 @@ import cats.implicits._
 }
 
 object KafkaSettings {
+
+  val empty: KafkaSettings = KafkaSettings(
+    Fs2Settings(Map(), Map()),
+    AkkaSettings(Map(), Map()),
+    KafkaStreamSettings(Map()),
+    SharedAdminSettings(Map()),
+    SharedConsumerSettings(Map()),
+    SharedProducerSettings(Map()),
+    SchemaRegistrySettings("", 0)
+  )
+
   implicit val showKafkaSettings: Show[KafkaSettings] = _.show
 }
