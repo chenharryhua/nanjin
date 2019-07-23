@@ -12,6 +12,8 @@ import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.config.SaslConfigs
 import org.apache.kafka.common.security.auth.SecurityProtocol
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Serializer}
+import org.apache.kafka.streams.StreamsConfig
+import org.apache.kafka.streams.errors.LogAndContinueExceptionHandler
 
 @Lenses final case class Fs2Settings(
   consumerProps: Map[String, String],
@@ -42,12 +44,10 @@ import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Serializer}
   import akka.kafka.{CommitterSettings, ConsumerSettings, ProducerSettings}
 
   def consumerSettings(system: ActorSystem): ConsumerSettings[Array[Byte], Array[Byte]] =
-    akka.kafka
-      .ConsumerSettings[Array[Byte], Array[Byte]](
-        system,
-        new ByteArrayDeserializer,
-        new ByteArrayDeserializer)
-      .withProperties(consumerProps)
+    ConsumerSettings[Array[Byte], Array[Byte]](
+      system,
+      new ByteArrayDeserializer,
+      new ByteArrayDeserializer).withProperties(consumerProps)
 
   def producerSettings[K, V](
     system: ActorSystem,
@@ -66,57 +66,58 @@ import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Serializer}
      """.stripMargin
 }
 
-@Lenses final case class KafkaStreamSettings(settings: Map[String, String]) {
+@Lenses final case class KafkaStreamSettings(props: Map[String, String]) {
 
-  val props: Properties = (new Properties() /: settings) { case (a, (k, v)) => a.put(k, v); a }
+  val settings: Properties = (new Properties() /: props) { case (a, (k, v)) => a.put(k, v); a }
 
   def show: String =
     s"""
        |kafka streaming settings:
-       |${settings.show}
+       |${props.show}
      """.stripMargin
 }
 
-@Lenses final case class SharedProducerSettings(settings: Map[String, String]) {
+@Lenses final case class SharedProducerSettings(props: Map[String, String]) {
 
-  val props: Properties = (new Properties() /: settings) { case (a, (k, v)) => a.put(k, v); a }
+  val settings: Properties = (new Properties() /: props) { case (a, (k, v)) => a.put(k, v); a }
 
   def show: String =
     s"""
        |kafka shared producer settings:
-       |${settings.show}
+       |${props.show}
      """.stripMargin
 }
 
-@Lenses final case class SharedConsumerSettings(settings: Map[String, String]) {
+@Lenses final case class SharedConsumerSettings(props: Map[String, String]) {
 
-  val props: Properties = (new Properties() /: settings) { case (a, (k, v)) => a.put(k, v); a }
+  val settings: Properties = (new Properties() /: props) { case (a, (k, v)) => a.put(k, v); a }
 
   def show: String =
     s"""
        |shared consumer settings:
-       |${settings.show}
+       |${props.show}
      """.stripMargin
 }
 
-@Lenses final case class SharedAdminSettings(settings: Map[String, String]) {
+@Lenses final case class SharedAdminSettings(props: Map[String, String]) {
 
-  val props: Properties = (new Properties() /: settings) { case (a, (k, v)) => a.put(k, v); a }
+  val settings: Properties = (new Properties() /: props) { case (a, (k, v)) => a.put(k, v); a }
 
   def show: String =
     s"""
        |shared admin settings:
-       |${settings.show}
+       |${props.show}
      """.stripMargin
 }
 
-@Lenses final case class SchemaRegistrySettings(url: String, cacheSize: Int) {
+@Lenses final case class SchemaRegistrySettings(props: Map[String, String]) {
+  val cacheSize: Int = 500
 
   def show: String =
     s"""
        |schema registry settings:
-       |url: $url
        |cache size: $cacheSize
+       |settings:   ${props.show}
      """.stripMargin
 }
 
@@ -136,26 +137,54 @@ import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Serializer}
         KafkaSettings.fs2Settings.composeLens(Fs2Settings.producerProps),
         KafkaSettings.akkaSettings.composeLens(AkkaSettings.consumerProps),
         KafkaSettings.akkaSettings.composeLens(AkkaSettings.producerProps),
-        KafkaSettings.streamSettings.composeLens(KafkaStreamSettings.settings),
-        KafkaSettings.sharedAdminSettings.composeLens(SharedAdminSettings.settings),
-        KafkaSettings.sharedConsumerSettings.composeLens(SharedConsumerSettings.settings),
-        KafkaSettings.sharedProducerSettings.composeLens(SharedProducerSettings.settings)
+        KafkaSettings.streamSettings.composeLens(KafkaStreamSettings.props),
+        KafkaSettings.sharedAdminSettings.composeLens(SharedAdminSettings.props),
+        KafkaSettings.sharedConsumerSettings.composeLens(SharedConsumerSettings.props),
+        KafkaSettings.sharedProducerSettings.composeLens(SharedProducerSettings.props)
       )
       .composeLens(at(key))
       .set(Some(value))(this)
   }
 
-  def brokers(brokers: String): KafkaSettings =
-    updateAll(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers)
+  def brokers(bs: String): KafkaSettings =
+    updateAll(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bs)
 
-  def saslJaas(value: String): KafkaSettings =
-    updateAll(SaslConfigs.SASL_JAAS_CONFIG, value)
+  def saslJaas(sj: String): KafkaSettings =
+    updateAll(SaslConfigs.SASL_JAAS_CONFIG, sj)
 
   def securityProtocol(sp: SecurityProtocol): KafkaSettings =
     updateAll(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, sp.name)
 
-  def schemaRegistry(url: String, cacheSize: Int): KafkaSettings =
-    copy(schemaRegistrySettings = SchemaRegistrySettings(url, cacheSize))
+  def schemaRegistry(key: String, value: String): KafkaSettings =
+    KafkaSettings.schemaRegistrySettings
+      .composeLens(SchemaRegistrySettings.props)
+      .composeLens(at(key))
+      .set(Some(value))(this)
+
+  def producerProperties(key: String, value: String): KafkaSettings =
+    Traversal
+      .applyN[KafkaSettings, Map[String, String]](
+        KafkaSettings.fs2Settings.composeLens(Fs2Settings.producerProps),
+        KafkaSettings.akkaSettings.composeLens(AkkaSettings.producerProps))
+      .composeLens(at(key))
+      .set(Some(value))(this)
+
+  def consumerProperties(key: String, value: String): KafkaSettings =
+    Traversal
+      .applyN[KafkaSettings, Map[String, String]](
+        KafkaSettings.fs2Settings.composeLens(Fs2Settings.consumerProps),
+        KafkaSettings.akkaSettings.composeLens(AkkaSettings.consumerProps))
+      .composeLens(at(key))
+      .set(Some(value))(this)
+
+  def streamProperties(key: String, value: String): KafkaSettings =
+    KafkaSettings.streamSettings
+      .composeLens(KafkaStreamSettings.props)
+      .composeLens(at(key))
+      .set(Some(value))(this)
+
+  def groupId(gid: String): KafkaSettings =
+    consumerProperties(ConsumerConfig.GROUP_ID_CONFIG, gid)
 
   def show: String =
     s"""
@@ -179,7 +208,31 @@ object KafkaSettings {
     SharedAdminSettings(Map()),
     SharedConsumerSettings(Map()),
     SharedProducerSettings(Map()),
-    SchemaRegistrySettings("", 0)
+    SchemaRegistrySettings(Map())
+  )
+
+  val predefine: KafkaSettings = KafkaSettings(
+    Fs2Settings(
+      Map(
+        ConsumerConfig.MAX_POLL_RECORDS_CONFIG -> "500",
+        ConsumerConfig.AUTO_OFFSET_RESET_CONFIG -> "earliest"
+      ),
+      Map()
+    ),
+    AkkaSettings(
+      Map(
+        ConsumerConfig.MAX_POLL_RECORDS_CONFIG -> "100",
+        ConsumerConfig.AUTO_OFFSET_RESET_CONFIG -> "earliest"
+      ),
+      Map()
+    ),
+    KafkaStreamSettings(
+      Map(StreamsConfig.DEFAULT_DESERIALIZATION_EXCEPTION_HANDLER_CLASS_CONFIG ->
+        classOf[LogAndContinueExceptionHandler].getName)),
+    SharedAdminSettings(Map()),
+    SharedConsumerSettings(Map()),
+    SharedProducerSettings(Map()),
+    SchemaRegistrySettings(Map())
   )
   implicit val showKafkaSettings: Show[KafkaSettings] = _.show
 }
