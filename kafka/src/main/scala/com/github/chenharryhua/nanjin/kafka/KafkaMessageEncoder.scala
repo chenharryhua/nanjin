@@ -17,15 +17,15 @@ object encoders {
     val topicName: KafkaTopicName,
     keySerde: Serde[K],
     valueSerde: Serde[V])
-      extends KafkaMessageEncoder with KafkaMessageBifunctor {
+      extends KafkaMessageEncoder with KafkaMessageBitraverse {
 
-    private val keySer: Serializer[K]   = keySerde.serializer()
-    private val valueSer: Serializer[V] = valueSerde.serializer()
+    private val keySer: Serializer[K]   = keySerde.serializer
+    private val valueSer: Serializer[V] = valueSerde.serializer
     private val tName: String           = topicName.value
 
     def cloneRecord(rec: ConsumerRecord[K, V]): ProducerRecord[Array[Byte], Array[Byte]] =
-      super
-        .fromConsumerRecord(tName, rec)
+      super.topicLens
+        .set(tName)(rec)
         .bimap(keySer.serialize(tName, _), valueSer.serialize(tName, _))
 
     def record(k: Array[Byte], v: Array[Byte]): ProducerRecord[Array[Byte], Array[Byte]] =
@@ -41,7 +41,7 @@ object encoders {
       new ProducerRecord(tName, keySer.serialize(tName, k), valueSer.serialize(tName, v))
   }
 
-  trait AkkaMessageEncoder[K, V] extends KafkaMessageEncoder with KafkaMessageBifunctor {
+  trait AkkaMessageEncoder[K, V] extends KafkaMessageEncoder with KafkaMessageBitraverse {
     import akka.NotUsed
     import akka.kafka.ConsumerMessage.CommittableMessage
     import akka.kafka.ProducerMessage.Envelope
@@ -61,7 +61,7 @@ object encoders {
       ProducerMessage.multi(msg.map(kv => record(kv._1, kv._2)), cof)
 
     final def cloneRecord(cm: CommittableMessage[K, V]): ProducerRecord[K, V] =
-      super.fromConsumerRecord(topicName.value, cm.record)
+      super.topicLens.set(topicName.value)(cm.record)
 
     final def cloneSingle(
       cm: CommittableMessage[K, V]): Envelope[K, V, ConsumerMessage.CommittableOffset] =
@@ -75,7 +75,7 @@ object encoders {
 
   }
 
-  trait Fs2MessageEncoder[F[_], K, V] extends KafkaMessageEncoder with Fs2MessageBifunctor {
+  trait Fs2MessageEncoder[F[_], K, V] extends KafkaMessageEncoder with Fs2MessageBitraverse {
     import fs2.Chunk
     import fs2.kafka.{CommittableMessage, CommittableOffset, Id, ProducerMessage, ProducerRecord}
 
@@ -98,7 +98,7 @@ object encoders {
       ProducerMessage(msgs.map { case (k, v) => record(k, v) }, None)
 
     final def cloneRecord(cm: CommittableMessage[F, K, V]): ProducerRecord[K, V] = {
-      super.fs2ProducerRecordIso.reverseGet(super.fromConsumerRecord(topicName.value, cm.record))
+      super.iso.reverseGet(super.topicLens.set(topicName.value)(cm.record))
     }
 
     final def cloneSingle(
