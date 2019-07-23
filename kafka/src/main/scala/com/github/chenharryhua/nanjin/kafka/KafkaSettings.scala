@@ -7,7 +7,10 @@ import cats.implicits._
 import monocle.Traversal
 import monocle.function.At.at
 import monocle.macros.Lenses
+import org.apache.kafka.clients.CommonClientConfigs
 import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.common.config.SaslConfigs
+import org.apache.kafka.common.security.auth.SecurityProtocol
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Serializer}
 
 @Lenses final case class Fs2Settings(
@@ -126,9 +129,6 @@ import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Serializer}
   sharedProducerSettings: SharedProducerSettings,
   schemaRegistrySettings: SchemaRegistrySettings) {
 
-  def schemaRegistry(url: String, cacheSize: Int): KafkaSettings =
-    copy(schemaRegistrySettings = SchemaRegistrySettings(url, cacheSize))
-
   private def updateAll(key: String, value: String): KafkaSettings = {
     Traversal
       .applyN[KafkaSettings, Map[String, String]](
@@ -147,6 +147,15 @@ import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Serializer}
 
   def brokers(brokers: String): KafkaSettings =
     updateAll(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers)
+
+  def saslJaas(value: String): KafkaSettings =
+    updateAll(SaslConfigs.SASL_JAAS_CONFIG, value)
+
+  def securityProtocol(sp: SecurityProtocol): KafkaSettings =
+    updateAll(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, sp.name)
+
+  def schemaRegistry(url: String, cacheSize: Int): KafkaSettings =
+    copy(schemaRegistrySettings = SchemaRegistrySettings(url, cacheSize))
 
   def show: String =
     s"""
@@ -172,6 +181,5 @@ object KafkaSettings {
     SharedProducerSettings(Map()),
     SchemaRegistrySettings("", 0)
   )
-
   implicit val showKafkaSettings: Show[KafkaSettings] = _.show
 }
