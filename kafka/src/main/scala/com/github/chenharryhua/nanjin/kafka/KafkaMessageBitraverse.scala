@@ -7,7 +7,7 @@ import monocle.{Iso, PLens}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 
-trait KafkaMessageBitraverse {
+trait KafkaMessageBitraverse extends Serializable {
 
   implicit final val consumerRecordBitraverse: Bitraverse[ConsumerRecord[?, ?]] =
     new Bitraverse[ConsumerRecord] {
@@ -67,7 +67,7 @@ trait KafkaMessageBitraverse {
         g: (B, Eval[C]) => Eval[C]): Eval[C] = g(fab.value, f(fab.key, c))
     }
 
-  def topicLens[K, V]: PLens[ConsumerRecord[K, V], ProducerRecord[K, V], String, String] =
+  def recordTopicLens[K, V]: PLens[ConsumerRecord[K, V], ProducerRecord[K, V], String, String] =
     PLens[ConsumerRecord[K, V], ProducerRecord[K, V], String, String](_.topic)(t =>
       rec => new ProducerRecord(t, rec.partition, rec.timestamp, rec.key, rec.value, rec.headers))
 }
@@ -82,7 +82,7 @@ trait Fs2MessageBitraverse extends KafkaMessageBitraverse {
     ProducerRecord => Fs2ProducerRecord
   }
 
-  final def iso[K, V]: Iso[Fs2ProducerRecord[K, V], ProducerRecord[K, V]] =
+  final def fs2ProducerRecordIso[K, V]: Iso[Fs2ProducerRecord[K, V], ProducerRecord[K, V]] =
     Iso[Fs2ProducerRecord[K, V], ProducerRecord[K, V]](
       s =>
         new ProducerRecord[K, V](
@@ -118,15 +118,15 @@ trait Fs2MessageBitraverse extends KafkaMessageBitraverse {
     new Bitraverse[Fs2ProducerRecord] {
       override def bitraverse[G[_]: Applicative, A, B, C, D](
         fab: Fs2ProducerRecord[A, B])(f: A => G[C], g: B => G[D]): G[Fs2ProducerRecord[C, D]] =
-        iso.get(fab).bitraverse(f, g).map(i => iso.reverseGet(i))
+        fs2ProducerRecordIso.get(fab).bitraverse(f, g).map(i => fs2ProducerRecordIso.reverseGet(i))
 
       override def bifoldLeft[A, B, C](fab: Fs2ProducerRecord[A, B], c: C)(
         f: (C, A) => C,
-        g: (C, B) => C): C = iso.get(fab).bifoldLeft(c)(f, g)
+        g: (C, B) => C): C = fs2ProducerRecordIso.get(fab).bifoldLeft(c)(f, g)
 
       override def bifoldRight[A, B, C](fab: Fs2ProducerRecord[A, B], c: Eval[C])(
         f: (A, Eval[C]) => Eval[C],
-        g: (B, Eval[C]) => Eval[C]): Eval[C] = iso.get(fab).bifoldRight(c)(f, g)
+        g: (B, Eval[C]) => Eval[C]): Eval[C] = fs2ProducerRecordIso.get(fab).bifoldRight(c)(f, g)
     }
 
   implicit final def fs2ProducerMessageBitraverse[P]: Bitraverse[ProducerMessage[Id, ?, ?, P]] =

@@ -1,5 +1,4 @@
 package com.github.chenharryhua.nanjin.kafka
-
 final case class KafkaTopicName(value: String) extends AnyVal {
   def keySchemaLoc: String   = s"$value-key"
   def valueSchemaLoc: String = s"$value-value"

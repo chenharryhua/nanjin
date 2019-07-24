@@ -202,13 +202,13 @@ import org.apache.kafka.streams.errors.LogAndContinueExceptionHandler
 object KafkaSettings {
 
   val empty: KafkaSettings = KafkaSettings(
-    Fs2Settings(Map(), Map()),
-    AkkaSettings(Map(), Map()),
-    KafkaStreamSettings(Map()),
-    SharedAdminSettings(Map()),
-    SharedConsumerSettings(Map()),
-    SharedProducerSettings(Map()),
-    SchemaRegistrySettings(Map())
+    Fs2Settings(Map.empty, Map.empty),
+    AkkaSettings(Map.empty, Map.empty),
+    KafkaStreamSettings(Map.empty),
+    SharedAdminSettings(Map.empty),
+    SharedConsumerSettings(Map.empty),
+    SharedProducerSettings(Map.empty),
+    SchemaRegistrySettings(Map.empty)
   )
 
   val predefine: KafkaSettings = KafkaSettings(
@@ -217,22 +217,25 @@ object KafkaSettings {
         ConsumerConfig.MAX_POLL_RECORDS_CONFIG -> "500",
         ConsumerConfig.AUTO_OFFSET_RESET_CONFIG -> "earliest"
       ),
-      Map()
+      Map.empty
     ),
     AkkaSettings(
       Map(
         ConsumerConfig.MAX_POLL_RECORDS_CONFIG -> "100",
         ConsumerConfig.AUTO_OFFSET_RESET_CONFIG -> "earliest"
       ),
-      Map()
+      Map.empty
     ),
     KafkaStreamSettings(
-      Map(StreamsConfig.DEFAULT_DESERIALIZATION_EXCEPTION_HANDLER_CLASS_CONFIG ->
-        classOf[LogAndContinueExceptionHandler].getName)),
-    SharedAdminSettings(Map()),
-    SharedConsumerSettings(Map()),
-    SharedProducerSettings(Map()),
-    SchemaRegistrySettings(Map())
+      Map(
+        StreamsConfig.DEFAULT_DESERIALIZATION_EXCEPTION_HANDLER_CLASS_CONFIG ->
+          classOf[LogAndContinueExceptionHandler].getName,
+        StreamsConfig.NUM_STREAM_THREADS_CONFIG -> "3"
+      )),
+    SharedAdminSettings(Map.empty),
+    SharedConsumerSettings(Map.empty),
+    SharedProducerSettings(Map.empty),
+    SchemaRegistrySettings(Map.empty)
   )
   implicit val showKafkaSettings: Show[KafkaSettings] = _.show
 }

@@ -7,30 +7,31 @@ import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 
 import scala.util.{Success, Try}
 
-final case class KafkaJson[A](value: A) extends AnyVal
+final case class KJson[A](value: A) extends AnyVal
 
-object KafkaJson {
+object KJson {
   import io.circe.generic.semiauto._
-  implicit def kafkaJsonDecoder[A: Decoder]: Decoder[KafkaJson[A]] = deriveDecoder[KafkaJson[A]]
-  implicit def kafkaJsonEncoder[A: Encoder]: Encoder[KafkaJson[A]] = deriveEncoder[KafkaJson[A]]
-  implicit def showKafkaJson[A: Encoder]: Show[KafkaJson[A]]       = _.value.asJson.noSpaces
+  implicit def kafkaJsonDecoder[A: Decoder]: Decoder[KJson[A]] = deriveDecoder[KJson[A]]
+  implicit def kafkaJsonEncoder[A: Encoder]: Encoder[KJson[A]] = deriveEncoder[KJson[A]]
+  implicit def showKafkaJson[A: Encoder]: Show[KJson[A]]       = _.value.asJson.noSpaces
 }
-@SuppressWarnings(Array("AsInstanceOf"))
-final class KafkaJsonSerde[A >: Null: Decoder: Encoder] extends Serde[KafkaJson[A]] {
 
-  override val serializer: Serializer[KafkaJson[A]] =
-    (topic: String, data: KafkaJson[A]) =>
+@SuppressWarnings(Array("AsInstanceOf"))
+final class KafkaJsonSerde[A: Decoder: Encoder] extends Serde[KJson[A]] {
+
+  override val serializer: Serializer[KJson[A]] =
+    (_: String, data: KJson[A]) =>
       Option(data).flatMap(x => Option(x.value)) match {
         case Some(d) => d.asJson.noSpaces.getBytes
         case None    => null.asInstanceOf[Array[Byte]]
       }
 
   @throws
-  override val deserializer: Deserializer[KafkaJson[A]] =
-    (topic: String, data: Array[Byte]) => {
-      val tryDecode: Try[KafkaJson[A]] = Option(data) match {
-        case Some(d) => parser.decode[A](new String(d)).map(KafkaJson(_)).toTry
-        case None    => Success(null.asInstanceOf[KafkaJson[A]])
+  override val deserializer: Deserializer[KJson[A]] =
+    (_: String, data: Array[Byte]) => {
+      val tryDecode: Try[KJson[A]] = Option(data) match {
+        case Some(d) => parser.decode[A](new String(d)).map(KJson(_)).toTry
+        case None    => Success(null.asInstanceOf[KJson[A]])
       }
       tryDecode.fold(throw _, identity)
     }

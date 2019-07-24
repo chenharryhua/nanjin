@@ -7,18 +7,17 @@ import com.sksamuel.avro4s._
 import org.apache.avro.Schema
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 
-final case class KafkaAvro[A](value: A) extends AnyVal
+final case class KAvro[A](value: A) extends AnyVal
 
-object KafkaAvro {
-  implicit def showKafkaAvro[A: Show]: Show[KafkaAvro[A]] = _.value.show
+object KAvro {
+  implicit def showKafkaAvro[A: Show]: Show[KAvro[A]] = _.value.show
 }
 
 @SuppressWarnings(Array("AsInstanceOf"))
-final class KafkaAvroSerde[A >: Null: SchemaFor: Encoder: Decoder] extends Serde[KafkaAvro[A]] {
-  private[this] val schema: Schema = AvroSchema[A]
+final class KafkaAvroSerde[A: Decoder: Encoder](schema: Schema) extends Serde[KAvro[A]] {
 
-  override val serializer: Serializer[KafkaAvro[A]] =
-    (topic: String, data: KafkaAvro[A]) =>
+  override val serializer: Serializer[KAvro[A]] =
+    (_: String, data: KAvro[A]) =>
       Option(data).flatMap(x => Option(x.value)) match {
         case Some(d) =>
           val baos   = new ByteArrayOutputStream()
@@ -29,12 +28,12 @@ final class KafkaAvroSerde[A >: Null: SchemaFor: Encoder: Decoder] extends Serde
         case None => null.asInstanceOf[Array[Byte]]
       }
 
-  override val deserializer: Deserializer[KafkaAvro[A]] =
-    (topic: String, data: Array[Byte]) =>
+  override val deserializer: Deserializer[KAvro[A]] =
+    (_: String, data: Array[Byte]) =>
       Option(data) match {
         case Some(d) =>
           val input = AvroInputStream.binary[A].from(d).build(schema)
-          KafkaAvro(input.iterator.next)
-        case None => null.asInstanceOf[KafkaAvro[A]]
+          KAvro(input.iterator.next)
+        case None => null.asInstanceOf[KAvro[A]]
       }
 }
