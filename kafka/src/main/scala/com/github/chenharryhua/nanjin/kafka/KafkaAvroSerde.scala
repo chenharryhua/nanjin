@@ -14,7 +14,8 @@ object KAvro {
 }
 
 @SuppressWarnings(Array("AsInstanceOf"))
-final class KafkaAvroSerde[A: Decoder: Encoder](schema: Schema) extends Serde[KAvro[A]] {
+final class KafkaAvroSerde[A: Decoder: Encoder](schema: Schema)
+    extends Serde[KAvro[A]] with Serializable {
 
   override val serializer: Serializer[KAvro[A]] =
     (_: String, data: KAvro[A]) =>

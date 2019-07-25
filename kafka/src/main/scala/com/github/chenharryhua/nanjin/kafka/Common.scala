@@ -1,8 +1,4 @@
 package com.github.chenharryhua.nanjin.kafka
-final case class KafkaTopicName(value: String) extends AnyVal {
-  def keySchemaLoc: String   = s"$value-key"
-  def valueSchemaLoc: String = s"$value-value"
-}
 
 sealed abstract class CodecException(msg: String)
     extends Exception(msg) with Product with Serializable

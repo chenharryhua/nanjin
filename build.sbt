@@ -38,7 +38,7 @@ lazy val commonSettings = Seq(
     "-language:higherKinds",
     "-unchecked",
     "-Xfatal-warnings",
-  //  "-Xlint",
+    //  "-Xlint",
     "-Yno-adapted-args",
     "-Ywarn-dead-code",
     "-Ywarn-numeric-widen",
@@ -78,7 +78,8 @@ lazy val kafka = (project in file("kafka"))
       "com.github.julien-truffaut" %% "monocle-generic" % monocle,
       "com.github.julien-truffaut" %% "monocle-macro"   % monocle,
       "com.github.julien-truffaut" %% "monocle-state"   % monocle,
-      "com.github.julien-truffaut" %% "monocle-unsafe"  % monocle
+      "com.github.julien-truffaut" %% "monocle-unsafe"  % monocle,
+      "org.scalatest" %% "scalatest"                    % "3.0.8" % Test
     ),
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )

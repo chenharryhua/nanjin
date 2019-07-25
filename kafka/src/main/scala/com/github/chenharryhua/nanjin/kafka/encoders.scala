@@ -9,10 +9,21 @@ import scala.collection.immutable
 
 object encoders {
 
+  def producerRecordEncoder[K: SerdeOf, V: SerdeOf](
+    topicName: KafkaTopicName): ProducerRecordEncoder[K, V] =
+    new ProducerRecordEncoder(topicName, SerdeOf[K].serializer, SerdeOf[V].serializer)
+
+  def akkaMessageEncoder[K, V](topicName: KafkaTopicName): AkkaMessageEncoder[K, V] =
+    new AkkaMessageEncoder[K, V](topicName)
+
+  def fs2MessageEncoder[F[_], K, V](topicName: KafkaTopicName): Fs2MessageEncoder[F, K, V] =
+    new Fs2MessageEncoder[F, K, V](topicName)
+
   final class ProducerRecordEncoder[K, V](
     topicName: KafkaTopicName,
     keySerializer: Serializer[K],
-    valueSerializer: Serializer[V]) {
+    valueSerializer: Serializer[V])
+      extends Serializable {
 
     private val tName: String = topicName.value
 
@@ -37,7 +48,7 @@ object encoders {
         valueSerializer.serialize(tName, v))
   }
 
-  final class AkkaMessageEncoder[K, V](topicName: KafkaTopicName) {
+  final class AkkaMessageEncoder[K, V](topicName: KafkaTopicName) extends Serializable {
     import akka.NotUsed
     import akka.kafka.ConsumerMessage.CommittableMessage
     import akka.kafka.ProducerMessage.Envelope
@@ -72,7 +83,7 @@ object encoders {
       ProducerMessage.multi(cms.map(cloneRecord).toList, cms.last.committableOffset)
   }
 
-  final class Fs2MessageEncoder[F[_], K, V](topicName: KafkaTopicName) {
+  final class Fs2MessageEncoder[F[_], K, V](topicName: KafkaTopicName) extends Serializable {
     import fs2.Chunk
     import fs2.kafka.{CommittableMessage, CommittableOffset, Id, ProducerMessage, ProducerRecord}
 

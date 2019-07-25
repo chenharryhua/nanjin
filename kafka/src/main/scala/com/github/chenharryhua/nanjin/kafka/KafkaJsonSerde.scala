@@ -17,7 +17,7 @@ object KJson {
 }
 
 @SuppressWarnings(Array("AsInstanceOf"))
-final class KafkaJsonSerde[A: Decoder: Encoder] extends Serde[KJson[A]] {
+final class KafkaJsonSerde[A: Decoder: Encoder] extends Serde[KJson[A]] with Serializable {
 
   override val serializer: Serializer[KJson[A]] =
     (_: String, data: KJson[A]) =>
