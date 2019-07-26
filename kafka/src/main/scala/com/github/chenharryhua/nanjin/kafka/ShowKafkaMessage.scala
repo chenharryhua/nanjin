@@ -10,41 +10,41 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 
 trait ShowKafkaMessage {
-  private def utc(t: Long): Instant = Instant.ofEpochMilli(t)
+  protected def utc(t: Long): Instant = Instant.ofEpochMilli(t)
+
   implicit protected def showConsumerRecords[K: Show, V: Show]: Show[ConsumerRecord[K, V]] =
     (t: ConsumerRecord[K, V]) => {
       val dt = utc(t.timestamp())
-      s"""
-         |consumer record:
-         |topic:        ${t.topic()}
-         |partition:    ${t.partition()}
-         |headers:      ${t.headers()}
-         |offset:       ${t.offset()}
-         |timestamp:    ${t.timestamp()}
-         |utc:          $dt
-         |local-time:   ${dt.atZone(ZoneId.systemDefault())}
-         |ts-type:      ${t.timestampType()}
-         |key:          ${t.key().show}
-         |value:        ${t.value().show}
-         |key-size:     ${t.serializedKeySize()}
-         |value-size:   ${t.serializedValueSize()}
-         |leader epoch: ${t.leaderEpoch}""".stripMargin
+      s"""|consumer record:
+          |topic:        ${t.topic()}
+          |partition:    ${t.partition()}
+          |headers:      ${t.headers()}
+          |offset:       ${t.offset()}
+          |timestamp:    ${t.timestamp()}
+          |utc:          $dt
+          |local-time:   ${dt.atZone(ZoneId.systemDefault())}
+          |ts-type:      ${t.timestampType()}
+          |key:          ${t.key().show}
+          |value:        ${t.value().show}
+          |key-size:     ${t.serializedKeySize()}
+          |value-size:   ${t.serializedValueSize()}
+          |leader epoch: ${t.leaderEpoch}""".stripMargin
     }
 
   implicit protected def showProducerRecord[K: Show, V: Show]: Show[ProducerRecord[K, V]] =
     (t: ProducerRecord[K, V]) => {
       val dt = utc(t.timestamp())
-      s"""
-         |producer record:
-         |topic:      ${t.topic}
-         |partition:  ${t.partition}
-         |headers:    ${t.headers}
-         |timestamp:  ${t.timestamp()}
-         |utc:        $dt
-         |local-time: ${dt.atZone(ZoneId.systemDefault())}
-         |key:        ${t.key.show}
-         |valu:       ${t.value.show}""".stripMargin
+      s"""|producer record:
+          |topic:      ${t.topic}
+          |partition:  ${t.partition}
+          |headers:    ${t.headers}
+          |timestamp:  ${t.timestamp()}
+          |utc:        $dt
+          |local-time: ${dt.atZone(ZoneId.systemDefault())}
+          |key:        ${t.key.show}
+          |value:      ${t.value.show}""".stripMargin
     }
+
   implicit protected def showFs2CommittableMessage[F[_], K: Show, V: Show]
     : Show[Fs2CommittableMessage[F, K, V]] =
     (t: Fs2CommittableMessage[F, K, V]) => {
