@@ -9,9 +9,11 @@ import scala.collection.immutable
 
 object encoders extends Fs2MessageBitraverse with AkkaMessageBitraverse {
 
-  def producerRecordEncoder[K: SerdeOf, V: SerdeOf](
-    topicName: KafkaTopicName): ProducerRecordEncoder[K, V] =
-    new ProducerRecordEncoder(topicName, SerdeOf[K].serializer, SerdeOf[V].serializer)
+  def producerRecordEncoder[K, V](
+    topicName: KafkaTopicName,
+    keySerde: KeySerde[K],
+    valueSerde: ValueSerde[V]): ProducerRecordEncoder[K, V] =
+    new ProducerRecordEncoder(topicName, keySerde.serializer, valueSerde.serializer)
 
   def akkaMessageEncoder[K, V](topicName: KafkaTopicName): AkkaMessageEncoder[K, V] =
     new AkkaMessageEncoder[K, V](topicName)

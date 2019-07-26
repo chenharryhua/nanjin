@@ -5,24 +5,35 @@ import cats.implicits._
 import io.circe.generic.auto._
 import org.scalatest.FunSuite
 
+import scala.util.Failure
+
 class ConsumeJsonMessageTest extends FunSuite with ShowKafkaMessage {
 
-  val topic =
-    KafkaTopicName("backblaze_smart").in[KJson[lenses_record_key], KJson[lenses_record]](ctx)
+  test("consume json topic") {
+    val jsonTopic =
+      KafkaTopicName("backblaze_smart").in[KJson[lenses_record_key], KJson[lenses_record]](ctx)
 
-  test("consume json") {
-    topic
+    jsonTopic
       .fs2Stream[IO]
       .consumeMessages
-      // .filter(_.record.value().isFailure)
       .map(_.show)
       .showLinesStdOut
-      .take(10)
+      .take(3)
       .compile
       .drain
       .unsafeRunSync()
   }
-  ignore("akka consumer") {
-    topic.akkaStream.consumeValidMessages
+  test("consume avro topic") {
+    val avroTopic =
+      KafkaTopicName("cc_payments").in[String, KAvro[Payment]](ctx)
+    avroTopic
+      .fs2Stream[IO]
+      .consumeMessages
+      .map(_.show)
+      .showLinesStdOut
+      .take(3)
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 }

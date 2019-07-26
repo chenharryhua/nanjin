@@ -1,11 +1,14 @@
 package com.github.chenharryhua.nanjin.kafka
-import java.io.ByteArrayOutputStream
-
 import cats.Show
 import cats.implicits._
+import com.github.chenharryhua.nanjin.kafka.CodecException._
 import com.sksamuel.avro4s._
-import org.apache.avro.Schema
+import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
+import io.confluent.kafka.serializers.{KafkaAvroDeserializer, KafkaAvroSerializer}
+import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
+
+import scala.util.{Failure, Success, Try}
 
 final case class KAvro[A](value: A) extends AnyVal
 
@@ -14,27 +17,82 @@ object KAvro {
 }
 
 @SuppressWarnings(Array("AsInstanceOf"))
-final class KafkaAvroSerde[A: Decoder: Encoder](schema: Schema)
+final class KafkaAvroSerde[A](format: RecordFormat[A], srClient: CachedSchemaRegistryClient)
     extends Serde[KAvro[A]] with Serializable {
 
+  private[this] val ser: KafkaAvroSerializer     = new KafkaAvroSerializer(srClient)
+  private[this] val deSer: KafkaAvroDeserializer = new KafkaAvroDeserializer(srClient)
+
+  /**
+    * Java kafka avro decode null as null and encode null as null.
+    * [[decoders]] turn null into null
+    * [[encoders]] transparantly pass null to low-layer
+    * kafka stream deal with null differently
+    */
+  @SuppressWarnings(Array("AsInstanceOf"))
+  private[this] def decode(topic: String, data: Array[Byte]): Try[A] =
+    Option(data) match {
+      case None => Success(null.asInstanceOf[A])
+      case Some(d) =>
+        Try(deSer.deserialize(topic, d)) match {
+          case Success(x: GenericRecord) =>
+            Try(format.from(x)) match {
+              case v @ Success(_) => v
+              case Failure(ex) =>
+                Failure(
+                  InvalidObjectException(s"decode avro failed: ${ex.getMessage} topic: $topic"))
+            }
+          case Success(x) =>
+            Failure(
+              InvalidGenericRecordException(s"decode avro failed: ${x.toString} topic: $topic"))
+          case Failure(ex) =>
+            Failure(CorruptedRecordException(s"decode avro failed: ${ex.getMessage} topic: $topic"))
+        }
+    }
+
+  @SuppressWarnings(Array("AsInstanceOf"))
+  private[this] def encode(topic: String, data: A): Try[Array[Byte]] =
+    Option(data) match {
+      case None => Success(null.asInstanceOf[Array[Byte]])
+      case Some(d) =>
+        Try(ser.serialize(topic, format.to(d))) match {
+          case v @ Success(_) => v
+          case Failure(ex) =>
+            Failure(EncodeException(s"encode avro failed: ${ex.getMessage}. topic: $topic"))
+        }
+    }
+
+  override def close(): Unit = {
+    ser.close()
+    deSer.close()
+  }
+  override def configure(configs: java.util.Map[String, _], isKey: Boolean): Unit = {
+    ser.configure(configs, isKey)
+    deSer.configure(configs, isKey)
+  }
+
   override val serializer: Serializer[KAvro[A]] =
-    (_: String, data: KAvro[A]) =>
-      Option(data).flatMap(x => Option(x.value)) match {
-        case Some(d) =>
-          val baos   = new ByteArrayOutputStream()
-          val output = AvroOutputStream.binary[A].to(baos).build(schema)
-          output.write(d)
-          output.close()
-          baos.toByteArray
-        case None => null.asInstanceOf[Array[Byte]]
-      }
+    new Serializer[KAvro[A]] {
+      override def close(): Unit = ser.close()
+
+      override def configure(configs: java.util.Map[String, _], isKey: Boolean): Unit =
+        ser.configure(configs, isKey)
+
+      @throws[CodecException]
+      override def serialize(topic: String, data: KAvro[A]): Array[Byte] =
+        encode(topic, data.value).fold(throw _, identity)
+    }
 
   override val deserializer: Deserializer[KAvro[A]] =
-    (_: String, data: Array[Byte]) =>
-      Option(data) match {
-        case Some(d) =>
-          val input = AvroInputStream.binary[A].from(d).build(schema)
-          KAvro(input.iterator.next)
-        case None => null.asInstanceOf[KAvro[A]]
-      }
+    new Deserializer[KAvro[A]] {
+      override def close(): Unit =
+        deSer.close()
+
+      override def configure(configs: java.util.Map[String, _], isKey: Boolean): Unit =
+        deSer.configure(configs, isKey)
+
+      @throws[CodecException]
+      override def deserialize(topic: String, data: Array[Byte]): KAvro[A] =
+        decode(topic, data).fold(throw _, KAvro(_))
+    }
 }

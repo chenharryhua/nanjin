@@ -13,21 +13,23 @@ import org.apache.kafka.streams.kstream.GlobalKTable
 import scala.concurrent.Future
 import scala.util.{Success, Try}
 
-final class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K: SerdeOf, V: SerdeOf](
+final class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
   topicName: KafkaTopicName,
-  fs2Settings: Fs2Settings
+  fs2Settings: Fs2Settings,
+  keySerde: KeySerde[K],
+  valueSerde: ValueSerde[V]
 ) extends Fs2MessageBitraverse with Serializable {
   import fs2.kafka._
   import fs2.{Pipe, Stream}
 
   val decoder: KafkaMessageDecoder[CommittableMessage[F, ?, ?], K, V] =
-    decoders.fs2MessageDecoder[F, K, V](topicName)
+    decoders.fs2MessageDecoder[F, K, V](topicName, keySerde, valueSerde)
 
   val encoder: encoders.Fs2MessageEncoder[F, K, V] =
     encoders.fs2MessageEncoder[F, K, V](topicName)
 
   val producerSettings: ProducerSettings[K, V] =
-    fs2Settings.producerSettings(SerdeOf[K].serializer, SerdeOf[V].serializer)
+    fs2Settings.producerSettings(keySerde.serializer, valueSerde.serializer)
 
   val consumerSettings: ConsumerSettings[Array[Byte], Array[Byte]] = fs2Settings.consumerSettings
 
@@ -81,9 +83,11 @@ object Fs2Channel {
   implicit def showFs2Channel[F[_], K, V]: Show[Fs2Channel[F, K, V]] = _.show
 }
 
-final class AkkaChannel[K: SerdeOf, V: SerdeOf](
+final class AkkaChannel[K, V](
   topicName: KafkaTopicName,
-  akkaSettings: AkkaSettings
+  akkaSettings: AkkaSettings,
+  keySerde: KeySerde[K],
+  valueSerde: ValueSerde[V]
 )(implicit val materializer: ActorMaterializer)
     extends AkkaMessageBitraverse with Serializable {
   import akka.kafka.ConsumerMessage.CommittableMessage
@@ -94,7 +98,7 @@ final class AkkaChannel[K: SerdeOf, V: SerdeOf](
   import akka.{Done, NotUsed}
 
   val decoder: KafkaMessageDecoder[CommittableMessage, K, V] =
-    decoders.akkaMessageDecoder[K, V](topicName)
+    decoders.akkaMessageDecoder[K, V](topicName, keySerde, valueSerde)
 
   val encoder: AkkaMessageEncoder[K, V] = encoders.akkaMessageEncoder[K, V](topicName)
 
@@ -102,7 +106,7 @@ final class AkkaChannel[K: SerdeOf, V: SerdeOf](
     akkaSettings.consumerSettings(materializer.system)
 
   val producerSettings: ProducerSettings[K, V] =
-    akkaSettings.producerSettings(materializer.system, SerdeOf[K].serializer, SerdeOf[V].serializer)
+    akkaSettings.producerSettings(materializer.system, keySerde.serializer, valueSerde.serializer)
 
   val committableSink: Sink[Envelope[K, V, ConsumerMessage.Committable], Future[Done]] =
     Producer.committableSink(producerSettings)
@@ -153,13 +157,13 @@ object AkkaChannel {
   implicit def showAkkaChannel[K, V]: Show[AkkaChannel[K, V]] = _.show
 }
 
-final class StreamingChannel[K: SerdeOf, V: SerdeOf](topicName: KafkaTopicName)
+final class StreamingChannel[K, V](
+  topicName: KafkaTopicName,
+  keySerde: KeySerde[K],
+  valueSerde: ValueSerde[V])
     extends Serializable {
   import org.apache.kafka.streams.scala.StreamsBuilder
   import org.apache.kafka.streams.scala.kstream.{Consumed, KStream, KTable}
-
-  private val keySerde: SerdeOf[K]   = SerdeOf[K]
-  private val valueSerde: SerdeOf[V] = SerdeOf[V]
 
   val kstream: Reader[StreamsBuilder, KStream[K, V]] =
     Reader(builder => builder.stream[K, V](topicName.value)(Consumed.`with`(keySerde, valueSerde)))

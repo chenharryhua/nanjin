@@ -6,6 +6,7 @@ import cats.Show
 import cats.effect.Sync
 import cats.implicits._
 import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaMetadata}
+import org.apache.avro.Schema
 
 import scala.collection.JavaConverters._
 import scala.util.Try
@@ -35,9 +36,9 @@ object KvSchemaMetadata {
 
 trait KafkaSchemaRegistry[F[_]] extends Serializable {
   def delete: F[(List[Integer], List[Integer])]
-  def register[K: SerdeOf, V: SerdeOf]: F[(Option[Int], Option[Int])]
+  def register(keySchema: Schema, valueSchema: Schema): F[(Option[Int], Option[Int])]
   def latestMeta: F[KvSchemaMetadata]
-  def testCompatibility[K: SerdeOf, V: SerdeOf]: F[(Boolean, Boolean)]
+  def testCompatibility(keySchema: Schema, valueSchema: Schema): F[(Boolean, Boolean)]
 }
 
 object KafkaSchemaRegistry {
@@ -66,29 +67,26 @@ object KafkaSchemaRegistry {
       (deleteKey, deleteValue).mapN((_, _))
     }
 
-    override def register[K: SerdeOf, V: SerdeOf]: F[(Option[Int], Option[Int])] =
+    override def register(keySchema: Schema, valueSchema: Schema): F[(Option[Int], Option[Int])] =
       (
+        Sync[F].delay(srClient.register(topicName.keySchemaLoc, keySchema)).attempt.map(_.toOption),
         Sync[F]
-          .delay(srClient.register(topicName.keySchemaLoc, SerdeOf[K].schema))
-          .attempt
-          .map(_.toOption),
-        Sync[F]
-          .delay(srClient.register(topicName.valueSchemaLoc, SerdeOf[V].schema))
+          .delay(srClient.register(topicName.valueSchemaLoc, valueSchema))
           .attempt
           .map(_.toOption)
       ).mapN((_, _))
 
-    override def testCompatibility[K: SerdeOf, V: SerdeOf]: F[(Boolean, Boolean)] =
+    override def testCompatibility(keySchema: Schema, valueSchema: Schema): F[(Boolean, Boolean)] =
       (
         Sync[F]
           .delay(
-            srClient.testCompatibility(topicName.keySchemaLoc, SerdeOf[K].schema)
+            srClient.testCompatibility(topicName.keySchemaLoc, keySchema)
           )
           .attempt
           .map(_.fold(_ => false, identity)),
         Sync[F]
           .delay(
-            srClient.testCompatibility(topicName.valueSchemaLoc, SerdeOf[V].schema)
+            srClient.testCompatibility(topicName.valueSchemaLoc, valueSchema)
           )
           .attempt
           .map(_.fold(_ => false, identity))

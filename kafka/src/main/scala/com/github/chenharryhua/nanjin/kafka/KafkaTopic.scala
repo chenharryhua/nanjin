@@ -8,47 +8,49 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
 final case class KafkaTopicName(value: String) extends AnyVal {
-  def keySchemaLoc: String = s"$value-key"
+  def keySchemaLoc: String   = s"$value-key"
   def valueSchemaLoc: String = s"$value-value"
 
-  def in[K: SerdeOf, V: SerdeOf](ctx: KafkaContext): KafkaTopic[K, V] =
+  def in[K: ctx.SerdeOf, V: ctx.SerdeOf](ctx: KafkaContext): KafkaTopic[K, V] =
     ctx.topic[K, V](this)
 }
 
-final class KafkaTopic[K: SerdeOf, V: SerdeOf](
+final class KafkaTopic[K, V](
   topicName: KafkaTopicName,
   fs2Settings: Fs2Settings,
   akkaSettings: AkkaSettings,
-  srClient: CachedSchemaRegistryClient
-) extends TopicNameExtractor[K, V]
-    with Serializable {
+  srClient: CachedSchemaRegistryClient,
+  keySerde: KeySerde[K],
+  valueSerde: ValueSerde[V]
+) extends TopicNameExtractor[K, V] with Serializable {
   override def extract(key: K, value: V, rc: RecordContext): String =
     topicName.value
   override def toString: String = topicName.value
 
-  def fs2Stream[F[_]: ConcurrentEffect: ContextShift: Timer]
-    : Fs2Channel[F, K, V] =
-    new Fs2Channel[F, K, V](topicName, fs2Settings)
+  def fs2Stream[F[_]: ConcurrentEffect: ContextShift: Timer]: Fs2Channel[F, K, V] =
+    new Fs2Channel[F, K, V](topicName, fs2Settings, keySerde, valueSerde)
 
   def akkaStream(implicit materializer: ActorMaterializer): AkkaChannel[K, V] =
-    new AkkaChannel[K, V](topicName, akkaSettings)
+    new AkkaChannel[K, V](topicName, akkaSettings, keySerde, valueSerde)
 
   val kafkaStream: StreamingChannel[K, V] =
-    new StreamingChannel[K, V](topicName)
+    new StreamingChannel[K, V](topicName, keySerde, valueSerde)
 
   val recordDecoder: KafkaMessageDecoder[ConsumerRecord, K, V] =
-    decoders.consumerRecordDecoder[K, V](topicName)
+    decoders.consumerRecordDecoder[K, V](topicName, keySerde, valueSerde)
 
   val recordEncoder: encoders.ProducerRecordEncoder[K, V] =
-    encoders.producerRecordEncoder[K, V](topicName)
+    encoders.producerRecordEncoder[K, V](topicName, keySerde, valueSerde)
 
   private def schemaRegistry[F[_]: Sync]: KafkaSchemaRegistry[F] =
     KafkaSchemaRegistry[F](srClient, topicName)
 
   def testSchemaCompat[F[_]: Sync]: F[(Boolean, Boolean)] =
-    schemaRegistry[F].testCompatibility[K, V]
+    schemaRegistry[F].testCompatibility(keySerde.schema, valueSerde.schema)
+
   def registerSchema[F[_]: Sync]: F[(Option[Int], Option[Int])] =
-    schemaRegistry[F].register[K, V]
+    schemaRegistry[F].register(keySerde.schema, valueSerde.schema)
+
   def latestSchema[F[_]: Sync]: F[KvSchemaMetadata] =
     schemaRegistry.latestMeta
 

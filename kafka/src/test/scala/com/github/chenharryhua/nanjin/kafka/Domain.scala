@@ -1,12 +1,19 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import cats.Show
+import cats.implicits._
+
 case class Payment(
   id: String,
   time: String,
   amount: BigDecimal,
   currency: String,
   creditCardId: String,
-  merchantId: Option[Long])
+  merchantId: Long)
+
+object Payment {
+  implicit val showPayment: Show[Payment] = cats.derived.semi.show[Payment]
+}
 
 case class lenses_record_key(serial_number: String)
 case class lenses_record(

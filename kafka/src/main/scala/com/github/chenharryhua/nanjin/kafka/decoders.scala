@@ -55,30 +55,36 @@ sealed abstract class KafkaMessageDecoder[F[_, _]: Bitraverse, K, V](
 
 object decoders extends Fs2MessageBitraverse with AkkaMessageBitraverse {
 
-  def consumerRecordDecoder[K: SerdeOf, V: SerdeOf](
-    topicName: KafkaTopicName
+  def consumerRecordDecoder[K, V](
+    topicName: KafkaTopicName,
+    keySerde: KeySerde[K],
+    valueSerde: ValueSerde[V]
   ): KafkaMessageDecoder[ConsumerRecord, K, V] =
     new KafkaMessageDecoder[ConsumerRecord, K, V](
       topicName,
-      SerdeOf[K].deserializer,
-      SerdeOf[V].deserializer
+      keySerde.deserializer,
+      valueSerde.deserializer
     ) {}
 
-  def fs2MessageDecoder[F[_], K: SerdeOf, V: SerdeOf](
-    topicName: KafkaTopicName
+  def fs2MessageDecoder[F[_], K, V](
+    topicName: KafkaTopicName,
+    keySerde: KeySerde[K],
+    valueSerde: ValueSerde[V]
   ): KafkaMessageDecoder[Fs2CommittableMessage[F, ?, ?], K, V] =
     new KafkaMessageDecoder[Fs2CommittableMessage[F, ?, ?], K, V](
       topicName,
-      SerdeOf[K].deserializer,
-      SerdeOf[V].deserializer
+      keySerde.deserializer,
+      valueSerde.deserializer
     ) {}
 
-  def akkaMessageDecoder[K: SerdeOf, V: SerdeOf](
-    topicName: KafkaTopicName
+  def akkaMessageDecoder[K, V](
+    topicName: KafkaTopicName,
+    keySerde: KeySerde[K],
+    valueSerde: ValueSerde[V]
   ): KafkaMessageDecoder[AkkaCommittableMessage, K, V] =
     new KafkaMessageDecoder[AkkaCommittableMessage, K, V](
       topicName,
-      SerdeOf[K].deserializer,
-      SerdeOf[V].deserializer
+      keySerde.deserializer,
+      valueSerde.deserializer
     ) {}
 }
