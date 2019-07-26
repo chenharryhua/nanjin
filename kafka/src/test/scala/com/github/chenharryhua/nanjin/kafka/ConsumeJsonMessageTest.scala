@@ -5,9 +5,7 @@ import cats.implicits._
 import io.circe.generic.auto._
 import org.scalatest.FunSuite
 
-import scala.util.Failure
-
-class ConsumeJsonMessageTest extends FunSuite with ShowKafkaMessage {
+class ConsumeJsonMessageTest extends FunSuite with ShowKafkaMessage with Fs2MessageBitraverse {
 
   test("consume json topic") {
     val jsonTopic =
@@ -16,6 +14,8 @@ class ConsumeJsonMessageTest extends FunSuite with ShowKafkaMessage {
     jsonTopic
       .fs2Stream[IO]
       .consumeMessages
+      .map(_.bitraverse(identity, identity).toEither)
+      .rethrow
       .map(_.show)
       .showLinesStdOut
       .take(3)
@@ -26,9 +26,12 @@ class ConsumeJsonMessageTest extends FunSuite with ShowKafkaMessage {
   test("consume avro topic") {
     val avroTopic =
       KafkaTopicName("cc_payments").in[String, KAvro[Payment]](ctx)
+      
     avroTopic
       .fs2Stream[IO]
       .consumeMessages
+      .map(_.bitraverse(identity, identity).toEither)
+      .rethrow
       .map(_.show)
       .showLinesStdOut
       .take(3)

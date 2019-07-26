@@ -43,13 +43,13 @@ final class KafkaTopic[K, V](
     encoders.producerRecordEncoder[K, V](topicName, keySerde, valueSerde)
 
   private def schemaRegistry[F[_]: Sync]: KafkaSchemaRegistry[F] =
-    KafkaSchemaRegistry[F](srClient, topicName)
+    KafkaSchemaRegistry[F](srClient, topicName, keySerde.schema, valueSerde.schema)
 
   def testSchemaCompat[F[_]: Sync]: F[(Boolean, Boolean)] =
-    schemaRegistry[F].testCompatibility(keySerde.schema, valueSerde.schema)
+    schemaRegistry[F].testCompatibility
 
   def registerSchema[F[_]: Sync]: F[(Option[Int], Option[Int])] =
-    schemaRegistry[F].register(keySerde.schema, valueSerde.schema)
+    schemaRegistry[F].register
 
   def latestSchema[F[_]: Sync]: F[KvSchemaMetadata] =
     schemaRegistry.latestMeta

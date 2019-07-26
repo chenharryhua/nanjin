@@ -51,7 +51,8 @@ final class KafkaAvroSerde[A](format: RecordFormat[A], srClient: CachedSchemaReg
         Try(ser.serialize(topic, format.to(d))) match {
           case v @ Success(_) => v
           case Failure(ex) =>
-            Failure(EncodeException(s"encode avro failed: ${ex.getMessage}. topic: $topic"))
+            Failure(
+              EncodeException(s"encode avro failed: ${ex.getMessage}. topic: $topic data: $data"))
         }
     }
 

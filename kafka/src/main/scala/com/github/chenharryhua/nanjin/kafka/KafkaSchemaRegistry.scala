@@ -36,21 +36,25 @@ object KvSchemaMetadata {
 
 trait KafkaSchemaRegistry[F[_]] extends Serializable {
   def delete: F[(List[Integer], List[Integer])]
-  def register(keySchema: Schema, valueSchema: Schema): F[(Option[Int], Option[Int])]
+  def register: F[(Option[Int], Option[Int])]
   def latestMeta: F[KvSchemaMetadata]
-  def testCompatibility(keySchema: Schema, valueSchema: Schema): F[(Boolean, Boolean)]
+  def testCompatibility: F[(Boolean, Boolean)]
 }
 
 object KafkaSchemaRegistry {
 
   def apply[F[_]: Sync](
     srClient: CachedSchemaRegistryClient,
-    topicName: KafkaTopicName): KafkaSchemaRegistry[F] =
-    new KafkaSchemaRegistryImpl(srClient, topicName)
+    topicName: KafkaTopicName,
+    keySchema: Schema,
+    valueSchema: Schema): KafkaSchemaRegistry[F] =
+    new KafkaSchemaRegistryImpl(srClient, topicName, keySchema, valueSchema)
 
   final private class KafkaSchemaRegistryImpl[F[_]: Sync](
     srClient: CachedSchemaRegistryClient,
-    topicName: KafkaTopicName
+    topicName: KafkaTopicName,
+    keySchema: Schema,
+    valueSchema: Schema
   ) extends KafkaSchemaRegistry[F] {
 
     override def delete: F[(List[Integer], List[Integer])] = {
@@ -67,7 +71,7 @@ object KafkaSchemaRegistry {
       (deleteKey, deleteValue).mapN((_, _))
     }
 
-    override def register(keySchema: Schema, valueSchema: Schema): F[(Option[Int], Option[Int])] =
+    override def register: F[(Option[Int], Option[Int])] =
       (
         Sync[F].delay(srClient.register(topicName.keySchemaLoc, keySchema)).attempt.map(_.toOption),
         Sync[F]
@@ -76,7 +80,7 @@ object KafkaSchemaRegistry {
           .map(_.toOption)
       ).mapN((_, _))
 
-    override def testCompatibility(keySchema: Schema, valueSchema: Schema): F[(Boolean, Boolean)] =
+    override def testCompatibility: F[(Boolean, Boolean)] =
       (
         Sync[F]
           .delay(
