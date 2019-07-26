@@ -110,14 +110,24 @@ import org.apache.kafka.streams.errors.LogAndContinueExceptionHandler
      """.stripMargin
 }
 
-@Lenses final case class SchemaRegistrySettings(props: Map[String, String]) {
-  val cacheSize: Int = 500
+@Lenses final case class SchemaRegistrySettings(
+  baseUrls: List[String],
+  identityMapCapacity: Int,
+  originals: Map[String, String],
+  httpHeaders: Map[String, String]) {
+
+  def this(url: String) = this(List(url), 500, Map.empty, Map.empty)
+  def this()            = this("")
+
+  def url(newUrl: String): SchemaRegistrySettings = copy(baseUrls = List(newUrl))
 
   def show: String =
     s"""
        |schema registry settings:
-       |cache size: $cacheSize
-       |settings:   ${props.show}
+       |baseUrls:    ${baseUrls.show}
+       |cache size:  $identityMapCapacity
+       |originals:   ${originals.show}
+       |httpHeaders: ${httpHeaders.show}
      """.stripMargin
 }
 
@@ -155,11 +165,10 @@ import org.apache.kafka.streams.errors.LogAndContinueExceptionHandler
   def securityProtocol(sp: SecurityProtocol): KafkaSettings =
     updateAll(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, sp.name)
 
-  def schemaRegistry(key: String, value: String): KafkaSettings =
+  def schemaRegistryUrl(newUrl: String): KafkaSettings =
     KafkaSettings.schemaRegistrySettings
-      .composeLens(SchemaRegistrySettings.props)
-      .composeLens(at(key))
-      .set(Some(value))(this)
+      .composeLens(SchemaRegistrySettings.baseUrls)
+      .set(List(newUrl))(this)
 
   def producerProperties(key: String, value: String): KafkaSettings =
     Traversal
@@ -186,6 +195,11 @@ import org.apache.kafka.streams.errors.LogAndContinueExceptionHandler
   def groupId(gid: String): KafkaSettings =
     consumerProperties(ConsumerConfig.GROUP_ID_CONFIG, gid)
 
+  def applicationId(appId: String): KafkaSettings =
+    streamProperties(StreamsConfig.APPLICATION_ID_CONFIG, appId)
+
+  val context: KafkaContext = new KafkaContext(this)
+
   def show: String =
     s"""
        |kafka settings:
@@ -208,10 +222,10 @@ object KafkaSettings {
     SharedAdminSettings(Map.empty),
     SharedConsumerSettings(Map.empty),
     SharedProducerSettings(Map.empty),
-    SchemaRegistrySettings(Map.empty)
+    new SchemaRegistrySettings()
   )
 
-  val predefine: KafkaSettings = KafkaSettings(
+  val predefined: KafkaSettings = KafkaSettings(
     Fs2Settings(
       Map(
         ConsumerConfig.MAX_POLL_RECORDS_CONFIG -> "500",
@@ -235,7 +249,7 @@ object KafkaSettings {
     SharedAdminSettings(Map.empty),
     SharedConsumerSettings(Map.empty),
     SharedProducerSettings(Map.empty),
-    SchemaRegistrySettings(Map.empty)
+    new SchemaRegistrySettings("http://localhost:8081")
   )
   implicit val showKafkaSettings: Show[KafkaSettings] = _.show
 }

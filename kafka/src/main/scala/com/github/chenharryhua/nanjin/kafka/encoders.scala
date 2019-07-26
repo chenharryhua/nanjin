@@ -7,7 +7,7 @@ import org.apache.kafka.common.serialization.Serializer
 
 import scala.collection.immutable
 
-object encoders {
+object encoders extends Fs2MessageBitraverse with AkkaMessageBitraverse {
 
   def producerRecordEncoder[K: SerdeOf, V: SerdeOf](
     topicName: KafkaTopicName): ProducerRecordEncoder[K, V] =

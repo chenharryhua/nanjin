@@ -11,7 +11,7 @@ val circeVersion = "0.11.1"
 val fs2Version   = "1.0.5"
 val shapeless    = "2.3.3"
 val avro         = "2.0.4"
-val akkaStream   = "1.0.4"
+val akkaStream   = "1.0.5"
 val fs2Stream    = "0.19.9"
 val silencer     = "1.4.1"
 val monocle      = "1.5.1-cats"
@@ -23,11 +23,14 @@ lazy val commonSettings = Seq(
   resolvers ++= Seq(
     Resolver.sonatypeRepo("public"),
     Resolver.sonatypeRepo("releases"),
-    "Confluent Maven Repo" at "https://packages.confluent.io/maven/"),
+    "Confluent Maven Repo" at "https://packages.confluent.io/maven/"
+  ),
   addCompilerPlugin("org.typelevel" %% "kind-projector"    % "0.10.3"),
   addCompilerPlugin("com.olegpy" %% "better-monadic-for"   % "0.3.1"),
   addCompilerPlugin("com.github.ghik" %% "silencer-plugin" % silencer),
-  addCompilerPlugin("org.scalamacros" %% "paradise"        % "2.1.1" cross CrossVersion.full),
+  addCompilerPlugin(
+    "org.scalamacros" %% "paradise" % "2.1.1" cross CrossVersion.full
+  ),
   scalacOptions ++= Seq(
     "-Ypartial-unification",
     "-deprecation",
@@ -54,13 +57,14 @@ lazy val kafka = (project in file("kafka"))
       "com.github.ghik" %% "silencer-lib"         % silencer % Provided,
       "org.scala-lang"                            % "scala-reflect" % scalaVersion.value % Provided,
       "org.scala-lang"                            % "scala-compiler" % scalaVersion.value % Provided,
-      "io.confluent"                              % "kafka-avro-serializer" % confluent classifier "",
       "org.apache.kafka"                          % "kafka-clients" % kafkaVersion,
       "org.apache.kafka"                          % "kafka-streams" % kafkaVersion,
       "org.apache.kafka" %% "kafka-streams-scala" % kafkaVersion,
       "com.typesafe.akka" %% "akka-stream-kafka"  % akkaStream,
       "com.ovoenergy" %% "fs2-kafka"              % fs2Stream,
       "com.sksamuel.avro4s" %% "avro4s-core"      % avro,
+      "io.confluent"                              % "kafka-avro-serializer" % confluent classifier "",
+      "com.julianpeeters" %% "avrohugger-core"    % "1.0.0-RC16",
 //json
       "io.circe" %% "circe-core"    % circeVersion,
       "io.circe" %% "circe-generic" % circeVersion,
@@ -71,7 +75,6 @@ lazy val kafka = (project in file("kafka"))
       "org.typelevel" %% "kittens"                      % kittens,
       "com.chuusai" %% "shapeless"                      % shapeless,
       "co.fs2" %% "fs2-core"                            % fs2Version,
-      "co.fs2" %% "fs2-io"                              % fs2Version,
       "co.fs2" %% "fs2-reactive-streams"                % fs2Version,
       "org.typelevel" %% "cats-effect"                  % catsEffect,
       "com.github.julien-truffaut" %% "monocle-core"    % monocle,
