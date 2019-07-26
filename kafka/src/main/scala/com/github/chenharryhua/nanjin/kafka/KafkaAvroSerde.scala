@@ -16,28 +16,21 @@ object KAvro {
   implicit def showKafkaAvro[A: Show]: Show[KAvro[A]] = _.value.show
 }
 
-@SuppressWarnings(Array("AsInstanceOf"))
 final class KafkaAvroSerde[A](format: RecordFormat[A], srClient: CachedSchemaRegistryClient)
     extends Serde[KAvro[A]] with Serializable {
 
   private[this] val ser: KafkaAvroSerializer     = new KafkaAvroSerializer(srClient)
   private[this] val deSer: KafkaAvroDeserializer = new KafkaAvroDeserializer(srClient)
 
-  /**
-    * Java kafka avro decode null as null and encode null as null.
-    * [[decoders]] turn null into null
-    * [[encoders]] transparantly pass null to low-layer
-    * kafka stream deal with null differently
-    */
   @SuppressWarnings(Array("AsInstanceOf"))
-  private[this] def decode(topic: String, data: Array[Byte]): Try[A] =
+  private[this] def decode(topic: String, data: Array[Byte]): Try[KAvro[A]] =
     Option(data) match {
-      case None => Success(null.asInstanceOf[A])
+      case None => Success(null.asInstanceOf[KAvro[A]])
       case Some(d) =>
         Try(deSer.deserialize(topic, d)) match {
           case Success(x: GenericRecord) =>
             Try(format.from(x)) match {
-              case v @ Success(_) => v
+              case Success(v) => Success(KAvro(v))
               case Failure(ex) =>
                 Failure(
                   InvalidObjectException(s"decode avro failed: ${ex.getMessage} topic: $topic"))
@@ -51,8 +44,8 @@ final class KafkaAvroSerde[A](format: RecordFormat[A], srClient: CachedSchemaReg
     }
 
   @SuppressWarnings(Array("AsInstanceOf"))
-  private[this] def encode(topic: String, data: A): Try[Array[Byte]] =
-    Option(data) match {
+  private[this] def encode(topic: String, data: KAvro[A]): Try[Array[Byte]] =
+    Option(data).flatMap(x => Option(x.value)) match {
       case None => Success(null.asInstanceOf[Array[Byte]])
       case Some(d) =>
         Try(ser.serialize(topic, format.to(d))) match {
@@ -80,7 +73,7 @@ final class KafkaAvroSerde[A](format: RecordFormat[A], srClient: CachedSchemaReg
 
       @throws[CodecException]
       override def serialize(topic: String, data: KAvro[A]): Array[Byte] =
-        encode(topic, data.value).fold(throw _, identity)
+        encode(topic, data).fold(throw _, identity)
     }
 
   override val deserializer: Deserializer[KAvro[A]] =
@@ -93,6 +86,6 @@ final class KafkaAvroSerde[A](format: RecordFormat[A], srClient: CachedSchemaReg
 
       @throws[CodecException]
       override def deserialize(topic: String, data: Array[Byte]): KAvro[A] =
-        decode(topic, data).fold(throw _, KAvro(_))
+        decode(topic, data).fold(throw _, identity)
     }
 }

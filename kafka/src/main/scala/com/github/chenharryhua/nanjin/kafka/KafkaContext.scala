@@ -11,6 +11,9 @@ final class KafkaContext(val settings: KafkaSettings)
         settings.schemaRegistrySettings.originals.asJava,
         settings.schemaRegistrySettings.httpHeaders.asJava)) with Serializable {
 
+  def asKey[K: SerdeOf]: KeySerde[K]     = SerdeOf[K].asKey(Map.empty)
+  def asValue[V: SerdeOf]: ValueSerde[V] = SerdeOf[V].asValue(Map.empty)
+
   def topic[K: SerdeOf, V: SerdeOf](
     topicName: KafkaTopicName
   ): KafkaTopic[K, V] =
@@ -19,7 +22,7 @@ final class KafkaContext(val settings: KafkaSettings)
       settings.fs2Settings,
       settings.akkaSettings,
       srClient,
-      SerdeOf[K].asKey(settings.schemaRegistrySettings.originals),
-      SerdeOf[V].asValue(settings.schemaRegistrySettings.originals)
+      asKey[K],
+      asValue[V]
     )
 }

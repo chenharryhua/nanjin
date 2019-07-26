@@ -7,9 +7,7 @@ import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import org.apache.kafka.streams.scala.Serdes
 
 import scala.collection.JavaConverters._
-sealed trait HasSchema {
-  def schema: Schema
-}
+
 final case class KeySerde[A](
   schema: Schema,
   serializer: Serializer[A],
