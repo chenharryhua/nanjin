@@ -13,7 +13,8 @@ object KJson {
   import io.circe.generic.semiauto._
   implicit def kafkaJsonDecoder[A: Decoder]: Decoder[KJson[A]] = deriveDecoder[KJson[A]]
   implicit def kafkaJsonEncoder[A: Encoder]: Encoder[KJson[A]] = deriveEncoder[KJson[A]]
-  implicit def showKafkaJson[A: Encoder]: Show[KJson[A]]       = _.value.asJson.noSpaces
+  implicit def showKafkaJson[A: Encoder]: Show[KJson[A]] =
+    (t: KJson[A]) => s"KJson(${t.value.asJson.noSpaces})"
 }
 
 @SuppressWarnings(Array("AsInstanceOf"))

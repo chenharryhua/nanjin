@@ -13,7 +13,7 @@ import scala.util.{Failure, Success, Try}
 final case class KAvro[A](value: A) extends AnyVal
 
 object KAvro {
-  implicit def showKafkaAvro[A: Show]: Show[KAvro[A]] = _.value.show
+  implicit def showKafkaAvro[A: Show]: Show[KAvro[A]] = (t: KAvro[A]) => s"KAvro(${t.value.show})"
 }
 
 final class KafkaAvroSerde[A](format: RecordFormat[A], srClient: CachedSchemaRegistryClient)

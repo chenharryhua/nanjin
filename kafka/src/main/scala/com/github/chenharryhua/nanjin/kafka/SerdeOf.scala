@@ -26,7 +26,7 @@ final case class ValueSerde[A](
   this.configure(props.asJava, false)
 }
 
-abstract class SerdeModule(val srClient: CachedSchemaRegistryClient) {
+abstract class SerdeModule(val csrClient: CachedSchemaRegistryClient) {
 
   sealed abstract class SerdeOf[A](val schema: Schema) extends Serde[A] with Serializable {
     def serializer: Serializer[A]
@@ -47,7 +47,7 @@ abstract class SerdeModule(val srClient: CachedSchemaRegistryClient) {
     implicit def kavroSerde[A: Encoder: Decoder: SchemaFor]: SerdeOf[KAvro[A]] = {
       val schema: Schema          = AvroSchema[A]
       val format: RecordFormat[A] = RecordFormat[A]
-      val serde: Serde[KAvro[A]]  = new KafkaAvroSerde[A](format, srClient)
+      val serde: Serde[KAvro[A]]  = new KafkaAvroSerde[A](format, csrClient)
       new SerdeOf[KAvro[A]](schema) {
         override val deserializer: Deserializer[KAvro[A]] = serde.deserializer
         override val serializer: Serializer[KAvro[A]]     = serde.serializer

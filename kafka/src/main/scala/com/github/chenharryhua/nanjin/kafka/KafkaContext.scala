@@ -21,7 +21,7 @@ final class KafkaContext(val settings: KafkaSettings)
       topicName,
       settings.fs2Settings,
       settings.akkaSettings,
-      srClient,
+      csrClient,
       asKey[K],
       asValue[V]
     )

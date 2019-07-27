@@ -15,18 +15,24 @@ final case class KvSchemaMetadata(key: Option[SchemaMetadata], value: Option[Sch
   private def genCaseClass(s: SchemaMetadata): Option[String] =
     Try(Generator(Standard).stringToStrings(s.getSchema).mkString("\n")).toEither.toOption
 
+  def showKey: String =
+    s"""|key schema
+        |id:      ${key.map(_.getId).getOrElse("none")}
+        |version: ${key.map(_.getVersion).getOrElse("none")}
+        |schema:  ${key.map(_.getSchema).getOrElse("none")}
+        |scala:   ${key.flatMap(genCaseClass).getOrElse("none")}""".stripMargin
+
+  def showValue: String =
+    s"""|value schema
+        |id:      ${value.map(_.getId).getOrElse("none")}
+        |version: ${value.map(_.getVersion).getOrElse("none")}
+        |schema:  ${value.map(_.getSchema).getOrElse("none")}
+        |scala:   ${value.flatMap(genCaseClass).getOrElse("none")}""".stripMargin
+
   def show: String =
-    s"""
-       |key schema
-       |id:      ${key.map(_.getId).getOrElse("none")}
-       |version: ${key.map(_.getVersion).getOrElse("none")}
-       |schema:  ${key.map(_.getSchema).getOrElse("none")}
-       |scala:   ${key.flatMap(genCaseClass).getOrElse("none")}
-       |value schema
-       |id:      ${value.map(_.getId).getOrElse("none")}
-       |version: ${value.map(_.getVersion).getOrElse("none")}
-       |schema:  ${value.map(_.getSchema).getOrElse("none")}
-       |scala:   ${value.flatMap(genCaseClass).getOrElse("none")}
+    s"""|key and value schema 
+        |$showKey
+        |$showValue
        """.stripMargin
 }
 
@@ -34,11 +40,50 @@ object KvSchemaMetadata {
   implicit val showKvSchemaMetadata: Show[KvSchemaMetadata] = _.show
 }
 
+final case class CompatibilityTestReport(
+  topicName: KafkaTopicName,
+  meta: KvSchemaMetadata,
+  keySchema: Schema,
+  valueSchema: Schema,
+  key: Either[String, Boolean],
+  value: Either[String, Boolean]) {
+
+  private val keyDescription: String = key.fold(
+    identity,
+    if (_) "compatible"
+    else
+      s"""|incompatible
+          |application:  $keySchema
+          |server:       ${meta.key.map(_.getSchema).getOrElse("none")}
+          |""".stripMargin
+  )
+
+  private val valueDescription: String = value.fold(
+    identity,
+    if (_) "compatible"
+    else
+      s"""|incompatible
+          |application:   $valueSchema
+          |server:        ${meta.value.map(_.getSchema).getOrElse("none")}
+          |""".stripMargin
+  )
+
+  val show: String =
+    s"""
+       |compatibility test report of topic(${topicName.value}):
+       |key:   $keyDescription
+       |
+       |value: $valueDescription
+       |""".stripMargin
+
+  override val toString: String = show
+}
+
 trait KafkaSchemaRegistry[F[_]] extends Serializable {
   def delete: F[(List[Integer], List[Integer])]
   def register: F[(Option[Int], Option[Int])]
   def latestMeta: F[KvSchemaMetadata]
-  def testCompatibility: F[(Boolean, Boolean)]
+  def testCompatibility: F[CompatibilityTestReport]
 }
 
 object KafkaSchemaRegistry {
@@ -80,21 +125,22 @@ object KafkaSchemaRegistry {
           .map(_.toOption)
       ).mapN((_, _))
 
-    override def testCompatibility: F[(Boolean, Boolean)] =
+    override def testCompatibility: F[CompatibilityTestReport] =
       (
         Sync[F]
           .delay(
             srClient.testCompatibility(topicName.keySchemaLoc, keySchema)
           )
           .attempt
-          .map(_.fold(_ => false, identity)),
+          .map(_.leftMap(ex => ex.getMessage)),
         Sync[F]
           .delay(
             srClient.testCompatibility(topicName.valueSchemaLoc, valueSchema)
           )
           .attempt
-          .map(_.fold(_ => false, identity))
-      ).mapN((_, _))
+          .map(_.leftMap(ex => ex.getMessage)),
+        latestMeta
+      ).mapN((k, v, meta) => CompatibilityTestReport(topicName, meta, keySchema, valueSchema, k, v))
 
     override def latestMeta: F[KvSchemaMetadata] =
       (
