@@ -77,6 +77,9 @@ final case class CompatibilityTestReport(
        |""".stripMargin
 
   override val toString: String = show
+
+  val isCompatible: Boolean =
+    key.flatMap(k => value.map(v => k && v)).fold(_ => false, identity)
 }
 
 trait KafkaSchemaRegistry[F[_]] extends Serializable {
