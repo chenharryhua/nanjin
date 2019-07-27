@@ -16,6 +16,7 @@ val fs2Stream    = "0.19.9"
 val silencer     = "1.4.1"
 val monocle      = "1.5.1-cats"
 val contextual   = "1.2.1"
+val sparkVersion = "2.4.3"
 
 lazy val commonSettings = Seq(
   version      := "0.0.1-SNAPSHOT",
@@ -26,9 +27,8 @@ lazy val commonSettings = Seq(
     Resolver.sonatypeRepo("releases"),
     "Confluent Maven Repo" at "https://packages.confluent.io/maven/"
   ),
-  addCompilerPlugin("org.typelevel" %% "kind-projector"    % "0.10.3"),
-  addCompilerPlugin("com.olegpy" %% "better-monadic-for"   % "0.3.1"),
-  addCompilerPlugin("com.github.ghik" %% "silencer-plugin" % silencer),
+  addCompilerPlugin("org.typelevel" %% "kind-projector"  % "0.10.3"),
+  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
   addCompilerPlugin(
     "org.scalamacros" %% "paradise" % "2.1.1" cross CrossVersion.full
   ),
@@ -54,6 +54,7 @@ lazy val kafka = (project in file("kafka"))
   .settings(commonSettings: _*)
   .settings(name := "kafka")
   .settings(
+    addCompilerPlugin("com.github.ghik" %% "silencer-plugin" % silencer),
     libraryDependencies ++= Seq(
       "com.github.ghik" %% "silencer-lib"         % silencer % Provided,
       "org.scala-lang"                            % "scala-reflect" % scalaVersion.value % Provided,
@@ -88,3 +89,20 @@ lazy val kafka = (project in file("kafka"))
     ),
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
+
+lazy val sparkafka = (project in file("sparkafka"))
+  .dependsOn(kafka)
+  .settings(commonSettings: _*)
+  .settings(name := "sparkafka")
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.apache.spark" %% "spark-core"                 % sparkVersion,
+      "org.apache.spark" %% "spark-sql"                  % sparkVersion,
+      "org.apache.spark" %% "spark-streaming"            % sparkVersion,
+      "org.apache.spark" %% "spark-streaming-kafka-0-10" % sparkVersion,
+      "org.apache.spark" %% "spark-sql-kafka-0-10"       % sparkVersion
+    ),
+    dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.7.2"
+  )
+lazy val nanjin = (project in file (".")).aggregate(kafka,sparkafka)
+
