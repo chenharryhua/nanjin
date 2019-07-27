@@ -8,7 +8,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
 final class KafkaTopic[K, V](
-  topicName: KafkaTopicName,
+  val topicName: KafkaTopicName,
   fs2Settings: Fs2Settings,
   akkaSettings: AkkaSettings,
   srClient: CachedSchemaRegistryClient,
