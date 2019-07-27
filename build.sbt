@@ -15,6 +15,7 @@ val akkaStream   = "1.0.5"
 val fs2Stream    = "0.19.9"
 val silencer     = "1.4.1"
 val monocle      = "1.5.1-cats"
+val contextual   = "1.2.1"
 
 lazy val commonSettings = Seq(
   version      := "0.0.1-SNAPSHOT",
@@ -82,6 +83,7 @@ lazy val kafka = (project in file("kafka"))
       "com.github.julien-truffaut" %% "monocle-macro"   % monocle,
       "com.github.julien-truffaut" %% "monocle-state"   % monocle,
       "com.github.julien-truffaut" %% "monocle-unsafe"  % monocle,
+      "com.propensive" %% "contextual"                  % contextual,
       "org.scalatest" %% "scalatest"                    % "3.0.8" % Test
     ),
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"

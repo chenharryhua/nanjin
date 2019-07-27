@@ -7,14 +7,6 @@ import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
-final case class KafkaTopicName(value: String) extends AnyVal {
-  def keySchemaLoc: String   = s"$value-key"
-  def valueSchemaLoc: String = s"$value-value"
-
-  def in[K: ctx.SerdeOf, V: ctx.SerdeOf](ctx: KafkaContext): KafkaTopic[K, V] =
-    ctx.topic[K, V](this)
-}
-
 final class KafkaTopic[K, V](
   topicName: KafkaTopicName,
   fs2Settings: Fs2Settings,

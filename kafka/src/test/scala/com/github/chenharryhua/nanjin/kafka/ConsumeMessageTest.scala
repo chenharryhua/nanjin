@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.IO
 import cats.implicits._
-
+import KafkaTopicName._
 import org.scalatest.FunSuite
 
 class ConsumeMessageTest extends FunSuite with ShowKafkaMessage with Fs2MessageBitraverse {
@@ -10,7 +10,7 @@ class ConsumeMessageTest extends FunSuite with ShowKafkaMessage with Fs2MessageB
   test("consume json topic") {
     import io.circe.generic.auto._
     val jsonTopic =
-      KafkaTopicName("backblaze_smart").in[KJson[lenses_record_key], KJson[lenses_record]](ctx)
+      topic"backblaze_smart".in[KJson[lenses_record_key], KJson[lenses_record]](ctx)
 
     jsonTopic
       .fs2Stream[IO]

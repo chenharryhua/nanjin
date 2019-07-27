@@ -135,13 +135,13 @@ object KafkaSchemaRegistry {
             srClient.testCompatibility(topicName.keySchemaLoc, keySchema)
           )
           .attempt
-          .map(_.leftMap(ex => ex.getMessage)),
+          .map(_.leftMap(_.getMessage)),
         Sync[F]
           .delay(
             srClient.testCompatibility(topicName.valueSchemaLoc, valueSchema)
           )
           .attempt
-          .map(_.leftMap(ex => ex.getMessage)),
+          .map(_.leftMap(_.getMessage)),
         latestMeta
       ).mapN((k, v, meta) => CompatibilityTestReport(topicName, meta, keySchema, valueSchema, k, v))
 
