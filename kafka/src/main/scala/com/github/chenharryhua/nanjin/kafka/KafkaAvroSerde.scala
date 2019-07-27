@@ -28,18 +28,19 @@ final class KafkaAvroSerde[A](format: RecordFormat[A], srClient: CachedSchemaReg
       case None => Success(null.asInstanceOf[KAvro[A]])
       case Some(d) =>
         Try(deSer.deserialize(topic, d)) match {
-          case Success(x: GenericRecord) =>
-            Try(format.from(x)) match {
+          case Success(gr: GenericRecord) =>
+            Try(format.from(gr)) match {
               case Success(v) => Success(KAvro(v))
               case Failure(ex) =>
                 Failure(
-                  InvalidObjectException(s"decode avro failed: ${ex.getMessage} topic: $topic"))
+                  InvalidObjectException(s"decode avro failed in topic($topic): ${ex.getMessage}"))
             }
           case Success(x) =>
             Failure(
-              InvalidGenericRecordException(s"decode avro failed: ${x.toString} topic: $topic"))
+              InvalidGenericRecordException(s"decode avro failed in topic($topic): ${x.toString}"))
           case Failure(ex) =>
-            Failure(CorruptedRecordException(s"decode avro failed: ${ex.getMessage} topic: $topic"))
+            Failure(
+              CorruptedRecordException(s"decode avro failed in topic($topic): ${ex.getMessage}"))
         }
     }
 
@@ -52,7 +53,8 @@ final class KafkaAvroSerde[A](format: RecordFormat[A], srClient: CachedSchemaReg
           case v @ Success(_) => v
           case Failure(ex) =>
             Failure(
-              EncodeException(s"encode avro failed: ${ex.getMessage}. topic: $topic data: $data"))
+              EncodeException(
+                s"encode avro failed in topic($topic): ${ex.getMessage}. data: $data"))
         }
     }
 
