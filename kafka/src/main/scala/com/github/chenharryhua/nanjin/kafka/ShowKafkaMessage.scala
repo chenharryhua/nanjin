@@ -63,4 +63,6 @@ trait ShowKafkaMessage {
          |${t.committableOffset}
          |""".stripMargin
     }
+
+  implicit protected val showArrayByte: Show[Array[Byte]] = _ => "Array[Byte]"
 }

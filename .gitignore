@@ -17,3 +17,4 @@ project/plugins/project/
 .idea
 .metals
 .bloop
+docker-compose.yml

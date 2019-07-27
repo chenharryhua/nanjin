@@ -5,7 +5,6 @@ import cats.Show
 import cats.data.Reader
 import cats.effect.{ConcurrentEffect, ContextShift, Timer}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.encoders.AkkaMessageEncoder
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.streams.kstream.GlobalKTable
@@ -44,20 +43,16 @@ final class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
         }.through(commitBatchOption).compile.drain
       })
 
-  val consume: Stream[F, CommittableMessage[F, Array[Byte], Array[Byte]]] =
-    consumerStream[F, Array[Byte], Array[Byte]](consumerSettings)
-      .evalTap(_.subscribeTo(topicName.value))
-      .flatMap(_.stream)
-
   val decode: Pipe[
     F,
     CommittableMessage[F, Array[Byte], Array[Byte]],
     CommittableMessage[F, Try[K], Try[V]]] =
     _.map(decoder.decodeMessage)
 
-  val ignoreError
-    : Pipe[F, CommittableMessage[F, Array[Byte], Array[Byte]], CommittableMessage[F, K, V]] =
-    _.map(decoder.decodeBoth).collect { case Success(x) => x }
+  val consume: Stream[F, CommittableMessage[F, Array[Byte], Array[Byte]]] =
+    consumerStream[F, Array[Byte], Array[Byte]](consumerSettings)
+      .evalTap(_.subscribeTo(topicName.value))
+      .flatMap(_.stream)
 
   val consumeMessages: Stream[F, CommittableMessage[F, Try[K], Try[V]]] =
     consume.map(decoder.decodeMessage)
@@ -65,8 +60,11 @@ final class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
   val consumeValidMessages: Stream[F, CommittableMessage[F, K, V]] =
     consume.map(decoder.decodeBoth).collect { case Success(x) => x }
 
+  val consumeValues: Stream[F, Try[CommittableMessage[F, Array[Byte], V]]] =
+    consume.map(decoder.decodeValue)
+
   val consumeValidValues: Stream[F, CommittableMessage[F, Array[Byte], V]] =
-    consume.map(decoder.decodeValue).collect { case Success(x) => x }
+    consumeValues.collect { case Success(x) => x }
 
   val show: String =
     s"""
@@ -100,7 +98,7 @@ final class AkkaChannel[K, V](
   val decoder: KafkaMessageDecoder[CommittableMessage, K, V] =
     decoders.akkaMessageDecoder[K, V](topicName, keySerde, valueSerde)
 
-  val encoder: AkkaMessageEncoder[K, V] = encoders.akkaMessageEncoder[K, V](topicName)
+  val encoder: encoders.AkkaMessageEncoder[K, V] = encoders.akkaMessageEncoder[K, V](topicName)
 
   val consumerSettings: ConsumerSettings[Array[Byte], Array[Byte]] =
     akkaSettings.consumerSettings(materializer.system)
@@ -114,9 +112,6 @@ final class AkkaChannel[K, V](
   val sink: Sink[ConsumerMessage.Committable, Future[Done]] =
     Committer.sink(akkaSettings.committerSettings(materializer.system))
 
-  val consume: Source[CommittableMessage[Array[Byte], Array[Byte]], Consumer.Control] =
-    Consumer.committableSource(consumerSettings, Subscriptions.topics(topicName.value))
-
   def assign(tps: Map[TopicPartition, Long])
     : Source[ConsumerRecord[Array[Byte], Array[Byte]], Consumer.Control] =
     Consumer.plainSource(consumerSettings, Subscriptions.assignmentWithOffset(tps))
@@ -127,9 +122,8 @@ final class AkkaChannel[K, V](
     NotUsed] =
     Flow.fromFunction(decoder.decodeMessage)
 
-  val ignoreError
-    : Flow[CommittableMessage[Array[Byte], Array[Byte]], CommittableMessage[K, V], NotUsed] =
-    Flow.fromFunction(decoder.decodeBoth).collect { case Success(x) => x }
+  val consume: Source[CommittableMessage[Array[Byte], Array[Byte]], Consumer.Control] =
+    Consumer.committableSource(consumerSettings, Subscriptions.topics(topicName.value))
 
   val consumeMessages: Source[CommittableMessage[Try[K], Try[V]], Consumer.Control] =
     consume.map(decoder.decodeMessage)
@@ -137,11 +131,11 @@ final class AkkaChannel[K, V](
   val consumeValidMessages: Source[CommittableMessage[K, V], Consumer.Control] =
     consume.map(decoder.decodeBoth).collect { case Success(x) => x }
 
-  val consumeValues: Source[CommittableMessage[Array[Byte], Try[V]], Consumer.Control] =
-    consume.map(_.bimap(identity, decoder.valueDecode))
+  val consumeValues: Source[Try[CommittableMessage[Array[Byte], V]], Consumer.Control] =
+    consume.map(decoder.decodeValue)
 
   val consumeValidValues: Source[CommittableMessage[Array[Byte], V], Consumer.Control] =
-    consume.map(decoder.decodeValue).collect { case Success(x) => x }
+    consumeValues.collect { case Success(x) => x }
 
   val show: String =
     s"""

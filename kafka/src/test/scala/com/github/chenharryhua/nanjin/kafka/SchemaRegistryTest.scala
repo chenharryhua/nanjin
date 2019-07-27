@@ -4,17 +4,16 @@ import cats.effect.IO
 import org.scalatest.FunSuite
 
 class SchemaRegistryTest extends FunSuite {
-  val topic = KafkaTopicName("cc_payments").in[String, KAvro[Payment]](ctx)
+
+  val topic =
+    KafkaTopicName("nyc_yellow_taxi_trip_data").in[KAvro[reddit_post_key], KAvro[reddit_post]](ctx)
   test("latest schema") {
-    topic.latestSchema[IO].map(_.show).map(println).unsafeRunSync()
+    topic.schemaRegistry[IO].latestMeta.map(_.show).map(println).unsafeRunSync()
   }
   test("compatiable test") {
-    topic
-      .testSchemaCompat[IO]
-      .map(println)
-      .unsafeRunSync
+    topic.schemaRegistry[IO].testCompatibility.map(println).unsafeRunSync
   }
   ignore("register schema") {
-    topic.registerSchema[IO].unsafeRunSync()
+    topic.schemaRegistry[IO].register.unsafeRunSync()
   }
 }
