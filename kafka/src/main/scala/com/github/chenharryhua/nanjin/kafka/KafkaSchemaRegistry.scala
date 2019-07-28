@@ -34,6 +34,8 @@ final case class KvSchemaMetadata(key: Option[SchemaMetadata], value: Option[Sch
         |$showKey
         |$showValue
        """.stripMargin
+
+  override def toString: String = show
 }
 
 object KvSchemaMetadata {

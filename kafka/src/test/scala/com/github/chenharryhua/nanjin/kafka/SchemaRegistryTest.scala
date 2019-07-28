@@ -8,13 +8,13 @@ class SchemaRegistryTest extends FunSuite {
 
   val topic =
     KafkaTopicName("nyc_yellow_taxi_trip_data").in[Array[Byte], KAvro[trip_record]](ctx)
-  ignore("latest schema") {
-    topic.schemaRegistry[IO].latestMeta.map(println).unsafeRunSync()
+  test("latest schema") {
+    topic.schemaRegistry[IO].latestMeta.map(_.show).map(println).unsafeRunSync()
   }
-  test("compatiable test") {
+  ignore("compatiable test") {
     topic.schemaRegistry[IO].testCompatibility.map(println).unsafeRunSync
   }
-  test("register schema") {
+  ignore("register schema") {
     topic.schemaRegistry[IO].register.unsafeRunSync()
   }
 }

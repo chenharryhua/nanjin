@@ -12,8 +12,8 @@ final class KafkaTopic[K, V](
   fs2Settings: Fs2Settings,
   akkaSettings: AkkaSettings,
   srClient: CachedSchemaRegistryClient,
-  keySerde: KeySerde[K],
-  valueSerde: ValueSerde[V]
+  val keySerde: KeySerde[K],
+  val valueSerde: ValueSerde[V]
 ) extends TopicNameExtractor[K, V] with Serializable {
   override def extract(key: K, value: V, rc: RecordContext): String =
     topicName.value
