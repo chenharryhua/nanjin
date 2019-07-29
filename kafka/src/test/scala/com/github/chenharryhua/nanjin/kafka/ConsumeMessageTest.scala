@@ -14,7 +14,7 @@ class ConsumeMessageTest extends FunSuite with ShowKafkaMessage with Fs2MessageB
 
     jsonTopic
       .fs2Stream[IO]
-      .consumeMessages
+      .consumeNativeMessages
       .map(_.bitraverse(identity, identity).toEither)
       .rethrow
       .map(_.show)
@@ -32,6 +32,23 @@ class ConsumeMessageTest extends FunSuite with ShowKafkaMessage with Fs2MessageB
     avroTopic
       .fs2Stream[IO]
       .consumeValues
+      .map(_.toEither)
+      .rethrow
+      .map(_.show)
+      .showLinesStdOut
+      .take(3)
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
+
+  test("payments") {
+    val avroTopic =
+      KafkaTopicName("cc_payments").in[String, KAvro[Payment]](ctx)
+
+    avroTopic
+      .fs2Stream[IO]
+      .consumeMessages
       .map(_.toEither)
       .rethrow
       .map(_.show)

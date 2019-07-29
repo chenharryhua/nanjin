@@ -54,11 +54,14 @@ final class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
       .evalTap(_.subscribeTo(topicName.value))
       .flatMap(_.stream)
 
-  val consumeMessages: Stream[F, CommittableMessage[F, Try[K], Try[V]]] =
+  val consumeNativeMessages: Stream[F, CommittableMessage[F, Try[K], Try[V]]] =
     consume.map(decoder.decodeMessage)
 
+  val consumeMessages: Stream[F, Try[CommittableMessage[F, K, V]]] =
+    consume.map(decoder.decodeBoth)
+
   val consumeValidMessages: Stream[F, CommittableMessage[F, K, V]] =
-    consume.map(decoder.decodeBoth).collect { case Success(x) => x }
+    consumeMessages.collect { case Success(x) => x }
 
   val consumeValues: Stream[F, Try[CommittableMessage[F, Array[Byte], V]]] =
     consume.map(decoder.decodeValue)
@@ -125,11 +128,14 @@ final class AkkaChannel[K, V](
   val consume: Source[CommittableMessage[Array[Byte], Array[Byte]], Consumer.Control] =
     Consumer.committableSource(consumerSettings, Subscriptions.topics(topicName.value))
 
-  val consumeMessages: Source[CommittableMessage[Try[K], Try[V]], Consumer.Control] =
+  val consumeNativeMessages: Source[CommittableMessage[Try[K], Try[V]], Consumer.Control] =
     consume.map(decoder.decodeMessage)
 
+  val consumeMessages: Source[Try[CommittableMessage[K, V]], Consumer.Control] =
+    consume.map(decoder.decodeBoth)
+
   val consumeValidMessages: Source[CommittableMessage[K, V], Consumer.Control] =
-    consume.map(decoder.decodeBoth).collect { case Success(x) => x }
+    consumeMessages.collect { case Success(x) => x }
 
   val consumeValues: Source[Try[CommittableMessage[Array[Byte], V]], Consumer.Control] =
     consume.map(decoder.decodeValue)

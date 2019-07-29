@@ -17,6 +17,8 @@ val silencer     = "1.4.1"
 val monocle      = "1.5.1-cats"
 val contextual   = "1.2.1"
 val sparkVersion = "2.4.3"
+val avrohugger   = "1.0.0-RC17"
+val scalatest    = "3.0.8"
 
 lazy val commonSettings = Seq(
   version      := "0.0.1-SNAPSHOT",
@@ -66,7 +68,7 @@ lazy val kafka = (project in file("kafka"))
       "com.ovoenergy" %% "fs2-kafka"              % fs2Stream,
       "com.sksamuel.avro4s" %% "avro4s-core"      % avro,
       "io.confluent"                              % "kafka-avro-serializer" % confluent classifier "",
-      "com.julianpeeters" %% "avrohugger-core"    % "1.0.0-RC16",
+      "com.julianpeeters" %% "avrohugger-core"    % avrohugger,
 //json
       "io.circe" %% "circe-core"    % circeVersion,
       "io.circe" %% "circe-generic" % circeVersion,
@@ -85,7 +87,7 @@ lazy val kafka = (project in file("kafka"))
       "com.github.julien-truffaut" %% "monocle-state"   % monocle,
       "com.github.julien-truffaut" %% "monocle-unsafe"  % monocle,
       "com.propensive" %% "contextual"                  % contextual,
-      "org.scalatest" %% "scalatest"                    % "3.0.8" % Test
+      "org.scalatest" %% "scalatest"                    % scalatest % Test
     ),
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
