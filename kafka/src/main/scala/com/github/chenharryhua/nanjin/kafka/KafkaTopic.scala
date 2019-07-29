@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.kafka
 import akka.stream.ActorMaterializer
 import cats.Show
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
-import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
@@ -11,7 +10,7 @@ final class KafkaTopic[K, V](
   val topicName: KafkaTopicName,
   fs2Settings: Fs2Settings,
   akkaSettings: AkkaSettings,
-  srClient: CachedSchemaRegistryClient,
+  srSettings: SchemaRegistrySettings,
   val keySerde: KeySerde[K],
   val valueSerde: ValueSerde[V]
 ) extends TopicNameExtractor[K, V] with Serializable {
@@ -35,7 +34,7 @@ final class KafkaTopic[K, V](
     encoders.producerRecordEncoder[K, V](topicName, keySerde, valueSerde)
 
   def schemaRegistry[F[_]: Sync]: KafkaSchemaRegistry[F] =
-    KafkaSchemaRegistry[F](srClient, topicName, keySerde.schema, valueSerde.schema)
+    KafkaSchemaRegistry[F](srSettings, topicName, keySerde.schema, valueSerde.schema)
 
   def show: String =
     s"""

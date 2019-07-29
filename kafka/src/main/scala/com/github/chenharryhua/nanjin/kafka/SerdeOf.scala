@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import com.sksamuel.avro4s.{AvroSchema, RecordFormat, SchemaFor}
-import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import org.apache.avro.Schema
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import org.apache.kafka.streams.scala.Serdes
@@ -26,7 +25,7 @@ final case class ValueSerde[A](
   this.configure(props.asJava, false)
 }
 
-abstract class SerdeModule(val csrClient: CachedSchemaRegistryClient) {
+abstract class SerdeModule(srSettings: SchemaRegistrySettings) {
 
   sealed abstract class SerdeOf[A](val schema: Schema) extends Serde[A] with Serializable {
     def serializer: Serializer[A]
@@ -47,7 +46,7 @@ abstract class SerdeModule(val csrClient: CachedSchemaRegistryClient) {
     implicit def kavroSerde[A: Encoder: Decoder: SchemaFor]: SerdeOf[KAvro[A]] = {
       val schema: Schema          = AvroSchema[A]
       val format: RecordFormat[A] = RecordFormat[A]
-      val serde: Serde[KAvro[A]]  = new KafkaAvroSerde[A](format, csrClient)
+      val serde: Serde[KAvro[A]]  = new KafkaAvroSerde[A](format, srSettings)
       new SerdeOf[KAvro[A]](schema) {
         override val deserializer: Deserializer[KAvro[A]] = serde.deserializer
         override val serializer: Serializer[KAvro[A]]     = serde.serializer

@@ -7,7 +7,7 @@ import monocle.{Iso, PLens}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 
-trait KafkaMessageBitraverse extends Serializable {
+trait KafkaMessageBitraverse {
 
   implicit final val consumerRecordBitraverse: Bitraverse[ConsumerRecord[?, ?]] =
     new Bitraverse[ConsumerRecord] {

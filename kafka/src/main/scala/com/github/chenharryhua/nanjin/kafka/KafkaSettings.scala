@@ -4,6 +4,7 @@ import java.util.Properties
 
 import cats.Show
 import cats.implicits._
+import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import monocle.Traversal
 import monocle.function.At.at
 import monocle.macros.Lenses
@@ -14,6 +15,8 @@ import org.apache.kafka.common.security.auth.SecurityProtocol
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Serializer}
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.errors.LogAndContinueExceptionHandler
+
+import scala.collection.JavaConverters._
 
 @Lenses final case class Fs2Settings(
   consumerProps: Map[String, String],
@@ -129,6 +132,13 @@ import org.apache.kafka.streams.errors.LogAndContinueExceptionHandler
        |originals:   ${originals.show}
        |httpHeaders: ${httpHeaders.show}
      """.stripMargin
+
+  lazy val csrClient: CachedSchemaRegistryClient =
+    new CachedSchemaRegistryClient(
+      baseUrls.asJava,
+      identityMapCapacity,
+      originals.asJava,
+      httpHeaders.asJava)
 }
 
 @Lenses final case class KafkaSettings(

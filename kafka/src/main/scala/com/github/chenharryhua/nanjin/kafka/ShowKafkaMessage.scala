@@ -60,8 +60,7 @@ trait ShowKafkaMessage {
       s"""
          |akka committable message:
          |${t.record.show}
-         |${t.committableOffset}
-         |""".stripMargin
+         |${t.committableOffset}""".stripMargin
     }
 
   implicit protected val showArrayByte: Show[Array[Byte]] = _ => "Array[Byte]"

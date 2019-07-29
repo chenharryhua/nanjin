@@ -94,19 +94,19 @@ trait KafkaSchemaRegistry[F[_]] extends Serializable {
 object KafkaSchemaRegistry {
 
   def apply[F[_]: Sync](
-    srClient: CachedSchemaRegistryClient,
+    srSettings: SchemaRegistrySettings,
     topicName: KafkaTopicName,
     keySchema: Schema,
     valueSchema: Schema): KafkaSchemaRegistry[F] =
-    new KafkaSchemaRegistryImpl(srClient, topicName, keySchema, valueSchema)
+    new KafkaSchemaRegistryImpl(srSettings, topicName, keySchema, valueSchema)
 
   final private class KafkaSchemaRegistryImpl[F[_]: Sync](
-    srClient: CachedSchemaRegistryClient,
+    srSettings: SchemaRegistrySettings,
     topicName: KafkaTopicName,
     keySchema: Schema,
     valueSchema: Schema
   ) extends KafkaSchemaRegistry[F] {
-
+    val srClient: CachedSchemaRegistryClient = srSettings.csrClient
     override def delete: F[(List[Integer], List[Integer])] = {
       val deleteKey =
         Sync[F]
