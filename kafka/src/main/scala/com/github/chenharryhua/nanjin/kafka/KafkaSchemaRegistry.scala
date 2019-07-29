@@ -16,21 +16,21 @@ final case class KvSchemaMetadata(key: Option[SchemaMetadata], value: Option[Sch
     Try(Generator(Standard).stringToStrings(s.getSchema).mkString("\n")).toEither.toOption
 
   def showKey: String =
-    s"""|key schema
+    s"""|key schema:
         |id:      ${key.map(_.getId).getOrElse("none")}
         |version: ${key.map(_.getVersion).getOrElse("none")}
         |schema:  ${key.map(_.getSchema).getOrElse("none")}
         |scala:   ${key.flatMap(genCaseClass).getOrElse("none")}""".stripMargin
 
   def showValue: String =
-    s"""|value schema
+    s"""|value schema:
         |id:      ${value.map(_.getId).getOrElse("none")}
         |version: ${value.map(_.getVersion).getOrElse("none")}
         |schema:  ${value.map(_.getSchema).getOrElse("none")}
         |scala:   ${value.flatMap(genCaseClass).getOrElse("none")}""".stripMargin
 
   def show: String =
-    s"""|key and value schema 
+    s"""|key and value schema: 
         |$showKey
         |$showValue
        """.stripMargin
@@ -54,7 +54,7 @@ final case class CompatibilityTestReport(
     identity,
     if (_) "compatible"
     else
-      s"""|incompatible
+      s"""|incompatible:
           |application:  $keySchema
           |server:       ${meta.key.map(_.getSchema).getOrElse("none")}
           |""".stripMargin
@@ -64,7 +64,7 @@ final case class CompatibilityTestReport(
     identity,
     if (_) "compatible"
     else
-      s"""|incompatible
+      s"""|incompatible:
           |application:   $valueSchema
           |server:        ${meta.value.map(_.getSchema).getOrElse("none")}
           |""".stripMargin

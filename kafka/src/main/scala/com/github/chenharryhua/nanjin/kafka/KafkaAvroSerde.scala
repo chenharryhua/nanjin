@@ -33,11 +33,12 @@ final class KafkaAvroSerde[A](format: RecordFormat[A], csrClient: CachedSchemaRe
               case Success(v) => Success(KAvro(v))
               case Failure(ex) =>
                 Failure(
-                  InvalidObjectException(s"decode avro failed in topic($topic): ${ex.getMessage}"))
+                  InvalidObjectException(
+                    s"decode avro failed in topic($topic): ${ex.getMessage} data: ${gr.toString}"))
             }
-          case Success(x) =>
+          case Success(gr) =>
             Failure(
-              InvalidGenericRecordException(s"decode avro failed in topic($topic): ${x.toString}"))
+              InvalidGenericRecordException(s"decode avro failed in topic($topic): ${gr.toString}"))
           case Failure(ex) =>
             Failure(
               CorruptedRecordException(s"decode avro failed in topic($topic): ${ex.getMessage}"))
