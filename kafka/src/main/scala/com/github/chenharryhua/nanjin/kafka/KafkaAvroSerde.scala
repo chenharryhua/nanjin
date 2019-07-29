@@ -16,12 +16,11 @@ object KAvro {
   implicit def showKafkaAvro[A: Show]: Show[KAvro[A]] = (t: KAvro[A]) => s"KAvro(${t.value.show})"
 }
 
-final class KafkaAvroSerde[A](format: RecordFormat[A], settings: SchemaRegistrySettings)
+final class KafkaAvroSerde[A](format: RecordFormat[A], csrClient: CachedSchemaRegistryClient)
     extends Serde[KAvro[A]] {
 
-  private[this] val csrClient: CachedSchemaRegistryClient = settings.csrClient
-  private[this] val ser: KafkaAvroSerializer              = new KafkaAvroSerializer(csrClient)
-  private[this] val deSer: KafkaAvroDeserializer          = new KafkaAvroDeserializer(csrClient)
+  private[this] val ser: KafkaAvroSerializer     = new KafkaAvroSerializer(csrClient)
+  private[this] val deSer: KafkaAvroDeserializer = new KafkaAvroDeserializer(csrClient)
 
   @SuppressWarnings(Array("AsInstanceOf"))
   private[this] def decode(topic: String, data: Array[Byte]): Try[KAvro[A]] =
