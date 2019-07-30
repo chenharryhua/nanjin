@@ -19,6 +19,7 @@ val contextual   = "1.2.1"
 val sparkVersion = "2.4.3"
 val avrohugger   = "1.0.0-RC17"
 val scalatest    = "3.0.8"
+val refined      = "0.9.9"
 
 lazy val commonSettings = Seq(
   version      := "0.0.1-SNAPSHOT",
@@ -74,6 +75,7 @@ lazy val kafka = (project in file("kafka"))
       "io.circe" %% "circe-generic" % circeVersion,
       "io.circe" %% "circe-parser"  % circeVersion,
 //base
+      "eu.timepit" %% "refined"                         % refined,
       "org.typelevel" %% "cats-core"                    % catsCore,
       "org.typelevel" %% "cats-mtl-core"                % catsMtl,
       "org.typelevel" %% "kittens"                      % kittens,

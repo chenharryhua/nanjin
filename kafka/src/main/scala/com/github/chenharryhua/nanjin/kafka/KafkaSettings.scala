@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import java.util.Properties
 
 import cats.Show
+import cats.effect.{ConcurrentEffect, ContextShift, Timer}
 import cats.implicits._
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import monocle.Traversal
@@ -208,7 +209,8 @@ import scala.collection.JavaConverters._
   def applicationId(appId: String): KafkaSettings =
     streamProperties(StreamsConfig.APPLICATION_ID_CONFIG, appId)
 
-  val context: KafkaContext = new KafkaContext(this)
+  def context[F[_]: ContextShift: Timer: ConcurrentEffect]: KafkaContext[F] =
+    new KafkaContext[F](this)
 
   def show: String =
     s"""

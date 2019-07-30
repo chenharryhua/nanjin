@@ -33,7 +33,7 @@ object SparkMain extends IOApp {
     KafkaSettings.empty.brokers("localhost:9092").schemaRegistryUrl("http://localhost:8081").context
 
   val topic: KafkaTopic[Array[Byte], KAvro[Payment]] =
-    topic"cc_payments".in[Array[Byte], KAvro[Payment]](ctx)
+    topic"cc_payments".in[IO,Array[Byte], KAvro[Payment]](ctx)
   val spark = SparkSession.builder().master("local[*]").appName("test").getOrCreate()
   val avro  = topic.recordDecoder
   override def run(args: List[String]): IO[ExitCode] = {
