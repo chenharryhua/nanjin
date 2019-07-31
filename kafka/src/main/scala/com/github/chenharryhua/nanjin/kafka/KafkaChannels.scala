@@ -69,6 +69,12 @@ final class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
   val consumeValidValues: Stream[F, CommittableMessage[F, Array[Byte], V]] =
     consumeValues.collect { case Success(x) => x }
 
+  val consumeKeys: Stream[F, Try[CommittableMessage[F, K, Array[Byte]]]] =
+    consume.map(decoder.decodeKey)
+
+  val consumeValidKeys: Stream[F, CommittableMessage[F, K, Array[Byte]]] =
+    consumeKeys.collect { case Success(x) => x }
+
   val show: String =
     s"""
        |fs2 consumer runtime settings:
@@ -142,6 +148,12 @@ final class AkkaChannel[K, V](
 
   val consumeValidValues: Source[CommittableMessage[Array[Byte], V], Consumer.Control] =
     consumeValues.collect { case Success(x) => x }
+
+  val consumeKeys: Source[Try[CommittableMessage[K, Array[Byte]]], Consumer.Control] =
+    consume.map(decoder.decodeKey)
+
+  val consumeValidKeys: Source[CommittableMessage[K, Array[Byte]], Consumer.Control] =
+    consumeKeys.collect { case Success(x) => x }
 
   val show: String =
     s"""

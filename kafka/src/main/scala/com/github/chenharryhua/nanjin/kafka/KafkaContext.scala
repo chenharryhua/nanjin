@@ -23,18 +23,6 @@ final class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](val settin
       asValue[V]
     )
 
-  def topic[K: SerdeOf, V: SerdeOf](
-    topicName: String
-  ): KafkaTopic[K, V] =
-    new KafkaTopic[K, V](
-      KafkaTopicName(topicName),
-      settings.fs2Settings,
-      settings.akkaSettings,
-      settings.schemaRegistrySettings,
-      asKey[K],
-      asValue[V]
-    )
-
   private[this] val sharedConsumer: MVar[F, KafkaConsumer[Array[Byte], Array[Byte]]] = {
     val consumerClient: KafkaConsumer[Array[Byte], Array[Byte]] =
       new KafkaConsumer[Array[Byte], Array[Byte]](
