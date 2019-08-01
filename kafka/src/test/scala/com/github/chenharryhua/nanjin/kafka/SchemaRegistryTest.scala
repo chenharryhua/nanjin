@@ -6,9 +6,9 @@ import io.circe.generic.auto._
 import TopicDef._
 
 class SchemaRegistryTest extends FunSuite {
-
+  val nyc = TopicDef("nyc_yellow_taxi_trip_data")
   val topic =
-    ctx.topic[Array[Byte], KAvro[trip_record]](TopicDef("nyc_yellow_taxi_trip_data"))
+    ctx.topic[Int, KAvro[trip_record]](nyc) 
 
   test("latest schema") {
     topic.schemaRegistry.latestMeta.map(_.show).map(println).unsafeRunSync()

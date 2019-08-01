@@ -7,13 +7,14 @@ import org.scalatest.FunSuite
 import TopicDef._
 
 class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage with Fs2MessageBitraverse {
-
+  val backblaze_smart = TopicDef[KJson[lenses_record_key], KJson[lenses_record]]("backblaze_smart")
+  val nyc_taxi_trip   = TopicDef[Array[Byte], KAvro[trip_record]]("nyc_yellow_taxi_trip_data")
   test("consume json topic") {
     import io.circe.generic.auto._
-    val jsonTopic =
-      ctx.topic(TopicDef[KJson[lenses_record_key], KJson[lenses_record]]("backblaze_smart"))
-
-    jsonTopic.fs2Stream.consumeNativeMessages
+    ctx
+      .topic(backblaze_smart)
+      .fs2Stream
+      .consumeNativeMessages
       .map(_.bitraverse(identity, identity).toEither)
       .rethrow
       .map(_.show)
@@ -25,10 +26,10 @@ class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage with Fs2Messa
   }
   test("consume avro topic") {
     import cats.derived.auto.show._
-    val avroTopic =
-      ctx.topic(TopicDef[Array[Byte], KAvro[trip_record]]("nyc_yellow_taxi_trip_data"))
-
-    avroTopic.fs2Stream.consumeValues
+    ctx
+      .topic(nyc_taxi_trip)
+      .fs2Stream
+      .consumeValues
       .map(_.toEither)
       .rethrow
       .map(_.show)
@@ -40,10 +41,10 @@ class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage with Fs2Messa
   }
 
   test("payments") {
-    val avroTopic =
-      ctx.topic(TopicDef[String, KAvro[Payment]]("cc_payments"))
-
-    avroTopic.fs2Stream.consumeMessages
+    ctx
+      .topic[String, KAvro[Payment]]("cc_payments")
+      .fs2Stream
+      .consumeMessages
       .map(_.toEither)
       .rethrow
       .map(_.show)

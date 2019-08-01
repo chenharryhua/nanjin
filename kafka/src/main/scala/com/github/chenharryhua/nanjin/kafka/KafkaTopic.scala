@@ -8,7 +8,7 @@ import org.apache.kafka.clients.consumer.{ConsumerRecord, KafkaConsumer}
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
-final case class TopicDef[K, V](topicName: String) extends AnyVal {
+final case class TopicDef[+K, +V](topicName: String) {
   def keySchemaLoc: String   = s"$topicName-key"
   def valueSchemaLoc: String = s"$topicName-value"
 }
@@ -24,9 +24,11 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
   val keySerde: KeySerde[K],
   val valueSerde: ValueSerde[V]
 ) extends TopicNameExtractor[K, V] with Serializable {
-  override def extract(key: K, value: V, rc: RecordContext): String =
-    topicDef.topicName
-  override def toString: String = topicDef.topicName
+  val topicName: String = topicDef.topicName
+
+  override def extract(key: K, value: V, rc: RecordContext): String = topicName
+
+  override def toString: String = topicName
 
   val fs2Stream: Fs2Channel[F, K, V] =
     new Fs2Channel[F, K, V](topicDef, fs2Settings, keySerde, valueSerde)
