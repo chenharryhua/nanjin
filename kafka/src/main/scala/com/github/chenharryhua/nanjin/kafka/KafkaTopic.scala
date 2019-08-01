@@ -8,13 +8,13 @@ import org.apache.kafka.clients.consumer.{ConsumerRecord, KafkaConsumer}
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
-final case class TopicDef[K, V](value: String) extends AnyVal {
-  def keySchemaLoc: String   = s"$value-key"
-  def valueSchemaLoc: String = s"$value-value"
+final case class TopicDef[K, V](topicName: String) extends AnyVal {
+  def keySchemaLoc: String   = s"$topicName-key"
+  def valueSchemaLoc: String = s"$topicName-value"
 }
 
 final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
-  val topicDef: TopicDef[K, V],
+  topicDef: TopicDef[K, V],
   fs2Settings: Fs2Settings,
   akkaSettings: AkkaSettings,
   srSettings: SchemaRegistrySettings,
@@ -25,8 +25,8 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
   val valueSerde: ValueSerde[V]
 ) extends TopicNameExtractor[K, V] with Serializable {
   override def extract(key: K, value: V, rc: RecordContext): String =
-    topicDef.value
-  override def toString: String = topicDef.value
+    topicDef.topicName
+  override def toString: String = topicDef.topicName
 
   val fs2Stream: Fs2Channel[F, K, V] =
     new Fs2Channel[F, K, V](topicDef, fs2Settings, keySerde, valueSerde)
@@ -38,15 +38,15 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
     new StreamingChannel[K, V](topicDef, keySerde, valueSerde)
 
   val recordDecoder: KafkaMessageDecoder[ConsumerRecord, K, V] =
-    decoders.consumerRecordDecoder[K, V](topicDef.value, keySerde, valueSerde)
+    decoders.consumerRecordDecoder[K, V](topicDef.topicName, keySerde, valueSerde)
 
   val recordEncoder: encoders.ProducerRecordEncoder[K, V] =
-    encoders.producerRecordEncoder[K, V](topicDef.value, keySerde, valueSerde)
+    encoders.producerRecordEncoder[K, V](topicDef.topicName, keySerde, valueSerde)
 
   val schemaRegistry: KafkaSchemaRegistry[F] =
     KafkaSchemaRegistry[F](
       srSettings,
-      topicDef.value,
+      topicDef.topicName,
       topicDef.keySchemaLoc,
       topicDef.valueSchemaLoc,
       keySerde.schema,
@@ -55,7 +55,7 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
   val show: String =
     s"""
        |kafka topic: 
-       |${topicDef.value}
+       |${topicDef.topicName}
        |${fs2Settings.show}
        |${akkaSettings.show}""".stripMargin
 }

@@ -151,7 +151,7 @@ object KafkaConsumerApi {
     import cats.mtl.implicits._
     private[this] val primitiveConsumer
       : KafkaPrimitiveConsumerApi[Kleisli[F, ByteArrayConsumer, ?]] =
-      KafkaPrimitiveConsumerApi[Kleisli[F, ByteArrayConsumer, ?]](topicDef.value)
+      KafkaPrimitiveConsumerApi[Kleisli[F, ByteArrayConsumer, ?]](topicDef.topicName)
 
     private[this] def atomically[A](r: Kleisli[F, ByteArrayConsumer, A]): F[A] =
       Sync[F].bracket(sharedConsumer.take)(r.run)(sharedConsumer.put)
