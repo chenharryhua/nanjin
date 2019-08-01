@@ -3,12 +3,12 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.effect.IO
 import org.scalatest.FunSuite
 import io.circe.generic.auto._
-import KafkaTopicName._
+import TopicDef._
 
 class SchemaRegistryTest extends FunSuite {
 
   val topic =
-    ctx.topic[Array[Byte], KAvro[trip_record]](KafkaTopicName("nyc_yellow_taxi_trip_data"))
+    ctx.topic[Array[Byte], KAvro[trip_record]](TopicDef("nyc_yellow_taxi_trip_data"))
 
   test("latest schema") {
     topic.schemaRegistry.latestMeta.map(_.show).map(println).unsafeRunSync()

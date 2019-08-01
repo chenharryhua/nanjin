@@ -2,13 +2,14 @@ package com.github.chenharryhua.nanjin.sparkafka
 
 import cats.effect.{ExitCode, IO, IOApp}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.KafkaTopicName._
+import com.github.chenharryhua.nanjin.kafka.TopicDef._
 import com.github.chenharryhua.nanjin.kafka.{
   KAvro,
   KafkaContext,
   KafkaSettings,
   KafkaTopic,
-  ShowKafkaMessage
+  ShowKafkaMessage,
+  TopicDef
 }
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import io.confluent.kafka.serializers.KafkaAvroDeserializer
@@ -36,7 +37,7 @@ object SparkMain extends IOApp {
       .ioContext
 
   val topic =
-    ctx.topic[Array[Byte], KAvro[Payment]](topic"cc_payments")
+    ctx.topic[Array[Byte], KAvro[Payment]](TopicDef("cc_payments"))
   val spark = SparkSession.builder().master("local[*]").appName("test").getOrCreate()
   val avro  = topic.recordDecoder
   override def run(args: List[String]): IO[ExitCode] = {
@@ -44,7 +45,7 @@ object SparkMain extends IOApp {
 
     IO {
       val ds =
-        new SparkafkaApiImpl(spark).dataset[Payment](topic.topicName.value, RecordFormat[Payment])
+        new SparkafkaApiImpl(spark).dataset[Payment](topic.topicDef.value, RecordFormat[Payment])
       ds.show()
       Row
     } >> //IO.sleep(40.seconds) >> IO { spark.stop() }

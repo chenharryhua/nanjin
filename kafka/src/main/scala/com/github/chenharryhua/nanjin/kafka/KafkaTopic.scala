@@ -8,8 +8,13 @@ import org.apache.kafka.clients.consumer.{ConsumerRecord, KafkaConsumer}
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
+final case class TopicDef[K, V](value: String) extends AnyVal {
+  def keySchemaLoc: String   = s"$value-key"
+  def valueSchemaLoc: String = s"$value-value"
+}
+
 final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
-  val topicName: KafkaTopicName[K, V],
+  val topicDef: TopicDef[K, V],
   fs2Settings: Fs2Settings,
   akkaSettings: AkkaSettings,
   srSettings: SchemaRegistrySettings,
@@ -20,37 +25,37 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
   val valueSerde: ValueSerde[V]
 ) extends TopicNameExtractor[K, V] with Serializable {
   override def extract(key: K, value: V, rc: RecordContext): String =
-    topicName.value
-  override def toString: String = topicName.value
+    topicDef.value
+  override def toString: String = topicDef.value
 
   val fs2Stream: Fs2Channel[F, K, V] =
-    new Fs2Channel[F, K, V](topicName.value, fs2Settings, keySerde, valueSerde)
+    new Fs2Channel[F, K, V](topicDef, fs2Settings, keySerde, valueSerde)
 
   val akkaStream: AkkaChannel[K, V] =
-    new AkkaChannel[K, V](topicName.value, akkaSettings, keySerde, valueSerde)(materializer.value)
+    new AkkaChannel[K, V](topicDef, akkaSettings, keySerde, valueSerde)(materializer.value)
 
   val kafkaStream: StreamingChannel[K, V] =
-    new StreamingChannel[K, V](topicName.value, keySerde, valueSerde)
+    new StreamingChannel[K, V](topicDef, keySerde, valueSerde)
 
   val recordDecoder: KafkaMessageDecoder[ConsumerRecord, K, V] =
-    decoders.consumerRecordDecoder[K, V](topicName.value, keySerde, valueSerde)
+    decoders.consumerRecordDecoder[K, V](topicDef.value, keySerde, valueSerde)
 
   val recordEncoder: encoders.ProducerRecordEncoder[K, V] =
-    encoders.producerRecordEncoder[K, V](topicName.value, keySerde, valueSerde)
+    encoders.producerRecordEncoder[K, V](topicDef.value, keySerde, valueSerde)
 
   val schemaRegistry: KafkaSchemaRegistry[F] =
     KafkaSchemaRegistry[F](
       srSettings,
-      topicName.value,
-      topicName.keySchemaLoc,
-      topicName.valueSchemaLoc,
+      topicDef.value,
+      topicDef.keySchemaLoc,
+      topicDef.valueSchemaLoc,
       keySerde.schema,
       valueSerde.schema)
 
   val show: String =
     s"""
        |kafka topic: 
-       |${topicName.value}
+       |${topicDef.value}
        |${fs2Settings.show}
        |${akkaSettings.show}""".stripMargin
 }

@@ -138,20 +138,20 @@ object KafkaConsumerApi {
   type ByteArrayConsumer = KafkaConsumer[Array[Byte], Array[Byte]]
 
   def apply[F[_]: Concurrent, K, V](
-    topicName: KafkaTopicName[K, V],
+    topicDef: TopicDef[K, V],
     sharedConsumer: MVar[F, ByteArrayConsumer],
     decoder: KafkaMessageDecoder[ConsumerRecord, K, V]): KafkaConsumerApi[F, K, V] =
-    new KafkaConsumerApiImpl[F, K, V](topicName, sharedConsumer, decoder)
+    new KafkaConsumerApiImpl[F, K, V](topicDef, sharedConsumer, decoder)
 
   final private[this] class KafkaConsumerApiImpl[F[_]: Concurrent, K, V](
-    topicName: KafkaTopicName[K, V],
+    topicDef: TopicDef[K, V],
     sharedConsumer: MVar[F, ByteArrayConsumer],
     decoder: KafkaMessageDecoder[ConsumerRecord, K, V]
   ) extends KafkaConsumerApi[F, K, V] {
     import cats.mtl.implicits._
     private[this] val primitiveConsumer
       : KafkaPrimitiveConsumerApi[Kleisli[F, ByteArrayConsumer, ?]] =
-      KafkaPrimitiveConsumerApi[Kleisli[F, ByteArrayConsumer, ?]](topicName.value)
+      KafkaPrimitiveConsumerApi[Kleisli[F, ByteArrayConsumer, ?]](topicDef.value)
 
     private[this] def atomically[A](r: Kleisli[F, ByteArrayConsumer, A]): F[A] =
       Sync[F].bracket(sharedConsumer.take)(r.run)(sharedConsumer.put)

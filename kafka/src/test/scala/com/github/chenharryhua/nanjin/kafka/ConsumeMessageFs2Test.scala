@@ -2,16 +2,16 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.IO
 import cats.implicits._
-import KafkaTopicName._
+import TopicDef._
 import org.scalatest.FunSuite
-import KafkaTopicName._
+import TopicDef._
 
 class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage with Fs2MessageBitraverse {
 
   test("consume json topic") {
     import io.circe.generic.auto._
     val jsonTopic =
-      ctx.topic(KafkaTopicName[KJson[lenses_record_key], KJson[lenses_record]]("backblaze_smart"))
+      ctx.topic(TopicDef[KJson[lenses_record_key], KJson[lenses_record]]("backblaze_smart"))
 
     jsonTopic.fs2Stream.consumeNativeMessages
       .map(_.bitraverse(identity, identity).toEither)
@@ -26,7 +26,7 @@ class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage with Fs2Messa
   test("consume avro topic") {
     import cats.derived.auto.show._
     val avroTopic =
-      ctx.topic(KafkaTopicName[Array[Byte], KAvro[trip_record]]("nyc_yellow_taxi_trip_data"))
+      ctx.topic(TopicDef[Array[Byte], KAvro[trip_record]]("nyc_yellow_taxi_trip_data"))
 
     avroTopic.fs2Stream.consumeValues
       .map(_.toEither)
@@ -41,7 +41,7 @@ class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage with Fs2Messa
 
   test("payments") {
     val avroTopic =
-      ctx.topic(KafkaTopicName[String, KAvro[Payment]]("cc_payments"))
+      ctx.topic(TopicDef[String, KAvro[Payment]]("cc_payments"))
 
     avroTopic.fs2Stream.consumeMessages
       .map(_.toEither)

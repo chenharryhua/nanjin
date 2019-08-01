@@ -20,10 +20,10 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
   def asValue[V: SerdeOf]: ValueSerde[V] = SerdeOf[V].asValue(Map.empty)
 
   def topic[K: SerdeOf, V: SerdeOf](
-    topicName: KafkaTopicName[K,V]
+    topicDef: TopicDef[K, V]
   ): KafkaTopic[F, K, V] =
     new KafkaTopic[F, K, V](
-      topicName,
+      topicDef,
       settings.fs2Settings,
       settings.akkaSettings,
       settings.schemaRegistrySettings,

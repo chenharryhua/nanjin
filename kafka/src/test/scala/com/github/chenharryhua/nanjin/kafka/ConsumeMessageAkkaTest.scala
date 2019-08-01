@@ -2,15 +2,16 @@ package com.github.chenharryhua.nanjin.kafka
 
 import org.scalatest.FunSuite
 import cats.implicits._
-import KafkaTopicName._
+import TopicDef._
 import akka.stream.scaladsl.Sink
 import cats.derived.auto.show._
 
 class ConsumeMessageAkkaTest extends FunSuite with ShowKafkaMessage with AkkaMessageBitraverse {
 
   val topic =
-    ctx.topic(KafkaTopicName[KAvro[Key], KAvro[aisClassAPositionReport]]("sea_vessel_position_reports"))
+    ctx.topic(TopicDef[KAvro[Key], KAvro[aisClassAPositionReport]]("sea_vessel_position_reports"))
   ignore("schema") {
+    val t   = ctx.topic(TopicDef[Int, Int]("abc"))
     val ret = topic.schemaRegistry.latestMeta.unsafeRunSync().show
     println(ret)
   }
