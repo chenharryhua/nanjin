@@ -11,25 +11,25 @@ import org.apache.kafka.common.serialization.Deserializer
 import scala.util.{Failure, Success, Try}
 
 sealed abstract class KafkaMessageDecoder[F[_, _]: Bitraverse, K, V](
-  topicName: KafkaTopicName,
+  topicName: String,
   keyDeserializer: Deserializer[K],
   valueDeserializer: Deserializer[V]
 ) extends Serializable {
 
   final def keyDecode(data: Array[Byte]): Try[K] =
     Option(data)
-      .traverse(d => Try(keyDeserializer.deserialize(topicName.value, d)))
+      .traverse(d => Try(keyDeserializer.deserialize(topicName, d)))
       .flatMap(
-        _.fold[Try[K]](Failure(DecodingNullKeyException(topicName.value)))(
+        _.fold[Try[K]](Failure(DecodingNullKeyException(topicName)))(
           Success(_)
         )
       )
 
   final def valueDecode(data: Array[Byte]): Try[V] =
     Option(data)
-      .traverse(d => Try(valueDeserializer.deserialize(topicName.value, d)))
+      .traverse(d => Try(valueDeserializer.deserialize(topicName, d)))
       .flatMap(
-        _.fold[Try[V]](Failure(DecodingNullValueException(topicName.value)))(
+        _.fold[Try[V]](Failure(DecodingNullValueException(topicName)))(
           Success(_)
         )
       )
@@ -56,7 +56,7 @@ sealed abstract class KafkaMessageDecoder[F[_, _]: Bitraverse, K, V](
 object decoders extends Fs2MessageBitraverse with AkkaMessageBitraverse {
 
   def consumerRecordDecoder[K, V](
-    topicName: KafkaTopicName,
+    topicName: String,
     keySerde: KeySerde[K],
     valueSerde: ValueSerde[V]
   ): KafkaMessageDecoder[ConsumerRecord, K, V] =
@@ -67,7 +67,7 @@ object decoders extends Fs2MessageBitraverse with AkkaMessageBitraverse {
     ) {}
 
   def fs2MessageDecoder[F[_], K, V](
-    topicName: KafkaTopicName,
+    topicName: String,
     keySerde: KeySerde[K],
     valueSerde: ValueSerde[V]
   ): KafkaMessageDecoder[Fs2CommittableMessage[F, ?, ?], K, V] =
@@ -78,7 +78,7 @@ object decoders extends Fs2MessageBitraverse with AkkaMessageBitraverse {
     ) {}
 
   def akkaMessageDecoder[K, V](
-    topicName: KafkaTopicName,
+    topicName: String,
     keySerde: KeySerde[K],
     valueSerde: ValueSerde[V]
   ): KafkaMessageDecoder[AkkaCommittableMessage, K, V] =

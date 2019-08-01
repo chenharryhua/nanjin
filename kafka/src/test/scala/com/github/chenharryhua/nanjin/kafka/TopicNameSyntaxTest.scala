@@ -1,12 +1,10 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.effect.IO
-import KafkaTopicName._
+import com.github.chenharryhua.nanjin.kafka.KafkaTopicName._
+import io.circe.generic.auto._
 
 class TopicNameSyntaxTest {
-  val tn1 = KafkaTopicName("topic1").in[IO, Int, Int](ctx)
-  val tn2 = topic"topic2".in[IO, Int, Int](ctx)
-  val tn3 = topic"topic3".in[IO, Int, Int](ctx)
-//  val tn4 = ctx.topic[Int, Int]("topic4")
-  val tn5 = ctx.topic[Int, Int](topic"topic5")
+
+  val tooic4 = ctx.topic[Int, KJson[Payment]](KafkaTopicName("topic4"))
+  val topic5 = ctx.topic[Int, KAvro[Payment]](KafkaTopicName("topic5"))
 }

@@ -10,53 +10,51 @@ import scala.collection.immutable
 object encoders extends Fs2MessageBitraverse with AkkaMessageBitraverse {
 
   def producerRecordEncoder[K, V](
-    topicName: KafkaTopicName,
+    topicName: String,
     keySerde: KeySerde[K],
     valueSerde: ValueSerde[V]): ProducerRecordEncoder[K, V] =
     new ProducerRecordEncoder(topicName, keySerde.serializer, valueSerde.serializer)
 
-  def akkaMessageEncoder[K, V](topicName: KafkaTopicName): AkkaMessageEncoder[K, V] =
+  def akkaMessageEncoder[K, V](topicName: String): AkkaMessageEncoder[K, V] =
     new AkkaMessageEncoder[K, V](topicName)
 
-  def fs2MessageEncoder[F[_], K, V](topicName: KafkaTopicName): Fs2MessageEncoder[F, K, V] =
+  def fs2MessageEncoder[F[_], K, V](topicName: String): Fs2MessageEncoder[F, K, V] =
     new Fs2MessageEncoder[F, K, V](topicName)
 
   final class ProducerRecordEncoder[K, V](
-    topicName: KafkaTopicName,
+    topicName: String,
     keySerializer: Serializer[K],
     valueSerializer: Serializer[V])
       extends Serializable {
 
-    private val tName: String = topicName.value
-
     def cloneRecord(rec: ConsumerRecord[K, V]): ProducerRecord[Array[Byte], Array[Byte]] =
       recordTopicLens
-        .set(tName)(rec)
-        .bimap(keySerializer.serialize(tName, _), valueSerializer.serialize(tName, _))
+        .set(topicName)(rec)
+        .bimap(keySerializer.serialize(topicName, _), valueSerializer.serialize(topicName, _))
 
     def record(k: Array[Byte], v: Array[Byte]): ProducerRecord[Array[Byte], Array[Byte]] =
-      new ProducerRecord(topicName.value, k, v)
+      new ProducerRecord(topicName, k, v)
 
     def record(k: K, v: Array[Byte]): ProducerRecord[Array[Byte], Array[Byte]] =
-      new ProducerRecord(topicName.value, keySerializer.serialize(tName, k), v)
+      new ProducerRecord(topicName, keySerializer.serialize(topicName, k), v)
 
     def record(k: Array[Byte], v: V): ProducerRecord[Array[Byte], Array[Byte]] =
-      new ProducerRecord(tName, k, valueSerializer.serialize(tName, v))
+      new ProducerRecord(topicName, k, valueSerializer.serialize(topicName, v))
 
     def record(k: K, v: V): ProducerRecord[Array[Byte], Array[Byte]] =
       new ProducerRecord(
-        tName,
-        keySerializer.serialize(tName, k),
-        valueSerializer.serialize(tName, v))
+        topicName,
+        keySerializer.serialize(topicName, k),
+        valueSerializer.serialize(topicName, v))
   }
 
-  final class AkkaMessageEncoder[K, V](topicName: KafkaTopicName) extends Serializable {
+  final class AkkaMessageEncoder[K, V](topicName: String) extends Serializable {
     import akka.NotUsed
     import akka.kafka.ConsumerMessage.CommittableMessage
     import akka.kafka.ProducerMessage.Envelope
     import akka.kafka.{ConsumerMessage, ProducerMessage}
 
-    def record(k: K, v: V): ProducerRecord[K, V]    = new ProducerRecord(topicName.value, k, v)
+    def record(k: K, v: V): ProducerRecord[K, V]    = new ProducerRecord(topicName, k, v)
     def single(k: K, v: V): Envelope[K, V, NotUsed] = ProducerMessage.single(record(k, v))
 
     def single[P](k: K, v: V, p: P): Envelope[K, V, P] =
@@ -71,7 +69,7 @@ object encoders extends Fs2MessageBitraverse with AkkaMessageBitraverse {
       ProducerMessage.multi(msg.map(kv => record(kv._1, kv._2)), cof)
 
     def cloneRecord(cm: CommittableMessage[K, V]): ProducerRecord[K, V] =
-      recordTopicLens.set(topicName.value)(cm.record)
+      recordTopicLens.set(topicName)(cm.record)
 
     def cloneSingle(
       cm: CommittableMessage[K, V]): Envelope[K, V, ConsumerMessage.CommittableOffset] =
@@ -85,11 +83,11 @@ object encoders extends Fs2MessageBitraverse with AkkaMessageBitraverse {
       ProducerMessage.multi(cms.map(cloneRecord).toList, cms.last.committableOffset)
   }
 
-  final class Fs2MessageEncoder[F[_], K, V](topicName: KafkaTopicName) extends Serializable {
+  final class Fs2MessageEncoder[F[_], K, V](topicName: String) extends Serializable {
     import fs2.Chunk
     import fs2.kafka.{CommittableMessage, CommittableOffset, Id, ProducerMessage, ProducerRecord}
 
-    def record(k: K, v: V): ProducerRecord[K, V] = ProducerRecord(topicName.value, k, v)
+    def record(k: K, v: V): ProducerRecord[K, V] = ProducerRecord(topicName, k, v)
 
     def single(k: K, v: V): ProducerMessage[Id, K, V, Option[CommittableOffset[F]]] =
       ProducerMessage.one(record(k, v), None)
@@ -108,7 +106,7 @@ object encoders extends Fs2MessageBitraverse with AkkaMessageBitraverse {
       ProducerMessage(msgs.map { case (k, v) => record(k, v) }, None)
 
     def cloneRecord(cm: CommittableMessage[F, K, V]): ProducerRecord[K, V] = {
-      fs2ProducerRecordIso.reverseGet(recordTopicLens.set(topicName.value)(cm.record))
+      fs2ProducerRecordIso.reverseGet(recordTopicLens.set(topicName)(cm.record))
     }
 
     def cloneSingle(

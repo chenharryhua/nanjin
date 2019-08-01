@@ -1,16 +1,21 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import akka.stream.ActorMaterializer
-import cats.Show
-import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
-import org.apache.kafka.clients.consumer.ConsumerRecord
+import cats.effect.concurrent.MVar
+import cats.effect.{ConcurrentEffect, ContextShift, Timer}
+import cats.{Eval, Show}
+import org.apache.kafka.clients.consumer.{ConsumerRecord, KafkaConsumer}
+import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
-final class KafkaTopic[K, V](
-  val topicName: KafkaTopicName,
+final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
+  val topicName: KafkaTopicName[K, V],
   fs2Settings: Fs2Settings,
   akkaSettings: AkkaSettings,
   srSettings: SchemaRegistrySettings,
+  sharedConsumer: Eval[MVar[F, KafkaConsumer[Array[Byte], Array[Byte]]]],
+  sharedProducer: Eval[KafkaProducer[Array[Byte], Array[Byte]]],
+  materializer: Eval[ActorMaterializer],
   val keySerde: KeySerde[K],
   val valueSerde: ValueSerde[V]
 ) extends TopicNameExtractor[K, V] with Serializable {
@@ -18,25 +23,31 @@ final class KafkaTopic[K, V](
     topicName.value
   override def toString: String = topicName.value
 
-  def fs2Stream[F[_]: ConcurrentEffect: ContextShift: Timer]: Fs2Channel[F, K, V] =
-    new Fs2Channel[F, K, V](topicName, fs2Settings, keySerde, valueSerde)
+  val fs2Stream: Fs2Channel[F, K, V] =
+    new Fs2Channel[F, K, V](topicName.value, fs2Settings, keySerde, valueSerde)
 
-  def akkaStream(implicit materializer: ActorMaterializer): AkkaChannel[K, V] =
-    new AkkaChannel[K, V](topicName, akkaSettings, keySerde, valueSerde)
+  val akkaStream: AkkaChannel[K, V] =
+    new AkkaChannel[K, V](topicName.value, akkaSettings, keySerde, valueSerde)(materializer.value)
 
   val kafkaStream: StreamingChannel[K, V] =
-    new StreamingChannel[K, V](topicName, keySerde, valueSerde)
+    new StreamingChannel[K, V](topicName.value, keySerde, valueSerde)
 
   val recordDecoder: KafkaMessageDecoder[ConsumerRecord, K, V] =
-    decoders.consumerRecordDecoder[K, V](topicName, keySerde, valueSerde)
+    decoders.consumerRecordDecoder[K, V](topicName.value, keySerde, valueSerde)
 
   val recordEncoder: encoders.ProducerRecordEncoder[K, V] =
-    encoders.producerRecordEncoder[K, V](topicName, keySerde, valueSerde)
+    encoders.producerRecordEncoder[K, V](topicName.value, keySerde, valueSerde)
 
-  def schemaRegistry[F[_]: Sync]: KafkaSchemaRegistry[F] =
-    KafkaSchemaRegistry[F](srSettings, topicName, keySerde.schema, valueSerde.schema)
+  val schemaRegistry: KafkaSchemaRegistry[F] =
+    KafkaSchemaRegistry[F](
+      srSettings,
+      topicName.value,
+      topicName.keySchemaLoc,
+      topicName.valueSchemaLoc,
+      keySerde.schema,
+      valueSerde.schema)
 
-  def show: String =
+  val show: String =
     s"""
        |kafka topic: 
        |${topicName.value}
@@ -45,5 +56,5 @@ final class KafkaTopic[K, V](
 }
 
 object KafkaTopic {
-  implicit def showTopic[K, V]: Show[KafkaTopic[K, V]] = _.show
+  implicit def showTopic[F[_], K, V]: Show[KafkaTopic[F, K, V]] = _.show
 }

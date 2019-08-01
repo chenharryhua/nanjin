@@ -2,14 +2,11 @@ package com.github.chenharryhua.nanjin.kafka
 import contextual._
 import shapeless.Witness
 
-final case class KafkaTopicName(value: String) {
+final case class KafkaTopicName[K,V](value: String) extends AnyVal {
   def keySchemaLoc: String   = s"$value-key"
   def valueSchemaLoc: String = s"$value-value"
-
-  def in[F[_], K: ctx.SerdeOf, V: ctx.SerdeOf](ctx: KafkaContext[F]): KafkaTopic[K, V] =
-    ctx.topic[K, V](this)
 }
-
+/*
 object KafkaTopicNameInterpolator extends Verifier[KafkaTopicName] {
   import eu.timepit.refined.api.Refined
   import eu.timepit.refined.auto._
@@ -31,3 +28,4 @@ object KafkaTopicName {
     val topic = Prefix(KafkaTopicNameInterpolator, sc)
   }
 }
+*/

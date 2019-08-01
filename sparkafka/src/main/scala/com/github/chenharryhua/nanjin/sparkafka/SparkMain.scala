@@ -30,10 +30,13 @@ import scala.util.Try
 object SparkMain extends IOApp {
 
   val ctx =
-    KafkaSettings.empty.brokers("localhost:9092").schemaRegistryUrl("http://localhost:8081").context
+    KafkaSettings.empty
+      .brokers("localhost:9092")
+      .schemaRegistryUrl("http://localhost:8081")
+      .ioContext
 
-  val topic: KafkaTopic[Array[Byte], KAvro[Payment]] =
-    topic"cc_payments".in[IO,Array[Byte], KAvro[Payment]](ctx)
+  val topic =
+    ctx.topic[Array[Byte], KAvro[Payment]](topic"cc_payments")
   val spark = SparkSession.builder().master("local[*]").appName("test").getOrCreate()
   val avro  = topic.recordDecoder
   override def run(args: List[String]): IO[ExitCode] = {

@@ -51,7 +51,7 @@ final case class GenericTopicPartition[V](value: Map[TopicPartition, V]) extends
   def topicPartitions: ListOfTopicPartitions = ListOfTopicPartitions(value.keys.toList)
 }
 
-trait KafkaPrimitiveConsumerApi[F[_]] {
+sealed trait KafkaPrimitiveConsumerApi[F[_]] {
   def partitionsFor: F[ListOfTopicPartitions]
   def beginningOffsets: F[GenericTopicPartition[Option[Long]]]
   def endOffsets: F[GenericTopicPartition[Option[Long]]]
@@ -65,21 +65,21 @@ trait KafkaPrimitiveConsumerApi[F[_]] {
 object KafkaPrimitiveConsumerApi {
 
   def apply[F[_]: Monad](
-    topicName: KafkaTopicName
+    topicName: String
   )(implicit F: ApplicativeAsk[F, KafkaConsumer[Array[Byte], Array[Byte]]])
     : KafkaPrimitiveConsumerApi[F] =
     new KafkaPrimitiveConsumerApiImpl[F](topicName)
 
-  final private[this] class KafkaPrimitiveConsumerApiImpl[F[_]: Monad](topicName: KafkaTopicName)(
+  final private[this] class KafkaPrimitiveConsumerApiImpl[F[_]: Monad](topicName: String)(
     implicit K: ApplicativeAsk[F, KafkaConsumer[Array[Byte], Array[Byte]]]
   ) extends KafkaPrimitiveConsumerApi[F] {
 
     val partitionsFor: F[ListOfTopicPartitions] = {
       for {
         ret <- K.ask.map {
-          _.partitionsFor(topicName.value).asScala.toList
+          _.partitionsFor(topicName).asScala.toList
             .mapFilter(Option(_))
-            .map(info => new TopicPartition(topicName.value, info.partition))
+            .map(info => new TopicPartition(topicName, info.partition))
         }
       } yield ListOfTopicPartitions(ret)
     }
@@ -110,7 +110,7 @@ object KafkaPrimitiveConsumerApi {
       partition: Int,
       offset: Long): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]] =
       K.ask.map { consumer =>
-        val tp = new TopicPartition(topicName.value, partition)
+        val tp = new TopicPartition(topicName, partition)
         consumer.assign(List(tp).asJava)
         consumer.seek(tp, offset)
         consumer.poll(Duration.ofSeconds(15)).records(tp).asScala.toList.headOption
@@ -118,7 +118,7 @@ object KafkaPrimitiveConsumerApi {
   }
 }
 
-trait KafkaConsumerApi[F[_], K, V] extends KafkaPrimitiveConsumerApi[F] {
+sealed trait KafkaConsumerApi[F[_], K, V] extends KafkaPrimitiveConsumerApi[F] {
 
   def offsetRangeFor(
     start: LocalDateTime,
@@ -138,20 +138,20 @@ object KafkaConsumerApi {
   type ByteArrayConsumer = KafkaConsumer[Array[Byte], Array[Byte]]
 
   def apply[F[_]: Concurrent, K, V](
-    topicName: KafkaTopicName,
+    topicName: KafkaTopicName[K, V],
     sharedConsumer: MVar[F, ByteArrayConsumer],
     decoder: KafkaMessageDecoder[ConsumerRecord, K, V]): KafkaConsumerApi[F, K, V] =
     new KafkaConsumerApiImpl[F, K, V](topicName, sharedConsumer, decoder)
 
   final private[this] class KafkaConsumerApiImpl[F[_]: Concurrent, K, V](
-    topicName: KafkaTopicName,
+    topicName: KafkaTopicName[K, V],
     sharedConsumer: MVar[F, ByteArrayConsumer],
     decoder: KafkaMessageDecoder[ConsumerRecord, K, V]
   ) extends KafkaConsumerApi[F, K, V] {
     import cats.mtl.implicits._
     private[this] val primitiveConsumer
       : KafkaPrimitiveConsumerApi[Kleisli[F, ByteArrayConsumer, ?]] =
-      KafkaPrimitiveConsumerApi[Kleisli[F, ByteArrayConsumer, ?]](topicName)
+      KafkaPrimitiveConsumerApi[Kleisli[F, ByteArrayConsumer, ?]](topicName.value)
 
     private[this] def atomically[A](r: Kleisli[F, ByteArrayConsumer, A]): F[A] =
       Sync[F].bracket(sharedConsumer.take)(r.run)(sharedConsumer.put)

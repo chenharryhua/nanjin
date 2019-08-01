@@ -46,7 +46,7 @@ abstract class SerdeModule(srSettings: SchemaRegistrySettings) {
     implicit def kavroSerde[A: Encoder: Decoder: SchemaFor]: SerdeOf[KAvro[A]] = {
       val schema: Schema          = AvroSchema[A]
       val format: RecordFormat[A] = RecordFormat[A]
-      val serde: Serde[KAvro[A]]  = new KafkaAvroSerde[A](format, srSettings.csrClient)
+      val serde: Serde[KAvro[A]]  = new KafkaAvroSerde[A](format, srSettings.csrClient.value)
       new SerdeOf[KAvro[A]](schema) {
         override val deserializer: Deserializer[KAvro[A]] = serde.deserializer
         override val serializer: Serializer[KAvro[A]]     = serde.serializer

@@ -43,7 +43,7 @@ object KvSchemaMetadata {
 }
 
 final case class CompatibilityTestReport(
-  topicName: KafkaTopicName,
+  topicName: String,
   meta: KvSchemaMetadata,
   keySchema: Schema,
   valueSchema: Schema,
@@ -72,7 +72,7 @@ final case class CompatibilityTestReport(
 
   val show: String =
     s"""
-       |compatibility test report of topic(${topicName.value}):
+       |compatibility test report of topic(${topicName}):
        |key:   $keyDescription
        |
        |value: $valueDescription
@@ -95,27 +95,35 @@ object KafkaSchemaRegistry {
 
   def apply[F[_]: Sync](
     srSettings: SchemaRegistrySettings,
-    topicName: KafkaTopicName,
+    topicName: String,
+    keySchemaLoc: String,
+    valueSchemaLoc: String,
     keySchema: Schema,
     valueSchema: Schema): KafkaSchemaRegistry[F] =
-    new KafkaSchemaRegistryImpl(srSettings, topicName, keySchema, valueSchema)
+    new KafkaSchemaRegistryImpl(
+      srSettings,
+      topicName,
+      keySchemaLoc,
+      valueSchemaLoc,
+      keySchema,
+      valueSchema)
 
   final private class KafkaSchemaRegistryImpl[F[_]: Sync](
     srSettings: SchemaRegistrySettings,
-    topicName: KafkaTopicName,
+    topicName: String,
+    keySchemaLoc: String,
+    valueSchemaLoc: String,
     keySchema: Schema,
     valueSchema: Schema
   ) extends KafkaSchemaRegistry[F] {
-    val srClient: CachedSchemaRegistryClient = srSettings.csrClient
+    private val srClient: CachedSchemaRegistryClient = srSettings.csrClient.value
     override def delete: F[(List[Integer], List[Integer])] = {
       val deleteKey =
-        Sync[F]
-          .delay(srClient.deleteSubject(topicName.keySchemaLoc).asScala.toList)
-          .handleError(_ => Nil)
+        Sync[F].delay(srClient.deleteSubject(keySchemaLoc).asScala.toList).handleError(_ => Nil)
       val deleteValue =
         Sync[F]
           .delay(
-            srClient.deleteSubject(topicName.valueSchemaLoc).asScala.toList
+            srClient.deleteSubject(valueSchemaLoc).asScala.toList
           )
           .handleError(_ => Nil)
       (deleteKey, deleteValue).mapN((_, _))
@@ -123,24 +131,21 @@ object KafkaSchemaRegistry {
 
     override def register: F[(Option[Int], Option[Int])] =
       (
-        Sync[F].delay(srClient.register(topicName.keySchemaLoc, keySchema)).attempt.map(_.toOption),
-        Sync[F]
-          .delay(srClient.register(topicName.valueSchemaLoc, valueSchema))
-          .attempt
-          .map(_.toOption)
+        Sync[F].delay(srClient.register(keySchemaLoc, keySchema)).attempt.map(_.toOption),
+        Sync[F].delay(srClient.register(valueSchemaLoc, valueSchema)).attempt.map(_.toOption)
       ).mapN((_, _))
 
     override def testCompatibility: F[CompatibilityTestReport] =
       (
         Sync[F]
           .delay(
-            srClient.testCompatibility(topicName.keySchemaLoc, keySchema)
+            srClient.testCompatibility(keySchemaLoc, keySchema)
           )
           .attempt
           .map(_.leftMap(_.getMessage)),
         Sync[F]
           .delay(
-            srClient.testCompatibility(topicName.valueSchemaLoc, valueSchema)
+            srClient.testCompatibility(valueSchemaLoc, valueSchema)
           )
           .attempt
           .map(_.leftMap(_.getMessage)),
@@ -149,14 +154,8 @@ object KafkaSchemaRegistry {
 
     override def latestMeta: F[KvSchemaMetadata] =
       (
-        Sync[F]
-          .delay(srClient.getLatestSchemaMetadata(topicName.keySchemaLoc))
-          .attempt
-          .map(_.toOption),
-        Sync[F]
-          .delay(srClient.getLatestSchemaMetadata(topicName.valueSchemaLoc))
-          .attempt
-          .map(_.toOption)
+        Sync[F].delay(srClient.getLatestSchemaMetadata(keySchemaLoc)).attempt.map(_.toOption),
+        Sync[F].delay(srClient.getLatestSchemaMetadata(valueSchemaLoc)).attempt.map(_.toOption)
       ).mapN(KvSchemaMetadata(_, _))
   }
 }
