@@ -39,7 +39,7 @@ class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage with Fs2Messa
 
   test("payments") {
     ctx
-      .topic[String, KAvro[Payment]]("cc_payments")
+      .topic[String, Payment]("cc_payments")
       .fs2Stream
       .consumeMessages
       .map(_.toEither)

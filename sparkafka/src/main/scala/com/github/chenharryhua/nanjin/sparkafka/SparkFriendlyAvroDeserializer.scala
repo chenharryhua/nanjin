@@ -44,5 +44,5 @@ final class SparkFriendlyAvroDeserializer[A] extends Deserializer[A] {
   }
 
   override def deserialize(topic: String, data: Array[Byte]): A =
-    avro.deserializer.deserialize(topic, data).value
+    avro.deserializer.deserialize(topic, data)
 }

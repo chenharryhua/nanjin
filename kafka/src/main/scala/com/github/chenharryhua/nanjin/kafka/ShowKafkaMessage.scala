@@ -24,8 +24,8 @@ sealed trait LowerPriorityShow {
           |utc:          $dt
           |local-time:   ${dt.atZone(ZoneId.systemDefault())}
           |ts-type:      ${t.timestampType()}
-          |key:          ${t.key().toString}
-          |value:        ${t.value().toString}
+          |key:          ${Option(t.key).getOrElse("null")}
+          |value:        ${Option(t.value).getOrElse("null")}
           |key-size:     ${t.serializedKeySize()}
           |value-size:   ${t.serializedValueSize()}
           |leader epoch: ${t.leaderEpoch}""".stripMargin
@@ -63,8 +63,8 @@ trait ShowKafkaMessage extends LowerPriorityShow {
           |utc:          $dt
           |local-time:   ${dt.atZone(ZoneId.systemDefault())}
           |ts-type:      ${t.timestampType()}
-          |key:          ${t.key().toString}
-          |value:        ${t.value().show}
+          |key:          ${Option(t.key).getOrElse("null")}
+          |value:        ${Option(t.value).map(_.show).getOrElse("null")}
           |key-size:     ${t.serializedKeySize()}
           |value-size:   ${t.serializedValueSize()}
           |leader epoch: ${t.leaderEpoch}""".stripMargin

@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.sparkafka
 
-import com.github.chenharryhua.nanjin.kafka.{KAvro, KafkaAvroSerde, ValueSerde}
+import com.github.chenharryhua.nanjin.kafka.{KafkaAvroSerde, ValueSerde}
 import com.sksamuel.avro4s.RecordFormat
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import io.confluent.kafka.serializers.KafkaAvroDeserializer

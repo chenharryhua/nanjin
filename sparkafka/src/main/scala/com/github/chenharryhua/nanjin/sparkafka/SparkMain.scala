@@ -4,7 +4,6 @@ import cats.effect.{ExitCode, IO, IOApp}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.TopicDef._
 import com.github.chenharryhua.nanjin.kafka.{
-  KAvro,
   KafkaContext,
   KafkaSettings,
   KafkaTopic,
@@ -36,7 +35,7 @@ object SparkMain extends IOApp {
       .ioContext
 
   val topic =
-    ctx.topic[Array[Byte], KAvro[Payment]]("cc_payments")
+    ctx.topic[Array[Byte], Payment]("cc_payments")
   val spark = SparkSession.builder().master("local[*]").appName("test").getOrCreate()
   val avro  = topic.recordDecoder
   override def run(args: List[String]): IO[ExitCode] = {
