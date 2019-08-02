@@ -1,12 +1,13 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import com.sksamuel.avro4s.{AvroSchema, RecordFormat, SchemaFor}
+import java.{util => ju}
+
+import com.sksamuel.avro4s.{AvroSchema, SchemaFor}
 import org.apache.avro.Schema
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import org.apache.kafka.streams.scala.Serdes
 
 import scala.collection.JavaConverters._
-import java.{util => ju}
 
 final case class KeySerde[A](
   schema: Schema,
@@ -22,7 +23,7 @@ final case class KeySerde[A](
     serializer.close()
     deserializer.close()
   }
-  configure(props.asJava, true)
+  configure(props.asJava, isKey = true)
 }
 
 final case class ValueSerde[A](
@@ -39,7 +40,7 @@ final case class ValueSerde[A](
     serializer.close()
     deserializer.close()
   }
-  configure(props.asJava, false)
+  configure(props.asJava, isKey = false)
 }
 
 abstract class SerdeModule(srSettings: SchemaRegistrySettings) {
@@ -60,11 +61,11 @@ abstract class SerdeModule(srSettings: SchemaRegistrySettings) {
 
     import com.sksamuel.avro4s.{Decoder, Encoder}
 
-    implicit def kavroSerde[A: Encoder: Decoder: SchemaFor]: SerdeOf[KAvro[A]] = {
-      val serde: Serde[KAvro[A]] = new KafkaAvroSerde[A](srSettings.csrClient.value)
-      new SerdeOf[KAvro[A]](AvroSchema[A]) {
-        override val deserializer: Deserializer[KAvro[A]] = serde.deserializer
-        override val serializer: Serializer[KAvro[A]]     = serde.serializer
+    implicit def kavroSerde[A: Encoder: Decoder: SchemaFor]: SerdeOf[A] = {
+      val serde: Serde[A] = new KafkaAvroSerde[A](srSettings.csrClient.value)
+      new SerdeOf[A](AvroSchema[A]) {
+        override val deserializer: Deserializer[A] = serde.deserializer
+        override val serializer: Serializer[A]     = serde.serializer
       }
     }
   }

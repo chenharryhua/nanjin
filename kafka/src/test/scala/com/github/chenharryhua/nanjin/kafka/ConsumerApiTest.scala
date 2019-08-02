@@ -6,8 +6,8 @@ import org.scalatest.FunSuite
 
 class ConsumerApiTest extends FunSuite with ShowKafkaMessage {
 
-  val nyc_taxi_trip: TopicDef[Array[Byte], KAvro[trip_record]] =
-    TopicDef[Array[Byte], KAvro[trip_record]]("nyc_yellow_taxi_trip_data")
+  val nyc_taxi_trip: TopicDef[Array[Byte], trip_record] =
+    TopicDef[Array[Byte], trip_record]("nyc_yellow_taxi_trip_data")
 
   val consumer = ctx.topic(nyc_taxi_trip).consumer
 

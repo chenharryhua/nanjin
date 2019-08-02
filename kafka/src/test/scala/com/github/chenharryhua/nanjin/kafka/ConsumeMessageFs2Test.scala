@@ -5,7 +5,7 @@ import org.scalatest.FunSuite
 
 class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage with Fs2MessageBitraverse {
   val backblaze_smart = TopicDef[KJson[lenses_record_key], KJson[lenses_record]]("backblaze_smart")
-  val nyc_taxi_trip   = TopicDef[Array[Byte], KAvro[trip_record]]("nyc_yellow_taxi_trip_data")
+  val nyc_taxi_trip   = TopicDef[Array[Byte], trip_record]("nyc_yellow_taxi_trip_data")
   test("consume json topic") {
     import io.circe.generic.auto._
     ctx

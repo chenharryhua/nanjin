@@ -7,7 +7,7 @@ import akka.stream.scaladsl.Sink
 import cats.derived.auto.show._
 
 class ConsumeMessageAkkaTest extends FunSuite with ShowKafkaMessage with AkkaMessageBitraverse {
-  val vessel = TopicDef[KAvro[Key], KAvro[aisClassAPositionReport]]("sea_vessel_position_reports")
+  val vessel = TopicDef[Key, aisClassAPositionReport]("sea_vessel_position_reports")
 
   val topic = ctx.topic(vessel)
   ignore("schema") {
