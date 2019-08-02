@@ -80,8 +80,8 @@ trait ShowKafkaMessage extends LowerPriorityShow {
           |timestamp:  ${t.timestamp()}
           |utc:        $dt
           |local-time: ${dt.atZone(ZoneId.systemDefault())}
-          |key:        ${t.key.toString}
-          |value:      ${t.value.show}""".stripMargin
+          |key:        ${Option(t.key).getOrElse("null")}
+          |value:      ${Option(t.value).map(_.show).getOrElse("null")}""".stripMargin
     }
 
   implicit protected def showFs2CommittableMessage[F[_], K, V: Show]
