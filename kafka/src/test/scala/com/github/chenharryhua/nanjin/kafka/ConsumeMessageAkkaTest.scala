@@ -1,10 +1,9 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import org.scalatest.FunSuite
-import cats.implicits._
-import TopicDef._
 import akka.stream.scaladsl.Sink
 import cats.derived.auto.show._
+import cats.implicits._
+import org.scalatest.FunSuite
 
 class ConsumeMessageAkkaTest extends FunSuite with ShowKafkaMessage with AkkaMessageBitraverse {
   val vessel = TopicDef[Key, aisClassAPositionReport]("sea_vessel_position_reports")

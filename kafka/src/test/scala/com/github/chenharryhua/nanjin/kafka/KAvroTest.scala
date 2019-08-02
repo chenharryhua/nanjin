@@ -7,7 +7,7 @@ sealed trait Color
 final case class Red(str: String, i: Int) extends Color
 final case class Blue(str: String) extends Color
 final case class Yellow(str: String) extends Color
-final case class Cloth(color: Color)
+final case class Cloth(color: Color, name: String, size: Int)
 
 class KAvroTest extends FunSuite with ShowKafkaMessage {
   test("send avro") {
@@ -17,11 +17,11 @@ class KAvroTest extends FunSuite with ShowKafkaMessage {
   }
   test("send color") {
     val topic = ctx.topic[Int, Cloth]("cloth")
-    val b     = Cloth(Blue("b"))
-    val r     = Cloth(Red("r", 1))
-    val y     = Cloth(Yellow("y"))
-    // val run   = topic.producer.send(2, r) >> topic.producer.send(3, y) >> topic.producer.send(1, b)
-    // run.unsafeRunSync
+    val b     = Cloth(Blue("b"), "blue-cloth", 1)
+    val r     = Cloth(Red("r", 1), "red-cloth", 2)
+    val y     = Cloth(Yellow("y"), "yellow-cloth", 3)
+    val run   = topic.producer.send(2, r) >> topic.producer.send(3, y) >> topic.producer.send(1, b)
+    run.unsafeRunSync
     val ret = topic.consumer.retrieveLastMessages.map(_.show).unsafeRunSync
     println(ret)
     topic.schemaRegistry.latestMeta.map(_.show).map(println).unsafeRunSync
