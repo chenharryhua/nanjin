@@ -6,6 +6,7 @@ import cats.effect.{ContextShift, IO, Timer}
 import cats.implicits._
 import cats.{Eval, Show}
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
+import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig
 import monocle.Traversal
 import monocle.function.At.at
 import monocle.macros.Lenses
@@ -16,9 +17,6 @@ import org.apache.kafka.common.security.auth.SecurityProtocol
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Serializer}
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.errors.LogAndContinueExceptionHandler
-
-import scala.collection.JavaConverters._
-import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig
 
 @Lenses final case class Fs2Settings(
   consumerProps: Map[String, String],
@@ -115,26 +113,22 @@ import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig
      """.stripMargin
 }
 
-@Lenses final case class SchemaRegistrySettings(baseUrl: String, identityMapCapacity: Int) {
-
-  def this(url: String) = this(url, 500)
-  def this()            = this("", 0)
-
-  def url(newUrl: String): SchemaRegistrySettings = copy(baseUrl = newUrl)
-
-  val props: Map[String, String] = Map(
-    AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG -> baseUrl
-  )
+@Lenses final case class SchemaRegistrySettings(props: Map[String, String]) {
 
   def show: String =
     s"""
        |schema registry settings:
-       |baseUrls:    $baseUrl
-       |cache size:  $identityMapCapacity
+       |${props.show}
      """.stripMargin
 
+  private[this] val srTag: String = AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG
+
   val csrClient: Eval[CachedSchemaRegistryClient] =
-    Eval.later(new CachedSchemaRegistryClient(baseUrl, identityMapCapacity))
+    Eval.later(props.get(srTag) match {
+      case None =>
+        sys.error(s"$srTag was not configured")
+      case Some(url) => new CachedSchemaRegistryClient(url, 500)
+    })
 }
 
 @Lenses final case class KafkaSettings(
@@ -171,10 +165,14 @@ import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig
   def securityProtocol(sp: SecurityProtocol): KafkaSettings =
     updateAll(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, sp.name)
 
-  def schemaRegistryUrl(newUrl: String): KafkaSettings =
+  def schemaRegistryProperties(key: String, value: String): KafkaSettings =
     KafkaSettings.schemaRegistrySettings
-      .composeLens(SchemaRegistrySettings.baseUrl)
-      .set(newUrl)(this)
+      .composeLens(SchemaRegistrySettings.props)
+      .composeLens(at(key))
+      .set(Some(value))(this)
+
+  def schemaRegistryUrl(url: String): KafkaSettings =
+    schemaRegistryProperties(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, url)
 
   def producerProperties(key: String, value: String): KafkaSettings =
     Traversal
@@ -229,7 +227,7 @@ object KafkaSettings {
     SharedAdminSettings(Map.empty),
     SharedConsumerSettings(Map.empty),
     SharedProducerSettings(Map.empty),
-    new SchemaRegistrySettings()
+    SchemaRegistrySettings(Map.empty)
   )
 
   val local: KafkaSettings = {
@@ -257,7 +255,9 @@ object KafkaSettings {
       SharedAdminSettings(Map.empty),
       SharedConsumerSettings(Map.empty),
       SharedProducerSettings(Map.empty),
-      new SchemaRegistrySettings("http://localhost:8081")
+      SchemaRegistrySettings(
+        Map(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG ->
+          "http://localhost:8081"))
     )
     s.groupId("nanjin-group")
       .applicationId("nanjin-app")

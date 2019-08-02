@@ -33,7 +33,6 @@ object SparkMain extends IOApp {
   val ctx =
     KafkaSettings.empty
       .brokers("localhost:9092")
-      .schemaRegistryUrl("http://localhost:8081")
       .ioContext
 
   val topic =

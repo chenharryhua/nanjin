@@ -61,10 +61,8 @@ abstract class SerdeModule(srSettings: SchemaRegistrySettings) {
     import com.sksamuel.avro4s.{Decoder, Encoder}
 
     implicit def kavroSerde[A: Encoder: Decoder: SchemaFor]: SerdeOf[KAvro[A]] = {
-      val schema: Schema          = AvroSchema[A]
-      val format: RecordFormat[A] = RecordFormat[A]
-      val serde: Serde[KAvro[A]]  = new KafkaAvroSerde[A](format, schema, srSettings.csrClient.value)
-      new SerdeOf[KAvro[A]](schema) {
+      val serde: Serde[KAvro[A]] = new KafkaAvroSerde[A](srSettings.csrClient.value)
+      new SerdeOf[KAvro[A]](AvroSchema[A]) {
         override val deserializer: Deserializer[KAvro[A]] = serde.deserializer
         override val serializer: Serializer[KAvro[A]]     = serde.serializer
       }
@@ -76,9 +74,8 @@ abstract class SerdeModule(srSettings: SchemaRegistrySettings) {
     import io.circe.{Decoder, Encoder}
 
     implicit def kjsonSerde[A: Decoder: Encoder]: SerdeOf[KJson[A]] = {
-      val schema: Schema         = SchemaFor[String].schema
       val serde: Serde[KJson[A]] = new KafkaJsonSerde[A]
-      new SerdeOf[KJson[A]](schema) {
+      new SerdeOf[KJson[A]](SchemaFor[String].schema) {
         override val deserializer: Deserializer[KJson[A]] = serde.deserializer()
         override val serializer: Serializer[KJson[A]]     = serde.serializer()
       }

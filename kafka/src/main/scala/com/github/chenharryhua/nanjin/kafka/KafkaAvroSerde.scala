@@ -10,19 +10,18 @@ import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 
 import scala.util.{Failure, Success, Try}
 import org.apache.avro.Schema
+import shapeless.HasProductGeneric
 
-final case class KAvro[A](value: A) extends AnyVal
+final case class KAvro[A: Encoder: Decoder: SchemaFor](value: A)
 
 object KAvro {
   implicit def showKafkaAvro[A: Show]: Show[KAvro[A]] = (t: KAvro[A]) => s"KAvro(${t.value.show})"
 }
 
-final class KafkaAvroSerde[A](
-  format: RecordFormat[A],
-  schema: Schema,
-  csrClient: CachedSchemaRegistryClient)
+final class KafkaAvroSerde[A: Encoder: Decoder: SchemaFor](csrClient: CachedSchemaRegistryClient)
     extends Serde[KAvro[A]] {
-
+  private[this] val format: RecordFormat[A]      = RecordFormat[A]
+  private[this] val schema: Schema               = AvroSchema[A]
   private[this] val ser: KafkaAvroSerializer     = new KafkaAvroSerializer(csrClient)
   private[this] val deSer: KafkaAvroDeserializer = new KafkaAvroDeserializer(csrClient)
 
@@ -63,9 +62,9 @@ final class KafkaAvroSerde[A](
       case Some(d) =>
         Try(ser.serialize(topic, format.to(d))) match {
           case v @ Success(_) => v
-          case Failure(ex) => 
+          case Failure(ex) =>
             Failure(EncodeException(s"""|encode avro failed: 
-                                        |topic:  ${topic}
+                                        |topic:  $topic
                                         |error:  ${ex.getMessage}
                                         |data:   $data
                                         |schema: ${schema.toString()}""".stripMargin))
