@@ -1,10 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.effect.IO
 import cats.implicits._
-import TopicDef._
 import org.scalatest.FunSuite
-import TopicDef._
 
 class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage with Fs2MessageBitraverse {
   val backblaze_smart = TopicDef[KJson[lenses_record_key], KJson[lenses_record]]("backblaze_smart")

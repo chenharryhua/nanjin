@@ -31,16 +31,4 @@ final class SparkafkaApiImpl(spark: SparkSession) extends SparkafkaApi with Seri
       .map(_.value())
       .toDS()
 
-  def dataset[A: Encoder](topic: String, d: RecordFormat[A]) = {
-    @transient lazy val serde = new KafkaAvroSerde[A](d, csr)
-    val dx                    = d
-    spark.read
-      .format("kafka")
-      .option("kafka.bootstrap.servers", "localhost:9092")
-      .option("subscribe", topic)
-      .load()
-      .select('value)
-      .as[Array[Byte]]
-      .map(x => serde.deserializer.deserialize(topic, x).value)
-  }
 }

@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import cats.Eval
 import cats.data.Chain
 import cats.effect.concurrent.Deferred
 import cats.effect.{ConcurrentEffect, IO, Sync}
@@ -37,19 +38,19 @@ object KafkaProducerApi {
   type RawProducer = KafkaProducer[Array[Byte], Array[Byte]]
 
   def apply[F[_]: ConcurrentEffect, K, V](
-    producer: RawProducer,
+    producer: Eval[RawProducer],
     encoder: encoders.ProducerRecordEncoder[K, V]): KafkaProducerApi[F, K, V] =
     new KafkaProducerApiImpl[F, K, V](producer, encoder)
 
   final private[this] class KafkaProducerApiImpl[F[_]: ConcurrentEffect, K, V](
-    producer: RawProducer,
+    producer: Eval[RawProducer],
     encoder: encoders.ProducerRecordEncoder[K, V]
   ) extends KafkaProducerApi[F, K, V] {
 
     private[this] def doSend(data: ProducerRecord[Array[Byte], Array[Byte]]): F[F[RecordMetadata]] =
       Deferred[F, Either[Throwable, RecordMetadata]].flatMap { deferred =>
         Sync[F].delay {
-          producer.send(
+          producer.value.send(
             data,
             (metadata: RecordMetadata, exception: Exception) => {
               val complete = deferred.complete {

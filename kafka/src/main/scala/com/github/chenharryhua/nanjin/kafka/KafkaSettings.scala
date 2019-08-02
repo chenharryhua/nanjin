@@ -18,6 +18,7 @@ import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.errors.LogAndContinueExceptionHandler
 
 import scala.collection.JavaConverters._
+import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig
 
 @Lenses final case class Fs2Settings(
   consumerProps: Map[String, String],
@@ -114,33 +115,26 @@ import scala.collection.JavaConverters._
      """.stripMargin
 }
 
-@Lenses final case class SchemaRegistrySettings(
-  baseUrls: List[String],
-  identityMapCapacity: Int,
-  originals: Map[String, String],
-  httpHeaders: Map[String, String]) {
+@Lenses final case class SchemaRegistrySettings(baseUrl: String, identityMapCapacity: Int) {
 
-  def this(url: String) = this(List(url), 500, Map.empty, Map.empty)
-  def this()            = this("")
+  def this(url: String) = this(url, 500)
+  def this()            = this("", 0)
 
-  def url(newUrl: String): SchemaRegistrySettings = copy(baseUrls = List(newUrl))
+  def url(newUrl: String): SchemaRegistrySettings = copy(baseUrl = newUrl)
+
+  val props: Map[String, String] = Map(
+    AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG -> baseUrl
+  )
 
   def show: String =
     s"""
        |schema registry settings:
-       |baseUrls:    ${baseUrls.show}
+       |baseUrls:    $baseUrl
        |cache size:  $identityMapCapacity
-       |originals:   ${originals.show}
-       |httpHeaders: ${httpHeaders.show}
      """.stripMargin
 
   val csrClient: Eval[CachedSchemaRegistryClient] =
-    Eval.later(
-      new CachedSchemaRegistryClient(
-        baseUrls.asJava,
-        identityMapCapacity,
-        originals.asJava,
-        httpHeaders.asJava))
+    Eval.later(new CachedSchemaRegistryClient(baseUrl, identityMapCapacity))
 }
 
 @Lenses final case class KafkaSettings(
@@ -179,8 +173,8 @@ import scala.collection.JavaConverters._
 
   def schemaRegistryUrl(newUrl: String): KafkaSettings =
     KafkaSettings.schemaRegistrySettings
-      .composeLens(SchemaRegistrySettings.baseUrls)
-      .set(List(newUrl))(this)
+      .composeLens(SchemaRegistrySettings.baseUrl)
+      .set(newUrl)(this)
 
   def producerProperties(key: String, value: String): KafkaSettings =
     Traversal
@@ -238,31 +232,37 @@ object KafkaSettings {
     new SchemaRegistrySettings()
   )
 
-  val predefined: KafkaSettings = KafkaSettings(
-    Fs2Settings(
-      Map(
-        ConsumerConfig.MAX_POLL_RECORDS_CONFIG -> "500",
-        ConsumerConfig.AUTO_OFFSET_RESET_CONFIG -> "earliest"
+  val local: KafkaSettings = {
+    val s = KafkaSettings(
+      Fs2Settings(
+        Map(
+          ConsumerConfig.MAX_POLL_RECORDS_CONFIG -> "500",
+          ConsumerConfig.AUTO_OFFSET_RESET_CONFIG -> "earliest"
+        ),
+        Map.empty
       ),
-      Map.empty
-    ),
-    AkkaSettings(
-      Map(
-        ConsumerConfig.MAX_POLL_RECORDS_CONFIG -> "100",
-        ConsumerConfig.AUTO_OFFSET_RESET_CONFIG -> "earliest"
+      AkkaSettings(
+        Map(
+          ConsumerConfig.MAX_POLL_RECORDS_CONFIG -> "100",
+          ConsumerConfig.AUTO_OFFSET_RESET_CONFIG -> "earliest"
+        ),
+        Map.empty
       ),
-      Map.empty
-    ),
-    KafkaStreamSettings(
-      Map(
-        StreamsConfig.DEFAULT_DESERIALIZATION_EXCEPTION_HANDLER_CLASS_CONFIG ->
-          classOf[LogAndContinueExceptionHandler].getName,
-        StreamsConfig.NUM_STREAM_THREADS_CONFIG -> "3"
-      )),
-    SharedAdminSettings(Map.empty),
-    SharedConsumerSettings(Map.empty),
-    SharedProducerSettings(Map.empty),
-    new SchemaRegistrySettings("http://localhost:8081")
-  )
+      KafkaStreamSettings(
+        Map(
+          StreamsConfig.DEFAULT_DESERIALIZATION_EXCEPTION_HANDLER_CLASS_CONFIG ->
+            classOf[LogAndContinueExceptionHandler].getName,
+          StreamsConfig.NUM_STREAM_THREADS_CONFIG -> "3"
+        )),
+      SharedAdminSettings(Map.empty),
+      SharedConsumerSettings(Map.empty),
+      SharedProducerSettings(Map.empty),
+      new SchemaRegistrySettings("http://localhost:8081")
+    )
+    s.groupId("nanjin-group")
+      .applicationId("nanjin-app")
+      .brokers("localhost:9092")
+      .securityProtocol(SecurityProtocol.PLAINTEXT)
+  }
   implicit val showKafkaSettings: Show[KafkaSettings] = _.show
 }

@@ -57,7 +57,9 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
 final class IoKafkaContext(settings: KafkaSettings)(
   implicit contextShift: ContextShift[IO],
   timer: Timer[IO])
-    extends KafkaContext[IO](settings) {}
+    extends KafkaContext[IO](settings) {
+  def show: String = settings.show
+}
 
 final class ZioKafkaContext(settings: KafkaSettings) {}
 

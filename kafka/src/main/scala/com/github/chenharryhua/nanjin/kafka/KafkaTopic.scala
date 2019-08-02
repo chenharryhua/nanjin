@@ -8,9 +8,9 @@ import org.apache.kafka.clients.consumer.{ConsumerRecord, KafkaConsumer}
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
-final case class TopicDef[+K, +V](topicName: String) {
-  def keySchemaLoc: String   = s"$topicName-key"
-  def valueSchemaLoc: String = s"$topicName-value"
+final case class TopicDef[K, V](topicName: String) {
+  val keySchemaLoc: String   = s"$topicName-key"
+  val valueSchemaLoc: String = s"$topicName-value"
 }
 
 final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
@@ -53,6 +53,12 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
       topicDef.valueSchemaLoc,
       keySerde.schema,
       valueSerde.schema)
+
+  val consumer: KafkaConsumerApi[F, K, V] =
+    KafkaConsumerApi[F, K, V](topicDef, sharedConsumer, recordDecoder)
+
+  val producer: KafkaProducerApi[F, K, V] =
+    KafkaProducerApi[F, K, V](sharedProducer, recordEncoder)
 
   val show: String =
     s"""

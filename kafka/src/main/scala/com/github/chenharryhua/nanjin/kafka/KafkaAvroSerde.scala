@@ -9,6 +9,7 @@ import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 
 import scala.util.{Failure, Success, Try}
+import org.apache.avro.Schema
 
 final case class KAvro[A](value: A) extends AnyVal
 
@@ -16,7 +17,10 @@ object KAvro {
   implicit def showKafkaAvro[A: Show]: Show[KAvro[A]] = (t: KAvro[A]) => s"KAvro(${t.value.show})"
 }
 
-final class KafkaAvroSerde[A](format: RecordFormat[A], csrClient: CachedSchemaRegistryClient)
+final class KafkaAvroSerde[A](
+  format: RecordFormat[A],
+  schema: Schema,
+  csrClient: CachedSchemaRegistryClient)
     extends Serde[KAvro[A]] {
 
   private[this] val ser: KafkaAvroSerializer     = new KafkaAvroSerializer(csrClient)
@@ -32,16 +36,23 @@ final class KafkaAvroSerde[A](format: RecordFormat[A], csrClient: CachedSchemaRe
             Try(format.from(gr)) match {
               case Success(v) => Success(KAvro(v))
               case Failure(ex) =>
-                Failure(
-                  InvalidObjectException(
-                    s"decode avro failed in topic($topic): ${ex.getMessage} data: ${gr.toString}"))
+                Failure(InvalidObjectException(s"""|decode avro failed
+                                                   |topic:         $topic
+                                                   |error:         ${ex.getMessage} 
+                                                   |GenericRecord: ${gr.toString}
+                                                   |schema:        ${schema.toString}""".stripMargin))
             }
           case Success(gr) =>
-            Failure(
-              InvalidGenericRecordException(s"decode avro failed in topic($topic): ${gr.toString}"))
+            Failure(InvalidGenericRecordException(s"""|decode avro failed
+                                                      |topic:         $topic
+                                                      |error:         schema mismatch
+                                                      |GenericRecord: ${gr.toString}
+                                                      |schema:        ${schema.toString}""".stripMargin))
           case Failure(ex) =>
-            Failure(
-              CorruptedRecordException(s"decode avro failed in topic($topic): ${ex.getMessage}"))
+            Failure(CorruptedRecordException(s"""|decode avro failed
+                                                 |topic: $topic 
+                                                 |error: ${ex.getMessage}
+                                                 |schema: ${schema.toString}""".stripMargin))
         }
     }
 
@@ -52,10 +63,12 @@ final class KafkaAvroSerde[A](format: RecordFormat[A], csrClient: CachedSchemaRe
       case Some(d) =>
         Try(ser.serialize(topic, format.to(d))) match {
           case v @ Success(_) => v
-          case Failure(ex) =>
-            Failure(
-              EncodeException(
-                s"encode avro failed in topic($topic): ${ex.getMessage}. data: $data"))
+          case Failure(ex) => 
+            Failure(EncodeException(s"""|encode avro failed: 
+                                        |topic:  ${topic}
+                                        |error:  ${ex.getMessage}
+                                        |data:   $data
+                                        |schema: ${schema.toString()}""".stripMargin))
         }
     }
 

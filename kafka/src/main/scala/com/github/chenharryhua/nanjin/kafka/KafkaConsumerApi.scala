@@ -3,19 +3,25 @@ package com.github.chenharryhua.nanjin.kafka
 import java.time.{Duration, LocalDateTime, ZoneId}
 import java.{lang, util}
 
-import cats.Monad
 import cats.data.Kleisli
 import cats.effect.concurrent.MVar
 import cats.effect.{Concurrent, Sync}
 import cats.implicits._
 import cats.mtl.ApplicativeAsk
+import cats.{Eval, Monad, Show}
 import org.apache.kafka.clients.consumer.{ConsumerRecord, KafkaConsumer, OffsetAndTimestamp}
 import org.apache.kafka.common.TopicPartition
 
 import scala.collection.JavaConverters._
+import scala.util.Try
 
 final case class KafkaOffsetRange(fromOffset: Long, untilOffset: Long) {
   val size: Long = untilOffset - fromOffset
+}
+
+object KafkaOffsetRange {
+  implicit val showKafkaOffsetRange: Show[KafkaOffsetRange] =
+    cats.derived.semi.show[KafkaOffsetRange]
 }
 
 final case class ListOfTopicPartitions(value: List[TopicPartition]) extends AnyVal {
@@ -27,6 +33,11 @@ final case class ListOfTopicPartitions(value: List[TopicPartition]) extends AnyV
     value.map(tp => tp -> localDateTime2KafkaTimestamp(ldt)).toMap.asJava
   def asJava: util.List[TopicPartition] = value.asJava
 
+  def show: String = value.sortBy(_.partition()).mkString("\n")
+}
+
+object ListOfTopicPartitions {
+  implicit val showListOfTopicPartitions: Show[ListOfTopicPartitions] = _.show
 }
 
 final case class GenericTopicPartition[V](value: Map[TopicPartition, V]) extends AnyVal {
@@ -49,6 +60,20 @@ final case class GenericTopicPartition[V](value: Map[TopicPartition, V]) extends
     copy(value = value.mapValues(ev).mapFilter(identity))
 
   def topicPartitions: ListOfTopicPartitions = ListOfTopicPartitions(value.keys.toList)
+
+  def show: String =
+    s"""|
+        |GenericTopicPartition:
+        |total partitions: ${value.size}
+        |${value.toList
+         .sortBy(_._1.partition())
+         .map { case (k, v) => k.toString + " -> " + v.toString }
+         .mkString("\n")}
+  """.stripMargin
+}
+
+object GenericTopicPartition {
+  implicit def showGenericTopicPartition[A]: Show[GenericTopicPartition[A]] = _.show
 }
 
 sealed trait KafkaPrimitiveConsumerApi[F[_]] {
@@ -124,10 +149,10 @@ sealed trait KafkaConsumerApi[F[_], K, V] extends KafkaPrimitiveConsumerApi[F] {
     start: LocalDateTime,
     end: LocalDateTime): F[GenericTopicPartition[KafkaOffsetRange]]
   def retrieveLastRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
-  def retrieveLastMessages: F[List[ConsumerRecord[K, V]]]
+  def retrieveLastMessages: F[List[ConsumerRecord[Try[K], Try[V]]]]
 
   def retrieveFirstRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
-  def retrieveFirstMessages: F[List[ConsumerRecord[K, V]]]
+  def retrieveFirstMessages: F[List[ConsumerRecord[Try[K], Try[V]]]]
 
   def retrieveRecordsForTimes(ldt: LocalDateTime): F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
   def numOfRecords: F[GenericTopicPartition[Option[Long]]]
@@ -139,13 +164,13 @@ object KafkaConsumerApi {
 
   def apply[F[_]: Concurrent, K, V](
     topicDef: TopicDef[K, V],
-    sharedConsumer: MVar[F, ByteArrayConsumer],
+    sharedConsumer: Eval[MVar[F, ByteArrayConsumer]],
     decoder: KafkaMessageDecoder[ConsumerRecord, K, V]): KafkaConsumerApi[F, K, V] =
     new KafkaConsumerApiImpl[F, K, V](topicDef, sharedConsumer, decoder)
 
   final private[this] class KafkaConsumerApiImpl[F[_]: Concurrent, K, V](
     topicDef: TopicDef[K, V],
-    sharedConsumer: MVar[F, ByteArrayConsumer],
+    sharedConsumer: Eval[MVar[F, ByteArrayConsumer]],
     decoder: KafkaMessageDecoder[ConsumerRecord, K, V]
   ) extends KafkaConsumerApi[F, K, V] {
     import cats.mtl.implicits._
@@ -154,7 +179,7 @@ object KafkaConsumerApi {
       KafkaPrimitiveConsumerApi[Kleisli[F, ByteArrayConsumer, ?]](topicDef.topicName)
 
     private[this] def atomically[A](r: Kleisli[F, ByteArrayConsumer, A]): F[A] =
-      Sync[F].bracket(sharedConsumer.take)(r.run)(sharedConsumer.put)
+      Sync[F].bracket(sharedConsumer.value.take)(r.run)(sharedConsumer.value.put)
 
     override def offsetRangeFor(
       start: LocalDateTime,
@@ -182,8 +207,8 @@ object KafkaConsumerApi {
         } yield rec.flatten.sortBy(_.partition())
       }
 
-    override val retrieveLastMessages: F[List[ConsumerRecord[K, V]]] =
-      retrieveLastRecords.map(_.flatMap(r => decoder.decodeBoth(r).toOption))
+    override val retrieveLastMessages: F[List[ConsumerRecord[Try[K], Try[V]]]] =
+      retrieveLastRecords.map(_.map(r => decoder.decodeMessage(r)))
 
     override val retrieveFirstRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]] =
       atomically {
@@ -196,8 +221,8 @@ object KafkaConsumerApi {
         } yield rec.flatten.sortBy(_.partition())
       }
 
-    override val retrieveFirstMessages: F[List[ConsumerRecord[K, V]]] =
-      retrieveFirstRecords.map(_.flatMap(r => decoder.decodeBoth(r).toOption))
+    override val retrieveFirstMessages: F[List[ConsumerRecord[Try[K], Try[V]]]] =
+      retrieveFirstRecords.map(_.map(r => decoder.decodeMessage(r)))
 
     override def retrieveRecordsForTimes(
       ldt: LocalDateTime): F[List[ConsumerRecord[Array[Byte], Array[Byte]]]] =

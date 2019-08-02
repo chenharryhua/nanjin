@@ -43,12 +43,6 @@ object SparkMain extends IOApp {
   override def run(args: List[String]): IO[ExitCode] = {
     import spark.implicits._
 
-    IO {
-      val ds =
-        new SparkafkaApiImpl(spark).dataset[Payment](topic.topicName, RecordFormat[Payment])
-      ds.show()
-      Row
-    } >> //IO.sleep(40.seconds) >> IO { spark.stop() }
       IO(ExitCode.Success)
   }
 }

@@ -6,6 +6,7 @@ import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import org.apache.kafka.streams.scala.Serdes
 
 import scala.collection.JavaConverters._
+import java.{util => ju}
 
 final case class KeySerde[A](
   schema: Schema,
@@ -13,7 +14,15 @@ final case class KeySerde[A](
   deserializer: Deserializer[A],
   props: Map[String, String])
     extends Serde[A] {
-  this.configure(props.asJava, true)
+  override def configure(configs: ju.Map[String, _], isKey: Boolean): Unit = {
+    serializer.configure(configs, isKey)
+    deserializer.configure(configs, isKey)
+  }
+  override def close(): Unit = {
+    serializer.close()
+    deserializer.close()
+  }
+  configure(props.asJava, true)
 }
 
 final case class ValueSerde[A](
@@ -22,31 +31,39 @@ final case class ValueSerde[A](
   deserializer: Deserializer[A],
   props: Map[String, String])
     extends Serde[A] {
-  this.configure(props.asJava, false)
+  override def configure(configs: ju.Map[String, _], isKey: Boolean): Unit = {
+    serializer.configure(configs, isKey)
+    deserializer.configure(configs, isKey)
+  }
+  override def close(): Unit = {
+    serializer.close()
+    deserializer.close()
+  }
+  configure(props.asJava, false)
 }
 
 abstract class SerdeModule(srSettings: SchemaRegistrySettings) {
 
-  sealed abstract class SerdeOf[A](val schema: Schema) extends Serde[A] with Serializable {
+  sealed abstract class SerdeOf[A](val schema: Schema) extends Serializable {
     def serializer: Serializer[A]
 
     def deserializer: Deserializer[A]
 
     final def asKey(props: Map[String, String]): KeySerde[A] =
-      KeySerde(schema, serializer, deserializer, props)
+      KeySerde(schema, serializer, deserializer, srSettings.props ++ props)
 
     final def asValue(props: Map[String, String]): ValueSerde[A] =
-      ValueSerde(schema, serializer, deserializer, props)
+      ValueSerde(schema, serializer, deserializer, srSettings.props ++ props)
   }
 
-  trait Priority0 {
+  sealed protected trait Priority0 {
 
     import com.sksamuel.avro4s.{Decoder, Encoder}
 
     implicit def kavroSerde[A: Encoder: Decoder: SchemaFor]: SerdeOf[KAvro[A]] = {
       val schema: Schema          = AvroSchema[A]
       val format: RecordFormat[A] = RecordFormat[A]
-      val serde: Serde[KAvro[A]]  = new KafkaAvroSerde[A](format, srSettings.csrClient.value)
+      val serde: Serde[KAvro[A]]  = new KafkaAvroSerde[A](format, schema, srSettings.csrClient.value)
       new SerdeOf[KAvro[A]](schema) {
         override val deserializer: Deserializer[KAvro[A]] = serde.deserializer
         override val serializer: Serializer[KAvro[A]]     = serde.serializer
@@ -54,7 +71,7 @@ abstract class SerdeModule(srSettings: SchemaRegistrySettings) {
     }
   }
 
-  trait Priority1 extends Priority0 {
+  sealed protected trait Priority1 extends Priority0 {
 
     import io.circe.{Decoder, Encoder}
 

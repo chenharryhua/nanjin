@@ -40,7 +40,6 @@ final class SparkFriendlyAvroDeserializer[A] extends Deserializer[A] {
       override def from(record: GenericRecord): A = fromRecord.from(record)
       override def to(t: A): Record               = toRecord.to(t)
     }
-    avro = new KafkaAvroSerde[A](rf, srclient)
     super.configure(configs, isKey)
   }
 
