@@ -11,12 +11,16 @@ import monocle.Traversal
 import monocle.function.At.at
 import monocle.macros.Lenses
 import org.apache.kafka.clients.CommonClientConfigs
+import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.config.SaslConfigs
 import org.apache.kafka.common.security.auth.SecurityProtocol
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Serializer}
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.errors.LogAndContinueExceptionHandler
+
+import scala.util.Random
 
 @Lenses final case class Fs2Settings(
   consumerProps: Map[String, String],
@@ -230,6 +234,8 @@ object KafkaSettings {
     SchemaRegistrySettings(Map.empty)
   )
 
+  val random4d: Eval[Int] = Eval.always(1000 + Random.nextInt(9000))
+
   val local: KafkaSettings = {
     val s = KafkaSettings(
       Fs2Settings(
@@ -252,9 +258,12 @@ object KafkaSettings {
             classOf[LogAndContinueExceptionHandler].getName,
           StreamsConfig.NUM_STREAM_THREADS_CONFIG -> "3"
         )),
-      SharedAdminSettings(Map.empty),
-      SharedConsumerSettings(Map.empty),
-      SharedProducerSettings(Map.empty),
+      SharedAdminSettings(
+        Map(AdminClientConfig.CLIENT_ID_CONFIG -> s"shared-admin-${random4d.value}")),
+      SharedConsumerSettings(
+        Map(ConsumerConfig.CLIENT_ID_CONFIG -> s"shared-consumer-${random4d.value}")),
+      SharedProducerSettings(
+        Map(ProducerConfig.CLIENT_ID_CONFIG -> s"shared-producer-${random4d.value}")),
       SchemaRegistrySettings(
         Map(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG ->
           "http://localhost:8081"))
