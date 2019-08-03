@@ -20,6 +20,8 @@ import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Serializer}
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.errors.LogAndContinueExceptionHandler
 
+import scala.util.Try
+
 @Lenses final case class Fs2Settings(
   consumerProps: Map[String, String],
   producerProps: Map[String, String]
@@ -36,8 +38,8 @@ import org.apache.kafka.streams.errors.LogAndContinueExceptionHandler
   def show: String =
     s"""
        |fs2 kafka settings:
-       |consumerPros: ${consumerProps.show}
-       |producerPros: ${producerProps.show}
+       |consumerProps: ${consumerProps.show}
+       |producerProps: ${producerProps.show}
      """.stripMargin
 }
 
@@ -66,8 +68,8 @@ import org.apache.kafka.streams.errors.LogAndContinueExceptionHandler
   def show: String =
     s"""
        |akka kafka settings:
-       |consumerPros: ${consumerProps.show}
-       |producerPros: ${producerProps.show}
+       |consumerProps: ${consumerProps.show}
+       |producerProps: ${producerProps.show}
      """.stripMargin
 }
 
@@ -127,9 +129,13 @@ import org.apache.kafka.streams.errors.LogAndContinueExceptionHandler
 
   val csrClient: Eval[CachedSchemaRegistryClient] =
     Eval.later(props.get(srTag) match {
-      case None =>
-        sys.error(s"$srTag was not configured")
-      case Some(url) => new CachedSchemaRegistryClient(url, 500)
+      case None => sys.error(s"$srTag was mandatory but not configured")
+      case Some(url) =>
+        val size: Int = props
+          .get(AbstractKafkaAvroSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DOC)
+          .flatMap(n => Try(n.toInt).toOption)
+          .getOrElse(AbstractKafkaAvroSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DEFAULT)
+        new CachedSchemaRegistryClient(url, size)
     })
 }
 
