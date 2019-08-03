@@ -20,7 +20,7 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
   srSettings: SchemaRegistrySettings,
   sharedConsumer: Eval[MVar[F, KafkaConsumer[Array[Byte], Array[Byte]]]],
   sharedProducer: Eval[KafkaProducer[Array[Byte], Array[Byte]]],
-  materializer: Eval[ActorMaterializer],
+  materializer: ActorMaterializer,
   val keySerde: KeySerde[K],
   val valueSerde: ValueSerde[V]
 ) extends TopicNameExtractor[K, V] with Serializable {
@@ -33,8 +33,8 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
   val fs2Stream: Fs2Channel[F, K, V] =
     new Fs2Channel[F, K, V](topicDef, fs2Settings, keySerde, valueSerde)
 
-  val akkaStream: AkkaChannel[K, V] =
-    new AkkaChannel[K, V](topicDef, akkaSettings, keySerde, valueSerde)(materializer.value)
+  val akkaStream: AkkaChannel[F, K, V] =
+    new AkkaChannel[F, K, V](topicDef, akkaSettings, keySerde, valueSerde, materializer)
 
   val kafkaStream: StreamingChannel[K, V] =
     new StreamingChannel[K, V](topicDef, keySerde, valueSerde)

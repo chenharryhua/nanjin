@@ -3,13 +3,12 @@ package com.github.chenharryhua.nanjin.kafka
 import akka.stream.ActorMaterializer
 import cats.Show
 import cats.data.Reader
-import cats.effect.{ConcurrentEffect, ContextShift, Timer}
+import cats.effect._
 import cats.implicits._
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.streams.kstream.GlobalKTable
 
-import scala.concurrent.Future
 import scala.util.{Success, Try}
 
 final class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
@@ -90,12 +89,12 @@ object Fs2Channel {
   implicit def showFs2Channel[F[_], K, V]: Show[Fs2Channel[F, K, V]] = _.show
 }
 
-final class AkkaChannel[K, V](
+final class AkkaChannel[F[_]: LiftIO, K, V](
   topicDef: TopicDef[K, V],
   akkaSettings: AkkaSettings,
   keySerde: KeySerde[K],
-  valueSerde: ValueSerde[V]
-)(implicit val materializer: ActorMaterializer)
+  valueSerde: ValueSerde[V],
+  mat: ActorMaterializer)
     extends AkkaMessageBitraverse with Serializable {
   import akka.kafka.ConsumerMessage.CommittableMessage
   import akka.kafka.ProducerMessage.Envelope
@@ -104,6 +103,8 @@ final class AkkaChannel[K, V](
   import akka.stream.scaladsl.{Flow, Sink, Source}
   import akka.{Done, NotUsed}
 
+  implicit val materializer: ActorMaterializer = mat
+
   val decoder: KafkaMessageDecoder[CommittableMessage, K, V] =
     decoders.akkaMessageDecoder[K, V](topicDef.topicName, keySerde, valueSerde)
 
@@ -111,16 +112,23 @@ final class AkkaChannel[K, V](
     encoders.akkaMessageEncoder[K, V](topicDef.topicName)
 
   val consumerSettings: ConsumerSettings[Array[Byte], Array[Byte]] =
-    akkaSettings.consumerSettings(materializer.system)
+    akkaSettings.consumerSettings(mat.system)
 
   val producerSettings: ProducerSettings[K, V] =
-    akkaSettings.producerSettings(materializer.system, keySerde.serializer, valueSerde.serializer)
+    akkaSettings.producerSettings(mat.system, keySerde.serializer, valueSerde.serializer)
 
-  val committableSink: Sink[Envelope[K, V, ConsumerMessage.Committable], Future[Done]] =
-    Producer.committableSink(producerSettings)
+  val produceSink: Sink[Envelope[K, V, ConsumerMessage.Committable], F[Done]] =
+    Producer
+      .committableSink(producerSettings)
+      .mapMaterializedValue(f => LiftIO[F].liftIO(IO.fromFuture(IO(f))))
 
-  val sink: Sink[ConsumerMessage.Committable, Future[Done]] =
-    Committer.sink(akkaSettings.committerSettings(materializer.system))
+  def ignoreSink[A]: Sink[A, F[Done]] =
+    Sink.ignore.mapMaterializedValue(f => LiftIO[F].liftIO(IO.fromFuture(IO(f))))
+
+  val commitSink: Sink[ConsumerMessage.Committable, F[Done]] =
+    Committer
+      .sink(akkaSettings.committerSettings(mat.system))
+      .mapMaterializedValue(f => LiftIO[F].liftIO(IO.fromFuture(IO(f))))
 
   def assign(tps: Map[TopicPartition, Long])
     : Source[ConsumerRecord[Array[Byte], Array[Byte]], Consumer.Control] =
@@ -167,7 +175,7 @@ final class AkkaChannel[K, V](
 }
 
 object AkkaChannel {
-  implicit def showAkkaChannel[K, V]: Show[AkkaChannel[K, V]] = _.show
+  implicit def showAkkaChannel[F[_], K, V]: Show[AkkaChannel[F, K, V]] = _.show
 }
 
 final class StreamingChannel[K, V](

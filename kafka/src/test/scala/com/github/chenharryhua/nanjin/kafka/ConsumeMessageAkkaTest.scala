@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import akka.stream.scaladsl.Sink
 import cats.derived.auto.show._
 import cats.implicits._
 import org.scalatest.FunSuite
@@ -14,12 +13,9 @@ class ConsumeMessageAkkaTest extends FunSuite with ShowKafkaMessage with AkkaMes
     println(ret)
   }
   test("akka stream should be able to consume data") {
-    import topic.akkaStream.materializer
+    import topic.akkaStream._
     val ret =
-      topic.akkaStream.consumeValidMessages
-        .map(_.show)
-        .take(3)
-        .runWith(Sink.fold(0)((s, _) => s + 1))
-       // .map(n => assert(n == 3))
+      consumeValidMessages.map(_.show).map(println).take(3).runWith(ignoreSink)
+    ret.unsafeRunSync
   }
 }
