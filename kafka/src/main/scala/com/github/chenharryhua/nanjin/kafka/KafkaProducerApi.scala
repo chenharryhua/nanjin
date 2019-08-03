@@ -11,20 +11,19 @@ import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord, RecordM
 
 trait KafkaProducerApi[F[_], K, V] {
   def arbitrarilySend(key: Array[Byte], value: Array[Byte]): F[RecordMetadata]
-
-  def arbitrarilySend(kv: (Array[Byte], Array[Byte])): F[RecordMetadata] =
+  final def arbitrarilySend(kv: (Array[Byte], Array[Byte])): F[RecordMetadata] =
     arbitrarilySend(kv._1, kv._2)
 
   def arbitrarilyValueSend(key: K, value: Array[Byte]): F[RecordMetadata]
-
-  def arbitrarilyValueSend(kv: (K, Array[Byte])): F[RecordMetadata] =
+  final def arbitrarilyValueSend(kv: (K, Array[Byte])): F[RecordMetadata] =
     arbitrarilyValueSend(kv._1, kv._2)
 
   def arbitrarilyKeySend(key: Array[Byte], value: V): F[RecordMetadata]
-  def arbitrarilyKeySend(kv: (Array[Byte], V)): F[RecordMetadata] = arbitrarilyKeySend(kv._1, kv._2)
+  final def arbitrarilyKeySend(kv: (Array[Byte], V)): F[RecordMetadata] =
+    arbitrarilyKeySend(kv._1, kv._2)
 
   def send(key: K, value: V): F[RecordMetadata]
-  def send(kv: (K, V)): F[RecordMetadata] = send(kv._1, kv._2)
+  final def send(kv: (K, V)): F[RecordMetadata] = send(kv._1, kv._2)
 
   def send(rec: ConsumerRecord[K, V]): F[RecordMetadata]
 

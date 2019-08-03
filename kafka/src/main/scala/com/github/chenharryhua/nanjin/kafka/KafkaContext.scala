@@ -47,11 +47,12 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
     }
 
   private[this] val sharedProducer: Eval[KafkaProducer[Array[Byte], Array[Byte]]] =
-    Eval.later(
+    Eval.later {
       new KafkaProducer[Array[Byte], Array[Byte]](
         settings.sharedProducerSettings.settings,
         new ByteArraySerializer,
-        new ByteArraySerializer))
+        new ByteArraySerializer)
+    }
 }
 
 final class IoKafkaContext(settings: KafkaSettings)(

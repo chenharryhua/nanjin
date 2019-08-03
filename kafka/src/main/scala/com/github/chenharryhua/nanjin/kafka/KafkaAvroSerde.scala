@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 import com.github.chenharryhua.nanjin.kafka.CodecException._
 import com.sksamuel.avro4s._
-import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import io.confluent.kafka.serializers.{KafkaAvroDeserializer, KafkaAvroSerializer}
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
@@ -9,12 +8,14 @@ import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 
 import scala.util.{Failure, Success, Try}
 
-final class KafkaAvroSerde[A: Encoder: Decoder: SchemaFor](csrClient: CachedSchemaRegistryClient)
+final class KafkaAvroSerde[A: Encoder: Decoder: SchemaFor](srSettings: SchemaRegistrySettings)
     extends Serde[A] {
-  private[this] val format: RecordFormat[A]      = RecordFormat[A]
-  private[this] val schema: Schema               = AvroSchema[A]
-  private[this] val ser: KafkaAvroSerializer     = new KafkaAvroSerializer(csrClient)
-  private[this] val deSer: KafkaAvroDeserializer = new KafkaAvroDeserializer(csrClient)
+  private[this] val format: RecordFormat[A] = RecordFormat[A]
+  private[this] val schema: Schema          = AvroSchema[A]
+  private[this] val ser: KafkaAvroSerializer =
+    new KafkaAvroSerializer(srSettings.csrClient.value)
+  private[this] val deSer: KafkaAvroDeserializer =
+    new KafkaAvroDeserializer(srSettings.csrClient.value)
 
   @SuppressWarnings(Array("AsInstanceOf"))
   private[this] def decode(topic: String, data: Array[Byte]): Try[A] =
