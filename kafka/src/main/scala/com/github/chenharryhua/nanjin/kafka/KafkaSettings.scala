@@ -234,7 +234,7 @@ object KafkaSettings {
     SchemaRegistrySettings(Map.empty)
   )
 
-  val random4d: Eval[Int] = Eval.always(1000 + Random.nextInt(9000))
+  private val random4d: Eval[Int] = Eval.always(1000 + Random.nextInt(9000))
 
   val local: KafkaSettings = {
     val s = KafkaSettings(

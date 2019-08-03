@@ -12,10 +12,10 @@ class SchemaRegistryTest extends FunSuite {
     ctx.topic[Int, trip_record](nyc)
 
   test("latest schema") {
-    topic.schemaRegistry.latestMeta.map(_.show).map(println).unsafeRunSync()
+    topic.schemaRegistry.latestMeta.map(_.show).unsafeRunSync()
   }
   test("compatiable test") {
-    topic.schemaRegistry.testCompatibility.map(println).unsafeRunSync
+    topic.schemaRegistry.testCompatibility.unsafeRunSync
   }
   ignore("register schema") {
     topic.schemaRegistry.register.unsafeRunSync()

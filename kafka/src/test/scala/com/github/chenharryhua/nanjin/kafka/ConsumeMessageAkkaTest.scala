@@ -13,9 +13,13 @@ class ConsumeMessageAkkaTest extends FunSuite with ShowKafkaMessage with AkkaMes
     val ret = topic.schemaRegistry.latestMeta.unsafeRunSync().show
     println(ret)
   }
-  test("retrieve") {
+  test("akka stream should be able to consume data") {
     import topic.akkaStream.materializer
     val ret =
-      topic.akkaStream.consumeValidMessages.map(_.show).take(3).map(println).runWith(Sink.ignore)
+      topic.akkaStream.consumeValidMessages
+        .map(_.show)
+        .take(3)
+        .runWith(Sink.fold(0)((s, _) => s + 1))
+       // .map(n => assert(n == 3))
   }
 }
