@@ -10,7 +10,7 @@ import org.apache.kafka.common.serialization.Deserializer
 
 import scala.util.{Failure, Success, Try}
 
-sealed abstract class KafkaMessageDecoder[F[_, _]: Bitraverse, K, V](
+sealed abstract class KafkaMessageDecoder[G[_, _]: Bitraverse, K, V](
   topicName: String,
   keyDeserializer: Deserializer[K],
   valueDeserializer: Deserializer[V]
@@ -35,21 +35,21 @@ sealed abstract class KafkaMessageDecoder[F[_, _]: Bitraverse, K, V](
       )
 
   final def decodeMessage(
-    data: F[Array[Byte], Array[Byte]]
-  ): F[Try[K], Try[V]] =
+    data: G[Array[Byte], Array[Byte]]
+  ): G[Try[K], Try[V]] =
     data.bimap(keyDecode, valueDecode)
 
   final def decodeKey(
-    data: F[Array[Byte], Array[Byte]]
-  ): Try[F[K, Array[Byte]]] =
+    data: G[Array[Byte], Array[Byte]]
+  ): Try[G[K, Array[Byte]]] =
     data.bitraverse(keyDecode, Success(_))
 
   final def decodeValue(
-    data: F[Array[Byte], Array[Byte]]
-  ): Try[F[Array[Byte], V]] =
+    data: G[Array[Byte], Array[Byte]]
+  ): Try[G[Array[Byte], V]] =
     data.bitraverse(Success(_), valueDecode)
 
-  final def decodeBoth(data: F[Array[Byte], Array[Byte]]): Try[F[K, V]] =
+  final def decodeBoth(data: G[Array[Byte], Array[Byte]]): Try[G[K, V]] =
     data.bitraverse(keyDecode, valueDecode)
 }
 

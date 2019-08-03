@@ -9,7 +9,7 @@ import org.apache.kafka.streams.scala.Serdes
 
 import scala.collection.JavaConverters._
 
-final case class KeySerde[A](
+sealed abstract class KafkaSerde[A](
   schema: Schema,
   serializer: Serializer[A],
   deserializer: Deserializer[A],
@@ -23,6 +23,14 @@ final case class KeySerde[A](
     serializer.close()
     deserializer.close()
   }
+}
+
+final case class KeySerde[A](
+  schema: Schema,
+  serializer: Serializer[A],
+  deserializer: Deserializer[A],
+  props: Map[String, String])
+    extends KafkaSerde[A](schema, serializer, deserializer, props) {
   configure(props.asJava, isKey = true)
 }
 
@@ -31,15 +39,7 @@ final case class ValueSerde[A](
   serializer: Serializer[A],
   deserializer: Deserializer[A],
   props: Map[String, String])
-    extends Serde[A] {
-  override def configure(configs: ju.Map[String, _], isKey: Boolean): Unit = {
-    serializer.configure(configs, isKey)
-    deserializer.configure(configs, isKey)
-  }
-  override def close(): Unit = {
-    serializer.close()
-    deserializer.close()
-  }
+    extends KafkaSerde[A](schema, serializer, deserializer, props) {
   configure(props.asJava, isKey = false)
 }
 
