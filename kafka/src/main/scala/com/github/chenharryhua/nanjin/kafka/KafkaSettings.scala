@@ -75,7 +75,7 @@ import scala.util.Random
 
 @Lenses final case class KafkaStreamSettings(props: Map[String, String]) {
 
-  val settings: Properties = (new Properties() /: props) { case (a, (k, v)) => a.put(k, v); a }
+  val settings: Properties = utils.toProperties(props)
 
   def show: String =
     s"""
@@ -86,7 +86,7 @@ import scala.util.Random
 
 @Lenses final case class SharedProducerSettings(props: Map[String, String]) {
 
-  val settings: Properties = (new Properties() /: props) { case (a, (k, v)) => a.put(k, v); a }
+  val settings: Properties = utils.toProperties(props)
 
   def show: String =
     s"""
@@ -97,7 +97,7 @@ import scala.util.Random
 
 @Lenses final case class SharedConsumerSettings(props: Map[String, String]) {
 
-  val settings: Properties = (new Properties() /: props) { case (a, (k, v)) => a.put(k, v); a }
+  val settings: Properties = utils.toProperties(props)
 
   def show: String =
     s"""
@@ -108,7 +108,7 @@ import scala.util.Random
 
 @Lenses final case class SharedAdminSettings(props: Map[String, String]) {
 
-  val settings: Properties = (new Properties() /: props) { case (a, (k, v)) => a.put(k, v); a }
+  val settings: Properties = utils.toProperties(props)
 
   def show: String =
     s"""
