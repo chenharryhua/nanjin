@@ -89,12 +89,11 @@ object Fs2Channel {
   implicit def showFs2Channel[F[_], K, V]: Show[Fs2Channel[F, K, V]] = _.show
 }
 
-final class AkkaChannel[F[_]: LiftIO, K, V](
+final class AkkaChannel[F[_]: LiftIO, K, V] private[kafka] (
   topicDef: TopicDef[K, V],
   akkaSettings: AkkaSettings,
   keySerde: KeySerde[K],
-  valueSerde: ValueSerde[V],
-  mat: ActorMaterializer)
+  valueSerde: ValueSerde[V])(implicit val materializer: ActorMaterializer)
     extends AkkaMessageBitraverse with Serializable {
   import akka.kafka.ConsumerMessage.CommittableMessage
   import akka.kafka.ProducerMessage.Envelope
@@ -103,8 +102,6 @@ final class AkkaChannel[F[_]: LiftIO, K, V](
   import akka.stream.scaladsl.{Flow, Sink, Source}
   import akka.{Done, NotUsed}
 
-  implicit val materializer: ActorMaterializer = mat
-
   val decoder: KafkaMessageDecoder[CommittableMessage, K, V] =
     decoders.akkaMessageDecoder[K, V](topicDef.topicName, keySerde, valueSerde)
 
@@ -112,10 +109,10 @@ final class AkkaChannel[F[_]: LiftIO, K, V](
     encoders.akkaMessageEncoder[K, V](topicDef.topicName)
 
   val consumerSettings: ConsumerSettings[Array[Byte], Array[Byte]] =
-    akkaSettings.consumerSettings(mat.system)
+    akkaSettings.consumerSettings(materializer.system)
 
   val producerSettings: ProducerSettings[K, V] =
-    akkaSettings.producerSettings(mat.system, keySerde.serializer, valueSerde.serializer)
+    akkaSettings.producerSettings(materializer.system, keySerde.serializer, valueSerde.serializer)
 
   val produceSink: Sink[Envelope[K, V, ConsumerMessage.Committable], F[Done]] =
     Producer
@@ -127,7 +124,7 @@ final class AkkaChannel[F[_]: LiftIO, K, V](
 
   val commitSink: Sink[ConsumerMessage.Committable, F[Done]] =
     Committer
-      .sink(akkaSettings.committerSettings(mat.system))
+      .sink(akkaSettings.committerSettings(materializer.system))
       .mapMaterializedValue(f => LiftIO[F].liftIO(IO.fromFuture(IO(f))))
 
   def assign(tps: Map[TopicPartition, Long])

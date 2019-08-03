@@ -27,7 +27,6 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
       settings.schemaRegistrySettings,
       sharedConsumer,
       sharedProducer,
-      materializer,
       asKey[K],
       asValue[V])
 
