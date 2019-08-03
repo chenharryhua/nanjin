@@ -30,9 +30,7 @@ import scala.util.Try
 object SparkMain extends IOApp {
 
   val ctx =
-    KafkaSettings.empty
-      .brokers("localhost:9092")
-      .ioContext
+    KafkaSettings.empty.setBrokers("localhost:9092").ioContext
 
   val topic =
     ctx.topic[Array[Byte], Payment]("cc_payments")
@@ -41,6 +39,6 @@ object SparkMain extends IOApp {
   override def run(args: List[String]): IO[ExitCode] = {
     import spark.implicits._
 
-      IO(ExitCode.Success)
+    IO(ExitCode.Success)
   }
 }

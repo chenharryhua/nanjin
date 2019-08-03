@@ -20,8 +20,6 @@ import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Serializer}
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.errors.LogAndContinueExceptionHandler
 
-import scala.util.Random
-
 @Lenses final case class Fs2Settings(
   consumerProps: Map[String, String],
   producerProps: Map[String, String]
@@ -160,25 +158,25 @@ import scala.util.Random
       .set(Some(value))(this)
   }
 
-  def brokers(bs: String): KafkaSettings =
+  def setBrokers(bs: String): KafkaSettings =
     updateAll(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bs)
 
-  def saslJaas(sj: String): KafkaSettings =
+  def setSaslJaas(sj: String): KafkaSettings =
     updateAll(SaslConfigs.SASL_JAAS_CONFIG, sj)
 
-  def securityProtocol(sp: SecurityProtocol): KafkaSettings =
+  def setSecurityProtocol(sp: SecurityProtocol): KafkaSettings =
     updateAll(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, sp.name)
 
-  def schemaRegistryProperties(key: String, value: String): KafkaSettings =
+  def setSchemaRegistryProperty(key: String, value: String): KafkaSettings =
     KafkaSettings.schemaRegistrySettings
       .composeLens(SchemaRegistrySettings.props)
       .composeLens(at(key))
       .set(Some(value))(this)
 
-  def schemaRegistryUrl(url: String): KafkaSettings =
-    schemaRegistryProperties(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, url)
+  def setSchemaRegistryUrl(url: String): KafkaSettings =
+    setSchemaRegistryProperty(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, url)
 
-  def producerProperties(key: String, value: String): KafkaSettings =
+  def setProducerProperty(key: String, value: String): KafkaSettings =
     Traversal
       .applyN[KafkaSettings, Map[String, String]](
         KafkaSettings.fs2Settings.composeLens(Fs2Settings.producerProps),
@@ -186,7 +184,7 @@ import scala.util.Random
       .composeLens(at(key))
       .set(Some(value))(this)
 
-  def consumerProperties(key: String, value: String): KafkaSettings =
+  def setConsumerProperty(key: String, value: String): KafkaSettings =
     Traversal
       .applyN[KafkaSettings, Map[String, String]](
         KafkaSettings.fs2Settings.composeLens(Fs2Settings.consumerProps),
@@ -194,17 +192,17 @@ import scala.util.Random
       .composeLens(at(key))
       .set(Some(value))(this)
 
-  def streamProperties(key: String, value: String): KafkaSettings =
+  def setStreamingProperty(key: String, value: String): KafkaSettings =
     KafkaSettings.streamSettings
       .composeLens(KafkaStreamSettings.props)
       .composeLens(at(key))
       .set(Some(value))(this)
 
-  def groupId(gid: String): KafkaSettings =
-    consumerProperties(ConsumerConfig.GROUP_ID_CONFIG, gid)
+  def setGroupId(gid: String): KafkaSettings =
+    setConsumerProperty(ConsumerConfig.GROUP_ID_CONFIG, gid)
 
-  def applicationId(appId: String): KafkaSettings =
-    streamProperties(StreamsConfig.APPLICATION_ID_CONFIG, appId)
+  def setApplicationId(appId: String): KafkaSettings =
+    setStreamingProperty(StreamsConfig.APPLICATION_ID_CONFIG, appId)
 
   def ioContext(implicit contextShift: ContextShift[IO], timer: Timer[IO]): IoKafkaContext =
     new IoKafkaContext(this)
@@ -234,8 +232,6 @@ object KafkaSettings {
     SchemaRegistrySettings(Map.empty)
   )
 
-  private val random4d: Eval[Int] = Eval.always(1000 + Random.nextInt(9000))
-
   val local: KafkaSettings = {
     val s = KafkaSettings(
       Fs2Settings(
@@ -259,19 +255,19 @@ object KafkaSettings {
           StreamsConfig.NUM_STREAM_THREADS_CONFIG -> "3"
         )),
       SharedAdminSettings(
-        Map(AdminClientConfig.CLIENT_ID_CONFIG -> s"shared-admin-${random4d.value}")),
+        Map(AdminClientConfig.CLIENT_ID_CONFIG -> s"shared-admin-${utils.random4d.value}")),
       SharedConsumerSettings(
-        Map(ConsumerConfig.CLIENT_ID_CONFIG -> s"shared-consumer-${random4d.value}")),
+        Map(ConsumerConfig.CLIENT_ID_CONFIG -> s"shared-consumer-${utils.random4d.value}")),
       SharedProducerSettings(
-        Map(ProducerConfig.CLIENT_ID_CONFIG -> s"shared-producer-${random4d.value}")),
+        Map(ProducerConfig.CLIENT_ID_CONFIG -> s"shared-producer-${utils.random4d.value}")),
       SchemaRegistrySettings(
         Map(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG ->
           "http://localhost:8081"))
     )
-    s.groupId("nanjin-group")
-      .applicationId("nanjin-app")
-      .brokers("localhost:9092")
-      .securityProtocol(SecurityProtocol.PLAINTEXT)
+    s.setGroupId("nanjin-group")
+      .setApplicationId("nanjin-app")
+      .setBrokers("localhost:9092")
+      .setSecurityProtocol(SecurityProtocol.PLAINTEXT)
   }
   implicit val showKafkaSettings: Show[KafkaSettings] = _.show
 }
