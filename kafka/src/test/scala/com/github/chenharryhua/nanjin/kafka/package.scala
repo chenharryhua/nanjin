@@ -11,6 +11,6 @@ package object kafka {
 
   val ctx: IoKafkaContext =
     KafkaSettings.local
-      .setConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest")
+      .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest")
       .ioContext
 }

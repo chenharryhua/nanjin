@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.implicits._
+import fs2.kafka.AutoOffsetReset
 import org.scalatest.FunSuite
 
 class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage with Fs2MessageBitraverse {
@@ -11,6 +12,7 @@ class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage with Fs2Messa
     val ret = ctx
       .topic(backblaze_smart)
       .fs2Channel
+      .updateConsumerSettings(s => s.withAutoOffsetReset(AutoOffsetReset.Latest))
       .consumeNativeMessages
       .map(_.bitraverse(identity, identity).toEither)
       .rethrow
@@ -23,7 +25,7 @@ class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage with Fs2Messa
     assert(ret.size == 3)
   }
   test("should be able to consume avro topic") {
-    import cats.derived.auto.show._ 
+    import cats.derived.auto.show._
     val ret = ctx
       .topic(nyc_taxi_trip)
       .fs2Channel

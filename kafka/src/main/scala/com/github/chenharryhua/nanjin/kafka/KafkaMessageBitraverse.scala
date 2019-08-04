@@ -90,51 +90,55 @@ trait Fs2MessageBitraverse extends KafkaMessageBitraverse {
 
   final def fs2ProducerRecordIso[F[_], K, V]: Iso[Fs2ProducerRecord[K, V], ProducerRecord[K, V]] =
     Iso[Fs2ProducerRecord[K, V], ProducerRecord[K, V]](
-      s =>
+      fpr =>
         new ProducerRecord[K, V](
-          s.topic,
-          s.partition.map(new java.lang.Integer(_)).orNull,
-          s.timestamp.map(new java.lang.Long(_)).orNull,
-          s.key,
-          s.value,
-          s.headers.asJava))(a =>
-      Fs2ProducerRecord(a.topic, a.key, a.value)
-        .withPartition(a.partition)
-        .withTimestamp(a.timestamp)
-        .withHeaders(a.headers.toArray.foldLeft(Headers.empty)((t, i) => t.append(i.key, i.value))))
+          fpr.topic,
+          fpr.partition.map(new java.lang.Integer(_)).orNull,
+          fpr.timestamp.map(new java.lang.Long(_)).orNull,
+          fpr.key,
+          fpr.value,
+          fpr.headers.asJava))(
+      pr =>
+        Fs2ProducerRecord(pr.topic, pr.key, pr.value)
+          .withPartition(pr.partition)
+          .withTimestamp(pr.timestamp)
+          .withHeaders(
+            pr.headers.toArray.foldLeft(Headers.empty)((t, i) => t.append(i.key, i.value))))
 
   final def fs2ComsumerRecordIso[K, V]: Iso[Fs2ConsumerRecord[K, V], ConsumerRecord[K, V]] =
     Iso[Fs2ConsumerRecord[K, V], ConsumerRecord[K, V]](
-      cr =>
+      fcr =>
         new ConsumerRecord[K, V](
-          cr.topic,
-          cr.partition,
-          cr.offset,
-          cr.timestamp.createTime
-            .orElse(cr.timestamp.logAppendTime)
+          fcr.topic,
+          fcr.partition,
+          fcr.offset,
+          fcr.timestamp.createTime
+            .orElse(fcr.timestamp.logAppendTime)
             .getOrElse(ConsumerRecord.NO_TIMESTAMP),
-          cr.timestamp.createTime
+          fcr.timestamp.createTime
             .map(_ => TimestampType.CREATE_TIME)
-            .orElse(cr.timestamp.logAppendTime.map(_ => TimestampType.LOG_APPEND_TIME))
+            .orElse(fcr.timestamp.logAppendTime.map(_ => TimestampType.LOG_APPEND_TIME))
             .getOrElse(TimestampType.NO_TIMESTAMP_TYPE),
           ConsumerRecord.NULL_CHECKSUM,
-          cr.serializedKeySize.getOrElse(ConsumerRecord.NULL_SIZE),
-          cr.serializedValueSize.getOrElse(ConsumerRecord.NULL_SIZE),
-          cr.key,
-          cr.value,
-          new RecordHeaders(cr.headers.asJava),
-          cr.leaderEpoch.map(new Integer(_)).asJava
-        ))(a => {
-      val epoch: Option[Int] = a.leaderEpoch().asScala.map(_.intValue())
-      val fcr = Fs2ConsumerRecord[K, V](a.topic(), a.partition(), a.offset(), a.key(), a.value())
-        .withHeaders(a.headers.toArray.foldLeft(Headers.empty)((t, i) => t.append(i.key, i.value)))
-        .withSerializedKeySize(a.serializedKeySize())
-        .withSerializedValueSize(a.serializedValueSize())
-        .withTimestamp(a.timestampType match {
-          case TimestampType.CREATE_TIME       => Timestamp.createTime(a.timestamp())
-          case TimestampType.LOG_APPEND_TIME   => Timestamp.logAppendTime(a.timestamp())
-          case TimestampType.NO_TIMESTAMP_TYPE => Timestamp.none
-        })
+          fcr.serializedKeySize.getOrElse(ConsumerRecord.NULL_SIZE),
+          fcr.serializedValueSize.getOrElse(ConsumerRecord.NULL_SIZE),
+          fcr.key,
+          fcr.value,
+          new RecordHeaders(fcr.headers.asJava),
+          fcr.leaderEpoch.map(new Integer(_)).asJava
+        ))(cr => {
+      val epoch: Option[Int] = cr.leaderEpoch().asScala.map(_.intValue())
+      val fcr =
+        Fs2ConsumerRecord[K, V](cr.topic(), cr.partition(), cr.offset(), cr.key(), cr.value())
+          .withHeaders(
+            cr.headers.toArray.foldLeft(Headers.empty)((t, i) => t.append(i.key, i.value)))
+          .withSerializedKeySize(cr.serializedKeySize())
+          .withSerializedValueSize(cr.serializedValueSize())
+          .withTimestamp(cr.timestampType match {
+            case TimestampType.CREATE_TIME       => Timestamp.createTime(cr.timestamp())
+            case TimestampType.LOG_APPEND_TIME   => Timestamp.logAppendTime(cr.timestamp())
+            case TimestampType.NO_TIMESTAMP_TYPE => Timestamp.none
+          })
       epoch.fold[Fs2ConsumerRecord[K, V]](fcr)(e => fcr.withLeaderEpoch(e))
     })
 

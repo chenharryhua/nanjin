@@ -19,20 +19,12 @@ sealed abstract class KafkaMessageDecoder[G[_, _]: Bitraverse, K, V](
   final def keyDecode(data: Array[Byte]): Try[K] =
     Option(data)
       .traverse(d => Try(keyDeserializer.deserialize(topicName, d)))
-      .flatMap(
-        _.fold[Try[K]](Failure(DecodingNullKeyException(topicName)))(
-          Success(_)
-        )
-      )
+      .flatMap(_.fold[Try[K]](Failure(DecodingNullKeyException(topicName)))(Success(_)))
 
   final def valueDecode(data: Array[Byte]): Try[V] =
     Option(data)
       .traverse(d => Try(valueDeserializer.deserialize(topicName, d)))
-      .flatMap(
-        _.fold[Try[V]](Failure(DecodingNullValueException(topicName)))(
-          Success(_)
-        )
-      )
+      .flatMap(_.fold[Try[V]](Failure(DecodingNullValueException(topicName)))(Success(_)))
 
   final def decodeMessage(
     data: G[Array[Byte], Array[Byte]]

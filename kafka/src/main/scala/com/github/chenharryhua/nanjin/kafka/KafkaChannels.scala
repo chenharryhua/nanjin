@@ -1,20 +1,27 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import akka.kafka.{
+  CommitterSettings,
+  ConsumerSettings => AkkaConsumerSettings,
+  ProducerSettings => AkkaProducerSettings
+}
 import akka.stream.ActorMaterializer
 import cats.Show
 import cats.data.Reader
 import cats.effect._
 import cats.implicits._
+import fs2.kafka.{ConsumerSettings => Fs2ConsumerSettings, ProducerSettings => Fs2ProducerSettings}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.streams.kstream.GlobalKTable
 
-import scala.util.{Success, Try}
 import scala.concurrent.Future
+import scala.util.{Success, Try}
 
-final class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
+final case class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
   topicDef: TopicDef[K, V],
-  fs2Settings: Fs2Settings,
+  producerSettings: Fs2ProducerSettings[F, K, V],
+  consumerSettings: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]],
   keySerde: KeySerde[K],
   valueSerde: ValueSerde[V]
 ) extends Fs2MessageBitraverse with Serializable {
@@ -27,10 +34,16 @@ final class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
   val encoder: encoders.Fs2MessageEncoder[F, K, V] =
     encoders.fs2MessageEncoder[F, K, V](topicDef.topicName)
 
-  val producerSettings: ProducerSettings[F, K, V] =
-    fs2Settings.producerSettings(keySerde.serializer, valueSerde.serializer)
+  def updateProducerSettings(
+    f: Fs2ProducerSettings[F, K, V] => Fs2ProducerSettings[F, K, V]): Fs2Channel[F, K, V] =
+    copy(producerSettings = f(producerSettings))
 
-  val consumerSettings: ConsumerSettings[F, Array[Byte], Array[Byte]] = fs2Settings.consumerSettings
+  def updateConsumerSettings(
+    f: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]] => Fs2ConsumerSettings[
+      F,
+      Array[Byte],
+      Array[Byte]]): Fs2Channel[F, K, V] =
+    copy(consumerSettings = f(consumerSettings))
 
   val producerStream: Stream[F, KafkaProducer[F, K, V]] =
     fs2.kafka.producerStream[F, K, V](producerSettings)
@@ -82,18 +95,33 @@ object Fs2Channel {
   implicit def showFs2Channel[F[_], K, V]: Show[Fs2Channel[F, K, V]] = _.show
 }
 
-final class AkkaChannel[F[_]: ContextShift, K, V] private[kafka] (
+final case class AkkaChannel[F[_]: ContextShift, K, V] private[kafka] (
   topicDef: TopicDef[K, V],
-  akkaSettings: AkkaSettings,
+  producerSettings: AkkaProducerSettings[K, V],
+  consumerSettings: AkkaConsumerSettings[Array[Byte], Array[Byte]],
+  committerSettings: CommitterSettings,
   keySerde: KeySerde[K],
   valueSerde: ValueSerde[V])(implicit val materializer: ActorMaterializer)
     extends AkkaMessageBitraverse with Serializable {
   import akka.kafka.ConsumerMessage.CommittableMessage
   import akka.kafka.ProducerMessage.Envelope
   import akka.kafka.scaladsl.{Committer, Consumer, Producer}
-  import akka.kafka.{ConsumerMessage, ConsumerSettings, ProducerSettings, Subscriptions}
+  import akka.kafka.{ConsumerMessage, Subscriptions}
   import akka.stream.scaladsl.{Flow, Sink, Source}
   import akka.{Done, NotUsed}
+
+  def updateProducerSettings(
+    f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): AkkaChannel[F, K, V] =
+    copy(producerSettings = f(producerSettings))
+
+  def updateConsumerSettings(
+    f: AkkaConsumerSettings[Array[Byte], Array[Byte]] => AkkaConsumerSettings[
+      Array[Byte],
+      Array[Byte]]): AkkaChannel[F, K, V] =
+    copy(consumerSettings = f(consumerSettings))
+
+  def updateCommitterSettings(f: CommitterSettings => CommitterSettings): AkkaChannel[F, K, V] =
+    copy(committerSettings = f(committerSettings))
 
   val decoder: KafkaMessageDecoder[CommittableMessage, K, V] =
     decoders.akkaMessageDecoder[K, V](topicDef.topicName, keySerde, valueSerde)
@@ -101,20 +129,11 @@ final class AkkaChannel[F[_]: ContextShift, K, V] private[kafka] (
   val encoder: encoders.AkkaMessageEncoder[K, V] =
     encoders.akkaMessageEncoder[K, V](topicDef.topicName)
 
-  val consumerSettings: ConsumerSettings[Array[Byte], Array[Byte]] =
-    akkaSettings.consumerSettings(materializer.system)
-
-  val producerSettings: ProducerSettings[K, V] =
-    akkaSettings.producerSettings(materializer.system, keySerde.serializer, valueSerde.serializer)
-
   val produceSink: Sink[Envelope[K, V, ConsumerMessage.Committable], Future[Done]] =
     Producer.committableSink(producerSettings)
 
-  def ignoreSink[A]: Sink[A, Future[Done]] =
-    Sink.ignore
-
   val commitSink: Sink[ConsumerMessage.Committable, Future[Done]] =
-    Committer.sink(akkaSettings.committerSettings(materializer.system))
+    Committer.sink(committerSettings)
 
   def assign(tps: Map[TopicPartition, Long])
     : Source[ConsumerRecord[Array[Byte], Array[Byte]], Consumer.Control] =

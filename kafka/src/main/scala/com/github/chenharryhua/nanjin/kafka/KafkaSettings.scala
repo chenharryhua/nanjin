@@ -26,8 +26,12 @@ import scala.util.Try
   consumerProps: Map[String, String],
   producerProps: Map[String, String]
 ) {
-  import fs2.kafka.{ConsumerSettings, ProducerSettings}
-  import fs2.kafka.{Serializer => Fs2Serializer, Deserializer => Fs2Deserializer}
+  import fs2.kafka.{
+    ConsumerSettings,
+    ProducerSettings,
+    Deserializer => Fs2Deserializer,
+    Serializer   => Fs2Serializer
+  }
 
   def consumerSettings[F[_]: Sync]: ConsumerSettings[F, Array[Byte], Array[Byte]] =
     ConsumerSettings[F, Array[Byte], Array[Byte]](
@@ -169,25 +173,25 @@ import scala.util.Try
       .set(Some(value))(this)
   }
 
-  def setBrokers(bs: String): KafkaSettings =
+  def withBrokers(bs: String): KafkaSettings =
     updateAll(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bs)
 
-  def setSaslJaas(sj: String): KafkaSettings =
+  def withSaslJaas(sj: String): KafkaSettings =
     updateAll(SaslConfigs.SASL_JAAS_CONFIG, sj)
 
-  def setSecurityProtocol(sp: SecurityProtocol): KafkaSettings =
+  def withSecurityProtocol(sp: SecurityProtocol): KafkaSettings =
     updateAll(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, sp.name)
 
-  def setSchemaRegistryProperty(key: String, value: String): KafkaSettings =
+  def withSchemaRegistryProperty(key: String, value: String): KafkaSettings =
     KafkaSettings.schemaRegistrySettings
       .composeLens(SchemaRegistrySettings.props)
       .composeLens(at(key))
       .set(Some(value))(this)
 
-  def setSchemaRegistryUrl(url: String): KafkaSettings =
-    setSchemaRegistryProperty(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, url)
+  def withSchemaRegistryUrl(url: String): KafkaSettings =
+    withSchemaRegistryProperty(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, url)
 
-  def setProducerProperty(key: String, value: String): KafkaSettings =
+  def withProducerProperty(key: String, value: String): KafkaSettings =
     Traversal
       .applyN[KafkaSettings, Map[String, String]](
         KafkaSettings.fs2Settings.composeLens(Fs2Settings.producerProps),
@@ -195,7 +199,7 @@ import scala.util.Try
       .composeLens(at(key))
       .set(Some(value))(this)
 
-  def setConsumerProperty(key: String, value: String): KafkaSettings =
+  def withConsumerProperty(key: String, value: String): KafkaSettings =
     Traversal
       .applyN[KafkaSettings, Map[String, String]](
         KafkaSettings.fs2Settings.composeLens(Fs2Settings.consumerProps),
@@ -203,17 +207,17 @@ import scala.util.Try
       .composeLens(at(key))
       .set(Some(value))(this)
 
-  def setStreamingProperty(key: String, value: String): KafkaSettings =
+  def withStreamingProperty(key: String, value: String): KafkaSettings =
     KafkaSettings.streamSettings
       .composeLens(KafkaStreamSettings.props)
       .composeLens(at(key))
       .set(Some(value))(this)
 
-  def setGroupId(gid: String): KafkaSettings =
-    setConsumerProperty(ConsumerConfig.GROUP_ID_CONFIG, gid)
+  def withGroupId(gid: String): KafkaSettings =
+    withConsumerProperty(ConsumerConfig.GROUP_ID_CONFIG, gid)
 
-  def setApplicationId(appId: String): KafkaSettings =
-    setStreamingProperty(StreamsConfig.APPLICATION_ID_CONFIG, appId)
+  def withApplicationId(appId: String): KafkaSettings =
+    withStreamingProperty(StreamsConfig.APPLICATION_ID_CONFIG, appId)
 
   def ioContext(implicit contextShift: ContextShift[IO], timer: Timer[IO]): IoKafkaContext =
     new IoKafkaContext(this)
@@ -275,10 +279,10 @@ object KafkaSettings {
         Map(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG ->
           "http://localhost:8081"))
     )
-    s.setGroupId("nanjin-group")
-      .setApplicationId("nanjin-app")
-      .setBrokers("localhost:9092")
-      .setSecurityProtocol(SecurityProtocol.PLAINTEXT)
+    s.withGroupId("nanjin-group")
+      .withApplicationId("nanjin-app")
+      .withBrokers("localhost:9092")
+      .withSecurityProtocol(SecurityProtocol.PLAINTEXT)
   }
   implicit val showKafkaSettings: Show[KafkaSettings] = _.show
 }
