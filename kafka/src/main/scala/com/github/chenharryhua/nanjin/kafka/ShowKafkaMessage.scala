@@ -1,7 +1,5 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import java.time.{Instant, ZoneId}
-
 import akka.kafka.ConsumerMessage.{CommittableMessage => AkkaCommittableMessage}
 import cats.Show
 import cats.implicits._
@@ -10,19 +8,18 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 
 sealed trait LowerPriorityShow {
-  protected def utc(t: Long): Instant = Instant.ofEpochMilli(t)
 
   implicit protected def showConsumerRecords2[K, V]: Show[ConsumerRecord[K, V]] =
     (t: ConsumerRecord[K, V]) => {
-      val dt = utc(t.timestamp())
+      val (utc, local) = utils.kafkaTimeStamp(t.timestamp())
       s"""|consumer record:
           |topic:        ${t.topic()}
           |partition:    ${t.partition()}
           |offset:       ${t.offset()}
           |headers:      ${t.headers()}
           |timestamp:    ${t.timestamp()}
-          |utc:          $dt
-          |local-time:   ${dt.atZone(ZoneId.systemDefault())}
+          |utc:          $utc
+          |local-time:   $local
           |ts-type:      ${t.timestampType()}
           |key:          ${Option(t.key).getOrElse("null")}
           |value:        ${Option(t.value).getOrElse("null")}
@@ -53,15 +50,15 @@ trait ShowKafkaMessage extends LowerPriorityShow {
 
   implicit protected def showConsumerRecords[K, V: Show]: Show[ConsumerRecord[K, V]] =
     (t: ConsumerRecord[K, V]) => {
-      val dt = utc(t.timestamp())
+      val (utc, local) = utils.kafkaTimeStamp(t.timestamp())
       s"""|consumer record:
           |topic:        ${t.topic()}
           |partition:    ${t.partition()}
           |offset:       ${t.offset()}
           |headers:      ${t.headers()}
           |timestamp:    ${t.timestamp()}
-          |utc:          $dt
-          |local-time:   ${dt.atZone(ZoneId.systemDefault())}
+          |utc:          $utc
+          |local-time:   $local
           |ts-type:      ${t.timestampType()}
           |key:          ${Option(t.key).getOrElse("null")}
           |value:        ${Option(t.value).map(_.show).getOrElse("null")}
@@ -72,14 +69,14 @@ trait ShowKafkaMessage extends LowerPriorityShow {
 
   implicit protected def showProducerRecord[K, V: Show]: Show[ProducerRecord[K, V]] =
     (t: ProducerRecord[K, V]) => {
-      val dt = utc(t.timestamp())
+      val (utc, local) = utils.kafkaTimeStamp(t.timestamp())
       s"""|producer record:
           |topic:      ${t.topic}
           |partition:  ${t.partition}
           |headers:    ${t.headers}
           |timestamp:  ${t.timestamp()}
-          |utc:        $dt
-          |local-time: ${dt.atZone(ZoneId.systemDefault())}
+          |utc:        $utc
+          |local-time: $local
           |key:        ${Option(t.key).getOrElse("null")}
           |value:      ${Option(t.value).map(_.show).getOrElse("null")}""".stripMargin
     }

@@ -10,7 +10,7 @@ class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage with Fs2Messa
     import io.circe.generic.auto._
     val ret = ctx
       .topic(backblaze_smart)
-      .fs2Stream
+      .fs2Channel
       .consumeNativeMessages
       .map(_.bitraverse(identity, identity).toEither)
       .rethrow
@@ -24,7 +24,7 @@ class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage with Fs2Messa
     import cats.derived.auto.show._
     val ret = ctx
       .topic(nyc_taxi_trip)
-      .fs2Stream
+      .fs2Channel
       .consumeValues
       .map(_.toEither)
       .rethrow
@@ -38,7 +38,7 @@ class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage with Fs2Messa
   test("should be able to consume payments topic") {
     val ret = ctx
       .topic[String, Payment]("cc_payments")
-      .fs2Stream
+      .fs2Channel
       .consumeMessages
       .map(_.toEither)
       .rethrow

@@ -30,7 +30,7 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
 
   override def toString: String = topicName
 
-  val fs2Stream: Fs2Channel[F, K, V] =
+  val fs2Channel: Fs2Channel[F, K, V] =
     new Fs2Channel[F, K, V](topicDef, fs2Settings, keySerde, valueSerde)
 
   val akkaResource: Resource[F, AkkaChannel[F, K, V]] =

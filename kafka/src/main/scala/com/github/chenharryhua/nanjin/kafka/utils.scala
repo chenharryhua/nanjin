@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import java.time.{Instant, ZoneId, ZonedDateTime}
 import java.util.Properties
 
 import cats.Eval
@@ -13,4 +14,8 @@ object utils {
 
   val random4d: Eval[Int] = Eval.always(1000 + Random.nextInt(9000))
 
+  def kafkaTimeStamp(t: Long, tz: ZoneId = ZoneId.systemDefault()): (Instant, ZonedDateTime) = {
+    val utc = Instant.ofEpochMilli(t)
+    (utc, utc.atZone(tz))
+  }
 }

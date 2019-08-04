@@ -27,22 +27,22 @@ final class KafkaAvroSerde[A: Encoder: Decoder: SchemaFor](srSettings: SchemaReg
             Try(format.from(gr)) match {
               case Success(v) => Success(v)
               case Failure(ex) =>
-                Failure(InvalidObjectException(s"""|decode avro failed
+                Failure(InvalidObjectException(s"""|decode avro failed:
                                                    |topic:         $topic
                                                    |error:         ${ex.getMessage} 
                                                    |GenericRecord: ${gr.toString}
                                                    |schema:        ${schema.toString}""".stripMargin))
             }
           case Success(gr) =>
-            Failure(InvalidGenericRecordException(s"""|decode avro failed
+            Failure(InvalidGenericRecordException(s"""|decode avro failed:
                                                       |topic:         $topic
-                                                      |error:         schema mismatch
+                                                      |error:         invalid generic record
                                                       |GenericRecord: ${gr.toString}
                                                       |schema:        ${schema.toString}""".stripMargin))
           case Failure(ex) =>
-            Failure(CorruptedRecordException(s"""|decode avro failed
-                                                 |topic: $topic 
-                                                 |error: ${ex.getMessage}
+            Failure(CorruptedRecordException(s"""|decode avro failed:
+                                                 |topic:  $topic 
+                                                 |error:  ${ex.getMessage}
                                                  |schema: ${schema.toString}""".stripMargin))
         }
     }
