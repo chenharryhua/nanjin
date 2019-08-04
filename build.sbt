@@ -3,16 +3,16 @@ scapegoatVersion in ThisBuild := "1.3.9"
 
 val confluent    = "5.3.0"
 val kafkaVersion = "2.3.0"
-val catsCore     = "1.6.1"
-val catsEffect   = "1.4.0"
-val catsMtl      = "0.5.0"
+val catsCore     = "2.0.0-M4"
+val catsEffect   = "2.0.0-M5"
+val catsMtl      = "0.6.0"
 val kittens      = "1.2.1"
-val circeVersion = "0.11.1"
-val fs2Version   = "1.0.5"
+val circeVersion = "0.12.0-M4"
+val fs2Version   = "1.1.0-M1"
 val shapeless    = "2.3.3"
 val avro         = "2.0.4"
 val akkaStream   = "1.0.5"
-val fs2Stream    = "0.19.9"
+val fs2Stream    = "0.20.0-M2"
 val silencer     = "1.4.2"
 val monocle      = "1.5.1-cats"
 val contextual   = "1.2.1"
@@ -89,6 +89,7 @@ lazy val kafka = (project in file("kafka"))
       "com.github.julien-truffaut" %% "monocle-state"   % monocle,
       "com.github.julien-truffaut" %% "monocle-unsafe"  % monocle,
       "com.propensive" %% "contextual"                  % contextual,
+      "dev.zio" %% "zio-interop-cats" % "2.0.0.0-RC1",
       "org.scalatest" %% "scalatest"                    % scalatest % Test
     ),
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"

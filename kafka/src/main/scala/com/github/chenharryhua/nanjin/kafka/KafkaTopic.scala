@@ -33,11 +33,8 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
   val fs2Channel: Fs2Channel[F, K, V] =
     new Fs2Channel[F, K, V](topicDef, fs2Settings, keySerde, valueSerde)
 
-  val akkaResource: Resource[F, AkkaChannel[F, K, V]] =
-    Resource.make(
-      ConcurrentEffect[F].pure(
-        new AkkaChannel[F, K, V](topicDef, akkaSettings, keySerde, valueSerde)))(_ =>
-      ConcurrentEffect[F].unit)
+  val akkaChannel: AkkaChannel[F, K, V] =
+    new AkkaChannel[F, K, V](topicDef, akkaSettings, keySerde, valueSerde)
 
   val kafkaStream: StreamingChannel[K, V] =
     new StreamingChannel[K, V](topicDef, keySerde, valueSerde)

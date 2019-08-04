@@ -10,6 +10,7 @@ import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.streams.kstream.GlobalKTable
 
 import scala.util.{Success, Try}
+import scala.concurrent.Future
 
 final class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
   topicDef: TopicDef[K, V],
@@ -20,58 +21,50 @@ final class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
   import fs2.kafka._
   import fs2.{Pipe, Stream}
 
-  val decoder: KafkaMessageDecoder[CommittableMessage[F, ?, ?], K, V] =
+  val decoder: KafkaMessageDecoder[CommittableConsumerRecord[F, ?, ?], K, V] =
     decoders.fs2MessageDecoder[F, K, V](topicDef.topicName, keySerde, valueSerde)
 
   val encoder: encoders.Fs2MessageEncoder[F, K, V] =
     encoders.fs2MessageEncoder[F, K, V](topicDef.topicName)
 
-  val producerSettings: ProducerSettings[K, V] =
+  val producerSettings: ProducerSettings[F, K, V] =
     fs2Settings.producerSettings(keySerde.serializer, valueSerde.serializer)
 
-  val consumerSettings: ConsumerSettings[Array[Byte], Array[Byte]] = fs2Settings.consumerSettings
+  val consumerSettings: ConsumerSettings[F, Array[Byte], Array[Byte]] = fs2Settings.consumerSettings
 
   val producerStream: Stream[F, KafkaProducer[F, K, V]] =
     fs2.kafka.producerStream[F, K, V](producerSettings)
 
-  def sink[G[+_]]: Pipe[F, ProducerMessage[G, K, V, Option[CommittableOffset[F]]], Unit] =
-    (in: Stream[F, ProducerMessage[G, K, V, Option[CommittableOffset[F]]]]) =>
-      Stream.eval(producerResource[F, K, V](producerSettings).use { producer =>
-        in.evalMap { kvo =>
-          producer.produce[G, Option[CommittableOffset[F]]](kvo).flatMap(_.map(_.passthrough))
-        }.through(commitBatchOption).compile.drain
-      })
-
   val decode: Pipe[
     F,
-    CommittableMessage[F, Array[Byte], Array[Byte]],
-    CommittableMessage[F, Try[K], Try[V]]] =
+    CommittableConsumerRecord[F, Array[Byte], Array[Byte]],
+    CommittableConsumerRecord[F, Try[K], Try[V]]] =
     _.map(decoder.decodeMessage)
 
-  val consume: Stream[F, CommittableMessage[F, Array[Byte], Array[Byte]]] =
+  val consume: Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
     consumerStream[F, Array[Byte], Array[Byte]](consumerSettings)
       .evalTap(_.subscribeTo(topicDef.topicName))
       .flatMap(_.stream)
 
-  val consumeNativeMessages: Stream[F, CommittableMessage[F, Try[K], Try[V]]] =
+  val consumeNativeMessages: Stream[F, CommittableConsumerRecord[F, Try[K], Try[V]]] =
     consume.map(decoder.decodeMessage)
 
-  val consumeMessages: Stream[F, Try[CommittableMessage[F, K, V]]] =
+  val consumeMessages: Stream[F, Try[CommittableConsumerRecord[F, K, V]]] =
     consume.map(decoder.decodeBoth)
 
-  val consumeValidMessages: Stream[F, CommittableMessage[F, K, V]] =
+  val consumeValidMessages: Stream[F, CommittableConsumerRecord[F, K, V]] =
     consumeMessages.collect { case Success(x) => x }
 
-  val consumeValues: Stream[F, Try[CommittableMessage[F, Array[Byte], V]]] =
+  val consumeValues: Stream[F, Try[CommittableConsumerRecord[F, Array[Byte], V]]] =
     consume.map(decoder.decodeValue)
 
-  val consumeValidValues: Stream[F, CommittableMessage[F, Array[Byte], V]] =
+  val consumeValidValues: Stream[F, CommittableConsumerRecord[F, Array[Byte], V]] =
     consumeValues.collect { case Success(x) => x }
 
-  val consumeKeys: Stream[F, Try[CommittableMessage[F, K, Array[Byte]]]] =
+  val consumeKeys: Stream[F, Try[CommittableConsumerRecord[F, K, Array[Byte]]]] =
     consume.map(decoder.decodeKey)
 
-  val consumeValidKeys: Stream[F, CommittableMessage[F, K, Array[Byte]]] =
+  val consumeValidKeys: Stream[F, CommittableConsumerRecord[F, K, Array[Byte]]] =
     consumeKeys.collect { case Success(x) => x }
 
   val show: String =
@@ -89,7 +82,7 @@ object Fs2Channel {
   implicit def showFs2Channel[F[_], K, V]: Show[Fs2Channel[F, K, V]] = _.show
 }
 
-final class AkkaChannel[F[_]: LiftIO, K, V] private[kafka] (
+final class AkkaChannel[F[_]: LiftIO:ContextShift, K, V] private[kafka] (
   topicDef: TopicDef[K, V],
   akkaSettings: AkkaSettings,
   keySerde: KeySerde[K],
@@ -114,18 +107,15 @@ final class AkkaChannel[F[_]: LiftIO, K, V] private[kafka] (
   val producerSettings: ProducerSettings[K, V] =
     akkaSettings.producerSettings(materializer.system, keySerde.serializer, valueSerde.serializer)
 
-  val produceSink: Sink[Envelope[K, V, ConsumerMessage.Committable], F[Done]] =
+  val produceSink: Sink[Envelope[K, V, ConsumerMessage.Committable], Future[Done]] =
     Producer
       .committableSink(producerSettings)
-      .mapMaterializedValue(f => LiftIO[F].liftIO(IO.fromFuture(IO(f))))
 
-  def ignoreSink[A]: Sink[A, F[Done]] =
-    Sink.ignore.mapMaterializedValue(f => LiftIO[F].liftIO(IO.fromFuture(IO(f))))
+  def ignoreSink[A]: Sink[A, Future[Done]] =
+    Sink.ignore
 
-  val commitSink: Sink[ConsumerMessage.Committable, F[Done]] =
-    Committer
-      .sink(akkaSettings.committerSettings(materializer.system))
-      .mapMaterializedValue(f => LiftIO[F].liftIO(IO.fromFuture(IO(f))))
+  val commitSink: Sink[ConsumerMessage.Committable, Future[Done]] =
+    Committer.sink(akkaSettings.committerSettings(materializer.system))
 
   def assign(tps: Map[TopicPartition, Long])
     : Source[ConsumerRecord[Array[Byte], Array[Byte]], Consumer.Control] =

@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import java.util.Properties
 
-import cats.effect.{ContextShift, IO, Timer}
+import cats.effect.{ContextShift, IO, Sync, Timer}
 import cats.implicits._
 import cats.{Eval, Show}
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
@@ -27,13 +27,18 @@ import scala.util.Try
   producerProps: Map[String, String]
 ) {
   import fs2.kafka.{ConsumerSettings, ProducerSettings}
+  import fs2.kafka.{Serializer => Fs2Serializer, Deserializer => Fs2Deserializer}
 
-  def consumerSettings: ConsumerSettings[Array[Byte], Array[Byte]] =
-    ConsumerSettings[Array[Byte], Array[Byte]](new ByteArrayDeserializer, new ByteArrayDeserializer)
-      .withProperties(consumerProps)
+  def consumerSettings[F[_]: Sync]: ConsumerSettings[F, Array[Byte], Array[Byte]] =
+    ConsumerSettings[F, Array[Byte], Array[Byte]](
+      Fs2Deserializer.delegate(new ByteArrayDeserializer),
+      Fs2Deserializer.delegate(new ByteArrayDeserializer)).withProperties(consumerProps)
 
-  def producerSettings[K, V](kser: Serializer[K], vser: Serializer[V]): ProducerSettings[K, V] =
-    ProducerSettings[K, V](kser, vser).withProperties(producerProps)
+  def producerSettings[F[_]: Sync, K, V](
+    kser: Serializer[K],
+    vser: Serializer[V]): ProducerSettings[F, K, V] =
+    ProducerSettings[F, K, V](Fs2Serializer.delegate(kser), Fs2Serializer.delegate(vser))
+      .withProperties(producerProps)
 
   def show: String =
     s"""

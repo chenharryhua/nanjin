@@ -6,6 +6,10 @@ import com.github.ghik.silencer.silent
 import monocle.{Iso, PLens}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.kafka.common.header.internals.RecordHeaders
+import org.apache.kafka.common.record.TimestampType
+
+import scala.compat.java8.OptionConverters._
 
 trait KafkaMessageBitraverse {
 
@@ -75,14 +79,16 @@ trait KafkaMessageBitraverse {
 trait Fs2MessageBitraverse extends KafkaMessageBitraverse {
 
   import fs2.kafka.{
-    CommittableMessage,
+    CommittableConsumerRecord,
     Headers,
     Id,
-    ProducerMessage,
+    ProducerRecords,
+    Timestamp,
+    ConsumerRecord => Fs2ConsumerRecord,
     ProducerRecord => Fs2ProducerRecord
   }
 
-  final def fs2ProducerRecordIso[K, V]: Iso[Fs2ProducerRecord[K, V], ProducerRecord[K, V]] =
+  final def fs2ProducerRecordIso[F[_], K, V]: Iso[Fs2ProducerRecord[K, V], ProducerRecord[K, V]] =
     Iso[Fs2ProducerRecord[K, V], ProducerRecord[K, V]](
       s =>
         new ProducerRecord[K, V](
@@ -97,21 +103,61 @@ trait Fs2MessageBitraverse extends KafkaMessageBitraverse {
         .withTimestamp(a.timestamp)
         .withHeaders(a.headers.toArray.foldLeft(Headers.empty)((t, i) => t.append(i.key, i.value))))
 
+  final def fs2ComsumerRecordIso[K, V]: Iso[Fs2ConsumerRecord[K, V], ConsumerRecord[K, V]] =
+    Iso[Fs2ConsumerRecord[K, V], ConsumerRecord[K, V]](
+      cr =>
+        new ConsumerRecord[K, V](
+          cr.topic,
+          cr.partition,
+          cr.offset,
+          cr.timestamp.createTime
+            .orElse(cr.timestamp.logAppendTime)
+            .getOrElse(ConsumerRecord.NO_TIMESTAMP),
+          cr.timestamp.createTime
+            .map(_ => TimestampType.CREATE_TIME)
+            .orElse(cr.timestamp.logAppendTime.map(_ => TimestampType.LOG_APPEND_TIME))
+            .getOrElse(TimestampType.NO_TIMESTAMP_TYPE),
+          ConsumerRecord.NULL_CHECKSUM,
+          cr.serializedKeySize.getOrElse(ConsumerRecord.NULL_SIZE),
+          cr.serializedValueSize.getOrElse(ConsumerRecord.NULL_SIZE),
+          cr.key,
+          cr.value,
+          new RecordHeaders(cr.headers.asJava),
+          cr.leaderEpoch.map(new Integer(_)).asJava
+        ))(a => {
+      val epoch: Option[Int] = a.leaderEpoch().asScala.map(_.intValue())
+      val fcr = Fs2ConsumerRecord[K, V](a.topic(), a.partition(), a.offset(), a.key(), a.value())
+        .withHeaders(a.headers.toArray.foldLeft(Headers.empty)((t, i) => t.append(i.key, i.value)))
+        .withSerializedKeySize(a.serializedKeySize())
+        .withSerializedValueSize(a.serializedValueSize())
+        .withTimestamp(a.timestampType match {
+          case TimestampType.CREATE_TIME       => Timestamp.createTime(a.timestamp())
+          case TimestampType.LOG_APPEND_TIME   => Timestamp.logAppendTime(a.timestamp())
+          case TimestampType.NO_TIMESTAMP_TYPE => Timestamp.none
+        })
+      epoch.fold[Fs2ConsumerRecord[K, V]](fcr)(e => fcr.withLeaderEpoch(e))
+    })
+
   implicit final def fs2CommittableMessageBitraverse[F[_]]
-    : Bitraverse[CommittableMessage[F, ?, ?]] =
-    new Bitraverse[CommittableMessage[F, ?, ?]] {
-      override def bitraverse[G[_]: Applicative, A, B, C, D](fab: CommittableMessage[F, A, B])(
+    : Bitraverse[CommittableConsumerRecord[F, ?, ?]] =
+    new Bitraverse[CommittableConsumerRecord[F, ?, ?]] {
+      override def bitraverse[G[_]: Applicative, A, B, C, D](
+        fab: CommittableConsumerRecord[F, A, B])(
         f: A => G[C],
-        g: B => G[D]): G[CommittableMessage[F, C, D]] =
-        fab.record.bitraverse(f, g).map(r => CommittableMessage(r, fab.committableOffset))
+        g: B => G[D]): G[CommittableConsumerRecord[F, C, D]] =
+        fs2ComsumerRecordIso
+          .get(fab.record)
+          .bitraverse(f, g)
+          .map(r => CommittableConsumerRecord(fs2ComsumerRecordIso.reverseGet(r), fab.offset))
 
-      override def bifoldLeft[A, B, C](fab: CommittableMessage[F, A, B], c: C)(
+      override def bifoldLeft[A, B, C](fab: CommittableConsumerRecord[F, A, B], c: C)(
         f: (C, A) => C,
-        g: (C, B) => C): C = fab.record.bifoldLeft(c)(f, g)
+        g: (C, B) => C): C = fs2ComsumerRecordIso.get(fab.record).bifoldLeft(c)(f, g)
 
-      override def bifoldRight[A, B, C](fab: CommittableMessage[F, A, B], c: Eval[C])(
+      override def bifoldRight[A, B, C](fab: CommittableConsumerRecord[F, A, B], c: Eval[C])(
         f: (A, Eval[C]) => Eval[C],
-        g: (B, Eval[C]) => Eval[C]): Eval[C] = fab.record.bifoldRight(c)(f, g)
+        g: (B, Eval[C]) => Eval[C]): Eval[C] =
+        fs2ComsumerRecordIso.get(fab.record).bifoldRight(c)(f, g)
     }
 
   implicit final val fs2ProducerRecordBitraverse: Bitraverse[Fs2ProducerRecord[?, ?]] =
@@ -129,18 +175,18 @@ trait Fs2MessageBitraverse extends KafkaMessageBitraverse {
         g: (B, Eval[C]) => Eval[C]): Eval[C] = fs2ProducerRecordIso.get(fab).bifoldRight(c)(f, g)
     }
 
-  implicit final def fs2ProducerMessageBitraverse[P]: Bitraverse[ProducerMessage[Id, ?, ?, P]] =
-    new Bitraverse[ProducerMessage[Id, ?, ?, P]] {
-      override def bitraverse[G[_]: Applicative, A, B, C, D](fab: ProducerMessage[Id, A, B, P])(
+  implicit final def fs2ProducerMessageBitraverse[P]: Bitraverse[ProducerRecords[Id, ?, ?, P]] =
+    new Bitraverse[ProducerRecords[Id, ?, ?, P]] {
+      override def bitraverse[G[_]: Applicative, A, B, C, D](fab: ProducerRecords[Id, A, B, P])(
         f: A => G[C],
-        g: B => G[D]): G[ProducerMessage[Id, C, D, P]] =
-        fab.records.bitraverse(f, g).map(p => ProducerMessage[Id, C, D, P](p, fab.passthrough))
+        g: B => G[D]): G[ProducerRecords[Id, C, D, P]] =
+        fab.records.bitraverse(f, g).map(p => ProducerRecords[Id, C, D, P](p, fab.passthrough))
 
-      override def bifoldLeft[A, B, C](fab: ProducerMessage[Id, A, B, P], c: C)(
+      override def bifoldLeft[A, B, C](fab: ProducerRecords[Id, A, B, P], c: C)(
         f: (C, A) => C,
         g: (C, B) => C): C = fab.records.bifoldLeft(c)(f, g)
 
-      override def bifoldRight[A, B, C](fab: ProducerMessage[Id, A, B, P], c: Eval[C])(
+      override def bifoldRight[A, B, C](fab: ProducerRecords[Id, A, B, P], c: Eval[C])(
         f: (A, Eval[C]) => Eval[C],
         g: (B, Eval[C]) => Eval[C]): Eval[C] = fab.records.bifoldRight(c)(f, g)
     }

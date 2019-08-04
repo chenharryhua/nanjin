@@ -85,37 +85,37 @@ object encoders extends Fs2MessageBitraverse with AkkaMessageBitraverse {
 
   final class Fs2MessageEncoder[F[_], K, V](topicName: String) extends Serializable {
     import fs2.Chunk
-    import fs2.kafka.{CommittableMessage, CommittableOffset, Id, ProducerMessage, ProducerRecord}
+    import fs2.kafka.{CommittableConsumerRecord, CommittableOffset, Id, ProducerRecords, ProducerRecord}
 
     def record(k: K, v: V): ProducerRecord[K, V] = ProducerRecord(topicName, k, v)
 
-    def single(k: K, v: V): ProducerMessage[Id, K, V, Option[CommittableOffset[F]]] =
-      ProducerMessage.one(record(k, v), None)
+    def single(k: K, v: V): ProducerRecords[Id, K, V, Option[CommittableOffset[F]]] =
+    ProducerRecords.one(record(k, v), None)
 
     def single(
       k: K,
       v: V,
-      p: CommittableOffset[F]): ProducerMessage[Id, K, V, Option[CommittableOffset[F]]] =
-      ProducerMessage.one(record(k, v), Some(p))
+      p: CommittableOffset[F]): ProducerRecords[Id, K, V, Option[CommittableOffset[F]]] =
+      ProducerRecords.one(record(k, v), Some(p))
 
     def multi(msgs: Chunk[(K, V, CommittableOffset[F])])
-      : ProducerMessage[Chunk, K, V, Option[CommittableOffset[F]]] =
-      ProducerMessage(msgs.map { case (k, v, _) => record(k, v) }, msgs.last.map(_._3))
+      : ProducerRecords[Chunk, K, V, Option[CommittableOffset[F]]] =
+      ProducerRecords(msgs.map { case (k, v, _) => record(k, v) }, msgs.last.map(_._3))
 
-    def multi(msgs: List[(K, V)]): ProducerMessage[List, K, V, Option[CommittableOffset[F]]] =
-      ProducerMessage(msgs.map { case (k, v) => record(k, v) }, None)
+    def multi(msgs: List[(K, V)]): ProducerRecords[List, K, V, Option[CommittableOffset[F]]] =
+    ProducerRecords(msgs.map { case (k, v) => record(k, v) }, None)
 
-    def cloneRecord(cm: CommittableMessage[F, K, V]): ProducerRecord[K, V] = {
-      fs2ProducerRecordIso.reverseGet(recordTopicLens.set(topicName)(cm.record))
+    def cloneRecord(cm: CommittableConsumerRecord[F, K, V]): ProducerRecord[K, V] = {
+      fs2ProducerRecordIso.reverseGet(recordTopicLens.set(topicName)(fs2ComsumerRecordIso.get(cm.record)))
     }
 
     def cloneSingle(
-      cm: CommittableMessage[F, K, V]): ProducerMessage[Id, K, V, Option[CommittableOffset[F]]] =
-      ProducerMessage.one(cloneRecord(cm), Some(cm.committableOffset))
+      cm: CommittableConsumerRecord[F, K, V]): ProducerRecords[Id, K, V, Option[CommittableOffset[F]]] =
+      ProducerRecords.one(cloneRecord(cm), Some(cm.offset))
 
     def cloneMulti(
-      cms: Chunk[CommittableMessage[F, K, V]]
-    ): ProducerMessage[Chunk, K, V, Option[CommittableOffset[F]]] =
-      ProducerMessage(cms.map(cloneRecord), cms.last.map(_.committableOffset))
+      cms: Chunk[CommittableConsumerRecord[F, K, V]]
+    ): ProducerRecords[Chunk, K, V, Option[CommittableOffset[F]]] =
+    ProducerRecords(cms.map(cloneRecord), cms.last.map(_.offset))
   }
 }

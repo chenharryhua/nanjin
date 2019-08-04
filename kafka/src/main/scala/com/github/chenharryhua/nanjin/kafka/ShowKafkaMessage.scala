@@ -3,11 +3,11 @@ package com.github.chenharryhua.nanjin.kafka
 import akka.kafka.ConsumerMessage.{CommittableMessage => AkkaCommittableMessage}
 import cats.Show
 import cats.implicits._
-import fs2.kafka.{CommittableMessage => Fs2CommittableMessage}
+import fs2.kafka.{CommittableConsumerRecord => Fs2CommittableMessage}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 
-sealed trait LowerPriorityShow {
+sealed trait LowerPriorityShow extends Fs2MessageBitraverse {
 
   implicit protected def showConsumerRecords2[K, V]: Show[ConsumerRecord[K, V]] =
     (t: ConsumerRecord[K, V]) => {
@@ -33,8 +33,8 @@ sealed trait LowerPriorityShow {
     (t: Fs2CommittableMessage[F, K, V]) => {
       s"""
          |fs2 committable message:
-         |${t.record.show}
-         |${t.committableOffset}""".stripMargin
+         |${fs2ComsumerRecordIso.get(t.record).show}
+         |${t.offset}""".stripMargin
     }
 
   implicit protected def showAkkaCommittableMessage2[K, V]: Show[AkkaCommittableMessage[K, V]] =
@@ -86,8 +86,8 @@ trait ShowKafkaMessage extends LowerPriorityShow {
     (t: Fs2CommittableMessage[F, K, V]) => {
       s"""
          |fs2 committable message:
-         |${t.record.show}
-         |${t.committableOffset}""".stripMargin
+         |${fs2ComsumerRecordIso.get(t.record).show}
+         |${t.offset}""".stripMargin
     }
 
   implicit protected def showAkkaCommittableMessage[K, V: Show]

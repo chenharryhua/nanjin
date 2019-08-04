@@ -15,6 +15,8 @@ class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage with Fs2Messa
       .map(_.bitraverse(identity, identity).toEither)
       .rethrow
       .take(3)
+      .map(_.show)
+      .map(println)
       .compile
       .toList
       .unsafeRunSync()
@@ -29,6 +31,8 @@ class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage with Fs2Messa
       .map(_.toEither)
       .rethrow
       .take(3)
+      .map(_.show)
+      .map(println)
       .compile
       .toList
       .unsafeRunSync()
@@ -43,6 +47,7 @@ class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage with Fs2Messa
       .map(_.toEither)
       .rethrow
       .take(3)
+      .map(_.show)
       .compile
       .toList
       .unsafeRunSync()

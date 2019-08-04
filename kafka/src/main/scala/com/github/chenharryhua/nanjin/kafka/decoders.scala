@@ -4,7 +4,7 @@ import akka.kafka.ConsumerMessage.{CommittableMessage => AkkaCommittableMessage}
 import cats.Bitraverse
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.CodecException._
-import fs2.kafka.{CommittableMessage => Fs2CommittableMessage}
+import fs2.kafka.{CommittableConsumerRecord => Fs2CommittableMessage}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.serialization.Deserializer
 
