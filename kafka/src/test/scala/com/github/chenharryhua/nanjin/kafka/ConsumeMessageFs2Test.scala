@@ -23,7 +23,7 @@ class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage with Fs2Messa
     assert(ret.size == 3)
   }
   test("should be able to consume avro topic") {
-    import cats.derived.auto.show._
+    import cats.derived.auto.show._ 
     val ret = ctx
       .topic(nyc_taxi_trip)
       .fs2Channel

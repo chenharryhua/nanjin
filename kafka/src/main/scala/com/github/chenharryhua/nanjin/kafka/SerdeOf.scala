@@ -7,6 +7,7 @@ import org.apache.avro.Schema
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import org.apache.kafka.streams.scala.Serdes
 
+import scala.annotation.implicitNotFound
 import scala.collection.JavaConverters._
 
 sealed abstract class KafkaSerde[A](
@@ -45,6 +46,8 @@ final case class ValueSerde[A](
 
 abstract class SerdeModule(srSettings: SchemaRegistrySettings) {
 
+  @implicitNotFound(
+    "Could not find an instance of SerdeOf[${A}], for KJson import io.circe.generic.auto._")
   sealed abstract class SerdeOf[A](val schema: Schema) extends Serializable {
     def serializer: Serializer[A]
 
