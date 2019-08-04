@@ -82,7 +82,7 @@ object Fs2Channel {
   implicit def showFs2Channel[F[_], K, V]: Show[Fs2Channel[F, K, V]] = _.show
 }
 
-final class AkkaChannel[F[_]: LiftIO:ContextShift, K, V] private[kafka] (
+final class AkkaChannel[F[_]: ContextShift, K, V] private[kafka] (
   topicDef: TopicDef[K, V],
   akkaSettings: AkkaSettings,
   keySerde: KeySerde[K],
@@ -108,8 +108,7 @@ final class AkkaChannel[F[_]: LiftIO:ContextShift, K, V] private[kafka] (
     akkaSettings.producerSettings(materializer.system, keySerde.serializer, valueSerde.serializer)
 
   val produceSink: Sink[Envelope[K, V, ConsumerMessage.Committable], Future[Done]] =
-    Producer
-      .committableSink(producerSettings)
+    Producer.committableSink(producerSettings)
 
   def ignoreSink[A]: Sink[A, Future[Done]] =
     Sink.ignore

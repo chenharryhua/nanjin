@@ -17,7 +17,7 @@ val silencer     = "1.4.2"
 val monocle      = "1.5.1-cats"
 val contextual   = "1.2.1"
 val sparkVersion = "2.4.3"
-val avrohugger   = "1.0.0-RC17"
+val avrohugger   = "1.0.0-RC18"
 val scalatest    = "3.0.8"
 val refined      = "0.9.9"
 
