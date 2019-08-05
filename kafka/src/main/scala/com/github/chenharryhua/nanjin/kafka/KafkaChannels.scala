@@ -51,6 +51,9 @@ final case class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
   val producerStream: Stream[F, KafkaProducer[F, K, V]] =
     fs2.kafka.producerStream[F, K, V](producerSettings)
 
+  val transactionalProducerStream: Stream[F, TransactionalKafkaProducer[F, K, V]] =
+    fs2.kafka.transactionalProducerStream[F, K, V](producerSettings)
+
   val consume: Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
     consumerStream[F, Array[Byte], Array[Byte]](consumerSettings)
       .evalTap(_.subscribeTo(topicDef.topicName))

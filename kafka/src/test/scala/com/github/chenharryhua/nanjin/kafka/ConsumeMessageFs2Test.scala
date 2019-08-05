@@ -12,7 +12,7 @@ class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage with Fs2Messa
     val ret = ctx
       .topic(backblaze_smart)
       .fs2Channel
-      .updateConsumerSettings(s => s.withAutoOffsetReset(AutoOffsetReset.Latest))
+      .updateConsumerSettings(_.withAutoOffsetReset(AutoOffsetReset.Latest))
       .consumeNativeMessages
       .map(_.bitraverse(identity, identity).toEither)
       .rethrow

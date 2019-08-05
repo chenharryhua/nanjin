@@ -9,6 +9,7 @@ import fs2.kafka.{KafkaByteConsumer, KafkaByteProducer}
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, ByteArraySerializer}
+import zio.{Task, ZIO}
 
 sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
   settings: KafkaSettings)
@@ -60,6 +61,10 @@ final class IoKafkaContext(settings: KafkaSettings)(
   def show: String = settings.show
 }
 
-final class ZioKafkaContext(settings: KafkaSettings) {}
+final class ZioKafkaContext(settings: KafkaSettings)(
+  implicit contextShift: ContextShift[zio.Task],
+  timer: Timer[zio.Task],
+  ce: ConcurrentEffect[zio.Task]
+) extends KafkaContext[zio.Task](settings) {}
 
 final class MonixKafkaContext(settings: KafkaSettings) {}

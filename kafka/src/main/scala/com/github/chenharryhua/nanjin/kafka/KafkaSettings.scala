@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import java.util.Properties
 
-import cats.effect.{ContextShift, IO, Sync, Timer}
+import cats.effect.{ConcurrentEffect, ContextShift, IO, Sync, Timer}
 import cats.implicits._
 import cats.{Eval, Show}
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
@@ -221,6 +221,11 @@ import scala.util.Try
 
   def ioContext(implicit contextShift: ContextShift[IO], timer: Timer[IO]): IoKafkaContext =
     new IoKafkaContext(this)
+
+  def zioContext(
+    implicit contextShift: ContextShift[zio.Task],
+    timer: Timer[zio.Task],
+    ce: ConcurrentEffect[zio.Task]) = new ZioKafkaContext(this)
 
   def show: String =
     s"""
