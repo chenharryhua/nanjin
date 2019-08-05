@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import cats.implicits._
 import org.scalatest.FunSuite
 import zio.blocking.Blocking
 import zio.clock.Clock
@@ -8,8 +9,7 @@ import zio.interop.catz.implicits.ioTimer
 import zio.interop.catz.{taskEffectInstances, zioContextShift}
 import zio.random.Random
 import zio.system.System
-import zio.{DefaultRuntime, Exit, Runtime, ZIO}
-import cats.implicits._
+import zio.{DefaultRuntime, Runtime}
 
 class ZioTest extends FunSuite with ShowKafkaMessage {
   type Environment = Clock with Console with System with Random with Blocking
@@ -31,6 +31,17 @@ class ZioTest extends FunSuite with ShowKafkaMessage {
       .compile
       .drain
       .run
+    runtime.unsafeRun(task)
+  }
+
+  test("zio should work for akka.") {
+    val task = ctx.topic[String, Payment]("cc_payments").akkaResource.use { chn =>
+      chn.consumeValidMessages
+        .take(3)
+        .map(_.show)
+        .map(println)
+        .runWith(chn.ignoreSink)(ctx.materializer)
+    }
     runtime.unsafeRun(task)
   }
 }

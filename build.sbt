@@ -3,7 +3,7 @@ scapegoatVersion in ThisBuild := "1.3.9"
 
 val confluent    = "5.3.0"
 val kafkaVersion = "2.3.0"
-val catsCore     = "2.0.0-M4"
+val catsCore     = "2.0.0-RC1"
 val catsEffect   = "2.0.0-M5"
 val catsMtl      = "0.6.0"
 val kittens      = "1.2.1"
