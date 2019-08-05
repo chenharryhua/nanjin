@@ -18,7 +18,7 @@ class ZioTest extends FunSuite with ShowKafkaMessage {
 
   val ctx: ZioKafkaContext = KafkaSettings.local.zioContext
 
-  test("zio should behave like IO.") {
+  test("zio should just work.") {
     val task = ctx
       .topic[String, Payment]("cc_payments")
       .fs2Channel
@@ -31,6 +31,6 @@ class ZioTest extends FunSuite with ShowKafkaMessage {
       .compile
       .drain
       .run
-      runtime.unsafeRun(task)
+    runtime.unsafeRun(task)
   }
 }

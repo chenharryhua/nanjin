@@ -16,7 +16,6 @@ sealed trait LowerPriorityShow extends Fs2MessageBitraverse {
           |topic:        ${t.topic()}
           |partition:    ${t.partition()}
           |offset:       ${t.offset()}
-          |headers:      ${t.headers()}
           |timestamp:    ${t.timestamp()}
           |utc:          $utc
           |local-time:   $local
@@ -25,6 +24,7 @@ sealed trait LowerPriorityShow extends Fs2MessageBitraverse {
           |value:        ${Option(t.value).getOrElse("null")}
           |key-size:     ${t.serializedKeySize()}
           |value-size:   ${t.serializedValueSize()}
+          |headers:      ${t.headers()}
           |leader epoch: ${t.leaderEpoch}""".stripMargin
     }
 
@@ -55,7 +55,6 @@ trait ShowKafkaMessage extends LowerPriorityShow {
           |topic:        ${t.topic()}
           |partition:    ${t.partition()}
           |offset:       ${t.offset()}
-          |headers:      ${t.headers()}
           |timestamp:    ${t.timestamp()}
           |utc:          $utc
           |local-time:   $local
@@ -64,6 +63,7 @@ trait ShowKafkaMessage extends LowerPriorityShow {
           |value:        ${Option(t.value).map(_.show).getOrElse("null")}
           |key-size:     ${t.serializedKeySize()}
           |value-size:   ${t.serializedValueSize()}
+          |headers:      ${t.headers()}
           |leader epoch: ${t.leaderEpoch}""".stripMargin
     }
 
@@ -73,12 +73,12 @@ trait ShowKafkaMessage extends LowerPriorityShow {
       s"""|producer record:
           |topic:      ${t.topic}
           |partition:  ${t.partition}
-          |headers:    ${t.headers}
           |timestamp:  ${t.timestamp()}
           |utc:        $utc
           |local-time: $local
           |key:        ${Option(t.key).getOrElse("null")}
-          |value:      ${Option(t.value).map(_.show).getOrElse("null")}""".stripMargin
+          |value:      ${Option(t.value).map(_.show).getOrElse("null")}
+          |headers:    ${t.headers}""".stripMargin
     }
 
   implicit protected def showFs2CommittableMessage[F[_], K, V: Show]
