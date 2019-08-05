@@ -26,7 +26,7 @@ final case class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
   consumerSettings: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]],
   keySerde: KeySerde[K],
   valueSerde: ValueSerde[V]
-) extends Fs2MessageBitraverse with Serializable {
+) extends Fs2MessageBitraverse {
   import fs2.Stream
   import fs2.kafka._
 
@@ -93,14 +93,15 @@ final case class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
 object AkkaChannel {
   implicit def showAkkaChannel[F[_], K, V]: Show[AkkaChannel[F, K, V]] = _.show
 }
-final case class AkkaChannel[F[_]: ContextShift: Async, K, V] private[kafka] (
+final case class AkkaChannel[F[_]: ContextShift: Async, K, V](
   topicDef: TopicDef[K, V],
   producerSettings: AkkaProducerSettings[K, V],
   consumerSettings: AkkaConsumerSettings[Array[Byte], Array[Byte]],
   committerSettings: CommitterSettings,
   keySerde: KeySerde[K],
-  valueSerde: ValueSerde[V])
-    extends AkkaMessageBitraverse with Serializable {
+  valueSerde: ValueSerde[V],
+  materializer: ActorMaterializer)
+    extends AkkaMessageBitraverse {
   import akka.Done
   import akka.kafka.ConsumerMessage.CommittableMessage
   import akka.kafka.ProducerMessage.Envelope
@@ -130,13 +131,13 @@ final case class AkkaChannel[F[_]: ContextShift: Async, K, V] private[kafka] (
   val produceSink: Sink[Envelope[K, V, ConsumerMessage.Committable], F[Done]] =
     Producer
       .committableSink(producerSettings)
-      .mapMaterializedValue(f => Async.fromFuture(Async[F].delay(f)))
+      .mapMaterializedValue(f => Async.fromFuture(Async[F].pure(f)))
 
   val commitSink: Sink[ConsumerMessage.Committable, F[Done]] =
-    Committer.sink(committerSettings).mapMaterializedValue(f => Async.fromFuture(Async[F].delay(f)))
+    Committer.sink(committerSettings).mapMaterializedValue(f => Async.fromFuture(Async[F].pure(f)))
 
   def ignoreSink[A]: Sink[A, F[Done]] =
-    Sink.ignore.mapMaterializedValue(f => Async.fromFuture(Async[F].delay(f)))
+    Sink.ignore.mapMaterializedValue(f => Async.fromFuture(Async[F].pure(f)))
 
   def assign(tps: Map[TopicPartition, Long])
     : Source[ConsumerRecord[Array[Byte], Array[Byte]], Consumer.Control] =
@@ -179,8 +180,7 @@ final case class AkkaChannel[F[_]: ContextShift: Async, K, V] private[kafka] (
 final case class StreamingChannel[K, V](
   topicDef: TopicDef[K, V],
   keySerde: KeySerde[K],
-  valueSerde: ValueSerde[V])
-    extends Serializable {
+  valueSerde: ValueSerde[V]) {
   import org.apache.kafka.streams.scala.StreamsBuilder
   import org.apache.kafka.streams.scala.kstream.{Consumed, KStream, KTable}
 

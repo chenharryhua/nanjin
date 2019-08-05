@@ -14,8 +14,8 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
   settings: KafkaSettings)
     extends SerdeModule(settings.schemaRegistrySettings) {
 
-  protected val akkaSystem: ActorSystem        = ActorSystem("nanjin")
-  implicit val materializer: ActorMaterializer = ActorMaterializer.create(akkaSystem)
+  protected lazy val akkaSystem: ActorSystem         = ActorSystem("nanjin")
+  protected lazy val materializer: ActorMaterializer = ActorMaterializer.create(akkaSystem)
 
   final def asKey[K: SerdeOf]: KeySerde[K]     = SerdeOf[K].asKey(Map.empty)
   final def asValue[V: SerdeOf]: ValueSerde[V] = SerdeOf[V].asValue(Map.empty)
@@ -30,7 +30,7 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
       sharedProducer,
       asKey[K],
       asValue[V],
-      materializer)
+      Eval.later(materializer))
 
   final def topic[K: SerdeOf, V: SerdeOf](topicName: String): KafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](topicName))

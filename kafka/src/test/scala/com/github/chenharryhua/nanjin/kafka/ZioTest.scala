@@ -36,11 +36,13 @@ class ZioTest extends FunSuite with ShowKafkaMessage {
 
   test("zio should work for akka.") {
     val task = ctx.topic[String, Payment]("cc_payments").akkaResource.use { chn =>
-      chn.consumeValidMessages
+      chn
+        .updateConsumerSettings(_.withClientId("akka-test"))
+        .consumeValidMessages
         .take(3)
         .map(_.show)
         .map(println)
-        .runWith(chn.ignoreSink)(ctx.materializer)
+        .runWith(chn.ignoreSink)(chn.materializer)
     }
     runtime.unsafeRun(task)
   }
