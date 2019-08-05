@@ -15,7 +15,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.streams.kstream.GlobalKTable
 
-import scala.concurrent.Future
 import scala.util.{Success, Try}
 
 object Fs2Channel {
@@ -94,7 +93,7 @@ final case class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
 object AkkaChannel {
   implicit def showAkkaChannel[F[_], K, V]: Show[AkkaChannel[F, K, V]] = _.show
 }
-final case class AkkaChannel[F[_]: ContextShift, K, V] private[kafka] (
+final case class AkkaChannel[F[_]: ContextShift: Async, K, V] private[kafka] (
   topicDef: TopicDef[K, V],
   producerSettings: AkkaProducerSettings[K, V],
   consumerSettings: AkkaConsumerSettings[Array[Byte], Array[Byte]],
@@ -128,11 +127,16 @@ final case class AkkaChannel[F[_]: ContextShift, K, V] private[kafka] (
   val encoder: encoders.AkkaMessageEncoder[K, V] =
     encoders.akkaMessageEncoder[K, V](topicDef.topicName)
 
-  val produceSink: Sink[Envelope[K, V, ConsumerMessage.Committable], Future[Done]] =
-    Producer.committableSink(producerSettings)
+  val produceSink: Sink[Envelope[K, V, ConsumerMessage.Committable], F[Done]] =
+    Producer
+      .committableSink(producerSettings)
+      .mapMaterializedValue(f => Async.fromFuture(Async[F].delay(f)))
 
-  val commitSink: Sink[ConsumerMessage.Committable, Future[Done]] =
-    Committer.sink(committerSettings)
+  val commitSink: Sink[ConsumerMessage.Committable, F[Done]] =
+    Committer.sink(committerSettings).mapMaterializedValue(f => Async.fromFuture(Async[F].delay(f)))
+
+  def ignoreSink[A]: Sink[A, F[Done]] =
+    Sink.ignore.mapMaterializedValue(f => Async.fromFuture(Async[F].delay(f)))
 
   def assign(tps: Map[TopicPartition, Long])
     : Source[ConsumerRecord[Array[Byte], Array[Byte]], Consumer.Control] =

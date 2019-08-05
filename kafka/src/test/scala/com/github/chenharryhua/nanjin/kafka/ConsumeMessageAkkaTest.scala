@@ -9,15 +9,16 @@ class ConsumeMessageAkkaTest extends FunSuite with ShowKafkaMessage with AkkaMes
   val vessel = TopicDef[Key, aisClassAPositionReport]("sea_vessel_position_reports")
 
   test("akka stream should be able to consume data") {
-    val chn = ctx
-      .topic(vessel)
-      .akkaChannel
-      .updateConsumerSettings(s => s.withClientId("c-id"))
-      .updateCommitterSettings(s => s.withParallelism(10))
-      .consumeValidMessages
-      .map(_.show)
-      .map(println)
-      .take(3)
-      .runWith(Sink.ignore)(ctx.materializer)
+    val run = ctx.topic(vessel).akkaResource.use { chn =>
+      chn
+        .updateConsumerSettings(s => s.withClientId("c-id"))
+        .updateCommitterSettings(s => s.withParallelism(10))
+        .consumeValidMessages
+        .map(_.show)
+        .map(println)
+        .take(3)
+        .runWith(chn.ignoreSink)(chn.materializer)
+    }
+    run.unsafeRunSync()
   }
 }

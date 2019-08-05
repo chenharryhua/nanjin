@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import akka.stream.ActorMaterializer
 import cats.effect.concurrent.MVar
-import cats.effect.{ConcurrentEffect, ContextShift, Timer}
+import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
 import cats.{Eval, Show}
 import fs2.kafka.{KafkaByteConsumer, KafkaByteProducer}
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -38,15 +38,16 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
       keySerde,
       valueSerde)
 
-  val akkaChannel: AkkaChannel[F, K, V] =
-    new AkkaChannel[F, K, V](
-      topicDef,
-      akkaSettings
-        .producerSettings(materializer.system, keySerde.serializer, valueSerde.serializer),
-      akkaSettings.consumerSettings(materializer.system),
-      akkaSettings.committerSettings(materializer.system),
-      keySerde,
-      valueSerde)
+  val akkaResource: Resource[F, AkkaChannel[F, K, V]] = Resource.make(
+    ConcurrentEffect[F].pure(
+      new AkkaChannel[F, K, V](
+        topicDef,
+        akkaSettings
+          .producerSettings(materializer.system, keySerde.serializer, valueSerde.serializer),
+        akkaSettings.consumerSettings(materializer.system),
+        akkaSettings.committerSettings(materializer.system),
+        keySerde,
+        valueSerde)))(_ => ConcurrentEffect[F].unit)
 
   val kafkaStream: StreamingChannel[K, V] =
     new StreamingChannel[K, V](topicDef, keySerde, valueSerde)
