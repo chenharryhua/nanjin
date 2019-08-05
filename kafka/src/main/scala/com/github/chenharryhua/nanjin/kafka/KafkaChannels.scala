@@ -183,7 +183,7 @@ object AkkaChannel {
   implicit def showAkkaChannel[F[_], K, V]: Show[AkkaChannel[F, K, V]] = _.show
 }
 
-final class StreamingChannel[K, V](
+final case class StreamingChannel[K, V](
   topicDef: TopicDef[K, V],
   keySerde: KeySerde[K],
   valueSerde: ValueSerde[V])

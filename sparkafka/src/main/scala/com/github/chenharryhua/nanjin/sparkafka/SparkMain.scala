@@ -30,7 +30,7 @@ import scala.util.Try
 object SparkMain extends IOApp {
 
   val ctx =
-    KafkaSettings.empty.setBrokers("localhost:9092").ioContext
+    KafkaSettings.empty.withBrokers("localhost:9092").ioContext
 
   val topic =
     ctx.topic[Array[Byte], Payment]("cc_payments")
