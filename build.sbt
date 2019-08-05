@@ -20,6 +20,7 @@ val sparkVersion = "2.4.3"
 val avrohugger   = "1.0.0-RC18"
 val scalatest    = "3.0.8"
 val refined      = "0.9.9"
+val zioCats      = "2.0.0.0-RC1"
 
 lazy val commonSettings = Seq(
   version      := "0.0.1-SNAPSHOT",
@@ -89,7 +90,7 @@ lazy val kafka = (project in file("kafka"))
       "com.github.julien-truffaut" %% "monocle-state"   % monocle,
       "com.github.julien-truffaut" %% "monocle-unsafe"  % monocle,
       "com.propensive" %% "contextual"                  % contextual,
-      "dev.zio" %% "zio-interop-cats" % "2.0.0.0-RC1",
+      "dev.zio" %% "zio-interop-cats"                   % zioCats,
       "org.scalatest" %% "scalatest"                    % scalatest % Test
     ),
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
