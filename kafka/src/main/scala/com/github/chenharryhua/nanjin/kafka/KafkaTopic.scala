@@ -4,9 +4,8 @@ import akka.stream.ActorMaterializer
 import cats.effect.concurrent.MVar
 import cats.effect.{ConcurrentEffect, ContextShift, Timer}
 import cats.{Eval, Show}
-import fs2.kafka.KafkaByteConsumer
+import fs2.kafka.{KafkaByteConsumer, KafkaByteProducer}
 import org.apache.kafka.clients.consumer.ConsumerRecord
-import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
 final case class TopicDef[K, V](topicName: String) {
@@ -20,7 +19,7 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
   akkaSettings: AkkaSettings,
   srSettings: SchemaRegistrySettings,
   sharedConsumer: Eval[MVar[F, KafkaByteConsumer]],
-  sharedProducer: Eval[KafkaProducer[Array[Byte], Array[Byte]]],
+  sharedProducer: Eval[KafkaByteProducer],
   val keySerde: KeySerde[K],
   val valueSerde: ValueSerde[V]
 )(implicit materializer: ActorMaterializer)

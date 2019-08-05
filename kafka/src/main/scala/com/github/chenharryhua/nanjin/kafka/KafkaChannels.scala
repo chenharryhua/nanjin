@@ -18,6 +18,9 @@ import org.apache.kafka.streams.kstream.GlobalKTable
 import scala.concurrent.Future
 import scala.util.{Success, Try}
 
+object Fs2Channel {
+  implicit def showFs2Channel[F[_], K, V]: Show[Fs2Channel[F, K, V]] = _.show
+}
 final case class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
   topicDef: TopicDef[K, V],
   producerSettings: Fs2ProducerSettings[F, K, V],
@@ -25,8 +28,8 @@ final case class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
   keySerde: KeySerde[K],
   valueSerde: ValueSerde[V]
 ) extends Fs2MessageBitraverse with Serializable {
+  import fs2.Stream
   import fs2.kafka._
-  import fs2.{Pipe, Stream}
 
   val decoder: KafkaMessageDecoder[CommittableConsumerRecord[F, ?, ?], K, V] =
     decoders.fs2MessageDecoder[F, K, V](topicDef.topicName, keySerde, valueSerde)
@@ -47,12 +50,6 @@ final case class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
 
   val producerStream: Stream[F, KafkaProducer[F, K, V]] =
     fs2.kafka.producerStream[F, K, V](producerSettings)
-
-  val decode: Pipe[
-    F,
-    CommittableConsumerRecord[F, Array[Byte], Array[Byte]],
-    CommittableConsumerRecord[F, Try[K], Try[V]]] =
-    _.map(decoder.decodeMessage)
 
   val consume: Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
     consumerStream[F, Array[Byte], Array[Byte]](consumerSettings)
@@ -91,10 +88,9 @@ final case class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
        |${producerSettings.properties.show}""".stripMargin
 }
 
-object Fs2Channel {
-  implicit def showFs2Channel[F[_], K, V]: Show[Fs2Channel[F, K, V]] = _.show
+object AkkaChannel {
+  implicit def showAkkaChannel[F[_], K, V]: Show[AkkaChannel[F, K, V]] = _.show
 }
-
 final case class AkkaChannel[F[_]: ContextShift, K, V] private[kafka] (
   topicDef: TopicDef[K, V],
   producerSettings: AkkaProducerSettings[K, V],
@@ -103,12 +99,12 @@ final case class AkkaChannel[F[_]: ContextShift, K, V] private[kafka] (
   keySerde: KeySerde[K],
   valueSerde: ValueSerde[V])(implicit val materializer: ActorMaterializer)
     extends AkkaMessageBitraverse with Serializable {
+  import akka.Done
   import akka.kafka.ConsumerMessage.CommittableMessage
   import akka.kafka.ProducerMessage.Envelope
   import akka.kafka.scaladsl.{Committer, Consumer, Producer}
   import akka.kafka.{ConsumerMessage, Subscriptions}
-  import akka.stream.scaladsl.{Flow, Sink, Source}
-  import akka.{Done, NotUsed}
+  import akka.stream.scaladsl.{Sink, Source}
 
   def updateProducerSettings(
     f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): AkkaChannel[F, K, V] =
@@ -138,12 +134,6 @@ final case class AkkaChannel[F[_]: ContextShift, K, V] private[kafka] (
   def assign(tps: Map[TopicPartition, Long])
     : Source[ConsumerRecord[Array[Byte], Array[Byte]], Consumer.Control] =
     Consumer.plainSource(consumerSettings, Subscriptions.assignmentWithOffset(tps))
-
-  val decode: Flow[
-    CommittableMessage[Array[Byte], Array[Byte]],
-    CommittableMessage[Try[K], Try[V]],
-    NotUsed] =
-    Flow.fromFunction(decoder.decodeMessage)
 
   val consume: Source[CommittableMessage[Array[Byte], Array[Byte]], Consumer.Control] =
     Consumer.committableSource(consumerSettings, Subscriptions.topics(topicDef.topicName))
@@ -177,10 +167,6 @@ final case class AkkaChannel[F[_]: ContextShift, K, V] private[kafka] (
        |akka producer runtime settings:
        |${producerSettings.toString()}
      """.stripMargin
-}
-
-object AkkaChannel {
-  implicit def showAkkaChannel[F[_], K, V]: Show[AkkaChannel[F, K, V]] = _.show
 }
 
 final case class StreamingChannel[K, V](

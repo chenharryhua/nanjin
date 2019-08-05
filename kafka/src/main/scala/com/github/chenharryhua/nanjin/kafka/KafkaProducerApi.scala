@@ -6,8 +6,9 @@ import cats.effect.concurrent.Deferred
 import cats.effect.{ConcurrentEffect, IO, Sync}
 import cats.implicits._
 import fs2.Chunk
+import fs2.kafka.KafkaByteProducer
 import org.apache.kafka.clients.consumer.ConsumerRecord
-import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord, RecordMetadata}
+import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
 
 trait KafkaProducerApi[F[_], K, V] {
   def arbitrarilySend(key: Array[Byte], value: Array[Byte]): F[RecordMetadata]
@@ -34,15 +35,14 @@ trait KafkaProducerApi[F[_], K, V] {
 }
 
 object KafkaProducerApi {
-  type RawProducer = KafkaProducer[Array[Byte], Array[Byte]]
 
   def apply[F[_]: ConcurrentEffect, K, V](
-    producer: Eval[RawProducer],
+    producer: Eval[KafkaByteProducer],
     encoder: encoders.ProducerRecordEncoder[K, V]): KafkaProducerApi[F, K, V] =
     new KafkaProducerApiImpl[F, K, V](producer, encoder)
 
   final private[this] class KafkaProducerApiImpl[F[_]: ConcurrentEffect, K, V](
-    producer: Eval[RawProducer],
+    producer: Eval[KafkaByteProducer],
     encoder: encoders.ProducerRecordEncoder[K, V]
   ) extends KafkaProducerApi[F, K, V] {
 
