@@ -29,7 +29,8 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
       sharedConsumer,
       sharedProducer,
       asKey[K],
-      asValue[V])
+      asValue[V],
+      materializer)
 
   final def topic[K: SerdeOf, V: SerdeOf](topicName: String): KafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](topicName))

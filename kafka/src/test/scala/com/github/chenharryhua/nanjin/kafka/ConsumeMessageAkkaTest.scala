@@ -17,7 +17,7 @@ class ConsumeMessageAkkaTest extends FunSuite with ShowKafkaMessage with AkkaMes
         .map(_.show)
         .map(println)
         .take(3)
-        .runWith(chn.ignoreSink)(chn.materializer)
+        .runWith(chn.ignoreSink)(ctx.materializer)
     }
     run.unsafeRunSync()
   }

@@ -21,8 +21,8 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
   sharedConsumer: Eval[MVar[F, KafkaByteConsumer]],
   sharedProducer: Eval[KafkaByteProducer],
   val keySerde: KeySerde[K],
-  val valueSerde: ValueSerde[V]
-)(implicit materializer: ActorMaterializer)
+  val valueSerde: ValueSerde[V],
+  materializer: ActorMaterializer)
     extends TopicNameExtractor[K, V] with Serializable {
   val topicName: String = topicDef.topicName
 

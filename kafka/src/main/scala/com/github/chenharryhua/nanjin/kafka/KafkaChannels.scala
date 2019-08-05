@@ -99,7 +99,7 @@ final case class AkkaChannel[F[_]: ContextShift: Async, K, V] private[kafka] (
   consumerSettings: AkkaConsumerSettings[Array[Byte], Array[Byte]],
   committerSettings: CommitterSettings,
   keySerde: KeySerde[K],
-  valueSerde: ValueSerde[V])(implicit val materializer: ActorMaterializer)
+  valueSerde: ValueSerde[V])
     extends AkkaMessageBitraverse with Serializable {
   import akka.Done
   import akka.kafka.ConsumerMessage.CommittableMessage
