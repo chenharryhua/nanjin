@@ -14,13 +14,13 @@ val avro         = "2.0.4"
 val akkaStream   = "1.0.5"
 val fs2Stream    = "0.20.0-M2"
 val silencer     = "1.4.2"
-val monocle      = "1.5.1-cats" //"1.6.0+50-f7b237d7-SNAPSHOT" //
+val monocle      = "1.6.0+50-f7b237d7-SNAPSHOT" // "1.5.1-cats" //
 val contextual   = "1.2.1"
 val sparkVersion = "2.4.3"
 val avrohugger   = "1.0.0-RC18"
 val scalatest    = "3.0.8"
 val refined      = "0.9.9"
-val zioCats      = "2.0.0.0-RC1"
+val zioCats      = "2.0.0.0-RC2"
 
 lazy val commonSettings = Seq(
   version      := "0.0.1-SNAPSHOT",

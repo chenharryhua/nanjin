@@ -14,7 +14,7 @@ object utils {
 
   val random4d: Eval[Int] = Eval.always(1000 + Random.nextInt(9000))
 
-  def kafkaTimeStamp(t: Long, tz: ZoneId = ZoneId.systemDefault()): (Instant, ZonedDateTime) = {
+  def kafkaTimestamp(t: Long, tz: ZoneId = ZoneId.systemDefault()): (Instant, ZonedDateTime) = {
     val utc = Instant.ofEpochMilli(t)
     (utc, utc.atZone(tz))
   }

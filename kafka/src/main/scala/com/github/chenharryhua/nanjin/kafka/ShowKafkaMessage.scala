@@ -11,21 +11,22 @@ sealed trait LowerPriorityShow extends Fs2MessageBitraverse {
 
   implicit protected def showConsumerRecords2[K, V]: Show[ConsumerRecord[K, V]] =
     (t: ConsumerRecord[K, V]) => {
-      val (utc, local) = utils.kafkaTimeStamp(t.timestamp())
-      s"""|consumer record:
-          |topic:        ${t.topic()}
-          |partition:    ${t.partition()}
-          |offset:       ${t.offset()}
-          |timestamp:    ${t.timestamp()}
-          |utc:          $utc
-          |local-time:   $local
-          |ts-type:      ${t.timestampType()}
-          |key:          ${Option(t.key).getOrElse("null")}
-          |value:        ${Option(t.value).getOrElse("null")}
-          |key-size:     ${t.serializedKeySize()}
-          |value-size:   ${t.serializedValueSize()}
-          |headers:      ${t.headers()}
-          |leader epoch: ${t.leaderEpoch}""".stripMargin
+      val (utc, local) = utils.kafkaTimestamp(t.timestamp())
+      s"""
+         |consumer record:
+         |topic:        ${t.topic()}
+         |partition:    ${t.partition()}
+         |offset:       ${t.offset()}
+         |timestamp:    ${t.timestamp()}
+         |utc:          $utc
+         |local-time:   $local
+         |ts-type:      ${t.timestampType()}
+         |key:          ${Option(t.key).getOrElse("null")}
+         |value:        ${Option(t.value).getOrElse("null")}
+         |key-size:     ${t.serializedKeySize()}
+         |value-size:   ${t.serializedValueSize()}
+         |headers:      ${t.headers()}
+         |leader epoch: ${t.leaderEpoch}""".stripMargin
     }
 
   implicit protected def showFs2CommittableMessage2[F[_], K, V]
@@ -50,35 +51,37 @@ trait ShowKafkaMessage extends LowerPriorityShow {
 
   implicit protected def showConsumerRecords[K, V: Show]: Show[ConsumerRecord[K, V]] =
     (t: ConsumerRecord[K, V]) => {
-      val (utc, local) = utils.kafkaTimeStamp(t.timestamp())
-      s"""|consumer record:
-          |topic:        ${t.topic()}
-          |partition:    ${t.partition()}
-          |offset:       ${t.offset()}
-          |timestamp:    ${t.timestamp()}
-          |utc:          $utc
-          |local-time:   $local
-          |ts-type:      ${t.timestampType()}
-          |key:          ${Option(t.key).getOrElse("null")}
-          |value:        ${Option(t.value).map(_.show).getOrElse("null")}
-          |key-size:     ${t.serializedKeySize()}
-          |value-size:   ${t.serializedValueSize()}
-          |headers:      ${t.headers()}
-          |leader epoch: ${t.leaderEpoch}""".stripMargin
+      val (utc, local) = utils.kafkaTimestamp(t.timestamp())
+      s"""
+         |consumer record:
+         |topic:        ${t.topic()}
+         |partition:    ${t.partition()}
+         |offset:       ${t.offset()}
+         |timestamp:    ${t.timestamp()}
+         |utc:          $utc
+         |local-time:   $local
+         |ts-type:      ${t.timestampType()}
+         |key:          ${Option(t.key).getOrElse("null")}
+         |value:        ${Option(t.value).map(_.show).getOrElse("null")}
+         |key-size:     ${t.serializedKeySize()}
+         |value-size:   ${t.serializedValueSize()}
+         |headers:      ${t.headers()}
+         |leader epoch: ${t.leaderEpoch}""".stripMargin
     }
 
   implicit protected def showProducerRecord[K, V: Show]: Show[ProducerRecord[K, V]] =
     (t: ProducerRecord[K, V]) => {
-      val (utc, local) = utils.kafkaTimeStamp(t.timestamp())
-      s"""|producer record:
-          |topic:      ${t.topic}
-          |partition:  ${t.partition}
-          |timestamp:  ${t.timestamp()}
-          |utc:        $utc
-          |local-time: $local
-          |key:        ${Option(t.key).getOrElse("null")}
-          |value:      ${Option(t.value).map(_.show).getOrElse("null")}
-          |headers:    ${t.headers}""".stripMargin
+      val (utc, local) = utils.kafkaTimestamp(t.timestamp())
+      s"""
+         |producer record:
+         |topic:      ${t.topic}
+         |partition:  ${t.partition}
+         |timestamp:  ${t.timestamp()}
+         |utc:        $utc
+         |local-time: $local
+         |key:        ${Option(t.key).getOrElse("null")}
+         |value:      ${Option(t.value).map(_.show).getOrElse("null")}
+         |headers:    ${t.headers}""".stripMargin
     }
 
   implicit protected def showFs2CommittableMessage[F[_], K, V: Show]
