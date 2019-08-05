@@ -5,6 +5,7 @@ import akka.stream.ActorMaterializer
 import cats.Eval
 import cats.effect.concurrent.MVar
 import cats.effect.{ConcurrentEffect, ContextShift, IO, Timer}
+import fs2.kafka.KafkaByteConsumer
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, ByteArraySerializer}
@@ -33,16 +34,14 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
   def topic[K: SerdeOf, V: SerdeOf](topicName: String): KafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](topicName))
 
-  private[this] val sharedConsumer: Eval[MVar[F, KafkaConsumer[Array[Byte], Array[Byte]]]] =
+  private[this] val sharedConsumer: Eval[MVar[F, KafkaByteConsumer]] =
     Eval.later {
       val consumerClient: KafkaConsumer[Array[Byte], Array[Byte]] =
         new KafkaConsumer[Array[Byte], Array[Byte]](
           settings.sharedConsumerSettings.settings,
           new ByteArrayDeserializer,
           new ByteArrayDeserializer)
-      ConcurrentEffect[F]
-        .toIO(MVar.of[F, KafkaConsumer[Array[Byte], Array[Byte]]](consumerClient))
-        .unsafeRunSync()
+      ConcurrentEffect[F].toIO(MVar.of[F, KafkaByteConsumer](consumerClient)).unsafeRunSync()
     }
 
   private[this] val sharedProducer: Eval[KafkaProducer[Array[Byte], Array[Byte]]] =

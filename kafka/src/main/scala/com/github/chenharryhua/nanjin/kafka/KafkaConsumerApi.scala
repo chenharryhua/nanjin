@@ -9,7 +9,8 @@ import cats.effect.{Concurrent, Sync}
 import cats.implicits._
 import cats.mtl.ApplicativeAsk
 import cats.{Eval, Monad, Show}
-import org.apache.kafka.clients.consumer.{ConsumerRecord, KafkaConsumer, OffsetAndTimestamp}
+import fs2.kafka.KafkaByteConsumer
+import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndTimestamp}
 import org.apache.kafka.common.TopicPartition
 
 import scala.collection.JavaConverters._
@@ -77,7 +78,7 @@ object GenericTopicPartition {
 }
 
 sealed trait KafkaPrimitiveConsumerApi[F[_]] {
-  type ByteArrayConsumer = KafkaConsumer[Array[Byte], Array[Byte]]
+//  type ByteArrayConsumer = KafkaConsumer[Array[Byte], Array[Byte]]
 
   def partitionsFor: F[ListOfTopicPartitions]
   def beginningOffsets: F[GenericTopicPartition[Option[Long]]]
@@ -93,12 +94,11 @@ object KafkaPrimitiveConsumerApi {
 
   def apply[F[_]: Monad](
     topicName: String
-  )(implicit F: ApplicativeAsk[F, KafkaConsumer[Array[Byte], Array[Byte]]])
-    : KafkaPrimitiveConsumerApi[F] =
+  )(implicit F: ApplicativeAsk[F, KafkaByteConsumer]): KafkaPrimitiveConsumerApi[F] =
     new KafkaPrimitiveConsumerApiImpl[F](topicName)
 
   final private[this] class KafkaPrimitiveConsumerApiImpl[F[_]: Monad](topicName: String)(
-    implicit K: ApplicativeAsk[F, KafkaConsumer[Array[Byte], Array[Byte]]]
+    implicit K: ApplicativeAsk[F, KafkaByteConsumer]
   ) extends KafkaPrimitiveConsumerApi[F] {
 
     val partitionsFor: F[ListOfTopicPartitions] = {
@@ -165,21 +165,21 @@ object KafkaConsumerApi {
 
   def apply[F[_]: Concurrent, K, V](
     topicDef: TopicDef[K, V],
-    sharedConsumer: Eval[MVar[F, KafkaConsumer[Array[Byte], Array[Byte]]]],
+    sharedConsumer: Eval[MVar[F, KafkaByteConsumer]],
     decoder: KafkaMessageDecoder[ConsumerRecord, K, V]): KafkaConsumerApi[F, K, V] =
     new KafkaConsumerApiImpl[F, K, V](topicDef, sharedConsumer, decoder)
 
   final private[this] class KafkaConsumerApiImpl[F[_]: Concurrent, K, V](
     topicDef: TopicDef[K, V],
-    sharedConsumer: Eval[MVar[F, KafkaConsumer[Array[Byte], Array[Byte]]]],
+    sharedConsumer: Eval[MVar[F, KafkaByteConsumer]],
     decoder: KafkaMessageDecoder[ConsumerRecord, K, V]
   ) extends KafkaConsumerApi[F, K, V] {
     import cats.mtl.implicits._
     private[this] val primitiveConsumer
-      : KafkaPrimitiveConsumerApi[Kleisli[F, ByteArrayConsumer, ?]] =
-      KafkaPrimitiveConsumerApi[Kleisli[F, ByteArrayConsumer, ?]](topicDef.topicName)
+      : KafkaPrimitiveConsumerApi[Kleisli[F, KafkaByteConsumer, ?]] =
+      KafkaPrimitiveConsumerApi[Kleisli[F, KafkaByteConsumer, ?]](topicDef.topicName)
 
-    private[this] def atomically[A](r: Kleisli[F, ByteArrayConsumer, A]): F[A] =
+    private[this] def atomically[A](r: Kleisli[F, KafkaByteConsumer, A]): F[A] =
       Sync[F].bracket(sharedConsumer.value.take)(r.run)(sharedConsumer.value.put)
 
     override def offsetRangeFor(
