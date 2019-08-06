@@ -47,7 +47,7 @@ final case class ValueSerde[A](
 abstract class SerdeModule(srSettings: SchemaRegistrySettings) {
 
   @implicitNotFound(
-    "Could not find an instance of SerdeOf[${A}], for KJson import io.circe.generic.auto._")
+    "Could not find an instance of SerdeOf[${A}], for KJson, import io.circe.generic.auto._")
   sealed abstract class SerdeOf[A](val schema: Schema) extends Serializable {
     def serializer: Serializer[A]
 

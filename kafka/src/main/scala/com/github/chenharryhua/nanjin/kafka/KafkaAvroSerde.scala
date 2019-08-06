@@ -31,19 +31,22 @@ final class KafkaAvroSerde[A: Encoder: Decoder: SchemaFor](srSettings: SchemaReg
                                                    |topic:         $topic
                                                    |error:         ${ex.getMessage} 
                                                    |GenericRecord: ${gr.toString}
-                                                   |schema:        ${schema.toString}""".stripMargin))
+                                                   |schema:        ${schema.toString}
+                                                   |settings:      ${srSettings.show}""".stripMargin))
             }
           case Success(gr) =>
             Failure(InvalidGenericRecordException(s"""|decode avro failed:
                                                       |topic:         $topic
                                                       |error:         invalid generic record
                                                       |GenericRecord: ${gr.toString}
-                                                      |schema:        ${schema.toString}""".stripMargin))
+                                                      |schema:        ${schema.toString}
+                                                      |settings:      ${srSettings.show}""".stripMargin))
           case Failure(ex) =>
             Failure(CorruptedRecordException(s"""|decode avro failed:
-                                                 |topic:  $topic 
-                                                 |error:  ${ex.getMessage}
-                                                 |schema: ${schema.toString}""".stripMargin))
+                                                 |topic:    $topic 
+                                                 |error:    ${ex.getMessage}
+                                                 |schema:   ${schema.toString}
+                                                 |settings: ${srSettings.show}""".stripMargin))
         }
     }
 
@@ -56,10 +59,11 @@ final class KafkaAvroSerde[A: Encoder: Decoder: SchemaFor](srSettings: SchemaReg
           case v @ Success(_) => v
           case Failure(ex) =>
             Failure(EncodeException(s"""|encode avro failed: 
-                                        |topic:  $topic
-                                        |error:  ${ex.getMessage}
-                                        |data:   $data
-                                        |schema: ${schema.toString()}""".stripMargin))
+                                        |topic:    $topic
+                                        |error:    ${ex.getMessage}
+                                        |data:     $data
+                                        |schema:   ${schema.toString()}
+                                        |settings: ${srSettings.show}""".stripMargin))
         }
     }
 
