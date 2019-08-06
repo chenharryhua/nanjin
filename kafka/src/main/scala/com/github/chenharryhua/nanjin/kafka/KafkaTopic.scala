@@ -13,15 +13,15 @@ final case class TopicDef[K, V](topicName: String) {
   val valueSchemaLoc: String = s"$topicName-value"
 }
 
-final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
-  topicDef: TopicDef[K, V],
-  fs2Settings: Fs2Settings,
-  akkaSettings: AkkaSettings,
-  srSettings: SchemaRegistrySettings,
-  sharedConsumer: Eval[MVar[F, KafkaByteConsumer]],
-  sharedProducer: Eval[KafkaByteProducer],
+final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] private[kafka] (
+  val topicDef: TopicDef[K, V],
   val keySerde: KeySerde[K],
   val valueSerde: ValueSerde[V],
+  val schemaRegistrySettings: SchemaRegistrySettings,
+  fs2Settings: Fs2Settings,
+  akkaSettings: AkkaSettings,
+  sharedConsumer: Eval[MVar[F, KafkaByteConsumer]],
+  sharedProducer: Eval[KafkaByteProducer],
   materializer: Eval[ActorMaterializer])
     extends TopicNameExtractor[K, V] with Serializable {
   val topicName: String = topicDef.topicName
@@ -61,7 +61,7 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
 
   val schemaRegistry: KafkaSchemaRegistry[F] =
     KafkaSchemaRegistry[F](
-      srSettings,
+      schemaRegistrySettings,
       topicDef.topicName,
       topicDef.keySchemaLoc,
       topicDef.valueSchemaLoc,

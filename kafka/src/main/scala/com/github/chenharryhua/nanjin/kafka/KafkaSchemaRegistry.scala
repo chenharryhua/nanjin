@@ -5,7 +5,7 @@ import avrohugger.format.Standard
 import cats.Show
 import cats.effect.Sync
 import cats.implicits._
-import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaMetadata}
+import io.confluent.kafka.schemaregistry.client.SchemaMetadata
 import org.apache.avro.Schema
 
 import scala.collection.JavaConverters._
@@ -44,6 +44,7 @@ object KvSchemaMetadata {
 
 final case class CompatibilityTestReport(
   topicName: String,
+  srSettings: SchemaRegistrySettings,
   meta: KvSchemaMetadata,
   keySchema: Schema,
   valueSchema: Schema,
@@ -72,11 +73,11 @@ final case class CompatibilityTestReport(
 
   val show: String =
     s"""
-       |compatibility test report of topic(${topicName}):
+       |compatibility test report of topic($topicName):
        |key:   $keyDescription
        |
        |value: $valueDescription
-       |""".stripMargin
+       |${srSettings.show}""".stripMargin
 
   override val toString: String = show
 
@@ -157,7 +158,8 @@ object KafkaSchemaRegistry {
           .attempt
           .map(_.leftMap(_.getMessage)),
         latestMeta
-      ).mapN((k, v, meta) => CompatibilityTestReport(topicName, meta, keySchema, valueSchema, k, v))
+      ).mapN((k, v, meta) =>
+        CompatibilityTestReport(topicName, srSettings, meta, keySchema, valueSchema, k, v))
 
     override def latestMeta: F[KvSchemaMetadata] =
       (

@@ -15,7 +15,7 @@ class SchemaRegistryTest extends FunSuite {
     topic.schemaRegistry.latestMeta.map(_.show).unsafeRunSync()
   }
   test("compatiable test") {
-    topic.schemaRegistry.testCompatibility.unsafeRunSync
+    topic.schemaRegistry.testCompatibility.map(println).unsafeRunSync
   }
   ignore("register schema") {
     topic.schemaRegistry.register.unsafeRunSync()

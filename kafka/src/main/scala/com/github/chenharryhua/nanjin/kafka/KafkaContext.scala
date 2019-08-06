@@ -23,13 +23,13 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
   final def topic[K: SerdeOf, V: SerdeOf](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] =
     new KafkaTopic[F, K, V](
       topicDef,
-      settings.fs2Settings,
-      settings.akkaSettings,
-      settings.schemaRegistrySettings,
-      sharedConsumer,
-      sharedProducer,
       asKey[K],
       asValue[V],
+      settings.schemaRegistrySettings,
+      settings.fs2Settings,
+      settings.akkaSettings,
+      sharedConsumer,
+      sharedProducer,
       Eval.later(materializer))
 
   final def topic[K: SerdeOf, V: SerdeOf](topicName: String): KafkaTopic[F, K, V] =
