@@ -11,14 +11,14 @@ import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, ByteArraySerializer}
 
 sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
-  settings: KafkaSettings)
-    extends SerdeModule(settings.schemaRegistrySettings) {
+  settings: KafkaSettings) {
 
   protected lazy val akkaSystem: ActorSystem         = ActorSystem("nanjin")
   protected lazy val materializer: ActorMaterializer = ActorMaterializer.create(akkaSystem)
 
-  final def asKey[K: SerdeOf]: KeySerde[K]     = SerdeOf[K].asKey(Map.empty)
-  final def asValue[V: SerdeOf]: ValueSerde[V] = SerdeOf[V].asValue(Map.empty)
+  final def asKey[K: SerdeOf]: KeySerde[K] = SerdeOf[K].asKey(settings.schemaRegistrySettings.props)
+  final def asValue[V: SerdeOf]: ValueSerde[V] =
+    SerdeOf[V].asValue(settings.schemaRegistrySettings.props)
 
   final def topic[K: SerdeOf, V: SerdeOf](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] =
     new KafkaTopic[F, K, V](
