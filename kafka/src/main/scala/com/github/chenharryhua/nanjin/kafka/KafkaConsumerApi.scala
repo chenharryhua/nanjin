@@ -78,7 +78,6 @@ object GenericTopicPartition {
 }
 
 sealed trait KafkaPrimitiveConsumerApi[F[_]] {
-//  type ByteArrayConsumer = KafkaConsumer[Array[Byte], Array[Byte]]
 
   def partitionsFor: F[ListOfTopicPartitions]
   def beginningOffsets: F[GenericTopicPartition[Option[Long]]]

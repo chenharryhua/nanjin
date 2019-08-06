@@ -12,6 +12,7 @@ import cats.effect._
 import cats.implicits._
 import fs2.kafka.{ConsumerSettings => Fs2ConsumerSettings, ProducerSettings => Fs2ProducerSettings}
 import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.streams.kstream.GlobalKTable
 
@@ -105,7 +106,7 @@ final case class AkkaChannel[F[_]: ContextShift: Async, K, V](
   import akka.Done
   import akka.kafka.ConsumerMessage.CommittableMessage
   import akka.kafka.ProducerMessage.Envelope
-  import akka.kafka.scaladsl.{Committer, Consumer, Producer}
+  import akka.kafka.scaladsl.{Committer, Consumer}
   import akka.kafka.{ConsumerMessage, Subscriptions}
   import akka.stream.scaladsl.{Sink, Source}
 
@@ -128,9 +129,14 @@ final case class AkkaChannel[F[_]: ContextShift: Async, K, V](
   val encoder: encoders.AkkaMessageEncoder[K, V] =
     encoders.akkaMessageEncoder[K, V](topicDef.topicName)
 
-  val produceSink: Sink[Envelope[K, V, ConsumerMessage.Committable], F[Done]] =
-    Producer
+  val committableSink: Sink[Envelope[K, V, ConsumerMessage.Committable], F[Done]] =
+    akka.kafka.scaladsl.Producer
       .committableSink(producerSettings)
+      .mapMaterializedValue(f => Async.fromFuture(Async[F].pure(f)))
+
+  def plainSink: Sink[ProducerRecord[K, V], F[Done]] =
+    akka.kafka.scaladsl.Producer
+      .plainSink(producerSettings)
       .mapMaterializedValue(f => Async.fromFuture(Async[F].pure(f)))
 
   val commitSink: Sink[ConsumerMessage.Committable, F[Done]] =
@@ -141,10 +147,12 @@ final case class AkkaChannel[F[_]: ContextShift: Async, K, V](
 
   def assign(tps: Map[TopicPartition, Long])
     : Source[ConsumerRecord[Array[Byte], Array[Byte]], Consumer.Control] =
-    Consumer.plainSource(consumerSettings, Subscriptions.assignmentWithOffset(tps))
+    akka.kafka.scaladsl.Consumer
+      .plainSource(consumerSettings, Subscriptions.assignmentWithOffset(tps))
 
   val consume: Source[CommittableMessage[Array[Byte], Array[Byte]], Consumer.Control] =
-    Consumer.committableSource(consumerSettings, Subscriptions.topics(topicDef.topicName))
+    akka.kafka.scaladsl.Consumer
+      .committableSource(consumerSettings, Subscriptions.topics(topicDef.topicName))
 
   val consumeNativeMessages: Source[CommittableMessage[Try[K], Try[V]], Consumer.Control] =
     consume.map(decoder.decodeMessage)
