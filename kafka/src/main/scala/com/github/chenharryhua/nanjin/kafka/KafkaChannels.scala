@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import akka.kafka.{
-  CommitterSettings,
-  ConsumerSettings => AkkaConsumerSettings,
-  ProducerSettings => AkkaProducerSettings
+  CommitterSettings => AkkaCommitterSettings,
+  ConsumerSettings  => AkkaConsumerSettings,
+  ProducerSettings  => AkkaProducerSettings
 }
 import akka.stream.ActorMaterializer
 import cats.Show
@@ -98,17 +98,17 @@ final case class AkkaChannel[F[_]: ContextShift: Async, K, V](
   topicDef: TopicDef[K, V],
   producerSettings: AkkaProducerSettings[K, V],
   consumerSettings: AkkaConsumerSettings[Array[Byte], Array[Byte]],
-  committerSettings: CommitterSettings,
+  committerSettings: AkkaCommitterSettings,
   keySerde: KeySerde[K],
   valueSerde: ValueSerde[V],
   materializer: ActorMaterializer)
     extends AkkaMessageBitraverse {
-  import akka.Done
   import akka.kafka.ConsumerMessage.CommittableMessage
   import akka.kafka.ProducerMessage.Envelope
   import akka.kafka.scaladsl.{Committer, Consumer}
-  import akka.kafka.{ConsumerMessage, Subscriptions}
-  import akka.stream.scaladsl.{Sink, Source}
+  import akka.kafka.{ConsumerMessage, ProducerMessage, Subscriptions}
+  import akka.stream.scaladsl.{Flow, Sink, Source}
+  import akka.{Done, NotUsed}
 
   def updateProducerSettings(
     f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): AkkaChannel[F, K, V] =
@@ -120,7 +120,8 @@ final case class AkkaChannel[F[_]: ContextShift: Async, K, V](
       Array[Byte]]): AkkaChannel[F, K, V] =
     copy(consumerSettings = f(consumerSettings))
 
-  def updateCommitterSettings(f: CommitterSettings => CommitterSettings): AkkaChannel[F, K, V] =
+  def updateCommitterSettings(
+    f: AkkaCommitterSettings => AkkaCommitterSettings): AkkaChannel[F, K, V] =
     copy(committerSettings = f(committerSettings))
 
   val decoder: KafkaMessageDecoder[CommittableMessage, K, V] =
@@ -133,6 +134,9 @@ final case class AkkaChannel[F[_]: ContextShift: Async, K, V](
     akka.kafka.scaladsl.Producer
       .committableSink(producerSettings)
       .mapMaterializedValue(f => Async.fromFuture(Async[F].pure(f)))
+
+  def flexiFlow[P]: Flow[Envelope[K, V, P], ProducerMessage.Results[K, V, P], NotUsed] =
+    akka.kafka.scaladsl.Producer.flexiFlow[K, V, P](producerSettings)
 
   def plainSink: Sink[ProducerRecord[K, V], F[Done]] =
     akka.kafka.scaladsl.Producer
