@@ -45,7 +45,7 @@ sealed abstract class KafkaMessageDecoder[G[_, _]: Bitraverse, K, V](
     data.bitraverse(keyDecode, valueDecode)
 }
 
-object decoders extends Fs2MessageBitraverse with AkkaMessageBitraverse {
+object decoders2 extends Fs2MessageBitraverse with AkkaMessageBitraverse {
 
   def consumerRecordDecoder[K, V](
     topicName: String,

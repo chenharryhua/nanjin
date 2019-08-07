@@ -61,19 +61,25 @@ final case class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
     consume.map(_.bitraverse(k => Try(keyIso.get(k)), v => Try(valueIso.get(v))))
 
   val consumeValidMessages: Stream[F, CommittableConsumerRecord[F, K, V]] =
-    consumeMessages.collect { case Success(x) => x }
+    consumeMessages.map(_.map(_.bitraverse(Option(_), Option(_)))).collect {
+      case Success(Some(x)) => x
+    }
 
   val consumeValues: Stream[F, Try[CommittableConsumerRecord[F, Array[Byte], V]]] =
     consume.map(_.bitraverse(k => Success(k), v => Try(valueIso.get(v))))
 
   val consumeValidValues: Stream[F, CommittableConsumerRecord[F, Array[Byte], V]] =
-    consumeValues.collect { case Success(x) => x }
+    consumeValues.map(_.map(_.bitraverse(Some(_), Option(_)))).collect {
+      case Success(Some(x)) => x
+    }
 
   val consumeKeys: Stream[F, Try[CommittableConsumerRecord[F, K, Array[Byte]]]] =
     consume.map(_.bitraverse(k => Try(keyIso.get(k)), v => Success(v)))
 
   val consumeValidKeys: Stream[F, CommittableConsumerRecord[F, K, Array[Byte]]] =
-    consumeKeys.collect { case Success(x) => x }
+    consumeKeys.map(_.map(_.bitraverse(Option(_), Some(_)))).collect {
+      case Success(Some(x)) => x
+    }
 
   val show: String =
     s"""
@@ -90,7 +96,7 @@ object AkkaChannel {
   implicit def showAkkaChannel[F[_], K, V]: Show[AkkaChannel[F, K, V]] = _.show
 }
 final case class AkkaChannel[F[_]: ContextShift: Async, K, V](
-  topicDef: TopicDef[K, V],
+  topicName: String,
   producerSettings: AkkaProducerSettings[K, V],
   consumerSettings: AkkaConsumerSettings[Array[Byte], Array[Byte]],
   committerSettings: AkkaCommitterSettings,
@@ -145,7 +151,7 @@ final case class AkkaChannel[F[_]: ContextShift: Async, K, V](
 
   val consume: Source[CommittableMessage[Array[Byte], Array[Byte]], Consumer.Control] =
     akka.kafka.scaladsl.Consumer
-      .committableSource(consumerSettings, Subscriptions.topics(topicDef.topicName))
+      .committableSource(consumerSettings, Subscriptions.topics(topicName))
 
   val consumeNativeMessages: Source[CommittableMessage[Try[K], Try[V]], Consumer.Control] =
     consume.map(_.bimap(k => Try(keyIso.get(k)), v => Try(valueIso.get(v))))
@@ -154,19 +160,23 @@ final case class AkkaChannel[F[_]: ContextShift: Async, K, V](
     consume.map(_.bitraverse(k => Try(keyIso.get(k)), v => Try(valueIso.get(v))))
 
   val consumeValidMessages: Source[CommittableMessage[K, V], Consumer.Control] =
-    consumeMessages.collect { case Success(x) => x }
+    consumeMessages.map(_.map(_.bitraverse(Option(_), Option(_)))).collect {
+      case Success(Some(x)) => x
+    }
 
   val consumeValues: Source[Try[CommittableMessage[Array[Byte], V]], Consumer.Control] =
     consume.map(_.bitraverse(k => Success(k), v => Try(valueIso.get(v))))
 
   val consumeValidValues: Source[CommittableMessage[Array[Byte], V], Consumer.Control] =
-    consumeValues.collect { case Success(x) => x }
+    consumeValues.map(_.map(_.bitraverse(Some(_), Option(_)))).collect {
+      case Success(Some(x)) => x
+    }
 
   val consumeKeys: Source[Try[CommittableMessage[K, Array[Byte]]], Consumer.Control] =
     consume.map(_.bitraverse(k => Try(keyIso.get(k)), v => Success(v)))
 
   val consumeValidKeys: Source[CommittableMessage[K, Array[Byte]], Consumer.Control] =
-    consumeKeys.collect { case Success(x) => x }
+    consumeKeys.map(_.map(_.bitraverse(Option(_), Some(_)))).collect { case Success(Some(x)) => x }
 
   val show: String =
     s"""

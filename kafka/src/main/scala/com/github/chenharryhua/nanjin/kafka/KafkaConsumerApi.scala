@@ -150,10 +150,8 @@ sealed trait KafkaConsumerApi[F[_], K, V] extends KafkaPrimitiveConsumerApi[F] {
     start: LocalDateTime,
     end: LocalDateTime): F[GenericTopicPartition[KafkaOffsetRange]]
   def retrieveLastRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
-  def retrieveLastMessages: F[List[ConsumerRecord[Try[K], Try[V]]]]
 
   def retrieveFirstRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
-  def retrieveFirstMessages: F[List[ConsumerRecord[Try[K], Try[V]]]]
 
   def retrieveRecordsForTimes(ldt: LocalDateTime): F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
   def numOfRecords: F[GenericTopicPartition[Option[Long]]]
@@ -164,15 +162,13 @@ object KafkaConsumerApi {
 
   def apply[F[_]: Concurrent, K, V](
     topicDef: TopicDef[K, V],
-    sharedConsumer: Eval[MVar[F, KafkaByteConsumer]],
-    decoder: KafkaMessageDecoder[ConsumerRecord, K, V]): KafkaConsumerApi[F, K, V] =
-    new KafkaConsumerApiImpl[F, K, V](topicDef, sharedConsumer, decoder)
+    sharedConsumer: Eval[MVar[F, KafkaByteConsumer]]): KafkaConsumerApi[F, K, V] =
+    new KafkaConsumerApiImpl[F, K, V](topicDef, sharedConsumer)
 
   final private[this] class KafkaConsumerApiImpl[F[_]: Concurrent, K, V](
     topicDef: TopicDef[K, V],
-    sharedConsumer: Eval[MVar[F, KafkaByteConsumer]],
-    decoder: KafkaMessageDecoder[ConsumerRecord, K, V]
-  ) extends KafkaConsumerApi[F, K, V] {
+    sharedConsumer: Eval[MVar[F, KafkaByteConsumer]])
+      extends KafkaConsumerApi[F, K, V] {
     import cats.mtl.implicits._
     private[this] val primitiveConsumer
       : KafkaPrimitiveConsumerApi[Kleisli[F, KafkaByteConsumer, ?]] =
@@ -207,9 +203,6 @@ object KafkaConsumerApi {
         } yield rec.flatten.sortBy(_.partition())
       }
 
-    override def retrieveLastMessages: F[List[ConsumerRecord[Try[K], Try[V]]]] =
-      retrieveLastRecords.map(_.map(r => decoder.decodeMessage(r)))
-
     override def retrieveFirstRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]] =
       atomically {
         for {
@@ -220,9 +213,6 @@ object KafkaConsumerApi {
           }
         } yield rec.flatten.sortBy(_.partition())
       }
-
-    override def retrieveFirstMessages: F[List[ConsumerRecord[Try[K], Try[V]]]] =
-      retrieveFirstRecords.map(_.map(r => decoder.decodeMessage(r)))
 
     override def retrieveRecordsForTimes(
       ldt: LocalDateTime): F[List[ConsumerRecord[Array[Byte], Array[Byte]]]] =

@@ -48,7 +48,7 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
   val akkaResource: Resource[F, AkkaChannel[F, K, V]] = Resource.make(
     ConcurrentEffect[F].delay(
       new AkkaChannel[F, K, V](
-        topicDef,
+        topicName,
         akkaSettings
           .producerSettings(materializer.value.system, keySerde.serializer, valueSerde.serializer),
         akkaSettings.consumerSettings(materializer.value.system),
@@ -59,9 +59,6 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
 
   val kafkaStream: StreamingChannel[K, V] =
     new StreamingChannel[K, V](topicDef, keySerde, valueSerde)
-
-  val recordDecoder: KafkaMessageDecoder[ConsumerRecord, K, V] =
-    decoders.consumerRecordDecoder[K, V](topicDef.topicName, keySerde, valueSerde)
 
   val recordEncoder: encoders.ProducerRecordEncoder[K, V] =
     encoders.producerRecordEncoder[K, V](topicDef.topicName, keySerde, valueSerde)
@@ -76,7 +73,7 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
       valueSerde.schema)
 
   val consumer: KafkaConsumerApi[F, K, V] =
-    KafkaConsumerApi[F, K, V](topicDef, sharedConsumer, recordDecoder)
+    KafkaConsumerApi[F, K, V](topicDef, sharedConsumer)
 
   val producer: KafkaProducerApi[F, K, V] =
     KafkaProducerApi[F, K, V](sharedProducer, recordEncoder)
