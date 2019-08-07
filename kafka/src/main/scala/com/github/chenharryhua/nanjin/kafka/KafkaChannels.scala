@@ -55,21 +55,22 @@ final case class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
       .flatMap(_.stream)
 
   val consumeNativeMessages: Stream[F, CommittableConsumerRecord[F, Try[K], Try[V]]] =
-    consume.map(_.native)
+    consume.map(safeDecodeKeyValue(_))
 
-  val consumeMessages: Stream[F, Try[CommittableConsumerRecord[F, K, V]]] = consume.map(_.decode)
+  val consumeMessages: Stream[F, Try[CommittableConsumerRecord[F, K, V]]] =
+    consume.map(safeDecodeMessage(_))
 
   val consumeValidMessages: Stream[F, CommittableConsumerRecord[F, K, V]] =
     consumeMessages.collect { case Success(x) => x }
 
   val consumeValues: Stream[F, Try[CommittableConsumerRecord[F, Array[Byte], V]]] =
-    consume.map(_.value)
+    consume.map(safeDecodeValue(_))
 
   val consumeValidValues: Stream[F, CommittableConsumerRecord[F, Array[Byte], V]] =
     consumeValues.collect { case Success(x) => x }
 
   val consumeKeys: Stream[F, Try[CommittableConsumerRecord[F, K, Array[Byte]]]] =
-    consume.map(_.key)
+    consume.map(safeDecodeKey(_))
 
   val consumeValidKeys: Stream[F, CommittableConsumerRecord[F, K, Array[Byte]]] =
     consumeKeys.collect { case Success(x) => x }
@@ -145,27 +146,6 @@ final case class AkkaChannel[F[_]: ContextShift: Async, K, V](
   val consume: Source[CommittableMessage[Array[Byte], Array[Byte]], Consumer.Control] =
     akka.kafka.scaladsl.Consumer
       .committableSource(consumerSettings, Subscriptions.topics(topicName))
-
-  val consumeNativeMessages: Source[CommittableMessage[Try[K], Try[V]], Consumer.Control] =
-    consume.map(_.native)
-
-  val consumeMessages: Source[Try[CommittableMessage[K, V]], Consumer.Control] =
-    consume.map(_.decode)
-
-  val consumeValidMessages: Source[CommittableMessage[K, V], Consumer.Control] =
-    consumeMessages.collect { case Success(x) => x }
-
-  val consumeValues: Source[Try[CommittableMessage[Array[Byte], V]], Consumer.Control] =
-    consume.map(_.value)
-
-  val consumeValidValues: Source[CommittableMessage[Array[Byte], V], Consumer.Control] =
-    consumeValues.collect { case Success(x) => x }
-
-  val consumeKeys: Source[Try[CommittableMessage[K, Array[Byte]]], Consumer.Control] =
-    consume.map(_.key)
-
-  val consumeValidKeys: Source[CommittableMessage[K, Array[Byte]], Consumer.Control] =
-    consumeKeys.collect { case Success(x) => x }
 
   val show: String =
     s"""

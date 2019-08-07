@@ -6,7 +6,6 @@ import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
 import cats.{Eval, Show}
 import fs2.kafka.{KafkaByteConsumer, KafkaByteProducer}
 import monocle.Iso
-import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
 final case class TopicDef[K: SerdeOf, V: SerdeOf](topicName: String) {
