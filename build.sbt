@@ -69,7 +69,7 @@ lazy val kafka = (project in file("kafka"))
       "com.typesafe.akka" %% "akka-stream-kafka"  % akkaStream,
       "com.ovoenergy" %% "fs2-kafka"              % fs2Stream,
       "com.sksamuel.avro4s" %% "avro4s-core"      % avro,
-      "io.confluent"                              % "kafka-avro-serializer" % confluent classifier "",
+      "io.confluent"                              % "kafka-streams-avro-serde" % confluent classifier "",
       "com.julianpeeters" %% "avrohugger-core"    % avrohugger,
 //json
       "io.circe" %% "circe-core"    % circeVersion,

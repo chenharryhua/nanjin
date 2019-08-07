@@ -16,7 +16,8 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
   protected lazy val akkaSystem: ActorSystem         = ActorSystem("nanjin")
   protected lazy val materializer: ActorMaterializer = ActorMaterializer.create(akkaSystem)
 
-  final def asKey[K: SerdeOf]: KeySerde[K] = SerdeOf[K].asKey(settings.schemaRegistrySettings.props)
+  final def asKey[K: SerdeOf]: KeySerde[K] =
+    SerdeOf[K].asKey(settings.schemaRegistrySettings.props)
   final def asValue[V: SerdeOf]: ValueSerde[V] =
     SerdeOf[V].asValue(settings.schemaRegistrySettings.props)
 
