@@ -11,6 +11,7 @@ import cats.data.Reader
 import cats.effect._
 import cats.implicits._
 import fs2.kafka.{ConsumerSettings => Fs2ConsumerSettings, ProducerSettings => Fs2ProducerSettings}
+import monocle.Iso
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
@@ -22,20 +23,14 @@ object Fs2Channel {
   implicit def showFs2Channel[F[_], K, V]: Show[Fs2Channel[F, K, V]] = _.show
 }
 final case class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
-  topicDef: TopicDef[K, V],
+  topicName: String,
   producerSettings: Fs2ProducerSettings[F, K, V],
   consumerSettings: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]],
-  keySerde: KeySerde[K],
-  valueSerde: ValueSerde[V]
+  keyIso: Iso[Array[Byte], K],
+  valueIso: Iso[Array[Byte], V]
 ) extends Fs2MessageBitraverse {
   import fs2.Stream
   import fs2.kafka._
-
-  val decoder: KafkaMessageDecoder[CommittableConsumerRecord[F, ?, ?], K, V] =
-    decoders.fs2MessageDecoder[F, K, V](topicDef.topicName, keySerde, valueSerde)
-
-  val encoder: encoders.Fs2MessageEncoder[F, K, V] =
-    encoders.fs2MessageEncoder[F, K, V](topicDef.topicName)
 
   def updateProducerSettings(
     f: Fs2ProducerSettings[F, K, V] => Fs2ProducerSettings[F, K, V]): Fs2Channel[F, K, V] =
@@ -56,26 +51,26 @@ final case class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
 
   val consume: Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
     consumerStream[F, Array[Byte], Array[Byte]](consumerSettings)
-      .evalTap(_.subscribeTo(topicDef.topicName))
+      .evalTap(_.subscribeTo(topicName))
       .flatMap(_.stream)
 
   val consumeNativeMessages: Stream[F, CommittableConsumerRecord[F, Try[K], Try[V]]] =
-    consume.map(decoder.decodeMessage)
+    consume.map(_.bimap(k => Try(keyIso.get(k)), v => Try(valueIso.get(v))))
 
   val consumeMessages: Stream[F, Try[CommittableConsumerRecord[F, K, V]]] =
-    consume.map(decoder.decodeBoth)
+    consume.map(_.bitraverse(k => Try(keyIso.get(k)), v => Try(valueIso.get(v))))
 
   val consumeValidMessages: Stream[F, CommittableConsumerRecord[F, K, V]] =
     consumeMessages.collect { case Success(x) => x }
 
   val consumeValues: Stream[F, Try[CommittableConsumerRecord[F, Array[Byte], V]]] =
-    consume.map(decoder.decodeValue)
+    consume.map(_.bitraverse(k => Success(k), v => Try(valueIso.get(v))))
 
   val consumeValidValues: Stream[F, CommittableConsumerRecord[F, Array[Byte], V]] =
     consumeValues.collect { case Success(x) => x }
 
   val consumeKeys: Stream[F, Try[CommittableConsumerRecord[F, K, Array[Byte]]]] =
-    consume.map(decoder.decodeKey)
+    consume.map(_.bitraverse(k => Try(keyIso.get(k)), v => Success(v)))
 
   val consumeValidKeys: Stream[F, CommittableConsumerRecord[F, K, Array[Byte]]] =
     consumeKeys.collect { case Success(x) => x }
@@ -99,8 +94,8 @@ final case class AkkaChannel[F[_]: ContextShift: Async, K, V](
   producerSettings: AkkaProducerSettings[K, V],
   consumerSettings: AkkaConsumerSettings[Array[Byte], Array[Byte]],
   committerSettings: AkkaCommitterSettings,
-  keySerde: KeySerde[K],
-  valueSerde: ValueSerde[V],
+  keyIso: Iso[Array[Byte], K],
+  valueIso: Iso[Array[Byte], V],
   materializer: ActorMaterializer)
     extends AkkaMessageBitraverse {
   import akka.kafka.ConsumerMessage.CommittableMessage
@@ -123,12 +118,6 @@ final case class AkkaChannel[F[_]: ContextShift: Async, K, V](
   def updateCommitterSettings(
     f: AkkaCommitterSettings => AkkaCommitterSettings): AkkaChannel[F, K, V] =
     copy(committerSettings = f(committerSettings))
-
-  val decoder: KafkaMessageDecoder[CommittableMessage, K, V] =
-    decoders.akkaMessageDecoder[K, V](topicDef.topicName, keySerde, valueSerde)
-
-  val encoder: encoders.AkkaMessageEncoder[K, V] =
-    encoders.akkaMessageEncoder[K, V](topicDef.topicName)
 
   val committableSink: Sink[Envelope[K, V, ConsumerMessage.Committable], F[Done]] =
     akka.kafka.scaladsl.Producer
@@ -159,22 +148,22 @@ final case class AkkaChannel[F[_]: ContextShift: Async, K, V](
       .committableSource(consumerSettings, Subscriptions.topics(topicDef.topicName))
 
   val consumeNativeMessages: Source[CommittableMessage[Try[K], Try[V]], Consumer.Control] =
-    consume.map(decoder.decodeMessage)
+    consume.map(_.bimap(k => Try(keyIso.get(k)), v => Try(valueIso.get(v))))
 
   val consumeMessages: Source[Try[CommittableMessage[K, V]], Consumer.Control] =
-    consume.map(decoder.decodeBoth)
+    consume.map(_.bitraverse(k => Try(keyIso.get(k)), v => Try(valueIso.get(v))))
 
   val consumeValidMessages: Source[CommittableMessage[K, V], Consumer.Control] =
     consumeMessages.collect { case Success(x) => x }
 
   val consumeValues: Source[Try[CommittableMessage[Array[Byte], V]], Consumer.Control] =
-    consume.map(decoder.decodeValue)
+    consume.map(_.bitraverse(k => Success(k), v => Try(valueIso.get(v))))
 
   val consumeValidValues: Source[CommittableMessage[Array[Byte], V], Consumer.Control] =
     consumeValues.collect { case Success(x) => x }
 
   val consumeKeys: Source[Try[CommittableMessage[K, Array[Byte]]], Consumer.Control] =
-    consume.map(decoder.decodeKey)
+    consume.map(_.bitraverse(k => Try(keyIso.get(k)), v => Success(v)))
 
   val consumeValidKeys: Source[CommittableMessage[K, Array[Byte]], Consumer.Control] =
     consumeKeys.collect { case Success(x) => x }

@@ -39,11 +39,11 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
 
   val fs2Channel: Fs2Channel[F, K, V] =
     new Fs2Channel[F, K, V](
-      topicDef,
+      topicName,
       fs2Settings.producerSettings(keySerde.serializer, valueSerde.serializer),
       fs2Settings.consumerSettings,
-      keySerde,
-      valueSerde)
+      keyIso,
+      valueIso)
 
   val akkaResource: Resource[F, AkkaChannel[F, K, V]] = Resource.make(
     ConcurrentEffect[F].delay(
@@ -53,8 +53,8 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
           .producerSettings(materializer.value.system, keySerde.serializer, valueSerde.serializer),
         akkaSettings.consumerSettings(materializer.value.system),
         akkaSettings.committerSettings(materializer.value.system),
-        keySerde,
-        valueSerde,
+        keyIso,
+        valueIso,
         materializer.value)))(_ => ConcurrentEffect[F].unit)
 
   val kafkaStream: StreamingChannel[K, V] =
