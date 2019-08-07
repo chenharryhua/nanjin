@@ -5,8 +5,7 @@ import org.scalatest.FunSuite
 
 class IsoTest extends FunSuite {
 
-  val topic: KafkaTopic[IO, Int, Payment] =
-    TopicDef[Int, Payment]("payment").in(ctx)
+  val topic: KafkaTopic[IO, Int, Payment] = TopicDef[Int, Payment]("payment").in(ctx)
 
   test("should handle null") {
     val k = topic.keyIso.reverseGet(10)

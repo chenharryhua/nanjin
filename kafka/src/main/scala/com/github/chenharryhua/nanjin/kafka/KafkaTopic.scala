@@ -57,7 +57,7 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
         materializer.value)))(_ => ConcurrentEffect[F].unit)
 
   val kafkaStream: StreamingChannel[K, V] =
-    new StreamingChannel[K, V](topicDef, keySerde, valueSerde)
+    new StreamingChannel[K, V](topicName, keySerde, valueSerde)
 
   val recordEncoder: encoders.ProducerRecordEncoder[K, V] =
     encoders.producerRecordEncoder[K, V](topicDef.topicName, keySerde, valueSerde)

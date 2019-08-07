@@ -19,10 +19,9 @@ class ZioTest extends FunSuite with ShowKafkaMessage {
   val ctx: ZioKafkaContext = KafkaSettings.local.zioContext
 
   test("zio should just work.") {
-    val task = ctx
-      .topic[String, Payment]("cc_payments")
-      .fs2Channel
-      .consumeMessages
+    val chn = ctx.topic[String, Payment]("cc_payments").fs2Channel
+    val task = chn.consume
+      .map(chn.safeDecodeMessage)
       .map(_.toEither)
       .rethrow
       .take(3)
@@ -38,7 +37,8 @@ class ZioTest extends FunSuite with ShowKafkaMessage {
     val task = ctx.topic[String, Payment]("cc_payments").akkaResource.use { chn =>
       chn
         .updateConsumerSettings(_.withClientId("akka-test"))
-        .consumeValidMessages
+        .consume
+        .map(x => chn.decodeValue(x))
         .take(3)
         .map(_.show)
         .map(println)

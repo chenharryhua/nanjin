@@ -9,12 +9,12 @@ class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage with Fs2Messa
   val backblaze_smart = TopicDef[KJson[lenses_record_key], KJson[lenses_record]]("backblaze_smart")
   val nyc_taxi_trip   = TopicDef[Array[Byte], trip_record]("nyc_yellow_taxi_trip_data")
   test("should be able to consume json topic") {
+    val chn = backblaze_smart.in(ctx).fs2Channel
     val ret =
-      backblaze_smart
-        .in(ctx)
-        .fs2Channel
+      chn
         .updateConsumerSettings(_.withAutoOffsetReset(AutoOffsetReset.Latest))
-        .consumeNativeMessages
+        .consume
+        .map(chn.safeDecodeKeyValue)
         .map(_.bitraverse(identity, identity).toEither)
         .rethrow
         .take(3)
@@ -27,10 +27,9 @@ class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage with Fs2Messa
   }
   test("should be able to consume avro topic") {
     import cats.derived.auto.show._
-    val ret = ctx
-      .topic(nyc_taxi_trip)
-      .fs2Channel
-      .consumeValues
+    val chn = ctx.topic(nyc_taxi_trip).fs2Channel
+    val ret = chn.consume
+      .map(chn.safeDecodeValue)
       .map(_.toEither)
       .rethrow
       .take(3)
@@ -43,10 +42,9 @@ class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage with Fs2Messa
   }
 
   test("should be able to consume payments topic") {
-    val ret = ctx
-      .topic[String, Payment]("cc_payments")
-      .fs2Channel
-      .consumeMessages
+    val chn = ctx.topic[String, Payment]("cc_payments").fs2Channel
+    val ret = chn.consume
+      .map(chn.safeDecodeMessage)
       .map(_.toEither)
       .rethrow
       .take(3)
