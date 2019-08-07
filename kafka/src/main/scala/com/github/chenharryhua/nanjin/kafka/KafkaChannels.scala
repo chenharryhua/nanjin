@@ -28,7 +28,7 @@ final case class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
   consumerSettings: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]],
   keyIso: Iso[Array[Byte], K],
   valueIso: Iso[Array[Byte], V]
-) extends Fs2MessageBitraverse {
+) extends Fs2MessageBitraverse with KafkaMessageConversion[K, V] {
   import fs2.Stream
   import fs2.kafka._
 
@@ -55,31 +55,24 @@ final case class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
       .flatMap(_.stream)
 
   val consumeNativeMessages: Stream[F, CommittableConsumerRecord[F, Try[K], Try[V]]] =
-    consume.map(_.bimap(k => Try(keyIso.get(k)), v => Try(valueIso.get(v))))
+    consume.map(_.native)
 
-  val consumeMessages: Stream[F, Try[CommittableConsumerRecord[F, K, V]]] =
-    consume.map(_.bitraverse(k => Try(keyIso.get(k)), v => Try(valueIso.get(v))))
+  val consumeMessages: Stream[F, Try[CommittableConsumerRecord[F, K, V]]] = consume.map(_.decode)
 
   val consumeValidMessages: Stream[F, CommittableConsumerRecord[F, K, V]] =
-    consumeMessages.map(_.map(_.bitraverse(Option(_), Option(_)))).collect {
-      case Success(Some(x)) => x
-    }
+    consumeMessages.collect { case Success(x) => x }
 
   val consumeValues: Stream[F, Try[CommittableConsumerRecord[F, Array[Byte], V]]] =
-    consume.map(_.bitraverse(k => Success(k), v => Try(valueIso.get(v))))
+    consume.map(_.value)
 
   val consumeValidValues: Stream[F, CommittableConsumerRecord[F, Array[Byte], V]] =
-    consumeValues.map(_.map(_.bitraverse(Some(_), Option(_)))).collect {
-      case Success(Some(x)) => x
-    }
+    consumeValues.collect { case Success(x) => x }
 
   val consumeKeys: Stream[F, Try[CommittableConsumerRecord[F, K, Array[Byte]]]] =
-    consume.map(_.bitraverse(k => Try(keyIso.get(k)), v => Success(v)))
+    consume.map(_.key)
 
   val consumeValidKeys: Stream[F, CommittableConsumerRecord[F, K, Array[Byte]]] =
-    consumeKeys.map(_.map(_.bitraverse(Option(_), Some(_)))).collect {
-      case Success(Some(x)) => x
-    }
+    consumeKeys.collect { case Success(x) => x }
 
   val show: String =
     s"""
@@ -103,7 +96,7 @@ final case class AkkaChannel[F[_]: ContextShift: Async, K, V](
   keyIso: Iso[Array[Byte], K],
   valueIso: Iso[Array[Byte], V],
   materializer: ActorMaterializer)
-    extends AkkaMessageBitraverse {
+    extends AkkaMessageBitraverse with KafkaMessageConversion[K, V] {
   import akka.kafka.ConsumerMessage.CommittableMessage
   import akka.kafka.ProducerMessage.Envelope
   import akka.kafka.scaladsl.{Committer, Consumer}
@@ -154,29 +147,25 @@ final case class AkkaChannel[F[_]: ContextShift: Async, K, V](
       .committableSource(consumerSettings, Subscriptions.topics(topicName))
 
   val consumeNativeMessages: Source[CommittableMessage[Try[K], Try[V]], Consumer.Control] =
-    consume.map(_.bimap(k => Try(keyIso.get(k)), v => Try(valueIso.get(v))))
+    consume.map(_.native)
 
   val consumeMessages: Source[Try[CommittableMessage[K, V]], Consumer.Control] =
-    consume.map(_.bitraverse(k => Try(keyIso.get(k)), v => Try(valueIso.get(v))))
+    consume.map(_.decode)
 
   val consumeValidMessages: Source[CommittableMessage[K, V], Consumer.Control] =
-    consumeMessages.map(_.map(_.bitraverse(Option(_), Option(_)))).collect {
-      case Success(Some(x)) => x
-    }
+    consumeMessages.collect { case Success(x) => x }
 
   val consumeValues: Source[Try[CommittableMessage[Array[Byte], V]], Consumer.Control] =
-    consume.map(_.bitraverse(k => Success(k), v => Try(valueIso.get(v))))
+    consume.map(_.value)
 
   val consumeValidValues: Source[CommittableMessage[Array[Byte], V], Consumer.Control] =
-    consumeValues.map(_.map(_.bitraverse(Some(_), Option(_)))).collect {
-      case Success(Some(x)) => x
-    }
+    consumeValues.collect { case Success(x) => x }
 
   val consumeKeys: Source[Try[CommittableMessage[K, Array[Byte]]], Consumer.Control] =
-    consume.map(_.bitraverse(k => Try(keyIso.get(k)), v => Success(v)))
+    consume.map(_.key)
 
   val consumeValidKeys: Source[CommittableMessage[K, Array[Byte]], Consumer.Control] =
-    consumeKeys.map(_.map(_.bitraverse(Option(_), Some(_)))).collect { case Success(Some(x)) => x }
+    consumeKeys.collect { case Success(x) => x }
 
   val show: String =
     s"""

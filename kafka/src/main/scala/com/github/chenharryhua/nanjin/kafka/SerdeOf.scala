@@ -3,13 +3,14 @@ package com.github.chenharryhua.nanjin.kafka
 import java.{util => ju}
 
 import com.sksamuel.avro4s.{AvroSchema, SchemaFor}
-import monocle.Iso
+import monocle.{Iso, Prism}
 import org.apache.avro.Schema
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import org.apache.kafka.streams.scala.Serdes
 
 import scala.annotation.implicitNotFound
 import scala.collection.JavaConverters._
+import scala.util.Try
 
 sealed abstract class KafkaSerde[A](
   schema: Schema,
@@ -28,6 +29,10 @@ sealed abstract class KafkaSerde[A](
 
   final def iso(topicName: String): Iso[Array[Byte], A] =
     Iso[Array[Byte], A](ab => deserializer.deserialize(topicName, ab))(a =>
+      serializer.serialize(topicName, a))
+
+  final def prism(topicName: String): Prism[Array[Byte], A] =
+    Prism[Array[Byte], A](ab => Try(deserializer.deserialize(topicName, ab)).toOption)(a =>
       serializer.serialize(topicName, a))
 }
 
