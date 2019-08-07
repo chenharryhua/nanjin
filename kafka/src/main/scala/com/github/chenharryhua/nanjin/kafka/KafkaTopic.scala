@@ -5,12 +5,16 @@ import cats.effect.concurrent.MVar
 import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
 import cats.{Eval, Show}
 import fs2.kafka.{KafkaByteConsumer, KafkaByteProducer}
+import monocle.Iso
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
-final case class TopicDef[K, V](topicName: String) {
+final case class TopicDef[K: SerdeOf, V: SerdeOf](topicName: String) {
   val keySchemaLoc: String   = s"$topicName-key"
   val valueSchemaLoc: String = s"$topicName-value"
+
+  def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[F, K, V] =
+    ctx.topic[K, V](this)
 }
 
 final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] private[kafka] (
@@ -29,6 +33,9 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
   override def extract(key: K, value: V, rc: RecordContext): String = topicName
 
   override def toString: String = topicName
+
+  val keyIso: Iso[Array[Byte], K]   = keySerde.iso(topicName)
+  val valueIso: Iso[Array[Byte], V] = valueSerde.iso(topicName)
 
   val fs2Channel: Fs2Channel[F, K, V] =
     new Fs2Channel[F, K, V](

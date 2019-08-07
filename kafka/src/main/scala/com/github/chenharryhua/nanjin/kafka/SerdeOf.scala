@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import java.{util => ju}
 
 import com.sksamuel.avro4s.{AvroSchema, SchemaFor}
+import monocle.Iso
 import org.apache.avro.Schema
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import org.apache.kafka.streams.scala.Serdes
@@ -16,14 +17,18 @@ sealed abstract class KafkaSerde[A](
   deserializer: Deserializer[A],
   props: Map[String, String])
     extends Serde[A] {
-  override def configure(configs: ju.Map[String, _], isKey: Boolean): Unit = {
+  final override def configure(configs: ju.Map[String, _], isKey: Boolean): Unit = {
     serializer.configure(configs, isKey)
     deserializer.configure(configs, isKey)
   }
-  override def close(): Unit = {
+  final override def close(): Unit = {
     serializer.close()
     deserializer.close()
   }
+
+  final def iso(topicName: String): Iso[Array[Byte], A] =
+    Iso[Array[Byte], A](ab => deserializer.deserialize(topicName, ab))(a =>
+      serializer.serialize(topicName, a))
 }
 
 final case class KeySerde[A](
