@@ -29,16 +29,20 @@ import scala.util.Try
 
 object SparkMain extends IOApp {
 
-  val ctx =
-    KafkaSettings.empty.withBrokers("localhost:9092").ioContext
+  val ctx = KafkaSettings.local.ioContext
 
   val topic =
+    // ctx.topic[String, String]("au.marketing.promotion.prod.customer-offer-status.stream.json")
     ctx.topic[Array[Byte], Payment]("cc_payments")
-  val spark = SparkSession.builder().master("local[*]").appName("test").getOrCreate()
-  val avro  = topic.recordDecoder
+
+  val spark: SparkSession =
+    SparkSession.builder().master("local[*]").appName("test").getOrCreate()
+
   override def run(args: List[String]): IO[ExitCode] = {
     import spark.implicits._
+    val api = new SparkafkaApiImpl(spark)
 
-    IO(ExitCode.Success)
+    IO(api.valueDataset(topic).show()) >>
+      IO(ExitCode.Success)
   }
 }
