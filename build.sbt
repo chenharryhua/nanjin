@@ -23,7 +23,7 @@ val refined      = "0.9.9"
 val zioCats      = "2.0.0.0-RC2"
 
 lazy val commonSettings = Seq(
-  version      := "0.0.1-SNAPSHOT",
+  version      := "0.0.2-SNAPSHOT",
   organization := "com.github.chenharryhua",
   scalaVersion := scalaVersion.value,
   resolvers ++= Seq(

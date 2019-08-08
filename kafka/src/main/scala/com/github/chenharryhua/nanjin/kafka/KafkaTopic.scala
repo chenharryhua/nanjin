@@ -36,17 +36,17 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
   val keyIso: Iso[Array[Byte], K]   = keySerde.iso(topicName)
   val valueIso: Iso[Array[Byte], V] = valueSerde.iso(topicName)
 
-  val fs2Channel: Fs2Channel[F, K, V] =
-    new Fs2Channel[F, K, V](
+  val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
+    new KafkaChannels.Fs2Channel[F, K, V](
       topicName,
       fs2Settings.producerSettings(keySerde.serializer, valueSerde.serializer),
       fs2Settings.consumerSettings,
       keyIso,
       valueIso)
 
-  val akkaResource: Resource[F, AkkaChannel[F, K, V]] = Resource.make(
+  val akkaResource: Resource[F, KafkaChannels.AkkaChannel[F, K, V]] = Resource.make(
     ConcurrentEffect[F].delay(
-      new AkkaChannel[F, K, V](
+      new KafkaChannels.AkkaChannel[F, K, V](
         topicName,
         akkaSettings
           .producerSettings(materializer.value.system, keySerde.serializer, valueSerde.serializer),
@@ -56,26 +56,23 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
         valueIso,
         materializer.value)))(_ => ConcurrentEffect[F].unit)
 
-  val kafkaStream: StreamingChannel[K, V] =
-    new StreamingChannel[K, V](topicName, keySerde, valueSerde)
-
-  val recordEncoder: encoders.ProducerRecordEncoder[K, V] =
-    encoders.producerRecordEncoder[K, V](topicDef.topicName, keySerde, valueSerde)
+  val kafkaStream: KafkaChannels.StreamingChannel[K, V] =
+    new KafkaChannels.StreamingChannel[K, V](topicName, keySerde, valueSerde)
 
   val schemaRegistry: KafkaSchemaRegistry[F] =
     KafkaSchemaRegistry[F](
       schemaRegistrySettings,
-      topicDef.topicName,
+      topicName,
       topicDef.keySchemaLoc,
       topicDef.valueSchemaLoc,
       keySerde.schema,
       valueSerde.schema)
 
   val consumer: KafkaConsumerApi[F, K, V] =
-    KafkaConsumerApi[F, K, V](topicDef, sharedConsumer)
+    KafkaConsumerApi[F, K, V](topicName, sharedConsumer)
 
   val producer: KafkaProducerApi[F, K, V] =
-    KafkaProducerApi[F, K, V](sharedProducer, recordEncoder)
+    KafkaProducerApi[F, K, V](topicName, keyIso, valueIso, sharedProducer)
 
   val show: String =
     s"""

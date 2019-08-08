@@ -14,7 +14,10 @@ import com.sksamuel.avro4s.RecordFormat
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 import io.confluent.kafka.streams.serdes.avro.{GenericAvroDeserializer, GenericAvroSerde}
-
+import io.circe.generic.auto._
+import io.circe.generic
+import io.circe.syntax._
+import io.circe.parser.decode
 trait SparkafkaApi extends Serializable {}
 
 final class SparkafkaApiImpl(spark: SparkSession) extends SparkafkaApi {
@@ -24,7 +27,7 @@ final class SparkafkaApiImpl(spark: SparkSession) extends SparkafkaApi {
     F[_],
     K,
     V: sql.Encoder: ClassTag: avro4s.Encoder: avro4s.Decoder: avro4s.SchemaFor](
-    topic: KafkaTopic[F, K, V]): Dataset[String] = {
+    topic: KafkaTopic[F, K, V]): Dataset[Payment] = {
     val gv = new GenericAvroSerde
     val deser = Map(
       ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG -> "localhost:9092",
@@ -44,7 +47,11 @@ final class SparkafkaApiImpl(spark: SparkSession) extends SparkafkaApi {
         p,
         range,
         LocationStrategies.PreferConsistent)
-      .map(x => x.value().toString)
+      .flatMap { x =>
+        val s = x.value.toString
+        println(s)
+        decode[Payment](x.value().toString).toOption
+      }
       .toDS()
   }
 }
