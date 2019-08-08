@@ -14,7 +14,7 @@ class ConsumeMessageAkkaTest extends FunSuite with ShowKafkaMessage with AkkaMes
         .updateConsumerSettings(s => s.withClientId("c-id"))
         .updateCommitterSettings(s => s.withParallelism(10))
         .consume
-        .map(chn.decodeValue(_))
+        .map(chn.decodeValue)
         .map(_.show)
         .map(println)
         .take(3)

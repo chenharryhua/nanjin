@@ -44,7 +44,7 @@ class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage with Fs2Messa
   test("should be able to consume payments topic") {
     val chn = ctx.topic[String, Payment]("cc_payments").fs2Channel
     val ret = chn.consume
-      .map(chn.safeDecodeMessage)
+      .map(chn.safeDecode)
       .map(_.toEither)
       .rethrow
       .take(3)
