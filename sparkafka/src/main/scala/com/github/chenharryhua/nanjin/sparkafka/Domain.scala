@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.sparkafka
 
 import cats.Show
 import cats.implicits._
-
+import io.circe.generic.JsonCodec
 class Domain {}
 
 case class trip_record(
@@ -29,7 +29,8 @@ case class trip_record(
 object trip_record {
   implicit val showtrip_record: Show[trip_record] = cats.derived.semi.show[trip_record]
 }
-case class Payment(
+
+@JsonCodec case class Payment(
   id: String,
   time: String,
   amount: BigDecimal,

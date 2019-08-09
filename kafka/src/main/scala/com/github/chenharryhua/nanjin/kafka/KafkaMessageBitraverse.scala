@@ -11,7 +11,7 @@ import org.apache.kafka.common.record.TimestampType
 
 import scala.compat.java8.OptionConverters._
 
-private[kafka] trait KafkaMessageBitraverse extends Serializable {
+private[kafka] trait KafkaRecordBitraverse extends Serializable {
 
   implicit final val consumerRecordBitraverse: Bitraverse[ConsumerRecord[?, ?]] =
     new Bitraverse[ConsumerRecord] {
@@ -76,7 +76,7 @@ private[kafka] trait KafkaMessageBitraverse extends Serializable {
       rec => new ProducerRecord(t, rec.partition, rec.timestamp, rec.key, rec.value, rec.headers))
 }
 
-private[kafka] trait Fs2MessageBitraverse extends KafkaMessageBitraverse {
+private[kafka] trait Fs2MessageBitraverse extends KafkaRecordBitraverse {
 
   import fs2.kafka.{
     CommittableConsumerRecord,
@@ -196,7 +196,7 @@ private[kafka] trait Fs2MessageBitraverse extends KafkaMessageBitraverse {
     }
 }
 
-private[kafka] trait AkkaMessageBitraverse extends KafkaMessageBitraverse {
+private[kafka] trait AkkaMessageBitraverse extends KafkaRecordBitraverse {
   import akka.kafka.ConsumerMessage.CommittableMessage
   import akka.kafka.ProducerMessage.Message
 

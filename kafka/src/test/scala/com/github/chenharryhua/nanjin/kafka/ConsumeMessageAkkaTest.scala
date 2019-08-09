@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.implicits._
 import org.scalatest.FunSuite
 
-class ConsumeMessageAkkaTest extends FunSuite with ShowKafkaMessage with AkkaMessageBitraverse {
+class ConsumeMessageAkkaTest extends FunSuite with ShowKafkaMessage {
 
   val vessel: TopicDef[Key, aisClassAPositionReport] =
     TopicDef[Key, aisClassAPositionReport]("sea_vessel_position_reports")

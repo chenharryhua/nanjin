@@ -19,7 +19,7 @@ class KAvroTest extends FunSuite with ShowKafkaMessage {
       topic.producer.send(1, r) >>
         topic.producer.send(2, g) >>
         topic.producer.send(3, b) >>
-        topic.consumer.retrieveLastRecords
-    //assert(run.unsafeRunSync().head.value().get === b)
+        topic.consumer.retrieveLastRecords.map(m => topic.decode(m.head))
+    assert(run.unsafeRunSync().value() === b)
   }
 }

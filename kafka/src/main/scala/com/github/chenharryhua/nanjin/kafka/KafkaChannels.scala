@@ -11,7 +11,6 @@ import cats.Show
 import cats.data.Reader
 import cats.effect._
 import cats.implicits._
-import fs2.Chunk
 import fs2.kafka.{
   CommittableConsumerRecord,
   ConsumerSettings => Fs2ConsumerSettings,
@@ -35,10 +34,11 @@ object KafkaChannels extends AkkaMessageBitraverse with Fs2MessageBitraverse {
     consumerSettings: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]],
     keyIso: Iso[Array[Byte], K],
     valueIso: Iso[Array[Byte], V]
-  ) extends KafkaMessageDecode[CommittableConsumerRecord[F, ?, ?], K, V](keyIso, valueIso) {
+  ) extends KafkaMessageDecode[CommittableConsumerRecord[F, ?, ?], K, V](keyIso, valueIso)
+      with Fs2MessageEncode[F, K, V] {
 
     import fs2.Stream
-    import fs2.kafka.{ProducerRecord => Fs2ProducerRecord, _}
+    import fs2.kafka._
 
     def updateProducerSettings(
       f: Fs2ProducerSettings[F, K, V] => Fs2ProducerSettings[F, K, V]): Fs2Channel[F, K, V] =
@@ -62,24 +62,6 @@ object KafkaChannels extends AkkaMessageBitraverse with Fs2MessageBitraverse {
         .evalTap(_.subscribeTo(topicName))
         .flatMap(_.stream)
 
-    def record(k: K, v: V): Fs2ProducerRecord[K, V] = Fs2ProducerRecord(topicName, k, v)
-
-    def single(k: K, v: V): ProducerRecords[Id, K, V, Option[CommittableOffset[F]]] =
-      ProducerRecords.one(record(k, v), None)
-
-    def single(
-      k: K,
-      v: V,
-      p: CommittableOffset[F]): ProducerRecords[Id, K, V, Option[CommittableOffset[F]]] =
-      ProducerRecords.one(record(k, v), Some(p))
-
-    def multi(msgs: List[(K, V)]): ProducerRecords[List, K, V, Option[CommittableOffset[F]]] =
-      ProducerRecords(msgs.map { case (k, v) => record(k, v) }, None)
-
-    def multi(msgs: Chunk[(K, V, CommittableOffset[F])])
-      : ProducerRecords[Chunk, K, V, Option[CommittableOffset[F]]] =
-      ProducerRecords(msgs.map { case (k, v, _) => record(k, v) }, msgs.last.map(_._3))
-
     val show: String =
       s"""
          |fs2 consumer runtime settings:
@@ -102,7 +84,8 @@ object KafkaChannels extends AkkaMessageBitraverse with Fs2MessageBitraverse {
     keyIso: Iso[Array[Byte], K],
     valueIso: Iso[Array[Byte], V],
     materializer: ActorMaterializer)
-      extends KafkaMessageDecode[CommittableMessage, K, V](keyIso, valueIso) {
+      extends KafkaMessageDecode[CommittableMessage, K, V](keyIso, valueIso)
+      with AkkaMessageEncode[K, V] {
     import akka.kafka.ConsumerMessage.CommittableMessage
     import akka.kafka.ProducerMessage.Envelope
     import akka.kafka.scaladsl.{Committer, Consumer}
@@ -153,21 +136,6 @@ object KafkaChannels extends AkkaMessageBitraverse with Fs2MessageBitraverse {
     val consume: Source[CommittableMessage[Array[Byte], Array[Byte]], Consumer.Control] =
       akka.kafka.scaladsl.Consumer
         .committableSource(consumerSettings, Subscriptions.topics(topicName))
-
-    def record(k: K, v: V): ProducerRecord[K, V] = new ProducerRecord(topicName, k, v)
-
-    def single(k: K, v: V): Envelope[K, V, NotUsed] = ProducerMessage.single(record(k, v))
-
-    def single[P](k: K, v: V, p: P): Envelope[K, V, P] =
-      ProducerMessage.single(record(k, v), p)
-
-    def multi(msg: List[(K, V)]): Envelope[K, V, NotUsed] =
-      ProducerMessage.multi(msg.map(kv => record(kv._1, kv._2)))
-
-    def multi(
-      msg: List[(K, V)],
-      cof: ConsumerMessage.CommittableOffset): Envelope[K, V, ConsumerMessage.CommittableOffset] =
-      ProducerMessage.multi(msg.map(kv => record(kv._1, kv._2)), cof)
 
     val show: String =
       s"""

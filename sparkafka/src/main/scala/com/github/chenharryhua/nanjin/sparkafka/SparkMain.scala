@@ -43,6 +43,14 @@ object SparkMain extends IOApp {
   override def run(args: List[String]): IO[ExitCode] = {
     import spark.implicits._
     val api = new SparkafkaApiImpl(spark)
+
+//    IO(personDF.writeStream.format("console").outputMode("append").start().awaitTermination()) >>
+    IO(api.valueDataset(topic).show()) >>
+      IO(ExitCode.Success)
+  }
+}
+
+/*
     val df: DataFrame = spark.readStream
       .format("kafka")
       .option("kafka.bootstrap.servers", "localhost:9092")
@@ -51,9 +59,4 @@ object SparkMain extends IOApp {
       .load()
     val personDF =
       df.select(from_avro(col("value"), topic.valueSerde.schema.toString()))
-
-    IO(personDF.writeStream.format("console").outputMode("append").start().awaitTermination()) >>
-      //  IO(api.valueDataset(topic).show()) >>
-      IO(ExitCode.Success)
-  }
-}
+ */

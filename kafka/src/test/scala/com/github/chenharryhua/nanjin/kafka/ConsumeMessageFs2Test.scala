@@ -5,7 +5,7 @@ import fs2.kafka.AutoOffsetReset
 import org.scalatest.FunSuite
 import io.circe.generic.auto._
 
-class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage with Fs2MessageBitraverse {
+class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage {
   val backblaze_smart = TopicDef[KJson[lenses_record_key], KJson[lenses_record]]("backblaze_smart")
   val nyc_taxi_trip   = TopicDef[Array[Byte], trip_record]("nyc_yellow_taxi_trip_data")
   test("should be able to consume json topic") {
