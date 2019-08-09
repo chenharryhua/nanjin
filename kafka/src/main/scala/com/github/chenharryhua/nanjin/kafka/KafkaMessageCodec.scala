@@ -10,7 +10,7 @@ import org.apache.kafka.clients.producer.ProducerRecord
 
 import scala.util.{Success, Try}
 
-abstract class KafkaMessageDecode[F[_, _]: Bitraverse, K, V](
+sealed abstract class KafkaMessageDecode[F[_, _]: Bitraverse, K, V](
   keyIso: Iso[Array[Byte], K],
   valueIso: Iso[Array[Byte], V]) {
 
@@ -40,7 +40,7 @@ abstract class KafkaMessageDecode[F[_, _]: Bitraverse, K, V](
     data.bitraverse(k => utils.nullable(k).flatMap(x => Try(keyIso.get(x))), Success(_))
 }
 
-trait KafkaConsumerRecordDecode[K, V] extends KafkaRecordBitraverse {
+sealed trait KafkaConsumerRecordDecode[K, V] extends KafkaRecordBitraverse {
   def keyIso: Iso[Array[Byte], K]
   def valueIso: Iso[Array[Byte], V]
 
@@ -70,7 +70,7 @@ trait KafkaConsumerRecordDecode[K, V] extends KafkaRecordBitraverse {
     data.bitraverse(k => utils.nullable(k).flatMap(x => Try(keyIso.get(x))), Success(_))
 }
 
-trait KafkaConsumerRecordEncode[K, V] {
+sealed trait KafkaConsumerRecordEncode[K, V] {
   def keyIso: Iso[Array[Byte], K]
   def valueIso: Iso[Array[Byte], V]
   def topicName: String
@@ -85,7 +85,7 @@ trait KafkaConsumerRecordEncode[K, V] {
     new ProducerRecord(topicName, k, v)
 }
 
-trait AkkaMessageEncode[K, V] {
+sealed trait AkkaMessageEncode[K, V] {
   import akka.NotUsed
   import akka.kafka.ProducerMessage.Envelope
   import akka.kafka.{ConsumerMessage, ProducerMessage}
@@ -107,7 +107,7 @@ trait AkkaMessageEncode[K, V] {
     ProducerMessage.multi(msg.map(kv => record(kv._1, kv._2)), cof)
 }
 
-trait Fs2MessageEncode[F[_], K, V] {
+sealed trait Fs2MessageEncode[F[_], K, V] {
   import fs2.Chunk
   import fs2.kafka.{CommittableOffset, Id, ProducerRecords, ProducerRecord => Fs2ProducerRecord}
   def topicName: String

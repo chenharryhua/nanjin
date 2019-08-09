@@ -113,7 +113,7 @@ object KafkaChannels {
     def flexiFlow[P]: Flow[Envelope[K, V, P], ProducerMessage.Results[K, V, P], NotUsed] =
       akka.kafka.scaladsl.Producer.flexiFlow[K, V, P](producerSettings)
 
-    def plainSink: Sink[ProducerRecord[K, V], F[Done]] =
+    val plainSink: Sink[ProducerRecord[K, V], F[Done]] =
       akka.kafka.scaladsl.Producer
         .plainSink(producerSettings)
         .mapMaterializedValue(f => Async.fromFuture(Async[F].pure(f)))
