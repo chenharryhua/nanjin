@@ -22,7 +22,7 @@ import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.streams.kstream.GlobalKTable
 
-object KafkaChannels extends AkkaMessageBitraverse with Fs2MessageBitraverse {
+object KafkaChannels {
 
   object Fs2Channel {
     implicit def showFs2Channel[F[_], K, V]: Show[Fs2Channel[F, K, V]] = _.show
@@ -34,8 +34,7 @@ object KafkaChannels extends AkkaMessageBitraverse with Fs2MessageBitraverse {
     consumerSettings: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]],
     keyIso: Iso[Array[Byte], K],
     valueIso: Iso[Array[Byte], V]
-  ) extends KafkaMessageDecode[CommittableConsumerRecord[F, ?, ?], K, V](keyIso, valueIso)
-      with Fs2MessageEncode[F, K, V] {
+  ) extends codec.Fs2Codec[F, K, V](keyIso, valueIso) {
 
     import fs2.Stream
     import fs2.kafka._
@@ -84,8 +83,7 @@ object KafkaChannels extends AkkaMessageBitraverse with Fs2MessageBitraverse {
     keyIso: Iso[Array[Byte], K],
     valueIso: Iso[Array[Byte], V],
     materializer: ActorMaterializer)
-      extends KafkaMessageDecode[CommittableMessage, K, V](keyIso, valueIso)
-      with AkkaMessageEncode[K, V] {
+      extends codec.AkkaCodec[K, V](keyIso, valueIso) {
     import akka.kafka.ConsumerMessage.CommittableMessage
     import akka.kafka.ProducerMessage.Envelope
     import akka.kafka.scaladsl.{Committer, Consumer}

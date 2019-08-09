@@ -1,20 +1,18 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import akka.kafka.ConsumerMessage.CommittableMessage
 import cats.Bitraverse
 import cats.implicits._
-
+import fs2.kafka.CommittableConsumerRecord
 import monocle.Iso
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Success, Try}
 
 trait KafkaConsumerRecordDecode[K, V] extends KafkaRecordBitraverse {
-  val keyIso: Iso[Array[Byte], K]
-  val valueIso: Iso[Array[Byte], V]
-
-  final protected def option[A](a: A): Try[A] =
-    Option(a).fold[Try[A]](Failure(new Exception("decoding null object")))(Success(_))
+  def keyIso: Iso[Array[Byte], K]
+  def valueIso: Iso[Array[Byte], V]
 
   final def decode(cr: ConsumerRecord[Array[Byte], Array[Byte]]): ConsumerRecord[K, V] =
     cr.bimap(keyIso.get, valueIso.get)
@@ -30,27 +28,26 @@ trait KafkaConsumerRecordDecode[K, V] extends KafkaRecordBitraverse {
   final def safeDecodeKeyValue(
     data: ConsumerRecord[Array[Byte], Array[Byte]]): ConsumerRecord[Try[K], Try[V]] =
     data.bimap(
-      k => option(k).flatMap(x => Try(keyIso.get(x))),
-      v => option(v).flatMap(x => Try(valueIso.get(x))))
+      k => utils.nullable(k).flatMap(x => Try(keyIso.get(x))),
+      v => utils.nullable(v).flatMap(x => Try(valueIso.get(x))))
 
   final def safeDecode(data: ConsumerRecord[Array[Byte], Array[Byte]]): Try[ConsumerRecord[K, V]] =
     data.bitraverse(
-      k => option(k).flatMap(x => Try(keyIso.get(x))),
-      v => option(v).flatMap(x => Try(valueIso.get(x))))
+      k => utils.nullable(k).flatMap(x => Try(keyIso.get(x))),
+      v => utils.nullable(v).flatMap(x => Try(valueIso.get(x))))
 
   final def safeDecodeValue(
     data: ConsumerRecord[Array[Byte], Array[Byte]]): Try[ConsumerRecord[Array[Byte], V]] =
-    data.bitraverse(Success(_), v => option(v).flatMap(x => Try(valueIso.get(x))))
+    data.bitraverse(Success(_), v => utils.nullable(v).flatMap(x => Try(valueIso.get(x))))
 
   final def safeDecodeKey(
     data: ConsumerRecord[Array[Byte], Array[Byte]]): Try[ConsumerRecord[K, Array[Byte]]] =
-    data.bitraverse(k => option(k).flatMap(x => Try(keyIso.get(x))), Success(_))
+    data.bitraverse(k => utils.nullable(k).flatMap(x => Try(keyIso.get(x))), Success(_))
 }
 
-abstract private[kafka] class KafkaMessageDecode[F[_, _]: Bitraverse, K, V](
+abstract class KafkaMessageDecode[F[_, _]: Bitraverse, K, V](
   keyIso: Iso[Array[Byte], K],
-  valueIso: Iso[Array[Byte], V])
-    extends KafkaConsumerRecordDecode[K, V] {
+  valueIso: Iso[Array[Byte], V]) {
 
   final def decode[G[_, _]: Bitraverse](data: G[Array[Byte], Array[Byte]]): G[K, V] =
     data.bimap(keyIso.get, valueIso.get)
@@ -63,25 +60,25 @@ abstract private[kafka] class KafkaMessageDecode[F[_, _]: Bitraverse, K, V](
 
   final def safeDecodeKeyValue(data: F[Array[Byte], Array[Byte]]): F[Try[K], Try[V]] =
     data.bimap(
-      k => option(k).flatMap(x => Try(keyIso.get(x))),
-      v => option(v).flatMap(x => Try(valueIso.get(x))))
+      k => utils.nullable(k).flatMap(x => Try(keyIso.get(x))),
+      v => utils.nullable(v).flatMap(x => Try(valueIso.get(x))))
 
   final def safeDecode(data: F[Array[Byte], Array[Byte]]): Try[F[K, V]] =
     data.bitraverse(
-      k => option(k).flatMap(x => Try(keyIso.get(x))),
-      v => option(v).flatMap(x => Try(valueIso.get(x))))
+      k => utils.nullable(k).flatMap(x => Try(keyIso.get(x))),
+      v => utils.nullable(v).flatMap(x => Try(valueIso.get(x))))
 
   final def safeDecodeValue(data: F[Array[Byte], Array[Byte]]): Try[F[Array[Byte], V]] =
-    data.bitraverse(Success(_), v => option(v).flatMap(x => Try(valueIso.get(x))))
+    data.bitraverse(Success(_), v => utils.nullable(v).flatMap(x => Try(valueIso.get(x))))
 
   final def safeDecodeKey(data: F[Array[Byte], Array[Byte]]): Try[F[K, Array[Byte]]] =
-    data.bitraverse(k => option(k).flatMap(x => Try(keyIso.get(x))), Success(_))
+    data.bitraverse(k => utils.nullable(k).flatMap(x => Try(keyIso.get(x))), Success(_))
 }
 
 trait KafkaConsumerRecordEncode[K, V] {
-  val keyIso: Iso[Array[Byte], K]
-  val valueIso: Iso[Array[Byte], V]
-  val topicName: String
+  def keyIso: Iso[Array[Byte], K]
+  def valueIso: Iso[Array[Byte], V]
+  def topicName: String
 
   final def record(k: K, v: V): ProducerRecord[Array[Byte], Array[Byte]] =
     new ProducerRecord(topicName, keyIso.reverseGet(k), valueIso.reverseGet(v))
@@ -95,11 +92,11 @@ trait KafkaConsumerRecordEncode[K, V] {
 
 trait AkkaMessageEncode[K, V] {
   import akka.NotUsed
-  import akka.kafka.{ConsumerMessage, ProducerMessage}
   import akka.kafka.ProducerMessage.Envelope
+  import akka.kafka.{ConsumerMessage, ProducerMessage}
 
-  val topicName: String
-  final def record(k: K, v: V): ProducerRecord[K, V] = new ProducerRecord(topicName, k, v)
+  def topicName: String
+  final private def record(k: K, v: V): ProducerRecord[K, V] = new ProducerRecord(topicName, k, v)
 
   final def single(k: K, v: V): Envelope[K, V, NotUsed] = ProducerMessage.single(record(k, v))
 
@@ -118,9 +115,9 @@ trait AkkaMessageEncode[K, V] {
 trait Fs2MessageEncode[F[_], K, V] {
   import fs2.Chunk
   import fs2.kafka.{CommittableOffset, Id, ProducerRecords, ProducerRecord => Fs2ProducerRecord}
-  val topicName: String
+  def topicName: String
 
-  final def record(k: K, v: V): Fs2ProducerRecord[K, V] = Fs2ProducerRecord(topicName, k, v)
+  final private def record(k: K, v: V): Fs2ProducerRecord[K, V] = Fs2ProducerRecord(topicName, k, v)
 
   final def single(k: K, v: V): ProducerRecords[Id, K, V, Option[CommittableOffset[F]]] =
     ProducerRecords.one(record(k, v), None)
@@ -137,4 +134,19 @@ trait Fs2MessageEncode[F[_], K, V] {
   final def multi(msgs: Chunk[(K, V, CommittableOffset[F])])
     : ProducerRecords[Chunk, K, V, Option[CommittableOffset[F]]] =
     ProducerRecords(msgs.map { case (k, v, _) => record(k, v) }, msgs.last.map(_._3))
+}
+
+object codec extends AkkaMessageBitraverse with Fs2MessageBitraverse {
+
+  trait ConsumerRecordCodec[K, V]
+      extends KafkaConsumerRecordDecode[K, V] with KafkaConsumerRecordEncode[K, V]
+
+  abstract class Fs2Codec[F[_], K, V](keyIso: Iso[Array[Byte], K], valueIso: Iso[Array[Byte], V])
+      extends KafkaMessageDecode[CommittableConsumerRecord[F, ?, ?], K, V](keyIso, valueIso)
+      with Fs2MessageEncode[F, K, V] with ConsumerRecordCodec[K, V]
+
+  abstract class AkkaCodec[K, V](keyIso: Iso[Array[Byte], K], valueIso: Iso[Array[Byte], V])
+      extends KafkaMessageDecode[CommittableMessage, K, V](keyIso, valueIso)
+      with AkkaMessageEncode[K, V] with ConsumerRecordCodec[K, V]
+
 }

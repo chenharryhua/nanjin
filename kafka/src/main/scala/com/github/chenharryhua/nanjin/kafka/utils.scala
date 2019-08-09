@@ -6,6 +6,7 @@ import java.util.Properties
 import cats.Eval
 
 import scala.util.Random
+import scala.util.{Failure, Success, Try}
 
 object utils {
 
@@ -18,4 +19,7 @@ object utils {
     val utc = Instant.ofEpochMilli(t)
     (utc, utc.atZone(tz))
   }
+
+  def nullable[A](a: A): Try[A] =
+    Option(a).fold[Try[A]](Failure(new Exception("null object")))(Success(_))
 }

@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import java.time.LocalDateTime
+
 import cats.implicits._
 import org.scalatest.FunSuite
 
@@ -21,5 +23,23 @@ class ConsumeMessageAkkaTest extends FunSuite with ShowKafkaMessage {
         .runWith(chn.ignoreSink)(chn.materializer)
     }
     run.unsafeRunSync()
+  }
+
+  test("assignment") {
+    val datetime = LocalDateTime.now
+    val topic    = vessel.in(ctx)
+    val ret = for {
+      start <- topic.consumer.beginningOffsets
+      offsets = start.flatten[Long].value
+      _ <- vessel.in(ctx).akkaResource.use { chn =>
+        chn
+          .assign(offsets)
+          .map(topic.decode)
+          .map(_.show)
+          .take(1)
+          .runWith(chn.ignoreSink)(chn.materializer)
+      }
+    } yield ()
+    ret.unsafeRunSync
   }
 }

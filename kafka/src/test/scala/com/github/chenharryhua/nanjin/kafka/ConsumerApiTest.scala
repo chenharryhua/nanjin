@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.derived.auto.show._
 import cats.implicits._
 import org.scalatest.FunSuite
 

@@ -75,6 +75,8 @@ lazy val kafka = (project in file("kafka"))
       "io.circe" %% "circe-core"    % circeVersion,
       "io.circe" %% "circe-generic" % circeVersion,
       "io.circe" %% "circe-parser"  % circeVersion,
+      "io.circe" %% "circe-optics"  % circeVersion,
+
 //base
       "eu.timepit" %% "refined"                         % refined,
       "org.typelevel" %% "cats-core"                    % catsCore,
