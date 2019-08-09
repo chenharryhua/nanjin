@@ -13,8 +13,8 @@ class ConsumeMessageAkkaTest extends FunSuite with ShowKafkaMessage {
   test("akka stream should be able to consume data") {
     val run = ctx.topic(vessel).akkaResource.use { chn =>
       chn
-        .updateConsumerSettings(s => s.withClientId("c-id"))
-        .updateCommitterSettings(s => s.withParallelism(10))
+        .updateConsumerSettings(_.withClientId("c-id"))
+        .updateCommitterSettings(_.withParallelism(10))
         .consume
         .map(chn.decodeValue)
         .map(_.show)
@@ -27,14 +27,13 @@ class ConsumeMessageAkkaTest extends FunSuite with ShowKafkaMessage {
 
   test("assignment") {
     val datetime = LocalDateTime.now
-    val topic    = vessel.in(ctx)
     val ret = for {
-      start <- topic.consumer.beginningOffsets
+      start <- vessel.in(ctx).consumer.beginningOffsets
       offsets = start.flatten[Long].value
       _ <- vessel.in(ctx).akkaResource.use { chn =>
         chn
           .assign(offsets)
-          .map(topic.decode)
+          .map(chn.decode)
           .map(_.show)
           .take(1)
           .runWith(chn.ignoreSink)(chn.materializer)

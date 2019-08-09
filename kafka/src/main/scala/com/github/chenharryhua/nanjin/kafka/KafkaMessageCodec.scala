@@ -3,53 +3,18 @@ package com.github.chenharryhua.nanjin.kafka
 import akka.kafka.ConsumerMessage.CommittableMessage
 import cats.Bitraverse
 import cats.implicits._
-import fs2.kafka.CommittableConsumerRecord
+import fs2.kafka.{CommittableConsumerRecord, KafkaByteConsumerRecord, KafkaByteProducerRecord}
 import monocle.Iso
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 
 import scala.util.{Success, Try}
 
-trait KafkaConsumerRecordDecode[K, V] extends KafkaRecordBitraverse {
-  def keyIso: Iso[Array[Byte], K]
-  def valueIso: Iso[Array[Byte], V]
-
-  final def decode(cr: ConsumerRecord[Array[Byte], Array[Byte]]): ConsumerRecord[K, V] =
-    cr.bimap(keyIso.get, valueIso.get)
-
-  final def decodeKey(
-    cr: ConsumerRecord[Array[Byte], Array[Byte]]): ConsumerRecord[K, Array[Byte]] =
-    cr.bimap(keyIso.get, identity)
-
-  final def decodeValue(
-    cr: ConsumerRecord[Array[Byte], Array[Byte]]): ConsumerRecord[Array[Byte], V] =
-    cr.bimap(identity, valueIso.get)
-
-  final def safeDecodeKeyValue(
-    data: ConsumerRecord[Array[Byte], Array[Byte]]): ConsumerRecord[Try[K], Try[V]] =
-    data.bimap(
-      k => utils.nullable(k).flatMap(x => Try(keyIso.get(x))),
-      v => utils.nullable(v).flatMap(x => Try(valueIso.get(x))))
-
-  final def safeDecode(data: ConsumerRecord[Array[Byte], Array[Byte]]): Try[ConsumerRecord[K, V]] =
-    data.bitraverse(
-      k => utils.nullable(k).flatMap(x => Try(keyIso.get(x))),
-      v => utils.nullable(v).flatMap(x => Try(valueIso.get(x))))
-
-  final def safeDecodeValue(
-    data: ConsumerRecord[Array[Byte], Array[Byte]]): Try[ConsumerRecord[Array[Byte], V]] =
-    data.bitraverse(Success(_), v => utils.nullable(v).flatMap(x => Try(valueIso.get(x))))
-
-  final def safeDecodeKey(
-    data: ConsumerRecord[Array[Byte], Array[Byte]]): Try[ConsumerRecord[K, Array[Byte]]] =
-    data.bitraverse(k => utils.nullable(k).flatMap(x => Try(keyIso.get(x))), Success(_))
-}
-
 abstract class KafkaMessageDecode[F[_, _]: Bitraverse, K, V](
   keyIso: Iso[Array[Byte], K],
   valueIso: Iso[Array[Byte], V]) {
 
-  final def decode[G[_, _]: Bitraverse](data: G[Array[Byte], Array[Byte]]): G[K, V] =
+  final def decode(data: F[Array[Byte], Array[Byte]]): F[K, V] =
     data.bimap(keyIso.get, valueIso.get)
 
   final def decodeKey(data: F[Array[Byte], Array[Byte]]): F[K, Array[Byte]] =
@@ -75,18 +40,48 @@ abstract class KafkaMessageDecode[F[_, _]: Bitraverse, K, V](
     data.bitraverse(k => utils.nullable(k).flatMap(x => Try(keyIso.get(x))), Success(_))
 }
 
+trait KafkaConsumerRecordDecode[K, V] extends KafkaRecordBitraverse {
+  def keyIso: Iso[Array[Byte], K]
+  def valueIso: Iso[Array[Byte], V]
+
+  final def decode(cr: KafkaByteConsumerRecord): ConsumerRecord[K, V] =
+    cr.bimap(keyIso.get, valueIso.get)
+
+  final def decodeKey(cr: KafkaByteConsumerRecord): ConsumerRecord[K, Array[Byte]] =
+    cr.bimap(keyIso.get, identity)
+
+  final def decodeValue(cr: KafkaByteConsumerRecord): ConsumerRecord[Array[Byte], V] =
+    cr.bimap(identity, valueIso.get)
+
+  final def safeDecodeKeyValue(data: KafkaByteConsumerRecord): ConsumerRecord[Try[K], Try[V]] =
+    data.bimap(
+      k => utils.nullable(k).flatMap(x => Try(keyIso.get(x))),
+      v => utils.nullable(v).flatMap(x => Try(valueIso.get(x))))
+
+  final def safeDecode(data: KafkaByteConsumerRecord): Try[ConsumerRecord[K, V]] =
+    data.bitraverse(
+      k => utils.nullable(k).flatMap(x => Try(keyIso.get(x))),
+      v => utils.nullable(v).flatMap(x => Try(valueIso.get(x))))
+
+  final def safeDecodeValue(data: KafkaByteConsumerRecord): Try[ConsumerRecord[Array[Byte], V]] =
+    data.bitraverse(Success(_), v => utils.nullable(v).flatMap(x => Try(valueIso.get(x))))
+
+  final def safeDecodeKey(data: KafkaByteConsumerRecord): Try[ConsumerRecord[K, Array[Byte]]] =
+    data.bitraverse(k => utils.nullable(k).flatMap(x => Try(keyIso.get(x))), Success(_))
+}
+
 trait KafkaConsumerRecordEncode[K, V] {
   def keyIso: Iso[Array[Byte], K]
   def valueIso: Iso[Array[Byte], V]
   def topicName: String
 
-  final def record(k: K, v: V): ProducerRecord[Array[Byte], Array[Byte]] =
+  final def record(k: K, v: V): KafkaByteProducerRecord =
     new ProducerRecord(topicName, keyIso.reverseGet(k), valueIso.reverseGet(v))
-  final def record(k: K, v: Array[Byte]): ProducerRecord[Array[Byte], Array[Byte]] =
+  final def record(k: K, v: Array[Byte]): KafkaByteProducerRecord =
     new ProducerRecord(topicName, keyIso.reverseGet(k), v)
-  final def record(k: Array[Byte], v: V): ProducerRecord[Array[Byte], Array[Byte]] =
+  final def record(k: Array[Byte], v: V): KafkaByteProducerRecord =
     new ProducerRecord(topicName, k, valueIso.reverseGet(v))
-  final def record(k: Array[Byte], v: Array[Byte]): ProducerRecord[Array[Byte], Array[Byte]] =
+  final def record(k: Array[Byte], v: Array[Byte]): KafkaByteProducerRecord =
     new ProducerRecord(topicName, k, v)
 }
 
