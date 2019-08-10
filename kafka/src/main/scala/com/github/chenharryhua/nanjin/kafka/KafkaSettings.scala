@@ -157,7 +157,7 @@ import scala.util.Try
   sharedProducerSettings: SharedProducerSettings,
   schemaRegistrySettings: SchemaRegistrySettings) {
 
-  private def updateAll(key: String, value: String): KafkaSettings = {
+  private def updateAll(key: String, value: String): KafkaSettings =
     Traversal
       .applyN[KafkaSettings, Map[String, String]](
         KafkaSettings.fs2Settings.composeLens(Fs2Settings.consumerProps),
@@ -171,7 +171,6 @@ import scala.util.Try
       )
       .composeLens(at(key))
       .set(Some(value))(this)
-  }
 
   def withBrokers(bs: String): KafkaSettings =
     updateAll(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bs)

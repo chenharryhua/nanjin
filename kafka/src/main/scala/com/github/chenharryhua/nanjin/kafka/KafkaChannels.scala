@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import akka.kafka.ConsumerMessage.CommittableMessage
 import akka.kafka.{
   CommitterSettings => AkkaCommitterSettings,
   ConsumerSettings  => AkkaConsumerSettings,
@@ -11,11 +10,7 @@ import cats.Show
 import cats.data.Reader
 import cats.effect._
 import cats.implicits._
-import fs2.kafka.{
-  CommittableConsumerRecord,
-  ConsumerSettings => Fs2ConsumerSettings,
-  ProducerSettings => Fs2ProducerSettings
-}
+import fs2.kafka.{ConsumerSettings => Fs2ConsumerSettings, ProducerSettings => Fs2ProducerSettings}
 import monocle.Iso
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord

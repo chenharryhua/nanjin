@@ -5,8 +5,7 @@ import java.util.Properties
 
 import cats.Eval
 
-import scala.util.Random
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Random, Success, Try}
 
 object utils {
 

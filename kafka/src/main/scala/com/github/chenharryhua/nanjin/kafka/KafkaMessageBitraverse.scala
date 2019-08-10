@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.implicits._
 import cats.{Applicative, Bitraverse, Eval}
 import com.github.ghik.silencer.silent
-import monocle.{Iso, PLens}
+import monocle.Iso
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.header.internals.RecordHeaders

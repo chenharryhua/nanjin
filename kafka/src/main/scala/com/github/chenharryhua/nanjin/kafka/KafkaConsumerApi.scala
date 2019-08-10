@@ -14,7 +14,6 @@ import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndTimestamp}
 import org.apache.kafka.common.TopicPartition
 
 import scala.collection.JavaConverters._
-import scala.util.Try
 
 final case class KafkaOffsetRange(fromOffset: Long, untilOffset: Long) {
   val size: Long = untilOffset - fromOffset

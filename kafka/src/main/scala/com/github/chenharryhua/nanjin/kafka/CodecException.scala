@@ -20,5 +20,3 @@ object CodecException {
 
 final case class UncaughtKafkaStreamingException(thread: Thread, ex: Throwable)
     extends Exception(ex.getMessage)
-
-    
