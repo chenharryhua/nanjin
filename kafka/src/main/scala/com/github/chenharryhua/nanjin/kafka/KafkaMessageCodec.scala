@@ -70,7 +70,7 @@ sealed trait KafkaConsumerRecordDecode[K, V] extends KafkaRecordBitraverse {
     data.bitraverse(k => utils.nullable(k).flatMap(x => Try(keyIso.get(x))), Success(_))
 }
 
-sealed trait KafkaConsumerRecordEncode[K, V] {
+sealed trait KafkaProducerRecordEncode[K, V] {
   def keyIso: Iso[Array[Byte], K]
   def valueIso: Iso[Array[Byte], V]
   def topicName: String
@@ -133,15 +133,15 @@ sealed trait Fs2MessageEncode[F[_], K, V] {
 
 object codec extends AkkaMessageBitraverse with Fs2MessageBitraverse {
 
-  trait ConsumerRecordCodec[K, V]
-      extends KafkaConsumerRecordDecode[K, V] with KafkaConsumerRecordEncode[K, V]
+  trait KafkaRecordCodec[K, V]
+      extends KafkaConsumerRecordDecode[K, V] with KafkaProducerRecordEncode[K, V]
 
   abstract class Fs2Codec[F[_], K, V](keyIso: Iso[Array[Byte], K], valueIso: Iso[Array[Byte], V])
       extends KafkaMessageDecode[CommittableConsumerRecord[F, ?, ?], K, V](keyIso, valueIso)
-      with Fs2MessageEncode[F, K, V] with ConsumerRecordCodec[K, V]
+      with Fs2MessageEncode[F, K, V] with KafkaRecordCodec[K, V]
 
   abstract class AkkaCodec[K, V](keyIso: Iso[Array[Byte], K], valueIso: Iso[Array[Byte], V])
       extends KafkaMessageDecode[CommittableMessage, K, V](keyIso, valueIso)
-      with AkkaMessageEncode[K, V] with ConsumerRecordCodec[K, V]
+      with AkkaMessageEncode[K, V] with KafkaRecordCodec[K, V]
 
 }

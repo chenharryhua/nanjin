@@ -1,0 +1,65 @@
+package com.github.chenharryhua.nanjin.kafka
+
+import akka.Done
+import cats.effect.IO
+import cats.implicits._
+import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.streams.scala.StreamsBuilder
+import org.scalatest.FunSuite
+
+import scala.util.Random
+
+case class AvroKey(key: String)
+case class AvroValue(v1: String, v2: Int)
+
+class ProducerTest extends FunSuite with ShowKafkaMessage {
+  val srcTopic    = ctx.topic[AvroKey, AvroValue]("producer-test-source")
+  val akkaTopic   = ctx.topic[AvroKey, AvroValue]("producer-test-akka")
+  val fs2Topic    = ctx.topic[AvroKey, AvroValue]("producer-test-fs2")
+  val streamTopic = ctx.topic[AvroKey, AvroValue]("producer-test-kafka")
+  val key         = AvroKey("1")
+  val value       = AvroValue("1", 0)
+  test("producer api") {
+    val produceTask: IO[List[Unit]] = (0 until 100).toList.traverse { i =>
+      srcTopic.producer
+        .send(AvroKey(i.toString), AvroValue(Random.nextString(5), Random.nextInt(100)))
+        .map(_.partition())
+        .map(x => println((x, i)))
+    }
+
+    val akkaTask: IO[Done] = srcTopic.akkaResource.use { s =>
+      akkaTopic.akkaResource.use { t =>
+        s.updateConsumerSettings(
+            _.withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest").withGroupId(
+              "akka-task"))
+          .consume
+          .map(s.decode)
+          .map(m => t.single(m.record.key(), m.record.value(), m.committableOffset))
+          .take(100)
+          .runWith(t.committableSink)(s.materializer)
+      }
+    }
+    val fs2Task: IO[Unit] = srcTopic.fs2Channel
+      .updateConsumerSettings(
+        _.withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest").withGroupId("fs2-task"))
+      .consume
+      .map(srcTopic.fs2Channel.decode)
+      .map(m => fs2Topic.fs2Channel.single(m.record.key, m.record.value, m.offset))
+      .take(100)
+      .through(fs2.kafka.produce(fs2Topic.fs2Channel.producerSettings))
+      .compile
+      .drain
+
+    val task = produceTask >> akkaTask >> fs2Task
+
+    task.unsafeRunSync
+  }
+
+  ignore("straming") {
+    import org.apache.kafka.streams.scala.ImplicitConversions._
+
+    implicit val ks = srcTopic.keySerde
+    implicit val vs = srcTopic.valueSerde
+    val chn         = srcTopic.kafkaStream.kstream.map(_.to(streamTopic)).run(new StreamsBuilder)
+  }
+}

@@ -5,7 +5,7 @@ import cats.Show
 import cats.implicits._
 import fs2.kafka.{CommittableConsumerRecord => Fs2CommittableMessage}
 import org.apache.kafka.clients.consumer.ConsumerRecord
-import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
 
 sealed trait LowerPriorityShow extends Fs2MessageBitraverse {
 
@@ -103,4 +103,16 @@ trait ShowKafkaMessage extends LowerPriorityShow {
     }
 
   implicit protected val showArrayByte: Show[Array[Byte]] = _ => "Array[Byte]"
+
+  implicit protected def showRecordMetadata: Show[RecordMetadata] = { (t: RecordMetadata) =>
+    val (utc, local) = utils.kafkaTimestamp(t.timestamp())
+    s"""
+       |topic:     ${t.topic()}
+       |partition: ${t.partition()}
+       |offset:    ${t.offset()}
+       |timestamp: ${t.timestamp()}
+       |utc:       $utc
+       |local:     $local
+       |""".stripMargin
+  }
 }

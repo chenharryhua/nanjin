@@ -26,7 +26,7 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
   sharedConsumer: Eval[MVar[F, KafkaByteConsumer]],
   sharedProducer: Eval[KafkaByteProducer],
   materializer: Eval[ActorMaterializer])
-    extends TopicNameExtractor[K, V] with codec.ConsumerRecordCodec[K, V] with Serializable {
+    extends TopicNameExtractor[K, V] with codec.KafkaRecordCodec[K, V] with Serializable {
   val topicName: String = topicDef.topicName
 
   override def extract(key: K, value: V, rc: RecordContext): String = topicName

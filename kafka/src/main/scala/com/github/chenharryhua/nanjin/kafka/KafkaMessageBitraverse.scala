@@ -70,10 +70,6 @@ trait KafkaRecordBitraverse extends Serializable {
         f: (A, Eval[C]) => Eval[C],
         g: (B, Eval[C]) => Eval[C]): Eval[C] = g(fab.value, f(fab.key, c))
     }
-
-  def recordTopicLens[K, V]: PLens[ConsumerRecord[K, V], ProducerRecord[K, V], String, String] =
-    PLens[ConsumerRecord[K, V], ProducerRecord[K, V], String, String](_.topic)(t =>
-      rec => new ProducerRecord(t, rec.partition, rec.timestamp, rec.key, rec.value, rec.headers))
 }
 
 trait Fs2MessageBitraverse extends KafkaRecordBitraverse {

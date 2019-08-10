@@ -42,11 +42,11 @@ object KafkaProducerApi {
     new KafkaProducerApiImpl[F, K, V](topicName, keyIso, valueIso, producer)
 
   final private[this] class KafkaProducerApiImpl[F[_]: ConcurrentEffect, K, V](
-    topicName: String,
-    keyIso: Iso[Array[Byte], K],
-    valueIso: Iso[Array[Byte], V],
+    val topicName: String,
+    val keyIso: Iso[Array[Byte], K],
+    val valueIso: Iso[Array[Byte], V],
     producer: Eval[KafkaByteProducer]
-  ) extends KafkaProducerApi[F, K, V] {
+  ) extends KafkaProducerApi[F, K, V] with codec.KafkaRecordCodec[K, V] {
 
     private[this] def doSend(data: ProducerRecord[Array[Byte], Array[Byte]]): F[F[RecordMetadata]] =
       Deferred[F, Either[Throwable, RecordMetadata]].flatMap { deferred =>
@@ -65,19 +65,16 @@ object KafkaProducerApi {
       }
 
     override def arbitrarilySend(key: Array[Byte], value: Array[Byte]): F[RecordMetadata] =
-      doSend(new ProducerRecord(topicName, key, value)).flatten
+      doSend(record(key, value)).flatten
 
     override def arbitrarilyValueSend(key: K, value: Array[Byte]): F[RecordMetadata] =
-      doSend(new ProducerRecord(topicName, keyIso.reverseGet(key), value)).flatten
+      doSend(record(key, value)).flatten
 
     override def arbitrarilyKeySend(key: Array[Byte], value: V): F[RecordMetadata] =
-      doSend(new ProducerRecord(topicName, key, valueIso.reverseGet(value))).flatten
+      doSend(record(key, value)).flatten
 
     override def send(key: K, value: V): F[RecordMetadata] =
-      doSend(new ProducerRecord(topicName, keyIso.reverseGet(key), valueIso.reverseGet(value))).flatten
-
-    private def record(k: K, v: V): ProducerRecord[Array[Byte], Array[Byte]] =
-      new ProducerRecord(topicName, keyIso.reverseGet(k), valueIso.reverseGet(v))
+      doSend(record(key, value)).flatten
 
     override def send(kvs: List[(K, V)]): F[List[RecordMetadata]] =
       kvs.traverse(kv => doSend(record(kv._1, kv._2))).flatMap(_.sequence)
