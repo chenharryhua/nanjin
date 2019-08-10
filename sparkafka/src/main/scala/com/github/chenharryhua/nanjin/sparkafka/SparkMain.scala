@@ -37,6 +37,8 @@ object SparkMain extends IOApp {
     // ctx.topic[String, String]("au.marketing.promotion.prod.customer-offer-status.stream.json")
     ctx.topic[Array[Byte], Payment]("cc_payments")
 
+  val nyc_yellow_taxi_trip_data = ctx.topic[Array[Byte], trip_record]("nyc_yellow_taxi_trip_data")
+
   val spark: SparkSession =
     SparkSession.builder().master("local[*]").appName("test").getOrCreate()
 
@@ -44,19 +46,20 @@ object SparkMain extends IOApp {
     import spark.implicits._
     val api = new SparkafkaApiImpl(spark)
 
-//    IO(personDF.writeStream.format("console").outputMode("append").start().awaitTermination()) >>
-    IO(api.valueDataset(topic).show()) >>
+    IO(personDF.writeStream.format("console").outputMode("append").start().awaitTermination()) >>
+//    IO(api.valueDataset(topic).show()) >>
       IO(ExitCode.Success)
   }
-}
 
-/*
-    val df: DataFrame = spark.readStream
+  def df: DataFrame =
+    spark.readStream
       .format("kafka")
       .option("kafka.bootstrap.servers", "localhost:9092")
-      .option("subscribe", "cc_payments")
+      .option("kafka.schema.registry.url", "http://localhost:8081")
+      .option("subscribe", "nyc_yellow_taxi_trip_data")
       .option("startingOffsets", "earliest") // From starting
       .load()
-    val personDF =
-      df.select(from_avro(col("value"), topic.valueSerde.schema.toString()))
- */
+
+  def personDF =
+    df.select(from_avro(col("value"), nyc_yellow_taxi_trip_data.valueSerde.schema.toString()))
+}

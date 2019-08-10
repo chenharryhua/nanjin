@@ -280,13 +280,12 @@ object KafkaSettings {
         Map(ConsumerConfig.CLIENT_ID_CONFIG -> s"shared-consumer-${utils.random4d.value}")),
       SharedProducerSettings(
         Map(ProducerConfig.CLIENT_ID_CONFIG -> s"shared-producer-${utils.random4d.value}")),
-      SchemaRegistrySettings(
-        Map(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG ->
-          "http://localhost:8081"))
+      SchemaRegistrySettings(Map.empty)
     )
     s.withGroupId("nanjin-group")
       .withApplicationId("nanjin-app")
       .withBrokers("localhost:9092")
+      .withSchemaRegistryUrl("http://localhost:8081")
       .withSecurityProtocol(SecurityProtocol.PLAINTEXT)
   }
   implicit val showKafkaSettings: Show[KafkaSettings] = _.show

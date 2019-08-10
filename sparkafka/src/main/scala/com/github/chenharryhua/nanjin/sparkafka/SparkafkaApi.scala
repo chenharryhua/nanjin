@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.sparkafka
 
-import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, Transformers}
+import com.github.chenharryhua.nanjin.kafka.{IoKafkaContext, KafkaTopic}
 import io.confluent.kafka.streams.serdes.avro.GenericAvroDeserializer
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -18,7 +18,12 @@ import io.circe.generic.auto._
 import io.circe.generic
 import io.circe.syntax._
 import io.circe.parser.decode
+import org.apache.kafka.common.serialization.ByteArrayDeserializer
 trait SparkafkaApi extends Serializable {}
+
+object abc {
+  def decoder = SparkMain.topic.valueIso.get _
+}
 
 final class SparkafkaApiImpl(spark: SparkSession) extends SparkafkaApi {
   import spark.implicits._
@@ -31,26 +36,23 @@ final class SparkafkaApiImpl(spark: SparkSession) extends SparkafkaApi {
     val gv = new GenericAvroSerde
     val deser = Map(
       ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG -> "localhost:9092",
-      "key.deserializer" -> topic.keySerde.deserializer.getClass.getName,
-      "value.deserializer" -> gv.deserializer.getClass.getName // classOf[GenericAvroDeserializer].getName
+      "key.deserializer" -> classOf[ByteArrayDeserializer].getName, // topic.keySerde.deserializer.getClass.getName,
+      "value.deserializer" -> classOf[ByteArrayDeserializer].getName //gv.deserializer.getClass.getName // classOf[GenericAvroDeserializer].getName
     )
     val range: Array[OffsetRange] = Array(
       OffsetRange.create(new TopicPartition(topic.topicName, 0), 0, 100))
     val p =
       (topic.schemaRegistrySettings.props ++ deser).mapValues[Object](identity).asJava
-
-    val trans = Transformers.transform[V](RecordFormat[V])
+    // def decoder: Array[Byte] => Payment =
 
     KafkaUtils
-      .createRDD[K, GenericRecord](
+      .createRDD[Array[Byte], Array[Byte]](
         spark.sparkContext,
         p,
         range,
         LocationStrategies.PreferConsistent)
-      .flatMap { x =>
-        val s = x.value.toString
-        println(s)
-        decode[Payment](x.value().toString).toOption
+      .map { x =>
+        abc.decoder(x.value())
       }
       .toDS()
   }

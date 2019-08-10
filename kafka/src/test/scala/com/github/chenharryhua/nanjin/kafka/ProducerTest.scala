@@ -6,7 +6,7 @@ import cats.implicits._
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.scalatest.FunSuite
-
+import scala.concurrent.duration._
 import scala.util.Random
 
 case class AvroKey(key: String)
@@ -17,21 +17,17 @@ class ProducerTest extends FunSuite with ShowKafkaMessage {
   val akkaTopic   = ctx.topic[AvroKey, AvroValue]("producer-test-akka")
   val fs2Topic    = ctx.topic[AvroKey, AvroValue]("producer-test-fs2")
   val streamTopic = ctx.topic[AvroKey, AvroValue]("producer-test-kafka")
-  val key         = AvroKey("1")
-  val value       = AvroValue("1", 0)
   test("producer api") {
-    val produceTask: IO[List[Unit]] = (0 until 100).toList.traverse { i =>
+    val produceTask = (0 until 100).toList.traverse { i =>
       srcTopic.producer
         .send(AvroKey(i.toString), AvroValue(Random.nextString(5), Random.nextInt(100)))
-        .map(_.partition())
-        .map(x => println((x, i)))
     }
 
     val akkaTask: IO[Done] = srcTopic.akkaResource.use { s =>
       akkaTopic.akkaResource.use { t =>
-        s.updateConsumerSettings(
-            _.withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest").withGroupId(
-              "akka-task"))
+        s.updateConsumerSettings(_.withProperty(
+            ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+            "earliest").withGroupId("akka-task").withCommitWarning(10.seconds))
           .consume
           .map(s.decode)
           .map(m => t.single(m.record.key(), m.record.value(), m.committableOffset))

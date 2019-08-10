@@ -8,4 +8,5 @@ class TopicNameSyntaxTest {
   val topic3 = ctx.topic[Int, Int]("topic3")
   val tooic4 = ctx.topic(TopicDef[Int, KJson[Payment]]("topic4"))
   val topic5 = ctx.topic(TopicDef[Int, Payment]("topic5"))
+  val topic6 = TopicDef[Int,Int]("topic6").in(ctx)
 }

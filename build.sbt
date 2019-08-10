@@ -21,6 +21,7 @@ val avrohugger   = "1.0.0-RC18"
 val scalatest    = "3.0.8"
 val refined      = "0.9.9"
 val zioCats      = "2.0.0.0-RC2"
+val framelessVersion = "0.8.0"
 
 lazy val commonSettings = Seq(
   version      := "0.0.2-SNAPSHOT",
@@ -109,7 +110,10 @@ lazy val sparkafka = (project in file("sparkafka"))
       "org.apache.spark" %% "spark-streaming"            % sparkVersion,
       "org.apache.spark" %% "spark-streaming-kafka-0-10" % sparkVersion,
       "org.apache.spark" %% "spark-sql-kafka-0-10"       % sparkVersion,
-      "org.apache.spark" %% "spark-avro"                 % sparkVersion
+      "org.apache.spark" %% "spark-avro"                 % sparkVersion,
+      "org.typelevel" %% "frameless-dataset" % framelessVersion,
+      "org.typelevel" %% "frameless-ml"      % framelessVersion,
+      "org.typelevel" %% "frameless-cats"    % framelessVersion  
     ),
     dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.7.2"
   )
