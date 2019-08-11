@@ -10,8 +10,10 @@ package object mtest {
   implicit val timer: Timer[IO]     = IO.timer(global)
 
   val ctx: IoKafkaContext = KafkaSettings.local.ioContext
-  val topic               = ctx.topic[Int, trip_record]("nyc_yellow_taxi_trip_data")
-  val payment             = ctx.topic[String, Payment]("cc_payments")
+
+  val topics = new Topics
+
+  val payment = topics.payment.in(ctx)
 
   val sparkSettings: SparkSettings =
     SparkSettings.default.updateConf(_.setMaster("local[*]").setAppName("test"))
