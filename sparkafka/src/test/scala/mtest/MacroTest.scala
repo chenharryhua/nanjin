@@ -10,6 +10,7 @@ class MacroTest extends FunSuite {
     import spark.implicits._
     val end   = LocalDateTime.now()
     val start = end.minusHours(1)
-    Sparkafka.kafkaDS(spark, topic, start, end).map(_.map(_._2).show(30)).unsafeRunSync()
+    Sparkafka.kafkaDS(spark, topic, start, end).map(_.map(_._2).count).map(println).unsafeRunSync()
+    println(sparkSettings.show)
   }
 }
