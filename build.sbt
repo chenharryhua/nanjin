@@ -6,22 +6,22 @@ val kafkaVersion = "2.3.0"
 val catsCore     = "2.0.0-RC1"
 val catsEffect   = "2.0.0-RC1"
 val catsMtl      = "0.6.0"
-val kittens      = "1.2.1"
+val kittens      = "2.0.0-M1"
 val circeVersion = "0.12.0-RC1"
 val fs2Version   = "1.1.0-M1"
 val shapeless    = "2.3.3"
-val avro         = "2.0.4"
+val avro4s       = "2.0.4"
+val avrohugger   = "1.0.0-RC18"
 val akkaStream   = "1.0.5"
 val fs2Stream    = "0.20.0-M2"
 val silencer     = "1.4.2"
 val monocle      = "2.0.0-RC1"
 val contextual   = "1.2.1"
 val sparkVersion = "2.4.3"
-val avrohugger   = "1.0.0-RC18"
 val scalatest    = "3.0.8"
 val refined      = "0.9.9"
 val zioCats      = "2.0.0.0-RC2"
-val framelessVersion = "0.8.0"
+val frameless    = "0.8.0"
 
 lazy val commonSettings = Seq(
   version      := "0.0.2-SNAPSHOT",
@@ -30,12 +30,12 @@ lazy val commonSettings = Seq(
   resolvers ++= Seq(
     Resolver.sonatypeRepo("public"),
     Resolver.sonatypeRepo("releases"),
-    "Confluent Maven Repo" at "https://packages.confluent.io/maven/"
+    "Confluent Maven Repo".at("https://packages.confluent.io/maven/")
   ),
   addCompilerPlugin("org.typelevel" %% "kind-projector"  % "0.10.3"),
   addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
   addCompilerPlugin(
-    "org.scalamacros" %% "paradise" % "2.1.1" cross CrossVersion.full
+    ("org.scalamacros" %% "paradise" % "2.1.1").cross(CrossVersion.full)
   ),
   scalacOptions ++= Seq(
     "-Ypartial-unification",
@@ -69,18 +69,18 @@ lazy val kafka = (project in file("kafka"))
       "org.apache.kafka" %% "kafka-streams-scala" % kafkaVersion,
       "com.typesafe.akka" %% "akka-stream-kafka"  % akkaStream,
       "com.ovoenergy" %% "fs2-kafka"              % fs2Stream,
-      "com.sksamuel.avro4s" %% "avro4s-core"      % avro,
-      "io.confluent"                              % "kafka-streams-avro-serde" % confluent classifier "",
-      "com.julianpeeters" %% "avrohugger-core"    % avrohugger,
+      "com.sksamuel.avro4s" %% "avro4s-core"      % avro4s,
+      ("io.confluent" % "kafka-streams-avro-serde" % confluent).classifier(""),
+      "com.julianpeeters" %% "avrohugger-core" % avrohugger,
 //json
       "io.circe" %% "circe-core"    % circeVersion,
       "io.circe" %% "circe-generic" % circeVersion,
       "io.circe" %% "circe-parser"  % circeVersion,
       "io.circe" %% "circe-optics"  % circeVersion,
-
 //base
       "eu.timepit" %% "refined"                         % refined,
       "org.typelevel" %% "cats-core"                    % catsCore,
+      "org.typelevel" %% "alleycats-core"               % catsCore,
       "org.typelevel" %% "cats-mtl-core"                % catsMtl,
       "org.typelevel" %% "kittens"                      % kittens,
       "com.chuusai" %% "shapeless"                      % shapeless,
@@ -96,7 +96,7 @@ lazy val kafka = (project in file("kafka"))
       "dev.zio" %% "zio-interop-cats"                   % zioCats,
       "org.scalatest" %% "scalatest"                    % scalatest % Test
     ),
-    excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
+    excludeDependencies ++= Seq("javax.ws.rs" % "javax.ws.rs-api")
   )
 
 lazy val sparkafka = (project in file("sparkafka"))
@@ -111,9 +111,9 @@ lazy val sparkafka = (project in file("sparkafka"))
       "org.apache.spark" %% "spark-streaming-kafka-0-10" % sparkVersion,
       "org.apache.spark" %% "spark-sql-kafka-0-10"       % sparkVersion,
       "org.apache.spark" %% "spark-avro"                 % sparkVersion,
-      "org.typelevel" %% "frameless-dataset" % framelessVersion,
-      "org.typelevel" %% "frameless-ml"      % framelessVersion,
-      "org.typelevel" %% "frameless-cats"    % framelessVersion  
+      "org.typelevel" %% "frameless-dataset"             % frameless,
+      "org.typelevel" %% "frameless-ml"                  % frameless,
+      "org.typelevel" %% "frameless-cats"                % frameless
     ),
     dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.7.2"
   )

@@ -104,7 +104,7 @@ trait ShowKafkaMessage extends LowerPriorityShow {
 
   implicit protected val showArrayByte: Show[Array[Byte]] = _ => "Array[Byte]"
 
-  implicit protected def showRecordMetadata: Show[RecordMetadata] = { (t: RecordMetadata) =>
+  implicit protected def showRecordMetadata: Show[RecordMetadata] = { t: RecordMetadata =>
     val (utc, local) = utils.kafkaTimestamp(t.timestamp())
     s"""
        |topic:     ${t.topic()}

@@ -15,8 +15,6 @@ class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage {
         .updateConsumerSettings(_.withAutoOffsetReset(AutoOffsetReset.Latest))
         .consume
         .map(chn.safeDecodeKeyValue)
-        .map(_.bitraverse(identity, identity).toEither)
-        .rethrow
         .take(3)
         .map(_.show)
         .map(println)
