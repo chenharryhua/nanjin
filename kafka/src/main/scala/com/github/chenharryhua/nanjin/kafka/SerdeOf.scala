@@ -12,11 +12,7 @@ import scala.annotation.implicitNotFound
 import scala.collection.JavaConverters._
 import scala.util.Try
 
-sealed abstract class KafkaSerde[A](
-  schema: Schema,
-  serializer: Serializer[A],
-  deserializer: Deserializer[A],
-  props: Map[String, String])
+sealed abstract class KafkaSerde[A](serializer: Serializer[A], deserializer: Deserializer[A])
     extends Serde[A] {
   final override def configure(configs: ju.Map[String, _], isKey: Boolean): Unit = {
     serializer.configure(configs, isKey)
@@ -41,7 +37,7 @@ final case class KeySerde[A](
   serializer: Serializer[A],
   deserializer: Deserializer[A],
   props: Map[String, String])
-    extends KafkaSerde[A](schema, serializer, deserializer, props) {
+    extends KafkaSerde[A](serializer, deserializer) {
   configure(props.asJava, isKey = true)
 }
 
@@ -50,7 +46,7 @@ final case class ValueSerde[A](
   serializer: Serializer[A],
   deserializer: Deserializer[A],
   props: Map[String, String])
-    extends KafkaSerde[A](schema, serializer, deserializer, props) {
+    extends KafkaSerde[A](serializer, deserializer) {
   configure(props.asJava, isKey = false)
 }
 

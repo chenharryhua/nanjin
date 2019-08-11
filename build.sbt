@@ -113,7 +113,8 @@ lazy val sparkafka = (project in file("sparkafka"))
       "org.apache.spark" %% "spark-avro"                 % sparkVersion,
       "org.typelevel" %% "frameless-dataset"             % frameless,
       "org.typelevel" %% "frameless-ml"                  % frameless,
-      "org.typelevel" %% "frameless-cats"                % frameless
+      "org.typelevel" %% "frameless-cats"                % frameless,
+      "org.scalatest" %% "scalatest"                     % scalatest % Test
     ),
     dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.7.2"
   )

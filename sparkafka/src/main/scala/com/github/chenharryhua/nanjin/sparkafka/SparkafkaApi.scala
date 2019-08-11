@@ -23,7 +23,6 @@ final class SparkafkaApiImpl(spark: SparkSession) extends SparkafkaApi {
 
   def valueDataset[F[_], K, V: sql.Encoder: ClassTag](
     topic: KafkaTopic[F, K, V]): Dataset[Payment] = {
-    val gv = new GenericAvroSerde
     val deser = Map(
       ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG -> "localhost:9092",
       "key.deserializer" -> classOf[ByteArrayDeserializer].getName, // topic.keySerde.deserializer.getClass.getName,
@@ -34,7 +33,6 @@ final class SparkafkaApiImpl(spark: SparkSession) extends SparkafkaApi {
     val p =
       (topic.schemaRegistrySettings.props ++ deser).mapValues[Object](identity).asJava
     // def decoder: Array[Byte] => Payment =
-
     KafkaUtils
       .createRDD[Array[Byte], Array[Byte]](
         spark.sparkContext,
