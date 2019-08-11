@@ -1,15 +1,15 @@
 package mtest
 
-import cats.effect.IO
-import com.github.chenharryhua.nanjin.sparkafka.{MyDecoder, SparkafkaMacro}
+import java.time.LocalDateTime
+
+import com.github.chenharryhua.nanjin.sparkafka.Sparkafka
 import org.scalatest.FunSuite
 
 class MacroTest extends FunSuite {
-  val topic = ctx.topic[Int, Int]("abc")
-  test("m") {
-
-    val dec: MyDecoder[Int, Int] = SparkafkaMacro.decoder[IO, Int, Int](topic)
-    val data                     = topic.keyIso.reverseGet(100)
-    println(dec.key(data))
+  test("sparkafka generate dataset") {
+    import spark.implicits._
+    val end   = LocalDateTime.now()
+    val start = end.minusHours(1)
+    Sparkafka.kafkaDS(spark, topic, start, end).map(_.map(_._2).show(30)).unsafeRunSync()
   }
 }

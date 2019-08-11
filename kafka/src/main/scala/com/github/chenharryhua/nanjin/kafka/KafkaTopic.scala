@@ -21,7 +21,7 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
   val keySerde: KeySerde[K],
   val valueSerde: ValueSerde[V],
   val schemaRegistrySettings: SchemaRegistrySettings,
-  fs2Settings: Fs2Settings,
+  val fs2Settings: Fs2Settings,
   akkaSettings: AkkaSettings,
   sharedConsumer: Eval[MVar[F, KafkaByteConsumer]],
   sharedProducer: Eval[KafkaByteProducer],

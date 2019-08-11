@@ -1,8 +1,8 @@
-package com.github.chenharryhua.nanjin.sparkafka
+package mtest
 
 import cats.Show
-import cats.implicits._
 import io.circe.generic.JsonCodec
+import cats.implicits._ 
 class Domain {}
 
 case class trip_record(
