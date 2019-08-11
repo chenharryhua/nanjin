@@ -138,10 +138,10 @@ object codec extends AkkaMessageBitraverse with Fs2MessageBitraverse {
 
   abstract class Fs2Codec[F[_], K, V](keyIso: Iso[Array[Byte], K], valueIso: Iso[Array[Byte], V])
       extends KafkaMessageDecode[CommittableConsumerRecord[F, ?, ?], K, V](keyIso, valueIso)
-      with Fs2MessageEncode[F, K, V] with KafkaRecordCodec[K, V]
+      with Fs2MessageEncode[F, K, V] with KafkaConsumerRecordDecode[K, V]
 
   abstract class AkkaCodec[K, V](keyIso: Iso[Array[Byte], K], valueIso: Iso[Array[Byte], V])
       extends KafkaMessageDecode[CommittableMessage, K, V](keyIso, valueIso)
-      with AkkaMessageEncode[K, V] with KafkaRecordCodec[K, V]
+      with AkkaMessageEncode[K, V] with KafkaConsumerRecordDecode[K, V]
 
 }

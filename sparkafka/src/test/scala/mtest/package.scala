@@ -11,6 +11,7 @@ package object mtest {
 
   val ctx: IoKafkaContext = KafkaSettings.local.ioContext
   val topic               = ctx.topic[Int, trip_record]("nyc_yellow_taxi_trip_data")
+  val payment             = ctx.topic[String, Payment]("cc_payments")
 
   val sparkSettings: SparkSettings =
     SparkSettings.default.updateConf(_.setMaster("local[*]").setAppName("test"))
