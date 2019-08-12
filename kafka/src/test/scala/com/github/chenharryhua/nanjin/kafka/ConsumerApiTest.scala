@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import java.time.LocalDateTime
+
 import cats.implicits._
 import org.scalatest.FunSuite
 
@@ -14,5 +16,11 @@ class ConsumerApiTest extends FunSuite with ShowKafkaMessage {
     consumer.numOfRecords.map(_.show).unsafeRunSync()
     consumer.retrieveFirstRecords.map(_.map(_.show).mkString("\n")).unsafeRunSync()
     consumer.retrieveLastRecords.map(_.map(_.show).mkString("\n")).unsafeRunSync()
+  }
+  test("range for non-exist topic") {
+    val topic = ctx.topic[Int, Int]("non-exist")
+    val end   = LocalDateTime.now
+    val start = end.minusHours(1)
+    topic.consumer.offsetRangeFor(start, end).map(_.show).map(println).unsafeRunSync()
   }
 }

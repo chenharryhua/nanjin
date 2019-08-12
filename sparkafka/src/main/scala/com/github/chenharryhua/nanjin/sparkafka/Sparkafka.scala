@@ -2,7 +2,8 @@ package com.github.chenharryhua.nanjin.sparkafka
 import java.time.LocalDateTime
 
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import org.apache.spark.sql.{Dataset, SparkSession}
+import frameless.TypedDataset
+import org.apache.spark.sql.SparkSession
 
 import scala.language.experimental.macros
 import scala.reflect.macros.blackbox
@@ -13,7 +14,7 @@ object Sparkafka {
     spark: SparkSession,
     topic: KafkaTopic[F, K, V],
     start: LocalDateTime,
-    end: LocalDateTime): F[Dataset[(K, V)]] = macro Sparkafka.impl[F, K, V]
+    end: LocalDateTime): F[TypedDataset[(K, V)]] = macro Sparkafka.impl[F, K, V]
 
   def impl[F[_], K, V](c: blackbox.Context)(
     spark: c.Expr[SparkSession],

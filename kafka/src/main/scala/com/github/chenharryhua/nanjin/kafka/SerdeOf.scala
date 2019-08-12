@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import java.{util => ju}
 
-import com.sksamuel.avro4s.{AvroSchema, SchemaFor}
+import com.sksamuel.avro4s.{AvroSchema, DefaultFieldMapper, SchemaFor}
 import monocle.{Iso, Prism}
 import org.apache.avro.Schema
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
@@ -83,7 +83,7 @@ sealed protected trait Priority1 extends Priority0 {
 
   implicit def kjsonSerde[A: Decoder: Encoder]: SerdeOf[KJson[A]] = {
     val serde: Serde[KJson[A]] = new KafkaJsonSerde[A]
-    new SerdeOf[KJson[A]](SchemaFor[String].schema) {
+    new SerdeOf[KJson[A]](SchemaFor[String].schema(DefaultFieldMapper)) {
       override val deserializer: Deserializer[KJson[A]] = serde.deserializer()
       override val serializer: Serializer[KJson[A]]     = serde.serializer()
     }
@@ -93,27 +93,30 @@ sealed protected trait Priority1 extends Priority0 {
 object SerdeOf extends Priority1 {
   def apply[A](implicit ev: SerdeOf[A]): SerdeOf[A] = ev
 
-  implicit object kstringSerde extends SerdeOf[String](SchemaFor[String].schema) {
+  implicit object kstringSerde
+      extends SerdeOf[String](SchemaFor[String].schema(DefaultFieldMapper)) {
     override val deserializer: Deserializer[String] = Serdes.String.deserializer()
     override val serializer: Serializer[String]     = Serdes.String.serializer()
   }
 
-  implicit object kintSerde extends SerdeOf[Int](SchemaFor[Int].schema) {
+  implicit object kintSerde extends SerdeOf[Int](SchemaFor[Int].schema(DefaultFieldMapper)) {
     override val deserializer: Deserializer[Int] = Serdes.Integer.deserializer()
     override val serializer: Serializer[Int]     = Serdes.Integer.serializer()
   }
 
-  implicit object klongSerde extends SerdeOf[Long](SchemaFor[Long].schema) {
+  implicit object klongSerde extends SerdeOf[Long](SchemaFor[Long].schema(DefaultFieldMapper)) {
     override val deserializer: Deserializer[Long] = Serdes.Long.deserializer()
     override val serializer: Serializer[Long]     = Serdes.Long.serializer()
   }
 
-  implicit object kdoubleSerde extends SerdeOf[Double](SchemaFor[Double].schema) {
+  implicit object kdoubleSerde
+      extends SerdeOf[Double](SchemaFor[Double].schema(DefaultFieldMapper)) {
     override val deserializer: Deserializer[Double] = Serdes.Double.deserializer()
     override val serializer: Serializer[Double]     = Serdes.Double.serializer()
   }
 
-  implicit object kbyteArraySerde extends SerdeOf[Array[Byte]](SchemaFor[Array[Byte]].schema) {
+  implicit object kbyteArraySerde
+      extends SerdeOf[Array[Byte]](SchemaFor[Array[Byte]].schema(DefaultFieldMapper)) {
     override val deserializer: Deserializer[Array[Byte]] = Serdes.ByteArray.deserializer()
     override val serializer: Serializer[Array[Byte]]     = Serdes.ByteArray.serializer()
   }

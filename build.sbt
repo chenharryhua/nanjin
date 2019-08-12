@@ -1,5 +1,5 @@
 scalaVersion in ThisBuild     := "2.12.9"
-scapegoatVersion in ThisBuild := "1.3.9"
+scapegoatVersion in ThisBuild := "1.3.10"
 
 val confluent    = "5.3.0"
 val kafkaVersion = "2.3.0"
@@ -10,7 +10,7 @@ val kittens      = "2.0.0-M1"
 val circeVersion = "0.12.0-RC1"
 val fs2Version   = "1.1.0-M1"
 val shapeless    = "2.3.3"
-val avro4s       = "2.0.4"
+val avro4s       = "3.0.0" // "2.0.4"
 val avrohugger   = "1.0.0-RC18"
 val akkaStream   = "1.0.5"
 val fs2Stream    = "0.20.0-M2"
@@ -115,7 +115,20 @@ lazy val sparkafka = (project in file("sparkafka"))
       "org.typelevel" %% "frameless-ml"                  % frameless,
       "org.typelevel" %% "frameless-cats"                % frameless,
       "org.scalatest" %% "scalatest"                     % scalatest % Test
-    ),
-    dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.7.2"
+    ).map(_.exclude("io.netty", "netty-buffer"))
+      .map(_.exclude("io.netty", "netty-codec"))
+      .map(_.exclude("io.netty", "netty-codec-http"))
+      .map(_.exclude("io.netty", "netty-common"))
+      .map(_.exclude("io.netty", "netty-handler"))
+      .map(_.exclude("io.netty", "netty-resolver"))
+      .map(_.exclude("io.netty", "netty-transport"))
+      .map(_.exclude("com.sun.jersey", "jersey-client"))
+      .map(_.exclude("com.sun.jersey", "jersey-core"))
+      .map(_.exclude("com.sun.jersey", "jersey-json"))
+      .map(_.exclude("com.sun.jersey", "jersey-server"))
+      .map(_.exclude("com.sun.jersey", "jersey-servlet"))
+      .map(_.exclude("com.sun.jersey.contribs", "jersey-guice")),
+    dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.7.2",
+    excludeDependencies += "javax.ws.rs"                % "javax.ws.rs-api"
   )
 lazy val nanjin = (project in file(".")).aggregate(kafka, sparkafka)

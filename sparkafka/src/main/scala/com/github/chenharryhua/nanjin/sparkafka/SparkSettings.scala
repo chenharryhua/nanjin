@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.sparkafka
 
 import cats.Show
+import cats.effect.{Resource, Sync}
 import monocle.macros.Lenses
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
@@ -19,8 +20,9 @@ import org.apache.spark.sql.SparkSession
   def updateConf(f: SparkConf => SparkConf): SparkSettings =
     SparkSettings.conf.set(f(conf))(this)
 
-  def session: SparkSession =
-    SparkSession.builder().config(conf).getOrCreate()
+  def session[F[_]: Sync]: Resource[F, SparkSession] =
+    Resource.make(Sync[F].delay(SparkSession.builder().config(conf).getOrCreate()))(spk =>
+      Sync[F].delay(spk.close))
 
   def show: String = conf.toDebugString
 }
