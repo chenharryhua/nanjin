@@ -10,9 +10,10 @@ import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies, Offs
 
 import scala.collection.JavaConverters._
 
-final class SparkafkaDataset(spark: SparkSession) {
+object SparkafkaDataset {
 
-  def dateset[F[_]: Monad, K: Encoder, V: Encoder](
+  def dataset[F[_]: Monad, K: Encoder, V: Encoder](
+    spark: SparkSession,
     topic: KafkaTopic[F, K, V],
     start: LocalDateTime,
     end: LocalDateTime,
@@ -35,7 +36,7 @@ final class SparkafkaDataset(spark: SparkSession) {
           props.mapValues[Object](identity).asJava,
           range,
           LocationStrategies.PreferConsistent)
-        .map(x => (key(x.key), value(x.value())))
+        .map(msg => (key(msg.key), value(msg.value())))
       spark.createDataset(rdd)
     }
   }

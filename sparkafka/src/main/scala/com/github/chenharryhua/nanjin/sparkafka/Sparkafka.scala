@@ -22,8 +22,8 @@ object Sparkafka {
     end: c.Expr[LocalDateTime]): c.Tree = {
     import c.universe._
     q"""
-       new _root_.com.github.chenharryhua.nanjin.sparkafka.SparkafkaDataset($spark)
-         .dateset($topic, $start, $end, $topic.keyIso.get, $topic.valueIso.get)
+        _root_.com.github.chenharryhua.nanjin.sparkafka.SparkafkaDataset
+         .dataset($spark, $topic, $start, $end, $topic.keyIso.get, $topic.valueIso.get)
      """
   }
 }
