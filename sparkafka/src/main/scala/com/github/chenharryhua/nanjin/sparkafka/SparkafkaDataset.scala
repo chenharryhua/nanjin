@@ -23,10 +23,9 @@ object SparkafkaDataset {
     val props = Map(
       "key.deserializer" -> classOf[ByteArrayDeserializer].getName,
       "value.deserializer" -> classOf[ByteArrayDeserializer].getName
-    ) ++ topic.fs2Settings.consumerProps ++ topic.schemaRegistrySettings.props
+    ) ++ topic.fs2Settings.consumerProps
 
     topic.consumer.offsetRangeFor(start, end).map { gtp =>
-      println(gtp.show)
       val range = gtp.value.toArray.map {
         case (tp, r) => OffsetRange.create(tp, r.fromOffset, r.untilOffset)
       }
