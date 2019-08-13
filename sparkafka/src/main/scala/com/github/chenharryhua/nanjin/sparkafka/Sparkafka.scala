@@ -14,7 +14,8 @@ object Sparkafka {
     spark: SparkSession,
     topic: KafkaTopic[F, K, V],
     start: LocalDateTime,
-    end: LocalDateTime): F[TypedDataset[(K, V)]] = macro Sparkafka.impl[F, K, V]
+    end: LocalDateTime): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
+    macro Sparkafka.impl[F, K, V]
 
   def impl[F[_], K, V](c: blackbox.Context)(
     spark: c.Expr[SparkSession],

@@ -2,8 +2,12 @@ package mtest
 
 import java.time.LocalDateTime
 
+import cats.effect.IO
 import com.github.chenharryhua.nanjin.sparkafka.Sparkafka
 import org.scalatest.FunSuite
+import frameless.cats.implicits._
+import cats.implicits._
+import cats.derived.auto.show._
 
 class SparkafkaDatasetTest extends FunSuite {
   test("sparkafka should be able to create dataset") {
@@ -12,7 +16,7 @@ class SparkafkaDatasetTest extends FunSuite {
     val start = end.minusHours(1)
     spark.use { s =>
       import s.implicits._
-      Sparkafka.kafkaDS(s, payment, start, end).map(_.dataset.map(_._2).show)
-    }.unsafeRunSync
+      Sparkafka.kafkaDS(s, payment, start, end).flatMap(_.take[IO](10))
+    }.map(_.map(_.show)).map(x => x.foreach(println)).unsafeRunSync
   }
 }
