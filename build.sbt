@@ -1,5 +1,6 @@
 scalaVersion in ThisBuild     := "2.12.9"
 scapegoatVersion in ThisBuild := "1.3.10"
+parallelExecution in ThisBuild := false
 
 val confluent    = "5.3.0"
 val kafkaVersion = "2.3.0"

@@ -13,7 +13,8 @@ package object mtest {
 
   val topics = new Topics
 
-  val payment: KafkaTopic[IO, String, Payment] = topics.payment.in(ctx)
+  val payment: KafkaTopic[IO, String, Payment]  = topics.payment.in(ctx)
+  val pencil_topic: KafkaTopic[IO, Int, Pencil] = ctx.topic[Int, Pencil]("pencile")
 
   val spark: Resource[IO, SparkSession] =
     SparkSettings.default.updateConf(_.setMaster("local[*]").setAppName("test")).session[IO]
