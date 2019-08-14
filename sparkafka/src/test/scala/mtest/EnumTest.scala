@@ -3,12 +3,13 @@ package mtest
 import java.time.LocalDateTime
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.sparkafka.Sparkafka
+import com.github.chenharryhua.nanjin.sparkafka.{Sparkafka, SparkafkaConsumerRecord}
 import org.scalatest.FunSuite
 import frameless.cats.implicits._
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import frameless.Injection
+import fs2.Chunk
 
 sealed trait Colorish
 
@@ -47,8 +48,16 @@ class EnumTest extends FunSuite {
 
     val end   = LocalDateTime.now()
     val start = end.minusHours(1)
-    spark.use { s =>
-      Sparkafka.kafkaDS(s, pencil_topic, start, end).flatMap(_.take[IO](10))
-    }.map(_.map(_.show)).map(println).unsafeRunSync()
+    fs2.Stream
+      .eval(spark.use { s =>
+        Sparkafka.kafkaDS(s, pencil_topic, start, end).flatMap(_.take[IO](10)).map(Chunk.seq)
+      })
+      .flatMap(fs2.Stream.chunk)
+      .map(_.show)
+      .showLinesStdOut
+      .compile
+      .drain
+      .unsafeRunSync()
+
   }
 }
