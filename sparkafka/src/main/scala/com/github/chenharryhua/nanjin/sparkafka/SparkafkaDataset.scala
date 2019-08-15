@@ -4,16 +4,14 @@ import java.time.LocalDateTime
 import cats.implicits._
 import cats.{Monad, Show}
 import com.github.chenharryhua.nanjin.kafka.{utils, BitraverseKafkaRecord, KafkaTopic}
-import frameless.{Injection, TypedDataset, TypedEncoder}
+import frameless.{TypedDataset, TypedEncoder}
 import monocle.macros.Lenses
-import org.apache.kafka.common.record.TimestampType
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies, OffsetRange}
 
 import scala.collection.JavaConverters._
-import scala.util.Try
 
 @Lenses final case class SparkafkaConsumerRecord[K, V](
   topic: String,
