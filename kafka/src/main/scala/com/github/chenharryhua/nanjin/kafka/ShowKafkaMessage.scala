@@ -7,7 +7,7 @@ import fs2.kafka.{CommittableConsumerRecord => Fs2CommittableMessage}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
 
-private[kafka] trait LowerPriorityShow extends Fs2MessageBitraverse {
+private[kafka] trait LowerPriorityShow extends BitraverseFs2Message {
   protected def buildCR[K, V](
     t: ConsumerRecord[K, V],
     key: Option[String],
@@ -56,7 +56,7 @@ private[kafka] trait LowerPriorityShow extends Fs2MessageBitraverse {
 
   implicit protected def showFs2CommittableMessage2[F[_], K, V]
     : Show[Fs2CommittableMessage[F, K, V]] =
-    (t: Fs2CommittableMessage[F, K, V]) => fs2ComsumerRecordIso.get(t.record).show
+    (t: Fs2CommittableMessage[F, K, V]) => isoFs2ComsumerRecord.get(t.record).show
 
   implicit protected def showAkkaCommittableMessage2[K, V]: Show[AkkaCommittableMessage[K, V]] =
     (t: AkkaCommittableMessage[K, V]) => t.record.show
@@ -73,7 +73,7 @@ private[kafka] trait LowPriorityShow extends LowerPriorityShow {
 
   implicit protected def showFs2CommittableMessage1[F[_], K, V: Show]
     : Show[Fs2CommittableMessage[F, K, V]] =
-    (t: Fs2CommittableMessage[F, K, V]) => fs2ComsumerRecordIso.get(t.record).show
+    (t: Fs2CommittableMessage[F, K, V]) => isoFs2ComsumerRecord.get(t.record).show
 
   implicit protected def showAkkaCommittableMessage1[K, V: Show]
     : Show[AkkaCommittableMessage[K, V]] =
@@ -90,7 +90,7 @@ trait ShowKafkaMessage extends LowPriorityShow {
 
   implicit protected def showFs2CommittableMessage[F[_], K: Show, V: Show]
     : Show[Fs2CommittableMessage[F, K, V]] =
-    (t: Fs2CommittableMessage[F, K, V]) => fs2ComsumerRecordIso.get(t.record).show
+    (t: Fs2CommittableMessage[F, K, V]) => isoFs2ComsumerRecord.get(t.record).show
 
   implicit protected def showAkkaCommittableMessage[K: Show, V: Show]
     : Show[AkkaCommittableMessage[K, V]] =

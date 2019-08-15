@@ -40,7 +40,7 @@ sealed abstract class KafkaMessageDecode[F[_, _]: Bitraverse, K, V](
     data.bitraverse(k => utils.nullable(k).flatMap(x => Try(keyIso.get(x))), Success(_))
 }
 
-sealed trait KafkaConsumerRecordDecode[K, V] extends KafkaRecordBitraverse {
+sealed trait KafkaConsumerRecordDecode[K, V] extends BitraverseKafkaRecord {
   def keyIso: Iso[Array[Byte], K]
   def valueIso: Iso[Array[Byte], V]
 
@@ -148,7 +148,7 @@ sealed trait Fs2MessageEncode[F[_], K, V] {
     ProducerRecords(msgs.map { case (k, v, _) => record(k, v) }, msgs.last.map(_._3))
 }
 
-object codec extends AkkaMessageBitraverse with Fs2MessageBitraverse {
+object codec extends BitraverseAkkaMessage with BitraverseFs2Message {
 
   trait KafkaRecordCodec[K, V]
       extends KafkaConsumerRecordDecode[K, V] with KafkaProducerRecordEncode[K, V]

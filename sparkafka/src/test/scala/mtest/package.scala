@@ -17,5 +17,5 @@ package object mtest {
   val pencil_topic: KafkaTopic[IO, Int, Pencil] = ctx.topic[Int, Pencil]("pencile")
 
   val spark: Resource[IO, SparkSession] =
-    SparkSettings.default.updateConf(_.setMaster("local[*]").setAppName("test")).session[IO]
+    SparkSettings.default.updateConf(_.setMaster("local[*]").setAppName("test")).sessionResource[IO]
 }

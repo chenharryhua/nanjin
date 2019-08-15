@@ -11,9 +11,9 @@ import org.apache.kafka.common.record.TimestampType
 
 import scala.compat.java8.OptionConverters._
 
-trait KafkaRecordBitraverse extends Serializable {
+trait BitraverseKafkaRecord extends Serializable {
 
-  implicit final val consumerRecordBitraverse: Bitraverse[ConsumerRecord[?, ?]] =
+  implicit final val bitraverseConsumerRecord: Bitraverse[ConsumerRecord[?, ?]] =
     new Bitraverse[ConsumerRecord] {
       override def bimap[K1, V1, K2, V2](
         cr: ConsumerRecord[K1, V1])(k: K1 => K2, v: V1 => V2): ConsumerRecord[K2, V2] =
@@ -45,7 +45,7 @@ trait KafkaRecordBitraverse extends Serializable {
         g: (B, Eval[C]) => Eval[C]): Eval[C] = g(fab.value, f(fab.key, c))
     }
 
-  implicit final val producerRecordBitraverse: Bitraverse[ProducerRecord[?, ?]] =
+  implicit final val bitraverseProducerRecord: Bitraverse[ProducerRecord[?, ?]] =
     new Bitraverse[ProducerRecord] {
       override def bimap[K1, V1, K2, V2](
         pr: ProducerRecord[K1, V1])(k: K1 => K2, v: V1 => V2): ProducerRecord[K2, V2] =
@@ -72,7 +72,7 @@ trait KafkaRecordBitraverse extends Serializable {
     }
 }
 
-trait Fs2MessageBitraverse extends KafkaRecordBitraverse {
+trait BitraverseFs2Message extends BitraverseKafkaRecord {
 
   import fs2.kafka.{
     CommittableConsumerRecord,
@@ -84,7 +84,7 @@ trait Fs2MessageBitraverse extends KafkaRecordBitraverse {
     ProducerRecord => Fs2ProducerRecord
   }
 
-  final def fs2ProducerRecordIso[F[_], K, V]: Iso[Fs2ProducerRecord[K, V], ProducerRecord[K, V]] =
+  final def isoFs2ProducerRecord[F[_], K, V]: Iso[Fs2ProducerRecord[K, V], ProducerRecord[K, V]] =
     Iso[Fs2ProducerRecord[K, V], ProducerRecord[K, V]](
       fpr =>
         new ProducerRecord[K, V](
@@ -101,7 +101,7 @@ trait Fs2MessageBitraverse extends KafkaRecordBitraverse {
           .withHeaders(
             pr.headers.toArray.foldLeft(Headers.empty)((t, i) => t.append(i.key, i.value))))
 
-  final def fs2ComsumerRecordIso[K, V]: Iso[Fs2ConsumerRecord[K, V], ConsumerRecord[K, V]] =
+  final def isoFs2ComsumerRecord[K, V]: Iso[Fs2ConsumerRecord[K, V], ConsumerRecord[K, V]] =
     Iso[Fs2ConsumerRecord[K, V], ConsumerRecord[K, V]](
       fcr =>
         new ConsumerRecord[K, V](
@@ -138,44 +138,44 @@ trait Fs2MessageBitraverse extends KafkaRecordBitraverse {
       epoch.fold[Fs2ConsumerRecord[K, V]](fcr)(e => fcr.withLeaderEpoch(e))
     })
 
-  implicit final def fs2CommittableMessageBitraverse[F[_]]
+  implicit final def bitraverseFs2CommittableMessage[F[_]]
     : Bitraverse[CommittableConsumerRecord[F, ?, ?]] =
     new Bitraverse[CommittableConsumerRecord[F, ?, ?]] {
       override def bitraverse[G[_]: Applicative, A, B, C, D](
         fab: CommittableConsumerRecord[F, A, B])(
         f: A => G[C],
         g: B => G[D]): G[CommittableConsumerRecord[F, C, D]] =
-        fs2ComsumerRecordIso
+        isoFs2ComsumerRecord
           .get(fab.record)
           .bitraverse(f, g)
-          .map(r => CommittableConsumerRecord(fs2ComsumerRecordIso.reverseGet(r), fab.offset))
+          .map(r => CommittableConsumerRecord(isoFs2ComsumerRecord.reverseGet(r), fab.offset))
 
       override def bifoldLeft[A, B, C](fab: CommittableConsumerRecord[F, A, B], c: C)(
         f: (C, A) => C,
-        g: (C, B) => C): C = fs2ComsumerRecordIso.get(fab.record).bifoldLeft(c)(f, g)
+        g: (C, B) => C): C = isoFs2ComsumerRecord.get(fab.record).bifoldLeft(c)(f, g)
 
       override def bifoldRight[A, B, C](fab: CommittableConsumerRecord[F, A, B], c: Eval[C])(
         f: (A, Eval[C]) => Eval[C],
         g: (B, Eval[C]) => Eval[C]): Eval[C] =
-        fs2ComsumerRecordIso.get(fab.record).bifoldRight(c)(f, g)
+        isoFs2ComsumerRecord.get(fab.record).bifoldRight(c)(f, g)
     }
 
-  implicit final val fs2ProducerRecordBitraverse: Bitraverse[Fs2ProducerRecord[?, ?]] =
+  implicit final val bitraverseFs2ProducerRecord: Bitraverse[Fs2ProducerRecord[?, ?]] =
     new Bitraverse[Fs2ProducerRecord] {
       override def bitraverse[G[_]: Applicative, A, B, C, D](
         fab: Fs2ProducerRecord[A, B])(f: A => G[C], g: B => G[D]): G[Fs2ProducerRecord[C, D]] =
-        fs2ProducerRecordIso.get(fab).bitraverse(f, g).map(i => fs2ProducerRecordIso.reverseGet(i))
+        isoFs2ProducerRecord.get(fab).bitraverse(f, g).map(i => isoFs2ProducerRecord.reverseGet(i))
 
       override def bifoldLeft[A, B, C](fab: Fs2ProducerRecord[A, B], c: C)(
         f: (C, A) => C,
-        g: (C, B) => C): C = fs2ProducerRecordIso.get(fab).bifoldLeft(c)(f, g)
+        g: (C, B) => C): C = isoFs2ProducerRecord.get(fab).bifoldLeft(c)(f, g)
 
       override def bifoldRight[A, B, C](fab: Fs2ProducerRecord[A, B], c: Eval[C])(
         f: (A, Eval[C]) => Eval[C],
-        g: (B, Eval[C]) => Eval[C]): Eval[C] = fs2ProducerRecordIso.get(fab).bifoldRight(c)(f, g)
+        g: (B, Eval[C]) => Eval[C]): Eval[C] = isoFs2ProducerRecord.get(fab).bifoldRight(c)(f, g)
     }
 
-  implicit final def fs2ProducerMessageBitraverse[P]: Bitraverse[ProducerRecords[Id, ?, ?, P]] =
+  implicit final def bitraverseFs2ProducerMessage[P]: Bitraverse[ProducerRecords[Id, ?, ?, P]] =
     new Bitraverse[ProducerRecords[Id, ?, ?, P]] {
       override def bitraverse[G[_]: Applicative, A, B, C, D](fab: ProducerRecords[Id, A, B, P])(
         f: A => G[C],
@@ -192,11 +192,11 @@ trait Fs2MessageBitraverse extends KafkaRecordBitraverse {
     }
 }
 
-trait AkkaMessageBitraverse extends KafkaRecordBitraverse {
+trait BitraverseAkkaMessage extends BitraverseKafkaRecord {
   import akka.kafka.ConsumerMessage.CommittableMessage
   import akka.kafka.ProducerMessage.Message
 
-  implicit final def akkaProducerMessageBitraverse[P]: Bitraverse[Message[?, ?, P]] =
+  implicit final def bitraverseAkkaProducerMessage[P]: Bitraverse[Message[?, ?, P]] =
     new Bitraverse[Message[?, ?, P]] {
 
       override def bitraverse[G[_]: Applicative, A, B, C, D](
@@ -212,7 +212,7 @@ trait AkkaMessageBitraverse extends KafkaRecordBitraverse {
         g: (B, Eval[C]) => Eval[C]): Eval[C] = fab.record.bifoldRight(c)(f, g)
     }
 
-  implicit final val akkaCommittableMessageBitraverse: Bitraverse[CommittableMessage[?, ?]] =
+  implicit final val bitraverseAkkaCommittableMessage: Bitraverse[CommittableMessage[?, ?]] =
     new Bitraverse[CommittableMessage] {
       override def bitraverse[G[_]: Applicative, A, B, C, D](
         fab: CommittableMessage[A, B])(f: A => G[C], g: B => G[D]): G[CommittableMessage[C, D]] =

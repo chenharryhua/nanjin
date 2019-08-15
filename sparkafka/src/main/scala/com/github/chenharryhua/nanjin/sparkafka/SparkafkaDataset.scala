@@ -3,7 +3,7 @@ import java.time.LocalDateTime
 
 import cats.implicits._
 import cats.{Monad, Show}
-import com.github.chenharryhua.nanjin.kafka.{utils, KafkaRecordBitraverse, KafkaTopic}
+import com.github.chenharryhua.nanjin.kafka.{utils, BitraverseKafkaRecord, KafkaTopic}
 import frameless.{Injection, TypedDataset, TypedEncoder}
 import monocle.macros.Lenses
 import org.apache.kafka.common.record.TimestampType
@@ -54,7 +54,7 @@ object SparkafkaConsumerRecord extends LowPriorityShow {
     (t: SparkafkaConsumerRecord[K, V]) => build(t, t.key.show, t.value.show)
 }
 
-object SparkafkaDataset extends KafkaRecordBitraverse {
+object SparkafkaDataset extends BitraverseKafkaRecord {
   implicit private val timestampTypeInjection: Injection[TimestampType, String] =
     new Injection[TimestampType, String] {
       override def apply(a: TimestampType): String = a.name

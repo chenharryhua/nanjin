@@ -20,7 +20,7 @@ import org.apache.spark.sql.SparkSession
   def updateConf(f: SparkConf => SparkConf): SparkSettings =
     SparkSettings.conf.set(f(conf))(this)
 
-  def session[F[_]: Sync]: Resource[F, SparkSession] =
+  def sessionResource[F[_]: Sync]: Resource[F, SparkSession] =
     Resource.make(Sync[F].delay(SparkSession.builder().config(conf).getOrCreate()))(spk =>
       Sync[F].delay(spk.close))
 

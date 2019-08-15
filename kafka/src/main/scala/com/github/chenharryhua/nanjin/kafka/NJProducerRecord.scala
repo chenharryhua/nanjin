@@ -35,7 +35,7 @@ import org.apache.kafka.common.header.Headers
   def fs2ProducerRecord: Fs2ProducerRecord[K, V] = NJProducerRecord.isoFs2ProducerRecord.get(this)
 }
 
-object NJProducerRecord extends KafkaRecordBitraverse {
+object NJProducerRecord extends BitraverseKafkaRecord {
 
   def fromConsumerRecord[K, V](cr: ConsumerRecord[K, V]): NJProducerRecord[K, V] =
     NJProducerRecord(
