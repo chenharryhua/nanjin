@@ -20,22 +20,30 @@ import scala.collection.JavaConverters._
   key: K,
   value: V,
   timestamp: Long,
-  timestampType: String)
+  timestampType: String,
+  serializedKeySize: Int,
+  serializedValueSize: Int,
+  headers: String,
+  leaderEpoch: String)
 
 private[sparkafka] trait LowestPriorityShow {
 
   def build[K, V](t: SparkafkaConsumerRecord[K, V], key: String, value: String): String = {
     val (utc, local) = utils.kafkaTimestamp(t.timestamp)
     s"""
-       |topic:     ${t.topic}
-       |partition: ${t.partition}
-       |offset:    ${t.offset}
-       |key:       $key
-       |value:     $value
-       |timestamp: ${t.timestamp}
-       |utc:       $utc
-       |local:     $local
-       |ts-type:   ${t.timestampType}
+       |topic:               ${t.topic}
+       |partition:           ${t.partition}
+       |offset:              ${t.offset}
+       |key:                 $key
+       |value:               $value
+       |timestamp:           ${t.timestamp}
+       |utc:                 $utc
+       |local:               $local
+       |time-stamp-type:     ${t.timestampType}
+       |serializedKeySize:   ${t.serializedKeySize}
+       |serializedValueSize: ${t.serializedValueSize}
+       |headers:             ${t.headers}
+       |leaderEpoch:         ${t.leaderEpoch}
        |""".stripMargin
   }
 
@@ -87,7 +95,12 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
             d.key(),
             d.value(),
             d.timestamp(),
-            d.timestampType().name)
+            d.timestampType().name,
+            d.serializedKeySize(),
+            d.serializedValueSize(),
+            d.headers().toString,
+            d.leaderEpoch().toString
+          )
         }
       TypedDataset.create(rdd)
     }
