@@ -43,10 +43,10 @@ private[sparkafka] trait LowestPriorityShow {
   implicit def showSparkafkaConsumerRecord2[K, V]: Show[SparkafkaConsumerRecord[K, V]] =
     (t: SparkafkaConsumerRecord[K, V]) => build(t, t.key.toString, t.value.toString)
 }
+
 private[sparkafka] trait LowPriorityShow extends LowestPriorityShow {
   implicit def showSparkafkaConsumerRecord1[K, V: Show]: Show[SparkafkaConsumerRecord[K, V]] =
     (t: SparkafkaConsumerRecord[K, V]) => build(t, t.key.toString, t.value.show)
-
 }
 
 object SparkafkaConsumerRecord extends LowPriorityShow {

@@ -30,6 +30,8 @@ trait KafkaProducerApi[F[_], K, V] {
   def send(kvs: Chain[(K, V)]): F[Chain[RecordMetadata]]
   def send(kvs: Chunk[(K, V)]): F[Chunk[RecordMetadata]]
 
+  def send(nj: NJProducerRecord[K, V]): F[RecordMetadata]
+
 }
 
 object KafkaProducerApi {
@@ -75,6 +77,9 @@ object KafkaProducerApi {
 
     override def send(key: K, value: V): F[RecordMetadata] =
       doSend(record(key, value)).flatten
+
+    override def send(nj: NJProducerRecord[K, V]): F[RecordMetadata] =
+      doSend(record(nj)).flatten
 
     override def send(kvs: List[(K, V)]): F[List[RecordMetadata]] =
       kvs.traverse(kv => doSend(record(kv._1, kv._2))).flatMap(_.sequence)
