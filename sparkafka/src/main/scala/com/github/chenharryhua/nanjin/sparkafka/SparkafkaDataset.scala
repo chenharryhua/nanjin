@@ -8,6 +8,7 @@ import frameless.{Injection, TypedDataset, TypedEncoder}
 import monocle.macros.Lenses
 import org.apache.kafka.common.record.TimestampType
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies, OffsetRange}
 
@@ -21,7 +22,7 @@ import scala.util.Try
   key: K,
   value: V,
   timestamp: Long,
-  timestampType: TimestampType)
+  timestampType: String)
 
 private[sparkafka] trait LowestPriorityShow {
 
@@ -55,13 +56,6 @@ object SparkafkaConsumerRecord extends LowPriorityShow {
 }
 
 object SparkafkaDataset extends BitraverseKafkaRecord {
-  implicit private val timestampTypeInjection: Injection[TimestampType, String] =
-    new Injection[TimestampType, String] {
-      override def apply(a: TimestampType): String = a.name
-
-      override def invert(b: String): TimestampType =
-        Try(TimestampType.forName(b)).getOrElse(TimestampType.NO_TIMESTAMP_TYPE)
-    }
 
   def dataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
     spark: SparkSession,
@@ -80,7 +74,7 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
         case (tp, r) => OffsetRange.create(tp, r.fromOffset, r.untilOffset)
       }
       implicit val s: SparkSession = spark
-      val rdd = KafkaUtils
+      val rdd: RDD[SparkafkaConsumerRecord[K, V]] = KafkaUtils
         .createRDD[Array[Byte], Array[Byte]](
           spark.sparkContext,
           props.mapValues[Object](identity).asJava,
@@ -95,7 +89,7 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
             d.key(),
             d.value(),
             d.timestamp(),
-            d.timestampType())
+            d.timestampType().name)
         }
       TypedDataset.create(rdd)
     }
