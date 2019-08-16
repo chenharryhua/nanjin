@@ -61,6 +61,21 @@ private[sparkafka] trait LowPriorityShow extends LowestPriorityShow {
 }
 
 object SparkafkaConsumerRecord extends LowPriorityShow {
+
+  def from[K, V](d: ConsumerRecord[K, V]): SparkafkaConsumerRecord[K, V] =
+    SparkafkaConsumerRecord(
+      d.topic(),
+      d.partition(),
+      d.offset(),
+      d.key(),
+      d.value(),
+      d.timestamp(),
+      d.timestampType().name,
+      d.serializedKeySize(),
+      d.serializedValueSize(),
+      d.headers().toString,
+      d.leaderEpoch().toString
+    )
   implicit def showSparkafkaConsumerRecord0[K: Show, V: Show]: Show[SparkafkaConsumerRecord[K, V]] =
     (t: SparkafkaConsumerRecord[K, V]) => build(t, t.key.show, t.value.show)
 }
@@ -98,22 +113,7 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
     value: Array[Byte] => V): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] = {
     implicit val s: SparkSession = spark
     rdd(spark, topic, start, end).map {
-      _.map { msg =>
-        val d = msg.bimap(key, value)
-        SparkafkaConsumerRecord(
-          d.topic(),
-          d.partition(),
-          d.offset(),
-          d.key(),
-          d.value(),
-          d.timestamp(),
-          d.timestampType().name,
-          d.serializedKeySize(),
-          d.serializedValueSize(),
-          d.headers().toString,
-          d.leaderEpoch().toString
-        )
-      }
+      _.map(msg => SparkafkaConsumerRecord.from(msg.bimap(key, value)))
     }.map(TypedDataset.create(_))
   }
 
@@ -125,25 +125,11 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
     key: Array[Byte]   => K,
     value: Array[Byte] => V): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] = {
     implicit val s: SparkSession = spark
-    rdd(spark, topic, start, end).map {
-      _.flatMap {
-        _.bitraverse(k => Try(key(k)), v => Try(value(v))).toOption.map { d =>
-          SparkafkaConsumerRecord(
-            d.topic(),
-            d.partition(),
-            d.offset(),
-            d.key(),
-            d.value(),
-            d.timestamp(),
-            d.timestampType().name,
-            d.serializedKeySize(),
-            d.serializedValueSize(),
-            d.headers().toString,
-            d.leaderEpoch().toString
-          )
-        }
-      }
-    }.map(TypedDataset.create(_))
+    rdd(spark, topic, start, end)
+      .map(
+        _.flatMap(_.bitraverse(k => Try(key(k)), v => Try(value(v))).toOption
+          .map(SparkafkaConsumerRecord.from)))
+      .map(TypedDataset.create(_))
   }
 
   def valueDataset[F[_]: Monad, K, V: TypedEncoder: ClassTag](
