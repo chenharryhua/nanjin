@@ -1,17 +1,21 @@
 package com.github.chenharryhua.nanjin.sparkafka
 import java.time.LocalDateTime
+import java.util
 
 import cats.implicits._
 import cats.{Monad, Show}
 import com.github.chenharryhua.nanjin.kafka.{utils, BitraverseKafkaRecord, KafkaTopic}
 import frameless.{TypedDataset, TypedEncoder}
 import monocle.macros.Lenses
+import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies, OffsetRange}
 
 import scala.collection.JavaConverters._
+import scala.reflect.ClassTag
+import scala.util.{Success, Try}
 
 @Lenses final case class SparkafkaConsumerRecord[K, V](
   topic: String,
@@ -62,6 +66,28 @@ object SparkafkaConsumerRecord extends LowPriorityShow {
 }
 
 object SparkafkaDataset extends BitraverseKafkaRecord {
+  private def props(maps: Map[String, String]): util.Map[String, Object] =
+    (Map(
+      "key.deserializer" -> classOf[ByteArrayDeserializer].getName,
+      "value.deserializer" -> classOf[ByteArrayDeserializer].getName,
+      "spark.streaming.kafka.allowNonConsecutiveOffsets" -> "true"
+    ) ++ maps).mapValues[Object](identity).asJava
+
+  private def rdd[F[_]: Monad, K, V](
+    spark: SparkSession,
+    topic: KafkaTopic[F, K, V],
+    start: LocalDateTime,
+    end: LocalDateTime): F[RDD[ConsumerRecord[Array[Byte], Array[Byte]]]] =
+    topic.consumer.offsetRangeFor(start, end).map { gtp =>
+      val range = gtp.value.toArray.map {
+        case (tp, r) => OffsetRange.create(tp, r.fromOffset, r.untilOffset)
+      }
+      KafkaUtils.createRDD[Array[Byte], Array[Byte]](
+        spark.sparkContext,
+        props(topic.kafkaConsumerSettings.props),
+        range,
+        LocationStrategies.PreferConsistent)
+    }
 
   def dataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
     spark: SparkSession,
@@ -70,24 +96,38 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
     end: LocalDateTime,
     key: Array[Byte]   => K,
     value: Array[Byte] => V): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] = {
-    val props = Map(
-      "key.deserializer" -> classOf[ByteArrayDeserializer].getName,
-      "value.deserializer" -> classOf[ByteArrayDeserializer].getName
-    ) ++ topic.fs2Settings.consumerProps
-
-    topic.consumer.offsetRangeFor(start, end).map { gtp =>
-      val range = gtp.value.toArray.map {
-        case (tp, r) => OffsetRange.create(tp, r.fromOffset, r.untilOffset)
+    implicit val s: SparkSession = spark
+    rdd(spark, topic, start, end).map {
+      _.map { msg =>
+        val d = msg.bimap(key, value)
+        SparkafkaConsumerRecord(
+          d.topic(),
+          d.partition(),
+          d.offset(),
+          d.key(),
+          d.value(),
+          d.timestamp(),
+          d.timestampType().name,
+          d.serializedKeySize(),
+          d.serializedValueSize(),
+          d.headers().toString,
+          d.leaderEpoch().toString
+        )
       }
-      implicit val s: SparkSession = spark
-      val rdd: RDD[SparkafkaConsumerRecord[K, V]] = KafkaUtils
-        .createRDD[Array[Byte], Array[Byte]](
-          spark.sparkContext,
-          props.mapValues[Object](identity).asJava,
-          range,
-          LocationStrategies.PreferConsistent)
-        .map { msg =>
-          val d = msg.bimap(key, value)
+    }.map(TypedDataset.create(_))
+  }
+
+  def safeDataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
+    spark: SparkSession,
+    topic: KafkaTopic[F, K, V],
+    start: LocalDateTime,
+    end: LocalDateTime,
+    key: Array[Byte]   => K,
+    value: Array[Byte] => V): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] = {
+    implicit val s: SparkSession = spark
+    rdd(spark, topic, start, end).map {
+      _.flatMap {
+        _.bitraverse(k => Try(key(k)), v => Try(value(v))).toOption.map { d =>
           SparkafkaConsumerRecord(
             d.topic(),
             d.partition(),
@@ -102,7 +142,31 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
             d.leaderEpoch().toString
           )
         }
-      TypedDataset.create(rdd)
-    }
+      }
+    }.map(TypedDataset.create(_))
+  }
+
+  def valueDataset[F[_]: Monad, K, V: TypedEncoder: ClassTag](
+    spark: SparkSession,
+    topic: KafkaTopic[F, K, V],
+    start: LocalDateTime,
+    end: LocalDateTime,
+    value: Array[Byte] => V): F[TypedDataset[V]] = {
+    implicit val s: SparkSession = spark
+    rdd(spark, topic, start, end)
+      .map(_.map(_.bimap(identity, value).value()))
+      .map(TypedDataset.create(_))
+  }
+
+  def safeValueDataset[F[_]: Monad, K, V: TypedEncoder: ClassTag](
+    spark: SparkSession,
+    topic: KafkaTopic[F, K, V],
+    start: LocalDateTime,
+    end: LocalDateTime,
+    value: Array[Byte] => V): F[TypedDataset[V]] = {
+    implicit val s: SparkSession = spark
+    rdd(spark, topic, start, end)
+      .map(_.flatMap(_.bitraverse(Success(_), v => Try(value(v))).toOption.map(_.value())))
+      .map(TypedDataset.create(_))
   }
 }

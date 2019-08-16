@@ -14,6 +14,7 @@ import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndTimestamp}
 import org.apache.kafka.common.TopicPartition
 
 import scala.collection.JavaConverters._
+import scala.util.Try
 
 final case class KafkaOffsetRange(fromOffset: Long, untilOffset: Long) {
   val size: Long = untilOffset - fromOffset
@@ -101,8 +102,8 @@ object KafkaPrimitiveConsumerApi {
 
     val partitionsFor: F[ListOfTopicPartitions] = {
       for {
-        ret <- K.ask.map {
-          _.partitionsFor(topicName).asScala.toList
+        ret <- K.ask.map { c =>
+          Try(c.partitionsFor(topicName).asScala.toList).toOption.sequence.flatten
             .mapFilter(Option(_))
             .map(info => new TopicPartition(topicName, info.partition))
         }

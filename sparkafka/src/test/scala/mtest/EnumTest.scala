@@ -50,7 +50,7 @@ class EnumTest extends FunSuite {
     val start = end.minusHours(1)
     fs2.Stream
       .eval(spark.use { s =>
-        Sparkafka.kafkaDS(s, pencil_topic, start, end).flatMap(_.take[IO](10)).map(Chunk.seq)
+        Sparkafka.dataset(s, pencil_topic, start, end).flatMap(_.take[IO](10)).map(Chunk.seq)
       })
       .flatMap(fs2.Stream.chunk)
       .map(_.show)

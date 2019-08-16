@@ -27,8 +27,8 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
       asKey[K],
       asValue[V],
       settings.schemaRegistrySettings,
-      settings.fs2Settings,
-      settings.akkaSettings,
+      settings.consumerSettings,
+      settings.producerSettings,
       sharedConsumer,
       sharedProducer,
       Eval.later(materializer))
@@ -40,7 +40,7 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
     Eval.later {
       val consumerClient: KafkaConsumer[Array[Byte], Array[Byte]] =
         new KafkaConsumer[Array[Byte], Array[Byte]](
-          settings.sharedConsumerSettings.settings,
+          settings.consumerSettings.sharedConsumerSettings,
           new ByteArrayDeserializer,
           new ByteArrayDeserializer)
       ConcurrentEffect[F].toIO(MVar.of[F, KafkaByteConsumer](consumerClient)).unsafeRunSync()
@@ -49,7 +49,7 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
   final private[this] val sharedProducer: Eval[KafkaByteProducer] =
     Eval.later {
       new KafkaProducer[Array[Byte], Array[Byte]](
-        settings.sharedProducerSettings.settings,
+        settings.producerSettings.sharedProducerSettings,
         new ByteArraySerializer,
         new ByteArraySerializer)
     }

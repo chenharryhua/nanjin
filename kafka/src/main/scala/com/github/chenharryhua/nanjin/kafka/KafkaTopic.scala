@@ -21,8 +21,8 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
   val keySerde: KeySerde[K],
   val valueSerde: ValueSerde[V],
   val schemaRegistrySettings: SchemaRegistrySettings,
-  val fs2Settings: Fs2Settings,
-  akkaSettings: AkkaSettings,
+  val kafkaConsumerSettings: KafkaConsumerSettings,
+  val kafkaProducerSettings: KafkaProducerSettings,
   sharedConsumer: Eval[MVar[F, KafkaByteConsumer]],
   sharedProducer: Eval[KafkaByteProducer],
   materializer: Eval[ActorMaterializer])
@@ -42,8 +42,8 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
   val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
     new KafkaChannels.Fs2Channel[F, K, V](
       topicName,
-      fs2Settings.producerSettings(keySerde.serializer, valueSerde.serializer),
-      fs2Settings.consumerSettings,
+      kafkaProducerSettings.fs2ProducerSettings(keySerde.serializer, valueSerde.serializer),
+      kafkaConsumerSettings.fs2ConsumerSettings,
       keyIso,
       valueIso)
 
@@ -51,10 +51,12 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
     ConcurrentEffect[F].delay(
       new KafkaChannels.AkkaChannel[F, K, V](
         topicName,
-        akkaSettings
-          .producerSettings(materializer.value.system, keySerde.serializer, valueSerde.serializer),
-        akkaSettings.consumerSettings(materializer.value.system),
-        akkaSettings.committerSettings(materializer.value.system),
+        kafkaProducerSettings.akkaProducerSettings(
+          materializer.value.system,
+          keySerde.serializer,
+          valueSerde.serializer),
+        kafkaConsumerSettings.akkaConsumerSettings(materializer.value.system),
+        kafkaConsumerSettings.akkaCommitterSettings(materializer.value.system),
         keyIso,
         valueIso,
         materializer.value)))(_ => ConcurrentEffect[F].unit)
@@ -81,8 +83,8 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
     s"""
        |kafka topic: 
        |${topicDef.topicName}
-       |${fs2Settings.show}
-       |${akkaSettings.show}""".stripMargin
+       |${kafkaConsumerSettings.show}
+       |${kafkaProducerSettings.show}""".stripMargin
 }
 
 object KafkaTopic {

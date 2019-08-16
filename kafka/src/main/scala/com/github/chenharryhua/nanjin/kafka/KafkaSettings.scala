@@ -2,18 +2,28 @@ package com.github.chenharryhua.nanjin.kafka
 
 import java.util.Properties
 
+import akka.actor.ActorSystem
+import akka.kafka.{
+  CommitterSettings => AkkaCommitterSettings,
+  ConsumerSettings  => AkkaConsumerSettings,
+  ProducerSettings  => AkkaProducerSettings
+}
 import cats.effect.{ConcurrentEffect, ContextShift, IO, Sync, Timer}
 import cats.implicits._
 import cats.{Eval, Show}
+import fs2.kafka.{
+  ConsumerSettings => Fs2ConsumerSettings,
+  Deserializer     => Fs2Deserializer,
+  ProducerSettings => Fs2ProducerSettings,
+  Serializer       => Fs2Serializer
+}
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig
 import monocle.Traversal
 import monocle.function.At.at
 import monocle.macros.Lenses
 import org.apache.kafka.clients.CommonClientConfigs
-import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.consumer.ConsumerConfig
-import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.config.SaslConfigs
 import org.apache.kafka.common.security.auth.SecurityProtocol
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Serializer}
@@ -22,64 +32,55 @@ import org.apache.kafka.streams.errors.LogAndContinueExceptionHandler
 
 import scala.util.Try
 
-@Lenses final case class Fs2Settings(
-  consumerProps: Map[String, String],
-  producerProps: Map[String, String]
-) {
-  import fs2.kafka.{
-    ConsumerSettings,
-    ProducerSettings,
-    Deserializer => Fs2Deserializer,
-    Serializer   => Fs2Serializer
-  }
+@Lenses final case class KafkaConsumerSettings(props: Map[String, String]) {
 
-  def consumerSettings[F[_]: Sync]: ConsumerSettings[F, Array[Byte], Array[Byte]] =
-    ConsumerSettings[F, Array[Byte], Array[Byte]](
+  def fs2ConsumerSettings[F[_]: Sync]: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]] =
+    Fs2ConsumerSettings[F, Array[Byte], Array[Byte]](
       Fs2Deserializer.delegate(new ByteArrayDeserializer),
-      Fs2Deserializer.delegate(new ByteArrayDeserializer)).withProperties(consumerProps)
+      Fs2Deserializer.delegate(new ByteArrayDeserializer)).withProperties(props)
 
-  def producerSettings[F[_]: Sync, K, V](
-    kser: Serializer[K],
-    vser: Serializer[V]): ProducerSettings[F, K, V] =
-    ProducerSettings[F, K, V](Fs2Serializer.delegate(kser), Fs2Serializer.delegate(vser))
-      .withProperties(producerProps)
-
-  def show: String =
-    s"""
-       |fs2 kafka settings:
-       |consumerProps: ${consumerProps.show}
-       |producerProps: ${producerProps.show}
-     """.stripMargin
-}
-
-@Lenses final case class AkkaSettings(
-  consumerProps: Map[String, String],
-  producerProps: Map[String, String]
-) {
-  import akka.actor.ActorSystem
-  import akka.kafka.{CommitterSettings, ConsumerSettings, ProducerSettings}
-
-  def consumerSettings(system: ActorSystem): ConsumerSettings[Array[Byte], Array[Byte]] =
-    ConsumerSettings[Array[Byte], Array[Byte]](
+  def akkaConsumerSettings(system: ActorSystem): AkkaConsumerSettings[Array[Byte], Array[Byte]] =
+    AkkaConsumerSettings[Array[Byte], Array[Byte]](
       system,
       new ByteArrayDeserializer,
-      new ByteArrayDeserializer).withProperties(consumerProps)
+      new ByteArrayDeserializer).withProperties(props)
 
-  def producerSettings[K, V](
-    system: ActorSystem,
-    kser: Serializer[K],
-    vser: Serializer[V]): ProducerSettings[K, V] =
-    ProducerSettings[K, V](system, kser, vser).withProperties(producerProps)
+  def akkaCommitterSettings(system: ActorSystem): AkkaCommitterSettings =
+    AkkaCommitterSettings(system)
 
-  def committerSettings(system: ActorSystem): CommitterSettings =
-    CommitterSettings(system)
+  val sharedConsumerSettings: Properties = utils.toProperties(
+    props ++ Map(ConsumerConfig.CLIENT_ID_CONFIG -> s"shared-consumer-${utils.random4d.value}"))
 
   def show: String =
     s"""
-       |akka kafka settings:
-       |consumerProps: ${consumerProps.show}
-       |producerProps: ${producerProps.show}
-     """.stripMargin
+       |consumer settings:
+       |${props.show}
+       |""".stripMargin
+}
+
+@Lenses final case class KafkaProducerSettings(props: Map[String, String]) {
+
+  def fs2ProducerSettings[F[_]: Sync, K, V](
+    kser: Serializer[K],
+    vser: Serializer[V]): Fs2ProducerSettings[F, K, V] =
+    Fs2ProducerSettings[F, K, V](Fs2Serializer.delegate(kser), Fs2Serializer.delegate(vser))
+      .withProperties(props)
+
+  def akkaProducerSettings[K, V](
+    system: ActorSystem,
+    kser: Serializer[K],
+    vser: Serializer[V]): AkkaProducerSettings[K, V] =
+    AkkaProducerSettings[K, V](system, kser, vser).withProperties(props)
+
+  val sharedProducerSettings: Properties = utils.toProperties(
+    props ++ Map(ConsumerConfig.CLIENT_ID_CONFIG -> s"shared-producer-${utils.random4d.value}"))
+
+  def show: String =
+    s"""
+       |producer settings:
+       |${props.show}
+       |""".stripMargin
+
 }
 
 @Lenses final case class KafkaStreamSettings(props: Map[String, String]) {
@@ -89,28 +90,6 @@ import scala.util.Try
   def show: String =
     s"""
        |kafka streaming settings:
-       |${props.show}
-     """.stripMargin
-}
-
-@Lenses final case class SharedProducerSettings(props: Map[String, String]) {
-
-  val settings: Properties = utils.toProperties(props)
-
-  def show: String =
-    s"""
-       |kafka shared producer settings:
-       |${props.show}
-     """.stripMargin
-}
-
-@Lenses final case class SharedConsumerSettings(props: Map[String, String]) {
-
-  val settings: Properties = utils.toProperties(props)
-
-  def show: String =
-    s"""
-       |shared consumer settings:
        |${props.show}
      """.stripMargin
 }
@@ -149,25 +128,19 @@ import scala.util.Try
 }
 
 @Lenses final case class KafkaSettings(
-  fs2Settings: Fs2Settings,
-  akkaSettings: AkkaSettings,
+  consumerSettings: KafkaConsumerSettings,
+  producerSettings: KafkaProducerSettings,
   streamSettings: KafkaStreamSettings,
   sharedAdminSettings: SharedAdminSettings,
-  sharedConsumerSettings: SharedConsumerSettings,
-  sharedProducerSettings: SharedProducerSettings,
   schemaRegistrySettings: SchemaRegistrySettings) {
 
   private def updateAll(key: String, value: String): KafkaSettings =
     Traversal
       .applyN[KafkaSettings, Map[String, String]](
-        KafkaSettings.fs2Settings.composeLens(Fs2Settings.consumerProps),
-        KafkaSettings.fs2Settings.composeLens(Fs2Settings.producerProps),
-        KafkaSettings.akkaSettings.composeLens(AkkaSettings.consumerProps),
-        KafkaSettings.akkaSettings.composeLens(AkkaSettings.producerProps),
+        KafkaSettings.consumerSettings.composeLens(KafkaConsumerSettings.props),
+        KafkaSettings.producerSettings.composeLens(KafkaProducerSettings.props),
         KafkaSettings.streamSettings.composeLens(KafkaStreamSettings.props),
-        KafkaSettings.sharedAdminSettings.composeLens(SharedAdminSettings.props),
-        KafkaSettings.sharedConsumerSettings.composeLens(SharedConsumerSettings.props),
-        KafkaSettings.sharedProducerSettings.composeLens(SharedProducerSettings.props)
+        KafkaSettings.sharedAdminSettings.composeLens(SharedAdminSettings.props)
       )
       .composeLens(at(key))
       .set(Some(value))(this)
@@ -191,18 +164,14 @@ import scala.util.Try
     withSchemaRegistryProperty(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, url)
 
   def withProducerProperty(key: String, value: String): KafkaSettings =
-    Traversal
-      .applyN[KafkaSettings, Map[String, String]](
-        KafkaSettings.fs2Settings.composeLens(Fs2Settings.producerProps),
-        KafkaSettings.akkaSettings.composeLens(AkkaSettings.producerProps))
+    KafkaSettings.producerSettings
+      .composeLens(KafkaProducerSettings.props)
       .composeLens(at(key))
       .set(Some(value))(this)
 
   def withConsumerProperty(key: String, value: String): KafkaSettings =
-    Traversal
-      .applyN[KafkaSettings, Map[String, String]](
-        KafkaSettings.fs2Settings.composeLens(Fs2Settings.consumerProps),
-        KafkaSettings.akkaSettings.composeLens(AkkaSettings.consumerProps))
+    KafkaSettings.consumerSettings
+      .composeLens(KafkaConsumerSettings.props)
       .composeLens(at(key))
       .set(Some(value))(this)
 
@@ -229,58 +198,43 @@ import scala.util.Try
   def show: String =
     s"""
        |kafka settings:
-       |${fs2Settings.show}
-       |${akkaSettings.show}
+       |${consumerSettings.show}
+       |${producerSettings.show}
        |${streamSettings.show}
        |${schemaRegistrySettings.show}
        |${sharedAdminSettings.show}
-       |${sharedConsumerSettings.show}
-       |${sharedProducerSettings.show}
   """.stripMargin
 }
 
 object KafkaSettings {
 
   val empty: KafkaSettings = KafkaSettings(
-    Fs2Settings(Map.empty, Map.empty),
-    AkkaSettings(Map.empty, Map.empty),
+    KafkaConsumerSettings(Map.empty),
+    KafkaProducerSettings(Map.empty),
     KafkaStreamSettings(Map.empty),
     SharedAdminSettings(Map.empty),
-    SharedConsumerSettings(Map.empty),
-    SharedProducerSettings(Map.empty),
     SchemaRegistrySettings(Map.empty)
   )
 
   val local: KafkaSettings = {
     val s = KafkaSettings(
-      Fs2Settings(
+      KafkaConsumerSettings(
         Map(
           ConsumerConfig.MAX_POLL_RECORDS_CONFIG -> "500",
           ConsumerConfig.AUTO_OFFSET_RESET_CONFIG -> "earliest"
-        ),
-        Map.empty
+        )
       ),
-      AkkaSettings(
-        Map(
-          ConsumerConfig.MAX_POLL_RECORDS_CONFIG -> "100",
-          ConsumerConfig.AUTO_OFFSET_RESET_CONFIG -> "earliest"
-        ),
-        Map.empty
-      ),
+      KafkaProducerSettings(Map.empty),
       KafkaStreamSettings(
         Map(
           StreamsConfig.DEFAULT_DESERIALIZATION_EXCEPTION_HANDLER_CLASS_CONFIG ->
             classOf[LogAndContinueExceptionHandler].getName,
           StreamsConfig.NUM_STREAM_THREADS_CONFIG -> "3"
         )),
-      SharedAdminSettings(
-        Map(AdminClientConfig.CLIENT_ID_CONFIG -> s"shared-admin-${utils.random4d.value}")),
-      SharedConsumerSettings(
-        Map(ConsumerConfig.CLIENT_ID_CONFIG -> s"shared-consumer-${utils.random4d.value}")),
-      SharedProducerSettings(
-        Map(ProducerConfig.CLIENT_ID_CONFIG -> s"shared-producer-${utils.random4d.value}")),
+      SharedAdminSettings(Map.empty),
       SchemaRegistrySettings(Map.empty)
     )
+
     s.withGroupId("nanjin-group")
       .withApplicationId("nanjin-app")
       .withBrokers("localhost:9092")

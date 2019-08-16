@@ -16,7 +16,7 @@ class SparkafkaDatasetTest extends FunSuite {
     val start = end.minusHours(1)
     spark.use { s =>
       import s.implicits._
-      Sparkafka.kafkaDS(s, payment, start, end).flatMap(_.take[IO](10))
+      Sparkafka.valueDataset(s, payment, start, end).flatMap(_.take[IO](10))
     }.map(_.map(_.show)).map(x => x.foreach(println)).unsafeRunSync
   }
 }
