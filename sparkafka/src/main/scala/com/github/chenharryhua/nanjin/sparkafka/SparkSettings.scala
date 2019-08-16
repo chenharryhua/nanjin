@@ -41,4 +41,5 @@ object SparkSettings {
     .set("spark.network.timeout", "800")
     .set("spark.streaming.kafka.consumer.poll.ms", "180000")
     .set("spark.hadoop.fs.s3a.experimental.input.fadvise", "sequential")
+    .set("spark.streaming.kafka.allowNonConsecutiveOffsets", "true")
 }

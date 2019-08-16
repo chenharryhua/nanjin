@@ -18,4 +18,8 @@ package object mtest {
 
   val spark: Resource[IO, SparkSession] =
     SparkSettings.default.updateConf(_.setMaster("local[*]").setAppName("test")).sessionResource[IO]
+
+  val first_topic  = ctx.topic[Int, FirstStream]("first")
+  val second_topic = ctx.topic[Int, SecondStream]("second")
+
 }

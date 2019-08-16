@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import java.time.{Instant, ZoneId, ZonedDateTime}
+import java.time.{Instant, LocalDateTime, ZoneId, ZonedDateTime}
 import java.util.Properties
 
 import cats.Eval
@@ -18,6 +18,9 @@ object utils {
     val utc = Instant.ofEpochMilli(t)
     (utc, utc.atZone(tz))
   }
+
+  def localDateTime2KafkaTimestamp(dt: LocalDateTime, tz: ZoneId = ZoneId.systemDefault()): Long =
+    dt.atZone(tz).toInstant.toEpochMilli
 
   def nullable[A](a: A): Try[A] =
     Option(a).fold[Try[A]](Failure(new Exception("null object")))(Success(_))
