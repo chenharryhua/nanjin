@@ -14,8 +14,9 @@ case class FirstStream(name: String, age: Int)
 case class SecondStream(name: String, score: Int)
 
 class SparkJoinTest extends FunSuite {
-  val num: Int = 10000
-  val start    = LocalDateTime.now.minusNanos(num.toLong)
+  val num: Int    = 100
+  val coefficient = 1000000
+  val start       = LocalDateTime.now.minusNanos(num.toLong * coefficient)
   println(s"start-time: $start")
 
   val first_data =
@@ -27,8 +28,8 @@ class SparkJoinTest extends FunSuite {
           new NJProducerRecord[Int, FirstStream](
             first_topic.topicName,
             0,
-            FirstStream(i.toString, utils.random4d.value))
-            .updateTimestamp(Some(utils.localDateTime2KafkaTimestamp(start.plusNanos(i.toLong)))))
+            FirstStream(i.toString, utils.random4d.value)).updateTimestamp(
+            Some(utils.localDateTime2KafkaTimestamp(start.plusNanos(i.toLong * coefficient)))))
       .evalMap(msg => first_topic.producer.send(msg))
 
   val second_data =
@@ -40,8 +41,8 @@ class SparkJoinTest extends FunSuite {
           new NJProducerRecord[Int, SecondStream](
             second_topic.topicName,
             0,
-            SecondStream(i.toString, utils.random4d.value))
-            .updateTimestamp(Some(utils.localDateTime2KafkaTimestamp(start.plusNanos(i.toLong)))))
+            SecondStream(i.toString, utils.random4d.value)).updateTimestamp(
+            Some(utils.localDateTime2KafkaTimestamp(start.plusNanos(i.toLong * coefficient)))))
       .evalMap(msg => second_topic.producer.send(msg))
 
   test("gen data") {
@@ -53,14 +54,24 @@ class SparkJoinTest extends FunSuite {
 
     spark.use { s =>
       for {
-        f <- Sparkafka.valueDataset(s, first_topic, start, start.plusNanos(num.toLong))
-        s <- Sparkafka.valueDataset(s, second_topic, start, start.plusNanos(num.toLong))
+        f <- Sparkafka.valueDataset(
+          s,
+          first_topic,
+          start,
+          start.plusNanos(num.toLong * coefficient))
+        s <- Sparkafka.valueDataset(
+          s,
+          second_topic,
+          start,
+          start.plusNanos(num.toLong * coefficient))
         _ <- f.show[IO]()
         _ <- s.show[IO]()
         cf <- f.count[IO]()
         cs <- s.count[IO]
-        ds <- f.joinInner(s)(f('name) === s('name)).count[IO]()
-      } yield println(s"result = $ds cf = $cf, cs = $cs")
+        ds = f.joinInner(s)(f('name) === s('name))
+        cds <- ds.count[IO]()
+        _ <- ds.show[IO]()
+      } yield println(s"result = $cds cf = $cf, cs = $cs")
 
     }.unsafeRunSync()
   }

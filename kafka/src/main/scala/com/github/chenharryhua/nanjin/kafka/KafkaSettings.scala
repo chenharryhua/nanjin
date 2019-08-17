@@ -220,7 +220,7 @@ object KafkaSettings {
     val s = KafkaSettings(
       KafkaConsumerSettings(
         Map(
-          ConsumerConfig.MAX_POLL_RECORDS_CONFIG -> "500",
+          ConsumerConfig.MAX_POLL_RECORDS_CONFIG -> "100",
           ConsumerConfig.AUTO_OFFSET_RESET_CONFIG -> "earliest"
         )
       ),
