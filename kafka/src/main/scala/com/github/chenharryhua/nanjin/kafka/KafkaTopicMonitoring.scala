@@ -1,13 +1,15 @@
 package com.github.chenharryhua.nanjin.kafka
-import cats.effect.Sync
+import cats.effect.{Concurrent, Sync}
 import cats.implicits._
+import fs2.Stream
+import fs2.concurrent.SignallingRef
 import fs2.kafka.AutoOffsetReset
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
 trait KafkaTopicMonitoring[F[_], K, V] extends ShowKafkaMessage with BitraverseFs2Message {
   protected def fs2Channel: KafkaChannels.Fs2Channel[F, K, V]
   protected def consumer: KafkaConsumerApi[F, K, V]
-  implicit def syncF: Sync[F]
+  implicit def F: Concurrent[F]
 
   private def watch(aor: AutoOffsetReset): F[Unit] =
     fs2Channel

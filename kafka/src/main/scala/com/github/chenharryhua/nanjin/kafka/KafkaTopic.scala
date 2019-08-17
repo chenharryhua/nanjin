@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import akka.stream.ActorMaterializer
 import cats.effect.concurrent.MVar
-import cats.effect.{ConcurrentEffect, ContextShift, Resource, Sync, Timer}
+import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, Resource, Timer}
 import cats.{Eval, Show}
 import fs2.kafka.{KafkaByteConsumer, KafkaByteProducer}
 import monocle.Iso
@@ -28,7 +28,7 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
   materializer: Eval[ActorMaterializer])
     extends TopicNameExtractor[K, V] with codec.KafkaRecordCodec[K, V]
     with KafkaTopicMonitoring[F, K, V] with Serializable {
-  implicit def syncF: Sync[F] = implicitly
+  implicit def F: Concurrent[F] = implicitly
 
   val topicName: String = topicDef.topicName
 

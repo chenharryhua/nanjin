@@ -47,7 +47,8 @@ class SparkJoinTest extends FunSuite {
 
   test("gen data") {
     println(first_topic.kafkaProducerSettings.show)
-    (first_data.compile.drain >> second_data.compile.drain).unsafeRunSync()
+    (first_data.compile.drain >> second_data.compile.drain >> IO(println("injection completed")))
+      .unsafeRunSync()
   }
 
   test("spark") {

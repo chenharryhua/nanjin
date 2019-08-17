@@ -1,5 +1,5 @@
-scalaVersion in ThisBuild     := "2.12.9"
-scapegoatVersion in ThisBuild := "1.3.10"
+scalaVersion in ThisBuild      := "2.12.9"
+scapegoatVersion in ThisBuild  := "1.3.10"
 parallelExecution in ThisBuild := false
 
 val confluent    = "5.3.0"
@@ -87,6 +87,7 @@ lazy val kafka = (project in file("kafka"))
       "com.chuusai" %% "shapeless"                      % shapeless,
       "co.fs2" %% "fs2-core"                            % fs2Version,
       "co.fs2" %% "fs2-reactive-streams"                % fs2Version,
+      "co.fs2" %% "fs2-io"                              % fs2Version,
       "org.typelevel" %% "cats-effect"                  % catsEffect,
       "com.github.julien-truffaut" %% "monocle-core"    % monocle,
       "com.github.julien-truffaut" %% "monocle-generic" % monocle,

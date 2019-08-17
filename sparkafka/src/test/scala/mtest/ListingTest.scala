@@ -1,9 +1,12 @@
 package mtest
 
 import org.scalatest.FunSuite
+case class StreamTarget(oneName: String, twoName: String, size: Int, color: Int)
+case class StreamKey(name: Int)
 
 class ListingTest extends FunSuite {
   test("listing to") {
-    second_topic.watchFromLatest.unsafeRunSync()
+    // ctx.topic[StreamKey, StreamTarget]("stream-target").watchFromLatest.unsafeRunSync()
+    first_topic.watchFromLatest.unsafeRunSync()
   }
 }
