@@ -15,7 +15,8 @@ case class SecondStream(name: String, score: Int)
 
 class SparkJoinTest extends FunSuite {
   val num: Int = 10000
-  val start    = LocalDateTime.now.minusSeconds(num.toLong)
+  val start    = LocalDateTime.now.minusNanos(num.toLong)
+  println(s"start-time: $start")
 
   val first_data =
     Stream
@@ -26,8 +27,8 @@ class SparkJoinTest extends FunSuite {
           new NJProducerRecord[Int, FirstStream](
             first_topic.topicName,
             0,
-            FirstStream(s"${utils.random4d.value}", i))
-            .updateTimestamp(Some(utils.localDateTime2KafkaTimestamp(start.plusSeconds(i.toLong)))))
+            FirstStream(i.toString, utils.random4d.value))
+            .updateTimestamp(Some(utils.localDateTime2KafkaTimestamp(start.plusNanos(i.toLong)))))
       .evalMap(msg => first_topic.producer.send(msg))
 
   val second_data =
@@ -39,8 +40,8 @@ class SparkJoinTest extends FunSuite {
           new NJProducerRecord[Int, SecondStream](
             second_topic.topicName,
             0,
-            SecondStream(s"${utils.random4d.value}", i))
-            .updateTimestamp(Some(utils.localDateTime2KafkaTimestamp(start.plusSeconds(i.toLong)))))
+            SecondStream(i.toString, utils.random4d.value))
+            .updateTimestamp(Some(utils.localDateTime2KafkaTimestamp(start.plusNanos(i.toLong)))))
       .evalMap(msg => second_topic.producer.send(msg))
 
   test("gen data") {
@@ -52,12 +53,14 @@ class SparkJoinTest extends FunSuite {
 
     spark.use { s =>
       for {
-        f <- Sparkafka.valueDataset(s, first_topic, start, start.plusSeconds(num.toLong))
-        s <- Sparkafka.valueDataset(s, second_topic, start, start.plusSeconds(num.toLong))
+        f <- Sparkafka.valueDataset(s, first_topic, start, start.plusNanos(num.toLong))
+        s <- Sparkafka.valueDataset(s, second_topic, start, start.plusNanos(num.toLong))
         _ <- f.show[IO]()
         _ <- s.show[IO]()
-        _ <- f.joinLeft(s)(f('name) === s('name)).show[IO]()
-      } yield ()
+        cf <- f.count[IO]()
+        cs <- s.count[IO]
+        ds <- f.joinInner(s)(f('name) === s('name)).count[IO]()
+      } yield println(s"result = $ds cf = $cf, cs = $cs")
 
     }.unsafeRunSync()
   }

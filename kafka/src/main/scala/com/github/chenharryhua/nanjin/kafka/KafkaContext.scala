@@ -3,12 +3,16 @@ package com.github.chenharryhua.nanjin.kafka
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import cats.Eval
+import cats.data.Reader
 import cats.effect.concurrent.MVar
 import cats.effect.{ConcurrentEffect, ContextShift, IO, Timer}
+import fs2.Stream
 import fs2.kafka.{KafkaByteConsumer, KafkaByteProducer}
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, ByteArraySerializer}
+import org.apache.kafka.streams.KafkaStreams
+import org.apache.kafka.streams.scala.StreamsBuilder
 
 sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
   settings: KafkaSettings) {
@@ -53,8 +57,11 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
         new ByteArraySerializer,
         new ByteArraySerializer)
     }
+
   final def show: String = settings.show
 
+  final def kafkaStreams[A](topology: Reader[StreamsBuilder, A]): Stream[F, KafkaStreams] =
+    new KafkaStreamRunner[F](settings.streamSettings).stream[A](topology)
 }
 
 final class IoKafkaContext(settings: KafkaSettings)(
