@@ -12,7 +12,7 @@ class ListingTest extends FunSuite {
     // ctx.topic[StreamKey, StreamTarget]("stream-target").watchFromLatest.unsafeRunSync()
     val end   = LocalDateTime.now
     val start = end.minusDays(2)
-    // first_topic.json(start, end, "my.json").unsafeRunSync()
-    first_topic.watchFromEarliest.unsafeRunSync()
+    //first_topic.monitor.saveJson(start, end, "my.json").unsafeRunSync()
+    first_topic.monitor.watchFromEarliest.unsafeRunSync()
   }
 }

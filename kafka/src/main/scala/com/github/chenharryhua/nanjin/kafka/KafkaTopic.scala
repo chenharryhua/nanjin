@@ -26,8 +26,7 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
   sharedConsumer: Eval[MVar[F, KafkaByteConsumer]],
   sharedProducer: Eval[KafkaByteProducer],
   materializer: Eval[ActorMaterializer])
-    extends TopicNameExtractor[K, V] with codec.KafkaRecordCodec[K, V]
-    with KafkaTopicMonitoring[F, K, V] with Serializable {
+    extends TopicNameExtractor[K, V] with codec.KafkaRecordCodec[K, V] {
 
   val topicName: String = topicDef.topicName
 
@@ -77,6 +76,9 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
 
   val producer: KafkaProducerApi[F, K, V] =
     KafkaProducerApi[F, K, V](topicName, keyIso, valueIso, sharedProducer)
+
+  val monitor: KafkaMonitoringApi[F, K, V] =
+    KafkaMonitoringApi(fs2Channel, akkaResource, consumer)
 
   val show: String =
     s"""
