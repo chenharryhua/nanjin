@@ -19,6 +19,9 @@ trait KafkaTopicMonitoring[F[_], K, V] extends ShowKafkaMessage with BitraverseF
   protected def akkaResource: Resource[F, KafkaChannels.AkkaChannel[F, K, V]]
   protected def consumer: KafkaConsumerApi[F, K, V]
 
+  private val PAUSE: Char = 'p'
+  private val QUIT: Char  = 'q'
+
   private def keyboardSignal(implicit F: Concurrent[F]): Stream[F, Signal[F, Option[Char]]] =
     Stream
       .bracket(F.delay {
@@ -44,8 +47,8 @@ trait KafkaTopicMonitoring[F[_], K, V] extends ShowKafkaMessage with BitraverseF
         .map(fs2Channel.safeDecodeKeyValue)
         .map(_.show)
         .showLinesStdOut
-        .pauseWhen(signal.map(_.contains('s')))
-        .interruptWhen(signal.map(_.contains('q')))
+        .pauseWhen(signal.map(_.contains(PAUSE)))
+        .interruptWhen(signal.map(_.contains(QUIT)))
     }.compile.drain
 
   private def filterWatch(predict: ConsumerRecord[K, V] => Boolean, aor: AutoOffsetReset)(
@@ -58,8 +61,8 @@ trait KafkaTopicMonitoring[F[_], K, V] extends ShowKafkaMessage with BitraverseF
         .filter(m => predict(isoFs2ComsumerRecord.get(m.record)))
         .map(_.show)
         .showLinesStdOut
-        .pauseWhen(signal.map(_.contains('s')))
-        .interruptWhen(signal.map(_.contains('q')))
+        .pauseWhen(signal.map(_.contains(PAUSE)))
+        .interruptWhen(signal.map(_.contains(QUIT)))
     }.compile.drain
 
   def watchFromLatest(implicit F: Concurrent[F]): F[Unit] =
