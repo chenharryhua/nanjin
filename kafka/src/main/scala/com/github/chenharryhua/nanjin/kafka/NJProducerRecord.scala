@@ -52,9 +52,9 @@ object NJProducerRecord extends BitraverseKafkaRecord {
       cr.topic(),
       cr.key(),
       cr.value(),
-      Some(cr.partition()),
-      Some(cr.timestamp()),
-      Some(cr.headers()))
+      Option(cr.partition()).map(_.toInt),
+      Option(cr.timestamp()).map(_.toLong),
+      Option(cr.headers()))
 
   def fromConsumerRecord[K, V](cr: Fs2ConsumerRecord[K, V]): NJProducerRecord[K, V] =
     NJProducerRecord(
