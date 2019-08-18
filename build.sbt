@@ -8,7 +8,7 @@ val catsCore     = "2.0.0-RC1"
 val catsEffect   = "2.0.0-RC1"
 val catsMtl      = "0.6.0"
 val kittens      = "2.0.0-M1"
-val circeVersion = "0.12.0-RC2"
+val circeVersion = "0.12.0-RC3"
 val fs2Version   = "1.1.0-M1"
 val shapeless    = "2.3.3"
 val avro4s       = "3.0.0"
@@ -23,6 +23,7 @@ val scalatest    = "3.0.8"
 val refined      = "0.9.9"
 val zioCats      = "2.0.0.0-RC2"
 val frameless    = "0.8.0"
+val jline        = "3.12.1"
 
 lazy val commonSettings = Seq(
   version      := "0.0.2-SNAPSHOT",
@@ -77,7 +78,7 @@ lazy val kafka = (project in file("kafka"))
       "io.circe" %% "circe-core"    % circeVersion,
       "io.circe" %% "circe-generic" % circeVersion,
       "io.circe" %% "circe-parser"  % circeVersion,
-      "io.circe" %% "circe-optics"  % circeVersion,
+ //     "io.circe" %% "circe-optics"  % circeVersion,
 //base
       "eu.timepit" %% "refined"                         % refined,
       "org.typelevel" %% "cats-core"                    % catsCore,
@@ -96,6 +97,7 @@ lazy val kafka = (project in file("kafka"))
       "com.github.julien-truffaut" %% "monocle-unsafe"  % monocle,
       "com.propensive" %% "contextual"                  % contextual,
       "dev.zio" %% "zio-interop-cats"                   % zioCats,
+      "org.jline"                                       % "jline" % jline,
       "org.scalatest" %% "scalatest"                    % scalatest % Test
     ),
     excludeDependencies ++= Seq("javax.ws.rs" % "javax.ws.rs-api")

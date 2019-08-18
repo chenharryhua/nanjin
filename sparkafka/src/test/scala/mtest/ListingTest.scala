@@ -7,6 +7,6 @@ case class StreamKey(name: Int)
 class ListingTest extends FunSuite {
   test("listing to") {
     // ctx.topic[StreamKey, StreamTarget]("stream-target").watchFromLatest.unsafeRunSync()
-    first_topic.watchFromLatest.unsafeRunSync()
+    first_topic.watchFromEarliest.unsafeRunSync()
   }
 }
