@@ -36,9 +36,7 @@ lazy val commonSettings = Seq(
   ),
   addCompilerPlugin("org.typelevel" %% "kind-projector"  % "0.10.3"),
   addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
-  addCompilerPlugin(
-    ("org.scalamacros" %% "paradise" % "2.1.1").cross(CrossVersion.full)
-  ),
+  addCompilerPlugin(("org.scalamacros" %% "paradise" % "2.1.1").cross(CrossVersion.full)),
   scalacOptions ++= Seq(
     "-Ypartial-unification",
     "-deprecation",
@@ -78,7 +76,6 @@ lazy val kafka = (project in file("kafka"))
       "io.circe" %% "circe-core"    % circeVersion,
       "io.circe" %% "circe-generic" % circeVersion,
       "io.circe" %% "circe-parser"  % circeVersion,
- //     "io.circe" %% "circe-optics"  % circeVersion,
 //base
       "eu.timepit" %% "refined"                         % refined,
       "org.typelevel" %% "cats-core"                    % catsCore,

@@ -19,8 +19,9 @@ trait KafkaTopicMonitoring[F[_], K, V] extends ShowKafkaMessage with BitraverseF
   protected def akkaResource: Resource[F, KafkaChannels.AkkaChannel[F, K, V]]
   protected def consumer: KafkaConsumerApi[F, K, V]
 
-  private val PAUSE: Char = 'p'
-  private val QUIT: Char  = 'q'
+  private val PAUSE: Char    = 's'
+  private val QUIT: Char     = 'q'
+  private val CONTINUE: Char = 'c'
 
   private def keyboardSignal(implicit F: Concurrent[F]): Stream[F, Signal[F, Option[Char]]] =
     Stream
@@ -37,7 +38,7 @@ trait KafkaTopicMonitoring[F[_], K, V] extends ShowKafkaMessage with BitraverseF
       }
       .flatMap { case (_, r) => Stream.repeatEval(F.delay(r.read().toChar)) }
       .noneTerminate
-      .hold(Some('c'))
+      .hold(Some(CONTINUE))
 
   private def watch(aor: AutoOffsetReset)(implicit F: Concurrent[F]): F[Unit] =
     keyboardSignal.flatMap { signal =>
@@ -97,7 +98,7 @@ trait KafkaTopicMonitoring[F[_], K, V] extends ShowKafkaMessage with BitraverseF
   def saveJson(start: LocalDateTime, end: LocalDateTime, path: String)(
     implicit ev: Encoder[V],
     ev2: ContextShift[F],
-    F: Concurrent[F]): F[Unit] =
+    F: Concurrent[F]): F[Long] =
     for {
       range <- consumer.offsetRangeFor(start, end)
       beginning = range.mapValues(_.fromOffset)
@@ -115,5 +116,5 @@ trait KafkaTopicMonitoring[F[_], K, V] extends ShowKafkaMessage with BitraverseF
               .map(ByteString(_))
               .runWith(FileIO.toPath(Paths.get(path)))(chn.materializer)))
       }
-    } yield ()
+    } yield size
 }
