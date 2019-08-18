@@ -20,13 +20,6 @@ import org.apache.kafka.common.header.Headers
   partition: Option[Int],
   timestamp: Option[Long],
   headers: Option[Headers]) {
-  def this(topic: String, key: K, value: V) = this(topic, key, value, None, None, None)
-  def this(topic: String, key: K, value: V, timestamp: Long) =
-    this(topic, key, value, None, Some(timestamp), None)
-  def this(topic: String, key: K, value: V, partition: Int) =
-    this(topic, key, value, Some(partition), None, None)
-  def this(topic: String, key: K, value: V, partition: Int, timestamp: Long) =
-    this(topic, key, value, Some(partition), Some(timestamp), None)
 
   def updateTimestamp(ts: Option[Long]): NJProducerRecord[K, V]       = copy(timestamp = ts)
   def updatePartition(partition: Option[Int]): NJProducerRecord[K, V] = copy(partition = partition)
@@ -36,6 +29,23 @@ import org.apache.kafka.common.header.Headers
 }
 
 object NJProducerRecord extends BitraverseKafkaRecord {
+
+  def apply[K, V](topic: String, key: K, value: V): NJProducerRecord[K, V] =
+    NJProducerRecord[K, V](topic, key, value, None, None, None)
+
+  def apply[K, V](topic: String, key: K, value: V, timestamp: Long): NJProducerRecord[K, V] =
+    NJProducerRecord[K, V](topic, key, value, None, Some(timestamp), None)
+
+  def apply[K, V](topic: String, key: K, value: V, partition: Int): NJProducerRecord[K, V] =
+    NJProducerRecord[K, V](topic, key, value, Some(partition), None, None)
+
+  def apply[K, V](
+    topic: String,
+    key: K,
+    value: V,
+    partition: Int,
+    timestamp: Long): NJProducerRecord[K, V] =
+    NJProducerRecord[K, V](topic, key, value, Some(partition), Some(timestamp), None)
 
   def fromConsumerRecord[K, V](cr: ConsumerRecord[K, V]): NJProducerRecord[K, V] =
     NJProducerRecord(
@@ -71,9 +81,10 @@ object NJProducerRecord extends BitraverseKafkaRecord {
           pr.topic(),
           pr.key(),
           pr.value(),
-          Option(pr.partition()),
-          Option(pr.timestamp()),
-          Option(pr.headers())))
+          Option(pr.partition()).map(_.toInt),
+          Option(pr.timestamp()).map(_.toLong),
+          Option(pr.headers())
+        ))
 
   implicit def isoFs2ProducerRecord[K, V]: Iso[NJProducerRecord[K, V], Fs2ProducerRecord[K, V]] =
     Iso[NJProducerRecord[K, V], Fs2ProducerRecord[K, V]](

@@ -25,7 +25,7 @@ class SparkJoinTest extends FunSuite {
       .covary[IO]
       .map(
         i =>
-          new NJProducerRecord[Int, FirstStream](
+           NJProducerRecord[Int, FirstStream](
             first_topic.topicName,
             0,
             FirstStream(i.toString, utils.random4d.value)).updateTimestamp(
@@ -38,7 +38,7 @@ class SparkJoinTest extends FunSuite {
       .covary[IO]
       .map(
         i =>
-          new NJProducerRecord[Int, SecondStream](
+           NJProducerRecord[Int, SecondStream](
             second_topic.topicName,
             0,
             SecondStream(i.toString, utils.random4d.value)).updateTimestamp(
