@@ -56,6 +56,13 @@ object KafkaChannels {
         .evalTap(_.subscribeTo(topicName))
         .flatMap(_.stream)
 
+    def assign(tps: Map[TopicPartition, Long])
+      : Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
+      consumerStream[F, Array[Byte], Array[Byte]](consumerSettings)
+        .evalTap(_.subscribeTo(topicName))
+        .evalTap(c => tps.toList.traverse { case (tp, os) => c.seek(tp, os) })
+        .flatMap(_.stream)
+
     val show: String =
       s"""
          |fs2 consumer runtime settings:

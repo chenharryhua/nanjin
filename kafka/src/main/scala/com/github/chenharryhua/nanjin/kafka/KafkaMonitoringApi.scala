@@ -11,7 +11,7 @@ import fs2.concurrent.Signal
 import fs2.kafka.AutoOffsetReset
 import io.circe.Encoder
 import io.circe.syntax._
-import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndTimestamp}
 import org.jline.terminal.{Terminal, TerminalBuilder}
 
 import scala.util.Try
@@ -19,6 +19,7 @@ import scala.util.Try
 trait KafkaMonitoringApi[F[_], K, V] {
   def watchFromLatest: F[Unit]
   def watchFromEarliest: F[Unit]
+  def watchFrom(ldt: LocalDateTime): F[Unit]
   def filterFromLatest(pred: ConsumerRecord[Try[K], Try[V]]   => Boolean): F[Unit]
   def filterFromEarliest(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit]
   def summaries: F[Unit]
@@ -34,9 +35,9 @@ object KafkaMonitoringApi {
     akkaResource: Resource[F, KafkaChannels.AkkaChannel[F, K, V]],
     consumer: KafkaConsumerApi[F, K, V]
   ): KafkaMonitoringApi[F, K, V] =
-    new KafkaTopicMonitoring[F, K, V](fs2Channel, akkaResource, consumer) {}
+    new KafkaTopicMonitoring[F, K, V](fs2Channel, akkaResource, consumer)
 
-  abstract private[kafka] class KafkaTopicMonitoring[F[_]: ContextShift, K, V](
+  final private[kafka] class KafkaTopicMonitoring[F[_]: ContextShift, K, V](
     fs2Channel: KafkaChannels.Fs2Channel[F, K, V],
     akkaResource: Resource[F, KafkaChannels.AkkaChannel[F, K, V]],
     consumer: KafkaConsumerApi[F, K, V])(implicit F: Concurrent[F])
@@ -89,6 +90,22 @@ object KafkaMonitoringApi {
           .pauseWhen(signal.map(_.contains(PAUSE)))
           .interruptWhen(signal.map(_.contains(QUIT)))
       }.compile.drain
+
+    override def watchFrom(ldt: LocalDateTime): F[Unit] =
+      for {
+        start <- consumer
+          .offsetsForTimes(ldt)
+          .map(_.flatten[OffsetAndTimestamp].value.mapValues(_.offset()))
+        _ <- keyboardSignal.flatMap { signal =>
+          fs2Channel
+            .assign(start)
+            .map(fs2Channel.safeDecodeKeyValue)
+            .map(_.show)
+            .showLinesStdOut
+            .pauseWhen(signal.map(_.contains(PAUSE)))
+            .interruptWhen(signal.map(_.contains(QUIT)))
+        }.compile.drain
+      } yield ()
 
     override def watchFromLatest: F[Unit] =
       watch(AutoOffsetReset.Latest)
