@@ -14,11 +14,13 @@ import io.circe.syntax._
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.jline.terminal.{Terminal, TerminalBuilder}
 
+import scala.util.Try
+
 trait KafkaMonitoringApi[F[_], K, V] {
   def watchFromLatest: F[Unit]
   def watchFromEarliest: F[Unit]
-  def filterFromLatest(pred: ConsumerRecord[K, V]   => Boolean): F[Unit]
-  def filterFromEarliest(pred: ConsumerRecord[K, V] => Boolean): F[Unit]
+  def filterFromLatest(pred: ConsumerRecord[Try[K], Try[V]]   => Boolean): F[Unit]
+  def filterFromEarliest(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit]
   def summaries: F[Unit]
 
   def saveJson(start: LocalDateTime, end: LocalDateTime, path: String)(
@@ -34,7 +36,7 @@ object KafkaMonitoringApi {
   ): KafkaMonitoringApi[F, K, V] =
     new KafkaTopicMonitoring[F, K, V](fs2Channel, akkaResource, consumer) {}
 
-  private[kafka] abstract class KafkaTopicMonitoring[F[_]: ContextShift, K, V](
+  abstract private[kafka] class KafkaTopicMonitoring[F[_]: ContextShift, K, V](
     fs2Channel: KafkaChannels.Fs2Channel[F, K, V],
     akkaResource: Resource[F, KafkaChannels.AkkaChannel[F, K, V]],
     consumer: KafkaConsumerApi[F, K, V])(implicit F: Concurrent[F])
@@ -73,13 +75,14 @@ object KafkaMonitoringApi {
           .interruptWhen(signal.map(_.contains(QUIT)))
       }.compile.drain
 
-    private def filterWatch(predict: ConsumerRecord[K, V] => Boolean, aor: AutoOffsetReset)(
-      implicit F: Concurrent[F]): F[Unit] =
+    private def filterWatch(
+      predict: ConsumerRecord[Try[K], Try[V]] => Boolean,
+      aor: AutoOffsetReset)(implicit F: Concurrent[F]): F[Unit] =
       keyboardSignal.flatMap { signal =>
         fs2Channel
           .updateConsumerSettings(_.withAutoOffsetReset(aor))
           .consume
-          .map(fs2Channel.decode)
+          .map(fs2Channel.safeDecodeKeyValue)
           .filter(m => predict(isoFs2ComsumerRecord.get(m.record)))
           .map(_.show)
           .showLinesStdOut
@@ -93,10 +96,10 @@ object KafkaMonitoringApi {
     override def watchFromEarliest: F[Unit] =
       watch(AutoOffsetReset.Earliest)
 
-    override def filterFromLatest(pred: ConsumerRecord[K, V] => Boolean): F[Unit] =
+    override def filterFromLatest(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit] =
       filterWatch(pred, AutoOffsetReset.Latest)
 
-    override def filterFromEarliest(pred: ConsumerRecord[K, V] => Boolean): F[Unit] =
+    override def filterFromEarliest(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit] =
       filterWatch(pred, AutoOffsetReset.Earliest)
 
     override def summaries: F[Unit] =

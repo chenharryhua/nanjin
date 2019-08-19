@@ -36,6 +36,8 @@ final case class Pencil(name: String, color: Colorish)
 
 class EnumTest extends FunSuite {
   pencil_topic.schemaRegistry.register.unsafeRunSync()
+  val end   = LocalDateTime.now()
+  val start = end.minusHours(1)
 
   val pencils =
     List(
@@ -46,8 +48,6 @@ class EnumTest extends FunSuite {
 
   test("spark read") {
 
-    val end   = LocalDateTime.now()
-    val start = end.minusHours(1)
     fs2.Stream
       .eval(spark.use { s =>
         Sparkafka.dataset(s, pencil_topic, start, end).flatMap(_.take[IO](10)).map(Chunk.seq)
@@ -60,4 +60,12 @@ class EnumTest extends FunSuite {
       .unsafeRunSync()
 
   }
+
+  test("same key same partition") {
+
+    spark.use { s =>
+      Sparkafka.checkSameKeySamePartition(s, trip, end.minusYears(3), end)
+    }.map(println).unsafeRunSync
+  }
+
 }

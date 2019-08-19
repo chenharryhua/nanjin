@@ -5,7 +5,7 @@ import java.util
 import cats.implicits._
 import cats.{Monad, Show}
 import com.github.chenharryhua.nanjin.kafka.{utils, BitraverseKafkaRecord, KafkaTopic}
-import frameless.{TypedDataset, TypedEncoder}
+import frameless.{SparkDelay, TypedDataset, TypedEncoder}
 import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
@@ -155,4 +155,28 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
       .map(_.flatMap(_.bitraverse(Success(_), v => Try(value(v))).toOption.map(_.value())))
       .map(TypedDataset.create(_))
   }
+
+  final private case class KeyPartition[K](key: K, partition: Int)
+  final private case class AggregatedKeyPartition[K](key: K, partitions: Vector[Int])
+  import frameless.functions.aggregate.collectSet
+  import frameless.functions.size
+
+  def checkSameKeySamePartition[F[_]: Monad: SparkDelay, K: TypedEncoder, V: TypedEncoder](
+    spark: SparkSession,
+    topic: KafkaTopic[F, K, V],
+    start: LocalDateTime,
+    end: LocalDateTime,
+    key: Array[Byte]   => K,
+    value: Array[Byte] => V): F[Long] =
+    for {
+      ds <- dataset[F, K, V](spark, topic, start, end, key, value)
+      keyPartition = ds.project[KeyPartition[K]]
+      agged = keyPartition
+        .groupBy(keyPartition('key))
+        .agg(collectSet(keyPartition('partition)))
+        .as[AggregatedKeyPartition[K]]
+      filtered = agged.filter(size(agged('partitions)) > 1)
+      _ <- agged.show[F]()
+      count <- filtered.count[F]()
+    } yield count
 }

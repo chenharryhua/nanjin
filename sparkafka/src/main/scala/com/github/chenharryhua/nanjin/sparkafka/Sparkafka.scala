@@ -38,6 +38,13 @@ object Sparkafka {
     end: LocalDateTime): F[TypedDataset[V]] =
     macro implSafeValueDS[F, K, V]
 
+  def checkSameKeySamePartition[F[_], K, V](
+    spark: SparkSession,
+    topic: KafkaTopic[F, K, V],
+    start: LocalDateTime,
+    end: LocalDateTime): F[Long] =
+    macro implCheckSameKeySamePartition[F, K, V]
+
   def implDataset[F[_], K, V](c: blackbox.Context)(
     spark: c.Expr[SparkSession],
     topic: c.Expr[KafkaTopic[F, K, V]],
@@ -83,6 +90,18 @@ object Sparkafka {
     q"""
         _root_.com.github.chenharryhua.nanjin.sparkafka.SparkafkaDataset
          .safeValueDataset($spark, $topic, $start, $end, $topic.valueIso.get)
+     """
+  }
+
+  def implCheckSameKeySamePartition[F[_], K, V](c: blackbox.Context)(
+    spark: c.Expr[SparkSession],
+    topic: c.Expr[KafkaTopic[F, K, V]],
+    start: c.Expr[LocalDateTime],
+    end: c.Expr[LocalDateTime]): c.Tree = {
+    import c.universe._
+    q"""
+        _root_.com.github.chenharryhua.nanjin.sparkafka.SparkafkaDataset
+         .checkSameKeySamePartition($spark, $topic, $start, $end, $topic.keyIso.get, $topic.valueIso.get)
      """
   }
 }
