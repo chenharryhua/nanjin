@@ -64,7 +64,7 @@ class EnumTest extends FunSuite {
   test("same key same partition") {
 
     spark.use { s =>
-      Sparkafka.checkSameKeySamePartition(s, trip, end.minusYears(3), end)
+      Sparkafka.checkSameKeySamePartition(s, pencil_topic, end.minusYears(3), end)
     }.map(println).unsafeRunSync
   }
 
