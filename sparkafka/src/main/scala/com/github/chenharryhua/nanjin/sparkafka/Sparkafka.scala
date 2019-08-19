@@ -38,7 +38,7 @@ object Sparkafka {
     end: LocalDateTime): F[TypedDataset[V]] =
     macro implSafeValueDS[F, K, V]
 
-  def checkSameKeySamePartition[F[_], K, V](
+  def checkSameKeyInSamePartition[F[_], K, V](
     spark: SparkSession,
     topic: KafkaTopic[F, K, V],
     start: LocalDateTime,
@@ -101,7 +101,7 @@ object Sparkafka {
     import c.universe._
     q"""
         _root_.com.github.chenharryhua.nanjin.sparkafka.SparkafkaDataset
-         .checkSameKeySamePartition($spark, $topic, $start, $end, $topic.keyIso.get, $topic.valueIso.get)
+         .checkSameKeyInSamePartition($spark, $topic, $start, $end, $topic.keyIso.get, $topic.valueIso.get)
      """
   }
 }

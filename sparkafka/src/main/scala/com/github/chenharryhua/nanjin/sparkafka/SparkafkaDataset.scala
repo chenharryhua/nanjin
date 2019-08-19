@@ -157,11 +157,11 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
   }
 
   final private case class KeyPartition[K](key: K, partition: Int)
-  final private case class AggregatedKeyPartition[K](key: K, partitions: Vector[Int])
+  final private case class AggregatedKeyPartitions[K](key: K, partitions: Vector[Int])
   import frameless.functions.aggregate.collectSet
   import frameless.functions.size
 
-  def checkSameKeySamePartition[F[_]: Monad: SparkDelay, K: TypedEncoder, V: TypedEncoder](
+  def checkSameKeyInSamePartition[F[_]: Monad: SparkDelay, K: TypedEncoder, V: TypedEncoder](
     spark: SparkSession,
     topic: KafkaTopic[F, K, V],
     start: LocalDateTime,
@@ -174,7 +174,7 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
       agged = keyPartition
         .groupBy(keyPartition('key))
         .agg(collectSet(keyPartition('partition)))
-        .as[AggregatedKeyPartition[K]]
+        .as[AggregatedKeyPartitions[K]]
       filtered = agged.filter(size(agged('partitions)) > 1)
       _ <- filtered.show[F]()
       count <- filtered.count[F]()
