@@ -10,6 +10,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import frameless.Injection
 import fs2.Chunk
+import cats.Show
 
 sealed trait Colorish
 
@@ -30,6 +31,8 @@ object Colorish {
   case object Red extends Colorish
   case object Green extends Colorish
   case object Blue extends Colorish
+
+  implicit val showColorish: Show[Colorish] = cats.derived.semi.show[Colorish]
 }
 
 final case class Pencil(name: String, color: Colorish)
