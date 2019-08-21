@@ -7,7 +7,7 @@ import akka.kafka.{
 }
 import akka.stream.ActorMaterializer
 import cats.Show
-import cats.data.Reader
+import cats.data.{NonEmptyList, Reader}
 import cats.effect._
 import cats.implicits._
 import fs2.kafka.{ConsumerSettings => Fs2ConsumerSettings, ProducerSettings => Fs2ProducerSettings}
@@ -53,14 +53,7 @@ object KafkaChannels {
 
     val consume: Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
       consumerStream[F, Array[Byte], Array[Byte]](consumerSettings)
-        .evalTap(_.subscribeTo(topicName))
-        .flatMap(_.stream)
-
-    def assign(tps: Map[TopicPartition, Long])
-      : Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
-      consumerStream[F, Array[Byte], Array[Byte]](consumerSettings)
-        .evalTap(_.subscribeTo(topicName))
-        .evalTap(c => tps.toList.traverse { case (tp, os) => c.seek(tp, os) })
+        .evalTap(_.subscribe(NonEmptyList.of(topicName)))
         .flatMap(_.stream)
 
     val show: String =

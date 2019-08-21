@@ -6,7 +6,7 @@ import monocle.macros.Lenses
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 
-@Lenses case class SparkSettings(conf: SparkConf = new SparkConf) {
+@Lenses case class SparkSettings(conf: SparkConf) {
 
   def kms(kmsKey: String): SparkSettings =
     SparkSettings.conf.set(
@@ -24,13 +24,16 @@ import org.apache.spark.sql.SparkSession
     Resource.make(Sync[F].delay(SparkSession.builder().config(conf).getOrCreate()))(spk =>
       Sync[F].delay(spk.close))
 
+  def sessionStream[F[_]: Sync]: fs2.Stream[F, SparkSession] =
+    fs2.Stream.resource(sessionResource)
+
   def show: String = conf.toDebugString
 }
 
 object SparkSettings {
   implicit val showSparkSettings: Show[SparkSettings] = _.show
 
-  val default: SparkSettings = SparkSettings()
+  val default: SparkSettings = SparkSettings(new SparkConf)
     .set("spark.master", "local[*]")
     .set("spark.ui.enabled", "true")
     .set("spark.debug.maxToStringFields", "1000")

@@ -2,7 +2,8 @@ package mtest
 
 import java.time.LocalDateTime
 import io.circe.generic.auto._
-
+import cats.derived.auto.show._
+import cats.implicits._
 import org.scalatest.FunSuite
 case class StreamTarget(oneName: String, twoName: String, size: Int, color: Int)
 case class StreamKey(name: Int)

@@ -113,6 +113,7 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
         .as[AggregatedKeyPartitions[K]]
       filtered = agged.filter(size(agged('partitions)) > 1)
       _ <- filtered.show[F]()
+      _ <- ds.count[F]().map(x => println(s"number of source records: $x"))
       count <- filtered.count[F]()
     } yield count
 }

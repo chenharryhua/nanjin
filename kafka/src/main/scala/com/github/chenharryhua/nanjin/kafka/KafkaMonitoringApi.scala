@@ -4,28 +4,32 @@ import java.time.LocalDateTime
 
 import akka.stream.scaladsl.FileIO
 import akka.util.ByteString
+import cats.Show
 import cats.effect.{Async, Concurrent, ContextShift, Resource}
 import cats.implicits._
 import fs2.Stream
 import fs2.concurrent.Signal
 import fs2.kafka.AutoOffsetReset
-import io.circe.Encoder
 import io.circe.syntax._
-import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndTimestamp}
+import io.circe.{Encoder => JsonEncoder}
+import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.jline.terminal.{Terminal, TerminalBuilder}
 
 import scala.util.Try
 
 trait KafkaMonitoringApi[F[_], K, V] {
-  def watchFromLatest: F[Unit]
-  def watchFromEarliest: F[Unit]
-  def watchFrom(ldt: LocalDateTime): F[Unit]
-  def filterFromLatest(pred: ConsumerRecord[Try[K], Try[V]]   => Boolean): F[Unit]
-  def filterFromEarliest(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit]
+  def watchFromLatest(implicit k: Show[K], v: Show[V]): F[Unit]
+  def watchFromEarliest(implicit k: Show[K], v: Show[V]): F[Unit]
+
+  def filterFromLatest(
+    pred: ConsumerRecord[Try[K], Try[V]] => Boolean)(implicit k: Show[K], v: Show[V]): F[Unit]
+
+  def filterFromEarliest(
+    pred: ConsumerRecord[Try[K], Try[V]] => Boolean)(implicit k: Show[K], v: Show[V]): F[Unit]
   def summaries: F[Unit]
 
   def saveJson(start: LocalDateTime, end: LocalDateTime, path: String)(
-    implicit ev: Encoder[V]): F[Long]
+    implicit ev: JsonEncoder[V]): F[Long]
 }
 
 object KafkaMonitoringApi {
@@ -64,7 +68,7 @@ object KafkaMonitoringApi {
         .noneTerminate
         .hold(Some(CONTINUE))
 
-    private def watch(aor: AutoOffsetReset): F[Unit] =
+    private def watch(aor: AutoOffsetReset)(implicit k: Show[K], v: Show[V]): F[Unit] =
       keyboardSignal.flatMap { signal =>
         fs2Channel
           .updateConsumerSettings(_.withAutoOffsetReset(aor))
@@ -78,7 +82,7 @@ object KafkaMonitoringApi {
 
     private def filterWatch(
       predict: ConsumerRecord[Try[K], Try[V]] => Boolean,
-      aor: AutoOffsetReset)(implicit F: Concurrent[F]): F[Unit] =
+      aor: AutoOffsetReset)(implicit k: Show[K], v: Show[V]): F[Unit] =
       keyboardSignal.flatMap { signal =>
         fs2Channel
           .updateConsumerSettings(_.withAutoOffsetReset(aor))
@@ -91,32 +95,18 @@ object KafkaMonitoringApi {
           .interruptWhen(signal.map(_.contains(QUIT)))
       }.compile.drain
 
-    override def watchFrom(ldt: LocalDateTime): F[Unit] =
-      for {
-        start <- consumer
-          .offsetsForTimes(ldt)
-          .map(_.flatten[OffsetAndTimestamp].value.mapValues(_.offset()))
-        _ <- keyboardSignal.flatMap { signal =>
-          fs2Channel
-            .assign(start)
-            .map(fs2Channel.safeDecodeKeyValue)
-            .map(_.show)
-            .showLinesStdOut
-            .pauseWhen(signal.map(_.contains(PAUSE)))
-            .interruptWhen(signal.map(_.contains(QUIT)))
-        }.compile.drain
-      } yield ()
-
-    override def watchFromLatest: F[Unit] =
+    override def watchFromLatest(implicit k: Show[K], v: Show[V]): F[Unit] =
       watch(AutoOffsetReset.Latest)
 
-    override def watchFromEarliest: F[Unit] =
+    override def watchFromEarliest(implicit k: Show[K], v: Show[V]): F[Unit] =
       watch(AutoOffsetReset.Earliest)
 
-    override def filterFromLatest(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit] =
+    override def filterFromLatest(
+      pred: ConsumerRecord[Try[K], Try[V]] => Boolean)(implicit k: Show[K], v: Show[V]): F[Unit] =
       filterWatch(pred, AutoOffsetReset.Latest)
 
-    override def filterFromEarliest(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit] =
+    override def filterFromEarliest(
+      pred: ConsumerRecord[Try[K], Try[V]] => Boolean)(implicit k: Show[K], v: Show[V]): F[Unit] =
       filterWatch(pred, AutoOffsetReset.Earliest)
 
     override def summaries: F[Unit] =
@@ -136,24 +126,28 @@ object KafkaMonitoringApi {
                          |""".stripMargin)
 
     override def saveJson(start: LocalDateTime, end: LocalDateTime, path: String)(
-      implicit ev: Encoder[V]): F[Long] =
+      implicit ev: JsonEncoder[V]): F[Long] =
       for {
         range <- consumer.offsetRangeFor(start, end)
         beginning = range.mapValues(_.fromOffset)
         ending    = range.mapValues(_.untilOffset)
         size      = range.value.map { case (_, v) => v.size }.sum
-        _ <- akkaResource.use { chn =>
-          Async.fromFuture(
-            F.pure(
-              chn
-                .assign(beginning.value)
-                .takeWhile(p => ending.get(p.topic, p.partition).exists(p.offset < _))
-                .take(size)
-                .map(m => chn.decode(m).value.asJson.noSpaces)
-                .intersperse("\n")
-                .map(ByteString(_))
-                .runWith(FileIO.toPath(Paths.get(path)))(chn.materializer)))
-        }
+        _ <- Stream
+          .resource(akkaResource)
+          .evalMap { chn =>
+            Async.fromFuture(
+              F.pure(
+                chn
+                  .assign(beginning.value)
+                  .takeWhile(p => ending.get(p.topic, p.partition).exists(p.offset < _))
+                  .take(size)
+                  .map(m => chn.decode(m).value.asJson.noSpaces)
+                  .intersperse("\n")
+                  .map(ByteString(_))
+                  .runWith(FileIO.toPath(Paths.get(path)))(chn.materializer)))
+          }
+          .compile
+          .drain
       } yield size
   }
 }
