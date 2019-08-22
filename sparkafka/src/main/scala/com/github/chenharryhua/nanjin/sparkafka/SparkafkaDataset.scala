@@ -53,6 +53,16 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
     }.map(TypedDataset.create(_))
   }
 
+  def sdataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
+    topic: SharedVariable[KafkaTopic[F, K, V]],
+    start: LocalDateTime,
+    end: LocalDateTime)(
+    implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
+    rdd(spark, topic.get, start, end).map {
+      _.map(msg =>
+        SparkafkaConsumerRecord.from(msg.bimap(topic.get.keyIso.get, topic.get.valueIso.get)))
+    }.map(TypedDataset.create(_))
+
   def safeDataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
     spark: SparkSession,
     topic: KafkaTopic[F, K, V],

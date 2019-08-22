@@ -28,7 +28,7 @@ import org.apache.spark.sql.SparkSession
       val spk = SparkSession.builder().config(conf).getOrCreate()
       spk.sparkContext.setLogLevel(logLevel)
       spk
-    })(spk => Sync[F].delay(spk.close))
+    })(spk => Sync[F].delay(spk.close()))
 
   def sessionStream[F[_]: Sync]: fs2.Stream[F, SparkSession] =
     fs2.Stream.resource(sessionResource)

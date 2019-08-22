@@ -87,6 +87,7 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
     s"""
        |kafka topic: 
        |${topicDef.topicName}
+       |${schemaRegistrySettings.show}
        |${kafkaConsumerSettings.show}
        |${kafkaProducerSettings.show}""".stripMargin
 }
