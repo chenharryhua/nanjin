@@ -4,8 +4,9 @@ import java.util
 
 import cats.Monad
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.{utils, BitraverseKafkaRecord, KafkaTopic}
+import com.github.chenharryhua.nanjin.kafka.{BitraverseKafkaRecord, KafkaTopic}
 import frameless.{SparkDelay, TypedDataset, TypedEncoder}
+import monocle.function.At.remove
 import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.spark.rdd.RDD
@@ -20,9 +21,8 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
   private def props(maps: Map[String, String]): util.Map[String, Object] =
     (Map(
       "key.deserializer" -> classOf[ByteArrayDeserializer].getName,
-      "value.deserializer" -> classOf[ByteArrayDeserializer].getName,
-      ConsumerConfig.CLIENT_ID_CONFIG -> s"spark-${utils.random4d.value}"
-    ) ++ maps).mapValues[Object](identity).asJava
+      "value.deserializer" -> classOf[ByteArrayDeserializer].getName) ++
+      remove(ConsumerConfig.CLIENT_ID_CONFIG)(maps)).mapValues[Object](identity).asJava
 
   private def rdd[F[_]: Monad, K, V](
     spark: SparkSession,

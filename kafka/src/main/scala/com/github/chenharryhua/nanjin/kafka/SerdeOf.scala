@@ -64,7 +64,7 @@ sealed abstract class SerdeOf[A](val schema: Schema) extends Serializable {
     ValueSerde(schema, serializer, deserializer, props)
 }
 
-sealed protected trait Priority0 {
+sealed private[kafka] trait SerdeOfPriority0 {
 
   import com.sksamuel.avro4s.{Decoder, Encoder}
 
@@ -77,7 +77,7 @@ sealed protected trait Priority0 {
   }
 }
 
-sealed protected trait Priority1 extends Priority0 {
+sealed private[kafka] trait SerdeOfPriority1 extends SerdeOfPriority0 {
 
   import io.circe.{Decoder, Encoder}
 
@@ -90,7 +90,7 @@ sealed protected trait Priority1 extends Priority0 {
   }
 }
 
-object SerdeOf extends Priority1 {
+object SerdeOf extends SerdeOfPriority1 {
   def apply[A](implicit ev: SerdeOf[A]): SerdeOf[A] = ev
 
   implicit object kstringSerde
