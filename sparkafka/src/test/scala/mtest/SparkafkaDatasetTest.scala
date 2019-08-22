@@ -3,7 +3,6 @@ package mtest
 import java.time.LocalDateTime
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.sparkafka.Sparkafka
 import org.scalatest.FunSuite
 import frameless.cats.implicits._
 import cats.implicits._

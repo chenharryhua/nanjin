@@ -1,10 +1,10 @@
-package com.github.chenharryhua.nanjin.sparkafka
+package com.github.chenharryhua.nanjin.kafka
+
 import java.time.LocalDateTime
 import java.util
 
 import cats.Monad
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.{BitraverseKafkaRecord, KafkaTopic}
 import frameless.{SparkDelay, TypedDataset, TypedEncoder}
 import monocle.function.At.remove
 import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
@@ -46,21 +46,20 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
     start: LocalDateTime,
     end: LocalDateTime,
     key: Array[Byte]   => K,
-    value: Array[Byte] => V): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] = {
+    value: Array[Byte] => V): F[TypedDataset[SparkConsumerRecord[K, V]]] = {
     implicit val s: SparkSession = spark
     rdd(spark, topic, start, end).map {
-      _.map(msg => SparkafkaConsumerRecord.from(msg.bimap(key, value)))
+      _.map(msg => SparkConsumerRecord.from(msg.bimap(key, value)))
     }.map(TypedDataset.create(_))
   }
 
   def sdataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
     topic: SharedVariable[KafkaTopic[F, K, V]],
     start: LocalDateTime,
-    end: LocalDateTime)(
-    implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
+    end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[SparkConsumerRecord[K, V]]] =
     rdd(spark, topic.get, start, end).map {
       _.map(msg =>
-        SparkafkaConsumerRecord.from(msg.bimap(topic.get.keyIso.get, topic.get.valueIso.get)))
+        SparkConsumerRecord.from(msg.bimap(topic.get.keyIso.get, topic.get.valueIso.get)))
     }.map(TypedDataset.create(_))
 
   def safeDataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
@@ -69,12 +68,11 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
     start: LocalDateTime,
     end: LocalDateTime,
     key: Array[Byte]   => K,
-    value: Array[Byte] => V): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] = {
+    value: Array[Byte] => V): F[TypedDataset[SparkConsumerRecord[K, V]]] = {
     implicit val s: SparkSession = spark
     rdd(spark, topic, start, end)
-      .map(
-        _.flatMap(_.bitraverse(k => Try(key(k)), v => Try(value(v))).toOption
-          .map(SparkafkaConsumerRecord.from)))
+      .map(_.flatMap(
+        _.bitraverse(k => Try(key(k)), v => Try(value(v))).toOption.map(SparkConsumerRecord.from)))
       .map(TypedDataset.create(_))
   }
 

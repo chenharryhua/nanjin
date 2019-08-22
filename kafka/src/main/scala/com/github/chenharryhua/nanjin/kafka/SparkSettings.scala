@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.sparkafka
+package com.github.chenharryhua.nanjin.kafka
 
 import cats.Show
 import cats.effect.{Resource, Sync}

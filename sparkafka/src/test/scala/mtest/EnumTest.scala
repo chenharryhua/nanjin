@@ -3,7 +3,6 @@ package mtest
 import java.time.LocalDateTime
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.sparkafka.{Sparkafka, SparkafkaConsumerRecord}
 import org.scalatest.FunSuite
 import frameless.cats.implicits._
 import cats.implicits._
@@ -56,7 +55,7 @@ class EnumTest extends FunSuite {
         Sparkafka.dataset(s, pencil_topic, start, end).flatMap(_.take[IO](10)).map(Chunk.seq)
       })
       .flatMap(fs2.Stream.chunk)
-      .map(_.show)
+      .map(_.toString)
       .showLinesStdOut
       .compile
       .drain

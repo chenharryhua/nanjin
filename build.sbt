@@ -56,9 +56,9 @@ lazy val commonSettings = Seq(
   )
 )
 
-lazy val kafka = (project in file("kafka"))
+lazy val nj_kafka = (project in file("kafka"))
   .settings(commonSettings: _*)
-  .settings(name := "kafka")
+  .settings(name := "nj_kafka")
   .settings(
     addCompilerPlugin("com.github.ghik" %% "silencer-plugin" % silencer),
     libraryDependencies ++= Seq(
@@ -127,10 +127,13 @@ lazy val kafka = (project in file("kafka"))
     dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.7.2",
     excludeDependencies += "javax.ws.rs"                % "javax.ws.rs-api"
   )
-
+/*
 lazy val sparkafka = (project in file("sparkafka"))
-  .dependsOn(kafka)
+  .dependsOn(nj_kafka)
   .settings(commonSettings: _*)
   .settings(name := "sparkafka")
-  
-lazy val nanjin = (project in file(".")).aggregate(kafka, sparkafka)
+  .settings(
+    libraryDependencies ++= Seq("org.scalatest" %% "scalatest" % scalatest % Test)
+  )
+*/
+lazy val nanjin = (project in file(".")).aggregate(nj_kafka)

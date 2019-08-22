@@ -5,7 +5,6 @@ import java.time.LocalDateTime
 import cats.effect.IO
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.{utils, NJProducerRecord}
-import com.github.chenharryhua.nanjin.sparkafka.Sparkafka
 import fs2.Stream
 import org.scalatest.FunSuite
 import frameless.cats.implicits._
