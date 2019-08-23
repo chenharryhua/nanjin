@@ -10,7 +10,6 @@ class SerializableTest extends FunSuite with Serializable {
   test("serizable") {
     val end   = LocalDateTime.now()
     val start = end.minusYears(1)
-    val topic = ctx.topic[Int, trip_record]("nyc_yellow_taxi_trip_data")
     sparkSession.use { implicit s =>
       //Sparkafka.dataset(s, taxi, start, end).flatMap(_.show[IO]())
       SparkafkaDataset.safeDataset(taxi, start, end).flatMap(_.show[IO]())
