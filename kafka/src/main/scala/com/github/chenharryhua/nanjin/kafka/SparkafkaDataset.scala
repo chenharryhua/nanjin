@@ -41,55 +41,54 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
     }
 
   def dataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
-    spark: SparkSession,
-    topic: KafkaTopic[F, K, V],
+    topic: => KafkaTopic[F, K, V],
     start: LocalDateTime,
-    end: LocalDateTime,
-    key: Array[Byte]   => K,
-    value: Array[Byte] => V): F[TypedDataset[SparkConsumerRecord[K, V]]] = {
-    implicit val s: SparkSession = spark
+    end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[SparkConsumerRecord[K, V]]] =
     rdd(spark, topic, start, end).map {
-      _.map(msg => SparkConsumerRecord.from(msg.bimap(key, value)))
+      _.map(msg => {
+        val t     = topic
+        val key   = t.keyIso.get _
+        val value = t.valueIso.get _
+        SparkConsumerRecord.from(msg.bimap(key, value))
+      })
     }.map(TypedDataset.create(_))
-  }
 
   def safeDataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
-    spark: SparkSession,
-    topic: KafkaTopic[F, K, V],
+    topic: => KafkaTopic[F, K, V],
     start: LocalDateTime,
-    end: LocalDateTime,
-    key: Array[Byte]   => K,
-    value: Array[Byte] => V): F[TypedDataset[SparkConsumerRecord[K, V]]] = {
-    implicit val s: SparkSession = spark
+    end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[SparkConsumerRecord[K, V]]] =
     rdd(spark, topic, start, end)
-      .map(_.flatMap(
-        _.bitraverse(k => Try(key(k)), v => Try(value(v))).toOption.map(SparkConsumerRecord.from)))
+      .map(_.flatMap(msg => {
+        val t     = topic
+        val key   = t.keyIso.get _
+        val value = t.valueIso.get _
+        msg.bitraverse(k => Try(key(k)), v => Try(value(v))).toOption.map(SparkConsumerRecord.from)
+      }))
       .map(TypedDataset.create(_))
-  }
 
   def valueDataset[F[_]: Monad, K, V: TypedEncoder: ClassTag](
-    spark: SparkSession,
-    topic: KafkaTopic[F, K, V],
+    topic: => KafkaTopic[F, K, V],
     start: LocalDateTime,
-    end: LocalDateTime,
-    value: Array[Byte] => V): F[TypedDataset[V]] = {
-    implicit val s: SparkSession = spark
+    end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[V]] =
     rdd(spark, topic, start, end)
-      .map(_.map(_.bimap(identity, value).value()))
+      .map(_.map(msg => {
+        val t     = topic
+        val value = t.valueIso.get _
+        msg.bimap(identity, value).value()
+      }))
       .map(TypedDataset.create(_))
-  }
 
   def safeValueDataset[F[_]: Monad, K, V: TypedEncoder: ClassTag](
-    spark: SparkSession,
-    topic: KafkaTopic[F, K, V],
+    topic: => KafkaTopic[F, K, V],
     start: LocalDateTime,
-    end: LocalDateTime,
-    value: Array[Byte] => V): F[TypedDataset[V]] = {
-    implicit val s: SparkSession = spark
+    end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[V]] =
     rdd(spark, topic, start, end)
-      .map(_.flatMap(_.bitraverse(Success(_), v => Try(value(v))).toOption.map(_.value())))
+      .map(_.flatMap(msg => {
+        val t     = topic
+        val value = t.valueIso.get _
+        msg.bitraverse(Success(_), v => Try(value(v))).toOption.map(_.value())
+      }))
       .map(TypedDataset.create(_))
-  }
 
   final private case class KeyPartition[K](key: K, partition: Int)
   final private case class AggregatedKeyPartitions[K](key: K, partitions: Vector[Int])
@@ -97,14 +96,11 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
   import frameless.functions.size
 
   def checkSameKeyInSamePartition[F[_]: Monad: SparkDelay, K: TypedEncoder, V: TypedEncoder](
-    spark: SparkSession,
-    topic: KafkaTopic[F, K, V],
+    topic: => KafkaTopic[F, K, V],
     start: LocalDateTime,
-    end: LocalDateTime,
-    key: Array[Byte]   => K,
-    value: Array[Byte] => V): F[Long] =
+    end: LocalDateTime)(implicit spark: SparkSession): F[Long] =
     for {
-      ds <- dataset[F, K, V](spark, topic, start, end, key, value)
+      ds <- dataset[F, K, V](topic, start, end)
       keyPartition = ds.project[KeyPartition[K]]
       agged = keyPartition
         .groupBy(keyPartition('key))

@@ -56,9 +56,9 @@ lazy val commonSettings = Seq(
   )
 )
 
-lazy val nj_kafka = (project in file("kafka"))
+lazy val sparkafka = (project in file("kafka"))
   .settings(commonSettings: _*)
-  .settings(name := "nj_kafka")
+  .settings(name := "sparkafka")
   .settings(
     addCompilerPlugin("com.github.ghik" %% "silencer-plugin" % silencer),
     libraryDependencies ++= Seq(
@@ -136,4 +136,4 @@ lazy val sparkafka = (project in file("sparkafka"))
     libraryDependencies ++= Seq("org.scalatest" %% "scalatest" % scalatest % Test)
   )
 */
-lazy val nanjin = (project in file(".")).aggregate(nj_kafka)
+lazy val nanjin = (project in file(".")).aggregate(sparkafka)
