@@ -52,7 +52,7 @@ final case class ValueSerde[A](
 
 @implicitNotFound(
   "Could not find an instance of SerdeOf[${A}], for KJson, import io.circe.generic.auto._")
-sealed abstract class SerdeOf[A](val schema: Schema) extends Serializable {
+sealed abstract class SerdeOf[A](schema: Schema) extends Serializable {
   def serializer: Serializer[A]
 
   def deserializer: Deserializer[A]

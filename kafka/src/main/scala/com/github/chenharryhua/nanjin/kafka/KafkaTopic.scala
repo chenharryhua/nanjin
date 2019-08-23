@@ -8,7 +8,10 @@ import fs2.kafka.{KafkaByteConsumer, KafkaByteProducer}
 import monocle.Iso
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
-final case class TopicDef[K: SerdeOf, V: SerdeOf](topicName: String) {
+final case class TopicDef[K, V](topicName: String)(
+  implicit
+  val serdeOfKey: SerdeOf[K],
+  val serdeOfValue: SerdeOf[V]) {
   val keySchemaLoc: String   = s"$topicName-key"
   val valueSchemaLoc: String = s"$topicName-value"
 
@@ -18,8 +21,6 @@ final case class TopicDef[K: SerdeOf, V: SerdeOf](topicName: String) {
 
 final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] private[kafka] (
   val topicDef: TopicDef[K, V],
-  val keySerde: KeySerde[K],
-  val valueSerde: ValueSerde[V],
   val schemaRegistrySettings: SchemaRegistrySettings,
   val kafkaConsumerSettings: KafkaConsumerSettings,
   val kafkaProducerSettings: KafkaProducerSettings,
@@ -33,6 +34,9 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
   override def extract(key: K, value: V, rc: RecordContext): String = topicName
 
   override def toString: String = topicName
+
+  val keySerde: KeySerde[K]     = topicDef.serdeOfKey.asKey(schemaRegistrySettings.props)
+  val valueSerde: ValueSerde[V] = topicDef.serdeOfValue.asValue(schemaRegistrySettings.props)
 
   val keyIso: Iso[Array[Byte], K]   = keySerde.iso(topicName)
   val valueIso: Iso[Array[Byte], V] = valueSerde.iso(topicName)

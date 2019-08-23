@@ -15,6 +15,8 @@ package object kafka {
       .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest")
       .ioContext
 
+  val taxi = ctx.topic[Int, trip_record]("nyc_yellow_taxi_trip_data")
+
   val sparkSession: Resource[IO, SparkSession] =
     SparkSettings.default.updateConf(_.setMaster("local[*]").setAppName("test")).sessionResource[IO]
 }
