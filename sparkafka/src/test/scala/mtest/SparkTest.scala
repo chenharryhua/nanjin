@@ -12,7 +12,7 @@ import frameless.cats.implicits.framelessCatsSparkDelayForSync
 class SparkTest extends FunSuite with Serializable {
   val end   = LocalDateTime.now()
   val start = end.minusYears(1)
-  test("serizable") {
+  test("should be able to show topic data") {
     spark.use { implicit s =>
       SparkafkaDataset.valueDataset(topics.taxi, start, end).flatMap(_.show[IO](3)) >>
         SparkafkaDataset.dataset(topics.taxi, start, end).flatMap(_.show[IO](3)) >>
@@ -20,7 +20,7 @@ class SparkTest extends FunSuite with Serializable {
         SparkafkaDataset.safeValueDataset(topics.taxi, start, end).flatMap(_.show[IO](3))
     }.unsafeRunSync
   }
-  test("save to json") {
+  test("should be able to save topic to json") {
     spark.use { implicit s =>
       SparkafkaDataset
         .dataset(topics.taxi, start, end)

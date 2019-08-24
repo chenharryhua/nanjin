@@ -48,7 +48,7 @@ class SparkJoinTest extends FunSuite {
       .unsafeRunSync()
   }
 
-  test("spark") {
+  test("should be able to join two topics together") {
 
     spark.use { implicit s =>
       for {

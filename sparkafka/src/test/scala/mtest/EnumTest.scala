@@ -22,7 +22,7 @@ class EnumTest extends FunSuite with ShowKafkaMessage {
       (3, Pencil("plastic", Colorish.Blue)))
   topics.pencil_topic.producer.send(pencils).unsafeRunSync()
 
-  test("spark read") {
+  test("should be able to process enum data") {
 
     fs2.Stream
       .eval(spark.use { implicit s =>
@@ -40,7 +40,7 @@ class EnumTest extends FunSuite with ShowKafkaMessage {
 
   }
 
-  test("same key same partition") {
+  test("same key should go to same partition") {
 
     spark.use { implicit s =>
       SparkafkaDataset.checkSameKeyInSamePartition(topics.pencil_topic, end.minusYears(3), end)
