@@ -20,16 +20,17 @@ import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
 object SparkafkaDataset extends BitraverseKafkaRecord {
-  implicit val timestampTypeInjection: Injection[TimestampType, String] =
+  implicit private val timestampTypeInjection: Injection[TimestampType, String] =
     new Injection[TimestampType, String] {
       override def apply(a: TimestampType): String  = a.name
       override def invert(b: String): TimestampType = TimestampType.forName(b)
     }
 
-  implicit val headersInjection: Injection[Headers, String] = new Injection[Headers, String] {
-    override def apply(a: Headers): String  = a.toString
-    override def invert(b: String): Headers = new RecordHeaders()
-  }
+  implicit private val headersInjection: Injection[Headers, String] =
+    new Injection[Headers, String] {
+      override def apply(a: Headers): String  = a.toString
+      override def invert(b: String): Headers = new RecordHeaders()
+    }
 
   private def props(maps: Map[String, String]): util.Map[String, Object] =
     (Map(
