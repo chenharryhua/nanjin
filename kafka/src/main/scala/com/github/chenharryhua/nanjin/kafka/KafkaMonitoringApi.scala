@@ -1,17 +1,10 @@
 package com.github.chenharryhua.nanjin.kafka
-import java.nio.file.Paths
-import java.time.LocalDateTime
-
-import akka.stream.scaladsl.FileIO
-import akka.util.ByteString
 import cats.Show
-import cats.effect.{Async, Concurrent, ContextShift, Resource}
+import cats.effect.{Concurrent, ContextShift, Resource}
 import cats.implicits._
 import fs2.Stream
 import fs2.concurrent.Signal
 import fs2.kafka.AutoOffsetReset
-import io.circe.syntax._
-import io.circe.{Encoder => JsonEncoder}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.jline.terminal.{Terminal, TerminalBuilder}
 
@@ -25,9 +18,6 @@ trait KafkaMonitoringApi[F[_], K, V] {
   def filterFromEarliest(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit]
 
   def summaries: F[Unit]
-
-  def saveJson(start: LocalDateTime, end: LocalDateTime, path: String)(
-    implicit ev: JsonEncoder[V]): F[Long]
 }
 
 object KafkaMonitoringApi {
@@ -118,29 +108,5 @@ object KafkaMonitoringApi {
                          |${last.map(_.show).mkString("\n")}
                          |""".stripMargin)
 
-    override def saveJson(start: LocalDateTime, end: LocalDateTime, path: String)(
-      implicit ev: JsonEncoder[V]): F[Long] =
-      for {
-        range <- consumer.offsetRangeFor(start, end)
-        beginning = range.mapValues(_.fromOffset)
-        ending    = range.mapValues(_.untilOffset)
-        size      = range.value.map { case (_, v) => v.size }.sum
-        _ <- Stream
-          .resource(akkaResource)
-          .evalMap { chn =>
-            Async.fromFuture(
-              F.pure(
-                chn
-                  .assign(beginning.value)
-                  .takeWhile(p => ending.get(p.topic, p.partition).exists(p.offset < _))
-                  .take(size)
-                  .map(m => chn.decode(m).value.asJson.noSpaces)
-                  .intersperse("\n")
-                  .map(ByteString(_))
-                  .runWith(FileIO.toPath(Paths.get(path)))(chn.materializer)))
-          }
-          .compile
-          .drain
-      } yield size
   }
 }
