@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import cats.Eval
+import cats.{Eval, Show}
 import cats.data.Reader
 import cats.effect.concurrent.MVar
 import cats.effect.{ConcurrentEffect, ContextShift, IO, Timer}
@@ -35,7 +35,7 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
       sharedProducer,
       Eval.later(materializer))
 
-  final def topic[K: SerdeOf, V: SerdeOf](topicName: String): KafkaTopic[F, K, V] =
+  final def topic[K: SerdeOf: Show, V: SerdeOf: Show](topicName: String): KafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](topicName))
 
   final private[this] val sharedConsumer: Eval[MVar[F, KafkaByteConsumer]] =

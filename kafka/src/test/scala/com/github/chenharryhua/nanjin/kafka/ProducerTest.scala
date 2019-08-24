@@ -8,7 +8,7 @@ import org.apache.kafka.streams.scala.StreamsBuilder
 import org.scalatest.FunSuite
 import scala.concurrent.duration._
 import scala.util.Random
-
+import cats.derived.auto.show._
 case class AvroKey(key: String)
 case class AvroValue(v1: String, v2: Int)
 

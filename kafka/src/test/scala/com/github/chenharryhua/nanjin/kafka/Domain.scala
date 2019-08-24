@@ -178,3 +178,17 @@ case class aisClassAPositionReport(
   Turn: Float,
   Maneuver: Int,
   Timestamp: Long)
+
+object Materials extends Enumeration {
+  type Materials = Value
+  val Wood, Steel, Stone         = Value
+  implicit val show: Show[Value] = _.toString
+}
+
+sealed trait Colorish
+
+object Colorish {
+  case object Red extends Colorish
+  case object Green extends Colorish
+  case object Blue extends Colorish
+}

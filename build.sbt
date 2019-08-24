@@ -25,7 +25,7 @@ val refined      = "0.9.9"
 val zioCats      = "2.0.0.0-RC2"
 val frameless    = "0.8.0"
 val jline        = "3.12.1"
-
+val catsTime     = "0.3.0-M1"
 lazy val commonSettings = Seq(
   version      := "0.0.2-SNAPSHOT",
   organization := "com.github.chenharryhua",
@@ -62,10 +62,10 @@ lazy val sparkafka = (project in file("kafka"))
   .settings(
     addCompilerPlugin("com.github.ghik" %% "silencer-plugin" % silencer),
     libraryDependencies ++= Seq(
-      "com.github.ghik" %% "silencer-lib"         % silencer % Provided,
-      "org.scala-lang"                            % "scala-reflect" % scalaVersion.value % Provided,
-      "org.scala-lang"                            % "scala-compiler" % scalaVersion.value % Provided,
-//kafka      
+      "com.github.ghik" %% "silencer-lib" % silencer         % Provided,
+      "org.scala-lang"                    % "scala-reflect"  % scalaVersion.value % Provided,
+      "org.scala-lang"                    % "scala-compiler" % scalaVersion.value % Provided,
+//kafka
       "org.apache.kafka"                          % "kafka-clients" % kafkaVersion,
       "org.apache.kafka"                          % "kafka-streams" % kafkaVersion,
       "org.apache.kafka" %% "kafka-streams-scala" % kafkaVersion,
@@ -84,25 +84,26 @@ lazy val sparkafka = (project in file("kafka"))
       "io.circe" %% "circe-generic" % circeVersion,
       "io.circe" %% "circe-parser"  % circeVersion,
 //base
-      "eu.timepit" %% "refined"                          % refined,
-      "org.typelevel" %% "cats-core"                     % catsCore,
-      "org.typelevel" %% "alleycats-core"                % catsCore,
-      "org.typelevel" %% "cats-mtl-core"                 % catsMtl,
-      "org.typelevel" %% "kittens"                       % kittens,
-      "com.chuusai" %% "shapeless"                       % shapeless,
-      "co.fs2" %% "fs2-core"                             % fs2Version,
-      "co.fs2" %% "fs2-reactive-streams"                 % fs2Version,
-      "co.fs2" %% "fs2-io"                               % fs2Version,
-      "org.typelevel" %% "cats-effect"                   % catsEffect,
-      "com.github.julien-truffaut" %% "monocle-core"     % monocle,
-      "com.github.julien-truffaut" %% "monocle-generic"  % monocle,
-      "com.github.julien-truffaut" %% "monocle-macro"    % monocle,
-      "com.github.julien-truffaut" %% "monocle-state"    % monocle,
-      "com.github.julien-truffaut" %% "monocle-unsafe"   % monocle,
-      "com.propensive" %% "contextual"                   % contextual,
-      "dev.zio" %% "zio-interop-cats"                    % zioCats,
-      "org.jline"                                        % "jline" % jline,
-//spark      
+      "eu.timepit" %% "refined"                         % refined,
+      "org.typelevel" %% "cats-core"                    % catsCore,
+      "org.typelevel" %% "alleycats-core"               % catsCore,
+      "org.typelevel" %% "cats-mtl-core"                % catsMtl,
+      "org.typelevel" %% "kittens"                      % kittens,
+      "com.chuusai" %% "shapeless"                      % shapeless,
+      "co.fs2" %% "fs2-core"                            % fs2Version,
+      "co.fs2" %% "fs2-reactive-streams"                % fs2Version,
+      "co.fs2" %% "fs2-io"                              % fs2Version,
+      "org.typelevel" %% "cats-effect"                  % catsEffect,
+      "com.github.julien-truffaut" %% "monocle-core"    % monocle,
+      "com.github.julien-truffaut" %% "monocle-generic" % monocle,
+      "com.github.julien-truffaut" %% "monocle-macro"   % monocle,
+      "com.github.julien-truffaut" %% "monocle-state"   % monocle,
+      "com.github.julien-truffaut" %% "monocle-unsafe"  % monocle,
+      "com.propensive" %% "contextual"                  % contextual,
+      "dev.zio" %% "zio-interop-cats"                   % zioCats,
+      "org.jline"                                       % "jline" % jline,
+      "io.chrisdavenport" %% "cats-time"                % catsTime,
+//spark
       "org.apache.spark" %% "spark-core"                 % sparkVersion,
       "org.apache.spark" %% "spark-sql"                  % sparkVersion,
       "org.apache.spark" %% "spark-streaming"            % sparkVersion,
@@ -129,4 +130,3 @@ lazy val sparkafka = (project in file("kafka"))
     dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.7.2",
     excludeDependencies += "javax.ws.rs"                % "javax.ws.rs-api"
   )
-

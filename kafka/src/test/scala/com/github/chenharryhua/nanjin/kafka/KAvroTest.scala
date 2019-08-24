@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.implicits._
 import org.scalatest.FunSuite
-
+import cats.derived.auto.show._
 sealed trait Color
 final case class Red(str: String, i: Int) extends Color
 final case class Green(str: String) extends Color

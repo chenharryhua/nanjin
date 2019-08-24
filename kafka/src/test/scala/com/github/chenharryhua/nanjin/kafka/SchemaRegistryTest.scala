@@ -2,7 +2,8 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.IO
 import org.scalatest.FunSuite
-
+import cats.derived.auto.show._
+import cats.implicits._
 class SchemaRegistryTest extends FunSuite {
 
   val nyc: TopicDef[Int, trip_record] =

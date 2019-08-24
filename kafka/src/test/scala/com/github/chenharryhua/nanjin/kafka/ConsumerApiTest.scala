@@ -4,7 +4,7 @@ import java.time.LocalDateTime
 
 import cats.implicits._
 import org.scalatest.FunSuite
-
+import cats.derived.auto.show._
 class ConsumerApiTest extends FunSuite with ShowKafkaMessage {
 
   val nyc_taxi_trip: TopicDef[Array[Byte], trip_record] =

@@ -11,7 +11,9 @@ import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 final case class TopicDef[K, V](topicName: String)(
   implicit
   val serdeOfKey: SerdeOf[K],
-  val serdeOfValue: SerdeOf[V]) {
+  val serdeOfValue: SerdeOf[V],
+  val showKey: Show[K],
+  val showValue: Show[V]) {
   val keySchemaLoc: String   = s"$topicName-key"
   val valueSchemaLoc: String = s"$topicName-value"
 
@@ -28,6 +30,10 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
   sharedProducer: Eval[KafkaByteProducer],
   materializer: Eval[ActorMaterializer])
     extends TopicNameExtractor[K, V] with codec.KafkaRecordCodec[K, V] {
+  import topicDef.showKey
+  import topicDef.showValue
+  import topicDef.serdeOfKey
+  import topicDef.serdeOfValue
 
   val topicName: String = topicDef.topicName
 
@@ -35,8 +41,8 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
 
   override def toString: String = topicName
 
-  val keySerde: KeySerde[K]     = topicDef.serdeOfKey.asKey(schemaRegistrySettings.props)
-  val valueSerde: ValueSerde[V] = topicDef.serdeOfValue.asValue(schemaRegistrySettings.props)
+  val keySerde: KeySerde[K]     = serdeOfKey.asKey(schemaRegistrySettings.props)
+  val valueSerde: ValueSerde[V] = serdeOfValue.asValue(schemaRegistrySettings.props)
 
   val keyIso: Iso[Array[Byte], K]   = keySerde.iso(topicName)
   val valueIso: Iso[Array[Byte], V] = valueSerde.iso(topicName)

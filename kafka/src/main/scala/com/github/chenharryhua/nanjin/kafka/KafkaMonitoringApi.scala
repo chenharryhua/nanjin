@@ -18,14 +18,12 @@ import org.jline.terminal.{Terminal, TerminalBuilder}
 import scala.util.Try
 
 trait KafkaMonitoringApi[F[_], K, V] {
-  def watchFromLatest(implicit k: Show[K], v: Show[V]): F[Unit]
-  def watchFromEarliest(implicit k: Show[K], v: Show[V]): F[Unit]
+  def watchFromLatest: F[Unit]
+  def watchFromEarliest: F[Unit]
 
-  def filterFromLatest(
-    pred: ConsumerRecord[Try[K], Try[V]] => Boolean)(implicit k: Show[K], v: Show[V]): F[Unit]
+  def filterFromLatest(pred: ConsumerRecord[Try[K], Try[V]]   => Boolean): F[Unit]
+  def filterFromEarliest(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit]
 
-  def filterFromEarliest(
-    pred: ConsumerRecord[Try[K], Try[V]] => Boolean)(implicit k: Show[K], v: Show[V]): F[Unit]
   def summaries: F[Unit]
 
   def saveJson(start: LocalDateTime, end: LocalDateTime, path: String)(
@@ -34,14 +32,14 @@ trait KafkaMonitoringApi[F[_], K, V] {
 
 object KafkaMonitoringApi {
 
-  def apply[F[_]: Concurrent: ContextShift, K, V](
+  def apply[F[_]: Concurrent: ContextShift, K: Show, V: Show](
     fs2Channel: KafkaChannels.Fs2Channel[F, K, V],
     akkaResource: Resource[F, KafkaChannels.AkkaChannel[F, K, V]],
     consumer: KafkaConsumerApi[F, K, V]
   ): KafkaMonitoringApi[F, K, V] =
     new KafkaTopicMonitoring[F, K, V](fs2Channel, akkaResource, consumer)
 
-  final private[kafka] class KafkaTopicMonitoring[F[_]: ContextShift, K, V](
+  final private[kafka] class KafkaTopicMonitoring[F[_]: ContextShift, K: Show, V: Show](
     fs2Channel: KafkaChannels.Fs2Channel[F, K, V],
     akkaResource: Resource[F, KafkaChannels.AkkaChannel[F, K, V]],
     consumer: KafkaConsumerApi[F, K, V])(implicit F: Concurrent[F])
@@ -68,7 +66,7 @@ object KafkaMonitoringApi {
         .noneTerminate
         .hold(Some(CONTINUE))
 
-    private def watch(aor: AutoOffsetReset)(implicit k: Show[K], v: Show[V]): F[Unit] =
+    private def watch(aor: AutoOffsetReset): F[Unit] =
       keyboardSignal.flatMap { signal =>
         fs2Channel
           .updateConsumerSettings(_.withAutoOffsetReset(aor))
@@ -82,7 +80,7 @@ object KafkaMonitoringApi {
 
     private def filterWatch(
       predict: ConsumerRecord[Try[K], Try[V]] => Boolean,
-      aor: AutoOffsetReset)(implicit k: Show[K], v: Show[V]): F[Unit] =
+      aor: AutoOffsetReset): F[Unit] =
       keyboardSignal.flatMap { signal =>
         fs2Channel
           .updateConsumerSettings(_.withAutoOffsetReset(aor))
@@ -95,18 +93,13 @@ object KafkaMonitoringApi {
           .interruptWhen(signal.map(_.contains(QUIT)))
       }.compile.drain
 
-    override def watchFromLatest(implicit k: Show[K], v: Show[V]): F[Unit] =
-      watch(AutoOffsetReset.Latest)
+    override def watchFromLatest: F[Unit]   = watch(AutoOffsetReset.Latest)
+    override def watchFromEarliest: F[Unit] = watch(AutoOffsetReset.Earliest)
 
-    override def watchFromEarliest(implicit k: Show[K], v: Show[V]): F[Unit] =
-      watch(AutoOffsetReset.Earliest)
-
-    override def filterFromLatest(
-      pred: ConsumerRecord[Try[K], Try[V]] => Boolean)(implicit k: Show[K], v: Show[V]): F[Unit] =
+    override def filterFromLatest(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit] =
       filterWatch(pred, AutoOffsetReset.Latest)
 
-    override def filterFromEarliest(
-      pred: ConsumerRecord[Try[K], Try[V]] => Boolean)(implicit k: Show[K], v: Show[V]): F[Unit] =
+    override def filterFromEarliest(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit] =
       filterWatch(pred, AutoOffsetReset.Earliest)
 
     override def summaries: F[Unit] =

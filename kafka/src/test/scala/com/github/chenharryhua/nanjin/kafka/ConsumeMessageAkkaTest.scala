@@ -4,7 +4,7 @@ import java.time.LocalDateTime
 
 import cats.implicits._
 import org.scalatest.FunSuite
-
+import cats.derived.auto.show._
 class ConsumeMessageAkkaTest extends FunSuite with ShowKafkaMessage {
 
   val vessel: TopicDef[Key, aisClassAPositionReport] =

@@ -4,7 +4,7 @@ import cats.effect.IO
 import org.apache.kafka.streams.scala.ImplicitConversions._
 import org.scalatest.FunSuite
 import cats.implicits._
-
+import cats.derived.auto.show._
 case class StreamOneValue(name: String, size: Int)
 case class StreamTwoValue(name: String, color: Int)
 case class StreamKey(name: Int)
