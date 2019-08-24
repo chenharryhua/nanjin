@@ -5,7 +5,7 @@ import cats.effect.concurrent.MVar
 import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
 import cats.{Eval, Show}
 import fs2.kafka.{KafkaByteConsumer, KafkaByteProducer}
-import monocle.Iso
+import monocle.{Iso, Prism}
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
 final case class TopicDef[K, V](topicName: String)(
@@ -40,6 +40,9 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
 
   val keyIso: Iso[Array[Byte], K]   = keySerde.iso(topicName)
   val valueIso: Iso[Array[Byte], V] = valueSerde.iso(topicName)
+
+  val keyPrism: Prism[Array[Byte], K]   = keySerde.prism(topicName)
+  val valuePrism: Prism[Array[Byte], V] = valueSerde.prism(topicName)
 
   val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
     new KafkaChannels.Fs2Channel[F, K, V](

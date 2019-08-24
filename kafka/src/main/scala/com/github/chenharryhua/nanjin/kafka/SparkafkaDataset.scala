@@ -15,7 +15,6 @@ import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies, Offs
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
-import scala.util.{Success, Try}
 
 object SparkafkaDataset extends BitraverseKafkaRecord {
   private def props(maps: Map[String, String]): util.Map[String, Object] =
@@ -45,11 +44,9 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
     start: LocalDateTime,
     end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[SparkConsumerRecord[K, V]]] =
     rdd(spark, topic, start, end).map {
-      _.map(msg => {
-        val t     = topic
-        val key   = t.keyIso.get _
-        val value = t.valueIso.get _
-        SparkConsumerRecord.from(msg.bimap(key, value))
+      _.mapPartitions(msgs => {
+        val t = topic
+        msgs.map(m => SparkConsumerRecord.from(m.bimap(t.keyIso.get, t.valueIso.get)))
       })
     }.map(TypedDataset.create(_))
 
@@ -58,11 +55,11 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
     start: LocalDateTime,
     end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[SparkConsumerRecord[K, V]]] =
     rdd(spark, topic, start, end)
-      .map(_.flatMap(msg => {
-        val t     = topic
-        val key   = t.keyIso.get _
-        val value = t.valueIso.get _
-        msg.bitraverse(k => Try(key(k)), v => Try(value(v))).toOption.map(SparkConsumerRecord.from)
+      .map(_.mapPartitions(msgs => {
+        val t = topic
+        msgs
+          .flatMap(_.bitraverse[Option, K, V](t.keyPrism.getOption, t.valuePrism.getOption))
+          .map(SparkConsumerRecord.from)
       }))
       .map(TypedDataset.create(_))
 
@@ -70,23 +67,23 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
     topic: => KafkaTopic[F, K, V],
     start: LocalDateTime,
     end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[V]] =
-    rdd(spark, topic, start, end)
-      .map(_.map(msg => {
-        val t     = topic
-        val value = t.valueIso.get _
-        msg.bimap(identity, value).value()
-      }))
-      .map(TypedDataset.create(_))
+    rdd(spark, topic, start, end).map {
+      _.mapPartitions(msgs => {
+        val t = topic
+        msgs.map(m => SparkConsumerRecord.from(m.bimap(identity, t.valueIso.get)).value)
+      })
+    }.map(TypedDataset.create(_))
 
   def safeValueDataset[F[_]: Monad, K, V: TypedEncoder: ClassTag](
     topic: => KafkaTopic[F, K, V],
     start: LocalDateTime,
     end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[V]] =
     rdd(spark, topic, start, end)
-      .map(_.flatMap(msg => {
-        val t     = topic
-        val value = t.valueIso.get _
-        msg.bitraverse(Success(_), v => Try(value(v))).toOption.map(_.value())
+      .map(_.mapPartitions(msgs => {
+        val t = topic
+        msgs
+          .flatMap(_.bitraverse[Option, Array[Byte], V](Some(_), t.valuePrism.getOption))
+          .map(m => SparkConsumerRecord.from(m).value)
       }))
       .map(TypedDataset.create(_))
 
