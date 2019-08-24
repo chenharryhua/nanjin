@@ -56,9 +56,9 @@ lazy val commonSettings = Seq(
   )
 )
 
-lazy val sparkafka = (project in file("kafka"))
+lazy val kafka = (project in file("kafka"))
   .settings(commonSettings: _*)
-  .settings(name := "sparkafka")
+  .settings(name := "kafka")
   .settings(
     addCompilerPlugin("com.github.ghik" %% "silencer-plugin" % silencer),
     libraryDependencies ++= Seq(
@@ -103,7 +103,17 @@ lazy val sparkafka = (project in file("kafka"))
       "dev.zio" %% "zio-interop-cats"                   % zioCats,
       "org.jline"                                       % "jline" % jline,
       "io.chrisdavenport" %% "cats-time"                % catsTime,
-//spark
+      "org.scalatest" %% "scalatest"                    % scalatest % Test
+    ),
+    excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
+  )
+
+lazy val sparkafka = (project in file("sparkafka"))
+  .dependsOn(kafka)
+  .settings(commonSettings: _*)
+  .settings(name := "sparkafka")
+  .settings(
+    libraryDependencies ++= Seq(
       "org.apache.spark" %% "spark-core"                 % sparkVersion,
       "org.apache.spark" %% "spark-sql"                  % sparkVersion,
       "org.apache.spark" %% "spark-streaming"            % sparkVersion,
@@ -130,3 +140,4 @@ lazy val sparkafka = (project in file("kafka"))
     dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.7.2",
     excludeDependencies += "javax.ws.rs"                % "javax.ws.rs-api"
   )
+lazy val nanjin = (project in file(".")).aggregate(kafka, sparkafka)

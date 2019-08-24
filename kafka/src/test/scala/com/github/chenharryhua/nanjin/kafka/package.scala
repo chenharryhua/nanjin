@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin
 
 import cats.effect.{ContextShift, IO, Resource, Timer}
 import org.apache.kafka.clients.consumer.ConsumerConfig
-import org.apache.spark.sql.SparkSession
 import cats.derived.auto.show._
 import scala.concurrent.ExecutionContext.Implicits.global
 import cats.implicits._
@@ -16,7 +15,4 @@ package object kafka {
       .ioContext
 
   val taxi = ctx.topic[Int, trip_record]("nyc_yellow_taxi_trip_data")
-
-  val sparkSession: Resource[IO, SparkSession] =
-    SparkSettings.default.updateConf(_.setMaster("local[*]").setAppName("test")).sessionResource[IO]
 }

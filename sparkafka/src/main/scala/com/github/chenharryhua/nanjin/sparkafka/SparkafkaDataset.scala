@@ -1,10 +1,11 @@
-package com.github.chenharryhua.nanjin.kafka
+package com.github.chenharryhua.nanjin.sparkafka
 
 import java.time.LocalDateTime
 import java.util
 
 import cats.Monad
 import cats.implicits._
+import com.github.chenharryhua.nanjin.kafka.{BitraverseKafkaRecord, KafkaTopic, NJConsumerRecord}
 import frameless.{Injection, SparkDelay, TypedDataset, TypedEncoder}
 import monocle.function.At.remove
 import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
@@ -38,6 +39,8 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
       "value.deserializer" -> classOf[ByteArrayDeserializer].getName) ++
       remove(ConsumerConfig.CLIENT_ID_CONFIG)(maps)).mapValues[Object](identity).asJava
 
+  import NJConsumerRecord.iso
+
   private def rdd[F[_]: Monad, K, V](
     spark: SparkSession,
     topic: KafkaTopic[F, K, V],
@@ -61,7 +64,7 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
     rdd(spark, topic, start, end).map {
       _.mapPartitions(msgs => {
         val t = topic
-        msgs.map(m => NJConsumerRecord.from(m.bimap(t.keyIso.get, t.valueIso.get)))
+        msgs.map(m => iso.reverseGet(m.bimap(t.keyIso.get, t.valueIso.get)))
       })
     }.map(TypedDataset.create(_))
 
@@ -74,7 +77,7 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
         val t = topic
         msgs
           .flatMap(_.bitraverse[Option, K, V](t.keyPrism.getOption, t.valuePrism.getOption))
-          .map(NJConsumerRecord.from)
+          .map(iso.reverseGet)
       }))
       .map(TypedDataset.create(_))
 
@@ -85,7 +88,7 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
     rdd(spark, topic, start, end).map {
       _.mapPartitions(msgs => {
         val t = topic
-        msgs.map(m => NJConsumerRecord.from(m.bimap(identity, t.valueIso.get)).value)
+        msgs.map(m => iso.reverseGet(m.bimap(identity, t.valueIso.get)).value)
       })
     }.map(TypedDataset.create(_))
 
@@ -98,7 +101,7 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
         val t = topic
         msgs
           .flatMap(_.bitraverse[Option, Array[Byte], V](Some(_), t.valuePrism.getOption))
-          .map(m => NJConsumerRecord.from(m).value)
+          .map(m => iso.reverseGet(m).value)
       }))
       .map(TypedDataset.create(_))
 

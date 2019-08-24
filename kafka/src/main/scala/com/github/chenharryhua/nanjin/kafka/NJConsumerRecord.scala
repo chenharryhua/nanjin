@@ -15,13 +15,13 @@ import scala.compat.java8.OptionConverters._
   topic: String,
   partition: Int,
   offset: Long,
+  key: K,
+  value: V,
   timestamp: Long,
   timestampType: TimestampType,
   checksum: Long,
   serializedKeySize: Int,
   serializedValueSize: Int,
-  key: K,
-  value: V,
   headers: Headers,
   leaderEpoch: Option[Int])
 
@@ -49,13 +49,13 @@ object NJConsumerRecord extends ShowKafkaMessage {
         cr.topic(),
         cr.partition(),
         cr.offset(),
+        cr.key(),
+        cr.value(),
         cr.timestamp(),
         cr.timestampType(),
         cr.checksum(): @silent,
         cr.serializedKeySize(),
         cr.serializedValueSize(),
-        cr.key(),
-        cr.value(),
         cr.headers(),
         cr.leaderEpoch().asScala.flatMap(Option(_))
       ))
