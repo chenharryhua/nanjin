@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.Show
+import cats.{Applicative, Bitraverse, Eval, Show}
 import cats.implicits._
 import com.github.ghik.silencer.silent
 import monocle.Iso
@@ -59,6 +59,22 @@ object NJConsumerRecord extends ShowKafkaMessage {
         cr.headers(),
         cr.leaderEpoch().asScala.flatMap(Option(_))
       ))
+
+  implicit final val bitraverseNJConsumerRecord: Bitraverse[NJConsumerRecord[?, ?]] =
+    new Bitraverse[NJConsumerRecord] {
+      override def bitraverse[G[_], A, B, C, D](fab: NJConsumerRecord[A, B])(
+        f: A => G[C],
+        g: B => G[D])(implicit evidence$1: Applicative[G]): G[NJConsumerRecord[C, D]] =
+        iso.get(fab).bitraverse(f, g).map(iso.reverseGet)
+
+      override def bifoldLeft[A, B, C](fab: NJConsumerRecord[A, B], c: C)(
+        f: (C, A) => C,
+        g: (C, B) => C): C = iso.get(fab).bifoldLeft(c)(f, g)
+
+      override def bifoldRight[A, B, C](fab: NJConsumerRecord[A, B], c: Eval[C])(
+        f: (A, Eval[C]) => Eval[C],
+        g: (B, Eval[C]) => Eval[C]): Eval[C] = iso.get(fab).bifoldRight(c)(f, g)
+    }
 
   def from[K, V](d: ConsumerRecord[K, V]): NJConsumerRecord[K, V] = iso.reverseGet(d)
 
