@@ -17,9 +17,9 @@ class EnumTest extends FunSuite with ShowKafkaMessage {
 
   val pencils =
     List(
-      (1, Pencil("steal", Colorish.Red)),
-      (2, Pencil("wood", Colorish.Green)),
-      (3, Pencil("plastic", Colorish.Blue)))
+      (10, Pencil("steal2", Colorish.Red)),
+      (20, Pencil("wood2", Colorish.Green)),
+      (30, Pencil("plastic2", Colorish.Blue)))
   topics.pencil_topic.producer.send(pencils).unsafeRunSync()
 
   test("should be able to process enum data") {

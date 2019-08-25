@@ -76,8 +76,6 @@ object NJConsumerRecord extends ShowKafkaMessage {
         g: (B, Eval[C]) => Eval[C]): Eval[C] = iso.get(fab).bifoldRight(c)(f, g)
     }
 
-  def from[K, V](d: ConsumerRecord[K, V]): NJConsumerRecord[K, V] = iso.reverseGet(d)
-
   implicit def showNJConsumerRecord[K: Show, V: Show]: Show[NJConsumerRecord[K, V]] =
     (t: NJConsumerRecord[K, V]) => iso.get(t).show
 }
