@@ -5,7 +5,7 @@ import java.util
 
 import cats.Monad
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.{BitraverseKafkaRecord, KafkaTopic, NJConsumerRecord}
+import com.github.chenharryhua.nanjin.kafka.{BitraverseKafkaRecord, KafkaTopic}
 import frameless.{Injection, SparkDelay, TypedDataset, TypedEncoder}
 import monocle.function.At.remove
 import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
@@ -20,7 +20,7 @@ import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies, Offs
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
-object SparkafkaDataset extends BitraverseKafkaRecord {
+object SparkafkaDStream extends BitraverseKafkaRecord {
   implicit private val timestampTypeInjection: Injection[TimestampType, String] =
     new Injection[TimestampType, String] {
       override def apply(a: TimestampType): String  = a.name
@@ -38,8 +38,6 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
       "key.deserializer" -> classOf[ByteArrayDeserializer].getName,
       "value.deserializer" -> classOf[ByteArrayDeserializer].getName) ++
       remove(ConsumerConfig.CLIENT_ID_CONFIG)(maps)).mapValues[Object](identity).asJava
-
-  import NJConsumerRecord.iso
 
   private def rdd[F[_]: Monad, K, V](
     spark: SparkSession,
@@ -60,24 +58,24 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
   def dataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
     start: LocalDateTime,
-    end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[NJConsumerRecord[K, V]]] =
+    end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[SparkConsumerRecord[K, V]]] =
     rdd(spark, topic, start, end).map {
       _.mapPartitions(msgs => {
         val t = topic
-        msgs.map(m => iso.reverseGet(m.bimap(t.keyIso.get, t.valueIso.get)))
+        msgs.map(m => SparkConsumerRecord.from(m.bimap(t.keyIso.get, t.valueIso.get)))
       })
     }.map(TypedDataset.create(_))
 
   def safeDataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
     start: LocalDateTime,
-    end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[NJConsumerRecord[K, V]]] =
+    end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[SparkConsumerRecord[K, V]]] =
     rdd(spark, topic, start, end)
       .map(_.mapPartitions(msgs => {
         val t = topic
         msgs
           .flatMap(_.bitraverse[Option, K, V](t.keyPrism.getOption, t.valuePrism.getOption))
-          .map(iso.reverseGet)
+          .map(SparkConsumerRecord.from)
       }))
       .map(TypedDataset.create(_))
 
@@ -88,7 +86,7 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
     rdd(spark, topic, start, end).map {
       _.mapPartitions(msgs => {
         val t = topic
-        msgs.map(m => iso.reverseGet(m.bimap(identity, t.valueIso.get)).value)
+        msgs.map(m => SparkConsumerRecord.from(m.bimap(identity, t.valueIso.get)).value)
       })
     }.map(TypedDataset.create(_))
 
@@ -101,7 +99,7 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
         val t = topic
         msgs
           .flatMap(_.bitraverse[Option, Array[Byte], V](Some(_), t.valuePrism.getOption))
-          .map(m => iso.reverseGet(m).value)
+          .map(m => SparkConsumerRecord.from(m).value)
       }))
       .map(TypedDataset.create(_))
 

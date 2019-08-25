@@ -5,7 +5,7 @@ import java.time.LocalDateTime
 import cats.effect.IO
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.{utils, NJProducerRecord}
-import com.github.chenharryhua.nanjin.sparkafka.SparkafkaDataset
+import com.github.chenharryhua.nanjin.sparkafka.SparkafkaDStream
 import frameless.cats.implicits._
 import fs2.Stream
 import org.scalatest.FunSuite
@@ -52,11 +52,11 @@ class SparkJoinTest extends FunSuite {
 
     spark.use { implicit s =>
       for {
-        f <- SparkafkaDataset.valueDataset(
+        f <- SparkafkaDStream.valueDataset(
           topics.first_topic,
           start,
           start.plusNanos(num.toLong * coefficient))
-        s <- SparkafkaDataset.valueDataset(
+        s <- SparkafkaDStream.valueDataset(
           topics.second_topic,
           start,
           start.plusNanos(num.toLong * coefficient))
