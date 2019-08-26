@@ -4,7 +4,7 @@ parallelExecution in ThisBuild := false
 
 val confluent    = "5.3.0"
 val kafkaVersion = "2.3.0"
-val catsCore     = "2.0.0-RC1"
+val catsCore     = "2.0.0-RC2"
 val catsEffect   = "2.0.0-RC1"
 val catsMtl      = "0.6.0"
 val kittens      = "2.0.0-M1"
