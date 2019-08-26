@@ -14,10 +14,8 @@ object SparkafkaStream {
     rm1.andThen(rm2)(m).map { case (k, v) => s"kafka.$k" -> v }
   }
 
-  final def sstream[F[_], K: TypedEncoder, V: TypedEncoder](
-    spark: SparkSession,
-    topic: => KafkaTopic[F, K, V]
-  ): TypedDataset[SparkConsumerRecord[K, V]] = {
+  final def sstream[F[_], K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
+    implicit spark: SparkSession): TypedDataset[SparkConsumerRecord[K, V]] = {
     import spark.implicits._
     TypedDataset
       .create(
