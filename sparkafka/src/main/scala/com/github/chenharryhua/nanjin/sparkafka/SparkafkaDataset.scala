@@ -20,7 +20,7 @@ import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies, Offs
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
-object SparkafkaDStream extends BitraverseKafkaRecord {
+object SparkafkaDataset extends BitraverseKafkaRecord {
   implicit private val timestampTypeInjection: Injection[TimestampType, String] =
     new Injection[TimestampType, String] {
       override def apply(a: TimestampType): String  = a.name
@@ -45,13 +45,10 @@ object SparkafkaDStream extends BitraverseKafkaRecord {
     start: LocalDateTime,
     end: LocalDateTime): F[RDD[ConsumerRecord[Array[Byte], Array[Byte]]]] =
     topic.consumer.offsetRangeFor(start, end).map { gtp =>
-      val range = gtp.value.toArray.map {
-        case (tp, r) => OffsetRange.create(tp, r.fromOffset, r.untilOffset)
-      }
       KafkaUtils.createRDD[Array[Byte], Array[Byte]](
         spark.sparkContext,
         props(topic.kafkaConsumerSettings.props),
-        range,
+        SparkOffsets.offsetRange(gtp),
         LocationStrategies.PreferConsistent)
     }
 

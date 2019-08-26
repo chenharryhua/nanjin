@@ -5,7 +5,7 @@ import cats.derived.auto.show._
 import cats.effect.IO
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.ShowKafkaMessage
-import com.github.chenharryhua.nanjin.sparkafka.SparkafkaDStream
+import com.github.chenharryhua.nanjin.sparkafka.SparkafkaDataset
 import frameless.cats.implicits._
 import fs2.Chunk
 import org.scalatest.FunSuite
@@ -26,7 +26,7 @@ class EnumTest extends FunSuite with ShowKafkaMessage {
 
     fs2.Stream
       .eval(spark.use { implicit s =>
-        SparkafkaDStream
+        SparkafkaDataset
           .dataset(topics.pencil_topic, start, end)
           .flatMap(_.take[IO](10))
           .map(Chunk.seq)
@@ -43,7 +43,7 @@ class EnumTest extends FunSuite with ShowKafkaMessage {
   test("same key should go to same partition") {
 
     spark.use { implicit s =>
-      SparkafkaDStream.checkSameKeyInSamePartition(topics.pencil_topic, end.minusYears(3), end)
+      SparkafkaDataset.checkSameKeyInSamePartition(topics.pencil_topic, end.minusYears(3), end)
     }.map(println).unsafeRunSync
   }
 

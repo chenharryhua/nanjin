@@ -3,7 +3,7 @@ package mtest
 import java.time.LocalDateTime
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.sparkafka.SparkafkaDStream
+import com.github.chenharryhua.nanjin.sparkafka.SparkafkaDataset
 import org.apache.spark.sql.SaveMode
 import org.scalatest.FunSuite
 import cats.implicits._
@@ -14,15 +14,15 @@ class SparkTest extends FunSuite with Serializable {
   val start = end.minusYears(1)
   test("should be able to show topic data") {
     spark.use { implicit s =>
-      SparkafkaDStream.valueDataset(topics.taxi, start, end).flatMap(_.show[IO](3)) >>
-        SparkafkaDStream.dataset(topics.taxi, start, end).flatMap(_.show[IO](3)) >>
-        SparkafkaDStream.safeDataset(topics.taxi, start, end).flatMap(_.show[IO](3)) >>
-        SparkafkaDStream.safeValueDataset(topics.taxi, start, end).flatMap(_.show[IO](3))
+      SparkafkaDataset.valueDataset(topics.taxi, start, end).flatMap(_.show[IO](3)) >>
+        SparkafkaDataset.dataset(topics.taxi, start, end).flatMap(_.show[IO](3)) >>
+        SparkafkaDataset.safeDataset(topics.taxi, start, end).flatMap(_.show[IO](3)) >>
+        SparkafkaDataset.safeValueDataset(topics.taxi, start, end).flatMap(_.show[IO](3))
     }.unsafeRunSync
   }
   test("should be able to save topic to json") {
     spark.use { implicit s =>
-      SparkafkaDStream
+      SparkafkaDataset
         .dataset(topics.taxi, start, end)
         .map(
           _.dataset
