@@ -4,9 +4,7 @@ import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import frameless.{TypedDataset, TypedEncoder}
 import monocle.function.At.remove
 import org.apache.kafka.clients.consumer.ConsumerConfig
-import org.apache.spark.sql.{Dataset, Encoder, Encoders, SparkSession}
-
-import scala.reflect.ClassTag
+import org.apache.spark.sql.SparkSession
 
 object SparkafkaStream {
 

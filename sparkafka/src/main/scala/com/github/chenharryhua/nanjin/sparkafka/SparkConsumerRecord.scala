@@ -4,7 +4,6 @@ import cats.{Applicative, Bitraverse, Eval}
 import com.github.chenharryhua.nanjin.kafka.{GenericTopicPartition, KafkaOffsetRange}
 import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.ConsumerRecord
-import org.apache.spark.sql.{Encoder, Encoders, SparkSession}
 import org.apache.spark.streaming.kafka010.OffsetRange
 
 //https://spark.apache.org/docs/2.4.3/structured-streaming-kafka-integration.html
