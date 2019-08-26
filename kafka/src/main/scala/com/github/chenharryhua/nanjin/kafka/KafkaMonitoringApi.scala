@@ -17,6 +17,9 @@ trait KafkaMonitoringApi[F[_], K, V] {
   def filterFromLatest(pred: ConsumerRecord[Try[K], Try[V]]   => Boolean): F[Unit]
   def filterFromEarliest(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit]
 
+  def badRecordsFromEarliest: F[Unit]
+  def badRecordsFromLatest: F[Unit]
+
   def summaries: F[Unit]
 }
 
@@ -91,6 +94,11 @@ object KafkaMonitoringApi {
 
     override def filterFromEarliest(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit] =
       filterWatch(pred, AutoOffsetReset.Earliest)
+
+    override def badRecordsFromEarliest: F[Unit] =
+      filterFromEarliest(cr => cr.key().isFailure || cr.value().isFailure)
+    override def badRecordsFromLatest: F[Unit] =
+      filterFromLatest(cr => cr.key().isFailure || cr.value().isFailure)
 
     override def summaries: F[Unit] =
       for {

@@ -5,6 +5,7 @@ import frameless.{TypedDataset, TypedEncoder}
 import monocle.function.At.remove
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.spark.sql.SparkSession
+import fs2.Stream
 
 object SparkafkaStream {
 
