@@ -19,3 +19,4 @@ project/plugins/project/
 .bloop
 docker-compose.yml
 json-test/
+Checkpoint-test/
