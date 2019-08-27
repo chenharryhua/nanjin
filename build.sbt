@@ -143,7 +143,9 @@ lazy val sparkafka = (project in file("sparkafka"))
       .map(_.exclude("com.sun.jersey", "jersey-server"))
       .map(_.exclude("com.sun.jersey", "jersey-servlet"))
       .map(_.exclude("com.sun.jersey.contribs", "jersey-guice")),
-    dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.7.2",
+    dependencyOverrides ++= Seq(
+      "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.7.2",
+      "org.json4s" %%"json4s-core" % "3.5.5"),
 //    excludeDependencies += "javax.ws.rs"                % "javax.ws.rs-api"
   )
 lazy val nanjin = (project in file(".")).aggregate(kafka, sparkafka)

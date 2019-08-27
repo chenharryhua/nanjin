@@ -30,7 +30,20 @@ class SparkTest extends FunSuite with Serializable {
             .coalesce(1)
             .write
             .mode(SaveMode.Overwrite)
-            .json("json-test"))
+            .parquet("json-test/json"))
     }.unsafeRunSync()
   }
+  test("should be able to save topic to parquet") {
+    spark.use { implicit s =>
+      SparkafkaDataset
+        .dataset(topics.taxi, start, end)
+        .map(
+          _.dataset
+            .filter(_.value.VendorID == 2)
+            .coalesce(1)
+            .write
+            .mode(SaveMode.Overwrite)
+            .parquet("json-test/parquet"))
+    }.unsafeRunSync()
+  }  
 }
