@@ -18,7 +18,7 @@ class SparkStreamingTest extends FunSuite {
         .option("checkpointLocation", "checkpoint-test")
         .outputMode("append")
         .format("console")
-      SparkafkaStream.start(kdf)
+      SparkafkaStream.start[IO,SparkConsumerRecord[Int, Pencil]](kdf)
     }.unsafeRunSync()
   }
 }
