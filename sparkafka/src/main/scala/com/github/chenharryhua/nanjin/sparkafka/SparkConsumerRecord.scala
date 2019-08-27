@@ -26,8 +26,7 @@ object SparkConsumerRecord {
       cr.partition(),
       cr.offset(),
       cr.timestamp(),
-      cr.timestampType().id
-    )
+      cr.timestampType().id)
 
   implicit def bitraverseSparkConsumerRecord[K, V]: Bitraverse[SparkConsumerRecord] =
     new Bitraverse[SparkConsumerRecord] {

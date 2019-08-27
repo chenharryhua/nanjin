@@ -30,7 +30,7 @@ class SparkTest extends FunSuite with Serializable {
             .coalesce(1)
             .write
             .mode(SaveMode.Overwrite)
-            .json("json-test/json"))
+            .json("test-data/json"))
     }.unsafeRunSync()
   }
   test("should be able to save topic to parquet") {
@@ -43,7 +43,7 @@ class SparkTest extends FunSuite with Serializable {
             .coalesce(1)
             .write
             .mode(SaveMode.Overwrite)
-            .parquet("json-test/parquet"))
+            .parquet("test-data/parquet"))
     }.unsafeRunSync()
-  }  
+  }
 }

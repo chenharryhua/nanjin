@@ -18,5 +18,4 @@ project/plugins/project/
 .metals
 .bloop
 docker-compose.yml
-json-test/
-Checkpoint-test/
+test-data/

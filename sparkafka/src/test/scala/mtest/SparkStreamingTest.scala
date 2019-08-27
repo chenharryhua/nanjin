@@ -15,10 +15,10 @@ class SparkStreamingTest extends FunSuite {
       val df = SparkafkaStream.sstream(topics.pencil_topic)
       val kdf: DataStreamWriter[SparkConsumerRecord[Int, Pencil]] = df.dataset.writeStream
         .trigger(Trigger.ProcessingTime(60.seconds))
-        .option("checkpointLocation", "checkpoint-test")
+        .option("checkpointLocation", "test-data/checkpoint-test")
         .outputMode("append")
         .format("console")
-      SparkafkaStream.start[IO,SparkConsumerRecord[Int, Pencil]](kdf)
+      SparkafkaStream.start[IO, SparkConsumerRecord[Int, Pencil]](kdf)
     }.unsafeRunSync()
   }
 }
