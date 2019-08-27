@@ -33,7 +33,7 @@ val jline        = "3.12.1"
 val scalatest    = "3.0.8"
 
 lazy val commonSettings = Seq(
-  version      := "0.0.2-SNAPSHOT",
+  version      := "0.0.1-SNAPSHOT",
   organization := "com.github.chenharryhua",
   scalaVersion := scalaVersion.value,
   resolvers ++= Seq(

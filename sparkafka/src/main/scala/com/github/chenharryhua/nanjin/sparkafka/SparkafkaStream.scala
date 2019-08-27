@@ -1,11 +1,12 @@
 package com.github.chenharryhua.nanjin.sparkafka
+import cats.effect.Bracket
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import frameless.{TypedDataset, TypedEncoder}
 import monocle.function.At.remove
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.spark.sql.SparkSession
-import fs2.Stream
+import org.apache.spark.sql.streaming.DataStreamWriter
 
 object SparkafkaStream {
 
@@ -32,4 +33,7 @@ object SparkafkaStream {
         msg.bimap(t.keyIso.get, t.valueIso.get)
       }
   }
+
+  def start[F[_], A](dsw: DataStreamWriter[A])(implicit bkt: Bracket[F, Throwable]): F[Unit] =
+    bkt.bracket(bkt.pure(dsw.start))(s => bkt.pure(s.awaitTermination()))(s => bkt.pure(s.stop()))
 }
