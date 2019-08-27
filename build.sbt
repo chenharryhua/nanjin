@@ -5,29 +5,30 @@ parallelExecution in ThisBuild := false
 val confluent    = "5.3.0"
 val kafkaVersion = "2.3.0"
 
+val shapeless    = "2.3.3"
+val contextual   = "1.2.1"
+val kittens      = "2.0.0-M1"
 val catsCore     = "2.0.0-RC2"
 val catsEffect   = "2.0.0-RC2"
 val catsMtl      = "0.6.0"
-val fs2Stream    = "0.20.0-M2"
-val zioCats      = "2.0.0.0-RC2"
 val catsTime     = "0.3.0-M1"
-val kittens      = "2.0.0-M1"
-val circeVersion = "0.12.0-RC4"
-val shapeless    = "2.3.3"
-
-val akkaStream   = "1.0.5"
 val fs2Version   = "1.1.0-M1"
+val monocle      = "2.0.0-RC1"
+val refined      = "0.9.9"
+val zioCats      = "2.0.0.0-RC2"
+
+val akkaKafka   = "1.0.5"
+val fs2Kafka     = "0.20.0-M2"
+
 val sparkVersion = "2.4.3"
 val frameless    = "0.8.0"
 
+val circeVersion = "0.12.0-RC4"
 val avro4s       = "3.0.1"
 val avro         = "1.9.0"
 val avrohugger   = "1.0.0-RC18"
 
 val silencer     = "1.4.2"
-val monocle      = "2.0.0-RC1"
-val contextual   = "1.2.1"
-val refined      = "0.9.9"
 val jline        = "3.12.1"
 
 val scalatest    = "3.0.8"
@@ -75,8 +76,8 @@ lazy val kafka = (project in file("kafka"))
       "org.apache.kafka"                          % "kafka-clients" % kafkaVersion,
       "org.apache.kafka"                          % "kafka-streams" % kafkaVersion,
       "org.apache.kafka" %% "kafka-streams-scala" % kafkaVersion,
-      "com.typesafe.akka" %% "akka-stream-kafka"  % akkaStream,
-      "com.ovoenergy" %% "fs2-kafka"              % fs2Stream,
+      "com.typesafe.akka" %% "akka-stream-kafka"  % akkaKafka,
+      "com.ovoenergy" %% "fs2-kafka"              % fs2Kafka,
 //avro
       "org.apache.avro"                      % "avro" % avro,
       "org.apache.avro"                      % "avro-mapred" % avro,

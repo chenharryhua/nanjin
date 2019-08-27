@@ -6,12 +6,9 @@ import java.util
 import cats.Monad
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.{BitraverseKafkaRecord, KafkaTopic}
-import frameless.{Injection, SparkDelay, TypedDataset, TypedEncoder}
+import frameless.{SparkDelay, TypedDataset, TypedEncoder}
 import monocle.function.At.remove
 import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
-import org.apache.kafka.common.header.Headers
-import org.apache.kafka.common.header.internals.RecordHeaders
-import org.apache.kafka.common.record.TimestampType
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
