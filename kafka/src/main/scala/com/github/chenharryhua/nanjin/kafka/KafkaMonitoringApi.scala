@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 import cats.Show
-import cats.effect.{Concurrent, ContextShift, Resource}
+import cats.effect.{Concurrent, ContextShift}
 import cats.implicits._
 import fs2.kafka.AutoOffsetReset
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -24,14 +24,12 @@ object KafkaMonitoringApi {
 
   def apply[F[_]: Concurrent: ContextShift, K: Show, V: Show](
     fs2Channel: KafkaChannels.Fs2Channel[F, K, V],
-    akkaResource: Resource[F, KafkaChannels.AkkaChannel[F, K, V]],
     consumer: KafkaConsumerApi[F, K, V]
   ): KafkaMonitoringApi[F, K, V] =
-    new KafkaTopicMonitoring[F, K, V](fs2Channel, akkaResource, consumer)
+    new KafkaTopicMonitoring[F, K, V](fs2Channel, consumer)
 
   final private[kafka] class KafkaTopicMonitoring[F[_]: ContextShift, K: Show, V: Show](
     fs2Channel: KafkaChannels.Fs2Channel[F, K, V],
-    akkaResource: Resource[F, KafkaChannels.AkkaChannel[F, K, V]],
     consumer: KafkaConsumerApi[F, K, V])(implicit F: Concurrent[F])
       extends KafkaMonitoringApi[F, K, V] with ShowKafkaMessage with BitraverseFs2Message {
 
