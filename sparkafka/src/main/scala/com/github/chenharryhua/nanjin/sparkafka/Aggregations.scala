@@ -1,12 +1,8 @@
 package com.github.chenharryhua.nanjin.sparkafka
 
-import java.time.ZonedDateTime
-
-import com.github.chenharryhua.nanjin.kafka.utils
 import frameless.functions.aggregate.collectSet
 import frameless.functions.size
-import frameless.{TypedDataset, TypedEncoder}
-import org.apache.spark.sql.SparkSession
+import frameless.{SQLTimestamp, TypedDataset, TypedEncoder}
 
 final case class KeyPartition[K](key: K, partition: Int)
 final case class KeysInPartitions[K](key: K, partitions: Vector[Int])

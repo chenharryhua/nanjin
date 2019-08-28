@@ -85,26 +85,4 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
           .map(m => SparkConsumerRecord.from(m).value)
       }))
       .map(TypedDataset.create(_))
-
-  final private case class KeyPartition[K](key: K, partition: Int)
-  final private case class AggregatedKeyPartitions[K](key: K, partitions: Vector[Int])
-  import frameless.functions.aggregate.collectSet
-  import frameless.functions.size
-
-  def checkSameKeyInSamePartition[F[_]: Monad: SparkDelay, K: TypedEncoder, V: TypedEncoder](
-    topic: => KafkaTopic[F, K, V],
-    start: LocalDateTime,
-    end: LocalDateTime)(implicit spark: SparkSession): F[Long] =
-    for {
-      ds <- dataset[F, K, V](topic, start, end)
-      keyPartition = ds.project[KeyPartition[K]]
-      agged = keyPartition
-        .groupBy(keyPartition('key))
-        .agg(collectSet(keyPartition('partition)))
-        .as[AggregatedKeyPartitions[K]]
-      filtered = agged.filter(size(agged('partitions)) > 1)
-      _ <- filtered.show[F]()
-      _ <- ds.count[F]().map(x => println(s"number of source records: $x"))
-      count <- filtered.count[F]()
-    } yield count
 }
