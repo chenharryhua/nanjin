@@ -93,9 +93,6 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
   val monitor: KafkaMonitoringApi[F, K, V] =
     KafkaMonitoringApi(fs2Channel, akkaResource, consumer)
 
-  val stats: KafkaStatistics[F] =
-    KafkaStatistics[F, K, V](consumer, akkaResource)
-
   val show: String =
     s"""
        |kafka topic: 
