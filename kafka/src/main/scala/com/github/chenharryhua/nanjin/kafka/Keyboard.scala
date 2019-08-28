@@ -6,9 +6,9 @@ import fs2.concurrent.Signal
 import org.jline.terminal.{Terminal, TerminalBuilder}
 
 object Keyboard {
-  val PAUSE: Char    = 's'
-  val QUIT: Char     = 'q'
-  val CONTINUE: Char = 'c'
+  val pauSe: Char    = 's'
+  val Quit: Char     = 'q'
+  val Continue: Char = 'c'
 
   def signal[F[_]: Concurrent]: Stream[F, Signal[F, Option[Char]]] =
     Stream
@@ -25,6 +25,6 @@ object Keyboard {
       }
       .flatMap { case (_, r) => Stream.repeatEval(Sync[F].delay(r.read().toChar)) }
       .noneTerminate
-      .hold(Some(CONTINUE))
+      .hold(Some(Continue))
 
 }

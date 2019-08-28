@@ -2,11 +2,8 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.Show
 import cats.effect.{Concurrent, ContextShift, Resource}
 import cats.implicits._
-import fs2.Stream
-import fs2.concurrent.Signal
 import fs2.kafka.AutoOffsetReset
 import org.apache.kafka.clients.consumer.ConsumerRecord
-import org.jline.terminal.{Terminal, TerminalBuilder}
 
 import scala.util.Try
 
@@ -46,8 +43,8 @@ object KafkaMonitoringApi {
           .map(fs2Channel.safeDecodeKeyValue)
           .map(_.show)
           .showLinesStdOut
-          .pauseWhen(signal.map(_.contains(Keyboard.PAUSE)))
-          .interruptWhen(signal.map(_.contains(Keyboard.QUIT)))
+          .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
+          .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
       }.compile.drain
 
     private def filterWatch(
@@ -61,8 +58,8 @@ object KafkaMonitoringApi {
           .filter(m => predict(isoFs2ComsumerRecord.get(m.record)))
           .map(_.show)
           .showLinesStdOut
-          .pauseWhen(signal.map(_.contains(Keyboard.PAUSE)))
-          .interruptWhen(signal.map(_.contains(Keyboard.QUIT)))
+          .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
+          .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
       }.compile.drain
 
     override def watchFromLatest: F[Unit]   = watch(AutoOffsetReset.Latest)
