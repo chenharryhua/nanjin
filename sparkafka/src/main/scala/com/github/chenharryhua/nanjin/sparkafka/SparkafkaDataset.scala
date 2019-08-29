@@ -66,21 +66,17 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
     topic: => KafkaTopic[F, K, V],
     start: LocalDateTime,
     end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[V]] =
-    rawDS(topic, start, end).map {
-      _.deserialized.mapPartitions(msgs => {
-        val t = topic
-        msgs.map(m => m.bimap(identity, t.valueIso.get).value)
-      })
+    rawDS(topic, start, end).map { ds =>
+      val udf = ds.makeUDF(x => topic.valueIso.get(x))
+      ds.select(udf(ds('value)))
     }
 
   def safeValueDataset[F[_]: Monad, K, V: TypedEncoder: ClassTag](
     topic: => KafkaTopic[F, K, V],
     start: LocalDateTime,
-    end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[V]] =
-    rawDS(topic, start, end).map(_.deserialized.mapPartitions(msgs => {
-      val t = topic
-      msgs
-        .flatMap(_.bitraverse[Option, Array[Byte], V](Some(_), t.valuePrism.getOption))
-        .map(m => m.value)
-    }))
+    end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[Option[V]]] =
+    rawDS(topic, start, end).map { ds =>
+      val udf = ds.makeUDF((x: Array[Byte]) => topic.valuePrism.getOption(x))
+      ds.select(udf(ds('value)))
+    }
 }

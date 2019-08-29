@@ -3,21 +3,21 @@ package mtest
 import java.time.LocalDateTime
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.sparkafka.SparkafkaDataset
+import com.github.chenharryhua.nanjin.sparkafka.{Aggregations, SparkafkaDataset}
 import org.apache.spark.sql.SaveMode
 import org.scalatest.FunSuite
 import cats.implicits._
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 
-class SparkTest extends FunSuite with Serializable {
+class SparkTest extends FunSuite with Aggregations {
   val end   = LocalDateTime.now()
   val start = end.minusYears(1)
   test("should be able to show topic data") {
     spark.use { implicit s =>
-      SparkafkaDataset.valueDataset(topics.taxi, start, end).flatMap(_.show[IO](3)) >>
-        SparkafkaDataset.dataset(topics.taxi, start, end).flatMap(_.show[IO](3)) >>
-        SparkafkaDataset.safeDataset(topics.taxi, start, end).flatMap(_.show[IO](3)) >>
-        SparkafkaDataset.safeValueDataset(topics.taxi, start, end).flatMap(_.show[IO](3))
+      SparkafkaDataset.valueDataset(topics.taxi, start, end).flatMap(_.show[IO](1)) >>
+        SparkafkaDataset.dataset(topics.taxi, start, end).flatMap(_.show[IO](1)) >>
+        SparkafkaDataset.safeDataset(topics.taxi, start, end).flatMap(_.show[IO](1)) >>
+        SparkafkaDataset.safeValueDataset(topics.taxi, start, end).flatMap(_.show[IO](2))
     }.unsafeRunSync
   }
   test("should be able to save topic to json") {
@@ -45,5 +45,11 @@ class SparkTest extends FunSuite with Serializable {
             .mode(SaveMode.Overwrite)
             .parquet("test-data/parquet"))
     }.unsafeRunSync()
+  }
+
+  test("stats") {
+    spark.use { implicit s =>
+      SparkafkaDataset.dataset(topics.taxi, start, end).flatMap(_.hourly.show[IO]())
+    }.unsafeRunSync
   }
 }
