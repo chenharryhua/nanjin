@@ -24,12 +24,11 @@ sealed abstract class KafkaSerde[A](serializer: Serializer[A], deserializer: Des
   }
 
   final def iso(topicName: String): Iso[Array[Byte], A] =
-    Iso[Array[Byte], A](ab => deserializer.deserialize(topicName, ab))(a =>
-      serializer.serialize(topicName, a))
+    Iso[Array[Byte], A](deserializer.deserialize(topicName, _))(serializer.serialize(topicName, _))
 
   final def prism(topicName: String): Prism[Array[Byte], A] =
-    Prism[Array[Byte], A](ab => Try(deserializer.deserialize(topicName, ab)).toOption)(a =>
-      serializer.serialize(topicName, a))
+    Prism[Array[Byte], A](Option(_).flatMap(x =>
+      Try(deserializer.deserialize(topicName, x)).toOption))(serializer.serialize(topicName, _))
 }
 
 final case class KeySerde[A](
