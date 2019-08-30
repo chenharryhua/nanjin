@@ -3,13 +3,14 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.implicits._
 import org.scalatest.FunSuite
 import cats.derived.auto.show._
+import org.scalatest.funsuite.AnyFunSuite
 sealed trait Color
 final case class Red(str: String, i: Int) extends Color
 final case class Green(str: String) extends Color
 final case class Blue(str: String) extends Color
 final case class Cloth(color: Color, name: String, size: Int)
 
-class KAvroTest extends FunSuite with ShowKafkaMessage {
+class KAvroTest extends AnyFunSuite with ShowKafkaMessage {
   test("should support coproduct") {
     val topic = ctx.topic[Int, Cloth]("cloth")
     val b     = Cloth(Blue("b"), "blue-cloth", 1)

@@ -2,10 +2,11 @@ package com.github.chenharryhua.nanjin.kafka
 
 import java.time.LocalDateTime
 
-import cats.implicits._
-import org.scalatest.FunSuite
 import cats.derived.auto.show._
-class ConsumerApiTest extends FunSuite with ShowKafkaMessage {
+import cats.implicits._
+import org.scalatest.funsuite.AnyFunSuite
+
+class ConsumerApiTest extends AnyFunSuite with ShowKafkaMessage {
 
   val nyc_taxi_trip: TopicDef[Array[Byte], trip_record] =
     TopicDef[Array[Byte], trip_record]("nyc_yellow_taxi_trip_data")

@@ -2,12 +2,11 @@ package com.github.chenharryhua.nanjin.kafka
 
 import java.time.{Instant, LocalDateTime}
 
-import cats.implicits._
 import cats.derived.auto.show._
 import cats.effect.IO
-import org.scalatest.FunSuite
+import cats.implicits._
+import org.scalatest.funsuite.AnyFunSuite
 import io.chrisdavenport.cats.time._
-
 final case class Employee(name: String, age: Int, department: String)
 final case class ComplexMessage(
   a: Int        = 0,
@@ -22,7 +21,7 @@ final case class ComplexMessage(
   j: Employee
 )
 
-class ComplexMessageTest extends FunSuite {
+class ComplexMessageTest extends AnyFunSuite {
 
   val topic: KafkaTopic[IO, Int, ComplexMessage] =
     ctx.topic[Int, ComplexMessage]("complex-msg-test")

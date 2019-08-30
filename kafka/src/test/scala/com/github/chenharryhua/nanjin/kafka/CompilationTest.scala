@@ -3,12 +3,12 @@ package com.github.chenharryhua.nanjin.kafka
 import akka.kafka.ConsumerMessage
 import akka.kafka.scaladsl.Consumer
 import akka.stream.scaladsl.Source
-import org.scalatest.FunSuite
 import cats.implicits._
+import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Try
 
-class CompilationTest extends FunSuite {
+class CompilationTest extends AnyFunSuite {
   test("should compile") {
     val topic = ctx.topic[Int, Int]("do-not-run")
     val task = topic.akkaResource.use { chn =>

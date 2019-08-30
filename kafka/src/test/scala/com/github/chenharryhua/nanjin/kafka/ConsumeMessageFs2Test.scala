@@ -1,11 +1,12 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import cats.derived.auto.show._
 import cats.implicits._
 import fs2.kafka.AutoOffsetReset
-import org.scalatest.FunSuite
 import io.circe.generic.auto._
-import cats.derived.auto.show._
-class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage {
+import org.scalatest.funsuite.AnyFunSuite
+
+class ConsumeMessageFs2Test extends AnyFunSuite with ShowKafkaMessage {
   val backblaze_smart = TopicDef[KJson[lenses_record_key], KJson[lenses_record]]("backblaze_smart")
   val nyc_taxi_trip   = TopicDef[Array[Byte], trip_record]("nyc_yellow_taxi_trip_data")
   test("should be able to consume json topic") {
@@ -37,7 +38,7 @@ class ConsumeMessageFs2Test extends FunSuite with ShowKafkaMessage {
     assert(ret.size == 3)
   }
 
-  test("should be able to consume payments topic") {
+  ignore("should be able to consume payments topic") {
     val chn = ctx.topic[String, Payment]("cc_payments").fs2Channel
     val ret = chn.consume
       .map(chn.safeDecode)

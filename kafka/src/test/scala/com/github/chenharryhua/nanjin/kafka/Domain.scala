@@ -1,8 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.Show
-import cats.implicits._
-
+import cats.implicits._ 
 case class Payment(
   id: String,
   time: String,
@@ -188,6 +187,9 @@ object Materials extends Enumeration {
 sealed trait Colorish
 
 object Colorish {
+  implicit val showColorish = new Show[Colorish] {
+    override def show(t: Colorish): String = t.toString
+  }
   case object Red extends Colorish
   case object Green extends Colorish
   case object Blue extends Colorish

@@ -2,10 +2,11 @@ package com.github.chenharryhua.nanjin.kafka
 
 import java.time.LocalDateTime
 
-import cats.implicits._
-import org.scalatest.FunSuite
 import cats.derived.auto.show._
-class ConsumeMessageAkkaTest extends FunSuite with ShowKafkaMessage {
+import cats.implicits._
+import org.scalatest.funsuite.AnyFunSuite
+
+class ConsumeMessageAkkaTest extends AnyFunSuite with ShowKafkaMessage {
 
   val vessel: TopicDef[Key, aisClassAPositionReport] =
     TopicDef[Key, aisClassAPositionReport]("sea_vessel_position_reports")

@@ -5,13 +5,14 @@ import org.apache.kafka.streams.scala.ImplicitConversions._
 import org.scalatest.FunSuite
 import cats.implicits._
 import cats.derived.auto.show._
+import org.scalatest.funsuite.AnyFunSuite
 case class StreamOneValue(name: String, size: Int)
 case class StreamTwoValue(name: String, color: Int)
 case class StreamKey(name: Int)
 
 case class StreamTarget(oneName: String, twoName: String, size: Int, color: Int)
 
-class KafkaStreamingTest extends FunSuite {
+class KafkaStreamingTest extends AnyFunSuite {
   val one               = ctx.topic[StreamKey, StreamOneValue]("stream-one")
   val two               = ctx.topic[StreamKey, StreamTwoValue]("stream-two")
   val tgt               = ctx.topic[StreamKey, StreamTarget]("stream-target")

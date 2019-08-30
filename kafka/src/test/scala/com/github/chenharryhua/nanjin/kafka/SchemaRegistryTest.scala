@@ -4,7 +4,9 @@ import cats.effect.IO
 import org.scalatest.FunSuite
 import cats.derived.auto.show._
 import cats.implicits._
-class SchemaRegistryTest extends FunSuite {
+import org.scalatest.funsuite.AnyFunSuite
+
+class SchemaRegistryTest extends AnyFunSuite {
 
   val nyc: TopicDef[Int, trip_record] =
     TopicDef[Int, trip_record]("nyc_yellow_taxi_trip_data")
