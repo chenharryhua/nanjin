@@ -76,7 +76,8 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
     start: LocalDateTime,
     end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[Option[V]]] =
     rawDS(topic, start, end).map { ds =>
-      val udf = ds.makeUDF((x: Array[Byte]) => topic.valuePrism.getOption(x))
+      val udf =
+        ds.makeUDF((x: Array[Byte]) => Option(x).flatMap(topic.valuePrism.getOption))
       ds.select(udf(ds('value)))
     }
 }

@@ -25,6 +25,6 @@ object utils {
   def localDateTime2KafkaTimestamp(dt: LocalDateTime, tz: ZoneId = ZoneId.systemDefault()): Long =
     dt.atZone(tz).toInstant.toEpochMilli
 
-  def nullable[A](a: A): Try[A] =
-    Option(a).fold[Try[A]](Failure(new Exception("null object")))(Success(_))
+  def checkNull[A](a: A): Try[A] =
+    Option(a).fold[Try[A]](Failure(CodecException.DecodingNullException))(Success(_))
 }

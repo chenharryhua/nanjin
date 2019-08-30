@@ -13,8 +13,8 @@ class CompileOnlyTest {
     SparkafkaDataset.safeDataset(topics.ss, start, end) >>
       SparkafkaDataset.safeDataset(topics.si, start, end) >>
       SparkafkaDataset.safeDataset(topics.ii, start, end) >>
-      SparkafkaDataset.safeDataset(topics.first_topic, start, end) >>
-      SparkafkaDataset.safeDataset(topics.second_topic, start, end) >>
-      SparkafkaDataset.safeDataset(topics.pencil_topic, start, end)
+      SparkafkaDataset.safeValueDataset(topics.first_topic, start, end) >>
+      SparkafkaDataset.safeValueDataset(topics.second_topic, start, end) >>
+      SparkafkaDataset.safeValueDataset(topics.pencil_topic, start, end)
   }
 }

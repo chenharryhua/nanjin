@@ -28,7 +28,7 @@ object SparkConsumerRecord {
       cr.timestamp(),
       cr.timestampType().id)
 
-  implicit def bitraverseSparkConsumerRecord[K, V]: Bitraverse[SparkConsumerRecord] =
+  implicit val bitraverseSparkConsumerRecord: Bitraverse[SparkConsumerRecord] =
     new Bitraverse[SparkConsumerRecord] {
       override def bimap[A, B, C, D](
         fab: SparkConsumerRecord[A, B])(f: A => C, g: B => D): SparkConsumerRecord[C, D] =

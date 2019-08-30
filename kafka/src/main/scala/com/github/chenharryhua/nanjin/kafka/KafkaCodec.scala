@@ -25,19 +25,19 @@ sealed abstract class KafkaMessageDecode[F[_, _]: Bitraverse, K, V](
 
   final def safeDecodeKeyValue(data: F[Array[Byte], Array[Byte]]): F[Try[K], Try[V]] =
     data.bimap(
-      k => utils.nullable(k).flatMap(x => Try(keyIso.get(x))),
-      v => utils.nullable(v).flatMap(x => Try(valueIso.get(x))))
+      k => utils.checkNull(k).flatMap(x => Try(keyIso.get(x))),
+      v => utils.checkNull(v).flatMap(x => Try(valueIso.get(x))))
 
   final def safeDecode(data: F[Array[Byte], Array[Byte]]): Try[F[K, V]] =
     data.bitraverse(
-      k => utils.nullable(k).flatMap(x => Try(keyIso.get(x))),
-      v => utils.nullable(v).flatMap(x => Try(valueIso.get(x))))
+      k => utils.checkNull(k).flatMap(x => Try(keyIso.get(x))),
+      v => utils.checkNull(v).flatMap(x => Try(valueIso.get(x))))
 
   final def safeDecodeValue(data: F[Array[Byte], Array[Byte]]): Try[F[Array[Byte], V]] =
-    data.bitraverse(Success(_), v => utils.nullable(v).flatMap(x => Try(valueIso.get(x))))
+    data.bitraverse(Success(_), v => utils.checkNull(v).flatMap(x => Try(valueIso.get(x))))
 
   final def safeDecodeKey(data: F[Array[Byte], Array[Byte]]): Try[F[K, Array[Byte]]] =
-    data.bitraverse(k => utils.nullable(k).flatMap(x => Try(keyIso.get(x))), Success(_))
+    data.bitraverse(k => utils.checkNull(k).flatMap(x => Try(keyIso.get(x))), Success(_))
 }
 
 sealed trait KafkaConsumerRecordDecode[K, V] extends BitraverseKafkaRecord {
@@ -55,19 +55,19 @@ sealed trait KafkaConsumerRecordDecode[K, V] extends BitraverseKafkaRecord {
 
   final def safeDecodeKeyValue(data: KafkaByteConsumerRecord): ConsumerRecord[Try[K], Try[V]] =
     data.bimap(
-      k => utils.nullable(k).flatMap(x => Try(keyIso.get(x))),
-      v => utils.nullable(v).flatMap(x => Try(valueIso.get(x))))
+      k => utils.checkNull(k).flatMap(x => Try(keyIso.get(x))),
+      v => utils.checkNull(v).flatMap(x => Try(valueIso.get(x))))
 
   final def safeDecode(data: KafkaByteConsumerRecord): Try[ConsumerRecord[K, V]] =
     data.bitraverse(
-      k => utils.nullable(k).flatMap(x => Try(keyIso.get(x))),
-      v => utils.nullable(v).flatMap(x => Try(valueIso.get(x))))
+      k => utils.checkNull(k).flatMap(x => Try(keyIso.get(x))),
+      v => utils.checkNull(v).flatMap(x => Try(valueIso.get(x))))
 
   final def safeDecodeValue(data: KafkaByteConsumerRecord): Try[ConsumerRecord[Array[Byte], V]] =
-    data.bitraverse(Success(_), v => utils.nullable(v).flatMap(x => Try(valueIso.get(x))))
+    data.bitraverse(Success(_), v => utils.checkNull(v).flatMap(x => Try(valueIso.get(x))))
 
   final def safeDecodeKey(data: KafkaByteConsumerRecord): Try[ConsumerRecord[K, Array[Byte]]] =
-    data.bitraverse(k => utils.nullable(k).flatMap(x => Try(keyIso.get(x))), Success(_))
+    data.bitraverse(k => utils.checkNull(k).flatMap(x => Try(keyIso.get(x))), Success(_))
 }
 
 sealed trait KafkaProducerRecordEncode[K, V] {
@@ -83,7 +83,9 @@ sealed trait KafkaProducerRecordEncode[K, V] {
     new ProducerRecord(topicName, k, valueIso.reverseGet(v))
   final def record(k: Array[Byte], v: Array[Byte]): KafkaByteProducerRecord =
     new ProducerRecord(topicName, k, v)
-} 
+  final def record(nj: NJProducerRecord[K, V]): KafkaByteProducerRecord =
+    nj.bimap(keyIso.reverseGet, valueIso.reverseGet).producerRecord
+}
 
 sealed trait AkkaMessageEncode[K, V] {
   import akka.NotUsed
@@ -97,6 +99,11 @@ sealed trait AkkaMessageEncode[K, V] {
 
   final def single[P](k: K, v: V, p: P): Envelope[K, V, P] =
     ProducerMessage.single(record(k, v), p)
+
+  final def single(nj: NJProducerRecord[K, V]): Envelope[K, V, NotUsed] =
+    ProducerMessage.single(nj.producerRecord)
+  final def single[P](nj: NJProducerRecord[K, V], p: P): Envelope[K, V, P] =
+    ProducerMessage.single(nj.producerRecord, p)
 
   final def multi(msg: List[(K, V)]): Envelope[K, V, NotUsed] =
     ProducerMessage.multi(msg.map(kv => record(kv._1, kv._2)))
@@ -122,6 +129,15 @@ sealed trait Fs2MessageEncode[F[_], K, V] extends BitraverseFs2Message {
     v: V,
     p: CommittableOffset[F]): ProducerRecords[Id, K, V, Option[CommittableOffset[F]]] =
     ProducerRecords.one(record(k, v), Some(p))
+
+  final def single(
+    nj: NJProducerRecord[K, V]): ProducerRecords[Id, K, V, Option[CommittableOffset[F]]] =
+    ProducerRecords.one(nj.fs2ProducerRecord, None)
+
+  final def single(
+    nj: NJProducerRecord[K, V],
+    p: CommittableOffset[F]): ProducerRecords[Id, K, V, Option[CommittableOffset[F]]] =
+    ProducerRecords.one(nj.fs2ProducerRecord, Some(p))
 
   final def multi(msgs: List[(K, V)]): ProducerRecords[List, K, V, Option[CommittableOffset[F]]] =
     ProducerRecords(msgs.map { case (k, v) => record(k, v) }, None)
