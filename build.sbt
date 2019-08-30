@@ -5,20 +5,20 @@ parallelExecution in ThisBuild := false
 val confluent    = "5.3.0"
 val kafkaVersion = "2.3.0"
 
-val shapeless    = "2.3.3"
-val contextual   = "1.2.1"
-val kittens      = "2.0.0-M1"
-val catsCore     = "2.0.0-RC2"
-val catsEffect   = "2.0.0-RC2"
-val catsMtl      = "0.6.0"
-val catsTime     = "0.3.0-M1"
-val fs2Version   = "1.1.0-M1"
-val monocle      = "2.0.0-RC1"
-val refined      = "0.9.9"
-val zioCats      = "2.0.0.0-RC2"
+val shapeless  = "2.3.3"
+val contextual = "1.2.1"
+val kittens    = "2.0.0-M1"
+val catsCore   = "2.0.0-RC2"
+val catsEffect = "2.0.0-RC2"
+val catsMtl    = "0.6.0"
+val catsTime   = "0.3.0-M1"
+val fs2Version = "1.1.0-M1"
+val monocle    = "2.0.0-RC1"
+val refined    = "0.9.9"
+val zioCats    = "2.0.0.0-RC2"
 
-val akkaKafka   = "1.0.5"
-val fs2Kafka     = "0.20.0-M2"
+val akkaKafka = "1.0.5"
+val fs2Kafka  = "0.20.0-M2"
 
 val sparkVersion = "2.4.3"
 val frameless    = "0.8.0"
@@ -28,10 +28,10 @@ val avro4s       = "3.0.1"
 val avro         = "1.9.0"
 val avrohugger   = "1.0.0-RC18"
 
-val silencer     = "1.4.2"
-val jline        = "3.12.1"
+val silencer = "1.4.2"
+val jline    = "3.12.1"
 
-val scalatest    = "3.0.8"
+val scalatest = "3.0.8"
 
 lazy val commonSettings = Seq(
   version      := "0.0.1-SNAPSHOT",
@@ -110,7 +110,9 @@ lazy val kafka = (project in file("kafka"))
       "dev.zio" %% "zio-interop-cats"                   % zioCats,
       "org.jline"                                       % "jline" % jline,
       "io.chrisdavenport" %% "cats-time"                % catsTime,
-      "org.scalatest" %% "scalatest"                    % scalatest % Test
+      "org.scalatest" %% "scalatest"                    % scalatest % Test,
+      "com.github.julien-truffaut" %% "monocle-law"     % monocle % Test,
+      "org.typelevel" %% "discipline-scalatest"         % "1.0.0-M1" % Test
     ),
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
@@ -145,8 +147,8 @@ lazy val sparkafka = (project in file("sparkafka"))
       .map(_.exclude("com.sun.jersey", "jersey-servlet"))
       .map(_.exclude("com.sun.jersey.contribs", "jersey-guice")),
     dependencyOverrides ++= Seq(
-      "com.fasterxml.jackson.core" % "jackson-databind" % "2.6.7.2",
-      "org.json4s" %%"json4s-core" % "3.5.5"),
+      "com.fasterxml.jackson.core"  % "jackson-databind" % "2.6.7.2",
+      "org.json4s" %% "json4s-core" % "3.5.5")
 //    excludeDependencies += "javax.ws.rs"                % "javax.ws.rs-api"
   )
 lazy val nanjin = (project in file(".")).aggregate(kafka, sparkafka)
