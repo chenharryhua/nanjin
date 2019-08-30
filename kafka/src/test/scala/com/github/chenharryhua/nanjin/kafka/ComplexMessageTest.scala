@@ -7,6 +7,7 @@ import cats.effect.IO
 import cats.implicits._
 import org.scalatest.funsuite.AnyFunSuite
 import io.chrisdavenport.cats.time._
+
 final case class Employee(name: String, age: Int, department: String)
 final case class ComplexMessage(
   a: Int        = 0,

@@ -19,7 +19,7 @@ class ZioTest extends AnyFunSuite with ShowKafkaMessage {
 
   val ctx: ZioKafkaContext = KafkaSettings.local.zioContext
 
-  test("zio should just work.") {
+  ignore("zio should just work.") {
     val chn = ctx.topic[String, Payment]("cc_payments").fs2Channel
     val task = chn.consume
       .map(chn.safeDecode)
@@ -34,7 +34,7 @@ class ZioTest extends AnyFunSuite with ShowKafkaMessage {
     runtime.unsafeRun(task)
   }
 
-  test("zio should work for akka.") {
+  ignore("zio should work for akka.") {
     val task = ctx.topic[String, Payment]("cc_payments").akkaResource.use { chn =>
       chn
         .updateConsumerSettings(_.withClientId("akka-test"))

@@ -13,7 +13,7 @@ class ConsumeMessageFs2Test extends AnyFunSuite with ShowKafkaMessage {
     val chn = backblaze_smart.in(ctx).fs2Channel
     val ret =
       chn
-        .updateConsumerSettings(_.withAutoOffsetReset(AutoOffsetReset.Latest))
+        .updateConsumerSettings(_.withAutoOffsetReset(AutoOffsetReset.Earliest))
         .consume
         .map(chn.safeDecodeKeyValue)
         .take(3)

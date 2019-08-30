@@ -20,7 +20,7 @@ class KafkaStreamingTest extends AnyFunSuite {
   implicit val oneValue = one.valueSerde
   implicit val twoValue = two.valueSerde
   implicit val tgtValue = tgt.valueSerde
-  test("generate data") {
+  ignore("generate data") {
     (one.schemaRegistry.register >> two.schemaRegistry.register).unsafeRunSync()
     fs2.Stream
       .range(0, 100)
