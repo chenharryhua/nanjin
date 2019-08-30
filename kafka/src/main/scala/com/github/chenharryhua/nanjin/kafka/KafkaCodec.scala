@@ -83,9 +83,7 @@ sealed trait KafkaProducerRecordEncode[K, V] {
     new ProducerRecord(topicName, k, valueIso.reverseGet(v))
   final def record(k: Array[Byte], v: Array[Byte]): KafkaByteProducerRecord =
     new ProducerRecord(topicName, k, v)
-  final def record(nj: NJProducerRecord[K, V]): KafkaByteProducerRecord =
-    nj.bimap(keyIso.reverseGet, valueIso.reverseGet).producerRecord
-}
+} 
 
 sealed trait AkkaMessageEncode[K, V] {
   import akka.NotUsed
@@ -94,12 +92,6 @@ sealed trait AkkaMessageEncode[K, V] {
 
   def topicName: String
   final private def record(k: K, v: V): ProducerRecord[K, V] = new ProducerRecord(topicName, k, v)
-
-  final def single(nj: NJProducerRecord[K, V]): Envelope[K, V, NotUsed] =
-    ProducerMessage.single(nj.producerRecord)
-
-  final def single[P](nj: NJProducerRecord[K, V], p: P): Envelope[K, V, P] =
-    ProducerMessage.single(nj.producerRecord, p)
 
   final def single(k: K, v: V): Envelope[K, V, NotUsed] = ProducerMessage.single(record(k, v))
 
@@ -115,21 +107,12 @@ sealed trait AkkaMessageEncode[K, V] {
     ProducerMessage.multi(msg.map(kv => record(kv._1, kv._2)), cof)
 }
 
-sealed trait Fs2MessageEncode[F[_], K, V] {
+sealed trait Fs2MessageEncode[F[_], K, V] extends BitraverseFs2Message {
   import fs2.Chunk
   import fs2.kafka.{CommittableOffset, Id, ProducerRecords, ProducerRecord => Fs2ProducerRecord}
   def topicName: String
 
   final private def record(k: K, v: V): Fs2ProducerRecord[K, V] = Fs2ProducerRecord(topicName, k, v)
-
-  final def single(
-    nj: NJProducerRecord[K, V],
-    p: CommittableOffset[F]): ProducerRecords[Id, K, V, Option[CommittableOffset[F]]] =
-    ProducerRecords.one(nj.fs2ProducerRecord, Some(p))
-
-  final def single(
-    nj: NJProducerRecord[K, V]): ProducerRecords[Id, K, V, Option[CommittableOffset[F]]] =
-    ProducerRecords.one(nj.fs2ProducerRecord, None)
 
   final def single(k: K, v: V): ProducerRecords[Id, K, V, Option[CommittableOffset[F]]] =
     ProducerRecords.one(record(k, v), None)

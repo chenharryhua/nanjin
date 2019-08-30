@@ -25,6 +25,6 @@ object Keyboard {
       }
       .flatMap { case (_, r) => Stream.repeatEval(Sync[F].delay(r.read().toChar)) }
       .noneTerminate
-      .hold(Some(Continue))
+      .hold(None)
 
 }

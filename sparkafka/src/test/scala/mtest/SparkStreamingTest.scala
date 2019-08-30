@@ -10,7 +10,7 @@ import frameless.cats.implicits._
 import scala.concurrent.duration._
 
 class SparkStreamingTest extends FunSuite {
-  test("run streaming") {
+  ignore("run streaming") {
     spark.use { implicit s =>
       val df = SparkafkaStream.sstream(topics.pencil_topic)
       val kdf: DataStreamWriter[SparkConsumerRecord[Int, Pencil]] = df.dataset.writeStream
