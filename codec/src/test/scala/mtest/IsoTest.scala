@@ -12,8 +12,9 @@ class IsoTest extends AnyFunSuite with Discipline {
   implicit val eqArrayByte: Eq[Array[Byte]] = (x: Array[Byte], y: Array[Byte]) =>
     x.zip(y).forall { case (x, y) => x.eqv(y) }
 
-  val prism = SerdeOf[Int].asKey(Map()).prism("topic")
+  val keyPrism   = SerdeOf[Int].asKey(Map()).prism("topic")
+  val valuePrism = SerdeOf[Long].asKey(Map()).prism("topic")
 
-  checkAll("prism-key", PrismTests(prism.keyPrism))
-  checkAll("prism-value", PrismTests(prism.valuePrism))
+  checkAll("prism-key", PrismTests(keyPrism))
+  checkAll("prism-value", PrismTests(valuePrism))
 }

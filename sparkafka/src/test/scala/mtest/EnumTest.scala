@@ -9,8 +9,9 @@ import com.github.chenharryhua.nanjin.sparkafka.{Aggregations, SparkafkaDataset}
 import frameless.cats.implicits._
 import fs2.Chunk
 import org.scalatest.FunSuite
+import org.scalatest.funsuite.AnyFunSuite
 
-class EnumTest extends FunSuite with ShowKafkaMessage with Aggregations {
+class EnumTest extends AnyFunSuite with ShowKafkaMessage with Aggregations {
   topics.pencil_topic.schemaRegistry.register.unsafeRunSync()
   val end   = LocalDateTime.now()
   val start = end.minusHours(1)

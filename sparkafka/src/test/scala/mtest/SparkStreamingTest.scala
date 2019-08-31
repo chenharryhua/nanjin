@@ -6,10 +6,11 @@ import com.github.chenharryhua.nanjin.sparkafka.{SparkConsumerRecord, SparkafkaS
 import org.apache.spark.sql.streaming.{DataStreamWriter, Trigger}
 import org.scalatest.FunSuite
 import frameless.cats.implicits._
+import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration._
 
-class SparkStreamingTest extends FunSuite {
+class SparkStreamingTest extends AnyFunSuite {
   ignore("run streaming") {
     spark.use { implicit s =>
       val df = SparkafkaStream.sstream(topics.pencil_topic)

@@ -8,8 +8,9 @@ import org.apache.spark.sql.SaveMode
 import org.scalatest.FunSuite
 import cats.implicits._
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
+import org.scalatest.funsuite.AnyFunSuite
 
-class SparkTest extends FunSuite with Aggregations {
+class SparkTest extends AnyFunSuite with Aggregations {
   val end   = LocalDateTime.now()
   val start = end.minusYears(1)
   test("should be able to show topic data") {

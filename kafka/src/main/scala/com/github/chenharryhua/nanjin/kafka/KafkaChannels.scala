@@ -10,6 +10,7 @@ import cats.Show
 import cats.data.{NonEmptyList, Reader}
 import cats.effect._
 import cats.implicits._
+import com.github.chenharryhua.nanjin.codec
 import com.github.chenharryhua.nanjin.codec.{KeySerde, ValueSerde}
 import fs2.kafka.{ConsumerSettings => Fs2ConsumerSettings, ProducerSettings => Fs2ProducerSettings}
 import monocle.Iso

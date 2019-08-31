@@ -4,14 +4,14 @@ import java.time.LocalDateTime
 
 import cats.effect.IO
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.utils
-import com.github.chenharryhua.nanjin.kafka.NJProducerRecord
+import com.github.chenharryhua.nanjin.codec.{utils, NJProducerRecord}
 import com.github.chenharryhua.nanjin.sparkafka.SparkafkaDataset
 import frameless.cats.implicits._
 import fs2.Stream
 import org.scalatest.FunSuite
+import org.scalatest.funsuite.AnyFunSuite
 
-class SparkJoinTest extends FunSuite {
+class SparkJoinTest extends AnyFunSuite {
   val num: Int    = 100
   val coefficient = 1000000
   val start       = LocalDateTime.now.minusNanos(num.toLong * coefficient)

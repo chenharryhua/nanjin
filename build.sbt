@@ -152,7 +152,7 @@ lazy val codec = (project in file("codec"))
     addCompilerPlugin("com.github.ghik" %% "silencer-plugin" % silencer),
     libraryDependencies ++= Seq(
       "com.github.ghik" %% "silencer-lib" % silencer % Provided
-    ) ++ base ++ effect ++ kafkaLib ++ circe ++ fs2 ++ monocle ++ avro ++ tests,
+    ) ++ base ++ kafkaLib ++ circe  ++ monocle ++ avro ++ tests,
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
 
@@ -161,7 +161,7 @@ lazy val kafka = (project in file("kafka"))
   .settings(name := "kafka")
   .dependsOn(codec)
   .settings(
-    libraryDependencies ++= Seq("org.jline" % "jline" % jline) ++ tests,
+    libraryDependencies ++= Seq("org.jline" % "jline" % jline) ++ effect ++ fs2 ++ tests,
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
 

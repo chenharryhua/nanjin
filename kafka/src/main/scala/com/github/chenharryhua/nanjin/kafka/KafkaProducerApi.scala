@@ -5,6 +5,8 @@ import cats.data.Chain
 import cats.effect.concurrent.Deferred
 import cats.effect.{ConcurrentEffect, IO, Sync}
 import cats.implicits._
+import com.github.chenharryhua.nanjin.codec
+import com.github.chenharryhua.nanjin.codec.NJProducerRecord
 import fs2.Chunk
 import fs2.kafka.KafkaByteProducer
 import monocle.Iso
