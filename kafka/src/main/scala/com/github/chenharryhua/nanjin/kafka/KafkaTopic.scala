@@ -5,7 +5,7 @@ import cats.effect.concurrent.MVar
 import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
 import cats.{Eval, Show}
 import com.github.chenharryhua.nanjin.codec
-import com.github.chenharryhua.nanjin.codec.{Codec, KeySerde, SerdeOf, ValueSerde}
+import com.github.chenharryhua.nanjin.codec.{KafkaCodec, KeySerde, SerdeOf, ValueSerde}
 import fs2.kafka.{KafkaByteConsumer, KafkaByteProducer}
 import monocle.{Iso, Prism}
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
@@ -46,8 +46,8 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
   val keySerde: KeySerde[K]     = serdeOfKey.asKey(schemaRegistrySettings.props)
   val valueSerde: ValueSerde[V] = serdeOfValue.asValue(schemaRegistrySettings.props)
 
-  val keyCodec: Codec[K]   = keySerde.codec(topicName)
-  val valueCodec: Codec[V] = valueSerde.codec(topicName)
+  val keyCodec: KafkaCodec[K]   = keySerde.codec(topicName)
+  val valueCodec: KafkaCodec[V] = valueSerde.codec(topicName)
 
   val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
     new KafkaChannels.Fs2Channel[F, K, V](

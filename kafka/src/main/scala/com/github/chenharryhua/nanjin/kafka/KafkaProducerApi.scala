@@ -6,7 +6,7 @@ import cats.effect.concurrent.Deferred
 import cats.effect.{ConcurrentEffect, IO, Sync}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.codec
-import com.github.chenharryhua.nanjin.codec.{Codec, NJProducerRecord}
+import com.github.chenharryhua.nanjin.codec.{KafkaCodec, NJProducerRecord}
 import fs2.Chunk
 import fs2.kafka.KafkaByteProducer
 import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
@@ -37,15 +37,15 @@ object KafkaProducerApi {
 
   def apply[F[_]: ConcurrentEffect, K, V](
     topicName: String,
-    keyIso: Codec[K],
-    valueIso: Codec[V],
+    keyIso: KafkaCodec[K],
+    valueIso: KafkaCodec[V],
     producer: Eval[KafkaByteProducer]): KafkaProducerApi[F, K, V] =
     new KafkaProducerApiImpl[F, K, V](topicName, keyIso, valueIso, producer)
 
   final private[this] class KafkaProducerApiImpl[F[_]: ConcurrentEffect, K, V](
     val topicName: String,
-    val keyCodec: Codec[K],
-    val valueCodec: Codec[V],
+    val keyCodec: KafkaCodec[K],
+    val valueCodec: KafkaCodec[V],
     producer: Eval[KafkaByteProducer]
   ) extends KafkaProducerApi[F, K, V] with codec.KafkaRecordCodec[K, V] {
 

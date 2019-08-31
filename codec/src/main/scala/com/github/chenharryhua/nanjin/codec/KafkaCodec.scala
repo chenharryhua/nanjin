@@ -9,8 +9,8 @@ import org.apache.kafka.clients.producer.ProducerRecord
 import scala.util.{Success, Try}
 
 abstract class KafkaMessageDecode[F[_, _]: Bitraverse, K, V](
-  keyCodec: Codec[K],
-  valueCodec: Codec[V]) {
+  keyCodec: KafkaCodec[K],
+  valueCodec: KafkaCodec[V]) {
 
   final def decode(data: F[Array[Byte], Array[Byte]]): F[K, V] =
     data.bimap(keyCodec.decode, valueCodec.decode)
@@ -39,8 +39,8 @@ abstract class KafkaMessageDecode[F[_, _]: Bitraverse, K, V](
 }
 
 trait KafkaConsumerRecordDecode[K, V] extends BitraverseKafkaRecord {
-  def keyCodec: Codec[K]
-  def valueCodec: Codec[V]
+  def keyCodec: KafkaCodec[K]
+  def valueCodec: KafkaCodec[V]
 
   final def decode(cr: KafkaByteConsumerRecord): ConsumerRecord[K, V] =
     cr.bimap(keyCodec.decode, valueCodec.decode)
@@ -69,8 +69,8 @@ trait KafkaConsumerRecordDecode[K, V] extends BitraverseKafkaRecord {
 }
 
 trait KafkaProducerRecordEncode[K, V] {
-  def keyCodec: Codec[K]
-  def valueCodec: Codec[V]
+  def keyCodec: KafkaCodec[K]
+  def valueCodec: KafkaCodec[V]
   def topicName: String
 
   final def record(k: K, v: V): KafkaByteProducerRecord =

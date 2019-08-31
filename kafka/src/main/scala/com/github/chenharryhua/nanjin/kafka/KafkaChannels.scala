@@ -11,7 +11,7 @@ import cats.data.{NonEmptyList, Reader}
 import cats.effect._
 import cats.implicits._
 import com.github.chenharryhua.nanjin.codec
-import com.github.chenharryhua.nanjin.codec.{Codec, KeySerde, ValueSerde}
+import com.github.chenharryhua.nanjin.codec.{KafkaCodec, KeySerde, ValueSerde}
 import fs2.kafka.{ConsumerSettings => Fs2ConsumerSettings, ProducerSettings => Fs2ProducerSettings}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
@@ -28,8 +28,8 @@ object KafkaChannels {
     topicName: String,
     producerSettings: Fs2ProducerSettings[F, K, V],
     consumerSettings: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]],
-    keyCodec: Codec[K],
-    valueCodec: Codec[V]
+    keyCodec: KafkaCodec[K],
+    valueCodec: KafkaCodec[V]
   ) extends codec.Fs2Codec[F, K, V](keyCodec, valueCodec) {
 
     import fs2.Stream
@@ -76,8 +76,8 @@ object KafkaChannels {
     producerSettings: AkkaProducerSettings[K, V],
     consumerSettings: AkkaConsumerSettings[Array[Byte], Array[Byte]],
     committerSettings: AkkaCommitterSettings,
-    keyCodec: Codec[K],
-    valueCodec: Codec[V],
+    keyCodec: KafkaCodec[K],
+    valueCodec: KafkaCodec[V],
     materializer: ActorMaterializer)
       extends codec.AkkaCodec[K, V](keyCodec, valueCodec) {
     import akka.kafka.ConsumerMessage.CommittableMessage

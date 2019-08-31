@@ -13,7 +13,7 @@ import scala.annotation.implicitNotFound
 import scala.collection.JavaConverters._
 import scala.util.Try
 
-sealed trait Codec[A] {
+sealed trait KafkaCodec[A] {
   def encode(a: A): Array[Byte]
   def decode(ab: Array[Byte]): A
   final def tryDecode(ab: Array[Byte]): Try[A] = Try(decode(ab))
@@ -21,12 +21,13 @@ sealed trait Codec[A] {
     Prism[Array[Byte], A](tryDecode(_).toOption)(encode)
 }
 
-object Codec {
-  implicit val invariantCodec: Invariant[Codec] = new Invariant[Codec] {
-    override def imap[A, B](fa: Codec[A])(f: A => B)(g: B => A): Codec[B] = new Codec[B] {
-      override def encode(a: B): Array[Byte]  = fa.encode(g(a))
-      override def decode(ab: Array[Byte]): B = f(fa.decode(ab))
-    }
+object KafkaCodec {
+  implicit val invariantCodec: Invariant[KafkaCodec] = new Invariant[KafkaCodec] {
+    override def imap[A, B](fa: KafkaCodec[A])(f: A => B)(g: B => A): KafkaCodec[B] =
+      new KafkaCodec[B] {
+        override def encode(a: B): Array[Byte]  = fa.encode(g(a))
+        override def decode(ab: Array[Byte]): B = f(fa.decode(ab))
+      }
   }
 }
 
@@ -41,7 +42,7 @@ sealed abstract class KafkaSerde[A](serializer: Serializer[A], deserializer: Des
     deserializer.close()
   }
 
-  final def codec(topicName: String): Codec[A] = new Codec[A] {
+  final def codec(topicName: String): KafkaCodec[A] = new KafkaCodec[A] {
     override def encode(a: A): Array[Byte]  = serializer.serialize(topicName, a)
     override def decode(ab: Array[Byte]): A = deserializer.deserialize(topicName, ab)
   }
