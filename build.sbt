@@ -5,27 +5,27 @@ parallelExecution in ThisBuild := false
 val confluent    = "5.3.0"
 val kafkaVersion = "2.3.0"
 
-val shapeless  = "2.3.3"
-val contextual = "1.2.1"
-val kittens    = "2.0.0-M1"
-val catsCore   = "2.0.0-RC2"
-val catsEffect = "2.0.0-RC2"
-val catsMtl    = "0.6.0"
-val catsTime   = "0.3.0-M1"
-val fs2Version = "1.1.0-M1"
-val monocle    = "2.0.0-RC1"
-val refined    = "0.9.9"
-val zioCats    = "2.0.0.0-RC2"
+val shapeless      = "2.3.3"
+val contextual     = "1.2.1"
+val kittens        = "2.0.0-M1"
+val catsCore       = "2.0.0-RC2"
+val catsEffect     = "2.0.0-RC2"
+val catsMtl        = "0.6.0"
+val catsTime       = "0.3.0-M1"
+val fs2Version     = "1.1.0-M1"
+val monocleVersion = "2.0.0-RC1"
+val refined        = "0.9.9"
+val zioCats        = "2.0.0.0-RC2"
 
 val akkaKafka = "1.0.5"
 val fs2Kafka  = "0.20.0-RC1"
 
-val sparkVersion = "2.4.3"
-val frameless    = "0.8.0"
+val sparkVersion     = "2.4.3"
+val framelessVersion = "0.8.0"
 
 val circeVersion = "0.12.0-RC4"
 val avro4s       = "3.0.1"
-val avro         = "1.9.0"
+val avroVersion  = "1.9.0"
 val avrohugger   = "1.0.0-RC18"
 
 val silencer = "1.4.2"
@@ -63,6 +63,84 @@ lazy val commonSettings = Seq(
   )
 )
 
+val circe = Seq(
+  "io.circe" %% "circe-core",
+  "io.circe" %% "circe-generic",
+  "io.circe" %% "circe-parser"
+).map(_ % circeVersion)
+
+val fs2 = Seq(
+  "co.fs2" %% "fs2-core",
+  "co.fs2" %% "fs2-reactive-streams",
+  "co.fs2" %% "fs2-io"
+).map(_ % fs2Version)
+
+val monocle = Seq(
+  "com.github.julien-truffaut" %% "monocle-core",
+  "com.github.julien-truffaut" %% "monocle-generic",
+  "com.github.julien-truffaut" %% "monocle-macro",
+  "com.github.julien-truffaut" %% "monocle-state",
+  "com.github.julien-truffaut" %% "monocle-unsafe"
+).map(_ % monocleVersion)
+
+val avro = Seq(
+  "org.apache.avro" % "avro",
+  "org.apache.avro" % "avro-mapred",
+  "org.apache.avro" % "avro-compiler",
+  "org.apache.avro" % "avro-ipc"
+).map(_ % avroVersion) ++
+  Seq(
+    "com.sksamuel.avro4s" %% "avro4s-core" % avro4s,
+    ("io.confluent" % "kafka-streams-avro-serde" % confluent).classifier(""),
+    "com.julianpeeters" %% "avrohugger-core" % avrohugger
+  )
+
+val spark = Seq(
+  "org.apache.spark" %% "spark-core",
+  "org.apache.spark" %% "spark-sql",
+  "org.apache.spark" %% "spark-streaming",
+  "org.apache.spark" %% "spark-streaming-kafka-0-10",
+  "org.apache.spark" %% "spark-sql-kafka-0-10",
+  "org.apache.spark" %% "spark-avro"
+).map(_ % sparkVersion)
+
+val frameless = Seq(
+  "org.typelevel" %% "frameless-dataset",
+  "org.typelevel" %% "frameless-ml",
+  "org.typelevel" %% "frameless-cats"
+).map(_ % framelessVersion)
+
+val tests = Seq(
+  "org.scalatest" %% "scalatest"                % scalatest      % Test,
+  "com.github.julien-truffaut" %% "monocle-law" % monocleVersion % Test,
+  "org.typelevel" %% "discipline-scalatest"     % "1.0.0-M1"     % Test
+)
+
+val kafkaLib = Seq(
+  "org.apache.kafka" % "kafka-clients",
+  "org.apache.kafka" % "kafka-streams",
+  "org.apache.kafka" %% "kafka-streams-scala").map(_ % kafkaVersion) ++
+  Seq(
+    "com.typesafe.akka" %% "akka-stream-kafka" % akkaKafka,
+    "com.ovoenergy" %% "fs2-kafka"             % fs2Kafka
+  )
+
+val base = Seq(
+  "io.chrisdavenport" %% "cats-time"  % catsTime,
+  "eu.timepit" %% "refined"           % refined,
+  "org.typelevel" %% "cats-core"      % catsCore,
+  "org.typelevel" %% "alleycats-core" % catsCore,
+  "org.typelevel" %% "cats-mtl-core"  % catsMtl,
+  "org.typelevel" %% "kittens"        % kittens,
+  "com.propensive" %% "contextual"    % contextual,
+  "com.chuusai" %% "shapeless"        % shapeless
+)
+
+val effect = Seq(
+  "org.typelevel" %% "cats-effect" % catsEffect,
+  "dev.zio" %% "zio-interop-cats"  % zioCats
+)
+
 lazy val kafka = (project in file("kafka"))
   .settings(commonSettings: _*)
   .settings(name := "kafka")
@@ -72,48 +150,8 @@ lazy val kafka = (project in file("kafka"))
       "com.github.ghik" %% "silencer-lib" % silencer         % Provided,
       "org.scala-lang"                    % "scala-reflect"  % scalaVersion.value % Provided,
       "org.scala-lang"                    % "scala-compiler" % scalaVersion.value % Provided,
-//kafka
-      "org.apache.kafka"                          % "kafka-clients" % kafkaVersion,
-      "org.apache.kafka"                          % "kafka-streams" % kafkaVersion,
-      "org.apache.kafka" %% "kafka-streams-scala" % kafkaVersion,
-      "com.typesafe.akka" %% "akka-stream-kafka"  % akkaKafka,
-      "com.ovoenergy" %% "fs2-kafka"              % fs2Kafka,
-//avro
-      "org.apache.avro"                      % "avro" % avro,
-      "org.apache.avro"                      % "avro-mapred" % avro,
-      "org.apache.avro"                      % "avro-compiler" % avro,
-      "org.apache.avro"                      % "avro-ipc" % avro,
-      "com.sksamuel.avro4s" %% "avro4s-core" % avro4s,
-      ("io.confluent" % "kafka-streams-avro-serde" % confluent).classifier(""),
-      "com.julianpeeters" %% "avrohugger-core" % avrohugger,
-//json
-      "io.circe" %% "circe-core"    % circeVersion,
-      "io.circe" %% "circe-generic" % circeVersion,
-      "io.circe" %% "circe-parser"  % circeVersion,
-//base
-      "eu.timepit" %% "refined"                         % refined,
-      "org.typelevel" %% "cats-core"                    % catsCore,
-      "org.typelevel" %% "alleycats-core"               % catsCore,
-      "org.typelevel" %% "cats-mtl-core"                % catsMtl,
-      "org.typelevel" %% "kittens"                      % kittens,
-      "com.chuusai" %% "shapeless"                      % shapeless,
-      "co.fs2" %% "fs2-core"                            % fs2Version,
-      "co.fs2" %% "fs2-reactive-streams"                % fs2Version,
-      "co.fs2" %% "fs2-io"                              % fs2Version,
-      "org.typelevel" %% "cats-effect"                  % catsEffect,
-      "com.github.julien-truffaut" %% "monocle-core"    % monocle,
-      "com.github.julien-truffaut" %% "monocle-generic" % monocle,
-      "com.github.julien-truffaut" %% "monocle-macro"   % monocle,
-      "com.github.julien-truffaut" %% "monocle-state"   % monocle,
-      "com.github.julien-truffaut" %% "monocle-unsafe"  % monocle,
-      "com.propensive" %% "contextual"                  % contextual,
-      "dev.zio" %% "zio-interop-cats"                   % zioCats,
-      "org.jline"                                       % "jline" % jline,
-      "io.chrisdavenport" %% "cats-time"                % catsTime,
-      "org.scalatest" %% "scalatest"                    % scalatest % Test,
-      "com.github.julien-truffaut" %% "monocle-law"     % monocle % Test,
-      "org.typelevel" %% "discipline-scalatest"         % "1.0.0-M1" % Test
-    ),
+      "org.jline"                         % "jline"          % jline
+    ) ++ base ++ effect ++ kafkaLib ++ circe ++ fs2 ++ monocle ++ avro ++ tests,
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
 
@@ -122,18 +160,8 @@ lazy val sparkafka = (project in file("sparkafka"))
   .settings(commonSettings: _*)
   .settings(name := "sparkafka")
   .settings(
-    libraryDependencies ++= Seq(
-      "org.apache.spark" %% "spark-core"                 % sparkVersion,
-      "org.apache.spark" %% "spark-sql"                  % sparkVersion,
-      "org.apache.spark" %% "spark-streaming"            % sparkVersion,
-      "org.apache.spark" %% "spark-streaming-kafka-0-10" % sparkVersion,
-      "org.apache.spark" %% "spark-sql-kafka-0-10"       % sparkVersion,
-      "org.apache.spark" %% "spark-avro"                 % sparkVersion,
-      "org.typelevel" %% "frameless-dataset"             % frameless,
-      "org.typelevel" %% "frameless-ml"                  % frameless,
-      "org.typelevel" %% "frameless-cats"                % frameless,
-      "org.scalatest" %% "scalatest"                     % scalatest % Test
-    ).map(_.exclude("io.netty", "netty-buffer"))
+    libraryDependencies ++= (spark ++ frameless ++ tests)
+      .map(_.exclude("io.netty", "netty-buffer"))
       .map(_.exclude("io.netty", "netty-codec"))
       .map(_.exclude("io.netty", "netty-codec-http"))
       .map(_.exclude("io.netty", "netty-common"))
