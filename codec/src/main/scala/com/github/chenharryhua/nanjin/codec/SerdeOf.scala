@@ -2,8 +2,9 @@ package com.github.chenharryhua.nanjin.codec
 
 import java.{util => ju}
 
+import cats.Invariant
 import com.sksamuel.avro4s.{AvroSchema, DefaultFieldMapper, SchemaFor}
-import monocle.{Iso, Prism}
+import monocle.Prism
 import org.apache.avro.Schema
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import org.apache.kafka.streams.scala.Serdes
@@ -11,6 +12,23 @@ import org.apache.kafka.streams.scala.Serdes
 import scala.annotation.implicitNotFound
 import scala.collection.JavaConverters._
 import scala.util.Try
+
+sealed trait Codec[A] {
+  def encode(a: A): Array[Byte]
+  def decode(ab: Array[Byte]): A
+  final def safeDecode(ab: Array[Byte]): Try[A] = Try(decode(ab))
+  final val prism: Prism[Array[Byte], A] =
+    Prism[Array[Byte], A](safeDecode(_).toOption)(encode)
+}
+
+object Codec {
+  implicit val invariantCodec: Invariant[Codec] = new Invariant[Codec] {
+    override def imap[A, B](fa: Codec[A])(f: A => B)(g: B => A): Codec[B] = new Codec[B] {
+      override def encode(a: B): Array[Byte]  = fa.encode(g(a))
+      override def decode(ab: Array[Byte]): B = f(fa.decode(ab))
+    }
+  }
+}
 
 sealed abstract class KafkaSerde[A](serializer: Serializer[A], deserializer: Deserializer[A])
     extends Serde[A] {
@@ -23,12 +41,10 @@ sealed abstract class KafkaSerde[A](serializer: Serializer[A], deserializer: Des
     deserializer.close()
   }
 
-  final def iso(topicName: String): Iso[Array[Byte], A] =
-    Iso[Array[Byte], A](deserializer.deserialize(topicName, _))(serializer.serialize(topicName, _))
-
-  final def prism(topicName: String): Prism[Array[Byte], A] =
-    Prism[Array[Byte], A](x => Try(deserializer.deserialize(topicName, x)).toOption)(
-      serializer.serialize(topicName, _))
+  final def codec(topicName: String): Codec[A] = new Codec[A] {
+    override def encode(a: A): Array[Byte]  = serializer.serialize(topicName, a)
+    override def decode(ab: Array[Byte]): A = deserializer.deserialize(topicName, ab)
+  }
 }
 
 final case class KeySerde[A](

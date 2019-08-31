@@ -30,7 +30,7 @@ object SparkafkaStream {
       .deserialized
       .map { msg =>
         val t = topic
-        msg.bimap(t.keyIso.get, t.valueIso.get)
+        msg.bimap(t.keyCodec.decode, t.valueCodec.decode)
       }
   }
 

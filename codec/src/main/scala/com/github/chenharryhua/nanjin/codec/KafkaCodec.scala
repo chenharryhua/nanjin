@@ -3,87 +3,86 @@ package com.github.chenharryhua.nanjin.codec
 import cats.Bitraverse
 import cats.implicits._
 import fs2.kafka.{KafkaByteConsumerRecord, KafkaByteProducerRecord}
-import monocle.Iso
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 
 import scala.util.{Success, Try}
 
 abstract class KafkaMessageDecode[F[_, _]: Bitraverse, K, V](
-  keyIso: Iso[Array[Byte], K],
-  valueIso: Iso[Array[Byte], V]) {
+  keyCodec: Codec[K],
+  valueCodec: Codec[V]) {
 
   final def decode(data: F[Array[Byte], Array[Byte]]): F[K, V] =
-    data.bimap(keyIso.get, valueIso.get)
+    data.bimap(keyCodec.decode, valueCodec.decode)
 
   final def decodeKey(data: F[Array[Byte], Array[Byte]]): F[K, Array[Byte]] =
-    data.bimap(keyIso.get, identity)
+    data.bimap(keyCodec.decode, identity)
 
   final def decodeValue(data: F[Array[Byte], Array[Byte]]): F[Array[Byte], V] =
-    data.bimap(identity, valueIso.get)
+    data.bimap(identity, valueCodec.decode)
 
   final def safeDecodeKeyValue(data: F[Array[Byte], Array[Byte]]): F[Try[K], Try[V]] =
     data.bimap(
-      k => utils.checkNull(k).flatMap(x => Try(keyIso.get(x))),
-      v => utils.checkNull(v).flatMap(x => Try(valueIso.get(x))))
+      k => utils.checkNull(k).flatMap(keyCodec.safeDecode),
+      v => utils.checkNull(v).flatMap(valueCodec.safeDecode))
 
   final def safeDecode(data: F[Array[Byte], Array[Byte]]): Try[F[K, V]] =
     data.bitraverse(
-      k => utils.checkNull(k).flatMap(x => Try(keyIso.get(x))),
-      v => utils.checkNull(v).flatMap(x => Try(valueIso.get(x))))
+      k => utils.checkNull(k).flatMap(keyCodec.safeDecode),
+      v => utils.checkNull(v).flatMap(valueCodec.safeDecode))
 
   final def safeDecodeValue(data: F[Array[Byte], Array[Byte]]): Try[F[Array[Byte], V]] =
-    data.bitraverse(Success(_), v => utils.checkNull(v).flatMap(x => Try(valueIso.get(x))))
+    data.bitraverse(Success(_), v => utils.checkNull(v).flatMap(valueCodec.safeDecode))
 
   final def safeDecodeKey(data: F[Array[Byte], Array[Byte]]): Try[F[K, Array[Byte]]] =
-    data.bitraverse(k => utils.checkNull(k).flatMap(x => Try(keyIso.get(x))), Success(_))
+    data.bitraverse(k => utils.checkNull(k).flatMap(keyCodec.safeDecode), Success(_))
 }
 
 trait KafkaConsumerRecordDecode[K, V] extends BitraverseKafkaRecord {
-  def keyIso: Iso[Array[Byte], K]
-  def valueIso: Iso[Array[Byte], V]
+  def keyCodec: Codec[K]
+  def valueCodec: Codec[V]
 
   final def decode(cr: KafkaByteConsumerRecord): ConsumerRecord[K, V] =
-    cr.bimap(keyIso.get, valueIso.get)
+    cr.bimap(keyCodec.decode, valueCodec.decode)
 
   final def decodeKey(cr: KafkaByteConsumerRecord): ConsumerRecord[K, Array[Byte]] =
-    cr.bimap(keyIso.get, identity)
+    cr.bimap(keyCodec.decode, identity)
 
   final def decodeValue(cr: KafkaByteConsumerRecord): ConsumerRecord[Array[Byte], V] =
-    cr.bimap(identity, valueIso.get)
+    cr.bimap(identity, valueCodec.decode)
 
   final def safeDecodeKeyValue(data: KafkaByteConsumerRecord): ConsumerRecord[Try[K], Try[V]] =
     data.bimap(
-      k => utils.checkNull(k).flatMap(x => Try(keyIso.get(x))),
-      v => utils.checkNull(v).flatMap(x => Try(valueIso.get(x))))
+      k => utils.checkNull(k).flatMap(keyCodec.safeDecode),
+      v => utils.checkNull(v).flatMap(valueCodec.safeDecode))
 
   final def safeDecode(data: KafkaByteConsumerRecord): Try[ConsumerRecord[K, V]] =
     data.bitraverse(
-      k => utils.checkNull(k).flatMap(x => Try(keyIso.get(x))),
-      v => utils.checkNull(v).flatMap(x => Try(valueIso.get(x))))
+      k => utils.checkNull(k).flatMap(keyCodec.safeDecode),
+      v => utils.checkNull(v).flatMap(valueCodec.safeDecode))
 
   final def safeDecodeValue(data: KafkaByteConsumerRecord): Try[ConsumerRecord[Array[Byte], V]] =
-    data.bitraverse(Success(_), v => utils.checkNull(v).flatMap(x => Try(valueIso.get(x))))
+    data.bitraverse(Success(_), v => utils.checkNull(v).flatMap(valueCodec.safeDecode))
 
   final def safeDecodeKey(data: KafkaByteConsumerRecord): Try[ConsumerRecord[K, Array[Byte]]] =
-    data.bitraverse(k => utils.checkNull(k).flatMap(x => Try(keyIso.get(x))), Success(_))
+    data.bitraverse(k => utils.checkNull(k).flatMap(keyCodec.safeDecode), Success(_))
 }
 
 trait KafkaProducerRecordEncode[K, V] {
-  def keyIso: Iso[Array[Byte], K]
-  def valueIso: Iso[Array[Byte], V]
+  def keyCodec: Codec[K]
+  def valueCodec: Codec[V]
   def topicName: String
 
   final def record(k: K, v: V): KafkaByteProducerRecord =
-    new ProducerRecord(topicName, keyIso.reverseGet(k), valueIso.reverseGet(v))
+    new ProducerRecord(topicName, keyCodec.encode(k), valueCodec.encode(v))
   final def record(k: K, v: Array[Byte]): KafkaByteProducerRecord =
-    new ProducerRecord(topicName, keyIso.reverseGet(k), v)
+    new ProducerRecord(topicName, keyCodec.encode(k), v)
   final def record(k: Array[Byte], v: V): KafkaByteProducerRecord =
-    new ProducerRecord(topicName, k, valueIso.reverseGet(v))
+    new ProducerRecord(topicName, k, valueCodec.encode(v))
   final def record(k: Array[Byte], v: Array[Byte]): KafkaByteProducerRecord =
     new ProducerRecord(topicName, k, v)
   final def record(nj: NJProducerRecord[K, V]): KafkaByteProducerRecord =
-    nj.bimap(keyIso.reverseGet, valueIso.reverseGet).producerRecord
+    nj.bimap(keyCodec.encode, valueCodec.encode).producerRecord
 }
 
 trait AkkaMessageEncode[K, V] {

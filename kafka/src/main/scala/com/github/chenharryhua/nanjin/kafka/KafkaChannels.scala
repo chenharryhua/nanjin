@@ -11,9 +11,8 @@ import cats.data.{NonEmptyList, Reader}
 import cats.effect._
 import cats.implicits._
 import com.github.chenharryhua.nanjin.codec
-import com.github.chenharryhua.nanjin.codec.{KeySerde, ValueSerde}
+import com.github.chenharryhua.nanjin.codec.{Codec, KeySerde, ValueSerde}
 import fs2.kafka.{ConsumerSettings => Fs2ConsumerSettings, ProducerSettings => Fs2ProducerSettings}
-import monocle.Iso
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
@@ -29,9 +28,9 @@ object KafkaChannels {
     topicName: String,
     producerSettings: Fs2ProducerSettings[F, K, V],
     consumerSettings: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]],
-    keyIso: Iso[Array[Byte], K],
-    valueIso: Iso[Array[Byte], V]
-  ) extends codec.Fs2Codec[F, K, V](keyIso, valueIso) {
+    keyCodec: Codec[K],
+    valueCodec: Codec[V]
+  ) extends codec.Fs2Codec[F, K, V](keyCodec, valueCodec) {
 
     import fs2.Stream
     import fs2.kafka._
@@ -77,10 +76,10 @@ object KafkaChannels {
     producerSettings: AkkaProducerSettings[K, V],
     consumerSettings: AkkaConsumerSettings[Array[Byte], Array[Byte]],
     committerSettings: AkkaCommitterSettings,
-    keyIso: Iso[Array[Byte], K],
-    valueIso: Iso[Array[Byte], V],
+    keyCodec: Codec[K],
+    valueCodec: Codec[V],
     materializer: ActorMaterializer)
-      extends codec.AkkaCodec[K, V](keyIso, valueIso) {
+      extends codec.AkkaCodec[K, V](keyCodec, valueCodec) {
     import akka.kafka.ConsumerMessage.CommittableMessage
     import akka.kafka.ProducerMessage.Envelope
     import akka.kafka.scaladsl.{Committer, Consumer}

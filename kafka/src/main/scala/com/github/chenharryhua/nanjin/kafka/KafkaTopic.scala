@@ -5,7 +5,7 @@ import cats.effect.concurrent.MVar
 import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
 import cats.{Eval, Show}
 import com.github.chenharryhua.nanjin.codec
-import com.github.chenharryhua.nanjin.codec.{KeySerde, SerdeOf, ValueSerde}
+import com.github.chenharryhua.nanjin.codec.{Codec, KeySerde, SerdeOf, ValueSerde}
 import fs2.kafka.{KafkaByteConsumer, KafkaByteProducer}
 import monocle.{Iso, Prism}
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
@@ -46,19 +46,16 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
   val keySerde: KeySerde[K]     = serdeOfKey.asKey(schemaRegistrySettings.props)
   val valueSerde: ValueSerde[V] = serdeOfValue.asValue(schemaRegistrySettings.props)
 
-  val keyIso: Iso[Array[Byte], K]   = keySerde.iso(topicName)
-  val valueIso: Iso[Array[Byte], V] = valueSerde.iso(topicName)
-
-  val keyPrism: Prism[Array[Byte], K]   = keySerde.prism(topicName)
-  val valuePrism: Prism[Array[Byte], V] = valueSerde.prism(topicName)
+  val keyCodec: Codec[K]   = keySerde.codec(topicName)
+  val valueCodec: Codec[V] = valueSerde.codec(topicName)
 
   val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
     new KafkaChannels.Fs2Channel[F, K, V](
       topicName,
       kafkaProducerSettings.fs2ProducerSettings(keySerde.serializer, valueSerde.serializer),
       kafkaConsumerSettings.fs2ConsumerSettings,
-      keyIso,
-      valueIso)
+      keyCodec,
+      valueCodec)
 
   val akkaResource: Resource[F, KafkaChannels.AkkaChannel[F, K, V]] = Resource.make(
     ConcurrentEffect[F].delay(
@@ -70,8 +67,8 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
           valueSerde.serializer),
         kafkaConsumerSettings.akkaConsumerSettings(materializer.value.system),
         kafkaConsumerSettings.akkaCommitterSettings(materializer.value.system),
-        keyIso,
-        valueIso,
+        keyCodec,
+        valueCodec,
         materializer.value)))(_ => ConcurrentEffect[F].unit)
 
   val kafkaStream: KafkaChannels.StreamingChannel[K, V] =
@@ -90,7 +87,7 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
     KafkaConsumerApi[F, K, V](topicName, sharedConsumer)
 
   val producer: KafkaProducerApi[F, K, V] =
-    KafkaProducerApi[F, K, V](topicName, keyIso, valueIso, sharedProducer)
+    KafkaProducerApi[F, K, V](topicName, keyCodec, valueCodec, sharedProducer)
 
   val monitor: KafkaMonitoringApi[F, K, V] =
     KafkaMonitoringApi(fs2Channel, consumer)
