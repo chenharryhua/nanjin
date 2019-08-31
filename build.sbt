@@ -45,6 +45,10 @@ lazy val commonSettings = Seq(
   addCompilerPlugin("org.typelevel" %% "kind-projector"  % "0.10.3"),
   addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
   addCompilerPlugin(("org.scalamacros" %% "paradise" % "2.1.1").cross(CrossVersion.full)),
+  libraryDependencies ++= Seq(
+    "org.scala-lang" % "scala-reflect"  % scalaVersion.value % Provided,
+    "org.scala-lang" % "scala-compiler" % scalaVersion.value % Provided
+  ),
   scalacOptions ++= Seq(
     "-Ypartial-unification",
     "-deprecation",
@@ -147,9 +151,7 @@ lazy val codec = (project in file("codec"))
   .settings(
     addCompilerPlugin("com.github.ghik" %% "silencer-plugin" % silencer),
     libraryDependencies ++= Seq(
-      "com.github.ghik" %% "silencer-lib" % silencer         % Provided,
-      "org.scala-lang"                    % "scala-reflect"  % scalaVersion.value % Provided,
-      "org.scala-lang"                    % "scala-compiler" % scalaVersion.value % Provided,
+      "com.github.ghik" %% "silencer-lib" % silencer % Provided
     ) ++ base ++ effect ++ kafkaLib ++ circe ++ fs2 ++ monocle ++ avro ++ tests,
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
@@ -159,13 +161,7 @@ lazy val kafka = (project in file("kafka"))
   .settings(name := "kafka")
   .dependsOn(codec)
   .settings(
-    addCompilerPlugin("com.github.ghik" %% "silencer-plugin" % silencer),
-    libraryDependencies ++= Seq(
-      "com.github.ghik" %% "silencer-lib" % silencer         % Provided,
-      "org.scala-lang"                    % "scala-reflect"  % scalaVersion.value % Provided,
-      "org.scala-lang"                    % "scala-compiler" % scalaVersion.value % Provided,
-      "org.jline"                         % "jline"          % jline
-    ) ++ base ++ effect ++ kafkaLib ++ circe ++ fs2 ++ monocle ++ avro ++ tests,
+    libraryDependencies ++= Seq("org.jline" % "jline" % jline) ++ tests,
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
 
