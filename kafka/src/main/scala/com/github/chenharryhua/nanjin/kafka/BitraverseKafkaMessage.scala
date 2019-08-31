@@ -175,20 +175,20 @@ trait BitraverseFs2Message extends BitraverseKafkaRecord {
         g: (B, Eval[C]) => Eval[C]): Eval[C] = isoFs2ProducerRecord.get(fab).bifoldRight(c)(f, g)
     }
 
-  implicit final def bitraverseFs2ProducerMessage[P]: Bitraverse[ProducerRecords[Id, ?, ?, P]] =
-    new Bitraverse[ProducerRecords[Id, ?, ?, P]] {
-      override def bitraverse[G[_]: Applicative, A, B, C, D](fab: ProducerRecords[Id, A, B, P])(
-        f: A => G[C],
-        g: B => G[D]): G[ProducerRecords[Id, C, D, P]] =
-        fab.records.bitraverse(f, g).map(p => ProducerRecords[Id, C, D, P](p, fab.passthrough))
+  implicit final def bitraverseFs2ProducerMessage[P]: Bitraverse[ProducerRecords[?, ?, P]] =
+    new Bitraverse[ProducerRecords[?, ?, P]] {
+      override def bitraverse[G[_]: Applicative, A, B, C, D](
+        fab: ProducerRecords[A, B, P])(f: A => G[C], g: B => G[D]): G[ProducerRecords[C, D, P]] =
+        fab.records.traverse(_.bitraverse(f, g)).map(p => ProducerRecords(p, fab.passthrough))
 
-      override def bifoldLeft[A, B, C](fab: ProducerRecords[Id, A, B, P], c: C)(
+      override def bifoldLeft[A, B, C](fab: ProducerRecords[A, B, P], c: C)(
         f: (C, A) => C,
-        g: (C, B) => C): C = fab.records.bifoldLeft(c)(f, g)
+        g: (C, B) => C): C = fab.records.foldLeft(c) { case (ec, pr) => pr.bifoldLeft(ec)(f, g) }
 
-      override def bifoldRight[A, B, C](fab: ProducerRecords[Id, A, B, P], c: Eval[C])(
+      override def bifoldRight[A, B, C](fab: ProducerRecords[A, B, P], c: Eval[C])(
         f: (A, Eval[C]) => Eval[C],
-        g: (B, Eval[C]) => Eval[C]): Eval[C] = fab.records.bifoldRight(c)(f, g)
+        g: (B, Eval[C]) => Eval[C]): Eval[C] =
+        fab.records.foldRight(c) { case (pr, ec) => pr.bifoldRight(ec)(f, g) }
     }
 }
 

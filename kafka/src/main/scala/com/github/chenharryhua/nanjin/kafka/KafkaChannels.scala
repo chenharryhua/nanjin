@@ -48,8 +48,8 @@ object KafkaChannels {
     val producerStream: Stream[F, KafkaProducer[F, K, V]] =
       fs2.kafka.producerStream[F, K, V](producerSettings)
 
-    val transactionalProducerStream: Stream[F, TransactionalKafkaProducer[F, K, V]] =
-      fs2.kafka.transactionalProducerStream[F, K, V](producerSettings)
+  //  val transactionalProducerStream: Stream[F, TransactionalKafkaProducer[F, K, V]] =
+  //    fs2.kafka.transactionalProducerStream[F, K, V](producerSettings)
 
     val consume: Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
       consumerStream[F, Array[Byte], Array[Byte]](consumerSettings)

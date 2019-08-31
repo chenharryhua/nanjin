@@ -121,29 +121,29 @@ sealed trait Fs2MessageEncode[F[_], K, V] extends BitraverseFs2Message {
 
   final private def record(k: K, v: V): Fs2ProducerRecord[K, V] = Fs2ProducerRecord(topicName, k, v)
 
-  final def single(k: K, v: V): ProducerRecords[Id, K, V, Option[CommittableOffset[F]]] =
+  final def single(k: K, v: V): ProducerRecords[K, V, Option[CommittableOffset[F]]] =
     ProducerRecords.one(record(k, v), None)
 
   final def single(
     k: K,
     v: V,
-    p: CommittableOffset[F]): ProducerRecords[Id, K, V, Option[CommittableOffset[F]]] =
+    p: CommittableOffset[F]): ProducerRecords[K, V, Option[CommittableOffset[F]]] =
     ProducerRecords.one(record(k, v), Some(p))
 
   final def single(
-    nj: NJProducerRecord[K, V]): ProducerRecords[Id, K, V, Option[CommittableOffset[F]]] =
+    nj: NJProducerRecord[K, V]): ProducerRecords[K, V, Option[CommittableOffset[F]]] =
     ProducerRecords.one(nj.fs2ProducerRecord, None)
 
   final def single(
     nj: NJProducerRecord[K, V],
-    p: CommittableOffset[F]): ProducerRecords[Id, K, V, Option[CommittableOffset[F]]] =
+    p: CommittableOffset[F]): ProducerRecords[K, V, Option[CommittableOffset[F]]] =
     ProducerRecords.one(nj.fs2ProducerRecord, Some(p))
 
-  final def multi(msgs: List[(K, V)]): ProducerRecords[List, K, V, Option[CommittableOffset[F]]] =
+  final def multi(msgs: List[(K, V)]): ProducerRecords[K, V, Option[CommittableOffset[F]]] =
     ProducerRecords(msgs.map { case (k, v) => record(k, v) }, None)
 
   final def multi(msgs: Chunk[(K, V, CommittableOffset[F])])
-    : ProducerRecords[Chunk, K, V, Option[CommittableOffset[F]]] =
+    : ProducerRecords[K, V, Option[CommittableOffset[F]]] =
     ProducerRecords(msgs.map { case (k, v, _) => record(k, v) }, msgs.last.map(_._3))
 }
 
