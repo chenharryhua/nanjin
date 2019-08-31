@@ -1,9 +1,8 @@
 package com.github.chenharryhua.nanjin.codec
 
-import akka.kafka.ConsumerMessage.CommittableMessage
 import cats.Bitraverse
 import cats.implicits._
-import fs2.kafka.{CommittableConsumerRecord, KafkaByteConsumerRecord, KafkaByteProducerRecord}
+import fs2.kafka.{KafkaByteConsumerRecord, KafkaByteProducerRecord}
 import monocle.Iso
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
