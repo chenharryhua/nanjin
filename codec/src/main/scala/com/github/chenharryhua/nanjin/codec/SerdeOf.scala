@@ -16,9 +16,10 @@ import scala.util.Try
 sealed trait KafkaCodec[A] {
   def encode(a: A): Array[Byte]
   def decode(ab: Array[Byte]): A
-  final def tryDecode(ab: Array[Byte]): Try[A] = Try(decode(ab))
+  final def tryDecode(ab: Array[Byte]): Try[A] =
+    utils.checkNull(ab).flatMap(x => Try(decode(x)))
   final val prism: Prism[Array[Byte], A] =
-    Prism[Array[Byte], A](tryDecode(_).toOption)(encode)
+    Prism[Array[Byte], A](x => Try(decode(x)).toOption)(encode)
 }
 
 object KafkaCodec {

@@ -52,20 +52,16 @@ trait KafkaConsumerRecordDecode[K, V] extends BitraverseKafkaRecord {
     cr.bimap(identity, valueCodec.decode)
 
   final def tryDecodeKeyValue(data: KafkaByteConsumerRecord): ConsumerRecord[Try[K], Try[V]] =
-    data.bimap(
-      k => utils.checkNull(k).flatMap(keyCodec.tryDecode),
-      v => utils.checkNull(v).flatMap(valueCodec.tryDecode))
+    data.bimap(keyCodec.tryDecode, valueCodec.tryDecode)
 
   final def tryDecode(data: KafkaByteConsumerRecord): Try[ConsumerRecord[K, V]] =
-    data.bitraverse(
-      k => utils.checkNull(k).flatMap(keyCodec.tryDecode),
-      v => utils.checkNull(v).flatMap(valueCodec.tryDecode))
+    data.bitraverse(keyCodec.tryDecode, valueCodec.tryDecode)
 
   final def tryDecodeValue(data: KafkaByteConsumerRecord): Try[ConsumerRecord[Array[Byte], V]] =
-    data.bitraverse(Success(_), v => utils.checkNull(v).flatMap(valueCodec.tryDecode))
+    data.bitraverse(Success(_), valueCodec.tryDecode)
 
   final def tryDecodeKey(data: KafkaByteConsumerRecord): Try[ConsumerRecord[K, Array[Byte]]] =
-    data.bitraverse(k => utils.checkNull(k).flatMap(keyCodec.tryDecode), Success(_))
+    data.bitraverse(keyCodec.tryDecode, Success(_))
 }
 
 trait KafkaProducerRecordEncode[K, V] {
