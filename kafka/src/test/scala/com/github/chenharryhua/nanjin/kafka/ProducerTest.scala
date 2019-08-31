@@ -10,6 +10,7 @@ import org.scalatest.FunSuite
 import scala.concurrent.duration._
 import scala.util.Random
 import cats.derived.auto.show._
+import com.github.chenharryhua.nanjin.codec.ShowKafkaMessage
 import org.scalatest.funsuite.AnyFunSuite
 case class AvroKey(key: String)
 case class AvroValue(v1: String, v2: Int)

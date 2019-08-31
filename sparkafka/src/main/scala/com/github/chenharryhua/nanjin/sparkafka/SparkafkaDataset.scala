@@ -5,7 +5,8 @@ import java.util
 
 import cats.Monad
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.{BitraverseKafkaRecord, KafkaTopic}
+import com.github.chenharryhua.nanjin.codec.BitraverseKafkaRecord
+import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import frameless.{TypedDataset, TypedEncoder}
 import monocle.function.At.remove
 import org.apache.kafka.clients.consumer.ConsumerConfig

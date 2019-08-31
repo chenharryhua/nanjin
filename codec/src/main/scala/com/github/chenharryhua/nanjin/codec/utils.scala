@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.kafka
+package com.github.chenharryhua.nanjin.codec
 
 import java.time.{Instant, LocalDateTime, ZoneId, ZonedDateTime}
 import java.util.Properties

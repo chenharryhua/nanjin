@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.implicits._
 import cats.{Applicative, Bitraverse, Eval}
+import com.github.chenharryhua.nanjin.codec.BitraverseFs2Message
 import fs2.kafka.{ConsumerRecord => Fs2ConsumerRecord, ProducerRecord => Fs2ProducerRecord}
 import monocle.Iso
 import monocle.macros.Lenses

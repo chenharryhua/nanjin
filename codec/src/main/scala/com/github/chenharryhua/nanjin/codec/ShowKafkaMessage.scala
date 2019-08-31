@@ -1,9 +1,9 @@
-package com.github.chenharryhua.nanjin.kafka
+package com.github.chenharryhua.nanjin.codec
 
-import akka.kafka.ConsumerMessage.{CommittableMessage => AkkaCommittableMessage}
+import akka.kafka.ConsumerMessage.CommittableMessage
 import cats.Show
 import cats.implicits._
-import fs2.kafka.{CommittableConsumerRecord => Fs2CommittableMessage}
+import fs2.kafka.CommittableConsumerRecord
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
 
@@ -45,12 +45,12 @@ trait ShowKafkaMessage extends BitraverseFs2Message {
     }
 
   implicit protected def showFs2CommittableMessage[F[_], K: Show, V: Show]
-    : Show[Fs2CommittableMessage[F, K, V]] =
-    (t: Fs2CommittableMessage[F, K, V]) => isoFs2ComsumerRecord.get(t.record).show
+    : Show[CommittableConsumerRecord[F, K, V]] =
+    (t: CommittableConsumerRecord[F, K, V]) => isoFs2ComsumerRecord.get(t.record).show
 
   implicit protected def showAkkaCommittableMessage[K: Show, V: Show]
-    : Show[AkkaCommittableMessage[K, V]] =
-    (t: AkkaCommittableMessage[K, V]) => t.record.show
+    : Show[CommittableMessage[K, V]] =
+    (t: CommittableMessage[K, V]) => t.record.show
 
   implicit protected val showArrayByte: Show[Array[Byte]] = _ => "Array[Byte]"
 

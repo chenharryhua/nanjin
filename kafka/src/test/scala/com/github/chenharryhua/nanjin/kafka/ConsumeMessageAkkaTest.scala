@@ -4,6 +4,7 @@ import java.time.LocalDateTime
 
 import cats.derived.auto.show._
 import cats.implicits._
+import com.github.chenharryhua.nanjin.codec.ShowKafkaMessage
 import org.scalatest.funsuite.AnyFunSuite
 
 class ConsumeMessageAkkaTest extends AnyFunSuite with ShowKafkaMessage {

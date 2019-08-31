@@ -1,11 +1,11 @@
-package com.github.chenharryhua.nanjin.kafka
-import com.github.chenharryhua.nanjin.kafka.CodecException._
+package com.github.chenharryhua.nanjin.codec
+
 import com.sksamuel.avro4s._
 import io.confluent.kafka.serializers.{KafkaAvroDeserializer, KafkaAvroSerializer}
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
-
+import CodecException._
 import scala.util.{Failure, Success, Try}
 
 final class KafkaAvroSerde[A: Encoder: Decoder: SchemaFor] extends Serde[A] {

@@ -4,7 +4,7 @@ import java.time.LocalDateTime
 import cats.derived.auto.show._
 import cats.effect.IO
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.ShowKafkaMessage
+import com.github.chenharryhua.nanjin.codec.ShowKafkaMessage
 import com.github.chenharryhua.nanjin.sparkafka.{Aggregations, SparkafkaDataset}
 import frameless.cats.implicits._
 import fs2.Chunk

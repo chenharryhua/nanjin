@@ -6,6 +6,7 @@ import cats.{Eval, Show}
 import cats.data.Reader
 import cats.effect.concurrent.MVar
 import cats.effect.{ConcurrentEffect, ContextShift, IO, Timer}
+import com.github.chenharryhua.nanjin.codec.{KeySerde, SerdeOf, ValueSerde}
 import fs2.Stream
 import fs2.kafka.{KafkaByteConsumer, KafkaByteProducer}
 import org.apache.kafka.clients.consumer.KafkaConsumer

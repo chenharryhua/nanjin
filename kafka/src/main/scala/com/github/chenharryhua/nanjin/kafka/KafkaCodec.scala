@@ -3,6 +3,12 @@ package com.github.chenharryhua.nanjin.kafka
 import akka.kafka.ConsumerMessage.CommittableMessage
 import cats.Bitraverse
 import cats.implicits._
+import com.github.chenharryhua.nanjin.codec.{
+  utils,
+  BitraverseAkkaMessage,
+  BitraverseFs2Message,
+  BitraverseKafkaRecord
+}
 import fs2.kafka.{CommittableConsumerRecord, KafkaByteConsumerRecord, KafkaByteProducerRecord}
 import monocle.Iso
 import org.apache.kafka.clients.consumer.ConsumerRecord

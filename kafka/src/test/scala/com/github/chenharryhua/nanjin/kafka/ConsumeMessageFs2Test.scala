@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.derived.auto.show._
 import cats.implicits._
+import com.github.chenharryhua.nanjin.codec.{KJson, ShowKafkaMessage}
 import fs2.kafka.AutoOffsetReset
 import io.circe.generic.auto._
 import org.scalatest.funsuite.AnyFunSuite

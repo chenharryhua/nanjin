@@ -4,6 +4,7 @@ import cats.data.Reader
 import cats.effect.ConcurrentEffect
 import cats.effect.concurrent.Deferred
 import cats.implicits._
+import com.github.chenharryhua.nanjin.codec.UncaughtKafkaStreamingException
 import fs2.Stream
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.scala.StreamsBuilder

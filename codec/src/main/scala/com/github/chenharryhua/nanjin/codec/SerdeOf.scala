@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.kafka
+package com.github.chenharryhua.nanjin.codec
 
 import java.{util => ju}
 
@@ -63,7 +63,7 @@ sealed abstract class SerdeOf[A](schema: Schema) extends Serializable {
     ValueSerde(schema, serializer, deserializer, props)
 }
 
-sealed private[kafka] trait SerdeOfPriority0 {
+sealed private[codec] trait SerdeOfPriority0 {
 
   import com.sksamuel.avro4s.{Decoder, Encoder}
 
@@ -76,7 +76,7 @@ sealed private[kafka] trait SerdeOfPriority0 {
   }
 }
 
-sealed private[kafka] trait SerdeOfPriority1 extends SerdeOfPriority0 {
+sealed private[codec] trait SerdeOfPriority1 extends SerdeOfPriority0 {
 
   import io.circe.{Decoder, Encoder}
 

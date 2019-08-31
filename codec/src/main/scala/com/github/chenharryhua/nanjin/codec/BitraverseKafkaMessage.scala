@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.kafka
+package com.github.chenharryhua.nanjin.codec
 
 import cats.implicits._
 import cats.{Applicative, Bitraverse, Eval}
@@ -77,7 +77,6 @@ trait BitraverseFs2Message extends BitraverseKafkaRecord {
   import fs2.kafka.{
     CommittableConsumerRecord,
     Headers,
-    Id,
     ProducerRecords,
     Timestamp,
     ConsumerRecord => Fs2ConsumerRecord,

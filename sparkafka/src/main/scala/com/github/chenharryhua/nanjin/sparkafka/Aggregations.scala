@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.sparkafka
 
-import com.github.chenharryhua.nanjin.kafka.utils
+import com.github.chenharryhua.nanjin.codec.utils
 import frameless.functions.aggregate.{collectSet, count}
 import frameless.functions.size
 import frameless.{TypedDataset, TypedEncoder}

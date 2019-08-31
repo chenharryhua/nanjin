@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.kafka
+package com.github.chenharryhua.nanjin.codec
 
 sealed abstract class CodecException(msg: String)
     extends Exception(msg) with Product with Serializable

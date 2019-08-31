@@ -4,6 +4,7 @@ import akka.stream.ActorMaterializer
 import cats.effect.concurrent.MVar
 import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
 import cats.{Eval, Show}
+import com.github.chenharryhua.nanjin.codec.{KeySerde, SerdeOf, ValueSerde}
 import fs2.kafka.{KafkaByteConsumer, KafkaByteProducer}
 import monocle.{Iso, Prism}
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}

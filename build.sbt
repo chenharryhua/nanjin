@@ -141,9 +141,23 @@ val effect = Seq(
   "dev.zio" %% "zio-interop-cats"  % zioCats
 )
 
+lazy val codec = (project in file("codec"))
+  .settings(commonSettings: _*)
+  .settings(name := "codec")
+  .settings(
+    addCompilerPlugin("com.github.ghik" %% "silencer-plugin" % silencer),
+    libraryDependencies ++= Seq(
+      "com.github.ghik" %% "silencer-lib" % silencer         % Provided,
+      "org.scala-lang"                    % "scala-reflect"  % scalaVersion.value % Provided,
+      "org.scala-lang"                    % "scala-compiler" % scalaVersion.value % Provided,
+    ) ++ base ++ effect ++ kafkaLib ++ circe ++ fs2 ++ monocle ++ avro ++ tests,
+    excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
+  )
+
 lazy val kafka = (project in file("kafka"))
   .settings(commonSettings: _*)
   .settings(name := "kafka")
+  .dependsOn(codec)
   .settings(
     addCompilerPlugin("com.github.ghik" %% "silencer-plugin" % silencer),
     libraryDependencies ++= Seq(
@@ -179,4 +193,4 @@ lazy val sparkafka = (project in file("sparkafka"))
       "org.json4s" %% "json4s-core" % "3.5.5")
 //    excludeDependencies += "javax.ws.rs"                % "javax.ws.rs-api"
   )
-lazy val nanjin = (project in file(".")).aggregate(kafka, sparkafka)
+lazy val nanjin = (project in file(".")).aggregate(codec, kafka, sparkafka)

@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.Show
 import cats.effect.{Concurrent, ContextShift}
 import cats.implicits._
+import com.github.chenharryhua.nanjin.codec.{BitraverseFs2Message, ShowKafkaMessage}
 import fs2.kafka.AutoOffsetReset
 import org.apache.kafka.clients.consumer.ConsumerRecord
 

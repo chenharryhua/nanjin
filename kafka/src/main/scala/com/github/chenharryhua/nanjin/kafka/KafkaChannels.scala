@@ -10,6 +10,7 @@ import cats.Show
 import cats.data.{NonEmptyList, Reader}
 import cats.effect._
 import cats.implicits._
+import com.github.chenharryhua.nanjin.codec.{KeySerde, ValueSerde}
 import fs2.kafka.{ConsumerSettings => Fs2ConsumerSettings, ProducerSettings => Fs2ProducerSettings}
 import monocle.Iso
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -48,8 +49,8 @@ object KafkaChannels {
     val producerStream: Stream[F, KafkaProducer[F, K, V]] =
       fs2.kafka.producerStream[F, K, V](producerSettings)
 
-  //  val transactionalProducerStream: Stream[F, TransactionalKafkaProducer[F, K, V]] =
-  //    fs2.kafka.transactionalProducerStream[F, K, V](producerSettings)
+    //  val transactionalProducerStream: Stream[F, TransactionalKafkaProducer[F, K, V]] =
+    //    fs2.kafka.transactionalProducerStream[F, K, V](producerSettings)
 
     val consume: Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
       consumerStream[F, Array[Byte], Array[Byte]](consumerSettings)
