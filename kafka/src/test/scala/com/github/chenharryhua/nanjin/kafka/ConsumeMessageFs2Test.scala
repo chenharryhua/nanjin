@@ -16,7 +16,7 @@ class ConsumeMessageFs2Test extends AnyFunSuite with ShowKafkaMessage {
       chn
         .updateConsumerSettings(_.withAutoOffsetReset(AutoOffsetReset.Earliest))
         .consume
-        .map(chn.safeDecodeKeyValue)
+        .map(chn.tryDecodeKeyValue)
         .take(3)
         .map(_.show)
         .map(println)
@@ -42,7 +42,7 @@ class ConsumeMessageFs2Test extends AnyFunSuite with ShowKafkaMessage {
   ignore("should be able to consume payments topic") {
     val chn = ctx.topic[String, Payment]("cc_payments").fs2Channel
     val ret = chn.consume
-      .map(chn.safeDecode)
+      .map(chn.tryDecode)
       .map(_.toEither)
       .rethrow
       .take(3)

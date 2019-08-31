@@ -16,9 +16,9 @@ import scala.util.Try
 sealed trait Codec[A] {
   def encode(a: A): Array[Byte]
   def decode(ab: Array[Byte]): A
-  final def safeDecode(ab: Array[Byte]): Try[A] = Try(decode(ab))
+  final def tryDecode(ab: Array[Byte]): Try[A] = Try(decode(ab))
   final val prism: Prism[Array[Byte], A] =
-    Prism[Array[Byte], A](safeDecode(_).toOption)(encode)
+    Prism[Array[Byte], A](tryDecode(_).toOption)(encode)
 }
 
 object Codec {

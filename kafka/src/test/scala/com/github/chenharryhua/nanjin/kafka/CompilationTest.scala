@@ -18,7 +18,7 @@ class CompilationTest extends AnyFunSuite {
     } >>
       topic.akkaResource.use { chn =>
         val ret: Source[Try[ConsumerMessage.CommittableMessage[Int, Int]], Consumer.Control] =
-          chn.consume.map(chn.safeDecode).take(0)
+          chn.consume.map(chn.tryDecode).take(0)
         ret.runWith(chn.ignoreSink)(chn.materializer)
       } >>
       topic.akkaResource.use { chn =>
@@ -29,7 +29,7 @@ class CompilationTest extends AnyFunSuite {
       topic.akkaResource.use { chn =>
         val ret
           : Source[Try[ConsumerMessage.CommittableMessage[Int, Array[Byte]]], Consumer.Control] =
-          chn.consume.map(chn.safeDecodeKey).take(0)
+          chn.consume.map(chn.tryDecodeKey).take(0)
         ret.runWith(chn.ignoreSink)(chn.materializer)
       } >>
       topic.akkaResource.use { chn =>
@@ -40,12 +40,12 @@ class CompilationTest extends AnyFunSuite {
       topic.akkaResource.use { chn =>
         val ret
           : Source[Try[ConsumerMessage.CommittableMessage[Array[Byte], Int]], Consumer.Control] =
-          chn.consume.map(chn.safeDecodeValue).take(0)
+          chn.consume.map(chn.tryDecodeValue).take(0)
         ret.runWith(chn.ignoreSink)(chn.materializer)
       } >>
       topic.akkaResource.use { chn =>
         val ret: Source[ConsumerMessage.CommittableMessage[Try[Int], Try[Int]], Consumer.Control] =
-          chn.consume.map(chn.safeDecodeKeyValue).take(0)
+          chn.consume.map(chn.tryDecodeKeyValue).take(0)
         ret.runWith(chn.ignoreSink)(chn.materializer)
       }
     task.unsafeRunSync()
