@@ -23,7 +23,7 @@ class ZioTest extends AnyFunSuite with ShowKafkaMessage {
   ignore("zio should just work.") {
     val chn = ctx.topic[String, Payment]("cc_payments").fs2Channel
     val task = chn.consume
-      .map(chn.tryDecode)
+      .map(chn.messageDecoder.tryDecode)
       .map(_.toEither)
       .rethrow
       .take(3)
@@ -40,7 +40,7 @@ class ZioTest extends AnyFunSuite with ShowKafkaMessage {
       chn
         .updateConsumerSettings(_.withClientId("akka-test"))
         .consume
-        .map(x => chn.decodeValue(x))
+        .map(x => chn.messageDecoder.decodeValue(x))
         .take(3)
         .map(_.show)
         .map(println)

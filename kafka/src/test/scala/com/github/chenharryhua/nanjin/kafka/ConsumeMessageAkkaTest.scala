@@ -18,7 +18,7 @@ class ConsumeMessageAkkaTest extends AnyFunSuite with ShowKafkaMessage {
         .updateConsumerSettings(_.withClientId("c-id"))
         .updateCommitterSettings(_.withParallelism(10))
         .consume
-        .map(chn.decodeValue)
+        .map(chn.messageDecoder.decodeValue)
         .map(_.show)
         .map(println)
         .take(3)
@@ -35,7 +35,7 @@ class ConsumeMessageAkkaTest extends AnyFunSuite with ShowKafkaMessage {
       _ <- vessel.in(ctx).akkaResource.use { chn =>
         chn
           .assign(offsets)
-          .map(chn.decode)
+          .map(chn.recordDecoder.decode)
           .map(_.show)
           .take(1)
           .runWith(chn.ignoreSink)(chn.materializer)

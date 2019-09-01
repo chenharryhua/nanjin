@@ -10,9 +10,12 @@ import cats.Show
 import cats.data.{NonEmptyList, Reader}
 import cats.effect._
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec
-import com.github.chenharryhua.nanjin.codec.{KafkaCodec, KeySerde, ValueSerde}
-import fs2.kafka.{ConsumerSettings => Fs2ConsumerSettings, ProducerSettings => Fs2ProducerSettings}
+import com.github.chenharryhua.nanjin.codec.{KafkaMessageDecoder, _}
+import fs2.kafka.{
+  CommittableConsumerRecord,
+  ConsumerSettings => Fs2ConsumerSettings,
+  ProducerSettings => Fs2ProducerSettings
+}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
@@ -30,10 +33,19 @@ object KafkaChannels {
     consumerSettings: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]],
     keyCodec: KafkaCodec[K],
     valueCodec: KafkaCodec[V]
-  ) extends codec.Fs2Codec[F, K, V](keyCodec, valueCodec) {
+  ) extends BitraverseFs2Message {
 
     import fs2.Stream
-    import fs2.kafka._
+    import fs2.kafka.{consumerStream, KafkaProducer}
+
+    val messageDecoder: KafkaMessageDecoder[CommittableConsumerRecord[F, ?, ?], K, V] =
+      new KafkaMessageDecoder[CommittableConsumerRecord[F, ?, ?], K, V](keyCodec, valueCodec)
+
+    val messageEncoder: Fs2MessageEncoder[F, K, V] =
+      new Fs2MessageEncoder[F, K, V](topicName)
+
+    val recordDecoder: KafkaMessageDecoder[ConsumerRecord, K, V] =
+      new KafkaMessageDecoder[ConsumerRecord, K, V](keyCodec, valueCodec)
 
     def updateProducerSettings(
       f: Fs2ProducerSettings[F, K, V] => Fs2ProducerSettings[F, K, V]): Fs2Channel[F, K, V] =
@@ -79,13 +91,22 @@ object KafkaChannels {
     keyCodec: KafkaCodec[K],
     valueCodec: KafkaCodec[V],
     materializer: ActorMaterializer)
-      extends codec.AkkaCodec[K, V](keyCodec, valueCodec) {
+      extends BitraverseAkkaMessage {
     import akka.kafka.ConsumerMessage.CommittableMessage
     import akka.kafka.ProducerMessage.Envelope
     import akka.kafka.scaladsl.{Committer, Consumer}
     import akka.kafka.{ConsumerMessage, ProducerMessage, Subscriptions}
     import akka.stream.scaladsl.{Flow, Sink, Source}
     import akka.{Done, NotUsed}
+
+    val messageDecoder: KafkaMessageDecoder[CommittableMessage, K, V] =
+      new KafkaMessageDecoder[CommittableMessage, K, V](keyCodec, valueCodec)
+
+    val messageEncoder: AkkaMessageEncoder[K, V] =
+      new AkkaMessageEncoder[K, V](topicName)
+
+    val recordDecoder: KafkaMessageDecoder[ConsumerRecord, K, V] =
+      new KafkaMessageDecoder[ConsumerRecord, K, V](keyCodec, valueCodec)
 
     def updateProducerSettings(
       f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): AkkaChannel[F, K, V] =

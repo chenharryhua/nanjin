@@ -13,39 +13,39 @@ class CompilationTest extends AnyFunSuite {
     val topic = ctx.topic[Int, Int]("do-not-run")
     val task = topic.akkaResource.use { chn =>
       val ret: Source[ConsumerMessage.CommittableMessage[Int, Int], Consumer.Control] =
-        chn.consume.map(chn.decode).take(0)
+        chn.consume.map(chn.messageDecoder.decode).take(0)
       ret.runWith(chn.ignoreSink)(chn.materializer)
     } >>
       topic.akkaResource.use { chn =>
         val ret: Source[Try[ConsumerMessage.CommittableMessage[Int, Int]], Consumer.Control] =
-          chn.consume.map(chn.tryDecode).take(0)
+          chn.consume.map(chn.messageDecoder.tryDecode).take(0)
         ret.runWith(chn.ignoreSink)(chn.materializer)
       } >>
       topic.akkaResource.use { chn =>
         val ret: Source[ConsumerMessage.CommittableMessage[Int, Array[Byte]], Consumer.Control] =
-          chn.consume.map(chn.decodeKey).take(0)
+          chn.consume.map(chn.messageDecoder.decodeKey).take(0)
         ret.runWith(chn.ignoreSink)(chn.materializer)
       } >>
       topic.akkaResource.use { chn =>
         val ret
           : Source[Try[ConsumerMessage.CommittableMessage[Int, Array[Byte]]], Consumer.Control] =
-          chn.consume.map(chn.tryDecodeKey).take(0)
+          chn.consume.map(chn.messageDecoder.tryDecodeKey).take(0)
         ret.runWith(chn.ignoreSink)(chn.materializer)
       } >>
       topic.akkaResource.use { chn =>
         val ret: Source[ConsumerMessage.CommittableMessage[Array[Byte], Int], Consumer.Control] =
-          chn.consume.map(chn.decodeValue).take(0)
+          chn.consume.map(chn.messageDecoder.decodeValue).take(0)
         ret.runWith(chn.ignoreSink)(chn.materializer)
       } >>
       topic.akkaResource.use { chn =>
         val ret
           : Source[Try[ConsumerMessage.CommittableMessage[Array[Byte], Int]], Consumer.Control] =
-          chn.consume.map(chn.tryDecodeValue).take(0)
+          chn.consume.map(chn.messageDecoder.tryDecodeValue).take(0)
         ret.runWith(chn.ignoreSink)(chn.materializer)
       } >>
       topic.akkaResource.use { chn =>
         val ret: Source[ConsumerMessage.CommittableMessage[Try[Int], Try[Int]], Consumer.Control] =
-          chn.consume.map(chn.tryDecodeKeyValue).take(0)
+          chn.consume.map(chn.messageDecoder.tryDecodeKeyValue).take(0)
         ret.runWith(chn.ignoreSink)(chn.materializer)
       }
     task.unsafeRunSync()

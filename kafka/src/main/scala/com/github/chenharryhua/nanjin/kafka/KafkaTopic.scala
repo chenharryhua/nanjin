@@ -5,8 +5,16 @@ import cats.effect.concurrent.MVar
 import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
 import cats.{Eval, Show}
 import com.github.chenharryhua.nanjin.codec
-import com.github.chenharryhua.nanjin.codec.{KafkaCodec, KeySerde, SerdeOf, ValueSerde}
+import com.github.chenharryhua.nanjin.codec.{
+  BitraverseKafkaRecord,
+  KafkaCodec,
+  KafkaMessageDecoder,
+  KeySerde,
+  SerdeOf,
+  ValueSerde
+}
 import fs2.kafka.{KafkaByteConsumer, KafkaByteProducer}
+import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
 final case class TopicDef[K, V](topicName: String)(
@@ -30,7 +38,7 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
   sharedConsumer: Eval[MVar[F, KafkaByteConsumer]],
   sharedProducer: Eval[KafkaByteProducer],
   materializer: Eval[ActorMaterializer])
-    extends TopicNameExtractor[K, V] with codec.KafkaRecordCodec[K, V] {
+    extends TopicNameExtractor[K, V] with BitraverseKafkaRecord {
   import topicDef.{serdeOfKey, serdeOfValue, showKey, showValue}
 
   val topicName: String = topicDef.topicName
@@ -44,6 +52,9 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
 
   val keyCodec: KafkaCodec[K]   = keySerde.codec(topicName)
   val valueCodec: KafkaCodec[V] = valueSerde.codec(topicName)
+
+  val recordDecoder: KafkaMessageDecoder[ConsumerRecord, K, V] =
+    new KafkaMessageDecoder[ConsumerRecord, K, V](keyCodec, valueCodec)
 
   val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
     new KafkaChannels.Fs2Channel[F, K, V](

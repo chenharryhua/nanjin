@@ -39,7 +39,7 @@ object KafkaMonitoringApi {
         fs2Channel
           .updateConsumerSettings(_.withAutoOffsetReset(aor))
           .consume
-          .map(fs2Channel.tryDecodeKeyValue)
+          .map(fs2Channel.messageDecoder.tryDecodeKeyValue)
           .map(_.show)
           .showLinesStdOut
           .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
@@ -53,7 +53,7 @@ object KafkaMonitoringApi {
         fs2Channel
           .updateConsumerSettings(_.withAutoOffsetReset(aor))
           .consume
-          .map(fs2Channel.tryDecodeKeyValue)
+          .map(fs2Channel.messageDecoder.tryDecodeKeyValue)
           .filter(m => predict(isoFs2ComsumerRecord.get(m.record)))
           .map(_.show)
           .showLinesStdOut

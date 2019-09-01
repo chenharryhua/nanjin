@@ -5,8 +5,11 @@ import cats.data.Chain
 import cats.effect.concurrent.Deferred
 import cats.effect.{ConcurrentEffect, IO, Sync}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec
-import com.github.chenharryhua.nanjin.codec.{KafkaCodec, NJProducerRecord}
+import com.github.chenharryhua.nanjin.codec.{
+  KafkaCodec,
+  KafkaProducerRecordEncoder,
+  NJProducerRecord
+}
 import fs2.Chunk
 import fs2.kafka.KafkaByteProducer
 import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
@@ -37,17 +40,19 @@ object KafkaProducerApi {
 
   def apply[F[_]: ConcurrentEffect, K, V](
     topicName: String,
-    keyIso: KafkaCodec[K],
-    valueIso: KafkaCodec[V],
+    keyCodec: KafkaCodec[K],
+    valueCodec: KafkaCodec[V],
     producer: Eval[KafkaByteProducer]): KafkaProducerApi[F, K, V] =
-    new KafkaProducerApiImpl[F, K, V](topicName, keyIso, valueIso, producer)
+    new KafkaProducerApiImpl[F, K, V](topicName, keyCodec, valueCodec, producer)
 
   final private[this] class KafkaProducerApiImpl[F[_]: ConcurrentEffect, K, V](
     val topicName: String,
     val keyCodec: KafkaCodec[K],
     val valueCodec: KafkaCodec[V],
     producer: Eval[KafkaByteProducer]
-  ) extends KafkaProducerApi[F, K, V] with codec.KafkaRecordCodec[K, V] {
+  ) extends KafkaProducerApi[F, K, V] {
+    private[this] val encoder: KafkaProducerRecordEncoder[K, V] =
+      new KafkaProducerRecordEncoder[K, V](topicName, keyCodec, valueCodec)
 
     private[this] def doSend(data: ProducerRecord[Array[Byte], Array[Byte]]): F[F[RecordMetadata]] =
       Deferred[F, Either[Throwable, RecordMetadata]].flatMap { deferred =>
@@ -66,27 +71,27 @@ object KafkaProducerApi {
       }
 
     override def arbitrarilySend(key: Array[Byte], value: Array[Byte]): F[RecordMetadata] =
-      doSend(record(key, value)).flatten
+      doSend(encoder.record(key, value)).flatten
 
     override def arbitrarilyValueSend(key: K, value: Array[Byte]): F[RecordMetadata] =
-      doSend(record(key, value)).flatten
+      doSend(encoder.record(key, value)).flatten
 
     override def arbitrarilyKeySend(key: Array[Byte], value: V): F[RecordMetadata] =
-      doSend(record(key, value)).flatten
+      doSend(encoder.record(key, value)).flatten
 
     override def send(key: K, value: V): F[RecordMetadata] =
-      doSend(record(key, value)).flatten
+      doSend(encoder.record(key, value)).flatten
 
     override def send(nj: NJProducerRecord[K, V]): F[RecordMetadata] =
-      doSend(record(nj)).flatten
+      doSend(encoder.record(nj)).flatten
 
     override def send(kvs: List[(K, V)]): F[List[RecordMetadata]] =
-      kvs.traverse(kv => doSend(record(kv._1, kv._2))).flatMap(_.sequence)
+      kvs.traverse(kv => doSend(encoder.record(kv._1, kv._2))).flatMap(_.sequence)
 
     override def send(kvs: Chain[(K, V)]): F[Chain[RecordMetadata]] =
-      kvs.traverse(kv => doSend(record(kv._1, kv._2))).flatMap(_.sequence)
+      kvs.traverse(kv => doSend(encoder.record(kv._1, kv._2))).flatMap(_.sequence)
 
     override def send(kvs: Chunk[(K, V)]): F[Chunk[RecordMetadata]] =
-      kvs.traverse(kv => doSend(record(kv._1, kv._2))).flatMap(_.sequence)
+      kvs.traverse(kv => doSend(encoder.record(kv._1, kv._2))).flatMap(_.sequence)
   }
 }

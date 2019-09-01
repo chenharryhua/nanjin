@@ -32,8 +32,8 @@ class ProducerTest extends AnyFunSuite with ShowKafkaMessage {
             ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
             "earliest").withGroupId("akka-task").withCommitWarning(10.seconds))
           .consume
-          .map(s.decode)
-          .map(m => t.single(m.record.key(), m.record.value(), m.committableOffset))
+          .map(t.messageDecoder.decode)
+          .map(m => t.messageEncoder.single(m.record.key(), m.record.value(), m.committableOffset))
           .take(100)
           .runWith(t.committableSink)(s.materializer)
       }
@@ -42,8 +42,8 @@ class ProducerTest extends AnyFunSuite with ShowKafkaMessage {
       .updateConsumerSettings(
         _.withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest").withGroupId("fs2-task"))
       .consume
-      .map(srcTopic.fs2Channel.decode)
-      .map(m => fs2Topic.fs2Channel.single(m.record.key, m.record.value, m.offset))
+      .map(srcTopic.fs2Channel.messageDecoder.decode)
+      .map(m => fs2Topic.fs2Channel.messageEncoder.single(m.record.key, m.record.value, m.offset))
       .take(100)
       .through(fs2.kafka.produce(fs2Topic.fs2Channel.producerSettings))
       .compile
