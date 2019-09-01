@@ -16,6 +16,7 @@ import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies}
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
+import scala.util.Try
 
 object SparkafkaDataset extends BitraverseKafkaRecord {
 
@@ -60,8 +61,7 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
     end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[SparkConsumerRecord[K, V]]] =
     rawDS(topic, start, end).map(_.deserialized.mapPartitions(msgs => {
       val t = topic
-      msgs.flatMap(
-        _.bitraverse[Option, K, V](t.keyCodec.prism.getOption, t.valueCodec.prism.getOption))
+      msgs.flatMap(_.bitraverse[Try, K, V](t.keyCodec.tryDecode, t.valueCodec.tryDecode).toOption)
     }))
 
   def valueDataset[F[_]: Monad, K, V: TypedEncoder: ClassTag](
@@ -79,7 +79,7 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
     end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[V]] =
     rawDS(topic, start, end).map { ds =>
       val udf =
-        ds.makeUDF((x: Array[Byte]) => Option(x).flatMap(topic.valueCodec.prism.getOption))
+        ds.makeUDF((x: Array[Byte]) => topic.valueCodec.tryDecode(x).toOption)
       ds.select(udf(ds('value))).deserialized.flatMap(x => x)
     }
 }
