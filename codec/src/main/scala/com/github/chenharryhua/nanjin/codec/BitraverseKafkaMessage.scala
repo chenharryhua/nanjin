@@ -1,17 +1,52 @@
 package com.github.chenharryhua.nanjin.codec
 
+import java.util.Optional
+
 import cats.implicits._
-import cats.{Applicative, Bitraverse, Eval}
+import cats.{Applicative, Bitraverse, Eq, Eval}
 import com.github.ghik.silencer.silent
 import monocle.Iso
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.header.internals.RecordHeaders
+import org.apache.kafka.common.header.{Header, Headers}
 import org.apache.kafka.common.record.TimestampType
 
 import scala.compat.java8.OptionConverters._
 
 trait BitraverseKafkaRecord extends Serializable {
+  implicit val eqArrayByte: Eq[Array[Byte]] =
+    (x: Array[Byte], y: Array[Byte]) => x.sameElements(y)
+
+  implicit val eqHeaders: Eq[Headers] =
+    (x: Headers, y: Headers) => (x.toArray.sameElements(y.toArray))
+
+  implicit val eqOptionalInteger: Eq[Optional[java.lang.Integer]] =
+    (x: Optional[Integer], y: Optional[Integer]) =>
+      x.asScala.flatMap(Option(_).map(_.toInt)) === y.asScala.flatMap(Option(_).map(_.toInt))
+
+  implicit final def eqConsumerRecord[K: Eq, V: Eq]: Eq[ConsumerRecord[K, V]] =
+    (x: ConsumerRecord[K, V], y: ConsumerRecord[K, V]) =>
+      (x.topic() === y.topic) &&
+        (x.partition() === y.partition()) &&
+        (x.offset() === y.offset()) &&
+        (x.timestamp() === y.timestamp()) &&
+        (x.timestampType().id === y.timestampType().id) &&
+        (x.serializedKeySize() === y.serializedKeySize()) &&
+        (x.serializedValueSize() === y.serializedValueSize()) &&
+        (x.key() === y.key) &&
+        (x.value() === y.value()) &&
+        (x.headers() === y.headers()) &&
+        (x.leaderEpoch() === y.leaderEpoch())
+
+  implicit final def eqProducerRecord[K: Eq, V: Eq]: Eq[ProducerRecord[K, V]] =
+    (x: ProducerRecord[K, V], y: ProducerRecord[K, V]) =>
+      (x.topic() === y.topic()) &&
+        (x.partition().equals(y.partition())) &&
+        (x.timestamp().equals(y.timestamp())) &&
+        (x.key() === y.key()) &&
+        (x.value() === y.value()) &&
+        (x.headers() === y.headers())
 
   implicit final val bitraverseConsumerRecord: Bitraverse[ConsumerRecord[?, ?]] =
     new Bitraverse[ConsumerRecord] {

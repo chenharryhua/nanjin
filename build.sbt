@@ -115,9 +115,11 @@ val frameless = Seq(
 ).map(_ % framelessVersion)
 
 val tests = Seq(
-  "org.scalatest" %% "scalatest"                % scalatest      % Test,
-  "com.github.julien-truffaut" %% "monocle-law" % monocleVersion % Test,
-  "org.typelevel" %% "discipline-scalatest"     % "1.0.0-M1"     % Test
+  "org.typelevel" %% "cats-laws"                              % catsCore       % Test,
+  "com.github.alexarchambault" %% "scalacheck-shapeless_1.13" % "1.1.8"        % Test,
+  "org.scalatest" %% "scalatest"                              % scalatest      % Test,
+  "com.github.julien-truffaut" %% "monocle-law"               % monocleVersion % Test,
+  "org.typelevel" %% "discipline-scalatest"                   % "1.0.0-M1"     % Test
 )
 
 val kafkaLib = Seq(
@@ -152,7 +154,7 @@ lazy val codec = (project in file("codec"))
     addCompilerPlugin("com.github.ghik" %% "silencer-plugin" % silencer),
     libraryDependencies ++= Seq(
       "com.github.ghik" %% "silencer-lib" % silencer % Provided
-    ) ++ base ++ kafkaLib ++ circe  ++ monocle ++ avro ++ tests,
+    ) ++ base ++ kafkaLib ++ circe ++ monocle ++ avro ++ tests,
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
 
