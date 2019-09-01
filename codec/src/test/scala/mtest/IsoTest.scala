@@ -8,4 +8,4 @@ import org.scalacheck.Gen
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
 
-class PrismTest extends AnyFunSuite with Discipline {}
+class IsoTest extends AnyFunSuite with Discipline {}
