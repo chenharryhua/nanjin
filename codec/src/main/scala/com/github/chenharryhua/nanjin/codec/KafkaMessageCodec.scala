@@ -22,20 +22,16 @@ abstract class KafkaMessageDecode[F[_, _]: Bitraverse, K, V](
     data.bimap(identity, valueCodec.decode)
 
   final def tryDecodeKeyValue(data: F[Array[Byte], Array[Byte]]): F[Try[K], Try[V]] =
-    data.bimap(
-      k => utils.checkNull(k).flatMap(keyCodec.tryDecode),
-      v => utils.checkNull(v).flatMap(valueCodec.tryDecode))
+    data.bimap(keyCodec.tryDecode, valueCodec.tryDecode)
 
   final def tryDecode(data: F[Array[Byte], Array[Byte]]): Try[F[K, V]] =
-    data.bitraverse(
-      k => utils.checkNull(k).flatMap(keyCodec.tryDecode),
-      v => utils.checkNull(v).flatMap(valueCodec.tryDecode))
+    data.bitraverse(keyCodec.tryDecode, valueCodec.tryDecode)
 
   final def tryDecodeValue(data: F[Array[Byte], Array[Byte]]): Try[F[Array[Byte], V]] =
-    data.bitraverse(Success(_), v => utils.checkNull(v).flatMap(valueCodec.tryDecode))
+    data.bitraverse(Success(_), valueCodec.tryDecode)
 
   final def tryDecodeKey(data: F[Array[Byte], Array[Byte]]): Try[F[K, Array[Byte]]] =
-    data.bitraverse(k => utils.checkNull(k).flatMap(keyCodec.tryDecode), Success(_))
+    data.bitraverse(keyCodec.tryDecode, Success(_))
 }
 
 trait KafkaConsumerRecordDecode[K, V] extends BitraverseKafkaRecord {

@@ -27,7 +27,7 @@ final class KafkaJsonSerde[A: Decoder: Encoder] extends Serde[KJson[A]] {
         case None    => null.asInstanceOf[Array[Byte]]
       }
 
-  @throws
+  @throws[CodecException]
   override val deserializer: Deserializer[KJson[A]] =
     (_: String, data: Array[Byte]) => {
       val tryDecode: Try[KJson[A]] = Option(data) match {
