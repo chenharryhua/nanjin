@@ -17,6 +17,8 @@ sealed trait KafkaCodec[A] {
   def decode(ab: Array[Byte]): A
   final def tryDecode(ab: Array[Byte]): Try[A] =
     utils.checkNull(ab).flatMap(x => Try(decode(x)))
+  final def optionDecode(ab: Array[Byte]): Option[A] =
+    Option(ab).flatMap(tryDecode(_).toOption)
 }
 
 object KafkaCodec {

@@ -5,7 +5,7 @@ import java.util
 
 import cats.Monad
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.BitraverseKafkaRecord
+import com.github.chenharryhua.nanjin.codec.{BitraverseKafkaRecord, SerdeOf}
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import frameless.{TypedDataset, TypedEncoder}
 import monocle.function.At.remove
@@ -16,7 +16,6 @@ import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies}
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
-import scala.util.Try
 
 object SparkafkaDataset extends BitraverseKafkaRecord {
 
@@ -61,15 +60,15 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
     end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[SparkConsumerRecord[K, V]]] =
     rawDS(topic, start, end).map(_.deserialized.mapPartitions(msgs => {
       val t = topic
-      msgs.flatMap(_.bitraverse[Try, K, V](t.keyCodec.tryDecode, t.valueCodec.tryDecode).toOption)
+      msgs.flatMap(_.bitraverse[Option, K, V](t.keyCodec.optionDecode, t.valueCodec.optionDecode))
     }))
 
-  def valueDataset[F[_]: Monad, K, V: TypedEncoder: ClassTag](
+  def valueDataset[F[_]: Monad, K, V: TypedEncoder: ClassTag: SerdeOf](
     topic: => KafkaTopic[F, K, V],
     start: LocalDateTime,
     end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[V]] =
     rawDS(topic, start, end).map { ds =>
-      val udf = ds.makeUDF(x => topic.valueCodec.decode(x))
+      val udf = ds.makeUDF((x: Array[Byte]) => topic.valueCodec.decode(x))
       ds.select(udf(ds('value)))
     }
 
@@ -79,7 +78,7 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
     end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[V]] =
     rawDS(topic, start, end).map { ds =>
       val udf =
-        ds.makeUDF((x: Array[Byte]) => topic.valueCodec.tryDecode(x).toOption)
+        ds.makeUDF((x: Array[Byte]) => topic.valueCodec.optionDecode(x))
       ds.select(udf(ds('value))).deserialized.flatMap(x => x)
     }
 }

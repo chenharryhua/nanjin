@@ -7,7 +7,6 @@ import cats.{Eval, Show}
 import com.github.chenharryhua.nanjin.codec
 import com.github.chenharryhua.nanjin.codec.{KafkaCodec, KeySerde, SerdeOf, ValueSerde}
 import fs2.kafka.{KafkaByteConsumer, KafkaByteProducer}
-import monocle.{Iso, Prism}
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
 final case class TopicDef[K, V](topicName: String)(
@@ -32,10 +31,7 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
   sharedProducer: Eval[KafkaByteProducer],
   materializer: Eval[ActorMaterializer])
     extends TopicNameExtractor[K, V] with codec.KafkaRecordCodec[K, V] {
-  import topicDef.showKey
-  import topicDef.showValue
-  import topicDef.serdeOfKey
-  import topicDef.serdeOfValue
+  import topicDef.{serdeOfKey, serdeOfValue, showKey, showValue}
 
   val topicName: String = topicDef.topicName
 
