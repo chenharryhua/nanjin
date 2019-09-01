@@ -51,8 +51,11 @@ final class KafkaProducerRecordEncoder[K, V](
   def record(k: Array[Byte], v: Array[Byte]): KafkaByteProducerRecord =
     new ProducerRecord(topicName, k, v)
 
+  def record(pr: ProducerRecord[K, V]): KafkaByteProducerRecord =
+    pr.bimap(keyCodec.encode, valueCodec.encode)
+
   def record(nj: NJProducerRecord[K, V]): KafkaByteProducerRecord =
-    nj.producerRecord.bimap(keyCodec.encode, valueCodec.encode)
+    record(nj.producerRecord)
 }
 
 final class AkkaMessageEncoder[K, V](topicName: String) {
