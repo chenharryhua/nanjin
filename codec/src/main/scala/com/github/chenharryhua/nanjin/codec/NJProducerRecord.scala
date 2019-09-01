@@ -17,8 +17,8 @@ import org.apache.kafka.common.header.Headers
   timestamp: Option[Long],
   headers: Option[Headers]) {
 
-  def updateTimestamp(ts: Option[Long]): NJProducerRecord[K, V]       = copy(timestamp = ts)
-  def updatePartition(partition: Option[Int]): NJProducerRecord[K, V] = copy(partition = partition)
+  def updateTimestamp(timestamp: Option[Long]): NJProducerRecord[K, V] = copy(timestamp = timestamp)
+  def updatePartition(partition: Option[Int]): NJProducerRecord[K, V]  = copy(partition = partition)
 
   def producerRecord: ProducerRecord[K, V]       = NJProducerRecord.isoProducerRecord.get(this)
   def fs2ProducerRecord: Fs2ProducerRecord[K, V] = NJProducerRecord.isoNJFs2ProducerRecord.get(this)

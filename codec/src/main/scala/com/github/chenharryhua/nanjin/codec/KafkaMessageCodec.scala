@@ -37,7 +37,7 @@ final class KafkaProducerRecordEncoder[K, V](
   topicName: String,
   keyCodec: KafkaCodec[K],
   valueCodec: KafkaCodec[V]
-) {
+) extends BitraverseKafkaRecord {
 
   def record(k: K, v: V): KafkaByteProducerRecord =
     new ProducerRecord(topicName, keyCodec.encode(k), valueCodec.encode(v))
@@ -52,7 +52,7 @@ final class KafkaProducerRecordEncoder[K, V](
     new ProducerRecord(topicName, k, v)
 
   def record(nj: NJProducerRecord[K, V]): KafkaByteProducerRecord =
-    nj.bimap(keyCodec.encode, valueCodec.encode).producerRecord
+    nj.producerRecord.bimap(keyCodec.encode, valueCodec.encode)
 }
 
 final class AkkaMessageEncoder[K, V](topicName: String) {

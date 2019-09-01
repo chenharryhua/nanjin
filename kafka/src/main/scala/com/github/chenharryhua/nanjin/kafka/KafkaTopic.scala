@@ -4,15 +4,7 @@ import akka.stream.ActorMaterializer
 import cats.effect.concurrent.MVar
 import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
 import cats.{Eval, Show}
-import com.github.chenharryhua.nanjin.codec
-import com.github.chenharryhua.nanjin.codec.{
-  BitraverseKafkaRecord,
-  KafkaCodec,
-  KafkaMessageDecoder,
-  KeySerde,
-  SerdeOf,
-  ValueSerde
-}
+import com.github.chenharryhua.nanjin.codec._
 import fs2.kafka.{KafkaByteConsumer, KafkaByteProducer}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
