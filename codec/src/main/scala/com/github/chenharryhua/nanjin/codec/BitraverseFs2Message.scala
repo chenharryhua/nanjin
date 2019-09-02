@@ -100,7 +100,9 @@ trait BitraverseFs2Message extends BitraverseKafkaRecord {
         (x.passthrough === y.passthrough)
 
   implicit def eqCommittableConsumerRecord[F[_], K: Eq, V: Eq]
-    : Eq[CommittableConsumerRecord[F, K, V]] = ???
+    : Eq[CommittableConsumerRecord[F, K, V]] =
+    (x: CommittableConsumerRecord[F, K, V], y: CommittableConsumerRecord[F, K, V]) =>
+      (x.record === y.record) && (x.offset === y.offset)
 
   implicit final def bitraverseFs2CommittableMessage[F[_]]
     : Bitraverse[CommittableConsumerRecord[F, ?, ?]] =

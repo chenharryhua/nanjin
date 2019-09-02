@@ -1,13 +1,26 @@
 package mtest
 
+import cats.effect.IO
 import cats.implicits._
 import cats.laws.discipline.BitraverseTests
-import fs2.kafka.{ProducerRecord => Fs2ProducerRecord}
+import fs2.kafka.{CommittableConsumerRecord, ProducerRecords}
 import org.scalacheck.Arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
 
 class Fs2BitraverseTest extends AnyFunSuite with Discipline with Fs2MessageGen {
-  implicit val fs2pr: Arbitrary[Fs2ProducerRecord[Int, Int]] = Arbitrary(genFs2ProducerRecord)
+  implicit val fs2CM: Arbitrary[CommittableConsumerRecord[IO, Int, Int]] =
+    Arbitrary(genFs2ConsumerMessage)
+  implicit val fs2PM: Arbitrary[ProducerRecords[Int, Int, String]] =
+    Arbitrary(genFs2ProducerMessage)
+
+//  checkAll(
+  //   "Fs2-CommittableConsumerRecord",
+  //   BitraverseTests[CommittableConsumerRecord[IO, ?, ?]]
+  //     .bitraverse[List, Int, Int, Int, Int, Int, Int])
+
+  checkAll(
+    "Fs2-ProducerRecords",
+    BitraverseTests[ProducerRecords[?, ?, String]].bitraverse[List, Int, Int, Int, Int, Int, Int])
 
 }
