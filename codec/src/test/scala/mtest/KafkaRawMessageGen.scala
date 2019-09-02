@@ -1,10 +1,8 @@
+package mtest
+
 import java.util.Optional
 
-import com.github.chenharryhua.nanjin.codec.{
-  BitraverseAkkaMessage,
-  BitraverseFs2Message,
-  BitraverseKafkaRecord
-}
+import com.github.chenharryhua.nanjin.codec.BitraverseKafkaRecord
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.header.Header
@@ -12,23 +10,19 @@ import org.apache.kafka.common.header.internals.{RecordHeader, RecordHeaders}
 import org.apache.kafka.common.record.TimestampType
 import org.scalacheck.Arbitrary.{arbitrary, _}
 import org.scalacheck.Gen
-import org.scalacheck.Gen.containerOfN
 
 import scala.compat.java8.OptionConverters._
-import fs2.kafka.{
-  CommittableConsumerRecord,
-  Headers,
-  ProducerRecords,
-  Timestamp,
-  ConsumerRecord => Fs2ConsumerRecord,
-  ProducerRecord => Fs2ProducerRecord
-}
-package object mtest extends BitraverseFs2Message with BitraverseAkkaMessage {
+
+trait KafkaRawMessageGen extends BitraverseKafkaRecord {
+
+  val genHeader: Gen[Header] = for {
+    key <- Gen.asciiPrintableStr
+    value <- Gen
+      .containerOfN[Array, Byte](2, arbitrary[Byte]) //avoid GC overhead limit exceeded issue
+  } yield new RecordHeader(key, value)
 
   val genHeaders: Gen[RecordHeaders] = for {
-    key <- Gen.asciiPrintableStr
-    value <- containerOfN[Array, Byte](2, arbitrary[Byte])
-    rcs <- containerOfN[Array, Header](2, new RecordHeader(key, value): Header)
+    rcs <- Gen.containerOfN[Array, Header](2, genHeader) //avoid GC overhead limit exceeded issue
   } yield new RecordHeaders(rcs)
 
   val genOptionalInteger: Gen[Optional[Integer]] =
@@ -71,9 +65,4 @@ package object mtest extends BitraverseFs2Message with BitraverseAkkaMessage {
     headers <- genHeaders
   } yield new ProducerRecord(topic, partition, timestamp, key, value, headers)
 
-  val genFs2ConsumerRecord: Gen[Fs2ConsumerRecord[Int, Int]] =
-    genConsumerRecord.map(fromKafkaConsumerRecord)
-
-  val genFs2ProducerRecord: Gen[Fs2ProducerRecord[Int, Int]] =
-    genProducerRecord.map(fromKafkaProducerRecord)
 }

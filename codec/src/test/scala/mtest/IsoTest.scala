@@ -1,7 +1,6 @@
 package mtest
 
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.BitraverseFs2Message
 import fs2.kafka.{ConsumerRecord => Fs2ConsumerRecord, ProducerRecord => Fs2ProducerRecord}
 import monocle.law.discipline.IsoTests
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -10,7 +9,7 @@ import org.scalacheck.Arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
 
-class IsoTest extends AnyFunSuite with Discipline with BitraverseFs2Message {
+class IsoTest extends AnyFunSuite with Discipline with Fs2MessageGen {
   implicit val abFs2ProducerRecord: Arbitrary[Fs2ProducerRecord[Int, Int]] =
     Arbitrary(genFs2ProducerRecord)
   implicit val abProducerRecord: Arbitrary[ProducerRecord[Int, Int]] = Arbitrary(genProducerRecord)
@@ -19,7 +18,7 @@ class IsoTest extends AnyFunSuite with Discipline with BitraverseFs2Message {
     Arbitrary((a: ProducerRecord[Int, Int]) => a)
 
   checkAll(
-    "Fs2ProducerRecord",
+    "Fs2-ProducerRecord",
     IsoTests[Fs2ProducerRecord[Int, Int], ProducerRecord[Int, Int]](isoFs2ProducerRecord[Int, Int]))
 
   implicit val abConsumerRecord: Arbitrary[ConsumerRecord[Int, Int]] =
@@ -31,7 +30,7 @@ class IsoTest extends AnyFunSuite with Discipline with BitraverseFs2Message {
     Arbitrary((a: ConsumerRecord[Int, Int]) => a)
 
   checkAll(
-    "Fs2ConsumerRecord",
+    "Fs2-ConsumerRecord",
     IsoTests[Fs2ConsumerRecord[Int, Int], ConsumerRecord[Int, Int]](isoFs2ComsumerRecord[Int, Int]))
 
 }

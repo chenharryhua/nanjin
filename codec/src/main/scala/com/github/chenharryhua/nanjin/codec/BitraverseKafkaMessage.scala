@@ -5,9 +5,11 @@ import java.util.Optional
 import cats.implicits._
 import cats.{Applicative, Bitraverse, Eq, Eval}
 import com.github.ghik.silencer.silent
+import fs2.Chunk
 import monocle.Iso
-import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
 import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.header.internals.RecordHeaders
 import org.apache.kafka.common.header.{Header, Headers}
 import org.apache.kafka.common.record.TimestampType
@@ -29,6 +31,12 @@ trait BitraverseKafkaRecord extends Serializable {
     (x: Optional[Integer], y: Optional[Integer]) =>
       x.asScala.flatMap(Option(_).map(_.toInt)) === y.asScala.flatMap(Option(_).map(_.toInt))
 
+  implicit val eqTopicPartition: Eq[TopicPartition] =
+    (x: TopicPartition, y: TopicPartition) => x.equals(y)
+
+  implicit val eqOffsetAndMetadata: Eq[OffsetAndMetadata] =
+    (x: OffsetAndMetadata, y: OffsetAndMetadata) => x.equals(y)
+
   implicit final def eqConsumerRecord[K: Eq, V: Eq]: Eq[ConsumerRecord[K, V]] =
     (x: ConsumerRecord[K, V], y: ConsumerRecord[K, V]) =>
       (x.topic() === y.topic) &&
@@ -38,7 +46,7 @@ trait BitraverseKafkaRecord extends Serializable {
         (x.timestampType().id === y.timestampType().id) &&
         (x.serializedKeySize() === y.serializedKeySize()) &&
         (x.serializedValueSize() === y.serializedValueSize()) &&
-        (x.key() === y.key) &&
+        (x.key() === y.key()) &&
         (x.value() === y.value()) &&
         (x.headers() === y.headers()) &&
         (x.leaderEpoch() === y.leaderEpoch())
@@ -52,7 +60,7 @@ trait BitraverseKafkaRecord extends Serializable {
         (x.value() === y.value()) &&
         (x.headers() === y.headers())
 
-  implicit final val bitraverseConsumerRecord: Bitraverse[ConsumerRecord[?, ?]] =
+  implicit final val bitraverseConsumerRecord: Bitraverse[ConsumerRecord] =
     new Bitraverse[ConsumerRecord] {
       override def bimap[K1, V1, K2, V2](
         cr: ConsumerRecord[K1, V1])(k: K1 => K2, v: V1 => V2): ConsumerRecord[K2, V2] =
@@ -84,7 +92,7 @@ trait BitraverseKafkaRecord extends Serializable {
         g: (B, Eval[C]) => Eval[C]): Eval[C] = g(fab.value, f(fab.key, c))
     }
 
-  implicit final val bitraverseProducerRecord: Bitraverse[ProducerRecord[?, ?]] =
+  implicit final val bitraverseProducerRecord: Bitraverse[ProducerRecord] =
     new Bitraverse[ProducerRecord] {
       override def bimap[K1, V1, K2, V2](
         pr: ProducerRecord[K1, V1])(k: K1 => K2, v: V1 => V2): ProducerRecord[K2, V2] =
@@ -119,8 +127,15 @@ trait BitraverseFs2Message extends BitraverseKafkaRecord {
     ProducerRecords,
     Timestamp,
     ConsumerRecord => Fs2ConsumerRecord,
-    ProducerRecord => Fs2ProducerRecord
+    ProducerRecord => Fs2ProducerRecord,
+    CommittableOffset
   }
+  implicit def eqCommittableOffset[F[_]]: Eq[CommittableOffset[F]] =
+    (x: CommittableOffset[F], y: CommittableOffset[F]) =>
+      (x.topicPartition === y.topicPartition) &&
+        (x.consumerGroupId === y.consumerGroupId) &&
+        (x.offsetAndMetadata === y.offsetAndMetadata) &&
+        (x.offsets === y.offsets)
 
   final def fromKafkaProducerRecord[K, V](pr: ProducerRecord[K, V]): Fs2ProducerRecord[K, V] =
     Fs2ProducerRecord(pr.topic, pr.key, pr.value)
@@ -210,41 +225,48 @@ trait BitraverseFs2Message extends BitraverseKafkaRecord {
         isoFs2ComsumerRecord.get(fab.record).bifoldRight(c)(f, g)
     }
 
-  implicit final val bitraverseFs2ProducerRecord: Bitraverse[Fs2ProducerRecord[?, ?]] =
-    new Bitraverse[Fs2ProducerRecord] {
-      override def bitraverse[G[_]: Applicative, A, B, C, D](
-        fab: Fs2ProducerRecord[A, B])(f: A => G[C], g: B => G[D]): G[Fs2ProducerRecord[C, D]] =
-        isoFs2ProducerRecord.get(fab).bitraverse(f, g).map(i => isoFs2ProducerRecord.reverseGet(i))
-
-      override def bifoldLeft[A, B, C](fab: Fs2ProducerRecord[A, B], c: C)(
-        f: (C, A) => C,
-        g: (C, B) => C): C = isoFs2ProducerRecord.get(fab).bifoldLeft(c)(f, g)
-
-      override def bifoldRight[A, B, C](fab: Fs2ProducerRecord[A, B], c: Eval[C])(
-        f: (A, Eval[C]) => Eval[C],
-        g: (B, Eval[C]) => Eval[C]): Eval[C] = isoFs2ProducerRecord.get(fab).bifoldRight(c)(f, g)
-    }
-
   implicit final def bitraverseFs2ProducerMessage[P]: Bitraverse[ProducerRecords[?, ?, P]] =
     new Bitraverse[ProducerRecords[?, ?, P]] {
       override def bitraverse[G[_]: Applicative, A, B, C, D](
         fab: ProducerRecords[A, B, P])(f: A => G[C], g: B => G[D]): G[ProducerRecords[C, D, P]] =
-        fab.records.traverse(_.bitraverse(f, g)).map(p => ProducerRecords(p, fab.passthrough))
+        fab.records.traverse(isoFs2ProducerRecord.get(_).bitraverse(f, g)).map { pr =>
+          ProducerRecords[Chunk, C, D, P](pr.map(isoFs2ProducerRecord.reverseGet), fab.passthrough)
+        }
 
       override def bifoldLeft[A, B, C](fab: ProducerRecords[A, B, P], c: C)(
         f: (C, A) => C,
-        g: (C, B) => C): C = fab.records.foldLeft(c) { case (ec, pr) => pr.bifoldLeft(ec)(f, g) }
+        g: (C, B) => C): C = fab.records.foldLeft(c) {
+        case (ec, pr) => isoFs2ProducerRecord.get(pr).bifoldLeft(ec)(f, g)
+      }
 
       override def bifoldRight[A, B, C](fab: ProducerRecords[A, B, P], c: Eval[C])(
         f: (A, Eval[C]) => Eval[C],
         g: (B, Eval[C]) => Eval[C]): Eval[C] =
-        fab.records.foldRight(c) { case (pr, ec) => pr.bifoldRight(ec)(f, g) }
+        fab.records.foldRight(c) {
+          case (pr, ec) => isoFs2ProducerRecord.get(pr).bifoldRight(ec)(f, g)
+        }
     }
 }
 
 trait BitraverseAkkaMessage extends BitraverseKafkaRecord {
-  import akka.kafka.ConsumerMessage.CommittableMessage
+  import akka.kafka.ConsumerMessage.{
+    CommittableMessage,
+    CommittableOffset,
+    GroupTopicPartition,
+    PartitionOffset
+  }
   import akka.kafka.ProducerMessage.Message
+
+  implicit val eqGroupTopicPartition: Eq[GroupTopicPartition] =
+    cats.derived.semi.eq[GroupTopicPartition]
+  implicit val eqPartitionOffset: Eq[PartitionOffset] =
+    cats.derived.semi.eq[PartitionOffset]
+  implicit val eqCommittableOffset: Eq[CommittableOffset] =
+    (x: CommittableOffset, y: CommittableOffset) => x.partitionOffset === y.partitionOffset
+  implicit def eqCommittableMessage[K: Eq, V: Eq]: Eq[CommittableMessage[K, V]] =
+    cats.derived.semi.eq[CommittableMessage[K, V]]
+  implicit def eqProducerMessage[K: Eq, V: Eq, P: Eq]: Eq[Message[K, V, P]] =
+    cats.derived.semi.eq[Message[K, V, P]]
 
   implicit final def bitraverseAkkaProducerMessage[P]: Bitraverse[Message[?, ?, P]] =
     new Bitraverse[Message[?, ?, P]] {
@@ -262,7 +284,7 @@ trait BitraverseAkkaMessage extends BitraverseKafkaRecord {
         g: (B, Eval[C]) => Eval[C]): Eval[C] = fab.record.bifoldRight(c)(f, g)
     }
 
-  implicit final val bitraverseAkkaCommittableMessage: Bitraverse[CommittableMessage[?, ?]] =
+  implicit final val bitraverseAkkaCommittableMessage: Bitraverse[CommittableMessage] =
     new Bitraverse[CommittableMessage] {
       override def bitraverse[G[_]: Applicative, A, B, C, D](
         fab: CommittableMessage[A, B])(f: A => G[C], g: B => G[D]): G[CommittableMessage[C, D]] =
