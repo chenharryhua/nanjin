@@ -18,8 +18,12 @@ trait BitraverseKafkaRecord extends Serializable {
   implicit val eqArrayByte: Eq[Array[Byte]] =
     (x: Array[Byte], y: Array[Byte]) => x.sameElements(y)
 
-  implicit val eqHeaders: Eq[Headers] =
-    (x: Headers, y: Headers) => (x.toArray.sameElements(y.toArray))
+  implicit val eqHeader: Eq[Header] = (x: Header, y: Header) =>
+    (x.key() === y.key()) && (x.value() === y.value())
+
+  implicit val eqHeaders: Eq[Headers] = (x: Headers, y: Headers) => {
+    x.toArray.zip(y.toArray).forall { case (x, y) => x === y }
+  }
 
   implicit val eqOptionalInteger: Eq[Optional[java.lang.Integer]] =
     (x: Optional[Integer], y: Optional[Integer]) =>
@@ -42,8 +46,8 @@ trait BitraverseKafkaRecord extends Serializable {
   implicit final def eqProducerRecord[K: Eq, V: Eq]: Eq[ProducerRecord[K, V]] =
     (x: ProducerRecord[K, V], y: ProducerRecord[K, V]) =>
       (x.topic() === y.topic()) &&
-        (x.partition().equals(y.partition())) &&
-        (x.timestamp().equals(y.timestamp())) &&
+        x.partition().equals(y.partition()) &&
+        x.timestamp().equals(y.timestamp()) &&
         (x.key() === y.key()) &&
         (x.value() === y.value()) &&
         (x.headers() === y.headers())
@@ -118,59 +122,71 @@ trait BitraverseFs2Message extends BitraverseKafkaRecord {
     ProducerRecord => Fs2ProducerRecord
   }
 
-  final def isoFs2ProducerRecord[F[_], K, V]: Iso[Fs2ProducerRecord[K, V], ProducerRecord[K, V]] =
-    Iso[Fs2ProducerRecord[K, V], ProducerRecord[K, V]](
-      fpr =>
-        new ProducerRecord[K, V](
-          fpr.topic,
-          fpr.partition.map(new java.lang.Integer(_)).orNull,
-          fpr.timestamp.map(new java.lang.Long(_)).orNull,
-          fpr.key,
-          fpr.value,
-          fpr.headers.asJava))(
-      pr =>
-        Fs2ProducerRecord(pr.topic, pr.key, pr.value)
-          .withPartition(pr.partition)
-          .withTimestamp(pr.timestamp)
-          .withHeaders(
-            pr.headers.toArray.foldLeft(Headers.empty)((t, i) => t.append(i.key, i.value))))
+  final def fromKafkaProducerRecord[K, V](pr: ProducerRecord[K, V]): Fs2ProducerRecord[K, V] =
+    Fs2ProducerRecord(pr.topic, pr.key, pr.value)
+      .withPartition(pr.partition)
+      .withTimestamp(pr.timestamp)
+      .withHeaders(pr.headers.toArray.foldLeft(Headers.empty)((t, i) => t.append(i.key, i.value)))
+
+  final def toKafkaProducerRecord[K, V](fpr: Fs2ProducerRecord[K, V]): ProducerRecord[K, V] =
+    new ProducerRecord[K, V](
+      fpr.topic,
+      fpr.partition.map(new java.lang.Integer(_)).orNull,
+      fpr.timestamp.map(new java.lang.Long(_)).orNull,
+      fpr.key,
+      fpr.value,
+      fpr.headers.asJava)
+
+  final def isoFs2ProducerRecord[K, V]: Iso[Fs2ProducerRecord[K, V], ProducerRecord[K, V]] =
+    Iso[Fs2ProducerRecord[K, V], ProducerRecord[K, V]](toKafkaProducerRecord)(
+      fromKafkaProducerRecord)
+
+  final def fromKafkaConsumerRecord[K, V](cr: ConsumerRecord[K, V]): Fs2ConsumerRecord[K, V] = {
+    val epoch: Option[Int] = cr.leaderEpoch().asScala.map(_.intValue())
+    val fcr =
+      Fs2ConsumerRecord[K, V](cr.topic(), cr.partition(), cr.offset(), cr.key(), cr.value())
+        .withHeaders(cr.headers.toArray.foldLeft(Headers.empty)((t, i) => t.append(i.key, i.value)))
+        .withSerializedKeySize(cr.serializedKeySize())
+        .withSerializedValueSize(cr.serializedValueSize())
+        .withTimestamp(cr.timestampType match {
+          case TimestampType.CREATE_TIME       => Timestamp.createTime(cr.timestamp())
+          case TimestampType.LOG_APPEND_TIME   => Timestamp.logAppendTime(cr.timestamp())
+          case TimestampType.NO_TIMESTAMP_TYPE => Timestamp.none
+        })
+    epoch.fold[Fs2ConsumerRecord[K, V]](fcr)(e => fcr.withLeaderEpoch(e))
+  }
+  final def toKafkaConsumerRecord[K, V](fcr: Fs2ConsumerRecord[K, V]): ConsumerRecord[K, V] =
+    new ConsumerRecord[K, V](
+      fcr.topic,
+      fcr.partition,
+      fcr.offset,
+      fcr.timestamp.createTime
+        .orElse(fcr.timestamp.logAppendTime)
+        .getOrElse(ConsumerRecord.NO_TIMESTAMP),
+      fcr.timestamp.createTime
+        .map(_ => TimestampType.CREATE_TIME)
+        .orElse(fcr.timestamp.logAppendTime.map(_ => TimestampType.LOG_APPEND_TIME))
+        .getOrElse(TimestampType.NO_TIMESTAMP_TYPE),
+      -1L, //ConsumerRecord.NULL_CHECKSUM,
+      fcr.serializedKeySize.getOrElse(ConsumerRecord.NULL_SIZE),
+      fcr.serializedValueSize.getOrElse(ConsumerRecord.NULL_SIZE),
+      fcr.key,
+      fcr.value,
+      new RecordHeaders(fcr.headers.asJava),
+      fcr.leaderEpoch.map(new Integer(_)).asJava
+    )
 
   final def isoFs2ComsumerRecord[K, V]: Iso[Fs2ConsumerRecord[K, V], ConsumerRecord[K, V]] =
-    Iso[Fs2ConsumerRecord[K, V], ConsumerRecord[K, V]](
-      fcr =>
-        new ConsumerRecord[K, V](
-          fcr.topic,
-          fcr.partition,
-          fcr.offset,
-          fcr.timestamp.createTime
-            .orElse(fcr.timestamp.logAppendTime)
-            .getOrElse(ConsumerRecord.NO_TIMESTAMP),
-          fcr.timestamp.createTime
-            .map(_ => TimestampType.CREATE_TIME)
-            .orElse(fcr.timestamp.logAppendTime.map(_ => TimestampType.LOG_APPEND_TIME))
-            .getOrElse(TimestampType.NO_TIMESTAMP_TYPE),
-          ConsumerRecord.NULL_CHECKSUM,
-          fcr.serializedKeySize.getOrElse(ConsumerRecord.NULL_SIZE),
-          fcr.serializedValueSize.getOrElse(ConsumerRecord.NULL_SIZE),
-          fcr.key,
-          fcr.value,
-          new RecordHeaders(fcr.headers.asJava),
-          fcr.leaderEpoch.map(new Integer(_)).asJava
-        ))(cr => {
-      val epoch: Option[Int] = cr.leaderEpoch().asScala.map(_.intValue())
-      val fcr =
-        Fs2ConsumerRecord[K, V](cr.topic(), cr.partition(), cr.offset(), cr.key(), cr.value())
-          .withHeaders(
-            cr.headers.toArray.foldLeft(Headers.empty)((t, i) => t.append(i.key, i.value)))
-          .withSerializedKeySize(cr.serializedKeySize())
-          .withSerializedValueSize(cr.serializedValueSize())
-          .withTimestamp(cr.timestampType match {
-            case TimestampType.CREATE_TIME       => Timestamp.createTime(cr.timestamp())
-            case TimestampType.LOG_APPEND_TIME   => Timestamp.logAppendTime(cr.timestamp())
-            case TimestampType.NO_TIMESTAMP_TYPE => Timestamp.none
-          })
-      epoch.fold[Fs2ConsumerRecord[K, V]](fcr)(e => fcr.withLeaderEpoch(e))
-    })
+    Iso[Fs2ConsumerRecord[K, V], ConsumerRecord[K, V]](toKafkaConsumerRecord)(
+      fromKafkaConsumerRecord)
+
+  implicit final def eqFs2ConsumerRecord[K: Eq, V: Eq]: Eq[Fs2ConsumerRecord[K, V]] =
+    (x: Fs2ConsumerRecord[K, V], y: Fs2ConsumerRecord[K, V]) =>
+      isoFs2ComsumerRecord.get(x) === isoFs2ComsumerRecord.get(y)
+
+  implicit final def eqFs2ProducerRecord[K: Eq, V: Eq]: Eq[Fs2ProducerRecord[K, V]] =
+    (x: Fs2ProducerRecord[K, V], y: Fs2ProducerRecord[K, V]) =>
+      isoFs2ProducerRecord.get(x) === isoFs2ProducerRecord.get(y)
 
   implicit final def bitraverseFs2CommittableMessage[F[_]]
     : Bitraverse[CommittableConsumerRecord[F, ?, ?]] =
