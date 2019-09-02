@@ -25,7 +25,7 @@ val framelessVersion = "0.8.0"
 
 val circeVersion = "0.12.0-RC4"
 val avro4s       = "3.0.1"
-val avroVersion  = "1.9.0"
+val avroVersion  = "1.9.1"
 val avrohugger   = "1.0.0-RC18"
 
 val silencer = "1.4.2"
