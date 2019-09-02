@@ -20,7 +20,9 @@ trait BitraverseKafkaRecord extends Serializable {
     (x.key() === y.key()) && (x.value() === y.value())
 
   implicit val eqHeaders: Eq[Headers] = (x: Headers, y: Headers) => {
-    x.toArray.zip(y.toArray).forall { case (x, y) => x === y }
+    val xa = x.toArray
+    val ya = y.toArray
+    (xa.size === ya.size) && (xa.zip(ya).forall { case (x, y) => x === y })
   }
 
   implicit val eqOptionalInteger: Eq[Optional[java.lang.Integer]] =

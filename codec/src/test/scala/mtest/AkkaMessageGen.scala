@@ -36,8 +36,8 @@ trait AkkaMessageGen extends KafkaRawMessageGen with BitraverseAkkaMessage {
     }
   )
 
-  val genAkkaProducerMessage: Gen[Message[Int, Int, Int]] = for {
+  val genAkkaProducerMessage: Gen[Message[Int, Int, String]] = for {
     cr <- genProducerRecord
-  } yield Message(cr, 100)
+  } yield Message(cr, "pass-through")
 
 }
