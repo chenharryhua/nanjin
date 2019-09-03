@@ -17,7 +17,7 @@ class Fs2BitraverseTest extends AnyFunSuite with Discipline with Fs2MessageGen {
   checkAll(
     "Fs2-CommittableConsumerRecord",
     BitraverseTests[CommittableConsumerRecord[IO, ?, ?]]
-      .bitraverse[Option, Int, Int, Int, Int, Int, Int])
+      .bitraverse[List, Int, Int, Int, Int, Int, Int])
 
   checkAll(
     "Fs2-ProducerRecords",

@@ -21,6 +21,6 @@ class AkkaBitraverseTest extends AnyFunSuite with Discipline with AkkaMessageGen
   checkAll(
     "Akka-ProducerMessage",
     BitraverseTests[ProducerMessage.Message[?, ?, String]]
-      .bitraverse[Option, Int, Int, Int, Int, Int, Int])
+      .bitraverse[List, Int, Int, Int, Int, Int, Int])
 
 }

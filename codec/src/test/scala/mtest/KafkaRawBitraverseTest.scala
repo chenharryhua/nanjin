@@ -15,7 +15,7 @@ class KafkaRawBitraverseTest extends AnyFunSuite with Discipline with KafkaRawMe
 
   checkAll(
     "ConsumerRecord",
-    BitraverseTests[ConsumerRecord].bitraverse[Option, Int, Int, Int, Int, Int, Int])
+    BitraverseTests[ConsumerRecord].bitraverse[List, Int, Int, Int, Int, Int, Int])
 
   checkAll(
     "ProducerRecord",
