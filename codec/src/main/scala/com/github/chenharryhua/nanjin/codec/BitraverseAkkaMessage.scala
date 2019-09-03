@@ -11,15 +11,15 @@ import akka.kafka.ProducerMessage.Message
 
 trait BitraverseAkkaMessage extends BitraverseKafkaRecord {
 
-  implicit val eqGroupTopicPartition: Eq[GroupTopicPartition] =
+  implicit val eqGroupTopicPartitionAkka: Eq[GroupTopicPartition] =
     cats.derived.semi.eq[GroupTopicPartition]
-  implicit val eqPartitionOffset: Eq[PartitionOffset] =
+  implicit val eqPartitionOffsetAkka: Eq[PartitionOffset] =
     cats.derived.semi.eq[PartitionOffset]
-  implicit val eqCommittableOffset: Eq[CommittableOffset] =
+  implicit val eqCommittableOffsetAkka: Eq[CommittableOffset] =
     (x: CommittableOffset, y: CommittableOffset) => x.partitionOffset === y.partitionOffset
-  implicit def eqCommittableMessage[K: Eq, V: Eq]: Eq[CommittableMessage[K, V]] =
+  implicit def eqCommittableMessageAkka[K: Eq, V: Eq]: Eq[CommittableMessage[K, V]] =
     cats.derived.semi.eq[CommittableMessage[K, V]]
-  implicit def eqProducerMessage[K: Eq, V: Eq, P: Eq]: Eq[Message[K, V, P]] =
+  implicit def eqProducerMessageAkka[K: Eq, V: Eq, P: Eq]: Eq[Message[K, V, P]] =
     cats.derived.semi.eq[Message[K, V, P]]
 
   implicit final def bitraverseAkkaProducerMessage[P]: Bitraverse[Message[?, ?, P]] =

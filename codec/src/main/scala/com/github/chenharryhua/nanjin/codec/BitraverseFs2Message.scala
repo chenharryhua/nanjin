@@ -21,13 +21,6 @@ import scala.compat.java8.OptionConverters._
 
 trait BitraverseFs2Message extends BitraverseKafkaRecord {
 
-  implicit def eqCommittableOffset[F[_]]: Eq[CommittableOffset[F]] =
-    (x: CommittableOffset[F], y: CommittableOffset[F]) =>
-      (x.topicPartition === y.topicPartition) &&
-        (x.consumerGroupId === y.consumerGroupId) &&
-        (x.offsetAndMetadata === y.offsetAndMetadata) &&
-        (x.offsets === y.offsets)
-
   final def fromKafkaProducerRecord[K, V](pr: ProducerRecord[K, V]): Fs2ProducerRecord[K, V] =
     Fs2ProducerRecord(pr.topic, pr.key, pr.value)
       .withPartition(pr.partition)
@@ -86,20 +79,27 @@ trait BitraverseFs2Message extends BitraverseKafkaRecord {
     Iso[Fs2ConsumerRecord[K, V], ConsumerRecord[K, V]](toKafkaConsumerRecord)(
       fromKafkaConsumerRecord)
 
-  implicit final def eqFs2ConsumerRecord[K: Eq, V: Eq]: Eq[Fs2ConsumerRecord[K, V]] =
+  implicit def eqCommittableOffsetFs2[F[_]]: Eq[CommittableOffset[F]] =
+    (x: CommittableOffset[F], y: CommittableOffset[F]) =>
+      (x.topicPartition === y.topicPartition) &&
+        (x.consumerGroupId === y.consumerGroupId) &&
+        (x.offsetAndMetadata === y.offsetAndMetadata) &&
+        (x.offsets === y.offsets)
+
+  implicit final def eqConsumerRecordFs2[K: Eq, V: Eq]: Eq[Fs2ConsumerRecord[K, V]] =
     (x: Fs2ConsumerRecord[K, V], y: Fs2ConsumerRecord[K, V]) =>
       isoFs2ComsumerRecord.get(x) === isoFs2ComsumerRecord.get(y)
 
-  implicit final def eqFs2ProducerRecord[K: Eq, V: Eq]: Eq[Fs2ProducerRecord[K, V]] =
+  implicit final def eqProducerRecordFs2[K: Eq, V: Eq]: Eq[Fs2ProducerRecord[K, V]] =
     (x: Fs2ProducerRecord[K, V], y: Fs2ProducerRecord[K, V]) =>
       isoFs2ProducerRecord.get(x) === isoFs2ProducerRecord.get(y)
 
-  implicit def eqProducerRecords[K: Eq, V: Eq, P: Eq]: Eq[ProducerRecords[K, V, P]] =
+  implicit def eqProducerRecordsFs2[K: Eq, V: Eq, P: Eq]: Eq[ProducerRecords[K, V, P]] =
     (x: ProducerRecords[K, V, P], y: ProducerRecords[K, V, P]) =>
       (x.records === y.records) &&
         (x.passthrough === y.passthrough)
 
-  implicit def eqCommittableConsumerRecord[F[_], K: Eq, V: Eq]
+  implicit def eqCommittableConsumerRecordFs2[F[_], K: Eq, V: Eq]
     : Eq[CommittableConsumerRecord[F, K, V]] =
     (x: CommittableConsumerRecord[F, K, V], y: CommittableConsumerRecord[F, K, V]) =>
       (x.record === y.record) && (x.offset === y.offset)
