@@ -14,13 +14,13 @@ class Fs2BitraverseTest extends AnyFunSuite with Discipline with Fs2MessageGen {
   implicit val fs2PM: Arbitrary[ProducerRecords[Int, Int, String]] =
     Arbitrary(genFs2ProducerMessage)
 
-//  checkAll(
-  //   "Fs2-CommittableConsumerRecord",
-  //   BitraverseTests[CommittableConsumerRecord[IO, ?, ?]]
-  //     .bitraverse[List, Int, Int, Int, Int, Int, Int])
+  checkAll(
+    "Fs2-CommittableConsumerRecord",
+    BitraverseTests[CommittableConsumerRecord[IO, ?, ?]]
+      .bitraverse[Option, Int, Int, Int, Int, Int, Int])
 
   checkAll(
     "Fs2-ProducerRecords",
-    BitraverseTests[ProducerRecords[?, ?, String]].bitraverse[List, Int, Int, Int, Int, Int, Int])
+    BitraverseTests[ProducerRecords[?, ?, String]].bitraverse[Option, Int, Int, Int, Int, Int, Int])
 
 }

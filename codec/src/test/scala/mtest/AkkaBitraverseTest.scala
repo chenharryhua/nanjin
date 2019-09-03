@@ -16,11 +16,11 @@ class AkkaBitraverseTest extends AnyFunSuite with Discipline with AkkaMessageGen
   checkAll(
     "Akka-CommittableMessage",
     BitraverseTests[ConsumerMessage.CommittableMessage]
-      .bitraverse[List, Int, Int, Int, Int, Int, Int])
+      .bitraverse[Option, Int, Int, Int, Int, Int, Int])
 
   checkAll(
     "Akka-ProducerMessage",
     BitraverseTests[ProducerMessage.Message[?, ?, String]]
-      .bitraverse[List, Int, Int, Int, Int, Int, Int])
+      .bitraverse[Option, Int, Int, Int, Int, Int, Int])
 
 }
