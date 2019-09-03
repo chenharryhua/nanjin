@@ -54,6 +54,7 @@ trait BitraverseFs2Message extends BitraverseKafkaRecord {
         })
     epoch.fold[Fs2ConsumerRecord[K, V]](fcr)(e => fcr.withLeaderEpoch(e))
   }
+
   final def toKafkaConsumerRecord[K, V](fcr: Fs2ConsumerRecord[K, V]): ConsumerRecord[K, V] =
     new ConsumerRecord[K, V](
       fcr.topic,
@@ -118,7 +119,8 @@ trait BitraverseFs2Message extends BitraverseKafkaRecord {
 
       override def bifoldLeft[A, B, C](fab: CommittableConsumerRecord[F, A, B], c: C)(
         f: (C, A) => C,
-        g: (C, B) => C): C = isoFs2ComsumerRecord.get(fab.record).bifoldLeft(c)(f, g)
+        g: (C, B) => C): C =
+        isoFs2ComsumerRecord.get(fab.record).bifoldLeft(c)(f, g)
 
       override def bifoldRight[A, B, C](fab: CommittableConsumerRecord[F, A, B], c: Eval[C])(
         f: (A, Eval[C]) => Eval[C],
@@ -136,9 +138,10 @@ trait BitraverseFs2Message extends BitraverseKafkaRecord {
 
       override def bifoldLeft[A, B, C](fab: ProducerRecords[A, B, P], c: C)(
         f: (C, A) => C,
-        g: (C, B) => C): C = fab.records.foldLeft(c) {
-        case (ec, pr) => isoFs2ProducerRecord.get(pr).bifoldLeft(ec)(f, g)
-      }
+        g: (C, B) => C): C =
+        fab.records.foldLeft(c) {
+          case (ec, pr) => isoFs2ProducerRecord.get(pr).bifoldLeft(ec)(f, g)
+        }
 
       override def bifoldRight[A, B, C](fab: ProducerRecords[A, B, P], c: Eval[C])(
         f: (A, Eval[C]) => Eval[C],

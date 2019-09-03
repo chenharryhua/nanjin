@@ -25,7 +25,7 @@ object KafkaCodec {
   implicit val invariantCodec: Invariant[KafkaCodec] = new Invariant[KafkaCodec] {
     override def imap[A, B](fa: KafkaCodec[A])(f: A => B)(g: B => A): KafkaCodec[B] =
       new KafkaCodec[B] {
-        override def encode(a: B): Array[Byte]  = fa.encode(g(a))
+        override def encode(b: B): Array[Byte]  = fa.encode(g(b))
         override def decode(ab: Array[Byte]): B = f(fa.decode(ab))
       }
   }
