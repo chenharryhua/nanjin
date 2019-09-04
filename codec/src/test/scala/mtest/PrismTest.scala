@@ -33,8 +33,6 @@ class PrismTest extends AnyFunSuite with Discipline with BitraverseKafkaRecord {
   implicit val eqPrimitiveTypeCombined = cats.derived.semi.eq[PrimitiveTypeCombined]
   implicit val arbClassF               = Arbitrary((a: PrimitiveTypeCombined) => a)
 
-  val sr: Map[String, String] =
-    Map(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG -> "http://localhost:8081")
   val strPrism       = SerdeOf[String].asValue(sr).codec("topic").prism
   val intPrism       = SerdeOf[Int].asKey(sr).codec("topic").prism
   val longPrism      = SerdeOf[Long].asValue(sr).codec("topic").prism
