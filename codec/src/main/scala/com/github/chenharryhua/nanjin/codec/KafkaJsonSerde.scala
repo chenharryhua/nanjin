@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.codec
 
-import cats.Show
+import cats.{Eq, Show}
 import io.circe.syntax._
 import io.circe.{parser, Decoder, Encoder}
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
@@ -15,6 +15,7 @@ object KJson {
   implicit def kafkaJsonEncoder[A: Encoder]: Encoder[KJson[A]] = deriveEncoder[KJson[A]]
   implicit def showKafkaJson[A: Encoder]: Show[KJson[A]] =
     (t: KJson[A]) => s"KJson(${t.value.asJson.noSpaces})"
+  implicit def eqKJson[A: Eq]: Eq[KJson[A]] = cats.derived.semi.eq[KJson[A]]
 }
 
 @SuppressWarnings(Array("AsInstanceOf"))

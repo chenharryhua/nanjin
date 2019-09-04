@@ -4,6 +4,7 @@ import java.{util => ju}
 
 import cats.Invariant
 import com.sksamuel.avro4s.{AvroSchema, DefaultFieldMapper, SchemaFor}
+import monocle.Prism
 import org.apache.avro.Schema
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import org.apache.kafka.streams.scala.Serdes
@@ -18,7 +19,9 @@ sealed trait KafkaCodec[A] {
   final def tryDecode(ab: Array[Byte]): Try[A] =
     utils.checkNull(ab).flatMap(x => Try(decode(x)))
   final def optionDecode(ab: Array[Byte]): Option[A] =
-    Option(ab).flatMap(tryDecode(_).toOption)
+    tryDecode(ab).toOption
+  final val prism: Prism[Array[Byte], A] =
+    Prism[Array[Byte], A](x => Try(decode(x)).toOption)(encode)
 }
 
 object KafkaCodec {
@@ -129,6 +132,11 @@ object SerdeOf extends SerdeOfPriority1 {
       extends SerdeOf[Double](SchemaFor[Double].schema(DefaultFieldMapper)) {
     override val deserializer: Deserializer[Double] = Serdes.Double.deserializer()
     override val serializer: Serializer[Double]     = Serdes.Double.serializer()
+  }
+
+  implicit object kfloatSerde extends SerdeOf[Float](SchemaFor[Float].schema(DefaultFieldMapper)) {
+    override val deserializer: Deserializer[Float] = Serdes.Float.deserializer()
+    override val serializer: Serializer[Float]     = Serdes.Float.serializer()
   }
 
   implicit object kbyteArraySerde

@@ -9,6 +9,7 @@ import zio.clock.Clock
 import zio.console.Console
 import zio.interop.catz.implicits.ioTimer
 import zio.interop.catz.{taskEffectInstances, zioContextShift}
+
 import zio.random.Random
 import zio.system.System
 import zio.{DefaultRuntime, Runtime}
