@@ -2,13 +2,12 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.implicits._
 import com.github.chenharryhua.nanjin.codec.ShowKafkaMessage
-import org.scalatest.FunSuite
 import org.scalatest.funsuite.AnyFunSuite
 import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.console.Console
 import zio.interop.catz.implicits.ioTimer
-import zio.interop.catz.{taskEffectInstances, zioContextShift}
+import zio.interop.catz._
 
 import zio.random.Random
 import zio.system.System

@@ -15,7 +15,7 @@ val catsTime       = "0.3.0-M1"
 val fs2Version     = "1.1.0-M1"
 val monocleVersion = "2.0.0-RC1"
 val refined        = "0.9.9"
-val zioCats        = "2.0.0.0-RC2"
+val zioCats        = "2.0.0.0-RC3"
 
 val akkaKafka = "1.0.5"
 val fs2Kafka  = "0.20.0-RC1"

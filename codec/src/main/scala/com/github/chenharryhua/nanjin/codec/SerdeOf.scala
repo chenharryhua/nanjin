@@ -18,8 +18,6 @@ sealed trait KafkaCodec[A] {
   def decode(ab: Array[Byte]): A
   final def tryDecode(ab: Array[Byte]): Try[A] =
     utils.checkNull(ab).flatMap(x => Try(decode(x)))
-  final def optionDecode(ab: Array[Byte]): Option[A] =
-    tryDecode(ab).toOption
   final val prism: Prism[Array[Byte], A] =
     Prism[Array[Byte], A](x => Try(decode(x)).toOption)(encode)
 }

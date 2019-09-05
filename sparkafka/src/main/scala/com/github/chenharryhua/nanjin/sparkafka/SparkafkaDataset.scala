@@ -60,7 +60,10 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
     end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[SparkConsumerRecord[K, V]]] =
     rawDS(topic, start, end).map(_.deserialized.mapPartitions(msgs => {
       val t = topic
-      msgs.flatMap(_.bitraverse[Option, K, V](t.keyCodec.optionDecode, t.valueCodec.optionDecode))
+      msgs.flatMap(
+        _.bitraverse[Option, K, V](
+          k => t.keyCodec.tryDecode(k).toOption,
+          v => t.valueCodec.tryDecode(v).toOption))
     }))
 
   def valueDataset[F[_]: Monad, K, V: TypedEncoder: ClassTag: SerdeOf](
@@ -78,7 +81,7 @@ object SparkafkaDataset extends BitraverseKafkaRecord {
     end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[V]] =
     rawDS(topic, start, end).map { ds =>
       val udf =
-        ds.makeUDF((x: Array[Byte]) => topic.valueCodec.optionDecode(x))
+        ds.makeUDF((x: Array[Byte]) => topic.valueCodec.tryDecode(x).toOption)
       ds.select(udf(ds('value))).deserialized.flatMap(x => x)
     }
 }
