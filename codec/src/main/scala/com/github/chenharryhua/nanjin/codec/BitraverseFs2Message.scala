@@ -106,8 +106,8 @@ trait BitraverseFs2Message extends BitraverseKafkaRecord {
       (x.record === y.record) && (x.offset === y.offset)
 
   implicit final def bitraverseFs2CommittableMessage[F[_]]
-    : Bitraverse[CommittableConsumerRecord[F, ?, ?]] =
-    new Bitraverse[CommittableConsumerRecord[F, ?, ?]] {
+    : Bitraverse[CommittableConsumerRecord[F, *, *]] =
+    new Bitraverse[CommittableConsumerRecord[F, *, *]] {
       override def bitraverse[G[_]: Applicative, A, B, C, D](
         fab: CommittableConsumerRecord[F, A, B])(
         f: A => G[C],
@@ -128,8 +128,8 @@ trait BitraverseFs2Message extends BitraverseKafkaRecord {
         isoFs2ComsumerRecord.get(fab.record).bifoldRight(c)(f, g)
     }
 
-  implicit final def bitraverseFs2ProducerMessage[P]: Bitraverse[ProducerRecords[?, ?, P]] =
-    new Bitraverse[ProducerRecords[?, ?, P]] {
+  implicit final def bitraverseFs2ProducerMessage[P]: Bitraverse[ProducerRecords[*, *, P]] =
+    new Bitraverse[ProducerRecords[*, *, P]] {
       override def bitraverse[G[_]: Applicative, A, B, C, D](
         fab: ProducerRecords[A, B, P])(f: A => G[C], g: B => G[D]): G[ProducerRecords[C, D, P]] =
         fab.records.traverse(isoFs2ProducerRecord.get(_).bitraverse(f, g)).map { pr =>

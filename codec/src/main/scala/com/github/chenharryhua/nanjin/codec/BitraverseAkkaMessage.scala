@@ -22,8 +22,8 @@ trait BitraverseAkkaMessage extends BitraverseKafkaRecord {
   implicit def eqProducerMessageAkka[K: Eq, V: Eq, P: Eq]: Eq[Message[K, V, P]] =
     cats.derived.semi.eq[Message[K, V, P]]
 
-  implicit final def bitraverseAkkaProducerMessage[P]: Bitraverse[Message[?, ?, P]] =
-    new Bitraverse[Message[?, ?, P]] {
+  implicit final def bitraverseAkkaProducerMessage[P]: Bitraverse[Message[*, *, P]] =
+    new Bitraverse[Message[*, *, P]] {
 
       override def bitraverse[G[_]: Applicative, A, B, C, D](
         fab: Message[A, B, P])(f: A => G[C], g: B => G[D]): G[Message[C, D, P]] =
