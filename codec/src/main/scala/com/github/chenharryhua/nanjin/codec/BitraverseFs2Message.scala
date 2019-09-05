@@ -95,12 +95,12 @@ trait BitraverseFs2Message extends BitraverseKafkaRecord {
     (x: Fs2ProducerRecord[K, V], y: Fs2ProducerRecord[K, V]) =>
       isoFs2ProducerRecord.get(x) === isoFs2ProducerRecord.get(y)
 
-  implicit def eqProducerRecordsFs2[K: Eq, V: Eq, P: Eq]: Eq[ProducerRecords[K, V, P]] =
+  implicit final def eqProducerRecordsFs2[K: Eq, V: Eq, P: Eq]: Eq[ProducerRecords[K, V, P]] =
     (x: ProducerRecords[K, V, P], y: ProducerRecords[K, V, P]) =>
       (x.records === y.records) &&
         (x.passthrough === y.passthrough)
 
-  implicit def eqCommittableConsumerRecordFs2[F[_], K: Eq, V: Eq]
+  implicit final def eqCommittableConsumerRecordFs2[F[_], K: Eq, V: Eq]
     : Eq[CommittableConsumerRecord[F, K, V]] =
     (x: CommittableConsumerRecord[F, K, V], y: CommittableConsumerRecord[F, K, V]) =>
       (x.record === y.record) && (x.offset === y.offset)

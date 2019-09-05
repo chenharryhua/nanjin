@@ -10,7 +10,7 @@ import cats.Show
 import cats.data.{NonEmptyList, Reader}
 import cats.effect._
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.{KafkaMessageDecoder, _}
+import com.github.chenharryhua.nanjin.codec.{KafkaGenericDecoder, _}
 import fs2.kafka.{
   CommittableConsumerRecord,
   ConsumerSettings => Fs2ConsumerSettings,
@@ -38,14 +38,14 @@ object KafkaChannels {
     import fs2.Stream
     import fs2.kafka.{consumerStream, KafkaProducer}
 
-    val messageDecoder: KafkaMessageDecoder[CommittableConsumerRecord[F, ?, ?], K, V] =
-      new KafkaMessageDecoder[CommittableConsumerRecord[F, ?, ?], K, V](keyCodec, valueCodec)
+    val messageDecoder: KafkaGenericDecoder[CommittableConsumerRecord[F, ?, ?], K, V] =
+      new KafkaGenericDecoder[CommittableConsumerRecord[F, ?, ?], K, V](keyCodec, valueCodec)
 
     val messageEncoder: Fs2MessageEncoder[F, K, V] =
       new Fs2MessageEncoder[F, K, V](topicName)
 
-    val recordDecoder: KafkaMessageDecoder[ConsumerRecord, K, V] =
-      new KafkaMessageDecoder[ConsumerRecord, K, V](keyCodec, valueCodec)
+    val recordDecoder: KafkaGenericDecoder[ConsumerRecord, K, V] =
+      new KafkaGenericDecoder[ConsumerRecord, K, V](keyCodec, valueCodec)
 
     def updateProducerSettings(
       f: Fs2ProducerSettings[F, K, V] => Fs2ProducerSettings[F, K, V]): Fs2Channel[F, K, V] =
@@ -99,14 +99,14 @@ object KafkaChannels {
     import akka.stream.scaladsl.{Flow, Sink, Source}
     import akka.{Done, NotUsed}
 
-    val messageDecoder: KafkaMessageDecoder[CommittableMessage, K, V] =
-      new KafkaMessageDecoder[CommittableMessage, K, V](keyCodec, valueCodec)
+    val messageDecoder: KafkaGenericDecoder[CommittableMessage, K, V] =
+      new KafkaGenericDecoder[CommittableMessage, K, V](keyCodec, valueCodec)
 
     val messageEncoder: AkkaMessageEncoder[K, V] =
       new AkkaMessageEncoder[K, V](topicName)
 
-    val recordDecoder: KafkaMessageDecoder[ConsumerRecord, K, V] =
-      new KafkaMessageDecoder[ConsumerRecord, K, V](keyCodec, valueCodec)
+    val recordDecoder: KafkaGenericDecoder[ConsumerRecord, K, V] =
+      new KafkaGenericDecoder[ConsumerRecord, K, V](keyCodec, valueCodec)
 
     def updateProducerSettings(
       f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): AkkaChannel[F, K, V] =

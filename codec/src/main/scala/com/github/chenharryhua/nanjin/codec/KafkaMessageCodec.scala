@@ -7,7 +7,7 @@ import org.apache.kafka.clients.producer.ProducerRecord
 
 import scala.util.{Success, Try}
 
-final class KafkaMessageDecoder[F[_, _]: Bitraverse, K, V](
+final class KafkaGenericDecoder[F[_, _]: Bitraverse, K, V](
   keyCodec: KafkaCodec[K],
   valueCodec: KafkaCodec[V]) {
 

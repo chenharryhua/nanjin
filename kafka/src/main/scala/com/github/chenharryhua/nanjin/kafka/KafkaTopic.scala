@@ -45,8 +45,8 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
   val keyCodec: KafkaCodec[K]   = keySerde.codec(topicName)
   val valueCodec: KafkaCodec[V] = valueSerde.codec(topicName)
 
-  val recordDecoder: KafkaMessageDecoder[ConsumerRecord, K, V] =
-    new KafkaMessageDecoder[ConsumerRecord, K, V](keyCodec, valueCodec)
+  val recordDecoder: KafkaGenericDecoder[ConsumerRecord, K, V] =
+    new KafkaGenericDecoder[ConsumerRecord, K, V](keyCodec, valueCodec)
 
   val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
     new KafkaChannels.Fs2Channel[F, K, V](
