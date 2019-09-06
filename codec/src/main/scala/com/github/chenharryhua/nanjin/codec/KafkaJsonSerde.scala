@@ -10,9 +10,6 @@ import scala.util.{Success, Try}
 final case class KJson[A](value: A) extends AnyVal
 
 object KJson {
-  import io.circe.generic.semiauto._
-  implicit def kafkaJsonDecoder[A: Decoder]: Decoder[KJson[A]] = deriveDecoder[KJson[A]]
-  implicit def kafkaJsonEncoder[A: Encoder]: Encoder[KJson[A]] = deriveEncoder[KJson[A]]
   implicit def showKafkaJson[A: Encoder]: Show[KJson[A]] =
     (t: KJson[A]) => s"KJson(${t.value.asJson.noSpaces})"
   implicit def eqKJson[A: Eq]: Eq[KJson[A]] = cats.derived.semi.eq[KJson[A]]

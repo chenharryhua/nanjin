@@ -4,11 +4,11 @@ import java.time.LocalDateTime
 
 import cats.effect.IO
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.{utils, NJProducerRecord}
+import com.github.chenharryhua.nanjin.codec.utils
 import com.github.chenharryhua.nanjin.sparkafka.SparkafkaDataset
 import frameless.cats.implicits._
 import fs2.Stream
-import org.scalatest.FunSuite
+import fs2.kafka.ProducerRecord
 import org.scalatest.funsuite.AnyFunSuite
 
 class SparkJoinTest extends AnyFunSuite {
@@ -23,11 +23,11 @@ class SparkJoinTest extends AnyFunSuite {
       .covary[IO]
       .map(
         i =>
-          NJProducerRecord[Int, FirstStream](
+          ProducerRecord[Int, FirstStream](
             topics.first_topic.topicName,
             0,
-            FirstStream(i.toString, utils.random4d.value)).updateTimestamp(
-            Some(utils.localDateTime2KafkaTimestamp(start.plusNanos(i.toLong * coefficient)))))
+            FirstStream(i.toString, utils.random4d.value)).withTimestamp(
+            utils.localDateTime2KafkaTimestamp(start.plusNanos(i.toLong * coefficient))))
       .evalMap(msg => topics.first_topic.producer.send(msg))
 
   val second_data =
@@ -36,11 +36,11 @@ class SparkJoinTest extends AnyFunSuite {
       .covary[IO]
       .map(
         i =>
-          NJProducerRecord[Int, SecondStream](
+          ProducerRecord[Int, SecondStream](
             topics.second_topic.topicName,
             0,
-            SecondStream(i.toString, utils.random4d.value)).updateTimestamp(
-            Some(utils.localDateTime2KafkaTimestamp(start.plusNanos(i.toLong * coefficient)))))
+            SecondStream(i.toString, utils.random4d.value)).withTimestamp(
+            utils.localDateTime2KafkaTimestamp(start.plusNanos(i.toLong * coefficient))))
       .evalMap(msg => topics.second_topic.producer.send(msg))
 
   test("gen data") {

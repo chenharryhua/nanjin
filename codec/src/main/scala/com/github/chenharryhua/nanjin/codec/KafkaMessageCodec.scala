@@ -53,9 +53,6 @@ final class KafkaProducerRecordEncoder[K, V](
 
   def record(pr: ProducerRecord[K, V]): KafkaByteProducerRecord =
     pr.bimap(keyCodec.encode, valueCodec.encode)
-
-  def record(nj: NJProducerRecord[K, V]): KafkaByteProducerRecord =
-    record(nj.producerRecord)
 }
 
 final class AkkaMessageEncoder[K, V](topicName: String) {
@@ -69,12 +66,6 @@ final class AkkaMessageEncoder[K, V](topicName: String) {
 
   def single[P](k: K, v: V, p: P): Envelope[K, V, P] =
     ProducerMessage.single(record(k, v), p)
-
-  def single(nj: NJProducerRecord[K, V]): Envelope[K, V, NotUsed] =
-    ProducerMessage.single(nj.producerRecord)
-
-  def single[P](nj: NJProducerRecord[K, V], p: P): Envelope[K, V, P] =
-    ProducerMessage.single(nj.producerRecord, p)
 
   def multi(msg: List[(K, V)]): Envelope[K, V, NotUsed] =
     ProducerMessage.multi(msg.map(kv => record(kv._1, kv._2)))
@@ -99,14 +90,6 @@ final class Fs2MessageEncoder[F[_], K, V](topicName: String) extends BitraverseF
     v: V,
     p: CommittableOffset[F]): ProducerRecords[K, V, Option[CommittableOffset[F]]] =
     ProducerRecords.one(record(k, v), Some(p))
-
-  def single(nj: NJProducerRecord[K, V]): ProducerRecords[K, V, Option[CommittableOffset[F]]] =
-    ProducerRecords.one(nj.fs2ProducerRecord, None)
-
-  def single(
-    nj: NJProducerRecord[K, V],
-    p: CommittableOffset[F]): ProducerRecords[K, V, Option[CommittableOffset[F]]] =
-    ProducerRecords.one(nj.fs2ProducerRecord, Some(p))
 
   def multi(msgs: List[(K, V)]): ProducerRecords[K, V, Option[CommittableOffset[F]]] =
     ProducerRecords(msgs.map { case (k, v) => record(k, v) }, None)

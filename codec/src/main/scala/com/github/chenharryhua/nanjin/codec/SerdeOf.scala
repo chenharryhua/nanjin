@@ -9,7 +9,7 @@ import org.apache.avro.Schema
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import org.apache.kafka.streams.scala.Serdes
 
-import scala.annotation.implicitNotFound
+import scala.annotation.{implicitAmbiguous, implicitNotFound}
 import scala.collection.JavaConverters._
 import scala.util.Try
 
@@ -68,7 +68,7 @@ final case class ValueSerde[A](
 }
 
 @implicitNotFound(
-  "Could not find an instance of SerdeOf[${A}], for KJson, import io.circe.generic.auto._")
+  "Could not find an instance of SerdeOf[${A}], primitive types and case class are supprted")
 sealed abstract class SerdeOf[A](schema: Schema) extends Serializable {
   def serializer: Serializer[A]
 
@@ -92,6 +92,10 @@ sealed private[codec] trait SerdeOfPriority0 {
       override val serializer: Serializer[A]     = serde.serializer
     }
   }
+
+  @implicitAmbiguous("KJson should import io.circe.generic.auto._")
+  implicit def kjsonSerdeWasNotInferred[A](implicit ev: A <:< KJson[_]): SerdeOf[A] =
+    sys.error("compilation time only")
 }
 
 sealed private[codec] trait SerdeOfPriority1 extends SerdeOfPriority0 {

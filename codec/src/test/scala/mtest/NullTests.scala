@@ -1,5 +1,6 @@
 package mtest
 
+import com.github.chenharryhua.nanjin.codec.KJson
 import org.scalatest.funsuite.AnyFunSuite
 
 class NullTests extends AnyFunSuite {
@@ -12,7 +13,7 @@ class NullTests extends AnyFunSuite {
     assert(floatCodec.decode(null) === null)
     assert(byteArrayCodec.decode(null) === null)
     assert(primitiviesCodec.decode(null) === null)
-    assert(jsonPrimCodec.decode(null) === null)
+    assert(jsonPrimCodec.decode(null) === KJson(null))
   }
 
   test("tryDecode null should return failure") {
@@ -34,7 +35,7 @@ class NullTests extends AnyFunSuite {
     assert(floatCodec.prism.getOption(null) === Some(null))
     assert(byteArrayCodec.prism.getOption(null) === Some(null))
     assert(primitiviesCodec.prism.getOption(null) === Some(null))
-    assert(jsonPrimCodec.prism.getOption(null) === Some(null))
+    assert(jsonPrimCodec.prism.getOption(null) === Some(KJson(null)))
   }
 
   test("encode null should return null") {
@@ -45,6 +46,6 @@ class NullTests extends AnyFunSuite {
     // assert(floatCodec.encode(null) === null)
     assert(byteArrayCodec.encode(null) === null)
     assert(primitiviesCodec.encode(null) === null)
-    // assert(jsonPrimCodec.encode(null) === null)
+    assert(jsonPrimCodec.encode(KJson(null)) === null)
   }
 }

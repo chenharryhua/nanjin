@@ -1,7 +1,6 @@
-import com.github.chenharryhua.nanjin.codec.{KJson, SerdeOf}
+import com.github.chenharryhua.nanjin.codec.{KJson, KafkaCodec, SerdeOf}
+import io.circe.generic.auto._
 import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig
-import monocle.Prism
-
 package object mtest {
 
   val sr: Map[String, String] =
@@ -23,9 +22,8 @@ package object mtest {
   val byteArrayCodec = SerdeOf[Array[Byte]].asKey(sr).codec("topic.byte.array")
 
   val primitiviesCodec =
-    SerdeOf[PrimitiveTypeCombined].asKey(sr).codec(s"prism.test.topic.avro")
+    SerdeOf[PrimitiveTypeCombined].asKey(sr).codec(s"topic.avro")
 
-  val jsonPrimCodec =
-    SerdeOf[KJson[PrimitiveTypeCombined]].asKey(sr).codec(s"prism.test.topic.json")
-
+  val jsonPrimCodec: KafkaCodec[KJson[PrimitiveTypeCombined]] =
+    SerdeOf[KJson[PrimitiveTypeCombined]].asKey(sr).codec(s"topic.json")
 }
