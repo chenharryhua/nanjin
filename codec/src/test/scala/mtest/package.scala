@@ -25,5 +25,5 @@ package object mtest {
     SerdeOf[PrimitiveTypeCombined].asKey(sr).codec(s"topic.avro")
 
   val jsonPrimCodec: KafkaCodec[KJson[PrimitiveTypeCombined]] =
-    SerdeOf[KJson[PrimitiveTypeCombined]].asKey(sr).codec(s"topic.json")
+    SerdeOf[KJson[PrimitiveTypeCombined]].asValue(sr).codec(s"topic.json")
 }

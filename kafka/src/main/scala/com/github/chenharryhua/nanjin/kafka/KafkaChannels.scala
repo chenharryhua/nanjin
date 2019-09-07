@@ -38,8 +38,8 @@ object KafkaChannels {
     import fs2.Stream
     import fs2.kafka.{consumerStream, KafkaProducer}
 
-    val messageDecoder: KafkaGenericDecoder[CommittableConsumerRecord[F, ?, ?], K, V] =
-      new KafkaGenericDecoder[CommittableConsumerRecord[F, ?, ?], K, V](keyCodec, valueCodec)
+    val messageDecoder: KafkaGenericDecoder[CommittableConsumerRecord[F, *, *], K, V] =
+      new KafkaGenericDecoder[CommittableConsumerRecord[F, *, *], K, V](keyCodec, valueCodec)
 
     val messageEncoder: Fs2MessageEncoder[F, K, V] =
       new Fs2MessageEncoder[F, K, V](topicName)

@@ -13,9 +13,8 @@ import org.typelevel.discipline.scalatest.Discipline
 class InvariantTest extends AnyFunSuite with Discipline {
 
   implicit val arbKafkaCodec: Arbitrary[KafkaCodec[Int]] = Arbitrary(intCodec)
-  implicit val eqKafkaCodec = new Eq[KafkaCodec[Int]] {
-    override def eqv(x: KafkaCodec[Int], y: KafkaCodec[Int]): Boolean = true
-  }
+  implicit val eqKafkaCodec: Eq[KafkaCodec[Int]] =
+    (x: KafkaCodec[Int], y: KafkaCodec[Int]) => true
 
   checkAll("KafkaCodec", InvariantTests[KafkaCodec].invariant[Int, Int, Int])
 

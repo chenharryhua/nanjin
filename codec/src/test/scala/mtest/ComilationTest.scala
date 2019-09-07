@@ -6,10 +6,10 @@ import com.github.chenharryhua.nanjin.codec.SerdeOf
 import com.github.chenharryhua.nanjin.codec.KJson
 
 class ComilationTest extends AnyFunSuite {
-  test("kjson should be ill-typed if circe is not imported") {
+  test("KJson should be ill-typed if circe is not imported") {
     illTyped("SerdeOf[KJson[PrimitiveTypeCombined]]")
   }
-  test("kjson should be well-typed if circe is imported") {
+  test("KJson should be well-typed if circe is imported") {
     import io.circe.generic.auto._
     val goodJson = SerdeOf[KJson[PrimitiveTypeCombined]]
   }
