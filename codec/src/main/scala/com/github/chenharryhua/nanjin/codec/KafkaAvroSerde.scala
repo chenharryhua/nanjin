@@ -1,18 +1,18 @@
 package com.github.chenharryhua.nanjin.codec
 
+import com.github.chenharryhua.nanjin.codec.CodecException._
 import com.sksamuel.avro4s._
-import io.confluent.kafka.serializers.{KafkaAvroDeserializer, KafkaAvroSerializer}
+import io.confluent.kafka.streams.serdes.avro.{GenericAvroDeserializer, GenericAvroSerializer}
 import org.apache.avro.Schema
-import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
-import CodecException._
+
 import scala.util.{Failure, Success, Try}
 
 final class KafkaAvroSerde[A: Encoder: Decoder: SchemaFor] extends Serde[A] {
-  private[this] val format: RecordFormat[A]      = RecordFormat[A]
-  private[this] val schema: Schema               = AvroSchema[A]
-  private[this] val ser: KafkaAvroSerializer     = new KafkaAvroSerializer
-  private[this] val deSer: KafkaAvroDeserializer = new KafkaAvroDeserializer
+  private[this] val format: RecordFormat[A]        = RecordFormat[A]
+  private[this] val schema: Schema                 = AvroSchema[A]
+  private[this] val ser: GenericAvroSerializer     = new GenericAvroSerializer
+  private[this] val deSer: GenericAvroDeserializer = new GenericAvroDeserializer
 
   @SuppressWarnings(Array("AsInstanceOf"))
   private[this] def decode(topic: String, data: Array[Byte]): Try[A] =
@@ -20,7 +20,7 @@ final class KafkaAvroSerde[A: Encoder: Decoder: SchemaFor] extends Serde[A] {
       case None => Success(null.asInstanceOf[A])
       case Some(d) =>
         Try(deSer.deserialize(topic, d)) match {
-          case Success(gr: GenericRecord) =>
+          case Success(gr) =>
             Try(format.from(gr)) match {
               case Success(v) => Success(v)
               case Failure(ex) =>
@@ -30,12 +30,6 @@ final class KafkaAvroSerde[A: Encoder: Decoder: SchemaFor] extends Serde[A] {
                                                    |GenericRecord: ${gr.toString}
                                                    |schema:        ${schema.toString}""".stripMargin))
             }
-          case Success(gr) =>
-            Failure(InvalidGenericRecordException(s"""|decode avro failed:
-                                                      |topic:         $topic
-                                                      |error:         invalid generic record
-                                                      |GenericRecord: ${gr.toString}
-                                                      |schema:        ${schema.toString}""".stripMargin))
           case Failure(ex) =>
             Failure(CorruptedRecordException(s"""|decode avro failed:
                                                  |topic:    $topic 

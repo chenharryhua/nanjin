@@ -10,7 +10,6 @@ object CodecException {
 
   final case class CorruptedRecordException(msg: String) extends CodecException(msg)
   final case class InvalidObjectException(msg: String) extends CodecException(msg)
-  final case class InvalidGenericRecordException(msg: String) extends CodecException(msg)
   final case class DecodingJsonException(msg: String) extends CodecException(msg)
 }
 
