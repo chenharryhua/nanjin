@@ -5,7 +5,7 @@ import java.util.Properties
 
 import cats.Eval
 
-import scala.util.{Failure, Random, Success, Try}
+import scala.util.Random
 
 object utils {
 
@@ -22,6 +22,4 @@ object utils {
   def kafkaTimestamp2LocalDateTime(ts: Long, tz: ZoneId = ZoneId.systemDefault()): LocalDateTime =
     LocalDateTime.ofInstant(Instant.ofEpochMilli(ts), tz)
 
-  def checkNull[A](a: A): Try[A] =
-    Option(a).fold[Try[A]](Failure(CodecException.DecodingNullException))(Success(_))
 }
