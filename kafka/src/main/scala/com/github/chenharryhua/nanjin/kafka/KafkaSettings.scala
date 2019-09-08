@@ -217,8 +217,8 @@ object KafkaSettings {
     SchemaRegistrySettings(Map.empty)
   )
 
-  val local: KafkaSettings = {
-    val s = KafkaSettings(
+  val local: KafkaSettings =
+    KafkaSettings(
       KafkaConsumerSettings(
         Map(
           ConsumerConfig.MAX_POLL_RECORDS_CONFIG -> "100",
@@ -226,21 +226,18 @@ object KafkaSettings {
         )
       ),
       KafkaProducerSettings(Map.empty),
-      KafkaStreamSettings(
-        Map(
-          StreamsConfig.DEFAULT_DESERIALIZATION_EXCEPTION_HANDLER_CLASS_CONFIG ->
-            classOf[LogAndContinueExceptionHandler].getName,
-          StreamsConfig.NUM_STREAM_THREADS_CONFIG -> "3"
-        )),
+      KafkaStreamSettings(Map(
+        StreamsConfig.DEFAULT_DESERIALIZATION_EXCEPTION_HANDLER_CLASS_CONFIG ->
+          classOf[LogAndContinueExceptionHandler].getName,
+        StreamsConfig.NUM_STREAM_THREADS_CONFIG -> "3"
+      )),
       SharedAdminSettings(Map.empty),
       SchemaRegistrySettings(Map.empty)
-    )
-
-    s.withGroupId("nanjin-group")
+    ).withGroupId("nanjin-group")
       .withApplicationId("nanjin-app")
       .withBrokers("localhost:9092")
       .withSchemaRegistryUrl("http://localhost:8081")
       .withSecurityProtocol(SecurityProtocol.PLAINTEXT)
-  }
+
   implicit val showKafkaSettings: Show[KafkaSettings] = _.show
 }
