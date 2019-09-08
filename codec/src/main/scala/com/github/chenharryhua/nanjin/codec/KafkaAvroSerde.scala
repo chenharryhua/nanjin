@@ -17,12 +17,11 @@ final class KafkaAvroSerde[A: Encoder: Decoder: SchemaFor] extends Serde[A] {
   @SuppressWarnings(Array("AsInstanceOf"))
   private[this] def decode(topic: String, data: Array[Byte]): Try[A] =
     Option(data) match {
-      case None => Success(null.asInstanceOf[A])
       case Some(d) =>
         Try(deSer.deserialize(topic, d)) match {
           case Success(gr) =>
             Try(format.from(gr)) match {
-              case Success(v) => Success(v)
+              case a @ Success(_) => a
               case Failure(ex) =>
                 Failure(InvalidObjectException(s"""|decode avro failed:
                                                    |topic:         $topic
@@ -36,15 +35,15 @@ final class KafkaAvroSerde[A: Encoder: Decoder: SchemaFor] extends Serde[A] {
                                                  |error:    ${ex.getMessage}
                                                  |schema:   ${schema.toString}""".stripMargin))
         }
+      case None => Success(null.asInstanceOf[A])
     }
 
   @SuppressWarnings(Array("AsInstanceOf"))
   private[this] def encode(topic: String, data: A): Try[Array[Byte]] =
     Option(data) match {
-      case None => Success(null.asInstanceOf[Array[Byte]])
       case Some(d) =>
         Try(ser.serialize(topic, format.to(d))) match {
-          case v @ Success(_) => v
+          case ab @ Success(_) => ab
           case Failure(ex) =>
             Failure(EncodeException(s"""|encode avro failed: 
                                         |topic:    $topic
@@ -52,6 +51,7 @@ final class KafkaAvroSerde[A: Encoder: Decoder: SchemaFor] extends Serde[A] {
                                         |data:     $data
                                         |schema:   ${schema.toString()}""".stripMargin))
         }
+      case None => Success(null.asInstanceOf[Array[Byte]])
     }
 
   override def close(): Unit = {
