@@ -10,9 +10,9 @@ val contextual     = "1.2.1"
 val kittens        = "2.0.0"
 val catsCore       = "2.0.0"
 val catsEffect     = "2.0.0"
+val fs2Version     = "2.0.0"
 val catsMtl        = "0.6.0"
 val catsTime       = "0.3.0-M1"
-val fs2Version     = "2.0.0"
 val monocleVersion = "2.0.0-RC1"
 val refined        = "0.9.9"
 val zioCats        = "2.0.0.0-RC3"
@@ -135,6 +135,7 @@ val base = Seq(
   "io.chrisdavenport" %% "cats-time"  % catsTime,
   "eu.timepit" %% "refined"           % refined,
   "org.typelevel" %% "cats-core"      % catsCore,
+  "org.typelevel" %% "cats-free"      % catsCore,
   "org.typelevel" %% "alleycats-core" % catsCore,
   "org.typelevel" %% "cats-mtl-core"  % catsMtl,
   "org.typelevel" %% "kittens"        % kittens,
