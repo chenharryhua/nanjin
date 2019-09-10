@@ -9,12 +9,12 @@ import akka.kafka.ConsumerMessage.{
   PartitionOffset
 }
 import akka.kafka.ProducerMessage.Message
-import com.github.chenharryhua.nanjin.codec.BitraverseAkkaMessage
+import com.github.chenharryhua.nanjin.codec.MessagePropertiesAkka
 import org.scalacheck.Gen
 
 import scala.concurrent.Future
 
-trait AkkaMessageGen extends KafkaRawMessageGen with BitraverseAkkaMessage {
+trait AkkaMessageGen extends KafkaRawMessageGen with MessagePropertiesAkka {
 
   val genGroupTopicPartition: Gen[GroupTopicPartition] = for {
     groupId <- Gen.asciiPrintableStr

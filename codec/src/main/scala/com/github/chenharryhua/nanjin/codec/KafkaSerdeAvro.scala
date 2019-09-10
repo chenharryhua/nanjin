@@ -8,7 +8,7 @@ import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 
 import scala.util.{Failure, Success, Try}
 
-final class KafkaAvroSerde[A: Encoder: Decoder: SchemaFor] extends Serde[A] {
+final class KafkaSerdeAvro[A: Encoder: Decoder: SchemaFor] extends Serde[A] {
   private[this] val format: RecordFormat[A]        = RecordFormat[A]
   private[this] val schema: Schema                 = AvroSchema[A]
   private[this] val ser: GenericAvroSerializer     = new GenericAvroSerializer

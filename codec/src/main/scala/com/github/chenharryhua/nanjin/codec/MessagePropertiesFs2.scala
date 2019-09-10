@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.codec
+import cats.Eq
 import cats.implicits._
-import cats.{Applicative, Bitraverse, Eq, Eval}
-import fs2.Chunk
 import fs2.kafka.{
   CommittableConsumerRecord,
   CommittableOffset,
@@ -19,7 +18,7 @@ import org.apache.kafka.common.record.TimestampType
 
 import scala.compat.java8.OptionConverters._
 
-trait BitraverseFs2Message extends BitraverseKafkaRecord {
+trait MessagePropertiesFs2 extends BitraverseKafkaRecord {
 
   final def fromKafkaProducerRecord[K, V](pr: ProducerRecord[K, V]): Fs2ProducerRecord[K, V] =
     Fs2ProducerRecord(pr.topic, pr.key, pr.value)
@@ -104,50 +103,4 @@ trait BitraverseFs2Message extends BitraverseKafkaRecord {
     : Eq[CommittableConsumerRecord[F, K, V]] =
     (x: CommittableConsumerRecord[F, K, V], y: CommittableConsumerRecord[F, K, V]) =>
       (x.record === y.record) && (x.offset === y.offset)
-
-  implicit final def bitraverseFs2CommittableMessage[F[_]]
-    : Bitraverse[CommittableConsumerRecord[F, *, *]] =
-    new Bitraverse[CommittableConsumerRecord[F, *, *]] {
-      override def bitraverse[G[_]: Applicative, A, B, C, D](
-        fab: CommittableConsumerRecord[F, A, B])(
-        f: A => G[C],
-        g: B => G[D]): G[CommittableConsumerRecord[F, C, D]] =
-        isoFs2ComsumerRecord
-          .get(fab.record)
-          .bitraverse(f, g)
-          .map(r => CommittableConsumerRecord(isoFs2ComsumerRecord.reverseGet(r), fab.offset))
-
-      override def bifoldLeft[A, B, C](fab: CommittableConsumerRecord[F, A, B], c: C)(
-        f: (C, A) => C,
-        g: (C, B) => C): C =
-        isoFs2ComsumerRecord.get(fab.record).bifoldLeft(c)(f, g)
-
-      override def bifoldRight[A, B, C](fab: CommittableConsumerRecord[F, A, B], c: Eval[C])(
-        f: (A, Eval[C]) => Eval[C],
-        g: (B, Eval[C]) => Eval[C]): Eval[C] =
-        isoFs2ComsumerRecord.get(fab.record).bifoldRight(c)(f, g)
-    }
-
-  implicit final def bitraverseFs2ProducerMessage[P]: Bitraverse[ProducerRecords[*, *, P]] =
-    new Bitraverse[ProducerRecords[*, *, P]] {
-      override def bitraverse[G[_]: Applicative, A, B, C, D](
-        fab: ProducerRecords[A, B, P])(f: A => G[C], g: B => G[D]): G[ProducerRecords[C, D, P]] =
-        fab.records.traverse(isoFs2ProducerRecord.get(_).bitraverse(f, g)).map { pr =>
-          ProducerRecords[Chunk, C, D, P](pr.map(isoFs2ProducerRecord.reverseGet), fab.passthrough)
-        }
-
-      override def bifoldLeft[A, B, C](fab: ProducerRecords[A, B, P], c: C)(
-        f: (C, A) => C,
-        g: (C, B) => C): C =
-        fab.records.foldLeft(c) {
-          case (ec, pr) => isoFs2ProducerRecord.get(pr).bifoldLeft(ec)(f, g)
-        }
-
-      override def bifoldRight[A, B, C](fab: ProducerRecords[A, B, P], c: Eval[C])(
-        f: (A, Eval[C]) => Eval[C],
-        g: (B, Eval[C]) => Eval[C]): Eval[C] =
-        fab.records.foldRight(c) {
-          case (pr, ec) => isoFs2ProducerRecord.get(pr).bifoldRight(ec)(f, g)
-        }
-    }
 }

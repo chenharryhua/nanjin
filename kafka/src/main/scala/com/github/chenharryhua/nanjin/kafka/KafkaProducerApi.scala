@@ -6,9 +6,9 @@ import cats.effect.concurrent.Deferred
 import cats.effect.{ConcurrentEffect, IO, Sync}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.codec.{
-  BitraverseFs2Message,
   KafkaCodec,
-  KafkaProducerRecordEncoder
+  KafkaProducerRecordEncoder,
+  MessagePropertiesFs2
 }
 import fs2.Chunk
 import fs2.kafka.{KafkaByteProducer, ProducerRecord => Fs2ProducerRecord}
@@ -38,7 +38,7 @@ trait KafkaProducerApi[F[_], K, V] {
   def send(kvs: Chunk[(K, V)]): F[Chunk[RecordMetadata]]
 }
 
-object KafkaProducerApi extends BitraverseFs2Message {
+object KafkaProducerApi extends MessagePropertiesFs2 {
 
   def apply[F[_]: ConcurrentEffect, K, V](
     topicName: String,

@@ -1,7 +1,7 @@
 package mtest
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.codec.BitraverseFs2Message
+import com.github.chenharryhua.nanjin.codec.MessagePropertiesFs2
 import fs2.Chunk
 import org.scalacheck.Gen
 import fs2.kafka.{
@@ -14,7 +14,7 @@ import fs2.kafka.{
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
 
-trait Fs2MessageGen extends KafkaRawMessageGen with BitraverseFs2Message {
+trait Fs2MessageGen extends KafkaRawMessageGen with MessagePropertiesFs2 {
 
   val genFs2ConsumerRecord: Gen[Fs2ConsumerRecord[Int, Int]] =
     genConsumerRecord.map(fromKafkaConsumerRecord)

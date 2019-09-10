@@ -7,7 +7,7 @@ import fs2.kafka.CommittableConsumerRecord
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
 
-trait ShowKafkaMessage extends BitraverseFs2Message {
+trait ShowKafkaMessage extends MessagePropertiesFs2 {
 
   implicit protected def showConsumerRecords[K: Show, V: Show]: Show[ConsumerRecord[K, V]] =
     (t: ConsumerRecord[K, V]) => {

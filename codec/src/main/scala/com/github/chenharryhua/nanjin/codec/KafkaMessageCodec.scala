@@ -7,7 +7,7 @@ import org.apache.kafka.clients.producer.ProducerRecord
 
 import scala.util.{Success, Try}
 
-final class KafkaGenericDecoder[F[_, _]: Bitraverse, K, V](
+final class KafkaGenericDecoder[F[_, _]: LikeConsumerRecord, K, V](
   keyCodec: KafkaCodec[K],
   valueCodec: KafkaCodec[V]) {
 
@@ -76,7 +76,7 @@ final class AkkaMessageEncoder[K, V](topicName: String) {
     ProducerMessage.multi(msg.map(kv => record(kv._1, kv._2)), cof)
 }
 
-final class Fs2MessageEncoder[F[_], K, V](topicName: String) extends BitraverseFs2Message {
+final class Fs2MessageEncoder[F[_], K, V](topicName: String) extends MessagePropertiesFs2 {
   import fs2.Chunk
   import fs2.kafka.{CommittableOffset, ProducerRecords, ProducerRecord => Fs2ProducerRecord}
 
