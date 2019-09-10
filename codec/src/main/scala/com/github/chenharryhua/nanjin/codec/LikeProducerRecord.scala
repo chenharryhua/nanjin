@@ -19,17 +19,13 @@ sealed trait LikeProducerRecord[F[_, _]] extends Bitraverse[F] with BitraverseKa
     implicit G: Applicative[G]): G[F[C, D]] =
     lens.modifyF((pr: ProducerRecord[A, B]) => pr.bitraverse(f, g))(fab)
 
-  final override def bifoldLeft[A, B, C](fab: F[A, B], c: C)(f: (C, A) => C, g: (C, B) => C): C = {
-    val pr = lens.get(fab)
-    g(f(c, pr.key), pr.value)
-  }
+  final override def bifoldLeft[A, B, C](fab: F[A, B], c: C)(f: (C, A) => C, g: (C, B) => C): C =
+    lens.get(fab).bifoldLeft(c)(f, g)
 
   final override def bifoldRight[A, B, C](fab: F[A, B], c: Eval[C])(
     f: (A, Eval[C]) => Eval[C],
-    g: (B, Eval[C]) => Eval[C]): Eval[C] = {
-    val pr = lens.get(fab)
-    g(pr.value, f(pr.key, c))
-  }
+    g: (B, Eval[C]) => Eval[C]): Eval[C] =
+    lens.get(fab).bifoldRight(c)(f, g)
 }
 
 object LikeProducerRecord {
