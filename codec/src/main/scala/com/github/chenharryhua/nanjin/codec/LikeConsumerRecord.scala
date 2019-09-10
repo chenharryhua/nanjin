@@ -62,7 +62,7 @@ object LikeConsumerRecord {
           Fs2ConsumerRecord[K1, V1],
           Fs2ConsumerRecord[K2, V2],
           ConsumerRecord[K1, V1],
-          ConsumerRecord[K2, V2]](toKafkaConsumerRecord)(b => _ => fromKafkaConsumerRecord(b))
+          ConsumerRecord[K2, V2]](toConsumerRecord)(b => _ => fromConsumerRecord(b))
     }
 
   implicit val akkaConsumerMessageLike: LikeConsumerRecord[AkkaConsumerMessage] =
@@ -90,7 +90,7 @@ object LikeConsumerRecord {
           Fs2ConsumerMessage[F, K1, V1],
           Fs2ConsumerMessage[F, K2, V2],
           ConsumerRecord[K1, V1],
-          ConsumerRecord[K2, V2]](cm => toKafkaConsumerRecord(cm.record))(b =>
-          s                          => Fs2ConsumerMessage(fromKafkaConsumerRecord(b), s.offset))
+          ConsumerRecord[K2, V2]](cm => toConsumerRecord(cm.record))(b =>
+          s                          => Fs2ConsumerMessage(fromConsumerRecord(b), s.offset))
     }
 }

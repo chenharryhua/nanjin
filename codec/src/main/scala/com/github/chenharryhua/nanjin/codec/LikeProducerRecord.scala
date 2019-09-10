@@ -61,7 +61,7 @@ object LikeProducerRecord {
           Fs2ProducerRecord[K1, V1],
           Fs2ProducerRecord[K2, V2],
           ProducerRecord[K1, V1],
-          ProducerRecord[K2, V2]](toKafkaProducerRecord)(b => _ => fromKafkaProducerRecord(b))
+          ProducerRecord[K2, V2]](toProducerRecord)(b => _ => fromProducerRecord(b))
     }
 
   implicit def akkaProducerMessageLike[P]: LikeProducerRecord[AkkaProducerMessage[*, *, P]] =

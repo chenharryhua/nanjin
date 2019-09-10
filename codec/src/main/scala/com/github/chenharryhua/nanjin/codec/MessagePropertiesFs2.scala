@@ -20,13 +20,13 @@ import scala.compat.java8.OptionConverters._
 
 trait MessagePropertiesFs2 extends BitraverseKafkaRecord {
 
-  final def fromKafkaProducerRecord[K, V](pr: ProducerRecord[K, V]): Fs2ProducerRecord[K, V] =
+  final def fromProducerRecord[K, V](pr: ProducerRecord[K, V]): Fs2ProducerRecord[K, V] =
     Fs2ProducerRecord(pr.topic, pr.key, pr.value)
       .withPartition(pr.partition)
       .withTimestamp(pr.timestamp)
       .withHeaders(pr.headers.toArray.foldLeft(Headers.empty)((t, i) => t.append(i.key, i.value)))
 
-  final def toKafkaProducerRecord[K, V](fpr: Fs2ProducerRecord[K, V]): ProducerRecord[K, V] =
+  final def toProducerRecord[K, V](fpr: Fs2ProducerRecord[K, V]): ProducerRecord[K, V] =
     new ProducerRecord[K, V](
       fpr.topic,
       fpr.partition.map(new java.lang.Integer(_)).orNull,
@@ -36,10 +36,9 @@ trait MessagePropertiesFs2 extends BitraverseKafkaRecord {
       fpr.headers.asJava)
 
   final def isoFs2ProducerRecord[K, V]: Iso[Fs2ProducerRecord[K, V], ProducerRecord[K, V]] =
-    Iso[Fs2ProducerRecord[K, V], ProducerRecord[K, V]](toKafkaProducerRecord)(
-      fromKafkaProducerRecord)
+    Iso[Fs2ProducerRecord[K, V], ProducerRecord[K, V]](toProducerRecord)(fromProducerRecord)
 
-  final def fromKafkaConsumerRecord[K, V](cr: ConsumerRecord[K, V]): Fs2ConsumerRecord[K, V] = {
+  final def fromConsumerRecord[K, V](cr: ConsumerRecord[K, V]): Fs2ConsumerRecord[K, V] = {
     val epoch: Option[Int] = cr.leaderEpoch().asScala.map(_.intValue())
     val fcr =
       Fs2ConsumerRecord[K, V](cr.topic(), cr.partition(), cr.offset(), cr.key(), cr.value())
@@ -54,7 +53,7 @@ trait MessagePropertiesFs2 extends BitraverseKafkaRecord {
     epoch.fold[Fs2ConsumerRecord[K, V]](fcr)(e => fcr.withLeaderEpoch(e))
   }
 
-  final def toKafkaConsumerRecord[K, V](fcr: Fs2ConsumerRecord[K, V]): ConsumerRecord[K, V] =
+  final def toConsumerRecord[K, V](fcr: Fs2ConsumerRecord[K, V]): ConsumerRecord[K, V] =
     new ConsumerRecord[K, V](
       fcr.topic,
       fcr.partition,
@@ -76,8 +75,7 @@ trait MessagePropertiesFs2 extends BitraverseKafkaRecord {
     )
 
   final def isoFs2ComsumerRecord[K, V]: Iso[Fs2ConsumerRecord[K, V], ConsumerRecord[K, V]] =
-    Iso[Fs2ConsumerRecord[K, V], ConsumerRecord[K, V]](toKafkaConsumerRecord)(
-      fromKafkaConsumerRecord)
+    Iso[Fs2ConsumerRecord[K, V], ConsumerRecord[K, V]](toConsumerRecord)(fromConsumerRecord)
 
   implicit def eqCommittableOffsetFs2[F[_]]: Eq[CommittableOffset[F]] =
     (x: CommittableOffset[F], y: CommittableOffset[F]) =>

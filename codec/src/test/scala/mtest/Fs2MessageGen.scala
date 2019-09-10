@@ -17,10 +17,10 @@ import org.apache.kafka.common.TopicPartition
 trait Fs2MessageGen extends KafkaRawMessageGen with MessagePropertiesFs2 {
 
   val genFs2ConsumerRecord: Gen[Fs2ConsumerRecord[Int, Int]] =
-    genConsumerRecord.map(fromKafkaConsumerRecord)
+    genConsumerRecord.map(fromConsumerRecord)
 
   val genFs2ProducerRecord: Gen[Fs2ProducerRecord[Int, Int]] =
-    genProducerRecord.map(fromKafkaProducerRecord)
+    genProducerRecord.map(fromProducerRecord)
 
   val genCommittableOffset: Gen[CommittableOffset[IO]] =
     for {
