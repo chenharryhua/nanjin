@@ -17,7 +17,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
 import com.github.chenharryhua.nanjin.codec.EqMessage
 
-class LensTest extends AnyFunSuite with Discipline with EqMessage{
+class LensTest extends AnyFunSuite with Discipline {
 
   checkAll(
     "fs2.CommittableConsumerRecord",

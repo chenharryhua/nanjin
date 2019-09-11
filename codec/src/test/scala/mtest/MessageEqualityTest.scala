@@ -11,9 +11,8 @@ import org.scalacheck.Arbitrary
 import org.scalacheck.Arbitrary._
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
-import com.github.chenharryhua.nanjin.codec.EqMessage
 
-class MessageEqualityTest extends AnyFunSuite with Discipline with EqMessage{
+class MessageEqualityTest extends AnyFunSuite with Discipline {
 
   implicit val arbOptionalInteger: Arbitrary[Optional[Integer]] = Arbitrary(genOptionalInteger)
   implicit val arbOptionalIntegerF: Arbitrary[Optional[Integer] => Optional[Integer]] =

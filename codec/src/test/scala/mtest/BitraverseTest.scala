@@ -18,7 +18,7 @@ import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
 
-class BitraverseTest extends AnyFunSuite with Discipline with EqMessage {
+class BitraverseTest extends AnyFunSuite with Discipline {
   implicit val akkaCMBitraverse = LikeConsumerRecord[ConsumerMessage.CommittableMessage]
   implicit val akkaPMBitraverse = LikeProducerRecord[ProducerMessage.Message[*, *, String]]
 

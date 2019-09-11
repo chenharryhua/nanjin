@@ -1,16 +1,15 @@
 package mtest
 
 import cats.implicits._
+import com.github.chenharryhua.nanjin.codec._
 import fs2.kafka.{ConsumerRecord => Fs2ConsumerRecord, ProducerRecord => Fs2ProducerRecord}
 import monocle.law.discipline.IsoTests
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
-import org.scalacheck.Arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
-import com.github.chenharryhua.nanjin.codec._
 
-class IsoTest extends AnyFunSuite with Discipline with EqMessage{
+class IsoTest extends AnyFunSuite with Discipline {
 
   checkAll(
     "fs2.ProducerRecord",

@@ -8,9 +8,13 @@ import fs2.kafka.{
   ProducerRecord            => Fs2ProducerRecord
 }
 import org.scalacheck.Arbitrary
+import Arbitrary.arbitrary
 import akka.kafka.ConsumerMessage.{CommittableMessage => AkkaConsumerMessage}
 import akka.kafka.ProducerMessage.{Message            => AkkaProducerMessage}
 import cats.effect.IO
+import com.github.chenharryhua.nanjin.codec.LikeConsumerRecord._
+import com.github.chenharryhua.nanjin.codec.LikeProducerRecord._
+
 import genMessage._
 final case class PrimitiveTypeCombined(
   a: Int,
@@ -19,24 +23,36 @@ final case class PrimitiveTypeCombined(
   d: Double,
   e: String
 )
+import cats.implicits._
 
 trait ArbitraryData extends GenKafkaMessage with GenFs2Message with GenAkkaMessage {
   //kafka
   implicit val abKafkaConsumerRecord: Arbitrary[ConsumerRecord[Int, Int]] =
     Arbitrary(genConsumerRecord)
 
-  implicit val abKafkaConsumerRecordF = Arbitrary((cm: ConsumerRecord[Int, Int]) => cm)
+  implicit val abKafkaConsumerRecordF
+    : Arbitrary[ConsumerRecord[Int, Int] => ConsumerRecord[Int, Int]] =
+    Arbitrary(for {
+      i <- arbitrary[Int]
+      j <- arbitrary[Int]
+    } yield (cm: ConsumerRecord[Int, Int]) => cm.bimap(_ + i, _ - j))
 
   implicit val abKafkaProducerRecord: Arbitrary[ProducerRecord[Int, Int]] =
     Arbitrary(genProducerRecord)
 
-  implicit val abKafkaProducerRecordF = Arbitrary((pr: ProducerRecord[Int, Int]) => pr)
+  implicit val abKafkaProducerRecordF
+    : Arbitrary[ProducerRecord[Int, Int] => ProducerRecord[Int, Int]] =
+    Arbitrary(for {
+      i <- arbitrary[Int]
+      j <- arbitrary[Int]
+    } yield (cm: ProducerRecord[Int, Int]) => cm.bimap(_ - i, _ + j))
 
   //fs2
   implicit val abFs2ConsumerRecord: Arbitrary[Fs2ConsumerRecord[Int, Int]] =
     Arbitrary(genFs2ConsumerRecord)
 
-  implicit val abFs2ConsumerRecordF = Arbitrary((cm: Fs2ConsumerRecord[Int, Int]) => cm)
+  implicit val abFs2ConsumerRecordF = Arbitrary(
+    (cm: Fs2ConsumerRecord[Int, Int]) => cm.bimap(_ - 1, _ + 1))
 
   implicit val abFs2ConsumerMessage: Arbitrary[Fs2ConsumerMessage[IO, Int, Int]] =
     Arbitrary(genFs2ConsumerMessage)
