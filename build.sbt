@@ -13,7 +13,7 @@ val catsEffect     = "2.0.0"
 val fs2Version     = "2.0.0"
 val catsMtl        = "0.6.0"
 val catsTime       = "0.3.0-M1"
-val monocleVersion = "2.0.0-RC1"
+val monocleVersion = "2.0.0"
 val refined        = "0.9.9"
 val zioCats        = "2.0.0.0-RC3"
 
