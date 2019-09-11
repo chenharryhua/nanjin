@@ -1,6 +1,7 @@
 package mtest
 
 import akka.kafka.{ConsumerMessage, ProducerMessage}
+import cats.Id
 import cats.effect.IO
 import cats.implicits._
 import cats.laws.discipline.BitraverseTests
@@ -12,10 +13,12 @@ import fs2.kafka.{
 }
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
+import org.scalacheck.Arbitrary.arbitrary
+import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
 
-class BitraverseTest extends AnyFunSuite with Discipline with EqMessage{
+class BitraverseTest extends AnyFunSuite with Discipline with EqMessage {
   implicit val akkaCMBitraverse = LikeConsumerRecord[ConsumerMessage.CommittableMessage]
   implicit val akkaPMBitraverse = LikeProducerRecord[ProducerMessage.Message[*, *, String]]
 
@@ -26,10 +29,13 @@ class BitraverseTest extends AnyFunSuite with Discipline with EqMessage{
   implicit val kafkaCRBitraverse = LikeConsumerRecord[ConsumerRecord]
   implicit val kafkaPRBitraverse = LikeProducerRecord[ProducerRecord]
 
+  implicit val arbChain: Arbitrary[List[Int]] =
+    Arbitrary(Gen.containerOfN[List, Int](3, arbitrary[Int]))
+
   checkAll(
     "fs2.CommittableConsumerRecord",
     BitraverseTests[CommittableConsumerRecord[IO, *, *]]
-      .bitraverse[List, Int, Int, Int, Int, Int, Int])
+      .bitraverse[Id, Int, Int, Int, Int, Int, Int])
 
   checkAll(
     "fs2.ConsumerRecord",
@@ -37,17 +43,17 @@ class BitraverseTest extends AnyFunSuite with Discipline with EqMessage{
 
   checkAll(
     "fs2.ProducerRecord",
-    BitraverseTests[Fs2ProducerRecord].bitraverse[Option, Int, Int, Int, Int, Int, Int])
+    BitraverseTests[Fs2ProducerRecord].bitraverse[List, Int, Int, Int, Int, Int, Int])
 
   checkAll(
     "akka.ProducerMessage",
     BitraverseTests[ProducerMessage.Message[*, *, String]]
-      .bitraverse[List, Int, Int, Int, Int, Int, Int])
+      .bitraverse[Either[String, *], Int, Int, Int, Int, Int, Int])
 
   checkAll(
     "akka.CommittableMessage",
     BitraverseTests[ConsumerMessage.CommittableMessage]
-      .bitraverse[Option, Int, Int, Int, Int, Int, Int])
+      .bitraverse[Either[Long, *], Int, Int, Int, Int, Int, Int])
 
   checkAll(
     "kafka.ConsumerRecord",
