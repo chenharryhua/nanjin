@@ -1,18 +1,10 @@
 import com.github.chenharryhua.nanjin.codec.{KJson, KafkaCodec, SerdeOf}
 import io.circe.generic.auto._
 import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig
-package object mtest {
+package object mtest extends ArbitraryData {
 
   val sr: Map[String, String] =
     Map(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG -> "http://localhost:8081")
-
-  final case class PrimitiveTypeCombined(
-    a: Int,
-    b: Long,
-    c: Float,
-    d: Double,
-    e: String
-  )
 
   val strCodec       = SerdeOf[String].asValue(sr).codec("topic.str")
   val intCodec       = SerdeOf[Int].asKey(sr).codec("topic.int")
@@ -26,4 +18,5 @@ package object mtest {
 
   val jsonPrimCodec: KafkaCodec[KJson[PrimitiveTypeCombined]] =
     SerdeOf[KJson[PrimitiveTypeCombined]].asValue(sr).codec(s"topic.json")
+
 }

@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.codec
 
-import cats.Bitraverse
 import cats.implicits._
 import fs2.kafka.KafkaByteProducerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
@@ -76,7 +75,7 @@ final class AkkaMessageEncoder[K, V](topicName: String) {
     ProducerMessage.multi(msg.map(kv => record(kv._1, kv._2)), cof)
 }
 
-final class Fs2MessageEncoder[F[_], K, V](topicName: String) extends MessagePropertiesFs2 {
+final class Fs2MessageEncoder[F[_], K, V](topicName: String) extends Fs2KafkaIso {
   import fs2.Chunk
   import fs2.kafka.{CommittableOffset, ProducerRecords, ProducerRecord => Fs2ProducerRecord}
 

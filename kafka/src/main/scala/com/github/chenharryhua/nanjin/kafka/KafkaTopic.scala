@@ -30,7 +30,7 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
   sharedConsumer: Eval[MVar[F, KafkaByteConsumer]],
   sharedProducer: Eval[KafkaByteProducer],
   materializer: Eval[ActorMaterializer])
-    extends TopicNameExtractor[K, V] with BitraverseKafkaRecord {
+    extends TopicNameExtractor[K, V] {
   import topicDef.{serdeOfKey, serdeOfValue, showKey, showValue}
 
   val topicName: String = topicDef.topicName

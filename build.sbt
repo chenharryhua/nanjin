@@ -95,7 +95,7 @@ val avro = Seq(
 ).map(_ % avroVersion) ++
   Seq(
     "com.sksamuel.avro4s" %% "avro4s-core" % avro4s,
-    ("io.confluent" % "kafka-streams-avro-serde" % confluent).classifier(""),
+    ("io.confluent" % "kafka-streams-avro-serde" % "5.3.1").classifier(""),
     "com.julianpeeters" %% "avrohugger-core" % avrohugger
   )
 

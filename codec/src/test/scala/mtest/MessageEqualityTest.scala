@@ -11,8 +11,9 @@ import org.scalacheck.Arbitrary
 import org.scalacheck.Arbitrary._
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
+import com.github.chenharryhua.nanjin.codec.EqMessage
 
-class MessageEqualityTest extends AnyFunSuite with Discipline with KafkaRawMessageGen {
+class MessageEqualityTest extends AnyFunSuite with Discipline with EqMessage{
 
   implicit val arbOptionalInteger: Arbitrary[Optional[Integer]] = Arbitrary(genOptionalInteger)
   implicit val arbOptionalIntegerF: Arbitrary[Optional[Integer] => Optional[Integer]] =
@@ -25,14 +26,6 @@ class MessageEqualityTest extends AnyFunSuite with Discipline with KafkaRawMessa
 
   implicit val arbitraryHeadersF: Arbitrary[Headers => Headers] =
     Arbitrary((a: Headers) => a.add(new RecordHeader("a", Array(1, 2, 3): Array[Byte])))
-
-  implicit val arbConsumerRecord: Arbitrary[ConsumerRecord[Int, Int]] = Arbitrary(genConsumerRecord)
-  implicit val arbConsumerRecordF: Arbitrary[ConsumerRecord[Int, Int] => ConsumerRecord[Int, Int]] =
-    Arbitrary((a: ConsumerRecord[Int, Int]) => a)
-
-  implicit val arbProducerRecord: Arbitrary[ProducerRecord[Int, Int]] = Arbitrary(genProducerRecord)
-  implicit val arbProducerRecordF: Arbitrary[ProducerRecord[Int, Int] => ProducerRecord[Int, Int]] =
-    Arbitrary((a: ProducerRecord[Int, Int]) => a)
 
   checkAll("Array[Byte]", EqTests[Array[Byte]].eqv)
   checkAll("Header", EqTests[Header].eqv)

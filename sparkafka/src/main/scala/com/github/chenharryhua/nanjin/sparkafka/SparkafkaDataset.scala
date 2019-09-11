@@ -5,7 +5,7 @@ import java.util
 
 import cats.Monad
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.{BitraverseKafkaRecord, SerdeOf}
+import com.github.chenharryhua.nanjin.codec._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import frameless.{TypedDataset, TypedEncoder}
 import monocle.function.At.remove
@@ -17,7 +17,7 @@ import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies}
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
-object SparkafkaDataset extends BitraverseKafkaRecord {
+object SparkafkaDataset {
 
   private def props(maps: Map[String, String]): util.Map[String, Object] =
     (Map(

@@ -10,13 +10,10 @@ import fs2.kafka.{
 import monocle.PLens
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
-sealed trait LikeConsumerRecord[F[_, _]] extends Bitraverse[F] with BitraverseKafkaRecord {
+sealed trait LikeConsumerRecord[F[_, _]] extends Bitraverse[F] {
 
   def lens[K1, V1, K2, V2]
     : PLens[F[K1, V1], F[K2, V2], ConsumerRecord[K1, V1], ConsumerRecord[K2, V2]]
-
-  final override def bimap[K1, V1, K2, V2](fkv: F[K1, V1])(k: K1 => K2, v: V1 => V2): F[K2, V2] =
-    lens.modify((cr: ConsumerRecord[K1, V1]) => cr.bimap(k, v))(fkv)
 
   final override def bitraverse[G[_], A, B, C, D](fab: F[A, B])(f: A => G[C], g: B => G[D])(
     implicit G: Applicative[G]): G[F[C, D]] =
@@ -48,7 +45,7 @@ object LikeConsumerRecord {
           ConsumerRecord[K2, V2]](s => s)(b => _ => b)
     }
   implicit val fs2ConsumerRecordLike: LikeConsumerRecord[Fs2ConsumerRecord] =
-    new LikeConsumerRecord[Fs2ConsumerRecord] with MessagePropertiesFs2 {
+    new LikeConsumerRecord[Fs2ConsumerRecord] with Fs2KafkaIso {
       override def lens[K1, V1, K2, V2]: PLens[
         Fs2ConsumerRecord[K1, V1],
         Fs2ConsumerRecord[K2, V2],
@@ -76,7 +73,7 @@ object LikeConsumerRecord {
     }
 
   implicit def fs2ConsumerMessageLike[F[_]]: LikeConsumerRecord[Fs2ConsumerMessage[F, *, *]] =
-    new LikeConsumerRecord[Fs2ConsumerMessage[F, *, *]] with MessagePropertiesFs2 {
+    new LikeConsumerRecord[Fs2ConsumerMessage[F, *, *]] with Fs2KafkaIso {
       override def lens[K1, V1, K2, V2]: PLens[
         Fs2ConsumerMessage[F, K1, V1],
         Fs2ConsumerMessage[F, K2, V2],

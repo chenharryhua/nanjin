@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.Show
 import cats.effect.{Concurrent, ContextShift}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.{MessagePropertiesFs2, ShowKafkaMessage}
+import com.github.chenharryhua.nanjin.codec._
 import fs2.kafka.AutoOffsetReset
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
@@ -29,10 +29,10 @@ object KafkaMonitoringApi {
   ): KafkaMonitoringApi[F, K, V] =
     new KafkaTopicMonitoring[F, K, V](fs2Channel, consumer)
 
-  final private[kafka] class KafkaTopicMonitoring[F[_]: ContextShift, K: Show, V: Show](
+  final private class KafkaTopicMonitoring[F[_]: ContextShift, K: Show, V: Show](
     fs2Channel: KafkaChannels.Fs2Channel[F, K, V],
     consumer: KafkaConsumerApi[F, K, V])(implicit F: Concurrent[F])
-      extends KafkaMonitoringApi[F, K, V] with ShowKafkaMessage with MessagePropertiesFs2 {
+      extends KafkaMonitoringApi[F, K, V] with ShowKafkaMessage {
 
     private def watch(aor: AutoOffsetReset): F[Unit] =
       Keyboard.signal.flatMap { signal =>

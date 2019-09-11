@@ -2,14 +2,15 @@ package mtest
 
 import cats.Eq
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.{BitraverseKafkaRecord, KJson}
+import com.github.chenharryhua.nanjin.codec.KJson
 import monocle.law.discipline.PrismTests
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
+import com.github.chenharryhua.nanjin.codec.EqMessage
 
-class PrismTest extends AnyFunSuite with Discipline with BitraverseKafkaRecord {
+class PrismTest extends AnyFunSuite with Discipline with EqMessage {
 
   val pc: Gen[PrimitiveTypeCombined] = for {
     a <- arbitrary[Int]

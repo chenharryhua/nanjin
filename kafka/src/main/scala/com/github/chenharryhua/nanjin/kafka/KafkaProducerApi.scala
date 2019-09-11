@@ -5,11 +5,7 @@ import cats.data.Chain
 import cats.effect.concurrent.Deferred
 import cats.effect.{ConcurrentEffect, IO, Sync}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.{
-  KafkaCodec,
-  KafkaProducerRecordEncoder,
-  MessagePropertiesFs2
-}
+import com.github.chenharryhua.nanjin.codec._
 import fs2.Chunk
 import fs2.kafka.{KafkaByteProducer, ProducerRecord => Fs2ProducerRecord}
 import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
@@ -38,7 +34,7 @@ trait KafkaProducerApi[F[_], K, V] {
   def send(kvs: Chunk[(K, V)]): F[Chunk[RecordMetadata]]
 }
 
-object KafkaProducerApi extends MessagePropertiesFs2 {
+object KafkaProducerApi {
 
   def apply[F[_]: ConcurrentEffect, K, V](
     topicName: String,

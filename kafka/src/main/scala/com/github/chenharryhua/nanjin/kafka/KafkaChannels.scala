@@ -33,7 +33,7 @@ object KafkaChannels {
     consumerSettings: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]],
     keyCodec: KafkaCodec[K],
     valueCodec: KafkaCodec[V]
-  ) extends MessagePropertiesFs2 {
+  ) {
 
     import fs2.Stream
     import fs2.kafka.{consumerStream, KafkaProducer}
@@ -90,8 +90,7 @@ object KafkaChannels {
     committerSettings: AkkaCommitterSettings,
     keyCodec: KafkaCodec[K],
     valueCodec: KafkaCodec[V],
-    materializer: ActorMaterializer)
-      extends MessagePropertiesAkka {
+    materializer: ActorMaterializer) {
     import akka.kafka.ConsumerMessage.CommittableMessage
     import akka.kafka.ProducerMessage.Envelope
     import akka.kafka.scaladsl.{Committer, Consumer}
