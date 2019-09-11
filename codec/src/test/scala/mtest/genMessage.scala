@@ -80,10 +80,10 @@ object genMessage {
     import fs2.kafka.{CommittableConsumerRecord, CommittableOffset, ProducerRecords}
 
     val genFs2ConsumerRecord: Gen[Fs2ConsumerRecord[Int, Int]] =
-      genConsumerRecord.map(fromConsumerRecord)
+      genConsumerRecord.map(isoFs2ComsumerRecord.reverseGet)
 
     val genFs2ProducerRecord: Gen[Fs2ProducerRecord[Int, Int]] =
-      genProducerRecord.map(fromProducerRecord)
+      genProducerRecord.map(isoFs2ProducerRecord.reverseGet)
 
     val genFs2CommittableOffset: Gen[CommittableOffset[IO]] =
       for {

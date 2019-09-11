@@ -17,9 +17,7 @@ sealed trait KafkaCodec[A] {
   def encode(a: A): Array[Byte]
   def decode(ab: Array[Byte]): A
   final def tryDecode(ab: Array[Byte]): Try[A] =
-    Option(ab)
-      .fold[Try[Array[Byte]]](Failure(CodecException.DecodingNullException))(Success(_))
-      .flatMap(x => Try(decode(x)))
+    Option(ab).fold[Try[A]](Failure(CodecException.DecodingNullException))(x => Try(decode(x)))
   final val prism: Prism[Array[Byte], A] =
     Prism[Array[Byte], A](x => Try(decode(x)).toOption)(encode)
 }

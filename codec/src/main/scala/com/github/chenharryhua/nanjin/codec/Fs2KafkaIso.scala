@@ -15,14 +15,14 @@ import scala.compat.java8.OptionConverters._
 
 private[codec] trait Fs2KafkaIso {
 
-  final def fromProducerRecord[K, V](pr: ProducerRecord[K, V]): Fs2ProducerRecord[K, V] =
+  final protected def fromProducerRecord[K, V](pr: ProducerRecord[K, V]): Fs2ProducerRecord[K, V] =
     Fs2ProducerRecord(pr.topic, pr.key, pr.value)
       .withPartition(pr.partition)
       .withTimestamp(pr.timestamp)
       .withHeaders(
         pr.headers.toArray.foldLeft(Fs2Headers.empty)((t, i) => t.append(i.key, i.value)))
 
-  final def toProducerRecord[K, V](fpr: Fs2ProducerRecord[K, V]): ProducerRecord[K, V] =
+  final protected def toProducerRecord[K, V](fpr: Fs2ProducerRecord[K, V]): ProducerRecord[K, V] =
     new ProducerRecord[K, V](
       fpr.topic,
       fpr.partition.map(new java.lang.Integer(_)).orNull,
@@ -34,7 +34,8 @@ private[codec] trait Fs2KafkaIso {
   final def isoFs2ProducerRecord[K, V]: Iso[Fs2ProducerRecord[K, V], ProducerRecord[K, V]] =
     Iso[Fs2ProducerRecord[K, V], ProducerRecord[K, V]](toProducerRecord)(fromProducerRecord)
 
-  final def fromConsumerRecord[K, V](cr: ConsumerRecord[K, V]): Fs2ConsumerRecord[K, V] = {
+  final protected def fromConsumerRecord[K, V](
+    cr: ConsumerRecord[K, V]): Fs2ConsumerRecord[K, V] = {
     val epoch: Option[Int] = cr.leaderEpoch().asScala.map(_.intValue())
     val fcr =
       Fs2ConsumerRecord[K, V](cr.topic(), cr.partition(), cr.offset(), cr.key(), cr.value())
@@ -50,7 +51,7 @@ private[codec] trait Fs2KafkaIso {
     epoch.fold[Fs2ConsumerRecord[K, V]](fcr)(e => fcr.withLeaderEpoch(e))
   }
 
-  final def toConsumerRecord[K, V](fcr: Fs2ConsumerRecord[K, V]): ConsumerRecord[K, V] =
+  final protected def toConsumerRecord[K, V](fcr: Fs2ConsumerRecord[K, V]): ConsumerRecord[K, V] =
     new ConsumerRecord[K, V](
       fcr.topic,
       fcr.partition,

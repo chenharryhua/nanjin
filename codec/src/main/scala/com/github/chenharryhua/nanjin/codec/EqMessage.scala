@@ -73,12 +73,16 @@ trait EqMessage {
 
   implicit val eqGroupTopicPartitionAkka: Eq[AkkaGroupTopicPartition] =
     cats.derived.semi.eq[AkkaGroupTopicPartition]
+
   implicit val eqPartitionOffsetAkka: Eq[AkkaPartitionOffset] =
     cats.derived.semi.eq[AkkaPartitionOffset]
+
   implicit val eqCommittableOffsetAkka: Eq[AkkaCommittableOffset] =
     (x: AkkaCommittableOffset, y: AkkaCommittableOffset) => x.partitionOffset === y.partitionOffset
+
   implicit def eqCommittableMessageAkka[K: Eq, V: Eq]: Eq[AkkaConsumerMessage[K, V]] =
     cats.derived.semi.eq[AkkaConsumerMessage[K, V]]
+
   implicit def eqProducerMessageAkka[K: Eq, V: Eq, P: Eq]: Eq[AkkaProducerMessage[K, V, P]] =
     cats.derived.semi.eq[AkkaProducerMessage[K, V, P]]
 
