@@ -1,10 +1,10 @@
 package com.github.chenharryhua.nanjin.codec
 
-import akka.kafka.ConsumerMessage.{CommittableMessage => AkkaConsumerMessage}
+import akka.kafka.ConsumerMessage.{CommittableMessage => AkkaCommittableMessage}
 import cats.implicits._
 import cats.{Applicative, Bitraverse, Eval}
 import fs2.kafka.{
-  CommittableConsumerRecord => Fs2ConsumerMessage,
+  CommittableConsumerRecord => Fs2CommittableConsumerRecord,
   ConsumerRecord            => Fs2ConsumerRecord
 }
 import monocle.PLens
@@ -58,32 +58,33 @@ object LikeConsumerRecord {
           ConsumerRecord[K2, V2]](toConsumerRecord)(b => _ => fromConsumerRecord(b))
     }
 
-  implicit val akkaConsumerMessageLike: LikeConsumerRecord[AkkaConsumerMessage] =
-    new LikeConsumerRecord[AkkaConsumerMessage] {
+  implicit val akkaConsumerMessageLike: LikeConsumerRecord[AkkaCommittableMessage] =
+    new LikeConsumerRecord[AkkaCommittableMessage] {
       override def lens[K1, V1, K2, V2]: PLens[
-        AkkaConsumerMessage[K1, V1],
-        AkkaConsumerMessage[K2, V2],
+        AkkaCommittableMessage[K1, V1],
+        AkkaCommittableMessage[K2, V2],
         ConsumerRecord[K1, V1],
         ConsumerRecord[K2, V2]] =
         PLens[
-          AkkaConsumerMessage[K1, V1],
-          AkkaConsumerMessage[K2, V2],
+          AkkaCommittableMessage[K1, V1],
+          AkkaCommittableMessage[K2, V2],
           ConsumerRecord[K1, V1],
           ConsumerRecord[K2, V2]](_.record)(b => s => s.copy(record = b))
     }
 
-  implicit def fs2ConsumerMessageLike[F[_]]: LikeConsumerRecord[Fs2ConsumerMessage[F, *, *]] =
-    new LikeConsumerRecord[Fs2ConsumerMessage[F, *, *]] with Fs2KafkaIso {
+  implicit def fs2ConsumerMessageLike[F[_]]
+    : LikeConsumerRecord[Fs2CommittableConsumerRecord[F, *, *]] =
+    new LikeConsumerRecord[Fs2CommittableConsumerRecord[F, *, *]] with Fs2KafkaIso {
       override def lens[K1, V1, K2, V2]: PLens[
-        Fs2ConsumerMessage[F, K1, V1],
-        Fs2ConsumerMessage[F, K2, V2],
+        Fs2CommittableConsumerRecord[F, K1, V1],
+        Fs2CommittableConsumerRecord[F, K2, V2],
         ConsumerRecord[K1, V1],
         ConsumerRecord[K2, V2]] =
         PLens[
-          Fs2ConsumerMessage[F, K1, V1],
-          Fs2ConsumerMessage[F, K2, V2],
+          Fs2CommittableConsumerRecord[F, K1, V1],
+          Fs2CommittableConsumerRecord[F, K2, V2],
           ConsumerRecord[K1, V1],
           ConsumerRecord[K2, V2]](cm => toConsumerRecord(cm.record))(b =>
-          s                          => Fs2ConsumerMessage(fromConsumerRecord(b), s.offset))
+          s                          => Fs2CommittableConsumerRecord(fromConsumerRecord(b), s.offset))
     }
 }

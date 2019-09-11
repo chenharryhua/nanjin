@@ -8,7 +8,7 @@ import org.apache.kafka.clients.producer.ProducerRecord
 import org.scalacheck.Arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
-import com.github.chenharryhua.nanjin.codec.EqMessage
+import com.github.chenharryhua.nanjin.codec._
 
 class IsoTest extends AnyFunSuite with Discipline with EqMessage{
 
