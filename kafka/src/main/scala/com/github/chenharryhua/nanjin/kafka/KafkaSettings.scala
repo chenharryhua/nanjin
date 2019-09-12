@@ -196,6 +196,11 @@ import scala.util.Try
     timer: Timer[zio.Task],
     ce: ConcurrentEffect[zio.Task]) = new ZioKafkaContext(this)
 
+  def monixContext(
+    implicit contextShift: ContextShift[monix.eval.Task],
+    timer: Timer[monix.eval.Task],
+    ce: ConcurrentEffect[monix.eval.Task]) = new MonixKafkaContext(this)
+
   def show: String =
     s"""
        |kafka settings:

@@ -2,10 +2,10 @@ package com.github.chenharryhua.nanjin.kafka
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import cats.{Eval, Show}
 import cats.data.Reader
 import cats.effect.concurrent.MVar
 import cats.effect.{ConcurrentEffect, ContextShift, IO, Timer}
+import cats.{Eval, Show}
 import com.github.chenharryhua.nanjin.codec.{KeySerde, SerdeOf, ValueSerde}
 import fs2.Stream
 import fs2.kafka.{KafkaByteConsumer, KafkaByteProducer}
@@ -74,4 +74,8 @@ final class ZioKafkaContext(settings: KafkaSettings)(
   ce: ConcurrentEffect[zio.Task]
 ) extends KafkaContext[zio.Task](settings) {}
 
-final class MonixKafkaContext(settings: KafkaSettings) {}
+final class MonixKafkaContext(settings: KafkaSettings)(
+  implicit contextShift: ContextShift[monix.eval.Task],
+  timer: Timer[monix.eval.Task],
+  ce: ConcurrentEffect[monix.eval.Task])
+    extends KafkaContext[monix.eval.Task](settings) {}

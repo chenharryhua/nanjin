@@ -9,13 +9,15 @@ val shapeless      = "2.3.3"
 val contextual     = "1.2.1"
 val kittens        = "2.0.0"
 val catsCore       = "2.0.0"
-val catsEffect     = "2.0.0"
 val fs2Version     = "2.0.0"
 val catsMtl        = "0.7.0"
 val catsTime       = "0.3.0-M1"
 val monocleVersion = "2.0.0"
 val refined        = "0.9.9"
-val zioCats        = "2.0.0.0-RC3"
+
+val zioCats    = "2.0.0.0-RC3"
+val monix      = "3.0.0"
+val catsEffect = "2.0.0"
 
 val akkaKafka = "1.0.5"
 val fs2Kafka  = "0.20.0"
@@ -145,7 +147,8 @@ val base = Seq(
 
 val effect = Seq(
   "org.typelevel" %% "cats-effect" % catsEffect,
-  "dev.zio" %% "zio-interop-cats"  % zioCats
+  "dev.zio" %% "zio-interop-cats"  % zioCats,
+  "io.monix" %% "monix"            % monix
 )
 
 lazy val codec = (project in file("codec"))
