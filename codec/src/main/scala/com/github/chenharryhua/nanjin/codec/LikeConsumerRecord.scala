@@ -45,7 +45,7 @@ object LikeConsumerRecord {
           ConsumerRecord[K2, V2]](s => s)(b => _ => b)
     }
   implicit val fs2ConsumerRecordLike: LikeConsumerRecord[Fs2ConsumerRecord] =
-    new LikeConsumerRecord[Fs2ConsumerRecord] with Fs2KafkaIso {
+    new LikeConsumerRecord[Fs2ConsumerRecord] {
       override def lens[K1, V1, K2, V2]: PLens[
         Fs2ConsumerRecord[K1, V1],
         Fs2ConsumerRecord[K2, V2],
@@ -55,7 +55,9 @@ object LikeConsumerRecord {
           Fs2ConsumerRecord[K1, V1],
           Fs2ConsumerRecord[K2, V2],
           ConsumerRecord[K1, V1],
-          ConsumerRecord[K2, V2]](toConsumerRecord)(b => _ => fromConsumerRecord(b))
+          ConsumerRecord[K2, V2]](isoFs2ComsumerRecord.get) { b => _ =>
+          isoFs2ComsumerRecord.reverseGet(b)
+        }
     }
 
   implicit val akkaConsumerMessageLike: LikeConsumerRecord[AkkaCommittableMessage] =
@@ -74,7 +76,7 @@ object LikeConsumerRecord {
 
   implicit def fs2ConsumerMessageLike[F[_]]
     : LikeConsumerRecord[Fs2CommittableConsumerRecord[F, *, *]] =
-    new LikeConsumerRecord[Fs2CommittableConsumerRecord[F, *, *]] with Fs2KafkaIso {
+    new LikeConsumerRecord[Fs2CommittableConsumerRecord[F, *, *]] {
       override def lens[K1, V1, K2, V2]: PLens[
         Fs2CommittableConsumerRecord[F, K1, V1],
         Fs2CommittableConsumerRecord[F, K2, V2],
@@ -84,7 +86,8 @@ object LikeConsumerRecord {
           Fs2CommittableConsumerRecord[F, K1, V1],
           Fs2CommittableConsumerRecord[F, K2, V2],
           ConsumerRecord[K1, V1],
-          ConsumerRecord[K2, V2]](cm => toConsumerRecord(cm.record))(b =>
-          s                          => Fs2CommittableConsumerRecord(fromConsumerRecord(b), s.offset))
+          ConsumerRecord[K2, V2]](cm => isoFs2ComsumerRecord.get(cm.record)) { b => s =>
+          Fs2CommittableConsumerRecord(isoFs2ComsumerRecord.reverseGet(b), s.offset)
+        }
     }
 }

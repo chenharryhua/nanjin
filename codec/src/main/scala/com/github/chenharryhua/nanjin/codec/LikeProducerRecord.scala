@@ -44,7 +44,7 @@ object LikeProducerRecord {
     }
 
   implicit def fs2ProducerRecordLike[P]: LikeProducerRecord[Fs2ProducerRecord] =
-    new LikeProducerRecord[Fs2ProducerRecord] with Fs2KafkaIso {
+    new LikeProducerRecord[Fs2ProducerRecord] {
       override def lens[K1, V1, K2, V2]: PLens[
         Fs2ProducerRecord[K1, V1],
         Fs2ProducerRecord[K2, V2],
@@ -54,7 +54,9 @@ object LikeProducerRecord {
           Fs2ProducerRecord[K1, V1],
           Fs2ProducerRecord[K2, V2],
           ProducerRecord[K1, V1],
-          ProducerRecord[K2, V2]](toProducerRecord)(b => _ => fromProducerRecord(b))
+          ProducerRecord[K2, V2]](isoFs2ProducerRecord.get) { b => _ =>
+          isoFs2ProducerRecord.reverseGet(b)
+        }
     }
 
   implicit def akkaProducerMessageLike[P]: LikeProducerRecord[AkkaProducerMessage[*, *, P]] =
