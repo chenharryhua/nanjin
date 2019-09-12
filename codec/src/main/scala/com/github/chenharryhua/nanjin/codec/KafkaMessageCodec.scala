@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.codec
 
 import cats.implicits._
-import fs2.kafka.KafkaByteProducerRecord
+import fs2.kafka.{ProducerRecord => Fs2ProducerRecord, KafkaByteProducerRecord}
 import org.apache.kafka.clients.producer.ProducerRecord
 
 import scala.util.{Success, Try}
@@ -52,6 +52,10 @@ final class KafkaProducerRecordEncoder[K, V](
 
   def record(pr: ProducerRecord[K, V]): KafkaByteProducerRecord =
     pr.bimap(keyCodec.encode, valueCodec.encode)
+
+  def record(fpr: Fs2ProducerRecord[K, V]): KafkaByteProducerRecord =
+    isoFs2ProducerRecord.get(
+      LikeProducerRecord[Fs2ProducerRecord].bimap(fpr)(keyCodec.encode, valueCodec.encode))
 }
 
 final class AkkaMessageEncoder[K, V](topicName: String) {
@@ -77,7 +81,7 @@ final class AkkaMessageEncoder[K, V](topicName: String) {
 
 final class Fs2MessageEncoder[F[_], K, V](topicName: String) extends Fs2KafkaIso {
   import fs2.Chunk
-  import fs2.kafka.{CommittableOffset, ProducerRecords, ProducerRecord => Fs2ProducerRecord}
+  import fs2.kafka.{CommittableOffset, ProducerRecords}
 
   private def record(k: K, v: V): Fs2ProducerRecord[K, V] = Fs2ProducerRecord(topicName, k, v)
 

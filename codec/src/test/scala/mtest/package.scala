@@ -14,9 +14,9 @@ package object mtest extends ArbitraryData with EqMessage {
   val byteArrayCodec = SerdeOf[Array[Byte]].asKey(sr).codec("topic.byte.array")
 
   val primitiviesCodec =
-    SerdeOf[PrimitiveTypeCombined].asKey(sr).codec(s"topic.avro")
+    SerdeOf[PrimitiveTypeCombined].asKey(sr).codec("topic.avro")
 
   val jsonPrimCodec: KafkaCodec[KJson[PrimitiveTypeCombined]] =
-    SerdeOf[KJson[PrimitiveTypeCombined]].asValue(sr).codec(s"topic.json")
+    SerdeOf[KJson[PrimitiveTypeCombined]].asValue(sr).codec("topic.json")
 
 }

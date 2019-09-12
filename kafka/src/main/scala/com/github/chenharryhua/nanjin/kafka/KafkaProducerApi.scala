@@ -59,8 +59,7 @@ object KafkaProducerApi {
             data,
             (metadata: RecordMetadata, exception: Exception) => {
               val complete = deferred.complete {
-                Option(exception).fold[Either[Throwable, RecordMetadata]](Right(metadata))(ex =>
-                  Left(ex))
+                Option(exception).fold[Either[Throwable, RecordMetadata]](Right(metadata))(Left(_))
               }
               ConcurrentEffect[F].runAsync(complete)(_ => IO.unit).unsafeRunSync()
             }
@@ -68,17 +67,17 @@ object KafkaProducerApi {
         }.as(deferred.get.rethrow)
       }
 
-    override def send(pr: ProducerRecord[K, V]): F[RecordMetadata] =
-      doSend(encoder.record(pr)).flatten
-
-    override def send(fpr: Fs2ProducerRecord[K, V]): F[RecordMetadata] =
-      send(isoFs2ProducerRecord.get(fpr))
-
     override def arbitrarilySend(key: Array[Byte], value: Array[Byte]): F[RecordMetadata] =
       doSend(encoder.record(key, value)).flatten
 
     override def arbitrarilyValueSend(key: K, value: Array[Byte]): F[RecordMetadata] =
       doSend(encoder.record(key, value)).flatten
+
+    override def send(pr: ProducerRecord[K, V]): F[RecordMetadata] =
+      doSend(encoder.record(pr)).flatten
+
+    override def send(fpr: Fs2ProducerRecord[K, V]): F[RecordMetadata] =
+      doSend(encoder.record(fpr)).flatten
 
     override def arbitrarilyKeySend(key: Array[Byte], value: V): F[RecordMetadata] =
       doSend(encoder.record(key, value)).flatten

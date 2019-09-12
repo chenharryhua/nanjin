@@ -14,6 +14,7 @@ import akka.kafka.ProducerMessage.{Message            => AkkaProducerMessage}
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.codec.LikeConsumerRecord._
 import com.github.chenharryhua.nanjin.codec.LikeProducerRecord._
+import cats.implicits._
 
 import genMessage._
 final case class PrimitiveTypeCombined(
@@ -23,7 +24,6 @@ final case class PrimitiveTypeCombined(
   d: Double,
   e: String
 )
-import cats.implicits._
 
 trait ArbitraryData extends GenKafkaMessage with GenFs2Message with GenAkkaMessage {
   //kafka

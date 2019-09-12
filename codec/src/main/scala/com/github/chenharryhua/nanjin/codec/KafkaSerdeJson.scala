@@ -11,7 +11,7 @@ final case class KJson[A](value: A) extends AnyVal
 
 object KJson {
   implicit def showKafkaJson[A: Encoder]: Show[KJson[A]] =
-    (t: KJson[A]) => s"KJson(${t.value.asJson.noSpaces})"
+    (t: KJson[A]) => s"""KJson(${Option(t.value).map(_.asJson.noSpaces).getOrElse("null")})"""
   implicit def eqKJson[A: Eq]: Eq[KJson[A]] = cats.derived.semi.eq[KJson[A]]
 }
 
