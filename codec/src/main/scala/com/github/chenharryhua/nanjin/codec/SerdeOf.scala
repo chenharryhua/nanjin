@@ -11,7 +11,7 @@ import org.apache.kafka.streams.scala.Serdes
 
 import scala.annotation.{implicitAmbiguous, implicitNotFound}
 import scala.collection.JavaConverters._
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Try}
 
 sealed trait KafkaCodec[A] {
   def encode(a: A): Array[Byte]

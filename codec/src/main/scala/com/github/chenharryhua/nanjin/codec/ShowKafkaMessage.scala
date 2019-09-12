@@ -11,36 +11,36 @@ trait ShowKafkaMessage {
 
   implicit protected def showConsumerRecords[K: Show, V: Show]: Show[ConsumerRecord[K, V]] =
     (t: ConsumerRecord[K, V]) => {
-      val (utc, local) = utils.kafkaTimestamp(t.timestamp())
+      val ts = NJTimestamp(t.timestamp())
       s"""
          |consumer record:
          |topic:        ${t.topic()}
          |partition:    ${t.partition()}
          |offset:       ${t.offset()}
-         |local-time:   $local
+         |local-time:   ${ts.local}
          |ts-type:      ${t.timestampType()}
          |key:          ${Option(t.key).map(_.show).getOrElse("null")}
          |value:        ${Option(t.value).map(_.show).getOrElse("null")}
          |key-size:     ${t.serializedKeySize()}
          |value-size:   ${t.serializedValueSize()}
          |timestamp:    ${t.timestamp()}
-         |utc:          $utc
+         |utc:          ${ts.utc}
          |headers:      ${t.headers()}
          |leader epoch: ${t.leaderEpoch}""".stripMargin
     }
 
   implicit protected def showProducerRecord[K: Show, V: Show]: Show[ProducerRecord[K, V]] =
     (t: ProducerRecord[K, V]) => {
-      val (utc, local) = utils.kafkaTimestamp(t.timestamp())
+      val ts = NJTimestamp(t.timestamp())
       s"""
          |producer record:
          |topic:      ${t.topic}
          |partition:  ${t.partition}
-         |local-time: $local
+         |local-time: ${ts.local}
          |key:        ${Option(t.key).map(_.show).getOrElse("null")}
          |value:      ${Option(t.value).map(_.show).getOrElse("null")}
          |timestamp:  ${t.timestamp()}
-         |utc:        $utc
+         |utc:        ${ts.utc}
          |headers:    ${t.headers}""".stripMargin
     }
 
@@ -55,14 +55,14 @@ trait ShowKafkaMessage {
   implicit protected val showArrayByte: Show[Array[Byte]] = _ => "Array[Byte]"
 
   implicit protected def showRecordMetadata: Show[RecordMetadata] = { t: RecordMetadata =>
-    val (utc, local) = utils.kafkaTimestamp(t.timestamp())
+    val ts = NJTimestamp(t.timestamp())
     s"""
        |topic:     ${t.topic()}
        |partition: ${t.partition()}
        |offset:    ${t.offset()}
        |timestamp: ${t.timestamp()}
-       |utc:       $utc
-       |local:     $local
+       |utc:       ${ts.utc}
+       |local:     ${ts.local}
        |""".stripMargin
   }
 }
