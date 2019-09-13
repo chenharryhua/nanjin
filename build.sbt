@@ -19,7 +19,7 @@ val zioCats    = "2.0.0.0-RC3"
 val monix      = "3.0.0"
 val catsEffect = "2.0.0"
 
-val akkaKafka = "1.0.5"
+val akkaKafka = "1.1.0-RC1"
 val fs2Kafka  = "0.20.0"
 
 val sparkVersion     = "2.4.4"

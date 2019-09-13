@@ -26,21 +26,21 @@ trait Aggregations {
       import org.apache.spark.sql.functions.{col, count}
       import spark.implicits._
       val hour = tds.deserialized.map { m =>
-        utils.kafkaTimestamp(m.timestamp)._2.getHour
+        utils.kafkaTimestamp(m.timestamp).getHour
       }.dataset.groupBy(col("_1")).agg(count("_1")).as[(Int, Long)]
       TypedDataset.create[(Int, Long)](hour)
     }
 
     def minutely: TypedDataset[(Int, Long)] = {
       val minute: TypedDataset[Int] = tds.deserialized.map { m =>
-        utils.kafkaTimestamp(m.timestamp)._2.getMinute
+        utils.kafkaTimestamp(m.timestamp).getMinute
       }
       minute.groupBy(minute.asCol).agg(count(minute.asCol))
     }
 
     def daily: TypedDataset[(Int, Long)] = {
       val day: TypedDataset[Int] = tds.deserialized.map { m =>
-        utils.kafkaTimestamp(m.timestamp)._2.getDayOfYear
+        utils.kafkaTimestamp(m.timestamp).getDayOfYear
       }
       day.groupBy(day.asCol).agg(count(day.asCol))
     }
