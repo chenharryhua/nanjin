@@ -3,12 +3,13 @@ package com.github.chenharryhua.nanjin.codec
 import java.util.Optional
 
 import akka.kafka.ConsumerMessage.{
-  CommittableMessage  => AkkaConsumerMessage,
-  CommittableOffset   => AkkaCommittableOffset,
-  GroupTopicPartition => AkkaGroupTopicPartition,
-  PartitionOffset     => AkkaPartitionOffset
+  CommittableMessage   => AkkaConsumerMessage,
+  CommittableOffset    => AkkaCommittableOffset,
+  GroupTopicPartition  => AkkaGroupTopicPartition,
+  PartitionOffset      => AkkaPartitionOffset,
+  TransactionalMessage => AkkaTransactionalMessage
 }
-import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage}
+import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage, MultiMessage => AkkaMultiMessage}
 import cats.Eq
 import cats.implicits._
 import fs2.kafka.{
@@ -85,6 +86,13 @@ trait EqMessage {
 
   implicit def eqProducerMessageAkka[K: Eq, V: Eq, P: Eq]: Eq[AkkaProducerMessage[K, V, P]] =
     cats.derived.semi.eq[AkkaProducerMessage[K, V, P]]
+
+  implicit def eqProducerMultiMessageAkka[K: Eq, V: Eq, P: Eq]: Eq[AkkaMultiMessage[K, V, P]] =
+    (x: AkkaMultiMessage[K, V, P], y: AkkaMultiMessage[K, V, P]) =>
+      (x.records.toList === y.records.toList) && (x.passThrough === y.passThrough)
+
+  implicit def eqTransactionalMessageAkka[K: Eq, V: Eq]: Eq[AkkaTransactionalMessage[K, V]] =
+    cats.derived.semi.eq[AkkaTransactionalMessage[K, V]]
 
   implicit def eqCommittableOffsetFs2[F[_]]: Eq[Fs2CommittableOffset[F]] =
     (x: Fs2CommittableOffset[F], y: Fs2CommittableOffset[F]) =>

@@ -3,8 +3,11 @@ import java.util.Optional
 import java.util.concurrent.CompletionStage
 
 import akka.Done
-import akka.kafka.ConsumerMessage.{CommittableMessage => AkkaConsumerMessage}
-import akka.kafka.ProducerMessage.{Message            => AkkaProducerMessage}
+import akka.kafka.ConsumerMessage.{
+  CommittableMessage   => AkkaConsumerMessage,
+  TransactionalMessage => AkkaTransactionalMessage
+}
+import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage, MultiMessage => AkkaMultiMessage}
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.codec._
 import fs2.Chunk
@@ -104,7 +107,7 @@ object genMessage {
         offset <- genFs2CommittableOffset
       } yield CommittableConsumerRecord[IO, Int, Int](rec, offset)
 
-    val genFs2ProducerMessage: Gen[ProducerRecords[Int, Int, String]] =
+    val genFs2ProducerRecords: Gen[ProducerRecords[Int, Int, String]] =
       for {
         prs <- Gen.containerOfN[List, Fs2ProducerRecord[Int, Int]](2, genFs2ProducerRecord)
       } yield ProducerRecords(Chunk.seq(prs), "pass-through-fs2")
@@ -137,6 +140,16 @@ object genMessage {
     val genAkkaProducerMessage: Gen[AkkaProducerMessage[Int, Int, String]] = for {
       cr <- genProducerRecord
     } yield AkkaProducerMessage(cr, "pass-through-akka")
-  }
 
+    val genAkkaProducerMultiMessage: Gen[AkkaMultiMessage[Int, Int, String]] =
+      Gen
+        .containerOfN[List, ProducerRecord[Int, Int]](10, genProducerRecord)
+        .map(rs => AkkaMultiMessage(rs, "pass-through-multi"))
+
+    val genAkkaTransactionalMessage: Gen[AkkaTransactionalMessage[Int, Int]] = for {
+      cr <- genConsumerRecord
+      gtp <- genAkkaGroupTopicPartition
+      offset <- Gen.posNum[Long]
+    } yield AkkaTransactionalMessage(cr, new PartitionOffset(gtp, offset))
+  }
 }

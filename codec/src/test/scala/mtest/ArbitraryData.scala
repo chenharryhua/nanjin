@@ -1,22 +1,26 @@
 package mtest
 
-import org.apache.kafka.clients.consumer.ConsumerRecord
-import org.apache.kafka.clients.producer.ProducerRecord
+import akka.kafka.ConsumerMessage.{
+  CommittableMessage   => AkkaConsumerMessage,
+  TransactionalMessage => AkkaTransactionalMessage
+}
+import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage, MultiMessage => AkkaMultiMessage}
+import cats.effect.IO
+import cats.implicits._
+import com.github.chenharryhua.nanjin.codec.LikeConsumerRecord._
+import com.github.chenharryhua.nanjin.codec.LikeProducerRecord._
+import fs2.Chunk
 import fs2.kafka.{
   CommittableConsumerRecord => Fs2ConsumerMessage,
   ConsumerRecord            => Fs2ConsumerRecord,
-  ProducerRecord            => Fs2ProducerRecord
+  ProducerRecord            => Fs2ProducerRecord,
+  ProducerRecords           => Fs2ProducerRecords
 }
-import org.scalacheck.Arbitrary
-import Arbitrary.arbitrary
-import akka.kafka.ConsumerMessage.{CommittableMessage => AkkaConsumerMessage}
-import akka.kafka.ProducerMessage.{Message            => AkkaProducerMessage}
-import cats.effect.IO
-import com.github.chenharryhua.nanjin.codec.LikeConsumerRecord._
-import com.github.chenharryhua.nanjin.codec.LikeProducerRecord._
-import cats.implicits._
-
-import genMessage._
+import mtest.genMessage._
+import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.kafka.clients.producer.ProducerRecord
+import org.scalacheck.Arbitrary.arbitrary
+import org.scalacheck.{Arbitrary, Gen}
 final case class PrimitiveTypeCombined(
   a: Int,
   b: Long,
@@ -47,32 +51,59 @@ trait ArbitraryData extends GenKafkaMessage with GenFs2Message with GenAkkaMessa
       j <- arbitrary[Int]
     } yield (cm: ProducerRecord[Int, Int]) => cm.bimap(_ - i, _ + j))
 
+  implicit val abKafkaProducerRecords: Arbitrary[Chunk[ProducerRecord[Int, Int]]] =
+    Arbitrary(
+      Gen.containerOfN[List, ProducerRecord[Int, Int]](10, genProducerRecord).map(Chunk.seq))
+
+  implicit val abKafkaProducerRecordsF
+    : Arbitrary[Chunk[ProducerRecord[Int, Int]] => Chunk[ProducerRecord[Int, Int]]] = {
+    Arbitrary((a: Chunk[ProducerRecord[Int, Int]]) => a)
+  }
+
   //fs2
   implicit val abFs2ConsumerRecord: Arbitrary[Fs2ConsumerRecord[Int, Int]] =
     Arbitrary(genFs2ConsumerRecord)
 
-  implicit val abFs2ConsumerRecordF = Arbitrary(
-    (cm: Fs2ConsumerRecord[Int, Int]) => cm.bimap(_ - 1, _ + 1))
+  implicit val abFs2ConsumerRecordF
+    : Arbitrary[Fs2ConsumerRecord[Int, Int] => Fs2ConsumerRecord[Int, Int]] =
+    Arbitrary((cm: Fs2ConsumerRecord[Int, Int]) => cm.bimap(_ - 1, _ + 1))
 
   implicit val abFs2ConsumerMessage: Arbitrary[Fs2ConsumerMessage[IO, Int, Int]] =
     Arbitrary(genFs2ConsumerMessage)
 
-  implicit val abFs2ConsumerMessageF = Arbitrary((cm: Fs2ConsumerMessage[IO, Int, Int]) => cm)
+  implicit val abFs2ConsumerMessageF
+    : Arbitrary[Fs2ConsumerMessage[IO, Int, Int] => Fs2ConsumerMessage[IO, Int, Int]] =
+    Arbitrary((cm: Fs2ConsumerMessage[IO, Int, Int]) => cm)
 
   implicit val abFs2ProducerRecord: Arbitrary[Fs2ProducerRecord[Int, Int]] =
     Arbitrary(genFs2ProducerRecord)
 
-  implicit val abFs2ProducerRecordF = Arbitrary((pr: Fs2ConsumerRecord[Int, Int]) => pr)
+  implicit val abFs2ProducerRecordF
+    : Arbitrary[Fs2ConsumerRecord[Int, Int] => Fs2ConsumerRecord[Int, Int]] =
+    Arbitrary((pr: Fs2ConsumerRecord[Int, Int]) => pr)
+
+  implicit val abFs2ProducerRecords: Arbitrary[Fs2ProducerRecords[Int, Int, String]] =
+    Arbitrary(genFs2ProducerRecords)
 
   //akka
   implicit val abAkkaConsumerRecord: Arbitrary[AkkaConsumerMessage[Int, Int]] =
     Arbitrary(genAkkaConsumerMessage)
 
-  implicit val abAkkaConsumerRecordF = Arbitrary((cm: AkkaConsumerMessage[Int, Int]) => cm)
+  implicit val abAkkaConsumerRecordF
+    : Arbitrary[AkkaConsumerMessage[Int, Int] => AkkaConsumerMessage[Int, Int]] =
+    Arbitrary((cm: AkkaConsumerMessage[Int, Int]) => cm)
 
   implicit val abAkkaProducerRecord: Arbitrary[AkkaProducerMessage[Int, Int, String]] =
     Arbitrary(genAkkaProducerMessage)
 
-  implicit val abAkkaProducerRecordF = Arbitrary((pr: AkkaProducerMessage[Int, Int, String]) => pr)
+  implicit val abAkkaProducerRecordF
+    : Arbitrary[AkkaProducerMessage[Int, Int, String] => AkkaProducerMessage[Int, Int, String]] =
+    Arbitrary((pr: AkkaProducerMessage[Int, Int, String]) => pr)
 
+  implicit val abAkkaProducerRecords: Arbitrary[AkkaMultiMessage[Int, Int, String]] = {
+    Arbitrary(genAkkaProducerMultiMessage)
+  }
+  implicit val abAkkaTransactionalMessage: Arbitrary[AkkaTransactionalMessage[Int, Int]] = {
+    Arbitrary(genAkkaTransactionalMessage)
+  }
 }

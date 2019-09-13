@@ -1,6 +1,9 @@
 package com.github.chenharryhua.nanjin.codec
 
-import akka.kafka.ConsumerMessage.{CommittableMessage => AkkaCommittableMessage}
+import akka.kafka.ConsumerMessage.{
+  CommittableMessage   => AkkaCommittableMessage,
+  TransactionalMessage => AkkaTransactionalMessage
+}
 import cats.implicits._
 import cats.{Applicative, Bitraverse, Eval}
 import fs2.kafka.{
@@ -70,6 +73,20 @@ object LikeConsumerRecord {
         PLens[
           AkkaCommittableMessage[K1, V1],
           AkkaCommittableMessage[K2, V2],
+          ConsumerRecord[K1, V1],
+          ConsumerRecord[K2, V2]](_.record)(b => s => s.copy(record = b))
+    }
+
+  implicit val akkaAkkaTransactionalMessageLike: LikeConsumerRecord[AkkaTransactionalMessage] =
+    new LikeConsumerRecord[AkkaTransactionalMessage] {
+      override def lens[K1, V1, K2, V2]: PLens[
+        AkkaTransactionalMessage[K1, V1],
+        AkkaTransactionalMessage[K2, V2],
+        ConsumerRecord[K1, V1],
+        ConsumerRecord[K2, V2]] =
+        PLens[
+          AkkaTransactionalMessage[K1, V1],
+          AkkaTransactionalMessage[K2, V2],
           ConsumerRecord[K1, V1],
           ConsumerRecord[K2, V2]](_.record)(b => s => s.copy(record = b))
     }

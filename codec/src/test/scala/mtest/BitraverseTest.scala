@@ -8,8 +8,9 @@ import cats.laws.discipline.BitraverseTests
 import com.github.chenharryhua.nanjin.codec._
 import fs2.kafka.{
   CommittableConsumerRecord,
-  ConsumerRecord => Fs2ConsumerRecord,
-  ProducerRecord => Fs2ProducerRecord
+  ConsumerRecord  => Fs2ConsumerRecord,
+  ProducerRecord  => Fs2ProducerRecord,
+  ProducerRecords => Fs2ProducerRecords
 }
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
@@ -21,6 +22,7 @@ import org.typelevel.discipline.scalatest.Discipline
 class BitraverseTest extends AnyFunSuite with Discipline {
   implicit val akkaCMBitraverse = LikeConsumerRecord[ConsumerMessage.CommittableMessage]
   implicit val akkaPMBitraverse = LikeProducerRecord[ProducerMessage.Message[*, *, String]]
+  implicit val akkaTrBitraverse = LikeConsumerRecord[ConsumerMessage.TransactionalMessage]
 
   implicit val fs2CMBitraverse = LikeConsumerRecord[CommittableConsumerRecord[IO, *, *]]
   implicit val fs2PRBitraverse = LikeProducerRecord[Fs2ProducerRecord]
@@ -29,38 +31,56 @@ class BitraverseTest extends AnyFunSuite with Discipline {
   implicit val kafkaCRBitraverse = LikeConsumerRecord[ConsumerRecord]
   implicit val kafkaPRBitraverse = LikeProducerRecord[ProducerRecord]
 
+  implicit val akkaPMsBitraverse = LikeProducerRecords[ProducerMessage.MultiMessage[*, *, String]]
+  implicit val fs2PMsBitraverse  = LikeProducerRecords[Fs2ProducerRecords[*, *, String]]
+
   implicit val arbChain: Arbitrary[List[Int]] =
     Arbitrary(Gen.containerOfN[List, Int](3, arbitrary[Int]))
 
   checkAll(
-    "fs2.CommittableConsumerRecord",
+    "fs2.consumer.CommittableConsumerRecord",
     BitraverseTests[CommittableConsumerRecord[IO, *, *]]
       .bitraverse[Id, Int, Int, Int, Int, Int, Int])
 
   checkAll(
-    "fs2.ConsumerRecord",
+    "fs2.consumer.ConsumerRecord",
     BitraverseTests[Fs2ConsumerRecord].bitraverse[Option, Int, Int, Int, Int, Int, Int])
 
   checkAll(
-    "fs2.ProducerRecord",
+    "fs2.producer.ProducerRecord",
     BitraverseTests[Fs2ProducerRecord].bitraverse[List, Int, Int, Int, Int, Int, Int])
 
   checkAll(
-    "akka.ProducerMessage",
+    "fs2.producer.ProducerRecords",
+    BitraverseTests[Fs2ProducerRecords[*, *, String]]
+      .bitraverse[List, Int, Int, Int, Int, Int, Int])
+
+  checkAll(
+    "akka.producer.ProducerMessage",
     BitraverseTests[ProducerMessage.Message[*, *, String]]
       .bitraverse[Either[String, *], Int, Int, Int, Int, Int, Int])
 
   checkAll(
-    "akka.CommittableMessage",
+    "akka.consumer.CommittableMessage",
     BitraverseTests[ConsumerMessage.CommittableMessage]
       .bitraverse[Either[Long, *], Int, Int, Int, Int, Int, Int])
 
   checkAll(
-    "kafka.ConsumerRecord",
+    "akka.consumer.TransactionalMessage",
+    BitraverseTests[ConsumerMessage.TransactionalMessage]
+      .bitraverse[Either[Long, *], Int, Int, Int, Int, Int, Int])
+
+  checkAll(
+    "akka.producer.MultiMessage",
+    BitraverseTests[ProducerMessage.MultiMessage[*, *, String]]
+      .bitraverse[Either[Long, *], Int, Int, Int, Int, Int, Int])
+
+  checkAll(
+    "kafka.consumer.ConsumerRecord",
     BitraverseTests[ConsumerRecord].bitraverse[List, Int, Int, Int, Int, Int, Int])
 
   checkAll(
-    "kafka.ProducerRecord",
+    "kafka.producer.ProducerRecord",
     BitraverseTests[ProducerRecord].bitraverse[Option, Int, Int, Int, Int, Int, Int])
 
 }
