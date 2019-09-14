@@ -11,6 +11,8 @@ import com.github.chenharryhua.nanjin.codec.LikeConsumerRecord._
 import com.github.chenharryhua.nanjin.codec.LikeProducerRecord._
 import fs2.Chunk
 import fs2.kafka.{
+  CommittableProducerRecords,
+  TransactionalProducerRecords,
   CommittableConsumerRecord => Fs2ConsumerMessage,
   ConsumerRecord            => Fs2ConsumerRecord,
   ProducerRecord            => Fs2ProducerRecord,
@@ -84,6 +86,14 @@ trait ArbitraryData extends GenKafkaMessage with GenFs2Message with GenAkkaMessa
 
   implicit val abFs2ProducerRecords: Arbitrary[Fs2ProducerRecords[Int, Int, String]] =
     Arbitrary(genFs2ProducerRecords)
+
+  implicit val abFs2CommittableProducerRecords
+    : Arbitrary[CommittableProducerRecords[IO, Int, Int]] =
+    Arbitrary(genFs2CommittableProducerRecords)
+
+  implicit val abFs2TransactionalProducerRecords
+    : Arbitrary[TransactionalProducerRecords[IO, Int, Int, String]] =
+    Arbitrary(genFs2TransactionalProducerRecords)
 
   //akka
   implicit val abAkkaConsumerRecord: Arbitrary[AkkaConsumerMessage[Int, Int]] =

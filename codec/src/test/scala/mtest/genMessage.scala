@@ -11,7 +11,12 @@ import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage, MultiMessage 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.codec._
 import fs2.Chunk
-import fs2.kafka.{ConsumerRecord => Fs2ConsumerRecord, ProducerRecord => Fs2ProducerRecord}
+import fs2.kafka.{
+  TransactionalProducerRecords => Fs2TransactionalProducerRecords,
+  CommittableProducerRecords   => Fs2CommittableProducerRecords,
+  ConsumerRecord               => Fs2ConsumerRecord,
+  ProducerRecord               => Fs2ProducerRecord
+}
 import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
@@ -111,6 +116,20 @@ object genMessage {
       for {
         prs <- Gen.containerOfN[List, Fs2ProducerRecord[Int, Int]](2, genFs2ProducerRecord)
       } yield ProducerRecords(Chunk.seq(prs), "pass-through-fs2")
+
+    val genFs2CommittableProducerRecords: Gen[Fs2CommittableProducerRecords[IO, Int, Int]] = for {
+      pr <- genFs2ProducerRecord
+      prs <- Gen.containerOfN[List, Fs2ProducerRecord[Int, Int]](10, pr).map(Chunk.seq)
+      os <- genFs2CommittableOffset
+    } yield Fs2CommittableProducerRecords(prs, os)
+
+    val genFs2TransactionalProducerRecords
+      : Gen[Fs2TransactionalProducerRecords[IO, Int, Int, String]] = for {
+      cpr <- genFs2CommittableProducerRecords
+      cprs <- Gen
+        .containerOfN[List, Fs2CommittableProducerRecords[IO, Int, Int]](10, cpr)
+        .map(Chunk.seq)
+    } yield Fs2TransactionalProducerRecords(cprs, "path-through")
 
   }
 

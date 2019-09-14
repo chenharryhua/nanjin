@@ -39,10 +39,6 @@ class LensTest extends AnyFunSuite with Discipline {
     LensTests(LikeProducerRecord[Fs2ProducerRecord].lens[Int, Int, Int, Int]))
 
   checkAll(
-    "fs2.producer.ProducerRecords",
-    LensTests(LikeProducerRecords[Fs2ProducerRecords[*, *, String]].lens[Int, Int, Int, Int]))
-
-  checkAll(
     "kafka.consumer.ConsumerRecord",
     LensTests(LikeConsumerRecord[ConsumerRecord].lens[Int, Int, Int, Int]))
 
@@ -61,9 +57,5 @@ class LensTest extends AnyFunSuite with Discipline {
   checkAll(
     "akka.producer.ProducerMessage",
     LensTests(LikeProducerRecord[AkkaProducerMessage[*, *, String]].lens[Int, Int, Int, Int]))
-
-  checkAll( 
-    "akka.producer.MultiMessage",
-    LensTests(LikeProducerRecords[AkkaMultiMessage[*, *, String]].lens[Int, Int, Int, Int]))
 
 }

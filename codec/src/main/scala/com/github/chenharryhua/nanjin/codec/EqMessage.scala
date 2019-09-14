@@ -13,11 +13,13 @@ import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage, MultiMessage 
 import cats.Eq
 import cats.implicits._
 import fs2.kafka.{
-  CommittableConsumerRecord => Fs2CommittableConsumerRecord,
-  CommittableOffset         => Fs2CommittableOffset,
-  ConsumerRecord            => Fs2ConsumerRecord,
-  ProducerRecord            => Fs2ProducerRecord,
-  ProducerRecords           => Fs2ProducerRecords
+  TransactionalProducerRecords => Fs2TransactionalProducerRecords,
+  CommittableConsumerRecord    => Fs2CommittableConsumerRecord,
+  CommittableOffset            => Fs2CommittableOffset,
+  CommittableProducerRecords   => Fs2CommittableProducerRecords,
+  ConsumerRecord               => Fs2ConsumerRecord,
+  ProducerRecord               => Fs2ProducerRecord,
+  ProducerRecords              => Fs2ProducerRecords
 }
 import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
 import org.apache.kafka.clients.producer.ProducerRecord
@@ -27,6 +29,7 @@ import org.apache.kafka.common.header.{Header, Headers}
 import scala.compat.java8.OptionConverters._
 
 trait EqMessage {
+  // kafka
   implicit val eqArrayByte: Eq[Array[Byte]] =
     (x: Array[Byte], y: Array[Byte]) => x.sameElements(y)
 
@@ -72,6 +75,7 @@ trait EqMessage {
         (x.value() === y.value()) &&
         (x.headers() === y.headers())
 
+  // akka
   implicit val eqGroupTopicPartitionAkka: Eq[AkkaGroupTopicPartition] =
     cats.derived.semi.eq[AkkaGroupTopicPartition]
 
@@ -94,6 +98,7 @@ trait EqMessage {
   implicit def eqTransactionalMessageAkka[K: Eq, V: Eq]: Eq[AkkaTransactionalMessage[K, V]] =
     cats.derived.semi.eq[AkkaTransactionalMessage[K, V]]
 
+  // fs2
   implicit def eqCommittableOffsetFs2[F[_]]: Eq[Fs2CommittableOffset[F]] =
     (x: Fs2CommittableOffset[F], y: Fs2CommittableOffset[F]) =>
       (x.topicPartition === y.topicPartition) &&
@@ -118,4 +123,16 @@ trait EqMessage {
     : Eq[Fs2CommittableConsumerRecord[F, K, V]] =
     (x: Fs2CommittableConsumerRecord[F, K, V], y: Fs2CommittableConsumerRecord[F, K, V]) =>
       (x.record === y.record) && (x.offset === y.offset)
+
+  implicit final def eqCommittableProducerRecordsFs2[F[_], K: Eq, V: Eq]
+    : Eq[Fs2CommittableProducerRecords[F, K, V]] =
+    (x: Fs2CommittableProducerRecords[F, K, V], y: Fs2CommittableProducerRecords[F, K, V]) =>
+      (x.records === y.records) && (x.offset === y.offset)
+
+  implicit final def eqTransactionalProducerRecordsFs2[F[_], K: Eq, V: Eq, P: Eq]
+    : Eq[Fs2TransactionalProducerRecords[F, K, V, P]] =
+    (
+      x: Fs2TransactionalProducerRecords[F, K, V, P],
+      y: Fs2TransactionalProducerRecords[F, K, V, P]) =>
+      (x.records === y.records) && (x.passthrough === y.passthrough)
 }
