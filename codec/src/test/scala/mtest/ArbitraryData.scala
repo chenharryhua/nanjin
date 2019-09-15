@@ -7,20 +7,22 @@ import akka.kafka.ConsumerMessage.{
 import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage, MultiMessage => AkkaMultiMessage}
 import cats.effect.IO
 import cats.implicits._
+import com.github.chenharryhua.nanjin.codec.BitraverseMessage._
 import fs2.Chunk
 import fs2.kafka.{
-  CommittableProducerRecords,
-  TransactionalProducerRecords,
-  CommittableConsumerRecord => Fs2ConsumerMessage,
-  ConsumerRecord            => Fs2ConsumerRecord,
-  ProducerRecord            => Fs2ProducerRecord,
-  ProducerRecords           => Fs2ProducerRecords
+  CommittableProducerRecords   => Fs2CommittableProducerRecords,
+  TransactionalProducerRecords => Fs2TransactionalProducerRecords,
+  CommittableConsumerRecord    => Fs2ConsumerMessage,
+  ConsumerRecord               => Fs2ConsumerRecord,
+  ProducerRecord               => Fs2ProducerRecord,
+  ProducerRecords              => Fs2ProducerRecords
 }
 import mtest.genMessage._
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.{Arbitrary, Gen}
+
 final case class PrimitiveTypeCombined(
   a: Int,
   b: Long,
@@ -28,7 +30,6 @@ final case class PrimitiveTypeCombined(
   d: Double,
   e: String
 )
-import com.github.chenharryhua.nanjin.codec.BitraverseMessage._
 
 trait ArbitraryData extends GenKafkaMessage with GenFs2Message with GenAkkaMessage {
   //kafka
@@ -87,11 +88,11 @@ trait ArbitraryData extends GenKafkaMessage with GenFs2Message with GenAkkaMessa
     Arbitrary(genFs2ProducerRecords)
 
   implicit val abFs2CommittableProducerRecords
-    : Arbitrary[CommittableProducerRecords[IO, Int, Int]] =
+    : Arbitrary[Fs2CommittableProducerRecords[IO, Int, Int]] =
     Arbitrary(genFs2CommittableProducerRecords)
 
   implicit val abFs2TransactionalProducerRecords
-    : Arbitrary[TransactionalProducerRecords[IO, Int, Int, String]] =
+    : Arbitrary[Fs2TransactionalProducerRecords[IO, Int, Int, String]] =
     Arbitrary(genFs2TransactionalProducerRecords)
 
   //akka

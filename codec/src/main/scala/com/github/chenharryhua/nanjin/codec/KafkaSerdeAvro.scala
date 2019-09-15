@@ -63,8 +63,7 @@ final class KafkaSerdeAvro[A: Encoder: Decoder: SchemaFor] extends Serde[A] {
 
   override val deserializer: Deserializer[A] =
     new Deserializer[A] {
-      override def close(): Unit =
-        deSer.close()
+      override def close(): Unit = deSer.close()
 
       override def configure(configs: java.util.Map[String, _], isKey: Boolean): Unit =
         deSer.configure(configs, isKey)
