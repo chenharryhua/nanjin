@@ -1,5 +1,4 @@
 package com.github.chenharryhua.nanjin.codec
-
 import akka.kafka.ConsumerMessage.{
   CommittableMessage   => AkkaCommittableMessage,
   TransactionalMessage => AkkaTransactionalMessage
@@ -16,8 +15,9 @@ import monocle.PLens
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 
-sealed abstract class BitraverseMessage[F[_, _], H[_, _]: Bitraverse] extends Bitraverse[F] {
-
+sealed trait BitraverseMessage[F[_, _]] extends Bitraverse[F] {
+  type H[_, _]
+  implicit def baseInst: Bitraverse[H]
   def lens[K1, V1, K2, V2]: PLens[F[K1, V1], F[K2, V2], H[K1, V1], H[K2, V2]]
 
   final override def bitraverse[G[_], A, B, C, D](fab: F[A, B])(f: A => G[C], g: B => G[D])(
@@ -34,10 +34,16 @@ sealed abstract class BitraverseMessage[F[_, _], H[_, _]: Bitraverse] extends Bi
 }
 
 object BitraverseMessage {
-  def apply[F[_, _], H[_, _]](implicit ev: BitraverseMessage[F, H]): BitraverseMessage[F, H] = ev
 
-  implicit val identityConsumerRecordLike: BitraverseMessage[ConsumerRecord, ConsumerRecord] =
-    new BitraverseMessage[ConsumerRecord, ConsumerRecord] {
+  def apply[F[_, _]](
+    implicit ev: BitraverseMessage[F]): BitraverseMessage[F] { type H[A, B] = ev.H[A, B] } =
+    ev
+
+  implicit val identityConsumerRecordLike
+    : BitraverseMessage[ConsumerRecord] { type H[A, B] = ConsumerRecord[A, B] } =
+    new BitraverseMessage[ConsumerRecord] {
+      override type H[K, V] = ConsumerRecord[K, V]
+      override val baseInst: Bitraverse[ConsumerRecord] = bitraverseConsumerRecord
       override def lens[K1, V1, K2, V2]: PLens[
         ConsumerRecord[K1, V1],
         ConsumerRecord[K2, V2],
@@ -50,8 +56,11 @@ object BitraverseMessage {
           ConsumerRecord[K2, V2]](s => s)(b => _ => b)
     }
 
-  implicit val fs2ConsumerRecordLike: BitraverseMessage[Fs2ConsumerRecord, ConsumerRecord] =
-    new BitraverseMessage[Fs2ConsumerRecord, ConsumerRecord] {
+  implicit val fs2ConsumerRecordLike
+    : BitraverseMessage[Fs2ConsumerRecord] { type H[A, B] = ConsumerRecord[A, B] } =
+    new BitraverseMessage[Fs2ConsumerRecord] {
+      override type H[K, V] = ConsumerRecord[K, V]
+      override val baseInst: Bitraverse[ConsumerRecord] = bitraverseConsumerRecord
       override def lens[K1, V1, K2, V2]: PLens[
         Fs2ConsumerRecord[K1, V1],
         Fs2ConsumerRecord[K2, V2],
@@ -66,8 +75,11 @@ object BitraverseMessage {
         }
     }
 
-  implicit val akkaConsumerMessageLike: BitraverseMessage[AkkaCommittableMessage, ConsumerRecord] =
-    new BitraverseMessage[AkkaCommittableMessage, ConsumerRecord] {
+  implicit val akkaConsumerMessageLike
+    : BitraverseMessage[AkkaCommittableMessage] { type H[A, B] = ConsumerRecord[A, B] } =
+    new BitraverseMessage[AkkaCommittableMessage] {
+      override type H[K, V] = ConsumerRecord[K, V]
+      override val baseInst: Bitraverse[ConsumerRecord] = bitraverseConsumerRecord
       override def lens[K1, V1, K2, V2]: PLens[
         AkkaCommittableMessage[K1, V1],
         AkkaCommittableMessage[K2, V2],
@@ -81,8 +93,10 @@ object BitraverseMessage {
     }
 
   implicit val akkaAkkaTransactionalMessageLike
-    : BitraverseMessage[AkkaTransactionalMessage, ConsumerRecord] =
-    new BitraverseMessage[AkkaTransactionalMessage, ConsumerRecord] {
+    : BitraverseMessage[AkkaTransactionalMessage] { type H[A, B] = ConsumerRecord[A, B] } =
+    new BitraverseMessage[AkkaTransactionalMessage] {
+      override type H[K, V] = ConsumerRecord[K, V]
+      override val baseInst: Bitraverse[ConsumerRecord] = bitraverseConsumerRecord
       override def lens[K1, V1, K2, V2]: PLens[
         AkkaTransactionalMessage[K1, V1],
         AkkaTransactionalMessage[K2, V2],
@@ -96,8 +110,12 @@ object BitraverseMessage {
     }
 
   implicit def fs2ConsumerMessageLike[F[_]]
-    : BitraverseMessage[Fs2CommittableConsumerRecord[F, *, *], ConsumerRecord] =
-    new BitraverseMessage[Fs2CommittableConsumerRecord[F, *, *], ConsumerRecord] {
+    : BitraverseMessage[Fs2CommittableConsumerRecord[F, *, *]] {
+      type H[A, B] = ConsumerRecord[A, B]
+    } =
+    new BitraverseMessage[Fs2CommittableConsumerRecord[F, *, *]] {
+      override type H[K, V] = ConsumerRecord[K, V]
+      override val baseInst: Bitraverse[ConsumerRecord] = bitraverseConsumerRecord
       override def lens[K1, V1, K2, V2]: PLens[
         Fs2CommittableConsumerRecord[F, K1, V1],
         Fs2CommittableConsumerRecord[F, K2, V2],
@@ -112,8 +130,11 @@ object BitraverseMessage {
         }
     }
 
-  implicit val identityProducerRecordLike: BitraverseMessage[ProducerRecord, ProducerRecord] =
-    new BitraverseMessage[ProducerRecord, ProducerRecord] {
+  implicit val identityProducerRecordLike
+    : BitraverseMessage[ProducerRecord] { type H[A, B] = ProducerRecord[A, B] } =
+    new BitraverseMessage[ProducerRecord] {
+      override type H[K, V] = ProducerRecord[K, V]
+      override val baseInst: Bitraverse[ProducerRecord] = bitraverseProducerRecord
       override def lens[K1, V1, K2, V2]: PLens[
         ProducerRecord[K1, V1],
         ProducerRecord[K2, V2],
@@ -126,8 +147,11 @@ object BitraverseMessage {
           ProducerRecord[K2, V2]](s => s)(b => _ => b)
     }
 
-  implicit def fs2ProducerRecordLike[P]: BitraverseMessage[Fs2ProducerRecord, ProducerRecord] =
-    new BitraverseMessage[Fs2ProducerRecord, ProducerRecord] {
+  implicit def fs2ProducerRecordLike[P]
+    : BitraverseMessage[Fs2ProducerRecord] { type H[A, B] = ProducerRecord[A, B] } =
+    new BitraverseMessage[Fs2ProducerRecord] {
+      override type H[K, V] = ProducerRecord[K, V]
+      override val baseInst: Bitraverse[ProducerRecord] = bitraverseProducerRecord
       override def lens[K1, V1, K2, V2]: PLens[
         Fs2ProducerRecord[K1, V1],
         Fs2ProducerRecord[K2, V2],
@@ -143,8 +167,10 @@ object BitraverseMessage {
     }
 
   implicit def akkaProducerMessageLike[P]
-    : BitraverseMessage[AkkaProducerMessage[*, *, P], ProducerRecord] =
-    new BitraverseMessage[AkkaProducerMessage[*, *, P], ProducerRecord] {
+    : BitraverseMessage[AkkaProducerMessage[*, *, P]] { type H[A, B] = ProducerRecord[A, B] } =
+    new BitraverseMessage[AkkaProducerMessage[*, *, P]] {
+      override type H[K, V] = ProducerRecord[K, V]
+      override val baseInst: Bitraverse[ProducerRecord] = bitraverseProducerRecord
       override def lens[K1, V1, K2, V2]: PLens[
         AkkaProducerMessage[K1, V1, P],
         AkkaProducerMessage[K2, V2, P],
@@ -156,4 +182,5 @@ object BitraverseMessage {
           ProducerRecord[K1, V1],
           ProducerRecord[K2, V2]](_.record)(b => s => s.copy(record = b))
     }
+
 }

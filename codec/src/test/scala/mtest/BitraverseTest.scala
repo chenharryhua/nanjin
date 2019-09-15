@@ -22,16 +22,16 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
 
 class BitraverseTest extends AnyFunSuite with Discipline {
-  implicit val akkaCMBitraverse = BitraverseMessage[AkkaConsumerMessage.CommittableMessage,ConsumerRecord]
-  implicit val akkaPMBitraverse = BitraverseMessage[AkkaProducerMessage.Message[*, *, String],ProducerRecord]
-  implicit val akkaTrBitraverse = BitraverseMessage[AkkaConsumerMessage.TransactionalMessage,ConsumerRecord]
+  implicit val akkaCMBitraverse = BitraverseMessage[AkkaConsumerMessage.CommittableMessage]
+  implicit val akkaPMBitraverse = BitraverseMessage[AkkaProducerMessage.Message[*, *, String]]
+  implicit val akkaTrBitraverse = BitraverseMessage[AkkaConsumerMessage.TransactionalMessage]
 
-  implicit val fs2CMBitraverse = BitraverseMessage[Fs2CommittableConsumerRecord[IO, *, *],ConsumerRecord]
-  implicit val fs2PRBitraverse = BitraverseMessage[Fs2ProducerRecord,ProducerRecord]
-  implicit val fs2CRBitraverse = BitraverseMessage[Fs2ConsumerRecord,ConsumerRecord]
+  implicit val fs2CMBitraverse = BitraverseMessage[Fs2CommittableConsumerRecord[IO, *, *]]
+  implicit val fs2PRBitraverse = BitraverseMessage[Fs2ProducerRecord]
+  implicit val fs2CRBitraverse = BitraverseMessage[Fs2ConsumerRecord]
 
-  implicit val kafkaCRBitraverse = BitraverseMessage[ConsumerRecord,ConsumerRecord]
-  implicit val kafkaPRBitraverse = BitraverseMessage[ProducerRecord,ProducerRecord]
+  implicit val kafkaCRBitraverse = BitraverseMessage[ConsumerRecord]
+  implicit val kafkaPRBitraverse = BitraverseMessage[ProducerRecord]
 
   implicit val akkaPMsBitraverse =
     BitraverseMessages[AkkaProducerMessage.MultiMessage[*, *, String]]

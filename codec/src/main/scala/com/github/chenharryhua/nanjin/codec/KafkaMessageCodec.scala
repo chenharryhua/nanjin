@@ -56,8 +56,7 @@ final class KafkaProducerRecordEncoder[K, V](
 
   def record(fpr: Fs2ProducerRecord[K, V]): KafkaByteProducerRecord =
     isoFs2ProducerRecord.get(
-      BitraverseMessage[Fs2ProducerRecord, ProducerRecord]
-        .bimap(fpr)(keyCodec.encode, valueCodec.encode))
+      BitraverseMessage[Fs2ProducerRecord].bimap(fpr)(keyCodec.encode, valueCodec.encode))
 }
 
 final class AkkaMessageEncoder[K, V](topicName: String) {

@@ -10,7 +10,10 @@ import cats.Show
 import cats.data.{NonEmptyList, Reader}
 import cats.effect._
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.{KafkaGenericDecoder, _}
+import com.github.chenharryhua.nanjin.codec.KafkaGenericDecoder
+import com.github.chenharryhua.nanjin.codec._
+import com.github.chenharryhua.nanjin.codec.BitraverseMessage._
+
 import fs2.kafka.{
   CommittableConsumerRecord,
   ConsumerSettings => Fs2ConsumerSettings,
