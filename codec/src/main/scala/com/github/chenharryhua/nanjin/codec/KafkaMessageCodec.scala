@@ -1,12 +1,13 @@
 package com.github.chenharryhua.nanjin.codec
 
+import cats.Bitraverse
 import cats.implicits._
-import fs2.kafka.{ProducerRecord => Fs2ProducerRecord, KafkaByteProducerRecord}
+import fs2.kafka.{KafkaByteProducerRecord, ProducerRecord => Fs2ProducerRecord}
 import org.apache.kafka.clients.producer.ProducerRecord
 
 import scala.util.{Success, Try}
 
-final class KafkaGenericDecoder[F[_, _]: LikeConsumerRecord, K, V](
+final class KafkaGenericDecoder[F[_, _]: Bitraverse, K, V](
   keyCodec: KafkaCodec[K],
   valueCodec: KafkaCodec[V]) {
 
@@ -55,7 +56,8 @@ final class KafkaProducerRecordEncoder[K, V](
 
   def record(fpr: Fs2ProducerRecord[K, V]): KafkaByteProducerRecord =
     isoFs2ProducerRecord.get(
-      LikeProducerRecord[Fs2ProducerRecord].bimap(fpr)(keyCodec.encode, valueCodec.encode))
+      BitraverseMessage[Fs2ProducerRecord, ProducerRecord]
+        .bimap(fpr)(keyCodec.encode, valueCodec.encode))
 }
 
 final class AkkaMessageEncoder[K, V](topicName: String) {

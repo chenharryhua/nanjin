@@ -7,17 +7,14 @@ import akka.kafka.ConsumerMessage.{
 import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage, MultiMessage => AkkaMultiMessage}
 import cats.effect.IO
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.{
-  LikeConsumerRecord,
-  LikeProducerRecord,
-  LikeProducerRecords
-}
+import com.github.chenharryhua.nanjin.codec.{BitraverseMessage, BitraverseMessages}
 import fs2.kafka.{
   CommittableConsumerRecord => Fs2CommittableConsumerRecord,
   ConsumerRecord            => Fs2ConsumerRecord,
   ProducerRecord            => Fs2ProducerRecord,
   ProducerRecords           => Fs2ProducerRecords
 }
+import monocle.PLens
 import monocle.law.discipline.LensTests
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
@@ -28,34 +25,38 @@ class LensTest extends AnyFunSuite with Discipline {
 
   checkAll(
     "fs2.consumer.CommittableConsumerRecord",
-    LensTests(LikeConsumerRecord[Fs2CommittableConsumerRecord[IO, *, *]].lens[Int, Int, Int, Int]))
+    LensTests(
+      BitraverseMessage[Fs2CommittableConsumerRecord[IO, *, *], ConsumerRecord]
+        .lens[Int, Int, Int, Int]))
 
   checkAll(
     "fs2.consumer.ConsumerRecord",
-    LensTests(LikeConsumerRecord[Fs2ConsumerRecord].lens[Int, Int, Int, Int]))
+    LensTests(BitraverseMessage[Fs2ConsumerRecord, ConsumerRecord].lens[Int, Int, Int, Int]))
 
   checkAll(
     "fs2.producer.ProducerRecord",
-    LensTests(LikeProducerRecord[Fs2ProducerRecord].lens[Int, Int, Int, Int]))
+    LensTests(BitraverseMessage[Fs2ProducerRecord, ProducerRecord].lens[Int, Int, Int, Int]))
 
   checkAll(
     "kafka.consumer.ConsumerRecord",
-    LensTests(LikeConsumerRecord[ConsumerRecord].lens[Int, Int, Int, Int]))
+    LensTests(BitraverseMessage[ConsumerRecord, ConsumerRecord].lens[Int, Int, Int, Int]))
 
   checkAll(
     "kafka.producer.ProducerRecord",
-    LensTests(LikeProducerRecord[ProducerRecord].lens[Int, Int, Int, Int]))
+    LensTests(BitraverseMessage[ProducerRecord, ProducerRecord].lens[Int, Int, Int, Int]))
 
   checkAll(
     "akka.consumer.ConsumerMessage",
-    LensTests(LikeConsumerRecord[AkkaConsumerMessage].lens[Int, Int, Int, Int]))
+    LensTests(BitraverseMessage[AkkaConsumerMessage, ConsumerRecord].lens[Int, Int, Int, Int]))
 
   checkAll(
     "akka.consumer.TransactionalMessage",
-    LensTests(LikeConsumerRecord[AkkaTransactionalMessage].lens[Int, Int, Int, Int]))
+    LensTests(BitraverseMessage[AkkaTransactionalMessage, ConsumerRecord].lens[Int, Int, Int, Int]))
 
   checkAll(
     "akka.producer.ProducerMessage",
-    LensTests(LikeProducerRecord[AkkaProducerMessage[*, *, String]].lens[Int, Int, Int, Int]))
+    LensTests(
+      BitraverseMessage[AkkaProducerMessage[*, *, String], ProducerRecord]
+        .lens[Int, Int, Int, Int]))
 
 }

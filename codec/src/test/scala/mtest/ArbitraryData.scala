@@ -7,8 +7,6 @@ import akka.kafka.ConsumerMessage.{
 import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage, MultiMessage => AkkaMultiMessage}
 import cats.effect.IO
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.LikeConsumerRecord._
-import com.github.chenharryhua.nanjin.codec.LikeProducerRecord._
 import fs2.Chunk
 import fs2.kafka.{
   CommittableProducerRecords,
@@ -30,6 +28,7 @@ final case class PrimitiveTypeCombined(
   d: Double,
   e: String
 )
+import com.github.chenharryhua.nanjin.codec.BitraverseMessage._
 
 trait ArbitraryData extends GenKafkaMessage with GenFs2Message with GenAkkaMessage {
   //kafka

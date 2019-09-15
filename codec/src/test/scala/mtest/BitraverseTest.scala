@@ -22,23 +22,23 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
 
 class BitraverseTest extends AnyFunSuite with Discipline {
-  implicit val akkaCMBitraverse = LikeConsumerRecord[AkkaConsumerMessage.CommittableMessage]
-  implicit val akkaPMBitraverse = LikeProducerRecord[AkkaProducerMessage.Message[*, *, String]]
-  implicit val akkaTrBitraverse = LikeConsumerRecord[AkkaConsumerMessage.TransactionalMessage]
+  implicit val akkaCMBitraverse = BitraverseMessage[AkkaConsumerMessage.CommittableMessage,ConsumerRecord]
+  implicit val akkaPMBitraverse = BitraverseMessage[AkkaProducerMessage.Message[*, *, String],ProducerRecord]
+  implicit val akkaTrBitraverse = BitraverseMessage[AkkaConsumerMessage.TransactionalMessage,ConsumerRecord]
 
-  implicit val fs2CMBitraverse = LikeConsumerRecord[Fs2CommittableConsumerRecord[IO, *, *]]
-  implicit val fs2PRBitraverse = LikeProducerRecord[Fs2ProducerRecord]
-  implicit val fs2CRBitraverse = LikeConsumerRecord[Fs2ConsumerRecord]
+  implicit val fs2CMBitraverse = BitraverseMessage[Fs2CommittableConsumerRecord[IO, *, *],ConsumerRecord]
+  implicit val fs2PRBitraverse = BitraverseMessage[Fs2ProducerRecord,ProducerRecord]
+  implicit val fs2CRBitraverse = BitraverseMessage[Fs2ConsumerRecord,ConsumerRecord]
 
-  implicit val kafkaCRBitraverse = LikeConsumerRecord[ConsumerRecord]
-  implicit val kafkaPRBitraverse = LikeProducerRecord[ProducerRecord]
+  implicit val kafkaCRBitraverse = BitraverseMessage[ConsumerRecord,ConsumerRecord]
+  implicit val kafkaPRBitraverse = BitraverseMessage[ProducerRecord,ProducerRecord]
 
   implicit val akkaPMsBitraverse =
-    LikeProducerRecords[AkkaProducerMessage.MultiMessage[*, *, String]]
-  implicit val fs2PMsBitraverse  = LikeProducerRecords[Fs2ProducerRecords[*, *, String]]
-  implicit val fs2CPRBitraverses = LikeProducerRecords[Fs2CommittableProducerRecords[IO, *, *]]
+    BitraverseMessages[AkkaProducerMessage.MultiMessage[*, *, String]]
+  implicit val fs2PMsBitraverse  = BitraverseMessages[Fs2ProducerRecords[*, *, String]]
+  implicit val fs2CPRBitraverses = BitraverseMessages[Fs2CommittableProducerRecords[IO, *, *]]
   implicit val fs2TransBitraverses =
-    LikeProducerRecords[Fs2TransactionalProducerRecords[IO, *, *, String]]
+    BitraverseMessages[Fs2TransactionalProducerRecords[IO, *, *, String]]
 
   implicit val arbChain: Arbitrary[List[Int]] =
     Arbitrary(Gen.containerOfN[List, Int](3, arbitrary[Int]))
