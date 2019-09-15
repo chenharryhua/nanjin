@@ -1,6 +1,6 @@
 package mtest
 
-import akka.kafka.{ConsumerMessage, ProducerMessage}
+import akka.kafka.{ConsumerMessage => AkkaConsumerMessage, ProducerMessage => AkkaProducerMessage}
 import cats.Id
 import cats.effect.IO
 import cats.implicits._
@@ -22,9 +22,9 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
 
 class BitraverseTest extends AnyFunSuite with Discipline {
-  implicit val akkaCMBitraverse = LikeConsumerRecord[ConsumerMessage.CommittableMessage]
-  implicit val akkaPMBitraverse = LikeProducerRecord[ProducerMessage.Message[*, *, String]]
-  implicit val akkaTrBitraverse = LikeConsumerRecord[ConsumerMessage.TransactionalMessage]
+  implicit val akkaCMBitraverse = LikeConsumerRecord[AkkaConsumerMessage.CommittableMessage]
+  implicit val akkaPMBitraverse = LikeProducerRecord[AkkaProducerMessage.Message[*, *, String]]
+  implicit val akkaTrBitraverse = LikeConsumerRecord[AkkaConsumerMessage.TransactionalMessage]
 
   implicit val fs2CMBitraverse = LikeConsumerRecord[Fs2CommittableConsumerRecord[IO, *, *]]
   implicit val fs2PRBitraverse = LikeProducerRecord[Fs2ProducerRecord]
@@ -33,7 +33,8 @@ class BitraverseTest extends AnyFunSuite with Discipline {
   implicit val kafkaCRBitraverse = LikeConsumerRecord[ConsumerRecord]
   implicit val kafkaPRBitraverse = LikeProducerRecord[ProducerRecord]
 
-  implicit val akkaPMsBitraverse = LikeProducerRecords[ProducerMessage.MultiMessage[*, *, String]]
+  implicit val akkaPMsBitraverse =
+    LikeProducerRecords[AkkaProducerMessage.MultiMessage[*, *, String]]
   implicit val fs2PMsBitraverse  = LikeProducerRecords[Fs2ProducerRecords[*, *, String]]
   implicit val fs2CPRBitraverses = LikeProducerRecords[Fs2CommittableProducerRecords[IO, *, *]]
   implicit val fs2TransBitraverses =
@@ -73,22 +74,22 @@ class BitraverseTest extends AnyFunSuite with Discipline {
 
   checkAll(
     "akka.producer.ProducerMessage",
-    BitraverseTests[ProducerMessage.Message[*, *, String]]
+    BitraverseTests[AkkaProducerMessage.Message[*, *, String]]
       .bitraverse[Either[String, *], Int, Int, Int, Int, Int, Int])
 
   checkAll(
     "akka.consumer.CommittableMessage",
-    BitraverseTests[ConsumerMessage.CommittableMessage]
+    BitraverseTests[AkkaConsumerMessage.CommittableMessage]
       .bitraverse[Either[Long, *], Int, Int, Int, Int, Int, Int])
 
   checkAll(
     "akka.consumer.TransactionalMessage",
-    BitraverseTests[ConsumerMessage.TransactionalMessage]
+    BitraverseTests[AkkaConsumerMessage.TransactionalMessage]
       .bitraverse[Either[Long, *], Int, Int, Int, Int, Int, Int])
 
   checkAll(
     "akka.producer.MultiMessage",
-    BitraverseTests[ProducerMessage.MultiMessage[*, *, String]]
+    BitraverseTests[AkkaProducerMessage.MultiMessage[*, *, String]]
       .bitraverse[Either[Long, *], Int, Int, Int, Int, Int, Int])
 
   checkAll(

@@ -13,10 +13,10 @@ import com.github.chenharryhua.nanjin.codec.{
   LikeProducerRecords
 }
 import fs2.kafka.{
-  CommittableConsumerRecord,
-  ConsumerRecord  => Fs2ConsumerRecord,
-  ProducerRecord  => Fs2ProducerRecord,
-  ProducerRecords => Fs2ProducerRecords
+  CommittableConsumerRecord => Fs2CommittableConsumerRecord,
+  ConsumerRecord            => Fs2ConsumerRecord,
+  ProducerRecord            => Fs2ProducerRecord,
+  ProducerRecords           => Fs2ProducerRecords
 }
 import monocle.law.discipline.LensTests
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -28,7 +28,7 @@ class LensTest extends AnyFunSuite with Discipline {
 
   checkAll(
     "fs2.consumer.CommittableConsumerRecord",
-    LensTests(LikeConsumerRecord[CommittableConsumerRecord[IO, *, *]].lens[Int, Int, Int, Int]))
+    LensTests(LikeConsumerRecord[Fs2CommittableConsumerRecord[IO, *, *]].lens[Int, Int, Int, Int]))
 
   checkAll(
     "fs2.consumer.ConsumerRecord",
