@@ -11,7 +11,7 @@ val kittens        = "2.0.0"
 val catsCore       = "2.0.0"
 val fs2Version     = "2.0.0"
 val catsMtl        = "0.7.0"
-val catsTime       = "0.3.0-M1"
+val catsTime       = "0.3.0"
 val monocleVersion = "2.0.0"
 val refined        = "0.9.9"
 
