@@ -22,18 +22,9 @@ final class KafkaSerdeAvro[A: Encoder: Decoder: SchemaFor] extends Serde[A] {
           case Success(gr) =>
             Try(format.from(gr)) match {
               case a @ Success(_) => a
-              case Failure(ex) =>
-                Failure(InvalidObjectException(s"""|decode avro failed:
-                                                   |topic:         $topic
-                                                   |error:         ${ex.getMessage} 
-                                                   |GenericRecord: ${gr.toString}
-                                                   |schema:        ${schema.toString}""".stripMargin))
+              case Failure(ex)    => Failure(InvalidObjectException(topic, ex, gr, schema))
             }
-          case Failure(ex) =>
-            Failure(CorruptedRecordException(s"""|decode avro failed:
-                                                 |topic:    $topic 
-                                                 |error:    ${ex.getMessage}
-                                                 |schema:   ${schema.toString}""".stripMargin))
+          case Failure(ex) => Failure(CorruptedRecordException(topic, ex, schema))
         }
       case None => Success(null.asInstanceOf[A])
     }
@@ -44,12 +35,7 @@ final class KafkaSerdeAvro[A: Encoder: Decoder: SchemaFor] extends Serde[A] {
       case Some(d) =>
         Try(ser.serialize(topic, format.to(d))) match {
           case ab @ Success(_) => ab
-          case Failure(ex) =>
-            Failure(EncodeException(s"""|encode avro failed: 
-                                        |topic:    $topic
-                                        |error:    ${ex.getMessage}
-                                        |data:     $data
-                                        |schema:   ${schema.toString()}""".stripMargin))
+          case Failure(ex)     => Failure(EncodeException(topic, ex, s"${data.toString}", schema))
         }
       case None => Success(null.asInstanceOf[Array[Byte]])
     }

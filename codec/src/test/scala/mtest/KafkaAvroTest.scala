@@ -1,7 +1,7 @@
 package mtest
 
 import com.github.chenharryhua.nanjin.codec.CodecException.InvalidObjectException
-import com.github.chenharryhua.nanjin.codec.SerdeOf
+import com.github.chenharryhua.nanjin.codec.{KafkaSerdeAvro, SerdeOf}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.JavaConverters._
@@ -26,9 +26,9 @@ class KafkaAvroTest extends AnyFunSuite {
     assertThrows[InvalidObjectException](barCode.decode(fooCodec.encode(Foo("a", 0))))
   }
   test("configurable") {
-    SerdeOf[Foo].asValue(sr).configure(sr.asJava, false)
+    new KafkaSerdeAvro[Foo].configure(sr.asJava, false)
   }
   test("closeable") {
-    SerdeOf[Bar].asKey(sr).close()
+    new KafkaSerdeAvro[Foo].close()
   }
 }
