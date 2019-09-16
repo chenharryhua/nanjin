@@ -59,7 +59,7 @@ final case class ValueSerde[A](
 }
 
 @implicitNotFound(
-  "Could not find an instance of SerdeOf[${A}], primitive types and case class are supprted")
+  "Could not find an instance of SerdeOf[${A}], primitive types and case classes are supported")
 sealed abstract class SerdeOf[A](schema: Schema) extends Serializable {
   def serializer: Serializer[A]
 
