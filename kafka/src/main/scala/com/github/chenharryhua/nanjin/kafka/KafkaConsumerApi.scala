@@ -95,18 +95,17 @@ sealed trait KafkaPrimitiveConsumerApi[F[_]] {
 
 object KafkaPrimitiveConsumerApi {
 
-  def apply[F[_]: Monad](
-    topicName: String
-  )(implicit F: ApplicativeAsk[F, KafkaByteConsumer]): KafkaPrimitiveConsumerApi[F] =
+  def apply[F[_]: Monad](topicName: String)(
+    implicit F: ApplicativeAsk[F, KafkaByteConsumer]): KafkaPrimitiveConsumerApi[F] =
     new KafkaPrimitiveConsumerApiImpl[F](topicName)
 
   final private[this] class KafkaPrimitiveConsumerApiImpl[F[_]: Monad](topicName: String)(
-    implicit K: ApplicativeAsk[F, KafkaByteConsumer]
+    implicit kbc: ApplicativeAsk[F, KafkaByteConsumer]
   ) extends KafkaPrimitiveConsumerApi[F] {
 
     val partitionsFor: F[ListOfTopicPartitions] = {
       for {
-        ret <- K.ask.map { c =>
+        ret <- kbc.ask.map { c =>
           Try(c.partitionsFor(topicName).asScala.toList).toOption.sequence.flatten
             .mapFilter(Option(_))
             .map(info => new TopicPartition(topicName, info.partition))
@@ -117,7 +116,7 @@ object KafkaPrimitiveConsumerApi {
     val beginningOffsets: F[GenericTopicPartition[Option[Long]]] =
       for {
         tps <- partitionsFor
-        ret <- K.ask.map {
+        ret <- kbc.ask.map {
           _.beginningOffsets(tps.asJava).asScala.toMap.mapValues(v => Option(v).map(_.toLong))
         }
       } yield GenericTopicPartition(ret)
@@ -125,7 +124,7 @@ object KafkaPrimitiveConsumerApi {
     val endOffsets: F[GenericTopicPartition[Option[Long]]] =
       for {
         tps <- partitionsFor
-        ret <- K.ask.map {
+        ret <- kbc.ask.map {
           _.endOffsets(tps.asJava).asScala.toMap.mapValues(v => Option(v).map(_.toLong))
         }
       } yield GenericTopicPartition(ret)
@@ -133,13 +132,13 @@ object KafkaPrimitiveConsumerApi {
     def offsetsForTimes(ldt: LocalDateTime): F[GenericTopicPartition[Option[OffsetAndTimestamp]]] =
       for {
         tps <- partitionsFor
-        ret <- K.ask.map { _.offsetsForTimes(tps.timed(ldt)).asScala.toMap.mapValues(Option(_)) }
+        ret <- kbc.ask.map { _.offsetsForTimes(tps.timed(ldt)).asScala.toMap.mapValues(Option(_)) }
       } yield GenericTopicPartition(ret)
 
     def retrieveRecord(
       partition: Int,
       offset: Long): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]] =
-      K.ask.map { consumer =>
+      kbc.ask.map { consumer =>
         val tp = new TopicPartition(topicName, partition)
         consumer.assign(List(tp).asJava)
         consumer.seek(tp, offset)
