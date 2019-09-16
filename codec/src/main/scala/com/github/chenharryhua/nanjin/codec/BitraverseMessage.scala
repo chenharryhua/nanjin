@@ -182,5 +182,4 @@ object BitraverseMessage extends BitraverseKafkaRecord {
           ProducerRecord[K1, V1],
           ProducerRecord[K2, V2]](_.record)(b => s => s.copy(record = b))
     }
-
 }

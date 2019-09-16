@@ -14,6 +14,7 @@ val catsMtl        = "0.7.0"
 val catsTime       = "0.3.0"
 val monocleVersion = "2.0.0"
 val refined        = "0.9.9"
+val droste         = "0.7.0"
 
 val zioCats    = "2.0.0.0-RC3"
 val monix      = "3.0.0"
@@ -121,7 +122,8 @@ val tests = Seq(
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.13" % "1.1.8"        % Test,
   "org.scalatest" %% "scalatest"                              % scalatest      % Test,
   "com.github.julien-truffaut" %% "monocle-law"               % monocleVersion % Test,
-  "org.typelevel" %% "discipline-scalatest"                   % "1.0.0-M1"     % Test
+  "org.typelevel" %% "discipline-scalatest"                   % "1.0.0-M1"     % Test,
+  "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.2.6"        % Test
 )
 
 val kafkaLib = Seq(
@@ -134,15 +136,16 @@ val kafkaLib = Seq(
   )
 
 val base = Seq(
-  "io.chrisdavenport" %% "cats-time"  % catsTime,
-  "eu.timepit" %% "refined"           % refined,
-  "org.typelevel" %% "cats-core"      % catsCore,
-  "org.typelevel" %% "cats-free"      % catsCore,
-  "org.typelevel" %% "alleycats-core" % catsCore,
-  "org.typelevel" %% "cats-mtl-core"  % catsMtl,
-  "org.typelevel" %% "kittens"        % kittens,
-  "com.propensive" %% "contextual"    % contextual,
-  "com.chuusai" %% "shapeless"        % shapeless
+  "io.chrisdavenport" %% "cats-time"   % catsTime,
+  "eu.timepit" %% "refined"            % refined,
+  "org.typelevel" %% "cats-core"       % catsCore,
+  "org.typelevel" %% "cats-free"       % catsCore,
+  "org.typelevel" %% "alleycats-core"  % catsCore,
+  "org.typelevel" %% "cats-mtl-core"   % catsMtl,
+  "org.typelevel" %% "kittens"         % kittens,
+  "com.propensive" %% "contextual"     % contextual,
+  "com.chuusai" %% "shapeless"         % shapeless,
+  "io.higherkindness" %% "droste-core" % droste
 )
 
 val effect = Seq(
