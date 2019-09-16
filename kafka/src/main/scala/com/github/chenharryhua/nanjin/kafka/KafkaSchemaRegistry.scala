@@ -97,7 +97,6 @@ final case class CompatibilityTestReport(
     key.flatMap(k => value.map(v => k && v)).fold(_ => false, identity)
 }
 
-@finalAlg
 @autoFunctorK
 @autoSemigroupalK
 @autoProductNK

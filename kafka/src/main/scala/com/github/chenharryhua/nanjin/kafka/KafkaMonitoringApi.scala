@@ -9,7 +9,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 
 import scala.util.Try
 
-@finalAlg
 @autoFunctorK
 @autoSemigroupalK
 trait KafkaMonitoringApi[F[_], K, V] {

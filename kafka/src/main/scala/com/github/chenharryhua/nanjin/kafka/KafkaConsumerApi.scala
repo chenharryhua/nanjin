@@ -78,7 +78,6 @@ object GenericTopicPartition {
   implicit def showGenericTopicPartition[A]: Show[GenericTopicPartition[A]] = _.show
 }
 
-@finalAlg
 @autoFunctorK
 @autoSemigroupalK
 @autoProductNK
@@ -149,7 +148,6 @@ object KafkaPrimitiveConsumerApi {
   }
 }
 
-@finalAlg
 @autoFunctorK
 @autoSemigroupalK
 sealed trait KafkaConsumerApi[F[_], K, V] extends KafkaPrimitiveConsumerApi[F] {

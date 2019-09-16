@@ -11,7 +11,6 @@ import fs2.Chunk
 import fs2.kafka.{KafkaByteProducer, ProducerRecord => Fs2ProducerRecord}
 import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
 
-@finalAlg
 @autoFunctorK
 @autoSemigroupalK
 trait KafkaProducerApi[F[_], K, V] {
