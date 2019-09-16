@@ -145,7 +145,8 @@ val base = Seq(
   "org.typelevel" %% "kittens"         % kittens,
   "com.propensive" %% "contextual"     % contextual,
   "com.chuusai" %% "shapeless"         % shapeless,
-  "io.higherkindness" %% "droste-core" % droste
+  "io.higherkindness" %% "droste-core" % droste,
+  "org.typelevel" %% "cats-tagless-macros" % "0.9"
 )
 
 val effect = Seq(

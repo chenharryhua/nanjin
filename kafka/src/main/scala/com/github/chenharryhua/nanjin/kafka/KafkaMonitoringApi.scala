@@ -2,12 +2,16 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.Show
 import cats.effect.{Concurrent, ContextShift}
 import cats.implicits._
+import cats.tagless._
 import com.github.chenharryhua.nanjin.codec._
 import fs2.kafka.AutoOffsetReset
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
 import scala.util.Try
 
+@finalAlg
+@autoFunctorK
+@autoSemigroupalK
 trait KafkaMonitoringApi[F[_], K, V] {
   def watchFromLatest: F[Unit]
   def watchFromEarliest: F[Unit]

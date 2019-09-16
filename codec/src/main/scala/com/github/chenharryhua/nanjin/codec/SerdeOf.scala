@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.codec
 
 import java.{util => ju}
 
-import cats.Invariant
+import cats.tagless.autoInvariant
 import com.sksamuel.avro4s.{AvroSchema, DefaultFieldMapper, SchemaFor}
 import monocle.Prism
 import org.apache.avro.Schema
@@ -13,6 +13,7 @@ import scala.annotation.{implicitAmbiguous, implicitNotFound}
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Try}
 
+@autoInvariant
 sealed trait KafkaCodec[A] {
   def encode(a: A): Array[Byte]
   def decode(ab: Array[Byte]): A
@@ -20,16 +21,6 @@ sealed trait KafkaCodec[A] {
     Option(ab).fold[Try[A]](Failure(CodecException.DecodingNullException))(x => Try(decode(x)))
   final val prism: Prism[Array[Byte], A] =
     Prism[Array[Byte], A](x => Try(decode(x)).toOption)(encode)
-}
-
-object KafkaCodec {
-  implicit val invariantCodec: Invariant[KafkaCodec] = new Invariant[KafkaCodec] {
-    override def imap[A, B](fa: KafkaCodec[A])(f: A => B)(g: B => A): KafkaCodec[B] =
-      new KafkaCodec[B] {
-        override def encode(b: B): Array[Byte]  = fa.encode(g(b))
-        override def decode(ab: Array[Byte]): B = f(fa.decode(ab))
-      }
-  }
 }
 
 sealed abstract class KafkaSerde[A](serializer: Serializer[A], deserializer: Deserializer[A])

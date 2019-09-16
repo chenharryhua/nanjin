@@ -5,11 +5,15 @@ import cats.data.Chain
 import cats.effect.concurrent.Deferred
 import cats.effect.{ConcurrentEffect, IO, Sync}
 import cats.implicits._
+import cats.tagless._
 import com.github.chenharryhua.nanjin.codec._
 import fs2.Chunk
 import fs2.kafka.{KafkaByteProducer, ProducerRecord => Fs2ProducerRecord}
 import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
 
+@finalAlg
+@autoFunctorK
+@autoSemigroupalK
 trait KafkaProducerApi[F[_], K, V] {
   def arbitrarilySend(key: Array[Byte], value: Array[Byte]): F[RecordMetadata]
   final def arbitrarilySend(kv: (Array[Byte], Array[Byte])): F[RecordMetadata] =

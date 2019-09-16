@@ -6,6 +6,7 @@ import avrohugger.types.{ScalaADT, ScalaCaseClass, ScalaCaseObjectEnum, ScalaLis
 import cats.Show
 import cats.effect.Sync
 import cats.implicits._
+import cats.tagless._
 import io.confluent.kafka.schemaregistry.client.SchemaMetadata
 import org.apache.avro.Schema
 
@@ -96,6 +97,10 @@ final case class CompatibilityTestReport(
     key.flatMap(k => value.map(v => k && v)).fold(_ => false, identity)
 }
 
+@finalAlg
+@autoFunctorK
+@autoSemigroupalK
+@autoProductNK
 trait KafkaSchemaRegistry[F[_]] extends Serializable {
   def delete: F[(List[Integer], List[Integer])]
   def register: F[(Option[Int], Option[Int])]

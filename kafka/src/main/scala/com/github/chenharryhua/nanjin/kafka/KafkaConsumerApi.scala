@@ -8,6 +8,7 @@ import cats.effect.concurrent.MVar
 import cats.effect.{Concurrent, Sync}
 import cats.implicits._
 import cats.mtl.ApplicativeAsk
+import cats.tagless._
 import cats.{Eval, Monad, Show}
 import fs2.kafka.KafkaByteConsumer
 import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndTimestamp}
@@ -77,6 +78,10 @@ object GenericTopicPartition {
   implicit def showGenericTopicPartition[A]: Show[GenericTopicPartition[A]] = _.show
 }
 
+@finalAlg
+@autoFunctorK
+@autoSemigroupalK
+@autoProductNK
 sealed trait KafkaPrimitiveConsumerApi[F[_]] {
 
   def partitionsFor: F[ListOfTopicPartitions]
@@ -144,6 +149,9 @@ object KafkaPrimitiveConsumerApi {
   }
 }
 
+@finalAlg
+@autoFunctorK
+@autoSemigroupalK
 sealed trait KafkaConsumerApi[F[_], K, V] extends KafkaPrimitiveConsumerApi[F] {
 
   def offsetRangeFor(
