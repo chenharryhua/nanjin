@@ -81,16 +81,18 @@ object KafkaMonitoringApi {
     override def summaries: F[Unit] =
       for {
         num <- consumer.numOfRecords
-        first <- consumer.retrieveFirstRecords
-        last <- consumer.retrieveLastRecords
+        first <- consumer.retrieveFirstRecords.map(_.map(cr =>
+          fs2Channel.recordDecoder.tryDecodeKeyValue(cr)))
+        last <- consumer.retrieveLastRecords.map(_.map(cr =>
+          fs2Channel.recordDecoder.tryDecodeKeyValue(cr)))
       } yield println(s"""
                          |summaries:
                          |
-                         |${num.show}
-                         |first records: 
+                         |number of records: ${num.show}
+                         |first records of each partitions: 
                          |${first.map(_.show).mkString("\n")}
                          |
-                         |last records:
+                         |last records of each partitions:
                          |${last.map(_.show).mkString("\n")}
                          |""".stripMargin)
 
