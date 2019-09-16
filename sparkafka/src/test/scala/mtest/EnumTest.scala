@@ -4,14 +4,14 @@ import java.time.LocalDateTime
 import cats.derived.auto.show._
 import cats.effect.IO
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.ShowKafkaMessage
+import com.github.chenharryhua.nanjin.codec._
 import com.github.chenharryhua.nanjin.sparkafka.{Aggregations, SparkafkaDataset}
 import frameless.cats.implicits._
 import fs2.Chunk
 import org.scalatest.FunSuite
 import org.scalatest.funsuite.AnyFunSuite
 
-class EnumTest extends AnyFunSuite with ShowKafkaMessage with Aggregations {
+class EnumTest extends AnyFunSuite with Aggregations {
   topics.pencil_topic.schemaRegistry.register.unsafeRunSync()
   val end   = LocalDateTime.now()
   val start = end.minusHours(1)

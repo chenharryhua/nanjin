@@ -4,10 +4,10 @@ import java.time.LocalDateTime
 
 import cats.derived.auto.show._
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.ShowKafkaMessage
+import com.github.chenharryhua.nanjin.codec._
 import org.scalatest.funsuite.AnyFunSuite
 
-class ConsumerApiTest extends AnyFunSuite with ShowKafkaMessage {
+class ConsumerApiTest extends AnyFunSuite {
 
   val nyc_taxi_trip: TopicDef[Array[Byte], trip_record] =
     TopicDef[Array[Byte], trip_record]("nyc_yellow_taxi_trip_data")

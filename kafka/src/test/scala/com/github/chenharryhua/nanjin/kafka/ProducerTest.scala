@@ -10,12 +10,12 @@ import org.scalatest.FunSuite
 import scala.concurrent.duration._
 import scala.util.Random
 import cats.derived.auto.show._
-import com.github.chenharryhua.nanjin.codec.ShowKafkaMessage
+import com.github.chenharryhua.nanjin.codec._
 import org.scalatest.funsuite.AnyFunSuite
 case class AvroKey(key: String)
 case class AvroValue(v1: String, v2: Int)
 
-class ProducerTest extends AnyFunSuite with ShowKafkaMessage {
+class ProducerTest extends AnyFunSuite {
   val srcTopic    = ctx.topic[AvroKey, AvroValue]("producer-test-source")
   val akkaTopic   = ctx.topic[AvroKey, AvroValue]("producer-test-akka")
   val fs2Topic    = ctx.topic[AvroKey, AvroValue]("producer-test-fs2")

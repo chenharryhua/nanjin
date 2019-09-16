@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.ShowKafkaMessage
+import com.github.chenharryhua.nanjin.codec._
 import org.scalatest.funsuite.AnyFunSuite
 import zio.blocking.Blocking
 import zio.clock.Clock
@@ -13,7 +13,7 @@ import zio.random.Random
 import zio.system.System
 import zio.{DefaultRuntime, Runtime}
 
-class ZioTest extends AnyFunSuite with ShowKafkaMessage {
+class ZioTest extends AnyFunSuite {
   type Environment = Clock with Console with System with Random with Blocking
 
   implicit val runtime: Runtime[Environment] = new DefaultRuntime {}

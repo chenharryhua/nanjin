@@ -7,9 +7,9 @@ import fs2.kafka.CommittableConsumerRecord
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
 
-trait ShowKafkaMessage {
+private[codec] trait ShowKafkaMessage {
 
-  implicit protected def showConsumerRecords[K: Show, V: Show]: Show[ConsumerRecord[K, V]] =
+  implicit def showConsumerRecords[K: Show, V: Show]: Show[ConsumerRecord[K, V]] =
     (t: ConsumerRecord[K, V]) => {
       val ts = NJTimestamp(t.timestamp())
       s"""
@@ -29,7 +29,7 @@ trait ShowKafkaMessage {
          |leader epoch: ${t.leaderEpoch}""".stripMargin
     }
 
-  implicit protected def showProducerRecord[K: Show, V: Show]: Show[ProducerRecord[K, V]] =
+  implicit def showProducerRecord[K: Show, V: Show]: Show[ProducerRecord[K, V]] =
     (t: ProducerRecord[K, V]) => {
       val ts = NJTimestamp(t.timestamp())
       s"""
@@ -44,17 +44,16 @@ trait ShowKafkaMessage {
          |headers:    ${t.headers}""".stripMargin
     }
 
-  implicit protected def showFs2CommittableMessage[F[_], K: Show, V: Show]
+  implicit def showFs2CommittableMessage[F[_], K: Show, V: Show]
     : Show[CommittableConsumerRecord[F, K, V]] =
     (t: CommittableConsumerRecord[F, K, V]) => isoFs2ComsumerRecord.get(t.record).show
 
-  implicit protected def showAkkaCommittableMessage[K: Show, V: Show]
-    : Show[CommittableMessage[K, V]] =
+  implicit def showAkkaCommittableMessage[K: Show, V: Show]: Show[CommittableMessage[K, V]] =
     (t: CommittableMessage[K, V]) => t.record.show
 
-  implicit protected val showArrayByte: Show[Array[Byte]] = _ => "Array[Byte]"
+  implicit val showArrayByte: Show[Array[Byte]] = _ => "Array[Byte]"
 
-  implicit protected def showRecordMetadata: Show[RecordMetadata] = { t: RecordMetadata =>
+  implicit def showRecordMetadata: Show[RecordMetadata] = { t: RecordMetadata =>
     val ts = NJTimestamp(t.timestamp())
     s"""
        |topic:     ${t.topic()}

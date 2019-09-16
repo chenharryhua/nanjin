@@ -35,7 +35,7 @@ object KafkaMonitoringApi {
   final private class KafkaTopicMonitoring[F[_], K: Show, V: Show](
     fs2Channel: KafkaChannels.Fs2Channel[F, K, V],
     consumer: KafkaConsumerApi[F, K, V])(implicit F: Concurrent[F])
-      extends KafkaMonitoringApi[F, K, V] with ShowKafkaMessage {
+      extends KafkaMonitoringApi[F, K, V] {
 
     private def watch(aor: AutoOffsetReset): F[Unit] =
       Keyboard.signal.flatMap { signal =>
