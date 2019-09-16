@@ -10,15 +10,10 @@ import cats.Show
 import cats.data.{NonEmptyList, Reader}
 import cats.effect._
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.KafkaGenericDecoder
-import com.github.chenharryhua.nanjin.codec._
 import com.github.chenharryhua.nanjin.codec.BitraverseMessage._
-
-import fs2.kafka.{
-  CommittableConsumerRecord,
-  ConsumerSettings => Fs2ConsumerSettings,
-  ProducerSettings => Fs2ProducerSettings
-}
+import com.github.chenharryhua.nanjin.codec.{KafkaGenericDecoder, _}
+import fs2.Stream
+import fs2.kafka.{ConsumerSettings => Fs2ConsumerSettings, ProducerSettings => Fs2ProducerSettings}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
@@ -38,8 +33,7 @@ object KafkaChannels {
     valueCodec: KafkaCodec[V]
   ) {
 
-    import fs2.Stream
-    import fs2.kafka.{consumerStream, KafkaProducer}
+    import fs2.kafka.{consumerStream, CommittableConsumerRecord, KafkaProducer}
 
     val messageDecoder: KafkaGenericDecoder[CommittableConsumerRecord[F, *, *], K, V] =
       new KafkaGenericDecoder[CommittableConsumerRecord[F, *, *], K, V](keyCodec, valueCodec)

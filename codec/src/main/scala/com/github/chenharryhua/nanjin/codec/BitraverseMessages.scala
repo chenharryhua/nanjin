@@ -12,7 +12,7 @@ import fs2.kafka.{
 import monocle.{PLens, PTraversal}
 import org.apache.kafka.clients.producer.ProducerRecord
 
-sealed trait BitraverseMessages[F[_, _]] extends Bitraverse[F] {
+sealed trait BitraverseMessages[F[_, _]] extends Bitraverse[F] with BitraverseKafkaRecord {
 
   def traversal[K1, V1, K2, V2]
     : PTraversal[F[K1, V1], F[K2, V2], ProducerRecord[K1, V1], ProducerRecord[K2, V2]]
@@ -33,7 +33,7 @@ sealed trait BitraverseMessages[F[_, _]] extends Bitraverse[F] {
 object BitraverseMessages {
   def apply[F[_, _]](implicit ev: BitraverseMessages[F]): BitraverseMessages[F] = ev
 
-  implicit def fs2ProducerRecordsLike[P]: BitraverseMessages[Fs2ProducerRecords[*, *, P]] =
+  implicit def fs2ProducerRecords[P]: BitraverseMessages[Fs2ProducerRecords[*, *, P]] =
     new BitraverseMessages[Fs2ProducerRecords[*, *, P]] {
       override def traversal[K1, V1, K2, V2]: PTraversal[
         Fs2ProducerRecords[K1, V1, P],
@@ -51,7 +51,7 @@ object BitraverseMessages {
           PTraversal.fromTraverse[Chunk, ProducerRecord[K1, V1], ProducerRecord[K2, V2]])
     }
 
-  implicit def fs2CommittableProducerRecordsLike[F[_]]
+  implicit def fs2CommittableProducerRecords[F[_]]
     : BitraverseMessages[Fs2CommittableProducerRecords[F, *, *]] =
     new BitraverseMessages[Fs2CommittableProducerRecords[F, *, *]] {
       override def traversal[K1, V1, K2, V2]: PTraversal[
@@ -70,7 +70,7 @@ object BitraverseMessages {
           PTraversal.fromTraverse[Chunk, ProducerRecord[K1, V1], ProducerRecord[K2, V2]])
     }
 
-  implicit def fs2TransactionalProducerRecordsLike[F[_], P]
+  implicit def fs2TransactionalProducerRecords[F[_], P]
     : BitraverseMessages[Fs2TransactionalProducerRecords[F, *, *, P]] =
     new BitraverseMessages[Fs2TransactionalProducerRecords[F, *, *, P]] {
       override def traversal[K1, V1, K2, V2]: PTraversal[
@@ -89,10 +89,10 @@ object BitraverseMessages {
               Chunk,
               Fs2CommittableProducerRecords[F, K1, V1],
               Fs2CommittableProducerRecords[F, K2, V2]])
-          .composeTraversal(fs2CommittableProducerRecordsLike.traversal)
+          .composeTraversal(fs2CommittableProducerRecords.traversal)
     }
 
-  implicit def akkaMultiMessageLike[P]: BitraverseMessages[AkkaMultiMessage[*, *, P]] =
+  implicit def akkaMultiMessage[P]: BitraverseMessages[AkkaMultiMessage[*, *, P]] =
     new BitraverseMessages[AkkaMultiMessage[*, *, P]] {
       override def traversal[K1, V1, K2, V2]: PTraversal[
         AkkaMultiMessage[K1, V1, P],

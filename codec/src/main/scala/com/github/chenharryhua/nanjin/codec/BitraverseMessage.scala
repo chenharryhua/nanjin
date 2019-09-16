@@ -33,13 +33,13 @@ sealed trait BitraverseMessage[F[_, _]] extends Bitraverse[F] {
     lens.get(fab).bifoldRight(c)(f, g)
 }
 
-object BitraverseMessage {
+object BitraverseMessage extends BitraverseKafkaRecord {
 
   def apply[F[_, _]](
     implicit ev: BitraverseMessage[F]): BitraverseMessage[F] { type H[A, B] = ev.H[A, B] } =
     ev
 
-  implicit val identityConsumerRecordLike
+  implicit val identityConsumerRecord
     : BitraverseMessage[ConsumerRecord] { type H[A, B] = ConsumerRecord[A, B] } =
     new BitraverseMessage[ConsumerRecord] {
       override type H[K, V] = ConsumerRecord[K, V]
@@ -56,7 +56,7 @@ object BitraverseMessage {
           ConsumerRecord[K2, V2]](s => s)(b => _ => b)
     }
 
-  implicit val fs2ConsumerRecordLike
+  implicit val fs2ConsumerRecord
     : BitraverseMessage[Fs2ConsumerRecord] { type H[A, B] = ConsumerRecord[A, B] } =
     new BitraverseMessage[Fs2ConsumerRecord] {
       override type H[K, V] = ConsumerRecord[K, V]
@@ -75,7 +75,7 @@ object BitraverseMessage {
         }
     }
 
-  implicit val akkaConsumerMessageLike
+  implicit val akkaCommittableMessage
     : BitraverseMessage[AkkaCommittableMessage] { type H[A, B] = ConsumerRecord[A, B] } =
     new BitraverseMessage[AkkaCommittableMessage] {
       override type H[K, V] = ConsumerRecord[K, V]
@@ -92,7 +92,7 @@ object BitraverseMessage {
           ConsumerRecord[K2, V2]](_.record)(b => s => s.copy(record = b))
     }
 
-  implicit val akkaAkkaTransactionalMessageLike
+  implicit val akkaAkkaTransactionalMessage
     : BitraverseMessage[AkkaTransactionalMessage] { type H[A, B] = ConsumerRecord[A, B] } =
     new BitraverseMessage[AkkaTransactionalMessage] {
       override type H[K, V] = ConsumerRecord[K, V]
@@ -109,7 +109,7 @@ object BitraverseMessage {
           ConsumerRecord[K2, V2]](_.record)(b => s => s.copy(record = b))
     }
 
-  implicit def fs2ConsumerMessageLike[F[_]]
+  implicit def fs2CommittableConsumerRecord[F[_]]
     : BitraverseMessage[Fs2CommittableConsumerRecord[F, *, *]] {
       type H[A, B] = ConsumerRecord[A, B]
     } =
@@ -130,7 +130,7 @@ object BitraverseMessage {
         }
     }
 
-  implicit val identityProducerRecordLike
+  implicit val identityProducerRecord
     : BitraverseMessage[ProducerRecord] { type H[A, B] = ProducerRecord[A, B] } =
     new BitraverseMessage[ProducerRecord] {
       override type H[K, V] = ProducerRecord[K, V]
@@ -147,7 +147,7 @@ object BitraverseMessage {
           ProducerRecord[K2, V2]](s => s)(b => _ => b)
     }
 
-  implicit def fs2ProducerRecordLike[P]
+  implicit def fs2ProducerRecord[P]
     : BitraverseMessage[Fs2ProducerRecord] { type H[A, B] = ProducerRecord[A, B] } =
     new BitraverseMessage[Fs2ProducerRecord] {
       override type H[K, V] = ProducerRecord[K, V]
@@ -166,7 +166,7 @@ object BitraverseMessage {
         }
     }
 
-  implicit def akkaProducerMessageLike[P]
+  implicit def akkaProducerMessage[P]
     : BitraverseMessage[AkkaProducerMessage[*, *, P]] { type H[A, B] = ProducerRecord[A, B] } =
     new BitraverseMessage[AkkaProducerMessage[*, *, P]] {
       override type H[K, V] = ProducerRecord[K, V]
