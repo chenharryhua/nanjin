@@ -6,7 +6,7 @@ import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.spark.streaming.kafka010.OffsetRange
 
-//https://spark.apache.org/docs/2.4.3/structured-streaming-kafka-integration.html
+// https://spark.apache.org/docs/2.4.3/structured-streaming-kafka-integration.html
 @Lenses final case class SparkConsumerRecord[K, V](
   key: K,
   value: V,
@@ -73,7 +73,7 @@ object SparkOffsets {
         Map(
           "startingOffsets" -> osJson(t.topic(), start),
           "endingOffsets" -> osJson(t.topic(), end))
-      case None => Map()
+      case None => Map.empty
     }
   }
 }

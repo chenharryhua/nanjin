@@ -6,7 +6,7 @@ import monocle.macros.Lenses
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 
-@Lenses case class SparkSettings(conf: SparkConf, logLevel: String) {
+@Lenses final case class SparkSettings(conf: SparkConf, logLevel: String) {
 
   def kms(kmsKey: String): SparkSettings =
     SparkSettings.conf.set(

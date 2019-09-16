@@ -26,13 +26,13 @@ trait KafkaMonitoringApi[F[_], K, V] {
 
 object KafkaMonitoringApi {
 
-  def apply[F[_]: Concurrent: ContextShift, K: Show, V: Show](
+  def apply[F[_]: Concurrent, K: Show, V: Show](
     fs2Channel: KafkaChannels.Fs2Channel[F, K, V],
     consumer: KafkaConsumerApi[F, K, V]
   ): KafkaMonitoringApi[F, K, V] =
     new KafkaTopicMonitoring[F, K, V](fs2Channel, consumer)
 
-  final private class KafkaTopicMonitoring[F[_]: ContextShift, K: Show, V: Show](
+  final private class KafkaTopicMonitoring[F[_], K: Show, V: Show](
     fs2Channel: KafkaChannels.Fs2Channel[F, K, V],
     consumer: KafkaConsumerApi[F, K, V])(implicit F: Concurrent[F])
       extends KafkaMonitoringApi[F, K, V] with ShowKafkaMessage {

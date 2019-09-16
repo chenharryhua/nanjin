@@ -14,7 +14,7 @@ object CodecException {
                                  |data:     $data
                                  |schema:   ${schema.toString()}""".stripMargin)
 
-  final case object DecodingNullException extends CodecException(s"decoding null")
+  final case object DecodingNullException extends CodecException("decoding null")
 
   final case class CorruptedRecordException(topic: String, error: Throwable, schema: Schema)
       extends CodecException(s"""|decode avro failure:

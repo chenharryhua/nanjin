@@ -66,7 +66,7 @@ object SparkafkaDataset {
           v => t.valueCodec.tryDecode(v).toOption))
     }))
 
-  def valueDataset[F[_]: Monad, K, V: TypedEncoder: ClassTag: SerdeOf](
+  def valueDataset[F[_]: Monad, K, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
     start: LocalDateTime,
     end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[V]] =
@@ -75,7 +75,7 @@ object SparkafkaDataset {
       ds.select(udf(ds('value)))
     }
 
-  def safeValueDataset[F[_]: Monad, K, V: TypedEncoder: ClassTag](
+  def safeValueDataset[F[_]: Monad, K, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
     start: LocalDateTime,
     end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[V]] =
