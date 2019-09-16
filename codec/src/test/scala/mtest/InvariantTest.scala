@@ -19,7 +19,5 @@ class InvariantTest extends AnyFunSuite with Discipline {
   checkAll("KafkaCodec", InvariantTests[KafkaCodec].invariant[Int, Int, Int])
 
   val tf: KafkaCodec[Int] = intCodec.imap(_ + 1)(_ - 1)
-  check(forAll(arbitrary[Int]) { x =>
-    tf.decode(tf.encode(x)) == x
-  })
+  forAll(arbitrary[Int]) { x =>  tf.decode(tf.encode(x)) == x }.check()
 }
