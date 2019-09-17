@@ -4,22 +4,27 @@ import cats.{Applicative, Bitraverse, Eval}
 import com.github.chenharryhua.nanjin.kafka.{GenericTopicPartition, KafkaOffsetRange}
 import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.spark.streaming.kafka010.OffsetRange
 
 // https://spark.apache.org/docs/2.4.3/structured-streaming-kafka-integration.html
-@Lenses final case class SparkConsumerRecord[K, V](
+@Lenses final case class SparkafkaRecord[K, V](
   key: K,
   value: V,
   topic: String,
   partition: Int,
   offset: Long,
   timestamp: Long,
-  timestampType: Int)
+  timestampType: Int) {
 
-object SparkConsumerRecord {
+  def toProducerRecord: ProducerRecord[K, V] =
+    new ProducerRecord[K, V](topic, partition, timestamp, key, value)
+}
+
+object SparkafkaRecord {
 
   def from[K, V](cr: ConsumerRecord[K, V]) =
-    SparkConsumerRecord(
+    SparkafkaRecord(
       cr.key(),
       cr.value(),
       cr.topic(),
@@ -28,22 +33,22 @@ object SparkConsumerRecord {
       cr.timestamp(),
       cr.timestampType().id)
 
-  implicit val bitraverseSparkConsumerRecord: Bitraverse[SparkConsumerRecord] =
-    new Bitraverse[SparkConsumerRecord] {
+  implicit val bitraverseSparkConsumerRecord: Bitraverse[SparkafkaRecord] =
+    new Bitraverse[SparkafkaRecord] {
       override def bimap[A, B, C, D](
-        fab: SparkConsumerRecord[A, B])(f: A => C, g: B => D): SparkConsumerRecord[C, D] =
+        fab: SparkafkaRecord[A, B])(f: A => C, g: B => D): SparkafkaRecord[C, D] =
         fab.copy(key = f(fab.key), value = g(fab.value))
 
-      override def bitraverse[G[_], A, B, C, D](fab: SparkConsumerRecord[A, B])(
+      override def bitraverse[G[_], A, B, C, D](fab: SparkafkaRecord[A, B])(
         f: A => G[C],
-        g: B => G[D])(implicit G: Applicative[G]): G[SparkConsumerRecord[C, D]] =
+        g: B => G[D])(implicit G: Applicative[G]): G[SparkafkaRecord[C, D]] =
         G.map2(f(fab.key), g(fab.value))((k, v) => bimap(fab)(_ => k, _ => v))
 
-      override def bifoldLeft[A, B, C](fab: SparkConsumerRecord[A, B], c: C)(
+      override def bifoldLeft[A, B, C](fab: SparkafkaRecord[A, B], c: C)(
         f: (C, A) => C,
         g: (C, B) => C): C = g(f(c, fab.key), fab.value)
 
-      override def bifoldRight[A, B, C](fab: SparkConsumerRecord[A, B], c: Eval[C])(
+      override def bifoldRight[A, B, C](fab: SparkafkaRecord[A, B], c: Eval[C])(
         f: (A, Eval[C]) => Eval[C],
         g: (B, Eval[C]) => Eval[C]): Eval[C] = g(fab.value, f(fab.key, c))
     }

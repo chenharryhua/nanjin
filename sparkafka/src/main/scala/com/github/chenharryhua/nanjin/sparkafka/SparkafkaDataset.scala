@@ -4,18 +4,24 @@ import java.time.LocalDateTime
 import java.util
 
 import cats.Monad
+import cats.effect.ConcurrentEffect
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import frameless.{TypedDataset, TypedEncoder}
+import fs2.kafka.{
+  produce,
+  ProducerRecord  => Fs2ProducerRecord,
+  ProducerRecords => Fs2ProducerRecords
+}
 import monocle.function.At.remove
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.types.DataType
 import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies}
 
 import scala.collection.JavaConverters._
-import scala.reflect.ClassTag
 
 object SparkafkaDataset {
 
@@ -29,7 +35,7 @@ object SparkafkaDataset {
     topic: KafkaTopic[F, K, V],
     start: LocalDateTime,
     end: LocalDateTime)(
-    implicit spark: SparkSession): F[TypedDataset[SparkConsumerRecord[Array[Byte], Array[Byte]]]] =
+    implicit spark: SparkSession): F[TypedDataset[SparkafkaRecord[Array[Byte], Array[Byte]]]] =
     topic.consumer
       .offsetRangeFor(start, end)
       .map { gtp =>
@@ -39,14 +45,14 @@ object SparkafkaDataset {
             props(topic.kafkaConsumerSettings.props),
             SparkOffsets.offsetRange(gtp),
             LocationStrategies.PreferConsistent)
-          .map(SparkConsumerRecord.from[Array[Byte], Array[Byte]])
+          .map(SparkafkaRecord.from[Array[Byte], Array[Byte]])
       }
       .map(TypedDataset.create(_))
 
   def dataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
     start: LocalDateTime,
-    end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[SparkConsumerRecord[K, V]]] =
+    end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[SparkafkaRecord[K, V]]] =
     rawDS(topic, start, end).map {
       _.deserialized.mapPartitions(msgs => {
         val t = topic
@@ -57,7 +63,7 @@ object SparkafkaDataset {
   def safeDataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
     start: LocalDateTime,
-    end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[SparkConsumerRecord[K, V]]] =
+    end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[SparkafkaRecord[K, V]]] =
     rawDS(topic, start, end).map(_.deserialized.mapPartitions(msgs => {
       val t = topic
       msgs.flatMap(
@@ -84,4 +90,13 @@ object SparkafkaDataset {
         ds.makeUDF((x: Array[Byte]) => topic.valueCodec.tryDecode(x).toOption)
       ds.select(udf(ds('value))).deserialized.flatMap(x => x)
     }
+
+  def upload[F[_]: ConcurrentEffect, K: TypedEncoder, V: TypedEncoder](
+    data: TypedDataset[SparkafkaRecord[K, V]],
+    topic: KafkaTopic[F, K, V]): F[Unit] =
+    fs2.Stream
+      .fromIterator[F](data.dataset.toLocalIterator().asScala)
+      .evalMap(r => topic.producer.send(r.toProducerRecord))
+      .compile
+      .drain
 }

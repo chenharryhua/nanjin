@@ -11,6 +11,7 @@ object CodecException {
       extends CodecException(s"""|encode avro failure: 
                                  |topic:    $topic
                                  |error:    ${error.getMessage}
+                                 |cause:    ${error.getCause}
                                  |data:     $data
                                  |schema:   ${schema.toString()}""".stripMargin)
 
@@ -20,6 +21,7 @@ object CodecException {
       extends CodecException(s"""|decode avro failure:
                                  |topic:    $topic
                                  |error:    ${error.getMessage}
+                                 |cause:    ${error.getCause}
                                  |schema:   ${schema.toString}""".stripMargin)
 
   final case class InvalidObjectException(
@@ -30,6 +32,7 @@ object CodecException {
       extends CodecException(s"""|decode avro failure:
                                  |topic:         $topic
                                  |error:         ${error.getMessage}
+                                 |cause:         ${error.getCause}
                                  |GenericRecord: ${genericRecord.toString}
                                  |schema:        ${schema.toString}""".stripMargin)
 

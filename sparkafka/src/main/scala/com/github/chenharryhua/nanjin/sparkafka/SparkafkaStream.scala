@@ -17,7 +17,7 @@ object SparkafkaStream {
   }
 
   def sstream[F[_], K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
-    implicit spark: SparkSession): TypedDataset[SparkConsumerRecord[K, V]] = {
+    implicit spark: SparkSession): TypedDataset[SparkafkaRecord[K, V]] = {
     import spark.implicits._
     TypedDataset
       .create(
@@ -26,7 +26,7 @@ object SparkafkaStream {
           .options(toSparkOptions(topic.kafkaConsumerSettings.props))
           .option("subscribe", topic.topicName)
           .load()
-          .as[SparkConsumerRecord[Array[Byte], Array[Byte]]])
+          .as[SparkafkaRecord[Array[Byte], Array[Byte]]])
       .deserialized
       .map { msg =>
         val t = topic
