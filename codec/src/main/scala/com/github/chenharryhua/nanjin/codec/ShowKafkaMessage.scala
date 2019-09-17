@@ -9,7 +9,7 @@ import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
 
 private[codec] trait ShowKafkaMessage {
 
-  implicit def showConsumerRecords[K: Show, V: Show]: Show[ConsumerRecord[K, V]] =
+  implicit def showConsumerRecord[K: Show, V: Show]: Show[ConsumerRecord[K, V]] =
     (t: ConsumerRecord[K, V]) => {
       val ts = NJTimestamp(t.timestamp())
       s"""

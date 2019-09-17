@@ -194,12 +194,14 @@ import scala.util.Try
   def zioContext(
     implicit contextShift: ContextShift[zio.Task],
     timer: Timer[zio.Task],
-    ce: ConcurrentEffect[zio.Task]) = new ZioKafkaContext(this)
+    ce: ConcurrentEffect[zio.Task]) =
+    new ZioKafkaContext(this)
 
   def monixContext(
     implicit contextShift: ContextShift[monix.eval.Task],
     timer: Timer[monix.eval.Task],
-    ce: ConcurrentEffect[monix.eval.Task]) = new MonixKafkaContext(this)
+    ce: ConcurrentEffect[monix.eval.Task]) =
+    new MonixKafkaContext(this)
 
   def show: String =
     s"""
