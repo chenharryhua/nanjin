@@ -6,22 +6,16 @@ import java.util
 import cats.Monad
 import cats.effect.ConcurrentEffect
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.kafka.{KafkaProducerApi, KafkaTopic}
 import frameless.{TypedDataset, TypedEncoder}
-import fs2.kafka.{
-  produce,
-  ProducerRecord  => Fs2ProducerRecord,
-  ProducerRecords => Fs2ProducerRecords
-}
 import monocle.function.At.remove
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.types.DataType
 import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies}
 
 import scala.collection.JavaConverters._
+import org.apache.kafka.clients.producer.ProducerRecord
 
 object SparkafkaDataset {
 
@@ -93,10 +87,10 @@ object SparkafkaDataset {
 
   def upload[F[_]: ConcurrentEffect, K: TypedEncoder, V: TypedEncoder](
     data: TypedDataset[SparkafkaRecord[K, V]],
-    topic: KafkaTopic[F, K, V]): F[Unit] =
+    producer: KafkaProducerApi[F, K, V]): F[Unit] =
     fs2.Stream
-      .fromIterator[F](data.dataset.toLocalIterator().asScala)
-      .evalMap(r => topic.producer.send(r.toProducerRecord))
+      .fromIterator[F](data.deserialized.map(_.value).dataset.toLocalIterator().asScala)
+      .evalMap(r => producer.send(r))
       .compile
       .drain
 }

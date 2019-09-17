@@ -28,6 +28,7 @@ trait KafkaProducerApi[F[_], K, V] {
 
   def send(key: K, value: V): F[RecordMetadata]
   final def send(kv: (K, V)): F[RecordMetadata] = send(kv._1, kv._2)
+  final def send(v:V):F[RecordMetadata] = send(null.asInstanceOf[K], v)
 
   def send(pr: ProducerRecord[K, V]): F[RecordMetadata]
   def send(fpr: Fs2ProducerRecord[K, V]): F[RecordMetadata]
