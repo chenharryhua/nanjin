@@ -28,14 +28,15 @@ trait KafkaProducerApi[F[_], K, V] {
 
   def send(key: K, value: V): F[RecordMetadata]
   final def send(kv: (K, V)): F[RecordMetadata] = send(kv._1, kv._2)
-  final def send(v:V):F[RecordMetadata] = send(null.asInstanceOf[K], v)
+  final def send(v: V): F[RecordMetadata]       = send(null.asInstanceOf[K], v)
 
   def send(pr: ProducerRecord[K, V]): F[RecordMetadata]
+  def send(prs: Chunk[ProducerRecord[K, V]]): F[Chunk[RecordMetadata]]
+
   def send(fpr: Fs2ProducerRecord[K, V]): F[RecordMetadata]
 
   def send(kvs: List[(K, V)]): F[List[RecordMetadata]]
   def send(kvs: Chain[(K, V)]): F[Chain[RecordMetadata]]
-  def send(kvs: Chunk[(K, V)]): F[Chunk[RecordMetadata]]
 }
 
 object KafkaProducerApi {
@@ -95,7 +96,7 @@ object KafkaProducerApi {
     override def send(kvs: Chain[(K, V)]): F[Chain[RecordMetadata]] =
       kvs.traverse(kv => doSend(encoder.record(kv._1, kv._2))).flatMap(_.sequence)
 
-    override def send(kvs: Chunk[(K, V)]): F[Chunk[RecordMetadata]] =
-      kvs.traverse(kv => doSend(encoder.record(kv._1, kv._2))).flatMap(_.sequence)
+    override def send(prs: Chunk[ProducerRecord[K, V]]): F[Chunk[RecordMetadata]] =
+      prs.traverse(pr => doSend(encoder.record(pr))).flatMap(_.sequence)
   }
 }

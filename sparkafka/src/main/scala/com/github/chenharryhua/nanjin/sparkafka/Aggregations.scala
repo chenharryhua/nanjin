@@ -11,7 +11,7 @@ final case class KeysInPartitions[K](key: K, partitions: Vector[Int])
 trait Aggregations {
 
   implicit class PredefinedAggregationFunction[K: TypedEncoder, V: TypedEncoder](
-    tds: TypedDataset[SparkafkaRecord[K, V]]) {
+    tds: TypedDataset[SparkafkaConsumerRecord[K, V]]) {
 
     val keysInPartitions: TypedDataset[KeysInPartitions[K]] = {
       val keyPartition = tds.project[KeyPartition[K]]

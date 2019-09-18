@@ -28,8 +28,8 @@ object SparkafkaDataset {
   def rawDS[F[_]: Monad, K, V](
     topic: KafkaTopic[F, K, V],
     start: LocalDateTime,
-    end: LocalDateTime)(
-    implicit spark: SparkSession): F[TypedDataset[SparkafkaRecord[Array[Byte], Array[Byte]]]] =
+    end: LocalDateTime)(implicit spark: SparkSession)
+    : F[TypedDataset[SparkafkaConsumerRecord[Array[Byte], Array[Byte]]]] =
     topic.consumer
       .offsetRangeFor(start, end)
       .map { gtp =>
@@ -39,14 +39,15 @@ object SparkafkaDataset {
             props(topic.kafkaConsumerSettings.props),
             SparkOffsets.offsetRange(gtp),
             LocationStrategies.PreferConsistent)
-          .map(SparkafkaRecord.from[Array[Byte], Array[Byte]])
+          .map(SparkafkaConsumerRecord.from[Array[Byte], Array[Byte]])
       }
       .map(TypedDataset.create(_))
 
   def dataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
     start: LocalDateTime,
-    end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[SparkafkaRecord[K, V]]] =
+    end: LocalDateTime)(
+    implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
     rawDS(topic, start, end).map {
       _.deserialized.mapPartitions(msgs => {
         val t = topic
@@ -57,7 +58,8 @@ object SparkafkaDataset {
   def safeDataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
     start: LocalDateTime,
-    end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[SparkafkaRecord[K, V]]] =
+    end: LocalDateTime)(
+    implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
     rawDS(topic, start, end).map(_.deserialized.mapPartitions(msgs => {
       val t = topic
       msgs.flatMap(
@@ -86,11 +88,12 @@ object SparkafkaDataset {
     }
 
   def upload[F[_]: ConcurrentEffect, K: TypedEncoder, V: TypedEncoder](
-    data: TypedDataset[SparkafkaRecord[K, V]],
+    data: TypedDataset[SparkafkaProducerRecord[K, V]],
     producer: KafkaProducerApi[F, K, V]): F[Unit] =
     fs2.Stream
-      .fromIterator[F](data.deserialized.map(_.value).dataset.toLocalIterator().asScala)
-      .evalMap(r => producer.send(r))
+      .fromIterator[F](data.dataset.toLocalIterator().asScala)
+      .chunkN(500)
+      .evalMap(r => producer.send(r.mapFilter(Option(_).map(_.toProducerRecord))))
       .compile
       .drain
 }

@@ -1,14 +1,12 @@
 package com.github.chenharryhua.nanjin.sparkafka
 
 import cats.{Applicative, Bitraverse, Eval}
-import com.github.chenharryhua.nanjin.kafka.{GenericTopicPartition, KafkaOffsetRange}
 import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
-import org.apache.spark.streaming.kafka010.OffsetRange
 
 // https://spark.apache.org/docs/2.4.3/structured-streaming-kafka-integration.html
-@Lenses final case class SparkafkaRecord[K, V](
+@Lenses final case class SparkafkaConsumerRecord[K, V](
   key: K,
   value: V,
   topic: String,
@@ -17,14 +15,14 @@ import org.apache.spark.streaming.kafka010.OffsetRange
   timestamp: Long,
   timestampType: Int) {
 
-  def toProducerRecord: ProducerRecord[K, V] =
-    new ProducerRecord[K, V](topic, partition, timestamp, key, value)
+  def toSparkafkaProducerRecord: SparkafkaProducerRecord[K, V] =
+    SparkafkaProducerRecord[K, V](topic, Option(partition), Option(timestamp), Option(key), value)
 }
 
-object SparkafkaRecord {
+object SparkafkaConsumerRecord {
 
   def from[K, V](cr: ConsumerRecord[K, V]) =
-    SparkafkaRecord(
+    SparkafkaConsumerRecord(
       cr.key(),
       cr.value(),
       cr.topic(),
@@ -33,52 +31,50 @@ object SparkafkaRecord {
       cr.timestamp(),
       cr.timestampType().id)
 
-  implicit val bitraverseSparkConsumerRecord: Bitraverse[SparkafkaRecord] =
-    new Bitraverse[SparkafkaRecord] {
+  implicit val bitraverseSparkConsumerRecord: Bitraverse[SparkafkaConsumerRecord] =
+    new Bitraverse[SparkafkaConsumerRecord] {
       override def bimap[A, B, C, D](
-        fab: SparkafkaRecord[A, B])(f: A => C, g: B => D): SparkafkaRecord[C, D] =
+        fab: SparkafkaConsumerRecord[A, B])(f: A => C, g: B => D): SparkafkaConsumerRecord[C, D] =
         fab.copy(key = f(fab.key), value = g(fab.value))
 
-      override def bitraverse[G[_], A, B, C, D](fab: SparkafkaRecord[A, B])(
+      override def bitraverse[G[_], A, B, C, D](fab: SparkafkaConsumerRecord[A, B])(
         f: A => G[C],
-        g: B => G[D])(implicit G: Applicative[G]): G[SparkafkaRecord[C, D]] =
+        g: B => G[D])(implicit G: Applicative[G]): G[SparkafkaConsumerRecord[C, D]] =
         G.map2(f(fab.key), g(fab.value))((k, v) => bimap(fab)(_ => k, _ => v))
 
-      override def bifoldLeft[A, B, C](fab: SparkafkaRecord[A, B], c: C)(
+      override def bifoldLeft[A, B, C](fab: SparkafkaConsumerRecord[A, B], c: C)(
         f: (C, A) => C,
         g: (C, B) => C): C = g(f(c, fab.key), fab.value)
 
-      override def bifoldRight[A, B, C](fab: SparkafkaRecord[A, B], c: Eval[C])(
+      override def bifoldRight[A, B, C](fab: SparkafkaConsumerRecord[A, B], c: Eval[C])(
         f: (A, Eval[C]) => Eval[C],
         g: (B, Eval[C]) => Eval[C]): Eval[C] = g(fab.value, f(fab.key, c))
     }
 }
 
-object SparkOffsets {
+@Lenses final case class SparkafkaProducerRecord[K, V](
+  topic: String,
+  partition: Option[Int],
+  timestamp: Option[Long],
+  key: Option[K],
+  value: V) {
 
-  def offsetRange(range: GenericTopicPartition[KafkaOffsetRange]): Array[OffsetRange] =
-    range.value.toArray.map {
-      case (tp, r) => OffsetRange.create(tp, r.fromOffset, r.untilOffset)
-    }
+  @SuppressWarnings(Array("AsInstanceOf"))
+  def toProducerRecord: ProducerRecord[K, V] = new ProducerRecord[K, V](
+    topic,
+    partition.getOrElse(null.asInstanceOf[Int]),
+    timestamp.getOrElse(null.asInstanceOf[Long]),
+    key.getOrElse(null.asInstanceOf[K]),
+    value
+  )
+}
 
-  def offsetOptions(range: GenericTopicPartition[KafkaOffsetRange]): Map[String, String] = {
-    def poJson(partition: Int, offset: Long)        = s""" "$partition":$offset """
-    def osJson(topicName: String, po: List[String]) = s"""{"$topicName":{${po.mkString(",")}}}"""
+object SparkafkaProducerRecord {
 
-    val start = range.value.map {
-      case (k, v) => poJson(k.partition(), v.fromOffset)
-    }.toList
+  def apply[K, V](topic: String, k: K, v: V): SparkafkaProducerRecord[K, V] =
+    SparkafkaProducerRecord(topic, None, None, Option(k), v)
 
-    val end = range.value.map {
-      case (k, v) => poJson(k.partition(), v.untilOffset)
-    }.toList
+  def apply[K, V](topic: String, v: V): SparkafkaProducerRecord[K, V] =
+    SparkafkaProducerRecord(topic, None, None, None, v)
 
-    range.value.keys.headOption match {
-      case Some(t) =>
-        Map(
-          "startingOffsets" -> osJson(t.topic(), start),
-          "endingOffsets" -> osJson(t.topic(), end))
-      case None => Map.empty
-    }
-  }
 }
