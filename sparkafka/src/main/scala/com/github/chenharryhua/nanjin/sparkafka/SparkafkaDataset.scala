@@ -25,7 +25,7 @@ object SparkafkaDataset {
       "value.deserializer" -> classOf[ByteArrayDeserializer].getName) ++
       remove(ConsumerConfig.CLIENT_ID_CONFIG)(maps)).mapValues[Object](identity).asJava
 
-  def rawDS[F[_]: Monad, K, V](
+  private def rawDS[F[_]: Monad, K, V](
     topic: KafkaTopic[F, K, V],
     start: LocalDateTime,
     end: LocalDateTime)(implicit spark: SparkSession)
