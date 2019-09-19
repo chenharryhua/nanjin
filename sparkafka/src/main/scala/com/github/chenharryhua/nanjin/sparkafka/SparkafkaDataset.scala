@@ -18,6 +18,8 @@ import scala.collection.JavaConverters._
 
 object SparkafkaDataset {
 
+  private val ENDLESS: Long = 100 //years
+
   private def props(maps: Map[String, String]): util.Map[String, Object] =
     (Map(
       "key.deserializer" -> classOf[ByteArrayDeserializer].getName,
@@ -54,6 +56,12 @@ object SparkafkaDataset {
       })
     }
 
+  def dataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
+    topic: => KafkaTopic[F, K, V],
+    start: LocalDateTime)(
+    implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
+    dataset(topic, start, start.plusYears(ENDLESS))
+
   def safeDataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
     start: LocalDateTime,
@@ -67,6 +75,12 @@ object SparkafkaDataset {
           v => t.valueCodec.tryDecode(v).toOption))
     }))
 
+  def safeDataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
+    topic: => KafkaTopic[F, K, V],
+    start: LocalDateTime)(
+    implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
+    safeDataset(topic, start, start.plusYears(ENDLESS))
+
   def valueDataset[F[_]: Monad, K, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
     start: LocalDateTime,
@@ -75,6 +89,11 @@ object SparkafkaDataset {
       val udf = ds.makeUDF((x: Array[Byte]) => topic.valueCodec.decode(x))
       ds.select(udf(ds('value)))
     }
+
+  def valueDataset[F[_]: Monad, K, V: TypedEncoder](
+    topic: => KafkaTopic[F, K, V],
+    start: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[V]] =
+    valueDataset(topic, start, start.plusYears(ENDLESS))
 
   def safeValueDataset[F[_]: Monad, K, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
@@ -85,6 +104,11 @@ object SparkafkaDataset {
         ds.makeUDF((x: Array[Byte]) => topic.valueCodec.tryDecode(x).toOption)
       ds.select(udf(ds('value))).deserialized.flatMap(x => x)
     }
+
+  def safeValueDataset[F[_]: Monad, K, V: TypedEncoder](
+    topic: => KafkaTopic[F, K, V],
+    start: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[V]] =
+    safeValueDataset(topic, start, start.plusYears(ENDLESS))
 
   def upload[F[_]: ConcurrentEffect, K, V](
     data: TypedDataset[SparkafkaProducerRecord[K, V]],
