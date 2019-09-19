@@ -17,8 +17,7 @@ import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies}
 import scala.collection.JavaConverters._
 
 object SparkafkaDataset {
-
-  private val ENDLESS: Long = 100 //years
+  def tenYearsAgo: LocalDateTime = LocalDateTime.now.minusYears(10)
 
   private def props(maps: Map[String, String]): util.Map[String, Object] =
     (Map(
@@ -60,7 +59,11 @@ object SparkafkaDataset {
     topic: => KafkaTopic[F, K, V],
     start: LocalDateTime)(
     implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
-    dataset(topic, start, start.plusYears(ENDLESS))
+    dataset(topic, start, LocalDateTime.now)
+
+  def dataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
+    implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
+    dataset(topic, tenYearsAgo, LocalDateTime.now)
 
   def safeDataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
@@ -79,7 +82,11 @@ object SparkafkaDataset {
     topic: => KafkaTopic[F, K, V],
     start: LocalDateTime)(
     implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
-    safeDataset(topic, start, start.plusYears(ENDLESS))
+    safeDataset(topic, start, LocalDateTime.now)
+
+  def safeDataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
+    implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
+    safeDataset(topic, tenYearsAgo, LocalDateTime.now)
 
   def valueDataset[F[_]: Monad, K, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
@@ -93,7 +100,11 @@ object SparkafkaDataset {
   def valueDataset[F[_]: Monad, K, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
     start: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[V]] =
-    valueDataset(topic, start, start.plusYears(ENDLESS))
+    valueDataset(topic, start, LocalDateTime.now)
+
+  def valueDataset[F[_]: Monad, K, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
+    implicit spark: SparkSession): F[TypedDataset[V]] =
+    valueDataset(topic, tenYearsAgo, LocalDateTime.now)
 
   def safeValueDataset[F[_]: Monad, K, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
@@ -108,7 +119,11 @@ object SparkafkaDataset {
   def safeValueDataset[F[_]: Monad, K, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
     start: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[V]] =
-    safeValueDataset(topic, start, start.plusYears(ENDLESS))
+    safeValueDataset(topic, start, LocalDateTime.now)
+
+  def safeValueDataset[F[_]: Monad, K, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
+    implicit spark: SparkSession): F[TypedDataset[V]] =
+    safeValueDataset(topic, tenYearsAgo, LocalDateTime.now)
 
   def upload[F[_]: ConcurrentEffect, K, V](
     data: TypedDataset[SparkafkaProducerRecord[K, V]],
