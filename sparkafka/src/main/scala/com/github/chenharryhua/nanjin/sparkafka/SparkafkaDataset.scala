@@ -96,12 +96,12 @@ object SparkafkaDataset {
       .compile
       .drain
 
-  def appendDB[A](data: TypedDataset[A], db: DatabaseSettings, tableName: String): Unit =
+  def appendDB[A](data: TypedDataset[A], db: DatabaseSettings, dbTable: String): Unit =
     data.write
       .mode(SaveMode.Append)
       .format("jdbc")
       .option("url", db.connStr.value)
       .option("driver", db.driver.value)
-      .option("dbtable", tableName)
+      .option("dbtable", dbTable)
       .save()
 }
