@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.sparkafka
 
-import cats.implicits._
 import java.util.Properties
 
 import cats.Eval
@@ -30,7 +29,7 @@ sealed abstract class DatabaseSettings(username: UserName, password: Password) {
   final def show: String =
     s"""
        |database settings:
-       |driver: ${driver.value}
+       |driver:  ${driver.value}
        |connStr: ${connStr.value}
        |""".stripMargin
 }

@@ -4,18 +4,17 @@ import java.time.LocalDateTime
 import java.util
 
 import cats.Monad
-import cats.effect.ConcurrentEffect
+import cats.effect.{ConcurrentEffect, Sync}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.{KafkaProducerApi, KafkaTopic}
 import frameless.{TypedDataset, TypedEncoder}
 import monocle.function.At.remove
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies}
 
 import scala.collection.JavaConverters._
-import org.apache.kafka.clients.producer.ProducerRecord
 
 object SparkafkaDataset {
 
@@ -96,4 +95,13 @@ object SparkafkaDataset {
       .evalMap(r => producer.send(r.mapFilter(Option(_).map(_.toProducerRecord))))
       .compile
       .drain
+
+  def appendDB[A](data: TypedDataset[A], db: DatabaseSettings, tableName: String): Unit =
+    data.write
+      .mode(SaveMode.Append)
+      .format("jdbc")
+      .option("url", db.connStr.value)
+      .option("driver", db.driver.value)
+      .option("dbtable", tableName)
+      .save()
 }
