@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.sparkafka
 import cats.implicits._
 import java.util.Properties
 
+import cats.Eval
 import com.github.chenharryhua.nanjin.codec.utils
 
 final case class UserName(value: String) extends AnyVal
@@ -18,12 +19,20 @@ sealed abstract class DatabaseSettings(username: UserName, password: Password) {
   def driver: DatabaseDriverString
   def connStr: DatabaseConnectionString
 
-  final val connectionProperties: Properties =
-    utils.toProperties(
-      Map(
-        "user" -> s"${username.value}",
-        "password" -> s"${password.value}",
-        "Driver" -> driver.value))
+  final val connectionProperties: Eval[Properties] =
+    Eval.later(
+      utils.toProperties(
+        Map(
+          "user" -> s"${username.value}",
+          "password" -> s"${password.value}",
+          "Driver" -> driver.value)))
+
+  final def show: String =
+    s"""
+       |database settings:
+       |driver: ${driver.value}
+       |connStr: ${connStr.value}
+       |""".stripMargin
 }
 
 final case class Postgres(
@@ -37,10 +46,6 @@ final case class Postgres(
   private val credential: String                 = s"user=${username.value}&password=${password.value}"
   override val connStr: DatabaseConnectionString = DatabaseConnectionString(s"$url?$credential")
   override val driver: DatabaseDriverString      = DatabaseDriverString("org.postgresql.Driver")
-}
-
-object Postgres {
-  implicit val showPostgres: cats.Show[Postgres] = cats.derived.semi.show[Postgres]
 }
 
 final case class Redshift(
@@ -60,10 +65,6 @@ final case class Redshift(
     "com.amazon.redshift.jdbc42.Driver")
 }
 
-object Redshift {
-  implicit val showRedshift: cats.Show[Redshift] = cats.derived.semi.show[Redshift]
-}
-
 final case class SqlServer(
   username: UserName,
   password: Password,
@@ -76,8 +77,4 @@ final case class SqlServer(
       s"jdbc:sqlserver://${host.value}:${port.value};databaseName=${database.value}")
   override val driver: DatabaseDriverString =
     DatabaseDriverString("com.microsoft.sqlserver.jdbc.SQLServerDriver")
-}
-
-object SqlServer {
-  implicit val showSqlServer: cats.Show[SqlServer] = cats.derived.semi.show[SqlServer]
 }
