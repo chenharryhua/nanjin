@@ -17,7 +17,7 @@ import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies}
 import scala.collection.JavaConverters._
 
 object SparkafkaDataset {
-  def tenYearsAgo: LocalDateTime = LocalDateTime.now.minusYears(10)
+  private def tenYearsAgo: LocalDateTime = LocalDateTime.now.minusYears(10)
 
   private def props(maps: Map[String, String]): util.Map[String, Object] =
     (Map(
@@ -135,12 +135,23 @@ object SparkafkaDataset {
       .compile
       .drain
 
-  def appendDB[A](data: TypedDataset[A], db: DatabaseSettings, dbTable: String): Unit =
+  private def updateDB[A](
+    data: TypedDataset[A],
+    db: DatabaseSettings,
+    dbTable: String,
+    saveMode: SaveMode): Unit =
     data.write
-      .mode(SaveMode.Append)
+      .mode(saveMode)
       .format("jdbc")
       .option("url", db.connStr.value)
       .option("driver", db.driver.value)
       .option("dbtable", dbTable)
       .save()
+
+  def appendDB[A](data: TypedDataset[A], db: DatabaseSettings, dbTable: String): Unit =
+    updateDB(data, db, dbTable, SaveMode.Append)
+
+  def overwriteDB[A](data: TypedDataset[A], db: DatabaseSettings, dbTable: String): Unit =
+    updateDB(data, db, dbTable, SaveMode.Overwrite)
+
 }
