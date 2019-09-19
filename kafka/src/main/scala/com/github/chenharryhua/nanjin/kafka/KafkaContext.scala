@@ -64,18 +64,18 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
 }
 
 final class IoKafkaContext(settings: KafkaSettings)(
-  implicit contextShift: ContextShift[IO],
+  implicit cs: ContextShift[IO],
   timer: Timer[IO])
     extends KafkaContext[IO](settings) {}
 
 final class ZioKafkaContext(settings: KafkaSettings)(
-  implicit contextShift: ContextShift[zio.Task],
+  implicit cs: ContextShift[zio.Task],
   timer: Timer[zio.Task],
   ce: ConcurrentEffect[zio.Task]
 ) extends KafkaContext[zio.Task](settings) {}
 
 final class MonixKafkaContext(settings: KafkaSettings)(
-  implicit contextShift: ContextShift[monix.eval.Task],
+  implicit cs: ContextShift[monix.eval.Task],
   timer: Timer[monix.eval.Task],
   ce: ConcurrentEffect[monix.eval.Task])
     extends KafkaContext[monix.eval.Task](settings) {}

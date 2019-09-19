@@ -87,7 +87,7 @@ object SparkafkaDataset {
       ds.select(udf(ds('value))).deserialized.flatMap(x => x)
     }
 
-  def upload[F[_]: ConcurrentEffect, K: TypedEncoder, V: TypedEncoder](
+  def upload[F[_]: ConcurrentEffect, K, V](
     data: TypedDataset[SparkafkaProducerRecord[K, V]],
     producer: KafkaProducerApi[F, K, V]): F[Unit] =
     fs2.Stream

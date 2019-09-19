@@ -39,6 +39,7 @@ object BitraverseMessage extends BitraverseKafkaRecord {
     implicit ev: BitraverseMessage[F]): BitraverseMessage[F] { type H[A, B] = ev.H[A, B] } =
     ev
 
+  // consumers
   implicit val identityConsumerRecord
     : BitraverseMessage[ConsumerRecord] { type H[A, B] = ConsumerRecord[A, B] } =
     new BitraverseMessage[ConsumerRecord] {
@@ -130,6 +131,7 @@ object BitraverseMessage extends BitraverseKafkaRecord {
         }
     }
 
+  //producers
   implicit val identityProducerRecord
     : BitraverseMessage[ProducerRecord] { type H[A, B] = ProducerRecord[A, B] } =
     new BitraverseMessage[ProducerRecord] {

@@ -7,6 +7,7 @@ import io.circe.{parser, Decoder, Encoder}
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 
 import scala.util.{Success, Try}
+
 final case class KJson[A](value: A) extends AnyVal
 
 object KJson {
