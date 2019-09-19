@@ -51,7 +51,11 @@ object genMessage {
       partition <- Gen.posNum[Int]
       offset <- Gen.posNum[Long]
       timestamp <- Gen.posNum[Long]
-      timestampType <- Gen.oneOf(List(TimestampType.CREATE_TIME, TimestampType.LOG_APPEND_TIME))
+      timestampType <- Gen.oneOf(
+        List(
+          TimestampType.CREATE_TIME,
+          TimestampType.LOG_APPEND_TIME,
+          TimestampType.NO_TIMESTAMP_TYPE))
       checksum <- arbitrary[Long]
       sizeKey <- arbitrary[Int]
       sizeValue <- arbitrary[Int]

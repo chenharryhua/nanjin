@@ -47,7 +47,7 @@ private[codec] trait Fs2KafkaIso {
         .withTimestamp(cr.timestampType match {
           case TimestampType.CREATE_TIME       => Fs2Timestamp.createTime(cr.timestamp())
           case TimestampType.LOG_APPEND_TIME   => Fs2Timestamp.logAppendTime(cr.timestamp())
-          case TimestampType.NO_TIMESTAMP_TYPE => Fs2Timestamp.none
+          case TimestampType.NO_TIMESTAMP_TYPE => Fs2Timestamp.unknownTime(cr.timestamp())
         })
     epoch.fold[Fs2ConsumerRecord[K, V]](fcr)(e => fcr.withLeaderEpoch(e))
   }
@@ -59,6 +59,7 @@ private[codec] trait Fs2KafkaIso {
       fcr.offset,
       fcr.timestamp.createTime
         .orElse(fcr.timestamp.logAppendTime)
+        .orElse(fcr.timestamp.unknownTime)
         .getOrElse(ConsumerRecord.NO_TIMESTAMP),
       fcr.timestamp.createTime
         .map(_ => TimestampType.CREATE_TIME)
