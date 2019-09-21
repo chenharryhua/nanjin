@@ -63,9 +63,9 @@ object SparkafkaDataset {
 
   def dataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
-    start: LocalDateTime)(
+    end: LocalDateTime)(
     implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
-    dataset(topic, Some(start), LocalDateTime.now)
+    dataset(topic, None, end)
 
   def dataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
     implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
@@ -93,9 +93,9 @@ object SparkafkaDataset {
 
   def safeDataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
-    start: LocalDateTime)(
+    end: LocalDateTime)(
     implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
-    safeDataset(topic, Some(start), LocalDateTime.now)
+    safeDataset(topic, None, end)
 
   def safeDataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
     implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
@@ -118,8 +118,8 @@ object SparkafkaDataset {
 
   def valueDataset[F[_]: Monad, K, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
-    start: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[V]] =
-    valueDataset(topic, Some(start), LocalDateTime.now)
+    end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[V]] =
+    valueDataset(topic, None, end)
 
   def valueDataset[F[_]: Monad, K, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
     implicit spark: SparkSession): F[TypedDataset[V]] =
@@ -143,8 +143,8 @@ object SparkafkaDataset {
 
   def safeValueDataset[F[_]: Monad, K, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
-    start: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[V]] =
-    safeValueDataset(topic, Some(start), LocalDateTime.now)
+    end: LocalDateTime)(implicit spark: SparkSession): F[TypedDataset[V]] =
+    safeValueDataset(topic, None, end)
 
   def safeValueDataset[F[_]: Monad, K, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
     implicit spark: SparkSession): F[TypedDataset[V]] =
