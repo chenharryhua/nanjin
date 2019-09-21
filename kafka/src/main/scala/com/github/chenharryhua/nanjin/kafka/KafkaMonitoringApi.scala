@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 import cats.Show
-import cats.effect.{Concurrent, ContextShift}
+import cats.effect.Concurrent
 import cats.implicits._
 import cats.tagless._
 import com.github.chenharryhua.nanjin.codec._

@@ -154,6 +154,9 @@ sealed trait KafkaConsumerApi[F[_], K, V] extends KafkaPrimitiveConsumerApi[F] {
   def offsetRangeFor(
     start: LocalDateTime,
     end: LocalDateTime): F[GenericTopicPartition[KafkaOffsetRange]]
+
+  def offsetRangeFor(end: LocalDateTime): F[GenericTopicPartition[KafkaOffsetRange]]
+
   def retrieveLastRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
 
   def retrieveFirstRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
@@ -182,6 +185,14 @@ object KafkaConsumerApi {
     private[this] def atomically[A](r: Kleisli[F, KafkaByteConsumer, A]): F[A] =
       Sync[F].bracket(sharedConsumer.value.take)(r.run)(sharedConsumer.value.put)
 
+    private def compuRange(
+      from: GenericTopicPartition[Option[Long]],
+      to: GenericTopicPartition[Option[Long]],
+      end: GenericTopicPartition[Option[Long]]): GenericTopicPartition[KafkaOffsetRange] =
+      from
+        .combine(to.combine(end)(_.orElse(_)))((_, _).mapN((f, s) => KafkaOffsetRange(f, s)))
+        .flatten
+
     override def offsetRangeFor(
       start: LocalDateTime,
       end: LocalDateTime): F[GenericTopicPartition[KafkaOffsetRange]] =
@@ -190,10 +201,16 @@ object KafkaConsumerApi {
           from <- primitiveConsumer.offsetsForTimes(start).map(_.mapValues(_.map(_.offset())))
           to <- primitiveConsumer.offsetsForTimes(end).map(_.mapValues(_.map(_.offset())))
           endOffset <- primitiveConsumer.endOffsets
-        } yield from
-          .combine(to.combine(endOffset)(_.orElse(_)))(
-            (_, _).mapN((f, s) => KafkaOffsetRange(f, s)))
-          .flatten
+        } yield compuRange(from, to, endOffset)
+      }
+
+    override def offsetRangeFor(end: LocalDateTime): F[GenericTopicPartition[KafkaOffsetRange]] =
+      atomically {
+        for {
+          from <- primitiveConsumer.beginningOffsets
+          to <- primitiveConsumer.offsetsForTimes(end).map(_.mapValues(_.map(_.offset())))
+          endOffset <- primitiveConsumer.endOffsets
+        } yield compuRange(from, to, endOffset)
       }
 
     override def retrieveLastRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]] =
