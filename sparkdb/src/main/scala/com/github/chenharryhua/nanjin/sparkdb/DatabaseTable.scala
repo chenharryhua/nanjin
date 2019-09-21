@@ -1,28 +1,30 @@
 package com.github.chenharryhua.nanjin.sparkdb
-
-import cats.effect.{Async, ContextShift, Resource, Sync}
+import cats.effect.{Concurrent, ContextShift, Resource}
 import cats.implicits._
+import doobie.Fragment
 import doobie.hikari.HikariTransactor
+import doobie.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import io.getquill.codegen.jdbc.SimpleJdbcCodegen
 import org.apache.spark.sql.{SaveMode, SparkSession}
-
 final case class TableDef[A](schema: String, table: String)(
-  implicit val typedEncoder: TypedEncoder[A]) {
+  implicit
+  val typedEncoder: TypedEncoder[A],
+  val doobieReadA: doobie.Read[A]) {
+
   val tableName: String = s"$schema.$table"
 
-  def in[F[_]: ContextShift: Async](dbSettings: DatabaseSettings): DatabaseTable[F, A] =
+  def in[F[_]: ContextShift: Concurrent](dbSettings: DatabaseSettings): DatabaseTable[F, A] =
     DatabaseTable[F, A](this, dbSettings)
 }
 
-final case class DatabaseTable[F[_]: ContextShift: Async, A](
+final case class DatabaseTable[F[_]: ContextShift: Concurrent, A](
   tableDef: TableDef[A],
   dbSettings: DatabaseSettings) {
-  import tableDef.typedEncoder
+  import tableDef.{doobieReadA, typedEncoder}
 
-  private val transactor: Resource[F, HikariTransactor[F]] =
-    dbSettings.transactor[F]
+  val transactor: Resource[F, HikariTransactor[F]] = dbSettings.transactor[F]
 
   def dataset(implicit spark: SparkSession): TypedDataset[A] =
     TypedDataset.createUnsafe[A](
@@ -33,8 +35,14 @@ final case class DatabaseTable[F[_]: ContextShift: Async, A](
         .option("dbtable", tableDef.tableName)
         .load())
 
-  def dataStream =
-    for { xa <- Stream.resource(transactor) } yield ()
+  val source: Stream[F, A] =
+    for {
+      xa <- Stream.resource(transactor)
+      as <- (fr"select * from" ++ Fragment.const(tableDef.tableName))
+        .query[A]
+        .stream
+        .translateInterruptible(xa.trans)
+    } yield as
 
   private def uploadToDB(data: TypedDataset[A], saveMode: SaveMode): Unit =
     data.write
@@ -51,7 +59,7 @@ final case class DatabaseTable[F[_]: ContextShift: Async, A](
 
   def genCaseClass: F[Unit] = transactor.use {
     _.configure { hikari =>
-      Sync[F]
+      Concurrent[F]
         .delay(new SimpleJdbcCodegen(() => hikari.getConnection, ""))
         .map(_.writeStrings.toList.mkString("\n"))
         .map(println)
