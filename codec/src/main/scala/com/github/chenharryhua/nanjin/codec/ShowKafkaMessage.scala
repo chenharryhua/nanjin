@@ -18,11 +18,11 @@ private[codec] trait ShowKafkaMessage {
          |partition:    ${t.partition()}
          |offset:       ${t.offset()}
          |local-time:   ${ts.local}
-         |ts-type:      ${t.timestampType()}
          |key:          ${Option(t.key).map(_.show).getOrElse("null")}
          |value:        ${Option(t.value).map(_.show).getOrElse("null")}
          |key-size:     ${t.serializedKeySize()}
          |value-size:   ${t.serializedValueSize()}
+         |ts-type:      ${t.timestampType()}
          |timestamp:    ${t.timestamp()}
          |utc:          ${ts.utc}
          |headers:      ${t.headers()}

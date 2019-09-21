@@ -148,8 +148,6 @@ object KafkaChannels {
       akka.kafka.scaladsl.Consumer
         .committableSource(consumerSettings, Subscriptions.topics(topicName))
 
-    def record(k: K, v: V): ProducerRecord[K, V] = new ProducerRecord[K, V](topicName, k, v)
-
     val show: String =
       s"""
          |akka consumer runtime settings:

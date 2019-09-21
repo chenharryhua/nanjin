@@ -64,9 +64,11 @@ final class AkkaMessageEncoder[K, V](topicName: String) {
   import akka.kafka.ProducerMessage.Envelope
   import akka.kafka.{ConsumerMessage, ProducerMessage}
 
-  private def record(k: K, v: V): ProducerRecord[K, V] = new ProducerRecord(topicName, k, v)
+  def record(k: K, v: V): ProducerRecord[K, V] =
+    new ProducerRecord(topicName, k, v)
 
-  def single(k: K, v: V): Envelope[K, V, NotUsed] = ProducerMessage.single(record(k, v))
+  def single(k: K, v: V): Envelope[K, V, NotUsed] =
+    ProducerMessage.single(record(k, v))
 
   def single[P](k: K, v: V, p: P): Envelope[K, V, P] =
     ProducerMessage.single(record(k, v), p)
@@ -84,7 +86,8 @@ final class Fs2MessageEncoder[F[_], K, V](topicName: String) extends Fs2KafkaIso
   import fs2.Chunk
   import fs2.kafka.{CommittableOffset, ProducerRecords}
 
-  private def record(k: K, v: V): Fs2ProducerRecord[K, V] = Fs2ProducerRecord(topicName, k, v)
+  def record(k: K, v: V): Fs2ProducerRecord[K, V] =
+    Fs2ProducerRecord(topicName, k, v)
 
   def single(k: K, v: V): ProducerRecords[K, V, Option[CommittableOffset[F]]] =
     ProducerRecords.one(record(k, v), None)
