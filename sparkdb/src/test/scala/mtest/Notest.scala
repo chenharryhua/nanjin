@@ -1,0 +1,4 @@
+package mtest
+
+class Notest{}
+

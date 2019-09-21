@@ -171,8 +171,11 @@ val effect = Seq(
   "io.monix" %% "monix"            % monix)
 
 val db = Seq(
-  "io.getquill" %% "quill-core"   % quill,
-  "org.tpolecat" %% "doobie-core" % doobie
+  "io.getquill" %% "quill-core"         % quill,
+  "io.getquill" %% "quill-codegen-jdbc" % quill,
+  "io.getquill" %% "quill-spark"        % quill,
+  "org.tpolecat" %% "doobie-core"       % doobie,
+  "org.tpolecat" %% "doobie-hikari"     % doobie
 )
 
 lazy val codec = (project in file("codec"))
@@ -211,12 +214,11 @@ lazy val sparkafka = (project in file("sparkafka"))
   .settings(commonSettings: _*)
   .settings(name := "sparkafka")
   .settings(
-    libraryDependencies ++= spark ++ frameless ++ tests,
+    libraryDependencies ++= tests,
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core"  % "jackson-databind" % "2.6.7.2",
       "org.json4s" %% "json4s-core" % "3.5.5")
   )
 
-lazy val nanjin = (project in file("."))
-    .settings(name := "nanjin")
-    .aggregate(codec, kafka, sparkdb, sparkafka)
+lazy val nanjin =
+  (project in file(".")).settings(name := "nanjin").aggregate(codec, kafka, sparkdb, sparkafka)

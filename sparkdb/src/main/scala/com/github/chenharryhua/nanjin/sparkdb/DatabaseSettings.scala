@@ -1,5 +1,8 @@
 package com.github.chenharryhua.nanjin.sparkdb
 
+import cats.effect.{Async, Blocker, ConcurrentEffect, ContextShift, Resource}
+import doobie.hikari.HikariTransactor
+import doobie.util.ExecutionContexts
 import monocle.macros.Lenses
 
 final case class Username(value: String) extends AnyVal
@@ -7,7 +10,6 @@ final case class Password(value: String) extends AnyVal
 final case class DatabaseName(value: String) extends AnyVal
 final case class DatabaseHost(value: String) extends AnyVal
 final case class DatabasePort(value: Int) extends AnyVal
-final case class IamRole(value: String) extends AnyVal
 
 final case class DatabaseConnectionString(value: String) extends AnyVal
 final case class DatabaseDriverString(value: String) extends AnyVal
@@ -22,6 +24,20 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
        |driver:  ${driver.value}
        |connStr: ${connStr.value}
        |""".stripMargin
+
+  def transactor[F[_]: ContextShift: Async]: Resource[F, HikariTransactor[F]] =
+    for {
+      theadPool <- ExecutionContexts.fixedThreadPool[F](8)
+      cachedPool <- ExecutionContexts.cachedThreadPool[F]
+      xa <- HikariTransactor.newHikariTransactor[F](
+        driver.value,
+        connStr.value,
+        username.value,
+        password.value,
+        theadPool,
+        Blocker.liftExecutionContext(cachedPool)
+      )
+    } yield xa
 }
 
 @Lenses final case class Postgres(
@@ -42,8 +58,7 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
   password: Password,
   host: DatabaseHost,
   port: DatabasePort,
-  database: DatabaseName,
-  iamRole: IamRole)
+  database: DatabaseName)
     extends DatabaseSettings(username, password) {
   private val url: String        = s"jdbc:redshift://${host.value}:${port.value}/${database.value}"
   private val credential: String = s"user=${username.value}&password=${password.value}"
