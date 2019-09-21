@@ -207,6 +207,7 @@ lazy val sparkdb = (project in file("sparkdb"))
 
 lazy val sparkafka = (project in file("sparkafka"))
   .dependsOn(kafka)
+  .dependsOn(sparkdb)
   .settings(commonSettings: _*)
   .settings(name := "sparkafka")
   .settings(
