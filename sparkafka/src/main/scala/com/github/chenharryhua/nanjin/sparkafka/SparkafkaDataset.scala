@@ -17,7 +17,7 @@ import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies}
 import scala.collection.JavaConverters._
 
 object SparkafkaDataset {
-  private def tenYearsAgo: LocalDateTime = LocalDateTime.now.minusYears(10)
+  private def epoch: LocalDateTime = LocalDateTime.MIN
 
   private def props(maps: Map[String, String]): util.Map[String, Object] =
     (Map(
@@ -63,7 +63,7 @@ object SparkafkaDataset {
 
   def dataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
     implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
-    dataset(topic, tenYearsAgo, LocalDateTime.now)
+    dataset(topic, epoch, LocalDateTime.now)
 
   def safeDataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
@@ -86,7 +86,7 @@ object SparkafkaDataset {
 
   def safeDataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
     implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
-    safeDataset(topic, tenYearsAgo, LocalDateTime.now)
+    safeDataset(topic, epoch, LocalDateTime.now)
 
   def valueDataset[F[_]: Monad, K, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
@@ -104,7 +104,7 @@ object SparkafkaDataset {
 
   def valueDataset[F[_]: Monad, K, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
     implicit spark: SparkSession): F[TypedDataset[V]] =
-    valueDataset(topic, tenYearsAgo, LocalDateTime.now)
+    valueDataset(topic, epoch, LocalDateTime.now)
 
   def safeValueDataset[F[_]: Monad, K, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
@@ -123,7 +123,7 @@ object SparkafkaDataset {
 
   def safeValueDataset[F[_]: Monad, K, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
     implicit spark: SparkSession): F[TypedDataset[V]] =
-    safeValueDataset(topic, tenYearsAgo, LocalDateTime.now)
+    safeValueDataset(topic, epoch, LocalDateTime.now)
 
   def upload[F[_]: ConcurrentEffect, K, V](
     data: TypedDataset[SparkafkaProducerRecord[K, V]],

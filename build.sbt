@@ -12,6 +12,7 @@ val catsCore       = "2.0.0"
 val fs2Version     = "2.0.0"
 val catsMtl        = "0.7.0"
 val catsTime       = "0.3.0"
+val tagless        = "0.10"
 val monocleVersion = "2.0.0"
 val refined        = "0.9.10"
 val droste         = "0.7.0"
@@ -146,7 +147,7 @@ val base = Seq(
   "com.propensive" %% "contextual"     % contextual,
   "com.chuusai" %% "shapeless"         % shapeless,
   "io.higherkindness" %% "droste-core" % droste,
-  "org.typelevel" %% "cats-tagless-macros" % "0.9"
+  "org.typelevel" %% "cats-tagless-macros" % tagless
 )
 
 val effect = Seq(
