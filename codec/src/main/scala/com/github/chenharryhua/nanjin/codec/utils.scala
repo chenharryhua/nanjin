@@ -18,6 +18,9 @@ private[codec] object NJTimestamp {
 
 object utils {
 
+  //kafka was graduated from apache incubator
+  val kafkaEpoch: LocalDateTime = LocalDateTime.of(2012, 10, 23, 0, 0, 0)
+
   def toProperties(props: Map[String, String]): Properties =
     (new Properties() /: props) { case (a, (k, v)) => a.put(k, v); a }
 

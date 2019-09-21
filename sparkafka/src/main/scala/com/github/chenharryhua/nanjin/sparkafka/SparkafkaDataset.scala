@@ -6,6 +6,7 @@ import java.util
 import cats.Monad
 import cats.effect.{ConcurrentEffect, Sync}
 import cats.implicits._
+import com.github.chenharryhua.nanjin.codec.utils.kafkaEpoch
 import com.github.chenharryhua.nanjin.kafka.{KafkaProducerApi, KafkaTopic}
 import frameless.{TypedDataset, TypedEncoder}
 import monocle.function.At.remove
@@ -17,7 +18,6 @@ import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies}
 import scala.collection.JavaConverters._
 
 object SparkafkaDataset {
-  private def epoch: LocalDateTime = LocalDateTime.of(2012, 10, 23, 0, 0, 0) //kafka first release
 
   private def props(maps: Map[String, String]): util.Map[String, Object] =
     (Map(
@@ -63,7 +63,7 @@ object SparkafkaDataset {
 
   def dataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
     implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
-    dataset(topic, epoch, LocalDateTime.now)
+    dataset(topic, kafkaEpoch, LocalDateTime.now)
 
   def safeDataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
@@ -86,7 +86,7 @@ object SparkafkaDataset {
 
   def safeDataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
     implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
-    safeDataset(topic, epoch, LocalDateTime.now)
+    safeDataset(topic, kafkaEpoch, LocalDateTime.now)
 
   def valueDataset[F[_]: Monad, K, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
@@ -104,7 +104,7 @@ object SparkafkaDataset {
 
   def valueDataset[F[_]: Monad, K, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
     implicit spark: SparkSession): F[TypedDataset[V]] =
-    valueDataset(topic, epoch, LocalDateTime.now)
+    valueDataset(topic, kafkaEpoch, LocalDateTime.now)
 
   def safeValueDataset[F[_]: Monad, K, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
@@ -123,7 +123,7 @@ object SparkafkaDataset {
 
   def safeValueDataset[F[_]: Monad, K, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
     implicit spark: SparkSession): F[TypedDataset[V]] =
-    safeValueDataset(topic, epoch, LocalDateTime.now)
+    safeValueDataset(topic, kafkaEpoch, LocalDateTime.now)
 
   def upload[F[_]: ConcurrentEffect, K, V](
     data: TypedDataset[SparkafkaProducerRecord[K, V]],
