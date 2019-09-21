@@ -5,16 +5,17 @@ import java.util.Properties
 import cats.Eval
 import com.github.chenharryhua.nanjin.codec.utils
 
-final case class UserName(value: String) extends AnyVal
+final case class Username(value: String) extends AnyVal
 final case class Password(value: String) extends AnyVal
 final case class DatabaseName(value: String) extends AnyVal
 final case class DatabaseHost(value: String) extends AnyVal
 final case class DatabasePort(value: Int) extends AnyVal
-final case class DatabaseConnectionString(value: String) extends AnyVal
-final case class DatabaseDriverString(value: String) extends AnyVal
 final case class IamRole(value: String) extends AnyVal
 
-sealed abstract class DatabaseSettings(username: UserName, password: Password) {
+final case class DatabaseConnectionString(value: String) extends AnyVal
+final case class DatabaseDriverString(value: String) extends AnyVal
+
+sealed abstract class DatabaseSettings(username: Username, password: Password) {
   def driver: DatabaseDriverString
   def connStr: DatabaseConnectionString
 
@@ -35,7 +36,7 @@ sealed abstract class DatabaseSettings(username: UserName, password: Password) {
 }
 
 final case class Postgres(
-  username: UserName,
+  username: Username,
   password: Password,
   host: DatabaseHost,
   port: DatabasePort,
@@ -48,7 +49,7 @@ final case class Postgres(
 }
 
 final case class Redshift(
-  username: UserName,
+  username: Username,
   password: Password,
   host: DatabaseHost,
   port: DatabasePort,
@@ -65,7 +66,7 @@ final case class Redshift(
 }
 
 final case class SqlServer(
-  username: UserName,
+  username: Username,
   password: Password,
   host: DatabaseHost,
   port: DatabasePort,
