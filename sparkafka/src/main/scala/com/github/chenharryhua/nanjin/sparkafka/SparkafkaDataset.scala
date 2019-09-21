@@ -17,7 +17,7 @@ import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies}
 import scala.collection.JavaConverters._
 
 object SparkafkaDataset {
-  private def epoch: LocalDateTime = LocalDateTime.MIN
+  private def epoch: LocalDateTime = LocalDateTime.of(2012, 10, 23, 0, 0, 0) //kafka first release
 
   private def props(maps: Map[String, String]): util.Map[String, Object] =
     (Map(
