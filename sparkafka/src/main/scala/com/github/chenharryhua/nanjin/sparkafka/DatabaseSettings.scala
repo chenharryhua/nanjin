@@ -4,6 +4,7 @@ import java.util.Properties
 
 import cats.Eval
 import com.github.chenharryhua.nanjin.codec.utils
+import monocle.macros.Lenses
 
 final case class Username(value: String) extends AnyVal
 final case class Password(value: String) extends AnyVal
@@ -35,7 +36,7 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
        |""".stripMargin
 }
 
-final case class Postgres(
+@Lenses final case class Postgres(
   username: Username,
   password: Password,
   host: DatabaseHost,
@@ -48,7 +49,7 @@ final case class Postgres(
   override val driver: DatabaseDriverString      = DatabaseDriverString("org.postgresql.Driver")
 }
 
-final case class Redshift(
+@Lenses final case class Redshift(
   username: Username,
   password: Password,
   host: DatabaseHost,
@@ -65,7 +66,7 @@ final case class Redshift(
     "com.amazon.redshift.jdbc42.Driver")
 }
 
-final case class SqlServer(
+@Lenses final case class SqlServer(
   username: Username,
   password: Password,
   host: DatabaseHost,
