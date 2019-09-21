@@ -1,9 +1,5 @@
-package com.github.chenharryhua.nanjin.sparkafka
+package com.github.chenharryhua.nanjin.sparkdb
 
-import java.util.Properties
-
-import cats.Eval
-import com.github.chenharryhua.nanjin.codec.utils
 import monocle.macros.Lenses
 
 final case class Username(value: String) extends AnyVal
@@ -19,14 +15,6 @@ final case class DatabaseDriverString(value: String) extends AnyVal
 sealed abstract class DatabaseSettings(username: Username, password: Password) {
   def driver: DatabaseDriverString
   def connStr: DatabaseConnectionString
-
-  final val connectionProperties: Eval[Properties] =
-    Eval.later(
-      utils.toProperties(
-        Map(
-          "user" -> s"${username.value}",
-          "password" -> s"${password.value}",
-          "Driver" -> driver.value)))
 
   final def show: String =
     s"""

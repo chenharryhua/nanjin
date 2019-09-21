@@ -37,6 +37,9 @@ val jline    = "3.12.1"
 
 val scalatest = "3.0.8"
 
+val doobie = "0.8.2"
+val quill  = "3.4.8"
+
 lazy val commonSettings = Seq(
   version      := "0.0.1-SNAPSHOT",
   organization := "com.github.chenharryhua",
@@ -111,6 +114,19 @@ val spark = Seq(
   "org.apache.spark" %% "spark-sql-kafka-0-10",
   "org.apache.spark" %% "spark-avro"
 ).map(_ % sparkVersion)
+  .map(_.exclude("io.netty", "netty-buffer"))
+  .map(_.exclude("io.netty", "netty-codec"))
+  .map(_.exclude("io.netty", "netty-codec-http"))
+  .map(_.exclude("io.netty", "netty-common"))
+  .map(_.exclude("io.netty", "netty-handler"))
+  .map(_.exclude("io.netty", "netty-resolver"))
+  .map(_.exclude("io.netty", "netty-transport"))
+  .map(_.exclude("com.sun.jersey", "jersey-client"))
+  .map(_.exclude("com.sun.jersey", "jersey-core"))
+  .map(_.exclude("com.sun.jersey", "jersey-json"))
+  .map(_.exclude("com.sun.jersey", "jersey-server"))
+  .map(_.exclude("com.sun.jersey", "jersey-servlet"))
+  .map(_.exclude("com.sun.jersey.contribs", "jersey-guice"))
 
 val frameless = Seq(
   "org.typelevel" %% "frameless-dataset",
@@ -133,27 +149,30 @@ val kafkaLib = Seq(
   "org.apache.kafka" %% "kafka-streams-scala").map(_ % kafkaVersion) ++
   Seq(
     "com.typesafe.akka" %% "akka-stream-kafka" % akkaKafka,
-    "com.ovoenergy" %% "fs2-kafka"             % fs2Kafka
-  )
+    "com.ovoenergy" %% "fs2-kafka"             % fs2Kafka)
 
 val base = Seq(
-  "io.chrisdavenport" %% "cats-time"   % catsTime,
-  "eu.timepit" %% "refined"            % refined,
-  "org.typelevel" %% "cats-core"       % catsCore,
-  "org.typelevel" %% "cats-free"       % catsCore,
-  "org.typelevel" %% "alleycats-core"  % catsCore,
-  "org.typelevel" %% "cats-mtl-core"   % catsMtl,
-  "org.typelevel" %% "kittens"         % kittens,
-  "com.propensive" %% "contextual"     % contextual,
-  "com.chuusai" %% "shapeless"         % shapeless,
-  "io.higherkindness" %% "droste-core" % droste,
+  "io.chrisdavenport" %% "cats-time"       % catsTime,
+  "eu.timepit" %% "refined"                % refined,
+  "org.typelevel" %% "cats-core"           % catsCore,
+  "org.typelevel" %% "cats-free"           % catsCore,
+  "org.typelevel" %% "alleycats-core"      % catsCore,
+  "org.typelevel" %% "cats-mtl-core"       % catsMtl,
+  "org.typelevel" %% "kittens"             % kittens,
+  "com.propensive" %% "contextual"         % contextual,
+  "com.chuusai" %% "shapeless"             % shapeless,
+  "io.higherkindness" %% "droste-core"     % droste,
   "org.typelevel" %% "cats-tagless-macros" % tagless
 )
 
 val effect = Seq(
   "org.typelevel" %% "cats-effect" % catsEffect,
   "dev.zio" %% "zio-interop-cats"  % zioCats,
-  "io.monix" %% "monix"            % monix
+  "io.monix" %% "monix"            % monix)
+
+val db = Seq(
+  "io.getquill" %% "quill-core"   % quill,
+  "org.tpolecat" %% "doobie-core" % doobie
 )
 
 lazy val codec = (project in file("codec"))
@@ -163,7 +182,7 @@ lazy val codec = (project in file("codec"))
     addCompilerPlugin("com.github.ghik" %% "silencer-plugin" % silencer),
     libraryDependencies ++= Seq(
       "com.github.ghik" %% "silencer-lib" % silencer % Provided
-    ) ++ base ++ kafkaLib ++ circe ++ monocle ++ avro ++ tests,
+    ) ++ base ++ circe ++ monocle ++ kafkaLib ++ avro ++ tests,
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
 
@@ -176,28 +195,27 @@ lazy val kafka = (project in file("kafka"))
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
 
+lazy val sparkdb = (project in file("sparkdb"))
+  .settings(commonSettings: _*)
+  .settings(name := "sparkdb")
+  .settings(
+    libraryDependencies ++= base ++ monocle ++ effect ++ spark ++ frameless ++ db ++ tests,
+    dependencyOverrides ++= Seq(
+      "com.fasterxml.jackson.core"  % "jackson-databind" % "2.6.7.2",
+      "org.json4s" %% "json4s-core" % "3.5.5")
+  )
+
 lazy val sparkafka = (project in file("sparkafka"))
   .dependsOn(kafka)
   .settings(commonSettings: _*)
   .settings(name := "sparkafka")
   .settings(
-    libraryDependencies ++= (spark ++ frameless ++ tests)
-      .map(_.exclude("io.netty", "netty-buffer"))
-      .map(_.exclude("io.netty", "netty-codec"))
-      .map(_.exclude("io.netty", "netty-codec-http"))
-      .map(_.exclude("io.netty", "netty-common"))
-      .map(_.exclude("io.netty", "netty-handler"))
-      .map(_.exclude("io.netty", "netty-resolver"))
-      .map(_.exclude("io.netty", "netty-transport"))
-      .map(_.exclude("com.sun.jersey", "jersey-client"))
-      .map(_.exclude("com.sun.jersey", "jersey-core"))
-      .map(_.exclude("com.sun.jersey", "jersey-json"))
-      .map(_.exclude("com.sun.jersey", "jersey-server"))
-      .map(_.exclude("com.sun.jersey", "jersey-servlet"))
-      .map(_.exclude("com.sun.jersey.contribs", "jersey-guice")),
+    libraryDependencies ++= spark ++ frameless ++ tests,
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core"  % "jackson-databind" % "2.6.7.2",
       "org.json4s" %% "json4s-core" % "3.5.5")
-//    excludeDependencies += "javax.ws.rs"                % "javax.ws.rs-api"
   )
-lazy val nanjin = (project in file(".")).aggregate(codec, kafka, sparkafka)
+
+lazy val nanjin = (project in file("."))
+    .settings(name := "nanjin")
+    .aggregate(codec, kafka, sparkdb, sparkafka)

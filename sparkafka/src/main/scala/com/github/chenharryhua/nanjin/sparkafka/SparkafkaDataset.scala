@@ -160,33 +160,4 @@ object SparkafkaDataset {
       .compile
       .drain
 
-  def dataset[A: TypedEncoder](db: DatabaseSettings, dbTable: String)(
-    implicit spark: SparkSession): TypedDataset[A] =
-    TypedDataset.createUnsafe[A](
-      spark.read
-        .format("jdbc")
-        .option("url", db.connStr.value)
-        .option("driver", db.driver.value)
-        .option("dbtable", dbTable)
-        .load())
-
-  private def updateDB[A](
-    data: TypedDataset[A],
-    db: DatabaseSettings,
-    dbTable: String,
-    saveMode: SaveMode): Unit =
-    data.write
-      .mode(saveMode)
-      .format("jdbc")
-      .option("url", db.connStr.value)
-      .option("driver", db.driver.value)
-      .option("dbtable", dbTable)
-      .save()
-
-  def appendDB[A](data: TypedDataset[A], db: DatabaseSettings, dbTable: String): Unit =
-    updateDB(data, db, dbTable, SaveMode.Append)
-
-  def overwriteDB[A](data: TypedDataset[A], db: DatabaseSettings, dbTable: String): Unit =
-    updateDB(data, db, dbTable, SaveMode.Overwrite)
-
 }
