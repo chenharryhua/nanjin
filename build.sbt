@@ -175,7 +175,8 @@ val db = Seq(
   "io.getquill" %% "quill-codegen-jdbc" % quill,
   "io.getquill" %% "quill-spark"        % quill,
   "org.tpolecat" %% "doobie-core"       % doobie,
-  "org.tpolecat" %% "doobie-hikari"     % doobie
+  "org.tpolecat" %% "doobie-hikari"     % doobie,
+  "org.tpolecat" %% "doobie-quill"      % doobie
 )
 
 lazy val codec = (project in file("codec"))

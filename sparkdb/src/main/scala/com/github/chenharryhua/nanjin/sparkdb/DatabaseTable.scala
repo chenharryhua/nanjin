@@ -4,6 +4,7 @@ import cats.effect.{Async, ContextShift, Resource, Sync}
 import cats.implicits._
 import doobie.hikari.HikariTransactor
 import frameless.{TypedDataset, TypedEncoder}
+import fs2.Stream
 import io.getquill.codegen.jdbc.SimpleJdbcCodegen
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
@@ -11,14 +12,16 @@ final case class TableDef[A](schema: String, table: String)(
   implicit val typedEncoder: TypedEncoder[A]) {
   val tableName: String = s"$schema.$table"
 
-  def in(dbSettings: DatabaseSettings): DatabaseTable[A] =
-    DatabaseTable[A](this, dbSettings)
+  def in[F[_]: ContextShift: Async](dbSettings: DatabaseSettings): DatabaseTable[F, A] =
+    DatabaseTable[F, A](this, dbSettings)
 }
 
-final case class DatabaseTable[A](tableDef: TableDef[A], dbSettings: DatabaseSettings) {
+final case class DatabaseTable[F[_]: ContextShift: Async, A](
+  tableDef: TableDef[A],
+  dbSettings: DatabaseSettings) {
   import tableDef.typedEncoder
 
-  private def transactor[F[_]: ContextShift: Async]: Resource[F, HikariTransactor[F]] =
+  private val transactor: Resource[F, HikariTransactor[F]] =
     dbSettings.transactor[F]
 
   def dataset(implicit spark: SparkSession): TypedDataset[A] =
@@ -29,6 +32,9 @@ final case class DatabaseTable[A](tableDef: TableDef[A], dbSettings: DatabaseSet
         .option("driver", dbSettings.driver.value)
         .option("dbtable", tableDef.tableName)
         .load())
+
+  def dataStream =
+    for { xa <- Stream.resource(transactor) } yield ()
 
   private def uploadToDB(data: TypedDataset[A], saveMode: SaveMode): Unit =
     data.write
@@ -43,7 +49,7 @@ final case class DatabaseTable[A](tableDef: TableDef[A], dbSettings: DatabaseSet
 
   def overwriteDB(data: TypedDataset[A]): Unit = uploadToDB(data, SaveMode.Overwrite)
 
-  def genCaseClass[F[_]: ContextShift: Async]: F[Unit] = transactor.use {
+  def genCaseClass: F[Unit] = transactor.use {
     _.configure { hikari =>
       Sync[F]
         .delay(new SimpleJdbcCodegen(() => hikari.getConnection, ""))
