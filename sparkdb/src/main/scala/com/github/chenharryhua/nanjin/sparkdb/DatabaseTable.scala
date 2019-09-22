@@ -11,7 +11,7 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 final case class TableDef[A](schema: String, table: String)(
   implicit
   val typedEncoder: TypedEncoder[A],
-  val doobieReadA: doobie.Read[A]) {
+  val doobieRead: doobie.Read[A]) {
 
   val tableName: String = s"$schema.$table"
 
@@ -22,7 +22,7 @@ final case class TableDef[A](schema: String, table: String)(
 final case class DatabaseTable[F[_]: ContextShift: Concurrent, A](
   tableDef: TableDef[A],
   dbSettings: DatabaseSettings) {
-  import tableDef.{doobieReadA, typedEncoder}
+  import tableDef.{doobieRead, typedEncoder}
 
   private val transactor: Resource[F, HikariTransactor[F]] = dbSettings.transactor[F]
 
