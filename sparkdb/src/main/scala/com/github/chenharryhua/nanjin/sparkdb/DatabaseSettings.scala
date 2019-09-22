@@ -9,6 +9,7 @@ import io.getquill.codegen.jdbc.SimpleJdbcCodegen
 import monocle.macros.Lenses
 import io.getquill.{idiom => _, _}
 import doobie.quill.{DoobieContext, DoobieContextBase}
+import io.getquill.context.sql.idiom.SqlIdiom
 
 final case class Username(value: String) extends AnyVal
 final case class Password(value: String) extends AnyVal
@@ -56,6 +57,8 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
   def runQuery[F[_]: ContextShift: Async, A](action: ConnectionIO[A]): F[A] =
     transactor.use(_.trans.apply(action))
 
+  type Dialect <: SqlIdiom
+  val doobieContext: DoobieContextBase[Dialect, Literal.type]
 }
 
 @Lenses final case class Postgres(
@@ -69,7 +72,9 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
   private val credential: String                 = s"user=${username.value}&password=${password.value}"
   override val connStr: DatabaseConnectionString = DatabaseConnectionString(s"$url?$credential")
   override val driver: DatabaseDriverString      = DatabaseDriverString("org.postgresql.Driver")
-
+  override type Dialect = PostgresDialect
+  override val doobieContext: DoobieContextBase[Dialect, Literal.type] =
+    new DoobieContext.Postgres(Literal)
 }
 
 @Lenses final case class Redshift(
@@ -86,7 +91,9 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
     s"$url?$credential&$ssl")
   override val driver: DatabaseDriverString = DatabaseDriverString(
     "com.amazon.redshift.jdbc42.Driver")
-
+  override type Dialect = PostgresDialect
+  override val doobieContext: DoobieContextBase[Dialect, Literal.type] =
+    new DoobieContext.Postgres(Literal)
 }
 
 @Lenses final case class SqlServer(
@@ -101,5 +108,7 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
       s"jdbc:sqlserver://${host.value}:${port.value};databaseName=${database.value}")
   override val driver: DatabaseDriverString =
     DatabaseDriverString("com.microsoft.sqlserver.jdbc.SQLServerDriver")
-
+  override type Dialect = SQLServerDialect
+  override val doobieContext: DoobieContextBase[Dialect, Literal.type] =
+    new DoobieContext.SQLServer(Literal)
 }

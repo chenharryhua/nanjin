@@ -9,7 +9,7 @@ import org.apache.avro.Schema
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import org.apache.kafka.streams.scala.Serdes
 
-import scala.annotation.{implicitAmbiguous, implicitNotFound}
+import scala.annotation.{compileTimeOnly, implicitAmbiguous, implicitNotFound}
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Try}
 
@@ -85,6 +85,7 @@ sealed private[codec] trait SerdeOfPriority0 {
   }
 
   @implicitAmbiguous("KJson should import io.circe.generic.auto._")
+  @compileTimeOnly("should not refer")
   implicit def kjsonSerdeWasNotInferred[A](implicit ev: A <:< KJson[_]): SerdeOf[A] =
     sys.error("compilation time only")
 }
