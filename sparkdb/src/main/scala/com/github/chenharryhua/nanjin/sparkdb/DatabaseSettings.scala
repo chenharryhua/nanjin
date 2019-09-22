@@ -1,12 +1,14 @@
 package com.github.chenharryhua.nanjin.sparkdb
 
-import cats.effect.{Async, Blocker, Concurrent, ContextShift, Resource}
+import cats.effect.{Async, Blocker, ContextShift, Resource}
 import cats.implicits._
 import doobie.free.connection.ConnectionIO
 import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
 import io.getquill.codegen.jdbc.SimpleJdbcCodegen
 import monocle.macros.Lenses
+import io.getquill.{idiom => _, _}
+import doobie.quill.{DoobieContext, DoobieContextBase}
 
 final case class Username(value: String) extends AnyVal
 final case class Password(value: String) extends AnyVal
@@ -51,7 +53,7 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
     }
   }
 
-  def runQuery[F[_]: ContextShift: Concurrent, A](action: ConnectionIO[A]): F[A] =
+  def runQuery[F[_]: ContextShift: Async, A](action: ConnectionIO[A]): F[A] =
     transactor.use(_.trans.apply(action))
 
 }
@@ -67,6 +69,7 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
   private val credential: String                 = s"user=${username.value}&password=${password.value}"
   override val connStr: DatabaseConnectionString = DatabaseConnectionString(s"$url?$credential")
   override val driver: DatabaseDriverString      = DatabaseDriverString("org.postgresql.Driver")
+
 }
 
 @Lenses final case class Redshift(
@@ -83,6 +86,7 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
     s"$url?$credential&$ssl")
   override val driver: DatabaseDriverString = DatabaseDriverString(
     "com.amazon.redshift.jdbc42.Driver")
+
 }
 
 @Lenses final case class SqlServer(
@@ -97,4 +101,5 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
       s"jdbc:sqlserver://${host.value}:${port.value};databaseName=${database.value}")
   override val driver: DatabaseDriverString =
     DatabaseDriverString("com.microsoft.sqlserver.jdbc.SQLServerDriver")
+
 }
