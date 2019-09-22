@@ -1,8 +1,10 @@
 package com.github.chenharryhua.nanjin.sparkdb
 
-import cats.effect.{Async, Blocker, ConcurrentEffect, ContextShift, Resource}
+import cats.effect.{Async, Blocker, ContextShift, Resource}
+import cats.implicits._
 import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
+import io.getquill.codegen.jdbc.SimpleJdbcCodegen
 import monocle.macros.Lenses
 
 final case class Username(value: String) extends AnyVal
@@ -38,6 +40,15 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
         Blocker.liftExecutionContext(cachedPool)
       )
     } yield xa
+
+  def printCaseClass[F[_]: ContextShift: Async]: F[Unit] = transactor.use {
+    _.configure { hikari =>
+      Async[F]
+        .delay(new SimpleJdbcCodegen(() => hikari.getConnection, ""))
+        .map(_.writeStrings.toList.mkString("\n"))
+        .map(println)
+    }
+  }
 }
 
 @Lenses final case class Postgres(

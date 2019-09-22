@@ -1,13 +1,11 @@
 package com.github.chenharryhua.nanjin.sparkdb
 import cats.effect.{Concurrent, ContextShift, Resource}
-import cats.implicits._
 import doobie.Fragment
 import doobie.free.connection.ConnectionIO
 import doobie.hikari.HikariTransactor
 import doobie.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
-import io.getquill.codegen.jdbc.SimpleJdbcCodegen
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
 final case class TableDef[A](schema: String, table: String)(
@@ -59,12 +57,4 @@ final case class DatabaseTable[F[_]: ContextShift: Concurrent, A](
 
   def overwriteDB(data: TypedDataset[A]): Unit = uploadToDB(data, SaveMode.Overwrite)
 
-  def genCaseClass: F[Unit] = transactor.use {
-    _.configure { hikari =>
-      Concurrent[F]
-        .delay(new SimpleJdbcCodegen(() => hikari.getConnection, ""))
-        .map(_.writeStrings.toList.mkString("\n"))
-        .map(println)
-    }
-  }
 }
