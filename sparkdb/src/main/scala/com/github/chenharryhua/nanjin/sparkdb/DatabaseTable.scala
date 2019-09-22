@@ -5,7 +5,7 @@ import doobie.free.connection.ConnectionIO
 import doobie.hikari.HikariTransactor
 import doobie.implicits._
 import frameless.{TypedDataset, TypedEncoder}
-import fs2.{Pipe, Stream}
+import fs2.Stream
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
 final case class TableDef[A](schema: String, table: String)(
@@ -58,12 +58,4 @@ final case class DatabaseTable[F[_]: ContextShift: Concurrent, A](
         .stream
       rst <- xa.transP.apply(dt)
     } yield rst
-
-  def sink(f: List[A] => ConnectionIO[List[Long]]): Pipe[F, A, Unit] =
-    (src: Stream[F, A]) =>
-      for {
-        xa <- Stream.resource(transactor)
-        data <- src.chunkN(1000)
-        rst <- Stream.eval(f(data.toList).transact(xa))
-      } yield ()
 }

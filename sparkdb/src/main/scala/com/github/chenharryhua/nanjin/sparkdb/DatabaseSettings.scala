@@ -6,6 +6,7 @@ import doobie.free.connection.ConnectionIO
 import doobie.hikari.HikariTransactor
 import doobie.quill.{DoobieContext, DoobieContextBase}
 import doobie.util.ExecutionContexts
+import fs2.{Pipe, Stream}
 import io.getquill.codegen.jdbc.SimpleJdbcCodegen
 import io.getquill.context.sql.idiom.SqlIdiom
 import io.getquill.{idiom => _, _}
@@ -56,6 +57,15 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
 
   def runQuery[F[_]: ContextShift: Async, A](action: ConnectionIO[A]): F[A] =
     transactor.use(_.trans.apply(action))
+
+  def runBatch[F[_]: ContextShift: Async, A](
+    f: List[A] => ConnectionIO[List[Long]]): Pipe[F, A, List[Long]] =
+    (src: Stream[F, A]) =>
+      for {
+        xa <- Stream.resource(transactor)
+        data <- src.chunkN(1000)
+        rst <- Stream.eval(xa.trans.apply(f(data.toList)))
+      } yield rst
 
   type Dialect <: SqlIdiom
   val doobieContext: DoobieContextBase[Dialect, Literal.type]
