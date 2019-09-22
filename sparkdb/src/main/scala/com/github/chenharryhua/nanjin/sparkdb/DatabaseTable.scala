@@ -2,12 +2,14 @@ package com.github.chenharryhua.nanjin.sparkdb
 import cats.effect.{Concurrent, ContextShift, Resource}
 import cats.implicits._
 import doobie.Fragment
+import doobie.free.connection.ConnectionIO
 import doobie.hikari.HikariTransactor
 import doobie.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import io.getquill.codegen.jdbc.SimpleJdbcCodegen
 import org.apache.spark.sql.{SaveMode, SparkSession}
+
 final case class TableDef[A](schema: String, table: String)(
   implicit
   val typedEncoder: TypedEncoder[A],
@@ -24,7 +26,7 @@ final case class DatabaseTable[F[_]: ContextShift: Concurrent, A](
   dbSettings: DatabaseSettings) {
   import tableDef.{doobieReadA, typedEncoder}
 
-  val transactor: Resource[F, HikariTransactor[F]] = dbSettings.transactor[F]
+  private val transactor: Resource[F, HikariTransactor[F]] = dbSettings.transactor[F]
 
   def dataset(implicit spark: SparkSession): TypedDataset[A] =
     TypedDataset.createUnsafe[A](
@@ -38,11 +40,11 @@ final case class DatabaseTable[F[_]: ContextShift: Concurrent, A](
   val source: Stream[F, A] =
     for {
       xa <- Stream.resource(transactor)
-      as <- (fr"select * from" ++ Fragment.const(tableDef.tableName))
+      dt: Stream[ConnectionIO, A] = (fr"select * from" ++ Fragment.const(tableDef.tableName))
         .query[A]
         .stream
-        .translateInterruptible(xa.trans)
-    } yield as
+      rst <- xa.transP.apply(dt)
+    } yield rst
 
   private def uploadToDB(data: TypedDataset[A], saveMode: SaveMode): Unit =
     data.write
