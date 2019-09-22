@@ -26,6 +26,7 @@ final case class DatabaseTable[F[_]: ContextShift: Concurrent, A](
 
   private val transactor: Resource[F, HikariTransactor[F]] = dbSettings.transactor[F]
 
+  // spark
   def dataset(implicit spark: SparkSession): TypedDataset[A] =
     TypedDataset.createUnsafe[A](
       spark.read
@@ -34,15 +35,6 @@ final case class DatabaseTable[F[_]: ContextShift: Concurrent, A](
         .option("driver", dbSettings.driver.value)
         .option("dbtable", tableDef.tableName)
         .load())
-
-  val source: Stream[F, A] =
-    for {
-      xa <- Stream.resource(transactor)
-      dt: Stream[ConnectionIO, A] = (fr"select * from" ++ Fragment.const(tableDef.tableName))
-        .query[A]
-        .stream
-      rst <- xa.transP.apply(dt)
-    } yield rst
 
   private def uploadToDB(data: TypedDataset[A], saveMode: SaveMode): Unit =
     data.write
@@ -56,5 +48,15 @@ final case class DatabaseTable[F[_]: ContextShift: Concurrent, A](
   def appendDB(data: TypedDataset[A]): Unit = uploadToDB(data, SaveMode.Append)
 
   def overwriteDB(data: TypedDataset[A]): Unit = uploadToDB(data, SaveMode.Overwrite)
+
+  // doobie
+  val source: Stream[F, A] =
+    for {
+      xa <- Stream.resource(transactor)
+      dt: Stream[ConnectionIO, A] = (fr"select * from" ++ Fragment.const(tableDef.tableName))
+        .query[A]
+        .stream
+      rst <- xa.transP.apply(dt)
+    } yield rst
 
 }

@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.sparkdb
 
-import cats.effect.{Async, Blocker, ContextShift, Resource}
+import cats.effect.{Async, Blocker, Concurrent, ContextShift, Resource}
 import cats.implicits._
+import doobie.free.connection.ConnectionIO
 import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
 import io.getquill.codegen.jdbc.SimpleJdbcCodegen
@@ -49,6 +50,10 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
         .map(println)
     }
   }
+
+  def runQuery[F[_]: ContextShift: Concurrent, A](action: ConnectionIO[A]): F[A] =
+    transactor.use(_.trans.apply(action))
+
 }
 
 @Lenses final case class Postgres(
