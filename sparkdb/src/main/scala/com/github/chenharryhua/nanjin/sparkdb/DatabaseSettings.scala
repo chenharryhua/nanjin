@@ -4,12 +4,12 @@ import cats.effect.{Async, Blocker, ContextShift, Resource}
 import cats.implicits._
 import doobie.free.connection.ConnectionIO
 import doobie.hikari.HikariTransactor
+import doobie.quill.{DoobieContext, DoobieContextBase}
 import doobie.util.ExecutionContexts
 import io.getquill.codegen.jdbc.SimpleJdbcCodegen
-import monocle.macros.Lenses
-import io.getquill.{idiom => _, _}
-import doobie.quill.{DoobieContext, DoobieContextBase}
 import io.getquill.context.sql.idiom.SqlIdiom
+import io.getquill.{idiom => _, _}
+import monocle.macros.Lenses
 
 final case class Username(value: String) extends AnyVal
 final case class Password(value: String) extends AnyVal
@@ -73,7 +73,7 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
   override val connStr: DatabaseConnectionString = DatabaseConnectionString(s"$url?$credential")
   override val driver: DatabaseDriverString      = DatabaseDriverString("org.postgresql.Driver")
   override type Dialect = PostgresDialect
-  override val doobieContext: DoobieContextBase[Dialect, Literal.type] =
+  override val doobieContext: DoobieContext.Postgres[Literal.type] =
     new DoobieContext.Postgres(Literal)
 }
 
@@ -92,7 +92,7 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
   override val driver: DatabaseDriverString = DatabaseDriverString(
     "com.amazon.redshift.jdbc42.Driver")
   override type Dialect = PostgresDialect
-  override val doobieContext: DoobieContextBase[Dialect, Literal.type] =
+  override val doobieContext: DoobieContext.Postgres[Literal.type] =
     new DoobieContext.Postgres(Literal)
 }
 
@@ -109,6 +109,6 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
   override val driver: DatabaseDriverString =
     DatabaseDriverString("com.microsoft.sqlserver.jdbc.SQLServerDriver")
   override type Dialect = SQLServerDialect
-  override val doobieContext: DoobieContextBase[Dialect, Literal.type] =
+  override val doobieContext: DoobieContext.SQLServer[Literal.type] =
     new DoobieContext.SQLServer(Literal)
 }
