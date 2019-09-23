@@ -62,7 +62,7 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
       for {
         xa <- Stream.resource(transactor)
         data <- src.chunkN(1000)
-        rst <- Stream.eval(xa.trans.apply(f(data.toList)))
+        rst <- Stream.eval(xa.trans.apply(f(data)))
       } yield rst
 }
 
