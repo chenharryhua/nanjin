@@ -62,9 +62,13 @@ object KafkaChannels {
     //    fs2.kafka.transactionalProducerStream[F, K, V](producerSettings)
 
     val consume: Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
-      consumerStream[F, Array[Byte], Array[Byte]](consumerSettings)
-        .evalTap(_.subscribe(NonEmptyList.of(topicName)))
-        .flatMap(_.stream)
+      Keyboard.signal.flatMap { signal =>
+        consumerStream[F, Array[Byte], Array[Byte]](consumerSettings)
+          .evalTap(_.subscribe(NonEmptyList.of(topicName)))
+          .flatMap(_.stream)
+          .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
+          .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
+      }
 
     val show: String =
       s"""
