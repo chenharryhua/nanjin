@@ -16,18 +16,17 @@ final case class TableDef[A](schema: String, table: String)(
   val tableName: String = s"$schema.$table"
 
   def in[F[_]: ContextShift: Concurrent](dbSettings: DatabaseSettings): DatabaseTable[F, A] =
-    DatabaseTable[F, A](this, dbSettings)
+     DatabaseTable[F, A](this, dbSettings)
 }
 
 final case class DatabaseTable[F[_]: ContextShift: Concurrent, A](
   tableDef: TableDef[A],
   dbSettings: DatabaseSettings) {
   import tableDef.{doobieRead, typedEncoder}
-
   private val transactor: Resource[F, HikariTransactor[F]] = dbSettings.transactor[F]
 
   // spark
-  def dataset(implicit spark: SparkSession): TypedDataset[A] =
+  def loadFromDB(implicit spark: SparkSession): TypedDataset[A] =
     TypedDataset.createUnsafe[A](
       spark.read
         .format("jdbc")
@@ -35,6 +34,17 @@ final case class DatabaseTable[F[_]: ContextShift: Concurrent, A](
         .option("driver", dbSettings.driver.value)
         .option("dbtable", tableDef.tableName)
         .load())
+
+  def loadFromCsv(path: String, options: Map[String, String] = Map("header" -> "true"))(
+    implicit spark: SparkSession): TypedDataset[A] =
+    TypedDataset.createUnsafe[A](spark.read.options(options).csv(path))
+
+  def loadFromJson(path: String, options: Map[String, String] = Map.empty)(
+    implicit spark: SparkSession): TypedDataset[A] =
+    TypedDataset.createUnsafe[A](spark.read.options(options).json(path))
+
+  def loadFromParquet(path: String)(implicit spark: SparkSession): TypedDataset[A] =
+    TypedDataset.createUnsafe[A](spark.read.parquet(path))
 
   private def uploadToDB(data: TypedDataset[A], saveMode: SaveMode): Unit =
     data.write
