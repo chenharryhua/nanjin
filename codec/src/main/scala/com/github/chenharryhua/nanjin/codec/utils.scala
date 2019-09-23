@@ -22,7 +22,7 @@ object utils {
   val kafkaEpoch: LocalDateTime = LocalDateTime.of(2012, 10, 23, 0, 0, 0)
 
   def toProperties(props: Map[String, String]): Properties =
-    (new Properties() /: props) { case (a, (k, v)) => a.put(k, v); a }
+    props.foldLeft(new Properties()) { case (a, (k, v)) => a.put(k, v); a }
 
   val random4d: Eval[Int] = Eval.always(1000 + Random.nextInt(9000))
 
