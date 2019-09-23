@@ -8,15 +8,13 @@ import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
-final case class TableDef[A](schema: String, table: String)(
+final case class TableDef[A](tableName: String)(
   implicit
   val typedEncoder: TypedEncoder[A],
   val doobieRead: doobie.Read[A]) {
 
-  val tableName: String = s"$schema.$table"
-
   def in[F[_]: ContextShift: Concurrent](dbSettings: DatabaseSettings): DatabaseTable[F, A] =
-     DatabaseTable[F, A](this, dbSettings)
+    DatabaseTable[F, A](this, dbSettings)
 }
 
 final case class DatabaseTable[F[_]: ContextShift: Concurrent, A](

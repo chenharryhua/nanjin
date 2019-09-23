@@ -7,7 +7,6 @@ import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
 import fs2.{Pipe, Stream}
 import io.getquill.codegen.jdbc.SimpleJdbcCodegen
-import io.getquill.{idiom => _}
 import monocle.macros.Lenses
 
 final case class Username(value: String) extends AnyVal
@@ -89,10 +88,10 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
   private val url: String        = s"jdbc:redshift://${host.value}:${port.value}/${database.value}"
   private val credential: String = s"user=${username.value}&password=${password.value}"
   private val ssl: String        = "ssl=true&sslfactory=com.amazon.redshift.ssl.NonValidatingFactory"
-  override val connStr: DatabaseConnectionString = DatabaseConnectionString(
-    s"$url?$credential&$ssl")
-  override val driver: DatabaseDriverString = DatabaseDriverString(
-    "com.amazon.redshift.jdbc42.Driver")
+  override val connStr: DatabaseConnectionString =
+    DatabaseConnectionString(s"$url?$credential&$ssl")
+  override val driver: DatabaseDriverString =
+    DatabaseDriverString("com.amazon.redshift.jdbc42.Driver")
 }
 
 @Lenses final case class SqlServer(
