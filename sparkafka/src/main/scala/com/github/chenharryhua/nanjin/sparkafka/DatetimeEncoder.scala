@@ -28,6 +28,16 @@ object DatetimeEncoder {
     override def invert(b: String): LocalDate = LocalDate.parse(b)
   }
 
+  implicit object sqlDateInjection extends Injection[Date, Long] {
+    override def apply(a: Date): Long  = a.getTime()
+    override def invert(b: Long): Date = new Date(b)
+  }
+
+  implicit object sqlTimestampInjection extends Injection[Timestamp, Long] {
+    override def apply(a: Timestamp): Long  = a.getTime()
+    override def invert(b: Long): Timestamp = new Timestamp(b)
+  }
+
 //doobie
   implicit val doobieInstantMeta: Meta[Instant] = Meta[Timestamp].timap(_.toInstant)(Timestamp.from)
 
@@ -39,4 +49,5 @@ object DatetimeEncoder {
       Timestamp.valueOf(x.toLocalDateTime))
 
   implicit val doobieLocalDateMeta: Meta[LocalDate] = Meta[Date].timap(_.toLocalDate)(Date.valueOf)
+
 }
