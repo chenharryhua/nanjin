@@ -3,10 +3,11 @@ package com.github.chenharryhua.nanjin.sparkafka
 import java.sql.{Date, Timestamp}
 import java.time._
 
+import cats.Show
 import doobie.util.Meta
 import frameless.Injection
 
-object DatetimeEncoder {
+object DatetimeInstances {
 //typed-spark
   implicit object instantInjection extends Injection[Instant, String] {
     override def apply(a: Instant): String  = a.toString
@@ -23,31 +24,36 @@ object DatetimeEncoder {
     override def invert(b: String): ZonedDateTime = ZonedDateTime.parse(b)
   }
 
-  implicit object localdateInjection extends Injection[LocalDate, String] {
+  implicit object localDateInjection extends Injection[LocalDate, String] {
     override def apply(a: LocalDate): String  = a.toString
     override def invert(b: String): LocalDate = LocalDate.parse(b)
   }
 
   implicit object sqlDateInjection extends Injection[Date, Long] {
-    override def apply(a: Date): Long  = a.getTime()
+    override def apply(a: Date): Long  = a.getTime
     override def invert(b: Long): Date = new Date(b)
   }
 
   implicit object sqlTimestampInjection extends Injection[Timestamp, Long] {
-    override def apply(a: Timestamp): Long  = a.getTime()
+    override def apply(a: Timestamp): Long  = a.getTime
     override def invert(b: Long): Timestamp = new Timestamp(b)
   }
 
 //doobie
-  implicit val doobieInstantMeta: Meta[Instant] = Meta[Timestamp].timap(_.toInstant)(Timestamp.from)
+  implicit val doobieInstantMeta: Meta[Instant] =
+    Meta[Timestamp].timap(_.toInstant)(Timestamp.from)
 
   implicit val doobieLocalDateTimeMeta: Meta[LocalDateTime] =
     Meta[Timestamp].timap(_.toLocalDateTime)(Timestamp.valueOf)
 
   implicit val doobieZonedDateTimeMeta: Meta[ZonedDateTime] =
-    Meta[Timestamp].timap(_.toLocalDateTime.atZone(ZoneId.systemDefault()))(x =>
+    Meta[Timestamp].timap(_.toLocalDateTime.atZone(ZoneId.systemDefault))(x =>
       Timestamp.valueOf(x.toLocalDateTime))
 
-  implicit val doobieLocalDateMeta: Meta[LocalDate] = Meta[Date].timap(_.toLocalDate)(Date.valueOf)
+  implicit val doobieLocalDateMeta: Meta[LocalDate] =
+    Meta[Date].timap(_.toLocalDate)(Date.valueOf)
 
+//show
+  implicit val showSqlDate: Show[Date]           = _.toString
+  implicit val showSqlTimestamp: Show[Timestamp] = _.toString
 }
