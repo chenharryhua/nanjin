@@ -7,6 +7,7 @@ import doobie.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import org.apache.spark.sql.{SaveMode, SparkSession}
+import fs2.Pipe
 
 final case class TableDef[A](tableName: String)(
   implicit
@@ -19,7 +20,7 @@ final case class TableDef[A](tableName: String)(
 
 final case class DatabaseTable[F[_]: ContextShift: Concurrent, A](
   tableDef: TableDef[A],
-  dbSettings: DatabaseSettings) {
+  dbSettings: DatabaseSettings){
   import tableDef.{doobieRead, typedEncoder}
   private val transactor: Resource[F, HikariTransactor[F]] = dbSettings.transactor[F]
 
@@ -66,4 +67,14 @@ final case class DatabaseTable[F[_]: ContextShift: Concurrent, A](
         .stream
       rst <- xa.transP.apply(dt)
     } yield rst
+
+  // quill
+  import dbSettings.doobieContext._
+
+  val schema: dbSettings.doobieContext.DynamicEntityQuery[A] =
+    dynamicQuerySchema[A](tableDef.tableName)
+
+  def delete: F[Long] = transactor.use { xa =>
+    run(schema.delete).transact(xa)
+  }
 }
