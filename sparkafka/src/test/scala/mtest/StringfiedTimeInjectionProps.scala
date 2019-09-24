@@ -3,7 +3,7 @@ package mtest
 import java.time.{Instant, LocalDateTime, ZonedDateTime}
 
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8._
-import com.github.chenharryhua.nanjin.sparkafka.StringfiedTimeInjection._
+import com.github.chenharryhua.nanjin.sparkafka.DatetimeEncoder._
 import org.scalacheck.Prop.forAll
 import org.scalacheck.Properties
 
