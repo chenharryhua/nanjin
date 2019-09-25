@@ -3,40 +3,30 @@ package com.github.chenharryhua.nanjin.sparkafka
 import java.sql.{Date, Timestamp}
 import java.time._
 
-import cats.Show
 import doobie.util.Meta
-import frameless.Injection
+import frameless.{Injection, SQLTimestamp}
 
 object DatetimeInstances {
+  private val zoneId: ZoneId = ZoneId.systemDefault()
 //typed-spark
-  implicit object instantInjection extends Injection[Instant, String] {
-    override def apply(a: Instant): String  = a.toString
-    override def invert(b: String): Instant = Instant.parse(b)
+  implicit object instantInjection extends Injection[Instant, SQLTimestamp] {
+    override def apply(a: Instant): SQLTimestamp  = SQLTimestamp(a.toEpochMilli)
+    override def invert(b: SQLTimestamp): Instant = Instant.ofEpochMilli(b.us)
   }
 
-  implicit object localDateTimeInjection extends Injection[LocalDateTime, String] {
-    override def apply(a: LocalDateTime): String  = a.toString
-    override def invert(b: String): LocalDateTime = LocalDateTime.parse(b)
+  implicit object localDateTimeInjection extends Injection[LocalDateTime, Instant] {
+    override def apply(a: LocalDateTime): Instant  = a.atZone(zoneId).toInstant
+    override def invert(b: Instant): LocalDateTime = LocalDateTime.ofInstant(b, zoneId)
   }
 
-  implicit object zonedDateTimeInjection extends Injection[ZonedDateTime, String] {
-    override def apply(a: ZonedDateTime): String  = a.toString
-    override def invert(b: String): ZonedDateTime = ZonedDateTime.parse(b)
+  implicit object zonedDateTimeInjection extends Injection[ZonedDateTime, Instant] {
+    override def apply(a: ZonedDateTime): Instant  = a.toInstant
+    override def invert(b: Instant): ZonedDateTime = ZonedDateTime.ofInstant(b, zoneId)
   }
 
-  implicit object localDateInjection extends Injection[LocalDate, String] {
-    override def apply(a: LocalDate): String  = a.toString
-    override def invert(b: String): LocalDate = LocalDate.parse(b)
-  }
-
-  implicit object sqlDateInjection extends Injection[Date, Long] {
-    override def apply(a: Date): Long  = a.getTime
-    override def invert(b: Long): Date = new Date(b)
-  }
-
-  implicit object sqlTimestampInjection extends Injection[Timestamp, Long] {
-    override def apply(a: Timestamp): Long  = a.getTime
-    override def invert(b: Long): Timestamp = new Timestamp(b)
+  implicit object localDateInjection extends Injection[LocalDate, Long] {
+    override def apply(a: LocalDate): Long  = a.toEpochDay
+    override def invert(b: Long): LocalDate = LocalDate.ofEpochDay(b)
   }
 
 //doobie
@@ -47,13 +37,9 @@ object DatetimeInstances {
     Meta[Timestamp].timap(_.toLocalDateTime)(Timestamp.valueOf)
 
   implicit val doobieZonedDateTimeMeta: Meta[ZonedDateTime] =
-    Meta[Timestamp].timap(_.toLocalDateTime.atZone(ZoneId.systemDefault))(x =>
+    Meta[Timestamp].timap(_.toLocalDateTime.atZone(zoneId))(x =>
       Timestamp.valueOf(x.toLocalDateTime))
 
   implicit val doobieLocalDateMeta: Meta[LocalDate] =
     Meta[Date].timap(_.toLocalDate)(Date.valueOf)
-
-//show
-  implicit val showSqlDate: Show[Date]           = _.toString
-  implicit val showSqlTimestamp: Show[Timestamp] = _.toString
 }

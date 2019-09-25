@@ -4,7 +4,7 @@ import doobie.Fragment
 import doobie.free.connection.ConnectionIO
 import doobie.hikari.HikariTransactor
 import doobie.implicits._
-import doobie.util.Meta
+import doobie.util.Read
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import org.apache.spark.sql.{SaveMode, SparkSession}
@@ -12,7 +12,7 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 final case class TableDef[A](tableName: String)(
   implicit
   val typedEncoder: TypedEncoder[A],
-  val doobieMeta: Meta[A]) {
+  val doobieRead: Read[A]) {
 
   def in[F[_]: ContextShift: Concurrent](dbSettings: DatabaseSettings): DatabaseTable[F, A] =
     DatabaseTable[F, A](this, dbSettings)
@@ -21,7 +21,7 @@ final case class TableDef[A](tableName: String)(
 final case class DatabaseTable[F[_]: ContextShift: Concurrent, A](
   tableDef: TableDef[A],
   dbSettings: DatabaseSettings) {
-  import tableDef.{doobieMeta, typedEncoder}
+  import tableDef.{doobieRead, typedEncoder}
   private val transactor: Resource[F, HikariTransactor[F]] = dbSettings.transactor[F]
 
   // spark
