@@ -160,4 +160,13 @@ object SparkafkaDataset {
       .compile
       .drain
 
+  def loadIntoTopic[F[_]: ConcurrentEffect, K: TypedEncoder, V: TypedEncoder](
+    path: String,
+    topic: KafkaTopic[F, K, V])(implicit spark: SparkSession): F[Unit] =
+    upload(
+      TypedDataset
+        .createUnsafe[SparkafkaConsumerRecord[K, V]](spark.read.parquet(path))
+        .deserialized
+        .map(_.toSparkafkaProducerRecord),
+      topic.producer)
 }
