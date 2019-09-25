@@ -59,13 +59,11 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
 
   final def show: String = settings.show
 
-  final def kafkaStreams[A](topology: Reader[StreamsBuilder, A]): Stream[F, KafkaStreams] =
-    new KafkaStreamRunner[F](settings.streamSettings).stream[A](topology)
+  final def kafkaStreams(topology: Reader[StreamsBuilder, Unit]): Stream[F, KafkaStreams] =
+    new KafkaStreamRunner[F](settings.streamSettings).stream(topology)
 }
 
-final class IoKafkaContext(settings: KafkaSettings)(
-  implicit cs: ContextShift[IO],
-  timer: Timer[IO])
+final class IoKafkaContext(settings: KafkaSettings)(implicit cs: ContextShift[IO], timer: Timer[IO])
     extends KafkaContext[IO](settings) {}
 
 final class ZioKafkaContext(settings: KafkaSettings)(

@@ -7,3 +7,5 @@ addSbtPlugin("com.sksamuel.scapegoat" %% "sbt-scapegoat" % "1.0.9")
 addSbtPlugin("com.github.cb372" % "sbt-explicit-dependencies" % "0.2.10")
 
 addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.2.0")
+
+addSbtPlugin("org.jetbrains" % "sbt-idea-plugin" % "3.1.0")
