@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.sparkafka
+package com.github.chenharryhua.nanjin.sparkdb
 
 import java.sql.{Date, Timestamp}
 import java.time._

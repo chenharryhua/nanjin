@@ -1,10 +1,9 @@
 package mtest
 
-import java.sql.Date
-import java.time.{Instant, LocalDate, LocalDateTime, ZonedDateTime}
+import java.time.{Instant, LocalDate, LocalDateTime}
 
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8._
-import com.github.chenharryhua.nanjin.sparkafka.DatetimeInstances._
+import com.github.chenharryhua.nanjin.sparkdb.DatetimeInstances._
 import org.scalacheck.Prop.forAll
 import org.scalacheck.Properties
 
