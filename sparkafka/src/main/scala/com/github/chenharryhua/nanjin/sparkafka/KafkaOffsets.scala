@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.sparkafka
 import com.github.chenharryhua.nanjin.kafka.{GenericTopicPartition, KafkaOffsetRange}
 import org.apache.spark.streaming.kafka010.OffsetRange
 
-object SparkOffsets {
+private[sparkafka] object KafkaOffsets {
 
   def offsetRange(range: GenericTopicPartition[KafkaOffsetRange]): Array[OffsetRange] =
     range.value.toArray.map {

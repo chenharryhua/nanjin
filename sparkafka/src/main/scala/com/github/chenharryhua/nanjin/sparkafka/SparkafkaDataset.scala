@@ -36,7 +36,7 @@ object SparkafkaDataset {
           .createRDD[Array[Byte], Array[Byte]](
             spark.sparkContext,
             props(topic.kafkaConsumerSettings.props),
-            SparkOffsets.offsetRange(gtp),
+            KafkaOffsets.offsetRange(gtp),
             LocationStrategies.PreferConsistent)
           .map(SparkafkaConsumerRecord.from[Array[Byte], Array[Byte]])
       }
@@ -80,8 +80,8 @@ object SparkafkaDataset {
       val t = topic
       msgs.flatMap(
         _.bitraverse[Option, K, V](
-          k => t.keyCodec.tryDecode(k).toOption,
-          v => t.valueCodec.tryDecode(v).toOption))
+          k => t.keyCodec.prism.getOption(k),
+          v => t.valueCodec.prism.getOption(v)))
     }))
 
   def safeDataset[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
@@ -150,26 +150,34 @@ object SparkafkaDataset {
     implicit spark: SparkSession): F[TypedDataset[V]] =
     safeValueDataset(topic, None, LocalDateTime.now)
 
-//load data
-  def loadIntoTopic[F[_]: ConcurrentEffect, K, V](
+// save topic
+  private def parquetPath(topicName: String): String = s"./data/kafka/parquet/$topicName"
+
+  def saveTopicToDisk[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
+    implicit spark: SparkSession): F[Unit] =
+    safeDataset(topic).map(_.write.parquet(parquetPath(topic.topicName)))
+
+// load data
+  def loadTopicFromDisk[F[_], K: TypedEncoder, V: TypedEncoder](topic: KafkaTopic[F, K, V])(
+    implicit spark: SparkSession): TypedDataset[SparkafkaConsumerRecord[K, V]] =
+    TypedDataset.createUnsafe[SparkafkaConsumerRecord[K, V]](
+      spark.read.parquet(parquetPath(topic.topicName)))
+
+// into kafka
+  def uploadIntoTopic[F[_]: ConcurrentEffect, K, V](
     data: TypedDataset[SparkafkaProducerRecord[K, V]],
-    producer: KafkaProducerApi[F, K, V]): F[Unit] =
+    topic: KafkaTopic[F, K, V]): F[Unit] =
     fs2.Stream
       .fromIterator[F](data.dataset.toLocalIterator().asScala)
       .chunkN(500)
-      .evalMap(r => producer.send(r.mapFilter(Option(_).map(_.toProducerRecord))))
+      .evalMap(r => topic.producer.send(r.mapFilter(Option(_).map(_.toProducerRecord))))
       .compile
       .drain
 
-  def loadConsumerRecords[K: TypedEncoder, V: TypedEncoder](path: String)(
-    implicit spark: SparkSession): TypedDataset[SparkafkaConsumerRecord[K, V]] =
-    TypedDataset.createUnsafe[SparkafkaConsumerRecord[K, V]](spark.read.parquet(path))
-
-  def loadIntoTopic[F[_]: ConcurrentEffect, K: TypedEncoder, V: TypedEncoder](
-    path: String,
-    producer: KafkaProducerApi[F, K, V])(implicit spark: SparkSession): F[Unit] =
-    loadIntoTopic(
-      loadConsumerRecords[K, V](path).deserialized
+  def uploadIntoTopicFromDisk[F[_]: ConcurrentEffect, K: TypedEncoder, V: TypedEncoder](
+    topic: KafkaTopic[F, K, V])(implicit spark: SparkSession): F[Unit] =
+    uploadIntoTopic(
+      loadTopicFromDisk[F, K, V](topic).deserialized
         .flatMap(Option(_).map(_.toSparkafkaProducerRecord)),
-      producer)
+      topic)
 }

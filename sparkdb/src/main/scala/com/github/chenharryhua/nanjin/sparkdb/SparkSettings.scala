@@ -1,7 +1,8 @@
-package com.github.chenharryhua.nanjin.sparkafka
+package com.github.chenharryhua.nanjin.sparkdb
 
 import cats.Show
 import cats.effect.{Resource, Sync}
+import fs2.Stream
 import monocle.macros.Lenses
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
@@ -23,15 +24,17 @@ import org.apache.spark.sql.SparkSession
   def updateConf(f: SparkConf => SparkConf): SparkSettings =
     SparkSettings.conf.set(f(conf))(this)
 
-  def sessionResource[F[_]: Sync]: Resource[F, SparkSession] =
-    Resource.make(Sync[F].delay {
-      val spk = SparkSession.builder().config(conf).getOrCreate()
-      spk.sparkContext.setLogLevel(logLevel)
-      spk
-    })(spk => Sync[F].delay(spk.close()))
+  def session: SparkSession = {
+    val spk = SparkSession.builder().config(conf).getOrCreate()
+    spk.sparkContext.setLogLevel(logLevel)
+    spk
+  }
 
-  def sessionStream[F[_]: Sync]: fs2.Stream[F, SparkSession] =
-    fs2.Stream.resource(sessionResource)
+  def sessionResource[F[_]: Sync]: Resource[F, SparkSession] =
+    Resource.make(Sync[F].delay(session))(spk => Sync[F].delay(spk.close()))
+
+  def sessionStream[F[_]: Sync]: Stream[F, SparkSession] =
+    Stream.resource(sessionResource)
 
   def show: String = conf.toDebugString
 }
