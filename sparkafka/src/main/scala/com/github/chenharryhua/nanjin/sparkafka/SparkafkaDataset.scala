@@ -11,7 +11,7 @@ import frameless.{TypedDataset, TypedEncoder}
 import monocle.function.At.remove
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
-import org.apache.spark.sql.{SaveMode, SparkSession}
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies}
 
 import scala.collection.JavaConverters._
@@ -150,7 +150,8 @@ object SparkafkaDataset {
     implicit spark: SparkSession): F[TypedDataset[V]] =
     safeValueDataset(topic, None, LocalDateTime.now)
 
-  def upload[F[_]: ConcurrentEffect, K, V](
+//load data
+  def loadIntoTopic[F[_]: ConcurrentEffect, K, V](
     data: TypedDataset[SparkafkaProducerRecord[K, V]],
     producer: KafkaProducerApi[F, K, V]): F[Unit] =
     fs2.Stream
@@ -160,13 +161,15 @@ object SparkafkaDataset {
       .compile
       .drain
 
+  def loadConsumerRecords[K: TypedEncoder, V: TypedEncoder](path: String)(
+    implicit spark: SparkSession): TypedDataset[SparkafkaConsumerRecord[K, V]] =
+    TypedDataset.createUnsafe[SparkafkaConsumerRecord[K, V]](spark.read.parquet(path))
+
   def loadIntoTopic[F[_]: ConcurrentEffect, K: TypedEncoder, V: TypedEncoder](
     path: String,
-    topic: KafkaTopic[F, K, V])(implicit spark: SparkSession): F[Unit] =
-    upload(
-      TypedDataset
-        .createUnsafe[SparkafkaConsumerRecord[K, V]](spark.read.parquet(path))
-        .deserialized
-        .map(_.toSparkafkaProducerRecord),
-      topic.producer)
+    producer: KafkaProducerApi[F, K, V])(implicit spark: SparkSession): F[Unit] =
+    loadIntoTopic(
+      loadConsumerRecords[K, V](path).deserialized
+        .flatMap(Option(_).map(_.toSparkafkaProducerRecord)),
+      producer)
 }
