@@ -6,7 +6,7 @@ import java.util
 import cats.Monad
 import cats.effect.ConcurrentEffect
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.{KafkaProducerApi, KafkaTopic}
+import com.github.chenharryhua.nanjin.kafka.{KafkaProducerApi, KafkaTopic, Keyboard}
 import frameless.{TypedDataset, TypedEncoder}
 import monocle.function.At.remove
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -167,12 +167,14 @@ object SparkafkaDataset {
   def uploadIntoTopic[F[_]: ConcurrentEffect, K, V](
     data: TypedDataset[SparkafkaProducerRecord[K, V]],
     topic: KafkaTopic[F, K, V]): F[Unit] =
-    fs2.Stream
-      .fromIterator[F](data.dataset.toLocalIterator().asScala)
-      .chunkN(500)
-      .evalMap(r => topic.producer.send(r.mapFilter(Option(_).map(_.toProducerRecord))))
-      .compile
-      .drain
+    Keyboard.signal.flatMap { signal =>
+      fs2.Stream
+        .fromIterator[F](data.dataset.toLocalIterator().asScala)
+        .chunkN(500)
+        .evalMap(r => topic.producer.send(r.mapFilter(Option(_).map(_.toProducerRecord))))
+        .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
+        .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
+    }.compile.drain
 
   def uploadIntoTopicFromDisk[F[_]: ConcurrentEffect, K: TypedEncoder, V: TypedEncoder](
     topic: KafkaTopic[F, K, V])(implicit spark: SparkSession): F[Unit] =
