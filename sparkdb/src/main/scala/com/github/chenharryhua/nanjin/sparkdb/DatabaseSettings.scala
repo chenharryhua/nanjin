@@ -29,7 +29,7 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
        |connStr: ${connStr.value}
        |""".stripMargin
 
-  def transactor[F[_]: ContextShift: Async]: Resource[F, HikariTransactor[F]] =
+  final def transactorResource[F[_]: ContextShift: Async]: Resource[F, HikariTransactor[F]] =
     for {
       theadPool <- ExecutionContexts.fixedThreadPool[F](8)
       cachedPool <- ExecutionContexts.cachedThreadPool[F]
@@ -43,7 +43,10 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
       )
     } yield xa
 
-  def printCaseClass[F[_]: ContextShift: Async]: F[Unit] = transactor.use {
+  final def transactorStream[F[_]: ContextShift: Async]: Stream[F, HikariTransactor[F]] =
+    Stream.resource(transactorResource)
+
+  final def printCaseClass[F[_]: ContextShift: Async]: F[Unit] = transactorResource.use {
     _.configure { hikari =>
       Async[F]
         .delay(new SimpleJdbcCodegen(() => hikari.getConnection, ""))
@@ -52,14 +55,14 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
     }
   }
 
-  def runQuery[F[_]: ContextShift: Async, A](action: ConnectionIO[A]): F[A] =
-    transactor.use(_.trans.apply(action))
+  final def runQuery[F[_]: ContextShift: Async, A](action: ConnectionIO[A]): F[A] =
+    transactorResource.use(_.trans.apply(action))
 
-  def runBatch[F[_]: ContextShift: Async, A](
+  final def runBatch[F[_]: ContextShift: Async, A](
     f: List[A] => ConnectionIO[List[Long]]): Pipe[F, A, List[Long]] =
     (src: Stream[F, A]) =>
       for {
-        xa <- Stream.resource(transactor)
+        xa <- transactorStream
         data <- src.chunkN(1000)
         rst <- Stream.eval(xa.trans.apply(f(data.toList)))
       } yield rst

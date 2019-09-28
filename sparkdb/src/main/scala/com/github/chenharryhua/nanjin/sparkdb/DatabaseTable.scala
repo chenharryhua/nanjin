@@ -22,7 +22,7 @@ final case class DatabaseTable[F[_]: ContextShift: Concurrent, A](
   tableDef: TableDef[A],
   dbSettings: DatabaseSettings) {
   import tableDef.{doobieRead, typedEncoder}
-  private val transactor: Resource[F, HikariTransactor[F]] = dbSettings.transactor[F]
+  private val transactor: Resource[F, HikariTransactor[F]] = dbSettings.transactorResource[F]
 
   // spark
   def loadFromDB(implicit spark: SparkSession): TypedDataset[A] =
