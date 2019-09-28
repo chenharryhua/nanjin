@@ -29,6 +29,7 @@ final class KafkaStreamRunner[F[_]](settings: KafkaStreamSettings)(
 
   def stream(topology: Reader[StreamsBuilder, Unit]): Stream[F, KafkaStreams] =
     for {
+      kb <- Keyboard.signal[F]
       error <- Stream.eval(Deferred[F, UncaughtKafkaStreamingException])
       latch <- Stream.eval(Deferred[F, Unit])
       kss <- Stream
@@ -44,6 +45,7 @@ final class KafkaStreamRunner[F[_]](settings: KafkaStreamSettings)(
             ks.setStateListener(new Latch(latch))
             ks.start()
           }.as(ks))
+        .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
         .concurrently(Stream.eval(error.get).flatMap(Stream.raiseError[F]))
       _ <- Stream.eval(latch.get)
     } yield kss

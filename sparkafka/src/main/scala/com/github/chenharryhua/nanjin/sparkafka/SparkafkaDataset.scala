@@ -6,7 +6,7 @@ import java.util
 import cats.Monad
 import cats.effect.ConcurrentEffect
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.{KafkaProducerApi, KafkaTopic, Keyboard}
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, Keyboard}
 import frameless.{TypedDataset, TypedEncoder}
 import monocle.function.At.remove
 import org.apache.kafka.clients.consumer.ConsumerConfig
