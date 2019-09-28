@@ -1,8 +1,7 @@
 package com.github.chenharryhua.nanjin.sparkdb
-import cats.effect.{Concurrent, ContextShift, Resource}
+import cats.effect.{Concurrent, ContextShift}
 import doobie.Fragment
 import doobie.free.connection.ConnectionIO
-import doobie.hikari.HikariTransactor
 import doobie.implicits._
 import doobie.util.Read
 import frameless.{TypedDataset, TypedEncoder}
@@ -22,7 +21,6 @@ final case class DatabaseTable[F[_]: ContextShift: Concurrent, A](
   tableDef: TableDef[A],
   dbSettings: DatabaseSettings) {
   import tableDef.{doobieRead, typedEncoder}
-  private val transactor: Resource[F, HikariTransactor[F]] = dbSettings.transactorResource[F]
 
   // spark
   def loadFromDB(implicit spark: SparkSession): TypedDataset[A] =
@@ -59,12 +57,13 @@ final case class DatabaseTable[F[_]: ContextShift: Concurrent, A](
   def overwriteDB(data: TypedDataset[A]): Unit = uploadToDB(data, SaveMode.Overwrite)
 
   // doobie
-  val source: Stream[F, A] =
+  val source: Stream[F, A] = {
     for {
-      xa <- Stream.resource(transactor)
+      xa <- dbSettings.transactorStream[F]
       dt: Stream[ConnectionIO, A] = (fr"select * from" ++ Fragment.const(tableDef.tableName))
         .query[A]
         .stream
       rst <- xa.transP.apply(dt)
     } yield rst
+  }
 }

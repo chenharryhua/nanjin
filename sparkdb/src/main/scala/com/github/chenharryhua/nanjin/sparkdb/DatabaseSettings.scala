@@ -58,15 +58,6 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
   final def runQuery[F[_]: ContextShift: Async, A](action: ConnectionIO[A]): F[A] =
     transactorResource.use(_.trans.apply(action))
 
-  final def runBatchList[F[_]: ContextShift: Async, A](
-    f: List[A] => ConnectionIO[List[Long]]): Pipe[F, A, List[Long]] =
-    (src: Stream[F, A]) =>
-      for {
-        xa <- transactorStream
-        data <- src.chunkN(1000)
-        rst <- Stream.eval(xa.trans.apply(f(data.toList)))
-      } yield rst
-
   final def runBatch[F[_]: ContextShift: Async, A](
     f: A => ConnectionIO[Long]): Pipe[F, A, Chunk[Long]] =
     (src: Stream[F, A]) =>
