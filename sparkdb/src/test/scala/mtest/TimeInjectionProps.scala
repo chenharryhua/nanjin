@@ -10,7 +10,7 @@ import org.scalacheck.Properties
 class TimeInjectionProps extends Properties("Injection") {
 
   property("Instant identity") = forAll { (dt: Instant) =>
-    instantInjection.invert(instantInjection(dt)).toEpochMilli == dt.toEpochMilli
+    instantInjection.invert(instantInjection(dt)) == dt
   }
 
   property("LocalDateTime identity") = forAll { (dt: LocalDateTime) =>
@@ -21,7 +21,7 @@ class TimeInjectionProps extends Properties("Injection") {
     zonedDateTimeInjection(zonedDateTimeInjection.invert((dt))) == dt
   }
 
-  property("localDate identity") = forAll { (dt: LocalDate) =>
-    localDateInjection.invert(localDateInjection(dt)) == dt
-  }
+//  property("localDate identity") = forAll { (dt: LocalDate) =>
+//    localDateInjection.invert(localDateInjection(dt)) == dt
+//  }
 }

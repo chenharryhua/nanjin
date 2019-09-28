@@ -4,14 +4,22 @@ import java.sql.{Date, Timestamp}
 import java.time._
 
 import doobie.util.Meta
-import frameless.{Injection, SQLTimestamp}
+import frameless.{Injection, SQLDate, SQLTimestamp}
+import org.apache.spark.sql.catalyst.util.DateTimeUtils
 
 object DatetimeInstances {
   private val zoneId: ZoneId = ZoneId.systemDefault()
 //typed-spark
-  implicit object instantInjection extends Injection[Instant, SQLTimestamp] {
-    override def apply(a: Instant): SQLTimestamp  = SQLTimestamp(a.toEpochMilli)
-    override def invert(b: SQLTimestamp): Instant = Instant.ofEpochMilli(b.us)
+  implicit object javaSQLTimestampInjection extends Injection[Timestamp, SQLTimestamp] {
+    override def apply(a: Timestamp): SQLTimestamp =
+      SQLTimestamp(DateTimeUtils.fromJavaTimestamp(a))
+    override def invert(b: SQLTimestamp): Timestamp = DateTimeUtils.toJavaTimestamp(b.us)
+  }
+
+  implicit object instantInjection extends Injection[Instant, Timestamp] {
+
+    override def apply(a: Instant): Timestamp  = Timestamp.from(a)
+    override def invert(b: Timestamp): Instant = b.toInstant
   }
 
   implicit object localDateTimeInjection extends Injection[LocalDateTime, Instant] {
@@ -24,22 +32,17 @@ object DatetimeInstances {
     override def invert(b: Instant): ZonedDateTime = ZonedDateTime.ofInstant(b, zoneId)
   }
 
-  implicit object localDateInjection extends Injection[LocalDate, Long] {
-    override def apply(a: LocalDate): Long  = a.toEpochDay
-    override def invert(b: Long): LocalDate = LocalDate.ofEpochDay(b)
+  implicit object javaSQLDateInjection extends Injection[Date, SQLDate] {
+    override def apply(a: Date): SQLDate  = SQLDate(DateTimeUtils.fromJavaDate(a))
+    override def invert(b: SQLDate): Date = DateTimeUtils.toJavaDate(b.days)
+  }
+
+  implicit object localDateInjection extends Injection[LocalDate, Date] {
+    override def apply(a: LocalDate): Date  = Date.valueOf(a)
+    override def invert(b: Date): LocalDate = b.toLocalDate
   }
 
 //doobie
-  implicit val doobieInstantMeta: Meta[Instant] =
-    Meta[Timestamp].timap(_.toInstant)(Timestamp.from)
-
-  implicit val doobieLocalDateTimeMeta: Meta[LocalDateTime] =
-    Meta[Timestamp].timap(_.toLocalDateTime)(Timestamp.valueOf)
-
-  implicit val doobieZonedDateTimeMeta: Meta[ZonedDateTime] =
-    Meta[Timestamp].timap(_.toLocalDateTime.atZone(zoneId))(x =>
-      Timestamp.valueOf(x.toLocalDateTime))
-
-  implicit val doobieLocalDateMeta: Meta[LocalDate] =
-    Meta[Date].timap(_.toLocalDate)(Date.valueOf)
+  implicit def inferDoobieMeta[A, B](implicit in: Injection[A, B], mb: Meta[B]): Meta[A] =
+    Meta[B].imap(in.invert)(in.apply)
 }
