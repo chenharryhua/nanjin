@@ -2,10 +2,10 @@ package com.github.chenharryhua.nanjin.sparkdb
 
 import cats.effect.{Async, Blocker, ContextShift, Resource}
 import cats.implicits._
-import doobie.free.connection.ConnectionIO
+import doobie.free.connection.{AsyncConnectionIO, ConnectionIO}
 import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
-import fs2.{Pipe, Stream}
+import fs2.{Chunk, Pipe, Stream}
 import io.getquill.codegen.jdbc.SimpleJdbcCodegen
 import monocle.macros.Lenses
 
@@ -58,7 +58,7 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
   final def runQuery[F[_]: ContextShift: Async, A](action: ConnectionIO[A]): F[A] =
     transactorResource.use(_.trans.apply(action))
 
-  final def runBatch[F[_]: ContextShift: Async, A](
+  final def runBatchList[F[_]: ContextShift: Async, A](
     f: List[A] => ConnectionIO[List[Long]]): Pipe[F, A, List[Long]] =
     (src: Stream[F, A]) =>
       for {
@@ -67,6 +67,14 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
         rst <- Stream.eval(xa.trans.apply(f(data.toList)))
       } yield rst
 
+  final def runBatch[F[_]: ContextShift: Async, A](
+    f: A => ConnectionIO[Long]): Pipe[F, A, Chunk[Long]] =
+    (src: Stream[F, A]) =>
+      for {
+        xa <- transactorStream
+        data <- src.chunkN(1000)
+        rst <- Stream.eval(xa.trans.apply(data.traverse(f)(AsyncConnectionIO)))
+      } yield rst
 }
 
 @Lenses final case class Postgres(
