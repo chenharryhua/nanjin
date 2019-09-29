@@ -4,7 +4,7 @@ import java.time.{Instant, LocalDate, LocalDateTime}
 
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8._
 import com.github.chenharryhua.nanjin.sparkdb._
-import org.scalacheck.Prop.forAll
+import org.scalacheck.Prop.{forAll, propBoolean}
 import org.scalacheck.Properties
 
 class TimeInjectionProps extends Properties("Injection") {
@@ -21,9 +21,7 @@ class TimeInjectionProps extends Properties("Injection") {
     zonedDateTimeInjection(zonedDateTimeInjection.invert((dt))) == dt
   }
 
-  property("localDate identity") =
-    forAll(arbLocalDateJdk8.arbitrary.filter(p => p.getYear > -100000)) {
-      (dt: LocalDate) =>
-        localDateInjection.invert(localDateInjection(dt)) == dt
-    }
+  property("localDate identity") = forAll { (dt: LocalDate) =>
+    (dt.getYear > -1000000L) ==> (localDateInjection.invert(localDateInjection(dt)) == dt)
+  }
 }
