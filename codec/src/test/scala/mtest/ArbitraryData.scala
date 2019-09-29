@@ -44,7 +44,7 @@ trait ArbitraryData extends GenKafkaMessage with GenFs2Message with GenAkkaMessa
     Arbitrary(genProducerRecord)
 
   implicit val cogenKafkaProducerRecordF: Cogen[ProducerRecord[Int, Int]] =
-    Cogen(m => m.key.toLong + m.value.toLong)
+    Cogen(m => m.key.toLong + m.timestamp())
 
   implicit val abKafkaProducerRecords: Arbitrary[Chunk[ProducerRecord[Int, Int]]] =
     Arbitrary(
@@ -58,19 +58,19 @@ trait ArbitraryData extends GenKafkaMessage with GenFs2Message with GenAkkaMessa
     Arbitrary(genFs2ConsumerRecord)
 
   implicit val cogenFs2ConsumerRecordF: Cogen[Fs2ConsumerRecord[Int, Int]] =
-    Cogen(m => m.key.toLong + m.value.toLong)
+    Cogen(m => m.key.toLong)
 
   implicit val abFs2ConsumerMessage: Arbitrary[Fs2ConsumerMessage[IO, Int, Int]] =
     Arbitrary(genFs2ConsumerMessage)
 
   implicit val cogenFs2ConsumerMessageF: Cogen[Fs2ConsumerMessage[IO, Int, Int]] =
-    Cogen(m => m.record.key.toLong + m.record.value.toLong)
+    Cogen(m => m.record.value.toLong)
 
   implicit val abFs2ProducerRecord: Arbitrary[Fs2ProducerRecord[Int, Int]] =
     Arbitrary(genFs2ProducerRecord)
 
   implicit val cogenFs2ProducerRecordF: Cogen[Fs2ConsumerRecord[Int, Int]] =
-    Cogen(m => m.key.toLong + m.value.toLong)
+    Cogen(m => m.key.toLong + m.offset)
 
   implicit val abFs2ProducerRecords: Arbitrary[Fs2ProducerRecords[Int, Int, String]] =
     Arbitrary(genFs2ProducerRecords)
@@ -95,7 +95,7 @@ trait ArbitraryData extends GenKafkaMessage with GenFs2Message with GenAkkaMessa
 
   implicit val cogenAkkaProducerRecordF: Cogen[AkkaProducerMessage[Int, Int, String]] =
     Cogen(_.record.value().toLong)
-    
+
   implicit val abAkkaProducerRecords: Arbitrary[AkkaMultiMessage[Int, Int, String]] = {
     Arbitrary(genAkkaProducerMultiMessage)
   }
