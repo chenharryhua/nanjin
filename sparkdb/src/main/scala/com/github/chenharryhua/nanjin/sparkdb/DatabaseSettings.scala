@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.sparkdb
 
-import cats.effect.{Async, Blocker, ContextShift, Resource}
+import cats.effect.{Async, Blocker, Concurrent, ContextShift, Resource, Timer}
 import cats.implicits._
 import doobie.free.connection.{AsyncConnectionIO, ConnectionIO}
 import doobie.hikari.HikariTransactor
@@ -8,6 +8,8 @@ import doobie.util.ExecutionContexts
 import fs2.{Chunk, Pipe, Stream}
 import io.getquill.codegen.jdbc.SimpleJdbcCodegen
 import monocle.macros.Lenses
+
+import scala.concurrent.duration.DurationInt
 
 final case class Username(value: String) extends AnyVal
 final case class Password(value: String) extends AnyVal
@@ -58,12 +60,12 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
   final def runQuery[F[_]: ContextShift: Async, A](action: ConnectionIO[A]): F[A] =
     transactorResource.use(_.trans.apply(action))
 
-  final def runBatch[F[_]: ContextShift: Async, A, B](
+  final def runBatch[F[_]: ContextShift: Concurrent: Timer, A, B](
     f: A => ConnectionIO[B]): Pipe[F, A, Chunk[B]] =
     (src: Stream[F, A]) =>
       for {
         xa <- transactorStream
-        data <- src.chunkN(1000)
+        data <- src.groupWithin(1000, 5.seconds)
         rst <- Stream.eval(xa.trans.apply(data.traverse(f)(AsyncConnectionIO)))
       } yield rst
 }

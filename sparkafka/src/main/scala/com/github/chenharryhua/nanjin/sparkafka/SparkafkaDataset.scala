@@ -177,9 +177,12 @@ object SparkafkaDataset {
     }.compile.drain
 
   def uploadIntoTopicFromDisk[F[_]: ConcurrentEffect, K: TypedEncoder, V: TypedEncoder](
-    topic: KafkaTopic[F, K, V])(implicit spark: SparkSession): F[Unit] =
+    topic: KafkaTopic[F, K, V])(implicit spark: SparkSession): F[Unit] = {
+    val ds = loadTopicFromDisk[F, K, V](topic)
     uploadIntoTopic(
-      loadTopicFromDisk[F, K, V](topic).deserialized
+      ds.orderBy(ds('timestamp).asc, ds('offset).asc)
+        .deserialized
         .flatMap(Option(_).map(_.toSparkafkaProducerRecord)),
       topic)
+  }
 }
