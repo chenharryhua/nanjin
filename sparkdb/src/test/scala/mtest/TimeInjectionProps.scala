@@ -21,7 +21,9 @@ class TimeInjectionProps extends Properties("Injection") {
     zonedDateTimeInjection(zonedDateTimeInjection.invert((dt))) == dt
   }
 
-//  property("localDate identity") = forAll { (dt: LocalDate) =>
-//    localDateInjection.invert(localDateInjection(dt)) == dt
-//  }
+  property("localDate identity") = forAll { (dt: LocalDate) =>
+    if (dt.getYear() < 9999 & dt.getYear() > 0)
+      localDateInjection.invert(localDateInjection(dt)) == dt
+    else true
+  }
 }
