@@ -20,7 +20,9 @@ final case class KafkaPartition(value: Int) extends AnyVal
 
 final case class KafkaOffsetRange(from: KafkaOffset, until: KafkaOffset) {
   val distance: Long = until.value - from.value
-  def show: String   = s"KafkaOffsetRange(from = ${from}, until = ${until}, distance = ${distance})"
+
+  def show: String =
+    s"KafkaOffsetRange(from = ${from.value}, until = ${until.value}, distance = ${distance})"
 }
 
 object KafkaOffsetRange {
@@ -66,17 +68,16 @@ object ListOfTopicPartitions {
 
   def topicPartitions: ListOfTopicPartitions = ListOfTopicPartitions(value.keys.toList)
 
-  def show: String =
+  def show(implicit ev: Show[V]): String =
     s"""|
-        |GenericTopicPartition:
         |total partitions: ${value.size}
         |${value.toList
          .sortBy(_._1.partition())
-         .map { case (k, v) => k.toString + " -> " + v.toString }
+         .map { case (k, v) => k.toString + " -> " + v.show }
          .mkString("\n")}
   """.stripMargin
 }
 
 object GenericTopicPartition {
-  implicit def showGenericTopicPartition[A]: Show[GenericTopicPartition[A]] = _.show
+  implicit def showGenericTopicPartition[A: Show]: Show[GenericTopicPartition[A]] = _.show
 }

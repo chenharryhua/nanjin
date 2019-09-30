@@ -207,7 +207,7 @@ object KafkaConsumerApi {
         for {
           beg <- primitiveConsumer.beginningOffsets
           end <- primitiveConsumer.endOffsets
-        } yield end.combineWith(beg)((_, _).mapN(KafkaOffsetRange(_, _)))
+        } yield beg.combineWith(end)((_, _).mapN(KafkaOffsetRange(_, _)))
       }
 
     override def numOfRecordsSince(
@@ -218,7 +218,7 @@ object KafkaConsumerApi {
             .offsetsForTimes(ldt)
             .map(_.mapValues(_.map(x => KafkaOffset(x.offset()))))
           end <- primitiveConsumer.endOffsets
-        } yield end.combineWith(oft)((_, _).mapN(KafkaOffsetRange(_, _)))
+        } yield oft.combineWith(end)((_, _).mapN(KafkaOffsetRange(_, _)))
       }
 
     override def partitionsFor: F[ListOfTopicPartitions] =
