@@ -50,7 +50,11 @@ import scala.util.Try
     AkkaCommitterSettings(system)
 
   val sharedConsumerSettings: Properties = utils.toProperties(
-    props ++ Map(ConsumerConfig.CLIENT_ID_CONFIG -> s"shared-consumer-${utils.random4d.value}"))
+    props ++ Map(
+      ConsumerConfig.CLIENT_ID_CONFIG -> s"shared-consumer-${utils.random4d.value}",
+      ConsumerConfig.AUTO_OFFSET_RESET_CONFIG -> "earliest",
+      ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG -> "false"
+    ))
 
   def show: String =
     s"""

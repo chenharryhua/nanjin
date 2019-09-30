@@ -13,8 +13,10 @@ import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies}
-
+import scala.concurrent.duration._
 import scala.collection.JavaConverters._
+import cats.effect.Timer
+import fs2.Stream
 
 object SparkafkaDataset {
 
@@ -164,19 +166,23 @@ object SparkafkaDataset {
       spark.read.parquet(parquetPath(topic.topicName)))
 
 // into kafka
-  def uploadIntoTopic[F[_]: ConcurrentEffect, K, V](
+  def uploadIntoTopic[F[_]: ConcurrentEffect: Timer, K, V](
     data: TypedDataset[SparkafkaProducerRecord[K, V]],
-    topic: KafkaTopic[F, K, V]): F[Unit] =
-    Keyboard.signal.flatMap { signal =>
-      fs2.Stream
+    topic: KafkaTopic[F, K, V]): F[Unit] = {
+    val process = for {
+      kb <- Keyboard.signal[F]
+      _ <- Stream
         .fromIterator[F](data.dataset.toLocalIterator().asScala)
         .chunkN(500)
         .evalMap(r => topic.producer.send(r.mapFilter(Option(_).map(_.toProducerRecord))))
-        .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
-        .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
-    }.compile.drain
+        .pauseWhen(kb.map(_.contains(Keyboard.pauSe)))
+        .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
+      _ <- Stream.sleep(1.second)
+    } yield print(".")
+    process.compile.drain
+  }
 
-  def uploadIntoTopicFromDisk[F[_]: ConcurrentEffect, K: TypedEncoder, V: TypedEncoder](
+  def uploadIntoTopicFromDisk[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
     topic: KafkaTopic[F, K, V])(implicit spark: SparkSession): F[Unit] = {
     val ds = loadTopicFromDisk[F, K, V](topic)
     uploadIntoTopic(

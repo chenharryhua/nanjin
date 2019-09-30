@@ -61,11 +61,12 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
     transactorResource.use(_.trans.apply(action))
 
   final def runBatch[F[_]: ContextShift: Concurrent: Timer, A, B](
-    f: A => ConnectionIO[B]): Pipe[F, A, Chunk[B]] =
+    f: A => ConnectionIO[B],
+    batchSize: Int = 1000): Pipe[F, A, Chunk[B]] =
     (src: Stream[F, A]) =>
       for {
         xa <- transactorStream
-        data <- src.groupWithin(1000, 5.seconds)
+        data <- src.groupWithin(batchSize, 5.seconds)
         rst <- Stream.eval(xa.trans.apply(data.traverse(f)(AsyncConnectionIO)))
       } yield rst
 }
