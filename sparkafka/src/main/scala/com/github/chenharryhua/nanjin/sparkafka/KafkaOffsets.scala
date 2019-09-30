@@ -7,7 +7,7 @@ private[sparkafka] object KafkaOffsets {
 
   def offsetRange(range: GenericTopicPartition[KafkaOffsetRange]): Array[OffsetRange] =
     range.value.toArray.map {
-      case (tp, r) => OffsetRange.create(tp, r.fromOffset, r.untilOffset)
+      case (tp, r) => OffsetRange.create(tp, r.from.value, r.until.value)
     }
 
   def offsetOptions(range: GenericTopicPartition[KafkaOffsetRange]): Map[String, String] = {
@@ -15,11 +15,11 @@ private[sparkafka] object KafkaOffsets {
     def osJson(topicName: String, po: List[String]) = s"""{"$topicName":{${po.mkString(",")}}}"""
 
     val start = range.value.map {
-      case (k, v) => poJson(k.partition(), v.fromOffset)
+      case (k, v) => poJson(k.partition(), v.from.value)
     }.toList
 
     val end = range.value.map {
-      case (k, v) => poJson(k.partition(), v.untilOffset)
+      case (k, v) => poJson(k.partition(), v.until.value)
     }.toList
 
     range.value.keys.headOption match {
