@@ -6,14 +6,23 @@ import java.util.Properties
 import cats.Eval
 
 import scala.util.Random
+import java.sql.Timestamp
 
-final case class NJTimestamp(ts: Long, tz: ZoneId) {
-  val utc: Instant         = Instant.ofEpochMilli(ts)
-  val local: ZonedDateTime = utc.atZone(tz)
+// in unit of milli-second
+final case class KafkaTimestamp(ts: Long, tz: ZoneId) {
+  def utc: Instant             = Instant.ofEpochMilli(ts)
+  def local: ZonedDateTime     = utc.atZone(tz)
+  def javaLong: java.lang.Long = ts
 }
 
-object NJTimestamp {
-  def apply(ts: Long): NJTimestamp = new NJTimestamp(ts, ZoneId.systemDefault())
+object KafkaTimestamp {
+  private val zoneId: ZoneId = ZoneId.systemDefault()
+
+  def apply(ts: Long): KafkaTimestamp          = KafkaTimestamp(ts, zoneId)
+  def apply(ts: Timestamp): KafkaTimestamp     = KafkaTimestamp(ts.getTime, zoneId)
+  def apply(utc: Instant): KafkaTimestamp      = KafkaTimestamp(utc.toEpochMilli)
+  def apply(ts: LocalDateTime): KafkaTimestamp = apply(ts.atZone(zoneId).toInstant)
+  def apply(ts: ZonedDateTime): KafkaTimestamp = apply(ts.toInstant)
 }
 
 object utils {

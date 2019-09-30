@@ -11,7 +11,7 @@ private[codec] trait ShowKafkaMessage {
 
   implicit def showConsumerRecord[K: Show, V: Show]: Show[ConsumerRecord[K, V]] =
     (t: ConsumerRecord[K, V]) => {
-      val ts = NJTimestamp(t.timestamp())
+      val ts = KafkaTimestamp(t.timestamp())
       s"""
          |consumer record:
          |topic:        ${t.topic()}
@@ -31,7 +31,7 @@ private[codec] trait ShowKafkaMessage {
 
   implicit def showProducerRecord[K: Show, V: Show]: Show[ProducerRecord[K, V]] =
     (t: ProducerRecord[K, V]) => {
-      val ts = NJTimestamp(t.timestamp())
+      val ts = KafkaTimestamp(t.timestamp())
       s"""
          |producer record:
          |topic:      ${t.topic}
@@ -54,7 +54,7 @@ private[codec] trait ShowKafkaMessage {
   implicit val showArrayByte: Show[Array[Byte]] = _ => "Array[Byte]"
 
   implicit def showRecordMetadata: Show[RecordMetadata] = { t: RecordMetadata =>
-    val ts = NJTimestamp(t.timestamp())
+    val ts = KafkaTimestamp(t.timestamp())
     s"""
        |topic:     ${t.topic()}
        |partition: ${t.partition()}

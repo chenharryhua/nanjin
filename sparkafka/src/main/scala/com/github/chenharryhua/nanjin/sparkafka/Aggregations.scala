@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.sparkafka
 
-import com.github.chenharryhua.nanjin.codec.NJTimestamp
+import com.github.chenharryhua.nanjin.codec.KafkaTimestamp
 import frameless.functions.aggregate.{collectSet, count}
 import frameless.functions.size
 import frameless.{TypedDataset, TypedEncoder}
@@ -26,21 +26,21 @@ trait Aggregations {
       import org.apache.spark.sql.functions.{col, count}
       import spark.implicits._
       val hour = tds.deserialized.map { m =>
-        NJTimestamp(m.timestamp).local.getHour
+        KafkaTimestamp(m.timestamp).local.getHour
       }.dataset.groupBy(col("_1")).agg(count("_1")).as[(Int, Long)]
       TypedDataset.create[(Int, Long)](hour)
     }
 
     def minutely: TypedDataset[(Int, Long)] = {
       val minute: TypedDataset[Int] = tds.deserialized.map { m =>
-        NJTimestamp(m.timestamp).local.getMinute
+        KafkaTimestamp(m.timestamp).local.getMinute
       }
       minute.groupBy(minute.asCol).agg(count(minute.asCol))
     }
 
     def daily: TypedDataset[(Int, Long)] = {
       val day: TypedDataset[Int] = tds.deserialized.map { m =>
-        NJTimestamp(m.timestamp).local.getDayOfYear
+        KafkaTimestamp(m.timestamp).local.getDayOfYear
       }
       day.groupBy(day.asCol).agg(count(day.asCol))
     }
