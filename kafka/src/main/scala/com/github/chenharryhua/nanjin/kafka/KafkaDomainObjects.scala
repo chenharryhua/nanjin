@@ -22,7 +22,7 @@ final case class KafkaOffsetRange(from: KafkaOffset, until: KafkaOffset) {
   val distance: Long = until.value - from.value
 
   def show: String =
-    s"KafkaOffsetRange(from = ${from.value}, until = ${until.value}, distance = ${distance})"
+    s"KafkaOffsetRange(from = ${from.value}, until = ${until.value}, distance = $distance)"
 }
 
 object KafkaOffsetRange {
