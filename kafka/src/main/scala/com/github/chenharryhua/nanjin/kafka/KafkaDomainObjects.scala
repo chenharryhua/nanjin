@@ -90,9 +90,18 @@ final case class KafkaConsumerGroupId(value: String) extends AnyVal
 
 final case class KafkaConsumerGroupInfo(
   groupId: KafkaConsumerGroupId,
-  gap: GenericTopicPartition[KafkaOffsetRange])
+  gap: GenericTopicPartition[KafkaOffsetRange]) {
+
+  def show: String =
+    s"""|
+        |group id: ${groupId.value}
+        |${gap.show}
+        |
+    """.stripMargin
+}
 
 object KafkaConsumerGroupInfo {
+  implicit val showKafkaConsumerGroupInfo: Show[KafkaConsumerGroupInfo] = _.show
 
   def apply(
     groupId: String,
