@@ -21,26 +21,6 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
   protected lazy val akkaSystem: ActorSystem         = ActorSystem("nanjin")
   protected lazy val materializer: ActorMaterializer = ActorMaterializer.create(akkaSystem)
 
-  final def asKey[K: SerdeOf]: KeySerde[K] =
-    SerdeOf[K].asKey(settings.schemaRegistrySettings.props)
-
-  final def asValue[V: SerdeOf]: ValueSerde[V] =
-    SerdeOf[V].asValue(settings.schemaRegistrySettings.props)
-
-  final def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] =
-    new KafkaTopic[F, K, V](
-      topicDef,
-      settings.schemaRegistrySettings,
-      settings.consumerSettings,
-      settings.producerSettings,
-      adminClientSettings,
-      sharedConsumer,
-      sharedProducer,
-      Eval.later(materializer))
-
-  final def topic[K: SerdeOf: Show, V: SerdeOf: Show](topicName: String): KafkaTopic[F, K, V] =
-    topic[K, V](TopicDef[K, V](topicName))
-
   final private[this] val sharedConsumer: Eval[MVar[F, KafkaByteConsumer]] =
     Eval.later {
       val consumerClient: KafkaConsumer[Array[Byte], Array[Byte]] =
@@ -62,13 +42,33 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
   final private[this] val adminClientSettings: AdminClientSettings[F] =
     AdminClientSettings[F].withProperties(settings.sharedAdminSettings.props)
 
+  final val admin: Resource[F, KafkaAdminClient[F]] =
+    adminClientResource(adminClientSettings)
+
+  final def asKey[K: SerdeOf]: KeySerde[K] =
+    SerdeOf[K].asKey(settings.schemaRegistrySettings.props)
+
+  final def asValue[V: SerdeOf]: ValueSerde[V] =
+    SerdeOf[V].asValue(settings.schemaRegistrySettings.props)
+
+  final def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] =
+    new KafkaTopic[F, K, V](
+      topicDef,
+      settings.schemaRegistrySettings,
+      settings.consumerSettings,
+      settings.producerSettings,
+      adminClientSettings,
+      sharedConsumer,
+      sharedProducer,
+      Eval.later(materializer))
+
+  final def topic[K: SerdeOf: Show, V: SerdeOf: Show](topicName: String): KafkaTopic[F, K, V] =
+    topic[K, V](TopicDef[K, V](topicName))
+
   final def show: String = settings.show
 
   final def kafkaStreams(topology: Reader[StreamsBuilder, Unit]): Stream[F, KafkaStreams] =
     new KafkaStreamRunner[F](settings.streamSettings).stream(topology)
-
-  final val admin: Resource[F, KafkaAdminClient[F]] =
-    adminClientResource(adminClientSettings)
 
 }
 

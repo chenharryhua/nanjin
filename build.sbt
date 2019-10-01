@@ -37,7 +37,7 @@ val jline    = "3.12.1"
 
 val scalatest = "3.0.8"
 
-val doobie = "0.8.2"
+val doobie = "0.8.4"
 val quill  = "3.4.9"
 
 lazy val commonSettings = Seq(

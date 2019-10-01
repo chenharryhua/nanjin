@@ -10,7 +10,7 @@ import org.apache.kafka.clients.admin.TopicDescription
 
 @autoFunctorK
 @autoSemigroupalK
-sealed abstract class KafkaTopicAdminApi[F[_]] {
+sealed trait KafkaTopicAdminApi[F[_]] {
   def IdefinitelyWantDeleteTheTopic: F[Unit]
   def describe: F[Map[String, TopicDescription]]
   def groups: F[List[KafkaConsumerGroupInfo]]
@@ -19,17 +19,15 @@ sealed abstract class KafkaTopicAdminApi[F[_]] {
 object KafkaTopicAdminApi {
 
   def apply[F[_]: Concurrent: ContextShift, K, V](
-    topic: KafkaTopic[F, K, V],
-    adminSettings: AdminClientSettings[F]
-  ): KafkaTopicAdminApi[F] = new DelegateToFs2(topic, adminSettings)
+    topic: KafkaTopic[F, K, V]
+  ): KafkaTopicAdminApi[F] = new KafkaTopicAdminApiImpl(topic)
 
-  final private class DelegateToFs2[F[_]: Concurrent: ContextShift, K, V](
-    topic: KafkaTopic[F, K, V],
-    adminSettings: AdminClientSettings[F])
+  final private class KafkaTopicAdminApiImpl[F[_]: Concurrent: ContextShift, K, V](
+    topic: KafkaTopic[F, K, V])
       extends KafkaTopicAdminApi[F] {
 
     private val admin: Resource[F, KafkaAdminClient[F]] =
-      adminClientResource[F](adminSettings)
+      adminClientResource[F](topic.adminClientSettings)
 
     override def IdefinitelyWantDeleteTheTopic: F[Unit] =
       admin.use(_.deleteTopic(topic.topicName))

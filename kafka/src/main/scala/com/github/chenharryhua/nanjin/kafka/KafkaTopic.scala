@@ -16,6 +16,7 @@ final case class TopicDef[K, V](topicName: String)(
   val serdeOfValue: SerdeOf[V],
   val showKey: Show[K],
   val showValue: Show[V]) {
+    
   val keySchemaLoc: String   = s"$topicName-key"
   val valueSchemaLoc: String = s"$topicName-value"
 
@@ -84,7 +85,7 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
       keySerde.schema,
       valueSerde.schema)
 
-  val admin: KafkaTopicAdminApi[F]         = KafkaTopicAdminApi(this, adminClientSettings)
+  val admin: KafkaTopicAdminApi[F]         = KafkaTopicAdminApi(this)
   val consumer: KafkaConsumerApi[F, K, V]  = KafkaConsumerApi[F, K, V](this)
   val producer: KafkaProducerApi[F, K, V]  = KafkaProducerApi[F, K, V](this)
   val monitor: KafkaMonitoringApi[F, K, V] = KafkaMonitoringApi(this)
