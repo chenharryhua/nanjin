@@ -2,12 +2,14 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.{Concurrent, ContextShift, Resource}
 import cats.implicits._
-import cats.tagless.autoFunctorK
+import cats.tagless.{autoFunctorK, autoSemigroupalK}
 import fs2.kafka.{adminClientResource, AdminClientSettings, KafkaAdminClient}
 import org.apache.kafka.clients.admin.TopicDescription
 
 // delegate to https://ovotech.github.io/fs2-kafka/
+
 @autoFunctorK
+@autoSemigroupalK
 sealed abstract class KafkaTopicAdminApi[F[_]] {
   def IdefinitelyWantDeleteTheTopic: F[Unit]
   def describe: F[Map[String, TopicDescription]]

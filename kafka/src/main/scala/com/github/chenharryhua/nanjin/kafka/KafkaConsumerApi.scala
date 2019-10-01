@@ -110,16 +110,16 @@ sealed trait KafkaConsumerApi[F[_], K, V] extends KafkaPrimitiveConsumerApi[F] {
 
 object KafkaConsumerApi {
 
-  def apply[F[_]: Concurrent, K, V](
-    topicName: String,
-    sharedConsumer: Eval[MVar[F, KafkaByteConsumer]]): KafkaConsumerApi[F, K, V] =
-    new KafkaConsumerApiImpl[F, K, V](topicName, sharedConsumer)
+  def apply[F[_]: Concurrent, K, V](topic: KafkaTopic[F, K, V]): KafkaConsumerApi[F, K, V] =
+    new KafkaConsumerApiImpl[F, K, V](topic)
 
-  final private[this] class KafkaConsumerApiImpl[F[_]: Concurrent, K, V](
-    topicName: String,
-    sharedConsumer: Eval[MVar[F, KafkaByteConsumer]])
+  final private[this] class KafkaConsumerApiImpl[F[_]: Concurrent, K, V](topic: KafkaTopic[F, K, V])
       extends KafkaConsumerApi[F, K, V] {
     import cats.mtl.implicits._
+
+    private val topicName: String                                = topic.topicName
+    private val sharedConsumer: Eval[MVar[F, KafkaByteConsumer]] = topic.sharedConsumer
+
     private[this] val primitiveConsumer
       : KafkaPrimitiveConsumerApi[Kleisli[F, KafkaByteConsumer, *]] =
       KafkaPrimitiveConsumerApi[Kleisli[F, KafkaByteConsumer, *]](topicName)

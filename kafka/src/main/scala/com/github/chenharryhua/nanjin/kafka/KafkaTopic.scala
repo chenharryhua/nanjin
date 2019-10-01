@@ -29,9 +29,9 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
   val kafkaConsumerSettings: KafkaConsumerSettings,
   val kafkaProducerSettings: KafkaProducerSettings,
   val adminClientSettings: AdminClientSettings[F],
-  sharedConsumer: Eval[MVar[F, KafkaByteConsumer]],
-  sharedProducer: Eval[KafkaByteProducer],
-  materializer: Eval[ActorMaterializer])
+  val sharedConsumer: Eval[MVar[F, KafkaByteConsumer]],
+  val sharedProducer: Eval[KafkaByteProducer],
+  val materializer: Eval[ActorMaterializer])
     extends TopicNameExtractor[K, V] {
   import topicDef.{serdeOfKey, serdeOfValue, showKey, showValue}
 
@@ -84,18 +84,12 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
       keySerde.schema,
       valueSerde.schema)
 
-  val admin: KafkaTopicAdminApi[F] = KafkaTopicAdminApi(this, adminClientSettings)
+  val admin: KafkaTopicAdminApi[F]         = KafkaTopicAdminApi(this, adminClientSettings)
+  val consumer: KafkaConsumerApi[F, K, V]  = KafkaConsumerApi[F, K, V](this)
+  val producer: KafkaProducerApi[F, K, V]  = KafkaProducerApi[F, K, V](this)
+  val monitor: KafkaMonitoringApi[F, K, V] = KafkaMonitoringApi(this)
 
-  val consumer: KafkaConsumerApi[F, K, V] =
-    KafkaConsumerApi[F, K, V](topicName, sharedConsumer)
-
-  val producer: KafkaProducerApi[F, K, V] =
-    KafkaProducerApi[F, K, V](topicName, keyCodec, valueCodec, sharedProducer)
-
-  val monitor: KafkaMonitoringApi[F, K, V] =
-    KafkaMonitoringApi(fs2Channel, consumer)
-
-  val show: String =
+  def show: String =
     s"""
        |kafka topic: 
        |${topicDef.topicName}

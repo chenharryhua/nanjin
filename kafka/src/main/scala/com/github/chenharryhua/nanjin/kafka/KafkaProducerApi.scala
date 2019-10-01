@@ -15,14 +15,17 @@ import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
 @autoSemigroupalK
 trait KafkaProducerApi[F[_], K, V] {
   def arbitrarilySend(key: Array[Byte], value: Array[Byte]): F[RecordMetadata]
+
   final def arbitrarilySend(kv: (Array[Byte], Array[Byte])): F[RecordMetadata] =
     arbitrarilySend(kv._1, kv._2)
 
   def arbitrarilyValueSend(key: K, value: Array[Byte]): F[RecordMetadata]
+
   final def arbitrarilyValueSend(kv: (K, Array[Byte])): F[RecordMetadata] =
     arbitrarilyValueSend(kv._1, kv._2)
 
   def arbitrarilyKeySend(key: Array[Byte], value: V): F[RecordMetadata]
+
   final def arbitrarilyKeySend(kv: (Array[Byte], V)): F[RecordMetadata] =
     arbitrarilyKeySend(kv._1, kv._2)
 
@@ -41,19 +44,17 @@ trait KafkaProducerApi[F[_], K, V] {
 
 object KafkaProducerApi {
 
-  def apply[F[_]: ConcurrentEffect, K, V](
-    topicName: String,
-    keyCodec: KafkaCodec[K],
-    valueCodec: KafkaCodec[V],
-    producer: Eval[KafkaByteProducer]): KafkaProducerApi[F, K, V] =
-    new KafkaProducerApiImpl[F, K, V](topicName, keyCodec, valueCodec, producer)
+  def apply[F[_]: ConcurrentEffect, K, V](topic: KafkaTopic[F, K, V]): KafkaProducerApi[F, K, V] =
+    new KafkaProducerApiImpl[F, K, V](topic)
 
   final private[this] class KafkaProducerApiImpl[F[_]: ConcurrentEffect, K, V](
-    val topicName: String,
-    val keyCodec: KafkaCodec[K],
-    val valueCodec: KafkaCodec[V],
-    producer: Eval[KafkaByteProducer]
+    topic: KafkaTopic[F, K, V]
   ) extends KafkaProducerApi[F, K, V] {
+    private[this] val topicName: String                 = topic.topicName
+    private[this] val keyCodec: KafkaCodec[K]           = topic.keyCodec
+    private[this] val valueCodec: KafkaCodec[V]         = topic.valueCodec
+    private[this] val producer: Eval[KafkaByteProducer] = topic.sharedProducer
+
     private[this] val encoder: KafkaProducerRecordEncoder[K, V] =
       new KafkaProducerRecordEncoder[K, V](topicName, keyCodec, valueCodec)
 

@@ -27,15 +27,15 @@ trait KafkaMonitoringApi[F[_], K, V] {
 object KafkaMonitoringApi {
 
   def apply[F[_]: Concurrent, K: Show, V: Show](
-    fs2Channel: KafkaChannels.Fs2Channel[F, K, V],
-    consumer: KafkaConsumerApi[F, K, V]
-  ): KafkaMonitoringApi[F, K, V] =
-    new KafkaTopicMonitoring[F, K, V](fs2Channel, consumer)
+    topic: KafkaTopic[F, K, V]): KafkaMonitoringApi[F, K, V] =
+    new KafkaTopicMonitoring[F, K, V](topic)
 
-  final private class KafkaTopicMonitoring[F[_], K: Show, V: Show](
-    fs2Channel: KafkaChannels.Fs2Channel[F, K, V],
-    consumer: KafkaConsumerApi[F, K, V])(implicit F: Concurrent[F])
+  final private class KafkaTopicMonitoring[F[_], K: Show, V: Show](topic: KafkaTopic[F, K, V])(
+    implicit F: Concurrent[F])
       extends KafkaMonitoringApi[F, K, V] {
+
+    private val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] = topic.fs2Channel
+    private val consumer: KafkaConsumerApi[F, K, V]           = topic.consumer
 
     private def watch(aor: AutoOffsetReset): F[Unit] =
       fs2Channel
@@ -71,6 +71,7 @@ object KafkaMonitoringApi {
 
     override def badRecordsFromEarliest: F[Unit] =
       filterFromEarliest(cr => cr.key().isFailure || cr.value().isFailure)
+
     override def badRecordsFromLatest: F[Unit] =
       filterFromLatest(cr => cr.key().isFailure || cr.value().isFailure)
 
