@@ -7,6 +7,7 @@ import cats.Show
 import cats.implicits._
 import com.github.chenharryhua.nanjin.codec.KafkaTimestamp
 import monocle.macros.Lenses
+import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
 
 import scala.collection.JavaConverters._
@@ -86,3 +87,21 @@ object GenericTopicPartition {
 }
 
 final case class KafkaConsumerGroupId(value: String) extends AnyVal
+
+final case class KafkaConsumerGroupInfo(
+  groupId: KafkaConsumerGroupId,
+  gap: GenericTopicPartition[KafkaOffsetRange])
+
+object KafkaConsumerGroupInfo {
+
+  def apply(
+    groupId: String,
+    end: GenericTopicPartition[Option[KafkaOffset]],
+    offsetMeta: Map[TopicPartition, OffsetAndMetadata]): KafkaConsumerGroupInfo = {
+    val gaps = offsetMeta.map {
+      case (tp, om) =>
+        end.get(tp).flatten.map(e => tp -> KafkaOffsetRange(KafkaOffset(om.offset()), e))
+    }.toList.flatten.toMap
+    new KafkaConsumerGroupInfo(KafkaConsumerGroupId(groupId), GenericTopicPartition(gaps))
+  }
+}

@@ -5,26 +5,6 @@ import cats.implicits._
 import cats.tagless.autoFunctorK
 import fs2.kafka.{adminClientResource, AdminClientSettings, KafkaAdminClient}
 import org.apache.kafka.clients.admin.TopicDescription
-import org.apache.kafka.clients.consumer.OffsetAndMetadata
-import org.apache.kafka.common.TopicPartition
-
-final case class KafkaConsumerGroupInfo(
-  groupId: KafkaConsumerGroupId,
-  gap: GenericTopicPartition[KafkaOffsetRange])
-
-object KafkaConsumerGroupInfo {
-
-  def apply(
-    groupId: String,
-    end: GenericTopicPartition[Option[KafkaOffset]],
-    offsetMeta: Map[TopicPartition, OffsetAndMetadata]): KafkaConsumerGroupInfo = {
-    val gaps = offsetMeta.map {
-      case (tp, om) =>
-        end.get(tp).flatten.map(e => tp -> KafkaOffsetRange(KafkaOffset(om.offset()), e))
-    }.toList.flatten.toMap
-    new KafkaConsumerGroupInfo(KafkaConsumerGroupId(groupId), GenericTopicPartition(gaps))
-  }
-}
 
 // delegate to https://ovotech.github.io/fs2-kafka/
 @autoFunctorK
