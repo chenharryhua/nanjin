@@ -4,11 +4,11 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import cats.data.Reader
 import cats.effect.concurrent.MVar
-import cats.effect.{ConcurrentEffect, ContextShift, IO, Timer}
+import cats.effect.{ConcurrentEffect, ContextShift, IO, Resource, Timer}
 import cats.{Eval, Show}
 import com.github.chenharryhua.nanjin.codec.{KeySerde, SerdeOf, ValueSerde}
 import fs2.Stream
-import fs2.kafka.{AdminClientSettings, KafkaByteConsumer, KafkaByteProducer}
+import fs2.kafka._
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, ByteArraySerializer}
@@ -67,7 +67,8 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
   final def kafkaStreams(topology: Reader[StreamsBuilder, Unit]): Stream[F, KafkaStreams] =
     new KafkaStreamRunner[F](settings.streamSettings).stream(topology)
 
-  final val admin: KafkaAdminApi[F] = KafkaAdminApi(adminClientSettings)
+  final val admin: Resource[F, KafkaAdminClient[F]] =
+    adminClientResource(adminClientSettings)
 
 }
 

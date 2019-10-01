@@ -48,6 +48,9 @@ object ListOfTopicPartitions {
 }
 
 @Lenses final case class GenericTopicPartition[V](value: Map[TopicPartition, V]) extends AnyVal {
+  def nonEmpty: Boolean = value.nonEmpty
+  def isEmpty: Boolean  = value.isEmpty
+
   def get(tp: TopicPartition): Option[V] = value.get(tp)
 
   def get(topic: String, partition: Int): Option[V] =

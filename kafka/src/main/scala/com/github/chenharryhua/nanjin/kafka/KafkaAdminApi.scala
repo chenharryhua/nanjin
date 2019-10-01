@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.Show
 import cats.effect.{Concurrent, ContextShift, Resource}
 import cats.implicits._
 import cats.tagless.autoFunctorK
@@ -9,24 +8,21 @@ import org.apache.kafka.clients.admin.TopicDescription
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
 
-final case class KafkaConsumerGroupOffsets(
+final case class KafkaConsumerGroupInfo(
   groupId: String,
-  topicOffset: Map[TopicPartition, OffsetAndMetadata]) {
+  gap: GenericTopicPartition[KafkaOffsetRange])
 
-  def filter(topicName: String): Option[KafkaConsumerGroupOffsets] = {
-    val nc = topicOffset.filter(tos => tos._1.topic() === topicName)
-    if (nc.nonEmpty) Some(copy(topicOffset = nc)) else None
-  }
+object KafkaConsumerGroupInfo {
 
-  override def toString: String = show
-
-  def show: String = {
-    val to: String = topicOffset.map { case (t, v) => s"$t -> ${v.offset()}" }.mkString("\n")
-    s"""
-       |group id: $groupId
-       |$to
-       |
-       |""".stripMargin
+  def apply(
+    groupId: String,
+    end: GenericTopicPartition[Option[KafkaOffset]],
+    m: Map[TopicPartition, OffsetAndMetadata]): KafkaConsumerGroupInfo = {
+    val gaps = m.map {
+      case (tp, o) =>
+        end.get(tp).flatten.map(e => tp -> KafkaOffsetRange(KafkaOffset(o.offset()), e))
+    }.toList.flatten.toMap
+    new KafkaConsumerGroupInfo(groupId, GenericTopicPartition(gaps))
   }
 }
 
@@ -35,7 +31,7 @@ final case class KafkaConsumerGroupOffsets(
 sealed abstract class KafkaTopicAdminApi[F[_]] {
   def IdefinitelyWantDeleteTheTopic: F[Unit]
   def describe: F[Map[String, TopicDescription]]
-  def consumerGroupOffsets: F[List[KafkaConsumerGroupOffsets]]
+  def consumerGroups: F[List[KafkaConsumerGroupInfo]]
 }
 
 object KafkaTopicAdminApi {
@@ -59,60 +55,18 @@ object KafkaTopicAdminApi {
     override def describe: F[Map[String, TopicDescription]] =
       admin.use(_.describeTopics(List(topic.topicName)))
 
-    override def consumerGroupOffsets: F[List[KafkaConsumerGroupOffsets]] =
+    override def consumerGroups: F[List[KafkaConsumerGroupInfo]] =
       admin.use { client =>
         for {
+          end <- topic.consumer.endOffsets
           gids <- client.listConsumerGroups.groupIds
           all <- gids.traverse(
             g =>
               client
                 .listConsumerGroupOffsets(g)
                 .partitionsToOffsetAndMetadata
-                .map(m => KafkaConsumerGroupOffsets(g, m)))
-        } yield all.flatMap(_.filter(topic.topicName))
-      }
-  }
-}
-
-object KafkaConsumerGroupOffsets {
-  implicit val showKafkaConsumerGroupOffsets: Show[KafkaConsumerGroupOffsets] = _.show
-}
-
-@autoFunctorK
-sealed abstract class KafkaAdminApi[F[_]] {
-  def consumerGroups: F[List[String]]
-  def listTopics: F[Set[String]]
-  def listConsumerGroupOffsets: F[List[KafkaConsumerGroupOffsets]]
-}
-
-object KafkaAdminApi {
-
-  def apply[F[_]: Concurrent: ContextShift](
-    adminSettings: AdminClientSettings[F]): KafkaAdminApi[F] =
-    new DelegateToFs2(adminSettings)
-
-  final private class DelegateToFs2[F[_]: Concurrent: ContextShift](
-    adminSettings: AdminClientSettings[F])
-      extends KafkaAdminApi[F] {
-
-    private val admin: Resource[F, KafkaAdminClient[F]] =
-      adminClientResource[F](adminSettings)
-
-    override def consumerGroups: F[List[String]] =
-      admin.use(_.listConsumerGroups.groupIds)
-
-    override def listTopics: F[Set[String]] =
-      admin.use(_.listTopics.names)
-
-    override def listConsumerGroupOffsets: F[List[KafkaConsumerGroupOffsets]] =
-      admin.use { client =>
-        consumerGroups.flatMap(
-          _.traverse(
-            g =>
-              client
-                .listConsumerGroupOffsets(g)
-                .partitionsToOffsetAndMetadata
-                .map(m => KafkaConsumerGroupOffsets(g, m))))
+                .map(m => KafkaConsumerGroupInfo(g, end, m)))
+        } yield all.filter(_.gap.nonEmpty)
       }
   }
 }
