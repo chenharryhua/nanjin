@@ -8,7 +8,7 @@ import cats.effect.{ConcurrentEffect, ContextShift, IO, Timer}
 import cats.{Eval, Show}
 import com.github.chenharryhua.nanjin.codec.{KeySerde, SerdeOf, ValueSerde}
 import fs2.Stream
-import fs2.kafka.{KafkaByteConsumer, KafkaByteProducer}
+import fs2.kafka.{AdminClientSettings, KafkaByteConsumer, KafkaByteProducer}
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, ByteArraySerializer}
@@ -23,6 +23,7 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
 
   final def asKey[K: SerdeOf]: KeySerde[K] =
     SerdeOf[K].asKey(settings.schemaRegistrySettings.props)
+
   final def asValue[V: SerdeOf]: ValueSerde[V] =
     SerdeOf[V].asValue(settings.schemaRegistrySettings.props)
 
@@ -32,6 +33,7 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
       settings.schemaRegistrySettings,
       settings.consumerSettings,
       settings.producerSettings,
+      adminClientSettings,
       sharedConsumer,
       sharedProducer,
       Eval.later(materializer))
@@ -57,10 +59,16 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
         new ByteArraySerializer)
     }
 
+  final private[this] val adminClientSettings: AdminClientSettings[F] =
+    AdminClientSettings[F].withProperties(settings.sharedAdminSettings.props)
+
   final def show: String = settings.show
 
   final def kafkaStreams(topology: Reader[StreamsBuilder, Unit]): Stream[F, KafkaStreams] =
     new KafkaStreamRunner[F](settings.streamSettings).stream(topology)
+
+  final val admin: KafkaAdminApi[F] = KafkaAdminApi(adminClientSettings)
+
 }
 
 final class IoKafkaContext(settings: KafkaSettings)(implicit cs: ContextShift[IO], timer: Timer[IO])

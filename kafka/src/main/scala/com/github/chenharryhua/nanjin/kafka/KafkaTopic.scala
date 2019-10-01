@@ -6,7 +6,7 @@ import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
 import cats.{Eval, Show}
 import com.github.chenharryhua.nanjin.codec.BitraverseMessage.identityConsumerRecord
 import com.github.chenharryhua.nanjin.codec._
-import fs2.kafka.{KafkaByteConsumer, KafkaByteProducer}
+import fs2.kafka.{AdminClientSettings, KafkaByteConsumer, KafkaByteProducer}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
@@ -28,6 +28,7 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
   val schemaRegistrySettings: SchemaRegistrySettings,
   val kafkaConsumerSettings: KafkaConsumerSettings,
   val kafkaProducerSettings: KafkaProducerSettings,
+  val adminClientSettings: AdminClientSettings[F],
   sharedConsumer: Eval[MVar[F, KafkaByteConsumer]],
   sharedProducer: Eval[KafkaByteProducer],
   materializer: Eval[ActorMaterializer])
@@ -82,6 +83,8 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
       topicDef.valueSchemaLoc,
       keySerde.schema,
       valueSerde.schema)
+
+  val admin: KafkaTopicAdminApi[F] = KafkaTopicAdminApi(this, adminClientSettings)
 
   val consumer: KafkaConsumerApi[F, K, V] =
     KafkaConsumerApi[F, K, V](topicName, sharedConsumer)
