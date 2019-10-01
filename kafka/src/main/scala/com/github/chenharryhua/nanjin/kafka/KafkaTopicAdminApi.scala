@@ -46,7 +46,7 @@ object KafkaTopicAdminApi {
                 .listConsumerGroupOffsets(gid)
                 .partitionsToOffsetAndMetadata
                 .map(m => KafkaConsumerGroupInfo(gid, end, m)))
-        } yield all.filter(_.gap.nonEmpty)
+        } yield all.filter(_.lag.nonEmpty)
       }
   }
 }
