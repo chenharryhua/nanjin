@@ -84,3 +84,5 @@ object ListOfTopicPartitions {
 object GenericTopicPartition {
   implicit def showGenericTopicPartition[A: Show]: Show[GenericTopicPartition[A]] = _.show
 }
+
+final case class KafkaConsumerGroupId(value: String) extends AnyVal

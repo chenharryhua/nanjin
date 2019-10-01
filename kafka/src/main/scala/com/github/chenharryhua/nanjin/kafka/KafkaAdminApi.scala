@@ -9,7 +9,7 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
 
 final case class KafkaConsumerGroupInfo(
-  groupId: String,
+  groupId: KafkaConsumerGroupId,
   gap: GenericTopicPartition[KafkaOffsetRange])
 
 object KafkaConsumerGroupInfo {
@@ -17,12 +17,12 @@ object KafkaConsumerGroupInfo {
   def apply(
     groupId: String,
     end: GenericTopicPartition[Option[KafkaOffset]],
-    m: Map[TopicPartition, OffsetAndMetadata]): KafkaConsumerGroupInfo = {
-    val gaps = m.map {
-      case (tp, o) =>
-        end.get(tp).flatten.map(e => tp -> KafkaOffsetRange(KafkaOffset(o.offset()), e))
+    offsetMeta: Map[TopicPartition, OffsetAndMetadata]): KafkaConsumerGroupInfo = {
+    val gaps = offsetMeta.map {
+      case (tp, om) =>
+        end.get(tp).flatten.map(e => tp -> KafkaOffsetRange(KafkaOffset(om.offset()), e))
     }.toList.flatten.toMap
-    new KafkaConsumerGroupInfo(groupId, GenericTopicPartition(gaps))
+    new KafkaConsumerGroupInfo(KafkaConsumerGroupId(groupId), GenericTopicPartition(gaps))
   }
 }
 
@@ -31,7 +31,7 @@ object KafkaConsumerGroupInfo {
 sealed abstract class KafkaTopicAdminApi[F[_]] {
   def IdefinitelyWantDeleteTheTopic: F[Unit]
   def describe: F[Map[String, TopicDescription]]
-  def consumerGroups: F[List[KafkaConsumerGroupInfo]]
+  def groups: F[List[KafkaConsumerGroupInfo]]
 }
 
 object KafkaTopicAdminApi {
@@ -55,17 +55,17 @@ object KafkaTopicAdminApi {
     override def describe: F[Map[String, TopicDescription]] =
       admin.use(_.describeTopics(List(topic.topicName)))
 
-    override def consumerGroups: F[List[KafkaConsumerGroupInfo]] =
+    override def groups: F[List[KafkaConsumerGroupInfo]] =
       admin.use { client =>
         for {
           end <- topic.consumer.endOffsets
           gids <- client.listConsumerGroups.groupIds
           all <- gids.traverse(
-            g =>
+            gid =>
               client
-                .listConsumerGroupOffsets(g)
+                .listConsumerGroupOffsets(gid)
                 .partitionsToOffsetAndMetadata
-                .map(m => KafkaConsumerGroupInfo(g, end, m)))
+                .map(m => KafkaConsumerGroupInfo(gid, end, m)))
         } yield all.filter(_.gap.nonEmpty)
       }
   }
