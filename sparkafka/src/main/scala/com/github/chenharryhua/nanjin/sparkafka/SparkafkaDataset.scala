@@ -4,19 +4,20 @@ import java.time.LocalDateTime
 import java.util
 
 import cats.Monad
-import cats.effect.ConcurrentEffect
+import cats.effect.{ConcurrentEffect, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, Keyboard}
 import frameless.{TypedDataset, TypedEncoder}
+import fs2.{Chunk, Stream}
 import monocle.function.At.remove
 import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies}
-import scala.concurrent.duration._
+
 import scala.collection.JavaConverters._
-import cats.effect.Timer
-import fs2.Stream
+import scala.concurrent.duration._
 
 object SparkafkaDataset {
 
@@ -168,27 +169,28 @@ object SparkafkaDataset {
 // into kafka
   def uploadIntoTopic[F[_]: ConcurrentEffect: Timer, K, V](
     data: TypedDataset[SparkafkaProducerRecord[K, V]],
-    topic: KafkaTopic[F, K, V]): F[Unit] = {
-    val process = for {
+    topic: KafkaTopic[F, K, V],
+    batchSize: Int): Stream[F, Chunk[RecordMetadata]] =
+    for {
       kb <- Keyboard.signal[F]
-      _ <- Stream
+      ck <- Stream
         .fromIterator[F](data.dataset.toLocalIterator().asScala)
-        .chunkN(500)
+        .chunkN(batchSize)
         .evalMap(r => topic.producer.send(r.mapFilter(Option(_).map(_.toProducerRecord))))
         .pauseWhen(kb.map(_.contains(Keyboard.pauSe)))
         .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
-      _ <- Stream.sleep(1.second)
-    } yield print(".")
-    process.compile.drain
-  }
+        .zipLeft(Stream.fixedRate(1.second))
+    } yield ck
 
   def uploadIntoTopicFromDisk[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
-    topic: KafkaTopic[F, K, V])(implicit spark: SparkSession): F[Unit] = {
+    topic: KafkaTopic[F, K, V],
+    batchSize: Int = 1000)(implicit spark: SparkSession): Stream[F, Chunk[RecordMetadata]] = {
     val ds = loadTopicFromDisk[F, K, V](topic)
     uploadIntoTopic(
       ds.orderBy(ds('timestamp).asc, ds('offset).asc)
         .deserialized
         .flatMap(Option(_).map(_.toSparkafkaProducerRecord)),
-      topic)
+      topic,
+      batchSize)
   }
 }
