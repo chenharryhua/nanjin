@@ -7,7 +7,7 @@ import akka.kafka.ConsumerMessage.{
 import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage, MultiMessage => AkkaMultiMessage}
 import cats.effect.IO
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.BitraverseMessage._
+import com.github.chenharryhua.nanjin.codec._
 import fs2.Chunk
 import fs2.kafka.{
   CommittableProducerRecords   => Fs2CommittableProducerRecords,

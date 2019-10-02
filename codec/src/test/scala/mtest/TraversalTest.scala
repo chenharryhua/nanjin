@@ -2,7 +2,7 @@ package mtest
 import akka.kafka.ProducerMessage.{MultiMessage => AkkaMultiMessage}
 import cats.effect.IO
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.BitraverseMessages
+import com.github.chenharryhua.nanjin.codec._
 import fs2.kafka.{
   CommittableProducerRecords   => Fs2CommittableProducerRecords,
   ProducerRecords              => Fs2ProducerRecords,

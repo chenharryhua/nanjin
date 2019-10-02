@@ -22,24 +22,6 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
 
 class BitraverseTest extends AnyFunSuite with Discipline {
-  implicit val akkaCMBitraverse = BitraverseMessage[AkkaConsumerMessage.CommittableMessage]
-  implicit val akkaPMBitraverse = BitraverseMessage[AkkaProducerMessage.Message[*, *, String]]
-  implicit val akkaTrBitraverse = BitraverseMessage[AkkaConsumerMessage.TransactionalMessage]
-
-  implicit val fs2CMBitraverse = BitraverseMessage[Fs2CommittableConsumerRecord[IO, *, *]]
-  implicit val fs2PRBitraverse = BitraverseMessage[Fs2ProducerRecord]
-  implicit val fs2CRBitraverse = BitraverseMessage[Fs2ConsumerRecord]
-
-  implicit val kafkaCRBitraverse = BitraverseMessage[ConsumerRecord]
-  implicit val kafkaPRBitraverse = BitraverseMessage[ProducerRecord]
-
-  implicit val akkaPMsBitraverse =
-    BitraverseMessages[AkkaProducerMessage.MultiMessage[*, *, String]]
-  implicit val fs2PMsBitraverse  = BitraverseMessages[Fs2ProducerRecords[*, *, String]]
-  implicit val fs2CPRBitraverses = BitraverseMessages[Fs2CommittableProducerRecords[IO, *, *]]
-  implicit val fs2TransBitraverses =
-    BitraverseMessages[Fs2TransactionalProducerRecords[IO, *, *, String]]
-
   implicit val arbChain: Arbitrary[List[Int]] =
     Arbitrary(Gen.containerOfN[List, Int](3, arbitrary[Int]))
 

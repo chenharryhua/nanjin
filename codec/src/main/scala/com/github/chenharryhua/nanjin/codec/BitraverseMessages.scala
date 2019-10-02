@@ -32,6 +32,9 @@ sealed trait BitraverseMessages[F[_, _]] extends Bitraverse[F] with BitraverseKa
 
 object BitraverseMessages {
   def apply[F[_, _]](implicit ev: BitraverseMessages[F]): BitraverseMessages[F] = ev
+}
+
+private[codec] trait BitraverseMessagesInstances {
 
   implicit def fs2ProducerRecords[P]: BitraverseMessages[Fs2ProducerRecords[*, *, P]] =
     new BitraverseMessages[Fs2ProducerRecords[*, *, P]] {

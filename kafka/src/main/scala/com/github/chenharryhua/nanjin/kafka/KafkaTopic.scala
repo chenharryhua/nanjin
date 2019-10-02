@@ -5,8 +5,7 @@ import akka.stream.ActorMaterializer
 import cats.effect.concurrent.MVar
 import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
 import cats.{Eval, Show}
-import com.github.chenharryhua.nanjin.codec.BitraverseMessage._
-import com.github.chenharryhua.nanjin.codec._
+import com.github.chenharryhua.nanjin.codec._ 
 import fs2.kafka.{
   AdminClientSettings,
   KafkaByteConsumer,

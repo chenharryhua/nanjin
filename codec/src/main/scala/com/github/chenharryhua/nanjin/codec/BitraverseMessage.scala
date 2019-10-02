@@ -33,11 +33,15 @@ sealed trait BitraverseMessage[F[_, _]] extends Bitraverse[F] {
     lens.get(fab).bifoldRight(c)(f, g)
 }
 
-object BitraverseMessage extends BitraverseKafkaRecord {
+object BitraverseMessage {
 
-  def apply[F[_, _]](
-    implicit ev: BitraverseMessage[F]): BitraverseMessage[F] { type H[A, B] = ev.H[A, B] } =
-    ev
+  def apply[F[_, _]](implicit ev: BitraverseMessage[F]): BitraverseMessage[F] {
+    type H[A, B] = ev.H[A, B]
+  } = ev
+
+}
+
+private[codec] trait BitraverseMessageInstances extends BitraverseKafkaRecord {
 
   // consumers
   implicit val identityConsumerRecord
@@ -45,6 +49,7 @@ object BitraverseMessage extends BitraverseKafkaRecord {
     new BitraverseMessage[ConsumerRecord] {
       override type H[K, V] = ConsumerRecord[K, V]
       override val baseInst: Bitraverse[ConsumerRecord] = bitraverseConsumerRecord
+
       override def lens[K1, V1, K2, V2]: PLens[
         ConsumerRecord[K1, V1],
         ConsumerRecord[K2, V2],
@@ -62,6 +67,7 @@ object BitraverseMessage extends BitraverseKafkaRecord {
     new BitraverseMessage[Fs2ConsumerRecord] {
       override type H[K, V] = ConsumerRecord[K, V]
       override val baseInst: Bitraverse[ConsumerRecord] = bitraverseConsumerRecord
+
       override def lens[K1, V1, K2, V2]: PLens[
         Fs2ConsumerRecord[K1, V1],
         Fs2ConsumerRecord[K2, V2],
@@ -81,6 +87,7 @@ object BitraverseMessage extends BitraverseKafkaRecord {
     new BitraverseMessage[AkkaCommittableMessage] {
       override type H[K, V] = ConsumerRecord[K, V]
       override val baseInst: Bitraverse[ConsumerRecord] = bitraverseConsumerRecord
+
       override def lens[K1, V1, K2, V2]: PLens[
         AkkaCommittableMessage[K1, V1],
         AkkaCommittableMessage[K2, V2],
@@ -98,6 +105,7 @@ object BitraverseMessage extends BitraverseKafkaRecord {
     new BitraverseMessage[AkkaTransactionalMessage] {
       override type H[K, V] = ConsumerRecord[K, V]
       override val baseInst: Bitraverse[ConsumerRecord] = bitraverseConsumerRecord
+
       override def lens[K1, V1, K2, V2]: PLens[
         AkkaTransactionalMessage[K1, V1],
         AkkaTransactionalMessage[K2, V2],
@@ -117,6 +125,7 @@ object BitraverseMessage extends BitraverseKafkaRecord {
     new BitraverseMessage[Fs2CommittableConsumerRecord[F, *, *]] {
       override type H[K, V] = ConsumerRecord[K, V]
       override val baseInst: Bitraverse[ConsumerRecord] = bitraverseConsumerRecord
+
       override def lens[K1, V1, K2, V2]: PLens[
         Fs2CommittableConsumerRecord[F, K1, V1],
         Fs2CommittableConsumerRecord[F, K2, V2],
@@ -137,6 +146,7 @@ object BitraverseMessage extends BitraverseKafkaRecord {
     new BitraverseMessage[ProducerRecord] {
       override type H[K, V] = ProducerRecord[K, V]
       override val baseInst: Bitraverse[ProducerRecord] = bitraverseProducerRecord
+
       override def lens[K1, V1, K2, V2]: PLens[
         ProducerRecord[K1, V1],
         ProducerRecord[K2, V2],
@@ -154,6 +164,7 @@ object BitraverseMessage extends BitraverseKafkaRecord {
     new BitraverseMessage[Fs2ProducerRecord] {
       override type H[K, V] = ProducerRecord[K, V]
       override val baseInst: Bitraverse[ProducerRecord] = bitraverseProducerRecord
+
       override def lens[K1, V1, K2, V2]: PLens[
         Fs2ProducerRecord[K1, V1],
         Fs2ProducerRecord[K2, V2],
@@ -173,6 +184,7 @@ object BitraverseMessage extends BitraverseKafkaRecord {
     new BitraverseMessage[AkkaProducerMessage[*, *, P]] {
       override type H[K, V] = ProducerRecord[K, V]
       override val baseInst: Bitraverse[ProducerRecord] = bitraverseProducerRecord
+
       override def lens[K1, V1, K2, V2]: PLens[
         AkkaProducerMessage[K1, V1, P],
         AkkaProducerMessage[K2, V2, P],
