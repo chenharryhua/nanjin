@@ -1,13 +1,20 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import akka.kafka.ConsumerMessage.{CommittableMessage => AkkaCommittableMessage}
 import akka.stream.ActorMaterializer
 import cats.effect.concurrent.MVar
 import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
 import cats.{Eval, Show}
-import com.github.chenharryhua.nanjin.codec.BitraverseMessage.identityConsumerRecord
+import com.github.chenharryhua.nanjin.codec.BitraverseMessage._
 import com.github.chenharryhua.nanjin.codec._
-import fs2.kafka.{AdminClientSettings, KafkaByteConsumer, KafkaByteProducer}
-import org.apache.kafka.clients.consumer.ConsumerRecord
+import fs2.kafka.{
+  AdminClientSettings,
+  KafkaByteConsumer,
+  KafkaByteProducer,
+  CommittableConsumerRecord => Fs2CommittableConsumerRecord
+}
+import monocle.function.At
+import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
 final case class TopicDef[K, V](topicName: String)(
@@ -16,7 +23,7 @@ final case class TopicDef[K, V](topicName: String)(
   val serdeOfValue: SerdeOf[V],
   val showKey: Show[K],
   val showValue: Show[V]) {
-    
+
   val keySchemaLoc: String   = s"$topicName-key"
   val valueSchemaLoc: String = s"$topicName-value"
 
@@ -29,12 +36,18 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
   val schemaRegistrySettings: SchemaRegistrySettings,
   val kafkaConsumerSettings: KafkaConsumerSettings,
   val kafkaProducerSettings: KafkaProducerSettings,
-  val adminClientSettings: AdminClientSettings[F],
+  val adminSettings: AdminClientSettings[F],
   val sharedConsumer: Eval[MVar[F, KafkaByteConsumer]],
   val sharedProducer: Eval[KafkaByteProducer],
   val materializer: Eval[ActorMaterializer])
     extends TopicNameExtractor[K, V] {
   import topicDef.{serdeOfKey, serdeOfValue, showKey, showValue}
+
+  val consumerGroupId: Option[KafkaConsumerGroupId] =
+    KafkaConsumerSettings.props
+      .composeLens(At.at(ConsumerConfig.GROUP_ID_CONFIG))
+      .get(kafkaConsumerSettings)
+      .map(KafkaConsumerGroupId)
 
   val topicName: String = topicDef.topicName
 
@@ -48,8 +61,17 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
   val keyCodec: KafkaCodec[K]   = keySerde.codec(topicName)
   val valueCodec: KafkaCodec[V] = valueSerde.codec(topicName)
 
-  val recordDecoder: KafkaGenericDecoder[ConsumerRecord, K, V] =
-    new KafkaGenericDecoder[ConsumerRecord, K, V](keyCodec, valueCodec)
+  def decoder(
+    cr: ConsumerRecord[Array[Byte], Array[Byte]]): KafkaGenericDecoder[ConsumerRecord, K, V] =
+    new KafkaGenericDecoder[ConsumerRecord, K, V](cr, keyCodec, valueCodec)
+
+  def decoder(msg: AkkaCommittableMessage[Array[Byte], Array[Byte]])
+    : KafkaGenericDecoder[AkkaCommittableMessage, K, V] =
+    new KafkaGenericDecoder[AkkaCommittableMessage, K, V](msg, keyCodec, valueCodec)
+
+  def decoder(msg: Fs2CommittableConsumerRecord[F, Array[Byte], Array[Byte]])
+    : KafkaGenericDecoder[Fs2CommittableConsumerRecord[F, *, *], K, V] =
+    new KafkaGenericDecoder[Fs2CommittableConsumerRecord[F, *, *], K, V](msg, keyCodec, valueCodec)
 
   val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
     new KafkaChannels.Fs2Channel[F, K, V](
@@ -92,7 +114,8 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
 
   def show: String =
     s"""
-       |kafka topic: 
+       |kafka topic:
+       |group id: ${consumerGroupId.map(_.value).getOrElse("not configured")}
        |${topicDef.topicName}
        |${schemaRegistrySettings.show}
        |${kafkaConsumerSettings.show}

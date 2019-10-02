@@ -32,7 +32,7 @@ class ProducerTest extends AnyFunSuite {
             ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
             "earliest").withGroupId("akka-task").withCommitWarning(10.seconds))
           .consume
-          .map(t.messageDecoder.decode)
+          .map(m => akkaTopic.decoder(m).decode)
           .map(m => t.messageEncoder.single(m.record.key(), m.record.value(), m.committableOffset))
           .take(100)
           .runWith(t.committableSink)(s.materializer)
@@ -42,7 +42,7 @@ class ProducerTest extends AnyFunSuite {
       .updateConsumerSettings(
         _.withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest").withGroupId("fs2-task"))
       .consume
-      .map(srcTopic.fs2Channel.messageDecoder.decode)
+      .map(m => srcTopic.decoder(m).decode)
       .map(m => fs2Topic.fs2Channel.messageEncoder.single(m.record.key, m.record.value, m.offset))
       .take(100)
       .through(fs2.kafka.produce(fs2Topic.fs2Channel.producerSettings))

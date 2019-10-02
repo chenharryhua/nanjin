@@ -7,16 +7,16 @@ import fs2.kafka.AutoOffsetReset
 import io.circe.generic.auto._
 import org.scalatest.funsuite.AnyFunSuite
 
-class ConsumeMessageFs2Test extends AnyFunSuite  {
+class ConsumeMessageFs2Test extends AnyFunSuite {
   val backblaze_smart = TopicDef[KJson[lenses_record_key], KJson[lenses_record]]("backblaze_smart")
   val nyc_taxi_trip   = TopicDef[Array[Byte], trip_record]("nyc_yellow_taxi_trip_data")
   test("should be able to consume json topic") {
-    val chn = backblaze_smart.in(ctx).fs2Channel
+    val topic = backblaze_smart.in(ctx)
     val ret =
-      chn
+      topic.fs2Channel
         .updateConsumerSettings(_.withAutoOffsetReset(AutoOffsetReset.Earliest))
         .consume
-        .map(chn.messageDecoder.tryDecodeKeyValue)
+        .map(m => topic.decoder(m).tryDecodeKeyValue)
         .take(3)
         .map(_.show)
         .map(println)
@@ -27,9 +27,9 @@ class ConsumeMessageFs2Test extends AnyFunSuite  {
   }
   test("should be able to consume avro topic") {
     import cats.derived.auto.show._
-    val chn = ctx.topic(nyc_taxi_trip).fs2Channel
-    val ret = chn.consume
-      .map(chn.messageDecoder.decodeValue)
+    val topic = ctx.topic(nyc_taxi_trip)
+    val ret = topic.fs2Channel.consume
+      .map(m => topic.decoder(m).decodeValue)
       .take(3)
       .map(_.show)
       .map(println)
@@ -40,9 +40,9 @@ class ConsumeMessageFs2Test extends AnyFunSuite  {
   }
 
   ignore("should be able to consume payments topic") {
-    val chn = ctx.topic[String, Payment]("cc_payments").fs2Channel
-    val ret = chn.consume
-      .map(chn.messageDecoder.tryDecode)
+    val topic = ctx.topic[String, Payment]("cc_payments")
+    val ret = topic.fs2Channel.consume
+      .map(m => topic.decoder(m).tryDecode)
       .map(_.toEither)
       .rethrow
       .take(3)

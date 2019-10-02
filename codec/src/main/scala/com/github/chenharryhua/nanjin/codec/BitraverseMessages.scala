@@ -35,6 +35,7 @@ object BitraverseMessages {
 
   implicit def fs2ProducerRecords[P]: BitraverseMessages[Fs2ProducerRecords[*, *, P]] =
     new BitraverseMessages[Fs2ProducerRecords[*, *, P]] {
+
       override def traversal[K1, V1, K2, V2]: PTraversal[
         Fs2ProducerRecords[K1, V1, P],
         Fs2ProducerRecords[K2, V2, P],
@@ -54,6 +55,7 @@ object BitraverseMessages {
   implicit def fs2CommittableProducerRecords[F[_]]
     : BitraverseMessages[Fs2CommittableProducerRecords[F, *, *]] =
     new BitraverseMessages[Fs2CommittableProducerRecords[F, *, *]] {
+
       override def traversal[K1, V1, K2, V2]: PTraversal[
         Fs2CommittableProducerRecords[F, K1, V1],
         Fs2CommittableProducerRecords[F, K2, V2],
@@ -73,6 +75,7 @@ object BitraverseMessages {
   implicit def fs2TransactionalProducerRecords[F[_], P]
     : BitraverseMessages[Fs2TransactionalProducerRecords[F, *, *, P]] =
     new BitraverseMessages[Fs2TransactionalProducerRecords[F, *, *, P]] {
+
       override def traversal[K1, V1, K2, V2]: PTraversal[
         Fs2TransactionalProducerRecords[F, K1, V1, P],
         Fs2TransactionalProducerRecords[F, K2, V2, P],
@@ -94,6 +97,7 @@ object BitraverseMessages {
 
   implicit def akkaMultiMessage[P]: BitraverseMessages[AkkaMultiMessage[*, *, P]] =
     new BitraverseMessages[AkkaMultiMessage[*, *, P]] {
+
       override def traversal[K1, V1, K2, V2]: PTraversal[
         AkkaMultiMessage[K1, V1, P],
         AkkaMultiMessage[K2, V2, P],

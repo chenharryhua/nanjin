@@ -10,8 +10,7 @@ import cats.Show
 import cats.data.{NonEmptyList, Reader}
 import cats.effect._
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.BitraverseMessage._
-import com.github.chenharryhua.nanjin.codec.{KafkaGenericDecoder, _}
+import com.github.chenharryhua.nanjin.codec._
 import fs2.Stream
 import fs2.kafka.{ConsumerSettings => Fs2ConsumerSettings, ProducerSettings => Fs2ProducerSettings}
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -35,14 +34,8 @@ object KafkaChannels {
 
     import fs2.kafka.{consumerStream, CommittableConsumerRecord, KafkaProducer}
 
-    val messageDecoder: KafkaGenericDecoder[CommittableConsumerRecord[F, *, *], K, V] =
-      new KafkaGenericDecoder[CommittableConsumerRecord[F, *, *], K, V](keyCodec, valueCodec)
-
     val messageEncoder: Fs2MessageEncoder[F, K, V] =
       new Fs2MessageEncoder[F, K, V](topicName)
-
-    val recordDecoder: KafkaGenericDecoder[ConsumerRecord, K, V] =
-      new KafkaGenericDecoder[ConsumerRecord, K, V](keyCodec, valueCodec)
 
     def updateProducerSettings(
       f: Fs2ProducerSettings[F, K, V] => Fs2ProducerSettings[F, K, V]): Fs2Channel[F, K, V] =
@@ -84,6 +77,7 @@ object KafkaChannels {
   object AkkaChannel {
     implicit def showAkkaChannel[F[_], K, V]: Show[AkkaChannel[F, K, V]] = _.show
   }
+
   final case class AkkaChannel[F[_]: ContextShift: Async, K, V](
     topicName: String,
     producerSettings: AkkaProducerSettings[K, V],
@@ -99,14 +93,8 @@ object KafkaChannels {
     import akka.stream.scaladsl.{Flow, Sink, Source}
     import akka.{Done, NotUsed}
 
-    val messageDecoder: KafkaGenericDecoder[CommittableMessage, K, V] =
-      new KafkaGenericDecoder[CommittableMessage, K, V](keyCodec, valueCodec)
-
     val messageEncoder: AkkaMessageEncoder[K, V] =
       new AkkaMessageEncoder[K, V](topicName)
-
-    val recordDecoder: KafkaGenericDecoder[ConsumerRecord, K, V] =
-      new KafkaGenericDecoder[ConsumerRecord, K, V](keyCodec, valueCodec)
 
     def updateProducerSettings(
       f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): AkkaChannel[F, K, V] =

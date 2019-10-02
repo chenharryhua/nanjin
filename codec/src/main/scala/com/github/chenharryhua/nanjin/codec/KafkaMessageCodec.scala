@@ -8,29 +8,16 @@ import org.apache.kafka.clients.producer.ProducerRecord
 import scala.util.{Success, Try}
 
 final class KafkaGenericDecoder[F[_, _]: Bitraverse, K, V](
+  data: F[Array[Byte], Array[Byte]],
   keyCodec: KafkaCodec[K],
   valueCodec: KafkaCodec[V]) {
-
-  def decode(data: F[Array[Byte], Array[Byte]]): F[K, V] =
-    data.bimap(keyCodec.decode, valueCodec.decode)
-
-  def decodeKey(data: F[Array[Byte], Array[Byte]]): F[K, Array[Byte]] =
-    data.bimap(keyCodec.decode, identity)
-
-  def decodeValue(data: F[Array[Byte], Array[Byte]]): F[Array[Byte], V] =
-    data.bimap(identity, valueCodec.decode)
-
-  def tryDecodeKeyValue(data: F[Array[Byte], Array[Byte]]): F[Try[K], Try[V]] =
-    data.bimap(keyCodec.tryDecode, valueCodec.tryDecode)
-
-  def tryDecode(data: F[Array[Byte], Array[Byte]]): Try[F[K, V]] =
-    data.bitraverse(keyCodec.tryDecode, valueCodec.tryDecode)
-
-  def tryDecodeValue(data: F[Array[Byte], Array[Byte]]): Try[F[Array[Byte], V]] =
-    data.bitraverse(Success(_), valueCodec.tryDecode)
-
-  def tryDecodeKey(data: F[Array[Byte], Array[Byte]]): Try[F[K, Array[Byte]]] =
-    data.bitraverse(keyCodec.tryDecode, Success(_))
+  def decode: F[K, V]                        = data.bimap(keyCodec.decode, valueCodec.decode)
+  def decodeKey: F[K, Array[Byte]]           = data.bimap(keyCodec.decode, identity)
+  def decodeValue: F[Array[Byte], V]         = data.bimap(identity, valueCodec.decode)
+  def tryDecodeKeyValue: F[Try[K], Try[V]]   = data.bimap(keyCodec.tryDecode, valueCodec.tryDecode)
+  def tryDecode: Try[F[K, V]]                = data.bitraverse(keyCodec.tryDecode, valueCodec.tryDecode)
+  def tryDecodeValue: Try[F[Array[Byte], V]] = data.bitraverse(Success(_), valueCodec.tryDecode)
+  def tryDecodeKey: Try[F[K, Array[Byte]]]   = data.bitraverse(keyCodec.tryDecode, Success(_))
 }
 
 final class KafkaProducerRecordEncoder[K, V](

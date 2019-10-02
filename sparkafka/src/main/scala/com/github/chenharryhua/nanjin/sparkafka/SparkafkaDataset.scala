@@ -52,7 +52,7 @@ object SparkafkaDataset {
     rawDS(topic, start, end).map {
       _.deserialized.mapPartitions(msgs => {
         val t = topic
-        msgs.map(m => m.bimap(t.keyCodec.decode, t.valueCodec.decode))
+        msgs.map(_.bimap(t.keyCodec.decode, t.valueCodec.decode))
       })
     }
 

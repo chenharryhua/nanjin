@@ -41,7 +41,7 @@ object KafkaMonitoringApi {
       fs2Channel
         .updateConsumerSettings(_.withAutoOffsetReset(aor))
         .consume
-        .map(fs2Channel.messageDecoder.tryDecodeKeyValue)
+        .map(m => topic.decoder(m).tryDecodeKeyValue)
         .map(_.show)
         .showLinesStdOut
         .compile
@@ -53,7 +53,7 @@ object KafkaMonitoringApi {
       fs2Channel
         .updateConsumerSettings(_.withAutoOffsetReset(aor))
         .consume
-        .map(fs2Channel.messageDecoder.tryDecodeKeyValue)
+        .map(m => topic.decoder(m).tryDecodeKeyValue)
         .filter(m => predict(isoFs2ComsumerRecord.get(m.record)))
         .map(_.show)
         .showLinesStdOut
@@ -78,10 +78,8 @@ object KafkaMonitoringApi {
     override def summaries: F[Unit] =
       for {
         num <- consumer.numOfRecords
-        first <- consumer.retrieveFirstRecords.map(_.map(cr =>
-          fs2Channel.recordDecoder.tryDecodeKeyValue(cr)))
-        last <- consumer.retrieveLastRecords.map(_.map(cr =>
-          fs2Channel.recordDecoder.tryDecodeKeyValue(cr)))
+        first <- consumer.retrieveFirstRecords.map(_.map(cr => topic.decoder(cr).tryDecodeKeyValue))
+        last <- consumer.retrieveLastRecords.map(_.map(cr   => topic.decoder(cr).tryDecodeKeyValue))
       } yield println(s"""
                          |summaries:
                          |
@@ -92,6 +90,5 @@ object KafkaMonitoringApi {
                          |last records of each partitions:
                          |${last.map(_.show).mkString("\n")}
                          |""".stripMargin)
-
   }
 }

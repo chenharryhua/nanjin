@@ -21,7 +21,7 @@ class KAvroTest extends AnyFunSuite {
       topic.producer.send(1, r) >>
         topic.producer.send(2, g) >>
         topic.producer.send(3, b) >>
-        topic.consumer.retrieveLastRecords.map(m => topic.recordDecoder.decode(m.head))
+        topic.consumer.retrieveLastRecords.map(m => topic.decoder(m.head).decode)
     assert(run.unsafeRunSync().value() === b)
   }
 }
