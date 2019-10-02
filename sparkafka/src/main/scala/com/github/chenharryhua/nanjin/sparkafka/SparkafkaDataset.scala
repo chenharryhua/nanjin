@@ -176,10 +176,10 @@ object SparkafkaDataset {
       ck <- Stream
         .fromIterator[F](data.dataset.toLocalIterator().asScala)
         .chunkN(batchSize)
+        .zipLeft(Stream.fixedRate(1.second))
         .evalMap(r => topic.producer.send(r.mapFilter(Option(_).map(_.toProducerRecord))))
         .pauseWhen(kb.map(_.contains(Keyboard.pauSe)))
         .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
-        .zipLeft(Stream.fixedRate(1.second))
     } yield ck
 
   def uploadIntoTopicFromDisk[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
