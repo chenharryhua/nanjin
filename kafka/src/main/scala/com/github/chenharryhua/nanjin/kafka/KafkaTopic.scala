@@ -5,7 +5,7 @@ import akka.stream.ActorMaterializer
 import cats.effect.concurrent.MVar
 import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
 import cats.{Eval, Show}
-import com.github.chenharryhua.nanjin.codec._ 
+import com.github.chenharryhua.nanjin.codec._
 import fs2.kafka.{
   AdminClientSettings,
   KafkaByteConsumer,
@@ -60,6 +60,7 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
   val keyCodec: KafkaCodec[K]   = keySerde.codec(topicName)
   val valueCodec: KafkaCodec[V] = valueSerde.codec(topicName)
 
+  // decoders
   def decoder(
     cr: ConsumerRecord[Array[Byte], Array[Byte]]): KafkaGenericDecoder[ConsumerRecord, K, V] =
     new KafkaGenericDecoder[ConsumerRecord, K, V](cr, keyCodec, valueCodec)
@@ -72,6 +73,7 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
     : KafkaGenericDecoder[Fs2CommittableConsumerRecord[F, *, *], K, V] =
     new KafkaGenericDecoder[Fs2CommittableConsumerRecord[F, *, *], K, V](msg, keyCodec, valueCodec)
 
+  //channels
   val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
     new KafkaChannels.Fs2Channel[F, K, V](
       topicName,
@@ -97,19 +99,12 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
   val kafkaStream: KafkaChannels.StreamingChannel[K, V] =
     new KafkaChannels.StreamingChannel[K, V](topicName, keySerde, valueSerde)
 
-  val schemaRegistry: KafkaSchemaRegistry[F] =
-    KafkaSchemaRegistry[F](
-      schemaRegistrySettings,
-      topicName,
-      topicDef.keySchemaLoc,
-      topicDef.valueSchemaLoc,
-      keySerde.schema,
-      valueSerde.schema)
-
-  val admin: KafkaTopicAdminApi[F]         = KafkaTopicAdminApi(this)
-  val consumer: KafkaConsumerApi[F, K, V]  = KafkaConsumerApi[F, K, V](this)
-  val producer: KafkaProducerApi[F, K, V]  = KafkaProducerApi[F, K, V](this)
-  val monitor: KafkaMonitoringApi[F, K, V] = KafkaMonitoringApi(this)
+  // apis
+  val schemaRegistry: KafkaSchemaRegistry[F] = KafkaSchemaRegistry[F](this)
+  val admin: KafkaTopicAdminApi[F]           = KafkaTopicAdminApi(this)
+  val consumer: KafkaConsumerApi[F, K, V]    = KafkaConsumerApi[F, K, V](this)
+  val producer: KafkaProducerApi[F, K, V]    = KafkaProducerApi[F, K, V](this)
+  val monitor: KafkaMonitoringApi[F, K, V]   = KafkaMonitoringApi(this)
 
   def show: String =
     s"""

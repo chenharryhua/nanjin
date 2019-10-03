@@ -21,6 +21,7 @@ final case class KvSchemaMetadata(key: Option[SchemaMetadata], value: Option[Sch
       array    = ScalaList,
       enum     = ScalaCaseObjectEnum,
       protocol = ScalaADT))
+
   private def genCaseClass(s: SchemaMetadata): Option[String] =
     Try(
       Generator(Standard, avroScalaCustomTypes = scalaTypes)
@@ -109,29 +110,19 @@ trait KafkaSchemaRegistry[F[_]] extends Serializable {
 
 object KafkaSchemaRegistry {
 
-  def apply[F[_]: Sync](
-    srSettings: SchemaRegistrySettings,
-    topicName: String,
-    keySchemaLoc: String,
-    valueSchemaLoc: String,
-    keySchema: Schema,
-    valueSchema: Schema): KafkaSchemaRegistry[F] =
-    new KafkaSchemaRegistryImpl(
-      srSettings,
-      topicName,
-      keySchemaLoc,
-      valueSchemaLoc,
-      keySchema,
-      valueSchema)
+  def apply[F[_]: Sync](topic: KafkaTopic[F, _, _]): KafkaSchemaRegistry[F] =
+    new KafkaSchemaRegistryImpl(topic)
 
-  final private class KafkaSchemaRegistryImpl[F[_]: Sync](
-    srSettings: SchemaRegistrySettings,
-    topicName: String,
-    keySchemaLoc: String,
-    valueSchemaLoc: String,
-    keySchema: Schema,
-    valueSchema: Schema
-  ) extends KafkaSchemaRegistry[F] {
+  final private class KafkaSchemaRegistryImpl[F[_]: Sync](topic: KafkaTopic[F, _, _])
+      extends KafkaSchemaRegistry[F] {
+
+    val srSettings: SchemaRegistrySettings = topic.schemaRegistrySettings
+    val topicName: String                  = topic.topicName
+    val keySchemaLoc: String               = topic.topicDef.keySchemaLoc
+    val valueSchemaLoc: String             = topic.topicDef.valueSchemaLoc
+    val keySchema: Schema                  = topic.keySerde.schema
+    val valueSchema: Schema                = topic.valueSerde.schema
+
     override def delete: F[(List[Integer], List[Integer])] = {
       val deleteKey =
         Sync[F]
