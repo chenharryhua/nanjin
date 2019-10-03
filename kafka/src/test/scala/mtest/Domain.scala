@@ -1,8 +1,7 @@
-package com.github.chenharryhua.nanjin.kafka
+package mtest
 
 import cats.Show
-import cats.implicits._
-
+import cats.implicits._ 
 case class Payment(
   id: String,
   time: String,
@@ -16,6 +15,7 @@ object Payment {
 }
 
 case class lenses_record_key(serial_number: String)
+
 case class lenses_record(
   date: String,
   serial_number: String,
@@ -160,6 +160,7 @@ case class trip_record(
   total_amount: Double)
 
 case class Key(MMSI: Long)
+
 case class aisClassAPositionReport(
   Type: Int,
   Repeat: Int,
@@ -188,6 +189,7 @@ object Materials extends Enumeration {
 sealed trait Colorish
 
 object Colorish {
+
   implicit val showColorish: Show[Colorish] = new Show[Colorish] {
     override def show(t: Colorish): String = t.toString
   }

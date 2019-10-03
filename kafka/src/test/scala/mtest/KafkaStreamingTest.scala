@@ -1,11 +1,12 @@
-package com.github.chenharryhua.nanjin.kafka
+package mtest
 
 import cats.effect.IO
-import org.apache.kafka.streams.scala.ImplicitConversions._
-import org.scalatest.FunSuite
 import cats.implicits._
-import cats.derived.auto.show._
 import org.scalatest.funsuite.AnyFunSuite
+import cats.derived.auto.show._ 
+import io.chrisdavenport.cats.time._
+import org.apache.kafka.streams.scala.ImplicitConversions._
+
 case class StreamOneValue(name: String, size: Int)
 case class StreamTwoValue(name: String, color: Int)
 case class StreamKey(name: Int)

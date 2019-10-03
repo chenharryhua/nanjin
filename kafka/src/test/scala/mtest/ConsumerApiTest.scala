@@ -1,12 +1,11 @@
-package com.github.chenharryhua.nanjin.kafka
+package mtest
 
 import java.time.LocalDateTime
-
+import io.chrisdavenport.cats.time._
 import cats.derived.auto.show._
-import cats.implicits._
-import com.github.chenharryhua.nanjin.codec._
+import com.github.chenharryhua.nanjin.kafka._
 import org.scalatest.funsuite.AnyFunSuite
-
+import cats.implicits._ 
 class ConsumerApiTest extends AnyFunSuite {
 
   val nyc_taxi_trip: TopicDef[Array[Byte], trip_record] =

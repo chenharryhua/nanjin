@@ -1,13 +1,14 @@
-package com.github.chenharryhua.nanjin.codec
+package com.github.chenharryhua.nanjin.kafka
 
 import akka.kafka.ConsumerMessage.CommittableMessage
 import cats.Show
 import cats.implicits._
+import com.github.chenharryhua.nanjin.codec.isoFs2ComsumerRecord
 import fs2.kafka.CommittableConsumerRecord
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
 
-private[codec] trait ShowKafkaMessage {
+private[kafka] trait ShowKafkaMessage {
 
   implicit def showConsumerRecord[K: Show, V: Show]: Show[ConsumerRecord[K, V]] =
     (t: ConsumerRecord[K, V]) => {

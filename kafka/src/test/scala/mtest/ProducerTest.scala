@@ -1,17 +1,17 @@
-package com.github.chenharryhua.nanjin.kafka
+package mtest
 
 import akka.Done
 import cats.effect.IO
 import cats.implicits._
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.streams.scala.StreamsBuilder
-import org.scalatest.FunSuite
-
+import org.scalatest.funsuite.AnyFunSuite
+import cats.derived.auto.show._ 
+import io.chrisdavenport.cats.time._
 import scala.concurrent.duration._
 import scala.util.Random
-import cats.derived.auto.show._
-import com.github.chenharryhua.nanjin.codec._
-import org.scalatest.funsuite.AnyFunSuite
+import org.apache.kafka.streams.scala.ImplicitConversions._
+
 case class AvroKey(key: String)
 case class AvroValue(v1: String, v2: Int)
 
@@ -55,7 +55,6 @@ class ProducerTest extends AnyFunSuite {
   }
 
   ignore("straming") {
-    import org.apache.kafka.streams.scala.ImplicitConversions._
 
     implicit val ks = srcTopic.keySerde
     implicit val vs = srcTopic.valueSerde

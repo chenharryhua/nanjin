@@ -1,8 +1,9 @@
-package com.github.chenharryhua.nanjin.kafka
+package mtest
 
 import cats.derived.auto.show._
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.{KJson, _}
+import com.github.chenharryhua.nanjin.codec._
+import com.github.chenharryhua.nanjin.kafka._
 import fs2.kafka.AutoOffsetReset
 import io.circe.generic.auto._
 import org.scalatest.funsuite.AnyFunSuite
@@ -26,7 +27,6 @@ class ConsumeMessageFs2Test extends AnyFunSuite {
     assert(ret.size == 3)
   }
   test("should be able to consume avro topic") {
-    import cats.derived.auto.show._
     val topic = ctx.topic(nyc_taxi_trip)
     val ret = topic.fs2Channel.consume
       .map(m => topic.decoder(m).decodeValue)

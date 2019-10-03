@@ -1,12 +1,11 @@
-package com.github.chenharryhua.nanjin.kafka
+package mtest
 
 import akka.kafka.ConsumerMessage
 import akka.kafka.scaladsl.Consumer
 import akka.stream.scaladsl.Source
-import cats.implicits._
 import org.scalatest.funsuite.AnyFunSuite
-
 import scala.util.Try
+import cats.implicits._
 
 class CompilationTest extends AnyFunSuite {
   test("should compile") {

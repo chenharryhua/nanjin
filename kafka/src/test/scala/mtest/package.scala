@@ -1,11 +1,11 @@
-package com.github.chenharryhua.nanjin
-
-import cats.effect.{ContextShift, IO, Resource, Timer}
+import cats.effect.{ContextShift, IO, Timer}
+import com.github.chenharryhua.nanjin.kafka._
 import org.apache.kafka.clients.consumer.ConsumerConfig
-import cats.derived.auto.show._
+
 import scala.concurrent.ExecutionContext.Implicits.global
+import cats.derived.auto.show._
 import cats.implicits._
-package object kafka {
+package object mtest {
   implicit val cs: ContextShift[IO] = IO.contextShift(global)
   implicit val timer: Timer[IO]     = IO.timer(global)
 
@@ -14,5 +14,6 @@ package object kafka {
       .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
       .ioContext
 
-  val taxi = ctx.topic[Int, trip_record]("nyc_yellow_taxi_trip_data")
+  val taxi: KafkaTopic[IO, Int, trip_record] =
+    ctx.topic[Int, trip_record]("nyc_yellow_taxi_trip_data")
 }

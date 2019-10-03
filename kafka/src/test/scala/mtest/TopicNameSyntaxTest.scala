@@ -1,8 +1,11 @@
-package com.github.chenharryhua.nanjin.kafka
+package mtest
+
 import cats.implicits._
-import io.circe.generic.auto._
-import cats.derived.auto.show._
 import com.github.chenharryhua.nanjin.codec.KJson
+import com.github.chenharryhua.nanjin.kafka.TopicDef
+import io.circe.generic.auto._
+import cats.derived.auto.show._ 
+
 
 class TopicNameSyntaxTest {
   val topic1 = ctx.topic[KJson[Key], Payment]("topic1")

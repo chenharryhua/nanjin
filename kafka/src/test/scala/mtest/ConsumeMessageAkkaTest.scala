@@ -1,10 +1,10 @@
-package com.github.chenharryhua.nanjin.kafka
+package mtest
 
 import java.time.LocalDateTime
 
 import cats.derived.auto.show._
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec._
+import com.github.chenharryhua.nanjin.kafka._
 import org.scalatest.funsuite.AnyFunSuite
 
 class ConsumeMessageAkkaTest extends AnyFunSuite {

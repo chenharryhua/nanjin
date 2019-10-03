@@ -1,11 +1,11 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import java.time.LocalDateTime
+import java.sql.Timestamp
+import java.time.{Instant, LocalDateTime, ZoneId, ZonedDateTime}
 import java.{lang, util}
 
 import cats.Show
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.KafkaTimestamp
 import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
@@ -113,4 +113,21 @@ object KafkaConsumerGroupInfo {
     }.toList.flatten.toMap
     new KafkaConsumerGroupInfo(KafkaConsumerGroupId(groupId), GenericTopicPartition(gaps))
   }
+}
+
+// in unit of milli-second
+final case class KafkaTimestamp(ts: Long, tz: ZoneId) {
+  def utc: Instant             = Instant.ofEpochMilli(ts)
+  def local: ZonedDateTime     = utc.atZone(tz)
+  def javaLong: java.lang.Long = ts
+}
+
+object KafkaTimestamp {
+  private val zoneId: ZoneId = ZoneId.systemDefault()
+
+  def apply(ts: Long): KafkaTimestamp          = KafkaTimestamp(ts, zoneId)
+  def apply(ts: Timestamp): KafkaTimestamp     = KafkaTimestamp(ts.getTime, zoneId)
+  def apply(utc: Instant): KafkaTimestamp      = KafkaTimestamp(utc.toEpochMilli)
+  def apply(ts: LocalDateTime): KafkaTimestamp = apply(ts.atZone(zoneId).toInstant)
+  def apply(ts: ZonedDateTime): KafkaTimestamp = apply(ts.toInstant)
 }

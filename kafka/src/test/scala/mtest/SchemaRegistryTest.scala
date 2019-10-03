@@ -1,9 +1,9 @@
-package com.github.chenharryhua.nanjin.kafka
+package mtest
 
-import cats.effect.IO
-import org.scalatest.FunSuite
 import cats.derived.auto.show._
+import cats.effect.IO
 import cats.implicits._
+import com.github.chenharryhua.nanjin.kafka.{KafkaSettings, KafkaTopic, TopicDef}
 import org.scalatest.funsuite.AnyFunSuite
 
 class SchemaRegistryTest extends AnyFunSuite {

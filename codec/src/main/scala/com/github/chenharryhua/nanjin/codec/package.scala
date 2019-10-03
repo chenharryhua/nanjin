@@ -1,5 +1,4 @@
 package com.github.chenharryhua.nanjin
 
 package object codec
-    extends Fs2KafkaIso with ShowKafkaMessage with BitraverseMessageInstances
-    with BitraverseMessagesInstances
+    extends Fs2KafkaIso with BitraverseMessageInstances with BitraverseMessagesInstances

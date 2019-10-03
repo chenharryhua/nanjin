@@ -1,10 +1,12 @@
 package com.github.chenharryhua.nanjin.sparkafka
 
-import com.github.chenharryhua.nanjin.codec.KafkaTimestamp
+import com.github.chenharryhua.nanjin.kafka.KafkaTimestamp
 import frameless.functions.aggregate.{collectSet, count}
 import frameless.functions.size
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SparkSession
+
+
 final case class KeyPartition[K](key: K, partition: Int)
 final case class KeysInPartitions[K](key: K, partitions: Vector[Int])
 

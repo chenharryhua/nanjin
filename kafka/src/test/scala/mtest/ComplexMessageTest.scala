@@ -1,14 +1,16 @@
-package com.github.chenharryhua.nanjin.kafka
+package mtest
 
 import java.time.{Instant, LocalDateTime}
 
-import cats.derived.auto.show._
 import cats.effect.IO
 import cats.implicits._
+import com.github.chenharryhua.nanjin.kafka._
 import org.scalatest.funsuite.AnyFunSuite
+import cats.derived.auto.show._
 import io.chrisdavenport.cats.time._
 
 final case class Employee(name: String, age: Int, department: String)
+
 final case class ComplexMessage(
   a: Int        = 0,
   b: String     = "a",
