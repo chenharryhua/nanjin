@@ -4,7 +4,7 @@ import akka.kafka.ConsumerMessage.{CommittableMessage => AkkaCommittableMessage}
 import akka.stream.ActorMaterializer
 import cats.effect.concurrent.MVar
 import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
-import cats.{Eval, Show}
+import cats.{Bitraverse, Eval, Show}
 import com.github.chenharryhua.nanjin.codec._
 import fs2.kafka.{
   AdminClientSettings,
@@ -60,18 +60,8 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
   val keyCodec: KafkaCodec[K]   = keySerde.codec(topicName)
   val valueCodec: KafkaCodec[V] = valueSerde.codec(topicName)
 
-  // decoders
-  def decoder(
-    cr: ConsumerRecord[Array[Byte], Array[Byte]]): KafkaGenericDecoder[ConsumerRecord, K, V] =
-    new KafkaGenericDecoder[ConsumerRecord, K, V](cr, keyCodec, valueCodec)
-
-  def decoder(msg: AkkaCommittableMessage[Array[Byte], Array[Byte]])
-    : KafkaGenericDecoder[AkkaCommittableMessage, K, V] =
-    new KafkaGenericDecoder[AkkaCommittableMessage, K, V](msg, keyCodec, valueCodec)
-
-  def decoder(msg: Fs2CommittableConsumerRecord[F, Array[Byte], Array[Byte]])
-    : KafkaGenericDecoder[Fs2CommittableConsumerRecord[F, *, *], K, V] =
-    new KafkaGenericDecoder[Fs2CommittableConsumerRecord[F, *, *], K, V](msg, keyCodec, valueCodec)
+  def decoder[G[_, _]: Bitraverse](cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
+    new KafkaGenericDecoder[G, K, V](cr, keyCodec, valueCodec)
 
   //channels
   val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
