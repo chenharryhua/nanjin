@@ -11,6 +11,7 @@ import io.chrisdavenport.cats.time._
 import scala.concurrent.duration._
 import scala.util.Random
 import org.apache.kafka.streams.scala.ImplicitConversions._
+import com.github.chenharryhua.nanjin.codec._
 
 case class AvroKey(key: String)
 case class AvroValue(v1: String, v2: Int)

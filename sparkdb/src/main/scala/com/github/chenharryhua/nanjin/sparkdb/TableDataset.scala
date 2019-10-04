@@ -13,11 +13,11 @@ final case class TableDef[A](tableName: String)(
   val typedEncoder: TypedEncoder[A],
   val doobieRead: Read[A]) {
 
-  def in[F[_]: ContextShift: Concurrent](dbSettings: DatabaseSettings): DatabaseTable[F, A] =
-    DatabaseTable[F, A](this, dbSettings)
+  def in[F[_]: ContextShift: Concurrent](dbSettings: DatabaseSettings): TableDataset[F, A] =
+    TableDataset[F, A](this, dbSettings)
 }
 
-final case class DatabaseTable[F[_]: ContextShift: Concurrent, A](
+final case class TableDataset[F[_]: ContextShift: Concurrent, A](
   tableDef: TableDef[A],
   dbSettings: DatabaseSettings) {
   import tableDef.{doobieRead, typedEncoder}

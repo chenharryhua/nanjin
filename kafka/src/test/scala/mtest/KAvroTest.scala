@@ -4,6 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import cats.Show 
 import cats.derived.auto.show._
 import cats.implicits._ 
+import com.github.chenharryhua.nanjin.codec._
 
 
 sealed trait Color

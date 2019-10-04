@@ -2,7 +2,8 @@ package mtest
 
 import java.time.LocalDateTime
 
-import com.github.chenharryhua.nanjin.sparkafka.SparkafkaDataset
+import com.github.chenharryhua.nanjin.sparkafka._
+import com.github.chenharryhua.nanjin.sparkdb._
 import cats.implicits._
 
 class CompileOnlyTest {
@@ -10,11 +11,18 @@ class CompileOnlyTest {
   val start = end.minusYears(1)
 
   spark.use { implicit s =>
-    SparkafkaDataset.safeDataset(topics.ss, start, end) >>
-      SparkafkaDataset.safeDataset(topics.si, start, end) >>
-      SparkafkaDataset.safeDataset(topics.ii, start, end) >>
-      SparkafkaDataset.safeValueDataset(topics.first_topic, start, end) >>
-      SparkafkaDataset.safeValueDataset(topics.second_topic, start, end) >>
-      SparkafkaDataset.safeValueDataset(topics.pencil_topic, start, end)
+    Sparkafka.safeDataset(topics.ss, start, end) >>
+      Sparkafka.safeDataset(topics.si, start, end) >>
+      Sparkafka.safeDataset(topics.ii, start, end) >>
+      Sparkafka.safeValueDataset(topics.first_topic, start, end) >>
+      Sparkafka.safeValueDataset(topics.second_topic, start, end) >>
+      Sparkafka.safeValueDataset(topics.pencil_topic, start, end)
+  }
+
+  spark.use { implicit s =>
+    topics.ss.topicDataset
+      .withStartDate(LocalDateTime.now)
+      .dateset
+      .map(_.deserialized.map(m => topics.ss.decoder(m).decode))
   }
 }

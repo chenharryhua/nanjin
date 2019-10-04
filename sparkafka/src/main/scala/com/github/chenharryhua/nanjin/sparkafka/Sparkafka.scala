@@ -19,7 +19,7 @@ import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies}
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
-object SparkafkaDataset {
+object Sparkafka {
 
   private def props(maps: Map[String, String]): util.Map[String, Object] =
     (Map(

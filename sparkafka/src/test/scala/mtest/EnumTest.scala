@@ -5,7 +5,7 @@ import cats.derived.auto.show._
 import cats.effect.IO
 import cats.implicits._
 import com.github.chenharryhua.nanjin.codec._
-import com.github.chenharryhua.nanjin.sparkafka.{Aggregations, SparkafkaDataset}
+import com.github.chenharryhua.nanjin.sparkafka.{Aggregations, Sparkafka}
 import frameless.cats.implicits._
 import fs2.Chunk
 import org.scalatest.FunSuite
@@ -27,10 +27,7 @@ class EnumTest extends AnyFunSuite with Aggregations {
 
     fs2.Stream
       .eval(spark.use { implicit s =>
-        SparkafkaDataset
-          .dataset(topics.pencil_topic, start, end)
-          .flatMap(_.take[IO](10))
-          .map(Chunk.seq)
+        Sparkafka.dataset(topics.pencil_topic, start, end).flatMap(_.take[IO](10)).map(Chunk.seq)
       })
       .flatMap(fs2.Stream.chunk)
       .map(_.show)
@@ -43,7 +40,7 @@ class EnumTest extends AnyFunSuite with Aggregations {
 
   test("same key should go to same partition") {
     spark.use { implicit s =>
-      SparkafkaDataset
+      Sparkafka
         .dataset(topics.pencil_topic, end.minusYears(3), end)
         .map(_.keysInPartitions)
         .flatMap(_.show[IO]())

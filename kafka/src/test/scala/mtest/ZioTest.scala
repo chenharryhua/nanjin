@@ -12,6 +12,7 @@ import zio.interop.catz.implicits.ioTimer
 import zio.random.Random
 import zio.system.System
 import zio.{DefaultRuntime, Runtime}
+import com.github.chenharryhua.nanjin.codec._
 
 class ZioTest extends AnyFunSuite {
   type Environment = Clock with Console with System with Random with Blocking

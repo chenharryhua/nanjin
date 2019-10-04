@@ -1,6 +1,7 @@
 package mtest
 
 import java.time.LocalDateTime
+import com.github.chenharryhua.nanjin.codec._
 
 import cats.derived.auto.show._
 import cats.implicits._
