@@ -66,7 +66,7 @@ final case class TopicDataset[F[_]: ConcurrentEffect: Timer, K, V] private (
   def save(implicit spark: SparkSession): F[Unit] =
     fromKafka.map(_.write.parquet(path))
 
-  def upload(data: TypedDataset[ProducerRecord[Array[Byte], Array[Byte]]], batchSize: Int)(
+  def upload(data: TypedDataset[SparkafkaProducerRecord[Array[Byte], Array[Byte]]], batchSize: Int)(
     implicit spark: SparkSession): Stream[F, Chunk[RecordMetadata]] =
     for {
       kb <- Keyboard.signal[F]
@@ -74,13 +74,14 @@ final case class TopicDataset[F[_]: ConcurrentEffect: Timer, K, V] private (
         .fromIterator[F](data.dataset.toLocalIterator().asScala)
         .chunkN(batchSize)
         .zipLeft(Stream.fixedRate(1.second))
-        .evalMap(r => topic.producer.arbitrarilySend(r.mapFilter(Option(_))))
+        .evalMap(r =>
+          topic.producer.arbitrarilySend(r.mapFilter(Option(_).map(_.toProducerRecord))))
         .pauseWhen(kb.map(_.contains(Keyboard.pauSe)))
         .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
     } yield ck
 
   def upload(batchSize: Int)(implicit spark: SparkSession): Stream[F, Chunk[RecordMetadata]] =
-    upload(fromDisk.deserialized.map(_.toProducerRecord), batchSize)
+    upload(fromDisk.deserialized.map(_.toSparkafkaProducerRecord), batchSize)
 
 }
 
