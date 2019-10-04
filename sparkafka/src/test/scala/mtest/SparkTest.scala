@@ -51,7 +51,7 @@ class SparkTest extends AnyFunSuite with Aggregations {
 
   test("stats") {
     spark.use { implicit s =>
-      topics.taxi.topicDataset.fromDisk.show[IO]()
+      topics.taxi.topicDataset.upload(10).compile.drain
     }.unsafeRunSync
   }
 }

@@ -16,9 +16,6 @@ import eu.timepit.refined.types.time
   timestamp: Long,
   timestampType: Int) {
 
-  def toProducerRecord: ProducerRecord[K, V] =
-    new ProducerRecord[K, V](topic, partition, timestamp, key, value)
-
   def toSparkafkaProducerRecord: SparkafkaProducerRecord[K, V] =
     SparkafkaProducerRecord[K, V](topic, Option(partition), Option(timestamp), Option(key), value)
 }
