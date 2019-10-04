@@ -16,6 +16,9 @@ import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
 trait KafkaProducerApi[F[_], K, V] {
   def arbitrarilySend(key: Array[Byte], value: Array[Byte]): F[RecordMetadata]
 
+  def arbitrarilySend(
+    kvs: Chunk[ProducerRecord[Array[Byte], Array[Byte]]]): F[Chunk[RecordMetadata]]
+
   final def arbitrarilySend(kv: (Array[Byte], Array[Byte])): F[RecordMetadata] =
     arbitrarilySend(kv._1, kv._2)
 
@@ -75,6 +78,10 @@ object KafkaProducerApi {
 
     override def arbitrarilySend(key: Array[Byte], value: Array[Byte]): F[RecordMetadata] =
       doSend(encoder.record(key, value)).flatten
+
+    override def arbitrarilySend(
+      kvs: Chunk[ProducerRecord[Array[Byte], Array[Byte]]]): F[Chunk[RecordMetadata]] =
+      kvs.traverse(kv => doSend(kv)).flatMap(_.sequence)
 
     override def arbitrarilyValueSend(key: K, value: Array[Byte]): F[RecordMetadata] =
       doSend(encoder.record(key, value)).flatten

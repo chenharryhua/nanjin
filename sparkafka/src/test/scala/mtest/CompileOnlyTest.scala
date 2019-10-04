@@ -22,7 +22,7 @@ class CompileOnlyTest {
   spark.use { implicit s =>
     topics.ss.topicDataset
       .withStartDate(LocalDateTime.now)
-      .dateset
+      .fromKafka
       .map(_.deserialized.map(m => topics.ss.decoder(m).decode))
   }
 }

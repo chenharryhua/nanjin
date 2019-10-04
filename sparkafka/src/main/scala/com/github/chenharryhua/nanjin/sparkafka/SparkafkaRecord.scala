@@ -4,6 +4,7 @@ import cats.{Applicative, Bitraverse, Eval}
 import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
+import eu.timepit.refined.types.time
 
 // https://spark.apache.org/docs/2.4.3/structured-streaming-kafka-integration.html
 @Lenses final case class SparkafkaConsumerRecord[K, V](
@@ -14,6 +15,9 @@ import org.apache.kafka.clients.producer.ProducerRecord
   offset: Long,
   timestamp: Long,
   timestampType: Int) {
+
+  def toProducerRecord: ProducerRecord[K, V] =
+    new ProducerRecord[K, V](topic, partition, timestamp, key, value)
 
   def toSparkafkaProducerRecord: SparkafkaProducerRecord[K, V] =
     SparkafkaProducerRecord[K, V](topic, Option(partition), Option(timestamp), Option(key), value)
@@ -33,6 +37,7 @@ object SparkafkaConsumerRecord {
 
   implicit val bitraverseSparkafkaConsumerRecord: Bitraverse[SparkafkaConsumerRecord] =
     new Bitraverse[SparkafkaConsumerRecord] {
+
       override def bimap[A, B, C, D](
         fab: SparkafkaConsumerRecord[A, B])(f: A => C, g: B => D): SparkafkaConsumerRecord[C, D] =
         fab.copy(key = f(fab.key), value = g(fab.value))
