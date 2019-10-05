@@ -58,11 +58,6 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
   def decoder[G[_, _]: Bitraverse](cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
     new KafkaGenericDecoder[G, K, V](cr, keyCodec, valueCodec)
 
-  val sparkDecoder
-    : SparkafkaConsumerRecord[Array[Byte], Array[Byte]] => SparkafkaConsumerRecord[K, V] =
-    (cr: SparkafkaConsumerRecord[Array[Byte], Array[Byte]]) =>
-      cr.bimap(keyCodec.decode, valueCodec.decode)
-
   //channels
   val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
     new KafkaChannels.Fs2Channel[F, K, V](

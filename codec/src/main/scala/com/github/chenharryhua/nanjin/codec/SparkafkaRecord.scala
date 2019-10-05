@@ -15,7 +15,7 @@ import org.apache.kafka.clients.producer.ProducerRecord
   timestamp: Long,
   timestampType: Int) {
 
-  def flatten[K2, V2](
+  def flattenKeyValue[K2, V2](
     implicit ev: K <:< Option[K2],
     ev2: V <:< Option[V2]): SparkafkaConsumerRecord[K2, V2] =
     SparkafkaConsumerRecord(
