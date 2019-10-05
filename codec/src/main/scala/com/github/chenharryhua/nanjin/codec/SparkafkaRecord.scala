@@ -53,6 +53,9 @@ object SparkafkaConsumerRecord {
 
 object SparkafkaProducerRecord {
 
+  def apply[K, V](topic: String, k: Option[K], v: Option[V]): SparkafkaProducerRecord[K, V] =
+    SparkafkaProducerRecord(topic, None, None, k, v)
+
   def apply[K, V](topic: String, k: K, v: V): SparkafkaProducerRecord[K, V] =
     SparkafkaProducerRecord(topic, None, None, Option(k), Option(v))
 

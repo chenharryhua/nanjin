@@ -80,8 +80,7 @@ final case class TopicDataset[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V:
         .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
     } yield ck
 
-  def uploadFromDisk(batchSize: Int)(
-    implicit spark: SparkSession): Stream[F, Chunk[RecordMetadata]] = {
+  def uploadFromDisk(batchSize: Int)(implicit spark: SparkSession): Stream[F, Chunk[RecordMetadata]] = {
     val ds = fromDisk(spark)
     upload(
       ds.orderBy(ds('timestamp).asc, ds('offset).asc).deserialized.map(_.toSparkafkaProducerRecord),
