@@ -15,6 +15,18 @@ import org.apache.kafka.clients.producer.ProducerRecord
   timestamp: Long,
   timestampType: Int) {
 
+  def flatten[K2, V2](
+    implicit ev: K <:< Option[K2],
+    ev2: V <:< Option[V2]): SparkafkaConsumerRecord[K2, V2] =
+    SparkafkaConsumerRecord(
+      key.flatten[K2],
+      value.flatten[V2],
+      topic,
+      partition,
+      offset,
+      timestamp,
+      timestampType)
+
   def toSparkafkaProducerRecord: SparkafkaProducerRecord[K, V] =
     SparkafkaProducerRecord[K, V](topic, Option(partition), Option(timestamp), key, value)
 }

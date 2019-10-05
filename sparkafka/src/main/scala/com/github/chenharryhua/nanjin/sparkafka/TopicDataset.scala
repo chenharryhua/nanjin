@@ -21,7 +21,7 @@ import scala.concurrent.duration._
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
 final case class TopicDataset[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder] private (
-  topic: KafkaTopic[F, K, V],
+  topic: () => KafkaTopic[F, K, V],
   startDate: Option[LocalDateTime],
   endDate: LocalDateTime,
   parquetPath: String) {
@@ -43,58 +43,29 @@ final case class TopicDataset[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V:
   def withEndDate(date: LocalDate): TopicDataset[F, K, V] =
     withEndDate(LocalDateTime.of(date, LocalTime.MIDNIGHT))
 
-  def fromKafka(implicit spark: SparkSession)
-    : F[TypedDataset[SparkafkaConsumerRecord[Array[Byte], Array[Byte]]]] = {
-    val consumer = topic.consumer
+  def fromKafka(implicit spark: SparkSession) = {
+    val tpk = topic()
     startDate
-      .fold(consumer.offsetRangeFor(endDate))(consumer.offsetRangeFor(_, endDate))
+      .fold(tpk.consumer.offsetRangeFor(endDate))(tpk.consumer.offsetRangeFor(_, endDate))
       .map { gtp =>
         KafkaUtils
           .createRDD[Array[Byte], Array[Byte]](
             spark.sparkContext,
-            props(topic.kafkaConsumerSettings.props),
+            props(tpk.kafkaConsumerSettings.props),
             KafkaOffsets.offsetRange(gtp),
             LocationStrategies.PreferConsistent)
-          .map(SparkafkaConsumerRecord.fromConsumerRecord)
+          .mapPartitions { crs =>
+            val d = topic().sparkDecoder
+            crs.map(m => d(SparkafkaConsumerRecord.fromConsumerRecord(m)))
+          }
       }
       .map(TypedDataset.create(_))
-  }
-  private val path: String = parquetPath + topic.topicName
-
-  def fromDisk(
-    implicit spark: SparkSession): TypedDataset[SparkafkaConsumerRecord[Array[Byte], Array[Byte]]] =
-    TypedDataset
-      .createUnsafe[SparkafkaConsumerRecord[Array[Byte], Array[Byte]]](spark.read.parquet(path))
-
-  def save(implicit spark: SparkSession): F[Unit] =
-    fromKafka.map(_.write.parquet(path))
-
-  def upload(data: TypedDataset[SparkafkaProducerRecord[Array[Byte], Array[Byte]]], batchSize: Int)(
-    implicit spark: SparkSession): Stream[F, Chunk[RecordMetadata]] =
-    for {
-      kb <- Keyboard.signal[F]
-      ck <- Stream
-        .fromIterator[F](data.dataset.toLocalIterator().asScala)
-        .chunkN(batchSize)
-        .zipLeft(Stream.fixedRate(1.second))
-        .evalMap(r =>
-          topic.producer.arbitrarilySend(r.mapFilter(Option(_).map(_.toProducerRecord))))
-        .pauseWhen(kb.map(_.contains(Keyboard.pauSe)))
-        .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
-    } yield ck
-
-  def uploadFromDisk(batchSize: Int)(
-    implicit spark: SparkSession): Stream[F, Chunk[RecordMetadata]] = {
-    val ds = fromDisk(spark)
-    upload(
-      ds.orderBy(ds('timestamp).asc, ds('offset).asc).deserialized.map(_.toSparkafkaProducerRecord),
-      batchSize)
   }
 }
 
 object TopicDataset {
 
   def apply[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
-    topic: KafkaTopic[F, K, V]): TopicDataset[F, K, V] =
-    new TopicDataset(topic, None, LocalDateTime.now, "./data/kafka/parquet/")
+    topic: => KafkaTopic[F, K, V]): TopicDataset[F, K, V] =
+    new TopicDataset(() => topic, None, LocalDateTime.now, "./data/kafka/parquet/")
 }
