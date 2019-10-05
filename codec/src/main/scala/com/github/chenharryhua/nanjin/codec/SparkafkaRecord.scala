@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.codec
 
 import cats.Bifunctor
 import monocle.macros.Lenses
+import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 
 // https://spark.apache.org/docs/2.4.3/structured-streaming-kafka-integration.html
@@ -19,6 +20,16 @@ import org.apache.kafka.clients.producer.ProducerRecord
 }
 
 object SparkafkaConsumerRecord {
+
+  def fromConsumerRecord[K, V](cr: ConsumerRecord[K, V]): SparkafkaConsumerRecord[K, V] =
+    SparkafkaConsumerRecord[K, V](
+      Option(cr.key()),
+      Option(cr.value()),
+      cr.topic(),
+      cr.partition(),
+      cr.offset(),
+      cr.timestamp(),
+      cr.timestampType().id)
 
   implicit val SparkafkaConsumerRecordBifunctor: Bifunctor[SparkafkaConsumerRecord] =
     new Bifunctor[SparkafkaConsumerRecord] {
@@ -52,6 +63,14 @@ object SparkafkaConsumerRecord {
 }
 
 object SparkafkaProducerRecord {
+
+  implicit val SparkafkaProducerRecordBifunctor: Bifunctor[SparkafkaProducerRecord] =
+    new Bifunctor[SparkafkaProducerRecord] {
+
+      override def bimap[A, B, C, D](
+        fab: SparkafkaProducerRecord[A, B])(f: A => C, g: B => D): SparkafkaProducerRecord[C, D] =
+        fab.copy(key = fab.key.map(f), value = fab.value.map(g))
+    }
 
   def apply[K, V](topic: String, k: Option[K], v: Option[V]): SparkafkaProducerRecord[K, V] =
     SparkafkaProducerRecord(topic, None, None, k, v)

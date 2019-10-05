@@ -9,6 +9,7 @@ import fs2.kafka.{AdminClientSettings, KafkaByteConsumer, KafkaByteProducer}
 import monocle.function.At
 import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
+import cats.implicits._
 
 final case class TopicDef[K, V](topicName: String)(
   implicit
@@ -57,16 +58,10 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
   def decoder[G[_, _]: Bitraverse](cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
     new KafkaGenericDecoder[G, K, V](cr, keyCodec, valueCodec)
 
-  val sparkDecoder: ConsumerRecord[Array[Byte], Array[Byte]] => SparkafkaConsumerRecord[K, V] =
-    (cr: ConsumerRecord[Array[Byte], Array[Byte]]) =>
-      SparkafkaConsumerRecord(
-        keyCodec.prism.getOption(cr.key()),
-        valueCodec.prism.getOption(cr.value()),
-        cr.topic(),
-        cr.partition(),
-        cr.offset(),
-        cr.timestamp(),
-        cr.timestampType().id)
+  val sparkDecoder
+    : SparkafkaConsumerRecord[Array[Byte], Array[Byte]] => SparkafkaConsumerRecord[K, V] =
+    (cr: SparkafkaConsumerRecord[Array[Byte], Array[Byte]]) =>
+      cr.bimap(keyCodec.decode, valueCodec.decode)
 
   //channels
   val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
