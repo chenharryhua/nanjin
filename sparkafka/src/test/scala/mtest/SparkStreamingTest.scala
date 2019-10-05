@@ -2,7 +2,8 @@ package mtest
 
 import cats.effect.IO
 import cats.implicits._
-import com.github.chenharryhua.nanjin.sparkafka.{SparkafkaConsumerRecord, SparkafkaStream}
+import com.github.chenharryhua.nanjin.codec.SparkafkaConsumerRecord
+import com.github.chenharryhua.nanjin.sparkafka.SparkafkaStream
 import org.apache.spark.sql.streaming.{DataStreamWriter, Trigger}
 import org.scalatest.FunSuite
 import frameless.cats.implicits._
