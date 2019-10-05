@@ -99,7 +99,7 @@ object Sparkafka {
         .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
     } yield ck
 
-  def uploadSavedToBrokers[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
+  def uploadSavedToBrokersIntactly[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
     topic: KafkaTopic[F, K, V],
     batchSize: Int = 1000)(implicit spark: SparkSession): Stream[F, Chunk[RecordMetadata]] = {
     val ds = datasetFromDisk[F, K, V](topic)
@@ -108,4 +108,17 @@ object Sparkafka {
       topic,
       batchSize)
   }
+
+  def uploadSavedKeyValueToBrokers[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
+    topic: KafkaTopic[F, K, V],
+    batchSize: Int = 1000)(implicit spark: SparkSession): Stream[F, Chunk[RecordMetadata]] = {
+    val ds = datasetFromDisk[F, K, V](topic)
+    uploadToBrokers(
+      ds.orderBy(ds('timestamp).asc, ds('offset).asc)
+        .deserialized
+        .map(_.toSparkafkaProducerRecord.withoutPartition.withoutTimestamp),
+      topic,
+      batchSize)
+  }
+
 }
