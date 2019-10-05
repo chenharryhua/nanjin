@@ -99,26 +99,18 @@ object Sparkafka {
         .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
     } yield ck
 
-  def uploadSavedToBrokersIntactly[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
+  def replay[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
     topic: KafkaTopic[F, K, V],
-    batchSize: Int = 1000)(implicit spark: SparkSession): Stream[F, Chunk[RecordMetadata]] = {
+    batchSize: Int    = 1000,
+    isIntact: Boolean = true)(implicit spark: SparkSession): Stream[F, Chunk[RecordMetadata]] = {
     val ds = datasetFromDisk[F, K, V](topic)
     uploadToBrokers(
-      ds.orderBy(ds('timestamp).asc, ds('offset).asc).deserialized.map(_.toSparkafkaProducerRecord),
+      ds.orderBy(ds('timestamp).asc, ds('offset).asc).deserialized.map { scr =>
+        if (isIntact) scr.toSparkafkaProducerRecord
+        else scr.toSparkafkaProducerRecord.withoutPartition.withoutTimestamp
+      },
       topic,
-      batchSize)
+      batchSize
+    )
   }
-
-  def uploadSavedKeyValueToBrokers[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
-    topic: KafkaTopic[F, K, V],
-    batchSize: Int = 1000)(implicit spark: SparkSession): Stream[F, Chunk[RecordMetadata]] = {
-    val ds = datasetFromDisk[F, K, V](topic)
-    uploadToBrokers(
-      ds.orderBy(ds('timestamp).asc, ds('offset).asc)
-        .deserialized
-        .map(_.toSparkafkaProducerRecord.withoutPartition.withoutTimestamp),
-      topic,
-      batchSize)
-  }
-
 }
