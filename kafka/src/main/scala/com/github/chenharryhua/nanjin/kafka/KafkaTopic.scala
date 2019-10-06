@@ -39,16 +39,16 @@ final case class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] p
     extends TopicNameExtractor[K, V] {
   import topicDef.{serdeOfKey, serdeOfValue, showKey, showValue}
 
-  def withStartDateTime(dt: LocalDateTime): KafkaTopic[F, K, V] =
+  def withStartTime(dt: LocalDateTime): KafkaTopic[F, K, V] =
     copy(dateRange = KafkaDateTimeRange.start.set(Some(KafkaTimestamp(dt)))(dateRange))
 
-  def withEndDateTime(dt: LocalDateTime): KafkaTopic[F, K, V] =
+  def withEndTime(dt: LocalDateTime): KafkaTopic[F, K, V] =
     copy(dateRange = KafkaDateTimeRange.end.set(Some(KafkaTimestamp(dt)))(dateRange))
 
-  def withStartDateTime(dt: LocalDate): KafkaTopic[F, K, V] =
+  def withStartTime(dt: LocalDate): KafkaTopic[F, K, V] =
     copy(dateRange = KafkaDateTimeRange.start.set(Some(KafkaTimestamp(dt)))(dateRange))
 
-  def withEndDateTime(dt: LocalDate): KafkaTopic[F, K, V] =
+  def withEndTime(dt: LocalDate): KafkaTopic[F, K, V] =
     copy(dateRange = KafkaDateTimeRange.end.set(Some(KafkaTimestamp(dt)))(dateRange))
 
   val consumerGroupId: Option[KafkaConsumerGroupId] =
