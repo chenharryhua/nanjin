@@ -30,7 +30,7 @@ object Sparkafka {
     implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
     Sync[F].suspend {
       topic.consumer
-        .offsetRangeFor(topic.dateRange)
+        .offsetRangeFor(topic.timeRange)
         .map { gtp =>
           KafkaUtils
             .createRDD[Array[Byte], Array[Byte]](
