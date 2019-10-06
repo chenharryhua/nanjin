@@ -17,7 +17,7 @@ val monocleVersion = "2.0.0"
 val refined        = "0.9.10"
 val droste         = "0.7.0"
 
-val zioCats    = "2.0.0.0-RC4"
+val zioCats    = "2.0.0.0-RC5"
 val monix      = "3.0.0"
 val catsEffect = "2.0.0"
 
@@ -29,7 +29,7 @@ val framelessVersion = "0.8.0"
 
 val circeVersion = "0.12.1"
 val avro4s       = "3.0.1"
-val avroVersion  = "1.9.1"
+val apacheAvro   = "1.9.1"
 val avrohugger   = "1.0.0-RC19"
 
 val silencer = "1.4.2"
@@ -99,7 +99,7 @@ val avro = Seq(
   "org.apache.avro" % "avro-mapred",
   "org.apache.avro" % "avro-compiler",
   "org.apache.avro" % "avro-ipc"
-).map(_ % avroVersion) ++
+).map(_ % apacheAvro) ++
   Seq(
     "com.sksamuel.avro4s" %% "avro4s-core" % avro4s,
     ("io.confluent" % "kafka-streams-avro-serde" % "5.3.1").classifier(""),
