@@ -1,5 +1,5 @@
 package com.github.chenharryhua.nanjin.sparkdb
-import cats.effect.{Concurrent, ContextShift}
+import cats.effect.{Concurrent, ContextShift, Sync}
 import doobie.Fragment
 import doobie.free.connection.ConnectionIO
 import doobie.implicits._
@@ -23,7 +23,7 @@ final case class TableDataset[F[_]: ContextShift: Concurrent, A](
   import tableDef.{doobieRead, typedEncoder}
 
   // spark
-  def loadFromDB(implicit spark: SparkSession): TypedDataset[A] =
+  def datasetFromDB(implicit spark: SparkSession): TypedDataset[A] =
     TypedDataset.createUnsafe[A](
       spark.read
         .format("jdbc")
@@ -32,29 +32,30 @@ final case class TableDataset[F[_]: ContextShift: Concurrent, A](
         .option("dbtable", tableDef.tableName)
         .load())
 
-  def loadFromCsv(path: String, options: Map[String, String] = Map("header" -> "true"))(
+  def datasetFromCsv(path: String, options: Map[String, String] = Map("header" -> "true"))(
     implicit spark: SparkSession): TypedDataset[A] =
     TypedDataset.createUnsafe[A](spark.read.options(options).csv(path))
 
-  def loadFromJson(path: String, options: Map[String, String] = Map.empty)(
+  def datasetFromJson(path: String, options: Map[String, String] = Map.empty)(
     implicit spark: SparkSession): TypedDataset[A] =
     TypedDataset.createUnsafe[A](spark.read.options(options).json(path))
 
-  def loadFromParquet(path: String)(implicit spark: SparkSession): TypedDataset[A] =
+  def datasetFromParquet(path: String)(implicit spark: SparkSession): TypedDataset[A] =
     TypedDataset.createUnsafe[A](spark.read.parquet(path))
 
-  private def uploadToDB(data: TypedDataset[A], saveMode: SaveMode): Unit =
-    data.write
-      .mode(saveMode)
-      .format("jdbc")
-      .option("url", dbSettings.connStr.value)
-      .option("driver", dbSettings.driver.value)
-      .option("dbtable", tableDef.tableName)
-      .save()
+  private def uploadToDB(data: TypedDataset[A], saveMode: SaveMode): F[Unit] =
+    Sync[F].delay(
+      data.write
+        .mode(saveMode)
+        .format("jdbc")
+        .option("url", dbSettings.connStr.value)
+        .option("driver", dbSettings.driver.value)
+        .option("dbtable", tableDef.tableName)
+        .save())
 
-  def appendDB(data: TypedDataset[A]): Unit = uploadToDB(data, SaveMode.Append)
+  def appendDB(data: TypedDataset[A]): F[Unit] = uploadToDB(data, SaveMode.Append)
 
-  def overwriteDB(data: TypedDataset[A]): Unit = uploadToDB(data, SaveMode.Overwrite)
+  def overwriteDB(data: TypedDataset[A]): F[Unit] = uploadToDB(data, SaveMode.Overwrite)
 
   // doobie
   val source: Stream[F, A] = {
