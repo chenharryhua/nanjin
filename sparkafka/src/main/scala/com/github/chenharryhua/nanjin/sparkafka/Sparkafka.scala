@@ -1,12 +1,17 @@
 package com.github.chenharryhua.nanjin.sparkafka
 
-import java.time.{LocalDate, LocalDateTime, LocalTime}
+import java.time.{LocalDate, LocalDateTime}
 import java.util
 
 import cats.effect.{ConcurrentEffect, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.codec._
-import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, Keyboard}
+import com.github.chenharryhua.nanjin.kafka.{
+  KafkaDateTimeRange,
+  KafkaTimestamp,
+  KafkaTopic,
+  Keyboard
+}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.{Chunk, Stream}
 import monocle.function.At.remove
@@ -29,12 +34,11 @@ object Sparkafka {
 
   private def datasetFromKafka[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
-    start: Option[LocalDateTime],
-    end: LocalDateTime)(
+    dateRange: KafkaDateTimeRange)(
     implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
     Sync[F].suspend {
-      start
-        .fold(topic.consumer.offsetRangeFor(end))(topic.consumer.offsetRangeFor(_, end))
+      topic.consumer
+        .offsetRangeFor(dateRange)
         .map { gtp =>
           KafkaUtils
             .createRDD[Array[Byte], Array[Byte]](
@@ -60,7 +64,9 @@ object Sparkafka {
     start: LocalDateTime,
     end: LocalDateTime)(
     implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
-    datasetFromKafka(topic, Some(start), end)
+    datasetFromKafka(
+      topic,
+      KafkaDateTimeRange(Some(KafkaTimestamp(start)), Some(KafkaTimestamp(end))))
 
   def datasetFromBrokers[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
@@ -68,24 +74,24 @@ object Sparkafka {
     end: LocalDate)(implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
     datasetFromKafka(
       topic,
-      Some(LocalDateTime.of(start, LocalTime.MIDNIGHT)),
-      LocalDateTime.of(end, LocalTime.MIDNIGHT))
+      KafkaDateTimeRange(Some(KafkaTimestamp(start)), Some(KafkaTimestamp(end))))
 
   def datasetFromBrokers[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
-    end: LocalDate)(implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
-    datasetFromKafka(topic, None, LocalDateTime.of(end, LocalTime.MIDNIGHT))
-
-  def datasetFromBrokers[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
-    topic: => KafkaTopic[F, K, V],
-    end: LocalDateTime)(
+    start: LocalDate)(
     implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
-    datasetFromKafka(topic, None, end)
+    datasetFromKafka(topic, KafkaDateTimeRange(Some(KafkaTimestamp(start)), None))
+
+  def datasetFromBrokers[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
+    topic: => KafkaTopic[F, K, V],
+    start: LocalDateTime)(
+    implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
+    datasetFromKafka(topic, KafkaDateTimeRange(Some(KafkaTimestamp(start)), None))
 
   def datasetFromBrokers[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V])(
     implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
-    datasetFromKafka(topic, None, LocalDateTime.now)
+    datasetFromKafka(topic, KafkaDateTimeRange(None, None))
 
   def datasetFromDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](topic: KafkaTopic[F, K, V])(
     implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
@@ -97,7 +103,7 @@ object Sparkafka {
 
   def saveToDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
     implicit spark: SparkSession): F[Unit] =
-    datasetFromKafka(topic, None, LocalDateTime.now)
+    datasetFromKafka(topic, KafkaDateTimeRange(None, None))
       .map(_.write.parquet(parquetPath(topic.topicName)))
 
   // upload to kafka

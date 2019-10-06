@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import java.sql.Timestamp
-import java.time.{Instant, LocalDateTime, ZoneId, ZonedDateTime}
+import java.time._
+import java.util.concurrent.TimeUnit
 import java.{lang, util}
 
 import cats.Show
@@ -11,6 +12,7 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
 
 import scala.collection.JavaConverters._
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 final case class KafkaOffset(value: Long) extends AnyVal {
   def javaLong: java.lang.Long = value
@@ -32,8 +34,8 @@ object KafkaOffsetRange {
 
 final case class ListOfTopicPartitions(value: List[TopicPartition]) extends AnyVal {
 
-  def javaTimed(ldt: LocalDateTime): util.Map[TopicPartition, lang.Long] =
-    value.map(tp => tp -> KafkaTimestamp(ldt).javaLong).toMap.asJava
+  def javaTimed(ldt: KafkaTimestamp): util.Map[TopicPartition, lang.Long] =
+    value.map(tp => tp -> ldt.javaLong).toMap.asJava
 
   def asJava: util.List[TopicPartition] = value.asJava
 
@@ -116,10 +118,10 @@ object KafkaConsumerGroupInfo {
 }
 
 // in unit of milli-second
-final case class KafkaTimestamp(ts: Long, tz: ZoneId) {
-  def utc: Instant             = Instant.ofEpochMilli(ts)
+final case class KafkaTimestamp(milliseconds: Long, tz: ZoneId) {
+  def utc: Instant             = Instant.ofEpochMilli(milliseconds)
   def local: ZonedDateTime     = utc.atZone(tz)
-  def javaLong: java.lang.Long = ts
+  def javaLong: java.lang.Long = milliseconds
 }
 
 object KafkaTimestamp {
@@ -127,7 +129,14 @@ object KafkaTimestamp {
 
   def apply(ts: Long): KafkaTimestamp          = KafkaTimestamp(ts, zoneId)
   def apply(ts: Timestamp): KafkaTimestamp     = KafkaTimestamp(ts.getTime, zoneId)
-  def apply(utc: Instant): KafkaTimestamp      = KafkaTimestamp(utc.toEpochMilli)
+  def apply(ts: Instant): KafkaTimestamp       = KafkaTimestamp(ts.toEpochMilli)
   def apply(ts: LocalDateTime): KafkaTimestamp = apply(ts.atZone(zoneId).toInstant)
   def apply(ts: ZonedDateTime): KafkaTimestamp = apply(ts.toInstant)
+  def apply(dt: LocalDate): KafkaTimestamp     = apply(LocalDateTime.of(dt, LocalTime.MIDNIGHT))
+}
+
+final case class KafkaDateTimeRange(start: Option[KafkaTimestamp], end: Option[KafkaTimestamp]) {
+
+  def duration: Option[FiniteDuration] =
+    (start, end).mapN((s, e) => Duration(e.milliseconds - s.milliseconds, TimeUnit.MILLISECONDS))
 }
