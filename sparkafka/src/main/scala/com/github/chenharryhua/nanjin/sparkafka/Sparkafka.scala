@@ -3,8 +3,7 @@ package com.github.chenharryhua.nanjin.sparkafka
 import java.time.{LocalDate, LocalDateTime, LocalTime}
 import java.util
 
-import cats.Monad
-import cats.effect.{ConcurrentEffect, Timer}
+import cats.effect.{ConcurrentEffect, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.codec._
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, Keyboard}
@@ -28,40 +27,42 @@ object Sparkafka {
       "value.deserializer" -> classOf[ByteArrayDeserializer].getName) ++
       remove(ConsumerConfig.CLIENT_ID_CONFIG)(maps)).mapValues[Object](identity).asJava
 
-  private def datasetFromKafka[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
+  private def datasetFromKafka[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
     start: Option[LocalDateTime],
     end: LocalDateTime)(
     implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
-    start
-      .fold(topic.consumer.offsetRangeFor(end))(topic.consumer.offsetRangeFor(_, end))
-      .map { gtp =>
-        KafkaUtils
-          .createRDD[Array[Byte], Array[Byte]](
-            spark.sparkContext,
-            props(topic.kafkaConsumerSettings.props),
-            KafkaOffsets.offsetRange(gtp),
-            LocationStrategies.PreferConsistent)
-          .mapPartitions { crs =>
-            val t = topic
-            val decoder = (cr: ConsumerRecord[Array[Byte], Array[Byte]]) =>
-              SparkafkaConsumerRecord
-                .fromConsumerRecord(cr)
-                .bimap(t.keyCodec.prism.getOption, t.valueCodec.prism.getOption)
-                .flattenKeyValue
-            crs.map(decoder)
-          }
-      }
-      .map(TypedDataset.create(_))
+    Sync[F].suspend {
+      start
+        .fold(topic.consumer.offsetRangeFor(end))(topic.consumer.offsetRangeFor(_, end))
+        .map { gtp =>
+          KafkaUtils
+            .createRDD[Array[Byte], Array[Byte]](
+              spark.sparkContext,
+              props(topic.kafkaConsumerSettings.props),
+              KafkaOffsets.offsetRange(gtp),
+              LocationStrategies.PreferConsistent)
+            .mapPartitions { crs =>
+              val t = topic
+              val decoder = (cr: ConsumerRecord[Array[Byte], Array[Byte]]) =>
+                SparkafkaConsumerRecord
+                  .fromConsumerRecord(cr)
+                  .bimap(t.keyCodec.prism.getOption, t.valueCodec.prism.getOption)
+                  .flattenKeyValue
+              crs.map(decoder)
+            }
+        }
+        .map(TypedDataset.create(_))
+    }
 
-  def datasetFromBrokers[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
+  def datasetFromBrokers[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
     start: LocalDateTime,
     end: LocalDateTime)(
     implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
     datasetFromKafka(topic, Some(start), end)
 
-  def datasetFromBrokers[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
+  def datasetFromBrokers[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
     start: LocalDate,
     end: LocalDate)(implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
@@ -70,30 +71,31 @@ object Sparkafka {
       Some(LocalDateTime.of(start, LocalTime.MIDNIGHT)),
       LocalDateTime.of(end, LocalTime.MIDNIGHT))
 
-  def datasetFromBrokers[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
+  def datasetFromBrokers[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
     end: LocalDate)(implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
     datasetFromKafka(topic, None, LocalDateTime.of(end, LocalTime.MIDNIGHT))
 
-  def datasetFromBrokers[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
+  def datasetFromBrokers[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
     end: LocalDateTime)(
     implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
     datasetFromKafka(topic, None, end)
 
-  def datasetFromBrokers[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](
+  def datasetFromBrokers[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V])(
     implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
     datasetFromKafka(topic, None, LocalDateTime.now)
 
-  def datasetFromDisk[F[_], K: TypedEncoder, V: TypedEncoder](topic: KafkaTopic[F, K, V])(
-    implicit spark: SparkSession): TypedDataset[SparkafkaConsumerRecord[K, V]] =
-    TypedDataset.createUnsafe[SparkafkaConsumerRecord[K, V]](
-      spark.read.parquet(parquetPath(topic.topicName)))
+  def datasetFromDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](topic: KafkaTopic[F, K, V])(
+    implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
+    Sync[F].delay(
+      TypedDataset.createUnsafe[SparkafkaConsumerRecord[K, V]](
+        spark.read.parquet(parquetPath(topic.topicName))))
 
   private def parquetPath(topicName: String): String = s"./data/kafka/parquet/$topicName"
 
-  def saveToDisk[F[_]: Monad, K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
+  def saveToDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
     implicit spark: SparkSession): F[Unit] =
     datasetFromKafka(topic, None, LocalDateTime.now)
       .map(_.write.parquet(parquetPath(topic.topicName)))
@@ -118,15 +120,13 @@ object Sparkafka {
   def replay[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
     topic: KafkaTopic[F, K, V],
     batchSize: Int    = 1000,
-    isIntact: Boolean = true)(implicit spark: SparkSession): Stream[F, Chunk[RecordMetadata]] = {
-    val ds = datasetFromDisk[F, K, V](topic)
-    uploadToKafka(
-      ds.orderBy(ds('timestamp).asc, ds('offset).asc).deserialized.map { scr =>
+    isIntact: Boolean = true)(implicit spark: SparkSession): Stream[F, Chunk[RecordMetadata]] =
+    for {
+      ds <- Stream.eval(datasetFromDisk[F, K, V](topic))
+      sorted = ds.orderBy(ds('timestamp).asc, ds('offset).asc).deserialized.map { scr =>
         if (isIntact) scr.toSparkafkaProducerRecord
         else scr.toSparkafkaProducerRecord.withoutPartition.withoutTimestamp
-      },
-      topic,
-      batchSize
-    )
-  }
+      }
+      res <- uploadToKafka(sorted, topic, batchSize)
+    } yield res
 }
