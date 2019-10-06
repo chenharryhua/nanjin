@@ -28,7 +28,6 @@ import org.apache.kafka.common.config.SaslConfigs
 import org.apache.kafka.common.security.auth.SecurityProtocol
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Serializer}
 import org.apache.kafka.streams.StreamsConfig
-import org.apache.kafka.streams.errors.LogAndContinueExceptionHandler
 
 import scala.util.Try
 
@@ -236,11 +235,7 @@ object KafkaSettings {
         )
       ),
       KafkaProducerSettings(Map.empty),
-      KafkaStreamSettings(Map(
-        StreamsConfig.DEFAULT_DESERIALIZATION_EXCEPTION_HANDLER_CLASS_CONFIG ->
-          classOf[LogAndContinueExceptionHandler].getName,
-        StreamsConfig.NUM_STREAM_THREADS_CONFIG -> "3"
-      )),
+      KafkaStreamSettings(Map.empty),
       SharedAdminSettings(Map.empty),
       SchemaRegistrySettings(Map.empty)
     ).withGroupId("nanjin-group")

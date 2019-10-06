@@ -1,17 +1,11 @@
 package com.github.chenharryhua.nanjin.sparkafka
 
-import java.time.{LocalDate, LocalDateTime}
 import java.util
 
 import cats.effect.{ConcurrentEffect, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.codec._
-import com.github.chenharryhua.nanjin.kafka.{
-  KafkaDateTimeRange,
-  KafkaTimestamp,
-  KafkaTopic,
-  Keyboard
-}
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, Keyboard}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.{Chunk, Stream}
 import monocle.function.At.remove
@@ -32,13 +26,11 @@ object Sparkafka {
       "value.deserializer" -> classOf[ByteArrayDeserializer].getName) ++
       remove(ConsumerConfig.CLIENT_ID_CONFIG)(maps)).mapValues[Object](identity).asJava
 
-  private def datasetFromKafka[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
-    topic: => KafkaTopic[F, K, V],
-    dateRange: KafkaDateTimeRange)(
+  def datasetFromKafka[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
     implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
     Sync[F].suspend {
       topic.consumer
-        .offsetRangeFor(dateRange)
+        .offsetRangeFor(topic.dateRange)
         .map { gtp =>
           KafkaUtils
             .createRDD[Array[Byte], Array[Byte]](
@@ -59,40 +51,6 @@ object Sparkafka {
         .map(TypedDataset.create(_))
     }
 
-  def datasetFromBrokers[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
-    topic: => KafkaTopic[F, K, V],
-    start: LocalDateTime,
-    end: LocalDateTime)(
-    implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
-    datasetFromKafka(
-      topic,
-      KafkaDateTimeRange(Some(KafkaTimestamp(start)), Some(KafkaTimestamp(end))))
-
-  def datasetFromBrokers[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
-    topic: => KafkaTopic[F, K, V],
-    start: LocalDate,
-    end: LocalDate)(implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
-    datasetFromKafka(
-      topic,
-      KafkaDateTimeRange(Some(KafkaTimestamp(start)), Some(KafkaTimestamp(end))))
-
-  def datasetFromBrokers[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
-    topic: => KafkaTopic[F, K, V],
-    start: LocalDate)(
-    implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
-    datasetFromKafka(topic, KafkaDateTimeRange(Some(KafkaTimestamp(start)), None))
-
-  def datasetFromBrokers[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
-    topic: => KafkaTopic[F, K, V],
-    start: LocalDateTime)(
-    implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
-    datasetFromKafka(topic, KafkaDateTimeRange(Some(KafkaTimestamp(start)), None))
-
-  def datasetFromBrokers[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
-    topic: => KafkaTopic[F, K, V])(
-    implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
-    datasetFromKafka(topic, KafkaDateTimeRange(None, None))
-
   def datasetFromDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](topic: KafkaTopic[F, K, V])(
     implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
     Sync[F].delay(
@@ -103,8 +61,7 @@ object Sparkafka {
 
   def saveToDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
     implicit spark: SparkSession): F[Unit] =
-    datasetFromKafka(topic, KafkaDateTimeRange(None, None))
-      .map(_.write.parquet(parquetPath(topic.topicName)))
+    datasetFromKafka(topic).map(_.write.parquet(parquetPath(topic.topicName)))
 
   // upload to kafka
   def uploadToKafka[F[_]: ConcurrentEffect: Timer, K, V](

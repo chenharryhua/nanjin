@@ -62,11 +62,10 @@ object ListOfTopicPartitions {
   def mapValues[W](f: V => W): GenericTopicPartition[W] = copy(value = value.mapValues(f))
 
   def combineWith[W](other: GenericTopicPartition[V])(fn: (V, V) => W): GenericTopicPartition[W] = {
-    val ret: List[(TopicPartition, W)] =
-      (value.keySet ++ other.value.keySet).toList.flatMap { tp =>
-        (value.get(tp), other.value.get(tp)).mapN((f, s) => tp -> fn(f, s))
-      }
-    GenericTopicPartition(ret.toMap)
+    val res = value.keySet.intersect(other.value.keySet).toList.flatMap { tp =>
+      (value.get(tp), other.value.get(tp)).mapN((f, s) => tp -> fn(f, s))
+    }
+    GenericTopicPartition(res.toMap)
   }
 
   def flatten[W](implicit ev: V =:= Option[W]): GenericTopicPartition[W] =
@@ -135,7 +134,9 @@ object KafkaTimestamp {
   def apply(dt: LocalDate): KafkaTimestamp     = apply(LocalDateTime.of(dt, LocalTime.MIDNIGHT))
 }
 
-final case class KafkaDateTimeRange(start: Option[KafkaTimestamp], end: Option[KafkaTimestamp]) {
+@Lenses final case class KafkaDateTimeRange(
+  start: Option[KafkaTimestamp],
+  end: Option[KafkaTimestamp]) {
 
   def duration: Option[FiniteDuration] =
     (start, end).mapN((s, e) => Duration(e.milliseconds - s.milliseconds, TimeUnit.MILLISECONDS))

@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import java.time.{LocalDate, LocalDateTime}
+
 import akka.stream.ActorMaterializer
 import cats.effect.concurrent.MVar
 import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
@@ -7,9 +9,8 @@ import cats.{Bitraverse, Eval, Show}
 import com.github.chenharryhua.nanjin.codec._
 import fs2.kafka.{AdminClientSettings, KafkaByteConsumer, KafkaByteProducer}
 import monocle.function.At
-import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
+import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
-import cats.implicits._
 
 final case class TopicDef[K, V](topicName: String)(
   implicit
@@ -25,17 +26,30 @@ final case class TopicDef[K, V](topicName: String)(
     ctx.topic[K, V](this)
 }
 
-final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] private[kafka] (
-  val topicDef: TopicDef[K, V],
-  val schemaRegistrySettings: SchemaRegistrySettings,
-  val kafkaConsumerSettings: KafkaConsumerSettings,
-  val kafkaProducerSettings: KafkaProducerSettings,
-  val adminSettings: AdminClientSettings[F],
-  val sharedConsumer: Eval[MVar[F, KafkaByteConsumer]],
-  val sharedProducer: Eval[KafkaByteProducer],
-  val materializer: Eval[ActorMaterializer])
+final case class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] private[kafka] (
+  topicDef: TopicDef[K, V],
+  schemaRegistrySettings: SchemaRegistrySettings,
+  kafkaConsumerSettings: KafkaConsumerSettings,
+  kafkaProducerSettings: KafkaProducerSettings,
+  adminSettings: AdminClientSettings[F],
+  sharedConsumer: Eval[MVar[F, KafkaByteConsumer]],
+  sharedProducer: Eval[KafkaByteProducer],
+  materializer: Eval[ActorMaterializer],
+  dateRange: KafkaDateTimeRange)
     extends TopicNameExtractor[K, V] {
   import topicDef.{serdeOfKey, serdeOfValue, showKey, showValue}
+
+  def withStartDateTime(dt: LocalDateTime): KafkaTopic[F, K, V] =
+    copy(dateRange = KafkaDateTimeRange.start.set(Some(KafkaTimestamp(dt)))(dateRange))
+
+  def withEndDateTime(dt: LocalDateTime): KafkaTopic[F, K, V] =
+    copy(dateRange = KafkaDateTimeRange.end.set(Some(KafkaTimestamp(dt)))(dateRange))
+
+  def withStartDateTime(dt: LocalDate): KafkaTopic[F, K, V] =
+    copy(dateRange = KafkaDateTimeRange.start.set(Some(KafkaTimestamp(dt)))(dateRange))
+
+  def withEndDateTime(dt: LocalDate): KafkaTopic[F, K, V] =
+    copy(dateRange = KafkaDateTimeRange.end.set(Some(KafkaTimestamp(dt)))(dateRange))
 
   val consumerGroupId: Option[KafkaConsumerGroupId] =
     KafkaConsumerSettings.props

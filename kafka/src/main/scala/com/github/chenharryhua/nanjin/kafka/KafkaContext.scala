@@ -52,7 +52,7 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
     SerdeOf[V].asValue(settings.schemaRegistrySettings.props)
 
   final def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] =
-    new KafkaTopic[F, K, V](
+    KafkaTopic[F, K, V](
       topicDef,
       settings.schemaRegistrySettings,
       settings.consumerSettings,
@@ -60,7 +60,9 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
       adminClientSettings,
       sharedConsumer,
       sharedProducer,
-      Eval.later(materializer))
+      Eval.later(materializer),
+      KafkaDateTimeRange(None, None)
+    )
 
   final def topic[K: SerdeOf: Show, V: SerdeOf: Show](topicName: String): KafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](topicName))

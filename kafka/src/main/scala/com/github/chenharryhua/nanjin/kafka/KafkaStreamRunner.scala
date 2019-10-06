@@ -15,11 +15,13 @@ final class KafkaStreamRunner[F[_]](settings: KafkaStreamSettings)(
 
   final private class StreamErrorHandler(deferred: Deferred[F, UncaughtKafkaStreamingException])
       extends Thread.UncaughtExceptionHandler {
+
     override def uncaughtException(t: Thread, e: Throwable): Unit =
       F.toIO(deferred.complete(UncaughtKafkaStreamingException(t, e))).void.unsafeRunSync()
   }
 
   final private class Latch(value: Deferred[F, Unit]) extends KafkaStreams.StateListener {
+
     override def onChange(newState: KafkaStreams.State, oldState: KafkaStreams.State): Unit =
       newState match {
         case KafkaStreams.State.RUNNING => F.toIO(value.complete(())).void.unsafeRunSync()
@@ -30,7 +32,7 @@ final class KafkaStreamRunner[F[_]](settings: KafkaStreamSettings)(
   def stream(topology: Reader[StreamsBuilder, Unit]): Stream[F, KafkaStreams] =
     for {
       kb <- Keyboard.signal[F]
-      error <- Stream.eval(Deferred[F, UncaughtKafkaStreamingException])
+      eh <- Stream.eval(Deferred[F, UncaughtKafkaStreamingException])
       latch <- Stream.eval(Deferred[F, Unit])
       kss <- Stream
         .bracket(F.delay {
@@ -41,12 +43,12 @@ final class KafkaStreamRunner[F[_]](settings: KafkaStreamSettings)(
         .evalMap(ks =>
           F.delay {
             ks.cleanUp()
-            ks.setUncaughtExceptionHandler(new StreamErrorHandler(error))
+            ks.setUncaughtExceptionHandler(new StreamErrorHandler(eh))
             ks.setStateListener(new Latch(latch))
             ks.start()
           }.as(ks))
         .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
-        .concurrently(Stream.eval(error.get).flatMap(Stream.raiseError[F]))
+        .concurrently(Stream.eval(eh.get).flatMap(Stream.raiseError[F]))
       _ <- Stream.eval(latch.get)
     } yield kss
 }
