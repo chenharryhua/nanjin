@@ -6,8 +6,7 @@ import com.github.chenharryhua.nanjin.codec.SparkafkaConsumerRecord
 import com.github.chenharryhua.nanjin.kafka.KafkaTimestamp
 import com.github.chenharryhua.nanjin.sparkdb.DatetimeInjectionInstances._
 import frameless.functions.aggregate.count
-import frameless.functions.nonAggregate._
-import frameless.{SparkDelay, TypedDataset, TypedEncoder}
+import frameless.{TypedDataset, TypedEncoder}
 
 final case class MinutelyAggResult(minute: Int, count: Long)
 final case class HourlyAggResult(hour: Int, count: Long)
