@@ -52,7 +52,7 @@ object Sparkafka {
         .map(TypedDataset.create(_))
     }
 
-  def datasetFromDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](topic: KafkaTopic[F, K, V])(
+  def datasetFromDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
     implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
     Sync[F].delay {
       val ds = TypedDataset.createUnsafe[SparkafkaConsumerRecord[K, V]](
