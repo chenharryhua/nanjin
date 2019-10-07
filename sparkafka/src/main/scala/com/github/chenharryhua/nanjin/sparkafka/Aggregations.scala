@@ -1,11 +1,15 @@
 package com.github.chenharryhua.nanjin.sparkafka
 
+import java.time.LocalDate
+
 import com.github.chenharryhua.nanjin.codec.SparkafkaConsumerRecord
 import com.github.chenharryhua.nanjin.kafka.KafkaTimestamp
+import com.github.chenharryhua.nanjin.sparkdb.DatetimeInjectionInstances._
 import frameless.functions.aggregate.count
 import frameless.{TypedDataset, TypedEncoder}
 
 final case class AggResult(key: Int, value: Long)
+final case class DailyAggResult(key: LocalDate, value: Long)
 
 trait Aggregations {
 
@@ -28,11 +32,11 @@ trait Aggregations {
       res.orderBy(res('key).asc)
     }
 
-    def daily: TypedDataset[AggResult] = {
-      val day: TypedDataset[Int] = tds.deserialized.map { m =>
-        KafkaTimestamp(m.timestamp).local.getDayOfYear
+    def daily: TypedDataset[DailyAggResult] = {
+      val day: TypedDataset[LocalDate] = tds.deserialized.map { m =>
+        KafkaTimestamp(m.timestamp).local.toLocalDate
       }
-      val res = day.groupBy(day.asCol).agg(count(day.asCol)).as[AggResult]
+      val res = day.groupBy(day.asCol).agg(count(day.asCol)).as[DailyAggResult]
       res.orderBy(res('key).asc)
     }
   }
