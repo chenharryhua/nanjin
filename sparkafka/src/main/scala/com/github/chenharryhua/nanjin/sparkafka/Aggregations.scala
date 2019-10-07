@@ -6,7 +6,8 @@ import com.github.chenharryhua.nanjin.codec.SparkafkaConsumerRecord
 import com.github.chenharryhua.nanjin.kafka.KafkaTimestamp
 import com.github.chenharryhua.nanjin.sparkdb.DatetimeInjectionInstances._
 import frameless.functions.aggregate.count
-import frameless.{TypedDataset, TypedEncoder}
+import frameless.functions.nonAggregate._
+import frameless.{SparkDelay, TypedDataset, TypedEncoder}
 
 final case class MinutelyAggResult(minute: Int, count: Long)
 final case class HourlyAggResult(hour: Int, count: Long)
@@ -40,5 +41,8 @@ trait Aggregations {
       val res = day.groupBy(day.asCol).agg(count(day.asCol)).as[DailyAggResult]
       res.orderBy(res('date).asc)
     }
+
+    def nullValues: TypedDataset[SparkafkaConsumerRecord[K, V]] =
+      tds.filter(tds('value).isNone)
   }
 }
