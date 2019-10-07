@@ -19,8 +19,19 @@ final case class TableDef[A](tableName: String)(
 
 final case class TableDataset[F[_]: ContextShift: Concurrent, A](
   tableDef: TableDef[A],
-  dbSettings: DatabaseSettings) {
+  dbSettings: DatabaseSettings,
+  sparkOptions: Map[String, String] = Map.empty,
+  saveMode: SaveMode                = SaveMode.Append) {
   import tableDef.{doobieRead, typedEncoder}
+
+  def withSparkOption(key: String, value: String): TableDataset[F, A] =
+    copy(sparkOptions = sparkOptions + (key -> value))
+
+  def withSparkOptions(options: Map[String, String]): TableDataset[F, A] =
+    copy(sparkOptions = sparkOptions ++ options)
+
+  def withSaveMode(sm: SaveMode): TableDataset[F, A] =
+    copy(saveMode = sm)
 
   // spark
   def datasetFromDB(implicit spark: SparkSession): TypedDataset[A] =
@@ -32,18 +43,22 @@ final case class TableDataset[F[_]: ContextShift: Concurrent, A](
         .option("dbtable", tableDef.tableName)
         .load())
 
-  def datasetFromCsv(path: String, options: Map[String, String] = Map("header" -> "true"))(
-    implicit spark: SparkSession): TypedDataset[A] =
-    TypedDataset.createUnsafe[A](spark.read.options(options).csv(path))
+  def uploadCsv(path: String)(implicit spark: SparkSession): F[Unit] = {
+    val opts = FileFormat.Csv.defaultOptions ++ sparkOptions
+    uploadToDB(TypedDataset.createUnsafe[A](spark.read.options(opts).csv(path)))
+  }
 
-  def datasetFromJson(path: String, options: Map[String, String] = Map.empty)(
-    implicit spark: SparkSession): TypedDataset[A] =
-    TypedDataset.createUnsafe[A](spark.read.options(options).json(path))
+  def uploadJson(path: String)(implicit spark: SparkSession): F[Unit] = {
+    val opts = FileFormat.Json.defaultOptions ++ sparkOptions
+    uploadToDB(TypedDataset.createUnsafe[A](spark.read.options(opts).json(path)))
+  }
 
-  def datasetFromParquet(path: String)(implicit spark: SparkSession): TypedDataset[A] =
-    TypedDataset.createUnsafe[A](spark.read.parquet(path))
+  def uploadParquet(path: String)(implicit spark: SparkSession): F[Unit] = {
+    val opts = FileFormat.Parquet.defaultOptions ++ sparkOptions
+    uploadToDB(TypedDataset.createUnsafe[A](spark.read.options(opts).parquet(path)))
+  }
 
-  private def uploadToDB(data: TypedDataset[A], saveMode: SaveMode): F[Unit] =
+  def uploadToDB(data: TypedDataset[A]): F[Unit] =
     Sync[F].delay(
       data.write
         .mode(saveMode)
@@ -52,10 +67,6 @@ final case class TableDataset[F[_]: ContextShift: Concurrent, A](
         .option("driver", dbSettings.driver.value)
         .option("dbtable", tableDef.tableName)
         .save())
-
-  def appendDB(data: TypedDataset[A]): F[Unit] = uploadToDB(data, SaveMode.Append)
-
-  def overwriteDB(data: TypedDataset[A]): F[Unit] = uploadToDB(data, SaveMode.Overwrite)
 
   // doobie
   val source: Stream[F, A] = {
