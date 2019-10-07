@@ -7,7 +7,7 @@ import doobie.util.Meta
 import frameless.{Injection, SQLDate, SQLTimestamp}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 
-private[sparkdb] trait DatetimeInjectionInstances {
+object DatetimeInjectionInstances {
   private val zoneId: ZoneId = ZoneId.systemDefault()
 //typed-spark
   implicit object javaSQLTimestampInjection extends Injection[Timestamp, SQLTimestamp] {
