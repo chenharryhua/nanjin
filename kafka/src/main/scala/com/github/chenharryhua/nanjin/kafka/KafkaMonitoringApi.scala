@@ -83,12 +83,12 @@ object KafkaMonitoringApi {
       } yield println(s"""
                          |summaries:
                          |
-                         |number of records: ${num.show}
+                         |number of records: ${num}
                          |first records of each partitions: 
-                         |${first.map(_.show).mkString("\n")}
+                         |${first.mkString("\n")}
                          |
                          |last records of each partitions:
-                         |${last.map(_.show).mkString("\n")}
+                         |${last.mkString("\n")}
                          |""".stripMargin)
   }
 }

@@ -8,9 +8,8 @@ import akka.kafka.{
   ConsumerSettings  => AkkaConsumerSettings,
   ProducerSettings  => AkkaProducerSettings
 }
+import cats.Eval
 import cats.effect.{ConcurrentEffect, ContextShift, IO, Sync, Timer}
-import cats.implicits._
-import cats.{Eval, Show}
 import fs2.kafka.{
   ConsumerSettings => Fs2ConsumerSettings,
   Deserializer     => Fs2Deserializer,
@@ -53,12 +52,6 @@ import scala.util.Try
       ConsumerConfig.AUTO_OFFSET_RESET_CONFIG -> "earliest",
       ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG -> "false"
     ))
-
-  def show: String =
-    s"""
-       |consumer settings:
-       |${props.show}
-       |""".stripMargin
 }
 
 @Lenses final case class KafkaProducerSettings(props: Map[String, String]) {
@@ -77,44 +70,17 @@ import scala.util.Try
 
   val sharedProducerSettings: Properties = utils.toProperties(
     props ++ Map(ConsumerConfig.CLIENT_ID_CONFIG -> s"shared-producer-${utils.random4d.value}"))
-
-  def show: String =
-    s"""
-       |producer settings:
-       |${props.show}
-       |""".stripMargin
-
 }
 
 @Lenses final case class KafkaStreamSettings(props: Map[String, String]) {
-
   val settings: Properties = utils.toProperties(props)
-
-  def show: String =
-    s"""
-       |kafka streaming settings:
-       |${props.show}
-     """.stripMargin
 }
 
 @Lenses final case class SharedAdminSettings(props: Map[String, String]) {
-
   val settings: Properties = utils.toProperties(props)
-
-  def show: String =
-    s"""
-       |shared admin settings:
-       |${props.show}
-     """.stripMargin
 }
 
 @Lenses final case class SchemaRegistrySettings(props: Map[String, String]) {
-
-  def show: String =
-    s"""
-       |schema registry settings:
-       |${props.show}
-     """.stripMargin
 
   private[this] val srTag: String = AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG
 
@@ -204,16 +170,6 @@ import scala.util.Try
     timer: Timer[monix.eval.Task],
     ce: ConcurrentEffect[monix.eval.Task]) =
     new MonixKafkaContext(this)
-
-  def show: String =
-    s"""
-       |kafka settings:
-       |${consumerSettings.show}
-       |${producerSettings.show}
-       |${streamSettings.show}
-       |${schemaRegistrySettings.show}
-       |${sharedAdminSettings.show}
-  """.stripMargin
 }
 
 object KafkaSettings {
@@ -244,5 +200,4 @@ object KafkaSettings {
       .withSchemaRegistryUrl("http://localhost:8081")
       .withSecurityProtocol(SecurityProtocol.PLAINTEXT)
 
-  implicit val showKafkaSettings: Show[KafkaSettings] = _.show
 }

@@ -67,8 +67,6 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
   final def topic[K: SerdeOf: Show, V: SerdeOf: Show](topicName: String): KafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](topicName))
 
-  final def show: String = settings.show
-
   final def kafkaStreams(topology: Reader[StreamsBuilder, Unit]): Stream[F, KafkaStreams] =
     new KafkaStreamRunner[F](settings.streamSettings).stream(topology)
 

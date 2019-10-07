@@ -6,7 +6,6 @@ import akka.kafka.{
   ProducerSettings  => AkkaProducerSettings
 }
 import akka.stream.ActorMaterializer
-import cats.Show
 import cats.data.{NonEmptyList, Reader}
 import cats.effect._
 import cats.implicits._
@@ -20,11 +19,7 @@ import org.apache.kafka.streams.kstream.GlobalKTable
 
 object KafkaChannels {
 
-  object Fs2Channel {
-    implicit def showFs2Channel[F[_], K, V]: Show[Fs2Channel[F, K, V]] = _.show
-  }
-
-  final case class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
+  final case class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] private[kafka] (
     topicName: String,
     producerSettings: Fs2ProducerSettings[F, K, V],
     consumerSettings: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]],
@@ -62,23 +57,9 @@ object KafkaChannels {
           .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
           .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
       }
-
-    val show: String =
-      s"""
-         |fs2 consumer runtime settings:
-         |${consumerSettings.show}
-         |${consumerSettings.properties.show}
-         |
-         |fs2 producer runtime settings:
-         |${producerSettings.show}
-         |${producerSettings.properties.show}""".stripMargin
   }
 
-  object AkkaChannel {
-    implicit def showAkkaChannel[F[_], K, V]: Show[AkkaChannel[F, K, V]] = _.show
-  }
-
-  final case class AkkaChannel[F[_]: ContextShift: Async, K, V](
+  final case class AkkaChannel[F[_]: ContextShift: Async, K, V] private[kafka] (
     topicName: String,
     producerSettings: AkkaProducerSettings[K, V],
     consumerSettings: AkkaConsumerSettings[Array[Byte], Array[Byte]],
@@ -139,18 +120,9 @@ object KafkaChannels {
     val consume: Source[CommittableMessage[Array[Byte], Array[Byte]], Consumer.Control] =
       akka.kafka.scaladsl.Consumer
         .committableSource(consumerSettings, Subscriptions.topics(topicName))
-
-    val show: String =
-      s"""
-         |akka consumer runtime settings:
-         |${consumerSettings.toString()}
-         |
-         |akka producer runtime settings:
-         |${producerSettings.toString()}
-     """.stripMargin
   }
 
-  final case class StreamingChannel[K, V](
+  final case class StreamingChannel[K, V] private[kafka] (
     topicName: String,
     keySerde: KeySerde[K],
     valueSerde: ValueSerde[V]) {

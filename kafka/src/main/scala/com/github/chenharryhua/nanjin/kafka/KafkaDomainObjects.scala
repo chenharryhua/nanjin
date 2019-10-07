@@ -5,7 +5,6 @@ import java.time._
 import java.util.concurrent.TimeUnit
 import java.{lang, util}
 
-import cats.Show
 import cats.implicits._
 import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
@@ -23,13 +22,6 @@ final case class KafkaPartition(value: Int) extends AnyVal
 
 final case class KafkaOffsetRange(from: KafkaOffset, until: KafkaOffset) {
   val distance: Long = until.value - from.value
-
-  def show: String =
-    s"KafkaOffsetRange(from = ${from.value}, until = ${until.value}, distance = $distance)"
-}
-
-object KafkaOffsetRange {
-  implicit val showKafkaOffsetRange: Show[KafkaOffsetRange] = _.show
 }
 
 final case class ListOfTopicPartitions(value: List[TopicPartition]) extends AnyVal {
@@ -38,16 +30,6 @@ final case class ListOfTopicPartitions(value: List[TopicPartition]) extends AnyV
     value.map(tp => tp -> ldt.javaLong).toMap.asJava
 
   def asJava: util.List[TopicPartition] = value.asJava
-
-  def show: String =
-    value
-      .sortBy(_.partition())
-      .map(tp => s"TopicPartition(topic = ${tp.topic()}, partition = ${tp.partition()}")
-      .mkString("\n")
-}
-
-object ListOfTopicPartitions {
-  implicit val showListOfTopicPartitions: Show[ListOfTopicPartitions] = _.show
 }
 
 @Lenses final case class GenericTopicPartition[V](value: Map[TopicPartition, V]) extends AnyVal {
@@ -73,36 +55,15 @@ object ListOfTopicPartitions {
 
   def topicPartitions: ListOfTopicPartitions = ListOfTopicPartitions(value.keys.toList)
 
-  def show(implicit ev: Show[V]): String =
-    s"""|
-        |total partitions: ${value.size}
-        |${value.toList
-         .sortBy(_._1.partition())
-         .map { case (k, v) => k.toString + " -> " + v.show }
-         .mkString("\n")}
-  """.stripMargin
-}
-
-object GenericTopicPartition {
-  implicit def showGenericTopicPartition[A: Show]: Show[GenericTopicPartition[A]] = _.show
 }
 
 final case class KafkaConsumerGroupId(value: String) extends AnyVal
 
 final case class KafkaConsumerGroupInfo(
   groupId: KafkaConsumerGroupId,
-  lag: GenericTopicPartition[KafkaOffsetRange]) {
-
-  def show: String =
-    s"""|
-        |group id: ${groupId.value}
-        |${lag.show}
-        |
-    """.stripMargin
-}
+  lag: GenericTopicPartition[KafkaOffsetRange])
 
 object KafkaConsumerGroupInfo {
-  implicit val showKafkaConsumerGroupInfo: Show[KafkaConsumerGroupInfo] = _.show
 
   def apply(
     groupId: String,
@@ -131,7 +92,7 @@ object KafkaTimestamp {
   def apply(ts: Instant): KafkaTimestamp       = KafkaTimestamp(ts.toEpochMilli)
   def apply(ts: LocalDateTime): KafkaTimestamp = apply(ts.atZone(zoneId).toInstant)
   def apply(ts: ZonedDateTime): KafkaTimestamp = apply(ts.toInstant)
-  def apply(dt: LocalDate): KafkaTimestamp     = apply(LocalDateTime.of(dt, LocalTime.MIDNIGHT))
+  def apply(ts: LocalDate): KafkaTimestamp     = apply(LocalDateTime.of(ts, LocalTime.MIDNIGHT))
 }
 
 @Lenses final case class KafkaDateTimeRange(
@@ -147,8 +108,4 @@ object KafkaTimestamp {
 
   def duration: Option[FiniteDuration] =
     (start, end).mapN((s, e) => Duration(e.milliseconds - s.milliseconds, TimeUnit.MILLISECONDS))
-
-  def show: String =
-    s"""KafkaDateTimeRange(start = ${start.map(_.local)}, end = ${end.map(_.local)}, duration = ${duration
-      .map(_.toUnit(TimeUnit.HOURS))} hours"""
 }

@@ -110,17 +110,4 @@ final case class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] p
   val consumer: KafkaConsumerApi[F, K, V]    = KafkaConsumerApi[F, K, V](this)
   val producer: KafkaProducerApi[F, K, V]    = KafkaProducerApi[F, K, V](this)
   val monitor: KafkaMonitoringApi[F, K, V]   = KafkaMonitoringApi(this)
-
-  def show: String =
-    s"""
-       |kafka topic:
-       |group id: ${consumerGroupId.map(_.value).getOrElse("not configured")}
-       |${topicDef.topicName}
-       |${schemaRegistrySettings.show}
-       |${kafkaConsumerSettings.show}
-       |${kafkaProducerSettings.show}""".stripMargin
-}
-
-object KafkaTopic {
-  implicit def showTopic[F[_], K, V]: Show[KafkaTopic[F, K, V]] = _.show
 }
