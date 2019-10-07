@@ -12,14 +12,14 @@ import scala.util.Try
 @autoFunctorK
 @autoSemigroupalK
 trait KafkaMonitoringApi[F[_], K, V] {
-  def watchFromLatest: F[Unit]
+  def watch: F[Unit]
   def watchFromEarliest: F[Unit]
 
-  def filterFromLatest(pred: ConsumerRecord[Try[K], Try[V]]   => Boolean): F[Unit]
+  def filter(pred: ConsumerRecord[Try[K], Try[V]]             => Boolean): F[Unit]
   def filterFromEarliest(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit]
 
   def badRecordsFromEarliest: F[Unit]
-  def badRecordsFromLatest: F[Unit]
+  def badRecords: F[Unit]
 
   def summaries: F[Unit]
 }
@@ -60,10 +60,10 @@ object KafkaMonitoringApi {
         .compile
         .drain
 
-    override def watchFromLatest: F[Unit]   = watch(AutoOffsetReset.Latest)
+    override def watch: F[Unit]             = watch(AutoOffsetReset.Latest)
     override def watchFromEarliest: F[Unit] = watch(AutoOffsetReset.Earliest)
 
-    override def filterFromLatest(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit] =
+    override def filter(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit] =
       filterWatch(pred, AutoOffsetReset.Latest)
 
     override def filterFromEarliest(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit] =
@@ -72,8 +72,8 @@ object KafkaMonitoringApi {
     override def badRecordsFromEarliest: F[Unit] =
       filterFromEarliest(cr => cr.key().isFailure || cr.value().isFailure)
 
-    override def badRecordsFromLatest: F[Unit] =
-      filterFromLatest(cr => cr.key().isFailure || cr.value().isFailure)
+    override def badRecords: F[Unit] =
+      filter(cr => cr.key().isFailure || cr.value().isFailure)
 
     override def summaries: F[Unit] =
       for {
@@ -83,7 +83,7 @@ object KafkaMonitoringApi {
       } yield println(s"""
                          |summaries:
                          |
-                         |number of records: ${num}
+                         |number of records: $num
                          |first records of each partitions: 
                          |${first.mkString("\n")}
                          |

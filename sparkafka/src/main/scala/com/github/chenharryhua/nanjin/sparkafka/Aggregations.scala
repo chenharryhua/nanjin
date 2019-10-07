@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.sparkafka
 
 import java.time.LocalDate
 
-import com.github.chenharryhua.nanjin.codec.SparkafkaConsumerRecord
 import com.github.chenharryhua.nanjin.kafka.KafkaTimestamp
 import com.github.chenharryhua.nanjin.sparkdb.DatetimeInjectionInstances._
 import frameless.functions.aggregate.count

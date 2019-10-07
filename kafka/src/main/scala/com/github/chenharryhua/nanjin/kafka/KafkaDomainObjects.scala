@@ -54,7 +54,6 @@ final case class ListOfTopicPartitions(value: List[TopicPartition]) extends AnyV
     copy(value = value.mapValues(ev).mapFilter(identity))
 
   def topicPartitions: ListOfTopicPartitions = ListOfTopicPartitions(value.keys.toList)
-
 }
 
 final case class KafkaConsumerGroupId(value: String) extends AnyVal

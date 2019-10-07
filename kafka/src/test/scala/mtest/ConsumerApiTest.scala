@@ -14,7 +14,7 @@ class ConsumerApiTest extends AnyFunSuite {
   val consumer = ctx.topic(nyc_taxi_trip).consumer
 
   test("should be able to retrieve messages without error") {
-    consumer.numOfRecords.map(_.show).unsafeRunSync()
+    consumer.numOfRecords.unsafeRunSync()
     consumer.retrieveFirstRecords.map(_.map(_.show).mkString("\n")).unsafeRunSync()
     consumer.retrieveLastRecords.map(_.map(_.show).mkString("\n")).unsafeRunSync()
   }
@@ -22,6 +22,6 @@ class ConsumerApiTest extends AnyFunSuite {
     val topic = ctx.topic[Int, Int]("non-exist")
     val end   = LocalDateTime.now
     val start = end.minusHours(1)
-    topic.consumer.offsetRangeFor(start, end).map(_.show).map(println).unsafeRunSync()
+    topic.consumer.offsetRangeFor(start, end).map(println).unsafeRunSync()
   }
 }

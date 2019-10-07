@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.codec
+package com.github.chenharryhua.nanjin.sparkafka
 
 import cats.Bifunctor
 import monocle.macros.Lenses
