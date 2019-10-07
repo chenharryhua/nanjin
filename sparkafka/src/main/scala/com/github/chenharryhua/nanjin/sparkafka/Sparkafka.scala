@@ -57,7 +57,8 @@ object Sparkafka {
     Sync[F].delay {
       val ds = TypedDataset.createUnsafe[SparkafkaConsumerRecord[K, V]](
         spark.read.parquet(parquetPath(topic.topicName)))
-      ds.deserialized.filter(m => topic.timeRange.isInBetween(m.timestamp))
+      val inBetween = ds.makeUDF[Long, Boolean](topic.timeRange.isInBetween)
+      ds.filter(inBetween(ds('timestamp)))
     }
 
   private def parquetPath(topicName: String): String = s"./data/kafka/parquet/$topicName"
@@ -69,7 +70,7 @@ object Sparkafka {
   // upload to kafka
   def uploadToKafka[F[_]: ConcurrentEffect: Timer, K, V](
     data: TypedDataset[SparkafkaProducerRecord[K, V]],
-    topic: KafkaTopic[F, K, V],
+    topic: => KafkaTopic[F, K, V],
     batchSize: Int): Stream[F, Chunk[RecordMetadata]] =
     for {
       kb <- Keyboard.signal[F]
@@ -84,7 +85,7 @@ object Sparkafka {
 
   // load data from disk and then upload into kafka
   def replay[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
-    topic: KafkaTopic[F, K, V],
+    topic: => KafkaTopic[F, K, V],
     batchSize: Int    = 1000,
     isIntact: Boolean = true)(implicit spark: SparkSession): Stream[F, Chunk[RecordMetadata]] =
     for {
