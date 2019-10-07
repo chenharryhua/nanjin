@@ -34,22 +34,9 @@ final case class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] p
   adminSettings: AdminClientSettings[F],
   sharedConsumer: Eval[MVar[F, KafkaByteConsumer]],
   sharedProducer: Eval[KafkaByteProducer],
-  materializer: Eval[ActorMaterializer],
-  timeRange: KafkaDateTimeRange)
+  materializer: Eval[ActorMaterializer])
     extends TopicNameExtractor[K, V] {
   import topicDef.{serdeOfKey, serdeOfValue, showKey, showValue}
-
-  def withStartTime(dt: LocalDateTime): KafkaTopic[F, K, V] =
-    copy(timeRange = KafkaDateTimeRange.start.set(Some(KafkaTimestamp(dt)))(timeRange))
-
-  def withEndTime(dt: LocalDateTime): KafkaTopic[F, K, V] =
-    copy(timeRange = KafkaDateTimeRange.end.set(Some(KafkaTimestamp(dt)))(timeRange))
-
-  def withStartTime(dt: LocalDate): KafkaTopic[F, K, V] =
-    copy(timeRange = KafkaDateTimeRange.start.set(Some(KafkaTimestamp(dt)))(timeRange))
-
-  def withEndTime(dt: LocalDate): KafkaTopic[F, K, V] =
-    copy(timeRange = KafkaDateTimeRange.end.set(Some(KafkaTimestamp(dt)))(timeRange))
 
   val consumerGroupId: Option[KafkaConsumerGroupId] =
     KafkaConsumerSettings.props

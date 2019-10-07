@@ -17,6 +17,9 @@ import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
+import java.time.LocalDateTime
+import com.github.chenharryhua.nanjin.kafka.KafkaDateTimeRange
+import com.github.chenharryhua.nanjin.kafka.KafkaTimestamp
 
 object Sparkafka {
 
@@ -26,11 +29,13 @@ object Sparkafka {
       "value.deserializer" -> classOf[ByteArrayDeserializer].getName) ++
       remove(ConsumerConfig.CLIENT_ID_CONFIG)(maps)).mapValues[Object](identity).asJava
 
-  def datasetFromKafka[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
-    implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
+  def datasetFromKafka[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
+    topic: => KafkaTopic[F, K, V],
+    dateRange: KafkaDateTimeRange
+  )(implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
     Sync[F].suspend {
       topic.consumer
-        .offsetRangeFor(topic.timeRange)
+        .offsetRangeFor(dateRange)
         .map { gtp =>
           KafkaUtils
             .createRDD[Array[Byte], Array[Byte]](
@@ -61,7 +66,8 @@ object Sparkafka {
 
   def saveToDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
     implicit spark: SparkSession): F[Unit] =
-    datasetFromKafka(topic).map(_.write.parquet(parquetPath(topic.topicName)))
+    datasetFromKafka(topic, KafkaDateTimeRange(None, None))
+      .map(_.write.parquet(parquetPath(topic.topicName)))
 
   // upload to kafka
   def uploadToKafka[F[_]: ConcurrentEffect: Timer, K, V](
