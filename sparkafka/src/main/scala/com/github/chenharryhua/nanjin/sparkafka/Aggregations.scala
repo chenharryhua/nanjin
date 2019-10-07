@@ -44,5 +44,8 @@ trait Aggregations {
 
     def nullValues: TypedDataset[SparkafkaConsumerRecord[K, V]] =
       tds.filter(tds('value).isNone)
+
+    def nullKeys: TypedDataset[SparkafkaConsumerRecord[K, V]] =
+      tds.filter(tds('key).isNone)
   }
 }
