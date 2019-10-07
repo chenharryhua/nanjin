@@ -25,10 +25,4 @@ class KafkaAvroTest extends AnyFunSuite {
   test("should throw InvalidObjectException when codec does not match") {
     assertThrows[InvalidObjectException](barCode.decode(fooCodec.encode(Foo("a", 0))))
   }
-  test("configurable") {
-    new KafkaSerdeAvro[Foo].configure(sr.asJava, false)
-  }
-  test("closeable") {
-    new KafkaSerdeAvro[Foo].close()
-  }
 }

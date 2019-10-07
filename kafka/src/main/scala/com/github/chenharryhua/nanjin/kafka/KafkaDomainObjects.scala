@@ -138,6 +138,17 @@ object KafkaTimestamp {
   start: Option[KafkaTimestamp],
   end: Option[KafkaTimestamp]) {
 
+  def isInBetween(ts: Long): Boolean = (start, end) match {
+    case (Some(s), Some(e)) => ts >= s.milliseconds && ts < e.milliseconds
+    case (Some(s), None)    => ts >= s.milliseconds
+    case (None, Some(e))    => ts < e.milliseconds
+    case (None, None)       => true
+  }
+
   def duration: Option[FiniteDuration] =
     (start, end).mapN((s, e) => Duration(e.milliseconds - s.milliseconds, TimeUnit.MILLISECONDS))
+
+  def show: String =
+    s"""KafkaDateTimeRange(start = ${start.map(_.local)}, end = ${end.map(_.local)}, duration = ${duration
+      .map(_.toUnit(TimeUnit.HOURS))} hours"""
 }
