@@ -77,7 +77,7 @@ sealed private[codec] trait SerdeOfPriority0 {
   import com.sksamuel.avro4s.{Decoder, Encoder}
 
   implicit def kavroSerde[A: Encoder: Decoder: SchemaFor]: SerdeOf[A] = {
-    val serde: Serde[A] = new KafkaSerdeAvro[A]
+    val serde: Serde[A] = new KafkaSerdeAvro[A](AvroSchema[A])
     new SerdeOf[A](AvroSchema[A]) {
       override val deserializer: Deserializer[A] = serde.deserializer
       override val serializer: Serializer[A]     = serde.serializer

@@ -8,9 +8,8 @@ import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 
 import scala.util.{Failure, Success, Try}
 
-final class KafkaSerdeAvro[A: Encoder: Decoder: SchemaFor] extends Serde[A] {
-  private[this] val format: RecordFormat[A]        = RecordFormat[A]
-  private[this] val schema: Schema                 = AvroSchema[A]
+final class KafkaSerdeAvro[A: Encoder: Decoder](schema: Schema) extends Serde[A] {
+  private[this] val format: RecordFormat[A]        = RecordFormat[A](schema)
   private[this] val ser: GenericAvroSerializer     = new GenericAvroSerializer
   private[this] val deSer: GenericAvroDeserializer = new GenericAvroDeserializer
 
@@ -44,6 +43,7 @@ final class KafkaSerdeAvro[A: Encoder: Decoder: SchemaFor] extends Serde[A] {
     ser.close()
     deSer.close()
   }
+
   override def configure(configs: java.util.Map[String, _], isKey: Boolean): Unit = {
     ser.configure(configs, isKey)
     deSer.configure(configs, isKey)
