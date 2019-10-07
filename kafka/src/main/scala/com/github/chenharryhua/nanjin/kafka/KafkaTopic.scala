@@ -51,6 +51,12 @@ final case class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] p
   def withEndTime(dt: LocalDate): KafkaTopic[F, K, V] =
     copy(timeRange = KafkaDateTimeRange.end.set(Some(KafkaTimestamp(dt)))(timeRange))
 
+  def withOneDay(date: LocalDate): KafkaTopic[F, K, V] = {
+    val s = Some(KafkaTimestamp(date))
+    val e = Some(KafkaTimestamp(date.plusDays(1)))
+    copy(timeRange = KafkaDateTimeRange(s, e))
+  }
+
   val consumerGroupId: Option[KafkaConsumerGroupId] =
     KafkaConsumerSettings.props
       .composeLens(At.at(ConsumerConfig.GROUP_ID_CONFIG))
