@@ -1,11 +1,25 @@
 package com.github.chenharryhua.nanjin.codec
 
-import org.apache.avro.Schema
 import cats.tagless.finalAlg
-import com.sksamuel.avro4s.SchemaFor
+import com.sksamuel.avro4s.{AvroSchema, Decoder, Encoder, SchemaFor}
+import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType
+import org.apache.avro.{Schema, SchemaCompatibility}
 
 @finalAlg
-trait ManualSchema[A] {
+abstract class ManualSchema[A: SchemaFor](
+  implicit val decoder: Decoder[A],
+  val encoder: Encoder[A]) {
   def schema: Schema
-  final def validate(implicit ev: SchemaFor[A]): Boolean = false
+
+  final def isCompatiable: Boolean =
+    SchemaCompatibility
+      .checkReaderWriterCompatibility(schema, AvroSchema[A])
+      .getResult
+      .getCompatibility == SchemaCompatibilityType.COMPATIBLE &&
+      SchemaCompatibility
+        .checkReaderWriterCompatibility(AvroSchema[A], schema)
+        .getResult
+        .getCompatibility == SchemaCompatibilityType.COMPATIBLE
+
+  require(isCompatiable)
 }
