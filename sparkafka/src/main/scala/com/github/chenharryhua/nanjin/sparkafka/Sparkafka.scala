@@ -4,7 +4,6 @@ import java.util
 
 import cats.effect.{ConcurrentEffect, Sync, Timer}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec._
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, Keyboard}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.{Chunk, Stream}
@@ -90,10 +89,7 @@ object Sparkafka {
     isIntact: Boolean = true)(implicit spark: SparkSession): Stream[F, Chunk[RecordMetadata]] =
     for {
       ds <- Stream.eval(datasetFromDisk[F, K, V](topic))
-      sorted = ds.orderBy(ds('timestamp).asc, ds('offset).asc).deserialized.map { scr =>
-        if (isIntact) scr.toSparkafkaProducerRecord
-        else scr.toSparkafkaProducerRecord.withoutPartition.withoutTimestamp
-      }
-      res <- uploadToKafka(sorted, topic, batchSize)
+      prs = if (isIntact) ds.toIntactProducerRecord else ds.toCleanedProducerRecord
+      res <- uploadToKafka(prs, topic, batchSize)
     } yield res
 }

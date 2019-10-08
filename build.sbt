@@ -49,7 +49,7 @@ lazy val commonSettings = Seq(
     Resolver.sonatypeRepo("releases"),
     "Confluent Maven Repo".at("https://packages.confluent.io/maven/")
   ),
-  addCompilerPlugin("org.typelevel" %% "kind-projector"  % "0.10.3"),
+  addCompilerPlugin("org.typelevel" %% "kind-projector"  % "0.11.0" cross CrossVersion.full),
   addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
   addCompilerPlugin(("org.scalamacros" %% "paradise" % "2.1.1").cross(CrossVersion.full)),
   libraryDependencies ++= Seq(
