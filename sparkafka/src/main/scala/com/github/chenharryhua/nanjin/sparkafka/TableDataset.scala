@@ -1,12 +1,15 @@
-package com.github.chenharryhua.nanjin.sparkdb
+package com.github.chenharryhua.nanjin.sparkafka
+
 import cats.effect.{Concurrent, ContextShift, Sync}
-import doobie.Fragment
 import doobie.free.connection.ConnectionIO
 import doobie.implicits._
 import doobie.util.Read
+import doobie.util.fragment.Fragment
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import org.apache.spark.sql.{SaveMode, SparkSession}
+import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import cats.implicits._
 
 final case class TableDef[A](tableName: String)(
   implicit
@@ -57,6 +60,13 @@ final case class TableDataset[F[_]: ContextShift: Concurrent, A](
     val opts = FileFormat.Parquet.defaultOptions ++ sparkOptions
     uploadToDB(TypedDataset.createUnsafe[A](spark.read.options(opts).parquet(path)))
   }
+
+  def uploadTopic[K: TypedEncoder](topic: => KafkaTopic[F, K, A])(
+    implicit spark: SparkSession): F[Unit] =
+    Sparkafka
+      .datasetFromKafka(topic)
+      .map(ds => ds.select(ds('value)).deserialized.flatMap(x => x))
+      .flatMap(uploadToDB)
 
   def uploadToDB(data: TypedDataset[A]): F[Unit] =
     Sync[F].delay(

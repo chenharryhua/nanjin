@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.sparkdb
+package com.github.chenharryhua.nanjin.sparkafka
 
 import java.sql.{Date, Timestamp}
 import java.time._
@@ -9,8 +9,10 @@ import org.apache.spark.sql.catalyst.util.DateTimeUtils
 
 object DatetimeInjectionInstances {
   private val zoneId: ZoneId = ZoneId.systemDefault()
+
 //typed-spark
   implicit object javaSQLTimestampInjection extends Injection[Timestamp, SQLTimestamp] {
+
     override def apply(a: Timestamp): SQLTimestamp =
       SQLTimestamp(DateTimeUtils.fromJavaTimestamp(a))
     override def invert(b: SQLTimestamp): Timestamp = DateTimeUtils.toJavaTimestamp(b.us)

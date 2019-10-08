@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.sparkdb
+package com.github.chenharryhua.nanjin.sparkafka
 
 import cats.effect.{Async, Blocker, Concurrent, ContextShift, Resource, Timer}
 import cats.implicits._
@@ -94,8 +94,10 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
   private val url: String        = s"jdbc:redshift://${host.value}:${port.value}/${database.value}"
   private val credential: String = s"user=${username.value}&password=${password.value}"
   private val ssl: String        = "ssl=true&sslfactory=com.amazon.redshift.ssl.NonValidatingFactory"
+
   override val connStr: DatabaseConnectionString =
     DatabaseConnectionString(s"$url?$credential&$ssl")
+
   override val driver: DatabaseDriverString =
     DatabaseDriverString("com.amazon.redshift.jdbc42.Driver")
 }
@@ -107,9 +109,11 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
   port: DatabasePort,
   database: DatabaseName)
     extends DatabaseSettings(username, password) {
+
   override val connStr: DatabaseConnectionString =
     DatabaseConnectionString(
       s"jdbc:sqlserver://${host.value}:${port.value};databaseName=${database.value}")
+
   override val driver: DatabaseDriverString =
     DatabaseDriverString("com.microsoft.sqlserver.jdbc.SQLServerDriver")
 }

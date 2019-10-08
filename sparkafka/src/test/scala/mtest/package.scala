@@ -1,6 +1,6 @@
 import cats.effect.{ContextShift, IO, Resource, Timer}
 import com.github.chenharryhua.nanjin.kafka.{IoKafkaContext, KafkaSettings}
-import com.github.chenharryhua.nanjin.sparkdb.SparkSettings
+import com.github.chenharryhua.nanjin.sparkafka.SparkSettings
 import org.apache.spark.sql.SparkSession
 
 import scala.concurrent.ExecutionContext.Implicits.global

@@ -38,7 +38,7 @@ val jline    = "3.12.1"
 val scalatest = "3.0.8"
 
 val doobie = "0.8.4"
-val quill  = "3.4.9"
+val quill  = "3.4.10"
 
 lazy val commonSettings = Seq(
   version      := "0.0.1-SNAPSHOT",
@@ -199,27 +199,16 @@ lazy val kafka = (project in file("kafka"))
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
 
-lazy val sparkdb = (project in file("sparkdb"))
-  .settings(commonSettings: _*)
-  .settings(name := "sparkdb")
-  .settings(
-    libraryDependencies ++= base ++ monocle ++ effect ++ spark ++ frameless ++ db ++ tests,
-    dependencyOverrides ++= Seq(
-      "com.fasterxml.jackson.core"  % "jackson-databind" % "2.6.7.2",
-      "org.json4s" %% "json4s-core" % "3.5.5")
-  )
-
 lazy val sparkafka = (project in file("sparkafka"))
   .dependsOn(kafka)
-  .dependsOn(sparkdb)
   .settings(commonSettings: _*)
   .settings(name := "sparkafka")
   .settings(
-    libraryDependencies ++= tests,
+    libraryDependencies ++= spark ++ frameless ++ db ++ tests,
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core"  % "jackson-databind" % "2.6.7.2",
       "org.json4s" %% "json4s-core" % "3.5.5")
   )
 
 lazy val nanjin =
-  (project in file(".")).settings(name := "nanjin").aggregate(codec, kafka, sparkdb, sparkafka)
+  (project in file(".")).settings(name := "nanjin").aggregate(codec, kafka, sparkafka)

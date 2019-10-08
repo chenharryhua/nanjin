@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.sparkafka
 import java.time.LocalDate
 
 import com.github.chenharryhua.nanjin.kafka.KafkaTimestamp
-import com.github.chenharryhua.nanjin.sparkdb.DatetimeInjectionInstances._
+import DatetimeInjectionInstances._
 import frameless.functions.aggregate.count
 import frameless.{TypedDataset, TypedEncoder}
 

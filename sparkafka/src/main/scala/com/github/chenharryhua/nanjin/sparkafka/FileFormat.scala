@@ -1,10 +1,10 @@
-package com.github.chenharryhua.nanjin.sparkdb
+package com.github.chenharryhua.nanjin.sparkafka
 
-sealed private[sparkdb] trait FileFormat {
+sealed private[sparkafka] trait FileFormat {
   def defaultOptions: Map[String, String]
 }
 
-private[sparkdb] object FileFormat {
+private[sparkafka] object FileFormat {
 
   case object Json extends FileFormat {
     val defaultOptions: Map[String, String] = Map.empty
