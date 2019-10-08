@@ -3,7 +3,14 @@ package com.github.chenharryhua.nanjin.codec
 import java.{util => ju}
 
 import cats.tagless.autoInvariant
-import com.sksamuel.avro4s.{AvroSchema, DefaultFieldMapper, SchemaFor}
+import com.sksamuel.avro4s.{
+  AvroSchema,
+  DefaultFieldMapper,
+  SchemaFor,
+  Encoder => AvroEncoder,
+  Decoder => AvroDecoder
+}
+import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import monocle.Prism
 import org.apache.avro.Schema
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
@@ -17,18 +24,22 @@ import scala.util.{Failure, Try}
 sealed trait KafkaCodec[A] {
   def encode(a: A): Array[Byte]
   def decode(ab: Array[Byte]): A
+
   final def tryDecode(ab: Array[Byte]): Try[A] =
     Option(ab).fold[Try[A]](Failure(CodecException.DecodingNullException))(x => Try(decode(x)))
+
   final val prism: Prism[Array[Byte], A] =
     Prism[Array[Byte], A](x => Try(decode(x)).toOption)(encode)
 }
 
 sealed abstract class KafkaSerde[A](serializer: Serializer[A], deserializer: Deserializer[A])
     extends Serde[A] {
+
   final override def configure(configs: ju.Map[String, _], isKey: Boolean): Unit = {
     serializer.configure(configs, isKey)
     deserializer.configure(configs, isKey)
   }
+
   final override def close(): Unit = {
     serializer.close()
     deserializer.close()
@@ -74,9 +85,7 @@ sealed abstract class SerdeOf[A](schema: Schema) extends Serializable {
 
 sealed private[codec] trait SerdeOfPriority0 {
 
-  import com.sksamuel.avro4s.{Decoder, Encoder}
-
-  implicit def kavroSerde[A: Encoder: Decoder: SchemaFor]: SerdeOf[A] = {
+  implicit def kavroSerde[A: AvroDecoder: AvroEncoder: SchemaFor]: SerdeOf[A] = {
     val serde: Serde[A] = new KafkaSerdeAvro[A](AvroSchema[A])
     new SerdeOf[A](AvroSchema[A]) {
       override val deserializer: Deserializer[A] = serde.deserializer
@@ -92,9 +101,7 @@ sealed private[codec] trait SerdeOfPriority0 {
 
 sealed private[codec] trait SerdeOfPriority1 extends SerdeOfPriority0 {
 
-  import io.circe.{Decoder, Encoder}
-
-  implicit def kjsonSerde[A: Decoder: Encoder]: SerdeOf[KJson[A]] = {
+  implicit def kjsonSerde[A: JsonDecoder: JsonEncoder]: SerdeOf[KJson[A]] = {
     val serde: Serde[KJson[A]] = new KafkaSerdeJson[A]
     new SerdeOf[KJson[A]](SchemaFor[String].schema(DefaultFieldMapper)) {
       override val deserializer: Deserializer[KJson[A]] = serde.deserializer()
