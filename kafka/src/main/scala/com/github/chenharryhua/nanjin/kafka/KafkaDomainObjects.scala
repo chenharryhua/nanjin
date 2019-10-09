@@ -105,6 +105,10 @@ object KafkaTimestamp {
     case (None, None)       => true
   }
 
-  def duration: Option[FiniteDuration] =
+  val duration: Option[FiniteDuration] =
     (start, end).mapN((s, e) => Duration(e.milliseconds - s.milliseconds, TimeUnit.MILLISECONDS))
+
+  require(
+    duration.forall(_.length > 0),
+    s"start time(${start.map(_.local)}) should be strictly before end time(${end.map(_.local)}).")
 }

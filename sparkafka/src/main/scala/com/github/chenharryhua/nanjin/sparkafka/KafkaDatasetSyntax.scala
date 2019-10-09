@@ -2,13 +2,12 @@ package com.github.chenharryhua.nanjin.sparkafka
 
 import java.time.LocalDate
 
-import com.github.chenharryhua.nanjin.kafka.{KafkaTimestamp, KafkaTopic}
-import DatetimeInjectionInstances._
-import cats.effect.{Concurrent, Timer}
+import cats.effect.{ConcurrentEffect, Timer}
+import com.github.chenharryhua.nanjin.kafka.{ConversionStrategy, KafkaTimestamp, KafkaTopic}
+import com.github.chenharryhua.nanjin.sparkafka.DatetimeInjectionInstances._
 import frameless.functions.aggregate.count
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SparkSession
-import cats.effect.ConcurrentEffect
 
 final case class MinutelyAggResult(minute: Int, count: Long)
 final case class HourlyAggResult(hour: Int, count: Long)
@@ -55,19 +54,22 @@ trait KafkaDatasetSyntax {
     def dbUpload[F[_]](db: TableDataset[F, V])(implicit spark: SparkSession): F[Unit] =
       db.uploadToDB(values)
 
-    def toIntactProducerRecord: TypedDataset[SparkafkaProducerRecord[K, V]] =
-      tds.orderBy(tds('timestamp).asc, tds('offset).asc).deserialized.map { scr =>
-        scr.toSparkafkaProducerRecord
+    def producerRecords[F[_]](
+      topic: => KafkaTopic[F, K, V]): TypedDataset[SparkafkaProducerRecord[K, V]] = {
+      val sorted = tds.orderBy(tds('timestamp).asc, tds('offset).asc)
+      topic.sparkafkaConf.conversionStrategy match {
+        case ConversionStrategy.Intact =>
+          sorted.deserialized.map(_.toSparkafkaProducerRecord)
+        case ConversionStrategy.RemovePartition =>
+          sorted.deserialized.map(_.toSparkafkaProducerRecord.withoutPartition)
+        case ConversionStrategy.RemoveTimestamp =>
+          sorted.deserialized.map(_.toSparkafkaProducerRecord.withoutTimestamp)
+        case ConversionStrategy.RemovePartitionAndTimestamp =>
+          sorted.deserialized.map(_.toSparkafkaProducerRecord.withoutTimestamp.withoutPartition)
       }
-
-    def toCleanedProducerRecord: TypedDataset[SparkafkaProducerRecord[K, V]] =
-      toIntactProducerRecord.deserialized.map(_.withoutPartition.withoutTimestamp)
-
-    def kafkaUpload[F[_]: ConcurrentEffect: Timer](topic: => KafkaTopic[F, K, V]): F[Unit] = {
-      val sorted = tds.orderBy(tds('timestamp).asc, tds('offset).asc).deserialized.map { scr =>
-        scr.toSparkafkaProducerRecord
-      }
-      Sparkafka.uploadToKafka[F, K, V](toIntactProducerRecord, topic, 5000).compile.drain
     }
+
+    def kafkaUpload[F[_]: ConcurrentEffect: Timer](topic: => KafkaTopic[F, K, V]): F[Unit] =
+      Sparkafka.uploadToKafka[F, K, V](producerRecords(topic), topic).compile.drain
   }
 }

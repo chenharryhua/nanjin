@@ -15,7 +15,6 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies}
 
 import scala.collection.JavaConverters._
-import scala.concurrent.duration._
 
 object Sparkafka {
 
@@ -30,7 +29,7 @@ object Sparkafka {
   )(implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
     Sync[F].suspend {
       topic.consumer
-        .offsetRangeFor(topic.timeRange)
+        .offsetRangeFor(topic.sparkafkaConf.timeRange)
         .map { gtp =>
           KafkaUtils
             .createRDD[Array[Byte], Array[Byte]](
@@ -56,7 +55,7 @@ object Sparkafka {
     Sync[F].delay {
       val ds = TypedDataset.createUnsafe[SparkafkaConsumerRecord[K, V]](
         spark.read.parquet(parquetPath(topic.topicName)))
-      val inBetween = ds.makeUDF[Long, Boolean](topic.timeRange.isInBetween)
+      val inBetween = ds.makeUDF[Long, Boolean](topic.sparkafkaConf.timeRange.isInBetween)
       ds.filter(inBetween(ds('timestamp)))
     }
 
@@ -69,14 +68,13 @@ object Sparkafka {
   // upload to kafka
   def uploadToKafka[F[_]: ConcurrentEffect: Timer, K, V](
     data: TypedDataset[SparkafkaProducerRecord[K, V]],
-    topic: => KafkaTopic[F, K, V],
-    batchSize: Int): Stream[F, Chunk[RecordMetadata]] =
+    topic: => KafkaTopic[F, K, V]): Stream[F, Chunk[RecordMetadata]] =
     for {
       kb <- Keyboard.signal[F]
       ck <- Stream
         .fromIterator[F](data.dataset.toLocalIterator().asScala)
-        .chunkN(batchSize)
-        .zipLeft(Stream.fixedRate(1.second))
+        .chunkN(topic.sparkafkaConf.uploadRate.batchSize)
+        .zipLeft(Stream.fixedRate(topic.sparkafkaConf.uploadRate.duration))
         .evalMap(r => topic.producer.send(r.mapFilter(Option(_).map(_.toProducerRecord))))
         .pauseWhen(kb.map(_.contains(Keyboard.pauSe)))
         .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
@@ -84,12 +82,9 @@ object Sparkafka {
 
   // load data from disk and then upload into kafka
   def replay[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
-    topic: => KafkaTopic[F, K, V],
-    batchSize: Int    = 1000,
-    isIntact: Boolean = true)(implicit spark: SparkSession): Stream[F, Chunk[RecordMetadata]] =
+    topic: => KafkaTopic[F, K, V])(implicit spark: SparkSession): Stream[F, Chunk[RecordMetadata]] =
     for {
       ds <- Stream.eval(datasetFromDisk[F, K, V](topic))
-      prs = if (isIntact) ds.toIntactProducerRecord else ds.toCleanedProducerRecord
-      res <- uploadToKafka(prs, topic, batchSize)
+      res <- uploadToKafka(ds.producerRecords(topic), topic)
     } yield res
 }

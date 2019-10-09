@@ -1,7 +1,5 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import java.time.{LocalDate, LocalDateTime}
-
 import akka.stream.ActorMaterializer
 import cats.effect.concurrent.MVar
 import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
@@ -26,7 +24,7 @@ final case class TopicDef[K, V](topicName: String)(
     ctx.topic[K, V](this)
 }
 
-final case class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] private[kafka] (
+final case class KafkaTopic[F[_], K, V] private[kafka] (
   topicDef: TopicDef[K, V],
   schemaRegistrySettings: SchemaRegistrySettings,
   kafkaConsumerSettings: KafkaConsumerSettings,
@@ -35,27 +33,13 @@ final case class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] p
   sharedConsumer: Eval[MVar[F, KafkaByteConsumer]],
   sharedProducer: Eval[KafkaByteProducer],
   materializer: Eval[ActorMaterializer],
-  timeRange: KafkaDateTimeRange)
-    extends TopicNameExtractor[K, V] {
+  sparkafkaConf: SparkafkaConf)(
+  implicit
+  val concurrentEffect: ConcurrentEffect[F],
+  val contextShift: ContextShift[F],
+  val timer: Timer[F])
+    extends TopicNameExtractor[K, V] with SparkafkaModule[F, K, V] {
   import topicDef.{serdeOfKey, serdeOfValue, showKey, showValue}
-
-  def withStartTime(dt: LocalDateTime): KafkaTopic[F, K, V] =
-    copy(timeRange = KafkaDateTimeRange.start.set(Some(KafkaTimestamp(dt)))(timeRange))
-
-  def withEndTime(dt: LocalDateTime): KafkaTopic[F, K, V] =
-    copy(timeRange = KafkaDateTimeRange.end.set(Some(KafkaTimestamp(dt)))(timeRange))
-
-  def withStartTime(dt: LocalDate): KafkaTopic[F, K, V] =
-    copy(timeRange = KafkaDateTimeRange.start.set(Some(KafkaTimestamp(dt)))(timeRange))
-
-  def withEndTime(dt: LocalDate): KafkaTopic[F, K, V] =
-    copy(timeRange = KafkaDateTimeRange.end.set(Some(KafkaTimestamp(dt)))(timeRange))
-
-  def withOneDay(date: LocalDate): KafkaTopic[F, K, V] = {
-    val s = Some(KafkaTimestamp(date))
-    val e = Some(KafkaTimestamp(date.plusDays(1)))
-    copy(timeRange = KafkaDateTimeRange(s, e))
-  }
 
   val consumerGroupId: Option[KafkaConsumerGroupId] =
     KafkaConsumerSettings.props
