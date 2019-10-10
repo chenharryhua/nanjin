@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.codec
 import java.io.File
 
 import cats.implicits._
-import com.sksamuel.avro4s.{AvroSchema, SchemaFor}
+import com.sksamuel.avro4s.{AvroSchema, Decoder => AvroDecoder, Encoder => AvroEncoder, SchemaFor}
 import diffson._
 import diffson.circe._
 import diffson.jsonpatch._
@@ -15,8 +15,13 @@ import io.circe.{Json, ParsingFailure}
 import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType
 import org.apache.avro.{Schema, SchemaCompatibility}
 
-final case class KafkaAvroSchema(schema: Schema) {
+abstract class KafkaAvroSchema[A: SchemaFor](val schema: Schema)(
+  implicit
+  val decoder: AvroDecoder[A],
+  val encoder: AvroEncoder[A]) {
   implicit val lcs: Patience[Json] = new Patience[Json]
+
+  private val inferedSchema: Schema = AvroSchema[A]
 
   private def cleanupJsonDocument: Json => Json = {
     val noVersion   = root.at("version").set(None)
@@ -25,26 +30,31 @@ final case class KafkaAvroSchema(schema: Schema) {
     noVersion.andThen(noDoc).andThen(noJavaClass)
   }
 
-  def isSame(other: KafkaAvroSchema): Either[ParsingFailure, JsonPatch[Json]] =
-    (parse(schema.toString()), parse(other.schema.toString)).mapN { (f, s) =>
+  def isSame: Either[ParsingFailure, JsonPatch[Json]] =
+    (parse(schema.toString()), parse(inferedSchema.toString)).mapN { (f, s) =>
       diff(cleanupJsonDocument(f), cleanupJsonDocument(s))
     }
 
-  def isCompatiable(other: KafkaAvroSchema): Boolean =
+  def isCompatiable: Boolean =
     SchemaCompatibility
-      .checkReaderWriterCompatibility(schema, other.schema)
+      .checkReaderWriterCompatibility(schema, inferedSchema)
       .getResult
       .getCompatibility == SchemaCompatibilityType.COMPATIBLE &&
       SchemaCompatibility
-        .checkReaderWriterCompatibility(other.schema, schema)
+        .checkReaderWriterCompatibility(inferedSchema, schema)
         .getResult
         .getCompatibility == SchemaCompatibilityType.COMPATIBLE
 
 }
 
 object KafkaAvroSchema {
-  val parser: Schema.Parser                = new Schema.Parser
-  def apply(str: String): KafkaAvroSchema  = new KafkaAvroSchema(parser.parse(str))
-  def apply(file: File): KafkaAvroSchema   = new KafkaAvroSchema(parser.parse(file))
-  def apply[A: SchemaFor]: KafkaAvroSchema = new KafkaAvroSchema(AvroSchema[A])
+  val parser: Schema.Parser = new Schema.Parser
+
+  def apply[A](implicit ev: KafkaAvroSchema[A]): KafkaAvroSchema[A] = ev
+
+  def apply[A: AvroDecoder: AvroEncoder: SchemaFor](str: String): KafkaAvroSchema[A] =
+    new KafkaAvroSchema[A](parser.parse(str)) {}
+
+  def apply[A: AvroDecoder: AvroEncoder: SchemaFor](file: File): KafkaAvroSchema[A] =
+    new KafkaAvroSchema[A](parser.parse(file)) {}
 }
