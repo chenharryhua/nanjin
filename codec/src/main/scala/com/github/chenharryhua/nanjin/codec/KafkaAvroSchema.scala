@@ -15,13 +15,13 @@ import io.circe.{Json, ParsingFailure}
 import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType
 import org.apache.avro.{Schema, SchemaCompatibility}
 
-abstract class KafkaAvroSchema[A: SchemaFor](val schema: Schema)(
+sealed abstract class KafkaAvroSchema[A: SchemaFor](val schema: Schema)(
   implicit
   val decoder: AvroDecoder[A],
   val encoder: AvroEncoder[A]) {
   implicit val lcs: Patience[Json] = new Patience[Json]
 
-  private val inferedSchema: Schema = AvroSchema[A]
+  private val inferredSchema: Schema = AvroSchema[A]
 
   private def cleanupJsonDocument: Json => Json = {
     val noVersion   = root.at("version").set(None)
@@ -31,30 +31,43 @@ abstract class KafkaAvroSchema[A: SchemaFor](val schema: Schema)(
   }
 
   def isSame: Either[ParsingFailure, JsonPatch[Json]] =
-    (parse(schema.toString()), parse(inferedSchema.toString)).mapN { (f, s) =>
+    (parse(schema.toString()), parse(inferredSchema.toString)).mapN { (f, s) =>
       diff(cleanupJsonDocument(f), cleanupJsonDocument(s))
     }
 
   def isCompatiable: Boolean =
     SchemaCompatibility
-      .checkReaderWriterCompatibility(schema, inferedSchema)
+      .checkReaderWriterCompatibility(schema, inferredSchema)
       .getResult
       .getCompatibility == SchemaCompatibilityType.COMPATIBLE &&
       SchemaCompatibility
-        .checkReaderWriterCompatibility(inferedSchema, schema)
+        .checkReaderWriterCompatibility(inferredSchema, schema)
         .getResult
         .getCompatibility == SchemaCompatibilityType.COMPATIBLE
 
+  require(
+    isSame.exists(_.ops.isEmpty),
+    s"""
+    |input schema is not semantically identical to inferred schema. 
+    |input schema:
+    |${schema.toString()}
+    |inferred schema:
+    |${inferredSchema.toString()}
+    """.stripMargin
+  )
 }
 
 object KafkaAvroSchema {
-  val parser: Schema.Parser = new Schema.Parser
 
   def apply[A](implicit ev: KafkaAvroSchema[A]): KafkaAvroSchema[A] = ev
 
-  def apply[A: AvroDecoder: AvroEncoder: SchemaFor](str: String): KafkaAvroSchema[A] =
+  def apply[A: AvroDecoder: AvroEncoder: SchemaFor](str: String): KafkaAvroSchema[A] = {
+    val parser: Schema.Parser = new Schema.Parser
     new KafkaAvroSchema[A](parser.parse(str)) {}
+  }
 
-  def apply[A: AvroDecoder: AvroEncoder: SchemaFor](file: File): KafkaAvroSchema[A] =
+  def apply[A: AvroDecoder: AvroEncoder: SchemaFor](file: File): KafkaAvroSchema[A] = {
+    val parser: Schema.Parser = new Schema.Parser
     new KafkaAvroSchema[A](parser.parse(file)) {}
+  }
 }
