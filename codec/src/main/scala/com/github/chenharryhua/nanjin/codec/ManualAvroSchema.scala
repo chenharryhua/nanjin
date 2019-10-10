@@ -9,24 +9,16 @@ import diffson.circe._
 import diffson.jsonpatch._
 import diffson.jsonpatch.lcsdiff._
 import diffson.lcs.Patience
-import higherkindness.skeuomorph.avro.AvroF
 import io.circe.optics.JsonPath._
 import io.circe.parser._
 import io.circe.{Json, ParsingFailure}
-import monocle.{Lens, Optional, POptional, Prism}
-import monocle.macros.{GenLens, GenPrism}
 import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType
 import org.apache.avro.{Schema, SchemaCompatibility}
-import higherkindness.skeuomorph.avro.AvroF.TRecord
 
 sealed abstract class ManualAvroSchema[A: SchemaFor](val schema: Schema)(
   implicit
   val decoder: AvroDecoder[A],
   val encoder: AvroEncoder[A]) {
-
-  val trecordLens: Lens[AvroF.TRecord[A], Option[String]] = GenLens[AvroF.TRecord[A]](_.doc)
-  val avroFPrism: Prism[AvroF[A], AvroF.TRecord[A]]       = GenPrism[AvroF[A], AvroF.TRecord[A]]
-  val avroOptional: Optional[AvroF[A], Option[String]]    = avroFPrism.composeLens(trecordLens)
 
   implicit val lcs: Patience[Json] = new Patience[Json]
 

@@ -108,7 +108,7 @@ val avro = Seq(
     "com.sksamuel.avro4s" %% "avro4s-core" % avro4s,
     ("io.confluent" % "kafka-streams-avro-serde" % "5.3.1").classifier(""),
     "com.julianpeeters" %% "avrohugger-core" % avrohugger,
-    "io.higherkindness" %% "skeuomorph" % "0.0.15"
+    "io.higherkindness" %% "skeuomorph" % "0.0.15" 
   )
 
 val spark = Seq(

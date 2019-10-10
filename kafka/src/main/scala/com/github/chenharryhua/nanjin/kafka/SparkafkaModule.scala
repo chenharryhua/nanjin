@@ -69,6 +69,9 @@ private[kafka] trait SparkafkaModule[F[_], K, V] { self: KafkaTopic[F, K, V] =>
   def withStartTime(dt: Instant): KafkaTopic[F, K, V]       = setStartTime(KafkaTimestamp(dt))
   def withEndTime(dt: Instant): KafkaTopic[F, K, V]         = setEndTime(KafkaTimestamp(dt))
 
+  def withinOneDay(dt: LocalDate): KafkaTopic[F, K, V] =
+    withStartTime(dt).withEndTime(dt.plusDays(1))
+
   def withUploadRate(batchSize: Int, duration: FiniteDuration): KafkaTopic[F, K, V] =
     self.copy(
       sparkafkaConf =
