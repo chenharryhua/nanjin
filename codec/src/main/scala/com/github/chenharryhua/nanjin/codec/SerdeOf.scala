@@ -109,8 +109,8 @@ sealed private[codec] trait SerdeOfPriority1 extends SerdeOfPriority0 {
     }
   }
 
-  implicit def kmanualavroSerde[A: KafkaAvroSchema]: SerdeOf[A] = {
-    val inst: KafkaAvroSchema[A] = KafkaAvroSchema[A]
+  implicit def kmanualavroSerde[A: ManualAvroSchema]: SerdeOf[A] = {
+    val inst: ManualAvroSchema[A] = ManualAvroSchema[A]
     import inst.{decoder, encoder}
     val serde: Serde[A] = new KafkaSerdeAvro[A](inst.schema)
     new SerdeOf[A](inst.schema) {

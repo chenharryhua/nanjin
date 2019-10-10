@@ -15,7 +15,7 @@ import io.circe.{Json, ParsingFailure}
 import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType
 import org.apache.avro.{Schema, SchemaCompatibility}
 
-sealed abstract class KafkaAvroSchema[A: SchemaFor](val schema: Schema)(
+sealed abstract class ManualAvroSchema[A: SchemaFor](val schema: Schema)(
   implicit
   val decoder: AvroDecoder[A],
   val encoder: AvroEncoder[A]) {
@@ -48,26 +48,26 @@ sealed abstract class KafkaAvroSchema[A: SchemaFor](val schema: Schema)(
   require(
     isSame.exists(_.ops.isEmpty),
     s"""
-    |input schema is not semantically identical to inferred schema. 
-    |input schema:
-    |${schema.toString()}
-    |inferred schema:
-    |${inferredSchema.toString()}
+       |input schema is not semantically identical to inferred schema. 
+       |input schema:
+       |${schema.toString()}
+       |inferred schema:
+       |${inferredSchema.toString()}
     """.stripMargin
   )
 }
 
-object KafkaAvroSchema {
+object ManualAvroSchema {
 
-  def apply[A](implicit ev: KafkaAvroSchema[A]): KafkaAvroSchema[A] = ev
+  def apply[A](implicit ev: ManualAvroSchema[A]): ManualAvroSchema[A] = ev
 
-  def apply[A: AvroDecoder: AvroEncoder: SchemaFor](str: String): KafkaAvroSchema[A] = {
+  def apply[A: AvroDecoder: AvroEncoder: SchemaFor](str: String): ManualAvroSchema[A] = {
     val parser: Schema.Parser = new Schema.Parser
-    new KafkaAvroSchema[A](parser.parse(str)) {}
+    new ManualAvroSchema[A](parser.parse(str)) {}
   }
 
-  def apply[A: AvroDecoder: AvroEncoder: SchemaFor](file: File): KafkaAvroSchema[A] = {
+  def apply[A: AvroDecoder: AvroEncoder: SchemaFor](file: File): ManualAvroSchema[A] = {
     val parser: Schema.Parser = new Schema.Parser
-    new KafkaAvroSchema[A](parser.parse(file)) {}
+    new ManualAvroSchema[A](parser.parse(file)) {}
   }
 }
