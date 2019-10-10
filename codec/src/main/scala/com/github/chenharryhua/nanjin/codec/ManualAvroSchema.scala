@@ -30,7 +30,7 @@ sealed abstract class ManualAvroSchema[A: SchemaFor](val schema: Schema)(
     noVersion.andThen(noDoc).andThen(noJavaClass)
   }
 
-  def isSame: Either[ParsingFailure, JsonPatch[Json]] =
+  val isSame: Either[ParsingFailure, JsonPatch[Json]] =
     (parse(schema.toString()), parse(inferredSchema.toString)).mapN { (f, s) =>
       diff(cleanupJsonDocument(f), cleanupJsonDocument(s))
     }
@@ -53,6 +53,8 @@ sealed abstract class ManualAvroSchema[A: SchemaFor](val schema: Schema)(
        |${schema.toString()}
        |inferred schema:
        |${inferredSchema.toString()}
+       |diff:
+       |$isSame
     """.stripMargin
   )
 }
