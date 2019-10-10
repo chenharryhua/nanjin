@@ -48,7 +48,7 @@ sealed abstract class ManualAvroSchema[A: SchemaFor](val schema: Schema)(
   require(
     isSame.exists(_.ops.isEmpty),
     s"""
-       |input schema is not semantically identical to inferred schema. 
+       |input schema is not semantically identical to the inferred schema. 
        |input schema:
        |${schema.toString()}
        |inferred schema:
