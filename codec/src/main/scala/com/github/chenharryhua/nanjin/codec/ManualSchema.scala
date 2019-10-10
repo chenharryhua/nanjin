@@ -9,7 +9,9 @@ import org.apache.avro.{Schema, SchemaCompatibility}
 abstract class ManualSchema[A: SchemaFor](
   implicit val decoder: Decoder[A],
   val encoder: Encoder[A]) {
-  def schema: Schema
+  private val parser: Schema.Parser = new Schema.Parser
+  def schema: Schema                = parser.parse(strSchema)
+  def strSchema: String             = schema.toString(true)
 
   final def isCompatiable: Boolean =
     SchemaCompatibility

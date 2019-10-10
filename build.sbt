@@ -28,9 +28,11 @@ val sparkVersion     = "2.4.4"
 val framelessVersion = "0.8.0"
 
 val circeVersion = "0.12.2"
-val avro4s       = "3.0.1"
-val apacheAvro   = "1.9.1"
-val avrohugger   = "1.0.0-RC19"
+val jsonDiff     = "4.0.0"
+
+val avro4s     = "3.0.1"
+val apacheAvro = "1.9.1"
+val avrohugger = "1.0.0-RC19"
 
 val silencer = "1.4.2"
 val jline    = "3.12.1"
@@ -49,7 +51,7 @@ lazy val commonSettings = Seq(
     Resolver.sonatypeRepo("releases"),
     "Confluent Maven Repo".at("https://packages.confluent.io/maven/")
   ),
-  addCompilerPlugin("org.typelevel" %% "kind-projector"  % "0.11.0" cross CrossVersion.full),
+  addCompilerPlugin(("org.typelevel" %% "kind-projector" % "0.11.0").cross(CrossVersion.full)),
   addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
   addCompilerPlugin(("org.scalamacros" %% "paradise" % "2.1.1").cross(CrossVersion.full)),
   libraryDependencies ++= Seq(
@@ -74,11 +76,13 @@ lazy val commonSettings = Seq(
   )
 )
 
-val circe = Seq(
+val json = Seq(
   "io.circe" %% "circe-core",
   "io.circe" %% "circe-generic",
   "io.circe" %% "circe-parser"
-).map(_ % circeVersion)
+).map(_ % circeVersion) ++ Seq(
+  "io.circe" %% "circe-optics" % "0.12.0",
+  "org.gnieh" %% "diffson-circe" % jsonDiff)
 
 val fs2 = Seq(
   "co.fs2" %% "fs2-core",
@@ -186,7 +190,7 @@ lazy val codec = (project in file("codec"))
     addCompilerPlugin("com.github.ghik" %% "silencer-plugin" % silencer),
     libraryDependencies ++= Seq(
       "com.github.ghik" %% "silencer-lib" % silencer % Provided
-    ) ++ base ++ circe ++ monocle ++ kafkaLib ++ avro ++ tests,
+    ) ++ base ++ json ++ monocle ++ kafkaLib ++ avro ++ tests,
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
 
