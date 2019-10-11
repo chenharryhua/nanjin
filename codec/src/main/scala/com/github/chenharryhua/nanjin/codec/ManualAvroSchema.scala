@@ -1,7 +1,5 @@
 package com.github.chenharryhua.nanjin.codec
 
-import java.io.File
-
 import cats.implicits._
 import com.sksamuel.avro4s.{AvroSchema, SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
 import diffson._
@@ -32,8 +30,8 @@ sealed abstract class ManualAvroSchema[A: SchemaFor](val schema: Schema)(
   }
 
   val isSame: Either[ParsingFailure, JsonPatch[Json]] =
-    (parse(schema.toString()), parse(inferredSchema.toString)).mapN { (f, s) =>
-      diff(cleanupJsonDocument(f), cleanupJsonDocument(s))
+    (parse(schema.toString()), parse(inferredSchema.toString)).mapN { (input, inferred) =>
+      diff(cleanupJsonDocument(input), cleanupJsonDocument(inferred))
     }
 
   def isCompatiable: Boolean =
@@ -64,13 +62,8 @@ object ManualAvroSchema {
 
   def apply[A](implicit ev: ManualAvroSchema[A]): ManualAvroSchema[A] = ev
 
-  def apply[A: AvroDecoder: AvroEncoder: SchemaFor](str: String): ManualAvroSchema[A] = {
+  def apply[A: AvroDecoder: AvroEncoder: SchemaFor](stringSchema: String): ManualAvroSchema[A] = {
     val parser: Schema.Parser = new Schema.Parser
-    new ManualAvroSchema[A](parser.parse(str)) {}
-  }
-
-  def apply[A: AvroDecoder: AvroEncoder: SchemaFor](file: File): ManualAvroSchema[A] = {
-    val parser: Schema.Parser = new Schema.Parser
-    new ManualAvroSchema[A](parser.parse(file)) {}
+    new ManualAvroSchema[A](parser.parse(stringSchema)) {}
   }
 }

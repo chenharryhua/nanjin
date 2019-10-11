@@ -21,7 +21,7 @@ val zioCats    = "2.0.0.0-RC5"
 val monix      = "3.0.0"
 val catsEffect = "2.0.0"
 
-val akkaKafka = "1.1.0-RC2"
+val akkaKafka = "1.1.0"
 val fs2Kafka  = "0.20.1"
 
 val sparkVersion     = "2.4.4"
@@ -108,7 +108,7 @@ val avro = Seq(
     "com.sksamuel.avro4s" %% "avro4s-core" % avro4s,
     ("io.confluent" % "kafka-streams-avro-serde" % "5.3.1").classifier(""),
     "com.julianpeeters" %% "avrohugger-core" % avrohugger,
-    "io.higherkindness" %% "skeuomorph" % "0.0.15" 
+    "io.higherkindness" %% "skeuomorph" % "0.0.15"
   )
 
 val spark = Seq(
