@@ -62,7 +62,7 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
       sharedConsumer,
       sharedProducer,
       Eval.later(materializer),
-      SparkafkaConf.default
+      SparkafkaParams.default
     )
 
   final def topic[K: SerdeOf: Show, V: SerdeOf: Show](topicName: String): KafkaTopic[F, K, V] =

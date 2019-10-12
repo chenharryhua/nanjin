@@ -36,15 +36,15 @@ object ConversionStrategy {
 
 @Lenses final case class KafkaUploadRate(batchSize: Int, duration: FiniteDuration)
 
-@Lenses final case class SparkafkaConf(
+@Lenses final case class SparkafkaParams(
   timeRange: KafkaDateTimeRange,
   conversionStrategy: ConversionStrategy,
   uploadRate: KafkaUploadRate)
 
-object SparkafkaConf {
+object SparkafkaParams {
 
-  val default: SparkafkaConf =
-    SparkafkaConf(
+  val default: SparkafkaParams =
+    SparkafkaParams(
       KafkaDateTimeRange(None, None),
       ConversionStrategy.Intact,
       KafkaUploadRate(1000, 1.seconds))
@@ -54,13 +54,15 @@ private[kafka] trait SparkafkaModule[F[_], K, V] { self: KafkaTopic[F, K, V] =>
 
   private def setStartTime(ts: KafkaTimestamp): KafkaTopic[F, K, V] =
     self.copy(
-      sparkafkaConf = SparkafkaConf.timeRange
+      sparkafkaConf = SparkafkaParams.timeRange
         .composeLens(KafkaDateTimeRange.start)
         .set(Some(ts))(self.sparkafkaConf))
 
   private def setEndTime(ts: KafkaTimestamp): KafkaTopic[F, K, V] =
-    self.copy(sparkafkaConf =
-      SparkafkaConf.timeRange.composeLens(KafkaDateTimeRange.end).set(Some(ts))(self.sparkafkaConf))
+    self.copy(
+      sparkafkaConf = SparkafkaParams.timeRange
+        .composeLens(KafkaDateTimeRange.end)
+        .set(Some(ts))(self.sparkafkaConf))
 
   def withStartTime(dt: LocalDateTime): KafkaTopic[F, K, V] = setStartTime(KafkaTimestamp(dt))
   def withEndTime(dt: LocalDateTime): KafkaTopic[F, K, V]   = setEndTime(KafkaTimestamp(dt))
@@ -75,22 +77,22 @@ private[kafka] trait SparkafkaModule[F[_], K, V] { self: KafkaTopic[F, K, V] =>
   def withUploadRate(batchSize: Int, duration: FiniteDuration): KafkaTopic[F, K, V] =
     self.copy(
       sparkafkaConf =
-        SparkafkaConf.uploadRate.set(KafkaUploadRate(batchSize, duration))(self.sparkafkaConf))
+        SparkafkaParams.uploadRate.set(KafkaUploadRate(batchSize, duration))(self.sparkafkaConf))
 
   def withBatchSize(batchSize: Int): KafkaTopic[F, K, V] =
     self.copy(
-      sparkafkaConf = SparkafkaConf.uploadRate
+      sparkafkaConf = SparkafkaParams.uploadRate
         .composeLens(KafkaUploadRate.batchSize)
         .set(batchSize)(self.sparkafkaConf))
 
   def withDuration(duration: FiniteDuration): KafkaTopic[F, K, V] =
     self.copy(
-      sparkafkaConf = SparkafkaConf.uploadRate
+      sparkafkaConf = SparkafkaParams.uploadRate
         .composeLens(KafkaUploadRate.duration)
         .set(duration)(self.sparkafkaConf))
 
-  private val strategyLens: Lens[SparkafkaConf, ConversionStrategy] =
-    SparkafkaConf.conversionStrategy
+  private val strategyLens: Lens[SparkafkaParams, ConversionStrategy] =
+    SparkafkaParams.conversionStrategy
 
   def withoutPartition: KafkaTopic[F, K, V] =
     self.copy(

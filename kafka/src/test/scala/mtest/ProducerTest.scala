@@ -1,6 +1,7 @@
 package mtest
 
 import akka.Done
+import akka.kafka.ProducerMessage
 import cats.effect.IO
 import cats.implicits._
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -8,10 +9,13 @@ import org.apache.kafka.streams.scala.StreamsBuilder
 import org.scalatest.funsuite.AnyFunSuite
 import cats.derived.auto.show._
 import io.chrisdavenport.cats.time._
+import fs2.kafka.{ProducerRecord => Fs2ProducerRecord}
 import scala.concurrent.duration._
 import scala.util.Random
 import org.apache.kafka.streams.scala.ImplicitConversions._
 import com.github.chenharryhua.nanjin.codec._
+import fs2.kafka.ProducerRecords
+import org.apache.kafka.clients.producer.ProducerRecord
 
 case class AvroKey(key: String)
 case class AvroValue(v1: String, v2: Int)
@@ -34,7 +38,10 @@ class ProducerTest extends AnyFunSuite {
             "earliest").withGroupId("akka-task").withCommitWarning(10.seconds))
           .consume
           .map(m => akkaTopic.decoder(m).decode)
-          .map(m => t.encoder.single(m.record.key(), m.record.value(), m.committableOffset))
+          .map(m =>
+            ProducerMessage.single(
+              new ProducerRecord(t.topicName, m.record.key(), m.record.value()),
+              m.committableOffset))
           .take(100)
           .runWith(t.committableSink)(s.materializer)
       }
@@ -44,7 +51,10 @@ class ProducerTest extends AnyFunSuite {
         _.withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest").withGroupId("fs2-task"))
       .consume
       .map(m => srcTopic.decoder(m).decode)
-      .map(m => fs2Topic.fs2Channel.encoder.single(m.record.key, m.record.value, m.offset))
+      .map(m =>
+        ProducerRecords.one(
+          Fs2ProducerRecord(srcTopic.topicDef.topicName, m.record.key, m.record.value),
+          m.offset))
       .take(100)
       .through(fs2.kafka.produce(fs2Topic.fs2Channel.producerSettings))
       .compile

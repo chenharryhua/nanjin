@@ -8,7 +8,7 @@ import cats.implicits._
 import cats.tagless._
 import com.github.chenharryhua.nanjin.codec._
 import fs2.Chunk
-import fs2.kafka.{KafkaByteProducer, ProducerRecord => Fs2ProducerRecord}
+import fs2.kafka.{KafkaByteProducer, KafkaByteProducerRecord, ProducerRecord => Fs2ProducerRecord}
 import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
 
 @autoFunctorK
@@ -58,8 +58,20 @@ object KafkaProducerApi {
     private[this] val valueCodec: KafkaCodec.Value[V]   = topic.valueCodec
     private[this] val producer: Eval[KafkaByteProducer] = topic.sharedProducer
 
-    private[this] val encoder: KafkaProducerRecordEncoder[K, V] =
-      new KafkaProducerRecordEncoder[K, V](topicName, keyCodec, valueCodec)
+    private def record(k: K, v: V): KafkaByteProducerRecord =
+      new ProducerRecord(topicName, keyCodec.encode(k), valueCodec.encode(v))
+
+    private def record(k: K, v: Array[Byte]): KafkaByteProducerRecord =
+      new ProducerRecord(topicName, keyCodec.encode(k), v)
+
+    private def record(k: Array[Byte], v: V): KafkaByteProducerRecord =
+      new ProducerRecord(topicName, k, valueCodec.encode(v))
+
+    private def record(k: Array[Byte], v: Array[Byte]): KafkaByteProducerRecord =
+      new ProducerRecord(topicName, k, v)
+
+    private def record(pr: ProducerRecord[K, V]): KafkaByteProducerRecord =
+      pr.bimap(keyCodec.encode, valueCodec.encode)
 
     private[this] def doSend(data: ProducerRecord[Array[Byte], Array[Byte]]): F[F[RecordMetadata]] =
       Deferred[F, Either[Throwable, RecordMetadata]].flatMap { deferred =>
@@ -77,34 +89,34 @@ object KafkaProducerApi {
       }
 
     override def arbitrarilySend(key: Array[Byte], value: Array[Byte]): F[RecordMetadata] =
-      doSend(encoder.record(key, value)).flatten
+      doSend(record(key, value)).flatten
 
     override def arbitrarilySend(
       kvs: Chunk[ProducerRecord[Array[Byte], Array[Byte]]]): F[Chunk[RecordMetadata]] =
       kvs.traverse(kv => doSend(kv)).flatMap(_.sequence)
 
     override def arbitrarilyValueSend(key: K, value: Array[Byte]): F[RecordMetadata] =
-      doSend(encoder.record(key, value)).flatten
+      doSend(record(key, value)).flatten
 
     override def send(pr: ProducerRecord[K, V]): F[RecordMetadata] =
-      doSend(encoder.record(pr)).flatten
+      doSend(record(pr)).flatten
 
     override def send(fpr: Fs2ProducerRecord[K, V]): F[RecordMetadata] =
-      doSend(encoder.record(fpr)).flatten
+      doSend(record(isoFs2ProducerRecord.get(fpr))).flatten
 
     override def arbitrarilyKeySend(key: Array[Byte], value: V): F[RecordMetadata] =
-      doSend(encoder.record(key, value)).flatten
+      doSend(record(key, value)).flatten
 
     override def send(key: K, value: V): F[RecordMetadata] =
-      doSend(encoder.record(key, value)).flatten
+      doSend(record(key, value)).flatten
 
     override def send(kvs: List[(K, V)]): F[List[RecordMetadata]] =
-      kvs.traverse(kv => doSend(encoder.record(kv._1, kv._2))).flatMap(_.sequence)
+      kvs.traverse(kv => doSend(record(kv._1, kv._2))).flatMap(_.sequence)
 
     override def send(kvs: Chain[(K, V)]): F[Chain[RecordMetadata]] =
-      kvs.traverse(kv => doSend(encoder.record(kv._1, kv._2))).flatMap(_.sequence)
+      kvs.traverse(kv => doSend(record(kv._1, kv._2))).flatMap(_.sequence)
 
     override def send(prs: Chunk[ProducerRecord[K, V]]): F[Chunk[RecordMetadata]] =
-      prs.traverse(pr => doSend(encoder.record(pr))).flatMap(_.sequence)
+      prs.traverse(pr => doSend(record(pr))).flatMap(_.sequence)
   }
 }

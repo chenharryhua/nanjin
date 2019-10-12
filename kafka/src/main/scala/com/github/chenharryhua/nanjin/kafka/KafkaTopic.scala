@@ -33,7 +33,7 @@ final case class KafkaTopic[F[_], K, V] private[kafka] (
   sharedConsumer: Eval[MVar[F, KafkaByteConsumer]],
   sharedProducer: Eval[KafkaByteProducer],
   materializer: Eval[ActorMaterializer],
-  sparkafkaConf: SparkafkaConf)(
+  sparkafkaConf: SparkafkaParams)(
   implicit
   val concurrentEffect: ConcurrentEffect[F],
   val contextShift: ContextShift[F],
@@ -57,9 +57,6 @@ final case class KafkaTopic[F[_], K, V] private[kafka] (
 
   def decoder[G[_, _]: Bitraverse](cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
     new KafkaGenericDecoder[G, K, V](cr, keyCodec, valueCodec)
-
-  def encode[G[_, _]](k: K, v: V)(implicit ev: KafkaGenericEncoder[G]): G[K, V] =
-    ev.single(topicDef.topicName, k, v)
 
   //channels
   val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
