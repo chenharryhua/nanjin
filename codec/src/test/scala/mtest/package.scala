@@ -16,7 +16,7 @@ package object mtest extends ArbitraryData with EqMessage {
   val primitiviesCodec =
     SerdeOf[PrimitiveTypeCombined].asKey(sr).codec("topic.avro")
 
-  val jsonPrimCodec: KafkaCodec[KJson[PrimitiveTypeCombined]] =
+  val jsonPrimCodec: KafkaCodec.Value[KJson[PrimitiveTypeCombined]] =
     SerdeOf[KJson[PrimitiveTypeCombined]].asValue(sr).codec("topic.json")
 
 }

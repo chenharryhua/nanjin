@@ -53,7 +53,6 @@ sealed abstract private[codec] class KafkaSerde[A] extends Serde[A] {
     serializer.close()
     deserializer.close()
   }
-
 }
 
 object KafkaSerde {
@@ -86,7 +85,7 @@ object KafkaSerde {
 
 @implicitNotFound(
   "Could not find an instance of SerdeOf[${A}], primitive types and case classes are supported")
-sealed abstract class SerdeOf[A](val schema: Schema) extends Serializable {
+sealed abstract class SerdeOf[A](schema: Schema) extends Serializable {
   def serializer: Serializer[A]
 
   def deserializer: Deserializer[A]

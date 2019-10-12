@@ -36,7 +36,8 @@ object BitraverseMessages {
 
 private[codec] trait BitraverseMessagesInstances {
 
-  implicit def fs2ProducerRecords[P]: BitraverseMessages[Fs2ProducerRecords[*, *, P]] =
+  implicit def fs2ProducerRecordsBitraverseMessages[P]
+    : BitraverseMessages[Fs2ProducerRecords[*, *, P]] =
     new BitraverseMessages[Fs2ProducerRecords[*, *, P]] {
 
       override def traversal[K1, V1, K2, V2]: PTraversal[
@@ -55,7 +56,7 @@ private[codec] trait BitraverseMessagesInstances {
           PTraversal.fromTraverse[Chunk, ProducerRecord[K1, V1], ProducerRecord[K2, V2]])
     }
 
-  implicit def fs2CommittableProducerRecords[F[_]]
+  implicit def fs2CommittableProducerRecordsBitraverseMessages[F[_]]
     : BitraverseMessages[Fs2CommittableProducerRecords[F, *, *]] =
     new BitraverseMessages[Fs2CommittableProducerRecords[F, *, *]] {
 
@@ -75,7 +76,7 @@ private[codec] trait BitraverseMessagesInstances {
           PTraversal.fromTraverse[Chunk, ProducerRecord[K1, V1], ProducerRecord[K2, V2]])
     }
 
-  implicit def fs2TransactionalProducerRecords[F[_], P]
+  implicit def fs2TransactionalProducerRecordsBitraverseMessages[F[_], P]
     : BitraverseMessages[Fs2TransactionalProducerRecords[F, *, *, P]] =
     new BitraverseMessages[Fs2TransactionalProducerRecords[F, *, *, P]] {
 
@@ -95,10 +96,11 @@ private[codec] trait BitraverseMessagesInstances {
               Chunk,
               Fs2CommittableProducerRecords[F, K1, V1],
               Fs2CommittableProducerRecords[F, K2, V2]])
-          .composeTraversal(fs2CommittableProducerRecords.traversal)
+          .composeTraversal(fs2CommittableProducerRecordsBitraverseMessages.traversal)
     }
 
-  implicit def akkaMultiMessage[P]: BitraverseMessages[AkkaMultiMessage[*, *, P]] =
+  implicit def akkaMultiMessageBitraverseMessages[P]
+    : BitraverseMessages[AkkaMultiMessage[*, *, P]] =
     new BitraverseMessages[AkkaMultiMessage[*, *, P]] {
 
       override def traversal[K1, V1, K2, V2]: PTraversal[
