@@ -30,10 +30,10 @@ object KafkaTopicAdminApi {
       adminClientResource[F](topic.adminSettings)
 
     override def IdefinitelyWantDeleteTheTopic: F[Unit] =
-      admin.use(_.deleteTopic(topic.topicName))
+      admin.use(_.deleteTopic(topic.topicDef.topicName))
 
     override def describe: F[Map[String, TopicDescription]] =
-      admin.use(_.describeTopics(List(topic.topicName)))
+      admin.use(_.describeTopics(List(topic.topicDef.topicName)))
 
     override def groups: F[List[KafkaConsumerGroupInfo]] =
       admin.use { client =>

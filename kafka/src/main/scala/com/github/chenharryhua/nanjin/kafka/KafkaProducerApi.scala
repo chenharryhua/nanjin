@@ -53,7 +53,7 @@ object KafkaProducerApi {
   final private[this] class KafkaProducerApiImpl[F[_]: ConcurrentEffect, K, V](
     topic: KafkaTopic[F, K, V]
   ) extends KafkaProducerApi[F, K, V] {
-    private[this] val topicName: String                 = topic.topicName
+    private[this] val topicName: String                 = topic.topicDef.topicName
     private[this] val keyCodec: KafkaCodec[K]           = topic.keyCodec
     private[this] val valueCodec: KafkaCodec[V]         = topic.valueCodec
     private[this] val producer: Eval[KafkaByteProducer] = topic.sharedProducer

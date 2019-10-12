@@ -37,7 +37,7 @@ final class KafkaCodec[A] private[codec] (val topicName: String, val serde: Kafk
        |config:       ${serde.configProps}
        |serializer:   ${serde.serializer().toString}
        |deserializer: ${serde.deserializer().toString}
-       |schema:       ${serde.schema}
+       |schema:       ${serde.schema.toString(true)}
        |""".stripMargin
 }
 

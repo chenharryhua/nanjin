@@ -117,7 +117,7 @@ object KafkaSchemaRegistry {
       extends KafkaSchemaRegistry[F] {
 
     val srSettings: SchemaRegistrySettings = topic.schemaRegistrySettings
-    val topicName: String                  = topic.topicName
+    val topicName: String                  = topic.topicDef.topicName
     val keySchemaLoc: String               = topic.topicDef.keySchemaLoc
     val valueSchemaLoc: String             = topic.topicDef.valueSchemaLoc
     val keySchema: Schema                  = topic.keyCodec.serde.schema

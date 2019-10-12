@@ -124,7 +124,7 @@ object KafkaConsumerApi {
       extends KafkaConsumerApi[F, K, V] {
     import cats.mtl.implicits._
 
-    private val topicName: String                                = topic.topicName
+    private val topicName: String                                = topic.topicDef.topicName
     private val sharedConsumer: Eval[MVar[F, KafkaByteConsumer]] = topic.sharedConsumer
 
     private[this] val kpc: KafkaPrimitiveConsumerApi[Kleisli[F, KafkaByteConsumer, *]] =
