@@ -22,10 +22,7 @@ object KafkaChannels {
   final case class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] private[kafka] (
     topicName: String,
     producerSettings: Fs2ProducerSettings[F, K, V],
-    consumerSettings: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]],
-    keyCodec: KafkaCodec[K],
-    valueCodec: KafkaCodec[V]
-  ) {
+    consumerSettings: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]]) {
 
     import fs2.kafka.{consumerStream, CommittableConsumerRecord, KafkaProducer}
 
@@ -64,8 +61,6 @@ object KafkaChannels {
     producerSettings: AkkaProducerSettings[K, V],
     consumerSettings: AkkaConsumerSettings[Array[Byte], Array[Byte]],
     committerSettings: AkkaCommitterSettings,
-    keyCodec: KafkaCodec[K],
-    valueCodec: KafkaCodec[V],
     materializer: ActorMaterializer) {
     import akka.kafka.ConsumerMessage.CommittableMessage
     import akka.kafka.ProducerMessage.Envelope

@@ -67,9 +67,7 @@ final case class KafkaTopic[F[_], K, V] private[kafka] (
     new KafkaChannels.Fs2Channel[F, K, V](
       topicName,
       kafkaProducerSettings.fs2ProducerSettings(keySerde.serializer, valueSerde.serializer),
-      kafkaConsumerSettings.fs2ConsumerSettings,
-      keyCodec,
-      valueCodec)
+      kafkaConsumerSettings.fs2ConsumerSettings)
 
   val akkaResource: Resource[F, KafkaChannels.AkkaChannel[F, K, V]] = Resource.make(
     ConcurrentEffect[F].delay(
@@ -81,8 +79,6 @@ final case class KafkaTopic[F[_], K, V] private[kafka] (
           valueSerde.serializer),
         kafkaConsumerSettings.akkaConsumerSettings(materializer.value.system),
         kafkaConsumerSettings.akkaCommitterSettings(materializer.value.system),
-        keyCodec,
-        valueCodec,
         materializer.value)))(_ => ConcurrentEffect[F].unit)
 
   val kafkaStream: KafkaChannels.StreamingChannel[K, V] =
