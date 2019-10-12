@@ -2,13 +2,12 @@ package com.github.chenharryhua.nanjin.codec
 
 import java.{util => ju}
 
-import cats.tagless.autoInvariant
 import com.sksamuel.avro4s.{
   AvroSchema,
   DefaultFieldMapper,
   SchemaFor,
-  Encoder => AvroEncoder,
-  Decoder => AvroDecoder
+  Decoder => AvroDecoder,
+  Encoder => AvroEncoder
 }
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import monocle.Prism
@@ -20,20 +19,18 @@ import scala.annotation.{compileTimeOnly, implicitAmbiguous, implicitNotFound}
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Try}
 
-@autoInvariant
-sealed trait KafkaCodec[A] {
-  def encode(a: A): Array[Byte]
-  def decode(ab: Array[Byte]): A
+final class KafkaCodec[A] private[codec] (val topicName: String, val serde: KafkaSerde[A]) {
+  def encode(a: A): Array[Byte]  = serde.serializer.serialize(topicName, a)
+  def decode(ab: Array[Byte]): A = serde.deserializer.deserialize(topicName, ab)
 
-  final def tryDecode(ab: Array[Byte]): Try[A] =
+  def tryDecode(ab: Array[Byte]): Try[A] =
     Option(ab).fold[Try[A]](Failure(CodecException.DecodingNullException))(x => Try(decode(x)))
 
-  final val prism: Prism[Array[Byte], A] =
+  val prism: Prism[Array[Byte], A] =
     Prism[Array[Byte], A](x => Try(decode(x)).toOption)(encode)
 }
 
-sealed abstract class KafkaSerde[A](serializer: Serializer[A], deserializer: Deserializer[A])
-    extends Serde[A] {
+sealed abstract class KafkaSerde[A] extends Serde[A] {
 
   final override def configure(configs: ju.Map[String, _], isKey: Boolean): Unit = {
     serializer.configure(configs, isKey)
@@ -45,27 +42,24 @@ sealed abstract class KafkaSerde[A](serializer: Serializer[A], deserializer: Des
     deserializer.close()
   }
 
-  final def codec(topicName: String): KafkaCodec[A] = new KafkaCodec[A] {
-    override def encode(a: A): Array[Byte]  = serializer.serialize(topicName, a)
-    override def decode(ab: Array[Byte]): A = deserializer.deserialize(topicName, ab)
-  }
+  final def codec(topicName: String): KafkaCodec[A] = new KafkaCodec[A](topicName, this)
 }
 
 final case class KeySerde[A](
   schema: Schema,
-  serializer: Serializer[A],
-  deserializer: Deserializer[A],
-  props: Map[String, String])
-    extends KafkaSerde[A](serializer, deserializer) {
+  props: Map[String, String],
+  override val serializer: Serializer[A],
+  override val deserializer: Deserializer[A]
+) extends KafkaSerde[A] {
   configure(props.asJava, isKey = true)
 }
 
 final case class ValueSerde[A](
   schema: Schema,
-  serializer: Serializer[A],
-  deserializer: Deserializer[A],
-  props: Map[String, String])
-    extends KafkaSerde[A](serializer, deserializer) {
+  props: Map[String, String],
+  override val serializer: Serializer[A],
+  override val deserializer: Deserializer[A])
+    extends KafkaSerde[A] {
   configure(props.asJava, isKey = false)
 }
 
@@ -77,10 +71,10 @@ sealed abstract class SerdeOf[A](val schema: Schema) extends Serializable {
   def deserializer: Deserializer[A]
 
   final def asKey(props: Map[String, String]): KeySerde[A] =
-    KeySerde(schema, serializer, deserializer, props)
+    KeySerde(schema, props, serializer, deserializer)
 
   final def asValue(props: Map[String, String]): ValueSerde[A] =
-    ValueSerde(schema, serializer, deserializer, props)
+    ValueSerde(schema, props, serializer, deserializer)
 }
 
 sealed private[codec] trait SerdeOfPriority0 {
