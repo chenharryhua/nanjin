@@ -23,6 +23,6 @@ class TimeInjectionProps extends Properties("Injection") {
 
   // not exactly isomorphic. bad news for archeology
   property("localDate identity") = forAll { (dt: LocalDate) =>
-    (dt.getYear > -1000000L) ==> (localDateInjection.invert(localDateInjection(dt)) == dt)
+    (dt.getYear > -100000L) ==> (localDateInjection.invert(localDateInjection(dt)) == dt)
   }
 }
