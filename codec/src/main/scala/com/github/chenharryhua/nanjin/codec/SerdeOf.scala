@@ -28,9 +28,22 @@ final class KafkaCodec[A] private[codec] (val topicName: String, val serde: Kafk
 
   val prism: Prism[Array[Byte], A] =
     Prism[Array[Byte], A](x => Try(decode(x)).toOption)(encode)
+
+  def show: String =
+    s"""
+       |codec
+       |isKey:        ${serde.isKey}
+       |topic:        $topicName
+       |config:       ${serde.configProps}
+       |serializer:   ${serde.serializer().toString}
+       |deserializer: ${serde.deserializer().toString}
+       |schema:       ${serde.schema}
+       |""".stripMargin
 }
 
-sealed abstract class KafkaSerde[A] extends Serde[A] {
+sealed abstract class KafkaSerde[A](val isKey: Boolean) extends Serde[A] {
+  def schema: Schema
+  def configProps: Map[String, String]
 
   final override def configure(configs: ju.Map[String, _], isKey: Boolean): Unit = {
     serializer.configure(configs, isKey)
@@ -46,21 +59,21 @@ sealed abstract class KafkaSerde[A] extends Serde[A] {
 }
 
 final case class KeySerde[A](
-  schema: Schema,
-  props: Map[String, String],
+  override val schema: Schema,
+  override val configProps: Map[String, String],
   override val serializer: Serializer[A],
   override val deserializer: Deserializer[A]
-) extends KafkaSerde[A] {
-  configure(props.asJava, isKey = true)
+) extends KafkaSerde[A](true) {
+  configure(configProps.asJava, isKey)
 }
 
 final case class ValueSerde[A](
-  schema: Schema,
-  props: Map[String, String],
+  override val schema: Schema,
+  override val configProps: Map[String, String],
   override val serializer: Serializer[A],
   override val deserializer: Deserializer[A])
-    extends KafkaSerde[A] {
-  configure(props.asJava, isKey = false)
+    extends KafkaSerde[A](false) {
+  configure(configProps.asJava, isKey)
 }
 
 @implicitNotFound(

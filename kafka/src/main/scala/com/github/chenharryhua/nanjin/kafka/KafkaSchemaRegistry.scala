@@ -120,8 +120,8 @@ object KafkaSchemaRegistry {
     val topicName: String                  = topic.topicName
     val keySchemaLoc: String               = topic.topicDef.keySchemaLoc
     val valueSchemaLoc: String             = topic.topicDef.valueSchemaLoc
-    val keySchema: Schema                  = topic.keySerde.schema
-    val valueSchema: Schema                = topic.valueSerde.schema
+    val keySchema: Schema                  = topic.keyCodec.serde.schema
+    val valueSchema: Schema                = topic.valueCodec.serde.schema
 
     override def delete: F[(List[Integer], List[Integer])] = {
       val deleteKey =
