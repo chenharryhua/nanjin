@@ -25,7 +25,7 @@ object SparkafkaStream {
         spark.readStream
           .format("kafka")
           .options(toSparkOptions(topic.kafkaConsumerSettings.props))
-          .option("subscribe", topic.topicName)
+          .option("subscribe", topic.topicDef.topicName)
           .load()
           .as[SparkafkaConsumerRecord[Array[Byte], Array[Byte]]])
       .deserialized

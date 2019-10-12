@@ -54,7 +54,7 @@ object Sparkafka {
     implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
     Sync[F].delay {
       val ds = TypedDataset.createUnsafe[SparkafkaConsumerRecord[K, V]](
-        spark.read.parquet(parquetPath(topic.topicName)))
+        spark.read.parquet(parquetPath(topic.topicDef.topicName)))
       val inBetween = ds.makeUDF[Long, Boolean](topic.sparkafkaConf.timeRange.isInBetween)
       ds.filter(inBetween(ds('timestamp)))
     }
@@ -63,7 +63,7 @@ object Sparkafka {
 
   def saveToDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
     implicit spark: SparkSession): F[Unit] =
-    datasetFromKafka(topic).map(_.write.parquet(parquetPath(topic.topicName)))
+    datasetFromKafka(topic).map(_.write.parquet(parquetPath(topic.topicDef.topicName)))
 
   // upload to kafka
   def uploadToKafka[F[_]: ConcurrentEffect: Timer, K, V](

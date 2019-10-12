@@ -57,8 +57,8 @@ class ProducerTest extends AnyFunSuite {
 
   ignore("straming") {
 
-    implicit val ks = srcTopic.keySerde
-    implicit val vs = srcTopic.valueSerde
+    implicit val ks = srcTopic.keyCodec.serde
+    implicit val vs = srcTopic.valueCodec.serde
     val chn         = srcTopic.kafkaStream.kstream.map(_.to(streamTopic)).run(new StreamsBuilder)
   }
 }
