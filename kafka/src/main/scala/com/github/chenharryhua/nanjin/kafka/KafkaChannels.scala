@@ -118,27 +118,39 @@ object KafkaChannels {
   }
 
   final case class StreamingChannel[K, V] private[kafka] (
-    topicName: String,
-    keySerde: KeySerde[K],
-    valueSerde: ValueSerde[V]) {
+    keyCodec: KafkaCodec[K],
+    valueCodec: KafkaCodec[V]) {
     import org.apache.kafka.streams.scala.StreamsBuilder
     import org.apache.kafka.streams.scala.kstream.{Consumed, KStream, KTable}
 
+    require(
+      keyCodec.topicName === valueCodec.topicName,
+      s"${keyCodec.topicName} is different from ${valueCodec.topicName}")
+
     val kstream: Reader[StreamsBuilder, KStream[K, V]] =
-      Reader(builder => builder.stream[K, V](topicName)(Consumed.`with`(keySerde, valueSerde)))
+      Reader(builder =>
+        builder.stream[K, V](keyCodec.topicName)(Consumed.`with`(keyCodec.serde, valueCodec.serde)))
 
     val ktable: Reader[StreamsBuilder, KTable[K, V]] =
-      Reader(builder => builder.table[K, V](topicName)(Consumed.`with`(keySerde, valueSerde)))
+      Reader(builder =>
+        builder.table[K, V](keyCodec.topicName)(Consumed.`with`(keyCodec.serde, valueCodec.serde)))
 
     val gktable: Reader[StreamsBuilder, GlobalKTable[K, V]] =
-      Reader(builder => builder.globalTable[K, V](topicName)(Consumed.`with`(keySerde, valueSerde)))
+      Reader(
+        builder =>
+          builder.globalTable[K, V](keyCodec.topicName)(
+            Consumed.`with`(keyCodec.serde, valueCodec.serde)))
 
     def ktable(store: KafkaStore.InMemory[K, V]): Reader[StreamsBuilder, KTable[K, V]] =
-      Reader(builder =>
-        builder.table[K, V](topicName, store.materialized)(Consumed.`with`(keySerde, valueSerde)))
+      Reader(
+        builder =>
+          builder.table[K, V](keyCodec.topicName, store.materialized)(
+            Consumed.`with`(keyCodec.serde, valueCodec.serde)))
 
     def ktable(store: KafkaStore.Persistent[K, V]): Reader[StreamsBuilder, KTable[K, V]] =
-      Reader(builder =>
-        builder.table[K, V](topicName, store.materialized)(Consumed.`with`(keySerde, valueSerde)))
+      Reader(
+        builder =>
+          builder.table[K, V](keyCodec.topicName, store.materialized)(
+            Consumed.`with`(keyCodec.serde, valueCodec.serde)))
   }
 }

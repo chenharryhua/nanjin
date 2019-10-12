@@ -53,11 +53,11 @@ final case class KafkaTopic[F[_], K, V] private[kafka] (
 
   override def toString: String = topicName
 
-  val keySerde: KeySerde[K]     = serdeOfKey.asKey(schemaRegistrySettings.props)
-  val valueSerde: ValueSerde[V] = serdeOfValue.asValue(schemaRegistrySettings.props)
+  val keyCodec: KafkaCodec[K] =
+    serdeOfKey.asKey(schemaRegistrySettings.props).codec(topicName)
 
-  val keyCodec: KafkaCodec[K]   = keySerde.codec(topicName)
-  val valueCodec: KafkaCodec[V] = valueSerde.codec(topicName)
+  val valueCodec: KafkaCodec[V] =
+    serdeOfValue.asValue(schemaRegistrySettings.props).codec(topicName)
 
   def decoder[G[_, _]: Bitraverse](cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
     new KafkaGenericDecoder[G, K, V](cr, keyCodec, valueCodec)
@@ -66,23 +66,20 @@ final case class KafkaTopic[F[_], K, V] private[kafka] (
   val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
     new KafkaChannels.Fs2Channel[F, K, V](
       topicName,
-      kafkaProducerSettings.fs2ProducerSettings(keySerde.serializer, valueSerde.serializer),
+      kafkaProducerSettings.fs2ProducerSettings(keyCodec, valueCodec),
       kafkaConsumerSettings.fs2ConsumerSettings)
 
   val akkaResource: Resource[F, KafkaChannels.AkkaChannel[F, K, V]] = Resource.make(
     ConcurrentEffect[F].delay(
       new KafkaChannels.AkkaChannel[F, K, V](
         topicName,
-        kafkaProducerSettings.akkaProducerSettings(
-          materializer.value.system,
-          keySerde.serializer,
-          valueSerde.serializer),
+        kafkaProducerSettings.akkaProducerSettings(materializer.value.system, keyCodec, valueCodec),
         kafkaConsumerSettings.akkaConsumerSettings(materializer.value.system),
         kafkaConsumerSettings.akkaCommitterSettings(materializer.value.system),
         materializer.value)))(_ => ConcurrentEffect[F].unit)
 
   val kafkaStream: KafkaChannels.StreamingChannel[K, V] =
-    new KafkaChannels.StreamingChannel[K, V](topicName, keySerde, valueSerde)
+    new KafkaChannels.StreamingChannel[K, V](keyCodec, valueCodec)
 
   // apis
   val schemaRegistry: KafkaSchemaRegistry[F] = KafkaSchemaRegistry[F](this)
