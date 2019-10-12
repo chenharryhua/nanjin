@@ -6,7 +6,7 @@ import cats.data.Reader
 import cats.effect.concurrent.MVar
 import cats.effect.{ConcurrentEffect, ContextShift, IO, Resource, Timer}
 import cats.{Eval, Show}
-import com.github.chenharryhua.nanjin.codec.{KeySerde, SerdeOf, ValueSerde}
+import com.github.chenharryhua.nanjin.codec.SerdeOf
 import fs2.Stream
 import fs2.kafka._
 import org.apache.kafka.clients.consumer.KafkaConsumer
@@ -14,6 +14,7 @@ import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, ByteArraySerializer}
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.scala.StreamsBuilder
+import com.github.chenharryhua.nanjin.codec.KafkaSerde
 
 sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
   settings: KafkaSettings) {
@@ -45,10 +46,10 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
   final val admin: Resource[F, KafkaAdminClient[F]] =
     adminClientResource(adminClientSettings)
 
-  final def asKey[K: SerdeOf]: KeySerde[K] =
+  final def asKey[K: SerdeOf]: KafkaSerde.Key[K] =
     SerdeOf[K].asKey(settings.schemaRegistrySettings.props)
 
-  final def asValue[V: SerdeOf]: ValueSerde[V] =
+  final def asValue[V: SerdeOf]: KafkaSerde.Value[V] =
     SerdeOf[V].asValue(settings.schemaRegistrySettings.props)
 
   final def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] =

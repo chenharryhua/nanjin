@@ -58,17 +58,17 @@ import scala.util.Try
 @Lenses final case class KafkaProducerSettings(props: Map[String, String]) {
 
   def fs2ProducerSettings[F[_]: Sync, K, V](
-    kser: KafkaCodec[K],
-    vser: KafkaCodec[V]): Fs2ProducerSettings[F, K, V] =
+    kser: KafkaCodec.Key[K],
+    vser: KafkaCodec.Value[V]): Fs2ProducerSettings[F, K, V] =
     Fs2ProducerSettings[F, K, V](
-      Fs2Serializer.delegate(kser.serde.serializer()),
-      Fs2Serializer.delegate(vser.serde.serializer())).withProperties(props)
+      Fs2Serializer.delegate(kser.serde.serializer),
+      Fs2Serializer.delegate(vser.serde.serializer)).withProperties(props)
 
   def akkaProducerSettings[K, V](
     system: ActorSystem,
-    kser: KafkaCodec[K],
-    vser: KafkaCodec[V]): AkkaProducerSettings[K, V] =
-    AkkaProducerSettings[K, V](system, kser.serde.serializer(), vser.serde.serializer())
+    kser: KafkaCodec.Key[K],
+    vser: KafkaCodec.Value[V]): AkkaProducerSettings[K, V] =
+    AkkaProducerSettings[K, V](system, kser.serde.serializer, vser.serde.serializer)
       .withProperties(props)
 
   val sharedProducerSettings: Properties = utils.toProperties(

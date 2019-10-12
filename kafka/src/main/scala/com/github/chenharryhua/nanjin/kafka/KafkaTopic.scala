@@ -49,10 +49,10 @@ final case class KafkaTopic[F[_], K, V] private[kafka] (
 
   override def extract(key: K, value: V, rc: RecordContext): String = topicDef.topicName
 
-  val keyCodec: KafkaCodec[K] =
+  val keyCodec: KafkaCodec.Key[K] =
     serdeOfKey.asKey(schemaRegistrySettings.props).codec(topicDef.topicName)
 
-  val valueCodec: KafkaCodec[V] =
+  val valueCodec: KafkaCodec.Value[V] =
     serdeOfValue.asValue(schemaRegistrySettings.props).codec(topicDef.topicName)
 
   def decoder[G[_, _]: Bitraverse](cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
@@ -75,9 +75,9 @@ final case class KafkaTopic[F[_], K, V] private[kafka] (
         materializer.value)))(_ => ConcurrentEffect[F].unit)
 
   val kafkaStream: KafkaChannels.StreamingChannel[K, V] =
-    new KafkaChannels.StreamingChannel[K, V](keyCodec, valueCodec)
+    new KafkaChannels.StreamingChannel[K, V](topicDef.topicName, keyCodec.serde, valueCodec.serde)
 
-  // apis
+  // APIs
   val schemaRegistry: KafkaSchemaRegistry[F] = KafkaSchemaRegistry[F](this)
   val admin: KafkaTopicAdminApi[F]           = KafkaTopicAdminApi(this)
   val consumer: KafkaConsumerApi[F, K, V]    = KafkaConsumerApi[F, K, V](this)

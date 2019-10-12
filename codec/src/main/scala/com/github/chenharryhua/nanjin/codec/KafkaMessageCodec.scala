@@ -9,8 +9,8 @@ import scala.util.{Success, Try}
 
 final class KafkaGenericDecoder[F[_, _]: Bitraverse, K, V](
   data: F[Array[Byte], Array[Byte]],
-  keyCodec: KafkaCodec[K],
-  valueCodec: KafkaCodec[V]) {
+  keyCodec: KafkaCodec.Key[K],
+  valueCodec: KafkaCodec.Value[V]) {
 
   def decode: F[K, V]                = data.bimap(keyCodec.decode, valueCodec.decode)
   def decodeKey: F[K, Array[Byte]]   = data.bimap(keyCodec.decode, identity)
@@ -34,8 +34,8 @@ final class KafkaGenericDecoder[F[_, _]: Bitraverse, K, V](
 
 final class KafkaProducerRecordEncoder[K, V](
   topicName: String,
-  keyCodec: KafkaCodec[K],
-  valueCodec: KafkaCodec[V]
+  keyCodec: KafkaCodec.Key[K],
+  valueCodec: KafkaCodec.Value[V]
 ) {
 
   def record(k: K, v: V): KafkaByteProducerRecord =
