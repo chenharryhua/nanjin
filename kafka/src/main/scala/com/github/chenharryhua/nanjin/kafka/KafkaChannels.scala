@@ -26,7 +26,7 @@ object KafkaChannels {
 
     import fs2.kafka.{consumerStream, CommittableConsumerRecord, KafkaProducer}
 
-    val messageEncoder: Fs2MessageEncoder[F, K, V] =
+    val encoder: Fs2MessageEncoder[F, K, V] =
       new Fs2MessageEncoder[F, K, V](topicName)
 
     def updateProducerSettings(
@@ -69,7 +69,7 @@ object KafkaChannels {
     import akka.stream.scaladsl.{Flow, Sink, Source}
     import akka.{Done, NotUsed}
 
-    val messageEncoder: AkkaMessageEncoder[K, V] =
+    val encoder: AkkaMessageEncoder[K, V] =
       new AkkaMessageEncoder[K, V](topicName)
 
     def updateProducerSettings(
