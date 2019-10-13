@@ -32,7 +32,7 @@ object SparkafkaStream {
       .mapPartitions { msgs =>
         val t = topic
         val decoder = (msg: SparkafkaConsumerRecord[Array[Byte], Array[Byte]]) =>
-          msg.bimap(t.keyCodec.prism.getOption, t.valueCodec.prism.getOption).flattenKeyValue
+          msg.bimap(t.codec.keyCodec.prism.getOption, t.codec.valueCodec.prism.getOption).flattenKeyValue
         msgs.map(decoder)
       }
   }

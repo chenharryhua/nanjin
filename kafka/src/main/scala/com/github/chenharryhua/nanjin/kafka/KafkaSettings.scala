@@ -10,7 +10,7 @@ import akka.kafka.{
 }
 import cats.Eval
 import cats.effect.{ConcurrentEffect, ContextShift, IO, Sync, Timer}
-import com.github.chenharryhua.nanjin.codec.KafkaCodec
+import com.github.chenharryhua.nanjin.codec.KafkaSerde
 import fs2.kafka.{
   ConsumerSettings => Fs2ConsumerSettings,
   Deserializer     => Fs2Deserializer,
@@ -58,18 +58,16 @@ import scala.util.Try
 @Lenses final case class KafkaProducerSettings(props: Map[String, String]) {
 
   def fs2ProducerSettings[F[_]: Sync, K, V](
-    kser: KafkaCodec.Key[K],
-    vser: KafkaCodec.Value[V]): Fs2ProducerSettings[F, K, V] =
-    Fs2ProducerSettings[F, K, V](
-      Fs2Serializer.delegate(kser.serde.serializer),
-      Fs2Serializer.delegate(vser.serde.serializer)).withProperties(props)
+    kser: Serializer[K],
+    vser: Serializer[V]): Fs2ProducerSettings[F, K, V] =
+    Fs2ProducerSettings[F, K, V](Fs2Serializer.delegate(kser), Fs2Serializer.delegate(vser))
+      .withProperties(props)
 
   def akkaProducerSettings[K, V](
     system: ActorSystem,
-    kser: KafkaCodec.Key[K],
-    vser: KafkaCodec.Value[V]): AkkaProducerSettings[K, V] =
-    AkkaProducerSettings[K, V](system, kser.serde.serializer, vser.serde.serializer)
-      .withProperties(props)
+    kser: Serializer[K],
+    vser: Serializer[V]): AkkaProducerSettings[K, V] =
+    AkkaProducerSettings[K, V](system, kser, vser).withProperties(props)
 
   val sharedProducerSettings: Properties = utils.toProperties(
     props ++ Map(ConsumerConfig.CLIENT_ID_CONFIG -> s"shared-producer-${utils.random4d.value}"))

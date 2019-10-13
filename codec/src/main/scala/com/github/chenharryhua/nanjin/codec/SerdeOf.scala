@@ -20,13 +20,13 @@ import scala.collection.JavaConverters._
 import scala.util.{Failure, Try}
 
 sealed abstract private[codec] class KafkaCodec[A](topicName: String, serde: KafkaSerde[A]) {
-  def encode(a: A): Array[Byte]  = serde.serializer.serialize(topicName, a)
-  def decode(ab: Array[Byte]): A = serde.deserializer.deserialize(topicName, ab)
+  final def encode(a: A): Array[Byte]  = serde.serializer.serialize(topicName, a)
+  final def decode(ab: Array[Byte]): A = serde.deserializer.deserialize(topicName, ab)
 
-  def tryDecode(ab: Array[Byte]): Try[A] =
+  final def tryDecode(ab: Array[Byte]): Try[A] =
     Option(ab).fold[Try[A]](Failure(CodecException.DecodingNullException))(x => Try(decode(x)))
 
-  val prism: Prism[Array[Byte], A] =
+  final val prism: Prism[Array[Byte], A] =
     Prism[Array[Byte], A](x => Try(decode(x)).toOption)(encode)
 }
 
@@ -40,9 +40,8 @@ object KafkaCodec {
 
 }
 
-sealed abstract private[codec] class KafkaSerde[A] extends Serde[A] {
-  def schema: Schema
-  def configProps: Map[String, String]
+sealed abstract private[codec] class KafkaSerde[A](schema: Schema, configProps: Map[String, String])
+    extends Serde[A] {
 
   final override def configure(configs: ju.Map[String, _], isKey: Boolean): Unit = {
     serializer.configure(configs, isKey)
@@ -58,11 +57,11 @@ sealed abstract private[codec] class KafkaSerde[A] extends Serde[A] {
 object KafkaSerde {
 
   final case class Key[A](
-    override val schema: Schema,
-    override val configProps: Map[String, String],
+    schema: Schema,
+    configProps: Map[String, String],
     override val serializer: Serializer[A],
     override val deserializer: Deserializer[A]
-  ) extends KafkaSerde[A] {
+  ) extends KafkaSerde[A](schema, configProps) {
     configure(configProps.asJava, isKey = true)
 
     def codec(topicName: String): KafkaCodec.Key[A] =
@@ -71,11 +70,11 @@ object KafkaSerde {
   }
 
   final case class Value[A](
-    override val schema: Schema,
-    override val configProps: Map[String, String],
+    schema: Schema,
+    configProps: Map[String, String],
     override val serializer: Serializer[A],
     override val deserializer: Deserializer[A])
-      extends KafkaSerde[A] {
+      extends KafkaSerde[A](schema, configProps) {
     configure(configProps.asJava, isKey = false)
 
     def codec(topicName: String): KafkaCodec.Value[A] =

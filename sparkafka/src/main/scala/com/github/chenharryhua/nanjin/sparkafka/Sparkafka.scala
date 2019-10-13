@@ -42,7 +42,7 @@ object Sparkafka {
               val decoder = (cr: ConsumerRecord[Array[Byte], Array[Byte]]) =>
                 SparkafkaConsumerRecord
                   .fromConsumerRecord(cr)
-                  .bimap(t.keyCodec.prism.getOption, t.valueCodec.prism.getOption)
+                  .bimap(t.codec.keyCodec.prism.getOption, t.codec.valueCodec.prism.getOption)
                   .flattenKeyValue
               crs.map(decoder)
             }

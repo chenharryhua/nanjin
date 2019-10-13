@@ -9,6 +9,9 @@ import fs2.kafka.{AdminClientSettings, KafkaByteConsumer, KafkaByteProducer}
 import monocle.function.At
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
+import cats.implicits._
+import org.apache.avro.Schema
+import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 
 final case class TopicDef[K, V](topicName: String)(
   implicit
@@ -43,6 +46,22 @@ object TopicDef {
     new TopicDef(topicName)(SerdeOf(keySchema), SerdeOf[V], Show[K], Show[V])
 }
 
+final case class TopicCodec[K, V] private[kafka] (
+  keyCodec: KafkaCodec.Key[K],
+  valueCodec: KafkaCodec.Value[V]) {
+  require(
+    keyCodec.topicName === valueCodec.topicName,
+    "key and value codec should have same topic name")
+  val keySerde: KafkaSerde.Key[K]        = keyCodec.serde
+  val valueSerde: KafkaSerde.Value[V]    = valueCodec.serde
+  val keySchema: Schema                  = keySerde.schema
+  val valueSchema: Schema                = valueSerde.schema
+  val keySerializer: Serializer[K]       = keySerde.serializer
+  val keyDeserializer: Deserializer[K]   = keySerde.deserializer
+  val valueSerializer: Serializer[V]     = valueSerde.serializer
+  val valueDeserializer: Deserializer[V] = valueSerde.deserializer
+}
+
 final case class KafkaTopic[F[_], K, V] private[kafka] (
   topicDef: TopicDef[K, V],
   schemaRegistrySettings: SchemaRegistrySettings,
@@ -68,33 +87,34 @@ final case class KafkaTopic[F[_], K, V] private[kafka] (
 
   override def extract(key: K, value: V, rc: RecordContext): String = topicDef.topicName
 
-  val keyCodec: KafkaCodec.Key[K] =
-    serdeOfKey.asKey(schemaRegistrySettings.props).codec(topicDef.topicName)
-
-  val valueCodec: KafkaCodec.Value[V] =
-    serdeOfValue.asValue(schemaRegistrySettings.props).codec(topicDef.topicName)
+  val codec: TopicCodec[K, V] = TopicCodec(
+    serdeOfKey.asKey(schemaRegistrySettings.props).codec(topicDef.topicName),
+    serdeOfValue.asValue(schemaRegistrySettings.props).codec(topicDef.topicName))
 
   def decoder[G[_, _]: Bitraverse](cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
-    new KafkaGenericDecoder[G, K, V](cr, keyCodec, valueCodec)
+    new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valueCodec)
 
   //channels
   val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
     new KafkaChannels.Fs2Channel[F, K, V](
       topicDef.topicName,
-      kafkaProducerSettings.fs2ProducerSettings(keyCodec, valueCodec),
+      kafkaProducerSettings.fs2ProducerSettings(codec.keySerializer, codec.valueSerializer),
       kafkaConsumerSettings.fs2ConsumerSettings)
 
   val akkaResource: Resource[F, KafkaChannels.AkkaChannel[F, K, V]] = Resource.make(
     ConcurrentEffect[F].delay(
       new KafkaChannels.AkkaChannel[F, K, V](
         topicDef.topicName,
-        kafkaProducerSettings.akkaProducerSettings(materializer.value.system, keyCodec, valueCodec),
+        kafkaProducerSettings.akkaProducerSettings(
+          materializer.value.system,
+          codec.keySerializer,
+          codec.valueSerializer),
         kafkaConsumerSettings.akkaConsumerSettings(materializer.value.system),
         kafkaConsumerSettings.akkaCommitterSettings(materializer.value.system),
         materializer.value)))(_ => ConcurrentEffect[F].unit)
 
   val kafkaStream: KafkaChannels.StreamingChannel[K, V] =
-    new KafkaChannels.StreamingChannel[K, V](topicDef.topicName, keyCodec.serde, valueCodec.serde)
+    new KafkaChannels.StreamingChannel[K, V](topicDef.topicName, codec.keySerde, codec.valueSerde)
 
   // APIs
   val schemaRegistry: KafkaSchemaRegistry[F] = KafkaSchemaRegistry[F](this)
