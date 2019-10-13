@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.codec
 
+import java.io.{File, InputStream}
+
 import cats.implicits._
 import com.sksamuel.avro4s.{AvroSchema, SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
 import diffson._
@@ -13,7 +15,7 @@ import io.circe.{Json, ParsingFailure}
 import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType
 import org.apache.avro.{Schema, SchemaCompatibility}
 
-sealed abstract class ManualAvroSchema[A: SchemaFor](val schema: Schema)(
+final case class ManualAvroSchema[A: SchemaFor](schema: Schema)(
   implicit
   val decoder: AvroDecoder[A],
   val encoder: AvroEncoder[A]) {
@@ -60,10 +62,18 @@ sealed abstract class ManualAvroSchema[A: SchemaFor](val schema: Schema)(
 
 object ManualAvroSchema {
 
-  def apply[A](implicit ev: ManualAvroSchema[A]): ManualAvroSchema[A] = ev
-
   def apply[A: AvroDecoder: AvroEncoder: SchemaFor](stringSchema: String): ManualAvroSchema[A] = {
     val parser: Schema.Parser = new Schema.Parser
-    new ManualAvroSchema[A](parser.parse(stringSchema)) {}
+    ManualAvroSchema[A](parser.parse(stringSchema))
+  }
+
+  def apply[A: AvroDecoder: AvroEncoder: SchemaFor](file: File): ManualAvroSchema[A] = {
+    val parser: Schema.Parser = new Schema.Parser
+    ManualAvroSchema[A](parser.parse(file))
+  }
+
+  def apply[A: AvroDecoder: AvroEncoder: SchemaFor](is: InputStream): ManualAvroSchema[A] = {
+    val parser: Schema.Parser = new Schema.Parser
+    ManualAvroSchema[A](parser.parse(is))
   }
 }
