@@ -9,6 +9,7 @@ import diffson.circe._
 import diffson.jsonpatch._
 import diffson.jsonpatch.lcsdiff._
 import diffson.lcs.Patience
+import higherkindness.skeuomorph.avro.AvroF
 import io.circe.optics.JsonPath._
 import io.circe.parser._
 import io.circe.{Json, ParsingFailure}
@@ -31,10 +32,12 @@ final case class ManualAvroSchema[A: SchemaFor](schema: Schema)(
     noVersion.andThen(noDoc).andThen(noJavaClass)
   }
 
-  val isSame: Either[ParsingFailure, JsonPatch[Json]] =
+  val whatsDifferent: Either[ParsingFailure, JsonPatch[Json]] =
     (parse(schema.toString()), parse(inferredSchema.toString)).mapN { (input, inferred) =>
       diff(cleanupJsonDocument(input), cleanupJsonDocument(inferred))
     }
+
+  val isSemanticallySame: Boolean = whatsDifferent.exists(_.ops.isEmpty)
 
   def isCompatiable: Boolean =
     SchemaCompatibility
@@ -47,7 +50,7 @@ final case class ManualAvroSchema[A: SchemaFor](schema: Schema)(
         .getCompatibility == SchemaCompatibilityType.COMPATIBLE
 
   require(
-    isSame.exists(_.ops.isEmpty),
+    isSemanticallySame,
     s"""
        |input schema is not semantically identical to the inferred schema. 
        |input schema:
@@ -55,9 +58,12 @@ final case class ManualAvroSchema[A: SchemaFor](schema: Schema)(
        |inferred schema:
        |${inferredSchema.toString()}
        |diff:
-       |$isSame
+       |$whatsDifferent
     """.stripMargin
   )
+
+// experimental
+  val avroF: AvroF[Schema] = AvroF.fromAvro(schema)
 }
 
 object ManualAvroSchema {
