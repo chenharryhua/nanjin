@@ -38,16 +38,12 @@ final case class TableDataset[F[_]: ContextShift: Concurrent, A](
         .option("dbtable", tableDef.tableName)
         .load())
 
-  def uploadFromCsv(path: String)(implicit spark: SparkSession): F[Unit] =
-    uploadToDB(TypedDataset.createUnsafe[A](spark.read.options(tableParams.sparkOptions).csv(path)))
-
-  def uploadFromJson(path: String)(implicit spark: SparkSession): F[Unit] =
-    uploadToDB(
-      TypedDataset.createUnsafe[A](spark.read.options(tableParams.sparkOptions).json(path)))
-
-  def uploadFromParquet(path: String)(implicit spark: SparkSession): F[Unit] =
-    uploadToDB(
-      TypedDataset.createUnsafe[A](spark.read.options(tableParams.sparkOptions).parquet(path)))
+  def datasetFromDisk(path: String)(implicit spark: SparkSession): TypedDataset[A] =
+    TypedDataset.createUnsafe[A](
+      spark.read
+        .format(tableParams.format.value)
+        .options(tableParams.format.defaultOptions ++ tableParams.sparkOptions)
+        .load(path))
 
   def uploadFromTopic[K: TypedEncoder](topic: => KafkaTopic[F, K, A])(
     implicit spark: SparkSession): F[Unit] =

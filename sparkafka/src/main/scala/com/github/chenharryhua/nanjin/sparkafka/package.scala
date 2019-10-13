@@ -1,3 +1,3 @@
 package com.github.chenharryhua.nanjin
 
-package object sparkafka extends KafkaDatasetSyntax {}
+package object sparkafka extends SparkKafkaDBSyntax {}
