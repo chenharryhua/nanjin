@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.sparkdb.TableDataset
 import frameless.functions.aggregate.count
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SparkSession
+import cats.effect.Sync
 
 final case class MinutelyAggResult(minute: Int, count: Long)
 final case class HourlyAggResult(hour: Int, count: Long)
@@ -16,7 +17,7 @@ final case class DailyAggResult(date: LocalDate, count: Long)
 
 trait KafkaDatasetSyntax {
 
-  implicit class PredefinedAggregationFunction[K: TypedEncoder, V: TypedEncoder](
+  implicit final class SparkafkaDbSyntax[K: TypedEncoder, V: TypedEncoder](
     tds: TypedDataset[SparkafkaConsumerRecord[K, V]]) {
 
     def minutely: TypedDataset[MinutelyAggResult] = {
@@ -72,5 +73,15 @@ trait KafkaDatasetSyntax {
 
     def kafkaUpload[F[_]: ConcurrentEffect: Timer](topic: => KafkaTopic[F, K, V]): F[Unit] =
       Sparkafka.uploadToKafka[F, K, V](producerRecords(topic), topic).compile.drain
+  }
+
+  implicit final class SparkafkaTopicSyntax[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
+    topic: => KafkaTopic[F, K, V])(implicit spark: SparkSession) {
+
+    def datasetFromKafka: F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
+      Sparkafka.datasetFromKafka(topic)
+
+    def datasetFromDisk: F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
+      Sparkafka.datasetFromDisk(topic)
   }
 }

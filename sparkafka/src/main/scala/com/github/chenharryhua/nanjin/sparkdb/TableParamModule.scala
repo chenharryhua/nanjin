@@ -9,7 +9,7 @@ import org.apache.spark.sql.SaveMode
 object TableParams {
 
   val default: TableParams = TableParams(
-    Map("header" -> "true"),
+    Map.empty[String, String],
     SaveMode.ErrorIfExists
   )
 }
@@ -17,12 +17,12 @@ object TableParams {
 abstract private[sparkdb] class TableParamModule[F[_]: ContextShift: Concurrent, A] {
   self: TableDataset[F, A] =>
 
-  def withSaveMode(saveMode: SaveMode): TableDataset[F, A] =
+  final def withSaveMode(saveMode: SaveMode): TableDataset[F, A] =
     self.copy(tableParams = TableParams.saveMode.set(saveMode)(self.tableParams))
 
-  def withSparkOptions(options: Map[String, String]): TableDataset[F, A] =
+  final def withSparkOptions(options: Map[String, String]): TableDataset[F, A] =
     self.copy(tableParams = TableParams.sparkOptions.modify(_ ++ options)(self.tableParams))
 
-  def withSparkOption(key: String, value: String): TableDataset[F, A] =
+  final def withSparkOption(key: String, value: String): TableDataset[F, A] =
     self.copy(tableParams = TableParams.sparkOptions.modify(_ + (key -> value))(self.tableParams))
 }
