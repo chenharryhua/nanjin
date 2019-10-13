@@ -29,7 +29,7 @@ object Sparkafka {
   )(implicit spark: SparkSession): F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
     Sync[F].suspend {
       topic.consumer
-        .offsetRangeFor(topic.sparkafkaConf.timeRange)
+        .offsetRangeFor(topic.sparkafkaParams.timeRange)
         .map { gtp =>
           KafkaUtils
             .createRDD[Array[Byte], Array[Byte]](
@@ -55,7 +55,7 @@ object Sparkafka {
     Sync[F].delay {
       val ds = TypedDataset.createUnsafe[SparkafkaConsumerRecord[K, V]](
         spark.read.parquet(parquetPath(topic.topicDef.topicName)))
-      val inBetween = ds.makeUDF[Long, Boolean](topic.sparkafkaConf.timeRange.isInBetween)
+      val inBetween = ds.makeUDF[Long, Boolean](topic.sparkafkaParams.timeRange.isInBetween)
       ds.filter(inBetween(ds('timestamp)))
     }
 
@@ -73,8 +73,8 @@ object Sparkafka {
       kb <- Keyboard.signal[F]
       ck <- Stream
         .fromIterator[F](data.dataset.toLocalIterator().asScala)
-        .chunkN(topic.sparkafkaConf.uploadRate.batchSize)
-        .zipLeft(Stream.fixedRate(topic.sparkafkaConf.uploadRate.duration))
+        .chunkN(topic.sparkafkaParams.uploadRate.batchSize)
+        .zipLeft(Stream.fixedRate(topic.sparkafkaParams.uploadRate.duration))
         .evalMap(r => topic.producer.send(r.mapFilter(Option(_).map(_.toProducerRecord))))
         .pauseWhen(kb.map(_.contains(Keyboard.pauSe)))
         .interruptWhen(kb.map(_.contains(Keyboard.Quit)))

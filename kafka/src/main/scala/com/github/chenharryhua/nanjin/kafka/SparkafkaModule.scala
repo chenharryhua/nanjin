@@ -54,15 +54,15 @@ private[kafka] trait SparkafkaModule[F[_], K, V] { self: KafkaTopic[F, K, V] =>
 
   private def setStartTime(ts: KafkaTimestamp): KafkaTopic[F, K, V] =
     self.copy(
-      sparkafkaConf = SparkafkaParams.timeRange
+      sparkafkaParams = SparkafkaParams.timeRange
         .composeLens(KafkaDateTimeRange.start)
-        .set(Some(ts))(self.sparkafkaConf))
+        .set(Some(ts))(self.sparkafkaParams))
 
   private def setEndTime(ts: KafkaTimestamp): KafkaTopic[F, K, V] =
     self.copy(
-      sparkafkaConf = SparkafkaParams.timeRange
+      sparkafkaParams = SparkafkaParams.timeRange
         .composeLens(KafkaDateTimeRange.end)
-        .set(Some(ts))(self.sparkafkaConf))
+        .set(Some(ts))(self.sparkafkaParams))
 
   def withStartTime(dt: LocalDateTime): KafkaTopic[F, K, V] = setStartTime(KafkaTimestamp(dt))
   def withEndTime(dt: LocalDateTime): KafkaTopic[F, K, V]   = setEndTime(KafkaTimestamp(dt))
@@ -76,15 +76,15 @@ private[kafka] trait SparkafkaModule[F[_], K, V] { self: KafkaTopic[F, K, V] =>
 
   def withBatchSize(batchSize: Int): KafkaTopic[F, K, V] =
     self.copy(
-      sparkafkaConf = SparkafkaParams.uploadRate
+      sparkafkaParams = SparkafkaParams.uploadRate
         .composeLens(KafkaUploadRate.batchSize)
-        .set(batchSize)(self.sparkafkaConf))
+        .set(batchSize)(self.sparkafkaParams))
 
   def withDuration(duration: FiniteDuration): KafkaTopic[F, K, V] =
     self.copy(
-      sparkafkaConf = SparkafkaParams.uploadRate
+      sparkafkaParams = SparkafkaParams.uploadRate
         .composeLens(KafkaUploadRate.duration)
-        .set(duration)(self.sparkafkaConf))
+        .set(duration)(self.sparkafkaParams))
 
   def withUploadRate(batchSize: Int, duration: FiniteDuration): KafkaTopic[F, K, V] =
     withBatchSize(batchSize).withDuration(duration)
@@ -94,12 +94,12 @@ private[kafka] trait SparkafkaModule[F[_], K, V] { self: KafkaTopic[F, K, V] =>
 
   def withoutPartition: KafkaTopic[F, K, V] =
     self.copy(
-      sparkafkaConf =
-        strategyLens.modify(_ |+| ConversionStrategy.RemovePartition)(self.sparkafkaConf))
+      sparkafkaParams =
+        strategyLens.modify(_ |+| ConversionStrategy.RemovePartition)(self.sparkafkaParams))
 
   def withoutTimestamp: KafkaTopic[F, K, V] =
     self.copy(
-      sparkafkaConf =
-        strategyLens.modify(_ |+| ConversionStrategy.RemoveTimestamp)(self.sparkafkaConf))
+      sparkafkaParams =
+        strategyLens.modify(_ |+| ConversionStrategy.RemoveTimestamp)(self.sparkafkaParams))
 
 }

@@ -71,7 +71,7 @@ final case class KafkaTopic[F[_], K, V] private[kafka] (
   sharedConsumer: Eval[MVar[F, KafkaByteConsumer]],
   sharedProducer: Eval[KafkaByteProducer],
   materializer: Eval[ActorMaterializer],
-  sparkafkaConf: SparkafkaParams)(
+  sparkafkaParams: SparkafkaParams)(
   implicit
   val concurrentEffect: ConcurrentEffect[F],
   val contextShift: ContextShift[F],

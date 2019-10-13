@@ -57,7 +57,7 @@ trait KafkaDatasetSyntax {
     def producerRecords[F[_]](
       topic: => KafkaTopic[F, K, V]): TypedDataset[SparkafkaProducerRecord[K, V]] = {
       val sorted = tds.orderBy(tds('timestamp).asc, tds('offset).asc)
-      topic.sparkafkaConf.conversionStrategy match {
+      topic.sparkafkaParams.conversionStrategy match {
         case ConversionStrategy.Intact =>
           sorted.deserialized.map(_.toSparkafkaProducerRecord)
         case ConversionStrategy.RemovePartition =>
