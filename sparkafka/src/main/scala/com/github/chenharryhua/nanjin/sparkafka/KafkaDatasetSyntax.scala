@@ -8,8 +8,9 @@ import com.github.chenharryhua.nanjin.sparkafka.DatetimeInjectionInstances._
 import com.github.chenharryhua.nanjin.sparkdb.TableDataset
 import frameless.functions.aggregate.count
 import frameless.{TypedDataset, TypedEncoder}
+import fs2.{Chunk, Stream}
+import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.spark.sql.SparkSession
-import cats.effect.Sync
 
 final case class MinutelyAggResult(minute: Int, count: Long)
 final case class HourlyAggResult(hour: Int, count: Long)
@@ -75,13 +76,25 @@ trait KafkaDatasetSyntax {
       Sparkafka.uploadToKafka[F, K, V](producerRecords(topic), topic).compile.drain
   }
 
-  implicit final class SparkafkaTopicSyntax[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
-    topic: => KafkaTopic[F, K, V])(implicit spark: SparkSession) {
+  implicit final class SparkafkaTopicSyntax[
+    F[_]: ConcurrentEffect: Timer,
+    K: TypedEncoder,
+    V: TypedEncoder](topic: => KafkaTopic[F, K, V])(implicit spark: SparkSession) {
 
     def datasetFromKafka: F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
       Sparkafka.datasetFromKafka(topic)
 
     def datasetFromDisk: F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
       Sparkafka.datasetFromDisk(topic)
+
+    def saveToDisk: F[Unit] =
+      Sparkafka.saveToDisk(topic)
+
+    def uploadFrom(
+      data: TypedDataset[SparkafkaProducerRecord[K, V]]): Stream[F, Chunk[RecordMetadata]] =
+      Sparkafka.uploadToKafka(data, topic)
+
+    def replay: Stream[F, Chunk[RecordMetadata]] =
+      Sparkafka.replay(topic)
   }
 }
