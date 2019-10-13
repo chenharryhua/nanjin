@@ -24,6 +24,25 @@ final case class TopicDef[K, V](topicName: String)(
     ctx.topic[K, V](this)
 }
 
+object TopicDef {
+
+  def apply[K: Show, V: Show](
+    topicName: String,
+    keySchema: ManualAvroSchema[K],
+    valueSchema: ManualAvroSchema[V]): TopicDef[K, V] =
+    new TopicDef(topicName)(SerdeOf(keySchema), SerdeOf(valueSchema), Show[K], Show[V])
+
+  def apply[K: Show: SerdeOf, V: Show](
+    topicName: String,
+    valueSchema: ManualAvroSchema[V]): TopicDef[K, V] =
+    new TopicDef(topicName)(SerdeOf[K], SerdeOf(valueSchema), Show[K], Show[V])
+
+  def apply[K: Show, V: Show: SerdeOf](
+    topicName: String,
+    keySchema: ManualAvroSchema[K]): TopicDef[K, V] =
+    new TopicDef(topicName)(SerdeOf(keySchema), SerdeOf[V], Show[K], Show[V])
+}
+
 final case class KafkaTopic[F[_], K, V] private[kafka] (
   topicDef: TopicDef[K, V],
   schemaRegistrySettings: SchemaRegistrySettings,

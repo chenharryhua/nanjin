@@ -74,11 +74,6 @@ private[kafka] trait SparkafkaModule[F[_], K, V] { self: KafkaTopic[F, K, V] =>
   def withinOneDay(dt: LocalDate): KafkaTopic[F, K, V] =
     withStartTime(dt).withEndTime(dt.plusDays(1))
 
-  def withUploadRate(batchSize: Int, duration: FiniteDuration): KafkaTopic[F, K, V] =
-    self.copy(
-      sparkafkaConf =
-        SparkafkaParams.uploadRate.set(KafkaUploadRate(batchSize, duration))(self.sparkafkaConf))
-
   def withBatchSize(batchSize: Int): KafkaTopic[F, K, V] =
     self.copy(
       sparkafkaConf = SparkafkaParams.uploadRate
@@ -90,6 +85,9 @@ private[kafka] trait SparkafkaModule[F[_], K, V] { self: KafkaTopic[F, K, V] =>
       sparkafkaConf = SparkafkaParams.uploadRate
         .composeLens(KafkaUploadRate.duration)
         .set(duration)(self.sparkafkaConf))
+
+  def withUploadRate(batchSize: Int, duration: FiniteDuration): KafkaTopic[F, K, V] =
+    withBatchSize(batchSize).withDuration(duration)
 
   private val strategyLens: Lens[SparkafkaParams, ConversionStrategy] =
     SparkafkaParams.conversionStrategy

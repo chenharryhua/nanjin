@@ -122,9 +122,12 @@ sealed private[codec] trait SerdeOfPriority1 extends SerdeOfPriority0 {
       override val serializer: Serializer[KJson[A]]     = serde.serializer()
     }
   }
+}
 
-  implicit def kmanualavroSerde[A: ManualAvroSchema]: SerdeOf[A] = {
-    val inst: ManualAvroSchema[A] = ManualAvroSchema[A]
+object SerdeOf extends SerdeOfPriority1 {
+  def apply[A](implicit ev: SerdeOf[A]): SerdeOf[A] = ev
+
+  def apply[A](inst: ManualAvroSchema[A]): SerdeOf[A] = {
     import inst.{decoder, encoder}
     val serde: Serde[A] = new KafkaSerdeAvro[A](inst.schema)
     new SerdeOf[A](inst.schema) {
@@ -132,10 +135,6 @@ sealed private[codec] trait SerdeOfPriority1 extends SerdeOfPriority0 {
       override val serializer: Serializer[A]     = serde.serializer()
     }
   }
-}
-
-object SerdeOf extends SerdeOfPriority1 {
-  def apply[A](implicit ev: SerdeOf[A]): SerdeOf[A] = ev
 
   implicit object kstringSerde
       extends SerdeOf[String](SchemaFor[String].schema(DefaultFieldMapper)) {
