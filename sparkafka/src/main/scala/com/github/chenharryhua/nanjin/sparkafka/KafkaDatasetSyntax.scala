@@ -5,6 +5,7 @@ import java.time.LocalDate
 import cats.effect.{ConcurrentEffect, Timer}
 import com.github.chenharryhua.nanjin.kafka.{ConversionStrategy, KafkaTimestamp, KafkaTopic}
 import com.github.chenharryhua.nanjin.sparkafka.DatetimeInjectionInstances._
+import com.github.chenharryhua.nanjin.sparkdb.TableDataset
 import frameless.functions.aggregate.count
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SparkSession

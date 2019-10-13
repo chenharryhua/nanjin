@@ -1,15 +1,16 @@
-package com.github.chenharryhua.nanjin.sparkafka
+package com.github.chenharryhua.nanjin.sparkdb
 
 import cats.effect.{Concurrent, ContextShift, Sync}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.sparkafka.Sparkafka
 import doobie.free.connection.ConnectionIO
 import doobie.implicits._
 import doobie.util.Read
 import doobie.util.fragment.Fragment
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
-import org.apache.spark.sql.{SaveMode, SparkSession}
+import org.apache.spark.sql.SparkSession
 
 final case class TableDef[A](tableName: String)(
   implicit
@@ -17,24 +18,15 @@ final case class TableDef[A](tableName: String)(
   val doobieRead: Read[A]) {
 
   def in[F[_]: ContextShift: Concurrent](dbSettings: DatabaseSettings): TableDataset[F, A] =
-    TableDataset[F, A](this, dbSettings)
+    TableDataset[F, A](this, dbSettings, TableParams.default)
 }
 
 final case class TableDataset[F[_]: ContextShift: Concurrent, A](
   tableDef: TableDef[A],
   dbSettings: DatabaseSettings,
-  sparkOptions: Map[String, String] = Map.empty,
-  saveMode: SaveMode                = SaveMode.ErrorIfExists) {
+  tableParams: TableParams)
+    extends TableParamModule[F, A] {
   import tableDef.{doobieRead, typedEncoder}
-
-  def withSparkOption(key: String, value: String): TableDataset[F, A] =
-    copy(sparkOptions = sparkOptions + (key -> value))
-
-  def withSparkOptions(options: Map[String, String]): TableDataset[F, A] =
-    copy(sparkOptions = sparkOptions ++ options)
-
-  def withSaveMode(sm: SaveMode): TableDataset[F, A] =
-    copy(saveMode = sm)
 
   // spark
   def datasetFromDB(implicit spark: SparkSession): TypedDataset[A] =
@@ -46,20 +38,16 @@ final case class TableDataset[F[_]: ContextShift: Concurrent, A](
         .option("dbtable", tableDef.tableName)
         .load())
 
-  def uploadFromCsv(path: String)(implicit spark: SparkSession): F[Unit] = {
-    val opts = FileFormat.Csv.defaultOptions ++ sparkOptions
-    uploadToDB(TypedDataset.createUnsafe[A](spark.read.options(opts).csv(path)))
-  }
+  def uploadFromCsv(path: String)(implicit spark: SparkSession): F[Unit] =
+    uploadToDB(TypedDataset.createUnsafe[A](spark.read.options(tableParams.sparkOptions).csv(path)))
 
-  def uploadFromJson(path: String)(implicit spark: SparkSession): F[Unit] = {
-    val opts = FileFormat.Json.defaultOptions ++ sparkOptions
-    uploadToDB(TypedDataset.createUnsafe[A](spark.read.options(opts).json(path)))
-  }
+  def uploadFromJson(path: String)(implicit spark: SparkSession): F[Unit] =
+    uploadToDB(
+      TypedDataset.createUnsafe[A](spark.read.options(tableParams.sparkOptions).json(path)))
 
-  def uploadFromParquet(path: String)(implicit spark: SparkSession): F[Unit] = {
-    val opts = FileFormat.Parquet.defaultOptions ++ sparkOptions
-    uploadToDB(TypedDataset.createUnsafe[A](spark.read.options(opts).parquet(path)))
-  }
+  def uploadFromParquet(path: String)(implicit spark: SparkSession): F[Unit] =
+    uploadToDB(
+      TypedDataset.createUnsafe[A](spark.read.options(tableParams.sparkOptions).parquet(path)))
 
   def uploadFromTopic[K: TypedEncoder](topic: => KafkaTopic[F, K, A])(
     implicit spark: SparkSession): F[Unit] =
@@ -68,7 +56,7 @@ final case class TableDataset[F[_]: ContextShift: Concurrent, A](
   def uploadToDB(data: TypedDataset[A]): F[Unit] =
     Sync[F].delay(
       data.write
-        .mode(saveMode)
+        .mode(tableParams.saveMode)
         .format("jdbc")
         .option("url", dbSettings.connStr.value)
         .option("driver", dbSettings.driver.value)

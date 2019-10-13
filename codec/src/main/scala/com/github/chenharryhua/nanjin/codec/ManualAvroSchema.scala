@@ -9,7 +9,10 @@ import diffson.circe._
 import diffson.jsonpatch._
 import diffson.jsonpatch.lcsdiff._
 import diffson.lcs.Patience
+import higherkindness.droste.data.Mu
+import higherkindness.droste.scheme
 import higherkindness.skeuomorph.avro.AvroF
+import higherkindness.skeuomorph.mu.{MuF, Transform}
 import io.circe.optics.JsonPath._
 import io.circe.parser._
 import io.circe.{Json, ParsingFailure}
@@ -63,7 +66,11 @@ final case class ManualAvroSchema[A: SchemaFor](schema: Schema)(
   )
 
 // experimental
-  val avroF: AvroF[Schema] = AvroF.fromAvro(schema)
+
+  def toMu: Schema => Mu[MuF] =
+    scheme.hylo(Transform.transformAvro[Mu[MuF]].algebra, AvroF.fromAvro)
+  val isSameSchema: Boolean = toMu(inferredSchema) == toMu(schema)
+
 }
 
 object ManualAvroSchema {
