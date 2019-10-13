@@ -101,20 +101,20 @@ final case class CompatibilityTestReport(
 @autoFunctorK
 @autoSemigroupalK
 @autoProductNK
-trait KafkaSchemaRegistry[F[_]] extends Serializable {
+trait KafkaSchemaRegistryApi[F[_]] extends Serializable {
   def delete: F[(List[Integer], List[Integer])]
   def register: F[(Option[Int], Option[Int])]
   def latestMeta: F[KvSchemaMetadata]
   def testCompatibility: F[CompatibilityTestReport]
 }
 
-object KafkaSchemaRegistry {
+object KafkaSchemaRegistryApi {
 
-  def apply[F[_]: Sync](topic: KafkaTopic[F, _, _]): KafkaSchemaRegistry[F] =
+  def apply[F[_]: Sync](topic: KafkaTopic[F, _, _]): KafkaSchemaRegistryApi[F] =
     new KafkaSchemaRegistryImpl(topic)
 
   final private class KafkaSchemaRegistryImpl[F[_]: Sync](topic: KafkaTopic[F, _, _])
-      extends KafkaSchemaRegistry[F] {
+      extends KafkaSchemaRegistryApi[F] {
 
     val srSettings: SchemaRegistrySettings = topic.schemaRegistrySettings
     val topicName: String                  = topic.topicDef.topicName

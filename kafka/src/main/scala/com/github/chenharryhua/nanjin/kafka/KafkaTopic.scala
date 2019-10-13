@@ -117,9 +117,9 @@ final case class KafkaTopic[F[_], K, V] private[kafka] (
     new KafkaChannels.StreamingChannel[K, V](topicDef.topicName, codec.keySerde, codec.valueSerde)
 
   // APIs
-  val schemaRegistry: KafkaSchemaRegistry[F] = KafkaSchemaRegistry[F](this)
-  val admin: KafkaTopicAdminApi[F]           = KafkaTopicAdminApi(this)
-  val consumer: KafkaConsumerApi[F, K, V]    = KafkaConsumerApi[F, K, V](this)
-  val producer: KafkaProducerApi[F, K, V]    = KafkaProducerApi[F, K, V](this)
-  val monitor: KafkaMonitoringApi[F, K, V]   = KafkaMonitoringApi(this)
+  val schemaRegistry: KafkaSchemaRegistryApi[F] = KafkaSchemaRegistryApi[F](this)
+  val admin: KafkaTopicAdminApi[F]              = KafkaTopicAdminApi[F, K, V](this)
+  val consumer: KafkaConsumerApi[F, K, V]       = KafkaConsumerApi[F, K, V](this)
+  val producer: KafkaProducerApi[F, K, V]       = KafkaProducerApi[F, K, V](this)
+  val monitor: KafkaMonitoringApi[F, K, V]      = KafkaMonitoringApi[F, K, V](this)
 }
