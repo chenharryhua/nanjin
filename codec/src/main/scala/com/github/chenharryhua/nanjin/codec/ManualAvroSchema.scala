@@ -30,7 +30,7 @@ object ManualAvroSchema {
     noVersion.andThen(noDoc).andThen(noJavaClass)
   }
 
-  def whatsDifferent(
+  private def whatsDifferent(
     inputSchema: String,
     inferredSchema: Schema): Either[ParsingFailure, JsonPatch[Json]] =
     (parse(inputSchema), parse(inferredSchema.toString)).mapN { (input, inferred) =>
