@@ -11,6 +11,7 @@ import doobie.util.fragment.Fragment
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import org.apache.spark.sql.SparkSession
+import com.github.chenharryhua.nanjin.kafka.KafkaDateTimeRange
 
 final case class TableDef[A](tableName: String)(
   implicit
@@ -45,9 +46,9 @@ final case class TableDataset[F[_]: ContextShift: Concurrent, A](
         .options(tableParams.format.defaultOptions ++ tableParams.sparkOptions)
         .load(path))
 
-//  def uploadFromTopic[K: TypedEncoder](topic: => KafkaTopic[F, K, A])(
-//    implicit spark: SparkSession): F[Unit] =
-//    SparKafka.datasetFromKafka(topic).map(_.values).flatMap(uploadToDB)
+  def uploadFromTopic[K: TypedEncoder](topic: => KafkaTopic[F, K, A], range: KafkaDateTimeRange)(
+    implicit spark: SparkSession): F[Unit] =
+    SparKafka.datasetFromKafka(topic, range).map(_.values).flatMap(uploadToDB)
 
   def uploadToDB(data: TypedDataset[A]): F[Unit] =
     Sync[F].delay(

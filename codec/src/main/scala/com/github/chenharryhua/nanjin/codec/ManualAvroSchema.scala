@@ -1,7 +1,5 @@
 package com.github.chenharryhua.nanjin.codec
 
-import java.io.{File, InputStream}
-
 import cats.implicits._
 import com.sksamuel.avro4s.{AvroSchema, SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
 import diffson._
@@ -9,24 +7,21 @@ import diffson.circe._
 import diffson.jsonpatch._
 import diffson.jsonpatch.lcsdiff._
 import diffson.lcs.Patience
-import higherkindness.droste.data.Mu
-import higherkindness.droste.scheme
-import higherkindness.skeuomorph.avro.AvroF
-import higherkindness.skeuomorph.mu.{MuF, Transform}
 import io.circe.optics.JsonPath._
 import io.circe.parser._
 import io.circe.{Json, ParsingFailure}
-import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType
-import org.apache.avro.{Schema, SchemaCompatibility}
+import org.apache.avro.Schema
 
-final case class ManualAvroSchema[A: SchemaFor](schema: Schema)(
+final case class KafkaAvroSchemaError(msg: String) extends Exception(msg)
+
+final case class ManualAvroSchema[A] private (schema: Schema)(
   implicit
   val decoder: AvroDecoder[A],
-  val encoder: AvroEncoder[A]) {
+  val encoder: AvroEncoder[A])
+
+object ManualAvroSchema {
 
   implicit val lcs: Patience[Json] = new Patience[Json]
-
-  private val inferredSchema: Schema = AvroSchema[A]
 
   private def cleanupJsonDocument: Json => Json = {
     val noVersion   = root.at("version").set(None)
@@ -35,58 +30,22 @@ final case class ManualAvroSchema[A: SchemaFor](schema: Schema)(
     noVersion.andThen(noDoc).andThen(noJavaClass)
   }
 
-  val whatsDifferent: Either[ParsingFailure, JsonPatch[Json]] =
-    (parse(schema.toString()), parse(inferredSchema.toString)).mapN { (input, inferred) =>
+  def whatsDifferent(
+    inputSchema: String,
+    inferredSchema: Schema): Either[ParsingFailure, JsonPatch[Json]] =
+    (parse(inputSchema), parse(inferredSchema.toString)).mapN { (input, inferred) =>
       diff(cleanupJsonDocument(input), cleanupJsonDocument(inferred))
     }
 
-  val isSemanticallySame: Boolean = whatsDifferent.exists(_.ops.isEmpty)
-
-  def isCompatiable: Boolean =
-    SchemaCompatibility
-      .checkReaderWriterCompatibility(schema, inferredSchema)
-      .getResult
-      .getCompatibility == SchemaCompatibilityType.COMPATIBLE &&
-      SchemaCompatibility
-        .checkReaderWriterCompatibility(inferredSchema, schema)
-        .getResult
-        .getCompatibility == SchemaCompatibilityType.COMPATIBLE
-
-  require(
-    isSemanticallySame,
-    s"""
-       |input schema is not semantically identical to the inferred schema. 
-       |input schema:
-       |${schema.toString()}
-       |inferred schema:
-       |${inferredSchema.toString()}
-       |diff:
-       |$whatsDifferent
-    """.stripMargin
-  )
-
-// experimental
-
-  def toMu: Schema => Mu[MuF] =
-    scheme.hylo(Transform.transformAvro[Mu[MuF]].algebra, AvroF.fromAvro)
-  val isSameSchema: Boolean = toMu(inferredSchema) == toMu(schema)
-
-}
-
-object ManualAvroSchema {
-
-  def apply[A: AvroDecoder: AvroEncoder: SchemaFor](stringSchema: String): ManualAvroSchema[A] = {
+  def apply[A: AvroDecoder: AvroEncoder: SchemaFor](
+    stringSchema: String): Either[KafkaAvroSchemaError, ManualAvroSchema[A]] = {
     val parser: Schema.Parser = new Schema.Parser
-    ManualAvroSchema[A](parser.parse(stringSchema))
-  }
-
-  def apply[A: AvroDecoder: AvroEncoder: SchemaFor](file: File): ManualAvroSchema[A] = {
-    val parser: Schema.Parser = new Schema.Parser
-    ManualAvroSchema[A](parser.parse(file))
-  }
-
-  def apply[A: AvroDecoder: AvroEncoder: SchemaFor](is: InputStream): ManualAvroSchema[A] = {
-    val parser: Schema.Parser = new Schema.Parser
-    ManualAvroSchema[A](parser.parse(is))
+    whatsDifferent(stringSchema, AvroSchema[A])
+      .fold[Either[KafkaAvroSchemaError, ManualAvroSchema[A]]](
+        e => Left(KafkaAvroSchemaError(e.message)),
+        jp =>
+          if (jp.ops.isEmpty) Right(ManualAvroSchema(parser.parse(stringSchema)))
+          else Left(KafkaAvroSchemaError(jp.ops.map(_.toString).mkString("\n")))
+      )
   }
 }
