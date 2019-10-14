@@ -98,6 +98,42 @@ object KafkaTimestamp {
   start: Option[KafkaTimestamp],
   end: Option[KafkaTimestamp]) {
 
+  def withStart(ts: Long): KafkaDateTimeRange =
+    KafkaDateTimeRange.start.set(Some(KafkaTimestamp(ts)))(this)
+
+  def withStart(ts: Timestamp): KafkaDateTimeRange =
+    KafkaDateTimeRange.start.set(Some(KafkaTimestamp(ts)))(this)
+
+  def withStart(ts: Instant): KafkaDateTimeRange =
+    KafkaDateTimeRange.start.set(Some(KafkaTimestamp(ts)))(this)
+
+  def withStart(ts: LocalDateTime): KafkaDateTimeRange =
+    KafkaDateTimeRange.start.set(Some(KafkaTimestamp(ts)))(this)
+
+  def withStart(ts: ZonedDateTime): KafkaDateTimeRange =
+    KafkaDateTimeRange.start.set(Some(KafkaTimestamp(ts)))(this)
+
+  def withStart(ts: LocalDate): KafkaDateTimeRange =
+    KafkaDateTimeRange.start.set(Some(KafkaTimestamp(ts)))(this)
+
+  def withEnd(ts: Long): KafkaDateTimeRange =
+    KafkaDateTimeRange.end.set(Some(KafkaTimestamp(ts)))(this)
+
+  def withEnd(ts: Timestamp): KafkaDateTimeRange =
+    KafkaDateTimeRange.end.set(Some(KafkaTimestamp(ts)))(this)
+
+  def withEnd(ts: Instant): KafkaDateTimeRange =
+    KafkaDateTimeRange.end.set(Some(KafkaTimestamp(ts)))(this)
+
+  def withEnd(ts: LocalDateTime): KafkaDateTimeRange =
+    KafkaDateTimeRange.end.set(Some(KafkaTimestamp(ts)))(this)
+
+  def withEnd(ts: ZonedDateTime): KafkaDateTimeRange =
+    KafkaDateTimeRange.end.set(Some(KafkaTimestamp(ts)))(this)
+
+  def withEnd(ts: LocalDate): KafkaDateTimeRange =
+    KafkaDateTimeRange.end.set(Some(KafkaTimestamp(ts)))(this)
+
   def isInBetween(ts: Long): Boolean = (start, end) match {
     case (Some(s), Some(e)) => ts >= s.milliseconds && ts < e.milliseconds
     case (Some(s), None)    => ts >= s.milliseconds
