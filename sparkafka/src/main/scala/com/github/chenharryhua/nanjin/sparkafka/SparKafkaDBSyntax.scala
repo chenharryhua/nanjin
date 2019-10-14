@@ -14,10 +14,10 @@ final case class MinutelyAggResult(minute: Int, count: Long)
 final case class HourlyAggResult(hour: Int, count: Long)
 final case class DailyAggResult(date: LocalDate, count: Long)
 
-private[sparkafka] trait SparkKafkaDBSyntax {
+private[sparkafka] trait SparKafkaDBSyntax {
 
-  implicit final class SparkafkaDatasetSyntax[K: TypedEncoder, V: TypedEncoder](
-    tds: TypedDataset[SparkafkaConsumerRecord[K, V]]) {
+  implicit final class SparkafkaConsumerRecordSyntax[K: TypedEncoder, V: TypedEncoder](
+    tds: TypedDataset[SparKafkaConsumerRecord[K, V]]) {
 
     def minutely: TypedDataset[MinutelyAggResult] = {
       val minute: TypedDataset[Int] = tds.deserialized.map { m =>
@@ -43,35 +43,21 @@ private[sparkafka] trait SparkKafkaDBSyntax {
       res.orderBy(res('date).asc)
     }
 
-    def nullValues: TypedDataset[SparkafkaConsumerRecord[K, V]] =
+    def nullValues: TypedDataset[SparKafkaConsumerRecord[K, V]] =
       tds.filter(tds('value).isNone)
 
-    def nullKeys: TypedDataset[SparkafkaConsumerRecord[K, V]] =
+    def nullKeys: TypedDataset[SparKafkaConsumerRecord[K, V]] =
       tds.filter(tds('key).isNone)
 
     def values: TypedDataset[V] =
       tds.select(tds('value)).as[Option[V]].deserialized.flatMap(x => x)
 
-    def dbUpload[F[_]](db: TableDataset[F, V]): F[Unit] =
-      db.uploadToDB(values)
+    def keys: TypedDataset[K] =
+      tds.select(tds('key)).as[Option[K]].deserialized.flatMap(x => x)
 
-    def producerRecords[F[_]](
-      topic: => KafkaTopic[F, K, V]): TypedDataset[SparkafkaProducerRecord[K, V]] = {
-      val sorted = tds.orderBy(tds('timestamp).asc, tds('offset).asc)
-      topic.sparkafkaParams.conversionStrategy match {
-        case ConversionStrategy.Intact =>
-          sorted.deserialized.map(_.toSparkafkaProducerRecord)
-        case ConversionStrategy.RemovePartition =>
-          sorted.deserialized.map(_.toSparkafkaProducerRecord.withoutPartition)
-        case ConversionStrategy.RemoveTimestamp =>
-          sorted.deserialized.map(_.toSparkafkaProducerRecord.withoutTimestamp)
-        case ConversionStrategy.RemovePartitionAndTimestamp =>
-          sorted.deserialized.map(_.toSparkafkaProducerRecord.withoutTimestamp.withoutPartition)
-      }
-    }
+    def toIntactProducerRecords: TypedDataset[SparKafkaProducerRecord[K, V]] =
+      SparKafka.toProducerRecords(tds, ConversionStrategy.Intact)
 
-    def kafkaUpload[F[_]: ConcurrentEffect: Timer](topic: => KafkaTopic[F, K, V]): F[Unit] =
-      Sparkafka.uploadToKafka[F, K, V](producerRecords(topic), topic).compile.drain
   }
 
   implicit final class SparkafkaTopicSyntax[
@@ -79,14 +65,26 @@ private[sparkafka] trait SparkKafkaDBSyntax {
     K: TypedEncoder,
     V: TypedEncoder](topic: => KafkaTopic[F, K, V])(implicit spark: SparkSession) {
 
-    def datasetFromKafka: F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
-      Sparkafka.datasetFromKafka(topic)
+    def datasetFromKafka: F[TypedDataset[SparKafkaConsumerRecord[K, V]]] =
+      SparKafka.datasetFromKafka(topic)
 
-    def datasetFromDisk: F[TypedDataset[SparkafkaConsumerRecord[K, V]]] =
-      Sparkafka.datasetFromDisk(topic)
+    def datasetFromDisk: F[TypedDataset[SparKafkaConsumerRecord[K, V]]] =
+      SparKafka.datasetFromDisk(topic)
 
-    def saveToDisk: F[Unit] = Sparkafka.saveToDisk(topic)
+    def saveToDisk: F[Unit] = SparKafka.saveToDisk(topic)
 
-    def replay: F[Unit] = Sparkafka.replay(topic).map(_ => print(".")).compile.drain
+    def replay: F[Unit] = SparKafka.replay(topic).map(_ => print(".")).compile.drain
+  }
+
+  implicit final class SparkDBSyntax[A](data: TypedDataset[A]) {
+    def dbUpload[F[_]](db: TableDataset[F, A]): F[Unit] = db.uploadToDB(data)
+  }
+
+  implicit final class SparkafkaUploadSyntax[K, V](
+    data: TypedDataset[SparKafkaProducerRecord[K, V]]) {
+
+    def kafkaUpload[F[_]: ConcurrentEffect: Timer](topic: => KafkaTopic[F, K, V]): F[Unit] =
+      SparKafka.uploadToKafka[F, K, V](topic, data).compile.drain
+
   }
 }

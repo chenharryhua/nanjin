@@ -9,7 +9,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.streaming.DataStreamWriter
 
-object SparkafkaStream {
+object SparKafkaStream {
 
   private def toSparkOptions(m: Map[String, String]): Map[String, String] = {
     val rm1 = remove(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG)(_: Map[String, String])
@@ -18,7 +18,7 @@ object SparkafkaStream {
   }
 
   def sstream[F[_], K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
-    implicit spark: SparkSession): TypedDataset[SparkafkaConsumerRecord[K, V]] = {
+    implicit spark: SparkSession): TypedDataset[SparKafkaConsumerRecord[K, V]] = {
     import spark.implicits._
     TypedDataset
       .create(
@@ -27,12 +27,14 @@ object SparkafkaStream {
           .options(toSparkOptions(topic.kafkaConsumerSettings.props))
           .option("subscribe", topic.topicDef.topicName)
           .load()
-          .as[SparkafkaConsumerRecord[Array[Byte], Array[Byte]]])
+          .as[SparKafkaConsumerRecord[Array[Byte], Array[Byte]]])
       .deserialized
       .mapPartitions { msgs =>
         val t = topic
-        val decoder = (msg: SparkafkaConsumerRecord[Array[Byte], Array[Byte]]) =>
-          msg.bimap(t.codec.keyCodec.prism.getOption, t.codec.valueCodec.prism.getOption).flattenKeyValue
+        val decoder = (msg: SparKafkaConsumerRecord[Array[Byte], Array[Byte]]) =>
+          msg
+            .bimap(t.codec.keyCodec.prism.getOption, t.codec.valueCodec.prism.getOption)
+            .flattenKeyValue
         msgs.map(decoder)
       }
   }

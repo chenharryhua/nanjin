@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.sparkdb
 import cats.effect.{Concurrent, ContextShift, Sync}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.sparkafka.Sparkafka
+import com.github.chenharryhua.nanjin.sparkafka.SparKafka
 import doobie.free.connection.ConnectionIO
 import doobie.implicits._
 import doobie.util.Read
@@ -47,7 +47,7 @@ final case class TableDataset[F[_]: ContextShift: Concurrent, A](
 
   def uploadFromTopic[K: TypedEncoder](topic: => KafkaTopic[F, K, A])(
     implicit spark: SparkSession): F[Unit] =
-    Sparkafka.datasetFromKafka(topic).map(_.values).flatMap(uploadToDB)
+    SparKafka.datasetFromKafka(topic).map(_.values).flatMap(uploadToDB)
 
   def uploadToDB(data: TypedDataset[A]): F[Unit] =
     Sync[F].delay(
