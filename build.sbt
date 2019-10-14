@@ -1,5 +1,5 @@
 scalaVersion in ThisBuild      := "2.12.10"
-scapegoatVersion in ThisBuild  := "1.3.10"
+scapegoatVersion in ThisBuild  := "1.3.11"
 parallelExecution in ThisBuild := false
 
 val confluent    = "5.3.0"
@@ -30,7 +30,7 @@ val framelessVersion = "0.8.0"
 val circeVersion = "0.12.2"
 val jsonDiff     = "4.0.0"
 
-val avro4s     = "3.0.1"
+val avro4s     = "3.0.2"
 val apacheAvro = "1.9.1"
 val avrohugger = "1.0.0-RC19"
 
