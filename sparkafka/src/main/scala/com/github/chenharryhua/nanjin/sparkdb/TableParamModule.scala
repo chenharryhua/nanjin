@@ -12,21 +12,18 @@ sealed trait FileFormat {
 object FileFormat {
 
   case object Json extends FileFormat {
-    override def defaultOptions: Map[String, String] = Map.empty
-
-    override def value: String = "json"
+    override val defaultOptions: Map[String, String] = Map.empty
+    override val value: String                       = "json"
   }
 
   case object Parquet extends FileFormat {
-    override def defaultOptions: Map[String, String] = Map.empty
-
-    override def value: String = "parquet"
+    override val defaultOptions: Map[String, String] = Map.empty
+    override val value: String                       = "parquet"
   }
 
   case object Csv extends FileFormat {
-    override def defaultOptions: Map[String, String] = Map("header" -> "true")
-
-    override def value: String = "csv"
+    override val defaultOptions: Map[String, String] = Map("header" -> "true")
+    override val value: String                       = "csv"
   }
 }
 
