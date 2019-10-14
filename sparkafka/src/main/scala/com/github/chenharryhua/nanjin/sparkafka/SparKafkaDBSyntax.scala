@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.sparkafka
 import java.time.LocalDate
 
 import cats.effect.{ConcurrentEffect, Timer}
-import com.github.chenharryhua.nanjin.kafka.{ConversionStrategy, KafkaTimestamp, KafkaTopic}
+import com.github.chenharryhua.nanjin.kafka.{KafkaTimestamp, KafkaTopic}
 import com.github.chenharryhua.nanjin.sparkafka.DatetimeInjectionInstances._
 import com.github.chenharryhua.nanjin.sparkdb.TableDataset
 import frameless.functions.aggregate.count
@@ -55,8 +55,8 @@ private[sparkafka] trait SparKafkaDBSyntax {
     def keys: TypedDataset[K] =
       tds.select(tds('key)).as[Option[K]].deserialized.flatMap(x => x)
 
-    def toIntactProducerRecords: TypedDataset[SparKafkaProducerRecord[K, V]] =
-      SparKafka.toProducerRecords(tds, ConversionStrategy.Intact)
+//    def toIntactProducerRecords: TypedDataset[SparKafkaProducerRecord[K, V]] =
+//      SparKafka.toProducerRecords(tds, ConversionStrategy.Intact)
 
   }
 
@@ -65,15 +65,15 @@ private[sparkafka] trait SparKafkaDBSyntax {
     K: TypedEncoder,
     V: TypedEncoder](topic: => KafkaTopic[F, K, V])(implicit spark: SparkSession) {
 
-    def datasetFromKafka: F[TypedDataset[SparKafkaConsumerRecord[K, V]]] =
-      SparKafka.datasetFromKafka(topic)
+//    def datasetFromKafka: F[TypedDataset[SparKafkaConsumerRecord[K, V]]] =
+//      SparKafka.datasetFromKafka(topic)
 
-    def datasetFromDisk: F[TypedDataset[SparKafkaConsumerRecord[K, V]]] =
-      SparKafka.datasetFromDisk(topic)
+//    def datasetFromDisk: F[TypedDataset[SparKafkaConsumerRecord[K, V]]] =
+//      SparKafka.datasetFromDisk(topic)
 
-    def saveToDisk: F[Unit] = SparKafka.saveToDisk(topic)
+//    def saveToDisk: F[Unit] = SparKafka.saveToDisk(topic)
 
-    def replay: F[Unit] = SparKafka.replay(topic).map(_ => print(".")).compile.drain
+//    def replay: F[Unit] = SparKafka.replay(topic).map(_ => print(".")).compile.drain
   }
 
   implicit final class SparkDBSyntax[A](data: TypedDataset[A]) {
@@ -83,8 +83,8 @@ private[sparkafka] trait SparKafkaDBSyntax {
   implicit final class SparkafkaUploadSyntax[K, V](
     data: TypedDataset[SparKafkaProducerRecord[K, V]]) {
 
-    def kafkaUpload[F[_]: ConcurrentEffect: Timer](topic: => KafkaTopic[F, K, V]): F[Unit] =
-      SparKafka.uploadToKafka[F, K, V](topic, data).compile.drain
+  //  def kafkaUpload[F[_]: ConcurrentEffect: Timer](topic: => KafkaTopic[F, K, V]): F[Unit] =
+  //    SparKafka.uploadToKafka[F, K, V](topic, data).compile.drain
 
   }
 }

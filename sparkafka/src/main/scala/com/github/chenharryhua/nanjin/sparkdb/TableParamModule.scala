@@ -27,14 +27,14 @@ object FileFormat {
   }
 }
 
-@Lenses final case class TableParams(
+@Lenses final case class SparkTableParams(
   sparkOptions: Map[String, String],
   format: FileFormat,
   saveMode: SaveMode)
 
-object TableParams {
+object SparkTableParams {
 
-  val default: TableParams = TableParams(
+  val default: SparkTableParams = SparkTableParams(
     Map.empty[String, String],
     FileFormat.Parquet,
     SaveMode.ErrorIfExists
@@ -45,14 +45,15 @@ abstract private[sparkdb] class TableParamModule[F[_]: ContextShift: Concurrent,
   self: TableDataset[F, A] =>
 
   final def withSaveMode(saveMode: SaveMode): TableDataset[F, A] =
-    self.copy(tableParams = TableParams.saveMode.set(saveMode)(self.tableParams))
+    self.copy(tableParams = SparkTableParams.saveMode.set(saveMode)(self.tableParams))
 
   final def withSparkOptions(options: Map[String, String]): TableDataset[F, A] =
-    self.copy(tableParams = TableParams.sparkOptions.modify(_ ++ options)(self.tableParams))
+    self.copy(tableParams = SparkTableParams.sparkOptions.modify(_ ++ options)(self.tableParams))
 
   final def withSparkOption(key: String, value: String): TableDataset[F, A] =
-    self.copy(tableParams = TableParams.sparkOptions.modify(_ + (key -> value))(self.tableParams))
+    self.copy(
+      tableParams = SparkTableParams.sparkOptions.modify(_ + (key -> value))(self.tableParams))
 
   final def withFileFormat(format: FileFormat): TableDataset[F, A] =
-    self.copy(tableParams = TableParams.format.set(format)(self.tableParams))
+    self.copy(tableParams = SparkTableParams.format.set(format)(self.tableParams))
 }

@@ -90,7 +90,7 @@ final case class CompatibilityTestReport(
        |key:   $keyDescription
        |
        |value: $valueDescription
-       |${srSettings}""".stripMargin
+       |$srSettings""".stripMargin
 
   override val toString: String = show
 

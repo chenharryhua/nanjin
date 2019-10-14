@@ -18,13 +18,13 @@ final case class TableDef[A](tableName: String)(
   val doobieRead: Read[A]) {
 
   def in[F[_]: ContextShift: Concurrent](dbSettings: DatabaseSettings): TableDataset[F, A] =
-    TableDataset[F, A](this, dbSettings, TableParams.default)
+    TableDataset[F, A](this, dbSettings, SparkTableParams.default)
 }
 
 final case class TableDataset[F[_]: ContextShift: Concurrent, A](
   tableDef: TableDef[A],
   dbSettings: DatabaseSettings,
-  tableParams: TableParams)
+  tableParams: SparkTableParams)
     extends TableParamModule[F, A] {
   import tableDef.{doobieRead, typedEncoder}
 
@@ -45,9 +45,9 @@ final case class TableDataset[F[_]: ContextShift: Concurrent, A](
         .options(tableParams.format.defaultOptions ++ tableParams.sparkOptions)
         .load(path))
 
-  def uploadFromTopic[K: TypedEncoder](topic: => KafkaTopic[F, K, A])(
-    implicit spark: SparkSession): F[Unit] =
-    SparKafka.datasetFromKafka(topic).map(_.values).flatMap(uploadToDB)
+//  def uploadFromTopic[K: TypedEncoder](topic: => KafkaTopic[F, K, A])(
+//    implicit spark: SparkSession): F[Unit] =
+//    SparKafka.datasetFromKafka(topic).map(_.values).flatMap(uploadToDB)
 
   def uploadToDB(data: TypedDataset[A]): F[Unit] =
     Sync[F].delay(

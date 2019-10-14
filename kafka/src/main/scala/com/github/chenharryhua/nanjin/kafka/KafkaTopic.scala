@@ -70,13 +70,12 @@ final case class KafkaTopic[F[_], K, V] private[kafka] (
   adminSettings: AdminClientSettings[F],
   sharedConsumer: Eval[MVar[F, KafkaByteConsumer]],
   sharedProducer: Eval[KafkaByteProducer],
-  materializer: Eval[ActorMaterializer],
-  sparkafkaParams: SparkafkaParams)(
+  materializer: Eval[ActorMaterializer])(
   implicit
   val concurrentEffect: ConcurrentEffect[F],
   val contextShift: ContextShift[F],
   val timer: Timer[F])
-    extends TopicNameExtractor[K, V] with SparkafkaModule[F, K, V] {
+    extends TopicNameExtractor[K, V] {
   import topicDef.{serdeOfKey, serdeOfValue, showKey, showValue}
 
   val consumerGroupId: Option[KafkaConsumerGroupId] =

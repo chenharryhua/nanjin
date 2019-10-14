@@ -4,7 +4,7 @@ import java.util
 
 import cats.effect.{ConcurrentEffect, Sync, Timer}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.{ConversionStrategy, KafkaTopic, Keyboard}
+import com.github.chenharryhua.nanjin.kafka.{KafkaDateTimeRange, KafkaTopic, Keyboard}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.{Chunk, Stream}
 import monocle.function.At.remove
@@ -24,11 +24,13 @@ object SparKafka {
       "value.deserializer" -> classOf[ByteArrayDeserializer].getName) ++
       remove(ConsumerConfig.CLIENT_ID_CONFIG)(maps)).mapValues[Object](identity).asJava
 
-  def datasetFromKafka[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
+  def datasetFromKafka[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
+    topic: => KafkaTopic[F, K, V],
+    timeRange: KafkaDateTimeRange)(
     implicit spark: SparkSession): F[TypedDataset[SparKafkaConsumerRecord[K, V]]] =
     Sync[F].suspend {
       topic.consumer
-        .offsetRangeFor(topic.sparkafkaParams.timeRange)
+        .offsetRangeFor(timeRange)
         .map { gtp =>
           KafkaUtils
             .createRDD[Array[Byte], Array[Byte]](
@@ -49,20 +51,23 @@ object SparKafka {
         .map(TypedDataset.create(_))
     }
 
-  def datasetFromDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
+  def datasetFromDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
+    topic: => KafkaTopic[F, K, V],
+    timeRange: KafkaDateTimeRange)(
     implicit spark: SparkSession): F[TypedDataset[SparKafkaConsumerRecord[K, V]]] =
     Sync[F].delay {
       val tds = TypedDataset.createUnsafe[SparKafkaConsumerRecord[K, V]](
         spark.read.parquet(parquetPath(topic.topicDef.topicName)))
-      val inBetween = tds.makeUDF[Long, Boolean](topic.sparkafkaParams.timeRange.isInBetween)
+      val inBetween = tds.makeUDF[Long, Boolean](timeRange.isInBetween)
       tds.filter(inBetween(tds('timestamp)))
     }
 
   private def parquetPath(topicName: String): String = s"./data/kafka/parquet/$topicName"
 
-  def saveToDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
-    implicit spark: SparkSession): F[Unit] =
-    datasetFromKafka(topic).map(_.write.parquet(parquetPath(topic.topicDef.topicName)))
+  def saveToDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
+    topic: => KafkaTopic[F, K, V],
+    timeRange: KafkaDateTimeRange)(implicit spark: SparkSession): F[Unit] =
+    datasetFromKafka(topic, timeRange).map(_.write.parquet(parquetPath(topic.topicDef.topicName)))
 
   def toProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     tds: TypedDataset[SparKafkaConsumerRecord[K, V]],
@@ -83,14 +88,15 @@ object SparKafka {
   // upload to kafka
   def uploadToKafka[F[_]: ConcurrentEffect: Timer, K, V](
     topic: => KafkaTopic[F, K, V],
-    tds: TypedDataset[SparKafkaProducerRecord[K, V]]
+    tds: TypedDataset[SparKafkaProducerRecord[K, V]],
+    uploadRate: KafkaUploadRate
   ): Stream[F, Chunk[RecordMetadata]] =
     for {
       kb <- Keyboard.signal[F]
       ck <- Stream
         .fromIterator[F](tds.dataset.toLocalIterator().asScala)
-        .chunkN(topic.sparkafkaParams.uploadRate.batchSize)
-        .zipLeft(Stream.fixedRate(topic.sparkafkaParams.uploadRate.duration))
+        .chunkN(uploadRate.batchSize)
+        .zipLeft(Stream.fixedRate(uploadRate.duration))
         .evalMap(r => topic.producer.send(r.mapFilter(Option(_).map(_.toProducerRecord))))
         .pauseWhen(kb.map(_.contains(Keyboard.pauSe)))
         .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
@@ -98,9 +104,13 @@ object SparKafka {
 
   // load data from disk and then upload into kafka
   def replay[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
-    topic: => KafkaTopic[F, K, V])(implicit spark: SparkSession): Stream[F, Chunk[RecordMetadata]] =
+    topic: => KafkaTopic[F, K, V],
+    params: SparKafkaParams)(implicit spark: SparkSession): Stream[F, Chunk[RecordMetadata]] =
     for {
-      ds <- Stream.eval(datasetFromDisk[F, K, V](topic))
-      res <- uploadToKafka(topic, toProducerRecords(ds, topic.sparkafkaParams.conversionStrategy))
+      ds <- Stream.eval(datasetFromDisk[F, K, V](topic, params.timeRange))
+      res <- uploadToKafka(
+        topic,
+        toProducerRecords(ds, params.conversionStrategy),
+        params.uploadRate)
     } yield res
 }
