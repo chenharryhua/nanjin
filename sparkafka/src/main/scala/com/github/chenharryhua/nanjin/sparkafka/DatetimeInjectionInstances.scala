@@ -7,7 +7,7 @@ import doobie.util.Meta
 import frameless.{Injection, SQLDate, SQLTimestamp}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 
-object DatetimeInjectionInstances {
+abstract private[sparkafka] class DatetimeInjectionInstances {
   private val zoneId: ZoneId = ZoneId.systemDefault()
 
 //typed-spark
