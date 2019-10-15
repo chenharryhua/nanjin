@@ -85,10 +85,10 @@ object KafkaMonitoringApi {
                          |
                          |number of records: $num
                          |first records of each partitions: 
-                         |${first.mkString("\n")}
+                         |${first.map(_.show).mkString("\n")}
                          |
                          |last records of each partitions:
-                         |${last.mkString("\n")}
+                         |${last.map(_.show).mkString("\n")}
                          |""".stripMargin)
   }
 }

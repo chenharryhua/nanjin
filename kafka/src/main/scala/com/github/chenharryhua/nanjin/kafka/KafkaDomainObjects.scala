@@ -78,8 +78,9 @@ object KafkaConsumerGroupInfo {
 
 // in unit of milli-second
 final case class KafkaTimestamp(milliseconds: Long, tz: ZoneId) {
-  def utc: Instant             = Instant.ofEpochMilli(milliseconds)
-  def local: ZonedDateTime     = utc.atZone(tz)
+  def instant: Instant         = Instant.ofEpochMilli(milliseconds)
+  def utc: ZonedDateTime       = instant.atZone(ZoneId.of("Etc/UTC"))
+  def local: LocalDateTime     = instant.atZone(tz).toLocalDateTime()
   def javaLong: java.lang.Long = milliseconds
 }
 
