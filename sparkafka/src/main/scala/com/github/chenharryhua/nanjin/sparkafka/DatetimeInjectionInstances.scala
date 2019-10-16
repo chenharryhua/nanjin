@@ -9,7 +9,7 @@ import frameless.{Injection, SQLDate, SQLTimestamp}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 
 private[sparkafka] trait DatetimeInjectionInstances extends Serializable {
-  private val zoneId: ZoneId = ZoneId.systemDefault()
+  private val zoneId: ZoneId = ZoneId.of("Etc/UTC")
 
 //typed-spark
   implicit object javaSQLTimestampInjection extends Injection[Timestamp, SQLTimestamp] {

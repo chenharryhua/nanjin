@@ -35,7 +35,7 @@ val apacheAvro = "1.9.1"
 val avrohugger = "1.0.0-RC19"
 
 val silencer = "1.4.2"
-val jline    = "3.12.1"
+val jline    = "3.13.0"
 
 val scalatest = "3.0.8"
 
