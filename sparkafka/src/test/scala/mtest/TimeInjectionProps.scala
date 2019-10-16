@@ -3,7 +3,7 @@ package mtest
 import java.time.{Instant, LocalDate, LocalDateTime}
 
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8._
-import com.github.chenharryhua.nanjin.sparkafka.DatetimeInjectionInstances._
+import com.github.chenharryhua.nanjin.sparkafka._
 import org.scalacheck.Prop.{forAll, propBoolean}
 import org.scalacheck.Properties
 

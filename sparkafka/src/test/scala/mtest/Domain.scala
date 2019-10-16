@@ -1,9 +1,21 @@
 package mtest
 
+import java.time.{Instant, LocalDate, LocalDateTime}
+
 import cats.Show
 import io.circe.generic.JsonCodec
 import cats.implicits._
+import com.github.chenharryhua.nanjin.kafka.KafkaTimestamp
 import frameless.Injection
+
+final case class EmbeddedForTaskSerializable(f: Int, g: LocalDateTime)
+
+final case class ForTaskSerializable(
+  a: Int,
+  b: String,
+  c: LocalDate,
+  d: LocalDateTime,
+  e: EmbeddedForTaskSerializable)
 
 case class trip_record(
   VendorID: Int,
@@ -41,7 +53,9 @@ object trip_record {
 sealed trait Colorish
 
 object Colorish {
+
   implicit val colorInjection: Injection[Colorish, String] = new Injection[Colorish, String] {
+
     override def apply(a: Colorish): String = a match {
       case Red   => "red"
       case Blue  => "blue"

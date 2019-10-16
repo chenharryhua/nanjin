@@ -1,13 +1,22 @@
 package mtest
+import cats.Show
 import cats.implicits._
 import cats.derived.auto.show._
+import cats.effect.IO
+import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.sparkafka._
 
 object topics {
-  val taxi         = ctx.topic[Int, trip_record]("nyc_yellow_taxi_trip_data")
-  val pencil_topic = ctx.topic[Int, Pencil]("pencile")
-  val first_topic  = ctx.topic[Int, FirstStream]("first")
-  val second_topic = ctx.topic[Int, SecondStream]("second")
-  val ss           = ctx.topic[String, String]("ss")
-  val si           = ctx.topic[String, Int]("si")
-  val ii           = ctx.topic[Int, Int]("ii")
+  implicit val show: Show[ForTaskSerializable] = _.toString
+  val taxi                                     = ctx.topic[Int, trip_record]("nyc_yellow_taxi_trip_data")
+  val pencil_topic                             = ctx.topic[Int, Pencil]("pencile")
+  val first_topic                              = ctx.topic[Int, FirstStream]("first")
+  val second_topic                             = ctx.topic[Int, SecondStream]("second")
+  val ss                                       = ctx.topic[String, String]("ss")
+  val si                                       = ctx.topic[String, Int]("si")
+  val ii                                       = ctx.topic[Int, Int]("ii")
+
+  val serializableTopic: KafkaTopic[IO, Int, ForTaskSerializable] =
+    ctx.topic[Int, ForTaskSerializable]("serializable.test")
 }
+ 

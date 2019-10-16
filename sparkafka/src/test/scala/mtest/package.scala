@@ -1,5 +1,5 @@
 import cats.effect.{ContextShift, IO, Resource, Timer}
-import com.github.chenharryhua.nanjin.kafka.{IoKafkaContext, KafkaSettings}
+import com.github.chenharryhua.nanjin.kafka.{IoKafkaContext, KafkaSettings, TopicDef}
 import com.github.chenharryhua.nanjin.sparkafka.SparkSettings
 import org.apache.spark.sql.SparkSession
 
@@ -12,6 +12,6 @@ package object mtest {
   val ctx: IoKafkaContext = KafkaSettings.local.ioContext
 
   val spark: Resource[IO, SparkSession] =
-    SparkSettings.default.updateConf(_.setMaster("local[*]").setAppName("test")).sessionResource[IO]
+    SparkSettings.default.updateConf(_.setMaster("local[*]").setAppName("test")).sessionResource
 
 }

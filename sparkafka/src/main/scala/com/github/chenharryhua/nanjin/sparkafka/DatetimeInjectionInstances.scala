@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.sparkafka
 import java.sql.{Date, Timestamp}
 import java.time._
 
+import com.github.chenharryhua.nanjin.kafka.KafkaTimestamp
 import doobie.util.Meta
 import frameless.{Injection, SQLDate, SQLTimestamp}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
@@ -42,6 +43,11 @@ private[sparkafka] trait DatetimeInjectionInstances extends Serializable {
   implicit object localDateInjection extends Injection[LocalDate, Date] {
     override def apply(a: LocalDate): Date  = Date.valueOf(a)
     override def invert(b: Date): LocalDate = b.toLocalDate
+  }
+
+  implicit object kafkaTimestampInjection extends Injection[KafkaTimestamp, SQLTimestamp] {
+    override def apply(a: KafkaTimestamp): SQLTimestamp  = SQLTimestamp(a.milliseconds)
+    override def invert(b: SQLTimestamp): KafkaTimestamp = KafkaTimestamp(b.us)
   }
 
 //doobie
