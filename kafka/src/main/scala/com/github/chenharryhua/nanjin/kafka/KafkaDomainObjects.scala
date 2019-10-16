@@ -76,23 +76,24 @@ object KafkaConsumerGroupInfo {
   }
 }
 
-// in unit of milli-second
-final case class KafkaTimestamp(milliseconds: Long, tz: ZoneId) {
-  def instant: Instant         = Instant.ofEpochMilli(milliseconds)
-  def utc: ZonedDateTime       = instant.atZone(ZoneId.of("Etc/UTC"))
-  def local: ZonedDateTime     = instant.atZone(tz)
-  def javaLong: java.lang.Long = milliseconds
+final case class KafkaTimestamp(milliseconds: Long) {
+  def instant: Instant                     = Instant.ofEpochMilli(milliseconds)
+  def utc: ZonedDateTime                   = instant.atZone(ZoneId.of("Etc/UTC"))
+  def local(zoneId: ZoneId): ZonedDateTime = instant.atZone(zoneId)
+  def javaLong: java.lang.Long             = milliseconds
 }
 
 object KafkaTimestamp {
-  private val zoneId: ZoneId = ZoneId.systemDefault()
 
-  def apply(ts: Long): KafkaTimestamp          = KafkaTimestamp(ts, zoneId)
-  def apply(ts: Timestamp): KafkaTimestamp     = KafkaTimestamp(ts.getTime, zoneId)
+  def apply(ts: Timestamp): KafkaTimestamp     = KafkaTimestamp(ts.getTime)
   def apply(ts: Instant): KafkaTimestamp       = KafkaTimestamp(ts.toEpochMilli)
-  def apply(ts: LocalDateTime): KafkaTimestamp = apply(ts.atZone(zoneId).toInstant)
   def apply(ts: ZonedDateTime): KafkaTimestamp = apply(ts.toInstant)
-  def apply(ts: LocalDate): KafkaTimestamp     = apply(LocalDateTime.of(ts, LocalTime.MIDNIGHT))
+
+  def apply(ts: LocalDateTime, zoneId: ZoneId): KafkaTimestamp =
+    apply(ts.atZone(zoneId).toInstant)
+
+  def apply(ts: LocalDate, zoneId: ZoneId): KafkaTimestamp =
+    apply(LocalDateTime.of(ts, LocalTime.MIDNIGHT), zoneId)
 }
 
 @Lenses final case class KafkaDateTimeRange(
@@ -108,13 +109,7 @@ object KafkaTimestamp {
   def withStart(ts: Instant): KafkaDateTimeRange =
     KafkaDateTimeRange.start.set(Some(KafkaTimestamp(ts)))(this)
 
-  def withStart(ts: LocalDateTime): KafkaDateTimeRange =
-    KafkaDateTimeRange.start.set(Some(KafkaTimestamp(ts)))(this)
-
   def withStart(ts: ZonedDateTime): KafkaDateTimeRange =
-    KafkaDateTimeRange.start.set(Some(KafkaTimestamp(ts)))(this)
-
-  def withStart(ts: LocalDate): KafkaDateTimeRange =
     KafkaDateTimeRange.start.set(Some(KafkaTimestamp(ts)))(this)
 
   def withEnd(ts: Long): KafkaDateTimeRange =
@@ -126,13 +121,7 @@ object KafkaTimestamp {
   def withEnd(ts: Instant): KafkaDateTimeRange =
     KafkaDateTimeRange.end.set(Some(KafkaTimestamp(ts)))(this)
 
-  def withEnd(ts: LocalDateTime): KafkaDateTimeRange =
-    KafkaDateTimeRange.end.set(Some(KafkaTimestamp(ts)))(this)
-
   def withEnd(ts: ZonedDateTime): KafkaDateTimeRange =
-    KafkaDateTimeRange.end.set(Some(KafkaTimestamp(ts)))(this)
-
-  def withEnd(ts: LocalDate): KafkaDateTimeRange =
     KafkaDateTimeRange.end.set(Some(KafkaTimestamp(ts)))(this)
 
   def isInBetween(ts: Long): Boolean = (start, end) match {
@@ -147,5 +136,5 @@ object KafkaTimestamp {
 
   require(
     duration.forall(_.length > 0),
-    s"start time(${start.map(_.local)}) should be strictly before end time(${end.map(_.local)}).")
+    s"start time(${start.map(_.utc)}) should be strictly before end time(${end.map(_.utc)}) in UTC.")
 }

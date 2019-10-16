@@ -94,25 +94,12 @@ object KafkaPrimitiveConsumerApi {
 @autoFunctorK
 @autoSemigroupalK
 sealed trait KafkaConsumerApi[F[_], K, V] extends KafkaPrimitiveConsumerApi[F] {
-
   def offsetRangeFor(dtr: KafkaDateTimeRange): F[GenericTopicPartition[KafkaOffsetRange]]
-
-  final def offsetRangeFor(
-    start: LocalDateTime,
-    end: LocalDateTime): F[GenericTopicPartition[KafkaOffsetRange]] =
-    offsetRangeFor(KafkaDateTimeRange(Some(KafkaTimestamp(start)), Some(KafkaTimestamp(end))))
-
   def retrieveLastRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
   def retrieveFirstRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
-
   def retrieveRecordsForTimes(ts: KafkaTimestamp): F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
-
   def numOfRecords: F[GenericTopicPartition[Option[KafkaOffsetRange]]]
   def numOfRecordsSince(ts: KafkaTimestamp): F[GenericTopicPartition[Option[KafkaOffsetRange]]]
-
-  final def numOfRecordsSince(
-    ldt: LocalDateTime): F[GenericTopicPartition[Option[KafkaOffsetRange]]] =
-    numOfRecordsSince(KafkaTimestamp(ldt))
 }
 
 object KafkaConsumerApi {

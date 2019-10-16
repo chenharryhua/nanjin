@@ -1,10 +1,10 @@
 package com.github.chenharryhua.nanjin.sparkafka
 
-import java.time.{Instant, LocalDate, LocalDateTime}
+import java.time.Instant
 
 import cats.implicits._
 import cats.kernel.BoundedSemilattice
-import com.github.chenharryhua.nanjin.kafka.{KafkaDateTimeRange, KafkaTimestamp, KafkaTopic}
+import com.github.chenharryhua.nanjin.kafka.{KafkaDateTimeRange, KafkaTimestamp}
 import monocle.Lens
 import monocle.macros.Lenses
 
@@ -47,13 +47,8 @@ object ConversionStrategy {
 
   private def setEndTime(ts: KafkaTimestamp): SparKafkaParams =
     SparKafkaParams.timeRange.composeLens(KafkaDateTimeRange.end).set(Some(ts))(this)
-  def withStartTime(dt: LocalDateTime): SparKafkaParams = setStartTime(KafkaTimestamp(dt))
-  def withEndTime(dt: LocalDateTime): SparKafkaParams   = setEndTime(KafkaTimestamp(dt))
-  def withStartTime(dt: LocalDate): SparKafkaParams     = setStartTime(KafkaTimestamp(dt))
-  def withEndTime(dt: LocalDate): SparKafkaParams       = setEndTime(KafkaTimestamp(dt))
-  def withStartTime(dt: Instant): SparKafkaParams       = setStartTime(KafkaTimestamp(dt))
-  def withEndTime(dt: Instant): SparKafkaParams         = setEndTime(KafkaTimestamp(dt))
-  def withinOneDay(dt: LocalDate): SparKafkaParams      = withStartTime(dt).withEndTime(dt.plusDays(1))
+  def withStartTime(dt: Instant): SparKafkaParams = setStartTime(KafkaTimestamp(dt))
+  def withEndTime(dt: Instant): SparKafkaParams   = setEndTime(KafkaTimestamp(dt))
 
   def withBatchSize(batchSize: Int): SparKafkaParams =
     SparKafkaParams.uploadRate.composeLens(KafkaUploadRate.batchSize).set(batchSize)(this)

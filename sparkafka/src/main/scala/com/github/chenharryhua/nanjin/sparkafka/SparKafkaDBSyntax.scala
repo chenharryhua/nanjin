@@ -1,10 +1,9 @@
 package com.github.chenharryhua.nanjin.sparkafka
 
-import java.time.LocalDate
+import java.time.{LocalDate, ZoneId}
 
 import cats.effect.{ConcurrentEffect, Timer}
 import com.github.chenharryhua.nanjin.kafka.{KafkaTimestamp, KafkaTopic}
-import com.github.chenharryhua.nanjin.sparkafka._
 import com.github.chenharryhua.nanjin.sparkdb.TableDataset
 import frameless.functions.aggregate.count
 import frameless.{TypedDataset, TypedEncoder}
@@ -20,25 +19,25 @@ private[sparkafka] trait SparKafkaDBSyntax {
   implicit final class SparkafkaConsumerRecordSyntax[K: TypedEncoder, V: TypedEncoder](
     tds: TypedDataset[SparKafkaConsumerRecord[K, V]]) {
 
-    def minutely: TypedDataset[MinutelyAggResult] = {
+    def minutely(zoneId: ZoneId = ZoneId.systemDefault()): TypedDataset[MinutelyAggResult] = {
       val minute: TypedDataset[Int] = tds.deserialized.map { m =>
-        KafkaTimestamp(m.timestamp).local.getMinute
+        KafkaTimestamp(m.timestamp).local(zoneId).getMinute
       }
       val res = minute.groupBy(minute.asCol).agg(count(minute.asCol)).as[MinutelyAggResult]
       res.orderBy(res('minute).asc)
     }
 
-    def hourly: TypedDataset[HourlyAggResult] = {
+    def hourly(zoneId: ZoneId = ZoneId.systemDefault()): TypedDataset[HourlyAggResult] = {
       val hour = tds.deserialized.map { m =>
-        KafkaTimestamp(m.timestamp).local.getHour
+        KafkaTimestamp(m.timestamp).local(zoneId).getHour
       }
       val res = hour.groupBy(hour.asCol).agg(count(hour.asCol)).as[HourlyAggResult]
       res.orderBy(res('hour).asc)
     }
 
-    def daily: TypedDataset[DailyAggResult] = {
+    def daily(zoneId: ZoneId = ZoneId.systemDefault()): TypedDataset[DailyAggResult] = {
       val day: TypedDataset[LocalDate] = tds.deserialized.map { m =>
-        KafkaTimestamp(m.timestamp).local.toLocalDate
+        KafkaTimestamp(m.timestamp).local(zoneId).toLocalDate
       }
       val res = day.groupBy(day.asCol).agg(count(day.asCol)).as[DailyAggResult]
       res.orderBy(res('date).asc)
