@@ -76,7 +76,7 @@ object KafkaConsumerGroupInfo {
   }
 }
 
-final case class KafkaTimestamp(milliseconds: Long) {
+final case class KafkaTimestamp(milliseconds: Long) extends AnyVal {
   def instant: Instant                     = Instant.ofEpochMilli(milliseconds)
   def utc: ZonedDateTime                   = instant.atZone(ZoneId.of("Etc/UTC"))
   def local(zoneId: ZoneId): ZonedDateTime = instant.atZone(zoneId)
@@ -137,4 +137,8 @@ object KafkaTimestamp {
   require(
     duration.forall(_.length > 0),
     s"start time(${start.map(_.utc)}) should be strictly before end time(${end.map(_.utc)}) in UTC.")
+}
+
+object KafkaDateTimeRange {
+  val infinite: KafkaDateTimeRange = KafkaDateTimeRange(None, None)
 }
