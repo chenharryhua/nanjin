@@ -38,25 +38,25 @@ object ConversionStrategy {
 
 @Lenses final case class KafkaUploadRate(batchSize: Int, duration: FiniteDuration)
 
-final case class DiskRootPath(value: String) extends AnyVal {
+final case class StorageRootPath(value: String) extends AnyVal {
 
   def path[F[_]](topic: KafkaTopic[F, _, _]): String =
     if (value.endsWith("/")) value + topic.topicDef.topicName
     else value + "/" + topic.topicDef.topicName
 }
 
-@Lenses final case class SparKafkaParams(
+@Lenses final case class SparKafkaParams private (
   timeRange: KafkaDateTimeRange,
   conversionStrategy: ConversionStrategy,
   uploadRate: KafkaUploadRate,
   zoneId: ZoneId,
-  rootPath: DiskRootPath,
+  rootPath: StorageRootPath,
   saveMode: SaveMode) {
 
-  def withZoneId(zoneId: ZoneId): SparKafkaParams  = copy(zoneId   = zoneId)
-  def withDiskRootPath(p: String): SparKafkaParams = copy(rootPath = DiskRootPath(p))
-  def withSaveMode(sm: SaveMode): SparKafkaParams  = copy(saveMode = sm)
-  def withOverwrite: SparKafkaParams               = copy(saveMode = SaveMode.Overwrite)
+  def withZoneId(zoneId: ZoneId): SparKafkaParams     = copy(zoneId   = zoneId)
+  def withStorageRootPath(p: String): SparKafkaParams = copy(rootPath = StorageRootPath(p))
+  def withSaveMode(sm: SaveMode): SparKafkaParams     = copy(saveMode = sm)
+  def withOverwrite: SparKafkaParams                  = copy(saveMode = SaveMode.Overwrite)
 
   private def setStartTime(ts: KafkaTimestamp): SparKafkaParams =
     SparKafkaParams.timeRange.composeLens(KafkaDateTimeRange.start).set(Some(ts))(this)
@@ -72,6 +72,21 @@ final case class DiskRootPath(value: String) extends AnyVal {
   def withEndTime(dt: LocalDateTime): SparKafkaParams   = setEndTime(KafkaTimestamp(dt, zoneId))
   def withStartTime(dt: LocalDate): SparKafkaParams     = setStartTime(KafkaTimestamp(dt, zoneId))
   def withEndTime(dt: LocalDate): SparKafkaParams       = setEndTime(KafkaTimestamp(dt, zoneId))
+
+  def withinOneDay(dt: LocalDate): SparKafkaParams =
+    setStartTime(KafkaTimestamp(dt, zoneId)).setEndTime(KafkaTimestamp(dt.plusDays(1), zoneId))
+
+  def withToday: SparKafkaParams = {
+    val today = LocalDate.now
+    setStartTime(KafkaTimestamp(today, zoneId))
+      .setEndTime(KafkaTimestamp(today.plusDays(1), zoneId))
+  }
+
+  def withYesterday: SparKafkaParams = {
+    val yesterday = LocalDate.now.minusDays(1)
+    setStartTime(KafkaTimestamp(yesterday, zoneId))
+      .setEndTime(KafkaTimestamp(yesterday.plusDays(1), zoneId))
+  }
 
   def withBatchSize(batchSize: Int): SparKafkaParams =
     SparKafkaParams.uploadRate.composeLens(KafkaUploadRate.batchSize).set(batchSize)(this)
@@ -101,7 +116,7 @@ object SparKafkaParams {
       ConversionStrategy.Intact,
       KafkaUploadRate(1000, 1.seconds),
       ZoneId.systemDefault(),
-      DiskRootPath("./data/kafka/parquet/"),
+      StorageRootPath("./data/kafka/parquet/"),
       SaveMode.ErrorIfExists
     )
 }

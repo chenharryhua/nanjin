@@ -54,7 +54,7 @@ object SparKafka {
   def datasetFromDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
     timeRange: KafkaDateTimeRange,
-    rootPath: DiskRootPath)(
+    rootPath: StorageRootPath)(
     implicit spark: SparkSession): F[TypedDataset[SparKafkaConsumerRecord[K, V]]] =
     Sync[F].delay {
       val tds =
@@ -67,7 +67,7 @@ object SparKafka {
   def saveToDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
     timeRange: KafkaDateTimeRange,
-    rootPath: DiskRootPath,
+    rootPath: StorageRootPath,
     saveMode: SaveMode)(implicit spark: SparkSession): F[Unit] =
     datasetFromKafka(topic, timeRange).map(_.write.mode(saveMode).parquet(rootPath.path(topic)))
 
