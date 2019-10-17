@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.sparkdb
 
 import cats.effect.{Concurrent, ContextShift}
 import monocle.macros.Lenses
-import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.{SaveMode, SparkSession}
 
 sealed trait FileFormat {
   def defaultOptions: Map[String, String]
@@ -41,7 +41,8 @@ object SparkTableParams {
   )
 }
 
-abstract private[sparkdb] class TableParamModule[F[_]: ContextShift: Concurrent, A] {
+abstract private[sparkdb] class TableParamModule[F[_]: ContextShift: Concurrent, A](
+  implicit val spark: SparkSession) {
   self: TableDataset[F, A] =>
 
   final def withSaveMode(saveMode: SaveMode): TableDataset[F, A] =

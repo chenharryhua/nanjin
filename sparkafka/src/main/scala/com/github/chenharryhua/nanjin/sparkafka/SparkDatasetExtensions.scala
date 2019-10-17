@@ -5,21 +5,19 @@ import java.time.{LocalDate, ZoneId}
 import cats.effect.{ConcurrentEffect, Timer}
 import com.github.chenharryhua.nanjin.kafka.{KafkaTimestamp, KafkaTopic}
 import com.github.chenharryhua.nanjin.sparkdb.TableDataset
-import frameless.functions.aggregate.count
 import frameless.{TypedDataset, TypedEncoder}
-import org.apache.spark.sql.SparkSession
-import com.github.chenharryhua.nanjin.kafka.KafkaDateTimeRange
+import frameless.functions.aggregate.count
 
 final case class MinutelyAggResult(minute: Int, count: Long)
 final case class HourlyAggResult(hour: Int, count: Long)
 final case class DailyAggResult(date: LocalDate, count: Long)
 
-private[sparkafka] trait SparKafkaDBSyntax {
+private[sparkafka] trait SparkDatasetExtensions {
 
   implicit final class SparkafkaConsumerRecordSyntax[K: TypedEncoder, V: TypedEncoder](
     tds: TypedDataset[SparKafkaConsumerRecord[K, V]]) {
 
-    def minutely(zoneId: ZoneId = ZoneId.systemDefault()): TypedDataset[MinutelyAggResult] = {
+    def minutely(zoneId: ZoneId = ZoneId.systemDefault): TypedDataset[MinutelyAggResult] = {
       val minute: TypedDataset[Int] = tds.deserialized.map { m =>
         KafkaTimestamp(m.timestamp).local(zoneId).getMinute
       }
@@ -27,7 +25,7 @@ private[sparkafka] trait SparKafkaDBSyntax {
       res.orderBy(res('minute).asc)
     }
 
-    def hourly(zoneId: ZoneId = ZoneId.systemDefault()): TypedDataset[HourlyAggResult] = {
+    def hourly(zoneId: ZoneId = ZoneId.systemDefault): TypedDataset[HourlyAggResult] = {
       val hour = tds.deserialized.map { m =>
         KafkaTimestamp(m.timestamp).local(zoneId).getHour
       }
@@ -35,7 +33,7 @@ private[sparkafka] trait SparKafkaDBSyntax {
       res.orderBy(res('hour).asc)
     }
 
-    def daily(zoneId: ZoneId = ZoneId.systemDefault()): TypedDataset[DailyAggResult] = {
+    def daily(zoneId: ZoneId = ZoneId.systemDefault): TypedDataset[DailyAggResult] = {
       val day: TypedDataset[LocalDate] = tds.deserialized.map { m =>
         KafkaTimestamp(m.timestamp).local(zoneId).toLocalDate
       }
@@ -60,37 +58,14 @@ private[sparkafka] trait SparKafkaDBSyntax {
       SparKafka.toProducerRecords(tds, cs)
   }
 
-  implicit final class SparkafkaTopicSyntax[
-    F[_]: ConcurrentEffect: Timer,
-    K: TypedEncoder,
-    V: TypedEncoder](topic: => KafkaTopic[F, K, V])(implicit spark: SparkSession) {
-
-    def datasetFromKafka(range: KafkaDateTimeRange = SparKafkaParams.default.timeRange)
-      : F[TypedDataset[SparKafkaConsumerRecord[K, V]]] =
-      SparKafka.datasetFromKafka(topic, range)
-
-    def datasetFromDisk(range: KafkaDateTimeRange = SparKafkaParams.default.timeRange)
-      : F[TypedDataset[SparKafkaConsumerRecord[K, V]]] =
-      SparKafka.datasetFromDisk(topic, range)
-
-    def saveToDisk(range: KafkaDateTimeRange = SparKafkaParams.default.timeRange): F[Unit] =
-      SparKafka.saveToDisk(topic, range)
-
-    def replay(params: SparKafkaParams = SparKafkaParams.default): F[Unit] =
-      SparKafka.replay(topic, params).map(_ => print(".")).compile.drain
-  }
-
   implicit final class SparkDBSyntax[A](data: TypedDataset[A]) {
     def dbUpload[F[_]](db: TableDataset[F, A]): F[Unit] = db.uploadToDB(data)
   }
 
   implicit final class SparkafkaUploadSyntax[K, V](
-    data: TypedDataset[SparKafkaProducerRecord[K, V]]) {
+    data: TypedDataset[SparKafkaProducerRecord[K, V]])(implicit sk: SparKafkaSession) {
 
-    def kafkaUpload[F[_]: ConcurrentEffect: Timer](
-      topic: => KafkaTopic[F, K, V],
-      rate: KafkaUploadRate): F[Unit] =
-      SparKafka.uploadToKafka[F, K, V](topic, data, rate).compile.drain
-
+    def kafkaUpload[F[_]: ConcurrentEffect: Timer](topic: => KafkaTopic[F, K, V]): F[Unit] =
+      SparKafka.uploadToKafka[F, K, V](topic, data, sk.params.uploadRate).compile.drain
   }
 }

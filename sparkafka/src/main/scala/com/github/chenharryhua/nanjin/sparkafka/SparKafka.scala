@@ -11,7 +11,7 @@ import monocle.function.At.remove
 import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies}
 
 import scala.collection.JavaConverters._
@@ -53,21 +53,23 @@ object SparKafka {
 
   def datasetFromDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
-    timeRange: KafkaDateTimeRange)(
+    timeRange: KafkaDateTimeRange,
+    rootPath: DiskRootPath)(
     implicit spark: SparkSession): F[TypedDataset[SparKafkaConsumerRecord[K, V]]] =
     Sync[F].delay {
-      val tds = TypedDataset.createUnsafe[SparKafkaConsumerRecord[K, V]](
-        spark.read.parquet(parquetPath(topic.topicDef.topicName)))
+      val tds =
+        TypedDataset.createUnsafe[SparKafkaConsumerRecord[K, V]](
+          spark.read.parquet(rootPath.path(topic)))
       val inBetween = tds.makeUDF[Long, Boolean](timeRange.isInBetween)
       tds.filter(inBetween(tds('timestamp)))
     }
 
-  private def parquetPath(topicName: String): String = s"./data/kafka/parquet/$topicName"
-
   def saveToDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
-    timeRange: KafkaDateTimeRange)(implicit spark: SparkSession): F[Unit] =
-    datasetFromKafka(topic, timeRange).map(_.write.parquet(parquetPath(topic.topicDef.topicName)))
+    timeRange: KafkaDateTimeRange,
+    rootPath: DiskRootPath,
+    saveMode: SaveMode)(implicit spark: SparkSession): F[Unit] =
+    datasetFromKafka(topic, timeRange).map(_.write.mode(saveMode).parquet(rootPath.path(topic)))
 
   def toProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     tds: TypedDataset[SparKafkaConsumerRecord[K, V]],
@@ -107,7 +109,7 @@ object SparKafka {
     topic: => KafkaTopic[F, K, V],
     params: SparKafkaParams)(implicit spark: SparkSession): Stream[F, Chunk[RecordMetadata]] =
     for {
-      ds <- Stream.eval(datasetFromDisk[F, K, V](topic, params.timeRange))
+      ds <- Stream.eval(datasetFromDisk[F, K, V](topic, params.timeRange, params.rootPath))
       res <- uploadToKafka(
         topic,
         toProducerRecords(ds, params.conversionStrategy),

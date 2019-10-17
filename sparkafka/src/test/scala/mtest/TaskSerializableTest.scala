@@ -18,8 +18,8 @@ class TaskSerializableTest extends AnyFunSuite {
     topic.producer.send(1, data)).unsafeRunSync()
 
   test("serializable task will not throw exception") {
-    spark.use { implicit s =>
-      topics.serializableTopic.datasetFromKafka().flatMap(_.show[IO]())
+    spark.use { s =>
+      s.datasetFromKafka(topics.serializableTopic).flatMap(_.show[IO]())
     }.unsafeRunSync
   }
 }

@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.sparkdb
 import cats.effect.{Concurrent, ContextShift, Sync}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.sparkafka.SparKafka
+import com.github.chenharryhua.nanjin.sparkafka.{SparKafka, SparKafkaSession}
 import doobie.free.connection.ConnectionIO
 import doobie.implicits._
 import doobie.util.Read
@@ -18,19 +18,20 @@ final case class TableDef[A](tableName: String)(
   val typedEncoder: TypedEncoder[A],
   val doobieRead: Read[A]) {
 
-  def in[F[_]: ContextShift: Concurrent](dbSettings: DatabaseSettings): TableDataset[F, A] =
+  def in[F[_]: ContextShift: Concurrent](dbSettings: DatabaseSettings)(
+    implicit spark: SparkSession): TableDataset[F, A] =
     TableDataset[F, A](this, dbSettings, SparkTableParams.default)
 }
 
 final case class TableDataset[F[_]: ContextShift: Concurrent, A](
   tableDef: TableDef[A],
   dbSettings: DatabaseSettings,
-  tableParams: SparkTableParams)
+  tableParams: SparkTableParams)(implicit spark: SparkSession)
     extends TableParamModule[F, A] {
   import tableDef.{doobieRead, typedEncoder}
 
   // spark
-  def datasetFromDB(implicit spark: SparkSession): TypedDataset[A] =
+  def datasetFromDB: TypedDataset[A] =
     TypedDataset.createUnsafe[A](
       spark.read
         .format("jdbc")
@@ -39,16 +40,12 @@ final case class TableDataset[F[_]: ContextShift: Concurrent, A](
         .option("dbtable", tableDef.tableName)
         .load())
 
-  def datasetFromDisk(path: String)(implicit spark: SparkSession): TypedDataset[A] =
+  def datasetFromDisk(path: String): TypedDataset[A] =
     TypedDataset.createUnsafe[A](
       spark.read
         .format(tableParams.format.value)
         .options(tableParams.format.defaultOptions ++ tableParams.sparkOptions)
         .load(path))
-
-  def uploadFromTopic[K: TypedEncoder](topic: => KafkaTopic[F, K, A], range: KafkaDateTimeRange)(
-    implicit spark: SparkSession): F[Unit] =
-    SparKafka.datasetFromKafka(topic, range).map(_.values).flatMap(uploadToDB)
 
   def uploadToDB(data: TypedDataset[A]): F[Unit] =
     Sync[F].delay(
