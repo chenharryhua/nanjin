@@ -74,19 +74,10 @@ final case class StorageRootPath(value: String) extends AnyVal {
   def withEndTime(dt: LocalDate): SparKafkaParams       = setEndTime(KafkaTimestamp(dt, zoneId))
 
   def withinOneDay(dt: LocalDate): SparKafkaParams =
-    setStartTime(KafkaTimestamp(dt, zoneId)).setEndTime(KafkaTimestamp(dt.plusDays(1), zoneId))
+    withStartTime(dt).withEndTime(dt.plusDays(1))
 
-  def withToday: SparKafkaParams = {
-    val today = LocalDate.now
-    setStartTime(KafkaTimestamp(today, zoneId))
-      .setEndTime(KafkaTimestamp(today.plusDays(1), zoneId))
-  }
-
-  def withYesterday: SparKafkaParams = {
-    val yesterday = LocalDate.now.minusDays(1)
-    setStartTime(KafkaTimestamp(yesterday, zoneId))
-      .setEndTime(KafkaTimestamp(yesterday.plusDays(1), zoneId))
-  }
+  def withToday: SparKafkaParams     = withinOneDay(LocalDate.now)
+  def withYesterday: SparKafkaParams = withinOneDay(LocalDate.now.minusDays(1))
 
   def withBatchSize(batchSize: Int): SparKafkaParams =
     SparKafkaParams.uploadRate.composeLens(KafkaUploadRate.batchSize).set(batchSize)(this)
