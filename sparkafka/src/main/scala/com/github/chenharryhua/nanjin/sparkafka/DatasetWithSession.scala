@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.sparkafka
 
-import java.time.LocalDate
+import java.time.{LocalDate, LocalDateTime, LocalTime}
 
 import cats.effect.{ConcurrentEffect, Timer}
 import com.github.chenharryhua.nanjin.kafka.{KafkaTimestamp, KafkaTopic}
@@ -10,6 +10,7 @@ import frameless.{TypedDataset, TypedEncoder}
 final case class MinutelyAggResult(minute: Int, count: Long)
 final case class HourlyAggResult(hour: Int, count: Long)
 final case class DailyAggResult(date: LocalDate, count: Long)
+final case class DailyHourAggResult(date: LocalDateTime, count: Long)
 
 final class ConsumerRecordDatasetWithSession[K: TypedEncoder, V: TypedEncoder](
   val sparKafka: SparKafkaSession,
@@ -36,6 +37,16 @@ final class ConsumerRecordDatasetWithSession[K: TypedEncoder, V: TypedEncoder](
       KafkaTimestamp(m.timestamp).local(sparKafka.params.zoneId).toLocalDate
     }
     val res = day.groupBy(day.asCol).agg(count(day.asCol)).as[DailyAggResult]
+    res.orderBy(res('date).asc)
+  }
+
+  def dailyHour: TypedDataset[DailyHourAggResult] = {
+    val dayHour: TypedDataset[LocalDateTime] = consumerRecords.deserialized.map { m =>
+      val dt   = KafkaTimestamp(m.timestamp).local(sparKafka.params.zoneId).toLocalDateTime
+      val hour = dt.getHour
+      LocalDateTime.of(dt.toLocalDate, LocalTime.of(hour, 0))
+    }
+    val res = dayHour.groupBy(dayHour.asCol).agg(count(dayHour.asCol)).as[DailyHourAggResult]
     res.orderBy(res('date).asc)
   }
 
