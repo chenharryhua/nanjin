@@ -11,9 +11,9 @@ final case class MinutelyAggResult(minute: Int, count: Long)
 final case class HourlyAggResult(hour: Int, count: Long)
 final case class DailyAggResult(date: LocalDate, count: Long)
 
-final case class ConsumerRecordDatasetWithSession[K: TypedEncoder, V: TypedEncoder](
-  sparKafka: SparKafkaSession,
-  consumerRecords: TypedDataset[SparKafkaConsumerRecord[K, V]]) {
+final class ConsumerRecordDatasetWithSession[K: TypedEncoder, V: TypedEncoder](
+  val sparKafka: SparKafkaSession,
+  val consumerRecords: TypedDataset[SparKafkaConsumerRecord[K, V]]) {
 
   def minutely: TypedDataset[MinutelyAggResult] = {
     val minute: TypedDataset[Int] = consumerRecords.deserialized.map { m =>
@@ -52,14 +52,14 @@ final case class ConsumerRecordDatasetWithSession[K: TypedEncoder, V: TypedEncod
     consumerRecords.select(consumerRecords('key)).as[Option[K]].deserialized.flatMap(x => x)
 
   def toProducerRecords: ProducerRecordDatasetWithSession[K, V] =
-    ProducerRecordDatasetWithSession(
+    new ProducerRecordDatasetWithSession(
       sparKafka,
       SparKafka.toProducerRecords(consumerRecords, sparKafka.params.conversionStrategy))
 }
 
-final case class ProducerRecordDatasetWithSession[K: TypedEncoder, V: TypedEncoder](
-  sparKafka: SparKafkaSession,
-  producerRecords: TypedDataset[SparKafkaProducerRecord[K, V]]) {
+final class ProducerRecordDatasetWithSession[K: TypedEncoder, V: TypedEncoder](
+  val sparKafka: SparKafkaSession,
+  val producerRecords: TypedDataset[SparKafkaProducerRecord[K, V]]) {
 
   def kafkaUpload[F[_]: ConcurrentEffect: Timer](topic: => KafkaTopic[F, K, V]): F[Unit] =
     SparKafka

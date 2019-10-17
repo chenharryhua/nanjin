@@ -18,13 +18,13 @@ final case class SparKafkaSession(params: SparKafkaParams)(implicit val spark: S
     topic: => KafkaTopic[F, K, V]): F[ConsumerRecordDatasetWithSession[K, V]] =
     SparKafka
       .datasetFromKafka(topic, params.timeRange)
-      .map(ConsumerRecordDatasetWithSession(this, _))
+      .map(new ConsumerRecordDatasetWithSession(this, _))
 
   def datasetFromDisk[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V]): F[ConsumerRecordDatasetWithSession[K, V]] =
     SparKafka
       .datasetFromDisk(topic, params.timeRange, params.rootPath)
-      .map(ConsumerRecordDatasetWithSession(this, _))
+      .map(new ConsumerRecordDatasetWithSession(this, _))
 
   def saveToDisk[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V]): F[Unit] =
