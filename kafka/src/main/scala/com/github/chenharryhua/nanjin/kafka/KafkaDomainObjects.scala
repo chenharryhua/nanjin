@@ -77,10 +77,10 @@ object KafkaConsumerGroupInfo {
 }
 
 final case class KafkaTimestamp(milliseconds: Long) extends AnyVal {
-  def instant: Instant                     = Instant.ofEpochMilli(milliseconds)
-  def utc: ZonedDateTime                   = instant.atZone(ZoneId.of("Etc/UTC"))
-  def local(zoneId: ZoneId): ZonedDateTime = instant.atZone(zoneId)
-  def javaLong: java.lang.Long             = milliseconds
+  def instant: Instant                      = Instant.ofEpochMilli(milliseconds)
+  def utc: ZonedDateTime                    = instant.atZone(ZoneId.of("Etc/UTC"))
+  def atZone(zoneId: ZoneId): ZonedDateTime = instant.atZone(zoneId)
+  def javaLong: java.lang.Long              = milliseconds
 }
 
 object KafkaTimestamp {

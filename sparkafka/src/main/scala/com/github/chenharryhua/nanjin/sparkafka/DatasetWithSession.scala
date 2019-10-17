@@ -18,7 +18,7 @@ final class ConsumerRecordDatasetWithSession[K: TypedEncoder, V: TypedEncoder](
 
   def minutely: TypedDataset[MinutelyAggResult] = {
     val minute: TypedDataset[Int] = consumerRecords.deserialized.map { m =>
-      KafkaTimestamp(m.timestamp).local(sparKafka.params.zoneId).getMinute
+      KafkaTimestamp(m.timestamp).atZone(sparKafka.params.zoneId).getMinute
     }
     val res = minute.groupBy(minute.asCol).agg(count(minute.asCol)).as[MinutelyAggResult]
     res.orderBy(res('minute).asc)
@@ -26,7 +26,7 @@ final class ConsumerRecordDatasetWithSession[K: TypedEncoder, V: TypedEncoder](
 
   def hourly: TypedDataset[HourlyAggResult] = {
     val hour = consumerRecords.deserialized.map { m =>
-      KafkaTimestamp(m.timestamp).local(sparKafka.params.zoneId).getHour
+      KafkaTimestamp(m.timestamp).atZone(sparKafka.params.zoneId).getHour
     }
     val res = hour.groupBy(hour.asCol).agg(count(hour.asCol)).as[HourlyAggResult]
     res.orderBy(res('hour).asc)
@@ -34,7 +34,7 @@ final class ConsumerRecordDatasetWithSession[K: TypedEncoder, V: TypedEncoder](
 
   def daily: TypedDataset[DailyAggResult] = {
     val day: TypedDataset[LocalDate] = consumerRecords.deserialized.map { m =>
-      KafkaTimestamp(m.timestamp).local(sparKafka.params.zoneId).toLocalDate
+      KafkaTimestamp(m.timestamp).atZone(sparKafka.params.zoneId).toLocalDate
     }
     val res = day.groupBy(day.asCol).agg(count(day.asCol)).as[DailyAggResult]
     res.orderBy(res('date).asc)
@@ -42,7 +42,7 @@ final class ConsumerRecordDatasetWithSession[K: TypedEncoder, V: TypedEncoder](
 
   def dailyHour: TypedDataset[DailyHourAggResult] = {
     val dayHour: TypedDataset[LocalDateTime] = consumerRecords.deserialized.map { m =>
-      val dt   = KafkaTimestamp(m.timestamp).local(sparKafka.params.zoneId).toLocalDateTime
+      val dt   = KafkaTimestamp(m.timestamp).atZone(sparKafka.params.zoneId).toLocalDateTime
       val hour = dt.getHour
       LocalDateTime.of(dt.toLocalDate, LocalTime.of(hour, 0))
     }
