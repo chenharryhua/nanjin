@@ -1,12 +1,61 @@
 package com.github.chenharryhua.nanjin.sparkafka
 
+import java.time.LocalDate
+
 import cats.effect.{ConcurrentEffect, Resource, Sync, Timer}
-import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import cats.implicits._
+import com.github.chenharryhua.nanjin.kafka.{KafkaTimestamp, KafkaTopic}
+import frameless.functions.aggregate.count
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import monocle.macros.Lenses
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
+
+final case class ConsumerRecordDatasetWithSession[K: TypedEncoder, V: TypedEncoder](
+  sparkafka: SparKafkaSession,
+  consumerRecords: TypedDataset[SparKafkaConsumerRecord[K, V]]) {
+
+  def minutely: TypedDataset[MinutelyAggResult] = {
+    val minute: TypedDataset[Int] = consumerRecords.deserialized.map { m =>
+      KafkaTimestamp(m.timestamp).local(sparkafka.params.zoneId).getMinute
+    }
+    val res = minute.groupBy(minute.asCol).agg(count(minute.asCol)).as[MinutelyAggResult]
+    res.orderBy(res('minute).asc)
+  }
+
+  def hourly: TypedDataset[HourlyAggResult] = {
+    val hour = consumerRecords.deserialized.map { m =>
+      KafkaTimestamp(m.timestamp).local(sparkafka.params.zoneId).getHour
+    }
+    val res = hour.groupBy(hour.asCol).agg(count(hour.asCol)).as[HourlyAggResult]
+    res.orderBy(res('hour).asc)
+  }
+
+  def daily: TypedDataset[DailyAggResult] = {
+    val day: TypedDataset[LocalDate] = consumerRecords.deserialized.map { m =>
+      KafkaTimestamp(m.timestamp).local(sparkafka.params.zoneId).toLocalDate
+    }
+    val res = day.groupBy(day.asCol).agg(count(day.asCol)).as[DailyAggResult]
+    res.orderBy(res('date).asc)
+  }
+
+  def nullValues: TypedDataset[SparKafkaConsumerRecord[K, V]] =
+    consumerRecords.filter(consumerRecords('value).isNone)
+
+  def nullKeys: TypedDataset[SparKafkaConsumerRecord[K, V]] =
+    consumerRecords.filter(consumerRecords('key).isNone)
+
+  def values: TypedDataset[V] =
+    consumerRecords.select(consumerRecords('value)).as[Option[V]].deserialized.flatMap(x => x)
+
+  def keys: TypedDataset[K] =
+    consumerRecords.select(consumerRecords('key)).as[Option[K]].deserialized.flatMap(x => x)
+
+  def toProducerRecords: TypedDataset[SparKafkaProducerRecord[K, V]] =
+    SparKafka.toProducerRecords(consumerRecords, sparkafka.params.conversionStrategy)
+
+}
 
 final case class SparKafkaSession(params: SparKafkaParams)(implicit val spark: SparkSession) {
 
@@ -14,12 +63,16 @@ final case class SparKafkaSession(params: SparKafkaParams)(implicit val spark: S
     copy(params = f(params))
 
   def datasetFromKafka[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
-    topic: => KafkaTopic[F, K, V]): F[TypedDataset[SparKafkaConsumerRecord[K, V]]] =
-    SparKafka.datasetFromKafka(topic, params.timeRange)
+    topic: => KafkaTopic[F, K, V]): F[ConsumerRecordDatasetWithSession[K, V]] =
+    SparKafka
+      .datasetFromKafka(topic, params.timeRange)
+      .map(ConsumerRecordDatasetWithSession(this, _))
 
   def datasetFromDisk[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
-    topic: => KafkaTopic[F, K, V]): F[TypedDataset[SparKafkaConsumerRecord[K, V]]] =
-    SparKafka.datasetFromDisk(topic, params.timeRange, params.rootPath)
+    topic: => KafkaTopic[F, K, V]): F[ConsumerRecordDatasetWithSession[K, V]] =
+    SparKafka
+      .datasetFromDisk(topic, params.timeRange, params.rootPath)
+      .map(ConsumerRecordDatasetWithSession(this, _))
 
   def saveToDisk[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V]): F[Unit] =
