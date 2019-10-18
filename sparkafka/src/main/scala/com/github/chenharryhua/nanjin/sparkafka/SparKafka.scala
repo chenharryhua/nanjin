@@ -12,7 +12,7 @@ import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.spark.sql.{SaveMode, SparkSession}
-import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies}
+import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies, LocationStrategy}
 
 import scala.collection.JavaConverters._
 
@@ -26,7 +26,8 @@ private[sparkafka] object SparKafka {
 
   def datasetFromKafka[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
-    timeRange: KafkaDateTimeRange)(
+    timeRange: KafkaDateTimeRange,
+    locationStrategy: LocationStrategy)(
     implicit spark: SparkSession): F[TypedDataset[SparKafkaConsumerRecord[K, V]]] =
     Sync[F].suspend {
       topic.consumer
@@ -37,7 +38,7 @@ private[sparkafka] object SparKafka {
               spark.sparkContext,
               props(topic.kafkaConsumerSettings.props),
               KafkaOffsets.offsetRange(gtp),
-              LocationStrategies.PreferConsistent)
+              locationStrategy)
             .mapPartitions { crs =>
               val t = topic
               val decoder = (cr: ConsumerRecord[Array[Byte], Array[Byte]]) =>
@@ -68,8 +69,10 @@ private[sparkafka] object SparKafka {
     topic: => KafkaTopic[F, K, V],
     timeRange: KafkaDateTimeRange,
     rootPath: StorageRootPath,
-    saveMode: SaveMode)(implicit spark: SparkSession): F[Unit] =
-    datasetFromKafka(topic, timeRange).map(_.write.mode(saveMode).parquet(rootPath.path(topic)))
+    saveMode: SaveMode,
+    locationStrategy: LocationStrategy)(implicit spark: SparkSession): F[Unit] =
+    datasetFromKafka(topic, timeRange, locationStrategy).map(
+      _.write.mode(saveMode).parquet(rootPath.path(topic)))
 
   def toProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     tds: TypedDataset[SparKafkaConsumerRecord[K, V]],

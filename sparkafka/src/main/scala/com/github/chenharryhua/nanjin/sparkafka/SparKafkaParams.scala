@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.kafka.{KafkaDateTimeRange, KafkaTimestamp,
 import monocle.Lens
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
+import org.apache.spark.streaming.kafka010.{LocationStrategies, LocationStrategy}
 
 import scala.concurrent.duration._
 
@@ -51,12 +52,15 @@ final case class StorageRootPath(value: String) extends AnyVal {
   uploadRate: KafkaUploadRate,
   zoneId: ZoneId,
   rootPath: StorageRootPath,
-  saveMode: SaveMode) {
+  saveMode: SaveMode,
+  locationStrategy: LocationStrategy) {
 
   def withZoneId(zoneId: ZoneId): SparKafkaParams     = copy(zoneId   = zoneId)
   def withStorageRootPath(p: String): SparKafkaParams = copy(rootPath = StorageRootPath(p))
   def withSaveMode(sm: SaveMode): SparKafkaParams     = copy(saveMode = sm)
   def withOverwrite: SparKafkaParams                  = copy(saveMode = SaveMode.Overwrite)
+
+  def withLocationStrategy(ls: LocationStrategy): SparKafkaParams = copy(locationStrategy = ls)
 
   private def setStartTime(ts: KafkaTimestamp): SparKafkaParams =
     SparKafkaParams.timeRange.composeLens(KafkaDateTimeRange.start).set(Some(ts))(this)
@@ -108,6 +112,7 @@ object SparKafkaParams {
       KafkaUploadRate(1000, 1.seconds),
       ZoneId.systemDefault(),
       StorageRootPath("./data/kafka/parquet/"),
-      SaveMode.ErrorIfExists
+      SaveMode.ErrorIfExists,
+      LocationStrategies.PreferConsistent
     )
 }
