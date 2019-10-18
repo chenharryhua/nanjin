@@ -12,7 +12,7 @@ import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.spark.sql.{SaveMode, SparkSession}
-import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies, LocationStrategy}
+import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategy}
 
 import scala.collection.JavaConverters._
 
@@ -28,14 +28,14 @@ private[sparkafka] object SparKafka {
     topic: => KafkaTopic[F, K, V],
     timeRange: KafkaDateTimeRange,
     locationStrategy: LocationStrategy)(
-    implicit spark: SparkSession): F[TypedDataset[SparKafkaConsumerRecord[K, V]]] =
+    implicit sparkSession: SparkSession): F[TypedDataset[SparKafkaConsumerRecord[K, V]]] =
     Sync[F].suspend {
       topic.consumer
         .offsetRangeFor(timeRange)
         .map { gtp =>
           KafkaUtils
             .createRDD[Array[Byte], Array[Byte]](
-              spark.sparkContext,
+              sparkSession.sparkContext,
               props(topic.kafkaConsumerSettings.props),
               KafkaOffsets.offsetRange(gtp),
               locationStrategy)
@@ -56,11 +56,11 @@ private[sparkafka] object SparKafka {
     topic: => KafkaTopic[F, K, V],
     timeRange: KafkaDateTimeRange,
     rootPath: StorageRootPath)(
-    implicit spark: SparkSession): F[TypedDataset[SparKafkaConsumerRecord[K, V]]] =
+    implicit sparkSession: SparkSession): F[TypedDataset[SparKafkaConsumerRecord[K, V]]] =
     Sync[F].delay {
       val tds =
         TypedDataset.createUnsafe[SparKafkaConsumerRecord[K, V]](
-          spark.read.parquet(rootPath.path(topic)))
+          sparkSession.read.parquet(rootPath.path(topic)))
       val inBetween = tds.makeUDF[Long, Boolean](timeRange.isInBetween)
       tds.filter(inBetween(tds('timestamp)))
     }
@@ -70,7 +70,7 @@ private[sparkafka] object SparKafka {
     timeRange: KafkaDateTimeRange,
     rootPath: StorageRootPath,
     saveMode: SaveMode,
-    locationStrategy: LocationStrategy)(implicit spark: SparkSession): F[Unit] =
+    locationStrategy: LocationStrategy)(implicit sparkSession: SparkSession): F[Unit] =
     datasetFromKafka(topic, timeRange, locationStrategy).map(
       _.write.mode(saveMode).parquet(rootPath.path(topic)))
 
@@ -113,7 +113,8 @@ private[sparkafka] object SparKafka {
     timeRange: KafkaDateTimeRange,
     rootPath: StorageRootPath,
     conversionStrategy: ConversionStrategy,
-    uploadRate: KafkaUploadRate)(implicit spark: SparkSession): Stream[F, Chunk[RecordMetadata]] =
+    uploadRate: KafkaUploadRate)(
+    implicit sparkSession: SparkSession): Stream[F, Chunk[RecordMetadata]] =
     for {
       ds <- Stream.eval(datasetFromDisk[F, K, V](topic, timeRange, rootPath))
       res <- uploadToKafka(topic, toProducerRecords(ds, conversionStrategy), uploadRate)

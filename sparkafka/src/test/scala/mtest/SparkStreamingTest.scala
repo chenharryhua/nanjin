@@ -13,7 +13,7 @@ import scala.concurrent.duration._
 class SparkStreamingTest extends AnyFunSuite {
   ignore("run streaming") {
     spark.use { s =>
-      import s.spark
+      import s.sparkSession
       val df = SparKafkaStream.sstream(topics.pencil_topic)
       val kdf: DataStreamWriter[SparKafkaConsumerRecord[Int, Pencil]] = df.dataset.writeStream
         .trigger(Trigger.ProcessingTime(60.seconds))

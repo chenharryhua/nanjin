@@ -12,6 +12,6 @@ package object mtest {
   val ctx: IoKafkaContext = KafkaSettings.local.ioContext
 
   val spark: Resource[IO, SparKafkaSession] =
-  SparKafkaSettings.default.updateSparkConf(_.setMaster("local[*]").setAppName("test")).sessionResource
+  SparKafkaSettings.default.updateSpark(_.setMaster("local[*]").setAppName("test")).sessionResource
 
 }
