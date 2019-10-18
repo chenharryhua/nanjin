@@ -107,12 +107,12 @@ private[sparkafka] object SparKafka {
   // load data from disk and then upload into kafka
   def replay[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
-    params: SparKafkaParams)(implicit spark: SparkSession): Stream[F, Chunk[RecordMetadata]] =
+    timeRange: KafkaDateTimeRange,
+    rootPath: StorageRootPath,
+    conversionStrategy: ConversionStrategy,
+    uploadRate: KafkaUploadRate)(implicit spark: SparkSession): Stream[F, Chunk[RecordMetadata]] =
     for {
-      ds <- Stream.eval(datasetFromDisk[F, K, V](topic, params.timeRange, params.rootPath))
-      res <- uploadToKafka(
-        topic,
-        toProducerRecords(ds, params.conversionStrategy),
-        params.uploadRate)
+      ds <- Stream.eval(datasetFromDisk[F, K, V](topic, timeRange, rootPath))
+      res <- uploadToKafka(topic, toProducerRecords(ds, conversionStrategy), uploadRate)
     } yield res
 }

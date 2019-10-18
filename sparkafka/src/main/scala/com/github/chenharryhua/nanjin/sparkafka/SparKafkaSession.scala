@@ -32,7 +32,16 @@ final case class SparKafkaSession(params: SparKafkaParams)(implicit val spark: S
 
   def replay[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V]): F[Unit] =
-    SparKafka.replay(topic, params).map(_ => print(".")).compile.drain
+    SparKafka
+      .replay(
+        topic,
+        params.timeRange,
+        params.rootPath,
+        params.conversionStrategy,
+        params.uploadRate)
+      .map(_ => print("."))
+      .compile
+      .drain
 }
 
 @Lenses final case class SparKafkaSettings(
