@@ -16,7 +16,7 @@ import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies}
 
 import scala.collection.JavaConverters._
 
-object SparKafka {
+private[sparkafka] object SparKafka {
 
   private def props(maps: Map[String, String]): util.Map[String, Object] =
     (Map(

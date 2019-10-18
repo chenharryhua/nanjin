@@ -6,7 +6,6 @@ import cats.effect.{ConcurrentEffect, Timer}
 import com.github.chenharryhua.nanjin.kafka.{KafkaTimestamp, KafkaTopic}
 import frameless.functions.aggregate.count
 import frameless.{TypedDataset, TypedEncoder}
-import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.Dataset
 
 final case class MinutelyAggResult(minute: Int, count: Long)
