@@ -1,3 +1,3 @@
 package com.github.chenharryhua.nanjin
 
-package object sparkafka extends DatetimeInjectionInstances with SparkDatasetExtensions {}
+package object sparkafka extends FramelessInjectionInstances with SparkDatasetExtensions {}

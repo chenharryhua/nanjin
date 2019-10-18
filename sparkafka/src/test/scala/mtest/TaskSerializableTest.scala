@@ -7,7 +7,7 @@ import cats.implicits._
 import org.scalatest.funsuite.AnyFunSuite
 import com.github.chenharryhua.nanjin.sparkafka._
 import frameless.cats.implicits._
-
+import cats.derived.auto.show._
 class TaskSerializableTest extends AnyFunSuite {
 
   val e     = EmbeddedForTaskSerializable(0, LocalDateTime.now)
@@ -19,7 +19,7 @@ class TaskSerializableTest extends AnyFunSuite {
 
   test("serializable task will not throw exception") {
     spark.use { s =>
-      s.datasetFromKafka(topics.serializableTopic).flatMap(_.show[IO]())
+      s.datasetFromKafka(topics.serializableTopic).flatMap(_.consumerRecords.show[IO]())
     }.unsafeRunSync
   }
 }
