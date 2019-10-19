@@ -41,7 +41,7 @@ final case class SparkTableSession[F[_]: ContextShift: Concurrent, A](
         .load())
 
   def saveToDisk: F[Unit] =
-    Sync[F].delay(datasetFromDB.write.mode(tableParams.saveMode).parquet(path))
+    Sync[F].delay(datasetFromDB.write.mode(tableParams.fileSaveMode).parquet(path))
 
   def datasetFromDisk: TypedDataset[A] =
     TypedDataset.createUnsafe[A](sparkSession.read.parquet(path))
@@ -49,7 +49,7 @@ final case class SparkTableSession[F[_]: ContextShift: Concurrent, A](
   def uploadToDB(data: TypedDataset[A]): F[Unit] =
     Sync[F].delay(
       data.write
-        .mode(tableParams.saveMode)
+        .mode(tableParams.dbSaveMode)
         .format("jdbc")
         .option("url", dbSettings.connStr.value)
         .option("driver", dbSettings.driver.value)
