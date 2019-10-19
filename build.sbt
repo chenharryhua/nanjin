@@ -212,7 +212,8 @@ lazy val sparkafka = (project in file("sparkafka"))
     libraryDependencies ++= spark ++ frameless ++ db ++ tests,
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core"  % "jackson-databind" % "2.6.7.2",
-      "org.json4s" %% "json4s-core" % "3.5.5")
+      "org.json4s" %% "json4s-core" % "3.5.5"),
+    Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
   )
 
 lazy val nanjin =

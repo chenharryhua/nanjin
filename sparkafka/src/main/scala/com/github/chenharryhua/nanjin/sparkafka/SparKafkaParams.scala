@@ -39,11 +39,19 @@ object ConversionStrategy {
 
 @Lenses final case class KafkaUploadRate(batchSize: Int, duration: FiniteDuration)
 
+object KafkaUploadRate {
+  val default: KafkaUploadRate = KafkaUploadRate(1000, 1.second)
+}
+
 final case class StorageRootPath(value: String) extends AnyVal {
 
   def path[F[_]](topic: KafkaTopic[F, _, _]): String =
     if (value.endsWith("/")) value + topic.topicDef.topicName
     else value + "/" + topic.topicDef.topicName
+}
+
+object StorageRootPath {
+  val default: StorageRootPath = StorageRootPath("./data/kafka/parquet/")
 }
 
 @Lenses final case class SparKafkaParams private (
@@ -109,9 +117,9 @@ object SparKafkaParams {
     SparKafkaParams(
       KafkaDateTimeRange.infinite,
       ConversionStrategy.Intact,
-      KafkaUploadRate(1000, 1.seconds),
+      KafkaUploadRate.default,
       ZoneId.systemDefault(),
-      StorageRootPath("./data/kafka/parquet/"),
+      StorageRootPath.default,
       SaveMode.ErrorIfExists,
       LocationStrategies.PreferConsistent
     )

@@ -62,6 +62,8 @@ final case class SparKafkaSession(params: SparKafkaParams)(
   def setLogLevel(logLevel: String): SparKafkaSettings =
     SparKafkaSettings.sparkSettings.composeLens(SparkSettings.logLevel).set(logLevel)(this)
 
+  def session = SparKafkaSession(params)(sparkSettings.session)  
+
   def sessionResource[F[_]: Sync]: Resource[F, SparKafkaSession] =
     sparkSettings.sessionResource.map(SparKafkaSession(params)(_))
 

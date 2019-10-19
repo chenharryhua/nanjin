@@ -2,8 +2,7 @@ package com.github.chenharryhua.nanjin.sparkafka
 
 import java.time.{LocalDate, LocalDateTime, LocalTime}
 
-import cats.effect.{ConcurrentEffect, Timer}
-import com.github.chenharryhua.nanjin.kafka.{KafkaTimestamp, KafkaTopic}
+import com.github.chenharryhua.nanjin.kafka.KafkaTimestamp
 import frameless.functions.aggregate.count
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
@@ -65,18 +64,6 @@ final case class ConsumerRecordDatasetWithParams[K: TypedEncoder, V: TypedEncode
   def keys: TypedDataset[K] =
     consumerRecords.select(consumerRecords('key)).as[Option[K]].deserialized.flatMap(x => x)
 
-  def toProducerRecords: ProducerRecordDatasetWithParams[K, V] =
-    ProducerRecordDatasetWithParams(
-      params,
-      SparKafka.toProducerRecords(consumerRecords, params.conversionStrategy).dataset)
-}
-
-final case class ProducerRecordDatasetWithParams[K: TypedEncoder, V: TypedEncoder](
-  params: SparKafkaParams,
-  private val prs: Dataset[SparKafkaProducerRecord[K, V]]) {
-
-  def producerRecords: TypedDataset[SparKafkaProducerRecord[K, V]] = TypedDataset.create(prs)
-
-  def kafkaUpload[F[_]: ConcurrentEffect: Timer](topic: => KafkaTopic[F, K, V]): F[Unit] =
-    SparKafka.uploadToKafka[F, K, V](topic, producerRecords, params.uploadRate).compile.drain
+  def toProducerRecords: TypedDataset[SparKafkaProducerRecord[K, V]] =
+    SparKafka.toProducerRecords(consumerRecords, params.conversionStrategy)
 }

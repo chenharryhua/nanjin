@@ -18,14 +18,14 @@ import org.apache.spark.sql.SparkSession
 
   def setLogLevel(logLevel: String): SparkSettings = copy(logLevel = logLevel)
 
-  private def sparkSession: SparkSession = {
+  def session: SparkSession = {
     val spk = SparkSession.builder().config(conf).getOrCreate()
     spk.sparkContext.setLogLevel(logLevel)
     spk
   }
 
   def sessionResource[F[_]: Sync]: Resource[F, SparkSession] =
-    Resource.make(Sync[F].delay(sparkSession))(spk => Sync[F].delay(spk.close()))
+    Resource.make(Sync[F].delay(session))(spk => Sync[F].delay(spk.close()))
 
   def sessionStream[F[_]: Sync]: Stream[F, SparkSession] =
     Stream.resource(sessionResource)
