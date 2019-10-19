@@ -1,3 +1,3 @@
 package com.github.chenharryhua.nanjin
 
-package object sparkafka extends FramelessInjectionInstances with DatasetExtensions {}
+package object sparkafka extends DatasetExtensions {}

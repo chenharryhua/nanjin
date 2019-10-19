@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.sparkafka
+package com.github.chenharryhua.nanjin.spark
 
 import java.sql.{Date, Timestamp}
 import java.time._
@@ -7,7 +7,7 @@ import doobie.util.Meta
 import frameless.{Injection, SQLDate, SQLTimestamp}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 
-private[sparkafka] trait FramelessInjectionInstances extends Serializable {
+private[spark] trait FramelessInjectionInstances extends Serializable {
   private val zoneId: ZoneId = ZoneId.of("Etc/UTC")
 
 //typed-spark

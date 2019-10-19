@@ -4,6 +4,7 @@ import java.time.{Instant, LocalDate, LocalDateTime}
 
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8._
 import com.github.chenharryhua.nanjin.sparkafka._
+import com.github.chenharryhua.nanjin.spark._
 import org.scalacheck.Prop.{forAll, propBoolean}
 import org.scalacheck.Properties
 

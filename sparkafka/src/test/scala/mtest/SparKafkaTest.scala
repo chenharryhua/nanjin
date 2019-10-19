@@ -6,6 +6,7 @@ import cats.effect.IO
 import cats.implicits._
 import org.scalatest.funsuite.AnyFunSuite
 import com.github.chenharryhua.nanjin.sparkafka._
+import com.github.chenharryhua.nanjin.spark._
 import frameless.cats.implicits._
 import cats.derived.auto.show._
 
@@ -20,37 +21,37 @@ class SparKafkaTest extends AnyFunSuite {
     topic.producer.send(1, data)).unsafeRunSync()
 
   test("read topic from kafka") {
-    spark.use { s =>
+    sparKafkaSession.use { s =>
       s.datasetFromKafka(topics.sparkafkaTopic).flatMap(_.consumerRecords.show[IO]())
     }.unsafeRunSync
   }
   test("save topic to disk") {
-    spark.use(_.update(_.withOverwrite).saveToDisk(topics.sparkafkaTopic)).unsafeRunSync
+    sparKafkaSession.use(_.update(_.withOverwrite).saveToDisk(topics.sparkafkaTopic)).unsafeRunSync
   }
   test("read topic from disk") {
-    spark
+    sparKafkaSession
       .use(_.datasetFromDisk(topics.sparkafkaTopic).flatMap(_.consumerRecords.show[IO]()))
       .unsafeRunSync
   }
   test("upload dataset to kafka") {
-    spark
+    sparKafkaSession
       .use(
         _.datasetFromDisk(topics.sparkafkaTopic).flatMap(
           _.toProducerRecords.kafkaUpload(topics.sparkafkaTopic).compile.drain))
       .unsafeRunSync()
   }
   test("replay topic using data on disk") {
-    spark.use(_.replay(topics.sparkafkaTopic))
+    sparKafkaSession.use(_.replay(topics.sparkafkaTopic))
   }
 
   test("read topic from kafka and show values") {
-    spark.use { s =>
+    sparKafkaSession.use { s =>
       s.datasetFromKafka(topics.sparkafkaTopic).flatMap(_.consumerRecords.values.show[IO]())
     }.unsafeRunSync
   }
 
   test("read topic from kafka and show aggragation result") {
-    spark.use { s =>
+    sparKafkaSession.use { s =>
       s.datasetFromKafka(topics.sparkafkaTopic).flatMap(_.dailyHour.show[IO]())
     }.unsafeRunSync
   }

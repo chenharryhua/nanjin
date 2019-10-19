@@ -145,7 +145,8 @@ val tests = Seq(
   "org.scalatest" %% "scalatest"                              % scalatest      % Test,
   "com.github.julien-truffaut" %% "monocle-law"               % monocleVersion % Test,
   "org.typelevel" %% "discipline-scalatest"                   % "1.0.0-RC1"    % Test,
-  "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.3.1"        % Test
+  "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.3.1"        % Test,
+  "org.tpolecat" %% "doobie-postgres"                         % doobie         % Test
 )
 
 val kafkaLib = Seq(
