@@ -42,4 +42,16 @@ class SparKafkaTest extends AnyFunSuite {
   test("replay topic using data on disk") {
     spark.use(_.replay(topics.sparkafkaTopic))
   }
+
+  test("read topic from kafka and show values") {
+    spark.use { s =>
+      s.datasetFromKafka(topics.sparkafkaTopic).flatMap(_.consumerRecords.values.show[IO]())
+    }.unsafeRunSync
+  }
+
+  test("read topic from kafka and show aggragation result") {
+    spark.use { s =>
+      s.datasetFromKafka(topics.sparkafkaTopic).flatMap(_.dailyHour.show[IO]())
+    }.unsafeRunSync
+  }
 }

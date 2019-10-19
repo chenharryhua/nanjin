@@ -52,18 +52,6 @@ final case class ConsumerRecordDatasetWithParams[K: TypedEncoder, V: TypedEncode
     res.orderBy(res('date).asc)
   }
 
-  def nullValues: TypedDataset[SparKafkaConsumerRecord[K, V]] =
-    consumerRecords.filter(consumerRecords('value).isNone)
-
-  def nullKeys: TypedDataset[SparKafkaConsumerRecord[K, V]] =
-    consumerRecords.filter(consumerRecords('key).isNone)
-
-  def values: TypedDataset[V] =
-    consumerRecords.select(consumerRecords('value)).as[Option[V]].deserialized.flatMap(x => x)
-
-  def keys: TypedDataset[K] =
-    consumerRecords.select(consumerRecords('key)).as[Option[K]].deserialized.flatMap(x => x)
-
   def toProducerRecords: TypedDataset[SparKafkaProducerRecord[K, V]] =
     SparKafka.toProducerRecords(consumerRecords, params.conversionStrategy)
 }
