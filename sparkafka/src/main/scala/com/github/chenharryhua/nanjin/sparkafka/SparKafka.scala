@@ -5,6 +5,7 @@ import java.util
 import cats.effect.{ConcurrentEffect, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.{KafkaDateTimeRange, KafkaTopic, Keyboard}
+import com.github.chenharryhua.nanjin.spark.StorageRootPath
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.{Chunk, Stream}
 import monocle.function.At.remove
@@ -16,13 +17,16 @@ import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategy}
 
 import scala.collection.JavaConverters._
 
-private[sparkafka] object SparKafka {
+object SparKafka {
 
   private def props(maps: Map[String, String]): util.Map[String, Object] =
     (Map(
       "key.deserializer" -> classOf[ByteArrayDeserializer].getName,
       "value.deserializer" -> classOf[ByteArrayDeserializer].getName) ++
       remove(ConsumerConfig.CLIENT_ID_CONFIG)(maps)).mapValues[Object](identity).asJava
+
+  private def path[F[_]](root: StorageRootPath, topic: KafkaTopic[F, _, _]): String =
+    root.value + topic.topicDef.topicName
 
   def datasetFromKafka[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
@@ -60,7 +64,7 @@ private[sparkafka] object SparKafka {
     Sync[F].delay {
       val tds =
         TypedDataset.createUnsafe[SparKafkaConsumerRecord[K, V]](
-          sparkSession.read.parquet(rootPath.path(topic)))
+          sparkSession.read.parquet(path(rootPath, topic)))
       val inBetween = tds.makeUDF[Long, Boolean](timeRange.isInBetween)
       tds.filter(inBetween(tds('timestamp)))
     }
@@ -72,7 +76,7 @@ private[sparkafka] object SparKafka {
     saveMode: SaveMode,
     locationStrategy: LocationStrategy)(implicit sparkSession: SparkSession): F[Unit] =
     datasetFromKafka(topic, timeRange, locationStrategy).map(
-      _.write.mode(saveMode).parquet(rootPath.path(topic)))
+      _.write.mode(saveMode).parquet(path(rootPath, topic)))
 
   def toProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     tds: TypedDataset[SparKafkaConsumerRecord[K, V]],

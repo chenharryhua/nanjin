@@ -15,33 +15,36 @@ final case class TableDef[A](tableName: String)(
   val doobieRead: Read[A]) {
 
   def in[F[_]: ContextShift: Concurrent](dbSettings: DatabaseSettings)(
-    implicit sparkSession: SparkSession): TableDataset[F, A] =
-    TableDataset[F, A](this, dbSettings, SparkTableParams.default)
+    implicit sparkSession: SparkSession): SparkTableSession[F, A] =
+    SparkTableSession[F, A](this, dbSettings, SparkTableParams.default)
 }
 
-final case class TableDataset[F[_]: ContextShift: Concurrent, A](
+final case class SparkTableSession[F[_]: ContextShift: Concurrent, A](
   tableDef: TableDef[A],
   dbSettings: DatabaseSettings,
-  tableParams: SparkTableParams)(implicit sparkSession: SparkSession)
-    extends TableParamModule[F, A] {
+  tableParams: SparkTableParams)(implicit sparkSession: SparkSession) {
   import tableDef.{doobieRead, typedEncoder}
+
+  private val path: String = tableParams.rootPath.value + tableDef.tableName
+
+  def update(f: SparkTableParams => SparkTableParams): SparkTableSession[F, A] =
+    copy(tableParams = f(tableParams))
 
   // spark
   def datasetFromDB: TypedDataset[A] =
     TypedDataset.createUnsafe[A](
-      spark.read
+      sparkSession.read
         .format("jdbc")
         .option("url", dbSettings.connStr.value)
         .option("driver", dbSettings.driver.value)
         .option("dbtable", tableDef.tableName)
         .load())
 
-  def datasetFromDisk(path: String): TypedDataset[A] =
-    TypedDataset.createUnsafe[A](
-      spark.read
-        .format(tableParams.format.value)
-        .options(tableParams.format.defaultOptions ++ tableParams.sparkOptions)
-        .load(path))
+  def saveToDisk: F[Unit] =
+    Sync[F].delay(datasetFromDB.write.mode(tableParams.saveMode).parquet(path))
+
+  def datasetFromDisk: TypedDataset[A] =
+    TypedDataset.createUnsafe[A](sparkSession.read.parquet(path))
 
   def uploadToDB(data: TypedDataset[A]): F[Unit] =
     Sync[F].delay(

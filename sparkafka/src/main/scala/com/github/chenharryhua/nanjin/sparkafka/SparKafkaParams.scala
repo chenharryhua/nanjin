@@ -5,6 +5,7 @@ import java.time._
 import cats.implicits._
 import cats.kernel.BoundedSemilattice
 import com.github.chenharryhua.nanjin.kafka.{KafkaDateTimeRange, KafkaTimestamp, KafkaTopic}
+import com.github.chenharryhua.nanjin.spark.StorageRootPath
 import monocle.Lens
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
@@ -41,15 +42,6 @@ object ConversionStrategy {
 
 object KafkaUploadRate {
   val default: KafkaUploadRate = KafkaUploadRate(1000, 1.second)
-}
-
-final case class StorageRootPath(value: String) extends AnyVal {
-
-  def path[F[_]](topic: KafkaTopic[F, _, _]): String = value + topic.topicDef.topicName
-}
-
-object StorageRootPath {
-  val default: StorageRootPath = StorageRootPath("./data/kafka/parquet/")
 }
 
 @Lenses final case class SparKafkaParams private (
@@ -117,7 +109,7 @@ object SparKafkaParams {
       ConversionStrategy.Intact,
       KafkaUploadRate.default,
       ZoneId.systemDefault(),
-      StorageRootPath.default,
+      StorageRootPath("./data/kafka/parquet/"),
       SaveMode.ErrorIfExists,
       LocationStrategies.PreferConsistent
     )
