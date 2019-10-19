@@ -1,9 +1,6 @@
 package com.github.chenharryhua.nanjin.sparkdb
 
 import cats.effect.{Concurrent, ContextShift, Sync}
-import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.sparkafka.{SparKafka, SparKafkaSession}
 import doobie.free.connection.ConnectionIO
 import doobie.implicits._
 import doobie.util.Read
@@ -11,7 +8,6 @@ import doobie.util.fragment.Fragment
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import org.apache.spark.sql.SparkSession
-import com.github.chenharryhua.nanjin.kafka.KafkaDateTimeRange
 
 final case class TableDef[A](tableName: String)(
   implicit
@@ -19,14 +15,14 @@ final case class TableDef[A](tableName: String)(
   val doobieRead: Read[A]) {
 
   def in[F[_]: ContextShift: Concurrent](dbSettings: DatabaseSettings)(
-    implicit spark: SparkSession): TableDataset[F, A] =
+    implicit sparkSession: SparkSession): TableDataset[F, A] =
     TableDataset[F, A](this, dbSettings, SparkTableParams.default)
 }
 
 final case class TableDataset[F[_]: ContextShift: Concurrent, A](
   tableDef: TableDef[A],
   dbSettings: DatabaseSettings,
-  tableParams: SparkTableParams)(implicit spark: SparkSession)
+  tableParams: SparkTableParams)(implicit sparkSession: SparkSession)
     extends TableParamModule[F, A] {
   import tableDef.{doobieRead, typedEncoder}
 

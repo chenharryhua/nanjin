@@ -13,7 +13,7 @@ import org.apache.spark.sql.SparkSession
 final case class SparKafkaSession(params: SparKafkaParams)(
   implicit val sparkSession: SparkSession) {
 
-  def updateParams(f: SparKafkaParams => SparKafkaParams): SparKafkaSession =
+  def update(f: SparKafkaParams => SparKafkaParams): SparKafkaSession =
     copy(params = f(params))
 
   def datasetFromKafka[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
@@ -59,6 +59,9 @@ final case class SparKafkaSession(params: SparKafkaParams)(
   def updateSpark(f: SparkConf => SparkConf): SparKafkaSettings =
     SparKafkaSettings.sparkSettings.composeLens(SparkSettings.conf).modify(f)(this)
 
+  def setLogLevel(logLevel: String): SparKafkaSettings =
+    SparKafkaSettings.sparkSettings.composeLens(SparkSettings.logLevel).set(logLevel)(this)
+
   def sessionResource[F[_]: Sync]: Resource[F, SparKafkaSession] =
     sparkSettings.sessionResource.map(SparKafkaSession(params)(_))
 
@@ -68,4 +71,11 @@ final case class SparKafkaSession(params: SparKafkaParams)(
 
 object SparKafkaSettings {
   val default: SparKafkaSettings = SparKafkaSettings(SparkSettings.default, SparKafkaParams.default)
+
+  def apply(sparkSettings: SparkSettings): SparKafkaSettings =
+    SparKafkaSettings(sparkSettings, SparKafkaParams.default)
+
+  def apply(params: SparKafkaParams): SparKafkaSettings =
+    SparKafkaSettings(SparkSettings.default, params)
+
 }

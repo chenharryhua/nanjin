@@ -18,7 +18,7 @@ import org.apache.spark.sql.SparkSession
 
   def setLogLevel(logLevel: String): SparkSettings = copy(logLevel = logLevel)
 
-  def sparkSession: SparkSession = {
+  private def sparkSession: SparkSession = {
     val spk = SparkSession.builder().config(conf).getOrCreate()
     spk.sparkContext.setLogLevel(logLevel)
     spk
