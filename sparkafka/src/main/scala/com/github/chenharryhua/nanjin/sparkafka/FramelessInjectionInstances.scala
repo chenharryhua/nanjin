@@ -2,15 +2,10 @@ package com.github.chenharryhua.nanjin.sparkafka
 
 import java.sql.{Date, Timestamp}
 import java.time._
-import java.util.concurrent.TimeUnit
 
-import com.github.chenharryhua.nanjin.kafka.KafkaTimestamp
 import doobie.util.Meta
 import frameless.{Injection, SQLDate, SQLTimestamp}
-import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
-
-import scala.concurrent.duration.FiniteDuration
 
 private[sparkafka] trait FramelessInjectionInstances extends Serializable {
   private val zoneId: ZoneId = ZoneId.of("Etc/UTC")
@@ -48,7 +43,7 @@ private[sparkafka] trait FramelessInjectionInstances extends Serializable {
     override def apply(a: LocalDate): Date  = Date.valueOf(a)
     override def invert(b: Date): LocalDate = b.toLocalDate
   }
-  
+
 //doobie
   implicit def inferDoobieMeta[A, B](implicit in: Injection[A, B], mb: Meta[B]): Meta[A] =
     Meta[B].imap(in.invert)(in.apply)

@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.sparkafka
 
-import java.time.{Instant, LocalDate, LocalDateTime, ZoneId, ZonedDateTime}
+import java.time._
 
 import cats.implicits._
 import cats.kernel.BoundedSemilattice
@@ -45,9 +45,7 @@ object KafkaUploadRate {
 
 final case class StorageRootPath(value: String) extends AnyVal {
 
-  def path[F[_]](topic: KafkaTopic[F, _, _]): String =
-    if (value.endsWith("/")) value + topic.topicDef.topicName
-    else value + "/" + topic.topicDef.topicName
+  def path[F[_]](topic: KafkaTopic[F, _, _]): String = value + topic.topicDef.topicName
 }
 
 object StorageRootPath {
