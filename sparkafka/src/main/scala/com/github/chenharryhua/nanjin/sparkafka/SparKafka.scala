@@ -5,7 +5,7 @@ import java.util
 import cats.effect.{ConcurrentEffect, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.{KafkaDateTimeRange, KafkaTopic, Keyboard}
-import com.github.chenharryhua.nanjin.spark.StorageRootPath
+import com.github.chenharryhua.nanjin.spark.{StorageRootPath, UploadRate}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.{Chunk, Stream}
 import monocle.function.At.remove
@@ -98,7 +98,7 @@ private[sparkafka] object SparKafka {
   def uploadToKafka[F[_]: ConcurrentEffect: Timer, K, V](
     topic: => KafkaTopic[F, K, V],
     tds: TypedDataset[SparKafkaProducerRecord[K, V]],
-    uploadRate: KafkaUploadRate
+    uploadRate: UploadRate
   ): Stream[F, Chunk[RecordMetadata]] =
     for {
       kb <- Keyboard.signal[F]
@@ -117,8 +117,7 @@ private[sparkafka] object SparKafka {
     timeRange: KafkaDateTimeRange,
     rootPath: StorageRootPath,
     conversionStrategy: ConversionStrategy,
-    uploadRate: KafkaUploadRate)(
-    implicit sparkSession: SparkSession): Stream[F, Chunk[RecordMetadata]] =
+    uploadRate: UploadRate)(implicit sparkSession: SparkSession): Stream[F, Chunk[RecordMetadata]] =
     for {
       ds <- Stream.eval(datasetFromDisk[F, K, V](topic, timeRange, rootPath))
       res <- uploadToKafka(topic, toProducerRecords(ds, conversionStrategy), uploadRate)

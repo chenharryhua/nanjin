@@ -4,8 +4,8 @@ import java.time._
 
 import cats.implicits._
 import cats.kernel.BoundedSemilattice
-import com.github.chenharryhua.nanjin.kafka.{KafkaDateTimeRange, KafkaTimestamp, KafkaTopic}
-import com.github.chenharryhua.nanjin.spark.StorageRootPath
+import com.github.chenharryhua.nanjin.kafka.{KafkaDateTimeRange, KafkaTimestamp}
+import com.github.chenharryhua.nanjin.spark.{StorageRootPath, UploadRate}
 import monocle.Lens
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
@@ -38,16 +38,10 @@ object ConversionStrategy {
     }
 }
 
-@Lenses final case class KafkaUploadRate(batchSize: Int, duration: FiniteDuration)
-
-object KafkaUploadRate {
-  val default: KafkaUploadRate = KafkaUploadRate(1000, 1.second)
-}
-
 @Lenses final case class SparKafkaParams private (
   timeRange: KafkaDateTimeRange,
   conversionStrategy: ConversionStrategy,
-  uploadRate: KafkaUploadRate,
+  uploadRate: UploadRate,
   zoneId: ZoneId,
   rootPath: StorageRootPath,
   saveMode: SaveMode,
@@ -82,10 +76,10 @@ object KafkaUploadRate {
   def withYesterday: SparKafkaParams = withinOneDay(LocalDate.now.minusDays(1))
 
   def withBatchSize(batchSize: Int): SparKafkaParams =
-    SparKafkaParams.uploadRate.composeLens(KafkaUploadRate.batchSize).set(batchSize)(this)
+    SparKafkaParams.uploadRate.composeLens(UploadRate.batchSize).set(batchSize)(this)
 
   def withDuration(duration: FiniteDuration): SparKafkaParams =
-    SparKafkaParams.uploadRate.composeLens(KafkaUploadRate.duration).set(duration)(this)
+    SparKafkaParams.uploadRate.composeLens(UploadRate.duration).set(duration)(this)
 
   def withUploadRate(batchSize: Int, duration: FiniteDuration): SparKafkaParams =
     withBatchSize(batchSize).withDuration(duration)
@@ -107,7 +101,7 @@ object SparKafkaParams {
     SparKafkaParams(
       KafkaDateTimeRange.infinite,
       ConversionStrategy.Intact,
-      KafkaUploadRate.default,
+      UploadRate.default,
       ZoneId.systemDefault(),
       StorageRootPath("./data/kafka/parquet/"),
       SaveMode.ErrorIfExists,
