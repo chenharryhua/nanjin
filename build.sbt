@@ -76,6 +76,8 @@ lazy val commonSettings = Seq(
   )
 )
 
+val neo4j = Seq("org.neo4j.driver" % "neo4j-java-driver" % "4.0.0-beta02")
+
 val json = Seq(
   "io.circe" %% "circe-core",
   "io.circe" %% "circe-generic",
@@ -210,7 +212,7 @@ lazy val spark = (project in file("spark"))
   .settings(commonSettings: _*)
   .settings(name := "spark")
   .settings(
-    libraryDependencies ++= sparkLib ++ frameless ++ db ++ tests,
+    libraryDependencies ++= sparkLib ++ frameless ++ db ++ neo4j ++ tests,
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core"  % "jackson-databind" % "2.6.7.2",
       "org.json4s" %% "json4s-core" % "3.5.5"),
