@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.sparkafka
+package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Bifunctor
 import com.github.chenharryhua.nanjin.kafka.KafkaTimestamp

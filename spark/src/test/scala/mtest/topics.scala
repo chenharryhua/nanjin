@@ -4,7 +4,6 @@ import cats.implicits._
 import cats.derived.auto.show._
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.sparkafka._
 
 object topics {
   implicit val show: Show[ForTaskSerializable] = _.toString

@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.sparkdb
+package com.github.chenharryhua.nanjin.spark.database
 
 import cats.effect.{Concurrent, ContextShift, Sync}
 import doobie.free.connection.ConnectionIO

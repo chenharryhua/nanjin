@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.sparkneo4j
+package com.github.chenharryhua.nanjin.spark.neo4j
 
 import com.github.chenharryhua.nanjin.spark.SparkSettings
 

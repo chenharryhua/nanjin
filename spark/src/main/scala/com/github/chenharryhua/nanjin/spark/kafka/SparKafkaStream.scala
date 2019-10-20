@@ -1,4 +1,5 @@
-package com.github.chenharryhua.nanjin.sparkafka
+package com.github.chenharryhua.nanjin.spark.kafka
+
 import cats.effect.Bracket
 import cats.implicits._
 import com.github.chenharryhua.nanjin.codec._

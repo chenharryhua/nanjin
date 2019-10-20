@@ -5,7 +5,6 @@ import java.time.{LocalDate, LocalDateTime}
 import cats.effect.IO
 import cats.implicits._
 import org.scalatest.funsuite.AnyFunSuite
-import com.github.chenharryhua.nanjin.sparkafka._
 import com.github.chenharryhua.nanjin.spark._
 import frameless.cats.implicits._
 import cats.derived.auto.show._

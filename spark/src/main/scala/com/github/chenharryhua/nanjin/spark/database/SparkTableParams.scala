@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.sparkdb
+package com.github.chenharryhua.nanjin.spark.database
 
 import com.github.chenharryhua.nanjin.spark.StorageRootPath
 import monocle.macros.Lenses

@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.sparkafka
+package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.{ConcurrentEffect, Timer}
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
@@ -7,7 +7,7 @@ import frameless.{TypedDataset, TypedEncoder}
 import fs2.{Chunk, Stream}
 import org.apache.kafka.clients.producer.RecordMetadata
 
-private[sparkafka] trait DatasetExtensions {
+private[kafka] trait DatasetExtensions {
 
   implicit final class SparKafkaUploadSyntax[K, V](
     data: TypedDataset[SparKafkaProducerRecord[K, V]]) {

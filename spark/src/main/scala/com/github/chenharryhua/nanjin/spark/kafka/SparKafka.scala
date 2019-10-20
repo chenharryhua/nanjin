@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.sparkafka
+package com.github.chenharryhua.nanjin.spark.kafka
 
 import java.util
 
@@ -18,7 +18,7 @@ import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategy}
 
 import scala.collection.JavaConverters._
 
-private[sparkafka] object SparKafka {
+private[kafka] object SparKafka {
 
   private def props(maps: Map[String, String]): util.Map[String, Object] =
     (Map(
