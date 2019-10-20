@@ -7,7 +7,7 @@ import doobie.util.Meta
 import frameless.{Injection, SQLDate, SQLTimestamp}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 
-private[spark] trait FramelessInjectionInstances extends Serializable {
+private[spark] trait InjectionInstances extends Serializable {
 
   implicit object javaSQLTimestampInjection extends Injection[Timestamp, SQLTimestamp] {
 

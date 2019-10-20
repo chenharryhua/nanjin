@@ -89,9 +89,9 @@ private[sparkafka] object SparKafka {
       case ConversionStrategy.RemovePartition =>
         sorted.deserialized.map(_.toSparkafkaProducerRecord.withoutPartition)
       case ConversionStrategy.RemoveTimestamp =>
-        sorted.deserialized.map(_.toSparkafkaProducerRecord.withoutTimestamp)
+        sorted.deserialized.map(_.toSparkafkaProducerRecord.withNow)
       case ConversionStrategy.RemovePartitionAndTimestamp =>
-        sorted.deserialized.map(_.toSparkafkaProducerRecord.withoutTimestamp.withoutPartition)
+        sorted.deserialized.map(_.toSparkafkaProducerRecord.withNow.withoutPartition)
     }
   }
 

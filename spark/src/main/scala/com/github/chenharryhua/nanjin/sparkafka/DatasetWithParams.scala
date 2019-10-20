@@ -16,7 +16,6 @@ final case class DailyHourAggResult(date: LocalDateTime, count: Long)
 final case class ConsumerRecordDatasetWithParams[K: TypedEncoder, V: TypedEncoder](
   params: SparKafkaParams,
   private val crs: Dataset[SparKafkaConsumerRecord[K, V]]) {
-  implicit private val zoneId: ZoneId = params.zoneId
 
   def consumerRecords: TypedDataset[SparKafkaConsumerRecord[K, V]] = TypedDataset.create(crs)
 
@@ -45,6 +44,7 @@ final case class ConsumerRecordDatasetWithParams[K: TypedEncoder, V: TypedEncode
   }
 
   def dailyHour: TypedDataset[DailyHourAggResult] = {
+    implicit val zoneId: ZoneId = params.zoneId
     val dayHour: TypedDataset[LocalDateTime] = consumerRecords.deserialized.map { m =>
       val dt   = KafkaTimestamp(m.timestamp).atZone(params.zoneId).toLocalDateTime
       val hour = dt.getHour

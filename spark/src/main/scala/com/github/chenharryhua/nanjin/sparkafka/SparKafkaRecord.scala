@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.sparkafka
 
 import cats.Bifunctor
+import com.github.chenharryhua.nanjin.kafka.KafkaTimestamp
 import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
@@ -61,8 +62,9 @@ object SparKafkaConsumerRecord {
 
   def withTimestamp(ts: Long): SparKafkaProducerRecord[K, V] = copy(timestamp = Some(ts))
   def withPartition(pt: Int): SparKafkaProducerRecord[K, V]  = copy(partition = Some(pt))
-  def withoutTimestamp: SparKafkaProducerRecord[K, V]        = copy(timestamp = None)
   def withoutPartition: SparKafkaProducerRecord[K, V]        = copy(partition = None)
+
+  def withNow: SparKafkaProducerRecord[K, V] = withTimestamp(KafkaTimestamp.now.milliseconds)
 
   @SuppressWarnings(Array("AsInstanceOf"))
   def toProducerRecord: ProducerRecord[K, V] = new ProducerRecord[K, V](

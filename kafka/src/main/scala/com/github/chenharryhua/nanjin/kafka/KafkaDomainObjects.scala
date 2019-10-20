@@ -94,6 +94,9 @@ object KafkaTimestamp {
 
   def apply(ts: LocalDate, zoneId: ZoneId): KafkaTimestamp =
     apply(LocalDateTime.of(ts, LocalTime.MIDNIGHT), zoneId)
+
+  def now: KafkaTimestamp = KafkaTimestamp(Instant.now)
+
 }
 
 @Lenses final case class KafkaDateTimeRange(
