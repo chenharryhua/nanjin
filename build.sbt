@@ -119,7 +119,8 @@ val sparkLib = Seq(
   "org.apache.spark" %% "spark-streaming",
   "org.apache.spark" %% "spark-streaming-kafka-0-10",
   "org.apache.spark" %% "spark-sql-kafka-0-10",
-  "org.apache.spark" %% "spark-avro"
+  "org.apache.spark" %% "spark-avro",
+  "org.apache.spark" %% "spark-graphx"
 ).map(_ % sparkVersion)
   .map(_.exclude("io.netty", "netty-buffer"))
   .map(_.exclude("io.netty", "netty-codec"))
