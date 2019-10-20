@@ -36,12 +36,10 @@ class SparKafkaTest extends AnyFunSuite {
   test("upload dataset to kafka") {
     sparKafkaSession
       .use(
-        _.datasetFromDisk(topics.sparkafkaTopic).flatMap(
-          _.toProducerRecords.kafkaUpload(topics.sparkafkaTopic).compile.drain))
+        _.update(_.withoutTimestamp.withoutPartition)
+          .datasetFromDisk(topics.sparkafkaTopic)
+          .flatMap(_.toProducerRecords.kafkaUpload(topics.sparkafkaTopic).compile.drain))
       .unsafeRunSync()
-  }
-  test("replay topic using data on disk") {
-    sparKafkaSession.use(_.replay(topics.sparkafkaTopic))
   }
 
   test("read topic from kafka and show values") {
