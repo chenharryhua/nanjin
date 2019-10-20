@@ -38,14 +38,14 @@ object ManualAvroSchema {
     }
 
   def apply[A: AvroDecoder: AvroEncoder: SchemaFor](
-    stringSchema: String): Either[KafkaAvroSchemaError, ManualAvroSchema[A]] = {
-    val parser: Schema.Parser = new Schema.Parser
+    stringSchema: String): Either[KafkaAvroSchemaError, ManualAvroSchema[A]] =
     whatsDifferent(stringSchema, AvroSchema[A])
       .fold[Either[KafkaAvroSchemaError, ManualAvroSchema[A]]](
         e => Left(KafkaAvroSchemaError(e.message)),
         jp =>
-          if (jp.ops.isEmpty) Right(ManualAvroSchema(parser.parse(stringSchema)))
-          else Left(KafkaAvroSchemaError(jp.ops.map(_.toString).mkString("\n")))
+          if (jp.ops.isEmpty) {
+            val parser: Schema.Parser = new Schema.Parser
+            Right(ManualAvroSchema(parser.parse(stringSchema)))
+          } else Left(KafkaAvroSchemaError(jp.ops.map(_.toString).mkString("\n")))
       )
-  }
 }
