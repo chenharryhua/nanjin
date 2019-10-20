@@ -13,11 +13,22 @@ import org.apache.kafka.common.record.TimestampType
 
 import scala.compat.java8.OptionConverters._
 
-private[codec] trait Fs2KafkaIso {
-  final def isoFs2ProducerRecord[K, V]: Iso[Fs2ProducerRecord[K, V], ProducerRecord[K, V]] =
+private[codec] trait KafkaIsoInstances {
+
+  implicit final def identityProducerRecordIso[K, V]
+    : Iso[ProducerRecord[K, V], ProducerRecord[K, V]] =
+    Iso[ProducerRecord[K, V], ProducerRecord[K, V]](identity)(identity)
+
+  implicit final def identityConsumerRecordIso[K, V]
+    : Iso[ConsumerRecord[K, V], ConsumerRecord[K, V]] =
+    Iso[ConsumerRecord[K, V], ConsumerRecord[K, V]](identity)(identity)
+
+  implicit final def isoFs2ProducerRecord[K, V]
+    : Iso[Fs2ProducerRecord[K, V], ProducerRecord[K, V]] =
     Iso[Fs2ProducerRecord[K, V], ProducerRecord[K, V]](toProducerRecord)(fromProducerRecord)
 
-  final def isoFs2ComsumerRecord[K, V]: Iso[Fs2ConsumerRecord[K, V], ConsumerRecord[K, V]] =
+  implicit final def isoFs2ComsumerRecord[K, V]
+    : Iso[Fs2ConsumerRecord[K, V], ConsumerRecord[K, V]] =
     Iso[Fs2ConsumerRecord[K, V], ConsumerRecord[K, V]](toConsumerRecord)(fromConsumerRecord)
 
   private def fromProducerRecord[K, V](pr: ProducerRecord[K, V]): Fs2ProducerRecord[K, V] =

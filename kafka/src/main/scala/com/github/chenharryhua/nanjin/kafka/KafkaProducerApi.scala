@@ -8,7 +8,8 @@ import cats.implicits._
 import cats.tagless._
 import com.github.chenharryhua.nanjin.codec._
 import fs2.Chunk
-import fs2.kafka.{KafkaByteProducer, KafkaByteProducerRecord, ProducerRecord => Fs2ProducerRecord}
+import fs2.kafka.{KafkaByteProducer, KafkaByteProducerRecord}
+import monocle.Iso
 import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
 
 @autoFunctorK
@@ -36,10 +37,10 @@ trait KafkaProducerApi[F[_], K, V] {
   final def send(kv: (K, V)): F[RecordMetadata] = send(kv._1, kv._2)
   final def send(v: V): F[RecordMetadata]       = send(null.asInstanceOf[K], v)
 
-  def send(pr: ProducerRecord[K, V]): F[RecordMetadata]
-  def send(prs: Chunk[ProducerRecord[K, V]]): F[Chunk[RecordMetadata]]
+  def send[G[_, _]](pr: G[K, V])(implicit G: Iso[G[K, V], ProducerRecord[K, V]]): F[RecordMetadata]
 
-  def send(fpr: Fs2ProducerRecord[K, V]): F[RecordMetadata]
+  def send[G[_, _]](prs: Chunk[G[K, V]])(
+    implicit G: Iso[G[K, V], ProducerRecord[K, V]]): F[Chunk[RecordMetadata]]
 
   def send(kvs: List[(K, V)]): F[List[RecordMetadata]]
   def send(kvs: Chain[(K, V)]): F[Chain[RecordMetadata]]
@@ -98,11 +99,13 @@ object KafkaProducerApi {
     override def arbitrarilyValueSend(key: K, value: Array[Byte]): F[RecordMetadata] =
       doSend(record(key, value)).flatten
 
-    override def send(pr: ProducerRecord[K, V]): F[RecordMetadata] =
-      doSend(record(pr)).flatten
+    override def send[G[_, _]](pr: G[K, V])(
+      implicit G: Iso[G[K, V], ProducerRecord[K, V]]): F[RecordMetadata] =
+      doSend(record(G.get(pr))).flatten
 
-    override def send(fpr: Fs2ProducerRecord[K, V]): F[RecordMetadata] =
-      doSend(record(isoFs2ProducerRecord.get(fpr))).flatten
+    override def send[G[_, _]](prs: Chunk[G[K, V]])(
+      implicit G: Iso[G[K, V], ProducerRecord[K, V]]): F[Chunk[RecordMetadata]] =
+      prs.traverse(pr => doSend(record(G.get(pr)))).flatMap(_.sequence)
 
     override def arbitrarilyKeySend(key: Array[Byte], value: V): F[RecordMetadata] =
       doSend(record(key, value)).flatten
@@ -116,7 +119,5 @@ object KafkaProducerApi {
     override def send(kvs: Chain[(K, V)]): F[Chain[RecordMetadata]] =
       kvs.traverse(kv => doSend(record(kv._1, kv._2))).flatMap(_.sequence)
 
-    override def send(prs: Chunk[ProducerRecord[K, V]]): F[Chunk[RecordMetadata]] =
-      prs.traverse(pr => doSend(record(pr))).flatMap(_.sequence)
   }
 }
