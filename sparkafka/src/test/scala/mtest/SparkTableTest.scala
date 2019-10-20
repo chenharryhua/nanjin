@@ -9,9 +9,12 @@ import frameless.TypedDataset
 import org.apache.spark.sql.SaveMode
 import org.scalatest.funsuite.AnyFunSuite
 import frameless.cats.implicits._
+import java.time.ZoneId
 final case class DbTableInst(a: LocalDate, b: LocalDateTime, c: Int, d: String, e: Instant)
 
 class SparkTableTest extends AnyFunSuite {
+  implicit val zoneId = ZoneId.systemDefault()
+
   val table = TableDef[DbTableInst]("public.sparktabletest")
 
   test("upload dataset to table") {

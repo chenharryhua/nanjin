@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.sparkafka
 
-import java.time.{LocalDate, LocalDateTime, LocalTime}
+import java.time.{LocalDate, LocalDateTime, LocalTime, ZoneId}
 
 import com.github.chenharryhua.nanjin.kafka.KafkaTimestamp
 import com.github.chenharryhua.nanjin.spark._
@@ -16,6 +16,7 @@ final case class DailyHourAggResult(date: LocalDateTime, count: Long)
 final case class ConsumerRecordDatasetWithParams[K: TypedEncoder, V: TypedEncoder](
   params: SparKafkaParams,
   private val crs: Dataset[SparKafkaConsumerRecord[K, V]]) {
+  implicit private val zoneId: ZoneId = params.zoneId
 
   def consumerRecords: TypedDataset[SparKafkaConsumerRecord[K, V]] = TypedDataset.create(crs)
 

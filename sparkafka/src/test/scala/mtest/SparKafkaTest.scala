@@ -9,8 +9,10 @@ import com.github.chenharryhua.nanjin.sparkafka._
 import com.github.chenharryhua.nanjin.spark._
 import frameless.cats.implicits._
 import cats.derived.auto.show._
+import java.time.ZoneId
 
 class SparKafkaTest extends AnyFunSuite {
+  implicit val zoneId = ZoneId.systemDefault()
 
   val e     = EmbeddedForTaskSerializable(0, LocalDateTime.now)
   val data  = ForTaskSerializable(0, "a", LocalDate.now, LocalDateTime.now, e)
