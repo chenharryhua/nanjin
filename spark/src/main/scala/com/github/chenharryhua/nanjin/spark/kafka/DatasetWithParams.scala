@@ -12,6 +12,7 @@ final case class MinutelyAggResult(minute: Int, count: Long)
 final case class HourlyAggResult(hour: Int, count: Long)
 final case class DailyAggResult(date: LocalDate, count: Long)
 final case class DailyHourAggResult(date: LocalDateTime, count: Long)
+final case class DailyMinuteAggResult(date: LocalDateTime, count: Long)
 
 final case class ConsumerRecordDatasetWithParams[K: TypedEncoder, V: TypedEncoder](
   params: SparKafkaParams,
@@ -51,6 +52,19 @@ final case class ConsumerRecordDatasetWithParams[K: TypedEncoder, V: TypedEncode
       LocalDateTime.of(dt.toLocalDate, LocalTime.of(hour, 0))
     }
     val res = dayHour.groupBy(dayHour.asCol).agg(count(dayHour.asCol)).as[DailyHourAggResult]
+    res.orderBy(res('date).asc)
+  }
+
+  def dailyMinute: TypedDataset[DailyMinuteAggResult] = {
+    implicit val zoneId: ZoneId = params.zoneId
+    val dayMinute: TypedDataset[LocalDateTime] = consumerRecords.deserialized.map { m =>
+      val dt   = KafkaTimestamp(m.timestamp).atZone(params.zoneId).toLocalDateTime
+      val hour = dt.getHour
+      val min  = dt.getMinute
+      LocalDateTime.of(dt.toLocalDate, LocalTime.of(hour, min))
+    }
+    val res =
+      dayMinute.groupBy(dayMinute.asCol).agg(count(dayMinute.asCol)).as[DailyMinuteAggResult]
     res.orderBy(res('date).asc)
   }
 
