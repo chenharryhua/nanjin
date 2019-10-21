@@ -4,7 +4,7 @@ import java.util
 
 import cats.effect.{ConcurrentEffect, Sync, Timer}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.identityProducerRecordIso
+import com.github.chenharryhua.nanjin.codec.isoIdentityProducerRecord
 import com.github.chenharryhua.nanjin.kafka.{KafkaDateTimeRange, KafkaTopic, Keyboard}
 import com.github.chenharryhua.nanjin.spark.{StorageRootPath, UploadRate}
 import frameless.{TypedDataset, TypedEncoder}
