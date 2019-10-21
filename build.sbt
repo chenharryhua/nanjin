@@ -223,12 +223,19 @@ lazy val kafka = (project in file("kafka"))
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
 
+lazy val database = (project in file("database"))
+  .settings(commonSettings: _*)
+  .settings(name := "database")
+  .dependsOn(codec)
+  .settings(libraryDependencies ++= db ++ neo4j ++ tests)
+
 lazy val spark = (project in file("spark"))
   .dependsOn(kafka)
+  .dependsOn(database)
   .settings(commonSettings: _*)
   .settings(name := "spark")
   .settings(
-    libraryDependencies ++= sparkLib ++ frameless ++ db ++ neo4j ++ tests,
+    libraryDependencies ++= sparkLib ++ frameless ++ tests,
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core"  % "jackson-databind" % "2.6.7.2",
       "org.json4s" %% "json4s-core" % "3.5.5"),
@@ -236,4 +243,4 @@ lazy val spark = (project in file("spark"))
   )
 
 lazy val nanjin =
-  (project in file(".")).settings(name := "nanjin").aggregate(codec, kafka, spark)
+  (project in file(".")).settings(name := "nanjin").aggregate(codec, kafka, database, spark)

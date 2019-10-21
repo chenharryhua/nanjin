@@ -1,8 +1,7 @@
-package com.github.chenharryhua.nanjin.spark.database
+package com.github.chenharryhua.nanjin.database
 
 import cats.effect.{Async, Blocker, Concurrent, ContextShift, Resource, Timer}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.spark._
 import doobie.free.connection.{AsyncConnectionIO, ConnectionIO}
 import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts

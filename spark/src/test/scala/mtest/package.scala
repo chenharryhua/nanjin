@@ -11,8 +11,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 package object mtest {
 
-  import com.github.chenharryhua.nanjin.spark.database.Postgres
-
   implicit val cs: ContextShift[IO] = IO.contextShift(global)
   implicit val timer: Timer[IO]     = IO.timer(global)
 

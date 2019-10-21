@@ -1,7 +1,6 @@
-package com.github.chenharryhua.nanjin.spark.neo4j
+package com.github.chenharryhua.nanjin.database
 
 import cats.effect.{Async, Resource}
-import com.github.chenharryhua.nanjin.spark.{ConnectionString, Host, Password, Port, Username}
 import fs2.Stream
 import monocle.macros.Lenses
 import neotypes.cats.effect.implicits._
@@ -30,7 +29,8 @@ import org.neo4j.driver.v1.{AuthToken, AuthTokens, Config}
   def transactionResource[F[_]: Async]: Resource[F, Transaction[F]] =
     sessionResource.evalMap(_.transaction)
 
-  def sessionStream[F[_]: Async]: Stream[F, Session[F]] = Stream.resource(sessionResource)
+  def sessionStream[F[_]: Async]: Stream[F, Session[F]] =
+    Stream.resource(sessionResource)
 
   def transactionStream[F[_]: Async]: Stream[F, Transaction[F]] =
     Stream.resource(transactionResource)
