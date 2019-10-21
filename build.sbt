@@ -42,6 +42,8 @@ val scalatest = "3.0.8"
 val doobie = "0.8.4"
 val quill  = "3.4.10"
 
+val neotypes = "0.13.0"
+
 lazy val commonSettings = Seq(
   version      := "0.0.1-SNAPSHOT",
   organization := "com.github.chenharryhua",
@@ -76,7 +78,20 @@ lazy val commonSettings = Seq(
   )
 )
 
-val neo4j = Seq("org.neo4j.driver" % "neo4j-java-driver" % "4.0.0-beta02")
+val neo4j = Seq(
+  "com.dimafeng" %% "neotypes",
+  "com.dimafeng" %% "neotypes-cats-effect",
+  "com.dimafeng" %% "neotypes-monix",
+  "com.dimafeng" %% "neotypes-zio",
+  "com.dimafeng" %% "neotypes-akka-stream",
+  "com.dimafeng" %% "neotypes-fs2-stream",
+  "com.dimafeng" %% "neotypes-monix-stream",
+  "com.dimafeng" %% "neotypes-zio-stream",
+  "com.dimafeng" %% "neotypes-refined",
+  "com.dimafeng" %% "neotypes-cats-data"
+).map(_ % neotypes) ++ Seq(
+  "org.neo4j.driver" % "neo4j-java-driver" % "1.7.5")
+
 
 val json = Seq(
   "io.circe" %% "circe-core",

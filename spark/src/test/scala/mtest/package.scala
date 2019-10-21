@@ -1,13 +1,6 @@
 import cats.effect.{ContextShift, IO, Resource, Timer}
 import com.github.chenharryhua.nanjin.kafka.{IoKafkaContext, KafkaSettings, TopicDef}
 import com.github.chenharryhua.nanjin.spark.SparkSettings
-import com.github.chenharryhua.nanjin.spark.database.{
-  DatabaseHost,
-  DatabaseName,
-  DatabasePort,
-  Password,
-  Username
-}
 import com.github.chenharryhua.nanjin.spark.kafka.{SparKafkaSession, SparKafkaSettings}
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.database._
@@ -28,8 +21,8 @@ package object mtest {
   val db: Postgres = Postgres(
     Username("postgres"),
     Password("postgres"),
-    DatabaseHost("localhost"),
-    DatabasePort(5432),
+    Host("localhost"),
+    Port(5432),
     DatabaseName("postgres"))
 
   val sparkSession =

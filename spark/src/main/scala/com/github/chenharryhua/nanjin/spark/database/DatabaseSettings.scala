@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.database
 
 import cats.effect.{Async, Blocker, Concurrent, ContextShift, Resource, Timer}
 import cats.implicits._
+import com.github.chenharryhua.nanjin.spark._
 import doobie.free.connection.{AsyncConnectionIO, ConnectionIO}
 import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
@@ -11,18 +12,9 @@ import monocle.macros.Lenses
 
 import scala.concurrent.duration.DurationInt
 
-final case class Username(value: String) extends AnyVal
-final case class Password(value: String) extends AnyVal
-final case class DatabaseName(value: String) extends AnyVal
-final case class DatabaseHost(value: String) extends AnyVal
-final case class DatabasePort(value: Int) extends AnyVal
-
-final case class DatabaseConnectionString(value: String) extends AnyVal
-final case class DatabaseDriverString(value: String) extends AnyVal
-
 sealed abstract class DatabaseSettings(username: Username, password: Password) {
-  def driver: DatabaseDriverString
-  def connStr: DatabaseConnectionString
+  def driver: DriverString
+  def connStr: ConnectionString
 
   final def show: String =
     s"""
@@ -74,46 +66,45 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
 @Lenses final case class Postgres(
   username: Username,
   password: Password,
-  host: DatabaseHost,
-  port: DatabasePort,
+  host: Host,
+  port: Port,
   database: DatabaseName)
     extends DatabaseSettings(username, password) {
-  private val url: String                        = s"jdbc:postgresql://${host.value}:${port.value}/${database.value}"
-  private val credential: String                 = s"user=${username.value}&password=${password.value}"
-  override val connStr: DatabaseConnectionString = DatabaseConnectionString(s"$url?$credential")
-  override val driver: DatabaseDriverString      = DatabaseDriverString("org.postgresql.Driver")
+  private val url: String                = s"jdbc:postgresql://${host.value}:${port.value}/${database.value}"
+  private val credential: String         = s"user=${username.value}&password=${password.value}"
+  override val connStr: ConnectionString = ConnectionString(s"$url?$credential")
+  override val driver: DriverString      = DriverString("org.postgresql.Driver")
 }
 
 @Lenses final case class Redshift(
   username: Username,
   password: Password,
-  host: DatabaseHost,
-  port: DatabasePort,
+  host: Host,
+  port: Port,
   database: DatabaseName)
     extends DatabaseSettings(username, password) {
   private val url: String        = s"jdbc:redshift://${host.value}:${port.value}/${database.value}"
   private val credential: String = s"user=${username.value}&password=${password.value}"
   private val ssl: String        = "ssl=true&sslfactory=com.amazon.redshift.ssl.NonValidatingFactory"
 
-  override val connStr: DatabaseConnectionString =
-    DatabaseConnectionString(s"$url?$credential&$ssl")
+  override val connStr: ConnectionString =
+    ConnectionString(s"$url?$credential&$ssl")
 
-  override val driver: DatabaseDriverString =
-    DatabaseDriverString("com.amazon.redshift.jdbc42.Driver")
+  override val driver: DriverString =
+    DriverString("com.amazon.redshift.jdbc42.Driver")
 }
 
 @Lenses final case class SqlServer(
   username: Username,
   password: Password,
-  host: DatabaseHost,
-  port: DatabasePort,
+  host: Host,
+  port: Port,
   database: DatabaseName)
     extends DatabaseSettings(username, password) {
 
-  override val connStr: DatabaseConnectionString =
-    DatabaseConnectionString(
-      s"jdbc:sqlserver://${host.value}:${port.value};databaseName=${database.value}")
+  override val connStr: ConnectionString =
+    ConnectionString(s"jdbc:sqlserver://${host.value}:${port.value};databaseName=${database.value}")
 
-  override val driver: DatabaseDriverString =
-    DatabaseDriverString("com.microsoft.sqlserver.jdbc.SQLServerDriver")
+  override val driver: DriverString =
+    DriverString("com.microsoft.sqlserver.jdbc.SQLServerDriver")
 }
