@@ -12,3 +12,7 @@ final case class StorageRootPath(value: String) extends AnyVal
 object UploadRate {
   val default: UploadRate = UploadRate(1000, 1.second)
 }
+
+private[spark] trait UpdateParams[A, B] {
+  def updateParams(f: A => A): B
+}

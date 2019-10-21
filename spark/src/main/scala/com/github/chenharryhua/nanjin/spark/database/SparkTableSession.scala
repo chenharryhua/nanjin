@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.database
 
 import cats.effect.{Concurrent, ContextShift, Sync}
 import com.github.chenharryhua.nanjin.database.DatabaseSettings
+import com.github.chenharryhua.nanjin.spark.UpdateParams
 import doobie.free.connection.ConnectionIO
 import doobie.implicits._
 import doobie.util.Read
@@ -23,15 +24,15 @@ final case class TableDef[A](tableName: String)(
 final case class SparkTableSession[F[_]: ContextShift: Concurrent, A](
   tableDef: TableDef[A],
   dbSettings: DatabaseSettings,
-  tableParams: SparkTableParams)(implicit sparkSession: SparkSession) {
+  tableParams: SparkTableParams)(implicit sparkSession: SparkSession)
+    extends UpdateParams[SparkTableParams, SparkTableSession[F, A]] {
   import tableDef.{doobieRead, typedEncoder}
 
   private val path: String = tableParams.rootPath.value + tableDef.tableName
 
-  def update(f: SparkTableParams => SparkTableParams): SparkTableSession[F, A] =
+  def updateParams(f: SparkTableParams => SparkTableParams): SparkTableSession[F, A] =
     copy(tableParams = f(tableParams))
 
-  // spark
   def datasetFromDB: TypedDataset[A] =
     TypedDataset.createUnsafe[A](
       sparkSession.read

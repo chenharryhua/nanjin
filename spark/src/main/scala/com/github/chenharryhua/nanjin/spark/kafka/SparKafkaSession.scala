@@ -3,17 +3,17 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.effect.{ConcurrentEffect, Resource, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.spark.SparkSettings
+import com.github.chenharryhua.nanjin.spark.{SparkSettings, UpdateParams}
 import frameless.TypedEncoder
 import fs2.Stream
 import monocle.macros.Lenses
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 
-final case class SparKafkaSession(params: SparKafkaParams)(
-  implicit val sparkSession: SparkSession) {
+final case class SparKafkaSession(params: SparKafkaParams)(implicit val sparkSession: SparkSession)
+    extends UpdateParams[SparKafkaParams, SparKafkaSession] {
 
-  def update(f: SparKafkaParams => SparKafkaParams): SparKafkaSession =
+  def updateParams(f: SparKafkaParams => SparKafkaParams): SparKafkaSession =
     copy(params = f(params))
 
   def datasetFromKafka[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](

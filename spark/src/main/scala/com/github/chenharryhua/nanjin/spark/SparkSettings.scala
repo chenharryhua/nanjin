@@ -9,11 +9,11 @@ import org.apache.spark.sql.SparkSession
 @Lenses final case class SparkSettings(conf: SparkConf, logLevel: String) {
 
   def kms(kmsKey: String): SparkSettings =
-    update(
+    updateConf(
       _.set("spark.hadoop.fs.s3a.server-side-encryption-algorithm", "SSE-KMS")
         .set("spark.hadoop.fs.s3a.server-side-encryption.key", kmsKey))
 
-  def update(f: SparkConf => SparkConf): SparkSettings =
+  def updateConf(f: SparkConf => SparkConf): SparkSettings =
     SparkSettings.conf.modify(f)(this)
 
   def setLogLevel(logLevel: String): SparkSettings = copy(logLevel = logLevel)
@@ -34,7 +34,7 @@ import org.apache.spark.sql.SparkSession
 object SparkSettings {
 
   val default: SparkSettings =
-    SparkSettings(new SparkConf, "warn").update(
+    SparkSettings(new SparkConf, "warn").updateConf(
       _.set("spark.master", "local[*]")
         .set("spark.ui.enabled", "true")
         .set("spark.debug.maxToStringFields", "1000")
