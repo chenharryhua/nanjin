@@ -5,6 +5,7 @@ import com.github.chenharryhua.nanjin.kafka.KafkaTimestamp
 import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
+import java.time.Clock
 
 // https://spark.apache.org/docs/2.4.3/structured-streaming-kafka-integration.html
 @Lenses final case class SparKafkaConsumerRecord[K, V](
@@ -64,7 +65,7 @@ object SparKafkaConsumerRecord {
   def withPartition(pt: Int): SparKafkaProducerRecord[K, V]  = copy(partition = Some(pt))
   def withoutPartition: SparKafkaProducerRecord[K, V]        = copy(partition = None)
 
-  def withNow: SparKafkaProducerRecord[K, V] = withTimestamp(KafkaTimestamp.now.milliseconds)
+  def withNow(clock:Clock): SparKafkaProducerRecord[K, V] = withTimestamp(KafkaTimestamp.now(clock).milliseconds)
 
   @SuppressWarnings(Array("AsInstanceOf"))
   def toProducerRecord: ProducerRecord[K, V] = new ProducerRecord[K, V](

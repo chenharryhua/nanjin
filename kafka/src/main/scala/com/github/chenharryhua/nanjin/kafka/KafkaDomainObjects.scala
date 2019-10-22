@@ -95,7 +95,7 @@ object KafkaTimestamp {
   def apply(ts: LocalDate, zoneId: ZoneId): KafkaTimestamp =
     apply(LocalDateTime.of(ts, LocalTime.MIDNIGHT), zoneId)
 
-  def now: KafkaTimestamp = KafkaTimestamp(Instant.now)
+  def now(clock: Clock): KafkaTimestamp = KafkaTimestamp(Instant.now(clock))
 
 }
 

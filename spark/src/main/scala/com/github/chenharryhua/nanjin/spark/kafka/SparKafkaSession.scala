@@ -45,7 +45,8 @@ final case class SparKafkaSession(params: SparKafkaParams)(implicit val sparkSes
         params.timeRange,
         params.rootPath,
         params.conversionStrategy,
-        params.uploadRate)
+        params.uploadRate,
+        params.clock)
       .map(_ => print("."))
       .compile
       .drain

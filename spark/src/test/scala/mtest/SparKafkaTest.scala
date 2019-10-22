@@ -6,6 +6,7 @@ import cats.effect.IO
 import cats.implicits._
 import org.scalatest.funsuite.AnyFunSuite
 import com.github.chenharryhua.nanjin.spark._
+import com.github.chenharryhua.nanjin.database._
 import frameless.cats.implicits._
 import cats.derived.auto.show._
 import java.time.ZoneId
@@ -27,7 +28,7 @@ class SparKafkaTest extends AnyFunSuite {
     }.unsafeRunSync
   }
   test("save topic to disk") {
-    sparKafkaSession.use(_.update(_.withOverwrite).saveToDisk(topics.sparkafkaTopic)).unsafeRunSync
+    sparKafkaSession.use(_.updateParams(_.withOverwrite).saveToDisk(topics.sparkafkaTopic)).unsafeRunSync
   }
   test("read topic from disk") {
     sparKafkaSession
@@ -37,7 +38,7 @@ class SparKafkaTest extends AnyFunSuite {
   test("upload dataset to kafka") {
     sparKafkaSession
       .use(
-        _.update(_.withoutTimestamp.withoutPartition)
+        _.updateParams(_.withoutTimestamp.withoutPartition)
           .datasetFromDisk(topics.sparkafkaTopic)
           .flatMap(_.toProducerRecords.kafkaUpload(topics.sparkafkaTopic).compile.drain))
       .unsafeRunSync()

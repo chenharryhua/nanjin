@@ -17,6 +17,7 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategy}
 
 import scala.collection.JavaConverters._
+import java.time.Clock
 
 private[kafka] object SparKafka {
 
@@ -81,7 +82,8 @@ private[kafka] object SparKafka {
 
   def toProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     tds: TypedDataset[SparKafkaConsumerRecord[K, V]],
-    cs: ConversionStrategy): TypedDataset[SparKafkaProducerRecord[K, V]] = {
+    cs: ConversionStrategy,
+    clock:Clock): TypedDataset[SparKafkaProducerRecord[K, V]] = {
     val sorted = tds.orderBy(tds('timestamp).asc, tds('offset).asc)
     cs match {
       case ConversionStrategy.Intact =>
@@ -89,9 +91,9 @@ private[kafka] object SparKafka {
       case ConversionStrategy.RemovePartition =>
         sorted.deserialized.map(_.toSparkafkaProducerRecord.withoutPartition)
       case ConversionStrategy.RemoveTimestamp =>
-        sorted.deserialized.map(_.toSparkafkaProducerRecord.withNow)
+        sorted.deserialized.map(_.toSparkafkaProducerRecord.withNow(clock))
       case ConversionStrategy.RemovePartitionAndTimestamp =>
-        sorted.deserialized.map(_.toSparkafkaProducerRecord.withNow.withoutPartition)
+        sorted.deserialized.map(_.toSparkafkaProducerRecord.withNow(clock).withoutPartition)
     }
   }
 
@@ -118,9 +120,10 @@ private[kafka] object SparKafka {
     timeRange: KafkaDateTimeRange,
     rootPath: StorageRootPath,
     conversionStrategy: ConversionStrategy,
-    uploadRate: UploadRate)(implicit sparkSession: SparkSession): Stream[F, Chunk[RecordMetadata]] =
+    uploadRate: UploadRate,
+    clock:Clock)(implicit sparkSession: SparkSession): Stream[F, Chunk[RecordMetadata]] =
     for {
       ds <- Stream.eval(datasetFromDisk[F, K, V](topic, timeRange, rootPath))
-      res <- uploadToKafka(topic, toProducerRecords(ds, conversionStrategy), uploadRate)
+      res <- uploadToKafka(topic, toProducerRecords(ds, conversionStrategy,clock), uploadRate)
     } yield res
 }

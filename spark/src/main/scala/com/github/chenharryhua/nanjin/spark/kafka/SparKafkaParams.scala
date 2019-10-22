@@ -47,6 +47,8 @@ object ConversionStrategy {
   saveMode: SaveMode,
   locationStrategy: LocationStrategy) {
 
+  val clock: Clock = Clock.system(zoneId)
+
   def withZoneId(zoneId: ZoneId): SparKafkaParams     = copy(zoneId   = zoneId)
   def withStorageRootPath(p: String): SparKafkaParams = copy(rootPath = StorageRootPath(p))
   def withSaveMode(sm: SaveMode): SparKafkaParams     = copy(saveMode = sm)

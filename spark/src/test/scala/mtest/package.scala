@@ -3,7 +3,7 @@ import com.github.chenharryhua.nanjin.kafka.{IoKafkaContext, KafkaSettings, Topi
 import com.github.chenharryhua.nanjin.spark.SparkSettings
 import com.github.chenharryhua.nanjin.spark.kafka.{SparKafkaSession, SparKafkaSettings}
 import com.github.chenharryhua.nanjin.spark._
-import com.github.chenharryhua.nanjin.spark.database._
+import com.github.chenharryhua.nanjin.database._
 import com.github.chenharryhua.nanjin.spark.kafka._
 import org.apache.spark.sql.SparkSession
 
@@ -25,7 +25,7 @@ package object mtest {
 
   val sparkSession =
     SparkSettings.default
-      .update(_.setMaster("local[*]").setAppName("test-spark"))
+      .updateConf(_.setMaster("local[*]").setAppName("test-spark"))
       .sessionResource[IO]
 
   val sparKafkaSession: Resource[IO, SparKafkaSession] =
