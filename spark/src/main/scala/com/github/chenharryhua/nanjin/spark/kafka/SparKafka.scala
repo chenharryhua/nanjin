@@ -83,7 +83,7 @@ private[kafka] object SparKafka {
   def toProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     tds: TypedDataset[SparKafkaConsumerRecord[K, V]],
     cs: ConversionStrategy,
-    clock:Clock): TypedDataset[SparKafkaProducerRecord[K, V]] = {
+    clock: Clock): TypedDataset[SparKafkaProducerRecord[K, V]] = {
     val sorted = tds.orderBy(tds('timestamp).asc, tds('offset).asc)
     cs match {
       case ConversionStrategy.Intact =>
@@ -121,9 +121,9 @@ private[kafka] object SparKafka {
     rootPath: StorageRootPath,
     conversionStrategy: ConversionStrategy,
     uploadRate: UploadRate,
-    clock:Clock)(implicit sparkSession: SparkSession): Stream[F, Chunk[RecordMetadata]] =
+    clock: Clock)(implicit sparkSession: SparkSession): Stream[F, Chunk[RecordMetadata]] =
     for {
       ds <- Stream.eval(datasetFromDisk[F, K, V](topic, timeRange, rootPath))
-      res <- uploadToKafka(topic, toProducerRecords(ds, conversionStrategy,clock), uploadRate)
+      res <- uploadToKafka(topic, toProducerRecords(ds, conversionStrategy, clock), uploadRate)
     } yield res
 }

@@ -89,16 +89,14 @@ val neo4j = Seq(
   "com.dimafeng" %% "neotypes-zio-stream",
   "com.dimafeng" %% "neotypes-refined",
   "com.dimafeng" %% "neotypes-cats-data"
-).map(_ % neotypes) ++ Seq(
-  "org.neo4j.driver" % "neo4j-java-driver" % "1.7.5")
-
+).map(_ % neotypes) ++ Seq("org.neo4j.driver" % "neo4j-java-driver" % "1.7.5")
 
 val json = Seq(
   "io.circe" %% "circe-core",
   "io.circe" %% "circe-generic",
   "io.circe" %% "circe-parser"
-).map(_ % circeVersion) ++ Seq(
-  "io.circe" %% "circe-optics" % "0.12.0",
+).map(_                          % circeVersion) ++ Seq(
+  "io.circe" %% "circe-optics"   % "0.12.0",
   "org.gnieh" %% "diffson-circe" % jsonDiff)
 
 val fs2 = Seq(
@@ -125,7 +123,7 @@ val avro = Seq(
     "com.sksamuel.avro4s" %% "avro4s-core" % avro4s,
     ("io.confluent" % "kafka-streams-avro-serde" % "5.3.1").classifier(""),
     "com.julianpeeters" %% "avrohugger-core" % avrohugger,
-    "io.higherkindness" %% "skeuomorph" % "0.0.15"
+    "io.higherkindness" %% "skeuomorph"      % "0.0.15"
   )
 
 val sparkLib = Seq(
@@ -242,4 +240,7 @@ lazy val spark = (project in file("spark"))
   )
 
 lazy val nanjin =
-  (project in file(".")).settings(name := "nanjin").aggregate(codec, kafka, database, spark)
+  (project in file("."))
+    .settings(commonSettings: _*)
+    .settings(name := "nanjin")
+    .aggregate(codec, kafka, database, spark)
