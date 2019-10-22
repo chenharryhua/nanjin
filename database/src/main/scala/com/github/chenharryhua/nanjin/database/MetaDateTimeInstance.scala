@@ -5,7 +5,7 @@ import java.time.{Instant, LocalDate, LocalDateTime, ZoneId}
 import doobie.util.Meta
 import monocle.Iso
 
-private trait IsoDateTimeInstance {
+private trait IsoDateTimeInstance extends Serializable {
 
   implicit val isoInstant: Iso[Instant, Timestamp] =
     Iso[Instant, Timestamp](Timestamp.from)(_.toInstant)
