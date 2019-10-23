@@ -14,12 +14,12 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
 
 class DateTimeIsoTest extends AnyFunSuite with Discipline {
-  val instant         = Meta[Instant]
-  val date            = Meta[Date]
-  val timestamp       = Meta[Timestamp]
-  val localdate       = Meta[LocalDate]
-  implicit val zoneId = ZoneId.systemDefault()
-  val localdatetime   = Meta[LocalDateTime]
+  val instant: Meta[Instant]             = Meta[Instant]
+  val date: Meta[Date]                   = Meta[Date]
+  val timestamp: Meta[Timestamp]         = Meta[Timestamp]
+  val localdate: Meta[LocalDate]         = Meta[LocalDate]
+  implicit val zoneId: ZoneId            = ZoneId.systemDefault()
+  val localdatetime: Meta[LocalDateTime] = Meta[LocalDateTime]
 
   implicit val eqInstant: Eq[Instant]       = (x: Instant, y: Instant)               => x === y
   implicit val eqTimestamp: Eq[Timestamp]   = (x: Timestamp, y: Timestamp)           => x === y
@@ -46,16 +46,16 @@ class DateTimeIsoTest extends AnyFunSuite with Discipline {
   implicit val coJavaZoned: Cogen[JavaZonedDateTime] =
     Cogen[JavaZonedDateTime]((a: JavaZonedDateTime) => a.zonedDateTime.toEpochSecond)
 
-  implicit val coOffsetDateTime =
+  implicit val coOffsetDateTime: Cogen[OffsetDateTime] =
     Cogen[OffsetDateTime]((a: OffsetDateTime) => a.toInstant.getEpochSecond)
 
-  implicit val coJavaOffset =
+  implicit val coJavaOffset: Cogen[JavaOffsetDateTime] =
     Cogen[JavaOffsetDateTime]((a: JavaOffsetDateTime) => a.offsetDateTime.toEpochSecond)
 
   implicit val arbTimestamp: Arbitrary[Timestamp] = Arbitrary(
     Gen.posNum[Long].map(new Timestamp(_)))
 
-  val genLocalDate = Gen.calendar
+  val genLocalDate: Gen[LocalDate] = Gen.calendar
     .suchThat(c =>
       c.before(new GregorianCalendar(8099, 1, 1)) &&
         c.after(new GregorianCalendar(1900, 1, 1)))
@@ -71,7 +71,7 @@ class DateTimeIsoTest extends AnyFunSuite with Discipline {
   )
 
   implicit val arbJavaOffset: Arbitrary[JavaOffsetDateTime] = Arbitrary(
-    genZonedDateTimeWithZone(None).map(zd => JavaOffsetDateTime(zd.toOffsetDateTime()))
+    genZonedDateTimeWithZone(None).map(zd => JavaOffsetDateTime(zd.toOffsetDateTime))
   )
 
   implicit val arbJavaOffset2: Arbitrary[OffsetDateTime] = Arbitrary(
