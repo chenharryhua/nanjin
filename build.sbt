@@ -27,7 +27,7 @@ val fs2Kafka  = "0.20.1"
 val sparkVersion     = "2.4.4"
 val framelessVersion = "0.8.0"
 
-val circeVersion = "0.12.2"
+val circeVersion = "0.12.3"
 val jsonDiff     = "4.0.0"
 
 val avro4s     = "3.0.2"
@@ -241,6 +241,5 @@ lazy val spark = (project in file("spark"))
 
 lazy val nanjin =
   (project in file("."))
-    .settings(commonSettings: _*)
     .settings(name := "nanjin")
     .aggregate(codec, kafka, database, spark)
