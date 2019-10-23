@@ -221,10 +221,16 @@ lazy val kafka = (project in file("kafka"))
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
 
+lazy val datetime = (project in file("datetime"))
+  .settings(commonSettings: _*)
+  .settings(name := "datetime")
+  .settings(libraryDependencies ++= monocleLib ++ tests)
+
 lazy val database = (project in file("database"))
+  .dependsOn(datetime)
   .settings(commonSettings: _*)
   .settings(name := "database")
-  .settings(libraryDependencies ++= base ++ monocleLib ++ json ++ db ++ neo4j ++ tests)
+  .settings(libraryDependencies ++= base ++ json ++ db ++ neo4j ++ tests)
 
 lazy val spark = (project in file("spark"))
   .dependsOn(kafka)
@@ -240,4 +246,4 @@ lazy val spark = (project in file("spark"))
   )
 
 lazy val nanjin =
-  (project in file(".")).settings(name := "nanjin").aggregate(codec, kafka, database, spark)
+  (project in file(".")).settings(name := "nanjin").aggregate(codec, datetime, kafka, database, spark)

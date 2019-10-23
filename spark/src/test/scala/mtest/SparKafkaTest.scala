@@ -6,7 +6,7 @@ import cats.effect.IO
 import cats.implicits._
 import org.scalatest.funsuite.AnyFunSuite
 import com.github.chenharryhua.nanjin.spark._
-import com.github.chenharryhua.nanjin.database._
+import com.github.chenharryhua.nanjin.datetime._
 import frameless.cats.implicits._
 import cats.derived.auto.show._
 import java.time.ZoneId

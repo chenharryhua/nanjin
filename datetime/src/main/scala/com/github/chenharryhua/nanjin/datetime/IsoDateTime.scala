@@ -1,8 +1,16 @@
-package com.github.chenharryhua.nanjin.database
-import java.sql.{Date, Timestamp}
-import java.time._
+package com.github.chenharryhua.nanjin.datetime
 
-import doobie.util.Meta
+import java.sql.{Date, Timestamp}
+import java.time.{
+  Instant,
+  LocalDate,
+  LocalDateTime,
+  OffsetDateTime,
+  ZoneId,
+  ZoneOffset,
+  ZonedDateTime
+}
+
 import monocle.Iso
 import monocle.macros.Lenses
 
@@ -32,7 +40,7 @@ object JavaZonedDateTime {
     Iso[ZonedDateTime, JavaZonedDateTime](JavaZonedDateTime(_))(_.zonedDateTime)
 }
 
-private trait IsoDateTimeInstance extends Serializable {
+private[datetime] trait IsoDateTimeInstance extends Serializable {
 
   implicit val isoInstant: Iso[Instant, Timestamp] =
     Iso[Instant, Timestamp](Timestamp.from)(_.toInstant)
@@ -43,14 +51,4 @@ private trait IsoDateTimeInstance extends Serializable {
 
   implicit val isoLocalDate: Iso[LocalDate, Date] =
     Iso[LocalDate, Date](Date.valueOf)(_.toLocalDate)
-
-}
-
-private[database] trait MetaDateTimeInstance extends IsoDateTimeInstance {
-
-  implicit def metaDoobieTimestamp[A](implicit iso: Iso[A, Timestamp]): Meta[A] =
-    Meta[Timestamp].imap(iso.reverseGet)(iso.get)
-
-  implicit def metaDoobieDate[A](implicit iso: Iso[A, Date]): Meta[A] =
-    Meta[Date].imap(iso.reverseGet)(iso.get)
 }
