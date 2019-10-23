@@ -212,6 +212,16 @@ lazy val codec = (project in file("codec"))
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
 
+lazy val datetime = (project in file("datetime"))
+  .settings(commonSettings: _*)
+  .settings(name := "datetime")
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.tpolecat" %% "doobie-core"        % doobie           % Provided,
+      "org.typelevel" %% "frameless-dataset" % framelessVersion % Provided
+    )
+  )
+
 lazy val kafka = (project in file("kafka"))
   .settings(commonSettings: _*)
   .settings(name := "kafka")
@@ -240,6 +250,4 @@ lazy val spark = (project in file("spark"))
   )
 
 lazy val nanjin =
-  (project in file("."))
-    .settings(name := "nanjin")
-    .aggregate(codec, kafka, database, spark)
+  (project in file(".")).settings(name := "nanjin").aggregate(codec, kafka, database, spark)

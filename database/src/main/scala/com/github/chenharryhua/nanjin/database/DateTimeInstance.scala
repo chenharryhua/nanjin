@@ -14,6 +14,9 @@ object JavaOffsetDateTime {
 
   def apply(odt: OffsetDateTime): JavaOffsetDateTime =
     JavaOffsetDateTime(odt.toInstant, odt.getOffset.getTotalSeconds)
+
+  implicit val isoJavaOffsetDateTime: Iso[OffsetDateTime, JavaOffsetDateTime] =
+    Iso[OffsetDateTime, JavaOffsetDateTime](JavaOffsetDateTime(_))(_.offsetDateTime)
 }
 
 @Lenses final case class JavaZonedDateTime private (dateTime: Instant, zoneId: String) {
@@ -24,6 +27,9 @@ object JavaZonedDateTime {
 
   def apply(zdt: ZonedDateTime): JavaZonedDateTime =
     JavaZonedDateTime(zdt.toInstant, zdt.getZone.getId)
+
+  implicit val isoJavaZonedDateTime: Iso[ZonedDateTime, JavaZonedDateTime] =
+    Iso[ZonedDateTime, JavaZonedDateTime](JavaZonedDateTime(_))(_.zonedDateTime)
 }
 
 private trait IsoDateTimeInstance extends Serializable {
@@ -38,11 +44,6 @@ private trait IsoDateTimeInstance extends Serializable {
   implicit val isoLocalDate: Iso[LocalDate, Date] =
     Iso[LocalDate, Date](Date.valueOf)(_.toLocalDate)
 
-  implicit val isoJavaOffsetDateTime: Iso[OffsetDateTime, JavaOffsetDateTime] =
-    Iso[OffsetDateTime, JavaOffsetDateTime](JavaOffsetDateTime(_))(_.offsetDateTime)
-
-  implicit val isoJavaZonedDateTime: Iso[ZonedDateTime, JavaZonedDateTime] =
-    Iso[ZonedDateTime, JavaZonedDateTime](JavaZonedDateTime(_))(_.zonedDateTime)
 }
 
 private[database] trait MetaDateTimeInstance extends IsoDateTimeInstance {

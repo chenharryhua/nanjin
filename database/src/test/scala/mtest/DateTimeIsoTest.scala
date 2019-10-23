@@ -12,6 +12,7 @@ import monocle.law.discipline.IsoTests
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
+import monocle.Iso
 
 class DateTimeIsoTest extends AnyFunSuite with Discipline {
   val instant: Meta[Instant]             = Meta[Instant]
@@ -81,6 +82,11 @@ class DateTimeIsoTest extends AnyFunSuite with Discipline {
   checkAll("instant", IsoTests[Instant, Timestamp](isoInstant))
   checkAll("local-date-time", IsoTests[LocalDateTime, Timestamp](isoLocalDateTimeByZoneId))
   checkAll("local-date", IsoTests[LocalDate, Date](isoLocalDate))
-  checkAll("zoned-date-time", IsoTests[ZonedDateTime, JavaZonedDateTime](isoJavaZonedDateTime))
-  checkAll("offset-date-time", IsoTests[OffsetDateTime, JavaOffsetDateTime](isoJavaOffsetDateTime))
+  checkAll(
+    "zoned-date-time",
+    IsoTests[ZonedDateTime, JavaZonedDateTime](implicitly[Iso[ZonedDateTime, JavaZonedDateTime]]))
+  checkAll(
+    "offset-date-time",
+    IsoTests[OffsetDateTime, JavaOffsetDateTime](
+      implicitly[Iso[OffsetDateTime, JavaOffsetDateTime]]))
 }

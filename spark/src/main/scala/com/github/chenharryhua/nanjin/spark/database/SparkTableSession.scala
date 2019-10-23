@@ -24,14 +24,14 @@ final case class TableDef[A](tableName: String)(
 final case class SparkTableSession[F[_]: ContextShift: Concurrent, A](
   tableDef: TableDef[A],
   dbSettings: DatabaseSettings,
-  tableParams: SparkTableParams)(implicit sparkSession: SparkSession)
+  params: SparkTableParams)(implicit sparkSession: SparkSession)
     extends UpdateParams[SparkTableParams, SparkTableSession[F, A]] {
   import tableDef.{doobieRead, typedEncoder}
 
-  private val path: String = tableParams.rootPath.value + tableDef.tableName
+  private val path: String = params.rootPath.value + tableDef.tableName
 
   def updateParams(f: SparkTableParams => SparkTableParams): SparkTableSession[F, A] =
-    copy(tableParams = f(tableParams))
+    copy(params = f(params))
 
   def datasetFromDB: TypedDataset[A] =
     TypedDataset.createUnsafe[A](
@@ -43,7 +43,7 @@ final case class SparkTableSession[F[_]: ContextShift: Concurrent, A](
         .load())
 
   def saveToDisk: F[Unit] =
-    Sync[F].delay(datasetFromDB.write.mode(tableParams.fileSaveMode).parquet(path))
+    Sync[F].delay(datasetFromDB.write.mode(params.fileSaveMode).parquet(path))
 
   def datasetFromDisk: TypedDataset[A] =
     TypedDataset.createUnsafe[A](sparkSession.read.parquet(path))
@@ -51,7 +51,7 @@ final case class SparkTableSession[F[_]: ContextShift: Concurrent, A](
   def uploadToDB(data: TypedDataset[A]): F[Unit] =
     Sync[F].delay(
       data.write
-        .mode(tableParams.dbSaveMode)
+        .mode(params.dbSaveMode)
         .format("jdbc")
         .option("url", dbSettings.connStr.value)
         .option("driver", dbSettings.driver.value)
