@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark
 
 import java.sql.{Date, Timestamp}
-import java.time.{LocalDate, OffsetDateTime, ZonedDateTime}
+import java.time._
 
 import com.github.chenharryhua.nanjin.datetime.{JavaOffsetDateTime, JavaZonedDateTime}
 import frameless.{Injection, SQLDate, SQLTimestamp}
@@ -20,10 +20,12 @@ private[spark] trait InjectionInstances extends Serializable {
       a => SQLDate(DateTimeUtils.fromJavaDate(a)),
       b => DateTimeUtils.toJavaDate(b.days))
 
-  implicit val offsetDateTimeInjection: Injection[OffsetDateTime, JavaOffsetDateTime] = implicitly
-  implicit val zonedDateTimeInjection: Injection[ZonedDateTime, JavaZonedDateTime]    = implicitly
-  implicit val localDateInjection: Injection[LocalDate, Date]                         = implicitly
-
   implicit def isoInjection[A, B](implicit iso: Iso[A, B]): Injection[A, B] =
     Injection[A, B](iso.get, iso.reverseGet)
+
+  implicit val offsetDateTimeInjection: Injection[OffsetDateTime, JavaOffsetDateTime] =
+    isoInjection(implicitly[Iso[OffsetDateTime, JavaOffsetDateTime]])
+
+  implicit val zonedDateTimeInjection: Injection[ZonedDateTime, JavaZonedDateTime] =
+    isoInjection(implicitly[Iso[ZonedDateTime, JavaZonedDateTime]])
 }

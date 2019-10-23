@@ -7,19 +7,15 @@ import java.util.GregorianCalendar
 import cats.Eq
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8.{arbLocalDateJdk8 => _, _}
 import com.github.chenharryhua.nanjin.datetime._
-import doobie.util.Meta
+import monocle.Iso
 import monocle.law.discipline.IsoTests
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
-import monocle.Iso
 
 class DateTimeIsoTest extends AnyFunSuite with Discipline {
-  val instant: Meta[Instant]             = Meta[Instant]
-  val date: Meta[Date]                   = Meta[Date]
-  val timestamp: Meta[Timestamp]         = Meta[Timestamp]
-  val localdate: Meta[LocalDate]         = Meta[LocalDate]
-  implicit val zoneId: ZoneId            = ZoneId.systemDefault()
+
+  implicit val zoneId: ZoneId = ZoneId.systemDefault()
 
   implicit val eqInstant: Eq[Instant]       = (x: Instant, y: Instant)               => x === y
   implicit val eqTimestamp: Eq[Timestamp]   = (x: Timestamp, y: Timestamp)           => x === y
@@ -78,9 +74,11 @@ class DateTimeIsoTest extends AnyFunSuite with Discipline {
     genZonedDateTimeWithZone(None).map(zd => OffsetDateTime.of(zd.toLocalDateTime, zd.getOffset))
   )
 
-  checkAll("instant", IsoTests[Instant, Timestamp](isoInstant))
-  checkAll("local-date-time", IsoTests[LocalDateTime, Timestamp](isoLocalDateTimeByZoneId))
-  checkAll("local-date", IsoTests[LocalDate, Date](isoLocalDate))
+  checkAll("instant", IsoTests[Instant, Timestamp](implicitly[Iso[Instant, Timestamp]]))
+  checkAll(
+    "local-date-time",
+    IsoTests[LocalDateTime, Timestamp](implicitly[Iso[LocalDateTime, Timestamp]]))
+  checkAll("local-date", IsoTests[LocalDate, Date](implicitly[Iso[LocalDate, Date]]))
   checkAll(
     "zoned-date-time",
     IsoTests[ZonedDateTime, JavaZonedDateTime](implicitly[Iso[ZonedDateTime, JavaZonedDateTime]]))
