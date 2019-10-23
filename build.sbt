@@ -5,17 +5,17 @@ parallelExecution in ThisBuild := false
 val confluent    = "5.3.0"
 val kafkaVersion = "2.3.0"
 
-val shapeless      = "2.3.3"
-val contextual     = "1.2.1"
-val kittens        = "2.0.0"
-val catsCore       = "2.0.0"
-val fs2Version     = "2.0.1"
-val catsMtl        = "0.7.0"
-val catsTime       = "0.3.0"
-val tagless        = "0.10"
-val monocleVersion = "2.0.0"
-val refined        = "0.9.10"
-val droste         = "0.7.0"
+val shapeless  = "2.3.3"
+val contextual = "1.2.1"
+val kittens    = "2.0.0"
+val catsCore   = "2.0.0"
+val fs2Version = "2.0.1"
+val catsMtl    = "0.7.0"
+val catsTime   = "0.3.0"
+val tagless    = "0.10"
+val monocle    = "2.0.0"
+val refined    = "0.9.10"
+val droste     = "0.7.0"
 
 val zioCats    = "2.0.0.0-RC6"
 val monix      = "3.0.0"
@@ -24,11 +24,11 @@ val catsEffect = "2.0.0"
 val akkaKafka = "1.1.0"
 val fs2Kafka  = "0.20.1"
 
-val sparkVersion     = "2.4.4"
-val framelessVersion = "0.8.0"
+val sparkVersion = "2.4.4"
+val frameless    = "0.8.0"
 
-val circeVersion = "0.12.3"
-val jsonDiff     = "4.0.0"
+val circe    = "0.12.3"
+val jsonDiff = "4.0.0"
 
 val avro4s     = "3.0.2"
 val apacheAvro = "1.9.1"
@@ -95,7 +95,7 @@ val json = Seq(
   "io.circe" %% "circe-core",
   "io.circe" %% "circe-generic",
   "io.circe" %% "circe-parser"
-).map(_                          % circeVersion) ++ Seq(
+).map(_                          % circe) ++ Seq(
   "io.circe" %% "circe-optics"   % "0.12.0",
   "org.gnieh" %% "diffson-circe" % jsonDiff)
 
@@ -105,13 +105,13 @@ val fs2 = Seq(
   "co.fs2" %% "fs2-io"
 ).map(_ % fs2Version)
 
-val monocle = Seq(
+val monocleLib = Seq(
   "com.github.julien-truffaut" %% "monocle-core",
   "com.github.julien-truffaut" %% "monocle-generic",
   "com.github.julien-truffaut" %% "monocle-macro",
   "com.github.julien-truffaut" %% "monocle-state",
   "com.github.julien-truffaut" %% "monocle-unsafe"
-).map(_ % monocleVersion)
+).map(_ % monocle)
 
 val avro = Seq(
   "org.apache.avro" % "avro",
@@ -149,20 +149,20 @@ val sparkLib = Seq(
   .map(_.exclude("com.sun.jersey", "jersey-servlet"))
   .map(_.exclude("com.sun.jersey.contribs", "jersey-guice"))
 
-val frameless = Seq(
+val framelessLib = Seq(
   "org.typelevel" %% "frameless-dataset",
   "org.typelevel" %% "frameless-ml",
   "org.typelevel" %% "frameless-cats"
-).map(_ % framelessVersion)
+).map(_ % frameless)
 
 val tests = Seq(
-  "org.typelevel" %% "cats-laws"                              % catsCore       % Test,
-  "com.github.alexarchambault" %% "scalacheck-shapeless_1.13" % "1.1.8"        % Test,
-  "org.scalatest" %% "scalatest"                              % scalatest      % Test,
-  "com.github.julien-truffaut" %% "monocle-law"               % monocleVersion % Test,
-  "org.typelevel" %% "discipline-scalatest"                   % "1.0.0-RC1"    % Test,
-  "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.3.1"        % Test,
-  "org.tpolecat" %% "doobie-postgres"                         % doobie         % Test
+  "org.typelevel" %% "cats-laws"                              % catsCore    % Test,
+  "com.github.alexarchambault" %% "scalacheck-shapeless_1.13" % "1.1.8"     % Test,
+  "org.scalatest" %% "scalatest"                              % scalatest   % Test,
+  "com.github.julien-truffaut" %% "monocle-law"               % monocle     % Test,
+  "org.typelevel" %% "discipline-scalatest"                   % "1.0.0-RC1" % Test,
+  "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.3.1"     % Test,
+  "org.tpolecat" %% "doobie-postgres"                         % doobie      % Test
 )
 
 val kafkaLib = Seq(
@@ -208,18 +208,8 @@ lazy val codec = (project in file("codec"))
     addCompilerPlugin("com.github.ghik" %% "silencer-plugin" % silencer),
     libraryDependencies ++= Seq(
       "com.github.ghik" %% "silencer-lib" % silencer % Provided
-    ) ++ base ++ json ++ monocle ++ kafkaLib ++ avro ++ tests,
+    ) ++ base ++ json ++ monocleLib ++ kafkaLib ++ avro ++ tests,
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
-  )
-
-lazy val datetime = (project in file("datetime"))
-  .settings(commonSettings: _*)
-  .settings(name := "datetime")
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.tpolecat" %% "doobie-core"        % doobie           % Provided,
-      "org.typelevel" %% "frameless-dataset" % framelessVersion % Provided
-    )
   )
 
 lazy val kafka = (project in file("kafka"))
@@ -234,7 +224,7 @@ lazy val kafka = (project in file("kafka"))
 lazy val database = (project in file("database"))
   .settings(commonSettings: _*)
   .settings(name := "database")
-  .settings(libraryDependencies ++= base ++ monocle ++ json ++ db ++ neo4j ++ tests)
+  .settings(libraryDependencies ++= base ++ monocleLib ++ json ++ db ++ neo4j ++ tests)
 
 lazy val spark = (project in file("spark"))
   .dependsOn(kafka)
@@ -242,7 +232,7 @@ lazy val spark = (project in file("spark"))
   .settings(commonSettings: _*)
   .settings(name := "spark")
   .settings(
-    libraryDependencies ++= sparkLib ++ frameless ++ tests,
+    libraryDependencies ++= sparkLib ++ framelessLib ++ tests,
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core"  % "jackson-databind" % "2.6.7.2",
       "org.json4s" %% "json4s-core" % "3.5.5"),
