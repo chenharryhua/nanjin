@@ -1,7 +1,7 @@
 package mtest
 
 import java.sql.{Date, Timestamp}
-import java.time.{Instant, LocalDate, LocalDateTime, ZoneId}
+import java.time._
 import java.util.GregorianCalendar
 
 import cats.Eq
@@ -21,10 +21,18 @@ class DateTimeIsoTest extends AnyFunSuite with Discipline {
   implicit val zoneId = ZoneId.systemDefault()
   val localdatetime   = Meta[LocalDateTime]
 
-  implicit val eqInstant: Eq[Instant]             = (x: Instant, y: Instant)             => x === y
-  implicit val eqTimestamp: Eq[Timestamp]         = (x: Timestamp, y: Timestamp)         => x === y
-  implicit val eqLocalDateTime: Eq[LocalDateTime] = (x: LocalDateTime, y: LocalDateTime) => x === y
-  implicit val eqLocalDate: Eq[LocalDate]         = (x: LocalDate, y: LocalDate)         => x === y
+  implicit val eqInstant: Eq[Instant]       = (x: Instant, y: Instant)               => x === y
+  implicit val eqTimestamp: Eq[Timestamp]   = (x: Timestamp, y: Timestamp)           => x === y
+  implicit val eqLocalDT: Eq[LocalDateTime] = (x: LocalDateTime, y: LocalDateTime)   => x === y
+  implicit val eqLocalDate: Eq[LocalDate]   = (x: LocalDate, y: LocalDate)           => x === y
+  implicit val eqZoned: Eq[ZonedDateTime]   = (x: ZonedDateTime, y: ZonedDateTime)   => x === y
+  implicit val eqOffset: Eq[OffsetDateTime] = (x: OffsetDateTime, y: OffsetDateTime) => x === y
+
+  implicit val eqJavaZoned: Eq[JavaZonedDateTime] = (x: JavaZonedDateTime, y: JavaZonedDateTime) =>
+    x.zonedDateTime === y.zonedDateTime
+
+  implicit val eqJavaOffset: Eq[JavaOffsetDateTime] =
+    (x: JavaOffsetDateTime, y: JavaOffsetDateTime) => x.offsetDateTime === y.offsetDateTime
 
   implicit val eqDate: Eq[Date] =
     (x: Date, y: Date) => x.toLocalDate === y.toLocalDate
@@ -34,6 +42,15 @@ class DateTimeIsoTest extends AnyFunSuite with Discipline {
 
   implicit val coDate: Cogen[Date] =
     Cogen[Date]((a: Date) => a.getTime)
+
+  implicit val coJavaZoned: Cogen[JavaZonedDateTime] =
+    Cogen[JavaZonedDateTime]((a: JavaZonedDateTime) => a.zonedDateTime.toEpochSecond)
+
+  implicit val coOffsetDateTime =
+    Cogen[OffsetDateTime]((a: OffsetDateTime) => a.toInstant.getEpochSecond)
+
+  implicit val coJavaOffset =
+    Cogen[JavaOffsetDateTime]((a: JavaOffsetDateTime) => a.offsetDateTime.toEpochSecond)
 
   implicit val arbTimestamp: Arbitrary[Timestamp] = Arbitrary(
     Gen.posNum[Long].map(new Timestamp(_)))
@@ -49,8 +66,21 @@ class DateTimeIsoTest extends AnyFunSuite with Discipline {
 
   implicit val arbDate: Arbitrary[Date] = Arbitrary(genLocalDate.map(d => Date.valueOf(d)))
 
-  checkAll("instant", IsoTests[Instant, Timestamp](isoInstant))
-  checkAll("local-date-time", IsoTests[LocalDateTime, Timestamp](isoLocalDateTime))
-  checkAll("local-date", IsoTests[LocalDate, Date](isoLocalDate))
+  implicit val arbJavaZoned: Arbitrary[JavaZonedDateTime] = Arbitrary(
+    genZonedDateTimeWithZone(None).map(zd => JavaZonedDateTime(zd))
+  )
 
+  implicit val arbJavaOffset: Arbitrary[JavaOffsetDateTime] = Arbitrary(
+    genZonedDateTimeWithZone(None).map(zd => JavaOffsetDateTime(zd.toOffsetDateTime()))
+  )
+
+  implicit val arbJavaOffset2: Arbitrary[OffsetDateTime] = Arbitrary(
+    genZonedDateTimeWithZone(None).map(zd => OffsetDateTime.of(zd.toLocalDateTime, zd.getOffset))
+  )
+
+  checkAll("instant", IsoTests[Instant, Timestamp](isoInstant))
+  checkAll("local-date-time", IsoTests[LocalDateTime, Timestamp](isoLocalDateTimeByZoneId))
+  checkAll("local-date", IsoTests[LocalDate, Date](isoLocalDate))
+  checkAll("zoned-date-time", IsoTests[ZonedDateTime, JavaZonedDateTime](isoJavaZonedDateTime))
+  checkAll("offset-date-time", IsoTests[OffsetDateTime, JavaOffsetDateTime](isoJavaOffsetDateTime))
 }

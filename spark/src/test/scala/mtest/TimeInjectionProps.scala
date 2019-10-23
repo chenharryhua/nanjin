@@ -17,6 +17,8 @@ class TimeInjectionProps extends Properties("date time") {
   val lcoaldate       = TypedEncoder[LocalDate]
   val localdatetime   = TypedEncoder[LocalDateTime]
   val instant         = TypedEncoder[Instant]
+  val zoneddatetime   = TypedEncoder[ZonedDateTime]
+  val offsetdatetime  = TypedEncoder[OffsetDateTime]
 
   property("timezone has no effect on epoch-second") = forAll { (ins: Instant) =>
     val tz1: ZoneId = ZoneId.of("Australia/Sydney")

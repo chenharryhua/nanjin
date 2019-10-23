@@ -20,5 +20,4 @@ private[spark] trait InjectionInstances extends Serializable {
 
   implicit def isoInjection[A, B](implicit iso: Iso[A, B]): Injection[A, B] =
     Injection[A, B](iso.get, iso.reverseGet)
-
 }
