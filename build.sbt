@@ -78,7 +78,7 @@ lazy val commonSettings = Seq(
   )
 )
 
-val neo4j = Seq(
+val neo4jLib = Seq(
   "com.dimafeng" %% "neotypes",
   "com.dimafeng" %% "neotypes-cats-effect",
   "com.dimafeng" %% "neotypes-monix",
@@ -225,7 +225,7 @@ lazy val codec = (project in file("codec"))
 lazy val datetime = (project in file("datetime"))
   .settings(commonSettings: _*)
   .settings(name := "datetime")
-  .settings(libraryDependencies ++= monocleLib ++ tests)
+  .settings(libraryDependencies ++= base ++ monocleLib ++ tests)
 
 lazy val kafka = (project in file("kafka"))
   .settings(commonSettings: _*)
@@ -243,7 +243,7 @@ lazy val database = (project in file("database"))
   .dependsOn(datetime)
   .settings(commonSettings: _*)
   .settings(name := "database")
-  .settings(libraryDependencies ++= base ++ json ++ db ++ neo4j ++ tests)
+  .settings(libraryDependencies ++= base ++ json ++ db ++ neo4jLib ++ tests)
 
 lazy val spark = (project in file("spark"))
   .dependsOn(kafka)

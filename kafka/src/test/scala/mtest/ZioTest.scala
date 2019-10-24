@@ -13,6 +13,7 @@ import zio.random.Random
 import zio.system.System
 import zio.{DefaultRuntime, Runtime}
 import com.github.chenharryhua.nanjin.codec._
+import com.github.chenharryhua.nanjin.kafka.show._ 
 
 class ZioTest extends AnyFunSuite {
   type Environment = Clock with Console with System with Random with Blocking

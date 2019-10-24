@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.kafka._
 import org.scalatest.funsuite.AnyFunSuite
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
+import com.github.chenharryhua.nanjin.kafka.show._ 
 
 class ConsumerApiTest extends AnyFunSuite {
 

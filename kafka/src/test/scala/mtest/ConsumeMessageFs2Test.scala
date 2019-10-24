@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.kafka._
 import fs2.kafka.AutoOffsetReset
 import io.circe.generic.auto._
 import org.scalatest.funsuite.AnyFunSuite
+import com.github.chenharryhua.nanjin.kafka.show._ 
 
 class ConsumeMessageFs2Test extends AnyFunSuite {
   val backblaze_smart = TopicDef[KJson[lenses_record_key], KJson[lenses_record]]("backblaze_smart")

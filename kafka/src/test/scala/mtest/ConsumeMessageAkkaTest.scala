@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.codec._
 import cats.derived.auto.show._
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka._
+import com.github.chenharryhua.nanjin.kafka.show._ 
 import org.scalatest.funsuite.AnyFunSuite
 
 class ConsumeMessageAkkaTest extends AnyFunSuite {

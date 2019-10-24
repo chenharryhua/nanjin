@@ -6,7 +6,7 @@ import cats.tagless._
 import com.github.chenharryhua.nanjin.codec._
 import fs2.kafka.AutoOffsetReset
 import org.apache.kafka.clients.consumer.ConsumerRecord
-
+import show._
 import scala.util.Try
 
 @autoFunctorK
