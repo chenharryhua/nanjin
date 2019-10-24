@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import java.time.{LocalDate, LocalDateTime, LocalTime, ZoneId}
 
 import com.github.chenharryhua.nanjin.datetime._
-import com.github.chenharryhua.nanjin.kafka.KafkaTimestamp
+import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.spark._
 import frameless.functions.aggregate.count
 import frameless.{TypedDataset, TypedEncoder}
@@ -23,7 +23,7 @@ final case class ConsumerRecordDatasetWithParams[K: TypedEncoder, V: TypedEncode
 
   def minutely: TypedDataset[MinutelyAggResult] = {
     val minute: TypedDataset[Int] = consumerRecords.deserialized.map { m =>
-      KafkaTimestamp(m.timestamp).atZone(params.zoneId).getMinute
+      NJTimestamp(m.timestamp).atZone(params.zoneId).getMinute
     }
     val res = minute.groupBy(minute.asCol).agg(count(minute.asCol)).as[MinutelyAggResult]
     res.orderBy(res('minute).asc)
@@ -31,7 +31,7 @@ final case class ConsumerRecordDatasetWithParams[K: TypedEncoder, V: TypedEncode
 
   def hourly: TypedDataset[HourlyAggResult] = {
     val hour = consumerRecords.deserialized.map { m =>
-      KafkaTimestamp(m.timestamp).atZone(params.zoneId).getHour
+      NJTimestamp(m.timestamp).atZone(params.zoneId).getHour
     }
     val res = hour.groupBy(hour.asCol).agg(count(hour.asCol)).as[HourlyAggResult]
     res.orderBy(res('hour).asc)
@@ -39,7 +39,7 @@ final case class ConsumerRecordDatasetWithParams[K: TypedEncoder, V: TypedEncode
 
   def daily: TypedDataset[DailyAggResult] = {
     val day: TypedDataset[LocalDate] = consumerRecords.deserialized.map { m =>
-      KafkaTimestamp(m.timestamp).atZone(params.zoneId).toLocalDate
+      NJTimestamp(m.timestamp).atZone(params.zoneId).toLocalDate
     }
     val res = day.groupBy(day.asCol).agg(count(day.asCol)).as[DailyAggResult]
     res.orderBy(res('date).asc)
@@ -48,7 +48,7 @@ final case class ConsumerRecordDatasetWithParams[K: TypedEncoder, V: TypedEncode
   def dailyHour: TypedDataset[DailyHourAggResult] = {
     implicit val zoneId: ZoneId = params.zoneId
     val dayHour: TypedDataset[LocalDateTime] = consumerRecords.deserialized.map { m =>
-      val dt   = KafkaTimestamp(m.timestamp).atZone(params.zoneId).toLocalDateTime
+      val dt   = NJTimestamp(m.timestamp).atZone(params.zoneId).toLocalDateTime
       val hour = dt.getHour
       LocalDateTime.of(dt.toLocalDate, LocalTime.of(hour, 0))
     }
@@ -59,7 +59,7 @@ final case class ConsumerRecordDatasetWithParams[K: TypedEncoder, V: TypedEncode
   def dailyMinute: TypedDataset[DailyMinuteAggResult] = {
     implicit val zoneId: ZoneId = params.zoneId
     val dayMinute: TypedDataset[LocalDateTime] = consumerRecords.deserialized.map { m =>
-      val dt   = KafkaTimestamp(m.timestamp).atZone(params.zoneId).toLocalDateTime
+      val dt   = NJTimestamp(m.timestamp).atZone(params.zoneId).toLocalDateTime
       val hour = dt.getHour
       val min  = dt.getMinute
       LocalDateTime.of(dt.toLocalDate, LocalTime.of(hour, min))

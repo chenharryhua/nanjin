@@ -1,11 +1,13 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import java.time.Clock
 import java.util
 
 import cats.effect.{ConcurrentEffect, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.codec.isoIdentityProducerRecord
-import com.github.chenharryhua.nanjin.kafka.{KafkaDateTimeRange, KafkaTopic, Keyboard}
+import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, Keyboard}
 import com.github.chenharryhua.nanjin.spark.{StorageRootPath, UploadRate}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.{Chunk, Stream}
@@ -17,7 +19,6 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategy}
 
 import scala.collection.JavaConverters._
-import java.time.Clock
 
 private[kafka] object SparKafka {
 
@@ -32,7 +33,7 @@ private[kafka] object SparKafka {
 
   def datasetFromKafka[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
-    timeRange: KafkaDateTimeRange,
+    timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy)(
     implicit sparkSession: SparkSession): F[TypedDataset[SparKafkaConsumerRecord[K, V]]] =
     Sync[F].suspend {
@@ -60,7 +61,7 @@ private[kafka] object SparKafka {
 
   def datasetFromDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
-    timeRange: KafkaDateTimeRange,
+    timeRange: NJDateTimeRange,
     rootPath: StorageRootPath)(
     implicit sparkSession: SparkSession): F[TypedDataset[SparKafkaConsumerRecord[K, V]]] =
     Sync[F].delay {
@@ -73,7 +74,7 @@ private[kafka] object SparKafka {
 
   def saveToDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
-    timeRange: KafkaDateTimeRange,
+    timeRange: NJDateTimeRange,
     rootPath: StorageRootPath,
     saveMode: SaveMode,
     locationStrategy: LocationStrategy)(implicit sparkSession: SparkSession): F[Unit] =
@@ -117,7 +118,7 @@ private[kafka] object SparKafka {
   // load data from disk and then upload into kafka
   def replay[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
-    timeRange: KafkaDateTimeRange,
+    timeRange: NJDateTimeRange,
     rootPath: StorageRootPath,
     conversionStrategy: ConversionStrategy,
     uploadRate: UploadRate,

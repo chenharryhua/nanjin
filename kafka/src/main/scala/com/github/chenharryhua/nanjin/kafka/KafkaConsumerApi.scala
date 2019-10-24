@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import java.time.{Duration, LocalDateTime}
+import java.time.Duration
 
 import cats.data.Kleisli
 import cats.effect.concurrent.MVar
@@ -9,6 +9,7 @@ import cats.implicits._
 import cats.mtl.ApplicativeAsk
 import cats.tagless._
 import cats.{Eval, Monad}
+import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import fs2.kafka.KafkaByteConsumer
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.TopicPartition
@@ -24,7 +25,7 @@ sealed trait KafkaPrimitiveConsumerApi[F[_]] {
   def partitionsFor: F[ListOfTopicPartitions]
   def beginningOffsets: F[GenericTopicPartition[Option[KafkaOffset]]]
   def endOffsets: F[GenericTopicPartition[Option[KafkaOffset]]]
-  def offsetsForTimes(ts: KafkaTimestamp): F[GenericTopicPartition[Option[KafkaOffset]]]
+  def offsetsForTimes(ts: NJTimestamp): F[GenericTopicPartition[Option[KafkaOffset]]]
 
   def retrieveRecord(
     partition: KafkaPartition,
@@ -69,8 +70,7 @@ object KafkaPrimitiveConsumerApi {
         }
       } yield GenericTopicPartition(ret)
 
-    override def offsetsForTimes(
-      ts: KafkaTimestamp): F[GenericTopicPartition[Option[KafkaOffset]]] =
+    override def offsetsForTimes(ts: NJTimestamp): F[GenericTopicPartition[Option[KafkaOffset]]] =
       for {
         tps <- partitionsFor
         ret <- kbc.ask.map {
@@ -94,12 +94,12 @@ object KafkaPrimitiveConsumerApi {
 @autoFunctorK
 @autoSemigroupalK
 sealed trait KafkaConsumerApi[F[_], K, V] extends KafkaPrimitiveConsumerApi[F] {
-  def offsetRangeFor(dtr: KafkaDateTimeRange): F[GenericTopicPartition[KafkaOffsetRange]]
+  def offsetRangeFor(dtr: NJDateTimeRange): F[GenericTopicPartition[KafkaOffsetRange]]
   def retrieveLastRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
   def retrieveFirstRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
-  def retrieveRecordsForTimes(ts: KafkaTimestamp): F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
+  def retrieveRecordsForTimes(ts: NJTimestamp): F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
   def numOfRecords: F[GenericTopicPartition[Option[KafkaOffsetRange]]]
-  def numOfRecordsSince(ts: KafkaTimestamp): F[GenericTopicPartition[Option[KafkaOffsetRange]]]
+  def numOfRecordsSince(ts: NJTimestamp): F[GenericTopicPartition[Option[KafkaOffsetRange]]]
 }
 
 object KafkaConsumerApi {
@@ -120,8 +120,7 @@ object KafkaConsumerApi {
     private[this] def atomically[A](r: Kleisli[F, KafkaByteConsumer, A]): F[A] =
       Sync[F].bracket(sharedConsumer.value.take)(r.run)(sharedConsumer.value.put)
 
-    override def offsetRangeFor(
-      dtr: KafkaDateTimeRange): F[GenericTopicPartition[KafkaOffsetRange]] =
+    override def offsetRangeFor(dtr: NJDateTimeRange): F[GenericTopicPartition[KafkaOffsetRange]] =
       atomically {
         for {
           from <- dtr.start.fold(kpc.beginningOffsets)(kpc.offsetsForTimes)
@@ -155,7 +154,7 @@ object KafkaConsumerApi {
       }
 
     override def retrieveRecordsForTimes(
-      ts: KafkaTimestamp): F[List[ConsumerRecord[Array[Byte], Array[Byte]]]] =
+      ts: NJTimestamp): F[List[ConsumerRecord[Array[Byte], Array[Byte]]]] =
       atomically {
         for {
           oft <- kpc.offsetsForTimes(ts)
@@ -175,7 +174,7 @@ object KafkaConsumerApi {
       }
 
     override def numOfRecordsSince(
-      ts: KafkaTimestamp): F[GenericTopicPartition[Option[KafkaOffsetRange]]] =
+      ts: NJTimestamp): F[GenericTopicPartition[Option[KafkaOffsetRange]]] =
       atomically {
         for {
           oft <- kpc.offsetsForTimes(ts)
@@ -192,8 +191,7 @@ object KafkaConsumerApi {
     override def endOffsets: F[GenericTopicPartition[Option[KafkaOffset]]] =
       atomically(kpc.endOffsets)
 
-    override def offsetsForTimes(
-      ts: KafkaTimestamp): F[GenericTopicPartition[Option[KafkaOffset]]] =
+    override def offsetsForTimes(ts: NJTimestamp): F[GenericTopicPartition[Option[KafkaOffset]]] =
       atomically(kpc.offsetsForTimes(ts))
 
     override def retrieveRecord(

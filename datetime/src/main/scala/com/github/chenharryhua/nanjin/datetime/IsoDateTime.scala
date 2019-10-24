@@ -14,8 +14,11 @@ import java.time.{
 import monocle.Iso
 import monocle.macros.Lenses
 
-@Lenses final case class JavaOffsetDateTime private (dateTime: Instant, offset: Int) {
-  val offsetDateTime: OffsetDateTime = dateTime.atOffset(ZoneOffset.ofTotalSeconds(offset))
+/**
+  * for spark
+  */
+@Lenses final case class JavaOffsetDateTime private (instant: Instant, offset: Int) {
+  val offsetDateTime: OffsetDateTime = instant.atOffset(ZoneOffset.ofTotalSeconds(offset))
 }
 
 object JavaOffsetDateTime {
@@ -27,8 +30,8 @@ object JavaOffsetDateTime {
     Iso[OffsetDateTime, JavaOffsetDateTime](JavaOffsetDateTime(_))(_.offsetDateTime)
 }
 
-@Lenses final case class JavaZonedDateTime private (dateTime: Instant, zoneId: String) {
-  val zonedDateTime: ZonedDateTime = ZonedDateTime.ofInstant(dateTime, ZoneId.of(zoneId))
+@Lenses final case class JavaZonedDateTime private (instant: Instant, zoneId: String) {
+  val zonedDateTime: ZonedDateTime = ZonedDateTime.ofInstant(instant, ZoneId.of(zoneId))
 }
 
 object JavaZonedDateTime {

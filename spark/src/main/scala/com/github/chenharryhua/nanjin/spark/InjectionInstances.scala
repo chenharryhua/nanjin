@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark
 import java.sql.{Date, Timestamp}
 import java.time._
 
-import com.github.chenharryhua.nanjin.datetime.{JavaOffsetDateTime, JavaZonedDateTime}
+import com.github.chenharryhua.nanjin.datetime.{JavaOffsetDateTime, JavaZonedDateTime, NJTimestamp}
 import frameless.{Injection, SQLDate, SQLTimestamp}
 import monocle.Iso
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
@@ -28,4 +28,7 @@ private[spark] trait InjectionInstances extends Serializable {
 
   implicit val zonedDateTimeInjection: Injection[ZonedDateTime, JavaZonedDateTime] =
     isoInjection(implicitly[Iso[ZonedDateTime, JavaZonedDateTime]])
+
+  implicit val kafkaTimestampInjection: Injection[NJTimestamp, Timestamp] =
+    isoInjection(implicitly[Iso[NJTimestamp, Timestamp]])
 }

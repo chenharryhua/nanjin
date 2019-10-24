@@ -212,19 +212,22 @@ lazy val codec = (project in file("codec"))
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
 
+lazy val datetime = (project in file("datetime"))
+  .settings(commonSettings: _*)
+  .settings(name := "datetime")
+  .settings(libraryDependencies ++= monocleLib ++ tests)
+
 lazy val kafka = (project in file("kafka"))
   .settings(commonSettings: _*)
   .settings(name := "kafka")
   .dependsOn(codec)
+  .dependsOn(datetime)
   .settings(
     libraryDependencies ++= Seq("org.jline" % "jline" % jline) ++ effect ++ fs2 ++ tests,
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
 
-lazy val datetime = (project in file("datetime"))
-  .settings(commonSettings: _*)
-  .settings(name := "datetime")
-  .settings(libraryDependencies ++= monocleLib ++ tests)
+
 
 lazy val database = (project in file("database"))
   .dependsOn(datetime)

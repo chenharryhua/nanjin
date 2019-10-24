@@ -4,7 +4,7 @@ import java.time._
 
 import cats.implicits._
 import cats.kernel.BoundedSemilattice
-import com.github.chenharryhua.nanjin.kafka.{KafkaDateTimeRange, KafkaTimestamp}
+import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.spark.{StorageRootPath, UploadRate}
 import monocle.Lens
 import monocle.macros.Lenses
@@ -39,7 +39,7 @@ object ConversionStrategy {
 }
 
 @Lenses final case class SparKafkaParams private (
-  timeRange: KafkaDateTimeRange,
+  timeRange: NJDateTimeRange,
   conversionStrategy: ConversionStrategy,
   uploadRate: UploadRate,
   zoneId: ZoneId,
@@ -56,20 +56,20 @@ object ConversionStrategy {
 
   def withLocationStrategy(ls: LocationStrategy): SparKafkaParams = copy(locationStrategy = ls)
 
-  private def setStartTime(ts: KafkaTimestamp): SparKafkaParams =
-    SparKafkaParams.timeRange.composeLens(KafkaDateTimeRange.start).set(Some(ts))(this)
+  private def setStartTime(ts: NJTimestamp): SparKafkaParams =
+    SparKafkaParams.timeRange.composeLens(NJDateTimeRange.start).set(Some(ts))(this)
 
-  private def setEndTime(ts: KafkaTimestamp): SparKafkaParams =
-    SparKafkaParams.timeRange.composeLens(KafkaDateTimeRange.end).set(Some(ts))(this)
+  private def setEndTime(ts: NJTimestamp): SparKafkaParams =
+    SparKafkaParams.timeRange.composeLens(NJDateTimeRange.end).set(Some(ts))(this)
 
-  def withStartTime(dt: Instant): SparKafkaParams       = setStartTime(KafkaTimestamp(dt))
-  def withEndTime(dt: Instant): SparKafkaParams         = setEndTime(KafkaTimestamp(dt))
-  def withStartTime(dt: ZonedDateTime): SparKafkaParams = setStartTime(KafkaTimestamp(dt))
-  def withEndTime(dt: ZonedDateTime): SparKafkaParams   = setEndTime(KafkaTimestamp(dt))
-  def withStartTime(dt: LocalDateTime): SparKafkaParams = setStartTime(KafkaTimestamp(dt, zoneId))
-  def withEndTime(dt: LocalDateTime): SparKafkaParams   = setEndTime(KafkaTimestamp(dt, zoneId))
-  def withStartTime(dt: LocalDate): SparKafkaParams     = setStartTime(KafkaTimestamp(dt, zoneId))
-  def withEndTime(dt: LocalDate): SparKafkaParams       = setEndTime(KafkaTimestamp(dt, zoneId))
+  def withStartTime(dt: Instant): SparKafkaParams       = setStartTime(NJTimestamp(dt))
+  def withEndTime(dt: Instant): SparKafkaParams         = setEndTime(NJTimestamp(dt))
+  def withStartTime(dt: ZonedDateTime): SparKafkaParams = setStartTime(NJTimestamp(dt))
+  def withEndTime(dt: ZonedDateTime): SparKafkaParams   = setEndTime(NJTimestamp(dt))
+  def withStartTime(dt: LocalDateTime): SparKafkaParams = setStartTime(NJTimestamp(dt, zoneId))
+  def withEndTime(dt: LocalDateTime): SparKafkaParams   = setEndTime(NJTimestamp(dt, zoneId))
+  def withStartTime(dt: LocalDate): SparKafkaParams     = setStartTime(NJTimestamp(dt, zoneId))
+  def withEndTime(dt: LocalDate): SparKafkaParams       = setEndTime(NJTimestamp(dt, zoneId))
 
   def withinOneDay(dt: LocalDate): SparKafkaParams =
     withStartTime(dt).withEndTime(dt.plusDays(1))
@@ -101,7 +101,7 @@ object SparKafkaParams {
 
   val default: SparKafkaParams =
     SparKafkaParams(
-      KafkaDateTimeRange.infinite,
+      NJDateTimeRange.infinite,
       ConversionStrategy.Intact,
       UploadRate.default,
       ZoneId.systemDefault(),

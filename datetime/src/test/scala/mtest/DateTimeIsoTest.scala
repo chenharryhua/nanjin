@@ -17,8 +17,11 @@ class DateTimeIsoTest extends AnyFunSuite with Discipline {
 
   implicit val zoneId: ZoneId = ZoneId.systemDefault()
 
-  implicit val eqInstant: Eq[Instant]       = (x: Instant, y: Instant)               => x === y
-  implicit val eqTimestamp: Eq[Timestamp]   = (x: Timestamp, y: Timestamp)           => x === y
+  implicit val eqInstant: Eq[Instant]     = (x: Instant, y: Instant)     => x === y
+  implicit val eqTimestamp: Eq[Timestamp] = (x: Timestamp, y: Timestamp) => x === y
+
+  implicit val eqNJTimestamp: Eq[NJTimestamp] = (x: NJTimestamp, y: NJTimestamp) => x === y
+
   implicit val eqLocalDT: Eq[LocalDateTime] = (x: LocalDateTime, y: LocalDateTime)   => x === y
   implicit val eqLocalDate: Eq[LocalDate]   = (x: LocalDate, y: LocalDate)           => x === y
   implicit val eqZoned: Eq[ZonedDateTime]   = (x: ZonedDateTime, y: ZonedDateTime)   => x === y
@@ -50,6 +53,10 @@ class DateTimeIsoTest extends AnyFunSuite with Discipline {
 
   implicit val arbTimestamp: Arbitrary[Timestamp] = Arbitrary(
     Gen.posNum[Long].map(new Timestamp(_)))
+
+  implicit val arbKafkaTimestamp: Arbitrary[NJTimestamp] = Arbitrary(
+    Gen.posNum[Long].map(NJTimestamp(_))
+  )
 
   val genLocalDate: Gen[LocalDate] = Gen.calendar
     .suchThat(c =>
@@ -86,4 +93,9 @@ class DateTimeIsoTest extends AnyFunSuite with Discipline {
     "offset-date-time",
     IsoTests[OffsetDateTime, JavaOffsetDateTime](
       implicitly[Iso[OffsetDateTime, JavaOffsetDateTime]]))
+
+  checkAll(
+    "nanjin-timestamp",
+    IsoTests[NJTimestamp, Timestamp](implicitly[Iso[NJTimestamp, Timestamp]]))
+
 }

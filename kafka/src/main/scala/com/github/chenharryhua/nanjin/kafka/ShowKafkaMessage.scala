@@ -6,6 +6,7 @@ import akka.kafka.ConsumerMessage.CommittableMessage
 import cats.Show
 import cats.implicits._
 import com.github.chenharryhua.nanjin.codec.isoFs2ComsumerRecord
+import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import fs2.kafka.CommittableConsumerRecord
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
@@ -15,7 +16,7 @@ private[kafka] trait ShowKafkaMessage {
 
   implicit def showConsumerRecord[K: Show, V: Show]: Show[ConsumerRecord[K, V]] =
     (t: ConsumerRecord[K, V]) => {
-      val ts = KafkaTimestamp(t.timestamp())
+      val ts = NJTimestamp(t.timestamp())
       s"""
          |consumer record:
          |topic:        ${t.topic()}
@@ -35,7 +36,7 @@ private[kafka] trait ShowKafkaMessage {
 
   implicit def showProducerRecord[K: Show, V: Show]: Show[ProducerRecord[K, V]] =
     (t: ProducerRecord[K, V]) => {
-      val ts = KafkaTimestamp(t.timestamp())
+      val ts = NJTimestamp(t.timestamp())
       s"""
          |producer record:
          |topic:      ${t.topic}
@@ -58,7 +59,7 @@ private[kafka] trait ShowKafkaMessage {
   implicit val showArrayByte: Show[Array[Byte]] = _ => "Array[Byte]"
 
   implicit def showRecordMetadata: Show[RecordMetadata] = { t: RecordMetadata =>
-    val ts = KafkaTimestamp(t.timestamp())
+    val ts = NJTimestamp(t.timestamp())
     s"""
        |topic:     ${t.topic()}
        |partition: ${t.partition()}
