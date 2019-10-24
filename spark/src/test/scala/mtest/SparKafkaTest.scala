@@ -7,6 +7,7 @@ import cats.implicits._
 import org.scalatest.funsuite.AnyFunSuite
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.datetime._
+import com.github.chenharryhua.nanjin.datetime.iso._
 import frameless.cats.implicits._
 import cats.derived.auto.show._
 import java.time.ZoneId
@@ -28,7 +29,9 @@ class SparKafkaTest extends AnyFunSuite {
     }.unsafeRunSync
   }
   test("save topic to disk") {
-    sparKafkaSession.use(_.updateParams(_.withOverwrite).saveToDisk(topics.sparkafkaTopic)).unsafeRunSync
+    sparKafkaSession
+      .use(_.updateParams(_.withOverwrite).saveToDisk(topics.sparkafkaTopic))
+      .unsafeRunSync
   }
   test("read topic from disk") {
     sparKafkaSession

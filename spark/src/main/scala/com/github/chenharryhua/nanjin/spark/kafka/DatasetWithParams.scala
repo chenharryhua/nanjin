@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import java.time.{LocalDate, LocalDateTime, LocalTime, ZoneId}
 
 import com.github.chenharryhua.nanjin.datetime._
+import com.github.chenharryhua.nanjin.datetime.iso._
 import com.github.chenharryhua.nanjin.spark._
 import frameless.functions.aggregate.count
 import frameless.{TypedDataset, TypedEncoder}
