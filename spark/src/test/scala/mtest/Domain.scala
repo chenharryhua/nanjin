@@ -5,7 +5,6 @@ import java.time.{Instant, LocalDate, LocalDateTime}
 import cats.Show
 import io.circe.generic.JsonCodec
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.KafkaTimestamp
 import frameless.Injection
 
 final case class EmbeddedForTaskSerializable(f: Int, g: LocalDateTime)

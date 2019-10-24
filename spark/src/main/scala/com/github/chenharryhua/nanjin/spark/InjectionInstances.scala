@@ -29,6 +29,6 @@ private[spark] trait InjectionInstances extends Serializable {
   implicit val zonedDateTimeInjection: Injection[ZonedDateTime, JavaZonedDateTime] =
     isoInjection(implicitly[Iso[ZonedDateTime, JavaZonedDateTime]])
 
-  implicit val kafkaTimestampInjection: Injection[NJTimestamp, Timestamp] =
+  implicit val njTimestampInjection: Injection[NJTimestamp, Timestamp] =
     isoInjection(implicitly[Iso[NJTimestamp, Timestamp]])
 }

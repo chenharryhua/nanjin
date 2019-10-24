@@ -6,6 +6,7 @@ import cats.derived.auto.show._
 import com.github.chenharryhua.nanjin.kafka._
 import org.scalatest.funsuite.AnyFunSuite
 import cats.implicits._
+import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 
 class ConsumerApiTest extends AnyFunSuite {
 
@@ -21,6 +22,6 @@ class ConsumerApiTest extends AnyFunSuite {
   }
   test("range for non-exist topic") {
     val topic = ctx.topic[Int, Int]("non-exist")
-    topic.consumer.offsetRangeFor(KafkaDateTimeRange.infinite).map(println).unsafeRunSync()
+    topic.consumer.offsetRangeFor(NJDateTimeRange.infinite).map(println).unsafeRunSync()
   }
 }
