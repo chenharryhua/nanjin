@@ -7,7 +7,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.util.Try
 import cats.implicits._
 import com.github.chenharryhua.nanjin.codec._
-
+import com.github.chenharryhua.nanjin.codec.bitraverse._
 class CompilationTest extends AnyFunSuite {
   test("should compile") {
     val topic = ctx.topic[Int, Int]("do-not-run")

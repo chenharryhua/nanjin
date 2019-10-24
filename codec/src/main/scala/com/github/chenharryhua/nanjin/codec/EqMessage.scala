@@ -12,14 +12,15 @@ import akka.kafka.ConsumerMessage.{
 import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage, MultiMessage => AkkaMultiMessage}
 import cats.Eq
 import cats.implicits._
+import com.github.chenharryhua.nanjin.codec.iso._
 import fs2.kafka.{
-  TransactionalProducerRecords => Fs2TransactionalProducerRecords,
   CommittableConsumerRecord    => Fs2CommittableConsumerRecord,
   CommittableOffset            => Fs2CommittableOffset,
   CommittableProducerRecords   => Fs2CommittableProducerRecords,
   ConsumerRecord               => Fs2ConsumerRecord,
   ProducerRecord               => Fs2ProducerRecord,
-  ProducerRecords              => Fs2ProducerRecords
+  ProducerRecords              => Fs2ProducerRecords,
+  TransactionalProducerRecords => Fs2TransactionalProducerRecords
 }
 import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
 import org.apache.kafka.clients.producer.ProducerRecord
@@ -29,6 +30,7 @@ import org.apache.kafka.common.header.{Header, Headers}
 import scala.compat.java8.OptionConverters._
 
 trait EqMessage {
+
   // kafka
   implicit val eqArrayByte: Eq[Array[Byte]] =
     (x: Array[Byte], y: Array[Byte]) => x.sameElements(y)

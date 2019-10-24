@@ -28,7 +28,8 @@ import org.scalacheck.Gen
 
 import scala.compat.java8.OptionConverters._
 import scala.concurrent.Future
-
+import com.github.chenharryhua.nanjin.codec.iso._
+import com.github.chenharryhua.nanjin.codec.bitraverse._
 object genMessage {
 
   trait GenKafkaMessage {

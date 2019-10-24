@@ -6,7 +6,9 @@ import cats.effect.concurrent.Deferred
 import cats.effect.{ConcurrentEffect, IO, Sync}
 import cats.implicits._
 import cats.tagless._
-import com.github.chenharryhua.nanjin.codec._
+import com.github.chenharryhua.nanjin.codec.KafkaCodec
+import com.github.chenharryhua.nanjin.codec.iso._
+import com.github.chenharryhua.nanjin.codec.bitraverse._
 import fs2.Chunk
 import fs2.kafka.{KafkaByteProducer, KafkaByteProducerRecord}
 import monocle.Iso

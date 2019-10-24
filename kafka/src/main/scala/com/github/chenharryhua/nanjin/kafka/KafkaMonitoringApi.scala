@@ -3,7 +3,8 @@ import cats.Show
 import cats.effect.Concurrent
 import cats.implicits._
 import cats.tagless._
-import com.github.chenharryhua.nanjin.codec._
+import com.github.chenharryhua.nanjin.codec.bitraverse._
+import com.github.chenharryhua.nanjin.codec.iso._
 import fs2.kafka.AutoOffsetReset
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import show._

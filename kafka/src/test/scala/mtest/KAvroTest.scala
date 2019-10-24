@@ -5,6 +5,7 @@ import cats.Show
 import cats.derived.auto.show._
 import cats.implicits._ 
 import com.github.chenharryhua.nanjin.codec._
+import com.github.chenharryhua.nanjin.codec.bitraverse._
 
 
 sealed trait Color

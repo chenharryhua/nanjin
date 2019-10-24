@@ -16,6 +16,7 @@ import org.apache.kafka.streams.scala.ImplicitConversions._
 import com.github.chenharryhua.nanjin.codec._
 import fs2.kafka.ProducerRecords
 import org.apache.kafka.clients.producer.ProducerRecord
+import com.github.chenharryhua.nanjin.codec.bitraverse._
 
 case class AvroKey(key: String)
 case class AvroValue(v1: String, v2: Int)

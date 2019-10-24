@@ -8,6 +8,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka._
 import com.github.chenharryhua.nanjin.kafka.show._ 
 import org.scalatest.funsuite.AnyFunSuite
+import com.github.chenharryhua.nanjin.codec.bitraverse._
 
 class ConsumeMessageAkkaTest extends AnyFunSuite {
 

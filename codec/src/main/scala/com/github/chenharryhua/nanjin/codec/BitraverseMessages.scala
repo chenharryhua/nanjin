@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.codec
 import akka.kafka.ProducerMessage.{MultiMessage => AkkaMultiMessage}
 import cats.implicits._
 import cats.{Applicative, Bitraverse, Eval}
+import com.github.chenharryhua.nanjin.codec.iso._
 import fs2.Chunk
 import fs2.kafka.{
   CommittableProducerRecords   => Fs2CommittableProducerRecords,
