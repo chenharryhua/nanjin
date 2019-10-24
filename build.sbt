@@ -89,7 +89,16 @@ val neo4j = Seq(
   "com.dimafeng" %% "neotypes-zio-stream",
   "com.dimafeng" %% "neotypes-refined",
   "com.dimafeng" %% "neotypes-cats-data"
-).map(_ % neotypes) ++ Seq("org.neo4j.driver" % "neo4j-java-driver" % "1.7.5")
+).map(_ % neotypes) ++ Seq(
+  "org.neo4j.driver" % "neo4j-java-driver" % "1.7.5",
+  "org.opencypher" % "morpheus-spark-cypher" % "0.4.2")
+
+val scodec = Seq(
+  "org.scodec" %% "scodec-core" % "1.11.4",
+  "org.scodec" %% "scodec-bits" % "1.1.12",
+  "org.scodec" %% "scodec-stream" % "2.0.0",
+  "org.scodec" %% "scodec-cats" % "1.0.0")
+
 
 val json = Seq(
   "io.circe" %% "circe-core",
@@ -133,7 +142,8 @@ val sparkLib = Seq(
   "org.apache.spark" %% "spark-streaming-kafka-0-10",
   "org.apache.spark" %% "spark-sql-kafka-0-10",
   "org.apache.spark" %% "spark-avro",
-  "org.apache.spark" %% "spark-graphx"
+  "org.apache.spark" %% "spark-graphx",
+  "org.apache.spark" %% "spark-hive"
 ).map(_ % sparkVersion)
   .map(_.exclude("io.netty", "netty-buffer"))
   .map(_.exclude("io.netty", "netty-codec"))
@@ -208,7 +218,7 @@ lazy val codec = (project in file("codec"))
     addCompilerPlugin("com.github.ghik" %% "silencer-plugin" % silencer),
     libraryDependencies ++= Seq(
       "com.github.ghik" %% "silencer-lib" % silencer % Provided
-    ) ++ base ++ json ++ monocleLib ++ kafkaLib ++ avro ++ tests,
+    ) ++ base ++ json ++ monocleLib ++ kafkaLib ++ avro ++ scodec ++ tests,
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
 

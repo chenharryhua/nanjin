@@ -24,14 +24,14 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
 
   final def transactorResource[F[_]: ContextShift: Async]: Resource[F, HikariTransactor[F]] =
     for {
-      theadPool <- ExecutionContexts.fixedThreadPool[F](8)
+      threadPool <- ExecutionContexts.fixedThreadPool[F](8)
       cachedPool <- ExecutionContexts.cachedThreadPool[F]
       xa <- HikariTransactor.newHikariTransactor[F](
         driver.value,
         connStr.value,
         username.value,
         password.value,
-        theadPool,
+        threadPool,
         Blocker.liftExecutionContext(cachedPool)
       )
     } yield xa
