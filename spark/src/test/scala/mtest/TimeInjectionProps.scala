@@ -5,6 +5,7 @@ import java.time._
 
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8._
 import com.github.chenharryhua.nanjin.spark._
+import com.github.chenharryhua.nanjin.spark.injection._
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.datetime.iso._
 import frameless.{Injection, TypedEncoder}

@@ -18,6 +18,7 @@ final case class DailyMinuteAggResult(date: LocalDateTime, count: Long)
 final case class ConsumerRecordDatasetWithParams[K: TypedEncoder, V: TypedEncoder](
   params: SparKafkaParams,
   private val crs: Dataset[SparKafkaConsumerRecord[K, V]]) {
+  import injection._
 
   def consumerRecords: TypedDataset[SparKafkaConsumerRecord[K, V]] = TypedDataset.create(crs)
 

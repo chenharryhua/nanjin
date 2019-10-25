@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.datetime.iso._
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.database._
+import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.TypedDataset
 import org.apache.spark.sql.SaveMode
 import org.scalatest.funsuite.AnyFunSuite
