@@ -1,7 +1,7 @@
 import com.github.chenharryhua.nanjin.codec.{EqMessage, KJson, KafkaCodec, SerdeOf}
 import io.circe.generic.auto._
 import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig
-package object mtest extends ArbitraryData with EqMessage {
+package object mtest extends ArbitraryData {
 
   val sr: Map[String, String] =
     Map(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG -> "http://localhost:8081")

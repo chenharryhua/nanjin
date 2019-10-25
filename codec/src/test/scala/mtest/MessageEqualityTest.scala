@@ -11,6 +11,7 @@ import org.scalacheck.Arbitrary
 import org.scalacheck.Arbitrary._
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
+import com.github.chenharryhua.nanjin.codec.eq._
 
 class MessageEqualityTest extends AnyFunSuite with Discipline {
 

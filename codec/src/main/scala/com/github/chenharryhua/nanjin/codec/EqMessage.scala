@@ -29,7 +29,7 @@ import org.apache.kafka.common.header.{Header, Headers}
 
 import scala.compat.java8.OptionConverters._
 
-trait EqMessage {
+private[codec] trait EqMessage {
 
   // kafka
   implicit val eqArrayByte: Eq[Array[Byte]] =
@@ -137,4 +137,6 @@ trait EqMessage {
       x: Fs2TransactionalProducerRecords[F, K, V, P],
       y: Fs2TransactionalProducerRecords[F, K, V, P]) =>
       (x.records === y.records) && (x.passthrough === y.passthrough)
+
+      
 }

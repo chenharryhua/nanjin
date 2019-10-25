@@ -8,6 +8,8 @@ import cats.laws.discipline.BitraverseTests
 import com.github.chenharryhua.nanjin.codec._
 import com.github.chenharryhua.nanjin.codec.iso._
 import com.github.chenharryhua.nanjin.codec.bitraverse._
+import com.github.chenharryhua.nanjin.codec.eq._
+
 import fs2.kafka.{
   CommittableConsumerRecord    => Fs2CommittableConsumerRecord,
   CommittableProducerRecords   => Fs2CommittableProducerRecords,
