@@ -3,7 +3,7 @@ scapegoatVersion in ThisBuild  := "1.3.11"
 parallelExecution in ThisBuild := false
 
 val confluent    = "5.3.0"
-val kafkaVersion = "2.3.0"
+val kafkaVersion = "2.3.1"
 
 val shapeless  = "2.3.3"
 val contextual = "1.2.1"
@@ -78,7 +78,7 @@ lazy val commonSettings = Seq(
   )
 )
 
-val neo4jLib = Seq(
+val graphLib = Seq(
   "com.dimafeng" %% "neotypes",
   "com.dimafeng" %% "neotypes-cats-effect",
   "com.dimafeng" %% "neotypes-monix",
@@ -89,16 +89,17 @@ val neo4jLib = Seq(
   "com.dimafeng" %% "neotypes-zio-stream",
   "com.dimafeng" %% "neotypes-refined",
   "com.dimafeng" %% "neotypes-cats-data"
-).map(_ % neotypes) ++ Seq(
-  "org.neo4j.driver" % "neo4j-java-driver" % "1.7.5",
-  "org.opencypher" % "morpheus-spark-cypher" % "0.4.2")
+).map(_ % neotypes) ++
+  Seq(
+    "org.neo4j.driver"                % "neo4j-java-driver" % "1.7.5",
+    "org.opencypher"                  % "morpheus-spark-cypher" % "0.4.2",
+    "org.scala-graph" %% "graph-core" % "1.13.0")
 
 val scodec = Seq(
-  "org.scodec" %% "scodec-core" % "1.11.4",
-  "org.scodec" %% "scodec-bits" % "1.1.12",
+  "org.scodec" %% "scodec-core"   % "1.11.4",
+  "org.scodec" %% "scodec-bits"   % "1.1.12",
   "org.scodec" %% "scodec-stream" % "2.0.0",
-  "org.scodec" %% "scodec-cats" % "1.0.0")
-
+  "org.scodec" %% "scodec-cats"   % "1.0.0")
 
 val json = Seq(
   "io.circe" %% "circe-core",
@@ -237,13 +238,11 @@ lazy val kafka = (project in file("kafka"))
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
 
-
-
 lazy val database = (project in file("database"))
   .dependsOn(datetime)
   .settings(commonSettings: _*)
   .settings(name := "database")
-  .settings(libraryDependencies ++= base ++ json ++ db ++ neo4jLib ++ tests)
+  .settings(libraryDependencies ++= base ++ json ++ db ++ graphLib ++ tests)
 
 lazy val spark = (project in file("spark"))
   .dependsOn(kafka)
@@ -259,4 +258,6 @@ lazy val spark = (project in file("spark"))
   )
 
 lazy val nanjin =
-  (project in file(".")).settings(name := "nanjin").aggregate(codec, datetime, kafka, database, spark)
+  (project in file("."))
+    .settings(name := "nanjin")
+    .aggregate(codec, datetime, kafka, database, spark)

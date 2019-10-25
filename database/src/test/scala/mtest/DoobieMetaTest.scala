@@ -3,10 +3,10 @@ package mtest
 import java.sql.{Date, Timestamp}
 import java.time._
 
-import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8.{arbLocalDateJdk8 => _}
 import doobie.util.Meta
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
+import com.github.chenharryhua.nanjin.database.meta._
 
 class DoobieMetaTest extends AnyFunSuite with Discipline {
   implicit val zoneId: ZoneId    = ZoneId.systemDefault()

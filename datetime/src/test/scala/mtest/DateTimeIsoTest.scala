@@ -12,6 +12,7 @@ import monocle.law.discipline.IsoTests
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
+import com.github.chenharryhua.nanjin.datetime.iso._
 
 class DateTimeIsoTest extends AnyFunSuite with Discipline {
 
