@@ -1,6 +1,6 @@
 package mtest
 
-import java.sql.{Date, Timestamp}
+import java.sql.Timestamp
 import java.time._
 
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8._

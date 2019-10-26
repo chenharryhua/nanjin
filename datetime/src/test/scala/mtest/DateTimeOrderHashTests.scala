@@ -3,7 +3,6 @@ import java.sql.{Date, Timestamp}
 
 import cats.kernel.laws.discipline.{HashTests, OrderTests}
 import cats.tests.CatsSuite
-import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8.genZonedDateTimeWithZone
 import com.github.chenharryhua.nanjin.datetime._
 
 class DateTimeOrderHashTests extends CatsSuite {

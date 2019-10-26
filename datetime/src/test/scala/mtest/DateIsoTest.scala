@@ -4,14 +4,13 @@ import java.sql.Date
 import java.time.LocalDate
 
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8.genZonedDateTimeWithZone
+import com.github.chenharryhua.nanjin.datetime._
+import com.github.chenharryhua.nanjin.datetime.iso._
 import monocle.Iso
 import monocle.law.discipline.IsoTests
-import org.scalacheck.Prop.{forAll, propBoolean}
 import org.scalacheck._
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
-import com.github.chenharryhua.nanjin.datetime.iso._
-import com.github.chenharryhua.nanjin.datetime._
 
 class DateIsoTest extends AnyFunSuite with Discipline {
 
