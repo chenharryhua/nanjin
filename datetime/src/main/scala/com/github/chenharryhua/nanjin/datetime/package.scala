@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin
 
-package object datetime {
-  object show extends io.chrisdavenport.cats.time.instances.all
+package object datetime extends DateTimeInstances {
   object iso extends IsoDateTimeInstance
 }

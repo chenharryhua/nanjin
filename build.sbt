@@ -167,11 +167,12 @@ val framelessLib = Seq(
 ).map(_ % frameless)
 
 val tests = Seq(
+  "org.typelevel" %% "cats-testkit-scalatest"                 % "1.0.0-RC1" % Test,
+  "org.typelevel" %% "discipline-scalatest"                   % "1.0.0-RC1" % Test,
   "org.typelevel" %% "cats-laws"                              % catsCore    % Test,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.13" % "1.1.8"     % Test,
   "org.scalatest" %% "scalatest"                              % scalatest   % Test,
   "com.github.julien-truffaut" %% "monocle-law"               % monocle     % Test,
-  "org.typelevel" %% "discipline-scalatest"                   % "1.0.0-RC1" % Test,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.3.1"     % Test,
   "org.tpolecat" %% "doobie-postgres"                         % doobie      % Test
 )

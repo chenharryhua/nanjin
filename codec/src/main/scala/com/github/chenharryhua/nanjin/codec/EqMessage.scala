@@ -136,7 +136,5 @@ private[codec] trait EqMessage {
     (
       x: Fs2TransactionalProducerRecords[F, K, V, P],
       y: Fs2TransactionalProducerRecords[F, K, V, P]) =>
-      (x.records === y.records) && (x.passthrough === y.passthrough)
-
-      
+      (x.records === y.records) && (x.passthrough === y.passthrough)      
 }
