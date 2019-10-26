@@ -3,6 +3,7 @@ import java.sql.Timestamp
 import java.time._
 import java.util.concurrent.TimeUnit
 
+import cats.{Hash, Order, Show}
 import cats.implicits._
 import monocle.Iso
 import monocle.macros.Lenses
@@ -33,6 +34,14 @@ object NJTimestamp {
   implicit val isoKafkaTimestamp: Iso[NJTimestamp, Timestamp] =
     Iso[NJTimestamp, Timestamp]((a: NJTimestamp) => new Timestamp(a.milliseconds))((b: Timestamp) =>
       NJTimestamp(b.getTime))
+
+  implicit val NJTimestampInstance
+    : Hash[NJTimestamp] with Order[NJTimestamp] with Show[NJTimestamp] =
+    new Hash[NJTimestamp] with Order[NJTimestamp] with Show[NJTimestamp] {
+      override def hash(x: NJTimestamp): Int                    = x.hashCode
+      override def compare(x: NJTimestamp, y: NJTimestamp): Int = x.utc.compareTo(y.utc)
+      override def show(x: NJTimestamp): String                 = x.utc.toString
+    }
 }
 
 @Lenses final case class NJDateTimeRange(start: Option[NJTimestamp], end: Option[NJTimestamp]) {

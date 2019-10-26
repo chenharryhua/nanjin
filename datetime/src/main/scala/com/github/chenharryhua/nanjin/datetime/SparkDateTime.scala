@@ -1,16 +1,9 @@
 package com.github.chenharryhua.nanjin.datetime
 
-import java.sql.{Date, Timestamp}
-import java.time.{
-  Instant,
-  LocalDate,
-  LocalDateTime,
-  OffsetDateTime,
-  ZoneId,
-  ZoneOffset,
-  ZonedDateTime
-}
+import java.time._
 
+import cats.implicits._
+import cats.{Hash, Order, Show}
 import monocle.Iso
 import monocle.macros.Lenses
 
@@ -28,6 +21,16 @@ object JavaOffsetDateTime {
 
   implicit val isoJavaOffsetDateTime: Iso[OffsetDateTime, JavaOffsetDateTime] =
     Iso[OffsetDateTime, JavaOffsetDateTime](JavaOffsetDateTime(_))(_.offsetDateTime)
+
+  implicit final val JavaOffsetDateTimeInstance
+    : Hash[JavaOffsetDateTime] with Order[JavaOffsetDateTime] with Show[JavaOffsetDateTime] =
+    new Hash[JavaOffsetDateTime] with Order[JavaOffsetDateTime] with Show[JavaOffsetDateTime] {
+      override def hash(x: JavaOffsetDateTime): Int = x.hashCode
+
+      override def compare(x: JavaOffsetDateTime, y: JavaOffsetDateTime): Int =
+        x.offsetDateTime.compareTo(y.offsetDateTime)
+      override def show(x: JavaOffsetDateTime): String = x.offsetDateTime.show
+    }
 }
 
 @Lenses final case class JavaZonedDateTime private (instant: Instant, zoneId: String) {
@@ -41,17 +44,15 @@ object JavaZonedDateTime {
 
   implicit val isoJavaZonedDateTime: Iso[ZonedDateTime, JavaZonedDateTime] =
     Iso[ZonedDateTime, JavaZonedDateTime](JavaZonedDateTime(_))(_.zonedDateTime)
-}
 
-private[datetime] trait IsoDateTimeInstance extends Serializable {
+  implicit final val JavaZonedDateTimeInstance
+    : Hash[JavaZonedDateTime] with Order[JavaZonedDateTime] with Show[JavaZonedDateTime] =
+    new Hash[JavaZonedDateTime] with Order[JavaZonedDateTime] with Show[JavaZonedDateTime] {
+      override def hash(x: JavaZonedDateTime): Int = x.hashCode
 
-  implicit val isoInstant: Iso[Instant, Timestamp] =
-    Iso[Instant, Timestamp](Timestamp.from)(_.toInstant)
+      override def compare(x: JavaZonedDateTime, y: JavaZonedDateTime): Int =
+        x.zonedDateTime.compareTo(y.zonedDateTime)
+      override def show(x: JavaZonedDateTime): String = x.zonedDateTime.show
+    }
 
-  implicit def isoLocalDateTimeByZoneId(implicit zoneId: ZoneId): Iso[LocalDateTime, Timestamp] =
-    Iso[LocalDateTime, Timestamp](a => isoInstant.get(a.atZone(zoneId).toInstant))(b =>
-      LocalDateTime.ofInstant(isoInstant.reverseGet(b), zoneId))
-
-  implicit val isoLocalDate: Iso[LocalDate, Date] =
-    Iso[LocalDate, Date](Date.valueOf)(_.toLocalDate)
 }
