@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.graph
 
+import java.net.URI
+
 import cats.effect.{Async, Resource}
 import com.github.chenharryhua.nanjin.database._
 import fs2.Stream
@@ -8,6 +10,7 @@ import neotypes.cats.effect.implicits.catsAsync
 import neotypes.{GraphDatabase, Session, Transaction}
 import org.neo4j.driver.v1.Config.ConfigBuilder
 import org.neo4j.driver.v1.{AuthToken, AuthTokens, Config}
+import org.opencypher.okapi.neo4j.io.Neo4jConfig
 
 @Lenses final case class Neo4j(
   username: Username,
@@ -36,4 +39,6 @@ import org.neo4j.driver.v1.{AuthToken, AuthTokens, Config}
   def transactionStream[F[_]: Async]: Stream[F, Transaction[F]] =
     Stream.resource(transactionResource)
 
+  def morpheusConfig: Neo4jConfig =
+    Neo4jConfig(new URI(connStr.value), username.value, Some(password.value))
 }
