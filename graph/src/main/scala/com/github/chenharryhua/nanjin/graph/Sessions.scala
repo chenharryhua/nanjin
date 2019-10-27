@@ -7,7 +7,7 @@ import neotypes.{GraphDatabase, Session, Transaction}
 import org.apache.spark.sql.SparkSession
 import org.opencypher.morpheus.api.io.neo4j.Neo4jPropertyGraphDataSource
 import org.opencypher.morpheus.api.{GraphSources, MorpheusSession}
-import org.opencypher.okapi.neo4j.io.Neo4jConfig
+import org.opencypher.okapi.neo4j.io.{MetaLabelSupport, Neo4jConfig}
 
 final case class NeotypesSession(settings: Neo4jSettings) {
 
@@ -34,6 +34,8 @@ final case class MorpheusNeo4jSession(settings: Neo4jSettings, spark: SparkSessi
     Neo4jConfig(settings.connStr.uri, settings.username.value, Some(settings.password.value))
 
   implicit val session: MorpheusSession    = MorpheusSession.create(spark)
-  def source: Neo4jPropertyGraphDataSource = GraphSources.cypher.neo4j(config)
+  val source: Neo4jPropertyGraphDataSource = GraphSources.cypher.neo4j(config)
+
+  def schema: Option[String] = source.schema(MetaLabelSupport.entireGraphName).map(_.toJson)
 
 }

@@ -93,7 +93,9 @@ val neo4jLib = Seq(
   Seq(
     "org.neo4j.driver"                % "neo4j-java-driver" % "1.7.5",
     "org.opencypher"                  % "morpheus-spark-cypher" % "0.4.2",
-    "org.scala-graph" %% "graph-core" % "1.13.0")
+    "org.apache.logging.log4j"        % "log4j-core" % "2.12.1",
+    "org.scala-graph" %% "graph-core" % "1.13.0"
+  )
 
 val scodec = Seq(
   "org.scodec" %% "scodec-core"   % "1.11.4",
@@ -262,11 +264,13 @@ lazy val graph = (project in file("graph"))
   .dependsOn(spark)
   .settings(commonSettings: _*)
   .settings(name := "graph")
-  .settings(libraryDependencies ++= neo4jLib ++ tests,
+  .settings(
+    libraryDependencies ++= neo4jLib ++ tests,
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core"  % "jackson-databind" % "2.6.7.2",
       "org.json4s" %% "json4s-core" % "3.5.5"),
-    Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat)
+    Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
+  )
 
 lazy val nanjin =
   (project in file("."))
