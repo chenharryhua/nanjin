@@ -78,7 +78,7 @@ lazy val commonSettings = Seq(
   )
 )
 
-val graphLib = Seq(
+val neo4jLib = Seq(
   "com.dimafeng" %% "neotypes",
   "com.dimafeng" %% "neotypes-cats-effect",
   "com.dimafeng" %% "neotypes-monix",
@@ -243,7 +243,7 @@ lazy val database = (project in file("database"))
   .dependsOn(datetime)
   .settings(commonSettings: _*)
   .settings(name := "database")
-  .settings(libraryDependencies ++= base ++ json ++ db ++ graphLib ++ tests)
+  .settings(libraryDependencies ++= base ++ json ++ db ++ tests)
 
 lazy val spark = (project in file("spark"))
   .dependsOn(kafka)
@@ -257,6 +257,12 @@ lazy val spark = (project in file("spark"))
       "org.json4s" %% "json4s-core" % "3.5.5"),
     Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
   )
+
+lazy val graph = (project in file("graph"))
+  .dependsOn(database)
+  .settings(commonSettings: _*)
+  .settings(name := "graph")
+  .settings(libraryDependencies ++= base ++ sparkLib ++ framelessLib ++ neo4jLib ++ tests)
 
 lazy val nanjin =
   (project in file("."))
