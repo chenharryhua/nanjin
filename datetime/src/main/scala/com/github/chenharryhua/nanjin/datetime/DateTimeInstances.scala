@@ -16,7 +16,7 @@ private[datetime] trait DateTimeInstances extends all {
       override def show(x: Timestamp): String               = x.toString
     }
 
-  implicit final val DateInstance: Hash[Date] with Order[Date] with Show[Date] =
+  implicit final val dateInstance: Hash[Date] with Order[Date] with Show[Date] =
     new Hash[Date] with Order[Date] with Show[Date] {
       override def hash(x: Date): Int             = x.hashCode
       override def compare(x: Date, y: Date): Int = x.compareTo(y)

@@ -259,12 +259,12 @@ lazy val spark = (project in file("spark"))
   )
 
 lazy val graph = (project in file("graph"))
-  .dependsOn(database)
+  .dependsOn(spark)
   .settings(commonSettings: _*)
   .settings(name := "graph")
-  .settings(libraryDependencies ++= base ++ sparkLib ++ framelessLib ++ neo4jLib ++ tests)
+  .settings(libraryDependencies ++= neo4jLib ++ tests)
 
 lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
-    .aggregate(codec, datetime, kafka, database, spark)
+    .aggregate(codec, datetime, kafka, database, spark, graph)

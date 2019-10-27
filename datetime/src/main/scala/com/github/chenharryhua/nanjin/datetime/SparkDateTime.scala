@@ -22,7 +22,7 @@ object JavaOffsetDateTime {
   implicit val isoJavaOffsetDateTime: Iso[OffsetDateTime, JavaOffsetDateTime] =
     Iso[OffsetDateTime, JavaOffsetDateTime](JavaOffsetDateTime(_))(_.offsetDateTime)
 
-  implicit val JavaOffsetDateTimeInstance
+  implicit val javaOffsetDateTimeInstance
     : Hash[JavaOffsetDateTime] with Order[JavaOffsetDateTime] with Show[JavaOffsetDateTime] =
     new Hash[JavaOffsetDateTime] with Order[JavaOffsetDateTime] with Show[JavaOffsetDateTime] {
       override def hash(x: JavaOffsetDateTime): Int = x.hashCode
@@ -45,7 +45,7 @@ object JavaZonedDateTime {
   implicit val isoJavaZonedDateTime: Iso[ZonedDateTime, JavaZonedDateTime] =
     Iso[ZonedDateTime, JavaZonedDateTime](JavaZonedDateTime(_))(_.zonedDateTime)
 
-  implicit val JavaZonedDateTimeInstance
+  implicit val javaZonedDateTimeInstance
     : Hash[JavaZonedDateTime] with Order[JavaZonedDateTime] with Show[JavaZonedDateTime] =
     new Hash[JavaZonedDateTime] with Order[JavaZonedDateTime] with Show[JavaZonedDateTime] {
       override def hash(x: JavaZonedDateTime): Int = x.hashCode
@@ -54,5 +54,4 @@ object JavaZonedDateTime {
         x.zonedDateTime.compareTo(y.zonedDateTime)
       override def show(x: JavaZonedDateTime): String = x.zonedDateTime.show
     }
-
 }

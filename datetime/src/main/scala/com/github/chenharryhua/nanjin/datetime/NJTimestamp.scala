@@ -38,9 +38,12 @@ object NJTimestamp {
   implicit val NJTimestampInstance
     : Hash[NJTimestamp] with Order[NJTimestamp] with Show[NJTimestamp] =
     new Hash[NJTimestamp] with Order[NJTimestamp] with Show[NJTimestamp] {
-      override def hash(x: NJTimestamp): Int                    = x.hashCode
-      override def compare(x: NJTimestamp, y: NJTimestamp): Int = x.utc.compareTo(y.utc)
-      override def show(x: NJTimestamp): String                 = x.utc.toString
+      override def hash(x: NJTimestamp): Int = x.hashCode
+
+      override def compare(x: NJTimestamp, y: NJTimestamp): Int =
+        x.milliseconds.compareTo(y.milliseconds)
+
+      override def show(x: NJTimestamp): String = x.utc.toString
     }
 }
 
