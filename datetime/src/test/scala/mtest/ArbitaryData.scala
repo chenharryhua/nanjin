@@ -29,11 +29,10 @@ object ArbitaryData {
     Cogen[JavaOffsetDateTime]((a: JavaOffsetDateTime) => a.offsetDateTime.toEpochSecond)
 
   implicit val arbTimestamp: Arbitrary[Timestamp] = Arbitrary(
-    Gen.posNum[Long].map(new Timestamp(_)))
+    genZonedDateTimeWithZone(None).map(d => new Timestamp(d.toInstant.getEpochSecond)))
 
   implicit val arbKafkaTimestamp: Arbitrary[NJTimestamp] = Arbitrary(
-    Gen.posNum[Long].map(NJTimestamp(_))
-  )
+    genZonedDateTimeWithZone(None).map(d => NJTimestamp(d.toInstant.getEpochSecond)))
 
   implicit val arbDate: Arbitrary[Date] = Arbitrary(
     genZonedDateTimeWithZone(None).map(d => Date.valueOf(d.toLocalDate)))
