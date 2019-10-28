@@ -8,8 +8,8 @@ import org.apache.spark.sql.SparkSession
 import org.opencypher.morpheus.api.io.neo4j.Neo4jPropertyGraphDataSource
 import org.opencypher.morpheus.api.{GraphSources, MorpheusSession}
 import org.opencypher.morpheus.impl.table.SparkTable
-import org.opencypher.okapi.neo4j.io.{MetaLabelSupport, Neo4jConfig}
 import org.opencypher.okapi.api.graph.Namespace
+import org.opencypher.okapi.neo4j.io.{MetaLabelSupport, Neo4jConfig}
 import org.opencypher.okapi.relational.api.planning.RelationalCypherResult
 
 final case class NeotypesSession(settings: Neo4jSettings) {

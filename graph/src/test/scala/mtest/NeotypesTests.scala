@@ -15,7 +15,7 @@ final case class Person(name: String)
 
 class NeotypesTests extends AnyFunSuite {
 
-  val person = c"""MATCH (n:Person) RETURN n LIMIT 25"""
+  val person: DeferredQueryBuilder = c"""MATCH (n:Person) RETURN n LIMIT 25"""
 
   test("neotypes") {
     ntSession
