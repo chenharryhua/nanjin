@@ -22,7 +22,7 @@ val monix      = "3.0.0"
 val catsEffect = "2.0.0"
 
 val akkaKafka = "1.1.0"
-val fs2Kafka  = "0.20.1"
+val fs2Kafka  = "0.20.2"
 
 val sparkVersion = "2.4.4"
 val frameless    = "0.8.0"

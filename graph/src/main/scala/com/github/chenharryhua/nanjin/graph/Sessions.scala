@@ -33,7 +33,7 @@ final case class NeotypesSession(settings: Neo4jSettings) {
 
 final case class MorpheusNeo4jSession(settings: Neo4jSettings, spark: SparkSession) {
 
-  private val config: Neo4jConfig =
+  val config: Neo4jConfig =
     Neo4jConfig(settings.connStr.uri, settings.username.value, Some(settings.password.value))
 
   implicit val session: MorpheusSession    = MorpheusSession.create(spark)
