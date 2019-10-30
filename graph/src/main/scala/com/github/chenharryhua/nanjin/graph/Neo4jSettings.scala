@@ -5,6 +5,7 @@ import monocle.macros.Lenses
 import org.apache.spark.sql.SparkSession
 import org.neo4j.driver.v1.Config.ConfigBuilder
 import org.neo4j.driver.v1.{AuthToken, AuthTokens, Config}
+import cats.effect.Async
 
 @Lenses final case class Neo4jSettings(
   username: Username,
@@ -19,7 +20,7 @@ import org.neo4j.driver.v1.{AuthToken, AuthTokens, Config}
   val connStr: ConnectionString = ConnectionString(s"bolt://${host.value}:${port.value}")
   val auth: AuthToken           = AuthTokens.basic(username.value, password.value)
 
-  val neotypes: NeotypesSession                           = NeotypesSession(this)
+  def neotypes[F[_]: Async]: NeotypesSession[F]           = NeotypesSession[F](this)
   def morpheus(spark: SparkSession): MorpheusNeo4jSession = MorpheusNeo4jSession(this, spark)
 
 }

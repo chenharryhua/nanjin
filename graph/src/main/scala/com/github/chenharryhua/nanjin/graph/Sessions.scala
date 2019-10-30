@@ -12,22 +12,22 @@ import org.opencypher.okapi.api.graph.Namespace
 import org.opencypher.okapi.neo4j.io.{MetaLabelSupport, Neo4jConfig}
 import org.opencypher.okapi.relational.api.planning.RelationalCypherResult
 
-final case class NeotypesSession(settings: Neo4jSettings) {
+final case class NeotypesSession[F[_]: Async](settings: Neo4jSettings) {
 
-  def sessionResource[F[_]: Async]: Resource[F, Session[F]] =
+  def sessionResource: Resource[F, Session[F]] =
     for {
       driver <- GraphDatabase
         .driver[F](settings.connStr.value, settings.auth, settings.configBuilder.build())
       session <- driver.session
     } yield session
 
-  def transactionResource[F[_]: Async]: Resource[F, Transaction[F]] =
+  def transactionResource: Resource[F, Transaction[F]] =
     sessionResource.evalMap(_.transaction)
 
-  def sessionStream[F[_]: Async]: Stream[F, Session[F]] =
+  def sessionStream: Stream[F, Session[F]] =
     Stream.resource(sessionResource)
 
-  def transactionStream[F[_]: Async]: Stream[F, Transaction[F]] =
+  def transactionStream: Stream[F, Transaction[F]] =
     Stream.resource(transactionResource)
 }
 
