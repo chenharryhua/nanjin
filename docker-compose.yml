@@ -27,6 +27,6 @@ services:
     environment:
       NEO4J_AUTH: neo4j/test
     ports:
-      - 7474:7474
-      - 7473:7473
-      - 7687:7687      
+      - 7474:7474    #http
+      - 7473:7473    #https
+      - 7687:7687    #bolt  
