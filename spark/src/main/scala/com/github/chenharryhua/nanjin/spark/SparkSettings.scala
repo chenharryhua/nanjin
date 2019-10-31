@@ -29,6 +29,8 @@ import org.apache.spark.sql.SparkSession
 
   def sessionStream[F[_]: Sync]: Stream[F, SparkSession] =
     Stream.resource(sessionResource)
+
+  def njSparkSession: NJSparkSession = new NJSparkSession(session)
 }
 
 object SparkSettings {

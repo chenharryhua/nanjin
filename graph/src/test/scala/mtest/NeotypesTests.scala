@@ -19,7 +19,7 @@ class NeotypesTests extends AnyFunSuite {
 
   test("neotypes") {
     ntSession
-      .sessionStream[IO]
+      .sessionStream
       .flatMap(s => person.query[Person].stream[Stream[IO, *]](s))
       .showLinesStdOut
       .compile

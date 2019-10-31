@@ -16,5 +16,5 @@ package object mtest {
 
   val config                         = Neo4jSettings(Username("neo4j"), Password("test"), Host("localhost"), Port(7687))
   val morpheus: MorpheusNeo4jSession = config.morpheus(sparkSession)
-  val ntSession: NeotypesSession     = config.neotypes
+  val ntSession: NeotypesSession[IO]     = config.neotypes[IO]
 }
