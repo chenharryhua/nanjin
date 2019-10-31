@@ -27,5 +27,4 @@ private[spark] trait DatasetExtensions {
       params: FileFormat.Csv = FileFormat.Csv.default): TypedDataset[A] =
       TypedDataset.createUnsafe[A](sparkSession.read.options(params.options).csv(path))
   }
-
 }
