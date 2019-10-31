@@ -104,16 +104,11 @@ private[kafka] object SparKafka {
     tds: TypedDataset[SparKafkaProducerRecord[K, V]],
     uploadRate: UploadRate
   ): Stream[F, Chunk[RecordMetadata]] =
-    for {
-      kb <- Keyboard.signal[F]
-      ck <- tds
-        .stream[F]
-        .chunkN(uploadRate.batchSize)
-        .zipLeft(Stream.fixedRate(uploadRate.duration))
-        .evalMap(r => topic.producer.send(r.mapFilter(Option(_).map(_.toProducerRecord))))
-        .pauseWhen(kb.map(_.contains(Keyboard.pauSe)))
-        .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
-    } yield ck
+    tds
+      .stream[F]
+      .chunkN(uploadRate.batchSize)
+      .zipLeft(Stream.fixedRate(uploadRate.duration))
+      .evalMap(r => topic.producer.send(r.mapFilter(Option(_).map(_.toProducerRecord))))
 
   // load data from disk and then upload into kafka
   def replay[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
