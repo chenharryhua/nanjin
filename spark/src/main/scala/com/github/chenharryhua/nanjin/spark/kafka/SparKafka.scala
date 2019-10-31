@@ -106,7 +106,8 @@ private[kafka] object SparKafka {
   ): Stream[F, Chunk[RecordMetadata]] =
     for {
       kb <- Keyboard.signal[F]
-      ck <- tds.stream
+      ck <- tds
+        .stream[F]
         .chunkN(uploadRate.batchSize)
         .zipLeft(Stream.fixedRate(uploadRate.duration))
         .evalMap(r => topic.producer.send(r.mapFilter(Option(_).map(_.toProducerRecord))))
