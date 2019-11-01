@@ -215,6 +215,11 @@ val db = Seq(
   "org.tpolecat" %% "doobie-quill"      % doobie
 )
 
+val logs = Seq(
+  "org.apache.logging.log4j" % "log4j-core" % "2.12.1",
+  "org.slf4j" % "slf4j-api" % "2.0.0-alpha1"
+)
+
 lazy val codec = (project in file("codec"))
   .settings(commonSettings: _*)
   .settings(name := "codec")
@@ -253,7 +258,7 @@ lazy val spark = (project in file("spark"))
   .settings(commonSettings: _*)
   .settings(name := "spark")
   .settings(
-    libraryDependencies ++= sparkLib ++ framelessLib ++ tests,
+    libraryDependencies ++= sparkLib ++ framelessLib ++ logs ++ tests ,
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core"  % "jackson-databind" % "2.6.7.2",
       "org.json4s" %% "json4s-core" % "3.5.5"),
