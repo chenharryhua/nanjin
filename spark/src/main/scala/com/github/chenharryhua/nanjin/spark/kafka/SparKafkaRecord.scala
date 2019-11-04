@@ -60,10 +60,10 @@ object SparKafkaConsumerRecord {
   timestamp: Option[Long],
   key: Option[K],
   value: Option[V]) {
-
   def withTimestamp(ts: Long): SparKafkaProducerRecord[K, V] = copy(timestamp = Some(ts))
   def withPartition(pt: Int): SparKafkaProducerRecord[K, V]  = copy(partition = Some(pt))
   def withoutPartition: SparKafkaProducerRecord[K, V]        = copy(partition = None)
+  def withTopic(tpk: String): SparKafkaProducerRecord[K, V]  = copy(topic     = tpk)
 
   def withNow(clock: Clock): SparKafkaProducerRecord[K, V] =
     withTimestamp(NJTimestamp.now(clock).milliseconds)
@@ -96,5 +96,4 @@ object SparKafkaProducerRecord {
 
   def apply[K, V](topic: String, v: V): SparKafkaProducerRecord[K, V] =
     SparKafkaProducerRecord(topic, None, None, None, Option(v))
-
 }

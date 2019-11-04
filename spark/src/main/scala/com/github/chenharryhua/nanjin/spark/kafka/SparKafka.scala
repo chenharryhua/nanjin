@@ -108,7 +108,9 @@ private[kafka] object SparKafka {
       .stream[F]
       .chunkN(uploadRate.batchSize)
       .zipLeft(Stream.fixedRate(uploadRate.duration))
-      .evalMap(r => topic.producer.send(r.mapFilter(Option(_).map(_.toProducerRecord))))
+      .evalMap(r =>
+        topic.producer.send(
+          r.mapFilter(Option(_).map(_.withTopic(topic.topicDef.topicName).toProducerRecord))))
 
   // load data from disk and then upload into kafka
   def replay[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
