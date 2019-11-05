@@ -1,8 +1,5 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import java.sql.Timestamp
-import java.time._
-import java.util.concurrent.TimeUnit
 import java.{lang, util}
 
 import cats.implicits._
@@ -12,7 +9,6 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
 
 import scala.collection.JavaConverters._
-import scala.concurrent.duration.{Duration, FiniteDuration}
 
 final case class KafkaOffset(value: Long) extends AnyVal {
   def javaLong: java.lang.Long = value
@@ -42,7 +38,11 @@ final case class ListOfTopicPartitions(value: List[TopicPartition]) extends AnyV
   def get(topic: String, partition: Int): Option[V] =
     value.get(new TopicPartition(topic, partition))
 
-  def mapValues[W](f: V => W): GenericTopicPartition[W] = copy(value = value.mapValues(f))
+  def mapValues[W](f: V => W): GenericTopicPartition[W] =
+    copy(value = value.mapValues(f))
+
+  def map[W](f: (TopicPartition, V) => W): GenericTopicPartition[W] =
+    copy(value = value.map { case (k, v) => k -> f(k, v) })
 
   def combineWith[W](other: GenericTopicPartition[V])(fn: (V, V) => W): GenericTopicPartition[W] = {
     val res = value.keySet.intersect(other.value.keySet).toList.flatMap { tp =>
@@ -55,6 +55,9 @@ final case class ListOfTopicPartitions(value: List[TopicPartition]) extends AnyV
     copy(value = value.mapValues(ev).mapFilter(identity))
 
   def topicPartitions: ListOfTopicPartitions = ListOfTopicPartitions(value.keys.toList)
+
+  def offsets(implicit ev: V =:= Option[OffsetAndMetadata]): GenericTopicPartition[KafkaOffset] =
+    flatten[OffsetAndMetadata].mapValues(x => KafkaOffset(x.offset))
 }
 
 final case class KafkaConsumerGroupId(value: String) extends AnyVal

@@ -11,7 +11,7 @@ import cats.tagless._
 import cats.{Eval, Monad}
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import fs2.kafka.KafkaByteConsumer
-import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
 import org.apache.kafka.common.TopicPartition
 
 import scala.collection.JavaConverters._
@@ -21,7 +21,6 @@ import scala.util.Try
 @autoSemigroupalK
 @autoProductNK
 sealed trait KafkaPrimitiveConsumerApi[F[_]] {
-
   def partitionsFor: F[ListOfTopicPartitions]
   def beginningOffsets: F[GenericTopicPartition[Option[KafkaOffset]]]
   def endOffsets: F[GenericTopicPartition[Option[KafkaOffset]]]
@@ -30,6 +29,8 @@ sealed trait KafkaPrimitiveConsumerApi[F[_]] {
   def retrieveRecord(
     partition: KafkaPartition,
     offset: KafkaOffset): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]]
+
+  def commitSync(offsets: Map[TopicPartition, OffsetAndMetadata]): F[Unit]
 }
 
 object KafkaPrimitiveConsumerApi {
@@ -88,6 +89,9 @@ object KafkaPrimitiveConsumerApi {
         consumer.seek(tp, offset.value)
         consumer.poll(Duration.ofSeconds(15)).records(tp).asScala.toList.headOption
       }
+
+    def commitSync(offsets: Map[TopicPartition, OffsetAndMetadata]): F[Unit] =
+      kbc.ask.map(_.commitSync(offsets.asJava))
   }
 }
 
@@ -100,6 +104,10 @@ sealed trait KafkaConsumerApi[F[_], K, V] extends KafkaPrimitiveConsumerApi[F] {
   def retrieveRecordsForTimes(ts: NJTimestamp): F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
   def numOfRecords: F[GenericTopicPartition[Option[KafkaOffsetRange]]]
   def numOfRecordsSince(ts: NJTimestamp): F[GenericTopicPartition[Option[KafkaOffsetRange]]]
+
+  def resetOffsetsToBegin: F[Unit]
+  def resetOffsetsToEnd: F[Unit]
+  def resetOffsetsForTimes(ts: NJTimestamp): F[Unit]
 }
 
 object KafkaConsumerApi {
@@ -198,5 +206,21 @@ object KafkaConsumerApi {
       partition: KafkaPartition,
       offset: KafkaOffset): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]] =
       atomically(kpc.retrieveRecord(partition, offset))
+
+    override def commitSync(offsets: Map[TopicPartition, OffsetAndMetadata]): F[Unit] =
+      atomically(kpc.commitSync(offsets))
+
+    private def offsetsOf(
+      offsets: GenericTopicPartition[Option[KafkaOffset]]): Map[TopicPartition, OffsetAndMetadata] =
+      offsets.flatten[KafkaOffset].value.mapValues(x => new OffsetAndMetadata(x.value))
+
+    override def resetOffsetsToBegin: F[Unit] =
+      atomically(kpc.beginningOffsets.flatMap(x => kpc.commitSync(offsetsOf(x))))
+
+    override def resetOffsetsToEnd: F[Unit] =
+      atomically(kpc.endOffsets.flatMap(x => kpc.commitSync(offsetsOf(x))))
+
+    override def resetOffsetsForTimes(ts: NJTimestamp): F[Unit] =
+      atomically(kpc.offsetsForTimes(ts).flatMap(x => kpc.commitSync(offsetsOf(x))))
   }
 }

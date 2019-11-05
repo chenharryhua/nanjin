@@ -25,7 +25,7 @@ object SparKafkaStream {
       .create(
         spark.readStream
           .format("kafka")
-          .options(toSparkOptions(topic.kafkaConsumerSettings.props))
+          .options(toSparkOptions(topic.kafkaConsumerSettings.config))
           .option("subscribe", topic.topicDef.topicName)
           .load()
           .as[SparKafkaConsumerRecord[Array[Byte], Array[Byte]]])
@@ -42,5 +42,4 @@ object SparKafkaStream {
 
   def start[F[_], A](dsw: DataStreamWriter[A])(implicit bkt: Bracket[F, Throwable]): F[Unit] =
     bkt.bracket(bkt.pure(dsw.start))(s => bkt.pure(s.awaitTermination()))(s => bkt.pure(s.stop()))
-
 }

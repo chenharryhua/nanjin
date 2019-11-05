@@ -38,7 +38,7 @@ final class KafkaStreamRunner[F[_]](settings: KafkaStreamSettings)(
         .bracket(F.delay {
           val builder: StreamsBuilder = new StreamsBuilder
           topology.run(builder)
-          new KafkaStreams(builder.build(), settings.settings)
+          new KafkaStreams(builder.build(), settings.streamProperties)
         })(ks => F.delay(ks.close()))
         .evalMap(ks =>
           F.delay {

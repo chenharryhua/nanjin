@@ -43,7 +43,7 @@ private[kafka] object SparKafka {
           KafkaUtils
             .createRDD[Array[Byte], Array[Byte]](
               sparkSession.sparkContext,
-              props(topic.kafkaConsumerSettings.props),
+              props(topic.kafkaConsumerSettings.config),
               KafkaOffsets.offsetRange(gtp),
               locationStrategy)
             .mapPartitions { crs =>

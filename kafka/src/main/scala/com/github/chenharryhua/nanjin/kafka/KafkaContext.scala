@@ -18,7 +18,6 @@ import com.github.chenharryhua.nanjin.codec.KafkaSerde
 
 sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
   settings: KafkaSettings) {
-
   protected lazy val akkaSystem: ActorSystem         = ActorSystem("nanjin")
   protected lazy val materializer: ActorMaterializer = ActorMaterializer.create(akkaSystem)
 
@@ -26,7 +25,7 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
     Eval.later {
       val consumerClient: KafkaConsumer[Array[Byte], Array[Byte]] =
         new KafkaConsumer[Array[Byte], Array[Byte]](
-          settings.consumerSettings.sharedConsumerSettings,
+          settings.consumerSettings.consumerProperties,
           new ByteArrayDeserializer,
           new ByteArrayDeserializer)
       ConcurrentEffect[F].toIO(MVar.of[F, KafkaByteConsumer](consumerClient)).unsafeRunSync()
@@ -35,22 +34,22 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
   final private[this] val sharedProducer: Eval[KafkaByteProducer] =
     Eval.later {
       new KafkaProducer[Array[Byte], Array[Byte]](
-        settings.producerSettings.sharedProducerSettings,
+        settings.producerSettings.producerProperties,
         new ByteArraySerializer,
         new ByteArraySerializer)
     }
 
   final private[this] val adminClientSettings: AdminClientSettings[F] =
-    AdminClientSettings[F].withProperties(settings.sharedAdminSettings.props)
+    AdminClientSettings[F].withProperties(settings.sharedAdminSettings.config)
 
   final val admin: Resource[F, KafkaAdminClient[F]] =
     adminClientResource(adminClientSettings)
 
   final def asKey[K: SerdeOf]: KafkaSerde.Key[K] =
-    SerdeOf[K].asKey(settings.schemaRegistrySettings.props)
+    SerdeOf[K].asKey(settings.schemaRegistrySettings.config)
 
   final def asValue[V: SerdeOf]: KafkaSerde.Value[V] =
-    SerdeOf[V].asValue(settings.schemaRegistrySettings.props)
+    SerdeOf[V].asValue(settings.schemaRegistrySettings.config)
 
   final def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] =
     KafkaTopic[F, K, V](
@@ -69,7 +68,6 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
 
   final def kafkaStreams(topology: Reader[StreamsBuilder, Unit]): Stream[F, KafkaStreams] =
     new KafkaStreamRunner[F](settings.streamSettings).stream(topology)
-
 }
 
 final class IoKafkaContext(settings: KafkaSettings)(implicit cs: ContextShift[IO], timer: Timer[IO])

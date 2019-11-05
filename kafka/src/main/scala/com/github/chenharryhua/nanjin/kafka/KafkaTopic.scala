@@ -19,7 +19,6 @@ final case class TopicDef[K, V](topicName: String)(
   val serdeOfValue: SerdeOf[V],
   val showKey: Show[K],
   val showValue: Show[V]) {
-
   val keySchemaLoc: String   = s"$topicName-key"
   val valueSchemaLoc: String = s"$topicName-value"
 
@@ -79,7 +78,7 @@ final case class KafkaTopic[F[_], K, V] private[kafka] (
   import topicDef.{serdeOfKey, serdeOfValue, showKey, showValue}
 
   val consumerGroupId: Option[KafkaConsumerGroupId] =
-    KafkaConsumerSettings.props
+    KafkaConsumerSettings.config
       .composeLens(At.at(ConsumerConfig.GROUP_ID_CONFIG))
       .get(kafkaConsumerSettings)
       .map(KafkaConsumerGroupId)
@@ -87,8 +86,9 @@ final case class KafkaTopic[F[_], K, V] private[kafka] (
   override def extract(key: K, value: V, rc: RecordContext): String = topicDef.topicName
 
   val codec: TopicCodec[K, V] = TopicCodec(
-    serdeOfKey.asKey(schemaRegistrySettings.props).codec(topicDef.topicName),
-    serdeOfValue.asValue(schemaRegistrySettings.props).codec(topicDef.topicName))
+    serdeOfKey.asKey(schemaRegistrySettings.config).codec(topicDef.topicName),
+    serdeOfValue.asValue(schemaRegistrySettings.config).codec(topicDef.topicName)
+  )
 
   def decoder[G[_, _]: Bitraverse](cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
     new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valueCodec)

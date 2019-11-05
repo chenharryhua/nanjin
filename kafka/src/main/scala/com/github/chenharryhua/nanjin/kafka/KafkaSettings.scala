@@ -30,65 +30,58 @@ import org.apache.kafka.streams.StreamsConfig
 
 import scala.util.Try
 
-@Lenses final case class KafkaConsumerSettings(props: Map[String, String]) {
+@Lenses final case class KafkaConsumerSettings(config: Map[String, String]) {
 
   def fs2ConsumerSettings[F[_]: Sync]: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]] =
     Fs2ConsumerSettings[F, Array[Byte], Array[Byte]](
       Fs2Deserializer.delegate(new ByteArrayDeserializer),
-      Fs2Deserializer.delegate(new ByteArrayDeserializer)).withProperties(props)
+      Fs2Deserializer.delegate(new ByteArrayDeserializer)).withProperties(config)
 
   def akkaConsumerSettings(system: ActorSystem): AkkaConsumerSettings[Array[Byte], Array[Byte]] =
     AkkaConsumerSettings[Array[Byte], Array[Byte]](
       system,
       new ByteArrayDeserializer,
-      new ByteArrayDeserializer).withProperties(props)
+      new ByteArrayDeserializer).withProperties(config)
 
   def akkaCommitterSettings(system: ActorSystem): AkkaCommitterSettings =
     AkkaCommitterSettings(system)
 
-  val sharedConsumerSettings: Properties = utils.toProperties(
-    props ++ Map(
-      ConsumerConfig.CLIENT_ID_CONFIG -> s"shared-consumer-${utils.random4d.value}",
-      ConsumerConfig.AUTO_OFFSET_RESET_CONFIG -> "earliest",
-      ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG -> "false"
-    ))
+  val consumerProperties: Properties = utils.toProperties(config)
 }
 
-@Lenses final case class KafkaProducerSettings(props: Map[String, String]) {
+@Lenses final case class KafkaProducerSettings(config: Map[String, String]) {
 
   def fs2ProducerSettings[F[_]: Sync, K, V](
     kser: Serializer[K],
     vser: Serializer[V]): Fs2ProducerSettings[F, K, V] =
     Fs2ProducerSettings[F, K, V](Fs2Serializer.delegate(kser), Fs2Serializer.delegate(vser))
-      .withProperties(props)
+      .withProperties(config)
 
   def akkaProducerSettings[K, V](
     system: ActorSystem,
     kser: Serializer[K],
     vser: Serializer[V]): AkkaProducerSettings[K, V] =
-    AkkaProducerSettings[K, V](system, kser, vser).withProperties(props)
+    AkkaProducerSettings[K, V](system, kser, vser).withProperties(config)
 
-  val sharedProducerSettings: Properties = utils.toProperties(
-    props ++ Map(ConsumerConfig.CLIENT_ID_CONFIG -> s"shared-producer-${utils.random4d.value}"))
+  val producerProperties: Properties = utils.toProperties(config)
 }
 
-@Lenses final case class KafkaStreamSettings(props: Map[String, String]) {
-  val settings: Properties = utils.toProperties(props)
+@Lenses final case class KafkaStreamSettings(config: Map[String, String]) {
+  val streamProperties: Properties = utils.toProperties(config)
 }
 
-@Lenses final case class SharedAdminSettings(props: Map[String, String]) {
-  val settings: Properties = utils.toProperties(props)
+@Lenses final case class SharedAdminSettings(config: Map[String, String]) {
+  val adminProperties: Properties = utils.toProperties(config)
 }
 
-@Lenses final case class SchemaRegistrySettings(props: Map[String, String]) {
-
+@Lenses final case class SchemaRegistrySettings(config: Map[String, String]) {
   private[this] val srTag: String = AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG
 
   val csrClient: Eval[CachedSchemaRegistryClient] =
-    Eval.later(props.get(srTag) match {
+    Eval.later(config.get(srTag) match {
       case None => sys.error(s"$srTag was mandatory but not configured")
       case Some(url) =>
-        val size: Int = props
+        val size: Int = config
           .get(AbstractKafkaAvroSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DOC)
           .flatMap(n => Try(n.toInt).toOption)
           .getOrElse(AbstractKafkaAvroSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DEFAULT)
@@ -106,10 +99,10 @@ import scala.util.Try
   private def updateAll(key: String, value: String): KafkaSettings =
     Traversal
       .applyN[KafkaSettings, Map[String, String]](
-        KafkaSettings.consumerSettings.composeLens(KafkaConsumerSettings.props),
-        KafkaSettings.producerSettings.composeLens(KafkaProducerSettings.props),
-        KafkaSettings.streamSettings.composeLens(KafkaStreamSettings.props),
-        KafkaSettings.sharedAdminSettings.composeLens(SharedAdminSettings.props)
+        KafkaSettings.consumerSettings.composeLens(KafkaConsumerSettings.config),
+        KafkaSettings.producerSettings.composeLens(KafkaProducerSettings.config),
+        KafkaSettings.streamSettings.composeLens(KafkaStreamSettings.config),
+        KafkaSettings.sharedAdminSettings.composeLens(SharedAdminSettings.config)
       )
       .composeLens(at(key))
       .set(Some(value))(this)
@@ -125,7 +118,7 @@ import scala.util.Try
 
   def withSchemaRegistryProperty(key: String, value: String): KafkaSettings =
     KafkaSettings.schemaRegistrySettings
-      .composeLens(SchemaRegistrySettings.props)
+      .composeLens(SchemaRegistrySettings.config)
       .composeLens(at(key))
       .set(Some(value))(this)
 
@@ -134,19 +127,19 @@ import scala.util.Try
 
   def withProducerProperty(key: String, value: String): KafkaSettings =
     KafkaSettings.producerSettings
-      .composeLens(KafkaProducerSettings.props)
+      .composeLens(KafkaProducerSettings.config)
       .composeLens(at(key))
       .set(Some(value))(this)
 
   def withConsumerProperty(key: String, value: String): KafkaSettings =
     KafkaSettings.consumerSettings
-      .composeLens(KafkaConsumerSettings.props)
+      .composeLens(KafkaConsumerSettings.config)
       .composeLens(at(key))
       .set(Some(value))(this)
 
   def withStreamingProperty(key: String, value: String): KafkaSettings =
     KafkaSettings.streamSettings
-      .composeLens(KafkaStreamSettings.props)
+      .composeLens(KafkaStreamSettings.config)
       .composeLens(at(key))
       .set(Some(value))(this)
 
@@ -199,5 +192,4 @@ object KafkaSettings {
       .withBrokers("localhost:9092")
       .withSchemaRegistryUrl("http://localhost:8081")
       .withSecurityProtocol(SecurityProtocol.PLAINTEXT)
-
 }
