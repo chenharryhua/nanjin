@@ -5,8 +5,8 @@ import java.{lang, util}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import monocle.macros.Lenses
-import org.apache.kafka.clients.consumer.OffsetAndMetadata
-import org.apache.kafka.common.TopicPartition
+import org.apache.kafka.clients.consumer.{OffsetAndMetadata, OffsetAndTimestamp}
+import org.apache.kafka.common.{PartitionInfo, TopicPartition}
 
 import scala.collection.JavaConverters._
 
@@ -56,8 +56,9 @@ final case class ListOfTopicPartitions(value: List[TopicPartition]) extends AnyV
 
   def topicPartitions: ListOfTopicPartitions = ListOfTopicPartitions(value.keys.toList)
 
-  def offsets(implicit ev: V =:= Option[OffsetAndMetadata]): GenericTopicPartition[KafkaOffset] =
-    flatten[OffsetAndMetadata].mapValues(x => KafkaOffset(x.offset))
+  def offsets(
+    implicit ev: V =:= Option[OffsetAndTimestamp]): GenericTopicPartition[Option[KafkaOffset]] =
+    copy(value = value.mapValues(_.map(x => KafkaOffset(x.offset))))
 }
 
 final case class KafkaConsumerGroupId(value: String) extends AnyVal

@@ -13,13 +13,20 @@ import scala.collection.JavaConverters._
 
 final class ConsumerWrapper[F[_]](consumer: KafkaByteConsumer)(implicit F: Sync[F]) {
 
-  def partitionsFor(topicName: String): F[List[PartitionInfo]] =
-    F.delay(consumer.partitionsFor(topicName).asScala.toList.mapFilter(Option(_)))
+  def partitionsFor(topicName: String): F[GenericTopicPartition[PartitionInfo]] =
+    F.delay(
+        consumer
+          .partitionsFor(topicName)
+          .asScala
+          .toList
+          .mapFilter(Option(_))
+          .map(info => new TopicPartition(info.topic, info.partition) -> info)
+          .toMap)
+      .map(GenericTopicPartition(_))
 
   def beginningOffsets(topicName: String): F[GenericTopicPartition[Option[KafkaOffset]]] =
     for {
-      tps <- partitionsFor(topicName).map(_.map(info =>
-        new TopicPartition(topicName, info.partition)))
+      tps <- partitionsFor(topicName).map(_.topicPartitions)
       ret <- F.delay(
         consumer
           .beginningOffsets(tps.asJava)
@@ -30,8 +37,7 @@ final class ConsumerWrapper[F[_]](consumer: KafkaByteConsumer)(implicit F: Sync[
 
   def endOffsets(topicName: String): F[GenericTopicPartition[Option[KafkaOffset]]] =
     for {
-      tps <- partitionsFor(topicName).map(_.map(info =>
-        new TopicPartition(topicName, info.partition)))
+      tps <- partitionsFor(topicName).map(_.topicPartitions)
       ret <- F.delay(
         consumer.endOffsets(tps.asJava).asScala.toMap.mapValues(Option(_).map(KafkaOffset(_))))
     } yield GenericTopicPartition(ret)
@@ -40,8 +46,7 @@ final class ConsumerWrapper[F[_]](consumer: KafkaByteConsumer)(implicit F: Sync[
     topicName: String,
     ts: NJTimestamp): F[GenericTopicPartition[Option[OffsetAndTimestamp]]] =
     for {
-      tps <- partitionsFor(topicName).map(lpi =>
-        ListOfTopicPartitions(lpi.map(info => new TopicPartition(topicName, info.partition))))
+      tps <- partitionsFor(topicName).map(_.topicPartitions)
       ret <- F.delay {
         consumer.offsetsForTimes(tps.javaTimed(ts)).asScala.toMap.mapValues(Option(_))
       }
@@ -50,8 +55,7 @@ final class ConsumerWrapper[F[_]](consumer: KafkaByteConsumer)(implicit F: Sync[
   def retrieveRecord(gtp: GenericTopicPartition[KafkaOffset])
     : F[GenericTopicPartition[Option[KafkaByteConsumerRecord]]] =
     F.delay {
-      val tps = gtp.topicPartitions.value
-      consumer.assign(tps.asJava)
+      consumer.assign(gtp.topicPartitions.asJava)
       gtp.map {
         case (tp, offset) =>
           consumer.seek(tp, offset.value)
@@ -64,12 +68,9 @@ final class ConsumerWrapper[F[_]](consumer: KafkaByteConsumer)(implicit F: Sync[
     dtr: NJDateTimeRange): F[GenericTopicPartition[KafkaOffsetRange]] =
     for {
       start <- dtr.start.fold(beginningOffsets(topicName))(
-        offsetsForTimes(topicName, _).map(_.mapValues(_.map(x => KafkaOffset(x.offset)))))
-      end <- dtr.end.fold(endOffsets(topicName))(
-        offsetsForTimes(topicName, _).map(_.mapValues(_.map(x => KafkaOffset(x.offset)))))
+        offsetsForTimes(topicName, _).map(_.offsets))
+      end <- dtr.end.fold(endOffsets(topicName))(offsetsForTimes(topicName, _).map(_.offsets))
     } yield start
       .combineWith(end)((_, _).mapN((f, s) => KafkaOffsetRange(f, s)))
       .flatten[KafkaOffsetRange]
-
-      
 }
