@@ -38,8 +38,9 @@ final class ConsumerWrapper[F[_]](consumer: KafkaByteConsumer)(implicit F: Sync[
   def endOffsets(topicName: String): F[GenericTopicPartition[Option[KafkaOffset]]] =
     for {
       tps <- partitionsFor(topicName).map(_.topicPartitions)
-      ret <- F.delay(
-        consumer.endOffsets(tps.asJava).asScala.toMap.mapValues(Option(_).map(KafkaOffset(_))))
+      ret <- F.delay {
+        consumer.endOffsets(tps.asJava).asScala.toMap.mapValues(Option(_).map(KafkaOffset(_)))
+      }
     } yield GenericTopicPartition(ret)
 
   def offsetsForTimes(
