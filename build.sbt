@@ -18,7 +18,7 @@ val refined    = "0.9.10"
 val droste     = "0.7.0"
 
 val zioCats    = "2.0.0.0-RC7"
-val monix      = "3.0.0"
+val monix      = "3.1.0"
 val catsEffect = "2.0.0"
 
 val akkaKafka = "1.1.0"
