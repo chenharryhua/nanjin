@@ -9,6 +9,8 @@ import monocle.Iso
 import monocle.macros.Lenses
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.util.Try
+import java.time.format.DateTimeFormatter
 
 final case class NJTimestamp(milliseconds: Long) extends AnyVal {
   def instant: Instant                      = Instant.ofEpochMilli(milliseconds)
@@ -18,7 +20,6 @@ final case class NJTimestamp(milliseconds: Long) extends AnyVal {
 }
 
 object NJTimestamp {
-
   def apply(ts: Timestamp): NJTimestamp     = NJTimestamp(ts.getTime)
   def apply(ts: Instant): NJTimestamp       = NJTimestamp(ts.toEpochMilli)
   def apply(ts: ZonedDateTime): NJTimestamp = apply(ts.toInstant)
@@ -28,6 +29,13 @@ object NJTimestamp {
 
   def apply(ts: LocalDate, zoneId: ZoneId): NJTimestamp =
     apply(LocalDateTime.of(ts, LocalTime.MIDNIGHT), zoneId)
+
+  def parse(
+    dateTimeStr: String,
+    zoneId: ZoneId,
+    formatter: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME): Option[NJTimestamp] =
+    Try(LocalDateTime.parse(dateTimeStr, formatter)).toOption.map(ldt =>
+      NJTimestamp(ZonedDateTime.of(ldt, zoneId)))
 
   def now(clock: Clock): NJTimestamp = NJTimestamp(Instant.now(clock))
 
