@@ -18,7 +18,8 @@ private[spark] trait DatasetExtensions {
       for {
         kb <- Keyboard.signal[F]
         data <- Stream
-          .eval(tds.toLocalIterator.map(it => Stream.fromIterator[F](it.asScala)))
+          .eval(
+            tds.toLocalIterator.map(it => Stream.fromIterator[F](it.asScala.flatMap(Option(_)))))
           .flatten
           .pauseWhen(kb.map(_.contains(Keyboard.pauSe)))
           .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
