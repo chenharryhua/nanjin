@@ -15,7 +15,7 @@ val catsTime   = "0.3.0"
 val tagless    = "0.10"
 val monocle    = "2.0.0"
 val refined    = "0.9.10"
-val droste     = "0.7.0"
+val droste     = "0.8.0"
 
 val zioCats    = "2.0.0.0-RC7"
 val monix      = "3.1.0"
