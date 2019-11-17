@@ -197,6 +197,8 @@ val base = Seq(
   "com.propensive" %% "contextual"         % contextual,
   "com.chuusai" %% "shapeless"             % shapeless,
   "io.higherkindness" %% "droste-core"     % droste,
+  "io.higherkindness" %% "droste-macros"   % droste,
+  "io.higherkindness" %% "droste-meta"     % droste,
   "org.typelevel" %% "cats-tagless-macros" % tagless
 )
 
