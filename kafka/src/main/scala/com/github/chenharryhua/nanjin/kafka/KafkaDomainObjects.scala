@@ -5,9 +5,9 @@ import java.{lang, util}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import monocle.Iso
-import monocle.macros.{GenIso, Lenses}
+import monocle.macros.GenIso
 import org.apache.kafka.clients.consumer.{OffsetAndMetadata, OffsetAndTimestamp}
-import org.apache.kafka.common.{PartitionInfo, TopicPartition}
+import org.apache.kafka.common.TopicPartition
 
 import scala.collection.JavaConverters._
 
@@ -30,7 +30,7 @@ final case class ListOfTopicPartitions(value: List[TopicPartition]) extends AnyV
   def asJava: util.List[TopicPartition] = value.asJava
 }
 
-@Lenses final case class GenericTopicPartition[V](value: Map[TopicPartition, V]) extends AnyVal {
+final case class GenericTopicPartition[V](value: Map[TopicPartition, V]) extends AnyVal {
   def nonEmpty: Boolean = value.nonEmpty
   def isEmpty: Boolean  = value.isEmpty
 
