@@ -4,7 +4,8 @@ import java.{lang, util}
 
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import monocle.macros.Lenses
+import monocle.Iso
+import monocle.macros.{GenIso, Lenses}
 import org.apache.kafka.clients.consumer.{OffsetAndMetadata, OffsetAndTimestamp}
 import org.apache.kafka.common.{PartitionInfo, TopicPartition}
 
@@ -59,6 +60,12 @@ final case class ListOfTopicPartitions(value: List[TopicPartition]) extends AnyV
   def offsets(
     implicit ev: V =:= Option[OffsetAndTimestamp]): GenericTopicPartition[Option[KafkaOffset]] =
     copy(value = value.mapValues(_.map(x => KafkaOffset(x.offset))))
+}
+
+object GenericTopicPartition {
+
+  implicit def isoGenericTopicPartition[V]: Iso[GenericTopicPartition[V], Map[TopicPartition, V]] =
+    GenIso[GenericTopicPartition[V], Map[TopicPartition, V]]
 }
 
 final case class KafkaConsumerGroupId(value: String) extends AnyVal
