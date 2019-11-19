@@ -44,6 +44,8 @@ val quill  = "3.4.10"
 
 val neotypes = "0.13.0"
 
+val flinkVersion = "1.9.1"
+
 lazy val commonSettings = Seq(
   version      := "0.0.1-SNAPSHOT",
   organization := "com.github.chenharryhua",
@@ -77,6 +79,11 @@ lazy val commonSettings = Seq(
     "-Xfuture"
   )
 )
+
+val flinkLib = Seq(
+  "org.apache.flink" %% "flink-connector-kafka",
+  "org.apache.flink" %% "flink-streaming-scala"
+).map(_ % flinkVersion)
 
 val neo4jLib = Seq(
   "com.dimafeng" %% "neotypes",
@@ -265,6 +272,11 @@ lazy val spark = (project in file("spark"))
       "org.json4s" %% "json4s-core" % "3.5.5"),
     Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
   )
+lazy val flink = (project in file("flink"))
+  .dependsOn(kafka)
+  .settings(commonSettings: _*)
+  .settings(name := "flink")
+  .settings(libraryDependencies ++= flinkLib ++ tests)
 
 lazy val graph = (project in file("graph"))
   .dependsOn(spark)
@@ -281,4 +293,4 @@ lazy val graph = (project in file("graph"))
 lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
-    .aggregate(codec, datetime, kafka, database, spark, graph)
+    .aggregate(codec, datetime, kafka, flink, database, spark, graph)

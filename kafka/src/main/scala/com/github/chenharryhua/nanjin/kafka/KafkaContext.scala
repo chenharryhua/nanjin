@@ -17,7 +17,7 @@ import org.apache.kafka.streams.scala.StreamsBuilder
 import com.github.chenharryhua.nanjin.codec.KafkaSerde
 
 sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
-  settings: KafkaSettings) {
+  val settings: KafkaSettings) {
   protected lazy val akkaSystem: ActorSystem         = ActorSystem("nanjin")
   protected lazy val materializer: ActorMaterializer = ActorMaterializer.create(akkaSystem)
 
