@@ -280,6 +280,7 @@ lazy val flink = (project in file("flink"))
 
 lazy val graph = (project in file("graph"))
   .dependsOn(spark)
+  .dependsOn(flink)
   .settings(commonSettings: _*)
   .settings(name := "graph")
   .settings(
