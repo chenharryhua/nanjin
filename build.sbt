@@ -82,7 +82,8 @@ lazy val commonSettings = Seq(
 
 val flinkLib = Seq(
   "org.apache.flink" %% "flink-connector-kafka",
-  "org.apache.flink" %% "flink-streaming-scala"
+  "org.apache.flink" %% "flink-streaming-scala",
+  "org.apache.flink" %% "flink-gelly"
 ).map(_ % flinkVersion)
 
 val neo4jLib = Seq(
