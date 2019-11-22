@@ -3,15 +3,15 @@ package com.github.chenharryhua.nanjin.kafka
 import akka.stream.ActorMaterializer
 import cats.effect.concurrent.MVar
 import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
+import cats.implicits._
 import cats.{Bitraverse, Eval, Show}
 import com.github.chenharryhua.nanjin.codec._
 import fs2.kafka.{AdminClientSettings, KafkaByteConsumer, KafkaByteProducer}
 import monocle.function.At
-import org.apache.kafka.clients.consumer.ConsumerConfig
-import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
-import cats.implicits._
 import org.apache.avro.Schema
+import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
+import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
 final case class TopicDef[K, V](topicName: String)(
   implicit
@@ -63,9 +63,7 @@ final case class TopicCodec[K, V] private[kafka] (
 
 final case class KafkaTopic[F[_], K, V] private[kafka] (
   topicDef: TopicDef[K, V],
-  schemaRegistrySettings: SchemaRegistrySettings,
-  kafkaConsumerSettings: KafkaConsumerSettings,
-  kafkaProducerSettings: KafkaProducerSettings,
+  context: KafkaContext[F],
   adminSettings: AdminClientSettings[F],
   sharedConsumer: Eval[MVar[F, KafkaByteConsumer]],
   sharedProducer: Eval[KafkaByteProducer],
@@ -80,14 +78,14 @@ final case class KafkaTopic[F[_], K, V] private[kafka] (
   val consumerGroupId: Option[KafkaConsumerGroupId] =
     KafkaConsumerSettings.config
       .composeLens(At.at(ConsumerConfig.GROUP_ID_CONFIG))
-      .get(kafkaConsumerSettings)
+      .get(context.settings.consumerSettings)
       .map(KafkaConsumerGroupId)
 
   override def extract(key: K, value: V, rc: RecordContext): String = topicDef.topicName
 
   val codec: TopicCodec[K, V] = TopicCodec(
-    serdeOfKey.asKey(schemaRegistrySettings.config).codec(topicDef.topicName),
-    serdeOfValue.asValue(schemaRegistrySettings.config).codec(topicDef.topicName)
+    serdeOfKey.asKey(context.settings.schemaRegistrySettings.config).codec(topicDef.topicName),
+    serdeOfValue.asValue(context.settings.schemaRegistrySettings.config).codec(topicDef.topicName)
   )
 
   def decoder[G[_, _]: Bitraverse](cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
@@ -97,19 +95,20 @@ final case class KafkaTopic[F[_], K, V] private[kafka] (
   val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
     new KafkaChannels.Fs2Channel[F, K, V](
       topicDef.topicName,
-      kafkaProducerSettings.fs2ProducerSettings(codec.keySerializer, codec.valueSerializer),
-      kafkaConsumerSettings.fs2ConsumerSettings)
+      context.settings.producerSettings
+        .fs2ProducerSettings(codec.keySerializer, codec.valueSerializer),
+      context.settings.consumerSettings.fs2ConsumerSettings)
 
   val akkaResource: Resource[F, KafkaChannels.AkkaChannel[F, K, V]] = Resource.make(
     ConcurrentEffect[F].delay(
       new KafkaChannels.AkkaChannel[F, K, V](
         topicDef.topicName,
-        kafkaProducerSettings.akkaProducerSettings(
+        context.settings.producerSettings.akkaProducerSettings(
           materializer.value.system,
           codec.keySerializer,
           codec.valueSerializer),
-        kafkaConsumerSettings.akkaConsumerSettings(materializer.value.system),
-        kafkaConsumerSettings.akkaCommitterSettings(materializer.value.system),
+        context.settings.consumerSettings.akkaConsumerSettings(materializer.value.system),
+        context.settings.consumerSettings.akkaCommitterSettings(materializer.value.system),
         materializer.value)))(_ => ConcurrentEffect[F].unit)
 
   val kafkaStream: KafkaChannels.StreamingChannel[K, V] =

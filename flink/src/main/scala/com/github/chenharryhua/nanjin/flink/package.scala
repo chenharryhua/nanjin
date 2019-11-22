@@ -1,3 +1,3 @@
 package com.github.chenharryhua.nanjin
 
-package object flink extends FlinkExtension {}
+package object flink extends FlinkExtensions {}

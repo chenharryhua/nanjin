@@ -54,9 +54,7 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
   final def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] =
     KafkaTopic[F, K, V](
       topicDef,
-      settings.schemaRegistrySettings,
-      settings.consumerSettings,
-      settings.producerSettings,
+      this,
       adminClientSettings,
       sharedConsumer,
       sharedProducer,
