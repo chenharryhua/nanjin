@@ -196,7 +196,7 @@ val kafkaLib = Seq(
     "com.ovoenergy" %% "fs2-kafka"             % fs2Kafka)
 
 val base = Seq(
-  "com.codecommit" %% "skolems" % "0.1.1",
+  "com.codecommit" %% "skolems" % "0.1.2",
   "io.chrisdavenport" %% "cats-time"       % catsTime,
   "eu.timepit" %% "refined"                % refined,
   "org.typelevel" %% "cats-core"           % catsCore,
