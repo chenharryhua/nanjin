@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.effect.{Concurrent, ContextShift, Resource}
 import cats.implicits._
 import cats.tagless.{autoFunctorK, autoSemigroupalK}
-import fs2.kafka.{adminClientResource, KafkaAdminClient}
+import fs2.kafka.{adminClientResource, AdminClientSettings, KafkaAdminClient}
 import org.apache.kafka.clients.admin.TopicDescription
 
 // delegate to https://ovotech.github.io/fs2-kafka/
@@ -27,7 +27,8 @@ object KafkaTopicAdminApi {
       extends KafkaTopicAdminApi[F] {
 
     private val admin: Resource[F, KafkaAdminClient[F]] =
-      adminClientResource[F](topic.adminSettings)
+      adminClientResource[F](
+        AdminClientSettings[F].withProperties(topic.context.settings.sharedAdminSettings.config))
 
     override def IdefinitelyWantDeleteTheTopic: F[Unit] =
       admin.use(_.deleteTopic(topic.topicDef.topicName))

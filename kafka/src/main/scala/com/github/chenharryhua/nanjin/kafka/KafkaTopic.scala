@@ -1,12 +1,9 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import akka.stream.ActorMaterializer
-import cats.effect.concurrent.MVar
 import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
 import cats.implicits._
-import cats.{Bitraverse, Eval, Show}
+import cats.{Bitraverse, Show}
 import com.github.chenharryhua.nanjin.codec._
-import fs2.kafka.{AdminClientSettings, KafkaByteConsumer, KafkaByteProducer}
 import monocle.function.At
 import org.apache.avro.Schema
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -63,11 +60,7 @@ final case class TopicCodec[K, V] private[kafka] (
 
 final case class KafkaTopic[F[_], K, V] private[kafka] (
   topicDef: TopicDef[K, V],
-  context: KafkaContext[F],
-  adminSettings: AdminClientSettings[F],
-  sharedConsumer: Eval[MVar[F, KafkaByteConsumer]],
-  sharedProducer: Eval[KafkaByteProducer],
-  materializer: Eval[ActorMaterializer])(
+  context: KafkaContext[F])(
   implicit
   val concurrentEffect: ConcurrentEffect[F],
   val contextShift: ContextShift[F],
@@ -104,12 +97,12 @@ final case class KafkaTopic[F[_], K, V] private[kafka] (
       new KafkaChannels.AkkaChannel[F, K, V](
         topicDef.topicName,
         context.settings.producerSettings.akkaProducerSettings(
-          materializer.value.system,
+          context.akkaSystem.value,
           codec.keySerializer,
           codec.valueSerializer),
-        context.settings.consumerSettings.akkaConsumerSettings(materializer.value.system),
-        context.settings.consumerSettings.akkaCommitterSettings(materializer.value.system),
-        materializer.value)))(_ => ConcurrentEffect[F].unit)
+        context.settings.consumerSettings.akkaConsumerSettings(context.akkaSystem.value),
+        context.settings.consumerSettings.akkaCommitterSettings(context.akkaSystem.value),
+        context.materializer.value)))(_ => ConcurrentEffect[F].unit)
 
   val kafkaStream: KafkaChannels.StreamingChannel[K, V] =
     new KafkaChannels.StreamingChannel[K, V](topicDef.topicName, codec.keySerde, codec.valueSerde)

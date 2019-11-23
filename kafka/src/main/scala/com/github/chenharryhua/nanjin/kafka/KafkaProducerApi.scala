@@ -59,7 +59,7 @@ object KafkaProducerApi {
     private[this] val topicName: String                 = topic.topicDef.topicName
     private[this] val keyCodec: KafkaCodec.Key[K]       = topic.codec.keyCodec
     private[this] val valueCodec: KafkaCodec.Value[V]   = topic.codec.valueCodec
-    private[this] val producer: Eval[KafkaByteProducer] = topic.sharedProducer
+    private[this] val producer: Eval[KafkaByteProducer] = topic.context.sharedProducer
 
     private def record(k: K, v: V): KafkaByteProducerRecord =
       new ProducerRecord(topicName, keyCodec.encode(k), valueCodec.encode(v))

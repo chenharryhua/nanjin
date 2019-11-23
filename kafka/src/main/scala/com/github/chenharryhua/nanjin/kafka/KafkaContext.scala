@@ -18,10 +18,10 @@ import com.github.chenharryhua.nanjin.codec.KafkaSerde
 
 sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
   val settings: KafkaSettings) {
-  protected lazy val akkaSystem: ActorSystem         = ActorSystem("nanjin")
-  protected lazy val materializer: ActorMaterializer = ActorMaterializer.create(akkaSystem)
+  val akkaSystem: Eval[ActorSystem]               = Eval.later(ActorSystem("nanjin"))
+  final val materializer: Eval[ActorMaterializer] = akkaSystem.map(ActorMaterializer.create)
 
-  final private[this] val sharedConsumer: Eval[MVar[F, KafkaByteConsumer]] =
+  final val sharedConsumer: Eval[MVar[F, KafkaByteConsumer]] =
     Eval.later {
       val consumerClient: KafkaConsumer[Array[Byte], Array[Byte]] =
         new KafkaConsumer[Array[Byte], Array[Byte]](
@@ -31,19 +31,13 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
       ConcurrentEffect[F].toIO(MVar.of[F, KafkaByteConsumer](consumerClient)).unsafeRunSync()
     }
 
-  final private[this] val sharedProducer: Eval[KafkaByteProducer] =
+  final val sharedProducer: Eval[KafkaByteProducer] =
     Eval.later {
       new KafkaProducer[Array[Byte], Array[Byte]](
         settings.producerSettings.producerProperties,
         new ByteArraySerializer,
         new ByteArraySerializer)
     }
-
-  final private[this] val adminClientSettings: AdminClientSettings[F] =
-    AdminClientSettings[F].withProperties(settings.sharedAdminSettings.config)
-
-  final val admin: Resource[F, KafkaAdminClient[F]] =
-    adminClientResource(adminClientSettings)
 
   final def asKey[K: SerdeOf]: KafkaSerde.Key[K] =
     SerdeOf[K].asKey(settings.schemaRegistrySettings.config)
@@ -52,14 +46,7 @@ sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
     SerdeOf[V].asValue(settings.schemaRegistrySettings.config)
 
   final def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] =
-    KafkaTopic[F, K, V](
-      topicDef,
-      this,
-      adminClientSettings,
-      sharedConsumer,
-      sharedProducer,
-      Eval.later(materializer)
-    )
+    KafkaTopic[F, K, V](topicDef, this)
 
   final def topic[K: SerdeOf: Show, V: SerdeOf: Show](topicName: String): KafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](topicName))
