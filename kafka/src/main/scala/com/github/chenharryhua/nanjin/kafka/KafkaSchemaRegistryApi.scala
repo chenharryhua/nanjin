@@ -116,7 +116,7 @@ object KafkaSchemaRegistryApi {
   final private class KafkaSchemaRegistryImpl[F[_]: Sync](topic: KafkaTopic[F, _, _])
       extends KafkaSchemaRegistryApi[F] {
 
-    val srSettings: SchemaRegistrySettings = topic.schemaRegistrySettings
+    val srSettings: SchemaRegistrySettings = topic.context.settings.schemaRegistrySettings
     val topicName: String                  = topic.topicDef.topicName
     val keySchemaLoc: String               = topic.topicDef.keySchemaLoc
     val valueSchemaLoc: String             = topic.topicDef.valueSchemaLoc

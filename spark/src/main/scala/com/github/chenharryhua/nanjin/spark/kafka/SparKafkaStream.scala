@@ -25,7 +25,7 @@ object SparKafkaStream {
       .create(
         spark.readStream
           .format("kafka")
-          .options(toSparkOptions(topic.kafkaConsumerSettings.config))
+          .options(toSparkOptions(topic.context.settings.consumerSettings.config))
           .option("subscribe", topic.topicDef.topicName)
           .load()
           .as[SparKafkaConsumerRecord[Array[Byte], Array[Byte]]])
