@@ -86,11 +86,8 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
   private val credential: String = s"user=${username.value}&password=${password.value}"
   private val ssl: String        = "ssl=true&sslfactory=com.amazon.redshift.ssl.NonValidatingFactory"
 
-  override val connStr: ConnectionString =
-    ConnectionString(s"$url?$credential&$ssl")
-
-  override val driver: DriverString =
-    DriverString("com.amazon.redshift.jdbc42.Driver")
+  override val connStr: ConnectionString = ConnectionString(s"$url?$credential&$ssl")
+  override val driver: DriverString      = DriverString("com.amazon.redshift.jdbc42.Driver")
 }
 
 @Lenses final case class SqlServer(
