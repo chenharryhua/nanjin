@@ -95,6 +95,7 @@ import scala.util.Try
   streamSettings: KafkaStreamSettings,
   sharedAdminSettings: SharedAdminSettings,
   schemaRegistrySettings: SchemaRegistrySettings) {
+  val appId: Option[String] = streamSettings.config.get(StreamsConfig.APPLICATION_ID_CONFIG)
 
   private def updateAll(key: String, value: String): KafkaSettings =
     Traversal

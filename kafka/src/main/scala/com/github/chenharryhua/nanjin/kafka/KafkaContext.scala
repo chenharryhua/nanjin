@@ -18,7 +18,10 @@ import com.github.chenharryhua.nanjin.codec.KafkaSerde
 
 sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
   val settings: KafkaSettings) {
-  val akkaSystem: Eval[ActorSystem]               = Eval.later(ActorSystem("nanjin"))
+
+  val akkaSystem: Eval[ActorSystem] =
+    Eval.later(ActorSystem(s"""${settings.appId.getOrElse("nanjin")}"""))
+
   final val materializer: Eval[ActorMaterializer] = akkaSystem.map(ActorMaterializer.create)
 
   final val sharedConsumer: Eval[MVar[F, KafkaByteConsumer]] =
