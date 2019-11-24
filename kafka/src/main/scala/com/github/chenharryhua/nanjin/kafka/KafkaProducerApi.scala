@@ -7,7 +7,6 @@ import cats.effect.{ConcurrentEffect, IO, Sync}
 import cats.implicits._
 import cats.tagless._
 import com.github.chenharryhua.nanjin.codec.KafkaCodec
-import com.github.chenharryhua.nanjin.codec.iso._
 import com.github.chenharryhua.nanjin.codec.bitraverse._
 import fs2.Chunk
 import fs2.kafka.{KafkaByteProducer, KafkaByteProducerRecord}
@@ -120,6 +119,5 @@ object KafkaProducerApi {
 
     override def send(kvs: Chain[(K, V)]): F[Chain[RecordMetadata]] =
       kvs.traverse(kv => doSend(record(kv._1, kv._2))).flatMap(_.sequence)
-
   }
 }
