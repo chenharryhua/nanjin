@@ -46,6 +46,8 @@ val neotypes = "0.13.0"
 
 val flinkVersion = "1.9.1"
 
+val hadoopVersion = "3.2.1"
+
 lazy val commonSettings = Seq(
   version      := "0.0.1-SNAPSHOT",
   organization := "com.github.chenharryhua",
@@ -81,9 +83,12 @@ lazy val commonSettings = Seq(
 )
 
 val hadoopLib = Seq(
-  "org.apache.hadoop" % "hadoop-aws"      % "3.2.1",
-  "org.apache.hadoop" % "hadoop-common"   % "3.2.1",
-  "com.amazonaws" % "aws-java-sdk-bundle" % "1.11.681")
+  "org.apache.hadoop" % "hadoop-aws"          % hadoopVersion,
+  "org.apache.hadoop" % "hadoop-common"       % hadoopVersion,
+  "org.apache.hadoop" % "hadoop-client"       % hadoopVersion,
+  "org.apache.hadoop" % "hadoop-hdfs"         % hadoopVersion,
+  "com.amazonaws"     % "aws-java-sdk-bundle" % "1.11.681"
+)
 
 val flinkLib = Seq(
   "org.apache.flink" %% "flink-connector-kafka",
@@ -201,7 +206,7 @@ val kafkaLib = Seq(
     "com.ovoenergy" %% "fs2-kafka"             % fs2Kafka)
 
 val base = Seq(
-  "com.codecommit" %% "skolems" % "0.1.2",
+  "com.codecommit" %% "skolems"            % "0.1.2",
   "io.chrisdavenport" %% "cats-time"       % catsTime,
   "eu.timepit" %% "refined"                % refined,
   "org.typelevel" %% "cats-core"           % catsCore,
@@ -233,7 +238,7 @@ val db = Seq(
 
 val logs = Seq(
   "org.apache.logging.log4j" % "log4j-core" % "2.12.1",
-  "org.slf4j" % "slf4j-api" % "2.0.0-alpha1"
+  "org.slf4j"                % "slf4j-api"  % "2.0.0-alpha1"
 )
 
 lazy val codec = (project in file("codec"))
@@ -255,7 +260,7 @@ lazy val datetime = (project in file("datetime"))
 lazy val hadoop = (project in file("hadoop"))
   .settings(commonSettings: _*)
   .settings(name := "hadoop")
-  .settings(libraryDependencies ++= base ++ hadoopLib ++ tests)  
+  .settings(libraryDependencies ++= base ++ hadoopLib ++ tests)
 
 lazy val kafka = (project in file("kafka"))
   .settings(commonSettings: _*)
@@ -276,15 +281,17 @@ lazy val database = (project in file("database"))
 lazy val spark = (project in file("spark"))
   .dependsOn(kafka)
   .dependsOn(database)
+  .dependsOn(hadoop)
   .settings(commonSettings: _*)
   .settings(name := "spark")
   .settings(
-    libraryDependencies ++= sparkLib ++ framelessLib ++ logs ++ tests ,
+    libraryDependencies ++= sparkLib ++ framelessLib ++ logs ++ tests,
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core"  % "jackson-databind" % "2.6.7.2",
       "org.json4s" %% "json4s-core" % "3.5.5"),
     Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
   )
+
 lazy val flink = (project in file("flink"))
   .dependsOn(kafka)
   .settings(commonSettings: _*)
@@ -307,4 +314,4 @@ lazy val graph = (project in file("graph"))
 lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
-    .aggregate(codec, datetime, kafka, flink, database, spark, graph)
+    .aggregate(codec, datetime, kafka, flink, database, hadoop, spark, graph)
