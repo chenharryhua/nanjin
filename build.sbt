@@ -80,6 +80,11 @@ lazy val commonSettings = Seq(
   )
 )
 
+val hadoopLib = Seq(
+  "org.apache.hadoop" % "hadoop-aws"      % "3.2.1",
+  "org.apache.hadoop" % "hadoop-common"   % "3.2.1",
+  "com.amazonaws" % "aws-java-sdk-bundle" % "1.11.681")
+
 val flinkLib = Seq(
   "org.apache.flink" %% "flink-connector-kafka",
   "org.apache.flink" %% "flink-streaming-scala",
@@ -246,6 +251,11 @@ lazy val datetime = (project in file("datetime"))
   .settings(commonSettings: _*)
   .settings(name := "datetime")
   .settings(libraryDependencies ++= base ++ monocleLib ++ tests)
+
+lazy val hadoop = (project in file("hadoop"))
+  .settings(commonSettings: _*)
+  .settings(name := "hadoop")
+  .settings(libraryDependencies ++= base ++ hadoopLib ++ tests)  
 
 lazy val kafka = (project in file("kafka"))
   .settings(commonSettings: _*)
