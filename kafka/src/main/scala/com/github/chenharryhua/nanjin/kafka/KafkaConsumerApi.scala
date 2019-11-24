@@ -43,15 +43,16 @@ object KafkaPrimitiveConsumerApi {
     implicit kbc: ApplicativeAsk[F, KafkaByteConsumer]
   ) extends KafkaPrimitiveConsumerApi[F] {
 
-    val partitionsFor: F[ListOfTopicPartitions] = {
-      for {
-        ret <- kbc.ask.map { c =>
-          Try(c.partitionsFor(topicName).asScala.toList).toOption.sequence.flatten
-            .mapFilter(Option(_))
-            .map(info => new TopicPartition(topicName, info.partition))
-        }
-      } yield ListOfTopicPartitions(ret)
-    }
+    val partitionsFor: F[ListOfTopicPartitions] =
+      kbc.ask.map { c =>
+        val ret: List[TopicPartition] = c
+          .partitionsFor(topicName)
+          .asScala
+          .toList
+          .mapFilter(Option(_))
+          .map(info => new TopicPartition(topicName, info.partition))
+        ListOfTopicPartitions(ret)
+      }
 
     val beginningOffsets: F[GenericTopicPartition[Option[KafkaOffset]]] =
       for {
