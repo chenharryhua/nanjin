@@ -52,33 +52,8 @@ final case class SparKafkaSession(params: SparKafkaParams)(implicit val sparkSes
       .drain
 }
 
-@Lenses final case class SparKafkaSettings(sparkSettings: SparkSettings, params: SparKafkaParams) {
+object SparKafkaSession {
 
-  def updateKafka(f: SparKafkaParams => SparKafkaParams): SparKafkaSettings =
-    SparKafkaSettings.params.modify(f)(this)
-
-  def updateSpark(f: SparkConf => SparkConf): SparKafkaSettings =
-    SparKafkaSettings.sparkSettings.composeLens(SparkSettings.conf).modify(f)(this)
-
-  def setLogLevel(logLevel: String): SparKafkaSettings =
-    SparKafkaSettings.sparkSettings.composeLens(SparkSettings.logLevel).set(logLevel)(this)
-
-  def session: SparKafkaSession = SparKafkaSession(params)(sparkSettings.session)
-
-  def sessionResource[F[_]: Sync]: Resource[F, SparKafkaSession] =
-    sparkSettings.sessionResource.map(SparKafkaSession(params)(_))
-
-  def sessionStream[F[_]: Sync]: Stream[F, SparKafkaSession] =
-    Stream.resource(sessionResource)
-}
-
-object SparKafkaSettings {
-  val default: SparKafkaSettings = SparKafkaSettings(SparkSettings.default, SparKafkaParams.default)
-
-  def apply(sparkSettings: SparkSettings): SparKafkaSettings =
-    SparKafkaSettings(sparkSettings, SparKafkaParams.default)
-
-  def apply(params: SparKafkaParams): SparKafkaSettings =
-    SparKafkaSettings(SparkSettings.default, params)
-
+  def default(implicit sparkSession: SparkSession): SparKafkaSession =
+    new SparKafkaSession(SparKafkaParams.default)(sparkSession)
 }
