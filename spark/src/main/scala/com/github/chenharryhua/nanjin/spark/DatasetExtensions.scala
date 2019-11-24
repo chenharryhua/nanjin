@@ -35,5 +35,8 @@ private[spark] trait DatasetExtensions {
       path: String,
       params: FileFormat.Csv = FileFormat.Csv.default): TypedDataset[A] =
       TypedDataset.createUnsafe[A](sparkSession.read.options(params.options).csv(path))
+
+    def json[A: TypedEncoder](path: String, params: FileFormat = FileFormat.Json): TypedDataset[A] =
+      TypedDataset.createUnsafe[A](sparkSession.read.options(params.options).json(path))
   }
 }
