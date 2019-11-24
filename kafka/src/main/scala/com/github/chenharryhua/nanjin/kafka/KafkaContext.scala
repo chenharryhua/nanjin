@@ -4,9 +4,9 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import cats.data.Reader
 import cats.effect.concurrent.MVar
-import cats.effect.{ConcurrentEffect, ContextShift, IO, Resource, Timer}
+import cats.effect.{ConcurrentEffect, ContextShift, IO, Timer}
 import cats.{Eval, Show}
-import com.github.chenharryhua.nanjin.codec.SerdeOf
+import com.github.chenharryhua.nanjin.codec.{KafkaSerde, SerdeOf}
 import fs2.Stream
 import fs2.kafka._
 import org.apache.kafka.clients.consumer.KafkaConsumer
@@ -14,7 +14,6 @@ import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, ByteArraySerializer}
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.scala.StreamsBuilder
-import com.github.chenharryhua.nanjin.codec.KafkaSerde
 
 sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
   val settings: KafkaSettings) {

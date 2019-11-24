@@ -1,12 +1,13 @@
-package com.github.chenharryhua.nanjin.kafka
+package com.github.chenharryhua.nanjin.kafka.internal
 
 import java.time.Duration
 
 import cats.effect.Sync
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
+import com.github.chenharryhua.nanjin.kafka.{GenericTopicPartition, KafkaOffset, KafkaOffsetRange}
 import fs2.kafka.{KafkaByteConsumer, KafkaByteConsumerRecord}
-import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndTimestamp}
+import org.apache.kafka.clients.consumer.OffsetAndTimestamp
 import org.apache.kafka.common.{PartitionInfo, TopicPartition}
 
 import scala.collection.JavaConverters._
