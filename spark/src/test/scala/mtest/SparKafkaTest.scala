@@ -25,38 +25,39 @@ class SparKafkaTest extends AnyFunSuite {
     topic.producer.send(1, data)).unsafeRunSync()
 
   test("read topic from kafka") {
-    sparKafkaSession.use { s =>
-      s.datasetFromKafka(topics.sparkafkaTopic).flatMap(_.consumerRecords.show[IO]())
-    }.unsafeRunSync
+    sparKafkaSession
+      .datasetFromKafka(topics.sparkafkaTopic)
+      .flatMap(_.consumerRecords.show[IO]())
+      .unsafeRunSync
   }
   test("save topic to disk") {
-    sparKafkaSession
-      .use(_.updateParams(_.withOverwrite).saveToDisk(topics.sparkafkaTopic))
-      .unsafeRunSync
+    sparKafkaSession.updateParams(_.withOverwrite).saveToDisk(topics.sparkafkaTopic).unsafeRunSync
   }
   test("read topic from disk") {
     sparKafkaSession
-      .use(_.datasetFromDisk(topics.sparkafkaTopic).flatMap(_.consumerRecords.show[IO]()))
+      .datasetFromDisk(topics.sparkafkaTopic)
+      .flatMap(_.consumerRecords.show[IO]())
       .unsafeRunSync
   }
   test("upload dataset to kafka") {
     sparKafkaSession
-      .use(
-        _.updateParams(_.withoutTimestamp.withoutPartition)
-          .datasetFromDisk(topics.sparkafkaTopic)
-          .flatMap(_.toProducerRecords.kafkaUpload(topics.sparkafkaTopic).compile.drain))
+      .updateParams(_.withoutTimestamp.withoutPartition)
+      .datasetFromDisk(topics.sparkafkaTopic)
+      .flatMap(_.toProducerRecords.kafkaUpload(topics.sparkafkaTopic).compile.drain)
       .unsafeRunSync()
   }
 
   test("read topic from kafka and show values") {
-    sparKafkaSession.use { s =>
-      s.datasetFromKafka(topics.sparkafkaTopic).flatMap(_.consumerRecords.values.show[IO]())
-    }.unsafeRunSync
+    sparKafkaSession
+      .datasetFromKafka(topics.sparkafkaTopic)
+      .flatMap(_.consumerRecords.values.show[IO]())
+      .unsafeRunSync
   }
 
   test("read topic from kafka and show aggragation result") {
-    sparKafkaSession.use { s =>
-      s.datasetFromKafka(topics.sparkafkaTopic).flatMap(_.dailyHour.show[IO]())
-    }.unsafeRunSync
+    sparKafkaSession
+      .datasetFromKafka(topics.sparkafkaTopic)
+      .flatMap(_.dailyHour.show[IO]())
+      .unsafeRunSync
   }
 }

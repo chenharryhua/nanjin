@@ -25,22 +25,16 @@ class SparkTableTest extends AnyFunSuite {
   val table = TableDef[DbTableInst]("public.sparktabletest")
 
   test("upload dataset to table") {
-    sparkSession.use { implicit s =>
-      val data = TypedDataset.create(
-        List(DbTableInst(LocalDate.now, LocalDateTime.now, 10, "d", Instant.now)))
-      data.dbUpload(table.in(db).updateParams(_.withDBSaveMode(SaveMode.Overwrite)))
-    }.unsafeRunSync
+    val data =
+      TypedDataset.create(List(DbTableInst(LocalDate.now, LocalDateTime.now, 10, "d", Instant.now)))
+    data.dbUpload(table.in(db).updateParams(_.withDBSaveMode(SaveMode.Overwrite))).unsafeRunSync
   }
 
   test("save db table to disk") {
-    sparkSession.use { implicit s =>
-      table.in(db).saveToDisk
-    }.unsafeRunSync
+    table.in(db).saveToDisk.unsafeRunSync
   }
 
   test("read table on disk") {
-    sparkSession.use { implicit s =>
-      table.in(db).datasetFromDisk.show[IO]()
-    }.unsafeRunSync
+    table.in(db).datasetFromDisk.show[IO]().unsafeRunSync
   }
 }

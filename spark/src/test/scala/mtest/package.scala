@@ -1,7 +1,7 @@
 import cats.effect.{ContextShift, IO, Resource, Timer}
 import com.github.chenharryhua.nanjin.kafka.{IoKafkaContext, KafkaSettings, TopicDef}
 import com.github.chenharryhua.nanjin.spark.SparkSettings
-import com.github.chenharryhua.nanjin.spark.kafka.{SparKafkaSession, SparKafkaSettings}
+import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaSession
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.database._
 import com.github.chenharryhua.nanjin.spark.kafka._
@@ -23,14 +23,12 @@ package object mtest {
     Port(5432),
     DatabaseName("postgres"))
 
-  val sparkSession =
+  implicit val sparkSession =
     SparkSettings.default
       .updateConf(_.setMaster("local[*]").setAppName("test-spark"))
-      .sessionResource[IO]
+      .session
 
-  val sparKafkaSession: Resource[IO, SparKafkaSession] =
-    SparKafkaSettings.default
-      .updateSpark(_.setMaster("local[*]").setAppName("test-spark-kafka"))
-      .sessionResource
+  val sparKafkaSession: SparKafkaSession =
+    SparKafkaSession.default
 
 }
