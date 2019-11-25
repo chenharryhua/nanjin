@@ -48,6 +48,8 @@ val flinkVersion = "1.9.1"
 
 val hadoopVersion = "3.2.1"
 
+val awsVersion = "1.11.681"
+
 lazy val commonSettings = Seq(
   version      := "0.0.1-SNAPSHOT",
   organization := "com.github.chenharryhua",
@@ -83,18 +85,18 @@ lazy val commonSettings = Seq(
 )
 
 val hadoopLib = Seq(
-  "org.apache.hadoop" % "hadoop-aws"          % hadoopVersion,
-  "org.apache.hadoop" % "hadoop-common"       % hadoopVersion,
-  "org.apache.hadoop" % "hadoop-client"       % hadoopVersion,
-  "org.apache.hadoop" % "hadoop-hdfs"         % hadoopVersion,
-  "com.amazonaws"     % "aws-java-sdk-bundle" % "1.11.681"
-)
+  "org.apache.hadoop" % "hadoop-aws",
+  "org.apache.hadoop" % "hadoop-common",
+  "org.apache.hadoop" % "hadoop-client",
+  "org.apache.hadoop" % "hadoop-hdfs").map(_ % hadoopVersion) ++
+  Seq("com.amazonaws" % "aws-java-sdk-bundle" % awsVersion)
 
 val flinkLib = Seq(
   "org.apache.flink" %% "flink-connector-kafka",
   "org.apache.flink" %% "flink-streaming-scala",
   "org.apache.flink" %% "flink-gelly",
-  "org.apache.flink" %% "flink-cep"
+  "org.apache.flink" %% "flink-cep",
+  "org.apache.flink" % "flink-s3-fs-hadoop"
 ).map(_ % flinkVersion)
 
 val neo4jLib = Seq(
@@ -294,6 +296,7 @@ lazy val spark = (project in file("spark"))
 
 lazy val flink = (project in file("flink"))
   .dependsOn(kafka)
+  .dependsOn(hadoop)
   .settings(commonSettings: _*)
   .settings(name := "flink")
   .settings(libraryDependencies ++= flinkLib ++ tests)
