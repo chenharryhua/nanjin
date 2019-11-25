@@ -32,7 +32,7 @@ val jsonDiff = "4.0.0"
 
 val avro4s     = "3.0.4"
 val apacheAvro = "1.9.1"
-val avrohugger = "1.0.0-RC19"
+val avrohugger = "1.0.0-RC20"
 
 val silencer = "1.4.2"
 val jline    = "3.13.1"
