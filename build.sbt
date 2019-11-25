@@ -93,12 +93,13 @@ val hadoopLib = Seq(
 
 val flinkLib = Seq(
   "org.apache.flink" %% "flink-connector-kafka",
+  "org.apache.flink" %% "flink-connector-filesystem",
   "org.apache.flink" %% "flink-streaming-scala",
   "org.apache.flink" %% "flink-gelly",
   "org.apache.flink" %% "flink-cep",
   "org.apache.flink" %% "flink-parquet",
-  "org.apache.flink" %% "flink-connector-filesystem",
   "org.apache.flink" %% "flink-jdbc",
+  "org.apache.flink" %% "flink-hadoop-compatibility",
   "org.apache.flink" % "flink-s3-fs-hadoop"
 ).map(_ % flinkVersion)
 
@@ -265,7 +266,7 @@ lazy val datetime = (project in file("datetime"))
 lazy val hadoop = (project in file("hadoop"))
   .settings(commonSettings: _*)
   .settings(name := "hadoop")
-  .settings(libraryDependencies ++= base ++ hadoopLib ++ tests)
+  .settings(libraryDependencies ++= base ++ monocleLib ++ hadoopLib ++ tests)
 
 lazy val kafka = (project in file("kafka"))
   .settings(commonSettings: _*)
