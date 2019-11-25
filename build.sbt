@@ -17,7 +17,7 @@ val monocle    = "2.0.0"
 val refined    = "0.9.10"
 val droste     = "0.8.0"
 
-val zioCats    = "2.0.0.0-RC8"
+val zioCats    = "2.0.0.0-RC9"
 val monix      = "3.1.0"
 val catsEffect = "2.0.0"
 
@@ -32,7 +32,7 @@ val jsonDiff = "4.0.0"
 
 val avro4s     = "3.0.4"
 val apacheAvro = "1.9.1"
-val avrohugger = "1.0.0-RC19"
+val avrohugger = "1.0.0-RC20"
 
 val silencer = "1.4.2"
 val jline    = "3.13.1"
