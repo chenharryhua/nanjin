@@ -10,6 +10,7 @@ import akka.kafka.{
 }
 import cats.Eval
 import cats.effect.{ConcurrentEffect, ContextShift, IO, Sync, Timer}
+import com.github.chenharryhua.nanjin.utils
 import fs2.kafka.{
   ConsumerSettings => Fs2ConsumerSettings,
   Deserializer     => Fs2Deserializer,
