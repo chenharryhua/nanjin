@@ -1,13 +1,10 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.effect.{ConcurrentEffect, Resource, Sync, Timer}
+import cats.effect.{ConcurrentEffect, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.spark.{SparkSettings, UpdateParams}
-import frameless.TypedEncoder
-import fs2.Stream
-import monocle.macros.Lenses
-import org.apache.spark.SparkConf
+import com.github.chenharryhua.nanjin.spark.UpdateParams
+import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SparkSession
 
 final case class SparKafkaSession(params: SparKafkaParams)(implicit val sparkSession: SparkSession)
@@ -50,6 +47,10 @@ final case class SparKafkaSession(params: SparKafkaParams)(implicit val sparkSes
       .map(_ => print("."))
       .compile
       .drain
+
+  def sparkStream[F[_]: ConcurrentEffect, K: TypedEncoder, V: TypedEncoder](
+    topic: => KafkaTopic[F, K, V]): TypedDataset[SparKafkaConsumerRecord[K, V]] =
+    SparKafka.sparkStream(topic)
 }
 
 object SparKafkaSession {

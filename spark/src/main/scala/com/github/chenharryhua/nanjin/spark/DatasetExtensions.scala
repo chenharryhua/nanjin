@@ -1,12 +1,13 @@
 package com.github.chenharryhua.nanjin.spark
 
-import cats.effect.Concurrent
+import cats.effect.{Bracket, Concurrent}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.Keyboard
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.streaming.DataStreamWriter
 
 import scala.collection.JavaConverters._
 
@@ -25,10 +26,10 @@ private[spark] trait DatasetExtensions {
           .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
       } yield data
 
-    def saveParquet(path: String) = tds.write.parquet(path)
-    def saveCsv(path: String)     = tds.write.csv(path)
-    def saveJson(path: String)    = tds.write.json(path)
-    def saveAvro(path: String)    = tds.write.format("avro").save(path)
+    def saveParquet(path: String): Unit = tds.write.parquet(path)
+    def saveCsv(path: String): Unit     = tds.write.csv(path)
+    def saveJson(path: String): Unit    = tds.write.json(path)
+    def saveAvro(path: String): Unit    = tds.write.format("avro").save(path)
   }
 
   implicit class NJSparkSessionExt(private val sparkSession: SparkSession) {
@@ -51,5 +52,11 @@ private[spark] trait DatasetExtensions {
       params: FileFormat = FileFormat.Avro): TypedDataset[A] =
       TypedDataset.createUnsafe[A](
         sparkSession.read.format("avro").options(params.options).load(path))
+  }
+
+  implicit final class SparkDataStreamWriterSyntax[A](dsw: DataStreamWriter[A]) {
+
+    def start[F[_]](implicit bkt: Bracket[F, Throwable]): F[Unit] =
+      bkt.bracket(bkt.pure(dsw.start))(s => bkt.pure(s.awaitTermination()))(s => bkt.pure(s.stop()))
   }
 }

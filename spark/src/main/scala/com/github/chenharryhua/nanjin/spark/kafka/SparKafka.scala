@@ -124,4 +124,31 @@ private[kafka] object SparKafka {
       ds <- Stream.eval(datasetFromDisk[F, K, V](topic, timeRange, rootPath))
       res <- uploadToKafka(topic, toProducerRecords(ds, conversionStrategy, clock), uploadRate)
     } yield res
+
+  def sparkStream[F[_], K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
+    implicit spark: SparkSession): TypedDataset[SparKafkaConsumerRecord[K, V]] = {
+    def toSparkOptions(m: Map[String, String]): Map[String, String] = {
+      val rm1 = remove(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG)(_: Map[String, String])
+      val rm2 = remove(ConsumerConfig.GROUP_ID_CONFIG)(_: Map[String, String])
+      rm1.andThen(rm2)(m).map { case (k, v) => s"kafka.$k" -> v }
+    }
+    import spark.implicits._
+    TypedDataset
+      .create(
+        spark.readStream
+          .format("kafka")
+          .options(toSparkOptions(topic.context.settings.consumerSettings.config))
+          .option("subscribe", topic.topicDef.topicName)
+          .load()
+          .as[SparKafkaConsumerRecord[Array[Byte], Array[Byte]]])
+      .deserialized
+      .mapPartitions { msgs =>
+        val t = topic
+        val decoder = (msg: SparKafkaConsumerRecord[Array[Byte], Array[Byte]]) =>
+          msg
+            .bimap(t.codec.keyCodec.prism.getOption, t.codec.valueCodec.prism.getOption)
+            .flattenKeyValue
+        msgs.map(decoder)
+      }
+  }
 }
