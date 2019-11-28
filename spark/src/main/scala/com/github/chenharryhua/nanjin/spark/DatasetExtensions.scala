@@ -24,19 +24,32 @@ private[spark] trait DatasetExtensions {
           .pauseWhen(kb.map(_.contains(Keyboard.pauSe)))
           .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
       } yield data
+
+    def saveParquet(path: String) = tds.write.parquet(path)
+    def saveCsv(path: String)     = tds.write.csv(path)
+    def saveJson(path: String)    = tds.write.json(path)
+    def saveAvro(path: String)    = tds.write.format("avro").save(path)
   }
 
   implicit class NJSparkSessionExt(private val sparkSession: SparkSession) {
 
-    def parquet[A: TypedEncoder](path: String): TypedDataset[A] =
+    def readParquet[A: TypedEncoder](path: String): TypedDataset[A] =
       TypedDataset.createUnsafe[A](sparkSession.read.parquet(path))
 
-    def csv[A: TypedEncoder](
+    def readCsv[A: TypedEncoder](
       path: String,
       params: FileFormat.Csv = FileFormat.Csv.default): TypedDataset[A] =
       TypedDataset.createUnsafe[A](sparkSession.read.options(params.options).csv(path))
 
-    def json[A: TypedEncoder](path: String, params: FileFormat = FileFormat.Json): TypedDataset[A] =
+    def readJson[A: TypedEncoder](
+      path: String,
+      params: FileFormat = FileFormat.Json): TypedDataset[A] =
       TypedDataset.createUnsafe[A](sparkSession.read.options(params.options).json(path))
+
+    def readAvro[A: TypedEncoder](
+      path: String,
+      params: FileFormat = FileFormat.Avro): TypedDataset[A] =
+      TypedDataset.createUnsafe[A](
+        sparkSession.read.format("avro").options(params.options).load(path))
   }
 }

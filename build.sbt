@@ -93,7 +93,6 @@ val hadoopLib = Seq(
 
 val flinkLib = Seq(
   "org.apache.flink" %% "flink-connector-kafka",
-  "org.apache.flink" %% "flink-connector-filesystem",
   "org.apache.flink" %% "flink-streaming-scala",
   "org.apache.flink" %% "flink-gelly",
   "org.apache.flink" %% "flink-cep",
