@@ -59,6 +59,7 @@ lazy val commonSettings = Seq(
     Resolver.sonatypeRepo("releases"),
     "Confluent Maven Repo".at("https://packages.confluent.io/maven/")
   ),
+  addCompilerPlugin(scalafixSemanticdb),
   addCompilerPlugin(("org.typelevel" %% "kind-projector" % "0.11.0").cross(CrossVersion.full)),
   addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
   addCompilerPlugin(("org.scalamacros" %% "paradise" % "2.1.1").cross(CrossVersion.full)),
@@ -77,6 +78,7 @@ lazy val commonSettings = Seq(
     "-unchecked",
     "-Xfatal-warnings",
     //  "-Xlint",
+    "-Yrangepos",
     "-Yno-adapted-args",
     "-Ywarn-dead-code",
     "-Ywarn-numeric-widen",
