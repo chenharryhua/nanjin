@@ -125,7 +125,7 @@ private[kafka] object SparKafka {
       res <- uploadToKafka(topic, toProducerRecords(ds, conversionStrategy, clock), uploadRate)
     } yield res
 
-  def sparkStream[F[_], K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
+  def sparkStream[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
     implicit spark: SparkSession): TypedDataset[SparKafkaConsumerRecord[K, V]] = {
     def toSparkOptions(m: Map[String, String]): Map[String, String] = {
       val rm1 = remove(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG)(_: Map[String, String])
@@ -133,6 +133,7 @@ private[kafka] object SparKafka {
       rm1.andThen(rm2)(m).map { case (k, v) => s"kafka.$k" -> v }
     }
     import spark.implicits._
+
     TypedDataset
       .create(
         spark.readStream

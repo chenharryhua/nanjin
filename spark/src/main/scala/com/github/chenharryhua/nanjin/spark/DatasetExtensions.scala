@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark
 
-import cats.effect.{Bracket, Concurrent}
+import cats.effect.{Concurrent, Sync}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.Keyboard
 import frameless.cats.implicits._
@@ -56,7 +56,7 @@ private[spark] trait DatasetExtensions {
 
   implicit final class SparkDataStreamWriterSyntax[A](dsw: DataStreamWriter[A]) {
 
-    def start[F[_]](implicit bkt: Bracket[F, Throwable]): F[Unit] =
-      bkt.bracket(bkt.pure(dsw.start))(s => bkt.pure(s.awaitTermination()))(s => bkt.pure(s.stop()))
+    def run[F[_]](implicit F: Sync[F]): F[Unit] =
+      F.bracket(F.delay(dsw.start))(s => F.delay(s.awaitTermination()))(_ => F.pure(()))
   }
 }
