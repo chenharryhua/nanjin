@@ -248,7 +248,7 @@ val logs = Seq(
 
 lazy val codec = (project in file("codec"))
   .settings(commonSettings: _*)
-  .settings(name := "codec")
+  .settings(name := "nj-codec")
   .settings(
     addCompilerPlugin("com.github.ghik" %% "silencer-plugin" % silencer),
     libraryDependencies ++= Seq(
@@ -259,17 +259,17 @@ lazy val codec = (project in file("codec"))
 
 lazy val datetime = (project in file("datetime"))
   .settings(commonSettings: _*)
-  .settings(name := "datetime")
+  .settings(name := "nj-datetime")
   .settings(libraryDependencies ++= base ++ monocleLib ++ tests)
 
 lazy val hadoop = (project in file("hadoop"))
   .settings(commonSettings: _*)
-  .settings(name := "hadoop")
+  .settings(name := "nj-hadoop")
   .settings(libraryDependencies ++= base ++ monocleLib ++ hadoopLib ++ tests)
 
 lazy val kafka = (project in file("kafka"))
   .settings(commonSettings: _*)
-  .settings(name := "kafka")
+  .settings(name := "nj-kafka")
   .dependsOn(codec)
   .dependsOn(datetime)
   .settings(
@@ -280,7 +280,7 @@ lazy val kafka = (project in file("kafka"))
 lazy val database = (project in file("database"))
   .dependsOn(datetime)
   .settings(commonSettings: _*)
-  .settings(name := "database")
+  .settings(name := "nj-database")
   .settings(libraryDependencies ++= base ++ json ++ db ++ tests)
 
 lazy val spark = (project in file("spark"))
@@ -288,7 +288,7 @@ lazy val spark = (project in file("spark"))
   .dependsOn(database)
   .dependsOn(hadoop)
   .settings(commonSettings: _*)
-  .settings(name := "spark")
+  .settings(name := "nj-spark")
   .settings(
     libraryDependencies ++= sparkLib ++ framelessLib ++ logs ++ tests,
     dependencyOverrides ++= Seq(
@@ -301,14 +301,14 @@ lazy val flink = (project in file("flink"))
   .dependsOn(kafka)
   .dependsOn(hadoop)
   .settings(commonSettings: _*)
-  .settings(name := "flink")
+  .settings(name := "nj-flink")
   .settings(libraryDependencies ++= flinkLib ++ tests)
 
 lazy val graph = (project in file("graph"))
   .dependsOn(spark)
   .dependsOn(flink)
   .settings(commonSettings: _*)
-  .settings(name := "graph")
+  .settings(name := "nj-graph")
   .settings(
     libraryDependencies ++= neo4jLib ++ tests,
     dependencyOverrides ++= Seq(
