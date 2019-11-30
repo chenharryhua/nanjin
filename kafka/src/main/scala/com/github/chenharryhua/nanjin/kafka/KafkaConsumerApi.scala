@@ -15,7 +15,6 @@ import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
 import org.apache.kafka.common.TopicPartition
 
 import scala.collection.JavaConverters._
-import scala.util.Try
 
 @autoFunctorK
 @autoSemigroupalK
