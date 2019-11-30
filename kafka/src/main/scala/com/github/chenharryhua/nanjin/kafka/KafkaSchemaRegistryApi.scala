@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import avrohugger.Generator
 import avrohugger.format.Standard
-import avrohugger.types.{ScalaADT, ScalaCaseClass, ScalaCaseObjectEnum, ScalaList}
+import avrohugger.types.{AvroScalaTypes, ScalaADT, ScalaCaseClass, ScalaCaseObjectEnum, ScalaList}
 import cats.Show
 import cats.effect.Sync
 import cats.implicits._
@@ -15,7 +15,7 @@ import scala.util.Try
 
 final case class KvSchemaMetadata(key: Option[SchemaMetadata], value: Option[SchemaMetadata]) {
 
-  private val scalaTypes = Some(
+  private val scalaTypes: Option[AvroScalaTypes] = Some(
     Standard.defaultTypes.copy(
       record   = ScalaCaseClass,
       array    = ScalaList,

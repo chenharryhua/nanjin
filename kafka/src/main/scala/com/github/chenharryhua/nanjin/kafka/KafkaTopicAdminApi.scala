@@ -41,12 +41,11 @@ object KafkaTopicAdminApi {
         for {
           end <- topic.consumer.endOffsets
           gids <- client.listConsumerGroups.groupIds
-          all <- gids.traverse(
-            gid =>
-              client
-                .listConsumerGroupOffsets(gid)
-                .partitionsToOffsetAndMetadata
-                .map(m => KafkaConsumerGroupInfo(gid, end, m)))
+          all <- gids.traverse(gid =>
+            client
+              .listConsumerGroupOffsets(gid)
+              .partitionsToOffsetAndMetadata
+              .map(m => KafkaConsumerGroupInfo(gid, end, m)))
         } yield all.filter(_.lag.nonEmpty)
       }
   }

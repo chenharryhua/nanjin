@@ -182,9 +182,7 @@ object KafkaSettings {
       KafkaConsumerSettings(
         Map(
           ConsumerConfig.MAX_POLL_RECORDS_CONFIG -> "100",
-          ConsumerConfig.AUTO_OFFSET_RESET_CONFIG -> "earliest"
-        )
-      ),
+          ConsumerConfig.AUTO_OFFSET_RESET_CONFIG -> "earliest")),
       KafkaProducerSettings(Map.empty),
       KafkaStreamSettings(Map.empty),
       SharedAdminSettings(Map.empty),
