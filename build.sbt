@@ -292,7 +292,8 @@ lazy val spark = (project in file("spark"))
   .settings(commonSettings: _*)
   .settings(name := "nj-spark")
   .settings(
-    libraryDependencies ++= sparkLib ++ framelessLib ++ logs ++ tests,
+    libraryDependencies ++= Seq("org.locationtech.jts" % "jts-core" % "1.16.1") ++
+      sparkLib ++ framelessLib ++ logs ++ tests,
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core"  % "jackson-databind" % "2.6.7.2",
       "org.json4s" %% "json4s-core" % "3.5.5"),
