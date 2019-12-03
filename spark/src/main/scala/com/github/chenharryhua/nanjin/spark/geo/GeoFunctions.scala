@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.spark.geo
 
-import frameless.{Injection, TypedColumn, TypedDataset}
-import org.locationtech.jts.geom.{Geometry, Point, Polygon}
+import frameless.TypedColumn
 import frameless.functions.udf
+import org.locationtech.jts.geom.{Point, Polygon}
 
 private[geo] trait GeoFunctions extends GeoInjections with Serializable {
 
@@ -18,4 +18,8 @@ private[geo] trait GeoFunctions extends GeoInjections with Serializable {
 
   def covers[T]: (TypedColumn[T, Polygon], TypedColumn[T, Point]) => TypedColumn[T, Boolean] =
     udf[T, Polygon, Point, Boolean]((polygon: Polygon, point: Point) => polygon.covers(point))
+
+  def intersects[T]: (TypedColumn[T, Polygon], TypedColumn[T, Polygon]) => TypedColumn[T, Boolean] =
+    udf[T, Polygon, Polygon, Boolean]((polygon: Polygon, other: Polygon) =>
+      polygon.intersects(other))
 }
