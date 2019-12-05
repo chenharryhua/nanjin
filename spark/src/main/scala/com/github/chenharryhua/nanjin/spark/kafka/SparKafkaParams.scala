@@ -45,7 +45,8 @@ object ConversionStrategy {
   zoneId: ZoneId,
   rootPath: StorageRootPath,
   saveMode: SaveMode,
-  locationStrategy: LocationStrategy) {
+  locationStrategy: LocationStrategy,
+  repartition: Int) {
 
   val clock: Clock = Clock.system(zoneId)
 
@@ -95,6 +96,8 @@ object ConversionStrategy {
   def withoutTimestamp: SparKafkaParams =
     strategyLens.modify(_ |+| ConversionStrategy.RemoveTimestamp)(this)
 
+  def withRepartition(number: Int): SparKafkaParams =
+    SparKafkaParams.repartition.set(number)(this)
 }
 
 object SparKafkaParams {
@@ -107,6 +110,7 @@ object SparKafkaParams {
       ZoneId.systemDefault(),
       StorageRootPath("./data/kafka/parquet/"),
       SaveMode.ErrorIfExists,
-      LocationStrategies.PreferConsistent
+      LocationStrategies.PreferConsistent,
+      30
     )
 }

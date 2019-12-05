@@ -43,7 +43,8 @@ final case class SparKafkaSession(params: SparKafkaParams)(implicit val sparkSes
         params.rootPath,
         params.conversionStrategy,
         params.uploadRate,
-        params.clock)
+        params.clock,
+        params.repartition)
       .map(_ => print("."))
       .compile
       .drain
