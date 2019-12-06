@@ -2,11 +2,10 @@ package com.github.chenharryhua.nanjin.spark.geo
 
 import frameless.TypedColumn
 import frameless.functions.udf
-import monocle.Lens
 import org.locationtech.jts.geom.{Point, Polygon}
 
-final class PolygonCollection[A](polygons: List[A], lens: Lens[A, Polygon]) {
-  private val listPairs: List[(A, Polygon)] = polygons.map(p => (p, lens.get(p)))
+final class PolygonCollection[A](polygons: List[A], get: A => Polygon) {
+  private val listPairs: List[(A, Polygon)] = polygons.map(p => (p, get(p)))
 
   @scala.annotation.tailrec
   private def findContainingPolygon(point: Point, polygons: List[(A, Polygon)]): Option[A] =
