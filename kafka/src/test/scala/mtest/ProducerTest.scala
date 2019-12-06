@@ -44,7 +44,7 @@ class ProducerTest extends AnyFunSuite {
               new ProducerRecord(t.topicName, m.record.key(), m.record.value()),
               m.committableOffset))
           .take(100)
-          .runWith(t.committableSink)(s.materializer)
+          .runWith(t.committableSink)(ctx.materializer.value)
       }
     }
     val fs2Task: IO[Unit] = srcTopic.fs2Channel

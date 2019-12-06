@@ -5,7 +5,6 @@ import akka.kafka.{
   ConsumerSettings  => AkkaConsumerSettings,
   ProducerSettings  => AkkaProducerSettings
 }
-import akka.stream.ActorMaterializer
 import cats.data.{NonEmptyList, Reader}
 import cats.effect._
 import cats.implicits._
@@ -54,8 +53,7 @@ object KafkaChannels {
     topicName: String,
     producerSettings: AkkaProducerSettings[K, V],
     consumerSettings: AkkaConsumerSettings[Array[Byte], Array[Byte]],
-    committerSettings: AkkaCommitterSettings,
-    materializer: ActorMaterializer) {
+    committerSettings: AkkaCommitterSettings) {
     import akka.kafka.ConsumerMessage.CommittableMessage
     import akka.kafka.ProducerMessage.Envelope
     import akka.kafka.scaladsl.{Committer, Consumer}

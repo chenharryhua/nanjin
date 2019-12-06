@@ -48,7 +48,7 @@ class ZioTest extends AnyFunSuite {
         .take(3)
         .map(_.show)
         .map(println)
-        .runWith(chn.ignoreSink)(chn.materializer)
+        .runWith(chn.ignoreSink)(ctx.materializer.value)
     }
     runtime.unsafeRun(task)
   }

@@ -9,13 +9,14 @@ final class PolygonCollection[A](polygons: List[A], lens: Lens[A, Polygon]) {
   private val listPairs: List[(A, Polygon)] = polygons.map(p => (p, lens.get(p)))
 
   @scala.annotation.tailrec
-  private def findIn(point: Point, polygons: List[(A, Polygon)]): Option[A] =
+  private def findContainingPolygon(point: Point, polygons: List[(A, Polygon)]): Option[A] =
     polygons match {
-      case (a, polygon) :: rest => if (polygon.covers(point)) Some(a) else findIn(point, rest)
-      case Nil                  => None
+      case (a, polygon) :: rest =>
+        if (polygon.covers(point)) Some(a) else findContainingPolygon(point, rest)
+      case Nil => None
     }
 
-  def find(point: Point): Option[A] = findIn(point, listPairs)
+  def find(point: Point): Option[A] = findContainingPolygon(point, listPairs)
 }
 
 private[geo] trait GeoFunctions extends GeoInjections with Serializable {

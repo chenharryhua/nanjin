@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
+import cats.effect.Resource
 import cats.implicits._
 import cats.{Bitraverse, Show}
 import com.github.chenharryhua.nanjin.codec._
@@ -60,12 +60,9 @@ final case class TopicCodec[K, V] private[kafka] (
 
 final case class KafkaTopic[F[_], K, V] private[kafka] (
   topicDef: TopicDef[K, V],
-  context: KafkaContext[F])(
-  implicit
-  val concurrentEffect: ConcurrentEffect[F],
-  val contextShift: ContextShift[F],
-  val timer: Timer[F])
+  context: KafkaContext[F])
     extends TopicNameExtractor[K, V] {
+  import context.{concurrentEffect, contextShift, timer}
   import topicDef.{serdeOfKey, serdeOfValue, showKey, showValue}
 
   val consumerGroupId: Option[KafkaConsumerGroupId] =
@@ -93,7 +90,7 @@ final case class KafkaTopic[F[_], K, V] private[kafka] (
       context.settings.consumerSettings.fs2ConsumerSettings)
 
   val akkaResource: Resource[F, KafkaChannels.AkkaChannel[F, K, V]] = Resource.make(
-    ConcurrentEffect[F].delay(
+    concurrentEffect.delay(
       new KafkaChannels.AkkaChannel[F, K, V](
         topicDef.topicName,
         context.settings.producerSettings.akkaProducerSettings(
@@ -101,8 +98,8 @@ final case class KafkaTopic[F[_], K, V] private[kafka] (
           codec.keySerializer,
           codec.valueSerializer),
         context.settings.consumerSettings.akkaConsumerSettings(context.akkaSystem.value),
-        context.settings.consumerSettings.akkaCommitterSettings(context.akkaSystem.value),
-        context.materializer.value)))(_ => ConcurrentEffect[F].unit)
+        context.settings.consumerSettings.akkaCommitterSettings(context.akkaSystem.value))))(_ =>
+    concurrentEffect.unit)
 
   val kafkaStream: KafkaChannels.StreamingChannel[K, V] =
     new KafkaChannels.StreamingChannel[K, V](topicDef.topicName, codec.keySerde, codec.valueSerde)

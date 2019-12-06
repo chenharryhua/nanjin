@@ -15,13 +15,17 @@ import org.apache.kafka.common.serialization.{ByteArrayDeserializer, ByteArraySe
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.scala.StreamsBuilder
 
-sealed abstract class KafkaContext[F[_]: ContextShift: Timer: ConcurrentEffect](
-  val settings: KafkaSettings) {
+sealed abstract class KafkaContext[F[_]](val settings: KafkaSettings)(
+  implicit
+  val timer: Timer[F],
+  val contextShift: ContextShift[F],
+  val concurrentEffect: ConcurrentEffect[F]) {
 
   val akkaSystem: Eval[ActorSystem] =
     Eval.later(ActorSystem(s"""${settings.appId.getOrElse("nanjin")}"""))
 
-  final val materializer: Eval[ActorMaterializer] = akkaSystem.map(ActorMaterializer.create)
+  final val materializer: Eval[ActorMaterializer] =
+    akkaSystem.map(ActorMaterializer.create)
 
   final val sharedConsumer: Eval[MVar[F, KafkaByteConsumer]] =
     Eval.later {
