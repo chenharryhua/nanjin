@@ -41,7 +41,7 @@ final case class SparKafkaSession(params: SparKafkaParams)(implicit val sparkSes
         topic,
         params.timeRange,
         params.rootPath,
-        params.conversionStrategy,
+        params.conversionTactics,
         params.uploadRate,
         params.clock,
         params.repartition)

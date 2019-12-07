@@ -71,5 +71,5 @@ final case class ConsumerRecordDatasetWithParams[K: TypedEncoder, V: TypedEncode
   }
 
   def toProducerRecords: TypedDataset[SparKafkaProducerRecord[K, V]] =
-    SparKafka.toProducerRecords(consumerRecords, params.conversionStrategy, params.clock)
+    SparKafka.toProducerRecords(consumerRecords, params.conversionTactics, params.clock)
 }

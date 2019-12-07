@@ -83,17 +83,17 @@ private[kafka] object SparKafka {
 
   def toProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     tds: TypedDataset[SparKafkaConsumerRecord[K, V]],
-    cs: ConversionStrategy,
+    ct: ConversionTactics,
     clock: Clock): TypedDataset[SparKafkaProducerRecord[K, V]] = {
     val sorted = tds.orderBy(tds('timestamp).asc, tds('offset).asc)
-    cs match {
-      case ConversionStrategy.Intact =>
+    ct match {
+      case ConversionTactics(true, true) =>
         sorted.deserialized.map(_.toSparkafkaProducerRecord)
-      case ConversionStrategy.RemovePartition =>
+      case ConversionTactics(false, true) =>
         sorted.deserialized.map(_.toSparkafkaProducerRecord.withoutPartition)
-      case ConversionStrategy.RemoveTimestamp =>
+      case ConversionTactics(true, false) =>
         sorted.deserialized.map(_.toSparkafkaProducerRecord.withNow(clock))
-      case ConversionStrategy.RemovePartitionAndTimestamp =>
+      case ConversionTactics(_, _) =>
         sorted.deserialized.map(_.toSparkafkaProducerRecord.withNow(clock).withoutPartition)
     }
   }
@@ -117,16 +117,14 @@ private[kafka] object SparKafka {
     topic: => KafkaTopic[F, K, V],
     timeRange: NJDateTimeRange,
     rootPath: StorageRootPath,
-    conversionStrategy: ConversionStrategy,
+    conversionTactics: ConversionTactics,
     uploadRate: UploadRate,
     clock: Clock,
     repartition: Int)(implicit sparkSession: SparkSession): Stream[F, Chunk[RecordMetadata]] =
     for {
-      ds <- Stream.eval(datasetFromDisk[F, K, V](topic, timeRange, rootPath).map(_.repartition(repartition)))
-      res <- uploadToKafka(
-        topic,
-        toProducerRecords(ds, conversionStrategy, clock),
-        uploadRate)
+      ds <- Stream.eval(
+        datasetFromDisk[F, K, V](topic, timeRange, rootPath).map(_.repartition(repartition)))
+      res <- uploadToKafka(topic, toProducerRecords(ds, conversionTactics, clock), uploadRate)
     } yield res
 
   def sparkStream[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(

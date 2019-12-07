@@ -13,34 +13,17 @@ import org.apache.spark.streaming.kafka010.{LocationStrategies, LocationStrategy
 
 import scala.concurrent.duration._
 
-sealed trait ConversionStrategy
+@Lenses final case class ConversionTactics(keepPartition: Boolean, keepTimestamp: Boolean)
 
-object ConversionStrategy {
-  case object Intact extends ConversionStrategy
-  case object RemovePartition extends ConversionStrategy
-  case object RemoveTimestamp extends ConversionStrategy
-  case object RemovePartitionAndTimestamp extends ConversionStrategy
+object ConversionTactics {
 
-  implicit val conversionStrategyLattics: BoundedSemilattice[ConversionStrategy] =
-    new BoundedSemilattice[ConversionStrategy] {
-      override def empty: ConversionStrategy = Intact
-
-      override def combine(x: ConversionStrategy, y: ConversionStrategy): ConversionStrategy =
-        (x, y) match {
-          case (Intact, a)                        => a
-          case (RemovePartitionAndTimestamp, _)   => RemovePartitionAndTimestamp
-          case (_, RemovePartitionAndTimestamp)   => RemovePartitionAndTimestamp
-          case (RemovePartition, RemoveTimestamp) => RemovePartitionAndTimestamp
-          case (RemoveTimestamp, RemovePartition) => RemovePartitionAndTimestamp
-          case (RemovePartition, _)               => RemovePartition
-          case (RemoveTimestamp, _)               => RemoveTimestamp
-        }
-    }
+  def default: ConversionTactics =
+    ConversionTactics(keepPartition = false, keepTimestamp = true)
 }
 
 @Lenses final case class SparKafkaParams private (
   timeRange: NJDateTimeRange,
-  conversionStrategy: ConversionStrategy,
+  conversionTactics: ConversionTactics,
   uploadRate: UploadRate,
   zoneId: ZoneId,
   rootPath: StorageRootPath,
@@ -87,14 +70,17 @@ object ConversionStrategy {
   def withUploadRate(batchSize: Int, duration: FiniteDuration): SparKafkaParams =
     withBatchSize(batchSize).withDuration(duration)
 
-  private val strategyLens: Lens[SparKafkaParams, ConversionStrategy] =
-    SparKafkaParams.conversionStrategy
-
   def withoutPartition: SparKafkaParams =
-    strategyLens.modify(_ |+| ConversionStrategy.RemovePartition)(this)
+    SparKafkaParams.conversionTactics.composeLens(ConversionTactics.keepPartition).set(false)(this)
+
+  def withPartition: SparKafkaParams =
+    SparKafkaParams.conversionTactics.composeLens(ConversionTactics.keepPartition).set(true)(this)
 
   def withoutTimestamp: SparKafkaParams =
-    strategyLens.modify(_ |+| ConversionStrategy.RemoveTimestamp)(this)
+    SparKafkaParams.conversionTactics.composeLens(ConversionTactics.keepTimestamp).set(false)(this)
+
+  def withTimestamp: SparKafkaParams =
+    SparKafkaParams.conversionTactics.composeLens(ConversionTactics.keepTimestamp).set(true)(this)
 
   def withRepartition(number: Int): SparKafkaParams =
     SparKafkaParams.repartition.set(number)(this)
@@ -105,7 +91,7 @@ object SparKafkaParams {
   val default: SparKafkaParams =
     SparKafkaParams(
       NJDateTimeRange.infinite,
-      ConversionStrategy.Intact,
+      ConversionTactics.default,
       UploadRate.default,
       ZoneId.systemDefault(),
       StorageRootPath("./data/kafka/parquet/"),
