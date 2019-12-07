@@ -2,11 +2,8 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import java.time._
 
-import cats.implicits._
-import cats.kernel.BoundedSemilattice
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.spark.{StorageRootPath, UploadRate}
-import monocle.Lens
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.streaming.kafka010.{LocationStrategies, LocationStrategy}

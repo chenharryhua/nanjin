@@ -93,7 +93,7 @@ private[kafka] object SparKafka {
         sorted.deserialized.map(_.toSparkafkaProducerRecord.withoutPartition)
       case ConversionTactics(true, false) =>
         sorted.deserialized.map(_.toSparkafkaProducerRecord.withNow(clock))
-      case ConversionTactics(_, _) =>
+      case ConversionTactics(false, false) =>
         sorted.deserialized.map(_.toSparkafkaProducerRecord.withNow(clock).withoutPartition)
     }
   }
