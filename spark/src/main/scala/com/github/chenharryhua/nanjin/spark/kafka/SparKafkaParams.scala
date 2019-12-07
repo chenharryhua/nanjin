@@ -82,7 +82,7 @@ object ConversionTactics {
   def withTimestamp: SparKafkaParams =
     SparKafkaParams.conversionTactics.composeLens(ConversionTactics.keepTimestamp).set(true)(this)
 
-  def withRepartition(number: Int): SparKafkaParams =
+  def withSparkRepartition(number: Int): SparKafkaParams =
     SparKafkaParams.repartition.set(number)(this)
 }
 
