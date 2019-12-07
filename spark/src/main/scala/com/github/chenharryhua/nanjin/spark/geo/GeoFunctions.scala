@@ -4,8 +4,8 @@ import frameless.TypedColumn
 import frameless.functions.udf
 import org.locationtech.jts.geom.{Point, Polygon}
 
-final class PolygonCollection[A](polygons: List[A], get: A => Polygon) {
-  private val listPairs: List[(A, Polygon)] = polygons.map(p => (p, get(p)))
+final case class PolygonCollection[A](as: List[A], get: A => Polygon) {
+  private val listPairs: List[(A, Polygon)] = as.map(p => (p, get(p)))
 
   @scala.annotation.tailrec
   private def findContainingPolygon(point: Point, polygons: List[(A, Polygon)]): Option[A] =

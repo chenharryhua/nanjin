@@ -122,10 +122,10 @@ private[kafka] object SparKafka {
     clock: Clock,
     repartition: Int)(implicit sparkSession: SparkSession): Stream[F, Chunk[RecordMetadata]] =
     for {
-      ds <- Stream.eval(datasetFromDisk[F, K, V](topic, timeRange, rootPath))
+      ds <- Stream.eval(datasetFromDisk[F, K, V](topic, timeRange, rootPath).map(_.repartition(repartition)))
       res <- uploadToKafka(
         topic,
-        toProducerRecords(ds, conversionStrategy, clock).repartition(repartition),
+        toProducerRecords(ds, conversionStrategy, clock),
         uploadRate)
     } yield res
 
