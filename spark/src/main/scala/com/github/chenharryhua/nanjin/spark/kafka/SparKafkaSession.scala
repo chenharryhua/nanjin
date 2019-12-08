@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.effect.{ConcurrentEffect, Timer}
+import cats.effect.{ConcurrentEffect, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark.UpdateParams
@@ -13,19 +13,19 @@ final case class SparKafkaSession(params: SparKafkaParams)(implicit val sparkSes
   def updateParams(f: SparKafkaParams => SparKafkaParams): SparKafkaSession =
     copy(params = f(params))
 
-  def datasetFromKafka[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
+  def datasetFromKafka[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V]): F[ConsumerRecordDatasetWithParams[K, V]] =
     SparKafka
       .datasetFromKafka(topic, params.timeRange, params.locationStrategy)
       .map(tds => ConsumerRecordDatasetWithParams(this.params, tds.dataset))
 
-  def datasetFromDisk[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
+  def datasetFromDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V]): F[ConsumerRecordDatasetWithParams[K, V]] =
     SparKafka
       .datasetFromDisk(topic, params.timeRange, params.rootPath)
       .map(tds => ConsumerRecordDatasetWithParams(this.params, tds.dataset))
 
-  def saveToDisk[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
+  def saveToDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V]): F[Unit] =
     SparKafka.saveToDisk(
       topic,
@@ -49,7 +49,7 @@ final case class SparKafkaSession(params: SparKafkaParams)(implicit val sparkSes
       .compile
       .drain
 
-  def sparkStream[F[_]: ConcurrentEffect, K: TypedEncoder, V: TypedEncoder](
+  def sparkStream[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V]): TypedDataset[SparKafkaConsumerRecord[K, V]] =
     SparKafka.sparkStream(topic)
 }
