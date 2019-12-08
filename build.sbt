@@ -201,7 +201,8 @@ val tests = Seq(
   "org.scalatest" %% "scalatest"                              % scalatest   % Test,
   "com.github.julien-truffaut" %% "monocle-law"               % monocle     % Test,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.3.1"     % Test,
-  "org.tpolecat" %% "doobie-postgres"                         % doobie      % Test
+  "org.tpolecat" %% "doobie-postgres"                         % doobie      % Test,
+  "org.typelevel" %% "algebra-laws"                           % "2.0.0"     % Test
 )
 
 val kafkaLib = Seq(
@@ -213,6 +214,7 @@ val kafkaLib = Seq(
     "com.ovoenergy" %% "fs2-kafka"             % fs2Kafka)
 
 val base = Seq(
+  "org.typelevel" %% "algebra"             % "2.0.0",
   "com.codecommit" %% "skolems"            % "0.2.0",
   "io.chrisdavenport" %% "cats-time"       % catsTime,
   "eu.timepit" %% "refined"                % refined,
