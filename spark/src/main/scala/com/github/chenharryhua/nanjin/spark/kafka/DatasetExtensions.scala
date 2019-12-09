@@ -10,7 +10,7 @@ import org.apache.kafka.clients.producer.RecordMetadata
 private[kafka] trait DatasetExtensions {
 
   implicit final class SparKafkaUploadSyntax[K, V](
-    data: TypedDataset[SparKafkaProducerRecord[K, V]]) {
+    val data: TypedDataset[SparKafkaProducerRecord[K, V]]) {
 
     def kafkaUpload[F[_]: ConcurrentEffect: Timer](
       topic: => KafkaTopic[F, K, V],
@@ -19,7 +19,7 @@ private[kafka] trait DatasetExtensions {
   }
 
   implicit final class SparKafkaConsumerRecordSyntax[K: TypedEncoder, V: TypedEncoder](
-    consumerRecords: TypedDataset[SparKafkaConsumerRecord[K, V]]
+    val consumerRecords: TypedDataset[SparKafkaConsumerRecord[K, V]]
   ) {
 
     def nullValues: TypedDataset[SparKafkaConsumerRecord[K, V]] =

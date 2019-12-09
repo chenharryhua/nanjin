@@ -214,6 +214,7 @@ val kafkaLib = Seq(
     "com.ovoenergy" %% "fs2-kafka"             % fs2Kafka)
 
 val base = Seq(
+  "com.twitter" %% "algebird-core"         % "0.13.6",
   "org.typelevel" %% "algebra"             % "2.0.0",
   "com.codecommit" %% "skolems"            % "0.2.0",
   "io.chrisdavenport" %% "cats-time"       % catsTime,
