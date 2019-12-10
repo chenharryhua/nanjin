@@ -117,7 +117,7 @@ val neo4jLib = Seq(
   "com.dimafeng" %% "neotypes-cats-data"
 ).map(_ % neotypes) ++
   Seq(
-    "org.neo4j.driver"                % "neo4j-java-driver" % "4.0.0",
+    "org.neo4j.driver"                % "neo4j-java-driver" % "1.7.5",
     "org.opencypher"                  % "morpheus-spark-cypher" % "0.4.2",
     "org.scala-graph" %% "graph-core" % "1.13.0"
   )
