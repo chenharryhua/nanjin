@@ -247,7 +247,7 @@ val db = Seq(
 )
 
 val logs = Seq(
-  "org.apache.logging.log4j" % "log4j-core" % "2.12.1",
+  "org.apache.logging.log4j" % "log4j-core" % "2.13.0",
   "org.slf4j"                % "slf4j-api"  % "2.0.0-alpha1"
 )
 
