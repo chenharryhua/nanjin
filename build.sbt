@@ -3,7 +3,7 @@ scapegoatVersion in ThisBuild  := "1.3.11"
 parallelExecution in ThisBuild := false
 
 val confluent    = "5.3.0"
-val kafkaVersion = "2.3.1"
+val kafkaVersion = "2.4.0"
 
 val shapeless  = "2.3.3"
 val contextual = "1.2.1"
