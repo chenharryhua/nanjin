@@ -3,7 +3,7 @@ scapegoatVersion in ThisBuild  := "1.3.11"
 parallelExecution in ThisBuild := false
 
 val confluent    = "5.3.0"
-val kafkaVersion = "2.4.0"
+val kafkaVersion = "2.3.1"
 
 val shapeless  = "2.3.3"
 val contextual = "1.2.1"
@@ -32,7 +32,7 @@ val jsonDiff = "4.0.1"
 
 val avro4s     = "3.0.4"
 val apacheAvro = "1.9.1"
-val avrohugger = "1.0.0-RC22"
+val avrohugger = "1.0.0-RC21"
 
 val silencer = "1.4.2"
 val jline    = "3.13.2"
