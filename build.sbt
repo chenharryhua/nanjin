@@ -131,7 +131,8 @@ val scodec = Seq(
 val json = Seq(
   "io.circe" %% "circe-core",
   "io.circe" %% "circe-generic",
-  "io.circe" %% "circe-parser"
+  "io.circe" %% "circe-parser",
+  "io.circe" %% "circe-shapes"
 ).map(_                          % circe) ++ Seq(
   "io.circe" %% "circe-optics"   % "0.12.0",
   "org.gnieh" %% "diffson-circe" % jsonDiff)
