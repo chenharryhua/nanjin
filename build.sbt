@@ -119,7 +119,7 @@ val neo4jLib = Seq(
   Seq(
     "org.neo4j.driver"                % "neo4j-java-driver" % "1.7.5",
     "org.opencypher"                  % "morpheus-spark-cypher" % "0.4.2",
-    "org.scala-graph" %% "graph-core" % "1.13.0"
+    "org.scala-graph" %% "graph-core" % "1.13.1"
   )
 
 val scodec = Seq(
