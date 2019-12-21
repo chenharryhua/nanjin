@@ -4,7 +4,7 @@ import java.time.{LocalDate, LocalDateTime, LocalTime, ZoneId}
 
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.datetime.iso._
-import com.github.chenharryhua.nanjin.spark._
+import com.github.chenharryhua.nanjin.spark.injection
 import frameless.functions.aggregate.count
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset

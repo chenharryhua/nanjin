@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.datetime
 
 import java.sql.{Date, Timestamp}
-import java.time.{Instant, LocalDate, LocalDateTime, ZoneId}
+import java.time._
 
 import cats.{Hash, Order, Show}
 import io.chrisdavenport.cats.time.instances.all
@@ -29,10 +29,16 @@ private[datetime] trait IsoDateTimeInstance extends Serializable {
   implicit val isoInstant: Iso[Instant, Timestamp] =
     Iso[Instant, Timestamp](Timestamp.from)(_.toInstant)
 
-  implicit def isoLocalDateTimeByZoneId(implicit zoneId: ZoneId): Iso[LocalDateTime, Timestamp] =
-    Iso[LocalDateTime, Timestamp](a => isoInstant.get(a.atZone(zoneId).toInstant))(b =>
-      LocalDateTime.ofInstant(isoInstant.reverseGet(b), zoneId))
-
   implicit val isoLocalDate: Iso[LocalDate, Date] =
     Iso[LocalDate, Date](Date.valueOf)(_.toLocalDate)
+
+  implicit def isoLocalDateTime: Iso[LocalDateTime, Timestamp] =
+    Iso[LocalDateTime, Timestamp](Timestamp.valueOf)(_.toLocalDateTime)
+
+  implicit val isoOffsetDateTime: Iso[OffsetDateTime, JavaOffsetDateTime] =
+    Iso[OffsetDateTime, JavaOffsetDateTime](JavaOffsetDateTime(_))(_.offsetDateTime)
+
+  implicit val isoZonedDateTime: Iso[ZonedDateTime, JavaZonedDateTime] =
+    Iso[ZonedDateTime, JavaZonedDateTime](JavaZonedDateTime(_))(_.zonedDateTime)
+
 }

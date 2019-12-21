@@ -4,7 +4,6 @@ import java.time._
 
 import cats.implicits._
 import cats.{Hash, Order, Show}
-import monocle.Iso
 import monocle.macros.Lenses
 
 /**
@@ -18,9 +17,6 @@ object JavaOffsetDateTime {
 
   def apply(odt: OffsetDateTime): JavaOffsetDateTime =
     JavaOffsetDateTime(odt.toInstant, odt.getOffset.getTotalSeconds)
-
-  implicit val isoJavaOffsetDateTime: Iso[OffsetDateTime, JavaOffsetDateTime] =
-    Iso[OffsetDateTime, JavaOffsetDateTime](JavaOffsetDateTime(_))(_.offsetDateTime)
 
   implicit val javaOffsetDateTimeInstance
     : Hash[JavaOffsetDateTime] with Order[JavaOffsetDateTime] with Show[JavaOffsetDateTime] =
@@ -41,9 +37,6 @@ object JavaZonedDateTime {
 
   def apply(zdt: ZonedDateTime): JavaZonedDateTime =
     JavaZonedDateTime(zdt.toInstant, zdt.getZone.getId)
-
-  implicit val isoJavaZonedDateTime: Iso[ZonedDateTime, JavaZonedDateTime] =
-    Iso[ZonedDateTime, JavaZonedDateTime](JavaZonedDateTime(_))(_.zonedDateTime)
 
   implicit val javaZonedDateTimeInstance
     : Hash[JavaZonedDateTime] with Order[JavaZonedDateTime] with Show[JavaZonedDateTime] =
