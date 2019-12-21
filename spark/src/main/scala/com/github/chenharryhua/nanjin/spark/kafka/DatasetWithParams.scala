@@ -48,7 +48,7 @@ final case class ConsumerRecordDatasetWithParams[K: TypedEncoder, V: TypedEncode
   def dailyHour: TypedDataset[DailyHourAggResult] = {
     implicit val zoneId: ZoneId = params.zoneId
     val dayHour: TypedDataset[LocalDateTime] = consumerRecords.deserialized.map { m =>
-      val dt   = NJTimestamp(m.timestamp).atZone(params.zoneId).toLocalDateTime
+      val dt = NJTimestamp(m.timestamp).atZone(params.zoneId).toLocalDateTime
       LocalDateTime.of(dt.toLocalDate, LocalTime.of(dt.getHour, 0))
     }
     val res = dayHour.groupBy(dayHour.asCol).agg(count(dayHour.asCol)).as[DailyHourAggResult]
@@ -57,7 +57,7 @@ final case class ConsumerRecordDatasetWithParams[K: TypedEncoder, V: TypedEncode
 
   def dailyMinute: TypedDataset[DailyMinuteAggResult] = {
     val dayMinute: TypedDataset[LocalDateTime] = consumerRecords.deserialized.map { m =>
-      val dt   = NJTimestamp(m.timestamp).atZone(params.zoneId).toLocalDateTime
+      val dt = NJTimestamp(m.timestamp).atZone(params.zoneId).toLocalDateTime
       LocalDateTime.of(dt.toLocalDate, LocalTime.of(dt.getHour, dt.getMinute))
     }
     val res =

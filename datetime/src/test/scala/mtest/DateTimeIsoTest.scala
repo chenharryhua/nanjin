@@ -15,12 +15,11 @@ class DateTimeIsoTest extends AnyFunSuite with Discipline {
   import ArbitaryData._
 
   checkAll("instant", IsoTests[Instant, Timestamp](implicitly[Iso[Instant, Timestamp]]))
-  checkAll(
-    "local-date-time",
-    IsoTests[LocalDateTime, Timestamp](implicitly[Iso[LocalDateTime, Timestamp]]))
+
   checkAll(
     "zoned-date-time",
     IsoTests[ZonedDateTime, JavaZonedDateTime](implicitly[Iso[ZonedDateTime, JavaZonedDateTime]]))
+
   checkAll(
     "offset-date-time",
     IsoTests[OffsetDateTime, JavaOffsetDateTime](

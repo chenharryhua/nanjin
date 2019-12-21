@@ -1,4 +1,5 @@
 package mtest
+
 import java.sql.{Date, Timestamp}
 
 import cats.kernel.laws.discipline.{HashTests, OrderTests}

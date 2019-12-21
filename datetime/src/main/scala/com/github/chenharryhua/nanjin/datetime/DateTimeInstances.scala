@@ -40,5 +40,4 @@ private[datetime] trait IsoDateTimeInstance extends Serializable {
 
   implicit val isoZonedDateTime: Iso[ZonedDateTime, JavaZonedDateTime] =
     Iso[ZonedDateTime, JavaZonedDateTime](JavaZonedDateTime(_))(_.zonedDateTime)
-
 }

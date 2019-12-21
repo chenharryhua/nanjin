@@ -13,13 +13,13 @@ import org.scalacheck.Prop.{forAll, propBoolean}
 import org.scalacheck.Properties
 
 class TimeInjectionProps extends Properties("date time") {
-  val date            = TypedEncoder[Date]
-  val timestamp       = TypedEncoder[Timestamp]
-  val lcoaldate       = TypedEncoder[LocalDate]
-  val localdatetime   = TypedEncoder[LocalDateTime]
-  val instant         = TypedEncoder[Instant]
-  val zoneddatetime   = TypedEncoder[ZonedDateTime]
-  val offsetdatetime  = TypedEncoder[OffsetDateTime]
+  val date           = TypedEncoder[Date]
+  val timestamp      = TypedEncoder[Timestamp]
+  val lcoaldate      = TypedEncoder[LocalDate]
+  val localdatetime  = TypedEncoder[LocalDateTime]
+  val instant        = TypedEncoder[Instant]
+  val zoneddatetime  = TypedEncoder[ZonedDateTime]
+  val offsetdatetime = TypedEncoder[OffsetDateTime]
 
   property("timezone has no effect on epoch-second") = forAll { (ins: Instant) =>
     val tz1: ZoneId = ZoneId.of("Australia/Sydney")
@@ -29,7 +29,7 @@ class TimeInjectionProps extends Properties("date time") {
   }
   property("invertable LocalDateTime") = forAll { (ins: LocalDateTime) =>
     val in = implicitly[Injection[LocalDateTime, Timestamp]]
-    if (ins.getYear() > 1900 && ins.getYear() < 8099) in.invert(in.apply(ins)) == ins else true
+    in.invert(in.apply(ins)) == ins
   }
   property("invertable ZonedDateTime") = forAll { (ins: ZonedDateTime) =>
     val in = implicitly[Injection[ZonedDateTime, JavaZonedDateTime]]
