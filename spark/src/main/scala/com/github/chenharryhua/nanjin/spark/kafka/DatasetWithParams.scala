@@ -4,7 +4,7 @@ import java.time.{LocalDate, LocalDateTime, LocalTime, ZoneId}
 
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.datetime.iso._
-import com.github.chenharryhua.nanjin.spark.injection
+import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.functions.aggregate.count
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
@@ -18,7 +18,6 @@ final case class DailyMinuteAggResult(date: LocalDateTime, count: Long)
 final case class ConsumerRecordDatasetWithParams[K: TypedEncoder, V: TypedEncoder](
   params: SparKafkaParams,
   private val crs: Dataset[SparKafkaConsumerRecord[K, V]]) {
-  import injection._
 
   def consumerRecords: TypedDataset[SparKafkaConsumerRecord[K, V]] = TypedDataset.create(crs)
 
@@ -50,20 +49,16 @@ final case class ConsumerRecordDatasetWithParams[K: TypedEncoder, V: TypedEncode
     implicit val zoneId: ZoneId = params.zoneId
     val dayHour: TypedDataset[LocalDateTime] = consumerRecords.deserialized.map { m =>
       val dt   = NJTimestamp(m.timestamp).atZone(params.zoneId).toLocalDateTime
-      val hour = dt.getHour
-      LocalDateTime.of(dt.toLocalDate, LocalTime.of(hour, 0))
+      LocalDateTime.of(dt.toLocalDate, LocalTime.of(dt.getHour, 0))
     }
     val res = dayHour.groupBy(dayHour.asCol).agg(count(dayHour.asCol)).as[DailyHourAggResult]
     res.orderBy(res('date).asc)
   }
 
   def dailyMinute: TypedDataset[DailyMinuteAggResult] = {
-    implicit val zoneId: ZoneId = params.zoneId
     val dayMinute: TypedDataset[LocalDateTime] = consumerRecords.deserialized.map { m =>
       val dt   = NJTimestamp(m.timestamp).atZone(params.zoneId).toLocalDateTime
-      val hour = dt.getHour
-      val min  = dt.getMinute
-      LocalDateTime.of(dt.toLocalDate, LocalTime.of(hour, min))
+      LocalDateTime.of(dt.toLocalDate, LocalTime.of(dt.getHour, dt.getMinute))
     }
     val res =
       dayMinute.groupBy(dayMinute.asCol).agg(count(dayMinute.asCol)).as[DailyMinuteAggResult]
