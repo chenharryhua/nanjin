@@ -26,22 +26,28 @@ private[codec] trait JsonInstances {
         (VALUE, Option(cr.value).asJson)
       )
 
-  implicit def jsonDecodeConsumerRecord[K: Decoder, V: Decoder]: Decoder[ConsumerRecord[K, V]] =
+  implicit def jsonDecodeConsumerRecord[K: Decoder, V: Decoder](
+    implicit
+    knull: Null <:< K,
+    vnull: Null <:< V): Decoder[ConsumerRecord[K, V]] =
     (c: HCursor) =>
       for {
         topic <- c.downField(TOPIC).as[String]
         partition <- c.downField(PARTITION).as[Int]
         offset <- c.downField(OFFSET).as[Long]
-        key <- c.downField(KEY).as[K]
-        value <- c.downField(VALUE).as[V]
-      } yield new ConsumerRecord[K, V](topic, partition, offset, key, value)
+        key <- c.downField(KEY).as[Option[K]]
+        value <- c.downField(VALUE).as[Option[V]]
+      } yield new ConsumerRecord[K, V](topic, partition, offset, key.orNull, value.orNull)
 
   implicit def jsonEncodeInGeneral[F[_, _], K: Encoder, V: Encoder](
     implicit iso: Iso[F[K, V], ConsumerRecord[K, V]]): Encoder[F[K, V]] =
     (a: F[K, V]) => iso.get(a).asJson
 
   implicit def jsonDecodeInGeneral[F[_, _], K: Decoder, V: Decoder](
-    implicit iso: Iso[F[K, V], ConsumerRecord[K, V]]): Decoder[F[K, V]] =
+    implicit
+    knull: Null <:< K,
+    vnull: Null <:< V,
+    iso: Iso[F[K, V], ConsumerRecord[K, V]]): Decoder[F[K, V]] =
     (c: HCursor) => jsonDecodeConsumerRecord[K, V].apply(c).map(r => iso.reverseGet(r))
 
 }
