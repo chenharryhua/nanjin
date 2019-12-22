@@ -26,10 +26,10 @@ final class KafkaGenericDecoder[F[_, _]: Bitraverse, K, V](
 
   def json(implicit jk: JsonEncoder[K], jv: JsonEncoder[V]): F[Json, Json] =
     tryDecodeKeyValue.bimap(
-      k => k.map(jk.apply).getOrElse(Json.Null),
-      v => v.map(jv.apply).getOrElse(Json.Null))
+      _.map(jk.apply).getOrElse(Json.Null),
+      _.map(jv.apply).getOrElse(Json.Null))
 
-  def genericRecord(
+  def record(
     implicit
     ke: AvroEncoder[K],
     ks: SchemaFor[K],
