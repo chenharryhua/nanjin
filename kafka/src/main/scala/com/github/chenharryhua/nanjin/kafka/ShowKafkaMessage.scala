@@ -7,6 +7,7 @@ import cats.Show
 import cats.implicits._
 import com.github.chenharryhua.nanjin.codec.iso._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
+import com.sksamuel.avro4s.Record
 import fs2.kafka.CommittableConsumerRecord
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
@@ -69,4 +70,6 @@ private[kafka] trait ShowKafkaMessage {
        |local:     ${ts.atZone(zoneId)}
        |""".stripMargin
   }
+
+  implicit val showAvroRecord: Show[Record] = _.toString
 }
