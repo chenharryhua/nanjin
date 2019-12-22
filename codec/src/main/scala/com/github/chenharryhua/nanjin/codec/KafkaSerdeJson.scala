@@ -11,13 +11,14 @@ import scala.util.{Success, Try}
 final case class KJson[A](value: A) extends AnyVal
 
 object KJson {
+
   implicit def showKafkaJson[A: Encoder]: Show[KJson[A]] =
     (t: KJson[A]) => s"""KJson(${Option(t.value).map(_.asJson.noSpaces).getOrElse("null")})"""
   implicit def eqKJson[A: Eq]: Eq[KJson[A]] = cats.derived.semi.eq[KJson[A]]
 }
 
 @SuppressWarnings(Array("AsInstanceOf"))
-final class KafkaSerdeJson[A: Decoder: Encoder] extends Serde[KJson[A]] {
+final private[codec] class KafkaSerdeJson[A: Decoder: Encoder] extends Serde[KJson[A]] {
 
   override val serializer: Serializer[KJson[A]] =
     (_: String, data: KJson[A]) =>

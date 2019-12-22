@@ -17,9 +17,8 @@ class NeotypesTests extends AnyFunSuite {
 
   val person: DeferredQueryBuilder = c"""MATCH (n:Person) RETURN n LIMIT 25"""
 
-  test("neotypes") {
-    ntSession
-      .sessionStream
+  ignore("neotypes") {
+    ntSession.sessionStream
       .flatMap(s => person.query[Person].stream[Stream[IO, *]](s))
       .showLinesStdOut
       .compile
