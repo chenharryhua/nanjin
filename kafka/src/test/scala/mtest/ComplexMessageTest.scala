@@ -42,6 +42,6 @@ class ComplexMessageTest extends AnyFunSuite {
   }
 
   test("read complex message") {
-    topic.monitor.watchFromEarliest.unsafeRunSync()
+    topic.consumer.retrieveLastRecords.unsafeRunSync()
   }
 }
