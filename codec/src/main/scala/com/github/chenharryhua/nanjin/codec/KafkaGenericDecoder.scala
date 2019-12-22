@@ -29,7 +29,7 @@ final class KafkaGenericDecoder[F[_, _]: Bitraverse, K, V](
       _.map(jk.apply).getOrElse(Json.Null),
       _.map(jv.apply).getOrElse(Json.Null))
 
-  def record(
+  def avro(
     implicit
     ke: AvroEncoder[K],
     ks: SchemaFor[K],
