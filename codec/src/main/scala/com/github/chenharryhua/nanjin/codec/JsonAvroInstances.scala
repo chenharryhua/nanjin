@@ -7,6 +7,15 @@ object json {
   import io.circe.generic.auto._
   import io.circe.syntax._
   import io.circe.{Decoder, Encoder, HCursor}
+  import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
+
+  implicit def jsonNJConsumerRecordEncoder[K: Encoder, V: Encoder]
+    : Encoder[NJConsumerRecord[K, V]] =
+    deriveEncoder[NJConsumerRecord[K, V]]
+
+  implicit def jsonNJConsumerRecordDecoder[K: Decoder, V: Decoder]
+    : Decoder[NJConsumerRecord[K, V]] =
+    deriveDecoder[NJConsumerRecord[K, V]]
 
   implicit def jsonEncodeInGeneral[F[_, _], K: Encoder, V: Encoder](
     implicit iso: Iso[F[K, V], ConsumerRecord[K, V]],
