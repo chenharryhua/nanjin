@@ -2,8 +2,6 @@ package com.github.chenharryhua.nanjin.codec
 
 import cats.Bitraverse
 import cats.implicits._
-import com.sksamuel.avro4s.{Record, SchemaFor, ToRecord, Encoder => AvroEncoder}
-import io.circe.{Json, Encoder                                   => JsonEncoder}
 
 import scala.util.{Success, Try}
 
@@ -23,19 +21,4 @@ final class KafkaGenericDecoder[F[_, _]: Bitraverse, K, V](
 
   def nullableDecode(implicit knull: Null <:< K, vnull: Null <:< V): F[K, V] =
     data.bimap(k => keyCodec.prism.getOption(k).orNull, v => valueCodec.prism.getOption(v).orNull)
-
-  def json(implicit jk: JsonEncoder[K], jv: JsonEncoder[V]): F[Json, Json] =
-    tryDecodeKeyValue.bimap(
-      _.map(jk.apply).getOrElse(Json.Null),
-      _.map(jv.apply).getOrElse(Json.Null))
-
-  def avro(
-    implicit
-    ke: AvroEncoder[K],
-    ks: SchemaFor[K],
-    ve: AvroEncoder[V],
-    vs: SchemaFor[V]): F[Record, Record] =
-    tryDecodeKeyValue.bimap(
-      _.map(ToRecord[K].to).toOption.orNull,
-      _.map(ToRecord[V].to).toOption.orNull)
 }

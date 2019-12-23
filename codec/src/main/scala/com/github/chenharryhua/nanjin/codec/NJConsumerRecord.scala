@@ -3,15 +3,12 @@ package com.github.chenharryhua.nanjin.codec
 import cats.Show
 import cats.implicits._
 import com.github.ghik.silencer.silent
+import io.circe.generic.JsonCodec
 import monocle.Iso
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.record.TimestampType
 
-import scala.compat.java8.OptionConverters._
-
-final case class NJHeader(key: String, value: Array[Byte])
-
-sealed trait NJTimestampType {
+@JsonCodec sealed trait NJTimestampType {
   val name: String
   val id: Int
 }
@@ -45,7 +42,7 @@ object NJTimestampType {
     })
 }
 
-final case class NJConsumerRecord[K, V](
+@JsonCodec final case class NJConsumerRecord[K, V](
   key: Option[K],
   value: Option[V],
   topic: String,
@@ -55,49 +52,43 @@ final case class NJConsumerRecord[K, V](
   timestampType: NJTimestampType,
   checksum: Long,
   serializedKeySize: Int,
-  serializedValueSize: Int,
-  headers: List[NJHeader],
-  leaderEpoch: Option[Int])
+  serializedValueSize: Int) {
+
+  def consumerRcord(implicit knull: Null <:< K, vnull: Null <:< V): ConsumerRecord[K, V] =
+    new ConsumerRecord[K, V](
+      this.topic,
+      this.partition,
+      this.offset,
+      this.timestamp,
+      NJTimestampType.iso.get(this.timestampType),
+      this.checksum,
+      this.serializedKeySize,
+      this.serializedValueSize,
+      this.key.orNull,
+      this.value.orNull)
+}
 
 object NJConsumerRecord {
 
-  def iso[K, V](
-    implicit
-    knull: Null <:< K,
-    vnull: Null <:< V): Iso[NJConsumerRecord[K, V], ConsumerRecord[K, V]] =
-    Iso[NJConsumerRecord[K, V], ConsumerRecord[K, V]](ncr =>
-      new ConsumerRecord[K, V](
-        ncr.topic,
-        ncr.partition,
-        ncr.offset,
-        ncr.timestamp,
-        NJTimestampType.iso.get(ncr.timestampType),
-        ncr.checksum,
-        ncr.serializedKeySize,
-        ncr.serializedValueSize,
-        ncr.key.orNull,
-        ncr.value.orNull))(cr =>
-      NJConsumerRecord(
-        Option(cr.key),
-        Option(cr.value),
-        cr.topic,
-        cr.partition,
-        cr.offset,
-        cr.timestamp,
-        NJTimestampType.iso.reverseGet(cr.timestampType),
-        cr.checksum: @silent,
-        cr.serializedKeySize,
-        cr.serializedValueSize,
-        cr.headers.toArray.toList.map(x  => NJHeader(x.key, x.value)),
-        cr.leaderEpoch.asScala.flatMap(x => Option(x))
-      ))
-
-  import show.showConsumerRecord
+  def from[K, V](cr: ConsumerRecord[K, V]): NJConsumerRecord[K, V] =
+    NJConsumerRecord(
+      Option(cr.key),
+      Option(cr.value),
+      cr.topic,
+      cr.partition,
+      cr.offset,
+      cr.timestamp,
+      NJTimestampType.iso.reverseGet(cr.timestampType),
+      cr.checksum: @silent,
+      cr.serializedKeySize,
+      cr.serializedValueSize
+    )
 
   implicit def showNJConsumerRecord[K: Show, V: Show](
     implicit
     knull: Null <:< K,
-    vnull: Null <:< V): Show[NJConsumerRecord[K, V]] =
-    (nj: NJConsumerRecord[K, V]) => iso[K, V].get(nj).show
-
+    vnull: Null <:< V): Show[NJConsumerRecord[K, V]] = {
+    import show.showConsumerRecord
+    (t: NJConsumerRecord[K, V]) => t.consumerRcord.show
+  }
 }
