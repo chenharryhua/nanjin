@@ -6,7 +6,7 @@ import cats.derived.auto.show._
 import cats.implicits._
 import com.github.chenharryhua.nanjin.codec._
 import com.github.chenharryhua.nanjin.codec.bitraverse._
-import com.github.chenharryhua.nanjin.kafka.show._
+import com.github.chenharryhua.nanjin.codec.show._
 import io.circe.generic.auto._
 
 sealed trait Color

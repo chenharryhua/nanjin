@@ -1,18 +1,18 @@
-package com.github.chenharryhua.nanjin.kafka
+package com.github.chenharryhua.nanjin.codec
 
 import java.time.ZoneId
 
 import akka.kafka.ConsumerMessage.CommittableMessage
 import cats.Show
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.iso._
+import com.github.chenharryhua.nanjin.codec.iso.isoFs2ComsumerRecord
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.sksamuel.avro4s.Record
 import fs2.kafka.CommittableConsumerRecord
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
 
-private[kafka] trait ShowKafkaMessage {
+private[codec] trait ShowKafkaMessage {
   private val zoneId: ZoneId = ZoneId.systemDefault()
 
   implicit def showConsumerRecord[K: Show, V: Show]: Show[ConsumerRecord[K, V]] =

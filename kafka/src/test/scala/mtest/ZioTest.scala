@@ -13,7 +13,7 @@ import zio.random.Random
 import zio.system.System
 import zio.{DefaultRuntime, Runtime}
 import com.github.chenharryhua.nanjin.codec._
-import com.github.chenharryhua.nanjin.kafka.show._ 
+import com.github.chenharryhua.nanjin.codec.show._ 
 import com.github.chenharryhua.nanjin.codec.bitraverse._
 
 class ZioTest extends AnyFunSuite {

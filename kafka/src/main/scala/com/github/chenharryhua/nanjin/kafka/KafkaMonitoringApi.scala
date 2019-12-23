@@ -5,9 +5,9 @@ import cats.implicits._
 import cats.tagless._
 import com.github.chenharryhua.nanjin.codec.bitraverse._
 import com.github.chenharryhua.nanjin.codec.iso._
+import com.github.chenharryhua.nanjin.codec.show._
 import fs2.kafka.AutoOffsetReset
 import org.apache.kafka.clients.consumer.ConsumerRecord
-import show._
 import scala.util.Try
 
 @autoFunctorK

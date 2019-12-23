@@ -261,7 +261,7 @@ lazy val codec = (project in file("codec"))
       "com.github.ghik" %% "silencer-lib" % silencer % Provided
     ) ++ base ++ json ++ monocleLib ++ kafkaLib ++ avro ++ scodec ++ tests,
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
-  )
+  ).dependsOn(datetime)
 
 lazy val datetime = (project in file("datetime"))
   .settings(commonSettings: _*)

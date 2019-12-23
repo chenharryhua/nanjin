@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.codec
 
+import cats.Show
+import cats.implicits._
 import com.github.ghik.silencer.silent
 import monocle.Iso
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -54,7 +56,7 @@ final case class NJConsumerRecord[K, V](
   checksum: Long,
   serializedKeySize: Int,
   serializedValueSize: Int,
-  headers: Array[NJHeader],
+  headers: List[NJHeader],
   leaderEpoch: Option[Int])
 
 object NJConsumerRecord {
@@ -86,7 +88,16 @@ object NJConsumerRecord {
         cr.checksum: @silent,
         cr.serializedKeySize,
         cr.serializedValueSize,
-        cr.headers.toArray.map(x         => NJHeader(x.key, x.value)),
+        cr.headers.toArray.toList.map(x  => NJHeader(x.key, x.value)),
         cr.leaderEpoch.asScala.flatMap(x => Option(x))
       ))
+
+  import show.showConsumerRecord
+
+  implicit def showNJConsumerRecord[K: Show, V: Show](
+    implicit
+    knull: Null <:< K,
+    vnull: Null <:< V): Show[NJConsumerRecord[K, V]] =
+    (nj: NJConsumerRecord[K, V]) => iso[K, V].get(nj).show
+
 }
