@@ -70,7 +70,7 @@ object NJTimestampType {
 
 object NJConsumerRecord {
 
-  def from[K, V](cr: ConsumerRecord[K, V]): NJConsumerRecord[K, V] =
+  def apply[K, V](cr: ConsumerRecord[K, V]): NJConsumerRecord[K, V] =
     NJConsumerRecord(
       Option(cr.key),
       Option(cr.value),

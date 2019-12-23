@@ -252,6 +252,11 @@ val logs = Seq(
   "org.slf4j"                % "slf4j-api"  % "2.0.0-alpha1"
 )
 
+lazy val datetime = (project in file("datetime"))
+  .settings(commonSettings: _*)
+  .settings(name := "nj-datetime")
+  .settings(libraryDependencies ++= base ++ monocleLib ++ tests)
+
 lazy val codec = (project in file("codec"))
   .settings(commonSettings: _*)
   .settings(name := "nj-codec")
@@ -263,11 +268,6 @@ lazy val codec = (project in file("codec"))
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   ).dependsOn(datetime)
 
-lazy val datetime = (project in file("datetime"))
-  .settings(commonSettings: _*)
-  .settings(name := "nj-datetime")
-  .settings(libraryDependencies ++= base ++ monocleLib ++ tests)
-
 lazy val hadoop = (project in file("hadoop"))
   .settings(commonSettings: _*)
   .settings(name := "nj-hadoop")
@@ -277,7 +277,6 @@ lazy val kafka = (project in file("kafka"))
   .settings(commonSettings: _*)
   .settings(name := "nj-kafka")
   .dependsOn(codec)
-  .dependsOn(datetime)
   .settings(
     libraryDependencies ++= Seq("org.jline" % "jline" % jline) ++ effect ++ fs2 ++ tests,
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"

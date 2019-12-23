@@ -4,9 +4,12 @@ import org.scalatest.funsuite.AnyFunSuite
 import cats.Show
 import cats.derived.auto.show._
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec._
 import com.github.chenharryhua.nanjin.codec.bitraverse._
 import com.github.chenharryhua.nanjin.codec.show._
+import com.github.chenharryhua.nanjin.codec.json._
+import com.github.chenharryhua.nanjin.codec.avro._
+import com.github.chenharryhua.nanjin.codec.iso._
+import io.circe.syntax._
 import io.circe.generic.auto._
 
 sealed trait Color
@@ -30,13 +33,13 @@ class KAvroTest extends AnyFunSuite {
   }
   test("should output json and avro") {
     val run = topic.fs2Channel.consume
-      .map(x => topic.decoder(x).avro.show)
+      .map(x => topic.decoder(x).decode.record.asAvro.show)
       .showLinesStdOut
       .take(1)
       .compile
       .drain >>
       topic.fs2Channel.consume
-        .map(x => topic.decoder(x).json.show)
+        .map(x => topic.decoder(x).decode.record.asJson.show)
         .showLinesStdOut
         .take(1)
         .compile
