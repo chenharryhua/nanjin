@@ -22,17 +22,18 @@ object json {
 
 private[codec] trait LowPriorityAvroSyntax {
 
-  implicit class GenericAvroSyntax[A: SchemaFor: Decoder: Encoder](a: A) {
-    private val format: RecordFormat[A] = RecordFormat[A]
-    def asAvro: Record                  = format.to(a)
+  implicit class GenericAvroEncodeSyntax[A: SchemaFor: Encoder](a: A) {
+    def asAvro: Record = ToRecord[A].to(a)
   }
 }
 
 object avro extends LowPriorityAvroSyntax {
 
-  implicit class ConsumerRecordAvroSyntax[F[_, _], K: SchemaFor: Encoder, V: SchemaFor: Encoder](
-    cr: F[K, V])(implicit iso: Iso[F[K, V], ConsumerRecord[K, V]]) {
+  implicit class ConsumerRecordAvroEncodeSyntax[
+    F[_, _],
+    K: SchemaFor: Encoder,
+    V: SchemaFor: Encoder](cr: F[K, V])(implicit iso: Iso[F[K, V], ConsumerRecord[K, V]]) {
 
-    def asAvro: Record = NJConsumerRecord(iso.get(cr)).asAvro
+    def asAvro: Record = NJConsumerRecord[K, V](iso.get(cr)).asAvro
   }
 }

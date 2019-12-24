@@ -77,7 +77,6 @@ final case class NJConsumerRecord[K, V](
     vs: SchemaFor[V],
     ve: AvroEncoder[V]): Record =
     ToRecord[NJConsumerRecord[K, V]].to(this)
-
 }
 
 object NJConsumerRecord {
