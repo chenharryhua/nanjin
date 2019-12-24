@@ -106,11 +106,18 @@ object KafkaMonitoringApi {
         .resource[F, Blocker](Blocker[F])
         .flatMap { blocker =>
           fs2Channel.consume
-            .map(x => topic.decoder(x).decode.record.asJson.noSpaces)
+            .map(x =>
+              topic
+                .decoder(x)
+                .tryDecodeKeyValue
+                .bimap(_.toOption, _.toOption)
+                .record
+                .asJson
+                .noSpaces)
             .intersperse("\n")
             .through(text.utf8Encode)
             .through(
-              fs2.io.file.writeAll(Paths.get(s"./data/json/${topic.topicDef.topicName}"), blocker))
+              fs2.io.file.writeAll(Paths.get(s"./data/json/${topic.topicDef.topicName}.json"), blocker))
         }
         .compile
         .drain

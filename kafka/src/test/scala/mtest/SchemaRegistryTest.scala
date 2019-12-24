@@ -5,6 +5,7 @@ import cats.effect.IO
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.{KafkaSettings, KafkaTopic, TopicDef}
 import org.scalatest.funsuite.AnyFunSuite
+import io.circe.generic.auto._ 
 
 class SchemaRegistryTest extends AnyFunSuite {
 

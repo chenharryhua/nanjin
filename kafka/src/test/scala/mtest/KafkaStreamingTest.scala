@@ -6,6 +6,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import cats.derived.auto.show._ 
 import io.chrisdavenport.cats.time._
 import org.apache.kafka.streams.scala.ImplicitConversions._
+import io.circe.generic.auto._ 
 
 case class StreamOneValue(name: String, size: Int)
 case class StreamTwoValue(name: String, color: Int)
