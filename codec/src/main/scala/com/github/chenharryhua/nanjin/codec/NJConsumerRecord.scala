@@ -6,13 +6,13 @@ import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
 final case class NJConsumerRecord[K, V](
+  partition: Int,
+  offset: Long,
   key: Option[K],
   value: Option[V],
   topic: String,
-  partition: Int,
-  offset: Long,
   timestamp: Long,
-  timestampType: String) {
+  tsType: String) {
 
   def asAvro(
     implicit
@@ -27,11 +27,11 @@ object NJConsumerRecord {
 
   def apply[K, V](cr: ConsumerRecord[K, V]): NJConsumerRecord[K, V] =
     NJConsumerRecord(
+      cr.partition,
+      cr.offset,
       Option(cr.key),
       Option(cr.value),
       cr.topic,
-      cr.partition,
-      cr.offset,
       cr.timestamp,
       cr.timestampType.toString)
 
