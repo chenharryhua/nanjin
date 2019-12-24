@@ -1,14 +1,17 @@
 package com.github.chenharryhua.nanjin.codec
 
 import cats.Show
-import cats.implicits._
 import com.github.ghik.silencer.silent
+import com.sksamuel.avro4s.{Encoder => AvroEncoder, Record, SchemaFor, ToRecord}
 import io.circe.generic.JsonCodec
+import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
+import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import monocle.Iso
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.record.TimestampType
 
-@JsonCodec sealed trait NJTimestampType {
+@JsonCodec
+sealed trait NJTimestampType {
   val name: String
   val id: Int
 }
@@ -42,7 +45,7 @@ object NJTimestampType {
     })
 }
 
-@JsonCodec final case class NJConsumerRecord[K, V](
+final case class NJConsumerRecord[K, V](
   key: Option[K],
   value: Option[V],
   topic: String,
@@ -66,6 +69,15 @@ object NJTimestampType {
       this.serializedValueSize,
       this.key.orNull,
       this.value.orNull)
+
+  def asAvro(
+    implicit
+    ks: SchemaFor[K],
+    ke: AvroEncoder[K],
+    vs: SchemaFor[V],
+    ve: AvroEncoder[V]): Record =
+    ToRecord[NJConsumerRecord[K, V]].to(this)
+
 }
 
 object NJConsumerRecord {
@@ -84,11 +96,18 @@ object NJConsumerRecord {
       cr.serializedValueSize
     )
 
+  implicit def jsonNJConsumerRecordEncoder[K: JsonEncoder, V: JsonEncoder]
+    : JsonEncoder[NJConsumerRecord[K, V]] =
+    deriveEncoder[NJConsumerRecord[K, V]]
+
+  implicit def jsonNJConsumerRecordDecoder[K: JsonDecoder, V: JsonDecoder]
+    : JsonDecoder[NJConsumerRecord[K, V]] =
+    deriveDecoder[NJConsumerRecord[K, V]]
+
   implicit def showNJConsumerRecord[K: Show, V: Show](
     implicit
     knull: Null <:< K,
-    vnull: Null <:< V): Show[NJConsumerRecord[K, V]] = {
-    import show.showConsumerRecord
-    (t: NJConsumerRecord[K, V]) => t.consumerRcord.show
+    vnull: Null <:< V): Show[NJConsumerRecord[K, V]] = { t: NJConsumerRecord[K, V] =>
+    show.showConsumerRecord[K, V].show(t.consumerRcord)
   }
 }

@@ -1,21 +1,12 @@
 package com.github.chenharryhua.nanjin.codec
 
+import com.sksamuel.avro4s._
 import monocle.Iso
 import org.apache.kafka.clients.consumer.ConsumerRecord
-import com.sksamuel.avro4s._
 
 object json {
-  import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
   import io.circe.syntax._
   import io.circe.{Decoder, Encoder, HCursor}
-
-  implicit def jsonNJConsumerRecordEncoder[K: Encoder, V: Encoder]
-    : Encoder[NJConsumerRecord[K, V]] =
-    deriveEncoder[NJConsumerRecord[K, V]]
-
-  implicit def jsonNJConsumerRecordDecoder[K: Decoder, V: Decoder]
-    : Decoder[NJConsumerRecord[K, V]] =
-    deriveDecoder[NJConsumerRecord[K, V]]
 
   implicit def jsonEncodeInGeneral[F[_, _], K: Encoder, V: Encoder](
     implicit iso: Iso[F[K, V], ConsumerRecord[K, V]]): Encoder[F[K, V]] =
@@ -39,12 +30,9 @@ private[codec] trait LowPriorityAvroSyntax {
 
 object avro extends LowPriorityAvroSyntax {
 
-  implicit class AvroGenericRecordSyntax[
-    F[_, _],
-    K: SchemaFor: Decoder: Encoder,
-    V: SchemaFor: Decoder: Encoder](cr: F[K, V])(implicit iso: Iso[F[K, V], ConsumerRecord[K, V]]) {
-    private val format: RecordFormat[NJConsumerRecord[K, V]] = RecordFormat[NJConsumerRecord[K, V]]
+  implicit class ConsumerRecordAvroSyntax[F[_, _], K: SchemaFor: Encoder, V: SchemaFor: Encoder](
+    cr: F[K, V])(implicit iso: Iso[F[K, V], ConsumerRecord[K, V]]) {
 
-    def asAvro: Record = format.to(NJConsumerRecord[K, V](iso.get(cr)))
+    def asAvro: Record = NJConsumerRecord(iso.get(cr)).asAvro
   }
 }
