@@ -12,11 +12,11 @@ import com.github.chenharryhua.nanjin.codec.iso._
 import io.circe.syntax._
 import io.circe.generic.auto._
 
-sealed trait Color
-final case class Red(str: String, i: Int) extends Color
-final case class Green(str: String) extends Color
-final case class Blue(str: String) extends Color
-final case class Cloth(color: Color, name: String, size: Int)
+sealed trait Color2
+final case class Red(str: String, i: Int) extends Color2
+final case class Green(str: String) extends Color2
+final case class Blue(str: String) extends Color2
+final case class Cloth(color: Color2, name: String, size: Int)
 
 class KAvroTest extends AnyFunSuite {
   val topic = ctx.topic[Int, Cloth]("cloth")

@@ -5,19 +5,12 @@ import monocle.Iso
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
 object json {
+  import io.circe.Encoder
   import io.circe.syntax._
-  import io.circe.{Decoder, Encoder, HCursor}
 
   implicit def jsonEncodeInGeneral[F[_, _], K: Encoder, V: Encoder](
     implicit iso: Iso[F[K, V], ConsumerRecord[K, V]]): Encoder[F[K, V]] =
     (a: F[K, V]) => NJConsumerRecord[K, V](iso.get(a)).asJson
-
-  implicit def jsonDecodeInGeneral[F[_, _], K: Decoder, V: Decoder](
-    implicit
-    knull: Null <:< K,
-    vnull: Null <:< V,
-    iso: Iso[F[K, V], ConsumerRecord[K, V]]): Decoder[F[K, V]] =
-    (c: HCursor) => c.as[NJConsumerRecord[K, V]].map(x => iso.reverseGet(x.consumerRcord))
 }
 
 private[codec] trait LowPriorityAvroSyntax {

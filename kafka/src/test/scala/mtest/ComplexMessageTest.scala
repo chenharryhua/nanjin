@@ -6,20 +6,20 @@ import cats.Show
 import cats.derived.auto.show._
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka._
-import io.chrisdavenport.cats.time._
+import com.github.chenharryhua.nanjin.datetime._
 import io.circe.generic.JsonCodec
 import io.circe.generic.auto._
 import io.circe.shapes._
-import io.circe.syntax._ 
+import io.circe.syntax._
 import org.scalatest.funsuite.AnyFunSuite
 import shapeless.{:+:, CNil}
 import io.circe.Encoder
 import io.circe.Decoder
 import shapeless.Coproduct
 
-final case class Employee(name: String, age: Int, department: String)
+final case class Employee2(name: String, age: Int, department: String)
 
-sealed trait SealedTrait
+@JsonCodec sealed trait SealedTrait
 
 object SealedTrait {
 
@@ -50,12 +50,12 @@ object EnumTest extends Enumeration {
   e: Double     = 3.0d,
   f: LocalDateTime,
   g: Instant,
-  h: Employee,
+  h: Employee2,
+  m: Annotated,
   i: EnumTest.Materials,
   j: Int :+: String :+: Float :+: CNil,
   k: SealedTrait,
-  l: SealedTrait.Red.type :+: SealedTrait.Green.type :+: CNil,
-  m: Annotated
+  l: Annotated :+: Employee2 :+: Int :+: CNil
 )
 
 class ComplexMessageTest extends AnyFunSuite {
@@ -70,14 +70,15 @@ class ComplexMessageTest extends AnyFunSuite {
     3.0d,
     LocalDateTime.now,
     Instant.now(),
-    Employee("e", 10, "tb"),
+    Employee2("e", 10, "tb"),
+    Annotated(1, 2),
     EnumTest.Steel,
-    Coproduct(10),
-    SealedTrait.Red,
-    Coproduct[SealedTrait.Red.type :+: SealedTrait.Green.type :+: CNil](SealedTrait.Green),
-    Annotated(1, 2)
+    Coproduct[Int :+: String :+: Float :+: CNil]("aaaaa"),
+    SealedTrait.Blue,
+    Coproduct[Annotated :+: Employee2 :+: Int :+: CNil](Annotated(-1, -1))
   )
   test("identical") {
-    assert(m.asJson.as[ComplexMessage] == m)
+    println(m.asJson.toString)
+    assert(m.asJson.as[ComplexMessage].toOption.get == m)
   }
 }
