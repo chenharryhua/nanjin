@@ -9,6 +9,7 @@ import cats.{Eval, Show}
 import com.github.chenharryhua.nanjin.codec.{KafkaSerde, SerdeOf}
 import fs2.Stream
 import fs2.kafka._
+import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, ByteArraySerializer}
@@ -54,7 +55,9 @@ sealed abstract class KafkaContext[F[_]](val settings: KafkaSettings)(
   final def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] =
     KafkaTopic[F, K, V](topicDef, this)
 
-  final def topic[K: SerdeOf: Show, V: SerdeOf: Show](topicName: String): KafkaTopic[F, K, V] =
+  final def topic[
+    K: SerdeOf: Show: JsonEncoder: JsonDecoder,
+    V: SerdeOf: Show: JsonEncoder: JsonDecoder](topicName: String): KafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](topicName))
 
   final def kafkaStreams(topology: Reader[StreamsBuilder, Unit]): Stream[F, KafkaStreams] =

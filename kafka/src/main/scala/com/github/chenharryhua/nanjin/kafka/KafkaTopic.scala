@@ -4,6 +4,7 @@ import cats.effect.Resource
 import cats.implicits._
 import cats.{Bitraverse, Show}
 import com.github.chenharryhua.nanjin.codec._
+import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import monocle.function.At
 import org.apache.avro.Schema
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -15,7 +16,12 @@ final case class TopicDef[K, V](topicName: String)(
   val serdeOfKey: SerdeOf[K],
   val serdeOfValue: SerdeOf[V],
   val showKey: Show[K],
-  val showValue: Show[V]) {
+  val showValue: Show[V],
+  val jsonKeyEncoder: JsonEncoder[K],
+  val jsonValueEncoder: JsonEncoder[V],
+  val jsonKeyDecoder: JsonDecoder[K],
+  val jsonValueDecoder: JsonDecoder[V]
+) {
   val keySchemaLoc: String   = s"$topicName-key"
   val valueSchemaLoc: String = s"$topicName-value"
 
@@ -25,21 +31,45 @@ final case class TopicDef[K, V](topicName: String)(
 
 object TopicDef {
 
-  def apply[K: Show, V: Show](
+  def apply[K: Show: JsonEncoder: JsonDecoder, V: Show: JsonEncoder: JsonDecoder](
     topicName: String,
     keySchema: ManualAvroSchema[K],
     valueSchema: ManualAvroSchema[V]): TopicDef[K, V] =
-    new TopicDef(topicName)(SerdeOf(keySchema), SerdeOf(valueSchema), Show[K], Show[V])
+    new TopicDef(topicName)(
+      SerdeOf(keySchema),
+      SerdeOf(valueSchema),
+      Show[K],
+      Show[V],
+      JsonEncoder[K],
+      JsonEncoder[V],
+      JsonDecoder[K],
+      JsonDecoder[V])
 
-  def apply[K: Show: SerdeOf, V: Show](
+  def apply[K: Show: SerdeOf: JsonEncoder: JsonDecoder, V: Show: JsonEncoder: JsonDecoder](
     topicName: String,
     valueSchema: ManualAvroSchema[V]): TopicDef[K, V] =
-    new TopicDef(topicName)(SerdeOf[K], SerdeOf(valueSchema), Show[K], Show[V])
+    new TopicDef(topicName)(
+      SerdeOf[K],
+      SerdeOf(valueSchema),
+      Show[K],
+      Show[V],
+      JsonEncoder[K],
+      JsonEncoder[V],
+      JsonDecoder[K],
+      JsonDecoder[V])
 
-  def apply[K: Show, V: Show: SerdeOf](
+  def apply[K: Show: JsonEncoder: JsonDecoder, V: Show: SerdeOf: JsonEncoder: JsonDecoder](
     topicName: String,
     keySchema: ManualAvroSchema[K]): TopicDef[K, V] =
-    new TopicDef(topicName)(SerdeOf(keySchema), SerdeOf[V], Show[K], Show[V])
+    new TopicDef(topicName)(
+      SerdeOf(keySchema),
+      SerdeOf[V],
+      Show[K],
+      Show[V],
+      JsonEncoder[K],
+      JsonEncoder[V],
+      JsonDecoder[K],
+      JsonDecoder[V])
 }
 
 final case class TopicCodec[K, V] private[kafka] (

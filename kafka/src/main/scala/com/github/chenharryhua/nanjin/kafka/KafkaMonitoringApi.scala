@@ -1,13 +1,20 @@
 package com.github.chenharryhua.nanjin.kafka
+
+import java.nio.file.Paths
+
 import cats.Show
-import cats.effect.Concurrent
+import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.implicits._
 import cats.tagless._
 import com.github.chenharryhua.nanjin.codec.bitraverse._
 import com.github.chenharryhua.nanjin.codec.iso._
+import com.github.chenharryhua.nanjin.codec.json._
 import com.github.chenharryhua.nanjin.codec.show._
 import fs2.kafka.AutoOffsetReset
+import fs2.{text, Stream}
+import io.circe.syntax._
 import org.apache.kafka.clients.consumer.ConsumerRecord
+
 import scala.util.Try
 
 @autoFunctorK
@@ -23,18 +30,20 @@ trait KafkaMonitoringApi[F[_], K, V] {
   def badRecords: F[Unit]
 
   def summaries: F[Unit]
+
+  def saveJson: F[Unit]
 }
 
 object KafkaMonitoringApi {
 
-  def apply[F[_]: Concurrent, K: Show, V: Show](
+  def apply[F[_]: Concurrent: ContextShift, K: Show, V: Show](
     topic: KafkaTopic[F, K, V]): KafkaMonitoringApi[F, K, V] =
     new KafkaTopicMonitoring[F, K, V](topic)
 
-  final private class KafkaTopicMonitoring[F[_], K: Show, V: Show](topic: KafkaTopic[F, K, V])(
-    implicit F: Concurrent[F])
+  final private class KafkaTopicMonitoring[F[_]: ContextShift, K: Show, V: Show](
+    topic: KafkaTopic[F, K, V])(implicit F: Concurrent[F])
       extends KafkaMonitoringApi[F, K, V] {
-
+    import topic.topicDef.{jsonKeyEncoder, jsonValueEncoder}
     private val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] = topic.fs2Channel
     private val consumer: KafkaConsumerApi[F, K, V]           = topic.consumer
 
@@ -91,5 +100,19 @@ object KafkaMonitoringApi {
                          |last records of each partitions:
                          |${last.map(_.show).mkString("\n")}
                          |""".stripMargin)
+
+    def saveJson: F[Unit] =
+      Stream
+        .resource[F, Blocker](Blocker[F])
+        .flatMap { blocker =>
+          fs2Channel.consume
+            .map(x => topic.decoder(x).decode.record.asJson.noSpaces)
+            .intersperse("\n")
+            .through(text.utf8Encode)
+            .through(
+              fs2.io.file.writeAll(Paths.get(s"./data/json/${topic.topicDef.topicName}"), blocker))
+        }
+        .compile
+        .drain
   }
 }
