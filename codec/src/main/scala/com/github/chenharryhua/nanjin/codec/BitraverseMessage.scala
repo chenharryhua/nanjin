@@ -65,7 +65,8 @@ object BitraverseMessage extends BitraverseKafkaRecord {
           ConsumerRecord[K1, V1],
           ConsumerRecord[K2, V2]](s => s)(b => _ => b)
 
-      override def jsonRecord[K: JsonEncoder, V: JsonEncoder](cr: ConsumerRecord[Option[K], Option[V]]): Json =
+      override def jsonRecord[K: JsonEncoder, V: JsonEncoder](
+        cr: ConsumerRecord[Option[K], Option[V]]): Json =
         NJConsumerRecord(cr).asJson
 
       override def avroRecord[K: SchemaFor: AvroEncoder, V: SchemaFor: AvroEncoder](
@@ -92,7 +93,8 @@ object BitraverseMessage extends BitraverseKafkaRecord {
           iso.isoFs2ComsumerRecord.reverseGet(b)
         }
 
-      override def jsonRecord[K: JsonEncoder, V: JsonEncoder](cr: Fs2ConsumerRecord[Option[K], Option[V]]): Json =
+      override def jsonRecord[K: JsonEncoder, V: JsonEncoder](
+        cr: Fs2ConsumerRecord[Option[K], Option[V]]): Json =
         NJConsumerRecord(iso.isoFs2ComsumerRecord.get(cr)).asJson
 
       override def avroRecord[K: SchemaFor: AvroEncoder, V: SchemaFor: AvroEncoder](
@@ -201,7 +203,8 @@ object BitraverseMessage extends BitraverseKafkaRecord {
           ProducerRecord[K1, V1],
           ProducerRecord[K2, V2]](s => s)(b => _ => b)
 
-      override def jsonRecord[K: JsonEncoder, V: JsonEncoder](cr: ProducerRecord[Option[K], Option[V]]): Json =
+      override def jsonRecord[K: JsonEncoder, V: JsonEncoder](
+        cr: ProducerRecord[Option[K], Option[V]]): Json =
         NJProducerRecord(cr).asJson
 
       override def avroRecord[K: SchemaFor: AvroEncoder, V: SchemaFor: AvroEncoder](
@@ -229,7 +232,8 @@ object BitraverseMessage extends BitraverseKafkaRecord {
           iso.isoFs2ProducerRecord[K2, V2].reverseGet(b)
         }
 
-      override def jsonRecord[K: JsonEncoder, V: JsonEncoder](cr: Fs2ProducerRecord[Option[K], Option[V]]): Json =
+      override def jsonRecord[K: JsonEncoder, V: JsonEncoder](
+        cr: Fs2ProducerRecord[Option[K], Option[V]]): Json =
         NJProducerRecord(iso.isoFs2ProducerRecord[Option[K], Option[V]].get(cr)).asJson
 
       override def avroRecord[K: SchemaFor: AvroEncoder, V: SchemaFor: AvroEncoder](
