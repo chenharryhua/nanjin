@@ -47,11 +47,7 @@ private[kafka] object SparKafka {
               props(topic.context.settings.consumerSettings.config),
               KafkaOffsets.offsetRange(gtp),
               locationStrategy)
-            .mapPartitions { crs =>
-              val decoder = (cr: ConsumerRecord[Array[Byte], Array[Byte]]) =>
-                NJConsumerRecord(topic.decoder(cr).optionalDecodeKeyValue)
-              crs.map(decoder)
-            }
+            .mapPartitions(_.map(cr => NJConsumerRecord(topic.decoder(cr).optionalDecodeKeyValue)))
         }
         .map(TypedDataset.create(_))
     }
@@ -149,8 +145,8 @@ private[kafka] object SparKafka {
             msg.partition,
             msg.offset,
             msg.timestamp,
-            msg.key.flatMap(topic.codec.keyCodec.prism.getOption),
-            msg.value.flatMap(topic.codec.valueCodec.prism.getOption),
+            msg.key.flatMap(k   => topic.codec.keyCodec.tryDecode(k).toOption),
+            msg.value.flatMap(v => topic.codec.valueCodec.tryDecode(v).toOption),
             msg.topic,
             msg.timestampType
           )
