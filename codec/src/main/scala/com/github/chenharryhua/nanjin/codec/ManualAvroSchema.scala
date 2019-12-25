@@ -37,15 +37,15 @@ object ManualAvroSchema {
       diff(cleanupJsonDocument(input), cleanupJsonDocument(inferred))
     }
 
-  def apply[A: AvroDecoder: AvroEncoder: SchemaFor](
-    stringSchema: String): Either[KafkaAvroSchemaError, ManualAvroSchema[A]] =
+  @throws[KafkaAvroSchemaError]
+  def apply[A: AvroDecoder: AvroEncoder: SchemaFor](stringSchema: String): ManualAvroSchema[A] =
     whatsDifferent(stringSchema, AvroSchema[A])
-      .fold[Either[KafkaAvroSchemaError, ManualAvroSchema[A]]](
-        e => Left(KafkaAvroSchemaError(e.message)),
-        jp =>
-          if (jp.ops.isEmpty) {
-            val parser: Schema.Parser = new Schema.Parser
-            Right(ManualAvroSchema(parser.parse(stringSchema)))
-          } else Left(KafkaAvroSchemaError(jp.ops.map(_.toString).mkString("\n")))
-      )
+      .leftMap(e => KafkaAvroSchemaError(e.message))
+      .flatMap { jp =>
+        if (jp.ops.isEmpty) {
+          val parser: Schema.Parser = new Schema.Parser
+          Right(ManualAvroSchema(parser.parse(stringSchema)))
+        } else Left(KafkaAvroSchemaError(jp.ops.map(_.toString).mkString("\n")))
+      }
+      .fold(throw _, identity)
 }
