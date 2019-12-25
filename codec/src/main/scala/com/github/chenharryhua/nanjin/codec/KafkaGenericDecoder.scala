@@ -20,21 +20,21 @@ final class KafkaGenericDecoder[F[_, _], K, V](
   def tryDecodeValue: Try[F[Array[Byte], V]] = data.bitraverse(Success(_), valueCodec.tryDecode)
   def tryDecodeKey: Try[F[K, Array[Byte]]]   = data.bitraverse(keyCodec.tryDecode, Success(_))
 
-  def optionalDecode: F[Option[K], Option[V]] =
-    data.bimap(k => keyCodec.prism.getOption(k), v => valueCodec.prism.getOption(v))
+  def optionalDecodeKeyValue: F[Option[K], Option[V]] =
+    data.bimap(k => keyCodec.tryDecode(k).toOption, v => valueCodec.tryDecode(v).toOption)
 
   def nullableDecode(implicit knull: Null <:< K, vnull: Null <:< V): F[K, V] =
-    optionalDecode.bimap(_.orNull, _.orNull)
+    optionalDecodeKeyValue.bimap(_.orNull, _.orNull)
 
   def json(
     implicit
     jke: JsonEncoder[K],
-    jkv: JsonEncoder[V]): Json = BM.jsonRecord(optionalDecode)
+    jkv: JsonEncoder[V]): Json = BM.jsonRecord(optionalDecodeKeyValue)
 
   def avro(
     implicit
     ks: SchemaFor[K],
     ke: AvroEncoder[K],
     vs: SchemaFor[V],
-    ve: AvroEncoder[V]): Record = BM.avroRecord(optionalDecode)
+    ve: AvroEncoder[V]): Record = BM.avroRecord(optionalDecodeKeyValue)
 }

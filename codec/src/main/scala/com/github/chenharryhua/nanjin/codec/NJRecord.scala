@@ -87,13 +87,8 @@ final case class NJProducerRecord[K, V](
 
 object NJProducerRecord {
 
-  def apply[K, V](pr: ProducerRecord[K, V]): NJProducerRecord[K, V] =
-    NJProducerRecord(
-      pr.topic,
-      Option(pr.partition),
-      Option(pr.timestamp),
-      Option(pr.key),
-      Option(pr.value))
+  def apply[K, V](pr: ProducerRecord[Option[K], Option[V]]): NJProducerRecord[K, V] =
+    NJProducerRecord(pr.topic, Option(pr.partition), Option(pr.timestamp), pr.key, pr.value)
 
   implicit def jsonNJProducerRecordEncoder[K: JsonEncoder, V: JsonEncoder]
     : JsonEncoder[NJProducerRecord[K, V]] =
