@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark.UpdateParams
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SparkSession
+import com.github.chenharryhua.nanjin.codec.NJConsumerRecord
 
 final case class SparKafkaSession(params: SparKafkaParams)(implicit val sparkSession: SparkSession)
     extends UpdateParams[SparKafkaParams, SparKafkaSession] {
@@ -50,7 +51,7 @@ final case class SparKafkaSession(params: SparKafkaParams)(implicit val sparkSes
       .drain
 
   def sparkStream[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
-    topic: => KafkaTopic[F, K, V]): TypedDataset[SparKafkaConsumerRecord[K, V]] =
+    topic: => KafkaTopic[F, K, V]): TypedDataset[NJConsumerRecord[K, V]] =
     SparKafka.sparkStream(topic)
 }
 

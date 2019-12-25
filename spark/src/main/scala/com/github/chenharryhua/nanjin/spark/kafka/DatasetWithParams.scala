@@ -8,6 +8,8 @@ import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.functions.aggregate.count
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
+import com.github.chenharryhua.nanjin.codec.NJConsumerRecord
+import com.github.chenharryhua.nanjin.codec.NJProducerRecord
 
 final case class MinutelyAggResult(minute: Int, count: Long)
 final case class HourlyAggResult(hour: Int, count: Long)
@@ -17,9 +19,9 @@ final case class DailyMinuteAggResult(date: LocalDateTime, count: Long)
 
 final case class ConsumerRecordDatasetWithParams[K: TypedEncoder, V: TypedEncoder](
   params: SparKafkaParams,
-  private val crs: Dataset[SparKafkaConsumerRecord[K, V]]) {
+  private val crs: Dataset[NJConsumerRecord[K, V]]) {
 
-  def consumerRecords: TypedDataset[SparKafkaConsumerRecord[K, V]] = TypedDataset.create(crs)
+  def consumerRecords: TypedDataset[NJConsumerRecord[K, V]] = TypedDataset.create(crs)
 
   def minutely: TypedDataset[MinutelyAggResult] = {
     val minute: TypedDataset[Int] = consumerRecords.deserialized.map { m =>
@@ -65,6 +67,6 @@ final case class ConsumerRecordDatasetWithParams[K: TypedEncoder, V: TypedEncode
     res.orderBy(res('date).asc)
   }
 
-  def toProducerRecords: TypedDataset[SparKafkaProducerRecord[K, V]] =
+  def toProducerRecords: TypedDataset[NJProducerRecord[K, V]] =
     SparKafka.toProducerRecords(consumerRecords, params.conversionTactics, params.clock)
 }

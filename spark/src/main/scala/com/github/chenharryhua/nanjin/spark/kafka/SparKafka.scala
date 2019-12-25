@@ -5,10 +5,11 @@ import java.util
 
 import cats.effect.{ConcurrentEffect, Sync, Timer}
 import cats.implicits._
+import com.github.chenharryhua.nanjin.codec.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.codec.iso._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.spark.{StorageRootPath, UploadRate}
+import com.github.chenharryhua.nanjin.spark._
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.{Chunk, Stream}
 import monocle.function.At.remove
@@ -35,7 +36,7 @@ private[kafka] object SparKafka {
     topic: => KafkaTopic[F, K, V],
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy)(
-    implicit sparkSession: SparkSession): F[TypedDataset[SparKafkaConsumerRecord[K, V]]] =
+    implicit sparkSession: SparkSession): F[TypedDataset[NJConsumerRecord[K, V]]] =
     Sync[F].suspend {
       topic.consumer
         .offsetRangeFor(timeRange)
@@ -47,12 +48,8 @@ private[kafka] object SparKafka {
               KafkaOffsets.offsetRange(gtp),
               locationStrategy)
             .mapPartitions { crs =>
-              val t = topic
               val decoder = (cr: ConsumerRecord[Array[Byte], Array[Byte]]) =>
-                SparKafkaConsumerRecord
-                  .fromConsumerRecord(cr)
-                  .bimap(t.codec.keyCodec.prism.getOption, t.codec.valueCodec.prism.getOption)
-                  .flattenKeyValue
+                NJConsumerRecord(topic.decoder(cr).optionalDecodeKeyValue)
               crs.map(decoder)
             }
         }
@@ -63,10 +60,10 @@ private[kafka] object SparKafka {
     topic: => KafkaTopic[F, K, V],
     timeRange: NJDateTimeRange,
     rootPath: StorageRootPath)(
-    implicit sparkSession: SparkSession): F[TypedDataset[SparKafkaConsumerRecord[K, V]]] =
+    implicit sparkSession: SparkSession): F[TypedDataset[NJConsumerRecord[K, V]]] =
     Sync[F].delay {
       val tds =
-        TypedDataset.createUnsafe[SparKafkaConsumerRecord[K, V]](
+        TypedDataset.createUnsafe[NJConsumerRecord[K, V]](
           sparkSession.read.parquet(path(rootPath, topic)))
       val inBetween = tds.makeUDF[Long, Boolean](timeRange.isInBetween)
       tds.filter(inBetween(tds('timestamp)))
@@ -82,26 +79,27 @@ private[kafka] object SparKafka {
       _.write.mode(saveMode).parquet(path(rootPath, topic)))
 
   def toProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
-    tds: TypedDataset[SparKafkaConsumerRecord[K, V]],
+    tds: TypedDataset[NJConsumerRecord[K, V]],
     ct: ConversionTactics,
-    clock: Clock): TypedDataset[SparKafkaProducerRecord[K, V]] = {
+    clock: Clock): TypedDataset[NJProducerRecord[K, V]] = {
     val sorted = tds.orderBy(tds('timestamp).asc, tds('offset).asc)
     ct match {
       case ConversionTactics(true, true) =>
-        sorted.deserialized.map(_.toSparkafkaProducerRecord)
+        sorted.deserialized.map(_.toNJProducerRecord)
       case ConversionTactics(false, true) =>
-        sorted.deserialized.map(_.toSparkafkaProducerRecord.withoutPartition)
+        sorted.deserialized.map(_.toNJProducerRecord.withoutPartition)
       case ConversionTactics(true, false) =>
-        sorted.deserialized.map(_.toSparkafkaProducerRecord.withNow(clock))
+        sorted.deserialized.map(_.toNJProducerRecord.withNow(clock))
       case ConversionTactics(false, false) =>
-        sorted.deserialized.map(_.toSparkafkaProducerRecord.withNow(clock).withoutPartition)
+        sorted.deserialized.map(_.toNJProducerRecord.withNow(clock).withoutPartition)
     }
   }
 
   // upload to kafka
+
   def uploadToKafka[F[_]: ConcurrentEffect: Timer, K, V](
     topic: => KafkaTopic[F, K, V],
-    tds: TypedDataset[SparKafkaProducerRecord[K, V]],
+    tds: TypedDataset[NJProducerRecord[K, V]],
     uploadRate: UploadRate
   ): Stream[F, Chunk[RecordMetadata]] =
     tds
@@ -128,7 +126,7 @@ private[kafka] object SparKafka {
     } yield res
 
   def sparkStream[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
-    implicit spark: SparkSession): TypedDataset[SparKafkaConsumerRecord[K, V]] = {
+    implicit spark: SparkSession): TypedDataset[NJConsumerRecord[K, V]] = {
     def toSparkOptions(m: Map[String, String]): Map[String, String] = {
       val rm1 = remove(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG)(_: Map[String, String])
       val rm2 = remove(ConsumerConfig.GROUP_ID_CONFIG)(_: Map[String, String])
@@ -143,14 +141,19 @@ private[kafka] object SparKafka {
           .options(toSparkOptions(topic.context.settings.consumerSettings.config))
           .option("subscribe", topic.topicDef.topicName)
           .load()
-          .as[SparKafkaConsumerRecord[Array[Byte], Array[Byte]]])
+          .as[NJConsumerRecord[Array[Byte], Array[Byte]]])
       .deserialized
       .mapPartitions { msgs =>
-        val t = topic
-        val decoder = (msg: SparKafkaConsumerRecord[Array[Byte], Array[Byte]]) =>
-          msg
-            .bimap(t.codec.keyCodec.prism.getOption, t.codec.valueCodec.prism.getOption)
-            .flattenKeyValue
+        val decoder = (msg: NJConsumerRecord[Array[Byte], Array[Byte]]) =>
+          NJConsumerRecord[K, V](
+            msg.partition,
+            msg.offset,
+            msg.timestamp,
+            msg.key.flatMap(topic.codec.keyCodec.prism.getOption),
+            msg.value.flatMap(topic.codec.valueCodec.prism.getOption),
+            msg.topic,
+            msg.timestampType
+          )
         msgs.map(decoder)
       }
   }

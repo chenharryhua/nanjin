@@ -6,6 +6,7 @@ import cats.effect.IO
 import cats.implicits._
 import org.scalatest.funsuite.AnyFunSuite
 import com.github.chenharryhua.nanjin.spark._
+import com.github.chenharryhua.nanjin.spark.kafka._
 import com.github.chenharryhua.nanjin.spark.injection._
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.datetime.iso._
