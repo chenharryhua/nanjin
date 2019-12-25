@@ -24,7 +24,7 @@ final class KafkaGenericDecoder[F[_, _], K, V](
     data.bimap(k => keyCodec.tryDecode(k).toOption, v => valueCodec.tryDecode(v).toOption)
 
   def nullableDecode(implicit knull: Null <:< K, vnull: Null <:< V): F[K, V] =
-    optionalDecodeKeyValue.bimap(_.orNull, _.orNull)
+    data.bimap(k => keyCodec.prism.getOption(k).orNull, v => valueCodec.prism.getOption(v).orNull)
 
   def json(
     implicit
