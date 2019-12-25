@@ -1,6 +1,9 @@
 package com.github.chenharryhua.nanjin.codec
 
+import java.time.Clock
+
 import cats.Bifunctor
+import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.sksamuel.avro4s.{Record, SchemaFor, ToRecord, Encoder => AvroEncoder}
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
@@ -26,6 +29,10 @@ final case class NJConsumerRecord[K, V](
     vs: SchemaFor[V],
     ve: AvroEncoder[V]): Record =
     ToRecord[NJConsumerRecord[K, V]].to(this)
+
+  def toNJProducerRecord: NJProducerRecord[K, V] =
+    NJProducerRecord[K, V](topic, Option(partition), Option(timestamp), key, value)
+
 }
 
 object NJConsumerRecord {
@@ -71,6 +78,23 @@ final case class NJProducerRecord[K, V](
     vs: SchemaFor[V],
     ve: AvroEncoder[V]): Record =
     ToRecord[NJProducerRecord[K, V]].to(this)
+
+  def withTimestamp(ts: Long): NJProducerRecord[K, V] = copy(timestamp = Some(ts))
+  def withPartition(pt: Int): NJProducerRecord[K, V]  = copy(partition = Some(pt))
+  def withoutPartition: NJProducerRecord[K, V]        = copy(partition = None)
+  def withTopic(tpk: String): NJProducerRecord[K, V]  = copy(topic     = tpk)
+
+  def withNow(clock: Clock): NJProducerRecord[K, V] =
+    withTimestamp(NJTimestamp.now(clock).milliseconds)
+
+  @SuppressWarnings(Array("AsInstanceOf"))
+  def toProducerRecord: ProducerRecord[K, V] = new ProducerRecord[K, V](
+    topic,
+    partition.getOrElse(null.asInstanceOf[Int]),
+    timestamp.getOrElse(null.asInstanceOf[Long]),
+    key.getOrElse(null.asInstanceOf[K]),
+    value.getOrElse(null.asInstanceOf[V])
+  )
 }
 
 object NJProducerRecord {
