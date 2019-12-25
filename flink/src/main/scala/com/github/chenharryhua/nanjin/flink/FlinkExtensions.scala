@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.flink
 
-import com.github.chenharryhua.nanjin.codec.bitraverse._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala._
