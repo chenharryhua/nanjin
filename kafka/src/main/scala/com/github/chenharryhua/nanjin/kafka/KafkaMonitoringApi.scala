@@ -28,7 +28,7 @@ trait KafkaMonitoringApi[F[_], K, V] {
 
   def summaries: F[Unit]
 
-  def saveJson(implicit knull: Null <:< K, vnull: Null <:< V): F[Unit]
+  def saveJson: F[Unit]
 }
 
 object KafkaMonitoringApi {
@@ -98,7 +98,7 @@ object KafkaMonitoringApi {
                          |${last.map(_.show).mkString("\n")}
                          |""".stripMargin)
 
-    def saveJson(implicit knull: Null <:< K, vnull: Null <:< V): F[Unit] =
+    def saveJson: F[Unit] =
       Stream
         .resource[F, Blocker](Blocker[F])
         .flatMap { blocker =>
