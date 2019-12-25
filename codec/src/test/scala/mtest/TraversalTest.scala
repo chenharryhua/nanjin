@@ -11,8 +11,6 @@ import fs2.kafka.{
 import monocle.law.discipline.TraversalTests
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
-import com.github.chenharryhua.nanjin.codec.iso._
-import com.github.chenharryhua.nanjin.codec.bitraverse._
 import com.github.chenharryhua.nanjin.codec.eq._
 
 class TraversalTest extends AnyFunSuite with Discipline {

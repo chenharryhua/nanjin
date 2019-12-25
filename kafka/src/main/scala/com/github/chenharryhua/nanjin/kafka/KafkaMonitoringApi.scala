@@ -6,13 +6,10 @@ import cats.Show
 import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.implicits._
 import cats.tagless._
-import com.github.chenharryhua.nanjin.codec.bitraverse._
-import com.github.chenharryhua.nanjin.codec.iso._
-import com.github.chenharryhua.nanjin.codec.json._
+import com.github.chenharryhua.nanjin.codec.iso
 import com.github.chenharryhua.nanjin.codec.show._
 import fs2.kafka.AutoOffsetReset
 import fs2.{text, Stream}
-import io.circe.syntax._
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
 import scala.util.Try
@@ -64,7 +61,7 @@ object KafkaMonitoringApi {
         .updateConsumerSettings(_.withAutoOffsetReset(aor))
         .consume
         .map(m => topic.decoder(m).tryDecodeKeyValue)
-        .filter(m => predict(isoFs2ComsumerRecord.get(m.record)))
+        .filter(m => predict(iso.isoFs2ComsumerRecord.get(m.record)))
         .map(_.show)
         .showLinesStdOut
         .compile
@@ -106,7 +103,7 @@ object KafkaMonitoringApi {
         .resource[F, Blocker](Blocker[F])
         .flatMap { blocker =>
           fs2Channel.consume
-            .map(x => topic.decoder(x).nullableDecode.record.asJson.noSpaces)
+            .map(x => topic.decoder(x).json.noSpaces)
             .intersperse("\n")
             .through(text.utf8Encode)
             .through(fs2.io.file

@@ -7,7 +7,7 @@ import cats.effect.{ConcurrentEffect, IO, Sync}
 import cats.implicits._
 import cats.tagless._
 import com.github.chenharryhua.nanjin.codec.KafkaCodec
-import com.github.chenharryhua.nanjin.codec.bitraverse._
+import com.github.chenharryhua.nanjin.codec.BitraverseMessage._
 import fs2.Chunk
 import fs2.kafka.{KafkaByteProducer, KafkaByteProducerRecord}
 import monocle.Iso

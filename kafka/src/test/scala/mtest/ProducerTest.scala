@@ -13,10 +13,8 @@ import fs2.kafka.{ProducerRecord => Fs2ProducerRecord}
 import scala.concurrent.duration._
 import scala.util.Random
 import org.apache.kafka.streams.scala.ImplicitConversions._
-import com.github.chenharryhua.nanjin.codec._
 import fs2.kafka.ProducerRecords
 import org.apache.kafka.clients.producer.ProducerRecord
-import com.github.chenharryhua.nanjin.codec.bitraverse._
 import io.circe.generic.auto._ 
 
 case class AvroKey(key: String)

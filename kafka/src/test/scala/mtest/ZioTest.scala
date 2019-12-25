@@ -12,9 +12,7 @@ import zio.interop.catz.implicits.ioTimer
 import zio.random.Random
 import zio.system.System
 import zio.{DefaultRuntime, Runtime}
-import com.github.chenharryhua.nanjin.codec._
 import com.github.chenharryhua.nanjin.codec.show._ 
-import com.github.chenharryhua.nanjin.codec.bitraverse._
 import io.circe.generic.auto._ 
 
 class ZioTest extends AnyFunSuite {

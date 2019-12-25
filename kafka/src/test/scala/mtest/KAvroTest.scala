@@ -4,10 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import cats.Show
 import cats.derived.auto.show._
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.bitraverse._
 import com.github.chenharryhua.nanjin.codec.show._
-import com.github.chenharryhua.nanjin.codec.json._
-import com.github.chenharryhua.nanjin.codec.avro._
 import com.github.chenharryhua.nanjin.codec.iso._
 import io.circe.syntax._
 import io.circe.generic.auto._
@@ -31,19 +28,22 @@ class KAvroTest extends AnyFunSuite {
         topic.consumer.retrieveLastRecords.map(m => topic.decoder(m.head).decode)
     assert(run.unsafeRunSync().value() === b)
   }
-  test("should output json and avro") {
-    val run = topic.fs2Channel.consume
-      .map(x => topic.decoder(x).decode.record.asAvro.show)
+  test("should output json") {
+    topic.fs2Channel.consume
+      .map(x => topic.decoder(x).json.show)
       .showLinesStdOut
       .take(1)
       .compile
-      .drain >>
-      topic.fs2Channel.consume
-        .map(x => topic.decoder(x).decode.record.asJson.show)
-        .showLinesStdOut
-        .take(1)
-        .compile
-        .drain
-    run.unsafeRunSync()
+      .drain
+      .unsafeRunSync()
+  }
+  test("should output avro") {
+    topic.fs2Channel.consume
+      .map(x => topic.decoder(x).avro.show)
+      .showLinesStdOut
+      .take(1)
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 }

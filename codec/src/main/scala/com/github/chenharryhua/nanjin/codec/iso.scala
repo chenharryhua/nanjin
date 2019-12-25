@@ -1,4 +1,5 @@
 package com.github.chenharryhua.nanjin.codec
+
 import fs2.kafka.{
   ConsumerRecord => Fs2ConsumerRecord,
   Headers        => Fs2Headers,
@@ -13,7 +14,7 @@ import org.apache.kafka.common.record.TimestampType
 
 import scala.compat.java8.OptionConverters._
 
-private[codec] trait KafkaIsoInstances {
+object iso {
 
   implicit final def isoIdentityProducerRecord[K, V]
     : Iso[ProducerRecord[K, V], ProducerRecord[K, V]] =

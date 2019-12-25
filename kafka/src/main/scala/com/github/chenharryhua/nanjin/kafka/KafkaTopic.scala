@@ -108,7 +108,7 @@ final case class KafkaTopic[F[_], K, V] private[kafka] (
     serdeOfValue.asValue(context.settings.schemaRegistrySettings.config).codec(topicDef.topicName)
   )
 
-  def decoder[G[_, _]: Bitraverse](cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
+  def decoder[G[_, _]: BitraverseMessage](cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
     new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valueCodec)
 
   //channels

@@ -12,7 +12,6 @@ import akka.kafka.ConsumerMessage.{
 import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage, MultiMessage => AkkaMultiMessage}
 import cats.Eq
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.iso._
 import fs2.kafka.{
   CommittableConsumerRecord    => Fs2CommittableConsumerRecord,
   CommittableOffset            => Fs2CommittableOffset,
@@ -110,11 +109,11 @@ private[codec] trait EqMessage {
 
   implicit final def eqConsumerRecordFs2[K: Eq, V: Eq]: Eq[Fs2ConsumerRecord[K, V]] =
     (x: Fs2ConsumerRecord[K, V], y: Fs2ConsumerRecord[K, V]) =>
-      isoFs2ComsumerRecord.get(x) === isoFs2ComsumerRecord.get(y)
+    iso.isoFs2ComsumerRecord.get(x) === iso.isoFs2ComsumerRecord.get(y)
 
   implicit final def eqProducerRecordFs2[K: Eq, V: Eq]: Eq[Fs2ProducerRecord[K, V]] =
     (x: Fs2ProducerRecord[K, V], y: Fs2ProducerRecord[K, V]) =>
-      isoFs2ProducerRecord.get(x) === isoFs2ProducerRecord.get(y)
+    iso.isoFs2ProducerRecord.get(x) === iso.isoFs2ProducerRecord.get(y)
 
   implicit final def eqProducerRecordsFs2[K: Eq, V: Eq, P: Eq]: Eq[Fs2ProducerRecords[K, V, P]] =
     (x: Fs2ProducerRecords[K, V, P], y: Fs2ProducerRecords[K, V, P]) =>
@@ -136,5 +135,5 @@ private[codec] trait EqMessage {
     (
       x: Fs2TransactionalProducerRecords[F, K, V, P],
       y: Fs2TransactionalProducerRecords[F, K, V, P]) =>
-      (x.records === y.records) && (x.passthrough === y.passthrough)      
+      (x.records === y.records) && (x.passthrough === y.passthrough)
 }

@@ -4,6 +4,7 @@ import com.sksamuel.avro4s.{Record, SchemaFor, ToRecord, Encoder => AvroEncoder}
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.kafka.clients.producer.ProducerRecord
 
 /**
   *
@@ -39,13 +40,13 @@ final case class NJConsumerRecord[K, V](
 
 object NJConsumerRecord {
 
-  def apply[K, V](cr: ConsumerRecord[K, V]): NJConsumerRecord[K, V] =
+  def apply[K, V](cr: ConsumerRecord[Option[K], Option[V]]): NJConsumerRecord[K, V] =
     NJConsumerRecord(
       cr.partition,
       cr.offset,
       cr.timestamp,
-      Option(cr.key),
-      Option(cr.value),
+      cr.key,
+      cr.value,
       cr.topic,
       cr.timestampType.toString)
 
@@ -56,4 +57,49 @@ object NJConsumerRecord {
   implicit def jsonNJConsumerRecordDecoder[K: JsonDecoder, V: JsonDecoder]
     : JsonDecoder[NJConsumerRecord[K, V]] =
     deriveDecoder[NJConsumerRecord[K, V]]
+}
+
+/**
+  *
+  * @param topic topic
+  * @param partition partition
+  * @param ts timestamp
+  * @param key key
+  * @param value value
+  * @tparam K key type
+  * @tparam V value type
+  */
+final case class NJProducerRecord[K, V](
+  topic: String,
+  partition: Option[Int],
+  ts: Option[Long],
+  key: Option[K],
+  value: Option[V]) {
+
+  def asAvro(
+    implicit
+    ks: SchemaFor[K],
+    ke: AvroEncoder[K],
+    vs: SchemaFor[V],
+    ve: AvroEncoder[V]): Record =
+    ToRecord[NJProducerRecord[K, V]].to(this)
+}
+
+object NJProducerRecord {
+
+  def apply[K, V](pr: ProducerRecord[K, V]): NJProducerRecord[K, V] =
+    NJProducerRecord(
+      pr.topic,
+      Option(pr.partition),
+      Option(pr.timestamp),
+      Option(pr.key),
+      Option(pr.value))
+
+  implicit def jsonNJProducerRecordEncoder[K: JsonEncoder, V: JsonEncoder]
+    : JsonEncoder[NJProducerRecord[K, V]] =
+    deriveEncoder[NJProducerRecord[K, V]]
+
+  implicit def jsonNJProducerRecordDecoder[K: JsonDecoder, V: JsonDecoder]
+    : JsonDecoder[NJProducerRecord[K, V]] =
+    deriveDecoder[NJProducerRecord[K, V]]
 }

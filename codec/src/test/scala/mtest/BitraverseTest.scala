@@ -5,9 +5,8 @@ import cats.Id
 import cats.effect.IO
 import cats.implicits._
 import cats.laws.discipline.BitraverseTests
-import com.github.chenharryhua.nanjin.codec._
-import com.github.chenharryhua.nanjin.codec.iso._
-import com.github.chenharryhua.nanjin.codec.bitraverse._
+import com.github.chenharryhua.nanjin.codec.BitraverseMessage._
+import com.github.chenharryhua.nanjin.codec.BitraverseMessages._
 import com.github.chenharryhua.nanjin.codec.eq._
 
 import fs2.kafka.{

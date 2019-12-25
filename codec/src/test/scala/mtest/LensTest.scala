@@ -20,8 +20,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
-import com.github.chenharryhua.nanjin.codec.iso._
-import com.github.chenharryhua.nanjin.codec.bitraverse._
 import com.github.chenharryhua.nanjin.codec.eq._
 
 class LensTest extends AnyFunSuite with Discipline {
