@@ -32,20 +32,17 @@ object ManualAvroSchema {
 
   private def whatsDifferent(
     inputSchema: String,
-    inferredSchema: Schema): Either[ParsingFailure, JsonPatch[Json]] =
+    inferredSchema: Schema): Either[KafkaAvroSchemaError, JsonPatch[Json]] =
     (parse(inputSchema), parse(inferredSchema.toString)).mapN { (input, inferred) =>
       diff(cleanupJsonDocument(input), cleanupJsonDocument(inferred))
-    }
+    }.leftMap(e => KafkaAvroSchemaError(e.message))
 
   @throws[KafkaAvroSchemaError]
   def apply[A: AvroDecoder: AvroEncoder: SchemaFor](stringSchema: String): ManualAvroSchema[A] =
-    whatsDifferent(stringSchema, AvroSchema[A])
-      .leftMap(e => KafkaAvroSchemaError(e.message))
-      .flatMap { jp =>
-        if (jp.ops.isEmpty) {
-          val parser: Schema.Parser = new Schema.Parser
-          Right(ManualAvroSchema(parser.parse(stringSchema)))
-        } else Left(KafkaAvroSchemaError(jp.ops.map(_.toString).mkString("\n")))
-      }
-      .fold(throw _, identity)
+    whatsDifferent(stringSchema, AvroSchema[A]).flatMap { jp =>
+      if (jp.ops.isEmpty) {
+        val parser: Schema.Parser = new Schema.Parser
+        Right(ManualAvroSchema(parser.parse(stringSchema)))
+      } else Left(KafkaAvroSchemaError(jp.ops.map(_.toString).mkString("\n")))
+    }.fold(throw _, identity)
 }
