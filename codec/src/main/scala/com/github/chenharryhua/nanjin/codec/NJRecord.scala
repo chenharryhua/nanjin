@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.codec
 
+import cats.Bifunctor
 import com.sksamuel.avro4s.{Record, SchemaFor, ToRecord, Encoder => AvroEncoder}
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
@@ -7,27 +8,16 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 
 /**
-  *
   * for kafka data persistence
-  *
-  * @param partition: kafka partition
-  * @param offset: kafka offset
-  * @param ts: kafka timestamp
-  * @param key: key
-  * @param value: value
-  * @param topic: kafka topic
-  * @param tsType: kafka timestamp type
-  * @tparam K: key type
-  * @tparam V: value type
   */
 final case class NJConsumerRecord[K, V](
   partition: Int,
   offset: Long,
-  ts: Long,
+  timestamp: Long,
   key: Option[K],
   value: Option[V],
   topic: String,
-  tsType: String) {
+  timestampType: Int) {
 
   def asAvro(
     implicit
@@ -48,7 +38,7 @@ object NJConsumerRecord {
       cr.key,
       cr.value,
       cr.topic,
-      cr.timestampType.toString)
+      cr.timestampType.id)
 
   implicit def jsonNJConsumerRecordEncoder[K: JsonEncoder, V: JsonEncoder]
     : JsonEncoder[NJConsumerRecord[K, V]] =
@@ -57,22 +47,20 @@ object NJConsumerRecord {
   implicit def jsonNJConsumerRecordDecoder[K: JsonDecoder, V: JsonDecoder]
     : JsonDecoder[NJConsumerRecord[K, V]] =
     deriveDecoder[NJConsumerRecord[K, V]]
+
+  implicit val njConsumerRecordBifunctor: Bifunctor[NJConsumerRecord] =
+    new Bifunctor[NJConsumerRecord] {
+
+      override def bimap[A, B, C, D](
+        fab: NJConsumerRecord[A, B])(f: A => C, g: B => D): NJConsumerRecord[C, D] =
+        fab.copy(key = fab.key.map(f), value = fab.value.map(g))
+    }
 }
 
-/**
-  *
-  * @param topic topic
-  * @param partition partition
-  * @param ts timestamp
-  * @param key key
-  * @param value value
-  * @tparam K key type
-  * @tparam V value type
-  */
 final case class NJProducerRecord[K, V](
   topic: String,
   partition: Option[Int],
-  ts: Option[Long],
+  timestamp: Option[Long],
   key: Option[K],
   value: Option[V]) {
 
@@ -97,4 +85,12 @@ object NJProducerRecord {
   implicit def jsonNJProducerRecordDecoder[K: JsonDecoder, V: JsonDecoder]
     : JsonDecoder[NJProducerRecord[K, V]] =
     deriveDecoder[NJProducerRecord[K, V]]
+
+  implicit val njProducerRecordBifunctor: Bifunctor[NJProducerRecord] =
+    new Bifunctor[NJProducerRecord] {
+
+      override def bimap[A, B, C, D](
+        fab: NJProducerRecord[A, B])(f: A => C, g: B => D): NJProducerRecord[C, D] =
+        fab.copy(key = fab.key.map(f), value = fab.value.map(g))
+    }
 }
