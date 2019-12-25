@@ -7,6 +7,10 @@ import monocle.macros.Lenses
 
 final case class StorageRootPath(value: String) extends AnyVal
 
+object StorageRootPath {
+  val default: StorageRootPath = StorageRootPath("./data/")
+}
+
 @Lenses final case class KafkaControlParams private (
   timeRange: NJDateTimeRange,
   zoneId: ZoneId,
@@ -40,4 +44,10 @@ final case class StorageRootPath(value: String) extends AnyVal
 
 }
 
-object SparKafkaParams {}
+object SparKafkaParams {
+  val default: KafkaControlParams = KafkaControlParams(
+    NJDateTimeRange.infinite,
+    ZoneId.systemDefault(),
+    StorageRootPath.default
+  )
+}
