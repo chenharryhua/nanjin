@@ -1,4 +1,5 @@
 package com.github.chenharryhua.nanjin
+
 import java.time.LocalDateTime
 import java.util.Properties
 
@@ -13,5 +14,5 @@ package object utils {
     props.foldLeft(new Properties()) { case (a, (k, v)) => a.put(k, v); a }
 
   val random4d: Eval[Int]          = Eval.always(1000 + Random.nextInt(9000))
-  val defaultLocalParallelism: Int = Runtime.getRuntime().availableProcessors()
+  val defaultLocalParallelism: Int = Runtime.getRuntime.availableProcessors()
 }

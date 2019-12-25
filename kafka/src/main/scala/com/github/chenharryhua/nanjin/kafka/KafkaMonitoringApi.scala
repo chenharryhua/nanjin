@@ -31,7 +31,7 @@ trait KafkaMonitoringApi[F[_], K, V] {
 
   def summaries: F[Unit]
 
-  def saveJson: F[Unit]
+  def saveJson(implicit knull: Null <:< K, vnull: Null <:< V): F[Unit]
 }
 
 object KafkaMonitoringApi {
@@ -101,23 +101,16 @@ object KafkaMonitoringApi {
                          |${last.map(_.show).mkString("\n")}
                          |""".stripMargin)
 
-    def saveJson: F[Unit] =
+    def saveJson(implicit knull: Null <:< K, vnull: Null <:< V): F[Unit] =
       Stream
         .resource[F, Blocker](Blocker[F])
         .flatMap { blocker =>
           fs2Channel.consume
-            .map(x =>
-              topic
-                .decoder(x)
-                .tryDecodeKeyValue
-                .bimap(_.toOption, _.toOption)
-                .record
-                .asJson
-                .noSpaces)
+            .map(x => topic.decoder(x).nullableDecode.record.asJson.noSpaces)
             .intersperse("\n")
             .through(text.utf8Encode)
-            .through(
-              fs2.io.file.writeAll(Paths.get(s"./data/json/${topic.topicDef.topicName}.json"), blocker))
+            .through(fs2.io.file
+              .writeAll(Paths.get(s"./data/json/${topic.topicDef.topicName}.json"), blocker))
         }
         .compile
         .drain

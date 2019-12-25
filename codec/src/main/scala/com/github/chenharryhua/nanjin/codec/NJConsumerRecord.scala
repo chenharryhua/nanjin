@@ -5,13 +5,27 @@ import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
+/**
+  *
+  * for kafka data persistence
+  *
+  * @param partition: kafka partition
+  * @param offset: kafka offset
+  * @param ts: kafka timestamp
+  * @param key: key
+  * @param value: value
+  * @param topic: kafka topic
+  * @param tsType: kafka timestamp type
+  * @tparam K: key type
+  * @tparam V: value type
+  */
 final case class NJConsumerRecord[K, V](
   partition: Int,
   offset: Long,
+  ts: Long,
   key: Option[K],
   value: Option[V],
   topic: String,
-  timestamp: Long,
   tsType: String) {
 
   def asAvro(
@@ -29,10 +43,10 @@ object NJConsumerRecord {
     NJConsumerRecord(
       cr.partition,
       cr.offset,
+      cr.timestamp,
       Option(cr.key),
       Option(cr.value),
       cr.topic,
-      cr.timestamp,
       cr.timestampType.toString)
 
   implicit def jsonNJConsumerRecordEncoder[K: JsonEncoder, V: JsonEncoder]
