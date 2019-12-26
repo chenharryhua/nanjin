@@ -47,7 +47,7 @@ private[kafka] object SparKafka {
               props(topic.context.settings.consumerSettings.config),
               KafkaOffsets.offsetRange(gtp),
               locationStrategy)
-            .mapPartitions(_.map(cr => NJConsumerRecord(topic.decoder(cr).optionalDecodeKeyValue)))
+            .mapPartitions(_.map(cr => topic.decoder(cr).record))
         }
         .map(TypedDataset.create(_))
     }
