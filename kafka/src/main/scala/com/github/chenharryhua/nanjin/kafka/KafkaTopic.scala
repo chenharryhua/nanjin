@@ -4,7 +4,8 @@ import cats.effect.Resource
 import cats.implicits._
 import com.github.chenharryhua.nanjin.codec._
 import com.sksamuel.avro4s.{Record, ToRecord}
-import io.circe.Json
+import io.circe.{Error, Json}
+import io.circe.parser.decode
 import io.circe.syntax._
 import monocle.function.At
 import org.apache.avro.Schema
@@ -36,7 +37,9 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
   import topicDef.{
     avroKeyEncoder,
     avroValueEncoder,
+    jsonKeyDecoder,
     jsonKeyEncoder,
+    jsonValueDecoder,
     jsonValueEncoder,
     serdeOfKey,
     serdeOfValue,
@@ -69,6 +72,9 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
 
   def toJson[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): Json =
     decoder(cr).record.asJson
+
+  def fromJson(jsonString: String): Either[Error, NJConsumerRecord[K, V]] =
+    decode[NJConsumerRecord[K, V]](jsonString)
 
   //channels
   val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =

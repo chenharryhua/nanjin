@@ -77,7 +77,7 @@ object KafkaChannels {
 
     val committableSink: Sink[Envelope[K, V, ConsumerMessage.Committable], F[Done]] =
       akka.kafka.scaladsl.Producer
-        .committableSink(producerSettings)
+        .committableSink(producerSettings,committerSettings)
         .mapMaterializedValue(f => Async.fromFuture(Async[F].pure(f)))
 
     def flexiFlow[P]: Flow[Envelope[K, V, P], ProducerMessage.Results[K, V, P], NotUsed] =
