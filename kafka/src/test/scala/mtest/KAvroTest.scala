@@ -28,22 +28,4 @@ class KAvroTest extends AnyFunSuite {
         topic.consumer.retrieveLastRecords.map(m => topic.decoder(m.head).decode)
     assert(run.unsafeRunSync().value() === b)
   }
-  test("should output json") {
-    topic.fs2Channel.consume
-      .map(x => topic.decoder(x).json.show)
-      .showLinesStdOut
-      .take(1)
-      .compile
-      .drain
-      .unsafeRunSync()
-  }
-  test("should output avro") {
-    topic.fs2Channel.consume
-      .map(x => topic.decoder(x).avro.show)
-      .showLinesStdOut
-      .take(1)
-      .compile
-      .drain
-      .unsafeRunSync()
-  }
 }

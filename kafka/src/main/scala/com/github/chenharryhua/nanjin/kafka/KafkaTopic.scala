@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import cats.Show
 import cats.effect.Resource
 import cats.implicits._
-import cats.{Bitraverse, Show}
 import com.github.chenharryhua.nanjin.codec._
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import monocle.function.At
@@ -108,7 +108,8 @@ final case class KafkaTopic[F[_], K, V] private[kafka] (
     serdeOfValue.asValue(context.settings.schemaRegistrySettings.config).codec(topicDef.topicName)
   )
 
-  def decoder[G[_, _]: BitraverseMessage](cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
+  def decoder[G[_, _]: NJConsumerMessage](
+    cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
     new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valueCodec)
 
   //channels

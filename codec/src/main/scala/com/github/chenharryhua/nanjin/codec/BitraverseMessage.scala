@@ -12,8 +12,6 @@ import fs2.kafka.{
   ConsumerRecord            => Fs2ConsumerRecord,
   ProducerRecord            => Fs2ProducerRecord
 }
-import io.circe.syntax._
-import io.circe.{Json, Encoder => JsonEncoder}
 import monocle.PLens
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
@@ -22,7 +20,6 @@ sealed trait BitraverseMessage[F[_, _]] extends Bitraverse[F] {
   type H[_, _]
   implicit def baseInst: Bitraverse[H]
   def lens[K1, V1, K2, V2]: PLens[F[K1, V1], F[K2, V2], H[K1, V1], H[K2, V2]]
-  def jsonRecord[K: JsonEncoder, V: JsonEncoder](cr: F[Option[K], Option[V]]): Json
 
   final override def bitraverse[G[_], A, B, C, D](fab: F[A, B])(f: A => G[C], g: B => G[D])(
     implicit G: Applicative[G]): G[F[C, D]] =
@@ -37,16 +34,15 @@ sealed trait BitraverseMessage[F[_, _]] extends Bitraverse[F] {
     lens.get(fab).bifoldRight(c)(f, g)
 }
 
-object BitraverseMessage extends BitraverseKafkaRecord {
+sealed trait NJConsumerMessage[F[_, _]] extends BitraverseMessage[F] {
+  def record[K, V](cr: F[Option[K], Option[V]]): NJConsumerRecord[K, V]
+}
 
-  def apply[F[_, _]](implicit ev: BitraverseMessage[F]): BitraverseMessage[F] {
-    type H[A, B] = ev.H[A, B]
-  } = ev
+object NJConsumerMessage extends BitraverseKafkaRecord {
 
-  // consumers
   implicit val identityConsumerRecordBitraverseMessage
-    : BitraverseMessage[ConsumerRecord] { type H[A, B] = ConsumerRecord[A, B] } =
-    new BitraverseMessage[ConsumerRecord] {
+    : NJConsumerMessage[ConsumerRecord] { type H[A, B] = ConsumerRecord[A, B] } =
+    new NJConsumerMessage[ConsumerRecord] {
       override type H[K, V] = ConsumerRecord[K, V]
       override val baseInst: Bitraverse[ConsumerRecord] = bitraverseConsumerRecord
 
@@ -61,14 +57,13 @@ object BitraverseMessage extends BitraverseKafkaRecord {
           ConsumerRecord[K1, V1],
           ConsumerRecord[K2, V2]](s => s)(b => _ => b)
 
-      override def jsonRecord[K: JsonEncoder, V: JsonEncoder](
-        cr: ConsumerRecord[Option[K], Option[V]]): Json =
-        NJConsumerRecord(cr).asJson
+      override def record[K, V](cr: ConsumerRecord[Option[K], Option[V]]): NJConsumerRecord[K, V] =
+        NJConsumerRecord(cr)
     }
 
   implicit val fs2ConsumerRecordBitraverseMessage
-    : BitraverseMessage[Fs2ConsumerRecord] { type H[A, B] = ConsumerRecord[A, B] } =
-    new BitraverseMessage[Fs2ConsumerRecord] {
+    : NJConsumerMessage[Fs2ConsumerRecord] { type H[A, B] = ConsumerRecord[A, B] } =
+    new NJConsumerMessage[Fs2ConsumerRecord] {
       override type H[K, V] = ConsumerRecord[K, V]
       override val baseInst: Bitraverse[ConsumerRecord] = bitraverseConsumerRecord
 
@@ -85,15 +80,15 @@ object BitraverseMessage extends BitraverseKafkaRecord {
           iso.isoFs2ComsumerRecord.reverseGet(b)
         }
 
-      override def jsonRecord[K: JsonEncoder, V: JsonEncoder](
-        cr: Fs2ConsumerRecord[Option[K], Option[V]]): Json =
-        NJConsumerRecord(iso.isoFs2ComsumerRecord.get(cr)).asJson
+      override def record[K, V](
+        cr: Fs2ConsumerRecord[Option[K], Option[V]]): NJConsumerRecord[K, V] =
+        NJConsumerRecord(iso.isoFs2ComsumerRecord.get(cr))
 
     }
 
   implicit val akkaCommittableMessageBitraverseMessage
-    : BitraverseMessage[AkkaCommittableMessage] { type H[A, B] = ConsumerRecord[A, B] } =
-    new BitraverseMessage[AkkaCommittableMessage] {
+    : NJConsumerMessage[AkkaCommittableMessage] { type H[A, B] = ConsumerRecord[A, B] } =
+    new NJConsumerMessage[AkkaCommittableMessage] {
       override type H[K, V] = ConsumerRecord[K, V]
       override val baseInst: Bitraverse[ConsumerRecord] = bitraverseConsumerRecord
 
@@ -108,15 +103,15 @@ object BitraverseMessage extends BitraverseKafkaRecord {
           ConsumerRecord[K1, V1],
           ConsumerRecord[K2, V2]](_.record)(b => s => s.copy(record = b))
 
-      override def jsonRecord[K: JsonEncoder, V: JsonEncoder](
-        cr: AkkaCommittableMessage[Option[K], Option[V]]): Json =
-        NJConsumerRecord(cr.record).asJson
+      override def record[K, V](
+        cr: AkkaCommittableMessage[Option[K], Option[V]]): NJConsumerRecord[K, V] =
+        NJConsumerRecord(cr.record)
 
     }
 
   implicit val akkaAkkaTransactionalMessageBitraverseMessage
-    : BitraverseMessage[AkkaTransactionalMessage] { type H[A, B] = ConsumerRecord[A, B] } =
-    new BitraverseMessage[AkkaTransactionalMessage] {
+    : NJConsumerMessage[AkkaTransactionalMessage] { type H[A, B] = ConsumerRecord[A, B] } =
+    new NJConsumerMessage[AkkaTransactionalMessage] {
       override type H[K, V] = ConsumerRecord[K, V]
       override val baseInst: Bitraverse[ConsumerRecord] = bitraverseConsumerRecord
 
@@ -131,17 +126,17 @@ object BitraverseMessage extends BitraverseKafkaRecord {
           ConsumerRecord[K1, V1],
           ConsumerRecord[K2, V2]](_.record)(b => s => s.copy(record = b))
 
-      override def jsonRecord[K: JsonEncoder, V: JsonEncoder](
-        cr: AkkaTransactionalMessage[Option[K], Option[V]]): Json =
-        NJConsumerRecord(cr.record).asJson
+      override def record[K, V](
+        cr: AkkaTransactionalMessage[Option[K], Option[V]]): NJConsumerRecord[K, V] =
+        NJConsumerRecord(cr.record)
 
     }
 
   implicit def fs2CommittableConsumerRecordBitraverseMessage[F[_]]
-    : BitraverseMessage[Fs2CommittableConsumerRecord[F, *, *]] {
+    : NJConsumerMessage[Fs2CommittableConsumerRecord[F, *, *]] {
       type H[A, B] = ConsumerRecord[A, B]
     } =
-    new BitraverseMessage[Fs2CommittableConsumerRecord[F, *, *]] {
+    new NJConsumerMessage[Fs2CommittableConsumerRecord[F, *, *]] {
       override type H[K, V] = ConsumerRecord[K, V]
       override val baseInst: Bitraverse[ConsumerRecord] = bitraverseConsumerRecord
 
@@ -158,16 +153,22 @@ object BitraverseMessage extends BitraverseKafkaRecord {
           Fs2CommittableConsumerRecord(iso.isoFs2ComsumerRecord.reverseGet(b), s.offset)
         }
 
-      override def jsonRecord[K: JsonEncoder, V: JsonEncoder](
-        cr: Fs2CommittableConsumerRecord[F, Option[K], Option[V]]): Json =
-        NJConsumerRecord(iso.isoFs2ComsumerRecord.get(cr.record)).asJson
-
+      override def record[K, V](
+        cr: Fs2CommittableConsumerRecord[F, Option[K], Option[V]]): NJConsumerRecord[K, V] =
+        NJConsumerRecord(iso.isoFs2ComsumerRecord.get(cr.record))
     }
+}
+
+sealed trait NJProducerMessage[F[_, _]] extends BitraverseMessage[F] {
+  def record[K, V](cr: F[Option[K], Option[V]]): NJProducerRecord[K, V]
+}
+
+object NJProducerMessage extends BitraverseKafkaRecord {
 
   //producers
   implicit val identityProducerRecordBitraverseMessage
-    : BitraverseMessage[ProducerRecord] { type H[A, B] = ProducerRecord[A, B] } =
-    new BitraverseMessage[ProducerRecord] {
+    : NJProducerMessage[ProducerRecord] { type H[A, B] = ProducerRecord[A, B] } =
+    new NJProducerMessage[ProducerRecord] {
       override type H[K, V] = ProducerRecord[K, V]
       override val baseInst: Bitraverse[ProducerRecord] = bitraverseProducerRecord
 
@@ -182,14 +183,13 @@ object BitraverseMessage extends BitraverseKafkaRecord {
           ProducerRecord[K1, V1],
           ProducerRecord[K2, V2]](s => s)(b => _ => b)
 
-      override def jsonRecord[K: JsonEncoder, V: JsonEncoder](
-        cr: ProducerRecord[Option[K], Option[V]]): Json =
-        NJProducerRecord(cr).asJson
+      override def record[K, V](cr: ProducerRecord[Option[K], Option[V]]): NJProducerRecord[K, V] =
+        NJProducerRecord(cr)
     }
 
   implicit val fs2ProducerRecordBitraverseMessage
-    : BitraverseMessage[Fs2ProducerRecord] { type H[A, B] = ProducerRecord[A, B] } =
-    new BitraverseMessage[Fs2ProducerRecord] {
+    : NJProducerMessage[Fs2ProducerRecord] { type H[A, B] = ProducerRecord[A, B] } =
+    new NJProducerMessage[Fs2ProducerRecord] {
       override type H[K, V] = ProducerRecord[K, V]
       override val baseInst: Bitraverse[ProducerRecord] = bitraverseProducerRecord
 
@@ -206,14 +206,14 @@ object BitraverseMessage extends BitraverseKafkaRecord {
           iso.isoFs2ProducerRecord[K2, V2].reverseGet(b)
         }
 
-      override def jsonRecord[K: JsonEncoder, V: JsonEncoder](
-        cr: Fs2ProducerRecord[Option[K], Option[V]]): Json =
-        NJProducerRecord(iso.isoFs2ProducerRecord[Option[K], Option[V]].get(cr)).asJson
+      override def record[K, V](
+        cr: Fs2ProducerRecord[Option[K], Option[V]]): NJProducerRecord[K, V] =
+        NJProducerRecord(iso.isoFs2ProducerRecord[Option[K], Option[V]].get(cr))
     }
 
   implicit def akkaProducerMessageBitraverseMessage[P]
-    : BitraverseMessage[AkkaProducerMessage[*, *, P]] { type H[A, B] = ProducerRecord[A, B] } =
-    new BitraverseMessage[AkkaProducerMessage[*, *, P]] {
+    : NJProducerMessage[AkkaProducerMessage[*, *, P]] { type H[A, B] = ProducerRecord[A, B] } =
+    new NJProducerMessage[AkkaProducerMessage[*, *, P]] {
       override type H[K, V] = ProducerRecord[K, V]
       override val baseInst: Bitraverse[ProducerRecord] = bitraverseProducerRecord
 
@@ -228,8 +228,8 @@ object BitraverseMessage extends BitraverseKafkaRecord {
           ProducerRecord[K1, V1],
           ProducerRecord[K2, V2]](_.record)(b => s => s.copy(record = b))
 
-      override def jsonRecord[K: JsonEncoder, V: JsonEncoder](
-        cr: AkkaProducerMessage[Option[K], Option[V], P]): Json =
-        NJProducerRecord(cr.record).asJson
+      override def record[K, V](
+        cr: AkkaProducerMessage[Option[K], Option[V], P]): NJProducerRecord[K, V] =
+        NJProducerRecord(cr.record)
     }
 }
