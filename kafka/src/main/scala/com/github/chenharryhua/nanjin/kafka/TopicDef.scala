@@ -1,9 +1,15 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.Show
-import com.github.chenharryhua.nanjin.codec.{ManualAvroSchema, SerdeOf}
-import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
-import io.circe.{Decoder                       => JsonDecoder, Encoder => JsonEncoder}
+import com.github.chenharryhua.nanjin.codec.{
+  ManualAvroSchema,
+  NJConsumerRecord,
+  NJProducerRecord,
+  SerdeOf
+}
+import com.sksamuel.avro4s.{AvroSchema, SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
+import io.circe.{Decoder                                   => JsonDecoder, Encoder => JsonEncoder}
+import org.apache.avro.Schema
 
 final class TopicDef[K, V] private (val topicName: String)(
   implicit
@@ -22,6 +28,11 @@ final class TopicDef[K, V] private (val topicName: String)(
 ) {
   val keySchemaLoc: String   = s"$topicName-key"
   val valueSchemaLoc: String = s"$topicName-value"
+
+  implicit private val keySchemaFor: SchemaFor[K]   = SchemaFor.const(serdeOfKey.schema)
+  implicit private val valueSchemaFor: SchemaFor[V] = SchemaFor.const(serdeOfValue.schema)
+  val njConsumerRecordSchema: Schema                = AvroSchema[NJConsumerRecord[K, V]]
+  val njProducerRecordSchema: Schema                = AvroSchema[NJProducerRecord[K, V]]
 
   def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[F, K, V] =
     ctx.topic[K, V](this)

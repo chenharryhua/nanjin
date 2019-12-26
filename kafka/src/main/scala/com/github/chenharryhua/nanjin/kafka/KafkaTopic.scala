@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.effect.Resource
 import cats.implicits._
 import com.github.chenharryhua.nanjin.codec._
-import com.sksamuel.avro4s.{AvroSchema, Record, ToRecord}
+import com.sksamuel.avro4s.{Record, ToRecord}
 import io.circe.Json
 import io.circe.syntax._
 import monocle.function.At
@@ -11,7 +11,6 @@ import org.apache.avro.Schema
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
-import com.sksamuel.avro4s.SchemaFor
 
 final class TopicCodec[K, V] private[kafka] (
   val keyCodec: KafkaCodec.Key[K],
@@ -62,11 +61,8 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
     cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
     new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valueCodec)
 
-  implicit private val keySchemaFor: SchemaFor[K]   = SchemaFor.const(serdeOfKey.schema)
-  implicit private val valueSchemaFor: SchemaFor[V] = SchemaFor.const(serdeOfValue.schema)
-
   private val toAvroRecord: ToRecord[NJConsumerRecord[K, V]] =
-    ToRecord[NJConsumerRecord[K, V]](AvroSchema[NJConsumerRecord[K, V]])
+    ToRecord[NJConsumerRecord[K, V]](topicDef.njConsumerRecordSchema)
 
   def toAvro[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): Record =
     toAvroRecord.to(decoder(cr).record)
