@@ -1,14 +1,19 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.Show
-import com.github.chenharryhua.nanjin.codec.{
-  ManualAvroSchema,
-  NJConsumerRecord,
-  NJProducerRecord,
-  SerdeOf
+import com.github.chenharryhua.nanjin.codec.{ManualAvroSchema, NJConsumerRecord, SerdeOf}
+import com.sksamuel.avro4s.{
+  AvroSchema,
+  FromRecord,
+  Record,
+  SchemaFor,
+  ToRecord,
+  Decoder => AvroDecoder,
+  Encoder => AvroEncoder
 }
-import com.sksamuel.avro4s.{AvroSchema, SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
-import io.circe.{Decoder                                   => JsonDecoder, Encoder => JsonEncoder}
+import io.circe.parser.decode
+import io.circe.syntax._
+import io.circe.{Error, Json, Decoder => JsonDecoder, Encoder => JsonEncoder}
 import org.apache.avro.Schema
 
 final class TopicDef[K, V] private (val topicName: String)(
@@ -17,14 +22,14 @@ final class TopicDef[K, V] private (val topicName: String)(
   val serdeOfValue: SerdeOf[V],
   val showKey: Show[K],
   val showValue: Show[V],
-  val jsonKeyEncoder: JsonEncoder[K],
-  val jsonValueEncoder: JsonEncoder[V],
-  val jsonKeyDecoder: JsonDecoder[K],
-  val jsonValueDecoder: JsonDecoder[V],
-  val avroKeyEncoder: AvroEncoder[K],
-  val avroValueEncoder: AvroEncoder[V],
-  val avroKeyDecoder: AvroDecoder[K],
-  val avroValueDecoder: AvroDecoder[V]
+  jsonKeyEncoder: JsonEncoder[K],
+  jsonValueEncoder: JsonEncoder[V],
+  jsonKeyDecoder: JsonDecoder[K],
+  jsonValueDecoder: JsonDecoder[V],
+  avroKeyEncoder: AvroEncoder[K],
+  avroValueEncoder: AvroEncoder[V],
+  avroKeyDecoder: AvroDecoder[K],
+  avroValueDecoder: AvroDecoder[V]
 ) {
   val keySchemaLoc: String   = s"$topicName-key"
   val valueSchemaLoc: String = s"$topicName-value"
@@ -32,7 +37,20 @@ final class TopicDef[K, V] private (val topicName: String)(
   implicit private val keySchemaFor: SchemaFor[K]   = SchemaFor.const(serdeOfKey.schema)
   implicit private val valueSchemaFor: SchemaFor[V] = SchemaFor.const(serdeOfValue.schema)
   val njConsumerRecordSchema: Schema                = AvroSchema[NJConsumerRecord[K, V]]
-  val njProducerRecordSchema: Schema                = AvroSchema[NJProducerRecord[K, V]]
+
+  private val toAvroRecord: ToRecord[NJConsumerRecord[K, V]] =
+    ToRecord[NJConsumerRecord[K, V]](njConsumerRecordSchema)
+
+  private val fromAvroRecord: FromRecord[NJConsumerRecord[K, V]] =
+    FromRecord[NJConsumerRecord[K, V]](njConsumerRecordSchema)
+
+  def toAvro(cr: NJConsumerRecord[K, V]): Record   = toAvroRecord.to(cr)
+  def fromAvro(cr: Record): NJConsumerRecord[K, V] = fromAvroRecord.from(cr)
+
+  def toJson(cr: NJConsumerRecord[K, V]): Json = cr.asJson
+
+  def fromJson(cr: String): Either[Error, NJConsumerRecord[K, V]] =
+    decode[NJConsumerRecord[K, V]](cr)
 
   def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[F, K, V] =
     ctx.topic[K, V](this)

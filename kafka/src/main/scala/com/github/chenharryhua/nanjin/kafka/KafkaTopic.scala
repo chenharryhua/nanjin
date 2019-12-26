@@ -3,10 +3,8 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.effect.Resource
 import cats.implicits._
 import com.github.chenharryhua.nanjin.codec._
-import com.sksamuel.avro4s.{Record, ToRecord}
+import com.sksamuel.avro4s.Record
 import io.circe.{Error, Json}
-import io.circe.parser.decode
-import io.circe.syntax._
 import monocle.function.At
 import org.apache.avro.Schema
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -34,18 +32,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
   val context: KafkaContext[F])
     extends TopicNameExtractor[K, V] {
   import context.{concurrentEffect, contextShift, timer}
-  import topicDef.{
-    avroKeyEncoder,
-    avroValueEncoder,
-    jsonKeyDecoder,
-    jsonKeyEncoder,
-    jsonValueDecoder,
-    jsonValueEncoder,
-    serdeOfKey,
-    serdeOfValue,
-    showKey,
-    showValue
-  }
+  import topicDef.{serdeOfKey, serdeOfValue, showKey, showValue}
 
   val consumerGroupId: Option[KafkaConsumerGroupId] =
     KafkaConsumerSettings.config
@@ -64,17 +51,16 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
     cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
     new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valueCodec)
 
-  private val toAvroRecord: ToRecord[NJConsumerRecord[K, V]] =
-    ToRecord[NJConsumerRecord[K, V]](topicDef.njConsumerRecordSchema)
-
   def toAvro[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): Record =
-    toAvroRecord.to(decoder(cr).record)
+    topicDef.toAvro(decoder(cr).record)
+
+  def fromAvro(cr: Record): NJConsumerRecord[K, V] = topicDef.fromAvro(cr)
 
   def toJson[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): Json =
-    decoder(cr).record.asJson
+    topicDef.toJson(decoder(cr).record)
 
   def fromJson(jsonString: String): Either[Error, NJConsumerRecord[K, V]] =
-    decode[NJConsumerRecord[K, V]](jsonString)
+    topicDef.fromJson(jsonString)
 
   //channels
   val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =

@@ -9,7 +9,6 @@ import com.github.chenharryhua.nanjin.codec.iso
 import com.github.chenharryhua.nanjin.codec.show.showConsumerRecord
 import fs2.kafka.AutoOffsetReset
 import fs2.{text, Stream}
-import io.circe.syntax._
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
 import scala.util.Try
@@ -37,7 +36,6 @@ object KafkaMonitoringApi {
   final private class KafkaTopicMonitoring[F[_]: ContextShift, K: Show, V: Show](
     topic: KafkaTopic[F, K, V])(implicit F: Concurrent[F])
       extends KafkaMonitoringApi[F, K, V] {
-    import topic.topicDef.{jsonKeyEncoder, jsonValueEncoder}
     private val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] = topic.fs2Channel
     private val consumer: KafkaConsumerApi[F, K, V]           = topic.consumer
 
