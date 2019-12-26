@@ -7,6 +7,7 @@ import cats.effect.concurrent.MVar
 import cats.effect.{ConcurrentEffect, ContextShift, IO, Timer}
 import cats.{Eval, Show}
 import com.github.chenharryhua.nanjin.codec.{KafkaSerde, SerdeOf}
+import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
 import fs2.Stream
 import fs2.kafka._
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
@@ -53,11 +54,12 @@ sealed abstract class KafkaContext[F[_]](val settings: KafkaSettings)(
     SerdeOf[V].asValue(settings.schemaRegistrySettings.config)
 
   final def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] =
-    KafkaTopic[F, K, V](topicDef, this)
+    new KafkaTopic[F, K, V](topicDef, this)
 
   final def topic[
-    K: SerdeOf: Show: JsonEncoder: JsonDecoder,
-    V: SerdeOf: Show: JsonEncoder: JsonDecoder](topicName: String): KafkaTopic[F, K, V] =
+    K: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder: SerdeOf,
+    V: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder: SerdeOf](
+    topicName: String): KafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](topicName))
 
   final def kafkaStreams(topology: Reader[StreamsBuilder, Unit]): Stream[F, KafkaStreams] =

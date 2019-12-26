@@ -6,7 +6,7 @@ import cats.Show
 import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.codec.iso
-import com.github.chenharryhua.nanjin.codec.show.showConsumerRecord 
+import com.github.chenharryhua.nanjin.codec.show.showConsumerRecord
 import fs2.kafka.AutoOffsetReset
 import fs2.{text, Stream}
 import io.circe.syntax._
@@ -25,7 +25,7 @@ trait KafkaMonitoringApi[F[_], K, V] {
   def badRecords: F[Unit]
 
   def summaries: F[Unit]
-
+  def saveJson: F[Unit]
 }
 
 object KafkaMonitoringApi {
@@ -100,7 +100,7 @@ object KafkaMonitoringApi {
         .resource[F, Blocker](Blocker[F])
         .flatMap { blocker =>
           fs2Channel.consume
-            .map(x => topic.decoder(x).record.asJson.noSpaces)
+            .map(x => topic.toJson(x).noSpaces)
             .intersperse("\n")
             .through(text.utf8Encode)
             .through(fs2.io.file
