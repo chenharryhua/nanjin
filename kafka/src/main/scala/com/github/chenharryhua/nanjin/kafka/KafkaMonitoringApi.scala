@@ -14,8 +14,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 
 import scala.util.Try
 
-@autoFunctorK
-@autoSemigroupalK
 trait KafkaMonitoringApi[F[_], K, V] {
   def watch: F[Unit]
   def watchFromEarliest: F[Unit]

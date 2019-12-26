@@ -37,20 +37,9 @@ final case class SparKafkaSession(params: SparKafkaParams)(implicit val sparkSes
 
   def replay[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V]): F[Unit] =
-    SparKafka
-      .replay(
-        topic,
-        params.timeRange,
-        params.rootPath,
-        params.conversionTactics,
-        params.uploadRate,
-        params.clock,
-        params.repartition)
-      .map(_ => print("."))
-      .compile
-      .drain
+    SparKafka.replay(topic, params).map(_ => print(".")).compile.drain
 
-  def sparkStream[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
+  def sparkStream[F[_], K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V]): TypedDataset[NJConsumerRecord[K, V]] =
     SparKafka.sparkStream(topic)
 }

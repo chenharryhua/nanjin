@@ -13,8 +13,6 @@ import fs2.kafka.{KafkaByteProducer, KafkaByteProducerRecord}
 import monocle.Iso
 import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
 
-@autoFunctorK
-@autoSemigroupalK
 trait KafkaProducerApi[F[_], K, V] {
   def arbitrarilySend(key: Array[Byte], value: Array[Byte]): F[RecordMetadata]
 
@@ -36,7 +34,9 @@ trait KafkaProducerApi[F[_], K, V] {
 
   def send(key: K, value: V): F[RecordMetadata]
   final def send(kv: (K, V)): F[RecordMetadata] = send(kv._1, kv._2)
-  final def send(v: V): F[RecordMetadata]       = send(null.asInstanceOf[K], v)
+
+  @SuppressWarnings(Array("AsInstanceOf"))
+  final def send(v: V): F[RecordMetadata] = send(null.asInstanceOf[K], v)
 
   def send[G[_, _]](pr: G[K, V])(implicit G: Iso[G[K, V], ProducerRecord[K, V]]): F[RecordMetadata]
 

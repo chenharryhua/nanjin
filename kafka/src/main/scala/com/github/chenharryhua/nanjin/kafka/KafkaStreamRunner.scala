@@ -10,8 +10,7 @@ import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.scala.StreamsBuilder
 
 final class KafkaStreamRunner[F[_]](settings: KafkaStreamSettings)(
-  implicit F: ConcurrentEffect[F],
-  timer: Timer[F]) {
+  implicit F: ConcurrentEffect[F]) {
 
   final private class StreamErrorHandler(deferred: Deferred[F, UncaughtKafkaStreamingException])
       extends Thread.UncaughtExceptionHandler {

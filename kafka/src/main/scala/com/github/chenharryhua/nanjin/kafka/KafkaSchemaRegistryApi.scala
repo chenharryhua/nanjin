@@ -98,9 +98,6 @@ final case class CompatibilityTestReport(
     key.flatMap(k => value.map(v => k && v)).fold(_ => false, identity)
 }
 
-@autoFunctorK
-@autoSemigroupalK
-@autoProductNK
 trait KafkaSchemaRegistryApi[F[_]] extends Serializable {
   def delete: F[(List[Integer], List[Integer])]
   def register: F[(Option[Int], Option[Int])]

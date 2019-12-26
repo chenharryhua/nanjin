@@ -16,9 +16,6 @@ import org.apache.kafka.common.TopicPartition
 
 import scala.collection.JavaConverters._
 
-@autoFunctorK
-@autoSemigroupalK
-@autoProductNK
 sealed trait KafkaPrimitiveConsumerApi[F[_]] {
   def partitionsFor: F[ListOfTopicPartitions]
   def beginningOffsets: F[GenericTopicPartition[Option[KafkaOffset]]]
@@ -95,8 +92,6 @@ object KafkaPrimitiveConsumerApi {
   }
 }
 
-@autoFunctorK
-@autoSemigroupalK
 sealed trait KafkaConsumerApi[F[_], K, V] extends KafkaPrimitiveConsumerApi[F] {
   def offsetRangeFor(dtr: NJDateTimeRange): F[GenericTopicPartition[KafkaOffsetRange]]
   def retrieveLastRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]

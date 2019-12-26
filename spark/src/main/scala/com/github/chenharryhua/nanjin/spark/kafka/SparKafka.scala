@@ -109,19 +109,19 @@ private[kafka] object SparKafka {
   // load data from disk and then upload into kafka
   def replay[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
-    timeRange: NJDateTimeRange,
-    rootPath: StorageRootPath,
-    conversionTactics: ConversionTactics,
-    uploadRate: UploadRate,
-    clock: Clock,
-    repartition: Int)(implicit sparkSession: SparkSession): Stream[F, Chunk[RecordMetadata]] =
+    params: SparKafkaParams)(
+    implicit sparkSession: SparkSession): Stream[F, Chunk[RecordMetadata]] =
     for {
       ds <- Stream.eval(
-        datasetFromDisk[F, K, V](topic, timeRange, rootPath).map(_.repartition(repartition)))
-      res <- uploadToKafka(topic, toProducerRecords(ds, conversionTactics, clock), uploadRate)
+        datasetFromDisk[F, K, V](topic, params.timeRange, params.rootPath)
+          .map(_.repartition(params.repartition)))
+      res <- uploadToKafka(
+        topic,
+        toProducerRecords(ds, params.conversionTactics, params.clock),
+        params.uploadRate)
     } yield res
 
-  def sparkStream[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
+  def sparkStream[F[_], K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
     implicit spark: SparkSession): TypedDataset[NJConsumerRecord[K, V]] = {
     def toSparkOptions(m: Map[String, String]): Map[String, String] = {
       val rm1 = remove(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG)(_: Map[String, String])

@@ -12,7 +12,7 @@ import io.circe.parser._
 import io.circe.{Json, ParsingFailure}
 import org.apache.avro.Schema
 
-final case class KafkaAvroSchemaError(msg: String) extends Exception(msg)
+final case class KafkaAvroSchemaException(msg: String) extends Exception(msg)
 
 final case class ManualAvroSchema[A] private (schema: Schema)(
   implicit
@@ -32,17 +32,17 @@ object ManualAvroSchema {
 
   private def whatsDifferent(
     inputSchema: String,
-    inferredSchema: Schema): Either[KafkaAvroSchemaError, JsonPatch[Json]] =
+    inferredSchema: Schema): Either[KafkaAvroSchemaException, JsonPatch[Json]] =
     (parse(inputSchema), parse(inferredSchema.toString)).mapN { (input, inferred) =>
       diff(cleanupJsonDocument(input), cleanupJsonDocument(inferred))
-    }.leftMap(e => KafkaAvroSchemaError(e.message))
+    }.leftMap(e => KafkaAvroSchemaException(e.message))
 
-  @throws[KafkaAvroSchemaError]
+  @throws[KafkaAvroSchemaException]
   def apply[A: AvroDecoder: AvroEncoder: SchemaFor](stringSchema: String): ManualAvroSchema[A] =
     whatsDifferent(stringSchema, AvroSchema[A]).flatMap { jp =>
       if (jp.ops.isEmpty) {
         val parser: Schema.Parser = new Schema.Parser
         Right(ManualAvroSchema(parser.parse(stringSchema)))
-      } else Left(KafkaAvroSchemaError(jp.ops.map(_.toString).mkString("\n")))
+      } else Left(KafkaAvroSchemaException(jp.ops.map(_.toString).mkString("\n")))
     }.fold(throw _, identity)
 }
