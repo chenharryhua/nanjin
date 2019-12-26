@@ -1,8 +1,7 @@
 package com.github.chenharryhua.nanjin.codec
 
 import cats.implicits._
-import com.sksamuel.avro4s.{Record, SchemaFor, Encoder => AvroEncoder}
-import io.circe.{Json, Encoder                         => JsonEncoder}
+import io.circe.{Json, Encoder => JsonEncoder}
 
 import scala.util.{Success, Try}
 
@@ -31,10 +30,4 @@ final class KafkaGenericDecoder[F[_, _], K, V](
     jke: JsonEncoder[K],
     jkv: JsonEncoder[V]): Json = BM.jsonRecord(optionalDecodeKeyValue)
 
-  def avro(
-    implicit
-    ks: SchemaFor[K],
-    ke: AvroEncoder[K],
-    vs: SchemaFor[V],
-    ve: AvroEncoder[V]): Record = BM.avroRecord(optionalDecodeKeyValue)
 }

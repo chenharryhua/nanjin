@@ -7,7 +7,6 @@ import akka.kafka.ConsumerMessage.{
 import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage}
 import cats.implicits._
 import cats.{Applicative, Bitraverse, Eval}
-import com.sksamuel.avro4s.{Record, SchemaFor, Encoder => AvroEncoder}
 import fs2.kafka.{
   CommittableConsumerRecord => Fs2CommittableConsumerRecord,
   ConsumerRecord            => Fs2ConsumerRecord,
@@ -24,9 +23,6 @@ sealed trait BitraverseMessage[F[_, _]] extends Bitraverse[F] {
   implicit def baseInst: Bitraverse[H]
   def lens[K1, V1, K2, V2]: PLens[F[K1, V1], F[K2, V2], H[K1, V1], H[K2, V2]]
   def jsonRecord[K: JsonEncoder, V: JsonEncoder](cr: F[Option[K], Option[V]]): Json
-
-  def avroRecord[K: SchemaFor: AvroEncoder, V: SchemaFor: AvroEncoder](
-    cr: F[Option[K], Option[V]]): Record
 
   final override def bitraverse[G[_], A, B, C, D](fab: F[A, B])(f: A => G[C], g: B => G[D])(
     implicit G: Applicative[G]): G[F[C, D]] =
@@ -68,10 +64,6 @@ object BitraverseMessage extends BitraverseKafkaRecord {
       override def jsonRecord[K: JsonEncoder, V: JsonEncoder](
         cr: ConsumerRecord[Option[K], Option[V]]): Json =
         NJConsumerRecord(cr).asJson
-
-      override def avroRecord[K: SchemaFor: AvroEncoder, V: SchemaFor: AvroEncoder](
-        cr: ConsumerRecord[Option[K], Option[V]]): Record =
-        NJConsumerRecord(cr).asAvro
     }
 
   implicit val fs2ConsumerRecordBitraverseMessage
@@ -97,10 +89,6 @@ object BitraverseMessage extends BitraverseKafkaRecord {
         cr: Fs2ConsumerRecord[Option[K], Option[V]]): Json =
         NJConsumerRecord(iso.isoFs2ComsumerRecord.get(cr)).asJson
 
-      override def avroRecord[K: SchemaFor: AvroEncoder, V: SchemaFor: AvroEncoder](
-        cr: Fs2ConsumerRecord[Option[K], Option[V]]): Record =
-        NJConsumerRecord(iso.isoFs2ComsumerRecord.get(cr)).asAvro
-
     }
 
   implicit val akkaCommittableMessageBitraverseMessage
@@ -124,9 +112,6 @@ object BitraverseMessage extends BitraverseKafkaRecord {
         cr: AkkaCommittableMessage[Option[K], Option[V]]): Json =
         NJConsumerRecord(cr.record).asJson
 
-      override def avroRecord[K: SchemaFor: AvroEncoder, V: SchemaFor: AvroEncoder](
-        cr: AkkaCommittableMessage[Option[K], Option[V]]): Record =
-        NJConsumerRecord(cr.record).asAvro
     }
 
   implicit val akkaAkkaTransactionalMessageBitraverseMessage
@@ -150,9 +135,6 @@ object BitraverseMessage extends BitraverseKafkaRecord {
         cr: AkkaTransactionalMessage[Option[K], Option[V]]): Json =
         NJConsumerRecord(cr.record).asJson
 
-      override def avroRecord[K: SchemaFor: AvroEncoder, V: SchemaFor: AvroEncoder](
-        cr: AkkaTransactionalMessage[Option[K], Option[V]]): Record =
-        NJConsumerRecord(cr.record).asAvro
     }
 
   implicit def fs2CommittableConsumerRecordBitraverseMessage[F[_]]
@@ -180,9 +162,6 @@ object BitraverseMessage extends BitraverseKafkaRecord {
         cr: Fs2CommittableConsumerRecord[F, Option[K], Option[V]]): Json =
         NJConsumerRecord(iso.isoFs2ComsumerRecord.get(cr.record)).asJson
 
-      override def avroRecord[K: SchemaFor: AvroEncoder, V: SchemaFor: AvroEncoder](
-        cr: Fs2CommittableConsumerRecord[F, Option[K], Option[V]]): Record =
-        NJConsumerRecord(iso.isoFs2ComsumerRecord.get(cr.record)).asAvro
     }
 
   //producers
@@ -206,11 +185,6 @@ object BitraverseMessage extends BitraverseKafkaRecord {
       override def jsonRecord[K: JsonEncoder, V: JsonEncoder](
         cr: ProducerRecord[Option[K], Option[V]]): Json =
         NJProducerRecord(cr).asJson
-
-      override def avroRecord[K: SchemaFor: AvroEncoder, V: SchemaFor: AvroEncoder](
-        cr: ProducerRecord[Option[K], Option[V]]): Record =
-        NJProducerRecord(cr).asAvro
-
     }
 
   implicit val fs2ProducerRecordBitraverseMessage
@@ -235,10 +209,6 @@ object BitraverseMessage extends BitraverseKafkaRecord {
       override def jsonRecord[K: JsonEncoder, V: JsonEncoder](
         cr: Fs2ProducerRecord[Option[K], Option[V]]): Json =
         NJProducerRecord(iso.isoFs2ProducerRecord[Option[K], Option[V]].get(cr)).asJson
-
-      override def avroRecord[K: SchemaFor: AvroEncoder, V: SchemaFor: AvroEncoder](
-        cr: Fs2ProducerRecord[Option[K], Option[V]]): Record =
-        NJProducerRecord(iso.isoFs2ProducerRecord[Option[K], Option[V]].get(cr)).asAvro
     }
 
   implicit def akkaProducerMessageBitraverseMessage[P]
@@ -261,9 +231,5 @@ object BitraverseMessage extends BitraverseKafkaRecord {
       override def jsonRecord[K: JsonEncoder, V: JsonEncoder](
         cr: AkkaProducerMessage[Option[K], Option[V], P]): Json =
         NJProducerRecord(cr.record).asJson
-
-      override def avroRecord[K: SchemaFor: AvroEncoder, V: SchemaFor: AvroEncoder](
-        cr: AkkaProducerMessage[Option[K], Option[V], P]): Record =
-        NJProducerRecord(cr.record).asAvro
     }
 }

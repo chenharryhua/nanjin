@@ -4,7 +4,6 @@ import java.time.Clock
 
 import cats.Bifunctor
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import com.sksamuel.avro4s.{Record, SchemaFor, ToRecord, Encoder => AvroEncoder}
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -21,14 +20,6 @@ final case class NJConsumerRecord[K, V](
   value: Option[V],
   topic: String,
   timestampType: Int) {
-
-  def asAvro(
-    implicit
-    ks: SchemaFor[K],
-    ke: AvroEncoder[K],
-    vs: SchemaFor[V],
-    ve: AvroEncoder[V]): Record =
-    ToRecord[NJConsumerRecord[K, V]].to(this)
 
   def toNJProducerRecord: NJProducerRecord[K, V] =
     NJProducerRecord[K, V](topic, Option(partition), Option(timestamp), key, value)
@@ -70,14 +61,6 @@ final case class NJProducerRecord[K, V](
   timestamp: Option[Long],
   key: Option[K],
   value: Option[V]) {
-
-  def asAvro(
-    implicit
-    ks: SchemaFor[K],
-    ke: AvroEncoder[K],
-    vs: SchemaFor[V],
-    ve: AvroEncoder[V]): Record =
-    ToRecord[NJProducerRecord[K, V]].to(this)
 
   def withTimestamp(ts: Long): NJProducerRecord[K, V] = copy(timestamp = Some(ts))
   def withPartition(pt: Int): NJProducerRecord[K, V]  = copy(partition = Some(pt))
