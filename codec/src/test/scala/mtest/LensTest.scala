@@ -26,34 +26,34 @@ class LensTest extends AnyFunSuite with Discipline {
 
   checkAll(
     "fs2.consumer.CommittableConsumerRecord",
-    LensTests(BitraverseMessage[Fs2CommittableConsumerRecord[IO, *, *]].lens[Int, Int, Int, Int]))
+    LensTests(NJConsumerMessage[Fs2CommittableConsumerRecord[IO, *, *]].lens[Int, Int, Int, Int]))
 
   checkAll(
     "fs2.consumer.ConsumerRecord",
-    LensTests(BitraverseMessage[Fs2ConsumerRecord].lens[Int, Int, Int, Int]))
+    LensTests(NJConsumerMessage[Fs2ConsumerRecord].lens[Int, Int, Int, Int]))
 
   checkAll(
     "fs2.producer.ProducerRecord",
-    LensTests(BitraverseMessage[Fs2ProducerRecord].lens[Int, Int, Int, Int]))
+    LensTests(NJProducerMessage[Fs2ProducerRecord].lens[Int, Int, Int, Int]))
 
   checkAll(
     "kafka.consumer.ConsumerRecord",
-    LensTests(BitraverseMessage[ConsumerRecord].lens[Int, Int, Int, Int]))
+    LensTests(NJConsumerMessage[ConsumerRecord].lens[Int, Int, Int, Int]))
 
   checkAll(
     "kafka.producer.ProducerRecord",
-    LensTests(BitraverseMessage[ProducerRecord].lens[Int, Int, Int, Int]))
+    LensTests(NJProducerMessage[ProducerRecord].lens[Int, Int, Int, Int]))
 
   checkAll(
     "akka.consumer.ConsumerMessage",
-    LensTests(BitraverseMessage[AkkaConsumerMessage].lens[Int, Int, Int, Int]))
+    LensTests(NJConsumerMessage[AkkaConsumerMessage].lens[Int, Int, Int, Int]))
 
   checkAll(
     "akka.consumer.TransactionalMessage",
-    LensTests(BitraverseMessage[AkkaTransactionalMessage].lens[Int, Int, Int, Int]))
+    LensTests(NJConsumerMessage[AkkaTransactionalMessage].lens[Int, Int, Int, Int]))
 
   checkAll(
     "akka.producer.ProducerMessage",
-    LensTests(BitraverseMessage[AkkaProducerMessage[*, *, String]].lens[Int, Int, Int, Int]))
+    LensTests(NJProducerMessage[AkkaProducerMessage[*, *, String]].lens[Int, Int, Int, Int]))
 
 }

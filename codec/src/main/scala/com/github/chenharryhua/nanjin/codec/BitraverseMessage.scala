@@ -16,7 +16,7 @@ import monocle.PLens
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 
-sealed trait BitraverseMessage[F[_, _]] extends Bitraverse[F] {
+private [codec] sealed trait BitraverseMessage[F[_, _]] extends Bitraverse[F] {
   type H[_, _]
   implicit def baseInst: Bitraverse[H]
   def lens[K1, V1, K2, V2]: PLens[F[K1, V1], F[K2, V2], H[K1, V1], H[K2, V2]]
@@ -39,6 +39,9 @@ sealed trait NJConsumerMessage[F[_, _]] extends BitraverseMessage[F] {
 }
 
 object NJConsumerMessage extends BitraverseKafkaRecord {
+
+  def apply[F[_, _]](
+    implicit ev: NJConsumerMessage[F]): NJConsumerMessage[F] { type H[A, B] = ev.H[A, B] } = ev
 
   implicit val identityConsumerRecordBitraverseMessage
     : NJConsumerMessage[ConsumerRecord] { type H[A, B] = ConsumerRecord[A, B] } =
@@ -165,7 +168,9 @@ sealed trait NJProducerMessage[F[_, _]] extends BitraverseMessage[F] {
 
 object NJProducerMessage extends BitraverseKafkaRecord {
 
-  //producers
+  def apply[F[_, _]](
+    implicit ev: NJProducerMessage[F]): NJProducerMessage[F] { type H[A, B] = ev.H[A, B] } = ev
+
   implicit val identityProducerRecordBitraverseMessage
     : NJProducerMessage[ProducerRecord] { type H[A, B] = ProducerRecord[A, B] } =
     new NJProducerMessage[ProducerRecord] {

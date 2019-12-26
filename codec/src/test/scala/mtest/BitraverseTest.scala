@@ -5,7 +5,8 @@ import cats.Id
 import cats.effect.IO
 import cats.implicits._
 import cats.laws.discipline.BitraverseTests
-import com.github.chenharryhua.nanjin.codec.BitraverseMessage._
+import com.github.chenharryhua.nanjin.codec.NJConsumerMessage._
+import com.github.chenharryhua.nanjin.codec.NJProducerMessage._
 import com.github.chenharryhua.nanjin.codec.BitraverseMessages._
 import com.github.chenharryhua.nanjin.codec.eq._
 
