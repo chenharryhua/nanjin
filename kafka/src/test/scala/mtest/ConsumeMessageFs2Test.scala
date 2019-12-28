@@ -7,10 +7,10 @@ import com.github.chenharryhua.nanjin.kafka._
 import fs2.kafka.AutoOffsetReset
 import io.circe.generic.auto._
 import org.scalatest.funsuite.AnyFunSuite
-import com.github.chenharryhua.nanjin.codec.show._ 
+import com.github.chenharryhua.nanjin.codec.show._
 
 class ConsumeMessageFs2Test extends AnyFunSuite {
-  val backblaze_smart = TopicDef[KJson[lenses_record_key], KJson[lenses_record]]("backblaze_smart")
+  val backblaze_smart = TopicDef[KJson[lenses_record_key], String]("backblaze_smart")
   val nyc_taxi_trip   = TopicDef[Array[Byte], trip_record]("nyc_yellow_taxi_trip_data")
   test("should be able to consume json topic") {
     val topic = backblaze_smart.in(ctx)
