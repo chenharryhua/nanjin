@@ -19,6 +19,7 @@ class ConsumeMessageFs2Test extends AnyFunSuite {
     "telecom_italia_data",
     ManualAvroSchema[Key](Key.schema),
     ManualAvroSchema[smsCallInternet](smsCallInternet.schema))
+    
   test("should be able to consume json topic") {
     val topic = backblaze_smart.in(ctx)
     val ret =
@@ -34,6 +35,7 @@ class ConsumeMessageFs2Test extends AnyFunSuite {
         .unsafeRunSync()
     assert(ret.size == 3)
   }
+  
   test("should be able to consume avro topic") {
     val topic = ctx.topic(nyc_taxi_trip)
     val ret = topic.fs2Channel.consume
@@ -47,7 +49,7 @@ class ConsumeMessageFs2Test extends AnyFunSuite {
     assert(ret.size == 3)
   }
 
-  test("should be able to consume payments topic") {
+  test("should be able to consume telecom_italia_data topic") {
     val topic = sms.in(ctx)
     val ret = topic.fs2Channel.consume
       .map(m => topic.decoder(m).tryDecode)

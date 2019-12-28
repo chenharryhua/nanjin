@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.flink
 
+import com.github.chenharryhua.nanjin.codec.NJConsumerRecord
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala._
@@ -12,14 +13,21 @@ private[flink] trait FlinkExtensions extends Serializable {
       extends Serializable {
 
     def dataStream(env: StreamExecutionEnvironment)(
-      implicit ev: TypeInformation[V]): DataStream[V] =
-      env.addSource[V](
-        new FlinkKafkaConsumer[V](topic.topicDef.topicName, new KafkaDeserializationSchema[V] {
-          override def isEndOfStream(nextElement: V): Boolean = false
-          override def getProducedType: TypeInformation[V]    = ev
+      implicit kf: TypeInformation[K],
+      vf: TypeInformation[V]): DataStream[NJConsumerRecord[K, V]] =
+      env.addSource[NJConsumerRecord[K, V]](
+        new FlinkKafkaConsumer[NJConsumerRecord[K, V]](
+          topic.topicDef.topicName,
+          new KafkaDeserializationSchema[NJConsumerRecord[K, V]] {
+            override def isEndOfStream(nextElement: NJConsumerRecord[K, V]): Boolean = false
 
-          override def deserialize(record: ConsumerRecord[Array[Byte], Array[Byte]]): V =
-            topic.decoder(record).decode.value
-        }, topic.context.settings.consumerSettings.consumerProperties))
+            override def getProducedType: TypeInformation[NJConsumerRecord[K, V]] =
+              implicitly[TypeInformation[NJConsumerRecord[K, V]]]
+
+            override def deserialize(
+              record: ConsumerRecord[Array[Byte], Array[Byte]]): NJConsumerRecord[K, V] =
+              topic.decoder(record).record
+          },
+          topic.context.settings.consumerSettings.consumerProperties))
   }
 }
