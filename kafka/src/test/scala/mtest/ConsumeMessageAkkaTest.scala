@@ -12,8 +12,8 @@ import io.circe.generic.auto._
 
 class ConsumeMessageAkkaTest extends AnyFunSuite {
 
-  val vessel: TopicDef[Key, aisClassAPositionReport] =
-    TopicDef[Key, aisClassAPositionReport]("sea_vessel_position_reports")
+  val vessel: TopicDef[PKey, aisClassAPositionReport] =
+    TopicDef[PKey, aisClassAPositionReport]("sea_vessel_position_reports")
   val topic = ctx.topic(vessel)
   test("akka stream should be able to consume data") {
 

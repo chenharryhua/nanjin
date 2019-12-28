@@ -62,7 +62,7 @@ case class trip_record(
   tolls_amount: Double,
   total_amount: Double)
 
-case class Key(MMSI: Long)
+case class PKey(MMSI: Long)
 
 case class aisClassAPositionReport(
   Type: Int,

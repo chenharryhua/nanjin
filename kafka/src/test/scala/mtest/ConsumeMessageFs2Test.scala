@@ -8,10 +8,17 @@ import fs2.kafka.AutoOffsetReset
 import io.circe.generic.auto._
 import org.scalatest.funsuite.AnyFunSuite
 import com.github.chenharryhua.nanjin.codec.show._
+import com.landoop.telecom.telecomitalia.telecommunications.smsCallInternet
+import com.landoop.telecom.telecomitalia.telecommunications.Key
 
 class ConsumeMessageFs2Test extends AnyFunSuite {
   val backblaze_smart = TopicDef[KJson[lenses_record_key], String]("backblaze_smart")
   val nyc_taxi_trip   = TopicDef[Array[Byte], trip_record]("nyc_yellow_taxi_trip_data")
+
+  val sms = TopicDef(
+    "telecom_italia_data",
+    ManualAvroSchema[Key](Key.schema),
+    ManualAvroSchema[smsCallInternet](smsCallInternet.schema))
   test("should be able to consume json topic") {
     val topic = backblaze_smart.in(ctx)
     val ret =
@@ -40,8 +47,8 @@ class ConsumeMessageFs2Test extends AnyFunSuite {
     assert(ret.size == 3)
   }
 
-  ignore("should be able to consume payments topic") {
-    val topic = ctx.topic[String, Payment]("cc_payments")
+  test("should be able to consume payments topic") {
+    val topic = sms.in(ctx)
     val ret = topic.fs2Channel.consume
       .map(m => topic.decoder(m).tryDecode)
       .map(_.toEither)

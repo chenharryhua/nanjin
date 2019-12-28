@@ -2,7 +2,7 @@ package mtest
 
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka._
-import cats.derived.auto.show._ 
+import cats.derived.auto.show._
 import org.scalatest.funsuite.AnyFunSuite
 import zio.blocking.Blocking
 import zio.clock.Clock
@@ -12,8 +12,8 @@ import zio.interop.catz.implicits.ioTimer
 import zio.random.Random
 import zio.system.System
 import zio.{DefaultRuntime, Runtime}
-import com.github.chenharryhua.nanjin.codec.show._ 
-import io.circe.generic.auto._ 
+import com.github.chenharryhua.nanjin.codec.show._
+import io.circe.generic.auto._
 
 class ZioTest extends AnyFunSuite {
   type Environment = Clock with Console with System with Random with Blocking
@@ -21,9 +21,9 @@ class ZioTest extends AnyFunSuite {
   implicit val runtime: Runtime[Environment] = new DefaultRuntime {}
 
   val ctx: ZioKafkaContext = KafkaSettings.local.zioContext
+  val topic                = TopicDef[Array[Byte], trip_record]("nyc_yellow_taxi_trip_data").in(ctx)
 
-  ignore("zio should just work.") {
-    val topic = ctx.topic[String, Payment]("cc_payments")
+  test("zio should just work.") {
     val task = topic.fs2Channel.consume
       .map(m => topic.decoder(m).tryDecode)
       .map(_.toEither)
@@ -37,8 +37,7 @@ class ZioTest extends AnyFunSuite {
     runtime.unsafeRun(task)
   }
 
-  ignore("zio should work for akka.") {
-    val topic = ctx.topic[String, Payment]("cc_payments")
+  test("zio should work for akka.") {
     val task = topic.akkaResource.use { chn =>
       chn
         .updateConsumerSettings(_.withClientId("akka-test"))
