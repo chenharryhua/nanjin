@@ -44,7 +44,7 @@ class SparKafkaTest extends AnyFunSuite {
     sparKafkaSession
       .updateParams(_.withoutTimestamp.withoutPartition)
       .datasetFromDisk(topics.sparkafkaTopic)
-      .flatMap(_.toProducerRecords.kafkaUpload(topics.sparkafkaTopic).compile.drain)
+      .flatMap(_.toProducerRecords.kafkaUpload(topics.sparkafkaTopic).take(5).compile.drain)
       .unsafeRunSync()
   }
 

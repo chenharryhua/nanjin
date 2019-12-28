@@ -1,21 +1,25 @@
 package mtest
+
 import java.util.Optional
 import java.util.concurrent.CompletionStage
 
 import akka.Done
+import akka.kafka.ConsumerMessage
 import akka.kafka.ConsumerMessage.{
   CommittableMessage   => AkkaConsumerMessage,
   TransactionalMessage => AkkaTransactionalMessage
 }
+import akka.kafka.testkit.ConsumerResultFactory
 import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage, MultiMessage => AkkaMultiMessage}
+import akka.kafka.internal.CommittableOffsetImpl
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.codec._
 import fs2.Chunk
 import fs2.kafka.{
-  TransactionalProducerRecords => Fs2TransactionalProducerRecords,
   CommittableProducerRecords   => Fs2CommittableProducerRecords,
   ConsumerRecord               => Fs2ConsumerRecord,
-  ProducerRecord               => Fs2ProducerRecord
+  ProducerRecord               => Fs2ProducerRecord,
+  TransactionalProducerRecords => Fs2TransactionalProducerRecords
 }
 import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
 import org.apache.kafka.clients.producer.ProducerRecord
@@ -29,6 +33,7 @@ import org.scalacheck.Gen
 import scala.compat.java8.OptionConverters._
 import scala.concurrent.Future
 import com.github.chenharryhua.nanjin.codec.iso._
+
 object genMessage {
 
   trait GenKafkaMessage {
@@ -152,13 +157,7 @@ object genMessage {
       offset <- Gen.posNum[Long]
     } yield AkkaConsumerMessage(
       cr,
-      new CommittableOffset {
-        val partitionOffset: PartitionOffset                = new PartitionOffset(gtp, offset)
-        override def commitScaladsl(): Future[Done]         = null
-        override def commitJavadsl(): CompletionStage[Done] = null
-        override def batchSize: Long                        = 0
-      }
-    )
+      ConsumerResultFactory.committableOffset(ConsumerMessage.PartitionOffset(gtp, offset), ""))
 
     val genAkkaProducerMessage: Gen[AkkaProducerMessage[Int, Int, String]] = for {
       cr <- genProducerRecord
