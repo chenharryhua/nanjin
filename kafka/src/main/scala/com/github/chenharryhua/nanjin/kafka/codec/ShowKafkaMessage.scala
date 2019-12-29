@@ -11,7 +11,7 @@ import fs2.kafka.CommittableConsumerRecord
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
 
-private[codec] trait ShowKafkaMessage {
+private[kafka] trait ShowKafkaMessage {
   private val zoneId: ZoneId = ZoneId.systemDefault()
 
   implicit def showConsumerRecord[K: Show, V: Show]: Show[ConsumerRecord[K, V]] =
