@@ -5,7 +5,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.codec._
 import com.github.chenharryhua.nanjin.kafka.show._
 import com.github.chenharryhua.nanjin.kafka._
-import com.github.chenharryhua.nanjin.kafka.codec.{KJson, ManualAvroSchema}
+import com.github.chenharryhua.nanjin.kafka.codec.KJson
 import com.landoop.telecom.telecomitalia.telecommunications.{smsCallInternet, Key}
 import fs2.kafka.AutoOffsetReset
 import io.circe.generic.auto._

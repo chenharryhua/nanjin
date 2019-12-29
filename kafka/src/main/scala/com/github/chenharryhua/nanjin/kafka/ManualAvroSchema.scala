@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.kafka.codec
+package com.github.chenharryhua.nanjin.kafka
 
 import cats.implicits._
 import com.sksamuel.avro4s.{AvroSchema, SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
