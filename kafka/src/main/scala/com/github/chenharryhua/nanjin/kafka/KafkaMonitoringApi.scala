@@ -5,7 +5,6 @@ import java.nio.file.Paths
 import cats.Show
 import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.show.showConsumerRecord
 import com.github.chenharryhua.nanjin.kafka.codec.iso
 import fs2.kafka.AutoOffsetReset
 import fs2.{text, Stream}
