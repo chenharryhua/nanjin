@@ -7,6 +7,7 @@ import akka.kafka.ConsumerMessage.{
 import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage}
 import cats.implicits._
 import cats.{Applicative, Bitraverse, Eval}
+import com.github.chenharryhua.nanjin.kafka.{NJConsumerRecord, NJProducerRecord}
 import fs2.kafka.{
   CommittableConsumerRecord => Fs2CommittableConsumerRecord,
   ConsumerRecord            => Fs2ConsumerRecord,

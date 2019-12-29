@@ -1,12 +1,11 @@
-package mtest
+package mtest.spark.kafka
 
 import cats.Show
-import cats.implicits._
-import cats.derived.auto.show._
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import cats.implicits._
+import cats.derived.auto.show._
 import io.circe.generic.auto._
-import mtest.kafka.trip_record
 
 object topics {
   implicit val show: Show[ForTaskSerializable] = _.toString

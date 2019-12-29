@@ -1,4 +1,4 @@
-package mtest
+package mtest.spark.kafka
 
 import java.time.{Instant, LocalDate, LocalDateTime}
 
@@ -17,6 +17,7 @@ import java.time.ZoneId
 import doobie.implicits.javatime._
 
 import com.github.chenharryhua.nanjin.spark.database.TableDef
+
 final case class DbTableInst(a: LocalDate, b: LocalDateTime, c: Int, d: String, e: Instant)
 
 class SparkTableTest extends AnyFunSuite {

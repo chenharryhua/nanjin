@@ -1,4 +1,4 @@
-package mtest
+package mtest.spark.kafka
 
 import java.time.{LocalDate, LocalDateTime}
 

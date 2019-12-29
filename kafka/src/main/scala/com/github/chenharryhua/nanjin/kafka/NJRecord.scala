@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.kafka.codec
+package com.github.chenharryhua.nanjin.kafka
 
 import java.time.Clock
 

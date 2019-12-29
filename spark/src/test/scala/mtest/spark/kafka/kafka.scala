@@ -1,15 +1,15 @@
-import cats.effect.{ContextShift, IO, Resource, Timer}
-import com.github.chenharryhua.nanjin.kafka.{IoKafkaContext, KafkaSettings, TopicDef}
+package mtest.spark
+
+import cats.effect.{ContextShift, IO, Timer}
+import com.github.chenharryhua.nanjin.common._
+import com.github.chenharryhua.nanjin.database.Postgres
+import com.github.chenharryhua.nanjin.kafka.{IoKafkaContext, KafkaSettings}
 import com.github.chenharryhua.nanjin.spark.SparkSettings
 import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaSession
-import com.github.chenharryhua.nanjin.spark._
-import com.github.chenharryhua.nanjin.database._
-import com.github.chenharryhua.nanjin.spark.kafka._
-import org.apache.spark.sql.SparkSession
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-package object mtest {
+package object kafka {
 
   implicit val cs: ContextShift[IO] = IO.contextShift(global)
   implicit val timer: Timer[IO]     = IO.timer(global)
@@ -24,9 +24,7 @@ package object mtest {
     DatabaseName("postgres"))
 
   implicit val sparkSession =
-    SparkSettings.default
-      .updateConf(_.setMaster("local[*]").setAppName("test-spark"))
-      .session
+    SparkSettings.default.updateConf(_.setMaster("local[*]").setAppName("test-spark")).session
 
   val sparKafkaSession: SparKafkaSession =
     SparKafkaSession.default

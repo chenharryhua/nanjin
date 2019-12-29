@@ -7,8 +7,7 @@ import com.github.chenharryhua.nanjin.kafka.codec.{
   KafkaCodec,
   KafkaGenericDecoder,
   KafkaSerde,
-  NJConsumerMessage,
-  NJConsumerRecord
+  NJConsumerMessage
 }
 import com.sksamuel.avro4s.Record
 import io.circe.{Error, Json}

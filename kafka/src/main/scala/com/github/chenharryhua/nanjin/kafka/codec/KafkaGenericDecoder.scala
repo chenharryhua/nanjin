@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka.codec
 
 import cats.implicits._
+import com.github.chenharryhua.nanjin.kafka.NJConsumerRecord
 
 import scala.util.{Success, Try}
 
