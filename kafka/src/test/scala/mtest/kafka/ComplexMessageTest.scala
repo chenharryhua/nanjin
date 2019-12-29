@@ -1,4 +1,4 @@
-package mtest
+package mtest.kafka
 
 import java.time.{Instant, LocalDateTime}
 
@@ -6,16 +6,14 @@ import cats.Show
 import cats.derived.auto.show._
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka._
-import com.github.chenharryhua.nanjin.datetime._
 import io.circe.generic.JsonCodec
+import io.circe.syntax._
+import io.circe.{Decoder, Encoder}
+import org.scalatest.funsuite.AnyFunSuite
+import shapeless.{:+:, CNil, Coproduct}
 import io.circe.generic.auto._
 import io.circe.shapes._
-import io.circe.syntax._
-import org.scalatest.funsuite.AnyFunSuite
-import shapeless.{:+:, CNil}
-import io.circe.Encoder
-import io.circe.Decoder
-import shapeless.Coproduct
+import com.github.chenharryhua.nanjin.datetime._
 
 final case class Employee2(name: String, age: Int, department: String)
 

@@ -1,11 +1,12 @@
-package mtest
+package mtest.kafka
 
 import akka.kafka.ConsumerMessage
 import akka.kafka.scaladsl.Consumer
 import akka.stream.scaladsl.Source
 import org.scalatest.funsuite.AnyFunSuite
-import scala.util.Try
 import cats.implicits._
+import scala.util.Try
+
 class CompilationTest extends AnyFunSuite {
   val topic = ctx.topic[Int, Int]("do-not-run")
   test("should compile") {

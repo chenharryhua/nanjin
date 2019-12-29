@@ -1,14 +1,12 @@
-package mtest
+package mtest.kafka
 
-import java.time.LocalDateTime
-import io.chrisdavenport.cats.time._
 import cats.derived.auto.show._
+import com.github.chenharryhua.nanjin.codec.show._
+import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka._
+import io.circe.generic.auto._
 import org.scalatest.funsuite.AnyFunSuite
 import cats.implicits._
-import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.codec.show._ 
-import io.circe.generic.auto._ 
 
 class ConsumerApiTest extends AnyFunSuite {
 

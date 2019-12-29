@@ -1,7 +1,8 @@
-package mtest
+package mtest.kafka
 
 import cats.Show
-import cats.implicits._ 
+import cats.implicits._  
+
 case class Payment(
   id: String,
   time: String,

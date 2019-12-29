@@ -1,15 +1,14 @@
-package mtest
+package mtest.kafka
 
 import cats.derived.auto.show._
 import cats.implicits._
 import com.github.chenharryhua.nanjin.codec._
+import com.github.chenharryhua.nanjin.codec.show._
 import com.github.chenharryhua.nanjin.kafka._
+import com.landoop.telecom.telecomitalia.telecommunications.{smsCallInternet, Key}
 import fs2.kafka.AutoOffsetReset
 import io.circe.generic.auto._
 import org.scalatest.funsuite.AnyFunSuite
-import com.github.chenharryhua.nanjin.codec.show._
-import com.landoop.telecom.telecomitalia.telecommunications.smsCallInternet
-import com.landoop.telecom.telecomitalia.telecommunications.Key
 
 class ConsumeMessageFs2Test extends AnyFunSuite {
   val backblaze_smart = TopicDef[KJson[lenses_record_key], String]("backblaze_smart")
@@ -19,7 +18,7 @@ class ConsumeMessageFs2Test extends AnyFunSuite {
     "telecom_italia_data",
     ManualAvroSchema[Key](Key.schema),
     ManualAvroSchema[smsCallInternet](smsCallInternet.schema))
-    
+
   test("should be able to consume json topic") {
     val topic = backblaze_smart.in(ctx)
     val ret =
@@ -35,7 +34,7 @@ class ConsumeMessageFs2Test extends AnyFunSuite {
         .unsafeRunSync()
     assert(ret.size == 3)
   }
-  
+
   test("should be able to consume avro topic") {
     val topic = ctx.topic(nyc_taxi_trip)
     val ret = topic.fs2Channel.consume

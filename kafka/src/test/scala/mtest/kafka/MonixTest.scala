@@ -1,4 +1,4 @@
-package mtest
+package mtest.kafka
 
 import cats.effect.ConcurrentEffect
 import com.github.chenharryhua.nanjin.kafka.{KafkaSettings, MonixKafkaContext}

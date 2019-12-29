@@ -2,13 +2,13 @@ package com.github.chenharryhua.nanjin.database
 
 import cats.effect.{Async, Blocker, Concurrent, ContextShift, Resource, Timer}
 import cats.implicits._
+import com.github.chenharryhua.nanjin.common._
 import doobie.free.connection.{AsyncConnectionIO, ConnectionIO}
 import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
 import fs2.{Chunk, Pipe, Stream}
 import io.getquill.codegen.jdbc.SimpleJdbcCodegen
 import monocle.macros.Lenses
-import com.github.chenharryhua.nanjin.common._
 
 import scala.concurrent.duration.DurationInt
 

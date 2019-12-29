@@ -1,4 +1,4 @@
-package mtest
+package mtest.kafka
 
 import akka.Done
 import akka.kafka.ProducerMessage
@@ -16,6 +16,7 @@ import org.apache.kafka.streams.scala.ImplicitConversions._
 import fs2.kafka.ProducerRecords
 import org.apache.kafka.clients.producer.ProducerRecord
 import io.circe.generic.auto._ 
+import cats.derived.auto.show._
 
 case class AvroKey(key: String)
 case class AvroValue(v1: String, v2: Int)

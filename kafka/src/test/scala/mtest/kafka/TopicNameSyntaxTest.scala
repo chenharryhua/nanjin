@@ -1,13 +1,11 @@
-package mtest
+package mtest.kafka
 
-import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.KJson
-import com.github.chenharryhua.nanjin.kafka.TopicDef
-import io.circe.generic.auto._
 import cats.derived.auto.show._
-import com.github.chenharryhua.nanjin.codec.ManualAvroSchema
-import com.landoop.telecom.telecomitalia.telecommunications.Key
-import com.landoop.telecom.telecomitalia.telecommunications.smsCallInternet
+import cats.implicits._
+import com.github.chenharryhua.nanjin.codec.{KJson, ManualAvroSchema}
+import com.github.chenharryhua.nanjin.kafka.TopicDef
+import com.landoop.telecom.telecomitalia.telecommunications.{smsCallInternet, Key}
+import io.circe.generic.auto._
 
 class TopicNameSyntaxTest {
   val topic1 = ctx.topic[KJson[PKey], Payment]("topic1")

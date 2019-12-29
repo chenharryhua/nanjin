@@ -38,7 +38,7 @@ case class trip_record(
   total_amount: Double)
 
 object trip_record {
-  implicit val showtrip_record: Show[trip_record] = cats.derived.semi.show[trip_record]
+  implicit val showtrip_record: Show[kafka.trip_record] = cats.derived.semi.show[kafka.trip_record]
 }
 
 @JsonCodec case class Payment(
@@ -53,26 +53,27 @@ sealed trait Colorish
 
 object Colorish {
 
-  implicit val colorInjection: Injection[Colorish, String] = new Injection[Colorish, String] {
+  implicit val colorInjection: Injection[kafka.Colorish, String] =
+    new Injection[kafka.Colorish, String] {
 
-    override def apply(a: Colorish): String = a match {
-      case Red   => "red"
-      case Blue  => "blue"
-      case Green => "green"
-    }
+      override def apply(a: kafka.Colorish): String = a match {
+        case Red   => "red"
+        case Blue  => "blue"
+        case Green => "green"
+      }
 
-    override def invert(b: String): Colorish = b match {
-      case "red"   => Red
-      case "blue"  => Blue
-      case "green" => Green
+      override def invert(b: String): kafka.Colorish = b match {
+        case "red"   => Red
+        case "blue"  => Blue
+        case "green" => Green
+      }
     }
-  }
-  case object Red extends Colorish
-  case object Green extends Colorish
-  case object Blue extends Colorish
+  case object Red extends kafka.Colorish
+  case object Green extends kafka.Colorish
+  case object Blue extends kafka.Colorish
 }
 
-final case class Pencil(name: String, color: Colorish)
+final case class Pencil(name: String, color: kafka.Colorish)
 
 case class FirstStream(name: String, age: Int)
 case class SecondStream(name: String, score: Int)

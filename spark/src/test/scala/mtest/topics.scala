@@ -1,10 +1,13 @@
 package mtest
+
 import cats.Show
 import cats.implicits._
 import cats.derived.auto.show._
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import io.circe.generic.auto._ 
+import io.circe.generic.auto._
+import mtest.kafka.trip_record
+
 object topics {
   implicit val show: Show[ForTaskSerializable] = _.toString
   val taxi                                     = ctx.topic[Int, trip_record]("nyc_yellow_taxi_trip_data")

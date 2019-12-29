@@ -1,4 +1,4 @@
-package mtest
+package mtest.kafka
 
 import org.scalatest.funsuite.AnyFunSuite
 import cats.Show
