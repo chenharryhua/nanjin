@@ -36,7 +36,7 @@ sealed trait KafkaPrimitiveConsumerApi[F[_]] {
   def commitSync(offsets: Map[TopicPartition, OffsetAndMetadata]): F[Unit]
 }
 
-object KafkaPrimitiveConsumerApi {
+private[kafka] object KafkaPrimitiveConsumerApi {
 
   def apply[F[_]: Monad](topicName: String)(
     implicit F: ApplicativeAsk[F, KafkaByteConsumer]): KafkaPrimitiveConsumerApi[F] =

@@ -28,7 +28,7 @@ trait KafkaMonitoringApi[F[_], K, V] {
   def saveJson: F[Unit]
 }
 
-object KafkaMonitoringApi {
+private[kafka] object KafkaMonitoringApi {
 
   def apply[F[_]: Concurrent: ContextShift, K: Show, V: Show](
     topic: KafkaTopic[F, K, V]): KafkaMonitoringApi[F, K, V] =

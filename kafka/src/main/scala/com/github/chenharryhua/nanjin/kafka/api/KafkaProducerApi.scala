@@ -44,7 +44,7 @@ trait KafkaProducerApi[F[_], K, V] {
   def send(kvs: Chain[(K, V)]): F[Chain[RecordMetadata]]
 }
 
-object KafkaProducerApi {
+private[kafka] object KafkaProducerApi {
 
   def apply[F[_]: ConcurrentEffect, K, V](topic: KafkaTopic[F, K, V]): KafkaProducerApi[F, K, V] =
     new KafkaProducerApiImpl[F, K, V](topic)

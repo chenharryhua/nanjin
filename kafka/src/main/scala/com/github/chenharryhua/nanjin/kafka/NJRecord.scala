@@ -39,12 +39,10 @@ object NJConsumerRecord {
       cr.timestampType.id)
 
   implicit def jsonNJConsumerRecordEncoder[K: JsonEncoder, V: JsonEncoder]
-    : JsonEncoder[NJConsumerRecord[K, V]] =
-    deriveEncoder[NJConsumerRecord[K, V]]
+    : JsonEncoder[NJConsumerRecord[K, V]] = deriveEncoder[NJConsumerRecord[K, V]]
 
   implicit def jsonNJConsumerRecordDecoder[K: JsonDecoder, V: JsonDecoder]
-    : JsonDecoder[NJConsumerRecord[K, V]] =
-    deriveDecoder[NJConsumerRecord[K, V]]
+    : JsonDecoder[NJConsumerRecord[K, V]] = deriveDecoder[NJConsumerRecord[K, V]]
 
   implicit val njConsumerRecordBifunctor: Bifunctor[NJConsumerRecord] =
     new Bifunctor[NJConsumerRecord] {

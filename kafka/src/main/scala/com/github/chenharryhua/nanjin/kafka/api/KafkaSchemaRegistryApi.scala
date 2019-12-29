@@ -105,7 +105,7 @@ trait KafkaSchemaRegistryApi[F[_]] extends Serializable {
   def testCompatibility: F[CompatibilityTestReport]
 }
 
-object KafkaSchemaRegistryApi {
+private[kafka] object KafkaSchemaRegistryApi {
 
   def apply[F[_]: Sync](topic: KafkaTopic[F, _, _]): KafkaSchemaRegistryApi[F] =
     new KafkaSchemaRegistryImpl(topic)
