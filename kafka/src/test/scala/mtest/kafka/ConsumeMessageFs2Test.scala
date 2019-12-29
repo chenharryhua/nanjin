@@ -3,7 +3,7 @@ package mtest.kafka
 import cats.derived.auto.show._
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.codec._
-import com.github.chenharryhua.nanjin.kafka.codec.show._
+import com.github.chenharryhua.nanjin.kafka.show._
 import com.github.chenharryhua.nanjin.kafka._
 import com.github.chenharryhua.nanjin.kafka.codec.{KJson, ManualAvroSchema}
 import com.landoop.telecom.telecomitalia.telecommunications.{smsCallInternet, Key}

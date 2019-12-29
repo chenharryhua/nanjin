@@ -8,7 +8,6 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.common.{NJRate, NJRootPath}
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, NJConsumerRecord, NJProducerRecord}
-import com.github.chenharryhua.nanjin.kafka.codec.iso._
 import com.github.chenharryhua.nanjin.spark._
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.{Chunk, Stream}
@@ -104,7 +103,7 @@ private[kafka] object SparKafka {
       .zipLeft(Stream.fixedRate(uploadRate.duration))
       .evalMap(chk =>
         topic.producer.send(
-          chk.mapFilter(Option(_).map(_.withTopic(topic.topicDef.topicName).toProducerRecord))))
+          chk.mapFilter(Option(_).map(_.withTopic(topic.topicDef.topicName)))))
 
   // load data from disk and then upload into kafka
   def replay[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](

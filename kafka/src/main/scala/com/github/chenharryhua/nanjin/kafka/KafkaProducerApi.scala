@@ -5,12 +5,10 @@ import cats.data.Chain
 import cats.effect.concurrent.Deferred
 import cats.effect.{ConcurrentEffect, IO, Sync}
 import cats.implicits._
-import cats.tagless._
 import com.github.chenharryhua.nanjin.kafka.codec.KafkaCodec
 import com.github.chenharryhua.nanjin.kafka.codec.NJProducerMessage._
 import fs2.Chunk
 import fs2.kafka.{KafkaByteProducer, KafkaByteProducerRecord}
-import monocle.Iso
 import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
 
 trait KafkaProducerApi[F[_], K, V] {
@@ -38,10 +36,8 @@ trait KafkaProducerApi[F[_], K, V] {
   @SuppressWarnings(Array("AsInstanceOf"))
   final def send(v: V): F[RecordMetadata] = send(null.asInstanceOf[K], v)
 
-  def send[G[_, _]](pr: G[K, V])(implicit G: Iso[G[K, V], ProducerRecord[K, V]]): F[RecordMetadata]
-
-  def send[G[_, _]](prs: Chunk[G[K, V]])(
-    implicit G: Iso[G[K, V], ProducerRecord[K, V]]): F[Chunk[RecordMetadata]]
+  def send(pr: NJProducerRecord[K, V]): F[RecordMetadata]
+  def send(prs: Chunk[NJProducerRecord[K, V]]): F[Chunk[RecordMetadata]]
 
   def send(kvs: List[(K, V)]): F[List[RecordMetadata]]
   def send(kvs: Chain[(K, V)]): F[Chain[RecordMetadata]]
@@ -100,13 +96,11 @@ object KafkaProducerApi {
     override def arbitrarilyValueSend(key: K, value: Array[Byte]): F[RecordMetadata] =
       doSend(record(key, value)).flatten
 
-    override def send[G[_, _]](pr: G[K, V])(
-      implicit G: Iso[G[K, V], ProducerRecord[K, V]]): F[RecordMetadata] =
-      doSend(record(G.get(pr))).flatten
+    override def send(pr: NJProducerRecord[K, V]): F[RecordMetadata] =
+      doSend(record(pr.toProducerRecord)).flatten
 
-    override def send[G[_, _]](prs: Chunk[G[K, V]])(
-      implicit G: Iso[G[K, V], ProducerRecord[K, V]]): F[Chunk[RecordMetadata]] =
-      prs.traverse(pr => doSend(record(G.get(pr)))).flatMap(_.sequence)
+    override def send(prs: Chunk[NJProducerRecord[K, V]]): F[Chunk[RecordMetadata]] =
+      prs.traverse(nj => doSend(record(nj.toProducerRecord))).flatMap(_.sequence)
 
     override def arbitrarilyKeySend(key: Array[Byte], value: V): F[RecordMetadata] =
       doSend(record(key, value)).flatten

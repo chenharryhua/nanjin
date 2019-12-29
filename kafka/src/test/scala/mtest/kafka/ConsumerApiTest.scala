@@ -1,7 +1,7 @@
 package mtest.kafka
 
 import cats.derived.auto.show._
-import com.github.chenharryhua.nanjin.kafka.codec.show._
+import com.github.chenharryhua.nanjin.kafka.show._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka._
 import io.circe.generic.auto._
