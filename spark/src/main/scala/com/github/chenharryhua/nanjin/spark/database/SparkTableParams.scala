@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.database
 
-import com.github.chenharryhua.nanjin.control.StorageRootPath
+import com.github.chenharryhua.nanjin.control.NJRootPath
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
 import eu.timepit.refined.auto._
@@ -8,7 +8,7 @@ import eu.timepit.refined.auto._
 @Lenses final case class SparkTableParams(
   dbSaveMode: SaveMode,
   fileSaveMode: SaveMode,
-  rootPath: StorageRootPath) {
+  rootPath: NJRootPath) {
 
   def withDBSaveMode(saveMode: SaveMode): SparkTableParams =
     SparkTableParams.dbSaveMode.set(saveMode)(this)
@@ -22,6 +22,6 @@ object SparkTableParams {
   val default: SparkTableParams = SparkTableParams(
     SaveMode.ErrorIfExists,
     SaveMode.Overwrite,
-    StorageRootPath("./data/database/parquet/")
+    NJRootPath("./data/database/parquet/")
   )
 }

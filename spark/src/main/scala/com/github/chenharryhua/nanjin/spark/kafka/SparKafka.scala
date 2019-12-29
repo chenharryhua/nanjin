@@ -7,7 +7,7 @@ import cats.effect.{ConcurrentEffect, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.codec.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.codec.iso._
-import com.github.chenharryhua.nanjin.control.{StorageRootPath, UploadRate}
+import com.github.chenharryhua.nanjin.control.{NJRate, NJRootPath}
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark._
@@ -30,7 +30,7 @@ private[kafka] object SparKafka {
       "value.deserializer" -> classOf[ByteArrayDeserializer].getName) ++
       remove(ConsumerConfig.CLIENT_ID_CONFIG)(maps)).mapValues[Object](identity).asJava
 
-  private def path[F[_]](root: StorageRootPath, topic: KafkaTopic[F, _, _]): String =
+  private def path[F[_]](root: NJRootPath, topic: KafkaTopic[F, _, _]): String =
     root + topic.topicDef.topicName
 
   def datasetFromKafka[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
@@ -56,7 +56,7 @@ private[kafka] object SparKafka {
   def datasetFromDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
     timeRange: NJDateTimeRange,
-    rootPath: StorageRootPath)(
+    rootPath: NJRootPath)(
     implicit sparkSession: SparkSession): F[TypedDataset[NJConsumerRecord[K, V]]] =
     Sync[F].delay {
       val tds =
@@ -69,7 +69,7 @@ private[kafka] object SparKafka {
   def saveToDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
     timeRange: NJDateTimeRange,
-    rootPath: StorageRootPath,
+    rootPath: NJRootPath,
     saveMode: SaveMode,
     locationStrategy: LocationStrategy)(implicit sparkSession: SparkSession): F[Unit] =
     datasetFromKafka(topic, timeRange, locationStrategy).map(
@@ -97,7 +97,7 @@ private[kafka] object SparKafka {
   def uploadToKafka[F[_]: ConcurrentEffect: Timer, K, V](
     topic: => KafkaTopic[F, K, V],
     tds: TypedDataset[NJProducerRecord[K, V]],
-    uploadRate: UploadRate
+    uploadRate: NJRate
   ): Stream[F, Chunk[RecordMetadata]] =
     tds
       .stream[F]

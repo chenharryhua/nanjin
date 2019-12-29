@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import java.time._
-import com.github.chenharryhua.nanjin.control.{StorageRootPath, UploadRate}
+import com.github.chenharryhua.nanjin.control.{NJRate, NJRootPath}
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import eu.timepit.refined.auto._
 import monocle.macros.Lenses
@@ -21,9 +21,9 @@ object ConversionTactics {
 @Lenses final case class SparKafkaParams private (
   timeRange: NJDateTimeRange,
   conversionTactics: ConversionTactics,
-  uploadRate: UploadRate,
+  uploadRate: NJRate,
   zoneId: ZoneId,
-  rootPath: StorageRootPath,
+  rootPath: NJRootPath,
   saveMode: SaveMode,
   locationStrategy: LocationStrategy,
   repartition: Int) {
@@ -58,10 +58,10 @@ object ConversionTactics {
   def withYesterday: SparKafkaParams = withinOneDay(LocalDate.now.minusDays(1))
 
   def withBatchSize(batchSize: Int): SparKafkaParams =
-    SparKafkaParams.uploadRate.composeLens(UploadRate.batchSize).set(batchSize)(this)
+    SparKafkaParams.uploadRate.composeLens(NJRate.batchSize).set(batchSize)(this)
 
   def withDuration(duration: FiniteDuration): SparKafkaParams =
-    SparKafkaParams.uploadRate.composeLens(UploadRate.duration).set(duration)(this)
+    SparKafkaParams.uploadRate.composeLens(NJRate.duration).set(duration)(this)
 
   def withUploadRate(batchSize: Int, duration: FiniteDuration): SparKafkaParams =
     withBatchSize(batchSize).withDuration(duration)
@@ -88,9 +88,9 @@ object SparKafkaParams {
     SparKafkaParams(
       NJDateTimeRange.infinite,
       ConversionTactics.default,
-      UploadRate.default,
+      NJRate.default,
       ZoneId.systemDefault(),
-      StorageRootPath("./data/kafka/parquet/"),
+      NJRootPath("./data/kafka/parquet/"),
       SaveMode.ErrorIfExists,
       LocationStrategies.PreferConsistent,
       30

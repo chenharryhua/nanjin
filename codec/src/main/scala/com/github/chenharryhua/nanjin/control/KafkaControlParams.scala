@@ -10,26 +10,26 @@ import monocle.macros.Lenses
 
 import scala.concurrent.duration.{FiniteDuration, _}
 
-final case class StorageRootPath(uri: String Refined Uri) {
+final case class NJRootPath(uri: String Refined Uri) {
   val root: String = if (uri.value.endsWith("/")) uri.value else uri.value + "/"
 
   def +(sub: String): String = root + sub
 }
 
-object StorageRootPath {
-  val default: StorageRootPath = StorageRootPath("./data/")
+object NJRootPath {
+  val default: NJRootPath = NJRootPath("./data/")
 }
 
-@Lenses final case class UploadRate(batchSize: Int, duration: FiniteDuration)
+@Lenses final case class NJRate(batchSize: Int, duration: FiniteDuration)
 
-object UploadRate {
-  val default: UploadRate = UploadRate(1000, 1.second)
+object NJRate {
+  val default: NJRate = NJRate(1000, 1.second)
 }
 
 @Lenses final case class KafkaControlParams private (
   timeRange: NJDateTimeRange,
   zoneId: ZoneId,
-  rootPath: StorageRootPath) {
+  rootPath: NJRootPath) {
 
   val clock: Clock = Clock.system(zoneId)
 
@@ -63,6 +63,6 @@ object SparKafkaParams {
   val default: KafkaControlParams = KafkaControlParams(
     NJDateTimeRange.infinite,
     ZoneId.systemDefault(),
-    StorageRootPath.default
+    NJRootPath.default
   )
 }

@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.effect.{ConcurrentEffect, Timer}
 import com.github.chenharryhua.nanjin.codec.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.control.UploadRate
+import com.github.chenharryhua.nanjin.control.NJRate
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.{Chunk, Stream}
 import org.apache.kafka.clients.producer.RecordMetadata
@@ -14,7 +14,7 @@ private[kafka] trait DatasetExtensions {
 
     def kafkaUpload[F[_]: ConcurrentEffect: Timer](
       topic: => KafkaTopic[F, K, V],
-      rate: UploadRate = UploadRate.default): Stream[F, Chunk[RecordMetadata]] =
+      rate: NJRate = NJRate.default): Stream[F, Chunk[RecordMetadata]] =
       SparKafka.uploadToKafka(topic, data, rate)
   }
 
