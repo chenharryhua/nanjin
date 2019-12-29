@@ -6,6 +6,7 @@ import java.util.Properties
 import cats.Eval
 
 import scala.util.Random
+
 package object utils {
   //kafka was graduated from apache incubator
   val kafkaEpoch: LocalDateTime = LocalDateTime.of(2012, 10, 23, 0, 0, 0)

@@ -254,6 +254,12 @@ val logs = Seq(
   "org.slf4j"                % "slf4j-api"  % "2.0.0-alpha1"
 )
 
+lazy val common = (project in file("common"))
+  .settings(commonSettings: _*)
+  .settings(name := "nj-common")
+  .settings(libraryDependencies ++= Seq("org.jline" % "jline" % jline) ++ 
+     base ++ fs2 ++ monocleLib ++ tests)
+
 lazy val datetime = (project in file("datetime"))
   .settings(commonSettings: _*)
   .settings(name := "nj-datetime")
@@ -271,6 +277,7 @@ lazy val codec = (project in file("codec"))
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
   .dependsOn(datetime)
+  .dependsOn(common)
 
 lazy val hadoop = (project in file("hadoop"))
   .settings(commonSettings: _*)
@@ -285,6 +292,8 @@ lazy val kafka = (project in file("kafka"))
     libraryDependencies ++= effect ++ fs2 ++ tests,
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
+  .dependsOn(datetime)
+  .dependsOn(common)
 
 lazy val database = (project in file("database"))
   .dependsOn(datetime)
@@ -330,4 +339,4 @@ lazy val graph = (project in file("graph"))
 lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
-    .aggregate(codec, datetime, kafka, flink, database, hadoop, spark, graph)
+    .aggregate(common, codec, datetime, kafka, flink, database, hadoop, spark, graph)
