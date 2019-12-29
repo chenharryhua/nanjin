@@ -1,8 +1,9 @@
 package com.github.chenharryhua.nanjin.spark.database
 
-import com.github.chenharryhua.nanjin.spark.StorageRootPath
+import com.github.chenharryhua.nanjin.control.StorageRootPath
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
+import eu.timepit.refined.auto._
 
 @Lenses final case class SparkTableParams(
   dbSaveMode: SaveMode,
@@ -14,9 +15,6 @@ import org.apache.spark.sql.SaveMode
 
   def withFileSaveMode(saveMode: SaveMode): SparkTableParams =
     SparkTableParams.fileSaveMode.set(saveMode)(this)
-
-  def withStorageRootPath(p: String): SparkTableParams =
-    SparkTableParams.rootPath.set(StorageRootPath(p))(this)
 }
 
 object SparkTableParams {

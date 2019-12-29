@@ -3,12 +3,27 @@ package com.github.chenharryhua.nanjin.control
 import java.time._
 
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.auto._
+import eu.timepit.refined.string.Uri
 import monocle.macros.Lenses
 
-final case class StorageRootPath(value: String) extends AnyVal
+import scala.concurrent.duration.{FiniteDuration, _}
+
+final case class StorageRootPath(uri: String Refined Uri) {
+  val root: String = if (uri.value.endsWith("/")) uri.value else uri.value + "/"
+
+  def +(sub: String): String = root + sub
+}
 
 object StorageRootPath {
   val default: StorageRootPath = StorageRootPath("./data/")
+}
+
+@Lenses final case class UploadRate(batchSize: Int, duration: FiniteDuration)
+
+object UploadRate {
+  val default: UploadRate = UploadRate(1000, 1.second)
 }
 
 @Lenses final case class KafkaControlParams private (
@@ -18,8 +33,7 @@ object StorageRootPath {
 
   val clock: Clock = Clock.system(zoneId)
 
-  def withZoneId(zoneId: ZoneId): KafkaControlParams     = copy(zoneId   = zoneId)
-  def withStorageRootPath(p: String): KafkaControlParams = copy(rootPath = StorageRootPath(p))
+  def withZoneId(zoneId: ZoneId): KafkaControlParams = copy(zoneId = zoneId)
 
   private def setStartTime(ts: NJTimestamp): KafkaControlParams =
     KafkaControlParams.timeRange.composeLens(NJDateTimeRange.start).set(Some(ts))(this)
@@ -45,6 +59,7 @@ object StorageRootPath {
 }
 
 object SparKafkaParams {
+
   val default: KafkaControlParams = KafkaControlParams(
     NJDateTimeRange.infinite,
     ZoneId.systemDefault(),

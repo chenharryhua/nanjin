@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import java.time._
-
+import com.github.chenharryhua.nanjin.control.{StorageRootPath, UploadRate}
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
-import com.github.chenharryhua.nanjin.spark.{StorageRootPath, UploadRate}
+import eu.timepit.refined.auto._
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.streaming.kafka010.{LocationStrategies, LocationStrategy}
@@ -30,10 +30,9 @@ object ConversionTactics {
 
   val clock: Clock = Clock.system(zoneId)
 
-  def withZoneId(zoneId: ZoneId): SparKafkaParams     = copy(zoneId   = zoneId)
-  def withStorageRootPath(p: String): SparKafkaParams = copy(rootPath = StorageRootPath(p))
-  def withSaveMode(sm: SaveMode): SparKafkaParams     = copy(saveMode = sm)
-  def withOverwrite: SparKafkaParams                  = copy(saveMode = SaveMode.Overwrite)
+  def withZoneId(zoneId: ZoneId): SparKafkaParams = copy(zoneId   = zoneId)
+  def withSaveMode(sm: SaveMode): SparKafkaParams = copy(saveMode = sm)
+  def withOverwrite: SparKafkaParams              = copy(saveMode = SaveMode.Overwrite)
 
   def withLocationStrategy(ls: LocationStrategy): SparKafkaParams = copy(locationStrategy = ls)
 

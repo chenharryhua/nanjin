@@ -28,7 +28,7 @@ final case class SparkTableSession[F[_]: ContextShift: Concurrent, A](
     extends UpdateParams[SparkTableParams, SparkTableSession[F, A]] {
   import tableDef.{doobieRead, typedEncoder}
 
-  private val path: String = params.rootPath.value + tableDef.tableName
+  private val path: String = params.rootPath + tableDef.tableName
 
   def updateParams(f: SparkTableParams => SparkTableParams): SparkTableSession[F, A] =
     copy(params = f(params))
