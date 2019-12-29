@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.kafka
+package com.github.chenharryhua.nanjin.utils
 
 import cats.effect.{Concurrent, Sync}
 import fs2.Stream

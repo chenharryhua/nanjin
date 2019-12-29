@@ -9,6 +9,7 @@ import cats.data.{NonEmptyList, Reader}
 import cats.effect._
 import cats.implicits._
 import com.github.chenharryhua.nanjin.codec._
+import com.github.chenharryhua.nanjin.utils.Keyboard
 import fs2.Stream
 import fs2.kafka.{ConsumerSettings => Fs2ConsumerSettings, ProducerSettings => Fs2ProducerSettings}
 import org.apache.kafka.clients.consumer.ConsumerRecord

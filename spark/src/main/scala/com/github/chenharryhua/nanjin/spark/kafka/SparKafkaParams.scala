@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import java.time._
-import com.github.chenharryhua.nanjin.control.{NJRate, NJRootPath}
+import com.github.chenharryhua.nanjin.common.{NJRate, NJRootPath}
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import eu.timepit.refined.auto._
 import monocle.macros.Lenses

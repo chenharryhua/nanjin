@@ -159,10 +159,10 @@ val avro = Seq(
   Seq(
     "com.sksamuel.avro4s" %% "avro4s-core" % avro4s,
     ("io.confluent" % "kafka-streams-avro-serde" % "5.3.2").classifier(""),
-    "com.julianpeeters" %% "avrohugger-core" % avrohugger,
-    "io.higherkindness" %% "skeuomorph"      % "0.0.17",
+    "com.julianpeeters" %% "avrohugger-core"                  % avrohugger,
+    "io.higherkindness" %% "skeuomorph"                       % "0.0.17",
     "com.lightbend.akka" %% "akka-stream-alpakka-avroparquet" % "1.1.2",
-    "org.apache.parquet" % "parquet-avro" % "1.11.0"
+    "org.apache.parquet"                                      % "parquet-avro" % "1.11.0"
   )
 
 val sparkLib = Seq(
@@ -265,10 +265,12 @@ lazy val codec = (project in file("codec"))
   .settings(
     addCompilerPlugin("com.github.ghik" %% "silencer-plugin" % silencer),
     libraryDependencies ++= Seq(
+      "org.jline"                         % "jline"  % jline,
       "com.github.ghik" %% "silencer-lib" % silencer % Provided
     ) ++ base ++ json ++ monocleLib ++ kafkaLib ++ avro ++ scodec ++ tests,
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
-  ).dependsOn(datetime)
+  )
+  .dependsOn(datetime)
 
 lazy val hadoop = (project in file("hadoop"))
   .settings(commonSettings: _*)
@@ -280,7 +282,7 @@ lazy val kafka = (project in file("kafka"))
   .settings(name := "nj-kafka")
   .dependsOn(codec)
   .settings(
-    libraryDependencies ++= Seq("org.jline" % "jline" % jline) ++ effect ++ fs2 ++ tests,
+    libraryDependencies ++= effect ++ fs2 ++ tests,
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
 

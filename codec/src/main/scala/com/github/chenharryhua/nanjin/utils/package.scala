@@ -9,6 +9,8 @@ import scala.util.Random
 package object utils {
   //kafka was graduated from apache incubator
   val kafkaEpoch: LocalDateTime = LocalDateTime.of(2012, 10, 23, 0, 0, 0)
+  val sparkEpoch: LocalDateTime = LocalDateTime.of(2014, 2, 1, 0, 0, 0)
+  val flinkEpoch: LocalDateTime = LocalDateTime.of(2014, 12, 1, 0, 0, 0)
 
   def toProperties(props: Map[String, String]): Properties =
     props.foldLeft(new Properties()) { case (a, (k, v)) => a.put(k, v); a }

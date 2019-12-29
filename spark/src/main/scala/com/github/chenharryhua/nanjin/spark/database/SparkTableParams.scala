@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.database
 
-import com.github.chenharryhua.nanjin.control.NJRootPath
+import com.github.chenharryhua.nanjin.common.NJRootPath
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
 import eu.timepit.refined.auto._

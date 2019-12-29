@@ -7,7 +7,7 @@ import cats.effect.{ConcurrentEffect, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.codec.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.codec.iso._
-import com.github.chenharryhua.nanjin.control.{NJRate, NJRootPath}
+import com.github.chenharryhua.nanjin.common.{NJRate, NJRootPath}
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark._

@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark
 
 import cats.effect.{Concurrent, Sync}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.Keyboard
+import com.github.chenharryhua.nanjin.utils.Keyboard
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
