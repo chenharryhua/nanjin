@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.Resource
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.codec._
+import com.github.chenharryhua.nanjin.kafka.api._
 import com.github.chenharryhua.nanjin.kafka.codec.{
   KafkaCodec,
   KafkaGenericDecoder,
@@ -92,9 +92,9 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
     new KafkaChannels.StreamingChannel[K, V](topicDef.topicName, codec.keySerde, codec.valueSerde)
 
   // APIs
-  val schemaRegistry: KafkaSchemaRegistryApi[F] = KafkaSchemaRegistryApi[F](this)
-  val admin: KafkaTopicAdminApi[F]              = KafkaTopicAdminApi[F, K, V](this)
-  val consumer: KafkaConsumerApi[F, K, V]       = KafkaConsumerApi[F, K, V](this)
-  val producer: KafkaProducerApi[F, K, V]       = KafkaProducerApi[F, K, V](this)
-  val monitor: KafkaMonitoringApi[F, K, V]      = KafkaMonitoringApi[F, K, V](this)
+  val schemaRegistry: KafkaSchemaRegistryApi[F] = api.KafkaSchemaRegistryApi[F](this)
+  val admin: KafkaTopicAdminApi[F]              = api.KafkaTopicAdminApi[F, K, V](this)
+  val consumer: KafkaConsumerApi[F, K, V]       = api.KafkaConsumerApi[F, K, V](this)
+  val producer: KafkaProducerApi[F, K, V]       = api.KafkaProducerApi[F, K, V](this)
+  val monitor: KafkaMonitoringApi[F, K, V]      = api.KafkaMonitoringApi[F, K, V](this)
 }

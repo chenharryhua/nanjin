@@ -1,12 +1,12 @@
-package com.github.chenharryhua.nanjin.kafka
+package com.github.chenharryhua.nanjin.kafka.api
 
 import avrohugger.Generator
 import avrohugger.format.Standard
-import avrohugger.types.{AvroScalaTypes, ScalaADT, ScalaCaseClass, ScalaCaseObjectEnum, ScalaList}
+import avrohugger.types._
 import cats.Show
 import cats.effect.Sync
 import cats.implicits._
-import cats.tagless._
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, SchemaRegistrySettings}
 import io.confluent.kafka.schemaregistry.client.SchemaMetadata
 import org.apache.avro.Schema
 

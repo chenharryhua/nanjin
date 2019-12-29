@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.kafka
+package com.github.chenharryhua.nanjin.kafka.api
 
 import java.time.Duration
 
@@ -7,9 +7,16 @@ import cats.effect.concurrent.MVar
 import cats.effect.{Concurrent, Sync}
 import cats.implicits._
 import cats.mtl.ApplicativeAsk
-import cats.tagless._
 import cats.{Eval, Monad}
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
+import com.github.chenharryhua.nanjin.kafka.{
+  GenericTopicPartition,
+  KafkaOffset,
+  KafkaOffsetRange,
+  KafkaPartition,
+  KafkaTopic,
+  ListOfTopicPartitions
+}
 import fs2.kafka.KafkaByteConsumer
 import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
 import org.apache.kafka.common.TopicPartition

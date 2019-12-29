@@ -8,7 +8,6 @@ import com.github.chenharryhua.nanjin.kafka._
 import io.circe.generic.auto._
 import org.scalatest.funsuite.AnyFunSuite
 import io.circe.generic.auto._ 
-import com.github.chenharryhua.nanjin.kafka.show._ 
 
 
 class ConsumeMessageAkkaTest extends AnyFunSuite {

@@ -1,8 +1,8 @@
-package com.github.chenharryhua.nanjin.kafka
+package com.github.chenharryhua.nanjin.kafka.api
 
 import cats.effect.{Concurrent, ContextShift, Resource}
 import cats.implicits._
-import cats.tagless.{autoFunctorK, autoSemigroupalK}
+import com.github.chenharryhua.nanjin.kafka.{KafkaConsumerGroupInfo, KafkaTopic}
 import fs2.kafka.{adminClientResource, AdminClientSettings, KafkaAdminClient}
 import org.apache.kafka.clients.admin.TopicDescription
 

@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.kafka
+package com.github.chenharryhua.nanjin.kafka.api
 
 import cats.Eval
 import cats.data.Chain
@@ -7,6 +7,7 @@ import cats.effect.{ConcurrentEffect, IO, Sync}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.codec.KafkaCodec
 import com.github.chenharryhua.nanjin.kafka.codec.NJProducerMessage._
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, NJProducerRecord}
 import fs2.Chunk
 import fs2.kafka.{KafkaByteProducer, KafkaByteProducerRecord}
 import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
