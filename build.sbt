@@ -296,7 +296,7 @@ lazy val kafka = (project in file("kafka"))
   .dependsOn(common)
 
 lazy val database = (project in file("database"))
-  .dependsOn(datetime)
+  .dependsOn(common)
   .settings(commonSettings: _*)
   .settings(name := "nj-database")
   .settings(libraryDependencies ++= base ++ json ++ db ++ tests)

@@ -8,6 +8,7 @@ import doobie.util.ExecutionContexts
 import fs2.{Chunk, Pipe, Stream}
 import io.getquill.codegen.jdbc.SimpleJdbcCodegen
 import monocle.macros.Lenses
+import com.github.chenharryhua.nanjin.common._
 
 import scala.concurrent.duration.DurationInt
 
@@ -25,7 +26,7 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
   final def transactorResource[F[_]: ContextShift: Async]: Resource[F, HikariTransactor[F]] =
     for {
       threadPool <- ExecutionContexts.fixedThreadPool[F](8)
-      blocker <- Blocker[F] 
+      blocker <- Blocker[F]
       xa <- HikariTransactor.newHikariTransactor[F](
         driver.value,
         connStr.value,

@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.graph
 
-import com.github.chenharryhua.nanjin.database._
+import com.github.chenharryhua.nanjin.common._
 import monocle.macros.Lenses
 import org.apache.spark.sql.SparkSession
 import org.neo4j.driver.v1.Config.ConfigBuilder
