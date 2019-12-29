@@ -1,6 +1,6 @@
 package mtest.kafka.codec
 
-import com.github.chenharryhua.nanjin.kafka.codec.KJson
+import com.github.chenharryhua.nanjin.kafka.KJson
 import org.scalatest.funsuite.AnyFunSuite
 
 class NullTests extends AnyFunSuite {

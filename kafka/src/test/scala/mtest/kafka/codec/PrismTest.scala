@@ -8,7 +8,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
 import com.github.chenharryhua.nanjin.kafka.codec.eq._
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.codec.KJson
+import com.github.chenharryhua.nanjin.kafka.KJson
 
 class PrismTest extends AnyFunSuite with Discipline {
 

@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka.codec
 
 import java.{util => ju}
 
-import com.github.chenharryhua.nanjin.kafka.ManualAvroSchema
+import com.github.chenharryhua.nanjin.kafka.{KJson, ManualAvroSchema}
 import com.sksamuel.avro4s.{
   AvroSchema,
   DefaultFieldMapper,

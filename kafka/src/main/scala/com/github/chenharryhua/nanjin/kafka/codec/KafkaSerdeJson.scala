@@ -1,21 +1,12 @@
 package com.github.chenharryhua.nanjin.kafka.codec
 
 import cats.implicits._
-import cats.{Eq, Show}
+import com.github.chenharryhua.nanjin.kafka.KJson
 import io.circe.syntax._
 import io.circe.{parser, Decoder, Encoder}
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 
 import scala.util.{Success, Try}
-
-final case class KJson[A](value: A) extends AnyVal
-
-object KJson {
-
-  implicit def showKafkaJson[A: Encoder]: Show[KJson[A]] =
-    (t: KJson[A]) => s"""KJson(${Option(t.value).map(_.asJson.noSpaces).getOrElse("null")})"""
-  implicit def eqKJson[A: Eq]: Eq[KJson[A]] = cats.derived.semi.eq[KJson[A]]
-}
 
 @SuppressWarnings(Array("AsInstanceOf"))
 final private[codec] class KafkaSerdeJson[A: Decoder: Encoder] extends Serde[KJson[A]] {
