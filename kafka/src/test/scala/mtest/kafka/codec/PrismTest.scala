@@ -1,14 +1,15 @@
 package mtest.kafka.codec
 
 import cats.Eq
-import com.github.chenharryhua.nanjin.codec.KJson
 import monocle.law.discipline.PrismTests
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
-import com.github.chenharryhua.nanjin.codec.eq._
-import cats.implicits._ 
+import com.github.chenharryhua.nanjin.kafka.codec.eq._
+import cats.implicits._
+import com.github.chenharryhua.nanjin.kafka.codec.KJson
+
 class PrismTest extends AnyFunSuite with Discipline {
 
   val pc: Gen[PrimitiveTypeCombined] = for {

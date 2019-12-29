@@ -4,8 +4,8 @@ import org.scalatest.funsuite.AnyFunSuite
 import cats.Show
 import cats.derived.auto.show._
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.show._
-import com.github.chenharryhua.nanjin.codec.iso._
+import com.github.chenharryhua.nanjin.kafka.codec.show._
+import com.github.chenharryhua.nanjin.kafka.codec.iso._
 import io.circe.syntax._
 import io.circe.generic.auto._
 

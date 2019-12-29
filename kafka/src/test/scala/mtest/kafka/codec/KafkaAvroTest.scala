@@ -1,7 +1,7 @@
 package mtest.kafka.codec
 
-import com.github.chenharryhua.nanjin.codec.CodecException.InvalidObjectException
-import com.github.chenharryhua.nanjin.codec.SerdeOf
+import com.github.chenharryhua.nanjin.kafka.codec.CodecException.InvalidObjectException
+import com.github.chenharryhua.nanjin.kafka.codec.SerdeOf
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Success

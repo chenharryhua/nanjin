@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.codec
+package com.github.chenharryhua.nanjin.kafka.codec
 
 import cats.{Applicative, Bitraverse, Eval}
 import com.github.ghik.silencer.silent
@@ -9,6 +9,7 @@ private[codec] trait BitraverseKafkaRecord {
 
   implicit final val bitraverseConsumerRecord: Bitraverse[ConsumerRecord] =
     new Bitraverse[ConsumerRecord] {
+
       override def bimap[K1, V1, K2, V2](
         cr: ConsumerRecord[K1, V1])(k: K1 => K2, v: V1 => V2): ConsumerRecord[K2, V2] =
         new ConsumerRecord[K2, V2](
@@ -41,6 +42,7 @@ private[codec] trait BitraverseKafkaRecord {
 
   implicit final val bitraverseProducerRecord: Bitraverse[ProducerRecord] =
     new Bitraverse[ProducerRecord] {
+
       override def bimap[K1, V1, K2, V2](
         pr: ProducerRecord[K1, V1])(k: K1 => K2, v: V1 => V2): ProducerRecord[K2, V2] =
         new ProducerRecord[K2, V2](

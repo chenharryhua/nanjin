@@ -2,11 +2,11 @@ package com.github.chenharryhua.nanjin.kafka
 
 import java.time.Duration
 
+import com.github.chenharryhua.nanjin.kafka.codec.KafkaSerde
 import org.apache.kafka.streams.processor.StateStore
 import org.apache.kafka.streams.scala.kstream.Materialized
 import org.apache.kafka.streams.state._
 import org.apache.kafka.streams.{scala, KafkaStreams}
-import com.github.chenharryhua.nanjin.codec.KafkaSerde
 
 final case class KafkaStoreName(value: String) extends AnyVal
 

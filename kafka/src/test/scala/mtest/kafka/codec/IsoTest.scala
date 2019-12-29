@@ -1,8 +1,8 @@
 package mtest.kafka.codec
 
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec.eq._
-import com.github.chenharryhua.nanjin.codec.iso._
+import com.github.chenharryhua.nanjin.kafka.codec.eq._
+import com.github.chenharryhua.nanjin.kafka.codec.iso._
 import fs2.kafka.{ConsumerRecord => Fs2ConsumerRecord, ProducerRecord => Fs2ProducerRecord}
 import monocle.law.discipline.IsoTests
 import org.apache.kafka.clients.consumer.ConsumerRecord

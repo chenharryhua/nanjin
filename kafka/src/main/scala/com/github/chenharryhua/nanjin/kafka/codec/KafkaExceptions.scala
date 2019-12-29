@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.codec
+package com.github.chenharryhua.nanjin.kafka.codec
 
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
@@ -7,6 +7,7 @@ sealed abstract class CodecException(msg: String)
     extends Exception(msg) with Product with Serializable
 
 object CodecException {
+
   final case class EncodeException(topic: String, error: Throwable, data: String, schema: Schema)
       extends CodecException(s"""|encode avro failure: 
                                  |topic:    $topic

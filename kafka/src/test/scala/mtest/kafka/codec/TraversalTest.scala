@@ -3,8 +3,8 @@ package mtest.kafka.codec
 import akka.kafka.ProducerMessage.{MultiMessage => AkkaMultiMessage}
 import cats.effect.IO
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec._
-import com.github.chenharryhua.nanjin.codec.eq._
+import com.github.chenharryhua.nanjin.kafka.codec._
+import com.github.chenharryhua.nanjin.kafka.codec.eq._
 import fs2.kafka.{
   CommittableProducerRecords   => Fs2CommittableProducerRecords,
   ProducerRecords              => Fs2ProducerRecords,

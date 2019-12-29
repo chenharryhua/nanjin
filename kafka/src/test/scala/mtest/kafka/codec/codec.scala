@@ -1,6 +1,7 @@
 package mtest.kafka
 
-import com.github.chenharryhua.nanjin.codec.{KJson, KafkaCodec, SerdeOf}
+import com.github.chenharryhua.nanjin.kafka.codec.{KafkaCodec, SerdeOf}
+import com.github.chenharryhua.nanjin.kafka.codec.{KJson, KafkaCodec, SerdeOf}
 import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig
 import io.circe.generic.auto._
 package object codec extends ArbitraryData {

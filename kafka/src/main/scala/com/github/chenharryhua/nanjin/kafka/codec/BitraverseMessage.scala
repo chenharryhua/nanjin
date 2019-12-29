@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.codec
+package com.github.chenharryhua.nanjin.kafka.codec
 
 import akka.kafka.ConsumerMessage.{
   CommittableMessage   => AkkaCommittableMessage,
@@ -16,7 +16,7 @@ import monocle.PLens
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 
-private [codec] sealed trait BitraverseMessage[F[_, _]] extends Bitraverse[F] {
+sealed private[codec] trait BitraverseMessage[F[_, _]] extends Bitraverse[F] {
   type H[_, _]
   implicit def baseInst: Bitraverse[H]
   def lens[K1, V1, K2, V2]: PLens[F[K1, V1], F[K2, V2], H[K1, V1], H[K2, V2]]

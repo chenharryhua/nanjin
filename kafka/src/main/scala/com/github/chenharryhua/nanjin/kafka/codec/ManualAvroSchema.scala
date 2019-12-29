@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.codec
+package com.github.chenharryhua.nanjin.kafka.codec
 
 import cats.implicits._
 import com.sksamuel.avro4s.{AvroSchema, SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
@@ -7,9 +7,9 @@ import diffson.circe._
 import diffson.jsonpatch._
 import diffson.jsonpatch.lcsdiff._
 import diffson.lcs.Patience
+import io.circe.Json
 import io.circe.optics.JsonPath._
 import io.circe.parser._
-import io.circe.{Json, ParsingFailure}
 import org.apache.avro.Schema
 
 final case class KafkaAvroSchemaException(msg: String) extends Exception(msg)

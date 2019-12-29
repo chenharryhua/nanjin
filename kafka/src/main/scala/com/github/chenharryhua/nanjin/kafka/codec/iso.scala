@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.codec
+package com.github.chenharryhua.nanjin.kafka.codec
 
 import fs2.kafka.{
   ConsumerRecord => Fs2ConsumerRecord,

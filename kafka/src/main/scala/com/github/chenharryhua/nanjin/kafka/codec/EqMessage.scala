@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.codec
+package com.github.chenharryhua.nanjin.kafka.codec
 
 import java.util.Optional
 
@@ -109,11 +109,11 @@ private[codec] trait EqMessage {
 
   implicit final def eqConsumerRecordFs2[K: Eq, V: Eq]: Eq[Fs2ConsumerRecord[K, V]] =
     (x: Fs2ConsumerRecord[K, V], y: Fs2ConsumerRecord[K, V]) =>
-    iso.isoFs2ComsumerRecord.get(x) === iso.isoFs2ComsumerRecord.get(y)
+      iso.isoFs2ComsumerRecord.get(x) === iso.isoFs2ComsumerRecord.get(y)
 
   implicit final def eqProducerRecordFs2[K: Eq, V: Eq]: Eq[Fs2ProducerRecord[K, V]] =
     (x: Fs2ProducerRecord[K, V], y: Fs2ProducerRecord[K, V]) =>
-    iso.isoFs2ProducerRecord.get(x) === iso.isoFs2ProducerRecord.get(y)
+      iso.isoFs2ProducerRecord.get(x) === iso.isoFs2ProducerRecord.get(y)
 
   implicit final def eqProducerRecordsFs2[K: Eq, V: Eq, P: Eq]: Eq[Fs2ProducerRecords[K, V, P]] =
     (x: Fs2ProducerRecords[K, V, P], y: Fs2ProducerRecords[K, V, P]) =>

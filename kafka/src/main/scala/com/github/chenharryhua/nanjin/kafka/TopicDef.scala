@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.Show
-import com.github.chenharryhua.nanjin.codec.{ManualAvroSchema, NJConsumerRecord, SerdeOf}
+import com.github.chenharryhua.nanjin.kafka.codec.{NJConsumerRecord, SerdeOf}
+import com.github.chenharryhua.nanjin.kafka.codec.{ManualAvroSchema, NJConsumerRecord, SerdeOf}
 import com.sksamuel.avro4s.{
   AvroSchema,
   FromRecord,

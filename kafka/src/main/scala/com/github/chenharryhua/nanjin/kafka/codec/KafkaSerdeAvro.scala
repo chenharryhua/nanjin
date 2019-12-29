@@ -1,6 +1,6 @@
-package com.github.chenharryhua.nanjin.codec
+package com.github.chenharryhua.nanjin.kafka.codec
 
-import com.github.chenharryhua.nanjin.codec.CodecException._
+import com.github.chenharryhua.nanjin.kafka.codec.CodecException._
 import com.sksamuel.avro4s._
 import io.confluent.kafka.streams.serdes.avro.{GenericAvroDeserializer, GenericAvroSerializer}
 import org.apache.avro.Schema

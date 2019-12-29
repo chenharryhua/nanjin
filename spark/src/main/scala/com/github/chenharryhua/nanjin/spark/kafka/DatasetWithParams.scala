@@ -8,8 +8,8 @@ import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.functions.aggregate.count
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
-import com.github.chenharryhua.nanjin.codec.NJConsumerRecord
-import com.github.chenharryhua.nanjin.codec.NJProducerRecord
+import com.github.chenharryhua.nanjin.kafka.codec.NJProducerRecord
+import com.github.chenharryhua.nanjin.kafka.codec.{NJConsumerRecord, NJProducerRecord}
 
 final case class MinutelyAggResult(minute: Int, count: Long)
 final case class HourlyAggResult(hour: Int, count: Long)

@@ -4,7 +4,7 @@ import java.util.Optional
 
 import cats.implicits._
 import cats.kernel.laws.discipline.EqTests
-import com.github.chenharryhua.nanjin.codec.eq._
+import com.github.chenharryhua.nanjin.kafka.codec.eq._
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.header.internals.RecordHeader

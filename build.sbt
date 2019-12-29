@@ -265,20 +265,6 @@ lazy val datetime = (project in file("datetime"))
   .settings(name := "nj-datetime")
   .settings(libraryDependencies ++= base ++ monocleLib ++ tests)
 
-lazy val codec = (project in file("codec"))
-  .settings(commonSettings: _*)
-  .settings(name := "nj-codec")
-  .settings(
-    addCompilerPlugin("com.github.ghik" %% "silencer-plugin" % silencer),
-    libraryDependencies ++= Seq(
-      "org.jline"                         % "jline"  % jline,
-      "com.github.ghik" %% "silencer-lib" % silencer % Provided
-    ) ++ base ++ json ++ monocleLib ++ kafkaLib ++ avro ++ scodec ++ tests,
-    excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
-  )
-  .dependsOn(datetime)
-  .dependsOn(common)
-
 lazy val hadoop = (project in file("hadoop"))
   .settings(commonSettings: _*)
   .settings(name := "nj-hadoop")
@@ -287,9 +273,10 @@ lazy val hadoop = (project in file("hadoop"))
 lazy val kafka = (project in file("kafka"))
   .settings(commonSettings: _*)
   .settings(name := "nj-kafka")
-  .dependsOn(codec)
   .settings(
-    libraryDependencies ++= effect ++ fs2 ++ tests,
+    addCompilerPlugin("com.github.ghik" %% "silencer-plugin" % silencer),
+    libraryDependencies ++= Seq("com.github.ghik" %% "silencer-lib" % silencer % Provided) ++ 
+      effect ++ kafkaLib ++ avro ++ json ++ tests,
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
   .dependsOn(datetime)
@@ -339,4 +326,4 @@ lazy val graph = (project in file("graph"))
 lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
-    .aggregate(common, codec, datetime, kafka, flink, database, hadoop, spark, graph)
+    .aggregate(common, datetime, kafka, flink, database, hadoop, spark, graph)

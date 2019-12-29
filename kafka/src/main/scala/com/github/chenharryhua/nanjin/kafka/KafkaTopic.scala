@@ -2,7 +2,14 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.Resource
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec._
+import com.github.chenharryhua.nanjin.kafka.codec._
+import com.github.chenharryhua.nanjin.kafka.codec.{
+  KafkaCodec,
+  KafkaGenericDecoder,
+  KafkaSerde,
+  NJConsumerMessage,
+  NJConsumerRecord
+}
 import com.sksamuel.avro4s.Record
 import io.circe.{Error, Json}
 import monocle.function.At

@@ -1,9 +1,10 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.{ConcurrentEffect, Timer}
-import com.github.chenharryhua.nanjin.codec.{NJConsumerRecord, NJProducerRecord}
+import com.github.chenharryhua.nanjin.kafka.codec.NJProducerRecord
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.common.NJRate
+import com.github.chenharryhua.nanjin.kafka.codec.{NJConsumerRecord, NJProducerRecord}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.{Chunk, Stream}
 import org.apache.kafka.clients.producer.RecordMetadata

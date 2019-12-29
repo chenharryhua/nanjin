@@ -8,7 +8,8 @@ import akka.kafka.{
 import cats.data.{NonEmptyList, Reader}
 import cats.effect._
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec._
+import com.github.chenharryhua.nanjin.kafka.codec._
+import com.github.chenharryhua.nanjin.kafka.codec.KafkaSerde
 import com.github.chenharryhua.nanjin.utils.Keyboard
 import fs2.Stream
 import fs2.kafka.{ConsumerSettings => Fs2ConsumerSettings, ProducerSettings => Fs2ProducerSettings}

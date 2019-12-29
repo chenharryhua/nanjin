@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.codec
+package com.github.chenharryhua.nanjin.kafka.codec
 
 import akka.kafka.ProducerMessage.{MultiMessage => AkkaMultiMessage}
 import cats.implicits._

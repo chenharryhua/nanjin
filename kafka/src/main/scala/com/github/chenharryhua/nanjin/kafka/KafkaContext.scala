@@ -6,7 +6,8 @@ import cats.data.Reader
 import cats.effect.concurrent.MVar
 import cats.effect.{ConcurrentEffect, ContextShift, IO, Timer}
 import cats.{Eval, Show}
-import com.github.chenharryhua.nanjin.codec.{KafkaSerde, SerdeOf}
+import com.github.chenharryhua.nanjin.kafka.codec.KafkaSerde
+import com.github.chenharryhua.nanjin.kafka.codec.{KafkaSerde, SerdeOf}
 import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
 import fs2.Stream
 import fs2.kafka._

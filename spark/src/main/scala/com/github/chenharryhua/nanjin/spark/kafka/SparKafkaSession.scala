@@ -3,10 +3,10 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.effect.{ConcurrentEffect, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.kafka.codec.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.UpdateParams
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SparkSession
-import com.github.chenharryhua.nanjin.codec.NJConsumerRecord
 
 final case class SparKafkaSession(params: SparKafkaParams)(implicit val sparkSession: SparkSession)
     extends UpdateParams[SparKafkaParams, SparKafkaSession] {
