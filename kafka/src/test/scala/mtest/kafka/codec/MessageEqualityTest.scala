@@ -1,8 +1,10 @@
-package mtest
+package mtest.kafka.codec
+
 import java.util.Optional
 
 import cats.implicits._
 import cats.kernel.laws.discipline.EqTests
+import com.github.chenharryhua.nanjin.codec.eq._
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.header.internals.RecordHeader
@@ -11,15 +13,16 @@ import org.scalacheck.Arbitrary
 import org.scalacheck.Arbitrary._
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
-import com.github.chenharryhua.nanjin.codec.eq._
 
 class MessageEqualityTest extends AnyFunSuite with Discipline {
 
   implicit val arbOptionalInteger: Arbitrary[Optional[Integer]] = Arbitrary(genOptionalInteger)
+
   implicit val arbOptionalIntegerF: Arbitrary[Optional[Integer] => Optional[Integer]] =
     Arbitrary((x: Optional[Integer]) => x)
 
   implicit val arbitraryHeader: Arbitrary[Header] = Arbitrary(genHeader)
+
   implicit val arbitraryHeaderF: Arbitrary[Header => Header] =
     Arbitrary((a: Header) => a)
   implicit val arbitraryHeaders: Arbitrary[Headers] = Arbitrary(genHeaders)

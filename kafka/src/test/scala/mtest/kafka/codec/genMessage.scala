@@ -1,4 +1,4 @@
-package mtest
+package mtest.kafka.codec
 
 import java.util.Optional
 import java.util.concurrent.CompletionStage
@@ -33,6 +33,7 @@ import org.scalacheck.Gen
 import scala.compat.java8.OptionConverters._
 import scala.concurrent.Future
 import com.github.chenharryhua.nanjin.codec.iso._
+
 
 object genMessage {
 
@@ -143,7 +144,7 @@ object genMessage {
   }
 
   trait GenAkkaMessage extends GenKafkaMessage {
-    import akka.kafka.ConsumerMessage.{CommittableOffset, GroupTopicPartition, PartitionOffset}
+    import akka.kafka.ConsumerMessage.{GroupTopicPartition, PartitionOffset}
 
     val genAkkaGroupTopicPartition: Gen[GroupTopicPartition] = for {
       groupId <- Gen.asciiPrintableStr

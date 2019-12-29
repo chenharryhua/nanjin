@@ -1,26 +1,24 @@
-package mtest
+package mtest.kafka.codec
 
 import akka.kafka.ConsumerMessage.{
   CommittableMessage   => AkkaConsumerMessage,
   TransactionalMessage => AkkaTransactionalMessage
 }
-import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage, MultiMessage => AkkaMultiMessage}
+import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage}
 import cats.effect.IO
 import cats.implicits._
 import com.github.chenharryhua.nanjin.codec._
+import com.github.chenharryhua.nanjin.codec.eq._
 import fs2.kafka.{
   CommittableConsumerRecord => Fs2CommittableConsumerRecord,
   ConsumerRecord            => Fs2ConsumerRecord,
-  ProducerRecord            => Fs2ProducerRecord,
-  ProducerRecords           => Fs2ProducerRecords
+  ProducerRecord            => Fs2ProducerRecord
 }
-import monocle.PLens
 import monocle.law.discipline.LensTests
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
-import com.github.chenharryhua.nanjin.codec.eq._
 
 class LensTest extends AnyFunSuite with Discipline {
 

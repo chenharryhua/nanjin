@@ -1,15 +1,14 @@
-package mtest
+package mtest.kafka.codec
 
 import cats.implicits._
-import com.github.chenharryhua.nanjin.codec._
+import com.github.chenharryhua.nanjin.codec.eq._
+import com.github.chenharryhua.nanjin.codec.iso._
 import fs2.kafka.{ConsumerRecord => Fs2ConsumerRecord, ProducerRecord => Fs2ProducerRecord}
 import monocle.law.discipline.IsoTests
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
-import com.github.chenharryhua.nanjin.codec.iso._
-import com.github.chenharryhua.nanjin.codec.eq._
 
 class IsoTest extends AnyFunSuite with Discipline {
 

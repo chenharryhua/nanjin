@@ -1,4 +1,4 @@
-package mtest
+package mtest.kafka.codec
 
 import akka.kafka.ConsumerMessage.{
   CommittableMessage   => AkkaConsumerMessage,
@@ -6,24 +6,19 @@ import akka.kafka.ConsumerMessage.{
 }
 import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage, MultiMessage => AkkaMultiMessage}
 import cats.effect.IO
-import cats.implicits._
-import com.github.chenharryhua.nanjin.codec._
 import fs2.Chunk
 import fs2.kafka.{
-  CommittableProducerRecords   => Fs2CommittableProducerRecords,
-  TransactionalProducerRecords => Fs2TransactionalProducerRecords,
   CommittableConsumerRecord    => Fs2ConsumerMessage,
+  CommittableProducerRecords   => Fs2CommittableProducerRecords,
   ConsumerRecord               => Fs2ConsumerRecord,
   ProducerRecord               => Fs2ProducerRecord,
-  ProducerRecords              => Fs2ProducerRecords
+  ProducerRecords              => Fs2ProducerRecords,
+  TransactionalProducerRecords => Fs2TransactionalProducerRecords
 }
-import mtest.genMessage._
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
-import org.scalacheck.Arbitrary.arbitrary
-import org.scalacheck.{Arbitrary, Gen}
-import org.scalacheck.Cogen
-
+import org.scalacheck.{Arbitrary, Cogen, Gen}
+import genMessage._
 final case class PrimitiveTypeCombined(
   a: Int,
   b: Long,
@@ -33,6 +28,7 @@ final case class PrimitiveTypeCombined(
 )
 
 trait ArbitraryData extends GenKafkaMessage with GenFs2Message with GenAkkaMessage {
+
   //kafka
   implicit val abKafkaConsumerRecord: Arbitrary[ConsumerRecord[Int, Int]] =
     Arbitrary(genConsumerRecord)
@@ -99,6 +95,7 @@ trait ArbitraryData extends GenKafkaMessage with GenFs2Message with GenAkkaMessa
   implicit val abAkkaProducerRecords: Arbitrary[AkkaMultiMessage[Int, Int, String]] = {
     Arbitrary(genAkkaProducerMultiMessage)
   }
+
   implicit val abAkkaTransactionalMessage: Arbitrary[AkkaTransactionalMessage[Int, Int]] = {
     Arbitrary(genAkkaTransactionalMessage)
   }

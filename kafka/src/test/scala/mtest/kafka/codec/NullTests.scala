@@ -1,4 +1,4 @@
-package mtest
+package mtest.kafka.codec
 
 import com.github.chenharryhua.nanjin.codec.KJson
 import org.scalatest.funsuite.AnyFunSuite

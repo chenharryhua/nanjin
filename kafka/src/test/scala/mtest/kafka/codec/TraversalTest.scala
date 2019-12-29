@@ -1,8 +1,10 @@
-package mtest
+package mtest.kafka.codec
+
 import akka.kafka.ProducerMessage.{MultiMessage => AkkaMultiMessage}
 import cats.effect.IO
 import cats.implicits._
 import com.github.chenharryhua.nanjin.codec._
+import com.github.chenharryhua.nanjin.codec.eq._
 import fs2.kafka.{
   CommittableProducerRecords   => Fs2CommittableProducerRecords,
   ProducerRecords              => Fs2ProducerRecords,
@@ -11,7 +13,6 @@ import fs2.kafka.{
 import monocle.law.discipline.TraversalTests
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
-import com.github.chenharryhua.nanjin.codec.eq._
 
 class TraversalTest extends AnyFunSuite with Discipline {
   checkAll(

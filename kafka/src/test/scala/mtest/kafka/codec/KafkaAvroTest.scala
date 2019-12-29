@@ -1,10 +1,9 @@
-package mtest
+package mtest.kafka.codec
 
 import com.github.chenharryhua.nanjin.codec.CodecException.InvalidObjectException
-import com.github.chenharryhua.nanjin.codec.{KafkaSerdeAvro, SerdeOf}
+import com.github.chenharryhua.nanjin.codec.SerdeOf
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.collection.JavaConverters._
 import scala.util.Success
 final case class Foo(a: String, b: Int)
 final case class Bar(a: Int, b: String)

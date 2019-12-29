@@ -1,22 +1,21 @@
-package mtest
+package mtest.kafka.codec
 
 import akka.kafka.{ConsumerMessage => AkkaConsumerMessage, ProducerMessage => AkkaProducerMessage}
 import cats.Id
 import cats.effect.IO
 import cats.implicits._
 import cats.laws.discipline.BitraverseTests
+import com.github.chenharryhua.nanjin.codec.BitraverseMessages._
 import com.github.chenharryhua.nanjin.codec.NJConsumerMessage._
 import com.github.chenharryhua.nanjin.codec.NJProducerMessage._
-import com.github.chenharryhua.nanjin.codec.BitraverseMessages._
 import com.github.chenharryhua.nanjin.codec.eq._
-
 import fs2.kafka.{
   CommittableConsumerRecord    => Fs2CommittableConsumerRecord,
   CommittableProducerRecords   => Fs2CommittableProducerRecords,
-  TransactionalProducerRecords => Fs2TransactionalProducerRecords,
   ConsumerRecord               => Fs2ConsumerRecord,
   ProducerRecord               => Fs2ProducerRecord,
-  ProducerRecords              => Fs2ProducerRecords
+  ProducerRecords              => Fs2ProducerRecords,
+  TransactionalProducerRecords => Fs2TransactionalProducerRecords
 }
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
@@ -26,6 +25,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.Discipline
 
 class BitraverseTest extends AnyFunSuite with Discipline {
+
   implicit val arbChain: Arbitrary[List[Int]] =
     Arbitrary(Gen.containerOfN[List, Int](3, arbitrary[Int]))
 
