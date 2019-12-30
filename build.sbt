@@ -51,7 +51,7 @@ val hadoopVersion = "3.2.1"
 val awsVersion = "1.11.699"
 
 lazy val commonSettings = Seq(
-  version      := "0.1.0",
+  version      := "0.1.1",
   organization := "com.github.chenharryhua",
   scalaVersion := scalaVersion.value,
   resolvers ++= Seq(

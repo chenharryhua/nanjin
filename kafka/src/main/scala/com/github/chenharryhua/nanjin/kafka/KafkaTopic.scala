@@ -97,4 +97,13 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
   val consumer: KafkaConsumerApi[F, K, V]       = api.KafkaConsumerApi[F, K, V](this)
   val producer: KafkaProducerApi[F, K, V]       = api.KafkaProducerApi[F, K, V](this)
   val monitor: KafkaMonitoringApi[F, K, V]      = api.KafkaMonitoringApi[F, K, V](this)
+
+  def show: String =
+    s"""
+       |topic: ${topicDef.topicName}
+       |key-schema: 
+       |${codec.keySchema.toString(true)}
+       |value-schema:
+       |${codec.valueSchema.toString(true)}
+  """.stripMargin
 }
