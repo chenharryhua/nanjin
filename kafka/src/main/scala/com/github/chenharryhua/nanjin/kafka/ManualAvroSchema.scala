@@ -47,9 +47,9 @@ object ManualAvroSchema {
                                          |Input Schema is different than inferred schema
                                          |errrors: 
                                          |${jp.ops.map(_.toString).mkString("\n")}
-                                         |input schema:
+                                         |input schema: (after cleanup)
                                          |$input
-                                         |inferred schema:
+                                         |inferred schema: (after cleanup)
                                          |$inferred""".stripMargin))
 
     }.leftMap(e => KafkaAvroSchemaException(e.message)).flatten

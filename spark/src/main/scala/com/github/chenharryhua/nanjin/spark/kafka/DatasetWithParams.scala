@@ -22,6 +22,9 @@ final case class ConsumerRecordDatasetWithParams[K: TypedEncoder, V: TypedEncode
 
   def consumerRecords: TypedDataset[NJConsumerRecord[K, V]] = TypedDataset.create(crs)
 
+  def producerRecords: TypedDataset[NJProducerRecord[K, V]] =
+    SparKafka.toProducerRecords(consumerRecords, params.conversionTactics, params.clock)
+
   def minutely: TypedDataset[MinutelyAggResult] = {
     val minute: TypedDataset[Int] = consumerRecords.deserialized.map { m =>
       NJTimestamp(m.timestamp).atZone(params.zoneId).getMinute
@@ -65,7 +68,4 @@ final case class ConsumerRecordDatasetWithParams[K: TypedEncoder, V: TypedEncode
       dayMinute.groupBy(dayMinute.asCol).agg(count(dayMinute.asCol)).as[DailyMinuteAggResult]
     res.orderBy(res('date).asc)
   }
-
-  def toProducerRecords: TypedDataset[NJProducerRecord[K, V]] =
-    SparKafka.toProducerRecords(consumerRecords, params.conversionTactics, params.clock)
 }

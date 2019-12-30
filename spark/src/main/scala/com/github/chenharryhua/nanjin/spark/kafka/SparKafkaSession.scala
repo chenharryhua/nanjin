@@ -15,9 +15,7 @@ final case class SparKafkaSession(params: SparKafkaParams)(implicit val sparkSes
 
   def datasetFromKafka[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V]): F[ConsumerRecordDatasetWithParams[K, V]] =
-    SparKafka
-      .datasetFromKafka(topic, params.timeRange, params.locationStrategy)
-      .map(tds => ConsumerRecordDatasetWithParams(this.params, tds.dataset))
+    njDataset(topic).map(tds => ConsumerRecordDatasetWithParams(this.params, tds.dataset))
 
   def datasetFromDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V]): F[ConsumerRecordDatasetWithParams[K, V]] =
@@ -41,6 +39,13 @@ final case class SparKafkaSession(params: SparKafkaParams)(implicit val sparkSes
   def sparkStream[F[_], K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V]): TypedDataset[NJConsumerRecord[K, V]] =
     SparKafka.sparkStream(topic)
+
+  def jsonDataset[F[_]: Sync, K, V](topic: => KafkaTopic[F, K, V]): F[TypedDataset[String]] =
+    SparKafka.jsonDataset(topic, params.timeRange, params.locationStrategy)
+
+  def njDataset[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
+    topic: => KafkaTopic[F, K, V]): F[TypedDataset[NJConsumerRecord[K, V]]] =
+    SparKafka.datasetFromKafka(topic, params.timeRange, params.locationStrategy)
 }
 
 object SparKafkaSession {

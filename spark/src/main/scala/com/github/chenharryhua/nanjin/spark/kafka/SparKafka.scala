@@ -12,9 +12,10 @@ import com.github.chenharryhua.nanjin.spark._
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.{Chunk, Stream}
 import monocle.function.At.remove
-import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategy}
 
@@ -31,25 +32,36 @@ private[kafka] object SparKafka {
   private def path[F[_]](root: NJRootPath, topic: KafkaTopic[F, _, _]): String =
     root + topic.topicDef.topicName
 
+  private def kafkaRDD[F[_]: Sync, K, V](
+    topic: => KafkaTopic[F, K, V],
+    timeRange: NJDateTimeRange,
+    locationStrategy: LocationStrategy)(
+    implicit sparkSession: SparkSession): F[RDD[ConsumerRecord[Array[Byte], Array[Byte]]]] =
+    Sync[F].suspend {
+      topic.consumer.offsetRangeFor(timeRange).map { gtp =>
+        KafkaUtils.createRDD[Array[Byte], Array[Byte]](
+          sparkSession.sparkContext,
+          props(topic.context.settings.consumerSettings.config),
+          KafkaOffsets.offsetRange(gtp),
+          locationStrategy)
+      }
+    }
+
   def datasetFromKafka[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy)(
     implicit sparkSession: SparkSession): F[TypedDataset[NJConsumerRecord[K, V]]] =
-    Sync[F].suspend {
-      topic.consumer
-        .offsetRangeFor(timeRange)
-        .map { gtp =>
-          KafkaUtils
-            .createRDD[Array[Byte], Array[Byte]](
-              sparkSession.sparkContext,
-              props(topic.context.settings.consumerSettings.config),
-              KafkaOffsets.offsetRange(gtp),
-              locationStrategy)
-            .mapPartitions(_.map(cr => topic.decoder(cr).record))
-        }
-        .map(TypedDataset.create(_))
-    }
+    kafkaRDD(topic, timeRange, locationStrategy).map(rdd =>
+      TypedDataset.create(rdd.mapPartitions(_.map(cr => topic.decoder(cr).record))))
+
+  def jsonDataset[F[_]: Sync, K, V](
+    topic: => KafkaTopic[F, K, V],
+    timeRange: NJDateTimeRange,
+    locationStrategy: LocationStrategy)(
+    implicit sparkSession: SparkSession): F[TypedDataset[String]] =
+    kafkaRDD(topic, timeRange, locationStrategy).map(rdd =>
+      TypedDataset.create(rdd.mapPartitions(_.map(cr => topic.toJson(cr).noSpaces))))
 
   def datasetFromDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V],
@@ -102,8 +114,7 @@ private[kafka] object SparKafka {
       .chunkN(uploadRate.batchSize)
       .zipLeft(Stream.fixedRate(uploadRate.duration))
       .evalMap(chk =>
-        topic.producer.send(
-          chk.mapFilter(Option(_).map(_.withTopic(topic.topicDef.topicName)))))
+        topic.producer.send(chk.mapFilter(Option(_).map(_.withTopic(topic.topicDef.topicName)))))
 
   // load data from disk and then upload into kafka
   def replay[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
