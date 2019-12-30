@@ -27,7 +27,7 @@ object ManualAvroSchema {
   private def cleanupJsonDocument: Json => Json = {
     val noVersion = root.at("version").set(None)
     val noDoc: Json => Json =
-      Plated.transform[Json](j => root.at("doc").set(None)(j))
+      root.at("doc").set(None).andThen(Plated.transform[Json](j => root.at("doc").set(None)(j)))
     val noJavaClass: Json => Json =
       Plated.transform[Json](j => root.at("java-class").set(None)(j))
 
