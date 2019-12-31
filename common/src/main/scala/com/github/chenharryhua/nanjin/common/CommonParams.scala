@@ -11,7 +11,8 @@ import scala.concurrent.duration.{FiniteDuration, _}
 final case class NJRootPath(uri: String Refined Uri) {
   val root: String = if (uri.value.endsWith("/")) uri.value else uri.value + "/"
 
-  def +(sub: String): String = root + sub
+  def +(sub: String): String = if (sub.startsWith("/")) root + sub.tail else root + sub
+
 }
 
 object NJRootPath {

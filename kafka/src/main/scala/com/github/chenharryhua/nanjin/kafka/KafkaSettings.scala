@@ -10,7 +10,9 @@ import akka.kafka.{
 }
 import cats.Eval
 import cats.effect.{ConcurrentEffect, ContextShift, IO, Sync, Timer}
+import com.github.chenharryhua.nanjin.common.NJRootPath
 import com.github.chenharryhua.nanjin.utils
+import eu.timepit.refined.auto._
 import fs2.kafka.{
   ConsumerSettings => Fs2ConsumerSettings,
   Deserializer     => Fs2Deserializer,
@@ -30,6 +32,7 @@ import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Serializer}
 import org.apache.kafka.streams.StreamsConfig
 
 import scala.util.Try
+import cats.Show
 
 @Lenses final case class KafkaConsumerSettings(config: Map[String, String]) {
 
@@ -95,7 +98,8 @@ import scala.util.Try
   producerSettings: KafkaProducerSettings,
   streamSettings: KafkaStreamSettings,
   sharedAdminSettings: SharedAdminSettings,
-  schemaRegistrySettings: SchemaRegistrySettings) {
+  schemaRegistrySettings: SchemaRegistrySettings,
+  rootPath: NJRootPath) {
   val appId: Option[String] = streamSettings.config.get(StreamsConfig.APPLICATION_ID_CONFIG)
 
   private def updateAll(key: String, value: String): KafkaSettings =
@@ -151,6 +155,9 @@ import scala.util.Try
   def withApplicationId(appId: String): KafkaSettings =
     withStreamingProperty(StreamsConfig.APPLICATION_ID_CONFIG, appId)
 
+  def withRootPath(rp: NJRootPath): KafkaSettings =
+    KafkaSettings.rootPath.set(rp)(this)
+
   def ioContext(implicit contextShift: ContextShift[IO], timer: Timer[IO]): IoKafkaContext =
     new IoKafkaContext(this)
 
@@ -168,13 +175,15 @@ import scala.util.Try
 }
 
 object KafkaSettings {
+  private val defaultRootPath: NJRootPath = NJRootPath("./data/kafka/")
 
   val empty: KafkaSettings = KafkaSettings(
     KafkaConsumerSettings(Map.empty),
     KafkaProducerSettings(Map.empty),
     KafkaStreamSettings(Map.empty),
     SharedAdminSettings(Map.empty),
-    SchemaRegistrySettings(Map.empty)
+    SchemaRegistrySettings(Map.empty),
+    defaultRootPath
   )
 
   val local: KafkaSettings =
@@ -186,7 +195,8 @@ object KafkaSettings {
       KafkaProducerSettings(Map.empty),
       KafkaStreamSettings(Map.empty),
       SharedAdminSettings(Map.empty),
-      SchemaRegistrySettings(Map.empty)
+      SchemaRegistrySettings(Map.empty),
+      defaultRootPath
     ).withGroupId("nanjin-group")
       .withApplicationId("nanjin-app")
       .withBrokers("localhost:9092")

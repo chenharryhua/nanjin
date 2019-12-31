@@ -65,7 +65,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
   def toJson[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): Json =
     topicDef.toJson(decoder(cr).record)
 
-  def fromJson(jsonString: String): Either[Error, NJConsumerRecord[K, V]] =
+  def fromJsonStr(jsonString: String): Either[Error, NJConsumerRecord[K, V]] =
     topicDef.fromJson(jsonString)
 
   //channels
@@ -96,11 +96,15 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
   val admin: KafkaTopicAdminApi[F]              = api.KafkaTopicAdminApi[F, K, V](this)
   val consumer: KafkaConsumerApi[F, K, V]       = api.KafkaConsumerApi[F, K, V](this)
   val producer: KafkaProducerApi[F, K, V]       = api.KafkaProducerApi[F, K, V](this)
-  val monitor: KafkaMonitoringApi[F, K, V]      = api.KafkaMonitoringApi[F, K, V](this)
+
+  val monitor: KafkaMonitoringApi[F, K, V] =
+    api.KafkaMonitoringApi[F, K, V](this, context.settings.rootPath)
 
   def show: String =
     s"""
        |topic: ${topicDef.topicName}
+       |settings: 
+       |${context.settings.toString}
        |key-schema: 
        |${codec.keySchema.toString(true)}
        |value-schema:
