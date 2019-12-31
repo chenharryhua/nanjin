@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import java.time._
+
 import com.github.chenharryhua.nanjin.common.{NJRate, NJRootPath}
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import eu.timepit.refined.auto._
@@ -33,6 +34,8 @@ object ConversionTactics {
   def withZoneId(zoneId: ZoneId): SparKafkaParams = copy(zoneId   = zoneId)
   def withSaveMode(sm: SaveMode): SparKafkaParams = copy(saveMode = sm)
   def withOverwrite: SparKafkaParams              = copy(saveMode = SaveMode.Overwrite)
+
+  def withRootPath(rp: NJRootPath): SparKafkaParams = copy(rootPath = rp)
 
   def withLocationStrategy(ls: LocationStrategy): SparKafkaParams = copy(locationStrategy = ls)
 

@@ -22,7 +22,7 @@ final case class ConsumerRecordDatasetWithParams[K: TypedEncoder, V: TypedEncode
 
   def consumerRecords: TypedDataset[NJConsumerRecord[K, V]] = TypedDataset.create(crs)
 
-  def producerRecords: TypedDataset[NJProducerRecord[K, V]] =
+  private def producerRecords: TypedDataset[NJProducerRecord[K, V]] =
     SparKafka.toProducerRecords(consumerRecords, params.conversionTactics, params.clock)
 
   def minutely: TypedDataset[MinutelyAggResult] = {

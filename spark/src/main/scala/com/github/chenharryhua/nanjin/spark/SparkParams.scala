@@ -1,11 +1,6 @@
 package com.github.chenharryhua.nanjin.spark
 
 import monocle.macros.Lenses
-
-private[spark] trait UpdateParams[A, B] {
-  def updateParams(f: A => A): B
-}
-
 sealed trait FileFormat {
   def options: Map[String, String]
 }
