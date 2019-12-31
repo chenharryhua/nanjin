@@ -44,7 +44,7 @@ class SparKafkaTest extends AnyFunSuite {
     sparKafkaSession
       .updateParams(_.withoutTimestamp.withoutPartition)
       .datasetFromDisk(topics.sparkafkaTopic)
-      .flatMap(_.producerRecords.kafkaUpload(topics.sparkafkaTopic).take(5).compile.drain)
+      .flatMap(_.toProducerRecords.kafkaUpload(topics.sparkafkaTopic).take(5).compile.drain)
       .unsafeRunSync()
   }
 
@@ -55,9 +55,9 @@ class SparKafkaTest extends AnyFunSuite {
       .unsafeRunSync
   }
 
-  test("read topic from kafka and show aggragation result") {
+  test("read topic from kafka and show aggragation result") { 
     sparKafkaSession
-      .datasetFromKafka(topics.sparkafkaTopic)
+      .stats(topics.sparkafkaTopic)
       .flatMap(_.dailyHour.show[IO]())
       .unsafeRunSync
   }

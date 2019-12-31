@@ -2,6 +2,8 @@ scalaVersion in ThisBuild      := "2.12.10"
 scapegoatVersion in ThisBuild  := "1.3.11"
 parallelExecution in ThisBuild := false
 
+version in ThisBuild := "0.1.1-SNAPSHOT"
+
 val confluent    = "5.3.0"
 val kafkaVersion = "2.4.0"
 
@@ -51,7 +53,6 @@ val hadoopVersion = "3.2.1"
 val awsVersion = "1.11.699"
 
 lazy val commonSettings = Seq(
-  version      := "0.1.1-SNAPSHOT",
   organization := "com.github.chenharryhua",
   scalaVersion := scalaVersion.value,
   resolvers ++= Seq(
@@ -257,8 +258,8 @@ val logs = Seq(
 lazy val common = (project in file("common"))
   .settings(commonSettings: _*)
   .settings(name := "nj-common")
-  .settings(libraryDependencies ++= Seq("org.jline" % "jline" % jline) ++ 
-     base ++ fs2 ++ monocleLib ++ tests)
+  .settings(libraryDependencies ++= Seq("org.jline" % "jline" % jline) ++
+    base ++ fs2 ++ monocleLib ++ tests)
 
 lazy val datetime = (project in file("datetime"))
   .settings(commonSettings: _*)
@@ -274,8 +275,8 @@ lazy val kafka = (project in file("kafka"))
   .settings(commonSettings: _*)
   .settings(name := "nj-kafka")
   .settings(
-    addCompilerPlugin("com.github.ghik" %% "silencer-plugin" % silencer),
-    libraryDependencies ++= Seq("com.github.ghik" %% "silencer-lib" % silencer % Provided) ++ 
+    addCompilerPlugin("com.github.ghik" %% "silencer-plugin"        % silencer),
+    libraryDependencies ++= Seq("com.github.ghik" %% "silencer-lib" % silencer % Provided) ++
       effect ++ kafkaLib ++ avro ++ json ++ tests,
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )

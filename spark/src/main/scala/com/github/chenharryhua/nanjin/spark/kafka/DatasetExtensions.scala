@@ -1,9 +1,8 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.{ConcurrentEffect, Timer}
-import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.common.NJRate
-import com.github.chenharryhua.nanjin.kafka.{NJConsumerRecord, NJProducerRecord}
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, NJConsumerRecord, NJProducerRecord}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.{Chunk, Stream}
 import org.apache.kafka.clients.producer.RecordMetadata
@@ -33,5 +32,9 @@ private[kafka] trait DatasetExtensions {
 
     def keys: TypedDataset[K] =
       consumerRecords.select(consumerRecords('key)).as[Option[K]].deserialized.flatMap(x => x)
+
+    def toProducerRecords: TypedDataset[NJProducerRecord[K, V]] =
+      consumerRecords.deserialized.map(_.toNJProducerRecord)
+
   }
 }

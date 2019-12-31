@@ -55,7 +55,7 @@ private[kafka] object SparKafka {
     kafkaRDD(topic, timeRange, locationStrategy).map(rdd =>
       TypedDataset.create(rdd.mapPartitions(_.map(cr => topic.decoder(cr).record))))
 
-  def jsonDataset[F[_]: Sync, K, V](
+  def jsonDatasetFromKafka[F[_]: Sync, K, V](
     topic: => KafkaTopic[F, K, V],
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy)(
@@ -103,7 +103,6 @@ private[kafka] object SparKafka {
   }
 
   // upload to kafka
-
   def uploadToKafka[F[_]: ConcurrentEffect: Timer, K, V](
     topic: => KafkaTopic[F, K, V],
     tds: TypedDataset[NJProducerRecord[K, V]],

@@ -5,6 +5,7 @@ import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, NJConsumerRecord}
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SparkSession
+import cats.implicits._
 
 final case class SparKafkaSession(params: SparKafkaParams)(implicit val sparkSession: SparkSession)
     extends UpdateParams[SparKafkaParams, SparKafkaSession] {
@@ -16,8 +17,8 @@ final case class SparKafkaSession(params: SparKafkaParams)(implicit val sparkSes
     topic: => KafkaTopic[F, K, V]): F[TypedDataset[NJConsumerRecord[K, V]]] =
     SparKafka.datasetFromKafka(topic, params.timeRange, params.locationStrategy)
 
-  def jsonDataset[F[_]: Sync, K, V](topic: => KafkaTopic[F, K, V]): F[TypedDataset[String]] =
-    SparKafka.jsonDataset(topic, params.timeRange, params.locationStrategy)
+  def jsonFromKafka[F[_]: Sync, K, V](topic: => KafkaTopic[F, K, V]): F[TypedDataset[String]] =
+    SparKafka.jsonDatasetFromKafka(topic, params.timeRange, params.locationStrategy)
 
   def datasetFromDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V]): F[TypedDataset[NJConsumerRecord[K, V]]] =
@@ -39,6 +40,10 @@ final case class SparKafkaSession(params: SparKafkaParams)(implicit val sparkSes
   def sparkStream[F[_], K: TypedEncoder, V: TypedEncoder](
     topic: => KafkaTopic[F, K, V]): TypedDataset[NJConsumerRecord[K, V]] =
     SparKafka.sparkStream(topic)
+
+  def stats[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
+    topic: => KafkaTopic[F, K, V]): F[Statistics[K, V]] =
+    datasetFromKafka(topic).map(ds => Statistics(params, ds.dataset))
 }
 
 object SparKafkaSession {

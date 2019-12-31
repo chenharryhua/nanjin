@@ -16,14 +16,11 @@ final case class DailyAggResult(date: LocalDate, count: Long)
 final case class DailyHourAggResult(date: LocalDateTime, count: Long)
 final case class DailyMinuteAggResult(date: LocalDateTime, count: Long)
 
-final case class ConsumerRecordDatasetWithParams[K: TypedEncoder, V: TypedEncoder](
+final case class Statistics[K: TypedEncoder, V: TypedEncoder](
   params: SparKafkaParams,
   private val crs: Dataset[NJConsumerRecord[K, V]]) {
 
-  def consumerRecords: TypedDataset[NJConsumerRecord[K, V]] = TypedDataset.create(crs)
-
-  private def producerRecords: TypedDataset[NJProducerRecord[K, V]] =
-    SparKafka.toProducerRecords(consumerRecords, params.conversionTactics, params.clock)
+  private def consumerRecords: TypedDataset[NJConsumerRecord[K, V]] = TypedDataset.create(crs)
 
   def minutely: TypedDataset[MinutelyAggResult] = {
     val minute: TypedDataset[Int] = consumerRecords.deserialized.map { m =>
