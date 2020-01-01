@@ -59,7 +59,7 @@ final class TopicDef[K, V] private (val topicName: String)(
 }
 
 object TopicDef {
-  def showTopicDef[K, V]: Show[TopicDef[K, V]] = _.show
+  implicit def showTopicDef[K, V]: Show[TopicDef[K, V]] = _.show
 
   def apply[
     K: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder: SerdeOf,
