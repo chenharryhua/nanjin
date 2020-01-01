@@ -20,7 +20,7 @@ import scala.annotation.{compileTimeOnly, implicitAmbiguous, implicitNotFound}
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Try}
 
-sealed abstract private[codec] class KafkaCodec[A](topicName: String, serde: KafkaSerde[A]) {
+sealed private[codec] class KafkaCodec[A](topicName: String, serde: KafkaSerde[A]) {
   final def encode(a: A): Array[Byte]  = serde.serializer.serialize(topicName, a)
   final def decode(ab: Array[Byte]): A = serde.deserializer.deserialize(topicName, ab)
 

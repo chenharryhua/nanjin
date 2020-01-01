@@ -12,7 +12,7 @@ import fs2.Chunk
 import fs2.kafka.{KafkaByteProducer, KafkaByteProducerRecord}
 import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
 
-trait KafkaProducerApi[F[_], K, V] {
+sealed trait KafkaProducerApi[F[_], K, V] {
   def arbitrarilySend(key: Array[Byte], value: Array[Byte]): F[RecordMetadata]
 
   def arbitrarilySend(

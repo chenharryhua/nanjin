@@ -18,7 +18,7 @@ import org.apache.kafka.common.serialization.{ByteArrayDeserializer, ByteArraySe
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.scala.StreamsBuilder
 
-sealed abstract class KafkaContext[F[_]](val settings: KafkaSettings)(
+sealed class KafkaContext[F[_]](val settings: KafkaSettings)(
   implicit
   val timer: Timer[F],
   val contextShift: ContextShift[F],

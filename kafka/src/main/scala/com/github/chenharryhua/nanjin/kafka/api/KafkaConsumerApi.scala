@@ -112,7 +112,7 @@ sealed trait KafkaConsumerApi[F[_], K, V] extends KafkaPrimitiveConsumerApi[F] {
   def resetOffsetsForTimes(ts: NJTimestamp): F[Unit]
 }
 
-object KafkaConsumerApi {
+private[kafka] object KafkaConsumerApi {
 
   def apply[F[_]: Concurrent, K, V](topic: KafkaTopic[F, K, V]): KafkaConsumerApi[F, K, V] =
     new KafkaConsumerApiImpl[F, K, V](topic)

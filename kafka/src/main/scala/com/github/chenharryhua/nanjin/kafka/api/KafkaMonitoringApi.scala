@@ -14,7 +14,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 
 import scala.util.Try
 
-trait KafkaMonitoringApi[F[_], K, V] {
+sealed trait KafkaMonitoringApi[F[_], K, V] {
   def watch: F[Unit]
   def watchFromEarliest: F[Unit]
 
