@@ -40,6 +40,8 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
   import context.{concurrentEffect, contextShift, timer}
   import topicDef.{serdeOfKey, serdeOfValue, showKey, showValue}
 
+  val topicName: String = topicDef.topicName
+
   val consumerGroupId: Option[KafkaConsumerGroupId] =
     KafkaConsumerSettings.config
       .composeLens(At.at(ConsumerConfig.GROUP_ID_CONFIG))
