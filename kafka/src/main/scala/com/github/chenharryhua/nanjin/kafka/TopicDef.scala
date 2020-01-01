@@ -54,9 +54,12 @@ final class TopicDef[K, V] private (val topicName: String)(
 
   def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[F, K, V] =
     ctx.topic[K, V](this)
+
+  def show: String = s"TopicDef(topicName = ${topicName})"
 }
 
 object TopicDef {
+  def showTopicDef[K, V]: Show[TopicDef[K, V]] = _.show
 
   def apply[
     K: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder: SerdeOf,
