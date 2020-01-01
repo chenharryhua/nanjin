@@ -24,10 +24,11 @@ import scala.collection.JavaConverters._
 private[kafka] object SparKafka {
 
   private def props(maps: Map[String, String]): util.Map[String, Object] =
-    (Map(
+    (remove(ConsumerConfig.CLIENT_ID_CONFIG)(maps) ++ Map(
       "key.deserializer" -> classOf[ByteArrayDeserializer].getName,
-      "value.deserializer" -> classOf[ByteArrayDeserializer].getName) ++
-      remove(ConsumerConfig.CLIENT_ID_CONFIG)(maps)).mapValues[Object](identity).asJava
+      "value.deserializer" -> classOf[ByteArrayDeserializer].getName))
+      .mapValues[Object](identity)
+      .asJava
 
   private def path[F[_]](root: NJRootPath, topic: KafkaTopic[F, _, _]): String =
     root + topic.topicDef.topicName
