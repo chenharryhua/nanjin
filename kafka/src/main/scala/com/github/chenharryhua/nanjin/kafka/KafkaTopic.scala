@@ -16,6 +16,7 @@ import org.apache.avro.Schema
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
+import cats.Show
 
 final class TopicCodec[K, V] private[kafka] (
   val keyCodec: KafkaCodec.Key[K],
@@ -112,4 +113,8 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
        |value-schema:
        |${codec.valueSchema.toString(true)}
   """.stripMargin
+}
+
+object KafkaTopic {
+  implicit def showKafkaTopic[F[_], K, V]: Show[KafkaTopic[F, K, V]] = _.topicName
 }
