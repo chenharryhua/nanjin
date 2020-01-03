@@ -34,18 +34,18 @@ sealed trait KafkaMonitoringApi[F[_], K, V] {
 
 private[kafka] object KafkaMonitoringApi {
 
-  def apply[F[_]: ConcurrentEffect: ContextShift:Timer, K: Show, V: Show](
+  def apply[F[_]: ConcurrentEffect: ContextShift: Timer, K: Show, V: Show](
     topic: KafkaTopic[K, V],
     rootPath: NJRootPath): KafkaMonitoringApi[F, K, V] =
     new KafkaTopicMonitoring[F, K, V](topic, rootPath)
 
-  final private class KafkaTopicMonitoring[F[_]: ContextShift:Timer, K: Show, V: Show](
+  final private class KafkaTopicMonitoring[F[_]: ContextShift: Timer, K: Show, V: Show](
     topic: KafkaTopic[K, V],
     rootPath: NJRootPath)(implicit F: ConcurrentEffect[F])
       extends KafkaMonitoringApi[F, K, V] {
     private val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] = topic.fs2Channel[F]
     private val consumer: KafkaConsumerApi[F, K, V]           = topic.consumer[F]
-    private val producer: KafkaProducerApi[F,K,V] = topic.producer[F]
+    private val producer: KafkaProducerApi[F, K, V]           = topic.producer[F]
 
     private def watch(aor: AutoOffsetReset): F[Unit] =
       fs2Channel

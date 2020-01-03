@@ -99,12 +99,14 @@ final class KafkaTopic[K, V] private[kafka] (
 
   def admin[F[_]: Concurrent: ContextShift]: KafkaTopicAdminApi[F] =
     api.KafkaTopicAdminApi[F, K, V](this)
-  def consumer[F[_]: Concurrent]: KafkaConsumerApi[F, K, V] = api.KafkaConsumerApi[F, K, V](this)
+
+  def consumer[F[_]: Sync]: KafkaConsumerApi[F, K, V] = api.KafkaConsumerApi[F, K, V](this)
 
   def producer[F[_]: ConcurrentEffect]: KafkaProducerApi[F, K, V] =
     api.KafkaProducerApi[F, K, V](this)
 
-  // val monitor: KafkaMonitoringApi[F, K, V] =  api.KafkaMonitoringApi[F, K, V](this, context.settings.rootPath)
+  def monitor[F[_]: ConcurrentEffect: ContextShift: Timer]: KafkaMonitoringApi[F, K, V] =
+    api.KafkaMonitoringApi[F, K, V](this, settings.rootPath)
 
   def show: String =
     s"""

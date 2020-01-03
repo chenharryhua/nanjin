@@ -50,8 +50,8 @@ final private[codec] class KafkaSerdeAvro[A: Encoder: Decoder](schema: Schema)
     deSer.configure(configs, isKey)
   }
 
-  @transient override lazy val serializer: Serializer[A] =
-    new Serializer[A] with Serializable{
+  val serializer: Serializer[A] =
+    new Serializer[A] with Serializable {
       override def close(): Unit = ser.close()
 
       override def configure(configs: java.util.Map[String, _], isKey: Boolean): Unit =
@@ -62,7 +62,7 @@ final private[codec] class KafkaSerdeAvro[A: Encoder: Decoder](schema: Schema)
         encode(topic, data).fold(throw _, identity)
     }
 
-  @transient override lazy val deserializer: Deserializer[A] =
+  val deserializer: Deserializer[A] =
     new Deserializer[A] with Serializable {
       override def close(): Unit = deSer.close()
 

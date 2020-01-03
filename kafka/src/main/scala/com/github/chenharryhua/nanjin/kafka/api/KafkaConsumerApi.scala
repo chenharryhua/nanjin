@@ -117,21 +117,22 @@ sealed trait KafkaConsumerApi[F[_], K, V] extends KafkaPrimitiveConsumerApi[F] {
 
 private[kafka] object KafkaConsumerApi {
 
-  def apply[F[_]: Concurrent, K, V](topic: KafkaTopic[K, V]): KafkaConsumerApi[F, K, V] =
+  def apply[F[_]: Sync, K, V](topic: KafkaTopic[K, V]): KafkaConsumerApi[F, K, V] =
     new KafkaConsumerApiImpl[F, K, V](topic)
 
-  final private[this] class KafkaConsumerApiImpl[F[_]: Concurrent, K, V](topic: KafkaTopic[K, V])
+  final private[this] class KafkaConsumerApiImpl[F[_]: Sync, K, V](topic: KafkaTopic[K, V])
       extends KafkaConsumerApi[F, K, V] {
     import cats.mtl.implicits._
 
     private val topicName: String = topic.topicDef.topicName
 
-    private val consumerClient = Resource.make(
-      Concurrent[F].delay(
-        new KafkaConsumer[Array[Byte], Array[Byte]](
-          topic.settings.consumerSettings.consumerProperties,
-          new ByteArrayDeserializer,
-          new ByteArrayDeserializer)))(a => Concurrent[F].delay(a.close))
+    private val consumerClient: Resource[F, KafkaConsumer[Array[Byte], Array[Byte]]] =
+      Resource.make(
+        Sync[F].delay(
+          new KafkaConsumer[Array[Byte], Array[Byte]](
+            topic.settings.consumerSettings.consumerProperties,
+            new ByteArrayDeserializer,
+            new ByteArrayDeserializer)))(a => Sync[F].delay(a.close()))
 
     private[this] val kpc: KafkaPrimitiveConsumerApi[Kleisli[F, KafkaByteConsumer, *]] =
       KafkaPrimitiveConsumerApi[Kleisli[F, KafkaByteConsumer, *]](topicName)
