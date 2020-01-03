@@ -12,6 +12,8 @@ import org.apache.avro.Schema
 
 import scala.collection.JavaConverters._
 import scala.util.Try
+import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig
+import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 
 final case class KvSchemaMetadata(key: Option[SchemaMetadata], value: Option[SchemaMetadata]) {
 
@@ -120,15 +122,26 @@ private[kafka] object KafkaSchemaRegistryApi {
     val keySchema: Schema                  = topic.codec.keySchema
     val valueSchema: Schema                = topic.codec.valueSchema
 
+    private lazy val csrClient: CachedSchemaRegistryClient = {
+      val alias = AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG
+      srSettings.config.get(alias) match {
+        case None => sys.error(s"$alias was mandatory but not configured")
+        case Some(url) =>
+          val size: Int = srSettings.config
+            .get(AbstractKafkaAvroSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DOC)
+            .flatMap(n => Try(n.toInt).toOption)
+            .getOrElse(AbstractKafkaAvroSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DEFAULT)
+          new CachedSchemaRegistryClient(url, size)
+      }
+    }
+
     override def delete: F[(List[Integer], List[Integer])] = {
       val deleteKey =
-        Sync[F]
-          .delay(srSettings.csrClient.value.deleteSubject(keySchemaLoc).asScala.toList)
-          .handleError(_ => Nil)
+        Sync[F].delay(csrClient.deleteSubject(keySchemaLoc).asScala.toList).handleError(_ => Nil)
       val deleteValue =
         Sync[F]
           .delay(
-            srSettings.csrClient.value.deleteSubject(valueSchemaLoc).asScala.toList
+            csrClient.deleteSubject(valueSchemaLoc).asScala.toList
           )
           .handleError(_ => Nil)
       (deleteKey, deleteValue).mapN((_, _))
@@ -136,27 +149,21 @@ private[kafka] object KafkaSchemaRegistryApi {
 
     override def register: F[(Option[Int], Option[Int])] =
       (
-        Sync[F]
-          .delay(srSettings.csrClient.value.register(keySchemaLoc, keySchema))
-          .attempt
-          .map(_.toOption),
-        Sync[F]
-          .delay(srSettings.csrClient.value.register(valueSchemaLoc, valueSchema))
-          .attempt
-          .map(_.toOption)
+        Sync[F].delay(csrClient.register(keySchemaLoc, keySchema)).attempt.map(_.toOption),
+        Sync[F].delay(csrClient.register(valueSchemaLoc, valueSchema)).attempt.map(_.toOption)
       ).mapN((_, _))
 
     override def testCompatibility: F[CompatibilityTestReport] =
       (
         Sync[F]
           .delay(
-            srSettings.csrClient.value.testCompatibility(keySchemaLoc, keySchema)
+            csrClient.testCompatibility(keySchemaLoc, keySchema)
           )
           .attempt
           .map(_.leftMap(_.getMessage)),
         Sync[F]
           .delay(
-            srSettings.csrClient.value.testCompatibility(valueSchemaLoc, valueSchema)
+            csrClient.testCompatibility(valueSchemaLoc, valueSchema)
           )
           .attempt
           .map(_.leftMap(_.getMessage)),
@@ -166,14 +173,8 @@ private[kafka] object KafkaSchemaRegistryApi {
 
     override def latestMeta: F[KvSchemaMetadata] =
       (
-        Sync[F]
-          .delay(srSettings.csrClient.value.getLatestSchemaMetadata(keySchemaLoc))
-          .attempt
-          .map(_.toOption),
-        Sync[F]
-          .delay(srSettings.csrClient.value.getLatestSchemaMetadata(valueSchemaLoc))
-          .attempt
-          .map(_.toOption)
+        Sync[F].delay(csrClient.getLatestSchemaMetadata(keySchemaLoc)).attempt.map(_.toOption),
+        Sync[F].delay(csrClient.getLatestSchemaMetadata(valueSchemaLoc)).attempt.map(_.toOption)
       ).mapN(KvSchemaMetadata(_, _))
   }
 }

@@ -78,20 +78,7 @@ import cats.Show
   val adminProperties: Properties = utils.toProperties(config)
 }
 
-@Lenses final case class SchemaRegistrySettings(config: Map[String, String]) {
-  private[this] val srTag: String = AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG
-
-  val csrClient: Eval[CachedSchemaRegistryClient] =
-    Eval.later(config.get(srTag) match {
-      case None => sys.error(s"$srTag was mandatory but not configured")
-      case Some(url) =>
-        val size: Int = config
-          .get(AbstractKafkaAvroSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DOC)
-          .flatMap(n => Try(n.toInt).toOption)
-          .getOrElse(AbstractKafkaAvroSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DEFAULT)
-        new CachedSchemaRegistryClient(url, size)
-    })
-}
+@Lenses final case class SchemaRegistrySettings(config: Map[String, String])
 
 @Lenses final case class KafkaSettings(
   consumerSettings: KafkaConsumerSettings,
