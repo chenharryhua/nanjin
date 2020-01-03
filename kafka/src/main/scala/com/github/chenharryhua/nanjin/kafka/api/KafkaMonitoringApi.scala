@@ -13,6 +13,8 @@ import fs2.{text, Stream}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
 import scala.util.Try
+import cats.effect.ConcurrentEffect
+import cats.effect.Timer
 
 sealed trait KafkaMonitoringApi[F[_], K, V] {
   def watch: F[Unit]
@@ -32,17 +34,18 @@ sealed trait KafkaMonitoringApi[F[_], K, V] {
 
 private[kafka] object KafkaMonitoringApi {
 
-  def apply[F[_]: Concurrent: ContextShift, K: Show, V: Show](
-    topic: KafkaTopic[F, K, V],
+  def apply[F[_]: ConcurrentEffect: ContextShift:Timer, K: Show, V: Show](
+    topic: KafkaTopic[K, V],
     rootPath: NJRootPath): KafkaMonitoringApi[F, K, V] =
     new KafkaTopicMonitoring[F, K, V](topic, rootPath)
 
-  final private class KafkaTopicMonitoring[F[_]: ContextShift, K: Show, V: Show](
-    topic: KafkaTopic[F, K, V],
-    rootPath: NJRootPath)(implicit F: Concurrent[F])
+  final private class KafkaTopicMonitoring[F[_]: ContextShift:Timer, K: Show, V: Show](
+    topic: KafkaTopic[K, V],
+    rootPath: NJRootPath)(implicit F: ConcurrentEffect[F])
       extends KafkaMonitoringApi[F, K, V] {
-    private val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] = topic.fs2Channel
-    private val consumer: KafkaConsumerApi[F, K, V]           = topic.consumer
+    private val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] = topic.fs2Channel[F]
+    private val consumer: KafkaConsumerApi[F, K, V]           = topic.consumer[F]
+    private val producer: KafkaProducerApi[F,K,V] = topic.producer[F]
 
     private def watch(aor: AutoOffsetReset): F[Unit] =
       fs2Channel
@@ -126,7 +129,7 @@ private[kafka] object KafkaMonitoringApi {
                 .fromJsonStr(str)
                 .leftMap(err => println(s"decode json error: ${err.getMessage}"))
                 .toOption
-                .traverse(cr => topic.producer.send(cr.toNJProducerRecord))
+                .traverse(cr => producer.send(cr.toNJProducerRecord))
             }
         }
         .compile

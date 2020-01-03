@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.kafka._
 import io.circe.generic.auto._
 import org.scalatest.funsuite.AnyFunSuite
 import io.circe.generic.auto._ 
+import cats.effect.IO
 
 
 class ConsumeMessageAkkaTest extends AnyFunSuite {
@@ -17,7 +18,7 @@ class ConsumeMessageAkkaTest extends AnyFunSuite {
   val topic = ctx.topic(vessel)
   test("akka stream should be able to consume data") {
 
-    val run = topic.akkaResource.use { chn =>
+    val run = topic.akkaResource[IO](akkaSystem).use { chn =>
       chn
         .updateConsumerSettings(_.withClientId("c-id"))
         .updateCommitterSettings(_.withParallelism(10))
@@ -26,7 +27,7 @@ class ConsumeMessageAkkaTest extends AnyFunSuite {
         .map(_.show)
         .map(println)
         .take(3)
-        .runWith(chn.ignoreSink)(ctx.materializer.value)
+        .runWith(chn.ignoreSink)(materializer)
     }
     run.unsafeRunSync()
   }
@@ -34,15 +35,15 @@ class ConsumeMessageAkkaTest extends AnyFunSuite {
   test("assignment") {
     val datetime = LocalDateTime.now
     val ret = for {
-      start <- topic.consumer.beginningOffsets
+      start <- topic.consumer[IO].beginningOffsets
       offsets = start.flatten[KafkaOffset].value.mapValues(_.value)
-      _ <- vessel.in(ctx).akkaResource.use { chn =>
+      _ <- vessel.in(ctx).akkaResource[IO](akkaSystem).use { chn =>
         chn
           .assign(offsets)
           .map(m => topic.decoder(m).decode)
           .map(_.show)
           .take(1)
-          .runWith(chn.ignoreSink)(ctx.materializer.value)
+          .runWith(chn.ignoreSink)(materializer)
       }
     } yield ()
     ret.unsafeRunSync

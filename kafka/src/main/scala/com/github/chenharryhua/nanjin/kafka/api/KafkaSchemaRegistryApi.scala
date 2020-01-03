@@ -109,13 +109,13 @@ sealed trait KafkaSchemaRegistryApi[F[_]] extends Serializable {
 
 private[kafka] object KafkaSchemaRegistryApi {
 
-  def apply[F[_]: Sync](topic: KafkaTopic[F, _, _]): KafkaSchemaRegistryApi[F] =
+  def apply[F[_]: Sync](topic: KafkaTopic[_, _]): KafkaSchemaRegistryApi[F] =
     new KafkaSchemaRegistryImpl(topic)
 
-  final private class KafkaSchemaRegistryImpl[F[_]: Sync](topic: KafkaTopic[F, _, _])
+  final private class KafkaSchemaRegistryImpl[F[_]: Sync](topic: KafkaTopic[_, _])
       extends KafkaSchemaRegistryApi[F] {
 
-    val srSettings: SchemaRegistrySettings = topic.context.settings.schemaRegistrySettings
+    val srSettings: SchemaRegistrySettings = topic.settings.schemaRegistrySettings
     val topicName: String                  = topic.topicDef.topicName
     val keySchemaLoc: String               = topic.topicDef.keySchemaLoc
     val valueSchemaLoc: String             = topic.topicDef.valueSchemaLoc

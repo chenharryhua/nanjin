@@ -20,6 +20,7 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategy}
 
 import scala.collection.JavaConverters._
+import cats.effect.Concurrent
 
 private[kafka] object SparKafka {
 
@@ -30,42 +31,42 @@ private[kafka] object SparKafka {
       .mapValues[Object](identity)
       .asJava
 
-  private def path[F[_]](root: NJRootPath, topic: KafkaTopic[F, _, _]): String =
+  private def path(root: NJRootPath, topic: KafkaTopic[_, _]): String =
     root + topic.topicDef.topicName
 
-  private def kafkaRDD[F[_]: Sync, K, V](
-    topic: => KafkaTopic[F, K, V],
+  private def kafkaRDD[F[_]: Concurrent, K, V](
+    topic: => KafkaTopic[K, V],
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy)(
     implicit sparkSession: SparkSession): F[RDD[ConsumerRecord[Array[Byte], Array[Byte]]]] =
     Sync[F].suspend {
-      topic.consumer.offsetRangeFor(timeRange).map { gtp =>
+      topic.consumer[F].offsetRangeFor(timeRange).map { gtp =>
         KafkaUtils.createRDD[Array[Byte], Array[Byte]](
           sparkSession.sparkContext,
-          props(topic.context.settings.consumerSettings.config),
+          props(topic.settings.consumerSettings.config),
           KafkaOffsets.offsetRange(gtp),
           locationStrategy)
       }
     }
 
-  def datasetFromKafka[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
-    topic: => KafkaTopic[F, K, V],
+  def datasetFromKafka[F[_]: Concurrent, K: TypedEncoder, V: TypedEncoder](
+    topic: => KafkaTopic[K, V],
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy)(
     implicit sparkSession: SparkSession): F[TypedDataset[NJConsumerRecord[K, V]]] =
-    kafkaRDD(topic, timeRange, locationStrategy).map(rdd =>
+    kafkaRDD[F,K,V](topic, timeRange, locationStrategy).map(rdd =>
       TypedDataset.create(rdd.mapPartitions(_.map(cr => topic.decoder(cr).record))))
 
-  def jsonDatasetFromKafka[F[_]: Sync, K, V](
-    topic: => KafkaTopic[F, K, V],
+  def jsonDatasetFromKafka[F[_]: Concurrent, K, V](
+    topic: => KafkaTopic[K, V],
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy)(
     implicit sparkSession: SparkSession): F[TypedDataset[String]] =
-    kafkaRDD(topic, timeRange, locationStrategy).map(rdd =>
+    kafkaRDD[F,K,V](topic, timeRange, locationStrategy).map(rdd =>
       TypedDataset.create(rdd.mapPartitions(_.map(cr => topic.toJson(cr).noSpaces))))
 
   def datasetFromDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
-    topic: => KafkaTopic[F, K, V],
+    topic: => KafkaTopic[K, V],
     timeRange: NJDateTimeRange,
     rootPath: NJRootPath)(
     implicit sparkSession: SparkSession): F[TypedDataset[NJConsumerRecord[K, V]]] =
@@ -77,13 +78,13 @@ private[kafka] object SparKafka {
       tds.filter(inBetween(tds('timestamp)))
     }
 
-  def saveToDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
-    topic: => KafkaTopic[F, K, V],
+  def saveToDisk[F[_]: Concurrent, K: TypedEncoder, V: TypedEncoder](
+    topic: => KafkaTopic[K, V],
     timeRange: NJDateTimeRange,
     rootPath: NJRootPath,
     saveMode: SaveMode,
     locationStrategy: LocationStrategy)(implicit sparkSession: SparkSession): F[Unit] =
-    datasetFromKafka(topic, timeRange, locationStrategy).map(
+    datasetFromKafka[F,K,V](topic, timeRange, locationStrategy).map(
       _.write.mode(saveMode).parquet(path(rootPath, topic)))
 
   def toProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
@@ -105,7 +106,7 @@ private[kafka] object SparKafka {
 
   // upload to kafka
   def uploadToKafka[F[_]: ConcurrentEffect: Timer, K, V](
-    topic: => KafkaTopic[F, K, V],
+    topic: => KafkaTopic[K, V],
     tds: TypedDataset[NJProducerRecord[K, V]],
     uploadRate: NJRate
   ): Stream[F, Chunk[RecordMetadata]] =
@@ -118,7 +119,7 @@ private[kafka] object SparKafka {
 
   // load data from disk and then upload into kafka
   def replay[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
-    topic: => KafkaTopic[F, K, V],
+    topic: => KafkaTopic[K, V],
     params: SparKafkaParams)(
     implicit sparkSession: SparkSession): Stream[F, Chunk[RecordMetadata]] =
     for {
@@ -131,7 +132,7 @@ private[kafka] object SparKafka {
         params.uploadRate)
     } yield res
 
-  def sparkStream[F[_], K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[F, K, V])(
+  def sparkStream[F[_], K: TypedEncoder, V: TypedEncoder](topic: => KafkaTopic[K, V])(
     implicit spark: SparkSession): TypedDataset[NJConsumerRecord[K, V]] = {
     def toSparkOptions(m: Map[String, String]): Map[String, String] = {
       val rm1 = remove(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG)(_: Map[String, String])
@@ -144,7 +145,7 @@ private[kafka] object SparKafka {
       .create(
         spark.readStream
           .format("kafka")
-          .options(toSparkOptions(topic.context.settings.consumerSettings.config))
+          .options(toSparkOptions(topic.settings.consumerSettings.config))
           .option("subscribe", topic.topicDef.topicName)
           .load()
           .as[NJConsumerRecord[Array[Byte], Array[Byte]]])

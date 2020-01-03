@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.effect.Resource
+import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, Resource, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.api._
 import com.github.chenharryhua.nanjin.kafka.codec.{
@@ -17,6 +17,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 import cats.Show
+import akka.actor.ActorSystem
 
 final class TopicCodec[K, V] private[kafka] (
   val keyCodec: KafkaCodec.Key[K],
@@ -34,11 +35,10 @@ final class TopicCodec[K, V] private[kafka] (
   val valueDeserializer: Deserializer[V] = valueSerde.deserializer
 }
 
-final class KafkaTopic[F[_], K, V] private[kafka] (
+final case class KafkaTopic[K, V] private[kafka] (
   val topicDef: TopicDef[K, V],
-  val context: KafkaContext[F])
+  val settings: KafkaSettings)
     extends TopicNameExtractor[K, V] {
-  import context.{concurrentEffect, contextShift, timer}
   import topicDef.{serdeOfKey, serdeOfValue, showKey, showValue}
 
   val topicName: String = topicDef.topicName
@@ -46,14 +46,14 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
   val consumerGroupId: Option[KafkaConsumerGroupId] =
     KafkaConsumerSettings.config
       .composeLens(At.at(ConsumerConfig.GROUP_ID_CONFIG))
-      .get(context.settings.consumerSettings)
+      .get(settings.consumerSettings)
       .map(KafkaConsumerGroupId)
 
   override def extract(key: K, value: V, rc: RecordContext): String = topicDef.topicName
 
-  val codec: TopicCodec[K, V] = new TopicCodec(
-    serdeOfKey.asKey(context.settings.schemaRegistrySettings.config).codec(topicDef.topicName),
-    serdeOfValue.asValue(context.settings.schemaRegistrySettings.config).codec(topicDef.topicName)
+  @transient lazy val codec: TopicCodec[K, V] = new TopicCodec(
+    serdeOfKey.asKey(settings.schemaRegistrySettings.config).codec(topicDef.topicName),
+    serdeOfValue.asValue(settings.schemaRegistrySettings.config).codec(topicDef.topicName)
   )
 
   def decoder[G[_, _]: NJConsumerMessage](
@@ -72,42 +72,44 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
     topicDef.fromJson(jsonString)
 
   //channels
-  val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
+  def fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer]: KafkaChannels.Fs2Channel[F, K, V] =
     new KafkaChannels.Fs2Channel[F, K, V](
       topicDef.topicName,
-      context.settings.producerSettings
-        .fs2ProducerSettings(codec.keySerializer, codec.valueSerializer),
-      context.settings.consumerSettings.fs2ConsumerSettings)
+      settings.producerSettings.fs2ProducerSettings(codec.keySerializer, codec.valueSerializer),
+      settings.consumerSettings.fs2ConsumerSettings)
 
-  val akkaResource: Resource[F, KafkaChannels.AkkaChannel[F, K, V]] = Resource.make(
-    concurrentEffect.delay(
-      new KafkaChannels.AkkaChannel[F, K, V](
-        topicDef.topicName,
-        context.settings.producerSettings.akkaProducerSettings(
-          context.akkaSystem.value,
-          codec.keySerializer,
-          codec.valueSerializer),
-        context.settings.consumerSettings.akkaConsumerSettings(context.akkaSystem.value),
-        context.settings.consumerSettings.akkaCommitterSettings(context.akkaSystem.value))))(_ =>
-    concurrentEffect.unit)
+  def akkaResource[F[_]: ConcurrentEffect: ContextShift](
+    akkaSystem: ActorSystem): Resource[F, KafkaChannels.AkkaChannel[F, K, V]] =
+    Resource.make(
+      ConcurrentEffect[F].delay(
+        new KafkaChannels.AkkaChannel[F, K, V](
+          topicDef.topicName,
+          settings.producerSettings
+            .akkaProducerSettings(akkaSystem, codec.keySerializer, codec.valueSerializer),
+          settings.consumerSettings.akkaConsumerSettings(akkaSystem),
+          settings.consumerSettings.akkaCommitterSettings(akkaSystem))))(_ =>
+      ConcurrentEffect[F].unit)
 
   val kafkaStream: KafkaChannels.StreamingChannel[K, V] =
     new KafkaChannels.StreamingChannel[K, V](topicDef.topicName, codec.keySerde, codec.valueSerde)
 
   // APIs
-  val schemaRegistry: KafkaSchemaRegistryApi[F] = api.KafkaSchemaRegistryApi[F](this)
-  val admin: KafkaTopicAdminApi[F]              = api.KafkaTopicAdminApi[F, K, V](this)
-  val consumer: KafkaConsumerApi[F, K, V]       = api.KafkaConsumerApi[F, K, V](this)
-  val producer: KafkaProducerApi[F, K, V]       = api.KafkaProducerApi[F, K, V](this)
+  def schemaRegistry[F[_]: Sync]: KafkaSchemaRegistryApi[F] = api.KafkaSchemaRegistryApi[F](this)
 
-  val monitor: KafkaMonitoringApi[F, K, V] =
-    api.KafkaMonitoringApi[F, K, V](this, context.settings.rootPath)
+  def admin[F[_]: Concurrent: ContextShift]: KafkaTopicAdminApi[F] =
+    api.KafkaTopicAdminApi[F, K, V](this)
+  def consumer[F[_]: Concurrent]: KafkaConsumerApi[F, K, V] = api.KafkaConsumerApi[F, K, V](this)
+
+  def producer[F[_]: ConcurrentEffect]: KafkaProducerApi[F, K, V] =
+    api.KafkaProducerApi[F, K, V](this)
+
+  // val monitor: KafkaMonitoringApi[F, K, V] =  api.KafkaMonitoringApi[F, K, V](this, context.settings.rootPath)
 
   def show: String =
     s"""
        |topic: ${topicDef.topicName}
        |settings: 
-       |${context.settings.toString}
+       |${settings.toString}
        |key-schema: 
        |${codec.keySchema.toString(true)}
        |value-schema:
@@ -116,5 +118,5 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
 }
 
 object KafkaTopic {
-  implicit def showKafkaTopic[F[_], K, V]: Show[KafkaTopic[F, K, V]] = _.topicName
+  implicit def showKafkaTopic[K, V]: Show[KafkaTopic[K, V]] = _.topicName
 }

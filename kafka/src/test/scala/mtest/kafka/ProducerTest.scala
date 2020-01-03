@@ -26,14 +26,14 @@ class ProducerTest extends AnyFunSuite {
   val akkaTopic   = ctx.topic[AvroKey, AvroValue]("producer-test-akka")
   val fs2Topic    = ctx.topic[AvroKey, AvroValue]("producer-test-fs2")
   val streamTopic = ctx.topic[AvroKey, AvroValue]("producer-test-kafka")
+  val sp = srcTopic.producer[IO]
   test("producer api") {
     val produceTask = (0 until 100).toList.traverse { i =>
-      srcTopic.producer
-        .send(AvroKey(i.toString), AvroValue(Random.nextString(5), Random.nextInt(100)))
+      sp.send(AvroKey(i.toString), AvroValue(Random.nextString(5), Random.nextInt(100)))
     }
 
-    val akkaTask: IO[Done] = srcTopic.akkaResource.use { s =>
-      akkaTopic.akkaResource.use { t =>
+    val akkaTask: IO[Done] = srcTopic.akkaResource[IO](akkaSystem).use { s =>
+      akkaTopic.akkaResource[IO](akkaSystem).use { t =>
         s.updateConsumerSettings(_.withProperty(
             ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
             "earliest").withGroupId("akka-task").withCommitWarning(10.seconds))
@@ -44,10 +44,10 @@ class ProducerTest extends AnyFunSuite {
               new ProducerRecord(t.topicName, m.record.key(), m.record.value()),
               m.committableOffset))
           .take(100)
-          .runWith(t.committableSink)(ctx.materializer.value)
+          .runWith(t.committableSink)(materializer)
       }
     }
-    val fs2Task: IO[Unit] = srcTopic.fs2Channel
+    val fs2Task: IO[Unit] = srcTopic.fs2Channel[IO]
       .updateConsumerSettings(
         _.withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest").withGroupId("fs2-task"))
       .consume
@@ -57,7 +57,7 @@ class ProducerTest extends AnyFunSuite {
           Fs2ProducerRecord(srcTopic.topicDef.topicName, m.record.key, m.record.value),
           m.offset))
       .take(100)
-      .through(fs2.kafka.produce(fs2Topic.fs2Channel.producerSettings))
+      .through(fs2.kafka.produce(fs2Topic.fs2Channel[IO].producerSettings))
       .compile
       .drain
 

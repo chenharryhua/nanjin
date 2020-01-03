@@ -12,7 +12,7 @@ private[kafka] trait DatasetExtensions {
   implicit final class SparKafkaUploadSyntax[K, V](val data: TypedDataset[NJProducerRecord[K, V]]) {
 
     def kafkaUpload[F[_]: ConcurrentEffect: Timer](
-      topic: => KafkaTopic[F, K, V],
+      topic: => KafkaTopic[K, V],
       rate: NJRate = NJRate.default): Stream[F, Chunk[RecordMetadata]] =
       SparKafka.uploadToKafka(topic, data, rate)
   }

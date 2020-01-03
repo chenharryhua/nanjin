@@ -12,21 +12,21 @@ class SchemaRegistryTest extends AnyFunSuite {
   val nyc: TopicDef[Int, trip_record] =
     TopicDef[Int, trip_record]("nyc_yellow_taxi_trip_data")
 
-  val topic: KafkaTopic[IO, Int, trip_record] =
+  val topic: KafkaTopic[Int, trip_record] =
     ctx.topic[Int, trip_record](nyc)
 
   test("latest schema") {
-    topic.schemaRegistry.latestMeta.map(_.show).unsafeRunSync()
+    topic.schemaRegistry[IO].latestMeta.map(_.show).unsafeRunSync()
   }
   test("compatiable test") {
-    topic.schemaRegistry.testCompatibility.map(println).unsafeRunSync
+    topic.schemaRegistry[IO].testCompatibility.map(println).unsafeRunSync
   }
   test("register schema") {
-    topic.schemaRegistry.register.unsafeRunSync()
+    topic.schemaRegistry[IO].register.unsafeRunSync()
   }
   test("schema registry is not necessarily configured if it is not used") {
     val noRegistry = KafkaSettings.empty.withBrokers("localhost:9092").ioContext
     val topic      = noRegistry.topic[Int, Int]("no_schema_registry_test")
-    topic.producer.send(1, 1).unsafeRunSync()
+    topic.producer[IO].send(1, 1).unsafeRunSync()
   }
 }

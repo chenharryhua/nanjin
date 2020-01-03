@@ -8,7 +8,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 
 private[flink] trait FlinkExtensions extends Serializable {
 
-  implicit final class FlinKafkaExtension[F[_], K, V](topic: => KafkaTopic[F, K, V])
+  implicit final class FlinKafkaExtension[K, V](topic: => KafkaTopic[K, V])
       extends Serializable {
 
     def dataStream(env: StreamExecutionEnvironment)(
@@ -27,6 +27,6 @@ private[flink] trait FlinkExtensions extends Serializable {
               record: ConsumerRecord[Array[Byte], Array[Byte]]): NJConsumerRecord[K, V] =
               topic.decoder(record).record
           },
-          topic.context.settings.consumerSettings.consumerProperties))
+          topic.settings.consumerSettings.consumerProperties))
   }
 }

@@ -52,7 +52,7 @@ final class TopicDef[K, V] private (val topicName: String)(
   def fromJson(cr: String): Either[Error, NJConsumerRecord[K, V]] =
     decode[NJConsumerRecord[K, V]](cr)
 
-  def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[F, K, V] =
+  def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[K, V] =
     ctx.topic[K, V](this)
 
   def show: String = s"TopicDef(topicName = ${topicName})"

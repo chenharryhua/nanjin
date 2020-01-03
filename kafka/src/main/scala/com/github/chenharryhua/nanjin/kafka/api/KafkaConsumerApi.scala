@@ -22,6 +22,9 @@ import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
 import org.apache.kafka.common.TopicPartition
 
 import scala.collection.JavaConverters._
+import cats.effect.Resource
+import org.apache.kafka.clients.consumer.KafkaConsumer
+import org.apache.kafka.common.serialization.ByteArrayDeserializer
 
 sealed trait KafkaPrimitiveConsumerApi[F[_]] {
   def partitionsFor: F[ListOfTopicPartitions]
@@ -114,21 +117,27 @@ sealed trait KafkaConsumerApi[F[_], K, V] extends KafkaPrimitiveConsumerApi[F] {
 
 private[kafka] object KafkaConsumerApi {
 
-  def apply[F[_]: Concurrent, K, V](topic: KafkaTopic[F, K, V]): KafkaConsumerApi[F, K, V] =
+  def apply[F[_]: Concurrent, K, V](topic: KafkaTopic[K, V]): KafkaConsumerApi[F, K, V] =
     new KafkaConsumerApiImpl[F, K, V](topic)
 
-  final private[this] class KafkaConsumerApiImpl[F[_]: Concurrent, K, V](topic: KafkaTopic[F, K, V])
+  final private[this] class KafkaConsumerApiImpl[F[_]: Concurrent, K, V](topic: KafkaTopic[K, V])
       extends KafkaConsumerApi[F, K, V] {
     import cats.mtl.implicits._
 
-    private val topicName: String                                = topic.topicDef.topicName
-    private val sharedConsumer: Eval[MVar[F, KafkaByteConsumer]] = topic.context.sharedConsumer
+    private val topicName: String = topic.topicDef.topicName
+
+    private val consumerClient = Resource.make(
+      Concurrent[F].delay(
+        new KafkaConsumer[Array[Byte], Array[Byte]](
+          topic.settings.consumerSettings.consumerProperties,
+          new ByteArrayDeserializer,
+          new ByteArrayDeserializer)))(a => Concurrent[F].delay(a.close))
 
     private[this] val kpc: KafkaPrimitiveConsumerApi[Kleisli[F, KafkaByteConsumer, *]] =
       KafkaPrimitiveConsumerApi[Kleisli[F, KafkaByteConsumer, *]](topicName)
 
     private[this] def atomically[A](r: Kleisli[F, KafkaByteConsumer, A]): F[A] =
-      Sync[F].bracket(sharedConsumer.value.take)(r.run)(sharedConsumer.value.put)
+      consumerClient.use(r.run)
 
     override def offsetRangeFor(dtr: NJDateTimeRange): F[GenericTopicPartition[KafkaOffsetRange]] =
       atomically {

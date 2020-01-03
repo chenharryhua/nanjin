@@ -17,16 +17,16 @@ sealed trait KafkaTopicAdminApi[F[_]] {
 private[kafka] object KafkaTopicAdminApi {
 
   def apply[F[_]: Concurrent: ContextShift, K, V](
-    topic: KafkaTopic[F, K, V]
+    topic: KafkaTopic[K, V]
   ): KafkaTopicAdminApi[F] = new KafkaTopicAdminApiImpl(topic)
 
   final private class KafkaTopicAdminApiImpl[F[_]: Concurrent: ContextShift, K, V](
-    topic: KafkaTopic[F, K, V])
+    topic: KafkaTopic[K, V])
       extends KafkaTopicAdminApi[F] {
 
     private val admin: Resource[F, KafkaAdminClient[F]] =
       adminClientResource[F](
-        AdminClientSettings[F].withProperties(topic.context.settings.sharedAdminSettings.config))
+        AdminClientSettings[F].withProperties(topic.settings.sharedAdminSettings.config))
 
     override def idefinitelyWantToDeleteTheTopic: F[Unit] =
       admin.use(_.deleteTopic(topic.topicDef.topicName))

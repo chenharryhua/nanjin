@@ -17,6 +17,6 @@ object topics {
   val si                                       = ctx.topic[String, Int]("si")
   val ii                                       = ctx.topic[Int, Int]("ii")
 
-  val sparkafkaTopic: KafkaTopic[IO, Int, ForTaskSerializable] =
+  val sparkafkaTopic: KafkaTopic[Int, ForTaskSerializable] =
     ctx.topic[Int, ForTaskSerializable]("serializable.test")
 }

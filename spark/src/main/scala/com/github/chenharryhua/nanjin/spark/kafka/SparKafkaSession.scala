@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, NJConsumerRecord}
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SparkSession
 import cats.implicits._
+import cats.effect.Concurrent
 
 final case class SparKafkaSession(params: SparKafkaParams)(implicit val sparkSession: SparkSession)
     extends UpdateParams[SparKafkaParams, SparKafkaSession] {
@@ -13,20 +14,20 @@ final case class SparKafkaSession(params: SparKafkaParams)(implicit val sparkSes
   override def updateParams(f: SparKafkaParams => SparKafkaParams): SparKafkaSession =
     copy(params = f(params))
 
-  def datasetFromKafka[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
-    topic: => KafkaTopic[F, K, V]): F[TypedDataset[NJConsumerRecord[K, V]]] =
-    SparKafka.datasetFromKafka(topic, params.timeRange, params.locationStrategy)
+  def datasetFromKafka[F[_]: Concurrent, K: TypedEncoder, V: TypedEncoder](
+    topic: => KafkaTopic[K, V]): F[TypedDataset[NJConsumerRecord[K, V]]] =
+    SparKafka.datasetFromKafka[F, K, V](topic, params.timeRange, params.locationStrategy)
 
-  def jsonFromKafka[F[_]: Sync, K, V](topic: => KafkaTopic[F, K, V]): F[TypedDataset[String]] =
-    SparKafka.jsonDatasetFromKafka(topic, params.timeRange, params.locationStrategy)
+  def jsonFromKafka[F[_]: Concurrent, K, V](topic: => KafkaTopic[K, V]): F[TypedDataset[String]] =
+    SparKafka.jsonDatasetFromKafka[F, K, V](topic, params.timeRange, params.locationStrategy)
 
-  def datasetFromDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
-    topic: => KafkaTopic[F, K, V]): F[TypedDataset[NJConsumerRecord[K, V]]] =
-    SparKafka.datasetFromDisk(topic, params.timeRange, params.rootPath)
+  def datasetFromDisk[F[_]: Concurrent, K: TypedEncoder, V: TypedEncoder](
+    topic: => KafkaTopic[K, V]): F[TypedDataset[NJConsumerRecord[K, V]]] =
+    SparKafka.datasetFromDisk[F, K, V](topic, params.timeRange, params.rootPath)
 
-  def saveToDisk[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
-    topic: => KafkaTopic[F, K, V]): F[Unit] =
-    SparKafka.saveToDisk(
+  def saveToDisk[F[_]: Concurrent, K: TypedEncoder, V: TypedEncoder](
+    topic: => KafkaTopic[K, V]): F[Unit] =
+    SparKafka.saveToDisk[F, K, V](
       topic,
       params.timeRange,
       params.rootPath,
@@ -34,16 +35,16 @@ final case class SparKafkaSession(params: SparKafkaParams)(implicit val sparkSes
       params.locationStrategy)
 
   def replay[F[_]: ConcurrentEffect: Timer, K: TypedEncoder, V: TypedEncoder](
-    topic: => KafkaTopic[F, K, V]): F[Unit] =
+    topic: => KafkaTopic[K, V]): F[Unit] =
     SparKafka.replay(topic, params).map(_ => print(".")).compile.drain
 
   def sparkStream[F[_], K: TypedEncoder, V: TypedEncoder](
-    topic: => KafkaTopic[F, K, V]): TypedDataset[NJConsumerRecord[K, V]] =
+    topic: => KafkaTopic[K, V]): TypedDataset[NJConsumerRecord[K, V]] =
     SparKafka.sparkStream(topic)
 
-  def stats[F[_]: Sync, K: TypedEncoder, V: TypedEncoder](
-    topic: => KafkaTopic[F, K, V]): F[Statistics[K, V]] =
-    datasetFromKafka(topic).map(ds => Statistics(params, ds.dataset))
+  def stats[F[_]: Concurrent, K: TypedEncoder, V: TypedEncoder](
+    topic: => KafkaTopic[K, V]): F[Statistics[K, V]] =
+    datasetFromKafka[F, K, V](topic).map(ds => Statistics(params, ds.dataset))
 }
 
 object SparKafkaSession {

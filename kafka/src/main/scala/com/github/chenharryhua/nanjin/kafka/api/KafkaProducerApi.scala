@@ -11,6 +11,8 @@ import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, NJProducerRecord}
 import fs2.Chunk
 import fs2.kafka.{KafkaByteProducer, KafkaByteProducerRecord}
 import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
+import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.common.serialization.ByteArraySerializer
 
 sealed trait KafkaProducerApi[F[_], K, V] {
   def arbitrarilySend(key: Array[Byte], value: Array[Byte]): F[RecordMetadata]
@@ -46,16 +48,21 @@ sealed trait KafkaProducerApi[F[_], K, V] {
 
 private[kafka] object KafkaProducerApi {
 
-  def apply[F[_]: ConcurrentEffect, K, V](topic: KafkaTopic[F, K, V]): KafkaProducerApi[F, K, V] =
+  def apply[F[_]: ConcurrentEffect, K, V](topic: KafkaTopic[K, V]): KafkaProducerApi[F, K, V] =
     new KafkaProducerApiImpl[F, K, V](topic)
 
   final private[this] class KafkaProducerApiImpl[F[_]: ConcurrentEffect, K, V](
-    topic: KafkaTopic[F, K, V]
+    topic: KafkaTopic[K, V]
   ) extends KafkaProducerApi[F, K, V] {
-    private[this] val topicName: String                 = topic.topicDef.topicName
-    private[this] val keyCodec: KafkaCodec.Key[K]       = topic.codec.keyCodec
-    private[this] val valueCodec: KafkaCodec.Value[V]   = topic.codec.valueCodec
-    private[this] val producer: Eval[KafkaByteProducer] = topic.context.sharedProducer
+    private[this] val topicName: String               = topic.topicDef.topicName
+    private[this] val keyCodec: KafkaCodec.Key[K]     = topic.codec.keyCodec
+    private[this] val valueCodec: KafkaCodec.Value[V] = topic.codec.valueCodec
+
+    private[this] val producer: KafkaByteProducer =
+      new KafkaProducer[Array[Byte], Array[Byte]](
+        topic.settings.producerSettings.producerProperties,
+        new ByteArraySerializer,
+        new ByteArraySerializer)
 
     private def record(k: K, v: V): KafkaByteProducerRecord =
       new ProducerRecord(topicName, keyCodec.encode(k), valueCodec.encode(v))
@@ -75,7 +82,7 @@ private[kafka] object KafkaProducerApi {
     private[this] def doSend(data: ProducerRecord[Array[Byte], Array[Byte]]): F[F[RecordMetadata]] =
       Deferred[F, Either[Throwable, RecordMetadata]].flatMap { deferred =>
         Sync[F].delay {
-          producer.value.send(
+          producer.send(
             data,
             (metadata: RecordMetadata, exception: Exception) => {
               val complete = deferred.complete {
