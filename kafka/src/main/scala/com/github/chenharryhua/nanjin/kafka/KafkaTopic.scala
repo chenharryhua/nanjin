@@ -21,7 +21,8 @@ import akka.actor.ActorSystem
 
 final class TopicCodec[K, V] private[kafka] (
   val keyCodec: KafkaCodec.Key[K],
-  val valueCodec: KafkaCodec.Value[V]) {
+  val valueCodec: KafkaCodec.Value[V])
+    extends Serializable {
   require(
     keyCodec.topicName === valueCodec.topicName,
     "key and value codec should have same topic name")
@@ -35,10 +36,10 @@ final class TopicCodec[K, V] private[kafka] (
   val valueDeserializer: Deserializer[V] = valueSerde.deserializer
 }
 
-final case class KafkaTopic[K, V] private[kafka] (
+final class KafkaTopic[K, V] private[kafka] (
   val topicDef: TopicDef[K, V],
   val settings: KafkaSettings)
-    extends TopicNameExtractor[K, V] {
+    extends TopicNameExtractor[K, V] with Serializable {
   import topicDef.{serdeOfKey, serdeOfValue, showKey, showValue}
 
   val topicName: String = topicDef.topicName

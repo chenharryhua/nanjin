@@ -30,7 +30,7 @@ final class TopicDef[K, V] private (val topicName: String)(
   avroValueEncoder: AvroEncoder[V],
   avroKeyDecoder: AvroDecoder[K],
   avroValueDecoder: AvroDecoder[V]
-) {
+) extends Serializable {
   val keySchemaLoc: String   = s"$topicName-key"
   val valueSchemaLoc: String = s"$topicName-value"
 

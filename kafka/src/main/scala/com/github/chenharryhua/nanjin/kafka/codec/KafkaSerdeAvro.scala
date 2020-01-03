@@ -8,10 +8,11 @@ import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 
 import scala.util.{Failure, Success, Try}
 
-final private[codec] class KafkaSerdeAvro[A: Encoder: Decoder](schema: Schema) extends Serde[A] {
-  private[this] val format: RecordFormat[A]        = RecordFormat[A](schema)
-  private[this] val ser: GenericAvroSerializer     = new GenericAvroSerializer
-  private[this] val deSer: GenericAvroDeserializer = new GenericAvroDeserializer
+final private[codec] class KafkaSerdeAvro[A: Encoder: Decoder](schema: Schema)
+    extends Serde[A] with Serializable {
+  @transient private[this] lazy val format: RecordFormat[A]        = RecordFormat[A](schema)
+  @transient private[this] lazy val ser: GenericAvroSerializer     = new GenericAvroSerializer
+  @transient private[this] lazy val deSer: GenericAvroDeserializer = new GenericAvroDeserializer
 
   @SuppressWarnings(Array("AsInstanceOf"))
   private[this] def decode(topic: String, data: Array[Byte]): Try[A] =
@@ -49,8 +50,8 @@ final private[codec] class KafkaSerdeAvro[A: Encoder: Decoder](schema: Schema) e
     deSer.configure(configs, isKey)
   }
 
-  override val serializer: Serializer[A] =
-    new Serializer[A] {
+  @transient override lazy val serializer: Serializer[A] =
+    new Serializer[A] with Serializable{
       override def close(): Unit = ser.close()
 
       override def configure(configs: java.util.Map[String, _], isKey: Boolean): Unit =
@@ -61,8 +62,8 @@ final private[codec] class KafkaSerdeAvro[A: Encoder: Decoder](schema: Schema) e
         encode(topic, data).fold(throw _, identity)
     }
 
-  override val deserializer: Deserializer[A] =
-    new Deserializer[A] {
+  @transient override lazy val deserializer: Deserializer[A] =
+    new Deserializer[A] with Serializable {
       override def close(): Unit = deSer.close()
 
       override def configure(configs: java.util.Map[String, _], isKey: Boolean): Unit =

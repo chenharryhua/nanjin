@@ -9,9 +9,10 @@ import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import scala.util.{Success, Try}
 
 @SuppressWarnings(Array("AsInstanceOf"))
-final private[codec] class KafkaSerdeJson[A: Decoder: Encoder] extends Serde[KJson[A]] {
+final private[codec] class KafkaSerdeJson[A: Decoder: Encoder]
+    extends Serde[KJson[A]] with Serializable {
 
-  override val serializer: Serializer[KJson[A]] =
+  val serializer: Serializer[KJson[A]] =
     (_: String, data: KJson[A]) =>
       Option(data).flatMap(x => Option(x.value)) match {
         case Some(d) => d.asJson.noSpaces.getBytes
@@ -19,7 +20,7 @@ final private[codec] class KafkaSerdeJson[A: Decoder: Encoder] extends Serde[KJs
       }
 
   @throws[CodecException]
-  override val deserializer: Deserializer[KJson[A]] =
+  val deserializer: Deserializer[KJson[A]] =
     (_: String, data: Array[Byte]) => {
       val tryDecode: Try[KJson[A]] = Option(data) match {
         case Some(d) =>

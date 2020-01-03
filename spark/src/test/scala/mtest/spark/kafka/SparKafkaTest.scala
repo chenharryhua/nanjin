@@ -13,8 +13,9 @@ import com.github.chenharryhua.nanjin.datetime.iso._
 import frameless.cats.implicits._
 import cats.derived.auto.show._
 import java.time.ZoneId
-
+import io.circe.generic.auto._ 
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.kafka.TopicDef
 
 class SparKafkaTest extends AnyFunSuite {
   implicit val zoneId = ZoneId.systemDefault()
@@ -64,6 +65,14 @@ class SparKafkaTest extends AnyFunSuite {
     sparKafkaSession
       .stats[IO, Int, ForTaskSerializable](topics.sparkafkaTopic)
       .flatMap(_.dailyHour.show[IO]())
+      .unsafeRunSync
+  }
+
+  test("read topic from kafka and show json") {
+    val tpk = TopicDef[trip_record,trip_record]("nyc_yellow_taxi_trip_data").in(ctx)
+    sparKafkaSession
+      .jsonFromKafka[IO, Int, ForTaskSerializable](topics.sparkafkaTopic)
+      .flatMap(_.show[IO]())
       .unsafeRunSync
   }
 }
