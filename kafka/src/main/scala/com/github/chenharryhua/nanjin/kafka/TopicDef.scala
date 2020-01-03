@@ -4,6 +4,7 @@ import cats.Show
 import com.github.chenharryhua.nanjin.kafka.codec.SerdeOf
 import com.sksamuel.avro4s.{
   AvroSchema,
+  FieldMapper,
   FromRecord,
   Record,
   SchemaFor,
@@ -34,14 +35,20 @@ final class TopicDef[K, V] private (val topicName: String)(
   val keySchemaLoc: String   = s"$topicName-key"
   val valueSchemaLoc: String = s"$topicName-value"
 
-  implicit private val keySchemaFor: SchemaFor[K]   = SchemaFor.const(serdeOfKey.schema)
-  implicit private val valueSchemaFor: SchemaFor[V] = SchemaFor.const(serdeOfValue.schema)
-  val njConsumerRecordSchema: Schema                = AvroSchema[NJConsumerRecord[K, V]]
+  implicit private val keySchemaFor: SchemaFor[K] = new SchemaFor[K] {
+    override def schema(fieldMapper: FieldMapper): Schema = serdeOfKey.schema
+  }
 
-  private val toAvroRecord: ToRecord[NJConsumerRecord[K, V]] =
+  implicit private val valueSchemaFor: SchemaFor[V] = new SchemaFor[V] {
+    override def schema(fieldMapper: FieldMapper): Schema = serdeOfValue.schema
+  }
+
+  val njConsumerRecordSchema: Schema = AvroSchema[NJConsumerRecord[K, V]]
+
+  @transient private lazy val toAvroRecord: ToRecord[NJConsumerRecord[K, V]] =
     ToRecord[NJConsumerRecord[K, V]](njConsumerRecordSchema)
 
-  private val fromAvroRecord: FromRecord[NJConsumerRecord[K, V]] =
+  @transient private lazy val fromAvroRecord: FromRecord[NJConsumerRecord[K, V]] =
     FromRecord[NJConsumerRecord[K, V]](njConsumerRecordSchema)
 
   def toAvro(cr: NJConsumerRecord[K, V]): Record   = toAvroRecord.to(cr)

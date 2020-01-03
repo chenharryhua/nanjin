@@ -144,9 +144,11 @@ private[kafka] object KafkaConsumerApi {
       atomically {
         for {
           from <- dtr.start.fold(kpc.beginningOffsets)(kpc.offsetsForTimes)
+          end <- kpc.endOffsets
           to <- dtr.end.fold(kpc.endOffsets)(kpc.offsetsForTimes)
         } yield from
-          .combineWith(to)((_, _).mapN((f, s) => KafkaOffsetRange(f, s)))
+          .combineWith(to.combineWith(end) { _.orElse(_) })((_, _).mapN((f, s) =>
+            KafkaOffsetRange(f, s)))
           .flatten[KafkaOffsetRange]
       }
 

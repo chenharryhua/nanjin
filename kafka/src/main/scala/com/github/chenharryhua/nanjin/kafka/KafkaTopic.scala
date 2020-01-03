@@ -91,7 +91,7 @@ final class KafkaTopic[K, V] private[kafka] (
           settings.consumerSettings.akkaCommitterSettings(akkaSystem))))(_ =>
       ConcurrentEffect[F].unit)
 
-  val kafkaStream: KafkaChannels.StreamingChannel[K, V] =
+  def kafkaStream: KafkaChannels.StreamingChannel[K, V] =
     new KafkaChannels.StreamingChannel[K, V](topicDef.topicName, codec.keySerde, codec.valueSerde)
 
   // APIs

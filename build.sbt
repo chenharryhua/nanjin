@@ -32,7 +32,7 @@ val frameless    = "0.8.0"
 val circe    = "0.12.3"
 val jsonDiff = "4.0.1"
 
-val avro4s     = "3.0.4"
+val avro4s     = "3.0.5"
 val apacheAvro = "1.9.1"
 val avrohugger = "1.0.0-RC21"
 
