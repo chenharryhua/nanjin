@@ -162,7 +162,11 @@ import cats.Show
 }
 
 object KafkaSettings {
-  private val defaultRootPath: NJRootPath = NJRootPath("./data/kafka/")
+  import cats.instances.map.catsStdShowForMap
+  import cats.instances.string.catsStdShowForString
+  implicit val showKafkaSettings: Show[KafkaSettings] = cats.derived.semi.show[KafkaSettings]
+  
+  private val defaultRootPath: NJRootPath             = NJRootPath("./data/kafka/")
 
   val empty: KafkaSettings = KafkaSettings(
     KafkaConsumerSettings(Map.empty),

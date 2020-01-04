@@ -17,7 +17,7 @@ import io.circe.syntax._
 import io.circe.{Error, Json, Decoder => JsonDecoder, Encoder => JsonEncoder}
 import org.apache.avro.Schema
 
-final class TopicDef[K, V] private (val topicName: String)(
+final case class TopicDef[K, V](topicName: String)(
   implicit
   val serdeOfKey: SerdeOf[K],
   val serdeOfValue: SerdeOf[V],
@@ -30,8 +30,7 @@ final class TopicDef[K, V] private (val topicName: String)(
   avroKeyEncoder: AvroEncoder[K],
   avroValueEncoder: AvroEncoder[V],
   avroKeyDecoder: AvroDecoder[K],
-  avroValueDecoder: AvroDecoder[V]
-) extends Serializable {
+  avroValueDecoder: AvroDecoder[V]) {
   val keySchemaLoc: String   = s"$topicName-key"
   val valueSchemaLoc: String = s"$topicName-value"
 
@@ -67,30 +66,12 @@ object TopicDef {
   implicit def showTopicDef[K, V]: Show[TopicDef[K, V]] = _.show
 
   def apply[
-    K: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder: SerdeOf,
-    V: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder: SerdeOf](
-    topicName: String): TopicDef[K, V] =
-    new TopicDef(topicName)(
-      SerdeOf[K],
-      SerdeOf[V],
-      Show[K],
-      Show[V],
-      JsonEncoder[K],
-      JsonEncoder[V],
-      JsonDecoder[K],
-      JsonDecoder[V],
-      AvroEncoder[K],
-      AvroEncoder[V],
-      AvroDecoder[K],
-      AvroDecoder[V])
-
-  def apply[
     K: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder,
     V: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder](
     topicName: String,
     keySchema: ManualAvroSchema[K],
     valueSchema: ManualAvroSchema[V]): TopicDef[K, V] =
-    new TopicDef(topicName)(
+    TopicDef(topicName)(
       SerdeOf(keySchema),
       SerdeOf(valueSchema),
       Show[K],
@@ -102,14 +83,15 @@ object TopicDef {
       AvroEncoder[K],
       AvroEncoder[V],
       AvroDecoder[K],
-      AvroDecoder[V])
+      AvroDecoder[V]
+    )
 
   def apply[
     K: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder: SerdeOf,
     V: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder](
     topicName: String,
     valueSchema: ManualAvroSchema[V]): TopicDef[K, V] =
-    new TopicDef(topicName)(
+    TopicDef(topicName)(
       SerdeOf[K],
       SerdeOf(valueSchema),
       Show[K],
@@ -121,14 +103,15 @@ object TopicDef {
       AvroEncoder[K],
       AvroEncoder[V],
       AvroDecoder[K],
-      AvroDecoder[V])
+      AvroDecoder[V]
+    )
 
   def apply[
     K: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder,
     V: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder: SerdeOf](
     topicName: String,
     keySchema: ManualAvroSchema[K]): TopicDef[K, V] =
-    new TopicDef(topicName)(
+    TopicDef(topicName)(
       SerdeOf(keySchema),
       SerdeOf[V],
       Show[K],
@@ -140,5 +123,6 @@ object TopicDef {
       AvroEncoder[K],
       AvroEncoder[V],
       AvroDecoder[K],
-      AvroDecoder[V])
+      AvroDecoder[V]
+    )
 }

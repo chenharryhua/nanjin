@@ -19,10 +19,9 @@ import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 import cats.Show
 import akka.actor.ActorSystem
 
-final class TopicCodec[K, V] private[kafka] (
-  val keyCodec: KafkaCodec.Key[K],
-  val valueCodec: KafkaCodec.Value[V])
-    extends Serializable {
+final case class TopicCodec[K, V] private[kafka] (
+  keyCodec: KafkaCodec.Key[K],
+  valueCodec: KafkaCodec.Value[V]) {
   require(
     keyCodec.topicName === valueCodec.topicName,
     "key and value codec should have same topic name")
@@ -34,6 +33,51 @@ final class TopicCodec[K, V] private[kafka] (
   val keyDeserializer: Deserializer[K]   = keySerde.deserializer
   val valueSerializer: Serializer[V]     = valueSerde.serializer
   val valueDeserializer: Deserializer[V] = valueSerde.deserializer
+}
+
+final case class KafkaTopicData[K, V](topicDef: TopicDef[K, V], settings: KafkaSettings) {
+  import topicDef.{serdeOfKey, serdeOfValue}
+
+  def consumerGroupId: Option[KafkaConsumerGroupId] =
+    KafkaConsumerSettings.config
+      .composeLens(At.at(ConsumerConfig.GROUP_ID_CONFIG))
+      .get(settings.consumerSettings)
+      .map(KafkaConsumerGroupId)
+
+  @transient lazy val codec: TopicCodec[K, V] = TopicCodec(
+    serdeOfKey.asKey(settings.schemaRegistrySettings.config).codec(topicDef.topicName),
+    serdeOfValue.asValue(settings.schemaRegistrySettings.config).codec(topicDef.topicName)
+  )
+
+  def decoder[G[_, _]: NJConsumerMessage](
+    cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
+    new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valueCodec)
+
+  def toAvro[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): Record =
+    topicDef.toAvro(decoder(cr).record)
+
+  def fromAvro(cr: Record): NJConsumerRecord[K, V] = topicDef.fromAvro(cr)
+
+  def toJson[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): Json =
+    topicDef.toJson(decoder(cr).record)
+
+  def fromJsonStr(jsonString: String): Either[Error, NJConsumerRecord[K, V]] =
+    topicDef.fromJson(jsonString)
+
+  def show: String =
+    s"""
+       |topic: ${topicDef.topicName}
+       |settings: 
+       |${settings.show}
+       |key-schema: 
+       |${codec.keySchema.toString(true)}
+       |value-schema:
+       |${codec.valueSchema.toString(true)}
+  """.stripMargin
+}
+
+object KafkaTopicData {
+  implicit def showKafkaTopicData[K, V]: Show[KafkaTopicData[K, V]] = _.show
 }
 
 final class KafkaTopic[K, V] private[kafka] (

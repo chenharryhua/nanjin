@@ -16,7 +16,7 @@ final case class NJRootPath(uri: String Refined Uri) {
 }
 
 object NJRootPath {
-  val showNJRootPath: Show[NJRootPath] = x => s"NJRootPath(${x.root})"
+  implicit val showNJRootPath: Show[NJRootPath] = x => s"NJRootPath(${x.root})"
 
   val default: NJRootPath = NJRootPath("./data/")
 }
