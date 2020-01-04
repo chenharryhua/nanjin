@@ -6,7 +6,7 @@ import cats.effect.{ConcurrentEffect, IO, Sync}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.codec.KafkaCodec
 import com.github.chenharryhua.nanjin.kafka.codec.NJProducerMessage._
-import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, NJProducerRecord}
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopicDescription, NJProducerRecord}
 import fs2.Chunk
 import fs2.kafka.{KafkaByteProducer, KafkaByteProducerRecord}
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord, RecordMetadata}
@@ -44,13 +44,14 @@ sealed trait KafkaProducerApi[F[_], K, V] {
   def send(kvs: Chain[(K, V)]): F[Chain[RecordMetadata]]
 }
 
-private[kafka] object KafkaProducerApi {
+object KafkaProducerApi {
 
-  def apply[F[_]: ConcurrentEffect, K, V](topic: KafkaTopic[K, V]): KafkaProducerApi[F, K, V] =
+  def apply[F[_]: ConcurrentEffect, K, V](
+    topic: KafkaTopicDescription[K, V]): KafkaProducerApi[F, K, V] =
     new KafkaProducerApiImpl[F, K, V](topic)
 
   final private[this] class KafkaProducerApiImpl[F[_]: ConcurrentEffect, K, V](
-    topic: KafkaTopic[K, V]
+    topic: KafkaTopicDescription[K, V]
   ) extends KafkaProducerApi[F, K, V] {
     private[this] val topicName: String               = topic.topicDef.topicName
     private[this] val keyCodec: KafkaCodec.Key[K]     = topic.codec.keyCodec

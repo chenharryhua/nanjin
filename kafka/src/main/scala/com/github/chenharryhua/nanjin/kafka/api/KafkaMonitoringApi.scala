@@ -32,7 +32,7 @@ sealed trait KafkaMonitoringApi[F[_], K, V] {
   def replay: F[Unit]
 }
 
-private[kafka] object KafkaMonitoringApi {
+object KafkaMonitoringApi {
 
   def apply[F[_]: ConcurrentEffect: ContextShift: Timer, K: Show, V: Show](
     topic: KafkaTopic[K, V],
@@ -101,7 +101,7 @@ private[kafka] object KafkaMonitoringApi {
                          |${last.map(_.show).mkString("\n")}
                          |""".stripMargin)
 
-    private val path: Path = Paths.get(rootPath + s"/json/${topic.topicDef.topicName}.json")
+    private val path: Path = Paths.get(rootPath + s"/json/${topic.topicName}.json")
 
     override def saveJson: F[Unit] =
       Stream

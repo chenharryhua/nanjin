@@ -30,7 +30,7 @@ sealed class KafkaContext[F[_]](val settings: KafkaSettings)(
     SerdeOf[V].asValue(settings.schemaRegistrySettings.config)
 
   final def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[K, V] =
-    new KafkaTopic[K, V](topicDef, settings)
+    new KafkaTopic[K, V](KafkaTopicDescription(topicDef, settings))
 
   final def topic[
     K: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder: SerdeOf,

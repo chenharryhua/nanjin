@@ -6,13 +6,15 @@ import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, NJConsumerRecord, NJPro
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.{Chunk, Stream}
 import org.apache.kafka.clients.producer.RecordMetadata
+import com.github.chenharryhua.nanjin.kafka.KafkaTopicDescription
+import cats.effect.ContextShift
 
 private[kafka] trait DatasetExtensions {
 
   implicit final class SparKafkaUploadSyntax[K, V](val data: TypedDataset[NJProducerRecord[K, V]]) {
 
-    def kafkaUpload[F[_]: ConcurrentEffect: Timer](
-      topic: => KafkaTopic[K, V],
+    def kafkaUpload[F[_]: ConcurrentEffect: Timer: ContextShift](
+      topic: KafkaTopicDescription[K, V],
       rate: NJRate = NJRate.default): Stream[F, Chunk[RecordMetadata]] =
       SparKafka.uploadToKafka(topic, data, rate)
   }

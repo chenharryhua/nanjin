@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.Show
-import com.github.chenharryhua.nanjin.kafka.codec.SerdeOf
+import cats.implicits._
+import com.github.chenharryhua.nanjin.kafka.codec._
 import com.sksamuel.avro4s.{
   AvroSchema,
   FieldMapper,
@@ -15,7 +16,10 @@ import com.sksamuel.avro4s.{
 import io.circe.parser.decode
 import io.circe.syntax._
 import io.circe.{Error, Json, Decoder => JsonDecoder, Encoder => JsonEncoder}
+import monocle.function.At
 import org.apache.avro.Schema
+import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 
 final case class TopicDef[K, V](topicName: String)(
   implicit
@@ -125,4 +129,65 @@ object TopicDef {
       AvroDecoder[K],
       AvroDecoder[V]
     )
+}
+
+final case class TopicCodec[K, V] private[kafka] (
+  keyCodec: KafkaCodec.Key[K],
+  valueCodec: KafkaCodec.Value[V]) {
+  require(
+    keyCodec.topicName === valueCodec.topicName,
+    "key and value codec should have same topic name")
+  val keySerde: KafkaSerde.Key[K]        = keyCodec.serde
+  val valueSerde: KafkaSerde.Value[V]    = valueCodec.serde
+  val keySchema: Schema                  = keySerde.schema
+  val valueSchema: Schema                = valueSerde.schema
+  val keySerializer: Serializer[K]       = keySerde.serializer
+  val keyDeserializer: Deserializer[K]   = keySerde.deserializer
+  val valueSerializer: Serializer[V]     = valueSerde.serializer
+  val valueDeserializer: Deserializer[V] = valueSerde.deserializer
+}
+
+final case class KafkaTopicDescription[K, V](topicDef: TopicDef[K, V], settings: KafkaSettings) {
+  import topicDef.{serdeOfKey, serdeOfValue}
+
+  def consumerGroupId: Option[KafkaConsumerGroupId] =
+    KafkaConsumerSettings.config
+      .composeLens(At.at(ConsumerConfig.GROUP_ID_CONFIG))
+      .get(settings.consumerSettings)
+      .map(KafkaConsumerGroupId)
+
+  @transient lazy val codec: TopicCodec[K, V] = TopicCodec(
+    serdeOfKey.asKey(settings.schemaRegistrySettings.config).codec(topicDef.topicName),
+    serdeOfValue.asValue(settings.schemaRegistrySettings.config).codec(topicDef.topicName)
+  )
+
+  def decoder[G[_, _]: NJConsumerMessage](
+    cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
+    new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valueCodec)
+
+  def toAvro[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): Record =
+    topicDef.toAvro(decoder(cr).record)
+
+  def fromAvro(cr: Record): NJConsumerRecord[K, V] = topicDef.fromAvro(cr)
+
+  def toJson[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): Json =
+    topicDef.toJson(decoder(cr).record)
+
+  def fromJsonStr(jsonString: String): Either[Error, NJConsumerRecord[K, V]] =
+    topicDef.fromJson(jsonString)
+
+  def show: String =
+    s"""
+       |topic: ${topicDef.show}
+       |settings: 
+       |${settings.show}
+       |key-schema: 
+       |${codec.keySchema.toString(true)}
+       |value-schema:
+       |${codec.valueSchema.toString(true)}
+  """.stripMargin
+}
+
+object KafkaTopicDescription {
+  implicit def showKafkaTopicData[K, V]: Show[KafkaTopicDescription[K, V]] = _.show
 }

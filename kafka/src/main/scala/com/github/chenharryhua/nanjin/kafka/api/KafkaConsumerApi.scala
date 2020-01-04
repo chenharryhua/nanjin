@@ -14,7 +14,7 @@ import com.github.chenharryhua.nanjin.kafka.{
   KafkaOffset,
   KafkaOffsetRange,
   KafkaPartition,
-  KafkaTopic,
+  KafkaTopicDescription,
   ListOfTopicPartitions
 }
 import fs2.kafka.KafkaByteConsumer
@@ -115,12 +115,13 @@ sealed trait KafkaConsumerApi[F[_], K, V] extends KafkaPrimitiveConsumerApi[F] {
   def resetOffsetsForTimes(ts: NJTimestamp): F[Unit]
 }
 
-private[kafka] object KafkaConsumerApi {
+object KafkaConsumerApi {
 
-  def apply[F[_]: Sync, K, V](topic: KafkaTopic[K, V]): KafkaConsumerApi[F, K, V] =
+  def apply[F[_]: Sync, K, V](topic: KafkaTopicDescription[K, V]): KafkaConsumerApi[F, K, V] =
     new KafkaConsumerApiImpl[F, K, V](topic)
 
-  final private[this] class KafkaConsumerApiImpl[F[_]: Sync, K, V](topic: KafkaTopic[K, V])
+  final private[this] class KafkaConsumerApiImpl[F[_]: Sync, K, V](
+    topic: KafkaTopicDescription[K, V])
       extends KafkaConsumerApi[F, K, V] {
     import cats.mtl.implicits._
 

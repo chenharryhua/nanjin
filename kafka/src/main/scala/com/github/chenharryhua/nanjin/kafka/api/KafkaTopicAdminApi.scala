@@ -14,7 +14,7 @@ sealed trait KafkaTopicAdminApi[F[_]] {
   def groups: F[List[KafkaConsumerGroupInfo]]
 }
 
-private[kafka] object KafkaTopicAdminApi {
+object KafkaTopicAdminApi {
 
   def apply[F[_]: Concurrent: ContextShift, K, V](
     topic: KafkaTopic[K, V]
@@ -26,13 +26,13 @@ private[kafka] object KafkaTopicAdminApi {
 
     private val admin: Resource[F, KafkaAdminClient[F]] =
       adminClientResource[F](
-        AdminClientSettings[F].withProperties(topic.settings.sharedAdminSettings.config))
+        AdminClientSettings[F].withProperties(topic.topicDesc.settings.sharedAdminSettings.config))
 
     override def idefinitelyWantToDeleteTheTopic: F[Unit] =
-      admin.use(_.deleteTopic(topic.topicDef.topicName))
+      admin.use(_.deleteTopic(topic.topicDesc.topicDef.topicName))
 
     override def describe: F[Map[String, TopicDescription]] =
-      admin.use(_.describeTopics(List(topic.topicDef.topicName)))
+      admin.use(_.describeTopics(List(topic.topicDesc.topicDef.topicName)))
 
     override def groups: F[List[KafkaConsumerGroupInfo]] =
       admin.use { client =>

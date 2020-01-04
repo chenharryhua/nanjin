@@ -5,10 +5,11 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer, KafkaDeserializationSchema}
 import org.apache.kafka.clients.consumer.ConsumerRecord
+import com.github.chenharryhua.nanjin.kafka.KafkaTopicDescription
 
 private[flink] trait FlinkExtensions extends Serializable {
 
-  implicit final class FlinKafkaExtension[K, V](topic: => KafkaTopic[K, V])
+  implicit final class FlinKafkaExtension[K, V](topic: KafkaTopicDescription[K, V])
       extends Serializable {
 
     def dataStream(env: StreamExecutionEnvironment)(
