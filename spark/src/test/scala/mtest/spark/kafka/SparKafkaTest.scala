@@ -29,7 +29,7 @@ class SparKafkaTest extends AnyFunSuite {
   test("read topic from kafka") {
     sparKafkaSession
       .datasetFromKafka[IO, Int, ForTaskSerializable](topic)
-      .flatMap(_.consumerRecords.show[IO]())
+      .flatMap(_.show[IO]())
       .unsafeRunSync
   }
   test("save topic to disk") {
@@ -41,7 +41,7 @@ class SparKafkaTest extends AnyFunSuite {
   test("read topic from disk") {
     sparKafkaSession
       .datasetFromDisk[IO, Int, ForTaskSerializable](topic)
-      .flatMap(_.consumerRecords.show[IO]())
+      .flatMap(_.show[IO]())
       .unsafeRunSync
   }
   test("upload dataset to kafka") {
@@ -50,13 +50,6 @@ class SparKafkaTest extends AnyFunSuite {
       .datasetFromDisk[IO, Int, ForTaskSerializable](topic)
       .flatMap(_.toProducerRecords.kafkaUpload[IO](topic).take(5).compile.drain)
       .unsafeRunSync()
-  }
-
-  test("read topic from kafka and show values") {
-    sparKafkaSession
-      .datasetFromKafka[IO, Int, ForTaskSerializable](topic)
-      .flatMap(_.consumerRecords.values.show[IO]())
-      .unsafeRunSync
   }
 
   test("read topic from kafka and show aggragation result") {
@@ -70,7 +63,7 @@ class SparKafkaTest extends AnyFunSuite {
     val tpk = TopicDef[trip_record, trip_record]("nyc_yellow_taxi_trip_data").in(ctx)
     sparKafkaSession
       .jsonFromKafka[IO, Int, ForTaskSerializable](topic)
-      .flatMap(_.show[IO]())
+      .flatMap(_.show[IO](truncate = false))
       .unsafeRunSync
   }
 }

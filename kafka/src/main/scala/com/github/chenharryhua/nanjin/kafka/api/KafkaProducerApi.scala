@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.kafka.api
 
-import cats.Eval
 import cats.data.Chain
 import cats.effect.concurrent.Deferred
 import cats.effect.{ConcurrentEffect, IO, Sync}
@@ -10,8 +9,7 @@ import com.github.chenharryhua.nanjin.kafka.codec.NJProducerMessage._
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, NJProducerRecord}
 import fs2.Chunk
 import fs2.kafka.{KafkaByteProducer, KafkaByteProducerRecord}
-import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
-import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord, RecordMetadata}
 import org.apache.kafka.common.serialization.ByteArraySerializer
 
 sealed trait KafkaProducerApi[F[_], K, V] {

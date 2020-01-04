@@ -18,7 +18,7 @@ private[kafka] trait DatasetExtensions {
   }
 
   implicit final class SparKafkaConsumerRecordSyntax[K: TypedEncoder, V: TypedEncoder](
-    val consumerRecords: TypedDataset[NJConsumerRecord[K, V]]
+    consumerRecords: TypedDataset[NJConsumerRecord[K, V]]
   ) {
 
     def nullValues: TypedDataset[NJConsumerRecord[K, V]] =

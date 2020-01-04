@@ -35,13 +35,11 @@ final class TopicDef[K, V] private (val topicName: String)(
   val keySchemaLoc: String   = s"$topicName-key"
   val valueSchemaLoc: String = s"$topicName-value"
 
-  implicit private val keySchemaFor: SchemaFor[K] = new SchemaFor[K] {
-    override def schema(fieldMapper: FieldMapper): Schema = serdeOfKey.schema
-  }
+  implicit private val keySchemaFor: SchemaFor[K] =
+    (_: FieldMapper) => serdeOfKey.schema
 
-  implicit private val valueSchemaFor: SchemaFor[V] = new SchemaFor[V] {
-    override def schema(fieldMapper: FieldMapper): Schema = serdeOfValue.schema
-  }
+  implicit private val valueSchemaFor: SchemaFor[V] =
+    (_: FieldMapper) => serdeOfValue.schema
 
   val njConsumerRecordSchema: Schema = AvroSchema[NJConsumerRecord[K, V]]
 
@@ -62,7 +60,7 @@ final class TopicDef[K, V] private (val topicName: String)(
   def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[K, V] =
     ctx.topic[K, V](this)
 
-  def show: String = s"TopicDef(topicName = ${topicName})"
+  def show: String = s"TopicDef(topicName = $topicName)"
 }
 
 object TopicDef {
