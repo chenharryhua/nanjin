@@ -19,8 +19,8 @@ final case class Cloth(color: Color2, name: String, size: Int)
 class KAvroTest extends AnyFunSuite {
 
   val topic = ctx.topic[Int, Cloth]("cloth")
-  val p = topic.producer[IO]
-  val c = topic.consumer[IO]
+  val p = topic.producer
+  val c = topic.consumer
   test("should support coproduct") {
     val b = Cloth(Blue("b"), "blue-cloth", 1)
     val r = Cloth(Red("r", 1), "red-cloth", 2)

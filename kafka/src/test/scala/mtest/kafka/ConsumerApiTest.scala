@@ -13,7 +13,7 @@ class ConsumerApiTest extends AnyFunSuite {
   val nyc_taxi_trip: TopicDef[Array[Byte], trip_record] =
     TopicDef[Array[Byte], trip_record]("nyc_yellow_taxi_trip_data")
 
-  val consumer = ctx.topic(nyc_taxi_trip).consumer[IO]
+  val consumer = ctx.topic(nyc_taxi_trip).consumer
 
   test("should be able to retrieve messages without error") {
     consumer.numOfRecords.unsafeRunSync()
@@ -22,6 +22,6 @@ class ConsumerApiTest extends AnyFunSuite {
   }
   test("range for non-exist topic") {
     val topic = ctx.topic[Int, Int]("non-exist")
-    topic.consumer[IO].offsetRangeFor(NJDateTimeRange.infinite).map(println).unsafeRunSync()
+    topic.consumer.offsetRangeFor(NJDateTimeRange.infinite).map(println).unsafeRunSync()
   }
 }

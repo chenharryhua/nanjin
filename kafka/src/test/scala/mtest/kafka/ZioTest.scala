@@ -38,7 +38,7 @@ class ZioTest extends AnyFunSuite {
   }
 
   test("zio should work for akka.") {
-    val task = topic.akkaResource[zio.Task](akkaSystem).use { chn =>
+    val task = topic.akkaResource(akkaSystem).use { chn =>
       chn
         .updateConsumerSettings(_.withClientId("akka-test"))
         .consume

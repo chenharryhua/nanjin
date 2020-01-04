@@ -118,16 +118,14 @@ private[kafka] object SparKafka {
     uploadRate: NJRate
   ): Stream[F, Chunk[RecordMetadata]] =
     for {
-      prd <- producerStream[F].using(
-        topic.settings.producerSettings
-          .fs2ProducerSettings(topic.codec.keySerializer, topic.codec.valueSerializer))
+      prd <- producerStream[F].using(topic.fs2ProducerSettings[F])
       fpr <- tds
         .stream[F]
         .chunkN(uploadRate.batchSize)
         .zipLeft(Stream.fixedRate(uploadRate.duration))
         .evalMap { chk =>
           prd.produce(ProducerRecords[Chunk, K, V](chk.map(d =>
-            iso.isoFs2ProducerRecord.reverseGet(d.toProducerRecord))))
+            iso.isoFs2ProducerRecord[K, V].reverseGet(d.toProducerRecord))))
         }
       rst <- Stream.eval(fpr)
     } yield rst.records.map(_._2)

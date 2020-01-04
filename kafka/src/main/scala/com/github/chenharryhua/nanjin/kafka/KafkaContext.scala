@@ -23,19 +23,20 @@ sealed class KafkaContext[F[_]](val settings: KafkaSettings)(
   val timer: Timer[F],
   val contextShift: ContextShift[F],
   val concurrentEffect: ConcurrentEffect[F]) {
+
   final def asKey[K: SerdeOf]: KafkaSerde.Key[K] =
     SerdeOf[K].asKey(settings.schemaRegistrySettings.config)
 
   final def asValue[V: SerdeOf]: KafkaSerde.Value[V] =
     SerdeOf[V].asValue(settings.schemaRegistrySettings.config)
 
-  final def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[K, V] =
-    new KafkaTopic[K, V](KafkaTopicDescription(topicDef, settings))
+  final def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] =
+    new KafkaTopic[F, K, V](KafkaTopicDescription(topicDef, settings))
 
   final def topic[
     K: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder: SerdeOf,
     V: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder: SerdeOf](
-    topicName: String): KafkaTopic[K, V] =
+    topicName: String): KafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](topicName))
 
   final def kafkaStreams(topology: Reader[StreamsBuilder, Unit]): Stream[F, KafkaStreams] =

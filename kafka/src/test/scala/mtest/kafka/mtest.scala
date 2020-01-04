@@ -23,6 +23,6 @@ package object kafka {
       .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
       .ioContext
 
-  val taxi: KafkaTopic[Int, trip_record] =
+  val taxi: KafkaTopic[IO, Int, trip_record] =
     ctx.topic[Int, trip_record]("nyc_yellow_taxi_trip_data")
 }

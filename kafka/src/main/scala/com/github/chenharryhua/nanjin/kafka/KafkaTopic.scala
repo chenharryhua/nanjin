@@ -2,15 +2,16 @@ package com.github.chenharryhua.nanjin.kafka
 
 import akka.actor.ActorSystem
 import cats.Show
-import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, Resource, Sync, Timer}
+import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
 import com.github.chenharryhua.nanjin.kafka.api._
 import com.github.chenharryhua.nanjin.kafka.codec.{KafkaGenericDecoder, NJConsumerMessage}
 import com.sksamuel.avro4s.Record
 import io.circe.{Error, Json}
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
-final class KafkaTopic[K, V] private[kafka] (val topicDesc: KafkaTopicDescription[K, V])
-    extends TopicNameExtractor[K, V] with Serializable {
+final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] private[kafka] (
+  val topicDesc: KafkaTopicDescription[K, V])
+    extends TopicNameExtractor[K, V] {
   import topicDesc.topicDef.{showKey, showValue}
 
   val topicName: String = topicDesc.topicDef.topicName
@@ -35,48 +36,37 @@ final class KafkaTopic[K, V] private[kafka] (val topicDesc: KafkaTopicDescriptio
     topicDesc.fromJsonStr(jsonString)
 
   //channels
-  def fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer]: KafkaChannels.Fs2Channel[F, K, V] =
-    new KafkaChannels.Fs2Channel[F, K, V](
+  def fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
+    KafkaChannels.Fs2Channel[F, K, V](
       topicDesc.topicDef.topicName,
-      topicDesc.settings.producerSettings
-        .fs2ProducerSettings(topicDesc.codec.keySerializer, topicDesc.codec.valueSerializer),
-      topicDesc.settings.consumerSettings.fs2ConsumerSettings)
+      topicDesc.fs2ProducerSettings,
+      topicDesc.fs2ConsumerSettings)
 
-  def akkaResource[F[_]: ConcurrentEffect: ContextShift](
-    akkaSystem: ActorSystem): Resource[F, KafkaChannels.AkkaChannel[F, K, V]] =
+  def akkaResource(akkaSystem: ActorSystem): Resource[F, KafkaChannels.AkkaChannel[F, K, V]] =
     Resource.make(
-      ConcurrentEffect[F].delay(
-        new KafkaChannels.AkkaChannel[F, K, V](
-          topicDesc.topicDef.topicName,
-          topicDesc.settings.producerSettings.akkaProducerSettings(
-            akkaSystem,
-            topicDesc.codec.keySerializer,
-            topicDesc.codec.valueSerializer),
-          topicDesc.settings.consumerSettings.akkaConsumerSettings(akkaSystem),
-          topicDesc.settings.consumerSettings.akkaCommitterSettings(akkaSystem))))(_ =>
-      ConcurrentEffect[F].unit)
+      ConcurrentEffect[F].delay(KafkaChannels.AkkaChannel[F, K, V](
+        topicDesc.topicDef.topicName,
+        topicDesc.akkaProducerSettings(akkaSystem),
+        topicDesc.akkaConsumerSettings(akkaSystem),
+        topicDesc.akkaCommitterSettings(akkaSystem)
+      )))(_ => ConcurrentEffect[F].unit)
 
   def kafkaStream: KafkaChannels.StreamingChannel[K, V] =
-    new KafkaChannels.StreamingChannel[K, V](
+    KafkaChannels.StreamingChannel[K, V](
       topicDesc.topicDef.topicName,
       topicDesc.codec.keySerde,
       topicDesc.codec.valueSerde)
 
   // APIs
-  def schemaRegistry[F[_]: Sync]: KafkaSchemaRegistryApi[F] = api.KafkaSchemaRegistryApi[F](this.topicDesc)
+  def schemaRegistry: KafkaSchemaRegistryApi[F] = api.KafkaSchemaRegistryApi[F](this.topicDesc)
+  def admin: KafkaTopicAdminApi[F]              = api.KafkaTopicAdminApi[F, K, V](this.topicDesc)
+  def consumer: KafkaConsumerApi[F, K, V]       = api.KafkaConsumerApi[F, K, V](this.topicDesc)
+  def producer: KafkaProducerApi[F, K, V]       = api.KafkaProducerApi[F, K, V](this.topicDesc)
 
-  def admin[F[_]: Concurrent: ContextShift]: KafkaTopicAdminApi[F] =
-    api.KafkaTopicAdminApi[F, K, V](this)
-
-  def consumer[F[_]: Sync]: KafkaConsumerApi[F, K, V] = api.KafkaConsumerApi[F, K, V](this.topicDesc)
-
-  def producer[F[_]: ConcurrentEffect]: KafkaProducerApi[F, K, V] =
-    api.KafkaProducerApi[F, K, V](this.topicDesc)
-
-  def monitor[F[_]: ConcurrentEffect: ContextShift: Timer]: KafkaMonitoringApi[F, K, V] =
+  def monitor: KafkaMonitoringApi[F, K, V] =
     api.KafkaMonitoringApi[F, K, V](this, topicDesc.settings.rootPath)
 }
 
 object KafkaTopic {
-  implicit def showKafkaTopic[K, V]: Show[KafkaTopic[K, V]] = _.topicName
+  implicit def showKafkaTopic[F[_], K, V]: Show[KafkaTopic[F, K, V]] = _.topicName
 }

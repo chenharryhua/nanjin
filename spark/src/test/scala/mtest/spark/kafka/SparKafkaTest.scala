@@ -16,15 +16,21 @@ import java.time.ZoneId
 import io.circe.generic.auto._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.kafka.TopicDef
+import fs2.kafka.producerResource
+import fs2.kafka.ProducerRecords
+import fs2.kafka.ProducerRecord
+import fs2.Chunk
 
 class SparKafkaTest extends AnyFunSuite {
   val e        = EmbeddedForTaskSerializable(0, LocalDateTime.now)
   val data     = ForTaskSerializable(0, "a", LocalDate.now, LocalDateTime.now, e)
   val topic    = ctx.topic[Int, ForTaskSerializable]("serializable.test")
-  val producer = topic.producer[IO]
-  (topic.schemaRegistry[IO].register >>
-    producer.send(0, data) >>
-    producer.send(1, data)).unsafeRunSync()
+  val producer = producerResource[IO].using(topic.topicDesc.fs2ProducerSettings)
+  (topic.schemaRegistry.register >> producer.use { p =>
+    p.produce(ProducerRecords(
+        Chunk(ProducerRecord(topic.topicName, 0, data), ProducerRecord(topic.topicName, 1, data))))
+      .flatten
+  }).unsafeRunSync()
 
   test("read topic from kafka") {
     sparKafkaSession

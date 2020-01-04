@@ -1,6 +1,13 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import akka.actor.ActorSystem
+import akka.kafka.{
+  CommitterSettings => AkkaCommitterSettings,
+  ConsumerSettings  => AkkaConsumerSettings,
+  ProducerSettings  => AkkaProducerSettings
+}
 import cats.Show
+import cats.effect.Sync
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.codec._
 import com.sksamuel.avro4s.{
@@ -13,6 +20,7 @@ import com.sksamuel.avro4s.{
   Decoder => AvroDecoder,
   Encoder => AvroEncoder
 }
+import fs2.kafka.{ConsumerSettings => Fs2ConsumerSettings, ProducerSettings => Fs2ProducerSettings}
 import io.circe.parser.decode
 import io.circe.syntax._
 import io.circe.{Error, Json, Decoder => JsonDecoder, Encoder => JsonEncoder}
@@ -20,6 +28,7 @@ import monocle.function.At
 import org.apache.avro.Schema
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
+import monocle.macros.Lenses
 
 final case class TopicDef[K, V](topicName: String)(
   implicit
@@ -60,7 +69,7 @@ final case class TopicDef[K, V](topicName: String)(
   def fromJson(cr: String): Either[Error, NJConsumerRecord[K, V]] =
     decode[NJConsumerRecord[K, V]](cr)
 
-  def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[K, V] =
+  def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[F, K, V] =
     ctx.topic[K, V](this)
 
   def show: String = s"TopicDef(topicName = $topicName)"
@@ -147,7 +156,9 @@ final case class TopicCodec[K, V] private[kafka] (
   val valueDeserializer: Deserializer[V] = valueSerde.deserializer
 }
 
-final case class KafkaTopicDescription[K, V](topicDef: TopicDef[K, V], settings: KafkaSettings) {
+@Lenses final case class KafkaTopicDescription[K, V](
+  topicDef: TopicDef[K, V],
+  settings: KafkaSettings) {
   import topicDef.{serdeOfKey, serdeOfValue}
 
   def consumerGroupId: Option[KafkaConsumerGroupId] =
@@ -160,6 +171,26 @@ final case class KafkaTopicDescription[K, V](topicDef: TopicDef[K, V], settings:
     serdeOfKey.asKey(settings.schemaRegistrySettings.config).codec(topicDef.topicName),
     serdeOfValue.asValue(settings.schemaRegistrySettings.config).codec(topicDef.topicName)
   )
+
+  def fs2ProducerSettings[F[_]: Sync]: Fs2ProducerSettings[F, K, V] =
+    settings.producerSettings
+      .fs2ProducerSettings[F, K, V](codec.keySerializer, codec.valueSerializer)
+
+  def fs2ConsumerSettings[F[_]: Sync]: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]] =
+    settings.consumerSettings.fs2ConsumerSettings
+
+  def akkaProducerSettings(akkaSystem: ActorSystem): AkkaProducerSettings[K, V] =
+    settings.producerSettings.akkaProducerSettings(
+      akkaSystem,
+      codec.keySerializer,
+      codec.valueSerializer)
+
+  def akkaConsumerSettings(
+    akkaSystem: ActorSystem): AkkaConsumerSettings[Array[Byte], Array[Byte]] =
+    settings.consumerSettings.akkaConsumerSettings(akkaSystem)
+
+  def akkaCommitterSettings(akkaSystem: ActorSystem): AkkaCommitterSettings =
+    settings.consumerSettings.akkaCommitterSettings(akkaSystem)
 
   def decoder[G[_, _]: NJConsumerMessage](
     cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =

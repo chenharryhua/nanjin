@@ -26,14 +26,14 @@ class ProducerTest extends AnyFunSuite {
   val akkaTopic   = ctx.topic[AvroKey, AvroValue]("producer-test-akka")
   val fs2Topic    = ctx.topic[AvroKey, AvroValue]("producer-test-fs2")
   val streamTopic = ctx.topic[AvroKey, AvroValue]("producer-test-kafka")
-  val sp = srcTopic.producer[IO]
+  val sp = srcTopic.producer
   test("producer api") {
     val produceTask = (0 until 100).toList.traverse { i =>
       sp.send(AvroKey(i.toString), AvroValue(Random.nextString(5), Random.nextInt(100)))
     }
 
-    val akkaTask: IO[Done] = srcTopic.akkaResource[IO](akkaSystem).use { s =>
-      akkaTopic.akkaResource[IO](akkaSystem).use { t =>
+    val akkaTask: IO[Done] = srcTopic.akkaResource(akkaSystem).use { s =>
+      akkaTopic.akkaResource(akkaSystem).use { t =>
         s.updateConsumerSettings(_.withProperty(
             ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
             "earliest").withGroupId("akka-task").withCommitWarning(10.seconds))
@@ -47,17 +47,17 @@ class ProducerTest extends AnyFunSuite {
           .runWith(t.committableSink)(materializer)
       }
     }
-    val fs2Task: IO[Unit] = srcTopic.fs2Channel[IO]
+    val fs2Task: IO[Unit] = srcTopic.fs2Channel
       .updateConsumerSettings(
         _.withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest").withGroupId("fs2-task"))
       .consume
       .map(m => srcTopic.decoder(m).decode)
       .map(m =>
         ProducerRecords.one(
-          Fs2ProducerRecord(srcTopic.topicDef.topicName, m.record.key, m.record.value),
+          Fs2ProducerRecord(srcTopic.topicName, m.record.key, m.record.value),
           m.offset))
       .take(100)
-      .through(fs2.kafka.produce(fs2Topic.fs2Channel[IO].producerSettings))
+      .through(fs2.kafka.produce(fs2Topic.fs2Channel.producerSettings))
       .compile
       .drain
 
@@ -68,8 +68,8 @@ class ProducerTest extends AnyFunSuite {
 
   ignore("straming") {
 
-    implicit val ks = srcTopic.codec.keySerde
-    implicit val vs = srcTopic.codec.valueSerde
+    implicit val ks = srcTopic.topicDesc.codec.keySerde
+    implicit val vs = srcTopic.topicDesc.codec.valueSerde
     val chn         = srcTopic.kafkaStream.kstream.map(_.to(streamTopic)).run(new StreamsBuilder)
   }
 }

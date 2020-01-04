@@ -22,7 +22,7 @@ class ConsumeMessageFs2Test extends AnyFunSuite {
   test("should be able to consume json topic") {
     val topic = backblaze_smart.in(ctx)
     val ret =
-      topic.fs2Channel[IO]
+      topic.fs2Channel
         .updateConsumerSettings(_.withAutoOffsetReset(AutoOffsetReset.Earliest))
         .consume
         .map(m => topic.decoder(m).tryDecodeKeyValue)
@@ -37,7 +37,7 @@ class ConsumeMessageFs2Test extends AnyFunSuite {
 
   test("should be able to consume avro topic") {
     val topic = ctx.topic(nyc_taxi_trip)
-    val ret = topic.fs2Channel[IO].consume
+    val ret = topic.fs2Channel.consume
       .map(m => topic.decoder(m).decodeValue)
       .take(3)
       .map(_.show)
@@ -50,7 +50,7 @@ class ConsumeMessageFs2Test extends AnyFunSuite {
 
   test("should be able to consume telecom_italia_data topic") {
     val topic = sms.in(ctx)
-    val ret = topic.fs2Channel[IO].consume
+    val ret = topic.fs2Channel.consume
       .map(m => topic.decoder(m).tryDecode)
       .map(_.toEither)
       .rethrow
