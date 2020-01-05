@@ -1,15 +1,15 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import akka.actor.ActorSystem
-import cats.{Show, Traverse}
 import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
+import cats.implicits._
+import cats.{Show, Traverse}
 import com.github.chenharryhua.nanjin.kafka.api._
 import com.github.chenharryhua.nanjin.kafka.codec.{KafkaGenericDecoder, NJConsumerMessage}
 import com.sksamuel.avro4s.Record
 import fs2.kafka.{KafkaProducer, ProducerResult}
 import io.circe.{Error, Json}
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
-import cats.implicits._
 
 final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] private[kafka] (
   val topicDesc: KafkaTopicDescription[K, V])
@@ -69,11 +69,12 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
     pr.use(_.produce(topicDesc.fs2ProducerRecords(list))).flatten
 
   // APIs
-  def schemaRegistry: KafkaSchemaRegistryApi[F] = api.KafkaSchemaRegistryApi[F](this.topicDesc)
-  def admin: KafkaTopicAdminApi[F]              = api.KafkaTopicAdminApi[F, K, V](this.topicDesc)
-  def consumer: KafkaConsumerApi[F, K, V]       = api.KafkaConsumerApi[F, K, V](this.topicDesc)
+  val schemaRegistry: KafkaSchemaRegistryApi[F] = api.KafkaSchemaRegistryApi[F](this.topicDesc)
+  val admin: KafkaTopicAdminApi[F]              = api.KafkaTopicAdminApi[F, K, V](this.topicDesc)
 
-  def monitor: KafkaMonitoringApi[F, K, V] =
+  val consumerResource: Resource[F, KafkaConsumerApi[F]] = api.KafkaConsumerApi(this.topicDesc)
+
+  val monitor: KafkaMonitoringApi[F, K, V] =
     api.KafkaMonitoringApi[F, K, V](this, topicDesc.settings.rootPath)
 }
 

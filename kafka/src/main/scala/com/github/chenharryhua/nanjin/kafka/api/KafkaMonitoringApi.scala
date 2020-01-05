@@ -44,7 +44,6 @@ object KafkaMonitoringApi {
     rootPath: NJRootPath)(implicit F: ConcurrentEffect[F])
       extends KafkaMonitoringApi[F, K, V] {
     private val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] = topic.fs2Channel
-    private val consumer: KafkaConsumerApi[F, K, V]           = topic.consumer
 
     private def watch(aor: AutoOffsetReset): F[Unit] =
       fs2Channel
@@ -85,20 +84,23 @@ object KafkaMonitoringApi {
       filter(cr => cr.key().isFailure || cr.value().isFailure)
 
     override def summaries: F[Unit] =
-      for {
-        num <- consumer.numOfRecords
-        first <- consumer.retrieveFirstRecords.map(_.map(cr => topic.decoder(cr).tryDecodeKeyValue))
-        last <- consumer.retrieveLastRecords.map(_.map(cr   => topic.decoder(cr).tryDecodeKeyValue))
-      } yield println(s"""
-                         |summaries:
-                         |
-                         |number of records: $num
-                         |first records of each partitions: 
-                         |${first.map(_.show).mkString("\n")}
-                         |
-                         |last records of each partitions:
-                         |${last.map(_.show).mkString("\n")}
-                         |""".stripMargin)
+      KafkaConsumerApi(topic.topicDesc).use { consumer =>
+        for {
+          num <- consumer.numOfRecords
+          first <- consumer.retrieveFirstRecords.map(_.map(cr =>
+            topic.decoder(cr).tryDecodeKeyValue))
+          last <- consumer.retrieveLastRecords.map(_.map(cr => topic.decoder(cr).tryDecodeKeyValue))
+        } yield println(s"""
+                           |summaries:
+                           |
+                           |number of records: $num
+                           |first records of each partitions: 
+                           |${first.map(_.show).mkString("\n")}
+                           |
+                           |last records of each partitions:
+                           |${last.map(_.show).mkString("\n")}
+                           |""".stripMargin)
+      }
 
     private val path: Path = Paths.get(rootPath + s"/json/${topic.topicName}.json")
 

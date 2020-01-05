@@ -35,7 +35,7 @@ class ConsumeMessageAkkaTest extends AnyFunSuite {
   test("assignment") {
     val datetime = LocalDateTime.now
     val ret = for {
-      start <- topic.consumer.beginningOffsets
+      start <- topic.consumerResource.use(_.beginningOffsets)
       offsets = start.flatten[KafkaOffset].value.mapValues(_.value)
       _ <- vessel.in(ctx).akkaResource(akkaSystem).use { chn =>
         chn

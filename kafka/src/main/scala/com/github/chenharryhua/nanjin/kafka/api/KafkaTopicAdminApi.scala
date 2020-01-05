@@ -38,7 +38,7 @@ object KafkaTopicAdminApi {
     override def groups: F[List[KafkaConsumerGroupInfo]] =
       adminResource.use { client =>
         for {
-          end <- KafkaConsumerApi(topic).endOffsets
+          end <- KafkaConsumerApi(topic).use(_.endOffsets)
           gids <- client.listConsumerGroups.groupIds
           all <- gids.traverse(gid =>
             client

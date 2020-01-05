@@ -46,14 +46,12 @@ private[kafka] object SparKafka {
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy)(
     implicit sparkSession: SparkSession): F[RDD[ConsumerRecord[Array[Byte], Array[Byte]]]] =
-    Sync[F].suspend {
-      KafkaConsumerApi[F, K, V](topic).offsetRangeFor(timeRange).map { gtp =>
-        KafkaUtils.createRDD[Array[Byte], Array[Byte]](
-          sparkSession.sparkContext,
-          props(topic.settings.consumerSettings.config),
-          KafkaOffsets.offsetRange(gtp),
-          locationStrategy)
-      }
+    KafkaConsumerApi[F, K, V](topic).use(_.offsetRangeFor(timeRange)).map { gtp =>
+      KafkaUtils.createRDD[Array[Byte], Array[Byte]](
+        sparkSession.sparkContext,
+        props(topic.settings.consumerSettings.config),
+        KafkaOffsets.offsetRange(gtp),
+        locationStrategy)
     }
 
   def datasetFromKafka[F[_]: Concurrent, K: TypedEncoder, V: TypedEncoder](

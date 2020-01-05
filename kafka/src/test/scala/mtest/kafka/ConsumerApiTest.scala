@@ -13,15 +13,17 @@ class ConsumerApiTest extends AnyFunSuite {
   val nyc_taxi_trip: TopicDef[Array[Byte], trip_record] =
     TopicDef[Array[Byte], trip_record]("nyc_yellow_taxi_trip_data")
 
-  val consumer = ctx.topic(nyc_taxi_trip).consumer
-
   test("should be able to retrieve messages without error") {
-    consumer.numOfRecords.unsafeRunSync()
-    consumer.retrieveFirstRecords.map(_.map(_.show).mkString("\n")).unsafeRunSync()
-    consumer.retrieveLastRecords.map(_.map(_.show).mkString("\n")).unsafeRunSync()
+    nyc_taxi_trip
+      .in(ctx)
+      .consumerResource
+      .use(c => c.numOfRecords >> c.retrieveFirstRecords >> c.retrieveLastRecords)
+      .unsafeRunSync()
   }
   test("range for non-exist topic") {
     val topic = ctx.topic[Int, Int]("non-exist")
-    topic.consumer.offsetRangeFor(NJDateTimeRange.infinite).map(println).unsafeRunSync()
+    topic.consumerResource
+      .use(_.offsetRangeFor(NJDateTimeRange.infinite).map(println))
+      .unsafeRunSync()
   }
 }
