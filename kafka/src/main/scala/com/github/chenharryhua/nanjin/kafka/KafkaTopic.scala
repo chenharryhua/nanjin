@@ -63,10 +63,10 @@ final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] privat
     fs2.kafka.producerResource[F].using(topicDesc.fs2ProducerSettings)
 
   def send(k: K, v: V): F[ProducerResult[K, V, Unit]] =
-    pr.use(_.produce(topicDesc.producerRecords(k, v))).flatten
+    pr.use(_.produce(topicDesc.fs2ProducerRecords(k, v))).flatten
 
   def send[G[+_]: Traverse](list: G[(K, V)]): F[ProducerResult[K, V, Unit]] =
-    pr.use(_.produce(topicDesc.producerRecords(list))).flatten
+    pr.use(_.produce(topicDesc.fs2ProducerRecords(list))).flatten
 
   // APIs
   def schemaRegistry: KafkaSchemaRegistryApi[F] = api.KafkaSchemaRegistryApi[F](this.topicDesc)
