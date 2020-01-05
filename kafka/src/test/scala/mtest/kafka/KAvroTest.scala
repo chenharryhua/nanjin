@@ -24,7 +24,7 @@ class KAvroTest extends AnyFunSuite {
     val r = Cloth(Red("r", 1), "red-cloth", 2)
     val g = Cloth(Green("g"), "green-cloth", 3)
     val run =
-      topic.send(List((1, r), (2, g), (3, b))) >>
+      topic.send(List(1 -> r, 2 -> g, 3 -> b)) >>
         topic.consumerResource.use(_.retrieveLastRecords.map(m => topic.decoder(m.head).decode))
     assert(run.unsafeRunSync().value() === b)
   }

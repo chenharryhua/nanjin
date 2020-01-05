@@ -9,7 +9,8 @@ import com.landoop.telecom.telecomitalia.telecommunications.{smsCallInternet, Ke
 import fs2.kafka.AutoOffsetReset
 import io.circe.generic.auto._
 import org.scalatest.funsuite.AnyFunSuite
-import cats.effect.IO 
+import cats.effect.IO
+
 class ConsumeMessageFs2Test extends AnyFunSuite {
   val backblaze_smart = TopicDef[KJson[lenses_record_key], String]("backblaze_smart")
   val nyc_taxi_trip   = TopicDef[Array[Byte], trip_record]("nyc_yellow_taxi_trip_data")
@@ -26,26 +27,26 @@ class ConsumeMessageFs2Test extends AnyFunSuite {
         .updateConsumerSettings(_.withAutoOffsetReset(AutoOffsetReset.Earliest))
         .consume
         .map(m => topic.decoder(m).tryDecodeKeyValue)
-        .take(3)
+        .take(1)
         .map(_.show)
         .map(println)
         .compile
         .toList
         .unsafeRunSync()
-    assert(ret.size == 3)
+    assert(ret.size == 1)
   }
 
   test("should be able to consume avro topic") {
     val topic = ctx.topic(nyc_taxi_trip)
     val ret = topic.fs2Channel.consume
       .map(m => topic.decoder(m).decodeValue)
-      .take(3)
+      .take(1)
       .map(_.show)
       .map(println)
       .compile
       .toList
       .unsafeRunSync()
-    assert(ret.size == 3)
+    assert(ret.size == 1)
   }
 
   test("should be able to consume telecom_italia_data topic") {
@@ -54,11 +55,11 @@ class ConsumeMessageFs2Test extends AnyFunSuite {
       .map(m => topic.decoder(m).tryDecode)
       .map(_.toEither)
       .rethrow
-      .take(3)
+      .take(1)
       .map(_.show)
       .compile
       .toList
       .unsafeRunSync()
-    assert(ret.size == 3)
+    assert(ret.size == 1)
   }
 }

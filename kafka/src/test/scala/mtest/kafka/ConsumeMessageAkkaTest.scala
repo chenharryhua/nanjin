@@ -7,9 +7,8 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka._
 import io.circe.generic.auto._
 import org.scalatest.funsuite.AnyFunSuite
-import io.circe.generic.auto._ 
+import io.circe.generic.auto._
 import cats.effect.IO
-
 
 class ConsumeMessageAkkaTest extends AnyFunSuite {
 
@@ -37,7 +36,7 @@ class ConsumeMessageAkkaTest extends AnyFunSuite {
     val ret = for {
       start <- topic.consumerResource.use(_.beginningOffsets)
       offsets = start.flatten[KafkaOffset].value.mapValues(_.value)
-      _ <- vessel.in(ctx).akkaResource(akkaSystem).use { chn =>
+      _ <- topic.akkaResource(akkaSystem).use { chn =>
         chn
           .assign(offsets)
           .map(m => topic.decoder(m).decode)

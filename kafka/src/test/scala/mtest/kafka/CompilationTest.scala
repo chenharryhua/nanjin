@@ -12,11 +12,12 @@ import cats.effect.IO
 class CompilationTest extends AnyFunSuite {
   val topic = ctx.topic[Int, Int]("do-not-run")
   test("should compile") {
-    val task = topic.akkaResource(akkaSystem).use { chn =>
-      val ret: Source[ConsumerMessage.CommittableMessage[Int, Int], Consumer.Control] =
-        chn.consume.map(m => topic.decoder(m).decode).take(0)
-      ret.runWith(chn.ignoreSink)(materializer)
-    } >>
+    val task = topic.send(1, 1) >>
+      topic.akkaResource(akkaSystem).use { chn =>
+        val ret: Source[ConsumerMessage.CommittableMessage[Int, Int], Consumer.Control] =
+          chn.consume.map(m => topic.decoder(m).decode).take(0)
+        ret.runWith(chn.ignoreSink)(materializer)
+      } >>
       topic.akkaResource(akkaSystem).use { chn =>
         val ret: Source[Try[ConsumerMessage.CommittableMessage[Int, Int]], Consumer.Control] =
           chn.consume.map(m => topic.decoder(m).tryDecode).take(0)

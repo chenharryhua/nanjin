@@ -52,19 +52,12 @@ class ProducerTest extends AnyFunSuite {
       .map(m => srcTopic.decoder(m).decode)
       .map(m => srcTopic.topicDesc.fs2ProducerRecords(m.record.key, m.record.value, m.offset))
       .take(100)
-      .through(fs2.kafka.produce(fs2Topic.fs2Channel.producerSettings))
+      .through(fs2.kafka.produce(fs2Topic.topicDesc.fs2ProducerSettings[IO]))
       .compile
       .drain
 
     val task = produceTask >> akkaTask >> fs2Task
 
     task.unsafeRunSync
-  }
-
-  ignore("straming") {
-
-    implicit val ks = srcTopic.topicDesc.codec.keySerde
-    implicit val vs = srcTopic.topicDesc.codec.valueSerde
-    val chn         = srcTopic.kafkaStream.kstream.map(_.to(streamTopic)).run(new StreamsBuilder)
   }
 }
