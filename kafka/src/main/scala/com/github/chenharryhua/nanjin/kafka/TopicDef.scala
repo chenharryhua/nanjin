@@ -6,7 +6,7 @@ import akka.kafka.{
   ConsumerSettings  => AkkaConsumerSettings,
   ProducerSettings  => AkkaProducerSettings
 }
-import cats.Show
+import cats.{Show, Traverse}
 import cats.effect.Sync
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.codec._
@@ -20,7 +20,12 @@ import com.sksamuel.avro4s.{
   Decoder => AvroDecoder,
   Encoder => AvroEncoder
 }
-import fs2.kafka.{ConsumerSettings => Fs2ConsumerSettings, ProducerSettings => Fs2ProducerSettings}
+import fs2.kafka.{
+  ProducerRecord   => Fs2ProducerRecord,
+  ProducerRecords  => Fs2ProducerRecords,
+  ConsumerSettings => Fs2ConsumerSettings,
+  ProducerSettings => Fs2ProducerSettings
+}
 import io.circe.parser.decode
 import io.circe.syntax._
 import io.circe.{Error, Json, Decoder => JsonDecoder, Encoder => JsonEncoder}
@@ -206,6 +211,22 @@ final case class TopicCodec[K, V] private[kafka] (
 
   def fromJsonStr(jsonString: String): Either[Error, NJConsumerRecord[K, V]] =
     topicDef.fromJson(jsonString)
+
+  def producerRecords[P](key: K, value: V, p: P): Fs2ProducerRecords[K, V, P] =
+    Fs2ProducerRecords.one[K, V, P](Fs2ProducerRecord[K, V](topicDef.topicName, key, value), p)
+
+  def producerRecords(key: K, value: V): Fs2ProducerRecords[K, V, Unit] =
+    Fs2ProducerRecords.one(Fs2ProducerRecord[K, V](topicDef.topicName, key, value))
+
+  def producerRecords[G[+_]: Traverse](list: G[(K, V)]): Fs2ProducerRecords[K, V, Unit] =
+    Fs2ProducerRecords[G, K, V](list.map {
+      case (k, v) => Fs2ProducerRecord[K, V](topicDef.topicName, k, v)
+    })
+
+  def producerRecords[G[+_]: Traverse, P](list: G[(K, V)], p: P): Fs2ProducerRecords[K, V, P] =
+    Fs2ProducerRecords[G, K, V, P](list.map {
+      case (k, v) => Fs2ProducerRecord[K, V](topicDef.topicName, k, v)
+    }, p)
 
   def show: String =
     s"""

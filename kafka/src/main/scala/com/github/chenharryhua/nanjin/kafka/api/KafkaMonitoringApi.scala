@@ -3,12 +3,12 @@ package com.github.chenharryhua.nanjin.kafka.api
 import java.nio.file.{Path, Paths}
 
 import cats.Show
-import cats.effect.{Blocker, Concurrent, ContextShift}
+import cats.effect.{Blocker, ContextShift}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJRootPath
 import com.github.chenharryhua.nanjin.kafka.codec.iso
 import com.github.chenharryhua.nanjin.kafka.{KafkaChannels, KafkaTopic, _}
-import fs2.kafka.AutoOffsetReset
+import fs2.kafka.{produce, AutoOffsetReset, ProducerRecords}
 import fs2.{text, Stream}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
@@ -45,7 +45,6 @@ object KafkaMonitoringApi {
       extends KafkaMonitoringApi[F, K, V] {
     private val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] = topic.fs2Channel
     private val consumer: KafkaConsumerApi[F, K, V]           = topic.consumer
-    private val producer: KafkaProducerApi[F, K, V]           = topic.producer
 
     private def watch(aor: AutoOffsetReset): F[Unit] =
       fs2Channel
@@ -124,13 +123,17 @@ object KafkaMonitoringApi {
             .readAll(path, blocker, 5000)
             .through(fs2.text.utf8Decode)
             .through(fs2.text.lines)
-            .evalMap { str =>
+            .mapFilter { str =>
               topic
                 .fromJsonStr(str)
                 .leftMap(err => println(s"decode json error: ${err.getMessage}"))
                 .toOption
-                .traverse(cr => producer.send(cr.toNJProducerRecord))
             }
+            .map { nj =>
+              ProducerRecords.one(
+                iso.isoFs2ProducerRecord[K, V].reverseGet(nj.toNJProducerRecord.toProducerRecord))
+            }
+            .through(produce(topic.topicDesc.fs2ProducerSettings))
         }
         .compile
         .drain

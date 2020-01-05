@@ -19,16 +19,13 @@ final case class Cloth(color: Color2, name: String, size: Int)
 class KAvroTest extends AnyFunSuite {
 
   val topic = ctx.topic[Int, Cloth]("cloth")
-  val p = topic.producer
   val c = topic.consumer
   test("should support coproduct") {
     val b = Cloth(Blue("b"), "blue-cloth", 1)
     val r = Cloth(Red("r", 1), "red-cloth", 2)
     val g = Cloth(Green("g"), "green-cloth", 3)
     val run =
-      p.send(1, r) >>
-        p.send(2, g) >>
-        p.send(3, b) >>
+      topic.send(List((1, r), (2, g), (3, b))) >>
         c.retrieveLastRecords.map(m => topic.decoder(m.head).decode)
     assert(run.unsafeRunSync().value() === b)
   }

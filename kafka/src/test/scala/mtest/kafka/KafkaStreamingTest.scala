@@ -24,14 +24,12 @@ class KafkaStreamingTest extends AnyFunSuite {
   implicit val tgtValue = tgt.topicDesc.codec.valueSerde
 
   ignore("generate data") {
-    val p1 = one.producer
-    val p2 = two.producer
     (one.schemaRegistry.register >> two.schemaRegistry.register).unsafeRunSync()
     fs2.Stream
       .range(0, 100)
       .covary[IO]
       .evalMap { i =>
-        p1.send(StreamKey(i), StreamOneValue("one", i)) >> p2.send(
+        one.send(StreamKey(i), StreamOneValue("one", i)) >> two.send(
           StreamKey(i),
           StreamTwoValue("two", i))
       }

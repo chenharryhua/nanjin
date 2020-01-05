@@ -27,6 +27,6 @@ class SchemaRegistryTest extends AnyFunSuite {
   test("schema registry is not necessarily configured if it is not used") {
     val noRegistry = KafkaSettings.empty.withBrokers("localhost:9092").ioContext
     val topic      = noRegistry.topic[Int, Int]("no_schema_registry_test")
-    topic.producer.send(1, 1).unsafeRunSync()
+    topic.send(1, 1).unsafeRunSync()
   }
 }

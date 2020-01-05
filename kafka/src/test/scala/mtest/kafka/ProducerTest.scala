@@ -15,7 +15,7 @@ import scala.util.Random
 import org.apache.kafka.streams.scala.ImplicitConversions._
 import fs2.kafka.ProducerRecords
 import org.apache.kafka.clients.producer.ProducerRecord
-import io.circe.generic.auto._ 
+import io.circe.generic.auto._
 import cats.derived.auto.show._
 
 case class AvroKey(key: String)
@@ -26,10 +26,9 @@ class ProducerTest extends AnyFunSuite {
   val akkaTopic   = ctx.topic[AvroKey, AvroValue]("producer-test-akka")
   val fs2Topic    = ctx.topic[AvroKey, AvroValue]("producer-test-fs2")
   val streamTopic = ctx.topic[AvroKey, AvroValue]("producer-test-kafka")
-  val sp = srcTopic.producer
   test("producer api") {
     val produceTask = (0 until 100).toList.traverse { i =>
-      sp.send(AvroKey(i.toString), AvroValue(Random.nextString(5), Random.nextInt(100)))
+      srcTopic.send(AvroKey(i.toString), AvroValue(Random.nextString(5), Random.nextInt(100)))
     }
 
     val akkaTask: IO[Done] = srcTopic.akkaResource(akkaSystem).use { s =>
@@ -52,10 +51,7 @@ class ProducerTest extends AnyFunSuite {
         _.withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest").withGroupId("fs2-task"))
       .consume
       .map(m => srcTopic.decoder(m).decode)
-      .map(m =>
-        ProducerRecords.one(
-          Fs2ProducerRecord(srcTopic.topicName, m.record.key, m.record.value),
-          m.offset))
+      .map(m => srcTopic.topicDesc.producerRecords(m.record.key, m.record.value, m.offset))
       .take(100)
       .through(fs2.kafka.produce(fs2Topic.fs2Channel.producerSettings))
       .compile
