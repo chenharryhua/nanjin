@@ -18,7 +18,8 @@ final case class KafkaAvroSchemaException(msg: String) extends Exception(msg)
 final case class ManualAvroSchema[A] private (schema: Schema)(
   implicit
   val decoder: AvroDecoder[A],
-  val encoder: AvroEncoder[A])
+  val encoder: AvroEncoder[A],
+  val schemaFor: SchemaFor[A])
 
 object ManualAvroSchema {
 
