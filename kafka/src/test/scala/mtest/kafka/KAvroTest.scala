@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.kafka.codec.iso._
 import io.circe.syntax._
 import io.circe.generic.auto._
 import cats.effect.IO
+import scala.concurrent.duration._
 
 sealed trait Color2
 final case class Red(str: String, i: Int) extends Color2
@@ -24,7 +25,7 @@ class KAvroTest extends AnyFunSuite {
     val r = Cloth(Red("r", 1), "red-cloth", 2)
     val g = Cloth(Green("g"), "green-cloth", 3)
     val run =
-      topic.send(List(1 -> r, 2 -> g, 3 -> b)) >>
+      topic.send(List(1 -> r, 2 -> g, 3 -> b)) *>
         topic.consumerResource.use(_.retrieveLastRecords.map(m => topic.decoder(m.head).decode))
     assert(run.unsafeRunSync().value() === b)
   }

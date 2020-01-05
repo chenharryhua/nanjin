@@ -35,8 +35,8 @@ import org.apache.kafka.streams.StreamsConfig
 
   def fs2ConsumerSettings[F[_]: Sync]: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]] =
     Fs2ConsumerSettings[F, Array[Byte], Array[Byte]](
-      Fs2Deserializer.delegate(new ByteArrayDeserializer),
-      Fs2Deserializer.delegate(new ByteArrayDeserializer)).withProperties(config)
+      Fs2Deserializer[F, Array[Byte]],
+      Fs2Deserializer[F, Array[Byte]]).withProperties(config)
 
   def akkaConsumerSettings(system: ActorSystem): AkkaConsumerSettings[Array[Byte], Array[Byte]] =
     AkkaConsumerSettings[Array[Byte], Array[Byte]](
