@@ -55,7 +55,7 @@ class SparKafkaTest extends AnyFunSuite {
     sparKafkaSession
       .updateParams(_.withoutTimestamp.withoutPartition)
       .datasetFromDisk[IO, Int, ForTaskSerializable](topic.topicDesc)
-      .flatMap(_.toProducerRecords.kafkaUpload[IO](topic.topicDesc).take(5).compile.drain)
+      .flatMap(_.toProducerRecords.kafkaUpload[IO](topic.topicDesc).take(1).compile.drain)
       .unsafeRunSync()
   }
 

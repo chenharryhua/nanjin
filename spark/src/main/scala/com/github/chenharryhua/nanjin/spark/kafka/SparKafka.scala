@@ -117,18 +117,15 @@ private[kafka] object SparKafka {
     tds: TypedDataset[NJProducerRecord[K, V]],
     uploadRate: NJRate
   ): Stream[F, Chunk[RecordMetadata]] =
-    for {
-      prd <- producerStream[F].using(topic.fs2ProducerSettings[F])
-      fpr <- tds
-        .stream[F]
-        .chunkN(uploadRate.batchSize)
-        .zipLeft(Stream.fixedRate(uploadRate.duration))
-        .evalMap { chk =>
-          prd.produce(ProducerRecords[Chunk, K, V](chk.map(d =>
-            iso.isoFs2ProducerRecord[K, V].reverseGet(d.toProducerRecord))))
-        }
-      rst <- Stream.eval(fpr)
-    } yield rst.records.map(_._2)
+    tds
+      .stream[F]
+      .chunkN(uploadRate.batchSize)
+      .zipLeft(Stream.fixedRate(uploadRate.duration))
+      .map(chk =>
+        ProducerRecords[Chunk, K, V](
+          chk.map(d => iso.isoFs2ProducerRecord[K, V].reverseGet(d.toProducerRecord))))
+      .through(produce(topic.fs2ProducerSettings[F]))
+      .map(_.records.map(_._2))
 
   // load data from disk and then upload into kafka
   def replay[F[_]: ConcurrentEffect: ContextShift: Timer, K: TypedEncoder, V: TypedEncoder](
