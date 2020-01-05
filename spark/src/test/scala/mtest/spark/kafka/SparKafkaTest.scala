@@ -20,10 +20,11 @@ import fs2.kafka.producerResource
 import fs2.kafka.ProducerRecords
 import fs2.kafka.ProducerRecord
 import fs2.Chunk
+import java.time.Instant
 
 class SparKafkaTest extends AnyFunSuite {
-  val e        = EmbeddedForTaskSerializable(0, LocalDateTime.now)
-  val data     = ForTaskSerializable(0, "a", LocalDate.now, LocalDateTime.now, e)
+  val e        = EmbeddedForTaskSerializable(0, "embeded")
+  val data     = ForTaskSerializable(0, "a", LocalDate.now, Instant.now, e)
   val topic    = ctx.topic[Int, ForTaskSerializable]("serializable.test")
   val producer = producerResource[IO].using(topic.topicDesc.fs2ProducerSettings)
   (topic.schemaRegistry.register >> producer.use { p =>
