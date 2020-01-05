@@ -8,7 +8,8 @@ import akka.kafka.{
   ConsumerSettings  => AkkaConsumerSettings,
   ProducerSettings  => AkkaProducerSettings
 }
-import cats.Eval
+import cats.implicits._
+import cats.Show
 import cats.effect.{ConcurrentEffect, ContextShift, IO, Sync, Timer}
 import com.github.chenharryhua.nanjin.common.NJRootPath
 import com.github.chenharryhua.nanjin.utils
@@ -19,7 +20,6 @@ import fs2.kafka.{
   ProducerSettings => Fs2ProducerSettings,
   Serializer       => Fs2Serializer
 }
-import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig
 import monocle.Traversal
 import monocle.function.At.at
@@ -30,9 +30,6 @@ import org.apache.kafka.common.config.SaslConfigs
 import org.apache.kafka.common.security.auth.SecurityProtocol
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Serializer}
 import org.apache.kafka.streams.StreamsConfig
-
-import scala.util.Try
-import cats.Show
 
 @Lenses final case class KafkaConsumerSettings(config: Map[String, String]) {
 
@@ -84,7 +81,7 @@ import cats.Show
   consumerSettings: KafkaConsumerSettings,
   producerSettings: KafkaProducerSettings,
   streamSettings: KafkaStreamSettings,
-  sharedAdminSettings: SharedAdminSettings,
+  adminSettings: SharedAdminSettings,
   schemaRegistrySettings: SchemaRegistrySettings,
   rootPath: NJRootPath) {
   val appId: Option[String] = streamSettings.config.get(StreamsConfig.APPLICATION_ID_CONFIG)
@@ -95,7 +92,7 @@ import cats.Show
         KafkaSettings.consumerSettings.composeLens(KafkaConsumerSettings.config),
         KafkaSettings.producerSettings.composeLens(KafkaProducerSettings.config),
         KafkaSettings.streamSettings.composeLens(KafkaStreamSettings.config),
-        KafkaSettings.sharedAdminSettings.composeLens(SharedAdminSettings.config)
+        KafkaSettings.adminSettings.composeLens(SharedAdminSettings.config)
       )
       .composeLens(at(key))
       .set(Some(value))(this)
@@ -162,11 +159,9 @@ import cats.Show
 }
 
 object KafkaSettings {
-  import cats.instances.map.catsStdShowForMap
-  import cats.instances.string.catsStdShowForString
   implicit val showKafkaSettings: Show[KafkaSettings] = cats.derived.semi.show[KafkaSettings]
-  
-  private val defaultRootPath: NJRootPath             = NJRootPath("./data/kafka/")
+
+  private val defaultRootPath: NJRootPath = NJRootPath("./data/kafka/")
 
   val empty: KafkaSettings = KafkaSettings(
     KafkaConsumerSettings(Map.empty),
