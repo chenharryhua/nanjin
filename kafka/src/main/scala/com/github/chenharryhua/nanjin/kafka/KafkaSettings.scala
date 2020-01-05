@@ -71,7 +71,7 @@ import org.apache.kafka.streams.StreamsConfig
   val streamProperties: Properties = utils.toProperties(config)
 }
 
-@Lenses final case class SharedAdminSettings(config: Map[String, String]) {
+@Lenses final case class AdminSettings(config: Map[String, String]) {
   val adminProperties: Properties = utils.toProperties(config)
 }
 
@@ -81,7 +81,7 @@ import org.apache.kafka.streams.StreamsConfig
   consumerSettings: KafkaConsumerSettings,
   producerSettings: KafkaProducerSettings,
   streamSettings: KafkaStreamSettings,
-  adminSettings: SharedAdminSettings,
+  adminSettings: AdminSettings,
   schemaRegistrySettings: SchemaRegistrySettings,
   rootPath: NJRootPath) {
   val appId: Option[String] = streamSettings.config.get(StreamsConfig.APPLICATION_ID_CONFIG)
@@ -92,7 +92,7 @@ import org.apache.kafka.streams.StreamsConfig
         KafkaSettings.consumerSettings.composeLens(KafkaConsumerSettings.config),
         KafkaSettings.producerSettings.composeLens(KafkaProducerSettings.config),
         KafkaSettings.streamSettings.composeLens(KafkaStreamSettings.config),
-        KafkaSettings.adminSettings.composeLens(SharedAdminSettings.config)
+        KafkaSettings.adminSettings.composeLens(AdminSettings.config)
       )
       .composeLens(at(key))
       .set(Some(value))(this)
@@ -167,7 +167,7 @@ object KafkaSettings {
     KafkaConsumerSettings(Map.empty),
     KafkaProducerSettings(Map.empty),
     KafkaStreamSettings(Map.empty),
-    SharedAdminSettings(Map.empty),
+    AdminSettings(Map.empty),
     SchemaRegistrySettings(Map.empty),
     defaultRootPath
   )
@@ -180,7 +180,7 @@ object KafkaSettings {
           ConsumerConfig.AUTO_OFFSET_RESET_CONFIG -> "earliest")),
       KafkaProducerSettings(Map.empty),
       KafkaStreamSettings(Map.empty),
-      SharedAdminSettings(Map.empty),
+      AdminSettings(Map.empty),
       SchemaRegistrySettings(Map.empty),
       defaultRootPath
     ).withGroupId("nanjin-group")
