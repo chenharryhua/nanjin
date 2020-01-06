@@ -36,8 +36,8 @@ val avro4s     = "3.0.5"
 val apacheAvro = "1.9.1"
 val avrohugger = "1.0.0-RC21"
 
-val silencer = "1.4.2"
-val jline    = "3.13.2"
+val silencerVersion = "1.4.4"
+val jline           = "3.13.2"
 
 val scalatest = "3.1.0"
 
@@ -275,9 +275,11 @@ lazy val kafka = (project in file("kafka"))
   .settings(commonSettings: _*)
   .settings(name := "nj-kafka")
   .settings(
-    addCompilerPlugin("com.github.ghik" %% "silencer-plugin"        % silencer),
-    libraryDependencies ++= Seq("com.github.ghik" %% "silencer-lib" % silencer % Provided) ++
-      effect ++ kafkaLib ++ avro ++ json ++ tests,
+    libraryDependencies ++= Seq(
+      compilerPlugin(
+        ("com.github.ghik" % "silencer-plugin" % silencerVersion).cross(CrossVersion.full)),
+      ("com.github.ghik" % "silencer-lib" % silencerVersion % Provided).cross(CrossVersion.full)
+    ) ++ effect ++ kafkaLib ++ avro ++ json ++ tests,
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
   .dependsOn(datetime)
