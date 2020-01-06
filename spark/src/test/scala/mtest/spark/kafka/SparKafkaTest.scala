@@ -39,7 +39,7 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("replay") {
-    topic.sparKafka.replay[IO].compile.toList.map(println).unsafeRunSync
+    topic.sparKafka.replay[IO].unsafeRunSync
   }
 
   test("read topic from kafka and show aggragation result") {

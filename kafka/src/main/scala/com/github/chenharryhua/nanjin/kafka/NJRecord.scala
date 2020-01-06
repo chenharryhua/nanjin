@@ -6,13 +6,14 @@ import cats.Bifunctor
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
+import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 
 /**
   * for kafka data persistence
   */
-final case class NJConsumerRecord[K, V](
+@Lenses final case class NJConsumerRecord[K, V](
   partition: Int,
   offset: Long,
   timestamp: Long,
@@ -53,20 +54,12 @@ object NJConsumerRecord {
     }
 }
 
-final case class NJProducerRecord[K, V](
+@Lenses final case class NJProducerRecord[K, V](
   topic: String,
   partition: Option[Int],
   timestamp: Option[Long],
   key: Option[K],
   value: Option[V]) {
-
-  def withTimestamp(ts: Long): NJProducerRecord[K, V] = copy(timestamp = Some(ts))
-  def withPartition(pt: Int): NJProducerRecord[K, V]  = copy(partition = Some(pt))
-  def withoutPartition: NJProducerRecord[K, V]        = copy(partition = None)
-  def withTopic(tpk: String): NJProducerRecord[K, V]  = copy(topic     = tpk)
-
-  def withNow(clock: Clock): NJProducerRecord[K, V] =
-    withTimestamp(NJTimestamp.now(clock).milliseconds)
 
   @SuppressWarnings(Array("AsInstanceOf"))
   def toProducerRecord: ProducerRecord[K, V] = new ProducerRecord[K, V](
