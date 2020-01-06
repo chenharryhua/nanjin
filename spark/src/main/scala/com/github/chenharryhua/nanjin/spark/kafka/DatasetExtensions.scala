@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import java.time.Clock
 
+import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, NJConsumerRecord, NJProducerRecord}
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SparkSession
@@ -34,17 +35,23 @@ private[kafka] trait DatasetExtensions {
     def toProducerRecords(
       conversionTactics: ConversionTactics,
       clock: Clock): TypedDataset[NJProducerRecord[K, V]] = {
+      def noTS: NJProducerRecord[K, V] => NJProducerRecord[K, V] =
+        NJProducerRecord.timestamp.set(Some(NJTimestamp.now(clock).milliseconds))
+      val noPT: NJProducerRecord[K, V] => NJProducerRecord[K, V] =
+        NJProducerRecord.partition.set(None)
+
       val sorted =
         consumerRecords.orderBy(consumerRecords('timestamp).asc, consumerRecords('offset).asc)
+
       conversionTactics match {
         case ConversionTactics(true, true) =>
           sorted.deserialized.map(_.toNJProducerRecord)
         case ConversionTactics(false, true) =>
-          sorted.deserialized.map(_.toNJProducerRecord.withoutPartition)
+          sorted.deserialized.map(nj => noPT(nj.toNJProducerRecord))
         case ConversionTactics(true, false) =>
-          sorted.deserialized.map(_.toNJProducerRecord.withNow(clock))
+          sorted.deserialized.map(nj => noTS(nj.toNJProducerRecord))
         case ConversionTactics(false, false) =>
-          sorted.deserialized.map(_.toNJProducerRecord.withNow(clock).withoutPartition)
+          sorted.deserialized.map(nj => noTS.andThen(noPT)(nj.toNJProducerRecord))
       }
     }
   }
