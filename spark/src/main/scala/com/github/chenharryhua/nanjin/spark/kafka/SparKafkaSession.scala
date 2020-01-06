@@ -58,6 +58,13 @@ final class SparKafkaSession[K, V](topic: KafkaTopicDescription[K, V], params: S
     kafkaRDD.map(rdd =>
       TypedDataset.create(rdd.mapPartitions(_.map(cr => topic.decoder(cr).record))))
 
+  def datasetFromKafka[F[_]: Sync, K1: TypedEncoder, V1: TypedEncoder](
+    keyTransformer: K   => K1,
+    valueTransformer: V => V1): F[TypedDataset[NJConsumerRecord[K1, V1]]] =
+    kafkaRDD.map(rdd =>
+      TypedDataset.create(rdd.mapPartitions(_.map(cr =>
+        topic.decoder(cr).record.bimap(keyTransformer, valueTransformer)))))
+
   def jsonDatasetFromKafka[F[_]: Sync]: F[TypedDataset[String]] =
     kafkaRDD.map(rdd =>
       TypedDataset.create(rdd.mapPartitions(_.map(cr => topic.toJson(cr).noSpaces))))
@@ -95,11 +102,13 @@ final class SparKafkaSession[K, V](topic: KafkaTopicDescription[K, V], params: S
   def replay[F[_]: ConcurrentEffect: Timer: ContextShift](
     implicit
     keyEncoder: TypedEncoder[K],
-    valueEncoder: TypedEncoder[V]): Stream[F, ProducerResult[K, V, Unit]] =
-    for {
+    valueEncoder: TypedEncoder[V]): F[Unit] = {
+    val run = for {
       ds <- Stream(datasetFromDisk.repartition(params.repartition))
       res <- uploadToKafka(ds.toProducerRecords(params.conversionTactics, params.clock))
     } yield res
+    run.map(_ => print(".")).compile.drain
+  }
 
   def sparkStream(
     implicit

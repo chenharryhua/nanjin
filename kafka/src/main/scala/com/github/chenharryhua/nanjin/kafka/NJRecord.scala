@@ -83,6 +83,12 @@ object NJProducerRecord {
   def apply[K, V](pr: ProducerRecord[Option[K], Option[V]]): NJProducerRecord[K, V] =
     NJProducerRecord(pr.topic, Option(pr.partition), Option(pr.timestamp), pr.key, pr.value)
 
+  def apply[K, V](topicName: String, k: K, v: V): NJProducerRecord[K, V] =
+    NJProducerRecord(topicName, None, None, Some(k), Some(v))
+
+  def apply[K, V](topicName: String, v: V): NJProducerRecord[K, V] =
+    NJProducerRecord(topicName, None, None, None, Some(v))
+
   implicit def jsonNJProducerRecordEncoder[K: JsonEncoder, V: JsonEncoder]
     : JsonEncoder[NJProducerRecord[K, V]] =
     deriveEncoder[NJProducerRecord[K, V]]
