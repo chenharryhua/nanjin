@@ -35,7 +35,9 @@ object CodecException {
                                  |error:         ${error.getMessage}
                                  |cause:         ${error.getCause}
                                  |GenericRecord: ${genericRecord.toString}
-                                 |schema:        ${schema.toString}""".stripMargin)
+                                 |schema:        ${schema.toString}
+                                 |
+                                 |Most likely the schem includes non-standard Logical Type""".stripMargin)
 
   final case class DecodingJsonException(msg: String) extends CodecException(msg)
 }

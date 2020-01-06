@@ -8,7 +8,8 @@ import akka.kafka.{
   ConsumerSettings  => AkkaConsumerSettings,
   ProducerSettings  => AkkaProducerSettings
 }
-import cats.Eval
+import cats.implicits._
+import cats.Show
 import cats.effect.{ConcurrentEffect, ContextShift, IO, Sync, Timer}
 import com.github.chenharryhua.nanjin.common.NJRootPath
 import com.github.chenharryhua.nanjin.utils
@@ -19,7 +20,6 @@ import fs2.kafka.{
   ProducerSettings => Fs2ProducerSettings,
   Serializer       => Fs2Serializer
 }
-import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig
 import monocle.Traversal
 import monocle.function.At.at
@@ -31,15 +31,12 @@ import org.apache.kafka.common.security.auth.SecurityProtocol
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Serializer}
 import org.apache.kafka.streams.StreamsConfig
 
-import scala.util.Try
-import cats.Show
-
 @Lenses final case class KafkaConsumerSettings(config: Map[String, String]) {
 
   def fs2ConsumerSettings[F[_]: Sync]: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]] =
     Fs2ConsumerSettings[F, Array[Byte], Array[Byte]](
-      Fs2Deserializer.delegate(new ByteArrayDeserializer),
-      Fs2Deserializer.delegate(new ByteArrayDeserializer)).withProperties(config)
+      Fs2Deserializer[F, Array[Byte]],
+      Fs2Deserializer[F, Array[Byte]]).withProperties(config)
 
   def akkaConsumerSettings(system: ActorSystem): AkkaConsumerSettings[Array[Byte], Array[Byte]] =
     AkkaConsumerSettings[Array[Byte], Array[Byte]](
@@ -66,15 +63,13 @@ import cats.Show
     kser: Serializer[K],
     vser: Serializer[V]): AkkaProducerSettings[K, V] =
     AkkaProducerSettings[K, V](system, kser, vser).withProperties(config)
-
-  val producerProperties: Properties = utils.toProperties(config)
 }
 
 @Lenses final case class KafkaStreamSettings(config: Map[String, String]) {
   val streamProperties: Properties = utils.toProperties(config)
 }
 
-@Lenses final case class SharedAdminSettings(config: Map[String, String]) {
+@Lenses final case class KafkaAdminSettings(config: Map[String, String]) {
   val adminProperties: Properties = utils.toProperties(config)
 }
 
@@ -84,7 +79,7 @@ import cats.Show
   consumerSettings: KafkaConsumerSettings,
   producerSettings: KafkaProducerSettings,
   streamSettings: KafkaStreamSettings,
-  sharedAdminSettings: SharedAdminSettings,
+  adminSettings: KafkaAdminSettings,
   schemaRegistrySettings: SchemaRegistrySettings,
   rootPath: NJRootPath) {
   val appId: Option[String] = streamSettings.config.get(StreamsConfig.APPLICATION_ID_CONFIG)
@@ -95,7 +90,7 @@ import cats.Show
         KafkaSettings.consumerSettings.composeLens(KafkaConsumerSettings.config),
         KafkaSettings.producerSettings.composeLens(KafkaProducerSettings.config),
         KafkaSettings.streamSettings.composeLens(KafkaStreamSettings.config),
-        KafkaSettings.sharedAdminSettings.composeLens(SharedAdminSettings.config)
+        KafkaSettings.adminSettings.composeLens(KafkaAdminSettings.config)
       )
       .composeLens(at(key))
       .set(Some(value))(this)
@@ -162,13 +157,15 @@ import cats.Show
 }
 
 object KafkaSettings {
+  implicit val showKafkaSettings: Show[KafkaSettings] = cats.derived.semi.show[KafkaSettings]
+
   private val defaultRootPath: NJRootPath = NJRootPath("./data/kafka/")
 
   val empty: KafkaSettings = KafkaSettings(
     KafkaConsumerSettings(Map.empty),
     KafkaProducerSettings(Map.empty),
     KafkaStreamSettings(Map.empty),
-    SharedAdminSettings(Map.empty),
+    KafkaAdminSettings(Map.empty),
     SchemaRegistrySettings(Map.empty),
     defaultRootPath
   )
@@ -181,7 +178,7 @@ object KafkaSettings {
           ConsumerConfig.AUTO_OFFSET_RESET_CONFIG -> "earliest")),
       KafkaProducerSettings(Map.empty),
       KafkaStreamSettings(Map.empty),
-      SharedAdminSettings(Map.empty),
+      KafkaAdminSettings(Map.empty),
       SchemaRegistrySettings(Map.empty),
       defaultRootPath
     ).withGroupId("nanjin-group")

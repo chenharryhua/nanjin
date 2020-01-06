@@ -26,7 +26,4 @@ package object kafka {
   implicit val sparkSession =
     SparkSettings.default.updateConf(_.setMaster("local[*]").setAppName("test-spark")).session
 
-  val sparKafkaSession: SparKafkaSession =
-    SparKafkaSession.default
-
 }

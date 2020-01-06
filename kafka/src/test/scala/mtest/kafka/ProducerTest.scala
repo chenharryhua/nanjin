@@ -15,7 +15,7 @@ import scala.util.Random
 import org.apache.kafka.streams.scala.ImplicitConversions._
 import fs2.kafka.ProducerRecords
 import org.apache.kafka.clients.producer.ProducerRecord
-import io.circe.generic.auto._ 
+import io.circe.generic.auto._
 import cats.derived.auto.show._
 
 case class AvroKey(key: String)
@@ -28,23 +28,21 @@ class ProducerTest extends AnyFunSuite {
   val streamTopic = ctx.topic[AvroKey, AvroValue]("producer-test-kafka")
   test("producer api") {
     val produceTask = (0 until 100).toList.traverse { i =>
-      srcTopic.producer
-        .send(AvroKey(i.toString), AvroValue(Random.nextString(5), Random.nextInt(100)))
+      srcTopic.send(AvroKey(i.toString), AvroValue(Random.nextString(5), Random.nextInt(100)))
     }
 
-    val akkaTask: IO[Done] = srcTopic.akkaResource.use { s =>
-      akkaTopic.akkaResource.use { t =>
+    val akkaTask: IO[Done] = srcTopic.akkaResource(akkaSystem).use { s =>
+      akkaTopic.akkaResource(akkaSystem).use { t =>
         s.updateConsumerSettings(_.withProperty(
             ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
             "earliest").withGroupId("akka-task").withCommitWarning(10.seconds))
           .consume
           .map(m => akkaTopic.decoder(m).decode)
           .map(m =>
-            ProducerMessage.single(
-              new ProducerRecord(t.topicName, m.record.key(), m.record.value()),
-              m.committableOffset))
+            akkaTopic.description
+              .akkaProducerRecords(m.record.key, m.record.value, m.committableOffset))
           .take(100)
-          .runWith(t.committableSink)(ctx.materializer.value)
+          .runWith(t.committableSink)(materializer)
       }
     }
     val fs2Task: IO[Unit] = srcTopic.fs2Channel
@@ -52,24 +50,14 @@ class ProducerTest extends AnyFunSuite {
         _.withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest").withGroupId("fs2-task"))
       .consume
       .map(m => srcTopic.decoder(m).decode)
-      .map(m =>
-        ProducerRecords.one(
-          Fs2ProducerRecord(srcTopic.topicDef.topicName, m.record.key, m.record.value),
-          m.offset))
+      .map(m => srcTopic.description.fs2ProducerRecords(m.record.key, m.record.value, m.offset))
       .take(100)
-      .through(fs2.kafka.produce(fs2Topic.fs2Channel.producerSettings))
+      .through(fs2.kafka.produce(fs2Topic.description.fs2ProducerSettings[IO]))
       .compile
       .drain
 
     val task = produceTask >> akkaTask >> fs2Task
 
     task.unsafeRunSync
-  }
-
-  ignore("straming") {
-
-    implicit val ks = srcTopic.codec.keySerde
-    implicit val vs = srcTopic.codec.valueSerde
-    val chn         = srcTopic.kafkaStream.kstream.map(_.to(streamTopic)).run(new StreamsBuilder)
   }
 }

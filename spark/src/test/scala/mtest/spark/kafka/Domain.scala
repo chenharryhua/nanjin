@@ -7,14 +7,15 @@ import frameless.Injection
 import io.circe.generic.JsonCodec
 import cats.implicits._ 
 import cats.derived.auto.show._ 
+import java.time.Instant
 
-final case class EmbeddedForTaskSerializable(f: Int, g: LocalDateTime)
+final case class EmbeddedForTaskSerializable(f: Int, g: String)
 
 final case class ForTaskSerializable(
   a: Int,
   b: String,
   c: LocalDate,
-  d: LocalDateTime,
+  d: Instant,
   e: EmbeddedForTaskSerializable)
 
 case class trip_record(

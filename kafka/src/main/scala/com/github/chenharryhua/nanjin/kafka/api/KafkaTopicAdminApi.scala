@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka.api
 
 import cats.effect.{Concurrent, ContextShift, Resource}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.{KafkaConsumerGroupInfo, KafkaTopic}
+import com.github.chenharryhua.nanjin.kafka.{KafkaConsumerGroupInfo, KafkaTopicDescription}
 import fs2.kafka.{adminClientResource, AdminClientSettings, KafkaAdminClient}
 import org.apache.kafka.clients.admin.TopicDescription
 
@@ -12,32 +12,33 @@ sealed trait KafkaTopicAdminApi[F[_]] {
   def idefinitelyWantToDeleteTheTopic: F[Unit]
   def describe: F[Map[String, TopicDescription]]
   def groups: F[List[KafkaConsumerGroupInfo]]
+  val adminResource: Resource[F, KafkaAdminClient[F]]
 }
 
-private[kafka] object KafkaTopicAdminApi {
+object KafkaTopicAdminApi {
 
   def apply[F[_]: Concurrent: ContextShift, K, V](
-    topic: KafkaTopic[F, K, V]
+    topic: KafkaTopicDescription[K, V]
   ): KafkaTopicAdminApi[F] = new KafkaTopicAdminApiImpl(topic)
 
   final private class KafkaTopicAdminApiImpl[F[_]: Concurrent: ContextShift, K, V](
-    topic: KafkaTopic[F, K, V])
+    topic: KafkaTopicDescription[K, V])
       extends KafkaTopicAdminApi[F] {
 
-    private val admin: Resource[F, KafkaAdminClient[F]] =
+    override val adminResource: Resource[F, KafkaAdminClient[F]] =
       adminClientResource[F](
-        AdminClientSettings[F].withProperties(topic.context.settings.sharedAdminSettings.config))
+        AdminClientSettings[F].withProperties(topic.settings.adminSettings.config))
 
     override def idefinitelyWantToDeleteTheTopic: F[Unit] =
-      admin.use(_.deleteTopic(topic.topicDef.topicName))
+      adminResource.use(_.deleteTopic(topic.topicDef.topicName))
 
     override def describe: F[Map[String, TopicDescription]] =
-      admin.use(_.describeTopics(List(topic.topicDef.topicName)))
+      adminResource.use(_.describeTopics(List(topic.topicDef.topicName)))
 
     override def groups: F[List[KafkaConsumerGroupInfo]] =
-      admin.use { client =>
+      adminResource.use { client =>
         for {
-          end <- topic.consumer.endOffsets
+          end <- KafkaConsumerApi(topic).use(_.endOffsets)
           gids <- client.listConsumerGroups.groupIds
           all <- gids.traverse(gid =>
             client

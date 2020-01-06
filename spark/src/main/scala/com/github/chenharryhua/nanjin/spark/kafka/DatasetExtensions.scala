@@ -1,24 +1,22 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.effect.{ConcurrentEffect, Timer}
-import com.github.chenharryhua.nanjin.common.NJRate
+import java.time.Clock
+
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, NJConsumerRecord, NJProducerRecord}
 import frameless.{TypedDataset, TypedEncoder}
-import fs2.{Chunk, Stream}
-import org.apache.kafka.clients.producer.RecordMetadata
+import org.apache.spark.sql.SparkSession
 
 private[kafka] trait DatasetExtensions {
 
-  implicit final class SparKafkaUploadSyntax[K, V](val data: TypedDataset[NJProducerRecord[K, V]]) {
+  implicit final class SparKafkaTopicSyntax[F[_], K, V](topic: KafkaTopic[F, K, V])
+      extends Serializable {
 
-    def kafkaUpload[F[_]: ConcurrentEffect: Timer](
-      topic: => KafkaTopic[F, K, V],
-      rate: NJRate = NJRate.default): Stream[F, Chunk[RecordMetadata]] =
-      SparKafka.uploadToKafka(topic, data, rate)
+    def sparKafka(implicit spark: SparkSession): SparKafkaSession[K, V] =
+      new SparKafkaSession(topic.description, SparKafkaParams.default)
   }
 
   implicit final class SparKafkaConsumerRecordSyntax[K: TypedEncoder, V: TypedEncoder](
-    val consumerRecords: TypedDataset[NJConsumerRecord[K, V]]
+    consumerRecords: TypedDataset[NJConsumerRecord[K, V]]
   ) {
 
     def nullValues: TypedDataset[NJConsumerRecord[K, V]] =
@@ -33,8 +31,21 @@ private[kafka] trait DatasetExtensions {
     def keys: TypedDataset[K] =
       consumerRecords.select(consumerRecords('key)).as[Option[K]].deserialized.flatMap(x => x)
 
-    def toProducerRecords: TypedDataset[NJProducerRecord[K, V]] =
-      consumerRecords.deserialized.map(_.toNJProducerRecord)
-
+    def toProducerRecords(
+      conversionTactics: ConversionTactics,
+      clock: Clock): TypedDataset[NJProducerRecord[K, V]] = {
+      val sorted =
+        consumerRecords.orderBy(consumerRecords('timestamp).asc, consumerRecords('offset).asc)
+      conversionTactics match {
+        case ConversionTactics(true, true) =>
+          sorted.deserialized.map(_.toNJProducerRecord)
+        case ConversionTactics(false, true) =>
+          sorted.deserialized.map(_.toNJProducerRecord.withoutPartition)
+        case ConversionTactics(true, false) =>
+          sorted.deserialized.map(_.toNJProducerRecord.withNow(clock))
+        case ConversionTactics(false, false) =>
+          sorted.deserialized.map(_.toNJProducerRecord.withNow(clock).withoutPartition)
+      }
+    }
   }
 }

@@ -10,8 +10,13 @@ import cats.implicits._
 import io.circe.generic.auto._ 
 
 package object kafka {
+  import akka.stream.ActorMaterializer
+  import akka.actor.ActorSystem
   implicit val cs: ContextShift[IO] = IO.contextShift(global)
   implicit val timer: Timer[IO]     = IO.timer(global)
+  val akkaSystem = ActorSystem("nj-test")
+  val materializer = ActorMaterializer.create(akkaSystem)
+
 
   val ctx: IoKafkaContext =
     KafkaSettings.local

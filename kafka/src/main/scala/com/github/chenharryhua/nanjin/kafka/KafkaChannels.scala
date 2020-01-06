@@ -8,7 +8,6 @@ import akka.kafka.{
 import cats.data.{NonEmptyList, Reader}
 import cats.effect._
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.codec._
 import com.github.chenharryhua.nanjin.kafka.codec.KafkaSerde
 import com.github.chenharryhua.nanjin.utils.Keyboard
 import fs2.Stream
@@ -20,7 +19,7 @@ import org.apache.kafka.streams.kstream.GlobalKTable
 
 object KafkaChannels {
 
-  final case class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] private[kafka] (
+  final class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] private[kafka] (
     topicName: String,
     producerSettings: Fs2ProducerSettings[F, K, V],
     consumerSettings: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]]) {
@@ -29,14 +28,14 @@ object KafkaChannels {
 
     def updateProducerSettings(
       f: Fs2ProducerSettings[F, K, V] => Fs2ProducerSettings[F, K, V]): Fs2Channel[F, K, V] =
-      copy(producerSettings = f(producerSettings))
+      new Fs2Channel(topicName, f(producerSettings), consumerSettings)
 
     def updateConsumerSettings(
       f: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]] => Fs2ConsumerSettings[
         F,
         Array[Byte],
         Array[Byte]]): Fs2Channel[F, K, V] =
-      copy(consumerSettings = f(consumerSettings))
+      new Fs2Channel(topicName, producerSettings, f(consumerSettings))
 
     val producerStream: Stream[F, KafkaProducer[F, K, V]] =
       fs2.kafka.producerStream[F, K, V](producerSettings)
@@ -51,7 +50,7 @@ object KafkaChannels {
       }
   }
 
-  final case class AkkaChannel[F[_]: ContextShift: Async, K, V] private[kafka] (
+  final class AkkaChannel[F[_]: ContextShift: Async, K, V] private[kafka] (
     topicName: String,
     producerSettings: AkkaProducerSettings[K, V],
     consumerSettings: AkkaConsumerSettings[Array[Byte], Array[Byte]],
@@ -65,38 +64,38 @@ object KafkaChannels {
 
     def updateProducerSettings(
       f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): AkkaChannel[F, K, V] =
-      copy(producerSettings = f(producerSettings))
+      new AkkaChannel(topicName, f(producerSettings), consumerSettings, committerSettings)
 
     def updateConsumerSettings(
       f: AkkaConsumerSettings[Array[Byte], Array[Byte]] => AkkaConsumerSettings[
         Array[Byte],
         Array[Byte]]): AkkaChannel[F, K, V] =
-      copy(consumerSettings = f(consumerSettings))
+      new AkkaChannel(topicName, producerSettings, f(consumerSettings), committerSettings)
 
     def updateCommitterSettings(
       f: AkkaCommitterSettings => AkkaCommitterSettings): AkkaChannel[F, K, V] =
-      copy(committerSettings = f(committerSettings))
-
-    val committableSink: Sink[Envelope[K, V, ConsumerMessage.Committable], F[Done]] =
-      akka.kafka.scaladsl.Producer
-        .committableSink(producerSettings, committerSettings)
-        .mapMaterializedValue(f => Async.fromFuture(Async[F].pure(f)))
+      new AkkaChannel(topicName, producerSettings, consumerSettings, f(committerSettings))
 
     def flexiFlow[P]: Flow[Envelope[K, V, P], ProducerMessage.Results[K, V, P], NotUsed] =
       akka.kafka.scaladsl.Producer.flexiFlow[K, V, P](producerSettings)
 
+    val committableSink: Sink[Envelope[K, V, ConsumerMessage.Committable], F[Done]] =
+      akka.kafka.scaladsl.Producer
+        .committableSink(producerSettings, committerSettings)
+        .mapMaterializedValue(f => Async.fromFuture(Async[F].delay(f)))
+
     val plainSink: Sink[ProducerRecord[K, V], F[Done]] =
       akka.kafka.scaladsl.Producer
         .plainSink(producerSettings)
-        .mapMaterializedValue(f => Async.fromFuture(Async[F].pure(f)))
+        .mapMaterializedValue(f => Async.fromFuture(Async[F].delay(f)))
 
     val commitSink: Sink[ConsumerMessage.Committable, F[Done]] =
       Committer
         .sink(committerSettings)
-        .mapMaterializedValue(f => Async.fromFuture(Async[F].pure(f)))
+        .mapMaterializedValue(f => Async.fromFuture(Async[F].delay(f)))
 
     def ignoreSink[A]: Sink[A, F[Done]] =
-      Sink.ignore.mapMaterializedValue(f => Async.fromFuture(Async[F].pure(f)))
+      Sink.ignore.mapMaterializedValue(f => Async.fromFuture(Async[F].delay(f)))
 
     def assign(tps: Map[TopicPartition, Long])
       : Source[ConsumerRecord[Array[Byte], Array[Byte]], Consumer.Control] =
@@ -108,7 +107,7 @@ object KafkaChannels {
         .committableSource(consumerSettings, Subscriptions.topics(topicName))
   }
 
-  final case class StreamingChannel[K, V] private[kafka] (
+  final class StreamingChannel[K, V] private[kafka] (
     topicName: String,
     keySerde: KafkaSerde.Key[K],
     valueSerde: KafkaSerde.Value[V]) {

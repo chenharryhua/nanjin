@@ -36,10 +36,10 @@ sealed private[codec] class KafkaCodec[A](topicName: String, serde: KafkaSerde[A
 object KafkaCodec {
 
   final class Key[A](val topicName: String, val serde: KafkaSerde.Key[A])
-      extends KafkaCodec[A](topicName, serde)
+      extends KafkaCodec[A](topicName, serde) with Serializable
 
   final class Value[A](val topicName: String, val serde: KafkaSerde.Value[A])
-      extends KafkaCodec[A](topicName, serde)
+      extends KafkaCodec[A](topicName, serde) with Serializable
 
 }
 
@@ -67,7 +67,7 @@ object KafkaSerde {
     val configProps: Map[String, String],
     override val serializer: Serializer[A],
     override val deserializer: Deserializer[A])
-      extends KafkaSerde[A] {
+      extends KafkaSerde[A] with Serializable {
 
     configure(configProps.asJava, isKey = true)
 
@@ -75,7 +75,6 @@ object KafkaSerde {
       new KafkaCodec.Key[A](topicName, this)
 
     override def show: String = s"KafkaSerde.Key(schema = $schema, configProps = $configProps)"
-
   }
 
   final class Value[A](
@@ -83,7 +82,7 @@ object KafkaSerde {
     val configProps: Map[String, String],
     override val serializer: Serializer[A],
     override val deserializer: Deserializer[A])
-      extends KafkaSerde[A] {
+      extends KafkaSerde[A] with Serializable {
 
     configure(configProps.asJava, isKey = false)
 
@@ -147,36 +146,9 @@ object SerdeOf extends SerdeOfPriority1 {
     }
   }
 
-  implicit object kstringSerde
-      extends SerdeOf[String](SchemaFor[String].schema(DefaultFieldMapper)) {
-    override val deserializer: Deserializer[String] = Serdes.String.deserializer()
-    override val serializer: Serializer[String]     = Serdes.String.serializer()
-  }
-
-  implicit object kintSerde extends SerdeOf[Int](SchemaFor[Int].schema(DefaultFieldMapper)) {
-    override val deserializer: Deserializer[Int] = Serdes.Integer.deserializer()
-    override val serializer: Serializer[Int]     = Serdes.Integer.serializer()
-  }
-
-  implicit object klongSerde extends SerdeOf[Long](SchemaFor[Long].schema(DefaultFieldMapper)) {
-    override val deserializer: Deserializer[Long] = Serdes.Long.deserializer()
-    override val serializer: Serializer[Long]     = Serdes.Long.serializer()
-  }
-
-  implicit object kdoubleSerde
-      extends SerdeOf[Double](SchemaFor[Double].schema(DefaultFieldMapper)) {
-    override val deserializer: Deserializer[Double] = Serdes.Double.deserializer()
-    override val serializer: Serializer[Double]     = Serdes.Double.serializer()
-  }
-
-  implicit object kfloatSerde extends SerdeOf[Float](SchemaFor[Float].schema(DefaultFieldMapper)) {
-    override val deserializer: Deserializer[Float] = Serdes.Float.deserializer()
-    override val serializer: Serializer[Float]     = Serdes.Float.serializer()
-  }
-
-  implicit object kbyteArraySerde
-      extends SerdeOf[Array[Byte]](SchemaFor[Array[Byte]].schema(DefaultFieldMapper)) {
-    override val deserializer: Deserializer[Array[Byte]] = Serdes.ByteArray.deserializer()
-    override val serializer: Serializer[Array[Byte]]     = Serdes.ByteArray.serializer()
-  }
+  implicit def primitiveSerde[A: KafkaPrimitiveSerializer: KafkaPrimitiveDeserializer]: SerdeOf[A] =
+    new SerdeOf[A](implicitly[KafkaPrimitiveSerializer[A]].schema) {
+      override def deserializer: Deserializer[A] = implicitly[KafkaPrimitiveDeserializer[A]]
+      override def serializer: Serializer[A]     = implicitly[KafkaPrimitiveSerializer[A]]
+    }
 }
