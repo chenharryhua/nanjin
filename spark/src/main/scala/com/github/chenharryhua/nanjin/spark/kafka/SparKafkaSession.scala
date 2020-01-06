@@ -8,6 +8,8 @@ import com.github.chenharryhua.nanjin.common.{NJRootPath, UpdateParams}
 import com.github.chenharryhua.nanjin.kafka.api.KafkaConsumerApi
 import com.github.chenharryhua.nanjin.kafka.codec.iso
 import com.github.chenharryhua.nanjin.kafka.{
+  GenericTopicPartition,
+  KafkaOffsetRange,
   KafkaTopicDescription,
   NJConsumerRecord,
   NJProducerRecord
@@ -21,7 +23,7 @@ import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.streaming.kafka010.KafkaUtils
+import org.apache.spark.streaming.kafka010.{KafkaUtils, OffsetRange}
 
 import scala.collection.JavaConverters._
 
@@ -40,6 +42,11 @@ final class SparKafkaSession[K, V](
       .mapValues[Object](identity)
       .asJava
 
+  private def offsetRange(range: GenericTopicPartition[KafkaOffsetRange]): Array[OffsetRange] =
+    range.value.toArray.map {
+      case (tp, r) => OffsetRange.create(tp, r.from.value, r.until.value)
+    }
+
   private val path: String = description.settings.rootPath + description.topicDef.topicName
 
   private def kafkaRDD[F[_]: Sync]: F[RDD[ConsumerRecord[Array[Byte], Array[Byte]]]] =
@@ -47,7 +54,7 @@ final class SparKafkaSession[K, V](
       KafkaUtils.createRDD[Array[Byte], Array[Byte]](
         sparkSession.sparkContext,
         props,
-        KafkaOffsets.offsetRange(gtp),
+        offsetRange(gtp),
         params.locationStrategy)
     }
 
