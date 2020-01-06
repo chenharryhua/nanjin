@@ -6,76 +6,67 @@ import cats.implicits._
 import cats.{Show, Traverse}
 import com.github.chenharryhua.nanjin.kafka.api._
 import com.github.chenharryhua.nanjin.kafka.codec.{KafkaGenericDecoder, NJConsumerMessage}
-import com.sksamuel.avro4s.Record
 import fs2.kafka.{KafkaProducer, ProducerResult}
-import io.circe.{Error, Json}
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
-final class KafkaTopic[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] private[kafka] (
-  val topicDesc: KafkaTopicDescription[K, V])
-    extends TopicNameExtractor[K, V] {
-  import topicDesc.topicDef.{showKey, showValue}
+final class KafkaTopic[F[_], K, V] private[kafka] (val description: KafkaTopicDescription[K, V])(
+  implicit
+  val concurrentEffect: ConcurrentEffect[F],
+  val timer: Timer[F],
+  val contextShift: ContextShift[F]
+) extends TopicNameExtractor[K, V] {
+  import description.topicDef.{showKey, showValue}
 
-  val topicName: String = topicDesc.topicDef.topicName
+  val topicName: String = description.topicDef.topicName
 
-  val consumerGroupId: Option[KafkaConsumerGroupId] = topicDesc.consumerGroupId
+  val consumerGroupId: Option[KafkaConsumerGroupId] = description.consumerGroupId
 
   override def extract(key: K, value: V, rc: RecordContext): String = topicName
 
   def decoder[G[_, _]: NJConsumerMessage](
     cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
-    topicDesc.decoder(cr)
-
-  def toAvro[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): Record =
-    topicDesc.toAvro[G](cr)
-
-  def fromAvro(cr: Record): NJConsumerRecord[K, V] = topicDesc.fromAvro(cr)
-
-  def toJson[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): Json =
-    topicDesc.toJson[G](cr)
-
-  def fromJsonStr(jsonString: String): Either[Error, NJConsumerRecord[K, V]] =
-    topicDesc.fromJsonStr(jsonString)
+    description.decoder(cr)
 
   //channels
   def fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
-    KafkaChannels.Fs2Channel[F, K, V](
-      topicDesc.topicDef.topicName,
-      topicDesc.fs2ProducerSettings,
-      topicDesc.fs2ConsumerSettings)
+    new KafkaChannels.Fs2Channel[F, K, V](
+      description.topicDef.topicName,
+      description.fs2ProducerSettings,
+      description.fs2ConsumerSettings)
 
   def akkaResource(akkaSystem: ActorSystem): Resource[F, KafkaChannels.AkkaChannel[F, K, V]] =
     Resource.make(
-      ConcurrentEffect[F].delay(KafkaChannels.AkkaChannel[F, K, V](
-        topicDesc.topicDef.topicName,
-        topicDesc.akkaProducerSettings(akkaSystem),
-        topicDesc.akkaConsumerSettings(akkaSystem),
-        topicDesc.akkaCommitterSettings(akkaSystem)
-      )))(_ => ConcurrentEffect[F].unit)
+      ConcurrentEffect[F].delay(
+        new KafkaChannels.AkkaChannel[F, K, V](
+          description.topicDef.topicName,
+          description.akkaProducerSettings(akkaSystem),
+          description.akkaConsumerSettings(akkaSystem),
+          description.akkaCommitterSettings(akkaSystem)
+        )))(_ => ConcurrentEffect[F].unit)
 
   def kafkaStream: KafkaChannels.StreamingChannel[K, V] =
-    KafkaChannels.StreamingChannel[K, V](
-      topicDesc.topicDef.topicName,
-      topicDesc.codec.keySerde,
-      topicDesc.codec.valueSerde)
+    new KafkaChannels.StreamingChannel[K, V](
+      description.topicDef.topicName,
+      description.codec.keySerde,
+      description.codec.valueSerde)
 
   private val pr: Resource[F, KafkaProducer[F, K, V]] =
-    fs2.kafka.producerResource[F].using(topicDesc.fs2ProducerSettings)
+    fs2.kafka.producerResource[F].using(description.fs2ProducerSettings)
 
   def send(k: K, v: V): F[ProducerResult[K, V, Unit]] =
-    pr.use(_.produce(topicDesc.fs2ProducerRecords(k, v))).flatten
+    pr.use(_.produce(description.fs2ProducerRecords(k, v))).flatten
 
   def send[G[+_]: Traverse](list: G[(K, V)]): F[ProducerResult[K, V, Unit]] =
-    pr.use(_.produce(topicDesc.fs2ProducerRecords(list))).flatten
+    pr.use(_.produce(description.fs2ProducerRecords(list))).flatten
 
   // APIs
-  val schemaRegistry: KafkaSchemaRegistryApi[F] = api.KafkaSchemaRegistryApi[F](this.topicDesc)
-  val admin: KafkaTopicAdminApi[F]              = api.KafkaTopicAdminApi[F, K, V](this.topicDesc)
+  val schemaRegistry: KafkaSchemaRegistryApi[F] = api.KafkaSchemaRegistryApi[F](this.description)
+  val admin: KafkaTopicAdminApi[F]              = api.KafkaTopicAdminApi[F, K, V](this.description)
 
-  val consumerResource: Resource[F, KafkaConsumerApi[F]] = api.KafkaConsumerApi(this.topicDesc)
+  val consumerResource: Resource[F, KafkaConsumerApi[F]] = api.KafkaConsumerApi(this.description)
 
   val monitor: KafkaMonitoringApi[F, K, V] =
-    api.KafkaMonitoringApi[F, K, V](this, topicDesc.settings.rootPath)
+    api.KafkaMonitoringApi[F, K, V](this, description.settings.rootPath)
 }
 
 object KafkaTopic {

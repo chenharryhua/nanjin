@@ -84,7 +84,7 @@ object KafkaMonitoringApi {
       filter(cr => cr.key().isFailure || cr.value().isFailure)
 
     override def summaries: F[Unit] =
-      KafkaConsumerApi(topic.topicDesc).use { consumer =>
+      KafkaConsumerApi(topic.description).use { consumer =>
         for {
           num <- consumer.numOfRecords
           first <- consumer.retrieveFirstRecords.map(_.map(cr =>
@@ -109,7 +109,7 @@ object KafkaMonitoringApi {
         .resource[F, Blocker](Blocker[F])
         .flatMap { blocker =>
           fs2Channel.consume
-            .map(x => topic.toJson(x).noSpaces)
+            .map(x => topic.description.toJson(x).noSpaces)
             .intersperse("\n")
             .through(text.utf8Encode)
             .through(fs2.io.file.writeAll(path, blocker))
@@ -126,7 +126,7 @@ object KafkaMonitoringApi {
             .through(fs2.text.utf8Decode)
             .through(fs2.text.lines)
             .mapFilter { str =>
-              topic
+              topic.description
                 .fromJsonStr(str)
                 .leftMap(err => println(s"decode json error: ${err.getMessage}"))
                 .toOption
@@ -135,7 +135,7 @@ object KafkaMonitoringApi {
               ProducerRecords.one(
                 iso.isoFs2ProducerRecord[K, V].reverseGet(nj.toNJProducerRecord.toProducerRecord))
             }
-            .through(produce(topic.topicDesc.fs2ProducerSettings))
+            .through(produce(topic.description.fs2ProducerSettings))
         }
         .compile
         .drain

@@ -16,15 +16,16 @@ final case class DailyAggResult(date: LocalDate, count: Long)
 final case class DailyHourAggResult(date: LocalDateTime, count: Long)
 final case class DailyMinuteAggResult(date: LocalDateTime, count: Long)
 
-final case class Statistics[K: TypedEncoder, V: TypedEncoder](
-  params: SparKafkaParams,
-  private val crs: Dataset[NJConsumerRecord[K, V]]) {
+final class Statistics[K: TypedEncoder, V: TypedEncoder](
+  zoneId: ZoneId,
+  private val crs: Dataset[NJConsumerRecord[K, V]])
+    extends Serializable {
 
   private def consumerRecords: TypedDataset[NJConsumerRecord[K, V]] = TypedDataset.create(crs)
 
   def minutely: TypedDataset[MinutelyAggResult] = {
     val minute: TypedDataset[Int] = consumerRecords.deserialized.map { m =>
-      NJTimestamp(m.timestamp).atZone(params.zoneId).getMinute
+      NJTimestamp(m.timestamp).atZone(zoneId).getMinute
     }
     val res = minute.groupBy(minute.asCol).agg(count(minute.asCol)).as[MinutelyAggResult]
     res.orderBy(res('minute).asc)
@@ -32,7 +33,7 @@ final case class Statistics[K: TypedEncoder, V: TypedEncoder](
 
   def hourly: TypedDataset[HourlyAggResult] = {
     val hour = consumerRecords.deserialized.map { m =>
-      NJTimestamp(m.timestamp).atZone(params.zoneId).getHour
+      NJTimestamp(m.timestamp).atZone(zoneId).getHour
     }
     val res = hour.groupBy(hour.asCol).agg(count(hour.asCol)).as[HourlyAggResult]
     res.orderBy(res('hour).asc)
@@ -40,16 +41,15 @@ final case class Statistics[K: TypedEncoder, V: TypedEncoder](
 
   def daily: TypedDataset[DailyAggResult] = {
     val day: TypedDataset[LocalDate] = consumerRecords.deserialized.map { m =>
-      NJTimestamp(m.timestamp).atZone(params.zoneId).toLocalDate
+      NJTimestamp(m.timestamp).atZone(zoneId).toLocalDate
     }
     val res = day.groupBy(day.asCol).agg(count(day.asCol)).as[DailyAggResult]
     res.orderBy(res('date).asc)
   }
 
   def dailyHour: TypedDataset[DailyHourAggResult] = {
-    implicit val zoneId: ZoneId = params.zoneId
     val dayHour: TypedDataset[LocalDateTime] = consumerRecords.deserialized.map { m =>
-      val dt = NJTimestamp(m.timestamp).atZone(params.zoneId).toLocalDateTime
+      val dt = NJTimestamp(m.timestamp).atZone(zoneId).toLocalDateTime
       LocalDateTime.of(dt.toLocalDate, LocalTime.of(dt.getHour, 0))
     }
     val res = dayHour.groupBy(dayHour.asCol).agg(count(dayHour.asCol)).as[DailyHourAggResult]
@@ -58,7 +58,7 @@ final case class Statistics[K: TypedEncoder, V: TypedEncoder](
 
   def dailyMinute: TypedDataset[DailyMinuteAggResult] = {
     val dayMinute: TypedDataset[LocalDateTime] = consumerRecords.deserialized.map { m =>
-      val dt = NJTimestamp(m.timestamp).atZone(params.zoneId).toLocalDateTime
+      val dt = NJTimestamp(m.timestamp).atZone(zoneId).toLocalDateTime
       LocalDateTime.of(dt.toLocalDate, LocalTime.of(dt.getHour, dt.getMinute))
     }
     val res =
