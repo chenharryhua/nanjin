@@ -47,7 +47,7 @@ final class SparKafkaSession[K, V](
       case (tp, r) => OffsetRange.create(tp, r.from.value, r.until.value)
     }
 
-  private val path: String = description.settings.rootPath + description.topicDef.topicName
+  private val path: String = params.rootPath + description.topicDef.topicName
 
   private def kafkaRDD[F[_]: Sync]: F[RDD[ConsumerRecord[Array[Byte], Array[Byte]]]] =
     KafkaConsumerApi(description).use(_.offsetRangeFor(params.timeRange)).map { gtp =>

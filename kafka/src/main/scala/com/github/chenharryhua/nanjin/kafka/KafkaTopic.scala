@@ -66,7 +66,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val description: KafkaTopicDe
   val consumerResource: Resource[F, KafkaConsumerApi[F]] = api.KafkaConsumerApi(this.description)
 
   val monitor: KafkaMonitoringApi[F, K, V] =
-    api.KafkaMonitoringApi[F, K, V](this, description.settings.rootPath)
+    api.KafkaMonitoringApi[F, K, V](this)
 }
 
 object KafkaTopic {
