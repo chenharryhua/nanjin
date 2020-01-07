@@ -32,6 +32,8 @@ import scala.collection.immutable
   settings: KafkaSettings) {
   import topicDef.{serdeOfKey, serdeOfValue}
 
+  val topicName: String = topicDef.topicName
+
   def consumerGroupId: Option[KafkaConsumerGroupId] =
     KafkaConsumerSettings.config
       .composeLens(At.at(ConsumerConfig.GROUP_ID_CONFIG))
