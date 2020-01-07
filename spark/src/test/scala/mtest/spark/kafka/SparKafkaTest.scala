@@ -29,25 +29,28 @@ class SparKafkaTest extends AnyFunSuite {
   (topic.schemaRegistry.register >> topic.send(List(0 -> data, 1 -> data))).unsafeRunSync()
 
   test("read topic from kafka") {
-    topic.sparKafka.datasetFromKafka[IO].flatMap(_.show[IO]()).unsafeRunSync
+    topic.description.sparKafka.datasetFromKafka[IO].flatMap(_.show[IO]()).unsafeRunSync
   }
   test("save topic to disk") {
-    topic.sparKafka.updateParams(_.withOverwrite).saveToDisk[IO].unsafeRunSync
+    topic.description.sparKafka.updateParams(_.withOverwrite).saveToDisk[IO].unsafeRunSync
   }
   test("read topic from disk") {
-    topic.sparKafka.datasetFromDisk.show[IO]().unsafeRunSync
+    topic.description.sparKafka.datasetFromDisk.show[IO]().unsafeRunSync
   }
 
   test("replay") {
-    topic.sparKafka.replay[IO].unsafeRunSync
+    topic.description.sparKafka.replay[IO].unsafeRunSync
   }
 
   test("read topic from kafka and show aggragation result") {
-    topic.sparKafka.stats[IO].flatMap(_.dailyHour.show[IO]()).unsafeRunSync
+    topic.description.sparKafka.stats[IO].flatMap(_.dailyHour.show[IO]()).unsafeRunSync
   }
 
   test("read topic from kafka and show json") {
     val tpk = TopicDef[trip_record, trip_record]("nyc_yellow_taxi_trip_data").in(ctx)
-    tpk.sparKafka.jsonDatasetFromKafka[IO].flatMap(_.show[IO](truncate = false)).unsafeRunSync
+    tpk.description.sparKafka
+      .jsonDatasetFromKafka[IO]
+      .flatMap(_.show[IO](truncate = false))
+      .unsafeRunSync
   }
 }
