@@ -4,21 +4,21 @@ private[spark] trait UpdateParams[A, B] {
   def updateParams(f: A => A): B
 }
 
-sealed abstract class FileFormat {
+sealed abstract class NJFileFormat {
   def format: String
 }
 
-object FileFormat {
+object NJFileFormat {
 
-  case object Json extends FileFormat {
+  case object Json extends NJFileFormat {
     val format = "json"
   }
 
-  case object Parquet extends FileFormat {
+  case object Parquet extends NJFileFormat {
     val format = "parquet"
   }
 
-  case object Avro extends FileFormat {
+  case object Avro extends NJFileFormat {
     val format = "avro"
   }
 }

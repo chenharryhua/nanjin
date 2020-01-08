@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.database
 
 import cats.data.Reader
-import com.github.chenharryhua.nanjin.spark.FileFormat
+import com.github.chenharryhua.nanjin.spark.NJFileFormat
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
 
@@ -9,10 +9,11 @@ import org.apache.spark.sql.SaveMode
   dbSaveMode: SaveMode,
   fileSaveMode: SaveMode,
   pathBuilder: Reader[TableName, String],
-  fileFormat: FileFormat) {
+  fileFormat: NJFileFormat) {
 
-  def withFileFormat(fileFormat: FileFormat): SparkTableParams =
-    SparkTableParams.fileFormat.set(fileFormat)(this)
+  def withJson: SparkTableParams    = copy(fileFormat = NJFileFormat.Json)
+  def withAvro: SparkTableParams    = copy(fileFormat = NJFileFormat.Avro)
+  def withParquet: SparkTableParams = copy(fileFormat = NJFileFormat.Parquet)
 
   def withDBSaveMode(saveMode: SaveMode): SparkTableParams =
     SparkTableParams.dbSaveMode.set(saveMode)(this)
@@ -27,6 +28,6 @@ object SparkTableParams {
     SaveMode.ErrorIfExists,
     SaveMode.Overwrite,
     Reader(tn => s"./data/database/parquet/${tn.value}"),
-    FileFormat.Parquet
+    NJFileFormat.Parquet
   )
 }
