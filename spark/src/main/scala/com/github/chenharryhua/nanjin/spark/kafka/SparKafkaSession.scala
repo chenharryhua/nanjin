@@ -4,7 +4,6 @@ import java.util
 
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.api.KafkaConsumerApi
 import com.github.chenharryhua.nanjin.kafka.codec.iso
 import com.github.chenharryhua.nanjin.kafka.{
@@ -14,7 +13,7 @@ import com.github.chenharryhua.nanjin.kafka.{
   NJConsumerRecord,
   NJProducerRecord
 }
-import com.github.chenharryhua.nanjin.spark._
+import com.github.chenharryhua.nanjin.spark.{UpdateParams, _}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.kafka._
 import fs2.{Chunk, Stream}
@@ -80,17 +79,26 @@ final class SparKafkaSession[K, V](
     valEncoder: TypedEncoder[V]): TypedDataset[NJConsumerRecord[K, V]] = {
     val tds =
       TypedDataset.createUnsafe[NJConsumerRecord[K, V]](
-        sparkSession.read.parquet(params.pathBuilder(description.topicName)))
+        sparkSession.read
+          .format(params.fileFormat.format)
+          .load(params.pathBuilder(description.topicName)))
     val inBetween = tds.makeUDF[Long, Boolean](params.timeRange.isInBetween)
     tds.filter(inBetween(tds('timestamp)))
   }
 
-  def saveToDisk[F[_]: Sync](
+  def save[F[_]: Sync](
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[Unit] =
     datasetFromKafka.map(
-      _.write.mode(params.saveMode).parquet(params.pathBuilder(description.topicName)))
+      _.write
+        .mode(params.saveMode)
+        .format(params.fileFormat.format)
+        .save(params.pathBuilder(description.topicName)))
+
+  def saveJson[F[_]: Sync]: F[Unit] =
+    jsonDatasetFromKafka.map(
+      _.write.mode(params.saveMode).text(params.pathBuilder(description.topicName)))
 
   // upload to kafka
   def uploadToKafka[F[_]: ConcurrentEffect: Timer: ContextShift](

@@ -20,7 +20,9 @@ import io.circe.{Error, Json, Decoder => JsonDecoder, Encoder => JsonEncoder}
 import org.apache.avro.Schema
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 
-final case class TopicName(value: String)
+final case class TopicName(value: String) {
+  override val toString: String = value
+}
 
 final case class TopicDef[K, V] private (topicName: TopicName)(
   implicit

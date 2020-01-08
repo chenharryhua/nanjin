@@ -5,6 +5,7 @@ import java.time._
 import cats.data.Reader
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.TopicName
+import com.github.chenharryhua.nanjin.spark.FileFormat
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.streaming.kafka010.{LocationStrategies, LocationStrategy}
@@ -31,6 +32,7 @@ object ConversionTactics {
   uploadRate: NJRate,
   zoneId: ZoneId,
   pathBuilder: Reader[TopicName, String],
+  fileFormat: FileFormat,
   saveMode: SaveMode,
   locationStrategy: LocationStrategy,
   repartition: Int) {
@@ -42,6 +44,7 @@ object ConversionTactics {
   def withOverwrite: SparKafkaParams              = copy(saveMode = SaveMode.Overwrite)
 
   def withPathBuilder(rp: TopicName => String): SparKafkaParams = copy(pathBuilder = Reader(rp))
+  def withFileFormat(fileFormat: FileFormat): SparKafkaParams = copy(fileFormat = fileFormat)
 
   def withLocationStrategy(ls: LocationStrategy): SparKafkaParams = copy(locationStrategy = ls)
 
@@ -100,6 +103,7 @@ object SparKafkaParams {
       NJRate.default,
       ZoneId.systemDefault(),
       Reader(tn => s"./data/kafka/parquet/$tn"),
+      FileFormat.Parquet,
       SaveMode.ErrorIfExists,
       LocationStrategies.PreferConsistent,
       30

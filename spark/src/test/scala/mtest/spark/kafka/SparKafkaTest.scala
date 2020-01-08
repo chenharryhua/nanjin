@@ -31,9 +31,11 @@ class SparKafkaTest extends AnyFunSuite {
   test("read topic from kafka") {
     topic.description.sparKafka.datasetFromKafka[IO].flatMap(_.show[IO]()).unsafeRunSync
   }
+
   test("save topic to disk") {
-    topic.description.sparKafka.updateParams(_.withOverwrite).saveToDisk[IO].unsafeRunSync
+    topic.description.sparKafka.updateParams(_.withOverwrite).save[IO].unsafeRunSync
   }
+
   test("read topic from disk") {
     topic.description.sparKafka.datasetFromDisk.show[IO]().unsafeRunSync
   }

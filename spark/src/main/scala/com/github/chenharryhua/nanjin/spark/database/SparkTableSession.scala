@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.spark.database
 
 import cats.effect.{Concurrent, ContextShift, Sync}
-import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.database.DatabaseSettings
+import com.github.chenharryhua.nanjin.spark.UpdateParams
 import doobie.free.connection.ConnectionIO
 import doobie.implicits._
 import doobie.util.Read
@@ -11,7 +11,9 @@ import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import org.apache.spark.sql.SparkSession
 
-final case class TableName(value: String)
+final case class TableName(value: String) {
+  override val toString: String = value
+}
 
 final case class TableDef[A] private (tableName: TableName)(
   implicit
@@ -50,10 +52,16 @@ final case class SparkTableSession[F[_]: ContextShift: Concurrent, A](
 
   def saveToDisk: F[Unit] =
     Sync[F].delay(
-      datasetFromDB.write.mode(params.fileSaveMode).parquet(params.pathBuilder(tableDef.tableName)))
+      datasetFromDB.write
+        .mode(params.fileSaveMode)
+        .format(params.fileFormat.format)
+        .save(params.pathBuilder(tableDef.tableName)))
 
   def datasetFromDisk: TypedDataset[A] =
-    TypedDataset.createUnsafe[A](sparkSession.read.parquet(params.pathBuilder(tableDef.tableName)))
+    TypedDataset.createUnsafe[A](
+      sparkSession.read
+        .format(params.fileFormat.format)
+        .load(params.pathBuilder(tableDef.tableName)))
 
   def uploadToDB(data: TypedDataset[A]): F[Unit] =
     Sync[F].delay(
