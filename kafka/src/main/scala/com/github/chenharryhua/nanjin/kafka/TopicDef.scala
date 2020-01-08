@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.Show
+import cats.derived.auto.eq._
 import cats.implicits._
+import cats.Show
 import com.github.chenharryhua.nanjin.kafka.codec._
 import com.sksamuel.avro4s.{
   AvroSchema,
@@ -19,7 +20,11 @@ import io.circe.{Error, Json, Decoder => JsonDecoder, Encoder => JsonEncoder}
 import org.apache.avro.Schema
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 
-final case class TopicDef[K, V](topicName: String)(
+final case class TopicName(value: String) {
+  override val toString: String = value
+}
+
+final case class TopicDef[K, V] private (topicName: TopicName)(
   implicit
   val serdeOfKey: SerdeOf[K],
   val serdeOfValue: SerdeOf[V],
@@ -33,8 +38,8 @@ final case class TopicDef[K, V](topicName: String)(
   avroValueEncoder: AvroEncoder[V],
   avroKeyDecoder: AvroDecoder[K],
   avroValueDecoder: AvroDecoder[V]) {
-  val keySchemaLoc: String   = s"$topicName-key"
-  val valueSchemaLoc: String = s"$topicName-value"
+  val keySchemaLoc: String   = s"${topicName.value}-key"
+  val valueSchemaLoc: String = s"${topicName.value}-value"
 
   implicit private val keySchemaFor: SchemaFor[K] =
     (_: FieldMapper) => serdeOfKey.schema
@@ -73,9 +78,28 @@ object TopicDef {
     topicName: String,
     keySchema: ManualAvroSchema[K],
     valueSchema: ManualAvroSchema[V]): TopicDef[K, V] =
-    TopicDef(topicName)(
+    TopicDef(TopicName(topicName))(
       SerdeOf(keySchema),
       SerdeOf(valueSchema),
+      Show[K],
+      Show[V],
+      JsonEncoder[K],
+      JsonEncoder[V],
+      JsonDecoder[K],
+      JsonDecoder[V],
+      AvroEncoder[K],
+      AvroEncoder[V],
+      AvroDecoder[K],
+      AvroDecoder[V]
+    )
+
+  def apply[
+    K: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder: SerdeOf,
+    V: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder: SerdeOf](
+    topicName: String): TopicDef[K, V] =
+    TopicDef(TopicName(topicName))(
+      SerdeOf[K],
+      SerdeOf[V],
       Show[K],
       Show[V],
       JsonEncoder[K],
@@ -93,7 +117,7 @@ object TopicDef {
     V: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder](
     topicName: String,
     valueSchema: ManualAvroSchema[V]): TopicDef[K, V] =
-    TopicDef(topicName)(
+    TopicDef(TopicName(topicName))(
       SerdeOf[K],
       SerdeOf(valueSchema),
       Show[K],
@@ -113,7 +137,7 @@ object TopicDef {
     V: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder: SerdeOf](
     topicName: String,
     keySchema: ManualAvroSchema[K]): TopicDef[K, V] =
-    TopicDef(topicName)(
+    TopicDef(TopicName(topicName))(
       SerdeOf(keySchema),
       SerdeOf[V],
       Show[K],

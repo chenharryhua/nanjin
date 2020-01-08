@@ -2,14 +2,21 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import java.time._
 
-import com.github.chenharryhua.nanjin.common.{NJRate, NJRootPath}
+import cats.data.Reader
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
-import eu.timepit.refined.auto._
+import com.github.chenharryhua.nanjin.kafka.TopicName
+import com.github.chenharryhua.nanjin.spark.NJFileFormat
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.streaming.kafka010.{LocationStrategies, LocationStrategy}
 
 import scala.concurrent.duration._
+
+@Lenses final case class NJRate(batchSize: Int, duration: FiniteDuration)
+
+object NJRate {
+  val default: NJRate = NJRate(1000, 1.second)
+}
 
 @Lenses final case class ConversionTactics(keepPartition: Boolean, keepTimestamp: Boolean)
 
@@ -24,7 +31,8 @@ object ConversionTactics {
   conversionTactics: ConversionTactics,
   uploadRate: NJRate,
   zoneId: ZoneId,
-  rootPath: NJRootPath,
+  pathBuilder: Reader[TopicName, String],
+  fileFormat: NJFileFormat,
   saveMode: SaveMode,
   locationStrategy: LocationStrategy,
   repartition: Int) {
@@ -35,7 +43,11 @@ object ConversionTactics {
   def withSaveMode(sm: SaveMode): SparKafkaParams = copy(saveMode = sm)
   def withOverwrite: SparKafkaParams              = copy(saveMode = SaveMode.Overwrite)
 
-  def withRootPath(rp: NJRootPath): SparKafkaParams = copy(rootPath = rp)
+  def withPathBuilder(rp: TopicName => String): SparKafkaParams = copy(pathBuilder = Reader(rp))
+
+  def withJson: SparKafkaParams    = copy(fileFormat = NJFileFormat.Json)
+  def withAvro: SparKafkaParams    = copy(fileFormat = NJFileFormat.Avro)
+  def withParquet: SparKafkaParams = copy(fileFormat = NJFileFormat.Parquet)
 
   def withLocationStrategy(ls: LocationStrategy): SparKafkaParams = copy(locationStrategy = ls)
 
@@ -93,7 +105,8 @@ object SparKafkaParams {
       ConversionTactics.default,
       NJRate.default,
       ZoneId.systemDefault(),
-      NJRootPath("./data/kafka/parquet/"),
+      Reader(tn => s"./data/spark/kafka/$tn"),
+      NJFileFormat.Parquet,
       SaveMode.ErrorIfExists,
       LocationStrategies.PreferConsistent,
       30

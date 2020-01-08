@@ -6,7 +6,7 @@ import avrohugger.types._
 import cats.Show
 import cats.effect.Sync
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.{KafkaTopicDescription, SchemaRegistrySettings}
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopicDescription, SchemaRegistrySettings, TopicName}
 import io.confluent.kafka.schemaregistry.client.SchemaMetadata
 import org.apache.avro.Schema
 
@@ -58,7 +58,7 @@ object KvSchemaMetadata {
 }
 
 final case class CompatibilityTestReport(
-  topicName: String,
+  topicName: TopicName,
   srSettings: SchemaRegistrySettings,
   meta: KvSchemaMetadata,
   keySchema: Schema,
@@ -116,7 +116,7 @@ object KafkaSchemaRegistryApi {
       extends KafkaSchemaRegistryApi[F] {
 
     val srSettings: SchemaRegistrySettings = topic.settings.schemaRegistrySettings
-    val topicName: String                  = topic.topicDef.topicName
+    val topicName: TopicName                  = topic.topicDef.topicName
     val keySchemaLoc: String               = topic.topicDef.keySchemaLoc
     val valueSchemaLoc: String             = topic.topicDef.valueSchemaLoc
     val keySchema: Schema                  = topic.codec.keySchema

@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka.codec
 
 import java.{util => ju}
 
-import com.github.chenharryhua.nanjin.kafka.{KJson, ManualAvroSchema}
+import com.github.chenharryhua.nanjin.kafka.{KJson, ManualAvroSchema,TopicName}
 import com.sksamuel.avro4s.{
   AvroSchema,
   DefaultFieldMapper,
@@ -20,9 +20,9 @@ import scala.annotation.{compileTimeOnly, implicitAmbiguous, implicitNotFound}
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Try}
 
-sealed private[codec] class KafkaCodec[A](topicName: String, serde: KafkaSerde[A]) {
-  final def encode(a: A): Array[Byte]  = serde.serializer.serialize(topicName, a)
-  final def decode(ab: Array[Byte]): A = serde.deserializer.deserialize(topicName, ab)
+sealed private[codec] class KafkaCodec[A](topicName: TopicName, serde: KafkaSerde[A]) {
+  final def encode(a: A): Array[Byte]  = serde.serializer.serialize(topicName.value, a)
+  final def decode(ab: Array[Byte]): A = serde.deserializer.deserialize(topicName.value, ab)
 
   final def tryDecode(ab: Array[Byte]): Try[A] =
     Option(ab).fold[Try[A]](Failure(CodecException.DecodingNullException))(x => Try(decode(x)))
@@ -35,10 +35,10 @@ sealed private[codec] class KafkaCodec[A](topicName: String, serde: KafkaSerde[A
 
 object KafkaCodec {
 
-  final class Key[A](val topicName: String, val serde: KafkaSerde.Key[A])
+  final class Key[A](val topicName: TopicName, val serde: KafkaSerde.Key[A])
       extends KafkaCodec[A](topicName, serde) with Serializable
 
-  final class Value[A](val topicName: String, val serde: KafkaSerde.Value[A])
+  final class Value[A](val topicName: TopicName, val serde: KafkaSerde.Value[A])
       extends KafkaCodec[A](topicName, serde) with Serializable
 
 }
@@ -71,7 +71,7 @@ object KafkaSerde {
 
     configure(configProps.asJava, isKey = true)
 
-    def codec(topicName: String): KafkaCodec.Key[A] =
+    def codec(topicName: TopicName): KafkaCodec.Key[A] =
       new KafkaCodec.Key[A](topicName, this)
 
     override def show: String = s"KafkaSerde.Key(schema = $schema, configProps = $configProps)"
@@ -86,7 +86,7 @@ object KafkaSerde {
 
     configure(configProps.asJava, isKey = false)
 
-    def codec(topicName: String): KafkaCodec.Value[A] =
+    def codec(topicName: TopicName): KafkaCodec.Value[A] =
       new KafkaCodec.Value[A](topicName, this)
 
     override def show: String = s"KafkaSerde.Value(schema = $schema, configProps = $configProps)"

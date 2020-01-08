@@ -3,9 +3,8 @@ package com.github.chenharryhua.nanjin.kafka.api
 import java.nio.file.{Path, Paths}
 
 import cats.Show
-import cats.effect.{Blocker, ContextShift}
+import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Timer}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.common.NJRootPath
 import com.github.chenharryhua.nanjin.kafka.codec.iso
 import com.github.chenharryhua.nanjin.kafka.{KafkaChannels, KafkaTopic, _}
 import fs2.kafka.{produce, AutoOffsetReset, ProducerRecords}
@@ -13,8 +12,6 @@ import fs2.{text, Stream}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
 import scala.util.Try
-import cats.effect.ConcurrentEffect
-import cats.effect.Timer
 
 sealed trait KafkaMonitoringApi[F[_], K, V] {
   def watch: F[Unit]
@@ -35,13 +32,11 @@ sealed trait KafkaMonitoringApi[F[_], K, V] {
 object KafkaMonitoringApi {
 
   def apply[F[_]: ConcurrentEffect: ContextShift: Timer, K: Show, V: Show](
-    topic: KafkaTopic[F, K, V],
-    rootPath: NJRootPath): KafkaMonitoringApi[F, K, V] =
-    new KafkaTopicMonitoring[F, K, V](topic, rootPath)
+    topic: KafkaTopic[F, K, V]): KafkaMonitoringApi[F, K, V] =
+    new KafkaTopicMonitoring[F, K, V](topic)
 
   final private class KafkaTopicMonitoring[F[_]: ContextShift: Timer, K: Show, V: Show](
-    topic: KafkaTopic[F, K, V],
-    rootPath: NJRootPath)(implicit F: ConcurrentEffect[F])
+    topic: KafkaTopic[F, K, V])(implicit F: ConcurrentEffect[F])
       extends KafkaMonitoringApi[F, K, V] {
     private val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] = topic.fs2Channel
 
@@ -102,7 +97,7 @@ object KafkaMonitoringApi {
                            |""".stripMargin)
       }
 
-    private val path: Path = Paths.get(rootPath + s"/json/${topic.topicName}.json")
+    private val path: Path = Paths.get(s"./data/monitor/${topic.topicName}.json")
 
     override def saveJson: F[Unit] =
       Stream

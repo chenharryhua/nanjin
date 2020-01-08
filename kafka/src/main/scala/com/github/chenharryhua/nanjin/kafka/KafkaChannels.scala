@@ -20,7 +20,7 @@ import org.apache.kafka.streams.kstream.GlobalKTable
 object KafkaChannels {
 
   final class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] private[kafka] (
-    topicName: String,
+    topicName: TopicName,
     producerSettings: Fs2ProducerSettings[F, K, V],
     consumerSettings: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]]) {
 
@@ -43,7 +43,7 @@ object KafkaChannels {
     val consume: Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
       Keyboard.signal.flatMap { signal =>
         consumerStream[F, Array[Byte], Array[Byte]](consumerSettings)
-          .evalTap(_.subscribe(NonEmptyList.of(topicName)))
+          .evalTap(_.subscribe(NonEmptyList.of(topicName.value)))
           .flatMap(_.stream)
           .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
           .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
@@ -51,7 +51,7 @@ object KafkaChannels {
   }
 
   final class AkkaChannel[F[_]: ContextShift: Async, K, V] private[kafka] (
-    topicName: String,
+    topicName: TopicName,
     producerSettings: AkkaProducerSettings[K, V],
     consumerSettings: AkkaConsumerSettings[Array[Byte], Array[Byte]],
     committerSettings: AkkaCommitterSettings) {
@@ -104,31 +104,35 @@ object KafkaChannels {
 
     val consume: Source[CommittableMessage[Array[Byte], Array[Byte]], Consumer.Control] =
       akka.kafka.scaladsl.Consumer
-        .committableSource(consumerSettings, Subscriptions.topics(topicName))
+        .committableSource(consumerSettings, Subscriptions.topics(topicName.value))
   }
 
   final class StreamingChannel[K, V] private[kafka] (
-    topicName: String,
+    topicName: TopicName,
     keySerde: KafkaSerde.Key[K],
     valueSerde: KafkaSerde.Value[V]) {
     import org.apache.kafka.streams.scala.StreamsBuilder
     import org.apache.kafka.streams.scala.kstream.{Consumed, KStream, KTable}
 
     val kstream: Reader[StreamsBuilder, KStream[K, V]] =
-      Reader(builder => builder.stream[K, V](topicName)(Consumed.`with`(keySerde, valueSerde)))
+      Reader(builder =>
+        builder.stream[K, V](topicName.value)(Consumed.`with`(keySerde, valueSerde)))
 
     val ktable: Reader[StreamsBuilder, KTable[K, V]] =
-      Reader(builder => builder.table[K, V](topicName)(Consumed.`with`(keySerde, valueSerde)))
+      Reader(builder => builder.table[K, V](topicName.value)(Consumed.`with`(keySerde, valueSerde)))
 
     val gktable: Reader[StreamsBuilder, GlobalKTable[K, V]] =
-      Reader(builder => builder.globalTable[K, V](topicName)(Consumed.`with`(keySerde, valueSerde)))
+      Reader(builder =>
+        builder.globalTable[K, V](topicName.value)(Consumed.`with`(keySerde, valueSerde)))
 
     def ktable(store: KafkaStore.InMemory[K, V]): Reader[StreamsBuilder, KTable[K, V]] =
       Reader(builder =>
-        builder.table[K, V](topicName, store.materialized)(Consumed.`with`(keySerde, valueSerde)))
+        builder.table[K, V](topicName.value, store.materialized)(
+          Consumed.`with`(keySerde, valueSerde)))
 
     def ktable(store: KafkaStore.Persistent[K, V]): Reader[StreamsBuilder, KTable[K, V]] =
       Reader(builder =>
-        builder.table[K, V](topicName, store.materialized)(Consumed.`with`(keySerde, valueSerde)))
+        builder.table[K, V](topicName.value, store.materialized)(
+          Consumed.`with`(keySerde, valueSerde)))
   }
 }

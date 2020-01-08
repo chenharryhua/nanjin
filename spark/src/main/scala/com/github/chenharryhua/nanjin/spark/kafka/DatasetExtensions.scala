@@ -6,14 +6,15 @@ import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, NJConsumerRecord, NJProducerRecord}
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SparkSession
+import com.github.chenharryhua.nanjin.kafka.KafkaTopicDescription
 
 private[kafka] trait DatasetExtensions {
 
-  implicit final class SparKafkaTopicSyntax[F[_], K, V](topic: KafkaTopic[F, K, V])
+  implicit final class SparKafkaTopicSyntax[K, V](description: KafkaTopicDescription[K, V])
       extends Serializable {
 
     def sparKafka(implicit spark: SparkSession): SparKafkaSession[K, V] =
-      new SparKafkaSession(topic.description, SparKafkaParams.default)
+      new SparKafkaSession(description, SparKafkaParams.default)
   }
 
   implicit final class SparKafkaConsumerRecordSyntax[K: TypedEncoder, V: TypedEncoder](

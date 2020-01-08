@@ -11,9 +11,7 @@ import akka.kafka.{
 import cats.implicits._
 import cats.Show
 import cats.effect.{ConcurrentEffect, ContextShift, IO, Sync, Timer}
-import com.github.chenharryhua.nanjin.common.NJRootPath
 import com.github.chenharryhua.nanjin.utils
-import eu.timepit.refined.auto._
 import fs2.kafka.{
   ConsumerSettings => Fs2ConsumerSettings,
   Deserializer     => Fs2Deserializer,
@@ -80,8 +78,7 @@ import org.apache.kafka.streams.StreamsConfig
   producerSettings: KafkaProducerSettings,
   streamSettings: KafkaStreamSettings,
   adminSettings: KafkaAdminSettings,
-  schemaRegistrySettings: SchemaRegistrySettings,
-  rootPath: NJRootPath) {
+  schemaRegistrySettings: SchemaRegistrySettings) {
   val appId: Option[String] = streamSettings.config.get(StreamsConfig.APPLICATION_ID_CONFIG)
 
   private def updateAll(key: String, value: String): KafkaSettings =
@@ -137,9 +134,6 @@ import org.apache.kafka.streams.StreamsConfig
   def withApplicationId(appId: String): KafkaSettings =
     withStreamingProperty(StreamsConfig.APPLICATION_ID_CONFIG, appId)
 
-  def withRootPath(rp: NJRootPath): KafkaSettings =
-    KafkaSettings.rootPath.set(rp)(this)
-
   def ioContext(implicit contextShift: ContextShift[IO], timer: Timer[IO]): IoKafkaContext =
     new IoKafkaContext(this)
 
@@ -159,15 +153,12 @@ import org.apache.kafka.streams.StreamsConfig
 object KafkaSettings {
   implicit val showKafkaSettings: Show[KafkaSettings] = cats.derived.semi.show[KafkaSettings]
 
-  private val defaultRootPath: NJRootPath = NJRootPath("./data/kafka/")
-
   val empty: KafkaSettings = KafkaSettings(
     KafkaConsumerSettings(Map.empty),
     KafkaProducerSettings(Map.empty),
     KafkaStreamSettings(Map.empty),
     KafkaAdminSettings(Map.empty),
-    SchemaRegistrySettings(Map.empty),
-    defaultRootPath
+    SchemaRegistrySettings(Map.empty)
   )
 
   val local: KafkaSettings =
@@ -179,8 +170,7 @@ object KafkaSettings {
       KafkaProducerSettings(Map.empty),
       KafkaStreamSettings(Map.empty),
       KafkaAdminSettings(Map.empty),
-      SchemaRegistrySettings(Map.empty),
-      defaultRootPath
+      SchemaRegistrySettings(Map.empty)
     ).withGroupId("nanjin-group")
       .withApplicationId("nanjin-app")
       .withBrokers("localhost:9092")

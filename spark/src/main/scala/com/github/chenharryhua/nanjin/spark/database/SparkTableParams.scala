@@ -1,14 +1,19 @@
 package com.github.chenharryhua.nanjin.spark.database
 
-import com.github.chenharryhua.nanjin.common.NJRootPath
+import cats.data.Reader
+import com.github.chenharryhua.nanjin.spark.NJFileFormat
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
-import eu.timepit.refined.auto._
 
 @Lenses final case class SparkTableParams(
   dbSaveMode: SaveMode,
   fileSaveMode: SaveMode,
-  rootPath: NJRootPath) {
+  pathBuilder: Reader[TableName, String],
+  fileFormat: NJFileFormat) {
+
+  def withJson: SparkTableParams    = copy(fileFormat = NJFileFormat.Json)
+  def withAvro: SparkTableParams    = copy(fileFormat = NJFileFormat.Avro)
+  def withParquet: SparkTableParams = copy(fileFormat = NJFileFormat.Parquet)
 
   def withDBSaveMode(saveMode: SaveMode): SparkTableParams =
     SparkTableParams.dbSaveMode.set(saveMode)(this)
@@ -22,6 +27,7 @@ object SparkTableParams {
   val default: SparkTableParams = SparkTableParams(
     SaveMode.ErrorIfExists,
     SaveMode.Overwrite,
-    NJRootPath("./data/database/parquet/")
+    Reader(tn => s"./data/database/parquet/${tn.value}"),
+    NJFileFormat.Parquet
   )
 }

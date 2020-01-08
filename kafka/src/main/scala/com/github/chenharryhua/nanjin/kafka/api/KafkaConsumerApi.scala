@@ -14,7 +14,8 @@ import com.github.chenharryhua.nanjin.kafka.{
   KafkaOffsetRange,
   KafkaPartition,
   KafkaTopicDescription,
-  ListOfTopicPartitions
+  ListOfTopicPartitions,
+  TopicName
 }
 import fs2.kafka.KafkaByteConsumer
 import org.apache.kafka.clients.consumer.{ConsumerRecord, KafkaConsumer, OffsetAndMetadata}
@@ -38,22 +39,22 @@ sealed trait KafkaPrimitiveConsumerApi[F[_]] {
 
 private[kafka] object KafkaPrimitiveConsumerApi {
 
-  def apply[F[_]: Monad](topicName: String)(
+  def apply[F[_]: Monad](topicName: TopicName)(
     implicit F: ApplicativeAsk[F, KafkaByteConsumer]): KafkaPrimitiveConsumerApi[F] =
     new KafkaPrimitiveConsumerApiImpl[F](topicName)
 
-  final private[this] class KafkaPrimitiveConsumerApiImpl[F[_]: Monad](topicName: String)(
+  final private[this] class KafkaPrimitiveConsumerApiImpl[F[_]: Monad](topicName: TopicName)(
     implicit kbc: ApplicativeAsk[F, KafkaByteConsumer]
   ) extends KafkaPrimitiveConsumerApi[F] {
 
     val partitionsFor: F[ListOfTopicPartitions] =
       kbc.ask.map { c =>
         val ret: List[TopicPartition] = c
-          .partitionsFor(topicName)
+          .partitionsFor(topicName.value)
           .asScala
           .toList
           .mapFilter(Option(_))
-          .map(info => new TopicPartition(topicName, info.partition))
+          .map(info => new TopicPartition(topicName.value, info.partition))
         ListOfTopicPartitions(ret)
       }
 
@@ -88,7 +89,7 @@ private[kafka] object KafkaPrimitiveConsumerApi {
       partition: KafkaPartition,
       offset: KafkaOffset): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]] =
       kbc.ask.map { consumer =>
-        val tp = new TopicPartition(topicName, partition.value)
+        val tp = new TopicPartition(topicName.value, partition.value)
         consumer.assign(List(tp).asJava)
         consumer.seek(tp, offset.value)
         consumer.poll(Duration.ofSeconds(15)).records(tp).asScala.toList.headOption
@@ -126,7 +127,7 @@ object KafkaConsumerApi {
       .map(new KafkaConsumerApiImpl(topic.topicDef.topicName, _))
 
   final private[this] class KafkaConsumerApiImpl[F[_]: Sync](
-    topicName: String,
+    topicName: TopicName,
     consumerClient: KafkaByteConsumer)
       extends KafkaConsumerApi[F] {
     import cats.mtl.implicits._

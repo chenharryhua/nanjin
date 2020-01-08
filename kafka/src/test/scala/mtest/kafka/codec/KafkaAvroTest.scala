@@ -1,5 +1,6 @@
 package mtest.kafka.codec
 
+import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.codec.CodecException.InvalidObjectException
 import com.github.chenharryhua.nanjin.kafka.codec.SerdeOf
 import org.scalatest.funsuite.AnyFunSuite
@@ -9,8 +10,8 @@ final case class Foo(a: String, b: Int)
 final case class Bar(a: Int, b: String)
 
 class KafkaAvroTest extends AnyFunSuite {
-  val fooCodec = SerdeOf[Foo].asValue(sr).codec("avro.test")
-  val barCode  = SerdeOf[Bar].asKey(sr).codec("avro.test")
+  val fooCodec = SerdeOf[Foo].asValue(sr).codec(TopicName("avro.test"))
+  val barCode  = SerdeOf[Bar].asKey(sr).codec(TopicName("avro.test"))
 
   test("tryDecode should fail if codec not match") {
     assert(barCode.tryDecode(fooCodec.encode(Foo("a", 0))).isFailure)

@@ -1,20 +1,12 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
+import cats.Show
 import cats.data.Reader
-import cats.effect.concurrent.MVar
 import cats.effect.{ConcurrentEffect, ContextShift, IO, Timer}
-import cats.{Eval, Show}
-import com.github.chenharryhua.nanjin.kafka.codec.KafkaSerde
 import com.github.chenharryhua.nanjin.kafka.codec.{KafkaSerde, SerdeOf}
 import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
 import fs2.Stream
-import fs2.kafka._
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
-import org.apache.kafka.clients.consumer.KafkaConsumer
-import org.apache.kafka.clients.producer.KafkaProducer
-import org.apache.kafka.common.serialization.{ByteArrayDeserializer, ByteArraySerializer}
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.scala.StreamsBuilder
 
