@@ -105,7 +105,7 @@ object SparKafkaParams {
       ConversionTactics.default,
       NJRate.default,
       ZoneId.systemDefault(),
-      Reader(tn => s"./data/kafka/parquet/$tn"),
+      Reader(tn => s"./data/spark/kafka/$tn"),
       NJFileFormat.Parquet,
       SaveMode.ErrorIfExists,
       LocationStrategies.PreferConsistent,
