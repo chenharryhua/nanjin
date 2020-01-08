@@ -17,7 +17,7 @@ private[flink] trait FlinkExtensions extends Serializable {
       valInfo: TypeInformation[V]): DataStream[NJConsumerRecord[K, V]] =
       env.addSource[NJConsumerRecord[K, V]](
         new FlinkKafkaConsumer[NJConsumerRecord[K, V]](
-          description.topicDef.topicName,
+          description.topicDef.topicName.value,
           new KafkaDeserializationSchema[NJConsumerRecord[K, V]] {
             override def isEndOfStream(nextElement: NJConsumerRecord[K, V]): Boolean = false
 

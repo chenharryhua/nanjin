@@ -4,7 +4,7 @@ import java.util
 
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.common.{NJRootPath, UpdateParams}
+import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.api.KafkaConsumerApi
 import com.github.chenharryhua.nanjin.kafka.codec.iso
 import com.github.chenharryhua.nanjin.kafka.{
@@ -47,8 +47,6 @@ final class SparKafkaSession[K, V](
       case (tp, r) => OffsetRange.create(tp, r.from.value, r.until.value)
     }
 
-  private val path: String = params.rootPath + description.topicDef.topicName
-
   private def kafkaRDD[F[_]: Sync]: F[RDD[ConsumerRecord[Array[Byte], Array[Byte]]]] =
     KafkaConsumerApi(description).use(_.offsetRangeFor(params.timeRange)).map { gtp =>
       KafkaUtils.createRDD[Array[Byte], Array[Byte]](
@@ -81,7 +79,8 @@ final class SparKafkaSession[K, V](
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): TypedDataset[NJConsumerRecord[K, V]] = {
     val tds =
-      TypedDataset.createUnsafe[NJConsumerRecord[K, V]](sparkSession.read.parquet(path))
+      TypedDataset.createUnsafe[NJConsumerRecord[K, V]](
+        sparkSession.read.parquet(params.pathBuilder(description.topicName)))
     val inBetween = tds.makeUDF[Long, Boolean](params.timeRange.isInBetween)
     tds.filter(inBetween(tds('timestamp)))
   }
@@ -90,7 +89,8 @@ final class SparKafkaSession[K, V](
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[Unit] =
-    datasetFromKafka.map(_.write.mode(params.saveMode).parquet(path))
+    datasetFromKafka.map(
+      _.write.mode(params.saveMode).parquet(params.pathBuilder(description.topicName)))
 
   // upload to kafka
   def uploadToKafka[F[_]: ConcurrentEffect: Timer: ContextShift](
@@ -132,7 +132,7 @@ final class SparKafkaSession[K, V](
         sparkSession.readStream
           .format("kafka")
           .options(toSparkOptions(description.settings.consumerSettings.config))
-          .option("subscribe", description.topicDef.topicName)
+          .option("subscribe", description.topicDef.topicName.value)
           .load()
           .as[NJConsumerRecord[Array[Byte], Array[Byte]]])
       .deserialized

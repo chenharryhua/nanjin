@@ -17,11 +17,11 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val description: KafkaTopicDe
 ) extends TopicNameExtractor[K, V] {
   import description.topicDef.{showKey, showValue}
 
-  val topicName: String = description.topicDef.topicName
+  val topicName: TopicName = description.topicDef.topicName
 
   val consumerGroupId: Option[KafkaConsumerGroupId] = description.consumerGroupId
 
-  override def extract(key: K, value: V, rc: RecordContext): String = topicName
+  override def extract(key: K, value: V, rc: RecordContext): String = topicName.value
 
   def decoder[G[_, _]: NJConsumerMessage](
     cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
@@ -70,5 +70,5 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val description: KafkaTopicDe
 }
 
 object KafkaTopic {
-  implicit def showKafkaTopic[F[_], K, V]: Show[KafkaTopic[F, K, V]] = _.topicName
+  implicit def showKafkaTopic[F[_], K, V]: Show[KafkaTopic[F, K, V]] = _.topicName.value
 }

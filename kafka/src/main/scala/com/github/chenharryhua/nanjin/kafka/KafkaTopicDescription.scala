@@ -32,7 +32,7 @@ import scala.collection.immutable
   settings: KafkaSettings) {
   import topicDef.{serdeOfKey, serdeOfValue}
 
-  val topicName: String = topicDef.topicName
+  val topicName: TopicName = topicDef.topicName
 
   def consumerGroupId: Option[KafkaConsumerGroupId] =
     KafkaConsumerSettings.config
@@ -81,34 +81,40 @@ import scala.collection.immutable
     topicDef.fromJson(jsonString)
 
   def fs2ProducerRecords[P](key: K, value: V, p: P): Fs2ProducerRecords[K, V, P] =
-    Fs2ProducerRecords.one[K, V, P](Fs2ProducerRecord[K, V](topicDef.topicName, key, value), p)
+    Fs2ProducerRecords.one[K, V, P](
+      Fs2ProducerRecord[K, V](topicDef.topicName.value, key, value),
+      p)
 
   def fs2ProducerRecords(key: K, value: V): Fs2ProducerRecords[K, V, Unit] =
-    Fs2ProducerRecords.one(Fs2ProducerRecord[K, V](topicDef.topicName, key, value))
+    Fs2ProducerRecords.one(Fs2ProducerRecord[K, V](topicDef.topicName.value, key, value))
 
   def fs2ProducerRecords[G[+_]: Traverse](list: G[(K, V)]): Fs2ProducerRecords[K, V, Unit] =
     Fs2ProducerRecords[G, K, V](list.map {
-      case (k, v) => Fs2ProducerRecord[K, V](topicDef.topicName, k, v)
+      case (k, v) => Fs2ProducerRecord[K, V](topicDef.topicName.value, k, v)
     })
 
   def fs2ProducerRecords[G[+_]: Traverse, P](list: G[(K, V)], p: P): Fs2ProducerRecords[K, V, P] =
     Fs2ProducerRecords[G, K, V, P](list.map {
-      case (k, v) => Fs2ProducerRecord[K, V](topicDef.topicName, k, v)
+      case (k, v) => Fs2ProducerRecord[K, V](topicDef.topicName.value, k, v)
     }, p)
 
   def akkaProducerRecords(key: K, value: V): ProducerMessage.Envelope[K, V, NotUsed] =
-    ProducerMessage.single[K, V](new ProducerRecord[K, V](topicDef.topicName, key, value))
+    ProducerMessage.single[K, V](new ProducerRecord[K, V](topicDef.topicName.value, key, value))
 
   def akkaProducerRecords[P](key: K, value: V, p: P): ProducerMessage.Envelope[K, V, P] =
-    ProducerMessage.single[K, V, P](new ProducerRecord[K, V](topicDef.topicName, key, value), p)
+    ProducerMessage.single[K, V, P](
+      new ProducerRecord[K, V](topicDef.topicName.value, key, value),
+      p)
 
   def akkaProducerRecord(seq: immutable.Seq[(K, V)]): ProducerMessage.Envelope[K, V, NotUsed] =
-    ProducerMessage.multi(seq.map { case (k, v) => new ProducerRecord(topicDef.topicName, k, v) })
+    ProducerMessage.multi(seq.map {
+      case (k, v) => new ProducerRecord(topicDef.topicName.value, k, v)
+    })
 
   def akkaProducerRecord[P](seq: immutable.Seq[(K, V)], p: P): ProducerMessage.Envelope[K, V, P] =
-    ProducerMessage.multi(
-      seq.map { case (k, v) => new ProducerRecord(topicDef.topicName, k, v) },
-      p)
+    ProducerMessage.multi(seq.map {
+      case (k, v) => new ProducerRecord(topicDef.topicName.value, k, v)
+    }, p)
 
   def show: String =
     s"""
