@@ -26,41 +26,41 @@ import org.apache.spark.streaming.kafka010.{KafkaUtils, OffsetRange}
 
 import scala.collection.JavaConverters._
 
-final class SparKafkaSession[K, V](
-  description: KafkaTopicDescription[K, V],
-  params: SparKafkaParams)(implicit val sparkSession: SparkSession)
+final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], params: SparKafkaParams)(
+  implicit val sparkSession: SparkSession)
     extends UpdateParams[SparKafkaParams, SparKafkaSession[K, V]] with Serializable {
 
   override def updateParams(f: SparKafkaParams => SparKafkaParams): SparKafkaSession[K, V] =
-    new SparKafkaSession[K, V](description, f(params))
+    new SparKafkaSession[K, V](kafkaDesc, f(params))
 
   private def props: util.Map[String, Object] =
-    (remove(ConsumerConfig.CLIENT_ID_CONFIG)(description.settings.consumerSettings.config) ++ Map(
+    (remove(ConsumerConfig.CLIENT_ID_CONFIG)(kafkaDesc.settings.consumerSettings.config) ++ Map(
       "key.deserializer" -> classOf[ByteArrayDeserializer].getName,
       "value.deserializer" -> classOf[ByteArrayDeserializer].getName))
       .mapValues[Object](identity)
       .asJava
 
-  private def offsetRange(range: GenericTopicPartition[KafkaOffsetRange]): Array[OffsetRange] =
+  private def offsetRanges(range: GenericTopicPartition[KafkaOffsetRange]): Array[OffsetRange] =
     range.value.toArray.map {
       case (tp, r) => OffsetRange.create(tp, r.from.value, r.until.value)
     }
 
   private def kafkaRDD[F[_]: Sync]: F[RDD[ConsumerRecord[Array[Byte], Array[Byte]]]] =
-    KafkaConsumerApi(description).use(_.offsetRangeFor(params.timeRange)).map { gtp =>
+    KafkaConsumerApi(kafkaDesc).use(_.offsetRangeFor(params.timeRange)).map { gtp =>
       KafkaUtils.createRDD[Array[Byte], Array[Byte]](
         sparkSession.sparkContext,
         props,
-        offsetRange(gtp),
+        offsetRanges(gtp),
         params.locationStrategy)
     }
 
   def datasetFromKafka[F[_]: Sync, K1: TypedEncoder, V1: TypedEncoder](
     transKey: K => K1,
     transVal: V => V1): F[TypedDataset[NJConsumerRecord[K1, V1]]] =
-    kafkaRDD.map(rdd =>
+    kafkaRDD.map { rdd =>
       TypedDataset.create(
-        rdd.mapPartitions(_.map(cr => description.decoder(cr).record.bimap(transKey, transVal)))))
+        rdd.mapPartitions(_.map(kafkaDesc.decoder(_).record.bimap(transKey, transVal))))
+    }
 
   def datasetFromKafka[F[_]: Sync](
     implicit
@@ -69,24 +69,22 @@ final class SparKafkaSession[K, V](
     datasetFromKafka[F, K, V](identity, identity)
 
   def jsonDatasetFromKafka[F[_]: Sync]: F[TypedDataset[String]] =
-    kafkaRDD.map(rdd =>
-      TypedDataset.create(rdd.mapPartitions(_.map(cr => description.toJson(cr).noSpaces))))
+    kafkaRDD.map(rdd => TypedDataset.create(rdd.mapPartitions(_.map(kafkaDesc.toJson(_).noSpaces))))
 
   def load(
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): TypedDataset[NJConsumerRecord[K, V]] = {
+    val path = params.pathBuilder(kafkaDesc.topicName)
     val tds = params.fileFormat match {
       case NJFileFormat.Parquet | NJFileFormat.Avro =>
         TypedDataset.createUnsafe[NJConsumerRecord[K, V]](
-          sparkSession.read
-            .format(params.fileFormat.format)
-            .load(params.pathBuilder(description.topicName)))
+          sparkSession.read.format(params.fileFormat.format).load(path))
       case NJFileFormat.Json =>
         TypedDataset
-          .create(sparkSession.read.textFile(params.pathBuilder(description.topicName)))
+          .create(sparkSession.read.textFile(path))
           .deserialized
-          .flatMap(description.fromJsonStr(_).toOption)
+          .flatMap(kafkaDesc.fromJsonStr(_).toOption)
     }
     val inBetween = tds.makeUDF[Long, Boolean](params.timeRange.isInBetween)
     tds.filter(inBetween(tds('timestamp)))
@@ -102,13 +100,13 @@ final class SparKafkaSession[K, V](
           _.write
             .mode(params.saveMode)
             .format(params.fileFormat.format)
-            .save(params.pathBuilder(description.topicName)))
+            .save(params.pathBuilder(kafkaDesc.topicName)))
       case NJFileFormat.Json => saveJson
     }
 
   def saveJson[F[_]: Sync]: F[Unit] =
     jsonDatasetFromKafka.map(
-      _.write.mode(params.saveMode).text(params.pathBuilder(description.topicName)))
+      _.write.mode(params.saveMode).text(params.pathBuilder(kafkaDesc.topicName)))
 
   // upload to kafka
   def uploadToKafka[F[_]: ConcurrentEffect: Timer: ContextShift](
@@ -120,7 +118,7 @@ final class SparKafkaSession[K, V](
       .map(chk =>
         ProducerRecords[Chunk, K, V](
           chk.map(d => iso.isoFs2ProducerRecord[K, V].reverseGet(d.toProducerRecord))))
-      .through(produce(description.fs2ProducerSettings[F]))
+      .through(produce(kafkaDesc.fs2ProducerSettings[F]))
 
   // load data from disk and then upload into kafka
   def replay[F[_]: ConcurrentEffect: Timer: ContextShift](
@@ -149,8 +147,8 @@ final class SparKafkaSession[K, V](
       .create(
         sparkSession.readStream
           .format("kafka")
-          .options(toSparkOptions(description.settings.consumerSettings.config))
-          .option("subscribe", description.topicDef.topicName.value)
+          .options(toSparkOptions(kafkaDesc.settings.consumerSettings.config))
+          .option("subscribe", kafkaDesc.topicDef.topicName.value)
           .load()
           .as[NJConsumerRecord[Array[Byte], Array[Byte]]])
       .deserialized
@@ -160,8 +158,8 @@ final class SparKafkaSession[K, V](
             msg.partition,
             msg.offset,
             msg.timestamp,
-            msg.key.flatMap(k   => description.codec.keyCodec.tryDecode(k).toOption),
-            msg.value.flatMap(v => description.codec.valueCodec.tryDecode(v).toOption),
+            msg.key.flatMap(k   => kafkaDesc.codec.keyCodec.tryDecode(k).toOption),
+            msg.value.flatMap(v => kafkaDesc.codec.valueCodec.tryDecode(v).toOption),
             msg.topic,
             msg.timestampType
           )
