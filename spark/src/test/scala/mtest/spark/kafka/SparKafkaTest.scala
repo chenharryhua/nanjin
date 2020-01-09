@@ -37,7 +37,7 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("read topic from disk") {
-    topic.description.sparKafka.datasetFromDisk.show[IO]().unsafeRunSync
+    topic.description.sparKafka.load.show[IO]().unsafeRunSync
   }
 
   test("replay") {

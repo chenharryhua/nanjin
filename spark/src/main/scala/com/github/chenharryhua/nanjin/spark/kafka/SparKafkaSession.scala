@@ -73,15 +73,22 @@ final class SparKafkaSession[K, V](
     kafkaRDD.map(rdd =>
       TypedDataset.create(rdd.mapPartitions(_.map(cr => description.toJson(cr).noSpaces))))
 
-  def datasetFromDisk(
+  def load(
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): TypedDataset[NJConsumerRecord[K, V]] = {
-    val tds =
-      TypedDataset.createUnsafe[NJConsumerRecord[K, V]](
-        sparkSession.read
-          .format(params.fileFormat.format)
-          .load(params.pathBuilder(description.topicName)))
+    val tds = params.fileFormat match {
+      case NJFileFormat.Parquet | NJFileFormat.Avro =>
+        TypedDataset.createUnsafe[NJConsumerRecord[K, V]](
+          sparkSession.read
+            .format(params.fileFormat.format)
+            .load(params.pathBuilder(description.topicName)))
+      case NJFileFormat.Json =>
+        TypedDataset
+          .create(sparkSession.read.textFile(params.pathBuilder(description.topicName)))
+          .deserialized
+          .flatMap(description.fromJsonStr(_).toOption)
+    }
     val inBetween = tds.makeUDF[Long, Boolean](params.timeRange.isInBetween)
     tds.filter(inBetween(tds('timestamp)))
   }
@@ -90,11 +97,15 @@ final class SparKafkaSession[K, V](
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[Unit] =
-    datasetFromKafka.map(
-      _.write
-        .mode(params.saveMode)
-        .format(params.fileFormat.format)
-        .save(params.pathBuilder(description.topicName)))
+    params.fileFormat match {
+      case NJFileFormat.Parquet | NJFileFormat.Avro =>
+        datasetFromKafka.map(
+          _.write
+            .mode(params.saveMode)
+            .format(params.fileFormat.format)
+            .save(params.pathBuilder(description.topicName)))
+      case NJFileFormat.Json => saveJson
+    }
 
   def saveJson[F[_]: Sync]: F[Unit] =
     jsonDatasetFromKafka.map(
@@ -118,7 +129,7 @@ final class SparKafkaSession[K, V](
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[Unit] = {
     val run = for {
-      ds <- Stream(datasetFromDisk.repartition(params.repartition))
+      ds <- Stream(load.repartition(params.repartition))
       res <- uploadToKafka(ds.toProducerRecords(params.conversionTactics, params.clock))
     } yield res
     run.map(_ => print(".")).compile.drain
