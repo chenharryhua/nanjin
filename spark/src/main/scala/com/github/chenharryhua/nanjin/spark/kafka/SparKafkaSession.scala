@@ -55,19 +55,18 @@ final class SparKafkaSession[K, V](
         params.locationStrategy)
     }
 
-  def datasetFromKafka[F[_]: Sync](
-    implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): F[TypedDataset[NJConsumerRecord[K, V]]] =
-    kafkaRDD.map(rdd =>
-      TypedDataset.create(rdd.mapPartitions(_.map(cr => description.decoder(cr).record))))
-
   def datasetFromKafka[F[_]: Sync, K1: TypedEncoder, V1: TypedEncoder](
     transKey: K => K1,
     transVal: V => V1): F[TypedDataset[NJConsumerRecord[K1, V1]]] =
     kafkaRDD.map(rdd =>
       TypedDataset.create(
         rdd.mapPartitions(_.map(cr => description.decoder(cr).record.bimap(transKey, transVal)))))
+
+  def datasetFromKafka[F[_]: Sync](
+    implicit
+    keyEncoder: TypedEncoder[K],
+    valEncoder: TypedEncoder[V]): F[TypedDataset[NJConsumerRecord[K, V]]] =
+    datasetFromKafka[F, K, V](identity, identity)
 
   def jsonDatasetFromKafka[F[_]: Sync]: F[TypedDataset[String]] =
     kafkaRDD.map(rdd =>
