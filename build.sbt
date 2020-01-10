@@ -44,7 +44,7 @@ val scalatest = "3.1.0"
 val doobie = "0.8.8"
 val quill  = "3.5.0"
 
-val neotypes = "0.13.0"
+val neotypes = "0.13.1"
 
 val flinkVersion = "1.9.1"
 
