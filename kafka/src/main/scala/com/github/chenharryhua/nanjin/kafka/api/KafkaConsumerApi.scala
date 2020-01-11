@@ -101,7 +101,7 @@ private[kafka] object KafkaPrimitiveConsumerApi {
 }
 
 sealed trait KafkaConsumerApi[F[_]] extends KafkaPrimitiveConsumerApi[F] {
-  def offsetRangeFor(dtr: NJDateTimeRange): F[NJTopicPartition[KafkaOffsetRange]]
+  def offsetRangeFor(dtr: NJDateTimeRange): F[NJTopicPartition[Option[KafkaOffsetRange]]]
   def retrieveLastRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
   def retrieveFirstRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
   def retrieveRecordsForTimes(ts: NJTimestamp): F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
@@ -138,17 +138,16 @@ object KafkaConsumerApi {
     private[this] def execute[A](r: Kleisli[F, KafkaByteConsumer, A]): F[A] =
       r.run(consumerClient)
 
-    override def offsetRangeFor(dtr: NJDateTimeRange): F[NJTopicPartition[KafkaOffsetRange]] =
+    override def offsetRangeFor(
+      dtr: NJDateTimeRange): F[NJTopicPartition[Option[KafkaOffsetRange]]] =
       execute {
         for {
           from <- dtr.start.fold(kpc.beginningOffsets)(kpc.offsetsForTimes)
           end <- kpc.endOffsets
           to <- dtr.end.traverse(kpc.offsetsForTimes)
         } yield {
-          val endOffsets = to.fold(end)(_.combineWith(end)(_.orElse(_)))
-          from
-            .combineWith(endOffsets)(Tuple2(_, _).mapN(KafkaOffsetRange).filter(_.isValid))
-            .flatten[KafkaOffsetRange]
+          val e = to.fold(end)(_.combineWith(end)(_.orElse(_)))
+          from.combineWith(e)(Tuple2(_, _).mapN(KafkaOffsetRange(_, _)).filter(_.isValid))
         }
       }
 
@@ -192,7 +191,7 @@ object KafkaConsumerApi {
         for {
           beg <- kpc.beginningOffsets
           end <- kpc.endOffsets
-        } yield beg.combineWith(end)(Tuple2(_, _).mapN(KafkaOffsetRange))
+        } yield beg.combineWith(end)(Tuple2(_, _).mapN(KafkaOffsetRange(_, _)))
       }
 
     override def numOfRecordsSince(ts: NJTimestamp): F[NJTopicPartition[Option[KafkaOffsetRange]]] =
@@ -200,7 +199,7 @@ object KafkaConsumerApi {
         for {
           oft <- kpc.offsetsForTimes(ts)
           end <- kpc.endOffsets
-        } yield oft.combineWith(end)(Tuple2(_, _).mapN(KafkaOffsetRange))
+        } yield oft.combineWith(end)(Tuple2(_, _).mapN(KafkaOffsetRange(_, _)))
       }
 
     override def partitionsFor: F[ListOfTopicPartitions] =

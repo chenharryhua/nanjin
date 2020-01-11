@@ -40,8 +40,8 @@ final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], param
       .mapValues[Object](identity)
       .asJava
 
-  private def offsetRanges(range: NJTopicPartition[KafkaOffsetRange]): Array[OffsetRange] =
-    range.value.toArray.map {
+  private def offsetRanges(range: NJTopicPartition[Option[KafkaOffsetRange]]): Array[OffsetRange] =
+    range.flatten[KafkaOffsetRange].value.toArray.map {
       case (tp, r) => OffsetRange.create(tp, r.from.value, r.until.value)
     }
 
