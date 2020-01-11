@@ -9,7 +9,7 @@ import org.apache.kafka.clients.admin.TopicDescription
 // delegate to https://ovotech.github.io/fs2-kafka/
 
 sealed trait KafkaTopicAdminApi[F[_]] {
-  def idefinitelyWantToDeleteTheTopic: F[Unit]
+  def idefinitelyWantToDeleteTheTopic: F[Either[Throwable, Unit]]
   def describe: F[Map[String, TopicDescription]]
   def groups: F[List[KafkaConsumerGroupInfo]]
   val adminResource: Resource[F, KafkaAdminClient[F]]
@@ -29,8 +29,8 @@ object KafkaTopicAdminApi {
       adminClientResource[F](
         AdminClientSettings[F].withProperties(topic.settings.adminSettings.config))
 
-    override def idefinitelyWantToDeleteTheTopic: F[Unit] =
-      adminResource.use(_.deleteTopic(topic.topicName.value))
+    override def idefinitelyWantToDeleteTheTopic: F[Either[Throwable, Unit]] =
+      adminResource.use(_.deleteTopic(topic.topicName.value).attempt)
 
     override def describe: F[Map[String, TopicDescription]] =
       adminResource.use(_.describeTopics(List(topic.topicName.value)))

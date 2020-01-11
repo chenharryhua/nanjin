@@ -15,19 +15,19 @@ class ConsumeMessageAkkaTest extends AnyFunSuite {
   val vessel: TopicDef[PKey, aisClassAPositionReport] =
     TopicDef[PKey, aisClassAPositionReport]("sea_vessel_position_reports")
   val topic = ctx.topic(vessel)
-  test("akka stream should be able to consume data") {
+  val chn   = topic.akkaChannel(akkaSystem)
 
-    val run = topic.akkaResource(akkaSystem).use { chn =>
-      chn
-        .updateConsumerSettings(_.withClientId("c-id"))
-        .updateCommitterSettings(_.withParallelism(10))
-        .consume
-        .map(m => topic.decoder(m).decodeValue)
-        .map(_.show)
-        .map(println)
-        .take(3)
-        .runWith(chn.ignoreSink)(materializer)
-    }
+  test("akka stream should be able to consume data") {
+    val run = chn
+      .updateConsumerSettings(_.withClientId("c-id"))
+      .updateCommitterSettings(_.withParallelism(10))
+      .consume
+      .map(m => topic.decoder(m).decodeValue)
+      .map(_.show)
+      .map(println)
+      .take(3)
+      .runWith(chn.ignoreSink)(materializer)
+
     run.unsafeRunSync()
   }
 
@@ -36,14 +36,13 @@ class ConsumeMessageAkkaTest extends AnyFunSuite {
     val ret = for {
       start <- topic.consumerResource.use(_.beginningOffsets)
       offsets = start.flatten[KafkaOffset].value.mapValues(_.value)
-      _ <- topic.akkaResource(akkaSystem).use { chn =>
-        chn
-          .assign(offsets)
-          .map(m => topic.decoder(m).decode)
-          .map(_.show)
-          .take(1)
-          .runWith(chn.ignoreSink)(materializer)
-      }
+      _ <- chn
+        .assign(offsets)
+        .map(m => topic.decoder(m).decode)
+        .map(_.show)
+        .take(1)
+        .runWith(chn.ignoreSink)(materializer)
+
     } yield ()
     ret.unsafeRunSync
   }

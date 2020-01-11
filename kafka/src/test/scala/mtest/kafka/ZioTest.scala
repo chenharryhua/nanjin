@@ -13,7 +13,6 @@ import zio.interop.catz.implicits.ioTimer
 import zio.random.Random
 import zio.system.System
 import zio.{DefaultRuntime, Runtime}
-import cats.effect.IO
 
 class ZioTest extends AnyFunSuite {
   type Environment = Clock with Console with System with Random with Blocking
@@ -38,16 +37,16 @@ class ZioTest extends AnyFunSuite {
   }
 
   test("zio should work for akka.") {
-    val task = topic.akkaResource(akkaSystem).use { chn =>
-      chn
-        .updateConsumerSettings(_.withClientId("akka-test"))
-        .consume
-        .map(x => topic.decoder(x).decodeValue)
-        .take(3)
-        .map(_.show)
-        .map(println)
-        .runWith(chn.ignoreSink)(materializer)
-    }
+    val chn = topic.akkaChannel(akkaSystem)
+    val task = chn
+      .updateConsumerSettings(_.withClientId("akka-test"))
+      .consume
+      .map(x => topic.decoder(x).decodeValue)
+      .take(3)
+      .map(_.show)
+      .map(println)
+      .runWith(chn.ignoreSink)(materializer)
+
     runtime.unsafeRun(task)
   }
 }

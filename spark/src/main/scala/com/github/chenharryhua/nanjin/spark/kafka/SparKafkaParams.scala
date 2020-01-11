@@ -65,6 +65,8 @@ object ConversionTactics {
   def withEndTime(dt: LocalDateTime): SparKafkaParams   = setEndTime(NJTimestamp(dt, zoneId))
   def withStartTime(dt: LocalDate): SparKafkaParams     = setStartTime(NJTimestamp(dt, zoneId))
   def withEndTime(dt: LocalDate): SparKafkaParams       = setEndTime(NJTimestamp(dt, zoneId))
+  def withStartTime(dt: Long): SparKafkaParams          = setStartTime(NJTimestamp(dt))
+  def withEndTime(dt: Long): SparKafkaParams            = setEndTime(NJTimestamp(dt))
 
   def withinOneDay(dt: LocalDate): SparKafkaParams =
     withStartTime(dt).withEndTime(dt.plusDays(1))

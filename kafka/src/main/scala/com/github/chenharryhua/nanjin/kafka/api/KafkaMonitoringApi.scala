@@ -5,6 +5,7 @@ import java.nio.file.{Path, Paths}
 import cats.Show
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Timer}
 import cats.implicits._
+import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.codec.iso
 import com.github.chenharryhua.nanjin.kafka.{KafkaChannels, KafkaTopic, _}
 import fs2.kafka.{produce, AutoOffsetReset, ProducerRecords}
@@ -16,6 +17,7 @@ import scala.util.Try
 sealed trait KafkaMonitoringApi[F[_], K, V] {
   def watch: F[Unit]
   def watchFromEarliest: F[Unit]
+  def watchFrom(njt: NJTimestamp): F[Unit]
 
   def filter(pred: ConsumerRecord[Try[K], Try[V]]             => Boolean): F[Unit]
   def filterFromEarliest(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit]
@@ -25,7 +27,7 @@ sealed trait KafkaMonitoringApi[F[_], K, V] {
 
   def summaries: F[Unit]
 
-  def saveJson: F[Unit]
+  def save: F[Unit]
   def replay: F[Unit]
 }
 
@@ -38,7 +40,9 @@ object KafkaMonitoringApi {
   final private class KafkaTopicMonitoring[F[_]: ContextShift: Timer, K: Show, V: Show](
     topic: KafkaTopic[F, K, V])(implicit F: ConcurrentEffect[F])
       extends KafkaMonitoringApi[F, K, V] {
-    private val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] = topic.fs2Channel
+
+    private val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
+      topic.fs2Channel.updateConsumerSettings(_.withEnableAutoCommit(false))
 
     private def watch(aor: AutoOffsetReset): F[Unit] =
       fs2Channel
@@ -62,6 +66,23 @@ object KafkaMonitoringApi {
         .showLinesStdOut
         .compile
         .drain
+
+    override def watchFrom(njt: NJTimestamp): F[Unit] =
+      for {
+        gtp <- KafkaConsumerApi(topic.description).use { c =>
+          for {
+            os <- c.offsetsForTimes(njt)
+            e <- c.endOffsets
+          } yield os.combineWith(e)(_.orElse(_))
+        }
+        _ <- fs2Channel
+          .assign(gtp.flatten[KafkaOffset].mapValues(_.value).value)
+          .map(m => topic.decoder(m).tryDecodeKeyValue)
+          .map(_.show)
+          .showLinesStdOut
+          .compile
+          .drain
+      } yield ()
 
     override def watch: F[Unit]             = watch(AutoOffsetReset.Latest)
     override def watchFromEarliest: F[Unit] = watch(AutoOffsetReset.Earliest)
@@ -99,7 +120,7 @@ object KafkaMonitoringApi {
 
     private val path: Path = Paths.get(s"./data/monitor/${topic.topicName}.json")
 
-    override def saveJson: F[Unit] =
+    override def save: F[Unit] =
       Stream
         .resource[F, Blocker](Blocker[F])
         .flatMap { blocker =>

@@ -24,7 +24,7 @@ val monix      = "3.1.0"
 val catsEffect = "2.0.0"
 
 val akkaKafka = "2.0.0-RC1"
-val fs2Kafka  = "0.20.2"
+val fs2Kafka  = "0.20.2+62-4bd3544b-SNAPSHOT"
 
 val sparkVersion = "2.4.4"
 val frameless    = "0.8.0"
@@ -83,7 +83,8 @@ lazy val commonSettings = Seq(
     "-Ywarn-dead-code",
     "-Ywarn-numeric-widen",
     "-Xfuture"
-  )
+  ),
+  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
 )
 
 val hadoopLib = Seq(
@@ -303,7 +304,6 @@ lazy val spark = (project in file("spark"))
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core"  % "jackson-databind" % "2.6.7.2",
       "org.json4s" %% "json4s-core" % "3.5.5"),
-    Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
   )
 
 lazy val flink = (project in file("flink"))
@@ -323,7 +323,6 @@ lazy val graph = (project in file("graph"))
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core"  % "jackson-databind" % "2.6.7.2",
       "org.json4s" %% "json4s-core" % "3.5.5"),
-    Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
   )
 
 lazy val nanjin =

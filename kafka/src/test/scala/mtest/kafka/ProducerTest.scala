@@ -22,29 +22,32 @@ case class AvroKey(key: String)
 case class AvroValue(v1: String, v2: Int)
 
 class ProducerTest extends AnyFunSuite {
-  val srcTopic    = ctx.topic[AvroKey, AvroValue]("producer-test-source")
-  val akkaTopic   = ctx.topic[AvroKey, AvroValue]("producer-test-akka")
-  val fs2Topic    = ctx.topic[AvroKey, AvroValue]("producer-test-fs2")
-  val streamTopic = ctx.topic[AvroKey, AvroValue]("producer-test-kafka")
+  val srcTopic    = ctx.topic[AvroKey, AvroValue]("producer.test.source")
+  val akkaTopic   = ctx.topic[AvroKey, AvroValue]("producer.test.akka")
+  val fs2Topic    = ctx.topic[AvroKey, AvroValue]("producer.test.fs2")
+  val streamTopic = ctx.topic[AvroKey, AvroValue]("producer.test.kafka")
   test("producer api") {
+
     val produceTask = (0 until 100).toList.traverse { i =>
       srcTopic.send(AvroKey(i.toString), AvroValue(Random.nextString(5), Random.nextInt(100)))
     }
+    val srcChn  = srcTopic.akkaChannel(akkaSystem)
+    val akkaChn = akkaTopic.akkaChannel(akkaSystem)
 
-    val akkaTask: IO[Done] = srcTopic.akkaResource(akkaSystem).use { s =>
-      akkaTopic.akkaResource(akkaSystem).use { t =>
-        s.updateConsumerSettings(_.withProperty(
-            ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
-            "earliest").withGroupId("akka-task").withCommitWarning(10.seconds))
-          .consume
-          .map(m => akkaTopic.decoder(m).decode)
-          .map(m =>
-            akkaTopic.description
-              .akkaProducerRecords(m.record.key, m.record.value, m.committableOffset))
-          .take(100)
-          .runWith(t.committableSink)(materializer)
-      }
-    }
+    val akkaTask: IO[Done] =
+      srcChn
+        .updateConsumerSettings(
+          _.withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+            .withGroupId("akka-task")
+            .withCommitWarning(10.seconds))
+        .consume
+        .map(m => akkaTopic.decoder(m).decode)
+        .map(m =>
+          akkaTopic.description
+            .akkaProducerRecords(m.record.key, m.record.value, m.committableOffset))
+        .take(100)
+        .runWith(akkaChn.committableSink)(materializer)
+
     val fs2Task: IO[Unit] = srcTopic.fs2Channel
       .updateConsumerSettings(
         _.withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest").withGroupId("fs2-task"))
