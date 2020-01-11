@@ -118,12 +118,13 @@ object KafkaConsumerApi {
   def apply[F[_]: Sync, K, V](
     topic: KafkaTopicDescription[K, V]): Resource[F, KafkaConsumerApi[F]] =
     Resource
-      .make(
-        Sync[F].delay(
-          new KafkaConsumer[Array[Byte], Array[Byte]](
-            topic.settings.consumerSettings.consumerProperties,
-            new ByteArrayDeserializer,
-            new ByteArrayDeserializer)))(a => Sync[F].delay(a.close()))
+      .make(Sync[F].delay {
+        val byteArrayDeserializer = new ByteArrayDeserializer
+        new KafkaConsumer[Array[Byte], Array[Byte]](
+          topic.settings.consumerSettings.consumerProperties,
+          byteArrayDeserializer,
+          byteArrayDeserializer)
+      })(a => Sync[F].delay(a.close()))
       .map(new KafkaConsumerApiImpl(topic.topicDef.topicName, _))
 
   final private[this] class KafkaConsumerApiImpl[F[_]: Sync](

@@ -36,11 +36,13 @@ import org.apache.kafka.streams.StreamsConfig
       Fs2Deserializer[F, Array[Byte]],
       Fs2Deserializer[F, Array[Byte]]).withProperties(config)
 
-  def akkaConsumerSettings(system: ActorSystem): AkkaConsumerSettings[Array[Byte], Array[Byte]] =
+  def akkaConsumerSettings(system: ActorSystem): AkkaConsumerSettings[Array[Byte], Array[Byte]] = {
+    val byteArrayDeserializer = new ByteArrayDeserializer
     AkkaConsumerSettings[Array[Byte], Array[Byte]](
       system,
-      new ByteArrayDeserializer,
-      new ByteArrayDeserializer).withProperties(config)
+      byteArrayDeserializer,
+      byteArrayDeserializer).withProperties(config)
+  }
 
   def akkaCommitterSettings(system: ActorSystem): AkkaCommitterSettings =
     AkkaCommitterSettings(system)
