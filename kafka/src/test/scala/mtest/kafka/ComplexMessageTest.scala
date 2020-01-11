@@ -75,8 +75,7 @@ class ComplexMessageTest extends AnyFunSuite {
     SealedTrait.Blue,
     Coproduct[Annotated :+: Employee2 :+: Int :+: CNil](Annotated(-1, -1))
   )
-  test("identical") {
-    println(m.asJson.toString)
+  test("transform to json and back should be identical") {
     assert(m.asJson.as[ComplexMessage].toOption.get == m)
   }
 }

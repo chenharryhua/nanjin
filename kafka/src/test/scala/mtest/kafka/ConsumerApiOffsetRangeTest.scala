@@ -21,7 +21,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
   (rangeTopic.admin.idefinitelyWantToDeleteTheTopic >>
     rangeTopic.send(pr1) >> rangeTopic.send(pr2) >> rangeTopic.send(pr3)).unsafeRunSync()
 
-  test("start and end are both in range") {
+  test("start and end are both in range - both valid") {
     val expect =
       NJTopicPartition(
         Map(new TopicPartition("range.test", 0) -> Some(
@@ -35,7 +35,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("start after beginning and end after ending") {
+  test("start after beginning and end after ending - invalid end") {
     val expect =
       NJTopicPartition(
         Map(new TopicPartition("range.test", 0) -> Some(
@@ -49,7 +49,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("start before beginning and end before ending") {
+  test("start before beginning and end before ending - invalid start") {
     val expect =
       NJTopicPartition(
         Map(new TopicPartition("range.test", 0) -> Some(
@@ -63,7 +63,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("both start and end are before beginning") {
+  test("both start and end are before beginning - invalid both") {
     val expect =
       NJTopicPartition(Map(new TopicPartition("range.test", 0) -> None))
 
@@ -74,7 +74,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
       .map(x => assert(x === expect))
       .unsafeRunSync()
   }
-  test("both start and end are after ending") {
+  test("both start and end are after ending - invalid both") {
     val expect =
       NJTopicPartition(Map(new TopicPartition("range.test", 0) -> None))
 

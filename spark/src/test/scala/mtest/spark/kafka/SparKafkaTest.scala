@@ -1,6 +1,6 @@
 package mtest.spark.kafka
 
-import java.time.{LocalDate, LocalDateTime}
+import java.time.LocalDate
 
 import cats.effect.IO
 import cats.implicits._
@@ -14,19 +14,16 @@ import frameless.cats.implicits._
 import cats.derived.auto.show._
 import java.time.ZoneId
 import io.circe.generic.auto._
-import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.kafka.TopicDef
-import fs2.kafka.producerResource
-import fs2.kafka.ProducerRecords
-import fs2.kafka.ProducerRecord
-import fs2.Chunk
 import java.time.Instant
 
 class SparKafkaTest extends AnyFunSuite {
-  val e     = EmbeddedForTaskSerializable(0, "embeded")
-  val data  = ForTaskSerializable(0, "a", LocalDate.now, Instant.now, e)
+  val embed = EmbeddedForTaskSerializable(0, "embeded")
+  val data  = ForTaskSerializable(0, "a", LocalDate.now, Instant.now, embed)
   val topic = ctx.topic[Int, ForTaskSerializable]("serializable.test")
-  (topic.schemaRegistry.register >> topic.send(List(0 -> data, 1 -> data))).unsafeRunSync()
+
+  (topic.admin.idefinitelyWantToDeleteTheTopic >> topic.schemaRegistry.register >>
+    topic.send(List(0 -> data, 1 -> data))).unsafeRunSync()
 
   test("read topic from kafka") {
     topic.description.sparKafka.datasetFromKafka[IO].flatMap(_.show[IO]()).unsafeRunSync
