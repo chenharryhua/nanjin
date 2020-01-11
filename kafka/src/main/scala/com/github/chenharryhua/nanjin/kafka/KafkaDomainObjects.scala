@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import java.{lang, util}
 
+import cats.derived.auto.order._
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import monocle.Iso
@@ -19,7 +20,8 @@ final case class KafkaOffset(value: Long) extends AnyVal {
 final case class KafkaPartition(value: Int) extends AnyVal
 
 final case class KafkaOffsetRange(from: KafkaOffset, until: KafkaOffset) {
-  val distance: Long = until.value - from.value
+  val distance: Long   = until.value - from.value
+  val isValid: Boolean = from < until
 }
 
 final case class ListOfTopicPartitions(value: List[TopicPartition]) extends AnyVal {

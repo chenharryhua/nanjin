@@ -141,14 +141,13 @@ object KafkaConsumerApi {
     override def offsetRangeFor(dtr: NJDateTimeRange): F[NJTopicPartition[KafkaOffsetRange]] =
       execute {
         for {
-          beg <- kpc.beginningOffsets
+          from <- dtr.start.fold(kpc.beginningOffsets)(kpc.offsetsForTimes)
           end <- kpc.endOffsets
-          from <- dtr.start.traverse(kpc.offsetsForTimes)
-          dest <- dtr.end.traverse(kpc.offsetsForTimes)
+          to <- dtr.end.traverse(kpc.offsetsForTimes)
         } yield {
-          val s = from.fold(beg)(_.combineWith(beg)(_.orElse(_)))
-          val e = dest.fold(end)(_.combineWith(end)(_.orElse(_)))
-          s.combineWith(e)(Tuple2(_, _).mapN((f, s) => KafkaOffsetRange(f, s)))
+          val endOffsets = to.fold(end)(_.combineWith(end)(_.orElse(_)))
+          from
+            .combineWith(endOffsets)(Tuple2(_, _).mapN(KafkaOffsetRange).filter(_.isValid))
             .flatten[KafkaOffsetRange]
         }
       }
