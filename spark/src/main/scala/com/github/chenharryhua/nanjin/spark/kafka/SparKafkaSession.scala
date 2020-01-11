@@ -7,11 +7,11 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.api.KafkaConsumerApi
 import com.github.chenharryhua.nanjin.kafka.codec.iso
 import com.github.chenharryhua.nanjin.kafka.{
-  GenericTopicPartition,
   KafkaOffsetRange,
   KafkaTopicDescription,
   NJConsumerRecord,
-  NJProducerRecord
+  NJProducerRecord,
+  NJTopicPartition
 }
 import com.github.chenharryhua.nanjin.spark.{UpdateParams, _}
 import frameless.{TypedDataset, TypedEncoder}
@@ -40,7 +40,7 @@ final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], param
       .mapValues[Object](identity)
       .asJava
 
-  private def offsetRanges(range: GenericTopicPartition[KafkaOffsetRange]): Array[OffsetRange] =
+  private def offsetRanges(range: NJTopicPartition[KafkaOffsetRange]): Array[OffsetRange] =
     range.value.toArray.map {
       case (tp, r) => OffsetRange.create(tp, r.from.value, r.until.value)
     }
