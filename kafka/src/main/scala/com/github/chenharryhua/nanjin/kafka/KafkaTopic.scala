@@ -6,7 +6,7 @@ import cats.implicits._
 import cats.{Show, Traverse}
 import com.github.chenharryhua.nanjin.kafka.api._
 import com.github.chenharryhua.nanjin.kafka.codec.{KafkaGenericDecoder, NJConsumerMessage}
-import fs2.kafka.{KafkaProducer, ProducerResult}
+import fs2.kafka.{KafkaProducer, ProducerRecord, ProducerRecords, ProducerResult}
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
 final class KafkaTopic[F[_], K, V] private[kafka] (val description: KafkaTopicDescription[K, V])(
@@ -50,14 +50,17 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val description: KafkaTopicDe
       description.codec.keySerde,
       description.codec.valueSerde)
 
-  private val pr: Resource[F, KafkaProducer[F, K, V]] =
+  private val fs2ProducerResource: Resource[F, KafkaProducer[F, K, V]] =
     fs2.kafka.producerResource[F].using(description.fs2ProducerSettings)
 
   def send(k: K, v: V): F[ProducerResult[K, V, Unit]] =
-    pr.use(_.produce(description.fs2ProducerRecords(k, v))).flatten
+    fs2ProducerResource.use(_.produce(description.fs2ProducerRecords(k, v))).flatten
 
   def send[G[+_]: Traverse](list: G[(K, V)]): F[ProducerResult[K, V, Unit]] =
-    pr.use(_.produce(description.fs2ProducerRecords(list))).flatten
+    fs2ProducerResource.use(_.produce(description.fs2ProducerRecords(list))).flatten
+
+  def send(pr: ProducerRecord[K, V]): F[ProducerResult[K, V, Unit]] =
+    fs2ProducerResource.use(_.produce(ProducerRecords.one(pr))).flatten
 
   // APIs
   val schemaRegistry: KafkaSchemaRegistryApi[F] = api.KafkaSchemaRegistryApi[F](this.description)

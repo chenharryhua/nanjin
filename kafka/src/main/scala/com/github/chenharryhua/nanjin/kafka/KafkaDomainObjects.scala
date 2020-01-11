@@ -2,9 +2,8 @@ package com.github.chenharryhua.nanjin.kafka
 
 import java.{lang, util}
 
-import cats.Show
-import cats.derived.auto.order._
 import cats.implicits._
+import cats.{Eq, Order, Show}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import monocle.Iso
 import monocle.macros.GenIso
@@ -18,7 +17,15 @@ final case class KafkaOffset(value: Long) extends AnyVal {
   def asLast: KafkaOffset      = copy(value = value - 1) //represent last message
 }
 
+object KafkaOffset {
+  implicit val orderKafkaOffset: Order[KafkaOffset] = cats.derived.semi.order[KafkaOffset]
+}
+
 final case class KafkaPartition(value: Int) extends AnyVal
+
+object KafkaPartition {
+  implicit val orderKafkaPartition: Order[KafkaPartition] = cats.derived.semi.order[KafkaPartition]
+}
 
 final case class KafkaOffsetRange(from: KafkaOffset, until: KafkaOffset) {
   val distance: Long   = until.value - from.value
@@ -32,6 +39,7 @@ final case class KafkaOffsetRange(from: KafkaOffset, until: KafkaOffset) {
 
 object KafkaOffsetRange {
   implicit val showKafkaOffsetRange: Show[KafkaOffsetRange] = _.show
+  implicit val eqKafkaOffsetRange: Eq[KafkaOffsetRange]     = cats.derived.semi.eq[KafkaOffsetRange]
 }
 
 final case class ListOfTopicPartitions(value: List[TopicPartition]) extends AnyVal {
@@ -75,6 +83,9 @@ final case class NJTopicPartition[V](value: Map[TopicPartition, V]) extends AnyV
 }
 
 object NJTopicPartition {
+
+  implicit def eqNJTopicPartition[V](implicit ev: Eq[V]): Eq[NJTopicPartition[V]] =
+    cats.derived.semi.eq[NJTopicPartition[V]]
 
   implicit def isoGenericTopicPartition[V]: Iso[NJTopicPartition[V], Map[TopicPartition, V]] =
     GenIso[NJTopicPartition[V], Map[TopicPartition, V]]
