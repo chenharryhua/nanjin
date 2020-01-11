@@ -1,9 +1,10 @@
 package com.github.chenharryhua.nanjin.datetime
+
 import java.sql.Timestamp
 import java.time._
 import java.util.concurrent.TimeUnit
 
-import cats.{Hash, Order, Show}
+import cats.{Eq, Hash, Order, Show}
 import cats.implicits._
 import monocle.Iso
 import monocle.macros.Lenses
@@ -97,5 +98,6 @@ object NJTimestamp {
 }
 
 object NJDateTimeRange {
-  val infinite: NJDateTimeRange = NJDateTimeRange(None, None)
+  implicit val eqNJDateTimeRange: Eq[NJDateTimeRange] = cats.derived.semi.eq[NJDateTimeRange]
+  val infinite: NJDateTimeRange                       = NJDateTimeRange(None, None)
 }
