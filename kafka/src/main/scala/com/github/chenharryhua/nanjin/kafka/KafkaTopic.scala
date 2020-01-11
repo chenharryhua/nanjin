@@ -34,15 +34,12 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val description: KafkaTopicDe
       description.fs2ProducerSettings,
       description.fs2ConsumerSettings)
 
-  def akkaResource(akkaSystem: ActorSystem): Resource[F, KafkaChannels.AkkaChannel[F, K, V]] =
-    Resource.make(
-      ConcurrentEffect[F].delay(
-        new KafkaChannels.AkkaChannel[F, K, V](
-          description.topicDef.topicName,
-          description.akkaProducerSettings(akkaSystem),
-          description.akkaConsumerSettings(akkaSystem),
-          description.akkaCommitterSettings(akkaSystem)
-        )))(_ => ConcurrentEffect[F].unit)
+  def akkaChannel(akkaSystem: ActorSystem): KafkaChannels.AkkaChannel[F, K, V] =
+    new KafkaChannels.AkkaChannel[F, K, V](
+      description.topicDef.topicName,
+      description.akkaProducerSettings(akkaSystem),
+      description.akkaConsumerSettings(akkaSystem),
+      description.akkaCommitterSettings(akkaSystem))
 
   def kafkaStream: KafkaChannels.StreamingChannel[K, V] =
     new KafkaChannels.StreamingChannel[K, V](
