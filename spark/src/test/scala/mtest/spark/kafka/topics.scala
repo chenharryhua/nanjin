@@ -5,6 +5,7 @@ import cats.effect.IO
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import cats.implicits._
 import cats.derived.auto.show._
+import com.landoop.transportation.nyc.trip.yellow.trip_record
 import io.circe.generic.auto._
 
 object topics {

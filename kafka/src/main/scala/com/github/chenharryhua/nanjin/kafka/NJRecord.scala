@@ -1,9 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import java.time.Clock
-
 import cats.Bifunctor
-import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import monocle.macros.Lenses

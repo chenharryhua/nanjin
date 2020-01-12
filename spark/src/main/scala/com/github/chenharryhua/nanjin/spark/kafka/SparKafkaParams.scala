@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import java.time._
 
 import cats.data.Reader
+import cats.kernel.UpperBounded
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.spark.NJFileFormat
@@ -103,7 +104,7 @@ object SparKafkaParams {
 
   val default: SparKafkaParams =
     SparKafkaParams(
-      NJDateTimeRange.infinite,
+      UpperBounded[NJDateTimeRange].maxBound,
       ConversionTactics.default,
       NJRate.default,
       ZoneId.systemDefault(),

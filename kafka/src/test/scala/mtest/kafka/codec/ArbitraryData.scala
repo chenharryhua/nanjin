@@ -19,6 +19,10 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 import genMessage._
+import com.github.chenharryhua.nanjin.kafka.NJConsumerRecord
+import com.github.chenharryhua.nanjin.kafka.NJProducerRecord
+import cats.implicits._
+
 final case class PrimitiveTypeCombined(
   a: Int,
   b: Long,
@@ -99,4 +103,18 @@ trait ArbitraryData extends GenKafkaMessage with GenFs2Message with GenAkkaMessa
   implicit val abAkkaTransactionalMessage: Arbitrary[AkkaTransactionalMessage[Int, Int]] = {
     Arbitrary(genAkkaTransactionalMessage)
   }
+
+  //nj
+  implicit val abNJConsumerRecord: Arbitrary[NJConsumerRecord[Int, Int]] =
+    Arbitrary(genNJConsumerRecord)
+
+  implicit val cogenNJConsumerRecord: Cogen[NJConsumerRecord[Int, Int]] =
+    Cogen(m => (m.key |+| m.value).getOrElse(0).toLong)
+
+  implicit val abNJProducerRecord: Arbitrary[NJProducerRecord[Int, Int]] =
+    Arbitrary(genNJProducerRecord)
+
+  implicit val cogenNJProducerRecordF: Cogen[NJProducerRecord[Int, Int]] =
+    Cogen(m => (m.timestamp |+| m.key.map(_.toLong)).getOrElse(0))
+
 }

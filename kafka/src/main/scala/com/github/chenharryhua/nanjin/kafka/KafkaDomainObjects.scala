@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import java.{lang, util}
 
 import cats.implicits._
-import cats.{Eq, Order, Show}
+import cats.{Order, PartialOrder, Show}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import monocle.Iso
 import monocle.macros.GenIso
@@ -27,19 +27,38 @@ object KafkaPartition {
   implicit val orderKafkaPartition: Order[KafkaPartition] = cats.derived.semi.order[KafkaPartition]
 }
 
-final case class KafkaOffsetRange(from: KafkaOffset, until: KafkaOffset) {
-  val distance: Long   = until.value - from.value
-  val isValid: Boolean = from < until
+sealed abstract case class KafkaOffsetRange private (from: KafkaOffset, until: KafkaOffset) {
+  require(from < until, s"from should be strictly less than until. from = $from, until=$until")
 
-  def show: String =
+  final val distance: Long = until.value - from.value
+
+  final def show: String =
     s"KafkaOffsetRange(from = ${from.value}, until = ${until.value}, distance = $distance)"
 
-  override def toString: String = show
+  final override def toString: String = show
 }
 
 object KafkaOffsetRange {
+
+  def apply(from: KafkaOffset, until: KafkaOffset): Option[KafkaOffsetRange] =
+    if (from < until && from.value >= 0)
+      Some(new KafkaOffsetRange(from, until) {})
+    else
+      None
+
   implicit val showKafkaOffsetRange: Show[KafkaOffsetRange] = _.show
-  implicit val eqKafkaOffsetRange: Eq[KafkaOffsetRange]     = cats.derived.semi.eq[KafkaOffsetRange]
+
+  implicit val poKafkaOffsetRange: PartialOrder[KafkaOffsetRange] =
+    (x: KafkaOffsetRange, y: KafkaOffsetRange) =>
+      (x, y) match {
+        case (KafkaOffsetRange(xf, xu), KafkaOffsetRange(yf, yu)) if xf >= yf && xu < yu =>
+          -1.0
+        case (KafkaOffsetRange(xf, xu), KafkaOffsetRange(yf, yu)) if xf === yf && xu === yu =>
+          0.0
+        case (KafkaOffsetRange(xf, xu), KafkaOffsetRange(yf, yu)) if xf <= yf && xu > yu =>
+          1.0
+        case _ => Double.NaN
+      }
 }
 
 final case class ListOfTopicPartitions(value: List[TopicPartition]) extends AnyVal {
@@ -84,9 +103,6 @@ final case class NJTopicPartition[V](value: Map[TopicPartition, V]) extends AnyV
 
 object NJTopicPartition {
 
-  implicit def eqNJTopicPartition[V](implicit ev: Eq[V]): Eq[NJTopicPartition[V]] =
-    cats.derived.semi.eq[NJTopicPartition[V]]
-
   implicit def isoGenericTopicPartition[V]: Iso[NJTopicPartition[V], Map[TopicPartition, V]] =
     GenIso[NJTopicPartition[V], Map[TopicPartition, V]]
 }
@@ -95,7 +111,7 @@ final case class KafkaConsumerGroupId(value: String) extends AnyVal
 
 final case class KafkaConsumerGroupInfo(
   groupId: KafkaConsumerGroupId,
-  lag: NJTopicPartition[KafkaOffsetRange])
+  lag: NJTopicPartition[Option[KafkaOffsetRange]])
 
 object KafkaConsumerGroupInfo {
 
@@ -103,7 +119,7 @@ object KafkaConsumerGroupInfo {
     groupId: String,
     end: NJTopicPartition[Option[KafkaOffset]],
     offsetMeta: Map[TopicPartition, OffsetAndMetadata]): KafkaConsumerGroupInfo = {
-    val gaps = offsetMeta.map {
+    val gaps: Map[TopicPartition, Option[KafkaOffsetRange]] = offsetMeta.map {
       case (tp, om) =>
         end.get(tp).flatten.map(e => tp -> KafkaOffsetRange(KafkaOffset(om.offset()), e))
     }.toList.flatten.toMap
