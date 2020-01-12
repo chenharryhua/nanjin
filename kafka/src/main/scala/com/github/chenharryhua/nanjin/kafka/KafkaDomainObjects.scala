@@ -11,6 +11,7 @@ import org.apache.kafka.clients.consumer.{OffsetAndMetadata, OffsetAndTimestamp}
 import org.apache.kafka.common.TopicPartition
 
 import scala.collection.JavaConverters._
+import monocle.macros.Lenses
 
 final case class KafkaOffset(value: Long) extends AnyVal {
   def javaLong: java.lang.Long = value
@@ -27,7 +28,7 @@ object KafkaPartition {
   implicit val orderKafkaPartition: Order[KafkaPartition] = cats.derived.semi.order[KafkaPartition]
 }
 
-final case class KafkaOffsetRange private (from: KafkaOffset, until: KafkaOffset) {
+sealed abstract case class KafkaOffsetRange(from: KafkaOffset, until: KafkaOffset) {
   require(
     from < until,
     s"from should be strictly less than until, given from = $from until = $until")
@@ -42,9 +43,9 @@ final case class KafkaOffsetRange private (from: KafkaOffset, until: KafkaOffset
 
 object KafkaOffsetRange {
 
-  def create(from: KafkaOffset, until: KafkaOffset): Option[KafkaOffsetRange] =
+  def apply(from: KafkaOffset, until: KafkaOffset): Option[KafkaOffsetRange] =
     if (from < until && from.value >= 0 && until.value >= 0)
-      Some(KafkaOffsetRange(from, until))
+      Some(new KafkaOffsetRange(from, until) {})
     else
       None
 
@@ -124,10 +125,12 @@ object KafkaConsumerGroupInfo {
     groupId: String,
     end: NJTopicPartition[Option[KafkaOffset]],
     offsetMeta: Map[TopicPartition, OffsetAndMetadata]): KafkaConsumerGroupInfo = {
-    val gaps = offsetMeta.map {
+    val gaps: Map[TopicPartition, Option[KafkaOffsetRange]] = offsetMeta.map {
       case (tp, om) =>
         end.get(tp).flatten.map(e => tp -> KafkaOffsetRange(KafkaOffset(om.offset()), e))
     }.toList.flatten.toMap
-    new KafkaConsumerGroupInfo(KafkaConsumerGroupId(groupId), NJTopicPartition(gaps))
+    new KafkaConsumerGroupInfo(
+      KafkaConsumerGroupId(groupId),
+      NJTopicPartition(gaps).flatten[KafkaOffsetRange])
   }
 }

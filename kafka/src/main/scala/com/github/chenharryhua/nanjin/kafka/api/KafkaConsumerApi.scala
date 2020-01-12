@@ -148,7 +148,7 @@ object KafkaConsumerApi {
           to <- dtr.end.traverse(kpc.offsetsForTimes)
         } yield {
           val e = to.fold(end)(_.combineWith(end)(_.orElse(_)))
-          from.combineWith(e)(Tuple2(_, _).mapN(KafkaOffsetRange.create).flatten)
+          from.combineWith(e)(Tuple2(_, _).mapN(KafkaOffsetRange(_, _)).flatten)
         }
       }
 
@@ -192,7 +192,7 @@ object KafkaConsumerApi {
         for {
           beg <- kpc.beginningOffsets
           end <- kpc.endOffsets
-        } yield beg.combineWith(end)(Tuple2(_, _).mapN(KafkaOffsetRange(_, _)))
+        } yield beg.combineWith(end)(Tuple2(_, _).mapN(KafkaOffsetRange(_, _)).flatten)
       }
 
     override def numOfRecordsSince(ts: NJTimestamp): F[NJTopicPartition[Option[KafkaOffsetRange]]] =
@@ -200,7 +200,7 @@ object KafkaConsumerApi {
         for {
           oft <- kpc.offsetsForTimes(ts)
           end <- kpc.endOffsets
-        } yield oft.combineWith(end)(Tuple2(_, _).mapN(KafkaOffsetRange(_, _)))
+        } yield oft.combineWith(end)(Tuple2(_, _).mapN(KafkaOffsetRange(_, _)).flatten)
       }
 
     override def partitionsFor: F[ListOfTopicPartitions] =
