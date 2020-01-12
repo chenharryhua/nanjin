@@ -13,9 +13,12 @@ import com.github.chenharryhua.nanjin.datetime.iso._
 import frameless.cats.implicits._
 import cats.derived.auto.show._
 import java.time.ZoneId
+
 import io.circe.generic.auto._
-import com.github.chenharryhua.nanjin.kafka.TopicDef
+import com.github.chenharryhua.nanjin.kafka.{ManualAvroSchema, TopicDef}
 import java.time.Instant
+ 
+import com.landoop.transportation.nyc.trip.yellow.trip_record
 
 class SparKafkaTest extends AnyFunSuite {
   val embed = EmbeddedForTaskSerializable(0, "embeded")
@@ -46,7 +49,9 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("read topic from kafka and show json") {
-    val tpk = TopicDef[trip_record, trip_record]("nyc_yellow_taxi_trip_data").in(ctx)
+    val tpk = TopicDef[String, trip_record](
+      "nyc_yellow_taxi_trip_data",
+      ManualAvroSchema[trip_record](trip_record.schema)).in(ctx)
     tpk.description.sparKafka
       .jsonDatasetFromKafka[IO]
       .flatMap(_.show[IO](truncate = false, numRows = 1))

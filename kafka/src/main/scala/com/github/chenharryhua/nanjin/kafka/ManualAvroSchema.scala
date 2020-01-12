@@ -15,7 +15,7 @@ import org.apache.avro.Schema
 
 final case class KafkaAvroSchemaException(msg: String) extends Exception(msg)
 
-final case class ManualAvroSchema[A] private (schema: Schema)(
+final class ManualAvroSchema[A] private (val schema: Schema)(
   implicit
   val decoder: AvroDecoder[A],
   val encoder: AvroEncoder[A],
@@ -57,5 +57,7 @@ object ManualAvroSchema {
 
   @throws[KafkaAvroSchemaException]
   def apply[A: AvroDecoder: AvroEncoder: SchemaFor](stringSchema: String): ManualAvroSchema[A] =
-    whatsDifferent(stringSchema, AvroSchema[A]).map(ManualAvroSchema[A]).fold(throw _, identity)
+    whatsDifferent(stringSchema, AvroSchema[A])
+      .map(new ManualAvroSchema[A](_))
+      .fold(throw _, identity)
 }
