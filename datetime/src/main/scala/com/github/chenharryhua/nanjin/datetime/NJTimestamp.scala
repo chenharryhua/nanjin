@@ -100,7 +100,7 @@ object NJTimestamp {
 
 object NJDateTimeRange {
 
-  implicit val upNJDateTimeRange: UpperBounded[NJDateTimeRange] =
+  implicit val upperBoundedNJDateTimeRange: UpperBounded[NJDateTimeRange] =
     new UpperBounded[NJDateTimeRange] {
       override val maxBound: NJDateTimeRange = NJDateTimeRange(None, None)
 

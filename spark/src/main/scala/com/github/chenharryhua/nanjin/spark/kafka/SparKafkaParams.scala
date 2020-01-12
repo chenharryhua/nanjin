@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import java.time._
 
 import cats.data.Reader
+import cats.kernel.UpperBounded
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.spark.NJFileFormat
@@ -11,7 +12,6 @@ import org.apache.spark.sql.SaveMode
 import org.apache.spark.streaming.kafka010.{LocationStrategies, LocationStrategy}
 
 import scala.concurrent.duration._
-import cats.kernel.UpperBounded
 
 @Lenses final case class NJRate(batchSize: Int, duration: FiniteDuration)
 

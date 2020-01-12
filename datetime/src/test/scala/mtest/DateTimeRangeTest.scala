@@ -11,13 +11,12 @@ import org.typelevel.discipline.scalatest.Discipline
 class DateTimeRangeTest extends AnyFunSuite with Discipline {
 
   implicit val arbiKafkaOffsetRange: Arbitrary[NJDateTimeRange] =
-    Arbitrary(
-      for {
-        opts <- Gen.option(Gen.posNum[Long])
-        optn <- Gen.option(Gen.posNum[Long])
-      } yield NJDateTimeRange(
-        opts.map(t => NJTimestamp(t)),
-        (optn.flatMap(x => opts.map(y => x + y))).map(t => NJTimestamp(t))))
+    Arbitrary(for {
+      s <- Gen.posNum[Long]
+      inc <- Gen.posNum[Long]
+      opts <- Gen.option(s).map(_.map(NJTimestamp(_)))
+      opte <- Gen.option(s + inc).map(_.map(NJTimestamp(_)))
+    } yield NJDateTimeRange(opts, opte))
 
   implicit val cogen: Cogen[NJDateTimeRange] = Cogen(m => m.start.map(_.milliseconds).getOrElse(0))
 
