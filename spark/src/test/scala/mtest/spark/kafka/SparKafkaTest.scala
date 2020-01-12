@@ -49,7 +49,7 @@ class SparKafkaTest extends AnyFunSuite {
     val tpk = TopicDef[trip_record, trip_record]("nyc_yellow_taxi_trip_data").in(ctx)
     tpk.description.sparKafka
       .jsonDatasetFromKafka[IO]
-      .flatMap(_.show[IO](truncate = false))
+      .flatMap(_.show[IO](truncate = false, numRows = 1))
       .unsafeRunSync
   }
 }

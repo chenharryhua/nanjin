@@ -11,6 +11,7 @@ import com.github.chenharryhua.nanjin.kafka.{
 import fs2.kafka.ProducerRecord
 import org.apache.kafka.common.TopicPartition
 import org.scalatest.funsuite.AnyFunSuite
+import cats.kernel.UpperBounded
 
 class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
@@ -94,7 +95,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
         Map(new TopicPartition("range.test", 0) ->
           KafkaOffsetRange(KafkaOffset(0), KafkaOffset(3))))
 
-    val r = NJDateTimeRange.infinite
+    val r = UpperBounded[NJDateTimeRange].maxBound
     rangeTopic.consumerResource
       .use(_.offsetRangeFor(r))
       .map(x => assert(x === expect))

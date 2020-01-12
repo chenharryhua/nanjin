@@ -27,7 +27,7 @@ object KafkaPartition {
   implicit val orderKafkaPartition: Order[KafkaPartition] = cats.derived.semi.order[KafkaPartition]
 }
 
-sealed abstract case class KafkaOffsetRange(from: KafkaOffset, until: KafkaOffset) {
+sealed abstract case class KafkaOffsetRange private (from: KafkaOffset, until: KafkaOffset) {
   require(from < until, s"from should be strictly less than until. from = $from, until=$until")
 
   final val distance: Long = until.value - from.value
