@@ -13,6 +13,7 @@ import akka.kafka.testkit.ConsumerResultFactory
 import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage, MultiMessage => AkkaMultiMessage}
 import akka.kafka.internal.CommittableOffsetImpl
 import cats.effect.IO
+import com.github.chenharryhua.nanjin.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.kafka.codec._
 import fs2.Chunk
 import fs2.kafka.{
@@ -91,6 +92,28 @@ object genMessage {
       value <- arbitrary[Int]
       headers <- genHeaders
     } yield new ProducerRecord(topic, partition, timestamp, key, value, headers)
+
+    val genNJConsumerRecord: Gen[NJConsumerRecord[Int, Int]] = for {
+      topic <- Gen.asciiPrintableStr
+      partition <- Gen.posNum[Int]
+      offset <- Gen.posNum[Long]
+      timestamp <- Gen.posNum[Long]
+      timestampType <- Gen.choose(-1, 1)
+      key <- arbitrary[Option[Int]]
+      value <- arbitrary[Option[Int]]
+    } yield NJConsumerRecord(partition, offset, timestamp, key, value, topic, timestampType)
+
+    val genNJProducerRecord: Gen[NJProducerRecord[Int, Int]] = for {
+      topic <- Gen.asciiPrintableStr
+      i <- Gen.posNum[Int]
+      l <- Gen.posNum[Long]
+      partition <- Gen.option[Int](i)
+      timestamp <- Gen.option[Long](l)
+      key <- arbitrary[Option[Int]]
+      value <- arbitrary[Option[Int]]
+      headers <- genHeaders
+    } yield NJProducerRecord(topic, partition, timestamp, key, value)
+
   }
 
   trait GenFs2Message extends GenKafkaMessage {
