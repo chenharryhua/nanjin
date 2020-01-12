@@ -11,12 +11,9 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
   val rangeTopic = TopicDef[Int, Int]("range.test").in(ctx)
 
-  val ts1 = NJTimestamp(100)
-  val ts2 = NJTimestamp(200)
-  val ts3 = NJTimestamp(300)
-  val pr1 = ProducerRecord("range.test", 1, 1).withTimestamp(ts1.milliseconds)
-  val pr2 = ProducerRecord("range.test", 2, 2).withTimestamp(ts2.milliseconds)
-  val pr3 = ProducerRecord("range.test", 3, 3).withTimestamp(ts3.milliseconds)
+  val pr1 = ProducerRecord("range.test", 1, 1).withTimestamp(100)
+  val pr2 = ProducerRecord("range.test", 2, 2).withTimestamp(200)
+  val pr3 = ProducerRecord("range.test", 3, 3).withTimestamp(300)
 
   (rangeTopic.admin.idefinitelyWantToDeleteTheTopic >>
     rangeTopic.send(pr1) >> rangeTopic.send(pr2) >> rangeTopic.send(pr3)).unsafeRunSync()

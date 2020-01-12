@@ -148,7 +148,7 @@ object KafkaConsumerApi {
           to <- dtr.end.traverse(kpc.offsetsForTimes)
         } yield {
           val e = to.fold(end)(_.combineWith(end)(_.orElse(_)))
-          from.combineWith(e)(Tuple2(_, _).mapN(KafkaOffsetRange(_, _)).filter(_.isValid))
+          from.combineWith(e)(Tuple2(_, _).mapN(KafkaOffsetRange.create).flatten)
         }
       }
 

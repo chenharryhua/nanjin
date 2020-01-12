@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import java.{lang, util}
 
 import cats.implicits._
-import cats.{Eq, Order, Show}
+import cats.{Eq, Order, PartialOrder, Show}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import monocle.Iso
 import monocle.macros.GenIso
@@ -27,9 +27,12 @@ object KafkaPartition {
   implicit val orderKafkaPartition: Order[KafkaPartition] = cats.derived.semi.order[KafkaPartition]
 }
 
-final case class KafkaOffsetRange(from: KafkaOffset, until: KafkaOffset) {
-  val distance: Long   = until.value - from.value
-  val isValid: Boolean = from < until
+final case class KafkaOffsetRange private (from: KafkaOffset, until: KafkaOffset) {
+  require(
+    from < until,
+    s"from should be strictly less than until, given from = $from until = $until")
+
+  val distance: Long = until.value - from.value
 
   def show: String =
     s"KafkaOffsetRange(from = ${from.value}, until = ${until.value}, distance = $distance)"
@@ -38,8 +41,26 @@ final case class KafkaOffsetRange(from: KafkaOffset, until: KafkaOffset) {
 }
 
 object KafkaOffsetRange {
+
+  def create(from: KafkaOffset, until: KafkaOffset): Option[KafkaOffsetRange] =
+    if (from < until && from.value >= 0 && until.value >= 0)
+      Some(KafkaOffsetRange(from, until))
+    else
+      None
+
   implicit val showKafkaOffsetRange: Show[KafkaOffsetRange] = _.show
-  implicit val eqKafkaOffsetRange: Eq[KafkaOffsetRange]     = cats.derived.semi.eq[KafkaOffsetRange]
+
+  implicit val poKafkaOffsetRange: PartialOrder[KafkaOffsetRange] =
+    (x: KafkaOffsetRange, y: KafkaOffsetRange) =>
+      (x, y) match {
+        case (KafkaOffsetRange(xf, xu), KafkaOffsetRange(yf, yu)) if xf >= yf && xu < yu =>
+          -1.0
+        case (KafkaOffsetRange(xf, xu), KafkaOffsetRange(yf, yu)) if xf === yf && xu === yu =>
+          0.0
+        case (KafkaOffsetRange(xf, xu), KafkaOffsetRange(yf, yu)) if xf <= yf && xu > yu =>
+          1.0
+        case _ => Double.NaN
+      }
 }
 
 final case class ListOfTopicPartitions(value: List[TopicPartition]) extends AnyVal {

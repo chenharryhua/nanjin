@@ -49,10 +49,13 @@ object KafkaChannels {
           .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
       }
 
-    def assign(tps: Map[TopicPartition, Long]) =
+    def assign(tps: Map[TopicPartition, Long])
+      : Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
       Keyboard.signal.flatMap { signal =>
         consumerStream[F, Array[Byte], Array[Byte]](consumerSettings).evalTap { c =>
-          c.assign(topicName.value) *> tps.toList.traverse { case (tp, offset) => c.seek(tp, offset) }
+          c.assign(topicName.value) *> tps.toList.traverse {
+            case (tp, offset) => c.seek(tp, offset)
+          }
         }.flatMap(_.stream)
           .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
           .interruptWhen(signal.map(_.contains(Keyboard.Quit)))

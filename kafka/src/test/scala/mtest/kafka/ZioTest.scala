@@ -27,7 +27,7 @@ class ZioTest extends AnyFunSuite {
       .map(m => topic.decoder(m).tryDecode)
       .map(_.toEither)
       .rethrow
-      .take(3)
+      .take(1)
       .map(_.show)
       .map(println)
       .compile
@@ -42,11 +42,10 @@ class ZioTest extends AnyFunSuite {
       .updateConsumerSettings(_.withClientId("akka-test"))
       .consume
       .map(x => topic.decoder(x).decodeValue)
-      .take(3)
+      .take(1)
       .map(_.show)
       .map(println)
       .runWith(chn.ignoreSink)(materializer)
-
     runtime.unsafeRun(task)
   }
 }
