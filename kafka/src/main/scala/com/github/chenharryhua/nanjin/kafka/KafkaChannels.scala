@@ -94,20 +94,20 @@ object KafkaChannels {
     val committableSink: Sink[Envelope[K, V, ConsumerMessage.Committable], F[Done]] =
       akka.kafka.scaladsl.Producer
         .committableSink(producerSettings, committerSettings)
-        .mapMaterializedValue(f => Async.fromFuture(Async[F].delay(f)))
+        .mapMaterializedValue(f => Async.fromFuture(Async[F].pure(f)))
 
     val plainSink: Sink[ProducerRecord[K, V], F[Done]] =
       akka.kafka.scaladsl.Producer
         .plainSink(producerSettings)
-        .mapMaterializedValue(f => Async.fromFuture(Async[F].delay(f)))
+        .mapMaterializedValue(f => Async.fromFuture(Async[F].pure(f)))
 
     val commitSink: Sink[ConsumerMessage.Committable, F[Done]] =
       Committer
         .sink(committerSettings)
-        .mapMaterializedValue(f => Async.fromFuture(Async[F].delay(f)))
+        .mapMaterializedValue(f => Async.fromFuture(Async[F].pure(f)))
 
     def ignoreSink[A]: Sink[A, F[Done]] =
-      Sink.ignore.mapMaterializedValue(f => Async.fromFuture(Async[F].delay(f)))
+      Sink.ignore.mapMaterializedValue(f => Async.fromFuture(Async[F].pure(f)))
 
     def assign(tps: Map[TopicPartition, Long])
       : Source[ConsumerRecord[Array[Byte], Array[Byte]], Consumer.Control] =
