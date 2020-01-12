@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import java.{lang, util}
 
 import cats.implicits._
-import cats.{Eq, Order, PartialOrder, Show}
+import cats.{Order, PartialOrder, Show}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import monocle.Iso
 import monocle.macros.GenIso
@@ -11,7 +11,6 @@ import org.apache.kafka.clients.consumer.{OffsetAndMetadata, OffsetAndTimestamp}
 import org.apache.kafka.common.TopicPartition
 
 import scala.collection.JavaConverters._
-import monocle.macros.Lenses
 
 final case class KafkaOffset(value: Long) extends AnyVal {
   def javaLong: java.lang.Long = value
@@ -29,12 +28,14 @@ object KafkaPartition {
 }
 
 sealed abstract case class KafkaOffsetRange(from: KafkaOffset, until: KafkaOffset) {
-  val distance: Long = until.value - from.value
+  require(from < until, s"from should be strictly less than until. from = $from, until=$until")
 
-  def show: String =
+  final val distance: Long = until.value - from.value
+
+  final def show: String =
     s"KafkaOffsetRange(from = ${from.value}, until = ${until.value}, distance = $distance)"
 
-  override def toString: String = show
+  final override def toString: String = show
 }
 
 object KafkaOffsetRange {
