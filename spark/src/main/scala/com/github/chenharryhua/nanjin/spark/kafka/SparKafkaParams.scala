@@ -11,6 +11,7 @@ import org.apache.spark.sql.SaveMode
 import org.apache.spark.streaming.kafka010.{LocationStrategies, LocationStrategy}
 
 import scala.concurrent.duration._
+import cats.kernel.UpperBounded
 
 @Lenses final case class NJRate(batchSize: Int, duration: FiniteDuration)
 
@@ -103,7 +104,7 @@ object SparKafkaParams {
 
   val default: SparKafkaParams =
     SparKafkaParams(
-      NJDateTimeRange.infinite,
+      UpperBounded[NJDateTimeRange].maxBound,
       ConversionTactics.default,
       NJRate.default,
       ZoneId.systemDefault(),

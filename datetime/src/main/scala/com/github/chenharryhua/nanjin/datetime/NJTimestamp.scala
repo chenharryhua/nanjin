@@ -2,16 +2,17 @@ package com.github.chenharryhua.nanjin.datetime
 
 import java.sql.Timestamp
 import java.time._
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 
-import cats.{Eq, Hash, Order, Show}
 import cats.implicits._
+import cats.kernel.UpperBounded
+import cats.{Hash, Order, PartialOrder, Show}
 import monocle.Iso
 import monocle.macros.Lenses
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.Try
-import java.time.format.DateTimeFormatter
 
 final case class NJTimestamp(milliseconds: Long) extends AnyVal {
   def instant: Instant                      = Instant.ofEpochMilli(milliseconds)
@@ -98,6 +99,32 @@ object NJTimestamp {
 }
 
 object NJDateTimeRange {
-  implicit val eqNJDateTimeRange: Eq[NJDateTimeRange] = cats.derived.semi.eq[NJDateTimeRange]
-  val infinite: NJDateTimeRange                       = NJDateTimeRange(None, None)
+
+  implicit val upNJDateTimeRange: UpperBounded[NJDateTimeRange] =
+    new UpperBounded[NJDateTimeRange] {
+      override val maxBound: NJDateTimeRange = NJDateTimeRange(None, None)
+
+      private def lessStart(a: Option[NJTimestamp], b: Option[NJTimestamp]): Boolean =
+        (a, b) match {
+          case (None, None)       => true
+          case (None, _)          => true
+          case (_, None)          => false
+          case (Some(x), Some(y)) => x <= y
+        }
+
+      private def biggerEnd(a: Option[NJTimestamp], b: Option[NJTimestamp]): Boolean =
+        (a, b) match {
+          case (None, None)       => false
+          case (None, _)          => true
+          case (_, None)          => false
+          case (Some(x), Some(y)) => x > y
+        }
+
+      override val partialOrder: PartialOrder[NJDateTimeRange] = {
+        case (a, b) if a == b                                                 => 0.0
+        case (a, b) if lessStart(a.start, b.start) && biggerEnd(a.end, b.end) => 1.0
+        case (a, b) if lessStart(b.start, a.start) && biggerEnd(b.end, a.end) => -1.0
+        case _                                                                => Double.NaN
+      }
+    }
 }
