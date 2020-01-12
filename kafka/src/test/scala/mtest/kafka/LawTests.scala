@@ -13,7 +13,7 @@ class LawTests extends AnyFunSuite with Discipline {
     Arbitrary(for {
       from <- Gen.posNum[Long]
       inc <- Gen.posNum[Long]
-    } yield KafkaOffsetRange(KafkaOffset(from), KafkaOffset(from + inc)))
+    } yield (KafkaOffsetRange(KafkaOffset(from), KafkaOffset(from + inc))).get)
 
   implicit val cogen: Cogen[KafkaOffsetRange] = Cogen(m => m.distance)
 

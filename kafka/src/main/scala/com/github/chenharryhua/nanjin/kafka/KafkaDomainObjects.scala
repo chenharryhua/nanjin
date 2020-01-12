@@ -29,10 +29,6 @@ object KafkaPartition {
 }
 
 sealed abstract case class KafkaOffsetRange(from: KafkaOffset, until: KafkaOffset) {
-  require(
-    from < until,
-    s"from should be strictly less than until, given from = $from until = $until")
-
   val distance: Long = until.value - from.value
 
   def show: String =
@@ -44,7 +40,7 @@ sealed abstract case class KafkaOffsetRange(from: KafkaOffset, until: KafkaOffse
 object KafkaOffsetRange {
 
   def apply(from: KafkaOffset, until: KafkaOffset): Option[KafkaOffsetRange] =
-    if (from < until && from.value >= 0 && until.value >= 0)
+    if (from < until && from.value >= 0)
       Some(new KafkaOffsetRange(from, until) {})
     else
       None
@@ -106,9 +102,6 @@ final case class NJTopicPartition[V](value: Map[TopicPartition, V]) extends AnyV
 
 object NJTopicPartition {
 
-  implicit def eqNJTopicPartition[V](implicit ev: Eq[V]): Eq[NJTopicPartition[V]] =
-    cats.derived.semi.eq[NJTopicPartition[V]]
-
   implicit def isoGenericTopicPartition[V]: Iso[NJTopicPartition[V], Map[TopicPartition, V]] =
     GenIso[NJTopicPartition[V], Map[TopicPartition, V]]
 }
@@ -117,7 +110,7 @@ final case class KafkaConsumerGroupId(value: String) extends AnyVal
 
 final case class KafkaConsumerGroupInfo(
   groupId: KafkaConsumerGroupId,
-  lag: NJTopicPartition[KafkaOffsetRange])
+  lag: NJTopicPartition[Option[KafkaOffsetRange]])
 
 object KafkaConsumerGroupInfo {
 
@@ -129,8 +122,6 @@ object KafkaConsumerGroupInfo {
       case (tp, om) =>
         end.get(tp).flatten.map(e => tp -> KafkaOffsetRange(KafkaOffset(om.offset()), e))
     }.toList.flatten.toMap
-    new KafkaConsumerGroupInfo(
-      KafkaConsumerGroupId(groupId),
-      NJTopicPartition(gaps).flatten[KafkaOffsetRange])
+    new KafkaConsumerGroupInfo(KafkaConsumerGroupId(groupId), NJTopicPartition(gaps))
   }
 }

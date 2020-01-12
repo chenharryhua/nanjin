@@ -2,7 +2,12 @@ package mtest.kafka
 
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
-import com.github.chenharryhua.nanjin.kafka._
+import com.github.chenharryhua.nanjin.kafka.{
+  KafkaOffset,
+  KafkaOffsetRange,
+  NJTopicPartition,
+  TopicDef
+}
 import fs2.kafka.ProducerRecord
 import org.apache.kafka.common.TopicPartition
 import org.scalatest.funsuite.AnyFunSuite
@@ -19,10 +24,10 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     rangeTopic.send(pr1) >> rangeTopic.send(pr2) >> rangeTopic.send(pr3)).unsafeRunSync()
 
   test("start and end are both in range - both valid") {
-    val expect =
+    val expect: NJTopicPartition[Option[KafkaOffsetRange]] =
       NJTopicPartition(
-        Map(new TopicPartition("range.test", 0) -> Some(
-          KafkaOffsetRange(KafkaOffset(1), KafkaOffset(2)))))
+        Map(new TopicPartition("range.test", 0) ->
+          KafkaOffsetRange(KafkaOffset(1), KafkaOffset(2))))
 
     val r = NJDateTimeRange(Some(NJTimestamp(110)), Some(NJTimestamp(250)))
 
@@ -35,8 +40,8 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
   test("start after beginning and end after ending - invalid end") {
     val expect =
       NJTopicPartition(
-        Map(new TopicPartition("range.test", 0) -> Some(
-          KafkaOffsetRange(KafkaOffset(1), KafkaOffset(3)))))
+        Map(new TopicPartition("range.test", 0) ->
+          KafkaOffsetRange(KafkaOffset(1), KafkaOffset(3))))
 
     val r = NJDateTimeRange(Some(NJTimestamp(110)), Some(NJTimestamp(500)))
 
@@ -49,8 +54,8 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
   test("start before beginning and end before ending - invalid start") {
     val expect =
       NJTopicPartition(
-        Map(new TopicPartition("range.test", 0) -> Some(
-          KafkaOffsetRange(KafkaOffset(0), KafkaOffset(1)))))
+        Map(new TopicPartition("range.test", 0) ->
+          KafkaOffsetRange(KafkaOffset(0), KafkaOffset(1))))
 
     val r = NJDateTimeRange(Some(NJTimestamp(10)), Some(NJTimestamp(110)))
 
@@ -84,10 +89,10 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
   }
 
   test("time range is infinite") {
-    val expect =
+    val expect: NJTopicPartition[Option[KafkaOffsetRange]] =
       NJTopicPartition(
-        Map(new TopicPartition("range.test", 0) -> Some(
-          KafkaOffsetRange(KafkaOffset(0), KafkaOffset(3)))))
+        Map(new TopicPartition("range.test", 0) ->
+          KafkaOffsetRange(KafkaOffset(0), KafkaOffset(3))))
 
     val r = NJDateTimeRange.infinite
     rangeTopic.consumerResource
