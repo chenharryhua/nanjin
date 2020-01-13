@@ -26,7 +26,6 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.kafka010.{KafkaUtils, OffsetRange}
 
 import scala.collection.JavaConverters._
-import scala.reflect.ClassTag
 
 final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], params: SparKafkaParams)(
   implicit val sparkSession: SparkSession)
@@ -56,11 +55,13 @@ final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], param
         params.locationStrategy)
     }
 
-  def datasetFromKafka[F[_]: Sync, A: TypedEncoder: ClassTag](
-    f: NJConsumerRecord[K, V] => A): F[TypedDataset[A]] =
+  def datasetFromKafka[F[_]: Sync, A](f: NJConsumerRecord[K, V] => A)(
+    implicit ev: TypedEncoder[A]): F[TypedDataset[A]] = {
+    import ev.classTag
     kafkaRDD.map { rdd =>
       TypedDataset.create(rdd.mapPartitions(_.map(m => f(kafkaDesc.decoder(m).record))))
     }
+  }
 
   def datasetFromKafka[F[_]: Sync](
     implicit
