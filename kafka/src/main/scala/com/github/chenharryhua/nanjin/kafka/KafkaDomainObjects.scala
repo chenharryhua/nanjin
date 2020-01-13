@@ -15,7 +15,7 @@ import org.apache.kafka.common.TopicPartition
 
 import scala.collection.JavaConverters._
 
-final case class KafkaOffset(private val offset: Refined[Long, NonNegative]) {
+final case class KafkaOffset(offset: Refined[Long, NonNegative]) {
   val value: Long                 = offset.value
   def javaLong: java.lang.Long    = value
   def asLast: KafkaOffset         = KafkaOffset(value - 1) //represent last message
@@ -32,7 +32,7 @@ object KafkaOffset {
     (x: KafkaOffset, y: KafkaOffset) => (x - y).toInt
 }
 
-final case class KafkaPartition(private val partition: Refined[Int, NonNegative]) {
+final case class KafkaPartition(partition: Refined[Int, NonNegative]) {
   val value: Int                    = partition.value
   def -(other: KafkaPartition): Int = value - other.value
 }

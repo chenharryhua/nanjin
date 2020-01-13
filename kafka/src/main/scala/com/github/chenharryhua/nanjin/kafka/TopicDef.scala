@@ -30,14 +30,14 @@ final case class TopicDef[K, V] private (topicName: TopicName)(
   val serdeOfValue: SerdeOf[V],
   val showKey: Show[K],
   val showValue: Show[V],
-  jsonKeyEncoder: JsonEncoder[K],
-  jsonValueEncoder: JsonEncoder[V],
-  jsonKeyDecoder: JsonDecoder[K],
-  jsonValueDecoder: JsonDecoder[V],
-  avroKeyEncoder: AvroEncoder[K],
-  avroValueEncoder: AvroEncoder[V],
-  avroKeyDecoder: AvroDecoder[K],
-  avroValueDecoder: AvroDecoder[V]) {
+  val jsonKeyEncoder: JsonEncoder[K],
+  val jsonValueEncoder: JsonEncoder[V],
+  val jsonKeyDecoder: JsonDecoder[K],
+  val jsonValueDecoder: JsonDecoder[V],
+  val avroKeyEncoder: AvroEncoder[K],
+  val avroValueEncoder: AvroEncoder[V],
+  val avroKeyDecoder: AvroDecoder[K],
+  val avroValueDecoder: AvroDecoder[V]) {
   val keySchemaLoc: String   = s"${topicName.value}-key"
   val valueSchemaLoc: String = s"${topicName.value}-value"
 
