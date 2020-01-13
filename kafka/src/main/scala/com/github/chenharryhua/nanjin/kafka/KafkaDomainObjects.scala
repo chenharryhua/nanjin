@@ -5,6 +5,9 @@ import java.{lang, util}
 import cats.implicits._
 import cats.{Order, PartialOrder, Show}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.numeric.NonNegative
+import eu.timepit.refined.refineV
 import monocle.Iso
 import monocle.macros.GenIso
 import org.apache.kafka.clients.consumer.{OffsetAndMetadata, OffsetAndTimestamp}
@@ -12,25 +15,42 @@ import org.apache.kafka.common.TopicPartition
 
 import scala.collection.JavaConverters._
 
-final case class KafkaOffset(value: Long) extends AnyVal {
-  def javaLong: java.lang.Long = value
-  def asLast: KafkaOffset      = copy(value = value - 1) //represent last message
+final case class KafkaOffset(private val offset: Refined[Long, NonNegative]) {
+  val value: Long                 = offset.value
+  def javaLong: java.lang.Long    = value
+  def asLast: KafkaOffset         = KafkaOffset(value - 1) //represent last message
+  def -(other: KafkaOffset): Long = value - other.value
 }
 
 object KafkaOffset {
-  implicit val orderKafkaOffset: Order[KafkaOffset] = cats.derived.semi.order[KafkaOffset]
+
+  @throws[Exception]
+  def apply(v: Long): KafkaOffset =
+    refineV[NonNegative](v).map(KafkaOffset(_)).fold(ex => throw new Exception(ex), identity)
+
+  implicit val orderKafkaOffset: Order[KafkaOffset] =
+    (x: KafkaOffset, y: KafkaOffset) => (x - y).toInt
 }
 
-final case class KafkaPartition(value: Int) extends AnyVal
+final case class KafkaPartition(private val partition: Refined[Int, NonNegative]) {
+  val value: Int                    = partition.value
+  def -(other: KafkaPartition): Int = value - other.value
+}
 
 object KafkaPartition {
-  implicit val orderKafkaPartition: Order[KafkaPartition] = cats.derived.semi.order[KafkaPartition]
+
+  @throws[Exception]
+  def apply(v: Int): KafkaPartition =
+    refineV[NonNegative](v).map(KafkaPartition(_)).fold(ex => throw new Exception(ex), identity)
+
+  implicit val orderKafkaPartition: Order[KafkaPartition] =
+    (x: KafkaPartition, y: KafkaPartition) => x - y
 }
 
 sealed abstract case class KafkaOffsetRange private (from: KafkaOffset, until: KafkaOffset) {
   require(from < until, s"from should be strictly less than until. from = $from, until=$until")
 
-  final val distance: Long = until.value - from.value
+  final val distance: Long = until - from
 
   final def show: String =
     s"KafkaOffsetRange(from = ${from.value}, until = ${until.value}, distance = $distance)"
@@ -41,7 +61,7 @@ sealed abstract case class KafkaOffsetRange private (from: KafkaOffset, until: K
 object KafkaOffsetRange {
 
   def apply(from: KafkaOffset, until: KafkaOffset): Option[KafkaOffsetRange] =
-    if (from < until && from.value >= 0)
+    if (from < until)
       Some(new KafkaOffsetRange(from, until) {})
     else
       None
