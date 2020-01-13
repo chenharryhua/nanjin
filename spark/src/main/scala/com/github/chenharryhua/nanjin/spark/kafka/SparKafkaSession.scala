@@ -17,6 +17,7 @@ import com.github.chenharryhua.nanjin.spark.{UpdateParams, _}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.kafka._
 import fs2.{Chunk, Stream}
+import io.circe.syntax._
 import monocle.function.At.remove
 import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
@@ -25,6 +26,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.kafka010.{KafkaUtils, OffsetRange}
 
 import scala.collection.JavaConverters._
+import scala.reflect.ClassTag
 
 final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], params: SparKafkaParams)(
   implicit val sparkSession: SparkSession)
@@ -54,22 +56,22 @@ final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], param
         params.locationStrategy)
     }
 
-  def datasetFromKafka[F[_]: Sync, K1: TypedEncoder, V1: TypedEncoder](
-    transKey: K => K1,
-    transVal: V => V1): F[TypedDataset[NJConsumerRecord[K1, V1]]] =
+  def datasetFromKafka[F[_]: Sync, A: TypedEncoder: ClassTag](
+    f: NJConsumerRecord[K, V] => A): F[TypedDataset[A]] =
     kafkaRDD.map { rdd =>
-      TypedDataset.create(
-        rdd.mapPartitions(_.map(kafkaDesc.decoder(_).record.bimap(transKey, transVal))))
+      TypedDataset.create(rdd.mapPartitions(_.map(m => f(kafkaDesc.decoder(m).record))))
     }
 
   def datasetFromKafka[F[_]: Sync](
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[TypedDataset[NJConsumerRecord[K, V]]] =
-    datasetFromKafka[F, K, V](identity, identity)
+    datasetFromKafka[F, NJConsumerRecord[K, V]](identity)
 
-  def jsonDatasetFromKafka[F[_]: Sync]: F[TypedDataset[String]] =
-    kafkaRDD.map(rdd => TypedDataset.create(rdd.mapPartitions(_.map(kafkaDesc.toJson(_).noSpaces))))
+  def jsonDatasetFromKafka[F[_]: Sync]: F[TypedDataset[String]] = {
+    import kafkaDesc.topicDef.{jsonKeyEncoder, jsonValueEncoder}
+    datasetFromKafka[F, String](_.asJson.noSpaces)
+  }
 
   def load(
     implicit
