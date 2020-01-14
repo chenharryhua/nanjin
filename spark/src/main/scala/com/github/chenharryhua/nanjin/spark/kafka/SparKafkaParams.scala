@@ -46,9 +46,10 @@ object ConversionTactics {
 
   def withPathBuilder(rp: TopicName => String): SparKafkaParams = copy(pathBuilder = Reader(rp))
 
-  def withJson: SparKafkaParams    = copy(fileFormat = NJFileFormat.Json)
-  def withAvro: SparKafkaParams    = copy(fileFormat = NJFileFormat.Avro)
-  def withParquet: SparKafkaParams = copy(fileFormat = NJFileFormat.Parquet)
+  def withFileFormat(ff: NJFileFormat): SparKafkaParams = copy(fileFormat = ff)
+  def withJson: SparKafkaParams                         = withFileFormat(NJFileFormat.Json)
+  def withAvro: SparKafkaParams                         = withFileFormat(NJFileFormat.Avro)
+  def withParquet: SparKafkaParams                      = withFileFormat(NJFileFormat.Parquet)
 
   def withLocationStrategy(ls: LocationStrategy): SparKafkaParams = copy(locationStrategy = ls)
 
