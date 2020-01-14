@@ -161,7 +161,7 @@ val avro = Seq(
 ).map(_ % apacheAvro) ++
   Seq(
     "com.sksamuel.avro4s" %% "avro4s-core" % avro4s,
-    ("io.confluent" % "kafka-streams-avro-serde" % "5.3.2").classifier(""),
+    ("io.confluent" % "kafka-streams-avro-serde" % "5.4.0").classifier(""),
     "com.julianpeeters" %% "avrohugger-core"                  % avrohugger,
     "io.higherkindness" %% "skeuomorph"                       % "0.0.19",
     "com.lightbend.akka" %% "akka-stream-alpakka-avroparquet" % "1.1.2",
