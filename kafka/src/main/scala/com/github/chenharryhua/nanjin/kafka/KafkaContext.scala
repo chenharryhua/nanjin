@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.Show
 import cats.data.Reader
 import cats.effect.{ConcurrentEffect, ContextShift, IO, Timer}
+import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.codec.{KafkaSerde, SerdeOf}
 import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
 import fs2.Stream
@@ -33,6 +34,10 @@ sealed class KafkaContext[F[_]](val settings: KafkaSettings)(
 
   final def kafkaStreams(topology: Reader[StreamsBuilder, Unit]): Stream[F, KafkaStreams] =
     new KafkaStreamRunner[F](settings.streamSettings).stream(topology)
+}
+
+object KafkaContext {
+  implicit def showKafkaContext[F[_]]: Show[KafkaContext[F]] = _.settings.show
 }
 
 final class IoKafkaContext(settings: KafkaSettings)(implicit cs: ContextShift[IO], timer: Timer[IO])
