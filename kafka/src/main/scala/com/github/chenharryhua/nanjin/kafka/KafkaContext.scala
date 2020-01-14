@@ -34,10 +34,13 @@ sealed class KafkaContext[F[_]](val settings: KafkaSettings)(
 
   final def kafkaStreams(topology: Reader[StreamsBuilder, Unit]): Stream[F, KafkaStreams] =
     new KafkaStreamRunner[F](settings.streamSettings).stream(topology)
+
+  final def show: String              = settings.show
+  final override def toString: String = show
 }
 
 object KafkaContext {
-  implicit def showKafkaContext[F[_]]: Show[KafkaContext[F]] = _.settings.show
+  implicit def showKafkaContext[F[_], S](implicit ev: S <:< KafkaContext[F]): Show[S] = _.show
 }
 
 final class IoKafkaContext(settings: KafkaSettings)(implicit cs: ContextShift[IO], timer: Timer[IO])
