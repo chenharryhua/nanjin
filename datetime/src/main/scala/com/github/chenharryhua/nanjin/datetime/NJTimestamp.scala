@@ -121,7 +121,7 @@ object NJDateTimeRange {
         }
 
       override val partialOrder: PartialOrder[NJDateTimeRange] = {
-        case (a, b) if a == b                                                 => 0.0
+        case (a, b) if a.end === b.end && a.start === b.start                 => 0.0
         case (a, b) if lessStart(a.start, b.start) && biggerEnd(a.end, b.end) => 1.0
         case (a, b) if lessStart(b.start, a.start) && biggerEnd(b.end, a.end) => -1.0
         case _                                                                => Double.NaN

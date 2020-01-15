@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.derived.auto.eq._
-import cats.implicits._
 import cats.Show
+import cats.implicits._
+import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.kafka.codec._
 import com.sksamuel.avro4s.{
   AvroSchema,
@@ -14,14 +14,37 @@ import com.sksamuel.avro4s.{
   Decoder => AvroDecoder,
   Encoder => AvroEncoder
 }
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.refineV
+import eu.timepit.refined.string._
 import io.circe.parser.decode
 import io.circe.syntax._
 import io.circe.{Error, Json, Decoder => JsonDecoder, Encoder => JsonEncoder}
 import org.apache.avro.Schema
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
+import shapeless.Witness
 
-final case class TopicName(value: String) {
+final class TopicName(name: Refined[String, TopicName.Constraint]) extends Serializable {
+  val value: String             = name.value
   override val toString: String = value
+}
+
+object TopicName {
+  type Constraint = MatchesRegex[Witness.`"^[a-zA-Z0-9_.-]+$"`.T]
+
+  implicit val eqshowTopicName: Eq[TopicName] with Show[TopicName] =
+    new Eq[TopicName] with Show[TopicName] {
+
+      override def eqv(x: TopicName, y: TopicName): Boolean =
+        x.value === y.value
+
+      override def show(t: TopicName): String =
+        t.value
+    }
+
+  @throws[Exception]
+  def apply(name: String): TopicName =
+    refineV[Constraint](name).map(new TopicName(_)).fold(e => throw new Exception(e), identity)
 }
 
 final case class TopicDef[K, V] private (topicName: TopicName)(
