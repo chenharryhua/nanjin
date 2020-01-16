@@ -187,7 +187,8 @@ object TopicDef {
 
 final class TopicCodec[K, V] private[kafka] (
   val keyCodec: KafkaCodec.Key[K],
-  val valueCodec: KafkaCodec.Value[V]) {
+  val valueCodec: KafkaCodec.Value[V])
+    extends Serializable {
   require(
     keyCodec.topicName === valueCodec.topicName,
     "key and value codec should have same topic name")
