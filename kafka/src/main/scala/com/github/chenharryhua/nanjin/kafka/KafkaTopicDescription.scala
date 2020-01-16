@@ -40,7 +40,7 @@ import scala.collection.immutable
       .get(settings.consumerSettings)
       .map(KafkaConsumerGroupId)
 
-  @transient lazy val codec: TopicCodec[K, V] = TopicCodec(
+  @transient lazy val codec: TopicCodec[K, V] = new TopicCodec(
     serdeOfKey.asKey(settings.schemaRegistrySettings.config).codec(topicDef.topicName),
     serdeOfValue.asValue(settings.schemaRegistrySettings.config).codec(topicDef.topicName)
   )

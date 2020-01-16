@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka.codec
 
 import java.{util => ju}
 
-import com.github.chenharryhua.nanjin.kafka.{KJson, ManualAvroSchema,TopicName}
+import com.github.chenharryhua.nanjin.kafka.{KJson, ManualAvroSchema, TopicName}
 import com.sksamuel.avro4s.{
   AvroSchema,
   DefaultFieldMapper,
@@ -14,13 +14,13 @@ import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import monocle.Prism
 import org.apache.avro.Schema
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
-import org.apache.kafka.streams.scala.Serdes
 
 import scala.annotation.{compileTimeOnly, implicitAmbiguous, implicitNotFound}
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Try}
 
-sealed private[codec] class KafkaCodec[A](topicName: TopicName, serde: KafkaSerde[A]) {
+sealed private[codec] class KafkaCodec[A](topicName: TopicName, serde: KafkaSerde[A])
+    extends Serializable {
   final def encode(a: A): Array[Byte]  = serde.serializer.serialize(topicName.value, a)
   final def decode(ab: Array[Byte]): A = serde.deserializer.deserialize(topicName.value, ab)
 
@@ -36,14 +36,14 @@ sealed private[codec] class KafkaCodec[A](topicName: TopicName, serde: KafkaSerd
 object KafkaCodec {
 
   final class Key[A](val topicName: TopicName, val serde: KafkaSerde.Key[A])
-      extends KafkaCodec[A](topicName, serde) with Serializable
+      extends KafkaCodec[A](topicName, serde)
 
   final class Value[A](val topicName: TopicName, val serde: KafkaSerde.Value[A])
-      extends KafkaCodec[A](topicName, serde) with Serializable
+      extends KafkaCodec[A](topicName, serde)
 
 }
 
-sealed private[codec] trait KafkaSerde[A] extends Serde[A] {
+sealed private[codec] trait KafkaSerde[A] extends Serde[A] with Serializable {
   override def serializer: Serializer[A]
   override def deserializer: Deserializer[A]
 
@@ -67,7 +67,7 @@ object KafkaSerde {
     val configProps: Map[String, String],
     override val serializer: Serializer[A],
     override val deserializer: Deserializer[A])
-      extends KafkaSerde[A] with Serializable {
+      extends KafkaSerde[A] {
 
     configure(configProps.asJava, isKey = true)
 
@@ -82,7 +82,7 @@ object KafkaSerde {
     val configProps: Map[String, String],
     override val serializer: Serializer[A],
     override val deserializer: Deserializer[A])
-      extends KafkaSerde[A] with Serializable {
+      extends KafkaSerde[A] {
 
     configure(configProps.asJava, isKey = false)
 

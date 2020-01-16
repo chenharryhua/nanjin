@@ -47,7 +47,7 @@ object TopicName {
     refineV[Constraint](name).map(new TopicName(_)).fold(e => throw new Exception(e), identity)
 }
 
-final case class TopicDef[K, V] private (topicName: TopicName)(
+final class TopicDef[K, V] private (val topicName: TopicName)(
   implicit
   val serdeOfKey: SerdeOf[K],
   val serdeOfValue: SerdeOf[V],
@@ -60,7 +60,8 @@ final case class TopicDef[K, V] private (topicName: TopicName)(
   val avroKeyEncoder: AvroEncoder[K],
   val avroValueEncoder: AvroEncoder[V],
   val avroKeyDecoder: AvroDecoder[K],
-  val avroValueDecoder: AvroDecoder[V]) {
+  val avroValueDecoder: AvroDecoder[V])
+    extends Serializable {
   val keySchemaLoc: String   = s"${topicName.value}-key"
   val valueSchemaLoc: String = s"${topicName.value}-value"
 
@@ -89,11 +90,19 @@ final case class TopicDef[K, V] private (topicName: TopicName)(
   def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[F, K, V] =
     ctx.topic[K, V](this)
 
-  def show: String = s"TopicDef(topicName = $topicName)"
+  def show: String              = s"TopicDef(topicName = $topicName)"
+  override def toString: String = show
 }
 
 object TopicDef {
-  implicit def showTopicDef[K, V]: Show[TopicDef[K, V]] = _.show
+
+  implicit def showeqTopicDef[K, V]: Show[TopicDef[K, V]] with Eq[TopicDef[K, V]] =
+    new Show[TopicDef[K, V]] with Eq[TopicDef[K, V]] {
+
+      override def eqv(x: TopicDef[K, V], y: TopicDef[K, V]): Boolean =
+        x.topicName === y.topicName && x.njConsumerRecordSchema == y.njConsumerRecordSchema
+      override def show(t: TopicDef[K, V]): String = t.show
+    }
 
   def apply[
     K: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder,
@@ -101,7 +110,7 @@ object TopicDef {
     topicName: String,
     keySchema: ManualAvroSchema[K],
     valueSchema: ManualAvroSchema[V]): TopicDef[K, V] =
-    TopicDef(TopicName(topicName))(
+    new TopicDef(TopicName(topicName))(
       SerdeOf(keySchema),
       SerdeOf(valueSchema),
       Show[K],
@@ -120,7 +129,7 @@ object TopicDef {
     K: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder: SerdeOf,
     V: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder: SerdeOf](
     topicName: String): TopicDef[K, V] =
-    TopicDef(TopicName(topicName))(
+    new TopicDef(TopicName(topicName))(
       SerdeOf[K],
       SerdeOf[V],
       Show[K],
@@ -140,7 +149,7 @@ object TopicDef {
     V: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder](
     topicName: String,
     valueSchema: ManualAvroSchema[V]): TopicDef[K, V] =
-    TopicDef(TopicName(topicName))(
+    new TopicDef(TopicName(topicName))(
       SerdeOf[K],
       SerdeOf(valueSchema),
       Show[K],
@@ -160,7 +169,7 @@ object TopicDef {
     V: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder: SerdeOf](
     topicName: String,
     keySchema: ManualAvroSchema[K]): TopicDef[K, V] =
-    TopicDef(TopicName(topicName))(
+    new TopicDef(TopicName(topicName))(
       SerdeOf(keySchema),
       SerdeOf[V],
       Show[K],
@@ -176,9 +185,9 @@ object TopicDef {
     )
 }
 
-final case class TopicCodec[K, V] private[kafka] (
-  keyCodec: KafkaCodec.Key[K],
-  valueCodec: KafkaCodec.Value[V]) {
+final class TopicCodec[K, V] private[kafka] (
+  val keyCodec: KafkaCodec.Key[K],
+  val valueCodec: KafkaCodec.Value[V]) {
   require(
     keyCodec.topicName === valueCodec.topicName,
     "key and value codec should have same topic name")
