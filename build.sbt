@@ -24,7 +24,7 @@ val monix      = "3.1.0"
 val catsEffect = "2.0.0"
 
 val akkaKafka = "2.0.0"
-val fs2Kafka  = "0.20.2+62-4bd3544b-SNAPSHOT"
+val fs2Kafka  = "1.0.0-RC1"
 
 val sparkVersion = "2.4.4"
 val frameless    = "0.8.0"
@@ -217,7 +217,7 @@ val kafkaLib = Seq(
   "org.apache.kafka" %% "kafka-streams-scala").map(_ % kafkaVersion) ++
   Seq(
     "com.typesafe.akka" %% "akka-stream-kafka" % akkaKafka,
-    "com.ovoenergy" %% "fs2-kafka"             % fs2Kafka)
+    "com.github.fd4s" %% "fs2-kafka"           % fs2Kafka)
 
 val base = Seq(
   "com.twitter" %% "algebird-core"         % "0.13.6",
