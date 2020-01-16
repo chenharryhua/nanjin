@@ -163,7 +163,7 @@ val avro = Seq(
     "com.sksamuel.avro4s" %% "avro4s-core" % avro4s,
     ("io.confluent" % "kafka-streams-avro-serde" % "5.4.0").classifier(""),
     "com.julianpeeters" %% "avrohugger-core"                  % avrohugger,
-    "io.higherkindness" %% "skeuomorph"                       % "0.0.19",
+    "io.higherkindness" %% "skeuomorph"                       % "0.0.20",
     "com.lightbend.akka" %% "akka-stream-alpakka-avroparquet" % "1.1.2",
     "org.apache.parquet"                                      % "parquet-avro" % "1.11.0"
   )
