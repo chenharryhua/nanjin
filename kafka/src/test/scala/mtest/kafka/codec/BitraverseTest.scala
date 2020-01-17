@@ -22,9 +22,9 @@ import org.apache.kafka.clients.producer.ProducerRecord
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.funsuite.AnyFunSuite
-import org.typelevel.discipline.scalatest.Discipline
+import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
-class BitraverseTest extends AnyFunSuite with Discipline {
+class BitraverseTest extends AnyFunSuite with FunSuiteDiscipline {
 
   implicit val arbChain: Arbitrary[List[Int]] =
     Arbitrary(Gen.containerOfN[List, Int](3, arbitrary[Int]))

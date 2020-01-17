@@ -5,12 +5,12 @@ import monocle.law.discipline.PrismTests
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.funsuite.AnyFunSuite
-import org.typelevel.discipline.scalatest.Discipline
+import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 import com.github.chenharryhua.nanjin.kafka.codec.eq._
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KJson
 
-class PrismTest extends AnyFunSuite with Discipline {
+class PrismTest extends AnyFunSuite with FunSuiteDiscipline {
 
   val pc: Gen[PrimitiveTypeCombined] = for {
     a <- arbitrary[Int]

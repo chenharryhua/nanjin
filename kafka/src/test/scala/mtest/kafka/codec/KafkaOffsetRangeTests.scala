@@ -5,9 +5,9 @@ import cats.kernel.laws.discipline.{OrderTests, PartialOrderTests}
 import com.github.chenharryhua.nanjin.kafka.{KafkaOffset, KafkaOffsetRange, KafkaPartition}
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 import org.scalatest.funsuite.AnyFunSuite
-import org.typelevel.discipline.scalatest.Discipline
+import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
-class KafkaOffsetRangeTests extends AnyFunSuite with Discipline {
+class KafkaOffsetRangeTests extends AnyFunSuite with FunSuiteDiscipline {
 
   implicit val arbiKafkaOffsetRange: Arbitrary[KafkaOffsetRange] =
     Arbitrary(for {
