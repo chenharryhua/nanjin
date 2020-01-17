@@ -19,9 +19,9 @@ import monocle.law.discipline.LensTests
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.scalatest.funsuite.AnyFunSuite
-import org.typelevel.discipline.scalatest.Discipline
+import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
-class LensTest extends AnyFunSuite with Discipline {
+class LensTest extends AnyFunSuite with FunSuiteDiscipline {
 
   checkAll(
     "fs2.consumer.CommittableConsumerRecord",

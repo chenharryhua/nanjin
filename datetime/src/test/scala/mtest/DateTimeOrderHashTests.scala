@@ -5,8 +5,9 @@ import java.sql.{Date, Timestamp}
 import cats.kernel.laws.discipline.{HashTests, OrderTests}
 import cats.tests.CatsSuite
 import com.github.chenharryhua.nanjin.datetime._
+import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
-class DateTimeOrderHashTests extends CatsSuite {
+class DateTimeOrderHashTests extends CatsSuite with FunSuiteDiscipline{
   import ArbitaryData._
 
   checkAll("Timestamp", HashTests[Timestamp].hash)

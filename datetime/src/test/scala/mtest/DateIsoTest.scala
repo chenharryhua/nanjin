@@ -10,9 +10,9 @@ import monocle.Iso
 import monocle.law.discipline.IsoTests
 import org.scalacheck._
 import org.scalatest.funsuite.AnyFunSuite
-import org.typelevel.discipline.scalatest.Discipline
+import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
-class DateIsoTest extends AnyFunSuite with Discipline {
+class DateIsoTest extends AnyFunSuite with FunSuiteDiscipline {
 
   val genAfter1900 =
     genZonedDateTimeWithZone(None).map(_.toLocalDate).filter(_.isAfter(LocalDate.of(1900, 1, 1)))

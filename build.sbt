@@ -50,7 +50,7 @@ val flinkVersion = "1.9.1"
 
 val hadoopVersion = "3.2.1"
 
-val awsVersion = "1.11.707"
+val awsVersion = "1.11.708"
 
 lazy val commonSettings = Seq(
   organization := "com.github.chenharryhua",
@@ -200,7 +200,7 @@ val framelessLib = Seq(
 
 val tests = Seq(
   "org.typelevel" %% "cats-testkit-scalatest"                 % "1.0.0-RC1" % Test,
-  "org.typelevel" %% "discipline-scalatest"                   % "1.0.0-RC2" % Test,
+  "org.typelevel" %% "discipline-scalatest"                   % "1.0.0-RC3" % Test,
   "org.typelevel" %% "cats-laws"                              % catsCore    % Test,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.3"     % Test,
   "org.scalatest" %% "scalatest"                              % scalatest   % Test,

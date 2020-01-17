@@ -12,9 +12,9 @@ import org.apache.kafka.common.header.{Header, Headers}
 import org.scalacheck.Arbitrary
 import org.scalacheck.Arbitrary._
 import org.scalatest.funsuite.AnyFunSuite
-import org.typelevel.discipline.scalatest.Discipline
+import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
-class MessageEqualityTest extends AnyFunSuite with Discipline {
+class MessageEqualityTest extends AnyFunSuite with FunSuiteDiscipline {
 
   implicit val arbOptionalInteger: Arbitrary[Optional[Integer]] = Arbitrary(genOptionalInteger)
 

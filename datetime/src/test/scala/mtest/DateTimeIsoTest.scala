@@ -9,9 +9,9 @@ import com.github.chenharryhua.nanjin.datetime.iso._
 import monocle.Iso
 import monocle.law.discipline.IsoTests
 import org.scalatest.funsuite.AnyFunSuite
-import org.typelevel.discipline.scalatest.Discipline
+import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
-class DateTimeIsoTest extends AnyFunSuite with Discipline {
+class DateTimeIsoTest extends AnyFunSuite with FunSuiteDiscipline {
   import ArbitaryData._
 
   checkAll("instant", IsoTests[Instant, Timestamp](implicitly[Iso[Instant, Timestamp]]))

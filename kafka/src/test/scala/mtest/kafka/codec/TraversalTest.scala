@@ -12,9 +12,9 @@ import fs2.kafka.{
 }
 import monocle.law.discipline.TraversalTests
 import org.scalatest.funsuite.AnyFunSuite
-import org.typelevel.discipline.scalatest.Discipline
+import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
-class TraversalTest extends AnyFunSuite with Discipline {
+class TraversalTest extends AnyFunSuite with FunSuiteDiscipline {
   checkAll(
     "akka.producer.MultiMessage",
     TraversalTests(
