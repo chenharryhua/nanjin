@@ -30,7 +30,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
         Map(new TopicPartition("range.test", 0) ->
           KafkaOffsetRange(KafkaOffset(1), KafkaOffset(2))))
 
-    val r = NJDateTimeRange.infinite.withStart(110).withEnd(250)
+    val r = NJDateTimeRange.infinite.withStartTime(110).withEndTime(250)
 
     rangeTopic.consumerResource
       .use(_.offsetRangeFor(r))
@@ -44,7 +44,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
         Map(new TopicPartition("range.test", 0) ->
           KafkaOffsetRange(KafkaOffset(1), KafkaOffset(3))))
 
-    val r = NJDateTimeRange.infinite.withStart(110).withEnd(500)
+    val r = NJDateTimeRange.infinite.withStartTime(110).withEndTime(500)
 
     rangeTopic.consumerResource
       .use(_.offsetRangeFor(r))
@@ -58,7 +58,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
         Map(new TopicPartition("range.test", 0) ->
           KafkaOffsetRange(KafkaOffset(0), KafkaOffset(1))))
 
-    val r = NJDateTimeRange.infinite.withStart(10).withEnd(110)
+    val r = NJDateTimeRange.infinite.withStartTime(10).withEndTime(110)
 
     rangeTopic.consumerResource
       .use(_.offsetRangeFor(r))
@@ -70,7 +70,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     val expect =
       NJTopicPartition(Map(new TopicPartition("range.test", 0) -> None))
 
-    val r = NJDateTimeRange.infinite.withStart(10).withEnd(30)
+    val r = NJDateTimeRange.infinite.withStartTime(10).withEndTime(30)
 
     rangeTopic.consumerResource
       .use(_.offsetRangeFor(r))
@@ -81,7 +81,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     val expect =
       NJTopicPartition(Map(new TopicPartition("range.test", 0) -> None))
 
-    val r = NJDateTimeRange.infinite.withStart(500).withEnd(600)
+    val r = NJDateTimeRange.infinite.withStartTime(500).withEndTime(600)
 
     rangeTopic.consumerResource
       .use(_.offsetRangeFor(r))

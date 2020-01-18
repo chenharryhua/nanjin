@@ -9,6 +9,7 @@ import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 import org.scalatest.prop.Configuration
 import shapeless.syntax.inject._
 import java.time.{LocalDateTime, ZoneId}
+
 class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
 
   implicit val arbiNJDateTimeRange: Arbitrary[NJDateTimeRange] =
@@ -24,17 +25,16 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
 
   checkAll("NJDateTimeRange", UpperBoundedTests[NJDateTimeRange].upperBounded)
 
+  test("order of applying time data does not matter") {
+    val zoneId    = ZoneId.of("Asia/Chongqing")
+    val startTime = LocalDateTime.of(2012, 10, 26, 18, 0, 0)
+    val endTime   = LocalDateTime.of(2012, 10, 26, 23, 0, 0)
 
-    test("order of applying time data does not matter") {
-      val zoneId    = ZoneId.of("Asia/Chongqing")
-      val startTime = LocalDateTime.of(2012, 10, 26, 18, 0, 0)
-      val endTime   = LocalDateTime.of(2012, 10, 26, 23, 0, 0)
+    val param = NJDateTimeRange.infinite
 
-      val param = NJDateTimeRange.infinite
+    val a = param.withEndTime(endTime).withZoneId(zoneId).withStartTime(startTime)
+    val b = param.withStartTime(startTime).withZoneId(zoneId).withEndTime(endTime)
 
-      val a = param.withEnd(endTime).withZoneId(zoneId).withStart(startTime)
-      val b = param.withStart(startTime).withZoneId(zoneId).withEnd(endTime)
-
-      assert(a === b)
-    }
+    assert(a === b)
+  }
 }
