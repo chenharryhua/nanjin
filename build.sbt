@@ -280,7 +280,7 @@ lazy val kafka = (project in file("kafka"))
     libraryDependencies ++= Seq(
       compilerPlugin(
         ("com.github.ghik" % "silencer-plugin" % silencerVersion).cross(CrossVersion.full)),
-      ("com.github.ghik" % "silencer-lib" % silencerVersion % Provided).cross(CrossVersion.full)
+        ("com.github.ghik" % "silencer-lib" % silencerVersion % Provided).cross(CrossVersion.full)
     ) ++ effect ++ kafkaLib ++ avro ++ json ++ tests,
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
