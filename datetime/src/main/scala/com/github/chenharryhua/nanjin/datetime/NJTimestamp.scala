@@ -3,18 +3,13 @@ package com.github.chenharryhua.nanjin.datetime
 import java.sql.Timestamp
 import java.time._
 import java.time.format.DateTimeFormatter
-import java.util.concurrent.TimeUnit
 
-import cats.implicits._
-import cats.kernel.UpperBounded
-import cats.{Hash, Order, PartialOrder, Show}
+import cats.{Hash, Order, Show}
 import monocle.Iso
-import monocle.macros.Lenses
 
-import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.Try
 
-final case class NJTimestamp(milliseconds: Long) extends AnyVal {
+final case class NJTimestamp(milliseconds: Long) {
   def instant: Instant                      = Instant.ofEpochMilli(milliseconds)
   def utc: ZonedDateTime                    = instant.atZone(ZoneId.of("Etc/UTC"))
   def atZone(zoneId: ZoneId): ZonedDateTime = instant.atZone(zoneId)
@@ -55,83 +50,5 @@ object NJTimestamp {
         x.milliseconds.compareTo(y.milliseconds)
 
       override def show(x: NJTimestamp): String = x.utc.toString
-    }
-}
-
-@Lenses final case class NJDateTimeRange(start: Option[NJTimestamp], end: Option[NJTimestamp]) {
-
-  def withStart(ts: Long): NJDateTimeRange =
-    NJDateTimeRange.start.set(Some(NJTimestamp(ts)))(this)
-
-  def withStart(ts: Timestamp): NJDateTimeRange =
-    NJDateTimeRange.start.set(Some(NJTimestamp(ts)))(this)
-
-  def withStart(ts: Instant): NJDateTimeRange =
-    NJDateTimeRange.start.set(Some(NJTimestamp(ts)))(this)
-
-  def withStart(ts: ZonedDateTime): NJDateTimeRange =
-    NJDateTimeRange.start.set(Some(NJTimestamp(ts)))(this)
-
-  def withStart(ts: OffsetDateTime): NJDateTimeRange =
-    NJDateTimeRange.start.set(Some(NJTimestamp(ts)))(this)
-
-  def withEnd(ts: Long): NJDateTimeRange =
-    NJDateTimeRange.end.set(Some(NJTimestamp(ts)))(this)
-
-  def withEnd(ts: Timestamp): NJDateTimeRange =
-    NJDateTimeRange.end.set(Some(NJTimestamp(ts)))(this)
-
-  def withEnd(ts: Instant): NJDateTimeRange =
-    NJDateTimeRange.end.set(Some(NJTimestamp(ts)))(this)
-
-  def withEnd(ts: ZonedDateTime): NJDateTimeRange =
-    NJDateTimeRange.end.set(Some(NJTimestamp(ts)))(this)
-
-  def withEnd(ts: OffsetDateTime): NJDateTimeRange =
-    NJDateTimeRange.end.set(Some(NJTimestamp(ts)))(this)
-
-  def isInBetween(ts: Long): Boolean = (start, end) match {
-    case (Some(s), Some(e)) => ts >= s.milliseconds && ts < e.milliseconds
-    case (Some(s), None)    => ts >= s.milliseconds
-    case (None, Some(e))    => ts < e.milliseconds
-    case (None, None)       => true
-  }
-
-  val duration: Option[FiniteDuration] =
-    (start, end).mapN((s, e) => Duration(e.milliseconds - s.milliseconds, TimeUnit.MILLISECONDS))
-
-  require(
-    duration.forall(_.length > 0),
-    s"start time(${start.map(_.utc)}) should be strictly before end time(${end.map(_.utc)}) in UTC.")
-}
-
-object NJDateTimeRange {
-
-  implicit val upperBoundedNJDateTimeRange: UpperBounded[NJDateTimeRange] =
-    new UpperBounded[NJDateTimeRange] {
-      override val maxBound: NJDateTimeRange = NJDateTimeRange(None, None)
-
-      private def lessStart(a: Option[NJTimestamp], b: Option[NJTimestamp]): Boolean =
-        (a, b) match {
-          case (None, None)       => true
-          case (None, _)          => true
-          case (_, None)          => false
-          case (Some(x), Some(y)) => x <= y
-        }
-
-      private def biggerEnd(a: Option[NJTimestamp], b: Option[NJTimestamp]): Boolean =
-        (a, b) match {
-          case (None, None)       => false
-          case (None, _)          => true
-          case (_, None)          => false
-          case (Some(x), Some(y)) => x > y
-        }
-
-      override val partialOrder: PartialOrder[NJDateTimeRange] = {
-        case (a, b) if a.end === b.end && a.start === b.start                 => 0.0
-        case (a, b) if lessStart(a.start, b.start) && biggerEnd(a.end, b.end) => 1.0
-        case (a, b) if lessStart(b.start, a.start) && biggerEnd(b.end, a.end) => -1.0
-        case _                                                                => Double.NaN
-      }
     }
 }

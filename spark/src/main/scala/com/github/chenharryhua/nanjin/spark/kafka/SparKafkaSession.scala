@@ -171,5 +171,5 @@ final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], param
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[Statistics[K, V]] =
-    datasetFromKafka.map(ds => new Statistics(params.zoneId, ds.dataset))
+    datasetFromKafka.map(ds => new Statistics(params.timeRange.zoneId, ds.dataset))
 }
