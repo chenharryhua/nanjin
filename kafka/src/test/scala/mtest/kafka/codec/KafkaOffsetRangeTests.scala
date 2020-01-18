@@ -6,8 +6,9 @@ import com.github.chenharryhua.nanjin.kafka.{KafkaOffset, KafkaOffsetRange, Kafk
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
+import org.scalatest.prop.Configuration
 
-class KafkaOffsetRangeTests extends AnyFunSuite with FunSuiteDiscipline {
+class KafkaOffsetRangeTests extends AnyFunSuite with FunSuiteDiscipline with Configuration{
 
   implicit val arbiKafkaOffsetRange: Arbitrary[KafkaOffsetRange] =
     Arbitrary(for {

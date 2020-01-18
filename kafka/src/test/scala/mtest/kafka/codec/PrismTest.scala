@@ -9,8 +9,9 @@ import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 import com.github.chenharryhua.nanjin.kafka.codec.eq._
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KJson
+import org.scalatest.prop.Configuration
 
-class PrismTest extends AnyFunSuite with FunSuiteDiscipline {
+class PrismTest extends AnyFunSuite with FunSuiteDiscipline with Configuration{
 
   val pc: Gen[PrimitiveTypeCombined] = for {
     a <- arbitrary[Int]
