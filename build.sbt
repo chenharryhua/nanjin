@@ -14,7 +14,7 @@ val catsCore   = "2.1.0"
 val fs2Version = "2.1.0"
 val catsMtl    = "0.7.0"
 val catsTime   = "0.3.0"
-val tagless    = "0.10"
+val tagless    = "0.11"
 val monocle    = "2.0.1"
 val refined    = "0.9.10"
 val droste     = "0.8.0"
@@ -200,7 +200,7 @@ val framelessLib = Seq(
 
 val tests = Seq(
   "org.typelevel" %% "cats-testkit-scalatest"                 % "1.0.0-RC1" % Test,
-  "org.typelevel" %% "discipline-scalatest"                   % "1.0.0-RC3" % Test,
+  "org.typelevel" %% "discipline-scalatest"                   % "1.0.0-RC4" % Test,
   "org.typelevel" %% "cats-laws"                              % catsCore    % Test,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.3"     % Test,
   "org.scalatest" %% "scalatest"                              % scalatest   % Test,
