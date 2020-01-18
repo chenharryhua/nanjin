@@ -13,8 +13,9 @@ import org.scalacheck.Arbitrary
 import org.scalacheck.Arbitrary._
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
+import org.scalatest.prop.Configuration
 
-class MessageEqualityTest extends AnyFunSuite with FunSuiteDiscipline {
+class MessageEqualityTest extends AnyFunSuite with FunSuiteDiscipline with Configuration{
 
   implicit val arbOptionalInteger: Arbitrary[Optional[Integer]] = Arbitrary(genOptionalInteger)
 

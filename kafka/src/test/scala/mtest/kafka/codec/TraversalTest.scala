@@ -13,8 +13,9 @@ import fs2.kafka.{
 import monocle.law.discipline.TraversalTests
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
+import org.scalatest.prop.Configuration
 
-class TraversalTest extends AnyFunSuite with FunSuiteDiscipline {
+class TraversalTest extends AnyFunSuite with FunSuiteDiscipline with Configuration{
   checkAll(
     "akka.producer.MultiMessage",
     TraversalTests(

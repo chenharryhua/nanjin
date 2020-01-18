@@ -6,8 +6,9 @@ import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
+import org.scalatest.prop.Configuration
 
-class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline {
+class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configuration{
 
   implicit val arbiNJDateTimeRange: Arbitrary[NJDateTimeRange] =
     Arbitrary(for {

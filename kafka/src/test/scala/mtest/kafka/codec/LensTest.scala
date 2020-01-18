@@ -20,8 +20,9 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
+import org.scalatest.prop.Configuration
 
-class LensTest extends AnyFunSuite with FunSuiteDiscipline {
+class LensTest extends AnyFunSuite with FunSuiteDiscipline with Configuration{
 
   checkAll(
     "fs2.consumer.CommittableConsumerRecord",

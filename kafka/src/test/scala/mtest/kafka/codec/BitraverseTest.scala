@@ -23,8 +23,9 @@ import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
+import org.scalatest.prop.Configuration
 
-class BitraverseTest extends AnyFunSuite with FunSuiteDiscipline {
+class BitraverseTest extends AnyFunSuite with FunSuiteDiscipline with Configuration{
 
   implicit val arbChain: Arbitrary[List[Int]] =
     Arbitrary(Gen.containerOfN[List, Int](3, arbitrary[Int]))
