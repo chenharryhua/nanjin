@@ -3,13 +3,13 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import java.time._
 
 import cats.data.Reader
-import cats.kernel.UpperBounded
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.spark.NJFileFormat
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.streaming.kafka010.{LocationStrategies, LocationStrategy}
+import shapeless.{:+:, CNil, Coproduct, Poly1}
 
 import scala.concurrent.duration._
 
@@ -28,7 +28,8 @@ object ConversionTactics {
 }
 
 @Lenses final case class SparKafkaParams private (
-  timeRange: NJDateTimeRange,
+  startTime: Option[SparKafkaParams.TimeParam],
+  endTime: Option[SparKafkaParams.TimeParam],
   conversionTactics: ConversionTactics,
   uploadRate: NJRate,
   zoneId: ZoneId,
@@ -37,6 +38,18 @@ object ConversionTactics {
   saveMode: SaveMode,
   locationStrategy: LocationStrategy,
   repartition: Int) {
+
+  private object calcDate extends Poly1 {
+    implicit val localDate      = at[LocalDate](NJTimestamp(_, zoneId))
+    implicit val localDateTime  = at[LocalDateTime](NJTimestamp(_, zoneId))
+    implicit val instant        = at[Instant](NJTimestamp(_))
+    implicit val zonedDateTime  = at[ZonedDateTime](NJTimestamp(_))
+    implicit val offsetDateTime = at[OffsetDateTime](NJTimestamp(_))
+    implicit val longTime       = at[Long](NJTimestamp(_))
+  }
+
+  def timeRange: NJDateTimeRange =
+    NJDateTimeRange(startTime.map(_.fold(calcDate)), endTime.map(_.fold(calcDate)))
 
   val clock: Clock = Clock.system(zoneId)
 
@@ -53,29 +66,52 @@ object ConversionTactics {
 
   def withLocationStrategy(ls: LocationStrategy): SparKafkaParams = copy(locationStrategy = ls)
 
-  private def setStartTime(ts: NJTimestamp): SparKafkaParams =
-    SparKafkaParams.timeRange.composeLens(NJDateTimeRange.start).set(Some(ts))(this)
+//start-time
+  def withStartTime(dt: LocalDate): SparKafkaParams =
+    SparKafkaParams.startTime.set(Some(Coproduct[SparKafkaParams.TimeParam](dt)))(this)
 
-  private def setEndTime(ts: NJTimestamp): SparKafkaParams =
-    SparKafkaParams.timeRange.composeLens(NJDateTimeRange.end).set(Some(ts))(this)
+  def withStartTime(dt: LocalDateTime): SparKafkaParams =
+    SparKafkaParams.startTime.set(Some(Coproduct[SparKafkaParams.TimeParam](dt)))(this)
 
-  def withStartTime(dt: Instant): SparKafkaParams       = setStartTime(NJTimestamp(dt))
-  def withEndTime(dt: Instant): SparKafkaParams         = setEndTime(NJTimestamp(dt))
-  def withStartTime(dt: ZonedDateTime): SparKafkaParams = setStartTime(NJTimestamp(dt))
-  def withEndTime(dt: ZonedDateTime): SparKafkaParams   = setEndTime(NJTimestamp(dt))
-  def withStartTime(dt: LocalDateTime): SparKafkaParams = setStartTime(NJTimestamp(dt, zoneId))
-  def withEndTime(dt: LocalDateTime): SparKafkaParams   = setEndTime(NJTimestamp(dt, zoneId))
-  def withStartTime(dt: LocalDate): SparKafkaParams     = setStartTime(NJTimestamp(dt, zoneId))
-  def withEndTime(dt: LocalDate): SparKafkaParams       = setEndTime(NJTimestamp(dt, zoneId))
-  def withStartTime(dt: Long): SparKafkaParams          = setStartTime(NJTimestamp(dt))
-  def withEndTime(dt: Long): SparKafkaParams            = setEndTime(NJTimestamp(dt))
+  def withStartTime(dt: Instant): SparKafkaParams =
+    SparKafkaParams.startTime.set(Some(Coproduct[SparKafkaParams.TimeParam](dt)))(this)
 
+  def withStartTime(dt: ZonedDateTime): SparKafkaParams =
+    SparKafkaParams.startTime.set(Some(Coproduct[SparKafkaParams.TimeParam](dt)))(this)
+
+  def withStartTime(dt: OffsetDateTime): SparKafkaParams =
+    SparKafkaParams.startTime.set(Some(Coproduct[SparKafkaParams.TimeParam](dt)))(this)
+
+  def withStartTime(dt: Long): SparKafkaParams =
+    SparKafkaParams.startTime.set(Some(Coproduct[SparKafkaParams.TimeParam](dt)))(this)
+
+//end-time
+  def withEndTime(dt: LocalDate): SparKafkaParams =
+    SparKafkaParams.endTime.set(Some(Coproduct[SparKafkaParams.TimeParam](dt)))(this)
+
+  def withEndTime(dt: LocalDateTime): SparKafkaParams =
+    SparKafkaParams.endTime.set(Some(Coproduct[SparKafkaParams.TimeParam](dt)))(this)
+
+  def withEndTime(dt: Instant): SparKafkaParams =
+    SparKafkaParams.endTime.set(Some(Coproduct[SparKafkaParams.TimeParam](dt)))(this)
+
+  def withEndTime(dt: ZonedDateTime): SparKafkaParams =
+    SparKafkaParams.endTime.set(Some(Coproduct[SparKafkaParams.TimeParam](dt)))(this)
+
+  def withEndTime(dt: OffsetDateTime): SparKafkaParams =
+    SparKafkaParams.endTime.set(Some(Coproduct[SparKafkaParams.TimeParam](dt)))(this)
+
+  def withEndTime(dt: Long): SparKafkaParams =
+    SparKafkaParams.endTime.set(Some(Coproduct[SparKafkaParams.TimeParam](dt)))(this)
+
+// daily
   def withinOneDay(dt: LocalDate): SparKafkaParams =
     withStartTime(dt).withEndTime(dt.plusDays(1))
 
   def withToday: SparKafkaParams     = withinOneDay(LocalDate.now)
   def withYesterday: SparKafkaParams = withinOneDay(LocalDate.now.minusDays(1))
 
+// others
   def withBatchSize(batchSize: Int): SparKafkaParams =
     SparKafkaParams.uploadRate.composeLens(NJRate.batchSize).set(batchSize)(this)
 
@@ -103,9 +139,13 @@ object ConversionTactics {
 
 object SparKafkaParams {
 
+  final type TimeParam =
+    LocalDate :+: LocalDateTime :+: Instant :+: ZonedDateTime :+: OffsetDateTime :+: Long :+: CNil
+
   val default: SparKafkaParams =
     SparKafkaParams(
-      UpperBounded[NJDateTimeRange].maxBound,
+      None,
+      None,
       ConversionTactics.default,
       NJRate.default,
       ZoneId.systemDefault(),

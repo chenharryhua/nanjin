@@ -22,9 +22,10 @@ final case class NJTimestamp(milliseconds: Long) extends AnyVal {
 }
 
 object NJTimestamp {
-  def apply(ts: Timestamp): NJTimestamp     = NJTimestamp(ts.getTime)
-  def apply(ts: Instant): NJTimestamp       = NJTimestamp(ts.toEpochMilli)
-  def apply(ts: ZonedDateTime): NJTimestamp = apply(ts.toInstant)
+  def apply(ts: Timestamp): NJTimestamp      = NJTimestamp(ts.getTime)
+  def apply(ts: Instant): NJTimestamp        = NJTimestamp(ts.toEpochMilli)
+  def apply(ts: ZonedDateTime): NJTimestamp  = apply(ts.toInstant)
+  def apply(ts: OffsetDateTime): NJTimestamp = apply(ts.toInstant)
 
   def apply(ts: LocalDateTime, zoneId: ZoneId): NJTimestamp =
     apply(ts.atZone(zoneId).toInstant)
@@ -71,6 +72,9 @@ object NJTimestamp {
   def withStart(ts: ZonedDateTime): NJDateTimeRange =
     NJDateTimeRange.start.set(Some(NJTimestamp(ts)))(this)
 
+  def withStart(ts: OffsetDateTime): NJDateTimeRange =
+    NJDateTimeRange.start.set(Some(NJTimestamp(ts)))(this)
+
   def withEnd(ts: Long): NJDateTimeRange =
     NJDateTimeRange.end.set(Some(NJTimestamp(ts)))(this)
 
@@ -81,6 +85,9 @@ object NJTimestamp {
     NJDateTimeRange.end.set(Some(NJTimestamp(ts)))(this)
 
   def withEnd(ts: ZonedDateTime): NJDateTimeRange =
+    NJDateTimeRange.end.set(Some(NJTimestamp(ts)))(this)
+
+  def withEnd(ts: OffsetDateTime): NJDateTimeRange =
     NJDateTimeRange.end.set(Some(NJTimestamp(ts)))(this)
 
   def isInBetween(ts: Long): Boolean = (start, end) match {
