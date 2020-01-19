@@ -4,7 +4,7 @@ import java.sql.Timestamp
 import java.time._
 import java.util.concurrent.TimeUnit
 
-import cats.PartialOrder
+import cats.{Eq, PartialOrder}
 import cats.implicits._
 import cats.kernel.UpperBounded
 import monocle.macros.Lenses
@@ -25,6 +25,9 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
 
     implicit val localDateTime: Case.Aux[LocalDateTime, NJTimestamp] =
       at[LocalDateTime](NJTimestamp(_, zoneId))
+
+    implicit val instant: Case.Aux[Instant, NJTimestamp] =
+      at[Instant](NJTimestamp(_))
 
     implicit val njtimestamp: Case.Aux[NJTimestamp, NJTimestamp] =
       at[NJTimestamp](identity)
@@ -109,8 +112,8 @@ object NJDateTimeRange {
       NJTimestamp :+:
       CNil
 
-  implicit val upperBoundedNJDateTimeRange: UpperBounded[NJDateTimeRange] =
-    new UpperBounded[NJDateTimeRange] {
+  implicit val upperBoundedNJDateTimeRange: UpperBounded[NJDateTimeRange] with Eq[NJDateTimeRange] =
+    new UpperBounded[NJDateTimeRange] with Eq[NJDateTimeRange] {
       override val maxBound: NJDateTimeRange = NJDateTimeRange(None, None, ZoneId.systemDefault())
 
       private def lessStart(a: Option[NJTimestamp], b: Option[NJTimestamp]): Boolean =
@@ -144,6 +147,9 @@ object NJDateTimeRange {
           -1.0
         case _ => Double.NaN
       }
+
+      override def eqv(x: NJDateTimeRange, y: NJDateTimeRange): Boolean =
+        partialOrder.eqv(x, y)
     }
 
   final val infinite: NJDateTimeRange = UpperBounded[NJDateTimeRange].maxBound
