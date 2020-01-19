@@ -40,6 +40,7 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     assert(a === b)
     assert(a === c)
     assert(a === d)
-
+    assert(a.zonedStartTime.get === startTime.atZone(zoneId))
+    assert(a.zonedEndTime.get === endTime.atZone(zoneId))
   }
 }
