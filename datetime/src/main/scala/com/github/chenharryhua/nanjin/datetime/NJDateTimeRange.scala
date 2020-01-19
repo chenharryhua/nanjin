@@ -97,6 +97,10 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
   def withEndTime(ts: Long): NJDateTimeRange           = setEnd(NJTimestamp(ts))
   def withEndTime(ts: Timestamp): NJDateTimeRange      = setEnd(NJTimestamp(ts))
 
+  def oneDay(ts: LocalDate) = setStart(ts).setEnd(ts.plusDays(1))
+  def today                 = oneDay(LocalDate.now)
+  def yesterday             = oneDay(LocalDate.now.minusDays(1))
+
   def isInBetween(ts: Long): Boolean = (startTimestamp, endTimestamp) match {
     case (Some(s), Some(e)) => ts >= s.milliseconds && ts < e.milliseconds
     case (Some(s), None)    => ts >= s.milliseconds
@@ -116,10 +120,10 @@ object NJDateTimeRange {
 
   final type TimeTypes =
     NJTimestamp :+:
-      LocalDate :+:
       LocalDateTime :+:
-      OffsetDateTime :+:
+      LocalDate :+:
       ZonedDateTime :+:
+      OffsetDateTime :+:
       CNil
 
   implicit val upperBoundedNJDateTimeRange: UpperBounded[NJDateTimeRange] with Eq[NJDateTimeRange] =
