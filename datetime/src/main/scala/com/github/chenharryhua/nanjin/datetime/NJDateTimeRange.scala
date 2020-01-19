@@ -4,11 +4,13 @@ import java.sql.Timestamp
 import java.time._
 import java.util.concurrent.TimeUnit
 
-import cats.{Eq, PartialOrder}
 import cats.implicits._
 import cats.kernel.UpperBounded
+import cats.{Eq, PartialOrder}
+import monocle.function.Possible._
+import monocle.generic.coproduct.coProductPrism
 import monocle.macros.Lenses
-import shapeless.syntax.inject._
+import monocle.{Lens, Prism}
 import shapeless.{:+:, CNil, Poly1}
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
@@ -39,55 +41,70 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
   def withZoneId(zoneId: ZoneId): NJDateTimeRange =
     NJDateTimeRange.zoneId.set(zoneId)(this)
 
+  private val localDate: Prism[NJDateTimeRange.TimeTypes, LocalDate] =
+    coProductPrism[NJDateTimeRange.TimeTypes, LocalDate]
+
+  private val localDateTime: Prism[NJDateTimeRange.TimeTypes, LocalDateTime] =
+    coProductPrism[NJDateTimeRange.TimeTypes, LocalDateTime]
+
+  private val njTimestamp: Prism[NJDateTimeRange.TimeTypes, NJTimestamp] =
+    coProductPrism[NJDateTimeRange.TimeTypes, NJTimestamp]
+
+  private def updateRange[A](
+    lens: Lens[NJDateTimeRange, Option[NJDateTimeRange.TimeTypes]],
+    prism: Prism[NJDateTimeRange.TimeTypes, A],
+    a: A): NJDateTimeRange =
+    lens.composeOptional(possible).composePrism(prism).set(a)(this)
+
   //start
   def withStartTime(ts: NJTimestamp): NJDateTimeRange =
-    NJDateTimeRange.start.set(Some(ts.inject[NJDateTimeRange.TimeTypes]))(this)
+    updateRange(NJDateTimeRange.start, njTimestamp, ts)
 
   def withStartTime(ts: LocalDate): NJDateTimeRange =
-    NJDateTimeRange.start.set(Some(ts.inject[NJDateTimeRange.TimeTypes]))(this)
+    updateRange(NJDateTimeRange.start, localDate, ts)
 
   def withStartTime(ts: LocalDateTime): NJDateTimeRange =
-    NJDateTimeRange.start.set(Some(ts.inject[NJDateTimeRange.TimeTypes]))(this)
+    updateRange(NJDateTimeRange.start, localDateTime, ts)
 
   def withStartTime(ts: Instant): NJDateTimeRange =
-    NJDateTimeRange.start.set(Some(NJTimestamp(ts).inject[NJDateTimeRange.TimeTypes]))(this)
+    updateRange(NJDateTimeRange.start, njTimestamp, NJTimestamp(ts))
 
   def withStartTime(ts: ZonedDateTime): NJDateTimeRange =
-    NJDateTimeRange.start.set(Some(NJTimestamp(ts).inject[NJDateTimeRange.TimeTypes]))(this)
+    updateRange(NJDateTimeRange.start, njTimestamp, NJTimestamp(ts))
 
   def withStartTime(ts: OffsetDateTime): NJDateTimeRange =
-    NJDateTimeRange.start.set(Some(NJTimestamp(ts).inject[NJDateTimeRange.TimeTypes]))(this)
+    updateRange(NJDateTimeRange.start, njTimestamp, NJTimestamp(ts))
 
   def withStartTime(ts: Long): NJDateTimeRange =
-    NJDateTimeRange.start.set(Some(NJTimestamp(ts).inject[NJDateTimeRange.TimeTypes]))(this)
+    updateRange(NJDateTimeRange.start, njTimestamp, NJTimestamp(ts))
 
   def withStartTime(ts: Timestamp): NJDateTimeRange =
-    NJDateTimeRange.start.set(Some(NJTimestamp(ts).inject[NJDateTimeRange.TimeTypes]))(this)
+    updateRange(NJDateTimeRange.start, njTimestamp, NJTimestamp(ts))
 
   //end
   def withEndTime(ts: NJTimestamp): NJDateTimeRange =
-    NJDateTimeRange.end.set(Some(ts.inject[NJDateTimeRange.TimeTypes]))(this)
+    updateRange(NJDateTimeRange.end, njTimestamp, ts)
 
   def withEndTime(ts: LocalDate): NJDateTimeRange =
-    NJDateTimeRange.end.set(Some(ts.inject[NJDateTimeRange.TimeTypes]))(this)
+    updateRange(NJDateTimeRange.end, localDate, ts)
 
   def withEndTime(ts: LocalDateTime): NJDateTimeRange =
-    NJDateTimeRange.end.set(Some(ts.inject[NJDateTimeRange.TimeTypes]))(this)
+    updateRange(NJDateTimeRange.end, localDateTime, ts)
 
   def withEndTime(ts: Instant): NJDateTimeRange =
-    NJDateTimeRange.end.set(Some(NJTimestamp(ts).inject[NJDateTimeRange.TimeTypes]))(this)
+    updateRange(NJDateTimeRange.end, njTimestamp, NJTimestamp(ts))
 
   def withEndTime(ts: ZonedDateTime): NJDateTimeRange =
-    NJDateTimeRange.end.set(Some(NJTimestamp(ts).inject[NJDateTimeRange.TimeTypes]))(this)
+    updateRange(NJDateTimeRange.end, njTimestamp, NJTimestamp(ts))
 
   def withEndTime(ts: OffsetDateTime): NJDateTimeRange =
-    NJDateTimeRange.end.set(Some(NJTimestamp(ts).inject[NJDateTimeRange.TimeTypes]))(this)
+    updateRange(NJDateTimeRange.end, njTimestamp, NJTimestamp(ts))
 
   def withEndTime(ts: Long): NJDateTimeRange =
-    NJDateTimeRange.end.set(Some(NJTimestamp(ts).inject[NJDateTimeRange.TimeTypes]))(this)
+    updateRange(NJDateTimeRange.end, njTimestamp, NJTimestamp(ts))
 
   def withEndTime(ts: Timestamp): NJDateTimeRange =
-    NJDateTimeRange.end.set(Some(NJTimestamp(ts).inject[NJDateTimeRange.TimeTypes]))(this)
+    updateRange(NJDateTimeRange.end, njTimestamp, NJTimestamp(ts))
 
   def isInBetween(ts: Long): Boolean = (startTimestamp, endTimestamp) match {
     case (Some(s), Some(e)) => ts >= s.milliseconds && ts < e.milliseconds
