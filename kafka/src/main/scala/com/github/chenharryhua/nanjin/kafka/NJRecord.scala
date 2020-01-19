@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.Bifunctor
+import cats.implicits._
+import cats.{Bifunctor, Order}
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import monocle.macros.Lenses
@@ -49,6 +50,12 @@ object NJConsumerRecord {
         fab: NJConsumerRecord[A, B])(f: A => C, g: B => D): NJConsumerRecord[C, D] =
         fab.copy(key = fab.key.map(f), value = fab.value.map(g))
     }
+
+  implicit def NJConsumerRecordOrder[K, V]: Order[NJConsumerRecord[K, V]] =
+    (x: NJConsumerRecord[K, V], y: NJConsumerRecord[K, V]) =>
+      if (x.partition === y.partition) {
+        x.offset.compareTo(y.offset)
+      } else x.timestamp.compareTo(y.timestamp)
 }
 
 @Lenses final case class NJProducerRecord[K, V](
