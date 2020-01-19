@@ -7,10 +7,10 @@ import java.util.concurrent.TimeUnit
 import cats.implicits._
 import cats.kernel.UpperBounded
 import cats.{Eq, PartialOrder}
+import monocle.Prism
 import monocle.function.Possible._
 import monocle.generic.coproduct.coProductPrism
 import monocle.macros.Lenses
-import monocle.{Lens, Prism}
 import shapeless.{:+:, CNil, Poly1}
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
@@ -33,6 +33,19 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
 
     implicit val njtimestamp: Case.Aux[NJTimestamp, NJTimestamp] =
       at[NJTimestamp](identity)
+
+    implicit val zonedDatetime: Case.Aux[ZonedDateTime, NJTimestamp] =
+      at[ZonedDateTime](NJTimestamp(_))
+
+    implicit val offsetDateTime: Case.Aux[OffsetDateTime, NJTimestamp] =
+      at[OffsetDateTime](NJTimestamp(_))
+
+    implicit val longTime: Case.Aux[Long, NJTimestamp] =
+      at[Long](NJTimestamp(_))
+
+    implicit val timstamp: Case.Aux[Timestamp, NJTimestamp] =
+      at[Timestamp](NJTimestamp(_))
+
   }
 
   val startTimestamp: Option[NJTimestamp] = start.map(_.fold(calcDateTime))
@@ -41,70 +54,44 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
   def withZoneId(zoneId: ZoneId): NJDateTimeRange =
     NJDateTimeRange.zoneId.set(zoneId)(this)
 
-  private val localDate: Prism[NJDateTimeRange.TimeTypes, LocalDate] =
+  implicit private val localDate: Prism[NJDateTimeRange.TimeTypes, LocalDate] =
     coProductPrism[NJDateTimeRange.TimeTypes, LocalDate]
 
-  private val localDateTime: Prism[NJDateTimeRange.TimeTypes, LocalDateTime] =
+  implicit private val localDateTime: Prism[NJDateTimeRange.TimeTypes, LocalDateTime] =
     coProductPrism[NJDateTimeRange.TimeTypes, LocalDateTime]
 
-  private val njTimestamp: Prism[NJDateTimeRange.TimeTypes, NJTimestamp] =
+  implicit private val njTimestamp: Prism[NJDateTimeRange.TimeTypes, NJTimestamp] =
     coProductPrism[NJDateTimeRange.TimeTypes, NJTimestamp]
 
-  private def updateRange[A](
-    lens: Lens[NJDateTimeRange, Option[NJDateTimeRange.TimeTypes]],
-    prism: Prism[NJDateTimeRange.TimeTypes, A],
-    a: A): NJDateTimeRange =
-    lens.composeOptional(possible).composePrism(prism).set(a)(this)
+  implicit private val instant: Prism[NJDateTimeRange.TimeTypes, Instant] =
+    coProductPrism[NJDateTimeRange.TimeTypes, Instant]
+
+  private def setStart[A](a: A)(
+    implicit prism: Prism[NJDateTimeRange.TimeTypes, A]): NJDateTimeRange =
+    NJDateTimeRange.start.composeOptional(possible).composePrism(prism).set(a)(this)
+
+  private def setEnd[A](a: A)(
+    implicit prism: Prism[NJDateTimeRange.TimeTypes, A]): NJDateTimeRange =
+    NJDateTimeRange.end.composeOptional(possible).composePrism(prism).set(a)(this)
 
   //start
-  def withStartTime(ts: NJTimestamp): NJDateTimeRange =
-    updateRange(NJDateTimeRange.start, njTimestamp, ts)
-
-  def withStartTime(ts: LocalDate): NJDateTimeRange =
-    updateRange(NJDateTimeRange.start, localDate, ts)
-
-  def withStartTime(ts: LocalDateTime): NJDateTimeRange =
-    updateRange(NJDateTimeRange.start, localDateTime, ts)
-
-  def withStartTime(ts: Instant): NJDateTimeRange =
-    updateRange(NJDateTimeRange.start, njTimestamp, NJTimestamp(ts))
-
-  def withStartTime(ts: ZonedDateTime): NJDateTimeRange =
-    updateRange(NJDateTimeRange.start, njTimestamp, NJTimestamp(ts))
-
-  def withStartTime(ts: OffsetDateTime): NJDateTimeRange =
-    updateRange(NJDateTimeRange.start, njTimestamp, NJTimestamp(ts))
-
-  def withStartTime(ts: Long): NJDateTimeRange =
-    updateRange(NJDateTimeRange.start, njTimestamp, NJTimestamp(ts))
-
-  def withStartTime(ts: Timestamp): NJDateTimeRange =
-    updateRange(NJDateTimeRange.start, njTimestamp, NJTimestamp(ts))
-
+  def withStartTime(ts: NJTimestamp): NJDateTimeRange    = setStart(ts)
+  def withStartTime(ts: LocalDate): NJDateTimeRange      = setStart(ts)
+  def withStartTime(ts: LocalDateTime): NJDateTimeRange  = setStart(ts)
+  def withStartTime(ts: Instant): NJDateTimeRange        = setStart(ts)
+  def withStartTime(ts: ZonedDateTime): NJDateTimeRange  = setStart(NJTimestamp(ts))
+  def withStartTime(ts: OffsetDateTime): NJDateTimeRange = setStart(NJTimestamp(ts))
+  def withStartTime(ts: Long): NJDateTimeRange           = setStart(NJTimestamp(ts))
+  def withStartTime(ts: Timestamp): NJDateTimeRange      = setStart(NJTimestamp(ts))
   //end
-  def withEndTime(ts: NJTimestamp): NJDateTimeRange =
-    updateRange(NJDateTimeRange.end, njTimestamp, ts)
-
-  def withEndTime(ts: LocalDate): NJDateTimeRange =
-    updateRange(NJDateTimeRange.end, localDate, ts)
-
-  def withEndTime(ts: LocalDateTime): NJDateTimeRange =
-    updateRange(NJDateTimeRange.end, localDateTime, ts)
-
-  def withEndTime(ts: Instant): NJDateTimeRange =
-    updateRange(NJDateTimeRange.end, njTimestamp, NJTimestamp(ts))
-
-  def withEndTime(ts: ZonedDateTime): NJDateTimeRange =
-    updateRange(NJDateTimeRange.end, njTimestamp, NJTimestamp(ts))
-
-  def withEndTime(ts: OffsetDateTime): NJDateTimeRange =
-    updateRange(NJDateTimeRange.end, njTimestamp, NJTimestamp(ts))
-
-  def withEndTime(ts: Long): NJDateTimeRange =
-    updateRange(NJDateTimeRange.end, njTimestamp, NJTimestamp(ts))
-
-  def withEndTime(ts: Timestamp): NJDateTimeRange =
-    updateRange(NJDateTimeRange.end, njTimestamp, NJTimestamp(ts))
+  def withEndTime(ts: NJTimestamp): NJDateTimeRange    = setEnd(ts)
+  def withEndTime(ts: LocalDate): NJDateTimeRange      = setEnd(ts)
+  def withEndTime(ts: LocalDateTime): NJDateTimeRange  = setEnd(ts)
+  def withEndTime(ts: Instant): NJDateTimeRange        = setEnd(ts)
+  def withEndTime(ts: ZonedDateTime): NJDateTimeRange  = setEnd(NJTimestamp(ts))
+  def withEndTime(ts: OffsetDateTime): NJDateTimeRange = setEnd(NJTimestamp(ts))
+  def withEndTime(ts: Long): NJDateTimeRange           = setEnd(NJTimestamp(ts))
+  def withEndTime(ts: Timestamp): NJDateTimeRange      = setEnd(NJTimestamp(ts))
 
   def isInBetween(ts: Long): Boolean = (startTimestamp, endTimestamp) match {
     case (Some(s), Some(e)) => ts >= s.milliseconds && ts < e.milliseconds
@@ -126,6 +113,7 @@ object NJDateTimeRange {
   final type TimeTypes =
     LocalDate :+:
       LocalDateTime :+:
+      Instant :+:
       NJTimestamp :+:
       CNil
 
