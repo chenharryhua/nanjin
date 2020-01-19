@@ -38,6 +38,8 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     val d = param.withEndTime(endTime).withStartTime(startTime).withZoneId(zoneId)
 
     assert(a === b)
-    assert(c === d)
+    assert(a === c)
+    assert(a === d)
+
   }
 }

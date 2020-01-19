@@ -12,9 +12,9 @@ package object mtest {
   implicit val timer: Timer[IO]     = IO.timer(global)
 
   val sparkSession: SparkSession =
-    SparkSettings.default.updateConf(_.setMaster("local[*]").setAppName("test-morpheus")).session
+    SparkSettings.default.withConf(_.setMaster("local[*]").setAppName("test-morpheus")).session
 
   val config                         = Neo4jSettings(Username("neo4j"), Password("test"), Host("localhost"), Port(7687))
   val morpheus: MorpheusNeo4jSession = config.morpheus(sparkSession)
-  val ntSession: NeotypesSession[IO]     = config.neotypes[IO]
+  val ntSession: NeotypesSession[IO] = config.neotypes[IO]
 }
