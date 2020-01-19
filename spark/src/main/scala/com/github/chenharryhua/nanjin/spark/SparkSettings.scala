@@ -8,15 +8,19 @@ import org.apache.spark.sql.SparkSession
 
 @Lenses final case class SparkSettings(conf: SparkConf, logLevel: String) {
 
-  def kms(kmsKey: String): SparkSettings =
-    updateConf(
+  def withKms(kmsKey: String): SparkSettings =
+    withConf(
       _.set("spark.hadoop.fs.s3a.server-side-encryption-algorithm", "SSE-KMS")
         .set("spark.hadoop.fs.s3a.server-side-encryption.key", kmsKey))
 
-  def updateConf(f: SparkConf => SparkConf): SparkSettings =
-    SparkSettings.conf.modify(f)(this)
+  def withMaster(master: String): SparkSettings =
+    withConf(_.set("spark.master", master))
 
-  def setLogLevel(logLevel: String): SparkSettings = copy(logLevel = logLevel)
+  def withLogLevel(logLevel: String): SparkSettings =
+    SparkSettings.logLevel.set(logLevel)(this)
+
+  def withConf(f: SparkConf => SparkConf): SparkSettings =
+    SparkSettings.conf.modify(f)(this)
 
   def session: SparkSession = {
     val spk = SparkSession.builder().config(conf).getOrCreate()
@@ -34,7 +38,7 @@ import org.apache.spark.sql.SparkSession
 object SparkSettings {
 
   val default: SparkSettings =
-    SparkSettings(new SparkConf, "warn").updateConf(
+    SparkSettings(new SparkConf, "warn").withConf(
       _.set("spark.master", "local[*]")
         .set("spark.ui.enabled", "true")
         .set("spark.debug.maxToStringFields", "1000")
@@ -46,5 +50,4 @@ object SparkSettings {
         .set("spark.streaming.kafka.consumer.poll.ms", "180000")
         .set("spark.hadoop.fs.s3a.experimental.input.fadvise", "sequential")
         .set("spark.streaming.kafka.allowNonConsecutiveOffsets", "true"))
-
 }

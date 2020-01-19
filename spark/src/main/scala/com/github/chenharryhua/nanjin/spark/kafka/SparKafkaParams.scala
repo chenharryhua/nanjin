@@ -18,7 +18,12 @@ object NJRate {
   val default: NJRate = NJRate(1000, 1.second)
 }
 
-@Lenses final case class ConversionTactics(keepPartition: Boolean, keepTimestamp: Boolean)
+@Lenses final case class ConversionTactics(keepPartition: Boolean, keepTimestamp: Boolean) {
+  def withoutPartition: ConversionTactics = ConversionTactics.keepPartition.set(false)(this)
+  def withoutTimestamp: ConversionTactics = ConversionTactics.keepTimestamp.set(false)(this)
+  def withPartition: ConversionTactics    = ConversionTactics.keepPartition.set(true)(this)
+  def withTimestamp: ConversionTactics    = ConversionTactics.keepTimestamp.set(true)(this)
+}
 
 object ConversionTactics {
 
@@ -39,6 +44,9 @@ object ConversionTactics {
   def withTimeRange(f: NJDateTimeRange => NJDateTimeRange): SparKafkaParams =
     SparKafkaParams.timeRange.modify(f)(this)
 
+  def withConversionTactics(f: ConversionTactics => ConversionTactics): SparKafkaParams =
+    SparKafkaParams.conversionTactics.modify(f)(this)
+
   val clock: Clock = Clock.system(timeRange.zoneId)
 
   def withSaveMode(sm: SaveMode): SparKafkaParams = copy(saveMode = sm)
@@ -51,7 +59,8 @@ object ConversionTactics {
   def withAvro: SparKafkaParams                         = withFileFormat(NJFileFormat.Avro)
   def withParquet: SparKafkaParams                      = withFileFormat(NJFileFormat.Parquet)
 
-  def withLocationStrategy(ls: LocationStrategy): SparKafkaParams = copy(locationStrategy = ls)
+  def withLocationStrategy(ls: LocationStrategy): SparKafkaParams =
+    copy(locationStrategy = ls)
 
   def withBatchSize(batchSize: Int): SparKafkaParams =
     SparKafkaParams.uploadRate.composeLens(NJRate.batchSize).set(batchSize)(this)
@@ -61,18 +70,6 @@ object ConversionTactics {
 
   def withUploadRate(batchSize: Int, duration: FiniteDuration): SparKafkaParams =
     withBatchSize(batchSize).withDuration(duration)
-
-  def withoutPartition: SparKafkaParams =
-    SparKafkaParams.conversionTactics.composeLens(ConversionTactics.keepPartition).set(false)(this)
-
-  def withPartition: SparKafkaParams =
-    SparKafkaParams.conversionTactics.composeLens(ConversionTactics.keepPartition).set(true)(this)
-
-  def withoutTimestamp: SparKafkaParams =
-    SparKafkaParams.conversionTactics.composeLens(ConversionTactics.keepTimestamp).set(false)(this)
-
-  def withTimestamp: SparKafkaParams =
-    SparKafkaParams.conversionTactics.composeLens(ConversionTactics.keepTimestamp).set(true)(this)
 
   def withSparkRepartition(number: Int): SparKafkaParams =
     SparKafkaParams.repartition.set(number)(this)
