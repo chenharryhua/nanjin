@@ -115,11 +115,11 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
 object NJDateTimeRange {
 
   final type TimeTypes =
-    LocalDate :+:
+    NJTimestamp :+:
+      LocalDate :+:
       LocalDateTime :+:
       OffsetDateTime :+:
       ZonedDateTime :+:
-      NJTimestamp :+:
       CNil
 
   implicit val upperBoundedNJDateTimeRange: UpperBounded[NJDateTimeRange] with Eq[NJDateTimeRange] =
