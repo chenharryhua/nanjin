@@ -163,7 +163,6 @@ val avro = Seq(
     "com.sksamuel.avro4s" %% "avro4s-core" % avro4s,
     ("io.confluent" % "kafka-streams-avro-serde" % "5.4.0").classifier(""),
     "com.julianpeeters" %% "avrohugger-core"                  % avrohugger,
-    "io.higherkindness" %% "skeuomorph"                       % "0.0.20",
     "com.lightbend.akka" %% "akka-stream-alpakka-avroparquet" % "1.1.2",
     "org.apache.parquet"                                      % "parquet-avro" % "1.11.0"
   )
@@ -222,7 +221,6 @@ val kafkaLib = Seq(
 val base = Seq(
   "com.twitter" %% "algebird-core"         % "0.13.6",
   "org.typelevel" %% "algebra"             % "2.0.0",
-  "com.codecommit" %% "skolems"            % "0.2.0",
   "io.chrisdavenport" %% "cats-time"       % catsTime,
   "eu.timepit" %% "refined"                % refined,
   "org.typelevel" %% "cats-core"           % catsCore,
