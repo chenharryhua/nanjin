@@ -30,7 +30,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
         Map(new TopicPartition("range.test", 0) ->
           KafkaOffsetRange(KafkaOffset(1), KafkaOffset(2))))
 
-    val r = NJDateTimeRange(Some(NJTimestamp(110)), Some(NJTimestamp(250)))
+    val r = NJDateTimeRange.infinite.withStartTime(110).withEndTime(250)
 
     rangeTopic.consumerResource
       .use(_.offsetRangeFor(r))
@@ -44,7 +44,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
         Map(new TopicPartition("range.test", 0) ->
           KafkaOffsetRange(KafkaOffset(1), KafkaOffset(3))))
 
-    val r = NJDateTimeRange(Some(NJTimestamp(110)), Some(NJTimestamp(500)))
+    val r = NJDateTimeRange.infinite.withStartTime(110).withEndTime(500)
 
     rangeTopic.consumerResource
       .use(_.offsetRangeFor(r))
@@ -58,7 +58,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
         Map(new TopicPartition("range.test", 0) ->
           KafkaOffsetRange(KafkaOffset(0), KafkaOffset(1))))
 
-    val r = NJDateTimeRange(Some(NJTimestamp(10)), Some(NJTimestamp(110)))
+    val r = NJDateTimeRange.infinite.withStartTime(10).withEndTime(110)
 
     rangeTopic.consumerResource
       .use(_.offsetRangeFor(r))
@@ -70,7 +70,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     val expect =
       NJTopicPartition(Map(new TopicPartition("range.test", 0) -> None))
 
-    val r = NJDateTimeRange(Some(NJTimestamp(10)), Some(NJTimestamp(30)))
+    val r = NJDateTimeRange.infinite.withStartTime(10).withEndTime(30)
 
     rangeTopic.consumerResource
       .use(_.offsetRangeFor(r))
@@ -81,7 +81,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     val expect =
       NJTopicPartition(Map(new TopicPartition("range.test", 0) -> None))
 
-    val r = NJDateTimeRange(Some(NJTimestamp(500)), Some(NJTimestamp(600)))
+    val r = NJDateTimeRange.infinite.withStartTime(500).withEndTime(600)
 
     rangeTopic.consumerResource
       .use(_.offsetRangeFor(r))
@@ -101,4 +101,5 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
       .map(x => assert(x === expect))
       .unsafeRunSync()
   }
+
 }

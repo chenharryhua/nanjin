@@ -1,24 +1,43 @@
 package mtest
 
+import java.time.{LocalDateTime, ZoneId}
+
 import cats.derived.auto.eq._
 import cats.kernel.laws.discipline.UpperBoundedTests
-import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
+import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8.genZonedDateTimeWithZone
+import com.github.chenharryhua.nanjin.datetime._
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 import org.scalatest.funsuite.AnyFunSuite
-import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 import org.scalatest.prop.Configuration
+import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
-class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configuration{
+class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
 
   implicit val arbiNJDateTimeRange: Arbitrary[NJDateTimeRange] =
     Arbitrary(for {
-      start <- Gen.posNum[Long]
+      date <- genZonedDateTimeWithZone(None)
       inc <- Gen.posNum[Long]
-      opts <- Gen.option(start).map(_.map(NJTimestamp(_)))
-      opte <- Gen.option(start + inc).map(_.map(NJTimestamp(_)))
-    } yield NJDateTimeRange(opts, opte))
+      d = date.toLocalDateTime
+    } yield NJDateTimeRange.infinite.withStartTime(d).withEndTime(d.plusSeconds(inc)))
 
-  implicit val cogen: Cogen[NJDateTimeRange] = Cogen(m => m.start.map(_.milliseconds).getOrElse(0))
+  implicit val cogen: Cogen[NJDateTimeRange] =
+    Cogen(m => m.startTimestamp.map(_.milliseconds).getOrElse(0))
 
-  checkAll("NJDateTimeRange", UpperBoundedTests[NJDateTimeRange].partialOrder)
+  checkAll("NJDateTimeRange", UpperBoundedTests[NJDateTimeRange].upperBounded)
+
+  test("order of applying time data does not matter") {
+    val zoneId    = ZoneId.of("Asia/Chongqing")
+    val startTime = LocalDateTime.of(2012, 10, 26, 18, 0, 0)
+    val endTime   = LocalDateTime.of(2012, 10, 26, 23, 0, 0)
+
+    val param = NJDateTimeRange.infinite
+
+    val a = param.withEndTime(endTime).withZoneId(zoneId).withStartTime(startTime)
+    val b = param.withStartTime(startTime).withZoneId(zoneId).withEndTime(endTime)
+    val c = param.withZoneId(zoneId).withStartTime(startTime).withEndTime(endTime)
+    val d = param.withEndTime(endTime).withStartTime(startTime).withZoneId(zoneId)
+
+    assert(a === b)
+    assert(c === d)
+  }
 }

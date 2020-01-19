@@ -47,5 +47,4 @@ object JavaZonedDateTime {
         x.zonedDateTime.compareTo(y.zonedDateTime)
       override def show(x: JavaZonedDateTime): String = x.zonedDateTime.show
     }
-
 }
