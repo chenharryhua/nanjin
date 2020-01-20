@@ -60,7 +60,7 @@ object NJConsumerMessage {
 
   def apply[F[_, _]](implicit ev: NJConsumerMessage[F]): Aux[F] = ev
 
-  implicit val identityConsumerRecordBitraverseMessage: Aux[ConsumerRecord] =
+  implicit val crbi1: Aux[ConsumerRecord] =
     new NJConsumerMessage[ConsumerRecord] {
 
       override def lens[K1, V1, K2, V2]: PLens[
@@ -76,7 +76,7 @@ object NJConsumerMessage {
 
     }
 
-  implicit val fs2ConsumerRecordBitraverseMessage: Aux[Fs2ConsumerRecord] =
+  implicit val crbi2: Aux[Fs2ConsumerRecord] =
     new NJConsumerMessage[Fs2ConsumerRecord] {
 
       override def lens[K1, V1, K2, V2]: PLens[
@@ -94,7 +94,7 @@ object NJConsumerMessage {
 
     }
 
-  implicit val akkaCommittableMessageBiMessage: Aux[AkkaCommittableMessage] =
+  implicit val crbi3: Aux[AkkaCommittableMessage] =
     new NJConsumerMessage[AkkaCommittableMessage] {
 
       override def lens[K1, V1, K2, V2]: PLens[
@@ -110,7 +110,7 @@ object NJConsumerMessage {
 
     }
 
-  implicit val akkaAkkaTransactionalBiMessage: Aux[AkkaTransactionalMessage] =
+  implicit val crbi4: Aux[AkkaTransactionalMessage] =
     new NJConsumerMessage[AkkaTransactionalMessage] {
 
       override def lens[K1, V1, K2, V2]: PLens[
@@ -126,7 +126,7 @@ object NJConsumerMessage {
 
     }
 
-  implicit def fs2CommittableCRBiMessage[F[_]]: Aux[Fs2CommittableConsumerRecord[F, *, *]] =
+  implicit def crbi5[F[_]]: Aux[Fs2CommittableConsumerRecord[F, *, *]] =
     new NJConsumerMessage[Fs2CommittableConsumerRecord[F, *, *]] {
 
       override def lens[K1, V1, K2, V2]: PLens[
@@ -157,7 +157,7 @@ object NJProducerMessage {
 
   def apply[F[_, _]](implicit ev: NJProducerMessage[F]): Aux[F] = ev
 
-  implicit val identityProducerRecordBiMessage: Aux[ProducerRecord] =
+  implicit val prbi1: Aux[ProducerRecord] =
     new NJProducerMessage[ProducerRecord] {
 
       override def lens[K1, V1, K2, V2]: PLens[
@@ -172,7 +172,7 @@ object NJProducerMessage {
           ProducerRecord[K2, V2]](s => s)(b => _ => b)
     }
 
-  implicit val fs2ProducerRecordBiMessage: Aux[Fs2ProducerRecord] =
+  implicit val prbi2: Aux[Fs2ProducerRecord] =
     new NJProducerMessage[Fs2ProducerRecord] {
 
       override def lens[K1, V1, K2, V2]: PLens[
@@ -189,7 +189,7 @@ object NJProducerMessage {
         }
     }
 
-  implicit def akkaProducerMessageBiMessage[P]: Aux[AkkaProducerMessage[*, *, P]] =
+  implicit def prbi3[P]: Aux[AkkaProducerMessage[*, *, P]] =
     new NJProducerMessage[AkkaProducerMessage[*, *, P]] {
 
       override def lens[K1, V1, K2, V2]: PLens[
