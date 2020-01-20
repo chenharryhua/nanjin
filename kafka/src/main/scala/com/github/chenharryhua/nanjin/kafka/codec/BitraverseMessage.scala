@@ -5,7 +5,7 @@ import akka.kafka.ConsumerMessage.{
   TransactionalMessage => AkkaTransactionalMessage
 }
 import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage}
-import cats.data.{NonEmptyChain, Writer}
+import cats.data.Chain
 import cats.implicits._
 import cats.mtl.FunctorTell
 import cats.{Applicative, Bitraverse, Eval, Monad}
@@ -43,18 +43,15 @@ sealed trait NJConsumerMessage[F[_, _]] extends BitraverseMessage[F] with Bitrav
   final override type H[K, V] = ConsumerRecord[K, V]
   final override val baseInst: Bitraverse[ConsumerRecord] = bitraverseConsumerRecord
 
-  final def record[K, V](
-    fcr: F[Try[K], Try[V]]): Writer[NonEmptyChain[String], NJConsumerRecord[K, V]] = {
+  final def record[M[_]: Monad, K, V](fcr: F[Try[K], Try[V]])(
+    implicit M: FunctorTell[M, Chain[String]]): M[NJConsumerRecord[K, V]] = {
     val cr = lens.get(fcr)
+    def logFailure(kORv: String, ex: Throwable): Chain[String] =
+      Chain.one(s"$kORv failed: ${ex.getMessage}, partition: ${cr.partition}, offset: ${cr.offset}")
     for {
-      key <- cr.key.fold(
-        ex => Writer(NonEmptyChain.one(s"key failed: ${ex.getMessage}"), None),
-        fb => Writer(NonEmptyChain.one(""), Some(fb)))
-      value <- cr.value.fold(
-        ex => Writer(NonEmptyChain.one(s"value failed: ${ex.getMessage}"), None),
-        fb => Writer(NonEmptyChain.one(""), Some(fb)))
-
-    } yield NJConsumerRecord(cr.bimap(_ => key, _ => value))
+      _ <- cr.key.toEither.leftTraverse(ex   => M.tell(logFailure("key", ex)))
+      _ <- cr.value.toEither.leftTraverse(ex => M.tell(logFailure("value", ex)))
+    } yield NJConsumerRecord(cr.bimap(_.toOption, _.toOption))
   }
 }
 
