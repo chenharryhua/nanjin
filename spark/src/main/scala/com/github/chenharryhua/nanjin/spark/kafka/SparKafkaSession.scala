@@ -114,7 +114,7 @@ final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], param
     tds
       .stream[F]
       .chunkN(params.uploadRate.batchSize)
-      .zipLeft(Stream.fixedRate(params.uploadRate.duration))
+      .metered(params.uploadRate.duration)
       .map(chk =>
         ProducerRecords[Chunk, K, V](
           chk.map(d => iso.isoFs2ProducerRecord[K, V].reverseGet(d.toProducerRecord))))
