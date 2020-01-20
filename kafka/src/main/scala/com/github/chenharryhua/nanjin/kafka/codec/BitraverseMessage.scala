@@ -44,13 +44,13 @@ sealed trait NJConsumerMessage[F[_, _]] extends BitraverseMessage[F] with Bitrav
   final override val baseInst: Bitraverse[ConsumerRecord] = bitraverseConsumerRecord
 
   final def record[M[_]: Monad, K, V](fcr: F[Try[K], Try[V]])(
-    implicit M: FunctorTell[M, Chain[String]]): M[NJConsumerRecord[K, V]] = {
+    implicit M: FunctorTell[M, Chain[ConsumerRecordError]]): M[NJConsumerRecord[K, V]] = {
     val cr = lens.get(fcr)
-    def logFailure(kORv: String, ex: Throwable): Chain[String] =
-      Chain.one(s"$kORv failed: ${ex.getMessage}, partition: ${cr.partition}, offset: ${cr.offset}")
+    def logFailure(tag: KeyValueTag, ex: Throwable): Chain[ConsumerRecordError] =
+      Chain.one(ConsumerRecordError(ex, tag, cr))
     for {
-      _ <- cr.key.toEither.leftTraverse(ex   => M.tell(logFailure("key", ex)))
-      _ <- cr.value.toEither.leftTraverse(ex => M.tell(logFailure("value", ex)))
+      _ <- cr.key.toEither.leftTraverse(ex   => M.tell(logFailure(KeyValueTag.KeyTag, ex)))
+      _ <- cr.value.toEither.leftTraverse(ex => M.tell(logFailure(KeyValueTag.ValueTag, ex)))
     } yield NJConsumerRecord(cr.bimap(_.toOption, _.toOption))
   }
 }
@@ -60,7 +60,7 @@ object NJConsumerMessage {
 
   def apply[F[_, _]](implicit ev: NJConsumerMessage[F]): Aux[F] = ev
 
-  implicit val crbi1: Aux[ConsumerRecord] =
+  implicit val Icrbi1: Aux[ConsumerRecord] =
     new NJConsumerMessage[ConsumerRecord] {
 
       override def lens[K1, V1, K2, V2]: PLens[
@@ -73,10 +73,9 @@ object NJConsumerMessage {
           ConsumerRecord[K2, V2],
           ConsumerRecord[K1, V1],
           ConsumerRecord[K2, V2]](s => s)(b => _ => b)
-
     }
 
-  implicit val crbi2: Aux[Fs2ConsumerRecord] =
+  implicit val Icrbi2: Aux[Fs2ConsumerRecord] =
     new NJConsumerMessage[Fs2ConsumerRecord] {
 
       override def lens[K1, V1, K2, V2]: PLens[
@@ -94,7 +93,7 @@ object NJConsumerMessage {
 
     }
 
-  implicit val crbi3: Aux[AkkaCommittableMessage] =
+  implicit val Icrbi3: Aux[AkkaCommittableMessage] =
     new NJConsumerMessage[AkkaCommittableMessage] {
 
       override def lens[K1, V1, K2, V2]: PLens[
@@ -110,7 +109,7 @@ object NJConsumerMessage {
 
     }
 
-  implicit val crbi4: Aux[AkkaTransactionalMessage] =
+  implicit val Icrbi4: Aux[AkkaTransactionalMessage] =
     new NJConsumerMessage[AkkaTransactionalMessage] {
 
       override def lens[K1, V1, K2, V2]: PLens[
@@ -126,7 +125,7 @@ object NJConsumerMessage {
 
     }
 
-  implicit def crbi5[F[_]]: Aux[Fs2CommittableConsumerRecord[F, *, *]] =
+  implicit def Icrbi5[F[_]]: Aux[Fs2CommittableConsumerRecord[F, *, *]] =
     new NJConsumerMessage[Fs2CommittableConsumerRecord[F, *, *]] {
 
       override def lens[K1, V1, K2, V2]: PLens[
@@ -157,7 +156,7 @@ object NJProducerMessage {
 
   def apply[F[_, _]](implicit ev: NJProducerMessage[F]): Aux[F] = ev
 
-  implicit val prbi1: Aux[ProducerRecord] =
+  implicit val Iprbi1: Aux[ProducerRecord] =
     new NJProducerMessage[ProducerRecord] {
 
       override def lens[K1, V1, K2, V2]: PLens[
@@ -172,7 +171,7 @@ object NJProducerMessage {
           ProducerRecord[K2, V2]](s => s)(b => _ => b)
     }
 
-  implicit val prbi2: Aux[Fs2ProducerRecord] =
+  implicit val Iprbi2: Aux[Fs2ProducerRecord] =
     new NJProducerMessage[Fs2ProducerRecord] {
 
       override def lens[K1, V1, K2, V2]: PLens[
@@ -189,7 +188,7 @@ object NJProducerMessage {
         }
     }
 
-  implicit def prbi3[P]: Aux[AkkaProducerMessage[*, *, P]] =
+  implicit def Iprbi3[P]: Aux[AkkaProducerMessage[*, *, P]] =
     new NJProducerMessage[AkkaProducerMessage[*, *, P]] {
 
       override def lens[K1, V1, K2, V2]: PLens[

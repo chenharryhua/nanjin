@@ -24,8 +24,8 @@ final class KafkaGenericDecoder[F[_, _], K, V](
   def nullableDecode(implicit knull: Null <:< K, vnull: Null <:< V): F[K, V] =
     data.bimap(k => keyCodec.prism.getOption(k).orNull, v => valueCodec.prism.getOption(v).orNull)
 
-  def logRecord: Writer[Chain[String], NJConsumerRecord[K, V]] =
-    BM.record[Writer[Chain[String], *], K, V](tryDecodeKeyValue)
+  def logRecord: Writer[Chain[ConsumerRecordError], NJConsumerRecord[K, V]] =
+    BM.record[Writer[Chain[ConsumerRecordError], *], K, V](tryDecodeKeyValue)
 
   def record: NJConsumerRecord[K, V] = logRecord.run._2
 }

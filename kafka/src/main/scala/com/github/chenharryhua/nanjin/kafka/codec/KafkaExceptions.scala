@@ -47,13 +47,14 @@ final case class UncaughtKafkaStreamingException(thread: Thread, ex: Throwable)
     extends Exception(ex.getMessage)
 
 final case class ConsumerRecordError(
-  errMessage: String,
+  error: Throwable,
+  tag: KeyValueTag,
   topicName: String,
   partition: Int,
   offset: Long)
 
 object ConsumerRecordError {
 
-  def apply[K, V](ex: Throwable, cr: ConsumerRecord[K, V]): ConsumerRecordError =
-    ConsumerRecordError(ex.getMessage, cr.topic(), cr.partition(), cr.offset())
+  def apply[K, V](ex: Throwable, tag: KeyValueTag, cr: ConsumerRecord[K, V]): ConsumerRecordError =
+    ConsumerRecordError(ex, tag, cr.topic(), cr.partition(), cr.offset())
 }
