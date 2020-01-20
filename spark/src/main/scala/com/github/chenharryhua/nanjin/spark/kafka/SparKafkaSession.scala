@@ -24,12 +24,14 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.kafka010.{KafkaUtils, OffsetRange}
+import org.log4s.Logger
 
 import scala.collection.JavaConverters._
 
 final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], params: SparKafkaParams)(
   implicit val sparkSession: SparkSession)
     extends UpdateParams[SparKafkaParams, SparKafkaSession[K, V]] with Serializable {
+  private[this] val logger: Logger = org.log4s.getLogger
 
   override def updateParams(f: SparKafkaParams => SparKafkaParams): SparKafkaSession[K, V] =
     new SparKafkaSession[K, V](kafkaDesc, f(params))
@@ -59,7 +61,11 @@ final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], param
     implicit ev: TypedEncoder[A]): F[TypedDataset[A]] = {
     import ev.classTag
     kafkaRDD.map { rdd =>
-      TypedDataset.create(rdd.mapPartitions(_.map(m => f(kafkaDesc.decoder(m).record))))
+      TypedDataset.create(rdd.mapPartitions(_.map { m =>
+        val r = kafkaDesc.decoder(m).logRecord.run
+        r._1.map(x => logger.warn(x.error)(s"${x.topicName} ${x.partition} ${x.offset}"))
+        f(r._2)
+      }))
     }
   }
 

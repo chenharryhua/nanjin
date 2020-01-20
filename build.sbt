@@ -251,9 +251,9 @@ val db = Seq(
 )
 
 val logs = Seq(
+  "org.log4s"               %% "log4s"      % "1.8.2",
   "org.apache.logging.log4j" % "log4j-core" % "2.13.0",
-  "org.slf4j"                % "slf4j-api"  % "2.0.0-alpha1"
-)
+  "org.slf4j"                % "slf4j-api"  % "2.0.0-alpha1")
 
 lazy val common = (project in file("common"))
   .settings(commonSettings: _*)
