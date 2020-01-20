@@ -70,14 +70,11 @@ import scala.collection.immutable
     cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
     new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valueCodec)
 
-  def record[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): NJConsumerRecord[K, V] =
-    decoder(cr).record
-
   def toAvro[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): Record =
-    topicDef.toAvro(record(cr))
+    topicDef.toAvro(decoder(cr).record)
 
   def toJson[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): Json =
-    topicDef.toJson(record(cr))
+    topicDef.toJson(decoder(cr).record)
 
   def fromAvro(cr: Record): NJConsumerRecord[K, V] =
     topicDef.fromAvro(cr)

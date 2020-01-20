@@ -55,7 +55,7 @@ object NJConsumerRecord {
     (x: NJConsumerRecord[K, V], y: NJConsumerRecord[K, V]) =>
       if (x.partition === y.partition) {
         x.offset.compareTo(y.offset)
-      } else x.timestamp.compareTo(y.timestamp)
+      } else (x.timestamp + x.partition).compareTo(y.timestamp + y.partition)
 }
 
 @Lenses final case class NJProducerRecord[K, V](

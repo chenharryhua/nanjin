@@ -1,6 +1,8 @@
 package com.github.chenharryhua.nanjin.kafka.codec
 
+import cats.data.{Chain, Writer}
 import cats.implicits._
+import cats.mtl.implicits._
 import com.github.chenharryhua.nanjin.kafka.NJConsumerRecord
 
 import scala.util.{Success, Try}
@@ -19,12 +21,11 @@ final class KafkaGenericDecoder[F[_, _], K, V](
   def tryDecodeValue: Try[F[Array[Byte], V]] = data.bitraverse(Success(_), valueCodec.tryDecode)
   def tryDecodeKey: Try[F[K, Array[Byte]]]   = data.bitraverse(keyCodec.tryDecode, Success(_))
 
-  def optionalDecodeKeyValue: F[Option[K], Option[V]] =
-    data.bimap(k => keyCodec.tryDecode(k).toOption, v => valueCodec.tryDecode(v).toOption)
-
   def nullableDecode(implicit knull: Null <:< K, vnull: Null <:< V): F[K, V] =
     data.bimap(k => keyCodec.prism.getOption(k).orNull, v => valueCodec.prism.getOption(v).orNull)
 
-  def record: NJConsumerRecord[K, V] = BM.record(optionalDecodeKeyValue)
+  def logRecord: Writer[Chain[ConsumerRecordError], NJConsumerRecord[K, V]] =
+    BM.record[Writer[Chain[ConsumerRecordError], *], K, V](tryDecodeKeyValue)
 
+  def record: NJConsumerRecord[K, V] = logRecord.run._2
 }

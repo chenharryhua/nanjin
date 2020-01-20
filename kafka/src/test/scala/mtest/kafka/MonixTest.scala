@@ -23,7 +23,12 @@ class MonixTest extends AnyFunSuite {
   test("monix should just work") {
     val topic = TopicDef[String, trip_record]("nyc_yellow_taxi_trip_data").in(ctx)
     val task =
-      topic.fs2Channel.consume.map(m => topic.decoder(m).decode).take(1).map(println).compile.drain
+      topic.fs2Channel.consume
+        .map(m => topic.decoder(m).logRecord.run)
+        .take(3)
+        .map(println)
+        .compile
+        .drain
     task.runSyncUnsafe(10.seconds)
   }
 }

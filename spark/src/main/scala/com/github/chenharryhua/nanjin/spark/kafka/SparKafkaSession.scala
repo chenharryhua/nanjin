@@ -59,7 +59,7 @@ final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], param
     implicit ev: TypedEncoder[A]): F[TypedDataset[A]] = {
     import ev.classTag
     kafkaRDD.map { rdd =>
-      TypedDataset.create(rdd.mapPartitions(_.map(m => f(kafkaDesc.record(m)))))
+      TypedDataset.create(rdd.mapPartitions(_.map(m => f(kafkaDesc.decoder(m).record))))
     }
   }
 
@@ -114,7 +114,7 @@ final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], param
     tds
       .stream[F]
       .chunkN(params.uploadRate.batchSize)
-      .zipLeft(Stream.fixedRate(params.uploadRate.duration))
+      .metered(params.uploadRate.duration)
       .map(chk =>
         ProducerRecords[Chunk, K, V](
           chk.map(d => iso.isoFs2ProducerRecord[K, V].reverseGet(d.toProducerRecord))))
