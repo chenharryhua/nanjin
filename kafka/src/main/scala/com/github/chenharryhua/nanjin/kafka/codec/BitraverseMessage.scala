@@ -56,12 +56,11 @@ sealed trait NJConsumerMessage[F[_, _]] extends BitraverseMessage[F] with Bitrav
 }
 
 object NJConsumerMessage {
+  final type Aux[F[_, _]] = NJConsumerMessage[F] { type H[K, V] = ConsumerRecord[K, V] }
 
-  def apply[F[_, _]](
-    implicit ev: NJConsumerMessage[F]): NJConsumerMessage[F] { type H[A, B] = ev.H[A, B] } = ev
+  def apply[F[_, _]](implicit ev: NJConsumerMessage[F]): Aux[F] = ev
 
-  implicit val identityConsumerRecordBitraverseMessage
-    : NJConsumerMessage[ConsumerRecord] { type H[A, B] = ConsumerRecord[A, B] } =
+  implicit val identityConsumerRecordBitraverseMessage: Aux[ConsumerRecord] =
     new NJConsumerMessage[ConsumerRecord] {
 
       override def lens[K1, V1, K2, V2]: PLens[
@@ -77,8 +76,7 @@ object NJConsumerMessage {
 
     }
 
-  implicit val fs2ConsumerRecordBitraverseMessage
-    : NJConsumerMessage[Fs2ConsumerRecord] { type H[A, B] = ConsumerRecord[A, B] } =
+  implicit val fs2ConsumerRecordBitraverseMessage: Aux[Fs2ConsumerRecord] =
     new NJConsumerMessage[Fs2ConsumerRecord] {
 
       override def lens[K1, V1, K2, V2]: PLens[
@@ -96,8 +94,7 @@ object NJConsumerMessage {
 
     }
 
-  implicit val akkaCommittableMessageBitraverseMessage
-    : NJConsumerMessage[AkkaCommittableMessage] { type H[A, B] = ConsumerRecord[A, B] } =
+  implicit val akkaCommittableMessageBiMessage: Aux[AkkaCommittableMessage] =
     new NJConsumerMessage[AkkaCommittableMessage] {
 
       override def lens[K1, V1, K2, V2]: PLens[
@@ -113,8 +110,7 @@ object NJConsumerMessage {
 
     }
 
-  implicit val akkaAkkaTransactionalMessageBitraverseMessage
-    : NJConsumerMessage[AkkaTransactionalMessage] { type H[A, B] = ConsumerRecord[A, B] } =
+  implicit val akkaAkkaTransactionalBiMessage: Aux[AkkaTransactionalMessage] =
     new NJConsumerMessage[AkkaTransactionalMessage] {
 
       override def lens[K1, V1, K2, V2]: PLens[
@@ -130,10 +126,7 @@ object NJConsumerMessage {
 
     }
 
-  implicit def fs2CommittableConsumerRecordBitraverseMessage[F[_]]
-    : NJConsumerMessage[Fs2CommittableConsumerRecord[F, *, *]] {
-      type H[A, B] = ConsumerRecord[A, B]
-    } =
+  implicit def fs2CommittableCRBiMessage[F[_]]: Aux[Fs2CommittableConsumerRecord[F, *, *]] =
     new NJConsumerMessage[Fs2CommittableConsumerRecord[F, *, *]] {
 
       override def lens[K1, V1, K2, V2]: PLens[
@@ -148,7 +141,6 @@ object NJConsumerMessage {
           ConsumerRecord[K2, V2]](cm => iso.isoFs2ComsumerRecord.get(cm.record)) { b => s =>
           Fs2CommittableConsumerRecord(iso.isoFs2ComsumerRecord.reverseGet(b), s.offset)
         }
-
     }
 }
 
@@ -161,12 +153,11 @@ sealed trait NJProducerMessage[F[_, _]] extends BitraverseMessage[F] with Bitrav
 }
 
 object NJProducerMessage {
+  final type Aux[F[_, _]] = NJProducerMessage[F] { type H[K, V] = ProducerRecord[K, V] }
 
-  def apply[F[_, _]](
-    implicit ev: NJProducerMessage[F]): NJProducerMessage[F] { type H[A, B] = ev.H[A, B] } = ev
+  def apply[F[_, _]](implicit ev: NJProducerMessage[F]): Aux[F] = ev
 
-  implicit val identityProducerRecordBitraverseMessage
-    : NJProducerMessage[ProducerRecord] { type H[A, B] = ProducerRecord[A, B] } =
+  implicit val identityProducerRecordBiMessage: Aux[ProducerRecord] =
     new NJProducerMessage[ProducerRecord] {
 
       override def lens[K1, V1, K2, V2]: PLens[
@@ -181,8 +172,7 @@ object NJProducerMessage {
           ProducerRecord[K2, V2]](s => s)(b => _ => b)
     }
 
-  implicit val fs2ProducerRecordBitraverseMessage
-    : NJProducerMessage[Fs2ProducerRecord] { type H[A, B] = ProducerRecord[A, B] } =
+  implicit val fs2ProducerRecordBiMessage: Aux[Fs2ProducerRecord] =
     new NJProducerMessage[Fs2ProducerRecord] {
 
       override def lens[K1, V1, K2, V2]: PLens[
@@ -199,8 +189,7 @@ object NJProducerMessage {
         }
     }
 
-  implicit def akkaProducerMessageBitraverseMessage[P]
-    : NJProducerMessage[AkkaProducerMessage[*, *, P]] { type H[A, B] = ProducerRecord[A, B] } =
+  implicit def akkaProducerMessageBiMessage[P]: Aux[AkkaProducerMessage[*, *, P]] =
     new NJProducerMessage[AkkaProducerMessage[*, *, P]] {
 
       override def lens[K1, V1, K2, V2]: PLens[
