@@ -1,16 +1,20 @@
 package mtest.kafka.codec
 
+import cats.derived.auto.eq._
+import cats.implicits._
+import cats.kernel.laws.discipline.OrderTests
 import cats.laws.discipline.BifunctorTests
 import com.github.chenharryhua.nanjin.kafka.{NJConsumerRecord, NJProducerRecord}
 import org.scalatest.funsuite.AnyFunSuite
-import org.typelevel.discipline.scalatest.FunSuiteDiscipline
-import cats.derived.auto.eq._ 
-import cats.implicits._ 
 import org.scalatest.prop.Configuration
-class BimapNJRecords extends AnyFunSuite with FunSuiteDiscipline with Configuration{
+import org.typelevel.discipline.scalatest.FunSuiteDiscipline
+
+class BimapNJRecords extends AnyFunSuite with FunSuiteDiscipline with Configuration {
   checkAll(
     "NJConsumerRecord",
     BifunctorTests[NJConsumerRecord].bifunctor[Int, Int, Int, Int, Int, Int])
+
+  checkAll("NJConsumerRecord", OrderTests[NJConsumerRecord[Int, Int]].order)
 
   checkAll(
     "NJProducerRecord",

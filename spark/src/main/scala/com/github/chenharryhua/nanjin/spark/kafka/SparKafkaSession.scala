@@ -59,7 +59,7 @@ final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], param
     implicit ev: TypedEncoder[A]): F[TypedDataset[A]] = {
     import ev.classTag
     kafkaRDD.map { rdd =>
-      TypedDataset.create(rdd.mapPartitions(_.map(m => f(kafkaDesc.decoder(m).record))))
+      TypedDataset.create(rdd.mapPartitions(_.map(m => f(kafkaDesc.record(m)))))
     }
   }
 
