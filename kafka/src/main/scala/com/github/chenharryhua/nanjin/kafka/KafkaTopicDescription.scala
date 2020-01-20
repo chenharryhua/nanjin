@@ -40,7 +40,8 @@ import scala.collection.immutable
       .get(settings.consumerSettings)
       .map(KafkaConsumerGroupId)
 
-  val codec: TopicCodec[K, V] = new TopicCodec(
+  //need to reconstruct codec when working in spark
+  @transient lazy val codec: TopicCodec[K, V] = new TopicCodec(
     serdeOfKey.asKey(settings.schemaRegistrySettings.config).codec(topicDef.topicName),
     serdeOfValue.asValue(settings.schemaRegistrySettings.config).codec(topicDef.topicName)
   )
@@ -69,13 +70,17 @@ import scala.collection.immutable
     cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
     new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valueCodec)
 
-  def toAvro[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): Record =
-    topicDef.toAvro(decoder(cr).record)
+  def record[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): NJConsumerRecord[K, V] =
+    decoder(cr).record
 
-  def fromAvro(cr: Record): NJConsumerRecord[K, V] = topicDef.fromAvro(cr)
+  def toAvro[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): Record =
+    topicDef.toAvro(record(cr))
 
   def toJson[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): Json =
-    topicDef.toJson(decoder(cr).record)
+    topicDef.toJson(record(cr))
+
+  def fromAvro(cr: Record): NJConsumerRecord[K, V] =
+    topicDef.fromAvro(cr)
 
   def fromJsonStr(jsonString: String): Either[Error, NJConsumerRecord[K, V]] =
     topicDef.fromJson(jsonString)

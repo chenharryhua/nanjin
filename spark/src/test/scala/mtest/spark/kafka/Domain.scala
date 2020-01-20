@@ -1,13 +1,9 @@
 package mtest.spark.kafka
 
-import java.time.{LocalDate, LocalDateTime}
+import java.time.{Instant, LocalDate}
 
-import cats.Show
 import frameless.Injection
 import io.circe.generic.JsonCodec
-import cats.implicits._
-import cats.derived.auto.show._
-import java.time.Instant
 
 final case class EmbeddedForTaskSerializable(f: Int, g: String)
 

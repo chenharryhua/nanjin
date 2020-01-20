@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.kafka._
 import frameless.TypedDataset
 import org.scalatest.funsuite.AnyFunSuite
-import cats.implicits._
+import cats.instances.all._
 import org.apache.spark.sql.SaveMode
 import frameless.cats.implicits._
 
@@ -23,7 +23,7 @@ class LoadTopicDataFromDiskTest extends AnyFunSuite {
       .updateParams(_.withJson.withPathBuilder(_ => "./data/test/load/json"))
       .load
       .collect[IO]
-      .map(x => assert(x.sortBy(_.offset).toList === data))
+      .map(x => assert(x.sorted.toList === data))
     rst.unsafeRunSync()
   }
 
@@ -38,21 +38,17 @@ class LoadTopicDataFromDiskTest extends AnyFunSuite {
       .updateParams(_.withAvro.withPathBuilder(_ => "./data/test/load/avro"))
       .load
       .collect[IO]
-      .map(x => assert(x.sortBy(_.offset).toList === data))
+      .map(x => assert(x.sorted.toList === data))
     rst.unsafeRunSync()
   }
 
   test("load parquet test") {
-    TypedDataset
-      .create(data)
-      .write
-      .mode(SaveMode.Overwrite)
-      .parquet("./data/test/load/parquet")
+    TypedDataset.create(data).write.mode(SaveMode.Overwrite).parquet("./data/test/load/parquet")
     val rst = topic.description.sparKafka
       .updateParams(_.withParquet.withPathBuilder(_ => "./data/test/load/parquet"))
       .load
       .collect[IO]
-      .map(x => assert(x.sortBy(_.offset).toList === data))
+      .map(x => assert(x.sorted.toList === data))
     rst.unsafeRunSync()
   }
 }

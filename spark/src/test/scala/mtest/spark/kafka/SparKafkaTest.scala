@@ -12,10 +12,9 @@ import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.datetime.iso._
 import frameless.cats.implicits._
 import cats.derived.auto.show._
-import java.time.ZoneId
 import io.circe.syntax._
 import io.circe.generic.auto._
-import com.github.chenharryhua.nanjin.kafka.{ManualAvroSchema, TopicDef}
+import com.github.chenharryhua.nanjin.kafka.{ManualAvroSchema, NJConsumerRecord, TopicDef}
 import java.time.Instant
 
 import com.landoop.transportation.nyc.trip.yellow.trip_record
@@ -29,7 +28,11 @@ class SparKafkaTest extends AnyFunSuite {
     topic.send(List(0 -> data, 1 -> data))).unsafeRunSync()
 
   test("read topic from kafka") {
-    topic.description.sparKafka.datasetFromKafka[IO].flatMap(_.show[IO]()).unsafeRunSync
+    val rst = topic.description.sparKafka
+      .datasetFromKafka[IO]
+      .flatMap(_.collect[IO]().map(_.flatMap(_.value).toList === List(data, data)))
+      .unsafeRunSync
+    assert(rst)
   }
 
   test("save topic to disk") {
@@ -37,7 +40,8 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("read topic from disk") {
-    topic.description.sparKafka.load.show[IO]().unsafeRunSync
+    val rst = topic.description.sparKafka.load.collect[IO]().unsafeRunSync
+    assert(rst.flatMap(_.value).toList === List(data, data))
   }
 
   test("replay") {
