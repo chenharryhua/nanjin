@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.flink
+package com.github.chenharryhua.nanjin.flink.kafka
 
 import monocle.macros.Lenses
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
