@@ -63,7 +63,7 @@ final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], param
     kafkaRDD.map { rdd =>
       TypedDataset.create(rdd.mapPartitions(_.map { m =>
         val r = kafkaDesc.decoder(m).logRecord.run
-        r._1.map(x => logger.warn(x.error)(s"${x.topicName} ${x.partition} ${x.offset}"))
+        r._1.map(x => logger.warn(x.error)(x.metaInfo))
         f(r._2)
       }))
     }
