@@ -8,7 +8,7 @@ import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage}
 import cats.data.Chain
 import cats.implicits._
 import cats.mtl.FunctorTell
-import cats.{Applicative, Bitraverse, Eval, Monad}
+import cats.{Applicative, Bitraverse, Eval}
 import com.github.chenharryhua.nanjin.kafka.{NJConsumerRecord, NJProducerRecord}
 import fs2.kafka.{
   CommittableConsumerRecord => Fs2CommittableConsumerRecord,
@@ -43,7 +43,7 @@ sealed trait NJConsumerMessage[F[_, _]] extends BitraverseMessage[F] with Bitrav
   final override type H[K, V] = ConsumerRecord[K, V]
   final override val baseInst: Bitraverse[ConsumerRecord] = bitraverseConsumerRecord
 
-  final def record[M[_]: Monad, K, V](fcr: F[Option[Try[K]], Try[V]])(
+  final def record[M[_]: Applicative, K, V](fcr: F[Option[Try[K]], Try[V]])(
     implicit M: FunctorTell[M, Chain[ConsumerRecordError]]): M[NJConsumerRecord[K, V]] = {
     val cr = lens.get(fcr)
     def log(ex: Throwable, tag: KeyValueTag): M[Unit] =
