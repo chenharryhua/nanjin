@@ -2,6 +2,8 @@ package com.github.chenharryhua.nanjin.common
 
 import cats.instances.int._
 import enumeratum.values.{CatsOrderValueEnum, IntEnum, IntEnumEntry}
+import monocle.Prism
+import monocle.macros.GenPrism
 
 import scala.collection.immutable
 
@@ -15,6 +17,14 @@ object NJFileFormat extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[N
   case object Parquet extends NJFileFormat(1, "parquet")
   case object Avro extends NJFileFormat(2, "avro")
 
+  implicit val prismJson: Prism[NJFileFormat, Json.type] =
+    GenPrism[NJFileFormat, Json.type]
+
+  implicit val prismParquet: Prism[NJFileFormat, Parquet.type] =
+    GenPrism[NJFileFormat, Parquet.type]
+
+  implicit val prismAvro: Prism[NJFileFormat, Avro.type] =
+    GenPrism[NJFileFormat, Avro.type]
 }
 
 trait UpdateParams[A, B] {

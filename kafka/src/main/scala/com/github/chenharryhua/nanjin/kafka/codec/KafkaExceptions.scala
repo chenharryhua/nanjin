@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka.codec
 
+import monocle.macros.Lenses
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -46,14 +47,20 @@ object CodecException {
 final case class UncaughtKafkaStreamingException(thread: Thread, ex: Throwable)
     extends Exception(ex.getMessage)
 
-final case class ConsumerRecordError(
+@Lenses final case class ConsumerRecordError(
   error: Throwable,
   tag: KeyValueTag,
   topicName: String,
   partition: Int,
   offset: Long) {
 
-  val metaInfo: String =
+  def valueError: Option[ConsumerRecordError] =
+    ConsumerRecordError.tag.composePrism(KeyValueTag.valueTagPrism).getOption(this).map(_ => this)
+
+  def keyError: Option[ConsumerRecordError] =
+    ConsumerRecordError.tag.composePrism(KeyValueTag.keyTagPrism).getOption(this).map(_ => this)
+
+  def metaInfo: String =
     s"${tag.name} decode error. topic=$topicName, partition=$partition, offset=$offset"
 }
 
