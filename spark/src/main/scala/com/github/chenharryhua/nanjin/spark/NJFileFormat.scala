@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark
 
-private[spark] trait UpdateParams[A, B] {
+trait UpdateParams[A, B] {
   def updateParams(f: A => A): B
 }
 
