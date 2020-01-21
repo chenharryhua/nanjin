@@ -36,7 +36,7 @@ class DecoderLogTest extends AnyFunSuite {
 
     val rst = desc.decoder(cr).logRecord.run
     assert(rst._1.size === 1)
-    rst._1.map(x => assert(x.tag === KeyValueTag.ValueTag))
+    rst._1.map(x => assert(x.tag === KeyValueTag.Value))
     assert(rst._2.key === Some(16909060))
     assert(rst._2.value === None)
   }
@@ -46,7 +46,7 @@ class DecoderLogTest extends AnyFunSuite {
 
     val rst = desc.decoder(cr).logRecord.run
     assert(rst._1.size === 1)
-    rst._1.map(x => assert(x.tag === KeyValueTag.KeyTag))
+    rst._1.map(x => assert(x.tag === KeyValueTag.Key))
     assert(rst._2.key === None)
     assert(rst._2.value === Some(16909060))
   }
@@ -56,7 +56,7 @@ class DecoderLogTest extends AnyFunSuite {
 
     val rst = desc.decoder(cr).logRecord.run
     assert(rst._1.size === 1)
-    rst._1.map(x => assert(x.tag === KeyValueTag.ValueTag))
+    rst._1.map(x => assert(x.tag === KeyValueTag.Value))
     assert(rst._2.key === Some(16909060))
     assert(rst._2.value === None)
   }

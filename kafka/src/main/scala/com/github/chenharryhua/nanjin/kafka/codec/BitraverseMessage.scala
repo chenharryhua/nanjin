@@ -50,10 +50,10 @@ sealed trait NJConsumerMessage[F[_, _]] extends BitraverseMessage[F] with Bitrav
       M.tell(Chain.one(ConsumerRecordError(ex, tag, cr)))
 
     val logKey =
-      cr.key.flatTraverse(_.toEither.leftTraverse(log(_, KeyValueTag.KeyTag)).map(_.toOption))
+      cr.key.flatTraverse(_.toEither.leftTraverse(log(_, KeyValueTag.Key)).map(_.toOption))
 
     val logValue =
-      cr.value.toEither.leftTraverse(log(_, KeyValueTag.ValueTag)).map(_.toOption)
+      cr.value.toEither.leftTraverse(log(_, KeyValueTag.Value)).map(_.toOption)
 
     (logKey, logValue).mapN((k, v) => NJConsumerRecord(cr.bimap(_ => k, _ => v)))
   }

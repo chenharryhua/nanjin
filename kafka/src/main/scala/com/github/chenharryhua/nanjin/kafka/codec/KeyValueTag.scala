@@ -7,22 +7,22 @@ import monocle.macros.GenPrism
 
 import scala.collection.immutable
 
-sealed abstract class KeyValueTag(val value: Int, val name: String)
+sealed abstract class KeyValueTag(val value: Int, val name: String, val isKey: Boolean)
     extends IntEnumEntry with Serializable
 
 object KeyValueTag extends CatsOrderValueEnum[Int, KeyValueTag] with IntEnum[KeyValueTag] {
   override val values: immutable.IndexedSeq[KeyValueTag] = findValues
 
-  case object KeyTag extends KeyValueTag(0, "key")
-  case object ValueTag extends KeyValueTag(1, "value")
+  case object Key extends KeyValueTag(0, "key", isKey     = true)
+  case object Value extends KeyValueTag(1, "value", isKey = false)
 
-  type KeyTag   = KeyTag.type
-  type ValueTag = ValueTag.type
+  type Key   = Key.type
+  type Value = Value.type
 
-  implicit val keyTagPrism: Prism[KeyValueTag, KeyTag] =
-    GenPrism[KeyValueTag, KeyTag]
+  implicit val keyTagPrism: Prism[KeyValueTag, Key] =
+    GenPrism[KeyValueTag, Key]
 
-  implicit val valueTagPrism: Prism[KeyValueTag, ValueTag] =
-    GenPrism[KeyValueTag, ValueTag]
+  implicit val valueTagPrism: Prism[KeyValueTag, Value] =
+    GenPrism[KeyValueTag, Value]
 
 }
