@@ -38,7 +38,7 @@ object SparkTableParams {
   val default: SparkTableParams = SparkTableParams(
     SaveMode.ErrorIfExists,
     SaveMode.Overwrite,
-    Reader(tn => s"./data/database/parquet/${tn.value}"),
+    Reader(tn => s"./data/spark/database/${tn.value}"),
     NJFileFormat.Parquet
   )
 }

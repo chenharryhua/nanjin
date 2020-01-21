@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.database
 
-import cats.effect.{Concurrent, ContextShift, Sync}
+import cats.effect.{Concurrent, ContextShift}
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.database.DatabaseSettings
 import doobie.free.connection.ConnectionIO
@@ -20,9 +20,8 @@ final case class TableDef[A] private (tableName: TableName)(
   val typedEncoder: TypedEncoder[A],
   val doobieRead: Read[A]) {
 
-  def in[F[_]: ContextShift: Concurrent](dbSettings: DatabaseSettings)(
-    implicit sparkSession: SparkSession): SparkTableSession[F, A] =
-    SparkTableSession[F, A](this, dbSettings, SparkTableParams.default)
+  def in(dbSettings: DatabaseSettings)(implicit sparkSession: SparkSession): SparkTableSession[A] =
+    SparkTableSession[A](this, dbSettings, SparkTableParams.default)
 }
 
 object TableDef {
@@ -31,14 +30,14 @@ object TableDef {
     TableDef[A](TableName(tableName))(TypedEncoder[A], Read[A])
 }
 
-final case class SparkTableSession[F[_]: ContextShift: Concurrent, A](
+final case class SparkTableSession[A](
   tableDef: TableDef[A],
   dbSettings: DatabaseSettings,
   params: SparkTableParams)(implicit sparkSession: SparkSession)
-    extends UpdateParams[SparkTableParams, SparkTableSession[F, A]] {
+    extends UpdateParams[SparkTableParams, SparkTableSession[A]] {
   import tableDef.{doobieRead, typedEncoder}
 
-  def updateParams(f: SparkTableParams => SparkTableParams): SparkTableSession[F, A] =
+  def updateParams(f: SparkTableParams => SparkTableParams): SparkTableSession[A] =
     copy(params = f(params))
 
   def datasetFromDB: TypedDataset[A] =
@@ -50,31 +49,29 @@ final case class SparkTableSession[F[_]: ContextShift: Concurrent, A](
         .option("dbtable", tableDef.tableName.value)
         .load())
 
-  def saveToDisk: F[Unit] =
-    Sync[F].delay(
-      datasetFromDB.write
-        .mode(params.fileSaveMode)
-        .format(params.fileFormat.format)
-        .save(params.pathBuilder(tableDef.tableName)))
+  def save(): Unit =
+    datasetFromDB.write
+      .mode(params.fileSaveMode)
+      .format(params.fileFormat.format)
+      .save(params.pathBuilder(tableDef.tableName))
 
-  def datasetFromDisk: TypedDataset[A] =
+  def load: TypedDataset[A] =
     TypedDataset.createUnsafe[A](
       sparkSession.read
         .format(params.fileFormat.format)
         .load(params.pathBuilder(tableDef.tableName)))
 
-  def uploadToDB(data: TypedDataset[A]): F[Unit] =
-    Sync[F].delay(
-      data.write
-        .mode(params.dbSaveMode)
-        .format("jdbc")
-        .option("url", dbSettings.connStr.value)
-        .option("driver", dbSettings.driver.value)
-        .option("dbtable", tableDef.tableName.value)
-        .save())
+  def uploadToDB(data: TypedDataset[A]): Unit =
+    data.write
+      .mode(params.dbSaveMode)
+      .format("jdbc")
+      .option("url", dbSettings.connStr.value)
+      .option("driver", dbSettings.driver.value)
+      .option("dbtable", tableDef.tableName.value)
+      .save()
 
   // doobie
-  val source: Stream[F, A] = {
+  def source[F[_]: ContextShift: Concurrent]: Stream[F, A] =
     for {
       xa <- dbSettings.transactorStream[F]
       dt: Stream[ConnectionIO, A] = (fr"select * from" ++ Fragment.const(tableDef.tableName.value))
@@ -82,5 +79,4 @@ final case class SparkTableSession[F[_]: ContextShift: Concurrent, A](
         .stream
       rst <- xa.transP.apply(dt)
     } yield rst
-  }
 }
