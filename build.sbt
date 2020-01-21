@@ -219,6 +219,7 @@ val kafkaLib = Seq(
     "com.github.fd4s" %% "fs2-kafka"           % fs2Kafka)
 
 val base = Seq(
+  "com.beachape" %% "enumeratum"           % "1.5.15",
   "com.twitter" %% "algebird-core"         % "0.13.6",
   "org.typelevel" %% "algebra"             % "2.0.0",
   "io.chrisdavenport" %% "cats-time"       % catsTime,
@@ -249,11 +250,6 @@ val db = Seq(
   "org.tpolecat" %% "doobie-hikari"     % doobie,
   "org.tpolecat" %% "doobie-quill"      % doobie
 )
-
-val logs = Seq(
-  "org.log4s"               %% "log4s"      % "1.8.2",
-  "org.apache.logging.log4j" % "log4j-core" % "2.13.0",
-  "org.slf4j"                % "slf4j-api"  % "2.0.0-alpha1")
 
 lazy val common = (project in file("common"))
   .settings(commonSettings: _*)
@@ -298,8 +294,10 @@ lazy val spark = (project in file("spark"))
   .settings(commonSettings: _*)
   .settings(name := "nj-spark")
   .settings(
-    libraryDependencies ++= Seq("org.locationtech.jts" % "jts-core" % "1.16.1") ++
-      sparkLib ++ framelessLib ++ logs ++ tests,
+    libraryDependencies ++= Seq(
+      "org.locationtech.jts" % "jts-core" % "1.16.1",
+      "org.log4s"  %% "log4s"  % "1.8.2") ++
+      sparkLib ++ framelessLib ++ tests,
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core"  % "jackson-databind" % "2.6.7.2",
       "org.json4s" %% "json4s-core" % "3.5.5"),
