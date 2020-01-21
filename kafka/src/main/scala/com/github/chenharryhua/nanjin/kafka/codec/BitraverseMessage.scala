@@ -8,7 +8,7 @@ import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage}
 import cats.data.Chain
 import cats.implicits._
 import cats.mtl.FunctorTell
-import cats.{Applicative, Bitraverse, Eval, Monad}
+import cats.{Applicative, Bitraverse, Eval}
 import com.github.chenharryhua.nanjin.kafka.{NJConsumerRecord, NJProducerRecord}
 import fs2.kafka.{
   CommittableConsumerRecord => Fs2CommittableConsumerRecord,
@@ -43,15 +43,19 @@ sealed trait NJConsumerMessage[F[_, _]] extends BitraverseMessage[F] with Bitrav
   final override type H[K, V] = ConsumerRecord[K, V]
   final override val baseInst: Bitraverse[ConsumerRecord] = bitraverseConsumerRecord
 
-  final def record[M[_]: Monad, K, V](fcr: F[Try[K], Try[V]])(
+  final def record[M[_]: Applicative, K, V](fcr: F[Option[Try[K]], Try[V]])(
     implicit M: FunctorTell[M, Chain[ConsumerRecordError]]): M[NJConsumerRecord[K, V]] = {
     val cr = lens.get(fcr)
-    def logFailure(tag: KeyValueTag, ex: Throwable): Chain[ConsumerRecordError] =
-      Chain.one(ConsumerRecordError(ex, tag, cr))
-    for {
-      _ <- cr.key.toEither.leftTraverse(ex   => M.tell(logFailure(KeyValueTag.KeyTag, ex)))
-      _ <- cr.value.toEither.leftTraverse(ex => M.tell(logFailure(KeyValueTag.ValueTag, ex)))
-    } yield NJConsumerRecord(cr.bimap(_.toOption, _.toOption))
+    def log(ex: Throwable, tag: KeyValueTag): M[Unit] =
+      M.tell(Chain.one(ConsumerRecordError(ex, tag, cr)))
+
+    val logKey =
+      cr.key.flatTraverse(_.toEither.leftTraverse(log(_, KeyValueTag.KeyTag)).map(_.toOption))
+
+    val logValue =
+      cr.value.toEither.leftTraverse(log(_, KeyValueTag.ValueTag)).map(_.toOption)
+
+    (logKey, logValue).mapN((k, v) => NJConsumerRecord(cr.bimap(_ => k, _ => v)))
   }
 }
 

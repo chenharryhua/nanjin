@@ -51,7 +51,11 @@ final case class ConsumerRecordError(
   tag: KeyValueTag,
   topicName: String,
   partition: Int,
-  offset: Long)
+  offset: Long) {
+
+  val metaInfo: String =
+    s"${tag.name} decode error. topic=$topicName, partition=$partition, offset=$offset"
+}
 
 object ConsumerRecordError {
 

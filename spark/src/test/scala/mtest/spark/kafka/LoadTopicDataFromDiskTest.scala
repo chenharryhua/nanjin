@@ -23,7 +23,7 @@ class LoadTopicDataFromDiskTest extends AnyFunSuite {
       .updateParams(_.withJson.withPathBuilder(_ => "./data/test/load/json"))
       .load
       .collect[IO]
-      .map(x => assert(x.sorted.toList === data))
+      .map(x => assert(x.sortBy(_.offset).toList === data))
     rst.unsafeRunSync()
   }
 
@@ -38,7 +38,7 @@ class LoadTopicDataFromDiskTest extends AnyFunSuite {
       .updateParams(_.withAvro.withPathBuilder(_ => "./data/test/load/avro"))
       .load
       .collect[IO]
-      .map(x => assert(x.sorted.toList === data))
+      .map(x => assert(x.sortBy(_.offset).toList === data))
     rst.unsafeRunSync()
   }
 
@@ -48,7 +48,7 @@ class LoadTopicDataFromDiskTest extends AnyFunSuite {
       .updateParams(_.withParquet.withPathBuilder(_ => "./data/test/load/parquet"))
       .load
       .collect[IO]
-      .map(x => assert(x.sorted.toList === data))
+      .map(x => assert(x.sortBy(_.offset).toList === data))
     rst.unsafeRunSync()
   }
 }

@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.spark.database
 
 import cats.effect.{Concurrent, ContextShift, Sync}
+import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.database.DatabaseSettings
-import com.github.chenharryhua.nanjin.spark.UpdateParams
 import doobie.free.connection.ConnectionIO
 import doobie.implicits._
 import doobie.util.Read

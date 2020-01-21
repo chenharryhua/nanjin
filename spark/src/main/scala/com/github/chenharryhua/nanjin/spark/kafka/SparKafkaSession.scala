@@ -4,6 +4,7 @@ import java.util
 
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
+import com.github.chenharryhua.nanjin.common.{NJFileFormat, UpdateParams}
 import com.github.chenharryhua.nanjin.kafka.api.KafkaConsumerApi
 import com.github.chenharryhua.nanjin.kafka.codec.iso
 import com.github.chenharryhua.nanjin.kafka.{
@@ -13,7 +14,7 @@ import com.github.chenharryhua.nanjin.kafka.{
   NJProducerRecord,
   NJTopicPartition
 }
-import com.github.chenharryhua.nanjin.spark.{UpdateParams, _}
+import com.github.chenharryhua.nanjin.spark._
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.kafka._
 import fs2.{Chunk, Stream}
@@ -24,12 +25,15 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.kafka010.{KafkaUtils, OffsetRange}
+import org.log4s.Logger
 
 import scala.collection.JavaConverters._
+import scala.reflect.ClassTag
 
 final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], params: SparKafkaParams)(
   implicit val sparkSession: SparkSession)
     extends UpdateParams[SparKafkaParams, SparKafkaSession[K, V]] with Serializable {
+  private[this] val logger: Logger = org.log4s.getLogger
 
   override def updateParams(f: SparKafkaParams => SparKafkaParams): SparKafkaSession[K, V] =
     new SparKafkaSession[K, V](kafkaDesc, f(params))
@@ -57,9 +61,13 @@ final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], param
 
   def datasetFromKafka[F[_]: Sync, A](f: NJConsumerRecord[K, V] => A)(
     implicit ev: TypedEncoder[A]): F[TypedDataset[A]] = {
-    import ev.classTag
+    implicit val tag: ClassTag[A] = ev.classTag
     kafkaRDD.map { rdd =>
-      TypedDataset.create(rdd.mapPartitions(_.map(m => f(kafkaDesc.decoder(m).record))))
+      TypedDataset.create(rdd.mapPartitions(_.map { m =>
+        val r = kafkaDesc.decoder(m).logRecord.run
+        r._1.map(x => logger.warn(x.error)(x.metaInfo))
+        f(r._2)
+      }))
     }
   }
 
