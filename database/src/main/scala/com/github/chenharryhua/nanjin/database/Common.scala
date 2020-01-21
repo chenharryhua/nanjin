@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.common
+package com.github.chenharryhua.nanjin.database
 
 import java.net.URI
 

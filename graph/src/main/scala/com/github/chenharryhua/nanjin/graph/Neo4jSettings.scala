@@ -1,11 +1,11 @@
 package com.github.chenharryhua.nanjin.graph
 
-import com.github.chenharryhua.nanjin.common._
 import monocle.macros.Lenses
 import org.apache.spark.sql.SparkSession
 import org.neo4j.driver.v1.Config.ConfigBuilder
 import org.neo4j.driver.v1.{AuthToken, AuthTokens, Config}
 import cats.effect.Async
+import com.github.chenharryhua.nanjin.database.{ConnectionString, Host, Password, Port, Username}
 
 @Lenses final case class Neo4jSettings(
   username: Username,
