@@ -3,10 +3,13 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import java.time.Clock
 
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, NJConsumerRecord, NJProducerRecord}
+import com.github.chenharryhua.nanjin.kafka.{
+  KafkaTopicDescription,
+  NJConsumerRecord,
+  NJProducerRecord
+}
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SparkSession
-import com.github.chenharryhua.nanjin.kafka.KafkaTopicDescription
 
 private[kafka] trait DatasetExtensions {
 
@@ -15,6 +18,10 @@ private[kafka] trait DatasetExtensions {
 
     def sparKafka(implicit spark: SparkSession): SparKafkaSession[K, V] =
       new SparKafkaSession(description, SparKafkaParams.default)
+
+    def sparKafka(params: SparKafkaParams)(implicit spark: SparkSession): SparKafkaSession[K, V] =
+      new SparKafkaSession(description, params)
+
   }
 
   implicit final class SparKafkaConsumerRecordSyntax[K: TypedEncoder, V: TypedEncoder](

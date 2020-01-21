@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.flink
+package com.github.chenharryhua.nanjin.flink.kafka
 
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopicDescription, NJConsumerRecord}

@@ -1,9 +1,14 @@
-package com.github.chenharryhua.nanjin.flink
+package com.github.chenharryhua.nanjin.flink.kafka
 
+import cats.data.Reader
+import com.github.chenharryhua.nanjin.kafka.TopicName
 import monocle.macros.Lenses
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 
-@Lenses final case class FlinKafkaParams(env: StreamExecutionEnvironment) {
+@Lenses final case class FlinKafkaParams(
+  env: StreamExecutionEnvironment,
+  pathBuilder: Reader[TopicName, String]
+) {
 
   def withEnv(e: StreamExecutionEnvironment): FlinKafkaParams =
     FlinKafkaParams.env.set(e)(this)
@@ -15,5 +20,7 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 object FlinKafkaParams {
 
   val default: FlinKafkaParams = FlinKafkaParams(
-    StreamExecutionEnvironment.createLocalEnvironment())
+    StreamExecutionEnvironment.createLocalEnvironment(),
+    Reader(tn => s"./data/flink/kafka/$tn")
+  )
 }

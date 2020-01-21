@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.database
 
 import cats.data.Reader
 import com.github.chenharryhua.nanjin.common.NJFileFormat
+import com.github.chenharryhua.nanjin.database.TableName
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
 
@@ -38,7 +39,7 @@ object SparkTableParams {
   val default: SparkTableParams = SparkTableParams(
     SaveMode.ErrorIfExists,
     SaveMode.Overwrite,
-    Reader(tn => s"./data/database/parquet/${tn.value}"),
+    Reader(tn => s"./data/spark/database/${tn.value}"),
     NJFileFormat.Parquet
   )
 }

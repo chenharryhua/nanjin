@@ -1,5 +1,5 @@
 import cats.effect.{ContextShift, IO, Timer}
-import com.github.chenharryhua.nanjin.common._
+import com.github.chenharryhua.nanjin.database.{Host, Password, Port, Username}
 import com.github.chenharryhua.nanjin.graph.{MorpheusNeo4jSession, Neo4jSettings, NeotypesSession}
 import com.github.chenharryhua.nanjin.spark.SparkSettings
 import org.apache.spark.sql.SparkSession
