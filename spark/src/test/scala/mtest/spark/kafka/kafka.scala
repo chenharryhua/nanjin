@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.common._
 import com.github.chenharryhua.nanjin.database.Postgres
 import com.github.chenharryhua.nanjin.kafka.{IoKafkaContext, KafkaSettings}
 import com.github.chenharryhua.nanjin.spark.SparkSettings
-import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaSession
+import org.apache.spark.sql.SparkSession
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -23,7 +23,7 @@ package object kafka {
     Port(5432),
     DatabaseName("postgres"))
 
-  implicit val sparkSession =
+  implicit val sparkSession: SparkSession =
     SparkSettings.default
       .withLogLevel("error")
       .withConf(_.setMaster("local[*]").setAppName("test-spark"))

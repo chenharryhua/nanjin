@@ -48,6 +48,7 @@ sealed trait NJConsumerMessage[F[_, _]] extends BitraverseMessage[F] with Bitrav
     val cr = lens.get(fcr)
     def logFailure(tag: KeyValueTag, ex: Throwable): Chain[ConsumerRecordError] =
       Chain.one(ConsumerRecordError(ex, tag, cr))
+
     for {
       _ <- cr.key.toEither.leftTraverse(ex   => M.tell(logFailure(KeyValueTag.KeyTag, ex)))
       _ <- cr.value.toEither.leftTraverse(ex => M.tell(logFailure(KeyValueTag.ValueTag, ex)))
