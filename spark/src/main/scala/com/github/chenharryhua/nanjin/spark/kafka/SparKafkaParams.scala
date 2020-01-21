@@ -15,7 +15,7 @@ import scala.concurrent.duration._
 @Lenses final case class NJRate(batchSize: Int, duration: FiniteDuration)
 
 object NJRate {
-  val default: NJRate = NJRate(1000, 1.second)
+  val default: NJRate = NJRate(batchSize = 1000, duration = 1.second)
 }
 
 @Lenses final case class ConversionTactics(keepPartition: Boolean, keepTimestamp: Boolean) {
