@@ -79,13 +79,13 @@ object SparKafkaParams {
 
   val default: SparKafkaParams =
     SparKafkaParams(
-      NJDateTimeRange.infinite,
-      ConversionTactics.default,
-      NJRate.default,
-      Reader(tn => s"./data/spark/kafka/$tn"),
-      NJFileFormat.Parquet,
-      SaveMode.ErrorIfExists,
-      LocationStrategies.PreferConsistent,
-      30
+      timeRange         = NJDateTimeRange.infinite,
+      conversionTactics = ConversionTactics.default,
+      uploadRate        = NJRate.default,
+      pathBuilder       = Reader(tn => s"./data/spark/kafka/$tn"),
+      fileFormat        = NJFileFormat.Parquet,
+      saveMode          = SaveMode.ErrorIfExists,
+      locationStrategy  = LocationStrategies.PreferConsistent,
+      repartition       = 30
     )
 }
