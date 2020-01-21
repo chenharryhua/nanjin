@@ -1,6 +1,7 @@
 package mtest.kafka
 
 import cats.instances.all._
+import com.github.chenharryhua.nanjin.kafka.codec.KeyValueTag
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopicDescription, TopicDef}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.scalatest.funsuite.AnyFunSuite
@@ -34,6 +35,7 @@ class DecoderLogTest extends AnyFunSuite {
 
     val rst = desc.decoder(cr).logRecord.run
     assert(rst._1.size === 1)
+    rst._1.map(x => assert(x.tag === KeyValueTag.ValueTag))
     assert(rst._2.key === Some(16909060))
     assert(rst._2.value === None)
   }
@@ -43,6 +45,7 @@ class DecoderLogTest extends AnyFunSuite {
 
     val rst = desc.decoder(cr).logRecord.run
     assert(rst._1.size === 1)
+    rst._1.map(x => assert(x.tag === KeyValueTag.KeyTag))
     assert(rst._2.key === None)
     assert(rst._2.value === Some(16909060))
   }
@@ -52,6 +55,7 @@ class DecoderLogTest extends AnyFunSuite {
 
     val rst = desc.decoder(cr).logRecord.run
     assert(rst._1.size === 1)
+    rst._1.map(x => assert(x.tag === KeyValueTag.ValueTag))
     assert(rst._2.key === Some(16909060))
     assert(rst._2.value === None)
   }
