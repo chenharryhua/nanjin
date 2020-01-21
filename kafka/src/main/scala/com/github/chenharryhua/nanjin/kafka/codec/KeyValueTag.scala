@@ -16,10 +16,13 @@ object KeyValueTag extends CatsOrderValueEnum[Int, KeyValueTag] with IntEnum[Key
   case object KeyTag extends KeyValueTag(0, "key")
   case object ValueTag extends KeyValueTag(1, "value")
 
-  implicit val keyTagPrism: Prism[KeyValueTag, KeyTag.type] =
-    GenPrism[KeyValueTag, KeyTag.type]
+  type KeyTag   = KeyTag.type
+  type ValueTag = ValueTag.type
 
-  implicit val valueTagPrism: Prism[KeyValueTag, ValueTag.type] =
-    GenPrism[KeyValueTag, ValueTag.type]
+  implicit val keyTagPrism: Prism[KeyValueTag, KeyTag] =
+    GenPrism[KeyValueTag, KeyTag]
+
+  implicit val valueTagPrism: Prism[KeyValueTag, ValueTag] =
+    GenPrism[KeyValueTag, ValueTag]
 
 }
