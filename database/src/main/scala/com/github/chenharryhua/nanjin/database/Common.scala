@@ -14,3 +14,7 @@ final case class ConnectionString(value: String) extends AnyVal {
 }
 
 final case class DriverString(value: String) extends AnyVal
+
+final case class TableName(value: String) {
+  override val toString: String = value
+}

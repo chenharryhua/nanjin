@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.database
 
 import cats.data.Reader
 import com.github.chenharryhua.nanjin.common.NJFileFormat
+import com.github.chenharryhua.nanjin.database.TableName
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
 

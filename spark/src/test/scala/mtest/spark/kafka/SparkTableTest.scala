@@ -5,7 +5,7 @@ import java.time.{Instant, LocalDate, LocalDateTime}
 import cats.effect.IO
 import cats.implicits._
 import com.github.chenharryhua.nanjin.spark.database._
-import com.github.chenharryhua.nanjin.datetime._
+//import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.datetime.iso._
 import com.github.chenharryhua.nanjin.spark.injection._
 import doobie.implicits.javatime._
@@ -20,9 +20,10 @@ final case class DbTableInst(a: LocalDate, b: LocalDateTime, c: Int, d: String, 
 class SparkTableTest extends AnyFunSuite {
   val table: TableDef[DbTableInst] = TableDef[DbTableInst]("public.sparktabletest")
 
+  val sample: DbTableInst = DbTableInst(LocalDate.now, LocalDateTime.now, 10, "d", Instant.now)
+
   test("upload dataset to table") {
-    val data =
-      TypedDataset.create(List(DbTableInst(LocalDate.now, LocalDateTime.now, 10, "d", Instant.now)))
+    val data = TypedDataset.create(List(sample))
     data.dbUpload(table.in(db).updateParams(_.withDBSaveMode(SaveMode.Overwrite)))
   }
 
@@ -31,6 +32,7 @@ class SparkTableTest extends AnyFunSuite {
   }
 
   test("read table on disk") {
-    table.in(db).load.show[IO]().unsafeRunSync
+    val rst = table.in(db).load.collect[IO].map(_.head).unsafeRunSync
+    assert(rst === sample)
   }
 }
