@@ -5,10 +5,8 @@ import java.time.{Instant, LocalDate, LocalDateTime}
 import cats.effect.IO
 import cats.implicits._
 import com.github.chenharryhua.nanjin.spark.database._
-//import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.datetime.iso._
 import com.github.chenharryhua.nanjin.spark.injection._
-import doobie.implicits.javatime._
 
 import frameless.TypedDataset
 import frameless.cats.implicits._

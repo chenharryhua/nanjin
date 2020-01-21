@@ -37,9 +37,9 @@ import org.apache.spark.sql.SaveMode
 object SparkTableParams {
 
   val default: SparkTableParams = SparkTableParams(
-    SaveMode.ErrorIfExists,
-    SaveMode.Overwrite,
-    Reader(tn => s"./data/spark/database/${tn.value}"),
-    NJFileFormat.Parquet
+    dbSaveMode   = SaveMode.ErrorIfExists,
+    fileSaveMode = SaveMode.Overwrite,
+    pathBuilder  = Reader(tn => s"./data/spark/database/${tn.value}"),
+    fileFormat   = NJFileFormat.Parquet
   )
 }

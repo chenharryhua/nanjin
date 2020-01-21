@@ -10,9 +10,9 @@ import com.github.chenharryhua.nanjin.kafka.codec.iso
 import com.github.chenharryhua.nanjin.kafka.{
   KafkaOffsetRange,
   KafkaTopicDescription,
+  KafkaTopicPartition,
   NJConsumerRecord,
-  NJProducerRecord,
-  NJTopicPartition
+  NJProducerRecord
 }
 import com.github.chenharryhua.nanjin.spark._
 import frameless.{TypedDataset, TypedEncoder}
@@ -45,7 +45,8 @@ final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], param
       .mapValues[Object](identity)
       .asJava
 
-  private def offsetRanges(range: NJTopicPartition[Option[KafkaOffsetRange]]): Array[OffsetRange] =
+  private def offsetRanges(
+    range: KafkaTopicPartition[Option[KafkaOffsetRange]]): Array[OffsetRange] =
     range.flatten[KafkaOffsetRange].value.toArray.map {
       case (tp, r) => OffsetRange.create(tp, r.from.value, r.until.value)
     }

@@ -15,7 +15,7 @@ import scala.concurrent.duration._
 @Lenses final case class NJRate(batchSize: Int, duration: FiniteDuration)
 
 object NJRate {
-  val default: NJRate = NJRate(1000, 1.second)
+  val default: NJRate = NJRate(batchSize = 1000, duration = 1.second)
 }
 
 @Lenses final case class ConversionTactics(keepPartition: Boolean, keepTimestamp: Boolean) {
@@ -79,13 +79,13 @@ object SparKafkaParams {
 
   val default: SparKafkaParams =
     SparKafkaParams(
-      NJDateTimeRange.infinite,
-      ConversionTactics.default,
-      NJRate.default,
-      Reader(tn => s"./data/spark/kafka/$tn"),
-      NJFileFormat.Parquet,
-      SaveMode.ErrorIfExists,
-      LocationStrategies.PreferConsistent,
-      30
+      timeRange         = NJDateTimeRange.infinite,
+      conversionTactics = ConversionTactics.default,
+      uploadRate        = NJRate.default,
+      pathBuilder       = Reader(tn => s"./data/spark/kafka/$tn"),
+      fileFormat        = NJFileFormat.Parquet,
+      saveMode          = SaveMode.ErrorIfExists,
+      locationStrategy  = LocationStrategies.PreferConsistent,
+      repartition       = 30
     )
 }
