@@ -4,6 +4,7 @@ import java.util
 
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
+import com.github.chenharryhua.nanjin.common.{NJFileFormat, UpdateParams}
 import com.github.chenharryhua.nanjin.kafka.api.KafkaConsumerApi
 import com.github.chenharryhua.nanjin.kafka.codec.iso
 import com.github.chenharryhua.nanjin.kafka.{
@@ -13,7 +14,7 @@ import com.github.chenharryhua.nanjin.kafka.{
   NJProducerRecord,
   NJTopicPartition
 }
-import com.github.chenharryhua.nanjin.spark.{UpdateParams, _}
+import com.github.chenharryhua.nanjin.spark._
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.kafka._
 import fs2.{Chunk, Stream}
@@ -27,6 +28,7 @@ import org.apache.spark.streaming.kafka010.{KafkaUtils, OffsetRange}
 import org.log4s.Logger
 
 import scala.collection.JavaConverters._
+import scala.reflect.ClassTag
 
 final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], params: SparKafkaParams)(
   implicit val sparkSession: SparkSession)
@@ -59,7 +61,7 @@ final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], param
 
   def datasetFromKafka[F[_]: Sync, A](f: NJConsumerRecord[K, V] => A)(
     implicit ev: TypedEncoder[A]): F[TypedDataset[A]] = {
-    import ev.classTag
+    implicit val tag: ClassTag[A] = ev.classTag
     kafkaRDD.map { rdd =>
       TypedDataset.create(rdd.mapPartitions(_.map { m =>
         val r = kafkaDesc.decoder(m).logRecord.run

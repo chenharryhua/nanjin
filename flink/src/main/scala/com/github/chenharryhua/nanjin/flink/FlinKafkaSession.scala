@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.flink
 
+import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopicDescription, NJConsumerRecord}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala._
@@ -9,7 +10,10 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 final class FlinKafkaSession[K: TypeInformation, V: TypeInformation](
   description: KafkaTopicDescription[K, V],
   params: FlinKafkaParams)
-    extends Serializable {
+    extends Serializable with UpdateParams[FlinKafkaParams, FlinKafkaSession[K, V]] {
+
+  override def updateParams(f: FlinKafkaParams => FlinKafkaParams): FlinKafkaSession[K, V] =
+    new FlinKafkaSession[K, V](description, f(params))
 
   def dataStream: DataStream[NJConsumerRecord[K, V]] =
     params.env.addSource[NJConsumerRecord[K, V]](
