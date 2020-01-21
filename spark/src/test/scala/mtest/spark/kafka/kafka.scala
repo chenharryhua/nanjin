@@ -24,9 +24,6 @@ package object kafka {
     DatabaseName("postgres"))
 
   implicit val sparkSession: SparkSession =
-    SparkSettings.default
-      .withLogLevel("error")
-      .withConf(_.setMaster("local[*]").setAppName("test-spark"))
-      .session
+    SparkSettings.default.withConf(_.setMaster("local[*]").setAppName("test-spark")).session
 
 }
