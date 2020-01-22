@@ -4,7 +4,7 @@ import cats.Show
 import cats.data.Reader
 import cats.effect.{ConcurrentEffect, ContextShift, IO, Timer}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.codec.{KafkaSerde, SerdeOf}
+import com.github.chenharryhua.nanjin.kafka.codec.{NJSerde, SerdeOf}
 import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
 import fs2.Stream
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
@@ -17,10 +17,10 @@ sealed class KafkaContext[F[_]](val settings: KafkaSettings)(
   val contextShift: ContextShift[F],
   val concurrentEffect: ConcurrentEffect[F]) {
 
-  final def asKey[K: SerdeOf]: KafkaSerde.Key[K] =
+  final def asKey[K: SerdeOf]: NJSerde[K] =
     SerdeOf[K].asKey(settings.schemaRegistrySettings.config)
 
-  final def asValue[V: SerdeOf]: KafkaSerde.Value[V] =
+  final def asValue[V: SerdeOf]: NJSerde[V] =
     SerdeOf[V].asValue(settings.schemaRegistrySettings.config)
 
   final def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] =

@@ -1,20 +1,19 @@
 package com.github.chenharryhua.nanjin.kafka.codec
 
-import cats.instances.int.catsKernelStdOrderForInt
-import enumeratum.values.{CatsOrderValueEnum, IntEnum, IntEnumEntry}
+import enumeratum.values.{CatsValueEnum, IntEnum, IntEnumEntry}
 import monocle.Prism
 import monocle.macros.GenPrism
 
 import scala.collection.immutable
 
-sealed abstract class KeyValueTag(val value: Int, val name: String, val isKey: Boolean)
+sealed abstract class KeyValueTag(override val value: Int, val name: String, val isKey: Boolean)
     extends IntEnumEntry with Serializable
 
-object KeyValueTag extends CatsOrderValueEnum[Int, KeyValueTag] with IntEnum[KeyValueTag] {
+object KeyValueTag extends CatsValueEnum[Int, KeyValueTag] with IntEnum[KeyValueTag] {
   override val values: immutable.IndexedSeq[KeyValueTag] = findValues
 
-  case object Key extends KeyValueTag(0, "key", isKey     = true)
-  case object Value extends KeyValueTag(1, "value", isKey = false)
+  case object Key extends KeyValueTag(0, "Key", isKey     = true)
+  case object Value extends KeyValueTag(1, "Value", isKey = false)
 
   type Key   = Key.type
   type Value = Value.type

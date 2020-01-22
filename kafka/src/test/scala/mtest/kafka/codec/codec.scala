@@ -1,6 +1,6 @@
 package mtest.kafka
 
-import com.github.chenharryhua.nanjin.kafka.codec.{KafkaCodec, SerdeOf}
+import com.github.chenharryhua.nanjin.kafka.codec.{NJCodec, SerdeOf}
 import com.github.chenharryhua.nanjin.kafka.{KJson, TopicName}
 import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig
 import io.circe.generic.auto._
@@ -19,7 +19,7 @@ package object codec extends ArbitraryData {
   val primitiviesCodec =
     SerdeOf[PrimitiveTypeCombined].asKey(sr).codec(TopicName("topic.avro"))
 
-  val jsonPrimCodec: KafkaCodec.Value[KJson[PrimitiveTypeCombined]] =
+  val jsonPrimCodec: NJCodec[KJson[PrimitiveTypeCombined]] =
     SerdeOf[KJson[PrimitiveTypeCombined]].asValue(sr).codec(TopicName("topic.json"))
 
 }
