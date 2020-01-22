@@ -63,6 +63,6 @@ class MessageDateTimeTest extends AnyFunSuite {
       _ <- topic.send(0, m)
       r <- topic.consumerResource.use(_.retrieveLastRecords)
     } yield assert(topic.decoder(r.head).decodeValue.value() === m)
-    rst.attempt.map(println).unsafeRunSync()
+    rst.unsafeRunSync()
   }
 }

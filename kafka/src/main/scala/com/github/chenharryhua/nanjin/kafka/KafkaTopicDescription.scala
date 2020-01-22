@@ -82,22 +82,23 @@ import scala.collection.immutable
   def fromJsonStr(jsonString: String): Either[Error, NJConsumerRecord[K, V]] =
     topicDef.fromJson(jsonString)
 
+  def fs2PR(key: K, value: V): Fs2ProducerRecord[K, V] =
+    Fs2ProducerRecord[K, V](topicDef.topicName.value, key, value)
+
   def fs2ProducerRecords[P](key: K, value: V, p: P): Fs2ProducerRecords[K, V, P] =
     Fs2ProducerRecords.one[K, V, P](
       Fs2ProducerRecord[K, V](topicDef.topicName.value, key, value),
       p)
 
   def fs2ProducerRecords(key: K, value: V): Fs2ProducerRecords[K, V, Unit] =
-    Fs2ProducerRecords.one(Fs2ProducerRecord[K, V](topicDef.topicName.value, key, value))
+    Fs2ProducerRecords.one(fs2PR(key, value))
 
   def fs2ProducerRecords[G[+_]: Traverse](list: G[(K, V)]): Fs2ProducerRecords[K, V, Unit] =
-    Fs2ProducerRecords[G, K, V](list.map {
-      case (k, v) => Fs2ProducerRecord[K, V](topicDef.topicName.value, k, v)
-    })
+    Fs2ProducerRecords[G, K, V](list.map { case (k, v) => fs2PR(k, v) })
 
   def fs2ProducerRecords[G[+_]: Traverse, P](list: G[(K, V)], p: P): Fs2ProducerRecords[K, V, P] =
     Fs2ProducerRecords[G, K, V, P](list.map {
-      case (k, v) => Fs2ProducerRecord[K, V](topicDef.topicName.value, k, v)
+      case (k, v) => fs2PR(k, v)
     }, p)
 
   def akkaProducerRecords(key: K, value: V): ProducerMessage.Envelope[K, V, NotUsed] =
