@@ -86,9 +86,7 @@ import scala.collection.immutable
     Fs2ProducerRecord[K, V](topicDef.topicName.value, key, value)
 
   def fs2ProducerRecords[P](key: K, value: V, p: P): Fs2ProducerRecords[K, V, P] =
-    Fs2ProducerRecords.one[K, V, P](
-      Fs2ProducerRecord[K, V](topicDef.topicName.value, key, value),
-      p)
+    Fs2ProducerRecords.one[K, V, P](fs2PR(key, value), p)
 
   def fs2ProducerRecords(key: K, value: V): Fs2ProducerRecords[K, V, Unit] =
     Fs2ProducerRecords.one(fs2PR(key, value))

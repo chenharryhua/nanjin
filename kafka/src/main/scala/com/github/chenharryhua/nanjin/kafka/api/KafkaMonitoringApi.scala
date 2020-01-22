@@ -42,11 +42,11 @@ object KafkaMonitoringApi {
       extends KafkaMonitoringApi[F, K, V] {
 
     private val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
-      topic.fs2Channel.updateConsumerSettings(_.withEnableAutoCommit(false))
+      topic.fs2Channel.withConsumerSettings(_.withEnableAutoCommit(false))
 
     private def watch(aor: AutoOffsetReset): F[Unit] =
       fs2Channel
-        .updateConsumerSettings(_.withAutoOffsetReset(aor))
+        .withConsumerSettings(_.withAutoOffsetReset(aor))
         .consume
         .map(m => topic.decoder(m).tryDecodeKeyValue)
         .map(_.show)
@@ -58,7 +58,7 @@ object KafkaMonitoringApi {
       predict: ConsumerRecord[Try[K], Try[V]] => Boolean,
       aor: AutoOffsetReset): F[Unit] =
       fs2Channel
-        .updateConsumerSettings(_.withAutoOffsetReset(aor))
+        .withConsumerSettings(_.withAutoOffsetReset(aor))
         .consume
         .map(m => topic.decoder(m).tryDecodeKeyValue)
         .filter(m => predict(iso.isoFs2ComsumerRecord.get(m.record)))

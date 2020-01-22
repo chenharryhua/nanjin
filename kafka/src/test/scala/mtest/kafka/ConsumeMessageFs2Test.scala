@@ -24,7 +24,7 @@ class ConsumeMessageFs2Test extends AnyFunSuite {
     val topic = backblaze_smart.in(ctx)
     val ret =
       topic.fs2Channel
-        .updateConsumerSettings(_.withAutoOffsetReset(AutoOffsetReset.Earliest))
+        .withConsumerSettings(_.withAutoOffsetReset(AutoOffsetReset.Earliest))
         .consume
         .map(m => topic.decoder(m).tryDecodeKeyValue)
         .take(1)

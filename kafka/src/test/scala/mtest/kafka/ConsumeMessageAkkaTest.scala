@@ -19,8 +19,8 @@ class ConsumeMessageAkkaTest extends AnyFunSuite {
 
   test("akka stream should be able to consume data") {
     val run = chn
-      .updateConsumerSettings(_.withClientId("c-id"))
-      .updateCommitterSettings(_.withParallelism(10))
+      .withConsumerSettings(_.withClientId("c-id"))
+      .withCommitterSettings(_.withParallelism(10))
       .consume
       .map(m => topic.decoder(m).decodeValue)
       .map(_.show)

@@ -26,11 +26,11 @@ object KafkaChannels {
 
     import fs2.kafka.{consumerStream, CommittableConsumerRecord, KafkaProducer}
 
-    def updateProducerSettings(
+    def withProducerSettings(
       f: Fs2ProducerSettings[F, K, V] => Fs2ProducerSettings[F, K, V]): Fs2Channel[F, K, V] =
       new Fs2Channel(topicName, f(producerSettings), consumerSettings)
 
-    def updateConsumerSettings(
+    def withConsumerSettings(
       f: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]] => Fs2ConsumerSettings[
         F,
         Array[Byte],
@@ -74,17 +74,17 @@ object KafkaChannels {
     import akka.stream.scaladsl.{Flow, Sink, Source}
     import akka.{Done, NotUsed}
 
-    def updateProducerSettings(
+    def withProducerSettings(
       f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): AkkaChannel[F, K, V] =
       new AkkaChannel(topicName, f(producerSettings), consumerSettings, committerSettings)
 
-    def updateConsumerSettings(
+    def withConsumerSettings(
       f: AkkaConsumerSettings[Array[Byte], Array[Byte]] => AkkaConsumerSettings[
         Array[Byte],
         Array[Byte]]): AkkaChannel[F, K, V] =
       new AkkaChannel(topicName, producerSettings, f(consumerSettings), committerSettings)
 
-    def updateCommitterSettings(
+    def withCommitterSettings(
       f: AkkaCommitterSettings => AkkaCommitterSettings): AkkaChannel[F, K, V] =
       new AkkaChannel(topicName, producerSettings, consumerSettings, f(committerSettings))
 

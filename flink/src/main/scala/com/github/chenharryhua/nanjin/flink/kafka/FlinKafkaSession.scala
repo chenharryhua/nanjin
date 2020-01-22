@@ -12,7 +12,7 @@ final class FlinKafkaSession[K: TypeInformation, V: TypeInformation](
   params: FlinKafkaParams)
     extends Serializable with UpdateParams[FlinKafkaParams, FlinKafkaSession[K, V]] {
 
-  override def updateParams(f: FlinKafkaParams => FlinKafkaParams): FlinKafkaSession[K, V] =
+  override def withParamUpdate(f: FlinKafkaParams => FlinKafkaParams): FlinKafkaSession[K, V] =
     new FlinKafkaSession[K, V](description, f(params))
 
   def dataStream: DataStream[NJConsumerRecord[K, V]] =
