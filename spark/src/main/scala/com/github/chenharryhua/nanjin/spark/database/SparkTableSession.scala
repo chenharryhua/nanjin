@@ -24,7 +24,7 @@ final case class SparkTableSession[A](
     extends UpdateParams[SparkTableParams, SparkTableSession[A]] {
   import tableDef.typedEncoder
 
-  def updateParams(f: SparkTableParams => SparkTableParams): SparkTableSession[A] =
+  def withParamUpdate(f: SparkTableParams => SparkTableParams): SparkTableSession[A] =
     copy(params = f(params))
 
   def datasetFromDB: TypedDataset[A] =

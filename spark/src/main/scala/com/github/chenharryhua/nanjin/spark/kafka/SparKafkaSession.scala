@@ -35,7 +35,7 @@ final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], param
     extends UpdateParams[SparKafkaParams, SparKafkaSession[K, V]] with Serializable {
   private[this] val logger: Logger = org.log4s.getLogger
 
-  override def updateParams(f: SparKafkaParams => SparKafkaParams): SparKafkaSession[K, V] =
+  override def withParamUpdate(f: SparKafkaParams => SparKafkaParams): SparKafkaSession[K, V] =
     new SparKafkaSession[K, V](kafkaDesc, f(params))
 
   private def props: util.Map[String, Object] =

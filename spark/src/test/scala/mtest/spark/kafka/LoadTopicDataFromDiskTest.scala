@@ -20,7 +20,7 @@ class LoadTopicDataFromDiskTest extends AnyFunSuite {
   test("load json test") {
     TypedDataset.create(data).write.mode(SaveMode.Overwrite).json("./data/test/load/json")
     val rst = topic.description.sparKafka
-      .updateParams(_.withJson.withPathBuilder(_ => "./data/test/load/json"))
+      .withParamUpdate(_.withJson.withPathBuilder(_ => "./data/test/load/json"))
       .load
       .collect[IO]
       .map(x => assert(x.sortBy(_.offset).toList === data))
@@ -35,7 +35,7 @@ class LoadTopicDataFromDiskTest extends AnyFunSuite {
       .format("avro")
       .save("./data/test/load/avro")
     val rst = topic.description.sparKafka
-      .updateParams(_.withAvro.withPathBuilder(_ => "./data/test/load/avro"))
+      .withParamUpdate(_.withAvro.withPathBuilder(_ => "./data/test/load/avro"))
       .load
       .collect[IO]
       .map(x => assert(x.sortBy(_.offset).toList === data))
@@ -45,7 +45,7 @@ class LoadTopicDataFromDiskTest extends AnyFunSuite {
   test("load parquet test") {
     TypedDataset.create(data).write.mode(SaveMode.Overwrite).parquet("./data/test/load/parquet")
     val rst = topic.description.sparKafka
-      .updateParams(_.withParquet.withPathBuilder(_ => "./data/test/load/parquet"))
+      .withParamUpdate(_.withParquet.withPathBuilder(_ => "./data/test/load/parquet"))
       .load
       .collect[IO]
       .map(x => assert(x.sortBy(_.offset).toList === data))

@@ -32,5 +32,5 @@ object NJFileFormat extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[N
 }
 
 trait UpdateParams[A, B] {
-  def updateParams(f: A => A): B
+  def withParamUpdate(f: A => A): B
 }
