@@ -48,6 +48,7 @@ object SparkSettings {
           "com.amazonaws.auth.DefaultAWSCredentialsProviderChain")
         .set("spark.hadoop.fs.s3a.connection.maximum", "100")
         .set("spark.hadoop.fs.s3a.experimental.input.fadvise", "sequential")
+        .set("spark.hadoop.fs.s3a.committer.name", "directory")
         .set("spark.streaming.kafka.consumer.poll.ms", "180000")
         .set("spark.streaming.kafka.allowNonConsecutiveOffsets", "true"))
 }

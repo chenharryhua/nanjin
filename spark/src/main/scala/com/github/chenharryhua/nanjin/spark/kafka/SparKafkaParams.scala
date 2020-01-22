@@ -31,15 +31,23 @@ object ConversionTactics {
     ConversionTactics(keepPartition = false, keepTimestamp = true)
 }
 
+final case class PathBuildParams(
+  timeRange: NJDateTimeRange,
+  fileFormat: NJFileFormat,
+  topicName: TopicName)
+
 @Lenses final case class SparKafkaParams private (
   timeRange: NJDateTimeRange,
   conversionTactics: ConversionTactics,
   uploadRate: NJRate,
-  pathBuilder: Reader[TopicName, String],
+  pathBuilder: Reader[PathBuildParams, String],
   fileFormat: NJFileFormat,
   saveMode: SaveMode,
   locationStrategy: LocationStrategy,
   repartition: Int) {
+
+  def getPath(topicName: TopicName): String =
+    pathBuilder(PathBuildParams(timeRange, fileFormat, topicName))
 
   def withTimeRange(f: NJDateTimeRange => NJDateTimeRange): SparKafkaParams =
     SparKafkaParams.timeRange.modify(f)(this)
@@ -52,7 +60,8 @@ object ConversionTactics {
   def withSaveMode(sm: SaveMode): SparKafkaParams = copy(saveMode = sm)
   def withOverwrite: SparKafkaParams              = copy(saveMode = SaveMode.Overwrite)
 
-  def withPathBuilder(rp: TopicName => String): SparKafkaParams = copy(pathBuilder = Reader(rp))
+  def withPathBuilder(rp: PathBuildParams => String): SparKafkaParams =
+    copy(pathBuilder = Reader(rp))
 
   def withFileFormat(ff: NJFileFormat): SparKafkaParams = copy(fileFormat = ff)
   def withJson: SparKafkaParams                         = withFileFormat(NJFileFormat.Json)
@@ -82,7 +91,7 @@ object SparKafkaParams {
       timeRange         = NJDateTimeRange.infinite,
       conversionTactics = ConversionTactics.default,
       uploadRate        = NJRate.default,
-      pathBuilder       = Reader(tn => s"./data/spark/kafka/$tn"),
+      pathBuilder       = Reader(ps => s"./data/spark/kafka/${ps.topicName}/${ps.fileFormat}/"),
       fileFormat        = NJFileFormat.Parquet,
       saveMode          = SaveMode.ErrorIfExists,
       locationStrategy  = LocationStrategies.PreferConsistent,
