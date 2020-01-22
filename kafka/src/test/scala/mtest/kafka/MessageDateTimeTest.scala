@@ -51,7 +51,7 @@ object DatetimeCase {
 
 }
 
-class DateTimeMessageTest extends AnyFunSuite {
+class MessageDateTimeTest extends AnyFunSuite {
 
   test("supported java date-time type") {
     import DatetimeCase.AllJavaDateTime
