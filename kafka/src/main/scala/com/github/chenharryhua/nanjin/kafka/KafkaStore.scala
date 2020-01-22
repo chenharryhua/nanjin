@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import java.time.Duration
 
-import com.github.chenharryhua.nanjin.kafka.codec.KafkaSerde
+import com.github.chenharryhua.nanjin.kafka.codec.NJSerde
 import org.apache.kafka.streams.processor.StateStore
 import org.apache.kafka.streams.scala.kstream.Materialized
 import org.apache.kafka.streams.state._
@@ -12,8 +12,8 @@ final case class KafkaStoreName(value: String) extends AnyVal
 
 sealed abstract class KafkaStore[K, V, Q[_, _], S <: StateStore](
   storeName: KafkaStoreName,
-  keySerde: KafkaSerde.Key[K],
-  valueSerde: KafkaSerde.Value[V])
+  keySerde: NJSerde[K],
+  valueSerde: NJSerde[V])
     extends Serializable {
   def materialized: Materialized[K, V, S]
   protected def queryableStoreType: QueryableStoreType[Q[K, V]]
@@ -26,8 +26,8 @@ object KafkaStore {
 
   final class Persistent[K, V](
     storeName: KafkaStoreName,
-    keySerde: KafkaSerde.Key[K],
-    valueSerde: KafkaSerde.Value[V])
+    keySerde: NJSerde[K],
+    valueSerde: NJSerde[V])
       extends KafkaStore[K, V, ReadOnlyKeyValueStore, scala.ByteArrayKeyValueStore](
         storeName,
         keySerde,
@@ -42,8 +42,8 @@ object KafkaStore {
 
   final class InMemory[K, V](
     storeName: KafkaStoreName,
-    keySerde: KafkaSerde.Key[K],
-    valueSerde: KafkaSerde.Value[V])
+    keySerde: NJSerde[K],
+    valueSerde: NJSerde[V])
       extends KafkaStore[K, V, ReadOnlyKeyValueStore, scala.ByteArrayKeyValueStore](
         storeName,
         keySerde,
@@ -59,8 +59,8 @@ object KafkaStore {
   final class Session[K, V](
     storeName: KafkaStoreName,
     retentionPeriod: Duration,
-    keySerde: KafkaSerde.Key[K],
-    valueSerde: KafkaSerde.Value[V])
+    keySerde: NJSerde[K],
+    valueSerde: NJSerde[V])
       extends KafkaStore[K, V, ReadOnlySessionStore, scala.ByteArraySessionStore](
         storeName,
         keySerde,
@@ -80,8 +80,8 @@ object KafkaStore {
     retentionPeriod: Duration,
     windowSize: Duration,
     retainDuplicates: Boolean,
-    keySerde: KafkaSerde.Key[K],
-    valueSerde: KafkaSerde.Value[V]
+    keySerde: NJSerde[K],
+    valueSerde: NJSerde[V]
   ) extends KafkaStore[K, V, ReadOnlyWindowStore, scala.ByteArrayWindowStore](
         storeName,
         keySerde,

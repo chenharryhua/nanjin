@@ -8,7 +8,7 @@ import akka.kafka.{
 import cats.data.{NonEmptyList, Reader}
 import cats.effect._
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.codec.KafkaSerde
+import com.github.chenharryhua.nanjin.kafka.codec.NJSerde
 import com.github.chenharryhua.nanjin.utils.Keyboard
 import fs2.Stream
 import fs2.kafka.{ConsumerSettings => Fs2ConsumerSettings, ProducerSettings => Fs2ProducerSettings}
@@ -121,8 +121,8 @@ object KafkaChannels {
 
   final class StreamingChannel[K, V] private[kafka] (
     topicName: TopicName,
-    keySerde: KafkaSerde.Key[K],
-    valueSerde: KafkaSerde.Value[V]) {
+    keySerde: NJSerde[K],
+    valueSerde: NJSerde[V]) {
     import org.apache.kafka.streams.scala.StreamsBuilder
     import org.apache.kafka.streams.scala.kstream.{Consumed, KStream, KTable}
 

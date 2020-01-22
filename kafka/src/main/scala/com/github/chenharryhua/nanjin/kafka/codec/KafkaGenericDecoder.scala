@@ -9,8 +9,8 @@ import scala.util.{Success, Try}
 
 final class KafkaGenericDecoder[F[_, _], K, V](
   data: F[Array[Byte], Array[Byte]],
-  keyCodec: KafkaCodec.Key[K],
-  valueCodec: KafkaCodec.Value[V])(implicit BM: NJConsumerMessage[F]) {
+  keyCodec: NJCodec[K],
+  valueCodec: NJCodec[V])(implicit BM: NJConsumerMessage[F]) {
 
   def decode: F[K, V]                = data.bimap(keyCodec.decode, valueCodec.decode)
   def decodeKey: F[K, Array[Byte]]   = data.bimap(keyCodec.decode, identity)
