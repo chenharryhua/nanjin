@@ -50,6 +50,9 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val description: KafkaTopicDe
   private val fs2ProducerResource: Resource[F, KafkaProducer[F, K, V]] =
     fs2.kafka.producerResource[F].using(description.fs2ProducerSettings)
 
+  def fs2PR(k: K, v: V): ProducerRecord[K, V] =
+    description.fs2PR(k, v)
+
   def send(k: K, v: V): F[ProducerResult[K, V, Unit]] =
     fs2ProducerResource.use(_.produce(description.fs2ProducerRecords(k, v))).flatten
 
