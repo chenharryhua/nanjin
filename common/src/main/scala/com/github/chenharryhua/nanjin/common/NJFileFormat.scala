@@ -8,7 +8,9 @@ import monocle.macros.GenPrism
 import scala.collection.immutable
 
 sealed abstract class NJFileFormat(val value: Int, val format: String)
-    extends IntEnumEntry with Serializable
+    extends IntEnumEntry with Serializable {
+  final override def toString: String = format
+}
 
 object NJFileFormat extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[NJFileFormat] {
   override val values: immutable.IndexedSeq[NJFileFormat] = findValues

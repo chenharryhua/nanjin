@@ -6,16 +6,19 @@ import avrohugger.types._
 import cats.Show
 import cats.effect.Sync
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.{KafkaTopicDescription, SchemaRegistrySettings, TopicName}
-import io.confluent.kafka.schemaregistry.client.SchemaMetadata
+import com.github.chenharryhua.nanjin.kafka.{
+  KafkaTopicDescription,
+  SchemaRegistrySettings,
+  TopicName
+}
+import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaMetadata}
+import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig
 import org.apache.avro.Schema
 
 import scala.collection.JavaConverters._
 import scala.util.Try
-import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig
-import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 
-final case class KvSchemaMetadata(key: Option[SchemaMetadata], value: Option[SchemaMetadata]) {
+object genCaseClass {
 
   private val scalaTypes: Option[AvroScalaTypes] = Some(
     Standard.defaultTypes.copy(
@@ -24,25 +27,29 @@ final case class KvSchemaMetadata(key: Option[SchemaMetadata], value: Option[Sch
       enum     = ScalaCaseObjectEnum,
       protocol = ScalaADT))
 
-  private def genCaseClass(s: SchemaMetadata): Option[String] =
-    Try(
-      Generator(Standard, avroScalaCustomTypes = scalaTypes)
-        .stringToStrings(s.getSchema)
-        .mkString("\n")).toEither.toOption
+  @throws[Exception]
+  def apply(schemaStr: String): String =
+    Generator(Standard, avroScalaCustomTypes = scalaTypes).stringToStrings(schemaStr).mkString("\n")
+}
+
+final case class KvSchemaMetadata(key: Option[SchemaMetadata], value: Option[SchemaMetadata]) {
+
+  private def genCC(s: SchemaMetadata): Option[String] =
+    Try(genCaseClass(s.getSchema)).toEither.toOption
 
   def showKey: String =
     s"""|key schema:
         |id:      ${key.map(_.getId).getOrElse("none")}
         |version: ${key.map(_.getVersion).getOrElse("none")}
         |schema:  ${key.map(_.getSchema).getOrElse("none")}
-        |scala:   ${key.flatMap(genCaseClass).getOrElse("none")}""".stripMargin
+        |scala:   ${key.flatMap(genCC).getOrElse("none")}""".stripMargin
 
   def showValue: String =
     s"""|value schema:
         |id:      ${value.map(_.getId).getOrElse("none")}
         |version: ${value.map(_.getVersion).getOrElse("none")}
         |schema:  ${value.map(_.getSchema).getOrElse("none")}
-        |scala:   ${value.flatMap(genCaseClass).getOrElse("none")}""".stripMargin
+        |scala:   ${value.flatMap(genCC).getOrElse("none")}""".stripMargin
 
   def show: String =
     s"""|key and value schema: 
@@ -116,7 +123,7 @@ object KafkaSchemaRegistryApi {
       extends KafkaSchemaRegistryApi[F] {
 
     val srSettings: SchemaRegistrySettings = topic.settings.schemaRegistrySettings
-    val topicName: TopicName                  = topic.topicDef.topicName
+    val topicName: TopicName               = topic.topicDef.topicName
     val keySchemaLoc: String               = topic.topicDef.keySchemaLoc
     val valueSchemaLoc: String             = topic.topicDef.valueSchemaLoc
     val keySchema: Schema                  = topic.codec.keySchema

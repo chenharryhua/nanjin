@@ -82,7 +82,7 @@ final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], param
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): TypedDataset[NJConsumerRecord[K, V]] = {
-    val path = params.pathBuilder(kafkaDesc.topicName)
+    val path = params.getPath(kafkaDesc.topicName)
     val tds = params.fileFormat match {
       case NJFileFormat.Parquet | NJFileFormat.Avro =>
         TypedDataset.createUnsafe[NJConsumerRecord[K, V]](
@@ -107,14 +107,14 @@ final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], param
           _.write
             .mode(params.saveMode)
             .format(params.fileFormat.format)
-            .save(params.pathBuilder(kafkaDesc.topicName)))
+            .save(params.getPath(kafkaDesc.topicName)))
       case NJFileFormat.Json => saveJson
     }
 
   def saveJson[F[_]: Sync]: F[Unit] = {
     import kafkaDesc.topicDef.{jsonKeyEncoder, jsonValueEncoder}
     datasetFromKafka[F, String](_.asJson.noSpaces)
-      .map(_.write.mode(params.saveMode).text(params.pathBuilder(kafkaDesc.topicName)))
+      .map(_.write.mode(params.saveMode).text(params.getPath(kafkaDesc.topicName)))
   }
 
   // upload to kafka

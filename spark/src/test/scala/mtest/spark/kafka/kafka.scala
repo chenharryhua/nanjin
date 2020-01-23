@@ -30,6 +30,6 @@ package object kafka {
     DatabaseName("postgres"))
 
   implicit val sparkSession: SparkSession =
-    SparkSettings.default.withConf(_.setMaster("local[*]").setAppName("test-spark")).session
+    SparkSettings.default.withConfigUpdate(_.setMaster("local[*]").setAppName("test-spark")).session
 
 }

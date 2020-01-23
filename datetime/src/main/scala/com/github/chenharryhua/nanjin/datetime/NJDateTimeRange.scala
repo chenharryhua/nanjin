@@ -64,12 +64,6 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
   implicit private val njTimestamp: Prism[NJDateTimeRange.TimeTypes, NJTimestamp] =
     coProductPrism[NJDateTimeRange.TimeTypes, NJTimestamp]
 
-  implicit private val zonedDateTime: Prism[NJDateTimeRange.TimeTypes, ZonedDateTime] =
-    coProductPrism[NJDateTimeRange.TimeTypes, ZonedDateTime]
-
-  implicit private val offsetDateTime: Prism[NJDateTimeRange.TimeTypes, OffsetDateTime] =
-    coProductPrism[NJDateTimeRange.TimeTypes, OffsetDateTime]
-
   private def setStart[A](a: A)(
     implicit prism: Prism[NJDateTimeRange.TimeTypes, A]): NJDateTimeRange =
     NJDateTimeRange.start.set(Some(prism.reverseGet(a)))(this)
@@ -79,23 +73,19 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
     NJDateTimeRange.end.set(Some(prism.reverseGet(a)))(this)
 
   //start
-  def withStartTime(ts: NJTimestamp): NJDateTimeRange    = setStart(ts)
-  def withStartTime(ts: LocalDate): NJDateTimeRange      = setStart(ts)
-  def withStartTime(ts: LocalDateTime): NJDateTimeRange  = setStart(ts)
-  def withStartTime(ts: ZonedDateTime): NJDateTimeRange  = setStart(ts)
-  def withStartTime(ts: OffsetDateTime): NJDateTimeRange = setStart(ts)
-  def withStartTime(ts: Instant): NJDateTimeRange        = setStart(NJTimestamp(ts))
-  def withStartTime(ts: Long): NJDateTimeRange           = setStart(NJTimestamp(ts))
-  def withStartTime(ts: Timestamp): NJDateTimeRange      = setStart(NJTimestamp(ts))
+  def withStartTime(ts: NJTimestamp): NJDateTimeRange   = setStart(ts)
+  def withStartTime(ts: LocalDate): NJDateTimeRange     = setStart(ts)
+  def withStartTime(ts: LocalDateTime): NJDateTimeRange = setStart(ts)
+  def withStartTime(ts: Instant): NJDateTimeRange       = setStart(NJTimestamp(ts))
+  def withStartTime(ts: Long): NJDateTimeRange          = setStart(NJTimestamp(ts))
+  def withStartTime(ts: Timestamp): NJDateTimeRange     = setStart(NJTimestamp(ts))
   //end
-  def withEndTime(ts: NJTimestamp): NJDateTimeRange    = setEnd(ts)
-  def withEndTime(ts: LocalDate): NJDateTimeRange      = setEnd(ts)
-  def withEndTime(ts: LocalDateTime): NJDateTimeRange  = setEnd(ts)
-  def withEndTime(ts: ZonedDateTime): NJDateTimeRange  = setEnd(ts)
-  def withEndTime(ts: OffsetDateTime): NJDateTimeRange = setEnd(ts)
-  def withEndTime(ts: Instant): NJDateTimeRange        = setEnd(NJTimestamp(ts))
-  def withEndTime(ts: Long): NJDateTimeRange           = setEnd(NJTimestamp(ts))
-  def withEndTime(ts: Timestamp): NJDateTimeRange      = setEnd(NJTimestamp(ts))
+  def withEndTime(ts: NJTimestamp): NJDateTimeRange   = setEnd(ts)
+  def withEndTime(ts: LocalDate): NJDateTimeRange     = setEnd(ts)
+  def withEndTime(ts: LocalDateTime): NJDateTimeRange = setEnd(ts)
+  def withEndTime(ts: Instant): NJDateTimeRange       = setEnd(NJTimestamp(ts))
+  def withEndTime(ts: Long): NJDateTimeRange          = setEnd(NJTimestamp(ts))
+  def withEndTime(ts: Timestamp): NJDateTimeRange     = setEnd(NJTimestamp(ts))
 
   def oneDay(ts: LocalDate): NJDateTimeRange = setStart(ts).setEnd(ts.plusDays(1))
   def today: NJDateTimeRange                 = oneDay(LocalDate.now)
@@ -122,8 +112,6 @@ object NJDateTimeRange {
     NJTimestamp :+:
       LocalDateTime :+:
       LocalDate :+:
-      ZonedDateTime :+:
-      OffsetDateTime :+:
       CNil
 
   implicit val upperBoundedNJDateTimeRange: UpperBounded[NJDateTimeRange] with Eq[NJDateTimeRange] =
