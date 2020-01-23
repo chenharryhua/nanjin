@@ -118,7 +118,7 @@ object KafkaMonitoringApi {
                            |""".stripMargin)
       }
 
-    private val path: Path = Paths.get(s"./data/kafka/monitor/${topic.topicName}.json")
+    private val path: Path = Paths.get(s"./data/kafka/json/${topic.topicName}.json")
 
     override def save: F[Unit] =
       Stream

@@ -8,8 +8,6 @@ import akka.kafka.{
   ConsumerSettings  => AkkaConsumerSettings,
   ProducerSettings  => AkkaProducerSettings
 }
-import cats.implicits._
-import cats.Show
 import cats.effect.{ConcurrentEffect, ContextShift, IO, Sync, Timer}
 import com.github.chenharryhua.nanjin.utils
 import fs2.kafka.{
@@ -153,7 +151,6 @@ import org.apache.kafka.streams.StreamsConfig
 }
 
 object KafkaSettings {
-  implicit val showKafkaSettings: Show[KafkaSettings] = cats.derived.semi.show[KafkaSettings]
 
   val empty: KafkaSettings = KafkaSettings(
     KafkaConsumerSettings(Map.empty),

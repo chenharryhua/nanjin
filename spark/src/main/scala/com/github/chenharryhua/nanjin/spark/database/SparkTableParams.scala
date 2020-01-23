@@ -6,11 +6,19 @@ import com.github.chenharryhua.nanjin.database.TableName
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
 
+final case class TablePathBuild(tableName: TableName, fileFormat: NJFileFormat)
+
 @Lenses final case class SparkTableParams(
   dbSaveMode: SaveMode,
   fileSaveMode: SaveMode,
-  pathBuilder: Reader[TableName, String],
+  pathBuilder: Reader[TablePathBuild, String],
   fileFormat: NJFileFormat) {
+
+  def getPath(tableName: TableName): String =
+    pathBuilder(TablePathBuild(tableName, fileFormat))
+
+  def withPathBuilder(f: TablePathBuild => String): SparkTableParams =
+    SparkTableParams.pathBuilder.set(Reader(f))(this)
 
   def withFileFormat(ff: NJFileFormat): SparkTableParams =
     SparkTableParams.fileFormat.set(ff)(this)
@@ -39,7 +47,7 @@ object SparkTableParams {
   val default: SparkTableParams = SparkTableParams(
     dbSaveMode   = SaveMode.ErrorIfExists,
     fileSaveMode = SaveMode.Overwrite,
-    pathBuilder  = Reader(tn => s"./data/spark/database/${tn.value}"),
+    pathBuilder  = Reader(tn => s"./data/spark/database/${tn.tableName}/${tn.fileFormat}/"),
     fileFormat   = NJFileFormat.Parquet
   )
 }

@@ -9,7 +9,7 @@ final case class TableDef[A] private (tableName: TableName)(
   implicit val typedEncoder: TypedEncoder[A]) {
 
   def in(dbSettings: DatabaseSettings)(implicit sparkSession: SparkSession): SparkTableSession[A] =
-    SparkTableSession[A](this, dbSettings, SparkTableParams.default)
+    new SparkTableSession[A](this, dbSettings, SparkTableParams.default)
 }
 
 object TableDef {
@@ -17,7 +17,7 @@ object TableDef {
   def apply[A: TypedEncoder](tableName: String): TableDef[A] = TableDef[A](TableName(tableName))
 }
 
-final case class SparkTableSession[A](
+final class SparkTableSession[A](
   tableDef: TableDef[A],
   dbSettings: DatabaseSettings,
   params: SparkTableParams)(implicit sparkSession: SparkSession)
@@ -25,7 +25,7 @@ final case class SparkTableSession[A](
   import tableDef.typedEncoder
 
   def withParamUpdate(f: SparkTableParams => SparkTableParams): SparkTableSession[A] =
-    copy(params = f(params))
+    new SparkTableSession[A](tableDef, dbSettings, f(params))
 
   def datasetFromDB: TypedDataset[A] =
     TypedDataset.createUnsafe[A](
@@ -40,13 +40,11 @@ final case class SparkTableSession[A](
     datasetFromDB.write
       .mode(params.fileSaveMode)
       .format(params.fileFormat.format)
-      .save(params.pathBuilder(tableDef.tableName))
+      .save(params.getPath(tableDef.tableName))
 
   def load: TypedDataset[A] =
     TypedDataset.createUnsafe[A](
-      sparkSession.read
-        .format(params.fileFormat.format)
-        .load(params.pathBuilder(tableDef.tableName)))
+      sparkSession.read.format(params.fileFormat.format).load(params.getPath(tableDef.tableName)))
 
   def dbUpload(data: TypedDataset[A]): Unit =
     data.write

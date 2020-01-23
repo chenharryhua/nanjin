@@ -89,20 +89,13 @@ final class TopicDef[K, V] private (val topicName: TopicName)(
 
   def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[F, K, V] =
     ctx.topic[K, V](this)
-
-  def show: String              = s"TopicDef(topicName = $topicName)"
-  override def toString: String = show
 }
 
 object TopicDef {
 
-  implicit def showeqTopicDef[K, V]: Show[TopicDef[K, V]] with Eq[TopicDef[K, V]] =
-    new Show[TopicDef[K, V]] with Eq[TopicDef[K, V]] {
-
-      override def eqv(x: TopicDef[K, V], y: TopicDef[K, V]): Boolean =
-        x.topicName === y.topicName && x.njConsumerRecordSchema == y.njConsumerRecordSchema
-      override def show(t: TopicDef[K, V]): String = t.show
-    }
+  implicit def eqTopicDef[K, V]: Eq[TopicDef[K, V]] =
+    (x: TopicDef[K, V], y: TopicDef[K, V]) =>
+      x.topicName === y.topicName && x.njConsumerRecordSchema == y.njConsumerRecordSchema
 
   def apply[
     K: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder,
