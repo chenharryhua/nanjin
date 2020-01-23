@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.common
 
-import cats.kernel.Order
 import enumeratum.{CatsEnum, Enum, EnumEntry}
 
 import scala.collection.immutable
@@ -18,7 +17,4 @@ object NJLogLevel extends Enum[NJLogLevel] with CatsEnum[NJLogLevel] {
   case object ERROR extends NJLogLevel(6)
   case object FATAL extends NJLogLevel(7)
   case object OFF extends NJLogLevel(8)
-
-  implicit val orderNJLogLevel: Order[NJLogLevel] =
-    (x: NJLogLevel, y: NJLogLevel) => x.value.compareTo(y.value)
 }
