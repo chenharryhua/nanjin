@@ -31,7 +31,7 @@ object ConversionTactics {
     ConversionTactics(keepPartition = false, keepTimestamp = true)
 }
 
-final case class PathBuildParams(
+final case class KafkaPathBuild(
   timeRange: NJDateTimeRange,
   fileFormat: NJFileFormat,
   topicName: TopicName)
@@ -40,14 +40,14 @@ final case class PathBuildParams(
   timeRange: NJDateTimeRange,
   conversionTactics: ConversionTactics,
   uploadRate: NJRate,
-  pathBuilder: Reader[PathBuildParams, String],
+  pathBuilder: Reader[KafkaPathBuild, String],
   fileFormat: NJFileFormat,
   saveMode: SaveMode,
   locationStrategy: LocationStrategy,
   repartition: Int) {
 
   def getPath(topicName: TopicName): String =
-    pathBuilder(PathBuildParams(timeRange, fileFormat, topicName))
+    pathBuilder(KafkaPathBuild(timeRange, fileFormat, topicName))
 
   def withTimeRange(f: NJDateTimeRange => NJDateTimeRange): SparKafkaParams =
     SparKafkaParams.timeRange.modify(f)(this)
@@ -60,7 +60,7 @@ final case class PathBuildParams(
   def withSaveMode(sm: SaveMode): SparKafkaParams = copy(saveMode = sm)
   def withOverwrite: SparKafkaParams              = copy(saveMode = SaveMode.Overwrite)
 
-  def withPathBuilder(rp: PathBuildParams => String): SparKafkaParams =
+  def withPathBuilder(rp: KafkaPathBuild => String): SparKafkaParams =
     copy(pathBuilder = Reader(rp))
 
   def withFileFormat(ff: NJFileFormat): SparKafkaParams = copy(fileFormat = ff)

@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.kafka.codec
 
-import cats.Show
 import com.github.chenharryhua.nanjin.kafka.{KJson, ManualAvroSchema, TopicName}
 import com.sksamuel.avro4s.{
   AvroSchema,
@@ -27,12 +26,6 @@ final class NJCodec[A](val topicName: TopicName, val serde: NJSerde[A]) extends 
 
   val prism: Prism[Array[Byte], A] =
     Prism[Array[Byte], A](x => Try(decode(x)).toOption)(encode)
-
-  def show: String = s"NJCodec(topicName=$topicName, serde=${serde.show})"
-}
-
-object NJCodec {
-  implicit def showKafkaCodec[A]: Show[NJCodec[A]] = _.show
 }
 
 sealed class NJSerde[A](
@@ -46,15 +39,7 @@ sealed class NJSerde[A](
   serializer.configure(configProps.asJava, tag.isKey)
   deserializer.configure(configProps.asJava, tag.isKey)
 
-  def codec(topicName: TopicName) = new NJCodec[A](topicName, this)
-
-  def show: String = s"${tag.name}-Serde(config=$configProps,schema=${schema.toString(true)})"
-
-  override def toString: String = show
-}
-
-object NJSerde {
-  implicit def showKafkaSerde[A]: Show[NJSerde[A]] = _.show
+  final def codec(topicName: TopicName) = new NJCodec[A](topicName, this)
 }
 
 @implicitNotFound(
@@ -73,7 +58,7 @@ sealed abstract class SerdeOf[A](val schema: Schema) extends Serializable {
 
 sealed private[codec] trait SerdeOfPriority0 {
 
-  implicit def kavroSerde[A: AvroDecoder: AvroEncoder: SchemaFor]: SerdeOf[A] = {
+  implicit final def kavroSerde[A: AvroDecoder: AvroEncoder: SchemaFor]: SerdeOf[A] = {
     val serde: Serde[A] = new KafkaSerdeAvro[A](AvroSchema[A])
     new SerdeOf[A](AvroSchema[A]) {
       override val deserializer: Deserializer[A] = serde.deserializer
@@ -89,7 +74,7 @@ sealed private[codec] trait SerdeOfPriority0 {
 
 sealed private[codec] trait SerdeOfPriority1 extends SerdeOfPriority0 {
 
-  implicit def kjsonSerde[A: JsonDecoder: JsonEncoder]: SerdeOf[KJson[A]] = {
+  implicit final def kjsonSerde[A: JsonDecoder: JsonEncoder]: SerdeOf[KJson[A]] = {
     val serde: Serde[KJson[A]] = new KafkaSerdeJson[A]
     new SerdeOf[KJson[A]](SchemaFor[String].schema(DefaultFieldMapper)) {
       override val deserializer: Deserializer[KJson[A]] = serde.deserializer()

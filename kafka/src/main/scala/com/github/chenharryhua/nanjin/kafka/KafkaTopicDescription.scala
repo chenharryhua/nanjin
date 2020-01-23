@@ -8,9 +8,9 @@ import akka.kafka.{
   ConsumerSettings  => AkkaConsumerSettings,
   ProducerSettings  => AkkaProducerSettings
 }
+import cats.Traverse
 import cats.effect.Sync
 import cats.implicits._
-import cats.{Show, Traverse}
 import com.github.chenharryhua.nanjin.kafka.codec._
 import com.sksamuel.avro4s.Record
 import fs2.kafka.{
@@ -117,18 +117,24 @@ import scala.collection.immutable
       case (k, v) => new ProducerRecord(topicDef.topicName.value, k, v)
     }, p)
 
-  def show: String =
+  override def toString: String = {
+    import cats.derived.auto.show._
     s"""
-       |topic: ${topicDef.show}
+       |topic: $topicName
        |settings: 
-       |${settings.show}
-       |key-schema: 
+       |${settings.consumerSettings.show}
+       |${settings.producerSettings.show}
+       |${settings.schemaRegistrySettings.show}
+       |${settings.adminSettings.show}
+       |${settings.streamSettings.show}
+       |
+       |${codec.keySerde.tag}:
+       |${codec.keySerde.configProps}
        |${codec.keySchema.toString(true)}
-       |value-schema:
+       |
+       |${codec.valueSerde.tag}:
+       |${codec.valueSerde.configProps}
        |${codec.valueSchema.toString(true)}
   """.stripMargin
-}
-
-object KafkaTopicDescription {
-  implicit def showKafkaTopicData[K, V]: Show[KafkaTopicDescription[K, V]] = _.show
+  }
 }

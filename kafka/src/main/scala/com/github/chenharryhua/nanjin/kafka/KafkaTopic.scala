@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import akka.actor.ActorSystem
+import cats.Traverse
 import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
 import cats.implicits._
-import cats.{Show, Traverse}
 import com.github.chenharryhua.nanjin.kafka.api._
 import com.github.chenharryhua.nanjin.kafka.codec.{KafkaGenericDecoder, NJConsumerMessage}
 import fs2.kafka.{KafkaProducer, ProducerRecord, ProducerRecords, ProducerResult}
@@ -70,8 +70,6 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val description: KafkaTopicDe
 
   val monitor: KafkaMonitoringApi[F, K, V] =
     api.KafkaMonitoringApi[F, K, V](this)
-}
 
-object KafkaTopic {
-  implicit def showKafkaTopic[F[_], K, V]: Show[KafkaTopic[F, K, V]] = _.topicName.value
+  override def toString: String = description.toString
 }
