@@ -50,12 +50,10 @@ object KafkaPartition {
 sealed abstract case class KafkaOffsetRange private (from: KafkaOffset, until: KafkaOffset) {
   require(from < until, s"from should be strictly less than until. from = $from, until=$until")
 
-  final val distance: Long = until - from
+  val distance: Long = until - from
 
-  final def show: String =
-    s"KafkaOffsetRange(from = ${from.value}, until = ${until.value}, distance = $distance)"
-
-  final override def toString: String = show
+  override def toString: String =
+    s"KafkaOffsetRange(from=${from.value}, until=${until.value}, distance=$distance)"
 }
 
 object KafkaOffsetRange {
@@ -66,7 +64,7 @@ object KafkaOffsetRange {
     else
       None
 
-  implicit val showKafkaOffsetRange: Show[KafkaOffsetRange] = _.show
+  implicit val showKafkaOffsetRange: Show[KafkaOffsetRange] = _.toString
 
   implicit val poKafkaOffsetRange: PartialOrder[KafkaOffsetRange] =
     (x: KafkaOffsetRange, y: KafkaOffsetRange) =>
