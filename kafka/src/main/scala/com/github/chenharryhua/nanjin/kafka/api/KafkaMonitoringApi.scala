@@ -33,11 +33,11 @@ sealed trait KafkaMonitoringApi[F[_], K, V] {
 
 object KafkaMonitoringApi {
 
-  def apply[F[_]: ConcurrentEffect: ContextShift: Timer, K: Show, V: Show](
+  def apply[F[_]: ConcurrentEffect: ContextShift, K: Show, V: Show](
     topic: KafkaTopic[F, K, V]): KafkaMonitoringApi[F, K, V] =
     new KafkaTopicMonitoring[F, K, V](topic)
 
-  final private class KafkaTopicMonitoring[F[_]: ContextShift: Timer, K: Show, V: Show](
+  final private class KafkaTopicMonitoring[F[_]: ContextShift, K: Show, V: Show](
     topic: KafkaTopic[F, K, V])(implicit F: ConcurrentEffect[F])
       extends KafkaMonitoringApi[F, K, V] {
 
