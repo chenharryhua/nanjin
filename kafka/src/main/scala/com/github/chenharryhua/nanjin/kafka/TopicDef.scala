@@ -56,14 +56,15 @@ final class TopicDef[K, V] private (val topicName: TopicName)(
   val jsonKeyEncoder: JsonEncoder[K],
   val jsonValueEncoder: JsonEncoder[V],
   val jsonKeyDecoder: JsonDecoder[K],
-  val jsonValueDecoder: JsonDecoder[V],
-  val avroKeyEncoder: AvroEncoder[K],
-  val avroValueEncoder: AvroEncoder[V],
-  val avroKeyDecoder: AvroDecoder[K],
-  val avroValueDecoder: AvroDecoder[V])
+  val jsonValueDecoder: JsonDecoder[V])
     extends Serializable {
   val keySchemaLoc: String   = s"${topicName.value}-key"
   val valueSchemaLoc: String = s"${topicName.value}-value"
+
+  implicit private val avroKeyEncoder: AvroEncoder[K]   = serdeOfKey.avroEncoder
+  implicit private val avroValueEncoder: AvroEncoder[V] = serdeOfValue.avroEncoder
+  implicit private val avroKeyDecoder: AvroDecoder[K]   = serdeOfKey.avroDecoder
+  implicit private val avroValueDecoder: AvroDecoder[V] = serdeOfValue.avroDecoder
 
   implicit private val keySchemaFor: SchemaFor[K] =
     (_: FieldMapper) => serdeOfKey.schema
@@ -97,9 +98,7 @@ object TopicDef {
     (x: TopicDef[K, V], y: TopicDef[K, V]) =>
       x.topicName === y.topicName && x.njConsumerRecordSchema == y.njConsumerRecordSchema
 
-  def apply[
-    K: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder,
-    V: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder](
+  def apply[K: Show: JsonEncoder: JsonDecoder, V: Show: JsonEncoder: JsonDecoder](
     topicName: String,
     keySchema: ManualAvroSchema[K],
     valueSchema: ManualAvroSchema[V]): TopicDef[K, V] =
@@ -111,16 +110,9 @@ object TopicDef {
       JsonEncoder[K],
       JsonEncoder[V],
       JsonDecoder[K],
-      JsonDecoder[V],
-      AvroEncoder[K],
-      AvroEncoder[V],
-      AvroDecoder[K],
-      AvroDecoder[V]
-    )
+      JsonDecoder[V])
 
-  def apply[
-    K: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder: SerdeOf,
-    V: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder: SerdeOf](
+  def apply[K: Show: JsonEncoder: JsonDecoder: SerdeOf, V: Show: JsonEncoder: JsonDecoder: SerdeOf](
     topicName: String): TopicDef[K, V] =
     new TopicDef(TopicName(topicName))(
       SerdeOf[K],
@@ -130,16 +122,9 @@ object TopicDef {
       JsonEncoder[K],
       JsonEncoder[V],
       JsonDecoder[K],
-      JsonDecoder[V],
-      AvroEncoder[K],
-      AvroEncoder[V],
-      AvroDecoder[K],
-      AvroDecoder[V]
-    )
+      JsonDecoder[V])
 
-  def apply[
-    K: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder: SerdeOf,
-    V: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder](
+  def apply[K: Show: JsonEncoder: JsonDecoder: SerdeOf, V: Show: JsonEncoder: JsonDecoder](
     topicName: String,
     valueSchema: ManualAvroSchema[V]): TopicDef[K, V] =
     new TopicDef(TopicName(topicName))(
@@ -150,16 +135,9 @@ object TopicDef {
       JsonEncoder[K],
       JsonEncoder[V],
       JsonDecoder[K],
-      JsonDecoder[V],
-      AvroEncoder[K],
-      AvroEncoder[V],
-      AvroDecoder[K],
-      AvroDecoder[V]
-    )
+      JsonDecoder[V])
 
-  def apply[
-    K: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder,
-    V: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder: SerdeOf](
+  def apply[K: Show: JsonEncoder: JsonDecoder, V: Show: JsonEncoder: JsonDecoder: SerdeOf](
     topicName: String,
     keySchema: ManualAvroSchema[K]): TopicDef[K, V] =
     new TopicDef(TopicName(topicName))(
@@ -170,12 +148,7 @@ object TopicDef {
       JsonEncoder[K],
       JsonEncoder[V],
       JsonDecoder[K],
-      JsonDecoder[V],
-      AvroEncoder[K],
-      AvroEncoder[V],
-      AvroDecoder[K],
-      AvroDecoder[V]
-    )
+      JsonDecoder[V])
 }
 
 final class TopicCodec[K, V] private[kafka] (val keyCodec: NJCodec[K], val valueCodec: NJCodec[V])
