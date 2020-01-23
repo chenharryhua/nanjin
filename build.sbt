@@ -23,7 +23,7 @@ val zioCats    = "2.0.0.0-RC10"
 val monix      = "3.1.0"
 val catsEffect = "2.0.0"
 
-val akkaKafka = "2.0.0"
+val akkaKafka = "2.0.1"
 val fs2Kafka  = "1.0.0"
 
 val sparkVersion = "2.4.4"
@@ -126,7 +126,7 @@ val neo4jLib = Seq(
 val scodec = Seq(
   "org.scodec" %% "scodec-core"   % "1.11.4",
   "org.scodec" %% "scodec-bits"   % "1.1.12",
-  "org.scodec" %% "scodec-stream" % "2.0.0",
+  "org.scodec" %% "scodec-stream" % "2.0.1",
   "org.scodec" %% "scodec-cats"   % "1.0.0")
 
 val json = Seq(
