@@ -1,12 +1,13 @@
 package com.github.chenharryhua.nanjin.spark
 
 import cats.effect.{Resource, Sync}
+import com.github.chenharryhua.nanjin.common.NJLogLevel
 import fs2.Stream
 import monocle.macros.Lenses
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 
-@Lenses final case class SparkSettings(conf: SparkConf, logLevel: String) {
+@Lenses final case class SparkSettings(conf: SparkConf, logLevel: NJLogLevel) {
 
   def withKms(kmsKey: String): SparkSettings =
     withConfigUpdate(
@@ -16,7 +17,7 @@ import org.apache.spark.sql.SparkSession
   def withMaster(master: String): SparkSettings =
     withConfigUpdate(_.set("spark.master", master))
 
-  def withLogLevel(logLevel: String): SparkSettings =
+  def withLogLevel(logLevel: NJLogLevel): SparkSettings =
     SparkSettings.logLevel.set(logLevel)(this)
 
   def withConfigUpdate(f: SparkConf => SparkConf): SparkSettings =
@@ -24,7 +25,7 @@ import org.apache.spark.sql.SparkSession
 
   def session: SparkSession = {
     val spk = SparkSession.builder().config(conf).getOrCreate()
-    spk.sparkContext.setLogLevel(logLevel)
+    spk.sparkContext.setLogLevel(logLevel.entryName)
     spk
   }
 
@@ -38,7 +39,7 @@ import org.apache.spark.sql.SparkSession
 object SparkSettings {
 
   val default: SparkSettings =
-    SparkSettings(new SparkConf, "warn").withConfigUpdate(
+    SparkSettings(new SparkConf, NJLogLevel.WARN).withConfigUpdate(
       _.set("spark.master", "local[*]")
         .set("spark.ui.enabled", "true")
         .set("spark.network.timeout", "800")
