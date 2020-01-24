@@ -4,7 +4,6 @@ import cats.Show
 import cats.data.Reader
 import cats.effect.{ConcurrentEffect, ContextShift, IO, Timer}
 import com.github.chenharryhua.nanjin.kafka.codec.{NJSerde, SerdeOf}
-import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
 import fs2.Stream
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import org.apache.kafka.streams.KafkaStreams
@@ -26,9 +25,8 @@ sealed class KafkaContext[F[_]](val settings: KafkaSettings)(
     new KafkaTopic[F, K, V](KafkaTopicDescription(topicDef, settings))
 
   final def topic[
-    K: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder: SerdeOf,
-    V: Show: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder: SerdeOf](
-    topicName: String): KafkaTopic[F, K, V] =
+    K: Show: JsonEncoder: JsonDecoder: SerdeOf,
+    V: Show: JsonEncoder: JsonDecoder: SerdeOf](topicName: String): KafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](topicName))
 
   final def kafkaStreams(topology: Reader[StreamsBuilder, Unit]): Stream[F, KafkaStreams] =

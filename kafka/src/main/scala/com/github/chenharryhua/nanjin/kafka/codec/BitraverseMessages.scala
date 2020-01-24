@@ -33,7 +33,7 @@ sealed trait BitraverseMessages[F[_, _]] extends Bitraverse[F] with BitraverseKa
 object BitraverseMessages {
   def apply[F[_, _]](implicit ev: BitraverseMessages[F]): BitraverseMessages[F] = ev
 
-  implicit def Imsbi1[P]: BitraverseMessages[Fs2ProducerRecords[*, *, P]] =
+  implicit def imsbi1[P]: BitraverseMessages[Fs2ProducerRecords[*, *, P]] =
     new BitraverseMessages[Fs2ProducerRecords[*, *, P]] {
 
       override def traversal[K1, V1, K2, V2]: PTraversal[
@@ -52,7 +52,7 @@ object BitraverseMessages {
           PTraversal.fromTraverse[Chunk, ProducerRecord[K1, V1], ProducerRecord[K2, V2]])
     }
 
-  implicit def Imsbi2[F[_]]: BitraverseMessages[Fs2CommittableProducerRecords[F, *, *]] =
+  implicit def imsbi2[F[_]]: BitraverseMessages[Fs2CommittableProducerRecords[F, *, *]] =
     new BitraverseMessages[Fs2CommittableProducerRecords[F, *, *]] {
 
       override def traversal[K1, V1, K2, V2]: PTraversal[
@@ -71,7 +71,7 @@ object BitraverseMessages {
           PTraversal.fromTraverse[Chunk, ProducerRecord[K1, V1], ProducerRecord[K2, V2]])
     }
 
-  implicit def Imsbi3[F[_], P]: BitraverseMessages[Fs2TransactionalProducerRecords[F, *, *, P]] =
+  implicit def imsbi3[F[_], P]: BitraverseMessages[Fs2TransactionalProducerRecords[F, *, *, P]] =
     new BitraverseMessages[Fs2TransactionalProducerRecords[F, *, *, P]] {
 
       override def traversal[K1, V1, K2, V2]: PTraversal[
@@ -90,10 +90,10 @@ object BitraverseMessages {
               Chunk,
               Fs2CommittableProducerRecords[F, K1, V1],
               Fs2CommittableProducerRecords[F, K2, V2]])
-          .composeTraversal(Imsbi2.traversal)
+          .composeTraversal(imsbi2.traversal)
     }
 
-  implicit def Imsbi4[P]: BitraverseMessages[AkkaMultiMessage[*, *, P]] =
+  implicit def imsbi4[P]: BitraverseMessages[AkkaMultiMessage[*, *, P]] =
     new BitraverseMessages[AkkaMultiMessage[*, *, P]] {
 
       override def traversal[K1, V1, K2, V2]: PTraversal[

@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.implicits._
-import cats.{Bifunctor, Order}
+import cats.Bifunctor
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import monocle.macros.Lenses
