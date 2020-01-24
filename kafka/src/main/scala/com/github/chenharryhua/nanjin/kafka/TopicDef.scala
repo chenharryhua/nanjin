@@ -53,8 +53,8 @@ final class TopicDef[K, V] private (val topicName: TopicName)(
   val showKey: Show[K],
   val showValue: Show[V],
   val jsonKeyEncoder: JsonEncoder[K],
-  val jsonValueEncoder: JsonEncoder[V],
   val jsonKeyDecoder: JsonDecoder[K],
+  val jsonValueEncoder: JsonEncoder[V],
   val jsonValueDecoder: JsonDecoder[V])
     extends Serializable {
   val keySchemaLoc: String   = s"${topicName.value}-key"
@@ -73,10 +73,10 @@ final class TopicDef[K, V] private (val topicName: TopicName)(
 
   val njConsumerRecordSchema: Schema = AvroSchema[NJConsumerRecord[K, V]]
 
-  @transient private lazy val toAvroRecord: ToRecord[NJConsumerRecord[K, V]] =
+  private val toAvroRecord: ToRecord[NJConsumerRecord[K, V]] =
     ToRecord[NJConsumerRecord[K, V]](njConsumerRecordSchema)
 
-  @transient private lazy val fromAvroRecord: FromRecord[NJConsumerRecord[K, V]] =
+  private val fromAvroRecord: FromRecord[NJConsumerRecord[K, V]] =
     FromRecord[NJConsumerRecord[K, V]](njConsumerRecordSchema)
 
   def toAvro(cr: NJConsumerRecord[K, V]): Record   = toAvroRecord.to(cr)
@@ -107,8 +107,8 @@ object TopicDef {
       Show[K],
       Show[V],
       JsonEncoder[K],
-      JsonEncoder[V],
       JsonDecoder[K],
+      JsonEncoder[V],
       JsonDecoder[V])
 
   def apply[K: Show: JsonEncoder: JsonDecoder: SerdeOf, V: Show: JsonEncoder: JsonDecoder: SerdeOf](
@@ -119,8 +119,8 @@ object TopicDef {
       Show[K],
       Show[V],
       JsonEncoder[K],
-      JsonEncoder[V],
       JsonDecoder[K],
+      JsonEncoder[V],
       JsonDecoder[V])
 
   def apply[K: Show: JsonEncoder: JsonDecoder: SerdeOf, V: Show: JsonEncoder: JsonDecoder](
@@ -132,8 +132,8 @@ object TopicDef {
       Show[K],
       Show[V],
       JsonEncoder[K],
-      JsonEncoder[V],
       JsonDecoder[K],
+      JsonEncoder[V],
       JsonDecoder[V])
 
   def apply[K: Show: JsonEncoder: JsonDecoder, V: Show: JsonEncoder: JsonDecoder: SerdeOf](
@@ -145,7 +145,7 @@ object TopicDef {
       Show[K],
       Show[V],
       JsonEncoder[K],
-      JsonEncoder[V],
       JsonDecoder[K],
+      JsonEncoder[V],
       JsonDecoder[V])
 }

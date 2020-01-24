@@ -11,10 +11,10 @@ final case class Bar(a: Int, b: String)
 
 class KafkaAvroTest extends AnyFunSuite {
   val fooCodec = SerdeOf[Foo].asValue(sr).codec(TopicName("avro.test"))
-  val barCode  = SerdeOf[Bar].asKey(sr).codec(TopicName("avro.test"))
+  val barCodec = SerdeOf[Bar].asKey(sr).codec(TopicName("avro.test"))
 
   test("tryDecode should fail if codec not match") {
-    assert(barCode.tryDecode(fooCodec.encode(Foo("a", 0))).isFailure)
+    assert(barCodec.tryDecode(fooCodec.encode(Foo("a", 0))).isFailure)
   }
 
   test("tryDecode should be identical") {
@@ -23,6 +23,6 @@ class KafkaAvroTest extends AnyFunSuite {
   }
 
   test("should throw InvalidObjectException when codec does not match") {
-    assertThrows[InvalidObjectException](barCode.decode(fooCodec.encode(Foo("a", 0))))
+    assertThrows[InvalidObjectException](barCodec.decode(fooCodec.encode(Foo("a", 0))))
   }
 }

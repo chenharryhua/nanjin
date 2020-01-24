@@ -1,5 +1,6 @@
 package mtest.kafka
 
+import java.sql.{Date, Timestamp}
 import java.time._
 
 import cats.derived.auto.show._
@@ -25,7 +26,7 @@ object DatetimeCase {
   )
 
   //supported date-time in circe
-  @JsonCodec final case class AllJavaDateTime2(
+  @JsonCodec final case class JsonDateTime(
     local: LocalDateTime,
     ld: LocalDate,
     zoned: ZonedDateTime,
@@ -37,18 +38,17 @@ object DatetimeCase {
   )
 
   //supported date-time in avro4s
-  final case class AllJavaDateTime3(
+  final case class AvroDateTime(
     local: LocalDateTime,
     ld: LocalDate,
-    // zoned: ZonedDateTime ,
+    //zoned: ZonedDateTime,
     // offseted: OffsetDateTime ,
     instant: Instant,
-    // sqlDate: Date,
-    // sqlTs: Timestamp,
+    sqlDate: Date,
+    sqlTs: Timestamp,
     dummy: Int = 0
   )
-  implicitly[Encoder[AllJavaDateTime3]]
-
+  implicitly[Encoder[AvroDateTime]]
 }
 
 class MessageDateTimeTest extends AnyFunSuite {
