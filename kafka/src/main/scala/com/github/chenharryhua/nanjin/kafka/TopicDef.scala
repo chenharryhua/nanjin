@@ -21,7 +21,6 @@ import io.circe.parser.decode
 import io.circe.syntax._
 import io.circe.{Error, Json, Decoder => JsonDecoder, Encoder => JsonEncoder}
 import org.apache.avro.Schema
-import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 import shapeless.Witness
 
 final class TopicName(name: Refined[String, TopicName.Constraint]) extends Serializable {
@@ -149,19 +148,4 @@ object TopicDef {
       JsonEncoder[V],
       JsonDecoder[K],
       JsonDecoder[V])
-}
-
-final class TopicCodec[K, V] private[kafka] (val keyCodec: NJCodec[K], val valueCodec: NJCodec[V])
-    extends Serializable {
-  require(
-    keyCodec.topicName === valueCodec.topicName,
-    "key and value codec should have same topic name")
-  val keySerde: NJSerde[K]               = keyCodec.serde
-  val valueSerde: NJSerde[V]             = valueCodec.serde
-  val keySchema: Schema                  = keySerde.schema
-  val valueSchema: Schema                = valueSerde.schema
-  val keySerializer: Serializer[K]       = keySerde.serializer
-  val keyDeserializer: Deserializer[K]   = keySerde.deserializer
-  val valueSerializer: Serializer[V]     = valueSerde.serializer
-  val valueDeserializer: Deserializer[V] = valueSerde.deserializer
 }
