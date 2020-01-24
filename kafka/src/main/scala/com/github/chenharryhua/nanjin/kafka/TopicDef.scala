@@ -62,8 +62,8 @@ final class TopicDef[K, V] private (val topicName: TopicName)(
   val valueSchemaLoc: String = s"${topicName.value}-value"
 
   implicit private val avroKeyEncoder: AvroEncoder[K]   = serdeOfKey.avroEncoder
-  implicit private val avroValueEncoder: AvroEncoder[V] = serdeOfValue.avroEncoder
   implicit private val avroKeyDecoder: AvroDecoder[K]   = serdeOfKey.avroDecoder
+  implicit private val avroValueEncoder: AvroEncoder[V] = serdeOfValue.avroEncoder
   implicit private val avroValueDecoder: AvroDecoder[V] = serdeOfValue.avroDecoder
 
   implicit private val keySchemaFor: SchemaFor[K] =
