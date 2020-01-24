@@ -22,8 +22,10 @@ import fs2.kafka.{
 import io.circe.{Error, Json}
 import monocle.function.At
 import monocle.macros.Lenses
+import org.apache.avro.Schema
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 
 import scala.collection.immutable
 
@@ -137,4 +139,18 @@ import scala.collection.immutable
        |${codec.valueSchema.toString(true)}
   """.stripMargin
   }
+}
+
+final class TopicCodec[K, V] private[kafka] (val keyCodec: NJCodec[K], val valueCodec: NJCodec[V]) {
+  require(
+    keyCodec.topicName === valueCodec.topicName,
+    "key and value codec should have same topic name")
+  val keySerde: NJSerde[K]               = keyCodec.serde
+  val valueSerde: NJSerde[V]             = valueCodec.serde
+  val keySchema: Schema                  = keySerde.schema
+  val valueSchema: Schema                = valueSerde.schema
+  val keySerializer: Serializer[K]       = keySerde.serializer
+  val keyDeserializer: Deserializer[K]   = keySerde.deserializer
+  val valueSerializer: Serializer[V]     = valueSerde.serializer
+  val valueDeserializer: Deserializer[V] = valueSerde.deserializer
 }

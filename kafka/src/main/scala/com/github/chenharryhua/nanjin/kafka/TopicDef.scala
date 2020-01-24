@@ -21,7 +21,6 @@ import io.circe.parser.decode
 import io.circe.syntax._
 import io.circe.{Error, Json, Decoder => JsonDecoder, Encoder => JsonEncoder}
 import org.apache.avro.Schema
-import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 import shapeless.Witness
 
 final class TopicName(name: Refined[String, TopicName.Constraint]) extends Serializable {
@@ -54,8 +53,8 @@ final class TopicDef[K, V] private (val topicName: TopicName)(
   val showKey: Show[K],
   val showValue: Show[V],
   val jsonKeyEncoder: JsonEncoder[K],
-  val jsonValueEncoder: JsonEncoder[V],
   val jsonKeyDecoder: JsonDecoder[K],
+  val jsonValueEncoder: JsonEncoder[V],
   val jsonValueDecoder: JsonDecoder[V])
     extends Serializable {
   val keySchemaLoc: String   = s"${topicName.value}-key"
@@ -74,10 +73,10 @@ final class TopicDef[K, V] private (val topicName: TopicName)(
 
   val njConsumerRecordSchema: Schema = AvroSchema[NJConsumerRecord[K, V]]
 
-  @transient private lazy val toAvroRecord: ToRecord[NJConsumerRecord[K, V]] =
+  private val toAvroRecord: ToRecord[NJConsumerRecord[K, V]] =
     ToRecord[NJConsumerRecord[K, V]](njConsumerRecordSchema)
 
-  @transient private lazy val fromAvroRecord: FromRecord[NJConsumerRecord[K, V]] =
+  private val fromAvroRecord: FromRecord[NJConsumerRecord[K, V]] =
     FromRecord[NJConsumerRecord[K, V]](njConsumerRecordSchema)
 
   def toAvro(cr: NJConsumerRecord[K, V]): Record   = toAvroRecord.to(cr)
@@ -108,8 +107,8 @@ object TopicDef {
       Show[K],
       Show[V],
       JsonEncoder[K],
-      JsonEncoder[V],
       JsonDecoder[K],
+      JsonEncoder[V],
       JsonDecoder[V])
 
   def apply[K: Show: JsonEncoder: JsonDecoder: SerdeOf, V: Show: JsonEncoder: JsonDecoder: SerdeOf](
@@ -120,8 +119,8 @@ object TopicDef {
       Show[K],
       Show[V],
       JsonEncoder[K],
-      JsonEncoder[V],
       JsonDecoder[K],
+      JsonEncoder[V],
       JsonDecoder[V])
 
   def apply[K: Show: JsonEncoder: JsonDecoder: SerdeOf, V: Show: JsonEncoder: JsonDecoder](
@@ -133,8 +132,8 @@ object TopicDef {
       Show[K],
       Show[V],
       JsonEncoder[K],
-      JsonEncoder[V],
       JsonDecoder[K],
+      JsonEncoder[V],
       JsonDecoder[V])
 
   def apply[K: Show: JsonEncoder: JsonDecoder, V: Show: JsonEncoder: JsonDecoder: SerdeOf](
@@ -146,22 +145,7 @@ object TopicDef {
       Show[K],
       Show[V],
       JsonEncoder[K],
-      JsonEncoder[V],
       JsonDecoder[K],
+      JsonEncoder[V],
       JsonDecoder[V])
-}
-
-final class TopicCodec[K, V] private[kafka] (val keyCodec: NJCodec[K], val valueCodec: NJCodec[V])
-    extends Serializable {
-  require(
-    keyCodec.topicName === valueCodec.topicName,
-    "key and value codec should have same topic name")
-  val keySerde: NJSerde[K]               = keyCodec.serde
-  val valueSerde: NJSerde[V]             = valueCodec.serde
-  val keySchema: Schema                  = keySerde.schema
-  val valueSchema: Schema                = valueSerde.schema
-  val keySerializer: Serializer[K]       = keySerde.serializer
-  val keyDeserializer: Deserializer[K]   = keySerde.deserializer
-  val valueSerializer: Serializer[V]     = valueSerde.serializer
-  val valueDeserializer: Deserializer[V] = valueSerde.deserializer
 }
