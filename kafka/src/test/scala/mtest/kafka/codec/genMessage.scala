@@ -13,7 +13,7 @@ import akka.kafka.testkit.ConsumerResultFactory
 import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage, MultiMessage => AkkaMultiMessage}
 import akka.kafka.internal.CommittableOffsetImpl
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.kafka.{NJConsumerRecord, NJProducerRecord}
+import com.github.chenharryhua.nanjin.kafka.data.NJProducerRecord
 import com.github.chenharryhua.nanjin.kafka.codec._
 import fs2.Chunk
 import fs2.kafka.{
@@ -34,6 +34,7 @@ import org.scalacheck.Gen
 import scala.compat.java8.OptionConverters._
 import scala.concurrent.Future
 import com.github.chenharryhua.nanjin.kafka.codec.iso._
+import com.github.chenharryhua.nanjin.kafka.data.{NJConsumerRecord, NJProducerRecord}
 
 object genMessage {
 

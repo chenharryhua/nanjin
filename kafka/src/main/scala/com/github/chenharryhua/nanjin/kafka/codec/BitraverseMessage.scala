@@ -9,7 +9,7 @@ import cats.data.Chain
 import cats.implicits._
 import cats.mtl.FunctorTell
 import cats.{Applicative, Bitraverse, Eval}
-import com.github.chenharryhua.nanjin.kafka.{NJConsumerRecord, NJProducerRecord}
+import com.github.chenharryhua.nanjin.kafka.data.{KeyValueTag, NJConsumerRecord, NJProducerRecord}
 import fs2.kafka.{
   CommittableConsumerRecord => Fs2CommittableConsumerRecord,
   ConsumerRecord            => Fs2ConsumerRecord,

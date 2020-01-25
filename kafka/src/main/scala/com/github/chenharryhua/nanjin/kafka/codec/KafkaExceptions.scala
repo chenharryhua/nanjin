@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka.codec
 
+import com.github.chenharryhua.nanjin.kafka.data.KeyValueTag
 import monocle.macros.Lenses
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord

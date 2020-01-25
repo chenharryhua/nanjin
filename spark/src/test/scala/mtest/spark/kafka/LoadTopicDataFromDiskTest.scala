@@ -1,11 +1,11 @@
 package mtest.spark.kafka
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.kafka._
 import frameless.TypedDataset
 import org.scalatest.funsuite.AnyFunSuite
 import cats.instances.all._
+import com.github.chenharryhua.nanjin.kafka.data.NJConsumerRecord
 import org.apache.spark.sql.SaveMode
 import frameless.cats.implicits._
 

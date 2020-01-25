@@ -1,3 +1,3 @@
 package com.github.chenharryhua.nanjin
 
-package object kafka extends codec.ShowKafkaMessage
+package object kafka extends ShowKafkaMessage

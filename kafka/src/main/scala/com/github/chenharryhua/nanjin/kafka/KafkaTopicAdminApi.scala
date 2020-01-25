@@ -1,8 +1,8 @@
-package com.github.chenharryhua.nanjin.kafka.api
+package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.{Concurrent, ContextShift, Resource}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.{KafkaConsumerGroupInfo, KafkaTopicDescription}
+import com.github.chenharryhua.nanjin.kafka.data.KafkaConsumerGroupInfo
 import fs2.kafka.{adminClientResource, AdminClientSettings, KafkaAdminClient}
 import org.apache.kafka.clients.admin.TopicDescription
 

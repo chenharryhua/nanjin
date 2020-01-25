@@ -5,15 +5,14 @@ import java.util
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.{NJFileFormat, UpdateParams}
-import com.github.chenharryhua.nanjin.kafka.api.KafkaConsumerApi
 import com.github.chenharryhua.nanjin.kafka.codec.iso
-import com.github.chenharryhua.nanjin.kafka.{
+import com.github.chenharryhua.nanjin.kafka.data.{
   KafkaOffsetRange,
-  KafkaTopicDescription,
   KafkaTopicPartition,
   NJConsumerRecord,
   NJProducerRecord
 }
+import com.github.chenharryhua.nanjin.kafka.{KafkaConsumerApi, KafkaTopicDescription}
 import com.github.chenharryhua.nanjin.spark._
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.kafka._

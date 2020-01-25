@@ -14,9 +14,10 @@ import frameless.cats.implicits._
 import cats.derived.auto.show._
 import io.circe.syntax._
 import io.circe.generic.auto._
-import com.github.chenharryhua.nanjin.kafka.{ManualAvroSchema, NJConsumerRecord, TopicDef}
+import com.github.chenharryhua.nanjin.kafka.TopicDef
 import java.time.Instant
 
+import com.github.chenharryhua.nanjin.kafka.codec.ManualAvroSchema
 import com.landoop.transportation.nyc.trip.yellow.trip_record
 
 class SparKafkaTest extends AnyFunSuite {

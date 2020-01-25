@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.flink.kafka
 
 import com.github.chenharryhua.nanjin.common.UpdateParams
-import com.github.chenharryhua.nanjin.kafka.{KafkaTopicDescription, NJConsumerRecord}
+import com.github.chenharryhua.nanjin.kafka.KafkaTopicDescription
+import com.github.chenharryhua.nanjin.kafka.data.NJConsumerRecord
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer, KafkaDeserializationSchema}

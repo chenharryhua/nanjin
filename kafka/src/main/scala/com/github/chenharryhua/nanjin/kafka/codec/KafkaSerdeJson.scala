@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka.codec
 
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.KJson
 import io.circe.syntax._
 import io.circe.{parser, Decoder, Encoder}
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}

@@ -3,11 +3,8 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import java.time.Clock
 
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import com.github.chenharryhua.nanjin.kafka.{
-  KafkaTopicDescription,
-  NJConsumerRecord,
-  NJProducerRecord
-}
+import com.github.chenharryhua.nanjin.kafka.KafkaTopicDescription
+import com.github.chenharryhua.nanjin.kafka.data.{NJConsumerRecord, NJProducerRecord}
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SparkSession
 

@@ -2,13 +2,13 @@ package mtest.kafka.codec
 
 import cats.derived.auto.eq._
 import cats.kernel.laws.discipline.{OrderTests, PartialOrderTests}
-import com.github.chenharryhua.nanjin.kafka.{KafkaOffset, KafkaOffsetRange, KafkaPartition}
+import com.github.chenharryhua.nanjin.kafka.data.{KafkaOffset, KafkaOffsetRange, KafkaPartition}
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 import org.scalatest.prop.Configuration
 
-class KafkaOffsetRangeTests extends AnyFunSuite with FunSuiteDiscipline with Configuration{
+class KafkaOffsetRangeTests extends AnyFunSuite with FunSuiteDiscipline with Configuration {
 
   implicit val arbiKafkaOffsetRange: Arbitrary[KafkaOffsetRange] =
     Arbitrary(for {
