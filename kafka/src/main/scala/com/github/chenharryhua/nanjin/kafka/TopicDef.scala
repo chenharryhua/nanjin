@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.Show
 import cats.implicits._
 import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.kafka.codec._
@@ -24,8 +23,6 @@ final class TopicDef[K, V] private (val topicName: TopicName)(
   implicit
   val serdeOfKey: SerdeOf[K],
   val serdeOfValue: SerdeOf[V],
-  val showKey: Show[K],
-  val showValue: Show[V],
   val jsonKeyEncoder: JsonEncoder[K],
   val jsonKeyDecoder: JsonDecoder[K],
   val jsonValueEncoder: JsonEncoder[V],
@@ -71,53 +68,45 @@ object TopicDef {
     (x: TopicDef[K, V], y: TopicDef[K, V]) =>
       x.topicName === y.topicName && x.njConsumerRecordSchema == y.njConsumerRecordSchema
 
-  def apply[K: Show: JsonEncoder: JsonDecoder, V: Show: JsonEncoder: JsonDecoder](
+  def apply[K: JsonEncoder: JsonDecoder, V: JsonEncoder: JsonDecoder](
     topicName: String,
     keySchema: ManualAvroSchema[K],
     valueSchema: ManualAvroSchema[V]): TopicDef[K, V] =
     new TopicDef(TopicName(topicName))(
       SerdeOf(keySchema),
       SerdeOf(valueSchema),
-      Show[K],
-      Show[V],
       JsonEncoder[K],
       JsonDecoder[K],
       JsonEncoder[V],
       JsonDecoder[V])
 
-  def apply[K: Show: JsonEncoder: JsonDecoder: SerdeOf, V: Show: JsonEncoder: JsonDecoder: SerdeOf](
+  def apply[K: JsonEncoder: JsonDecoder: SerdeOf, V: JsonEncoder: JsonDecoder: SerdeOf](
     topicName: String): TopicDef[K, V] =
     new TopicDef(TopicName(topicName))(
       SerdeOf[K],
       SerdeOf[V],
-      Show[K],
-      Show[V],
       JsonEncoder[K],
       JsonDecoder[K],
       JsonEncoder[V],
       JsonDecoder[V])
 
-  def apply[K: Show: JsonEncoder: JsonDecoder: SerdeOf, V: Show: JsonEncoder: JsonDecoder](
+  def apply[K: JsonEncoder: JsonDecoder: SerdeOf, V: JsonEncoder: JsonDecoder](
     topicName: String,
     valueSchema: ManualAvroSchema[V]): TopicDef[K, V] =
     new TopicDef(TopicName(topicName))(
       SerdeOf[K],
       SerdeOf(valueSchema),
-      Show[K],
-      Show[V],
       JsonEncoder[K],
       JsonDecoder[K],
       JsonEncoder[V],
       JsonDecoder[V])
 
-  def apply[K: Show: JsonEncoder: JsonDecoder, V: Show: JsonEncoder: JsonDecoder: SerdeOf](
+  def apply[K: JsonEncoder: JsonDecoder, V: JsonEncoder: JsonDecoder: SerdeOf](
     topicName: String,
     keySchema: ManualAvroSchema[K]): TopicDef[K, V] =
     new TopicDef(TopicName(topicName))(
       SerdeOf(keySchema),
       SerdeOf[V],
-      Show[K],
-      Show[V],
       JsonEncoder[K],
       JsonDecoder[K],
       JsonEncoder[V],

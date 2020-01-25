@@ -15,7 +15,6 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val description: KafkaTopicDe
   val timer: Timer[F],
   val contextShift: ContextShift[F]
 ) extends TopicNameExtractor[K, V] {
-  import description.topicDef.{showKey, showValue}
 
   val topicName: TopicName = description.topicDef.topicName
 

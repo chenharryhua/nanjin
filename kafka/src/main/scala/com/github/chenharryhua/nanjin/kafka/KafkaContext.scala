@@ -24,9 +24,8 @@ sealed class KafkaContext[F[_]](val settings: KafkaSettings)(
   final def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] =
     new KafkaTopic[F, K, V](KafkaTopicDescription(topicDef, settings))
 
-  final def topic[
-    K: Show: JsonEncoder: JsonDecoder: SerdeOf,
-    V: Show: JsonEncoder: JsonDecoder: SerdeOf](topicName: String): KafkaTopic[F, K, V] =
+  final def topic[K: JsonEncoder: JsonDecoder: SerdeOf, V: JsonEncoder: JsonDecoder: SerdeOf](
+    topicName: String): KafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](topicName))
 
   final def kafkaStreams(topology: Reader[StreamsBuilder, Unit]): Stream[F, KafkaStreams] =

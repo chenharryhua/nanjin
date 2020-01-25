@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.kafka
 
 import java.nio.file.{Path, Paths}
 
-import cats.Show
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
@@ -10,6 +9,7 @@ import com.github.chenharryhua.nanjin.kafka.codec.iso
 import com.github.chenharryhua.nanjin.kafka.common.KafkaOffset
 import fs2.kafka.{produce, AutoOffsetReset, ProducerRecords}
 import fs2.{text, Stream}
+import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
 import scala.util.Try
@@ -33,12 +33,12 @@ sealed trait KafkaMonitoringApi[F[_], K, V] {
 
 object KafkaMonitoringApi {
 
-  def apply[F[_]: ConcurrentEffect: ContextShift, K: Show, V: Show](
+  def apply[F[_]: ConcurrentEffect: ContextShift, K, V](
     topic: KafkaTopic[F, K, V]): KafkaMonitoringApi[F, K, V] =
     new KafkaTopicMonitoring[F, K, V](topic)
 
-  final private class KafkaTopicMonitoring[F[_]: ContextShift, K: Show, V: Show](
-    topic: KafkaTopic[F, K, V])(implicit F: ConcurrentEffect[F])
+  final private class KafkaTopicMonitoring[F[_]: ContextShift, K, V](topic: KafkaTopic[F, K, V])(
+    implicit F: ConcurrentEffect[F])
       extends KafkaMonitoringApi[F, K, V] {
 
     private val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
@@ -48,8 +48,10 @@ object KafkaMonitoringApi {
       fs2Channel
         .withConsumerSettings(_.withAutoOffsetReset(aor))
         .consume
-        .map(m => topic.decoder(m).tryDecodeKeyValue)
-        .map(_.show)
+        .map { m =>
+          val rec: GenericRecord = topic.description.toAvro(m)
+          rec.toString
+        }
         .showLinesStdOut
         .compile
         .drain
@@ -62,7 +64,7 @@ object KafkaMonitoringApi {
         .consume
         .map(m => topic.decoder(m).tryDecodeKeyValue)
         .filter(m => predict(iso.isoFs2ComsumerRecord.get(m.record)))
-        .map(_.show)
+        .map(_.toString)
         .showLinesStdOut
         .compile
         .drain
@@ -78,7 +80,7 @@ object KafkaMonitoringApi {
         _ <- fs2Channel
           .assign(gtp.flatten[KafkaOffset].mapValues(_.value).value)
           .map(m => topic.decoder(m).tryDecodeKeyValue)
-          .map(_.show)
+          .map(_.toString)
           .showLinesStdOut
           .compile
           .drain
@@ -111,10 +113,10 @@ object KafkaMonitoringApi {
                            |
                            |number of records: $num
                            |first records of each partitions: 
-                           |${first.map(_.show).mkString("\n")}
+                           |${first.map(_.toString).mkString("\n")}
                            |
                            |last records of each partitions:
-                           |${last.map(_.show).mkString("\n")}
+                           |${last.map(_.toString).mkString("\n")}
                            |""".stripMargin)
       }
 
