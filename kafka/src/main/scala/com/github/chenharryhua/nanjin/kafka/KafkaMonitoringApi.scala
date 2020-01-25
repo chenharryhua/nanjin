@@ -9,7 +9,6 @@ import com.github.chenharryhua.nanjin.kafka.codec.iso
 import com.github.chenharryhua.nanjin.kafka.common.KafkaOffset
 import fs2.kafka.{produce, AutoOffsetReset, ProducerRecords}
 import fs2.{text, Stream}
-import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
 import scala.util.Try
@@ -48,10 +47,7 @@ object KafkaMonitoringApi {
       fs2Channel
         .withConsumerSettings(_.withAutoOffsetReset(aor))
         .consume
-        .map { m =>
-          val rec: GenericRecord = topic.description.toAvro(m)
-          rec.toString
-        }
+        .map(m => topic.description.toJson(m))
         .showLinesStdOut
         .compile
         .drain
@@ -127,7 +123,7 @@ object KafkaMonitoringApi {
         .resource[F, Blocker](Blocker[F])
         .flatMap { blocker =>
           fs2Channel.consume
-            .map(x => topic.description.toJson(x).noSpaces)
+            .map(x => topic.description.toJson(x))
             .intersperse("\n")
             .through(text.utf8Encode)
             .through(fs2.io.file.writeAll(path, blocker))
@@ -143,12 +139,7 @@ object KafkaMonitoringApi {
             .readAll(path, blocker, 5000)
             .through(fs2.text.utf8Decode)
             .through(fs2.text.lines)
-            .mapFilter { str =>
-              topic.description
-                .fromJsonStr(str)
-                .leftMap(err => println(s"decode json error: ${err.getMessage}"))
-                .toOption
-            }
+            .mapFilter(str => topic.description.fromJsonStr(str).toOption)
             .map { nj =>
               ProducerRecords.one(
                 iso.isoFs2ProducerRecord[K, V].reverseGet(nj.toNJProducerRecord.toProducerRecord))

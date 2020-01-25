@@ -4,7 +4,7 @@ import java.util
 
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.common.{NJFileFormat, UpdateParams}
+import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.codec.iso
 import com.github.chenharryhua.nanjin.kafka.common.{
   KafkaOffsetRange,
@@ -14,10 +14,9 @@ import com.github.chenharryhua.nanjin.kafka.common.{
 }
 import com.github.chenharryhua.nanjin.kafka.{KafkaConsumerApi, KafkaTopicDescription}
 import com.github.chenharryhua.nanjin.spark._
-import frameless.{TypedDataset, TypedEncoder}
+import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import fs2.kafka._
 import fs2.{Chunk, Stream}
-import io.circe.syntax._
 import monocle.function.At.remove
 import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
@@ -81,17 +80,11 @@ final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], param
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): TypedDataset[NJConsumerRecord[K, V]] = {
-    val path = params.getPath(kafkaDesc.topicName)
-    val tds = params.fileFormat match {
-      case NJFileFormat.Parquet | NJFileFormat.Avro =>
-        TypedDataset.createUnsafe[NJConsumerRecord[K, V]](
-          sparkSession.read.format(params.fileFormat.format).load(path))
-      case NJFileFormat.Json =>
-        TypedDataset
-          .create(sparkSession.read.textFile(path))
-          .deserialized
-          .flatMap(kafkaDesc.fromJsonStr(_).toOption)
-    }
+    val path   = params.getPath(kafkaDesc.topicName)
+    val schema = TypedExpressionEncoder.targetStructType(TypedEncoder[NJConsumerRecord[K, V]])
+    val tds =
+      TypedDataset.createUnsafe[NJConsumerRecord[K, V]](
+        sparkSession.read.schema(schema).format(params.fileFormat.format).load(path))
     val inBetween = tds.makeUDF[Long, Boolean](params.timeRange.isInBetween)
     tds.filter(inBetween(tds('timestamp)))
   }
@@ -100,21 +93,11 @@ final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], param
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[Unit] =
-    params.fileFormat match {
-      case NJFileFormat.Parquet | NJFileFormat.Avro =>
-        datasetFromKafka.map(
-          _.write
-            .mode(params.saveMode)
-            .format(params.fileFormat.format)
-            .save(params.getPath(kafkaDesc.topicName)))
-      case NJFileFormat.Json => saveJson
-    }
-
-  def saveJson[F[_]: Sync]: F[Unit] = {
-    import kafkaDesc.topicDef.{jsonKeyEncoder, jsonValueEncoder}
-    datasetFromKafka[F, String](_.asJson.noSpaces)
-      .map(_.write.mode(params.saveMode).text(params.getPath(kafkaDesc.topicName)))
-  }
+    datasetFromKafka.map(
+      _.write
+        .mode(params.saveMode)
+        .format(params.fileFormat.format)
+        .save(params.getPath(kafkaDesc.topicName)))
 
   // upload to kafka
   def uploadToKafka[F[_]: ConcurrentEffect: Timer: ContextShift](

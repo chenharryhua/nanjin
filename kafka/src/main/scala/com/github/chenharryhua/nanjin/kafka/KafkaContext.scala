@@ -1,11 +1,9 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.Show
 import cats.data.Reader
 import cats.effect.{ConcurrentEffect, ContextShift, IO, Timer}
 import com.github.chenharryhua.nanjin.kafka.codec.{NJSerde, SerdeOf}
 import fs2.Stream
-import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.scala.StreamsBuilder
 
@@ -24,8 +22,7 @@ sealed class KafkaContext[F[_]](val settings: KafkaSettings)(
   final def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] =
     new KafkaTopic[F, K, V](KafkaTopicDescription(topicDef, settings))
 
-  final def topic[K: JsonEncoder: JsonDecoder: SerdeOf, V: JsonEncoder: JsonDecoder: SerdeOf](
-    topicName: String): KafkaTopic[F, K, V] =
+  final def topic[K: SerdeOf, V: SerdeOf](topicName: String): KafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](topicName))
 
   final def kafkaStreams(topology: Reader[StreamsBuilder, Unit]): Stream[F, KafkaStreams] =
