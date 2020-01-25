@@ -11,9 +11,10 @@ import frameless.cats.implicits._
 
 class LoadTopicDataFromDiskTest extends AnyFunSuite {
 
-  val data = List(
-    NJConsumerRecord(0, 0, 0, Some(0), Some(0), "topic", 0),
-    NJConsumerRecord(1, 1, 1, Some(1), Some(1), "topic", 1))
+  val data: List[NJConsumerRecord[Int, Int]] = List(
+    NJConsumerRecord(0, 0, 0, None, Some(0), "topic", 0),
+    NJConsumerRecord(1, 1, 1, None, Some(1), "topic", 1),
+    NJConsumerRecord(2, 2, 2, None, None, "topic", 2))
 
   val topic = ctx.topic[Int, Int]("topic")
 
