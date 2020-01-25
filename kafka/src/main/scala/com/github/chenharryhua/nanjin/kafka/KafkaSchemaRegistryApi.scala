@@ -6,7 +6,7 @@ import avrohugger.types._
 import cats.Show
 import cats.effect.Sync
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.data.TopicName
+import com.github.chenharryhua.nanjin.kafka.common.TopicName
 import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaMetadata}
 import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig
 import org.apache.avro.Schema

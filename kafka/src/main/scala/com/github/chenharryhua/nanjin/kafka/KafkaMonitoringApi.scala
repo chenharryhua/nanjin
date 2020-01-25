@@ -7,7 +7,7 @@ import cats.effect.{Blocker, ConcurrentEffect, ContextShift}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.codec.iso
-import com.github.chenharryhua.nanjin.kafka.data.KafkaOffset
+import com.github.chenharryhua.nanjin.kafka.common.KafkaOffset
 import fs2.kafka.{produce, AutoOffsetReset, ProducerRecords}
 import fs2.{text, Stream}
 import org.apache.kafka.clients.consumer.ConsumerRecord

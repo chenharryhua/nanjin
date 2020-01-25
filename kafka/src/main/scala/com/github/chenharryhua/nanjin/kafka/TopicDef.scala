@@ -4,7 +4,7 @@ import cats.Show
 import cats.implicits._
 import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.kafka.codec._
-import com.github.chenharryhua.nanjin.kafka.data.{NJConsumerRecord, TopicName}
+import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, TopicName}
 import com.sksamuel.avro4s.{
   AvroSchema,
   FieldMapper,

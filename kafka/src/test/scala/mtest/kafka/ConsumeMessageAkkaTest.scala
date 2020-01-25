@@ -9,7 +9,7 @@ import io.circe.generic.auto._
 import org.scalatest.funsuite.AnyFunSuite
 import io.circe.generic.auto._
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.kafka.data.KafkaOffset
+import com.github.chenharryhua.nanjin.kafka.common.KafkaOffset
 
 class ConsumeMessageAkkaTest extends AnyFunSuite {
 

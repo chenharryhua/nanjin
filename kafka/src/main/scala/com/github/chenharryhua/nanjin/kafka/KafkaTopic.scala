@@ -5,7 +5,7 @@ import cats.Traverse
 import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.codec.{KafkaGenericDecoder, NJConsumerMessage}
-import com.github.chenharryhua.nanjin.kafka.data.{KafkaConsumerGroupId, TopicName}
+import com.github.chenharryhua.nanjin.kafka.common.{KafkaConsumerGroupId, TopicName}
 import fs2.kafka.{KafkaProducer, ProducerRecord, ProducerRecords, ProducerResult}
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 

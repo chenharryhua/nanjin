@@ -5,7 +5,7 @@ import java.time._
 import cats.data.Reader
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.kafka.data.TopicName
+import com.github.chenharryhua.nanjin.kafka.common.TopicName
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.streaming.kafka010.{LocationStrategies, LocationStrategy}

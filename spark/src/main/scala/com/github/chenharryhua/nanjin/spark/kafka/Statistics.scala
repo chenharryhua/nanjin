@@ -4,7 +4,7 @@ import java.time.{LocalDate, LocalDateTime, LocalTime, ZoneId}
 
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.datetime.iso._
-import com.github.chenharryhua.nanjin.kafka.data.NJConsumerRecord
+import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.functions.aggregate.count
 import frameless.{TypedDataset, TypedEncoder}
