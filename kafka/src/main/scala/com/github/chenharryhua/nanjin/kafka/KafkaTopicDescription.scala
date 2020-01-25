@@ -17,14 +17,12 @@ import com.github.chenharryhua.nanjin.kafka.common.{
   NJConsumerRecord,
   TopicName
 }
-import com.sksamuel.avro4s.Record
 import fs2.kafka.{
   ConsumerSettings => Fs2ConsumerSettings,
   ProducerRecord   => Fs2ProducerRecord,
   ProducerRecords  => Fs2ProducerRecords,
   ProducerSettings => Fs2ProducerSettings
 }
-import io.circe.{Error, Json}
 import monocle.function.At
 import monocle.macros.Lenses
 import org.apache.avro.Schema
@@ -33,6 +31,7 @@ import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 
 import scala.collection.immutable
+import scala.util.Try
 
 @Lenses final case class KafkaTopicDescription[K, V](
   topicDef: TopicDef[K, V],
@@ -77,16 +76,10 @@ import scala.collection.immutable
     cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
     new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valueCodec)
 
-  def toAvro[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): Record =
-    topicDef.toAvro(decoder(cr).record)
-
-  def toJson[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): Json =
+  def toJson[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): String =
     topicDef.toJson(decoder(cr).record)
 
-  def fromAvro(cr: Record): NJConsumerRecord[K, V] =
-    topicDef.fromAvro(cr)
-
-  def fromJsonStr(jsonString: String): Either[Error, NJConsumerRecord[K, V]] =
+  def fromJsonStr(jsonString: String): Try[NJConsumerRecord[K, V]] =
     topicDef.fromJson(jsonString)
 
   def fs2PR(key: K, value: V): Fs2ProducerRecord[K, V] =

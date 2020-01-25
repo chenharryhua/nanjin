@@ -20,8 +20,8 @@ class TopicNameSyntaxTest {
     ManualAvroSchema[Key](Key.schema),
     ManualAvroSchema[smsCallInternet](smsCallInternet.schema))
 
-  val topic8 =
-    TopicDef[Key, smsCallInternet]("telecom_italia_data", ManualAvroSchema[Key](Key.schema)).in(ctx)
+//  val topic8 =
+//    TopicDef[Key, smsCallInternet]("telecom_italia_data", ManualAvroSchema[Key](Key.schema)).in(ctx)
 
   val topic9 = TopicDef[Key, smsCallInternet](
     "telecom_italia_data",

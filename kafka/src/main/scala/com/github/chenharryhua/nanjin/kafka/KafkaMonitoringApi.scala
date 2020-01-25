@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.kafka
 
 import java.nio.file.{Path, Paths}
 
-import cats.Show
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
@@ -33,12 +32,12 @@ sealed trait KafkaMonitoringApi[F[_], K, V] {
 
 object KafkaMonitoringApi {
 
-  def apply[F[_]: ConcurrentEffect: ContextShift, K: Show, V: Show](
+  def apply[F[_]: ConcurrentEffect: ContextShift, K, V](
     topic: KafkaTopic[F, K, V]): KafkaMonitoringApi[F, K, V] =
     new KafkaTopicMonitoring[F, K, V](topic)
 
-  final private class KafkaTopicMonitoring[F[_]: ContextShift, K: Show, V: Show](
-    topic: KafkaTopic[F, K, V])(implicit F: ConcurrentEffect[F])
+  final private class KafkaTopicMonitoring[F[_]: ContextShift, K, V](topic: KafkaTopic[F, K, V])(
+    implicit F: ConcurrentEffect[F])
       extends KafkaMonitoringApi[F, K, V] {
 
     private val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
@@ -48,8 +47,7 @@ object KafkaMonitoringApi {
       fs2Channel
         .withConsumerSettings(_.withAutoOffsetReset(aor))
         .consume
-        .map(m => topic.decoder(m).tryDecodeKeyValue)
-        .map(_.show)
+        .map(m => topic.description.toJson(m))
         .showLinesStdOut
         .compile
         .drain
@@ -62,7 +60,7 @@ object KafkaMonitoringApi {
         .consume
         .map(m => topic.decoder(m).tryDecodeKeyValue)
         .filter(m => predict(iso.isoFs2ComsumerRecord.get(m.record)))
-        .map(_.show)
+        .map(_.toString)
         .showLinesStdOut
         .compile
         .drain
@@ -78,7 +76,7 @@ object KafkaMonitoringApi {
         _ <- fs2Channel
           .assign(gtp.flatten[KafkaOffset].mapValues(_.value).value)
           .map(m => topic.decoder(m).tryDecodeKeyValue)
-          .map(_.show)
+          .map(_.toString)
           .showLinesStdOut
           .compile
           .drain
@@ -111,10 +109,10 @@ object KafkaMonitoringApi {
                            |
                            |number of records: $num
                            |first records of each partitions: 
-                           |${first.map(_.show).mkString("\n")}
+                           |${first.map(_.toString).mkString("\n")}
                            |
                            |last records of each partitions:
-                           |${last.map(_.show).mkString("\n")}
+                           |${last.map(_.toString).mkString("\n")}
                            |""".stripMargin)
       }
 
@@ -125,7 +123,7 @@ object KafkaMonitoringApi {
         .resource[F, Blocker](Blocker[F])
         .flatMap { blocker =>
           fs2Channel.consume
-            .map(x => topic.description.toJson(x).noSpaces)
+            .map(x => topic.description.toJson(x))
             .intersperse("\n")
             .through(text.utf8Encode)
             .through(fs2.io.file.writeAll(path, blocker))
@@ -141,12 +139,7 @@ object KafkaMonitoringApi {
             .readAll(path, blocker, 5000)
             .through(fs2.text.utf8Decode)
             .through(fs2.text.lines)
-            .mapFilter { str =>
-              topic.description
-                .fromJsonStr(str)
-                .leftMap(err => println(s"decode json error: ${err.getMessage}"))
-                .toOption
-            }
+            .mapFilter(str => topic.description.fromJsonStr(str).toOption)
             .map { nj =>
               ProducerRecords.one(
                 iso.isoFs2ProducerRecord[K, V].reverseGet(nj.toNJProducerRecord.toProducerRecord))
