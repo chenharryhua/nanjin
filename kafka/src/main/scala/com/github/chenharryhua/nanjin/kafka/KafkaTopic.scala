@@ -4,8 +4,8 @@ import akka.actor.ActorSystem
 import cats.Traverse
 import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.api._
 import com.github.chenharryhua.nanjin.kafka.codec.{KafkaGenericDecoder, NJConsumerMessage}
+import com.github.chenharryhua.nanjin.kafka.data.{KafkaConsumerGroupId, TopicName}
 import fs2.kafka.{KafkaProducer, ProducerRecord, ProducerRecords, ProducerResult}
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
@@ -63,13 +63,10 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val description: KafkaTopicDe
     fs2ProducerResource.use(_.produce(ProducerRecords.one(pr))).flatten
 
   // APIs
-  val schemaRegistry: KafkaSchemaRegistryApi[F] = api.KafkaSchemaRegistryApi[F](this.description)
-  val admin: KafkaTopicAdminApi[F]              = api.KafkaTopicAdminApi[F, K, V](this.description)
-
-  val consumerResource: Resource[F, KafkaConsumerApi[F]] = api.KafkaConsumerApi(this.description)
-
-  val monitor: KafkaMonitoringApi[F, K, V] =
-    api.KafkaMonitoringApi[F, K, V](this)
+  val schemaRegistry: KafkaSchemaRegistryApi[F]          = KafkaSchemaRegistryApi[F](this.description)
+  val admin: KafkaTopicAdminApi[F]                       = KafkaTopicAdminApi[F, K, V](this.description)
+  val consumerResource: Resource[F, KafkaConsumerApi[F]] = KafkaConsumerApi(this.description)
+  val monitor: KafkaMonitoringApi[F, K, V]               = KafkaMonitoringApi[F, K, V](this)
 
   override def toString: String = description.toString
 }

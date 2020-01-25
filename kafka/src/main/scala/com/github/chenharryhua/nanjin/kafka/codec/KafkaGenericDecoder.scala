@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.kafka.codec
 import cats.data.{Chain, Writer}
 import cats.implicits._
 import cats.mtl.implicits._
-import com.github.chenharryhua.nanjin.kafka.NJConsumerRecord
+import com.github.chenharryhua.nanjin.kafka.data.NJConsumerRecord
 
 import scala.util.{Success, Try}
 

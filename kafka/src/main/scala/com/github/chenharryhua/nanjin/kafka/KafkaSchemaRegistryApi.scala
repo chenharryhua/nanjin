@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.kafka.api
+package com.github.chenharryhua.nanjin.kafka
 
 import avrohugger.Generator
 import avrohugger.format.Standard
@@ -6,11 +6,7 @@ import avrohugger.types._
 import cats.Show
 import cats.effect.Sync
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.{
-  KafkaTopicDescription,
-  SchemaRegistrySettings,
-  TopicName
-}
+import com.github.chenharryhua.nanjin.kafka.data.TopicName
 import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaMetadata}
 import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig
 import org.apache.avro.Schema

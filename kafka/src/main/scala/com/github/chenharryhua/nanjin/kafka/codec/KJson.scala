@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.kafka
+package com.github.chenharryhua.nanjin.kafka.codec
 
 import cats.{Eq, Show}
 import io.circe.Encoder

@@ -1,13 +1,13 @@
-package com.github.chenharryhua.nanjin.kafka.api
+package com.github.chenharryhua.nanjin.kafka
 
 import java.nio.file.{Path, Paths}
 
 import cats.Show
-import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Timer}
+import cats.effect.{Blocker, ConcurrentEffect, ContextShift}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.codec.iso
-import com.github.chenharryhua.nanjin.kafka.{KafkaChannels, KafkaTopic, _}
+import com.github.chenharryhua.nanjin.kafka.data.KafkaOffset
 import fs2.kafka.{produce, AutoOffsetReset, ProducerRecords}
 import fs2.{text, Stream}
 import org.apache.kafka.clients.consumer.ConsumerRecord

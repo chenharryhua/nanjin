@@ -1,7 +1,6 @@
 package mtest.kafka.codec
 
-import com.github.chenharryhua.nanjin.kafka.codec.SerdeOf
-import com.github.chenharryhua.nanjin.kafka.KJson
+import com.github.chenharryhua.nanjin.kafka.codec.{KJson, SerdeOf}
 import org.scalatest.funsuite.AnyFunSuite
 import shapeless.test.illTyped
 

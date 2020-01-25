@@ -4,11 +4,11 @@ import java.time.{LocalDate, LocalDateTime, LocalTime, ZoneId}
 
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.datetime.iso._
+import com.github.chenharryhua.nanjin.kafka.data.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.functions.aggregate.count
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
-import com.github.chenharryhua.nanjin.kafka.{NJConsumerRecord, NJProducerRecord}
 
 final case class MinutelyAggResult(minute: Int, count: Long)
 final case class HourlyAggResult(hour: Int, count: Long)

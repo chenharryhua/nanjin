@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka.codec
 
-import com.github.chenharryhua.nanjin.kafka.{KJson, ManualAvroSchema, TopicName}
+import com.github.chenharryhua.nanjin.kafka.data.{KeyValueTag, TopicName}
 import com.sksamuel.avro4s.{
   AvroSchema,
   DefaultFieldMapper,
