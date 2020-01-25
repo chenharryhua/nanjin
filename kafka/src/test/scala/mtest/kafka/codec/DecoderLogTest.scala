@@ -1,7 +1,7 @@
 package mtest.kafka.codec
 
 import cats.instances.all._
-import com.github.chenharryhua.nanjin.kafka.data.KeyValueTag
+import com.github.chenharryhua.nanjin.kafka.common.KeyValueTag
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopicDescription, TopicDef}
 import mtest.kafka.ctx
 import org.apache.kafka.clients.consumer.ConsumerRecord

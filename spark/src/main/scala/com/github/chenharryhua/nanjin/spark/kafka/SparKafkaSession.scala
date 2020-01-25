@@ -6,7 +6,7 @@ import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.{NJFileFormat, UpdateParams}
 import com.github.chenharryhua.nanjin.kafka.codec.iso
-import com.github.chenharryhua.nanjin.kafka.data.{
+import com.github.chenharryhua.nanjin.kafka.common.{
   KafkaOffsetRange,
   KafkaTopicPartition,
   NJConsumerRecord,

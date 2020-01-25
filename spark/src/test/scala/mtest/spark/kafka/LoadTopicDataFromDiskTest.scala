@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.spark.kafka._
 import frameless.TypedDataset
 import org.scalatest.funsuite.AnyFunSuite
 import cats.instances.all._
-import com.github.chenharryhua.nanjin.kafka.data.NJConsumerRecord
+import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import org.apache.spark.sql.SaveMode
 import frameless.cats.implicits._
 

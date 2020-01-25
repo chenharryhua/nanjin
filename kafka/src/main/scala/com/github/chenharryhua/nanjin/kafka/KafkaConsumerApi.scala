@@ -8,7 +8,7 @@ import cats.effect.{Resource, Sync}
 import cats.implicits._
 import cats.mtl.ApplicativeAsk
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
-import com.github.chenharryhua.nanjin.kafka.data._
+import com.github.chenharryhua.nanjin.kafka.common._
 import fs2.kafka.KafkaByteConsumer
 import org.apache.kafka.clients.consumer.{ConsumerRecord, KafkaConsumer, OffsetAndMetadata}
 import org.apache.kafka.common.TopicPartition

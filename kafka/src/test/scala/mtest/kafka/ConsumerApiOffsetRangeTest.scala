@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.implicits._
 import cats.kernel.UpperBounded
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.kafka.data.{
+import com.github.chenharryhua.nanjin.kafka.common.{
   KafkaOffset,
   KafkaOffsetRange,
   KafkaTopicPartition

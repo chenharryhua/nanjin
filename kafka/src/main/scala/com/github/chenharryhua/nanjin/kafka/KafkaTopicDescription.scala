@@ -12,7 +12,11 @@ import cats.Traverse
 import cats.effect.Sync
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.codec._
-import com.github.chenharryhua.nanjin.kafka.data.{KafkaConsumerGroupId, NJConsumerRecord, TopicName}
+import com.github.chenharryhua.nanjin.kafka.common.{
+  KafkaConsumerGroupId,
+  NJConsumerRecord,
+  TopicName
+}
 import com.sksamuel.avro4s.Record
 import fs2.kafka.{
   ConsumerSettings => Fs2ConsumerSettings,
