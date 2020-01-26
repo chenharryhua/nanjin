@@ -7,6 +7,8 @@ import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 
+import scala.util.Try
+
 /**
   * for kafka data persistence
   */

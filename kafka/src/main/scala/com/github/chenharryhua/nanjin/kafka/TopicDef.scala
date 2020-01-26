@@ -18,7 +18,9 @@ import com.sksamuel.avro4s.{
   Decoder => AvroDecoder,
   Encoder => AvroEncoder
 }
+import io.circe.{Json, ParsingFailure}
 import org.apache.avro.Schema
+import io.circe.parser.parse
 
 import scala.util.Try
 
@@ -52,7 +54,8 @@ final class TopicDef[K, V] private (val topicName: TopicName)(
   def toAvro(cr: NJConsumerRecord[K, V]): Record   = toAvroRecord.to(cr)
   def fromAvro(cr: Record): NJConsumerRecord[K, V] = fromAvroRecord.from(cr)
 
-  def toJson(cr: NJConsumerRecord[K, V]): String = {
+  @throws[Exception]
+  def toJson(cr: NJConsumerRecord[K, V]): Json = {
     val byteArrayOutputStream = new ByteArrayOutputStream
     val out =
       AvroOutputStream
@@ -61,7 +64,7 @@ final class TopicDef[K, V] private (val topicName: TopicName)(
         .build(njConsumerRecordSchema)
     out.write(cr)
     out.close()
-    byteArrayOutputStream.toString
+    parse(byteArrayOutputStream.toString).fold(throw _, identity)
   }
 
   def fromJson(cr: String): Try[NJConsumerRecord[K, V]] =
