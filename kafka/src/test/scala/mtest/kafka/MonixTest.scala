@@ -1,10 +1,7 @@
 package mtest.kafka
 
-import cats.derived.auto.show._
 import cats.effect.ConcurrentEffect
-import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.{KafkaSettings, MonixKafkaContext, TopicDef}
-import io.circe.generic.auto._
 import monix.eval.Task
 import monix.eval.instances.CatsConcurrentEffectForTask
 import monix.execution.Scheduler
