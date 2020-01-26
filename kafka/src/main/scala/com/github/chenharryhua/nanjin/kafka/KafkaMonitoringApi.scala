@@ -59,12 +59,9 @@ object KafkaMonitoringApi {
       fs2Channel
         .withConsumerSettings(_.withAutoOffsetReset(aor))
         .consume
-        .map(m => iso.isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record))
-        .filter(predict)
-        .map(m =>
-          topic.description.topicDef
-            .toJson(NJConsumerRecord(m.bimap(_.toOption, _.toOption)))
-            .spaces2)
+        .filter(m =>
+          predict(iso.isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record)))
+        .map(m => topic.description.toJson(m).spaces2)
         .showLinesStdOut
         .compile
         .drain
@@ -119,7 +116,7 @@ object KafkaMonitoringApi {
                            |""".stripMargin)
       }
 
-    private val path: Path = Paths.get(s"./data/kafka/json/${topic.topicName}.json")
+    private val path: Path = Paths.get(s"./data/kafka/monitor/${topic.topicName}.json")
 
     override def save: F[Unit] =
       Stream

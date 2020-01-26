@@ -93,7 +93,7 @@ final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], param
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[Unit] =
-    datasetFromKafka.map(
+    datasetFromKafka[F].map(
       _.write
         .mode(params.saveMode)
         .format(params.fileFormat.format)
