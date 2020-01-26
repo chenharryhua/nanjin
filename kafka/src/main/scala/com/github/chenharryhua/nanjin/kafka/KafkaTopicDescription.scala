@@ -23,6 +23,7 @@ import fs2.kafka.{
   ProducerRecords  => Fs2ProducerRecords,
   ProducerSettings => Fs2ProducerSettings
 }
+import io.circe.Json
 import monocle.function.At
 import monocle.macros.Lenses
 import org.apache.avro.Schema
@@ -76,7 +77,7 @@ import scala.util.Try
     cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
     new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valueCodec)
 
-  def toJson[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): String =
+  def toJson[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): Json =
     topicDef.toJson(decoder(cr).record)
 
   def fromJsonStr(jsonString: String): Try[NJConsumerRecord[K, V]] =

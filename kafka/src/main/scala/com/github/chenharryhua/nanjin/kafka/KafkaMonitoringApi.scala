@@ -5,8 +5,9 @@ import java.nio.file.{Path, Paths}
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
+import com.github.chenharryhua.nanjin.kafka.codec.NJConsumerMessage._
 import com.github.chenharryhua.nanjin.kafka.codec.iso
-import com.github.chenharryhua.nanjin.kafka.common.KafkaOffset
+import com.github.chenharryhua.nanjin.kafka.common.{KafkaOffset, NJConsumerRecord}
 import fs2.kafka.{produce, AutoOffsetReset, ProducerRecords}
 import fs2.{text, Stream}
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -47,7 +48,7 @@ object KafkaMonitoringApi {
       fs2Channel
         .withConsumerSettings(_.withAutoOffsetReset(aor))
         .consume
-        .map(m => topic.description.toJson(m))
+        .map(m => topic.description.toJson(m).spaces2)
         .showLinesStdOut
         .compile
         .drain
@@ -58,9 +59,12 @@ object KafkaMonitoringApi {
       fs2Channel
         .withConsumerSettings(_.withAutoOffsetReset(aor))
         .consume
-        .map(m => topic.decoder(m).tryDecodeKeyValue)
-        .filter(m => predict(iso.isoFs2ComsumerRecord.get(m.record)))
-        .map(_.toString)
+        .map(m => iso.isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record))
+        .filter(predict)
+        .map(m =>
+          topic.description.topicDef
+            .toJson(NJConsumerRecord(m.bimap(_.toOption, _.toOption)))
+            .spaces2)
         .showLinesStdOut
         .compile
         .drain
@@ -75,8 +79,7 @@ object KafkaMonitoringApi {
         }
         _ <- fs2Channel
           .assign(gtp.flatten[KafkaOffset].mapValues(_.value).value)
-          .map(m => topic.decoder(m).tryDecodeKeyValue)
-          .map(_.toString)
+          .map(m => topic.description.toJson(m).spaces2)
           .showLinesStdOut
           .compile
           .drain
@@ -123,7 +126,7 @@ object KafkaMonitoringApi {
         .resource[F, Blocker](Blocker[F])
         .flatMap { blocker =>
           fs2Channel.consume
-            .map(x => topic.description.toJson(x))
+            .map(x => topic.description.toJson(x).noSpaces)
             .intersperse("\n")
             .through(text.utf8Encode)
             .through(fs2.io.file.writeAll(path, blocker))
