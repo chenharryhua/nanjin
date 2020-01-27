@@ -107,10 +107,12 @@ final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], param
           .mode(params.saveMode)
           .format(params.fileFormat.format)
           .save(params.getPath(kafkaDesc.topicName)))
-    case NJFileFormat.Jackson =>
-      datasetFromKafka[F, String](m => kafkaDesc.topicDef.toJackson(m).noSpaces)
-        .map(_.write.mode(params.saveMode).text(params.getPath(kafkaDesc.topicName)))
+    case NJFileFormat.Jackson => saveJackson[F]
   }
+
+  def saveJackson[F[_]: Sync]: F[Unit] =
+    datasetFromKafka[F, String](m => kafkaDesc.topicDef.toJackson(m).noSpaces)
+      .map(_.write.mode(params.saveMode).text(params.getPath(kafkaDesc.topicName)))
 
   // upload to kafka
   def uploadToKafka[F[_]: ConcurrentEffect: Timer: ContextShift](
