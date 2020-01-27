@@ -1,7 +1,5 @@
 package mtest.kafka
 
-import cats.derived.auto.show._
-import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.kafka.codec.{KJson, ManualAvroSchema}
 import com.landoop.telecom.telecomitalia.telecommunications.{smsCallInternet, Key}

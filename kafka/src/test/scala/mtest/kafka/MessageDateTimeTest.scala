@@ -3,13 +3,9 @@ package mtest.kafka
 import java.sql.{Date, Timestamp}
 import java.time._
 
-import cats.derived.auto.show._
-import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka._
-import com.github.chenharryhua.nanjin.datetime._
 import com.sksamuel.avro4s.Encoder
 import io.circe.generic.JsonCodec
-import io.circe.generic.auto._
 import org.scalatest.funsuite.AnyFunSuite
 
 object DatetimeCase {

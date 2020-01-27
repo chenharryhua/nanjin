@@ -64,9 +64,11 @@ final case class KafkaPathBuild(
     copy(pathBuilder = Reader(rp))
 
   def withFileFormat(ff: NJFileFormat): SparKafkaParams = copy(fileFormat = ff)
-  def withJson: SparKafkaParams                         = withFileFormat(NJFileFormat.Json)
-  def withAvro: SparKafkaParams                         = withFileFormat(NJFileFormat.Avro)
-  def withParquet: SparKafkaParams                      = withFileFormat(NJFileFormat.Parquet)
+
+  def withJson: SparKafkaParams    = withFileFormat(NJFileFormat.Json)
+  def withJackson: SparKafkaParams = withFileFormat(NJFileFormat.Jackson)
+  def withAvro: SparKafkaParams    = withFileFormat(NJFileFormat.Avro)
+  def withParquet: SparKafkaParams = withFileFormat(NJFileFormat.Parquet)
 
   def withLocationStrategy(ls: LocationStrategy): SparKafkaParams =
     copy(locationStrategy = ls)

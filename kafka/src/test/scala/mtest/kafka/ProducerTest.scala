@@ -1,22 +1,13 @@
 package mtest.kafka
 
 import akka.Done
-import akka.kafka.ProducerMessage
 import cats.effect.IO
 import cats.implicits._
 import org.apache.kafka.clients.consumer.ConsumerConfig
-import org.apache.kafka.streams.scala.StreamsBuilder
 import org.scalatest.funsuite.AnyFunSuite
-import cats.derived.auto.show._
-import io.chrisdavenport.cats.time._
-import fs2.kafka.{ProducerRecord => Fs2ProducerRecord}
+
 import scala.concurrent.duration._
 import scala.util.Random
-import org.apache.kafka.streams.scala.ImplicitConversions._
-import fs2.kafka.ProducerRecords
-import org.apache.kafka.clients.producer.ProducerRecord
-import io.circe.generic.auto._
-import cats.derived.auto.show._
 
 case class AvroKey(key: String)
 case class AvroValue(v1: String, v2: Int)

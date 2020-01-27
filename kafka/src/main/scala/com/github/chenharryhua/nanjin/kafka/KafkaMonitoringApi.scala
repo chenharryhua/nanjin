@@ -48,7 +48,7 @@ object KafkaMonitoringApi {
       fs2Channel
         .withConsumerSettings(_.withAutoOffsetReset(aor))
         .consume
-        .map(m => topic.description.toJson(m).spaces2)
+        .map(m => topic.description.toJackson(m).spaces2)
         .showLinesStdOut
         .compile
         .drain
@@ -59,12 +59,9 @@ object KafkaMonitoringApi {
       fs2Channel
         .withConsumerSettings(_.withAutoOffsetReset(aor))
         .consume
-        .map(m => iso.isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record))
-        .filter(predict)
-        .map(m =>
-          topic.description.topicDef
-            .toJson(NJConsumerRecord(m.bimap(_.toOption, _.toOption)))
-            .spaces2)
+        .filter(m =>
+          predict(iso.isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record)))
+        .map(m => topic.description.toJackson(m).spaces2)
         .showLinesStdOut
         .compile
         .drain
@@ -79,7 +76,7 @@ object KafkaMonitoringApi {
         }
         _ <- fs2Channel
           .assign(gtp.flatten[KafkaOffset].mapValues(_.value).value)
-          .map(m => topic.description.toJson(m).spaces2)
+          .map(m => topic.description.toJackson(m).spaces2)
           .showLinesStdOut
           .compile
           .drain
@@ -119,14 +116,14 @@ object KafkaMonitoringApi {
                            |""".stripMargin)
       }
 
-    private val path: Path = Paths.get(s"./data/kafka/json/${topic.topicName}.json")
+    private val path: Path = Paths.get(s"./data/kafka/monitor/${topic.topicName}.json")
 
     override def save: F[Unit] =
       Stream
         .resource[F, Blocker](Blocker[F])
         .flatMap { blocker =>
           fs2Channel.consume
-            .map(x => topic.description.toJson(x).noSpaces)
+            .map(x => topic.description.toJackson(x).noSpaces)
             .intersperse("\n")
             .through(text.utf8Encode)
             .through(fs2.io.file.writeAll(path, blocker))
@@ -142,7 +139,7 @@ object KafkaMonitoringApi {
             .readAll(path, blocker, 5000)
             .through(fs2.text.utf8Decode)
             .through(fs2.text.lines)
-            .mapFilter(str => topic.description.fromJsonStr(str).toOption)
+            .mapFilter(str => topic.description.fromJackson(str).toOption)
             .map { nj =>
               ProducerRecords.one(
                 iso.isoFs2ProducerRecord[K, V].reverseGet(nj.toNJProducerRecord.toProducerRecord))

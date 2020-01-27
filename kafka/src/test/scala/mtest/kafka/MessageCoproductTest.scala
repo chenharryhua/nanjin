@@ -2,8 +2,6 @@ package mtest.kafka
 
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import org.scalatest.funsuite.AnyFunSuite
-import cats.derived.auto.show._
-import cats.implicits._
 import io.circe.generic._
 import io.circe.shapes._
 import shapeless.{:+:, CNil, Coproduct}

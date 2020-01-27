@@ -77,11 +77,11 @@ import scala.util.Try
     cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
     new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valueCodec)
 
-  def toJson[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): Json =
-    topicDef.toJson(decoder(cr).record)
+  def toJackson[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): Json =
+    topicDef.toJackson(decoder(cr).record)
 
-  def fromJsonStr(jsonString: String): Try[NJConsumerRecord[K, V]] =
-    topicDef.fromJson(jsonString)
+  def fromJackson(jsonString: String): Try[NJConsumerRecord[K, V]] =
+    topicDef.fromJackson(jsonString)
 
   def fs2PR(key: K, value: V): Fs2ProducerRecord[K, V] =
     Fs2ProducerRecord[K, V](topicDef.topicName.value, key, value)
