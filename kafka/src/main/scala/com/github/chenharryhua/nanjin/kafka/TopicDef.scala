@@ -18,9 +18,9 @@ import com.sksamuel.avro4s.{
   Decoder => AvroDecoder,
   Encoder => AvroEncoder
 }
-import io.circe.{Json, ParsingFailure}
-import org.apache.avro.Schema
+import io.circe.Json
 import io.circe.parser.parse
+import org.apache.avro.Schema
 
 import scala.util.Try
 

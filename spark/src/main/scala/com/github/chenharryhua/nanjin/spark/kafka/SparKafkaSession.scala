@@ -4,7 +4,7 @@ import java.util
 
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.common.UpdateParams
+import com.github.chenharryhua.nanjin.common.{NJFileFormat, UpdateParams}
 import com.github.chenharryhua.nanjin.kafka.codec.iso
 import com.github.chenharryhua.nanjin.kafka.common.{
   KafkaOffsetRange,
@@ -82,9 +82,17 @@ final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], param
     valEncoder: TypedEncoder[V]): TypedDataset[NJConsumerRecord[K, V]] = {
     val path   = params.getPath(kafkaDesc.topicName)
     val schema = TypedExpressionEncoder.targetStructType(TypedEncoder[NJConsumerRecord[K, V]])
-    val tds =
-      TypedDataset.createUnsafe[NJConsumerRecord[K, V]](
-        sparkSession.read.schema(schema).format(params.fileFormat.format).load(path))
+    val tds: TypedDataset[NJConsumerRecord[K, V]] = params.fileFormat match {
+      case NJFileFormat.Json | NJFileFormat.Avro | NJFileFormat.Parquet =>
+        TypedDataset.createUnsafe[NJConsumerRecord[K, V]](
+          sparkSession.read.schema(schema).format(params.fileFormat.format).load(path))
+      case NJFileFormat.Jackson =>
+        TypedDataset
+          .create[String](sparkSession.read.textFile(path))
+          .deserialized
+          .flatMap(m => kafkaDesc.fromJsonStr(m).toOption)
+    }
+
     val inBetween = tds.makeUDF[Long, Boolean](params.timeRange.isInBetween)
     tds.filter(inBetween(tds('timestamp)))
   }
@@ -92,12 +100,17 @@ final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], param
   def save[F[_]: Sync](
     implicit
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): F[Unit] =
-    datasetFromKafka[F].map(
-      _.write
-        .mode(params.saveMode)
-        .format(params.fileFormat.format)
-        .save(params.getPath(kafkaDesc.topicName)))
+    valEncoder: TypedEncoder[V]): F[Unit] = params.fileFormat match {
+    case NJFileFormat.Json | NJFileFormat.Avro | NJFileFormat.Parquet =>
+      datasetFromKafka[F].map(
+        _.write
+          .mode(params.saveMode)
+          .format(params.fileFormat.format)
+          .save(params.getPath(kafkaDesc.topicName)))
+    case NJFileFormat.Jackson =>
+      datasetFromKafka[F, String](m => kafkaDesc.topicDef.toJson(m).noSpaces)
+        .map(_.write.mode(params.saveMode).text(params.getPath(kafkaDesc.topicName)))
+  }
 
   // upload to kafka
   def uploadToKafka[F[_]: ConcurrentEffect: Timer: ContextShift](
