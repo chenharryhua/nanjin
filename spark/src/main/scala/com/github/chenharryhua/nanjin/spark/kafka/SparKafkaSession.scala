@@ -90,7 +90,7 @@ final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], param
         TypedDataset
           .create[String](sparkSession.read.textFile(path))
           .deserialized
-          .flatMap(m => kafkaDesc.fromJsonStr(m).toOption)
+          .flatMap(m => kafkaDesc.fromJackson(m).toOption)
     }
 
     val inBetween = tds.makeUDF[Long, Boolean](params.timeRange.isInBetween)
@@ -108,7 +108,7 @@ final class SparKafkaSession[K, V](kafkaDesc: KafkaTopicDescription[K, V], param
           .format(params.fileFormat.format)
           .save(params.getPath(kafkaDesc.topicName)))
     case NJFileFormat.Jackson =>
-      datasetFromKafka[F, String](m => kafkaDesc.topicDef.toJson(m).noSpaces)
+      datasetFromKafka[F, String](m => kafkaDesc.topicDef.toJackson(m).noSpaces)
         .map(_.write.mode(params.saveMode).text(params.getPath(kafkaDesc.topicName)))
   }
 

@@ -55,7 +55,7 @@ final class TopicDef[K, V] private (val topicName: TopicName)(
   def fromAvro(cr: Record): NJConsumerRecord[K, V] = fromAvroRecord.from(cr)
 
   @throws[Exception]
-  def toJson(cr: NJConsumerRecord[K, V]): Json = {
+  def toJackson(cr: NJConsumerRecord[K, V]): Json = {
     val byteArrayOutputStream = new ByteArrayOutputStream
     val out =
       AvroOutputStream
@@ -67,7 +67,7 @@ final class TopicDef[K, V] private (val topicName: TopicName)(
     parse(byteArrayOutputStream.toString).fold(throw _, identity)
   }
 
-  def fromJson(cr: String): Try[NJConsumerRecord[K, V]] =
+  def fromJackson(cr: String): Try[NJConsumerRecord[K, V]] =
     AvroInputStream
       .json[NJConsumerRecord[K, V]]
       .from(cr.getBytes)
