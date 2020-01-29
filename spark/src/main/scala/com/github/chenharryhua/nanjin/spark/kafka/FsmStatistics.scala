@@ -1,19 +1,15 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import java.time.{LocalDate, LocalDateTime, LocalTime}
+import java.time.{LocalDate, LocalDateTime, LocalTime, ZoneId}
 
 import cats.effect.Sync
-import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.datetime.iso._
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.injection._
-import frameless.TypedDataset
+import frameless.{TypedDataset, TypedEncoder}
 import frameless.cats.implicits._
 import frameless.functions.aggregate.count
-import frameless.TypedEncoder
-import java.time.ZoneId
-
 import org.apache.spark.sql.Dataset
 
 final case class MinutelyAggResult(minute: Int, count: Long)

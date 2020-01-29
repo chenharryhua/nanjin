@@ -108,7 +108,7 @@ final class FsmInit[K, V](
   def sparkStreaming[F[_]](
     implicit
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): FsmSparkStreaming[F, K, V] = {
+    valEncoder: TypedEncoder[V]): FsmSparkStreaming[F, NJConsumerRecord[K, V]] = {
     def toSparkOptions(m: Map[String, String]): Map[String, String] = {
       val rm1 = remove(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG)(_: Map[String, String])
       val rm2 = remove(ConsumerConfig.GROUP_ID_CONFIG)(_: Map[String, String])
@@ -138,6 +138,6 @@ final class FsmInit[K, V](
           )
         msgs.map(decoder)
       }
-    new FsmSparkStreaming[F, K, V](tds.dataset, this)
+    new FsmSparkStreaming[F, NJConsumerRecord[K, V]](tds.dataset, params)
   }
 }
