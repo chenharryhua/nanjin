@@ -29,37 +29,47 @@ class SparKafkaTest extends AnyFunSuite {
     topic.send(List(0 -> data, 1 -> data))).unsafeRunSync()
 
   test("read topic from kafka") {
-    val rst = topic.description.sparKafka
-      .datasetFromKafka[IO]
-      .flatMap(_.collect[IO]().map(_.flatMap(_.value).toList === List(data, data)))
-      .unsafeRunSync
-    assert(rst)
+    val rst =
+      topic.description.sparKafka.fromKafka[IO].flatMap(_.values.collect[IO]()).unsafeRunSync
+    assert(rst.toList === List(data, data))
   }
 
   test("save topic to disk") {
-    topic.description.sparKafka.withParamUpdate(_.withOverwrite).save[IO].unsafeRunSync
+    topic.description.sparKafka
+      .withParamUpdate(_.withOverwrite.withJson)
+      .fromKafka[IO]
+      .map(_.save)
+      .unsafeRunSync
   }
 
   test("read topic from disk") {
-    val rst = topic.description.sparKafka.load.collect[IO]().unsafeRunSync
-    assert(rst.flatMap(_.value).toList === List(data, data))
+    val rst = topic.description.sparKafka
+      .withParamUpdate(_.withJson)
+      .fromDisk[IO]
+      .values
+      .collect[IO]()
+      .unsafeRunSync
+    assert(rst.toList === List(data, data))
   }
 
   test("replay") {
-    topic.description.sparKafka.replay[IO].unsafeRunSync
+    topic.description.sparKafka
+      .withParamUpdate(_.withConversionTactics(_.withoutPartition.withoutTimestamp).withJson)
+      .replay[IO]
+      .unsafeRunSync
   }
 
   test("read topic from kafka and show aggragation result") {
-    topic.description.sparKafka.stats[IO].flatMap(_.dailyHour.show[IO]()).unsafeRunSync
+    topic.description.sparKafka.fromKafka[IO].flatMap(_.stats.minutely).unsafeRunSync
   }
-
+  
   test("read topic from kafka and show json") {
     val tpk = TopicDef[String, trip_record](
       "nyc_yellow_taxi_trip_data",
       ManualAvroSchema[trip_record](trip_record.schema)).in(ctx)
 
     tpk.description.sparKafka
-      .datasetFromKafka[IO, String](_.asJson.noSpaces)
+      .fromKafka[IO, String](_.asJson.noSpaces)
       .flatMap(_.show[IO](truncate = false, numRows = 1))
       .unsafeRunSync
   }

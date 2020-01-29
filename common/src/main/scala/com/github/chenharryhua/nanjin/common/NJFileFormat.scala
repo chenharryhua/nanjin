@@ -16,20 +16,20 @@ object NJFileFormat extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[N
   override val values: immutable.IndexedSeq[NJFileFormat] = findValues
 
   case object Json extends NJFileFormat(0, "json")
-  case object Jackson extends NJFileFormat(1, "jackson")
+  case object Csv extends NJFileFormat(1, "csv")
   case object Parquet extends NJFileFormat(2, "parquet")
   case object Avro extends NJFileFormat(3, "avro")
 
   type Json    = Json.type
-  type Jackson = Jackson.type
+  type Csv     = Csv.type
   type Parquet = Parquet.type
   type Avro    = Avro.type
 
   implicit val prismJson: Prism[NJFileFormat, Json] =
     GenPrism[NJFileFormat, Json]
 
-  implicit val prismJackson: Prism[NJFileFormat, Jackson] =
-    GenPrism[NJFileFormat, Jackson]
+  implicit val prismCsv: Prism[NJFileFormat, Csv] =
+    GenPrism[NJFileFormat, Csv]
 
   implicit val prismParquet: Prism[NJFileFormat, Parquet] =
     GenPrism[NJFileFormat, Parquet]

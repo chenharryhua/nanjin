@@ -1,13 +1,19 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import java.time.{LocalDate, LocalDateTime, LocalTime, ZoneId}
+import java.time.{LocalDate, LocalDateTime, LocalTime}
 
+import cats.effect.Sync
+import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.datetime.iso._
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.injection._
+import frameless.TypedDataset
+import frameless.cats.implicits._
 import frameless.functions.aggregate.count
-import frameless.{TypedDataset, TypedEncoder}
+import frameless.TypedEncoder
+import java.time.ZoneId
+
 import org.apache.spark.sql.Dataset
 
 final case class MinutelyAggResult(minute: Int, count: Long)
@@ -16,53 +22,56 @@ final case class DailyAggResult(date: LocalDate, count: Long)
 final case class DailyHourAggResult(date: LocalDateTime, count: Long)
 final case class DailyMinuteAggResult(date: LocalDateTime, count: Long)
 
-final class Statistics[K: TypedEncoder, V: TypedEncoder](
-  zoneId: ZoneId,
-  private val crs: Dataset[NJConsumerRecord[K, V]])
-    extends Serializable {
+final class FsmStatistics[F[_], K: TypedEncoder, V: TypedEncoder](
+  crs: Dataset[NJConsumerRecord[K, V]],
+  initState: FsmInit[K, V])
+    extends FsmSparKafka {
 
-  private def consumerRecords: TypedDataset[NJConsumerRecord[K, V]] = TypedDataset.create(crs)
+  @transient lazy val dataset: TypedDataset[NJConsumerRecord[K, V]] =
+    TypedDataset.create(crs)
 
-  def minutely: TypedDataset[MinutelyAggResult] = {
-    val minute: TypedDataset[Int] = consumerRecords.deserialized.map { m =>
+  private val zoneId: ZoneId = initState.params.timeRange.zoneId
+
+  def minutely(implicit ev: Sync[F]): F[Unit] = {
+    val minute: TypedDataset[Int] = dataset.deserialized.map { m =>
       NJTimestamp(m.timestamp).atZone(zoneId).getMinute
     }
     val res = minute.groupBy(minute.asCol).agg(count(minute.asCol)).as[MinutelyAggResult]
-    res.orderBy(res('minute).asc)
+    res.orderBy(res('minute).asc).show[F]()
   }
 
-  def hourly: TypedDataset[HourlyAggResult] = {
-    val hour = consumerRecords.deserialized.map { m =>
+  def hourly(implicit ev: Sync[F]): F[Unit] = {
+    val hour = dataset.deserialized.map { m =>
       NJTimestamp(m.timestamp).atZone(zoneId).getHour
     }
     val res = hour.groupBy(hour.asCol).agg(count(hour.asCol)).as[HourlyAggResult]
-    res.orderBy(res('hour).asc)
+    res.orderBy(res('hour).asc).show[F]()
   }
 
-  def daily: TypedDataset[DailyAggResult] = {
-    val day: TypedDataset[LocalDate] = consumerRecords.deserialized.map { m =>
+  def daily(implicit ev: Sync[F]): F[Unit] = {
+    val day: TypedDataset[LocalDate] = dataset.deserialized.map { m =>
       NJTimestamp(m.timestamp).atZone(zoneId).toLocalDate
     }
     val res = day.groupBy(day.asCol).agg(count(day.asCol)).as[DailyAggResult]
-    res.orderBy(res('date).asc)
+    res.orderBy(res('date).asc).show[F]()
   }
 
-  def dailyHour: TypedDataset[DailyHourAggResult] = {
-    val dayHour: TypedDataset[LocalDateTime] = consumerRecords.deserialized.map { m =>
+  def dailyHour(implicit ev: Sync[F]): F[Unit] = {
+    val dayHour: TypedDataset[LocalDateTime] = dataset.deserialized.map { m =>
       val dt = NJTimestamp(m.timestamp).atZone(zoneId).toLocalDateTime
       LocalDateTime.of(dt.toLocalDate, LocalTime.of(dt.getHour, 0))
     }
     val res = dayHour.groupBy(dayHour.asCol).agg(count(dayHour.asCol)).as[DailyHourAggResult]
-    res.orderBy(res('date).asc)
+    res.orderBy(res('date).asc).show[F]()
   }
 
-  def dailyMinute: TypedDataset[DailyMinuteAggResult] = {
-    val dayMinute: TypedDataset[LocalDateTime] = consumerRecords.deserialized.map { m =>
+  def dailyMinute(implicit ev: Sync[F]): F[Unit] = {
+    val dayMinute: TypedDataset[LocalDateTime] = dataset.deserialized.map { m =>
       val dt = NJTimestamp(m.timestamp).atZone(zoneId).toLocalDateTime
       LocalDateTime.of(dt.toLocalDate, LocalTime.of(dt.getHour, dt.getMinute))
     }
     val res =
       dayMinute.groupBy(dayMinute.asCol).agg(count(dayMinute.asCol)).as[DailyMinuteAggResult]
-    res.orderBy(res('date).asc)
+    res.orderBy(res('date).asc).show[F]()
   }
 }
