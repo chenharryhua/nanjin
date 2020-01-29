@@ -12,6 +12,8 @@ import frameless.cats.implicits._
 import io.circe.generic.auto._
 import io.circe.syntax._
 import org.scalatest.funsuite.AnyFunSuite
+import com.github.chenharryhua.nanjin.datetime.iso._
+import com.github.chenharryhua.nanjin.spark.injection._
 
 class SparKafkaTest extends AnyFunSuite {
   val embed = EmbeddedForTaskSerializable(0, "embeded")
