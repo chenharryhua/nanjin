@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducer
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
+import com.github.chenharryhua.nanjin.common.NJFileFormat
 
 final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   ds: Dataset[NJConsumerRecord[K, V]],
@@ -52,11 +53,19 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def show(implicit ev: Sync[F]): F[Unit] =
     dataset.show[F](sks.params.showRowNumber, sks.params.isTruncate)
 
-  def save(): Unit =
-    dataset.write
-      .mode(sks.params.saveMode)
-      .format(sks.params.fileFormat.format)
-      .save(sks.params.getPath(sks.topicDesc.topicName))
+  def save(): Unit = {
+    val path = sks.params.getPath(sks.topicDesc.topicName)
+    sks.params.fileFormat match {
+      case NJFileFormat.Avro | NJFileFormat.Parquet | NJFileFormat.Json =>
+        dataset.write.mode(sks.params.saveMode).format(sks.params.fileFormat.format).save(path)
+      case NJFileFormat.Jackson =>
+        dataset.deserialized
+          .map(m => sks.topicDesc.topicDef.toJackson(m).noSpaces)
+          .write
+          .mode(sks.params.saveMode)
+          .text(path)
+    }
+  }
 
   def toProducerRecords: FsmProducerRecords[F, K, V] = sks.prDataset(convertPRs(dataset))
 

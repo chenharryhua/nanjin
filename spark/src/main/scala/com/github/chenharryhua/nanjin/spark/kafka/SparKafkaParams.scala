@@ -68,7 +68,7 @@ final case class KafkaPathBuild(
   def withFileFormat(ff: NJFileFormat): SparKafkaParams = copy(fileFormat = ff)
 
   def withJson: SparKafkaParams    = withFileFormat(NJFileFormat.Json)
-  def withCsv: SparKafkaParams     = withFileFormat(NJFileFormat.Csv)
+  def withJackson: SparKafkaParams = withFileFormat(NJFileFormat.Jackson)
   def withAvro: SparKafkaParams    = withFileFormat(NJFileFormat.Avro)
   def withParquet: SparKafkaParams = withFileFormat(NJFileFormat.Parquet)
 

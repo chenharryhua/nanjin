@@ -4,7 +4,7 @@ import java.util
 
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.common.UpdateParams
+import com.github.chenharryhua.nanjin.common.{NJFileFormat, UpdateParams}
 import com.github.chenharryhua.nanjin.kafka.common.{
   KafkaOffsetRange,
   KafkaTopicPartition,
@@ -80,9 +80,18 @@ final class SparKafkaSession[K, V](
     valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] = {
     val path   = params.getPath(topicDesc.topicName)
     val schema = TypedExpressionEncoder.targetStructType(TypedEncoder[NJConsumerRecord[K, V]])
-    val tds: TypedDataset[NJConsumerRecord[K, V]] =
-      TypedDataset.createUnsafe[NJConsumerRecord[K, V]](
-        sparkSession.read.schema(schema).format(params.fileFormat.format).load(path))
+    val tds: TypedDataset[NJConsumerRecord[K, V]] = {
+      params.fileFormat match {
+        case NJFileFormat.Avro | NJFileFormat.Parquet | NJFileFormat.Json =>
+          TypedDataset.createUnsafe[NJConsumerRecord[K, V]](
+            sparkSession.read.schema(schema).format(params.fileFormat.format).load(path))
+        case NJFileFormat.Jackson =>
+          TypedDataset
+            .create(sparkSession.read.textFile(path))
+            .deserialized
+            .flatMap(m => topicDesc.fromJackson(m).toOption)
+      }
+    }
     val inBetween = tds.makeUDF[Long, Boolean](params.timeRange.isInBetween)
     crDataset(tds.filter(inBetween(tds('timestamp))))
   }

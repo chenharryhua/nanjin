@@ -1,24 +1,17 @@
 package mtest.spark.kafka
 
-import java.time.LocalDate
+import java.time.{Instant, LocalDate}
 
 import cats.effect.IO
 import cats.implicits._
-import org.scalatest.funsuite.AnyFunSuite
-import com.github.chenharryhua.nanjin.spark._
-import com.github.chenharryhua.nanjin.spark.kafka._
-import com.github.chenharryhua.nanjin.spark.injection._
-import com.github.chenharryhua.nanjin.datetime._
-import com.github.chenharryhua.nanjin.datetime.iso._
-import frameless.cats.implicits._
-import cats.derived.auto.show._
-import io.circe.syntax._
-import io.circe.generic.auto._
 import com.github.chenharryhua.nanjin.kafka.TopicDef
-import java.time.Instant
-
 import com.github.chenharryhua.nanjin.kafka.codec.ManualAvroSchema
+import com.github.chenharryhua.nanjin.spark.kafka._
 import com.landoop.transportation.nyc.trip.yellow.trip_record
+import frameless.cats.implicits._
+import io.circe.generic.auto._
+import io.circe.syntax._
+import org.scalatest.funsuite.AnyFunSuite
 
 class SparKafkaTest extends AnyFunSuite {
   val embed = EmbeddedForTaskSerializable(0, "embeded")
@@ -34,15 +27,33 @@ class SparKafkaTest extends AnyFunSuite {
     assert(rst.toList === List(data, data))
   }
 
-  test("save topic to disk") {
+  test("save topic to disk in Jackson format") {
     topic.description.sparKafka
-      .withParamUpdate(_.withOverwrite.withJson)
+      .withParamUpdate(_.withOverwrite.withJackson)
       .fromKafka[IO]
-      .map(_.save)
+      .map(_.save())
       .unsafeRunSync
   }
 
-  test("read topic from disk") {
+  test("read topic from disk in Jackson format") {
+    val rst = topic.description.sparKafka
+      .withParamUpdate(_.withJackson)
+      .fromDisk[IO]
+      .values
+      .collect[IO]()
+      .unsafeRunSync
+    assert(rst.toList === List(data, data))
+  }
+
+  test("save topic to disk in json format") {
+    topic.description.sparKafka
+      .withParamUpdate(_.withOverwrite.withJson)
+      .fromKafka[IO]
+      .map(_.save())
+      .unsafeRunSync
+  }
+
+  test("read topic from disk in json format") {
     val rst = topic.description.sparKafka
       .withParamUpdate(_.withJson)
       .fromDisk[IO]
@@ -52,9 +63,46 @@ class SparKafkaTest extends AnyFunSuite {
     assert(rst.toList === List(data, data))
   }
 
+  test("save topic to disk in parquet format") {
+    topic.description.sparKafka
+      .withParamUpdate(_.withOverwrite.withParquet)
+      .fromKafka[IO]
+      .map(_.save())
+      .unsafeRunSync
+  }
+
+  test("read topic from disk in parquet format") {
+    val rst = topic.description.sparKafka
+      .withParamUpdate(_.withParquet)
+      .fromDisk[IO]
+      .values
+      .collect[IO]()
+      .unsafeRunSync
+    assert(rst.toList === List(data, data))
+  }
+
+  test("save topic to disk in avro format") {
+    topic.description.sparKafka
+      .withParamUpdate(_.withOverwrite.withAvro)
+      .fromKafka[IO]
+      .map(_.save())
+      .unsafeRunSync
+  }
+
+  test("read topic from disk in avro format") {
+    val rst = topic.description.sparKafka
+      .withParamUpdate(_.withAvro)
+      .fromDisk[IO]
+      .values
+      .collect[IO]()
+      .unsafeRunSync
+    assert(rst.toList === List(data, data))
+  }
+
   test("replay") {
     topic.description.sparKafka
-      .withParamUpdate(_.withConversionTactics(_.withoutPartition.withoutTimestamp).withJson)
+      .withParamUpdate(
+        _.withConversionTactics(_.withoutPartition.withoutTimestamp).withJson.withOverwrite)
       .replay[IO]
       .unsafeRunSync
   }
@@ -62,7 +110,7 @@ class SparKafkaTest extends AnyFunSuite {
   test("read topic from kafka and show aggragation result") {
     topic.description.sparKafka.fromKafka[IO].flatMap(_.stats.minutely).unsafeRunSync
   }
-  
+
   test("read topic from kafka and show json") {
     val tpk = TopicDef[String, trip_record](
       "nyc_yellow_taxi_trip_data",
