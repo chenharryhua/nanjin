@@ -110,7 +110,7 @@ object SparKafkaParams {
       saveMode          = SaveMode.ErrorIfExists,
       locationStrategy  = LocationStrategies.PreferConsistent,
       repartition       = 30,
-      showRowNumber     = 50,
+      showRowNumber     = 100,
       isShowTruncate    = false
     )
 }
