@@ -12,7 +12,7 @@ import org.apache.spark.sql.Dataset
 
 final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   prs: Dataset[NJProducerRecord[K, V]],
-  initState: FsmInit[K, V]
+  sks: SparKafkaSession[K, V]
 ) extends FsmSparKafka {
 
   @transient lazy val dataset: TypedDataset[NJProducerRecord[K, V]] =
@@ -24,16 +24,16 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     timer: Timer[F],
     cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
     dataset
-      .repartition(initState.params.repartition)
+      .repartition(sks.params.repartition)
       .stream[F]
-      .chunkN(initState.params.uploadRate.batchSize)
-      .metered(initState.params.uploadRate.duration)
+      .chunkN(sks.params.uploadRate.batchSize)
+      .metered(sks.params.uploadRate.duration)
       .map(chk =>
         ProducerRecords[Chunk, K, V](
           chk.map(d => iso.isoFs2ProducerRecord[K, V].reverseGet(d.toProducerRecord))))
-      .through(produce(initState.kafkaTopicDesc.fs2ProducerSettings[F]))
+      .through(produce(sks.topicDesc.fs2ProducerSettings[F]))
 
   def show(implicit ev: Sync[F]): F[Unit] =
-    dataset.show[F](initState.params.showRowNumber, initState.params.isShowTruncate)
+    dataset.show[F](sks.params.showRowNumber, sks.params.isShowTruncate)
 
 }

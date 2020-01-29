@@ -25,10 +25,10 @@ import scala.collection.JavaConverters._
 
 trait FsmSparKafka extends Serializable
 
-final class FsmInit[K, V](
-  val kafkaTopicDesc: KafkaTopicDescription[K, V],
+final class SparKafkaSession[K, V](
+  val topicDesc: KafkaTopicDescription[K, V],
   val params: SparKafkaParams)(implicit sparkSession: SparkSession)
-    extends FsmSparKafka with UpdateParams[SparKafkaParams, FsmInit[K, V]] {
+    extends FsmSparKafka with UpdateParams[SparKafkaParams, SparKafkaSession[K, V]] {
   private val logger: Logger = org.log4s.getLogger
 
   private def props(config: Map[String, String]): util.Map[String, Object] =
@@ -45,23 +45,23 @@ final class FsmInit[K, V](
     }
 
   private def kafkaRDD[F[_]: Sync]: F[RDD[ConsumerRecord[Array[Byte], Array[Byte]]]] =
-    KafkaConsumerApi(kafkaTopicDesc).use(_.offsetRangeFor(params.timeRange)).map { gtp =>
+    KafkaConsumerApi(topicDesc).use(_.offsetRangeFor(params.timeRange)).map { gtp =>
       KafkaUtils.createRDD[Array[Byte], Array[Byte]](
         sparkSession.sparkContext,
-        props(kafkaTopicDesc.settings.consumerSettings.config),
+        props(topicDesc.settings.consumerSettings.config),
         offsetRanges(gtp),
         params.locationStrategy)
     }
 
-  override def withParamUpdate(f: SparKafkaParams => SparKafkaParams): FsmInit[K, V] =
-    new FsmInit[K, V](kafkaTopicDesc, f(params))
+  override def withParamUpdate(f: SparKafkaParams => SparKafkaParams): SparKafkaSession[K, V] =
+    new SparKafkaSession[K, V](topicDesc, f(params))
 
   def fromKafka[F[_]: Sync, A](f: NJConsumerRecord[K, V] => A)(
     implicit ev: TypedEncoder[A]): F[TypedDataset[A]] = {
     import ev.classTag
     kafkaRDD[F]
       .map(_.mapPartitions(_.map { m =>
-        val r = kafkaTopicDesc.decoder(m).logRecord.run
+        val r = topicDesc.decoder(m).logRecord.run
         r._1.map(x => logger.warn(x.error)(x.metaInfo))
         f(r._2)
       }))
@@ -72,13 +72,13 @@ final class FsmInit[K, V](
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[FsmConsumerRecords[F, K, V]] =
-    fromKafka(identity).map(tds => new FsmConsumerRecords(tds.dataset, this))
+    fromKafka(identity).map(crDataset)
 
   def fromDisk[F[_]](
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] = {
-    val path   = params.getPath(kafkaTopicDesc.topicName)
+    val path   = params.getPath(topicDesc.topicName)
     val schema = TypedExpressionEncoder.targetStructType(TypedEncoder[NJConsumerRecord[K, V]])
     val tds: TypedDataset[NJConsumerRecord[K, V]] =
       TypedDataset.createUnsafe[NJConsumerRecord[K, V]](
@@ -120,8 +120,8 @@ final class FsmInit[K, V](
       .create(
         sparkSession.readStream
           .format("kafka")
-          .options(toSparkOptions(kafkaTopicDesc.settings.consumerSettings.config))
-          .option("subscribe", kafkaTopicDesc.topicDef.topicName.value)
+          .options(toSparkOptions(topicDesc.settings.consumerSettings.config))
+          .option("subscribe", topicDesc.topicDef.topicName.value)
           .load()
           .as[NJConsumerRecord[Array[Byte], Array[Byte]]])
       .deserialized
@@ -131,8 +131,8 @@ final class FsmInit[K, V](
             msg.partition,
             msg.offset,
             msg.timestamp,
-            msg.key.flatMap(k   => kafkaTopicDesc.codec.keyCodec.tryDecode(k).toOption),
-            msg.value.flatMap(v => kafkaTopicDesc.codec.valueCodec.tryDecode(v).toOption),
+            msg.key.flatMap(k   => topicDesc.codec.keyCodec.tryDecode(k).toOption),
+            msg.value.flatMap(v => topicDesc.codec.valueCodec.tryDecode(v).toOption),
             msg.topic,
             msg.timestampType
           )

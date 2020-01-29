@@ -9,7 +9,7 @@ import org.apache.spark.sql.Dataset
 
 final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   ds: Dataset[NJConsumerRecord[K, V]],
-  initState: FsmInit[K, V])
+  sks: SparKafkaSession[K, V])
     extends FsmSparKafka {
 
   @transient lazy val dataset: TypedDataset[NJConsumerRecord[K, V]] =
@@ -30,14 +30,14 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   private def convertPRs(
     consumerRecords: TypedDataset[NJConsumerRecord[K, V]]): TypedDataset[NJProducerRecord[K, V]] = {
     def noTS: NJProducerRecord[K, V] => NJProducerRecord[K, V] =
-      NJProducerRecord.timestamp.set(Some(NJTimestamp.now(initState.params.clock).milliseconds))
+      NJProducerRecord.timestamp.set(Some(NJTimestamp.now(sks.params.clock).milliseconds))
     val noPT: NJProducerRecord[K, V] => NJProducerRecord[K, V] =
       NJProducerRecord.partition.set(None)
 
     val sorted =
       consumerRecords.orderBy(consumerRecords('timestamp).asc, consumerRecords('offset).asc)
 
-    initState.params.conversionTactics match {
+    sks.params.conversionTactics match {
       case ConversionTactics(true, true) =>
         sorted.deserialized.map(_.toNJProducerRecord)
       case ConversionTactics(false, true) =>
@@ -50,15 +50,15 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   }
 
   def show(implicit ev: Sync[F]): F[Unit] =
-    dataset.show[F](initState.params.showRowNumber, initState.params.isShowTruncate)
+    dataset.show[F](sks.params.showRowNumber, sks.params.isShowTruncate)
 
   def save(): Unit =
     dataset.write
-      .mode(initState.params.saveMode)
-      .format(initState.params.fileFormat.format)
-      .save(initState.params.getPath(initState.kafkaTopicDesc.topicName))
+      .mode(sks.params.saveMode)
+      .format(sks.params.fileFormat.format)
+      .save(sks.params.getPath(sks.topicDesc.topicName))
 
-  def toProducerRecords: FsmProducerRecords[F, K, V] = initState.prDataset(convertPRs(dataset))
+  def toProducerRecords: FsmProducerRecords[F, K, V] = sks.prDataset(convertPRs(dataset))
 
-  def stats: FsmStatistics[F, K, V] = new FsmStatistics(ds, initState)
+  def stats: FsmStatistics[F, K, V] = new FsmStatistics(ds, sks)
 }
