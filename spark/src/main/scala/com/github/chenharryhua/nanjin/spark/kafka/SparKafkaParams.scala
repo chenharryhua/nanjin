@@ -46,7 +46,7 @@ final case class KafkaPathBuild(
   locationStrategy: LocationStrategy,
   repartition: Int,
   showRowNumber: Int,
-  isShowTruncate: Boolean) {
+  isTruncate: Boolean) {
 
   def getPath(topicName: TopicName): String =
     pathBuilder(KafkaPathBuild(timeRange, fileFormat, topicName))
@@ -91,10 +91,10 @@ final case class KafkaPathBuild(
     SparKafkaParams.showRowNumber.set(num)(this)
 
   def withTruncate: SparKafkaParams =
-    SparKafkaParams.isShowTruncate.set(true)(this)
+    SparKafkaParams.isTruncate.set(true)(this)
 
   def withoutTruncate: SparKafkaParams =
-    SparKafkaParams.isShowTruncate.set(false)(this)
+    SparKafkaParams.isTruncate.set(false)(this)
 
 }
 
@@ -111,6 +111,6 @@ object SparKafkaParams {
       locationStrategy  = LocationStrategies.PreferConsistent,
       repartition       = 30,
       showRowNumber     = 100,
-      isShowTruncate    = false
+      isTruncate        = false
     )
 }

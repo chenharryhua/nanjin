@@ -50,7 +50,7 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   }
 
   def show(implicit ev: Sync[F]): F[Unit] =
-    dataset.show[F](sks.params.showRowNumber, sks.params.isShowTruncate)
+    dataset.show[F](sks.params.showRowNumber, sks.params.isTruncate)
 
   def save(): Unit =
     dataset.write

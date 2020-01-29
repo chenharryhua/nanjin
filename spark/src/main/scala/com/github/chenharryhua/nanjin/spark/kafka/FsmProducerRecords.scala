@@ -34,6 +34,6 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
       .through(produce(sks.topicDesc.fs2ProducerSettings[F]))
 
   def show(implicit ev: Sync[F]): F[Unit] =
-    dataset.show[F](sks.params.showRowNumber, sks.params.isShowTruncate)
+    dataset.show[F](sks.params.showRowNumber, sks.params.isTruncate)
 
 }
