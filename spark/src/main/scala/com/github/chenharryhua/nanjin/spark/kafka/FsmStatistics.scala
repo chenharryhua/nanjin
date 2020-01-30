@@ -7,9 +7,9 @@ import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.datetime.iso._
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.injection._
-import frameless.{TypedDataset, TypedEncoder}
 import frameless.cats.implicits._
 import frameless.functions.aggregate.count
+import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
 
 final case class MinutelyAggResult(minute: Int, count: Long)

@@ -1,12 +1,12 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.Sync
+import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducerRecord}
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
-import com.github.chenharryhua.nanjin.common.NJFileFormat
 
 final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   ds: Dataset[NJConsumerRecord[K, V]],
