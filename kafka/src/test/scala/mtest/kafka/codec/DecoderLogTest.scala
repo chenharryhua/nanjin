@@ -2,7 +2,7 @@ package mtest.kafka.codec
 
 import cats.instances.all._
 import com.github.chenharryhua.nanjin.kafka.common.KeyValueTag
-import com.github.chenharryhua.nanjin.kafka.{KafkaTopicDescription, TopicDef}
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopicKit, TopicDef}
 import mtest.kafka.ctx
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.scalatest.funsuite.AnyFunSuite
@@ -11,7 +11,7 @@ class DecoderLogTest extends AnyFunSuite {
   val data: Array[Byte]    = Array[Byte](1, 2, 3, 4)
   val badData: Array[Byte] = Array[Byte](1, 2, 3, 4, 5)
 
-  val desc: KafkaTopicDescription[Int, Int] = TopicDef[Int, Int]("topic").in(ctx).description
+  val desc: KafkaTopicKit[Int, Int] = TopicDef[Int, Int]("topic").in(ctx).kit
 
   test("should decode good data") {
     val cr = new ConsumerRecord[Array[Byte], Array[Byte]]("topic", 0, 0, data, data)

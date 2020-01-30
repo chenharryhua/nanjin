@@ -54,13 +54,13 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     dataset.show[F](sks.params.showRowNumber, sks.params.isTruncate)
 
   def save(): Unit = {
-    val path = sks.params.getPath(sks.topicDesc.topicName)
+    val path = sks.params.getPath(sks.topicKit.topicName)
     sks.params.fileFormat match {
       case NJFileFormat.Avro | NJFileFormat.Parquet | NJFileFormat.Json =>
         dataset.write.mode(sks.params.saveMode).format(sks.params.fileFormat.format).save(path)
       case NJFileFormat.Jackson =>
         dataset.deserialized
-          .map(m => sks.topicDesc.topicDef.toJackson(m).noSpaces)
+          .map(m => sks.topicKit.topicDef.toJackson(m).noSpaces)
           .write
           .mode(sks.params.saveMode)
           .text(path)

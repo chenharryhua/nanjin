@@ -34,9 +34,7 @@ import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 import scala.collection.immutable
 import scala.util.Try
 
-@Lenses final case class KafkaTopicDescription[K, V](
-  topicDef: TopicDef[K, V],
-  settings: KafkaSettings) {
+@Lenses final case class KafkaTopicKit[K, V](topicDef: TopicDef[K, V], settings: KafkaSettings) {
   import topicDef.{serdeOfKey, serdeOfValue}
 
   val topicName: TopicName = topicDef.topicName

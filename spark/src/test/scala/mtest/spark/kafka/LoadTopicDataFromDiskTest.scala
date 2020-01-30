@@ -20,7 +20,7 @@ class LoadTopicDataFromDiskTest extends AnyFunSuite {
 
   test("load json test") {
     TypedDataset.create(data).write.mode(SaveMode.Overwrite).json("./data/test/load/json")
-    val rst = topic.description.sparKafka
+    val rst = topic.kit.sparKafka
       .withParamUpdate(_.withJson.withPathBuilder(_ => "./data/test/load/json"))
       .fromDisk[IO]
       .dataset
@@ -36,7 +36,7 @@ class LoadTopicDataFromDiskTest extends AnyFunSuite {
       .mode(SaveMode.Overwrite)
       .format("avro")
       .save("./data/test/load/avro")
-    val rst = topic.description.sparKafka
+    val rst = topic.kit.sparKafka
       .withParamUpdate(_.withAvro.withPathBuilder(_ => "./data/test/load/avro"))
       .fromDisk[IO]
       .dataset
@@ -47,7 +47,7 @@ class LoadTopicDataFromDiskTest extends AnyFunSuite {
 
   test("load parquet test") {
     TypedDataset.create(data).write.mode(SaveMode.Overwrite).parquet("./data/test/load/parquet")
-    val rst = topic.description.sparKafka
+    val rst = topic.kit.sparKafka
       .withParamUpdate(_.withParquet.withPathBuilder(_ => "./data/test/load/parquet"))
       .fromDisk[IO]
       .dataset

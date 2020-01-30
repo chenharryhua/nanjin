@@ -17,28 +17,27 @@ sealed trait KafkaTopicAdminApi[F[_]] {
 
 object KafkaTopicAdminApi {
 
-  def apply[F[_]: Concurrent: ContextShift, K, V](
-    topic: KafkaTopicDescription[K, V]
-  ): KafkaTopicAdminApi[F] = new KafkaTopicAdminApiImpl(topic)
+  def apply[F[_]: Concurrent: ContextShift, K, V](kit: KafkaTopicKit[K, V]): KafkaTopicAdminApi[F] =
+    new KafkaTopicAdminApiImpl(kit)
 
   final private class KafkaTopicAdminApiImpl[F[_]: Concurrent: ContextShift, K, V](
-    topic: KafkaTopicDescription[K, V])
+    kit: KafkaTopicKit[K, V])
       extends KafkaTopicAdminApi[F] {
 
     override val adminResource: Resource[F, KafkaAdminClient[F]] =
       adminClientResource[F](
-        AdminClientSettings[F].withProperties(topic.settings.adminSettings.config))
+        AdminClientSettings[F].withProperties(kit.settings.adminSettings.config))
 
     override def idefinitelyWantToDeleteTheTopic: F[Either[Throwable, Unit]] =
-      adminResource.use(_.deleteTopic(topic.topicName.value).attempt)
+      adminResource.use(_.deleteTopic(kit.topicName.value).attempt)
 
     override def describe: F[Map[String, TopicDescription]] =
-      adminResource.use(_.describeTopics(List(topic.topicName.value)))
+      adminResource.use(_.describeTopics(List(kit.topicName.value)))
 
     override def groups: F[List[KafkaConsumerGroupInfo]] =
       adminResource.use { client =>
         for {
-          end <- KafkaConsumerApi(topic).use(_.endOffsets)
+          end <- KafkaConsumerApi(kit).use(_.endOffsets)
           gids <- client.listConsumerGroups.groupIds
           all <- gids.traverse(gid =>
             client

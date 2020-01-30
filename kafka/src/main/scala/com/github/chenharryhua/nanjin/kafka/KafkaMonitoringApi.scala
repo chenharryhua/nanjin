@@ -48,7 +48,7 @@ object KafkaMonitoringApi {
       fs2Channel
         .withConsumerSettings(_.withAutoOffsetReset(aor))
         .consume
-        .map(m => topic.description.toJackson(m).spaces2)
+        .map(m => topic.kit.toJackson(m).spaces2)
         .showLinesStdOut
         .compile
         .drain
@@ -61,14 +61,14 @@ object KafkaMonitoringApi {
         .consume
         .filter(m =>
           predict(iso.isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record)))
-        .map(m => topic.description.toJackson(m).spaces2)
+        .map(m => topic.kit.toJackson(m).spaces2)
         .showLinesStdOut
         .compile
         .drain
 
     override def watchFrom(njt: NJTimestamp): F[Unit] =
       for {
-        gtp <- KafkaConsumerApi(topic.description).use { c =>
+        gtp <- KafkaConsumerApi(topic.kit).use { c =>
           for {
             os <- c.offsetsForTimes(njt)
             e <- c.endOffsets
@@ -76,7 +76,7 @@ object KafkaMonitoringApi {
         }
         _ <- fs2Channel
           .assign(gtp.flatten[KafkaOffset].mapValues(_.value).value)
-          .map(m => topic.description.toJackson(m).spaces2)
+          .map(m => topic.kit.toJackson(m).spaces2)
           .showLinesStdOut
           .compile
           .drain
@@ -98,7 +98,7 @@ object KafkaMonitoringApi {
       filter(cr => cr.key().isFailure || cr.value().isFailure)
 
     override def summaries: F[Unit] =
-      KafkaConsumerApi(topic.description).use { consumer =>
+      KafkaConsumerApi(topic.kit).use { consumer =>
         for {
           num <- consumer.numOfRecords
           first <- consumer.retrieveFirstRecords.map(_.map(cr =>
@@ -123,7 +123,7 @@ object KafkaMonitoringApi {
         .resource[F, Blocker](Blocker[F])
         .flatMap { blocker =>
           fs2Channel.consume
-            .map(x => topic.description.toJackson(x).noSpaces)
+            .map(x => topic.kit.toJackson(x).noSpaces)
             .intersperse("\n")
             .through(text.utf8Encode)
             .through(fs2.io.file.writeAll(path, blocker))
@@ -139,12 +139,12 @@ object KafkaMonitoringApi {
             .readAll(path, blocker, 5000)
             .through(fs2.text.utf8Decode)
             .through(fs2.text.lines)
-            .mapFilter(str => topic.description.fromJackson(str).toOption)
+            .mapFilter(str => topic.kit.fromJackson(str).toOption)
             .map { nj =>
               ProducerRecords.one(
                 iso.isoFs2ProducerRecord[K, V].reverseGet(nj.toNJProducerRecord.toProducerRecord))
             }
-            .through(produce(topic.description.fs2ProducerSettings))
+            .through(produce(topic.kit.fs2ProducerSettings))
         }
         .compile
         .drain

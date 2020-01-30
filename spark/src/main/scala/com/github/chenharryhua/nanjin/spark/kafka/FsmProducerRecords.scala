@@ -31,7 +31,7 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
       .map(chk =>
         ProducerRecords[Chunk, K, V](
           chk.map(d => iso.isoFs2ProducerRecord[K, V].reverseGet(d.toProducerRecord))))
-      .through(produce(sks.topicDesc.fs2ProducerSettings[F]))
+      .through(produce(sks.topicKit.fs2ProducerSettings[F]))
 
   def show(implicit ev: Sync[F]): F[Unit] =
     dataset.show[F](sks.params.showRowNumber, sks.params.isTruncate)

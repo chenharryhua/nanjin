@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.kafka.common.{
   NJConsumerRecord,
   NJProducerRecord
 }
-import com.github.chenharryhua.nanjin.kafka.{KafkaConsumerApi, KafkaTopicDescription}
+import com.github.chenharryhua.nanjin.kafka.{KafkaConsumerApi, KafkaTopicKit}
 import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import monocle.function.At.remove
 import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
@@ -25,9 +25,8 @@ import scala.collection.JavaConverters._
 
 trait FsmSparKafka extends Serializable
 
-final class SparKafkaSession[K, V](
-  val topicDesc: KafkaTopicDescription[K, V],
-  val params: SparKafkaParams)(implicit sparkSession: SparkSession)
+final class SparKafkaSession[K, V](val topicKit: KafkaTopicKit[K, V], val params: SparKafkaParams)(
+  implicit sparkSession: SparkSession)
     extends FsmSparKafka with UpdateParams[SparKafkaParams, SparKafkaSession[K, V]] {
   private val logger: Logger = org.log4s.getLogger
 
@@ -45,23 +44,23 @@ final class SparKafkaSession[K, V](
     }
 
   private def kafkaRDD[F[_]: Sync]: F[RDD[ConsumerRecord[Array[Byte], Array[Byte]]]] =
-    KafkaConsumerApi(topicDesc).use(_.offsetRangeFor(params.timeRange)).map { gtp =>
+    KafkaConsumerApi(topicKit).use(_.offsetRangeFor(params.timeRange)).map { gtp =>
       KafkaUtils.createRDD[Array[Byte], Array[Byte]](
         sparkSession.sparkContext,
-        props(topicDesc.settings.consumerSettings.config),
+        props(topicKit.settings.consumerSettings.config),
         offsetRanges(gtp),
         params.locationStrategy)
     }
 
   override def withParamUpdate(f: SparKafkaParams => SparKafkaParams): SparKafkaSession[K, V] =
-    new SparKafkaSession[K, V](topicDesc, f(params))
+    new SparKafkaSession[K, V](topicKit, f(params))
 
   def fromKafka[F[_]: Sync, A](f: NJConsumerRecord[K, V] => A)(
     implicit ev: TypedEncoder[A]): F[TypedDataset[A]] = {
     import ev.classTag
     kafkaRDD[F]
       .map(_.mapPartitions(_.map { m =>
-        val r = topicDesc.decoder(m).logRecord.run
+        val r = topicKit.decoder(m).logRecord.run
         r._1.map(x => logger.warn(x.error)(x.metaInfo))
         f(r._2)
       }))
@@ -78,7 +77,7 @@ final class SparKafkaSession[K, V](
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] = {
-    val path   = params.getPath(topicDesc.topicName)
+    val path   = params.getPath(topicKit.topicName)
     val schema = TypedExpressionEncoder.targetStructType(TypedEncoder[NJConsumerRecord[K, V]])
     val tds: TypedDataset[NJConsumerRecord[K, V]] = {
       params.fileFormat match {
@@ -89,7 +88,7 @@ final class SparKafkaSession[K, V](
           TypedDataset
             .create(sparkSession.read.textFile(path))
             .deserialized
-            .flatMap(m => topicDesc.fromJackson(m).toOption)
+            .flatMap(m => topicKit.fromJackson(m).toOption)
       }
     }
     val inBetween = tds.makeUDF[Long, Boolean](params.timeRange.isInBetween)
@@ -129,8 +128,8 @@ final class SparKafkaSession[K, V](
       .create(
         sparkSession.readStream
           .format("kafka")
-          .options(toSparkOptions(topicDesc.settings.consumerSettings.config))
-          .option("subscribe", topicDesc.topicDef.topicName.value)
+          .options(toSparkOptions(topicKit.settings.consumerSettings.config))
+          .option("subscribe", topicKit.topicDef.topicName.value)
           .load()
           .as[NJConsumerRecord[Array[Byte], Array[Byte]]])
       .deserialized
@@ -140,8 +139,8 @@ final class SparKafkaSession[K, V](
             msg.partition,
             msg.offset,
             msg.timestamp,
-            msg.key.flatMap(k   => topicDesc.codec.keyCodec.tryDecode(k).toOption),
-            msg.value.flatMap(v => topicDesc.codec.valueCodec.tryDecode(v).toOption),
+            msg.key.flatMap(k   => topicKit.codec.keyCodec.tryDecode(k).toOption),
+            msg.value.flatMap(v => topicKit.codec.valueCodec.tryDecode(v).toOption),
             msg.topic,
             msg.timestampType
           )

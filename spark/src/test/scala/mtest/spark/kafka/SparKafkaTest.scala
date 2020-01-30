@@ -25,12 +25,12 @@ class SparKafkaTest extends AnyFunSuite {
 
   test("read topic from kafka") {
     val rst =
-      topic.description.sparKafka.fromKafka[IO].flatMap(_.values.collect[IO]()).unsafeRunSync
+      topic.kit.sparKafka.fromKafka[IO].flatMap(_.values.collect[IO]()).unsafeRunSync
     assert(rst.toList === List(data, data))
   }
 
   test("save topic to disk in Jackson format") {
-    topic.description.sparKafka
+    topic.kit.sparKafka
       .withParamUpdate(_.withOverwrite.withJackson)
       .fromKafka[IO]
       .map(_.save())
@@ -38,7 +38,7 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("read topic from disk in Jackson format") {
-    val rst = topic.description.sparKafka
+    val rst = topic.kit.sparKafka
       .withParamUpdate(_.withJackson)
       .fromDisk[IO]
       .values
@@ -48,7 +48,7 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("save topic to disk in json format") {
-    topic.description.sparKafka
+    topic.kit.sparKafka
       .withParamUpdate(_.withOverwrite.withJson)
       .fromKafka[IO]
       .map(_.save())
@@ -56,7 +56,7 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("read topic from disk in json format") {
-    val rst = topic.description.sparKafka
+    val rst = topic.kit.sparKafka
       .withParamUpdate(_.withJson)
       .fromDisk[IO]
       .values
@@ -66,7 +66,7 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("save topic to disk in parquet format") {
-    topic.description.sparKafka
+    topic.kit.sparKafka
       .withParamUpdate(_.withOverwrite.withParquet)
       .fromKafka[IO]
       .map(_.save())
@@ -74,7 +74,7 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("read topic from disk in parquet format") {
-    val rst = topic.description.sparKafka
+    val rst = topic.kit.sparKafka
       .withParamUpdate(_.withParquet)
       .fromDisk[IO]
       .values
@@ -84,7 +84,7 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("save topic to disk in avro format") {
-    topic.description.sparKafka
+    topic.kit.sparKafka
       .withParamUpdate(_.withOverwrite.withAvro)
       .fromKafka[IO]
       .map(_.save())
@@ -92,7 +92,7 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("read topic from disk in avro format") {
-    val rst = topic.description.sparKafka
+    val rst = topic.kit.sparKafka
       .withParamUpdate(_.withAvro)
       .fromDisk[IO]
       .values
@@ -102,7 +102,7 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("replay") {
-    topic.description.sparKafka
+    topic.kit.sparKafka
       .withParamUpdate(
         _.withConversionTactics(_.withoutPartition.withoutTimestamp).withJson.withOverwrite)
       .replay[IO]
@@ -110,7 +110,7 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("read topic from kafka and show aggragation result") {
-    topic.description.sparKafka.fromKafka[IO].flatMap(_.stats.minutely).unsafeRunSync
+    topic.kit.sparKafka.fromKafka[IO].flatMap(_.stats.minutely).unsafeRunSync
   }
 
   test("read topic from kafka and show json") {
@@ -118,7 +118,7 @@ class SparKafkaTest extends AnyFunSuite {
       "nyc_yellow_taxi_trip_data",
       ManualAvroSchema[trip_record](trip_record.schema)).in(ctx)
 
-    tpk.description.sparKafka
+    tpk.kit.sparKafka
       .fromKafka[IO, String](_.asJson.noSpaces)
       .flatMap(_.show[IO](truncate = false, numRows = 1))
       .unsafeRunSync
