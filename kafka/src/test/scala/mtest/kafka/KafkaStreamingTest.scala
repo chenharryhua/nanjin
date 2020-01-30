@@ -6,20 +6,27 @@ import org.scalatest.funsuite.AnyFunSuite
 import io.chrisdavenport.cats.time._
 import org.apache.kafka.streams.scala.ImplicitConversions._
 
-case class StreamOneValue(name: String, size: Int)
-case class StreamTwoValue(name: String, color: Int)
-case class StreamKey(name: Int)
+object KafkaStreamingCases {
 
-case class StreamTarget(oneName: String, twoName: String, size: Int, color: Int)
+  case class StreamOneValue(name: String, size: Int)
+
+  case class StreamTwoValue(name: String, color: Int)
+
+  case class StreamKey(name: Int)
+
+  case class StreamTarget(oneName: String, twoName: String, size: Int, color: Int)
+
+}
 
 class KafkaStreamingTest extends AnyFunSuite {
+  import KafkaStreamingCases._
   val one               = ctx.topic[StreamKey, StreamOneValue]("stream-one")
   val two               = ctx.topic[StreamKey, StreamTwoValue]("stream-two")
   val tgt               = ctx.topic[StreamKey, StreamTarget]("stream-target")
-  implicit val oneKey   = one.description.codec.keySerde
-  implicit val oneValue = one.description.codec.valueSerde
-  implicit val twoValue = two.description.codec.valueSerde
-  implicit val tgtValue = tgt.description.codec.valueSerde
+  implicit val oneKey   = one.kit.codec.keySerde
+  implicit val oneValue = one.kit.codec.valueSerde
+  implicit val twoValue = two.kit.codec.valueSerde
+  implicit val tgtValue = tgt.kit.codec.valueSerde
 
   ignore("generate data") {
     (one.schemaRegistry.register >> two.schemaRegistry.register).unsafeRunSync()

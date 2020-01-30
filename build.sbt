@@ -320,8 +320,7 @@ lazy val graph = (project in file("graph"))
     libraryDependencies ++= neo4jLib ++ tests,
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core"  % "jackson-databind" % "2.6.7.2",
-      "org.json4s" %% "json4s-core" % "3.5.5"),
-  )
+      "org.json4s" %% "json4s-core" % "3.5.5"))
 
 lazy val nanjin =
   (project in file("."))

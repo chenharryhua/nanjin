@@ -25,10 +25,4 @@ private[spark] trait DatasetExtensions {
           .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
       } yield data
   }
-
-  implicit final class SparkDataStreamWriterSyntax[A](private val dsw: DataStreamWriter[A]) {
-
-    def run[F[_]](implicit F: Sync[F]): F[Unit] =
-      F.bracket(F.delay(dsw.start))(s => F.delay(s.awaitTermination()))(_ => F.pure(()))
-  }
 }

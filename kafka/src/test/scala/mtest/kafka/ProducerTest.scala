@@ -9,10 +9,16 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration._
 import scala.util.Random
 
-case class AvroKey(key: String)
-case class AvroValue(v1: String, v2: Int)
+object ProducerAvros {
+
+  case class AvroKey(key: String)
+
+  case class AvroValue(v1: String, v2: Int)
+
+}
 
 class ProducerTest extends AnyFunSuite {
+  import ProducerAvros._
   val srcTopic    = ctx.topic[AvroKey, AvroValue]("producer.test.source")
   val akkaTopic   = ctx.topic[AvroKey, AvroValue]("producer.test.akka")
   val fs2Topic    = ctx.topic[AvroKey, AvroValue]("producer.test.fs2")
@@ -34,8 +40,7 @@ class ProducerTest extends AnyFunSuite {
         .consume
         .map(m => akkaTopic.decoder(m).decode)
         .map(m =>
-          akkaTopic.description
-            .akkaProducerRecords(m.record.key, m.record.value, m.committableOffset))
+          akkaTopic.kit.akkaProducerRecords(m.record.key, m.record.value, m.committableOffset))
         .take(100)
         .runWith(akkaChn.committableSink)(materializer)
 
@@ -44,9 +49,9 @@ class ProducerTest extends AnyFunSuite {
         _.withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest").withGroupId("fs2-task"))
       .consume
       .map(m => srcTopic.decoder(m).decode)
-      .map(m => srcTopic.description.fs2ProducerRecords(m.record.key, m.record.value, m.offset))
+      .map(m => srcTopic.kit.fs2ProducerRecords(m.record.key, m.record.value, m.offset))
       .take(100)
-      .through(fs2.kafka.produce(fs2Topic.description.fs2ProducerSettings[IO]))
+      .through(fs2.kafka.produce(fs2Topic.kit.fs2ProducerSettings[IO]))
       .compile
       .drain
 

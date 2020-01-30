@@ -44,7 +44,9 @@ final case class KafkaPathBuild(
   fileFormat: NJFileFormat,
   saveMode: SaveMode,
   locationStrategy: LocationStrategy,
-  repartition: Int) {
+  repartition: Int,
+  showRowNumber: Int,
+  isTruncate: Boolean) {
 
   def getPath(topicName: TopicName): String =
     pathBuilder(KafkaPathBuild(timeRange, fileFormat, topicName))
@@ -84,6 +86,16 @@ final case class KafkaPathBuild(
 
   def withSparkRepartition(number: Int): SparKafkaParams =
     SparKafkaParams.repartition.set(number)(this)
+
+  def withShowRowNumber(num: Int): SparKafkaParams =
+    SparKafkaParams.showRowNumber.set(num)(this)
+
+  def withTruncate: SparKafkaParams =
+    SparKafkaParams.isTruncate.set(true)(this)
+
+  def withoutTruncate: SparKafkaParams =
+    SparKafkaParams.isTruncate.set(false)(this)
+
 }
 
 object SparKafkaParams {
@@ -97,6 +109,8 @@ object SparKafkaParams {
       fileFormat        = NJFileFormat.Parquet,
       saveMode          = SaveMode.ErrorIfExists,
       locationStrategy  = LocationStrategies.PreferConsistent,
-      repartition       = 30
+      repartition       = 30,
+      showRowNumber     = 100,
+      isTruncate        = false
     )
 }

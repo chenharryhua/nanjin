@@ -16,6 +16,7 @@ object NJFileFormat extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[N
   override val values: immutable.IndexedSeq[NJFileFormat] = findValues
 
   case object Json extends NJFileFormat(0, "json")
+  //a variation of json
   case object Jackson extends NJFileFormat(1, "jackson")
   case object Parquet extends NJFileFormat(2, "parquet")
   case object Avro extends NJFileFormat(3, "avro")
