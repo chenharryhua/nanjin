@@ -30,7 +30,7 @@ class CoproductJsonTest extends AnyFunSuite {
     assert(decode[FB](fb2.asJson.noSpaces).toOption.get !== fb2)
   }
 
-  test("jackson json coproduct is invertable") {
+  test("jackson json coproduct is invertable. witness by toJackson/fromJackson") {
     val msg1: NJConsumerRecord[Int, FB] =
       NJConsumerRecord(0, 0, 0, Some(0), Some(fb1), "coproduct.test", 0)
     val msg2: NJConsumerRecord[Int, FB] =
@@ -52,5 +52,4 @@ class CoproductJsonTest extends AnyFunSuite {
     assert(mfb1 === fb1)
     assert(mfb2 === fb2)
   }
-
 }

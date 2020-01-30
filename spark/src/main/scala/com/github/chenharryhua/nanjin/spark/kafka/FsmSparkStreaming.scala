@@ -13,7 +13,7 @@ final class FsmSparkStreaming[F[_], A](
     new FsmSparkStreaming[F, B](f(ds), params)
 
   def run(implicit F: Sync[F]): F[Unit] = {
-    val ss = ds.writeStream.outputMode(OutputMode.Update()).format("console")
+    val ss = ds.writeStream.outputMode(OutputMode.Update).format("console")
     F.bracket(F.delay(ss.start))(s => F.delay(s.awaitTermination()))(_ => F.pure(()))
   }
 }

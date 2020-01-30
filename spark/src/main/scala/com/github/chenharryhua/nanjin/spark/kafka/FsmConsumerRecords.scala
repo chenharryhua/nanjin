@@ -28,7 +28,7 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def keys: TypedDataset[K] =
     dataset.select(dataset('key)).as[Option[K]].deserialized.flatMap(x => x)
 
-  private def convertPRs(
+  private def convertCR(
     consumerRecords: TypedDataset[NJConsumerRecord[K, V]]): TypedDataset[NJProducerRecord[K, V]] = {
     def noTS: NJProducerRecord[K, V] => NJProducerRecord[K, V] =
       NJProducerRecord.timestamp.set(Some(NJTimestamp.now(sks.params.clock).milliseconds))
@@ -67,7 +67,7 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     }
   }
 
-  def toProducerRecords: FsmProducerRecords[F, K, V] = sks.prDataset(convertPRs(dataset))
+  def toProducerRecords: FsmProducerRecords[F, K, V] = sks.prDataset(convertCR(dataset))
 
   def stats: FsmStatistics[F, K, V] = new FsmStatistics(ds, sks)
 }
