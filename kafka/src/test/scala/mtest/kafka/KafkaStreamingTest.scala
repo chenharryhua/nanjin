@@ -6,13 +6,20 @@ import org.scalatest.funsuite.AnyFunSuite
 import io.chrisdavenport.cats.time._
 import org.apache.kafka.streams.scala.ImplicitConversions._
 
-case class StreamOneValue(name: String, size: Int)
-case class StreamTwoValue(name: String, color: Int)
-case class StreamKey(name: Int)
+object KafkaStreamingCases {
 
-case class StreamTarget(oneName: String, twoName: String, size: Int, color: Int)
+  case class StreamOneValue(name: String, size: Int)
+
+  case class StreamTwoValue(name: String, color: Int)
+
+  case class StreamKey(name: Int)
+
+  case class StreamTarget(oneName: String, twoName: String, size: Int, color: Int)
+
+}
 
 class KafkaStreamingTest extends AnyFunSuite {
+  import KafkaStreamingCases._
   val one               = ctx.topic[StreamKey, StreamOneValue]("stream-one")
   val two               = ctx.topic[StreamKey, StreamTwoValue]("stream-two")
   val tgt               = ctx.topic[StreamKey, StreamTarget]("stream-target")

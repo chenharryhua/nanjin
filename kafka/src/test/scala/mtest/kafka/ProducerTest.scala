@@ -9,10 +9,16 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration._
 import scala.util.Random
 
-case class AvroKey(key: String)
-case class AvroValue(v1: String, v2: Int)
+object ProducerAvros {
+
+  case class AvroKey(key: String)
+
+  case class AvroValue(v1: String, v2: Int)
+
+}
 
 class ProducerTest extends AnyFunSuite {
+  import ProducerAvros._
   val srcTopic    = ctx.topic[AvroKey, AvroValue]("producer.test.source")
   val akkaTopic   = ctx.topic[AvroKey, AvroValue]("producer.test.akka")
   val fs2Topic    = ctx.topic[AvroKey, AvroValue]("producer.test.fs2")
