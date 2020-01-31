@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
+import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJProducerRecord
 import frameless.cats.implicits._
@@ -8,12 +9,14 @@ import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import fs2.kafka.ProducerResult
 import org.apache.spark.sql.Dataset
-import shapeless._
 
 final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   prs: Dataset[NJProducerRecord[K, V]],
-  sks: SparKafkaSession[K,V]
-) extends FsmSparKafka {
+  bundle: KitBundle[K, V]
+) extends FsmSparKafka with UpdateParams[KitBundle[K, V], FsmProducerRecords[F, K, V]] {
+
+  override def withParamUpdate(f: KitBundle[K, V] => KitBundle[K, V]): FsmProducerRecords[F, K, V] =
+    new FsmProducerRecords[F, K, V](prs, f(bundle))
 
   @transient lazy val dataset: TypedDataset[NJProducerRecord[K, V]] =
     TypedDataset.create(prs)
@@ -23,16 +26,16 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     ce: ConcurrentEffect[F],
     timer: Timer[F],
     cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
-    sk.upload(dataset, kit, sks.params.repartition, sks.params.uploadRate)
+    sk.upload(dataset, kit, bundle.params.repartition, bundle.params.uploadRate)
 
   def upload(
     implicit
     ce: ConcurrentEffect[F],
     timer: Timer[F],
     cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
-    upload(sks.kit)
+    upload(bundle.kit)
 
   def show(implicit ev: Sync[F]): F[Unit] =
-    dataset.show[F](sks.params.showDs.rowNum, sks.params.showDs.isTruncate)
+    dataset.show[F](bundle.params.showDs.rowNum, bundle.params.showDs.isTruncate)
 
 }

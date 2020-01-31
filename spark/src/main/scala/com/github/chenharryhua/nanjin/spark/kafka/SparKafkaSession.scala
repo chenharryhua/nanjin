@@ -10,16 +10,15 @@ import org.apache.spark.sql.SparkSession
 
 trait FsmSparKafka extends Serializable
 
-final class SparKafkaSession[K, V](val kit: KafkaTopicKit[K, V], val params: SparKafkaParams)(
-  implicit sparkSession: SparkSession)
-    extends FsmSparKafka with UpdateParams[SparKafkaParams, SparKafkaSession[K, V]] {
+final class SparKafkaSession[K, V](bundle: KitBundle[K, V])(implicit sparkSession: SparkSession)
+    extends FsmSparKafka with UpdateParams[KitBundle[K, V], SparKafkaSession[K, V]] {
 
-  override def withParamUpdate(f: SparKafkaParams => SparKafkaParams): SparKafkaSession[K, V] =
-    new SparKafkaSession[K, V](kit, f(params))
+  override def withParamUpdate(f: KitBundle[K, V] => KitBundle[K, V]): SparKafkaSession[K, V] =
+    new SparKafkaSession[K, V](f(bundle))
 
   def fromKafka[F[_]: Sync, A](f: NJConsumerRecord[K, V] => A)(
     implicit ev: TypedEncoder[A]): F[TypedDataset[A]] =
-    sk.fromKafka(kit, params.timeRange, params.locationStrategy)(f)
+    sk.fromKafka(bundle.kit, bundle.params.timeRange, bundle.params.locationStrategy)(f)
 
   def fromKafka[F[_]: Sync](
     implicit
@@ -31,19 +30,20 @@ final class SparKafkaSession[K, V](val kit: KafkaTopicKit[K, V], val params: Spa
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] =
-    crDataset(sk.fromDisk(kit, params.timeRange, params.fileFormat, params.getPath(kit.topicName)))
+    crDataset(
+      sk.fromDisk(bundle.kit, bundle.params.timeRange, bundle.params.fileFormat, bundle.getPath))
 
   def crDataset[F[_], A](cr: TypedDataset[NJConsumerRecord[K, V]])(
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](cr.dataset, this)
+    new FsmConsumerRecords[F, K, V](cr.dataset, bundle)
 
   def prDataset[F[_], A](pr: TypedDataset[NJProducerRecord[K, V]])(
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): FsmProducerRecords[F, K, V] =
-    new FsmProducerRecords[F, K, V](pr.dataset, this)
+    new FsmProducerRecords[F, K, V](pr.dataset, bundle)
 
   def replay[F[_]: ConcurrentEffect: Timer: ContextShift](
     implicit
@@ -61,5 +61,7 @@ final class SparKafkaSession[K, V](val kit: KafkaTopicKit[K, V], val params: Spa
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): FsmSparkStreaming[F, NJConsumerRecord[K, V]] =
-    new FsmSparkStreaming[F, NJConsumerRecord[K, V]](sk.streaming(kit).dataset, params)
+    new FsmSparkStreaming[F, NJConsumerRecord[K, V]](
+      sk.streaming(bundle.kit).dataset,
+      bundle.params)
 }

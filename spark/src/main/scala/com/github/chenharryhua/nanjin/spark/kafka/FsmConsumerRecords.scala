@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import java.time.ZoneId
 
 import cats.effect.Sync
-import com.github.chenharryhua.nanjin.common.NJFileFormat
+import com.github.chenharryhua.nanjin.common.{NJFileFormat, UpdateParams}
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
@@ -11,8 +11,11 @@ import org.apache.spark.sql.Dataset
 
 final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   ds: Dataset[NJConsumerRecord[K, V]],
-  sks: SparKafkaSession[K, V])
-    extends FsmSparKafka {
+  bundle: KitBundle[K, V])
+    extends FsmSparKafka with UpdateParams[KitBundle[K, V], FsmConsumerRecords[F, K, V]] {
+
+  override def withParamUpdate(f: KitBundle[K, V] => KitBundle[K, V]): FsmConsumerRecords[F, K, V] =
+    new FsmConsumerRecords[F, K, V](ds, f(bundle))
 
   @transient lazy val dataset: TypedDataset[NJConsumerRecord[K, V]] =
     TypedDataset.create(ds)
@@ -30,24 +33,19 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     dataset.select(dataset('key)).as[Option[K]].deserialized.flatMap(x => x)
 
   def show(implicit ev: Sync[F]): F[Unit] =
-    dataset.show[F](sks.params.showDs.rowNum, sks.params.showDs.isTruncate)
+    dataset.show[F](bundle.params.showDs.rowNum, bundle.params.showDs.isTruncate)
 
   def save(fileFormat: NJFileFormat, path: String): Unit =
-    sk.save(
-      dataset,
-      sks.kit,
-      sks.params.fileFormat,
-      sks.params.saveMode,
-      sks.params.getPath(sks.kit.topicName))
+    sk.save(dataset, bundle.kit, bundle.params.fileFormat, bundle.params.saveMode, bundle.getPath)
 
-  def save(): Unit = save(sks.params.fileFormat, sks.params.getPath(sks.kit.topicName))
+  def save(): Unit = save(bundle.params.fileFormat, bundle.getPath)
 
   def toProducerRecords(conversionTactics: ConversionTactics): FsmProducerRecords[F, K, V] =
-    sks.prDataset(sk.cr2pr(dataset, conversionTactics, sks.params.clock))
+    new FsmProducerRecords(sk.cr2pr(dataset, conversionTactics, bundle.clock).dataset, bundle)
 
   def toProducerRecords: FsmProducerRecords[F, K, V] =
-    toProducerRecords(sks.params.conversionTactics)
+    toProducerRecords(bundle.params.conversionTactics)
 
   def stats(zoneId: ZoneId): FsmStatistics[F, K, V] = new FsmStatistics(ds, zoneId)
-  def stats: FsmStatistics[F, K, V]                 = stats(sks.params.zoneId)
+  def stats: FsmStatistics[F, K, V]                 = stats(bundle.zoneId)
 }
