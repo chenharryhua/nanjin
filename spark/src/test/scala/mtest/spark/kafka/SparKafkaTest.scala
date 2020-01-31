@@ -123,4 +123,18 @@ class SparKafkaTest extends AnyFunSuite {
       .flatMap(_.show[IO](truncate = false, numRows = 1))
       .unsafeRunSync
   }
+
+  test("should be able to be transformed to other topic") {
+    val target = ctx.topic[Int, Int]("from.serializable.test")
+    (target.admin.idefinitelyWantToDeleteTheTopic >> target.schemaRegistry.register) >>
+      (topic.kit.sparKafka
+        .fromKafka[IO]
+        .flatMap(_.toProducerRecords.transform(target.kit)(identity, _.a).upload.compile.drain))
+        .unsafeRunSync()
+
+    val src =
+      topic.kit.sparKafka.fromKafka[IO].flatMap(_.values.collect[IO]()).unsafeRunSync.map(_.a)
+    val tgt = target.kit.sparKafka.fromKafka[IO].flatMap(_.values.collect[IO]()).unsafeRunSync
+    assert(src === tgt)
+  }
 }
