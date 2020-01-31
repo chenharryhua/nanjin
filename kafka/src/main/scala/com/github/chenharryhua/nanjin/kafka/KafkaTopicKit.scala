@@ -17,6 +17,7 @@ import com.github.chenharryhua.nanjin.kafka.common.{
   NJConsumerRecord,
   TopicName
 }
+import fs2.Chunk
 import fs2.kafka.{
   ConsumerSettings => Fs2ConsumerSettings,
   ProducerRecord   => Fs2ProducerRecord,
@@ -89,6 +90,9 @@ import scala.util.Try
 
   def fs2ProducerRecords(key: K, value: V): Fs2ProducerRecords[K, V, Unit] =
     Fs2ProducerRecords.one(fs2PR(key, value))
+
+  def fs2ProducerRecords(list: Chunk[Fs2ProducerRecord[K, V]]): Fs2ProducerRecords[K, V, Unit] =
+    Fs2ProducerRecords[Chunk, K, V](list)
 
   def fs2ProducerRecords[G[+_]: Traverse](list: G[(K, V)]): Fs2ProducerRecords[K, V, Unit] =
     Fs2ProducerRecords[G, K, V](list.map { case (k, v) => fs2PR(k, v) })

@@ -20,13 +20,11 @@ final case class DailyMinuteAggResult(date: LocalDateTime, count: Long)
 
 final class FsmStatistics[F[_], K: TypedEncoder, V: TypedEncoder](
   ds: Dataset[NJConsumerRecord[K, V]],
-  sks: SparKafkaSession[K, V])
+  zoneId: ZoneId)
     extends FsmSparKafka {
 
   @transient lazy val dataset: TypedDataset[NJConsumerRecord[K, V]] =
     TypedDataset.create(ds)
-
-  private val zoneId: ZoneId = sks.params.timeRange.zoneId
 
   def minutely(implicit ev: Sync[F]): F[Unit] = {
     val minute: TypedDataset[Int] = dataset.deserialized.map { m =>

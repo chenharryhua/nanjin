@@ -7,7 +7,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.codec.NJConsumerMessage._
 import com.github.chenharryhua.nanjin.kafka.codec.iso
-import com.github.chenharryhua.nanjin.kafka.common.{KafkaOffset, NJConsumerRecord}
+import com.github.chenharryhua.nanjin.kafka.common.KafkaOffset
 import fs2.kafka.{produce, AutoOffsetReset, ProducerRecords}
 import fs2.{text, Stream}
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -29,6 +29,7 @@ sealed trait KafkaMonitoringApi[F[_], K, V] {
 
   def save: F[Unit]
   def replay: F[Unit]
+  def pipeTo(other: KafkaTopicKit[K, V]): F[Unit]
 }
 
 object KafkaMonitoringApi {
@@ -131,7 +132,7 @@ object KafkaMonitoringApi {
         .compile
         .drain
 
-    def replay: F[Unit] =
+    override def replay: F[Unit] =
       Stream
         .resource(Blocker[F])
         .flatMap { blocker =>
@@ -145,6 +146,25 @@ object KafkaMonitoringApi {
                 iso.isoFs2ProducerRecord[K, V].reverseGet(nj.toNJProducerRecord.toProducerRecord))
             }
             .through(produce(topic.kit.fs2ProducerSettings))
+        }
+        .compile
+        .drain
+
+    override def pipeTo(other: KafkaTopicKit[K, V]): F[Unit] =
+      Stream
+        .resource[F, Blocker](Blocker[F])
+        .flatMap { blocker =>
+          fs2Channel.consume
+            .chunkN(1000)
+            .map { ms =>
+              val prs = ms.map { m =>
+                val (errs, pr) = other.decoder(m).logRecord.run
+                errs.map(ex => println(s"${ex.metaInfo} ${ex.error.getMessage}"))
+                iso.isoFs2ProducerRecord.reverseGet(pr.toNJProducerRecord.toProducerRecord)
+              }
+              other.fs2ProducerRecords(prs)
+            }
+            .through(produce(other.fs2ProducerSettings))
         }
         .compile
         .drain
