@@ -1,17 +1,21 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import java.time.ZoneId
+
 import cats.effect.Sync
-import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducerRecord}
+import com.github.chenharryhua.nanjin.common.{NJFileFormat, UpdateParams}
+import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
-import com.github.chenharryhua.nanjin.common.NJFileFormat
 
 final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   ds: Dataset[NJConsumerRecord[K, V]],
-  sks: SparKafkaSession[K, V])
-    extends FsmSparKafka {
+  bundle: KitBundle[K, V])
+    extends FsmSparKafka with UpdateParams[KitBundle[K, V], FsmConsumerRecords[F, K, V]] {
+
+  override def withParamUpdate(f: KitBundle[K, V] => KitBundle[K, V]): FsmConsumerRecords[F, K, V] =
+    new FsmConsumerRecords[F, K, V](ds, f(bundle))
 
   @transient lazy val dataset: TypedDataset[NJConsumerRecord[K, V]] =
     TypedDataset.create(ds)
@@ -28,46 +32,20 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def keys: TypedDataset[K] =
     dataset.select(dataset('key)).as[Option[K]].deserialized.flatMap(x => x)
 
-  private def convertCR(
-    consumerRecords: TypedDataset[NJConsumerRecord[K, V]]): TypedDataset[NJProducerRecord[K, V]] = {
-    def noTS: NJProducerRecord[K, V] => NJProducerRecord[K, V] =
-      NJProducerRecord.timestamp.set(Some(NJTimestamp.now(sks.params.clock).milliseconds))
-    val noPT: NJProducerRecord[K, V] => NJProducerRecord[K, V] =
-      NJProducerRecord.partition.set(None)
-
-    val sorted =
-      consumerRecords.orderBy(consumerRecords('timestamp).asc, consumerRecords('offset).asc)
-
-    sks.params.conversionTactics match {
-      case ConversionTactics(true, true) =>
-        sorted.deserialized.map(_.toNJProducerRecord)
-      case ConversionTactics(false, true) =>
-        sorted.deserialized.map(nj => noPT(nj.toNJProducerRecord))
-      case ConversionTactics(true, false) =>
-        sorted.deserialized.map(nj => noTS(nj.toNJProducerRecord))
-      case ConversionTactics(false, false) =>
-        sorted.deserialized.map(nj => noTS.andThen(noPT)(nj.toNJProducerRecord))
-    }
-  }
-
   def show(implicit ev: Sync[F]): F[Unit] =
-    dataset.show[F](sks.params.showRowNumber, sks.params.isTruncate)
+    dataset.show[F](bundle.params.showDs.rowNum, bundle.params.showDs.isTruncate)
 
-  def save(): Unit = {
-    val path = sks.params.getPath(sks.topicKit.topicName)
-    sks.params.fileFormat match {
-      case NJFileFormat.Avro | NJFileFormat.Parquet | NJFileFormat.Json =>
-        dataset.write.mode(sks.params.saveMode).format(sks.params.fileFormat.format).save(path)
-      case NJFileFormat.Jackson =>
-        dataset.deserialized
-          .map(m => sks.topicKit.topicDef.toJackson(m).noSpaces)
-          .write
-          .mode(sks.params.saveMode)
-          .text(path)
-    }
-  }
+  def save(fileFormat: NJFileFormat, path: String): Unit =
+    sk.save(dataset, bundle.kit, bundle.params.fileFormat, bundle.params.saveMode, bundle.getPath)
 
-  def toProducerRecords: FsmProducerRecords[F, K, V] = sks.prDataset(convertCR(dataset))
+  def save(): Unit = save(bundle.params.fileFormat, bundle.getPath)
 
-  def stats: FsmStatistics[F, K, V] = new FsmStatistics(ds, sks)
+  def toProducerRecords(conversionTactics: ConversionTactics): FsmProducerRecords[F, K, V] =
+    new FsmProducerRecords(sk.cr2pr(dataset, conversionTactics, bundle.clock).dataset, bundle)
+
+  def toProducerRecords: FsmProducerRecords[F, K, V] =
+    toProducerRecords(bundle.params.conversionTactics)
+
+  def stats(zoneId: ZoneId): FsmStatistics[F, K, V] = new FsmStatistics(ds, zoneId)
+  def stats: FsmStatistics[F, K, V]                 = stats(bundle.zoneId)
 }

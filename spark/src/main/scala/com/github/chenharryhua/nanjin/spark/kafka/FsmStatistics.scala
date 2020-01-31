@@ -7,9 +7,9 @@ import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.datetime.iso._
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.injection._
-import frameless.{TypedDataset, TypedEncoder}
 import frameless.cats.implicits._
 import frameless.functions.aggregate.count
+import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
 
 final case class MinutelyAggResult(minute: Int, count: Long)
@@ -20,13 +20,11 @@ final case class DailyMinuteAggResult(date: LocalDateTime, count: Long)
 
 final class FsmStatistics[F[_], K: TypedEncoder, V: TypedEncoder](
   ds: Dataset[NJConsumerRecord[K, V]],
-  sks: SparKafkaSession[K, V])
+  zoneId: ZoneId)
     extends FsmSparKafka {
 
   @transient lazy val dataset: TypedDataset[NJConsumerRecord[K, V]] =
     TypedDataset.create(ds)
-
-  private val zoneId: ZoneId = sks.params.timeRange.zoneId
 
   def minutely(implicit ev: Sync[F]): F[Unit] = {
     val minute: TypedDataset[Int] = dataset.deserialized.map { m =>

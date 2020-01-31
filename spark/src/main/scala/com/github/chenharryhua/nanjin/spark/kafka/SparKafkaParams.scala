@@ -5,6 +5,7 @@ import java.time._
 import cats.data.Reader
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
+import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.TopicName
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
@@ -12,10 +13,10 @@ import org.apache.spark.streaming.kafka010.{LocationStrategies, LocationStrategy
 
 import scala.concurrent.duration._
 
-@Lenses final case class NJRate(batchSize: Int, duration: FiniteDuration)
+@Lenses final case class UploadRate(batchSize: Int, duration: FiniteDuration)
 
-object NJRate {
-  val default: NJRate = NJRate(batchSize = 1000, duration = 1.second)
+object UploadRate {
+  val default: UploadRate = UploadRate(batchSize = 1000, duration = 1.second)
 }
 
 @Lenses final case class ConversionTactics(keepPartition: Boolean, keepTimestamp: Boolean) {
@@ -36,67 +37,20 @@ final case class KafkaPathBuild(
   fileFormat: NJFileFormat,
   topicName: TopicName)
 
+final case class Repartition(value: Int) extends AnyVal
+
+@Lenses final case class ShowSparkDataset(rowNum: Int, isTruncate: Boolean)
+
 @Lenses final case class SparKafkaParams private (
   timeRange: NJDateTimeRange,
   conversionTactics: ConversionTactics,
-  uploadRate: NJRate,
+  uploadRate: UploadRate,
   pathBuilder: Reader[KafkaPathBuild, String],
   fileFormat: NJFileFormat,
   saveMode: SaveMode,
   locationStrategy: LocationStrategy,
-  repartition: Int,
-  showRowNumber: Int,
-  isTruncate: Boolean) {
-
-  def getPath(topicName: TopicName): String =
-    pathBuilder(KafkaPathBuild(timeRange, fileFormat, topicName))
-
-  def withTimeRange(f: NJDateTimeRange => NJDateTimeRange): SparKafkaParams =
-    SparKafkaParams.timeRange.modify(f)(this)
-
-  def withConversionTactics(f: ConversionTactics => ConversionTactics): SparKafkaParams =
-    SparKafkaParams.conversionTactics.modify(f)(this)
-
-  val clock: Clock = Clock.system(timeRange.zoneId)
-
-  def withSaveMode(sm: SaveMode): SparKafkaParams = copy(saveMode = sm)
-  def withOverwrite: SparKafkaParams              = copy(saveMode = SaveMode.Overwrite)
-
-  def withPathBuilder(rp: KafkaPathBuild => String): SparKafkaParams =
-    copy(pathBuilder = Reader(rp))
-
-  def withFileFormat(ff: NJFileFormat): SparKafkaParams = copy(fileFormat = ff)
-
-  def withJson: SparKafkaParams    = withFileFormat(NJFileFormat.Json)
-  def withJackson: SparKafkaParams = withFileFormat(NJFileFormat.Jackson)
-  def withAvro: SparKafkaParams    = withFileFormat(NJFileFormat.Avro)
-  def withParquet: SparKafkaParams = withFileFormat(NJFileFormat.Parquet)
-
-  def withLocationStrategy(ls: LocationStrategy): SparKafkaParams =
-    copy(locationStrategy = ls)
-
-  def withBatchSize(batchSize: Int): SparKafkaParams =
-    SparKafkaParams.uploadRate.composeLens(NJRate.batchSize).set(batchSize)(this)
-
-  def withDuration(duration: FiniteDuration): SparKafkaParams =
-    SparKafkaParams.uploadRate.composeLens(NJRate.duration).set(duration)(this)
-
-  def withUploadRate(batchSize: Int, duration: FiniteDuration): SparKafkaParams =
-    withBatchSize(batchSize).withDuration(duration)
-
-  def withSparkRepartition(number: Int): SparKafkaParams =
-    SparKafkaParams.repartition.set(number)(this)
-
-  def withShowRowNumber(num: Int): SparKafkaParams =
-    SparKafkaParams.showRowNumber.set(num)(this)
-
-  def withTruncate: SparKafkaParams =
-    SparKafkaParams.isTruncate.set(true)(this)
-
-  def withoutTruncate: SparKafkaParams =
-    SparKafkaParams.isTruncate.set(false)(this)
-
-}
+  repartition: Repartition,
+  showDs: ShowSparkDataset)
 
 object SparKafkaParams {
 
@@ -104,13 +58,86 @@ object SparKafkaParams {
     SparKafkaParams(
       timeRange         = NJDateTimeRange.infinite,
       conversionTactics = ConversionTactics.default,
-      uploadRate        = NJRate.default,
+      uploadRate        = UploadRate.default,
       pathBuilder       = Reader(ps => s"./data/spark/kafka/${ps.topicName}/${ps.fileFormat}/"),
       fileFormat        = NJFileFormat.Parquet,
       saveMode          = SaveMode.ErrorIfExists,
       locationStrategy  = LocationStrategies.PreferConsistent,
-      repartition       = 30,
-      showRowNumber     = 100,
-      isTruncate        = false
+      repartition       = Repartition(30),
+      showDs            = ShowSparkDataset(100, isTruncate = false)
     )
+}
+
+@Lenses final case class KitBundle[K, V](
+  kit: KafkaTopicKit[K, V],
+  params: SparKafkaParams
+) {
+
+  def getPath: String =
+    params.pathBuilder(KafkaPathBuild(params.timeRange, params.fileFormat, kit.topicName))
+
+  def withTopicKit(other: KafkaTopicKit[K, V]): KitBundle[K, V] =
+    KitBundle.kit.set(other)(this)
+
+  def withTimeRange(f: NJDateTimeRange => NJDateTimeRange): KitBundle[K, V] =
+    KitBundle.params.composeLens(SparKafkaParams.timeRange).modify(f)(this)
+
+  def withConversionTactics(f: ConversionTactics => ConversionTactics): KitBundle[K, V] =
+    KitBundle.params.composeLens(SparKafkaParams.conversionTactics).modify(f)(this)
+
+  val zoneId: ZoneId = params.timeRange.zoneId
+  val clock: Clock   = Clock.system(zoneId)
+
+  def withSaveMode(sm: SaveMode): KitBundle[K, V] =
+    KitBundle.params.composeLens(SparKafkaParams.saveMode).set(sm)(this)
+
+  def withOverwrite: KitBundle[K, V] =
+    KitBundle.params.composeLens(SparKafkaParams.saveMode).set(SaveMode.Overwrite)(this)
+
+  def withPathBuilder(rp: KafkaPathBuild => String): KitBundle[K, V] =
+    KitBundle.params.composeLens(SparKafkaParams.pathBuilder).set(Reader(rp))(this)
+
+  def withFileFormat(ff: NJFileFormat): KitBundle[K, V] =
+    KitBundle.params.composeLens(SparKafkaParams.fileFormat).set(ff)(this)
+
+  def withJson: KitBundle[K, V]    = withFileFormat(NJFileFormat.Json)
+  def withJackson: KitBundle[K, V] = withFileFormat(NJFileFormat.Jackson)
+  def withAvro: KitBundle[K, V]    = withFileFormat(NJFileFormat.Avro)
+  def withParquet: KitBundle[K, V] = withFileFormat(NJFileFormat.Parquet)
+
+  def withLocationStrategy(ls: LocationStrategy): KitBundle[K, V] =
+    KitBundle.params.composeLens(SparKafkaParams.locationStrategy).set(ls)(this)
+
+  def withBatchSize(batchSize: Int): KitBundle[K, V] =
+    KitBundle.params
+      .composeLens(SparKafkaParams.uploadRate)
+      .composeLens(UploadRate.batchSize)
+      .set(batchSize)(this)
+
+  def withDuration(duration: FiniteDuration): KitBundle[K, V] =
+    KitBundle.params
+      .composeLens(SparKafkaParams.uploadRate)
+      .composeLens(UploadRate.duration)
+      .set(duration)(this)
+
+  def withRepartition(number: Int): KitBundle[K, V] =
+    KitBundle.params.composeLens(SparKafkaParams.repartition).set(Repartition(number))(this)
+
+  def withRowNumber(num: Int): KitBundle[K, V] =
+    KitBundle.params
+      .composeLens(SparKafkaParams.showDs)
+      .composeLens(ShowSparkDataset.rowNum)
+      .set(num)(this)
+
+  def withTruncate: KitBundle[K, V] =
+    KitBundle.params
+      .composeLens(SparKafkaParams.showDs)
+      .composeLens(ShowSparkDataset.isTruncate)
+      .set(true)(this)
+
+  def withoutTruncate: KitBundle[K, V] =
+    KitBundle.params
+      .composeLens(SparKafkaParams.showDs)
+      .composeLens(ShowSparkDataset.isTruncate)
+      .set(false)(this)
 }

@@ -1,13 +1,11 @@
 package com.github.chenharryhua.nanjin.spark
 
-import cats.effect.{Concurrent, Sync}
+import cats.effect.Concurrent
 import cats.implicits._
 import com.github.chenharryhua.nanjin.utils.Keyboard
+import frameless.TypedDataset
 import frameless.cats.implicits._
-import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.streaming.DataStreamWriter
 
 import scala.collection.JavaConverters._
 
