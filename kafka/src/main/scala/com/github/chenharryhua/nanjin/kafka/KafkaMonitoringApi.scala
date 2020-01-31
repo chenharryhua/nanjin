@@ -7,7 +7,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.codec.NJConsumerMessage._
 import com.github.chenharryhua.nanjin.kafka.codec.iso
-import com.github.chenharryhua.nanjin.kafka.common.KafkaOffset
+import com.github.chenharryhua.nanjin.kafka.common.{KafkaOffset, NJConsumerRecord}
 import fs2.kafka.{produce, AutoOffsetReset, ProducerRecords}
 import fs2.{text, Stream}
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -158,9 +158,10 @@ object KafkaMonitoringApi {
             .chunkN(1000)
             .map { ms =>
               val prs = ms.map { m =>
-                val (errs, pr) = other.decoder(m).logRecord.run
+                val (errs, cr) = other.decoder(m).logRecord.run
                 errs.map(ex => println(s"${ex.metaInfo} ${ex.error.getMessage}"))
-                iso.isoFs2ProducerRecord.reverseGet(pr.toNJProducerRecord.toProducerRecord)
+                val ncr = NJConsumerRecord.topic.set(other.topicName.value)(cr)
+                iso.isoFs2ProducerRecord.reverseGet(ncr.toNJProducerRecord.toProducerRecord)
               }
               other.fs2ProducerRecords(prs)
             }

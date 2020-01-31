@@ -68,10 +68,7 @@ object SparKafkaParams {
     )
 }
 
-@Lenses final case class KitBundle[K, V](
-  kit: KafkaTopicKit[K, V],
-  params: SparKafkaParams
-) {
+@Lenses final case class KitBundle[K, V](kit: KafkaTopicKit[K, V], params: SparKafkaParams) {
 
   def getPath: String =
     params.pathBuilder(KafkaPathBuild(params.timeRange, params.fileFormat, kit.topicName))

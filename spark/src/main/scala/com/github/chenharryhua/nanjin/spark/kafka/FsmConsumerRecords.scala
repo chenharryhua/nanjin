@@ -3,7 +3,9 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import java.time.ZoneId
 
 import cats.effect.Sync
+import cats.implicits._
 import com.github.chenharryhua.nanjin.common.{NJFileFormat, UpdateParams}
+import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
@@ -19,6 +21,12 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
 
   @transient lazy val dataset: TypedDataset[NJConsumerRecord[K, V]] =
     TypedDataset.create(ds)
+
+  def transform[K2: TypedEncoder, V2: TypedEncoder](
+    other: KafkaTopicKit[K2, V2])(k: K => K2, v: V => V2): FsmConsumerRecords[F, K2, V2] =
+    new FsmConsumerRecords[F, K2, V2](
+      dataset.deserialized.map(_.bimap(k, v)).dataset,
+      KitBundle(other, bundle.params))
 
   def nullValuesCount(implicit ev: Sync[F]): F[Long] =
     dataset.filter(dataset('value).isNone).count[F]
