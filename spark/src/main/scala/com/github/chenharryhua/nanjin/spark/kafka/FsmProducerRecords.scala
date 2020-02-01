@@ -24,9 +24,9 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
 
   def transform[K2: TypedEncoder, V2: TypedEncoder](
     other: KafkaTopicKit[K2, V2])(k: K => K2, v: V => V2): FsmProducerRecords[F, K2, V2] =
-    new FsmProducerRecords[F, K2, V2](
-      dataset.deserialized.map(_.bimap(k, v)).dataset,
-      KitBundle(other, bundle.params))
+    new FsmProducerRecords[F, K2, V2](dataset.deserialized.map { m =>
+      NJProducerRecord.topic.set(other.topicName.value)(m.bimap(k, v))
+    }.dataset, KitBundle(other, bundle.params))
 
   def upload(kit: KafkaTopicKit[K, V])(
     implicit
