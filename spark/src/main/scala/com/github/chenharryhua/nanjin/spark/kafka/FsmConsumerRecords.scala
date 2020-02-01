@@ -24,16 +24,14 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
 
   def transform[K2: TypedEncoder, V2: TypedEncoder](
     other: KafkaTopicKit[K2, V2])(k: K => K2, v: V => V2): FsmConsumerRecords[F, K2, V2] =
-    new FsmConsumerRecords[F, K2, V2](dataset.deserialized.map { m =>
-      NJConsumerRecord.topic.set(other.topicName.value)(m.bimap(k, v))
-    }.dataset, KitBundle(other, bundle.params))
+    new FsmConsumerRecords[F, K2, V2](
+      dataset.deserialized.map(_.bimap(k, v)).dataset,
+      KitBundle(other, bundle.params))
 
   def transform[K2: TypedEncoder, V2: TypedEncoder](other: KafkaTopicKit[K2, V2])(
     f: TypedDataset[NJConsumerRecord[K, V]] => TypedDataset[NJConsumerRecord[K2, V2]])
     : FsmConsumerRecords[F, K2, V2] =
-    new FsmConsumerRecords[F, K2, V2](
-      f(dataset).deserialized.map(NJConsumerRecord.topic.set(other.topicName.value)).dataset,
-      KitBundle(other, bundle.params))
+    new FsmConsumerRecords[F, K2, V2](f(dataset).dataset, KitBundle(other, bundle.params))
 
   def persist: FsmConsumerRecords[F, K, V] =
     new FsmConsumerRecords[F, K, V](ds.persist(), bundle)
