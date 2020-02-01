@@ -27,6 +27,11 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
       typedDataset.deserialized.map(_.bimap(k, v)).dataset,
       KitBundle(other, bundle.params))
 
+  def someValues: FsmProducerRecords[F, K, V] =
+    new FsmProducerRecords[F, K, V](
+      typedDataset.filter(typedDataset('value).isNotNone).dataset,
+      bundle)
+
   def upload(kit: KafkaTopicKit[K, V])(
     implicit
     ce: ConcurrentEffect[F],
