@@ -64,7 +64,7 @@ object SparKafkaParams {
       saveMode          = SaveMode.ErrorIfExists,
       locationStrategy  = LocationStrategies.PreferConsistent,
       repartition       = Repartition(30),
-      showDs            = ShowSparkDataset(100, isTruncate = false)
+      showDs            = ShowSparkDataset(60, isTruncate = false)
     )
 }
 
@@ -72,9 +72,6 @@ object SparKafkaParams {
 
   def getPath: String =
     params.pathBuilder(KafkaPathBuild(params.timeRange, params.fileFormat, kit.topicName))
-
-  def withTopicKit(other: KafkaTopicKit[K, V]): KitBundle[K, V] =
-    KitBundle.kit.set(other)(this)
 
   def withTimeRange(f: NJDateTimeRange => NJDateTimeRange): KitBundle[K, V] =
     KitBundle.params.composeLens(SparKafkaParams.timeRange).modify(f)(this)

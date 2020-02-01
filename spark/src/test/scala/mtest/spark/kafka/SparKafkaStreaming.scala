@@ -10,6 +10,6 @@ import org.scalatest.funsuite.AnyFunSuite
 class SparKafkaStreaming extends AnyFunSuite {
   test("streaming") {
     val topic = ctx.topic[String, trip_record]("nyc_yellow_taxi_trip_data")
-    topic.kit.sparKafka.sparkStreaming[IO].run.unsafeRunSync()
+    topic.kit.sparKafka.streaming[IO].run.unsafeRunSync()
   }
 }

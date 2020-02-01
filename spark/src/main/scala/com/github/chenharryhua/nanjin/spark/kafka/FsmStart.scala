@@ -8,13 +8,13 @@ import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducer
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SparkSession
 
-trait FsmSparKafka extends Serializable
+trait FsmSparKafka[K, V] extends Serializable with UpdateParams[KitBundle[K, V], FsmSparKafka[K, V]]
 
-final class SparKafkaSession[K, V](bundle: KitBundle[K, V])(implicit sparkSession: SparkSession)
-    extends FsmSparKafka with UpdateParams[KitBundle[K, V], SparKafkaSession[K, V]] {
+final class FsmStart[K, V](bundle: KitBundle[K, V])(implicit sparkSession: SparkSession)
+    extends FsmSparKafka[K, V] {
 
-  override def withParamUpdate(f: KitBundle[K, V] => KitBundle[K, V]): SparKafkaSession[K, V] =
-    new SparKafkaSession[K, V](f(bundle))
+  override def withParamUpdate(f: KitBundle[K, V] => KitBundle[K, V]): FsmStart[K, V] =
+    new FsmStart[K, V](f(bundle))
 
   def fromKafka[F[_]: Sync, A](f: NJConsumerRecord[K, V] => A)(
     implicit ev: TypedEncoder[A]): F[TypedDataset[A]] =
@@ -26,12 +26,17 @@ final class SparKafkaSession[K, V](bundle: KitBundle[K, V])(implicit sparkSessio
     valEncoder: TypedEncoder[V]): F[FsmConsumerRecords[F, K, V]] =
     fromKafka(identity).map(crDataset)
 
+  def fromDisk[F[_]](path: String)(
+    implicit
+    keyEncoder: TypedEncoder[K],
+    valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] =
+    crDataset(sk.fromDisk(bundle.kit, bundle.params.timeRange, bundle.params.fileFormat, path))
+
   def fromDisk[F[_]](
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] =
-    crDataset(
-      sk.fromDisk(bundle.kit, bundle.params.timeRange, bundle.params.fileFormat, bundle.getPath))
+    fromDisk[F](bundle.getPath)
 
   def crDataset[F[_], A](cr: TypedDataset[NJConsumerRecord[K, V]])(
     implicit
@@ -57,11 +62,9 @@ final class SparKafkaSession[K, V](bundle: KitBundle[K, V])(implicit sparkSessio
     valEncoder: TypedEncoder[V]): F[Unit] =
     fromKafka[F].flatMap(_.toProducerRecords.upload(otherTopic).map(_ => print(".")).compile.drain)
 
-  def sparkStreaming[F[_]](
+  def streaming[F[_]](
     implicit
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): FsmSparkStreaming[F, NJConsumerRecord[K, V]] =
-    new FsmSparkStreaming[F, NJConsumerRecord[K, V]](
-      sk.streaming(bundle.kit).dataset,
-      bundle.params)
+    valEncoder: TypedEncoder[V]): SparkStreaming[F, NJConsumerRecord[K, V]] =
+    new SparkStreaming[F, NJConsumerRecord[K, V]](sk.streaming(bundle.kit).dataset)
 }
