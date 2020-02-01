@@ -24,11 +24,11 @@ final class Statistics[F[_], K: TypedEncoder, V: TypedEncoder](
   zoneId: ZoneId)
     extends Serializable {
 
-  @transient lazy val dataset: TypedDataset[NJConsumerRecord[K, V]] =
+  @transient lazy val typedDataset: TypedDataset[NJConsumerRecord[K, V]] =
     TypedDataset.create(ds)
 
   def minutely(implicit ev: Sync[F]): F[Unit] = {
-    val minute: TypedDataset[Int] = dataset.deserialized.map { m =>
+    val minute: TypedDataset[Int] = typedDataset.deserialized.map { m =>
       NJTimestamp(m.timestamp).atZone(zoneId).getMinute
     }
     val res = minute.groupBy(minute.asCol).agg(count(minute.asCol)).as[MinutelyAggResult]
@@ -36,7 +36,7 @@ final class Statistics[F[_], K: TypedEncoder, V: TypedEncoder](
   }
 
   def hourly(implicit ev: Sync[F]): F[Unit] = {
-    val hour = dataset.deserialized.map { m =>
+    val hour = typedDataset.deserialized.map { m =>
       NJTimestamp(m.timestamp).atZone(zoneId).getHour
     }
     val res = hour.groupBy(hour.asCol).agg(count(hour.asCol)).as[HourlyAggResult]
@@ -44,7 +44,7 @@ final class Statistics[F[_], K: TypedEncoder, V: TypedEncoder](
   }
 
   def daily(implicit ev: Sync[F]): F[Unit] = {
-    val day: TypedDataset[LocalDate] = dataset.deserialized.map { m =>
+    val day: TypedDataset[LocalDate] = typedDataset.deserialized.map { m =>
       NJTimestamp(m.timestamp).atZone(zoneId).toLocalDate
     }
     val res = day.groupBy(day.asCol).agg(count(day.asCol)).as[DailyAggResult]
@@ -52,7 +52,7 @@ final class Statistics[F[_], K: TypedEncoder, V: TypedEncoder](
   }
 
   def dailyHour(implicit ev: Sync[F]): F[Unit] = {
-    val dayHour: TypedDataset[LocalDateTime] = dataset.deserialized.map { m =>
+    val dayHour: TypedDataset[LocalDateTime] = typedDataset.deserialized.map { m =>
       val dt = NJTimestamp(m.timestamp).atZone(zoneId).toLocalDateTime
       LocalDateTime.of(dt.toLocalDate, LocalTime.of(dt.getHour, 0))
     }
@@ -61,7 +61,7 @@ final class Statistics[F[_], K: TypedEncoder, V: TypedEncoder](
   }
 
   def dailyMinute(implicit ev: Sync[F]): F[Unit] = {
-    val dayMinute: TypedDataset[LocalDateTime] = dataset.deserialized.map { m =>
+    val dayMinute: TypedDataset[LocalDateTime] = typedDataset.deserialized.map { m =>
       val dt = NJTimestamp(m.timestamp).atZone(zoneId).toLocalDateTime
       LocalDateTime.of(dt.toLocalDate, LocalTime.of(dt.getHour, dt.getMinute))
     }

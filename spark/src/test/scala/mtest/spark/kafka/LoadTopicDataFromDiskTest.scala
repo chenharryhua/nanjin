@@ -23,7 +23,7 @@ class LoadTopicDataFromDiskTest extends AnyFunSuite {
     val rst = topic.kit.sparKafka
       .withParamUpdate(_.withJson.withPathBuilder(_ => "./data/test/load/json"))
       .fromDisk[IO]
-      .dataset
+      .typedDataset
       .collect[IO]
       .map(x => assert(x.sortBy(_.offset).toList === data))
     rst.unsafeRunSync()
@@ -39,7 +39,7 @@ class LoadTopicDataFromDiskTest extends AnyFunSuite {
     val rst = topic.kit.sparKafka
       .withParamUpdate(_.withAvro.withPathBuilder(_ => "./data/test/load/avro"))
       .fromDisk[IO]
-      .dataset
+      .typedDataset
       .collect[IO]
       .map(x => assert(x.sortBy(_.offset).toList === data))
     rst.unsafeRunSync()
@@ -50,7 +50,7 @@ class LoadTopicDataFromDiskTest extends AnyFunSuite {
     val rst = topic.kit.sparKafka
       .withParamUpdate(_.withParquet.withPathBuilder(_ => "./data/test/load/parquet"))
       .fromDisk[IO]
-      .dataset
+      .typedDataset
       .collect[IO]
       .map(x => assert(x.sortBy(_.offset).toList === data))
     rst.unsafeRunSync()
