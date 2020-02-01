@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJProducerRecord
 import frameless.cats.implicits._
@@ -14,7 +13,7 @@ import org.apache.spark.sql.Dataset
 final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   prs: Dataset[NJProducerRecord[K, V]],
   bundle: KitBundle[K, V]
-) extends FsmSparKafka with UpdateParams[KitBundle[K, V], FsmProducerRecords[F, K, V]] {
+) extends FsmSparKafka[K, V] {
 
   override def withParamUpdate(f: KitBundle[K, V] => KitBundle[K, V]): FsmProducerRecords[F, K, V] =
     new FsmProducerRecords[F, K, V](prs, f(bundle))

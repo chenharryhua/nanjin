@@ -1,10 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import java.time.ZoneId
-
 import cats.effect.Sync
 import cats.implicits._
-import com.github.chenharryhua.nanjin.common.{NJFileFormat, UpdateParams}
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import frameless.cats.implicits._
@@ -14,7 +11,7 @@ import org.apache.spark.sql.Dataset
 final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   ds: Dataset[NJConsumerRecord[K, V]],
   bundle: KitBundle[K, V])
-    extends FsmSparKafka with UpdateParams[KitBundle[K, V], FsmConsumerRecords[F, K, V]] {
+    extends FsmSparKafka[K, V] {
 
   override def withParamUpdate(f: KitBundle[K, V] => KitBundle[K, V]): FsmConsumerRecords[F, K, V] =
     new FsmConsumerRecords[F, K, V](ds, f(bundle))
@@ -51,10 +48,10 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def show(implicit ev: Sync[F]): F[Unit] =
     dataset.show[F](bundle.params.showDs.rowNum, bundle.params.showDs.isTruncate)
 
-  def save(fileFormat: NJFileFormat, path: String): Unit =
-    sk.save(dataset, bundle.kit, bundle.params.fileFormat, bundle.params.saveMode, bundle.getPath)
+  def save(path: String): Unit =
+    sk.save(dataset, bundle.kit, bundle.params.fileFormat, bundle.params.saveMode, path)
 
-  def save(): Unit = save(bundle.params.fileFormat, bundle.getPath)
+  def save(): Unit = save(bundle.getPath)
 
   def toProducerRecords(conversionTactics: ConversionTactics): FsmProducerRecords[F, K, V] =
     new FsmProducerRecords(sk.cr2pr(dataset, conversionTactics, bundle.clock).dataset, bundle)
@@ -62,6 +59,6 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def toProducerRecords: FsmProducerRecords[F, K, V] =
     toProducerRecords(bundle.params.conversionTactics)
 
-  def stats(zoneId: ZoneId): FsmStatistics[F, K, V] = new FsmStatistics(ds, zoneId)
-  def stats: FsmStatistics[F, K, V]                 = stats(bundle.zoneId)
+  def stats: Statistics[F, K, V] =
+    new Statistics(ds, bundle.params.showDs, bundle.zoneId)
 }
