@@ -26,9 +26,11 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
       KitBundle(other, bundle.params))
 
   def transform[K2: TypedEncoder, V2: TypedEncoder](other: KafkaTopicKit[K2, V2])(
-    f: TypedDataset[NJConsumerRecord[K, V]] => TypedDataset[NJConsumerRecord[K2, V2]])
+    f: NJConsumerRecord[K, V] => TraversableOnce[NJConsumerRecord[K2, V2]])
     : FsmConsumerRecords[F, K2, V2] =
-    new FsmConsumerRecords[F, K2, V2](f(typedDataset).dataset, KitBundle(other, bundle.params))
+    new FsmConsumerRecords[F, K2, V2](
+      typedDataset.deserialized.flatMap(f).dataset,
+      KitBundle(other, bundle.params))
 
   def someValues: FsmConsumerRecords[F, K, V] =
     new FsmConsumerRecords[F, K, V](

@@ -13,7 +13,9 @@ import io.circe.generic.auto._
 import io.circe.syntax._
 import org.scalatest.funsuite.AnyFunSuite
 import com.github.chenharryhua.nanjin.datetime.iso._
+import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.injection._
+import frameless.TypedDataset
 
 class SparKafkaTest extends AnyFunSuite {
   val embed = EmbeddedForTaskSerializable(0, "embeded")
@@ -136,5 +138,16 @@ class SparKafkaTest extends AnyFunSuite {
       topic.kit.sparKafka.fromKafka[IO].flatMap(_.values.collect[IO]()).unsafeRunSync.map(_.a)
     val tgt = target.kit.sparKafka.fromKafka[IO].flatMap(_.values.collect[IO]()).unsafeRunSync
     assert(src === tgt)
+  }
+
+  test("someValue should filter out none values") {
+    val cr1: NJConsumerRecord[Int, Int]              = NJConsumerRecord(0, 0, 0, None, Some(1), "t", 0)
+    val cr2: NJConsumerRecord[Int, Int]              = NJConsumerRecord(0, 0, 0, Some(1), None, "t", 0)
+    val crs: List[NJConsumerRecord[Int, Int]]        = List(cr1, cr2)
+    val ds: TypedDataset[NJConsumerRecord[Int, Int]] = TypedDataset.create(crs)
+
+    val t   = TopicDef[Int, Int]("some.value").in(ctx).kit.sparKafka.crDataset(ds)
+    val rst = t.someValues.typedDataset.collect[IO]().unsafeRunSync()
+    assert(rst === Seq(cr1))
   }
 }
