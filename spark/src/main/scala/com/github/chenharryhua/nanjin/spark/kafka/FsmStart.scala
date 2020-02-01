@@ -18,19 +18,19 @@ final class FsmStart[K, V](bundle: KitBundle[K, V])(implicit sparkSession: Spark
 
   def fromKafka[F[_]: Sync, A](f: NJConsumerRecord[K, V] => A)(
     implicit ev: TypedEncoder[A]): F[TypedDataset[A]] =
-    sk.fromKafka(bundle.kit, bundle.params.timeRange, bundle.params.locationStrategy)(f)
+    sk.fromKafka[F, K, V, A](bundle.kit, bundle.params.timeRange, bundle.params.locationStrategy)(f)
 
   def fromKafka[F[_]: Sync](
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[FsmConsumerRecords[F, K, V]] =
-    fromKafka(identity).map(crDataset)
+    fromKafka[F, NJConsumerRecord[K, V]](identity).map(crDataset)
 
   def fromDisk[F[_]](path: String)(
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] =
-    crDataset(sk.fromDisk(bundle.kit, bundle.params.timeRange, bundle.params.fileFormat, path))
+    crDataset[F](sk.fromDisk(bundle.kit, bundle.params.timeRange, bundle.params.fileFormat, path))
 
   def fromDisk[F[_]](
     implicit
@@ -38,13 +38,13 @@ final class FsmStart[K, V](bundle: KitBundle[K, V])(implicit sparkSession: Spark
     valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] =
     fromDisk[F](bundle.getPath)
 
-  def crDataset[F[_], A](cr: TypedDataset[NJConsumerRecord[K, V]])(
+  def crDataset[F[_]](cr: TypedDataset[NJConsumerRecord[K, V]])(
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] =
     new FsmConsumerRecords[F, K, V](cr.dataset, bundle)
 
-  def prDataset[F[_], A](pr: TypedDataset[NJProducerRecord[K, V]])(
+  def prDataset[F[_]](pr: TypedDataset[NJProducerRecord[K, V]])(
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): FsmProducerRecords[F, K, V] =
@@ -54,13 +54,14 @@ final class FsmStart[K, V](bundle: KitBundle[K, V])(implicit sparkSession: Spark
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[Unit] =
-    fromDisk[F].toProducerRecords.upload.map(_ => print(".")).compile.drain
+    fromDisk[F].someValues.toProducerRecords.upload.map(_ => print(".")).compile.drain
 
   def pipeTo[F[_]: ConcurrentEffect: Timer: ContextShift](otherTopic: KafkaTopicKit[K, V])(
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[Unit] =
-    fromKafka[F].flatMap(_.toProducerRecords.upload(otherTopic).map(_ => print(".")).compile.drain)
+    fromKafka[F].flatMap(
+      _.someValues.toProducerRecords.upload(otherTopic).map(_ => print(".")).compile.drain)
 
   def streaming[F[_]](
     implicit
