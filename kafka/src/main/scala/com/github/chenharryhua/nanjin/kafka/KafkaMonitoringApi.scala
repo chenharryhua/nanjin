@@ -7,8 +7,8 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.codec.NJConsumerMessage._
 import com.github.chenharryhua.nanjin.kafka.codec.iso
-import com.github.chenharryhua.nanjin.kafka.common.{KafkaOffset, NJConsumerRecord}
-import fs2.kafka.{produce, AutoOffsetReset, ProducerRecords}
+import com.github.chenharryhua.nanjin.kafka.common.KafkaOffset
+import fs2.kafka.{produce, AutoOffsetReset, ProducerRecord, ProducerRecords, Timestamp}
 import fs2.{text, Stream}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
@@ -143,10 +143,7 @@ object KafkaMonitoringApi {
             .mapFilter(str => topic.kit.fromJackson(str).toOption)
             .chunkN(1000)
             .map { chk =>
-              val prs = chk.map(m =>
-                iso
-                  .isoFs2ProducerRecord[K, V]
-                  .reverseGet(m.toNJProducerRecord.toProducerRecord(topic.topicName)))
+              val prs = chk.map(_.toNJProducerRecord.toFs2ProducerRecord(topic.topicName))
               topic.kit.fs2ProducerRecords(prs)
             }
             .through(produce(topic.kit.fs2ProducerSettings))
@@ -158,18 +155,15 @@ object KafkaMonitoringApi {
       Stream
         .resource[F, Blocker](Blocker[F])
         .flatMap { blocker =>
-          fs2Channel.consume
-            .chunkN(1000)
-            .map { ms =>
-              val prs = ms.map { m =>
-                val (errs, cr) = other.decoder(m).logRecord.run
-                errs.map(ex => println(s"${ex.metaInfo} ${ex.error.getMessage}"))
-                iso.isoFs2ProducerRecord.reverseGet(
-                  cr.toNJProducerRecord.toProducerRecord(other.topicName))
-              }
-              other.fs2ProducerRecords(prs)
-            }
-            .through(produce(other.fs2ProducerSettings))
+          fs2Channel.consume.map { m =>
+            val cr = other.decoder(m).nullableDecode.record
+            val ts = cr.timestamp.createTime.orElse(
+              cr.timestamp.logAppendTime.orElse(cr.timestamp.unknownTime))
+            val pr = ProducerRecord(other.topicName.value, cr.key, cr.value)
+              .withHeaders(cr.headers)
+              .withPartition(cr.partition)
+            ProducerRecords.one(ts.fold(pr)(pr.withTimestamp))
+          }.through(produce(other.fs2ProducerSettings))
         }
         .compile
         .drain

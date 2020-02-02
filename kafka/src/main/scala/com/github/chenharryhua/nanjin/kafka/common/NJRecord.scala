@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka.common
 
 import cats.Bifunctor
+import fs2.kafka.{ProducerRecord => Fs2ProducerRecord}
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import monocle.macros.Lenses
@@ -57,14 +58,14 @@ object NJConsumerRecord {
   value: Option[V]) {
 
   @SuppressWarnings(Array("AsInstanceOf"))
-  def toProducerRecord(topicName: TopicName): ProducerRecord[K, V] =
-    new ProducerRecord[K, V](
+  def toFs2ProducerRecord(topicName: TopicName): Fs2ProducerRecord[K, V] = {
+    val pr = Fs2ProducerRecord(
       topicName.value,
-      partition.getOrElse(null.asInstanceOf[Int]),
-      timestamp.getOrElse(null.asInstanceOf[Long]),
       key.getOrElse(null.asInstanceOf[K]),
-      value.getOrElse(null.asInstanceOf[V])
-    )
+      value.getOrElse(null.asInstanceOf[V]))
+    val pt = partition.fold(pr)(pr.withPartition)
+    timestamp.fold(pt)(pt.withTimestamp)
+  }
 }
 
 object NJProducerRecord {

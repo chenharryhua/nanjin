@@ -7,7 +7,6 @@ import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
-import com.github.chenharryhua.nanjin.kafka.codec.iso
 import com.github.chenharryhua.nanjin.kafka.common.{
   KafkaOffsetRange,
   KafkaTopicPartition,
@@ -193,9 +192,6 @@ private[kafka] object sk {
       .stream[F]
       .chunkN(uploadRate.batchSize)
       .metered(uploadRate.duration)
-      .map(chk =>
-        kit.fs2ProducerRecords(chk.map { m =>
-          iso.isoFs2ProducerRecord[K, V].reverseGet(m.toProducerRecord(kit.topicName))
-        }))
+      .map(chk => kit.fs2ProducerRecords(chk.map(_.toFs2ProducerRecord(kit.topicName))))
       .through(produce(kit.fs2ProducerSettings[F]))
 }
