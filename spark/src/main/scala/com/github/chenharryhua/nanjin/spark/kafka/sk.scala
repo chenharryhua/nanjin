@@ -1,12 +1,11 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import java.time.Clock
 import java.util
 
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
+import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.common.{
   KafkaOffsetRange,
   KafkaTopicPartition,
