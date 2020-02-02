@@ -88,8 +88,8 @@ object SparKafkaParams {
   def withOverwrite: KitBundle[K, V] =
     KitBundle.params.composeLens(SparKafkaParams.saveMode).set(SaveMode.Overwrite)(this)
 
-  def withPathBuilder(rp: KafkaPathBuild => String): KitBundle[K, V] =
-    KitBundle.params.composeLens(SparKafkaParams.pathBuilder).set(Reader(rp))(this)
+  def withPathBuilder(pb: KafkaPathBuild => String): KitBundle[K, V] =
+    KitBundle.params.composeLens(SparKafkaParams.pathBuilder).set(Reader(pb))(this)
 
   def withFileFormat(ff: NJFileFormat): KitBundle[K, V] =
     KitBundle.params.composeLens(SparKafkaParams.fileFormat).set(ff)(this)
@@ -114,8 +114,8 @@ object SparKafkaParams {
       .composeLens(UploadRate.duration)
       .set(duration)(this)
 
-  def withRepartition(number: Int): KitBundle[K, V] =
-    KitBundle.params.composeLens(SparKafkaParams.repartition).set(Repartition(number))(this)
+  def withRepartition(num: Int): KitBundle[K, V] =
+    KitBundle.params.composeLens(SparKafkaParams.repartition).set(Repartition(num))(this)
 
   def withRowNumber(num: Int): KitBundle[K, V] =
     KitBundle.params

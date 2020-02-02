@@ -41,7 +41,7 @@ object NJTimestamp {
     Iso[NJTimestamp, Timestamp]((a: NJTimestamp) => new Timestamp(a.milliseconds))((b: Timestamp) =>
       NJTimestamp(b.getTime))
 
-  implicit val NJTimestampInstance
+  implicit val njTimestampInstance
     : Hash[NJTimestamp] with Order[NJTimestamp] with Show[NJTimestamp] =
     new Hash[NJTimestamp] with Order[NJTimestamp] with Show[NJTimestamp] {
       override def hash(x: NJTimestamp): Int = x.hashCode
