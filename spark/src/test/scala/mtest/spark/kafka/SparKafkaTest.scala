@@ -4,18 +4,18 @@ import java.time.{Instant, LocalDate}
 
 import cats.effect.IO
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef}
+import com.github.chenharryhua.nanjin.datetime.iso._
 import com.github.chenharryhua.nanjin.kafka.codec.ManualAvroSchema
+import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef}
+import com.github.chenharryhua.nanjin.spark.injection._
 import com.github.chenharryhua.nanjin.spark.kafka._
 import com.landoop.transportation.nyc.trip.yellow.trip_record
+import frameless.TypedDataset
 import frameless.cats.implicits._
 import io.circe.generic.auto._
 import io.circe.syntax._
 import org.scalatest.funsuite.AnyFunSuite
-import com.github.chenharryhua.nanjin.datetime.iso._
-import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
-import com.github.chenharryhua.nanjin.spark.injection._
-import frameless.TypedDataset
 
 class SparKafkaTest extends AnyFunSuite {
   val embed = EmbeddedForTaskSerializable(0, "embeded")
@@ -130,8 +130,8 @@ class SparKafkaTest extends AnyFunSuite {
     val src: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int]("src.topic")
     val tgt: KafkaTopic[IO, String, Int]             = ctx.topic[String, Int]("target.topic")
     val d1: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0)
-    val d2: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 2, 0, None, None, "t", 0)
-    val d3: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 3, 0, None, Some(3), "t", 0)
+    val d2: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 2, 0, None, Some(2), "t", 0)
+    val d3: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 3, 0, None, None, "t", 0)
     val d4: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 4, 0, None, Some(4), "t", 0)
     val ds: TypedDataset[NJConsumerRecord[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
 
@@ -143,15 +143,15 @@ class SparKafkaTest extends AnyFunSuite {
         .collect[IO]()
         .unsafeRunSync
         .toList
-    assert(birst == List(2, 4, 5))
+    assert(birst == List(2, 3, 5))
   }
 
   test("should be able to flatmap to other topic") {
     val src: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int]("src.topic")
     val tgt: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int]("target.topic")
     val d1: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0)
-    val d2: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 2, 0, None, None, "t", 0)
-    val d3: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 3, 0, None, Some(3), "t", 0)
+    val d2: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 2, 0, None, Some(2), "t", 0)
+    val d3: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 3, 0, None, None, "t", 0)
     val d4: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 4, 0, None, Some(4), "t", 0)
     val ds: TypedDataset[NJConsumerRecord[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
 
@@ -163,7 +163,7 @@ class SparKafkaTest extends AnyFunSuite {
         .collect[IO]()
         .unsafeRunSync
         .toList
-    assert(birst == List(0, 2, 3))
+    assert(birst == List(0, 1, 3))
   }
 
   test("someValue should filter out none values") {
