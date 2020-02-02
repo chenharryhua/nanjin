@@ -60,11 +60,8 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
 
   def save(): Unit = save(bundle.getPath)
 
-  def toProducerRecords(conversionTactics: ConversionTactics): FsmProducerRecords[F, K, V] =
-    new FsmProducerRecords(sk.cr2pr(typedDataset, conversionTactics, bundle.clock).dataset, bundle)
-
   def toProducerRecords: FsmProducerRecords[F, K, V] =
-    toProducerRecords(bundle.params.conversionTactics)
+    new FsmProducerRecords(sk.cr2pr(typedDataset, bundle.params.conversionTactics).dataset, bundle)
 
   def stats: Statistics[F, K, V] =
     new Statistics(ds, bundle.params.showDs, bundle.zoneId)

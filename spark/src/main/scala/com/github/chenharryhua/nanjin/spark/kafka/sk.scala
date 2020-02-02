@@ -154,12 +154,12 @@ private[kafka] object sk {
       }
   }
 
-  def cr2pr[K, V](tcr: TypedDataset[NJConsumerRecord[K, V]], cts: ConversionTactics, clock: Clock)(
+  def cr2pr[K, V](tcr: TypedDataset[NJConsumerRecord[K, V]], cts: ConversionTactics)(
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): TypedDataset[NJProducerRecord[K, V]] = {
-    def noTS: NJProducerRecord[K, V] => NJProducerRecord[K, V] =
-      NJProducerRecord.timestamp.set(Some(NJTimestamp.now(clock).milliseconds))
+    val noTS: NJProducerRecord[K, V] => NJProducerRecord[K, V] =
+      NJProducerRecord.timestamp.set(None)
     val noPT: NJProducerRecord[K, V] => NJProducerRecord[K, V] =
       NJProducerRecord.partition.set(None)
 
