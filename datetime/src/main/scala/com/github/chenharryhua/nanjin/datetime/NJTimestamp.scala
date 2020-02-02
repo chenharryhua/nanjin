@@ -12,6 +12,7 @@ import scala.util.Try
 final case class NJTimestamp(milliseconds: Long) {
   def instant: Instant                      = Instant.ofEpochMilli(milliseconds)
   def utc: ZonedDateTime                    = instant.atZone(ZoneId.of("Etc/UTC"))
+  def local: ZonedDateTime                  = atZone(ZoneId.systemDefault())
   def atZone(zoneId: ZoneId): ZonedDateTime = instant.atZone(zoneId)
   def javaLong: java.lang.Long              = milliseconds
 }
