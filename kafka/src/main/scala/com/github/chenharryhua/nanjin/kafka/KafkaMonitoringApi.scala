@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import java.nio.file.{Path, Paths}
+import java.time.ZonedDateTime
 
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift}
 import cats.implicits._
@@ -49,7 +50,13 @@ object KafkaMonitoringApi {
       fs2Channel
         .withConsumerSettings(_.withAutoOffsetReset(aor))
         .consume
-        .map(m => topic.kit.toJackson(m).spaces2)
+        .map { m =>
+          val (err, r) = topic.kit.decoder(m).logRecord.run
+          err.map(e => pprint.pprintln(e))
+          s"""|local now: ${ZonedDateTime.now}
+              |timestamp: ${NJTimestamp(r.timestamp).local}
+              |${topic.kit.topicDef.toJackson(r).spaces2}""".stripMargin
+        }
         .showLinesStdOut
         .compile
         .drain

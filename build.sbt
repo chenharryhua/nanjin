@@ -255,7 +255,9 @@ val db = Seq(
 lazy val common = (project in file("common"))
   .settings(commonSettings: _*)
   .settings(name := "nj-common")
-  .settings(libraryDependencies ++= Seq("org.jline" % "jline" % jline) ++
+  .settings(libraryDependencies ++= Seq(
+    "org.jline" % "jline" % jline,
+    "com.lihaoyi" %% "pprint" % "0.5.6") ++ 
     base ++ fs2 ++ monocleLib ++ tests)
 
 lazy val datetime = (project in file("datetime"))
