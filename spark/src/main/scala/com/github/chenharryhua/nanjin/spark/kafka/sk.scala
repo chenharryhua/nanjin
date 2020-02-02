@@ -195,8 +195,7 @@ private[kafka] object sk {
       .metered(uploadRate.duration)
       .map(chk =>
         kit.fs2ProducerRecords(chk.map { m =>
-          val pr = NJProducerRecord.topic.set(kit.topicName.value)(m)
-          iso.isoFs2ProducerRecord[K, V].reverseGet(pr.toProducerRecord)
+          iso.isoFs2ProducerRecord[K, V].reverseGet(m.toProducerRecord(kit.topicName))
         }))
       .through(produce(kit.fs2ProducerSettings[F]))
 }

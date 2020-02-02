@@ -141,9 +141,13 @@ object KafkaMonitoringApi {
             .through(fs2.text.utf8Decode)
             .through(fs2.text.lines)
             .mapFilter(str => topic.kit.fromJackson(str).toOption)
-            .map { nj =>
-              ProducerRecords.one(
-                iso.isoFs2ProducerRecord[K, V].reverseGet(nj.toNJProducerRecord.toProducerRecord))
+            .chunkN(1000)
+            .map { chk =>
+              val prs = chk.map(m =>
+                iso
+                  .isoFs2ProducerRecord[K, V]
+                  .reverseGet(m.toNJProducerRecord.toProducerRecord(topic.topicName)))
+              topic.kit.fs2ProducerRecords(prs)
             }
             .through(produce(topic.kit.fs2ProducerSettings))
         }
@@ -160,8 +164,8 @@ object KafkaMonitoringApi {
               val prs = ms.map { m =>
                 val (errs, cr) = other.decoder(m).logRecord.run
                 errs.map(ex => println(s"${ex.metaInfo} ${ex.error.getMessage}"))
-                val ncr = NJConsumerRecord.topic.set(other.topicName.value)(cr)
-                iso.isoFs2ProducerRecord.reverseGet(ncr.toNJProducerRecord.toProducerRecord)
+                iso.isoFs2ProducerRecord.reverseGet(
+                  cr.toNJProducerRecord.toProducerRecord(other.topicName))
               }
               other.fs2ProducerRecords(prs)
             }

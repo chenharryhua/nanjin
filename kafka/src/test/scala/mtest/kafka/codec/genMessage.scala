@@ -105,7 +105,6 @@ object genMessage {
     } yield NJConsumerRecord(partition, offset, timestamp, key, value, topic, timestampType)
 
     val genNJProducerRecord: Gen[NJProducerRecord[Int, Int]] = for {
-      topic <- Gen.asciiPrintableStr
       i <- Gen.posNum[Int]
       l <- Gen.posNum[Long]
       partition <- Gen.option[Int](i)
@@ -113,7 +112,7 @@ object genMessage {
       key <- arbitrary[Option[Int]]
       value <- arbitrary[Option[Int]]
       headers <- genHeaders
-    } yield NJProducerRecord(topic, partition, timestamp, key, value)
+    } yield NJProducerRecord(partition, timestamp, key, value)
 
   }
 

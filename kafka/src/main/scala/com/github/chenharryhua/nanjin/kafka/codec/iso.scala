@@ -16,16 +16,16 @@ import scala.compat.java8.OptionConverters._
 
 object iso {
 
-  def isoIdentityProducerRecord[K, V]: Iso[ProducerRecord[K, V], ProducerRecord[K, V]] =
+  implicit def isoIdentityProducerRecord[K, V]: Iso[ProducerRecord[K, V], ProducerRecord[K, V]] =
     Iso[ProducerRecord[K, V], ProducerRecord[K, V]](identity)(identity)
 
-  def isoIdentityConsumerRecord[K, V]: Iso[ConsumerRecord[K, V], ConsumerRecord[K, V]] =
+  implicit def isoIdentityConsumerRecord[K, V]: Iso[ConsumerRecord[K, V], ConsumerRecord[K, V]] =
     Iso[ConsumerRecord[K, V], ConsumerRecord[K, V]](identity)(identity)
 
-  def isoFs2ProducerRecord[K, V]: Iso[Fs2ProducerRecord[K, V], ProducerRecord[K, V]] =
+  implicit def isoFs2ProducerRecord[K, V]: Iso[Fs2ProducerRecord[K, V], ProducerRecord[K, V]] =
     Iso[Fs2ProducerRecord[K, V], ProducerRecord[K, V]](toProducerRecord)(fromProducerRecord)
 
-  def isoFs2ComsumerRecord[K, V]: Iso[Fs2ConsumerRecord[K, V], ConsumerRecord[K, V]] =
+  implicit def isoFs2ComsumerRecord[K, V]: Iso[Fs2ConsumerRecord[K, V], ConsumerRecord[K, V]] =
     Iso[Fs2ConsumerRecord[K, V], ConsumerRecord[K, V]](toConsumerRecord)(fromConsumerRecord)
 
   private def fromProducerRecord[K, V](pr: ProducerRecord[K, V]): Fs2ProducerRecord[K, V] =
