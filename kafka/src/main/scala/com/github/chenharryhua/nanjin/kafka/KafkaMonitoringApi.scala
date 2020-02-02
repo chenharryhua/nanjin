@@ -147,7 +147,13 @@ object KafkaMonitoringApi {
             .readAll(path, blocker, 5000)
             .through(fs2.text.utf8Decode)
             .through(fs2.text.lines)
-            .mapFilter(str => topic.kit.fromJackson(str).toOption)
+            .mapFilter { str =>
+              topic.kit
+                .fromJackson(str)
+                .toEither
+                .leftMap(e => println(s"${e.getMessage}. source: $str"))
+                .toOption
+            }
             .chunkN(1000)
             .map { chk =>
               val prs = chk.map(_.toNJProducerRecord.toFs2ProducerRecord(topic.topicName))
