@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.codec.NJConsumerMessage._
 import com.github.chenharryhua.nanjin.kafka.codec.iso
 import com.github.chenharryhua.nanjin.kafka.common.KafkaOffset
-import fs2.kafka.{produce, AutoOffsetReset, ProducerRecord, ProducerRecords, Timestamp}
+import fs2.kafka.{produce, AutoOffsetReset, ProducerRecord, ProducerRecords}
 import fs2.{text, Stream}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
@@ -29,7 +29,7 @@ sealed trait KafkaMonitoringApi[F[_], K, V] {
 
   def save: F[Unit]
   def replay: F[Unit]
-  def pipeTo(other: KafkaTopicKit[K, V]): F[Unit]
+  def mirror(other: KafkaTopicKit[K, V]): F[Unit]
 }
 
 object KafkaMonitoringApi {
@@ -151,7 +151,7 @@ object KafkaMonitoringApi {
         .compile
         .drain
 
-    override def pipeTo(other: KafkaTopicKit[K, V]): F[Unit] =
+    override def mirror(other: KafkaTopicKit[K, V]): F[Unit] =
       Stream
         .resource[F, Blocker](Blocker[F])
         .flatMap { blocker =>

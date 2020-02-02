@@ -1,6 +1,7 @@
 package mtest.spark
 
 import cats.effect.{ContextShift, IO, Timer}
+import com.github.chenharryhua.nanjin.common.NJLogLevel
 import com.github.chenharryhua.nanjin.database.{
   DatabaseName,
   Host,
@@ -30,6 +31,9 @@ package object kafka {
     DatabaseName("postgres"))
 
   implicit val sparkSession: SparkSession =
-    SparkSettings.default.withConfigUpdate(_.setMaster("local[*]").setAppName("test-spark")).session
+    SparkSettings.default
+      .withConfigUpdate(_.setMaster("local[*]").setAppName("test-spark"))
+      .withLogLevel(NJLogLevel.ERROR)
+      .session
 
 }
