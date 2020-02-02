@@ -1,13 +1,13 @@
 package mtest.spark.kafka
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.spark.kafka._
-import frameless.TypedDataset
-import org.scalatest.funsuite.AnyFunSuite
 import cats.instances.all._
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
-import org.apache.spark.sql.SaveMode
+import com.github.chenharryhua.nanjin.spark.kafka._
+import frameless.TypedDataset
 import frameless.cats.implicits._
+import org.apache.spark.sql.SaveMode
+import org.scalatest.funsuite.AnyFunSuite
 
 class LoadTopicDataFromDiskTest extends AnyFunSuite {
 

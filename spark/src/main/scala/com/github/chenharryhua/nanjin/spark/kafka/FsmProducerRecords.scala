@@ -21,10 +21,17 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   @transient lazy val typedDataset: TypedDataset[NJProducerRecord[K, V]] =
     TypedDataset.create(prs)
 
-  def transform[K2: TypedEncoder, V2: TypedEncoder](
+  def bimapTo[K2: TypedEncoder, V2: TypedEncoder](
     other: KafkaTopicKit[K2, V2])(k: K => K2, v: V => V2): FsmProducerRecords[F, K2, V2] =
     new FsmProducerRecords[F, K2, V2](
       typedDataset.deserialized.map(_.bimap(k, v)).dataset,
+      KitBundle(other, bundle.params))
+
+  def flatMapTo[K2: TypedEncoder, V2: TypedEncoder](other: KafkaTopicKit[K2, V2])(
+    f: NJProducerRecord[K, V] => TraversableOnce[NJProducerRecord[K2, V2]])
+    : FsmProducerRecords[F, K2, V2] =
+    new FsmProducerRecords[F, K2, V2](
+      typedDataset.deserialized.flatMap(f).dataset,
       KitBundle(other, bundle.params))
 
   def someValues: FsmProducerRecords[F, K, V] =

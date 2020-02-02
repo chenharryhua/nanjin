@@ -4,16 +4,18 @@ import java.time.{Instant, LocalDate}
 
 import cats.effect.IO
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.TopicDef
+import com.github.chenharryhua.nanjin.datetime.iso._
 import com.github.chenharryhua.nanjin.kafka.codec.ManualAvroSchema
+import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef}
+import com.github.chenharryhua.nanjin.spark.injection._
 import com.github.chenharryhua.nanjin.spark.kafka._
 import com.landoop.transportation.nyc.trip.yellow.trip_record
+import frameless.TypedDataset
 import frameless.cats.implicits._
 import io.circe.generic.auto._
 import io.circe.syntax._
 import org.scalatest.funsuite.AnyFunSuite
-import com.github.chenharryhua.nanjin.datetime.iso._
-import com.github.chenharryhua.nanjin.spark.injection._
 
 class SparKafkaTest extends AnyFunSuite {
   val embed = EmbeddedForTaskSerializable(0, "embeded")
@@ -124,17 +126,55 @@ class SparKafkaTest extends AnyFunSuite {
       .unsafeRunSync
   }
 
-  test("should be able to be transformed to other topic") {
-    val target = ctx.topic[Int, Int]("from.serializable.test")
-    val prepare =
-      (target.admin.idefinitelyWantToDeleteTheTopic >> target.schemaRegistry.register) >>
-        (topic.kit.sparKafka
-          .fromKafka[IO]
-          .flatMap(_.toProducerRecords.transform(target.kit)(identity, _.a).upload.compile.drain))
-    prepare.unsafeRunSync
-    val src =
-      topic.kit.sparKafka.fromKafka[IO].flatMap(_.values.collect[IO]()).unsafeRunSync.map(_.a)
-    val tgt = target.kit.sparKafka.fromKafka[IO].flatMap(_.values.collect[IO]()).unsafeRunSync
-    assert(src === tgt)
+  test("should be able to bimap to other topic") {
+    val src: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int]("src.topic")
+    val tgt: KafkaTopic[IO, String, Int]             = ctx.topic[String, Int]("target.topic")
+    val d1: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0)
+    val d2: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 2, 0, None, Some(2), "t", 0)
+    val d3: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 3, 0, None, None, "t", 0)
+    val d4: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 4, 0, None, Some(4), "t", 0)
+    val ds: TypedDataset[NJConsumerRecord[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
+
+    val birst: List[Int] =
+      src.kit.sparKafka
+        .crDataset[IO](ds)
+        .bimapTo(tgt.kit)(_.toString, _ + 1)
+        .values
+        .collect[IO]()
+        .unsafeRunSync
+        .toList
+    assert(birst == List(2, 3, 5))
+  }
+
+  test("should be able to flatmap to other topic") {
+    val src: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int]("src.topic")
+    val tgt: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int]("target.topic")
+    val d1: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0)
+    val d2: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 2, 0, None, Some(2), "t", 0)
+    val d3: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 3, 0, None, None, "t", 0)
+    val d4: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 4, 0, None, Some(4), "t", 0)
+    val ds: TypedDataset[NJConsumerRecord[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
+
+    val birst: List[Int] =
+      src.kit.sparKafka
+        .crDataset[IO](ds)
+        .flatMapTo(tgt.kit)(m => m.value.map(x => NJConsumerRecord.value.set(Some(x - 1))(m)))
+        .values
+        .collect[IO]()
+        .unsafeRunSync
+        .toList
+    assert(birst == List(0, 1, 3))
+  }
+
+  test("someValue should filter out none values") {
+    val cr1: NJConsumerRecord[Int, Int]              = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0)
+    val cr2: NJConsumerRecord[Int, Int]              = NJConsumerRecord(0, 2, 0, Some(2), None, "t", 0)
+    val cr3: NJConsumerRecord[Int, Int]              = NJConsumerRecord(0, 3, 0, Some(3), None, "t", 0)
+    val crs: List[NJConsumerRecord[Int, Int]]        = List(cr1, cr2, cr3)
+    val ds: TypedDataset[NJConsumerRecord[Int, Int]] = TypedDataset.create(crs)
+
+    val t   = TopicDef[Int, Int]("some.value").in(ctx).kit.sparKafka.crDataset(ds)
+    val rst = t.someValues.typedDataset.collect[IO]().unsafeRunSync()
+    assert(rst === Seq(cr1))
   }
 }

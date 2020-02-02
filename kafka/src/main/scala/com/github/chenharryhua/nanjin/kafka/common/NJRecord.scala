@@ -1,13 +1,12 @@
 package com.github.chenharryhua.nanjin.kafka.common
 
 import cats.Bifunctor
+import fs2.kafka.{ProducerRecord => Fs2ProducerRecord}
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
-
-import scala.util.Try
 
 /**
   * for kafka data persistence
@@ -22,8 +21,7 @@ import scala.util.Try
   timestampType: Int) {
 
   def toNJProducerRecord: NJProducerRecord[K, V] =
-    NJProducerRecord[K, V](topic, Option(partition), Option(timestamp), key, value)
-
+    NJProducerRecord[K, V](Option(partition), Option(timestamp), key, value)
 }
 
 object NJConsumerRecord {
@@ -54,32 +52,32 @@ object NJConsumerRecord {
 }
 
 @Lenses final case class NJProducerRecord[K, V](
-  topic: String,
   partition: Option[Int],
   timestamp: Option[Long],
   key: Option[K],
   value: Option[V]) {
 
   @SuppressWarnings(Array("AsInstanceOf"))
-  def toProducerRecord: ProducerRecord[K, V] = new ProducerRecord[K, V](
-    topic,
-    partition.getOrElse(null.asInstanceOf[Int]),
-    timestamp.getOrElse(null.asInstanceOf[Long]),
-    key.getOrElse(null.asInstanceOf[K]),
-    value.getOrElse(null.asInstanceOf[V])
-  )
+  def toFs2ProducerRecord(topicName: TopicName): Fs2ProducerRecord[K, V] = {
+    val pr = Fs2ProducerRecord(
+      topicName.value,
+      key.getOrElse(null.asInstanceOf[K]),
+      value.getOrElse(null.asInstanceOf[V]))
+    val pt = partition.fold(pr)(pr.withPartition)
+    timestamp.fold(pt)(pt.withTimestamp)
+  }
 }
 
 object NJProducerRecord {
 
   def apply[K, V](pr: ProducerRecord[Option[K], Option[V]]): NJProducerRecord[K, V] =
-    NJProducerRecord(pr.topic, Option(pr.partition), Option(pr.timestamp), pr.key, pr.value)
+    NJProducerRecord(Option(pr.partition), Option(pr.timestamp), pr.key, pr.value)
 
-  def apply[K, V](topicName: String, k: K, v: V): NJProducerRecord[K, V] =
-    NJProducerRecord(topicName, None, None, Some(k), Some(v))
+  def apply[K, V](k: K, v: V): NJProducerRecord[K, V] =
+    NJProducerRecord(None, None, Some(k), Some(v))
 
-  def apply[K, V](topicName: String, v: V): NJProducerRecord[K, V] =
-    NJProducerRecord(topicName, None, None, None, Some(v))
+  def apply[K, V](v: V): NJProducerRecord[K, V] =
+    NJProducerRecord(None, None, None, Some(v))
 
   implicit def jsonNJProducerRecordEncoder[K: JsonEncoder, V: JsonEncoder]
     : JsonEncoder[NJProducerRecord[K, V]] =
