@@ -21,7 +21,7 @@ package object kafka {
   implicit val cs: ContextShift[IO] = IO.contextShift(global)
   implicit val timer: Timer[IO]     = IO.timer(global)
 
-  val ctx: IoKafkaContext = KafkaSettings.local.ioContext
+  val ctx: IoKafkaContext = KafkaSettings.local.withGroupId("spark.kafka.unit.test").ioContext
 
   val db: Postgres = Postgres(
     Username("postgres"),
