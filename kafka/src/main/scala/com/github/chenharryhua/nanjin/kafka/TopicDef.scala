@@ -68,12 +68,13 @@ final class TopicDef[K, V] private (val topicName: TopicName)(
   }
 
   def fromJackson(cr: String): Try[NJConsumerRecord[K, V]] =
-    AvroInputStream
-      .json[NJConsumerRecord[K, V]]
-      .from(cr.getBytes)
-      .build(njConsumerRecordSchema)
-      .tryIterator
-      .next
+    Try(
+      AvroInputStream
+        .json[NJConsumerRecord[K, V]]
+        .from(cr.getBytes)
+        .build(njConsumerRecordSchema)
+        .tryIterator
+        .next).flatten
 
   def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[F, K, V] =
     ctx.topic[K, V](this)

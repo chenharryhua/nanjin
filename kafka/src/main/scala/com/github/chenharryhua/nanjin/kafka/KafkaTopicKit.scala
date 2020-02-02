@@ -46,6 +46,9 @@ import scala.util.Try
       .get(settings.consumerSettings)
       .map(KafkaConsumerGroupId)
 
+  def withGroupId(gid: String): KafkaTopicKit[K, V] =
+    new KafkaTopicKit[K, V](topicDef, settings.withGroupId(gid))
+
   //need to reconstruct codec when working in spark
   @transient lazy val codec: TopicCodec[K, V] = new TopicCodec(
     serdeOfKey.asKey(settings.schemaRegistrySettings.config).codec(topicDef.topicName),
@@ -124,6 +127,7 @@ import scala.util.Try
     import cats.derived.auto.show._
     s"""
        |topic: $topicName
+       |consumer-group-id: $consumerGroupId
        |settings: 
        |${settings.consumerSettings.show}
        |${settings.producerSettings.show}

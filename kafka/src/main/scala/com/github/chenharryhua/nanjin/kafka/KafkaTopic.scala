@@ -20,6 +20,9 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val kit: KafkaTopicKit[K, V])
 
   val consumerGroupId: Option[KafkaConsumerGroupId] = kit.consumerGroupId
 
+  def withGroupId(gid: String): KafkaTopic[F, K, V] =
+    new KafkaTopic[F, K, V](kit.withGroupId(gid))
+
   override def extract(key: K, value: V, rc: RecordContext): String = topicName.value
 
   def decoder[G[_, _]: NJConsumerMessage](
