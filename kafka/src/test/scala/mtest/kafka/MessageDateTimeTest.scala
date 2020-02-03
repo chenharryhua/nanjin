@@ -54,7 +54,7 @@ class MessageDateTimeTest extends AnyFunSuite {
     val topic = TopicDef[Int, AllJavaDateTime]("message.datetime.test").in(ctx)
     val m     = AllJavaDateTime(LocalDateTime.now, LocalDate.now, Instant.now())
     val rst = for {
-      _ <- topic.admin.idefinitelyWantToDeleteTheTopic
+      _ <- topic.admin.IdefinitelyWantToDeleteTheTopic
       _ <- topic.schemaRegistry.delete
       _ <- topic.send(0, m)
       r <- topic.consumerResource.use(_.retrieveLastRecords)

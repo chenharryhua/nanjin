@@ -2,17 +2,21 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.{Concurrent, ContextShift, Resource}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.common.KafkaConsumerGroupInfo
+import com.github.chenharryhua.nanjin.kafka.common.{KafkaConsumerGroupInfo, TopicName}
 import fs2.kafka.{adminClientResource, AdminClientSettings, KafkaAdminClient}
-import org.apache.kafka.clients.admin.TopicDescription
+import org.apache.kafka.clients.admin.{NewTopic, TopicDescription}
 
 // delegate to https://ovotech.github.io/fs2-kafka/
 
 sealed trait KafkaTopicAdminApi[F[_]] {
-  def idefinitelyWantToDeleteTheTopic: F[Either[Throwable, Unit]]
+  val adminResource: Resource[F, KafkaAdminClient[F]]
+
+  def IdefinitelyWantToDeleteTheTopic: F[Either[Throwable, Unit]]
   def describe: F[Map[String, TopicDescription]]
   def groups: F[List[KafkaConsumerGroupInfo]]
-  val adminResource: Resource[F, KafkaAdminClient[F]]
+
+  def newTopic(numPartition: Int, numReplica: Short): F[Unit]
+  def mirrorTo(other: TopicName, numReplica: Short): F[Unit]
 }
 
 object KafkaTopicAdminApi {
@@ -28,8 +32,19 @@ object KafkaTopicAdminApi {
       adminClientResource[F](
         AdminClientSettings[F].withProperties(kit.settings.adminSettings.config))
 
-    override def idefinitelyWantToDeleteTheTopic: F[Either[Throwable, Unit]] =
+    override def IdefinitelyWantToDeleteTheTopic: F[Either[Throwable, Unit]] =
       adminResource.use(_.deleteTopic(kit.topicName.value).attempt)
+
+    override def newTopic(numPartition: Int, numReplica: Short): F[Unit] =
+      adminResource.use(_.createTopic(new NewTopic(kit.topicName.value, numPartition, numReplica)))
+
+    override def mirrorTo(other: TopicName, numReplica: Short): F[Unit] =
+      adminResource.use { c =>
+        for {
+          desc <- c.describeTopics(List(kit.topicName.value)).map(_(kit.topicName.value))
+          _ <- c.createTopic(new NewTopic(other.value, desc.partitions().size(), numReplica))
+        } yield ()
+      }
 
     override def describe: F[Map[String, TopicDescription]] =
       adminResource.use(_.describeTopics(List(kit.topicName.value)))

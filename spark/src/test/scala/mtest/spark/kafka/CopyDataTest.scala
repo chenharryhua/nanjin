@@ -22,8 +22,8 @@ class CopyDataTest extends AnyFunSuite {
   val d5 = src.fs2PR(4, null.asInstanceOf[MyTestData]).withTimestamp(50)
 
   val prepareData =
-    src.admin.idefinitelyWantToDeleteTheTopic >> src.schemaRegistry.delete >> src.schemaRegistry.register >>
-      tgt.admin.idefinitelyWantToDeleteTheTopic >> tgt.schemaRegistry.delete >> tgt.schemaRegistry.register >>
+    src.admin.IdefinitelyWantToDeleteTheTopic >> src.schemaRegistry.delete >> src.schemaRegistry.register >>
+      tgt.admin.IdefinitelyWantToDeleteTheTopic >> tgt.schemaRegistry.delete >> tgt.schemaRegistry.register >>
       src.send(d1) >> src.send(d2) >> src.send(d3) >> src.send(d4) >> src.send(d5)
 
   test("pipeTo should copy data from source to target") {

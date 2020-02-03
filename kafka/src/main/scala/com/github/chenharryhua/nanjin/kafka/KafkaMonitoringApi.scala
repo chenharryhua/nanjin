@@ -30,7 +30,7 @@ sealed trait KafkaMonitoringApi[F[_], K, V] {
 
   def save: F[Unit]
   def replay: F[Unit]
-  def mirror(other: KafkaTopicKit[K, V]): F[Unit]
+  def carbonCopyTo(other: KafkaTopicKit[K, V]): F[Unit]
 }
 
 object KafkaMonitoringApi {
@@ -164,21 +164,15 @@ object KafkaMonitoringApi {
         .compile
         .drain
 
-    override def mirror(other: KafkaTopicKit[K, V]): F[Unit] =
-      Stream
-        .resource[F, Blocker](Blocker[F])
-        .flatMap { blocker =>
-          fs2Channel.consume.map { m =>
-            val cr = other.decoder(m).nullableDecode.record
-            val ts = cr.timestamp.createTime.orElse(
-              cr.timestamp.logAppendTime.orElse(cr.timestamp.unknownTime))
-            val pr = ProducerRecord(other.topicName.value, cr.key, cr.value)
-              .withHeaders(cr.headers)
-              .withPartition(cr.partition)
-            ProducerRecords.one(ts.fold(pr)(pr.withTimestamp))
-          }.through(produce(other.fs2ProducerSettings))
-        }
-        .compile
-        .drain
+    override def carbonCopyTo(other: KafkaTopicKit[K, V]): F[Unit] =
+      fs2Channel.consume.map { m =>
+        val cr = other.decoder(m).nullableDecode.record
+        val ts = cr.timestamp.createTime.orElse(
+          cr.timestamp.logAppendTime.orElse(cr.timestamp.unknownTime))
+        val pr = ProducerRecord(other.topicName.value, cr.key, cr.value)
+          .withHeaders(cr.headers)
+          .withPartition(cr.partition)
+        ProducerRecords.one(ts.fold(pr)(pr.withTimestamp))
+      }.through(produce(other.fs2ProducerSettings)).compile.drain
   }
 }
