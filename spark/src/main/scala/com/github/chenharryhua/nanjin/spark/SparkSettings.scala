@@ -20,6 +20,12 @@ import org.apache.spark.sql.SparkSession
   def withLogLevel(logLevel: NJLogLevel): SparkSettings =
     SparkSettings.logLevel.set(logLevel)(this)
 
+  def withUI: SparkSettings =
+    withConfigUpdate(_.set("spark.ui.enabled", "true"))
+
+  def withoutUI: SparkSettings =
+    withConfigUpdate(_.set("spark.ui.enabled", "false"))
+
   def withConfigUpdate(f: SparkConf => SparkConf): SparkSettings =
     SparkSettings.conf.modify(f)(this)
 

@@ -71,7 +71,7 @@ private[kafka] object sk {
         errs.map(x => logger.warn(x.error)(x.metaInfo))
         f(cr)
       }))
-      .map(rdd => TypedDataset.create(rdd))
+      .map(TypedDataset.create[A])
   }
 
   def fromDisk[K, V](

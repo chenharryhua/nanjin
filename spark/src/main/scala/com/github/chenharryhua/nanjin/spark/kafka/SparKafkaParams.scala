@@ -79,8 +79,8 @@ object SparKafkaParams {
   def withConversionTactics(f: ConversionTactics => ConversionTactics): KitBundle[K, V] =
     KitBundle.params.composeLens(SparKafkaParams.conversionTactics).modify(f)(this)
 
-  val zoneId: ZoneId = params.timeRange.zoneId
-  val clock: Clock   = Clock.system(zoneId)
+  def zoneId: ZoneId = params.timeRange.zoneId
+  def clock: Clock   = Clock.system(zoneId)
 
   def withSaveMode(sm: SaveMode): KitBundle[K, V] =
     KitBundle.params.composeLens(SparKafkaParams.saveMode).set(sm)(this)
