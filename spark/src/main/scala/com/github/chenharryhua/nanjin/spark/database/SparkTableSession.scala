@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.database.{DatabaseSettings, TableName}
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SparkSession
 
-final case class TableDef[A] private (tableName: TableName)(
+final class TableDef[A] private (val tableName: TableName)(
   implicit val typedEncoder: TypedEncoder[A]) {
 
   def in(dbSettings: DatabaseSettings)(implicit sparkSession: SparkSession): SparkTableSession[A] =
@@ -14,7 +14,8 @@ final case class TableDef[A] private (tableName: TableName)(
 
 object TableDef {
 
-  def apply[A: TypedEncoder](tableName: String): TableDef[A] = TableDef[A](TableName(tableName))
+  def apply[A: TypedEncoder](tableName: String): TableDef[A] =
+    new TableDef[A](TableName(tableName))
 }
 
 final class SparkTableSession[A](
@@ -30,11 +31,17 @@ final class SparkTableSession[A](
   def fromDB: TypedDataset[A] =
     st.fromDB(dbSettings.connStr, dbSettings.driver, tableDef.tableName)
 
-  def save(): Unit =
-    st.save(fromDB, params.fileSaveMode, params.fileFormat, params.getPath(tableDef.tableName))
+  def save(path: String): Unit =
+    st.save(fromDB, params.fileSaveMode, params.fileFormat, path)
 
-  def fromDisk: TypedDataset[A] =
-    st.fromDisk(params.fileFormat, params.getPath(tableDef.tableName))
+  def save(): Unit =
+    save(params.getPath(tableDef.tableName))
+
+  def fromDisk(path: String): TypedDataset[A] =
+    st.fromDisk(params.fileFormat, path)
+
+  def fromDisk(): TypedDataset[A] =
+    fromDisk(params.getPath(tableDef.tableName))
 
   def upload(dataset: TypedDataset[A]): Unit =
     st.upload(dataset, params.dbSaveMode, dbSettings.connStr, dbSettings.driver, tableDef.tableName)

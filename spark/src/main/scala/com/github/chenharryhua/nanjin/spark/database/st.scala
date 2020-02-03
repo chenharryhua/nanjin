@@ -11,7 +11,9 @@ private[database] object st {
   def fromDB[A: TypedEncoder](
     connStr: ConnectionString,
     driver: DriverString,
-    tableName: TableName)(implicit sparkSession: SparkSession): TypedDataset[A] =
+    tableName: TableName)(
+    implicit
+    sparkSession: SparkSession): TypedDataset[A] =
     TypedDataset.createUnsafe[A](
       sparkSession.read
         .format("jdbc")
@@ -24,11 +26,14 @@ private[database] object st {
     dataset: TypedDataset[A],
     fileSaveMode: SaveMode,
     fileFormat: NJFileFormat,
-    path: String)(implicit sparkSession: SparkSession): Unit =
+    path: String)(
+    implicit
+    sparkSession: SparkSession): Unit =
     dataset.write.mode(fileSaveMode).format(fileFormat.format).save(path)
 
   def fromDisk[A: TypedEncoder](fileFormat: NJFileFormat, path: String)(
-    implicit sparkSession: SparkSession): TypedDataset[A] =
+    implicit
+    sparkSession: SparkSession): TypedDataset[A] =
     TypedDataset.createUnsafe[A](sparkSession.read.format(fileFormat.format).load(path))
 
   def upload[A](
@@ -36,7 +41,7 @@ private[database] object st {
     dbSaveMode: SaveMode,
     connStr: ConnectionString,
     driver: DriverString,
-    tableName: TableName)(implicit sparkSession: SparkSession): Unit =
+    tableName: TableName): Unit =
     dataset.write
       .mode(dbSaveMode)
       .format("jdbc")
