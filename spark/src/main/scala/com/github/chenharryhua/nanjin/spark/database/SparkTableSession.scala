@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.database.{DatabaseSettings, TableName}
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SparkSession
 
-final case class TableDef[A] private (tableName: TableName)(
+final class TableDef[A] private (val tableName: TableName)(
   implicit val typedEncoder: TypedEncoder[A]) {
 
   def in(dbSettings: DatabaseSettings)(implicit sparkSession: SparkSession): SparkTableSession[A] =
@@ -14,7 +14,8 @@ final case class TableDef[A] private (tableName: TableName)(
 
 object TableDef {
 
-  def apply[A: TypedEncoder](tableName: String): TableDef[A] = TableDef[A](TableName(tableName))
+  def apply[A: TypedEncoder](tableName: String): TableDef[A] =
+    new TableDef[A](TableName(tableName))
 }
 
 final class SparkTableSession[A](
@@ -27,31 +28,21 @@ final class SparkTableSession[A](
   def withParamUpdate(f: SparkTableParams => SparkTableParams): SparkTableSession[A] =
     new SparkTableSession[A](tableDef, dbSettings, f(params))
 
-  def datasetFromDB: TypedDataset[A] =
-    TypedDataset.createUnsafe[A](
-      sparkSession.read
-        .format("jdbc")
-        .option("url", dbSettings.connStr.value)
-        .option("driver", dbSettings.driver.value)
-        .option("dbtable", tableDef.tableName.value)
-        .load())
+  def fromDB: TypedDataset[A] =
+    st.fromDB(dbSettings.connStr, dbSettings.driver, tableDef.tableName)
+
+  def save(path: String): Unit =
+    st.save(fromDB, params.fileSaveMode, params.fileFormat, path)
 
   def save(): Unit =
-    datasetFromDB.write
-      .mode(params.fileSaveMode)
-      .format(params.fileFormat.format)
-      .save(params.getPath(tableDef.tableName))
+    save(params.getPath(tableDef.tableName))
 
-  def load: TypedDataset[A] =
-    TypedDataset.createUnsafe[A](
-      sparkSession.read.format(params.fileFormat.format).load(params.getPath(tableDef.tableName)))
+  def fromDisk(path: String): TypedDataset[A] =
+    st.fromDisk(params.fileFormat, path)
 
-  def dbUpload(data: TypedDataset[A]): Unit =
-    data.write
-      .mode(params.dbSaveMode)
-      .format("jdbc")
-      .option("url", dbSettings.connStr.value)
-      .option("driver", dbSettings.driver.value)
-      .option("dbtable", tableDef.tableName.value)
-      .save()
+  def fromDisk(): TypedDataset[A] =
+    fromDisk(params.getPath(tableDef.tableName))
+
+  def upload(dataset: TypedDataset[A]): Unit =
+    st.upload(dataset, params.dbSaveMode, dbSettings.connStr, dbSettings.driver, tableDef.tableName)
 }

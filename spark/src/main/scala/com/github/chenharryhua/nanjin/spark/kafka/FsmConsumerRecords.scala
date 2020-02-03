@@ -46,6 +46,9 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def nullKeysCount(implicit ev: Sync[F]): F[Long] =
     typedDataset.filter(typedDataset('key).isNone).count[F]
 
+  def count(implicit ev: Sync[F]): F[Long] =
+    typedDataset.count[F]()
+
   def values: TypedDataset[V] =
     typedDataset.select(typedDataset('value)).as[Option[V]].deserialized.flatMap(x => x)
 
