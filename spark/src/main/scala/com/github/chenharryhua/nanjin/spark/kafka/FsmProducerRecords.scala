@@ -39,6 +39,9 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
       typedDataset.filter(typedDataset('value).isNotNone).dataset,
       bundle)
 
+  def count(implicit ev: Sync[F]): F[Long] =
+    typedDataset.count[F]()
+
   def upload(kit: KafkaTopicKit[K, V])(
     implicit
     ce: ConcurrentEffect[F],

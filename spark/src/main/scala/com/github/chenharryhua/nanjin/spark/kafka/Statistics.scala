@@ -24,7 +24,7 @@ final class Statistics[F[_], K: TypedEncoder, V: TypedEncoder](
   zoneId: ZoneId)
     extends Serializable {
 
-  @transient lazy val typedDataset: TypedDataset[NJConsumerRecord[K, V]] =
+  @transient private lazy val typedDataset: TypedDataset[NJConsumerRecord[K, V]] =
     TypedDataset.create(ds)
 
   def minutely(implicit ev: Sync[F]): F[Unit] = {
