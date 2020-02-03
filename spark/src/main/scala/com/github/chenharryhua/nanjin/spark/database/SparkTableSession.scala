@@ -28,30 +28,14 @@ final class SparkTableSession[A](
     new SparkTableSession[A](tableDef, dbSettings, f(params))
 
   def fromDB: TypedDataset[A] =
-    TypedDataset.createUnsafe[A](
-      sparkSession.read
-        .format("jdbc")
-        .option("url", dbSettings.connStr.value)
-        .option("driver", dbSettings.driver.value)
-        .option("dbtable", tableDef.tableName.value)
-        .load())
+    st.fromDB(dbSettings.connStr, dbSettings.driver, tableDef.tableName)
 
   def save(): Unit =
-    fromDB.write
-      .mode(params.fileSaveMode)
-      .format(params.fileFormat.format)
-      .save(params.getPath(tableDef.tableName))
+    st.save(fromDB, params.fileSaveMode, params.fileFormat, params.getPath(tableDef.tableName))
 
   def fromDisk: TypedDataset[A] =
-    TypedDataset.createUnsafe[A](
-      sparkSession.read.format(params.fileFormat.format).load(params.getPath(tableDef.tableName)))
+    st.fromDisk(params.fileFormat, params.getPath(tableDef.tableName))
 
-  def upload(data: TypedDataset[A]): Unit =
-    data.write
-      .mode(params.dbSaveMode)
-      .format("jdbc")
-      .option("url", dbSettings.connStr.value)
-      .option("driver", dbSettings.driver.value)
-      .option("dbtable", tableDef.tableName.value)
-      .save()
+  def upload(dataset: TypedDataset[A]): Unit =
+    st.upload(dataset, params.dbSaveMode, dbSettings.connStr, dbSettings.driver, tableDef.tableName)
 }
