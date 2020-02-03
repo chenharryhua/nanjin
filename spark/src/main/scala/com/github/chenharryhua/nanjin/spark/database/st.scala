@@ -22,19 +22,17 @@ private[database] object st {
         .option("dbtable", tableName.value)
         .load())
 
-  def save[A](
-    dataset: TypedDataset[A],
-    fileSaveMode: SaveMode,
-    fileFormat: NJFileFormat,
-    path: String)(
-    implicit
-    sparkSession: SparkSession): Unit =
-    dataset.write.mode(fileSaveMode).format(fileFormat.format).save(path)
-
   def fromDisk[A: TypedEncoder](fileFormat: NJFileFormat, path: String)(
     implicit
     sparkSession: SparkSession): TypedDataset[A] =
     TypedDataset.createUnsafe[A](sparkSession.read.format(fileFormat.format).load(path))
+
+  def save[A](
+    dataset: TypedDataset[A],
+    fileSaveMode: SaveMode,
+    fileFormat: NJFileFormat,
+    path: String): Unit =
+    dataset.write.mode(fileSaveMode).format(fileFormat.format).save(path)
 
   def upload[A](
     dataset: TypedDataset[A],
