@@ -30,7 +30,7 @@ class SparkTableTest extends AnyFunSuite {
   }
 
   test("read table on disk") {
-    val rst = table.in(db).load.collect[IO].map(_.head).unsafeRunSync
+    val rst = table.in(db).fromDisk.collect[IO].map(_.head).unsafeRunSync
     assert(rst === sample)
   }
 }

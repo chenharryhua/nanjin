@@ -27,7 +27,7 @@ final class SparkTableSession[A](
   def withParamUpdate(f: SparkTableParams => SparkTableParams): SparkTableSession[A] =
     new SparkTableSession[A](tableDef, dbSettings, f(params))
 
-  def datasetFromDB: TypedDataset[A] =
+  def fromDB: TypedDataset[A] =
     TypedDataset.createUnsafe[A](
       sparkSession.read
         .format("jdbc")
@@ -37,16 +37,16 @@ final class SparkTableSession[A](
         .load())
 
   def save(): Unit =
-    datasetFromDB.write
+    fromDB.write
       .mode(params.fileSaveMode)
       .format(params.fileFormat.format)
       .save(params.getPath(tableDef.tableName))
 
-  def load: TypedDataset[A] =
+  def fromDisk: TypedDataset[A] =
     TypedDataset.createUnsafe[A](
       sparkSession.read.format(params.fileFormat.format).load(params.getPath(tableDef.tableName)))
 
-  def dbUpload(data: TypedDataset[A]): Unit =
+  def upload(data: TypedDataset[A]): Unit =
     data.write
       .mode(params.dbSaveMode)
       .format("jdbc")
