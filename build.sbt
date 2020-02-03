@@ -32,7 +32,7 @@ val frameless    = "0.8.0"
 val circe    = "0.12.3"
 val jsonDiff = "4.0.1"
 
-val avro4s     = "3.0.5"
+val avro4s     = "3.0.6"
 val apacheAvro = "1.9.1"
 val avrohugger = "1.0.0-RC21"
 
@@ -257,7 +257,7 @@ lazy val common = (project in file("common"))
   .settings(name := "nj-common")
   .settings(libraryDependencies ++= Seq(
     "org.jline" % "jline" % jline,
-    "com.lihaoyi" %% "pprint" % "0.5.6") ++ 
+    "com.lihaoyi" %% "pprint" % "0.5.8") ++ 
     base ++ fs2 ++ monocleLib ++ tests)
 
 lazy val datetime = (project in file("datetime"))
