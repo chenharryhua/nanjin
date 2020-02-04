@@ -1,14 +1,12 @@
-package com.github.chenharryhua.nanjin.spark.kafka
+package com.github.chenharryhua.nanjin.spark
 
 import cats.effect.Concurrent
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.kafka.common.TopicName
-import enumeratum.CatsEnum
-import enumeratum.values.IntEnumEntry
+import enumeratum.{CatsEnum, Enum, EnumEntry}
 import frameless.TypedEncoder
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode}
-import enumeratum.{CatsEnum, Enum, EnumEntry}
 import shapeless._
 
 import scala.collection.immutable

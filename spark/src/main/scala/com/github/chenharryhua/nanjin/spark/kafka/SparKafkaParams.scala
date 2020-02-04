@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.TopicName
+import com.github.chenharryhua.nanjin.spark.{Repartition, ShowSparkDataset}
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.streaming.kafka010.{LocationStrategies, LocationStrategy}
@@ -36,10 +37,6 @@ final case class KafkaPathBuild(
   timeRange: NJDateTimeRange,
   fileFormat: NJFileFormat,
   topicName: TopicName)
-
-final case class Repartition(value: Int) extends AnyVal
-
-@Lenses final case class ShowSparkDataset(rowNum: Int, isTruncate: Boolean)
 
 @Lenses final case class SparKafkaParams private (
   timeRange: NJDateTimeRange,

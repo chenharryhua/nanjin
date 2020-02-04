@@ -5,6 +5,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducerRecord}
+import com.github.chenharryhua.nanjin.spark.SparkStreaming
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SparkSession
 
