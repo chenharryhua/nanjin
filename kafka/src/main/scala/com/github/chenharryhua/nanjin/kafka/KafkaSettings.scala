@@ -27,6 +27,10 @@ import org.apache.kafka.common.security.auth.SecurityProtocol
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Serializer}
 import org.apache.kafka.streams.StreamsConfig
 
+final case class KafkaGroupId(value: String) extends AnyVal
+final case class KafkaAppId(value: String) extends AnyVal
+final case class KafkaBrokers(value: String) extends AnyVal
+
 @Lenses final case class KafkaConsumerSettings(config: Map[String, String]) {
 
   def fs2ConsumerSettings[F[_]: Sync]: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]] =
@@ -79,7 +83,15 @@ import org.apache.kafka.streams.StreamsConfig
   streamSettings: KafkaStreamSettings,
   adminSettings: KafkaAdminSettings,
   schemaRegistrySettings: SchemaRegistrySettings) {
-  val appId: Option[String] = streamSettings.config.get(StreamsConfig.APPLICATION_ID_CONFIG)
+
+  val appId: Option[KafkaAppId] =
+    streamSettings.config.get(StreamsConfig.APPLICATION_ID_CONFIG).map(KafkaAppId)
+
+  val groupId: Option[KafkaGroupId] =
+    consumerSettings.config.get(ConsumerConfig.GROUP_ID_CONFIG).map(KafkaGroupId)
+
+  val brokers: Option[KafkaBrokers] =
+    consumerSettings.config.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).map(KafkaBrokers)
 
   private def updateAll(key: String, value: String): KafkaSettings =
     Traversal
@@ -170,8 +182,8 @@ object KafkaSettings {
       KafkaStreamSettings(Map.empty),
       KafkaAdminSettings(Map.empty),
       SchemaRegistrySettings(Map.empty)
-    ).withGroupId("nanjin-group")
-      .withApplicationId("nanjin-app")
+    ).withGroupId(s"nanjin.group.id-${utils.random4d}")
+      .withApplicationId(s"nanjin.app.id-${utils.random4d}")
       .withBrokers("localhost:9092")
       .withSchemaRegistryUrl("http://localhost:8081")
       .withSecurityProtocol(SecurityProtocol.PLAINTEXT)

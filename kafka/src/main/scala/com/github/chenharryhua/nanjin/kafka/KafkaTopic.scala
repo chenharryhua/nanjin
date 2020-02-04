@@ -5,7 +5,7 @@ import cats.Traverse
 import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.codec.{KafkaGenericDecoder, NJConsumerMessage}
-import com.github.chenharryhua.nanjin.kafka.common.{KafkaConsumerGroupId, TopicName}
+import com.github.chenharryhua.nanjin.kafka.common.TopicName
 import fs2.kafka.{KafkaProducer, ProducerRecord, ProducerRecords, ProducerResult}
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
@@ -17,8 +17,6 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val kit: KafkaTopicKit[K, V])
 ) extends TopicNameExtractor[K, V] {
 
   val topicName: TopicName = kit.topicDef.topicName
-
-  val consumerGroupId: Option[KafkaConsumerGroupId] = kit.consumerGroupId
 
   def withGroupId(gid: String): KafkaTopic[F, K, V] =
     new KafkaTopic[F, K, V](kit.withGroupId(gid))

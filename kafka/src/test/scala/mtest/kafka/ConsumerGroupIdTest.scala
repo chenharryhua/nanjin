@@ -8,7 +8,6 @@ class ConsumerGroupIdTest extends AnyFunSuite {
   val testcid = "my-consumer-group-id"
   test("should be able to change consumer group id") {
     val t2 = t1.withGroupId(testcid)
-    assert(t2.consumerGroupId.get.value === testcid)
     assert(t2.kit.settings.consumerSettings.config(ConsumerConfig.GROUP_ID_CONFIG) === testcid)
   }
 }

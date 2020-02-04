@@ -12,11 +12,7 @@ import cats.Traverse
 import cats.effect.Sync
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.codec._
-import com.github.chenharryhua.nanjin.kafka.common.{
-  KafkaConsumerGroupId,
-  NJConsumerRecord,
-  TopicName
-}
+import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, TopicName}
 import fs2.Chunk
 import fs2.kafka.{
   ConsumerSettings => Fs2ConsumerSettings,
@@ -25,10 +21,8 @@ import fs2.kafka.{
   ProducerSettings => Fs2ProducerSettings
 }
 import io.circe.Json
-import monocle.function.At
 import monocle.macros.Lenses
 import org.apache.avro.Schema
-import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 
@@ -39,12 +33,6 @@ import scala.util.Try
   import topicDef.{serdeOfKey, serdeOfValue}
 
   val topicName: TopicName = topicDef.topicName
-
-  def consumerGroupId: Option[KafkaConsumerGroupId] =
-    KafkaConsumerSettings.config
-      .composeLens(At.at(ConsumerConfig.GROUP_ID_CONFIG))
-      .get(settings.consumerSettings)
-      .map(KafkaConsumerGroupId)
 
   def withGroupId(gid: String): KafkaTopicKit[K, V] =
     new KafkaTopicKit[K, V](topicDef, settings.withGroupId(gid))
@@ -127,7 +115,8 @@ import scala.util.Try
     import cats.derived.auto.show._
     s"""
        |topic: $topicName
-       |consumer-group-id: $consumerGroupId
+       |consumer-group-id: ${settings.groupId}
+       |stream-app-id:     ${settings.appId}
        |settings: 
        |${settings.consumerSettings.show}
        |${settings.producerSettings.show}
