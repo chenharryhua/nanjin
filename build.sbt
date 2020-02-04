@@ -135,7 +135,7 @@ val json = Seq(
   "io.circe" %% "circe-parser",
   "io.circe" %% "circe-shapes",
   "io.circe" %% "circe-jawn"
-).map(_                          % circe) ++ Seq(
+).map(_ % circe) ++ Seq(
   "io.circe" %% "circe-optics"   % "0.12.0",
   "org.gnieh" %% "diffson-circe" % jsonDiff)
 
@@ -154,18 +154,16 @@ val monocleLib = Seq(
 ).map(_ % monocle)
 
 val avro = Seq(
-  "org.apache.avro" % "avro",
-  "org.apache.avro" % "avro-mapred",
-  "org.apache.avro" % "avro-compiler",
-  "org.apache.avro" % "avro-ipc"
-).map(_ % apacheAvro) ++
-  Seq(
-    "com.sksamuel.avro4s" %% "avro4s-core" % avro4s,
-    ("io.confluent" % "kafka-streams-avro-serde" % "5.4.0").classifier(""),
-    "com.julianpeeters" %% "avrohugger-core"                  % avrohugger,
-    "com.lightbend.akka" %% "akka-stream-alpakka-avroparquet" % "1.1.2",
-    "org.apache.parquet"                                      % "parquet-avro" % "1.11.0"
-  )
+  "org.apache.avro" % "avro-mapred"   % apacheAvro,
+  "org.apache.avro" % "avro"          % apacheAvro,
+  "org.apache.avro" % "avro-compiler" % apacheAvro,
+  "org.apache.avro" % "avro-ipc"      % apacheAvro,
+  "com.sksamuel.avro4s" %% "avro4s-core"                    % avro4s,
+  ("io.confluent" % "kafka-streams-avro-serde"              % "5.4.0").classifier(""),
+  "com.julianpeeters" %% "avrohugger-core"                  % avrohugger,
+  "com.lightbend.akka" %% "akka-stream-alpakka-avroparquet" % "1.1.2",
+  "org.apache.parquet"                                      % "parquet-avro" % "1.11.0"
+)
 
 val sparkLib = Seq(
   "org.apache.spark" %% "spark-core",
@@ -174,8 +172,7 @@ val sparkLib = Seq(
   "org.apache.spark" %% "spark-streaming-kafka-0-10",
   "org.apache.spark" %% "spark-sql-kafka-0-10",
   "org.apache.spark" %% "spark-avro",
-  "org.apache.spark" %% "spark-graphx",
-  "org.apache.spark" %% "spark-hive"
+  "org.apache.spark" %% "spark-graphx"
 ).map(_ % sparkVersion)
   .map(_.exclude("io.netty", "netty-buffer"))
   .map(_.exclude("io.netty", "netty-codec"))
