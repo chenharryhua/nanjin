@@ -182,8 +182,8 @@ object KafkaSettings {
       KafkaStreamSettings(Map.empty),
       KafkaAdminSettings(Map.empty),
       SchemaRegistrySettings(Map.empty)
-    ).withGroupId(s"nanjin.group.id-${utils.random4d}")
-      .withApplicationId(s"nanjin.app.id-${utils.random4d}")
+    ).withGroupId(s"nanjin.group.id-${utils.random4d.value}")
+      .withApplicationId(s"nanjin.app.id-${utils.random4d.value}")
       .withBrokers("localhost:9092")
       .withSchemaRegistryUrl("http://localhost:8081")
       .withSecurityProtocol(SecurityProtocol.PLAINTEXT)
