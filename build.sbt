@@ -155,7 +155,6 @@ val monocleLib = Seq(
 
 val avro = Seq(
   "org.apache.avro" % "avro",
-  "org.apache.avro" % "avro-mapred",
   "org.apache.avro" % "avro-compiler",
   "org.apache.avro" % "avro-ipc"
 ).map(_ % apacheAvro) ++
