@@ -39,7 +39,7 @@ class SparKafkaTest extends AnyFunSuite {
       .unsafeRunSync
   }
 
-  test("read topic from disk in Jackson format") {
+  test("read topic from disk in Jackson format - load what being saved") {
     val rst = topic.kit.sparKafka
       .withParamUpdate(_.withJackson)
       .fromDisk[IO]
@@ -57,7 +57,7 @@ class SparKafkaTest extends AnyFunSuite {
       .unsafeRunSync
   }
 
-  test("read topic from disk in json format") {
+  test("read topic from disk in json format - load what being saved") {
     val rst = topic.kit.sparKafka
       .withParamUpdate(_.withJson)
       .fromDisk[IO]
@@ -75,7 +75,7 @@ class SparKafkaTest extends AnyFunSuite {
       .unsafeRunSync
   }
 
-  test("read topic from disk in parquet format") {
+  test("read topic from disk in parquet format - load what being saved") {
     val rst = topic.kit.sparKafka
       .withParamUpdate(_.withParquet)
       .fromDisk[IO]
@@ -93,7 +93,7 @@ class SparKafkaTest extends AnyFunSuite {
       .unsafeRunSync
   }
 
-  test("read topic from disk in avro format") {
+  test("read topic from disk in avro format - load what being saved") {
     val rst = topic.kit.sparKafka
       .withParamUpdate(_.withAvro)
       .fromDisk[IO]
