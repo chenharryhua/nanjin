@@ -47,8 +47,8 @@ object FileSink {
     FileSink(StreamOutputMode.Append, fileFormat, path, checkpoint)
 }
 
-@Lenses final case class KafkaSink(
-  mode: StreamOutputMode.FullMode,
+final case class KafkaSink(
+  mode: StreamOutputMode,
   brokers: KafkaBrokers,
   topicName: TopicName,
   checkpoint: NJCheckpoint)
@@ -57,61 +57,21 @@ object FileSink {
   def sinkOptions[A](dsw: DataStreamWriter[A]): DataStreamWriter[A] =
     dsw
       .format("kafka")
-      .outputMode(mode.fold(getMode))
+      .outputMode(mode.value)
       .option("kafka.bootstrap.servers", brokers.value)
       .option("topic", topicName.value)
       .option("checkpointLocation", checkpoint.value)
 }
 
-object KafkaSink {
-
-  def append(brokers: KafkaBrokers, topicName: TopicName, checkpoint: NJCheckpoint): KafkaSink =
-    KafkaSink(
-      Coproduct[StreamOutputMode.FullMode](StreamOutputMode.Append),
-      brokers,
-      topicName,
-      checkpoint)
-
-  def update(brokers: KafkaBrokers, topicName: TopicName, checkpoint: NJCheckpoint): KafkaSink =
-    KafkaSink(
-      Coproduct[StreamOutputMode.FullMode](StreamOutputMode.Update),
-      brokers,
-      topicName,
-      checkpoint)
-}
-
-@Lenses final case class ConsoleSink(mode: StreamOutputMode.FullMode) extends StreamOutputSink {
+@Lenses final case class ConsoleSink(mode: StreamOutputMode) extends StreamOutputSink {
 
   def sinkOptions[A](dsw: DataStreamWriter[A]): DataStreamWriter[A] =
-    dsw.format("console").outputMode(mode.fold(getMode))
+    dsw.format("console").outputMode(mode.value)
 }
 
-object ConsoleSink {
-
-  def append: ConsoleSink =
-    ConsoleSink(Coproduct[StreamOutputMode.FullMode](StreamOutputMode.Append))
-
-  def update: ConsoleSink =
-    ConsoleSink(Coproduct[StreamOutputMode.FullMode](StreamOutputMode.Update))
-
-  def complete: ConsoleSink =
-    ConsoleSink(Coproduct[StreamOutputMode.FullMode](StreamOutputMode.Complete))
-
-}
-
-@Lenses final case class MemorySink(mode: StreamOutputMode.MemoryMode, queryName: String)
+@Lenses final case class MemorySink(mode: StreamOutputMode, queryName: String)
     extends StreamOutputSink {
 
   def sinkOptions[A](dsw: DataStreamWriter[A]): DataStreamWriter[A] =
-    dsw.format("memory").queryName(queryName).outputMode(mode.fold(getMode))
-}
-
-object MemorySink {
-
-  def append(queryName: String): MemorySink =
-    MemorySink(Coproduct[StreamOutputMode.MemoryMode](StreamOutputMode.Append), queryName)
-
-  def complete(queryName: String): MemorySink =
-    MemorySink(Coproduct[StreamOutputMode.MemoryMode](StreamOutputMode.Complete), queryName)
-
+    dsw.format("memory").queryName(queryName).outputMode(mode.value)
 }
