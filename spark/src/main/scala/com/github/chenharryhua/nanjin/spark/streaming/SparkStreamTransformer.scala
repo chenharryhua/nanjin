@@ -18,11 +18,11 @@ final class SparkStreamTransformer[F[_], A: TypedEncoder](ds: Dataset[A], checkp
   def map[B: TypedEncoder](f: A => B): SparkStreamTransformer[F, B] =
     new SparkStreamTransformer[F, B](typedDataset.deserialized.map(f).dataset, checkpoint)
 
-  def withCheckpoint(cp: String): SparkStreamTransformer[F, A] =
-    new SparkStreamTransformer[F, A](ds, NJCheckpoint(cp))
-
   def flatMap[B: TypedEncoder](f: A => TraversableOnce[B]): SparkStreamTransformer[F, B] =
     new SparkStreamTransformer[F, B](typedDataset.deserialized.flatMap(f).dataset, checkpoint)
+
+  def withCheckpoint(cp: String): SparkStreamTransformer[F, A] =
+    new SparkStreamTransformer[F, A](ds, NJCheckpoint(cp))
 
   def withFileSink(fileFormat: NJFileFormat, path: String): SparkStreamRunner[F, A] =
     new SparkStreamRunner[F, A](

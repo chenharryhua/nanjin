@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.kafka.common.TopicName
 import com.github.chenharryhua.nanjin.spark.{NJCheckpoint, NJPath}
 import monocle.macros.Lenses
 import org.apache.spark.sql.streaming.DataStreamWriter
-import shapeless._
+import shapeless.{Coproduct, Poly1}
 
 //http://spark.apache.org/docs/latest/structured-streaming-programming-guide.html#output-sinks
 
