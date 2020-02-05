@@ -2,9 +2,8 @@ package com.github.chenharryhua.nanjin.spark.database
 
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.database.{ConnectionString, DriverString, TableName}
-import frameless.TypedDataset
+import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.sql.{SaveMode, SparkSession}
-import frameless.TypedEncoder
 
 private[database] object st {
 
@@ -24,8 +23,11 @@ private[database] object st {
 
   def fromDisk[A: TypedEncoder](fileFormat: NJFileFormat, path: String)(
     implicit
-    sparkSession: SparkSession): TypedDataset[A] =
-    TypedDataset.createUnsafe[A](sparkSession.read.format(fileFormat.format).load(path))
+    sparkSession: SparkSession): TypedDataset[A] = {
+    val schema = TypedExpressionEncoder.targetStructType(TypedEncoder[A])
+    TypedDataset.createUnsafe[A](
+      sparkSession.read.schema(schema).format(fileFormat.format).load(path))
+  }
 
   def save[A](
     dataset: TypedDataset[A],

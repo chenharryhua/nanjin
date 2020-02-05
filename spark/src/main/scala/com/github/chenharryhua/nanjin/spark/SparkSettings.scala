@@ -9,6 +9,9 @@ import org.apache.spark.sql.SparkSession
 
 @Lenses final case class SparkSettings(conf: SparkConf, logLevel: NJLogLevel) {
 
+  def withAppName(appName: String): SparkSettings =
+    withConfigUpdate(_.set("spark.app.name", appName))
+
   def withKms(kmsKey: String): SparkSettings =
     withConfigUpdate(
       _.set("spark.hadoop.fs.s3a.server-side-encryption-algorithm", "SSE-KMS")

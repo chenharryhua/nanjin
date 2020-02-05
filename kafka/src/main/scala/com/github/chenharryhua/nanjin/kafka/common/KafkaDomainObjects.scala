@@ -5,6 +5,7 @@ import java.{lang, util}
 import cats.implicits._
 import cats.{Order, PartialOrder, Show}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
+import com.github.chenharryhua.nanjin.kafka.KafkaGroupId
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.NonNegative
 import eu.timepit.refined.refineV
@@ -125,10 +126,8 @@ object KafkaTopicPartition {
     GenIso[KafkaTopicPartition[V], Map[TopicPartition, V]]
 }
 
-final case class KafkaConsumerGroupId(value: String) extends AnyVal
-
 final case class KafkaConsumerGroupInfo(
-  groupId: KafkaConsumerGroupId,
+  groupId: KafkaGroupId,
   lag: KafkaTopicPartition[Option[KafkaOffsetRange]])
 
 object KafkaConsumerGroupInfo {
@@ -141,6 +140,6 @@ object KafkaConsumerGroupInfo {
       case (tp, om) =>
         end.get(tp).flatten.map(e => tp -> KafkaOffsetRange(KafkaOffset(om.offset()), e))
     }.toList.flatten.toMap
-    new KafkaConsumerGroupInfo(KafkaConsumerGroupId(groupId), KafkaTopicPartition(gaps))
+    new KafkaConsumerGroupInfo(KafkaGroupId(groupId), KafkaTopicPartition(gaps))
   }
 }

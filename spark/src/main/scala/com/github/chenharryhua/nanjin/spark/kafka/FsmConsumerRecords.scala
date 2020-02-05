@@ -4,20 +4,21 @@ import cats.effect.Sync
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
+import com.github.chenharryhua.nanjin.spark.streaming.SparkStreamTransformer
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
 
 final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
-  ds: Dataset[NJConsumerRecord[K, V]],
+  crs: Dataset[NJConsumerRecord[K, V]],
   bundle: KitBundle[K, V])
     extends FsmSparKafka[K, V] {
 
   override def withParamUpdate(f: KitBundle[K, V] => KitBundle[K, V]): FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](ds, f(bundle))
+    new FsmConsumerRecords[F, K, V](crs, f(bundle))
 
   @transient lazy val typedDataset: TypedDataset[NJConsumerRecord[K, V]] =
-    TypedDataset.create(ds)
+    TypedDataset.create(crs)
 
   def bimapTo[K2: TypedEncoder, V2: TypedEncoder](
     other: KafkaTopicKit[K2, V2])(k: K => K2, v: V => V2): FsmConsumerRecords[F, K2, V2] =
@@ -38,7 +39,10 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
       bundle)
 
   def persist: FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](ds.persist(), bundle)
+    new FsmConsumerRecords[F, K, V](crs.persist(), bundle)
+
+  def filter(f: NJConsumerRecord[K, V] => Boolean): FsmConsumerRecords[F, K, V] =
+    new FsmConsumerRecords[F, K, V](crs.filter(f), bundle)
 
   def nullValuesCount(implicit ev: Sync[F]): F[Long] =
     typedDataset.filter(typedDataset('value).isNone).count[F]
@@ -67,5 +71,5 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     new FsmProducerRecords(sk.cr2pr(typedDataset, bundle.params.conversionTactics).dataset, bundle)
 
   def stats: Statistics[F, K, V] =
-    new Statistics(ds, bundle.params.showDs, bundle.zoneId)
+    new Statistics(crs, bundle.params.showDs, bundle.zoneId)
 }
