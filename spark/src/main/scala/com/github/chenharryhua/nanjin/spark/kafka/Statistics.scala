@@ -6,7 +6,7 @@ import cats.effect.Sync
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.datetime.iso._
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
-import com.github.chenharryhua.nanjin.spark.ShowSparkDataset
+import com.github.chenharryhua.nanjin.spark.NJShowDataset
 import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.cats.implicits._
 import frameless.functions.aggregate.count
@@ -21,7 +21,7 @@ final case class DailyMinuteAggResult(date: LocalDateTime, count: Long)
 
 final class Statistics[F[_], K: TypedEncoder, V: TypedEncoder](
   ds: Dataset[NJConsumerRecord[K, V]],
-  showDs: ShowSparkDataset,
+  showDs: NJShowDataset,
   zoneId: ZoneId)
     extends Serializable {
 

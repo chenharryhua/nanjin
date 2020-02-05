@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.spark.streaming
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.kafka.KafkaBrokers
 import com.github.chenharryhua.nanjin.kafka.common.TopicName
+import com.github.chenharryhua.nanjin.spark.{NJCheckpoint, NJPath}
 import monocle.macros.Lenses
 import org.apache.spark.sql.streaming.DataStreamWriter
 import shapeless._
@@ -28,21 +29,21 @@ private object getMode extends Poly1 {
 @Lenses final case class FileSink(
   mode: StreamOutputMode.Append,
   fileFormat: NJFileFormat,
-  path: String,
-  checkpoint: String)
+  path: NJPath,
+  checkpoint: NJCheckpoint)
     extends StreamOutputSink {
 
   def sinkOptions[A](dsw: DataStreamWriter[A]): DataStreamWriter[A] =
     dsw
       .format(fileFormat.format)
       .outputMode(mode.value)
-      .option("path", path)
-      .option("checkpointLocation", checkpoint)
+      .option("path", path.value)
+      .option("checkpointLocation", checkpoint.value)
 }
 
 object FileSink {
 
-  def withAppendMode(fileFormat: NJFileFormat, path: String, checkpoint: String): FileSink =
+  def append(fileFormat: NJFileFormat, path: NJPath, checkpoint: NJCheckpoint): FileSink =
     FileSink(StreamOutputMode.Append, fileFormat, path, checkpoint)
 }
 
@@ -50,7 +51,7 @@ object FileSink {
   mode: StreamOutputMode.FullMode,
   brokers: KafkaBrokers,
   topicName: TopicName,
-  checkpoint: String)
+  checkpoint: NJCheckpoint)
     extends StreamOutputSink {
 
   def sinkOptions[A](dsw: DataStreamWriter[A]): DataStreamWriter[A] =
@@ -59,19 +60,19 @@ object FileSink {
       .outputMode(mode.fold(getMode))
       .option("kafka.bootstrap.servers", brokers.value)
       .option("topic", topicName.value)
-      .option("checkpointLocation", checkpoint)
+      .option("checkpointLocation", checkpoint.value)
 }
 
 object KafkaSink {
 
-  def withAppendMode(brokers: KafkaBrokers, topicName: TopicName, checkpoint: String): KafkaSink =
+  def append(brokers: KafkaBrokers, topicName: TopicName, checkpoint: NJCheckpoint): KafkaSink =
     KafkaSink(
       Coproduct[StreamOutputMode.FullMode](StreamOutputMode.Append),
       brokers,
       topicName,
       checkpoint)
 
-  def withUpdateMode(brokers: KafkaBrokers, topicName: TopicName, checkpoint: String): KafkaSink =
+  def update(brokers: KafkaBrokers, topicName: TopicName, checkpoint: NJCheckpoint): KafkaSink =
     KafkaSink(
       Coproduct[StreamOutputMode.FullMode](StreamOutputMode.Update),
       brokers,
@@ -87,13 +88,13 @@ object KafkaSink {
 
 object ConsoleSink {
 
-  def withAppendMode: ConsoleSink =
+  def append: ConsoleSink =
     ConsoleSink(Coproduct[StreamOutputMode.FullMode](StreamOutputMode.Append))
 
-  def withUpdateMode: ConsoleSink =
+  def update: ConsoleSink =
     ConsoleSink(Coproduct[StreamOutputMode.FullMode](StreamOutputMode.Update))
 
-  def withCompleteMode: ConsoleSink =
+  def complete: ConsoleSink =
     ConsoleSink(Coproduct[StreamOutputMode.FullMode](StreamOutputMode.Complete))
 
 }
@@ -107,10 +108,10 @@ object ConsoleSink {
 
 object MemorySink {
 
-  def withAppendMode(queryName: String): MemorySink =
+  def append(queryName: String): MemorySink =
     MemorySink(Coproduct[StreamOutputMode.MemoryMode](StreamOutputMode.Append), queryName)
 
-  def withCompleteMode(queryName: String): MemorySink =
+  def complete(queryName: String): MemorySink =
     MemorySink(Coproduct[StreamOutputMode.MemoryMode](StreamOutputMode.Complete), queryName)
 
 }

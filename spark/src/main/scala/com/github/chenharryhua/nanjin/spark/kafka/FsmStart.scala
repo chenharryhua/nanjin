@@ -5,6 +5,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducerRecord}
+import com.github.chenharryhua.nanjin.spark.NJCheckpoint
 import com.github.chenharryhua.nanjin.spark.streaming.SparkStreamTransformer
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SparkSession
@@ -70,5 +71,5 @@ final class FsmStart[K, V](bundle: KitBundle[K, V])(implicit sparkSession: Spark
     valEncoder: TypedEncoder[V]): SparkStreamTransformer[F, NJConsumerRecord[K, V]] =
     new SparkStreamTransformer[F, NJConsumerRecord[K, V]](
       sk.streaming(bundle.kit).dataset,
-      bundle.getPath)
+      NJCheckpoint(bundle.getPath))
 }
