@@ -68,5 +68,7 @@ final class FsmStart[K, V](bundle: KitBundle[K, V])(implicit sparkSession: Spark
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): SparkStreamTransformer[F, NJConsumerRecord[K, V]] =
-    new SparkStreamTransformer[F, NJConsumerRecord[K, V]](sk.streaming(bundle.kit).dataset)
+    new SparkStreamTransformer[F, NJConsumerRecord[K, V]](
+      sk.streaming(bundle.kit).dataset,
+      bundle.getPath)
 }

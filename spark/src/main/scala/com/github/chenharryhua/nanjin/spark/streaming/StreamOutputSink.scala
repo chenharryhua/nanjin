@@ -49,7 +49,8 @@ object FileSink {
 @Lenses final case class KafkaSink(
   mode: StreamOutputMode.FullMode,
   brokers: KafkaBrokers,
-  topicName: TopicName)
+  topicName: TopicName,
+  checkpoint: String)
     extends StreamOutputSink {
 
   def sinkOptions[A](dsw: DataStreamWriter[A]): DataStreamWriter[A] =
@@ -62,14 +63,19 @@ object FileSink {
 
 object KafkaSink {
 
-  def withAppendMode(brokers: KafkaBrokers, topicName: TopicName): KafkaSink =
-    KafkaSink(Coproduct[StreamOutputMode.FullMode](StreamOutputMode.Append), brokers, topicName)
+  def withAppendMode(brokers: KafkaBrokers, topicName: TopicName, checkpoint: String): KafkaSink =
+    KafkaSink(
+      Coproduct[StreamOutputMode.FullMode](StreamOutputMode.Append),
+      brokers,
+      topicName,
+      checkpoint)
 
-  def withUpdateMode(brokers: KafkaBrokers, topicName: TopicName): KafkaSink =
-    KafkaSink(Coproduct[StreamOutputMode.FullMode](StreamOutputMode.Update), brokers, topicName)
-
-  def withCompleteMode(brokers: KafkaBrokers, topicName: TopicName): KafkaSink =
-    KafkaSink(Coproduct[StreamOutputMode.FullMode](StreamOutputMode.Complete), brokers, topicName)
+  def withUpdateMode(brokers: KafkaBrokers, topicName: TopicName, checkpoint: String): KafkaSink =
+    KafkaSink(
+      Coproduct[StreamOutputMode.FullMode](StreamOutputMode.Update),
+      brokers,
+      topicName,
+      checkpoint)
 }
 
 @Lenses final case class ConsoleSink(mode: StreamOutputMode.FullMode) extends StreamOutputSink {

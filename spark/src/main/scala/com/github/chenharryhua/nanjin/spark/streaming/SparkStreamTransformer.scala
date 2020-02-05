@@ -6,17 +6,18 @@ import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
 import cats.implicits._
 
-final class SparkStreamTransformer[F[_], A: TypedEncoder](ds: Dataset[A]) extends Serializable {
+final class SparkStreamTransformer[F[_], A: TypedEncoder](ds: Dataset[A], checkpoint: String)
+    extends Serializable {
   @transient lazy val typedDataset: TypedDataset[A] = TypedDataset.create(ds)
 
   def filter(f: A => Boolean): SparkStreamTransformer[F, A] =
-    new SparkStreamTransformer[F, A](ds.filter(f))
+    new SparkStreamTransformer[F, A](ds.filter(f), checkpoint)
 
   def map[B: TypedEncoder](f: A => B): SparkStreamTransformer[F, B] =
-    new SparkStreamTransformer[F, B](typedDataset.deserialized.map(f).dataset)
+    new SparkStreamTransformer[F, B](typedDataset.deserialized.map(f).dataset, checkpoint)
 
   def flatMap[B: TypedEncoder](f: A => TraversableOnce[B]) =
-    new SparkStreamTransformer[F, B](typedDataset.deserialized.flatMap(f).dataset)
+    new SparkStreamTransformer[F, B](typedDataset.deserialized.flatMap(f).dataset, checkpoint)
 
   def withSink(sink: StreamOutputSink) = new SparkStreamRunner[F, A](ds.writeStream, sink)
 
@@ -28,6 +29,7 @@ final class SparkStreamTransformer[F[_], A: TypedEncoder](ds: Dataset[A]) extend
           ev(m).bimap(
             k => kit.codec.keySerde.serializer.serialize(kit.topicName.value, k),
             v => kit.codec.valueSerde.serializer.serialize(kit.topicName.value, v)))
-        .dataset).withSink(KafkaSink.withUpdateMode(kit.settings.brokers.get, kit.topicName))
+        .dataset)
+      .withSink(KafkaSink.withUpdateMode(kit.settings.brokers.get, kit.topicName, checkpoint))
 
 }
