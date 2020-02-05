@@ -4,6 +4,7 @@ import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJProducerRecord
+import com.github.chenharryhua.nanjin.spark.streaming.SparkStreamTransformer
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
@@ -39,6 +40,9 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
       typedDataset.filter(typedDataset('value).isNotNone).dataset,
       bundle)
 
+  def filter(f: NJProducerRecord[K, V] => Boolean): FsmProducerRecords[F, K, V] =
+    new FsmProducerRecords[F, K, V](prs.filter(f), bundle)
+
   def count(implicit ev: Sync[F]): F[Long] =
     typedDataset.count[F]()
 
@@ -58,5 +62,4 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
 
   def show(implicit ev: Sync[F]): F[Unit] =
     typedDataset.show[F](bundle.params.showDs.rowNum, bundle.params.showDs.isTruncate)
-
 }
