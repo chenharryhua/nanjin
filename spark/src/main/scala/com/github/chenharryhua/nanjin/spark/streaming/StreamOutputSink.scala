@@ -59,6 +59,7 @@ object FileSink {
       .outputMode(mode.fold(getMode))
       .option("kafka.bootstrap.servers", brokers.value)
       .option("topic", topicName.value)
+      .option("checkpointLocation", checkpoint)
 }
 
 object KafkaSink {

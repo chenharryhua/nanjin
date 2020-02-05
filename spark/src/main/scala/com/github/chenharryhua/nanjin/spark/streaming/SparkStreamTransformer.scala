@@ -29,7 +29,7 @@ final class SparkStreamTransformer[F[_], A: TypedEncoder](ds: Dataset[A], checkp
           ev(m).bimap(
             k => kit.codec.keySerde.serializer.serialize(kit.topicName.value, k),
             v => kit.codec.valueSerde.serializer.serialize(kit.topicName.value, v)))
-        .dataset)
+        .dataset,
+      checkpoint)
       .withSink(KafkaSink.withUpdateMode(kit.settings.brokers.get, kit.topicName, checkpoint))
-
 }
