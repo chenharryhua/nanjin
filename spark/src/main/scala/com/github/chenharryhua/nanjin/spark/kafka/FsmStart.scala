@@ -55,13 +55,7 @@ final class FsmStart[K, V](bundle: KitBundle[K, V])(implicit sparkSession: Spark
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[Unit] =
-    fromKafka[F].map(ds =>
-      sk.save[K, V](
-        ds.typedDataset,
-        bundle.kit,
-        bundle.params.fileFormat,
-        bundle.params.saveMode,
-        bundle.getPath))
+    fromKafka[F].map(_.save())
 
   def replay[F[_]: ConcurrentEffect: Timer: ContextShift](
     implicit
