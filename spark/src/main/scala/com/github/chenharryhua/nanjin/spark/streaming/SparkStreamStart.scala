@@ -11,6 +11,8 @@ final class SparkStreamStart[F[_], A: TypedEncoder](ds: Dataset[A], params: Stre
     extends Serializable {
   @transient lazy val typedDataset: TypedDataset[A] = TypedDataset.create(ds)
 
+  // transforms
+
   def filter(f: A => Boolean): SparkStreamStart[F, A] =
     new SparkStreamStart[F, A](ds.filter(f), params)
 

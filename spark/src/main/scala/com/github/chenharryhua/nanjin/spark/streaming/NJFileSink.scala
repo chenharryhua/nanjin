@@ -10,16 +10,38 @@ final class NJFileSink[F[_], A](
   fileFormat: NJFileFormat,
   path: NJPath,
   checkpoint: NJCheckpoint,
-  failOnDataLoss: NJFailOnDataLoss) {
+  dataLoss: NJFailOnDataLoss)
+    extends NJStreamSink[F] {
 
-  def run(implicit F: Concurrent[F], timer: Timer[F]): F[Unit] =
+  def withJson: NJFileSink[F, A] =
+    new NJFileSink[F, A](dsw, NJFileFormat.Json, path, checkpoint, dataLoss)
+
+  def withAvro: NJFileSink[F, A] =
+    new NJFileSink[F, A](dsw, NJFileFormat.Avro, path, checkpoint, dataLoss)
+
+  def withParquet: NJFileSink[F, A] =
+    new NJFileSink[F, A](dsw, NJFileFormat.Parquet, path, checkpoint, dataLoss)
+
+  def withCheckpoint(cp: String): NJFileSink[F, A] =
+    new NJFileSink[F, A](dsw, fileFormat, path, NJCheckpoint(cp), dataLoss)
+
+  def withoutFailONDataLoss: NJFileSink[F, A] =
+    new NJFileSink[F, A](dsw, fileFormat, path, checkpoint, NJFailOnDataLoss(false))
+
+  def withOptions(f: DataStreamWriter[A] => DataStreamWriter[A]) =
+    new NJFileSink[F, A](f(dsw), fileFormat, path, checkpoint, dataLoss)
+
+  def partitionBy(colNames: String*): NJFileSink[F, A] =
+    new NJFileSink[F, A](dsw.partitionBy(colNames: _*), fileFormat, path, checkpoint, dataLoss)
+
+  override def run(implicit F: Concurrent[F], timer: Timer[F]): F[Unit] =
     ss.queryStream(
         dsw
           .format(fileFormat.format)
           .outputMode(OutputMode.Append)
           .option("path", path.value)
           .option("checkpointLocation", checkpoint.value)
-          .option("failOnDataLoss", failOnDataLoss.value))
+          .option("failOnDataLoss", dataLoss.value))
       .compile
       .drain
 }

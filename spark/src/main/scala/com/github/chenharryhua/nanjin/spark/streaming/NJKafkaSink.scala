@@ -13,9 +13,18 @@ final class NJKafkaSink[F[_]](
   topicName: TopicName,
   checkpoint: NJCheckpoint,
   dataLoss: NJFailOnDataLoss
-) {
+) extends NJStreamSink[F] {
 
-  def run(implicit F: Concurrent[F], timer: Timer[F]): F[Unit] =
+  def withCheckpoint(cp: String): NJKafkaSink[F] =
+    new NJKafkaSink[F](dsw, outputMode, brokers, topicName, NJCheckpoint(cp), dataLoss)
+
+  def withoutFailONDataLoss: NJKafkaSink[F] =
+    new NJKafkaSink[F](dsw, outputMode, brokers, topicName, checkpoint, NJFailOnDataLoss(false))
+
+  def withOutputMode(om: OutputMode): NJKafkaSink[F] =
+    new NJKafkaSink[F](dsw, om, brokers, topicName, checkpoint, dataLoss)
+
+  override def run(implicit F: Concurrent[F], timer: Timer[F]): F[Unit] =
     ss.queryStream(
         dsw
           .format("kafka")
