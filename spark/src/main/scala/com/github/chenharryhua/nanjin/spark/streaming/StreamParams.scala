@@ -28,5 +28,5 @@ final class StreamParams[HL <: HList](val hl: HL) {
 }
 
 object StreamParams {
-  def empty: StreamParams[HList] = new StreamParams[HList](HNil)
+  def default: StreamParams[HList] = new StreamParams[HList](HNil)
 }

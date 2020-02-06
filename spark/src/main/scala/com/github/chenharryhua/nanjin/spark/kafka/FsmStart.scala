@@ -76,7 +76,7 @@ final class FsmStart[K, V](bundle: KitBundle[K, V])(implicit sparkSession: Spark
     NJConsumerRecord[K, V]] =
     new SparkStreamStart(
       sk.streaming(bundle.kit).dataset,
-      StreamParams.empty.withFailOnDataLoss
+      StreamParams.default.withFailOnDataLoss
         .withMode(OutputMode.Update)
         .withFileFormat(bundle.params.fileFormat)
         .withPath(bundle.getPath))

@@ -32,13 +32,13 @@ final class SparkStreamStart[F[_], HL <: HList, A: TypedEncoder](
   def withPath(path: String): SparkStreamStart[F, NJPath :: HL, A] =
     new SparkStreamStart(ds, params.withPath(path))
 
-  def withJsonFormat: SparkStreamStart[F, NJFileFormat :: HL, A] =
+  def withJson: SparkStreamStart[F, NJFileFormat :: HL, A] =
     new SparkStreamStart(ds, params.withFileFormat(NJFileFormat.Json))
 
-  def withAvroFormat: SparkStreamStart[F, NJFileFormat :: HL, A] =
+  def withAvro: SparkStreamStart[F, NJFileFormat :: HL, A] =
     new SparkStreamStart(ds, params.withFileFormat(NJFileFormat.Avro))
 
-  def withParquetFormat: SparkStreamStart[F, NJFileFormat :: HL, A] =
+  def withParquet: SparkStreamStart[F, NJFileFormat :: HL, A] =
     new SparkStreamStart(ds, params.withFileFormat(NJFileFormat.Parquet))
 
   def withAppendMode: SparkStreamStart[F, OutputMode :: HL, A] =
