@@ -9,18 +9,19 @@ final class SparkStreamRunner[F[_], A](dsw: DataStreamWriter[A], sink: StreamOut
     extends Serializable {
 
   def withOptions(f: DataStreamWriter[A] => DataStreamWriter[A]) =
-    new SparkStreamRunner[F, A](f(sink.sinkOptions(dsw)), sink)
+    new SparkStreamRunner[F, A](f(dsw), sink)
 
   def partitionBy(colNames: String*): SparkStreamRunner[F, A] =
     new SparkStreamRunner[F, A](dsw.partitionBy(colNames: _*), sink)
 
   def run(implicit F: Concurrent[F]): F[Unit] = {
+    val ss = sink.sinkOptions(dsw)
     val q = for {
       signal <- Keyboard.signal[F]
-      streamQuery <- Stream(dsw.start())
+      streamQuery <- Stream.eval(F.delay(dsw.start()))
 
     } yield ()
 
-    F.bracket(F.delay(dsw.start))(s => F.delay(s.awaitTermination()))(s => F.pure(s.stop()))
+    F.bracket(F.delay(ss.start))(s => F.delay(s.awaitTermination()))(s => F.pure(s.stop()))
   }
 }

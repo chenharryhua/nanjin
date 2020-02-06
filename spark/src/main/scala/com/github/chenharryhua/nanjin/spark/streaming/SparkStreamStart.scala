@@ -49,8 +49,8 @@ final class SparkStreamStart[F[_], HL <: HList, A: TypedEncoder](
   def withCompleteMode: SparkStreamStart[F, StreamOutputMode :: HL, A] =
     new SparkStreamStart(ds, params.withMode(StreamOutputMode.Complete))
 
-  def consoleSink: SparkStreamRunner[F, A] =
-    new SparkStreamRunner(ds.writeStream, ConsoleSink(StreamOutputMode.Append))
+  def consoleSink(numRows: Int = 20, trucate: Boolean = false): SparkStreamRunner[F, A] =
+    new SparkStreamRunner(ds.writeStream, ConsoleSink(numRows, trucate))
 
   def fileSink(
     implicit
@@ -59,11 +59,7 @@ final class SparkStreamStart[F[_], HL <: HList, A: TypedEncoder](
     fileFormat: Selector[HL, NJFileFormat]) =
     new SparkStreamRunner(
       ds.writeStream,
-      FileSink(
-        StreamOutputMode.Append,
-        fileFormat(params.hl),
-        path(params.hl),
-        checkpoint(params.hl)))
+      FileSink(fileFormat(params.hl), path(params.hl), checkpoint(params.hl)))
 
   def kafkaSink[K, V](kit: KafkaTopicKit[K, V])(
     implicit pr: A =:= NJProducerRecord[K, V],

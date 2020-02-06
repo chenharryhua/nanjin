@@ -4,9 +4,8 @@ import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.kafka.KafkaBrokers
 import com.github.chenharryhua.nanjin.kafka.common.TopicName
 import com.github.chenharryhua.nanjin.spark.{NJCheckpoint, NJPath}
-import monocle.macros.Lenses
 import org.apache.spark.sql.streaming.DataStreamWriter
-import shapeless.{Coproduct, Poly1}
+import shapeless.Poly1
 
 //http://spark.apache.org/docs/latest/structured-streaming-programming-guide.html#output-sinks
 
@@ -26,25 +25,16 @@ private object getMode extends Poly1 {
     at[StreamOutputMode.Complete](_.value)
 }
 
-@Lenses final case class FileSink(
-  mode: StreamOutputMode.Append,
-  fileFormat: NJFileFormat,
-  path: NJPath,
-  checkpoint: NJCheckpoint)
+final case class FileSink(fileFormat: NJFileFormat, path: NJPath, checkpoint: NJCheckpoint)
     extends StreamOutputSink {
 
   def sinkOptions[A](dsw: DataStreamWriter[A]): DataStreamWriter[A] =
     dsw
       .format(fileFormat.format)
-      .outputMode(mode.value)
+      .outputMode(StreamOutputMode.Append.value)
       .option("path", path.value)
       .option("checkpointLocation", checkpoint.value)
-}
 
-object FileSink {
-
-  def append(fileFormat: NJFileFormat, path: NJPath, checkpoint: NJCheckpoint): FileSink =
-    FileSink(StreamOutputMode.Append, fileFormat, path, checkpoint)
 }
 
 final case class KafkaSink(
@@ -63,14 +53,17 @@ final case class KafkaSink(
       .option("checkpointLocation", checkpoint.value)
 }
 
-@Lenses final case class ConsoleSink(mode: StreamOutputMode) extends StreamOutputSink {
+final case class ConsoleSink(numRows: Int, trucate: Boolean) extends StreamOutputSink {
 
   def sinkOptions[A](dsw: DataStreamWriter[A]): DataStreamWriter[A] =
-    dsw.format("console").outputMode(mode.value)
+    dsw
+      .format("console")
+      .outputMode(StreamOutputMode.Append.value)
+      .option("truncate", trucate)
+      .option("numRows", numRows.toString)
 }
 
-@Lenses final case class MemorySink(mode: StreamOutputMode, queryName: String)
-    extends StreamOutputSink {
+final case class MemorySink(mode: StreamOutputMode, queryName: String) extends StreamOutputSink {
 
   def sinkOptions[A](dsw: DataStreamWriter[A]): DataStreamWriter[A] =
     dsw.format("memory").queryName(queryName).outputMode(mode.value)
