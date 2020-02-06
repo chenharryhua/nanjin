@@ -1,14 +1,15 @@
 package com.github.chenharryhua.nanjin.spark.streaming
 
-import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
-import com.github.chenharryhua.nanjin.kafka.common.NJProducerRecord
-import frameless.{TypedDataset, TypedEncoder}
-import org.apache.spark.sql.Dataset
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
+import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
+import com.github.chenharryhua.nanjin.kafka.common.NJProducerRecord
 import com.github.chenharryhua.nanjin.spark.{NJCheckpoint, NJPath}
-import shapeless.{::, HList}
+import frameless.{TypedDataset, TypedEncoder}
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.streaming.OutputMode
 import shapeless.ops.hlist.Selector
+import shapeless.{::, HList}
 
 final class SparkStreamStart[F[_], HL <: HList, A: TypedEncoder](
   ds: Dataset[A],
@@ -40,14 +41,14 @@ final class SparkStreamStart[F[_], HL <: HList, A: TypedEncoder](
   def withParquetFormat: SparkStreamStart[F, NJFileFormat :: HL, A] =
     new SparkStreamStart(ds, params.withFileFormat(NJFileFormat.Parquet))
 
-  def withAppendMode: SparkStreamStart[F, StreamOutputMode :: HL, A] =
-    new SparkStreamStart(ds, params.withMode(StreamOutputMode.Append))
+  def withAppendMode: SparkStreamStart[F, OutputMode :: HL, A] =
+    new SparkStreamStart(ds, params.withMode(OutputMode.Append))
 
-  def withUpdateMode: SparkStreamStart[F, StreamOutputMode :: HL, A] =
-    new SparkStreamStart(ds, params.withMode(StreamOutputMode.Update))
+  def withUpdateMode: SparkStreamStart[F, OutputMode :: HL, A] =
+    new SparkStreamStart(ds, params.withMode(OutputMode.Update))
 
-  def withCompleteMode: SparkStreamStart[F, StreamOutputMode :: HL, A] =
-    new SparkStreamStart(ds, params.withMode(StreamOutputMode.Complete))
+  def withCompleteMode: SparkStreamStart[F, OutputMode :: HL, A] =
+    new SparkStreamStart(ds, params.withMode(OutputMode.Complete))
 
   def consoleSink(numRows: Int = 20, trucate: Boolean = false): SparkStreamRunner[F, A] =
     new SparkStreamRunner(ds.writeStream, ConsoleSink(numRows, trucate))
@@ -63,7 +64,7 @@ final class SparkStreamStart[F[_], HL <: HList, A: TypedEncoder](
 
   def kafkaSink[K, V](kit: KafkaTopicKit[K, V])(
     implicit pr: A =:= NJProducerRecord[K, V],
-    mode: Selector[HL, StreamOutputMode],
+    mode: Selector[HL, OutputMode],
     checkpoint: Selector[HL, NJCheckpoint])
     : SparkStreamRunner[F, NJProducerRecord[Array[Byte], Array[Byte]]] =
     new SparkStreamRunner[F, NJProducerRecord[Array[Byte], Array[Byte]]](

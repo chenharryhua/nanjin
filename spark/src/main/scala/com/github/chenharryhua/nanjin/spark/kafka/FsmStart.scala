@@ -2,17 +2,15 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.common.UpdateParams
+import com.github.chenharryhua.nanjin.common.{NJFileFormat, UpdateParams}
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducerRecord}
-import com.github.chenharryhua.nanjin.spark.{NJCheckpoint, NJPath}
-import com.github.chenharryhua.nanjin.spark.streaming.SparkStreamStart
+import com.github.chenharryhua.nanjin.spark.NJPath
+import com.github.chenharryhua.nanjin.spark.streaming.{SparkStreamStart, StreamParams}
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SparkSession
-import shapeless.{::, HList, HNil}
-import com.github.chenharryhua.nanjin.spark.streaming.StreamParams
-import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.github.chenharryhua.nanjin.spark.streaming.StreamOutputMode
+import org.apache.spark.sql.streaming.OutputMode
+import shapeless.{::, HList}
 
 trait FsmSparKafka[K, V] extends Serializable with UpdateParams[KitBundle[K, V], FsmSparKafka[K, V]]
 
@@ -72,14 +70,12 @@ final class FsmStart[K, V](bundle: KitBundle[K, V])(implicit sparkSession: Spark
   def streaming[F[_]](
     implicit
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): SparkStreamStart[
-    F,
-    NJPath :: NJFileFormat :: StreamOutputMode :: HList,
-    NJConsumerRecord[K, V]] =
+    valEncoder: TypedEncoder[V])
+    : SparkStreamStart[F, NJPath :: NJFileFormat :: OutputMode :: HList, NJConsumerRecord[K, V]] =
     new SparkStreamStart(
       sk.streaming(bundle.kit).dataset,
       StreamParams.empty
-        .withMode(StreamOutputMode.Update)
+        .withMode(OutputMode.Update)
         .withFileFormat(bundle.params.fileFormat)
         .withPath(bundle.getPath))
 }

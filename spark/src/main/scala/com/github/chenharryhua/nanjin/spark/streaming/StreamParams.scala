@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.streaming
 
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.spark.{NJCheckpoint, NJPath}
+import org.apache.spark.sql.streaming.OutputMode
 import shapeless._
 
 final class StreamParams[HL <: HList](val hl: HL) {
@@ -15,7 +16,7 @@ final class StreamParams[HL <: HList](val hl: HL) {
   def withCheckpoint(checkpoint: String): StreamParams[NJCheckpoint :: HL] =
     new StreamParams(NJCheckpoint(checkpoint) :: hl)
 
-  def withMode(mode: StreamOutputMode): StreamParams[StreamOutputMode :: HL] =
+  def withMode(mode: OutputMode): StreamParams[OutputMode :: HL] =
     new StreamParams(mode :: hl)
 
 }
