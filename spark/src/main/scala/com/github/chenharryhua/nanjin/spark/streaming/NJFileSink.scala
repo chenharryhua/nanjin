@@ -13,6 +13,7 @@ final class NJFileSink[F[_], A](
   dataLoss: NJFailOnDataLoss)
     extends NJStreamSink[F] {
 
+  // settings
   def withJson: NJFileSink[F, A] =
     new NJFileSink[F, A](dsw, NJFileFormat.Json, path, checkpoint, dataLoss)
 
@@ -28,6 +29,7 @@ final class NJFileSink[F[_], A](
   def withoutFailONDataLoss: NJFileSink[F, A] =
     new NJFileSink[F, A](dsw, fileFormat, path, checkpoint, NJFailOnDataLoss(false))
 
+  // ops
   def withOptions(f: DataStreamWriter[A] => DataStreamWriter[A]) =
     new NJFileSink[F, A](f(dsw), fileFormat, path, checkpoint, dataLoss)
 
