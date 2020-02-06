@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.database.{ConnectionString, DriverString, 
 import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
-private[database] object st {
+private[database] object sd {
 
   def fromDB[A: TypedEncoder](
     connStr: ConnectionString,

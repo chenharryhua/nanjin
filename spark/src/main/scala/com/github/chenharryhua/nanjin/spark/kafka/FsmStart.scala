@@ -2,15 +2,12 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.common.{NJFileFormat, UpdateParams}
+import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.spark.streaming.{SparkStreamStart, StreamParams}
-import com.github.chenharryhua.nanjin.spark.{NJFailOnDataLoss, NJPath}
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.streaming.OutputMode
-import shapeless.{::, HList}
 
 trait FsmSparKafka[K, V] extends Serializable with UpdateParams[KitBundle[K, V], FsmSparKafka[K, V]]
 
@@ -70,14 +67,6 @@ final class FsmStart[K, V](bundle: KitBundle[K, V])(implicit sparkSession: Spark
   def streaming[F[_]](
     implicit
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): SparkStreamStart[
-    F,
-    NJPath :: NJFileFormat :: OutputMode :: NJFailOnDataLoss :: HList,
-    NJConsumerRecord[K, V]] =
-    new SparkStreamStart(
-      sk.streaming(bundle.kit).dataset,
-      StreamParams.default.withFailOnDataLoss
-        .withMode(OutputMode.Update)
-        .withFileFormat(bundle.params.fileFormat)
-        .withPath(bundle.getPath))
+    valEncoder: TypedEncoder[V]): SparkStreamStart[F, NJConsumerRecord[K, V]] =
+    new SparkStreamStart(sk.streaming(bundle.kit).dataset, StreamParams.default)
 }

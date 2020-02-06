@@ -1,32 +1,41 @@
 package com.github.chenharryhua.nanjin.spark.streaming
 
 import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.github.chenharryhua.nanjin.spark.{NJCheckpoint, NJFailOnDataLoss, NJPath}
+import com.github.chenharryhua.nanjin.spark.{NJCheckpoint, NJFailOnDataLoss, NJShowDataset}
+import monocle.macros.Lenses
 import org.apache.spark.sql.streaming.OutputMode
-import shapeless._
 
-final class StreamParams[HL <: HList](val hl: HL) {
+@Lenses final case class StreamParams(
+  showDs: NJShowDataset,
+  checkpoint: NJCheckpoint,
+  fileFormat: NJFileFormat,
+  dataLoss: NJFailOnDataLoss,
+  outputMode: OutputMode) {
 
-  def withPath(path: String): StreamParams[NJPath :: HL] =
-    new StreamParams(NJPath(path) :: hl)
+  def withFileFormat(fileFormat: NJFileFormat): StreamParams =
+    StreamParams.fileFormat.set(fileFormat)(this)
 
-  def withFileFormat(fileFormat: NJFileFormat): StreamParams[NJFileFormat :: HL] =
-    new StreamParams(fileFormat :: hl)
+  def withCheckpoint(cp: String): StreamParams =
+    StreamParams.checkpoint.set(NJCheckpoint(cp))(this)
 
-  def withCheckpoint(checkpoint: String): StreamParams[NJCheckpoint :: HL] =
-    new StreamParams(NJCheckpoint(checkpoint) :: hl)
+  def withMode(mode: OutputMode): StreamParams =
+    StreamParams.outputMode.set(mode)(this)
 
-  def withMode(mode: OutputMode): StreamParams[OutputMode :: HL] =
-    new StreamParams(mode :: hl)
+  def withFailOnDataLoss: StreamParams =
+    StreamParams.dataLoss.set(NJFailOnDataLoss(true))(this)
 
-  def withFailOnDataLoss: StreamParams[NJFailOnDataLoss :: HL] =
-    new StreamParams(NJFailOnDataLoss(true) :: hl)
-
-  def withoutFailOnDataLoss: StreamParams[NJFailOnDataLoss :: HL] =
-    new StreamParams(NJFailOnDataLoss(false) :: hl)
+  def withoutFailOnDataLoss: StreamParams =
+    StreamParams.dataLoss.set(NJFailOnDataLoss(false))(this)
 
 }
 
 object StreamParams {
-  def default: StreamParams[HList] = new StreamParams[HList](HNil)
+
+  def default: StreamParams =
+    StreamParams(
+      NJShowDataset(20, isTruncate = false),
+      NJCheckpoint("./data/streaming/checkpoint"),
+      NJFileFormat.Json,
+      NJFailOnDataLoss(true),
+      OutputMode.Append)
 }
