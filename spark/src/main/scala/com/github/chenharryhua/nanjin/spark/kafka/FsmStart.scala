@@ -51,6 +51,12 @@ final class FsmStart[K, V](bundle: KitBundle[K, V])(implicit sparkSession: Spark
     valEncoder: TypedEncoder[V]): FsmProducerRecords[F, K, V] =
     new FsmProducerRecords[F, K, V](pr.dataset, bundle)
 
+  def save[F[_]: Sync](
+    implicit
+    keyEncoder: TypedEncoder[K],
+    valEncoder: TypedEncoder[V]): F[Unit] =
+    fromKafka[F].map(_.save())
+
   def replay[F[_]: ConcurrentEffect: Timer: ContextShift](
     implicit
     keyEncoder: TypedEncoder[K],

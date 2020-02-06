@@ -14,13 +14,13 @@ final class NJConsoleSink[F[_], A](
   dataLoss: NJFailOnDataLoss)
     extends NJStreamSink[F] {
 
-  def withoutFailONDataLoss =
+  def withoutFailONDataLoss: NJConsoleSink[F, A] =
     new NJConsoleSink[F, A](dsw, showDs, NJFailOnDataLoss(false))
 
-  def withShowRows(rs: Int) =
+  def withShowRows(rs: Int): NJConsoleSink[F, A] =
     new NJConsoleSink[F, A](dsw, NJShowDataset.rowNum.set(rs)(showDs), dataLoss)
 
-  def withTruncate =
+  def withTruncate: NJConsoleSink[F, A] =
     new NJConsoleSink[F, A](dsw, NJShowDataset.isTruncate.set(true)(showDs), dataLoss)
 
   override def run(implicit F: Concurrent[F], timer: Timer[F]): F[Unit] =
