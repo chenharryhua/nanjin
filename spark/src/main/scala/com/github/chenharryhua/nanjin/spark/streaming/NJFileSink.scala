@@ -30,7 +30,7 @@ final class NJFileSink[F[_], A](
     new NJFileSink[F, A](dsw, fileFormat, path, checkpoint, NJFailOnDataLoss(false))
 
   // ops
-  def withOptions(f: DataStreamWriter[A] => DataStreamWriter[A]) =
+  def withOptions(f: DataStreamWriter[A] => DataStreamWriter[A]): NJFileSink[F, A] =
     new NJFileSink[F, A](f(dsw), fileFormat, path, checkpoint, dataLoss)
 
   def partitionBy(colNames: String*): NJFileSink[F, A] =

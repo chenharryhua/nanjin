@@ -24,6 +24,11 @@ final class NJKafkaSink[F[_]](
   def withOutputMode(om: OutputMode): NJKafkaSink[F] =
     new NJKafkaSink[F](dsw, om, brokers, topicName, checkpoint, dataLoss)
 
+  def withOptions(
+    f: DataStreamWriter[NJProducerRecord[Array[Byte], Array[Byte]]] => DataStreamWriter[
+      NJProducerRecord[Array[Byte], Array[Byte]]]): NJKafkaSink[F] =
+    new NJKafkaSink[F](f(dsw), outputMode, brokers, topicName, checkpoint, dataLoss)
+
   override def run(implicit F: Concurrent[F], timer: Timer[F]): F[Unit] =
     ss.queryStream(
         dsw
