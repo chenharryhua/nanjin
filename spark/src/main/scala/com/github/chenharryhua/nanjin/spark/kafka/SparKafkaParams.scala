@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.TopicName
-import com.github.chenharryhua.nanjin.spark.{Repartition, ShowSparkDataset}
+import com.github.chenharryhua.nanjin.spark.{NJRepartition, NJShowDataset}
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.streaming.kafka010.{LocationStrategies, LocationStrategy}
@@ -46,8 +46,8 @@ final case class KafkaPathBuild(
   fileFormat: NJFileFormat,
   saveMode: SaveMode,
   locationStrategy: LocationStrategy,
-  repartition: Repartition,
-  showDs: ShowSparkDataset)
+  repartition: NJRepartition,
+  showDs: NJShowDataset)
 
 object SparKafkaParams {
 
@@ -60,8 +60,8 @@ object SparKafkaParams {
       fileFormat        = NJFileFormat.Parquet,
       saveMode          = SaveMode.ErrorIfExists,
       locationStrategy  = LocationStrategies.PreferConsistent,
-      repartition       = Repartition(30),
-      showDs            = ShowSparkDataset(60, isTruncate = false)
+      repartition       = NJRepartition(30),
+      showDs            = NJShowDataset(60, isTruncate = false)
     )
 }
 
@@ -112,23 +112,23 @@ object SparKafkaParams {
       .set(duration)(this)
 
   def withRepartition(num: Int): KitBundle[K, V] =
-    KitBundle.params.composeLens(SparKafkaParams.repartition).set(Repartition(num))(this)
+    KitBundle.params.composeLens(SparKafkaParams.repartition).set(NJRepartition(num))(this)
 
   def withRowNumber(num: Int): KitBundle[K, V] =
     KitBundle.params
       .composeLens(SparKafkaParams.showDs)
-      .composeLens(ShowSparkDataset.rowNum)
+      .composeLens(NJShowDataset.rowNum)
       .set(num)(this)
 
   def withTruncate: KitBundle[K, V] =
     KitBundle.params
       .composeLens(SparKafkaParams.showDs)
-      .composeLens(ShowSparkDataset.isTruncate)
+      .composeLens(NJShowDataset.isTruncate)
       .set(true)(this)
 
   def withoutTruncate: KitBundle[K, V] =
     KitBundle.params
       .composeLens(SparKafkaParams.showDs)
-      .composeLens(ShowSparkDataset.isTruncate)
+      .composeLens(NJShowDataset.isTruncate)
       .set(false)(this)
 }

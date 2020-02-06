@@ -29,20 +29,20 @@ final class SparkTableSession[A](
     new SparkTableSession[A](tableDef, dbSettings, f(params))
 
   def fromDB: TypedDataset[A] =
-    st.fromDB(dbSettings.connStr, dbSettings.driver, tableDef.tableName)
+    sd.fromDB(dbSettings.connStr, dbSettings.driver, tableDef.tableName)
 
   def save(path: String): Unit =
-    st.save(fromDB, params.fileSaveMode, params.fileFormat, path)
+    sd.save(fromDB, params.fileSaveMode, params.fileFormat, path)
 
   def save(): Unit =
     save(params.getPath(tableDef.tableName))
 
   def fromDisk(path: String): TypedDataset[A] =
-    st.fromDisk(params.fileFormat, path)
+    sd.fromDisk(params.fileFormat, path)
 
   def fromDisk(): TypedDataset[A] =
     fromDisk(params.getPath(tableDef.tableName))
 
   def upload(dataset: TypedDataset[A]): Unit =
-    st.upload(dataset, params.dbSaveMode, dbSettings.connStr, dbSettings.driver, tableDef.tableName)
+    sd.upload(dataset, params.dbSaveMode, dbSettings.connStr, dbSettings.driver, tableDef.tableName)
 }

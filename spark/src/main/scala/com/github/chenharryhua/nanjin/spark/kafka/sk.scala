@@ -179,7 +179,7 @@ private[kafka] object sk {
   def upload[F[_], K, V](
     dataset: TypedDataset[NJProducerRecord[K, V]],
     kit: KafkaTopicKit[K, V],
-    repartition: Repartition,
+    repartition: NJRepartition,
     uploadRate: UploadRate
   )(
     implicit

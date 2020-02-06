@@ -4,7 +4,7 @@ import cats.effect.Sync
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
-import com.github.chenharryhua.nanjin.spark.streaming.SparkStreamTransformer
+import com.github.chenharryhua.nanjin.spark.streaming.SparkStreamStart
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
