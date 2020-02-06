@@ -4,7 +4,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJProducerRecord
-import com.github.chenharryhua.nanjin.spark.{NJCheckpoint, NJPath}
+import com.github.chenharryhua.nanjin.spark.{NJCheckpoint, NJFailOnDataLoss, NJPath}
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.streaming.OutputMode
@@ -50,22 +50,32 @@ final class SparkStreamStart[F[_], HL <: HList, A: TypedEncoder](
   def withCompleteMode: SparkStreamStart[F, OutputMode :: HL, A] =
     new SparkStreamStart(ds, params.withMode(OutputMode.Complete))
 
-  def consoleSink(numRows: Int = 20, trucate: Boolean = false): SparkStreamRunner[F, A] =
-    new SparkStreamRunner(ds.writeStream, ConsoleSink(numRows, trucate))
+  def withoutFailOnDtaLoss: SparkStreamStart[F, NJFailOnDataLoss :: HL, A] =
+    new SparkStreamStart(ds, params.withoutFailOnDataLoss)
+
+  // sinks
+
+  def consoleSink(numRows: Int = 20, trucate: Boolean = false)(
+    implicit
+    dataLoss: Selector[HL, NJFailOnDataLoss]
+  ): SparkStreamRunner[F, A] =
+    new SparkStreamRunner(ds.writeStream, ConsoleSink(numRows, trucate, dataLoss(params.hl)))
 
   def fileSink(
     implicit
     path: Selector[HL, NJPath],
     checkpoint: Selector[HL, NJCheckpoint],
-    fileFormat: Selector[HL, NJFileFormat]) =
+    fileFormat: Selector[HL, NJFileFormat],
+    dataLoss: Selector[HL, NJFailOnDataLoss]) =
     new SparkStreamRunner(
       ds.writeStream,
-      FileSink(fileFormat(params.hl), path(params.hl), checkpoint(params.hl)))
+      FileSink(fileFormat(params.hl), path(params.hl), checkpoint(params.hl), dataLoss(params.hl)))
 
   def kafkaSink[K, V](kit: KafkaTopicKit[K, V])(
     implicit pr: A =:= NJProducerRecord[K, V],
     mode: Selector[HL, OutputMode],
-    checkpoint: Selector[HL, NJCheckpoint])
+    checkpoint: Selector[HL, NJCheckpoint],
+    dataLoss: Selector[HL, NJFailOnDataLoss])
     : SparkStreamRunner[F, NJProducerRecord[Array[Byte], Array[Byte]]] =
     new SparkStreamRunner[F, NJProducerRecord[Array[Byte], Array[Byte]]](
       typedDataset.deserialized
@@ -75,5 +85,10 @@ final class SparkStreamStart[F[_], HL <: HList, A: TypedEncoder](
             v => kit.codec.valueSerde.serializer.serialize(kit.topicName.value, v)))
         .dataset
         .writeStream,
-      KafkaSink(mode(params.hl), kit.settings.brokers.get, kit.topicName, checkpoint(params.hl)))
+      KafkaSink(
+        mode(params.hl),
+        kit.settings.brokers.get,
+        kit.topicName,
+        checkpoint(params.hl),
+        dataLoss(params.hl)))
 }

@@ -1,9 +1,12 @@
 package com.github.chenharryhua.nanjin.spark.streaming
 
-import cats.effect.Concurrent
+import cats.effect.{Concurrent, Timer}
+import cats.implicits._
 import com.github.chenharryhua.nanjin.utils.Keyboard
-import org.apache.spark.sql.streaming.DataStreamWriter
 import fs2.Stream
+import org.apache.spark.sql.streaming.{DataStreamWriter, StreamingQueryProgress}
+
+import scala.concurrent.duration._
 
 final class SparkStreamRunner[F[_], A](dsw: DataStreamWriter[A], sink: StreamOutputSink)
     extends Serializable {
@@ -14,14 +17,20 @@ final class SparkStreamRunner[F[_], A](dsw: DataStreamWriter[A], sink: StreamOut
   def partitionBy(colNames: String*): SparkStreamRunner[F, A] =
     new SparkStreamRunner[F, A](dsw.partitionBy(colNames: _*), sink)
 
-  def run(implicit F: Concurrent[F]): F[Unit] = {
-    val ss = sink.sinkOptions(dsw)
-    val q = for {
-      signal <- Keyboard.signal[F]
-      streamQuery <- Stream.eval(F.delay(dsw.start()))
+  def queryStream(implicit F: Concurrent[F], timer: Timer[F]): Stream[F, StreamingQueryProgress] =
+    for {
+      kb <- Keyboard.signal[F]
+      streamQuery <- Stream.eval(F.delay(sink.sinkOptions(dsw).start()))
+      rst <- Stream
+        .awakeEvery[F](5.second)
+        .map(_ => streamQuery.exception.toLeft(()))
+        .rethrow
+        .interruptWhen(kb.map(_.filter(_ === Keyboard.Quit).map(_ => streamQuery.stop()).isDefined))
+        .map(_ => streamQuery.lastProgress)
+        .concurrently(Stream.eval(F.delay(streamQuery.awaitTermination())))
+    } yield rst
 
-    } yield ()
+  def run(implicit F: Concurrent[F], timer: Timer[F]): F[Unit] =
+    queryStream.compile.drain
 
-    F.bracket(F.delay(ss.start))(s => F.delay(s.awaitTermination()))(s => F.pure(s.stop()))
-  }
 }
