@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.spark.streaming
 import cats.effect.{Concurrent, Timer}
 import com.github.chenharryhua.nanjin.kafka.KafkaBrokers
 import com.github.chenharryhua.nanjin.kafka.common.{NJProducerRecord, TopicName}
-import com.github.chenharryhua.nanjin.spark.{NJCheckpoint, NJFailOnDataLoss}
 import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode}
 
 final class NJKafkaSink[F[_]](

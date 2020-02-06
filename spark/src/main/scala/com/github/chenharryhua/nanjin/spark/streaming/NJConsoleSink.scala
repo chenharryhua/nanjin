@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.streaming
 
 import cats.effect.{Concurrent, Timer}
-import com.github.chenharryhua.nanjin.spark.{NJCheckpoint, NJFailOnDataLoss, NJShowDataset}
+import com.github.chenharryhua.nanjin.spark.NJShowDataset
 import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode}
 
 trait NJStreamSink[F[_]] extends Serializable {
