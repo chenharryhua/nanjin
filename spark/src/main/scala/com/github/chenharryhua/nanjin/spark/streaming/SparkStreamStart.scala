@@ -24,10 +24,10 @@ final class SparkStreamStart[F[_], A: TypedEncoder](ds: Dataset[A], params: Stre
 
   // sinks
 
-  def consoleSink =
+  def consoleSink: NJConsoleSink[F, A] =
     new NJConsoleSink[F, A](ds.writeStream, params.showDs, params.dataLoss)
 
-  def fileSink(path: String) =
+  def fileSink(path: String): NJFileSink[F, A] =
     new NJFileSink[F, A](
       ds.writeStream,
       params.fileFormat,
