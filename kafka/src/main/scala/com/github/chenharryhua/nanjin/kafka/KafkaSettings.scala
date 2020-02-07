@@ -29,7 +29,8 @@ import org.apache.kafka.streams.StreamsConfig
 
 final case class KafkaGroupId(value: String) extends AnyVal
 final case class KafkaAppId(value: String) extends AnyVal
-final case class KafkaBrokers(value: String) extends AnyVal
+final case class KafkaBrokerUrl(value: String) extends AnyVal
+final case class SchemaRegistryUrl(value: String) extends AnyVal
 
 @Lenses final case class KafkaConsumerSettings(config: Map[String, String]) {
 
@@ -90,8 +91,13 @@ final case class KafkaBrokers(value: String) extends AnyVal
   val groupId: Option[KafkaGroupId] =
     consumerSettings.config.get(ConsumerConfig.GROUP_ID_CONFIG).map(KafkaGroupId)
 
-  val brokers: Option[KafkaBrokers] =
-    consumerSettings.config.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).map(KafkaBrokers)
+  val brokers: Option[KafkaBrokerUrl] =
+    consumerSettings.config.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).map(KafkaBrokerUrl)
+
+  val schemaRegistry: Option[SchemaRegistryUrl] =
+    schemaRegistrySettings.config
+      .get(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG)
+      .map(SchemaRegistryUrl)
 
   private def updateAll(key: String, value: String): KafkaSettings =
     Traversal
