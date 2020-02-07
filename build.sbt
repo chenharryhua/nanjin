@@ -201,7 +201,7 @@ val tests = Seq(
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.4"     % Test,
   "org.scalatest" %% "scalatest"                              % scalatest   % Test,
   "com.github.julien-truffaut" %% "monocle-law"               % monocle     % Test,
-  "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.3.1"     % Test,
+  "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.3.2"     % Test,
   "org.tpolecat" %% "doobie-postgres"                         % doobie      % Test,
   "org.typelevel" %% "algebra-laws"                           % "2.0.0"     % Test,
   "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % akkaKafka   % Test
