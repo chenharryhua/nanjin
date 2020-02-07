@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.streaming
 
 import cats.effect.{Concurrent, Timer}
 import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.github.chenharryhua.nanjin.spark.{NJCheckpoint, NJFailOnDataLoss, NJPath}
+import com.github.chenharryhua.nanjin.spark.NJPath
 import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode}
 
 final class NJFileSink[F[_], A](

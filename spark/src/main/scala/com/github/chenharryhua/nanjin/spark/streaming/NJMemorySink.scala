@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.streaming
 
 import cats.effect.{Concurrent, Timer}
-import com.github.chenharryhua.nanjin.spark.NJFailOnDataLoss
 import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode}
 
 final class NJMemorySink[F[_], A](

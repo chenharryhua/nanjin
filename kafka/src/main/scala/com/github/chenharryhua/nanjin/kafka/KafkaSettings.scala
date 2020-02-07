@@ -29,7 +29,8 @@ import org.apache.kafka.streams.StreamsConfig
 
 final case class KafkaGroupId(value: String) extends AnyVal
 final case class KafkaAppId(value: String) extends AnyVal
-final case class KafkaBrokers(value: String) extends AnyVal
+final case class KafkaBrokerUrl(value: String) extends AnyVal
+final case class SchemaRegistryUrl(value: String) extends AnyVal
 
 @Lenses final case class KafkaConsumerSettings(config: Map[String, String]) {
 
@@ -77,7 +78,7 @@ final case class KafkaBrokers(value: String) extends AnyVal
 
 @Lenses final case class SchemaRegistrySettings(config: Map[String, String])
 
-@Lenses final case class KafkaSettings(
+@Lenses final case class KafkaSettings private (
   consumerSettings: KafkaConsumerSettings,
   producerSettings: KafkaProducerSettings,
   streamSettings: KafkaStreamSettings,
@@ -90,8 +91,13 @@ final case class KafkaBrokers(value: String) extends AnyVal
   val groupId: Option[KafkaGroupId] =
     consumerSettings.config.get(ConsumerConfig.GROUP_ID_CONFIG).map(KafkaGroupId)
 
-  val brokers: Option[KafkaBrokers] =
-    consumerSettings.config.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).map(KafkaBrokers)
+  val brokers: Option[KafkaBrokerUrl] =
+    consumerSettings.config.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).map(KafkaBrokerUrl)
+
+  val schemaRegistry: Option[SchemaRegistryUrl] =
+    schemaRegistrySettings.config
+      .get(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG)
+      .map(SchemaRegistryUrl)
 
   private def updateAll(key: String, value: String): KafkaSettings =
     Traversal
@@ -173,16 +179,10 @@ object KafkaSettings {
   )
 
   val local: KafkaSettings =
-    KafkaSettings(
-      KafkaConsumerSettings(
-        Map(
-          ConsumerConfig.MAX_POLL_RECORDS_CONFIG -> "100",
-          ConsumerConfig.AUTO_OFFSET_RESET_CONFIG -> "earliest")),
-      KafkaProducerSettings(Map.empty),
-      KafkaStreamSettings(Map.empty),
-      KafkaAdminSettings(Map.empty),
-      SchemaRegistrySettings(Map.empty)
-    ).withGroupId(s"nanjin.group.id-${utils.random4d.value}")
+    empty
+      .withConsumerProperty(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "100")
+      .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+      .withGroupId(s"nanjin.group.id-${utils.random4d.value}")
       .withApplicationId(s"nanjin.app.id-${utils.random4d.value}")
       .withBrokers("localhost:9092")
       .withSchemaRegistryUrl("http://localhost:8081")
