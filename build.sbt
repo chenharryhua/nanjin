@@ -26,7 +26,7 @@ val catsEffect = "2.1.0"
 val akkaKafka = "2.0.1"
 val fs2Kafka  = "1.0.0"
 
-val sparkVersion = "2.4.4"
+val sparkVersion = "2.4.5"
 val frameless    = "0.8.0"
 
 val circe    = "0.12.3"
@@ -50,7 +50,7 @@ val flinkVersion = "1.9.2"
 
 val hadoopVersion = "3.2.1"
 
-val awsVersion = "1.11.716"
+val awsVersion = "1.11.717"
 
 lazy val commonSettings = Seq(
   organization := "com.github.chenharryhua",
@@ -201,7 +201,7 @@ val tests = Seq(
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.4"     % Test,
   "org.scalatest" %% "scalatest"                              % scalatest   % Test,
   "com.github.julien-truffaut" %% "monocle-law"               % monocle     % Test,
-  "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.3.1"     % Test,
+  "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.3.2"     % Test,
   "org.tpolecat" %% "doobie-postgres"                         % doobie      % Test,
   "org.typelevel" %% "algebra-laws"                           % "2.0.0"     % Test,
   "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % akkaKafka   % Test
