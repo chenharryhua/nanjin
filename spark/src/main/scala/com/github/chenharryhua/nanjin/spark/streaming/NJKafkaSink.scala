@@ -1,14 +1,14 @@
 package com.github.chenharryhua.nanjin.spark.streaming
 
 import cats.effect.{Concurrent, Timer}
-import com.github.chenharryhua.nanjin.kafka.KafkaBrokerUrl
+import com.github.chenharryhua.nanjin.kafka.KafkaBrokersUrl
 import com.github.chenharryhua.nanjin.kafka.common.{NJProducerRecord, TopicName}
 import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode}
 
 final class NJKafkaSink[F[_]](
   dsw: DataStreamWriter[NJProducerRecord[Array[Byte], Array[Byte]]],
   outputMode: OutputMode,
-  brokers: KafkaBrokerUrl,
+  brokers: KafkaBrokersUrl,
   topicName: TopicName,
   checkpoint: NJCheckpoint,
   dataLoss: NJFailOnDataLoss

@@ -46,7 +46,7 @@ final class SparkStreamStart[F[_], A: TypedEncoder](ds: Dataset[A], params: Stre
         .dataset
         .writeStream,
       params.outputMode,
-      kit.settings.brokers.get,
+      kit.settings.kafkaBrokersUrl,
       kit.topicName,
       NJCheckpoint(checkpoint),
       params.dataLoss)

@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.data.Reader
+import cats.effect.ConcurrentEffect
 import cats.effect.concurrent.Deferred
-import cats.effect.{ConcurrentEffect, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.codec.UncaughtKafkaStreamingException
 import com.github.chenharryhua.nanjin.utils.Keyboard
@@ -38,7 +38,7 @@ final class KafkaStreamRunner[F[_]](settings: KafkaStreamSettings)(
         .bracket(F.delay {
           val builder: StreamsBuilder = new StreamsBuilder
           topology.run(builder)
-          new KafkaStreams(builder.build(), settings.streamProperties)
+          new KafkaStreams(builder.build(), settings.javaProperties)
         })(ks => F.delay(ks.close()))
         .evalMap(ks =>
           F.delay {

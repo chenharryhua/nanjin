@@ -16,15 +16,17 @@ import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, TopicName}
 import fs2.Chunk
 import fs2.kafka.{
   ConsumerSettings => Fs2ConsumerSettings,
+  Deserializer     => Fs2Deserializer,
   ProducerRecord   => Fs2ProducerRecord,
   ProducerRecords  => Fs2ProducerRecords,
-  ProducerSettings => Fs2ProducerSettings
+  ProducerSettings => Fs2ProducerSettings,
+  Serializer       => Fs2Serializer
 }
 import io.circe.Json
 import monocle.macros.Lenses
 import org.apache.avro.Schema
 import org.apache.kafka.clients.producer.ProducerRecord
-import org.apache.kafka.common.serialization.{Deserializer, Serializer}
+import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Deserializer, Serializer}
 
 import scala.collection.immutable
 import scala.util.Try
@@ -44,24 +46,31 @@ import scala.util.Try
   )
 
   def fs2ProducerSettings[F[_]: Sync]: Fs2ProducerSettings[F, K, V] =
-    settings.producerSettings
-      .fs2ProducerSettings[F, K, V](codec.keySerializer, codec.valueSerializer)
+    Fs2ProducerSettings[F, K, V](
+      Fs2Serializer.delegate(codec.keySerializer),
+      Fs2Serializer.delegate(codec.valueSerializer))
+      .withProperties(settings.producerSettings.config)
 
   def fs2ConsumerSettings[F[_]: Sync]: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]] =
-    settings.consumerSettings.fs2ConsumerSettings
+    Fs2ConsumerSettings[F, Array[Byte], Array[Byte]](
+      Fs2Deserializer[F, Array[Byte]],
+      Fs2Deserializer[F, Array[Byte]]).withProperties(settings.consumerSettings.config)
 
   def akkaProducerSettings(akkaSystem: ActorSystem): AkkaProducerSettings[K, V] =
-    settings.producerSettings.akkaProducerSettings(
-      akkaSystem,
-      codec.keySerializer,
-      codec.valueSerializer)
+    AkkaProducerSettings[K, V](akkaSystem, codec.keySerializer, codec.valueSerializer)
+      .withProperties(settings.producerSettings.config)
 
   def akkaConsumerSettings(
-    akkaSystem: ActorSystem): AkkaConsumerSettings[Array[Byte], Array[Byte]] =
-    settings.consumerSettings.akkaConsumerSettings(akkaSystem)
+    akkaSystem: ActorSystem): AkkaConsumerSettings[Array[Byte], Array[Byte]] = {
+    val byteArrayDeserializer = new ByteArrayDeserializer
+    AkkaConsumerSettings[Array[Byte], Array[Byte]](
+      akkaSystem,
+      byteArrayDeserializer,
+      byteArrayDeserializer).withProperties(settings.consumerSettings.config)
+  }
 
   def akkaCommitterSettings(akkaSystem: ActorSystem): AkkaCommitterSettings =
-    settings.consumerSettings.akkaCommitterSettings(akkaSystem)
+    AkkaCommitterSettings(akkaSystem)
 
   def decoder[G[_, _]: NJConsumerMessage](
     cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =

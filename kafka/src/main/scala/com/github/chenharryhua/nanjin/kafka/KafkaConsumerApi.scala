@@ -112,7 +112,7 @@ object KafkaConsumerApi {
       .make(Sync[F].delay {
         val byteArrayDeserializer = new ByteArrayDeserializer
         new KafkaConsumer[Array[Byte], Array[Byte]](
-          kit.settings.consumerSettings.consumerProperties,
+          kit.settings.consumerSettings.javaProperties,
           byteArrayDeserializer,
           byteArrayDeserializer)
       })(a => Sync[F].delay(a.close()))
