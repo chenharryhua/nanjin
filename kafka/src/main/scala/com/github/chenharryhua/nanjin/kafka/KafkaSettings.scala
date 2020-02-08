@@ -33,7 +33,9 @@ final case class KafkaAppId(value: String) extends AnyVal
   def javaProperties: Properties = utils.toProperties(config)
 }
 
-@Lenses final case class SchemaRegistrySettings(config: Map[String, String])
+@Lenses final case class SchemaRegistrySettings(config: Map[String, String]) {
+  def javaProperties: Properties = utils.toProperties(config)
+}
 
 @Lenses final case class KafkaSettings private (
   consumerSettings: KafkaConsumerSettings,

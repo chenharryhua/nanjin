@@ -136,6 +136,7 @@ object KafkaMonitoringApi {
             .through(text.utf8Encode)
             .through(fs2.io.file.writeAll(path, blocker))
         }
+        .map(_ => print("."))
         .compile
         .drain
 
@@ -160,6 +161,7 @@ object KafkaMonitoringApi {
               topic.kit.fs2ProducerRecords(prs)
             }
             .through(produce(topic.kit.fs2ProducerSettings))
+            .map(_ => print("."))
         }
         .compile
         .drain
@@ -173,6 +175,6 @@ object KafkaMonitoringApi {
           .withHeaders(cr.headers)
           .withPartition(cr.partition)
         ProducerRecords.one(ts.fold(pr)(pr.withTimestamp))
-      }.through(produce(other.fs2ProducerSettings)).compile.drain
+      }.through(produce(other.fs2ProducerSettings)).map(_ => print(".")).compile.drain
   }
 }
