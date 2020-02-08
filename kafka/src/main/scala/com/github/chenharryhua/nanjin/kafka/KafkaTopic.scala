@@ -45,7 +45,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val kit: KafkaTopicKit[K, V])
     new KafkaChannels.StreamingChannel[K, V](
       kit.topicDef.topicName,
       kit.codec.keySerde,
-      kit.codec.valueSerde)
+      kit.codec.valSerde)
 
   private val fs2ProducerResource: Resource[F, KafkaProducer[F, K, V]] =
     fs2.kafka.producerResource[F].using(kit.fs2ProducerSettings)

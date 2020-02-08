@@ -121,9 +121,9 @@ object KafkaSchemaRegistryApi {
     val srSettings: SchemaRegistrySettings = topic.settings.schemaRegistrySettings
     val topicName: TopicName               = topic.topicDef.topicName
     val keySchemaLoc: String               = topic.topicDef.keySchemaLoc
-    val valueSchemaLoc: String             = topic.topicDef.valueSchemaLoc
+    val valueSchemaLoc: String             = topic.topicDef.valSchemaLoc
     val keySchema: Schema                  = topic.codec.keySchema
-    val valueSchema: Schema                = topic.codec.valueSchema
+    val valueSchema: Schema                = topic.codec.valSchema
 
     private lazy val csrClient: CachedSchemaRegistryClient = {
       val alias = AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG

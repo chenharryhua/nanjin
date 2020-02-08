@@ -17,57 +17,32 @@ import org.apache.kafka.streams.StreamsConfig
 final case class KafkaGroupId(value: String) extends AnyVal
 final case class KafkaAppId(value: String) extends AnyVal
 
-final case class KafkaBrokersUrl(value: String) {
-  val config: Map[String, String] = Map(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG -> value)
-}
-
-final case class SchemaRegistryUrl(value: String) {
-
-  val config: Map[String, String] = Map(
-    AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG -> value)
-}
-
-final case class KafkaConsumerSettings(config: Map[String, String]) {
+@Lenses final case class KafkaConsumerSettings(config: Map[String, String]) {
   def javaProperties: Properties = utils.toProperties(config)
 }
 
-final case class KafkaProducerSettings(config: Map[String, String]) {
+@Lenses final case class KafkaProducerSettings(config: Map[String, String]) {
   def javaProperties: Properties = utils.toProperties(config)
 }
 
-final case class KafkaStreamSettings(config: Map[String, String]) {
+@Lenses final case class KafkaStreamSettings(config: Map[String, String]) {
   def javaProperties: Properties = utils.toProperties(config)
 }
 
-final case class KafkaAdminSettings(config: Map[String, String]) {
+@Lenses final case class KafkaAdminSettings(config: Map[String, String]) {
   def javaProperties: Properties = utils.toProperties(config)
 }
 
-final case class SchemaRegistrySettings(config: Map[String, String])
+@Lenses final case class SchemaRegistrySettings(config: Map[String, String]) {
+  def javaProperties: Properties = utils.toProperties(config)
+}
 
 @Lenses final case class KafkaSettings private (
-  kafkaBrokersUrl: KafkaBrokersUrl,
-  schemaRegistryUrl: SchemaRegistryUrl,
-  private val consumer: Map[String, String],
-  private val producer: Map[String, String],
-  private val streaming: Map[String, String],
-  private val admin: Map[String, String],
-  private val schemaRegistry: Map[String, String]) {
-
-  val consumerSettings: KafkaConsumerSettings =
-    KafkaConsumerSettings(consumer ++ kafkaBrokersUrl.config)
-
-  val producerSettings: KafkaProducerSettings =
-    KafkaProducerSettings(producer ++ kafkaBrokersUrl.config)
-
-  val streamSettings: KafkaStreamSettings =
-    KafkaStreamSettings(streaming ++ kafkaBrokersUrl.config)
-
-  val adminSettings: KafkaAdminSettings =
-    KafkaAdminSettings(admin ++ kafkaBrokersUrl.config)
-
-  val schemaRegistrySettings: SchemaRegistrySettings =
-    SchemaRegistrySettings(schemaRegistry ++ schemaRegistryUrl.config)
+  consumerSettings: KafkaConsumerSettings,
+  producerSettings: KafkaProducerSettings,
+  streamSettings: KafkaStreamSettings,
+  adminSettings: KafkaAdminSettings,
+  schemaRegistrySettings: SchemaRegistrySettings) {
 
   val appId: Option[KafkaAppId] =
     streamSettings.config.get(StreamsConfig.APPLICATION_ID_CONFIG).map(KafkaAppId)
@@ -78,12 +53,16 @@ final case class SchemaRegistrySettings(config: Map[String, String])
   private def updateAll(key: String, value: String): KafkaSettings =
     Traversal
       .applyN[KafkaSettings, Map[String, String]](
-        KafkaSettings.consumer,
-        KafkaSettings.producer,
-        KafkaSettings.streaming,
-        KafkaSettings.admin)
+        KafkaSettings.consumerSettings.composeLens(KafkaConsumerSettings.config),
+        KafkaSettings.producerSettings.composeLens(KafkaProducerSettings.config),
+        KafkaSettings.streamSettings.composeLens(KafkaStreamSettings.config),
+        KafkaSettings.adminSettings.composeLens(KafkaAdminSettings.config)
+      )
       .composeLens(at(key))
       .set(Some(value))(this)
+
+  def withBrokers(brokers: String): KafkaSettings =
+    updateAll(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, brokers)
 
   def withSaslJaas(sasl: String): KafkaSettings =
     updateAll(SaslConfigs.SASL_JAAS_CONFIG, sasl)
@@ -92,16 +71,28 @@ final case class SchemaRegistrySettings(config: Map[String, String])
     updateAll(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, sp.name)
 
   def withSchemaRegistryProperty(key: String, value: String): KafkaSettings =
-    KafkaSettings.schemaRegistry.composeLens(at(key)).set(Some(value))(this)
+    KafkaSettings.schemaRegistrySettings
+      .composeLens(SchemaRegistrySettings.config)
+      .composeLens(at(key))
+      .set(Some(value))(this)
 
   def withProducerProperty(key: String, value: String): KafkaSettings =
-    KafkaSettings.producer.composeLens(at(key)).set(Some(value))(this)
+    KafkaSettings.producerSettings
+      .composeLens(KafkaProducerSettings.config)
+      .composeLens(at(key))
+      .set(Some(value))(this)
 
   def withConsumerProperty(key: String, value: String): KafkaSettings =
-    KafkaSettings.consumer.composeLens(at(key)).set(Some(value))(this)
+    KafkaSettings.consumerSettings
+      .composeLens(KafkaConsumerSettings.config)
+      .composeLens(at(key))
+      .set(Some(value))(this)
 
   def withStreamingProperty(key: String, value: String): KafkaSettings =
-    KafkaSettings.streaming.composeLens(at(key)).set(Some(value))(this)
+    KafkaSettings.streamSettings
+      .composeLens(KafkaStreamSettings.config)
+      .composeLens(at(key))
+      .set(Some(value))(this)
 
   def withGroupId(groupId: String): KafkaSettings =
     withConsumerProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId)
@@ -127,15 +118,20 @@ final case class SchemaRegistrySettings(config: Map[String, String])
 
 object KafkaSettings {
 
+  val empty: KafkaSettings = KafkaSettings(
+    KafkaConsumerSettings(Map.empty),
+    KafkaProducerSettings(Map.empty),
+    KafkaStreamSettings(Map.empty),
+    KafkaAdminSettings(Map.empty),
+    SchemaRegistrySettings(Map.empty)
+  )
+
   def apply(brokers: String, schemaRegistry: String): KafkaSettings =
-    KafkaSettings(
-      KafkaBrokersUrl(brokers),
-      SchemaRegistryUrl(schemaRegistry),
-      Map.empty,
-      Map.empty,
-      Map.empty,
-      Map.empty,
-      Map.empty)
+    empty
+      .withBrokers(brokers)
+      .withSchemaRegistryProperty(
+        AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG,
+        schemaRegistry)
 
   val local: KafkaSettings =
     apply("localhost:9092", "http://localhost:8081")

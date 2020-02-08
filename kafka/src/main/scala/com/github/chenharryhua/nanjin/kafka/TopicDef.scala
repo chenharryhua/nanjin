@@ -27,21 +27,21 @@ import scala.util.Try
 final class TopicDef[K, V] private (val topicName: TopicName)(
   implicit
   val serdeOfKey: SerdeOf[K],
-  val serdeOfValue: SerdeOf[V])
+  val serdeOfVal: SerdeOf[V])
     extends Serializable {
-  val keySchemaLoc: String   = s"${topicName.value}-key"
-  val valueSchemaLoc: String = s"${topicName.value}-value"
+  val keySchemaLoc: String = s"${topicName.value}-key"
+  val valSchemaLoc: String = s"${topicName.value}-value"
 
-  implicit private val avroKeyEncoder: AvroEncoder[K]   = serdeOfKey.avroEncoder
-  implicit private val avroKeyDecoder: AvroDecoder[K]   = serdeOfKey.avroDecoder
-  implicit private val avroValueEncoder: AvroEncoder[V] = serdeOfValue.avroEncoder
-  implicit private val avroValueDecoder: AvroDecoder[V] = serdeOfValue.avroDecoder
+  implicit private val avroKeyEncoder: AvroEncoder[K] = serdeOfKey.avroEncoder
+  implicit private val avroKeyDecoder: AvroDecoder[K] = serdeOfKey.avroDecoder
+  implicit private val avroValEncoder: AvroEncoder[V] = serdeOfVal.avroEncoder
+  implicit private val avroValDecoder: AvroDecoder[V] = serdeOfVal.avroDecoder
 
   implicit private val keySchemaFor: SchemaFor[K] =
     (_: FieldMapper) => serdeOfKey.schema
 
   implicit private val valueSchemaFor: SchemaFor[V] =
-    (_: FieldMapper) => serdeOfValue.schema
+    (_: FieldMapper) => serdeOfVal.schema
 
   val njConsumerRecordSchema: Schema = AvroSchema[NJConsumerRecord[K, V]]
 

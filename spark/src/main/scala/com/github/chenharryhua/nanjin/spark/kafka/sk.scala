@@ -145,7 +145,7 @@ private[kafka] object sk {
             msg.offset,
             msg.timestamp,
             msg.key.flatMap(k   => kit.codec.keyCodec.tryDecode(k).toOption),
-            msg.value.flatMap(v => kit.codec.valueCodec.tryDecode(v).toOption),
+            msg.value.flatMap(v => kit.codec.valCodec.tryDecode(v).toOption),
             msg.topic,
             msg.timestampType
           )

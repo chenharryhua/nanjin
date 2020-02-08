@@ -56,7 +56,7 @@ object SparKafkaParams {
       timeRange         = NJDateTimeRange.infinite,
       conversionTactics = ConversionTactics.default,
       uploadRate        = UploadRate.default,
-      pathBuilder       = Reader(ps => s"./data/spark/kafka/${ps.topicName}/${ps.fileFormat}/"),
+      pathBuilder       = Reader(kpb => s"./data/spark/kafka/${kpb.topicName}/${kpb.fileFormat}/"),
       fileFormat        = NJFileFormat.Parquet,
       saveMode          = SaveMode.ErrorIfExists,
       locationStrategy  = LocationStrategies.PreferConsistent,
