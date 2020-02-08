@@ -76,5 +76,5 @@ final class FsmStart[K, V](bundle: KitBundle[K, V])(implicit sparkSession: Spark
     valEncoder: TypedEncoder[V]): SparkStreamStart[F, NJConsumerRecord[K, V]] =
     new SparkStreamStart(
       sk.streaming(bundle.kit).dataset,
-      StreamParams(s"./data/spark/kafka/checkpoint/${bundle.kit.topicName.value}"))
+      StreamParams(s"./data/checkpoint/kafka/${bundle.kit.topicName.value}"))
 }

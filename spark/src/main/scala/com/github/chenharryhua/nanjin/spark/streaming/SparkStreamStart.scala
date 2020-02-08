@@ -48,6 +48,6 @@ final class SparkStreamStart[F[_], A: TypedEncoder](ds: Dataset[A], params: Stre
       params.outputMode,
       kit.settings.producerSettings,
       kit.topicName,
-      params.checkpoint.append("kafkaSink"),
+      params.checkpoint.append(s"uploadTo/${kit.topicName.value}"),
       params.dataLoss)
 }
