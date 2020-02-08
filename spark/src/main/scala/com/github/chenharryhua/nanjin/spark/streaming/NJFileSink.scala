@@ -7,7 +7,7 @@ import monocle.macros.Lenses
 import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, Trigger}
 
 @Lenses final case class NJFileSink[F[_], A](
-  dsw: DataStreamWriter[A],
+  dataStreamWriter: DataStreamWriter[A],
   fileFormat: NJFileFormat,
   path: NJPath,
   checkpoint: NJCheckpoint,
@@ -34,14 +34,14 @@ import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, Trigger}
 
   // ops
   def withOptions(f: DataStreamWriter[A] => DataStreamWriter[A]): NJFileSink[F, A] =
-    NJFileSink.dsw[F, A].modify(f)(this)
+    NJFileSink.dataStreamWriter[F, A].modify(f)(this)
 
   def partitionBy(colNames: String*): NJFileSink[F, A] =
-    NJFileSink.dsw[F, A].modify(_.partitionBy(colNames: _*))(this)
+    NJFileSink.dataStreamWriter[F, A].modify(_.partitionBy(colNames: _*))(this)
 
   override def run(implicit F: Concurrent[F], timer: Timer[F]): F[Unit] =
     ss.queryStream(
-        dsw
+        dataStreamWriter
           .trigger(trigger)
           .format(fileFormat.format)
           .outputMode(OutputMode.Append)

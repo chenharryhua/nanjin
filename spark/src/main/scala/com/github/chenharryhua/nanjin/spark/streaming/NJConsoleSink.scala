@@ -10,7 +10,7 @@ trait NJStreamSink[F[_]] extends Serializable {
 }
 
 @Lenses final case class NJConsoleSink[F[_], A](
-  dsw: DataStreamWriter[A],
+  dataStreamWriter: DataStreamWriter[A],
   showDs: NJShowDataset,
   dataLoss: NJFailOnDataLoss,
   trigger: Trigger)
@@ -30,7 +30,7 @@ trait NJStreamSink[F[_]] extends Serializable {
 
   override def run(implicit F: Concurrent[F], timer: Timer[F]): F[Unit] =
     ss.queryStream(
-        dsw
+        dataStreamWriter
           .trigger(trigger)
           .format("console")
           .outputMode(OutputMode.Append)

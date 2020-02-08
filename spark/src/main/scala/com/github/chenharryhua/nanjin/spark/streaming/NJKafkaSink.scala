@@ -7,7 +7,7 @@ import monocle.macros.Lenses
 import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, Trigger}
 
 @Lenses final case class NJKafkaSink[F[_]](
-  dsw: DataStreamWriter[NJProducerRecord[Array[Byte], Array[Byte]]],
+  dataStreamWriter: DataStreamWriter[NJProducerRecord[Array[Byte], Array[Byte]]],
   outputMode: OutputMode,
   producer: KafkaProducerSettings,
   topicName: TopicName,
@@ -31,11 +31,11 @@ import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, Trigger}
   def withOptions(
     f: DataStreamWriter[NJProducerRecord[Array[Byte], Array[Byte]]] => DataStreamWriter[
       NJProducerRecord[Array[Byte], Array[Byte]]]): NJKafkaSink[F] =
-    NJKafkaSink.dsw.modify(f)(this)
+    NJKafkaSink.dataStreamWriter.modify(f)(this)
 
   override def run(implicit F: Concurrent[F], timer: Timer[F]): F[Unit] =
     ss.queryStream(
-        dsw
+        dataStreamWriter
           .trigger(trigger)
           .format("kafka")
           .outputMode(outputMode)
