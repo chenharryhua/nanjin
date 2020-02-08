@@ -5,10 +5,19 @@ import com.github.chenharryhua.nanjin.spark.NJShowDataset
 import monocle.macros.Lenses
 import org.apache.spark.sql.streaming.OutputMode
 
-final private[spark] case class NJCheckpoint(value: String) extends AnyVal
+final private[spark] case class NJCheckpoint(value: String) extends AnyVal {
+
+  def append(sub: String): NJCheckpoint = {
+    val s = if (sub.startsWith("/")) sub.tail else sub
+    val v = if (value.endsWith("/")) value.dropRight(1) else value
+    NJCheckpoint(s"$v/$s")
+  }
+}
+
 final private[spark] case class NJFailOnDataLoss(value: Boolean) extends AnyVal
 
 @Lenses final case class StreamParams(
+  checkpoint: NJCheckpoint,
   showDs: NJShowDataset,
   fileFormat: NJFileFormat,
   dataLoss: NJFailOnDataLoss,
@@ -26,12 +35,16 @@ final private[spark] case class NJFailOnDataLoss(value: Boolean) extends AnyVal
   def withoutFailOnDataLoss: StreamParams =
     StreamParams.dataLoss.set(NJFailOnDataLoss(false))(this)
 
+  def withCheckpoint(cp: NJCheckpoint): StreamParams =
+    StreamParams.checkpoint.set(cp)(this)
+
 }
 
 object StreamParams {
 
-  def default: StreamParams =
+  def apply(checkpoint: String): StreamParams =
     StreamParams(
+      NJCheckpoint(checkpoint),
       NJShowDataset(20, isTruncate = false),
       NJFileFormat.Json,
       NJFailOnDataLoss(true),

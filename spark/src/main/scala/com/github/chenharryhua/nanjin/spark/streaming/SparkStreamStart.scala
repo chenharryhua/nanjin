@@ -27,15 +27,15 @@ final class SparkStreamStart[F[_], A: TypedEncoder](ds: Dataset[A], params: Stre
   def consoleSink: NJConsoleSink[F, A] =
     new NJConsoleSink[F, A](ds.writeStream, params.showDs, params.dataLoss)
 
-  def fileSink(path: String, checkpoint: String): NJFileSink[F, A] =
+  def fileSink(path: String): NJFileSink[F, A] =
     new NJFileSink[F, A](
       ds.writeStream,
       params.fileFormat,
       NJPath(path),
-      NJCheckpoint(checkpoint),
+      params.checkpoint.append("fileSink"),
       params.dataLoss)
 
-  def kafkaSink[K, V](kit: KafkaTopicKit[K, V], checkpoint: String)(
+  def kafkaSink[K, V](kit: KafkaTopicKit[K, V])(
     implicit pr: A =:= NJProducerRecord[K, V]): NJKafkaSink[F] =
     new NJKafkaSink[F](
       typedDataset.deserialized
@@ -48,6 +48,6 @@ final class SparkStreamStart[F[_], A: TypedEncoder](ds: Dataset[A], params: Stre
       params.outputMode,
       kit.settings.producerSettings,
       kit.topicName,
-      NJCheckpoint(checkpoint),
+      params.checkpoint.append("kafkaSink"),
       params.dataLoss)
 }
