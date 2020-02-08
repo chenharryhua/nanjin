@@ -3,34 +3,40 @@ package com.github.chenharryhua.nanjin.spark.streaming
 import cats.effect.{Concurrent, Timer}
 import com.github.chenharryhua.nanjin.kafka.KafkaProducerSettings
 import com.github.chenharryhua.nanjin.kafka.common.{NJProducerRecord, TopicName}
-import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode}
+import monocle.macros.Lenses
+import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, Trigger}
 
-final class NJKafkaSink[F[_]](
+@Lenses final case class NJKafkaSink[F[_]](
   dsw: DataStreamWriter[NJProducerRecord[Array[Byte], Array[Byte]]],
   outputMode: OutputMode,
   producer: KafkaProducerSettings,
   topicName: TopicName,
   checkpoint: NJCheckpoint,
-  dataLoss: NJFailOnDataLoss
+  dataLoss: NJFailOnDataLoss,
+  trigger: Trigger
 ) extends NJStreamSink[F] {
 
+  def withTrigger(tg: Trigger): NJKafkaSink[F] =
+    NJKafkaSink.trigger.set(tg)(this)
+
   def withCheckpoint(cp: String): NJKafkaSink[F] =
-    new NJKafkaSink[F](dsw, outputMode, producer, topicName, NJCheckpoint(cp), dataLoss)
+    NJKafkaSink.checkpoint.set(NJCheckpoint(cp))(this)
 
   def withoutFailONDataLoss: NJKafkaSink[F] =
-    new NJKafkaSink[F](dsw, outputMode, producer, topicName, checkpoint, NJFailOnDataLoss(false))
+    NJKafkaSink.dataLoss.set(NJFailOnDataLoss(false))(this)
 
   def withOutputMode(om: OutputMode): NJKafkaSink[F] =
-    new NJKafkaSink[F](dsw, om, producer, topicName, checkpoint, dataLoss)
+    NJKafkaSink.outputMode.set(om)(this)
 
   def withOptions(
     f: DataStreamWriter[NJProducerRecord[Array[Byte], Array[Byte]]] => DataStreamWriter[
       NJProducerRecord[Array[Byte], Array[Byte]]]): NJKafkaSink[F] =
-    new NJKafkaSink[F](f(dsw), outputMode, producer, topicName, checkpoint, dataLoss)
+    NJKafkaSink.dsw.modify(f)(this)
 
   override def run(implicit F: Concurrent[F], timer: Timer[F]): F[Unit] =
     ss.queryStream(
         dsw
+          .trigger(trigger)
           .format("kafka")
           .outputMode(outputMode)
           .options(producer.config.map { case (k, v) => s"kafka.$k" -> v })

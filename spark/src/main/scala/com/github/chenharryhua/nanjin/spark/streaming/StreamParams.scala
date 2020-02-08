@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.streaming
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.spark.NJShowDataset
 import monocle.macros.Lenses
-import org.apache.spark.sql.streaming.OutputMode
+import org.apache.spark.sql.streaming.{OutputMode, Trigger}
 
 final private[spark] case class NJCheckpoint(value: String) extends AnyVal {
 
@@ -21,7 +21,8 @@ final private[spark] case class NJFailOnDataLoss(value: Boolean) extends AnyVal
   showDs: NJShowDataset,
   fileFormat: NJFileFormat,
   dataLoss: NJFailOnDataLoss,
-  outputMode: OutputMode) {
+  outputMode: OutputMode,
+  trigger: Trigger) {
 
   def withFileFormat(fileFormat: NJFileFormat): StreamParams =
     StreamParams.fileFormat.set(fileFormat)(this)
@@ -38,6 +39,9 @@ final private[spark] case class NJFailOnDataLoss(value: Boolean) extends AnyVal
   def withCheckpoint(cp: NJCheckpoint): StreamParams =
     StreamParams.checkpoint.set(cp)(this)
 
+  def withTrigger(tg: Trigger): StreamParams =
+    StreamParams.trigger.set(tg)(this)
+
 }
 
 object StreamParams {
@@ -48,5 +52,6 @@ object StreamParams {
       NJShowDataset(20, isTruncate = false),
       NJFileFormat.Json,
       NJFailOnDataLoss(true),
-      OutputMode.Append)
+      OutputMode.Append,
+      Trigger.ProcessingTime(0))
 }
