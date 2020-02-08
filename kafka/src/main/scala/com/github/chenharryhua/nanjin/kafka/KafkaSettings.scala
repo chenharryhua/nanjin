@@ -2,20 +2,8 @@ package com.github.chenharryhua.nanjin.kafka
 
 import java.util.Properties
 
-import akka.actor.ActorSystem
-import akka.kafka.{
-  CommitterSettings => AkkaCommitterSettings,
-  ConsumerSettings  => AkkaConsumerSettings,
-  ProducerSettings  => AkkaProducerSettings
-}
-import cats.effect.{ConcurrentEffect, ContextShift, IO, Sync, Timer}
+import cats.effect.{ConcurrentEffect, ContextShift, IO, Timer}
 import com.github.chenharryhua.nanjin.utils
-import fs2.kafka.{
-  ConsumerSettings => Fs2ConsumerSettings,
-  Deserializer     => Fs2Deserializer,
-  ProducerSettings => Fs2ProducerSettings,
-  Serializer       => Fs2Serializer
-}
 import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig
 import monocle.Traversal
 import monocle.function.At.at
@@ -24,7 +12,6 @@ import org.apache.kafka.clients.CommonClientConfigs
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.config.SaslConfigs
 import org.apache.kafka.common.security.auth.SecurityProtocol
-import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Serializer}
 import org.apache.kafka.streams.StreamsConfig
 
 final case class KafkaGroupId(value: String) extends AnyVal
@@ -33,47 +20,19 @@ final case class KafkaBrokerUrl(value: String) extends AnyVal
 final case class SchemaRegistryUrl(value: String) extends AnyVal
 
 @Lenses final case class KafkaConsumerSettings(config: Map[String, String]) {
-
-  def fs2ConsumerSettings[F[_]: Sync]: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]] =
-    Fs2ConsumerSettings[F, Array[Byte], Array[Byte]](
-      Fs2Deserializer[F, Array[Byte]],
-      Fs2Deserializer[F, Array[Byte]]).withProperties(config)
-
-  def akkaConsumerSettings(system: ActorSystem): AkkaConsumerSettings[Array[Byte], Array[Byte]] = {
-    val byteArrayDeserializer = new ByteArrayDeserializer
-    AkkaConsumerSettings[Array[Byte], Array[Byte]](
-      system,
-      byteArrayDeserializer,
-      byteArrayDeserializer).withProperties(config)
-  }
-
-  def akkaCommitterSettings(system: ActorSystem): AkkaCommitterSettings =
-    AkkaCommitterSettings(system)
-
-  val consumerProperties: Properties = utils.toProperties(config)
+  def javaProperties: Properties = utils.toProperties(config)
 }
 
 @Lenses final case class KafkaProducerSettings(config: Map[String, String]) {
-
-  def fs2ProducerSettings[F[_]: Sync, K, V](
-    kser: Serializer[K],
-    vser: Serializer[V]): Fs2ProducerSettings[F, K, V] =
-    Fs2ProducerSettings[F, K, V](Fs2Serializer.delegate(kser), Fs2Serializer.delegate(vser))
-      .withProperties(config)
-
-  def akkaProducerSettings[K, V](
-    system: ActorSystem,
-    kser: Serializer[K],
-    vser: Serializer[V]): AkkaProducerSettings[K, V] =
-    AkkaProducerSettings[K, V](system, kser, vser).withProperties(config)
+  def javaProperties: Properties = utils.toProperties(config)
 }
 
 @Lenses final case class KafkaStreamSettings(config: Map[String, String]) {
-  val streamProperties: Properties = utils.toProperties(config)
+  def javaProperties: Properties = utils.toProperties(config)
 }
 
 @Lenses final case class KafkaAdminSettings(config: Map[String, String]) {
-  val adminProperties: Properties = utils.toProperties(config)
+  def javaProperties: Properties = utils.toProperties(config)
 }
 
 @Lenses final case class SchemaRegistrySettings(config: Map[String, String])

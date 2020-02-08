@@ -30,5 +30,5 @@ final class FlinKafkaSession[K: TypeInformation, V: TypeInformation](
             record: ConsumerRecord[Array[Byte], Array[Byte]]): NJConsumerRecord[K, V] =
             kit.decoder(record).record
         },
-        kit.settings.consumerSettings.consumerProperties))
+        kit.settings.consumerSettings.javaProperties))
 }
