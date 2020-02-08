@@ -32,7 +32,7 @@ import scala.collection.immutable
 import scala.util.Try
 
 @Lenses final case class KafkaTopicKit[K, V](topicDef: TopicDef[K, V], settings: KafkaSettings) {
-  import topicDef.{serdeOfKey, serdeOfValue}
+  import topicDef.{serdeOfKey, serdeOfVal}
 
   val topicName: TopicName = topicDef.topicName
 
@@ -42,14 +42,13 @@ import scala.util.Try
   //need to reconstruct codec when working in spark
   @transient lazy val codec: TopicCodec[K, V] = new TopicCodec(
     serdeOfKey.asKey(settings.schemaRegistrySettings.config).codec(topicDef.topicName),
-    serdeOfValue.asValue(settings.schemaRegistrySettings.config).codec(topicDef.topicName)
+    serdeOfVal.asValue(settings.schemaRegistrySettings.config).codec(topicDef.topicName)
   )
 
   def fs2ProducerSettings[F[_]: Sync]: Fs2ProducerSettings[F, K, V] =
     Fs2ProducerSettings[F, K, V](
       Fs2Serializer.delegate(codec.keySerializer),
-      Fs2Serializer.delegate(codec.valueSerializer))
-      .withProperties(settings.producerSettings.config)
+      Fs2Serializer.delegate(codec.valSerializer)).withProperties(settings.producerSettings.config)
 
   def fs2ConsumerSettings[F[_]: Sync]: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]] =
     Fs2ConsumerSettings[F, Array[Byte], Array[Byte]](
@@ -57,7 +56,7 @@ import scala.util.Try
       Fs2Deserializer[F, Array[Byte]]).withProperties(settings.consumerSettings.config)
 
   def akkaProducerSettings(akkaSystem: ActorSystem): AkkaProducerSettings[K, V] =
-    AkkaProducerSettings[K, V](akkaSystem, codec.keySerializer, codec.valueSerializer)
+    AkkaProducerSettings[K, V](akkaSystem, codec.keySerializer, codec.valSerializer)
       .withProperties(settings.producerSettings.config)
 
   def akkaConsumerSettings(
@@ -74,7 +73,7 @@ import scala.util.Try
 
   def decoder[G[_, _]: NJConsumerMessage](
     cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
-    new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valueCodec)
+    new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valCodec)
 
   def toJackson[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): Json =
     topicDef.toJackson(decoder(cr).record)
@@ -137,23 +136,26 @@ import scala.util.Try
        |${codec.keySerde.configProps}
        |${codec.keySchema.toString(true)}
        |
-       |${codec.valueSerde.tag}:
-       |${codec.valueSerde.configProps}
-       |${codec.valueSchema.toString(true)}
+       |${codec.valSerde.tag}:
+       |${codec.valSerde.configProps}
+       |${codec.valSchema.toString(true)}
   """.stripMargin
   }
 }
 
-final class TopicCodec[K, V] private[kafka] (val keyCodec: NJCodec[K], val valueCodec: NJCodec[V]) {
+final class TopicCodec[K, V] private[kafka] (val keyCodec: NJCodec[K], val valCodec: NJCodec[V]) {
   require(
-    keyCodec.topicName === valueCodec.topicName,
+    keyCodec.topicName === valCodec.topicName,
     "key and value codec should have same topic name")
-  val keySerde: NJSerde[K]               = keyCodec.serde
-  val valueSerde: NJSerde[V]             = valueCodec.serde
-  val keySchema: Schema                  = keySerde.schema
-  val valueSchema: Schema                = valueSerde.schema
-  val keySerializer: Serializer[K]       = keySerde.serializer
-  val keyDeserializer: Deserializer[K]   = keySerde.deserializer
-  val valueSerializer: Serializer[V]     = valueSerde.serializer
-  val valueDeserializer: Deserializer[V] = valueSerde.deserializer
+  val keySerde: NJSerde[K] = keyCodec.serde
+  val valSerde: NJSerde[V] = valCodec.serde
+
+  val keySchema: Schema = keySerde.schema
+  val valSchema: Schema = valSerde.schema
+
+  val keySerializer: Serializer[K] = keySerde.serializer
+  val valSerializer: Serializer[V] = valSerde.serializer
+
+  val keyDeserializer: Deserializer[K] = keySerde.deserializer
+  val valDeserializer: Deserializer[V] = valSerde.deserializer
 }

@@ -42,11 +42,11 @@ final class SparkStreamStart[F[_], A: TypedEncoder](ds: Dataset[A], params: Stre
         .map(m =>
           pr(m).bimap(
             k => kit.codec.keySerde.serializer.serialize(kit.topicName.value, k),
-            v => kit.codec.valueSerde.serializer.serialize(kit.topicName.value, v)))
+            v => kit.codec.valSerde.serializer.serialize(kit.topicName.value, v)))
         .dataset
         .writeStream,
       params.outputMode,
-      kit.settings.kafkaBrokersUrl,
+      kit.settings.producerSettings,
       kit.topicName,
       NJCheckpoint(checkpoint),
       params.dataLoss)

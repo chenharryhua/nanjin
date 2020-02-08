@@ -55,19 +55,19 @@ final case class SchemaRegistrySettings(config: Map[String, String])
   private val schemaRegistry: Map[String, String]) {
 
   val consumerSettings: KafkaConsumerSettings =
-    KafkaConsumerSettings(consumer ++ kafkaBrokersUrl.config)
+    KafkaConsumerSettings(kafkaBrokersUrl.config ++ consumer)
 
   val producerSettings: KafkaProducerSettings =
-    KafkaProducerSettings(producer ++ kafkaBrokersUrl.config)
+    KafkaProducerSettings(kafkaBrokersUrl.config ++ producer)
 
   val streamSettings: KafkaStreamSettings =
-    KafkaStreamSettings(streaming ++ kafkaBrokersUrl.config)
+    KafkaStreamSettings(kafkaBrokersUrl.config ++ streaming)
 
   val adminSettings: KafkaAdminSettings =
-    KafkaAdminSettings(admin ++ kafkaBrokersUrl.config)
+    KafkaAdminSettings(kafkaBrokersUrl.config ++ admin)
 
   val schemaRegistrySettings: SchemaRegistrySettings =
-    SchemaRegistrySettings(schemaRegistry ++ schemaRegistryUrl.config)
+    SchemaRegistrySettings(schemaRegistryUrl.config ++ schemaRegistry)
 
   val appId: Option[KafkaAppId] =
     streamSettings.config.get(StreamsConfig.APPLICATION_ID_CONFIG).map(KafkaAppId)
