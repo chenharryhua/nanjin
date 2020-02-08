@@ -118,14 +118,17 @@ final case class KafkaAppId(value: String) extends AnyVal
 
 object KafkaSettings {
 
+  val empty: KafkaSettings = KafkaSettings(
+    KafkaConsumerSettings(Map.empty),
+    KafkaProducerSettings(Map.empty),
+    KafkaStreamSettings(Map.empty),
+    KafkaAdminSettings(Map.empty),
+    SchemaRegistrySettings(Map.empty)
+  )
+
   def apply(brokers: String, schemaRegistry: String): KafkaSettings =
-    KafkaSettings(
-      KafkaConsumerSettings(Map.empty),
-      KafkaProducerSettings(Map.empty),
-      KafkaStreamSettings(Map.empty),
-      KafkaAdminSettings(Map.empty),
-      SchemaRegistrySettings(Map.empty)
-    ).withBrokers(brokers)
+    empty
+      .withBrokers(brokers)
       .withSchemaRegistryProperty(
         AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG,
         schemaRegistry)
