@@ -117,42 +117,6 @@ private[kafka] object sk {
           .text(path)
     }
 
-  def streaming[K, V](kit: KafkaTopicKit[K, V])(
-    implicit
-    sparkSession: SparkSession,
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): TypedDataset[NJConsumerRecord[K, V]] = {
-    def toSparkOptions(m: Map[String, String]): Map[String, String] = {
-      val rm1 = remove(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG)(_: Map[String, String])
-      val rm2 = remove(ConsumerConfig.GROUP_ID_CONFIG)(_: Map[String, String])
-      rm1.andThen(rm2)(m).map { case (k, v) => s"kafka.$k" -> v }
-    }
-    import sparkSession.implicits._
-
-    TypedDataset
-      .create(
-        sparkSession.readStream
-          .format("kafka")
-          .options(toSparkOptions(kit.settings.consumerSettings.config))
-          .option("subscribe", kit.topicDef.topicName.value)
-          .load()
-          .as[NJConsumerRecord[Array[Byte], Array[Byte]]])
-      .deserialized
-      .mapPartitions { msgs =>
-        val decoder = (msg: NJConsumerRecord[Array[Byte], Array[Byte]]) =>
-          NJConsumerRecord[K, V](
-            msg.partition,
-            msg.offset,
-            msg.timestamp,
-            msg.key.flatMap(k   => kit.codec.keyCodec.tryDecode(k).toOption),
-            msg.value.flatMap(v => kit.codec.valCodec.tryDecode(v).toOption),
-            msg.topic,
-            msg.timestampType
-          )
-        msgs.map(decoder)
-      }
-  }
-
   def cr2pr[K, V](tcr: TypedDataset[NJConsumerRecord[K, V]], cts: ConversionTactics)(
     implicit
     keyEncoder: TypedEncoder[K],
@@ -189,4 +153,40 @@ private[kafka] object sk {
       .metered(uploadRate.duration)
       .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(kit.topicName))))
       .through(produce(kit.fs2ProducerSettings[F]))
+
+  def streaming[K, V](kit: KafkaTopicKit[K, V])(
+    implicit
+    sparkSession: SparkSession,
+    keyEncoder: TypedEncoder[K],
+    valEncoder: TypedEncoder[V]): TypedDataset[NJConsumerRecord[K, V]] = {
+    def toSparkOptions(m: Map[String, String]): Map[String, String] = {
+      val rm1 = remove(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG)(_: Map[String, String])
+      val rm2 = remove(ConsumerConfig.GROUP_ID_CONFIG)(_: Map[String, String])
+      rm1.andThen(rm2)(m).map { case (k, v) => s"kafka.$k" -> v }
+    }
+    import sparkSession.implicits._
+
+    TypedDataset
+      .create(
+        sparkSession.readStream
+          .format("kafka")
+          .options(toSparkOptions(kit.settings.consumerSettings.config))
+          .option("subscribe", kit.topicDef.topicName.value)
+          .load()
+          .as[NJConsumerRecord[Array[Byte], Array[Byte]]])
+      .deserialized
+      .mapPartitions { msgs =>
+        val decoder = (msg: NJConsumerRecord[Array[Byte], Array[Byte]]) =>
+          NJConsumerRecord[K, V](
+            msg.partition,
+            msg.offset,
+            msg.timestamp,
+            msg.key.flatMap(k   => kit.codec.keyCodec.tryDecode(k).toOption),
+            msg.value.flatMap(v => kit.codec.valCodec.tryDecode(v).toOption),
+            msg.topic,
+            msg.timestampType
+          )
+        msgs.map(decoder)
+      }
+  }
 }
