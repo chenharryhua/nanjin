@@ -17,7 +17,7 @@ class CompilationTest extends AnyFunSuite {
     val task =
       topic.admin.IdefinitelyWantToDeleteTheTopic >>
         topic.schemaRegistry.register >>
-        topic.send(List.fill(10)((1, 1))) >> {
+        topic.send(List.fill(10)(topic.fs2PR(1, 1))) >> {
         val ret: Source[ConsumerMessage.CommittableMessage[Int, Int], Consumer.Control] =
           chn.consume.map(m => topic.decoder(m).decode).take(1)
         ret.runWith(chn.ignoreSink)(materializer) *> IO(println("-----------1-------------"))

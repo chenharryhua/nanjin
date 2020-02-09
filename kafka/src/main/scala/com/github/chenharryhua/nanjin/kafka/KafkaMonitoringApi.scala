@@ -157,11 +157,9 @@ object KafkaMonitoringApi {
                 .toOption
             }
             .chunkN(chunkSize)
-            .map { chk =>
-              val prs = chk.map(_.toNJProducerRecord.toFs2ProducerRecord(topic.topicName))
-              topic.kit.fs2ProducerRecords(prs)
-            }
-            .through(produce(topic.kit.fs2ProducerSettings))
+            .map(chk =>
+              ProducerRecords(chk.map(_.toNJProducerRecord.toFs2ProducerRecord(topic.topicName))))
+            .through(produce(topic.kit.fs2ProducerSettings[F]))
             .map(_ => print("."))
         }
         .compile

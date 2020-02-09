@@ -57,6 +57,30 @@ object NJConsumerRecord {
   key: Option[K],
   value: Option[V]) {
 
+  def withPartition(pt: Int): NJProducerRecord[K, V] =
+    NJProducerRecord.partition.set(Some(pt))(this)
+
+  def withoutPartition: NJProducerRecord[K, V] =
+    NJProducerRecord.partition.set(None)(this)
+
+  def withTimestamp(ts: Long): NJProducerRecord[K, V] =
+    NJProducerRecord.timestamp.set(Some(ts))(this)
+
+  def withoutTimestamp: NJProducerRecord[K, V] =
+    NJProducerRecord.timestamp.set(None)(this)
+
+  def withoutPartitionAndTimestamp: NJProducerRecord[K, V] =
+    NJProducerRecord
+      .timestamp[K, V]
+      .set(None)
+      .andThen(NJProducerRecord.partition[K, V].set(None))(this)
+
+  def withNewKey(k: K): NJProducerRecord[K, V] =
+    NJProducerRecord.key.set(Some(k))(this)
+
+  def withNewValue(v: V): NJProducerRecord[K, V] =
+    NJProducerRecord.value.set(Some(v))(this)
+
   @SuppressWarnings(Array("AsInstanceOf"))
   def toFs2ProducerRecord(topicName: TopicName): Fs2ProducerRecord[K, V] = {
     val pr = Fs2ProducerRecord(
