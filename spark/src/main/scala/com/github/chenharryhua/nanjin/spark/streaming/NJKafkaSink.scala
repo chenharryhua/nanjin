@@ -4,7 +4,9 @@ import cats.effect.{Concurrent, Timer}
 import com.github.chenharryhua.nanjin.kafka.KafkaProducerSettings
 import com.github.chenharryhua.nanjin.kafka.common.{NJProducerRecord, TopicName}
 import fs2.Stream
+import monocle.function.At.remove
 import monocle.macros.Lenses
+import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.spark.sql.streaming.{
   DataStreamWriter,
   OutputMode,
@@ -39,6 +41,13 @@ import org.apache.spark.sql.streaming.{
       NJProducerRecord[Array[Byte], Array[Byte]]]): NJKafkaSink[F] =
     NJKafkaSink.dataStreamWriter.modify(f)(this)
 
+  //  https://spark.apache.org/docs/2.4.5/structured-streaming-kafka-integration.html
+  private def producerOptions(m: Map[String, String]): Map[String, String] = {
+    val rm1 = remove(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG)(_: Map[String, String])
+    val rm2 = remove(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG)(_: Map[String, String])
+    rm1.andThen(rm2)(m).map { case (k, v) => s"kafka.$k" -> v }
+  }
+
   override def queryStream(
     implicit F: Concurrent[F],
     timer: Timer[F]): Stream[F, StreamingQueryProgress] =
@@ -47,7 +56,7 @@ import org.apache.spark.sql.streaming.{
         .trigger(trigger)
         .format("kafka")
         .outputMode(outputMode)
-        .options(producer.config.map { case (k, v) => s"kafka.$k" -> v })
+        .options(producerOptions(producer.config))
         .option("topic", topicName.value)
         .option("checkpointLocation", checkpoint.value)
         .option("failOnDataLoss", dataLoss.value))
