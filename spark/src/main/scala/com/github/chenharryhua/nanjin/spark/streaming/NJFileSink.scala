@@ -3,11 +3,17 @@ package com.github.chenharryhua.nanjin.spark.streaming
 import cats.effect.{Concurrent, Timer}
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.spark.NJPath
+import fs2.Stream
 import monocle.macros.Lenses
-import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, Trigger}
+import org.apache.spark.sql.streaming.{
+  DataStreamWriter,
+  OutputMode,
+  StreamingQueryProgress,
+  Trigger
+}
 
 @Lenses final case class NJFileSink[F[_], A](
-  dsw: DataStreamWriter[A],
+  dataStreamWriter: DataStreamWriter[A],
   fileFormat: NJFileFormat,
   path: NJPath,
   checkpoint: NJCheckpoint,
@@ -34,20 +40,21 @@ import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, Trigger}
 
   // ops
   def withOptions(f: DataStreamWriter[A] => DataStreamWriter[A]): NJFileSink[F, A] =
-    NJFileSink.dsw[F, A].modify(f)(this)
+    NJFileSink.dataStreamWriter[F, A].modify(f)(this)
 
   def partitionBy(colNames: String*): NJFileSink[F, A] =
-    NJFileSink.dsw[F, A].modify(_.partitionBy(colNames: _*))(this)
+    NJFileSink.dataStreamWriter[F, A].modify(_.partitionBy(colNames: _*))(this)
 
-  override def run(implicit F: Concurrent[F], timer: Timer[F]): F[Unit] =
+  override def queryStream(
+    implicit F: Concurrent[F],
+    timer: Timer[F]): Stream[F, StreamingQueryProgress] =
     ss.queryStream(
-        dsw
-          .trigger(trigger)
-          .format(fileFormat.format)
-          .outputMode(OutputMode.Append)
-          .option("path", path.value)
-          .option("checkpointLocation", checkpoint.value)
-          .option("failOnDataLoss", dataLoss.value))
-      .compile
-      .drain
+      dataStreamWriter
+        .trigger(trigger)
+        .format(fileFormat.format)
+        .outputMode(OutputMode.Append)
+        .option("path", path.value)
+        .option("checkpointLocation", checkpoint.value)
+        .option("failOnDataLoss", dataLoss.value))
+
 }

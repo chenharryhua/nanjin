@@ -6,7 +6,12 @@ import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.codec.{KafkaGenericDecoder, NJConsumerMessage}
 import com.github.chenharryhua.nanjin.kafka.common.TopicName
-import fs2.kafka.{KafkaProducer, ProducerRecord, ProducerRecords, ProducerResult}
+import fs2.kafka.{
+  KafkaProducer   => Fs2KafkaProducer,
+  ProducerRecord  => Fs2ProducerRecord,
+  ProducerRecords => Fs2ProducerRecords,
+  ProducerResult  => Fs2ProducerResult
+}
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
 final class KafkaTopic[F[_], K, V] private[kafka] (val kit: KafkaTopicKit[K, V])(
@@ -47,20 +52,19 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val kit: KafkaTopicKit[K, V])
       kit.codec.keySerde,
       kit.codec.valSerde)
 
-  private val fs2ProducerResource: Resource[F, KafkaProducer[F, K, V]] =
+  private val fs2ProducerResource: Resource[F, Fs2KafkaProducer[F, K, V]] =
     fs2.kafka.producerResource[F].using(kit.fs2ProducerSettings)
 
-  def fs2PR(k: K, v: V): ProducerRecord[K, V] =
-    kit.fs2PR(k, v)
+  def fs2PR(k: K, v: V): Fs2ProducerRecord[K, V] = kit.fs2PR(k, v)
 
-  def send(k: K, v: V): F[ProducerResult[K, V, Unit]] =
-    fs2ProducerResource.use(_.produce(kit.fs2ProducerRecords(k, v))).flatten
+  def send(k: K, v: V): F[Fs2ProducerResult[K, V, Unit]] =
+    fs2ProducerResource.use(_.produce(Fs2ProducerRecords.one(fs2PR(k, v)))).flatten
 
-  def send[G[+_]: Traverse](list: G[(K, V)]): F[ProducerResult[K, V, Unit]] =
-    fs2ProducerResource.use(_.produce(kit.fs2ProducerRecords(list))).flatten
+  def send[G[+_]: Traverse](list: G[Fs2ProducerRecord[K, V]]): F[Fs2ProducerResult[K, V, Unit]] =
+    fs2ProducerResource.use(_.produce(Fs2ProducerRecords(list))).flatten
 
-  def send(pr: ProducerRecord[K, V]): F[ProducerResult[K, V, Unit]] =
-    fs2ProducerResource.use(_.produce(ProducerRecords.one(pr))).flatten
+  def send(pr: Fs2ProducerRecord[K, V]): F[Fs2ProducerResult[K, V, Unit]] =
+    fs2ProducerResource.use(_.produce(Fs2ProducerRecords.one(pr))).flatten
 
   // APIs
   val schemaRegistry: KafkaSchemaRegistryApi[F]          = KafkaSchemaRegistryApi[F](this.kit)

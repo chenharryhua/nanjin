@@ -23,7 +23,7 @@ class SparKafkaTest extends AnyFunSuite {
   val topic = ctx.topic[Int, ForTaskSerializable]("serializable.test")
 
   (topic.admin.IdefinitelyWantToDeleteTheTopic >> topic.schemaRegistry.register >>
-    topic.send(List(0 -> data, 1 -> data))).unsafeRunSync()
+    topic.send(List(topic.fs2PR(0 ,data), topic.fs2PR(1 , data)))).unsafeRunSync()
 
   test("read topic from kafka") {
     val rst =

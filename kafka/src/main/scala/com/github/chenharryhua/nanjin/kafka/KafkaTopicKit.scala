@@ -81,25 +81,7 @@ import scala.util.Try
   def fromJackson(jsonString: String): Try[NJConsumerRecord[K, V]] =
     topicDef.fromJackson(jsonString)
 
-  def fs2PR(key: K, value: V): Fs2ProducerRecord[K, V] =
-    Fs2ProducerRecord[K, V](topicDef.topicName.value, key, value)
-
-  def fs2ProducerRecords[P](key: K, value: V, p: P): Fs2ProducerRecords[K, V, P] =
-    Fs2ProducerRecords.one[K, V, P](fs2PR(key, value), p)
-
-  def fs2ProducerRecords(key: K, value: V): Fs2ProducerRecords[K, V, Unit] =
-    Fs2ProducerRecords.one(fs2PR(key, value))
-
-  def fs2ProducerRecords(list: Chunk[Fs2ProducerRecord[K, V]]): Fs2ProducerRecords[K, V, Unit] =
-    Fs2ProducerRecords[Chunk, K, V](list)
-
-  def fs2ProducerRecords[G[+_]: Traverse](list: G[(K, V)]): Fs2ProducerRecords[K, V, Unit] =
-    Fs2ProducerRecords[G, K, V](list.map { case (k, v) => fs2PR(k, v) })
-
-  def fs2ProducerRecords[G[+_]: Traverse, P](list: G[(K, V)], p: P): Fs2ProducerRecords[K, V, P] =
-    Fs2ProducerRecords[G, K, V, P](list.map {
-      case (k, v) => fs2PR(k, v)
-    }, p)
+  def fs2PR(k: K, v: V): Fs2ProducerRecord[K, V] = Fs2ProducerRecord(topicName.value, k, v)
 
   def akkaProducerRecords(key: K, value: V): ProducerMessage.Envelope[K, V, NotUsed] =
     ProducerMessage.single[K, V](new ProducerRecord[K, V](topicDef.topicName.value, key, value))

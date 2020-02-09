@@ -16,7 +16,7 @@ import com.github.chenharryhua.nanjin.kafka.{KafkaConsumerApi, KafkaTopicKit}
 import com.github.chenharryhua.nanjin.spark._
 import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import fs2.Stream
-import fs2.kafka.{produce, ProducerResult}
+import fs2.kafka.{produce, ProducerRecords, ProducerResult}
 import monocle.function.At.remove
 import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
@@ -157,10 +157,6 @@ private[kafka] object sk {
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): TypedDataset[NJProducerRecord[K, V]] = {
-    val noTS: NJProducerRecord[K, V] => NJProducerRecord[K, V] =
-      NJProducerRecord.timestamp.set(None)
-    val noPT: NJProducerRecord[K, V] => NJProducerRecord[K, V] =
-      NJProducerRecord.partition.set(None)
 
     val sorted = tcr.orderBy(tcr('timestamp).asc, tcr('offset).asc)
 
@@ -168,11 +164,11 @@ private[kafka] object sk {
       case ConversionTactics(true, true) =>
         sorted.deserialized.map(_.toNJProducerRecord)
       case ConversionTactics(false, true) =>
-        sorted.deserialized.map(nj => noPT(nj.toNJProducerRecord))
+        sorted.deserialized.map(_.toNJProducerRecord.withoutPartition)
       case ConversionTactics(true, false) =>
-        sorted.deserialized.map(nj => noTS(nj.toNJProducerRecord))
+        sorted.deserialized.map(_.toNJProducerRecord.withoutTimestamp)
       case ConversionTactics(false, false) =>
-        sorted.deserialized.map(nj => noTS.andThen(noPT)(nj.toNJProducerRecord))
+        sorted.deserialized.map(_.toNJProducerRecord.withoutPartitionAndTimestamp)
     }
   }
 
@@ -191,6 +187,6 @@ private[kafka] object sk {
       .stream[F]
       .chunkN(uploadRate.batchSize)
       .metered(uploadRate.duration)
-      .map(chk => kit.fs2ProducerRecords(chk.map(_.toFs2ProducerRecord(kit.topicName))))
+      .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(kit.topicName))))
       .through(produce(kit.fs2ProducerSettings[F]))
 }

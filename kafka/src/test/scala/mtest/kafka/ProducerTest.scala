@@ -5,7 +5,7 @@ import cats.effect.IO
 import cats.implicits._
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.scalatest.funsuite.AnyFunSuite
-
+import fs2.kafka.{ProducerRecords => Fs2ProducerRecords, ProducerRecord => Fs2ProducerRecord}
 import scala.concurrent.duration._
 import scala.util.Random
 
@@ -49,7 +49,7 @@ class ProducerTest extends AnyFunSuite {
         _.withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest").withGroupId("fs2-task"))
       .consume
       .map(m => srcTopic.decoder(m).decode)
-      .map(m => srcTopic.kit.fs2ProducerRecords(m.record.key, m.record.value, m.offset))
+      .map(m => Fs2ProducerRecords.one(fs2Topic.fs2PR(m.record.key, m.record.value), m.offset))
       .take(100)
       .through(fs2.kafka.produce(fs2Topic.kit.fs2ProducerSettings[IO]))
       .compile

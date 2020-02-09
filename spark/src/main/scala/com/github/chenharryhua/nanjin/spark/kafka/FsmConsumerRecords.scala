@@ -4,7 +4,6 @@ import cats.effect.Sync
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
-import com.github.chenharryhua.nanjin.spark.streaming.SparkStreamStart
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
@@ -54,10 +53,10 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     typedDataset.count[F]()
 
   def values: TypedDataset[V] =
-    typedDataset.select(typedDataset('value)).as[Option[V]].deserialized.flatMap(x => x)
+    typedDataset.select(typedDataset('value)).as[Option[V]].deserialized.flatMap[V](identity)
 
   def keys: TypedDataset[K] =
-    typedDataset.select(typedDataset('key)).as[Option[K]].deserialized.flatMap(x => x)
+    typedDataset.select(typedDataset('key)).as[Option[K]].deserialized.flatMap[K](identity)
 
   def show(implicit ev: Sync[F]): F[Unit] =
     typedDataset.show[F](bundle.params.showDs.rowNum, bundle.params.showDs.isTruncate)
