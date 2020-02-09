@@ -10,11 +10,12 @@ import scala.concurrent.duration._
 
 trait NJStreamSink[F[_]] extends Serializable {
   def queryStream(implicit F: Concurrent[F], timer: Timer[F]): Stream[F, StreamingQueryProgress]
-  final def run(implicit F: Concurrent[F], timer: Timer[F]): F[Unit] = queryStream.compile.drain
+
+  final def run(implicit F: Concurrent[F], timer: Timer[F]): F[Unit] =
+    queryStream.compile.drain
 
   final def showProgress(implicit F: Concurrent[F], timer: Timer[F]): F[Unit] =
-    queryStream.map(_.prettyJson).showLinesStdOut.compile.drain
-
+    queryStream.mapFilter(Option(_).map(_.prettyJson)).showLinesStdOut.compile.drain
 }
 
 private[streaming] object ss {
