@@ -159,8 +159,8 @@ private[kafka] object sk {
     sparkSession: SparkSession,
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): TypedDataset[NJConsumerRecord[K, V]] = {
-    //  https://spark.apache.org/docs/latest/structured-streaming-kafka-integration.html
-    def toSparkOptions(m: Map[String, String]): Map[String, String] = {
+    //  https://spark.apache.org/docs/2.4.5/structured-streaming-kafka-integration.html
+    def consumerOptions(m: Map[String, String]): Map[String, String] = {
       val rm1 = remove(ConsumerConfig.GROUP_ID_CONFIG)(_: Map[String, String])
       val rm2 = remove(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG)(_: Map[String, String])
       val rm3 = remove(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)(_: Map[String, String])
@@ -179,7 +179,7 @@ private[kafka] object sk {
       .create(
         sparkSession.readStream
           .format("kafka")
-          .options(toSparkOptions(kit.settings.consumerSettings.config))
+          .options(consumerOptions(kit.settings.consumerSettings.config))
           .option("subscribe", kit.topicDef.topicName.value)
           .load()
           .as[NJConsumerRecord[Array[Byte], Array[Byte]]])

@@ -41,7 +41,7 @@ import org.apache.spark.sql.streaming.{
       NJProducerRecord[Array[Byte], Array[Byte]]]): NJKafkaSink[F] =
     NJKafkaSink.dataStreamWriter.modify(f)(this)
 
-  //  https://spark.apache.org/docs/latest/structured-streaming-kafka-integration.html
+  //  https://spark.apache.org/docs/2.4.5/structured-streaming-kafka-integration.html
   private def producerOptions(m: Map[String, String]): Map[String, String] = {
     val rm1 = remove(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG)(_: Map[String, String])
     val rm2 = remove(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG)(_: Map[String, String])
