@@ -3,8 +3,14 @@ package com.github.chenharryhua.nanjin.spark.streaming
 import cats.effect.{Concurrent, Timer}
 import com.github.chenharryhua.nanjin.kafka.KafkaProducerSettings
 import com.github.chenharryhua.nanjin.kafka.common.{NJProducerRecord, TopicName}
+import fs2.Stream
 import monocle.macros.Lenses
-import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, Trigger}
+import org.apache.spark.sql.streaming.{
+  DataStreamWriter,
+  OutputMode,
+  StreamingQueryProgress,
+  Trigger
+}
 
 @Lenses final case class NJKafkaSink[F[_]](
   dataStreamWriter: DataStreamWriter[NJProducerRecord[Array[Byte], Array[Byte]]],
@@ -33,16 +39,17 @@ import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, Trigger}
       NJProducerRecord[Array[Byte], Array[Byte]]]): NJKafkaSink[F] =
     NJKafkaSink.dataStreamWriter.modify(f)(this)
 
-  override def run(implicit F: Concurrent[F], timer: Timer[F]): F[Unit] =
+  override def queryStream(
+    implicit F: Concurrent[F],
+    timer: Timer[F]): Stream[F, StreamingQueryProgress] =
     ss.queryStream(
-        dataStreamWriter
-          .trigger(trigger)
-          .format("kafka")
-          .outputMode(outputMode)
-          .options(producer.config.map { case (k, v) => s"kafka.$k" -> v })
-          .option("topic", topicName.value)
-          .option("checkpointLocation", checkpoint.value)
-          .option("failOnDataLoss", dataLoss.value))
-      .compile
-      .drain
+      dataStreamWriter
+        .trigger(trigger)
+        .format("kafka")
+        .outputMode(outputMode)
+        .options(producer.config.map { case (k, v) => s"kafka.$k" -> v })
+        .option("topic", topicName.value)
+        .option("checkpointLocation", checkpoint.value)
+        .option("failOnDataLoss", dataLoss.value))
+
 }

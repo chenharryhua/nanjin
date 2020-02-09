@@ -2,11 +2,13 @@ package com.github.chenharryhua.nanjin.spark.streaming
 
 import cats.effect.{Concurrent, Timer}
 import com.github.chenharryhua.nanjin.spark.NJShowDataset
+import fs2.Stream
 import monocle.macros.Lenses
-import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, Trigger}
-
-trait NJStreamSink[F[_]] extends Serializable {
-  def run(implicit F: Concurrent[F], timer: Timer[F]): F[Unit]
+import org.apache.spark.sql.streaming.{
+  DataStreamWriter,
+  OutputMode,
+  StreamingQueryProgress,
+  Trigger
 }
 
 @Lenses final case class NJConsoleSink[F[_], A](
@@ -28,15 +30,16 @@ trait NJStreamSink[F[_]] extends Serializable {
   def withTruncate: NJConsoleSink[F, A] =
     NJConsoleSink.showDs.composeLens(NJShowDataset.isTruncate).set(true)(this)
 
-  override def run(implicit F: Concurrent[F], timer: Timer[F]): F[Unit] =
+  override def queryStream(
+    implicit F: Concurrent[F],
+    timer: Timer[F]): Stream[F, StreamingQueryProgress] =
     ss.queryStream(
-        dataStreamWriter
-          .trigger(trigger)
-          .format("console")
-          .outputMode(OutputMode.Append)
-          .option("truncate", showDs.isTruncate.toString)
-          .option("numRows", showDs.rowNum.toString)
-          .option("failOnDataLoss", dataLoss.value))
-      .compile
-      .drain
+      dataStreamWriter
+        .trigger(trigger)
+        .format("console")
+        .outputMode(OutputMode.Append)
+        .option("truncate", showDs.isTruncate.toString)
+        .option("numRows", showDs.rowNum.toString)
+        .option("failOnDataLoss", dataLoss.value))
+
 }

@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.spark.streaming
 
 import cats.effect.{Concurrent, Timer}
-import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode}
+import fs2.Stream
+import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, StreamingQueryProgress}
 
 final class NJMemorySink[F[_], A](
   dsw: DataStreamWriter[A],
@@ -10,14 +11,14 @@ final class NJMemorySink[F[_], A](
   dataLoss: NJFailOnDataLoss)
     extends NJStreamSink[F] {
 
-  override def run(implicit F: Concurrent[F], timer: Timer[F]): F[Unit] =
+  override def queryStream(
+    implicit F: Concurrent[F],
+    timer: Timer[F]): Stream[F, StreamingQueryProgress] =
     ss.queryStream(
-        dsw
-          .format("memory")
-          .queryName(queryName)
-          .outputMode(mode)
-          .option("failOnDataLoss", dataLoss.value))
-      .compile
-      .drain
+      dsw
+        .format("memory")
+        .queryName(queryName)
+        .outputMode(mode)
+        .option("failOnDataLoss", dataLoss.value))
 
 }
