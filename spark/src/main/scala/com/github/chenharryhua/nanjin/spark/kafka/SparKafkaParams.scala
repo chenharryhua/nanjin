@@ -95,6 +95,7 @@ object SparKafkaParams {
   def withJackson: KitBundle[K, V] = withFileFormat(NJFileFormat.Jackson)
   def withAvro: KitBundle[K, V]    = withFileFormat(NJFileFormat.Avro)
   def withParquet: KitBundle[K, V] = withFileFormat(NJFileFormat.Parquet)
+  def withText: KitBundle[K, V]    = withFileFormat(NJFileFormat.Text)
 
   def withLocationStrategy(ls: LocationStrategy): KitBundle[K, V] =
     KitBundle.params.composeLens(SparKafkaParams.locationStrategy).set(ls)(this)

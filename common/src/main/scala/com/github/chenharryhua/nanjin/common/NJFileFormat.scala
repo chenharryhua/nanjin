@@ -20,11 +20,13 @@ object NJFileFormat extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[N
   case object Jackson extends NJFileFormat(1, "jackson")
   case object Parquet extends NJFileFormat(2, "parquet")
   case object Avro extends NJFileFormat(3, "avro")
+  case object Text extends NJFileFormat(4, "text")
 
   type Json    = Json.type
   type Jackson = Jackson.type
   type Parquet = Parquet.type
   type Avro    = Avro.type
+  type Text    = Text.type
 
   implicit val prismJson: Prism[NJFileFormat, Json] =
     GenPrism[NJFileFormat, Json]
@@ -37,6 +39,9 @@ object NJFileFormat extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[N
 
   implicit val prismAvro: Prism[NJFileFormat, Avro] =
     GenPrism[NJFileFormat, Avro]
+
+  implicit val prismText: Prism[NJFileFormat, Text] =
+    GenPrism[NJFileFormat, Text]
 }
 
 trait UpdateParams[A, B] {

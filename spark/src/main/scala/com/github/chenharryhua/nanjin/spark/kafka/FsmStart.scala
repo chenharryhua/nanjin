@@ -70,11 +70,18 @@ final class FsmStart[K, V](bundle: KitBundle[K, V])(implicit sparkSession: Spark
     fromKafka[F].flatMap(
       _.someValues.toProducerRecords.upload(otherTopic).map(_ => print(".")).compile.drain)
 
-  def streaming[F[_]](
+  def streaming[F[_]: Sync, A](f: NJConsumerRecord[K, V] => A)(
+    implicit
+    keyEncoder: TypedEncoder[A]): F[SparkStreamStart[F, A]] =
+    sk.streaming[F, K, V, A](bundle.kit, bundle.params.timeRange)(f)
+      .map(s =>
+        new SparkStreamStart(
+          s.dataset,
+          StreamParams(s"./data/checkpoint/kafka/${bundle.kit.topicName.value}")))
+
+  def streaming[F[_]: Sync](
     implicit
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): SparkStreamStart[F, NJConsumerRecord[K, V]] =
-    new SparkStreamStart(
-      sk.streaming(bundle.kit).dataset,
-      StreamParams(s"./data/checkpoint/kafka/${bundle.kit.topicName.value}"))
+    valEncoder: TypedEncoder[V]): F[SparkStreamStart[F, NJConsumerRecord[K, V]]] =
+    streaming[F, NJConsumerRecord[K, V]](identity)
 }

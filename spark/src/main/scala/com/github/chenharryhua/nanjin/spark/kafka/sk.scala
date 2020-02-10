@@ -87,7 +87,7 @@ private[kafka] object sk {
     val schema = TypedExpressionEncoder.targetStructType(TypedEncoder[NJConsumerRecord[K, V]])
     val tds: TypedDataset[NJConsumerRecord[K, V]] = {
       fileFormat match {
-        case NJFileFormat.Avro | NJFileFormat.Parquet | NJFileFormat.Json =>
+        case NJFileFormat.Avro | NJFileFormat.Parquet | NJFileFormat.Json | NJFileFormat.Text=>
           TypedDataset.createUnsafe[NJConsumerRecord[K, V]](
             sparkSession.read.schema(schema).format(fileFormat.format).load(path))
         case NJFileFormat.Jackson =>
@@ -108,7 +108,7 @@ private[kafka] object sk {
     saveMode: SaveMode,
     path: String): Unit =
     fileFormat match {
-      case NJFileFormat.Avro | NJFileFormat.Parquet | NJFileFormat.Json =>
+      case NJFileFormat.Avro | NJFileFormat.Parquet | NJFileFormat.Json | NJFileFormat.Text =>
         dataset.write.mode(saveMode).format(fileFormat.format).save(path)
       case NJFileFormat.Jackson =>
         dataset.deserialized
@@ -159,7 +159,7 @@ private[kafka] object sk {
     * streaming
     */
   private def startingOffsets(range: KafkaTopicPartition[Option[KafkaOffsetRange]]): String = {
-    val start = range
+    val start: Map[String, Map[String, Long]] = range
       .flatten[KafkaOffsetRange]
       .value
       .map { case (tp, kor) => (tp.topic(), tp.partition(), kor) }
@@ -188,35 +188,37 @@ private[kafka] object sk {
     }
   }
 
-  def streaming[K, V](kit: KafkaTopicKit[K, V])(
+  def streaming[F[_]: Sync, K, V, A](kit: KafkaTopicKit[K, V], timeRange: NJDateTimeRange)(
+    f: NJConsumerRecord[K, V] => A)(
     implicit
     sparkSession: SparkSession,
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): TypedDataset[NJConsumerRecord[K, V]] = {
+    encoder: TypedEncoder[A]): F[TypedDataset[A]] = {
 
     import sparkSession.implicits._
-
-    TypedDataset
-      .create(
-        sparkSession.readStream
-          .format("kafka")
-          .options(consumerOptions(kit.settings.consumerSettings.config))
-          .option("subscribe", kit.topicDef.topicName.value)
-          .load()
-          .as[NJConsumerRecord[Array[Byte], Array[Byte]]])
-      .deserialized
-      .mapPartitions { msgs =>
-        val decoder = (msg: NJConsumerRecord[Array[Byte], Array[Byte]]) =>
-          NJConsumerRecord[K, V](
-            msg.partition,
-            msg.offset,
-            msg.timestamp,
-            msg.key.flatMap(k   => kit.codec.keyCodec.tryDecode(k).toOption),
-            msg.value.flatMap(v => kit.codec.valCodec.tryDecode(v).toOption),
-            msg.topic,
-            msg.timestampType
-          )
-        msgs.map(decoder)
-      }
+    KafkaConsumerApi(kit).use(_.offsetRangeFor(timeRange)).map { gtp =>
+      TypedDataset
+        .create(
+          sparkSession.readStream
+            .format("kafka")
+            .options(consumerOptions(kit.settings.consumerSettings.config))
+            .option("startingOffsets", startingOffsets(gtp))
+            .option("subscribe", kit.topicDef.topicName.value)
+            .load()
+            .as[NJConsumerRecord[Array[Byte], Array[Byte]]])
+        .deserialized
+        .mapPartitions { msgs =>
+          val decoder = (msg: NJConsumerRecord[Array[Byte], Array[Byte]]) =>
+            NJConsumerRecord[K, V](
+              msg.partition,
+              msg.offset,
+              msg.timestamp,
+              msg.key.flatMap(k   => kit.codec.keyCodec.tryDecode(k).toOption),
+              msg.value.flatMap(v => kit.codec.valCodec.tryDecode(v).toOption),
+              msg.topic,
+              msg.timestampType
+            )
+          msgs.map(decoder.andThen(f))
+        }
+    }
   }
 }
