@@ -25,6 +25,7 @@ final case class TablePathBuild(tableName: TableName, fileFormat: NJFileFormat)
   def withJson: SparkTableParams    = withFileFormat(NJFileFormat.Json)
   def withAvro: SparkTableParams    = withFileFormat(NJFileFormat.Avro)
   def withParquet: SparkTableParams = withFileFormat(NJFileFormat.Parquet)
+  def withText: SparkTableParams    = withFileFormat(NJFileFormat.Text)
 
   def withDBSaveMode(saveMode: SaveMode): SparkTableParams =
     SparkTableParams.dbSaveMode.set(saveMode)(this)

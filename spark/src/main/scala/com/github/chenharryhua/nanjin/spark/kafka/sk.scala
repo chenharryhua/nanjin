@@ -87,7 +87,7 @@ private[kafka] object sk {
     val schema = TypedExpressionEncoder.targetStructType(TypedEncoder[NJConsumerRecord[K, V]])
     val tds: TypedDataset[NJConsumerRecord[K, V]] = {
       fileFormat match {
-        case NJFileFormat.Avro | NJFileFormat.Parquet | NJFileFormat.Json =>
+        case NJFileFormat.Avro | NJFileFormat.Parquet | NJFileFormat.Json | NJFileFormat.Text=>
           TypedDataset.createUnsafe[NJConsumerRecord[K, V]](
             sparkSession.read.schema(schema).format(fileFormat.format).load(path))
         case NJFileFormat.Jackson =>
@@ -108,7 +108,7 @@ private[kafka] object sk {
     saveMode: SaveMode,
     path: String): Unit =
     fileFormat match {
-      case NJFileFormat.Avro | NJFileFormat.Parquet | NJFileFormat.Json =>
+      case NJFileFormat.Avro | NJFileFormat.Parquet | NJFileFormat.Json | NJFileFormat.Text =>
         dataset.write.mode(saveMode).format(fileFormat.format).save(path)
       case NJFileFormat.Jackson =>
         dataset.deserialized
@@ -159,7 +159,7 @@ private[kafka] object sk {
     * streaming
     */
   private def startingOffsets(range: KafkaTopicPartition[Option[KafkaOffsetRange]]): String = {
-    val start = range
+    val start: Map[String, Map[String, Long]] = range
       .flatten[KafkaOffsetRange]
       .value
       .map { case (tp, kor) => (tp.topic(), tp.partition(), kor) }

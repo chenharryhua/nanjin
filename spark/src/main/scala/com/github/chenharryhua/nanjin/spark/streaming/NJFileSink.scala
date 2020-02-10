@@ -31,6 +31,7 @@ import org.apache.spark.sql.streaming.{
   def withJson: NJFileSink[F, A]    = withFileFormat(NJFileFormat.Json)
   def withAvro: NJFileSink[F, A]    = withFileFormat(NJFileFormat.Avro)
   def withParquet: NJFileSink[F, A] = withFileFormat(NJFileFormat.Parquet)
+  def withText: NJFileSink[F, A]    = withFileFormat(NJFileFormat.Text)
 
   def withCheckpoint(cp: String): NJFileSink[F, A] =
     NJFileSink.checkpoint.set(NJCheckpoint(cp))(this)
