@@ -1,13 +1,33 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import cats.data.Reader
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.common.UpdateParams
+import com.github.chenharryhua.nanjin.common.{NJFileFormat, UpdateParams}
+import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducerRecord}
+import com.github.chenharryhua.nanjin.spark.NJShowDataset
 import com.github.chenharryhua.nanjin.spark.streaming.{SparkStreamStart, StreamParams}
 import frameless.{TypedDataset, TypedEncoder}
+import monocle.macros.Lenses
 import org.apache.spark.sql.SparkSession
+
+@Lenses final case class InitParams(
+  timeRange: NJDateTimeRange,
+  pathBuilder: Reader[KafkaPathBuild, String],
+  showDs: NJShowDataset,
+  fileFormat: NJFileFormat)
+
+object InitParams {
+
+  val default: InitParams = InitParams(
+    NJDateTimeRange.infinite,
+    Reader(kpb => s"./data/spark/kafka/${kpb.topicName}/${kpb.fileFormat}/"),
+    showDs     = NJShowDataset(60, isTruncate = false),
+    fileFormat = NJFileFormat.Parquet
+  )
+}
 
 trait FsmSparKafka[K, V] extends Serializable with UpdateParams[KitBundle[K, V], FsmSparKafka[K, V]]
 

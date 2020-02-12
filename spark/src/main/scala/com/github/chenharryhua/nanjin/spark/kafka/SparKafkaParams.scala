@@ -20,10 +20,7 @@ object UploadRate {
   val default: UploadRate = UploadRate(batchSize = 1000, duration = 1.second)
 }
 
-final case class KafkaPathBuild(
-  timeRange: NJDateTimeRange,
-  fileFormat: NJFileFormat,
-  topicName: TopicName)
+final case class KafkaPathBuild(fileFormat: NJFileFormat, topicName: TopicName)
 
 @Lenses final case class SparKafkaParams private (
   timeRange: NJDateTimeRange,
@@ -39,21 +36,21 @@ object SparKafkaParams {
 
   val default: SparKafkaParams =
     SparKafkaParams(
-      timeRange         = NJDateTimeRange.infinite,
-      uploadRate        = UploadRate.default,
-      pathBuilder       = Reader(kpb => s"./data/spark/kafka/${kpb.topicName}/${kpb.fileFormat}/"),
-      fileFormat        = NJFileFormat.Parquet,
-      saveMode          = SaveMode.ErrorIfExists,
-      locationStrategy  = LocationStrategies.PreferConsistent,
-      repartition       = NJRepartition(30),
-      showDs            = NJShowDataset(60, isTruncate = false)
+      timeRange        = NJDateTimeRange.infinite,
+      uploadRate       = UploadRate.default,
+      pathBuilder      = Reader(kpb => s"./data/spark/kafka/${kpb.topicName}/${kpb.fileFormat}/"),
+      fileFormat       = NJFileFormat.Parquet,
+      saveMode         = SaveMode.ErrorIfExists,
+      locationStrategy = LocationStrategies.PreferConsistent,
+      repartition      = NJRepartition(30),
+      showDs           = NJShowDataset(60, isTruncate = false)
     )
 }
 
 @Lenses final case class KitBundle[K, V](kit: KafkaTopicKit[K, V], params: SparKafkaParams) {
 
   def getPath: String =
-    params.pathBuilder(KafkaPathBuild(params.timeRange, params.fileFormat, kit.topicName))
+    params.pathBuilder(KafkaPathBuild(params.fileFormat, kit.topicName))
 
   def withTimeRange(f: NJDateTimeRange => NJDateTimeRange): KitBundle[K, V] =
     KitBundle.params.composeLens(SparKafkaParams.timeRange).modify(f)(this)
