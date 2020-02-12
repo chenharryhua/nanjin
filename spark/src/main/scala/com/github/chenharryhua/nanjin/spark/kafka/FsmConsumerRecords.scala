@@ -4,6 +4,7 @@ import cats.effect.Sync
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
+import com.github.chenharryhua.nanjin.spark.NJPath
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
@@ -62,7 +63,12 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     typedDataset.show[F](bundle.params.showDs.rowNum, bundle.params.showDs.isTruncate)
 
   def save(path: String): Unit =
-    sk.save(typedDataset, bundle.kit, bundle.params.fileFormat, bundle.params.saveMode, path)
+    sk.save(
+      typedDataset,
+      bundle.kit,
+      bundle.params.fileFormat,
+      bundle.params.saveMode,
+      NJPath(path))
 
   def save(): Unit = save(bundle.getPath)
 
