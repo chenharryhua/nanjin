@@ -30,18 +30,13 @@ class CopyDataTest extends AnyFunSuite {
     val rst = for {
       _ <- prepareData
       _ <- src.kit.sparKafka.pipeTo[IO](tgt.kit)
-      srcData <- src.kit.sparKafka
-        .fromKafka[IO]
-        .flatMap(_.typedDataset.collect[IO].map(_.sortBy(_.timestamp)))
-      tgtData <- tgt.kit.sparKafka
-        .fromKafka[IO]
-        .flatMap(_.typedDataset.collect[IO].map(_.sortBy(_.timestamp)))
+      srcData <- src.kit.sparKafka.fromKafka[IO].flatMap(_.typedDataset.collect[IO])
+      tgtData <- tgt.kit.sparKafka.fromKafka[IO].flatMap(_.typedDataset.collect[IO])
     } yield {
       assert(srcData.size == 5)
       assert(tgtData.size == 4)
-      assert(srcData.take(4).map(_.timestamp) == tgtData.map(_.timestamp))
-      assert(srcData.take(4).map(_.value) === tgtData.map(_.value))
-      assert(srcData.take(4).map(_.key) === tgtData.map(_.key))
+      assert(srcData.take(4).map(_.value).toSet === tgtData.map(_.value).toSet)
+      assert(srcData.take(4).map(_.key).toSet === tgtData.map(_.key).toSet)
     }
 
     rst.unsafeRunSync()

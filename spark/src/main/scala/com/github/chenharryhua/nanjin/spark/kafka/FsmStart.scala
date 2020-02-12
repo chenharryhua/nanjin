@@ -61,14 +61,14 @@ final class FsmStart[K, V](bundle: KitBundle[K, V])(implicit sparkSession: Spark
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[Unit] =
-    fromDisk[F].someValues.toProducerRecords.upload.map(_ => print(".")).compile.drain
+    fromDisk[F].someValues.toProducerRecords.noMeta.upload.map(_ => print(".")).compile.drain
 
   def pipeTo[F[_]: ConcurrentEffect: Timer: ContextShift](otherTopic: KafkaTopicKit[K, V])(
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[Unit] =
     fromKafka[F].flatMap(
-      _.someValues.toProducerRecords.upload(otherTopic).map(_ => print(".")).compile.drain)
+      _.someValues.toProducerRecords.noMeta.upload(otherTopic).map(_ => print(".")).compile.drain)
 
   def streaming[F[_]: Sync, A](f: NJConsumerRecord[K, V] => A)(
     implicit

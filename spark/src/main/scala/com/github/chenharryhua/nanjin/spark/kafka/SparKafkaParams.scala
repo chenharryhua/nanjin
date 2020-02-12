@@ -20,19 +20,6 @@ object UploadRate {
   val default: UploadRate = UploadRate(batchSize = 1000, duration = 1.second)
 }
 
-@Lenses final case class ConversionTactics(keepPartition: Boolean, keepTimestamp: Boolean) {
-  def withoutPartition: ConversionTactics = ConversionTactics.keepPartition.set(false)(this)
-  def withoutTimestamp: ConversionTactics = ConversionTactics.keepTimestamp.set(false)(this)
-  def withPartition: ConversionTactics    = ConversionTactics.keepPartition.set(true)(this)
-  def withTimestamp: ConversionTactics    = ConversionTactics.keepTimestamp.set(true)(this)
-}
-
-object ConversionTactics {
-
-  def default: ConversionTactics =
-    ConversionTactics(keepPartition = false, keepTimestamp = true)
-}
-
 final case class KafkaPathBuild(
   timeRange: NJDateTimeRange,
   fileFormat: NJFileFormat,
@@ -40,7 +27,6 @@ final case class KafkaPathBuild(
 
 @Lenses final case class SparKafkaParams private (
   timeRange: NJDateTimeRange,
-  conversionTactics: ConversionTactics,
   uploadRate: UploadRate,
   pathBuilder: Reader[KafkaPathBuild, String],
   fileFormat: NJFileFormat,
@@ -54,7 +40,6 @@ object SparKafkaParams {
   val default: SparKafkaParams =
     SparKafkaParams(
       timeRange         = NJDateTimeRange.infinite,
-      conversionTactics = ConversionTactics.default,
       uploadRate        = UploadRate.default,
       pathBuilder       = Reader(kpb => s"./data/spark/kafka/${kpb.topicName}/${kpb.fileFormat}/"),
       fileFormat        = NJFileFormat.Parquet,
@@ -72,9 +57,6 @@ object SparKafkaParams {
 
   def withTimeRange(f: NJDateTimeRange => NJDateTimeRange): KitBundle[K, V] =
     KitBundle.params.composeLens(SparKafkaParams.timeRange).modify(f)(this)
-
-  def withConversionTactics(f: ConversionTactics => ConversionTactics): KitBundle[K, V] =
-    KitBundle.params.composeLens(SparKafkaParams.conversionTactics).modify(f)(this)
 
   def zoneId: ZoneId = params.timeRange.zoneId
   def clock: Clock   = Clock.system(zoneId)

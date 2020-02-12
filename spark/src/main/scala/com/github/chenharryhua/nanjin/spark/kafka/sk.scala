@@ -118,25 +118,6 @@ private[kafka] object sk {
           .text(path)
     }
 
-  def cr2pr[K, V](tcr: TypedDataset[NJConsumerRecord[K, V]], cts: ConversionTactics)(
-    implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): TypedDataset[NJProducerRecord[K, V]] = {
-
-    val sorted = tcr.orderBy(tcr('timestamp).asc, tcr('offset).asc)
-
-    cts match {
-      case ConversionTactics(true, true) =>
-        sorted.deserialized.map(_.toNJProducerRecord)
-      case ConversionTactics(false, true) =>
-        sorted.deserialized.map(_.toNJProducerRecord.withoutPartition)
-      case ConversionTactics(true, false) =>
-        sorted.deserialized.map(_.toNJProducerRecord.withoutTimestamp)
-      case ConversionTactics(false, false) =>
-        sorted.deserialized.map(_.toNJProducerRecord.withoutPartitionAndTimestamp)
-    }
-  }
-
   def upload[F[_], K, V](
     dataset: TypedDataset[NJProducerRecord[K, V]],
     kit: KafkaTopicKit[K, V],

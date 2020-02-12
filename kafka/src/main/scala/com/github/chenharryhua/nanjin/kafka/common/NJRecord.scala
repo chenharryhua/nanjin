@@ -58,29 +58,35 @@ object NJConsumerRecord {
   key: Option[K],
   value: Option[V]) {
 
-  def withPartition(pt: Int): NJProducerRecord[K, V] =
+  def newPartition(pt: Int): NJProducerRecord[K, V] =
     NJProducerRecord.partition.set(Some(pt))(this)
 
-  def withoutPartition: NJProducerRecord[K, V] =
-    NJProducerRecord.partition.set(None)(this)
-
-  def withTimestamp(ts: Long): NJProducerRecord[K, V] =
+  def newTimestamp(ts: Long): NJProducerRecord[K, V] =
     NJProducerRecord.timestamp.set(Some(ts))(this)
 
-  def withoutTimestamp: NJProducerRecord[K, V] =
+  def newKey(k: K): NJProducerRecord[K, V] =
+    NJProducerRecord.key.set(Some(k))(this)
+
+  def newValue(v: V): NJProducerRecord[K, V] =
+    NJProducerRecord.value.set(Some(v))(this)
+
+  def noPartition: NJProducerRecord[K, V] =
+    NJProducerRecord.partition.set(None)(this)
+
+  def noTimestamp: NJProducerRecord[K, V] =
     NJProducerRecord.timestamp.set(None)(this)
 
-  def withoutPartitionAndTimestamp: NJProducerRecord[K, V] =
+  def noMeta: NJProducerRecord[K, V] =
     NJProducerRecord
       .timestamp[K, V]
       .set(None)
       .andThen(NJProducerRecord.partition[K, V].set(None))(this)
 
-  def withNewKey(k: K): NJProducerRecord[K, V] =
-    NJProducerRecord.key.set(Some(k))(this)
+  def modifyKey(f: K => K): NJProducerRecord[K, V] =
+    NJProducerRecord.key.modify((_: Option[K]).map(f))(this)
 
-  def withNewValue(v: V): NJProducerRecord[K, V] =
-    NJProducerRecord.value.set(Some(v))(this)
+  def modifyValue(f: V => V): NJProducerRecord[K, V] =
+    NJProducerRecord.value.modify((_: Option[V]).map(f))(this)
 
   @SuppressWarnings(Array("AsInstanceOf"))
   def toFs2ProducerRecord(topicName: TopicName): Fs2ProducerRecord[K, V] = {

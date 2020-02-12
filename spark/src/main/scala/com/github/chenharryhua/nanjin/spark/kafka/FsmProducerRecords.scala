@@ -21,6 +21,15 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   @transient lazy val typedDataset: TypedDataset[NJProducerRecord[K, V]] =
     TypedDataset.create(prs)
 
+  def noTimestamp: FsmProducerRecords[F, K, V] =
+    new FsmProducerRecords[F, K, V](typedDataset.deserialized.map(_.noTimestamp).dataset, bundle)
+
+  def noPartiton: FsmProducerRecords[F, K, V] =
+    new FsmProducerRecords[F, K, V](typedDataset.deserialized.map(_.noPartition).dataset, bundle)
+
+  def noMeta: FsmProducerRecords[F, K, V] =
+    new FsmProducerRecords[F, K, V](typedDataset.deserialized.map(_.noMeta).dataset, bundle)
+
   def bimapTo[K2: TypedEncoder, V2: TypedEncoder](
     other: KafkaTopicKit[K2, V2])(k: K => K2, v: V => V2): FsmProducerRecords[F, K2, V2] =
     new FsmProducerRecords[F, K2, V2](

@@ -67,7 +67,7 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def save(): Unit = save(bundle.getPath)
 
   def toProducerRecords: FsmProducerRecords[F, K, V] =
-    new FsmProducerRecords(sk.cr2pr(typedDataset, bundle.params.conversionTactics).dataset, bundle)
+    new FsmProducerRecords((typedDataset.deserialized.map(_.toNJProducerRecord)).dataset, bundle)
 
   def stats: Statistics[F, K, V] =
     new Statistics(crs, bundle.params.showDs, bundle.zoneId)
