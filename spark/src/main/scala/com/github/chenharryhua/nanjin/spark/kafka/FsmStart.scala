@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.common.{NJFileFormat, UpdateParams}
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducerRecord}
-import com.github.chenharryhua.nanjin.spark.NJShowDataset
+import com.github.chenharryhua.nanjin.spark.{NJPath, NJShowDataset}
 import com.github.chenharryhua.nanjin.spark.streaming.{SparkStreamStart, StreamParams}
 import frameless.{TypedDataset, TypedEncoder}
 import monocle.macros.Lenses
@@ -51,7 +51,8 @@ final class FsmStart[K, V](bundle: KitBundle[K, V])(implicit sparkSession: Spark
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] =
-    crDataset[F](sk.fromDisk(bundle.kit, bundle.params.timeRange, bundle.params.fileFormat, path))
+    crDataset[F](
+      sk.fromDisk(bundle.kit, bundle.params.timeRange, bundle.params.fileFormat, NJPath(path)))
 
   def fromDisk[F[_]](
     implicit

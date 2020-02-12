@@ -7,7 +7,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
-import com.github.chenharryhua.nanjin.spark.NJShowDataset
+import com.github.chenharryhua.nanjin.spark.{NJPath, NJShowDataset}
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import monocle.macros.Lenses
@@ -18,16 +18,16 @@ import org.apache.spark.sql.{Dataset, SaveMode}
   showDs: NJShowDataset,
   fileFormat: NJFileFormat,
   saveMode: SaveMode,
-  path: String
+  path: NJPath
 )
 
 object ProcessConsumerRecordParams {
 
-  def apply(zoneId: ZoneId, path: String): ProcessConsumerRecordParams =
+  def apply(zoneId: ZoneId, fileFormat: NJFileFormat, path: NJPath): ProcessConsumerRecordParams =
     ProcessConsumerRecordParams(
       zoneId     = zoneId,
       showDs     = NJShowDataset(60, isTruncate = false),
-      fileFormat = NJFileFormat.Parquet,
+      fileFormat = fileFormat,
       saveMode   = SaveMode.ErrorIfExists,
       path       = path
     )
@@ -85,9 +85,9 @@ final class FsmProcessConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     typedDataset.show[F](params.showDs.rowNum, params.showDs.isTruncate)
 
   def save(path: String): Unit =
-    sk.save(typedDataset, kit, params.fileFormat, params.saveMode, path)
+    sk.save(typedDataset, kit, params.fileFormat, params.saveMode, NJPath(path))
 
-  def save(): Unit = save(params.path)
+  def save(): Unit = save(params.path.value)
 
   def toProducerRecords: FsmProcessProducerRecords[F, K, V] =
     new FsmProcessProducerRecords(

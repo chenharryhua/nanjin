@@ -4,6 +4,7 @@ import cats.effect.Sync
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
+import com.github.chenharryhua.nanjin.spark.NJPath
 import frameless.TypedEncoder
 import monocle.macros.Lenses
 import org.apache.spark.sql.SparkSession
@@ -11,7 +12,7 @@ import org.apache.spark.sql.SparkSession
 @Lenses final case class DiskLoadParams(
   timeRange: NJDateTimeRange,
   fileFormat: NJFileFormat,
-  path: String
+  path: NJPath
 )
 
 final class FsmDiskLoad[F[_], K, V](kit: KafkaTopicKit[K, V], params: DiskLoadParams)(
@@ -26,5 +27,5 @@ final class FsmDiskLoad[F[_], K, V](kit: KafkaTopicKit[K, V], params: DiskLoadPa
       new FsmProcessConsumerRecords(
         sk.fromDisk(kit, params.timeRange, params.fileFormat, params.path).dataset,
         kit,
-        ProcessConsumerRecordParams(params.timeRange.zoneId, params.path)))
+        ProcessConsumerRecordParams(params.timeRange.zoneId, params.fileFormat, params.path)))
 }

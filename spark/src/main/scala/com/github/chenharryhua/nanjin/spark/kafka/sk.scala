@@ -79,7 +79,7 @@ private[kafka] object sk {
     kit: KafkaTopicKit[K, V],
     timeRange: NJDateTimeRange,
     fileFormat: NJFileFormat,
-    path: String)(
+    path: NJPath)(
     implicit
     sparkSession: SparkSession,
     keyEncoder: TypedEncoder[K],
@@ -87,12 +87,12 @@ private[kafka] object sk {
     val schema = TypedExpressionEncoder.targetStructType(TypedEncoder[NJConsumerRecord[K, V]])
     val tds: TypedDataset[NJConsumerRecord[K, V]] = {
       fileFormat match {
-        case NJFileFormat.Avro | NJFileFormat.Parquet | NJFileFormat.Json | NJFileFormat.Text=>
+        case NJFileFormat.Avro | NJFileFormat.Parquet | NJFileFormat.Json | NJFileFormat.Text =>
           TypedDataset.createUnsafe[NJConsumerRecord[K, V]](
-            sparkSession.read.schema(schema).format(fileFormat.format).load(path))
+            sparkSession.read.schema(schema).format(fileFormat.format).load(path.value))
         case NJFileFormat.Jackson =>
           TypedDataset
-            .create(sparkSession.read.textFile(path))
+            .create(sparkSession.read.textFile(path.value))
             .deserialized
             .flatMap(m => kit.fromJackson(m).toOption)
       }
@@ -106,16 +106,16 @@ private[kafka] object sk {
     kit: KafkaTopicKit[K, V],
     fileFormat: NJFileFormat,
     saveMode: SaveMode,
-    path: String): Unit =
+    path: NJPath): Unit =
     fileFormat match {
       case NJFileFormat.Avro | NJFileFormat.Parquet | NJFileFormat.Json | NJFileFormat.Text =>
-        dataset.write.mode(saveMode).format(fileFormat.format).save(path)
+        dataset.write.mode(saveMode).format(fileFormat.format).save(path.value)
       case NJFileFormat.Jackson =>
         dataset.deserialized
           .map(m => kit.topicDef.toJackson(m).noSpaces)
           .write
           .mode(saveMode)
-          .text(path)
+          .text(path.value)
     }
 
   def upload[F[_], K, V](
