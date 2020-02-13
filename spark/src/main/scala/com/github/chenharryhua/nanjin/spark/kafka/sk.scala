@@ -79,7 +79,7 @@ private[kafka] object sk {
     kit: KafkaTopicKit[K, V],
     timeRange: NJDateTimeRange,
     fileFormat: NJFileFormat,
-    path: NJPath)(
+    path: String)(
     implicit
     sparkSession: SparkSession,
     keyEncoder: TypedEncoder[K],
@@ -89,10 +89,10 @@ private[kafka] object sk {
       fileFormat match {
         case NJFileFormat.Avro | NJFileFormat.Parquet | NJFileFormat.Json | NJFileFormat.Text =>
           TypedDataset.createUnsafe[NJConsumerRecord[K, V]](
-            sparkSession.read.schema(schema).format(fileFormat.format).load(path.value))
+            sparkSession.read.schema(schema).format(fileFormat.format).load(path))
         case NJFileFormat.Jackson =>
           TypedDataset
-            .create(sparkSession.read.textFile(path.value))
+            .create(sparkSession.read.textFile(path))
             .deserialized
             .flatMap(m => kit.fromJackson(m).toOption)
       }
@@ -106,24 +106,23 @@ private[kafka] object sk {
     kit: KafkaTopicKit[K, V],
     fileFormat: NJFileFormat,
     saveMode: SaveMode,
-    path: NJPath): Unit =
+    path: String): Unit =
     fileFormat match {
       case NJFileFormat.Avro | NJFileFormat.Parquet | NJFileFormat.Json | NJFileFormat.Text =>
-        dataset.write.mode(saveMode).format(fileFormat.format).save(path.value)
+        dataset.write.mode(saveMode).format(fileFormat.format).save(path)
       case NJFileFormat.Jackson =>
         dataset.deserialized
           .map(m => kit.topicDef.toJackson(m).noSpaces)
           .write
           .mode(saveMode)
-          .text(path.value)
+          .text(path)
     }
 
   def upload[F[_], K, V](
     dataset: TypedDataset[NJProducerRecord[K, V]],
     kit: KafkaTopicKit[K, V],
     repartition: NJRepartition,
-    uploadRate: UploadRate
-  )(
+    uploadRate: NJUploadRate)(
     implicit
     ce: ConcurrentEffect[F],
     timer: Timer[F],

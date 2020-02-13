@@ -7,12 +7,10 @@ private[kafka] trait DatasetExtensions {
 
   implicit final class SparKafkaTopicSyntax[K, V](kit: KafkaTopicKit[K, V]) extends Serializable {
 
-    def sparKafka(params: SKParams)(implicit spark: SparkSession): FsmStart[K, V] =
-      new FsmStart(KitBundle(kit, params))
+    def sparKafka(params: ConfigParamF.ConfigParam)(implicit spark: SparkSession): FsmStart[K, V] =
+      new FsmStart(kit, params)
 
     def sparKafka(implicit spark: SparkSession): FsmStart[K, V] =
-      sparKafka(SKParams.default)
-
+      sparKafka(ConfigParamF.defaultParams)
   }
-
 }
