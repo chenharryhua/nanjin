@@ -15,7 +15,6 @@ import org.apache.spark.sql.SaveMode
 import org.apache.spark.streaming.kafka010.{LocationStrategies, LocationStrategy}
 
 import scala.concurrent.duration._
-import org.apache.hadoop.hdfs.util.ByteArrayManager.Conf
 
 @Lenses final case class NJUploadRate(batchSize: Int, duration: FiniteDuration)
 
@@ -64,14 +63,14 @@ object ConfigParamF {
   final case class WithEndTime[K](value: LocalDateTime, cont: K) extends ConfigParamF[K]
   final case class WithZoneId[K](value: ZoneId, cont: K) extends ConfigParamF[K]
 
-  final case class WithSaveMode[K](saveMode: SaveMode, cont: K) extends ConfigParamF[K]
-  final case class WithLocationStrategy[K](ls: LocationStrategy, cont: K) extends ConfigParamF[K]
+  final case class WithSaveMode[K](value: SaveMode, cont: K) extends ConfigParamF[K]
+  final case class WithLocationStrategy[K](value: LocationStrategy, cont: K) extends ConfigParamF[K]
 
-  final case class WithRepartition[K](num: NJRepartition, cont: K) extends ConfigParamF[K]
-  final case class WithShowRows[K](num: Int, cont: K) extends ConfigParamF[K]
-  final case class WithShowTruncate[K](truncate: Boolean, cont: K) extends ConfigParamF[K]
+  final case class WithRepartition[K](value: NJRepartition, cont: K) extends ConfigParamF[K]
+  final case class WithShowRows[K](value: Int, cont: K) extends ConfigParamF[K]
+  final case class WithShowTruncate[K](value: Boolean, cont: K) extends ConfigParamF[K]
 
-  final case class WithPathBuilder[K](f: Reader[NJPathBuild, String], cont: K)
+  final case class WithPathBuilder[K](value: Reader[NJPathBuild, String], cont: K)
       extends ConfigParamF[K]
 
   implicit val configParamFunctor: Functor[ConfigParamF] = cats.derived.semi.functor[ConfigParamF]
@@ -108,14 +107,9 @@ object ConfigParamF {
   def withParquet(cont: ConfigParam): ConfigParam = withFileFormat(NJFileFormat.Parquet, cont)
   def withJackson(cont: ConfigParam): ConfigParam = withFileFormat(NJFileFormat.Jackson, cont)
 
-  def withStartTime(s: LocalDateTime, cont: ConfigParam): ConfigParam =
-    Fix(WithStartTime(s, cont))
-
-  def withEndTime(s: LocalDateTime, cont: ConfigParam): ConfigParam =
-    Fix(WithEndTime(s, cont))
-
-  def withZoneId(s: ZoneId, cont: ConfigParam): ConfigParam =
-    Fix(WithZoneId(s, cont))
+  def withStartTime(s: LocalDateTime, cont: ConfigParam): ConfigParam = Fix(WithStartTime(s, cont))
+  def withEndTime(s: LocalDateTime, cont: ConfigParam): ConfigParam   = Fix(WithEndTime(s, cont))
+  def withZoneId(s: ZoneId, cont: ConfigParam): ConfigParam           = Fix(WithZoneId(s, cont))
 
   def withLocationStrategy(ls: LocationStrategy, cont: ConfigParam): ConfigParam =
     Fix(WithLocationStrategy(ls, cont))
@@ -123,14 +117,10 @@ object ConfigParamF {
   def withRepartition(rp: Int, cont: ConfigParam): ConfigParam =
     Fix(WithRepartition(NJRepartition(rp), cont))
 
-  def withShowRows(num: Int, cont: ConfigParam): ConfigParam =
-    Fix(WithShowRows(num, cont))
+  def withShowRows(num: Int, cont: ConfigParam): ConfigParam       = Fix(WithShowRows(num, cont))
+  def withShowTruncate(t: Boolean, cont: ConfigParam): ConfigParam = Fix(WithShowTruncate(t, cont))
 
-  def withShowTruncate(truncate: Boolean, cont: ConfigParam): ConfigParam =
-    Fix(WithShowTruncate(truncate, cont))
-
-  def withSaveMode(sm: SaveMode, cont: ConfigParam): ConfigParam =
-    Fix(WithSaveMode(sm, cont))
+  def withSaveMode(sm: SaveMode, cont: ConfigParam): ConfigParam = Fix(WithSaveMode(sm, cont))
 
   def withPathBuilder(f: Reader[NJPathBuild, String], cont: ConfigParam): ConfigParam =
     Fix(WithPathBuilder(f, cont))
