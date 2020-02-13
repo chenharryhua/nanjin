@@ -51,17 +51,23 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], params: ConfigParamF.Config
     valEncoder: TypedEncoder[V]): FsmKafkaUnload[F, K, V] =
     new FsmKafkaUnload[F, K, V](kit, params)
 
+  def save[F[_]: Sync](path: String)(
+    implicit
+    keyEncoder: TypedEncoder[K],
+    valEncoder: TypedEncoder[V]): F[Unit] =
+    fromKafka[F].consumerRecords.map(_.withSaveMode(SaveMode.Overwrite).save(path))
+
+  def save[F[_]: Sync](
+    implicit
+    keyEncoder: TypedEncoder[K],
+    valEncoder: TypedEncoder[V]): F[Unit] =
+    save(p.pathBuilder(NJPathBuild(p.fileFormat, kit.topicName)))
+
   def fromDisk[F[_]](
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): FsmDiskLoad[F, K, V] =
     new FsmDiskLoad[F, K, V](kit, params)
-
-  def save[F[_]: Sync](path: String)(
-    implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): F[Unit] =
-    fromDisk[F].consumerRecords.map(_.withSaveMode(SaveMode.Overwrite).save(path))
 
   def crDataset[F[_]](tds: TypedDataset[NJConsumerRecord[K, V]])(
     implicit
@@ -74,12 +80,6 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], params: ConfigParamF.Config
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]) =
     new FsmProducerRecords[F, K, V](tds.dataset, kit, params)
-
-  def save[F[_]: Sync](
-    implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): F[Unit] =
-    save(p.pathBuilder(NJPathBuild(p.fileFormat, kit.topicName)))
 
   def replay[F[_]: ConcurrentEffect: Timer: ContextShift](
     implicit
