@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.data.Reader
 import cats.effect.Sync
 import cats.implicits._
+import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import frameless.cats.implicits._
@@ -17,16 +18,28 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
 
   // config section
   def withJson: FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs, kit, ConfigParamF.withJson(params))
+    new FsmConsumerRecords[F, K, V](
+      crs,
+      kit,
+      ConfigParamF.withFileFormat(NJFileFormat.Json, params))
 
   def withJackson: FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs, kit, ConfigParamF.withJackson(params))
+    new FsmConsumerRecords[F, K, V](
+      crs,
+      kit,
+      ConfigParamF.withFileFormat(NJFileFormat.Jackson, params))
 
   def withAvro: FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs, kit, ConfigParamF.withAvro(params))
+    new FsmConsumerRecords[F, K, V](
+      crs,
+      kit,
+      ConfigParamF.withFileFormat(NJFileFormat.Avro, params))
 
   def withParquet: FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs, kit, ConfigParamF.withParquet(params))
+    new FsmConsumerRecords[F, K, V](
+      crs,
+      kit,
+      ConfigParamF.withFileFormat(NJFileFormat.Parquet, params))
 
   def withPathBuilder(f: NJPathBuild => String): FsmConsumerRecords[F, K, V] =
     new FsmConsumerRecords[F, K, V](crs, kit, ConfigParamF.withPathBuilder(Reader(f), params))

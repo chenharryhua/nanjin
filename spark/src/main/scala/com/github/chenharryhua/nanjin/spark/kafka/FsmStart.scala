@@ -10,6 +10,7 @@ import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducer
 import com.github.chenharryhua.nanjin.spark.streaming.{SparkStreamStart, StreamParams}
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.{SaveMode, SparkSession}
+import com.github.chenharryhua.nanjin.common.NJFileFormat
 
 final class FsmStart[K, V](kit: KafkaTopicKit[K, V], params: ConfigParamF.ConfigParam)(
   implicit sparkSession: SparkSession)
@@ -25,10 +26,17 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], params: ConfigParamF.Config
   def withZoneId(zoneId: ZoneId): FsmStart[K, V] =
     new FsmStart[K, V](kit, ConfigParamF.withZoneId(zoneId, params))
 
-  def withJson: FsmStart[K, V]    = new FsmStart[K, V](kit, ConfigParamF.withJson(params))
-  def withJackson: FsmStart[K, V] = new FsmStart[K, V](kit, ConfigParamF.withJackson(params))
-  def withAvro: FsmStart[K, V]    = new FsmStart[K, V](kit, ConfigParamF.withAvro(params))
-  def withParquet: FsmStart[K, V] = new FsmStart[K, V](kit, ConfigParamF.withParquet(params))
+  def withJson: FsmStart[K, V] =
+    new FsmStart[K, V](kit, ConfigParamF.withFileFormat(NJFileFormat.Json, params))
+
+  def withJackson: FsmStart[K, V] =
+    new FsmStart[K, V](kit, ConfigParamF.withFileFormat(NJFileFormat.Jackson, params))
+
+  def withAvro: FsmStart[K, V] =
+    new FsmStart[K, V](kit, ConfigParamF.withFileFormat(NJFileFormat.Avro, params))
+
+  def withParquet: FsmStart[K, V] =
+    new FsmStart[K, V](kit, ConfigParamF.withFileFormat(NJFileFormat.Parquet, params))
 
   def withPathBuilder(f: NJPathBuild => String): FsmStart[K, V] =
     new FsmStart[K, V](kit, ConfigParamF.withPathBuilder(Reader(f), params))

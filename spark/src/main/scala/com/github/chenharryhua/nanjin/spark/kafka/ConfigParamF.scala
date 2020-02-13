@@ -82,9 +82,9 @@ object ConfigParamF {
     case WithBatchSize(v, c)        => SKParams.uploadRate.composeLens(NJUploadRate.batchSize).set(v)(c)
     case WithDuration(v, c)         => SKParams.uploadRate.composeLens(NJUploadRate.duration).set(v)(c)
     case WithFileFormat(v, c)       => SKParams.fileFormat.set(v)(c)
-    case WithStartTime(v, c)        => SKParams.timeRange.set(c.timeRange.withStartTime(v))(c)
-    case WithEndTime(v, c)          => SKParams.timeRange.set(c.timeRange.withEndTime(v))(c)
-    case WithZoneId(v, c)           => SKParams.timeRange.set(c.timeRange.withZoneId(v))(c)
+    case WithStartTime(v, c)        => SKParams.timeRange.modify(_.withStartTime(v))(c)
+    case WithEndTime(v, c)          => SKParams.timeRange.modify(_.withEndTime(v))(c)
+    case WithZoneId(v, c)           => SKParams.timeRange.modify(_.withZoneId(v))(c)
     case WithSaveMode(v, c)         => SKParams.saveMode.set(v)(c)
     case WithLocationStrategy(v, c) => SKParams.locationStrategy.set(v)(c)
     case WithRepartition(v, c)      => SKParams.repartition.set(v)(c)
@@ -95,17 +95,13 @@ object ConfigParamF {
 
   def evalParams(params: ConfigParam): SKParams = scheme.cata(algebra).apply(params)
 
-  val defaultParams: ConfigParam                                      = Fix(DefaultParams[ConfigParam]())
+  val defaultParams: ConfigParam = Fix(DefaultParams[ConfigParam]())
+
   def withBatchSize(v: Int, cont: ConfigParam): ConfigParam           = Fix(WithBatchSize(v, cont))
   def withDuration(v: FiniteDuration, cont: ConfigParam): ConfigParam = Fix(WithDuration(v, cont))
 
   def withFileFormat(ff: NJFileFormat, cont: ConfigParam): Fix[ConfigParamF] =
     Fix(WithFileFormat(ff, cont))
-
-  def withJson(cont: ConfigParam): ConfigParam    = withFileFormat(NJFileFormat.Json, cont)
-  def withAvro(cont: ConfigParam): ConfigParam    = withFileFormat(NJFileFormat.Avro, cont)
-  def withParquet(cont: ConfigParam): ConfigParam = withFileFormat(NJFileFormat.Parquet, cont)
-  def withJackson(cont: ConfigParam): ConfigParam = withFileFormat(NJFileFormat.Jackson, cont)
 
   def withStartTime(s: LocalDateTime, cont: ConfigParam): ConfigParam = Fix(WithStartTime(s, cont))
   def withEndTime(s: LocalDateTime, cont: ConfigParam): ConfigParam   = Fix(WithEndTime(s, cont))
