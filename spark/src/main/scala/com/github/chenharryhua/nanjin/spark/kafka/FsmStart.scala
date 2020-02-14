@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducerRecord}
-import com.github.chenharryhua.nanjin.spark.streaming.{SparkStreamStart, StreamConfigF}
+import com.github.chenharryhua.nanjin.spark.streaming.{KafkaCRStream, SparkStream, StreamConfigF}
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
@@ -109,18 +109,24 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], params: SKConfigF.SKConfig)
 
   def streaming[F[_]: Sync, A](f: NJConsumerRecord[K, V] => A)(
     implicit
-    encoder: TypedEncoder[A]): F[SparkStreamStart[F, A]] =
+    encoder: TypedEncoder[A]): F[SparkStream[F, A]] =
     sk.streaming[F, K, V, A](kit, p.timeRange)(f)
       .map(s =>
-        new SparkStreamStart(
+        new SparkStream(
           s.dataset,
-          StreamConfigF.withCheckpointAppend(
-            s"kafka/${kit.topicName.value}",
-            StreamConfigF(p.timeRange, p.showDs, p.fileFormat))))
+          StreamConfigF
+            .StreamConfig(p.timeRange, p.showDs, p.fileFormat)
+            .withCheckpointAppend(s"kafka/${kit.topicName.value}")))
 
   def streaming[F[_]: Sync](
     implicit
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): F[SparkStreamStart[F, NJConsumerRecord[K, V]]] =
-    streaming[F, NJConsumerRecord[K, V]](identity)
+    valEncoder: TypedEncoder[V]): F[KafkaCRStream[F, K, V]] =
+    sk.streaming[F, K, V, NJConsumerRecord[K, V]](kit, p.timeRange)(identity)
+      .map(s =>
+        new KafkaCRStream[F, K, V](
+          s.dataset,
+          StreamConfigF
+            .StreamConfig(p.timeRange, p.showDs, p.fileFormat)
+            .withCheckpointAppend(s"kafkacr/${kit.topicName.value}")))
 }

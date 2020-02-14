@@ -12,7 +12,7 @@ final case class PartitionedConsumerRecord[K, V](
   Day: String,
   payload: NJConsumerRecord[K, V])
 
-final class NJConsumerRecordPartitionFileSink[F[_], K, V](
+final class PartitionFileSink[F[_], K, V](
   dsw: DataStreamWriter[PartitionedConsumerRecord[K, V]],
   params: StreamConfigF.StreamConfig,
   path: String)

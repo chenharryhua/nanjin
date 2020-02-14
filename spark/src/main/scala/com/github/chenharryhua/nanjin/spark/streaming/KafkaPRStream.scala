@@ -8,8 +8,8 @@ import cats.implicits._
 
 final class KafkaPRStream[F[_], K: TypedEncoder, V: TypedEncoder](
   ds: Dataset[NJProducerRecord[K, V]],
-  params: StreamConfigF.StreamConfig)
-    extends Serializable {
+  params: StreamConfigF.StreamConfig
+) extends Serializable {
 
   @transient lazy val typedDataset: TypedDataset[NJProducerRecord[K, V]] = TypedDataset.create(ds)
 
@@ -26,6 +26,5 @@ final class KafkaPRStream[F[_], K: TypedEncoder, V: TypedEncoder](
         .writeStream,
       params,
       kit.settings.producerSettings,
-      kit.topicName
-    )
+      kit.topicName)
 }
