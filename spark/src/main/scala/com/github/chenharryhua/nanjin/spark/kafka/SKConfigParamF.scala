@@ -80,7 +80,7 @@ private[spark] object SKConfigParamF {
   implicit val configParamFunctor: Functor[SKConfigParamF] =
     cats.derived.semi.functor[SKConfigParamF]
 
-  type ConfigParam = Fix[SKConfigParamF]
+  type SKConfigParam = Fix[SKConfigParamF]
 
   private val algebra: Algebra[SKConfigParamF, SKParams] = Algebra[SKConfigParamF, SKParams] {
     case DefaultParams()            => SKParams.default
@@ -99,34 +99,39 @@ private[spark] object SKConfigParamF {
     case WithPathBuilder(v, c)      => SKParams.pathBuilder.set(v)(c)
   }
 
-  def evalParams(params: ConfigParam): SKParams = scheme.cata(algebra).apply(params)
+  def evalParams(params: SKConfigParam): SKParams = scheme.cata(algebra).apply(params)
 
-  val defaultParams: ConfigParam = Fix(DefaultParams[ConfigParam]())
+  val defaultParams: SKConfigParam = Fix(DefaultParams[SKConfigParam]())
 
-  def withBatchSize(v: Int, cont: ConfigParam): ConfigParam           = Fix(WithBatchSize(v, cont))
-  def withDuration(v: FiniteDuration, cont: ConfigParam): ConfigParam = Fix(WithDuration(v, cont))
+  def withBatchSize(v: Int, cont: SKConfigParam): SKConfigParam = Fix(WithBatchSize(v, cont))
 
-  def withFileFormat(ff: NJFileFormat, cont: ConfigParam): Fix[SKConfigParamF] =
+  def withDuration(v: FiniteDuration, cont: SKConfigParam): SKConfigParam =
+    Fix(WithDuration(v, cont))
+
+  def withFileFormat(ff: NJFileFormat, cont: SKConfigParam): Fix[SKConfigParamF] =
     Fix(WithFileFormat(ff, cont))
 
-  def withStartTime(s: LocalDateTime, cont: ConfigParam): ConfigParam = Fix(WithStartTime(s, cont))
-  def withEndTime(s: LocalDateTime, cont: ConfigParam): ConfigParam   = Fix(WithEndTime(s, cont))
-  def withZoneId(s: ZoneId, cont: ConfigParam): ConfigParam           = Fix(WithZoneId(s, cont))
+  def withStartTime(s: LocalDateTime, cont: SKConfigParam): SKConfigParam =
+    Fix(WithStartTime(s, cont))
+  def withEndTime(s: LocalDateTime, cont: SKConfigParam): SKConfigParam = Fix(WithEndTime(s, cont))
+  def withZoneId(s: ZoneId, cont: SKConfigParam): SKConfigParam         = Fix(WithZoneId(s, cont))
 
-  def withTimeRange(tr: NJDateTimeRange, cont: ConfigParam): ConfigParam =
+  def withTimeRange(tr: NJDateTimeRange, cont: SKConfigParam): SKConfigParam =
     Fix(WithTimeRange(tr, cont))
 
-  def withLocationStrategy(ls: LocationStrategy, cont: ConfigParam): ConfigParam =
+  def withLocationStrategy(ls: LocationStrategy, cont: SKConfigParam): SKConfigParam =
     Fix(WithLocationStrategy(ls, cont))
 
-  def withRepartition(rp: Int, cont: ConfigParam): ConfigParam =
+  def withRepartition(rp: Int, cont: SKConfigParam): SKConfigParam =
     Fix(WithRepartition(NJRepartition(rp), cont))
 
-  def withShowRows(num: Int, cont: ConfigParam): ConfigParam       = Fix(WithShowRows(num, cont))
-  def withShowTruncate(t: Boolean, cont: ConfigParam): ConfigParam = Fix(WithShowTruncate(t, cont))
+  def withShowRows(num: Int, cont: SKConfigParam): SKConfigParam = Fix(WithShowRows(num, cont))
 
-  def withSaveMode(sm: SaveMode, cont: ConfigParam): ConfigParam = Fix(WithSaveMode(sm, cont))
+  def withShowTruncate(t: Boolean, cont: SKConfigParam): SKConfigParam =
+    Fix(WithShowTruncate(t, cont))
 
-  def withPathBuilder(f: Reader[NJPathBuild, String], cont: ConfigParam): ConfigParam =
+  def withSaveMode(sm: SaveMode, cont: SKConfigParam): SKConfigParam = Fix(WithSaveMode(sm, cont))
+
+  def withPathBuilder(f: Reader[NJPathBuild, String], cont: SKConfigParam): SKConfigParam =
     Fix(WithPathBuilder(f, cont))
 }

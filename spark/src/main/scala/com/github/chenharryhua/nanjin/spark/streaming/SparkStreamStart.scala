@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.streaming
 
 import cats.implicits._
-import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJProducerRecord
 import com.github.chenharryhua.nanjin.spark.NJPath
@@ -11,7 +10,7 @@ import org.apache.spark.sql.streaming.{OutputMode, Trigger}
 
 final class SparkStreamStart[F[_], A: TypedEncoder](
   ds: Dataset[A],
-  params: StreamConfigParamF.ConfigParam)
+  params: StreamConfigParamF.StreamConfigParam)
     extends Serializable {
   @transient lazy val typedDataset: TypedDataset[A] = TypedDataset.create(ds)
 

@@ -14,7 +14,7 @@ import scala.concurrent.duration.FiniteDuration
 final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   prs: Dataset[NJProducerRecord[K, V]],
   kit: KafkaTopicKit[K, V],
-  params: SKConfigParamF.ConfigParam
+  params: SKConfigParamF.SKConfigParam
 ) extends Serializable {
 
   // config section

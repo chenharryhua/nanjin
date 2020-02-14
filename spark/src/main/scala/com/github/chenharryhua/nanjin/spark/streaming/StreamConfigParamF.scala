@@ -60,7 +60,7 @@ private[spark] object StreamConfigParamF {
   implicit val configParamFunctor: Functor[StreamConfigParamF] =
     cats.derived.semi.functor[StreamConfigParamF]
 
-  type ConfigParam = Fix[StreamConfigParamF]
+  type StreamConfigParam = Fix[StreamConfigParamF]
 
   private val algebra: Algebra[StreamConfigParamF, StreamParams] =
     Algebra[StreamConfigParamF, StreamParams] {
@@ -72,24 +72,24 @@ private[spark] object StreamConfigParamF {
       case WithTrigger(v, c)           => StreamParams.trigger.set(v)(c)
     }
 
-  def evalParams(params: ConfigParam): StreamParams = scheme.cata(algebra).apply(params)
+  def evalParams(params: StreamConfigParam): StreamParams = scheme.cata(algebra).apply(params)
 
-  def apply(tr: NJDateTimeRange, sd: NJShowDataset, ff: NJFileFormat): ConfigParam =
-    Fix(DefaultParams[ConfigParam](tr, sd, ff))
+  def apply(tr: NJDateTimeRange, sd: NJShowDataset, ff: NJFileFormat): StreamConfigParam =
+    Fix(DefaultParams[StreamConfigParam](tr, sd, ff))
 
-  def withCheckpoint(cp: String, cont: ConfigParam): ConfigParam =
+  def withCheckpoint(cp: String, cont: StreamConfigParam): StreamConfigParam =
     Fix(WithCheckpointReplace(cp, cont))
 
-  def withCheckpointAppend(cp: String, cont: ConfigParam): ConfigParam =
+  def withCheckpointAppend(cp: String, cont: StreamConfigParam): StreamConfigParam =
     Fix(WithCheckpointAppend(cp, cont))
 
-  def withFailOnDataLoss(dl: Boolean, cont: ConfigParam): ConfigParam =
+  def withFailOnDataLoss(dl: Boolean, cont: StreamConfigParam): StreamConfigParam =
     Fix(WithFailOnDataLoss(dl, cont))
 
-  def withOutputMode(f: OutputMode, cont: ConfigParam): ConfigParam =
+  def withOutputMode(f: OutputMode, cont: StreamConfigParam): StreamConfigParam =
     Fix(WithOutputMode(f, cont))
 
-  def withTrigger(trigger: Trigger, cont: ConfigParam): ConfigParam =
+  def withTrigger(trigger: Trigger, cont: StreamConfigParam): StreamConfigParam =
     Fix(WithTrigger(trigger, cont))
 
 }

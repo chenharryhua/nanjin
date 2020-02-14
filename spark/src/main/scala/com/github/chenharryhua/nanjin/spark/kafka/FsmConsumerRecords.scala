@@ -13,7 +13,7 @@ import org.apache.spark.sql.{Dataset, SaveMode}
 final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   crs: Dataset[NJConsumerRecord[K, V]],
   kit: KafkaTopicKit[K, V],
-  params: SKConfigParamF.ConfigParam)
+  params: SKConfigParamF.SKConfigParam)
     extends Serializable {
 
   // config section

@@ -13,7 +13,7 @@ import com.github.chenharryhua.nanjin.spark.streaming.{SparkStreamStart, StreamC
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
-final class FsmStart[K, V](kit: KafkaTopicKit[K, V], params: SKConfigParamF.ConfigParam)(
+final class FsmStart[K, V](kit: KafkaTopicKit[K, V], params: SKConfigParamF.SKConfigParam)(
   implicit sparkSession: SparkSession)
     extends Serializable {
 
