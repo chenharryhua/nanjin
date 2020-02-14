@@ -6,14 +6,14 @@ import fs2.Stream
 import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, StreamingQueryProgress}
 
 final case class PartitionedConsumerRecord[K, V](
-  topicName: String,
+  Topic: String,
   Year: String,
   Month: String,
   Day: String,
   payload: NJConsumerRecord[K, V])
 
 final class NJConsumerRecordPartitionFileSink[F[_], K, V](
-  dsw: DataStreamWriter[NJConsumerRecord[K, V]],
+  dsw: DataStreamWriter[PartitionedConsumerRecord[K, V]],
   params: StreamConfigF.StreamConfig,
   path: String)
     extends NJStreamSink[F] {
@@ -25,6 +25,7 @@ final class NJConsumerRecordPartitionFileSink[F[_], K, V](
     timer: Timer[F]): Stream[F, StreamingQueryProgress] =
     ss.queryStream(
       dsw
+        .partitionBy("Topic", "Year", "Month", "Day")
         .trigger(p.trigger)
         .format(p.fileFormat.format)
         .outputMode(OutputMode.Append)

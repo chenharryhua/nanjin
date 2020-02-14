@@ -1,8 +1,9 @@
 package com.github.chenharryhua.nanjin.spark.streaming
 
 import cats.implicits._
+import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
-import com.github.chenharryhua.nanjin.kafka.common.NJProducerRecord
+import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducerRecord}
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.streaming.{OutputMode, Trigger}
@@ -48,6 +49,27 @@ final class SparkStreamStart[F[_], A: TypedEncoder](
 
   def fileSink(path: String): NJFileSink[F, A] =
     new NJFileSink[F, A](ds.writeStream, params, path)
+
+  def partitionedFileSink[K, V](path: String)(
+    implicit
+    keyEncoder: TypedEncoder[K],
+    valEncoder: TypedEncoder[V],
+    cr: A =:= NJConsumerRecord[K, V]
+  ): NJConsumerRecordPartitionFileSink[F, K, V] =
+    new NJConsumerRecordPartitionFileSink[F, K, V](
+      typedDataset.deserialized.map { m =>
+        val time = NJTimestamp(m.timestamp / 1000)
+        val tz   = p.timeRange.zoneId
+        PartitionedConsumerRecord(
+          m.topic,
+          time.yearStr(tz),
+          time.monthStr(tz),
+          time.dayStr(tz),
+          cr(m))
+      }.dataset.writeStream,
+      params,
+      path
+    )
 
   def kafkaSink[K, V](kit: KafkaTopicKit[K, V])(
     implicit pr: A =:= NJProducerRecord[K, V]): NJKafkaSink[F] =
