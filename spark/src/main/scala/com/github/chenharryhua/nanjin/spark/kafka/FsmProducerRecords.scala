@@ -19,13 +19,13 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
 
   // config section
   def withBatchSize(num: Int) =
-    new FsmProducerRecords[F, K, V](prs, kit, SKConfigF.withBatchSize(num, params))
+    new FsmProducerRecords[F, K, V](prs, kit, params.withBatchSize(num))
 
   def withDuration(fd: FiniteDuration) =
-    new FsmProducerRecords[F, K, V](prs, kit, SKConfigF.withDuration(fd, params))
+    new FsmProducerRecords[F, K, V](prs, kit, params.withDuration(fd))
 
   def withRepartition(rp: Int) =
-    new FsmProducerRecords[F, K, V](prs, kit, SKConfigF.withRepartition(rp, params))
+    new FsmProducerRecords[F, K, V](prs, kit, params.withRepartition(rp))
 
   def noTimestamp: FsmProducerRecords[F, K, V] =
     new FsmProducerRecords[F, K, V](

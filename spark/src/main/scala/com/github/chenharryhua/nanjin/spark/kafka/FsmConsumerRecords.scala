@@ -18,28 +18,22 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
 
   // config section
   def withJson: FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs, kit, SKConfigF.withFileFormat(NJFileFormat.Json, params))
+    new FsmConsumerRecords[F, K, V](crs, kit, params.withFileFormat(NJFileFormat.Json))
 
   def withJackson: FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](
-      crs,
-      kit,
-      SKConfigF.withFileFormat(NJFileFormat.Jackson, params))
+    new FsmConsumerRecords[F, K, V](crs, kit, params.withFileFormat(NJFileFormat.Jackson))
 
   def withAvro: FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs, kit, SKConfigF.withFileFormat(NJFileFormat.Avro, params))
+    new FsmConsumerRecords[F, K, V](crs, kit, params.withFileFormat(NJFileFormat.Avro))
 
   def withParquet: FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](
-      crs,
-      kit,
-      SKConfigF.withFileFormat(NJFileFormat.Parquet, params))
+    new FsmConsumerRecords[F, K, V](crs, kit, params.withFileFormat(NJFileFormat.Parquet))
 
   def withPathBuilder(f: NJPathBuild => String): FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs, kit, SKConfigF.withPathBuilder(Reader(f), params))
+    new FsmConsumerRecords[F, K, V](crs, kit, params.withPathBuilder(Reader(f)))
 
   def withSaveMode(sm: SaveMode): FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs, kit, SKConfigF.withSaveMode(sm, params))
+    new FsmConsumerRecords[F, K, V](crs, kit, params.withSaveMode(sm))
 
   def withOverwrite: FsmConsumerRecords[F, K, V] =
     withSaveMode(SaveMode.Overwrite)

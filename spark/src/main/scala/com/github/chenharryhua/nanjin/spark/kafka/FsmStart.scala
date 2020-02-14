@@ -19,40 +19,40 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], params: SKConfigF.SKConfig)
 
   // config section
   def withStartTime(dt: LocalDateTime): FsmStart[K, V] =
-    new FsmStart[K, V](kit, SKConfigF.withStartTime(dt, params))
+    new FsmStart[K, V](kit, params.withStartTime(dt))
 
   def withEndTime(dt: LocalDateTime): FsmStart[K, V] =
-    new FsmStart[K, V](kit, SKConfigF.withEndTime(dt, params))
+    new FsmStart[K, V](kit, params.withEndTime(dt))
 
   def withZoneId(zoneId: ZoneId): FsmStart[K, V] =
-    new FsmStart[K, V](kit, SKConfigF.withZoneId(zoneId, params))
+    new FsmStart[K, V](kit, params.withZoneId(zoneId))
 
   def withTimeRange(tr: NJDateTimeRange): FsmStart[K, V] =
-    new FsmStart[K, V](kit, SKConfigF.withTimeRange(tr, params))
+    new FsmStart[K, V](kit, params.withTimeRange(tr))
 
   def withJson: FsmStart[K, V] =
-    new FsmStart[K, V](kit, SKConfigF.withFileFormat(NJFileFormat.Json, params))
+    new FsmStart[K, V](kit, params.withFileFormat(NJFileFormat.Json))
 
   def withJackson: FsmStart[K, V] =
-    new FsmStart[K, V](kit, SKConfigF.withFileFormat(NJFileFormat.Jackson, params))
+    new FsmStart[K, V](kit, params.withFileFormat(NJFileFormat.Jackson))
 
   def withAvro: FsmStart[K, V] =
-    new FsmStart[K, V](kit, SKConfigF.withFileFormat(NJFileFormat.Avro, params))
+    new FsmStart[K, V](kit, params.withFileFormat(NJFileFormat.Avro))
 
   def withParquet: FsmStart[K, V] =
-    new FsmStart[K, V](kit, SKConfigF.withFileFormat(NJFileFormat.Parquet, params))
+    new FsmStart[K, V](kit, params.withFileFormat(NJFileFormat.Parquet))
 
   def withPathBuilder(f: NJPathBuild => String): FsmStart[K, V] =
-    new FsmStart[K, V](kit, SKConfigF.withPathBuilder(Reader(f), params))
+    new FsmStart[K, V](kit, params.withPathBuilder(Reader(f)))
 
   def withOverwrite: FsmStart[K, V] =
-    new FsmStart[K, V](kit, SKConfigF.withSaveMode(SaveMode.Overwrite, params))
+    new FsmStart[K, V](kit, params.withSaveMode(SaveMode.Overwrite))
 
   def withShowRows(num: Int): FsmStart[K, V] =
-    new FsmStart[K, V](kit, SKConfigF.withShowRows(num, params))
+    new FsmStart[K, V](kit, params.withShowRows(num))
 
   def withTruncate: FsmStart[K, V] =
-    new FsmStart[K, V](kit, SKConfigF.withShowTruncate(truncate = true, params))
+    new FsmStart[K, V](kit, params.withShowTruncate(true))
 
   private val p: SKParams = SKConfigF.evalParams(params)
 

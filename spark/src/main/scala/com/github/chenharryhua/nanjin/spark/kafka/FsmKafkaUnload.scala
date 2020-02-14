@@ -13,7 +13,7 @@ final class FsmKafkaUnload[F[_], K, V](kit: KafkaTopicKit[K, V], params: SKConfi
     extends Serializable {
 
   def withLocationStrategy(ls: LocationStrategy): FsmKafkaUnload[F, K, V] =
-    new FsmKafkaUnload[F, K, V](kit, SKConfigF.withLocationStrategy(ls, params))
+    new FsmKafkaUnload[F, K, V](kit, params.withLocationStrategy(ls))
 
   private val p: SKParams = SKConfigF.evalParams(params)
 
