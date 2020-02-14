@@ -13,7 +13,7 @@ import org.apache.spark.sql.{Dataset, SaveMode}
 final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   crs: Dataset[NJConsumerRecord[K, V]],
   kit: KafkaTopicKit[K, V],
-  params: ConfigParamF.ConfigParam)
+  params: SKConfigParamF.ConfigParam)
     extends Serializable {
 
   // config section
@@ -21,31 +21,31 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     new FsmConsumerRecords[F, K, V](
       crs,
       kit,
-      ConfigParamF.withFileFormat(NJFileFormat.Json, params))
+      SKConfigParamF.withFileFormat(NJFileFormat.Json, params))
 
   def withJackson: FsmConsumerRecords[F, K, V] =
     new FsmConsumerRecords[F, K, V](
       crs,
       kit,
-      ConfigParamF.withFileFormat(NJFileFormat.Jackson, params))
+      SKConfigParamF.withFileFormat(NJFileFormat.Jackson, params))
 
   def withAvro: FsmConsumerRecords[F, K, V] =
     new FsmConsumerRecords[F, K, V](
       crs,
       kit,
-      ConfigParamF.withFileFormat(NJFileFormat.Avro, params))
+      SKConfigParamF.withFileFormat(NJFileFormat.Avro, params))
 
   def withParquet: FsmConsumerRecords[F, K, V] =
     new FsmConsumerRecords[F, K, V](
       crs,
       kit,
-      ConfigParamF.withFileFormat(NJFileFormat.Parquet, params))
+      SKConfigParamF.withFileFormat(NJFileFormat.Parquet, params))
 
   def withPathBuilder(f: NJPathBuild => String): FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs, kit, ConfigParamF.withPathBuilder(Reader(f), params))
+    new FsmConsumerRecords[F, K, V](crs, kit, SKConfigParamF.withPathBuilder(Reader(f), params))
 
   def withSaveMode(sm: SaveMode): FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs, kit, ConfigParamF.withSaveMode(sm, params))
+    new FsmConsumerRecords[F, K, V](crs, kit, SKConfigParamF.withSaveMode(sm, params))
 
   def withOverwrite: FsmConsumerRecords[F, K, V] =
     withSaveMode(SaveMode.Overwrite)
@@ -53,7 +53,7 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   @transient lazy val typedDataset: TypedDataset[NJConsumerRecord[K, V]] =
     TypedDataset.create(crs)
 
-  private val p: SKParams = ConfigParamF.evalParams(params)
+  private val p: SKParams = SKConfigParamF.evalParams(params)
 
   // api section
   def bimapTo[K2: TypedEncoder, V2: TypedEncoder](

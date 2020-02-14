@@ -8,14 +8,14 @@ import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.kafka010.LocationStrategy
 
-final class FsmKafkaUnload[F[_], K, V](kit: KafkaTopicKit[K, V], params: ConfigParamF.ConfigParam)(
+final class FsmKafkaUnload[F[_], K, V](kit: KafkaTopicKit[K, V], params: SKConfigParamF.ConfigParam)(
   implicit sparkSession: SparkSession)
     extends Serializable {
 
   def withLocationStrategy(ls: LocationStrategy): FsmKafkaUnload[F, K, V] =
-    new FsmKafkaUnload[F, K, V](kit, ConfigParamF.withLocationStrategy(ls, params))
+    new FsmKafkaUnload[F, K, V](kit, SKConfigParamF.withLocationStrategy(ls, params))
 
-  private val p: SKParams = ConfigParamF.evalParams(params)
+  private val p: SKParams = SKConfigParamF.evalParams(params)
 
   def transform[A](f: NJConsumerRecord[K, V] => A)(
     implicit

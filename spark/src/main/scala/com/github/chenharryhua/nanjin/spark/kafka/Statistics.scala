@@ -1,12 +1,11 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import java.time.{LocalDate, LocalDateTime, LocalTime, ZoneId}
+import java.time.{LocalDate, LocalDateTime, LocalTime}
 
 import cats.effect.Sync
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.datetime.iso._
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
-import com.github.chenharryhua.nanjin.spark.NJShowDataset
 import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.cats.implicits._
 import frameless.functions.aggregate.count
@@ -21,10 +20,10 @@ final case class DailyMinuteAggResult(date: LocalDateTime, count: Long)
 
 final class Statistics[F[_], K: TypedEncoder, V: TypedEncoder](
   ds: Dataset[NJConsumerRecord[K, V]],
-  params: ConfigParamF.ConfigParam)
+  params: SKConfigParamF.ConfigParam)
     extends Serializable {
 
-  private val p: SKParams = ConfigParamF.evalParams(params)
+  private val p: SKParams = SKConfigParamF.evalParams(params)
 
   @transient private lazy val typedDataset: TypedDataset[NJConsumerRecord[K, V]] =
     TypedDataset.create(ds)

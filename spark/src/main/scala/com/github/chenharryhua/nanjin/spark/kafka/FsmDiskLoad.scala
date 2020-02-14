@@ -5,11 +5,11 @@ import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import frameless.TypedEncoder
 import org.apache.spark.sql.SparkSession
 
-final class FsmDiskLoad[F[_], K, V](kit: KafkaTopicKit[K, V], params: ConfigParamF.ConfigParam)(
+final class FsmDiskLoad[F[_], K, V](kit: KafkaTopicKit[K, V], params: SKConfigParamF.ConfigParam)(
   implicit sparkSession: SparkSession)
     extends Serializable {
 
-  private val p: SKParams = ConfigParamF.evalParams(params)
+  private val p: SKParams = SKConfigParamF.evalParams(params)
 
   def consumerRecords(
     implicit

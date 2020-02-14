@@ -49,35 +49,38 @@ object SKParams {
     )
 }
 
-sealed trait ConfigParamF[A]
+sealed trait SKConfigParamF[A]
 
-object ConfigParamF {
-  final case class DefaultParams[K]() extends ConfigParamF[K]
+object SKConfigParamF {
+  final case class DefaultParams[K]() extends SKConfigParamF[K]
 
-  final case class WithBatchSize[K](value: Int, cont: K) extends ConfigParamF[K]
-  final case class WithDuration[K](value: FiniteDuration, cont: K) extends ConfigParamF[K]
+  final case class WithBatchSize[K](value: Int, cont: K) extends SKConfigParamF[K]
+  final case class WithDuration[K](value: FiniteDuration, cont: K) extends SKConfigParamF[K]
 
-  final case class WithFileFormat[K](value: NJFileFormat, cont: K) extends ConfigParamF[K]
+  final case class WithFileFormat[K](value: NJFileFormat, cont: K) extends SKConfigParamF[K]
 
-  final case class WithStartTime[K](value: LocalDateTime, cont: K) extends ConfigParamF[K]
-  final case class WithEndTime[K](value: LocalDateTime, cont: K) extends ConfigParamF[K]
-  final case class WithZoneId[K](value: ZoneId, cont: K) extends ConfigParamF[K]
+  final case class WithStartTime[K](value: LocalDateTime, cont: K) extends SKConfigParamF[K]
+  final case class WithEndTime[K](value: LocalDateTime, cont: K) extends SKConfigParamF[K]
+  final case class WithZoneId[K](value: ZoneId, cont: K) extends SKConfigParamF[K]
 
-  final case class WithSaveMode[K](value: SaveMode, cont: K) extends ConfigParamF[K]
-  final case class WithLocationStrategy[K](value: LocationStrategy, cont: K) extends ConfigParamF[K]
+  final case class WithSaveMode[K](value: SaveMode, cont: K) extends SKConfigParamF[K]
 
-  final case class WithRepartition[K](value: NJRepartition, cont: K) extends ConfigParamF[K]
-  final case class WithShowRows[K](value: Int, cont: K) extends ConfigParamF[K]
-  final case class WithShowTruncate[K](value: Boolean, cont: K) extends ConfigParamF[K]
+  final case class WithLocationStrategy[K](value: LocationStrategy, cont: K)
+      extends SKConfigParamF[K]
+
+  final case class WithRepartition[K](value: NJRepartition, cont: K) extends SKConfigParamF[K]
+  final case class WithShowRows[K](value: Int, cont: K) extends SKConfigParamF[K]
+  final case class WithShowTruncate[K](value: Boolean, cont: K) extends SKConfigParamF[K]
 
   final case class WithPathBuilder[K](value: Reader[NJPathBuild, String], cont: K)
-      extends ConfigParamF[K]
+      extends SKConfigParamF[K]
 
-  implicit val configParamFunctor: Functor[ConfigParamF] = cats.derived.semi.functor[ConfigParamF]
+  implicit val configParamFunctor: Functor[SKConfigParamF] =
+    cats.derived.semi.functor[SKConfigParamF]
 
-  type ConfigParam = Fix[ConfigParamF]
+  type ConfigParam = Fix[SKConfigParamF]
 
-  private val algebra: Algebra[ConfigParamF, SKParams] = Algebra[ConfigParamF, SKParams] {
+  private val algebra: Algebra[SKConfigParamF, SKParams] = Algebra[SKConfigParamF, SKParams] {
     case DefaultParams()            => SKParams.default
     case WithBatchSize(v, c)        => SKParams.uploadRate.composeLens(NJUploadRate.batchSize).set(v)(c)
     case WithDuration(v, c)         => SKParams.uploadRate.composeLens(NJUploadRate.duration).set(v)(c)
@@ -100,7 +103,7 @@ object ConfigParamF {
   def withBatchSize(v: Int, cont: ConfigParam): ConfigParam           = Fix(WithBatchSize(v, cont))
   def withDuration(v: FiniteDuration, cont: ConfigParam): ConfigParam = Fix(WithDuration(v, cont))
 
-  def withFileFormat(ff: NJFileFormat, cont: ConfigParam): Fix[ConfigParamF] =
+  def withFileFormat(ff: NJFileFormat, cont: ConfigParam): Fix[SKConfigParamF] =
     Fix(WithFileFormat(ff, cont))
 
   def withStartTime(s: LocalDateTime, cont: ConfigParam): ConfigParam = Fix(WithStartTime(s, cont))
