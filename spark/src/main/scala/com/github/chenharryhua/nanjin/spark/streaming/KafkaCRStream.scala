@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
 
-class KafkaCRStreamStart[F[_], K: TypedEncoder, V: TypedEncoder](
+final class KafkaCRStream[F[_], K: TypedEncoder, V: TypedEncoder](
   ds: Dataset[NJConsumerRecord[K, V]],
   params: StreamConfigF.StreamConfig)
     extends Serializable {
