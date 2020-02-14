@@ -6,6 +6,7 @@ import cats.data.Reader
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
+import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.spark.streaming.{SparkStreamStart, StreamConfigParamF}
@@ -25,6 +26,9 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], params: SKConfigParamF.Conf
 
   def withZoneId(zoneId: ZoneId): FsmStart[K, V] =
     new FsmStart[K, V](kit, SKConfigParamF.withZoneId(zoneId, params))
+
+  def withTimeRange(tr: NJDateTimeRange): FsmStart[K, V] =
+    new FsmStart[K, V](kit, SKConfigParamF.withTimeRange(tr, params))
 
   def withJson: FsmStart[K, V] =
     new FsmStart[K, V](kit, SKConfigParamF.withFileFormat(NJFileFormat.Json, params))

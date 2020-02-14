@@ -63,6 +63,8 @@ private[spark] object SKConfigParamF {
   final case class WithEndTime[K](value: LocalDateTime, cont: K) extends SKConfigParamF[K]
   final case class WithZoneId[K](value: ZoneId, cont: K) extends SKConfigParamF[K]
 
+  final case class WithTimeRange[K](value: NJDateTimeRange, cont: K) extends SKConfigParamF[K]
+
   final case class WithSaveMode[K](value: SaveMode, cont: K) extends SKConfigParamF[K]
 
   final case class WithLocationStrategy[K](value: LocationStrategy, cont: K)
@@ -88,6 +90,7 @@ private[spark] object SKConfigParamF {
     case WithStartTime(v, c)        => SKParams.timeRange.modify(_.withStartTime(v))(c)
     case WithEndTime(v, c)          => SKParams.timeRange.modify(_.withEndTime(v))(c)
     case WithZoneId(v, c)           => SKParams.timeRange.modify(_.withZoneId(v))(c)
+    case WithTimeRange(v, c)        => SKParams.timeRange.set(v)(c)
     case WithSaveMode(v, c)         => SKParams.saveMode.set(v)(c)
     case WithLocationStrategy(v, c) => SKParams.locationStrategy.set(v)(c)
     case WithRepartition(v, c)      => SKParams.repartition.set(v)(c)
@@ -109,6 +112,9 @@ private[spark] object SKConfigParamF {
   def withStartTime(s: LocalDateTime, cont: ConfigParam): ConfigParam = Fix(WithStartTime(s, cont))
   def withEndTime(s: LocalDateTime, cont: ConfigParam): ConfigParam   = Fix(WithEndTime(s, cont))
   def withZoneId(s: ZoneId, cont: ConfigParam): ConfigParam           = Fix(WithZoneId(s, cont))
+
+  def withTimeRange(tr: NJDateTimeRange, cont: ConfigParam): ConfigParam =
+    Fix(WithTimeRange(tr, cont))
 
   def withLocationStrategy(ls: LocationStrategy, cont: ConfigParam): ConfigParam =
     Fix(WithLocationStrategy(ls, cont))

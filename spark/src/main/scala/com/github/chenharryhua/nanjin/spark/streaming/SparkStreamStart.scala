@@ -17,15 +17,6 @@ final class SparkStreamStart[F[_], A: TypedEncoder](
 
   private val p: StreamParams = StreamConfigParamF.evalParams(params)
 
-  def withJson: SparkStreamStart[F, A] =
-    new SparkStreamStart[F, A](ds, StreamConfigParamF.withFileFormat(NJFileFormat.Json, params))
-
-  def withAvro: SparkStreamStart[F, A] =
-    new SparkStreamStart[F, A](ds, StreamConfigParamF.withFileFormat(NJFileFormat.Avro, params))
-
-  def withParquet: SparkStreamStart[F, A] =
-    new SparkStreamStart[F, A](ds, StreamConfigParamF.withFileFormat(NJFileFormat.Parquet, params))
-
   def withOutputMode(om: OutputMode): SparkStreamStart[F, A] =
     new SparkStreamStart[F, A](ds, StreamConfigParamF.withOutputMode(om, params))
 
