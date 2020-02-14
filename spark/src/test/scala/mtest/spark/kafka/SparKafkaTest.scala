@@ -23,96 +23,92 @@ class SparKafkaTest extends AnyFunSuite {
   val topic = ctx.topic[Int, ForTaskSerializable]("serializable.test")
 
   (topic.admin.IdefinitelyWantToDeleteTheTopic >> topic.schemaRegistry.register >>
-    topic.send(List(topic.fs2PR(0 ,data), topic.fs2PR(1 , data)))).unsafeRunSync()
+    topic.send(List(topic.fs2PR(0, data), topic.fs2PR(1, data)))).unsafeRunSync()
 
   test("read topic from kafka") {
     val rst =
-      topic.kit.sparKafka.fromKafka[IO].flatMap(_.values.collect[IO]()).unsafeRunSync
+      topic.kit.sparKafka
+        .fromKafka[IO]
+        .consumerRecords
+        .flatMap(_.values.collect[IO]())
+        .unsafeRunSync
     assert(rst.toList === List(data, data))
   }
 
   test("save topic to disk in Jackson format") {
-    topic.kit.sparKafka
-      .withParamUpdate(_.withOverwrite.withJackson)
+    topic.kit.sparKafka.withOverwrite.withJackson
       .fromKafka[IO]
+      .consumerRecords
       .map(_.save())
       .unsafeRunSync
   }
 
   test("read topic from disk in Jackson format - load what being saved") {
-    val rst = topic.kit.sparKafka
-      .withParamUpdate(_.withJackson)
+    val rst = topic.kit.sparKafka.withJackson
       .fromDisk[IO]
-      .values
-      .collect[IO]()
+      .consumerRecords
+      .flatMap(_.values.collect[IO]())
       .unsafeRunSync
     assert(rst.toList === List(data, data))
   }
 
   test("save topic to disk in json format") {
-    topic.kit.sparKafka
-      .withParamUpdate(_.withOverwrite.withJson)
+    topic.kit.sparKafka.withOverwrite.withJson
       .fromKafka[IO]
+      .consumerRecords
       .map(_.save())
       .unsafeRunSync
   }
 
   test("read topic from disk in json format - load what being saved") {
-    val rst = topic.kit.sparKafka
-      .withParamUpdate(_.withJson)
+    val rst = topic.kit.sparKafka.withJson
       .fromDisk[IO]
-      .values
-      .collect[IO]()
+      .consumerRecords
+      .flatMap(_.values.collect[IO]())
       .unsafeRunSync
     assert(rst.toList === List(data, data))
   }
 
   test("save topic to disk in parquet format") {
-    topic.kit.sparKafka
-      .withParamUpdate(_.withOverwrite.withParquet)
+    topic.kit.sparKafka.withParquet.withOverwrite
       .fromKafka[IO]
+      .consumerRecords
       .map(_.save())
       .unsafeRunSync
   }
 
   test("read topic from disk in parquet format - load what being saved") {
-    val rst = topic.kit.sparKafka
-      .withParamUpdate(_.withParquet)
+    val rst = topic.kit.sparKafka.withParquet
       .fromDisk[IO]
-      .values
-      .collect[IO]()
+      .consumerRecords
+      .flatMap(_.values.collect[IO]())
       .unsafeRunSync
     assert(rst.toList === List(data, data))
   }
 
   test("save topic to disk in avro format") {
-    topic.kit.sparKafka
-      .withParamUpdate(_.withOverwrite.withAvro)
+    topic.kit.sparKafka.withAvro.withOverwrite
       .fromKafka[IO]
+      .consumerRecords
       .map(_.save())
       .unsafeRunSync
   }
 
   test("read topic from disk in avro format - load what being saved") {
-    val rst = topic.kit.sparKafka
-      .withParamUpdate(_.withAvro)
+    val rst = topic.kit.sparKafka.withAvro
       .fromDisk[IO]
-      .values
-      .collect[IO]()
+      .consumerRecords
+      .flatMap(_.values.collect[IO]())
       .unsafeRunSync
     assert(rst.toList === List(data, data))
   }
 
   test("replay") {
-    topic.kit.sparKafka
-      .withParamUpdate(
-        _.withConversionTactics(_.withoutPartition.withoutTimestamp).withJson.withOverwrite)
-      .replay[IO]
-      .unsafeRunSync
+    topic.kit.sparKafka.replay[IO].unsafeRunSync
   }
 
   test("read topic from kafka and show aggragation result") {
-    topic.kit.sparKafka.fromKafka[IO].flatMap(_.stats.minutely).unsafeRunSync
+    topic.kit.sparKafka.fromKafka[IO].consumerRecords.flatMap(_.stats.minutely).unsafeRunSync
   }
 
   test("read topic from kafka and show json") {
@@ -121,7 +117,8 @@ class SparKafkaTest extends AnyFunSuite {
       ManualAvroSchema[trip_record](trip_record.schema)).in(ctx)
 
     tpk.kit.sparKafka
-      .fromKafka[IO, String](_.asJson.noSpaces)
+      .fromKafka[IO]
+      .transform(_.asJson.noSpaces)
       .flatMap(_.show[IO](truncate = false, numRows = 1))
       .unsafeRunSync
   }
@@ -135,15 +132,15 @@ class SparKafkaTest extends AnyFunSuite {
     val d4: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 4, 0, None, Some(4), "t", 0)
     val ds: TypedDataset[NJConsumerRecord[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
 
-    val birst: List[Int] =
+    val birst =
       src.kit.sparKafka
         .crDataset[IO](ds)
         .bimapTo(tgt.kit)(_.toString, _ + 1)
         .values
         .collect[IO]()
         .unsafeRunSync
-        .toList
-    assert(birst == List(2, 3, 5))
+        .toSet
+    assert(birst == Set(2, 3, 5))
   }
 
   test("should be able to flatmap to other topic") {
@@ -155,15 +152,15 @@ class SparKafkaTest extends AnyFunSuite {
     val d4: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 4, 0, None, Some(4), "t", 0)
     val ds: TypedDataset[NJConsumerRecord[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
 
-    val birst: List[Int] =
+    val birst =
       src.kit.sparKafka
         .crDataset[IO](ds)
         .flatMapTo(tgt.kit)(m => m.value.map(x => NJConsumerRecord.value.set(Some(x - 1))(m)))
         .values
         .collect[IO]()
         .unsafeRunSync
-        .toList
-    assert(birst == List(0, 1, 3))
+        .toSet
+    assert(birst == Set(0, 1, 3))
   }
 
   test("someValue should filter out none values") {
