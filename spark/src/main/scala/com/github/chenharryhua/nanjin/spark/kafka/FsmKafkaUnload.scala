@@ -8,8 +8,9 @@ import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.kafka010.LocationStrategy
 
-final class FsmKafkaUnload[F[_], K, V](kit: KafkaTopicKit[K, V], params: SKConfigParamF.ConfigParam)(
-  implicit sparkSession: SparkSession)
+final class FsmKafkaUnload[F[_], K, V](
+  kit: KafkaTopicKit[K, V],
+  params: SKConfigParamF.SKConfigParam)(implicit sparkSession: SparkSession)
     extends Serializable {
 
   def withLocationStrategy(ls: LocationStrategy): FsmKafkaUnload[F, K, V] =
