@@ -19,16 +19,16 @@ final class SparkStreamStart[F[_], A: TypedEncoder](
     new SparkStreamStart[F, A](ds, StreamConfigF.withOutputMode(om, params))
 
   def withCheckpoint(cp: String): SparkStreamStart[F, A] =
-    new SparkStreamStart[F, A](ds, StreamConfigF.withCheckpoint(cp, params))
+    new SparkStreamStart[F, A](ds, StreamConfigF.withCheckpointReplace(cp, params))
 
   def withCheckpointAppend(cp: String): SparkStreamStart[F, A] =
     new SparkStreamStart[F, A](ds, StreamConfigF.withCheckpointAppend(cp, params))
 
-  def withFailOnDataLoss(dl: Boolean): SparkStreamStart[F, A] =
-    new SparkStreamStart[F, A](ds, StreamConfigF.withFailOnDataLoss(dl, params))
+  def withIgnoreDataLoss: SparkStreamStart[F, A] =
+    new SparkStreamStart[F, A](ds, StreamConfigF.withFailOnDataLoss(failOnDataLoss = false, params))
 
-  def withTrigger(t: Trigger): SparkStreamStart[F, A] =
-    new SparkStreamStart[F, A](ds, StreamConfigF.withTrigger(t, params))
+  def withTrigger(trigger: Trigger): SparkStreamStart[F, A] =
+    new SparkStreamStart[F, A](ds, StreamConfigF.withTrigger(trigger, params))
 
   // transforms
 

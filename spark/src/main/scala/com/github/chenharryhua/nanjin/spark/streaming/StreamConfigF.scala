@@ -77,14 +77,14 @@ private[spark] object StreamConfigF {
   def apply(tr: NJDateTimeRange, sd: NJShowDataset, ff: NJFileFormat): StreamConfig =
     Fix(DefaultParams[StreamConfig](tr, sd, ff))
 
-  def withCheckpoint(cp: String, cont: StreamConfig): StreamConfig =
+  def withCheckpointReplace(cp: String, cont: StreamConfig): StreamConfig =
     Fix(WithCheckpointReplace(cp, cont))
 
   def withCheckpointAppend(cp: String, cont: StreamConfig): StreamConfig =
     Fix(WithCheckpointAppend(cp, cont))
 
-  def withFailOnDataLoss(dl: Boolean, cont: StreamConfig): StreamConfig =
-    Fix(WithFailOnDataLoss(dl, cont))
+  def withFailOnDataLoss(failOnDataLoss: Boolean, cont: StreamConfig): StreamConfig =
+    Fix(WithFailOnDataLoss(failOnDataLoss, cont))
 
   def withOutputMode(f: OutputMode, cont: StreamConfig): StreamConfig =
     Fix(WithOutputMode(f, cont))
