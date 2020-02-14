@@ -9,52 +9,52 @@ import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducerRecord}
-import com.github.chenharryhua.nanjin.spark.streaming.{SparkStreamStart, StreamConfigParamF}
+import com.github.chenharryhua.nanjin.spark.streaming.{SparkStreamStart, StreamConfigF}
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
-final class FsmStart[K, V](kit: KafkaTopicKit[K, V], params: SKConfigParamF.SKConfigParam)(
+final class FsmStart[K, V](kit: KafkaTopicKit[K, V], params: SKConfigF.SKConfig)(
   implicit sparkSession: SparkSession)
     extends Serializable {
 
   // config section
   def withStartTime(dt: LocalDateTime): FsmStart[K, V] =
-    new FsmStart[K, V](kit, SKConfigParamF.withStartTime(dt, params))
+    new FsmStart[K, V](kit, SKConfigF.withStartTime(dt, params))
 
   def withEndTime(dt: LocalDateTime): FsmStart[K, V] =
-    new FsmStart[K, V](kit, SKConfigParamF.withEndTime(dt, params))
+    new FsmStart[K, V](kit, SKConfigF.withEndTime(dt, params))
 
   def withZoneId(zoneId: ZoneId): FsmStart[K, V] =
-    new FsmStart[K, V](kit, SKConfigParamF.withZoneId(zoneId, params))
+    new FsmStart[K, V](kit, SKConfigF.withZoneId(zoneId, params))
 
   def withTimeRange(tr: NJDateTimeRange): FsmStart[K, V] =
-    new FsmStart[K, V](kit, SKConfigParamF.withTimeRange(tr, params))
+    new FsmStart[K, V](kit, SKConfigF.withTimeRange(tr, params))
 
   def withJson: FsmStart[K, V] =
-    new FsmStart[K, V](kit, SKConfigParamF.withFileFormat(NJFileFormat.Json, params))
+    new FsmStart[K, V](kit, SKConfigF.withFileFormat(NJFileFormat.Json, params))
 
   def withJackson: FsmStart[K, V] =
-    new FsmStart[K, V](kit, SKConfigParamF.withFileFormat(NJFileFormat.Jackson, params))
+    new FsmStart[K, V](kit, SKConfigF.withFileFormat(NJFileFormat.Jackson, params))
 
   def withAvro: FsmStart[K, V] =
-    new FsmStart[K, V](kit, SKConfigParamF.withFileFormat(NJFileFormat.Avro, params))
+    new FsmStart[K, V](kit, SKConfigF.withFileFormat(NJFileFormat.Avro, params))
 
   def withParquet: FsmStart[K, V] =
-    new FsmStart[K, V](kit, SKConfigParamF.withFileFormat(NJFileFormat.Parquet, params))
+    new FsmStart[K, V](kit, SKConfigF.withFileFormat(NJFileFormat.Parquet, params))
 
   def withPathBuilder(f: NJPathBuild => String): FsmStart[K, V] =
-    new FsmStart[K, V](kit, SKConfigParamF.withPathBuilder(Reader(f), params))
+    new FsmStart[K, V](kit, SKConfigF.withPathBuilder(Reader(f), params))
 
   def withOverwrite: FsmStart[K, V] =
-    new FsmStart[K, V](kit, SKConfigParamF.withSaveMode(SaveMode.Overwrite, params))
+    new FsmStart[K, V](kit, SKConfigF.withSaveMode(SaveMode.Overwrite, params))
 
   def withShowRows(num: Int): FsmStart[K, V] =
-    new FsmStart[K, V](kit, SKConfigParamF.withShowRows(num, params))
+    new FsmStart[K, V](kit, SKConfigF.withShowRows(num, params))
 
-  def withShowTruncate(truncate: Boolean): FsmStart[K, V] =
-    new FsmStart[K, V](kit, SKConfigParamF.withShowTruncate(truncate, params))
+  def withTruncate: FsmStart[K, V] =
+    new FsmStart[K, V](kit, SKConfigF.withShowTruncate(truncate = true, params))
 
-  private val p: SKParams = SKConfigParamF.evalParams(params)
+  private val p: SKParams = SKConfigF.evalParams(params)
 
   //api section
   def fromKafka[F[_]: Sync](
@@ -67,7 +67,7 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], params: SKConfigParamF.SKCo
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[Unit] =
-    fromKafka[F].consumerRecords.map(_.withSaveMode(SaveMode.Overwrite).save(path))
+    fromKafka[F].consumerRecords.map(_.save(path))
 
   def save[F[_]: Sync](
     implicit
@@ -114,9 +114,9 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], params: SKConfigParamF.SKCo
       .map(s =>
         new SparkStreamStart(
           s.dataset,
-          StreamConfigParamF.withCheckpointAppend(
+          StreamConfigF.withCheckpointAppend(
             s"kafka/${kit.topicName.value}",
-            StreamConfigParamF(p.timeRange, p.showDs, p.fileFormat))))
+            StreamConfigF(p.timeRange, p.showDs, p.fileFormat))))
 
   def streaming[F[_]: Sync](
     implicit

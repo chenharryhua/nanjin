@@ -5,41 +5,17 @@ import com.github.chenharryhua.nanjin.kafka.KafkaProducerSettings
 import com.github.chenharryhua.nanjin.kafka.common.{NJProducerRecord, TopicName}
 import fs2.Stream
 import monocle.function.At.remove
-import monocle.macros.Lenses
 import org.apache.kafka.clients.producer.ProducerConfig
-import org.apache.spark.sql.streaming.{
-  DataStreamWriter,
-  OutputMode,
-  StreamingQueryProgress,
-  Trigger
-}
+import org.apache.spark.sql.streaming.{DataStreamWriter, StreamingQueryProgress}
 
-@Lenses final case class NJKafkaSink[F[_]](
-  dataStreamWriter: DataStreamWriter[NJProducerRecord[Array[Byte], Array[Byte]]],
-  outputMode: OutputMode,
+final class NJKafkaSink[F[_]](
+  dsw: DataStreamWriter[NJProducerRecord[Array[Byte], Array[Byte]]],
+  params: StreamConfigF.StreamConfig,
   producer: KafkaProducerSettings,
-  topicName: TopicName,
-  checkpoint: NJCheckpoint,
-  dataLoss: NJFailOnDataLoss,
-  trigger: Trigger
+  topicName: TopicName
 ) extends NJStreamSink[F] {
 
-  def withTrigger(tg: Trigger): NJKafkaSink[F] =
-    NJKafkaSink.trigger.set(tg)(this)
-
-  def withCheckpoint(cp: String): NJKafkaSink[F] =
-    NJKafkaSink.checkpoint.set(NJCheckpoint(cp))(this)
-
-  def withoutFailONDataLoss: NJKafkaSink[F] =
-    NJKafkaSink.dataLoss.set(NJFailOnDataLoss(false))(this)
-
-  def withOutputMode(om: OutputMode): NJKafkaSink[F] =
-    NJKafkaSink.outputMode.set(om)(this)
-
-  def withOptions(
-    f: DataStreamWriter[NJProducerRecord[Array[Byte], Array[Byte]]] => DataStreamWriter[
-      NJProducerRecord[Array[Byte], Array[Byte]]]): NJKafkaSink[F] =
-    NJKafkaSink.dataStreamWriter.modify(f)(this)
+  private val p: StreamParams = StreamConfigF.evalParams(params)
 
   //  https://spark.apache.org/docs/2.4.5/structured-streaming-kafka-integration.html
   private def producerOptions(m: Map[String, String]): Map[String, String] = {
@@ -52,13 +28,13 @@ import org.apache.spark.sql.streaming.{
     implicit F: Concurrent[F],
     timer: Timer[F]): Stream[F, StreamingQueryProgress] =
     ss.queryStream(
-      dataStreamWriter
-        .trigger(trigger)
+      dsw
+        .trigger(p.trigger)
         .format("kafka")
-        .outputMode(outputMode)
+        .outputMode(p.outputMode)
         .options(producerOptions(producer.config))
         .option("topic", topicName.value)
-        .option("checkpointLocation", checkpoint.value)
-        .option("failOnDataLoss", dataLoss.value))
+        .option("checkpointLocation", p.checkpoint.value)
+        .option("failOnDataLoss", p.dataLoss.value))
 
 }

@@ -43,27 +43,27 @@ object StreamParams {
     )
 }
 
-sealed private[spark] trait StreamConfigParamF[A]
+sealed private[spark] trait StreamConfigF[A]
 
-private[spark] object StreamConfigParamF {
+private[spark] object StreamConfigF {
 
   final case class DefaultParams[K](tr: NJDateTimeRange, showDs: NJShowDataset, ff: NJFileFormat)
-      extends StreamConfigParamF[K]
+      extends StreamConfigF[K]
 
-  final case class WithCheckpointReplace[K](value: String, cont: K) extends StreamConfigParamF[K]
-  final case class WithCheckpointAppend[K](value: String, cont: K) extends StreamConfigParamF[K]
+  final case class WithCheckpointReplace[K](value: String, cont: K) extends StreamConfigF[K]
+  final case class WithCheckpointAppend[K](value: String, cont: K) extends StreamConfigF[K]
 
-  final case class WithFailOnDataLoss[K](value: Boolean, cont: K) extends StreamConfigParamF[K]
-  final case class WithOutputMode[K](value: OutputMode, cont: K) extends StreamConfigParamF[K]
-  final case class WithTrigger[K](value: Trigger, cont: K) extends StreamConfigParamF[K]
+  final case class WithFailOnDataLoss[K](value: Boolean, cont: K) extends StreamConfigF[K]
+  final case class WithOutputMode[K](value: OutputMode, cont: K) extends StreamConfigF[K]
+  final case class WithTrigger[K](value: Trigger, cont: K) extends StreamConfigF[K]
 
-  implicit val configParamFunctor: Functor[StreamConfigParamF] =
-    cats.derived.semi.functor[StreamConfigParamF]
+  implicit val configParamFunctor: Functor[StreamConfigF] =
+    cats.derived.semi.functor[StreamConfigF]
 
-  type StreamConfigParam = Fix[StreamConfigParamF]
+  type StreamConfig = Fix[StreamConfigF]
 
-  private val algebra: Algebra[StreamConfigParamF, StreamParams] =
-    Algebra[StreamConfigParamF, StreamParams] {
+  private val algebra: Algebra[StreamConfigF, StreamParams] =
+    Algebra[StreamConfigF, StreamParams] {
       case DefaultParams(tr, sd, ff)   => StreamParams(tr, sd, ff)
       case WithCheckpointReplace(v, c) => StreamParams.checkpoint.set(NJCheckpoint(v))(c)
       case WithCheckpointAppend(v, c)  => StreamParams.checkpoint.modify(_.append(v))(c)
@@ -72,24 +72,24 @@ private[spark] object StreamConfigParamF {
       case WithTrigger(v, c)           => StreamParams.trigger.set(v)(c)
     }
 
-  def evalParams(params: StreamConfigParam): StreamParams = scheme.cata(algebra).apply(params)
+  def evalParams(params: StreamConfig): StreamParams = scheme.cata(algebra).apply(params)
 
-  def apply(tr: NJDateTimeRange, sd: NJShowDataset, ff: NJFileFormat): StreamConfigParam =
-    Fix(DefaultParams[StreamConfigParam](tr, sd, ff))
+  def apply(tr: NJDateTimeRange, sd: NJShowDataset, ff: NJFileFormat): StreamConfig =
+    Fix(DefaultParams[StreamConfig](tr, sd, ff))
 
-  def withCheckpoint(cp: String, cont: StreamConfigParam): StreamConfigParam =
+  def withCheckpoint(cp: String, cont: StreamConfig): StreamConfig =
     Fix(WithCheckpointReplace(cp, cont))
 
-  def withCheckpointAppend(cp: String, cont: StreamConfigParam): StreamConfigParam =
+  def withCheckpointAppend(cp: String, cont: StreamConfig): StreamConfig =
     Fix(WithCheckpointAppend(cp, cont))
 
-  def withFailOnDataLoss(dl: Boolean, cont: StreamConfigParam): StreamConfigParam =
+  def withFailOnDataLoss(dl: Boolean, cont: StreamConfig): StreamConfig =
     Fix(WithFailOnDataLoss(dl, cont))
 
-  def withOutputMode(f: OutputMode, cont: StreamConfigParam): StreamConfigParam =
+  def withOutputMode(f: OutputMode, cont: StreamConfig): StreamConfig =
     Fix(WithOutputMode(f, cont))
 
-  def withTrigger(trigger: Trigger, cont: StreamConfigParam): StreamConfigParam =
+  def withTrigger(trigger: Trigger, cont: StreamConfig): StreamConfig =
     Fix(WithTrigger(trigger, cont))
 
 }
