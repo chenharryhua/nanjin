@@ -32,6 +32,9 @@ final class SparkStreamStart[F[_], A: TypedEncoder](
   def withCheckpoint(cp: String): SparkStreamStart[F, A] =
     new SparkStreamStart[F, A](ds, StreamConfigParamF.withCheckpoint(cp, params))
 
+  def withCheckpointAppend(cp: String): SparkStreamStart[F, A] =
+    new SparkStreamStart[F, A](ds, StreamConfigParamF.withCheckpointAppend(cp, params))
+
   def withFailOnDataLoss(dl: Boolean): SparkStreamStart[F, A] =
     new SparkStreamStart[F, A](ds, StreamConfigParamF.withFailOnDataLoss(dl, params))
 

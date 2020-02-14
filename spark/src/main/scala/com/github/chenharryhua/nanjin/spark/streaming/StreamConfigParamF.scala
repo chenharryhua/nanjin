@@ -24,31 +24,33 @@ final private[spark] case class NJFailOnDataLoss(value: Boolean) extends AnyVal
 
 @Lenses final case class StreamParams(
   timeRange: NJDateTimeRange,
-  checkpoint: NJCheckpoint,
   showDs: NJShowDataset,
   fileFormat: NJFileFormat,
+  checkpoint: NJCheckpoint,
   dataLoss: NJFailOnDataLoss,
   outputMode: OutputMode,
   trigger: Trigger)
 
 object StreamParams {
 
-  val default: StreamParams =
+  def apply(tr: NJDateTimeRange, sd: NJShowDataset, ff: NJFileFormat): StreamParams =
     StreamParams(
-      NJDateTimeRange.infinite,
+      tr,
+      sd,
+      ff,
       NJCheckpoint("./data/checkpoint/"),
-      NJShowDataset(20, isTruncate = false),
-      NJFileFormat.Json,
       NJFailOnDataLoss(true),
       OutputMode.Append,
       Trigger.ProcessingTime(0)
     )
 }
 
-sealed trait StreamConfigParamF[A]
+sealed private[spark] trait StreamConfigParamF[A]
 
-object StreamConfigParamF {
-  final case class DefaultParams[K]() extends StreamConfigParamF[K]
+private[spark] object StreamConfigParamF {
+
+  final case class DefaultParams[K](tr: NJDateTimeRange, showDs: NJShowDataset, ff: NJFileFormat)
+      extends StreamConfigParamF[K]
 
   final case class WithStartTime[K](value: LocalDateTime, cont: K) extends StreamConfigParamF[K]
   final case class WithZoneId[K](value: ZoneId, cont: K) extends StreamConfigParamF[K]
@@ -70,7 +72,7 @@ object StreamConfigParamF {
 
   private val algebra: Algebra[StreamConfigParamF, StreamParams] =
     Algebra[StreamConfigParamF, StreamParams] {
-      case DefaultParams()             => StreamParams.default
+      case DefaultParams(tr, sd, ff)   => StreamParams(tr, sd, ff)
       case WithStartTime(v, c)         => StreamParams.timeRange.modify(_.withStartTime(v))(c)
       case WithZoneId(v, c)            => StreamParams.timeRange.modify(_.withZoneId(v))(c)
       case WithCheckpointReplace(v, c) => StreamParams.checkpoint.set(NJCheckpoint(v))(c)
@@ -84,7 +86,8 @@ object StreamConfigParamF {
 
   def evalParams(params: ConfigParam): StreamParams = scheme.cata(algebra).apply(params)
 
-  val defaultParams: ConfigParam = Fix(DefaultParams[ConfigParam]())
+  def apply(tr: NJDateTimeRange, sd: NJShowDataset, ff: NJFileFormat): ConfigParam =
+    Fix(DefaultParams[ConfigParam](tr, sd, ff))
 
   def withStartTime(s: LocalDateTime, cont: ConfigParam): ConfigParam = Fix(WithStartTime(s, cont))
   def withZoneId(s: ZoneId, cont: ConfigParam): ConfigParam           = Fix(WithZoneId(s, cont))

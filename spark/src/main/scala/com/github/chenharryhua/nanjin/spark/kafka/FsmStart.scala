@@ -5,17 +5,12 @@ import java.time.{LocalDateTime, ZoneId}
 import cats.data.Reader
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
+import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducerRecord}
-import com.github.chenharryhua.nanjin.spark.streaming
-import com.github.chenharryhua.nanjin.spark.streaming.{
-  SparkStreamStart,
-  StreamConfigParamF,
-  StreamParams
-}
+import com.github.chenharryhua.nanjin.spark.streaming.{SparkStreamStart, StreamConfigParamF}
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.{SaveMode, SparkSession}
-import com.github.chenharryhua.nanjin.common.NJFileFormat
 
 final class FsmStart[K, V](kit: KafkaTopicKit[K, V], params: SKConfigParamF.ConfigParam)(
   implicit sparkSession: SparkSession)
@@ -115,8 +110,9 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], params: SKConfigParamF.Conf
       .map(s =>
         new SparkStreamStart(
           s.dataset,
-          StreamConfigParamF
-            .withCheckpointAppend(kit.topicName.value, StreamConfigParamF.defaultParams)))
+          StreamConfigParamF.withCheckpointAppend(
+            s"kafka/${kit.topicName.value}",
+            StreamConfigParamF(p.timeRange, p.showDs, p.fileFormat))))
 
   def streaming[F[_]: Sync](
     implicit

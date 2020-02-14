@@ -16,9 +16,9 @@ import org.apache.spark.streaming.kafka010.{LocationStrategies, LocationStrategy
 
 import scala.concurrent.duration._
 
-@Lenses final case class NJUploadRate(batchSize: Int, duration: FiniteDuration)
+@Lenses final private[spark] case class NJUploadRate(batchSize: Int, duration: FiniteDuration)
 
-object NJUploadRate {
+private[spark] object NJUploadRate {
   val default: NJUploadRate = NJUploadRate(batchSize = 1000, duration = 1.second)
 }
 
@@ -49,9 +49,9 @@ object SKParams {
     )
 }
 
-sealed trait SKConfigParamF[A]
+sealed private[spark] trait SKConfigParamF[A]
 
-object SKConfigParamF {
+private[spark] object SKConfigParamF {
   final case class DefaultParams[K]() extends SKConfigParamF[K]
 
   final case class WithBatchSize[K](value: Int, cont: K) extends SKConfigParamF[K]
