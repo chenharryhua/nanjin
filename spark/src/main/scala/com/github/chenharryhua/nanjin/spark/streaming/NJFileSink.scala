@@ -1,61 +1,34 @@
 package com.github.chenharryhua.nanjin.spark.streaming
 
 import cats.effect.{Concurrent, Timer}
-import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.github.chenharryhua.nanjin.spark.NJPath
 import fs2.Stream
-import monocle.macros.Lenses
-import org.apache.spark.sql.streaming.{
-  DataStreamWriter,
-  OutputMode,
-  StreamingQueryProgress,
-  Trigger
-}
+import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, StreamingQueryProgress}
 
-@Lenses final case class NJFileSink[F[_], A](
-  dataStreamWriter: DataStreamWriter[A],
-  fileFormat: NJFileFormat,
-  path: NJPath,
-  checkpoint: NJCheckpoint,
-  dataLoss: NJFailOnDataLoss,
-  trigger: Trigger)
+final class NJFileSink[F[_], A](
+  dsw: DataStreamWriter[A],
+  params: StreamConfigF.StreamConfig,
+  path: String)
     extends NJStreamSink[F] {
 
-  // settings
-  def withTrigger(tg: Trigger): NJFileSink[F, A] =
-    NJFileSink.trigger.set(tg)(this)
-
-  def withFileFormat(fm: NJFileFormat): NJFileSink[F, A] =
-    NJFileSink.fileFormat.set(fm)(this)
-
-  def withJson: NJFileSink[F, A]    = withFileFormat(NJFileFormat.Json)
-  def withAvro: NJFileSink[F, A]    = withFileFormat(NJFileFormat.Avro)
-  def withParquet: NJFileSink[F, A] = withFileFormat(NJFileFormat.Parquet)
-  def withText: NJFileSink[F, A]    = withFileFormat(NJFileFormat.Text)
-
-  def withCheckpoint(cp: String): NJFileSink[F, A] =
-    NJFileSink.checkpoint.set(NJCheckpoint(cp))(this)
-
-  def withoutFailONDataLoss: NJFileSink[F, A] =
-    NJFileSink.dataLoss.set(NJFailOnDataLoss(false))(this)
+  private val p: StreamParams = StreamConfigF.evalParams(params)
 
   // ops
   def withOptions(f: DataStreamWriter[A] => DataStreamWriter[A]): NJFileSink[F, A] =
-    NJFileSink.dataStreamWriter[F, A].modify(f)(this)
+    new NJFileSink(f(dsw), params, path)
 
   def partitionBy(colNames: String*): NJFileSink[F, A] =
-    NJFileSink.dataStreamWriter[F, A].modify(_.partitionBy(colNames: _*))(this)
+    new NJFileSink[F, A](dsw.partitionBy(colNames: _*), params, path)
 
   override def queryStream(
     implicit F: Concurrent[F],
     timer: Timer[F]): Stream[F, StreamingQueryProgress] =
     ss.queryStream(
-      dataStreamWriter
-        .trigger(trigger)
-        .format(fileFormat.format)
+      dsw
+        .trigger(p.trigger)
+        .format(p.fileFormat.format)
         .outputMode(OutputMode.Append)
-        .option("path", path.value)
-        .option("checkpointLocation", checkpoint.value)
-        .option("failOnDataLoss", dataLoss.value))
+        .option("path", path)
+        .option("checkpointLocation", p.checkpoint.value)
+        .option("failOnDataLoss", p.dataLoss.value))
 
 }

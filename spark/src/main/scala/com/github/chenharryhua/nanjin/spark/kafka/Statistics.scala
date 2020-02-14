@@ -20,10 +20,10 @@ final case class DailyMinuteAggResult(date: LocalDateTime, count: Long)
 
 final class Statistics[F[_], K: TypedEncoder, V: TypedEncoder](
   ds: Dataset[NJConsumerRecord[K, V]],
-  params: SKConfigParamF.SKConfigParam)
+  params: SKConfigF.SKConfig)
     extends Serializable {
 
-  private val p: SKParams = SKConfigParamF.evalParams(params)
+  private val p: SKParams = SKConfigF.evalParams(params)
 
   @transient private lazy val typedDataset: TypedDataset[NJConsumerRecord[K, V]] =
     TypedDataset.create(ds)
