@@ -23,7 +23,7 @@ final class Statistics[F[_], K: TypedEncoder, V: TypedEncoder](
   cfg: SKConfig)
     extends Serializable {
 
-  private val p: SKParams = SKConfigF.evalParams(cfg)
+  private val p: SKParams = SKConfigF.evalConfig(cfg)
 
   @transient private lazy val typedDataset: TypedDataset[NJConsumerRecord[K, V]] =
     TypedDataset.create(ds)

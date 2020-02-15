@@ -4,7 +4,19 @@ import cats.effect.{Concurrent, Timer}
 import fs2.Stream
 import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, StreamingQueryProgress}
 
-final class NJConsoleSink[F[_], A](dsw: DataStreamWriter[A], cfg: StreamConfig)
+final case class DatePartitionedCR[K, V](
+  Year: String,
+  Month: String,
+  Day: String,
+  partition: Int,
+  offset: Long,
+  key: Option[K],
+  value: Option[V])
+
+final class DatePartitionFileSink[F[_], K, V](
+  dsw: DataStreamWriter[DatePartitionedCR[K, V]],
+  cfg: StreamConfig,
+  path: String)
     extends NJStreamSink[F] {
 
   override val params: StreamParams = StreamConfigF.evalConfig(cfg)
@@ -14,11 +26,12 @@ final class NJConsoleSink[F[_], A](dsw: DataStreamWriter[A], cfg: StreamConfig)
     timer: Timer[F]): Stream[F, StreamingQueryProgress] =
     ss.queryStream(
       dsw
+        .partitionBy("Year", "Month", "Day")
         .trigger(params.trigger)
-        .format("console")
+        .format(params.fileFormat.format)
         .outputMode(OutputMode.Append)
-        .option("truncate", params.showDs.isTruncate.toString)
-        .option("numRows", params.showDs.rowNum.toString)
+        .option("path", path)
+        .option("checkpointLocation", params.checkpoint.value)
         .option("failOnDataLoss", params.dataLoss.value))
 
 }
