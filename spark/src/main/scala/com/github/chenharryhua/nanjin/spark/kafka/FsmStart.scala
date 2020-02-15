@@ -9,7 +9,9 @@ import com.github.chenharryhua.nanjin.spark.streaming.{KafkaCRStream, SparkStrea
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SparkSession
 
-trait SparKafkaUpdateParams[A] extends UpdateParams[SKConfig, A] with Serializable
+trait SparKafkaUpdateParams[A] extends UpdateParams[SKConfig, A] with Serializable {
+  def params: SKParams
+}
 
 final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
   implicit sparkSession: SparkSession)
@@ -18,7 +20,7 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
   override def withParamUpdate(f: SKConfig => SKConfig): FsmStart[K, V] =
     new FsmStart[K, V](kit, f(cfg))
 
-  private val p: SKParams = SKConfigF.evalConfig(cfg)
+  override val params: SKParams = SKConfigF.evalConfig(cfg)
 
   //api section
   def fromKafka[F[_]: Sync](
@@ -37,7 +39,7 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[Unit] =
-    save(p.pathBuilder(NJPathBuild(p.fileFormat, kit.topicName)))
+    save(params.pathBuilder(NJPathBuild(params.fileFormat, kit.topicName)))
 
   def fromDisk[F[_]](
     implicit
@@ -80,21 +82,21 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
   def streaming[F[_]: Sync, A](f: NJConsumerRecord[K, V] => A)(
     implicit
     encoder: TypedEncoder[A]): F[SparkStream[F, A]] =
-    sk.streaming[F, K, V, A](kit, p.timeRange)(f)
+    sk.streaming[F, K, V, A](kit, params.timeRange)(f)
       .map(s =>
         new SparkStream(
           s.dataset,
-          StreamConfig(p.timeRange, p.showDs, p.fileFormat)
+          StreamConfig(params.timeRange, params.showDs, params.fileFormat)
             .withCheckpointAppend(s"kafka/${kit.topicName.value}")))
 
   def streaming[F[_]: Sync](
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[KafkaCRStream[F, K, V]] =
-    sk.streaming[F, K, V, NJConsumerRecord[K, V]](kit, p.timeRange)(identity)
+    sk.streaming[F, K, V, NJConsumerRecord[K, V]](kit, params.timeRange)(identity)
       .map(s =>
         new KafkaCRStream[F, K, V](
           s.dataset,
-          StreamConfig(p.timeRange, p.showDs, p.fileFormat)
+          StreamConfig(params.timeRange, params.showDs, params.fileFormat)
             .withCheckpointAppend(s"kafkacr/${kit.topicName.value}")))
 }

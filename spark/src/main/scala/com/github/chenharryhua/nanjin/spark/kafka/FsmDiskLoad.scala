@@ -12,7 +12,7 @@ final class FsmDiskLoad[F[_], K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
   override def withParamUpdate(f: SKConfig => SKConfig): FsmDiskLoad[F, K, V] =
     new FsmDiskLoad[F, K, V](kit, f(cfg))
 
-  private val p: SKParams = SKConfigF.evalConfig(cfg)
+  override val params: SKParams = SKConfigF.evalConfig(cfg)
 
   def consumerRecords(
     implicit
@@ -23,9 +23,9 @@ final class FsmDiskLoad[F[_], K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
       new FsmConsumerRecords(
         sk.fromDisk(
             kit,
-            p.timeRange,
-            p.fileFormat,
-            p.pathBuilder.run(NJPathBuild(p.fileFormat, kit.topicName)))
+            params.timeRange,
+            params.fileFormat,
+            params.pathBuilder.run(NJPathBuild(params.fileFormat, kit.topicName)))
           .dataset,
         kit,
         cfg))

@@ -16,7 +16,7 @@ final class KafkaPRStream[F[_], K: TypedEncoder, V: TypedEncoder](
 
   @transient lazy val typedDataset: TypedDataset[NJProducerRecord[K, V]] = TypedDataset.create(ds)
 
-  private val p: StreamParams = StreamConfigF.evalConfig(cfg)
+  override val params: StreamParams = StreamConfigF.evalConfig(cfg)
 
   def kafkaSink(kit: KafkaTopicKit[K, V]): NJKafkaSink[F] =
     new NJKafkaSink[F](

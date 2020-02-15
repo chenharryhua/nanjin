@@ -20,7 +20,7 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   @transient lazy val typedDataset: TypedDataset[NJConsumerRecord[K, V]] =
     TypedDataset.create(crs)
 
-  private val p: SKParams = SKConfigF.evalConfig(cfg)
+  override val params: SKParams = SKConfigF.evalConfig(cfg)
 
   // api section
   def bimapTo[K2: TypedEncoder, V2: TypedEncoder](
@@ -61,12 +61,12 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     typedDataset.select(typedDataset('key)).as[Option[K]].deserialized.flatMap[K](identity)
 
   def show(implicit ev: Sync[F]): F[Unit] =
-    typedDataset.show[F](p.showDs.rowNum, p.showDs.isTruncate)
+    typedDataset.show[F](params.showDs.rowNum, params.showDs.isTruncate)
 
   def save(path: String): Unit =
-    sk.save(typedDataset, kit, p.fileFormat, p.saveMode, path)
+    sk.save(typedDataset, kit, params.fileFormat, params.saveMode, path)
 
-  def save(): Unit = save(p.pathBuilder(NJPathBuild(p.fileFormat, kit.topicName)))
+  def save(): Unit = save(params.pathBuilder(NJPathBuild(params.fileFormat, kit.topicName)))
 
   def toProducerRecords: FsmProducerRecords[F, K, V] =
     new FsmProducerRecords((typedDataset.deserialized.map(_.toNJProducerRecord)).dataset, kit, cfg)
