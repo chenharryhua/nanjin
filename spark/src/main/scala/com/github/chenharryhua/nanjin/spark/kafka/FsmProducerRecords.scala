@@ -9,23 +9,15 @@ import fs2.Stream
 import fs2.kafka.ProducerResult
 import org.apache.spark.sql.Dataset
 
-import scala.concurrent.duration.FiniteDuration
-
 final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   prs: Dataset[NJProducerRecord[K, V]],
   kit: KafkaTopicKit[K, V],
   params: SKConfigF.SKConfig
-) extends Serializable {
+) extends SparKafkaUpdateParams[FsmProducerRecords[F, K, V]] {
 
-  // config section
-  def withBatchSize(num: Int) =
-    new FsmProducerRecords[F, K, V](prs, kit, params.withBatchSize(num))
-
-  def withDuration(fd: FiniteDuration) =
-    new FsmProducerRecords[F, K, V](prs, kit, params.withDuration(fd))
-
-  def withRepartition(rp: Int) =
-    new FsmProducerRecords[F, K, V](prs, kit, params.withRepartition(rp))
+  override def withParamUpdate(
+    f: SKConfigF.SKConfig => SKConfigF.SKConfig): FsmProducerRecords[F, K, V] =
+    new FsmProducerRecords[F, K, V](prs, kit, f(params))
 
   def noTimestamp: FsmProducerRecords[F, K, V] =
     new FsmProducerRecords[F, K, V](

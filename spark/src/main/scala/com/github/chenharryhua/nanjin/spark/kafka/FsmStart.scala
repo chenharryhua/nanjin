@@ -1,58 +1,22 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import java.time.{LocalDateTime, ZoneId}
-
-import cats.data.Reader
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
+import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.spark.streaming.{KafkaCRStream, SparkStream, StreamConfigF}
 import frameless.{TypedDataset, TypedEncoder}
-import org.apache.spark.sql.{SaveMode, SparkSession}
+import org.apache.spark.sql.SparkSession
+
+trait SparKafkaUpdateParams[A] extends UpdateParams[SKConfigF.SKConfig, A] with Serializable
 
 final class FsmStart[K, V](kit: KafkaTopicKit[K, V], params: SKConfigF.SKConfig)(
   implicit sparkSession: SparkSession)
-    extends Serializable {
+    extends SparKafkaUpdateParams[FsmStart[K, V]] {
 
-  // config section
-  def withStartTime(dt: LocalDateTime): FsmStart[K, V] =
-    new FsmStart[K, V](kit, params.withStartTime(dt))
-
-  def withEndTime(dt: LocalDateTime): FsmStart[K, V] =
-    new FsmStart[K, V](kit, params.withEndTime(dt))
-
-  def withZoneId(zoneId: ZoneId): FsmStart[K, V] =
-    new FsmStart[K, V](kit, params.withZoneId(zoneId))
-
-  def withTimeRange(tr: NJDateTimeRange): FsmStart[K, V] =
-    new FsmStart[K, V](kit, params.withTimeRange(tr))
-
-  def withJson: FsmStart[K, V] =
-    new FsmStart[K, V](kit, params.withFileFormat(NJFileFormat.Json))
-
-  def withJackson: FsmStart[K, V] =
-    new FsmStart[K, V](kit, params.withFileFormat(NJFileFormat.Jackson))
-
-  def withAvro: FsmStart[K, V] =
-    new FsmStart[K, V](kit, params.withFileFormat(NJFileFormat.Avro))
-
-  def withParquet: FsmStart[K, V] =
-    new FsmStart[K, V](kit, params.withFileFormat(NJFileFormat.Parquet))
-
-  def withPathBuilder(f: NJPathBuild => String): FsmStart[K, V] =
-    new FsmStart[K, V](kit, params.withPathBuilder(Reader(f)))
-
-  def withOverwrite: FsmStart[K, V] =
-    new FsmStart[K, V](kit, params.withSaveMode(SaveMode.Overwrite))
-
-  def withShowRows(num: Int): FsmStart[K, V] =
-    new FsmStart[K, V](kit, params.withShowRows(num))
-
-  def withTruncate: FsmStart[K, V] =
-    new FsmStart[K, V](kit, params.withShowTruncate(true))
+  override def withParamUpdate(f: SKConfigF.SKConfig => SKConfigF.SKConfig): FsmStart[K, V] =
+    new FsmStart[K, V](kit, f(params))
 
   private val p: SKParams = SKConfigF.evalParams(params)
 

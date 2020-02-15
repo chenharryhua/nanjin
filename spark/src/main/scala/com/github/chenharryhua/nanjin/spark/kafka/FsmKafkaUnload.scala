@@ -6,14 +6,14 @@ import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.streaming.kafka010.LocationStrategy
 
 final class FsmKafkaUnload[F[_], K, V](kit: KafkaTopicKit[K, V], params: SKConfigF.SKConfig)(
   implicit sparkSession: SparkSession)
-    extends Serializable {
+    extends SparKafkaUpdateParams[FsmKafkaUnload[F, K, V]] {
 
-  def withLocationStrategy(ls: LocationStrategy): FsmKafkaUnload[F, K, V] =
-    new FsmKafkaUnload[F, K, V](kit, params.withLocationStrategy(ls))
+  override def withParamUpdate(
+    f: SKConfigF.SKConfig => SKConfigF.SKConfig): FsmKafkaUnload[F, K, V] =
+    new FsmKafkaUnload[F, K, V](kit, f(params))
 
   private val p: SKParams = SKConfigF.evalParams(params)
 

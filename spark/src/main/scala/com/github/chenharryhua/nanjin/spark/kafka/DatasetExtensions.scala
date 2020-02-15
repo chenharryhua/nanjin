@@ -11,6 +11,6 @@ private[kafka] trait DatasetExtensions {
       new FsmStart(kit, params)
 
     def sparKafka(implicit spark: SparkSession): FsmStart[K, V] =
-      sparKafka(SKConfigF.defaultParams)
+      sparKafka(SKConfigF.SKConfig.defaultParams)
   }
 }

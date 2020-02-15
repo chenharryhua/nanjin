@@ -80,12 +80,16 @@ private[spark] object SKConfigF {
   implicit val configParamFunctor: Functor[SKConfigF] =
     cats.derived.semi.functor[SKConfigF]
 
-  final case class SKConfig(value: Fix[SKConfigF]) extends AnyVal {
+  final case class SKConfig private (value: Fix[SKConfigF]) extends AnyVal {
 
     def withBatchSize(v: Int): SKConfig           = SKConfig(Fix(WithBatchSize(v, value)))
     def withDuration(v: FiniteDuration): SKConfig = SKConfig(Fix(WithDuration(v, value)))
 
     def withFileFormat(ff: NJFileFormat): SKConfig = SKConfig(Fix(WithFileFormat(ff, value)))
+    def withJson: SKConfig                         = withFileFormat(NJFileFormat.Json)
+    def withJackson: SKConfig                      = withFileFormat(NJFileFormat.Jackson)
+    def withAvro: SKConfig                         = withFileFormat(NJFileFormat.Avro)
+    def withParquet: SKConfig                      = withFileFormat(NJFileFormat.Parquet)
 
     def withStartTime(s: LocalDateTime): SKConfig    = SKConfig(Fix(WithStartTime(s, value)))
     def withEndTime(s: LocalDateTime): SKConfig      = SKConfig(Fix(WithEndTime(s, value)))
@@ -105,8 +109,8 @@ private[spark] object SKConfigF {
 
     def withSaveMode(sm: SaveMode): SKConfig = SKConfig(Fix(WithSaveMode(sm, value)))
 
-    def withPathBuilder(f: Reader[NJPathBuild, String]): SKConfig =
-      SKConfig(Fix(WithPathBuilder(f, value)))
+    def withPathBuilder(f: NJPathBuild => String): SKConfig =
+      SKConfig(Fix(WithPathBuilder(Reader(f), value)))
   }
 
   object SKConfig {

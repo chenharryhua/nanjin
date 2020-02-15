@@ -7,7 +7,10 @@ import org.apache.spark.sql.SparkSession
 
 final class FsmDiskLoad[F[_], K, V](kit: KafkaTopicKit[K, V], params: SKConfigF.SKConfig)(
   implicit sparkSession: SparkSession)
-    extends Serializable {
+    extends SparKafkaUpdateParams[FsmDiskLoad[F, K, V]] {
+
+  override def withParamUpdate(f: SKConfigF.SKConfig => SKConfigF.SKConfig): FsmDiskLoad[F, K, V] =
+    new FsmDiskLoad[F, K, V](kit, f(params))
 
   private val p: SKParams = SKConfigF.evalParams(params)
 

@@ -9,7 +9,11 @@ import cats.implicits._
 final class KafkaPRStream[F[_], K: TypedEncoder, V: TypedEncoder](
   ds: Dataset[NJProducerRecord[K, V]],
   params: StreamConfigF.StreamConfig
-) extends Serializable {
+) extends SparkStreamUpdateParams[KafkaPRStream[F, K, V]] {
+
+  override def withParamUpdate(
+    f: StreamConfigF.StreamConfig => StreamConfigF.StreamConfig): KafkaPRStream[F, K, V] =
+    new KafkaPRStream[F, K, V](ds, f(params))
 
   @transient lazy val typedDataset: TypedDataset[NJProducerRecord[K, V]] = TypedDataset.create(ds)
 

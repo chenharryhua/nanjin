@@ -1,12 +1,20 @@
 package com.github.chenharryhua.nanjin.spark.streaming
 
 import cats.implicits._
+import com.github.chenharryhua.nanjin.common.UpdateParams
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
-import org.apache.spark.sql.streaming.{OutputMode, Trigger}
+
+trait SparkStreamUpdateParams[A]
+    extends UpdateParams[StreamConfigF.StreamConfig, A] with Serializable
 
 final class SparkStream[F[_], A: TypedEncoder](ds: Dataset[A], params: StreamConfigF.StreamConfig)
-    extends Serializable {
+    extends SparkStreamUpdateParams[SparkStream[F, A]] {
+
+  override def withParamUpdate(
+    f: StreamConfigF.StreamConfig => StreamConfigF.StreamConfig): SparkStream[F, A] =
+    new SparkStream[F, A](ds, f(params))
+
   @transient lazy val typedDataset: TypedDataset[A] = TypedDataset.create(ds)
 
   private val p: StreamParams = StreamConfigF.evalParams(params)

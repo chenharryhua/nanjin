@@ -1,42 +1,22 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.data.Reader
 import cats.effect.Sync
 import cats.implicits._
-import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
-import org.apache.spark.sql.{Dataset, SaveMode}
+import org.apache.spark.sql.Dataset
 
 final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   crs: Dataset[NJConsumerRecord[K, V]],
   kit: KafkaTopicKit[K, V],
   params: SKConfigF.SKConfig)
-    extends Serializable {
+    extends SparKafkaUpdateParams[FsmConsumerRecords[F, K, V]] {
 
-  // config section
-  def withJson: FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs, kit, params.withFileFormat(NJFileFormat.Json))
-
-  def withJackson: FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs, kit, params.withFileFormat(NJFileFormat.Jackson))
-
-  def withAvro: FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs, kit, params.withFileFormat(NJFileFormat.Avro))
-
-  def withParquet: FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs, kit, params.withFileFormat(NJFileFormat.Parquet))
-
-  def withPathBuilder(f: NJPathBuild => String): FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs, kit, params.withPathBuilder(Reader(f)))
-
-  def withSaveMode(sm: SaveMode): FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs, kit, params.withSaveMode(sm))
-
-  def withOverwrite: FsmConsumerRecords[F, K, V] =
-    withSaveMode(SaveMode.Overwrite)
+  override def withParamUpdate(
+    f: SKConfigF.SKConfig => SKConfigF.SKConfig): FsmConsumerRecords[F, K, V] =
+    new FsmConsumerRecords[F, K, V](crs, kit, f(params))
 
   @transient lazy val typedDataset: TypedDataset[NJConsumerRecord[K, V]] =
     TypedDataset.create(crs)

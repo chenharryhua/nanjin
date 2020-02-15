@@ -5,12 +5,15 @@ import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
-import org.apache.spark.sql.streaming.{OutputMode, Trigger}
 
 final class KafkaCRStream[F[_], K: TypedEncoder, V: TypedEncoder](
   ds: Dataset[NJConsumerRecord[K, V]],
   params: StreamConfigF.StreamConfig)
-    extends Serializable {
+    extends SparkStreamUpdateParams[KafkaCRStream[F, K, V]] {
+
+  override def withParamUpdate(
+    f: StreamConfigF.StreamConfig => StreamConfigF.StreamConfig): KafkaCRStream[F, K, V] =
+    new KafkaCRStream[F, K, V](ds, f(params))
 
   @transient lazy val typedDataset: TypedDataset[NJConsumerRecord[K, V]] = TypedDataset.create(ds)
 
