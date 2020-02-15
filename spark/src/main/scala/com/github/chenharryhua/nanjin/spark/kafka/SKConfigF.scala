@@ -97,7 +97,7 @@ private[spark] object SKConfigF {
     case WithPathBuilder(v, c)      => SKParams.pathBuilder.set(v)(c)
   }
 
-  def evalParams(cfg: SKConfig): SKParams = scheme.cata(algebra).apply(cfg.value)
+  def evalConfig(cfg: SKConfig): SKParams = scheme.cata(algebra).apply(cfg.value)
 }
 
 final case class SKConfig private (value: Fix[SKConfigF]) extends AnyVal {
@@ -107,11 +107,12 @@ final case class SKConfig private (value: Fix[SKConfigF]) extends AnyVal {
   def withDuration(fd: FiniteDuration): SKConfig = SKConfig(Fix(WithDuration(fd, value)))
   def withDuration(ms: Long): SKConfig           = withDuration(FiniteDuration(ms, TimeUnit.MILLISECONDS))
 
-  def withFileFormat(ff: NJFileFormat): SKConfig = SKConfig(Fix(WithFileFormat(ff, value)))
-  def withJson: SKConfig                         = withFileFormat(NJFileFormat.Json)
-  def withJackson: SKConfig                      = withFileFormat(NJFileFormat.Jackson)
-  def withAvro: SKConfig                         = withFileFormat(NJFileFormat.Avro)
-  def withParquet: SKConfig                      = withFileFormat(NJFileFormat.Parquet)
+  private def withFileFormat(ff: NJFileFormat): SKConfig = SKConfig(Fix(WithFileFormat(ff, value)))
+
+  def withJson: SKConfig    = withFileFormat(NJFileFormat.Json)
+  def withJackson: SKConfig = withFileFormat(NJFileFormat.Jackson)
+  def withAvro: SKConfig    = withFileFormat(NJFileFormat.Avro)
+  def withParquet: SKConfig = withFileFormat(NJFileFormat.Parquet)
 
   def withTimeRange(tr: NJDateTimeRange): SKConfig = SKConfig(Fix(WithTimeRange(tr, value)))
   def withStartTime(s: LocalDateTime): SKConfig    = SKConfig(Fix(WithStartTime(s, value)))
@@ -126,7 +127,7 @@ final case class SKConfig private (value: Fix[SKConfigF]) extends AnyVal {
 
   def withShowRows(num: Int): SKConfig = SKConfig(Fix(WithShowRows(num, value)))
   def withoutTruncate: SKConfig        = SKConfig(Fix(WithShowTruncate(isTruncate = false, value)))
-  def withTrucate: SKConfig            = SKConfig(Fix(WithShowTruncate(isTruncate = true, value)))
+  def withTruncate: SKConfig           = SKConfig(Fix(WithShowTruncate(isTruncate = true, value)))
 
   def withSaveMode(sm: SaveMode): SKConfig = SKConfig(Fix(WithSaveMode(sm, value)))
   def withOverwrite: SKConfig              = withSaveMode(SaveMode.Overwrite)

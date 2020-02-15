@@ -27,13 +27,10 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def noMeta: FsmProducerRecords[F, K, V] =
     new FsmProducerRecords[F, K, V](typedDataset.deserialized.map(_.noMeta).dataset, kit, cfg)
 
-  def count(implicit ev: Sync[F]): F[Long] =
-    typedDataset.count[F]()
-
   @transient lazy val typedDataset: TypedDataset[NJProducerRecord[K, V]] =
     TypedDataset.create(prs)
 
-  private val p: SKParams = SKConfigF.evalParams(cfg)
+  override val params: SKParams = SKConfigF.evalConfig(cfg)
 
   // api section
   def upload(other: KafkaTopicKit[K, V])(
@@ -41,7 +38,7 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     ce: ConcurrentEffect[F],
     timer: Timer[F],
     cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
-    sk.upload(typedDataset, other, p.repartition, p.uploadRate)
+    sk.upload(typedDataset, other, params.repartition, params.uploadRate)
 
   def upload(
     implicit
@@ -50,7 +47,10 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
     upload(kit)
 
+  def count(implicit ev: Sync[F]): F[Long] =
+    typedDataset.count[F]()
+
   def show(implicit ev: Sync[F]): F[Unit] =
-    typedDataset.show[F](p.showDs.rowNum, p.showDs.isTruncate)
+    typedDataset.show[F](params.showDs.rowNum, params.showDs.isTruncate)
 
 }

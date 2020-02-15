@@ -7,7 +7,7 @@ import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, StreamingQu
 final class NJFileSink[F[_], A](dsw: DataStreamWriter[A], cfg: StreamConfig, path: String)
     extends NJStreamSink[F] {
 
-  private val p: StreamParams = StreamConfigF.evalParams(cfg)
+  override val params: StreamParams = StreamConfigF.evalConfig(cfg)
 
   // ops
   def withOptions(f: DataStreamWriter[A] => DataStreamWriter[A]): NJFileSink[F, A] =
@@ -21,11 +21,11 @@ final class NJFileSink[F[_], A](dsw: DataStreamWriter[A], cfg: StreamConfig, pat
     timer: Timer[F]): Stream[F, StreamingQueryProgress] =
     ss.queryStream(
       dsw
-        .trigger(p.trigger)
-        .format(p.fileFormat.format)
+        .trigger(params.trigger)
+        .format(params.fileFormat.format)
         .outputMode(OutputMode.Append)
         .option("path", path)
-        .option("checkpointLocation", p.checkpoint.value)
-        .option("failOnDataLoss", p.dataLoss.value))
+        .option("checkpointLocation", params.checkpoint.value)
+        .option("failOnDataLoss", params.dataLoss.value))
 
 }

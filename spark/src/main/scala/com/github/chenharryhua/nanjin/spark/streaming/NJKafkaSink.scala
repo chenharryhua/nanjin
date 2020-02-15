@@ -15,7 +15,7 @@ final class NJKafkaSink[F[_]](
   topicName: TopicName
 ) extends NJStreamSink[F] {
 
-  private val p: StreamParams = StreamConfigF.evalParams(cfg)
+  override val params: StreamParams = StreamConfigF.evalConfig(cfg)
 
   //  https://spark.apache.org/docs/2.4.5/structured-streaming-kafka-integration.html
   private def producerOptions(m: Map[String, String]): Map[String, String] = {
@@ -29,12 +29,12 @@ final class NJKafkaSink[F[_]](
     timer: Timer[F]): Stream[F, StreamingQueryProgress] =
     ss.queryStream(
       dsw
-        .trigger(p.trigger)
+        .trigger(params.trigger)
         .format("kafka")
-        .outputMode(p.outputMode)
+        .outputMode(params.outputMode)
         .options(producerOptions(producer.config))
         .option("topic", topicName.value)
-        .option("checkpointLocation", p.checkpoint.value)
-        .option("failOnDataLoss", p.dataLoss.value))
+        .option("checkpointLocation", params.checkpoint.value)
+        .option("failOnDataLoss", params.dataLoss.value))
 
 }
