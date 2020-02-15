@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
+import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
@@ -64,12 +64,18 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
     fromDisk[F].consumerRecords
       .flatMap(_.someValues.toProducerRecords.noMeta.upload.map(_ => print(".")).compile.drain)
 
-  def pipeTo[F[_]: ConcurrentEffect: Timer: ContextShift](otherTopic: KafkaTopicKit[K, V])(
+  def batchPipeTo[F[_]: ConcurrentEffect: Timer: ContextShift](otherTopic: KafkaTopicKit[K, V])(
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[Unit] =
     fromKafka[F].consumerRecords.flatMap(
       _.someValues.toProducerRecords.noMeta.upload(otherTopic).map(_ => print(".")).compile.drain)
+
+  def streamingPipeTo[F[_]: Concurrent: Timer](otherTopic: KafkaTopicKit[K, V])(
+    implicit
+    keyEncoder: TypedEncoder[K],
+    valEncoder: TypedEncoder[V]): F[Unit] =
+    streaming[F].flatMap(_.toPRStream.kafkaSink(otherTopic).run)
 
   def streaming[F[_]: Sync, A](f: NJConsumerRecord[K, V] => A)(
     implicit

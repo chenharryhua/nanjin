@@ -53,7 +53,7 @@ private[spark] object StreamConfigF {
   final case class WithCheckpointReplace[K](value: String, cont: K) extends StreamConfigF[K]
   final case class WithCheckpointAppend[K](value: String, cont: K) extends StreamConfigF[K]
 
-  final case class WithFailOnDataLoss[K](value: Boolean, cont: K) extends StreamConfigF[K]
+  final case class WithFailOnDataLoss[K](isFail: Boolean, cont: K) extends StreamConfigF[K]
   final case class WithOutputMode[K](value: OutputMode, cont: K) extends StreamConfigF[K]
   final case class WithTrigger[K](value: Trigger, cont: K) extends StreamConfigF[K]
 
@@ -83,11 +83,17 @@ final case class StreamConfig(value: Fix[StreamConfigF]) extends AnyVal {
   def withCheckpointAppend(cp: String): StreamConfig =
     StreamConfig(Fix(WithCheckpointAppend(cp, value)))
 
-  def withFailOnDataLoss(failOnDataLoss: Boolean): StreamConfig =
-    StreamConfig(Fix(WithFailOnDataLoss(failOnDataLoss, value)))
+  def failOnDataLoss: StreamConfig =
+    StreamConfig(Fix(WithFailOnDataLoss(isFail = true, value)))
 
-  def withOutputMode(f: OutputMode): StreamConfig =
+  def ignoreDataLoss: StreamConfig =
+    StreamConfig(Fix(WithFailOnDataLoss(isFail = false, value)))
+
+  private def withOutputMode(f: OutputMode): StreamConfig =
     StreamConfig(Fix(WithOutputMode(f, value)))
+  def withAppend: StreamConfig   = withOutputMode(OutputMode.Append())
+  def withComplete: StreamConfig = withOutputMode(OutputMode.Complete())
+  def withUpdate: StreamConfig   = withOutputMode(OutputMode.Update())
 
   def withTrigger(trigger: Trigger): StreamConfig =
     StreamConfig(Fix(WithTrigger(trigger, value)))
