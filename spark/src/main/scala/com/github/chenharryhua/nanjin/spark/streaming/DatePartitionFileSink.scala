@@ -19,7 +19,7 @@ final class DatePartitionFileSink[F[_], K, V](
   path: String)
     extends NJStreamSink[F] {
 
-  private val p: StreamParams = StreamConfigF.evalConfig(cfg)
+  override val params: StreamParams = StreamConfigF.evalConfig(cfg)
 
   override def queryStream(
     implicit F: Concurrent[F],
@@ -27,11 +27,11 @@ final class DatePartitionFileSink[F[_], K, V](
     ss.queryStream(
       dsw
         .partitionBy("Year", "Month", "Day")
-        .trigger(p.trigger)
-        .format(p.fileFormat.format)
+        .trigger(params.trigger)
+        .format(params.fileFormat.format)
         .outputMode(OutputMode.Append)
         .option("path", path)
-        .option("checkpointLocation", p.checkpoint.value)
-        .option("failOnDataLoss", p.dataLoss.value))
+        .option("checkpointLocation", params.checkpoint.value)
+        .option("failOnDataLoss", params.dataLoss.value))
 
 }

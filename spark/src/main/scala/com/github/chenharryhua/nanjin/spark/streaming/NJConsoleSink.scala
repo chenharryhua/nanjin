@@ -7,18 +7,18 @@ import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, StreamingQu
 final class NJConsoleSink[F[_], A](dsw: DataStreamWriter[A], cfg: StreamConfig)
     extends NJStreamSink[F] {
 
-  private val p: StreamParams = StreamConfigF.evalConfig(cfg)
+  override val params: StreamParams = StreamConfigF.evalConfig(cfg)
 
   override def queryStream(
     implicit F: Concurrent[F],
     timer: Timer[F]): Stream[F, StreamingQueryProgress] =
     ss.queryStream(
       dsw
-        .trigger(p.trigger)
+        .trigger(params.trigger)
         .format("console")
         .outputMode(OutputMode.Append)
-        .option("truncate", p.showDs.isTruncate.toString)
-        .option("numRows", p.showDs.rowNum.toString)
-        .option("failOnDataLoss", p.dataLoss.value))
+        .option("truncate", params.showDs.isTruncate.toString)
+        .option("numRows", params.showDs.rowNum.toString)
+        .option("failOnDataLoss", params.dataLoss.value))
 
 }

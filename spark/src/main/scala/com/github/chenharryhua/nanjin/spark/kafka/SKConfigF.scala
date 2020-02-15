@@ -127,7 +127,7 @@ final case class SKConfig private (value: Fix[SKConfigF]) extends AnyVal {
 
   def withShowRows(num: Int): SKConfig = SKConfig(Fix(WithShowRows(num, value)))
   def withoutTruncate: SKConfig        = SKConfig(Fix(WithShowTruncate(isTruncate = false, value)))
-  def withTrucate: SKConfig            = SKConfig(Fix(WithShowTruncate(isTruncate = true, value)))
+  def withTruncate: SKConfig           = SKConfig(Fix(WithShowTruncate(isTruncate = true, value)))
 
   def withSaveMode(sm: SaveMode): SKConfig = SKConfig(Fix(WithSaveMode(sm, value)))
   def withOverwrite: SKConfig              = withSaveMode(SaveMode.Overwrite)
