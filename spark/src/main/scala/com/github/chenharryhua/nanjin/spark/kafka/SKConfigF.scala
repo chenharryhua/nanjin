@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import java.time.{LocalDateTime, ZoneId}
+import java.util.concurrent.TimeUnit
 
 import cats.Functor
 import cats.data.Reader
@@ -82,8 +83,11 @@ private[spark] object SKConfigF {
 
   final case class SKConfig private (value: Fix[SKConfigF]) extends AnyVal {
 
-    def withBatchSize(v: Int): SKConfig           = SKConfig(Fix(WithBatchSize(v, value)))
-    def withDuration(v: FiniteDuration): SKConfig = SKConfig(Fix(WithDuration(v, value)))
+    def withBatchSize(bs: Int): SKConfig           = SKConfig(Fix(WithBatchSize(bs, value)))
+    def withDuration(fd: FiniteDuration): SKConfig = SKConfig(Fix(WithDuration(fd, value)))
+
+    def withDuration(ms: Long): SKConfig =
+      SKConfig(Fix(WithDuration(FiniteDuration(ms, TimeUnit.MILLISECONDS), value)))
 
     def withFileFormat(ff: NJFileFormat): SKConfig = SKConfig(Fix(WithFileFormat(ff, value)))
     def withJson: SKConfig                         = withFileFormat(NJFileFormat.Json)
@@ -108,6 +112,7 @@ private[spark] object SKConfigF {
       SKConfig(Fix(WithShowTruncate(truncate, value)))
 
     def withSaveMode(sm: SaveMode): SKConfig = SKConfig(Fix(WithSaveMode(sm, value)))
+    def withOverwrite: SKConfig              = withSaveMode(SaveMode.Overwrite)
 
     def withPathBuilder(f: NJPathBuild => String): SKConfig =
       SKConfig(Fix(WithPathBuilder(Reader(f), value)))
