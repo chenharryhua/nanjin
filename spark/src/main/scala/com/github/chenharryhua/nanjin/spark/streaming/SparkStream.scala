@@ -30,6 +30,9 @@ final class SparkStream[F[_], A: TypedEncoder](ds: Dataset[A], cfg: StreamConfig
   def flatMap[B: TypedEncoder](f: A => TraversableOnce[B]): SparkStream[F, B] =
     new SparkStream[F, B](typedDataset.deserialized.flatMap(f).dataset, cfg)
 
+  def transform[B: TypedEncoder](f: TypedDataset[A] => TypedDataset[B]) =
+    new SparkStream[F, B](f(typedDataset).dataset, cfg)
+
   // sinks
 
   def consoleSink: NJConsoleSink[F, A] =
