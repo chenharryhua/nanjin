@@ -1,10 +1,10 @@
 package com.github.chenharryhua.nanjin.spark.streaming
 
+import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJProducerRecord
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
-import cats.implicits._
 
 final class KafkaPRStream[F[_], K: TypedEncoder, V: TypedEncoder](
   ds: Dataset[NJProducerRecord[K, V]],

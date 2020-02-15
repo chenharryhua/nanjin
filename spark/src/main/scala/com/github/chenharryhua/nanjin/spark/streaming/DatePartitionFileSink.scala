@@ -1,18 +1,20 @@
 package com.github.chenharryhua.nanjin.spark.streaming
 
 import cats.effect.{Concurrent, Timer}
-import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import fs2.Stream
 import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, StreamingQueryProgress}
 
-final case class DatePartitionedCR[K, V](
+final case class DatePartitioned[K, V](
   Year: String,
   Month: String,
   Day: String,
-  payload: NJConsumerRecord[K, V])
+  partition: Int,
+  offset: Long,
+  key: Option[K],
+  value: Option[V])
 
 final class DatePartitionFileSink[F[_], K, V](
-  dsw: DataStreamWriter[DatePartitionedCR[K, V]],
+  dsw: DataStreamWriter[DatePartitioned[K, V]],
   cfg: StreamConfig,
   path: String)
     extends NJStreamSink[F] {

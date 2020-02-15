@@ -107,11 +107,12 @@ final case class SKConfig private (value: Fix[SKConfigF]) extends AnyVal {
   def withDuration(fd: FiniteDuration): SKConfig = SKConfig(Fix(WithDuration(fd, value)))
   def withDuration(ms: Long): SKConfig           = withDuration(FiniteDuration(ms, TimeUnit.MILLISECONDS))
 
-  def withFileFormat(ff: NJFileFormat): SKConfig = SKConfig(Fix(WithFileFormat(ff, value)))
-  def withJson: SKConfig                         = withFileFormat(NJFileFormat.Json)
-  def withJackson: SKConfig                      = withFileFormat(NJFileFormat.Jackson)
-  def withAvro: SKConfig                         = withFileFormat(NJFileFormat.Avro)
-  def withParquet: SKConfig                      = withFileFormat(NJFileFormat.Parquet)
+  private def withFileFormat(ff: NJFileFormat): SKConfig = SKConfig(Fix(WithFileFormat(ff, value)))
+
+  def withJson: SKConfig    = withFileFormat(NJFileFormat.Json)
+  def withJackson: SKConfig = withFileFormat(NJFileFormat.Jackson)
+  def withAvro: SKConfig    = withFileFormat(NJFileFormat.Avro)
+  def withParquet: SKConfig = withFileFormat(NJFileFormat.Parquet)
 
   def withTimeRange(tr: NJDateTimeRange): SKConfig = SKConfig(Fix(WithTimeRange(tr, value)))
   def withStartTime(s: LocalDateTime): SKConfig    = SKConfig(Fix(WithStartTime(s, value)))

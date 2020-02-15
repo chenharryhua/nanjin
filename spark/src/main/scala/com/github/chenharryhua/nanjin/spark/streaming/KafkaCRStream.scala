@@ -21,7 +21,14 @@ final class KafkaCRStream[F[_], K: TypedEncoder, V: TypedEncoder](
     new DatePartitionFileSink[F, K, V](typedDataset.deserialized.map { m =>
       val time = NJTimestamp(m.timestamp / 1000)
       val tz   = params.timeRange.zoneId
-      DatePartitionedCR(time.yearStr(tz), time.monthStr(tz), time.dayStr(tz), m)
+      DatePartitioned(
+        time.yearStr(tz),
+        time.monthStr(tz),
+        time.dayStr(tz),
+        m.partition,
+        m.offset,
+        m.key,
+        m.value)
     }.dataset.writeStream, cfg, path)
 
   def consoleSink: NJConsoleSink[F, NJConsumerRecord[K, V]] =
