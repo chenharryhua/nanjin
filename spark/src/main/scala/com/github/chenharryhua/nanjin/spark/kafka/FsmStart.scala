@@ -77,7 +77,7 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[Unit] =
-    streaming[F].flatMap(_.toPRStream.kafkaSink(otherTopic).run)
+    streaming[F].flatMap(_.toProducerRecords.kafkaSink(otherTopic).run)
 
   def streaming[F[_]: Sync, A](f: NJConsumerRecord[K, V] => A)(
     implicit

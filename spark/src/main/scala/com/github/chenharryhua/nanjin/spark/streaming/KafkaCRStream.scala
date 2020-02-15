@@ -34,12 +34,9 @@ final class KafkaCRStream[F[_], K: TypedEncoder, V: TypedEncoder](
         m.value)
     }.dataset.writeStream, cfg, path)
 
-  def consoleSink: NJConsoleSink[F, NJConsumerRecord[K, V]] =
-    new SparkStream[F, NJConsumerRecord[K, V]](ds, cfg).consoleSink
+  def sparkStream: SparkStream[F, NJConsumerRecord[K, V]] =
+    new SparkStream[F, NJConsumerRecord[K, V]](ds, cfg)
 
-  def fileSink(path: String): NJFileSink[F, NJConsumerRecord[K, V]] =
-    new SparkStream[F, NJConsumerRecord[K, V]](ds, cfg).fileSink(path)
-
-  def toPRStream: KafkaPRStream[F, K, V] =
+  def toProducerRecords: KafkaPRStream[F, K, V] =
     new KafkaPRStream[F, K, V](typedDataset.deserialized.map(_.toNJProducerRecord).dataset, cfg)
 }

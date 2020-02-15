@@ -31,10 +31,7 @@ final class KafkaPRStream[F[_], K: TypedEncoder, V: TypedEncoder](
       kit.settings.producerSettings,
       kit.topicName)
 
-  def consoleSink: NJConsoleSink[F, NJProducerRecord[K, V]] =
-    new SparkStream[F, NJProducerRecord[K, V]](ds, cfg).consoleSink
-
-  def fileSink(path: String): NJFileSink[F, NJProducerRecord[K, V]] =
-    new SparkStream[F, NJProducerRecord[K, V]](ds, cfg).fileSink(path)
+  def sparkStream: SparkStream[F, NJProducerRecord[K, V]] =
+    new SparkStream[F, NJProducerRecord[K, V]](ds, cfg)
 
 }
