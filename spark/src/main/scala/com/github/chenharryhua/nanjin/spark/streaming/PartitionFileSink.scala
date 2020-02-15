@@ -14,11 +14,11 @@ final case class PartitionedConsumerRecord[K, V](
 
 final class PartitionFileSink[F[_], K, V](
   dsw: DataStreamWriter[PartitionedConsumerRecord[K, V]],
-  params: StreamConfigF.StreamConfig,
+  cfg: StreamConfig,
   path: String)
     extends NJStreamSink[F] {
 
-  private val p: StreamParams = StreamConfigF.evalParams(params)
+  private val p: StreamParams = StreamConfigF.evalParams(cfg)
 
   override def queryStream(
     implicit F: Concurrent[F],

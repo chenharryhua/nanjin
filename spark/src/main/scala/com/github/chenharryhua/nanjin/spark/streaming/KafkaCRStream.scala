@@ -8,31 +8,30 @@ import org.apache.spark.sql.Dataset
 
 final class KafkaCRStream[F[_], K: TypedEncoder, V: TypedEncoder](
   ds: Dataset[NJConsumerRecord[K, V]],
-  params: StreamConfigF.StreamConfig)
+  cfg: StreamConfig)
     extends SparkStreamUpdateParams[KafkaCRStream[F, K, V]] {
 
-  override def withParamUpdate(
-    f: StreamConfigF.StreamConfig => StreamConfigF.StreamConfig): KafkaCRStream[F, K, V] =
-    new KafkaCRStream[F, K, V](ds, f(params))
+  override def withParamUpdate(f: StreamConfig => StreamConfig): KafkaCRStream[F, K, V] =
+    new KafkaCRStream[F, K, V](ds, f(cfg))
 
   @transient lazy val typedDataset: TypedDataset[NJConsumerRecord[K, V]] = TypedDataset.create(ds)
 
-  private val p: StreamParams = StreamConfigF.evalParams(params)
+  private val p: StreamParams = StreamConfigF.evalParams(cfg)
 
   def partitionedFileSink(path: String): PartitionFileSink[F, K, V] =
     new PartitionFileSink[F, K, V](typedDataset.deserialized.map { m =>
       val time = NJTimestamp(m.timestamp / 1000)
       val tz   = p.timeRange.zoneId
       PartitionedConsumerRecord(m.topic, time.yearStr(tz), time.monthStr(tz), time.dayStr(tz), m)
-    }.dataset.writeStream, params, path)
+    }.dataset.writeStream, cfg, path)
 
   def consoleSink: NJConsoleSink[F, NJConsumerRecord[K, V]] =
-    new NJConsoleSink[F, NJConsumerRecord[K, V]](ds.writeStream, params)
+    new NJConsoleSink[F, NJConsumerRecord[K, V]](ds.writeStream, cfg)
 
   def fileSink(path: String): NJFileSink[F, NJConsumerRecord[K, V]] =
-    new NJFileSink[F, NJConsumerRecord[K, V]](ds.writeStream, params, path)
+    new NJFileSink[F, NJConsumerRecord[K, V]](ds.writeStream, cfg, path)
 
   def pipeTo(other: KafkaTopicKit[K, V]): NJKafkaSink[F] =
-    new KafkaPRStream[F, K, V](typedDataset.deserialized.map(_.toNJProducerRecord).dataset, params)
+    new KafkaPRStream[F, K, V](typedDataset.deserialized.map(_.toNJProducerRecord).dataset, cfg)
       .kafkaSink(other)
 }

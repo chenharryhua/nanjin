@@ -6,11 +6,11 @@ import org.apache.spark.sql.streaming.{DataStreamWriter, StreamingQueryProgress}
 
 final class NJMemorySink[F[_], A](
   dsw: DataStreamWriter[A],
-  params: StreamConfigF.StreamConfig,
+  cfg: StreamConfig,
   queryName: String)
     extends NJStreamSink[F] {
 
-  private val p: StreamParams = StreamConfigF.evalParams(params)
+  private val p: StreamParams = StreamConfigF.evalParams(cfg)
 
   override def queryStream(
     implicit F: Concurrent[F],

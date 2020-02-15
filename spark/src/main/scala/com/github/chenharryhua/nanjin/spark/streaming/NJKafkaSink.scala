@@ -10,12 +10,12 @@ import org.apache.spark.sql.streaming.{DataStreamWriter, StreamingQueryProgress}
 
 final class NJKafkaSink[F[_]](
   dsw: DataStreamWriter[NJProducerRecord[Array[Byte], Array[Byte]]],
-  params: StreamConfigF.StreamConfig,
+  cfg: StreamConfig,
   producer: KafkaProducerSettings,
   topicName: TopicName
 ) extends NJStreamSink[F] {
 
-  private val p: StreamParams = StreamConfigF.evalParams(params)
+  private val p: StreamParams = StreamConfigF.evalParams(cfg)
 
   //  https://spark.apache.org/docs/2.4.5/structured-streaming-kafka-integration.html
   private def producerOptions(m: Map[String, String]): Map[String, String] = {

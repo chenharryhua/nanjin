@@ -8,16 +8,15 @@ import cats.implicits._
 
 final class KafkaPRStream[F[_], K: TypedEncoder, V: TypedEncoder](
   ds: Dataset[NJProducerRecord[K, V]],
-  params: StreamConfigF.StreamConfig
+  cfg: StreamConfig
 ) extends SparkStreamUpdateParams[KafkaPRStream[F, K, V]] {
 
-  override def withParamUpdate(
-    f: StreamConfigF.StreamConfig => StreamConfigF.StreamConfig): KafkaPRStream[F, K, V] =
-    new KafkaPRStream[F, K, V](ds, f(params))
+  override def withParamUpdate(f: StreamConfig => StreamConfig): KafkaPRStream[F, K, V] =
+    new KafkaPRStream[F, K, V](ds, f(cfg))
 
   @transient lazy val typedDataset: TypedDataset[NJProducerRecord[K, V]] = TypedDataset.create(ds)
 
-  private val p: StreamParams = StreamConfigF.evalParams(params)
+  private val p: StreamParams = StreamConfigF.evalParams(cfg)
 
   def kafkaSink(kit: KafkaTopicKit[K, V]): NJKafkaSink[F] =
     new NJKafkaSink[F](
@@ -28,7 +27,7 @@ final class KafkaPRStream[F[_], K: TypedEncoder, V: TypedEncoder](
             v => kit.codec.valSerde.serializer.serialize(kit.topicName.value, v)))
         .dataset
         .writeStream,
-      params,
+      cfg,
       kit.settings.producerSettings,
       kit.topicName)
 }

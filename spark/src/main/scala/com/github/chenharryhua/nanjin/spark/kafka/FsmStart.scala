@@ -5,27 +5,27 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducerRecord}
-import com.github.chenharryhua.nanjin.spark.streaming.{KafkaCRStream, SparkStream, StreamConfigF}
+import com.github.chenharryhua.nanjin.spark.streaming.{KafkaCRStream, SparkStream, StreamConfig}
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SparkSession
 
-trait SparKafkaUpdateParams[A] extends UpdateParams[SKConfigF.SKConfig, A] with Serializable
+trait SparKafkaUpdateParams[A] extends UpdateParams[SKConfig, A] with Serializable
 
-final class FsmStart[K, V](kit: KafkaTopicKit[K, V], params: SKConfigF.SKConfig)(
+final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
   implicit sparkSession: SparkSession)
     extends SparKafkaUpdateParams[FsmStart[K, V]] {
 
-  override def withParamUpdate(f: SKConfigF.SKConfig => SKConfigF.SKConfig): FsmStart[K, V] =
-    new FsmStart[K, V](kit, f(params))
+  override def withParamUpdate(f: SKConfig => SKConfig): FsmStart[K, V] =
+    new FsmStart[K, V](kit, f(cfg))
 
-  private val p: SKParams = SKConfigF.evalParams(params)
+  private val p: SKParams = SKConfigF.evalParams(cfg)
 
   //api section
   def fromKafka[F[_]: Sync](
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): FsmKafkaUnload[F, K, V] =
-    new FsmKafkaUnload[F, K, V](kit, params)
+    new FsmKafkaUnload[F, K, V](kit, cfg)
 
   def save[F[_]: Sync](path: String)(
     implicit
@@ -43,19 +43,19 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], params: SKConfigF.SKConfig)
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): FsmDiskLoad[F, K, V] =
-    new FsmDiskLoad[F, K, V](kit, params)
+    new FsmDiskLoad[F, K, V](kit, cfg)
 
   def crDataset[F[_]](tds: TypedDataset[NJConsumerRecord[K, V]])(
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]) =
-    new FsmConsumerRecords[F, K, V](tds.dataset, kit, params)
+    new FsmConsumerRecords[F, K, V](tds.dataset, kit, cfg)
 
   def prDataset[F[_]](tds: TypedDataset[NJProducerRecord[K, V]])(
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]) =
-    new FsmProducerRecords[F, K, V](tds.dataset, kit, params)
+    new FsmProducerRecords[F, K, V](tds.dataset, kit, cfg)
 
   def replay[F[_]: ConcurrentEffect: Timer: ContextShift](
     implicit
@@ -78,8 +78,7 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], params: SKConfigF.SKConfig)
       .map(s =>
         new SparkStream(
           s.dataset,
-          StreamConfigF
-            .StreamConfig(p.timeRange, p.showDs, p.fileFormat)
+          StreamConfig(p.timeRange, p.showDs, p.fileFormat)
             .withCheckpointAppend(s"kafka/${kit.topicName.value}")))
 
   def streaming[F[_]: Sync](
@@ -90,7 +89,6 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], params: SKConfigF.SKConfig)
       .map(s =>
         new KafkaCRStream[F, K, V](
           s.dataset,
-          StreamConfigF
-            .StreamConfig(p.timeRange, p.showDs, p.fileFormat)
+          StreamConfig(p.timeRange, p.showDs, p.fileFormat)
             .withCheckpointAppend(s"kafkacr/${kit.topicName.value}")))
 }
