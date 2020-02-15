@@ -16,7 +16,7 @@ final class KafkaPRStream[F[_], K: TypedEncoder, V: TypedEncoder](
 
   @transient lazy val typedDataset: TypedDataset[NJProducerRecord[K, V]] = TypedDataset.create(ds)
 
-  private val p: StreamParams = StreamConfigF.evalParams(cfg)
+  private val p: StreamParams = StreamConfigF.evalConfig(cfg)
 
   def kafkaSink(kit: KafkaTopicKit[K, V]): NJKafkaSink[F] =
     new NJKafkaSink[F](
@@ -30,4 +30,11 @@ final class KafkaPRStream[F[_], K: TypedEncoder, V: TypedEncoder](
       cfg,
       kit.settings.producerSettings,
       kit.topicName)
+
+  def consoleSink: NJConsoleSink[F, NJProducerRecord[K, V]] =
+    new SparkStream[F, NJProducerRecord[K, V]](ds, cfg).consoleSink
+
+  def fileSink(path: String): NJFileSink[F, NJProducerRecord[K, V]] =
+    new SparkStream[F, NJProducerRecord[K, V]](ds, cfg).fileSink(path)
+
 }

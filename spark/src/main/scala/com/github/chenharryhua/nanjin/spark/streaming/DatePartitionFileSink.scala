@@ -5,27 +5,26 @@ import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import fs2.Stream
 import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, StreamingQueryProgress}
 
-final case class PartitionedConsumerRecord[K, V](
-  Topic: String,
+final case class DatePartitionedCR[K, V](
   Year: String,
   Month: String,
   Day: String,
   payload: NJConsumerRecord[K, V])
 
-final class PartitionFileSink[F[_], K, V](
-  dsw: DataStreamWriter[PartitionedConsumerRecord[K, V]],
+final class DatePartitionFileSink[F[_], K, V](
+  dsw: DataStreamWriter[DatePartitionedCR[K, V]],
   cfg: StreamConfig,
   path: String)
     extends NJStreamSink[F] {
 
-  private val p: StreamParams = StreamConfigF.evalParams(cfg)
+  private val p: StreamParams = StreamConfigF.evalConfig(cfg)
 
   override def queryStream(
     implicit F: Concurrent[F],
     timer: Timer[F]): Stream[F, StreamingQueryProgress] =
     ss.queryStream(
       dsw
-        .partitionBy("Topic", "Year", "Month", "Day")
+        .partitionBy("Year", "Month", "Day")
         .trigger(p.trigger)
         .format(p.fileFormat.format)
         .outputMode(OutputMode.Append)

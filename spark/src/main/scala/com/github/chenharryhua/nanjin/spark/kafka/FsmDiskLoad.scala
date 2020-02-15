@@ -12,7 +12,7 @@ final class FsmDiskLoad[F[_], K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
   override def withParamUpdate(f: SKConfig => SKConfig): FsmDiskLoad[F, K, V] =
     new FsmDiskLoad[F, K, V](kit, f(cfg))
 
-  private val p: SKParams = SKConfigF.evalParams(cfg)
+  private val p: SKParams = SKConfigF.evalConfig(cfg)
 
   def consumerRecords(
     implicit

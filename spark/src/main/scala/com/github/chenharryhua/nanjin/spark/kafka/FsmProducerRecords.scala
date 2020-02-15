@@ -33,7 +33,7 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   @transient lazy val typedDataset: TypedDataset[NJProducerRecord[K, V]] =
     TypedDataset.create(prs)
 
-  private val p: SKParams = SKConfigF.evalParams(cfg)
+  private val p: SKParams = SKConfigF.evalConfig(cfg)
 
   // api section
   def upload(other: KafkaTopicKit[K, V])(

@@ -20,7 +20,7 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   @transient lazy val typedDataset: TypedDataset[NJConsumerRecord[K, V]] =
     TypedDataset.create(crs)
 
-  private val p: SKParams = SKConfigF.evalParams(cfg)
+  private val p: SKParams = SKConfigF.evalConfig(cfg)
 
   // api section
   def bimapTo[K2: TypedEncoder, V2: TypedEncoder](

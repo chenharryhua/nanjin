@@ -18,7 +18,7 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
   override def withParamUpdate(f: SKConfig => SKConfig): FsmStart[K, V] =
     new FsmStart[K, V](kit, f(cfg))
 
-  private val p: SKParams = SKConfigF.evalParams(cfg)
+  private val p: SKParams = SKConfigF.evalConfig(cfg)
 
   //api section
   def fromKafka[F[_]: Sync](

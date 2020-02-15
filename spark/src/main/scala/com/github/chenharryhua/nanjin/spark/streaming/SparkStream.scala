@@ -15,7 +15,7 @@ final class SparkStream[F[_], A: TypedEncoder](ds: Dataset[A], cfg: StreamConfig
 
   @transient lazy val typedDataset: TypedDataset[A] = TypedDataset.create(ds)
 
-  private val p: StreamParams = StreamConfigF.evalParams(cfg)
+  private val p: StreamParams = StreamConfigF.evalConfig(cfg)
 
   // transforms
 

@@ -33,13 +33,13 @@ object StreamParams {
 
   def apply(tr: NJDateTimeRange, sd: NJShowDataset, ff: NJFileFormat): StreamParams =
     StreamParams(
-      tr,
-      sd,
-      ff,
-      NJCheckpoint("./data/checkpoint/"),
-      NJFailOnDataLoss(true),
-      OutputMode.Append,
-      Trigger.ProcessingTime(0)
+      timeRange  = tr,
+      showDs     = sd,
+      fileFormat = ff,
+      checkpoint = NJCheckpoint("./data/checkpoint/"),
+      dataLoss   = NJFailOnDataLoss(true),
+      outputMode = OutputMode.Append,
+      trigger    = Trigger.ProcessingTime(0)
     )
 }
 
@@ -70,7 +70,7 @@ private[spark] object StreamConfigF {
       case WithTrigger(v, c)           => StreamParams.trigger.set(v)(c)
     }
 
-  def evalParams(cfg: StreamConfig): StreamParams = scheme.cata(algebra).apply(cfg.value)
+  def evalConfig(cfg: StreamConfig): StreamParams = scheme.cata(algebra).apply(cfg.value)
 
 }
 

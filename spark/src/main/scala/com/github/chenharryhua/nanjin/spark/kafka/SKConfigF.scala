@@ -97,7 +97,7 @@ private[spark] object SKConfigF {
     case WithPathBuilder(v, c)      => SKParams.pathBuilder.set(v)(c)
   }
 
-  def evalParams(cfg: SKConfig): SKParams = scheme.cata(algebra).apply(cfg.value)
+  def evalConfig(cfg: SKConfig): SKParams = scheme.cata(algebra).apply(cfg.value)
 }
 
 final case class SKConfig private (value: Fix[SKConfigF]) extends AnyVal {

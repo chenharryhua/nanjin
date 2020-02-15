@@ -14,7 +14,7 @@ final class FsmKafkaUnload[F[_], K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
   override def withParamUpdate(f: SKConfig => SKConfig): FsmKafkaUnload[F, K, V] =
     new FsmKafkaUnload[F, K, V](kit, f(cfg))
 
-  private val p: SKParams = SKConfigF.evalParams(cfg)
+  private val p: SKParams = SKConfigF.evalConfig(cfg)
 
   def transform[A](f: NJConsumerRecord[K, V] => A)(
     implicit
