@@ -36,7 +36,8 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("save topic to disk in Jackson format") {
-    topic.kit.sparKafka.withOverwrite.withJackson
+    topic.kit.sparKafka
+      .withParamUpdate(_.withOverwrite.withJackson)
       .fromKafka[IO]
       .consumerRecords
       .map(_.save())
@@ -44,7 +45,8 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("read topic from disk in Jackson format - load what being saved") {
-    val rst = topic.kit.sparKafka.withJackson
+    val rst = topic.kit.sparKafka
+      .withParamUpdate(_.withJackson)
       .fromDisk[IO]
       .consumerRecords
       .flatMap(_.values.collect[IO]())
@@ -53,7 +55,8 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("save topic to disk in json format") {
-    topic.kit.sparKafka.withOverwrite.withJson
+    topic.kit.sparKafka
+      .withParamUpdate(_.withOverwrite.withJson)
       .fromKafka[IO]
       .consumerRecords
       .map(_.save())
@@ -61,7 +64,8 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("read topic from disk in json format - load what being saved") {
-    val rst = topic.kit.sparKafka.withJson
+    val rst = topic.kit.sparKafka
+      .withParamUpdate(_.withJson)
       .fromDisk[IO]
       .consumerRecords
       .flatMap(_.values.collect[IO]())
@@ -70,7 +74,8 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("save topic to disk in parquet format") {
-    topic.kit.sparKafka.withParquet.withOverwrite
+    topic.kit.sparKafka
+      .withParamUpdate(_.withParquet.withOverwrite)
       .fromKafka[IO]
       .consumerRecords
       .map(_.save())
@@ -78,7 +83,8 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("read topic from disk in parquet format - load what being saved") {
-    val rst = topic.kit.sparKafka.withParquet
+    val rst = topic.kit.sparKafka
+      .withParamUpdate(_.withParquet)
       .fromDisk[IO]
       .consumerRecords
       .flatMap(_.values.collect[IO]())
@@ -87,7 +93,8 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("save topic to disk in avro format") {
-    topic.kit.sparKafka.withAvro.withOverwrite
+    topic.kit.sparKafka
+      .withParamUpdate(_.withAvro.withOverwrite)
       .fromKafka[IO]
       .consumerRecords
       .map(_.save())
@@ -95,7 +102,8 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("read topic from disk in avro format - load what being saved") {
-    val rst = topic.kit.sparKafka.withAvro
+    val rst = topic.kit.sparKafka
+      .withParamUpdate(_.withAvro)
       .fromDisk[IO]
       .consumerRecords
       .flatMap(_.values.collect[IO]())

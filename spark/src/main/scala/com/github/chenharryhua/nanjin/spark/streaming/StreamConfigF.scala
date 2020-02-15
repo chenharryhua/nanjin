@@ -43,7 +43,7 @@ object StreamParams {
     )
 }
 
-sealed private[spark] trait StreamConfigF[A]
+sealed trait StreamConfigF[A]
 
 private[spark] object StreamConfigF {
 
@@ -60,8 +60,6 @@ private[spark] object StreamConfigF {
   implicit val configParamFunctor: Functor[StreamConfigF] =
     cats.derived.semi.functor[StreamConfigF]
 
-  type StreamConfig = Fix[StreamConfigF]
-
   private val algebra: Algebra[StreamConfigF, StreamParams] =
     Algebra[StreamConfigF, StreamParams] {
       case DefaultParams(tr, sd, ff)   => StreamParams(tr, sd, ff)
@@ -72,24 +70,31 @@ private[spark] object StreamConfigF {
       case WithTrigger(v, c)           => StreamParams.trigger.set(v)(c)
     }
 
-  def evalParams(params: StreamConfig): StreamParams = scheme.cata(algebra).apply(params)
+  def evalParams(cfg: StreamConfig): StreamParams = scheme.cata(algebra).apply(cfg.value)
+
+}
+
+final case class StreamConfig(value: Fix[StreamConfigF]) extends AnyVal {
+  import StreamConfigF._
+
+  def withCheckpointReplace(cp: String): StreamConfig =
+    StreamConfig(Fix(WithCheckpointReplace(cp, value)))
+
+  def withCheckpointAppend(cp: String): StreamConfig =
+    StreamConfig(Fix(WithCheckpointAppend(cp, value)))
+
+  def withFailOnDataLoss(failOnDataLoss: Boolean): StreamConfig =
+    StreamConfig(Fix(WithFailOnDataLoss(failOnDataLoss, value)))
+
+  def withOutputMode(f: OutputMode): StreamConfig =
+    StreamConfig(Fix(WithOutputMode(f, value)))
+
+  def withTrigger(trigger: Trigger): StreamConfig =
+    StreamConfig(Fix(WithTrigger(trigger, value)))
+}
+
+object StreamConfig {
 
   def apply(tr: NJDateTimeRange, sd: NJShowDataset, ff: NJFileFormat): StreamConfig =
-    Fix(DefaultParams[StreamConfig](tr, sd, ff))
-
-  def withCheckpoint(cp: String, cont: StreamConfig): StreamConfig =
-    Fix(WithCheckpointReplace(cp, cont))
-
-  def withCheckpointAppend(cp: String, cont: StreamConfig): StreamConfig =
-    Fix(WithCheckpointAppend(cp, cont))
-
-  def withFailOnDataLoss(dl: Boolean, cont: StreamConfig): StreamConfig =
-    Fix(WithFailOnDataLoss(dl, cont))
-
-  def withOutputMode(f: OutputMode, cont: StreamConfig): StreamConfig =
-    Fix(WithOutputMode(f, cont))
-
-  def withTrigger(trigger: Trigger, cont: StreamConfig): StreamConfig =
-    Fix(WithTrigger(trigger, cont))
-
+    StreamConfig(Fix(StreamConfigF.DefaultParams[Fix[StreamConfigF]](tr, sd, ff)))
 }

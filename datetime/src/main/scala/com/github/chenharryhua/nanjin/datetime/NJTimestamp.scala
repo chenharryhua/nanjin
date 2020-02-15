@@ -15,6 +15,9 @@ final case class NJTimestamp(milliseconds: Long) {
   def local: ZonedDateTime                  = atZone(ZoneId.systemDefault())
   def atZone(zoneId: ZoneId): ZonedDateTime = instant.atZone(zoneId)
   def javaLong: java.lang.Long              = milliseconds
+  def yearStr(zoneId: ZoneId): String       = f"${atZone(zoneId).getYear}%4d"
+  def monthStr(zoneId: ZoneId): String      = f"${atZone(zoneId).getMonthValue}%02d"
+  def dayStr(zoneId: ZoneId): String        = f"${atZone(zoneId).getDayOfMonth}%02d"
 }
 
 object NJTimestamp {

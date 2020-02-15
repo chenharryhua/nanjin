@@ -1,53 +1,26 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.data.Reader
 import cats.effect.Sync
 import cats.implicits._
-import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
-import org.apache.spark.sql.{Dataset, SaveMode}
+import org.apache.spark.sql.Dataset
 
 final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   crs: Dataset[NJConsumerRecord[K, V]],
   kit: KafkaTopicKit[K, V],
-  params: SKConfigF.SKConfig)
-    extends Serializable {
+  cfg: SKConfig)
+    extends SparKafkaUpdateParams[FsmConsumerRecords[F, K, V]] {
 
-  // config section
-  def withJson: FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs, kit, SKConfigF.withFileFormat(NJFileFormat.Json, params))
-
-  def withJackson: FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](
-      crs,
-      kit,
-      SKConfigF.withFileFormat(NJFileFormat.Jackson, params))
-
-  def withAvro: FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs, kit, SKConfigF.withFileFormat(NJFileFormat.Avro, params))
-
-  def withParquet: FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](
-      crs,
-      kit,
-      SKConfigF.withFileFormat(NJFileFormat.Parquet, params))
-
-  def withPathBuilder(f: NJPathBuild => String): FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs, kit, SKConfigF.withPathBuilder(Reader(f), params))
-
-  def withSaveMode(sm: SaveMode): FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs, kit, SKConfigF.withSaveMode(sm, params))
-
-  def withOverwrite: FsmConsumerRecords[F, K, V] =
-    withSaveMode(SaveMode.Overwrite)
+  override def withParamUpdate(f: SKConfig => SKConfig): FsmConsumerRecords[F, K, V] =
+    new FsmConsumerRecords[F, K, V](crs, kit, f(cfg))
 
   @transient lazy val typedDataset: TypedDataset[NJConsumerRecord[K, V]] =
     TypedDataset.create(crs)
 
-  private val p: SKParams = SKConfigF.evalParams(params)
+  private val p: SKParams = SKConfigF.evalParams(cfg)
 
   // api section
   def bimapTo[K2: TypedEncoder, V2: TypedEncoder](
@@ -55,23 +28,23 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     new FsmConsumerRecords[F, K2, V2](
       typedDataset.deserialized.map(_.bimap(k, v)).dataset,
       other,
-      params)
+      cfg)
 
   def flatMapTo[K2: TypedEncoder, V2: TypedEncoder](other: KafkaTopicKit[K2, V2])(
     f: NJConsumerRecord[K, V] => TraversableOnce[NJConsumerRecord[K2, V2]]) =
-    new FsmConsumerRecords[F, K2, V2](typedDataset.deserialized.flatMap(f).dataset, other, params)
+    new FsmConsumerRecords[F, K2, V2](typedDataset.deserialized.flatMap(f).dataset, other, cfg)
 
   def someValues =
     new FsmConsumerRecords[F, K, V](
       typedDataset.filter(typedDataset('value).isNotNone).dataset,
       kit,
-      params)
+      cfg)
 
   def filter(f: NJConsumerRecord[K, V] => Boolean): FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs.filter(f), kit, params)
+    new FsmConsumerRecords[F, K, V](crs.filter(f), kit, cfg)
 
   def persist: FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs.persist(), kit, params)
+    new FsmConsumerRecords[F, K, V](crs.persist(), kit, cfg)
 
   def nullValuesCount(implicit F: Sync[F]): F[Long] =
     typedDataset.filter(typedDataset('value).isNone).count[F]
@@ -96,10 +69,7 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def save(): Unit = save(p.pathBuilder(NJPathBuild(p.fileFormat, kit.topicName)))
 
   def toProducerRecords: FsmProducerRecords[F, K, V] =
-    new FsmProducerRecords(
-      (typedDataset.deserialized.map(_.toNJProducerRecord)).dataset,
-      kit,
-      params)
+    new FsmProducerRecords((typedDataset.deserialized.map(_.toNJProducerRecord)).dataset, kit, cfg)
 
-  def stats: Statistics[F, K, V] = new Statistics(crs, params)
+  def stats: Statistics[F, K, V] = new Statistics(crs, cfg)
 }

@@ -1,10 +1,21 @@
 package com.github.chenharryhua.nanjin.spark.streaming
 
 import cats.effect.{Concurrent, Timer}
+import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import fs2.Stream
 import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, StreamingQueryProgress}
 
-final class NJConsoleSink[F[_], A](dsw: DataStreamWriter[A], cfg: StreamConfig)
+final case class PartitionedConsumerRecord[K, V](
+  Topic: String,
+  Year: String,
+  Month: String,
+  Day: String,
+  payload: NJConsumerRecord[K, V])
+
+final class PartitionFileSink[F[_], K, V](
+  dsw: DataStreamWriter[PartitionedConsumerRecord[K, V]],
+  cfg: StreamConfig,
+  path: String)
     extends NJStreamSink[F] {
 
   private val p: StreamParams = StreamConfigF.evalParams(cfg)
@@ -14,11 +25,12 @@ final class NJConsoleSink[F[_], A](dsw: DataStreamWriter[A], cfg: StreamConfig)
     timer: Timer[F]): Stream[F, StreamingQueryProgress] =
     ss.queryStream(
       dsw
+        .partitionBy("Topic", "Year", "Month", "Day")
         .trigger(p.trigger)
-        .format("console")
+        .format(p.fileFormat.format)
         .outputMode(OutputMode.Append)
-        .option("truncate", p.showDs.isTruncate.toString)
-        .option("numRows", p.showDs.rowNum.toString)
+        .option("path", path)
+        .option("checkpointLocation", p.checkpoint.value)
         .option("failOnDataLoss", p.dataLoss.value))
 
 }
