@@ -24,17 +24,18 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
 
   // api section
   def bimapTo[K2: TypedEncoder, V2: TypedEncoder](
-    other: KafkaTopicKit[K2, V2])(k: K => K2, v: V => V2) =
+    other: KafkaTopicKit[K2, V2])(k: K => K2, v: V => V2): FsmConsumerRecords[F, K2, V2] =
     new FsmConsumerRecords[F, K2, V2](
       typedDataset.deserialized.map(_.bimap(k, v)).dataset,
       other,
       cfg)
 
   def flatMapTo[K2: TypedEncoder, V2: TypedEncoder](other: KafkaTopicKit[K2, V2])(
-    f: NJConsumerRecord[K, V] => TraversableOnce[NJConsumerRecord[K2, V2]]) =
+    f: NJConsumerRecord[K, V] => TraversableOnce[NJConsumerRecord[K2, V2]])
+    : FsmConsumerRecords[F, K2, V2] =
     new FsmConsumerRecords[F, K2, V2](typedDataset.deserialized.flatMap(f).dataset, other, cfg)
 
-  def someValues =
+  def someValues: FsmConsumerRecords[F, K, V] =
     new FsmConsumerRecords[F, K, V](
       typedDataset.filter(typedDataset('value).isNotNone).dataset,
       kit,

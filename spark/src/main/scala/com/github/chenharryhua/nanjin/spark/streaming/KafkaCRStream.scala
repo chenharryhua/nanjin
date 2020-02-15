@@ -17,11 +17,14 @@ final class KafkaCRStream[F[_], K: TypedEncoder, V: TypedEncoder](
 
   override val params: StreamParams = StreamConfigF.evalConfig(cfg)
 
+  def someValues: KafkaCRStream[F, K, V] =
+    new KafkaCRStream[F, K, V](typedDataset.filter(typedDataset('value).isNotNone).dataset, cfg)
+
   def datePartitionFileSink(path: String): DatePartitionFileSink[F, K, V] =
     new DatePartitionFileSink[F, K, V](typedDataset.deserialized.map { m =>
       val time = NJTimestamp(m.timestamp / 1000)
       val tz   = params.timeRange.zoneId
-      DatePartitioned(
+      DatePartitionedCR(
         time.yearStr(tz),
         time.monthStr(tz),
         time.dayStr(tz),

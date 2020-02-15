@@ -4,7 +4,7 @@ import cats.effect.{Concurrent, Timer}
 import fs2.Stream
 import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, StreamingQueryProgress}
 
-final case class DatePartitioned[K, V](
+final case class DatePartitionedCR[K, V](
   Year: String,
   Month: String,
   Day: String,
@@ -14,7 +14,7 @@ final case class DatePartitioned[K, V](
   value: Option[V])
 
 final class DatePartitionFileSink[F[_], K, V](
-  dsw: DataStreamWriter[DatePartitioned[K, V]],
+  dsw: DataStreamWriter[DatePartitionedCR[K, V]],
   cfg: StreamConfig,
   path: String)
     extends NJStreamSink[F] {
