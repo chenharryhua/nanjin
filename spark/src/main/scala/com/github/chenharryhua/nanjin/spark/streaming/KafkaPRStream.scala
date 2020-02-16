@@ -18,6 +18,18 @@ final class KafkaPRStream[F[_], K: TypedEncoder, V: TypedEncoder](
 
   override val params: StreamParams = StreamConfigF.evalConfig(cfg)
 
+  def noTimestamp: KafkaPRStream[F, K, V] =
+    new KafkaPRStream[F, K, V](typedDataset.deserialized.map(_.noTimestamp).dataset, cfg)
+
+  def noPartiton: KafkaPRStream[F, K, V] =
+    new KafkaPRStream[F, K, V](typedDataset.deserialized.map(_.noPartition).dataset, cfg)
+
+  def noMeta: KafkaPRStream[F, K, V] =
+    new KafkaPRStream[F, K, V](typedDataset.deserialized.map(_.noMeta).dataset, cfg)
+
+  def someValues: KafkaPRStream[F, K, V] =
+    new KafkaPRStream[F, K, V](typedDataset.filter(typedDataset('value).isNotNone).dataset, cfg)
+
   def kafkaSink(kit: KafkaTopicKit[K, V]): NJKafkaSink[F] =
     new NJKafkaSink[F](
       typedDataset.deserialized

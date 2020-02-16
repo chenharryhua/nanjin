@@ -2,6 +2,8 @@ package com.github.chenharryhua.nanjin.spark.streaming
 
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.UpdateParams
+import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
+import com.github.chenharryhua.nanjin.kafka.common.NJProducerRecord
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
 
@@ -40,4 +42,8 @@ final class SparkStream[F[_], A: TypedEncoder](ds: Dataset[A], cfg: StreamConfig
 
   def fileSink(path: String): NJFileSink[F, A] =
     new NJFileSink[F, A](ds.writeStream, cfg, path)
+
+  def kafkaSink[K: TypedEncoder, V: TypedEncoder](kit: KafkaTopicKit[K, V])(
+    implicit ev: A =:= NJProducerRecord[K, V]): NJKafkaSink[F] =
+    new KafkaPRStream[F, K, V](typedDataset.deserialized.map(ev).dataset, cfg).kafkaSink(kit)
 }
