@@ -11,6 +11,7 @@ final case class DatePartitionedCR[K, V](
   Day: String,
   partition: Int,
   offset: Long,
+  timestamp: Long,
   key: Option[K],
   value: Option[V])
 
@@ -39,6 +40,7 @@ final class KafkaCRStream[F[_], K: TypedEncoder, V: TypedEncoder](
         time.dayStr(tz),
         m.partition,
         m.offset,
+        m.timestamp,
         m.key,
         m.value)
     }.dataset.writeStream, cfg, path).partitionBy("Year", "Month", "Day")
