@@ -191,7 +191,7 @@ private[kafka] object sk {
             NJConsumerRecord[K, V](
               msg.partition,
               msg.offset,
-              msg.timestamp,
+              msg.timestamp / 1000, //spark use micro-second.
               msg.key.flatMap(k =>
                 kit.codec.keyCodec
                   .tryDecode(k)
