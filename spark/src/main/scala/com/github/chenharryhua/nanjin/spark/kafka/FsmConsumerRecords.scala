@@ -44,6 +44,11 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def filter(f: NJConsumerRecord[K, V] => Boolean): FsmConsumerRecords[F, K, V] =
     new FsmConsumerRecords[F, K, V](crs.filter(f), kit, cfg)
 
+  def sorted: FsmConsumerRecords[F, K, V] = {
+    val sd = typedDataset.orderBy(typedDataset('timestamp).asc, typedDataset('offset).asc)
+    new FsmConsumerRecords[F, K, V](sd.dataset, kit, cfg)
+  }
+
   def persist: FsmConsumerRecords[F, K, V] =
     new FsmConsumerRecords[F, K, V](crs.persist(), kit, cfg)
 
