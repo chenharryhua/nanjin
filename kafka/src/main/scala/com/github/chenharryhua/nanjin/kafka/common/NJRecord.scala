@@ -21,6 +21,9 @@ import org.apache.kafka.clients.producer.ProducerRecord
   topic: String,
   timestampType: Int) {
 
+  def metaInfo: String =
+    s"partition=$partition offset=$offset timestamp=$timestamp topic=$topic"
+
   def toNJProducerRecord: NJProducerRecord[K, V] =
     NJProducerRecord[K, V](Option(partition), Option(timestamp), key, value)
 }
@@ -105,10 +108,10 @@ object NJProducerRecord {
     NJProducerRecord(Option(pr.partition), Option(pr.timestamp), pr.key, pr.value)
 
   def apply[K, V](k: K, v: V): NJProducerRecord[K, V] =
-    NJProducerRecord(None, None, Some(k), Some(v))
+    NJProducerRecord(None, None, Option(k), Option(v))
 
   def apply[K, V](v: V): NJProducerRecord[K, V] =
-    NJProducerRecord(None, None, None, Some(v))
+    NJProducerRecord(None, None, None, Option(v))
 
   implicit def jsonNJProducerRecordEncoder[K: JsonEncoder, V: JsonEncoder]
     : JsonEncoder[NJProducerRecord[K, V]] =

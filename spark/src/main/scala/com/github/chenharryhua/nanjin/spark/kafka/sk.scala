@@ -191,18 +191,18 @@ private[kafka] object sk {
             NJConsumerRecord[K, V](
               msg.partition,
               msg.offset,
-              msg.timestamp,
+              msg.timestamp / 1000, //spark use micro-second.
               msg.key.flatMap(k =>
                 kit.codec.keyCodec
                   .tryDecode(k)
                   .toEither
-                  .leftMap(logger.warn(_)("key decode error"))
+                  .leftMap(logger.warn(_)(s"key decode error. ${msg.metaInfo}"))
                   .toOption),
               msg.value.flatMap(v =>
                 kit.codec.valCodec
                   .tryDecode(v)
                   .toEither
-                  .leftMap(logger.warn(_)("value decode error"))
+                  .leftMap(logger.warn(_)(s"value decode error. ${msg.metaInfo}"))
                   .toOption),
               msg.topic,
               msg.timestampType
