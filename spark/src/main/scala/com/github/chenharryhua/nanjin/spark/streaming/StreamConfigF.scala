@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.streaming
 
+import java.util.concurrent.TimeUnit
+
 import cats.Functor
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
@@ -97,6 +99,12 @@ final case class StreamConfig(value: Fix[StreamConfigF]) extends AnyVal {
 
   def withTrigger(trigger: Trigger): StreamConfig =
     StreamConfig(Fix(WithTrigger(trigger, value)))
+
+  def withProcessingTimeTrigger(ms: Long): StreamConfig =
+    withTrigger(Trigger.ProcessingTime(ms, TimeUnit.MILLISECONDS))
+
+  def withContinousTrigger(ms: Long): StreamConfig =
+    withTrigger(Trigger.Continuous(ms, TimeUnit.MILLISECONDS))
 }
 
 object StreamConfig {
