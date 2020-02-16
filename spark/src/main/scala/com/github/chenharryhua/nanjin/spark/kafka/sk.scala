@@ -192,8 +192,18 @@ private[kafka] object sk {
               msg.partition,
               msg.offset,
               msg.timestamp,
-              msg.key.flatMap(k   => kit.codec.keyCodec.tryDecode(k).toOption),
-              msg.value.flatMap(v => kit.codec.valCodec.tryDecode(v).toOption),
+              msg.key.flatMap(k =>
+                kit.codec.keyCodec
+                  .tryDecode(k)
+                  .toEither
+                  .leftMap(logger.warn(_)("key decode error"))
+                  .toOption),
+              msg.value.flatMap(v =>
+                kit.codec.valCodec
+                  .tryDecode(v)
+                  .toEither
+                  .leftMap(logger.warn(_)("value decode error"))
+                  .toOption),
               msg.topic,
               msg.timestampType
             )
