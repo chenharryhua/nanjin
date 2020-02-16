@@ -64,14 +64,14 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[Unit] =
     fromDisk[F].consumerRecords
-      .flatMap(_.someValues.toProducerRecords.noMeta.upload.map(_ => print(".")).compile.drain)
+      .flatMap(_.someValues.sorted.toProducerRecords.noMeta.upload.map(_ => print(".")).compile.drain)
 
   def batchPipeTo[F[_]: ConcurrentEffect: Timer: ContextShift](otherTopic: KafkaTopicKit[K, V])(
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[Unit] =
     fromKafka[F].consumerRecords.flatMap(
-      _.someValues.toProducerRecords.noMeta.upload(otherTopic).map(_ => print(".")).compile.drain)
+      _.someValues.sorted.toProducerRecords.noMeta.upload(otherTopic).map(_ => print(".")).compile.drain)
 
   def streamingPipeTo[F[_]: Concurrent: Timer](otherTopic: KafkaTopicKit[K, V])(
     implicit
