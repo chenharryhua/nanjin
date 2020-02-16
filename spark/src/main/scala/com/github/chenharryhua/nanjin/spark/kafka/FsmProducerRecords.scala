@@ -21,7 +21,7 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def noTimestamp: FsmProducerRecords[F, K, V] =
     new FsmProducerRecords[F, K, V](typedDataset.deserialized.map(_.noTimestamp).dataset, kit, cfg)
 
-  def noPartiton: FsmProducerRecords[F, K, V] =
+  def noPartition: FsmProducerRecords[F, K, V] =
     new FsmProducerRecords[F, K, V](typedDataset.deserialized.map(_.noPartition).dataset, kit, cfg)
 
   def noMeta: FsmProducerRecords[F, K, V] =
