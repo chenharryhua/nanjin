@@ -5,6 +5,16 @@ import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
 
+final case class DatePartitionedCR[K, V](
+  Year: String,
+  Month: String,
+  Day: String,
+  partition: Int,
+  offset: Long,
+  timestamp: Long,
+  key: Option[K],
+  value: Option[V])
+
 final class KafkaCRStream[F[_], K: TypedEncoder, V: TypedEncoder](
   ds: Dataset[NJConsumerRecord[K, V]],
   cfg: StreamConfig)
@@ -20,8 +30,8 @@ final class KafkaCRStream[F[_], K: TypedEncoder, V: TypedEncoder](
   def someValues: KafkaCRStream[F, K, V] =
     new KafkaCRStream[F, K, V](typedDataset.filter(typedDataset('value).isNotNone).dataset, cfg)
 
-  def datePartitionFileSink(path: String): DatePartitionFileSink[F, K, V] =
-    new DatePartitionFileSink[F, K, V](typedDataset.deserialized.map { m =>
+  def datePartitionFileSink(path: String): NJFileSink[F, DatePartitionedCR[K, V]] =
+    new NJFileSink[F, DatePartitionedCR[K, V]](typedDataset.deserialized.map { m =>
       val time = NJTimestamp(m.timestamp / 1000)
       val tz   = params.timeRange.zoneId
       DatePartitionedCR(
@@ -30,9 +40,10 @@ final class KafkaCRStream[F[_], K: TypedEncoder, V: TypedEncoder](
         time.dayStr(tz),
         m.partition,
         m.offset,
+        m.timestamp,
         m.key,
         m.value)
-    }.dataset.writeStream, cfg, path)
+    }.dataset.writeStream, cfg, path).partitionBy("Year", "Month", "Day")
 
   def sparkStream: SparkStream[F, NJConsumerRecord[K, V]] =
     new SparkStream[F, NJConsumerRecord[K, V]](ds, cfg)
