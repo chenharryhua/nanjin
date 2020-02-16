@@ -53,7 +53,8 @@ final case class UncaughtKafkaStreamingException(thread: Thread, ex: Throwable)
   tag: KeyValueTag,
   topicName: String,
   partition: Int,
-  offset: Long) {
+  offset: Long,
+  timestamp: Long) {
 
   def valueError: Option[ConsumerRecordError] =
     ConsumerRecordError.tag.composePrism(KeyValueTag.valueTagPrism).getOption(this).map(_ => this)
@@ -62,11 +63,11 @@ final case class UncaughtKafkaStreamingException(thread: Thread, ex: Throwable)
     ConsumerRecordError.tag.composePrism(KeyValueTag.keyTagPrism).getOption(this).map(_ => this)
 
   def metaInfo: String =
-    s"${tag.name} decode error. topic=$topicName, partition=$partition, offset=$offset"
+    s"${tag.name} decode error. topic=$topicName, partition=$partition, offset=$offset, timestamp=$timestamp"
 }
 
 object ConsumerRecordError {
 
   def apply[K, V](ex: Throwable, tag: KeyValueTag, cr: ConsumerRecord[K, V]): ConsumerRecordError =
-    ConsumerRecordError(ex, tag, cr.topic(), cr.partition(), cr.offset())
+    ConsumerRecordError(ex, tag, cr.topic(), cr.partition(), cr.offset(), cr.timestamp())
 }

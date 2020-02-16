@@ -21,6 +21,9 @@ import org.apache.kafka.clients.producer.ProducerRecord
   topic: String,
   timestampType: Int) {
 
+  def metaInfo: String =
+    s"partition=${partition} offset=${offset} timestamp=${timestamp} topic=${topic}"
+
   def toNJProducerRecord: NJProducerRecord[K, V] =
     NJProducerRecord[K, V](Option(partition), Option(timestamp), key, value)
 }
