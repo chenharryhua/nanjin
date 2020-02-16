@@ -187,16 +187,17 @@ private[kafka] object sk {
             .as[NJConsumerRecord[Array[Byte], Array[Byte]]])
         .deserialized
         .mapPartitions { msgs =>
-          val decoder = (msg: NJConsumerRecord[Array[Byte], Array[Byte]]) =>
+          val decoder = (msg: NJConsumerRecord[Array[Byte], Array[Byte]]) => 
             NJConsumerRecord[K, V](
               msg.partition,
               msg.offset,
               msg.timestamp,
-              msg.key.flatMap(k   => kit.codec.keyCodec.tryDecode(k).toOption),
-              msg.value.flatMap(v => kit.codec.valCodec.tryDecode(v).toOption),
+              msg.key.flatMap(k =>
+                kit.codec.keyCodec.tryDecode(k).toEither.leftMap(logger.warn(_)("key")).toOption),
+              msg.value.flatMap(v =>
+                kit.codec.valCodec.tryDecode(v).toEither.leftMap(logger.warn(_)("value")).toOption),
               msg.topic,
-              msg.timestampType
-            )
+              msg.timestampType)
           msgs.map(decoder.andThen(f))
         }
     }
