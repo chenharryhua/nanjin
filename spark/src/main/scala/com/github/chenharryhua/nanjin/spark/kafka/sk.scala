@@ -10,7 +10,8 @@ import com.github.chenharryhua.nanjin.kafka.common.{
   KafkaOffsetRange,
   KafkaTopicPartition,
   NJConsumerRecord,
-  NJProducerRecord
+  NJProducerRecord,
+  ShowMetaInfo
 }
 import com.github.chenharryhua.nanjin.kafka.{KafkaConsumerApi, KafkaTopicKit}
 import com.github.chenharryhua.nanjin.spark._
@@ -171,19 +172,20 @@ private[kafka] object sk {
   private def decodeSparkStreamCR[K, V](kit: KafkaTopicKit[K, V])
     : NJConsumerRecord[Array[Byte], Array[Byte]] => NJConsumerRecord[K, V] =
     rawCr => {
-      val cr = NJConsumerRecord.timestamp.set(rawCr.timestamp / 1000)(rawCr) //spark use micro-second.
+      val smi = ShowMetaInfo[NJConsumerRecord[Array[Byte], Array[Byte]]]
+      val cr  = NJConsumerRecord.timestamp.set(rawCr.timestamp / 1000)(rawCr) //spark use micro-second.
       cr.bimap(
           k =>
             kit.codec.keyCodec
               .tryDecode(k)
               .toEither
-              .leftMap(logger.warn(_)(s"key decode error. ${cr.metaInfo}"))
+              .leftMap(logger.warn(_)(s"key decode error. ${smi.metaInfo(cr)}"))
               .toOption,
           v =>
             kit.codec.valCodec
               .tryDecode(v)
               .toEither
-              .leftMap(logger.warn(_)(s"value decode error. ${cr.metaInfo}"))
+              .leftMap(logger.warn(_)(s"value decode error. ${smi.metaInfo(cr)}"))
               .toOption
         )
         .flatten[K, V]

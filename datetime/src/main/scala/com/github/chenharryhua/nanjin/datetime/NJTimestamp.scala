@@ -24,6 +24,8 @@ final case class NJTimestamp(milliseconds: Long) extends AnyVal {
   def yearStr(zoneId: ZoneId): String  = f"${atZone(zoneId).getYear}%4d"
   def monthStr(zoneId: ZoneId): String = f"${atZone(zoneId).getMonthValue}%02d"
   def dayStr(zoneId: ZoneId): String   = f"${atZone(zoneId).getDayOfMonth}%02d"
+
+  override def toString: String = local.toString
 }
 
 object NJTimestamp {

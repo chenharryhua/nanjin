@@ -23,10 +23,7 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
   override val params: SKParams = SKConfigF.evalConfig(cfg)
 
   //api section
-  def fromKafka[F[_]: Sync](
-    implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): FsmKafkaUnload[F, K, V] =
+  def fromKafka[F[_]: Sync]: FsmKafkaUnload[F, K, V] =
     new FsmKafkaUnload[F, K, V](kit, cfg)
 
   def save[F[_]: Sync](path: String)(
