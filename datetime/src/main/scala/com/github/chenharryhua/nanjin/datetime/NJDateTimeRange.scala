@@ -15,8 +15,8 @@ import shapeless.{:+:, CNil, Poly1}
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 @Lenses final case class NJDateTimeRange(
-  start: Option[NJDateTimeRange.TimeTypes],
-  end: Option[NJDateTimeRange.TimeTypes],
+  private val start: Option[NJDateTimeRange.TimeTypes],
+  private val end: Option[NJDateTimeRange.TimeTypes],
   zoneId: ZoneId) {
 
   private object calcDateTime extends Poly1 {
@@ -30,7 +30,7 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
     implicit val instant: Case.Aux[Instant, NJTimestamp] =
       at[Instant](NJTimestamp(_))
 
-    implicit val njtimestamp: Case.Aux[NJTimestamp, NJTimestamp] =
+    implicit val njTimestamp: Case.Aux[NJTimestamp, NJTimestamp] =
       at[NJTimestamp](identity)
 
     implicit val zonedDatetime: Case.Aux[ZonedDateTime, NJTimestamp] =
@@ -73,23 +73,17 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
     NJDateTimeRange.end.set(Some(prism.reverseGet(a)))(this)
 
   //start
-  def withStartTime(ts: NJTimestamp): NJDateTimeRange   = setStart(ts)
   def withStartTime(ts: LocalDate): NJDateTimeRange     = setStart(ts)
   def withStartTime(ts: LocalDateTime): NJDateTimeRange = setStart(ts)
   def withStartTime(ts: Instant): NJDateTimeRange       = setStart(NJTimestamp(ts))
   def withStartTime(ts: Long): NJDateTimeRange          = setStart(NJTimestamp(ts))
   def withStartTime(ts: Timestamp): NJDateTimeRange     = setStart(NJTimestamp(ts))
   //end
-  def withEndTime(ts: NJTimestamp): NJDateTimeRange   = setEnd(ts)
   def withEndTime(ts: LocalDate): NJDateTimeRange     = setEnd(ts)
   def withEndTime(ts: LocalDateTime): NJDateTimeRange = setEnd(ts)
   def withEndTime(ts: Instant): NJDateTimeRange       = setEnd(NJTimestamp(ts))
   def withEndTime(ts: Long): NJDateTimeRange          = setEnd(NJTimestamp(ts))
   def withEndTime(ts: Timestamp): NJDateTimeRange     = setEnd(NJTimestamp(ts))
-
-  def oneDay(ts: LocalDate): NJDateTimeRange = setStart(ts).setEnd(ts.plusDays(1))
-  def today: NJDateTimeRange                 = oneDay(LocalDate.now)
-  def yesterday: NJDateTimeRange             = oneDay(LocalDate.now.minusDays(1))
 
   def isInBetween(ts: Long): Boolean = (startTimestamp, endTimestamp) match {
     case (Some(s), Some(e)) => ts >= s.milliseconds && ts < e.milliseconds
@@ -108,11 +102,7 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
 
 object NJDateTimeRange {
 
-  final type TimeTypes =
-    NJTimestamp :+:
-      LocalDateTime :+:
-      LocalDate :+:
-      CNil
+  final type TimeTypes = NJTimestamp :+: LocalDateTime :+: LocalDate :+: CNil
 
   implicit val upperBoundedNJDateTimeRange: UpperBounded[NJDateTimeRange] with Eq[NJDateTimeRange] =
     new UpperBounded[NJDateTimeRange] with Eq[NJDateTimeRange] {
@@ -155,4 +145,10 @@ object NJDateTimeRange {
     }
 
   final val infinite: NJDateTimeRange = UpperBounded[NJDateTimeRange].maxBound
+
+  def oneDay(ts: LocalDate): NJDateTimeRange =
+    NJDateTimeRange.infinite.withStartTime(ts).withEndTime(ts.plusDays(1))
+
+  def today: NJDateTimeRange     = oneDay(LocalDate.now)
+  def yesterday: NJDateTimeRange = oneDay(LocalDate.now.minusDays(1))
 }

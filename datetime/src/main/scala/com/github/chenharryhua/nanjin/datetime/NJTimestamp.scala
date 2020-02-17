@@ -3,13 +3,15 @@ package com.github.chenharryhua.nanjin.datetime
 import java.sql.Timestamp
 import java.time._
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.TimeUnit
 
 import cats.{Hash, Order, Show}
 import monocle.Iso
 
 import scala.util.Try
 
-final case class NJTimestamp(milliseconds: Long) {
+final case class NJTimestamp(milliseconds: Long) extends AnyVal {
+  def timeUnit: TimeUnit   = TimeUnit.MILLISECONDS
   def instant: Instant     = Instant.ofEpochMilli(milliseconds)
   def utc: ZonedDateTime   = instant.atZone(ZoneId.of("Etc/UTC"))
   def local: ZonedDateTime = atZone(ZoneId.systemDefault())
@@ -22,6 +24,8 @@ final case class NJTimestamp(milliseconds: Long) {
   def yearStr(zoneId: ZoneId): String  = f"${atZone(zoneId).getYear}%4d"
   def monthStr(zoneId: ZoneId): String = f"${atZone(zoneId).getMonthValue}%02d"
   def dayStr(zoneId: ZoneId): String   = f"${atZone(zoneId).getDayOfMonth}%02d"
+
+  override def toString: String = local.toString
 }
 
 object NJTimestamp {

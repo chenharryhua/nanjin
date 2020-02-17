@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka.common
 
 import cats.Bifunctor
+import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import fs2.kafka.{ProducerRecord => Fs2ProducerRecord}
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
@@ -20,12 +21,17 @@ import org.apache.kafka.clients.producer.ProducerRecord
   value: Option[V],
   topic: String,
   timestampType: Int) {
-
-  def metaInfo: String =
-    s"partition=$partition offset=$offset timestamp=$timestamp topic=$topic"
+  def njTimestamp: NJTimestamp = NJTimestamp(timestamp)
 
   def toNJProducerRecord: NJProducerRecord[K, V] =
     NJProducerRecord[K, V](Option(partition), Option(timestamp), key, value)
+
+  def flatten[K2, V2](
+    implicit
+    evK: K <:< Option[K2],
+    evV: V <:< Option[V2]
+  ): NJConsumerRecord[K2, V2] =
+    copy(key = key.flatten, value = value.flatten)
 }
 
 object NJConsumerRecord {
@@ -60,6 +66,8 @@ object NJConsumerRecord {
   timestamp: Option[Long],
   key: Option[K],
   value: Option[V]) {
+
+  def njTimestamp: Option[NJTimestamp] = timestamp.map(NJTimestamp(_))
 
   def newPartition(pt: Int): NJProducerRecord[K, V] =
     NJProducerRecord.partition.set(Some(pt))(this)
