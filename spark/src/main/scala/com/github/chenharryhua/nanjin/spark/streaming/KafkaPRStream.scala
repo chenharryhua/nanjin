@@ -24,10 +24,7 @@ final class KafkaPRStream[F[_], K: TypedEncoder, V: TypedEncoder](
   def kafkaSink(kit: KafkaTopicKit[K, V]): NJKafkaSink[F] =
     new NJKafkaSink[F](
       typedDataset.deserialized
-        .map(
-          _.bimap(
-            k => kit.codec.keySerde.serializer.serialize(kit.topicName.value, k),
-            v => kit.codec.valSerde.serializer.serialize(kit.topicName.value, v)))
+        .map(_.bimap(k => kit.codec.keyCodec.encode(k), v => kit.codec.valCodec.encode(v)))
         .dataset
         .writeStream,
       cfg,

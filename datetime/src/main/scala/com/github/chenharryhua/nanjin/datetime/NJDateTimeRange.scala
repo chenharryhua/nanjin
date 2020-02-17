@@ -15,8 +15,8 @@ import shapeless.{:+:, CNil, Poly1}
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 @Lenses final case class NJDateTimeRange(
-  start: Option[NJDateTimeRange.TimeTypes],
-  end: Option[NJDateTimeRange.TimeTypes],
+  private val start: Option[NJDateTimeRange.TimeTypes],
+  private val end: Option[NJDateTimeRange.TimeTypes],
   zoneId: ZoneId) {
 
   private object calcDateTime extends Poly1 {
@@ -73,14 +73,12 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
     NJDateTimeRange.end.set(Some(prism.reverseGet(a)))(this)
 
   //start
-  def withStartTime(ts: NJTimestamp): NJDateTimeRange   = setStart(ts)
   def withStartTime(ts: LocalDate): NJDateTimeRange     = setStart(ts)
   def withStartTime(ts: LocalDateTime): NJDateTimeRange = setStart(ts)
   def withStartTime(ts: Instant): NJDateTimeRange       = setStart(NJTimestamp(ts))
   def withStartTime(ts: Long): NJDateTimeRange          = setStart(NJTimestamp(ts))
   def withStartTime(ts: Timestamp): NJDateTimeRange     = setStart(NJTimestamp(ts))
   //end
-  def withEndTime(ts: NJTimestamp): NJDateTimeRange   = setEnd(ts)
   def withEndTime(ts: LocalDate): NJDateTimeRange     = setEnd(ts)
   def withEndTime(ts: LocalDateTime): NJDateTimeRange = setEnd(ts)
   def withEndTime(ts: Instant): NJDateTimeRange       = setEnd(NJTimestamp(ts))
@@ -108,11 +106,7 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
 
 object NJDateTimeRange {
 
-  final type TimeTypes =
-    NJTimestamp :+:
-      LocalDateTime :+:
-      LocalDate :+:
-      CNil
+  final type TimeTypes = NJTimestamp :+: LocalDateTime :+: LocalDate :+: CNil
 
   implicit val upperBoundedNJDateTimeRange: UpperBounded[NJDateTimeRange] with Eq[NJDateTimeRange] =
     new UpperBounded[NJDateTimeRange] with Eq[NJDateTimeRange] {
