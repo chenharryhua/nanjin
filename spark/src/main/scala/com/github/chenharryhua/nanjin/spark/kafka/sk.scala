@@ -187,26 +187,24 @@ private[kafka] object sk {
             .as[NJConsumerRecord[Array[Byte], Array[Byte]]])
         .deserialized
         .mapPartitions { msgs =>
-          val decoder = (msg: NJConsumerRecord[Array[Byte], Array[Byte]]) =>
-            NJConsumerRecord[K, V](
-              msg.partition,
-              msg.offset,
-              msg.timestamp / 1000, //spark use micro-second.
-              msg.key.flatMap(k =>
-                kit.codec.keyCodec
-                  .tryDecode(k)
-                  .toEither
-                  .leftMap(logger.warn(_)(s"key decode error. ${msg.metaInfo}"))
-                  .toOption),
-              msg.value.flatMap(v =>
-                kit.codec.valCodec
-                  .tryDecode(v)
-                  .toEither
-                  .leftMap(logger.warn(_)(s"value decode error. ${msg.metaInfo}"))
-                  .toOption),
-              msg.topic,
-              msg.timestampType
-            )
+          val decoder = (msg: NJConsumerRecord[Array[Byte], Array[Byte]]) => {
+            val cr = NJConsumerRecord.timestamp.set(msg.timestamp / 1000)(msg) //spark use micro-second.
+            cr.bimap(
+                k =>
+                  kit.codec.keyCodec
+                    .tryDecode(k)
+                    .toEither
+                    .leftMap(logger.warn(_)(s"key decode error. ${cr.metaInfo}"))
+                    .toOption,
+                v =>
+                  kit.codec.valCodec
+                    .tryDecode(v)
+                    .toEither
+                    .leftMap(logger.warn(_)(s"value decode error. ${cr.metaInfo}"))
+                    .toOption
+              )
+              .flatten[K, V]
+          }
           msgs.map(decoder.andThen(f))
         }
     }
