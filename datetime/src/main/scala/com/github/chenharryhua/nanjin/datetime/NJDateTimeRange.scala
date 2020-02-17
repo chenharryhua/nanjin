@@ -30,7 +30,7 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
     implicit val instant: Case.Aux[Instant, NJTimestamp] =
       at[Instant](NJTimestamp(_))
 
-    implicit val njtimestamp: Case.Aux[NJTimestamp, NJTimestamp] =
+    implicit val njTimestamp: Case.Aux[NJTimestamp, NJTimestamp] =
       at[NJTimestamp](identity)
 
     implicit val zonedDatetime: Case.Aux[ZonedDateTime, NJTimestamp] =
