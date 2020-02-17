@@ -168,6 +168,27 @@ private[kafka] object sk {
     }
   }
 
+  private def decodeSparkStreamCR[K, V](kit: KafkaTopicKit[K, V])
+    : NJConsumerRecord[Array[Byte], Array[Byte]] => NJConsumerRecord[K, V] =
+    rawCr => {
+      val cr = NJConsumerRecord.timestamp.set(rawCr.timestamp / 1000)(rawCr) //spark use micro-second.
+      cr.bimap(
+          k =>
+            kit.codec.keyCodec
+              .tryDecode(k)
+              .toEither
+              .leftMap(logger.warn(_)(s"key decode error. ${cr.metaInfo}"))
+              .toOption,
+          v =>
+            kit.codec.valCodec
+              .tryDecode(v)
+              .toEither
+              .leftMap(logger.warn(_)(s"value decode error. ${cr.metaInfo}"))
+              .toOption
+        )
+        .flatten[K, V]
+    }
+
   def streaming[F[_]: Sync, K, V, A](kit: KafkaTopicKit[K, V], timeRange: NJDateTimeRange)(
     f: NJConsumerRecord[K, V] => A)(
     implicit
@@ -186,27 +207,7 @@ private[kafka] object sk {
             .load()
             .as[NJConsumerRecord[Array[Byte], Array[Byte]]])
         .deserialized
-        .mapPartitions { msgs =>
-          val decoder = (msg: NJConsumerRecord[Array[Byte], Array[Byte]]) => {
-            val cr = NJConsumerRecord.timestamp.set(msg.timestamp / 1000)(msg) //spark use micro-second.
-            cr.bimap(
-                k =>
-                  kit.codec.keyCodec
-                    .tryDecode(k)
-                    .toEither
-                    .leftMap(logger.warn(_)(s"key decode error. ${cr.metaInfo}"))
-                    .toOption,
-                v =>
-                  kit.codec.valCodec
-                    .tryDecode(v)
-                    .toEither
-                    .leftMap(logger.warn(_)(s"value decode error. ${cr.metaInfo}"))
-                    .toOption
-              )
-              .flatten[K, V]
-          }
-          msgs.map(decoder.andThen(f))
-        }
+        .mapPartitions(_.map(decodeSparkStreamCR(kit).andThen(f)))
     }
   }
 }
