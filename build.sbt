@@ -153,12 +153,12 @@ val monocleLib = Seq(
   "com.github.julien-truffaut" %% "monocle-unsafe"
 ).map(_ % monocle)
 
-val avroTools =  ExclusionRule("org.apache.avro","avro-tools") 
 val avro = Seq(
-  "org.apache.avro" % "avro-mapred"   % apacheAvro excludeAll(avroTools),
-  "org.apache.avro" % "avro"          % apacheAvro excludeAll(avroTools),
-  "org.apache.avro" % "avro-compiler" % apacheAvro excludeAll(avroTools),
-  "org.apache.avro" % "avro-ipc"      % apacheAvro excludeAll(avroTools),
+  "org.apache.avro" % "avro-tools"    % apacheAvro,
+  "org.apache.avro" % "avro-mapred"   % apacheAvro,
+  "org.apache.avro" % "avro"          % apacheAvro,
+  "org.apache.avro" % "avro-compiler" % apacheAvro,
+  "org.apache.avro" % "avro-ipc"      % apacheAvro,
   "com.sksamuel.avro4s" %% "avro4s-core"                    % avro4s,
   ("io.confluent" % "kafka-streams-avro-serde"              % "5.4.0").classifier(""),
   "com.julianpeeters" %% "avrohugger-core"                  % avrohugger,

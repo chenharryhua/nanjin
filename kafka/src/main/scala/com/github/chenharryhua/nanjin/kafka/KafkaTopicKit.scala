@@ -129,8 +129,9 @@ final class TopicCodec[K, V] private[kafka] (val keyCodec: NJCodec[K], val valCo
   require(
     keyCodec.topicName === valCodec.topicName,
     "key and value codec should have same topic name")
-  val keySerde: NJSerde[K] = keyCodec.serde
-  val valSerde: NJSerde[V] = valCodec.serde
+
+  implicit val keySerde: NJSerde[K] = keyCodec.serde
+  implicit val valSerde: NJSerde[V] = valCodec.serde
 
   val keySchema: Schema = keySerde.schema
   val valSchema: Schema = valSerde.schema
