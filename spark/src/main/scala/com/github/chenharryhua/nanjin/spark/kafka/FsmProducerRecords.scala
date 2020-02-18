@@ -1,12 +1,14 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
+import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJProducerRecord
+import com.github.chenharryhua.nanjin.spark._
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
-import fs2.kafka.ProducerResult
+import fs2.kafka.{produce, ProducerRecords, ProducerResult}
 import org.apache.spark.sql.Dataset
 
 final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
@@ -27,6 +29,12 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def noMeta: FsmProducerRecords[F, K, V] =
     new FsmProducerRecords[F, K, V](typedDataset.deserialized.map(_.noMeta).dataset, kit, cfg)
 
+  def someValues: FsmProducerRecords[F, K, V] =
+    new FsmProducerRecords[F, K, V](
+      typedDataset.filter(typedDataset('value).isNotNone).dataset,
+      kit,
+      cfg)
+
   @transient lazy val typedDataset: TypedDataset[NJProducerRecord[K, V]] =
     TypedDataset.create(prs)
 
@@ -46,6 +54,20 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     timer: Timer[F],
     cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
     upload(kit)
+
+  def pipeTo[K2, V2](other: KafkaTopicKit[K2, V2])(k: K => K2, v: V => V2)(
+    implicit
+    ce: ConcurrentEffect[F],
+    timer: Timer[F],
+    cs: ContextShift[F]): Stream[F, ProducerResult[K2, V2, Unit]] =
+    typedDataset
+      .repartition(params.repartition.value)
+      .stream
+      .map(_.bimap(k, v))
+      .chunkN(params.uploadRate.batchSize)
+      .metered(params.uploadRate.duration)
+      .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(other.topicName))))
+      .through(produce(other.fs2ProducerSettings[F]))
 
   def count(implicit ev: Sync[F]): F[Long] =
     typedDataset.count[F]()
