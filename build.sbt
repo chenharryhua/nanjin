@@ -136,7 +136,7 @@ val json = Seq(
   "io.circe" %% "circe-shapes",
   "io.circe" %% "circe-jawn"
 ).map(_ % circe) ++ Seq(
-  "io.circe" %% "circe-optics"   % "0.12.0",
+  "io.circe" %% "circe-optics"   % "0.13.0",
   "org.gnieh" %% "diffson-circe" % jsonDiff)
 
 val fs2 = Seq(
