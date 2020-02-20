@@ -44,10 +44,7 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
     valEncoder: TypedEncoder[V]): F[Unit] =
     save(params.pathBuilder(NJPathBuild(params.fileFormat, kit.topicName)))
 
-  def fromDisk[F[_]](
-    implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): FsmDiskLoad[F, K, V] =
+  def fromDisk[F[_]]: FsmDiskLoad[F, K, V] =
     new FsmDiskLoad[F, K, V](kit, cfg)
 
   def crDataset[F[_]](tds: TypedDataset[NJConsumerRecord[K, V]])(
