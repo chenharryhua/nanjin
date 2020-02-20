@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import java.io.ByteArrayOutputStream
+import java.io.{ByteArrayOutputStream, OutputStream}
 
+import cats.effect.{Resource, Sync}
 import cats.implicits._
 import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.kafka.codec._
@@ -18,6 +19,7 @@ import com.sksamuel.avro4s.{
   Decoder => AvroDecoder,
   Encoder => AvroEncoder
 }
+import fs2.{Pipe, Stream}
 import io.circe.Json
 import io.circe.parser.parse
 import org.apache.avro.Schema
@@ -53,6 +55,37 @@ final class TopicDef[K, V] private (val topicName: TopicName)(
 
   def toAvro(cr: NJConsumerRecord[K, V]): Record   = toAvroRecord.to(cr)
   def fromAvro(cr: Record): NJConsumerRecord[K, V] = fromAvroRecord.from(cr)
+
+  def avroSink[F[_]: Sync](os: OutputStream): Pipe[F, NJConsumerRecord[K, V], Unit] = {
+    val avro = Resource.make(
+      Sync[F].pure(
+        AvroOutputStream.data[NJConsumerRecord[K, V]].to(os).build(njConsumerRecordSchema)))(aos =>
+      Sync[F].delay(aos.close))
+    in => Stream.resource(avro).flatMap(o => in.map(o.write))
+  }
+
+  def jacksonSink[F[_]: Sync](os: OutputStream): Pipe[F, NJConsumerRecord[K, V], Unit] = {
+
+    val json = Resource.make(
+      Sync[F].pure(
+        AvroOutputStream.json[NJConsumerRecord[K, V]].to(os).build(njConsumerRecordSchema)))(aos =>
+      Sync[F].delay(aos.close))
+    in => Stream.resource(json).flatMap(o => in.map(o.write))
+  }
+
+  def valueAvroSink[F[_]: Sync](os: OutputStream): Pipe[F, V, Unit] = {
+    val avro =
+      Resource.make(Sync[F].pure(AvroOutputStream.data[V].to(os).build(serdeOfVal.schema)))(aos =>
+        Sync[F].delay(aos.close))
+    in => Stream.resource(avro).flatMap(o => in.map(o.write))
+  }
+
+  def valueJacksonSink[F[_]: Sync](os: OutputStream): Pipe[F, V, Unit] = {
+    val json =
+      Resource.make(Sync[F].pure(AvroOutputStream.json[V].to(os).build(serdeOfVal.schema)))(aos =>
+        Sync[F].delay(aos.close))
+    in => Stream.resource(json).flatMap(o => in.map(o.write))
+  }
 
   @throws[Exception]
   def toJackson(cr: NJConsumerRecord[K, V]): Json = {
