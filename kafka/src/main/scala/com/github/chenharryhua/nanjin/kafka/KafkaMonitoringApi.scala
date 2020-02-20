@@ -1,16 +1,17 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import java.nio.file.{Path, Paths}
+import java.io.{FileOutputStream, OutputStream}
+import java.nio.file.Paths
 import java.time.ZonedDateTime
 
-import cats.effect.{Blocker, ConcurrentEffect, ContextShift}
+import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Resource}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.codec.NJConsumerMessage._
 import com.github.chenharryhua.nanjin.kafka.codec.iso
 import com.github.chenharryhua.nanjin.kafka.common.KafkaOffset
+import fs2.Stream
 import fs2.kafka.{produce, AutoOffsetReset, ProducerRecord, ProducerRecords}
-import fs2.{text, Stream}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
 import scala.util.Try
@@ -28,8 +29,9 @@ sealed trait KafkaMonitoringApi[F[_], K, V] {
 
   def summaries: F[Unit]
 
-  def save: F[Unit]
-  def replay: F[Unit]
+  def saveJackson: F[Unit]
+  def saveAvro: F[Unit]
+  def replayJackson: F[Unit]
   def carbonCopyTo(other: KafkaTopicKit[K, V]): F[Unit]
 }
 
@@ -126,27 +128,40 @@ object KafkaMonitoringApi {
                            |""".stripMargin)
       }
 
-    private val path: Path = Paths.get(s"./data/kafka/monitor/${topic.topicName}.json")
+    private val path: String = s"./data/kafka/monitor/${topic.topicName}"
 
-    override def save: F[Unit] =
-      Stream
-        .resource[F, Blocker](Blocker[F])
-        .flatMap { blocker =>
-          fs2Channel.consume
-            .map(x => topic.kit.toJackson(x).noSpaces)
-            .intersperse("\n")
-            .through(text.utf8Encode)
-            .through(fs2.io.file.writeAll(path, blocker))
-        }
-        .compile
-        .drain
+    private def outFile(path: String): Resource[F, OutputStream] =
+      Resource.make[F, OutputStream](F.pure(new FileOutputStream(path)))(os =>
+        F.delay { os.flush(); os.close() })
 
-    override def replay: F[Unit] =
+    override def saveJackson: F[Unit] = {
+      val run = for {
+        blocker <- Stream.resource[F, Blocker](Blocker[F])
+        os <- Stream.resource(outFile(path + ".json"))
+        data <- fs2Channel.consume
+          .map(m => topic.kit.decoder(m).record)
+          .through(topic.kit.topicDef.jacksonSink[F](os))
+      } yield ()
+      run.compile.drain
+    }
+
+    override def saveAvro: F[Unit] = {
+      val run = for {
+        blocker <- Stream.resource[F, Blocker](Blocker[F])
+        os <- Stream.resource(outFile(path + ".avro"))
+        data <- fs2Channel.consume
+          .map(m => topic.kit.decoder(m).record)
+          .through(topic.kit.topicDef.avroSink[F](os))
+      } yield ()
+      run.compile.drain
+    }
+
+    override def replayJackson: F[Unit] =
       Stream
         .resource(Blocker[F])
         .flatMap { blocker =>
           fs2.io.file
-            .readAll(path, blocker, 5000)
+            .readAll(Paths.get(path + ".json"), blocker, 5000)
             .through(fs2.text.utf8Decode)
             .through(fs2.text.lines)
             .mapFilter { str =>

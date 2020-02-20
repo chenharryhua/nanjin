@@ -7,7 +7,10 @@ import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.spark.streaming.{KafkaCRStream, SparkStream, StreamConfig}
 import frameless.{TypedDataset, TypedEncoder}
+import org.apache.avro.Schema
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.avro.SchemaConverters
+import org.apache.spark.sql.types.DataType
 
 trait SparKafkaUpdateParams[A] extends UpdateParams[SKConfig, A] with Serializable {
   def params: SKParams
@@ -21,6 +24,9 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
     new FsmStart[K, V](kit, f(cfg))
 
   override val params: SKParams = SKConfigF.evalConfig(cfg)
+
+  def avroSchema: Schema    = kit.topicDef.njConsumerRecordSchema
+  def sparkSchema: DataType = SchemaConverters.toSqlType(avroSchema).dataType
 
   //api section
   def fromKafka[F[_]: Sync]: FsmKafkaUnload[F, K, V] =
