@@ -197,7 +197,7 @@ val framelessLib = Seq(
 
 val tests = Seq(
   "org.typelevel" %% "cats-testkit-scalatest"                 % "1.0.0-RC1" % Test,
-  "org.typelevel" %% "discipline-scalatest"                   % "1.0.0"     % Test,
+  "org.typelevel" %% "discipline-scalatest"                   % "1.0.1"     % Test,
   "org.typelevel" %% "cats-laws"                              % catsCore    % Test,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.4"     % Test,
   "org.scalatest" %% "scalatest"                              % scalatest   % Test,
