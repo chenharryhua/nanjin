@@ -34,16 +34,16 @@ private[spark] trait DatasetExtensions {
       Stream(tds).through(sink[F, A, B](pathStr, AvroOutputStream.data[B], f))
   }
 
-  implicit class SparkSessionExt[A](private val sks: SparkSession) extends AvroableDataSource {
+  implicit class SparkSessionExt(private val sks: SparkSession) extends AvroableDataSource {
 
-    def loadAvro[F[_]](pathStr: String)(
+    def loadAvro[F[_], A](pathStr: String)(
       implicit
       concurrent: Concurrent[F],
       decoder: Decoder[A],
       schemaFor: SchemaFor[A]): Stream[F, A] =
       source[F, A](pathStr, AvroInputStream.data[A])(schemaFor, decoder, sks, concurrent)
 
-    def loadJackson[F[_]](pathStr: String)(
+    def loadJackson[F[_], A](pathStr: String)(
       implicit
       concurrent: Concurrent[F],
       decoder: Decoder[A],
