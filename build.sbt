@@ -39,7 +39,7 @@ val avrohugger = "1.0.0-RC21"
 val silencerVersion = "1.5.0"
 val jline           = "3.13.3"
 
-val scalatest = "3.1.0"
+val scalatest = "3.1.1"
 
 val doobie = "0.8.8"
 val quill  = "3.5.0"
