@@ -3,15 +3,17 @@ package com.github.chenharryhua.nanjin.spark
 import cats.effect.Concurrent
 import cats.implicits._
 import com.github.chenharryhua.nanjin.utils.Keyboard
+import com.sksamuel.avro4s._
 import frameless.TypedDataset
 import frameless.cats.implicits._
 import fs2.Stream
+import org.apache.spark.sql.SparkSession
 
 import scala.collection.JavaConverters._
 
 private[spark] trait DatasetExtensions {
 
-  implicit class TypedDatasetExt[A](private val tds: TypedDataset[A]) {
+  implicit class TypedDatasetExt[A](private val tds: TypedDataset[A]) extends AvroableDataSink {
 
     def stream[F[_]: Concurrent]: Stream[F, A] =
       for {
@@ -22,5 +24,30 @@ private[spark] trait DatasetExtensions {
           .pauseWhen(kb.map(_.contains(Keyboard.pauSe)))
           .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
       } yield data
+
+    def saveJackson[F[_]: Concurrent, B: SchemaFor: Encoder](pathStr: String)(f: A => B)(
+      implicit sparkSession: SparkSession): Stream[F, Unit] =
+      Stream(tds).through(sink[F, A, B](pathStr, AvroOutputStream.json[B], f))
+
+    def saveAvro[F[_]: Concurrent, B: SchemaFor: Encoder](pathStr: String)(f: A => B)(
+      implicit sparkSession: SparkSession): Stream[F, Unit] =
+      Stream(tds).through(sink[F, A, B](pathStr, AvroOutputStream.data[B], f))
+  }
+
+  implicit class SparkSessionExt[A](private val sks: SparkSession) extends AvroableDataSource {
+
+    def loadAvro[F[_]](pathStr: String)(
+      implicit
+      concurrent: Concurrent[F],
+      decoder: Decoder[A],
+      schemaFor: SchemaFor[A]): Stream[F, A] =
+      source[F, A](pathStr, AvroInputStream.data[A])(schemaFor, decoder, sks, concurrent)
+
+    def loadJackson[F[_]](pathStr: String)(
+      implicit
+      concurrent: Concurrent[F],
+      decoder: Decoder[A],
+      schemaFor: SchemaFor[A]): Stream[F, A] =
+      source[F, A](pathStr, AvroInputStream.json[A])(schemaFor, decoder, sks, concurrent)
   }
 }
