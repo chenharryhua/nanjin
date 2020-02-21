@@ -13,7 +13,7 @@ import scala.collection.JavaConverters._
 
 private[spark] trait DatasetExtensions {
 
-  implicit class TypedDatasetExt[A](private val tds: TypedDataset[A]) extends AvroableDataSink {
+  implicit class TypedDatasetExt[A](private val tds: TypedDataset[A]) {
 
     def stream[F[_]: Concurrent]: Stream[F, A] =
       for {
@@ -27,27 +27,27 @@ private[spark] trait DatasetExtensions {
 
     def saveJackson[F[_]: Concurrent, B: SchemaFor: Encoder](pathStr: String)(f: A => B)(
       implicit sparkSession: SparkSession): Stream[F, Unit] =
-      Stream(tds).through(sink[F, A, B](pathStr, AvroOutputStream.json[B], f))
+      tds.stream[F].through(jacksonSink[F, A, B](pathStr)(f))
 
     def saveAvro[F[_]: Concurrent, B: SchemaFor: Encoder](pathStr: String)(f: A => B)(
       implicit sparkSession: SparkSession): Stream[F, Unit] =
-      Stream(tds).through(sink[F, A, B](pathStr, AvroOutputStream.data[B], f))
+      tds.stream.through(avroSink[F, A, B](pathStr)(f))
   }
 
-  implicit class SparkSessionExt(private val sks: SparkSession) extends AvroableDataSource {
+  implicit class SparkSessionExt(private val sks: SparkSession) {
 
     def loadAvro[F[_], A](pathStr: String)(
       implicit
       concurrent: Concurrent[F],
       decoder: Decoder[A],
       schemaFor: SchemaFor[A]): Stream[F, A] =
-      source[F, A](pathStr, AvroInputStream.data[A])(schemaFor, decoder, sks, concurrent)
+      avroSource[F, A](pathStr)(schemaFor, decoder, sks, concurrent)
 
     def loadJackson[F[_], A](pathStr: String)(
       implicit
       concurrent: Concurrent[F],
       decoder: Decoder[A],
       schemaFor: SchemaFor[A]): Stream[F, A] =
-      source[F, A](pathStr, AvroInputStream.json[A])(schemaFor, decoder, sks, concurrent)
+      jacksonSource[F, A](pathStr)(schemaFor, decoder, sks, concurrent)
   }
 }
