@@ -34,15 +34,15 @@ final class TopicDef[K, V] private (val topicName: TopicName)(
   val keySchemaLoc: String = s"${topicName.value}-key"
   val valSchemaLoc: String = s"${topicName.value}-value"
 
-  implicit private val avroKeyEncoder: AvroEncoder[K] = serdeOfKey.avroEncoder
-  implicit private val avroKeyDecoder: AvroDecoder[K] = serdeOfKey.avroDecoder
-  implicit private val avroValEncoder: AvroEncoder[V] = serdeOfVal.avroEncoder
-  implicit private val avroValDecoder: AvroDecoder[V] = serdeOfVal.avroDecoder
+  implicit val avroKeyEncoder: AvroEncoder[K] = serdeOfKey.avroEncoder
+  implicit val avroKeyDecoder: AvroDecoder[K] = serdeOfKey.avroDecoder
+  implicit val avroValEncoder: AvroEncoder[V] = serdeOfVal.avroEncoder
+  implicit val avroValDecoder: AvroDecoder[V] = serdeOfVal.avroDecoder
 
-  implicit private val keySchemaFor: SchemaFor[K] =
+  implicit val schemaForKey: SchemaFor[K] =
     (_: FieldMapper) => serdeOfKey.schema
 
-  implicit private val valueSchemaFor: SchemaFor[V] =
+  implicit val schemaForVal: SchemaFor[V] =
     (_: FieldMapper) => serdeOfVal.schema
 
   val njConsumerRecordSchema: Schema = AvroSchema[NJConsumerRecord[K, V]]

@@ -27,11 +27,11 @@ private[spark] trait DatasetExtensions {
 
     def saveJackson[F[_]: Concurrent, B: SchemaFor: Encoder](pathStr: String)(f: A => B)(
       implicit sparkSession: SparkSession): Stream[F, Unit] =
-      tds.stream[F].through(jacksonSink[F, A, B](pathStr)(f))
+      tds.stream[F].through(jacksonFileSink[F, A, B](pathStr)(f))
 
     def saveAvro[F[_]: Concurrent, B: SchemaFor: Encoder](pathStr: String)(f: A => B)(
       implicit sparkSession: SparkSession): Stream[F, Unit] =
-      tds.stream.through(avroSink[F, A, B](pathStr)(f))
+      tds.stream.through(avroFileSink[F, A, B](pathStr)(f))
   }
 
   implicit class SparkSessionExt(private val sks: SparkSession) {
@@ -41,13 +41,13 @@ private[spark] trait DatasetExtensions {
       concurrent: Concurrent[F],
       decoder: Decoder[A],
       schemaFor: SchemaFor[A]): Stream[F, A] =
-      avroSource[F, A](pathStr)(schemaFor, decoder, sks, concurrent)
+      avroFileSource[F, A](pathStr)(schemaFor, decoder, sks, concurrent)
 
     def loadJackson[F[_], A](pathStr: String)(
       implicit
       concurrent: Concurrent[F],
       decoder: Decoder[A],
       schemaFor: SchemaFor[A]): Stream[F, A] =
-      jacksonSource[F, A](pathStr)(schemaFor, decoder, sks, concurrent)
+      jacksonFileSource[F, A](pathStr)(schemaFor, decoder, sks, concurrent)
   }
 }

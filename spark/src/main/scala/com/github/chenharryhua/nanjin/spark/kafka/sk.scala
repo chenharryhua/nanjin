@@ -76,6 +76,21 @@ private[kafka] object sk {
       .map(TypedDataset.create[A])
   }
 
+  def timeRangedKafkaStream[F[_]: Sync, K, V](
+    kit: KafkaTopicKit[K, V],
+    timeRange: NJDateTimeRange,
+    locationStrategy: LocationStrategy)(
+    implicit
+    sparkSession: SparkSession): Stream[F, NJConsumerRecord[K, V]] =
+    Stream.force(
+      kafkaRDD[F, K, V](kit, timeRange, locationStrategy)
+        .map(_.mapPartitions(_.map { m =>
+          val (errs, cr) = kit.decoder(m).logRecord.run
+          errs.map(x => logger.warn(x.error)(x.metaInfo))
+          cr
+        }))
+        .map(rdd => Stream.fromIterator(rdd.toLocalIterator)))
+
   def fromDisk[K, V](
     kit: KafkaTopicKit[K, V],
     timeRange: NJDateTimeRange,
