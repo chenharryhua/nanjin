@@ -25,7 +25,7 @@ final class FsmKafkaUnload[F[_], K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
     encoder: TypedEncoder[A]): F[TypedDataset[A]] =
     sk.fromKafka(kit, params.timeRange, params.locationStrategy)(f)
 
-  def timeRangedStream(implicit ev: Concurrent[F]): Stream[F, NJConsumerRecord[K, V]] =
+  def crStream(implicit ev: Concurrent[F]): Stream[F, NJConsumerRecord[K, V]] =
     sk.timeRangedKafkaStream[F, K, V](
       kit,
       params.repartition,
@@ -40,14 +40,14 @@ final class FsmKafkaUnload[F[_], K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
 
     val run: Stream[F, Unit] = for {
       kb <- Keyboard.signal[F]
-      _ <- timeRangedStream
+      _ <- crStream
         .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
         .through(jacksonFileSink[F, NJConsumerRecord[K, V]](path))
     } yield ()
     run.compile.drain
   }
 
-  def consumerRecords(
+  def crDataset(
     implicit
     F: Sync[F],
     keyEncoder: TypedEncoder[K],

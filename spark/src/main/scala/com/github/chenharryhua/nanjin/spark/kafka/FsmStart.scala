@@ -61,11 +61,13 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
   def saveRDD[F[_]: Sync]: F[Unit] =
     sk.saveKafkaRDD(replayPath, kit, params.timeRange, params.locationStrategy)
 
+  def crDiskStream[F[_]: Sync]: Stream[F, NJConsumerRecord[K, V]] =
+    sk.loadDiskRDD[F, K, V](replayPath, params.repartition)
+
   def replay[F[_]: ConcurrentEffect: Timer: ContextShift]: F[Unit] = {
     val run: Stream[F, Unit] = for {
       kb <- Keyboard.signal[F]
-      _ <- sk
-        .loadDiskRDD[F, K, V](replayPath, params.repartition)
+      _ <- crDiskStream
         .chunkN(params.uploadRate.batchSize)
         .metered(params.uploadRate.duration)
         .pauseWhen(kb.map(_.contains(Keyboard.pauSe)))
@@ -82,12 +84,16 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
     * pipeTo
     */
 
-  def batchPipeTo[F[_]: ConcurrentEffect: Timer: ContextShift](otherTopic: KafkaTopicKit[K, V])(
-    implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): F[Unit] =
-    fromKafka[F].consumerRecords.flatMap(
-      _.someValues.toProducerRecords.noMeta.upload(otherTopic).map(_ => print(".")).compile.drain)
+  def batchPipeTo[F[_]: ConcurrentEffect: Timer: ContextShift](
+    otherTopic: KafkaTopicKit[K, V]): F[Unit] =
+    fromKafka[F].crStream.chunks
+      .map(chk =>
+        ProducerRecords(
+          chk.map(_.toNJProducerRecord.noMeta.toFs2ProducerRecord(otherTopic.topicName))))
+      .through(produce(otherTopic.fs2ProducerSettings[F]))
+      .map(_ => print("."))
+      .compile
+      .drain
 
   def streamingPipeTo[F[_]: Concurrent: Timer](otherTopic: KafkaTopicKit[K, V])(
     implicit
