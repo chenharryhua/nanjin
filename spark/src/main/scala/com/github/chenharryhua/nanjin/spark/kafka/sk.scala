@@ -6,13 +6,7 @@ import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.kafka.common.{
-  KafkaOffsetRange,
-  KafkaTopicPartition,
-  NJConsumerRecord,
-  NJProducerRecord,
-  ShowMetaInfo
-}
+import com.github.chenharryhua.nanjin.kafka.common._
 import com.github.chenharryhua.nanjin.kafka.{KafkaConsumerApi, KafkaTopicKit}
 import com.github.chenharryhua.nanjin.spark._
 import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
@@ -59,6 +53,16 @@ private[kafka] object sk {
 
   private val logger: Logger = org.log4s.getLogger("spark.kafka")
 
+  private def decode[K, V](
+    kit: KafkaTopicKit[K, V],
+    iterator: Iterator[ConsumerRecord[Array[Byte], Array[Byte]]])
+    : Iterator[NJConsumerRecord[K, V]] =
+    iterator.map { m =>
+      val (errs, cr) = kit.decoder(m).logRecord.run
+      errs.map(x => logger.warn(x.error)(x.metaInfo))
+      cr
+    }
+
   def fromKafka[F[_]: Sync, K, V, A](
     kit: KafkaTopicKit[K, V],
     timeRange: NJDateTimeRange,
@@ -68,13 +72,41 @@ private[kafka] object sk {
     encoder: TypedEncoder[A]): F[TypedDataset[A]] = {
     import encoder.classTag
     kafkaRDD[F, K, V](kit, timeRange, locationStrategy)
-      .map(_.mapPartitions(_.map { m =>
-        val (errs, cr) = kit.decoder(m).logRecord.run
-        errs.map(x => logger.warn(x.error)(x.metaInfo))
-        f(cr)
-      }))
+      .map(_.mapPartitions(ms => decode(kit, ms).map(f)))
       .map(TypedDataset.create[A])
   }
+
+  def timeRangedKafkaStream[F[_]: Sync, K, V](
+    kit: KafkaTopicKit[K, V],
+    repartition: NJRepartition,
+    timeRange: NJDateTimeRange,
+    locationStrategy: LocationStrategy)(
+    implicit
+    sparkSession: SparkSession): Stream[F, NJConsumerRecord[K, V]] =
+    Stream.force(
+      kafkaRDD[F, K, V](kit, timeRange, locationStrategy)
+        .map(_.mapPartitions(ms => decode(kit, ms)))
+        .map(rdd => Stream.fromIterator[F](rdd.repartition(repartition.value).toLocalIterator)))
+
+  def saveKafkaRDD[F[_]: Sync, K, V](
+    path: String,
+    kit: KafkaTopicKit[K, V],
+    timeRange: NJDateTimeRange,
+    locationStrategy: LocationStrategy)(
+    implicit
+    sparkSession: SparkSession): F[Unit] =
+    kafkaRDD[F, K, V](kit, timeRange, locationStrategy)
+      .map(_.mapPartitions(ms => decode(kit, ms)))
+      .map(_.saveAsObjectFile(path))
+
+  def loadDiskRDD[F[_]: Sync, K, V](path: String, repartition: NJRepartition)(
+    implicit
+    sparkSession: SparkSession): Stream[F, NJConsumerRecord[K, V]] =
+    Stream.fromIterator[F](
+      sparkSession.sparkContext
+        .objectFile[NJConsumerRecord[K, V]](path)
+        .repartition(repartition.value)
+        .toLocalIterator)
 
   def fromDisk[K, V](
     kit: KafkaTopicKit[K, V],

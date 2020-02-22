@@ -5,8 +5,12 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducerRecord}
+import com.github.chenharryhua.nanjin.spark.jacksonFileSink
 import com.github.chenharryhua.nanjin.spark.streaming.{KafkaCRStream, SparkStream, StreamConfig}
+import com.github.chenharryhua.nanjin.utils.Keyboard
 import frameless.{TypedDataset, TypedEncoder}
+import fs2.Stream
+import fs2.kafka.{produce, ProducerRecords}
 import org.apache.avro.Schema
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.avro.SchemaConverters
@@ -28,24 +32,33 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
   def avroSchema: Schema    = kit.topicDef.njConsumerRecordSchema
   def sparkSchema: DataType = SchemaConverters.toSqlType(avroSchema).dataType
 
-  //api section
   def fromKafka[F[_]: Sync]: FsmKafkaUnload[F, K, V] =
     new FsmKafkaUnload[F, K, V](kit, cfg)
 
-  def save[F[_]: Sync](path: String)(
-    implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): F[Unit] =
-    fromKafka[F].consumerRecords.map(_.save(path))
+  def timeRangedKafkaStream[F[_]: Concurrent]: Stream[F, NJConsumerRecord[K, V]] =
+    sk.timeRangedKafkaStream[F, K, V](
+      kit,
+      params.repartition,
+      params.timeRange,
+      params.locationStrategy)
 
-  def save[F[_]: Sync](
-    implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): F[Unit] =
-    save(params.pathBuilder(NJPathBuild(params.fileFormat, kit.topicName)))
+  def saveJacson[F[_]: Concurrent: ContextShift](path: String): F[Unit] = {
+    import kit.topicDef.{avroKeyEncoder, avroValEncoder, schemaForKey, schemaForVal}
+    val run: Stream[F, Unit] = for {
+      kb <- Keyboard.signal[F]
+      _ <- timeRangedKafkaStream
+        .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
+        .through(jacksonFileSink[F, NJConsumerRecord[K, V]](path))
+    } yield ()
+    run.compile.drain
+  }
 
   def fromDisk[F[_]]: FsmDiskLoad[F, K, V] =
     new FsmDiskLoad[F, K, V](kit, cfg)
+
+  /**
+    * inject dataset
+    */
 
   def crDataset[F[_]](tds: TypedDataset[NJConsumerRecord[K, V]])(
     implicit
@@ -59,19 +72,34 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
     valEncoder: TypedEncoder[V]) =
     new FsmProducerRecords[F, K, V](tds.dataset, kit, cfg)
 
-  def replay[F[_]: ConcurrentEffect: Timer: ContextShift](
-    implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): F[Unit] =
-    fromDisk[F].consumerRecords.flatMap(
-      _.someValues.sorted.toProducerRecords.noMeta.upload.map(_ => print(".")).compile.drain)
+  /**
+    * replay
+    */
+  private val replayPath: String = s"./data/replay/${kit.topicName}"
 
-  def replayWithTimestamp[F[_]: ConcurrentEffect: Timer: ContextShift](
-    implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): F[Unit] =
-    fromDisk[F].consumerRecords.flatMap(
-      _.someValues.sorted.toProducerRecords.noPartition.upload.map(_ => print(".")).compile.drain)
+  def saveRDD[F[_]: Sync]: F[Unit] =
+    sk.saveKafkaRDD(replayPath, kit, params.timeRange, params.locationStrategy)
+
+  def replay[F[_]: ConcurrentEffect: Timer: ContextShift]: F[Unit] = {
+    val run: Stream[F, Unit] = for {
+      kb <- Keyboard.signal[F]
+      _ <- sk
+        .loadDiskRDD[F, K, V](replayPath, params.repartition)
+        .chunkN(params.uploadRate.batchSize)
+        .metered(params.uploadRate.duration)
+        .pauseWhen(kb.map(_.contains(Keyboard.pauSe)))
+        .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
+        .map(chk =>
+          ProducerRecords(chk.map(_.toNJProducerRecord.noMeta.toFs2ProducerRecord(kit.topicName))))
+        .through(produce(kit.fs2ProducerSettings[F]))
+        .map(_ => print("."))
+    } yield ()
+    run.compile.drain
+  }
+
+  /**
+    * pipeTo
+    */
 
   def batchPipeTo[F[_]: ConcurrentEffect: Timer: ContextShift](otherTopic: KafkaTopicKit[K, V])(
     implicit
@@ -86,6 +114,9 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
     valEncoder: TypedEncoder[V]): F[Unit] =
     streaming[F].flatMap(_.someValues.toProducerRecords.kafkaSink(otherTopic).showProgress)
 
+  /**
+    * streaming
+    */
   def streaming[F[_]: Sync, A](f: NJConsumerRecord[K, V] => A)(
     implicit
     encoder: TypedEncoder[A]): F[SparkStream[F, A]] =
