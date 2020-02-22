@@ -91,7 +91,6 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
         ProducerRecords(
           chk.map(_.toNJProducerRecord.noMeta.toFs2ProducerRecord(otherTopic.topicName))))
       .through(produce(otherTopic.fs2ProducerSettings[F]))
-      .map(_ => print("."))
       .compile
       .drain
 

@@ -45,8 +45,6 @@ object KafkaMonitoringApi {
     implicit F: ConcurrentEffect[F])
       extends KafkaMonitoringApi[F, K, V] {
 
-    private val chunkSize: Int = 1000
-
     private val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
       topic.fs2Channel.withConsumerSettings(_.withEnableAutoCommit(false))
 
@@ -190,7 +188,7 @@ object KafkaMonitoringApi {
           .withPartition(cr.partition)
         ProducerRecords.one(ts.fold(pr)(pr.withTimestamp))
       }.through(produce(other.fs2ProducerSettings))
-        .chunkN(chunkSize)
+        .chunks
         .map(_ => print("."))
         .compile
         .drain
