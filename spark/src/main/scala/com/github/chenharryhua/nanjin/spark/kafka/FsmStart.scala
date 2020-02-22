@@ -46,8 +46,7 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
     val run: Stream[F, Unit] = for {
       kb <- Keyboard.signal[F]
       _ <- timeRangedKafkaStream
-        .through(
-          jacksonFileSink[F, NJConsumerRecord[K, V], NJConsumerRecord[K, V]](replayPath)(identity))
+        .through(jacksonFileSink[F, NJConsumerRecord[K, V]](replayPath))
         .pauseWhen(kb.map(_.contains(Keyboard.pauSe)))
         .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
     } yield ()

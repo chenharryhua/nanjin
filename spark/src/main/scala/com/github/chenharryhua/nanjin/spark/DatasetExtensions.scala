@@ -25,13 +25,19 @@ private[spark] trait DatasetExtensions {
           .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
       } yield data
 
-    def saveJackson[F[_]: Concurrent, B: SchemaFor: Encoder](pathStr: String)(f: A => B)(
-      implicit sparkSession: SparkSession): Stream[F, Unit] =
-      tds.stream[F].through(jacksonFileSink[F, A, B](pathStr)(f))
+    def saveJackson[F[_]: Concurrent](pathStr: String)(
+      implicit
+      sparkSession: SparkSession,
+      schemaFor: SchemaFor[A],
+      encoder: Encoder[A]): Stream[F, Unit] =
+      tds.stream[F].through(jacksonFileSink[F, A](pathStr))
 
-    def saveAvro[F[_]: Concurrent, B: SchemaFor: Encoder](pathStr: String)(f: A => B)(
-      implicit sparkSession: SparkSession): Stream[F, Unit] =
-      tds.stream.through(avroFileSink[F, A, B](pathStr)(f))
+    def saveAvro[F[_]: Concurrent](pathStr: String)(
+      implicit
+      sparkSession: SparkSession,
+      schemaFor: SchemaFor[A],
+      encoder: Encoder[A]): Stream[F, Unit] =
+      tds.stream[F].through(avroFileSink[F, A](pathStr))
   }
 
   implicit class SparkSessionExt(private val sks: SparkSession) {

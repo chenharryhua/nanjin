@@ -7,10 +7,9 @@ import org.apache.spark.sql.SparkSession
 
 private[spark] trait AvroableDataSink extends Serializable {
 
-  private def sink[F[_], A, B: SchemaFor: Encoder](
+  private def sink[F[_], A: SchemaFor: Encoder](
     pathStr: String,
-    builder: AvroOutputStreamBuilder[B],
-    f: A => B)(
+    builder: AvroOutputStreamBuilder[A])(
     implicit
     sparkSession: SparkSession,
     F: Concurrent[F]): Pipe[F, A, Unit] =
@@ -19,19 +18,19 @@ private[spark] trait AvroableDataSink extends Serializable {
         .resource(
           hadoop
             .avroOutputResource(pathStr, sparkSession.sparkContext.hadoopConfiguration, builder))
-        .flatMap(os => sa.map(a => os.write(f(a))))
+        .flatMap(os => sa.map(a => os.write(a)))
 
-  def avroFileSink[F[_], A, B: SchemaFor: Encoder](pathStr: String)(f: A => B)(
+  def avroFileSink[F[_], A: SchemaFor: Encoder](pathStr: String)(
     implicit
     sparkSession: SparkSession,
     F: Concurrent[F]): Pipe[F, A, Unit] =
-    sink(pathStr, AvroOutputStream.data[B], f)
+    sink(pathStr, AvroOutputStream.data[A])
 
-  def jacksonFileSink[F[_], A, B: SchemaFor: Encoder](pathStr: String)(f: A => B)(
+  def jacksonFileSink[F[_], A: SchemaFor: Encoder](pathStr: String)(
     implicit
     sparkSession: SparkSession,
     F: Concurrent[F]): Pipe[F, A, Unit] =
-    sink(pathStr, AvroOutputStream.json[B], f)
+    sink(pathStr, AvroOutputStream.json[A])
 }
 
 private[spark] trait AvroableDataSource extends Serializable {
