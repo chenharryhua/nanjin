@@ -20,7 +20,7 @@ private[spark] trait AvroableDataSink extends Serializable {
           sparkSession.sparkContext.hadoopConfiguration,
           builder,
           blocker))
-      data <- sa.chunkN(4096)
+      data <- sa.chunks
     } yield data.foreach(aos.write)
   }
 

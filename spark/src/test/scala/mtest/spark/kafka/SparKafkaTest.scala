@@ -27,11 +27,7 @@ class SparKafkaTest extends AnyFunSuite {
 
   test("read topic from kafka") {
     val rst =
-      topic.kit.sparKafka
-        .fromKafka[IO]
-        .consumerRecords
-        .flatMap(_.values.collect[IO]())
-        .unsafeRunSync
+      topic.kit.sparKafka.fromKafka[IO].crDataset.flatMap(_.values.collect[IO]()).unsafeRunSync
     assert(rst.toList === List(data, data))
   }
 
@@ -39,7 +35,7 @@ class SparKafkaTest extends AnyFunSuite {
     topic.kit.sparKafka
       .withParamUpdate(_.withOverwrite.withJackson)
       .fromKafka[IO]
-      .consumerRecords
+      .crDataset
       .map(_.save())
       .unsafeRunSync
   }
@@ -48,7 +44,7 @@ class SparKafkaTest extends AnyFunSuite {
     val rst = topic.kit.sparKafka
       .withParamUpdate(_.withJackson)
       .fromDisk[IO]
-      .consumerRecords
+      .crDataset
       .flatMap(_.values.collect[IO]())
       .unsafeRunSync
     assert(rst.toList === List(data, data))
@@ -58,7 +54,7 @@ class SparKafkaTest extends AnyFunSuite {
     topic.kit.sparKafka
       .withParamUpdate(_.withOverwrite.withJson)
       .fromKafka[IO]
-      .consumerRecords
+      .crDataset
       .map(_.save())
       .unsafeRunSync
   }
@@ -67,7 +63,7 @@ class SparKafkaTest extends AnyFunSuite {
     val rst = topic.kit.sparKafka
       .withParamUpdate(_.withJson)
       .fromDisk[IO]
-      .consumerRecords
+      .crDataset
       .flatMap(_.values.collect[IO]())
       .unsafeRunSync
     assert(rst.toList === List(data, data))
@@ -77,7 +73,7 @@ class SparKafkaTest extends AnyFunSuite {
     topic.kit.sparKafka
       .withParamUpdate(_.withParquet.withOverwrite)
       .fromKafka[IO]
-      .consumerRecords
+      .crDataset
       .map(_.save())
       .unsafeRunSync
   }
@@ -86,7 +82,7 @@ class SparKafkaTest extends AnyFunSuite {
     val rst = topic.kit.sparKafka
       .withParamUpdate(_.withParquet)
       .fromDisk[IO]
-      .consumerRecords
+      .crDataset
       .flatMap(_.values.collect[IO]())
       .unsafeRunSync
     assert(rst.toList === List(data, data))
@@ -96,7 +92,7 @@ class SparKafkaTest extends AnyFunSuite {
     topic.kit.sparKafka
       .withParamUpdate(_.withAvro.withOverwrite)
       .fromKafka[IO]
-      .consumerRecords
+      .crDataset
       .map(_.save())
       .unsafeRunSync
   }
@@ -105,7 +101,7 @@ class SparKafkaTest extends AnyFunSuite {
     val rst = topic.kit.sparKafka
       .withParamUpdate(_.withAvro)
       .fromDisk[IO]
-      .consumerRecords
+      .crDataset
       .flatMap(_.values.collect[IO]())
       .unsafeRunSync
     assert(rst.toList === List(data, data))
@@ -116,7 +112,7 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("read topic from kafka and show aggragation result") {
-    topic.kit.sparKafka.fromKafka[IO].consumerRecords.flatMap(_.stats.minutely).unsafeRunSync
+    topic.kit.sparKafka.fromKafka[IO].crDataset.flatMap(_.stats.minutely).unsafeRunSync
   }
 
   test("read topic from kafka and show json") {

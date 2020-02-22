@@ -5,7 +5,6 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducerRecord}
-import com.github.chenharryhua.nanjin.spark.jacksonFileSink
 import com.github.chenharryhua.nanjin.spark.streaming.{KafkaCRStream, SparkStream, StreamConfig}
 import com.github.chenharryhua.nanjin.utils.Keyboard
 import frameless.{TypedDataset, TypedEncoder}
@@ -35,24 +34,6 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
   def fromKafka[F[_]: Sync]: FsmKafkaUnload[F, K, V] =
     new FsmKafkaUnload[F, K, V](kit, cfg)
 
-  def timeRangedKafkaStream[F[_]: Concurrent]: Stream[F, NJConsumerRecord[K, V]] =
-    sk.timeRangedKafkaStream[F, K, V](
-      kit,
-      params.repartition,
-      params.timeRange,
-      params.locationStrategy)
-
-  def saveJacson[F[_]: Concurrent: ContextShift](path: String): F[Unit] = {
-    import kit.topicDef.{avroKeyEncoder, avroValEncoder, schemaForKey, schemaForVal}
-    val run: Stream[F, Unit] = for {
-      kb <- Keyboard.signal[F]
-      _ <- timeRangedKafkaStream
-        .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
-        .through(jacksonFileSink[F, NJConsumerRecord[K, V]](path))
-    } yield ()
-    run.compile.drain
-  }
-
   def fromDisk[F[_]]: FsmDiskLoad[F, K, V] =
     new FsmDiskLoad[F, K, V](kit, cfg)
 
@@ -80,11 +61,13 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
   def saveRDD[F[_]: Sync]: F[Unit] =
     sk.saveKafkaRDD(replayPath, kit, params.timeRange, params.locationStrategy)
 
+  def crDiskStream[F[_]: Sync]: Stream[F, NJConsumerRecord[K, V]] =
+    sk.loadDiskRDD[F, K, V](replayPath, params.repartition)
+
   def replay[F[_]: ConcurrentEffect: Timer: ContextShift]: F[Unit] = {
     val run: Stream[F, Unit] = for {
       kb <- Keyboard.signal[F]
-      _ <- sk
-        .loadDiskRDD[F, K, V](replayPath, params.repartition)
+      _ <- crDiskStream
         .chunkN(params.uploadRate.batchSize)
         .metered(params.uploadRate.duration)
         .pauseWhen(kb.map(_.contains(Keyboard.pauSe)))
@@ -101,12 +84,16 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
     * pipeTo
     */
 
-  def batchPipeTo[F[_]: ConcurrentEffect: Timer: ContextShift](otherTopic: KafkaTopicKit[K, V])(
-    implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): F[Unit] =
-    fromKafka[F].consumerRecords.flatMap(
-      _.someValues.toProducerRecords.noMeta.upload(otherTopic).map(_ => print(".")).compile.drain)
+  def batchPipeTo[F[_]: ConcurrentEffect: Timer: ContextShift](
+    otherTopic: KafkaTopicKit[K, V]): F[Unit] =
+    fromKafka[F].crStream.chunks
+      .map(chk =>
+        ProducerRecords(
+          chk.map(_.toNJProducerRecord.noMeta.toFs2ProducerRecord(otherTopic.topicName))))
+      .through(produce(otherTopic.fs2ProducerSettings[F]))
+      .map(_ => print("."))
+      .compile
+      .drain
 
   def streamingPipeTo[F[_]: Concurrent: Timer](otherTopic: KafkaTopicKit[K, V])(
     implicit

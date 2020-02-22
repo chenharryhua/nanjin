@@ -1,10 +1,13 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.effect.Sync
+import cats.effect.{Concurrent, ContextShift, Sync}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
+import com.github.chenharryhua.nanjin.spark.jacksonFileSink
+import com.github.chenharryhua.nanjin.utils.Keyboard
 import frameless.{TypedDataset, TypedEncoder}
+import fs2.Stream
 import org.apache.spark.sql.SparkSession
 
 final class FsmKafkaUnload[F[_], K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
@@ -22,7 +25,29 @@ final class FsmKafkaUnload[F[_], K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
     encoder: TypedEncoder[A]): F[TypedDataset[A]] =
     sk.fromKafka(kit, params.timeRange, params.locationStrategy)(f)
 
-  def consumerRecords(
+  def crStream(implicit ev: Concurrent[F]): Stream[F, NJConsumerRecord[K, V]] =
+    sk.timeRangedKafkaStream[F, K, V](
+      kit,
+      params.repartition,
+      params.timeRange,
+      params.locationStrategy)
+
+  def saveJackson(path: String)(
+    implicit concurrent: Concurrent[F],
+    contextShift: ContextShift[F]
+  ): F[Unit] = {
+    import kit.topicDef.{avroKeyEncoder, avroValEncoder, schemaForKey, schemaForVal}
+
+    val run: Stream[F, Unit] = for {
+      kb <- Keyboard.signal[F]
+      _ <- crStream
+        .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
+        .through(jacksonFileSink[F, NJConsumerRecord[K, V]](path))
+    } yield ()
+    run.compile.drain
+  }
+
+  def crDataset(
     implicit
     F: Sync[F],
     keyEncoder: TypedEncoder[K],

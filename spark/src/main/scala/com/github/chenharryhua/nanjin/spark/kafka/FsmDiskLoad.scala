@@ -14,7 +14,7 @@ final class FsmDiskLoad[F[_], K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
 
   override val params: SKParams = SKConfigF.evalConfig(cfg)
 
-  def consumerRecords(
+  def crDataset(
     implicit
     F: Sync[F],
     keyEncoder: TypedEncoder[K],
