@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark
 
-import cats.effect.Concurrent
+import cats.effect.{Concurrent, ContextShift}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.utils.Keyboard
 import com.sksamuel.avro4s._
@@ -25,14 +25,14 @@ private[spark] trait DatasetExtensions {
           .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
       } yield data
 
-    def saveJackson[F[_]: Concurrent](pathStr: String)(
+    def saveJackson[F[_]: ContextShift: Concurrent](pathStr: String)(
       implicit
       sparkSession: SparkSession,
       schemaFor: SchemaFor[A],
       encoder: Encoder[A]): Stream[F, Unit] =
       tds.stream[F].through(jacksonFileSink[F, A](pathStr))
 
-    def saveAvro[F[_]: Concurrent](pathStr: String)(
+    def saveAvro[F[_]: ContextShift: Concurrent](pathStr: String)(
       implicit
       sparkSession: SparkSession,
       schemaFor: SchemaFor[A],
@@ -42,18 +42,14 @@ private[spark] trait DatasetExtensions {
 
   implicit class SparkSessionExt(private val sks: SparkSession) {
 
-    def loadAvro[F[_], A](pathStr: String)(
-      implicit
-      concurrent: Concurrent[F],
-      decoder: Decoder[A],
-      schemaFor: SchemaFor[A]): Stream[F, A] =
-      avroFileSource[F, A](pathStr)(schemaFor, decoder, sks, concurrent)
+    implicit private val imp: SparkSession = sks
 
-    def loadJackson[F[_], A](pathStr: String)(
-      implicit
-      concurrent: Concurrent[F],
-      decoder: Decoder[A],
-      schemaFor: SchemaFor[A]): Stream[F, A] =
-      jacksonFileSource[F, A](pathStr)(schemaFor, decoder, sks, concurrent)
+    def loadAvro[F[_]: ContextShift: Concurrent, A: Decoder: SchemaFor](
+      pathStr: String): Stream[F, A] =
+      avroFileSource[F, A](pathStr)
+
+    def loadJackson[F[_]: ContextShift: Concurrent, A: Decoder: SchemaFor](
+      pathStr: String): Stream[F, A] =
+      jacksonFileSource[F, A](pathStr)
   }
 }

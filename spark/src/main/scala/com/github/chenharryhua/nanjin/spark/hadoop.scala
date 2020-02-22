@@ -2,45 +2,55 @@ package com.github.chenharryhua.nanjin.spark
 
 import java.net.URI
 
-import cats.effect.{Resource, Sync}
+import cats.effect.{Blocker, ContextShift, Resource, Sync}
 import com.sksamuel.avro4s._
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataInputStream, FSDataOutputStream, FileSystem, Path}
 
 private[spark] object hadoop {
 
-  private def fileSystem[F[_]](pathStr: String, config: Configuration)(
-    implicit F: Sync[F]): Resource[F, FileSystem] =
-    Resource.make(F.delay(FileSystem.get(new URI(pathStr), config)))(fs => F.delay(fs.close()))
-
-  private def outPathResource[F[_]](pathStr: String, config: Configuration)(
-    implicit F: Sync[F]): Resource[F, FSDataOutputStream] =
-    fileSystem(pathStr, config).flatMap(fs =>
-      Resource.make(F.delay(fs.create(new Path(pathStr))))(a => F.delay(a.close())))
-
-  def avroOutputResource[F[_], A: SchemaFor](
+  private def fileSystem[F[_]: Sync: ContextShift](
     pathStr: String,
     config: Configuration,
-    builder: AvroOutputStreamBuilder[A])(implicit F: Sync[F]): Resource[F, AvroOutputStream[A]] =
+    blocker: Blocker): Resource[F, FileSystem] =
+    Resource.make(blocker.delay(FileSystem.get(new URI(pathStr), config)))(fs =>
+      blocker.delay(fs.close()))
+
+  private def outPathResource[F[_]: Sync: ContextShift](
+    pathStr: String,
+    config: Configuration,
+    blocker: Blocker): Resource[F, FSDataOutputStream] =
+    fileSystem(pathStr, config, blocker).flatMap(fs =>
+      Resource.make(blocker.delay(fs.create(new Path(pathStr))))(a => blocker.delay(a.close())))
+
+  def avroOutputResource[F[_]: Sync: ContextShift, A: SchemaFor](
+    pathStr: String,
+    config: Configuration,
+    builder: AvroOutputStreamBuilder[A],
+    blocker: Blocker): Resource[F, AvroOutputStream[A]] =
     hadoop
-      .outPathResource(pathStr, config)
+      .outPathResource(pathStr, config, blocker)
       .flatMap(os =>
-        Resource.make(F.delay(builder.to(os).build(SchemaFor[A].schema(DefaultFieldMapper))))(a =>
-          F.delay(a.close())))
+        Resource.make(blocker.delay(builder.to(os).build(SchemaFor[A].schema(DefaultFieldMapper))))(
+          a => blocker.delay(a.close())))
 
-  private def inPathResource[F[_]](pathStr: String, config: Configuration)(
-    implicit F: Sync[F]): Resource[F, FSDataInputStream] =
-    fileSystem(pathStr, config).flatMap(fs =>
-      Resource.make(F.delay(fs.open(new Path(pathStr))))(a => F.delay(a.close())))
-
-  def avroInputResource[F[_], A: SchemaFor](
+  private def inPathResource[F[_]: Sync: ContextShift](
     pathStr: String,
     config: Configuration,
-    builder: AvroInputStreamBuilder[A])(implicit F: Sync[F]): Resource[F, AvroInputStream[A]] =
+    blocker: Blocker): Resource[F, FSDataInputStream] =
+    fileSystem(pathStr, config, blocker).flatMap(fs =>
+      Resource.make(blocker.delay(fs.open(new Path(pathStr))))(a => blocker.delay(a.close())))
+
+  def avroInputResource[F[_]: Sync: ContextShift, A: SchemaFor](
+    pathStr: String,
+    config: Configuration,
+    builder: AvroInputStreamBuilder[A],
+    blocker: Blocker): Resource[F, AvroInputStream[A]] =
     hadoop
-      .inPathResource(pathStr, config)
+      .inPathResource(pathStr, config, blocker)
       .flatMap(is =>
-        Resource.make(F.delay(builder.from(is).build(SchemaFor[A].schema(DefaultFieldMapper))))(a =>
-          F.delay(a.close())))
+        Resource.make(
+          blocker.delay(builder.from(is).build(SchemaFor[A].schema(DefaultFieldMapper))))(a =>
+          blocker.delay(a.close())))
 
 }
