@@ -5,7 +5,6 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducerRecord}
-import com.github.chenharryhua.nanjin.spark.jacksonFileSink
 import com.github.chenharryhua.nanjin.spark.streaming.{KafkaCRStream, SparkStream, StreamConfig}
 import com.github.chenharryhua.nanjin.utils.Keyboard
 import frameless.{TypedDataset, TypedEncoder}
@@ -34,24 +33,6 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
 
   def fromKafka[F[_]: Sync]: FsmKafkaUnload[F, K, V] =
     new FsmKafkaUnload[F, K, V](kit, cfg)
-
-  def timeRangedKafkaStream[F[_]: Concurrent]: Stream[F, NJConsumerRecord[K, V]] =
-    sk.timeRangedKafkaStream[F, K, V](
-      kit,
-      params.repartition,
-      params.timeRange,
-      params.locationStrategy)
-
-  def saveJacson[F[_]: Concurrent: ContextShift](path: String): F[Unit] = {
-    import kit.topicDef.{avroKeyEncoder, avroValEncoder, schemaForKey, schemaForVal}
-    val run: Stream[F, Unit] = for {
-      kb <- Keyboard.signal[F]
-      _ <- timeRangedKafkaStream
-        .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
-        .through(jacksonFileSink[F, NJConsumerRecord[K, V]](path))
-    } yield ()
-    run.compile.drain
-  }
 
   def fromDisk[F[_]]: FsmDiskLoad[F, K, V] =
     new FsmDiskLoad[F, K, V](kit, cfg)

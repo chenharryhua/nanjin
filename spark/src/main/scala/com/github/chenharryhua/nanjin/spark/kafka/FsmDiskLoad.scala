@@ -1,8 +1,11 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.effect.Sync
+import cats.effect.{Concurrent, ContextShift, Sync}
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
+import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
+import com.github.chenharryhua.nanjin.utils.Keyboard
 import frameless.TypedEncoder
+import fs2.Stream
 import org.apache.spark.sql.SparkSession
 
 final class FsmDiskLoad[F[_], K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(

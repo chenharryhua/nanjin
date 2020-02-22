@@ -171,7 +171,7 @@ object KafkaMonitoringApi {
                 .leftMap(e => println(s"${e.getMessage}. source: $str"))
                 .toOption
             }
-            .chunkN(chunkSize)
+            .chunks
             .map(chk =>
               ProducerRecords(chk.map(_.toNJProducerRecord.toFs2ProducerRecord(topic.topicName))))
             .through(produce(topic.kit.fs2ProducerSettings[F]))
