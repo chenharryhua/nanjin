@@ -20,8 +20,8 @@ private[spark] trait AvroableDataSink extends Serializable {
           sparkSession.sparkContext.hadoopConfiguration,
           builder,
           blocker))
-      data <- sa
-    } yield aos.write(data)
+      data <- sa.chunkN(4096)
+    } yield data.foreach(aos.write)
   }
 
   def avroFileSink[F[_]: ContextShift: Concurrent, A: SchemaFor: Encoder](pathStr: String)(
@@ -44,13 +44,13 @@ private[spark] trait AvroableDataSource extends Serializable {
     sparkSession: SparkSession): Stream[F, A] =
     for {
       blocker <- Stream.resource(Blocker[F])
-      is <- Stream.resource(
+      ais <- Stream.resource(
         hadoop.avroInputResource(
           pathStr,
           sparkSession.sparkContext.hadoopConfiguration,
           builder,
           blocker))
-      data <- Stream.fromIterator(is.iterator)
+      data <- Stream.fromIterator(ais.iterator)
     } yield data
 
   def avroFileSource[F[_]: Concurrent: ContextShift, A: SchemaFor: Decoder](pathStr: String)(
