@@ -41,7 +41,7 @@ class SparKafkaTest extends AnyFunSuite {
 
 
   test("read topic from kafka and show aggragation result") {
-    topic.kit.sparKafka.fromKafka[IO].flatMap(_.crDataset.stats.minutely).unsafeRunSync
+    topic.kit.sparKafka.fromKafka[IO].flatMap(_.stats.minutely).unsafeRunSync
   }
 
   test("read topic from kafka and show json") {
