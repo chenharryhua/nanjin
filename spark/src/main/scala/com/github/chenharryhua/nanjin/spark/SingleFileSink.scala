@@ -44,7 +44,8 @@ private[spark] trait SingleFileSink extends Serializable {
     sparkSession: SparkSession): Pipe[F, A, Unit] =
     sink(pathStr, AvroOutputStream.json[A])
 
-  def binaryFileSink[F[_]: ContextShift: Concurrent, A: SchemaFor: AvroEncoder](pathStr: String)(
+  def binaryAvroFileSink[F[_]: ContextShift: Concurrent, A: SchemaFor: AvroEncoder](
+    pathStr: String)(
     implicit
     sparkSession: SparkSession): Pipe[F, A, Unit] =
     sink(pathStr, AvroOutputStream.binary[A])
