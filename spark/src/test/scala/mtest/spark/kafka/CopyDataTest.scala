@@ -34,9 +34,9 @@ class CopyDataTest extends AnyFunSuite {
       tgtData <- tgt.kit.sparKafka.fromKafka[IO].flatMap(_.crDataset.typedDataset.collect[IO])
     } yield {
       assert(srcData.size == 5)
-      assert(tgtData.size == 4)
-      assert(srcData.take(4).map(_.value).toSet === tgtData.map(_.value).toSet)
-      assert(srcData.take(4).map(_.key).toSet === tgtData.map(_.key).toSet)
+      assert(tgtData.size == 5)
+      assert(srcData.map(_.value).toSet === tgtData.map(_.value).toSet)
+      assert(srcData.map(_.key).toSet === tgtData.map(_.key).toSet)
     }
 
     rst.unsafeRunSync()
