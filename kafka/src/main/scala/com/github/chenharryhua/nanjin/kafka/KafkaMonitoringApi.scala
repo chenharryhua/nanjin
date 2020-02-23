@@ -45,8 +45,6 @@ object KafkaMonitoringApi {
     implicit F: ConcurrentEffect[F])
       extends KafkaMonitoringApi[F, K, V] {
 
-    private val chunkSize: Int = 1000
-
     private val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
       topic.fs2Channel.withConsumerSettings(_.withEnableAutoCommit(false))
 
@@ -171,10 +169,9 @@ object KafkaMonitoringApi {
                 .leftMap(e => println(s"${e.getMessage}. source: $str"))
                 .toOption
             }
+            .map(_.toNJProducerRecord)
             .chunks
-            .map(chk =>
-              ProducerRecords(chk.map(_.toNJProducerRecord.toFs2ProducerRecord(topic.topicName))))
-            .through(produce(topic.kit.fs2ProducerSettings[F]))
+            .through(topic.kit.upload)
             .map(_ => print("."))
         }
         .compile
@@ -189,10 +186,6 @@ object KafkaMonitoringApi {
           .withHeaders(cr.headers)
           .withPartition(cr.partition)
         ProducerRecords.one(ts.fold(pr)(pr.withTimestamp))
-      }.through(produce(other.fs2ProducerSettings))
-        .chunkN(chunkSize)
-        .map(_ => print("."))
-        .compile
-        .drain
+      }.through(produce(other.fs2ProducerSettings)).chunks.map(_ => print(".")).compile.drain
   }
 }

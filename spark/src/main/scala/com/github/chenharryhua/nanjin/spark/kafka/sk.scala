@@ -8,9 +8,9 @@ import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.common._
 import com.github.chenharryhua.nanjin.kafka.{KafkaConsumerApi, KafkaTopicKit}
-import com.github.chenharryhua.nanjin.spark._
-import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
-import fs2.Stream
+import com.github.chenharryhua.nanjin.utils.Keyboard
+import frameless.{TypedDataset, TypedEncoder}
+import fs2.Pipe
 import fs2.kafka.{produce, ProducerRecords, ProducerResult}
 import io.circe.syntax._
 import monocle.function.At.remove
@@ -23,7 +23,7 @@ import org.log4s.Logger
 
 import scala.collection.JavaConverters._
 
-private[kafka] object sk {
+object sk {
 
   private def props(config: Map[String, String]): util.Map[String, Object] =
     (remove(ConsumerConfig.CLIENT_ID_CONFIG)(config) ++ Map(
@@ -63,76 +63,17 @@ private[kafka] object sk {
       cr
     }
 
-  def fromKafka[F[_]: Sync, K, V, A](
-    kit: KafkaTopicKit[K, V],
-    timeRange: NJDateTimeRange,
-    locationStrategy: LocationStrategy)(f: NJConsumerRecord[K, V] => A)(
-    implicit
-    sparkSession: SparkSession,
-    encoder: TypedEncoder[A]): F[TypedDataset[A]] = {
-    import encoder.classTag
-    kafkaRDD[F, K, V](kit, timeRange, locationStrategy)
-      .map(_.mapPartitions(ms => decode(kit, ms).map(f)))
-      .map(TypedDataset.create[A])
-  }
-
-  def timeRangedKafkaStream[F[_]: Sync, K, V](
-    kit: KafkaTopicKit[K, V],
-    repartition: NJRepartition,
-    timeRange: NJDateTimeRange,
-    locationStrategy: LocationStrategy)(
-    implicit
-    sparkSession: SparkSession): Stream[F, NJConsumerRecord[K, V]] =
-    Stream.force(
-      kafkaRDD[F, K, V](kit, timeRange, locationStrategy)
-        .map(_.mapPartitions(ms => decode(kit, ms)))
-        .map(rdd => Stream.fromIterator[F](rdd.repartition(repartition.value).toLocalIterator)))
-
-  def saveKafkaRDD[F[_]: Sync, K, V](
-    path: String,
+  def loadKafkaRdd[F[_]: Sync, K, V, A](
     kit: KafkaTopicKit[K, V],
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy)(
     implicit
-    sparkSession: SparkSession): F[Unit] =
-    kafkaRDD[F, K, V](kit, timeRange, locationStrategy)
-      .map(_.mapPartitions(ms => decode(kit, ms)))
-      .map(_.saveAsObjectFile(path))
+    sparkSession: SparkSession): F[RDD[NJConsumerRecord[K, V]]] =
+    kafkaRDD[F, K, V](kit, timeRange, locationStrategy).map(_.mapPartitions(ms => decode(kit, ms)))
 
-  def loadDiskRDD[F[_]: Sync, K, V](path: String, repartition: NJRepartition)(
-    implicit
-    sparkSession: SparkSession): Stream[F, NJConsumerRecord[K, V]] =
-    Stream.fromIterator[F](
-      sparkSession.sparkContext
-        .objectFile[NJConsumerRecord[K, V]](path)
-        .repartition(repartition.value)
-        .toLocalIterator)
-
-  def fromDisk[K, V](
-    kit: KafkaTopicKit[K, V],
-    timeRange: NJDateTimeRange,
-    fileFormat: NJFileFormat,
-    path: String)(
-    implicit
-    sparkSession: SparkSession,
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): TypedDataset[NJConsumerRecord[K, V]] = {
-    val schema = TypedExpressionEncoder.targetStructType(TypedEncoder[NJConsumerRecord[K, V]])
-    val tds: TypedDataset[NJConsumerRecord[K, V]] = {
-      fileFormat match {
-        case NJFileFormat.Avro | NJFileFormat.Parquet | NJFileFormat.Json | NJFileFormat.Text =>
-          TypedDataset.createUnsafe[NJConsumerRecord[K, V]](
-            sparkSession.read.schema(schema).format(fileFormat.format).load(path))
-        case NJFileFormat.Jackson =>
-          TypedDataset
-            .create(sparkSession.read.textFile(path))
-            .deserialized
-            .flatMap(m => kit.fromJackson(m).toOption)
-      }
-    }
-    val inBetween = tds.makeUDF[Long, Boolean](timeRange.isInBetween)
-    tds.filter(inBetween(tds('timestamp)))
-  }
+  def loadDiskRdd[F[_]: Sync, K, V](path: String)(
+    implicit sparkSession: SparkSession): F[RDD[NJConsumerRecord[K, V]]] =
+    Sync[F].delay(sparkSession.sparkContext.objectFile[NJConsumerRecord[K, V]](path))
 
   def save[K, V](
     dataset: TypedDataset[NJConsumerRecord[K, V]],
@@ -150,23 +91,6 @@ private[kafka] object sk {
           .mode(saveMode)
           .text(path)
     }
-
-  def upload[F[_], K, V](
-    dataset: TypedDataset[NJProducerRecord[K, V]],
-    kit: KafkaTopicKit[K, V],
-    repartition: NJRepartition,
-    uploadRate: NJUploadRate)(
-    implicit
-    ce: ConcurrentEffect[F],
-    timer: Timer[F],
-    cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
-    dataset
-      .repartition(repartition.value)
-      .stream[F]
-      .chunkN(uploadRate.batchSize)
-      .metered(uploadRate.duration)
-      .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(kit.topicName))))
-      .through(produce(kit.fs2ProducerSettings[F]))
 
   /**
     * streaming

@@ -23,12 +23,10 @@ private[spark] object NJUploadRate {
   val default: NJUploadRate = NJUploadRate(batchSize = 1000, duration = 1.second)
 }
 
-final case class NJPathBuild(fileFormat: NJFileFormat, topicName: TopicName)
-
 @Lenses final case class SKParams private (
   timeRange: NJDateTimeRange,
   uploadRate: NJUploadRate,
-  pathBuilder: Reader[NJPathBuild, String],
+  rddPathBuilder: Reader[TopicName, String],
   fileFormat: NJFileFormat,
   saveMode: SaveMode,
   locationStrategy: LocationStrategy,
@@ -41,11 +39,11 @@ object SKParams {
     SKParams(
       timeRange        = NJDateTimeRange.infinite,
       uploadRate       = NJUploadRate.default,
-      pathBuilder      = Reader(kpb => s"./data/spark/kafka/${kpb.topicName}/${kpb.fileFormat}/"),
+      rddPathBuilder   = Reader(topicName => s"./data/spark/kafka/$topicName/"),
       fileFormat       = NJFileFormat.Parquet,
       saveMode         = SaveMode.ErrorIfExists,
       locationStrategy = LocationStrategies.PreferConsistent,
-      repartition      = NJRepartition(30),
+      repartition      = NJRepartition(32),
       showDs           = NJShowDataset(20, isTruncate = false)
     )
 }
@@ -74,7 +72,7 @@ private[spark] object SKConfigF {
   final case class WithShowRows[K](value: Int, cont: K) extends SKConfigF[K]
   final case class WithShowTruncate[K](isTruncate: Boolean, cont: K) extends SKConfigF[K]
 
-  final case class WithPathBuilder[K](value: Reader[NJPathBuild, String], cont: K)
+  final case class WithRddPathBuilder[K](value: Reader[TopicName, String], cont: K)
       extends SKConfigF[K]
 
   implicit val configParamFunctor: Functor[SKConfigF] =
@@ -94,7 +92,7 @@ private[spark] object SKConfigF {
     case WithRepartition(v, c)      => SKParams.repartition.set(v)(c)
     case WithShowRows(v, c)         => SKParams.showDs.composeLens(NJShowDataset.rowNum).set(v)(c)
     case WithShowTruncate(v, c)     => SKParams.showDs.composeLens(NJShowDataset.isTruncate).set(v)(c)
-    case WithPathBuilder(v, c)      => SKParams.pathBuilder.set(v)(c)
+    case WithRddPathBuilder(v, c)   => SKParams.rddPathBuilder.set(v)(c)
   }
 
   def evalConfig(cfg: SKConfig): SKParams = scheme.cata(algebra).apply(cfg.value)
@@ -132,8 +130,8 @@ final case class SKConfig private (value: Fix[SKConfigF]) extends AnyVal {
   def withSaveMode(sm: SaveMode): SKConfig = SKConfig(Fix(WithSaveMode(sm, value)))
   def withOverwrite: SKConfig              = withSaveMode(SaveMode.Overwrite)
 
-  def withPathBuilder(f: NJPathBuild => String): SKConfig =
-    SKConfig(Fix(WithPathBuilder(Reader(f), value)))
+  def withRddPathBuilder(f: TopicName => String): SKConfig =
+    SKConfig(Fix(WithRddPathBuilder(Reader(f), value)))
 }
 
 object SKConfig {

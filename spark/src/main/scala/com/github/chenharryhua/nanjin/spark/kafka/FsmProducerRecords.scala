@@ -40,13 +40,16 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
 
   override val params: SKParams = SKConfigF.evalConfig(cfg)
 
-  // api section
   def upload(other: KafkaTopicKit[K, V])(
     implicit
     ce: ConcurrentEffect[F],
     timer: Timer[F],
     cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
-    sk.upload(typedDataset, other, params.repartition, params.uploadRate)
+    typedDataset
+      .stream[F]
+      .chunkN(params.uploadRate.batchSize)
+      .metered(params.uploadRate.duration)
+      .through(kit.upload)
 
   def upload(
     implicit
@@ -61,13 +64,11 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     timer: Timer[F],
     cs: ContextShift[F]): Stream[F, ProducerResult[K2, V2, Unit]] =
     typedDataset
-      .repartition(params.repartition.value)
-      .stream
+      .stream[F]
       .map(_.bimap(k, v))
       .chunkN(params.uploadRate.batchSize)
       .metered(params.uploadRate.duration)
-      .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(other.topicName))))
-      .through(produce(other.fs2ProducerSettings[F]))
+      .through(other.upload)
 
   def count(implicit ev: Sync[F]): F[Long] =
     typedDataset.count[F]()
