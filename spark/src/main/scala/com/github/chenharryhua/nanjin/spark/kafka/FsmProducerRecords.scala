@@ -40,24 +40,6 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
 
   override val params: SKParams = SKConfigF.evalConfig(cfg)
 
-  def upload(other: KafkaTopicKit[K, V])(
-    implicit
-    ce: ConcurrentEffect[F],
-    timer: Timer[F],
-    cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
-    typedDataset
-      .stream[F]
-      .chunkN(params.uploadRate.batchSize)
-      .metered(params.uploadRate.duration)
-      .through(kit.upload)
-
-  def upload(
-    implicit
-    ce: ConcurrentEffect[F],
-    timer: Timer[F],
-    cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
-    upload(kit)
-
   def pipeTo[K2, V2](other: KafkaTopicKit[K2, V2])(k: K => K2, v: V => V2)(
     implicit
     ce: ConcurrentEffect[F],
@@ -69,6 +51,20 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
       .chunkN(params.uploadRate.batchSize)
       .metered(params.uploadRate.duration)
       .through(other.upload)
+
+  def upload(other: KafkaTopicKit[K, V])(
+    implicit
+    ce: ConcurrentEffect[F],
+    timer: Timer[F],
+    cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
+    pipeTo(other)(identity, identity)
+
+  def upload(
+    implicit
+    ce: ConcurrentEffect[F],
+    timer: Timer[F],
+    cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
+    upload(kit)
 
   def count(implicit ev: Sync[F]): F[Long] =
     typedDataset.count[F]()
