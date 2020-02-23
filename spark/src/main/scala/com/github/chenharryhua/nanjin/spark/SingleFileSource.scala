@@ -25,14 +25,17 @@ private[spark] trait SingleFileSource extends Serializable {
 
   def avroFileSource[F[_]: Concurrent: ContextShift, A: SchemaFor: Decoder](pathStr: String)(
     implicit
-    sparkSession: SparkSession): Stream[F, A] = source[F, A](pathStr, AvroInputStream.data[A])
+    sparkSession: SparkSession): Stream[F, A] =
+    source[F, A](pathStr, AvroInputStream.data[A])
 
   def jacksonFileSource[F[_]: Concurrent: ContextShift, A: SchemaFor: Decoder](pathStr: String)(
     implicit
-    sparkSession: SparkSession): Stream[F, A] = source[F, A](pathStr, AvroInputStream.json[A])
+    sparkSession: SparkSession): Stream[F, A] =
+    source[F, A](pathStr, AvroInputStream.json[A])
 
   def binaryFileSource[F[_]: Concurrent: ContextShift, A: SchemaFor: Decoder](pathStr: String)(
     implicit
-    sparkSession: SparkSession): Stream[F, A] = source[F, A](pathStr, AvroInputStream.binary[A])
+    sparkSession: SparkSession): Stream[F, A] =
+    source[F, A](pathStr, AvroInputStream.binary[A])
 
 }

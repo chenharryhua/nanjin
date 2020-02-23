@@ -35,8 +35,11 @@ final class FsmRddKafka[F[_], K, V](
     valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] =
     new FsmConsumerRecords(TypedDataset.create(rdd).dataset, kit, cfg)
 
+  def partition(num: Int): FsmRddDisk[F, K, V] =
+    new FsmRddDisk[F, K, V](rdd.filter(_.partition === num), kit, cfg)
+
   def sorted: RDD[NJConsumerRecord[K, V]] =
-    rdd.sortBy[NJConsumerRecord[K, V]](identity).repartition(params.repartition.value)
+    rdd.repartition(params.repartition.value).sortBy[NJConsumerRecord[K, V]](identity)
 
   def crStream(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
     Stream.fromIterator[F](sorted.toLocalIterator)

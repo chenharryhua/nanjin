@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
+import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import frameless.{TypedDataset, TypedEncoder}
@@ -27,11 +28,14 @@ final class FsmRddDisk[F[_], K, V](
     new FsmConsumerRecords(tds.filter(inBetween(tds('timestamp))).dataset, kit, cfg)
   }
 
+  def partition(num: Int): FsmRddDisk[F, K, V] =
+    new FsmRddDisk[F, K, V](rdd.filter(_.partition === num), kit, cfg)
+
   def sorted: RDD[NJConsumerRecord[K, V]] =
     rdd
       .filter(m => params.timeRange.isInBetween(m.timestamp))
-      .sortBy[NJConsumerRecord[K, V]](identity)
       .repartition(params.repartition.value)
+      .sortBy[NJConsumerRecord[K, V]](identity)
 
   def crStream(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
     Stream.fromIterator[F](sorted.toLocalIterator)
