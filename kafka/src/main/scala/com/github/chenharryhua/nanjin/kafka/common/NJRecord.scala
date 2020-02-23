@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka.common
 
-import cats.Bifunctor
+import cats.{Bifunctor, Order}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import fs2.kafka.{ProducerRecord => Fs2ProducerRecord}
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
@@ -59,6 +59,15 @@ object NJConsumerRecord {
         fab: NJConsumerRecord[A, B])(f: A => C, g: B => D): NJConsumerRecord[C, D] =
         fab.copy(key = fab.key.map(f), value = fab.value.map(g))
     }
+
+  implicit def njConsumerRecordOrder[K, V]: Order[NJConsumerRecord[K, V]] =
+    (x: NJConsumerRecord[K, V], y: NJConsumerRecord[K, V]) => {
+      val ts = x.timestamp - y.timestamp
+      if (ts != 0) ts.toInt else (x.offset - y.offset).toInt
+    }
+
+  implicit def njConsumerRecordOrdering[K, V]: Ordering[NJConsumerRecord[K, V]] =
+    njConsumerRecordOrder[K, V].toOrdering
 }
 
 @Lenses final case class NJProducerRecord[K, V](
