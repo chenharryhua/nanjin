@@ -30,11 +30,13 @@ final class FsmRddDisk[F[_], K, V](
   def sorted: RDD[NJConsumerRecord[K, V]] =
     rdd
       .filter(m => params.timeRange.isInBetween(m.timestamp))
-      .sortBy(_.timestamp)
+      .sortBy[NJConsumerRecord[K, V]](identity)
       .repartition(params.repartition.value)
 
   def crStream(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
     Stream.fromIterator[F](sorted.toLocalIterator)
+
+  def count: Long = rdd.count()
 
   def replay(
     implicit
@@ -49,4 +51,7 @@ final class FsmRddDisk[F[_], K, V](
       .map(_ => print("."))
       .compile
       .drain
+
+  def stats: Statistics[F] =
+    new Statistics(TypedDataset.create(rdd.map(CRMetaInfo(_))).dataset, cfg)
 }

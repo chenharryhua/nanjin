@@ -18,4 +18,6 @@ class BimapNJRecords extends AnyFunSuite with FunSuiteDiscipline with Configurat
     "NJProducerRecord",
     BifunctorTests[NJProducerRecord].bifunctor[Int, Int, Int, Int, Int, Int])
 
+  checkAll("NJConsumerRecord", OrderTests[NJConsumerRecord[Int, Int]].order)
+
 }

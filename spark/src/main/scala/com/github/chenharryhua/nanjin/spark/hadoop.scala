@@ -48,4 +48,11 @@ private[spark] object hadoop {
       Resource.make(Sync[F].delay(builder.from(is).build(SchemaFor[A].schema(DefaultFieldMapper))))(
         a => blocker.delay(a.close())))
 
+  def delete[F[_]: Sync: ContextShift](
+    pathStr: String,
+    config: Configuration,
+    blocker: Blocker): F[Boolean] =
+    fileSystem(pathStr, config, blocker).use(fs =>
+      blocker.delay(fs.delete(new Path(pathStr), true)))
+
 }
