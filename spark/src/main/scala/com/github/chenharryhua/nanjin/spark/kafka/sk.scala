@@ -8,9 +8,9 @@ import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.common._
 import com.github.chenharryhua.nanjin.kafka.{KafkaConsumerApi, KafkaTopicKit}
-import com.github.chenharryhua.nanjin.spark._
-import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
-import fs2.Stream
+import com.github.chenharryhua.nanjin.utils.Keyboard
+import frameless.{TypedDataset, TypedEncoder}
+import fs2.Pipe
 import fs2.kafka.{produce, ProducerRecords, ProducerResult}
 import io.circe.syntax._
 import monocle.function.At.remove
@@ -23,7 +23,7 @@ import org.log4s.Logger
 
 import scala.collection.JavaConverters._
 
-private[kafka] object sk {
+object sk {
 
   private def props(config: Map[String, String]): util.Map[String, Object] =
     (remove(ConsumerConfig.CLIENT_ID_CONFIG)(config) ++ Map(
@@ -92,22 +92,21 @@ private[kafka] object sk {
           .text(path)
     }
 
-  def upload[F[_], K, V](
-    dataset: TypedDataset[NJProducerRecord[K, V]],
+  def upload[F[_]: ConcurrentEffect: Timer: ContextShift, K, V](
     kit: KafkaTopicKit[K, V],
-    repartition: NJRepartition,
-    uploadRate: NJUploadRate)(
-    implicit
-    ce: ConcurrentEffect[F],
-    timer: Timer[F],
-    cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
-    dataset
-      .repartition(repartition.value)
-      .stream[F]
-      .chunkN(uploadRate.batchSize)
-      .metered(uploadRate.duration)
-      .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(kit.topicName))))
-      .through(produce(kit.fs2ProducerSettings[F]))
+    uploadRate: NJUploadRate
+  ): Pipe[F, NJProducerRecord[K, V], ProducerResult[K, V, Unit]] =
+    njPRs =>
+      for {
+        kb <- Keyboard.signal[F]
+        rst <- njPRs
+          .chunkN(uploadRate.batchSize)
+          .metered(uploadRate.duration)
+          .pauseWhen(kb.map(_.contains(Keyboard.pauSe)))
+          .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
+          .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(kit.topicName))))
+          .through(produce(kit.fs2ProducerSettings[F]))
+      } yield rst
 
   /**
     * streaming

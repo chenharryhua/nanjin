@@ -3,13 +3,10 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
-import com.github.chenharryhua.nanjin.utils.Keyboard
 import frameless.{TypedDataset, TypedEncoder}
+import fs2.Stream
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
-import fs2.Stream
-import fs2.kafka.ProducerRecords
-import fs2.kafka.produce
 
 final class FsmRddDisk[F[_], K, V](
   rdd: RDD[NJConsumerRecord[K, V]],
@@ -43,19 +40,12 @@ final class FsmRddDisk[F[_], K, V](
     implicit
     concurrentEffect: ConcurrentEffect[F],
     timer: Timer[F],
-    contextShift: ContextShift[F]): F[Unit] = {
-    val run: Stream[F, Unit] = for {
-      kb <- Keyboard.signal[F]
-      _ <- crStream
-        .chunkN(params.uploadRate.batchSize)
-        .metered(params.uploadRate.duration)
-        .pauseWhen(kb.map(_.contains(Keyboard.pauSe)))
-        .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
-        .map(chk =>
-          ProducerRecords(chk.map(_.toNJProducerRecord.noMeta.toFs2ProducerRecord(kit.topicName))))
-        .through(produce(kit.fs2ProducerSettings[F]))
-        .map(_ => print("."))
-    } yield ()
-    run.compile.drain
-  }
+    contextShift: ContextShift[F]): F[Unit] =
+    crStream
+      .map(_.toNJProducerRecord.noMeta)
+      .through(sk.upload(kit, params.uploadRate))
+      .map(_ => print("."))
+      .compile
+      .drain
+
 }

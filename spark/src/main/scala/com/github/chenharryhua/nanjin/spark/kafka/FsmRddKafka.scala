@@ -4,11 +4,10 @@ import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import frameless.{TypedDataset, TypedEncoder}
+import fs2.Stream
+import fs2.kafka.{produce, ProducerRecords}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
-import fs2.Stream
-import fs2.kafka.ProducerRecords
-import fs2.kafka.produce
 
 final class FsmRddKafka[F[_], K, V](
   rdd: RDD[NJConsumerRecord[K, V]],
@@ -40,11 +39,10 @@ final class FsmRddKafka[F[_], K, V](
     concurrentEffect: ConcurrentEffect[F],
     timer: Timer[F],
     contextShift: ContextShift[F]): F[Unit] =
-    crStream.chunks
-      .map(chk =>
-        ProducerRecords(
-          chk.map(_.toNJProducerRecord.noMeta.toFs2ProducerRecord(otherTopic.topicName))))
-      .through(produce(otherTopic.fs2ProducerSettings[F]))
+    crStream
+      .map(_.toNJProducerRecord.noMeta)
+      .through(sk.upload(otherTopic, params.uploadRate))
+      .map(_ => print("."))
       .compile
       .drain
 }

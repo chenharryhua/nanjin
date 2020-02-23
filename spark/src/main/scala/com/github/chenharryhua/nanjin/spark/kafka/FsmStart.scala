@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.effect.{Concurrent, Sync, Timer}
+import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
@@ -35,6 +35,15 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
   def fromDisk[F[_]: Sync]: F[FsmRddDisk[F, K, V]] =
     sk.loadDiskRdd[F, K, V](params.rddPathBuilder(kit.topicName))
       .map(new FsmRddDisk[F, K, V](_, kit, cfg))
+
+  /**
+    * shorthand
+    */
+  def save[F[_]: Sync]: F[Unit]                                    = fromKafka[F].map(_.save())
+  def replay[F[_]: ConcurrentEffect: Timer: ContextShift]: F[Unit] = fromDisk[F].flatMap(_.replay)
+
+  def pipeTo[F[_]: ConcurrentEffect: Timer: ContextShift](other: KafkaTopicKit[K, V]): F[Unit] =
+    fromKafka[F].flatMap(_.pipeTo(other))
 
   /**
     * inject dataset
