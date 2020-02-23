@@ -9,10 +9,10 @@ import com.github.chenharryhua.nanjin.datetime.iso._
 import monocle.Iso
 import monocle.law.discipline.IsoTests
 import org.scalatest.funsuite.AnyFunSuite
-import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 import org.scalatest.prop.Configuration
+import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
-class DateTimeIsoTest extends AnyFunSuite with FunSuiteDiscipline with Configuration{
+class DateTimeIsoTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
   import ArbitaryData._
 
   checkAll("instant", IsoTests[Instant, Timestamp](implicitly[Iso[Instant, Timestamp]]))
@@ -26,6 +26,7 @@ class DateTimeIsoTest extends AnyFunSuite with FunSuiteDiscipline with Configura
     IsoTests[OffsetDateTime, JavaOffsetDateTime](
       implicitly[Iso[OffsetDateTime, JavaOffsetDateTime]]))
 
+  implicit val nj: Iso[NJTimestamp, Timestamp] = NJTimestamp.isoKafkaTimestamp
   checkAll(
     "nanjin-timestamp",
     IsoTests[NJTimestamp, Timestamp](implicitly[Iso[NJTimestamp, Timestamp]]))
