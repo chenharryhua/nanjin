@@ -36,6 +36,8 @@ final class FsmRddDisk[F[_], K, V](
   def crStream(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
     Stream.fromIterator[F](sorted.toLocalIterator)
 
+  def count: Long = rdd.count()
+
   def replay(
     implicit
     concurrentEffect: ConcurrentEffect[F],
