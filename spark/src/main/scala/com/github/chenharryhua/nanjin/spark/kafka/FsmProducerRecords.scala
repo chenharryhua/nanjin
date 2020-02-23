@@ -40,7 +40,6 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
 
   override val params: SKParams = SKConfigF.evalConfig(cfg)
 
-  // api section
   def upload(other: KafkaTopicKit[K, V])(
     implicit
     ce: ConcurrentEffect[F],
@@ -64,7 +63,8 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     ce: ConcurrentEffect[F],
     timer: Timer[F],
     cs: ContextShift[F]): Stream[F, ProducerResult[K2, V2, Unit]] =
-    typedDataset.stream
+    typedDataset
+      .stream[F]
       .map(_.bimap(k, v))
       .chunkN(params.uploadRate.batchSize)
       .metered(params.uploadRate.duration)

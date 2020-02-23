@@ -49,5 +49,4 @@ final class FsmRddDisk[F[_], K, V](
       .map(_ => print("."))
       .compile
       .drain
-
 }
