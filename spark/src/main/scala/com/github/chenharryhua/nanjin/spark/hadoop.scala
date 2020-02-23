@@ -16,7 +16,7 @@ private[spark] object hadoop {
     Resource.make(Sync[F].delay(FileSystem.get(new URI(pathStr), config)))(fs =>
       blocker.delay(fs.close()))
 
-  private def outPathResource[F[_]: Sync: ContextShift](
+  def outputPathResource[F[_]: Sync: ContextShift](
     pathStr: String,
     config: Configuration,
     blocker: Blocker): Resource[F, FSDataOutputStream] =
@@ -28,11 +28,11 @@ private[spark] object hadoop {
     config: Configuration,
     builder: AvroOutputStreamBuilder[A],
     blocker: Blocker): Resource[F, AvroOutputStream[A]] =
-    outPathResource(pathStr, config, blocker).flatMap(os =>
+    outputPathResource(pathStr, config, blocker).flatMap(os =>
       Resource.make(Sync[F].delay(builder.to(os).build(SchemaFor[A].schema(DefaultFieldMapper))))(
         a => blocker.delay(a.close())))
 
-  private def inPathResource[F[_]: Sync: ContextShift](
+  def inputPathResource[F[_]: Sync: ContextShift](
     pathStr: String,
     config: Configuration,
     blocker: Blocker): Resource[F, FSDataInputStream] =
@@ -44,7 +44,7 @@ private[spark] object hadoop {
     config: Configuration,
     builder: AvroInputStreamBuilder[A],
     blocker: Blocker): Resource[F, AvroInputStream[A]] =
-    inPathResource(pathStr, config, blocker).flatMap(is =>
+    inputPathResource(pathStr, config, blocker).flatMap(is =>
       Resource.make(Sync[F].delay(builder.from(is).build(SchemaFor[A].schema(DefaultFieldMapper))))(
         a => blocker.delay(a.close())))
 

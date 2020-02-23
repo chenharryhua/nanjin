@@ -63,7 +63,10 @@ object NJConsumerRecord {
   implicit def njConsumerRecordOrder[K, V]: Order[NJConsumerRecord[K, V]] =
     (x: NJConsumerRecord[K, V], y: NJConsumerRecord[K, V]) => {
       val ts = x.timestamp - y.timestamp
-      if (ts != 0) ts.toInt else (x.offset - y.offset).toInt
+      val os = x.offset - y.offset
+      if (ts != 0) ts.toInt
+      else if (os != 0) os.toInt
+      else (x.partition - y.partition).toInt
     }
 
   implicit def njConsumerRecordOrdering[K, V]: Ordering[NJConsumerRecord[K, V]] =
