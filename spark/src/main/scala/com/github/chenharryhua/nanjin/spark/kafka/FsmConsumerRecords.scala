@@ -75,5 +75,4 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def toProducerRecords: FsmProducerRecords[F, K, V] =
     new FsmProducerRecords((typedDataset.deserialized.map(_.toNJProducerRecord)).dataset, kit, cfg)
 
-  def stats: Statistics[F, K, V] = new Statistics(crs, cfg)
 }

@@ -51,4 +51,7 @@ final class FsmRddDisk[F[_], K, V](
       .map(_ => print("."))
       .compile
       .drain
+
+  def stats: Statistics[F] =
+    new Statistics(TypedDataset.create(rdd.map(CRMetaInfo(_))).dataset, cfg)
 }
