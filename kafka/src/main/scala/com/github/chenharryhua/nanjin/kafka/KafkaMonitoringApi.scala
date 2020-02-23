@@ -169,10 +169,9 @@ object KafkaMonitoringApi {
                 .leftMap(e => println(s"${e.getMessage}. source: $str"))
                 .toOption
             }
+            .map(_.toNJProducerRecord)
             .chunks
-            .map(chk =>
-              ProducerRecords(chk.map(_.toNJProducerRecord.toFs2ProducerRecord(topic.topicName))))
-            .through(produce(topic.kit.fs2ProducerSettings[F]))
+            .through(topic.kit.upload)
             .map(_ => print("."))
         }
         .compile
@@ -187,10 +186,6 @@ object KafkaMonitoringApi {
           .withHeaders(cr.headers)
           .withPartition(cr.partition)
         ProducerRecords.one(ts.fold(pr)(pr.withTimestamp))
-      }.through(produce(other.fs2ProducerSettings))
-        .chunks
-        .map(_ => print("."))
-        .compile
-        .drain
+      }.through(produce(other.fs2ProducerSettings)).chunks.map(_ => print(".")).compile.drain
   }
 }

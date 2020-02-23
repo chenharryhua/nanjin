@@ -43,7 +43,7 @@ object SKParams {
       fileFormat       = NJFileFormat.Parquet,
       saveMode         = SaveMode.ErrorIfExists,
       locationStrategy = LocationStrategies.PreferConsistent,
-      repartition      = NJRepartition(30),
+      repartition      = NJRepartition(32),
       showDs           = NJShowDataset(20, isTruncate = false)
     )
 }

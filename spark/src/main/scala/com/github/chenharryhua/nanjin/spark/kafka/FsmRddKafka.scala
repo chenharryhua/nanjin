@@ -5,7 +5,6 @@ import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
-import fs2.kafka.{produce, ProducerRecords}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
@@ -41,7 +40,9 @@ final class FsmRddKafka[F[_], K, V](
     contextShift: ContextShift[F]): F[Unit] =
     crStream
       .map(_.toNJProducerRecord.noMeta)
-      .through(sk.upload(otherTopic, params.uploadRate))
+      .chunkN(params.uploadRate.batchSize)
+      .metered(params.uploadRate.duration)
+      .through(kit.upload)
       .map(_ => print("."))
       .compile
       .drain

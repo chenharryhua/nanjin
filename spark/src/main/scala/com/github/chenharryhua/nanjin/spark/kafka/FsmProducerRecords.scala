@@ -46,7 +46,11 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     ce: ConcurrentEffect[F],
     timer: Timer[F],
     cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
-    typedDataset.stream[F].through(sk.upload(other, params.uploadRate))
+    typedDataset
+      .stream[F]
+      .chunkN(params.uploadRate.batchSize)
+      .metered(params.uploadRate.duration)
+      .through(kit.upload)
 
   def upload(
     implicit
@@ -60,7 +64,11 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     ce: ConcurrentEffect[F],
     timer: Timer[F],
     cs: ContextShift[F]): Stream[F, ProducerResult[K2, V2, Unit]] =
-    typedDataset.stream.map(_.bimap(k, v)).through(sk.upload(other, params.uploadRate))
+    typedDataset.stream
+      .map(_.bimap(k, v))
+      .chunkN(params.uploadRate.batchSize)
+      .metered(params.uploadRate.duration)
+      .through(other.upload)
 
   def count(implicit ev: Sync[F]): F[Long] =
     typedDataset.count[F]()
