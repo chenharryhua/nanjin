@@ -28,7 +28,7 @@ final class FsmRddKafka[F[_], K, V](
     new FsmConsumerRecords(TypedDataset.create(rdd).dataset, kit, cfg)
 
   def sorted: RDD[NJConsumerRecord[K, V]] =
-    rdd.sortBy(_.timestamp).repartition(params.repartition.value)
+    rdd.sortBy[NJConsumerRecord[K, V]](identity).repartition(params.repartition.value)
 
   def crStream(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
     Stream.fromIterator[F](sorted.toLocalIterator)
