@@ -72,8 +72,6 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def save(path: String): Unit =
     sk.save(typedDataset, kit, params.fileFormat, params.saveMode, path)
 
-  def save(): Unit = save(params.pathBuilder(NJPathBuild(params.fileFormat, kit.topicName)))
-
   def toProducerRecords: FsmProducerRecords[F, K, V] =
     new FsmProducerRecords((typedDataset.deserialized.map(_.toNJProducerRecord)).dataset, kit, cfg)
 
