@@ -81,23 +81,23 @@ object KafkaMonitoringApi {
           .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
       }.compile.drain
 
-    override def watchFrom(njt: NJTimestamp): F[Unit] =
-      for {
-        gtp <- KafkaConsumerApi(topic.kit).use { c =>
-          for {
-            os <- c.offsetsForTimes(njt)
-            e <- c.endOffsets
-          } yield os.combineWith(e)(_.orElse(_))
-        }
-        _ <- Keyboard.signal.flatMap { signal =>
-          fs2Channel
-            .assign(gtp.flatten[KafkaOffset].mapValues(_.value).value)
-            .map(m => topic.kit.toJackson(m).spaces2)
-            .showLinesStdOut
-            .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
-            .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
-        }.compile.drain
+    override def watchFrom(njt: NJTimestamp): F[Unit] = {
+      val run: Stream[F, Unit] = for {
+        kcs <- Stream.resource(KafkaConsumerApi(topic.kit))
+        gtp <- Stream.eval(for {
+          os <- kcs.offsetsForTimes(njt)
+          e <- kcs.endOffsets
+        } yield os.combineWith(e)(_.orElse(_)))
+        signal <- Keyboard.signal
+        _ <- fs2Channel
+          .assign(gtp.flatten[KafkaOffset].mapValues(_.value).value)
+          .map(m => topic.kit.toJackson(m).spaces2)
+          .showLinesStdOut
+          .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
+          .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
       } yield ()
+      run.compile.drain
+    }
 
     override def watch: F[Unit]             = watch(AutoOffsetReset.Latest)
     override def watchFromEarliest: F[Unit] = watch(AutoOffsetReset.Earliest)
