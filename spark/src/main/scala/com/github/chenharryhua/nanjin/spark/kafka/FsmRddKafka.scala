@@ -53,7 +53,7 @@ final class FsmRddKafka[F[_], K, V](
       .map(_.toNJProducerRecord.noMeta)
       .chunkN(params.uploadRate.batchSize)
       .metered(params.uploadRate.duration)
-      .through(otherTopic.upload)
+      .through(sk.upload(otherTopic))
       .map(_ => print("."))
       .compile
       .drain

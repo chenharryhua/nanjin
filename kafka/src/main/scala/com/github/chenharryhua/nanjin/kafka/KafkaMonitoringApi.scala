@@ -10,6 +10,7 @@ import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.codec.NJConsumerMessage._
 import com.github.chenharryhua.nanjin.kafka.codec.iso
 import com.github.chenharryhua.nanjin.kafka.common.KafkaOffset
+import com.github.chenharryhua.nanjin.utils.Keyboard
 import fs2.Stream
 import fs2.kafka.{produce, AutoOffsetReset, ProducerRecord, ProducerRecords}
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -49,32 +50,36 @@ object KafkaMonitoringApi {
       topic.fs2Channel.withConsumerSettings(_.withEnableAutoCommit(false))
 
     private def watch(aor: AutoOffsetReset): F[Unit] =
-      fs2Channel
-        .withConsumerSettings(_.withAutoOffsetReset(aor))
-        .consume
-        .map { m =>
-          val (err, r) = topic.kit.decoder(m).logRecord.run
-          err.map(e => pprint.pprintln(e))
-          s"""|local now: ${ZonedDateTime.now}
-              |timestamp: ${NJTimestamp(r.timestamp).local}
-              |${topic.kit.topicDef.toJackson(r).spaces2}""".stripMargin
-        }
-        .showLinesStdOut
-        .compile
-        .drain
+      Keyboard.signal.flatMap { signal =>
+        fs2Channel
+          .withConsumerSettings(_.withAutoOffsetReset(aor))
+          .consume
+          .map { m =>
+            val (err, r) = topic.kit.decoder(m).logRecord.run
+            err.map(e => pprint.pprintln(e))
+            s"""|local now: ${ZonedDateTime.now}
+                |timestamp: ${NJTimestamp(r.timestamp).local}
+                |${topic.kit.topicDef.toJackson(r).spaces2}""".stripMargin
+          }
+          .showLinesStdOut
+          .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
+          .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
+      }.compile.drain
 
     private def filterWatch(
       predict: ConsumerRecord[Try[K], Try[V]] => Boolean,
       aor: AutoOffsetReset): F[Unit] =
-      fs2Channel
-        .withConsumerSettings(_.withAutoOffsetReset(aor))
-        .consume
-        .filter(m =>
-          predict(iso.isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record)))
-        .map(m => topic.kit.toJackson(m).spaces2)
-        .showLinesStdOut
-        .compile
-        .drain
+      Keyboard.signal.flatMap { signal =>
+        fs2Channel
+          .withConsumerSettings(_.withAutoOffsetReset(aor))
+          .consume
+          .filter(m =>
+            predict(iso.isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record)))
+          .map(m => topic.kit.toJackson(m).spaces2)
+          .showLinesStdOut
+          .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
+          .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
+      }.compile.drain
 
     override def watchFrom(njt: NJTimestamp): F[Unit] =
       for {
@@ -84,12 +89,14 @@ object KafkaMonitoringApi {
             e <- c.endOffsets
           } yield os.combineWith(e)(_.orElse(_))
         }
-        _ <- fs2Channel
-          .assign(gtp.flatten[KafkaOffset].mapValues(_.value).value)
-          .map(m => topic.kit.toJackson(m).spaces2)
-          .showLinesStdOut
-          .compile
-          .drain
+        _ <- Keyboard.signal.flatMap { signal =>
+          fs2Channel
+            .assign(gtp.flatten[KafkaOffset].mapValues(_.value).value)
+            .map(m => topic.kit.toJackson(m).spaces2)
+            .showLinesStdOut
+            .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
+            .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
+        }.compile.drain
       } yield ()
 
     override def watch: F[Unit]             = watch(AutoOffsetReset.Latest)
@@ -154,28 +161,31 @@ object KafkaMonitoringApi {
       run.compile.drain
     }
 
-    override def replayJackson: F[Unit] =
-      Stream
-        .resource(Blocker[F])
-        .flatMap { blocker =>
-          fs2.io.file
-            .readAll(Paths.get(path + ".json"), blocker, 5000)
-            .through(fs2.text.utf8Decode)
-            .through(fs2.text.lines)
-            .mapFilter { str =>
-              topic.kit
-                .fromJackson(str)
-                .toEither
-                .leftMap(e => println(s"${e.getMessage}. source: $str"))
-                .toOption
-            }
-            .map(_.toNJProducerRecord)
-            .chunks
-            .through(topic.kit.upload)
-            .map(_ => print("."))
-        }
-        .compile
-        .drain
+    override def replayJackson: F[Unit] = {
+      val run = for {
+        signal <- Keyboard.signal
+        blocker <- Stream.resource(Blocker[F])
+        _ <- fs2.io.file
+          .readAll(Paths.get(path + ".json"), blocker, 4096)
+          .through(fs2.text.utf8Decode)
+          .through(fs2.text.lines)
+          .mapFilter { str =>
+            topic.kit
+              .fromJackson(str)
+              .toEither
+              .leftMap(e => println(s"${e.getMessage}. source: $str"))
+              .toOption
+          }
+          .chunks
+          .map(ms =>
+            ProducerRecords(ms.map(_.toNJProducerRecord.toFs2ProducerRecord(topic.topicName))))
+          .through(produce(topic.kit.fs2ProducerSettings[F]))
+          .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
+          .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
+          .map(_ => print("."))
+      } yield ()
+      run.compile.drain
+    }
 
     override def carbonCopyTo(other: KafkaTopicKit[K, V]): F[Unit] =
       fs2Channel.consume.map { m =>

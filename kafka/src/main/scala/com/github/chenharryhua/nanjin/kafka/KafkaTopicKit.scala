@@ -85,18 +85,6 @@ import scala.util.Try
 
   def fs2PR(k: K, v: V): Fs2ProducerRecord[K, V] = Fs2ProducerRecord(topicName.value, k, v)
 
-  def upload[F[_]: ConcurrentEffect: ContextShift]
-    : Pipe[F, Chunk[NJProducerRecord[K, V]], Fs2ProducerResult[K, V, Unit]] =
-    njPRs =>
-      for {
-        kb <- Keyboard.signal[F]
-        rst <- njPRs
-          .pauseWhen(kb.map(_.contains(Keyboard.pauSe)))
-          .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
-          .map(chk => Fs2ProducerRecords(chk.map(_.toFs2ProducerRecord(topicName))))
-          .through(produce(fs2ProducerSettings[F]))
-      } yield rst
-
   def akkaProducerRecords(key: K, value: V): ProducerMessage.Envelope[K, V, NotUsed] =
     ProducerMessage.single[K, V](new ProducerRecord[K, V](topicDef.topicName.value, key, value))
 

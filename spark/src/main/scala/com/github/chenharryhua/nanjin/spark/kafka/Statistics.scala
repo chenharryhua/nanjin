@@ -16,7 +16,7 @@ final private[kafka] case class CRMetaInfo(
   topic: String,
   partition: Int,
   offset: Long,
-  timestamp: Long)
+  timestamp: NJTimestamp)
 
 private[kafka] object CRMetaInfo {
 
@@ -24,7 +24,7 @@ private[kafka] object CRMetaInfo {
     cr.topic,
     cr.partition,
     cr.offset,
-    cr.timestamp
+    NJTimestamp(cr.timestamp)
   )
 }
 
@@ -43,22 +43,21 @@ final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Ser
 
   def minutely(implicit ev: Sync[F]): F[Unit] = {
     val minute: TypedDataset[Int] = typedDataset.deserialized.map { m =>
-      NJTimestamp(m.timestamp).atZone(p.timeRange.zoneId).getMinute
+      m.timestamp.atZone(p.timeRange.zoneId).getMinute
     }
     val res = minute.groupBy(minute.asCol).agg(count(minute.asCol)).as[MinutelyAggResult]
     res.orderBy(res('minute).asc).show[F](p.showDs.rowNum, p.showDs.isTruncate)
   }
 
   def hourly(implicit ev: Sync[F]): F[Unit] = {
-    val hour = typedDataset.deserialized.map(m =>
-      NJTimestamp(m.timestamp).atZone(p.timeRange.zoneId).getHour)
-    val res = hour.groupBy(hour.asCol).agg(count(hour.asCol)).as[HourlyAggResult]
+    val hour = typedDataset.deserialized.map(m => m.timestamp.atZone(p.timeRange.zoneId).getHour)
+    val res  = hour.groupBy(hour.asCol).agg(count(hour.asCol)).as[HourlyAggResult]
     res.orderBy(res('hour).asc).show[F](p.showDs.rowNum, p.showDs.isTruncate)
   }
 
   def daily(implicit ev: Sync[F]): F[Unit] = {
     val day: TypedDataset[LocalDate] = typedDataset.deserialized.map { m =>
-      NJTimestamp(m.timestamp).atZone(p.timeRange.zoneId).toLocalDate
+      m.timestamp.atZone(p.timeRange.zoneId).toLocalDate
     }
     val res = day.groupBy(day.asCol).agg(count(day.asCol)).as[DailyAggResult]
     res.orderBy(res('date).asc).show[F](p.showDs.rowNum, p.showDs.isTruncate)
@@ -66,7 +65,7 @@ final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Ser
 
   def dailyHour(implicit ev: Sync[F]): F[Unit] = {
     val dayHour: TypedDataset[LocalDateTime] = typedDataset.deserialized.map { m =>
-      val dt = NJTimestamp(m.timestamp).atZone(p.timeRange.zoneId).toLocalDateTime
+      val dt = m.timestamp.atZone(p.timeRange.zoneId).toLocalDateTime
       LocalDateTime.of(dt.toLocalDate, LocalTime.of(dt.getHour, 0))
     }
     val res = dayHour.groupBy(dayHour.asCol).agg(count(dayHour.asCol)).as[DailyHourAggResult]
@@ -75,7 +74,7 @@ final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Ser
 
   def dailyMinute(implicit ev: Sync[F]): F[Unit] = {
     val dayMinute: TypedDataset[LocalDateTime] = typedDataset.deserialized.map { m =>
-      val dt = NJTimestamp(m.timestamp).atZone(p.timeRange.zoneId).toLocalDateTime
+      val dt = m.timestamp.atZone(p.timeRange.zoneId).toLocalDateTime
       LocalDateTime.of(dt.toLocalDate, LocalTime.of(dt.getHour, dt.getMinute))
     }
     val res =

@@ -51,7 +51,7 @@ final class FsmRddDisk[F[_], K, V](
       .map(_.toNJProducerRecord.noMeta)
       .chunkN(params.uploadRate.batchSize)
       .metered(params.uploadRate.duration)
-      .through(kit.upload)
+      .through(sk.upload(kit))
       .map(_ => print("."))
       .compile
       .drain

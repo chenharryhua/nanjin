@@ -50,7 +50,7 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
       .map(_.bimap(k, v))
       .chunkN(params.uploadRate.batchSize)
       .metered(params.uploadRate.duration)
-      .through(other.upload)
+      .through(sk.upload(other))
 
   def upload(other: KafkaTopicKit[K, V])(
     implicit
