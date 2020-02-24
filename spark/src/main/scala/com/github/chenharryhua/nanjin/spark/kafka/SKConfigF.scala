@@ -23,7 +23,7 @@ private[spark] object NJUploadRate {
   val default: NJUploadRate = NJUploadRate(batchSize = 1000, duration = 1.second)
 }
 
-@Lenses final case class SKParams private (
+@Lenses final private[spark] case class SKParams private (
   timeRange: NJDateTimeRange,
   uploadRate: NJUploadRate,
   rddPathBuilder: Reader[TopicName, String],
@@ -33,7 +33,7 @@ private[spark] object NJUploadRate {
   repartition: NJRepartition,
   showDs: NJShowDataset)
 
-object SKParams {
+private[spark] object SKParams {
 
   val default: SKParams =
     SKParams(
@@ -48,7 +48,7 @@ object SKParams {
     )
 }
 
-sealed trait SKConfigF[A]
+sealed private[spark] trait SKConfigF[A]
 
 private[spark] object SKConfigF {
   final case class DefaultParams[K]() extends SKConfigF[K]
@@ -98,7 +98,7 @@ private[spark] object SKConfigF {
   def evalConfig(cfg: SKConfig): SKParams = scheme.cata(algebra).apply(cfg.value)
 }
 
-final case class SKConfig private (value: Fix[SKConfigF]) extends AnyVal {
+final private[spark] case class SKConfig private (value: Fix[SKConfigF]) extends AnyVal {
   import SKConfigF._
 
   def withBatchSize(bs: Int): SKConfig           = SKConfig(Fix(WithBatchSize(bs, value)))
@@ -134,6 +134,6 @@ final case class SKConfig private (value: Fix[SKConfigF]) extends AnyVal {
     SKConfig(Fix(WithRddPathBuilder(Reader(f), value)))
 }
 
-object SKConfig {
+private[spark] object SKConfig {
   val defaultConfig: SKConfig = SKConfig(Fix(SKConfigF.DefaultParams[Fix[SKConfigF]]()))
 }

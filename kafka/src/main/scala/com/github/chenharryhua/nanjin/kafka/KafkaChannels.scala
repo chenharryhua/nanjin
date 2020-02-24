@@ -42,13 +42,9 @@ object KafkaChannels {
       fs2.kafka.producerStream[F, K, V](producerSettings)
 
     val consume: Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
-      Keyboard.signal.flatMap { signal =>
-        consumerStream[F, Array[Byte], Array[Byte]](consumerSettings)
-          .evalTap(_.subscribe(NonEmptyList.of(topicName.value)))
-          .flatMap(_.stream)
-          .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
-          .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
-      }
+      consumerStream[F, Array[Byte], Array[Byte]](consumerSettings)
+        .evalTap(_.subscribe(NonEmptyList.of(topicName.value)))
+        .flatMap(_.stream)
 
     def assign(tps: Map[TopicPartition, Long])
       : Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =

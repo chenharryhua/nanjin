@@ -22,7 +22,7 @@ class SparkTableTest extends AnyFunSuite {
 
   test("upload dataset to table") {
     val data = TypedDataset.create(List(sample))
-    data.dbUpload(table.in(db).withParamUpdate(_.withDBSaveMode(SaveMode.Overwrite)))
+    data.dbUpload(table.in(db).withParamUpdate(_.withDbSaveMode(SaveMode.Overwrite)))
   }
 
   test("save db table to disk") {

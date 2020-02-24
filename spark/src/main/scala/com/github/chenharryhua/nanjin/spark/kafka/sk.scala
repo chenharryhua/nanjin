@@ -92,6 +92,21 @@ object sk {
           .text(path)
     }
 
+  def uploader[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
+    kit: KafkaTopicKit[K, V],
+    uploadRate: NJUploadRate): Pipe[F, NJProducerRecord[K, V], ProducerResult[K, V, Unit]] =
+    njPRs =>
+      for {
+        kb <- Keyboard.signal[F]
+        rst <- njPRs
+          .pauseWhen(kb.map(_.contains(Keyboard.pauSe)))
+          .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
+          .chunkN(uploadRate.batchSize)
+          .metered(uploadRate.duration)
+          .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(kit.topicName))))
+          .through(produce(kit.fs2ProducerSettings[F]))
+      } yield rst
+
   /**
     * streaming
     */

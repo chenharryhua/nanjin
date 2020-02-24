@@ -49,7 +49,7 @@ object NJTimestamp {
 
   def now(clock: Clock): NJTimestamp = NJTimestamp(Instant.now(clock))
 
-  implicit val isoKafkaTimestamp: Iso[NJTimestamp, Timestamp] =
+  val isoKafkaTimestamp: Iso[NJTimestamp, Timestamp] =
     Iso[NJTimestamp, Timestamp]((a: NJTimestamp) => new Timestamp(a.milliseconds))((b: Timestamp) =>
       NJTimestamp(b.getTime))
 

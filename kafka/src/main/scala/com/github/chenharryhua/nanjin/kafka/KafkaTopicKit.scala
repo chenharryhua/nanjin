@@ -8,22 +8,17 @@ import akka.kafka.{
   ConsumerSettings  => AkkaConsumerSettings,
   ProducerSettings  => AkkaProducerSettings
 }
-import cats.effect.{ConcurrentEffect, ContextShift, Sync}
+import cats.effect.Sync
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.codec._
-import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducerRecord, TopicName}
-import com.github.chenharryhua.nanjin.utils.Keyboard
+import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, TopicName}
 import fs2.kafka.{
-  produce,
   ConsumerSettings => Fs2ConsumerSettings,
   Deserializer     => Fs2Deserializer,
   ProducerRecord   => Fs2ProducerRecord,
-  ProducerRecords  => Fs2ProducerRecords,
-  ProducerResult   => Fs2ProducerResult,
   ProducerSettings => Fs2ProducerSettings,
   Serializer       => Fs2Serializer
 }
-import fs2.{Chunk, Pipe}
 import io.circe.Json
 import monocle.macros.Lenses
 import org.apache.avro.Schema
@@ -84,18 +79,6 @@ import scala.util.Try
     topicDef.fromJackson(jsonString)
 
   def fs2PR(k: K, v: V): Fs2ProducerRecord[K, V] = Fs2ProducerRecord(topicName.value, k, v)
-
-  def upload[F[_]: ConcurrentEffect: ContextShift]
-    : Pipe[F, Chunk[NJProducerRecord[K, V]], Fs2ProducerResult[K, V, Unit]] =
-    njPRs =>
-      for {
-        kb <- Keyboard.signal[F]
-        rst <- njPRs
-          .pauseWhen(kb.map(_.contains(Keyboard.pauSe)))
-          .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
-          .map(chk => Fs2ProducerRecords(chk.map(_.toFs2ProducerRecord(topicName))))
-          .through(produce(fs2ProducerSettings[F]))
-      } yield rst
 
   def akkaProducerRecords(key: K, value: V): ProducerMessage.Envelope[K, V, NotUsed] =
     ProducerMessage.single[K, V](new ProducerRecord[K, V](topicDef.topicName.value, key, value))

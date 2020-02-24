@@ -10,7 +10,7 @@ import com.sksamuel.avro4s.{
   Encoder => AvroEncoder
 }
 import fs2.io.writeOutputStream
-import fs2.{Chunk, Pipe, Stream}
+import fs2.{Pipe, Stream}
 import io.circe.syntax._
 import io.circe.{Encoder => JsonEncoder}
 import org.apache.spark.sql.SparkSession
