@@ -30,7 +30,7 @@ val sparkVersion = "2.4.5"
 val frameless    = "0.8.0"
 
 val circe    = "0.13.0"
-val jsonDiff = "4.0.1"
+val jsonDiff = "4.0.2"
 
 val avro4s     = "3.0.6"
 val apacheAvro = "1.9.2"
