@@ -11,7 +11,7 @@ import org.apache.kafka.clients.admin.{NewTopic, TopicDescription}
 sealed trait KafkaTopicAdminApi[F[_]] {
   val adminResource: Resource[F, KafkaAdminClient[F]]
 
-  def IdefinitelyWantToDeleteTheTopic: F[Either[Throwable, Unit]]
+  def IdefinitelyWantToDeleteTheTopicAndUnderstandItsConsequence: F[Either[Throwable, Unit]]
   def describe: F[Map[String, TopicDescription]]
   def groups: F[List[KafkaConsumerGroupInfo]]
 
@@ -32,7 +32,8 @@ object KafkaTopicAdminApi {
       adminClientResource[F](
         AdminClientSettings[F].withProperties(kit.settings.adminSettings.config))
 
-    override def IdefinitelyWantToDeleteTheTopic: F[Either[Throwable, Unit]] =
+    override def IdefinitelyWantToDeleteTheTopicAndUnderstandItsConsequence
+      : F[Either[Throwable, Unit]] =
       adminResource.use(_.deleteTopic(kit.topicName.value).attempt)
 
     override def newTopic(numPartition: Int, numReplica: Short): F[Unit] =

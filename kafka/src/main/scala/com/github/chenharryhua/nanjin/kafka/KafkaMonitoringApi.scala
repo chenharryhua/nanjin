@@ -182,20 +182,27 @@ object KafkaMonitoringApi {
           .through(produce(topic.kit.fs2ProducerSettings[F]))
           .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
           .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
-          .map(_ => print("."))
+          .unchunk
       } yield ()
-      run.compile.drain
+      run.chunkN(10000).map(_ => print(".")).compile.drain
     }
 
-    override def carbonCopyTo(other: KafkaTopicKit[K, V]): F[Unit] =
-      fs2Channel.consume.map { m =>
-        val cr = other.decoder(m).nullableDecode.record
-        val ts = cr.timestamp.createTime.orElse(
-          cr.timestamp.logAppendTime.orElse(cr.timestamp.unknownTime))
-        val pr = ProducerRecord(other.topicName.value, cr.key, cr.value)
-          .withHeaders(cr.headers)
-          .withPartition(cr.partition)
-        ProducerRecords.one(ts.fold(pr)(pr.withTimestamp))
-      }.through(produce(other.fs2ProducerSettings)).chunks.map(_ => print(".")).compile.drain
+    override def carbonCopyTo(other: KafkaTopicKit[K, V]): F[Unit] = {
+      val run = for {
+        signal <- Keyboard.signal
+        _ <- fs2Channel.consume.map { m =>
+          val cr = other.decoder(m).nullableDecode.record
+          val ts = cr.timestamp.createTime.orElse(
+            cr.timestamp.logAppendTime.orElse(cr.timestamp.unknownTime))
+          val pr = ProducerRecord(other.topicName.value, cr.key, cr.value)
+            .withHeaders(cr.headers)
+            .withPartition(cr.partition)
+          ProducerRecords.one(ts.fold(pr)(pr.withTimestamp))
+        }.through(produce(other.fs2ProducerSettings))
+          .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
+          .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
+      } yield ()
+      run.chunkN(10000).map(_ => print(".")).compile.drain
+    }
   }
 }
