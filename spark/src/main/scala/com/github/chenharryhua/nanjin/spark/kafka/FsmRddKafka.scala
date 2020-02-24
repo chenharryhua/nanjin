@@ -51,9 +51,7 @@ final class FsmRddKafka[F[_], K, V](
     contextShift: ContextShift[F]): F[Unit] =
     crStream
       .map(_.toNJProducerRecord.noMeta)
-      .chunkN(params.uploadRate.batchSize)
-      .metered(params.uploadRate.duration)
-      .through(sk.upload(otherTopic))
+      .through(sk.upload(otherTopic,params.uploadRate))
       .map(_ => print("."))
       .compile
       .drain

@@ -22,6 +22,7 @@ import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategy, Offset
 import org.log4s.Logger
 
 import scala.collection.JavaConverters._
+import cats.effect.Timer
 
 object sk {
 
@@ -92,14 +93,17 @@ object sk {
           .text(path)
     }
 
-  def upload[F[_]: ConcurrentEffect: ContextShift, K, V](
-    kit: KafkaTopicKit[K, V]): Pipe[F, Chunk[NJProducerRecord[K, V]], ProducerResult[K, V, Unit]] =
+  def upload[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
+    kit: KafkaTopicKit[K, V],
+    uploadRate: NJUploadRate): Pipe[F, NJProducerRecord[K, V], ProducerResult[K, V, Unit]] =
     njPRs =>
       for {
         kb <- Keyboard.signal[F]
         rst <- njPRs
           .pauseWhen(kb.map(_.contains(Keyboard.pauSe)))
           .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
+          .chunkN(uploadRate.batchSize)
+          .metered(uploadRate.duration)
           .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(kit.topicName))))
           .through(produce(kit.fs2ProducerSettings[F]))
       } yield rst

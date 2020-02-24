@@ -49,9 +49,7 @@ final class FsmRddDisk[F[_], K, V](
     contextShift: ContextShift[F]): F[Unit] =
     crStream
       .map(_.toNJProducerRecord.noMeta)
-      .chunkN(params.uploadRate.batchSize)
-      .metered(params.uploadRate.duration)
-      .through(sk.upload(kit))
+      .through(sk.upload(kit, params.uploadRate))
       .map(_ => print("."))
       .compile
       .drain

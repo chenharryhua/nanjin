@@ -8,22 +8,17 @@ import akka.kafka.{
   ConsumerSettings  => AkkaConsumerSettings,
   ProducerSettings  => AkkaProducerSettings
 }
-import cats.effect.{ConcurrentEffect, ContextShift, Sync}
+import cats.effect.Sync
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.codec._
-import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducerRecord, TopicName}
-import com.github.chenharryhua.nanjin.utils.Keyboard
+import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, TopicName}
 import fs2.kafka.{
-  produce,
   ConsumerSettings => Fs2ConsumerSettings,
   Deserializer     => Fs2Deserializer,
   ProducerRecord   => Fs2ProducerRecord,
-  ProducerRecords  => Fs2ProducerRecords,
-  ProducerResult   => Fs2ProducerResult,
   ProducerSettings => Fs2ProducerSettings,
   Serializer       => Fs2Serializer
 }
-import fs2.{Chunk, Pipe}
 import io.circe.Json
 import monocle.macros.Lenses
 import org.apache.avro.Schema

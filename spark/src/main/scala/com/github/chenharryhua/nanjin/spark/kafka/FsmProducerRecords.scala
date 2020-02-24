@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.spark._
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
-import fs2.kafka.{produce, ProducerRecords, ProducerResult}
+import fs2.kafka.ProducerResult
 import org.apache.spark.sql.Dataset
 
 final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
@@ -48,9 +48,7 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     typedDataset
       .stream[F]
       .map(_.bimap(k, v))
-      .chunkN(params.uploadRate.batchSize)
-      .metered(params.uploadRate.duration)
-      .through(sk.upload(other))
+      .through(sk.upload(other,params.uploadRate))
 
   def upload(other: KafkaTopicKit[K, V])(
     implicit
