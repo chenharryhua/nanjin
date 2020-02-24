@@ -49,7 +49,7 @@ final class FsmRddDisk[F[_], K, V](
     contextShift: ContextShift[F]): F[Unit] =
     crStream
       .map(_.toNJProducerRecord.noMeta)
-      .through(sk.upload(kit, params.uploadRate))
+      .through(sk.uploader(kit, params.uploadRate))
       .map(_ => print("."))
       .compile
       .drain

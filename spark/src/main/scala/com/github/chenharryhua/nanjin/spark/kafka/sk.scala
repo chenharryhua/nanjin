@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import java.util
 
-import cats.effect.{ConcurrentEffect, ContextShift, Sync}
+import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
@@ -10,8 +10,8 @@ import com.github.chenharryhua.nanjin.kafka.common._
 import com.github.chenharryhua.nanjin.kafka.{KafkaConsumerApi, KafkaTopicKit}
 import com.github.chenharryhua.nanjin.utils.Keyboard
 import frameless.{TypedDataset, TypedEncoder}
+import fs2.Pipe
 import fs2.kafka.{produce, ProducerRecords, ProducerResult}
-import fs2.{Chunk, Pipe}
 import io.circe.syntax._
 import monocle.function.At.remove
 import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
@@ -22,7 +22,6 @@ import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategy, Offset
 import org.log4s.Logger
 
 import scala.collection.JavaConverters._
-import cats.effect.Timer
 
 object sk {
 
@@ -93,7 +92,7 @@ object sk {
           .text(path)
     }
 
-  def upload[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
+  def uploader[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
     kit: KafkaTopicKit[K, V],
     uploadRate: NJUploadRate): Pipe[F, NJProducerRecord[K, V], ProducerResult[K, V, Unit]] =
     njPRs =>
