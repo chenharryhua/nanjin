@@ -25,7 +25,7 @@ final class SparkTableSession[A](tableDef: TableDef[A], dbSettings: DatabaseSett
 
   val params: STParams = STConfigF.evalConfig(cfg)
 
-  def withParamUpdate(f: STConfig => STConfig): SparkTableSession[A] =
+  override def withParamUpdate(f: STConfig => STConfig): SparkTableSession[A] =
     new SparkTableSession[A](tableDef, dbSettings, f(cfg))
 
   def fromDB: TypedDataset[A] =
