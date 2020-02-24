@@ -22,7 +22,7 @@ final private[spark] case class NJCheckpoint(value: String) extends AnyVal {
 
 final private[spark] case class NJFailOnDataLoss(value: Boolean) extends AnyVal
 
-@Lenses final case class StreamParams private (
+@Lenses final private[spark] case class StreamParams private (
   timeRange: NJDateTimeRange,
   showDs: NJShowDataset,
   fileFormat: NJFileFormat,
@@ -31,7 +31,7 @@ final private[spark] case class NJFailOnDataLoss(value: Boolean) extends AnyVal
   outputMode: OutputMode,
   trigger: Trigger)
 
-object StreamParams {
+private[spark] object StreamParams {
 
   def apply(tr: NJDateTimeRange, sd: NJShowDataset, ff: NJFileFormat): StreamParams =
     StreamParams(
@@ -45,7 +45,7 @@ object StreamParams {
     )
 }
 
-sealed trait StreamConfigF[A]
+sealed private[spark] trait StreamConfigF[A]
 
 private[spark] object StreamConfigF {
 
@@ -76,7 +76,7 @@ private[spark] object StreamConfigF {
 
 }
 
-final case class StreamConfig(value: Fix[StreamConfigF]) extends AnyVal {
+final private[spark] case class StreamConfig(value: Fix[StreamConfigF]) extends AnyVal {
   import StreamConfigF._
 
   def withCheckpointReplace(cp: String): StreamConfig =
@@ -107,7 +107,7 @@ final case class StreamConfig(value: Fix[StreamConfigF]) extends AnyVal {
     withTrigger(Trigger.Continuous(ms, TimeUnit.MILLISECONDS))
 }
 
-object StreamConfig {
+private[spark] object StreamConfig {
 
   def apply(tr: NJDateTimeRange, sd: NJShowDataset, ff: NJFileFormat): StreamConfig =
     StreamConfig(Fix(StreamConfigF.DefaultParams[Fix[StreamConfigF]](tr, sd, ff)))

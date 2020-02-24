@@ -9,7 +9,7 @@ final class TableDef[A] private (val tableName: TableName)(
   implicit val typedEncoder: TypedEncoder[A]) {
 
   def in(dbSettings: DatabaseSettings)(implicit sparkSession: SparkSession): SparkTableSession[A] =
-    new SparkTableSession[A](this, dbSettings, SparkTableParams.default)
+    new SparkTableSession[A](this, dbSettings, STConfig.defaultConfig)
 }
 
 object TableDef {
@@ -18,15 +18,15 @@ object TableDef {
     new TableDef[A](TableName(tableName))
 }
 
-final class SparkTableSession[A](
-  tableDef: TableDef[A],
-  dbSettings: DatabaseSettings,
-  params: SparkTableParams)(implicit sparkSession: SparkSession)
-    extends UpdateParams[SparkTableParams, SparkTableSession[A]] {
+final class SparkTableSession[A](tableDef: TableDef[A], dbSettings: DatabaseSettings, cfg: STConfig)(
+  implicit sparkSession: SparkSession)
+    extends UpdateParams[STConfig, SparkTableSession[A]] {
   import tableDef.typedEncoder
 
-  def withParamUpdate(f: SparkTableParams => SparkTableParams): SparkTableSession[A] =
-    new SparkTableSession[A](tableDef, dbSettings, f(params))
+  val params: STParams = STConfigF.evalConfig(cfg)
+
+  def withParamUpdate(f: STConfig => STConfig): SparkTableSession[A] =
+    new SparkTableSession[A](tableDef, dbSettings, f(cfg))
 
   def fromDB: TypedDataset[A] =
     sd.fromDB(dbSettings.connStr, dbSettings.driver, tableDef.tableName)
@@ -35,13 +35,13 @@ final class SparkTableSession[A](
     sd.save(fromDB, params.fileSaveMode, params.fileFormat, path)
 
   def save(): Unit =
-    save(params.getPath(tableDef.tableName))
+    save(params.pathBuilder(TablePathBuild(tableDef.tableName, params.fileFormat)))
 
   def fromDisk(path: String): TypedDataset[A] =
     sd.fromDisk(params.fileFormat, path)
 
   def fromDisk(): TypedDataset[A] =
-    fromDisk(params.getPath(tableDef.tableName))
+    fromDisk(params.pathBuilder(TablePathBuild(tableDef.tableName, params.fileFormat)))
 
   def upload(dataset: TypedDataset[A]): Unit =
     sd.upload(dataset, params.dbSaveMode, dbSettings.connStr, dbSettings.driver, tableDef.tableName)
