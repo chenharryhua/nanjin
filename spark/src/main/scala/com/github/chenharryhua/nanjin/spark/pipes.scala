@@ -46,15 +46,14 @@ object pipes {
   def jacksonEncode[F[_], A: AvroEncoder: SchemaFor](implicit F: Sync[F]): Pipe[F, A, String] =
     (ss: Stream[F, A]) =>
       ss.evalMap { m =>
-        val aos = Resource.make(F.pure(new ByteArrayOutputStream))(a => F.pure(a.close()))
-        aos.use(os =>
+        F.bracket(F.pure(new ByteArrayOutputStream))(os =>
           F.pure(
               AvroOutputStream
                 .json[A]
                 .to(os)
                 .build(SchemaFor[A].schema(DefaultFieldMapper))
                 .write(m))
-            .as(os.toString))
+            .as(os.toString))(a => F.pure(a.close()))
       }
 
   def avroDecode[F[_]: RaiseThrowable, A: AvroDecoder: SchemaFor]: Pipe[F, GenericRecord, A] =

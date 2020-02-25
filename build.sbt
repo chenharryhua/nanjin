@@ -270,6 +270,11 @@ lazy val datetime = (project in file("datetime"))
   .settings(name := "nj-datetime")
   .settings(libraryDependencies ++= base ++ monocleLib ++ tests)
 
+lazy val pipes = (project in file("pipes"))
+  .settings(commonSettings: _*)
+  .settings(name := "nj-pipes")
+  .settings(libraryDependencies ++= base ++ kantan ++ avro ++ tests)
+
 lazy val hadoop = (project in file("hadoop"))
   .settings(commonSettings: _*)
   .settings(name := "nj-hadoop")
