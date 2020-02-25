@@ -2,14 +2,14 @@ package com.github.chenharryhua.nanjin.spark
 
 import cats.effect.{ContextShift, Sync}
 import cats.implicits._
+import com.github.chenharryhua.nanjin.pipes.sinks.{avroFileSink, jacksonFileSink}
+import com.github.chenharryhua.nanjin.pipes.sources.{avroFileSource, jacksonFileSource}
 import com.sksamuel.avro4s._
 import frameless.TypedDataset
 import frameless.cats.implicits._
 import fs2.Stream
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
-import com.github.chenharryhua.nanjin.pipes.sinks.{avroFileSink, jacksonFileSink}
-import com.github.chenharryhua.nanjin.pipes.sources.{avroFileSource, jacksonFileSource}
 
 import scala.collection.JavaConverters._
 
