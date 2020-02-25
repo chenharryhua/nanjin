@@ -132,12 +132,11 @@ object KafkaSettings {
       .withSchemaRegistryProperty(
         AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG,
         schemaRegistry)
-
-  val local: KafkaSettings =
-    apply("localhost:9092", "http://localhost:8081")
       .withConsumerProperty(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "100")
       .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
       .withGroupId(s"nanjin.group.id-${utils.random4d.value}")
       .withApplicationId(s"nanjin.app.id-${utils.random4d.value}")
       .withSecurityProtocol(SecurityProtocol.PLAINTEXT)
+
+  val local: KafkaSettings = apply("localhost:9092", "http://localhost:8081")
 }
