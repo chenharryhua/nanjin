@@ -4,6 +4,7 @@ import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
+import com.github.chenharryhua.nanjin.spark.RddExt
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import org.apache.spark.rdd.RDD
@@ -38,7 +39,7 @@ final class FsmRddDisk[F[_], K, V](
       .sortBy[NJConsumerRecord[K, V]](identity)
 
   def crStream(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
-    Stream.fromIterator[F](sorted.toLocalIterator)
+    sorted.stream[F]
 
   def count: Long = rdd.count()
 

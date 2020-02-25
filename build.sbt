@@ -30,7 +30,7 @@ val sparkVersion = "2.4.5"
 val frameless    = "0.8.0"
 
 val circe    = "0.13.0"
-val jsonDiff = "4.0.1"
+val jsonDiff = "4.0.2"
 
 val avro4s     = "3.0.6"
 val apacheAvro = "1.9.2"
@@ -251,6 +251,12 @@ val db = Seq(
   "org.tpolecat" %% "doobie-quill"      % doobie
 )
 
+val kantan = Seq(
+  "com.nrinaudo" %% "kantan.csv-java8"   % "0.6.0",
+  "com.nrinaudo" %% "kantan.csv-generic" % "0.6.0",
+  "com.nrinaudo" %% "kantan.csv-cats"    % "0.6.0"
+)
+
 lazy val common = (project in file("common"))
   .settings(commonSettings: _*)
   .settings(name := "nj-common")
@@ -299,7 +305,7 @@ lazy val spark = (project in file("spark"))
     libraryDependencies ++= Seq(
       "org.locationtech.jts" % "jts-core" % "1.16.1",
       "org.log4s"  %% "log4s"  % "1.8.2") ++
-      sparkLib ++ framelessLib ++ tests,
+      sparkLib ++ framelessLib ++ kantan ++ tests,
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core"  % "jackson-databind" % "2.6.7.2",
       "org.json4s" %% "json4s-core" % "3.5.5"),

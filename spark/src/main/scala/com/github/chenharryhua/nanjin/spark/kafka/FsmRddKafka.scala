@@ -1,14 +1,15 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync, Timer}
+import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.hadoop
+import com.github.chenharryhua.nanjin.spark.RddExt
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
-import cats.implicits._
 
 final class FsmRddKafka[F[_], K, V](
   rdd: RDD[NJConsumerRecord[K, V]],
@@ -42,7 +43,7 @@ final class FsmRddKafka[F[_], K, V](
     rdd.repartition(params.repartition.value).sortBy[NJConsumerRecord[K, V]](identity)
 
   def crStream(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
-    Stream.fromIterator[F](sorted.toLocalIterator)
+    sorted.stream[F]
 
   def pipeTo(otherTopic: KafkaTopicKit[K, V])(
     implicit

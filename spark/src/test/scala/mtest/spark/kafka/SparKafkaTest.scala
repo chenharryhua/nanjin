@@ -22,7 +22,7 @@ class SparKafkaTest extends AnyFunSuite {
   val data  = ForTaskSerializable(0, "a", LocalDate.now, Instant.now, embed)
   val topic = ctx.topic[Int, ForTaskSerializable]("serializable.test")
 
-  (topic.admin.IdefinitelyWantToDeleteTheTopic >> topic.schemaRegistry.register >>
+  (topic.admin.IdefinitelyWantToDeleteTheTopicAndUnderstandItsConsequence >> topic.schemaRegistry.register >>
     topic.send(List(topic.fs2PR(0, data), topic.fs2PR(1, data)))).unsafeRunSync()
 
   test("read topic from kafka") {
@@ -38,7 +38,6 @@ class SparKafkaTest extends AnyFunSuite {
       .map(_.crDataset.save("./data/test/st"))
       .unsafeRunSync
   }
-
 
   test("read topic from kafka and show aggragation result") {
     topic.kit.sparKafka.fromKafka[IO].flatMap(_.stats.minutely).unsafeRunSync

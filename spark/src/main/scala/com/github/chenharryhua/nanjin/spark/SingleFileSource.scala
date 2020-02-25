@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark
 
 import java.io.InputStream
 
-import cats.effect.{Blocker, Concurrent, ContextShift}
+import cats.effect.{Blocker, ContextShift, Sync}
 import com.sksamuel.avro4s.{
   AvroInputStream,
   AvroInputStreamBuilder,
@@ -17,7 +17,7 @@ import org.apache.spark.sql.SparkSession
 
 private[spark] trait SingleFileSource extends Serializable {
 
-  private def source[F[_]: Concurrent: ContextShift, A: SchemaFor: AvroDecoder](
+  private def source[F[_]: Sync: ContextShift, A: SchemaFor: AvroDecoder](
     pathStr: String,
     builder: AvroInputStreamBuilder[A])(
     implicit
@@ -33,30 +33,29 @@ private[spark] trait SingleFileSource extends Serializable {
       data <- Stream.fromIterator(ais.iterator)
     } yield data
 
-  def avroFileSource[F[_]: Concurrent: ContextShift, A: SchemaFor: AvroDecoder](pathStr: String)(
+  def avroFileSource[F[_]: Sync: ContextShift, A: SchemaFor: AvroDecoder](pathStr: String)(
     implicit
     sparkSession: SparkSession): Stream[F, A] =
     source[F, A](pathStr, AvroInputStream.data[A])
 
-  def jacksonFileSource[F[_]: Concurrent: ContextShift, A: SchemaFor: AvroDecoder](pathStr: String)(
+  def jacksonFileSource[F[_]: Sync: ContextShift, A: SchemaFor: AvroDecoder](pathStr: String)(
     implicit
     sparkSession: SparkSession): Stream[F, A] =
     source[F, A](pathStr, AvroInputStream.json[A])
 
-  def binaryAvroFileSource[F[_]: Concurrent: ContextShift, A: SchemaFor: AvroDecoder](
-    pathStr: String)(
+  def binaryAvroFileSource[F[_]: Sync: ContextShift, A: SchemaFor: AvroDecoder](pathStr: String)(
     implicit
     sparkSession: SparkSession): Stream[F, A] =
     source[F, A](pathStr, AvroInputStream.binary[A])
 
-  def jsonFileSource[F[_]: Concurrent: ContextShift, A: JsonDecoder](pathStr: String)(
+  def jsonFileSource[F[_]: Sync: ContextShift, A: JsonDecoder](pathStr: String)(
     implicit
     sparkSession: SparkSession): Stream[F, A] = {
     val hc = sparkSession.sparkContext.hadoopConfiguration
     for {
       blocker <- Stream.resource(Blocker[F])
       is <- Stream.resource(hadoop.inputPathResource(pathStr, hc, blocker))
-      data <- readInputStream(Concurrent[F].pure[InputStream](is), 4096, blocker)
+      data <- readInputStream(Sync[F].pure[InputStream](is), 4096, blocker)
         .through(fs2.text.utf8Decode)
         .through(fs2.text.lines)
         .map(decode[A])

@@ -30,9 +30,8 @@ sealed trait KafkaMonitoringApi[F[_], K, V] {
 
   def summaries: F[Unit]
 
-  def saveJackson: F[Unit]
-  def saveAvro: F[Unit]
-  def replayJackson: F[Unit]
+  def save: F[Unit]
+  def replay: F[Unit]
   def carbonCopyTo(other: KafkaTopicKit[K, V]): F[Unit]
 }
 
@@ -139,29 +138,21 @@ object KafkaMonitoringApi {
       Resource.make[F, OutputStream](F.pure(new FileOutputStream(path)))(os =>
         F.delay { os.flush(); os.close() })
 
-    override def saveJackson: F[Unit] = {
+    override def save: F[Unit] = {
       val run = for {
         blocker <- Stream.resource[F, Blocker](Blocker[F])
+        signal <- Keyboard.signal
         os <- Stream.resource(outFile(path + ".json"))
         data <- fs2Channel.consume
           .map(m => topic.kit.decoder(m).record)
           .through(topic.kit.topicDef.jacksonSink[F](os))
+          .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
+          .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
       } yield ()
       run.compile.drain
     }
 
-    override def saveAvro: F[Unit] = {
-      val run = for {
-        blocker <- Stream.resource[F, Blocker](Blocker[F])
-        os <- Stream.resource(outFile(path + ".avro"))
-        data <- fs2Channel.consume
-          .map(m => topic.kit.decoder(m).record)
-          .through(topic.kit.topicDef.avroSink[F](os))
-      } yield ()
-      run.compile.drain
-    }
-
-    override def replayJackson: F[Unit] = {
+    override def replay: F[Unit] = {
       val run = for {
         signal <- Keyboard.signal
         blocker <- Stream.resource(Blocker[F])
@@ -182,20 +173,27 @@ object KafkaMonitoringApi {
           .through(produce(topic.kit.fs2ProducerSettings[F]))
           .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
           .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
-          .map(_ => print("."))
+          .unchunk
       } yield ()
-      run.compile.drain
+      run.chunkN(10000).map(_ => print(".")).compile.drain
     }
 
-    override def carbonCopyTo(other: KafkaTopicKit[K, V]): F[Unit] =
-      fs2Channel.consume.map { m =>
-        val cr = other.decoder(m).nullableDecode.record
-        val ts = cr.timestamp.createTime.orElse(
-          cr.timestamp.logAppendTime.orElse(cr.timestamp.unknownTime))
-        val pr = ProducerRecord(other.topicName.value, cr.key, cr.value)
-          .withHeaders(cr.headers)
-          .withPartition(cr.partition)
-        ProducerRecords.one(ts.fold(pr)(pr.withTimestamp))
-      }.through(produce(other.fs2ProducerSettings)).chunks.map(_ => print(".")).compile.drain
+    override def carbonCopyTo(other: KafkaTopicKit[K, V]): F[Unit] = {
+      val run = for {
+        signal <- Keyboard.signal
+        _ <- fs2Channel.consume.map { m =>
+          val cr = other.decoder(m).nullableDecode.record
+          val ts = cr.timestamp.createTime.orElse(
+            cr.timestamp.logAppendTime.orElse(cr.timestamp.unknownTime))
+          val pr = ProducerRecord(other.topicName.value, cr.key, cr.value)
+            .withHeaders(cr.headers)
+            .withPartition(cr.partition)
+          ProducerRecords.one(ts.fold(pr)(pr.withTimestamp))
+        }.through(produce(other.fs2ProducerSettings))
+          .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
+          .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
+      } yield ()
+      run.chunkN(10000).map(_ => print(".")).compile.drain
+    }
   }
 }
