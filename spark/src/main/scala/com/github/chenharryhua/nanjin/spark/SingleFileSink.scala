@@ -14,7 +14,7 @@ import fs2.io.writeOutputStream
 import fs2.{Pipe, Stream}
 import io.circe.syntax._
 import io.circe.{Encoder => JsonEncoder}
-import kantan.csv.HeaderEncoder
+import kantan.csv.{rfc, CsvConfiguration, HeaderEncoder}
 import org.apache.spark.sql.SparkSession
 
 private[spark] trait SingleFileSink extends Serializable {
@@ -69,14 +69,16 @@ private[spark] trait SingleFileSink extends Serializable {
       } yield ()
   }
 
-  def csvFileSink[F[_]: ContextShift: Sync, A: HeaderEncoder](pathStr: String)(
+  def csvFileSink[F[_]: ContextShift: Sync, A: HeaderEncoder](
+    pathStr: String,
+    csvConfig: CsvConfiguration = rfc)(
     implicit
     sparkSession: SparkSession): Pipe[F, A, Unit] = {
     val hc = sparkSession.sparkContext.hadoopConfiguration
     as =>
       for {
         blocker <- Stream.resource(Blocker[F])
-        aos <- Stream.resource(hadoop.csvOutputResource[F, A](pathStr, hc, blocker))
+        aos <- Stream.resource(hadoop.csvOutputResource[F, A](pathStr, hc, blocker, csvConfig))
         data <- as.chunks
       } yield data.foreach(aos.write)
   }
