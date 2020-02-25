@@ -2,6 +2,8 @@ package com.github.chenharryhua.nanjin.spark
 
 import cats.effect.{ContextShift, Sync}
 import cats.implicits._
+import com.github.chenharryhua.nanjin.pipes.sinks.{avroFileSink, jacksonFileSink}
+import com.github.chenharryhua.nanjin.pipes.sources.{avroFileSource, jacksonFileSource}
 import com.sksamuel.avro4s._
 import frameless.TypedDataset
 import frameless.cats.implicits._
@@ -30,14 +32,18 @@ private[spark] trait DatasetExtensions {
       sparkSession: SparkSession,
       schemaFor: SchemaFor[A],
       encoder: Encoder[A]): Stream[F, Unit] =
-      tds.stream[F].through(jacksonFileSink[F, A](pathStr))
+      tds
+        .stream[F]
+        .through(jacksonFileSink[F, A](pathStr, sparkSession.sparkContext.hadoopConfiguration))
 
     def saveAvro[F[_]: ContextShift: Sync](pathStr: String)(
       implicit
       sparkSession: SparkSession,
       schemaFor: SchemaFor[A],
       encoder: Encoder[A]): Stream[F, Unit] =
-      tds.stream[F].through(avroFileSink[F, A](pathStr))
+      tds
+        .stream[F]
+        .through(avroFileSink[F, A](pathStr, sparkSession.sparkContext.hadoopConfiguration))
   }
 
   implicit class SparkSessionExt(private val sks: SparkSession) {
@@ -45,10 +51,10 @@ private[spark] trait DatasetExtensions {
     implicit private val imp: SparkSession = sks
 
     def loadAvro[F[_]: ContextShift: Sync, A: Decoder: SchemaFor](pathStr: String): Stream[F, A] =
-      avroFileSource[F, A](pathStr)
+      avroFileSource[F, A](pathStr, sks.sparkContext.hadoopConfiguration)
 
     def loadJackson[F[_]: ContextShift: Sync, A: Decoder: SchemaFor](
       pathStr: String): Stream[F, A] =
-      jacksonFileSource[F, A](pathStr)
+      jacksonFileSource[F, A](pathStr, sks.sparkContext.hadoopConfiguration)
   }
 }

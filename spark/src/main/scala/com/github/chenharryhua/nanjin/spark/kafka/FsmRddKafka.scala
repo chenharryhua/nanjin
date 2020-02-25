@@ -4,7 +4,7 @@ import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
-import com.github.chenharryhua.nanjin.spark.hadoop
+import com.github.chenharryhua.nanjin.pipes.hadoop
 import com.github.chenharryhua.nanjin.spark.RddExt
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream

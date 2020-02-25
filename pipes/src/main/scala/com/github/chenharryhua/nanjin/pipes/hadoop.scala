@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.spark
+package com.github.chenharryhua.nanjin.pipes
 
 import java.io.OutputStream
 import java.net.URI
@@ -10,7 +10,7 @@ import kantan.csv.{CsvConfiguration, CsvWriter, HeaderEncoder}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataInputStream, FSDataOutputStream, FileSystem, Path}
 
-private[spark] object hadoop {
+object hadoop {
 
   private def fileSystem[F[_]: Sync: ContextShift](
     pathStr: String,
