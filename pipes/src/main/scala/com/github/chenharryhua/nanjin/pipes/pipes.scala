@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.pipes
+package com.github.chenharryhua.nanjin
 
 import java.io.ByteArrayOutputStream
 
@@ -19,7 +19,7 @@ import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import kantan.csv.{RowDecoder, RowEncoder}
 import org.apache.avro.generic.GenericRecord
 
-object pipes {
+package object pipes {
 
   def jsonDecode[F[_]: RaiseThrowable, A: JsonDecoder]: Pipe[F, String, A] =
     (ss: Stream[F, String]) => ss.map(decode[A]).rethrow
