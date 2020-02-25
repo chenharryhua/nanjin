@@ -1,8 +1,8 @@
-package com.github.chenharryhua.nanjin.spark
+package com.github.chenharryhua.nanjin.pipes
 
 import java.io.ByteArrayOutputStream
 
-import cats.effect.{Resource, Sync}
+import cats.effect.Sync
 import cats.implicits._
 import com.sksamuel.avro4s.{
   AvroInputStream,

@@ -1,16 +1,16 @@
-package com.github.chenharryhua.nanjin.spark
+package com.github.chenharryhua.nanjin.pipes
 
 import java.io.OutputStream
 import java.net.URI
 
 import cats.effect.{Blocker, ContextShift, Resource, Sync}
-import cats.implicits._
 import com.sksamuel.avro4s._
 import kantan.csv.{CsvConfiguration, CsvWriter, HeaderEncoder}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataInputStream, FSDataOutputStream, FileSystem, Path}
+import cats.implicits._
 
-private[spark] object hadoop {
+object hadoop {
 
   private def fileSystem[F[_]: Sync: ContextShift](
     pathStr: String,
