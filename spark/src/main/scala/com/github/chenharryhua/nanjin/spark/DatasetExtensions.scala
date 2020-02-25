@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark
 
-import cats.effect.{Concurrent, ContextShift, Sync}
+import cats.effect.{ContextShift, Sync}
 import cats.implicits._
 import com.sksamuel.avro4s._
 import frameless.TypedDataset
