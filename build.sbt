@@ -50,7 +50,7 @@ val flinkVersion = "1.10.0"
 
 val hadoopVersion = "3.2.1"
 
-val awsVersion = "1.11.728"
+val awsVersion = "1.11.729"
 
 lazy val commonSettings = Seq(
   organization := "com.github.chenharryhua",
