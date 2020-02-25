@@ -306,10 +306,14 @@ lazy val spark = (project in file("spark"))
     libraryDependencies ++= Seq(
       "org.locationtech.jts" % "jts-core" % "1.16.1",
       "org.log4s"  %% "log4s"  % "1.8.2") ++
-      sparkLib ++ framelessLib ++ kantan ++ tests,
+      sparkLib ++ framelessLib ++ hadoopLib ++ tests,
     dependencyOverrides ++= Seq(
-      "com.fasterxml.jackson.core"  % "jackson-databind" % "2.6.7.2",
-      "org.json4s" %% "json4s-core" % "3.5.5"),
+      "io.netty" % "netty-all" % "4.1.17.Final",
+      "io.netty" % "netty" % "3.9.9.Final",
+      "com.fasterxml.jackson.core"  % "jackson-databind" % "2.10.2",
+      "com.fasterxml.jackson.core" % "jackson-core" % "2.10.2",
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.10.2",
+      "org.json4s" %% "json4s-core" % "3.5.2")
   )
 
 lazy val flink = (project in file("flink"))

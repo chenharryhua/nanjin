@@ -31,7 +31,7 @@ class MessageCoproductTest extends AnyFunSuite {
     val topic = TopicDef[Int, SealedTrait]("message.coproduct.trait.test").in(ctx)
     val m     = CaseClass(1, "b")
     val rst = for {
-      _ <- topic.admin.IdefinitelyWantToDeleteTheTopicAndUnderstandItsConsequence
+      _ <- topic.admin.IdefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- topic.schemaRegistry.delete
       _ <- topic.send(0, m)
       r <- topic.consumerResource.use(_.retrieveLastRecords)
@@ -43,7 +43,7 @@ class MessageCoproductTest extends AnyFunSuite {
     val topic = TopicDef[Int, PC]("message.coproduct.primitives.test").in(ctx)
     val m     = PC(Coproduct[PrimCops](20121026.000001f), Coproduct[PrimCops]("aaa"), 1)
     val rst = for {
-      _ <- topic.admin.IdefinitelyWantToDeleteTheTopicAndUnderstandItsConsequence
+      _ <- topic.admin.IdefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- topic.schemaRegistry.delete
       _ <- topic.send(0, m)
       r <- topic.consumerResource.use(_.retrieveLastRecords)
@@ -55,7 +55,7 @@ class MessageCoproductTest extends AnyFunSuite {
     val topic = TopicDef[Int, CompositeT]("message.composite.test").in(ctx)
     val m     = CompositeT(C1(1), C2(1, "a"), C3("a", 1.0f, 1))
     val rst = for {
-      _ <- topic.admin.IdefinitelyWantToDeleteTheTopicAndUnderstandItsConsequence
+      _ <- topic.admin.IdefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- topic.schemaRegistry.delete
       _ <- topic.send(0, m)
       r <- topic.consumerResource.use(_.retrieveLastRecords)
@@ -71,7 +71,7 @@ class MessageCoproductTest extends AnyFunSuite {
     val m3 = CT(Coproduct[ComplexType](C3("s", 1.0f, 1)), 3)
 
     val rst = for {
-      _ <- topic.admin.IdefinitelyWantToDeleteTheTopicAndUnderstandItsConsequence
+      _ <- topic.admin.IdefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- topic.schemaRegistry.delete
       _ <- topic.send(1, m1)
       r1 <- topic.consumerResource.use(_.retrieveLastRecords)
