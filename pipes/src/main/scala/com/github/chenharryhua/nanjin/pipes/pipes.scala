@@ -61,7 +61,7 @@ package object pipes {
       ss.map(m =>
         AvroDecoder[A].decode(m, SchemaFor[A].schema(DefaultFieldMapper), DefaultFieldMapper))
 
-  def avroEecode[F[_]: RaiseThrowable, A: AvroEncoder: SchemaFor]: Pipe[F, A, GenericRecord] =
+  def avroEncode[F[_]: RaiseThrowable, A: AvroEncoder: SchemaFor]: Pipe[F, A, GenericRecord] =
     (ss: Stream[F, A]) =>
       ss.map(m =>
           AvroEncoder[A]
