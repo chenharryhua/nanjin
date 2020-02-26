@@ -17,12 +17,11 @@ import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.{rfc, CsvConfiguration, HeaderEncoder}
 import org.apache.hadoop.conf.Configuration
 
-object sinks {
+final class SingleFileSink[F[_]: ContextShift: Sync](hadoopConfiguration: Configuration) {
 
-  private def sink[F[_]: ContextShift: Sync, A: SchemaFor: AvroEncoder](
+  private def sink[A: SchemaFor: AvroEncoder](
     pathStr: String,
-    builder: AvroOutputStreamBuilder[A],
-    hadoopConfiguration: Configuration): Pipe[F, A, Unit] = { sa: Stream[F, A] =>
+    builder: AvroOutputStreamBuilder[A]): Pipe[F, A, Unit] = { sa: Stream[F, A] =>
     for {
       blocker <- Stream.resource(Blocker[F])
       aos <- Stream.resource(
@@ -31,24 +30,16 @@ object sinks {
     } yield data.foreach(aos.write)
   }
 
-  def avroFileSink[F[_]: ContextShift: Sync, A: SchemaFor: AvroEncoder](
-    pathStr: String,
-    hadoopConfiguration: Configuration): Pipe[F, A, Unit] =
-    sink(pathStr, AvroOutputStream.data[A], hadoopConfiguration)
+  def avro[A: SchemaFor: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
+    sink(pathStr, AvroOutputStream.data[A])
 
-  def jacksonFileSink[F[_]: ContextShift: Sync, A: SchemaFor: AvroEncoder](
-    pathStr: String,
-    hadoopConfiguration: Configuration): Pipe[F, A, Unit] =
-    sink(pathStr, AvroOutputStream.json[A], hadoopConfiguration)
+  def jackson[A: SchemaFor: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
+    sink(pathStr, AvroOutputStream.json[A])
 
-  def binaryAvroFileSink[F[_]: ContextShift: Sync, A: SchemaFor: AvroEncoder](
-    pathStr: String,
-    hadoopConfiguration: Configuration): Pipe[F, A, Unit] =
-    sink(pathStr, AvroOutputStream.binary[A], hadoopConfiguration)
+  def avroBinary[A: SchemaFor: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
+    sink(pathStr, AvroOutputStream.binary[A])
 
-  def jsonFileSink[F[_]: ContextShift: Sync, A: JsonEncoder](
-    pathStr: String,
-    hadoopConfiguration: Configuration): Pipe[F, A, Unit] = { as =>
+  def json[A: JsonEncoder](pathStr: String): Pipe[F, A, Unit] = { as =>
     for {
       blocker <- Stream.resource(Blocker[F])
       aos <- Stream
@@ -62,9 +53,8 @@ object sinks {
     } yield ()
   }
 
-  def csvFileSink[F[_]: ContextShift: Sync, A: HeaderEncoder](
+  def csv[A: HeaderEncoder](
     pathStr: String,
-    hadoopConfiguration: Configuration,
     csvConfig: CsvConfiguration = rfc): Pipe[F, A, Unit] = { as =>
     for {
       blocker <- Stream.resource(Blocker[F])

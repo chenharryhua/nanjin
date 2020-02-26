@@ -17,12 +17,11 @@ import io.circe.syntax._
 import io.circe.{Decoder => JsonDecoder}
 import org.apache.hadoop.conf.Configuration
 
-object sources {
+final class SingleFileSource[F[_]: ContextShift: Sync](hadoopConfiguration: Configuration) {
 
-  private def source[F[_]: Sync: ContextShift, A: SchemaFor: AvroDecoder](
+  private def source[A: SchemaFor: AvroDecoder](
     pathStr: String,
-    builder: AvroInputStreamBuilder[A],
-    hadoopConfiguration: Configuration): Stream[F, A] =
+    builder: AvroInputStreamBuilder[A]): Stream[F, A] =
     for {
       blocker <- Stream.resource(Blocker[F])
       ais <- Stream.resource(
@@ -30,24 +29,16 @@ object sources {
       data <- Stream.fromIterator(ais.iterator)
     } yield data
 
-  def avroFileSource[F[_]: Sync: ContextShift, A: SchemaFor: AvroDecoder](
-    pathStr: String,
-    hadoopConfiguration: Configuration): Stream[F, A] =
-    source[F, A](pathStr, AvroInputStream.data[A], hadoopConfiguration)
+  def avro[A: SchemaFor: AvroDecoder](pathStr: String): Stream[F, A] =
+    source[A](pathStr, AvroInputStream.data[A])
 
-  def jacksonFileSource[F[_]: Sync: ContextShift, A: SchemaFor: AvroDecoder](
-    pathStr: String,
-    hadoopConfiguration: Configuration): Stream[F, A] =
-    source[F, A](pathStr, AvroInputStream.json[A], hadoopConfiguration)
+  def jackson[A: SchemaFor: AvroDecoder](pathStr: String): Stream[F, A] =
+    source[A](pathStr, AvroInputStream.json[A])
 
-  def binaryAvroFileSource[F[_]: Sync: ContextShift, A: SchemaFor: AvroDecoder](
-    pathStr: String,
-    hadoopConfiguration: Configuration): Stream[F, A] =
-    source[F, A](pathStr, AvroInputStream.binary[A], hadoopConfiguration)
+  def avroBinary[A: SchemaFor: AvroDecoder](pathStr: String): Stream[F, A] =
+    source[A](pathStr, AvroInputStream.binary[A])
 
-  def jsonFileSource[F[_]: Sync: ContextShift, A: JsonDecoder](
-    pathStr: String,
-    hadoopConfiguration: Configuration): Stream[F, A] =
+  def json[A: JsonDecoder](pathStr: String): Stream[F, A] =
     for {
       blocker <- Stream.resource(Blocker[F])
       is <- Stream.resource(hadoop.inputPathResource(pathStr, hadoopConfiguration, blocker))

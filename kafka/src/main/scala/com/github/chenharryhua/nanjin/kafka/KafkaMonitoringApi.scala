@@ -30,8 +30,6 @@ sealed trait KafkaMonitoringApi[F[_], K, V] {
 
   def summaries: F[Unit]
 
-  def save: F[Unit]
-  def replay: F[Unit]
   def carbonCopyTo(other: KafkaTopicKit[K, V]): F[Unit]
 }
 
@@ -131,52 +129,6 @@ object KafkaMonitoringApi {
                            |${last.map(_.toString).mkString("\n")}
                            |""".stripMargin)
       }
-
-    private val path: String = s"./data/kafka/monitor/${topic.topicName}"
-
-    private def outFile(path: String): Resource[F, OutputStream] =
-      Resource.make[F, OutputStream](F.pure(new FileOutputStream(path)))(os =>
-        F.delay { os.flush(); os.close() })
-
-    override def save: F[Unit] = {
-      val run = for {
-        blocker <- Stream.resource[F, Blocker](Blocker[F])
-        signal <- Keyboard.signal
-        os <- Stream.resource(outFile(path + ".json"))
-        data <- fs2Channel.consume
-          .map(m => topic.kit.decoder(m).record)
-          .through(topic.kit.topicDef.jacksonSink[F](os))
-          .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
-          .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
-      } yield ()
-      run.compile.drain
-    }
-
-    override def replay: F[Unit] = {
-      val run = for {
-        signal <- Keyboard.signal
-        blocker <- Stream.resource(Blocker[F])
-        _ <- fs2.io.file
-          .readAll(Paths.get(path + ".json"), blocker, 4096)
-          .through(fs2.text.utf8Decode)
-          .through(fs2.text.lines)
-          .mapFilter { str =>
-            topic.kit
-              .fromJackson(str)
-              .toEither
-              .leftMap(e => println(s"${e.getMessage}. source: $str"))
-              .toOption
-          }
-          .chunks
-          .map(ms =>
-            ProducerRecords(ms.map(_.toNJProducerRecord.toFs2ProducerRecord(topic.topicName))))
-          .through(produce(topic.kit.fs2ProducerSettings[F]))
-          .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
-          .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
-          .unchunk
-      } yield ()
-      run.chunkN(10000).map(_ => print(".")).compile.drain
-    }
 
     override def carbonCopyTo(other: KafkaTopicKit[K, V]): F[Unit] = {
       val run = for {

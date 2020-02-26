@@ -313,7 +313,7 @@ lazy val spark = (project in file("spark"))
       "com.fasterxml.jackson.core"  % "jackson-databind" % "2.10.2",
       "com.fasterxml.jackson.core" % "jackson-core" % "2.10.2",
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.10.2",
-      "org.json4s" %% "json4s-core" % "3.5.2")
+      "org.json4s" %% "json4s-core" % "3.5.5")
   )
 
 lazy val flink = (project in file("flink"))
