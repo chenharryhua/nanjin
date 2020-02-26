@@ -12,7 +12,7 @@ import org.apache.hadoop.fs.{FSDataInputStream, FSDataOutputStream, FileSystem, 
 
 object hadoop {
 
-  private def fileSystem[F[_]: Sync: ContextShift](
+  def fileSystem[F[_]: Sync: ContextShift](
     pathStr: String,
     hadoopConfig: Configuration,
     blocker: Blocker): Resource[F, FileSystem] =
