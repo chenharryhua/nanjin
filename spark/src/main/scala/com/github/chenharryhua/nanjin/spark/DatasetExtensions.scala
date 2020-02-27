@@ -2,10 +2,11 @@ package com.github.chenharryhua.nanjin.spark
 
 import cats.effect.Sync
 import cats.implicits._
-import frameless.TypedDataset
 import frameless.cats.implicits._
+import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import scala.collection.JavaConverters._
 
@@ -22,6 +23,21 @@ private[spark] trait DatasetExtensions {
     def stream[F[_]: Sync]: Stream[F, A] =
       Stream.force(
         tds.toLocalIterator.map(it => Stream.fromIterator[F](it.asScala.flatMap(Option(_)))))
+  }
+
+  implicit class DataframeExt(private val df: DataFrame) {
+
+    def genCaseClass: String = NJDataTypeF.genCaseClass(df.schema)
+
+  }
+
+  implicit class SparkSessionExt(private val ss: SparkSession) {
+
+    def parquet[A: TypedEncoder](pathStr: String): TypedDataset[A] =
+      TypedDataset.createUnsafe[A](ss.read.parquet(pathStr))
+
+    def avro[A: TypedEncoder](pathStr: String): TypedDataset[A] =
+      TypedDataset.createUnsafe(ss.read.format("avro").load(pathStr))
   }
 
 }
