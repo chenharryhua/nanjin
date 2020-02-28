@@ -37,7 +37,7 @@ val apacheAvro = "1.9.2"
 val avrohugger = "1.0.0-RC21"
 
 val silencerVersion = "1.6.0"
-val jline           = "3.13.3"
+val jline           = "3.14.0"
 
 val scalatest = "3.1.1"
 
@@ -50,7 +50,7 @@ val flinkVersion = "1.10.0"
 
 val hadoopVersion = "3.2.1"
 
-val awsVersion = "1.11.731"
+val awsVersion = "1.11.732"
 
 lazy val commonSettings = Seq(
   organization := "com.github.chenharryhua",
