@@ -4,7 +4,10 @@ import cats.data.Reader
 import cats.effect.ConcurrentEffect
 import cats.effect.concurrent.Deferred
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.codec.UncaughtKafkaStreamingException
+import com.github.chenharryhua.nanjin.kafka.codec.{
+  KafkaStreamingException,
+  UncaughtKafkaStreamingException
+}
 import com.github.chenharryhua.nanjin.utils.Keyboard
 import fs2.Stream
 import org.apache.kafka.streams.KafkaStreams
@@ -20,12 +23,19 @@ final class KafkaStreamRunner[F[_]](settings: KafkaStreamSettings)(
       F.toIO(deferred.complete(UncaughtKafkaStreamingException(t, e))).void.unsafeRunSync()
   }
 
-  final private class Latch(value: Deferred[F, Unit]) extends KafkaStreams.StateListener {
+  final private class Latch(value: Deferred[F, Either[KafkaStreamingException, Unit]])
+      extends KafkaStreams.StateListener {
 
     override def onChange(newState: KafkaStreams.State, oldState: KafkaStreams.State): Unit =
       newState match {
-        case KafkaStreams.State.RUNNING => F.toIO(value.complete(())).void.unsafeRunSync()
-        case _                          => ()
+        case KafkaStreams.State.RUNNING =>
+          F.toIO(value.complete(Right(()))).attempt.void.unsafeRunSync()
+        case KafkaStreams.State.ERROR =>
+          F.toIO(value.complete(Left(KafkaStreamingException("kafka streaming failure"))))
+            .attempt
+            .void
+            .unsafeRunSync()
+        case _ => ()
       }
   }
 
@@ -33,7 +43,7 @@ final class KafkaStreamRunner[F[_]](settings: KafkaStreamSettings)(
     for {
       kb <- Keyboard.signal[F]
       eh <- Stream.eval(Deferred[F, UncaughtKafkaStreamingException])
-      latch <- Stream.eval(Deferred[F, Unit])
+      latch <- Stream.eval(Deferred[F, Either[KafkaStreamingException, Unit]])
       kss <- Stream
         .bracket(F.delay {
           val builder: StreamsBuilder = new StreamsBuilder
@@ -49,6 +59,6 @@ final class KafkaStreamRunner[F[_]](settings: KafkaStreamSettings)(
           }.as(ks))
         .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
         .concurrently(Stream.eval(eh.get).flatMap(Stream.raiseError[F]))
-      _ <- Stream.eval(latch.get)
+      _ <- Stream.eval(latch.get.rethrow)
     } yield kss
 }

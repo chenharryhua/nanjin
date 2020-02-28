@@ -47,6 +47,7 @@ object CodecException {
 
 final case class UncaughtKafkaStreamingException(thread: Thread, ex: Throwable)
     extends Exception(ex.getMessage)
+final case class KafkaStreamingException(msg: String) extends Exception(msg)
 
 @Lenses final case class ConsumerRecordError(error: Throwable, tag: KeyValueTag, metaInfo: String) {
 
