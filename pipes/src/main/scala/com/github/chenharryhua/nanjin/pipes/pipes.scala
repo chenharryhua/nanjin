@@ -53,7 +53,7 @@ package object pipes {
                 .to(os)
                 .build(SchemaFor[A].schema(DefaultFieldMapper))
                 .write(m))
-            .as(os.toString))(a => F.pure(a.close()))
+            .as(os.toString))(a => F.delay(a.close()))
       }
 
   def avroDecode[F[_]: RaiseThrowable, A: AvroDecoder: SchemaFor]: Pipe[F, GenericRecord, A] =

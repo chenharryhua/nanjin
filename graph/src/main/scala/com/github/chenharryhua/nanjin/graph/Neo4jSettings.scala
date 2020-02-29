@@ -14,7 +14,7 @@ import com.github.chenharryhua.nanjin.database.{ConnectionString, Host, Password
   port: Port,
   configBuilder: ConfigBuilder = Config.builder()) {
 
-  def updateConfig(f: ConfigBuilder => ConfigBuilder): Neo4jSettings =
+  def withConfigUpdate(f: ConfigBuilder => ConfigBuilder): Neo4jSettings =
     Neo4jSettings.configBuilder.modify(f)(this)
 
   val connStr: ConnectionString = ConnectionString(s"bolt://${host.value}:${port.value}")

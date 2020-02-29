@@ -26,7 +26,7 @@ private[spark] object NJDataTypeF {
   final case class NJMapType[K](key: NJDataType, value: NJDataType) extends NJDataTypeF[K]
 
   final case class NJStructField(colName: String, dataType: NJDataType, nullable: Boolean) {
-    private val dt = stringify(dataType)
+    private val dt: String = stringify(dataType)
 
     val optionalFieldStr: String =
       s"""  ${colName}:${if (nullable) s"Option[$dt]" else dt}"""
