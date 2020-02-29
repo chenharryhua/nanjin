@@ -16,8 +16,7 @@ object hadoop {
     pathStr: String,
     hadoopConfig: Configuration,
     blocker: Blocker): Resource[F, FileSystem] =
-    Resource.make(Sync[F].delay(FileSystem.get(new URI(pathStr), hadoopConfig)))(fs =>
-      blocker.delay(fs.close()))
+    Resource.fromAutoCloseable(blocker.delay(FileSystem.get(new URI(pathStr), hadoopConfig)))
 
   def outputPathResource[F[_]: Sync: ContextShift](
     pathStr: String,
@@ -25,8 +24,7 @@ object hadoop {
     blocker: Blocker): Resource[F, FSDataOutputStream] =
     for {
       fs <- fileSystem(pathStr, hadoopConfig, blocker)
-      rs <- Resource.make(Sync[F].delay(fs.create(new Path(pathStr))))(a =>
-        blocker.delay(a.close()))
+      rs <- Resource.fromAutoCloseable(blocker.delay(fs.create(new Path(pathStr))))
     } yield rs
 
   def avroOutputResource[F[_]: Sync: ContextShift, A: SchemaFor](
@@ -36,9 +34,8 @@ object hadoop {
     blocker: Blocker): Resource[F, AvroOutputStream[A]] =
     for {
       os <- outputPathResource(pathStr, hadoopConfig, blocker)
-      rs <- Resource.make(
-        Sync[F].delay(builder.to(os).build(SchemaFor[A].schema(DefaultFieldMapper))))(a =>
-        blocker.delay(a.close()))
+      rs <- Resource.fromAutoCloseable(
+        Sync[F].pure(builder.to(os).build(SchemaFor[A].schema(DefaultFieldMapper))))
     } yield rs
 
   def csvOutputResource[F[_]: Sync: ContextShift, A: HeaderEncoder](
@@ -49,8 +46,7 @@ object hadoop {
     import kantan.csv.ops._
     for {
       os <- outputPathResource(pathStr, hadoopConfig, blocker).widen[OutputStream]
-      rs <- Resource.make(Sync[F].delay(os.asCsvWriter[A](csvConfig)))(a =>
-        blocker.delay(a.close()))
+      rs <- Resource.fromAutoCloseable(Sync[F].pure(os.asCsvWriter[A](csvConfig)))
     } yield rs
   }
 
@@ -58,8 +54,10 @@ object hadoop {
     pathStr: String,
     hadoopConfig: Configuration,
     blocker: Blocker): Resource[F, FSDataInputStream] =
-    fileSystem(pathStr, hadoopConfig, blocker).flatMap(fs =>
-      Resource.make(Sync[F].delay(fs.open(new Path(pathStr))))(a => blocker.delay(a.close())))
+    for {
+      fs <- fileSystem(pathStr, hadoopConfig, blocker)
+      rs <- Resource.fromAutoCloseable(blocker.delay(fs.open(new Path(pathStr))))
+    } yield rs
 
   def avroInputResource[F[_]: Sync: ContextShift, A: SchemaFor](
     pathStr: String,
@@ -68,9 +66,8 @@ object hadoop {
     blocker: Blocker): Resource[F, AvroInputStream[A]] =
     for {
       is <- inputPathResource(pathStr, hadoopConfig, blocker)
-      rs <- Resource.make(
-        Sync[F].delay(builder.from(is).build(SchemaFor[A].schema(DefaultFieldMapper))))(a =>
-        blocker.delay(a.close()))
+      rs <- Resource.fromAutoCloseable(
+        Sync[F].pure(builder.from(is).build(SchemaFor[A].schema(DefaultFieldMapper))))
     } yield rs
 
   def delete[F[_]: Sync: ContextShift](
