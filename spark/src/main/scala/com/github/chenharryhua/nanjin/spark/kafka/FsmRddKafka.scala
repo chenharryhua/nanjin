@@ -5,7 +5,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import com.github.chenharryhua.nanjin.pipes.hadoop
-import com.github.chenharryhua.nanjin.spark.RddExt
+import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import org.apache.spark.rdd.RDD
@@ -27,6 +27,12 @@ final class FsmRddKafka[F[_], K, V](
       hadoop.delete(path, sparkSession.sparkContext.hadoopConfiguration, blocker) >>
         F.delay(rdd.saveAsObjectFile(path))
     }
+
+  def saveJackson(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
+    import kit.topicDef.{avroKeyEncoder, avroValEncoder, schemaForKey, schemaForVal}
+    val path = params.rddPathBuilder(kit.topicName) + "jackson.json"
+    sorted.stream[F].through(fileSink[F].jackson[NJConsumerRecord[K, V]](path)).compile.drain
+  }
 
   def count: Long = rdd.count()
 
