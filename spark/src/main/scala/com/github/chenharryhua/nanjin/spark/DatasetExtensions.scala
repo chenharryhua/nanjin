@@ -15,7 +15,7 @@ private[spark] trait DatasetExtensions {
   implicit class RddExt[A](private val rdd: RDD[A]) {
 
     def stream[F[_]: Sync]: Stream[F, A] =
-      Stream.fromIterator(rdd.toLocalIterator)
+      Stream.fromIterator(rdd.toLocalIterator.flatMap(Option(_)))
   }
 
   implicit class TypedDatasetExt[A](private val tds: TypedDataset[A]) {

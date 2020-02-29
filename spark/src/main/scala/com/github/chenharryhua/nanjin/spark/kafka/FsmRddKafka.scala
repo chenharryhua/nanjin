@@ -30,8 +30,11 @@ final class FsmRddKafka[F[_], K, V](
 
   def saveJackson(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
     import kit.topicDef.{avroKeyEncoder, avroValEncoder, schemaForKey, schemaForVal}
-    val path = sk.jacksonPath(kit.topicName)
-    sorted.stream[F].through(fileSink[F].jackson[NJConsumerRecord[K, V]](path)).compile.drain
+    sorted
+      .stream[F]
+      .through(fileSink[F].jackson[NJConsumerRecord[K, V]](sk.jacksonPath(kit.topicName)))
+      .compile
+      .drain
   }
 
   def count: Long = rdd.count()
