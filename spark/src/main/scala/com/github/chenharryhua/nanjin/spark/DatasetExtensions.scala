@@ -23,6 +23,11 @@ private[spark] trait DatasetExtensions {
     def stream[F[_]: Sync]: Stream[F, A] =
       Stream.force(
         tds.toLocalIterator.map(it => Stream.fromIterator[F](it.asScala.flatMap(Option(_)))))
+
+    def invalidRecords(implicit ev: TypedEncoder[A]): TypedDataset[A] = {
+      val vtds: TypedDataset[A] = tds.deserialized.flatMap(Option(_))
+      tds.except(vtds)
+    }
   }
 
   implicit class DataframeExt(private val df: DataFrame) {
