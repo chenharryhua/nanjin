@@ -30,7 +30,8 @@ final class FsmRddKafka[F[_], K, V](
 
   def saveJackson(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
     import kit.topicDef.{avroKeyEncoder, avroValEncoder, schemaForKey, schemaForVal}
-    val path = params.rddPathBuilder(kit.topicName) + "jackson.json"
+    val rp   = params.rddPathBuilder(kit.topicName).trim
+    val path = if (rp.endsWith("/")) rp + "jackson.json" else rp + "/jackson.json"
     sorted.stream[F].through(fileSink[F].jackson[NJConsumerRecord[K, V]](path)).compile.drain
   }
 
