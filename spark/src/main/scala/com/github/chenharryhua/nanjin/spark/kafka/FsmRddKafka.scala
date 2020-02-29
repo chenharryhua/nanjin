@@ -23,15 +23,14 @@ final class FsmRddKafka[F[_], K, V](
 
   def save(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
     Blocker[F].use { blocker =>
-      val path = params.rddPathBuilder(kit.topicName)
+      val path = sk.replayPath(kit.topicName)
       hadoop.delete(path, sparkSession.sparkContext.hadoopConfiguration, blocker) >>
         F.delay(rdd.saveAsObjectFile(path))
     }
 
   def saveJackson(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
     import kit.topicDef.{avroKeyEncoder, avroValEncoder, schemaForKey, schemaForVal}
-    val rp   = params.rddPathBuilder(kit.topicName).trim
-    val path = if (rp.endsWith("/")) rp + "jackson.json" else rp + "/jackson.json"
+    val path = sk.jacksonPath(kit.topicName)
     sorted.stream[F].through(fileSink[F].jackson[NJConsumerRecord[K, V]](path)).compile.drain
   }
 

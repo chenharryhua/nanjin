@@ -33,8 +33,7 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
       .map(new FsmRddKafka[F, K, V](_, kit, cfg))
 
   def fromDisk[F[_]: Sync]: F[FsmRddDisk[F, K, V]] =
-    sk.loadDiskRdd[F, K, V](params.rddPathBuilder(kit.topicName))
-      .map(new FsmRddDisk[F, K, V](_, kit, cfg))
+    sk.loadDiskRdd[F, K, V](sk.replayPath(kit.topicName)).map(new FsmRddDisk[F, K, V](_, kit, cfg))
 
   /**
     * shorthand
