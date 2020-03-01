@@ -23,6 +23,8 @@ val zioCats    = "2.0.0.0-RC10"
 val monix      = "3.1.0"
 val catsEffect = "2.1.1"
 
+val akka      = "2.6.3"
+
 val akkaKafka = "2.0.2"
 val fs2Kafka  = "1.0.0"
 
@@ -162,7 +164,6 @@ val avro = Seq(
   "com.sksamuel.avro4s" %% "avro4s-core"                    % avro4s,
   ("io.confluent" % "kafka-streams-avro-serde"              % "5.4.0").classifier(""),
   "com.julianpeeters" %% "avrohugger-core"                  % avrohugger,
-  "com.lightbend.akka" %% "akka-stream-alpakka-avroparquet" % "1.1.2",
   "org.apache.parquet"                                      % "parquet-avro" % "1.11.0"
 )
 
@@ -196,7 +197,7 @@ val framelessLib = Seq(
 ).map(_ % frameless)
 
 val tests = Seq(
-  "org.typelevel" %% "cats-testkit-scalatest"                 % "1.0.1" % Test,
+  "org.typelevel" %% "cats-testkit-scalatest"                 % "1.0.1"     % Test,
   "org.typelevel" %% "discipline-scalatest"                   % "1.0.1"     % Test,
   "org.typelevel" %% "cats-laws"                              % catsCore    % Test,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.4"     % Test,
@@ -205,7 +206,8 @@ val tests = Seq(
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.3.2"     % Test,
   "org.tpolecat" %% "doobie-postgres"                         % doobie      % Test,
   "org.typelevel" %% "algebra-laws"                           % "2.0.0"     % Test,
-  "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % akkaKafka   % Test
+  "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % akkaKafka   % Test,
+  "com.typesafe.akka" %% "akka-stream-testkit"                % akka        % Test
 )
 
 val kafkaLib = Seq(
@@ -235,6 +237,15 @@ val base = Seq(
   "io.higherkindness" %% "droste-macros"   % droste,
   "io.higherkindness" %% "droste-meta"     % droste,
   "org.typelevel" %% "cats-tagless-macros" % tagless
+)
+
+val akkaLib = Seq(
+  "com.typesafe.akka" %% "akka-actor-typed"   % akka,
+  "com.typesafe.akka" %% "akka-actor"         % akka,
+  "com.typesafe.akka" %% "akka-protobuf"      % akka,
+  "com.typesafe.akka" %% "akka-slf4j"         % akka,
+  "com.typesafe.akka" %% "akka-stream-typed"  % akka,
+  "com.typesafe.akka" %% "akka-stream"        % akka
 )
 
 val effect = Seq(
@@ -274,7 +285,7 @@ lazy val pipes = (project in file("pipes"))
   .settings(commonSettings: _*)
   .settings(name := "nj-pipes")
   .settings(libraryDependencies ++=
-    base ++ fs2 ++ hadoopLib ++ effect ++ json ++ kantan ++ avro ++ tests)
+    base ++ fs2 ++ hadoopLib ++ effect ++ akkaLib ++ json ++ kantan ++ avro ++ tests)
 
 lazy val kafka = (project in file("kafka"))
   .settings(commonSettings: _*)
@@ -284,7 +295,7 @@ lazy val kafka = (project in file("kafka"))
       compilerPlugin(
         ("com.github.ghik" % "silencer-plugin" % silencerVersion).cross(CrossVersion.full)),
         ("com.github.ghik" % "silencer-lib" % silencerVersion % Provided).cross(CrossVersion.full)
-    ) ++ effect ++ kafkaLib ++ avro ++ json ++ tests,
+    ) ++ effect ++ kafkaLib ++ akkaLib ++ avro ++ json ++ tests,
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
   .dependsOn(datetime)
