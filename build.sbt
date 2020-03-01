@@ -52,7 +52,7 @@ val flinkVersion = "1.10.0"
 
 val hadoopVersion = "3.2.1"
 
-val awsVersion = "1.11.732"
+val awsVersion = "1.11.734"
 
 lazy val commonSettings = Seq(
   organization := "com.github.chenharryhua",
@@ -205,9 +205,9 @@ val tests = Seq(
   "com.github.julien-truffaut" %% "monocle-law"               % monocle     % Test,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.3.2"     % Test,
   "org.tpolecat" %% "doobie-postgres"                         % doobie      % Test,
-  "org.typelevel" %% "algebra-laws"                           % "2.0.0"     % Test,
-  "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % akkaKafka   % Test,
-  "com.typesafe.akka" %% "akka-stream-testkit"                % akka        % Test
+  "com.typesafe.akka" %% "akka-stream-testkit"                % akka        % Test,
+  "org.typelevel" %% "algebra-laws"                           % "2.0.1"     % Test,
+  "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % akkaKafka   % Test
 )
 
 val kafkaLib = Seq(
@@ -223,7 +223,7 @@ val base = Seq(
   "com.beachape" %% "enumeratum"           % "1.5.15",
   "com.beachape" %% "enumeratum-cats"      % "1.5.16",
   "com.twitter" %% "algebird-core"         % "0.13.6",
-  "org.typelevel" %% "algebra"             % "2.0.0",
+  "org.typelevel" %% "algebra"             % "2.0.1",
   "io.chrisdavenport" %% "cats-time"       % catsTime,
   "eu.timepit" %% "refined"                % refined,
   "org.typelevel" %% "cats-core"           % catsCore,
