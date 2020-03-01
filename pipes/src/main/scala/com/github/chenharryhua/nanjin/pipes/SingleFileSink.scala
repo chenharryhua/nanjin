@@ -19,7 +19,7 @@ import org.apache.hadoop.conf.Configuration
 
 final class SingleFileSink[F[_]: ContextShift: Sync](hadoopConfiguration: Configuration) {
 
-  private def sink[A: SchemaFor: AvroEncoder](
+  private def sink[A: SchemaFor](
     pathStr: String,
     builder: AvroOutputStreamBuilder[A]): Pipe[F, A, Unit] = { sa: Stream[F, A] =>
     for {
