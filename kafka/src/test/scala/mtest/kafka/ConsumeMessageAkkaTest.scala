@@ -24,7 +24,7 @@ class ConsumeMessageAkkaTest extends AnyFunSuite {
       .map(_.show)
       .map(println)
       .take(1)
-      .runWith(chn.ignoreSink)(materializer)
+      .runWith(chn.ignoreSink)
 
     run.unsafeRunSync()
   }
@@ -39,7 +39,7 @@ class ConsumeMessageAkkaTest extends AnyFunSuite {
         .map(m => topic.decoder(m).decode)
         .map(_.show)
         .take(1)
-        .runWith(chn.ignoreSink)(materializer)
+        .runWith(chn.ignoreSink)
     } yield ()
     ret.unsafeRunSync
   }

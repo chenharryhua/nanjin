@@ -42,7 +42,7 @@ class ProducerTest extends AnyFunSuite {
         .map(m =>
           akkaTopic.kit.akkaProducerRecords(m.record.key, m.record.value, m.committableOffset))
         .take(100)
-        .runWith(akkaChn.committableSink)(materializer)
+        .runWith(akkaChn.committableSink)
 
     val fs2Task: IO[Unit] = srcTopic.fs2Channel
       .withConsumerSettings(

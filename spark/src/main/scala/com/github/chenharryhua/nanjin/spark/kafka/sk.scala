@@ -25,6 +25,9 @@ import scala.collection.JavaConverters._
 
 object sk {
 
+  def replayPath(tn: TopicName): String  = s"./data/sparKafka/${tn.value}/replay"
+  def jacksonPath(tn: TopicName): String = s"./data/sparKafka/${tn.value}/jackson.json"
+
   private def props(config: Map[String, String]): util.Map[String, Object] =
     (remove(ConsumerConfig.CLIENT_ID_CONFIG)(config) ++ Map(
       "key.deserializer" -> classOf[ByteArrayDeserializer].getName,
