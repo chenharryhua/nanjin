@@ -24,7 +24,7 @@ final class AkkaFileSink[A: SchemaFor: AvroEncoder](
   private val fos: FSDataOutputStream = fs.create(new Path(pathStr))
 
   private val aos: AvroOutputStream[A] =
-    AvroOutputStream.json[A].to(fos).build(SchemaFor[A].schema(DefaultFieldMapper))
+    builder.to(fos).build(SchemaFor[A].schema(DefaultFieldMapper))
 
   private def closeAll(): Unit = {
     aos.flush()
@@ -37,12 +37,26 @@ final class AkkaFileSink[A: SchemaFor: AvroEncoder](
 
   override def createLogic(inheritedAttributes: Attributes): GraphStageLogic =
     new GraphStageLogic(shape) {
+      override def preStart(): Unit = pull(in)
+
       setHandler(
         in,
         new InHandler {
-          override def onPush(): Unit                         = aos.write(grab(in))
-          override def onUpstreamFinish(): Unit               = closeAll()
-          override def onUpstreamFailure(ex: Throwable): Unit = closeAll()
+
+          override def onPush(): Unit = {
+            aos.write(grab(in))
+            pull(in)
+          }
+
+          override def onUpstreamFinish(): Unit = {
+            closeAll()
+            completeStage()
+          }
+
+          override def onUpstreamFailure(ex: Throwable): Unit = {
+            closeAll()
+            failStage(ex)
+          }
         }
       )
     }
@@ -52,10 +66,10 @@ final class AkkaFileSink[A: SchemaFor: AvroEncoder](
 
 final class AkkaSingleFileSink(configuration: Configuration) {
 
-  def avro[A: SchemaFor: AvroEncoder](pathStr: String) =
+  def avro[A: SchemaFor: AvroEncoder](pathStr: String): AkkaFileSink[A] =
     new AkkaFileSink[A](pathStr, configuration, AvroOutputStream.data[A])
 
-  def jackson[A: SchemaFor: AvroEncoder](pathStr: String) =
+  def jackson[A: SchemaFor: AvroEncoder](pathStr: String): AkkaFileSink[A] =
     new AkkaFileSink[A](pathStr, configuration, AvroOutputStream.json[A])
 
 }
