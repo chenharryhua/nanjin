@@ -13,7 +13,7 @@ package object spark extends DatasetExtensions {
   def fileSink[F[_]: Sync: ContextShift](implicit ss: SparkSession): SingleFileSink[F] =
     new SingleFileSink[F](ss.sparkContext.hadoopConfiguration)
 
-  def akkaFileSink[F[_]: Async: ContextShift](implicit ss: SparkSession): AkkaSingleFileSink[F] =
-    new AkkaSingleFileSink[F](ss.sparkContext.hadoopConfiguration)
+  def akkaFileSink(implicit ss: SparkSession): AkkaSingleFileSink =
+    new AkkaSingleFileSink(ss.sparkContext.hadoopConfiguration)
 
 }
