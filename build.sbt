@@ -21,7 +21,7 @@ val droste     = "0.8.0"
 
 val zioCats    = "2.0.0.0-RC10"
 val monix      = "3.1.0"
-val catsEffect = "2.1.1"
+val catsEffect = "2.1.2"
 
 val akka      = "2.6.3"
 
