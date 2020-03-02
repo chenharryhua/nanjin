@@ -2,7 +2,9 @@ package com.github.chenharryhua.nanjin.pipes
 
 import java.net.URI
 
+import akka.NotUsed
 import akka.stream._
+import akka.stream.scaladsl.Sink
 import akka.stream.stage.{GraphStageLogic, GraphStageWithMaterializedValue, InHandler}
 import cats.effect.ConcurrentEffect
 import cats.effect.concurrent.Deferred
@@ -16,20 +18,19 @@ import com.sksamuel.avro4s.{
 }
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataOutputStream, FileSystem, Path}
-import akka.stream.scaladsl.Sink
 
 final private class AkkaFileSink[F[_], A: SchemaFor: AvroEncoder](
   pathStr: String,
   hadoopConfig: Configuration,
   builder: AvroOutputStreamBuilder[A])(implicit F: ConcurrentEffect[F])
-    extends GraphStageWithMaterializedValue[SinkShape[A], F[Unit]] {
+    extends GraphStageWithMaterializedValue[SinkShape[A], F[NotUsed]] {
 
   val in: Inlet[A]                 = Inlet[A]("avro.data.in")
   override def shape: SinkShape[A] = SinkShape(in)
 
   override def createLogicAndMaterializedValue(
-    inheritedAttributes: Attributes): (GraphStageLogic, F[Unit]) = {
-    val deferred = Deferred.unsafe[F, Either[Exception, Unit]]
+    inheritedAttributes: Attributes): (GraphStageLogic, F[NotUsed]) = {
+    val deferred = Deferred.unsafe[F, Either[Exception, NotUsed]]
     val logic: GraphStageLogic with InHandler = new GraphStageLogic(shape) with InHandler {
       private val fs: FileSystem          = FileSystem.get(new URI(pathStr), hadoopConfig)
       private val fos: FSDataOutputStream = fs.create(new Path(pathStr))
@@ -58,7 +59,7 @@ final private class AkkaFileSink[F[_], A: SchemaFor: AvroEncoder](
       }
 
       override def onUpstreamFinish(): Unit = {
-        F.toIO(deferred.complete(Right(()))).unsafeRunSync()
+        F.toIO(deferred.complete(Right(NotUsed))).unsafeRunSync()
         completeStage()
       }
 
@@ -70,13 +71,13 @@ final private class AkkaFileSink[F[_], A: SchemaFor: AvroEncoder](
 
 final class AkkaSingleFileSink[F[_]: ConcurrentEffect](configuration: Configuration) {
 
-  def avro[A: SchemaFor: AvroEncoder](pathStr: String): Sink[A, F[Unit]] =
+  def avro[A: SchemaFor: AvroEncoder](pathStr: String): Sink[A, F[NotUsed]] =
     Sink.fromGraph(new AkkaFileSink[F, A](pathStr, configuration, AvroOutputStream.data[A]))
 
-  def avroBinary[A: SchemaFor: AvroEncoder](pathStr: String): Sink[A, F[Unit]] =
+  def avroBinary[A: SchemaFor: AvroEncoder](pathStr: String): Sink[A, F[NotUsed]] =
     Sink.fromGraph(new AkkaFileSink[F, A](pathStr, configuration, AvroOutputStream.binary[A]))
 
-  def jackson[A: SchemaFor: AvroEncoder](pathStr: String): Sink[A, F[Unit]] =
+  def jackson[A: SchemaFor: AvroEncoder](pathStr: String): Sink[A, F[NotUsed]] =
     Sink.fromGraph(new AkkaFileSink[F, A](pathStr, configuration, AvroOutputStream.json[A]))
 
 }

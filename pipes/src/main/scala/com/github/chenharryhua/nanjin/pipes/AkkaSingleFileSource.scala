@@ -2,19 +2,19 @@ package com.github.chenharryhua.nanjin.pipes
 
 import java.net.URI
 
-import akka.stream.{Attributes, Outlet, SourceShape}
+import akka.NotUsed
 import akka.stream.scaladsl.Source
 import akka.stream.stage.{GraphStage, GraphStageLogic, OutHandler}
-import cats.effect.ConcurrentEffect
+import akka.stream.{Attributes, Outlet, SourceShape}
 import cats.implicits._
 import com.sksamuel.avro4s._
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataInputStream, FileSystem, Path}
 
-final private class AkkaFileSource[F[_], A: SchemaFor](
+final private class AkkaFileSource[A: SchemaFor](
   pathStr: String,
   hadoopConfig: Configuration,
-  builder: AvroInputStreamBuilder[A])(implicit F: ConcurrentEffect[F])
+  builder: AvroInputStreamBuilder[A])
     extends GraphStage[SourceShape[A]] {
 
   private val out: Outlet[A] = Outlet[A]("avro.data.out")
@@ -51,14 +51,14 @@ final private class AkkaFileSource[F[_], A: SchemaFor](
   }
 }
 
-final class AkkaSingleFileSource[F[_]: ConcurrentEffect](configuration: Configuration) {
+final class AkkaSingleFileSource(configuration: Configuration) {
 
-  def avro[A: Decoder: SchemaFor](pathStr: String) =
-    Source.fromGraph(new AkkaFileSource[F, A](pathStr, configuration, AvroInputStream.data[A]))
+  def avro[A: Decoder: SchemaFor](pathStr: String): Source[A, NotUsed] =
+    Source.fromGraph(new AkkaFileSource[A](pathStr, configuration, AvroInputStream.data[A]))
 
-  def avroBinary[A: Decoder: SchemaFor](pathStr: String) =
-    Source.fromGraph(new AkkaFileSource[F, A](pathStr, configuration, AvroInputStream.binary[A]))
+  def avroBinary[A: Decoder: SchemaFor](pathStr: String): Source[A, NotUsed] =
+    Source.fromGraph(new AkkaFileSource[A](pathStr, configuration, AvroInputStream.binary[A]))
 
-  def jackson[A: Decoder: SchemaFor](pathStr: String) =
-    Source.fromGraph(new AkkaFileSource[F, A](pathStr, configuration, AvroInputStream.json[A]))
+  def jackson[A: Decoder: SchemaFor](pathStr: String): Source[A, NotUsed] =
+    Source.fromGraph(new AkkaFileSource[A](pathStr, configuration, AvroInputStream.json[A]))
 }

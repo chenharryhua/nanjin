@@ -23,7 +23,7 @@ package object spark extends DatasetExtensions {
   def akkaFileSink[F[_]: ConcurrentEffect](implicit ss: SparkSession): AkkaSingleFileSink[F] =
     new AkkaSingleFileSink[F](ss.sparkContext.hadoopConfiguration)
 
-  def akkaFileSource[F[_]: ConcurrentEffect](implicit ss: SparkSession): AkkaSingleFileSource[F] =
-    new AkkaSingleFileSource[F](ss.sparkContext.hadoopConfiguration)
+  def akkaFileSource(implicit ss: SparkSession): AkkaSingleFileSource =
+    new AkkaSingleFileSource(ss.sparkContext.hadoopConfiguration)
 
 }
