@@ -200,7 +200,7 @@ val tests = Seq(
   "org.typelevel" %% "cats-testkit-scalatest"                 % "1.0.1"     % Test,
   "org.typelevel" %% "discipline-scalatest"                   % "1.0.1"     % Test,
   "org.typelevel" %% "cats-laws"                              % catsCore    % Test,
-  "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.4"     % Test,
+  "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.5"     % Test,
   "org.scalatest" %% "scalatest"                              % scalatest   % Test,
   "com.github.julien-truffaut" %% "monocle-law"               % monocle     % Test,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.3.2"     % Test,
