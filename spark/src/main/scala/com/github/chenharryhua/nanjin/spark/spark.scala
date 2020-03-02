@@ -1,10 +1,17 @@
 package com.github.chenharryhua.nanjin
 
 import cats.effect.{Async, ContextShift, Sync}
-import com.github.chenharryhua.nanjin.pipes.{AkkaSingleFileSink, SingleFileSink, SingleFileSource}
+import com.github.chenharryhua.nanjin.pipes.{
+  AkkaSingleFileSink,
+  AkkaSingleFileSource,
+  SingleFileSink,
+  SingleFileSource
+}
 import org.apache.spark.sql.SparkSession
+import cats.effect.ConcurrentEffect
 
 package object spark extends DatasetExtensions {
+
   object injection extends InjectionInstances
 
   def fileSource[F[_]: Sync: ContextShift](implicit ss: SparkSession): SingleFileSource[F] =
@@ -13,7 +20,10 @@ package object spark extends DatasetExtensions {
   def fileSink[F[_]: Sync: ContextShift](implicit ss: SparkSession): SingleFileSink[F] =
     new SingleFileSink[F](ss.sparkContext.hadoopConfiguration)
 
-  def akkaFileSink(implicit ss: SparkSession): AkkaSingleFileSink =
-    new AkkaSingleFileSink(ss.sparkContext.hadoopConfiguration)
+  def akkaFileSink[F[_]: ConcurrentEffect](implicit ss: SparkSession): AkkaSingleFileSink[F] =
+    new AkkaSingleFileSink[F](ss.sparkContext.hadoopConfiguration)
+
+  def akkaFileSource[F[_]: ConcurrentEffect](implicit ss: SparkSession): AkkaSingleFileSource[F] =
+    new AkkaSingleFileSource[F](ss.sparkContext.hadoopConfiguration)
 
 }

@@ -1,0 +1,64 @@
+package com.github.chenharryhua.nanjin.pipes
+
+import java.net.URI
+
+import akka.stream.{Attributes, Outlet, SourceShape}
+import akka.stream.scaladsl.Source
+import akka.stream.stage.{GraphStage, GraphStageLogic, OutHandler}
+import cats.effect.ConcurrentEffect
+import cats.implicits._
+import com.sksamuel.avro4s._
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.{FSDataInputStream, FileSystem, Path}
+
+final private class AkkaFileSource[F[_], A: SchemaFor](
+  pathStr: String,
+  hadoopConfig: Configuration,
+  builder: AvroInputStreamBuilder[A])(implicit F: ConcurrentEffect[F])
+    extends GraphStage[SourceShape[A]] {
+
+  private val out: Outlet[A] = Outlet[A]("avro.data.out")
+
+  override val shape: SourceShape[A] = SourceShape(out)
+
+  override def createLogic(inheritedAttributes: Attributes): GraphStageLogic = {
+
+    val fs: FileSystem         = FileSystem.get(new URI(pathStr), hadoopConfig)
+    val fis: FSDataInputStream = fs.open(new Path(pathStr))
+
+    val ais: AvroInputStream[A] =
+      builder.from(fis).build(SchemaFor[A].schema(DefaultFieldMapper))
+
+    val iterator = ais.iterator
+
+    def closeAll(): Unit = {
+      ais.close()
+      fis.close()
+      fs.close()
+    }
+    new GraphStageLogic(shape) with OutHandler {
+
+      setHandler(out, this)
+
+      override def onPull(): Unit =
+        if (iterator.hasNext) emit(out, iterator.next()) else completeStage()
+
+      override def onDownstreamFinish(cause: Throwable): Unit =
+        completeStage()
+
+      override def postStop(): Unit = closeAll()
+    }
+  }
+}
+
+final class AkkaSingleFileSource[F[_]: ConcurrentEffect](configuration: Configuration) {
+
+  def avro[A: Decoder: SchemaFor](pathStr: String) =
+    Source.fromGraph(new AkkaFileSource[F, A](pathStr, configuration, AvroInputStream.data[A]))
+
+  def avroBinary[A: Decoder: SchemaFor](pathStr: String) =
+    Source.fromGraph(new AkkaFileSource[F, A](pathStr, configuration, AvroInputStream.binary[A]))
+
+  def jackson[A: Decoder: SchemaFor](pathStr: String) =
+    Source.fromGraph(new AkkaFileSource[F, A](pathStr, configuration, AvroInputStream.json[A]))
+}
