@@ -10,8 +10,8 @@ import cats.implicits._
 
 object sinks {
 
-  final private class IgnoreSink[F[_], A](implicit F: ConcurrentEffect[F])
-      extends GraphStageWithMaterializedValue[SinkShape[A], F[NotUsed]] {
+  final private class IgnoreSink[F[_]](implicit F: ConcurrentEffect[F])
+      extends GraphStageWithMaterializedValue[SinkShape[Any], F[NotUsed]] {
 
     val in: Inlet[Any]        = Inlet[Any]("Ignore.in")
     val shape: SinkShape[Any] = SinkShape(in)
@@ -39,5 +39,5 @@ object sinks {
       (logic, promise.get.rethrow)
     }
   }
-  def ignore[F[_]: ConcurrentEffect, A]: Sink[A, F[NotUsed]] = Sink.fromGraph(new IgnoreSink[F, A])
+  def ignore[F[_]: ConcurrentEffect]: Sink[Any, F[NotUsed]] = Sink.fromGraph(new IgnoreSink[F])
 }

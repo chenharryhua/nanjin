@@ -5,6 +5,7 @@ import akka.kafka.{
   ConsumerSettings  => AkkaConsumerSettings,
   ProducerSettings  => AkkaProducerSettings
 }
+import akka.stream.Materializer
 import cats.data.{NonEmptyList, Reader}
 import cats.effect._
 import cats.implicits._
@@ -17,6 +18,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.streams.kstream.GlobalKTable
+import fs2.interop.reactivestreams._
 
 object KafkaChannels {
 
@@ -59,7 +61,7 @@ object KafkaChannels {
       }
   }
 
-  final class AkkaChannel[F[_]: ContextShift: Async, K, V] private[kafka] (
+  final class AkkaChannel[F[_]: ContextShift: ConcurrentEffect, K, V] private[kafka] (
     topicName: TopicName,
     producerSettings: AkkaProducerSettings[K, V],
     consumerSettings: AkkaConsumerSettings[Array[Byte], Array[Byte]],
@@ -114,6 +116,10 @@ object KafkaChannels {
     val consume: Source[CommittableMessage[Array[Byte], Array[Byte]], Consumer.Control] =
       akka.kafka.scaladsl.Consumer
         .committableSource(consumerSettings, Subscriptions.topics(topicName.value))
+
+    def fs2Consume(
+      implicit mat: Materializer): Stream[F, CommittableMessage[Array[Byte], Array[Byte]]] =
+      consume.runWith(Sink.asPublisher(fanout = false)).toStream[F]
   }
 
   final class StreamingChannel[K, V] private[kafka] (
