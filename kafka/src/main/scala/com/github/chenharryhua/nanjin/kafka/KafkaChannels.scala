@@ -9,8 +9,9 @@ import akka.stream.Materializer
 import cats.data.{NonEmptyList, Reader}
 import cats.effect._
 import cats.implicits._
+import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.codec.NJSerde
-import com.github.chenharryhua.nanjin.kafka.common.TopicName
+import com.github.chenharryhua.nanjin.kafka.common.{KafkaOffsetRange, TopicName}
 import com.github.chenharryhua.nanjin.utils.Keyboard
 import fs2.Stream
 import fs2.kafka.{ConsumerSettings => Fs2ConsumerSettings, ProducerSettings => Fs2ProducerSettings}
@@ -20,9 +21,11 @@ import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.streams.kstream.GlobalKTable
 import fs2.interop.reactivestreams._
 
+import scala.concurrent.{ExecutionContext, Future}
+
 object KafkaChannels {
 
-  final class Fs2Channel[F[_]: ConcurrentEffect: ContextShift: Timer, K, V] private[kafka] (
+  final class Fs2Channel[F[_]: ContextShift: Timer: ConcurrentEffect, K, V] private[kafka] (
     topicName: TopicName,
     producerSettings: Fs2ProducerSettings[F, K, V],
     consumerSettings: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]]) {
@@ -61,31 +64,33 @@ object KafkaChannels {
       }
   }
 
-  final class AkkaChannel[F[_]: ContextShift: ConcurrentEffect, K, V] private[kafka] (
-    topicName: TopicName,
+  final class AkkaChannel[F[_]: ContextShift, K, V] private[kafka] (
+    kit: KafkaTopicKit[K, V],
     producerSettings: AkkaProducerSettings[K, V],
     consumerSettings: AkkaConsumerSettings[Array[Byte], Array[Byte]],
-    committerSettings: AkkaCommitterSettings) {
+    committerSettings: AkkaCommitterSettings)(implicit F: ConcurrentEffect[F]) {
     import akka.kafka.ConsumerMessage.CommittableMessage
     import akka.kafka.ProducerMessage.Envelope
     import akka.kafka.scaladsl.{Committer, Consumer}
-    import akka.kafka.{ConsumerMessage, ProducerMessage, Subscriptions}
+    import akka.kafka.{AutoSubscription, ConsumerMessage, ProducerMessage, Subscriptions}
     import akka.stream.scaladsl.{Flow, Sink, Source}
     import akka.{Done, NotUsed}
 
+    val topicName = kit.topicName
+
     def withProducerSettings(
       f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): AkkaChannel[F, K, V] =
-      new AkkaChannel(topicName, f(producerSettings), consumerSettings, committerSettings)
+      new AkkaChannel(kit, f(producerSettings), consumerSettings, committerSettings)
 
     def withConsumerSettings(
       f: AkkaConsumerSettings[Array[Byte], Array[Byte]] => AkkaConsumerSettings[
         Array[Byte],
         Array[Byte]]): AkkaChannel[F, K, V] =
-      new AkkaChannel(topicName, producerSettings, f(consumerSettings), committerSettings)
+      new AkkaChannel(kit, producerSettings, f(consumerSettings), committerSettings)
 
     def withCommitterSettings(
       f: AkkaCommitterSettings => AkkaCommitterSettings): AkkaChannel[F, K, V] =
-      new AkkaChannel(topicName, producerSettings, consumerSettings, f(committerSettings))
+      new AkkaChannel(kit, producerSettings, consumerSettings, f(committerSettings))
 
     def flexiFlow[P]: Flow[Envelope[K, V, P], ProducerMessage.Results[K, V, P], NotUsed] =
       akka.kafka.scaladsl.Producer.flexiFlow[K, V, P](producerSettings)
@@ -110,16 +115,34 @@ object KafkaChannels {
 
     def assign(tps: Map[TopicPartition, Long])
       : Source[ConsumerRecord[Array[Byte], Array[Byte]], Consumer.Control] =
-      akka.kafka.scaladsl.Consumer
-        .plainSource(consumerSettings, Subscriptions.assignmentWithOffset(tps))
+      Consumer.plainSource(consumerSettings, Subscriptions.assignmentWithOffset(tps))
 
     val consume: Source[CommittableMessage[Array[Byte], Array[Byte]], Consumer.Control] =
-      akka.kafka.scaladsl.Consumer
-        .committableSource(consumerSettings, Subscriptions.topics(topicName.value))
+      Consumer.committableSource(consumerSettings, Subscriptions.topics(topicName.value))
 
     def fs2Consume(
       implicit mat: Materializer): Stream[F, CommittableMessage[Array[Byte], Array[Byte]]] =
       consume.runWith(Sink.asPublisher(fanout = false)).toStream[F]
+
+    def timeRanged(dateTimeRange: NJDateTimeRange)(implicit mat: Materializer) = {
+      val exec = for {
+        offsetRange <- KafkaConsumerApi[F, K, V](kit)
+          .use(_.offsetRangeFor(dateTimeRange).map(_.flatten[KafkaOffsetRange]))
+      } yield {
+        val size = offsetRange.mapValues(_.distance).value.values.sum
+        val end  = offsetRange.mapValues(_.until.value)
+        println(size)
+        println(end)
+        assign(offsetRange.value.mapValues(_.from.value))
+          .groupBy(8, _.partition())
+          .takeWhile(m => end.get(m.topic, m.partition).exists(m.offset < _))
+          .mergeSubstreams
+          .take(size)
+          .runWith(Sink.asPublisher(fanout = false))
+          .toStream[F]
+      }
+      Stream.force(exec)
+    }
   }
 
   final class StreamingChannel[K, V] private[kafka] (

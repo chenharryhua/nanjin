@@ -41,7 +41,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val kit: KafkaTopicKit[K, V])
 
   def akkaChannel(implicit akkaSystem: ActorSystem): KafkaChannels.AkkaChannel[F, K, V] =
     new KafkaChannels.AkkaChannel[F, K, V](
-      kit.topicDef.topicName,
+      kit,
       kit.akkaProducerSettings(akkaSystem),
       kit.akkaConsumerSettings(akkaSystem),
       kit.akkaCommitterSettings(akkaSystem))
