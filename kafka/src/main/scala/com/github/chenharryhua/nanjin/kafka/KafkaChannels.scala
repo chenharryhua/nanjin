@@ -11,7 +11,11 @@ import cats.effect._
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.codec.NJSerde
-import com.github.chenharryhua.nanjin.kafka.common.{KafkaOffsetRange, TopicName}
+import com.github.chenharryhua.nanjin.kafka.common.{
+  KafkaOffsetRange,
+  KafkaTopicPartition,
+  TopicName
+}
 import fs2.Stream
 import fs2.interop.reactivestreams._
 import fs2.kafka.{ConsumerSettings => Fs2ConsumerSettings, ProducerSettings => Fs2ProducerSettings}
@@ -114,22 +118,25 @@ object KafkaChannels {
       implicit mat: Materializer): Stream[F, CommittableMessage[Array[Byte], Array[Byte]]] =
       source.runWith(Sink.asPublisher(fanout = false)).toStream[F]
 
+    def offsetRanged(offsetRange: KafkaTopicPartition[KafkaOffsetRange])(
+      implicit mat: Materializer): Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]] = {
+      val totalSize   = offsetRange.mapValues(_.distance).value.values.sum
+      val endPosition = offsetRange.mapValues(_.until.value)
+      assign(offsetRange.value.mapValues(_.from.value))
+        .groupBy(8, _.partition)
+        .takeWhile(m => endPosition.get(m.topic, m.partition).exists(m.offset < _))
+        .mergeSubstreams
+        .take(totalSize)
+        .runWith(Sink.asPublisher(fanout = false))
+        .toStream[F]
+    }
+
     def timeRanged(dateTimeRange: NJDateTimeRange)(
       implicit mat: Materializer): Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]] = {
       val exec: F[Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]]] =
         KafkaConsumerApi[F, K, V](kit)
           .use(_.offsetRangeFor(dateTimeRange).map(_.flatten[KafkaOffsetRange]))
-          .map { offsetRange =>
-            val totalSize   = offsetRange.mapValues(_.distance).value.values.sum
-            val endPosition = offsetRange.mapValues(_.until.value)
-            assign(offsetRange.value.mapValues(_.from.value))
-              .groupBy(8, _.partition)
-              .takeWhile(m => endPosition.get(m.topic, m.partition).exists(m.offset < _))
-              .mergeSubstreams
-              .take(totalSize)
-              .runWith(Sink.asPublisher(fanout = false))
-              .toStream[F]
-          }
+          .map(offsetRanged)
       Stream.force(exec)
     }
   }
