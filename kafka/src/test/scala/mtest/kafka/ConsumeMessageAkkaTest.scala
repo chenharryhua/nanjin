@@ -7,6 +7,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka._
 import com.github.chenharryhua.nanjin.kafka.common.KafkaOffset
 import org.scalatest.funsuite.AnyFunSuite
+import cats.effect.IO
 
 class ConsumeMessageAkkaTest extends AnyFunSuite {
 
@@ -24,7 +25,7 @@ class ConsumeMessageAkkaTest extends AnyFunSuite {
       .map(_.show)
       .map(println)
       .take(1)
-      .runWith(chn.ignoreSink)
+      .runWith(akkaSinks.ignore[IO])
 
     run.unsafeRunSync()
   }
@@ -39,7 +40,7 @@ class ConsumeMessageAkkaTest extends AnyFunSuite {
         .map(m => topic.decoder(m).decode)
         .map(_.show)
         .take(1)
-        .runWith(chn.ignoreSink)
+        .runWith(akkaSinks.ignore[IO])
     } yield ()
     ret.unsafeRunSync
   }
