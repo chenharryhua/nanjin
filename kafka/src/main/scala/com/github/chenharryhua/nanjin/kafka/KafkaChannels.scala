@@ -123,7 +123,7 @@ object KafkaChannels {
       val totalSize   = offsetRange.mapValues(_.distance).value.values.sum
       val endPosition = offsetRange.mapValues(_.until.value)
       assign(offsetRange.value.mapValues(_.from.value))
-        .groupBy(8, _.partition)
+        .groupBy(maxSubstreams = 8, _.partition)
         .takeWhile(m => endPosition.get(m.topic, m.partition).exists(m.offset < _))
         .mergeSubstreams
         .take(totalSize)
