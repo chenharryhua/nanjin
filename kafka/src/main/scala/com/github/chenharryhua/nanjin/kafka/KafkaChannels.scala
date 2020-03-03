@@ -12,7 +12,6 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.codec.NJSerde
 import com.github.chenharryhua.nanjin.kafka.common.{KafkaOffsetRange, TopicName}
-import com.github.chenharryhua.nanjin.utils.Keyboard
 import fs2.Stream
 import fs2.interop.reactivestreams._
 import fs2.kafka.{ConsumerSettings => Fs2ConsumerSettings, ProducerSettings => Fs2ProducerSettings}
@@ -51,15 +50,11 @@ object KafkaChannels {
 
     def assign(tps: Map[TopicPartition, Long])
       : Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
-      Keyboard.signal.flatMap { signal =>
-        consumerStream[F, Array[Byte], Array[Byte]](consumerSettings).evalTap { c =>
-          c.assign(topicName.value) *> tps.toList.traverse {
-            case (tp, offset) => c.seek(tp, offset)
-          }
-        }.flatMap(_.stream)
-          .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
-          .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
-      }
+      consumerStream[F, Array[Byte], Array[Byte]](consumerSettings).evalTap { c =>
+        c.assign(topicName.value) *> tps.toList.traverse {
+          case (tp, offset) => c.seek(tp, offset)
+        }
+      }.flatMap(_.stream)
   }
 
   final class AkkaChannel[F[_]: ContextShift, K, V] private[kafka] (
