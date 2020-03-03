@@ -107,16 +107,21 @@ sealed trait KafkaConsumerApi[F[_]] extends KafkaPrimitiveConsumerApi[F] {
 
 object KafkaConsumerApi {
 
-  def apply[F[_]: Sync, K, V](kit: KafkaTopicKit[K, V]): Resource[F, KafkaConsumerApi[F]] =
+  def apply[F[_]: Sync](
+    topicName: TopicName,
+    consumerSettings: KafkaConsumerSettings): Resource[F, KafkaConsumerApi[F]] =
     Resource
       .make(Sync[F].delay {
         val byteArrayDeserializer = new ByteArrayDeserializer
         new KafkaConsumer[Array[Byte], Array[Byte]](
-          kit.settings.consumerSettings.javaProperties,
+          consumerSettings.javaProperties,
           byteArrayDeserializer,
           byteArrayDeserializer)
       })(a => Sync[F].delay(a.close()))
-      .map(new KafkaConsumerApiImpl(kit.topicDef.topicName, _))
+      .map(new KafkaConsumerApiImpl(topicName, _))
+
+  def apply[F[_]: Sync, K, V](kit: KafkaTopicKit[K, V]): Resource[F, KafkaConsumerApi[F]] =
+    apply[F](kit.topicName, kit.settings.consumerSettings)
 
   final private[this] class KafkaConsumerApiImpl[F[_]: Sync](
     topicName: TopicName,
