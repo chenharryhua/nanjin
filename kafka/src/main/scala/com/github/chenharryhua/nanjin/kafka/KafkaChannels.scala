@@ -69,7 +69,7 @@ object KafkaChannels {
     committerSettings: AkkaCommitterSettings)(implicit F: ConcurrentEffect[F]) {
     import akka.kafka.ConsumerMessage.CommittableMessage
     import akka.kafka.ProducerMessage.Envelope
-    import akka.kafka.scaladsl.{Committer, Consumer}
+    import akka.kafka.scaladsl.{Committer, Consumer, Producer}
     import akka.kafka.{ConsumerMessage, ProducerMessage, Subscriptions}
     import akka.stream.scaladsl.{Flow, Sink, Source}
     import akka.{Done, NotUsed}
@@ -91,15 +91,15 @@ object KafkaChannels {
       new AkkaChannel(kit, producerSettings, consumerSettings, f(committerSettings))
 
     def flexiFlow[P]: Flow[Envelope[K, V, P], ProducerMessage.Results[K, V, P], NotUsed] =
-      akka.kafka.scaladsl.Producer.flexiFlow[K, V, P](producerSettings)
+      Producer.flexiFlow[K, V, P](producerSettings)
 
     val committableSink: Sink[Envelope[K, V, ConsumerMessage.Committable], F[Done]] =
-      akka.kafka.scaladsl.Producer
+      Producer
         .committableSink(producerSettings, committerSettings)
         .mapMaterializedValue(f => Async.fromFuture(Async[F].pure(f)))
 
     val plainSink: Sink[ProducerRecord[K, V], F[Done]] =
-      akka.kafka.scaladsl.Producer
+      Producer
         .plainSink(producerSettings)
         .mapMaterializedValue(f => Async.fromFuture(Async[F].pure(f)))
 
@@ -107,9 +107,6 @@ object KafkaChannels {
       Committer
         .sink(committerSettings)
         .mapMaterializedValue(f => Async.fromFuture(Async[F].pure(f)))
-
-    def ignoreSink[A]: Sink[A, F[Done]] =
-      Sink.ignore.mapMaterializedValue(f => Async.fromFuture(Async[F].pure(f)))
 
     def assign(tps: Map[TopicPartition, Long])
       : Source[ConsumerRecord[Array[Byte], Array[Byte]], Consumer.Control] =

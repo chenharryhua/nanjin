@@ -43,9 +43,6 @@ final private class AkkaFileSource[A: SchemaFor](
       override def onPull(): Unit =
         if (iterator.hasNext) emit(out, iterator.next()) else completeStage()
 
-      override def onDownstreamFinish(cause: Throwable): Unit =
-        completeStage()
-
       override def postStop(): Unit = closeAll()
     }
   }

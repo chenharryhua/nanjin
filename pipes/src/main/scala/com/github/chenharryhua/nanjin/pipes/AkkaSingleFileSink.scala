@@ -30,7 +30,7 @@ final private class AkkaFileSink[F[_], A: SchemaFor: AvroEncoder](
 
   override def createLogicAndMaterializedValue(
     inheritedAttributes: Attributes): (GraphStageLogic, F[NotUsed]) = {
-    val deferred = Deferred.unsafe[F, Either[Exception, NotUsed]]
+    val deferred = Deferred.unsafe[F, Either[Throwable, NotUsed]]
     val logic: GraphStageLogic with InHandler = new GraphStageLogic(shape) with InHandler {
       private val fs: FileSystem          = FileSystem.get(new URI(pathStr), hadoopConfig)
       private val fos: FSDataOutputStream = fs.create(new Path(pathStr))
@@ -54,7 +54,7 @@ final private class AkkaFileSink[F[_], A: SchemaFor: AvroEncoder](
       }
 
       override def onUpstreamFailure(t: Throwable): Unit = {
-        F.toIO(deferred.complete(Left(new Exception("upstream failure")))).unsafeRunSync()
+        F.toIO(deferred.complete(Left(t))).unsafeRunSync()
         failStage(t)
       }
 

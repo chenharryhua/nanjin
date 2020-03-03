@@ -8,7 +8,7 @@ import cats.effect.ConcurrentEffect
 import cats.effect.concurrent.Deferred
 import cats.implicits._
 
-object sinks {
+object akkaSinks {
 
   final private class IgnoreSink[F[_]](implicit F: ConcurrentEffect[F])
       extends GraphStageWithMaterializedValue[SinkShape[Any], F[NotUsed]] {
