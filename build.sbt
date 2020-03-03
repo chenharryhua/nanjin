@@ -52,7 +52,7 @@ val flinkVersion = "1.10.0"
 
 val hadoopVersion = "3.2.1"
 
-val awsVersion = "1.11.734"
+val awsVersion = "1.11.735"
 
 lazy val commonSettings = Seq(
   organization := "com.github.chenharryhua",
@@ -200,7 +200,7 @@ val tests = Seq(
   "org.typelevel" %% "cats-testkit-scalatest"                 % "1.0.1"     % Test,
   "org.typelevel" %% "discipline-scalatest"                   % "1.0.1"     % Test,
   "org.typelevel" %% "cats-laws"                              % catsCore    % Test,
-  "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.4"     % Test,
+  "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.5"     % Test,
   "org.scalatest" %% "scalatest"                              % scalatest   % Test,
   "com.github.julien-truffaut" %% "monocle-law"               % monocle     % Test,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.3.2"     % Test,
