@@ -29,7 +29,7 @@ class DecimalTopicTest extends AnyFunSuite {
     topic.send(1, data) >> topic.send(2, data)).unsafeRunSync()
 
   test("kafka and spark agree on avro") {
-    topic.fs2Channel.consume
+    topic.fs2Channel.stream
       .map(m => topic.decoder(m).record)
       .take(2)
       .through(fileSink[IO].avro[NJConsumerRecord[Int, HasDecimal]]("./data/test/decimal.avro"))

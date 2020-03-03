@@ -20,7 +20,7 @@ class MonixTest extends AnyFunSuite {
   test("monix should just work") {
     val topic = TopicDef[String, trip_record]("nyc_yellow_taxi_trip_data").in(ctx)
     val task =
-      topic.fs2Channel.consume
+      topic.fs2Channel.stream
         .map(m => topic.decoder(m).logRecord.run)
         .take(3)
         .map(println)

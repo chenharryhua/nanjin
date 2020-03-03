@@ -20,7 +20,7 @@ class ConsumeMessageAkkaTest extends AnyFunSuite {
     val run = chn
       .withConsumerSettings(_.withClientId("c-id"))
       .withCommitterSettings(_.withParallelism(10))
-      .consume
+      .source
       .map(m => topic.decoder(m).decodeValue)
       .map(_.show)
       .map(println)

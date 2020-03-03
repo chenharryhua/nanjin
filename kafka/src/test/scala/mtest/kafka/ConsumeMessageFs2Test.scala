@@ -23,7 +23,7 @@ class ConsumeMessageFs2Test extends AnyFunSuite {
     val ret =
       topic.fs2Channel
         .withConsumerSettings(_.withAutoOffsetReset(AutoOffsetReset.Earliest))
-        .consume
+        .stream
         .map(m => topic.decoder(m).tryDecodeKeyValue)
         .take(1)
         .map(_.show)
@@ -36,7 +36,7 @@ class ConsumeMessageFs2Test extends AnyFunSuite {
 
   test("should be able to consume avro topic") {
     val topic = ctx.topic(nyc_taxi_trip)
-    val ret = topic.fs2Channel.consume
+    val ret = topic.fs2Channel.stream
       .map(m => topic.decoder(m).decodeValue)
       .take(1)
       .map(_.show)
@@ -49,7 +49,7 @@ class ConsumeMessageFs2Test extends AnyFunSuite {
 
   test("should be able to consume telecom_italia_data topic") {
     val topic = sms.in(ctx)
-    val ret = topic.fs2Channel.consume
+    val ret = topic.fs2Channel.stream
       .map(m => topic.decoder(m).tryDecode)
       .map(_.toEither)
       .rethrow
