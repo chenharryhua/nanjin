@@ -37,7 +37,7 @@ class ProducerTest extends AnyFunSuite {
           _.withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
             .withGroupId("akka-task")
             .withCommitWarning(10.seconds))
-        .consume
+        .source
         .map(m => akkaTopic.decoder(m).decode)
         .map(m =>
           akkaTopic.kit.akkaProducerRecords(m.record.key, m.record.value, m.committableOffset))
@@ -47,7 +47,7 @@ class ProducerTest extends AnyFunSuite {
     val fs2Task: IO[Unit] = srcTopic.fs2Channel
       .withConsumerSettings(
         _.withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest").withGroupId("fs2-task"))
-      .consume
+      .stream
       .map(m => srcTopic.decoder(m).decode)
       .map(m => Fs2ProducerRecords.one(fs2Topic.fs2PR(m.record.key, m.record.value), m.offset))
       .take(100)

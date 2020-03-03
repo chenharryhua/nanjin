@@ -50,7 +50,7 @@ object KafkaMonitoringApi {
       Keyboard.signal.flatMap { signal =>
         fs2Channel
           .withConsumerSettings(_.withAutoOffsetReset(aor))
-          .consume
+          .stream
           .map { m =>
             val (err, r) = topic.kit.decoder(m).logRecord.run
             err.map(e => pprint.pprintln(e))
@@ -69,7 +69,7 @@ object KafkaMonitoringApi {
       Keyboard.signal.flatMap { signal =>
         fs2Channel
           .withConsumerSettings(_.withAutoOffsetReset(aor))
-          .consume
+          .stream
           .filter(m =>
             predict(iso.isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record)))
           .map(m => topic.kit.toJackson(m).spaces2)
@@ -133,7 +133,7 @@ object KafkaMonitoringApi {
     override def carbonCopyTo(other: KafkaTopicKit[K, V]): F[Unit] = {
       val run = for {
         signal <- Keyboard.signal
-        _ <- fs2Channel.consume.map { m =>
+        _ <- fs2Channel.stream.map { m =>
           val cr = other.decoder(m).nullableDecode.record
           val ts = cr.timestamp.createTime.orElse(
             cr.timestamp.logAppendTime.orElse(cr.timestamp.unknownTime))

@@ -43,7 +43,7 @@ object KafkaChannels {
     val producerStream: Stream[F, KafkaProducer[F, K, V]] =
       fs2.kafka.producerStream[F, K, V](producerSettings)
 
-    val consume: Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
+    val stream: Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
       consumerStream[F, Array[Byte], Array[Byte]](consumerSettings)
         .evalTap(_.subscribe(NonEmptyList.of(topicName.value)))
         .flatMap(_.stream)
@@ -107,29 +107,29 @@ object KafkaChannels {
       : Source[ConsumerRecord[Array[Byte], Array[Byte]], Consumer.Control] =
       Consumer.plainSource(consumerSettings, Subscriptions.assignmentWithOffset(tps))
 
-    val consume: Source[CommittableMessage[Array[Byte], Array[Byte]], Consumer.Control] =
+    val source: Source[CommittableMessage[Array[Byte], Array[Byte]], Consumer.Control] =
       Consumer.committableSource(consumerSettings, Subscriptions.topics(topicName.value))
 
-    def fs2Consume(
+    def stream(
       implicit mat: Materializer): Stream[F, CommittableMessage[Array[Byte], Array[Byte]]] =
-      consume.runWith(Sink.asPublisher(fanout = false)).toStream[F]
+      source.runWith(Sink.asPublisher(fanout = false)).toStream[F]
 
     def timeRanged(dateTimeRange: NJDateTimeRange)(
       implicit mat: Materializer): Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]] = {
-      val exec = for {
-        offsetRange <- KafkaConsumerApi[F, K, V](kit)
+      val exec: F[Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]]] =
+        KafkaConsumerApi[F, K, V](kit)
           .use(_.offsetRangeFor(dateTimeRange).map(_.flatten[KafkaOffsetRange]))
-      } yield {
-        val totalSize   = offsetRange.mapValues(_.distance).value.values.sum
-        val endPosition = offsetRange.mapValues(_.until.value)
-        assign(offsetRange.value.mapValues(_.from.value))
-          .groupBy(8, _.partition)
-          .takeWhile(m => endPosition.get(m.topic, m.partition).exists(m.offset < _))
-          .mergeSubstreams
-          .take(totalSize)
-          .runWith(Sink.asPublisher(fanout = false))
-          .toStream[F]
-      }
+          .map { offsetRange =>
+            val totalSize   = offsetRange.mapValues(_.distance).value.values.sum
+            val endPosition = offsetRange.mapValues(_.until.value)
+            assign(offsetRange.value.mapValues(_.from.value))
+              .groupBy(8, _.partition)
+              .takeWhile(m => endPosition.get(m.topic, m.partition).exists(m.offset < _))
+              .mergeSubstreams
+              .take(totalSize)
+              .runWith(Sink.asPublisher(fanout = false))
+              .toStream[F]
+          }
       Stream.force(exec)
     }
   }
