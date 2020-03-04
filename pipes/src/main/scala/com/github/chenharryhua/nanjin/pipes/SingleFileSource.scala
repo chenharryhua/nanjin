@@ -7,6 +7,7 @@ import cats.implicits._
 import com.sksamuel.avro4s.{
   AvroInputStream,
   AvroInputStreamBuilder,
+  DefaultFieldMapper,
   SchemaFor,
   Decoder => AvroDecoder
 }
@@ -15,28 +16,39 @@ import fs2.io.readInputStream
 import io.circe.parser.decode
 import io.circe.syntax._
 import io.circe.{Decoder => JsonDecoder}
+import org.apache.avro.Schema
 import org.apache.hadoop.conf.Configuration
 
 final class SingleFileSource[F[_]: ContextShift: Sync](hadoopConfiguration: Configuration) {
 
-  private def source[A: SchemaFor: AvroDecoder](
+  private def source[A: AvroDecoder](
     pathStr: String,
+    schema: Schema,
     builder: AvroInputStreamBuilder[A]): Stream[F, A] =
     for {
       blocker <- Stream.resource(Blocker[F])
       ais <- Stream.resource(
-        hadoop.avroInputResource(pathStr, hadoopConfiguration, builder, blocker))
+        hadoop.avroInputResource(pathStr, schema, hadoopConfiguration, builder, blocker))
       data <- Stream.fromIterator(ais.iterator)
     } yield data
 
+  def avro[A: AvroDecoder](pathStr: String, schema: Schema): Stream[F, A] =
+    source[A](pathStr, schema, AvroInputStream.data[A])
+
   def avro[A: SchemaFor: AvroDecoder](pathStr: String): Stream[F, A] =
-    source[A](pathStr, AvroInputStream.data[A])
+    avro(pathStr, SchemaFor[A].schema(DefaultFieldMapper))
+
+  def jackson[A: AvroDecoder](pathStr: String, schema: Schema): Stream[F, A] =
+    source[A](pathStr, schema, AvroInputStream.json[A])
 
   def jackson[A: SchemaFor: AvroDecoder](pathStr: String): Stream[F, A] =
-    source[A](pathStr, AvroInputStream.json[A])
+    jackson(pathStr, SchemaFor[A].schema(DefaultFieldMapper))
+
+  def avroBinary[A: AvroDecoder](pathStr: String, schema: Schema): Stream[F, A] =
+    source[A](pathStr, schema, AvroInputStream.binary[A])
 
   def avroBinary[A: SchemaFor: AvroDecoder](pathStr: String): Stream[F, A] =
-    source[A](pathStr, AvroInputStream.binary[A])
+    avroBinary(pathStr, SchemaFor[A].schema(DefaultFieldMapper))
 
   def json[A: JsonDecoder](pathStr: String): Stream[F, A] =
     for {

@@ -7,6 +7,7 @@ import cats.implicits._
 import com.sksamuel.avro4s.{
   AvroOutputStream,
   AvroOutputStreamBuilder,
+  DefaultFieldMapper,
   SchemaFor,
   Encoder => AvroEncoder
 }
@@ -15,29 +16,34 @@ import fs2.{Pipe, Stream}
 import io.circe.syntax._
 import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.{rfc, CsvConfiguration, HeaderEncoder}
+import org.apache.avro.Schema
 import org.apache.hadoop.conf.Configuration
 
 final class SingleFileSink[F[_]: ContextShift: Sync](hadoopConfiguration: Configuration) {
 
-  private def sink[A: SchemaFor](
+  private def sink[A](
     pathStr: String,
+    schema: Schema,
     builder: AvroOutputStreamBuilder[A]): Pipe[F, A, Unit] = { sa: Stream[F, A] =>
     for {
       blocker <- Stream.resource(Blocker[F])
       aos <- Stream.resource(
-        hadoop.avroOutputResource[F, A](pathStr, hadoopConfiguration, builder, blocker))
+        hadoop.avroOutputResource[F, A](pathStr, schema, hadoopConfiguration, builder, blocker))
       data <- sa.chunks
     } yield data.foreach(aos.write)
   }
 
+  def avro[A: AvroEncoder](pathStr: String, schema: Schema): Pipe[F, A, Unit] =
+    sink(pathStr, schema, AvroOutputStream.data[A])
+
   def avro[A: SchemaFor: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
-    sink(pathStr, AvroOutputStream.data[A])
+    avro(pathStr, SchemaFor[A].schema(DefaultFieldMapper))
 
   def jackson[A: SchemaFor: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
-    sink(pathStr, AvroOutputStream.json[A])
+    sink(pathStr, SchemaFor[A].schema(DefaultFieldMapper), AvroOutputStream.json[A])
 
   def avroBinary[A: SchemaFor: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
-    sink(pathStr, AvroOutputStream.binary[A])
+    sink(pathStr, SchemaFor[A].schema(DefaultFieldMapper), AvroOutputStream.binary[A])
 
   def json[A: JsonEncoder](pathStr: String): Pipe[F, A, Unit] = { as =>
     for {
