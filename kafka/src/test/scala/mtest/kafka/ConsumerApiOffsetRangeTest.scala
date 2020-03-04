@@ -22,7 +22,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
   val pr2: ProducerRecord[Int, Int] = topic.fs2PR(2, 2).withTimestamp(200)
   val pr3: ProducerRecord[Int, Int] = topic.fs2PR(3, 3).withTimestamp(300)
 
-  (topic.admin.IdefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
+  (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
     topic.send(pr1) >> topic.send(pr2) >> topic.send(pr3)).unsafeRunSync()
 
   test("start and end are both in range - both valid") {

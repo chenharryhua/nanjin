@@ -14,7 +14,7 @@ import org.apache.avro.Schema
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataOutputStream, FileSystem, Path}
 
-final private class AkkaFileSink[F[_], A: AvroEncoder](
+final private class AkkaFileSink[F[_], A](
   pathStr: String,
   schema: Schema,
   hadoopConfig: Configuration,

@@ -24,7 +24,7 @@ class DecimalTopicTest extends AnyFunSuite {
   implicit val sp           = ScalePrecision(10, 20)
   implicit val roundingMode = RoundingMode.HALF_UP
   val topic                 = ctx.topic[Int, HasDecimal]("decimal.test")
-  (topic.admin.IdefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
+  (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
     topic.schemaRegistry.register >>
     topic.send(1, data) >> topic.send(2, data)).unsafeRunSync()
 

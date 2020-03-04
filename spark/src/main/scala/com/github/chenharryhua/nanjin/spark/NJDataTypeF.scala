@@ -80,6 +80,7 @@ private[spark] object NJDataTypeF {
          |""".stripMargin
   }
 
+  @SuppressWarnings(Array("SuspiciousMatchOnClassObject"))
   private val coalgebra: Coalgebra[NJDataTypeF, DataType] = Coalgebra[NJDataTypeF, DataType] {
     case ByteType         => NJByteType()
     case ShortType        => NJShortType()
