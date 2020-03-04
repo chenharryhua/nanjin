@@ -1,10 +1,8 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import java.io.{FileOutputStream, OutputStream}
-import java.nio.file.Paths
 import java.time.ZonedDateTime
 
-import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Resource}
+import cats.effect.{ConcurrentEffect, ContextShift}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.codec.NJConsumerMessage._
@@ -141,7 +139,7 @@ object KafkaMonitoringApi {
             .withHeaders(cr.headers)
             .withPartition(cr.partition)
           ProducerRecords.one(ts.fold(pr)(pr.withTimestamp))
-        }.through(produce(other.fs2ProducerSettings))
+        }.through(produce[F, K, V, Unit](other.fs2ProducerSettings[F]))
           .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
           .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
       } yield ()

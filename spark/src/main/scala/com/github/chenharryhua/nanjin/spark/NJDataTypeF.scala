@@ -1,10 +1,10 @@
 package com.github.chenharryhua.nanjin.spark
 
 import cats.Functor
-import org.apache.spark.sql.types._
 import cats.implicits._
-import higherkindness.droste.{scheme, Algebra, Coalgebra}
 import higherkindness.droste.data.Fix
+import higherkindness.droste.{scheme, Algebra, Coalgebra}
+import org.apache.spark.sql.types._
 
 sealed private[spark] trait NJDataTypeF[A]
 
@@ -29,9 +29,9 @@ private[spark] object NJDataTypeF {
     private val dt: String = stringify(dataType)
 
     val optionalFieldStr: String =
-      s"""  ${colName}:${if (nullable) s"Option[$dt]" else dt}"""
+      s"""  $colName:${if (nullable) s"Option[$dt]" else dt}"""
 
-    val fieldStr: String = s"""  ${colName}:$dt"""
+    val fieldStr: String = s"""  $colName:$dt"""
   }
 
   final case class NJStructType[K](fields: List[NJStructField]) extends NJDataTypeF[K]
@@ -68,9 +68,9 @@ private[spark] object NJDataTypeF {
     case NJBooleanType()     => "Boolean"
     case NJBinaryType()      => "Array[Byte]"
     case NJTimestampType()   => "java.sql.Timestamp"
-    case NJDecimalType(p, s) => "BigDecimal"
+    case NJDecimalType(_, _) => "BigDecimal"
 
-    case NJArrayType(c, dt) => s"Array[$dt]"
+    case NJArrayType(_, dt) => s"Array[$dt]"
     case NJMapType(k, v)    => s"Map[${stringify(k)},${stringify(v)}]"
     case NJStructType(fields) =>
       s"""
@@ -94,7 +94,7 @@ private[spark] object NJDataTypeF {
     case TimestampType    => NJTimestampType()
     case DecimalType()    => NJDecimalType(38, 18)
     case ArrayType(dt, c) => NJArrayType(c, dt)
-    case MapType(k, v, c) => NJMapType(ana(k), ana(v))
+    case MapType(k, v, _) => NJMapType(ana(k), ana(v))
     case StructType(fields) =>
       NJStructType(fields.toList.map(st => NJStructField(st.name, ana(st.dataType), st.nullable)))
 
