@@ -33,7 +33,7 @@ package object pipes {
   def csvEncode[F[_], A: RowEncoder]: Pipe[F, A, Seq[String]] =
     (ss: Stream[F, A]) => ss.map(RowEncoder[A].encode)
 
-  def jacksonDecode[F[_]: RaiseThrowable, A: AvroDecoder: SchemaFor]: Pipe[F, String, A] =
+  def jacksonDecode[F[_], A: AvroDecoder: SchemaFor]: Pipe[F, String, A] =
     (ss: Stream[F, String]) =>
       ss.map(m =>
         AvroInputStream
@@ -56,7 +56,7 @@ package object pipes {
             .as(os.toString))(a => F.delay(a.close()))
       }
 
-  def avroDecode[F[_]: RaiseThrowable, A: AvroDecoder: SchemaFor]: Pipe[F, GenericRecord, A] =
+  def avroDecode[F[_], A: AvroDecoder: SchemaFor]: Pipe[F, GenericRecord, A] =
     (ss: Stream[F, GenericRecord]) =>
       ss.map(m =>
         AvroDecoder[A].decode(m, SchemaFor[A].schema(DefaultFieldMapper), DefaultFieldMapper))

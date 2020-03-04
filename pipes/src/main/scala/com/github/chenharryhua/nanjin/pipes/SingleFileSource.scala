@@ -21,7 +21,7 @@ import org.apache.hadoop.conf.Configuration
 
 final class SingleFileSource[F[_]: ContextShift: Sync](hadoopConfiguration: Configuration) {
 
-  private def source[A: AvroDecoder](
+  private def source[A](
     pathStr: String,
     schema: Schema,
     builder: AvroInputStreamBuilder[A]): Stream[F, A] =
