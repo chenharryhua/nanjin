@@ -37,6 +37,17 @@ final class FsmRddKafka[F[_], K, V](
       .drain
   }
 
+  def saveAvro(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
+    import kit.topicDef.{avroKeyEncoder, avroValEncoder}
+    sorted
+      .stream[F]
+      .through(
+        fileSink[F]
+          .avro[NJConsumerRecord[K, V]](sk.jacksonPath(kit.topicName), kit.topicDef.njSchema))
+      .compile
+      .drain
+  }
+
   def count: Long = rdd.count()
 
   def crDataset(

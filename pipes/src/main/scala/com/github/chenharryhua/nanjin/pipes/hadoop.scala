@@ -5,8 +5,14 @@ import java.net.URI
 
 import cats.effect.{Blocker, ContextShift, Resource, Sync}
 import cats.implicits._
-import com.sksamuel.avro4s._
+import com.sksamuel.avro4s.{
+  AvroInputStream,
+  AvroInputStreamBuilder,
+  AvroOutputStream,
+  AvroOutputStreamBuilder
+}
 import kantan.csv.{CsvConfiguration, CsvWriter, HeaderEncoder}
+import org.apache.avro.Schema
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataInputStream, FSDataOutputStream, FileSystem, Path}
 
@@ -27,15 +33,15 @@ object hadoop {
       rs <- Resource.fromAutoCloseable(blocker.delay(fs.create(new Path(pathStr))))
     } yield rs
 
-  def avroOutputResource[F[_]: Sync: ContextShift, A: SchemaFor](
+  def avroOutputResource[F[_]: Sync: ContextShift, A](
     pathStr: String,
+    schema: Schema,
     hadoopConfig: Configuration,
     builder: AvroOutputStreamBuilder[A],
     blocker: Blocker): Resource[F, AvroOutputStream[A]] =
     for {
       os <- outputPathResource(pathStr, hadoopConfig, blocker)
-      rs <- Resource.fromAutoCloseable(
-        Sync[F].pure(builder.to(os).build(SchemaFor[A].schema(DefaultFieldMapper))))
+      rs <- Resource.fromAutoCloseable(Sync[F].pure(builder.to(os).build(schema)))
     } yield rs
 
   def csvOutputResource[F[_]: Sync: ContextShift, A: HeaderEncoder](
@@ -59,15 +65,15 @@ object hadoop {
       rs <- Resource.fromAutoCloseable(blocker.delay(fs.open(new Path(pathStr))))
     } yield rs
 
-  def avroInputResource[F[_]: Sync: ContextShift, A: SchemaFor](
+  def avroInputResource[F[_]: Sync: ContextShift, A](
     pathStr: String,
+    schema: Schema,
     hadoopConfig: Configuration,
     builder: AvroInputStreamBuilder[A],
     blocker: Blocker): Resource[F, AvroInputStream[A]] =
     for {
       is <- inputPathResource(pathStr, hadoopConfig, blocker)
-      rs <- Resource.fromAutoCloseable(
-        Sync[F].pure(builder.from(is).build(SchemaFor[A].schema(DefaultFieldMapper))))
+      rs <- Resource.fromAutoCloseable(Sync[F].pure(builder.from(is).build(schema)))
     } yield rs
 
   def delete[F[_]: Sync: ContextShift](

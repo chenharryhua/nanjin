@@ -7,12 +7,14 @@ import akka.stream.scaladsl.Source
 import akka.stream.stage.{GraphStage, GraphStageLogic, OutHandler}
 import akka.stream.{Attributes, Outlet, SourceShape}
 import cats.implicits._
-import com.sksamuel.avro4s._
+import com.sksamuel.avro4s.{AvroInputStream, AvroInputStreamBuilder, Decoder}
+import org.apache.avro.Schema
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataInputStream, FileSystem, Path}
 
-final private class AkkaFileSource[A: SchemaFor](
+final private class AkkaFileSource[A](
   pathStr: String,
+  schema: Schema,
   hadoopConfig: Configuration,
   builder: AvroInputStreamBuilder[A])
     extends GraphStage[SourceShape[A]] {
@@ -23,11 +25,9 @@ final private class AkkaFileSource[A: SchemaFor](
 
   override def createLogic(inheritedAttributes: Attributes): GraphStageLogic = {
 
-    val fs: FileSystem         = FileSystem.get(new URI(pathStr), hadoopConfig)
-    val fis: FSDataInputStream = fs.open(new Path(pathStr))
-
-    val ais: AvroInputStream[A] =
-      builder.from(fis).build(SchemaFor[A].schema(DefaultFieldMapper))
+    val fs: FileSystem          = FileSystem.get(new URI(pathStr), hadoopConfig)
+    val fis: FSDataInputStream  = fs.open(new Path(pathStr))
+    val ais: AvroInputStream[A] = builder.from(fis).build(schema)
 
     val iterator = ais.iterator
 
@@ -50,12 +50,13 @@ final private class AkkaFileSource[A: SchemaFor](
 
 final class AkkaSingleFileSource(configuration: Configuration) {
 
-  def avro[A: Decoder: SchemaFor](pathStr: String): Source[A, NotUsed] =
-    Source.fromGraph(new AkkaFileSource[A](pathStr, configuration, AvroInputStream.data[A]))
+  def avro[A: Decoder](pathStr: String, schema: Schema): Source[A, NotUsed] =
+    Source.fromGraph(new AkkaFileSource[A](pathStr, schema, configuration, AvroInputStream.data[A]))
 
-  def avroBinary[A: Decoder: SchemaFor](pathStr: String): Source[A, NotUsed] =
-    Source.fromGraph(new AkkaFileSource[A](pathStr, configuration, AvroInputStream.binary[A]))
+  def avroBinary[A: Decoder](pathStr: String, schema: Schema): Source[A, NotUsed] =
+    Source.fromGraph(
+      new AkkaFileSource[A](pathStr, schema, configuration, AvroInputStream.binary[A]))
 
-  def jackson[A: Decoder: SchemaFor](pathStr: String): Source[A, NotUsed] =
-    Source.fromGraph(new AkkaFileSource[A](pathStr, configuration, AvroInputStream.json[A]))
+  def jackson[A: Decoder](pathStr: String, schema: Schema): Source[A, NotUsed] =
+    Source.fromGraph(new AkkaFileSource[A](pathStr, schema, configuration, AvroInputStream.json[A]))
 }
