@@ -52,6 +52,11 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
   val zonedStartTime: Option[ZonedDateTime] = startTimestamp.map(_.atZone(zoneId))
   val zonedEndTime: Option[ZonedDateTime]   = endTimestamp.map(_.atZone(zoneId))
 
+  def days: List[LocalDate] =
+    (zonedStartTime, zonedEndTime).traverseN { (s, e) =>
+      s.toLocalDate.toEpochDay.to(e.toLocalDate.toEpochDay).map(LocalDate.ofEpochDay).toList
+    }.flatten
+
   def withZoneId(zoneId: ZoneId): NJDateTimeRange =
     NJDateTimeRange.zoneId.set(zoneId)(this)
 
