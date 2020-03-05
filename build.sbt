@@ -160,7 +160,7 @@ val avro = Seq(
   "org.apache.avro" % "avro-compiler" % apacheAvro,
   "org.apache.avro" % "avro-ipc"      % apacheAvro,
   "com.sksamuel.avro4s" %% "avro4s-core"                    % avro4s,
-  ("io.confluent" % "kafka-streams-avro-serde"              % "5.4.0").classifier(""),
+  ("io.confluent" % "kafka-streams-avro-serde"              % "5.4.1").classifier(""),
   "com.julianpeeters" %% "avrohugger-core"                  % avrohugger,
   "org.apache.parquet"                                      % "parquet-avro" % "1.11.0"
 )
