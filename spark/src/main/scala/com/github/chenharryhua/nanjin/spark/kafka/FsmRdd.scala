@@ -17,6 +17,11 @@ final class FsmRdd[F[_], K, V](
   cfg: SKConfig)(implicit sparkSession: SparkSession)
     extends SparKafkaUpdateParams[FsmRdd[F, K, V]] {
 
+  override def params: SKParams = SKConfigF.evalConfig(cfg)
+
+  override def withParamUpdate(f: SKConfig => SKConfig): FsmRdd[F, K, V] =
+    new FsmRdd[F, K, V](rdd, kit, f(cfg))
+
   def save(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
     Blocker[F].use { blocker =>
       val path = sk.replayPath(kit.topicName)
@@ -56,21 +61,19 @@ final class FsmRdd[F[_], K, V](
       .compile
       .drain
 
-  def count: Long = rdd.count()
-
-  override def params: SKParams = SKConfigF.evalConfig(cfg)
-
-  override def withParamUpdate(f: SKConfig => SKConfig): FsmRdd[F, K, V] =
-    new FsmRdd[F, K, V](rdd, kit, f(cfg))
-
-  def crDataset(
+  def pipeTo(otherTopic: KafkaTopicKit[K, V])(
     implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] = {
-    val tds       = TypedDataset.create(rdd)
-    val inBetween = tds.makeUDF[Long, Boolean](params.timeRange.isInBetween)
-    new FsmConsumerRecords(tds.filter(inBetween(tds('timestamp))).dataset, kit, cfg)
-  }
+    concurrentEffect: ConcurrentEffect[F],
+    timer: Timer[F],
+    contextShift: ContextShift[F]): F[Unit] =
+    crStream
+      .map(_.toNJProducerRecord.noMeta)
+      .through(sk.uploader(otherTopic, params.uploadRate))
+      .map(_ => print("."))
+      .compile
+      .drain
+
+  def count: Long = rdd.count()
 
   def partition(num: Int): FsmRdd[F, K, V] =
     new FsmRdd[F, K, V](rdd.filter(_.partition === num), kit, cfg)
@@ -84,18 +87,16 @@ final class FsmRdd[F[_], K, V](
   def crStream(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
     sorted.stream[F]
 
+  def crDataset(
+    implicit
+    keyEncoder: TypedEncoder[K],
+    valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] = {
+    val tds       = TypedDataset.create(rdd)
+    val inBetween = tds.makeUDF[Long, Boolean](params.timeRange.isInBetween)
+    new FsmConsumerRecords(tds.filter(inBetween(tds('timestamp))).dataset, kit, cfg)
+  }
+
   def stats: Statistics[F] =
     new Statistics(TypedDataset.create(rdd.map(CRMetaInfo(_))).dataset, cfg)
 
-  def pipeTo(otherTopic: KafkaTopicKit[K, V])(
-    implicit
-    concurrentEffect: ConcurrentEffect[F],
-    timer: Timer[F],
-    contextShift: ContextShift[F]): F[Unit] =
-    crStream
-      .map(_.toNJProducerRecord.noMeta)
-      .through(sk.uploader(otherTopic, params.uploadRate))
-      .map(_ => print("."))
-      .compile
-      .drain
 }
