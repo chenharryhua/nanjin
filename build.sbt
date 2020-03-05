@@ -19,7 +19,7 @@ val monocle    = "2.0.2"
 val refined    = "0.9.13"
 val droste     = "0.8.0"
 
-val zioCats    = "2.0.0.0-RC10"
+val zioCats    = "2.0.0.0-RC11"
 val monix      = "3.1.0"
 val catsEffect = "2.1.2"
 
