@@ -43,7 +43,7 @@ final class FsmRddKafka[F[_], K, V](
       .stream[F]
       .through(
         fileSink[F]
-          .avro[NJConsumerRecord[K, V]](sk.jacksonPath(kit.topicName), kit.topicDef.njSchema))
+          .avro[NJConsumerRecord[K, V]](sk.jacksonPath(kit.topicName), kit.topicDef.njAvroSchema))
       .compile
       .drain
   }
@@ -56,8 +56,8 @@ final class FsmRddKafka[F[_], K, V](
     valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] =
     new FsmConsumerRecords(TypedDataset.create(rdd).dataset, kit, cfg)
 
-  def partition(num: Int): FsmRddDisk[F, K, V] =
-    new FsmRddDisk[F, K, V](rdd.filter(_.partition === num), kit, cfg)
+  def partition(num: Int): FsmRddKafka[F, K, V] =
+    new FsmRddKafka[F, K, V](rdd.filter(_.partition === num), kit, cfg)
 
   def sorted: RDD[NJConsumerRecord[K, V]] =
     rdd.repartition(params.repartition.value).sortBy[NJConsumerRecord[K, V]](identity)
