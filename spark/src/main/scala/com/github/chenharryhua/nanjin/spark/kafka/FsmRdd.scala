@@ -11,15 +11,16 @@ import fs2.Stream
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
-final class FsmRddKafka[F[_], K, V](
+final class FsmRdd[F[_], K, V](
   rdd: RDD[NJConsumerRecord[K, V]],
   kit: KafkaTopicKit[K, V],
   cfg: SKConfig)(implicit sparkSession: SparkSession)
-    extends SparKafkaUpdateParams[FsmRddKafka[F, K, V]] {
+    extends SparKafkaUpdateParams[FsmRdd[F, K, V]] {
+
   override def params: SKParams = SKConfigF.evalConfig(cfg)
 
-  override def withParamUpdate(f: SKConfig => SKConfig): FsmRddKafka[F, K, V] =
-    new FsmRddKafka[F, K, V](rdd, kit, f(cfg))
+  override def withParamUpdate(f: SKConfig => SKConfig): FsmRdd[F, K, V] =
+    new FsmRdd[F, K, V](rdd, kit, f(cfg))
 
   def save(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
     Blocker[F].use { blocker =>
@@ -30,7 +31,7 @@ final class FsmRddKafka[F[_], K, V](
 
   def saveJackson(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
     import kit.topicDef.{avroKeyEncoder, avroValEncoder, schemaForKey, schemaForVal}
-    sorted
+    rdd
       .stream[F]
       .through(fileSink[F].jackson[NJConsumerRecord[K, V]](sk.jacksonPath(kit.topicName)))
       .compile
@@ -39,7 +40,7 @@ final class FsmRddKafka[F[_], K, V](
 
   def saveAvro(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
     import kit.topicDef.{avroKeyEncoder, avroValEncoder}
-    sorted
+    rdd
       .stream[F]
       .through(
         fileSink[F]
@@ -48,22 +49,17 @@ final class FsmRddKafka[F[_], K, V](
       .drain
   }
 
-  def count: Long = rdd.count()
-
-  def crDataset(
+  def replay(
     implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords(TypedDataset.create(rdd).dataset, kit, cfg)
-
-  def partition(num: Int): FsmRddKafka[F, K, V] =
-    new FsmRddKafka[F, K, V](rdd.filter(_.partition === num), kit, cfg)
-
-  def sorted: RDD[NJConsumerRecord[K, V]] =
-    rdd.repartition(params.repartition.value).sortBy[NJConsumerRecord[K, V]](identity)
-
-  def crStream(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
-    sorted.stream[F]
+    concurrentEffect: ConcurrentEffect[F],
+    timer: Timer[F],
+    contextShift: ContextShift[F]): F[Unit] =
+    crStream
+      .map(_.toNJProducerRecord.noMeta)
+      .through(sk.uploader(kit, params.uploadRate))
+      .map(_ => print("."))
+      .compile
+      .drain
 
   def pipeTo(otherTopic: KafkaTopicKit[K, V])(
     implicit
@@ -77,6 +73,30 @@ final class FsmRddKafka[F[_], K, V](
       .compile
       .drain
 
+  def count: Long = rdd.count()
+
+  def partition(num: Int): FsmRdd[F, K, V] =
+    new FsmRdd[F, K, V](rdd.filter(_.partition === num), kit, cfg)
+
+  def sorted: RDD[NJConsumerRecord[K, V]] =
+    rdd
+      .filter(m => params.timeRange.isInBetween(m.timestamp))
+      .repartition(params.repartition.value)
+      .sortBy[NJConsumerRecord[K, V]](identity)
+
+  def crStream(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
+    sorted.stream[F]
+
+  def crDataset(
+    implicit
+    keyEncoder: TypedEncoder[K],
+    valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] = {
+    val tds       = TypedDataset.create(rdd)
+    val inBetween = tds.makeUDF[Long, Boolean](params.timeRange.isInBetween)
+    new FsmConsumerRecords(tds.filter(inBetween(tds('timestamp))).dataset, kit, cfg)
+  }
+
   def stats: Statistics[F] =
     new Statistics(TypedDataset.create(rdd.map(CRMetaInfo(_))).dataset, cfg)
+
 }

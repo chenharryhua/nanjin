@@ -1,6 +1,6 @@
 package mtest
 
-import java.time.{LocalDateTime, ZoneId}
+import java.time.{LocalDate, LocalDateTime, ZoneId}
 
 import cats.derived.auto.eq._
 import cats.kernel.laws.discipline.UpperBoundedTests
@@ -43,4 +43,18 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     assert(a.zonedStartTime.get === startTime.atZone(zoneId))
     assert(a.zonedEndTime.get === endTime.atZone(zoneId))
   }
+  test("days test") {
+    val dtr = NJDateTimeRange.infinite
+      .withStartTime(LocalDate.of(2012, 10, 26))
+      .withEndTime(LocalDate.of(2012, 10, 28))
+
+    assert(
+      dtr.days === List(
+        LocalDate.of(2012, 10, 26),
+        LocalDate.of(2012, 10, 27),
+        LocalDate.of(2012, 10, 28)))
+
+    assert(NJDateTimeRange.infinite.days === List())
+  }
+
 }
