@@ -5,6 +5,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka._
 import org.scalatest.Ignore
 import org.scalatest.funsuite.AnyFunSuite
+import zio.Runtime
 import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.console.Console
@@ -12,13 +13,12 @@ import zio.interop.catz._
 import zio.interop.catz.implicits.ioTimer
 import zio.random.Random
 import zio.system.System
-import zio.{DefaultRuntime, Runtime}
 
 @Ignore
 class ZioTest extends AnyFunSuite {
   type Environment = Clock with Console with System with Random with Blocking
 
-  implicit val runtime: Runtime[Environment] = new DefaultRuntime {}
+  implicit val runtime = Runtime.default
 
   val ctx: ZioKafkaContext = KafkaSettings.local.zioContext
 
