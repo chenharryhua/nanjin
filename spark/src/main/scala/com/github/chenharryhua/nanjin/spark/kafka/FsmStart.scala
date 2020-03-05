@@ -28,12 +28,12 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
   def avroSchema: Schema    = kit.topicDef.njAvroSchema
   def sparkSchema: DataType = SchemaConverters.toSqlType(avroSchema).dataType
 
-  def fromKafka[F[_]: Sync]: F[FsmRddKafka[F, K, V]] =
+  def fromKafka[F[_]: Sync]: F[FsmRdd[F, K, V]] =
     sk.loadKafkaRdd(kit, params.timeRange, params.locationStrategy)
-      .map(new FsmRddKafka[F, K, V](_, kit, cfg))
+      .map(new FsmRdd[F, K, V](_, kit, cfg))
 
-  def fromDisk[F[_]: Sync]: F[FsmRddDisk[F, K, V]] =
-    sk.loadDiskRdd[F, K, V](sk.replayPath(kit.topicName)).map(new FsmRddDisk[F, K, V](_, kit, cfg))
+  def fromDisk[F[_]: Sync]: F[FsmRdd[F, K, V]] =
+    sk.loadDiskRdd[F, K, V](sk.replayPath(kit.topicName)).map(new FsmRdd[F, K, V](_, kit, cfg))
 
   /**
     * shorthand
