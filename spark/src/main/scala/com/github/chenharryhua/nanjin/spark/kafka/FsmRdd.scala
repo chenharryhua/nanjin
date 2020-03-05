@@ -44,7 +44,7 @@ final class FsmRdd[F[_], K, V](
       .stream[F]
       .through(
         fileSink[F]
-          .avro[NJConsumerRecord[K, V]](sk.jacksonPath(kit.topicName), kit.topicDef.njAvroSchema))
+          .avro[NJConsumerRecord[K, V]](sk.jacksonPath(kit.topicName), kit.topicDef.crAvroSchema))
       .compile
       .drain
   }

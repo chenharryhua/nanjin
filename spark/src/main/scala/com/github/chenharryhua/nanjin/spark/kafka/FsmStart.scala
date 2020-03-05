@@ -25,7 +25,7 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
 
   override val params: SKParams = SKConfigF.evalConfig(cfg)
 
-  def avroSchema: Schema    = kit.topicDef.njAvroSchema
+  def avroSchema: Schema    = kit.topicDef.crAvroSchema
   def sparkSchema: DataType = SchemaConverters.toSqlType(avroSchema).dataType
 
   def fromKafka[F[_]: Sync]: F[FsmRdd[F, K, V]] =
