@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.datetime
 import java.sql.Timestamp
 import java.time._
 import java.time.format.DateTimeFormatter
+import java.time.temporal.TemporalUnit
 import java.util.concurrent.TimeUnit
 
 import cats.{Hash, Order, Show}
@@ -24,6 +25,12 @@ final case class NJTimestamp(milliseconds: Long) extends AnyVal {
   def yearStr(zoneId: ZoneId): String  = f"${atZone(zoneId).getYear}%4d"
   def monthStr(zoneId: ZoneId): String = f"${atZone(zoneId).getMonthValue}%02d"
   def dayStr(zoneId: ZoneId): String   = f"${atZone(zoneId).getDayOfMonth}%02d"
+
+  def minus(amount: Long, unit: TemporalUnit): NJTimestamp =
+    NJTimestamp(instant.minus(amount, unit))
+
+  def plus(amount: Long, unit: TemporalUnit): NJTimestamp =
+    NJTimestamp(instant.plus(amount, unit))
 
   override def toString: String = local.toString
 }
