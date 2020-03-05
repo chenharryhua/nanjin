@@ -42,19 +42,19 @@ final class TopicDef[K, V] private (val topicName: TopicName)(
   implicit val schemaForVal: SchemaFor[V] =
     (_: FieldMapper) => serdeOfVal.schema
 
-  val njAvroSchema: Schema = AvroSchema[NJConsumerRecord[K, V]]
+  val crAvroSchema: Schema = AvroSchema[NJConsumerRecord[K, V]]
 
   val toAvroRecord: ToRecord[NJConsumerRecord[K, V]] =
-    ToRecord[NJConsumerRecord[K, V]](njAvroSchema)
+    ToRecord[NJConsumerRecord[K, V]](crAvroSchema)
 
   val fromAvroRecord: FromRecord[NJConsumerRecord[K, V]] =
-    FromRecord[NJConsumerRecord[K, V]](njAvroSchema)
+    FromRecord[NJConsumerRecord[K, V]](crAvroSchema)
 
   @throws[Exception]
   def toJackson(cr: NJConsumerRecord[K, V]): Json = {
     val byteArrayOutputStream = new ByteArrayOutputStream
     val out =
-      AvroOutputStream.json[NJConsumerRecord[K, V]].to(byteArrayOutputStream).build(njAvroSchema)
+      AvroOutputStream.json[NJConsumerRecord[K, V]].to(byteArrayOutputStream).build(crAvroSchema)
     out.write(cr)
     out.close()
     parse(byteArrayOutputStream.toString).fold(throw _, identity)
@@ -65,7 +65,7 @@ final class TopicDef[K, V] private (val topicName: TopicName)(
       AvroInputStream
         .json[NJConsumerRecord[K, V]]
         .from(cr.getBytes)
-        .build(njAvroSchema)
+        .build(crAvroSchema)
         .tryIterator
         .next).flatten
 
@@ -77,7 +77,7 @@ object TopicDef {
 
   implicit def eqTopicDef[K, V]: Eq[TopicDef[K, V]] =
     (x: TopicDef[K, V], y: TopicDef[K, V]) =>
-      x.topicName === y.topicName && x.njAvroSchema == y.njAvroSchema
+      x.topicName === y.topicName && x.crAvroSchema == y.crAvroSchema
 
   def apply[K, V](
     topicName: String,
