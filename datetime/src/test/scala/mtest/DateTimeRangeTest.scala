@@ -44,14 +44,15 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     assert(a.zonedEndTime.get === endTime.atZone(zoneId))
   }
   test("days test") {
-    val dtr = NJDateTimeRange.infinite
-      .withStartTime(LocalDate.of(2012, 10, 26))
-      .withEndTime(LocalDate.of(2012, 10, 28))
+    val d1 = LocalDate.of(2012, 10, 26)
+    val d2 = LocalDate.of(2012, 10, 27)
+    val d3 = LocalDate.of(2012, 10, 28)
 
-    assert(dtr.days === List(LocalDate.of(2012, 10, 26), LocalDate.of(2012, 10, 27)))
+    val dtr = NJDateTimeRange.infinite.withStartTime(d1).withEndTime(d3)
 
-    val d = LocalDate.of(2012, 10, 26)
-    assert(NJDateTimeRange.oneDay(d).days === List(d))
+    assert(dtr.days === List(d1, d2))
+
+    assert(NJDateTimeRange.oneDay(d3).days === List(d3))
     assert(NJDateTimeRange.infinite.days === List())
 
   }
