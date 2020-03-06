@@ -60,6 +60,9 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
   def withZoneId(zoneId: ZoneId): NJDateTimeRange =
     NJDateTimeRange.zoneId.set(zoneId)(this)
 
+  def withZoneId(zoneId: String): NJDateTimeRange =
+    NJDateTimeRange.zoneId.set(ZoneId.of(zoneId))(this)
+
   implicit private val localDate: Prism[NJDateTimeRange.TimeTypes, LocalDate] =
     coProductPrism[NJDateTimeRange.TimeTypes, LocalDate]
 
