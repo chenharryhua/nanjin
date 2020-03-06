@@ -2,6 +2,7 @@ package mtest
 
 import java.time.{LocalDate, LocalDateTime, ZoneId}
 
+import cats.data.NonEmptyList
 import cats.derived.auto.eq._
 import cats.kernel.laws.discipline.UpperBoundedTests
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8.genZonedDateTimeWithZone
@@ -50,11 +51,9 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
 
     val dtr = NJDateTimeRange.infinite.withStartTime(d1).withEndTime(d3)
 
-    assert(dtr.days === List(d1, d2))
+    assert(dtr.days === NonEmptyList.of(d1, d2))
 
-    assert(NJDateTimeRange.oneDay(d3).days === List(d3))
-    assert(NJDateTimeRange.infinite.days === List())
-
+    assert(NJDateTimeRange.oneDay(d3).days === NonEmptyList.of(d3))
+    assertThrows[Exception](NJDateTimeRange.infinite.days)
   }
-
 }

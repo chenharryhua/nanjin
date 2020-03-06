@@ -4,6 +4,7 @@ import java.sql.Timestamp
 import java.time._
 import java.util.concurrent.TimeUnit
 
+import cats.data.NonEmptyList
 import cats.implicits._
 import cats.kernel.UpperBounded
 import cats.{Eq, PartialOrder}
@@ -56,10 +57,14 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
     *
     * @return start date(inclusive) to end date(exclusive)
     */
-  def days: List[LocalDate] =
+  @throws[Exception]
+  def days: NonEmptyList[LocalDate] =
     (zonedStartTime, zonedEndTime).traverseN { (s, e) =>
       s.toLocalDate.toEpochDay.until(e.toLocalDate.toEpochDay).map(LocalDate.ofEpochDay).toList
-    }.flatten
+    }.flatten match {
+      case Nil     => throw new Exception("infinite days")
+      case d :: ds => NonEmptyList(d, ds)
+    }
 
   def withZoneId(zoneId: ZoneId): NJDateTimeRange =
     NJDateTimeRange.zoneId.set(zoneId)(this)
