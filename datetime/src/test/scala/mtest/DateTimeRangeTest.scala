@@ -48,13 +48,12 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
       .withStartTime(LocalDate.of(2012, 10, 26))
       .withEndTime(LocalDate.of(2012, 10, 28))
 
-    assert(
-      dtr.days === List(
-        LocalDate.of(2012, 10, 26),
-        LocalDate.of(2012, 10, 27),
-        LocalDate.of(2012, 10, 28)))
+    assert(dtr.days === List(LocalDate.of(2012, 10, 26), LocalDate.of(2012, 10, 27)))
 
+    val d = LocalDate.of(2012, 10, 26)
+    assert(NJDateTimeRange.oneDay(d).days === List(d))
     assert(NJDateTimeRange.infinite.days === List())
+
   }
 
 }
