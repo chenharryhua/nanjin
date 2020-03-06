@@ -15,7 +15,7 @@ val fs2Version = "2.2.2"
 val catsMtl    = "0.7.0"
 val catsTime   = "0.3.0"
 val tagless    = "0.11"
-val monocle    = "2.0.3"
+val monocle    = "2.0.4"
 val refined    = "0.9.13"
 val droste     = "0.8.0"
 
@@ -51,7 +51,7 @@ val flinkVersion = "1.10.0"
 
 val hadoopVersion = "3.2.1"
 
-val awsVersion = "1.11.737"
+val awsVersion = "1.11.738"
 
 lazy val commonSettings = Seq(
   organization := "com.github.chenharryhua",
