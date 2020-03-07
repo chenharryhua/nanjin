@@ -17,6 +17,7 @@ import io.circe.syntax._
 import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.{rfc, CsvConfiguration, HeaderEncoder}
 import org.apache.avro.Schema
+import org.apache.avro.generic.{GenericRecord, IndexedRecord}
 import org.apache.hadoop.conf.Configuration
 
 final class SingleFileSink[F[_]: ContextShift: Sync](hadoopConfiguration: Configuration) {
@@ -44,6 +45,24 @@ final class SingleFileSink[F[_]: ContextShift: Sync](hadoopConfiguration: Config
 
   def avroBinary[A: SchemaFor: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
     sink(pathStr, SchemaFor[A].schema(DefaultFieldMapper), AvroOutputStream.binary[A])
+
+  def parquet[A: AvroEncoder](pathStr: String, schema: Schema): Pipe[F, A, Unit] = { as =>
+    for {
+      blocker <- Stream.resource(Blocker[F])
+      writer <- Stream.resource(
+        hadoop.parquetOutputResource[F](pathStr, schema, hadoopConfiguration, blocker))
+      data <- as.chunks
+    } yield data.foreach { m =>
+      val rec = AvroEncoder[A].encode(m, schema, DefaultFieldMapper) match {
+        case gr: GenericRecord => gr
+        case _                 => throw new Exception(s"unkown. ${m.toString}")
+      }
+      writer.write(rec)
+    }
+  }
+
+  def parquet[A: SchemaFor: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
+    parquet[A](pathStr, SchemaFor[A].schema(DefaultFieldMapper))
 
   def json[A: JsonEncoder](pathStr: String): Pipe[F, A, Unit] = { as =>
     for {
