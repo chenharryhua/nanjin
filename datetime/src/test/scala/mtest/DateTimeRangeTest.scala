@@ -43,7 +43,7 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     assert(a.zonedStartTime.get === startTime.atZone(zoneId))
     assert(a.zonedEndTime.get === endTime.atZone(zoneId))
   }
-  test("days test") {
+  test("days should return list of date from start(inclusive) to end(exclusive)") {
     val d1 = LocalDate.of(2012, 10, 26)
     val d2 = LocalDate.of(2012, 10, 27)
     val d3 = LocalDate.of(2012, 10, 28)
@@ -53,8 +53,14 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     assert(dtr.days === List(d1, d2))
 
     assert(NJDateTimeRange.oneDay(d3).days === List(d3))
-    assert(NJDateTimeRange.infinite.days.isEmpty)
+  }
 
+  test("infinite range should return empty list") {
+    assert(NJDateTimeRange.infinite.days.isEmpty)
+  }
+
+  test("days of same day should return empty list") {
+    val d3  = LocalDate.of(2012, 10, 28)
     val dt4 = LocalDateTime.of(d3, LocalTime.of(10, 1, 1))
     val dt5 = LocalDateTime.of(d3, LocalTime.of(10, 1, 2))
 
