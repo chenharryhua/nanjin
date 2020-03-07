@@ -161,6 +161,10 @@ val avro = Seq(
   "org.apache.parquet"                                      % "parquet-avro" % "1.11.0"
 )
 
+val elastic4sLib = Seq(
+  "com.sksamuel.elastic4s" %% "elastic4s-core"
+).map(_ % "7.3.5")
+
 val sparkLib = Seq(
   "org.apache.spark" %% "spark-core",
   "org.apache.spark" %% "spark-sql",
@@ -299,7 +303,7 @@ lazy val database = (project in file("database"))
   .dependsOn(common)
   .settings(commonSettings: _*)
   .settings(name := "nj-database")
-  .settings(libraryDependencies ++= base ++ json ++ db ++ neotypesLib ++ tests)
+  .settings(libraryDependencies ++= base ++ json ++ db ++ neotypesLib ++ elastic4sLib ++ tests)
 
 lazy val spark = (project in file("spark"))
   .dependsOn(kafka)
