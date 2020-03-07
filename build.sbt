@@ -106,7 +106,7 @@ val flinkLib = Seq(
   "org.apache.flink" % "flink-s3-fs-hadoop"
 ).map(_ % flinkVersion)
 
-val neo4jLib = Seq(
+val neotypesLib = Seq(
   "com.dimafeng" %% "neotypes",
   "com.dimafeng" %% "neotypes-cats-effect",
   "com.dimafeng" %% "neotypes-monix",
@@ -118,11 +118,7 @@ val neo4jLib = Seq(
   "com.dimafeng" %% "neotypes-refined",
   "com.dimafeng" %% "neotypes-cats-data"
 ).map(_ % neotypes) ++
-  Seq(
-    "org.neo4j.driver"                % "neo4j-java-driver" % "1.7.5",
-    "org.opencypher"                  % "morpheus-spark-cypher" % "0.4.2",
-    "org.scala-graph" %% "graph-core" % "1.13.1"
-  )
+  Seq("org.neo4j.driver" % "neo4j-java-driver" % "1.7.5")
 
 val scodec = Seq(
   "org.scodec" %% "scodec-core"   % "1.11.4",
@@ -303,7 +299,7 @@ lazy val database = (project in file("database"))
   .dependsOn(common)
   .settings(commonSettings: _*)
   .settings(name := "nj-database")
-  .settings(libraryDependencies ++= base ++ json ++ db ++ tests)
+  .settings(libraryDependencies ++= base ++ json ++ db ++ neotypesLib ++ tests)
 
 lazy val spark = (project in file("spark"))
   .dependsOn(kafka)
@@ -331,18 +327,7 @@ lazy val flink = (project in file("flink"))
   .settings(name := "nj-flink")
   .settings(libraryDependencies ++= flinkLib ++ tests)
 
-lazy val graph = (project in file("graph"))
-  .dependsOn(spark)
-  .dependsOn(flink)
-  .settings(commonSettings: _*)
-  .settings(name := "nj-graph")
-  .settings(
-    libraryDependencies ++= neo4jLib ++ tests,
-    dependencyOverrides ++= Seq(
-      "com.fasterxml.jackson.core"  % "jackson-databind" % "2.6.7.2",
-      "org.json4s" %% "json4s-core" % "3.5.5"))
-
 lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
-    .aggregate(common, datetime, pipes, kafka, flink, database, spark, graph)
+    .aggregate(common, datetime, pipes, kafka, flink, database, spark)
