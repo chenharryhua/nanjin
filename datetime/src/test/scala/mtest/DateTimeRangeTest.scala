@@ -1,6 +1,6 @@
 package mtest
 
-import java.time.{LocalDate, LocalDateTime, ZoneId}
+import java.time.{LocalDate, LocalDateTime, LocalTime, ZoneId}
 
 import cats.derived.auto.eq._
 import cats.kernel.laws.discipline.UpperBoundedTests
@@ -43,17 +43,28 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     assert(a.zonedStartTime.get === startTime.atZone(zoneId))
     assert(a.zonedEndTime.get === endTime.atZone(zoneId))
   }
-  test("days test") {
-    val dtr = NJDateTimeRange.infinite
-      .withStartTime(LocalDate.of(2012, 10, 26))
-      .withEndTime(LocalDate.of(2012, 10, 28))
+  test("days should return list of date from start(inclusive) to end(exclusive)") {
+    val d1 = LocalDate.of(2012, 10, 26)
+    val d2 = LocalDate.of(2012, 10, 27)
+    val d3 = LocalDate.of(2012, 10, 28)
 
-    assert(dtr.days === List(LocalDate.of(2012, 10, 26), LocalDate.of(2012, 10, 27)))
+    val dtr = NJDateTimeRange.infinite.withStartTime(d1).withEndTime(d3)
 
-    val d = LocalDate.of(2012, 10, 26)
-    assert(NJDateTimeRange.oneDay(d).days === List(d))
-    assert(NJDateTimeRange.infinite.days === List())
+    assert(dtr.days === List(d1, d2))
 
+    assert(NJDateTimeRange.oneDay(d3).days === List(d3))
   }
 
+  test("infinite range should return empty list") {
+    assert(NJDateTimeRange.infinite.days.isEmpty)
+  }
+
+  test("days of same day should return empty list") {
+    val d3  = LocalDate.of(2012, 10, 28)
+    val dt4 = LocalDateTime.of(d3, LocalTime.of(10, 1, 1))
+    val dt5 = LocalDateTime.of(d3, LocalTime.of(10, 1, 2))
+
+    val sameDay = NJDateTimeRange.infinite.withStartTime(dt4).withEndTime(dt5)
+    assert(sameDay.days.isEmpty)
+  }
 }

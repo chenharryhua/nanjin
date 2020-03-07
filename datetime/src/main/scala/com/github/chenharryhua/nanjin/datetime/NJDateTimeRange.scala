@@ -54,7 +54,9 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
 
   /**
     *
-    * @return start date(inclusive) to end date(exclusive)
+    * @return list of local-date from start date(inclusive) to end date(exclusive)
+    *         empty if start date === end date
+    *         empty if infinite
     */
   def days: List[LocalDate] =
     (zonedStartTime, zonedEndTime).traverseN { (s, e) =>
@@ -109,7 +111,7 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
       Duration(e.milliseconds - s.milliseconds, TimeUnit.MILLISECONDS))
 
   require(duration.forall(_.length > 0), s"start time(${startTimestamp
-    .map(_.utc)}) should be strictly before end time(${endTimestamp.map(_.utc)}) in UTC.")
+    .map(_.utc)}) should be strictly before end time(${endTimestamp.map(_.utc)}).")
 }
 
 object NJDateTimeRange {
