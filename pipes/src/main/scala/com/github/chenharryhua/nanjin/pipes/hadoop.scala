@@ -17,8 +17,8 @@ import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataInputStream, FSDataOutputStream, FileSystem, Path}
 import org.apache.parquet.avro.AvroParquetWriter
-import org.apache.parquet.hadoop.ParquetWriter
-import org.apache.parquet.hadoop.util.HadoopOutputFile
+import org.apache.parquet.hadoop.metadata.CompressionCodecName
+import org.apache.parquet.hadoop.{ParquetFileWriter, ParquetWriter}
 
 object hadoop {
 
@@ -53,17 +53,16 @@ object hadoop {
     schema: Schema,
     hadoopConfig: Configuration,
     blocker: Blocker): Resource[F, ParquetWriter[GenericRecord]] =
-    fileSystem(pathStr, hadoopConfig, blocker).flatMap { fs =>
-      fs.delete(new Path(pathStr), false)
-      val outputFile = HadoopOutputFile.fromPath(new Path(pathStr), hadoopConfig)
-      Resource.fromAutoCloseable(
-        blocker.delay(
-          AvroParquetWriter
-            .builder[GenericRecord](outputFile)
-            .withSchema(schema)
-            .withDataModel(GenericData.get())
-            .build()))
-    }
+    Resource.fromAutoCloseable(
+      blocker.delay(
+        AvroParquetWriter
+          .builder[GenericRecord](new Path(pathStr))
+          .withConf(hadoopConfig)
+          .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)
+          .withCompressionCodec(CompressionCodecName.SNAPPY)
+          .withSchema(schema)
+          .withDataModel(GenericData.get())
+          .build()))
 
   def csvOutputResource[F[_]: Sync: ContextShift, A: HeaderEncoder](
     pathStr: String,

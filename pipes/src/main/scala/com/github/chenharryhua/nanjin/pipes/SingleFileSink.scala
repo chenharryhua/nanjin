@@ -17,7 +17,7 @@ import io.circe.syntax._
 import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.{rfc, CsvConfiguration, HeaderEncoder}
 import org.apache.avro.Schema
-import org.apache.avro.generic.{GenericRecord, IndexedRecord}
+import org.apache.avro.generic.GenericRecord
 import org.apache.hadoop.conf.Configuration
 
 final class SingleFileSink[F[_]: ContextShift: Sync](hadoopConfiguration: Configuration) {
@@ -55,7 +55,7 @@ final class SingleFileSink[F[_]: ContextShift: Sync](hadoopConfiguration: Config
     } yield data.foreach { m =>
       val rec = AvroEncoder[A].encode(m, schema, DefaultFieldMapper) match {
         case gr: GenericRecord => gr
-        case _                 => throw new Exception(s"unkown. ${m.toString}")
+        case _                 => throw new Exception(s"can not be converted to Generic Record. ${m.toString}")
       }
       writer.write(rec)
     }
