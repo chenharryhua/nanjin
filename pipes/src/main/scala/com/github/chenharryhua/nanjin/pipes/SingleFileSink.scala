@@ -78,14 +78,17 @@ final class SingleFileSink[F[_]: ContextShift: Sync](hadoopConfiguration: Config
     } yield ()
   }
 
-  def csv[A: HeaderEncoder](
-    pathStr: String,
-    csvConfig: CsvConfiguration = rfc): Pipe[F, A, Unit] = { as =>
-    for {
-      blocker <- Stream.resource(Blocker[F])
-      aos <- Stream.resource(
-        hadoop.csvOutputResource[F, A](pathStr, hadoopConfiguration, blocker, csvConfig))
-      data <- as.chunks
-    } yield data.foreach(aos.write)
+  def csv[A: HeaderEncoder](pathStr: String, csvConfig: CsvConfiguration): Pipe[F, A, Unit] = {
+    as =>
+      for {
+        blocker <- Stream.resource(Blocker[F])
+        aos <- Stream.resource(
+          hadoop.csvOutputResource[F, A](pathStr, hadoopConfiguration, blocker, csvConfig))
+        data <- as.chunks
+      } yield data.foreach(aos.write)
   }
+
+  def csv[A: HeaderEncoder](pathStr: String): Pipe[F, A, Unit] =
+    csv(pathStr, rfc)
+
 }

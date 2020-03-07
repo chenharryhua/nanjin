@@ -6,14 +6,14 @@ import monocle.macros.Lenses
 import neotypes.cats.effect.implicits._
 import neotypes.{GraphDatabase, Session, Transaction}
 import org.neo4j.driver.v1.Config.ConfigBuilder
-import org.neo4j.driver.v1.{AuthToken, AuthTokens}
+import org.neo4j.driver.v1.{AuthToken, AuthTokens, Config}
 
 @Lenses final case class Neo4j(
   username: Username,
   password: Password,
   host: Host,
   port: Port,
-  configBuilder: ConfigBuilder
+  configBuilder: ConfigBuilder = Config.builder()
 ) {
 
   def withConfigUpdate(f: ConfigBuilder => ConfigBuilder): Neo4j =
