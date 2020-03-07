@@ -13,8 +13,12 @@ import com.sksamuel.avro4s.{
 }
 import kantan.csv.{CsvConfiguration, CsvWriter, HeaderEncoder}
 import org.apache.avro.Schema
+import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataInputStream, FSDataOutputStream, FileSystem, Path}
+import org.apache.parquet.avro.AvroParquetWriter
+import org.apache.parquet.hadoop.metadata.CompressionCodecName
+import org.apache.parquet.hadoop.{ParquetFileWriter, ParquetWriter}
 
 object hadoop {
 
@@ -43,6 +47,22 @@ object hadoop {
       os <- outputPathResource(pathStr, hadoopConfig, blocker)
       rs <- Resource.fromAutoCloseable(Sync[F].pure(builder.to(os).build(schema)))
     } yield rs
+
+  def parquetOutputResource[F[_]: Sync: ContextShift](
+    pathStr: String,
+    schema: Schema,
+    hadoopConfig: Configuration,
+    blocker: Blocker): Resource[F, ParquetWriter[GenericRecord]] =
+    Resource.fromAutoCloseable(
+      blocker.delay(
+        AvroParquetWriter
+          .builder[GenericRecord](new Path(pathStr))
+          .withConf(hadoopConfig)
+          .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)
+          .withCompressionCodec(CompressionCodecName.SNAPPY)
+          .withSchema(schema)
+          .withDataModel(GenericData.get())
+          .build()))
 
   def csvOutputResource[F[_]: Sync: ContextShift, A: HeaderEncoder](
     pathStr: String,

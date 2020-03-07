@@ -8,6 +8,8 @@ import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducer
 import com.github.chenharryhua.nanjin.spark.streaming.{KafkaCRStream, SparkStream, StreamConfig}
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.avro.Schema
+import org.apache.parquet.avro.AvroSchemaConverter
+import org.apache.parquet.schema.MessageType
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.avro.SchemaConverters
 import org.apache.spark.sql.types.DataType
@@ -25,8 +27,9 @@ final class FsmStart[K, V](kit: KafkaTopicKit[K, V], cfg: SKConfig)(
 
   override val params: SKParams = SKConfigF.evalConfig(cfg)
 
-  def avroSchema: Schema    = kit.topicDef.crAvroSchema
-  def sparkSchema: DataType = SchemaConverters.toSqlType(avroSchema).dataType
+  def avroSchema: Schema         = kit.topicDef.crAvroSchema
+  def sparkSchema: DataType      = SchemaConverters.toSqlType(avroSchema).dataType
+  def parquetSchema: MessageType = new AvroSchemaConverter().convert(avroSchema)
 
   def fromKafka[F[_]: Sync]: F[FsmRdd[F, K, V]] =
     sk.loadKafkaRdd(kit, params.timeRange, params.locationStrategy)
