@@ -14,8 +14,8 @@ final class TableDef[A] private (val tableName: TableName)(
 
 object TableDef {
 
-  def apply[A: TypedEncoder](tableName: String): TableDef[A] =
-    new TableDef[A](TableName(tableName))
+  def apply[A: TypedEncoder](tableName: TableName): TableDef[A] =
+    new TableDef[A](tableName)
 }
 
 final class SparkTableSession[A](tableDef: TableDef[A], dbSettings: DatabaseSettings, cfg: STConfig)(
