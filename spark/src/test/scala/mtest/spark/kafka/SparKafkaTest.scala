@@ -7,7 +7,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.iso._
 import com.github.chenharryhua.nanjin.kafka.codec.ManualAvroSchema
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
-import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef}
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.spark.injection._
 import com.github.chenharryhua.nanjin.spark.kafka._
 import com.landoop.transportation.nyc.trip.yellow.trip_record
@@ -20,7 +20,7 @@ import org.scalatest.funsuite.AnyFunSuite
 class SparKafkaTest extends AnyFunSuite {
   val embed = EmbeddedForTaskSerializable(0, "embeded")
   val data  = ForTaskSerializable(0, "a", LocalDate.now, Instant.now, embed)
-  val topic = ctx.topic[Int, ForTaskSerializable]("serializable.test")
+  val topic = ctx.topic[Int, ForTaskSerializable](TopicName("serializable.test"))
 
   (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >> topic.schemaRegistry.register >>
     topic.send(List(topic.fs2PR(0, data), topic.fs2PR(1, data)))).unsafeRunSync()
@@ -45,15 +45,15 @@ class SparKafkaTest extends AnyFunSuite {
 
   test("read topic from kafka and show json") {
     val tpk = TopicDef[String, trip_record](
-      "nyc_yellow_taxi_trip_data",
+      TopicName("nyc_yellow_taxi_trip_data"),
       ManualAvroSchema[trip_record](trip_record.schema)).in(ctx)
 
     tpk.kit.sparKafka.fromKafka[IO].flatMap(_.crDataset.show).unsafeRunSync
   }
 
   test("should be able to bimap to other topic") {
-    val src: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int]("src.topic")
-    val tgt: KafkaTopic[IO, String, Int]             = ctx.topic[String, Int]("target.topic")
+    val src: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int](TopicName("src.topic"))
+    val tgt: KafkaTopic[IO, String, Int]             = ctx.topic[String, Int](TopicName("target.topic"))
     val d1: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0)
     val d2: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 2, 0, None, Some(2), "t", 0)
     val d3: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 3, 0, None, None, "t", 0)
@@ -72,8 +72,8 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("should be able to flatmap to other topic") {
-    val src: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int]("src.topic")
-    val tgt: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int]("target.topic")
+    val src: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int](TopicName("src.topic"))
+    val tgt: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int](TopicName("target.topic"))
     val d1: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0)
     val d2: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 2, 0, None, Some(2), "t", 0)
     val d3: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 3, 0, None, None, "t", 0)
@@ -98,7 +98,7 @@ class SparKafkaTest extends AnyFunSuite {
     val crs: List[NJConsumerRecord[Int, Int]]        = List(cr1, cr2, cr3)
     val ds: TypedDataset[NJConsumerRecord[Int, Int]] = TypedDataset.create(crs)
 
-    val t   = TopicDef[Int, Int]("some.value").in(ctx).kit.sparKafka.crDataset(ds)
+    val t   = TopicDef[Int, Int](TopicName("some.value")).in(ctx).kit.sparKafka.crDataset(ds)
     val rst = t.someValues.typedDataset.collect[IO]().unsafeRunSync()
     assert(rst === Seq(cr1))
   }

@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin
 
+import cats.Show
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
 import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
 import eu.timepit.refined.string.{Trimmed, Uri}
@@ -10,7 +11,11 @@ package object database {
   object Username extends RefinedTypeOps[Username, String] with CatsRefinedTypeOpsSyntax
 
   type Password = String Refined Trimmed
-  object Password extends RefinedTypeOps[Password, String] with CatsRefinedTypeOpsSyntax
+
+  object Password extends RefinedTypeOps[Password, String] with CatsRefinedTypeOpsSyntax {
+    override def toString: String             = "*****"
+    implicit val showPassword: Show[Password] = _ => "*****"
+  }
 
   type DatabaseName = String Refined Trimmed
   object DatabaseName extends RefinedTypeOps[DatabaseName, String] with CatsRefinedTypeOpsSyntax

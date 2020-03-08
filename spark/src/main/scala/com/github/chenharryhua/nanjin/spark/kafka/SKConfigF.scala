@@ -7,7 +7,7 @@ import cats.Functor
 import cats.data.Reader
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.kafka.common.TopicName
+import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.spark.{NJRepartition, NJShowDataset}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}

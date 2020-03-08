@@ -1,6 +1,6 @@
 package mtest.kafka.codec
 
-import com.github.chenharryhua.nanjin.kafka.common.TopicName
+import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.codec.CodecException.InvalidObjectException
 import com.github.chenharryhua.nanjin.kafka.codec.SerdeOf
 import org.scalatest.funsuite.AnyFunSuite

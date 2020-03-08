@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.kafka.common
 
 import cats.{Bifunctor, Order}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
+import com.github.chenharryhua.nanjin.kafka.TopicName
 import fs2.kafka.{ProducerRecord => Fs2ProducerRecord}
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
@@ -66,7 +67,7 @@ object NJConsumerRecord {
       val os = x.offset - y.offset
       if (ts != 0) ts.toInt
       else if (os != 0) os.toInt
-      else (x.partition - y.partition).toInt
+      else x.partition - y.partition
     }
 
   implicit def njConsumerRecordOrdering[K, V]: Ordering[NJConsumerRecord[K, V]] =

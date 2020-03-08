@@ -5,6 +5,7 @@ import java.time.Instant
 import cats.effect.IO
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.iso._
+import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.injection._
@@ -23,7 +24,7 @@ class DecimalTopicTest extends AnyFunSuite {
   import DecimalTopicTestCase._
   implicit val sp           = ScalePrecision(10, 20)
   implicit val roundingMode = RoundingMode.HALF_UP
-  val topic                 = ctx.topic[Int, HasDecimal]("decimal.test")
+  val topic                 = ctx.topic[Int, HasDecimal](TopicName("decimal.test"))
   (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
     topic.schemaRegistry.register >>
     topic.send(1, data) >> topic.send(2, data)).unsafeRunSync()

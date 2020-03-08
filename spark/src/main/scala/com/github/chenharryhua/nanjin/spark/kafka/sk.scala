@@ -7,7 +7,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.common._
-import com.github.chenharryhua.nanjin.kafka.{KafkaConsumerApi, KafkaTopicKit}
+import com.github.chenharryhua.nanjin.kafka.{KafkaConsumerApi, KafkaTopicKit, TopicName}
 import com.github.chenharryhua.nanjin.utils.Keyboard
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Pipe

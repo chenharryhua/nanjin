@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.flink.kafka
 
 import cats.data.Reader
-import com.github.chenharryhua.nanjin.kafka.common.TopicName
+import com.github.chenharryhua.nanjin.kafka.TopicName
 import monocle.macros.Lenses
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 

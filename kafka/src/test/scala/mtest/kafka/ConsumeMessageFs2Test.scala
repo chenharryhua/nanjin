@@ -8,13 +8,14 @@ import com.landoop.telecom.telecomitalia.telecommunications.{smsCallInternet, Ke
 import fs2.kafka.AutoOffsetReset
 import io.circe.generic.auto._
 import org.scalatest.funsuite.AnyFunSuite
+import com.github.chenharryhua.nanjin.kafka.TopicName
 
 class ConsumeMessageFs2Test extends AnyFunSuite {
-  val backblaze_smart = TopicDef[KJson[lenses_record_key], String]("backblaze_smart")
-  val nyc_taxi_trip   = TopicDef[Array[Byte], trip_record]("nyc_yellow_taxi_trip_data")
+  val backblaze_smart = TopicDef[KJson[lenses_record_key], String](TopicName("backblaze_smart"))
+  val nyc_taxi_trip   = TopicDef[Array[Byte], trip_record](TopicName("nyc_yellow_taxi_trip_data"))
 
   val sms = TopicDef(
-    "telecom_italia_data",
+    TopicName("telecom_italia_data"),
     ManualAvroSchema[Key](Key.schema),
     ManualAvroSchema[smsCallInternet](smsCallInternet.schema))
 

@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.{Concurrent, ContextShift, Resource}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.common.{KafkaConsumerGroupInfo, TopicName}
+import com.github.chenharryhua.nanjin.kafka.common.KafkaConsumerGroupInfo
 import fs2.kafka.{adminClientResource, AdminClientSettings, KafkaAdminClient}
 import org.apache.kafka.clients.admin.{NewTopic, TopicDescription}
 

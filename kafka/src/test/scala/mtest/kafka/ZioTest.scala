@@ -22,7 +22,7 @@ class ZioTest extends AnyFunSuite {
 
   val ctx: ZioKafkaContext = KafkaSettings.local.zioContext
 
-  val topic = TopicDef[Array[Byte], trip_record]("nyc_yellow_taxi_trip_data").in(ctx)
+  val topic = TopicDef[Array[Byte], trip_record](TopicName("nyc_yellow_taxi_trip_data")).in(ctx)
 
   test("zio should just work.") {
     val task = topic.fs2Channel.stream

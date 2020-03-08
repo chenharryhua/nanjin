@@ -5,6 +5,8 @@ import cats.implicits._
 import org.scalatest.funsuite.AnyFunSuite
 import io.chrisdavenport.cats.time._
 import org.apache.kafka.streams.scala.ImplicitConversions._
+import com.github.chenharryhua.nanjin.kafka.TopicName
+
 
 object KafkaStreamingCases {
 
@@ -20,9 +22,9 @@ object KafkaStreamingCases {
 
 class KafkaStreamingTest extends AnyFunSuite {
   import KafkaStreamingCases._
-  val one               = ctx.topic[StreamKey, StreamOneValue]("stream-one")
-  val two               = ctx.topic[StreamKey, StreamTwoValue]("stream-two")
-  val tgt               = ctx.topic[StreamKey, StreamTarget]("stream-target")
+  val one               = ctx.topic[StreamKey, StreamOneValue](TopicName("stream-one"))
+  val two               = ctx.topic[StreamKey, StreamTwoValue](TopicName("stream-two"))
+  val tgt               = ctx.topic[StreamKey, StreamTarget](TopicName("stream-target"))
   implicit val oneKey   = one.kit.codec.keySerde
   implicit val oneValue = one.kit.codec.valSerde
   implicit val twoValue = two.kit.codec.valSerde
