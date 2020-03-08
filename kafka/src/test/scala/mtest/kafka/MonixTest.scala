@@ -1,7 +1,7 @@
 package mtest.kafka
 
 import cats.effect.ConcurrentEffect
-import com.github.chenharryhua.nanjin.kafka.{KafkaSettings, MonixKafkaContext, TopicDef}
+import com.github.chenharryhua.nanjin.kafka.{KafkaSettings, MonixKafkaContext, TopicDef,TopicName}
 import monix.eval.Task
 import monix.eval.instances.CatsConcurrentEffectForTask
 import monix.execution.Scheduler
@@ -18,7 +18,7 @@ class MonixTest extends AnyFunSuite {
   val ctx: MonixKafkaContext = KafkaSettings.local.monixContext
 
   test("monix should just work") {
-    val topic = TopicDef[String, trip_record]("nyc_yellow_taxi_trip_data").in(ctx)
+    val topic = TopicDef[String, trip_record](TopicName("nyc_yellow_taxi_trip_data")).in(ctx)
     val task =
       topic.fs2Channel.stream
         .map(m => topic.decoder(m).logRecord.run)

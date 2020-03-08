@@ -1,9 +1,10 @@
 package mtest.kafka
 
 import com.github.chenharryhua.nanjin.kafka.codec.{KJson, NJCodec, SerdeOf}
-import com.github.chenharryhua.nanjin.kafka.common.TopicName
+import com.github.chenharryhua.nanjin.kafka.TopicName
 import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig
 import io.circe.generic.auto._
+
 package object codec extends ArbitraryData {
 
   val sr: Map[String, String] =

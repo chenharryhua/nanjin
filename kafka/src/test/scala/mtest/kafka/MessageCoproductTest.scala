@@ -5,6 +5,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import io.circe.generic._
 import io.circe.shapes._
 import shapeless.{:+:, CNil, Coproduct}
+import com.github.chenharryhua.nanjin.kafka.TopicName
 
 object CoproductCase {
   @JsonCodec sealed trait SealedTrait
@@ -28,7 +29,7 @@ object CoproductCase {
 class MessageCoproductTest extends AnyFunSuite {
   import CoproductCase._
   test("coproduct in terms of sealed trait") {
-    val topic = TopicDef[Int, SealedTrait]("message.coproduct.trait.test").in(ctx)
+    val topic = TopicDef[Int, SealedTrait](TopicName("message.coproduct.trait.test")).in(ctx)
     val m     = CaseClass(1, "b")
     val rst = for {
       _ <- topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
@@ -40,7 +41,7 @@ class MessageCoproductTest extends AnyFunSuite {
   }
 
   test("coproduct of primitive types") {
-    val topic = TopicDef[Int, PC]("message.coproduct.primitives.test").in(ctx)
+    val topic = TopicDef[Int, PC](TopicName("message.coproduct.primitives.test")).in(ctx)
     val m     = PC(Coproduct[PrimCops](20121026.000001f), Coproduct[PrimCops]("aaa"), 1)
     val rst = for {
       _ <- topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
@@ -52,7 +53,7 @@ class MessageCoproductTest extends AnyFunSuite {
   }
 
   test("composite types") {
-    val topic = TopicDef[Int, CompositeT]("message.composite.test").in(ctx)
+    val topic = TopicDef[Int, CompositeT](TopicName("message.composite.test")).in(ctx)
     val m     = CompositeT(C1(1), C2(1, "a"), C3("a", 1.0f, 1))
     val rst = for {
       _ <- topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
@@ -64,7 +65,7 @@ class MessageCoproductTest extends AnyFunSuite {
   }
 
   test("coproduct of composite types") {
-    val topic = TopicDef[Int, CT]("message.coproduct.composite.test").in(ctx)
+    val topic = TopicDef[Int, CT](TopicName("message.coproduct.composite.test")).in(ctx)
 
     val m1 = CT(Coproduct[ComplexType](C1(1)), 1)
     val m2 = CT(Coproduct[ComplexType](C2(1, "s")), 2)

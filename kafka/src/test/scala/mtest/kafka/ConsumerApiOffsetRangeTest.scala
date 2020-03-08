@@ -9,14 +9,14 @@ import com.github.chenharryhua.nanjin.kafka.common.{
   KafkaOffsetRange,
   KafkaTopicPartition
 }
-import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef}
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef,TopicName}
 import fs2.kafka.ProducerRecord
 import org.apache.kafka.common.TopicPartition
 import org.scalatest.funsuite.AnyFunSuite
 
 class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
-  val topic: KafkaTopic[IO, Int, Int] = TopicDef[Int, Int]("range.test").in(ctx)
+  val topic: KafkaTopic[IO, Int, Int] = TopicDef[Int, Int](TopicName("range.test")).in(ctx)
 
   val pr1: ProducerRecord[Int, Int] = topic.fs2PR(1, 1).withTimestamp(100)
   val pr2: ProducerRecord[Int, Int] = topic.fs2PR(2, 2).withTimestamp(200)

@@ -8,6 +8,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import cats.derived.auto.show._
 import cats.implicits._
 import io.circe.generic.auto._
+import com.github.chenharryhua.nanjin.kafka.TopicName
+
 
 package object kafka {
   import akka.stream.ActorMaterializer
@@ -24,5 +26,5 @@ package object kafka {
       .ioContext
 
   val taxi: KafkaTopic[IO, Int, trip_record] =
-    ctx.topic[Int, trip_record]("nyc_yellow_taxi_trip_data")
+    ctx.topic[Int, trip_record](TopicName("nyc_yellow_taxi_trip_data"))
 }

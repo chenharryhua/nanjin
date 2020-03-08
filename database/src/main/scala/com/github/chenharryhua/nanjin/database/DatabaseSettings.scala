@@ -53,13 +53,17 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
 
   final def runBatch[F[_]: ContextShift: Concurrent: Timer, A, B](
     f: A => ConnectionIO[B],
-    batchSize: Int = 1000): Pipe[F, A, Chunk[B]] =
+    batchSize: Int): Pipe[F, A, Chunk[B]] =
     (src: Stream[F, A]) =>
       for {
         xa <- transactorStream
         data <- src.groupWithin(batchSize, 5.seconds)
         rst <- Stream.eval(xa.trans.apply(data.traverse(f)(AsyncConnectionIO)))
       } yield rst
+
+  final def runBatch[F[_]: ContextShift: Concurrent: Timer, A, B](
+    f: A => ConnectionIO[B]): Pipe[F, A, Chunk[B]] =
+    runBatch[F, A, B](f, 1000)
 }
 
 @Lenses final case class Postgres(

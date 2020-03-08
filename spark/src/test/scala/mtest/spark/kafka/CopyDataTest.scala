@@ -2,6 +2,7 @@ package mtest.spark.kafka
 
 import cats.effect.IO
 import cats.implicits._
+import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.spark.kafka._
 import frameless.cats.implicits._
 import org.scalatest.funsuite.AnyFunSuite
@@ -12,8 +13,8 @@ object CopyData {
 
 class CopyDataTest extends AnyFunSuite {
   import CopyData._
-  val src = ctx.topic[Int, MyTestData]("copy.src")
-  val tgt = ctx.topic[Int, MyTestData]("copy.target")
+  val src = ctx.topic[Int, MyTestData](TopicName("copy.src"))
+  val tgt = ctx.topic[Int, MyTestData](TopicName("copy.target"))
 
   val d1 = src.fs2PR(0, MyTestData(1, "a")).withTimestamp(10)
   val d2 = src.fs2PR(1, MyTestData(2, "b")).withTimestamp(20)

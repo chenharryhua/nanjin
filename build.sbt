@@ -224,6 +224,7 @@ val base = Seq(
   "org.typelevel" %% "algebra"             % "2.0.1",
   "io.chrisdavenport" %% "cats-time"       % catsTime,
   "eu.timepit" %% "refined"                % refined,
+  "eu.timepit" %% "refined-cats"           % refined,
   "org.typelevel" %% "cats-core"           % catsCore,
   "org.typelevel" %% "cats-free"           % catsCore,
   "org.typelevel" %% "alleycats-core"      % catsCore,

@@ -10,9 +10,10 @@ import scala.util.Try
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.kafka.akkaSinks
+import com.github.chenharryhua.nanjin.kafka.TopicName
 
 class CompilationTest extends AnyFunSuite {
-  val topic: KafkaTopic[IO, Int, Int] = ctx.topic[Int, Int]("compilation.test")
+  val topic: KafkaTopic[IO, Int, Int] = ctx.topic[Int, Int](TopicName("compilation.test"))
   test("should compile") {
     val chn = topic.akkaChannel(akkaSystem)
     val task =

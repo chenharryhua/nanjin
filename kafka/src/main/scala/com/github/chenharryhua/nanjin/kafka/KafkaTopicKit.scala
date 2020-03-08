@@ -11,7 +11,7 @@ import akka.kafka.{
 import cats.effect.Sync
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.codec._
-import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, TopicName}
+import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import fs2.kafka.{
   ConsumerSettings => Fs2ConsumerSettings,
   Deserializer     => Fs2Deserializer,
@@ -124,7 +124,7 @@ import scala.util.Try
 
 final class TopicCodec[K, V] private[kafka] (val keyCodec: NJCodec[K], val valCodec: NJCodec[V]) {
   require(
-    keyCodec.topicName === valCodec.topicName,
+    keyCodec.topicName.value === valCodec.topicName.value,
     "key and value codec should have same topic name")
 
   implicit val keySerde: NJSerde[K] = keyCodec.serde

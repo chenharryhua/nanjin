@@ -8,11 +8,13 @@ import com.github.chenharryhua.nanjin.kafka._
 import com.github.chenharryhua.nanjin.kafka.common.KafkaOffset
 import org.scalatest.funsuite.AnyFunSuite
 import cats.effect.IO
+import com.github.chenharryhua.nanjin.kafka.TopicName
+
 
 class ConsumeMessageAkkaTest extends AnyFunSuite {
 
   val vessel: TopicDef[PKey, aisClassAPositionReport] =
-    TopicDef[PKey, aisClassAPositionReport]("sea_vessel_position_reports")
+    TopicDef[PKey, aisClassAPositionReport](TopicName("sea_vessel_position_reports"))
   val topic = ctx.topic(vessel)
   val chn   = topic.akkaChannel(akkaSystem)
 

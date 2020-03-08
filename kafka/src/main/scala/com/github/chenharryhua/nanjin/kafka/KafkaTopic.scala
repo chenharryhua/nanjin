@@ -5,7 +5,6 @@ import cats.Traverse
 import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.codec.{KafkaGenericDecoder, NJConsumerMessage}
-import com.github.chenharryhua.nanjin.kafka.common.TopicName
 import fs2.kafka.{
   KafkaProducer   => Fs2KafkaProducer,
   ProducerRecord  => Fs2ProducerRecord,

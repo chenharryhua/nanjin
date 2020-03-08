@@ -5,7 +5,7 @@ import java.io.ByteArrayOutputStream
 import cats.implicits._
 import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.kafka.codec._
-import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, TopicName}
+import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import com.sksamuel.avro4s.{
   AvroInputStream,
   AvroOutputStream,
@@ -77,17 +77,18 @@ object TopicDef {
 
   implicit def eqTopicDef[K, V]: Eq[TopicDef[K, V]] =
     (x: TopicDef[K, V], y: TopicDef[K, V]) =>
-      x.topicName === y.topicName && x.crAvroSchema == y.crAvroSchema
+      x.topicName.value === y.topicName.value && x.crAvroSchema == y.crAvroSchema
 
   def apply[K, V](
-    topicName: String,
+    topicName: TopicName,
     keySchema: ManualAvroSchema[K],
     valueSchema: ManualAvroSchema[V]): TopicDef[K, V] =
-    new TopicDef(TopicName(topicName))(SerdeOf(keySchema), SerdeOf(valueSchema))
+    new TopicDef(topicName)(SerdeOf(keySchema), SerdeOf(valueSchema))
 
-  def apply[K: SerdeOf, V: SerdeOf](topicName: String): TopicDef[K, V] =
-    new TopicDef(TopicName(topicName))(SerdeOf[K], SerdeOf[V])
+  def apply[K: SerdeOf, V: SerdeOf](topicName: TopicName): TopicDef[K, V] =
+    new TopicDef(topicName)(SerdeOf[K], SerdeOf[V])
 
-  def apply[K: SerdeOf, V](topicName: String, valueSchema: ManualAvroSchema[V]): TopicDef[K, V] =
-    new TopicDef(TopicName(topicName))(SerdeOf[K], SerdeOf(valueSchema))
+  def apply[K: SerdeOf, V](topicName: TopicName, valueSchema: ManualAvroSchema[V]): TopicDef[K, V] =
+    new TopicDef(topicName)(SerdeOf[K], SerdeOf(valueSchema))
+
 }
