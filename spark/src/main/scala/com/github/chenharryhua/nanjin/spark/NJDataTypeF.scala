@@ -10,12 +10,15 @@ sealed private[spark] trait NJDataTypeF[A]
 
 private[spark] object NJDataTypeF {
   type NJDataType = Fix[NJDataTypeF]
+  //numeric types
   final case class NJByteType[K]() extends NJDataTypeF[K]
   final case class NJShortType[K]() extends NJDataTypeF[K]
   final case class NJIntegerType[K]() extends NJDataTypeF[K]
   final case class NJLongType[K]() extends NJDataTypeF[K]
   final case class NJFloatType[K]() extends NJDataTypeF[K]
   final case class NJDoubleType[K]() extends NJDataTypeF[K]
+  final case class NJDecimalType[K](precision: Int, scale: Int) extends NJDataTypeF[K]
+
   final case class NJStringType[K]() extends NJDataTypeF[K]
   final case class NJBinaryType[K]() extends NJDataTypeF[K]
   final case class NJBooleanType[K]() extends NJDataTypeF[K]
@@ -23,10 +26,10 @@ private[spark] object NJDataTypeF {
   final case class NJTimestampType[K]() extends NJDataTypeF[K]
   final case class NJDateType[K]() extends NJDataTypeF[K]
 
-  final case class NJDecimalType[K](precision: Int, scale: Int) extends NJDataTypeF[K]
-
   final case class NJArrayType[K](containsNull: Boolean, cont: K) extends NJDataTypeF[K]
   final case class NJMapType[K](key: NJDataType, value: NJDataType) extends NJDataTypeF[K]
+
+  final case class NJNullType[K]() extends NJDataTypeF[K]
 
   final case class NJStructField(colName: String, dataType: NJDataType, nullable: Boolean) {
     private val dt: String = stringify(dataType)
@@ -60,6 +63,8 @@ private[spark] object NJDataTypeF {
     case NJMapType(k, v)    => MapType(cata(k), cata(v))
     case NJStructType(fields) =>
       StructType(fields.map(a => StructField(a.colName, cata(a.dataType), a.nullable)))
+
+    case NJNullType() => NullType
   }
 
   private val strAlgebra: Algebra[NJDataTypeF, String] = Algebra[NJDataTypeF, String] {
@@ -74,7 +79,7 @@ private[spark] object NJDataTypeF {
     case NJBinaryType()      => "Array[Byte]"
     case NJTimestampType()   => "java.sql.Timestamp"
     case NJDateType()        => "java.sql.Date"
-    case NJDecimalType(_, _) => "BigDecimal"
+    case NJDecimalType(p, s) => s"BigDecimal($p,$s)"
 
     case NJArrayType(_, dt) => s"Array[$dt]"
     case NJMapType(k, v)    => s"Map[${stringify(k)},${stringify(v)}]"
@@ -84,26 +89,36 @@ private[spark] object NJDataTypeF {
          |${fields.map(_.fieldStr).mkString(",\n")}
          |)
          |""".stripMargin
+
+    case NJNullType() => "FixMe-NullTypeInferred"
   }
 
   @SuppressWarnings(Array("SuspiciousMatchOnClassObject"))
   private val coalgebra: Coalgebra[NJDataTypeF, DataType] = Coalgebra[NJDataTypeF, DataType] {
-    case ByteType         => NJByteType()
-    case ShortType        => NJShortType()
-    case IntegerType      => NJIntegerType()
-    case LongType         => NJLongType()
-    case FloatType        => NJFloatType()
-    case DoubleType       => NJDoubleType()
-    case StringType       => NJStringType()
-    case BooleanType      => NJBooleanType()
-    case BinaryType       => NJBinaryType()
-    case TimestampType    => NJTimestampType()
-    case DateType         => NJDateType()
-    case DecimalType()    => NJDecimalType(38, 18)
+
+    case ByteType    => NJByteType()
+    case ShortType   => NJShortType()
+    case IntegerType => NJIntegerType()
+    case LongType    => NJLongType()
+    case FloatType   => NJFloatType()
+    case DoubleType  => NJDoubleType()
+
+    case dt: DecimalType => NJDecimalType(dt.precision, dt.scale)
+
+    case BooleanType => NJBooleanType()
+    case BinaryType  => NJBinaryType()
+    case StringType  => NJStringType()
+
+    case TimestampType => NJTimestampType()
+    case DateType      => NJDateType()
+
     case ArrayType(dt, c) => NJArrayType(c, dt)
     case MapType(k, v, _) => NJMapType(ana(k), ana(v))
+
     case StructType(fields) =>
       NJStructType(fields.toList.map(st => NJStructField(st.name, ana(st.dataType), st.nullable)))
+
+    case NullType => NJNullType()
 
   }
 
