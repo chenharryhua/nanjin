@@ -46,7 +46,7 @@ class SparKafkaTest extends AnyFunSuite {
   test("read topic from kafka and show json") {
     val tpk = TopicDef[String, trip_record](
       TopicName("nyc_yellow_taxi_trip_data"),
-      ManualAvroSchema[trip_record](trip_record.schema)).in(ctx)
+      ManualAvroSchema.unsafeFrom[trip_record](trip_record.schema)).in(ctx)
 
     tpk.kit.sparKafka.fromKafka[IO].flatMap(_.crDataset.show).unsafeRunSync
   }
