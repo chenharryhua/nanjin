@@ -12,7 +12,7 @@ import org.apache.avro.{Schema, SchemaCompatibility}
 
 import scala.language.experimental.macros
 
-final class ManualAvroSchema[A](schemaText: String)(
+final class ManualAvroSchema[A](val schemaText: String)(
   implicit
   val schemaFor: SchemaFor[A],
   val avroDecoder: AvroDecoder[A],

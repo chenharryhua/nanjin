@@ -22,7 +22,7 @@ final class ManualAvroMacro(val c: blackbox.Context) extends MacroUtils {
     val sf: Schema = eval(schemaFor).schema(DefaultFieldMapper)
     val sk: Schema = (new Schema.Parser).parse(eval(schemaText))
 
-    println(s"infered schema:\n ${sf.toString(true)}")
+    println(s"inferred schema:\n ${sf.toString(true)}")
 
     val rw: SchemaCompatibilityType =
       SchemaCompatibility.checkReaderWriterCompatibility(sf, sk).getType
