@@ -21,19 +21,21 @@ final class ManualAvroMacro(val c: blackbox.Context) extends MacroUtils {
     avroDecoder: c.Expr[AvroDecoder[A]],
     avroEncoder: c.Expr[AvroEncoder[A]]): c.Expr[ManualAvroSchema[A]] = {
     val sf: Schema = eval(schemaFor).schema(DefaultFieldMapper)
-    val sk: Schema = (new Schema.Parser).parse(eval(schemaText))
+    val st: Schema = (new Schema.Parser).parse(eval(schemaText))
 
     val rw: SchemaCompatibilityType =
-      SchemaCompatibility.checkReaderWriterCompatibility(sf, sk).getType
+      SchemaCompatibility.checkReaderWriterCompatibility(sf, st).getType
     val wr: SchemaCompatibilityType =
-      SchemaCompatibility.checkReaderWriterCompatibility(sk, sf).getType
+      SchemaCompatibility.checkReaderWriterCompatibility(st, sf).getType
 
-    if (!SchemaCompatibility.schemaNameEquals(sk, sf))
-      abort(s"schema name is different - ${sf.toString(true)}")
+    val inferred: String = sf.toString(true)
+
+    if (!SchemaCompatibility.schemaNameEquals(st, sf))
+      abort(s"schema name is different - $inferred")
     else if (SchemaCompatibilityType.COMPATIBLE.compareTo(rw) != 0)
-      abort(s"incompatible schema - ${sf.toString(true)}")
+      abort(s"incompatible schema - $inferred")
     else if (SchemaCompatibilityType.COMPATIBLE.compareTo(wr) != 0)
-      abort(s"incompatible schema - ${sf.toString(true)}")
+      abort(s"incompatible schema - $inferred")
     else
       c.Expr[ManualAvroSchema[A]](
         q""" new _root_.com.github.chenharryhua.nanjin.kafka.codec.ManualAvroSchema($schemaText)($schemaFor,$avroDecoder,$avroEncoder) """)
