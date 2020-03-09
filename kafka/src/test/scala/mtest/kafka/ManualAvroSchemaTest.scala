@@ -85,9 +85,37 @@ object ManualAvroSchemaTestData {
 
 class ManualAvroSchemaTest extends AnyFunSuite {
   import ManualAvroSchemaTestData._
+
   test("should be semantically identical") {
-    ManualAvroSchema[UnderTest](UnderTest.schema1).schema
-    intercept[IllegalArgumentException](ManualAvroSchema[UnderTest](UnderTest.schema2).schema)
-    intercept[IllegalArgumentException](ManualAvroSchema[UnderTest](UnderTest.schema3).schema)
+    ManualAvroSchema.unsafeFrom[UnderTest](UnderTest.schema1).schema
+    intercept[IllegalArgumentException](
+      ManualAvroSchema.unsafeFrom[UnderTest](UnderTest.schema2).schema)
+    intercept[IllegalArgumentException](
+      ManualAvroSchema.unsafeFrom[UnderTest](UnderTest.schema3).schema)
   }
+
+  test("should compile") {
+    val schema: ManualAvroSchema[UnderTest] =
+      ManualAvroSchema[UnderTest]("""
+{
+  "type": "record",
+  "name": "UnderTest",
+  "doc" : "test",
+  "namespace" : "mtest.kafka.ManualAvroSchemaTestData",
+  "fields": [
+    {
+      "name": "a",
+      "type": "int",
+      "doc" : "a type"
+    },
+    {
+      "name": "b",
+      "type": "string",
+      "doc" : "b type"
+    }
+  ]
+}       
+        """)
+  }
+
 }
