@@ -44,6 +44,8 @@ private[spark] trait DatasetExtensions {
 
     def avro[A: TypedEncoder](pathStr: String): TypedDataset[A] =
       TypedDataset.createUnsafe(ss.read.format("avro").load(pathStr))
-  }
 
+    def text(path: String): TypedDataset[String] =
+      TypedDataset.create(ss.read.textFile(path))
+  }
 }

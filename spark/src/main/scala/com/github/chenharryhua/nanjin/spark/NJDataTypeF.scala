@@ -19,7 +19,10 @@ private[spark] object NJDataTypeF {
   final case class NJStringType[K]() extends NJDataTypeF[K]
   final case class NJBinaryType[K]() extends NJDataTypeF[K]
   final case class NJBooleanType[K]() extends NJDataTypeF[K]
+
   final case class NJTimestampType[K]() extends NJDataTypeF[K]
+  final case class NJDateType[K]() extends NJDataTypeF[K]
+
   final case class NJDecimalType[K](precision: Int, scale: Int) extends NJDataTypeF[K]
 
   final case class NJArrayType[K](containsNull: Boolean, cont: K) extends NJDataTypeF[K]
@@ -39,16 +42,18 @@ private[spark] object NJDataTypeF {
   implicit val functorNJDataTypeF: Functor[NJDataTypeF] = cats.derived.semi.functor[NJDataTypeF]
 
   private val algebra: Algebra[NJDataTypeF, DataType] = Algebra[NJDataTypeF, DataType] {
-    case NJByteType()        => ByteType
-    case NJShortType()       => ShortType
-    case NJIntegerType()     => IntegerType
-    case NJLongType()        => LongType
-    case NJFloatType()       => FloatType
-    case NJDoubleType()      => DoubleType
-    case NJStringType()      => StringType
-    case NJBooleanType()     => BooleanType
-    case NJBinaryType()      => BinaryType
-    case NJTimestampType()   => TimestampType
+    case NJByteType()      => ByteType
+    case NJShortType()     => ShortType
+    case NJIntegerType()   => IntegerType
+    case NJLongType()      => LongType
+    case NJFloatType()     => FloatType
+    case NJDoubleType()    => DoubleType
+    case NJStringType()    => StringType
+    case NJBooleanType()   => BooleanType
+    case NJBinaryType()    => BinaryType
+    case NJTimestampType() => TimestampType
+    case NJDateType()      => DateType
+
     case NJDecimalType(p, s) => DecimalType(p, s)
 
     case NJArrayType(c, dt) => ArrayType(dt, c)
@@ -68,6 +73,7 @@ private[spark] object NJDataTypeF {
     case NJBooleanType()     => "Boolean"
     case NJBinaryType()      => "Array[Byte]"
     case NJTimestampType()   => "java.sql.Timestamp"
+    case NJDateType()        => "java.sql.Date"
     case NJDecimalType(_, _) => "BigDecimal"
 
     case NJArrayType(_, dt) => s"Array[$dt]"
@@ -92,6 +98,7 @@ private[spark] object NJDataTypeF {
     case BooleanType      => NJBooleanType()
     case BinaryType       => NJBinaryType()
     case TimestampType    => NJTimestampType()
+    case DateType         => NJDateType()
     case DecimalType()    => NJDecimalType(38, 18)
     case ArrayType(dt, c) => NJArrayType(c, dt)
     case MapType(k, v, _) => NJMapType(ana(k), ana(v))
