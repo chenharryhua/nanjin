@@ -15,14 +15,14 @@ class TopicNameSyntaxTest {
 
   val topic7 = TopicDef(
     TopicName("telecom_italia_data"),
-    ManualAvroSchema[Key](Key.schema),
-    ManualAvroSchema[smsCallInternet](smsCallInternet.schema))
+    ManualAvroSchema.unsafeFrom[Key](Key.schema),
+    ManualAvroSchema.unsafeFrom[smsCallInternet](smsCallInternet.schema))
 
 //  val topic8 =
 //    TopicDef[Key, smsCallInternet]("telecom_italia_data", ManualAvroSchema[Key](Key.schema)).in(ctx)
 
   val topic9 = TopicDef[Key, smsCallInternet](
     TopicName("telecom_italia_data"),
-    ManualAvroSchema[smsCallInternet](smsCallInternet.schema)).in(ctx)
+    ManualAvroSchema.unsafeFrom[smsCallInternet](smsCallInternet.schema)).in(ctx)
 
 }
