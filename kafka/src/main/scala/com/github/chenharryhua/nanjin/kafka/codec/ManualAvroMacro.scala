@@ -12,6 +12,7 @@ import org.apache.avro.{Schema, SchemaCompatibility}
 
 import scala.reflect.macros.blackbox
 
+@SuppressWarnings(Array("all"))
 final class ManualAvroMacro(val c: blackbox.Context) extends MacroUtils {
   import c.universe._
 

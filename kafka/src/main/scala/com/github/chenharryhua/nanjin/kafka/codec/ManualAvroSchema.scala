@@ -37,6 +37,7 @@ object ManualAvroSchema {
     new ManualAvroSchema[A](schemaText)
   }
 
+  @SuppressWarnings(Array("all"))
   def apply[A](schemaText: String)(
     implicit
     schemaFor: SchemaFor[A],
