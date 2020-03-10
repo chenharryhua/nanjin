@@ -24,11 +24,13 @@ private[spark] trait DatasetExtensions {
       Stream.force(
         tds.toLocalIterator.map(it => Stream.fromIterator[F](it.asScala.flatMap(Option(_)))))
 
-    def invalidRecords: TypedDataset[A] = {
+    def validRecords: TypedDataset[A] = {
       import tds.encoder
-      val noNulls: TypedDataset[A] = tds.deserialized.flatMap(Option(_))
-      tds.except(noNulls)
+      tds.deserialized.flatMap(Option(_))
     }
+
+    def invalidRecords: TypedDataset[A] =
+      tds.except(validRecords)
   }
 
   implicit class DataframeExt(private val df: DataFrame) {
