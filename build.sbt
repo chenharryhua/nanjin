@@ -118,7 +118,7 @@ val neotypesLib = Seq(
   "com.dimafeng" %% "neotypes-refined",
   "com.dimafeng" %% "neotypes-cats-data"
 ).map(_ % neotypes) ++
-  Seq("org.neo4j.driver" % "neo4j-java-driver" % "1.7.5")
+  Seq("org.neo4j.driver" % "neo4j-java-driver" % "4.0.1")
 
 val scodec = Seq(
   "org.scodec" %% "scodec-core"   % "1.11.4",
