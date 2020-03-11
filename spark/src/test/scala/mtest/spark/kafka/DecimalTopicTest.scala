@@ -33,7 +33,7 @@ class DecimalTopicTest extends AnyFunSuite {
     topic.fs2Channel.stream
       .map(m => topic.decoder(m).record)
       .take(2)
-      .through(fileSink[IO].avro[NJConsumerRecord[Int, HasDecimal]]("./data/test/decimal.avro"))
+      .through(fileSink.avro("./data/test/decimal.avro"))
       .compile
       .drain
       .unsafeRunSync
