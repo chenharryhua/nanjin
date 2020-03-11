@@ -31,34 +31,48 @@ final class FsmStart[F[_], K, V](kit: KafkaTopicKit[F, K, V], cfg: SKConfig)(
   def sparkSchema: DataType      = SchemaConverters.toSqlType(avroSchema).dataType
   def parquetSchema: MessageType = new AvroSchemaConverter().convert(avroSchema)
 
-  def fromKafka(implicit ev: Sync[F]): F[FsmRdd[F, K, V]] =
+  def fromKafka(implicit sync: Sync[F]): F[FsmRdd[F, K, V]] =
     sk.loadKafkaRdd(kit, params.timeRange, params.locationStrategy)
       .map(new FsmRdd[F, K, V](_, kit, cfg))
 
-  def fromDisk(implicit ev: Sync[F]): F[FsmRdd[F, K, V]] =
+  def fromDisk(implicit sync: Sync[F]): F[FsmRdd[F, K, V]] =
     sk.loadDiskRdd[F, K, V](sk.replayPath(kit.topicName)).map(new FsmRdd[F, K, V](_, kit, cfg))
 
   /**
     * shorthand
     */
-  def save(implicit ev: Sync[F], ev2: ContextShift[F]): F[Unit] = fromKafka.flatMap(_.save)
+  def save(
+    implicit
+    sync: Sync[F],
+    cs: ContextShift[F]): F[Unit] = fromKafka.flatMap(_.save)
 
-  def saveJackson(implicit ev: Sync[F], ev2: ContextShift[F]): F[Unit] =
+  def saveJackson(
+    implicit
+    sync: Sync[F],
+    cs: ContextShift[F]): F[Unit] =
     fromKafka.flatMap(_.saveJackson)
 
-  def saveAvro(implicit ev: Sync[F], ev2: ContextShift[F]): F[Unit] =
+  def saveAvro(
+    implicit
+    sync: Sync[F],
+    cs: ContextShift[F]): F[Unit] =
     fromKafka.flatMap(_.saveAvro)
 
-  def replay(implicit ev: ConcurrentEffect[F], ev1: Timer[F], ev2: ContextShift[F]): F[Unit] =
+  def replay(
+    implicit
+    ce: ConcurrentEffect[F],
+    timer: Timer[F],
+    cs: ContextShift[F]): F[Unit] =
     fromDisk.flatMap(_.replay)
 
   def countKafka(implicit ev: Sync[F]): F[Long] = fromKafka.map(_.count)
   def countDisk(implicit ev: Sync[F]): F[Long]  = fromDisk.map(_.count)
 
   def pipeTo(other: KafkaTopicKit[F, K, V])(
-    implicit ev: ConcurrentEffect[F],
-    ev1: Timer[F],
-    ev2: ContextShift[F]): F[Unit] =
+    implicit
+    ce: ConcurrentEffect[F],
+    timer: Timer[F],
+    cs: ContextShift[F]): F[Unit] =
     fromKafka.flatMap(_.pipeTo(other))
 
   /**
