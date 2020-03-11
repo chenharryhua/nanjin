@@ -44,7 +44,8 @@ final class FsmStart[F[_], K, V](kit: KafkaTopicKit[F, K, V], cfg: SKConfig)(
   def save(
     implicit
     sync: Sync[F],
-    cs: ContextShift[F]): F[Unit] = fromKafka.flatMap(_.save)
+    cs: ContextShift[F]): F[Unit] = 
+    fromKafka.flatMap(_.save)
 
   def saveJackson(
     implicit

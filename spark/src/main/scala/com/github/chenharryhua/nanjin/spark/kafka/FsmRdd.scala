@@ -48,9 +48,9 @@ final class FsmRdd[F[_], K, V](
 
   def pipeTo(otherTopic: KafkaTopicKit[F, K, V])(
     implicit
-    concurrentEffect: ConcurrentEffect[F],
+    ce: ConcurrentEffect[F],
     timer: Timer[F],
-    contextShift: ContextShift[F]): F[Unit] =
+    cs: ContextShift[F]): F[Unit] =
     crStream
       .map(_.toNJProducerRecord.noMeta)
       .through(sk.uploader(otherTopic, params.uploadRate))
@@ -60,9 +60,9 @@ final class FsmRdd[F[_], K, V](
 
   def replay(
     implicit
-    concurrentEffect: ConcurrentEffect[F],
+    ce: ConcurrentEffect[F],
     timer: Timer[F],
-    contextShift: ContextShift[F]): F[Unit] =
+    cs: ContextShift[F]): F[Unit] =
     pipeTo(kit)
 
   def count: Long = rdd.count()
