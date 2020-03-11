@@ -44,7 +44,7 @@ final class FsmStart[F[_], K, V](kit: KafkaTopicKit[F, K, V], cfg: SKConfig)(
   def save(
     implicit
     sync: Sync[F],
-    cs: ContextShift[F]): F[Unit] = 
+    cs: ContextShift[F]): F[Unit] =
     fromKafka.flatMap(_.save)
 
   def saveJackson(
@@ -66,8 +66,8 @@ final class FsmStart[F[_], K, V](kit: KafkaTopicKit[F, K, V], cfg: SKConfig)(
     cs: ContextShift[F]): F[Unit] =
     fromDisk.flatMap(_.replay)
 
-  def countKafka(implicit ev: Sync[F]): F[Long] = fromKafka.map(_.count)
-  def countDisk(implicit ev: Sync[F]): F[Long]  = fromDisk.map(_.count)
+  def countKafka(implicit F: Sync[F]): F[Long] = fromKafka.map(_.count)
+  def countDisk(implicit F: Sync[F]): F[Long]  = fromDisk.map(_.count)
 
   def pipeTo(other: KafkaTopicKit[F, K, V])(
     implicit

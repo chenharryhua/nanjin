@@ -31,18 +31,11 @@ final class FsmRdd[F[_], K, V](
     }
 
   def saveJackson(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
-    rdd
-      .stream[F]
-      .through(fileSink[F].jackson[NJConsumerRecord[K, V]](sk.jacksonPath(kit.topicName)))
-      .compile
-      .drain
+    crStream.through(fileSink.jackson(sk.jacksonPath(kit.topicName))).compile.drain
 
   def saveAvro(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
-    rdd
-      .stream[F]
-      .through(
-        fileSink[F]
-          .avro[NJConsumerRecord[K, V]](sk.avroPath(kit.topicName), kit.topicDef.crAvroSchema))
+    crStream
+      .through(fileSink.avro(sk.avroPath(kit.topicName), kit.topicDef.crAvroSchema))
       .compile
       .drain
 

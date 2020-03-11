@@ -63,16 +63,22 @@ final private class AkkaFileSink[F[_], A](
   }
 }
 
-final class AkkaSingleFileSink[F[_]: ConcurrentEffect](configuration: Configuration) {
+final class AkkaSingleFileSink(configuration: Configuration) {
 
-  def avro[A: AvroEncoder](pathStr: String, schema: Schema): Sink[A, F[NotUsed]] =
+  def avro[F[_]: ConcurrentEffect, A: AvroEncoder](
+    pathStr: String,
+    schema: Schema): Sink[A, F[NotUsed]] =
     Sink.fromGraph(new AkkaFileSink[F, A](pathStr, schema, configuration, AvroOutputStream.data[A]))
 
-  def avroBinary[A: AvroEncoder](pathStr: String, schema: Schema): Sink[A, F[NotUsed]] =
+  def avroBinary[F[_]: ConcurrentEffect, A: AvroEncoder](
+    pathStr: String,
+    schema: Schema): Sink[A, F[NotUsed]] =
     Sink.fromGraph(
       new AkkaFileSink[F, A](pathStr, schema, configuration, AvroOutputStream.binary[A]))
 
-  def jackson[A: AvroEncoder](pathStr: String, schema: Schema): Sink[A, F[NotUsed]] =
+  def jackson[F[_]: ConcurrentEffect, A: AvroEncoder](
+    pathStr: String,
+    schema: Schema): Sink[A, F[NotUsed]] =
     Sink.fromGraph(new AkkaFileSink[F, A](pathStr, schema, configuration, AvroOutputStream.json[A]))
 
 }

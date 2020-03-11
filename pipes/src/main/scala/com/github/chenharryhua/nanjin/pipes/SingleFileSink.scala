@@ -20,9 +20,9 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.apache.hadoop.conf.Configuration
 
-final class SingleFileSink[F[_]: ContextShift: Sync](hadoopConfiguration: Configuration) {
+final class SingleFileSink(hadoopConfiguration: Configuration) {
 
-  private def sink[A](
+  private def sink[F[_]: ContextShift: Sync, A](
     pathStr: String,
     schema: Schema,
     builder: AvroOutputStreamBuilder[A]): Pipe[F, A, Unit] = { sa: Stream[F, A] =>
@@ -34,19 +34,25 @@ final class SingleFileSink[F[_]: ContextShift: Sync](hadoopConfiguration: Config
     } yield data.foreach(aos.write)
   }
 
-  def avro[A: AvroEncoder](pathStr: String, schema: Schema): Pipe[F, A, Unit] =
-    sink(pathStr, schema, AvroOutputStream.data[A])
+  def avro[F[_]: ContextShift: Sync, A: AvroEncoder](
+    pathStr: String,
+    schema: Schema): Pipe[F, A, Unit] =
+    sink[F, A](pathStr, schema, AvroOutputStream.data[A])
 
-  def avro[A: SchemaFor: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
-    avro(pathStr, SchemaFor[A].schema(DefaultFieldMapper))
+  def avro[F[_]: ContextShift: Sync, A: SchemaFor: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
+    avro[F, A](pathStr, SchemaFor[A].schema(DefaultFieldMapper))
 
-  def jackson[A: SchemaFor: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
-    sink(pathStr, SchemaFor[A].schema(DefaultFieldMapper), AvroOutputStream.json[A])
+  def jackson[F[_]: ContextShift: Sync, A: SchemaFor: AvroEncoder](
+    pathStr: String): Pipe[F, A, Unit] =
+    sink[F, A](pathStr, SchemaFor[A].schema(DefaultFieldMapper), AvroOutputStream.json[A])
 
-  def avroBinary[A: SchemaFor: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
-    sink(pathStr, SchemaFor[A].schema(DefaultFieldMapper), AvroOutputStream.binary[A])
+  def avroBinary[F[_]: ContextShift: Sync, A: SchemaFor: AvroEncoder](
+    pathStr: String): Pipe[F, A, Unit] =
+    sink[F, A](pathStr, SchemaFor[A].schema(DefaultFieldMapper), AvroOutputStream.binary[A])
 
-  def parquet[A: AvroEncoder](pathStr: String, schema: Schema): Pipe[F, A, Unit] = { as =>
+  def parquet[F[_]: ContextShift: Sync, A: AvroEncoder](
+    pathStr: String,
+    schema: Schema): Pipe[F, A, Unit] = { as =>
     for {
       blocker <- Stream.resource(Blocker[F])
       writer <- Stream.resource(
@@ -61,10 +67,11 @@ final class SingleFileSink[F[_]: ContextShift: Sync](hadoopConfiguration: Config
     }
   }
 
-  def parquet[A: SchemaFor: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
-    parquet[A](pathStr, SchemaFor[A].schema(DefaultFieldMapper))
+  def parquet[F[_]: ContextShift: Sync, A: SchemaFor: AvroEncoder](
+    pathStr: String): Pipe[F, A, Unit] =
+    parquet[F, A](pathStr, SchemaFor[A].schema(DefaultFieldMapper))
 
-  def json[A: JsonEncoder](pathStr: String): Pipe[F, A, Unit] = { as =>
+  def json[F[_]: ContextShift: Sync, A: JsonEncoder](pathStr: String): Pipe[F, A, Unit] = { as =>
     for {
       blocker <- Stream.resource(Blocker[F])
       aos <- Stream
@@ -78,17 +85,18 @@ final class SingleFileSink[F[_]: ContextShift: Sync](hadoopConfiguration: Config
     } yield ()
   }
 
-  def csv[A: HeaderEncoder](pathStr: String, csvConfig: CsvConfiguration): Pipe[F, A, Unit] = {
-    as =>
-      for {
-        blocker <- Stream.resource(Blocker[F])
-        aos <- Stream.resource(
-          hadoop.csvOutputResource[F, A](pathStr, hadoopConfiguration, blocker, csvConfig))
-        data <- as.chunks
-      } yield data.foreach(aos.write)
+  def csv[F[_]: ContextShift: Sync, A: HeaderEncoder](
+    pathStr: String,
+    csvConfig: CsvConfiguration): Pipe[F, A, Unit] = { as =>
+    for {
+      blocker <- Stream.resource(Blocker[F])
+      aos <- Stream.resource(
+        hadoop.csvOutputResource[F, A](pathStr, hadoopConfiguration, blocker, csvConfig))
+      data <- as.chunks
+    } yield data.foreach(aos.write)
   }
 
-  def csv[A: HeaderEncoder](pathStr: String): Pipe[F, A, Unit] =
+  def csv[F[_]: ContextShift: Sync, A: HeaderEncoder](pathStr: String): Pipe[F, A, Unit] =
     csv(pathStr, rfc)
 
 }
