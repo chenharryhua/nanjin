@@ -97,6 +97,6 @@ final class SingleFileSink(hadoopConfiguration: Configuration) {
   }
 
   def csv[F[_]: ContextShift: Sync, A: HeaderEncoder](pathStr: String): Pipe[F, A, Unit] =
-    csv(pathStr, rfc)
+    csv[F,A](pathStr, rfc)
 
 }
