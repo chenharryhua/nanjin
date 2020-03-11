@@ -27,20 +27,20 @@ class SparKafkaTest extends AnyFunSuite {
 
   test("read topic from kafka") {
     val rst =
-      topic.kit.sparKafka.fromKafka[IO].flatMap(_.crDataset.values.collect[IO]()).unsafeRunSync
+      topic.kit.sparKafka.fromKafka.flatMap(_.crDataset.values.collect[IO]()).unsafeRunSync
     assert(rst.toList === List(data, data))
   }
 
   test("save topic to disk") {
     topic.kit.sparKafka
       .withParamUpdate(_.withOverwrite)
-      .fromKafka[IO]
+      .fromKafka
       .map(_.crDataset.save("./data/test/st"))
       .unsafeRunSync
   }
 
   test("read topic from kafka and show aggragation result") {
-    topic.kit.sparKafka.fromKafka[IO].flatMap(_.stats.minutely).unsafeRunSync
+    topic.kit.sparKafka.fromKafka.flatMap(_.stats.minutely).unsafeRunSync
   }
 
   test("read topic from kafka and show json") {
@@ -48,7 +48,7 @@ class SparKafkaTest extends AnyFunSuite {
       TopicName("nyc_yellow_taxi_trip_data"),
       ManualAvroSchema.unsafeFrom[trip_record](trip_record.schema)).in(ctx)
 
-    tpk.kit.sparKafka.fromKafka[IO].flatMap(_.crDataset.show).unsafeRunSync
+    tpk.kit.sparKafka.fromKafka.flatMap(_.crDataset.show).unsafeRunSync
   }
 
   test("should be able to bimap to other topic") {
@@ -62,7 +62,7 @@ class SparKafkaTest extends AnyFunSuite {
 
     val birst =
       src.kit.sparKafka
-        .crDataset[IO](ds)
+        .crDataset(ds)
         .bimapTo(tgt.kit)(_.toString, _ + 1)
         .values
         .collect[IO]()
@@ -82,7 +82,7 @@ class SparKafkaTest extends AnyFunSuite {
 
     val birst =
       src.kit.sparKafka
-        .crDataset[IO](ds)
+        .crDataset(ds)
         .flatMapTo(tgt.kit)(m => m.value.map(x => NJConsumerRecord.value.set(Some(x - 1))(m)))
         .values
         .collect[IO]()

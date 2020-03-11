@@ -21,11 +21,12 @@ sealed trait KafkaTopicAdminApi[F[_]] {
 
 object KafkaTopicAdminApi {
 
-  def apply[F[_]: Concurrent: ContextShift, K, V](kit: KafkaTopicKit[K, V]): KafkaTopicAdminApi[F] =
+  def apply[F[_]: Concurrent: ContextShift, K, V](
+    kit: KafkaTopicKit[F, K, V]): KafkaTopicAdminApi[F] =
     new KafkaTopicAdminApiImpl(kit)
 
   final private class KafkaTopicAdminApiImpl[F[_]: Concurrent: ContextShift, K, V](
-    kit: KafkaTopicKit[K, V])
+    kit: KafkaTopicKit[F, K, V])
       extends KafkaTopicAdminApi[F] {
 
     override val adminResource: Resource[F, KafkaAdminClient[F]] =

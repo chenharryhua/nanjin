@@ -13,9 +13,10 @@ import org.apache.spark.sql.SparkSession
 
 final class FsmRdd[F[_], K, V](
   rdd: RDD[NJConsumerRecord[K, V]],
-  kit: KafkaTopicKit[K, V],
+  kit: KafkaTopicKit[F, K, V],
   cfg: SKConfig)(implicit sparkSession: SparkSession)
     extends SparKafkaUpdateParams[FsmRdd[F, K, V]] {
+  import kit.topicDef.{avroKeyEncoder, avroValEncoder, schemaForKey, schemaForVal}
 
   override def params: SKParams = SKConfigF.evalConfig(cfg)
 
@@ -29,17 +30,14 @@ final class FsmRdd[F[_], K, V](
         F.delay(rdd.saveAsObjectFile(path))
     }
 
-  def saveJackson(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
-    import kit.topicDef.{avroKeyEncoder, avroValEncoder, schemaForKey, schemaForVal}
+  def saveJackson(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
     rdd
       .stream[F]
       .through(fileSink[F].jackson[NJConsumerRecord[K, V]](sk.jacksonPath(kit.topicName)))
       .compile
       .drain
-  }
 
-  def saveAvro(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
-    import kit.topicDef.{avroKeyEncoder, avroValEncoder}
+  def saveAvro(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
     rdd
       .stream[F]
       .through(
@@ -47,9 +45,8 @@ final class FsmRdd[F[_], K, V](
           .avro[NJConsumerRecord[K, V]](sk.avroPath(kit.topicName), kit.topicDef.crAvroSchema))
       .compile
       .drain
-  }
 
-  def pipeTo(otherTopic: KafkaTopicKit[K, V])(
+  def pipeTo(otherTopic: KafkaTopicKit[F, K, V])(
     implicit
     concurrentEffect: ConcurrentEffect[F],
     timer: Timer[F],

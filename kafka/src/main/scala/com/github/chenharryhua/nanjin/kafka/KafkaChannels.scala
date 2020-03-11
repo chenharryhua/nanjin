@@ -58,7 +58,7 @@ object KafkaChannels {
   }
 
   final class AkkaChannel[F[_]: ContextShift, K, V] private[kafka] (
-    kit: KafkaTopicKit[K, V],
+    kit: KafkaTopicKit[F, K, V],
     producerSettings: AkkaProducerSettings[K, V],
     consumerSettings: AkkaConsumerSettings[Array[Byte], Array[Byte]],
     committerSettings: AkkaCommitterSettings)(implicit F: ConcurrentEffect[F]) {

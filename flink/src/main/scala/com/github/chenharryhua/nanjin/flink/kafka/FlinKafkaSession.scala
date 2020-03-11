@@ -8,13 +8,13 @@ import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer, KafkaDeserializationSchema}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
-final class FlinKafkaSession[K: TypeInformation, V: TypeInformation](
-  kit: KafkaTopicKit[K, V],
+final class FlinKafkaSession[F[_], K: TypeInformation, V: TypeInformation](
+  kit: KafkaTopicKit[F, K, V],
   params: FlinKafkaParams)
-    extends Serializable with UpdateParams[FlinKafkaParams, FlinKafkaSession[K, V]] {
+    extends Serializable with UpdateParams[FlinKafkaParams, FlinKafkaSession[F, K, V]] {
 
-  override def withParamUpdate(f: FlinKafkaParams => FlinKafkaParams): FlinKafkaSession[K, V] =
-    new FlinKafkaSession[K, V](kit, f(params))
+  override def withParamUpdate(f: FlinKafkaParams => FlinKafkaParams): FlinKafkaSession[F, K, V] =
+    new FlinKafkaSession[F, K, V](kit, f(params))
 
   def dataStream: DataStream[NJConsumerRecord[K, V]] =
     params.env.addSource[NJConsumerRecord[K, V]](

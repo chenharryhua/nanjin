@@ -10,7 +10,7 @@ import org.apache.spark.sql.Dataset
 
 final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   crs: Dataset[NJConsumerRecord[K, V]],
-  kit: KafkaTopicKit[K, V],
+  kit: KafkaTopicKit[F, K, V],
   cfg: SKConfig)
     extends SparKafkaUpdateParams[FsmConsumerRecords[F, K, V]] {
 
@@ -24,13 +24,13 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
 
   // api section
   def bimapTo[K2: TypedEncoder, V2: TypedEncoder](
-    other: KafkaTopicKit[K2, V2])(k: K => K2, v: V => V2): FsmConsumerRecords[F, K2, V2] =
+    other: KafkaTopicKit[F, K2, V2])(k: K => K2, v: V => V2): FsmConsumerRecords[F, K2, V2] =
     new FsmConsumerRecords[F, K2, V2](
       typedDataset.deserialized.map(_.bimap(k, v)).dataset,
       other,
       cfg)
 
-  def flatMapTo[K2: TypedEncoder, V2: TypedEncoder](other: KafkaTopicKit[K2, V2])(
+  def flatMapTo[K2: TypedEncoder, V2: TypedEncoder](other: KafkaTopicKit[F, K2, V2])(
     f: NJConsumerRecord[K, V] => TraversableOnce[NJConsumerRecord[K2, V2]])
     : FsmConsumerRecords[F, K2, V2] =
     new FsmConsumerRecords[F, K2, V2](typedDataset.deserialized.flatMap(f).dataset, other, cfg)
@@ -55,10 +55,10 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def nullValuesCount(implicit F: Sync[F]): F[Long] =
     typedDataset.filter(typedDataset('value).isNone).count[F]
 
-  def nullKeysCount(implicit ev: Sync[F]): F[Long] =
+  def nullKeysCount(implicit F: Sync[F]): F[Long] =
     typedDataset.filter(typedDataset('key).isNone).count[F]
 
-  def count(implicit ev: Sync[F]): F[Long] = typedDataset.count[F]()
+  def count(implicit F: Sync[F]): F[Long] = typedDataset.count[F]()
 
   def values: TypedDataset[V] =
     typedDataset.select(typedDataset('value)).as[Option[V]].deserialized.flatMap[V](identity)
@@ -66,7 +66,7 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def keys: TypedDataset[K] =
     typedDataset.select(typedDataset('key)).as[Option[K]].deserialized.flatMap[K](identity)
 
-  def show(implicit ev: Sync[F]): F[Unit] =
+  def show(implicit F: Sync[F]): F[Unit] =
     typedDataset.show[F](params.showDs.rowNum, params.showDs.isTruncate)
 
   def save(path: String): Unit =
