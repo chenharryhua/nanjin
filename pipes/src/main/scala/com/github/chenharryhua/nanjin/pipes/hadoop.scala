@@ -33,7 +33,7 @@ object hadoop {
     hadoopConfig: Configuration,
     blocker: Blocker): Resource[F, FSDataOutputStream] =
     for {
-      fs <- fileSystem(pathStr, hadoopConfig, blocker)
+      fs <- fileSystem[F](pathStr, hadoopConfig, blocker)
       rs <- Resource.fromAutoCloseable(blocker.delay(fs.create(new Path(pathStr))))
     } yield rs
 
@@ -44,7 +44,7 @@ object hadoop {
     builder: AvroOutputStreamBuilder[A],
     blocker: Blocker): Resource[F, AvroOutputStream[A]] =
     for {
-      os <- outputPathResource(pathStr, hadoopConfig, blocker)
+      os <- outputPathResource[F](pathStr, hadoopConfig, blocker)
       rs <- Resource.fromAutoCloseable(Sync[F].pure(builder.to(os).build(schema)))
     } yield rs
 
@@ -71,7 +71,7 @@ object hadoop {
     csvConfig: CsvConfiguration): Resource[F, CsvWriter[A]] = {
     import kantan.csv.ops._
     for {
-      os <- outputPathResource(pathStr, hadoopConfig, blocker).widen[OutputStream]
+      os <- outputPathResource[F](pathStr, hadoopConfig, blocker).widen[OutputStream]
       rs <- Resource.fromAutoCloseable(Sync[F].pure(os.asCsvWriter[A](csvConfig)))
     } yield rs
   }
@@ -81,7 +81,7 @@ object hadoop {
     hadoopConfig: Configuration,
     blocker: Blocker): Resource[F, FSDataInputStream] =
     for {
-      fs <- fileSystem(pathStr, hadoopConfig, blocker)
+      fs <- fileSystem[F](pathStr, hadoopConfig, blocker)
       rs <- Resource.fromAutoCloseable(blocker.delay(fs.open(new Path(pathStr))))
     } yield rs
 
@@ -92,7 +92,7 @@ object hadoop {
     builder: AvroInputStreamBuilder[A],
     blocker: Blocker): Resource[F, AvroInputStream[A]] =
     for {
-      is <- inputPathResource(pathStr, hadoopConfig, blocker)
+      is <- inputPathResource[F](pathStr, hadoopConfig, blocker)
       rs <- Resource.fromAutoCloseable(Sync[F].pure(builder.from(is).build(schema)))
     } yield rs
 
@@ -100,7 +100,7 @@ object hadoop {
     pathStr: String,
     hadoopConfig: Configuration,
     blocker: Blocker): F[Boolean] =
-    fileSystem(pathStr, hadoopConfig, blocker).use(fs =>
+    fileSystem[F](pathStr, hadoopConfig, blocker).use(fs =>
       blocker.delay(fs.delete(new Path(pathStr), true)))
 
 }
