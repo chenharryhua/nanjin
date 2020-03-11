@@ -43,7 +43,7 @@ final class SparkStream[F[_], A: TypedEncoder](ds: Dataset[A], cfg: StreamConfig
   def fileSink(path: String): NJFileSink[F, A] =
     new NJFileSink[F, A](ds.writeStream, cfg, path)
 
-  def kafkaSink[K: TypedEncoder, V: TypedEncoder](kit: KafkaTopicKit[K, V])(
+  def kafkaSink[K: TypedEncoder, V: TypedEncoder](kit: KafkaTopicKit[F, K, V])(
     implicit ev: A =:= NJProducerRecord[K, V]): NJKafkaSink[F] =
     new KafkaPRStream[F, K, V](typedDataset.deserialized.map(ev).dataset, cfg).kafkaSink(kit)
 }

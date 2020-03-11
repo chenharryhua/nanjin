@@ -43,7 +43,7 @@ object sk {
     }
 
   private def kafkaRDD[F[_]: Sync, K, V](
-    kit: KafkaTopicKit[K, V],
+    kit: KafkaTopicKit[F, K, V],
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy)(
     implicit sparkSession: SparkSession): F[RDD[ConsumerRecord[Array[Byte], Array[Byte]]]] =
@@ -57,8 +57,8 @@ object sk {
 
   private val logger: Logger = org.log4s.getLogger("spark.kafka")
 
-  private def decode[K, V](
-    kit: KafkaTopicKit[K, V],
+  private def decode[F[_], K, V](
+    kit: KafkaTopicKit[F, K, V],
     iterator: Iterator[ConsumerRecord[Array[Byte], Array[Byte]]])
     : Iterator[NJConsumerRecord[K, V]] =
     iterator.map { m =>
@@ -68,7 +68,7 @@ object sk {
     }
 
   def loadKafkaRdd[F[_]: Sync, K, V, A](
-    kit: KafkaTopicKit[K, V],
+    kit: KafkaTopicKit[F, K, V],
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy)(
     implicit
@@ -79,9 +79,9 @@ object sk {
     implicit sparkSession: SparkSession): F[RDD[NJConsumerRecord[K, V]]] =
     Sync[F].delay(sparkSession.sparkContext.objectFile[NJConsumerRecord[K, V]](path))
 
-  def save[K, V](
+  def save[F[_], K, V](
     dataset: TypedDataset[NJConsumerRecord[K, V]],
-    kit: KafkaTopicKit[K, V],
+    kit: KafkaTopicKit[F, K, V],
     fileFormat: NJFileFormat,
     saveMode: SaveMode,
     path: String): Unit =
@@ -97,7 +97,7 @@ object sk {
     }
 
   def uploader[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
-    kit: KafkaTopicKit[K, V],
+    kit: KafkaTopicKit[F, K, V],
     uploadRate: NJUploadRate): Pipe[F, NJProducerRecord[K, V], ProducerResult[K, V, Unit]] =
     njPRs =>
       for {
@@ -108,7 +108,7 @@ object sk {
           .chunkN(uploadRate.batchSize)
           .metered(uploadRate.duration)
           .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(kit.topicName))))
-          .through(produce(kit.fs2ProducerSettings[F]))
+          .through(produce(kit.fs2ProducerSettings))
       } yield rst
 
   /**
@@ -144,7 +144,7 @@ object sk {
     }
   }
 
-  private def decodeSparkStreamCR[K, V](kit: KafkaTopicKit[K, V])
+  private def decodeSparkStreamCR[F[_], K, V](kit: KafkaTopicKit[F, K, V])
     : NJConsumerRecord[Array[Byte], Array[Byte]] => NJConsumerRecord[K, V] =
     rawCr => {
       val smi = ShowMetaInfo[NJConsumerRecord[Array[Byte], Array[Byte]]]
@@ -166,7 +166,7 @@ object sk {
         .flatten[K, V]
     }
 
-  def streaming[F[_]: Sync, K, V, A](kit: KafkaTopicKit[K, V], timeRange: NJDateTimeRange)(
+  def streaming[F[_]: Sync, K, V, A](kit: KafkaTopicKit[F, K, V], timeRange: NJDateTimeRange)(
     f: NJConsumerRecord[K, V] => A)(
     implicit
     sparkSession: SparkSession,

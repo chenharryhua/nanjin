@@ -28,13 +28,15 @@ import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Deserialize
 import scala.collection.immutable
 import scala.util.Try
 
-@Lenses final case class KafkaTopicKit[K, V](topicDef: TopicDef[K, V], settings: KafkaSettings) {
+@Lenses final case class KafkaTopicKit[F[_], K, V](
+  topicDef: TopicDef[K, V],
+  settings: KafkaSettings) {
   import topicDef.{serdeOfKey, serdeOfVal}
 
   val topicName: TopicName = topicDef.topicName
 
-  def withGroupId(gid: String): KafkaTopicKit[K, V] =
-    new KafkaTopicKit[K, V](topicDef, settings.withGroupId(gid))
+  def withGroupId(gid: String): KafkaTopicKit[F, K, V] =
+    new KafkaTopicKit[F, K, V](topicDef, settings.withGroupId(gid))
 
   //need to reconstruct codec when working in spark
   @transient lazy val codec: TopicCodec[K, V] = new TopicCodec(
@@ -42,12 +44,12 @@ import scala.util.Try
     serdeOfVal.asValue(settings.schemaRegistrySettings.config).codec(topicDef.topicName)
   )
 
-  def fs2ProducerSettings[F[_]: Sync]: Fs2ProducerSettings[F, K, V] =
+  def fs2ProducerSettings(implicit ev: Sync[F]): Fs2ProducerSettings[F, K, V] =
     Fs2ProducerSettings[F, K, V](
       Fs2Serializer.delegate(codec.keySerializer),
       Fs2Serializer.delegate(codec.valSerializer)).withProperties(settings.producerSettings.config)
 
-  def fs2ConsumerSettings[F[_]: Sync]: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]] =
+  def fs2ConsumerSettings(implicit ev: Sync[F]): Fs2ConsumerSettings[F, Array[Byte], Array[Byte]] =
     Fs2ConsumerSettings[F, Array[Byte], Array[Byte]](
       Fs2Deserializer[F, Array[Byte]],
       Fs2Deserializer[F, Array[Byte]]).withProperties(settings.consumerSettings.config)

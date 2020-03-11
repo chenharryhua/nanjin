@@ -28,7 +28,7 @@ sealed trait KafkaMonitoringApi[F[_], K, V] {
 
   def summaries: F[Unit]
 
-  def carbonCopyTo(other: KafkaTopicKit[K, V]): F[Unit]
+  def carbonCopyTo(other: KafkaTopicKit[F, K, V]): F[Unit]
 }
 
 object KafkaMonitoringApi {
@@ -128,7 +128,7 @@ object KafkaMonitoringApi {
                            |""".stripMargin)
       }
 
-    override def carbonCopyTo(other: KafkaTopicKit[K, V]): F[Unit] = {
+    override def carbonCopyTo(other: KafkaTopicKit[F, K, V]): F[Unit] = {
       val run = for {
         signal <- Keyboard.signal
         _ <- fs2Channel.stream.map { m =>
@@ -139,7 +139,7 @@ object KafkaMonitoringApi {
             .withHeaders(cr.headers)
             .withPartition(cr.partition)
           ProducerRecords.one(ts.fold(pr)(pr.withTimestamp))
-        }.through(produce[F, K, V, Unit](other.fs2ProducerSettings[F]))
+        }.through(produce[F, K, V, Unit](other.fs2ProducerSettings))
           .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
           .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
       } yield ()

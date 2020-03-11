@@ -21,7 +21,7 @@ final class KafkaPRStream[F[_], K: TypedEncoder, V: TypedEncoder](
   def someValues: KafkaPRStream[F, K, V] =
     new KafkaPRStream[F, K, V](typedDataset.filter(typedDataset('value).isNotNone).dataset, cfg)
 
-  def kafkaSink(kit: KafkaTopicKit[K, V]): NJKafkaSink[F] =
+  def kafkaSink(kit: KafkaTopicKit[F, K, V]): NJKafkaSink[F] =
     new NJKafkaSink[F](
       typedDataset.deserialized
         .map(_.bimap(k => kit.codec.keyCodec.encode(k), v => kit.codec.valCodec.encode(v)))
