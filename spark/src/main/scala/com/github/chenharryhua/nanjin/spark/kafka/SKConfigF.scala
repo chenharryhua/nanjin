@@ -3,13 +3,13 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import java.time.{LocalDateTime, ZoneId}
 import java.util.concurrent.TimeUnit
 
-import cats.Functor
 import cats.data.Reader
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.spark.{NJRepartition, NJShowDataset}
 import higherkindness.droste.data.Fix
+import higherkindness.droste.macros.deriveTraverse
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
@@ -48,7 +48,7 @@ private[spark] object SKParams {
     )
 }
 
-sealed private[spark] trait SKConfigF[A]
+@deriveTraverse sealed private[spark] trait SKConfigF[A]
 
 private[spark] object SKConfigF {
   final case class DefaultParams[K]() extends SKConfigF[K]
@@ -74,9 +74,6 @@ private[spark] object SKConfigF {
 
   final case class WithPathBuilder[K](value: Reader[TopicName, String], cont: K)
       extends SKConfigF[K]
-
-  implicit val configParamFunctor: Functor[SKConfigF] =
-    cats.derived.semi.functor[SKConfigF]
 
   private val algebra: Algebra[SKConfigF, SKParams] = Algebra[SKConfigF, SKParams] {
     case DefaultParams()            => SKParams.default
