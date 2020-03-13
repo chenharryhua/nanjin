@@ -1,10 +1,10 @@
 package com.github.chenharryhua.nanjin.spark.database
 
-import cats.Functor
 import cats.data.Reader
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.database.TableName
 import higherkindness.droste.data.Fix
+import higherkindness.droste.macros.deriveTraverse
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
@@ -26,8 +26,7 @@ private[spark] object STParams {
     fileFormat   = NJFileFormat.Parquet
   )
 }
-
-sealed private[spark] trait STConfigF[A]
+@deriveTraverse sealed private[spark] trait STConfigF[A]
 
 object STConfigF {
   final case class DefaultParams[K]() extends STConfigF[K]
@@ -39,9 +38,6 @@ object STConfigF {
 
   final case class WithPathBuilder[K](value: Reader[TablePathBuild, String], cont: K)
       extends STConfigF[K]
-
-  implicit val configParamFunctor: Functor[STConfigF] =
-    cats.derived.semi.functor[STConfigF]
 
   private val algebra: Algebra[STConfigF, STParams] = Algebra[STConfigF, STParams] {
     case DefaultParams()        => STParams.default

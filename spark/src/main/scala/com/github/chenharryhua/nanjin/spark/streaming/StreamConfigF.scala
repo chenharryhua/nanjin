@@ -2,11 +2,11 @@ package com.github.chenharryhua.nanjin.spark.streaming
 
 import java.util.concurrent.TimeUnit
 
-import cats.Functor
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.spark.NJShowDataset
 import higherkindness.droste.data.Fix
+import higherkindness.droste.macros.deriveTraverse
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
 import org.apache.spark.sql.streaming.{OutputMode, Trigger}
@@ -45,7 +45,7 @@ private[spark] object StreamParams {
     )
 }
 
-sealed private[spark] trait StreamConfigF[A]
+@deriveTraverse sealed private[spark] trait StreamConfigF[A]
 
 private[spark] object StreamConfigF {
 
@@ -58,9 +58,6 @@ private[spark] object StreamConfigF {
   final case class WithFailOnDataLoss[K](isFail: Boolean, cont: K) extends StreamConfigF[K]
   final case class WithOutputMode[K](value: OutputMode, cont: K) extends StreamConfigF[K]
   final case class WithTrigger[K](value: Trigger, cont: K) extends StreamConfigF[K]
-
-  implicit val configParamFunctor: Functor[StreamConfigF] =
-    cats.derived.semi.functor[StreamConfigF]
 
   private val algebra: Algebra[StreamConfigF, StreamParams] =
     Algebra[StreamConfigF, StreamParams] {

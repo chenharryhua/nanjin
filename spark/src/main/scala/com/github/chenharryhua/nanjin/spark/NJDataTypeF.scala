@@ -1,12 +1,12 @@
 package com.github.chenharryhua.nanjin.spark
 
-import cats.Functor
 import cats.implicits._
 import higherkindness.droste.data.Fix
+import higherkindness.droste.macros.deriveTraverse
 import higherkindness.droste.{scheme, Algebra, Coalgebra}
 import org.apache.spark.sql.types._
 
-sealed private[spark] trait NJDataTypeF[A]
+@deriveTraverse sealed private[spark] trait NJDataTypeF[A]
 
 private[spark] object NJDataTypeF {
   type NJDataType = Fix[NJDataTypeF]
@@ -41,8 +41,6 @@ private[spark] object NJDataTypeF {
   }
 
   final case class NJStructType[K](fields: List[NJStructField]) extends NJDataTypeF[K]
-
-  implicit val functorNJDataTypeF: Functor[NJDataTypeF] = cats.derived.semi.functor[NJDataTypeF]
 
   private val algebra: Algebra[NJDataTypeF, DataType] = Algebra[NJDataTypeF, DataType] {
     case NJByteType()      => ByteType

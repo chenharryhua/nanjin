@@ -35,6 +35,14 @@ final class FsmStart[F[_], K, V](kit: KafkaTopicKit[F, K, V], cfg: SKConfig)(
     sk.loadKafkaRdd(kit, params.timeRange, params.locationStrategy)
       .map(new FsmRdd[F, K, V](_, kit, cfg))
 
+  def fromKafka[A](f: NJConsumerRecord[K, V] => A)(
+    implicit
+    sync: Sync[F],
+    encoder: TypedEncoder[A]): F[TypedDataset[A]] = {
+    import encoder.classTag
+    sk.loadKafkaRdd(kit, params.timeRange, params.locationStrategy, f).map(TypedDataset.create(_))
+  }
+
   def fromDisk(implicit sync: Sync[F]): F[FsmRdd[F, K, V]] =
     sk.loadDiskRdd[F, K, V](sk.replayPath(kit.topicName)).map(new FsmRdd[F, K, V](_, kit, cfg))
 

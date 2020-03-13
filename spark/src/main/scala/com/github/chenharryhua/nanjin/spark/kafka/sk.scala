@@ -22,6 +22,7 @@ import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategy, Offset
 import org.log4s.Logger
 
 import scala.collection.JavaConverters._
+import scala.reflect.ClassTag
 
 object sk {
 
@@ -57,23 +58,28 @@ object sk {
 
   private val logger: Logger = org.log4s.getLogger("spark.kafka")
 
-  private def decode[F[_], K, V](
+  def loadKafkaRdd[F[_]: Sync, K, V, A: ClassTag](
     kit: KafkaTopicKit[F, K, V],
-    iterator: Iterator[ConsumerRecord[Array[Byte], Array[Byte]]])
-    : Iterator[NJConsumerRecord[K, V]] =
-    iterator.map { m =>
-      val (errs, cr) = kit.decoder(m).logRecord.run
-      errs.map(x => logger.warn(x.error)(x.metaInfo))
-      cr
-    }
+    timeRange: NJDateTimeRange,
+    locationStrategy: LocationStrategy,
+    f: NJConsumerRecord[K, V] => A)(
+    implicit
+    sparkSession: SparkSession): F[RDD[A]] =
+    kafkaRDD[F, K, V](kit, timeRange, locationStrategy).map(_.mapPartitions {
+      _.map { m =>
+        val (errs, cr) = kit.decoder(m).logRecord.run
+        errs.map(x => logger.warn(x.error)(x.metaInfo))
+        f(cr)
+      }
+    })
 
-  def loadKafkaRdd[F[_]: Sync, K, V, A](
+  def loadKafkaRdd[F[_]: Sync, K, V](
     kit: KafkaTopicKit[F, K, V],
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy)(
     implicit
     sparkSession: SparkSession): F[RDD[NJConsumerRecord[K, V]]] =
-    kafkaRDD[F, K, V](kit, timeRange, locationStrategy).map(_.mapPartitions(ms => decode(kit, ms)))
+    loadKafkaRdd[F, K, V, NJConsumerRecord[K, V]](kit, timeRange, locationStrategy, identity)
 
   def loadDiskRdd[F[_]: Sync, K, V](path: String)(
     implicit sparkSession: SparkSession): F[RDD[NJConsumerRecord[K, V]]] =
