@@ -13,26 +13,32 @@ import org.apache.spark.sql.Dataset
 
 final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   prs: Dataset[NJProducerRecord[K, V]],
-  kit: KafkaTopic[F, K, V],
+  topic: KafkaTopic[F, K, V],
   cfg: SKConfig
 ) extends SparKafkaUpdateParams[FsmProducerRecords[F, K, V]] {
 
   override def withParamUpdate(f: SKConfig => SKConfig): FsmProducerRecords[F, K, V] =
-    new FsmProducerRecords[F, K, V](prs, kit, f(cfg))
+    new FsmProducerRecords[F, K, V](prs, topic, f(cfg))
 
   def noTimestamp: FsmProducerRecords[F, K, V] =
-    new FsmProducerRecords[F, K, V](typedDataset.deserialized.map(_.noTimestamp).dataset, kit, cfg)
+    new FsmProducerRecords[F, K, V](
+      typedDataset.deserialized.map(_.noTimestamp).dataset,
+      topic,
+      cfg)
 
   def noPartition: FsmProducerRecords[F, K, V] =
-    new FsmProducerRecords[F, K, V](typedDataset.deserialized.map(_.noPartition).dataset, kit, cfg)
+    new FsmProducerRecords[F, K, V](
+      typedDataset.deserialized.map(_.noPartition).dataset,
+      topic,
+      cfg)
 
   def noMeta: FsmProducerRecords[F, K, V] =
-    new FsmProducerRecords[F, K, V](typedDataset.deserialized.map(_.noMeta).dataset, kit, cfg)
+    new FsmProducerRecords[F, K, V](typedDataset.deserialized.map(_.noMeta).dataset, topic, cfg)
 
   def someValues: FsmProducerRecords[F, K, V] =
     new FsmProducerRecords[F, K, V](
       typedDataset.filter(typedDataset('value).isNotNone).dataset,
-      kit,
+      topic,
       cfg)
 
   @transient lazy val typedDataset: TypedDataset[NJProducerRecord[K, V]] =
@@ -59,7 +65,7 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     ce: ConcurrentEffect[F],
     timer: Timer[F],
     cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
-    upload(kit)
+    upload(topic)
 
   def count(implicit ev: Sync[F]): F[Long] =
     typedDataset.count[F]()

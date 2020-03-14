@@ -18,33 +18,33 @@ trait SparKafkaUpdateParams[A] extends UpdateParams[SKConfig, A] with Serializab
   def params: SKParams
 }
 
-final class FsmStart[F[_], K, V](kit: KafkaTopic[F, K, V], cfg: SKConfig)(
+final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(
   implicit sparkSession: SparkSession)
     extends SparKafkaUpdateParams[FsmStart[F, K, V]] {
 
   override def withParamUpdate(f: SKConfig => SKConfig): FsmStart[F, K, V] =
-    new FsmStart[F, K, V](kit, f(cfg))
+    new FsmStart[F, K, V](topic, f(cfg))
 
   override val params: SKParams = SKConfigF.evalConfig(cfg)
 
-  def avroSchema: Schema         = kit.topicDef.crAvroSchema
+  def avroSchema: Schema         = topic.topicDef.crAvroSchema
   def sparkSchema: DataType      = SchemaConverters.toSqlType(avroSchema).dataType
   def parquetSchema: MessageType = new AvroSchemaConverter().convert(avroSchema)
 
   def fromKafka(implicit sync: Sync[F]): F[FsmRdd[F, K, V]] =
-    sk.loadKafkaRdd(kit, params.timeRange, params.locationStrategy)
-      .map(new FsmRdd[F, K, V](_, kit, cfg))
+    sk.loadKafkaRdd(topic, params.timeRange, params.locationStrategy)
+      .map(new FsmRdd[F, K, V](_, topic, cfg))
 
   def fromKafka[A](f: NJConsumerRecord[K, V] => A)(
     implicit
     sync: Sync[F],
     encoder: TypedEncoder[A]): F[TypedDataset[A]] = {
     import encoder.classTag
-    sk.loadKafkaRdd(kit, params.timeRange, params.locationStrategy, f).map(TypedDataset.create(_))
+    sk.loadKafkaRdd(topic, params.timeRange, params.locationStrategy, f).map(TypedDataset.create(_))
   }
 
   def fromDisk(implicit sync: Sync[F]): F[FsmRdd[F, K, V]] =
-    sk.loadDiskRdd[F, K, V](sk.replayPath(kit.topicName)).map(new FsmRdd[F, K, V](_, kit, cfg))
+    sk.loadDiskRdd[F, K, V](sk.replayPath(topic.topicName)).map(new FsmRdd[F, K, V](_, topic, cfg))
 
   /**
     * shorthand
@@ -92,13 +92,13 @@ final class FsmStart[F[_], K, V](kit: KafkaTopic[F, K, V], cfg: SKConfig)(
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]) =
-    new FsmConsumerRecords[F, K, V](tds.dataset, kit, cfg)
+    new FsmConsumerRecords[F, K, V](tds.dataset, topic, cfg)
 
   def prDataset(tds: TypedDataset[NJProducerRecord[K, V]])(
     implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]) =
-    new FsmProducerRecords[F, K, V](tds.dataset, kit, cfg)
+    new FsmProducerRecords[F, K, V](tds.dataset, topic, cfg)
 
   /**
     * streaming
@@ -116,22 +116,22 @@ final class FsmStart[F[_], K, V](kit: KafkaTopic[F, K, V], cfg: SKConfig)(
     implicit
     sync: Sync[F],
     encoder: TypedEncoder[A]): F[SparkStream[F, A]] =
-    sk.streaming[F, K, V, A](kit, params.timeRange)(f)
+    sk.streaming[F, K, V, A](topic, params.timeRange)(f)
       .map(s =>
         new SparkStream(
           s.dataset,
           StreamConfig(params.timeRange, params.showDs, params.fileFormat)
-            .withCheckpointAppend(s"kafka/${kit.topicName.value}")))
+            .withCheckpointAppend(s"kafka/${topic.topicName.value}")))
 
   def streaming(
     implicit
     sync: Sync[F],
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[KafkaCRStream[F, K, V]] =
-    sk.streaming[F, K, V, NJConsumerRecord[K, V]](kit, params.timeRange)(identity)
+    sk.streaming[F, K, V, NJConsumerRecord[K, V]](topic, params.timeRange)(identity)
       .map(s =>
         new KafkaCRStream[F, K, V](
           s.dataset,
           StreamConfig(params.timeRange, params.showDs, params.fileFormat)
-            .withCheckpointAppend(s"kafkacr/${kit.topicName.value}")))
+            .withCheckpointAppend(s"kafkacr/${topic.topicName.value}")))
 }

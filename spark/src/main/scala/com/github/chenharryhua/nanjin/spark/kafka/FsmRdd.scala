@@ -13,29 +13,29 @@ import org.apache.spark.sql.SparkSession
 
 final class FsmRdd[F[_], K, V](
   rdd: RDD[NJConsumerRecord[K, V]],
-  kit: KafkaTopic[F, K, V],
+  topic: KafkaTopic[F, K, V],
   cfg: SKConfig)(implicit sparkSession: SparkSession)
     extends SparKafkaUpdateParams[FsmRdd[F, K, V]] {
-  import kit.topicDef.{avroKeyEncoder, avroValEncoder, schemaForKey, schemaForVal}
+  import topic.topicDef.{avroKeyEncoder, avroValEncoder, schemaForKey, schemaForVal}
 
   override def params: SKParams = SKConfigF.evalConfig(cfg)
 
   override def withParamUpdate(f: SKConfig => SKConfig): FsmRdd[F, K, V] =
-    new FsmRdd[F, K, V](rdd, kit, f(cfg))
+    new FsmRdd[F, K, V](rdd, topic, f(cfg))
 
   def save(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
     Blocker[F].use { blocker =>
-      val path = sk.replayPath(kit.topicName)
+      val path = sk.replayPath(topic.topicName)
       hadoop.delete(path, sparkSession.sparkContext.hadoopConfiguration, blocker) >>
         F.delay(rdd.saveAsObjectFile(path))
     }
 
   def saveJackson(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
-    crStream.through(fileSink.jackson(sk.jacksonPath(kit.topicName))).compile.drain
+    crStream.through(fileSink.jackson(sk.jacksonPath(topic.topicName))).compile.drain
 
   def saveAvro(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
     crStream
-      .through(fileSink.avro(sk.avroPath(kit.topicName), kit.topicDef.crAvroSchema))
+      .through(fileSink.avro(sk.avroPath(topic.topicName), topic.topicDef.crAvroSchema))
       .compile
       .drain
 
@@ -56,12 +56,12 @@ final class FsmRdd[F[_], K, V](
     ce: ConcurrentEffect[F],
     timer: Timer[F],
     cs: ContextShift[F]): F[Unit] =
-    pipeTo(kit)
+    pipeTo(topic)
 
   def count: Long = rdd.count()
 
   def partition(num: Int): FsmRdd[F, K, V] =
-    new FsmRdd[F, K, V](rdd.filter(_.partition === num), kit, cfg)
+    new FsmRdd[F, K, V](rdd.filter(_.partition === num), topic, cfg)
 
   def sorted: RDD[NJConsumerRecord[K, V]] =
     rdd
@@ -78,7 +78,7 @@ final class FsmRdd[F[_], K, V](
     valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] = {
     val tds       = TypedDataset.create(rdd)
     val inBetween = tds.makeUDF[Long, Boolean](params.timeRange.isInBetween)
-    new FsmConsumerRecords(tds.filter(inBetween(tds('timestamp))).dataset, kit, cfg)
+    new FsmConsumerRecords(tds.filter(inBetween(tds('timestamp))).dataset, topic, cfg)
   }
 
   def stats: Statistics[F] =
