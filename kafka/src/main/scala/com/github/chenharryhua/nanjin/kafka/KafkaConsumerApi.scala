@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import java.time.Duration
+import java.util.Properties
 
 import cats.Monad
 import cats.data.Kleisli
@@ -107,14 +108,12 @@ sealed trait KafkaConsumerApi[F[_]] extends KafkaPrimitiveConsumerApi[F] {
 
 object KafkaConsumerApi {
 
-  def apply[F[_]: Sync](
-    topicName: TopicName,
-    consumerSettings: KafkaConsumerSettings): Resource[F, KafkaConsumerApi[F]] =
+  def apply[F[_]: Sync](topicName: TopicName, props: Properties): Resource[F, KafkaConsumerApi[F]] =
     Resource
       .make(Sync[F].delay {
         val byteArrayDeserializer = new ByteArrayDeserializer
         new KafkaConsumer[Array[Byte], Array[Byte]](
-          consumerSettings.javaProperties,
+          props,
           byteArrayDeserializer,
           byteArrayDeserializer)
       })(a => Sync[F].delay(a.close()))

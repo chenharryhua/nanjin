@@ -12,6 +12,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.codec.NJSerde
 import com.github.chenharryhua.nanjin.kafka.common.{KafkaOffsetRange, KafkaTopicPartition}
+import com.github.chenharryhua.nanjin.utils
 import fs2.Stream
 import fs2.interop.reactivestreams._
 import fs2.kafka.{ConsumerSettings => Fs2ConsumerSettings, ProducerSettings => Fs2ProducerSettings}
@@ -59,7 +60,6 @@ object KafkaChannels {
 
   final class AkkaChannel[F[_]: ContextShift, K, V] private[kafka] (
     topicName: TopicName,
-    kafkaConsumerSettings: KafkaConsumerSettings,
     producerSettings: AkkaProducerSettings[K, V],
     consumerSettings: AkkaConsumerSettings[Array[Byte], Array[Byte]],
     committerSettings: AkkaCommitterSettings)(implicit F: ConcurrentEffect[F]) {
@@ -72,32 +72,17 @@ object KafkaChannels {
 
     def withProducerSettings(
       f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): AkkaChannel[F, K, V] =
-      new AkkaChannel(
-        topicName,
-        kafkaConsumerSettings,
-        f(producerSettings),
-        consumerSettings,
-        committerSettings)
+      new AkkaChannel(topicName, f(producerSettings), consumerSettings, committerSettings)
 
     def withConsumerSettings(
       f: AkkaConsumerSettings[Array[Byte], Array[Byte]] => AkkaConsumerSettings[
         Array[Byte],
         Array[Byte]]): AkkaChannel[F, K, V] =
-      new AkkaChannel(
-        topicName,
-        kafkaConsumerSettings,
-        producerSettings,
-        f(consumerSettings),
-        committerSettings)
+      new AkkaChannel(topicName, producerSettings, f(consumerSettings), committerSettings)
 
     def withCommitterSettings(
       f: AkkaCommitterSettings => AkkaCommitterSettings): AkkaChannel[F, K, V] =
-      new AkkaChannel(
-        topicName,
-        kafkaConsumerSettings,
-        producerSettings,
-        consumerSettings,
-        f(committerSettings))
+      new AkkaChannel(topicName, producerSettings, consumerSettings, f(committerSettings))
 
     def flexiFlow[P]: Flow[Envelope[K, V, P], ProducerMessage.Results[K, V, P], NotUsed] =
       Producer.flexiFlow[K, V, P](producerSettings)
@@ -144,7 +129,7 @@ object KafkaChannels {
     def timeRanged(dateTimeRange: NJDateTimeRange)(
       implicit mat: Materializer): Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]] = {
       val exec: F[Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]]] =
-        KafkaConsumerApi[F](topicName, kafkaConsumerSettings)
+        KafkaConsumerApi[F](topicName, utils.toProperties(consumerSettings.properties))
           .use(_.offsetRangeFor(dateTimeRange).map(_.flatten[KafkaOffsetRange]))
           .map(offsetRanged)
       Stream.force(exec)

@@ -57,16 +57,17 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
       Fs2Serializer.delegate(codec.keySerializer),
       Fs2Serializer.delegate(codec.valSerializer)).withProperties(settings.producerSettings.config)
 
-  def fs2ConsumerSettings(implicit ev: Sync[F]): Fs2ConsumerSettings[F, Array[Byte], Array[Byte]] =
+  private def fs2ConsumerSettings(
+    implicit ev: Sync[F]): Fs2ConsumerSettings[F, Array[Byte], Array[Byte]] =
     Fs2ConsumerSettings[F, Array[Byte], Array[Byte]](
       Fs2Deserializer[F, Array[Byte]],
       Fs2Deserializer[F, Array[Byte]]).withProperties(settings.consumerSettings.config)
 
-  def akkaProducerSettings(akkaSystem: ActorSystem): AkkaProducerSettings[K, V] =
+  private def akkaProducerSettings(akkaSystem: ActorSystem): AkkaProducerSettings[K, V] =
     AkkaProducerSettings[K, V](akkaSystem, codec.keySerializer, codec.valSerializer)
       .withProperties(settings.producerSettings.config)
 
-  def akkaConsumerSettings(
+  private def akkaConsumerSettings(
     akkaSystem: ActorSystem): AkkaConsumerSettings[Array[Byte], Array[Byte]] = {
     val byteArrayDeserializer = new ByteArrayDeserializer
     AkkaConsumerSettings[Array[Byte], Array[Byte]](
@@ -75,7 +76,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
       byteArrayDeserializer).withProperties(settings.consumerSettings.config)
   }
 
-  def akkaCommitterSettings(akkaSystem: ActorSystem): AkkaCommitterSettings =
+  private def akkaCommitterSettings(akkaSystem: ActorSystem): AkkaCommitterSettings =
     AkkaCommitterSettings(akkaSystem)
 
   def decoder[G[_, _]: NJConsumerMessage](
@@ -149,7 +150,6 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
     contextShift: ContextShift[F]): KafkaChannels.AkkaChannel[F, K, V] =
     new KafkaChannels.AkkaChannel[F, K, V](
       topicName,
-      settings.consumerSettings,
       akkaProducerSettings(akkaSystem),
       akkaConsumerSettings(akkaSystem),
       akkaCommitterSettings(akkaSystem))
@@ -192,7 +192,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
     KafkaTopicAdminApi[F, K, V](this)
 
   def consumerResource(implicit sync: Sync[F]): Resource[F, KafkaConsumerApi[F]] =
-    KafkaConsumerApi(topicName, settings.consumerSettings)
+    KafkaConsumerApi(topicName, settings.consumerSettings.javaProperties)
 
   def monitor(
     implicit
