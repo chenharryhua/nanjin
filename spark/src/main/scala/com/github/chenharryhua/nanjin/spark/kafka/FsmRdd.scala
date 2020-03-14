@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
+import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import com.github.chenharryhua.nanjin.pipes.hadoop
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
@@ -13,7 +13,7 @@ import org.apache.spark.sql.SparkSession
 
 final class FsmRdd[F[_], K, V](
   rdd: RDD[NJConsumerRecord[K, V]],
-  kit: KafkaTopicKit[F, K, V],
+  kit: KafkaTopic[F, K, V],
   cfg: SKConfig)(implicit sparkSession: SparkSession)
     extends SparKafkaUpdateParams[FsmRdd[F, K, V]] {
   import kit.topicDef.{avroKeyEncoder, avroValEncoder, schemaForKey, schemaForVal}
@@ -39,7 +39,7 @@ final class FsmRdd[F[_], K, V](
       .compile
       .drain
 
-  def pipeTo(otherTopic: KafkaTopicKit[F, K, V])(
+  def pipeTo(otherTopic: KafkaTopic[F, K, V])(
     implicit
     ce: ConcurrentEffect[F],
     timer: Timer[F],

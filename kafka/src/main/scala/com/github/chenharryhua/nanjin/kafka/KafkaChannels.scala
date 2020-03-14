@@ -58,7 +58,8 @@ object KafkaChannels {
   }
 
   final class AkkaChannel[F[_]: ContextShift, K, V] private[kafka] (
-    kit: KafkaTopicKit[F, K, V],
+    topicName: TopicName,
+    kafkaConsumerSettings: KafkaConsumerSettings,
     producerSettings: AkkaProducerSettings[K, V],
     consumerSettings: AkkaConsumerSettings[Array[Byte], Array[Byte]],
     committerSettings: AkkaCommitterSettings)(implicit F: ConcurrentEffect[F]) {
@@ -69,21 +70,34 @@ object KafkaChannels {
     import akka.stream.scaladsl.{Flow, Sink, Source}
     import akka.{Done, NotUsed}
 
-    val topicName: TopicName = kit.topicName
-
     def withProducerSettings(
       f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): AkkaChannel[F, K, V] =
-      new AkkaChannel(kit, f(producerSettings), consumerSettings, committerSettings)
+      new AkkaChannel(
+        topicName,
+        kafkaConsumerSettings,
+        f(producerSettings),
+        consumerSettings,
+        committerSettings)
 
     def withConsumerSettings(
       f: AkkaConsumerSettings[Array[Byte], Array[Byte]] => AkkaConsumerSettings[
         Array[Byte],
         Array[Byte]]): AkkaChannel[F, K, V] =
-      new AkkaChannel(kit, producerSettings, f(consumerSettings), committerSettings)
+      new AkkaChannel(
+        topicName,
+        kafkaConsumerSettings,
+        producerSettings,
+        f(consumerSettings),
+        committerSettings)
 
     def withCommitterSettings(
       f: AkkaCommitterSettings => AkkaCommitterSettings): AkkaChannel[F, K, V] =
-      new AkkaChannel(kit, producerSettings, consumerSettings, f(committerSettings))
+      new AkkaChannel(
+        topicName,
+        kafkaConsumerSettings,
+        producerSettings,
+        consumerSettings,
+        f(committerSettings))
 
     def flexiFlow[P]: Flow[Envelope[K, V, P], ProducerMessage.Results[K, V, P], NotUsed] =
       Producer.flexiFlow[K, V, P](producerSettings)
@@ -130,7 +144,7 @@ object KafkaChannels {
     def timeRanged(dateTimeRange: NJDateTimeRange)(
       implicit mat: Materializer): Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]] = {
       val exec: F[Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]]] =
-        KafkaConsumerApi[F, K, V](kit)
+        KafkaConsumerApi[F](topicName, kafkaConsumerSettings)
           .use(_.offsetRangeFor(dateTimeRange).map(_.flatten[KafkaOffsetRange]))
           .map(offsetRanged)
       Stream.force(exec)

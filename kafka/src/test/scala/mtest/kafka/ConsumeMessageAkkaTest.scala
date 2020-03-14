@@ -16,7 +16,7 @@ class ConsumeMessageAkkaTest extends AnyFunSuite {
   val vessel: TopicDef[PKey, aisClassAPositionReport] =
     TopicDef[PKey, aisClassAPositionReport](TopicName("sea_vessel_position_reports"))
   val topic = ctx.topic(vessel)
-  val chn   = topic.akkaChannel(akkaSystem)
+  val chn   = topic.akkaChannel
 
   test("akka stream should be able to consume data") {
     val run = chn

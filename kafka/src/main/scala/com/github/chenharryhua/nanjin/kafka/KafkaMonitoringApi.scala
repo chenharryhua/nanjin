@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import java.time.ZonedDateTime
 
-import cats.effect.{ConcurrentEffect, ContextShift}
+import cats.effect.{ConcurrentEffect, ContextShift, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.codec.NJConsumerMessage._
@@ -28,17 +28,17 @@ sealed trait KafkaMonitoringApi[F[_], K, V] {
 
   def summaries: F[Unit]
 
-  def carbonCopyTo(other: KafkaTopicKit[F, K, V]): F[Unit]
+  def carbonCopyTo(other: KafkaTopic[F, K, V]): F[Unit]
 }
 
 object KafkaMonitoringApi {
 
-  def apply[F[_]: ConcurrentEffect: ContextShift, K, V](
+  def apply[F[_]: ConcurrentEffect: Timer: ContextShift, K, V](
     topic: KafkaTopic[F, K, V]): KafkaMonitoringApi[F, K, V] =
     new KafkaTopicMonitoring[F, K, V](topic)
 
-  final private class KafkaTopicMonitoring[F[_]: ContextShift, K, V](topic: KafkaTopic[F, K, V])(
-    implicit F: ConcurrentEffect[F])
+  final private class KafkaTopicMonitoring[F[_]: ContextShift: Timer, K, V](
+    topic: KafkaTopic[F, K, V])(implicit F: ConcurrentEffect[F])
       extends KafkaMonitoringApi[F, K, V] {
 
     private val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
@@ -50,11 +50,11 @@ object KafkaMonitoringApi {
           .withConsumerSettings(_.withAutoOffsetReset(aor))
           .stream
           .map { m =>
-            val (err, r) = topic.kit.decoder(m).logRecord.run
+            val (err, r) = topic.decoder(m).logRecord.run
             err.map(e => pprint.pprintln(e))
             s"""|local now: ${ZonedDateTime.now}
                 |timestamp: ${NJTimestamp(r.timestamp).local}
-                |${topic.kit.topicDef.toJackson(r).spaces2}""".stripMargin
+                |${topic.topicDef.toJackson(r).spaces2}""".stripMargin
           }
           .showLinesStdOut
           .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
@@ -70,7 +70,7 @@ object KafkaMonitoringApi {
           .stream
           .filter(m =>
             predict(iso.isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record)))
-          .map(m => topic.kit.toJackson(m).spaces2)
+          .map(m => topic.toJackson(m).spaces2)
           .showLinesStdOut
           .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
           .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
@@ -78,7 +78,7 @@ object KafkaMonitoringApi {
 
     override def watchFrom(njt: NJTimestamp): F[Unit] = {
       val run: Stream[F, Unit] = for {
-        kcs <- Stream.resource(KafkaConsumerApi(topic.kit))
+        kcs <- Stream.resource(topic.consumerResource)
         gtp <- Stream.eval(for {
           os <- kcs.offsetsForTimes(njt)
           e <- kcs.endOffsets
@@ -86,7 +86,7 @@ object KafkaMonitoringApi {
         signal <- Keyboard.signal
         _ <- fs2Channel
           .assign(gtp.flatten[KafkaOffset].mapValues(_.value).value)
-          .map(m => topic.kit.toJackson(m).spaces2)
+          .map(m => topic.toJackson(m).spaces2)
           .showLinesStdOut
           .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
           .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
@@ -110,7 +110,7 @@ object KafkaMonitoringApi {
       filter(cr => cr.key().isFailure || cr.value().isFailure)
 
     override def summaries: F[Unit] =
-      KafkaConsumerApi(topic.kit).use { consumer =>
+      topic.consumerResource.use { consumer =>
         for {
           num <- consumer.numOfRecords
           first <- consumer.retrieveFirstRecords.map(_.map(cr =>
@@ -128,7 +128,7 @@ object KafkaMonitoringApi {
                            |""".stripMargin)
       }
 
-    override def carbonCopyTo(other: KafkaTopicKit[F, K, V]): F[Unit] = {
+    override def carbonCopyTo(other: KafkaTopic[F, K, V]): F[Unit] = {
       val run = for {
         signal <- Keyboard.signal
         _ <- fs2Channel.stream.map { m =>

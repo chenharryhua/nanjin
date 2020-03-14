@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.flink.kafka
 
 import com.github.chenharryhua.nanjin.common.UpdateParams
-import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
+import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala._
@@ -9,17 +9,17 @@ import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer, KafkaDes
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
 final class FlinKafkaSession[F[_], K: TypeInformation, V: TypeInformation](
-  kit: KafkaTopicKit[F, K, V],
+  topic: KafkaTopic[F, K, V],
   params: FlinKafkaParams)
     extends Serializable with UpdateParams[FlinKafkaParams, FlinKafkaSession[F, K, V]] {
 
   override def withParamUpdate(f: FlinKafkaParams => FlinKafkaParams): FlinKafkaSession[F, K, V] =
-    new FlinKafkaSession[F, K, V](kit, f(params))
+    new FlinKafkaSession[F, K, V](topic, f(params))
 
   def dataStream: DataStream[NJConsumerRecord[K, V]] =
     params.env.addSource[NJConsumerRecord[K, V]](
       new FlinkKafkaConsumer[NJConsumerRecord[K, V]](
-        kit.topicDef.topicName.value,
+        topic.topicDef.topicName.value,
         new KafkaDeserializationSchema[NJConsumerRecord[K, V]] {
           override def isEndOfStream(nextElement: NJConsumerRecord[K, V]): Boolean = false
 
@@ -28,7 +28,7 @@ final class FlinKafkaSession[F[_], K: TypeInformation, V: TypeInformation](
 
           override def deserialize(
             record: ConsumerRecord[Array[Byte], Array[Byte]]): NJConsumerRecord[K, V] =
-            kit.decoder(record).record
+            topic.decoder(record).record
         },
-        kit.settings.consumerSettings.javaProperties))
+        topic.settings.consumerSettings.javaProperties))
 }

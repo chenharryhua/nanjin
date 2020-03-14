@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.UpdateParams
-import com.github.chenharryhua.nanjin.kafka.KafkaTopicKit
+import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.spark.streaming.{KafkaCRStream, SparkStream, StreamConfig}
 import frameless.{TypedDataset, TypedEncoder}
@@ -18,7 +18,7 @@ trait SparKafkaUpdateParams[A] extends UpdateParams[SKConfig, A] with Serializab
   def params: SKParams
 }
 
-final class FsmStart[F[_], K, V](kit: KafkaTopicKit[F, K, V], cfg: SKConfig)(
+final class FsmStart[F[_], K, V](kit: KafkaTopic[F, K, V], cfg: SKConfig)(
   implicit sparkSession: SparkSession)
     extends SparKafkaUpdateParams[FsmStart[F, K, V]] {
 
@@ -77,7 +77,7 @@ final class FsmStart[F[_], K, V](kit: KafkaTopicKit[F, K, V], cfg: SKConfig)(
   def countKafka(implicit F: Sync[F]): F[Long] = fromKafka.map(_.count)
   def countDisk(implicit F: Sync[F]): F[Long]  = fromDisk.map(_.count)
 
-  def pipeTo(other: KafkaTopicKit[F, K, V])(
+  def pipeTo(other: KafkaTopic[F, K, V])(
     implicit
     ce: ConcurrentEffect[F],
     timer: Timer[F],
@@ -104,7 +104,7 @@ final class FsmStart[F[_], K, V](kit: KafkaTopicKit[F, K, V], cfg: SKConfig)(
     * streaming
     */
 
-  def streamingPipeTo(otherTopic: KafkaTopicKit[F, K, V])(
+  def streamingPipeTo(otherTopic: KafkaTopic[F, K, V])(
     implicit
     concurrent: Concurrent[F],
     timer: Timer[F],

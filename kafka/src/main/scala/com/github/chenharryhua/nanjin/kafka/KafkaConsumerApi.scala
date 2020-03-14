@@ -120,9 +120,6 @@ object KafkaConsumerApi {
       })(a => Sync[F].delay(a.close()))
       .map(new KafkaConsumerApiImpl(topicName, _))
 
-  def apply[F[_]: Sync, K, V](kit: KafkaTopicKit[F, K, V]): Resource[F, KafkaConsumerApi[F]] =
-    apply[F](kit.topicName, kit.settings.consumerSettings)
-
   final private[this] class KafkaConsumerApiImpl[F[_]: Sync](
     topicName: TopicName,
     consumerClient: KafkaByteConsumer)

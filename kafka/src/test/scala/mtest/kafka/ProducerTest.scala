@@ -30,8 +30,8 @@ class ProducerTest extends AnyFunSuite {
     val produceTask = (0 until 100).toList.traverse { i =>
       srcTopic.send(AvroKey(i.toString), AvroValue(Random.nextString(5), Random.nextInt(100)))
     }
-    val srcChn  = srcTopic.akkaChannel(akkaSystem)
-    val akkaChn = akkaTopic.akkaChannel(akkaSystem)
+    val srcChn  = srcTopic.akkaChannel
+    val akkaChn = akkaTopic.akkaChannel
 
     val akkaTask: IO[Done] =
       srcChn
@@ -42,7 +42,7 @@ class ProducerTest extends AnyFunSuite {
         .source
         .map(m => akkaTopic.decoder(m).decode)
         .map(m =>
-          akkaTopic.kit.akkaProducerRecords(m.record.key, m.record.value, m.committableOffset))
+          akkaTopic.akkaProducerRecords(m.record.key, m.record.value, m.committableOffset))
         .take(100)
         .runWith(akkaChn.committableSink)
 
@@ -53,7 +53,7 @@ class ProducerTest extends AnyFunSuite {
       .map(m => srcTopic.decoder(m).decode)
       .map(m => Fs2ProducerRecords.one(fs2Topic.fs2PR(m.record.key, m.record.value), m.offset))
       .take(100)
-      .through(fs2.kafka.produce(fs2Topic.kit.fs2ProducerSettings))
+      .through(fs2.kafka.produce(fs2Topic.fs2ProducerSettings))
       .compile
       .drain
 
