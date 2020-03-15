@@ -4,18 +4,16 @@ import enumeratum.{CatsEnum, Enum, EnumEntry}
 
 import scala.collection.immutable
 
-sealed abstract class WebProtocols(val value: String) extends EnumEntry with Serializable
+sealed abstract class HttpProtocols(val value: String) extends EnumEntry with Serializable
 
-object WebProtocols extends Enum[WebProtocols] with CatsEnum[WebProtocols] {
-  override val values: immutable.IndexedSeq[WebProtocols] = findValues
+object HttpProtocols extends Enum[HttpProtocols] with CatsEnum[HttpProtocols] {
+  override val values: immutable.IndexedSeq[HttpProtocols] = findValues
 
-  case object HTTP extends WebProtocols("HTTP")
-  case object HTTPS extends WebProtocols("HTTPS")
-  case object FTP extends WebProtocols("ftp")
+  case object HTTP extends HttpProtocols("HTTP")
+  case object HTTPS extends HttpProtocols("HTTPS")
 
   type HTTP  = HTTP.type
   type HTTPS = HTTPS.type
-  type FTP   = FTP.type
 }
 
 sealed abstract class KafkaProtocols(val value: String) extends EnumEntry with Serializable
