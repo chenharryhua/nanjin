@@ -19,11 +19,11 @@ import scala.collection.immutable
 private[kafka] trait KafkaTopicProducer[F[_], K, V] {
   topic: KafkaTopic[F, K, V] =>
 
-  def fs2ProducerResource(
+  private def fs2ProducerResource(
     implicit
     concurrentEffect: ConcurrentEffect[F],
     contextShift: ContextShift[F]): Resource[F, Fs2KafkaProducer[F, K, V]] =
-    producerResource[F].using(fs2ProducerSettings)
+    producerResource[F].using(topic.fs2ProducerSettings)
 
   def send(k: K, v: V)(
     implicit

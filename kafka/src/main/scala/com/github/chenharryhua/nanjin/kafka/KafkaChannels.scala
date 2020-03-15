@@ -24,9 +24,9 @@ import org.apache.kafka.streams.kstream.GlobalKTable
 object KafkaChannels {
 
   final class Fs2Channel[F[_]: ContextShift: Timer: ConcurrentEffect, K, V] private[kafka] (
-    topicName: TopicName,
-    producerSettings: Fs2ProducerSettings[F, K, V],
-    consumerSettings: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]]) {
+    val topicName: TopicName,
+    val producerSettings: Fs2ProducerSettings[F, K, V],
+    val consumerSettings: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]]) {
 
     import fs2.kafka.{consumerStream, CommittableConsumerRecord, KafkaProducer}
 
@@ -59,10 +59,10 @@ object KafkaChannels {
   }
 
   final class AkkaChannel[F[_]: ContextShift, K, V] private[kafka] (
-    topicName: TopicName,
-    producerSettings: AkkaProducerSettings[K, V],
-    consumerSettings: AkkaConsumerSettings[Array[Byte], Array[Byte]],
-    committerSettings: AkkaCommitterSettings)(implicit F: ConcurrentEffect[F]) {
+    val topicName: TopicName,
+    val producerSettings: AkkaProducerSettings[K, V],
+    val consumerSettings: AkkaConsumerSettings[Array[Byte], Array[Byte]],
+    val committerSettings: AkkaCommitterSettings)(implicit F: ConcurrentEffect[F]) {
     import akka.kafka.ConsumerMessage.CommittableMessage
     import akka.kafka.ProducerMessage.Envelope
     import akka.kafka.scaladsl.{Committer, Consumer, Producer}
@@ -137,9 +137,9 @@ object KafkaChannels {
   }
 
   final class StreamingChannel[K, V] private[kafka] (
-    topicName: TopicName,
-    keySerde: NJSerde[K],
-    valueSerde: NJSerde[V]) {
+    val topicName: TopicName,
+    val keySerde: NJSerde[K],
+    val valueSerde: NJSerde[V]) {
     import org.apache.kafka.streams.scala.StreamsBuilder
     import org.apache.kafka.streams.scala.kstream.{Consumed, KStream, KTable}
 

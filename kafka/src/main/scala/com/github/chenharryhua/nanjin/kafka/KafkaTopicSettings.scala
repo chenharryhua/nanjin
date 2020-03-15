@@ -29,12 +29,12 @@ private[kafka] trait KafkaTopicSettings[F[_], K, V] { topic: KafkaTopic[F, K, V]
       Fs2Deserializer[F, Array[Byte]],
       Fs2Deserializer[F, Array[Byte]]).withProperties(topic.settings.consumerSettings.config)
 
-  def akkaProducerSettings(akkaSystem: ActorSystem): AkkaProducerSettings[K, V] =
+  def akkaProducerSettings(implicit akkaSystem: ActorSystem): AkkaProducerSettings[K, V] =
     AkkaProducerSettings[K, V](akkaSystem, codec.keySerializer, codec.valSerializer)
       .withProperties(topic.settings.producerSettings.config)
 
   def akkaConsumerSettings(
-    akkaSystem: ActorSystem): AkkaConsumerSettings[Array[Byte], Array[Byte]] = {
+    implicit akkaSystem: ActorSystem): AkkaConsumerSettings[Array[Byte], Array[Byte]] = {
     val byteArrayDeserializer = new ByteArrayDeserializer
     AkkaConsumerSettings[Array[Byte], Array[Byte]](
       akkaSystem,
@@ -42,7 +42,7 @@ private[kafka] trait KafkaTopicSettings[F[_], K, V] { topic: KafkaTopic[F, K, V]
       byteArrayDeserializer).withProperties(topic.settings.consumerSettings.config)
   }
 
-  def akkaCommitterSettings(akkaSystem: ActorSystem): AkkaCommitterSettings =
+  def akkaCommitterSettings(implicit akkaSystem: ActorSystem): AkkaCommitterSettings =
     AkkaCommitterSettings(akkaSystem)
 
   def fs2Channel(
