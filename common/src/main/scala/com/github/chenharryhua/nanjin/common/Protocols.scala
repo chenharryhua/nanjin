@@ -38,11 +38,11 @@ sealed abstract class DatabaseProtocols(val value: String) extends EnumEntry wit
 object DatabaseProtocols extends Enum[DatabaseProtocols] with CatsEnum[DatabaseProtocols] {
   override val values: immutable.IndexedSeq[DatabaseProtocols] = findValues
 
-  case object MongoDB extends WebProtocols("mongodb")
-  case object Postgres extends WebProtocols("jdbc:postgresql")
-  case object Redshift extends WebProtocols("jdbc:redshift")
-  case object SqlServer extends WebProtocols("jdbc:sqlserver")
-  case object Bolt extends WebProtocols("bolt")
+  case object MongoDB extends DatabaseProtocols("mongodb")
+  case object Postgres extends DatabaseProtocols("jdbc:postgresql")
+  case object Redshift extends DatabaseProtocols("jdbc:redshift")
+  case object SqlServer extends DatabaseProtocols("jdbc:sqlserver")
+  case object Bolt extends DatabaseProtocols("bolt")
 
   type MongoDB   = MongoDB.type
   type Postgres  = Postgres.type
@@ -56,8 +56,8 @@ sealed abstract class S3Protocols(val value: String) extends EnumEntry with Seri
 object S3Protocols extends Enum[S3Protocols] with CatsEnum[S3Protocols] {
   override val values: immutable.IndexedSeq[S3Protocols] = findValues
 
-  case object S3 extends WebProtocols("S3")
-  case object S3A extends WebProtocols("S3A")
+  case object S3 extends S3Protocols("S3")
+  case object S3A extends S3Protocols("S3A")
 
   type S3  = S3.type
   type S3A = S3A.type
