@@ -11,4 +11,9 @@ package object kafka extends ShowKafkaMessage {
   type TopicName = String Refined MatchesRegex[W.`"^[a-zA-Z0-9_.-]+$"`.T]
 
   object TopicName extends RefinedTypeOps[TopicName, String] with CatsRefinedTypeOpsSyntax
+
+  type StoreName = String Refined MatchesRegex[W.`"^[a-zA-Z0-9_.-]+$"`.T]
+
+  object StoreName extends RefinedTypeOps[StoreName, String] with CatsRefinedTypeOpsSyntax
+
 }

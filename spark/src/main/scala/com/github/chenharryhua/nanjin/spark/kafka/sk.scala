@@ -7,7 +7,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.common._
-import com.github.chenharryhua.nanjin.kafka.{KafkaConsumerApi, KafkaTopicKit, TopicName}
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicName}
 import com.github.chenharryhua.nanjin.utils.Keyboard
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Pipe
@@ -44,14 +44,14 @@ object sk {
     }
 
   private def kafkaRDD[F[_]: Sync, K, V](
-    kit: KafkaTopicKit[F, K, V],
+    topic: KafkaTopic[F, K, V],
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy)(
     implicit sparkSession: SparkSession): F[RDD[ConsumerRecord[Array[Byte], Array[Byte]]]] =
-    KafkaConsumerApi(kit).use(_.offsetRangeFor(timeRange)).map { gtp =>
+    topic.shortLivedConsumer.use(_.offsetRangeFor(timeRange)).map { gtp =>
       KafkaUtils.createRDD[Array[Byte], Array[Byte]](
         sparkSession.sparkContext,
-        props(kit.settings.consumerSettings.config),
+        props(topic.settings.consumerSettings.config),
         offsetRanges(gtp),
         locationStrategy)
     }
@@ -59,27 +59,27 @@ object sk {
   private val logger: Logger = org.log4s.getLogger("spark.kafka")
 
   def loadKafkaRdd[F[_]: Sync, K, V, A: ClassTag](
-    kit: KafkaTopicKit[F, K, V],
+    topic: KafkaTopic[F, K, V],
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy,
     f: NJConsumerRecord[K, V] => A)(
     implicit
     sparkSession: SparkSession): F[RDD[A]] =
-    kafkaRDD[F, K, V](kit, timeRange, locationStrategy).map(_.mapPartitions {
+    kafkaRDD[F, K, V](topic, timeRange, locationStrategy).map(_.mapPartitions {
       _.map { m =>
-        val (errs, cr) = kit.decoder(m).logRecord.run
+        val (errs, cr) = topic.decoder(m).logRecord.run
         errs.map(x => logger.warn(x.error)(x.metaInfo))
         f(cr)
       }
     })
 
   def loadKafkaRdd[F[_]: Sync, K, V](
-    kit: KafkaTopicKit[F, K, V],
+    topic: KafkaTopic[F, K, V],
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy)(
     implicit
     sparkSession: SparkSession): F[RDD[NJConsumerRecord[K, V]]] =
-    loadKafkaRdd[F, K, V, NJConsumerRecord[K, V]](kit, timeRange, locationStrategy, identity)
+    loadKafkaRdd[F, K, V, NJConsumerRecord[K, V]](topic, timeRange, locationStrategy, identity)
 
   def loadDiskRdd[F[_]: Sync, K, V](path: String)(
     implicit sparkSession: SparkSession): F[RDD[NJConsumerRecord[K, V]]] =
@@ -87,7 +87,7 @@ object sk {
 
   def save[F[_], K, V](
     dataset: TypedDataset[NJConsumerRecord[K, V]],
-    kit: KafkaTopicKit[F, K, V],
+    topic: KafkaTopic[F, K, V],
     fileFormat: NJFileFormat,
     saveMode: SaveMode,
     path: String): Unit =
@@ -96,14 +96,14 @@ object sk {
         dataset.write.mode(saveMode).format(fileFormat.format).save(path)
       case NJFileFormat.Jackson =>
         dataset.deserialized
-          .map(m => kit.topicDef.toJackson(m).noSpaces)
+          .map(m => topic.topicDef.toJackson(m).noSpaces)
           .write
           .mode(saveMode)
           .text(path)
     }
 
   def uploader[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
-    kit: KafkaTopicKit[F, K, V],
+    topic: KafkaTopic[F, K, V],
     uploadRate: NJUploadRate): Pipe[F, NJProducerRecord[K, V], ProducerResult[K, V, Unit]] =
     njPRs =>
       for {
@@ -113,8 +113,8 @@ object sk {
           .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
           .chunkN(uploadRate.batchSize)
           .metered(uploadRate.duration)
-          .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(kit.topicName))))
-          .through(produce(kit.fs2ProducerSettings))
+          .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName))))
+          .through(produce(topic.fs2ProducerSettings))
       } yield rst
 
   /**
@@ -150,20 +150,20 @@ object sk {
     }
   }
 
-  private def decodeSparkStreamCR[F[_], K, V](kit: KafkaTopicKit[F, K, V])
+  private def decodeSparkStreamCR[F[_], K, V](topic: KafkaTopic[F, K, V])
     : NJConsumerRecord[Array[Byte], Array[Byte]] => NJConsumerRecord[K, V] =
     rawCr => {
       val smi = ShowMetaInfo[NJConsumerRecord[Array[Byte], Array[Byte]]]
       val cr  = NJConsumerRecord.timestamp.set(rawCr.timestamp / 1000)(rawCr) //spark use micro-second.
       cr.bimap(
           k =>
-            kit.codec.keyCodec
+            topic.codec.keyCodec
               .tryDecode(k)
               .toEither
               .leftMap(logger.warn(_)(s"key decode error. ${smi.metaInfo(cr)}"))
               .toOption,
           v =>
-            kit.codec.valCodec
+            topic.codec.valCodec
               .tryDecode(v)
               .toEither
               .leftMap(logger.warn(_)(s"value decode error. ${smi.metaInfo(cr)}"))
@@ -172,25 +172,25 @@ object sk {
         .flatten[K, V]
     }
 
-  def streaming[F[_]: Sync, K, V, A](kit: KafkaTopicKit[F, K, V], timeRange: NJDateTimeRange)(
+  def streaming[F[_]: Sync, K, V, A](topic: KafkaTopic[F, K, V], timeRange: NJDateTimeRange)(
     f: NJConsumerRecord[K, V] => A)(
     implicit
     sparkSession: SparkSession,
     encoder: TypedEncoder[A]): F[TypedDataset[A]] = {
 
     import sparkSession.implicits._
-    KafkaConsumerApi(kit).use(_.offsetRangeFor(timeRange)).map { gtp =>
+    topic.shortLivedConsumer.use(_.offsetRangeFor(timeRange)).map { gtp =>
       TypedDataset
         .create(
           sparkSession.readStream
             .format("kafka")
-            .options(consumerOptions(kit.settings.consumerSettings.config))
+            .options(consumerOptions(topic.settings.consumerSettings.config))
             .option("startingOffsets", startingOffsets(gtp))
-            .option("subscribe", kit.topicDef.topicName.value)
+            .option("subscribe", topic.topicDef.topicName.value)
             .load()
             .as[NJConsumerRecord[Array[Byte], Array[Byte]]])
         .deserialized
-        .mapPartitions(_.map(decodeSparkStreamCR(kit).andThen(f)))
+        .mapPartitions(_.map(decodeSparkStreamCR(topic).andThen(f)))
     }
   }
 }

@@ -1,70 +1,84 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import akka.actor.ActorSystem
-import cats.Traverse
-import cats.effect.{ConcurrentEffect, ContextShift, Resource, Timer}
+import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, Resource, Sync, Timer}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.codec.{KafkaGenericDecoder, NJConsumerMessage}
-import fs2.kafka.{producerResource, KafkaProducer, ProducerRecord, ProducerRecords, ProducerResult}
+import com.github.chenharryhua.nanjin.kafka.codec._
+import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
+import io.circe.Json
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
-final class KafkaTopic[F[_], K, V] private[kafka] (val kit: KafkaTopicKit[F, K, V])(
-  implicit
-  val concurrentEffect: ConcurrentEffect[F],
-  val timer: Timer[F],
-  val contextShift: ContextShift[F]
-) extends TopicNameExtractor[K, V] {
+import scala.util.Try
 
-  val topicName: TopicName = kit.topicDef.topicName
+final class KafkaTopic[F[_], K, V] private[kafka] (
+  val topicDef: TopicDef[K, V],
+  val settings: KafkaSettings)
+    extends TopicNameExtractor[K, V] with KafkaTopicSettings[F, K, V]
+    with KafkaTopicProducer[F, K, V] with Serializable {
+  import topicDef.{serdeOfKey, serdeOfVal}
+
+  val topicName: TopicName = topicDef.topicName
 
   def withGroupId(gid: String): KafkaTopic[F, K, V] =
-    new KafkaTopic[F, K, V](kit.withGroupId(gid))
+    new KafkaTopic[F, K, V](topicDef, settings.withGroupId(gid))
 
   override def extract(key: K, value: V, rc: RecordContext): String = topicName.value
 
+  //need to reconstruct codec when working in spark
+  @transient lazy val codec: KafkaTopicCodec[K, V] = new KafkaTopicCodec(
+    serdeOfKey.asKey(settings.schemaRegistrySettings.config).codec(topicDef.topicName),
+    serdeOfVal.asValue(settings.schemaRegistrySettings.config).codec(topicDef.topicName)
+  )
+
   def decoder[G[_, _]: NJConsumerMessage](
     cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
-    kit.decoder(cr)
+    new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valCodec)
 
-  //channels
-  def fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
-    new KafkaChannels.Fs2Channel[F, K, V](
-      kit.topicDef.topicName,
-      kit.fs2ProducerSettings,
-      kit.fs2ConsumerSettings)
+  def toJackson[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): Json =
+    topicDef.toJackson(decoder(cr).record)
 
-  def akkaChannel(implicit akkaSystem: ActorSystem): KafkaChannels.AkkaChannel[F, K, V] =
-    new KafkaChannels.AkkaChannel[F, K, V](
-      kit,
-      kit.akkaProducerSettings(akkaSystem),
-      kit.akkaConsumerSettings(akkaSystem),
-      kit.akkaCommitterSettings(akkaSystem))
+  def fromJackson(jsonString: String): Try[NJConsumerRecord[K, V]] =
+    topicDef.fromJackson(jsonString)
 
-  def kafkaStream: KafkaChannels.StreamingChannel[K, V] =
-    new KafkaChannels.StreamingChannel[K, V](
-      kit.topicDef.topicName,
-      kit.codec.keySerde,
-      kit.codec.valSerde)
-
-  private val fs2ProducerResource: Resource[F, KafkaProducer[F, K, V]] =
-    producerResource[F].using(kit.fs2ProducerSettings)
-
-  def fs2PR(k: K, v: V): ProducerRecord[K, V] = kit.fs2PR(k, v)
-
-  def send(k: K, v: V): F[ProducerResult[K, V, Unit]] =
-    fs2ProducerResource.use(_.produce(ProducerRecords.one(fs2PR(k, v)))).flatten
-
-  def send[G[+_]: Traverse](list: G[ProducerRecord[K, V]]): F[ProducerResult[K, V, Unit]] =
-    fs2ProducerResource.use(_.produce(ProducerRecords(list))).flatten
-
-  def send(pr: ProducerRecord[K, V]): F[ProducerResult[K, V, Unit]] =
-    fs2ProducerResource.use(_.produce(ProducerRecords.one(pr))).flatten
+  override def toString: String = {
+    import cats.derived.auto.show._
+    s"""
+    |topic: $topicName
+    |consumer-group-id: ${settings.groupId}
+    |stream-app-id:     ${settings.appId}
+    |settings:
+    |${settings.consumerSettings.show}
+    |${settings.producerSettings.show}
+    |${settings.schemaRegistrySettings.show}
+    |${settings.adminSettings.show}
+    |${settings.streamSettings.show}
+    |
+    |${codec.keySerde.tag}:
+    |${codec.keySerde.configProps}
+    |${codec.keySchema.toString(true)}
+    |
+    |${codec.valSerde.tag}:
+    |${codec.valSerde.configProps}
+    |${codec.valSchema.toString(true)}
+   """
+  }
 
   // APIs
-  val schemaRegistry: KafkaSchemaRegistryApi[F]          = KafkaSchemaRegistryApi[F](this.kit)
-  val admin: KafkaTopicAdminApi[F]                       = KafkaTopicAdminApi[F, K, V](this.kit)
-  val consumerResource: Resource[F, KafkaConsumerApi[F]] = KafkaConsumerApi(this.kit)
-  val monitor: KafkaMonitoringApi[F, K, V]               = KafkaMonitoringApi[F, K, V](this)
+  def schemaRegistry(implicit sync: Sync[F]): KafkaSchemaRegistryApi[F] =
+    KafkaSchemaRegistryApi[F](this)
 
-  override def toString: String = kit.toString
+  def admin(
+    implicit
+    concurrent: Concurrent[F],
+    contextShift: ContextShift[F]): KafkaAdminApi[F] =
+    KafkaAdminApi[F, K, V](this)
+
+  def shortLivedConsumer(implicit sync: Sync[F]): Resource[F, ShortLivedConsumer[F]] =
+    ShortLivedConsumer(topicName, settings.consumerSettings.javaProperties)
+
+  def monitor(
+    implicit
+    concurrentEffect: ConcurrentEffect[F],
+    timer: Timer[F],
+    contextShift: ContextShift[F]): KafkaMonitoringApi[F, K, V] = KafkaMonitoringApi[F, K, V](this)
+
 }

@@ -51,14 +51,14 @@ class SparkCoproductTest extends AnyFunSuite {
   test("work well with case object") {
     val run = topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topic.schemaRegistry.register >>
-      topic.send(1, p1) >> topic.send(2, p2) >> topic.kit.sparKafka.save
+      topic.send(1, p1) >> topic.send(2, p2) >> topic.sparKafka.save
     run.unsafeRunSync()
   }
 
   ignore("do not work with scala Enumeration") {
     val run = topic2.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topic2.schemaRegistry.register >>
-      topic2.send(1, f1) >> topic2.send(2, f2) >> topic2.kit.sparKafka.save
+      topic2.send(1, f1) >> topic2.send(2, f2) >> topic2.sparKafka.save
     run.unsafeRunSync()
   }
 }

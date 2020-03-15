@@ -25,10 +25,10 @@ class KafkaStreamingTest extends AnyFunSuite {
   val one               = ctx.topic[StreamKey, StreamOneValue](TopicName("stream-one"))
   val two               = ctx.topic[StreamKey, StreamTwoValue](TopicName("stream-two"))
   val tgt               = ctx.topic[StreamKey, StreamTarget](TopicName("stream-target"))
-  implicit val oneKey   = one.kit.codec.keySerde
-  implicit val oneValue = one.kit.codec.valSerde
-  implicit val twoValue = two.kit.codec.valSerde
-  implicit val tgtValue = tgt.kit.codec.valSerde
+  implicit val oneKey   = one.codec.keySerde
+  implicit val oneValue = one.codec.valSerde
+  implicit val twoValue = two.codec.valSerde
+  implicit val tgtValue = tgt.codec.valSerde
 
   ignore("generate data") {
     (one.schemaRegistry.register >> two.schemaRegistry.register).unsafeRunSync()

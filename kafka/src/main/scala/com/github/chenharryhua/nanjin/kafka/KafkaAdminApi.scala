@@ -8,7 +8,7 @@ import org.apache.kafka.clients.admin.{NewTopic, TopicDescription}
 
 // delegate to https://ovotech.github.io/fs2-kafka/
 
-sealed trait KafkaTopicAdminApi[F[_]] {
+sealed trait KafkaAdminApi[F[_]] {
   val adminResource: Resource[F, KafkaAdminClient[F]]
 
   def idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence: F[Either[Throwable, Unit]]
@@ -19,42 +19,42 @@ sealed trait KafkaTopicAdminApi[F[_]] {
   def mirrorTo(other: TopicName, numReplica: Short): F[Unit]
 }
 
-object KafkaTopicAdminApi {
+object KafkaAdminApi {
 
-  def apply[F[_]: Concurrent: ContextShift, K, V](
-    kit: KafkaTopicKit[F, K, V]): KafkaTopicAdminApi[F] =
-    new KafkaTopicAdminApiImpl(kit)
+  def apply[F[_]: Concurrent: ContextShift, K, V](topic: KafkaTopic[F, K, V]): KafkaAdminApi[F] =
+    new KafkaTopicAdminApiImpl(topic)
 
   final private class KafkaTopicAdminApiImpl[F[_]: Concurrent: ContextShift, K, V](
-    kit: KafkaTopicKit[F, K, V])
-      extends KafkaTopicAdminApi[F] {
+    topic: KafkaTopic[F, K, V])
+      extends KafkaAdminApi[F] {
 
     override val adminResource: Resource[F, KafkaAdminClient[F]] =
       adminClientResource[F](
-        AdminClientSettings[F].withProperties(kit.settings.adminSettings.config))
+        AdminClientSettings[F].withProperties(topic.settings.adminSettings.config))
 
     override def idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       : F[Either[Throwable, Unit]] =
-      adminResource.use(_.deleteTopic(kit.topicName.value).attempt)
+      adminResource.use(_.deleteTopic(topic.topicName.value).attempt)
 
     override def newTopic(numPartition: Int, numReplica: Short): F[Unit] =
-      adminResource.use(_.createTopic(new NewTopic(kit.topicName.value, numPartition, numReplica)))
+      adminResource.use(
+        _.createTopic(new NewTopic(topic.topicName.value, numPartition, numReplica)))
 
     override def mirrorTo(other: TopicName, numReplica: Short): F[Unit] =
       adminResource.use { c =>
         for {
-          desc <- c.describeTopics(List(kit.topicName.value)).map(_(kit.topicName.value))
+          desc <- c.describeTopics(List(topic.topicName.value)).map(_(topic.topicName.value))
           _ <- c.createTopic(new NewTopic(other.value, desc.partitions().size(), numReplica))
         } yield ()
       }
 
     override def describe: F[Map[String, TopicDescription]] =
-      adminResource.use(_.describeTopics(List(kit.topicName.value)))
+      adminResource.use(_.describeTopics(List(topic.topicName.value)))
 
     override def groups: F[List[KafkaConsumerGroupInfo]] =
       adminResource.use { client =>
         for {
-          end <- KafkaConsumerApi(kit).use(_.endOffsets)
+          end <- topic.shortLivedConsumer.use(_.endOffsets)
           gids <- client.listConsumerGroups.groupIds
           all <- gids.traverse(gid =>
             client

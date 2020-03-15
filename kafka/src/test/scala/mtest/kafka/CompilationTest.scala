@@ -15,7 +15,7 @@ import com.github.chenharryhua.nanjin.kafka.TopicName
 class CompilationTest extends AnyFunSuite {
   val topic: KafkaTopic[IO, Int, Int] = ctx.topic[Int, Int](TopicName("compilation.test"))
   test("should compile") {
-    val chn = topic.akkaChannel(akkaSystem)
+    val chn = topic.akkaChannel
     val task =
       topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
         topic.schemaRegistry.register >>

@@ -57,7 +57,7 @@ class MessageDateTimeTest extends AnyFunSuite {
       _ <- topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- topic.schemaRegistry.delete
       _ <- topic.send(0, m)
-      r <- topic.consumerResource.use(_.retrieveLastRecords)
+      r <- topic.shortLivedConsumer.use(_.retrieveLastRecords)
     } yield assert(topic.decoder(r.head).decodeValue.value() === m)
     rst.unsafeRunSync()
   }

@@ -27,12 +27,12 @@ class SparKafkaTest extends AnyFunSuite {
 
   test("read topic from kafka") {
     val rst =
-      topic.kit.sparKafka.fromKafka.flatMap(_.crDataset.values.collect[IO]()).unsafeRunSync
+      topic.sparKafka.fromKafka.flatMap(_.crDataset.values.collect[IO]()).unsafeRunSync
     assert(rst.toList === List(data, data))
   }
 
   test("save topic to disk") {
-    topic.kit.sparKafka
+    topic.sparKafka
       .withParamUpdate(_.withOverwrite)
       .fromKafka
       .map(_.crDataset.save("./data/test/st"))
@@ -40,7 +40,7 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("read topic from kafka and show aggragation result") {
-    topic.kit.sparKafka.fromKafka.flatMap(_.stats.minutely).unsafeRunSync
+    topic.sparKafka.fromKafka.flatMap(_.stats.minutely).unsafeRunSync
   }
 
   test("read topic from kafka and show json") {
@@ -48,7 +48,7 @@ class SparKafkaTest extends AnyFunSuite {
       TopicName("nyc_yellow_taxi_trip_data"),
       ManualAvroSchema.unsafeFrom[trip_record](trip_record.schema)).in(ctx)
 
-    tpk.kit.sparKafka.fromKafka.flatMap(_.crDataset.show).unsafeRunSync
+    tpk.sparKafka.fromKafka.flatMap(_.crDataset.show).unsafeRunSync
   }
 
   test("should be able to bimap to other topic") {
@@ -61,9 +61,9 @@ class SparKafkaTest extends AnyFunSuite {
     val ds: TypedDataset[NJConsumerRecord[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
 
     val birst =
-      src.kit.sparKafka
+      src.sparKafka
         .crDataset(ds)
-        .bimapTo(tgt.kit)(_.toString, _ + 1)
+        .bimapTo(tgt)(_.toString, _ + 1)
         .values
         .collect[IO]()
         .unsafeRunSync
@@ -81,9 +81,9 @@ class SparKafkaTest extends AnyFunSuite {
     val ds: TypedDataset[NJConsumerRecord[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
 
     val birst =
-      src.kit.sparKafka
+      src.sparKafka
         .crDataset(ds)
-        .flatMapTo(tgt.kit)(m => m.value.map(x => NJConsumerRecord.value.set(Some(x - 1))(m)))
+        .flatMapTo(tgt)(m => m.value.map(x => NJConsumerRecord.value.set(Some(x - 1))(m)))
         .values
         .collect[IO]()
         .unsafeRunSync
@@ -98,7 +98,7 @@ class SparKafkaTest extends AnyFunSuite {
     val crs: List[NJConsumerRecord[Int, Int]]        = List(cr1, cr2, cr3)
     val ds: TypedDataset[NJConsumerRecord[Int, Int]] = TypedDataset.create(crs)
 
-    val t   = TopicDef[Int, Int](TopicName("some.value")).in(ctx).kit.sparKafka.crDataset(ds)
+    val t   = TopicDef[Int, Int](TopicName("some.value")).in(ctx).sparKafka.crDataset(ds)
     val rst = t.someValues.typedDataset.collect[IO]().unsafeRunSync()
     assert(rst === Seq(cr1))
   }

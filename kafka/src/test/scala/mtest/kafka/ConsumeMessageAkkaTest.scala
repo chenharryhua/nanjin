@@ -10,13 +10,12 @@ import org.scalatest.funsuite.AnyFunSuite
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.kafka.TopicName
 
-
 class ConsumeMessageAkkaTest extends AnyFunSuite {
 
   val vessel: TopicDef[PKey, aisClassAPositionReport] =
     TopicDef[PKey, aisClassAPositionReport](TopicName("sea_vessel_position_reports"))
   val topic = ctx.topic(vessel)
-  val chn   = topic.akkaChannel(akkaSystem)
+  val chn   = topic.akkaChannel
 
   test("akka stream should be able to consume data") {
     val run = chn
@@ -35,7 +34,7 @@ class ConsumeMessageAkkaTest extends AnyFunSuite {
   test("assignment") {
     val datetime = LocalDateTime.now
     val ret = for {
-      start <- topic.consumerResource.use(_.beginningOffsets)
+      start <- topic.shortLivedConsumer.use(_.beginningOffsets)
       offsets = start.flatten[KafkaOffset].value.mapValues(_.value)
       _ <- chn
         .assign(offsets)
