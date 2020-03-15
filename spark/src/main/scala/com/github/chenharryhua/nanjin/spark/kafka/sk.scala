@@ -7,7 +7,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.common._
-import com.github.chenharryhua.nanjin.kafka.{KafkaConsumerApi, KafkaTopic, TopicName}
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicName}
 import com.github.chenharryhua.nanjin.utils.Keyboard
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Pipe
@@ -48,7 +48,7 @@ object sk {
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy)(
     implicit sparkSession: SparkSession): F[RDD[ConsumerRecord[Array[Byte], Array[Byte]]]] =
-    topic.consumerResource.use(_.offsetRangeFor(timeRange)).map { gtp =>
+    topic.shortLivedConsumer.use(_.offsetRangeFor(timeRange)).map { gtp =>
       KafkaUtils.createRDD[Array[Byte], Array[Byte]](
         sparkSession.sparkContext,
         props(topic.settings.consumerSettings.config),
@@ -179,7 +179,7 @@ object sk {
     encoder: TypedEncoder[A]): F[TypedDataset[A]] = {
 
     import sparkSession.implicits._
-    topic.consumerResource.use(_.offsetRangeFor(timeRange)).map { gtp =>
+    topic.shortLivedConsumer.use(_.offsetRangeFor(timeRange)).map { gtp =>
       TypedDataset
         .create(
           sparkSession.readStream

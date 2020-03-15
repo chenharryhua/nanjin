@@ -10,7 +10,6 @@ import org.scalatest.funsuite.AnyFunSuite
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.kafka.TopicName
 
-
 class ConsumeMessageAkkaTest extends AnyFunSuite {
 
   val vessel: TopicDef[PKey, aisClassAPositionReport] =
@@ -35,7 +34,7 @@ class ConsumeMessageAkkaTest extends AnyFunSuite {
   test("assignment") {
     val datetime = LocalDateTime.now
     val ret = for {
-      start <- topic.consumerResource.use(_.beginningOffsets)
+      start <- topic.shortLivedConsumer.use(_.beginningOffsets)
       offsets = start.flatten[KafkaOffset].value.mapValues(_.value)
       _ <- chn
         .assign(offsets)

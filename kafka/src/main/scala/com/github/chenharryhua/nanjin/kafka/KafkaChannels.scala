@@ -129,7 +129,7 @@ object KafkaChannels {
     def timeRanged(dateTimeRange: NJDateTimeRange)(
       implicit mat: Materializer): Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]] = {
       val exec: F[Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]]] =
-        KafkaConsumerApi[F](topicName, utils.toProperties(consumerSettings.properties))
+        ShortLivedConsumer[F](topicName, utils.toProperties(consumerSettings.properties))
           .use(_.offsetRangeFor(dateTimeRange).map(_.flatten[KafkaOffsetRange]))
           .map(offsetRanged)
       Stream.force(exec)

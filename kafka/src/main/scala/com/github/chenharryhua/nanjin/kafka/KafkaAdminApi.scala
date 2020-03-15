@@ -8,7 +8,7 @@ import org.apache.kafka.clients.admin.{NewTopic, TopicDescription}
 
 // delegate to https://ovotech.github.io/fs2-kafka/
 
-sealed trait KafkaTopicAdminApi[F[_]] {
+sealed trait KafkaAdminApi[F[_]] {
   val adminResource: Resource[F, KafkaAdminClient[F]]
 
   def idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence: F[Either[Throwable, Unit]]
@@ -19,15 +19,14 @@ sealed trait KafkaTopicAdminApi[F[_]] {
   def mirrorTo(other: TopicName, numReplica: Short): F[Unit]
 }
 
-object KafkaTopicAdminApi {
+object KafkaAdminApi {
 
-  def apply[F[_]: Concurrent: ContextShift, K, V](
-    topic: KafkaTopic[F, K, V]): KafkaTopicAdminApi[F] =
+  def apply[F[_]: Concurrent: ContextShift, K, V](topic: KafkaTopic[F, K, V]): KafkaAdminApi[F] =
     new KafkaTopicAdminApiImpl(topic)
 
   final private class KafkaTopicAdminApiImpl[F[_]: Concurrent: ContextShift, K, V](
     topic: KafkaTopic[F, K, V])
-      extends KafkaTopicAdminApi[F] {
+      extends KafkaAdminApi[F] {
 
     override val adminResource: Resource[F, KafkaAdminClient[F]] =
       adminClientResource[F](
@@ -55,7 +54,7 @@ object KafkaTopicAdminApi {
     override def groups: F[List[KafkaConsumerGroupInfo]] =
       adminResource.use { client =>
         for {
-          end <- topic.consumerResource.use(_.endOffsets)
+          end <- topic.shortLivedConsumer.use(_.endOffsets)
           gids <- client.listConsumerGroups.groupIds
           all <- gids.traverse(gid =>
             client

@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.kafka.common.{
   KafkaOffsetRange,
   KafkaTopicPartition
 }
-import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef,TopicName}
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import fs2.kafka.ProducerRecord
 import org.apache.kafka.common.TopicPartition
 import org.scalatest.funsuite.AnyFunSuite
@@ -33,7 +33,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
     val r = NJDateTimeRange.infinite.withStartTime(110).withEndTime(250)
 
-    topic.consumerResource.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
+    topic.shortLivedConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
   }
 
   test("start after beginning and end after ending - invalid end") {
@@ -44,7 +44,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
     val r = NJDateTimeRange.infinite.withStartTime(110).withEndTime(500)
 
-    topic.consumerResource.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
+    topic.shortLivedConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
   }
 
   test("start before beginning and end before ending - invalid start") {
@@ -55,7 +55,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
     val r = NJDateTimeRange.infinite.withStartTime(10).withEndTime(110)
 
-    topic.consumerResource.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
+    topic.shortLivedConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
   }
 
   test("both start and end are before beginning - invalid both") {
@@ -64,7 +64,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
     val r = NJDateTimeRange.infinite.withStartTime(10).withEndTime(30)
 
-    topic.consumerResource.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
+    topic.shortLivedConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
   }
   test("both start and end are after ending - invalid both") {
     val expect =
@@ -72,7 +72,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
     val r = NJDateTimeRange.infinite.withStartTime(500).withEndTime(600)
 
-    topic.consumerResource.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
+    topic.shortLivedConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
   }
 
   test("time range is infinite") {
@@ -82,7 +82,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
           KafkaOffsetRange(KafkaOffset(0), KafkaOffset(3))))
 
     val r = UpperBounded[NJDateTimeRange].maxBound
-    topic.consumerResource.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
+    topic.shortLivedConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
   }
 
 }

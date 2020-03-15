@@ -78,7 +78,7 @@ object KafkaMonitoringApi {
 
     override def watchFrom(njt: NJTimestamp): F[Unit] = {
       val run: Stream[F, Unit] = for {
-        kcs <- Stream.resource(topic.consumerResource)
+        kcs <- Stream.resource(topic.shortLivedConsumer)
         gtp <- Stream.eval(for {
           os <- kcs.offsetsForTimes(njt)
           e <- kcs.endOffsets
@@ -110,7 +110,7 @@ object KafkaMonitoringApi {
       filter(cr => cr.key().isFailure || cr.value().isFailure)
 
     override def summaries: F[Unit] =
-      topic.consumerResource.use { consumer =>
+      topic.shortLivedConsumer.use { consumer =>
         for {
           num <- consumer.numOfRecords
           first <- consumer.retrieveFirstRecords.map(_.map(cr =>

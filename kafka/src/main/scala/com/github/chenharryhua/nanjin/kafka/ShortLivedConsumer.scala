@@ -93,7 +93,7 @@ private[kafka] object KafkaPrimitiveConsumerApi {
   }
 }
 
-sealed trait KafkaConsumerApi[F[_]] extends KafkaPrimitiveConsumerApi[F] {
+sealed trait ShortLivedConsumer[F[_]] extends KafkaPrimitiveConsumerApi[F] {
   def offsetRangeFor(dtr: NJDateTimeRange): F[KafkaTopicPartition[Option[KafkaOffsetRange]]]
   def retrieveLastRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
   def retrieveFirstRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
@@ -106,9 +106,11 @@ sealed trait KafkaConsumerApi[F[_]] extends KafkaPrimitiveConsumerApi[F] {
   def resetOffsetsForTimes(ts: NJTimestamp): F[Unit]
 }
 
-object KafkaConsumerApi {
+object ShortLivedConsumer {
 
-  def apply[F[_]: Sync](topicName: TopicName, props: Properties): Resource[F, KafkaConsumerApi[F]] =
+  def apply[F[_]: Sync](
+    topicName: TopicName,
+    props: Properties): Resource[F, ShortLivedConsumer[F]] =
     Resource
       .make(Sync[F].delay {
         val byteArrayDeserializer = new ByteArrayDeserializer
@@ -122,7 +124,7 @@ object KafkaConsumerApi {
   final private[this] class KafkaConsumerApiImpl[F[_]: Sync](
     topicName: TopicName,
     consumerClient: KafkaByteConsumer)
-      extends KafkaConsumerApi[F] {
+      extends ShortLivedConsumer[F] {
     import cats.mtl.implicits._
 
     private[this] val kpc: KafkaPrimitiveConsumerApi[Kleisli[F, KafkaByteConsumer, *]] =
