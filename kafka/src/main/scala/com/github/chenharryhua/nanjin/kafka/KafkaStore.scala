@@ -8,10 +8,8 @@ import org.apache.kafka.streams.scala.kstream.Materialized
 import org.apache.kafka.streams.state._
 import org.apache.kafka.streams.{scala, KafkaStreams}
 
-final case class KafkaStoreName(value: String) extends AnyVal
-
 sealed abstract class KafkaStore[K, V, Q[_, _], S <: StateStore](
-  storeName: KafkaStoreName,
+  storeName: StoreName,
   keySerde: NJSerde[K],
   valueSerde: NJSerde[V])
     extends Serializable {
@@ -24,10 +22,7 @@ sealed abstract class KafkaStore[K, V, Q[_, _], S <: StateStore](
 
 object KafkaStore {
 
-  final class Persistent[K, V](
-    storeName: KafkaStoreName,
-    keySerde: NJSerde[K],
-    valueSerde: NJSerde[V])
+  final class Persistent[K, V](storeName: StoreName, keySerde: NJSerde[K], valueSerde: NJSerde[V])
       extends KafkaStore[K, V, ReadOnlyKeyValueStore, scala.ByteArrayKeyValueStore](
         storeName,
         keySerde,
@@ -40,10 +35,7 @@ object KafkaStore {
       Materialized.as(Stores.persistentKeyValueStore(storeName.value))(keySerde, valueSerde)
   }
 
-  final class InMemory[K, V](
-    storeName: KafkaStoreName,
-    keySerde: NJSerde[K],
-    valueSerde: NJSerde[V])
+  final class InMemory[K, V](storeName: StoreName, keySerde: NJSerde[K], valueSerde: NJSerde[V])
       extends KafkaStore[K, V, ReadOnlyKeyValueStore, scala.ByteArrayKeyValueStore](
         storeName,
         keySerde,
@@ -57,7 +49,7 @@ object KafkaStore {
   }
 
   final class Session[K, V](
-    storeName: KafkaStoreName,
+    storeName: StoreName,
     retentionPeriod: Duration,
     keySerde: NJSerde[K],
     valueSerde: NJSerde[V])
@@ -76,7 +68,7 @@ object KafkaStore {
   }
 
   final class Window[K, V](
-    storeName: KafkaStoreName,
+    storeName: StoreName,
     retentionPeriod: Duration,
     windowSize: Duration,
     retainDuplicates: Boolean,
