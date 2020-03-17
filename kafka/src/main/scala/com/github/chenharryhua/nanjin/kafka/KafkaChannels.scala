@@ -90,17 +90,13 @@ object KafkaChannels {
     val committableSink: Sink[Envelope[K, V, ConsumerMessage.Committable], F[Done]] =
       Producer
         .committableSink(producerSettings, committerSettings)
-        .mapMaterializedValue(f => Async.fromFuture(Async[F].pure(f)))
+        .mapMaterializedValue(f => Async.fromFuture(F.pure(f)))
 
     val plainSink: Sink[ProducerRecord[K, V], F[Done]] =
-      Producer
-        .plainSink(producerSettings)
-        .mapMaterializedValue(f => Async.fromFuture(Async[F].pure(f)))
+      Producer.plainSink(producerSettings).mapMaterializedValue(f => Async.fromFuture(F.pure(f)))
 
     val commitSink: Sink[ConsumerMessage.Committable, F[Done]] =
-      Committer
-        .sink(committerSettings)
-        .mapMaterializedValue(f => Async.fromFuture(Async[F].pure(f)))
+      Committer.sink(committerSettings).mapMaterializedValue(f => Async.fromFuture(F.pure(f)))
 
     def assign(tps: Map[TopicPartition, Long])
       : Source[ConsumerRecord[Array[Byte], Array[Byte]], Consumer.Control] =

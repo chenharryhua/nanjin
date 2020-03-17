@@ -73,7 +73,7 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
   port: Port,
   database: DatabaseName)
     extends DatabaseSettings(username, password) {
-  private val url: String                = s"jdbc:postgresql://${host.value}:${port.value}/${database.value}"
+  private val url: String                = Protocols.Postgres.url(host, port) + s"/${database.value}"
   private val credential: String         = s"user=${username.value}&password=${password.value}"
   override val connStr: ConnectionString = ConnectionString(s"$url?$credential")
   override val driver: DriverString      = DriverString("org.postgresql.Driver")
@@ -86,7 +86,7 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
   port: Port,
   database: DatabaseName)
     extends DatabaseSettings(username, password) {
-  private val url: String        = s"jdbc:redshift://${host.value}:${port.value}/${database.value}"
+  private val url: String        = Protocols.Redshift.url(host, port) + s"/${database.value}"
   private val credential: String = s"user=${username.value}&password=${password.value}"
   private val ssl: String        = "ssl=true&sslfactory=com.amazon.redshift.ssl.NonValidatingFactory"
 
@@ -102,8 +102,10 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
   database: DatabaseName)
     extends DatabaseSettings(username, password) {
 
+  private val url: String = Protocols.SqlServer.url(host, port)
+
   override val connStr: ConnectionString =
-    ConnectionString(s"jdbc:sqlserver://${host.value}:${port.value};databaseName=${database.value}")
+    ConnectionString(url + s";databaseName=${database.value}")
 
   override val driver: DriverString =
     DriverString("com.microsoft.sqlserver.jdbc.SQLServerDriver")
