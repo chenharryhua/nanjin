@@ -19,7 +19,7 @@ import org.neo4j.driver.v1.{AuthToken, AuthTokens, Config}
   def withConfigUpdate(f: ConfigBuilder => ConfigBuilder): Neo4j =
     Neo4j.configBuilder.modify(f)(this)
 
-  private val connStr: ConnectionString = ConnectionString(s"bolt://${host.value}:${port.value}")
+  private val connStr: ConnectionString = ConnectionString(Protocols.Neo4j.url(host, port))
   private val auth: AuthToken           = AuthTokens.basic(username.value, password.value)
 
   def sessionResource[F[_]: Async]: Resource[F, Session[F]] =
