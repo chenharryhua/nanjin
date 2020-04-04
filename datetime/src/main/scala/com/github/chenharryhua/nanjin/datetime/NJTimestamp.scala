@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.datetime
 import java.sql.Timestamp
 import java.time._
 import java.time.format.DateTimeFormatter
-import java.time.temporal.TemporalUnit
+import java.time.temporal.{ChronoUnit, TemporalUnit}
 import java.util.concurrent.TimeUnit
 
 import cats.{Hash, Order, Show}
@@ -31,6 +31,9 @@ final case class NJTimestamp(milliseconds: Long) extends AnyVal {
 
   def plus(amount: Long, unit: TemporalUnit): NJTimestamp =
     NJTimestamp(instant.plus(amount, unit))
+
+  def minus(amount: Long): NJTimestamp = minus(amount, ChronoUnit.MILLIS)
+  def plus(amount: Long): NJTimestamp  = plus(amount, ChronoUnit.MILLIS)
 
   override def toString: String = local.toString
 }
