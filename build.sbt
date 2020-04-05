@@ -42,7 +42,7 @@ val jline           = "3.14.0"
 
 val scalatest = "3.1.1"
 
-val doobie = "0.8.8"
+val doobie = "0.9.0"
 val quill  = "3.5.1"
 
 val neotypes = "0.13.2"
