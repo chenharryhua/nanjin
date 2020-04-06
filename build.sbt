@@ -51,7 +51,7 @@ val flinkVersion = "1.10.0"
 
 val hadoopVersion = "3.2.1"
 
-val awsVersion = "1.11.756"
+val awsVersion = "1.11.759"
 
 lazy val commonSettings = Seq(
   organization := "com.github.chenharryhua",
@@ -163,7 +163,7 @@ val avro = Seq(
 
 val elastic4sLib = Seq(
   "com.sksamuel.elastic4s" %% "elastic4s-core"
-).map(_ % "7.3.5")
+).map(_ % "7.6.0")
 
 val sparkLib = Seq(
   "org.apache.spark" %% "spark-core",
