@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.kafka.codec.NJSerde
 import org.apache.kafka.streams.processor.StateStore
 import org.apache.kafka.streams.scala.kstream.Materialized
 import org.apache.kafka.streams.state._
-import org.apache.kafka.streams.{scala, KafkaStreams}
+import org.apache.kafka.streams.{scala, KafkaStreams, StoreQueryParameters}
 
 sealed abstract class KafkaStore[K, V, Q[_, _], S <: StateStore](
   storeName: StoreName,
@@ -17,7 +17,7 @@ sealed abstract class KafkaStore[K, V, Q[_, _], S <: StateStore](
   protected def queryableStoreType: QueryableStoreType[Q[K, V]]
 
   final def monitor(streams: KafkaStreams): Q[K, V] =
-    streams.store(storeName.value, queryableStoreType)
+    streams.store(StoreQueryParameters.fromNameAndType(storeName.value, queryableStoreType))
 }
 
 object KafkaStore {
