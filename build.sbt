@@ -5,7 +5,7 @@ parallelExecution in ThisBuild := false
 version in ThisBuild := "0.5.0-SNAPSHOT"
 
 val confluent    = "5.3.0"
-val kafkaVersion = "2.4.1"
+val kafkaVersion = "2.5.0"
 
 val shapeless  = "2.3.3"
 val contextual = "1.2.1"
