@@ -9,7 +9,7 @@ val kafkaVersion = "2.5.0"
 
 val shapeless  = "2.3.3"
 val contextual = "1.2.1"
-val kittens    = "2.0.0"
+val kittens    = "2.1.0"
 val catsCore   = "2.1.1"
 val fs2Version = "2.3.0"
 val catsMtl    = "0.7.1"
