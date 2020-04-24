@@ -6,9 +6,9 @@ import avrohugger.types._
 import cats.Show
 import cats.effect.Sync
 import cats.implicits._
+import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaMetadata}
-import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig
-import org.apache.avro.Schema
+import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 
 import scala.collection.JavaConverters._
 import scala.util.Try
@@ -63,8 +63,8 @@ final case class CompatibilityTestReport(
   topicName: TopicName,
   srSettings: SchemaRegistrySettings,
   meta: KvSchemaMetadata,
-  keySchema: Schema,
-  valueSchema: Schema,
+  keySchema: AvroSchema,
+  valueSchema: AvroSchema,
   key: Either[String, Boolean],
   value: Either[String, Boolean]) {
 
@@ -121,18 +121,18 @@ object KafkaSchemaRegistryApi {
     val topicName: TopicName               = topic.topicDef.topicName
     val keySchemaLoc: String               = topic.topicDef.keySchemaLoc
     val valueSchemaLoc: String             = topic.topicDef.valSchemaLoc
-    val keySchema: Schema                  = topic.codec.keySchema
-    val valueSchema: Schema                = topic.codec.valSchema
+    val keySchema: AvroSchema              = new AvroSchema(topic.codec.keySchema)
+    val valueSchema: AvroSchema            = new AvroSchema(topic.codec.valSchema)
 
     private lazy val csrClient: CachedSchemaRegistryClient = {
-      val alias = AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG
+      val alias = AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG
       srSettings.config.get(alias) match {
         case None => sys.error(s"$alias was mandatory but not configured")
         case Some(url) =>
           val size: Int = srSettings.config
-            .get(AbstractKafkaAvroSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DOC)
+            .get(AbstractKafkaSchemaSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DOC)
             .flatMap(n => Try(n.toInt).toOption)
-            .getOrElse(AbstractKafkaAvroSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DEFAULT)
+            .getOrElse(AbstractKafkaSchemaSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DEFAULT)
           new CachedSchemaRegistryClient(url, size)
       }
     }
