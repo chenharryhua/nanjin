@@ -220,7 +220,7 @@ val base = Seq(
   "io.scalaland" %% "chimney"              % "0.5.1",
   "com.beachape" %% "enumeratum-cats"      % "1.6.0",
   "com.beachape" %% "enumeratum"           % "1.6.0",
-  "com.twitter" %% "algebird-core"         % "0.13.6",
+  "com.twitter" %% "algebird-core"         % "0.13.7",
   "org.typelevel" %% "algebra"             % "2.0.1",
   "io.chrisdavenport" %% "cats-time"       % catsTime,
   "eu.timepit" %% "refined"                % refined,
