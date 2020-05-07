@@ -217,7 +217,7 @@ val kafkaLib = Seq(
     "com.github.fd4s" %% "fs2-kafka"           % fs2Kafka)
 
 val base = Seq(
-  "io.scalaland" %% "chimney"              % "0.5.1",
+  "io.scalaland" %% "chimney"              % "0.5.2",
   "com.beachape" %% "enumeratum-cats"      % "1.6.0",
   "com.beachape" %% "enumeratum"           % "1.6.0",
   "com.twitter" %% "algebird-core"         % "0.13.6",
