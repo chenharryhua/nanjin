@@ -14,7 +14,6 @@ import com.sksamuel.avro4s.{
 import fs2.Stream
 import fs2.io.readInputStream
 import io.circe.parser.decode
-import io.circe.syntax._
 import io.circe.{Decoder => JsonDecoder}
 import org.apache.avro.Schema
 import org.apache.hadoop.conf.Configuration
