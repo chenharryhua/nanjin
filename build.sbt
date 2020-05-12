@@ -47,7 +47,7 @@ val quill  = "3.5.1"
 
 val neotypes = "0.13.2"
 
-val flinkVersion = "1.10.0"
+val flinkVersion = "1.10.1"
 
 val hadoopVersion = "3.2.1"
 
