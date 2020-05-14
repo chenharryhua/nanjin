@@ -47,11 +47,11 @@ val quill  = "3.5.1"
 
 val neotypes = "0.13.2"
 
-val flinkVersion = "1.10.0"
+val flinkVersion = "1.10.1"
 
 val hadoopVersion = "3.2.1"
 
-val awsVersion = "1.11.780"
+val awsVersion = "1.11.781"
 
 lazy val commonSettings = Seq(
   organization := "com.github.chenharryhua",
