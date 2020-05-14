@@ -8,13 +8,12 @@ import com.github.chenharryhua.nanjin.kafka.codec.{
   KafkaStreamingException,
   UncaughtKafkaStreamingException
 }
-import com.github.chenharryhua.nanjin.utils.Keyboard
 import fs2.Stream
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.scala.StreamsBuilder
 
-final class KafkaStreamRunner[F[_]](settings: KafkaStreamSettings)(
-  implicit F: ConcurrentEffect[F]) {
+final class KafkaStreamRunner[F[_]](settings: KafkaStreamSettings)(implicit
+  F: ConcurrentEffect[F]) {
 
   final private class StreamErrorHandler(deferred: Deferred[F, UncaughtKafkaStreamingException])
       extends Thread.UncaughtExceptionHandler {
@@ -43,24 +42,23 @@ final class KafkaStreamRunner[F[_]](settings: KafkaStreamSettings)(
 
   def stream(topology: Reader[StreamsBuilder, Unit]): Stream[F, KafkaStreams] =
     for {
-      kb <- Keyboard.signal[F]
       eh <- Stream.eval(Deferred[F, UncaughtKafkaStreamingException])
       latch <- Stream.eval(Deferred[F, Either[KafkaStreamingException, Unit]])
-      kss <- Stream
-        .bracket(F.delay {
-          val builder: StreamsBuilder = new StreamsBuilder
-          topology.run(builder)
-          new KafkaStreams(builder.build(), settings.javaProperties)
-        })(ks => F.delay(ks.close()))
-        .evalMap(ks =>
-          F.delay {
-            ks.cleanUp()
-            ks.setUncaughtExceptionHandler(new StreamErrorHandler(eh))
-            ks.setStateListener(new Latch(latch))
-            ks.start()
-          }.as(ks))
-        .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
-        .concurrently(Stream.eval(eh.get).flatMap(Stream.raiseError[F]))
+      kss <-
+        Stream
+          .bracket(F.delay {
+            val builder: StreamsBuilder = new StreamsBuilder
+            topology.run(builder)
+            new KafkaStreams(builder.build(), settings.javaProperties)
+          })(ks => F.delay(ks.close()))
+          .evalMap(ks =>
+            F.delay {
+              ks.cleanUp()
+              ks.setUncaughtExceptionHandler(new StreamErrorHandler(eh))
+              ks.setStateListener(new Latch(latch))
+              ks.start()
+            }.as(ks))
+          .concurrently(Stream.eval(eh.get).flatMap(Stream.raiseError[F]))
       _ <- Stream.eval(latch.get.rethrow)
     } yield kss
 }
