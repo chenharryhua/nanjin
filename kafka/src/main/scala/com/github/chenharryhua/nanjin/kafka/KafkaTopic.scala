@@ -59,7 +59,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
     |${codec.valSerde.tag}:
     |${codec.valSerde.configProps}
     |${codec.valSchema.toString(true)}
-   """
+   """.stripMargin
   }
 
   // APIs
