@@ -58,6 +58,7 @@ object NJTimestamp {
       NJTimestamp(ZonedDateTime.of(ldt, zoneId)))
 
   def now(clock: Clock): NJTimestamp = NJTimestamp(Instant.now(clock))
+  def now(): NJTimestamp             = NJTimestamp(Instant.now)
 
   val isoKafkaTimestamp: Iso[NJTimestamp, Timestamp] =
     Iso[NJTimestamp, Timestamp]((a: NJTimestamp) => new Timestamp(a.milliseconds))((b: Timestamp) =>
