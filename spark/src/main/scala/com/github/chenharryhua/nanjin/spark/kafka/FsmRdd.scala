@@ -12,7 +12,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
 final class FsmRdd[F[_], K, V](
-  rdd: RDD[NJConsumerRecord[K, V]],
+  val rdd: RDD[NJConsumerRecord[K, V]],
   topic: KafkaTopic[F, K, V],
   cfg: SKConfig)(implicit sparkSession: SparkSession)
     extends SparKafkaUpdateParams[FsmRdd[F, K, V]] {
@@ -39,8 +39,7 @@ final class FsmRdd[F[_], K, V](
       .compile
       .drain
 
-  def pipeTo(otherTopic: KafkaTopic[F, K, V])(
-    implicit
+  def pipeTo(otherTopic: KafkaTopic[F, K, V])(implicit
     ce: ConcurrentEffect[F],
     timer: Timer[F],
     cs: ContextShift[F]): F[Unit] =
@@ -51,11 +50,7 @@ final class FsmRdd[F[_], K, V](
       .compile
       .drain
 
-  def replay(
-    implicit
-    ce: ConcurrentEffect[F],
-    timer: Timer[F],
-    cs: ContextShift[F]): F[Unit] =
+  def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
     pipeTo(topic)
 
   def count: Long = rdd.count()
@@ -72,8 +67,7 @@ final class FsmRdd[F[_], K, V](
   def crStream(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
     sorted.stream[F]
 
-  def crDataset(
-    implicit
+  def crDataset(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] = {
     val tds       = TypedDataset.create(rdd)
