@@ -16,6 +16,9 @@ private[spark] trait DatasetExtensions {
 
     def stream[F[_]: Sync]: Stream[F, A] =
       Stream.fromIterator(rdd.toLocalIterator.flatMap(Option(_)))
+
+    def typedDataset(implicit ev: TypedEncoder[A], ss: SparkSession): TypedDataset[A] =
+      TypedDataset.create(rdd)
   }
 
   implicit class TypedDatasetExt[A](private val tds: TypedDataset[A]) {
