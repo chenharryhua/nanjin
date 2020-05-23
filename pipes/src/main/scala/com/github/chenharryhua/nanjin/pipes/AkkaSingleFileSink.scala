@@ -9,7 +9,13 @@ import akka.stream.stage.{GraphStageLogic, GraphStageWithMaterializedValue, InHa
 import cats.effect.ConcurrentEffect
 import cats.effect.concurrent.Deferred
 import cats.implicits._
-import com.sksamuel.avro4s.{AvroOutputStream, AvroOutputStreamBuilder, Encoder => AvroEncoder}
+import com.sksamuel.avro4s.{
+  AvroOutputStream,
+  AvroOutputStreamBuilder,
+  DefaultFieldMapper,
+  SchemaFor,
+  Encoder => AvroEncoder
+}
 import org.apache.avro.Schema
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataOutputStream, FileSystem, Path}
@@ -70,15 +76,26 @@ final class AkkaSingleFileSink(configuration: Configuration) {
     schema: Schema): Sink[A, F[NotUsed]] =
     Sink.fromGraph(new AkkaFileSink[F, A](pathStr, schema, configuration, AvroOutputStream.data[A]))
 
+  def avro[F[_]: ConcurrentEffect, A: AvroEncoder: SchemaFor](
+    pathStr: String): Sink[A, F[NotUsed]] =
+    avro[F, A](pathStr, SchemaFor[A].schema(DefaultFieldMapper))
+
   def avroBinary[F[_]: ConcurrentEffect, A: AvroEncoder](
     pathStr: String,
     schema: Schema): Sink[A, F[NotUsed]] =
     Sink.fromGraph(
       new AkkaFileSink[F, A](pathStr, schema, configuration, AvroOutputStream.binary[A]))
 
+  def avroBinary[F[_]: ConcurrentEffect, A: AvroEncoder: SchemaFor](
+    pathStr: String): Sink[A, F[NotUsed]] =
+    avroBinary[F, A](pathStr, SchemaFor[A].schema(DefaultFieldMapper))
+
   def jackson[F[_]: ConcurrentEffect, A: AvroEncoder](
     pathStr: String,
     schema: Schema): Sink[A, F[NotUsed]] =
     Sink.fromGraph(new AkkaFileSink[F, A](pathStr, schema, configuration, AvroOutputStream.json[A]))
 
+  def jackson[F[_]: ConcurrentEffect, A: AvroEncoder: SchemaFor](
+    pathStr: String): Sink[A, F[NotUsed]] =
+    jackson[F, A](pathStr, SchemaFor[A].schema(DefaultFieldMapper))
 }
