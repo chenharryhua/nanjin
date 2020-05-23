@@ -1,15 +1,9 @@
 package mtest.spark
 
+import akka.actor.ActorSystem
 import cats.effect.{ContextShift, IO, Timer}
 import com.github.chenharryhua.nanjin.common.NJLogLevel
-import com.github.chenharryhua.nanjin.database.{
-  DatabaseName,
-  Host,
-  Password,
-  Port,
-  Postgres,
-  Username
-}
+import com.github.chenharryhua.nanjin.database._
 import com.github.chenharryhua.nanjin.kafka.{IoKafkaContext, KafkaSettings}
 import com.github.chenharryhua.nanjin.spark.SparkSettings
 import org.apache.spark.sql.SparkSession
@@ -20,6 +14,8 @@ package object kafka {
 
   implicit val cs: ContextShift[IO] = IO.contextShift(global)
   implicit val timer: Timer[IO]     = IO.timer(global)
+
+  implicit val akkaSystem: ActorSystem = ActorSystem("nj-spark")
 
   val ctx: IoKafkaContext = KafkaSettings.local.withGroupId("spark.kafka.unit.test").ioContext
 
