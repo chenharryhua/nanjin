@@ -1,10 +1,13 @@
 package com.github.chenharryhua.nanjin.spark
 
-import cats.effect.Sync
+import akka.NotUsed
+import akka.stream.scaladsl.Source
+import cats.effect.{ConcurrentEffect, Sync}
 import cats.implicits._
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
+import fs2.interop.reactivestreams._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
@@ -16,6 +19,9 @@ private[spark] trait DatasetExtensions {
 
     def stream[F[_]: Sync]: Stream[F, A] =
       Stream.fromIterator(rdd.toLocalIterator.flatMap(Option(_)))
+
+    def source[F[_]: ConcurrentEffect]: Source[A, NotUsed] =
+      Source.fromPublisher[A](stream[F].toUnicastPublisher())
 
     def typedDataset(implicit ev: TypedEncoder[A], ss: SparkSession): TypedDataset[A] =
       TypedDataset.create(rdd)
