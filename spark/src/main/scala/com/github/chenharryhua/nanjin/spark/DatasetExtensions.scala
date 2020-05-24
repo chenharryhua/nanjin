@@ -33,6 +33,9 @@ private[spark] trait DatasetExtensions {
       Stream.force(
         tds.toLocalIterator.map(it => Stream.fromIterator[F](it.asScala.flatMap(Option(_)))))
 
+    def source[F[_]: ConcurrentEffect]: Source[A, NotUsed] =
+      Source.fromPublisher[A](stream[F].toUnicastPublisher())
+
     def validRecords: TypedDataset[A] = {
       import tds.encoder
       tds.deserialized.flatMap(Option(_))
