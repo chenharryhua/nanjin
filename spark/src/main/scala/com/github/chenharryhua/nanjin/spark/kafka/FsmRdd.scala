@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import akka.NotUsed
+import akka.stream.scaladsl.Source
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
@@ -66,6 +68,9 @@ final class FsmRdd[F[_], K, V](
 
   def crStream(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
     sorted.stream[F]
+
+  def crSource(implicit F: ConcurrentEffect[F]): Source[NJConsumerRecord[K, V], NotUsed] =
+    sorted.source[F]
 
   def crDataset(implicit
     keyEncoder: TypedEncoder[K],
