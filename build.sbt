@@ -31,7 +31,8 @@ val fs2Kafka  = "1.0.0"
 val sparkVersion = "2.4.5"
 val frameless    = "0.8.0"
 
-val circe    = "0.13.0"
+val circe         = "0.13.0"
+val kantanVersion = "0.6.0"
 
 val avro4s     = "3.1.0"
 val apacheAvro = "1.9.2"
@@ -264,10 +265,10 @@ val db = Seq(
 )
 
 val kantan = Seq(
-  "com.nrinaudo" %% "kantan.csv-java8"   % "0.6.0",
-  "com.nrinaudo" %% "kantan.csv-generic" % "0.6.0",
-  "com.nrinaudo" %% "kantan.csv-cats"    % "0.6.0"
-)
+  "com.nrinaudo" %% "kantan.csv-java8",
+  "com.nrinaudo" %% "kantan.csv-generic",
+  "com.nrinaudo" %% "kantan.csv-cats"
+).map(_ % kantanVersion)
 
 lazy val common = (project in file("common"))
   .settings(commonSettings: _*)
