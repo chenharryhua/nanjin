@@ -16,7 +16,7 @@ import fs2.{Pipe, Pure, RaiseThrowable, Stream}
 import io.circe.parser.decode
 import io.circe.syntax._
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
-import kantan.csv.{HeaderEncoder, RowDecoder, _}
+import kantan.csv.{CsvConfiguration, HeaderEncoder, RowDecoder}
 import org.apache.avro.generic.GenericRecord
 
 package object pipes {
@@ -34,13 +34,15 @@ package object pipes {
     (ss: Stream[F, A]) => {
       val hs: Stream[Pure, String] = conf.header match {
         case CsvConfiguration.Header.Implicit =>
-          Stream(HeaderEncoder[A].header.mkString(conf.cellSeparator.toString))
+          HeaderEncoder[A].header
+            .map(h => Stream(h.mkString(conf.cellSeparator.toString)))
+            .getOrElse(Stream())
         case CsvConfiguration.Header.Explicit(seq) =>
           Stream(seq.mkString(conf.cellSeparator.toString))
         case CsvConfiguration.Header.None => Stream()
       }
       hs.covary[F] ++ ss.map(m =>
-        HeaderEncoder[A].rowEncoder.encode(m).mkString(rfc.cellSeparator.toString))
+        HeaderEncoder[A].rowEncoder.encode(m).mkString(conf.cellSeparator.toString))
     }
 
   def jacksonDecode[F[_], A: AvroDecoder: SchemaFor]: Pipe[F, String, A] =
