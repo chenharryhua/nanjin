@@ -20,9 +20,9 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.apache.hadoop.conf.Configuration
 
-final class SingleFileSink(hadoopConfiguration: Configuration) {
+final class SingleFileSink[F[_]: ContextShift: Sync](hadoopConfiguration: Configuration) {
 
-  private def sink[F[_]: ContextShift: Sync, A](
+  private def sink[A](
     pathStr: String,
     schema: Schema,
     builder: AvroOutputStreamBuilder[A]): Pipe[F, A, Unit] = { sa: Stream[F, A] =>
@@ -34,25 +34,19 @@ final class SingleFileSink(hadoopConfiguration: Configuration) {
     } yield data.foreach(aos.write)
   }
 
-  def avro[F[_]: ContextShift: Sync, A: AvroEncoder](
-    pathStr: String,
-    schema: Schema): Pipe[F, A, Unit] =
-    sink[F, A](pathStr, schema, AvroOutputStream.data[A])
+  def avro[A: AvroEncoder](pathStr: String, schema: Schema): Pipe[F, A, Unit] =
+    sink[A](pathStr, schema, AvroOutputStream.data[A])
 
-  def avro[F[_]: ContextShift: Sync, A: SchemaFor: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
-    avro[F, A](pathStr, SchemaFor[A].schema(DefaultFieldMapper))
+  def avro[A: SchemaFor: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
+    avro[A](pathStr, SchemaFor[A].schema(DefaultFieldMapper))
 
-  def jackson[F[_]: ContextShift: Sync, A: SchemaFor: AvroEncoder](
-    pathStr: String): Pipe[F, A, Unit] =
-    sink[F, A](pathStr, SchemaFor[A].schema(DefaultFieldMapper), AvroOutputStream.json[A])
+  def jackson[A: SchemaFor: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
+    sink[A](pathStr, SchemaFor[A].schema(DefaultFieldMapper), AvroOutputStream.json[A])
 
-  def avroBinary[F[_]: ContextShift: Sync, A: SchemaFor: AvroEncoder](
-    pathStr: String): Pipe[F, A, Unit] =
-    sink[F, A](pathStr, SchemaFor[A].schema(DefaultFieldMapper), AvroOutputStream.binary[A])
+  def avroBinary[A: SchemaFor: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
+    sink[A](pathStr, SchemaFor[A].schema(DefaultFieldMapper), AvroOutputStream.binary[A])
 
-  def parquet[F[_]: ContextShift: Sync, A: AvroEncoder](
-    pathStr: String,
-    schema: Schema): Pipe[F, A, Unit] = { as =>
+  def parquet[A: AvroEncoder](pathStr: String, schema: Schema): Pipe[F, A, Unit] = { as =>
     for {
       blocker <- Stream.resource(Blocker[F])
       writer <- Stream.resource(
@@ -67,36 +61,35 @@ final class SingleFileSink(hadoopConfiguration: Configuration) {
     }
   }
 
-  def parquet[F[_]: ContextShift: Sync, A: SchemaFor: AvroEncoder](
-    pathStr: String): Pipe[F, A, Unit] =
-    parquet[F, A](pathStr, SchemaFor[A].schema(DefaultFieldMapper))
+  def parquet[A: SchemaFor: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
+    parquet[A](pathStr, SchemaFor[A].schema(DefaultFieldMapper))
 
-  def json[F[_]: ContextShift: Sync, A: JsonEncoder](pathStr: String): Pipe[F, A, Unit] = { as =>
+  def json[A: JsonEncoder](pathStr: String): Pipe[F, A, Unit] = { as =>
     for {
       blocker <- Stream.resource(Blocker[F])
-      aos <- Stream
-        .resource(hadoop.outputPathResource[F](pathStr, hadoopConfiguration, blocker))
-        .widen[OutputStream]
-      _ <- as
-        .map(_.asJson.noSpaces)
-        .intersperse("\n")
-        .through(fs2.text.utf8Encode)
-        .through(writeOutputStream(Sync[F].pure(aos), blocker))
+      aos <-
+        Stream
+          .resource(hadoop.outputPathResource[F](pathStr, hadoopConfiguration, blocker))
+          .widen[OutputStream]
+      _ <-
+        as.map(_.asJson.noSpaces)
+          .intersperse("\n")
+          .through(fs2.text.utf8Encode)
+          .through(writeOutputStream(Sync[F].pure(aos), blocker))
     } yield ()
   }
 
-  def csv[F[_]: ContextShift: Sync, A: HeaderEncoder](
-    pathStr: String,
-    csvConfig: CsvConfiguration): Pipe[F, A, Unit] = { as =>
-    for {
-      blocker <- Stream.resource(Blocker[F])
-      aos <- Stream.resource(
-        hadoop.csvOutputResource[F, A](pathStr, hadoopConfiguration, blocker, csvConfig))
-      data <- as.chunks
-    } yield data.foreach(aos.write)
+  def csv[A: HeaderEncoder](pathStr: String, csvConfig: CsvConfiguration): Pipe[F, A, Unit] = {
+    as =>
+      for {
+        blocker <- Stream.resource(Blocker[F])
+        aos <- Stream.resource(
+          hadoop.csvOutputResource[F, A](pathStr, hadoopConfiguration, blocker, csvConfig))
+        data <- as.chunks
+      } yield data.foreach(aos.write)
   }
 
-  def csv[F[_]: ContextShift: Sync, A: HeaderEncoder](pathStr: String): Pipe[F, A, Unit] =
-    csv[F,A](pathStr, rfc)
+  def csv[A: HeaderEncoder](pathStr: String): Pipe[F, A, Unit] =
+    csv[A](pathStr, rfc)
 
 }
