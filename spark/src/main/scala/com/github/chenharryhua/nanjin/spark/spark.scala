@@ -1,7 +1,9 @@
 package com.github.chenharryhua.nanjin
 
-import cats.effect.{ContextShift, Sync}
+import akka.stream.alpakka.ftp.FtpSettings
+import cats.effect.{Async, ContextShift, Sync}
 import com.github.chenharryhua.nanjin.pipes.{
+  AkkaFtpSink,
   AkkaSingleFileSink,
   AkkaSingleFileSource,
   SingleFileSink,
@@ -25,4 +27,6 @@ package object spark extends DatasetExtensions {
   def akkaFileSink(implicit ss: SparkSession): AkkaSingleFileSink =
     new AkkaSingleFileSink(ss.sparkContext.hadoopConfiguration)
 
+  def ftpSink[F[_]: Async: ContextShift](settings: FtpSettings): AkkaFtpSink[F] =
+    new AkkaFtpSink[F](settings)
 }
