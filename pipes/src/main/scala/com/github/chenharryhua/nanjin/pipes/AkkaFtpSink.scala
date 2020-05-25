@@ -1,20 +1,24 @@
 package com.github.chenharryhua.nanjin.pipes
 
-import akka.stream.IOResult
 import akka.stream.alpakka.ftp.FtpSettings
 import akka.stream.alpakka.ftp.scaladsl.Ftp
-import akka.stream.scaladsl.Sink
+import akka.stream.{IOResult, Materializer}
 import akka.util.ByteString
-import cats.effect.{Async, ContextShift}
+import cats.effect.{ConcurrentEffect, ContextShift}
+import fs2.Pipe
 import io.circe.Encoder
 import io.circe.syntax._
+import streamz.converter._
 
-final class AkkaFtpSink[F[_]: Async: ContextShift](settings: FtpSettings) {
+final class AkkaFtpSink[F[_]: ConcurrentEffect: ContextShift](settings: FtpSettings)(implicit
+  materializer: Materializer) {
+  import materializer.executionContext
 
-  private def toPath(pathStr: String): Sink[ByteString, F[IOResult]] =
-    Ftp.toPath(pathStr, settings).mapMaterializedValue(f => Async.fromFuture(Async[F].pure(f)))
-
-  def json[A: Encoder](pathStr: String): Sink[A, F[IOResult]] =
-    toPath(pathStr).contramap[A](a => ByteString(a.asJson.noSpaces + "\n"))
+  def json[A: Encoder](pathStr: String): Pipe[F, A, IOResult] =
+    Ftp
+      .toPath(pathStr, settings)
+      .contramap[A](a => ByteString(a.asJson.noSpaces + "\n"))
+      .toPipeMat[F]
+      .andThen(_.rethrow)
 
 }
