@@ -12,11 +12,11 @@ import com.sksamuel.avro4s.{
   Decoder => AvroDecoder,
   Encoder => AvroEncoder
 }
-import fs2.{Pipe, RaiseThrowable, Stream}
+import fs2.{Pipe, Pure, RaiseThrowable, Stream}
 import io.circe.parser.decode
 import io.circe.syntax._
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
-import kantan.csv.{RowDecoder, RowEncoder}
+import kantan.csv.{HeaderEncoder, RowDecoder, _}
 import org.apache.avro.generic.GenericRecord
 
 package object pipes {
@@ -30,8 +30,18 @@ package object pipes {
   def csvDecode[F[_]: RaiseThrowable, A: RowDecoder]: Pipe[F, Seq[String], A] =
     (ss: Stream[F, Seq[String]]) => ss.map(RowDecoder[A].decode).rethrow
 
-  def csvEncode[F[_], A: RowEncoder]: Pipe[F, A, Seq[String]] =
-    (ss: Stream[F, A]) => ss.map(RowEncoder[A].encode)
+  def csvEncode[F[_], A: HeaderEncoder](conf: CsvConfiguration): Pipe[F, A, String] =
+    (ss: Stream[F, A]) => {
+      val hs: Stream[Pure, String] = conf.header match {
+        case CsvConfiguration.Header.Implicit =>
+          Stream(HeaderEncoder[A].header.mkString(conf.cellSeparator.toString))
+        case CsvConfiguration.Header.Explicit(seq) =>
+          Stream(seq.mkString(conf.cellSeparator.toString))
+        case CsvConfiguration.Header.None => Stream()
+      }
+      hs.covary[F] ++ ss.map(m =>
+        HeaderEncoder[A].rowEncoder.encode(m).mkString(rfc.cellSeparator.toString))
+    }
 
   def jacksonDecode[F[_], A: AvroDecoder: SchemaFor]: Pipe[F, String, A] =
     (ss: Stream[F, String]) =>
@@ -45,15 +55,13 @@ package object pipes {
 
   def jacksonEncode[F[_], A: AvroEncoder: SchemaFor](implicit F: Sync[F]): Pipe[F, A, String] =
     (ss: Stream[F, A]) =>
-      ss.evalMap { m =>
-        F.bracket(F.pure(new ByteArrayOutputStream))(os =>
-          F.pure(
-              AvroOutputStream
-                .json[A]
-                .to(os)
-                .build(SchemaFor[A].schema(DefaultFieldMapper))
-                .write(m))
-            .as(os.toString))(a => F.delay(a.close()))
+      ss.map { m =>
+        val bos = new ByteArrayOutputStream
+        val aos = AvroOutputStream.json[A].to(bos).build(SchemaFor[A].schema(DefaultFieldMapper))
+        aos.write(m)
+        aos.close()
+        bos.close()
+        bos.toString
       }
 
   def avroDecode[F[_], A: AvroDecoder: SchemaFor]: Pipe[F, GenericRecord, A] =
