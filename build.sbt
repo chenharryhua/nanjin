@@ -218,7 +218,7 @@ val kafkaLib = Seq(
     "com.github.fd4s" %% "fs2-kafka"           % fs2Kafka)
 
 val base = Seq(
-  "com.github.krasserm" %% "streamz-converter" % "0.11-RC1",
+  "com.github.krasserm" %% "streamz-converter" % "0.13-RC1",
   "io.scalaland" %% "chimney"              % "0.5.2",
   "com.beachape" %% "enumeratum-cats"      % "1.6.1",
   "com.beachape" %% "enumeratum"           % "1.6.1",
