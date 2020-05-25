@@ -34,7 +34,9 @@ package object pipes {
     (ss: Stream[F, A]) => {
       val hs: Stream[Pure, String] = conf.header match {
         case CsvConfiguration.Header.Implicit =>
-          Stream(HeaderEncoder[A].header.mkString(conf.cellSeparator.toString))
+          HeaderEncoder[A].header
+            .map(h => Stream(h.mkString(conf.cellSeparator.toString)))
+            .getOrElse(Stream())
         case CsvConfiguration.Header.Explicit(seq) =>
           Stream(seq.mkString(conf.cellSeparator.toString))
         case CsvConfiguration.Header.None => Stream()
