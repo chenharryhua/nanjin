@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.pipes
 
-import akka.stream.alpakka.ftp.{FtpSettings, SftpSettings}
 import akka.stream.alpakka.ftp.scaladsl.{Ftp, Sftp}
+import akka.stream.alpakka.ftp.{FtpSettings, SftpSettings}
 import akka.stream.{IOResult, Materializer}
 import akka.util.ByteString
 import cats.effect.{ConcurrentEffect, ContextShift}

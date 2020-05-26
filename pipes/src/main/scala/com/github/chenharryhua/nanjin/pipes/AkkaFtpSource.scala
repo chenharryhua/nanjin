@@ -22,8 +22,14 @@ trait FtpSource[F[_]] {
     download(pathStr).map(_.utf8String).through(fs2.text.lines).through(jacksonDecode[F, A])
 
   final def csv[A: RowDecoder](pathStr: String, conf: CsvConfiguration)(implicit
-    ev: RaiseThrowable[F]): Stream[F, A] =
-    download(pathStr).map(_.utf8String).through(fs2.text.lines).through(csvDecode[F, A](conf))
+    ev: RaiseThrowable[F]): Stream[F, A] = {
+    val data =
+      if (conf.hasHeader)
+        download(pathStr).map(_.utf8String).through(fs2.text.lines).drop(1)
+      else
+        download(pathStr).map(_.utf8String).through(fs2.text.lines)
+    data.through(csvDecode[F, A](conf))
+  }
 
   final def csv[A: RowDecoder](pathStr: String)(implicit ev: RaiseThrowable[F]): Stream[F, A] =
     csv[A](pathStr, CsvConfiguration.rfc)
