@@ -5,8 +5,9 @@ import akka.stream.alpakka.ftp.scaladsl.Ftp
 import akka.stream.{IOResult, Materializer}
 import akka.util.ByteString
 import cats.effect.{ConcurrentEffect, ContextShift}
+import cats.implicits._
 import com.sksamuel.avro4s.{SchemaFor, Encoder => AvroEncoder}
-import fs2.Pipe
+import fs2.{Pipe, Stream}
 import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.{CsvConfiguration, HeaderEncoder}
 import streamz.converter._
@@ -15,8 +16,11 @@ final class AkkaFtpSink[F[_]: ConcurrentEffect: ContextShift](settings: FtpSetti
   materializer: Materializer) {
   import materializer.executionContext
 
-  def upload(pathStr: String): Pipe[F, ByteString, IOResult] =
-    Ftp.toPath(pathStr, settings).toPipeMat[F].andThen(_.rethrow)
+  def upload(pathStr: String): Pipe[F, ByteString, IOResult] = { (ss: Stream[F, ByteString]) =>
+    Stream
+      .eval(Ftp.toPath(pathStr, settings).toPipeMatWithResult[F].map(p => ss.through(p).rethrow))
+      .flatten
+  }
 
   def json[A: JsonEncoder](pathStr: String): Pipe[F, A, IOResult] =
     upload(pathStr).compose(jsonEncode[F, A].andThen(_.intersperse("\n").map(ByteString(_))))
