@@ -16,7 +16,7 @@ val catsMtl    = "0.7.1"
 val catsTime   = "0.3.0"
 val tagless    = "0.11"
 val monocle    = "2.0.4"
-val refined    = "0.9.13"
+val refined    = "0.9.14"
 val droste     = "0.8.0"
 
 val zioCats    = "2.0.0.0-RC14"
@@ -165,7 +165,7 @@ val avro = Seq(
 
 val elastic4sLib = Seq(
   "com.sksamuel.elastic4s" %% "elastic4s-core"
-).map(_ % "7.6.0")
+).map(_ % "7.7.0")
 
 val sparkLib = Seq(
   "org.apache.spark" %% "spark-core",
