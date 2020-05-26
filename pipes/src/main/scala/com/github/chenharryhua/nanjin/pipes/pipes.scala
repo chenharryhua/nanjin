@@ -55,7 +55,7 @@ package object pipes {
           .iterator
           .next)
 
-  def jacksonEncode[F[_], A: AvroEncoder: SchemaFor](implicit F: Sync[F]): Pipe[F, A, String] =
+  def jacksonEncode[F[_], A: AvroEncoder: SchemaFor]: Pipe[F, A, String] =
     (ss: Stream[F, A]) =>
       ss.map { m =>
         val bos = new ByteArrayOutputStream
