@@ -25,11 +25,11 @@ package object spark extends DatasetExtensions {
     new AkkaSftpSink[F](settings)
 
   def ftpSource[F[_]: ContextShift: Concurrent](settings: FtpSettings)(implicit
-    mat: Materializer): AkkaFtpSource[F] =
+    mat: Materializer): FtpSource[F] =
     new AkkaFtpSource[F](settings)
 
   def ftpSource[F[_]: ContextShift: Concurrent](settings: SftpSettings)(implicit
-    mat: Materializer): AkkaSftpSource[F] =
+    mat: Materializer): FtpSource[F] =
     new AkkaSftpSource[F](settings)
 
 }

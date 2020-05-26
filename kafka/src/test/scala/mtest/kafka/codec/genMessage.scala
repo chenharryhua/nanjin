@@ -51,7 +51,7 @@ object genMessage {
     } yield new RecordHeaders(rcs)
 
     val genOptionalInteger: Gen[Optional[Integer]] =
-      Gen.option(arbitrary[Int].map(x => new Integer(x))).map(_.asJava)
+      Gen.option(arbitrary[Int].map(x => Integer.valueOf(x))).map(_.asJava)
 
     val genConsumerRecord: Gen[ConsumerRecord[Int, Int]] = for {
       topic <- Gen.asciiPrintableStr

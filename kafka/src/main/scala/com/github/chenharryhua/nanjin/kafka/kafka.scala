@@ -7,7 +7,7 @@ import eu.timepit.refined.W
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
 import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
 import eu.timepit.refined.string.MatchesRegex
-
+import fs2.Stream
 package object kafka extends ShowKafkaMessage {
 
   type TopicName = String Refined MatchesRegex[W.`"^[a-zA-Z0-9_.-]+$"`.T]
@@ -20,4 +20,8 @@ package object kafka extends ShowKafkaMessage {
 
   def akkaResource[F[_]](implicit F: Sync[F]): Resource[F, ActorSystem] =
     Resource.make(F.delay(ActorSystem("nj-akka")))(a => F.delay(a.terminate()))
+
+  def akkaStream[F[_]](implicit F: Sync[F]): Stream[F, ActorSystem] =
+    Stream.resource(akkaResource[F])
+
 }
