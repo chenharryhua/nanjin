@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.pipes
 
-import akka.stream.alpakka.ftp.FtpSettings
-import akka.stream.alpakka.ftp.scaladsl.Ftp
+import akka.stream.alpakka.ftp.SftpSettings
+import akka.stream.alpakka.ftp.scaladsl.Sftp
 import akka.stream.{IOResult, Materializer}
 import akka.util.ByteString
 import cats.effect.{ConcurrentEffect, ContextShift}
@@ -12,7 +12,7 @@ import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.{CsvConfiguration, HeaderEncoder}
 import streamz.converter._
 
-final class AkkaFtpSink[F[_]: ConcurrentEffect: ContextShift](settings: FtpSettings)(implicit
+final class AkkaSftpSink[F[_]: ConcurrentEffect: ContextShift](settings: SftpSettings)(implicit
   mat: Materializer)
     extends FtpSink[F] {
   import mat.executionContext
@@ -20,7 +20,7 @@ final class AkkaFtpSink[F[_]: ConcurrentEffect: ContextShift](settings: FtpSetti
   override def upload(pathStr: String): Pipe[F, ByteString, IOResult] = {
     (ss: Stream[F, ByteString]) =>
       Stream
-        .eval(Ftp.toPath(pathStr, settings).toPipeMatWithResult[F])
+        .eval(Sftp.toPath(pathStr, settings).toPipeMatWithResult[F])
         .flatMap(p => ss.through(p).rethrow)
   }
 
