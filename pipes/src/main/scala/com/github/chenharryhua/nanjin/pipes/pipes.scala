@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin
 
 import java.io.ByteArrayOutputStream
 
-import cats.effect.Sync
 import cats.implicits._
 import com.sksamuel.avro4s.{
   AvroInputStream,
@@ -27,16 +26,18 @@ package object pipes {
   def jsonEncode[F[_], A: JsonEncoder]: Pipe[F, A, String] =
     (ss: Stream[F, A]) => ss.map(_.asJson.noSpaces)
 
-  def csvDecode[F[_]: RaiseThrowable, A: RowDecoder]: Pipe[F, Seq[String], A] =
-    (ss: Stream[F, Seq[String]]) => ss.map(RowDecoder[A].decode).rethrow
+  def csvDecode[F[_]: RaiseThrowable, A: RowDecoder](conf: CsvConfiguration): Pipe[F, String, A] =
+    (ss: Stream[F, String]) =>
+      ss.map(r => RowDecoder[A].decode(r.split(conf.cellSeparator))).rethrow
 
   def csvEncode[F[_], A: HeaderEncoder](conf: CsvConfiguration): Pipe[F, A, String] =
     (ss: Stream[F, A]) => {
       val hs: Stream[Pure, String] = conf.header match {
         case CsvConfiguration.Header.Implicit =>
-          HeaderEncoder[A].header
-            .map(h => Stream(h.mkString(conf.cellSeparator.toString)))
-            .getOrElse(Stream())
+          HeaderEncoder[A].header match {
+            case Some(h) => Stream(h.mkString(conf.cellSeparator.toString))
+            case None    => Stream("")
+          }
         case CsvConfiguration.Header.Explicit(seq) =>
           Stream(seq.mkString(conf.cellSeparator.toString))
         case CsvConfiguration.Header.None => Stream()
