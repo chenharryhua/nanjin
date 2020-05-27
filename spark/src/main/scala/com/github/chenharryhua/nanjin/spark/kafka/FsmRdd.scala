@@ -18,6 +18,7 @@ final class FsmRdd[F[_], K, V](
   topic: KafkaTopic[F, K, V],
   cfg: SKConfig)(implicit sparkSession: SparkSession)
     extends SparKafkaUpdateParams[FsmRdd[F, K, V]] {
+
   import topic.topicDef.{avroKeyEncoder, avroValEncoder, schemaForKey, schemaForVal}
 
   override def params: SKParams = SKConfigF.evalConfig(cfg)
@@ -43,8 +44,9 @@ final class FsmRdd[F[_], K, V](
   def sortedRDD: RDD[NJConsumerRecord[K, V]] =
     rdd
       .filter(m => params.timeRange.isInBetween(m.timestamp))
-      .repartition(params.repartition.value)
+      .repartition(32)
       .sortBy[NJConsumerRecord[K, V]](identity)
+      .repartition(params.repartition.value)
 
   def crStream(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
     sortedRDD.stream[F]
