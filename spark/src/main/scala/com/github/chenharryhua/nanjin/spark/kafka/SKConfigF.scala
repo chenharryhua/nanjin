@@ -30,21 +30,19 @@ private[spark] object NJUploadRate {
   fileFormat: NJFileFormat,
   saveMode: SaveMode,
   locationStrategy: LocationStrategy,
-  repartition: NJRepartition,
   showDs: NJShowDataset)
 
 private[spark] object SKParams {
 
   val default: SKParams =
     SKParams(
-      timeRange        = NJDateTimeRange.infinite,
-      uploadRate       = NJUploadRate.default,
-      pathBuilder      = Reader(topicName => s"./data/spark/kafka/$topicName/"),
-      fileFormat       = NJFileFormat.Parquet,
-      saveMode         = SaveMode.ErrorIfExists,
+      timeRange = NJDateTimeRange.infinite,
+      uploadRate = NJUploadRate.default,
+      pathBuilder = Reader(topicName => s"./data/spark/kafka/$topicName/"),
+      fileFormat = NJFileFormat.Parquet,
+      saveMode = SaveMode.ErrorIfExists,
       locationStrategy = LocationStrategies.PreferConsistent,
-      repartition      = NJRepartition(32),
-      showDs           = NJShowDataset(20, isTruncate = false)
+      showDs = NJShowDataset(20, isTruncate = false)
     )
 }
 
@@ -67,8 +65,6 @@ private[spark] object SKConfigF {
 
   final case class WithLocationStrategy[K](value: LocationStrategy, cont: K) extends SKConfigF[K]
 
-  final case class WithRepartition[K](value: NJRepartition, cont: K) extends SKConfigF[K]
-
   final case class WithShowRows[K](value: Int, cont: K) extends SKConfigF[K]
   final case class WithShowTruncate[K](isTruncate: Boolean, cont: K) extends SKConfigF[K]
 
@@ -86,7 +82,6 @@ private[spark] object SKConfigF {
     case WithTimeRange(v, c)        => SKParams.timeRange.set(v)(c)
     case WithSaveMode(v, c)         => SKParams.saveMode.set(v)(c)
     case WithLocationStrategy(v, c) => SKParams.locationStrategy.set(v)(c)
-    case WithRepartition(v, c)      => SKParams.repartition.set(v)(c)
     case WithShowRows(v, c)         => SKParams.showDs.composeLens(NJShowDataset.rowNum).set(v)(c)
     case WithShowTruncate(v, c)     => SKParams.showDs.composeLens(NJShowDataset.isTruncate).set(v)(c)
     case WithPathBuilder(v, c)      => SKParams.pathBuilder.set(v)(c)
@@ -116,9 +111,6 @@ final private[spark] case class SKConfig private (value: Fix[SKConfigF]) extends
 
   def withLocationStrategy(ls: LocationStrategy): SKConfig =
     SKConfig(Fix(WithLocationStrategy(ls, value)))
-
-  def withRepartition(rp: Int): SKConfig =
-    SKConfig(Fix(WithRepartition(NJRepartition(rp), value)))
 
   def withShowRows(num: Int): SKConfig = SKConfig(Fix(WithShowRows(num, value)))
   def withoutTruncate: SKConfig        = SKConfig(Fix(WithShowTruncate(isTruncate = false, value)))

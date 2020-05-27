@@ -41,18 +41,23 @@ final class FsmRdd[F[_], K, V](
   def stats: Statistics[F] =
     new Statistics(TypedDataset.create(rdd.map(CRMetaInfo(_))).dataset, cfg)
 
-  def sortedRDD: RDD[NJConsumerRecord[K, V]] =
-    rdd
-      .filter(m => params.timeRange.isInBetween(m.timestamp))
-      .repartition(32)
-      .sortBy[NJConsumerRecord[K, V]](identity)
-      .repartition(params.repartition.value)
+  def crDataset(implicit
+    keyEncoder: TypedEncoder[K],
+    valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] = {
+    val tds       = TypedDataset.create(rdd)
+    val inBetween = tds.makeUDF[Long, Boolean](params.timeRange.isInBetween)
+    new FsmConsumerRecords(tds.filter(inBetween(tds('timestamp))).dataset, topic, cfg)
+  }
+
+  // sorted RDD
+  def sorted: RDD[NJConsumerRecord[K, V]] =
+    rdd.filter(m => params.timeRange.isInBetween(m.timestamp)).sortBy(identity)
 
   def crStream(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
-    sortedRDD.stream[F]
+    sorted.stream[F]
 
   def crSource(implicit F: ConcurrentEffect[F]): Source[NJConsumerRecord[K, V], NotUsed] =
-    sortedRDD.source[F]
+    sorted.source[F]
 
   def saveJackson(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
     crStream.through(fileSink.jackson(sk.jacksonPath(topic.topicName))).compile.drain
@@ -77,11 +82,4 @@ final class FsmRdd[F[_], K, V](
   def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
     pipeTo(topic)
 
-  def crDataset(implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] = {
-    val tds       = TypedDataset.create(sortedRDD)
-    val inBetween = tds.makeUDF[Long, Boolean](params.timeRange.isInBetween)
-    new FsmConsumerRecords(tds.filter(inBetween(tds('timestamp))).dataset, topic, cfg)
-  }
 }
