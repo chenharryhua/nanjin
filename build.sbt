@@ -32,7 +32,7 @@ val sparkVersion = "2.4.5"
 val frameless    = "0.8.0"
 
 val circe         = "0.13.0"
-val kantanVersion = "0.6.0"
+val kantanVersion = "0.6.1"
 
 val avro4s     = "3.1.0"
 val apacheAvro = "1.9.2"
