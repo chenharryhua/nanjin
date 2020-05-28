@@ -27,8 +27,10 @@ import scala.reflect.ClassTag
 object sk {
 
   def replayPath(tn: TopicName): String  = s"./data/sparKafka/${tn.value}/replay"
-  def jacksonPath(tn: TopicName): String = s"./data/sparKafka/${tn.value}/nj.json"
+  def jsonPath(tn: TopicName): String    = s"./data/sparKafka/${tn.value}/nj-json.json"
+  def jacksonPath(tn: TopicName): String = s"./data/sparKafka/${tn.value}/nj-jackson.json"
   def avroPath(tn: TopicName): String    = s"./data/sparKafka/${tn.value}/nj.avro"
+  def parquetPath(tn: TopicName): String = s"./data/sparKafka/${tn.value}/nj.parquet"
 
   private def props(config: Map[String, String]): util.Map[String, Object] =
     (remove(ConsumerConfig.CLIENT_ID_CONFIG)(config) ++ Map(
@@ -46,8 +48,8 @@ object sk {
   private def kafkaRDD[F[_]: Sync, K, V](
     topic: KafkaTopic[F, K, V],
     timeRange: NJDateTimeRange,
-    locationStrategy: LocationStrategy)(
-    implicit sparkSession: SparkSession): F[RDD[ConsumerRecord[Array[Byte], Array[Byte]]]] =
+    locationStrategy: LocationStrategy)(implicit
+    sparkSession: SparkSession): F[RDD[ConsumerRecord[Array[Byte], Array[Byte]]]] =
     topic.shortLivedConsumer.use(_.offsetRangeFor(timeRange)).map { gtp =>
       KafkaUtils.createRDD[Array[Byte], Array[Byte]](
         sparkSession.sparkContext,
@@ -62,9 +64,7 @@ object sk {
     topic: KafkaTopic[F, K, V],
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy,
-    f: NJConsumerRecord[K, V] => A)(
-    implicit
-    sparkSession: SparkSession): F[RDD[A]] =
+    f: NJConsumerRecord[K, V] => A)(implicit sparkSession: SparkSession): F[RDD[A]] =
     kafkaRDD[F, K, V](topic, timeRange, locationStrategy).map(_.mapPartitions {
       _.map { m =>
         val (errs, cr) = topic.decoder(m).logRecord.run
@@ -76,13 +76,12 @@ object sk {
   def loadKafkaRdd[F[_]: Sync, K, V](
     topic: KafkaTopic[F, K, V],
     timeRange: NJDateTimeRange,
-    locationStrategy: LocationStrategy)(
-    implicit
+    locationStrategy: LocationStrategy)(implicit
     sparkSession: SparkSession): F[RDD[NJConsumerRecord[K, V]]] =
     loadKafkaRdd[F, K, V, NJConsumerRecord[K, V]](topic, timeRange, locationStrategy, identity)
 
-  def loadDiskRdd[F[_]: Sync, K, V](path: String)(
-    implicit sparkSession: SparkSession): F[RDD[NJConsumerRecord[K, V]]] =
+  def loadDiskRdd[F[_]: Sync, K, V](path: String)(implicit
+    sparkSession: SparkSession): F[RDD[NJConsumerRecord[K, V]]] =
     Sync[F].delay(sparkSession.sparkContext.objectFile[NJConsumerRecord[K, V]](path))
 
   def save[F[_], K, V](
@@ -108,13 +107,14 @@ object sk {
     njPRs =>
       for {
         kb <- Keyboard.signal[F]
-        rst <- njPRs
-          .pauseWhen(kb.map(_.contains(Keyboard.pauSe)))
-          .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
-          .chunkN(uploadRate.batchSize)
-          .metered(uploadRate.duration)
-          .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName))))
-          .through(produce(topic.fs2ProducerSettings))
+        rst <-
+          njPRs
+            .pauseWhen(kb.map(_.contains(Keyboard.pauSe)))
+            .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
+            .chunkN(uploadRate.batchSize)
+            .metered(uploadRate.duration)
+            .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName))))
+            .through(produce(topic.fs2ProducerSettings))
       } yield rst
 
   /**
@@ -154,7 +154,8 @@ object sk {
     : NJConsumerRecord[Array[Byte], Array[Byte]] => NJConsumerRecord[K, V] =
     rawCr => {
       val smi = ShowMetaInfo[NJConsumerRecord[Array[Byte], Array[Byte]]]
-      val cr  = NJConsumerRecord.timestamp.set(rawCr.timestamp / 1000)(rawCr) //spark use micro-second.
+      val cr =
+        NJConsumerRecord.timestamp.set(rawCr.timestamp / 1000)(rawCr) //spark use micro-second.
       cr.bimap(
           k =>
             topic.codec.keyCodec
@@ -173,8 +174,7 @@ object sk {
     }
 
   def streaming[F[_]: Sync, K, V, A](topic: KafkaTopic[F, K, V], timeRange: NJDateTimeRange)(
-    f: NJConsumerRecord[K, V] => A)(
-    implicit
+    f: NJConsumerRecord[K, V] => A)(implicit
     sparkSession: SparkSession,
     encoder: TypedEncoder[A]): F[TypedDataset[A]] = {
 
