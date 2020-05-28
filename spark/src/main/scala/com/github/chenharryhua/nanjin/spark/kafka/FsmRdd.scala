@@ -10,6 +10,7 @@ import com.github.chenharryhua.nanjin.pipes.hadoop
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
+import io.circe.{Encoder => JsonEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
@@ -28,7 +29,7 @@ final class FsmRdd[F[_], K, V](
   override def withParamUpdate(f: SKConfig => SKConfig): FsmRdd[F, K, V] =
     new FsmRdd[F, K, V](rdd, topic, f(cfg))
 
-  def partition(num: Int): FsmRdd[F, K, V] =
+  def kafkaPartition(num: Int): FsmRdd[F, K, V] =
     new FsmRdd[F, K, V](rdd.filter(_.partition === num), topic, cfg)
 
   def sorted: FsmRdd[F, K, V] =
@@ -38,13 +39,6 @@ final class FsmRdd[F[_], K, V](
     new FsmRdd[F, K, V](rdd.repartition(num), topic, cfg)
 
   // out of FsmRdd
-
-  def save(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
-    Blocker[F].use { blocker =>
-      val path = sk.replayPath(topic.topicName)
-      hadoop.delete(path, sparkSession.sparkContext.hadoopConfiguration, blocker) >>
-        F.delay(rdd.saveAsObjectFile(path))
-    }
 
   def count: Long = rdd.count()
 
@@ -67,15 +61,49 @@ final class FsmRdd[F[_], K, V](
       case Queue(a, b) => if (a.timestamp <= b.timestamp) None else Some(a)
     }
 
+  // save
+  def save(pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
+    Blocker[F].use { blocker =>
+      hadoop.delete(pathStr, sparkSession.sparkContext.hadoopConfiguration, blocker) >>
+        F.delay(rdd.saveAsObjectFile(pathStr))
+    }
+
+  def save(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
+    save(sk.replayPath(topic.topicName))
+
+  def saveJson(pathStr: String)(implicit
+    F: Sync[F],
+    cs: ContextShift[F],
+    ek: JsonEncoder[K],
+    ev: JsonEncoder[V]): F[Unit] =
+    stream.through(fileSink.json(pathStr)).compile.drain
+
+  def saveJson(implicit
+    F: Sync[F],
+    cs: ContextShift[F],
+    ek: JsonEncoder[K],
+    ev: JsonEncoder[V]): F[Unit] =
+    saveJson(sk.jsonPath(topic.topicName))
+
+  def saveJackson(pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
+    stream.through(fileSink.jackson(pathStr)).compile.drain
+
   def saveJackson(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
-    stream.through(fileSink.jackson(sk.jacksonPath(topic.topicName))).compile.drain
+    saveJackson(sk.jacksonPath(topic.topicName))
+
+  def saveAvro(pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
+    stream.through(fileSink.avro(pathStr, topic.topicDef.crAvroSchema)).compile.drain
 
   def saveAvro(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
-    stream
-      .through(fileSink.avro(sk.avroPath(topic.topicName), topic.topicDef.crAvroSchema))
-      .compile
-      .drain
+    saveAvro(sk.avroPath(topic.topicName))
 
+  def saveParquet(pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
+    stream.through(fileSink.parquet(pathStr, topic.topicDef.crAvroSchema)).compile.drain
+
+  def saveParquet(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
+    saveParquet(sk.parquetPath(topic.topicName))
+
+  // pipe
   def pipeTo(otherTopic: KafkaTopic[F, K, V])(implicit
     ce: ConcurrentEffect[F],
     timer: Timer[F],
