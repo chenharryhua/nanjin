@@ -31,6 +31,14 @@ final class FsmRdd[F[_], K, V](
   def partition(num: Int): FsmRdd[F, K, V] =
     new FsmRdd[F, K, V](rdd.filter(_.partition === num), topic, cfg)
 
+  def sorted: FsmRdd[F, K, V] =
+    new FsmRdd[F, K, V](rdd.sortBy(identity), topic, cfg)
+
+  def repartition(num: Int): FsmRdd[F, K, V] =
+    new FsmRdd[F, K, V](rdd.repartition(num), topic, cfg)
+
+  // out of FsmRdd
+
   def save(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
     Blocker[F].use { blocker =>
       val path = sk.replayPath(topic.topicName)
@@ -45,32 +53,25 @@ final class FsmRdd[F[_], K, V](
 
   def crDataset(implicit
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] = {
-    val tds       = TypedDataset.create(rdd)
-    val inBetween = tds.makeUDF[Long, Boolean](params.timeRange.isInBetween)
-    new FsmConsumerRecords(tds.filter(inBetween(tds('timestamp))).dataset, topic, cfg)
-  }
+    valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] =
+    new FsmConsumerRecords(TypedDataset.create(rdd).dataset, topic, cfg)
 
-  // sorted RDD
-  def sorted: RDD[NJConsumerRecord[K, V]] =
-    rdd.filter(m => params.timeRange.isInBetween(m.timestamp)).sortBy(identity)
+  def stream(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
+    rdd.stream[F]
 
-  def crStream(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
-    sorted.stream[F]
-
-  def crSource(implicit F: ConcurrentEffect[F]): Source[NJConsumerRecord[K, V], NotUsed] =
-    sorted.source[F]
+  def source(implicit F: ConcurrentEffect[F]): Source[NJConsumerRecord[K, V], NotUsed] =
+    rdd.source[F]
 
   def malOrdered(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
-    crStream.sliding(2).mapFilter {
+    stream.sliding(2).mapFilter {
       case Queue(a, b) => if (a.timestamp <= b.timestamp) None else Some(a)
     }
 
   def saveJackson(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
-    crStream.through(fileSink.jackson(sk.jacksonPath(topic.topicName))).compile.drain
+    stream.through(fileSink.jackson(sk.jacksonPath(topic.topicName))).compile.drain
 
   def saveAvro(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
-    crStream
+    stream
       .through(fileSink.avro(sk.avroPath(topic.topicName), topic.topicDef.crAvroSchema))
       .compile
       .drain
@@ -79,7 +80,7 @@ final class FsmRdd[F[_], K, V](
     ce: ConcurrentEffect[F],
     timer: Timer[F],
     cs: ContextShift[F]): F[Unit] =
-    crStream
+    stream
       .map(_.toNJProducerRecord.noMeta)
       .through(sk.uploader(otherTopic, params.uploadRate))
       .map(_ => print("."))

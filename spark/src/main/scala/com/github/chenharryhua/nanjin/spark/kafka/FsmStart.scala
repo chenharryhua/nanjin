@@ -18,8 +18,8 @@ trait SparKafkaUpdateParams[A] extends UpdateParams[SKConfig, A] with Serializab
   def params: SKParams
 }
 
-final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(
-  implicit sparkSession: SparkSession)
+final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(implicit
+  sparkSession: SparkSession)
     extends SparKafkaUpdateParams[FsmStart[F, K, V]] {
 
   override def withParamUpdate(f: SKConfig => SKConfig): FsmStart[F, K, V] =
@@ -35,8 +35,7 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(
     sk.loadKafkaRdd(topic, params.timeRange, params.locationStrategy)
       .map(new FsmRdd[F, K, V](_, topic, cfg))
 
-  def fromKafka[A](f: NJConsumerRecord[K, V] => A)(
-    implicit
+  def fromKafka[A](f: NJConsumerRecord[K, V] => A)(implicit
     sync: Sync[F],
     encoder: TypedEncoder[A]): F[TypedDataset[A]] = {
     import encoder.classTag
@@ -44,41 +43,29 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(
   }
 
   def fromDisk(implicit sync: Sync[F]): F[FsmRdd[F, K, V]] =
-    sk.loadDiskRdd[F, K, V](sk.replayPath(topic.topicName)).map(new FsmRdd[F, K, V](_, topic, cfg))
+    sk.loadDiskRdd[F, K, V](sk.replayPath(topic.topicName))
+      .map(rdd =>
+        new FsmRdd[F, K, V](rdd.filter(m => params.timeRange.isInBetween(m.timestamp)), topic, cfg))
 
   /**
     * shorthand
     */
-  def save(
-    implicit
-    sync: Sync[F],
-    cs: ContextShift[F]): F[Unit] =
+  def save(implicit sync: Sync[F], cs: ContextShift[F]): F[Unit] =
     fromKafka.flatMap(_.save)
 
-  def saveJackson(
-    implicit
-    sync: Sync[F],
-    cs: ContextShift[F]): F[Unit] =
+  def saveJackson(implicit sync: Sync[F], cs: ContextShift[F]): F[Unit] =
     fromKafka.flatMap(_.saveJackson)
 
-  def saveAvro(
-    implicit
-    sync: Sync[F],
-    cs: ContextShift[F]): F[Unit] =
+  def saveAvro(implicit sync: Sync[F], cs: ContextShift[F]): F[Unit] =
     fromKafka.flatMap(_.saveAvro)
 
-  def replay(
-    implicit
-    ce: ConcurrentEffect[F],
-    timer: Timer[F],
-    cs: ContextShift[F]): F[Unit] =
+  def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
     fromDisk.flatMap(_.replay)
 
   def countKafka(implicit F: Sync[F]): F[Long] = fromKafka.map(_.count)
   def countDisk(implicit F: Sync[F]): F[Long]  = fromDisk.map(_.count)
 
-  def pipeTo(other: KafkaTopic[F, K, V])(
-    implicit
+  def pipeTo(other: KafkaTopic[F, K, V])(implicit
     ce: ConcurrentEffect[F],
     timer: Timer[F],
     cs: ContextShift[F]): F[Unit] =
@@ -88,14 +75,12 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(
     * inject dataset
     */
 
-  def crDataset(tds: TypedDataset[NJConsumerRecord[K, V]])(
-    implicit
+  def crDataset(tds: TypedDataset[NJConsumerRecord[K, V]])(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]) =
     new FsmConsumerRecords[F, K, V](tds.dataset, topic, cfg)
 
-  def prDataset(tds: TypedDataset[NJProducerRecord[K, V]])(
-    implicit
+  def prDataset(tds: TypedDataset[NJProducerRecord[K, V]])(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]) =
     new FsmProducerRecords[F, K, V](tds.dataset, topic, cfg)
@@ -104,16 +89,14 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(
     * streaming
     */
 
-  def streamingPipeTo(otherTopic: KafkaTopic[F, K, V])(
-    implicit
+  def streamingPipeTo(otherTopic: KafkaTopic[F, K, V])(implicit
     concurrent: Concurrent[F],
     timer: Timer[F],
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[Unit] =
     streaming.flatMap(_.someValues.toProducerRecords.kafkaSink(otherTopic).showProgress)
 
-  def streaming[A](f: NJConsumerRecord[K, V] => A)(
-    implicit
+  def streaming[A](f: NJConsumerRecord[K, V] => A)(implicit
     sync: Sync[F],
     encoder: TypedEncoder[A]): F[SparkStream[F, A]] =
     sk.streaming[F, K, V, A](topic, params.timeRange)(f)
@@ -123,8 +106,7 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(
           StreamConfig(params.timeRange, params.showDs, params.fileFormat)
             .withCheckpointAppend(s"kafka/${topic.topicName.value}")))
 
-  def streaming(
-    implicit
+  def streaming(implicit
     sync: Sync[F],
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[KafkaCRStream[F, K, V]] =
