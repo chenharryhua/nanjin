@@ -13,6 +13,8 @@ import fs2.Stream
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
+import scala.collection.immutable.Queue
+
 final class FsmRdd[F[_], K, V](
   rdd: RDD[NJConsumerRecord[K, V]],
   topic: KafkaTopic[F, K, V],
@@ -58,6 +60,11 @@ final class FsmRdd[F[_], K, V](
 
   def crSource(implicit F: ConcurrentEffect[F]): Source[NJConsumerRecord[K, V], NotUsed] =
     sorted.source[F]
+
+  def malOrdered(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
+    crStream.sliding(2).mapFilter {
+      case Queue(a, b) => if (a.timestamp <= b.timestamp) None else Some(a)
+    }
 
   def saveJackson(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
     crStream.through(fileSink.jackson(sk.jacksonPath(topic.topicName))).compile.drain
