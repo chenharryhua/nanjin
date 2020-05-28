@@ -53,12 +53,6 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
   def save(implicit sync: Sync[F], cs: ContextShift[F]): F[Unit] =
     fromKafka.flatMap(_.save)
 
-  def saveJackson(implicit sync: Sync[F], cs: ContextShift[F]): F[Unit] =
-    fromKafka.flatMap(_.saveJackson)
-
-  def saveAvro(implicit sync: Sync[F], cs: ContextShift[F]): F[Unit] =
-    fromKafka.flatMap(_.saveAvro)
-
   def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
     fromDisk.flatMap(_.replay)
 
