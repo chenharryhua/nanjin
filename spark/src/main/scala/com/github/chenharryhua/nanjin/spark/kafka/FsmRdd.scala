@@ -22,7 +22,7 @@ final class FsmRdd[F[_], K, V](
   cfg: SKConfig)(implicit sparkSession: SparkSession)
     extends SparKafkaUpdateParams[FsmRdd[F, K, V]] {
 
-  import topic.topicDef.{avroKeyEncoder, avroValEncoder, schemaForKey, schemaForVal}
+  import topic.topicDef.{avroKeyEncoder, avroValEncoder, crAvroSchema, schemaForKey, schemaForVal}
 
   override def params: SKParams = SKConfigF.evalConfig(cfg)
 
@@ -39,6 +39,8 @@ final class FsmRdd[F[_], K, V](
     new FsmRdd[F, K, V](rdd.repartition(num), topic, cfg)
 
   // out of FsmRdd
+
+  def crRDD: RDD[NJConsumerRecord[K, V]] = rdd
 
   def count: Long = rdd.count()
 
@@ -92,13 +94,13 @@ final class FsmRdd[F[_], K, V](
     saveJackson(sk.jacksonPath(topic.topicName))
 
   def saveAvro(pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
-    stream.through(fileSink.avro(pathStr, topic.topicDef.crAvroSchema)).compile.drain
+    stream.through(fileSink.avro(pathStr, crAvroSchema)).compile.drain
 
   def saveAvro(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
     saveAvro(sk.avroPath(topic.topicName))
 
   def saveParquet(pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
-    stream.through(fileSink.parquet(pathStr, topic.topicDef.crAvroSchema)).compile.drain
+    stream.through(fileSink.parquet(pathStr, crAvroSchema)).compile.drain
 
   def saveParquet(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
     saveParquet(sk.parquetPath(topic.topicName))
