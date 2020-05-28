@@ -16,7 +16,7 @@ private[spark] trait DatasetExtensions {
   implicit class RddExt[A](private val rdd: RDD[A]) {
 
     def stream[F[_]: Sync]: Stream[F, A] =
-      Stream.fromIterator(rdd.coalesce(numPartitions = 1).toLocalIterator.flatMap(Option(_)))
+      Stream.fromIterator(rdd.toLocalIterator.flatMap(Option(_)))
 
     def source[F[_]: ConcurrentEffect]: Source[A, NotUsed] =
       Source.fromPublisher[A](stream[F].toUnicastPublisher())
