@@ -4,6 +4,7 @@ import akka.NotUsed
 import akka.stream.scaladsl.Source
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
+import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import com.github.chenharryhua.nanjin.pipes.hadoop
@@ -62,46 +63,41 @@ final class FsmRdd[F[_], K, V](
     }
 
   // save
-  def save(pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
+  def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
     Blocker[F].use { blocker =>
+      val pathStr = sk.replayPath(topic.topicName)
       hadoop.delete(pathStr, sparkSession.sparkContext.hadoopConfiguration, blocker) >>
         F.delay(rdd.saveAsObjectFile(pathStr))
     }
-
-  def save(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
-    save(sk.replayPath(topic.topicName))
-
-  def saveJson(pathStr: String)(implicit
-    F: Sync[F],
-    cs: ContextShift[F],
-    ek: JsonEncoder[K],
-    ev: JsonEncoder[V]): F[Unit] =
-    stream.through(fileSink.json(pathStr)).compile.drain
 
   def saveJson(implicit
     F: Sync[F],
     cs: ContextShift[F],
     ek: JsonEncoder[K],
     ev: JsonEncoder[V]): F[Unit] =
-    saveJson(sk.jsonPath(topic.topicName))
-
-  def saveJackson(pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
-    stream.through(fileSink.jackson(pathStr)).compile.drain
+    stream
+      .through(fileSink.json(params.pathBuilder(topic.topicName, NJFileFormat.Json)))
+      .compile
+      .drain
 
   def saveJackson(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
-    saveJackson(sk.jacksonPath(topic.topicName))
-
-  def saveAvro(pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
-    stream.through(fileSink.avro(pathStr, crAvroSchema)).compile.drain
+    stream
+      .through(fileSink.jackson(params.pathBuilder(topic.topicName, NJFileFormat.Jackson)))
+      .compile
+      .drain
 
   def saveAvro(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
-    saveAvro(sk.avroPath(topic.topicName))
-
-  def saveParquet(pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
-    stream.through(fileSink.parquet(pathStr, crAvroSchema)).compile.drain
+    stream
+      .through(fileSink.avro(params.pathBuilder(topic.topicName, NJFileFormat.Avro), crAvroSchema))
+      .compile
+      .drain
 
   def saveParquet(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
-    saveParquet(sk.parquetPath(topic.topicName))
+    stream
+      .through(
+        fileSink.parquet(params.pathBuilder(topic.topicName, NJFileFormat.Parquet), crAvroSchema))
+      .compile
+      .drain
 
   // pipe
   def pipeTo(otherTopic: KafkaTopic[F, K, V])(implicit

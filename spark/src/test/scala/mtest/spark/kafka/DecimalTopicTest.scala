@@ -17,7 +17,7 @@ import scala.math.BigDecimal.RoundingMode
 
 object DecimalTopicTestCase {
   final case class HasDecimal(a: BigDecimal, b: Instant)
-  val data = HasDecimal(BigDecimal(1.0101010101), Instant.now)
+  val data = HasDecimal(BigDecimal(1.0101010101), Instant.ofEpochMilli(Instant.now.toEpochMilli))
 }
 
 class DecimalTopicTest extends AnyFunSuite {

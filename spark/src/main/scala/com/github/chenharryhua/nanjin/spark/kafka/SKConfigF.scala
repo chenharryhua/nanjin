@@ -3,11 +3,10 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import java.time.{LocalDateTime, ZoneId}
 import java.util.concurrent.TimeUnit
 
-import cats.data.Reader
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.TopicName
-import com.github.chenharryhua.nanjin.spark.{NJRepartition, NJShowDataset}
+import com.github.chenharryhua.nanjin.spark.NJShowDataset
 import higherkindness.droste.data.Fix
 import higherkindness.droste.macros.deriveTraverse
 import higherkindness.droste.{scheme, Algebra}
@@ -26,7 +25,7 @@ private[spark] object NJUploadRate {
 @Lenses final private[spark] case class SKParams private (
   timeRange: NJDateTimeRange,
   uploadRate: NJUploadRate,
-  pathBuilder: Reader[TopicName, String],
+  pathBuilder: (TopicName, NJFileFormat) => String,
   fileFormat: NJFileFormat,
   saveMode: SaveMode,
   locationStrategy: LocationStrategy,
@@ -38,7 +37,8 @@ private[spark] object SKParams {
     SKParams(
       timeRange = NJDateTimeRange.infinite,
       uploadRate = NJUploadRate.default,
-      pathBuilder = Reader(topicName => s"./data/spark/kafka/$topicName/"),
+      pathBuilder =
+        (topicName, fmt) => s"./data/sparKafka/${topicName.value}/${fmt.format}${fmt.suffix}",
       fileFormat = NJFileFormat.Parquet,
       saveMode = SaveMode.ErrorIfExists,
       locationStrategy = LocationStrategies.PreferConsistent,
@@ -68,7 +68,7 @@ private[spark] object SKConfigF {
   final case class WithShowRows[K](value: Int, cont: K) extends SKConfigF[K]
   final case class WithShowTruncate[K](isTruncate: Boolean, cont: K) extends SKConfigF[K]
 
-  final case class WithPathBuilder[K](value: Reader[TopicName, String], cont: K)
+  final case class WithPathBuilder[K](value: (TopicName, NJFileFormat) => String, cont: K)
       extends SKConfigF[K]
 
   private val algebra: Algebra[SKConfigF, SKParams] = Algebra[SKConfigF, SKParams] {
@@ -119,8 +119,8 @@ final private[spark] case class SKConfig private (value: Fix[SKConfigF]) extends
   def withSaveMode(sm: SaveMode): SKConfig = SKConfig(Fix(WithSaveMode(sm, value)))
   def withOverwrite: SKConfig              = withSaveMode(SaveMode.Overwrite)
 
-  def withPathBuilder(f: TopicName => String): SKConfig =
-    SKConfig(Fix(WithPathBuilder(Reader(f), value)))
+  def withPathBuilder(f: (TopicName, NJFileFormat) => String): SKConfig =
+    SKConfig(Fix(WithPathBuilder(f, value)))
 }
 
 private[spark] object SKConfig {
