@@ -17,7 +17,7 @@ import org.apache.spark.sql.SparkSession
 import scala.collection.immutable.Queue
 
 final class FsmRdd[F[_], K, V](
-  rdd: RDD[NJConsumerRecord[K, V]],
+  val rdd: RDD[NJConsumerRecord[K, V]],
   topic: KafkaTopic[F, K, V],
   cfg: SKConfig)(implicit sparkSession: SparkSession)
     extends SparKafkaUpdateParams[FsmRdd[F, K, V]] {
@@ -39,8 +39,6 @@ final class FsmRdd[F[_], K, V](
     new FsmRdd[F, K, V](rdd.repartition(num), topic, cfg)
 
   // out of FsmRdd
-
-  def crRDD: RDD[NJConsumerRecord[K, V]] = rdd
 
   def count: Long = rdd.count()
 
