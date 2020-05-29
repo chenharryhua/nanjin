@@ -26,11 +26,7 @@ import scala.reflect.ClassTag
 
 object sk {
 
-  def replayPath(tn: TopicName): String  = s"./data/sparKafka/${tn.value}/replay"
-  def jsonPath(tn: TopicName): String    = s"./data/sparKafka/${tn.value}/nj-json.json"
-  def jacksonPath(tn: TopicName): String = s"./data/sparKafka/${tn.value}/nj-jackson.json"
-  def avroPath(tn: TopicName): String    = s"./data/sparKafka/${tn.value}/nj.avro"
-  def parquetPath(tn: TopicName): String = s"./data/sparKafka/${tn.value}/nj.parquet"
+  def replayPath(tn: TopicName): String = s"./data/sparKafka/${tn.value}/replay/"
 
   private def props(config: Map[String, String]): util.Map[String, Object] =
     (remove(ConsumerConfig.CLIENT_ID_CONFIG)(config) ++ Map(

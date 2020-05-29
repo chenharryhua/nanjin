@@ -19,7 +19,13 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class SparKafkaTest extends AnyFunSuite {
   val embed = EmbeddedForTaskSerializable(0, "embeded")
-  val data  = ForTaskSerializable(0, "a", LocalDate.now, Instant.now, embed)
+
+  val data = ForTaskSerializable(
+    0,
+    "a",
+    LocalDate.now,
+    Instant.ofEpochMilli(Instant.now.toEpochMilli),
+    embed)
   val topic = ctx.topic[Int, ForTaskSerializable](TopicName("serializable.test"))
 
   (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >> topic.schemaRegistry.register >>

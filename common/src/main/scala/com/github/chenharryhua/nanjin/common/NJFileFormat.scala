@@ -7,7 +7,7 @@ import monocle.macros.GenPrism
 
 import scala.collection.immutable
 
-sealed abstract class NJFileFormat(val value: Int, val format: String)
+sealed abstract class NJFileFormat(val value: Int, val format: String, val suffix: String)
     extends IntEnumEntry with Serializable {
   final override def toString: String = format
 }
@@ -15,12 +15,12 @@ sealed abstract class NJFileFormat(val value: Int, val format: String)
 object NJFileFormat extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[NJFileFormat] {
   override val values: immutable.IndexedSeq[NJFileFormat] = findValues
 
-  case object Json extends NJFileFormat(0, "json")
+  case object Json extends NJFileFormat(0, "json", ".json")
   //a variation of json
-  case object Jackson extends NJFileFormat(1, "jackson")
-  case object Parquet extends NJFileFormat(2, "parquet")
-  case object Avro extends NJFileFormat(3, "avro")
-  case object Text extends NJFileFormat(4, "text")
+  case object Jackson extends NJFileFormat(1, "jackson", ".json")
+  case object Parquet extends NJFileFormat(2, "parquet", ".parquet")
+  case object Avro extends NJFileFormat(3, "avro", ".avro")
+  case object Text extends NJFileFormat(4, "text", ".txt")
 
   type Json    = Json.type
   type Jackson = Jackson.type
