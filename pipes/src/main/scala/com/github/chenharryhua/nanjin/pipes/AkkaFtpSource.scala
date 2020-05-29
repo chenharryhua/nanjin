@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.pipes
 
 import akka.stream.Materializer
-import akka.stream.alpakka.ftp.scaladsl.{Ftp, Sftp}
-import akka.stream.alpakka.ftp.{FtpSettings, SftpSettings}
+import akka.stream.alpakka.ftp.scaladsl.{Ftp, FtpApi, Ftps, Sftp}
+import akka.stream.alpakka.ftp.{FtpSettings, FtpsSettings, RemoteFileSettings, SftpSettings}
 import akka.util.ByteString
 import cats.effect.{Async, Concurrent, ContextShift}
 import cats.implicits._
@@ -10,10 +10,21 @@ import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder}
 import fs2.{RaiseThrowable, Stream}
 import io.circe.{Decoder => JsonDecoder}
 import kantan.csv.{CsvConfiguration, RowDecoder}
+import net.schmizz.sshj.SSHClient
+import org.apache.commons.net.ftp.{FTPClient, FTPSClient}
 import streamz.converter._
 
-trait FtpSource[F[_]] {
-  def download(pathStr: String): Stream[F, ByteString]
+sealed class FtpSource[F[_]: ContextShift: Concurrent, C, S <: RemoteFileSettings](
+  ftpApi: FtpApi[C, S],
+  settings: S)(implicit mat: Materializer) {
+
+  final def download(pathStr: String): Stream[F, ByteString] = {
+    val run = ftpApi.fromPath(pathStr, settings).toStreamMat[F].map {
+      case (s, f) =>
+        s.concurrently(Stream.eval(Async.fromFuture(Async[F].pure(f))))
+    }
+    Stream.force(run)
+  }
 
   final def json[A: JsonDecoder](pathStr: String)(implicit ev: RaiseThrowable[F]): Stream[F, A] =
     download(pathStr).map(_.utf8String).through(fs2.text.lines).through(jsonDecode[F, A])
@@ -38,26 +49,12 @@ trait FtpSource[F[_]] {
 
 final class AkkaFtpSource[F[_]: ContextShift: Concurrent](settings: FtpSettings)(implicit
   mat: Materializer)
-    extends FtpSource[F] {
-
-  override def download(pathStr: String): Stream[F, ByteString] = {
-    val run = Ftp.fromPath(pathStr, settings).toStreamMat[F].map {
-      case (s, f) =>
-        s.concurrently(Stream.eval(Async.fromFuture(Async[F].pure(f))))
-    }
-    Stream.eval(run).flatten
-  }
-}
+    extends FtpSource[F, FTPClient, FtpSettings](Ftp, settings)
 
 final class AkkaSftpSource[F[_]: ContextShift: Concurrent](settings: SftpSettings)(implicit
   mat: Materializer)
-    extends FtpSource[F] {
+    extends FtpSource[F, SSHClient, SftpSettings](Sftp, settings)
 
-  override def download(pathStr: String): Stream[F, ByteString] = {
-    val run = Sftp.fromPath(pathStr, settings).toStreamMat[F].map {
-      case (s, f) =>
-        s.concurrently(Stream.eval(Async.fromFuture(Async[F].pure(f))))
-    }
-    Stream.force(run)
-  }
-}
+final class AkkaFtpsSource[F[_]: ContextShift: Concurrent](settings: FtpsSettings)(implicit
+  mat: Materializer)
+    extends FtpSource[F, FTPSClient, FtpsSettings](Ftps, settings)
