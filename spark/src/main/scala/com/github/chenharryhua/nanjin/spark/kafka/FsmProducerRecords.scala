@@ -20,6 +20,9 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   override def withParamUpdate(f: SKConfig => SKConfig): FsmProducerRecords[F, K, V] =
     new FsmProducerRecords[F, K, V](prs, topic, f(cfg))
 
+  @transient lazy val typedDataset: TypedDataset[NJProducerRecord[K, V]] =
+    TypedDataset.create(prs)
+
   def noTimestamp: FsmProducerRecords[F, K, V] =
     new FsmProducerRecords[F, K, V](
       typedDataset.deserialized.map(_.noTimestamp).dataset,
@@ -41,27 +44,21 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
       topic,
       cfg)
 
-  @transient lazy val typedDataset: TypedDataset[NJProducerRecord[K, V]] =
-    TypedDataset.create(prs)
-
   override val params: SKParams = SKConfigF.evalConfig(cfg)
 
-  def pipeTo[K2, V2](other: KafkaTopic[F, K2, V2])(k: K => K2, v: V => V2)(
-    implicit
+  def pipeTo[K2, V2](other: KafkaTopic[F, K2, V2])(k: K => K2, v: V => V2)(implicit
     ce: ConcurrentEffect[F],
     timer: Timer[F],
     cs: ContextShift[F]): Stream[F, ProducerResult[K2, V2, Unit]] =
     typedDataset.stream[F].map(_.bimap(k, v)).through(sk.uploader(other, params.uploadRate))
 
-  def upload(other: KafkaTopic[F, K, V])(
-    implicit
+  def upload(other: KafkaTopic[F, K, V])(implicit
     ce: ConcurrentEffect[F],
     timer: Timer[F],
     cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
     pipeTo(other)(identity, identity)
 
-  def upload(
-    implicit
+  def upload(implicit
     ce: ConcurrentEffect[F],
     timer: Timer[F],
     cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
