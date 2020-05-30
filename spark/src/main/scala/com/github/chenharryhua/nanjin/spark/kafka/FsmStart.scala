@@ -36,7 +36,7 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
       .map(new FsmRdd[F, K, V](_, topic, cfg))
 
   def fromDisk(implicit sync: Sync[F]): F[FsmRdd[F, K, V]] =
-    sk.loadDiskRdd[F, K, V](sk.replayPath(topic.topicName))
+    sk.loadDiskRdd[F, K, V](params.replayPath(topic.topicName))
       .map(rdd =>
         new FsmRdd[F, K, V](rdd.filter(m => params.timeRange.isInBetween(m.timestamp)), topic, cfg))
 

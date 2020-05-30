@@ -26,8 +26,6 @@ import scala.reflect.ClassTag
 
 object sk {
 
-  def replayPath(tn: TopicName): String = s"./data/sparKafka/${tn.value}/replay/"
-
   private def props(config: Map[String, String]): util.Map[String, Object] =
     (remove(ConsumerConfig.CLIENT_ID_CONFIG)(config) ++ Map(
       "key.deserializer" -> classOf[ByteArrayDeserializer].getName,

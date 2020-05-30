@@ -70,7 +70,7 @@ final class FsmRdd[F[_], K, V](
   // save
   def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
     Blocker[F].use { blocker =>
-      val pathStr = sk.replayPath(topic.topicName)
+      val pathStr = params.replayPath(topic.topicName)
       hadoop.delete(pathStr, sparkSession.sparkContext.hadoopConfiguration, blocker) >>
         F.delay(rdd.saveAsObjectFile(pathStr))
     }
