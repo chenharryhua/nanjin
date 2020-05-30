@@ -22,7 +22,7 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
 
   override val params: SKParams = SKConfigF.evalConfig(cfg)
 
-  // api section
+  // transformations
   def bimapTo[K2: TypedEncoder, V2: TypedEncoder](
     other: KafkaTopic[F, K2, V2])(k: K => K2, v: V => V2): FsmConsumerRecords[F, K2, V2] =
     new FsmConsumerRecords[F, K2, V2](
@@ -52,6 +52,14 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def persist: FsmConsumerRecords[F, K, V] =
     new FsmConsumerRecords[F, K, V](crs.persist(), topic, cfg)
 
+  // dataset
+  def values: TypedDataset[V] =
+    typedDataset.select(typedDataset('value)).as[Option[V]].deserialized.flatMap[V](x => x)
+
+  def keys: TypedDataset[K] =
+    typedDataset.select(typedDataset('key)).as[Option[K]].deserialized.flatMap[K](x => x)
+
+  // actions
   def nullValuesCount(implicit F: Sync[F]): F[Long] =
     typedDataset.filter(typedDataset('value).isNone).count[F]
 
@@ -60,18 +68,19 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
 
   def count(implicit F: Sync[F]): F[Long] = typedDataset.count[F]()
 
-  def values: TypedDataset[V] =
-    typedDataset.select(typedDataset('value)).as[Option[V]].deserialized.flatMap[V](identity)
-
-  def keys: TypedDataset[K] =
-    typedDataset.select(typedDataset('key)).as[Option[K]].deserialized.flatMap[K](identity)
-
   def show(implicit F: Sync[F]): F[Unit] =
     typedDataset.show[F](params.showDs.rowNum, params.showDs.isTruncate)
 
-  def save(path: String): Unit =
-    sk.save(typedDataset, topic, params.fileFormat, params.saveMode, path)
+  def save(implicit F: Sync[F]): F[Unit] =
+    F.delay(
+      sk.save(
+        typedDataset,
+        topic,
+        params.fileFormat,
+        params.saveMode,
+        params.pathBuilder(topic.topicName, params.fileFormat)))
 
+  // state change
   def toProducerRecords: FsmProducerRecords[F, K, V] =
     new FsmProducerRecords(
       (typedDataset.deserialized.map(_.toNJProducerRecord)).dataset,

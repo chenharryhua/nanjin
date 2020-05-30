@@ -39,9 +39,9 @@ class SparKafkaTest extends AnyFunSuite {
 
   test("save topic to disk") {
     topic.sparKafka
-      .withParamUpdate(_.withOverwrite)
+      .withParamUpdate(_.withOverwrite.withPathBuilder((_,_) => "./data/test/st"))
       .fromKafka
-      .map(_.crDataset.save("./data/test/st"))
+      .map(_.crDataset.save)
       .unsafeRunSync
   }
 
