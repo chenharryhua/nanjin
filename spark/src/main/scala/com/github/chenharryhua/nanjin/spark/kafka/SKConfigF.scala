@@ -41,7 +41,7 @@ private[spark] object SKParams {
       pathBuilder =
         (topicName, fmt) => s"./data/sparKafka/${topicName.value}/${fmt.format}${fmt.suffix}",
       replayPath = topicName => s"./data/sparKafka/${topicName.value}replay/",
-      fileFormat = NJFileFormat.Parquet,
+      fileFormat = NJFileFormat.Jackson,
       saveMode = SaveMode.ErrorIfExists,
       locationStrategy = LocationStrategies.PreferConsistent,
       showDs = NJShowDataset(20, isTruncate = false)
@@ -105,7 +105,6 @@ final private[spark] case class SKConfig private (value: Fix[SKConfigF]) extends
 
   private def withFileFormat(ff: NJFileFormat): SKConfig = SKConfig(Fix(WithFileFormat(ff, value)))
 
-  def withJson: SKConfig    = withFileFormat(NJFileFormat.Json)
   def withJackson: SKConfig = withFileFormat(NJFileFormat.Jackson)
   def withAvro: SKConfig    = withFileFormat(NJFileFormat.Avro)
   def withParquet: SKConfig = withFileFormat(NJFileFormat.Parquet)

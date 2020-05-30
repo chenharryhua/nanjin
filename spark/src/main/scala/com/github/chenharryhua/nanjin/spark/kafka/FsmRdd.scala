@@ -31,6 +31,8 @@ final class FsmRdd[F[_], K, V](
   override def withParamUpdate(f: SKConfig => SKConfig): FsmRdd[F, K, V] =
     new FsmRdd[F, K, V](rdd, topic, f(cfg))
 
+  //transformation
+
   def kafkaPartition(num: Int): FsmRdd[F, K, V] =
     new FsmRdd[F, K, V](rdd.filter(_.partition === num), topic, cfg)
 
@@ -39,6 +41,13 @@ final class FsmRdd[F[_], K, V](
 
   def repartition(num: Int): FsmRdd[F, K, V] =
     new FsmRdd[F, K, V](rdd.repartition(num), topic, cfg)
+
+  def bimapTo[K2, V2](other: KafkaTopic[F, K2, V2])(k: K => K2, v: V => V2): FsmRdd[F, K2, V2] =
+    new FsmRdd[F, K2, V2](rdd.map(_.bimap(k, v)), other, cfg)
+
+  def flatMapTo[K2, V2](other: KafkaTopic[F, K2, V2])(
+    f: NJConsumerRecord[K, V] => TraversableOnce[NJConsumerRecord[K2, V2]]): FsmRdd[F, K2, V2] =
+    new FsmRdd[F, K2, V2](rdd.flatMap(f), other, cfg)
 
   // out of FsmRdd
 
@@ -64,8 +73,8 @@ final class FsmRdd[F[_], K, V](
     }
 
   // rdd
-  def values(implicit ev: ClassTag[V]): RDD[V] = rdd.flatMap(_.value)
-  def keys(implicit ev: ClassTag[K]): RDD[K]   = rdd.flatMap(_.key)
+  def someValues(implicit ev: ClassTag[V]): RDD[V] = rdd.flatMap(_.value)
+  def someKeys(implicit ev: ClassTag[K]): RDD[K]   = rdd.flatMap(_.key)
 
   // save
   def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
@@ -75,34 +84,27 @@ final class FsmRdd[F[_], K, V](
         F.delay(rdd.saveAsObjectFile(pathStr))
     }
 
-  def saveJson(implicit
+  def saveJson(pathStr: String)(implicit
     F: Sync[F],
     cs: ContextShift[F],
     ek: JsonEncoder[K],
     ev: JsonEncoder[V]): F[Unit] =
-    stream
-      .through(fileSink.json(params.pathBuilder(topic.topicName, NJFileFormat.Json)))
-      .compile
-      .drain
+    stream.through(fileSink.json(pathStr)).compile.drain
 
-  def saveJackson(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
-    stream
-      .through(fileSink.jackson(params.pathBuilder(topic.topicName, NJFileFormat.Jackson)))
-      .compile
-      .drain
-
-  def saveAvro(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
-    stream
-      .through(fileSink.avro(params.pathBuilder(topic.topicName, NJFileFormat.Avro), crAvroSchema))
-      .compile
-      .drain
-
-  def saveParquet(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
-    stream
-      .through(
-        fileSink.parquet(params.pathBuilder(topic.topicName, NJFileFormat.Parquet), crAvroSchema))
-      .compile
-      .drain
+  def save(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
+    val run: Stream[F, Unit] = params.fileFormat match {
+      case NJFileFormat.Avro =>
+        stream.through(
+          fileSink.avro(params.pathBuilder(topic.topicName, NJFileFormat.Avro), crAvroSchema))
+      case NJFileFormat.Jackson =>
+        stream.through(
+          fileSink.jackson(params.pathBuilder(topic.topicName, NJFileFormat.Jackson), crAvroSchema))
+      case NJFileFormat.Parquet =>
+        stream.through(
+          fileSink.parquet(params.pathBuilder(topic.topicName, NJFileFormat.Parquet), crAvroSchema))
+    }
+    run.compile.drain
+  }
 
   // pipe
   def pipeTo(otherTopic: KafkaTopic[F, K, V])(implicit

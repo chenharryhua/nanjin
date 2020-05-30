@@ -54,7 +54,6 @@ final private[spark] case class STConfig(value: Fix[STConfigF]) extends AnyVal {
   import STConfigF._
   private def withFileFormat(ff: NJFileFormat): STConfig = STConfig(Fix(WithFileFormat(ff, value)))
 
-  def withJson: STConfig    = withFileFormat(NJFileFormat.Json)
   def withJackson: STConfig = withFileFormat(NJFileFormat.Jackson)
   def withAvro: STConfig    = withFileFormat(NJFileFormat.Avro)
   def withParquet: STConfig = withFileFormat(NJFileFormat.Parquet)

@@ -78,7 +78,7 @@ object sk {
     saveMode: SaveMode,
     path: String): Unit =
     fileFormat match {
-      case NJFileFormat.Avro | NJFileFormat.Parquet | NJFileFormat.Json | NJFileFormat.Text =>
+      case NJFileFormat.Avro | NJFileFormat.Parquet =>
         dataset.write.mode(saveMode).format(fileFormat.format).save(path)
       case NJFileFormat.Jackson =>
         dataset.deserialized
