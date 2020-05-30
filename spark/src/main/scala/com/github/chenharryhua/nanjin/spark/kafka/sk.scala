@@ -26,8 +26,6 @@ import scala.reflect.ClassTag
 
 object sk {
 
-  def replayPath(tn: TopicName): String = s"./data/sparKafka/${tn.value}/replay/"
-
   private def props(config: Map[String, String]): util.Map[String, Object] =
     (remove(ConsumerConfig.CLIENT_ID_CONFIG)(config) ++ Map(
       "key.deserializer" -> classOf[ByteArrayDeserializer].getName,
@@ -59,22 +57,15 @@ object sk {
   def loadKafkaRdd[F[_]: Sync, K, V, A: ClassTag](
     topic: KafkaTopic[F, K, V],
     timeRange: NJDateTimeRange,
-    locationStrategy: LocationStrategy,
-    f: NJConsumerRecord[K, V] => A)(implicit sparkSession: SparkSession): F[RDD[A]] =
+    locationStrategy: LocationStrategy)(implicit
+    sparkSession: SparkSession): F[RDD[NJConsumerRecord[K, V]]] =
     kafkaRDD[F, K, V](topic, timeRange, locationStrategy).map(_.mapPartitions {
       _.map { m =>
         val (errs, cr) = topic.decoder(m).logRecord.run
         errs.map(x => logger.warn(x.error)(x.metaInfo))
-        f(cr)
+        cr
       }
     })
-
-  def loadKafkaRdd[F[_]: Sync, K, V](
-    topic: KafkaTopic[F, K, V],
-    timeRange: NJDateTimeRange,
-    locationStrategy: LocationStrategy)(implicit
-    sparkSession: SparkSession): F[RDD[NJConsumerRecord[K, V]]] =
-    loadKafkaRdd[F, K, V, NJConsumerRecord[K, V]](topic, timeRange, locationStrategy, identity)
 
   def loadDiskRdd[F[_]: Sync, K, V](path: String)(implicit
     sparkSession: SparkSession): F[RDD[NJConsumerRecord[K, V]]] =
@@ -87,7 +78,7 @@ object sk {
     saveMode: SaveMode,
     path: String): Unit =
     fileFormat match {
-      case NJFileFormat.Avro | NJFileFormat.Parquet | NJFileFormat.Json | NJFileFormat.Text =>
+      case NJFileFormat.Avro | NJFileFormat.Parquet =>
         dataset.write.mode(saveMode).format(fileFormat.format).save(path)
       case NJFileFormat.Jackson =>
         dataset.deserialized

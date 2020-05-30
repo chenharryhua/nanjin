@@ -40,8 +40,11 @@ final class SingleFileSink[F[_]: ContextShift: Sync](hadoopConfiguration: Config
   def avro[A: SchemaFor: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
     avro[A](pathStr, SchemaFor[A].schema(DefaultFieldMapper))
 
+  def jackson[A: AvroEncoder](pathStr: String, schema: Schema): Pipe[F, A, Unit] =
+    sink[A](pathStr, schema, AvroOutputStream.json[A])
+
   def jackson[A: SchemaFor: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
-    sink[A](pathStr, SchemaFor[A].schema(DefaultFieldMapper), AvroOutputStream.json[A])
+    jackson[A](pathStr, SchemaFor[A].schema(DefaultFieldMapper))
 
   def avroBinary[A: SchemaFor: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
     sink[A](pathStr, SchemaFor[A].schema(DefaultFieldMapper), AvroOutputStream.binary[A])

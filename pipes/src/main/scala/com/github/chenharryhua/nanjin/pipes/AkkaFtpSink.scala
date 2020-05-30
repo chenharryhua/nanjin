@@ -28,13 +28,13 @@ sealed class FtpSink[F[_]: ConcurrentEffect: ContextShift, C, S <: RemoteFileSet
   }
 
   final def json[A: JsonEncoder](pathStr: String): Pipe[F, A, IOResult] =
-    upload(pathStr).compose(jsonEncode[F, A].andThen(_.intersperse("\n").map(ByteString(_))))
+    jsonEncode[F, A].andThen(_.intersperse("\n").map(ByteString(_))) >>> upload(pathStr)
 
   final def jackson[A: AvroEncoder: SchemaFor](pathStr: String): Pipe[F, A, IOResult] =
-    upload(pathStr).compose(jacksonEncode[F, A].andThen(_.intersperse("\n").map(ByteString(_))))
+    jacksonEncode[F, A].andThen(_.intersperse("\n").map(ByteString(_))) >>> upload(pathStr)
 
   final def csv[A: HeaderEncoder](pathStr: String, conf: CsvConfiguration): Pipe[F, A, IOResult] =
-    upload(pathStr).compose(csvEncode[F, A](conf).andThen(_.intersperse("\n").map(ByteString(_))))
+    csvEncode[F, A](conf).andThen(_.intersperse("\n").map(ByteString(_))) >>> upload(pathStr)
 
   final def csv[A: HeaderEncoder](pathStr: String): Pipe[F, A, IOResult] =
     csv[A](pathStr, CsvConfiguration.rfc)

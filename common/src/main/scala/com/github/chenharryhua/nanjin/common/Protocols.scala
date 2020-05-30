@@ -27,3 +27,15 @@ object S3Protocols extends Enum[S3Protocols] with CatsEnum[S3Protocols] {
   type S3  = S3.type
   type S3A = S3A.type
 }
+
+sealed abstract class FtpProtocols(val value: String) extends EnumEntry with Serializable
+
+object FtpProtocols {
+  case object Ftp extends FtpProtocols("ftp")
+  case object Sftp extends FtpProtocols("sftp")
+  case object Ftps extends FtpProtocols("ftps")
+
+  type Ftp  = Ftp.type
+  type Sftp = Sftp.type
+  type Ftps = Ftps.type
+}

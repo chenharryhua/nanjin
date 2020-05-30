@@ -27,19 +27,15 @@ sealed class FtpSource[F[_]: ContextShift: Concurrent, C, S <: RemoteFileSetting
   }
 
   final def json[A: JsonDecoder](pathStr: String)(implicit ev: RaiseThrowable[F]): Stream[F, A] =
-    download(pathStr).map(_.utf8String).through(fs2.text.lines).through(jsonDecode[F, A])
+    download(pathStr).map(_.utf8String).through(fs2.text.lines[F].andThen(jsonDecode[F, A]))
 
   final def jackson[A: AvroDecoder: SchemaFor](pathStr: String): Stream[F, A] =
-    download(pathStr).map(_.utf8String).through(fs2.text.lines).through(jacksonDecode[F, A])
+    download(pathStr).map(_.utf8String).through(fs2.text.lines[F].andThen(jacksonDecode[F, A]))
 
   final def csv[A: RowDecoder](pathStr: String, conf: CsvConfiguration)(implicit
     ev: RaiseThrowable[F]): Stream[F, A] = {
-    val data =
-      if (conf.hasHeader)
-        download(pathStr).map(_.utf8String).through(fs2.text.lines).drop(1)
-      else
-        download(pathStr).map(_.utf8String).through(fs2.text.lines)
-    data.through(csvDecode[F, A](conf))
+    val data = if (conf.hasHeader) download(pathStr).drop(1) else download(pathStr)
+    data.map(_.utf8String).through(fs2.text.lines[F].andThen(csvDecode[F, A](conf)))
   }
 
   final def csv[A: RowDecoder](pathStr: String)(implicit ev: RaiseThrowable[F]): Stream[F, A] =

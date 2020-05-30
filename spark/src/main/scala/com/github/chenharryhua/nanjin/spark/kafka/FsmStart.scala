@@ -35,15 +35,8 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
     sk.loadKafkaRdd(topic, params.timeRange, params.locationStrategy)
       .map(new FsmRdd[F, K, V](_, topic, cfg))
 
-  def fromKafka[A](f: NJConsumerRecord[K, V] => A)(implicit
-    sync: Sync[F],
-    encoder: TypedEncoder[A]): F[TypedDataset[A]] = {
-    import encoder.classTag
-    sk.loadKafkaRdd(topic, params.timeRange, params.locationStrategy, f).map(TypedDataset.create(_))
-  }
-
   def fromDisk(implicit sync: Sync[F]): F[FsmRdd[F, K, V]] =
-    sk.loadDiskRdd[F, K, V](sk.replayPath(topic.topicName))
+    sk.loadDiskRdd[F, K, V](params.replayPath(topic.topicName))
       .map(rdd =>
         new FsmRdd[F, K, V](rdd.filter(m => params.timeRange.isInBetween(m.timestamp)), topic, cfg))
 

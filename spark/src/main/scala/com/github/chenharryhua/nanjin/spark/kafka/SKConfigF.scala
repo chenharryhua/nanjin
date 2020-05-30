@@ -26,6 +26,7 @@ private[spark] object NJUploadRate {
   timeRange: NJDateTimeRange,
   uploadRate: NJUploadRate,
   pathBuilder: (TopicName, NJFileFormat) => String,
+  replayPath: TopicName => String,
   fileFormat: NJFileFormat,
   saveMode: SaveMode,
   locationStrategy: LocationStrategy,
@@ -39,7 +40,8 @@ private[spark] object SKParams {
       uploadRate = NJUploadRate.default,
       pathBuilder =
         (topicName, fmt) => s"./data/sparKafka/${topicName.value}/${fmt.format}${fmt.suffix}",
-      fileFormat = NJFileFormat.Parquet,
+      replayPath = topicName => s"./data/sparKafka/${topicName.value}replay/",
+      fileFormat = NJFileFormat.Jackson,
       saveMode = SaveMode.ErrorIfExists,
       locationStrategy = LocationStrategies.PreferConsistent,
       showDs = NJShowDataset(20, isTruncate = false)
@@ -71,6 +73,8 @@ private[spark] object SKConfigF {
   final case class WithPathBuilder[K](value: (TopicName, NJFileFormat) => String, cont: K)
       extends SKConfigF[K]
 
+  final case class WithReplayPath[K](value: TopicName => String, cont: K) extends SKConfigF[K]
+
   private val algebra: Algebra[SKConfigF, SKParams] = Algebra[SKConfigF, SKParams] {
     case DefaultParams()            => SKParams.default
     case WithBatchSize(v, c)        => SKParams.uploadRate.composeLens(NJUploadRate.batchSize).set(v)(c)
@@ -85,6 +89,8 @@ private[spark] object SKConfigF {
     case WithShowRows(v, c)         => SKParams.showDs.composeLens(NJShowDataset.rowNum).set(v)(c)
     case WithShowTruncate(v, c)     => SKParams.showDs.composeLens(NJShowDataset.isTruncate).set(v)(c)
     case WithPathBuilder(v, c)      => SKParams.pathBuilder.set(v)(c)
+    case WithReplayPath(v, c)       => SKParams.replayPath.set(v)(c)
+
   }
 
   def evalConfig(cfg: SKConfig): SKParams = scheme.cata(algebra).apply(cfg.value)
@@ -99,7 +105,6 @@ final private[spark] case class SKConfig private (value: Fix[SKConfigF]) extends
 
   private def withFileFormat(ff: NJFileFormat): SKConfig = SKConfig(Fix(WithFileFormat(ff, value)))
 
-  def withJson: SKConfig    = withFileFormat(NJFileFormat.Json)
   def withJackson: SKConfig = withFileFormat(NJFileFormat.Jackson)
   def withAvro: SKConfig    = withFileFormat(NJFileFormat.Avro)
   def withParquet: SKConfig = withFileFormat(NJFileFormat.Parquet)
@@ -121,6 +126,9 @@ final private[spark] case class SKConfig private (value: Fix[SKConfigF]) extends
 
   def withPathBuilder(f: (TopicName, NJFileFormat) => String): SKConfig =
     SKConfig(Fix(WithPathBuilder(f, value)))
+
+  def withReplayPath(f: TopicName => String): SKConfig =
+    SKConfig(Fix(WithReplayPath(f, value)))
 }
 
 private[spark] object SKConfig {
