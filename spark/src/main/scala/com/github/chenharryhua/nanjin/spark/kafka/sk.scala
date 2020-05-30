@@ -59,22 +59,15 @@ object sk {
   def loadKafkaRdd[F[_]: Sync, K, V, A: ClassTag](
     topic: KafkaTopic[F, K, V],
     timeRange: NJDateTimeRange,
-    locationStrategy: LocationStrategy,
-    f: NJConsumerRecord[K, V] => A)(implicit sparkSession: SparkSession): F[RDD[A]] =
+    locationStrategy: LocationStrategy)(implicit
+    sparkSession: SparkSession): F[RDD[NJConsumerRecord[K, V]]] =
     kafkaRDD[F, K, V](topic, timeRange, locationStrategy).map(_.mapPartitions {
       _.map { m =>
         val (errs, cr) = topic.decoder(m).logRecord.run
         errs.map(x => logger.warn(x.error)(x.metaInfo))
-        f(cr)
+        cr
       }
     })
-
-  def loadKafkaRdd[F[_]: Sync, K, V](
-    topic: KafkaTopic[F, K, V],
-    timeRange: NJDateTimeRange,
-    locationStrategy: LocationStrategy)(implicit
-    sparkSession: SparkSession): F[RDD[NJConsumerRecord[K, V]]] =
-    loadKafkaRdd[F, K, V, NJConsumerRecord[K, V]](topic, timeRange, locationStrategy, identity)
 
   def loadDiskRdd[F[_]: Sync, K, V](path: String)(implicit
     sparkSession: SparkSession): F[RDD[NJConsumerRecord[K, V]]] =

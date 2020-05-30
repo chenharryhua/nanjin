@@ -154,8 +154,7 @@ val avroLib = Seq(
   "com.sksamuel.avro4s" %% "avro4s-core"   % avro4s                     % Provided,
   ("io.confluent"                          % "kafka-streams-avro-serde" % "5.5.0").classifier(""),
   "com.julianpeeters" %% "avrohugger-core" % avrohugger,
-  "org.apache.parquet"                     % "parquet-avro"             % "1.11.0",
-  "io.higherkindness" %% "skeuomorph"      % "0.0.23"
+  "org.apache.parquet"                     % "parquet-avro"             % "1.11.0"
 )
 
 val elastic4sLib = Seq(
@@ -170,7 +169,7 @@ val sparkLib = Seq(
   "org.apache.spark" %% "spark-sql-kafka-0-10",
   "org.apache.spark" %% "spark-avro",
   "org.apache.spark" %% "spark-graphx"
-).map(_ % sparkVersion % Provided)
+).map(_ % sparkVersion)
 
 val framelessLib = Seq(
   "org.typelevel" %% "frameless-dataset",

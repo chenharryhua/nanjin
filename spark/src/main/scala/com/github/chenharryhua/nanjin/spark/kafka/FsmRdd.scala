@@ -16,6 +16,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
 import scala.collection.immutable.Queue
+import scala.reflect.ClassTag
 
 final class FsmRdd[F[_], K, V](
   val rdd: RDD[NJConsumerRecord[K, V]],
@@ -61,6 +62,10 @@ final class FsmRdd[F[_], K, V](
     stream.sliding(2).mapFilter {
       case Queue(a, b) => if (a.timestamp <= b.timestamp) None else Some(a)
     }
+
+  // rdd
+  def values(implicit ev: ClassTag[V]): RDD[V] = rdd.flatMap(_.value)
+  def keys(implicit ev: ClassTag[K]): RDD[K]   = rdd.flatMap(_.key)
 
   // save
   def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
