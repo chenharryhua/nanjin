@@ -92,16 +92,14 @@ final class FsmRdd[F[_], K, V](
     stream.through(fileSink.json(pathStr)).compile.drain
 
   def save(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
-    val run: Stream[F, Unit] = params.fileFormat match {
+    val fmt = params.fileFormat
+    val run: Stream[F, Unit] = fmt match {
       case NJFileFormat.Avro =>
-        stream.through(
-          fileSink.avro(params.pathBuilder(topic.topicName, NJFileFormat.Avro), crAvroSchema))
+        stream.through(fileSink.avro(params.pathBuilder(topic.topicName, fmt), crAvroSchema))
       case NJFileFormat.Jackson =>
-        stream.through(
-          fileSink.jackson(params.pathBuilder(topic.topicName, NJFileFormat.Jackson), crAvroSchema))
+        stream.through(fileSink.jackson(params.pathBuilder(topic.topicName, fmt), crAvroSchema))
       case NJFileFormat.Parquet =>
-        stream.through(
-          fileSink.parquet(params.pathBuilder(topic.topicName, NJFileFormat.Parquet), crAvroSchema))
+        stream.through(fileSink.parquet(params.pathBuilder(topic.topicName, fmt), crAvroSchema))
     }
     run.compile.drain
   }
