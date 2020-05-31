@@ -15,12 +15,8 @@ import scala.util.Try
 
 object genCaseClass {
 
-  private val scalaTypes: Option[AvroScalaTypes] = Some(
-    Standard.defaultTypes.copy(
-      record = ScalaCaseClass,
-      array = ScalaList,
-      enum = ScalaCaseObjectEnum,
-      protocol = ScalaADT))
+  private val scalaTypes: Option[AvroScalaTypes] = Some(Standard.defaultTypes
+    .copy(record = ScalaCaseClass, array = ScalaList, enum = ScalaEnumeration, protocol = ScalaADT))
 
   @throws[Exception]
   def apply(schemaStr: String): String =

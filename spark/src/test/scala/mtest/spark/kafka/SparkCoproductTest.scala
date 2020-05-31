@@ -26,16 +26,16 @@ object sparkCoproduct {
   }
 
   final case class Person(name: String, addr: Address)
-  val p1 = Person("zz", Addr1)
-  val p2 = Person("ff", Addr2)
+  val co1 = Person("zz", Addr1)
+  val co2 = Person("ff", Addr2)
 
   final case class Person2(name: String, phoneType: PhoneType.Value)
-  val f1 = Person2("cc", PhoneType.F)
-  val f2 = Person2("ww", PhoneType.Z)
+  val en1 = Person2("cc", PhoneType.F)
+  val en2 = Person2("ww", PhoneType.Z)
 
   final case class Person3(name: String, co: CoParent)
-  val g1 = Person3("aa", Coproduct[CoParent](Child1(1, "a")))
-  val g2 = Person3("bb", Coproduct[CoParent](Child2(2, "b")))
+  val cp1 = Person3("aa", Coproduct[CoParent](Child1(1, "a")))
+  val cp2 = Person3("bb", Coproduct[CoParent](Child2(2, "b")))
 
   val topic  = ctx.topic[Int, Person](TopicName("coproduct.person"))
   val topic2 = ctx.topic[Int, Person2](TopicName("coproduct.person2"))
@@ -53,24 +53,24 @@ class SparkCoproductTest extends AnyFunSuite {
     illTyped(""" implicitly[TypedEncoder[PhoneType.Value]] """)
   }
 
-  ignore("work well with case object") {
+  ignore("work well with case object -- task serializable issue") {
     val run = topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topic.schemaRegistry.register >>
-      topic.send(1, p1) >> topic.send(2, p2) >> topic.sparKafka.dump
+      topic.send(1, co1) >> topic.send(2, co2) >> topic.sparKafka.dump
     run.unsafeRunSync()
   }
 
   test("do not work with scala Enumeration") {
     val run = topic2.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topic2.schemaRegistry.register >>
-      topic2.send(1, f1) >> topic2.send(2, f2) >> topic2.sparKafka.dump
+      topic2.send(1, en1) >> topic2.send(2, en2) >> topic2.sparKafka.dump
     run.unsafeRunSync()
   }
 
   test("do not work with coproduct") {
     val run = topic3.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topic3.schemaRegistry.register >>
-      topic3.send(1, g1) >> topic3.send(2, g2) >> topic2.sparKafka.dump
+      topic3.send(1, cp1) >> topic3.send(2, cp2) >> topic3.sparKafka.dump
     run.unsafeRunSync()
   }
 }

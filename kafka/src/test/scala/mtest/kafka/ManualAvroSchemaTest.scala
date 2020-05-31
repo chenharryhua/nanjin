@@ -1,6 +1,7 @@
 package mtest.kafka
 
 import com.github.chenharryhua.nanjin.kafka.codec.ManualAvroSchema
+import org.apache.avro.Schema
 import org.scalatest.funsuite.AnyFunSuite
 
 object ManualAvroSchemaTestData {
@@ -94,6 +95,14 @@ class ManualAvroSchemaTest extends AnyFunSuite {
       ManualAvroSchema.unsafeFrom[UnderTest](UnderTest.schema3).avroDecoder.schema)
   }
 
+  test("decoder/encoder have the same schema") {
+    val input = (new Schema.Parser).parse(UnderTest.schema1)
+    val ms    = ManualAvroSchema.unsafeFrom[UnderTest](UnderTest.schema1)
+
+    assert(input == ms.avroDecoder.schema)
+    assert(input == ms.avroEncoder.schema)
+  }
+  /*
   test("should compile") {
     val schema: ManualAvroSchema[UnderTest] =
       ManualAvroSchema[UnderTest]("""
@@ -114,7 +123,7 @@ class ManualAvroSchemaTest extends AnyFunSuite {
       "doc" : "b type"
     }
   ]
-}       
+}
         """)
-  }
+  } */
 }
