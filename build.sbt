@@ -19,7 +19,7 @@ val monocle    = "2.0.4"
 val refined    = "0.9.14"
 val droste     = "0.8.0"
 
-val zioCats    = "2.0.0.0-RC14"
+val zioCats    = "2.1.3.0-RC15"
 val monix      = "3.2.1"
 val catsEffect = "2.1.3"
 
@@ -34,7 +34,7 @@ val frameless    = "0.8.0"
 val circe         = "0.13.0"
 val kantanVersion = "0.6.1"
 
-val avro4s     = "3.1.1"
+val avro4s     = "3.1.0"
 val apacheAvro = "1.9.2"
 val avrohugger = "1.0.0-RC21"
 
@@ -151,10 +151,10 @@ val avroLib = Seq(
   "org.apache.avro"                        % "avro"                     % apacheAvro,
   "org.apache.avro"                        % "avro-compiler"            % apacheAvro,
   "org.apache.avro"                        % "avro-ipc"                 % apacheAvro,
-  "com.sksamuel.avro4s" %% "avro4s-core"   % avro4s                     % Provided,
   ("io.confluent"                          % "kafka-streams-avro-serde" % "5.5.0").classifier(""),
+  "org.apache.parquet"                     % "parquet-avro"             % "1.11.0",
   "com.julianpeeters" %% "avrohugger-core" % avrohugger,
-  "org.apache.parquet"                     % "parquet-avro"             % "1.11.0"
+  "com.sksamuel.avro4s" %% "avro4s-core"   % avro4s
 )
 
 val elastic4sLib = Seq(
