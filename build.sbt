@@ -34,7 +34,7 @@ val frameless    = "0.8.0"
 val circe         = "0.13.0"
 val kantanVersion = "0.6.1"
 
-val avro4s     = "3.1.0"
+val avro4s     = "3.1.1"
 val apacheAvro = "1.9.2"
 val avrohugger = "1.0.0-RC21"
 
