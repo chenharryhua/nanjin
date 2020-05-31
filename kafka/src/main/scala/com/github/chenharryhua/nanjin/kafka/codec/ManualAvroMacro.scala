@@ -20,7 +20,7 @@ final class ManualAvroMacro(val c: blackbox.Context) extends MacroUtils {
     schemaFor: c.Expr[SchemaFor[A]],
     avroDecoder: c.Expr[AvroDecoder[A]],
     avroEncoder: c.Expr[AvroEncoder[A]]): c.Expr[ManualAvroSchema[A]] = {
-    val sf: Schema = eval(schemaFor).schema(DefaultFieldMapper)
+    val sf: Schema = eval(schemaFor).schema
     val st: Schema = (new Schema.Parser).parse(eval(schemaText))
 
     val rw: SchemaCompatibilityType =

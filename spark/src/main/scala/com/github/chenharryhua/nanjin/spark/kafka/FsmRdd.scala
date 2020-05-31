@@ -24,7 +24,7 @@ final class FsmRdd[F[_], K, V](
   cfg: SKConfig)(implicit sparkSession: SparkSession)
     extends SparKafkaUpdateParams[FsmRdd[F, K, V]] {
 
-  import topic.topicDef.{avroKeyEncoder, avroValEncoder, crAvroSchema, schemaForKey, schemaForVal}
+  import topic.topicDef.{avroKeyEncoder, avroValEncoder}
 
   override def params: SKParams = SKConfigF.evalConfig(cfg)
 
@@ -95,11 +95,11 @@ final class FsmRdd[F[_], K, V](
     val fmt = params.fileFormat
     val run: Stream[F, Unit] = fmt match {
       case NJFileFormat.Avro =>
-        stream.through(fileSink.avro(params.pathBuilder(topic.topicName, fmt), crAvroSchema))
+        stream.through(fileSink.avro(params.pathBuilder(topic.topicName, fmt)))
       case NJFileFormat.Jackson =>
-        stream.through(fileSink.jackson(params.pathBuilder(topic.topicName, fmt), crAvroSchema))
+        stream.through(fileSink.jackson(params.pathBuilder(topic.topicName, fmt)))
       case NJFileFormat.Parquet =>
-        stream.through(fileSink.parquet(params.pathBuilder(topic.topicName, fmt), crAvroSchema))
+        stream.through(fileSink.parquet(params.pathBuilder(topic.topicName, fmt)))
     }
     run.compile.drain
   }

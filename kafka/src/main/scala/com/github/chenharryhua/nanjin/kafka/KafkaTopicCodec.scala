@@ -4,6 +4,7 @@ import com.github.chenharryhua.nanjin.kafka.codec.{NJCodec, NJSerde}
 import org.apache.avro.Schema
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 import cats.implicits._
+import com.sksamuel.avro4s.SchemaFor
 
 final class KafkaTopicCodec[K, V] private[kafka] (
   val keyCodec: NJCodec[K],
@@ -15,8 +16,8 @@ final class KafkaTopicCodec[K, V] private[kafka] (
   implicit val keySerde: NJSerde[K] = keyCodec.serde
   implicit val valSerde: NJSerde[V] = valCodec.serde
 
-  val keySchema: Schema = keySerde.schema
-  val valSchema: Schema = valSerde.schema
+  val keySchemaFor: SchemaFor[K] = keySerde.schemaFor
+  val valSchemaFor: SchemaFor[V] = valSerde.schemaFor
 
   val keySerializer: Serializer[K] = keySerde.serializer
   val valSerializer: Serializer[V] = valSerde.serializer

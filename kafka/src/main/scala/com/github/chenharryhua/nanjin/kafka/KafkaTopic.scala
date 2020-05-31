@@ -42,23 +42,23 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
   override def toString: String = {
     import cats.derived.auto.show._
     s"""
-    |topic: $topicName
-    |consumer-group-id: ${settings.groupId}
-    |stream-app-id:     ${settings.appId}
-    |settings:
-    |${settings.consumerSettings.show}
-    |${settings.producerSettings.show}
-    |${settings.schemaRegistrySettings.show}
-    |${settings.adminSettings.show}
-    |${settings.streamSettings.show}
-    |
-    |${codec.keySerde.tag}:
-    |${codec.keySerde.configProps}
-    |${codec.keySchema.toString(true)}
-    |
-    |${codec.valSerde.tag}:
-    |${codec.valSerde.configProps}
-    |${codec.valSchema.toString(true)}
+       |topic: $topicName
+       |consumer-group-id: ${settings.groupId}
+       |stream-app-id:     ${settings.appId}
+       |settings:
+       |${settings.consumerSettings.show}
+       |${settings.producerSettings.show}
+       |${settings.schemaRegistrySettings.show}
+       |${settings.adminSettings.show}
+       |${settings.streamSettings.show}
+       |
+       |${codec.keySerde.tag}:
+       |${codec.keySerde.configProps}
+       |${codec.keySchemaFor.schema.toString(true)}
+       |
+       |${codec.valSerde.tag}:
+       |${codec.valSerde.configProps}
+       |${codec.valSchemaFor.schema.toString(true)}
    """.stripMargin
   }
 
@@ -66,17 +66,13 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
   def schemaRegistry(implicit sync: Sync[F]): KafkaSchemaRegistryApi[F] =
     KafkaSchemaRegistryApi[F](this)
 
-  def admin(
-    implicit
-    concurrent: Concurrent[F],
-    contextShift: ContextShift[F]): KafkaAdminApi[F] =
+  def admin(implicit concurrent: Concurrent[F], contextShift: ContextShift[F]): KafkaAdminApi[F] =
     KafkaAdminApi[F, K, V](this)
 
   def shortLivedConsumer(implicit sync: Sync[F]): Resource[F, ShortLivedConsumer[F]] =
     ShortLivedConsumer(topicName, settings.consumerSettings.javaProperties)
 
-  def monitor(
-    implicit
+  def monitor(implicit
     concurrentEffect: ConcurrentEffect[F],
     timer: Timer[F],
     contextShift: ContextShift[F]): KafkaMonitoringApi[F, K, V] = KafkaMonitoringApi[F, K, V](this)

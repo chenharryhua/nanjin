@@ -17,9 +17,9 @@ object genCaseClass {
 
   private val scalaTypes: Option[AvroScalaTypes] = Some(
     Standard.defaultTypes.copy(
-      record   = ScalaCaseClass,
-      array    = ScalaList,
-      enum     = ScalaCaseObjectEnum,
+      record = ScalaCaseClass,
+      array = ScalaList,
+      enum = ScalaCaseObjectEnum,
       protocol = ScalaADT))
 
   @throws[Exception]
@@ -34,22 +34,22 @@ final case class KvSchemaMetadata(key: Option[SchemaMetadata], value: Option[Sch
 
   def showKey: String =
     s"""|key schema:
-        |id:      ${key.map(_.getId).getOrElse("none")}
-        |version: ${key.map(_.getVersion).getOrElse("none")}
-        |schema:  ${key.map(_.getSchema).getOrElse("none")}
-        |scala:   ${key.flatMap(genCC).getOrElse("none")}""".stripMargin
+       |id:      ${key.map(_.getId).getOrElse("none")}
+       |version: ${key.map(_.getVersion).getOrElse("none")}
+       |schema:  ${key.map(_.getSchema).getOrElse("none")}
+       |scala:   ${key.flatMap(genCC).getOrElse("none")}""".stripMargin
 
   def showValue: String =
     s"""|value schema:
-        |id:      ${value.map(_.getId).getOrElse("none")}
-        |version: ${value.map(_.getVersion).getOrElse("none")}
-        |schema:  ${value.map(_.getSchema).getOrElse("none")}
-        |scala:   ${value.flatMap(genCC).getOrElse("none")}""".stripMargin
+       |id:      ${value.map(_.getId).getOrElse("none")}
+       |version: ${value.map(_.getVersion).getOrElse("none")}
+       |schema:  ${value.map(_.getSchema).getOrElse("none")}
+       |scala:   ${value.flatMap(genCC).getOrElse("none")}""".stripMargin
 
   def show: String =
     s"""|key and value schema: 
-        |$showKey
-        |$showValue
+       |$showKey
+       |$showValue
        """.stripMargin
 
   override def toString: String = show
@@ -73,9 +73,9 @@ final case class CompatibilityTestReport(
     if (_) "compatible"
     else
       s"""|incompatible:
-          |application:  $keySchema
-          |server:       ${meta.key.map(_.getSchema).getOrElse("none")}
-          |""".stripMargin
+         |application:  $keySchema
+         |server:       ${meta.key.map(_.getSchema).getOrElse("none")}
+         |""".stripMargin
   )
 
   private val valueDescription: String = value.fold(
@@ -83,9 +83,9 @@ final case class CompatibilityTestReport(
     if (_) "compatible"
     else
       s"""|incompatible:
-          |application:   $valueSchema
-          |server:        ${meta.value.map(_.getSchema).getOrElse("none")}
-          |""".stripMargin
+         |application:   $valueSchema
+         |server:        ${meta.value.map(_.getSchema).getOrElse("none")}
+         |""".stripMargin
   )
 
   val show: String =
@@ -121,8 +121,8 @@ object KafkaSchemaRegistryApi {
     val topicName: TopicName               = topic.topicDef.topicName
     val keySchemaLoc: String               = topic.topicDef.keySchemaLoc
     val valueSchemaLoc: String             = topic.topicDef.valSchemaLoc
-    val keySchema: AvroSchema              = new AvroSchema(topic.codec.keySchema)
-    val valueSchema: AvroSchema            = new AvroSchema(topic.codec.valSchema)
+    val keySchema: AvroSchema              = new AvroSchema(topic.codec.keySchemaFor.schema)
+    val valueSchema: AvroSchema            = new AvroSchema(topic.codec.valSchemaFor.schema)
 
     private lazy val csrClient: CachedSchemaRegistryClient = {
       val alias = AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG
