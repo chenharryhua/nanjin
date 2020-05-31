@@ -93,7 +93,7 @@ class ManualAvroSchemaTest extends AnyFunSuite {
     intercept[IllegalArgumentException](
       ManualAvroSchema.unsafeFrom[UnderTest](UnderTest.schema3).avroDecoder.schema)
   }
-/*
+
   test("should compile") {
     val schema: ManualAvroSchema[UnderTest] =
       ManualAvroSchema[UnderTest]("""
@@ -117,5 +117,4 @@ class ManualAvroSchemaTest extends AnyFunSuite {
 }       
         """)
   }
-*/
 }

@@ -17,10 +17,9 @@ final class ManualAvroMacro(val c: blackbox.Context) extends MacroUtils {
   import c.universe._
 
   def impl[A: c.WeakTypeTag](schemaText: c.Expr[String])(
-    schemaFor: c.Expr[SchemaFor[A]],
     avroDecoder: c.Expr[AvroDecoder[A]],
     avroEncoder: c.Expr[AvroEncoder[A]]): c.Expr[ManualAvroSchema[A]] = {
-    val sf: Schema = eval(schemaFor).schema
+    val sf: Schema = eval(avroDecoder).schema
     val st: Schema = (new Schema.Parser).parse(eval(schemaText))
 
     val rw: SchemaCompatibilityType =
@@ -38,6 +37,6 @@ final class ManualAvroMacro(val c: blackbox.Context) extends MacroUtils {
       abort(s"incompatible schema - $inferred")
     else
       c.Expr[ManualAvroSchema[A]](
-        q""" new _root_.com.github.chenharryhua.nanjin.kafka.codec.ManualAvroSchema($schemaText)($schemaFor,$avroDecoder,$avroEncoder) """)
+        q""" new _root_.com.github.chenharryhua.nanjin.kafka.codec.ManualAvroSchema($avroDecoder,$avroEncoder) """)
   }
 }
