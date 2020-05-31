@@ -56,21 +56,21 @@ class SparkCoproductTest extends AnyFunSuite {
   ignore("work well with case object -- task serializable issue") {
     val run = topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topic.schemaRegistry.register >>
-      topic.send(1, co1) >> topic.send(2, co2) >> topic.sparKafka.dump
+      topic.send(1, co1) >> topic.send(2, co2) >> topic.sparKafka.fromKafka.flatMap(_.save)
     run.unsafeRunSync()
   }
 
   test("do not work with scala Enumeration") {
     val run = topic2.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topic2.schemaRegistry.register >>
-      topic2.send(1, en1) >> topic2.send(2, en2) >> topic2.sparKafka.dump
+      topic2.send(1, en1) >> topic2.send(2, en2) >> topic2.sparKafka.fromKafka.flatMap(_.save)
     run.unsafeRunSync()
   }
 
   test("do not work with coproduct") {
     val run = topic3.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topic3.schemaRegistry.register >>
-      topic3.send(1, cp1) >> topic3.send(2, cp2) >> topic3.sparKafka.dump
+      topic3.send(1, cp1) >> topic3.send(2, cp2) >> topic3.sparKafka.fromKafka.flatMap(_.save)
     run.unsafeRunSync()
   }
 }
