@@ -2,7 +2,7 @@ scalaVersion in ThisBuild      := "2.12.11"
 scapegoatVersion in ThisBuild  := "1.3.11"
 parallelExecution in ThisBuild := false
 
-version in ThisBuild := "0.6.3-SNAPSHOT"
+version in ThisBuild := "0.6.5-SNAPSHOT"
 
 val confluent    = "5.3.0"
 val kafkaVersion = "2.5.0"
@@ -323,3 +323,12 @@ lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
     .aggregate(common, datetime, pipes, kafka, flink, database, spark)
+  .settings(
+    skip in publish := true,
+    credentials in ThisBuild += Credentials(Path.userHome / ".sbt" / ".credentials"),
+    publishTo in ThisBuild := Some(
+      "tabcorp-maven" at "https://artifacts.tabdigital.com.au/artifactory/tabcorp-maven"),
+    publishConfiguration in ThisBuild      := publishConfiguration.value.withOverwrite(true),
+    publishLocalConfiguration in ThisBuild := publishLocalConfiguration.value.withOverwrite(true)
+  )
+      

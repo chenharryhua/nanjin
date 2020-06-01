@@ -87,14 +87,6 @@ object ManualAvroSchemaTestData {
 class ManualAvroSchemaTest extends AnyFunSuite {
   import ManualAvroSchemaTestData._
 
-  test("should be semantically identical") {
-    ManualAvroSchema.unsafeFrom[UnderTest](UnderTest.schema1).avroDecoder.schema
-    intercept[IllegalArgumentException](
-      ManualAvroSchema.unsafeFrom[UnderTest](UnderTest.schema2).avroDecoder.schema)
-    intercept[IllegalArgumentException](
-      ManualAvroSchema.unsafeFrom[UnderTest](UnderTest.schema3).avroDecoder.schema)
-  }
-
   test("decoder/encoder have the same schema") {
     val input = (new Schema.Parser).parse(UnderTest.schema1)
     val ms    = ManualAvroSchema.unsafeFrom[UnderTest](UnderTest.schema1)

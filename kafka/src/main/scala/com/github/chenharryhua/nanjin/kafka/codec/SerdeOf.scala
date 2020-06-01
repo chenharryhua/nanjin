@@ -77,10 +77,8 @@ sealed private[codec] trait SerdeOfPriority1 extends SerdeOfPriority0 {
     val serde: Serde[KJson[A]]         = new KafkaSerdeJson[A]
     val schemaFor: SchemaFor[KJson[A]] = SchemaFor[String].forType[KJson[A]]
     new SerdeOf[KJson[A]](schemaFor) {
-      override val avroDecoder: AvroDecoder[KJson[A]] =
-        implicitly[AvroDecoder[KJson[A]]].withSchema(schemaFor)
-      override val avroEncoder: AvroEncoder[KJson[A]] =
-        implicitly[AvroEncoder[KJson[A]]].withSchema(schemaFor)
+      override val avroDecoder: AvroDecoder[KJson[A]]   = AvroDecoder[KJson[A]]
+      override val avroEncoder: AvroEncoder[KJson[A]]   = AvroEncoder[KJson[A]]
       override val deserializer: Deserializer[KJson[A]] = serde.deserializer()
       override val serializer: Serializer[KJson[A]]     = serde.serializer()
     }
