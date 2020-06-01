@@ -54,8 +54,8 @@ sealed abstract class SerdeOf[A](val schemaFor: SchemaFor[A]) extends Serializab
 
 sealed private[codec] trait SerdeOfPriority0 {
 
-  implicit final def kavroSerde[A: AvroDecoder: AvroEncoder]: SerdeOf[A] = {
-    val serde: KafkaSerdeAvro[A] = new KafkaSerdeAvro[A]
+  implicit final def kavroSerde[A: AvroEncoder: AvroDecoder]: SerdeOf[A] = {
+    val serde: KafkaSerdeAvro[A] = new KafkaSerdeAvro[A](AvroEncoder[A], AvroDecoder[A])
     new SerdeOf[A](serde.avroDecoder.schemaFor) {
       override val avroDecoder: AvroDecoder[A]   = serde.avroDecoder
       override val avroEncoder: AvroEncoder[A]   = serde.avroEncoder
@@ -72,7 +72,7 @@ sealed private[codec] trait SerdeOfPriority0 {
 
 sealed private[codec] trait SerdeOfPriority1 extends SerdeOfPriority0 {
 
-  implicit final def kjsonSerde[A: JsonDecoder: JsonEncoder: AvroDecoder: AvroEncoder]
+  implicit final def kjsonSerde[A: JsonEncoder: JsonDecoder: AvroEncoder: AvroDecoder]
     : SerdeOf[KJson[A]] = {
     val serde: Serde[KJson[A]]         = new KafkaSerdeJson[A]
     val schemaFor: SchemaFor[KJson[A]] = SchemaFor[String].forType[KJson[A]]
@@ -91,10 +91,10 @@ object SerdeOf extends SerdeOfPriority1 {
   def apply[A](implicit ev: SerdeOf[A]): SerdeOf[A] = ev
 
   def apply[A](inst: ManualAvroSchema[A]): SerdeOf[A] = {
-    val serde: KafkaSerdeAvro[A] = new KafkaSerdeAvro[A]()(inst.avroEncoder, inst.avroDecoder)
+    val serde: KafkaSerdeAvro[A] = new KafkaSerdeAvro[A](inst.avroEncoder, inst.avroDecoder)
     new SerdeOf[A](inst.avroDecoder.schemaFor) {
-      override val avroDecoder: AvroDecoder[A]   = serde.avroDecoder
-      override val avroEncoder: AvroEncoder[A]   = serde.avroEncoder
+      override val avroDecoder: AvroDecoder[A]   = inst.avroDecoder
+      override val avroEncoder: AvroEncoder[A]   = inst.avroEncoder
       override val deserializer: Deserializer[A] = serde.deserializer
       override val serializer: Serializer[A]     = serde.serializer
     }

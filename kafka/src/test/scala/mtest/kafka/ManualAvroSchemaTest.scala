@@ -102,28 +102,4 @@ class ManualAvroSchemaTest extends AnyFunSuite {
     assert(input == ms.avroDecoder.schema)
     assert(input == ms.avroEncoder.schema)
   }
-  /*
-  test("should compile") {
-    val schema: ManualAvroSchema[UnderTest] =
-      ManualAvroSchema[UnderTest]("""
-{
-  "type": "record",
-  "name": "UnderTest",
-  "doc" : "test",
-  "namespace" : "mtest.kafka.ManualAvroSchemaTestData",
-  "fields": [
-    {
-      "name": "a",
-      "type": "int",
-      "doc" : "a type"
-    },
-    {
-      "name": "b",
-      "type": "string",
-      "doc" : "b type"
-    }
-  ]
-}
-        """)
-  } */
 }

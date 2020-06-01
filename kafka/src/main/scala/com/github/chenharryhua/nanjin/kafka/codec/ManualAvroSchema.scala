@@ -7,7 +7,9 @@ import org.apache.avro.{Schema, SchemaCompatibility}
 
 import scala.language.experimental.macros
 
-final case class ManualAvroSchema[A](avroDecoder: AvroDecoder[A], avroEncoder: AvroEncoder[A])
+final case class ManualAvroSchema[A] private (
+  avroDecoder: AvroDecoder[A],
+  avroEncoder: AvroEncoder[A])
 
 object ManualAvroSchema {
 
@@ -28,11 +30,4 @@ object ManualAvroSchema {
       AvroDecoder[A].withSchema(SchemaFor[A](input)),
       AvroEncoder[A].withSchema(SchemaFor[A](input)))
   }
-
-  @SuppressWarnings(Array("all"))
-  def apply[A](schemaText: String)(implicit
-    avroDecoder: AvroDecoder[A],
-    avroEncoder: AvroEncoder[A]): ManualAvroSchema[A] =
-    macro ManualAvroMacro.impl[A]
-
 }
