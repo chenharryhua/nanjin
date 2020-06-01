@@ -22,50 +22,40 @@ import org.apache.hadoop.conf.Configuration
 
 final class SingleFileSink[F[_]: ContextShift: Sync](hadoopConfiguration: Configuration) {
 
-  private def sink[A](
-    pathStr: String,
-    schema: Schema,
-    builder: AvroOutputStreamBuilder[A]): Pipe[F, A, Unit] = { sa: Stream[F, A] =>
-    for {
-      blocker <- Stream.resource(Blocker[F])
-      aos <- Stream.resource(
-        hadoop.avroOutputResource[F, A](pathStr, schema, hadoopConfiguration, builder, blocker))
-      data <- sa.chunks
-    } yield data.foreach(aos.write)
+  private def sink[A](pathStr: String, builder: AvroOutputStreamBuilder[A]): Pipe[F, A, Unit] = {
+    sa: Stream[F, A] =>
+      for {
+        blocker <- Stream.resource(Blocker[F])
+        aos <- Stream.resource(
+          hadoop.avroOutputResource[F, A](pathStr, hadoopConfiguration, builder, blocker))
+        data <- sa.chunks
+      } yield data.foreach(aos.write)
   }
 
-  def avro[A: AvroEncoder](pathStr: String, schema: Schema): Pipe[F, A, Unit] =
-    sink[A](pathStr, schema, AvroOutputStream.data[A])
+  def avro[A: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
+    sink[A](pathStr, AvroOutputStream.data[A])
 
-  def avro[A: SchemaFor: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
-    avro[A](pathStr, SchemaFor[A].schema(DefaultFieldMapper))
+  def jackson[A: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
+    sink[A](pathStr, AvroOutputStream.json[A])
 
-  def jackson[A: AvroEncoder](pathStr: String, schema: Schema): Pipe[F, A, Unit] =
-    sink[A](pathStr, schema, AvroOutputStream.json[A])
+  def avroBinary[A: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
+    sink[A](pathStr, AvroOutputStream.binary[A])
 
-  def jackson[A: SchemaFor: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
-    jackson[A](pathStr, SchemaFor[A].schema(DefaultFieldMapper))
-
-  def avroBinary[A: SchemaFor: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
-    sink[A](pathStr, SchemaFor[A].schema(DefaultFieldMapper), AvroOutputStream.binary[A])
-
-  def parquet[A: AvroEncoder](pathStr: String, schema: Schema): Pipe[F, A, Unit] = { as =>
+  def parquet[A: AvroEncoder](pathStr: String): Pipe[F, A, Unit] = { as =>
     for {
       blocker <- Stream.resource(Blocker[F])
       writer <- Stream.resource(
-        hadoop.parquetOutputResource[F](pathStr, schema, hadoopConfiguration, blocker))
+        hadoop
+          .parquetOutputResource[F](pathStr, AvroEncoder[A].schema, hadoopConfiguration, blocker))
       data <- as.chunks
     } yield data.foreach { m =>
-      val rec = AvroEncoder[A].encode(m, schema, DefaultFieldMapper) match {
+      val rec = AvroEncoder[A].encode(m) match {
         case gr: GenericRecord => gr
         case _                 => throw new Exception(s"can not be converted to Generic Record. ${m.toString}")
       }
       writer.write(rec)
     }
   }
-
-  def parquet[A: SchemaFor: AvroEncoder](pathStr: String): Pipe[F, A, Unit] =
-    parquet[A](pathStr, SchemaFor[A].schema(DefaultFieldMapper))
 
   def json[A: JsonEncoder](pathStr: String): Pipe[F, A, Unit] = { as =>
     for {

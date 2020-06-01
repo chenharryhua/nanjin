@@ -22,7 +22,6 @@ import org.apache.hadoop.fs.{FSDataOutputStream, FileSystem, Path}
 
 final private class AkkaFileSink[F[_], A](
   pathStr: String,
-  schema: Schema,
   hadoopConfig: Configuration,
   builder: AvroOutputStreamBuilder[A])(implicit F: ConcurrentEffect[F])
     extends GraphStageWithMaterializedValue[SinkShape[A], F[NotUsed]] {
@@ -36,7 +35,7 @@ final private class AkkaFileSink[F[_], A](
     val logic: GraphStageLogic with InHandler = new GraphStageLogic(shape) with InHandler {
       private val fs: FileSystem           = FileSystem.get(new URI(pathStr), hadoopConfig)
       private val fos: FSDataOutputStream  = fs.create(new Path(pathStr))
-      private val aos: AvroOutputStream[A] = builder.to(fos).build(schema)
+      private val aos: AvroOutputStream[A] = builder.to(fos).build
 
       private def closeAll(): Unit = {
         aos.flush()
@@ -71,22 +70,12 @@ final private class AkkaFileSink[F[_], A](
 
 final class AkkaSingleFileSink[F[_]: ConcurrentEffect](configuration: Configuration) {
 
-  def avro[A: AvroEncoder](pathStr: String, schema: Schema): Sink[A, F[NotUsed]] =
-    Sink.fromGraph(new AkkaFileSink[F, A](pathStr, schema, configuration, AvroOutputStream.data[A]))
+  def avro[A: AvroEncoder](pathStr: String): Sink[A, F[NotUsed]] =
+    Sink.fromGraph(new AkkaFileSink[F, A](pathStr, configuration, AvroOutputStream.data[A]))
 
-  def avro[A: AvroEncoder: SchemaFor](pathStr: String): Sink[A, F[NotUsed]] =
-    avro[A](pathStr, SchemaFor[A].schema(DefaultFieldMapper))
+  def avroBinary[A: AvroEncoder](pathStr: String): Sink[A, F[NotUsed]] =
+    Sink.fromGraph(new AkkaFileSink[F, A](pathStr, configuration, AvroOutputStream.binary[A]))
 
-  def avroBinary[A: AvroEncoder](pathStr: String, schema: Schema): Sink[A, F[NotUsed]] =
-    Sink.fromGraph(
-      new AkkaFileSink[F, A](pathStr, schema, configuration, AvroOutputStream.binary[A]))
-
-  def avroBinary[A: AvroEncoder: SchemaFor](pathStr: String): Sink[A, F[NotUsed]] =
-    avroBinary[A](pathStr, SchemaFor[A].schema(DefaultFieldMapper))
-
-  def jackson[A: AvroEncoder](pathStr: String, schema: Schema): Sink[A, F[NotUsed]] =
-    Sink.fromGraph(new AkkaFileSink[F, A](pathStr, schema, configuration, AvroOutputStream.json[A]))
-
-  def jackson[A: AvroEncoder: SchemaFor](pathStr: String): Sink[A, F[NotUsed]] =
-    jackson[A](pathStr, SchemaFor[A].schema(DefaultFieldMapper))
+  def jackson[A: AvroEncoder](pathStr: String): Sink[A, F[NotUsed]] =
+    Sink.fromGraph(new AkkaFileSink[F, A](pathStr, configuration, AvroOutputStream.json[A]))
 }

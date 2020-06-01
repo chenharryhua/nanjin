@@ -5,7 +5,7 @@ import org.apache.avro.Schema
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 import org.apache.kafka.streams.scala.Serdes
 
-sealed abstract private[codec] class KafkaPrimitiveSerializer[A](val schema: Schema)
+sealed abstract private[codec] class KafkaPrimitiveSerializer[A](val schemaFor: SchemaFor[A])
     extends Serializer[A] with Serializable {
   val avroEncoder: Encoder[A]
   override def serialize(topic: String, data: A): Array[Byte]
@@ -14,7 +14,7 @@ sealed abstract private[codec] class KafkaPrimitiveSerializer[A](val schema: Sch
 object KafkaPrimitiveSerializer {
 
   implicit object IntKafkaPrimitiveSerializer
-      extends KafkaPrimitiveSerializer[Int](SchemaFor[Int].schema(DefaultFieldMapper)) {
+      extends KafkaPrimitiveSerializer[Int](SchemaFor[Int]) {
     override val avroEncoder: Encoder[Int] = Encoder[Int]
 
     override def serialize(topic: String, data: Int): Array[Byte] =
@@ -22,7 +22,7 @@ object KafkaPrimitiveSerializer {
   }
 
   implicit object LongKafkaPrimitiveSerializer
-      extends KafkaPrimitiveSerializer[Long](SchemaFor[Long].schema(DefaultFieldMapper)) {
+      extends KafkaPrimitiveSerializer[Long](SchemaFor[Long]) {
     override val avroEncoder: Encoder[Long] = Encoder[Long]
 
     override def serialize(topic: String, data: Long): Array[Byte] =
@@ -30,7 +30,7 @@ object KafkaPrimitiveSerializer {
   }
 
   implicit object StringKafkaPrimitiveSerializer
-      extends KafkaPrimitiveSerializer[String](SchemaFor[String].schema(DefaultFieldMapper)) {
+      extends KafkaPrimitiveSerializer[String](SchemaFor[String]) {
     override val avroEncoder: Encoder[String] = Encoder[String]
 
     override def serialize(topic: String, data: String): Array[Byte] =
@@ -38,7 +38,7 @@ object KafkaPrimitiveSerializer {
   }
 
   implicit object DoubleKafkaPrimitiveSerializer
-      extends KafkaPrimitiveSerializer[Double](SchemaFor[Double].schema(DefaultFieldMapper)) {
+      extends KafkaPrimitiveSerializer[Double](SchemaFor[Double]) {
     override val avroEncoder: Encoder[Double] = Encoder[Double]
 
     override def serialize(topic: String, data: Double): Array[Byte] =
@@ -46,7 +46,7 @@ object KafkaPrimitiveSerializer {
   }
 
   implicit object FloatKafkaPrimitiveSerializer
-      extends KafkaPrimitiveSerializer[Float](SchemaFor[Float].schema(DefaultFieldMapper)) {
+      extends KafkaPrimitiveSerializer[Float](SchemaFor[Float]) {
 
     override val avroEncoder: Encoder[Float] = Encoder[Float]
 
@@ -55,8 +55,7 @@ object KafkaPrimitiveSerializer {
   }
 
   implicit object ByteArrayKafkaPrimitiveSerializer
-      extends KafkaPrimitiveSerializer[Array[Byte]](
-        SchemaFor[Array[Byte]].schema(DefaultFieldMapper)) {
+      extends KafkaPrimitiveSerializer[Array[Byte]](SchemaFor[Array[Byte]]) {
 
     override val avroEncoder: Encoder[Array[Byte]] = Encoder[Array[Byte]]
 

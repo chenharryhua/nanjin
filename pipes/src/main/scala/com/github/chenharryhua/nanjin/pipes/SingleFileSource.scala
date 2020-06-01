@@ -31,23 +31,14 @@ final class SingleFileSource[F[_]: ContextShift: Sync](hadoopConfiguration: Conf
       data <- Stream.fromIterator(ais.iterator)
     } yield data
 
-  def avro[A: AvroDecoder](pathStr: String, schema: Schema): Stream[F, A] =
-    source[A](pathStr, schema, AvroInputStream.data[A])
+  def avro[A: AvroDecoder](pathStr: String): Stream[F, A] =
+    source[A](pathStr, AvroDecoder[A].schema, AvroInputStream.data[A])
 
-  def avro[A: SchemaFor: AvroDecoder](pathStr: String): Stream[F, A] =
-    avro(pathStr, SchemaFor[A].schema(DefaultFieldMapper))
+  def jackson[A: AvroDecoder](pathStr: String): Stream[F, A] =
+    source[A](pathStr, AvroDecoder[A].schema, AvroInputStream.json[A])
 
-  def jackson[A: AvroDecoder](pathStr: String, schema: Schema): Stream[F, A] =
-    source[A](pathStr, schema, AvroInputStream.json[A])
-
-  def jackson[A: SchemaFor: AvroDecoder](pathStr: String): Stream[F, A] =
-    jackson(pathStr, SchemaFor[A].schema(DefaultFieldMapper))
-
-  def avroBinary[A: AvroDecoder](pathStr: String, schema: Schema): Stream[F, A] =
-    source[A](pathStr, schema, AvroInputStream.binary[A])
-
-  def avroBinary[A: SchemaFor: AvroDecoder](pathStr: String): Stream[F, A] =
-    avroBinary(pathStr, SchemaFor[A].schema(DefaultFieldMapper))
+  def avroBinary[A: AvroDecoder](pathStr: String): Stream[F, A] =
+    source[A](pathStr, AvroDecoder[A].schema, AvroInputStream.binary[A])
 
   def json[A: JsonDecoder](pathStr: String): Stream[F, A] =
     for {

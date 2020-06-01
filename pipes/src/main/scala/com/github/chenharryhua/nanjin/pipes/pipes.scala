@@ -6,7 +6,6 @@ import cats.implicits._
 import com.sksamuel.avro4s.{
   AvroInputStream,
   AvroOutputStream,
-  DefaultFieldMapper,
   SchemaFor,
   Decoder => AvroDecoder,
   Encoder => AvroEncoder
@@ -46,37 +45,29 @@ package object pipes {
         HeaderEncoder[A].rowEncoder.encode(m).mkString(conf.cellSeparator.toString))
     }
 
-  def jacksonDecode[F[_], A: AvroDecoder: SchemaFor]: Pipe[F, String, A] =
+  def jacksonDecode[F[_], A: AvroDecoder]: Pipe[F, String, A] =
     (ss: Stream[F, String]) =>
       ss.map(m =>
-        AvroInputStream
-          .json[A]
-          .from(m.getBytes)
-          .build(SchemaFor[A].schema(DefaultFieldMapper))
-          .iterator
-          .next)
+        AvroInputStream.json[A].from(m.getBytes).build(AvroDecoder[A].schema).iterator.next)
 
-  def jacksonEncode[F[_], A: AvroEncoder: SchemaFor]: Pipe[F, A, String] =
+  def jacksonEncode[F[_], A: AvroEncoder]: Pipe[F, A, String] =
     (ss: Stream[F, A]) =>
       ss.map { m =>
         val bos = new ByteArrayOutputStream
-        val aos = AvroOutputStream.json[A].to(bos).build(SchemaFor[A].schema(DefaultFieldMapper))
+        val aos = AvroOutputStream.json[A].to(bos).build
         aos.write(m)
         aos.close()
         bos.close()
         bos.toString
       }
 
-  def avroDecode[F[_], A: AvroDecoder: SchemaFor]: Pipe[F, GenericRecord, A] =
-    (ss: Stream[F, GenericRecord]) =>
-      ss.map(m =>
-        AvroDecoder[A].decode(m, SchemaFor[A].schema(DefaultFieldMapper), DefaultFieldMapper))
+  def avroDecode[F[_], A: AvroDecoder]: Pipe[F, GenericRecord, A] =
+    (ss: Stream[F, GenericRecord]) => ss.map(m => AvroDecoder[A].decode(m))
 
-  def avroEncode[F[_]: RaiseThrowable, A: AvroEncoder: SchemaFor]: Pipe[F, A, GenericRecord] =
+  def avroEncode[F[_]: RaiseThrowable, A: AvroEncoder]: Pipe[F, A, GenericRecord] =
     (ss: Stream[F, A]) =>
       ss.map(m =>
-          AvroEncoder[A]
-            .encode(m, SchemaFor[A].schema(DefaultFieldMapper), DefaultFieldMapper) match {
+          AvroEncoder[A].encode(m) match {
             case gr: GenericRecord => Right(gr)
             case _                 => Left(new Exception("not an Avro Generic Record"))
           })

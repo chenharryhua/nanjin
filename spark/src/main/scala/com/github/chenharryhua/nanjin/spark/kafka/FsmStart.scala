@@ -27,7 +27,7 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
 
   override val params: SKParams = SKConfigF.evalConfig(cfg)
 
-  def avroSchema: Schema         = topic.topicDef.crAvroSchema
+  def avroSchema: Schema         = topic.topicDef.schemaFor.schema
   def sparkSchema: DataType      = SchemaConverters.toSqlType(avroSchema).dataType
   def parquetSchema: MessageType = new AvroSchemaConverter().convert(avroSchema)
 

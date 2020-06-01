@@ -39,13 +39,12 @@ object hadoop {
 
   def avroOutputResource[F[_]: Sync: ContextShift, A](
     pathStr: String,
-    schema: Schema,
     hadoopConfig: Configuration,
     builder: AvroOutputStreamBuilder[A],
     blocker: Blocker): Resource[F, AvroOutputStream[A]] =
     for {
       os <- outputPathResource[F](pathStr, hadoopConfig, blocker)
-      rs <- Resource.fromAutoCloseable(Sync[F].pure(builder.to(os).build(schema)))
+      rs <- Resource.fromAutoCloseable(Sync[F].pure(builder.to(os).build))
     } yield rs
 
   def parquetOutputResource[F[_]: Sync: ContextShift](

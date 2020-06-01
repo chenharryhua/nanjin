@@ -3,17 +3,17 @@ package com.github.chenharryhua.nanjin.kafka.codec
 import com.github.chenharryhua.nanjin.kafka.codec.CodecException._
 import com.sksamuel.avro4s._
 import io.confluent.kafka.streams.serdes.avro.{GenericAvroDeserializer, GenericAvroSerializer}
-import org.apache.avro.Schema
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 
 import scala.util.{Failure, Success, Try}
 
-final private[codec] class KafkaSerdeAvro[A](schema: Schema)(
-  implicit
+final private[codec] class KafkaSerdeAvro[A](
   val avroEncoder: Encoder[A],
   val avroDecoder: Decoder[A])
     extends Serde[A] with Serializable {
-  @transient private[this] lazy val format: RecordFormat[A]        = RecordFormat[A](schema)
+
+  @transient private[this] lazy val format: RecordFormat[A] =
+    RecordFormat[A](avroEncoder, avroDecoder)
   @transient private[this] lazy val ser: GenericAvroSerializer     = new GenericAvroSerializer
   @transient private[this] lazy val deSer: GenericAvroDeserializer = new GenericAvroDeserializer
 
@@ -25,9 +25,9 @@ final private[codec] class KafkaSerdeAvro[A](schema: Schema)(
           case Success(gr) =>
             Try(format.from(gr)) match {
               case a @ Success(_) => a
-              case Failure(ex)    => Failure(InvalidObjectException(topic, ex, gr, schema))
+              case Failure(ex)    => Failure(InvalidObjectException(topic, ex, gr))
             }
-          case Failure(ex) => Failure(CorruptedRecordException(topic, ex, schema))
+          case Failure(ex) => Failure(CorruptedRecordException(topic, ex))
         }
       case None => Success(null.asInstanceOf[A])
     }
@@ -38,7 +38,7 @@ final private[codec] class KafkaSerdeAvro[A](schema: Schema)(
       case Some(d) =>
         Try(ser.serialize(topic, format.to(d))) match {
           case ab @ Success(_) => ab
-          case Failure(ex)     => Failure(EncodeException(topic, ex, s"${data.toString}", schema))
+          case Failure(ex)     => Failure(EncodeException(topic, ex, s"${data.toString}"))
         }
       case None => Success(null.asInstanceOf[Array[Byte]])
     }

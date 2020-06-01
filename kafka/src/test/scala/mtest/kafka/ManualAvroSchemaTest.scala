@@ -1,6 +1,7 @@
 package mtest.kafka
 
 import com.github.chenharryhua.nanjin.kafka.codec.ManualAvroSchema
+import org.apache.avro.Schema
 import org.scalatest.funsuite.AnyFunSuite
 
 object ManualAvroSchemaTestData {
@@ -86,36 +87,11 @@ object ManualAvroSchemaTestData {
 class ManualAvroSchemaTest extends AnyFunSuite {
   import ManualAvroSchemaTestData._
 
-  test("should be semantically identical") {
-    ManualAvroSchema.unsafeFrom[UnderTest](UnderTest.schema1).schema
-    intercept[IllegalArgumentException](
-      ManualAvroSchema.unsafeFrom[UnderTest](UnderTest.schema2).schema)
-    intercept[IllegalArgumentException](
-      ManualAvroSchema.unsafeFrom[UnderTest](UnderTest.schema3).schema)
-  }
+  test("decoder/encoder have the same schema") {
+    val input = (new Schema.Parser).parse(UnderTest.schema1)
+    val ms    = ManualAvroSchema.unsafeFrom[UnderTest](UnderTest.schema1)
 
-  test("should compile") {
-    val schema: ManualAvroSchema[UnderTest] =
-      ManualAvroSchema[UnderTest]("""
-{
-  "type": "record",
-  "name": "UnderTest",
-  "doc" : "test",
-  "namespace" : "mtest.kafka.ManualAvroSchemaTestData",
-  "fields": [
-    {
-      "name": "a",
-      "type": "int",
-      "doc" : "a type"
-    },
-    {
-      "name": "b",
-      "type": "string",
-      "doc" : "b type"
-    }
-  ]
-}       
-        """)
+    assert(input == ms.avroDecoder.schema)
+    assert(input == ms.avroEncoder.schema)
   }
-
 }

@@ -9,52 +9,43 @@ import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import com.sksamuel.avro4s.{
   AvroInputStream,
   AvroOutputStream,
-  AvroSchema,
-  FieldMapper,
-  FromRecord,
   SchemaFor,
-  ToRecord,
   Decoder => AvroDecoder,
   Encoder => AvroEncoder
 }
 import io.circe.Json
 import io.circe.parser.parse
-import org.apache.avro.Schema
 
 import scala.util.Try
 
-final class TopicDef[K, V] private (val topicName: TopicName)(
-  implicit
+final class TopicDef[K, V] private (val topicName: TopicName)(implicit
   val serdeOfKey: SerdeOf[K],
   val serdeOfVal: SerdeOf[V])
     extends Serializable {
+
+  override def toString: String = topicName.value
+
   val keySchemaLoc: String = s"${topicName.value}-key"
   val valSchemaLoc: String = s"${topicName.value}-value"
 
+  def withTopicName(tn: String): TopicDef[K, V] = TopicDef[K, V](TopicName.unsafeFrom(tn))
+
   implicit val avroKeyEncoder: AvroEncoder[K] = serdeOfKey.avroEncoder
   implicit val avroKeyDecoder: AvroDecoder[K] = serdeOfKey.avroDecoder
+
   implicit val avroValEncoder: AvroEncoder[V] = serdeOfVal.avroEncoder
   implicit val avroValDecoder: AvroDecoder[V] = serdeOfVal.avroDecoder
 
-  implicit val schemaForKey: SchemaFor[K] =
-    (_: FieldMapper) => serdeOfKey.schema
+  implicit val keySchemaFor: SchemaFor[K] = serdeOfKey.schemaFor
+  implicit val valSchemaFor: SchemaFor[V] = serdeOfVal.schemaFor
 
-  implicit val schemaForVal: SchemaFor[V] =
-    (_: FieldMapper) => serdeOfVal.schema
-
-  val crAvroSchema: Schema = AvroSchema[NJConsumerRecord[K, V]]
-
-  val toAvroRecord: ToRecord[NJConsumerRecord[K, V]] =
-    ToRecord[NJConsumerRecord[K, V]](crAvroSchema)
-
-  val fromAvroRecord: FromRecord[NJConsumerRecord[K, V]] =
-    FromRecord[NJConsumerRecord[K, V]](crAvroSchema)
+  val schemaFor: SchemaFor[NJConsumerRecord[K, V]] = SchemaFor[NJConsumerRecord[K, V]]
 
   @throws[Exception]
   def toJackson(cr: NJConsumerRecord[K, V]): Json = {
     val byteArrayOutputStream = new ByteArrayOutputStream
     val out =
-      AvroOutputStream.json[NJConsumerRecord[K, V]].to(byteArrayOutputStream).build(crAvroSchema)
+      AvroOutputStream.json[NJConsumerRecord[K, V]].to(byteArrayOutputStream).build
     out.write(cr)
     out.close()
     parse(byteArrayOutputStream.toString).fold(throw _, identity)
@@ -65,7 +56,7 @@ final class TopicDef[K, V] private (val topicName: TopicName)(
       AvroInputStream
         .json[NJConsumerRecord[K, V]]
         .from(cr.getBytes)
-        .build(crAvroSchema)
+        .build(schemaFor.schema)
         .tryIterator
         .next).flatten
 
@@ -77,7 +68,7 @@ object TopicDef {
 
   implicit def eqTopicDef[K, V]: Eq[TopicDef[K, V]] =
     (x: TopicDef[K, V], y: TopicDef[K, V]) =>
-      x.topicName.value === y.topicName.value && x.crAvroSchema == y.crAvroSchema
+      x.topicName.value === y.topicName.value && x.schemaFor == y.schemaFor
 
   def apply[K, V](
     topicName: TopicName,
@@ -90,5 +81,4 @@ object TopicDef {
 
   def apply[K: SerdeOf, V](topicName: TopicName, valueSchema: ManualAvroSchema[V]): TopicDef[K, V] =
     new TopicDef(topicName)(SerdeOf[K], SerdeOf(valueSchema))
-
 }

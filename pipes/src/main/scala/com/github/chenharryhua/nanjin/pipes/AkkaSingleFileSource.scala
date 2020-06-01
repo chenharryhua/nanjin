@@ -20,7 +20,6 @@ import org.apache.hadoop.fs.{FSDataInputStream, FileSystem, Path}
 
 final private class AkkaFileSource[A](
   pathStr: String,
-  schema: Schema,
   hadoopConfig: Configuration,
   builder: AvroInputStreamBuilder[A])
     extends GraphStage[SourceShape[A]] {
@@ -33,7 +32,7 @@ final private class AkkaFileSource[A](
 
     val fs: FileSystem          = FileSystem.get(new URI(pathStr), hadoopConfig)
     val fis: FSDataInputStream  = fs.open(new Path(pathStr))
-    val ais: AvroInputStream[A] = builder.from(fis).build(schema)
+    val ais: AvroInputStream[A] = builder.from(fis).build
 
     val iterator = ais.iterator
 
@@ -56,22 +55,13 @@ final private class AkkaFileSource[A](
 
 final class AkkaSingleFileSource(configuration: Configuration) {
 
-  def avro[A: Decoder](pathStr: String, schema: Schema): Source[A, NotUsed] =
-    Source.fromGraph(new AkkaFileSource[A](pathStr, schema, configuration, AvroInputStream.data[A]))
+  def avro[A: Decoder](pathStr: String): Source[A, NotUsed] =
+    Source.fromGraph(new AkkaFileSource[A](pathStr, configuration, AvroInputStream.data[A]))
 
-  def avro[A: Decoder: SchemaFor](pathStr: String): Source[A, NotUsed] =
-    avro[A](pathStr, SchemaFor[A].schema(DefaultFieldMapper))
+  def avroBinary[A: Decoder](pathStr: String): Source[A, NotUsed] =
+    Source.fromGraph(new AkkaFileSource[A](pathStr, configuration, AvroInputStream.binary[A]))
 
-  def avroBinary[A: Decoder](pathStr: String, schema: Schema): Source[A, NotUsed] =
-    Source.fromGraph(
-      new AkkaFileSource[A](pathStr, schema, configuration, AvroInputStream.binary[A]))
+  def jackson[A: Decoder](pathStr: String): Source[A, NotUsed] =
+    Source.fromGraph(new AkkaFileSource[A](pathStr, configuration, AvroInputStream.json[A]))
 
-  def avroBinary[A: Decoder: SchemaFor](pathStr: String): Source[A, NotUsed] =
-    avroBinary[A](pathStr, SchemaFor[A].schema(DefaultFieldMapper))
-
-  def jackson[A: Decoder](pathStr: String, schema: Schema): Source[A, NotUsed] =
-    Source.fromGraph(new AkkaFileSource[A](pathStr, schema, configuration, AvroInputStream.json[A]))
-
-  def jackson[A: Decoder: SchemaFor](pathStr: String): Source[A, NotUsed] =
-    jackson[A](pathStr, SchemaFor[A].schema(DefaultFieldMapper))
 }

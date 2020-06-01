@@ -2,7 +2,7 @@ scalaVersion in ThisBuild      := "2.12.11"
 scapegoatVersion in ThisBuild  := "1.3.11"
 parallelExecution in ThisBuild := false
 
-version in ThisBuild := "0.6.1-SNAPSHOT"
+version in ThisBuild := "0.6.5-SNAPSHOT"
 
 val confluent    = "5.3.0"
 val kafkaVersion = "2.5.0"
@@ -34,7 +34,6 @@ val frameless    = "0.8.0"
 val circe         = "0.13.0"
 val kantanVersion = "0.6.1"
 
-val avro4s     = "3.1.0"
 val apacheAvro = "1.9.2"
 val avrohugger = "1.0.0-RC21"
 
@@ -154,7 +153,7 @@ val avroLib = Seq(
   ("io.confluent"                          % "kafka-streams-avro-serde" % "5.5.0").classifier(""),
   "org.apache.parquet"                     % "parquet-avro"             % "1.11.0",
   "com.julianpeeters" %% "avrohugger-core" % avrohugger,
-  "com.sksamuel.avro4s" %% "avro4s-core"   % avro4s
+  "com.sksamuel.avro4s" %% "avro4s-core"   % "3.1.1"
 )
 
 val elastic4sLib = Seq(
@@ -324,3 +323,12 @@ lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
     .aggregate(common, datetime, pipes, kafka, flink, database, spark)
+  .settings(
+    skip in publish := true,
+    credentials in ThisBuild += Credentials(Path.userHome / ".sbt" / ".credentials"),
+    publishTo in ThisBuild := Some(
+      "tabcorp-maven" at "https://artifacts.tabdigital.com.au/artifactory/tabcorp-maven"),
+    publishConfiguration in ThisBuild      := publishConfiguration.value.withOverwrite(true),
+    publishLocalConfiguration in ThisBuild := publishLocalConfiguration.value.withOverwrite(true)
+  )
+      
