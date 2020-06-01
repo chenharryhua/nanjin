@@ -20,7 +20,7 @@ object genCaseClass {
 
   @throws[Exception]
   def apply(schemaStr: String): String =
-    Generator(Standard, avroScalaCustomTypes = scalaTypes).stringToStrings(schemaStr).mkString("\n")
+    Generator(Standard, avroScalaCustomTypes = scalaTypes).stringToStrings(schemaStr).mkString("\n") + "\n"
 }
 
 final case class KvSchemaMetadata(key: Option[SchemaMetadata], value: Option[SchemaMetadata]) {
