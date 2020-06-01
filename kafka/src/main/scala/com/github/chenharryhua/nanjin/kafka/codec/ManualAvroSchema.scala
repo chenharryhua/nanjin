@@ -24,8 +24,13 @@ object ManualAvroSchema {
     val wr = SchemaCompatibility.checkReaderWriterCompatibility(input, inferred).getType
 
     require(SchemaCompatibility.schemaNameEquals(inferred, input), "schema name is different")
-    require(SchemaCompatibilityType.COMPATIBLE.compareTo(rw) === 0, "incompatible schema - rw")
-    require(SchemaCompatibilityType.COMPATIBLE.compareTo(wr) === 0, "incompatible schema - wr")
+
+    if (SchemaCompatibilityType.COMPATIBLE.compareTo(rw) =!= 0)
+      println(s"incompatible schema - rw:\ninput:\n${input}\ninfered:\n${inferred}")
+
+    if (SchemaCompatibilityType.COMPATIBLE.compareTo(wr) =!= 0)
+      println(s"incompatible schema - wr:\ninput:\n${input}\ninfered:\n$inferred")
+
     new ManualAvroSchema[A](
       AvroDecoder[A].withSchema(SchemaFor[A](input)),
       AvroEncoder[A].withSchema(SchemaFor[A](input)))

@@ -23,6 +23,8 @@ final class TopicDef[K, V] private (val topicName: TopicName)(implicit
   val serdeOfVal: SerdeOf[V])
     extends Serializable {
 
+  override def toString: String = topicName.value
+
   val keySchemaLoc: String = s"${topicName.value}-key"
   val valSchemaLoc: String = s"${topicName.value}-value"
 
