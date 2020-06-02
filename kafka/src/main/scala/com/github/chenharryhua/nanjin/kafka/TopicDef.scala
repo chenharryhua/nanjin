@@ -72,13 +72,13 @@ object TopicDef {
 
   def apply[K, V](
     topicName: TopicName,
-    keySchema: ManualAvroSchema[K],
-    valueSchema: ManualAvroSchema[V]): TopicDef[K, V] =
+    keySchema: WithAvroSchema[K],
+    valueSchema: WithAvroSchema[V]): TopicDef[K, V] =
     new TopicDef(topicName)(SerdeOf(keySchema), SerdeOf(valueSchema))
 
   def apply[K: SerdeOf, V: SerdeOf](topicName: TopicName): TopicDef[K, V] =
     new TopicDef(topicName)(SerdeOf[K], SerdeOf[V])
 
-  def apply[K: SerdeOf, V](topicName: TopicName, valueSchema: ManualAvroSchema[V]): TopicDef[K, V] =
+  def apply[K: SerdeOf, V](topicName: TopicName, valueSchema: WithAvroSchema[V]): TopicDef[K, V] =
     new TopicDef(topicName)(SerdeOf[K], SerdeOf(valueSchema))
 }

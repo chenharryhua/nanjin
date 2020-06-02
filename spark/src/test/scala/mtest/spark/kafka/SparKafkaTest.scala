@@ -5,7 +5,7 @@ import java.time.{Instant, LocalDate}
 import cats.effect.IO
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.iso._
-import com.github.chenharryhua.nanjin.kafka.codec.ManualAvroSchema
+import com.github.chenharryhua.nanjin.kafka.codec.WithAvroSchema
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.spark.injection._
@@ -39,7 +39,7 @@ class SparKafkaTest extends AnyFunSuite {
 
   test("save topic to disk") {
     topic.sparKafka
-      .withParamUpdate(_.withOverwrite.withPathBuilder((_,_) => "./data/test/st"))
+      .withParamUpdate(_.withOverwrite.withPathBuilder((_, _) => "./data/test/st"))
       .fromKafka
       .map(_.crDataset.save)
       .unsafeRunSync
@@ -52,7 +52,7 @@ class SparKafkaTest extends AnyFunSuite {
   test("read topic from kafka and show json") {
     val tpk = TopicDef[String, trip_record](
       TopicName("nyc_yellow_taxi_trip_data"),
-      ManualAvroSchema.unsafeFrom[trip_record](trip_record.schema)).in(ctx)
+      WithAvroSchema[trip_record](trip_record.schema)).in(ctx)
 
     tpk.sparKafka.fromKafka.flatMap(_.crDataset.show).unsafeRunSync
   }

@@ -39,6 +39,9 @@ final class FsmRdd[F[_], K, V](
   def sorted: FsmRdd[F, K, V] =
     new FsmRdd[F, K, V](rdd.sortBy(identity), topic, cfg)
 
+  def descending: FsmRdd[F, K, V] =
+    new FsmRdd[F, K, V](rdd.sortBy(identity, ascending = false), topic, cfg)
+
   def repartition(num: Int): FsmRdd[F, K, V] =
     new FsmRdd[F, K, V](rdd.repartition(num), topic, cfg)
 

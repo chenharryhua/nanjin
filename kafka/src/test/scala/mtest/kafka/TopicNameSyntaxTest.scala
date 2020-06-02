@@ -1,7 +1,7 @@
 package mtest.kafka
 
 import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
-import com.github.chenharryhua.nanjin.kafka.codec.{KJson, ManualAvroSchema}
+import com.github.chenharryhua.nanjin.kafka.codec.{KJson, WithAvroSchema}
 import com.landoop.telecom.telecomitalia.telecommunications.{smsCallInternet, Key}
 import io.circe.generic.auto._
 
@@ -15,14 +15,14 @@ class TopicNameSyntaxTest {
 
   val topic7 = TopicDef(
     TopicName("telecom_italia_data"),
-    ManualAvroSchema.unsafeFrom[Key](Key.schema),
-    ManualAvroSchema.unsafeFrom[smsCallInternet](smsCallInternet.schema))
+    WithAvroSchema[Key](Key.schema),
+    WithAvroSchema[smsCallInternet](smsCallInternet.schema))
 
 //  val topic8 =
 //    TopicDef[Key, smsCallInternet]("telecom_italia_data", ManualAvroSchema[Key](Key.schema)).in(ctx)
 
   val topic9 = TopicDef[Key, smsCallInternet](
     TopicName("telecom_italia_data"),
-    ManualAvroSchema.unsafeFrom[smsCallInternet](smsCallInternet.schema)).in(ctx)
+    WithAvroSchema[smsCallInternet](smsCallInternet.schema)).in(ctx)
 
 }

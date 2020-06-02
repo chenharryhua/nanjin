@@ -16,6 +16,8 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   topic: KafkaTopic[F, K, V],
   cfg: SKConfig
 ) extends SparKafkaUpdateParams[FsmProducerRecords[F, K, V]] {
+  
+  override val params: SKParams = SKConfigF.evalConfig(cfg)
 
   override def withParamUpdate(f: SKConfig => SKConfig): FsmProducerRecords[F, K, V] =
     new FsmProducerRecords[F, K, V](prs, topic, f(cfg))
@@ -43,8 +45,6 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
       typedDataset.filter(typedDataset('value).isNotNone).dataset,
       topic,
       cfg)
-
-  override val params: SKParams = SKConfigF.evalConfig(cfg)
 
   def pipeTo[K2, V2](other: KafkaTopic[F, K2, V2])(k: K => K2, v: V => V2)(implicit
     ce: ConcurrentEffect[F],

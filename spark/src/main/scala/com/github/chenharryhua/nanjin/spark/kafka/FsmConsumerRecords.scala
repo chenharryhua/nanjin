@@ -45,7 +45,12 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     new FsmConsumerRecords[F, K, V](crs.filter(f), topic, cfg)
 
   def sorted: FsmConsumerRecords[F, K, V] = {
-    val sd = typedDataset.orderBy(typedDataset('timestamp).asc, typedDataset('offset).asc)
+    val sd = typedDataset.orderBy(typedDataset('timestamp).asc)
+    new FsmConsumerRecords[F, K, V](sd.dataset, topic, cfg)
+  }
+
+  def descending: FsmConsumerRecords[F, K, V] = {
+    val sd = typedDataset.orderBy(typedDataset('timestamp).desc)
     new FsmConsumerRecords[F, K, V](sd.dataset, topic, cfg)
   }
 
