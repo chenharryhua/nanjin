@@ -7,14 +7,14 @@ import org.apache.avro.{Schema, SchemaCompatibility}
 
 import scala.language.experimental.macros
 
-final case class ManualAvroSchema[A] private (
+final case class WithAvroSchema[A] private (
   avroDecoder: AvroDecoder[A],
   avroEncoder: AvroEncoder[A])
 
-object ManualAvroSchema {
+object WithAvroSchema {
 
   @throws[Exception]
-  def unsafeFrom[A: AvroDecoder: AvroEncoder](schemaText: String): ManualAvroSchema[A] = {
+  def apply[A: AvroDecoder: AvroEncoder](schemaText: String): WithAvroSchema[A] = {
     require(AvroDecoder[A].schema == AvroEncoder[A].schema)
 
     val inferred = AvroEncoder[A].schema
@@ -26,12 +26,12 @@ object ManualAvroSchema {
     require(SchemaCompatibility.schemaNameEquals(inferred, input), "schema name is different")
 
     if (SchemaCompatibilityType.COMPATIBLE.compareTo(rw) =!= 0)
-      println(s"incompatible schema - rw:\ninput:\n${input}\ninfered:\n${inferred}")
+      println(s"catch attention - rw:\ninput:\n$input\ninfered:\n$inferred")
 
     if (SchemaCompatibilityType.COMPATIBLE.compareTo(wr) =!= 0)
-      println(s"incompatible schema - wr:\ninput:\n${input}\ninfered:\n$inferred")
+      println(s"catch attention - wr:\ninput:\n$input\ninfered:\n$inferred")
 
-    new ManualAvroSchema[A](
+    new WithAvroSchema[A](
       AvroDecoder[A].withSchema(SchemaFor[A](input)),
       AvroEncoder[A].withSchema(SchemaFor[A](input)))
   }

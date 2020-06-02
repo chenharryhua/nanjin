@@ -88,7 +88,7 @@ sealed private[codec] trait SerdeOfPriority1 extends SerdeOfPriority0 {
 object SerdeOf extends SerdeOfPriority1 {
   def apply[A](implicit ev: SerdeOf[A]): SerdeOf[A] = ev
 
-  def apply[A](inst: ManualAvroSchema[A]): SerdeOf[A] = {
+  def apply[A](inst: WithAvroSchema[A]): SerdeOf[A] = {
     val serde: KafkaSerdeAvro[A] = new KafkaSerdeAvro[A](inst.avroEncoder, inst.avroDecoder)
     new SerdeOf[A](inst.avroDecoder.schemaFor) {
       override val avroDecoder: AvroDecoder[A]   = inst.avroDecoder
