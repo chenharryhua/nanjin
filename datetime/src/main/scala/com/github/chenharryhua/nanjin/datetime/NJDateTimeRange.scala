@@ -6,7 +6,7 @@ import java.util.concurrent.TimeUnit
 
 import cats.implicits._
 import cats.kernel.UpperBounded
-import cats.{Eq, PartialOrder}
+import cats.{Eq, PartialOrder, Show}
 import monocle.Prism
 import monocle.generic.coproduct.coProductPrism
 import monocle.macros.Lenses
@@ -78,12 +78,12 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
   implicit private val njTimestamp: Prism[NJDateTimeRange.TimeTypes, NJTimestamp] =
     coProductPrism[NJDateTimeRange.TimeTypes, NJTimestamp]
 
-  private def setStart[A](a: A)(
-    implicit prism: Prism[NJDateTimeRange.TimeTypes, A]): NJDateTimeRange =
+  private def setStart[A](a: A)(implicit
+    prism: Prism[NJDateTimeRange.TimeTypes, A]): NJDateTimeRange =
     NJDateTimeRange.start.set(Some(prism.reverseGet(a)))(this)
 
-  private def setEnd[A](a: A)(
-    implicit prism: Prism[NJDateTimeRange.TimeTypes, A]): NJDateTimeRange =
+  private def setEnd[A](a: A)(implicit
+    prism: Prism[NJDateTimeRange.TimeTypes, A]): NJDateTimeRange =
     NJDateTimeRange.end.set(Some(prism.reverseGet(a)))(this)
 
   //start
@@ -99,24 +99,31 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
   def withEndTime(ts: Long): NJDateTimeRange          = setEnd(NJTimestamp(ts))
   def withEndTime(ts: Timestamp): NJDateTimeRange     = setEnd(NJTimestamp(ts))
 
-  def isInBetween(ts: Long): Boolean = (startTimestamp, endTimestamp) match {
-    case (Some(s), Some(e)) => ts >= s.milliseconds && ts < e.milliseconds
-    case (Some(s), None)    => ts >= s.milliseconds
-    case (None, Some(e))    => ts < e.milliseconds
-    case (None, None)       => true
-  }
+  def isInBetween(ts: Long): Boolean =
+    (startTimestamp, endTimestamp) match {
+      case (Some(s), Some(e)) => ts >= s.milliseconds && ts < e.milliseconds
+      case (Some(s), None)    => ts >= s.milliseconds
+      case (None, Some(e))    => ts < e.milliseconds
+      case (None, None)       => true
+    }
 
   val duration: Option[FiniteDuration] =
     (startTimestamp, endTimestamp).mapN((s, e) =>
       Duration(e.milliseconds - s.milliseconds, TimeUnit.MILLISECONDS))
 
-  require(duration.forall(_.length > 0), s"start time(${startTimestamp
-    .map(_.utc)}) should be strictly before end time(${endTimestamp.map(_.utc)}).")
+  require(
+    duration.forall(_.length > 0),
+    s"start time(${startTimestamp.map(_.utc)}) should be strictly before end time(${endTimestamp
+      .map(_.utc)}).")
 }
 
 object NJDateTimeRange {
 
   final type TimeTypes = NJTimestamp :+: LocalDateTime :+: LocalDate :+: CNil
+
+  implicit val showNJDateTimeRange: Show[NJDateTimeRange] =
+    tr =>
+      s"NJDateTimeRange(start=${tr.zonedStartTime.toString}, end=${tr.zonedEndTime.toString}, timeZone=${tr.zoneId})"
 
   implicit val upperBoundedNJDateTimeRange: UpperBounded[NJDateTimeRange] with Eq[NJDateTimeRange] =
     new UpperBounded[NJDateTimeRange] with Eq[NJDateTimeRange] {
