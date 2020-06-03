@@ -24,7 +24,7 @@ final class FsmRdd[F[_], K, V](
   cfg: SKConfig)(implicit sparkSession: SparkSession)
     extends SparKafkaUpdateParams[FsmRdd[F, K, V]] {
 
-  import topic.topicDef.{avroKeyEncoder, avroValEncoder}
+  import topic.topicDef.recordEncoder
 
   override def params: SKParams = SKConfigF.evalConfig(cfg)
 

@@ -39,7 +39,13 @@ final class TopicDef[K, V] private (val topicName: TopicName)(implicit
   implicit val keySchemaFor: SchemaFor[K] = serdeOfKey.schemaFor
   implicit val valSchemaFor: SchemaFor[V] = serdeOfVal.schemaFor
 
-  val schemaFor: SchemaFor[NJConsumerRecord[K, V]] = SchemaFor[NJConsumerRecord[K, V]]
+  implicit val schemaFor: SchemaFor[NJConsumerRecord[K, V]] = SchemaFor[NJConsumerRecord[K, V]]
+
+  implicit val recordEncoder: AvroEncoder[NJConsumerRecord[K, V]] =
+    AvroEncoder[NJConsumerRecord[K, V]].withSchema(schemaFor)
+
+  implicit val recordDecoder: AvroDecoder[NJConsumerRecord[K, V]] =
+    AvroDecoder[NJConsumerRecord[K, V]].withSchema(schemaFor)
 
   @throws[Exception]
   def toJackson(cr: NJConsumerRecord[K, V]): Json = {

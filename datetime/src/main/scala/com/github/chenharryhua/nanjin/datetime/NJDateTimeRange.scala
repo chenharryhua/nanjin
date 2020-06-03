@@ -123,7 +123,7 @@ object NJDateTimeRange {
 
   implicit val showNJDateTimeRange: Show[NJDateTimeRange] =
     tr =>
-      s"NJDateTimeRange(start=${tr.zonedStartTime.toString}, end=${tr.zonedEndTime.toString}, timeZone=${tr.zoneId})"
+      s"NJDateTimeRange(startTime=${tr.zonedStartTime.toString}, endTime=${tr.zonedEndTime.toString})"
 
   implicit val upperBoundedNJDateTimeRange: UpperBounded[NJDateTimeRange] with Eq[NJDateTimeRange] =
     new UpperBounded[NJDateTimeRange] with Eq[NJDateTimeRange] {
