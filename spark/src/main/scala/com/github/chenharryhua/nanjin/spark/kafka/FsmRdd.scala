@@ -94,17 +94,18 @@ final class FsmRdd[F[_], K, V](
     ev: JsonEncoder[V]): F[Unit] =
     stream.through(fileSink.json(pathStr)).compile.drain
 
-  def save(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
-    val fmt = params.fileFormat
+  def save(implicit F: Sync[F], cs: ContextShift[F]): F[Long] = {
+    val fmt  = params.fileFormat
+    val data = rdd.persist()
     val run: Stream[F, Unit] = fmt match {
       case NJFileFormat.Avro =>
-        stream.through(fileSink.avro(params.pathBuilder(topic.topicName, fmt)))
+        data.stream.through(fileSink.avro(params.pathBuilder(topic.topicName, fmt)))
       case NJFileFormat.Jackson =>
-        stream.through(fileSink.jackson(params.pathBuilder(topic.topicName, fmt)))
+        data.stream.through(fileSink.jackson(params.pathBuilder(topic.topicName, fmt)))
       case NJFileFormat.Parquet =>
-        stream.through(fileSink.parquet(params.pathBuilder(topic.topicName, fmt)))
+        data.stream.through(fileSink.parquet(params.pathBuilder(topic.topicName, fmt)))
     }
-    run.compile.drain
+    run.compile.drain.as(data.count) <* F.delay(data.unpersist())
   }
 
   // pipe
