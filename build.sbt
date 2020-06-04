@@ -20,7 +20,7 @@ val refined    = "0.9.14"
 val droste     = "0.8.0"
 
 val zioCats    = "2.1.3.0-RC15"
-val monix      = "3.2.1"
+val monix      = "3.2.2"
 val catsEffect = "2.1.3"
 
 val akka = "2.6.5"
