@@ -17,6 +17,9 @@ import org.apache.spark.sql.SparkSession
       _.set("spark.hadoop.fs.s3a.server-side-encryption-algorithm", "SSE-KMS")
         .set("spark.hadoop.fs.s3a.server-side-encryption.key", kmsKey))
 
+  def withKmsAlias(alias: String): SparkSettings =
+    withKms(s"alias/$alias")
+
   def withMaster(master: String): SparkSettings =
     withConfigUpdate(_.set("spark.master", master))
 
