@@ -76,8 +76,8 @@ final class FsmRdd[F[_], K, V](
     }
 
   // rdd
-  def someValues(implicit ev: ClassTag[V]): RDD[V] = rdd.flatMap(_.value)
-  def someKeys(implicit ev: ClassTag[K]): RDD[K]   = rdd.flatMap(_.key)
+  def values(implicit ev: ClassTag[V]): RDD[V] = rdd.flatMap(_.value)
+  def keys(implicit ev: ClassTag[K]): RDD[K]   = rdd.flatMap(_.key)
 
   // save
   def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
