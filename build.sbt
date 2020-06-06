@@ -2,7 +2,7 @@ scalaVersion in ThisBuild      := "2.12.11"
 scapegoatVersion in ThisBuild  := "1.3.11"
 parallelExecution in ThisBuild := false
 
-version in ThisBuild := "0.6.12"
+version in ThisBuild := "0.6.13-SNAPSHOT"
 
 val confluent    = "5.3.0"
 val kafkaVersion = "2.5.0"
@@ -127,7 +127,8 @@ val jsonLib = Seq(
   "io.circe" %% "circe-parser",
   "io.circe" %% "circe-shapes",
   "io.circe" %% "circe-jawn",
-  "io.circe" %% "circe-optics"
+  "io.circe" %% "circe-optics",
+  "io.circe" %% "circe-jackson210"
 ).map(_ % circe)
 
 val fs2Lib = Seq(

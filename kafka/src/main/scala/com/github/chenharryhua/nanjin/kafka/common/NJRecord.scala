@@ -27,8 +27,7 @@ import org.apache.kafka.clients.producer.ProducerRecord
   def toNJProducerRecord: NJProducerRecord[K, V] =
     NJProducerRecord[K, V](Option(partition), Option(timestamp), key, value)
 
-  def flatten[K2, V2](
-    implicit
+  def flatten[K2, V2](implicit
     evK: K <:< Option[K2],
     evV: V <:< Option[V2]
   ): NJConsumerRecord[K2, V2] =
