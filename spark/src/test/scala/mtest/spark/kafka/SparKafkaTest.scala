@@ -37,14 +37,6 @@ class SparKafkaTest extends AnyFunSuite {
     assert(rst.toList === List(data, data))
   }
 
-  test("save topic to disk") {
-    topic.sparKafka
-      .withParamUpdate(_.withOverwrite.withPathBuilder((_, _) => "./data/test/st"))
-      .fromKafka
-      .map(_.crDataset.save)
-      .unsafeRunSync
-  }
-
   test("read topic from kafka and show aggragation result") {
     topic.sparKafka.fromKafka.flatMap(_.stats.minutely).unsafeRunSync
   }

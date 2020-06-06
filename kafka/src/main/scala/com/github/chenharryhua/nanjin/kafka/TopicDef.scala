@@ -1,22 +1,10 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import java.io.ByteArrayOutputStream
-
 import cats.implicits._
 import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.kafka.codec._
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
-import com.sksamuel.avro4s.{
-  AvroInputStream,
-  AvroOutputStream,
-  SchemaFor,
-  Decoder => AvroDecoder,
-  Encoder => AvroEncoder
-}
-import io.circe.Json
-import io.circe.parser.parse
-
-import scala.util.Try
+import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
 
 final class TopicDef[K, V] private (val topicName: TopicName)(implicit
   val serdeOfKey: SerdeOf[K],
@@ -40,25 +28,6 @@ final class TopicDef[K, V] private (val topicName: TopicName)(implicit
   implicit val valSchemaFor: SchemaFor[V] = serdeOfVal.schemaFor
 
   val schemaFor: SchemaFor[NJConsumerRecord[K, V]] = SchemaFor[NJConsumerRecord[K, V]]
-
-  @throws[Exception]
-  def toJackson(cr: NJConsumerRecord[K, V]): Json = {
-    val byteArrayOutputStream = new ByteArrayOutputStream
-    val out =
-      AvroOutputStream.json[NJConsumerRecord[K, V]].to(byteArrayOutputStream).build
-    out.write(cr)
-    out.close()
-    parse(byteArrayOutputStream.toString).fold(throw _, identity)
-  }
-
-  def fromJackson(cr: String): Try[NJConsumerRecord[K, V]] =
-    Try(
-      AvroInputStream
-        .json[NJConsumerRecord[K, V]]
-        .from(cr.getBytes)
-        .build(schemaFor.schema)
-        .tryIterator
-        .next).flatten
 
   def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[F, K, V] =
     ctx.topic[K, V](this)

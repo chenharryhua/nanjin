@@ -37,12 +37,5 @@ class CoproductJsonTest extends AnyFunSuite {
     val msg2: NJConsumerRecord[Int, FB] =
       NJConsumerRecord(0, 0, 0, Some(0), Some(fb2), "coproduct.test", 0)
 
-    val mfb1 =
-      topic.fromJackson(topic.topicDef.toJackson(msg1).noSpaces).toOption.get.value.get
-    val mfb2 =
-      topic.fromJackson(topic.topicDef.toJackson(msg2).noSpaces).toOption.get.value.get
-
-    assert(mfb1 === fb1)
-    assert(mfb2 === fb2)
   }
 }
