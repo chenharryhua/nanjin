@@ -269,7 +269,9 @@ lazy val devices = (project in file("devices"))
   .settings(commonSettings: _*)
   .settings(name := "nj-devices")
   .settings(
-    libraryDependencies ++= baseLib ++ fs2Lib ++ hadoopLib ++ effectLib ++ akkaLib ++ testLib)
+    libraryDependencies ++=
+      Seq("com.lightbend.akka" %% "akka-stream-alpakka-ftp" % "2.0.0") ++
+        baseLib ++ fs2Lib ++ hadoopLib ++ effectLib ++ akkaLib ++ testLib)
 
 lazy val pipes = (project in file("pipes"))
   .settings(commonSettings: _*)

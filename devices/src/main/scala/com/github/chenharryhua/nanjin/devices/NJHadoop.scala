@@ -11,8 +11,6 @@ import org.apache.hadoop.fs.{FSDataInputStream, FSDataOutputStream, FileSystem, 
 
 final class NJHadoop[F[_]: Sync: ContextShift](hadoopConfig: Configuration, blocker: Blocker) {
 
-  private val chunkSize = 8192
-
   private def fileSystem(pathStr: String): Resource[F, FileSystem] =
     Resource.fromAutoCloseable(blocker.delay(FileSystem.get(new URI(pathStr), hadoopConfig)))
 
