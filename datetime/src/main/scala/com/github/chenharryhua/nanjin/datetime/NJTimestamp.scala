@@ -72,6 +72,6 @@ object NJTimestamp {
       override def compare(x: NJTimestamp, y: NJTimestamp): Int =
         x.milliseconds.compareTo(y.milliseconds)
 
-      override def show(x: NJTimestamp): String = x.utc.toString
+      override def show(x: NJTimestamp): String = x.toString
     }
 }

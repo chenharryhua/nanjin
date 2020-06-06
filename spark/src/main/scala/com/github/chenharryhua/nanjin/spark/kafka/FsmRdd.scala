@@ -96,14 +96,12 @@ final class FsmRdd[F[_], K, V](
 
   def save(implicit F: Sync[F], cs: ContextShift[F]): F[Long] = {
     val fmt  = params.fileFormat
+    val path = params.pathBuilder(topic.topicName, fmt)
     val data = rdd.persist()
     val run: Stream[F, Unit] = fmt match {
-      case NJFileFormat.Avro =>
-        data.stream.through(fileSink.avro(params.pathBuilder(topic.topicName, fmt)))
-      case NJFileFormat.Jackson =>
-        data.stream.through(fileSink.jackson(params.pathBuilder(topic.topicName, fmt)))
-      case NJFileFormat.Parquet =>
-        data.stream.through(fileSink.parquet(params.pathBuilder(topic.topicName, fmt)))
+      case NJFileFormat.Avro    => data.stream.through(fileSink.avro(path))
+      case NJFileFormat.Jackson => data.stream.through(fileSink.jackson(path))
+      case NJFileFormat.Parquet => data.stream.through(fileSink.parquet(path))
     }
     run.compile.drain.as(data.count) <* F.delay(data.unpersist())
   }
