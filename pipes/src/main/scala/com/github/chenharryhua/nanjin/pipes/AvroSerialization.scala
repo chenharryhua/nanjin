@@ -31,12 +31,11 @@ final class AvroSerialization[F[_]: ContextShift: ConcurrentEffect, A: AvroEncod
   // serialize
   private def serialize(fmt: AvroFormat): Stream[F, A] => Stream[F, Byte] = { (ss: Stream[F, A]) =>
     readOutputStream[F](blocker, chunkSize) { os =>
-      val aos: AvroOutputStream[A] = new AvroOutputStreamBuilder[A](fmt).to(os).build
+      val aos = //delay creation is important
+        blocker.delay(new AvroOutputStreamBuilder[A](fmt).to(os).build())
       ss.chunkN(1024, allowFewer = true)
-        .map { ms =>
-          println(ms.size)
-          ms.foreach(aos.write)
-          aos.flush()
+        .evalMap { ms =>
+          aos.map(o => ms.foreach(o.write))
         }
         .compile
         .drain
