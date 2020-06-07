@@ -7,13 +7,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
-import com.github.chenharryhua.nanjin.pipes.{
-  AvroSerialization,
-  CirceSerialization,
-  GenericRecordSerialization
-}
-import com.github.chenharryhua.nanjin.spark.{hadoop, RddExt}
-import com.sksamuel.avro4s.AvroSchema
+import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import io.circe.{Encoder => JsonEncoder}
@@ -88,7 +82,7 @@ final class FsmRdd[F[_], K, V](
   def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
     Blocker[F].use { blocker =>
       val pathStr = params.replayPath(topic.topicName)
-      hadoop(blocker).delete(pathStr) >> F.delay(rdd.saveAsObjectFile(pathStr))
+      fileSink(blocker).delete(pathStr) >> F.delay(rdd.saveAsObjectFile(pathStr))
     }
 
   def saveJson(pathStr: String)(implicit
@@ -97,26 +91,18 @@ final class FsmRdd[F[_], K, V](
     ek: JsonEncoder[K],
     ev: JsonEncoder[V]): F[Unit] =
     Blocker[F].use { blocker =>
-      val circe = new CirceSerialization[F, NJConsumerRecord[K, V]]
-      val sink  = hadoop(blocker).sink(pathStr)
-      stream.through(circe.serialize).through(sink).compile.drain
+      stream.through(fileSink(blocker).json(pathStr)).compile.drain
     }
 
   def save(implicit F: ConcurrentEffect[F], cs: ContextShift[F]): F[Long] =
     Blocker[F].use { blocker =>
       val fmt  = params.fileFormat
       val path = params.pathBuilder(topic.topicName, fmt)
-      val h    = hadoop(blocker)
-      val as   = new AvroSerialization[F, NJConsumerRecord[K, V]](blocker)
       val data = rdd.persist()
       val run: Stream[F, Unit] = fmt match {
-        case NJFileFormat.Avro    => data.stream.through(as.toData).through(h.sink(path))
-        case NJFileFormat.Jackson => data.stream.through(as.toByteJson).through(h.sink(path))
-        case NJFileFormat.Parquet =>
-          val gr = new GenericRecordSerialization[F, NJConsumerRecord[K, V]]
-          data.stream
-            .through(gr.serialize)
-            .through(h.parquetSink(path, topic.topicDef.schemaFor.schema))
+        case NJFileFormat.Avro    => data.stream.through(fileSink(blocker).avro(path))
+        case NJFileFormat.Jackson => data.stream.through(fileSink(blocker).jackson(path))
+        case NJFileFormat.Parquet => data.stream.through(fileSink(blocker).parquet(path))
       }
       run.compile.drain.as(data.count) <* F.delay(data.unpersist())
     }

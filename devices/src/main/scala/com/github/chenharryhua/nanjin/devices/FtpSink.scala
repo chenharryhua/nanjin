@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.devices
 
-import akka.Done
 import akka.stream.alpakka.ftp.scaladsl.{Ftp, FtpApi, Ftps, Sftp}
 import akka.stream.alpakka.ftp.{FtpSettings, FtpsSettings, RemoteFileSettings, SftpSettings}
 import akka.stream.{IOResult, Materializer}
@@ -21,8 +20,7 @@ sealed class FtpSink[F[_]: ConcurrentEffect: ContextShift, C, S <: RemoteFileSet
   final def upload(pathStr: String): Pipe[F, Byte, IOResult] = { (ss: Stream[F, Byte]) =>
     Stream
       .eval(ftpApi.toPath(pathStr, settings).toPipeMatWithResult[F])
-      .flatMap(p =>
-        ss.chunks.through(p.compose(_.map(bs => ByteString(bs.toArray)))).rethrow)
+      .flatMap(p => ss.chunks.through(p.compose(_.map(bs => ByteString(bs.toArray)))).rethrow)
   }
 }
 
