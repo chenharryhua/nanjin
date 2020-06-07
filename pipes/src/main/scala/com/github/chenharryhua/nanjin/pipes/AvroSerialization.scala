@@ -2,11 +2,12 @@ package com.github.chenharryhua.nanjin.pipes
 
 import java.io.InputStream
 
-import cats.effect.{Blocker, ConcurrentEffect, ContextShift}
+import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync}
 import cats.implicits._
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.sksamuel.avro4s.{
   AvroFormat,
+  AvroInputStream,
   AvroInputStreamBuilder,
   AvroOutputStream,
   AvroOutputStreamBuilder,
@@ -30,13 +31,12 @@ final class AvroSerialization[F[_]: ContextShift: ConcurrentEffect, A: AvroEncod
   // serialize
   private def serialize(fmt: AvroFormat): Stream[F, A] => Stream[F, Byte] = { (ss: Stream[F, A]) =>
     readOutputStream[F](blocker, chunkSize) { os =>
-      val builder: AvroOutputStreamBuilder[A] = new AvroOutputStreamBuilder[A](fmt)
-      val output: AvroOutputStream[A]         = builder.to(os).build
-      ss.chunkLimit(1024)
+      val aos: AvroOutputStream[A] = new AvroOutputStreamBuilder[A](fmt).to(os).build
+      ss.chunkN(1024, allowFewer = true)
         .map { ms =>
           println(ms.size)
-          ms.foreach(output.write)
-          output.flush()
+          ms.foreach(aos.write)
+          aos.flush()
         }
         .compile
         .drain
@@ -56,14 +56,12 @@ final class AvroSerialization[F[_]: ContextShift: ConcurrentEffect, A: AvroEncod
   val toPrettyJson: Pipe[F, A, String]  = toByteJson >>> utf8Decode[F] >>> lines[F] >>> pretty
 }
 
-final class AvroDeserialization[F[_]: ContextShift: ConcurrentEffect, A: AvroDecoder](
-  blocker: Blocker) {
-
-  private val schema: Schema = AvroDecoder[A].schema
+final class AvroDeserialization[F[_]: ConcurrentEffect, A: AvroDecoder](blocker: Blocker) {
 
   private def deserialize(fmt: AvroFormat, is: InputStream): Stream[F, A] = {
-    val builder = new AvroInputStreamBuilder[A](fmt)
-    Stream.fromIterator[F](builder.from(is).build(schema).iterator)
+    val schema: Schema          = AvroDecoder[A].schema
+    val ais: AvroInputStream[A] = new AvroInputStreamBuilder[A](fmt).from(is).build(schema)
+    Stream.fromIterator[F](ais.iterator)
   }
 
   def fromJson(is: InputStream): Stream[F, A]   = deserialize(JsonFormat, is)
