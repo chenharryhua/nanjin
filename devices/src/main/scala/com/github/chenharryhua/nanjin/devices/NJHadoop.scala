@@ -12,7 +12,7 @@ import com.sksamuel.avro4s.{
   Encoder => AvroEncoder
 }
 import fs2.io.{readInputStream, writeOutputStream}
-import fs2.{Pipe, Stream}
+import fs2.{INothing, Pipe, Pull, Stream}
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
@@ -90,11 +90,15 @@ final class NJHadoop[F[_]: Sync: ContextShift](hadoopConfig: Configuration, bloc
   //avro data
 
   def avroSink[A: AvroEncoder](pathStr: String): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
+    def go(bs: Stream[F, A], aos: AvroOutputStream[A]): Pull[F, Unit, Unit] =
+      bs.pull.uncons.flatMap {
+        case Some((hl, tl)) => Pull.pure(hl.foreach(aos.write)) >> go(tl, aos)
+        case None           => Pull.pure(aos.flush) >> Pull.done
+      }
     for {
-      os <- Stream.resource(fsOutput(pathStr))
-      aos = AvroOutputStream.data[A].to(os).build()
-      m <- ss
-    } yield aos.write(m)
+      aos <- Stream.resource(fsOutput(pathStr)).map(os => AvroOutputStream.data[A].to(os).build())
+      _ <- go(ss, aos).stream
+    } yield ()
   }
 
   def avroSource[A: AvroDecoder](pathStr: String): Stream[F, A] =
