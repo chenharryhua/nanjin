@@ -93,7 +93,7 @@ final class NJHadoop[F[_]: Sync: ContextShift](hadoopConfig: Configuration, bloc
     def go(bs: Stream[F, A], aos: AvroOutputStream[A]): Pull[F, Unit, Unit] =
       bs.pull.uncons.flatMap {
         case Some((hl, tl)) => Pull.pure(hl.foreach(aos.write)) >> go(tl, aos)
-        case None           => Pull.pure(aos.flush) >> Pull.done
+        case None           => Pull.pure(aos.close) >> Pull.done
       }
     for {
       aos <- Stream.resource(fsOutput(pathStr)).map(os => AvroOutputStream.data[A].to(os).build())

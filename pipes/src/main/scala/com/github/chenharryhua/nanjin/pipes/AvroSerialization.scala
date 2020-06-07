@@ -17,7 +17,7 @@ import com.sksamuel.avro4s.{
 }
 import fs2.io.{readOutputStream, toInputStream}
 import fs2.text.{lines, utf8Decode}
-import fs2.{Pipe, Stream}
+import fs2.{Pipe, Pull, Stream}
 import io.circe.Printer
 import io.circe.jackson.jacksonToCirce
 import org.apache.avro.Schema
@@ -30,7 +30,12 @@ final class AvroSerialization[F[_]: ContextShift: ConcurrentEffect, A: AvroEncod
   private def serialize(fmt: AvroFormat): Stream[F, A] => Stream[F, Byte] = { (ss: Stream[F, A]) =>
     readOutputStream[F](blocker, chunkSize) { os =>
       val aos = new AvroOutputStreamBuilder[A](fmt).to(os).build()
-      ss.chunkN(1024, allowFewer = true).map(_.foreach(aos.write)).compile.drain
+      def go(bs: Stream[F, A]): Pull[F, Byte, Unit] =
+        bs.pull.uncons.flatMap {
+          case Some((hl, tl)) => Pull.pure(hl.foreach(aos.write)) >> go(tl)
+          case None           => Pull.pure(aos.close()) >> Pull.done
+        }
+      go(ss).stream.compile.drain
     }
   }
 
