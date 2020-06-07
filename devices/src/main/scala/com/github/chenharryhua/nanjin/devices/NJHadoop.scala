@@ -4,10 +4,11 @@ import java.io.InputStream
 import java.net.URI
 
 import cats.effect.{Blocker, ContextShift, Resource, Sync}
-import fs2.io.readInputStream
+import cats.implicits._
 import fs2.{Pipe, Stream}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataInputStream, FSDataOutputStream, FileSystem, Path}
+import fs2.io.readInputStream
 
 final class NJHadoop[F[_]: Sync: ContextShift](hadoopConfig: Configuration, blocker: Blocker) {
 
@@ -38,6 +39,9 @@ final class NJHadoop[F[_]: Sync: ContextShift](hadoopConfig: Configuration, bloc
       fs <- Stream.resource(fsInput(pathStr))
       b <- readInputStream(Sync[F].pure[InputStream](fs), chunkSize, blocker)
     } yield b
+
+  def inputStream(pathStr: String): Stream[F, InputStream] =
+    Stream.resource(fsInput(pathStr).widen)
 
   def delete(pathStr: String): F[Boolean] =
     fileSystem(pathStr).use(fs => blocker.delay(fs.delete(new Path(pathStr), true)))

@@ -278,9 +278,10 @@ lazy val pipes = (project in file("pipes"))
   .settings(name := "nj-pipes")
   .settings(libraryDependencies ++=
     Seq("com.lightbend.akka" %% "akka-stream-alpakka-ftp" % "2.0.0") ++
-      baseLib ++ fs2Lib ++ hadoopLib ++ effectLib ++ akkaLib ++ jsonLib ++ kantanLib ++ avroLib ++ testLib)
+      baseLib ++ fs2Lib ++ effectLib ++ jsonLib ++ kantanLib ++ avroLib ++ testLib)
 
 lazy val kafka = (project in file("kafka"))
+  .dependsOn(pipes)
   .settings(commonSettings: _*)
   .settings(name := "nj-kafka")
   .settings(
