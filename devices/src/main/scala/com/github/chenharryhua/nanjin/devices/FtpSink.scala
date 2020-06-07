@@ -22,7 +22,7 @@ sealed class FtpSink[F[_]: ConcurrentEffect: ContextShift, C, S <: RemoteFileSet
     Stream
       .eval(ftpApi.toPath(pathStr, settings).toPipeMatWithResult[F])
       .flatMap(p =>
-        ss.chunkLimit(chunkSize).through(p.compose(_.map(bs => ByteString(bs.toArray)))).rethrow)
+        ss.chunks.through(p.compose(_.map(bs => ByteString(bs.toArray)))).rethrow)
   }
 }
 

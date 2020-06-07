@@ -26,11 +26,12 @@ final class NJHadoop[F[_]: Sync: ContextShift](hadoopConfig: Configuration, bloc
       rs <- Resource.fromAutoCloseable(blocker.delay(fs.open(new Path(pathStr))))
     } yield rs
 
-  def hadoopSink(pathStr: String): Pipe[F, Byte, Unit] =
-    _.chunkLimit(chunkSize).flatMap(bs =>
-      Stream.resource(fsOutput(pathStr)).map { os =>
-        os.write(bs.toArray)
-      })
+  def hadoopSink(pathStr: String): Pipe[F, Byte, Unit] = { (ss: Stream[F, Byte]) =>
+    for {
+      fs <- Stream.resource(fsOutput(pathStr))
+      ck <- ss.chunks
+    } yield fs.write(ck.toArray)
+  }
 
   def hadoopSource(pathStr: String): Stream[F, Byte] =
     for {

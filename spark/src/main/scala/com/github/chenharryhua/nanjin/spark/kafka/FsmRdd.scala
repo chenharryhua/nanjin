@@ -2,16 +2,18 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
-import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync, Timer}
+import cats.effect.{Blocker, Concurrent, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.devices.NJHadoop
+import com.github.chenharryhua.nanjin.kafka.{AvroPipes, KafkaTopic}
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import com.github.chenharryhua.nanjin.pipes.hadoop
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import io.circe.{Encoder => JsonEncoder}
+import org.apache.hadoop.conf.Configuration
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
@@ -120,5 +122,15 @@ final class FsmRdd[F[_], K, V](
 
   def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
     pipeTo(topic)
+
+  def test(implicit F: Concurrent[F], cs: ContextShift[F]) = {
+    import scala.concurrent.ExecutionContext.Implicits.global
+    import topic.topicDef.{avroKeyDecoder, avroKeyEncoder, avroValDecoder, avroValEncoder}
+    val b    = Blocker.liftExecutionContext(global)
+    val pipe = new AvroPipes[F, NJConsumerRecord[K, V]](b)
+    val sink = new NJHadoop[F](sparkSession.sparkContext.hadoopConfiguration, b)
+
+    stream.through(pipe.toByteJson).through(sink.hadoopSink("./data/hadoop/test.json")).compile.drain
+  }
 
 }
