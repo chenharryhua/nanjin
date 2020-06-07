@@ -5,6 +5,12 @@ import java.net.URI
 
 import cats.effect.{Blocker, ContextShift, Resource, Sync}
 import cats.implicits._
+import com.sksamuel.avro4s.{
+  AvroInputStream,
+  AvroOutputStream,
+  Decoder => AvroDecoder,
+  Encoder => AvroEncoder
+}
 import fs2.io.{readInputStream, writeOutputStream}
 import fs2.{Pipe, Stream}
 import org.apache.avro.Schema
@@ -80,4 +86,21 @@ final class NJHadoop[F[_]: Sync: ContextShift](hadoopConfig: Configuration, bloc
           blocker.delay(AvroParquetReader.builder[GenericRecord](inputFile).build())))
     } yield builder.read()
   }
+
+  //avro data
+
+  def avroSink[A: AvroEncoder](pathStr: String): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
+    for {
+      os <- Stream.resource(fsOutput(pathStr))
+      aos = AvroOutputStream.data[A].to(os).build()
+      m <- ss
+    } yield aos.write(m)
+  }
+
+  def avroSource[A: AvroDecoder](pathStr: String): Stream[F, A] =
+    for {
+      is <- Stream.resource(fsInput(pathStr))
+      a <-
+        Stream.fromIterator(AvroInputStream.data[A].from(is).build(AvroDecoder[A].schema).iterator)
+    } yield a
 }
