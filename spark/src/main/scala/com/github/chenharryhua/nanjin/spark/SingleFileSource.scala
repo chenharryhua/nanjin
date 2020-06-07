@@ -41,6 +41,13 @@ final class SingleFileSource[F[_]](blocker: Blocker, conf: Configuration) {
     hadoop.inputStream(pathStr).flatMap(pipe.fromData)
   }
 
+  def binary[A: AvroDecoder](
+    pathStr: String)(implicit cs: ContextShift[F], ce: ConcurrentEffect[F]): Stream[F, A] = {
+    val hadoop = new NJHadoop[F](conf, blocker)
+    val pipe   = new AvroDeserialization[F, A](blocker)
+    hadoop.inputStream(pathStr).flatMap(pipe.fromBinary)
+  }
+
   def jackson[A: AvroDecoder](
     pathStr: String)(implicit cs: ContextShift[F], ce: ConcurrentEffect[F]): Stream[F, A] = {
     val hadoop = new NJHadoop[F](conf, blocker)

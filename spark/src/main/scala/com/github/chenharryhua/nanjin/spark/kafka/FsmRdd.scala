@@ -100,9 +100,10 @@ final class FsmRdd[F[_], K, V](
       val path = params.pathBuilder(topic.topicName, fmt)
       val data = rdd.persist()
       val run: Stream[F, Unit] = fmt match {
-        case NJFileFormat.Avro    => data.stream.through(fileSink(blocker).avro(path))
-        case NJFileFormat.Jackson => data.stream.through(fileSink(blocker).jackson(path))
-        case NJFileFormat.Parquet => data.stream.through(fileSink(blocker).parquet(path))
+        case NJFileFormat.Avro       => data.stream.through(fileSink(blocker).avro(path))
+        case NJFileFormat.AvroBinary => data.stream.through(fileSink(blocker).binary(path))
+        case NJFileFormat.Jackson    => data.stream.through(fileSink(blocker).jackson(path))
+        case NJFileFormat.Parquet    => data.stream.through(fileSink(blocker).parquet(path))
       }
       run.compile.drain.as(data.count) <* F.delay(data.unpersist())
     }

@@ -10,7 +10,7 @@ import net.schmizz.sshj.SSHClient
 import org.apache.commons.net.ftp.{FTPClient, FTPSClient}
 import streamz.converter._
 
-sealed class FtpSource[F[_]: ContextShift: Concurrent, C, S <: RemoteFileSettings](
+sealed class FtpDownloader[F[_]: ContextShift: Concurrent, C, S <: RemoteFileSettings](
   ftpApi: FtpApi[C, S],
   settings: S)(implicit mat: Materializer) {
 
@@ -25,12 +25,12 @@ sealed class FtpSource[F[_]: ContextShift: Concurrent, C, S <: RemoteFileSetting
 
 final class AkkaFtpSource[F[_]: ContextShift: Concurrent](settings: FtpSettings)(implicit
   mat: Materializer)
-    extends FtpSource[F, FTPClient, FtpSettings](Ftp, settings)
+    extends FtpDownloader[F, FTPClient, FtpSettings](Ftp, settings)
 
 final class AkkaSftpSource[F[_]: ContextShift: Concurrent](settings: SftpSettings)(implicit
   mat: Materializer)
-    extends FtpSource[F, SSHClient, SftpSettings](Sftp, settings)
+    extends FtpDownloader[F, SSHClient, SftpSettings](Sftp, settings)
 
 final class AkkaFtpsSource[F[_]: ContextShift: Concurrent](settings: FtpsSettings)(implicit
   mat: Materializer)
-    extends FtpSource[F, FTPSClient, FtpsSettings](Ftps, settings)
+    extends FtpDownloader[F, FTPSClient, FtpsSettings](Ftps, settings)

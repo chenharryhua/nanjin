@@ -32,7 +32,14 @@ final class AvroSerialization[F[_]: ContextShift: ConcurrentEffect, A: AvroEncod
     readOutputStream[F](blocker, chunkSize) { os =>
       val builder: AvroOutputStreamBuilder[A] = new AvroOutputStreamBuilder[A](fmt)
       val output: AvroOutputStream[A]         = builder.to(os).build
-      ss.map(m => output.write(m)).compile.drain
+      ss.chunkLimit(1024)
+        .map { ms =>
+          println(ms.size)
+          ms.foreach(output.write)
+          output.flush()
+        }
+        .compile
+        .drain
     }
   }
 
