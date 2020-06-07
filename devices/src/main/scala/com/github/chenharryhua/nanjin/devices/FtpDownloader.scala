@@ -23,14 +23,14 @@ sealed class FtpDownloader[F[_]: ContextShift: Concurrent, C, S <: RemoteFileSet
   }
 }
 
-final class AkkaFtpSource[F[_]: ContextShift: Concurrent](settings: FtpSettings)(implicit
+final class AkkaFtpDownloader[F[_]: ContextShift: Concurrent](settings: FtpSettings)(implicit
   mat: Materializer)
     extends FtpDownloader[F, FTPClient, FtpSettings](Ftp, settings)
 
-final class AkkaSftpSource[F[_]: ContextShift: Concurrent](settings: SftpSettings)(implicit
+final class AkkaSftpDownloader[F[_]: ContextShift: Concurrent](settings: SftpSettings)(implicit
   mat: Materializer)
     extends FtpDownloader[F, SSHClient, SftpSettings](Sftp, settings)
 
-final class AkkaFtpsSource[F[_]: ContextShift: Concurrent](settings: FtpsSettings)(implicit
+final class AkkaFtpsDownloader[F[_]: ContextShift: Concurrent](settings: FtpsSettings)(implicit
   mat: Materializer)
     extends FtpDownloader[F, FTPSClient, FtpsSettings](Ftps, settings)

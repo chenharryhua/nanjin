@@ -24,14 +24,14 @@ sealed class FtpUploader[F[_]: ConcurrentEffect: ContextShift, C, S <: RemoteFil
   }
 }
 
-final class AkkaFtpSink[F[_]: ConcurrentEffect: ContextShift](settings: FtpSettings)(implicit
+final class AkkaFtpUploader[F[_]: ConcurrentEffect: ContextShift](settings: FtpSettings)(implicit
   mat: Materializer)
     extends FtpUploader[F, FTPClient, FtpSettings](Ftp, settings)
 
-final class AkkaSftpSink[F[_]: ConcurrentEffect: ContextShift](settings: SftpSettings)(implicit
+final class AkkaSftpUploader[F[_]: ConcurrentEffect: ContextShift](settings: SftpSettings)(implicit
   mat: Materializer)
     extends FtpUploader[F, SSHClient, SftpSettings](Sftp, settings)
 
-final class AkkaFtpsSink[F[_]: ContextShift: ConcurrentEffect](settings: FtpsSettings)(implicit
+final class AkkaFtpsUploader[F[_]: ContextShift: ConcurrentEffect](settings: FtpsSettings)(implicit
   mat: Materializer)
     extends FtpUploader[F, FTPSClient, FtpsSettings](Ftps, settings)

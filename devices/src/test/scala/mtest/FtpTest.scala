@@ -1,13 +1,13 @@
 package mtest
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.devices.AkkaFtpSink
+import com.github.chenharryhua.nanjin.devices.AkkaFtpUploader
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 
 class FtpTest extends AnyFunSuite {
 
-  val ftp = new AkkaFtpSink[IO](ftpSettins)
+  val ftp = new AkkaFtpUploader[IO](ftpSettins)
 
   val pathStr    = "test.txt"
   val testString = "save string to ftp"
