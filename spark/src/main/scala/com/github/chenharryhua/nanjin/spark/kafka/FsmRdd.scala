@@ -2,18 +2,16 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
-import cats.effect.{Blocker, Concurrent, ConcurrentEffect, ContextShift, Sync, Timer}
+import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.github.chenharryhua.nanjin.devices.NJHadoop
-import com.github.chenharryhua.nanjin.kafka.{AvroPipes, KafkaTopic}
+import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
-import com.github.chenharryhua.nanjin.pipes.hadoop
-import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
+import com.github.chenharryhua.nanjin.pipes.{AvroSerialization, CirceSerialization}
+import com.github.chenharryhua.nanjin.spark.{hadoop, RddExt}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import io.circe.{Encoder => JsonEncoder}
-import org.apache.hadoop.conf.Configuration
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
@@ -85,8 +83,7 @@ final class FsmRdd[F[_], K, V](
   def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
     Blocker[F].use { blocker =>
       val pathStr = params.replayPath(topic.topicName)
-      hadoop.delete(pathStr, sparkSession.sparkContext.hadoopConfiguration, blocker) >>
-        F.delay(rdd.saveAsObjectFile(pathStr))
+      hadoop(blocker).delete(pathStr) >> F.delay(rdd.saveAsObjectFile(pathStr))
     }
 
   def saveJson(pathStr: String)(implicit
@@ -94,19 +91,26 @@ final class FsmRdd[F[_], K, V](
     cs: ContextShift[F],
     ek: JsonEncoder[K],
     ev: JsonEncoder[V]): F[Unit] =
-    stream.through(fileSink.json(pathStr)).compile.drain
-
-  def save(implicit F: Sync[F], cs: ContextShift[F]): F[Long] = {
-    val fmt  = params.fileFormat
-    val path = params.pathBuilder(topic.topicName, fmt)
-    val data = rdd.persist()
-    val run: Stream[F, Unit] = fmt match {
-      case NJFileFormat.Avro    => data.stream.through(fileSink.avro(path))
-      case NJFileFormat.Jackson => data.stream.through(fileSink.jackson(path))
-      case NJFileFormat.Parquet => data.stream.through(fileSink.parquet(path))
+    Blocker[F].use { blocker =>
+      val circe = new CirceSerialization[F, NJConsumerRecord[K, V]]
+      val sink  = hadoop(blocker).hadoopSink(pathStr)
+      stream.through(circe.serialize).through(sink).compile.drain
     }
-    run.compile.drain.as(data.count) <* F.delay(data.unpersist())
-  }
+
+  def save(implicit F: ConcurrentEffect[F], cs: ContextShift[F]): F[Long] =
+    Blocker[F].use { blocker =>
+      val fmt  = params.fileFormat
+      val path = params.pathBuilder(topic.topicName, fmt)
+      val sink = hadoop(blocker).hadoopSink(path)
+      val as   = new AvroSerialization[F, NJConsumerRecord[K, V]](blocker)
+      val data = rdd.persist()
+      val run: Stream[F, Unit] = fmt match {
+        case NJFileFormat.Avro    => data.stream.through(as.toData).through(sink)
+        case NJFileFormat.Jackson => data.stream.through(as.toByteJson).through(sink)
+        case NJFileFormat.Parquet => data.stream.through(as.toBinary).through(sink)
+      }
+      run.compile.drain.as(data.count) <* F.delay(data.unpersist())
+    }
 
   // pipe
   def pipeTo(otherTopic: KafkaTopic[F, K, V])(implicit
@@ -122,15 +126,5 @@ final class FsmRdd[F[_], K, V](
 
   def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
     pipeTo(topic)
-
-  def test(implicit F: Concurrent[F], cs: ContextShift[F]) = {
-    import scala.concurrent.ExecutionContext.Implicits.global
-    import topic.topicDef.{avroKeyDecoder, avroKeyEncoder, avroValDecoder, avroValEncoder}
-    val b    = Blocker.liftExecutionContext(global)
-    val pipe = new AvroPipes[F, NJConsumerRecord[K, V]](b)
-    val sink = new NJHadoop[F](sparkSession.sparkContext.hadoopConfiguration, b)
-
-    stream.through(pipe.toByteJson).through(sink.hadoopSink("./data/hadoop/test.json")).compile.drain
-  }
 
 }

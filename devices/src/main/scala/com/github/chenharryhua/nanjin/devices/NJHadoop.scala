@@ -34,14 +34,14 @@ final class NJHadoop[F[_]: Sync: ContextShift](hadoopConfig: Configuration, bloc
     } yield fs.write(ck.toArray)
   }
 
-  def hadoopSource(pathStr: String): Stream[F, Byte] =
-    for {
-      fs <- Stream.resource(fsInput(pathStr))
-      b <- readInputStream(Sync[F].pure[InputStream](fs), chunkSize, blocker)
-    } yield b
-
   def inputStream(pathStr: String): Stream[F, InputStream] =
     Stream.resource(fsInput(pathStr).widen)
+
+  def hadoopSource(pathStr: String): Stream[F, Byte] =
+    for {
+      fs <- inputStream(pathStr)
+      b <- readInputStream(Sync[F].pure[InputStream](fs), chunkSize, blocker)
+    } yield b
 
   def delete(pathStr: String): F[Boolean] =
     fileSystem(pathStr).use(fs => blocker.delay(fs.delete(new Path(pathStr), true)))

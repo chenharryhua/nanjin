@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.kafka
+package com.github.chenharryhua.nanjin.pipes
 
 import java.io.InputStream
 
@@ -21,8 +21,9 @@ import fs2.text.{lines, utf8Decode}
 import fs2.{Pipe, Stream}
 import io.circe.Printer
 import io.circe.jackson.jacksonToCirce
+import org.apache.avro.Schema
 
-final class AvroPipes[F[_]: ContextShift: ConcurrentEffect, A: AvroEncoder: AvroDecoder](
+final class AvroSerialization[F[_]: ContextShift: ConcurrentEffect, A: AvroEncoder](
   blocker: Blocker) {
   private val chunkSize = 8192
 
@@ -46,11 +47,15 @@ final class AvroPipes[F[_]: ContextShift: ConcurrentEffect, A: AvroEncoder: Avro
 
   val toCompactJson: Pipe[F, A, String] = toByteJson >>> utf8Decode[F] >>> lines[F]
   val toPrettyJson: Pipe[F, A, String]  = toByteJson >>> utf8Decode[F] >>> lines[F] >>> pretty
+}
 
-  // deserialize
+final class AvroDeserialization[F[_]: ContextShift: ConcurrentEffect, A: AvroDecoder](
+  blocker: Blocker) {
+
+  private val schema: Schema = AvroDecoder[A].schema
+
   private def deserialize(fmt: AvroFormat, is: InputStream): Stream[F, A] = {
     val builder = new AvroInputStreamBuilder[A](fmt)
-    val schema  = AvroDecoder[A].schema
     Stream.fromIterator[F](builder.from(is).build(schema).iterator)
   }
 

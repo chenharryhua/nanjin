@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.codec.NJConsumerMessage._
 import com.github.chenharryhua.nanjin.kafka.codec.iso
 import com.github.chenharryhua.nanjin.kafka.common.{KafkaOffset, NJConsumerRecord}
+import com.github.chenharryhua.nanjin.pipes.AvroSerialization
 import com.github.chenharryhua.nanjin.utils.Keyboard
 import fs2.Stream
 import fs2.kafka.{produce, AutoOffsetReset, ProducerRecord, ProducerRecords}
@@ -46,7 +47,7 @@ object KafkaMonitoringApi {
 
     private def watch(aor: AutoOffsetReset): F[Unit] =
       Blocker[F].use { blocker =>
-        val pipe = new AvroPipes[F, NJConsumerRecord[K, V]](blocker)
+        val pipe = new AvroSerialization[F, NJConsumerRecord[K, V]](blocker)
         Keyboard.signal.flatMap { signal =>
           fs2Channel
             .withConsumerSettings(_.withAutoOffsetReset(aor))
@@ -67,7 +68,7 @@ object KafkaMonitoringApi {
       predict: ConsumerRecord[Try[K], Try[V]] => Boolean,
       aor: AutoOffsetReset): F[Unit] =
       Blocker[F].use { blocker =>
-        val pipe = new AvroPipes[F, NJConsumerRecord[K, V]](blocker)
+        val pipe = new AvroSerialization[F, NJConsumerRecord[K, V]](blocker)
         Keyboard.signal.flatMap { signal =>
           fs2Channel
             .withConsumerSettings(_.withAutoOffsetReset(aor))
@@ -85,7 +86,7 @@ object KafkaMonitoringApi {
     override def watchFrom(njt: NJTimestamp): F[Unit] = {
       val run: Stream[F, Unit] = for {
         blocker <- Stream.resource(Blocker[F])
-        pipe = new AvroPipes[F, NJConsumerRecord[K, V]](blocker)
+        pipe = new AvroSerialization[F, NJConsumerRecord[K, V]](blocker)
         kcs <- Stream.resource(topic.shortLivedConsumer)
         gtp <- Stream.eval(for {
           os <- kcs.offsetsForTimes(njt)

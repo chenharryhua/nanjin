@@ -1,8 +1,8 @@
-package mtest.kafka
+package mtest
 
 import cats.effect.IO
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.AvroPipes
+import com.github.chenharryhua.nanjin.pipes.AvroSerialization
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -16,11 +16,11 @@ object AvroPipesTestData {
 
 class AvroPipesTest extends AnyFunSuite {
   import AvroPipesTestData._
-  val pipe = new AvroPipes[IO, Test](blocker)
+  val pipe = new AvroSerialization[IO, Test](blocker)
 
-  data.through(pipe.toPrettyJackson).showLinesStdOut.compile.drain.unsafeRunSync()
+  data.through(pipe.toPrettyJson).showLinesStdOut.compile.drain.unsafeRunSync()
   test("jackson identity") {
-    data.through(pipe.toJackson).through(pipe.fromJackson).compile.toList === list
+    data.through(pipe.toByteJson).through(pipe.fromJson).compile.toList === list
   }
 
   test("data identity") {
