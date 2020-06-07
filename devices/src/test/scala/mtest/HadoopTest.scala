@@ -19,7 +19,7 @@ class HadoopTest extends AnyFunSuite {
 
   test("write/read identity") {
     val action = h.delete(pathStr) >>
-      ts.through(h.hadoopSink(pathStr)).compile.drain >>
+      ts.through(h.sink(pathStr)).compile.drain >>
       h.inputStream(pathStr)
         .flatMap(is => readInputStream(IO(is), 64, blocker).through(fs2.text.utf8Decode))
         .compile
