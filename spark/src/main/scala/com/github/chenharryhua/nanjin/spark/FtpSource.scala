@@ -32,7 +32,7 @@ final class FtpSource[F[_], C, S <: RemoteFileSettings](downloader: FtpDownloade
   def jackson[A: AvroDecoder](
     pathStr: String)(implicit cs: ContextShift[F], ce: ConcurrentEffect[F]): Stream[F, A] = {
     val pipe = new AvroDeserialization[F, A]
-    downloader.download(pathStr).through(pipe.fromJson)
+    downloader.download(pathStr).through(pipe.fromJackson)
   }
 
 }

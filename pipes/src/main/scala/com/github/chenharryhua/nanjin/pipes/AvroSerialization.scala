@@ -61,9 +61,9 @@ final class AvroDeserialization[F[_]: ConcurrentEffect, A: AvroDecoder] {
     Stream.fromIterator[F](ais.iterator)
   }
 
-  def fromJson(is: InputStream): Stream[F, A]   = deserialize(JsonFormat, is)
-  def fromBinary(is: InputStream): Stream[F, A] = deserialize(BinaryFormat, is)
+  def fromJackson(is: InputStream): Stream[F, A] = deserialize(JsonFormat, is)
+  def fromBinary(is: InputStream): Stream[F, A]  = deserialize(BinaryFormat, is)
 
-  def fromJson: Pipe[F, Byte, A]   = _.through(toInputStream[F]).flatMap(fromJson)
-  def fromBinary: Pipe[F, Byte, A] = _.through(toInputStream[F]).flatMap(fromBinary)
+  def fromJackson: Pipe[F, Byte, A] = _.through(toInputStream[F]).flatMap(fromJackson)
+  def fromBinary: Pipe[F, Byte, A]  = _.through(toInputStream[F]).flatMap(fromBinary)
 }
