@@ -5,8 +5,8 @@ import com.github.chenharryhua.nanjin.database.{DatabaseSettings, TableName}
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SparkSession
 
-final class TableDef[A] private (val tableName: TableName)(
-  implicit val typedEncoder: TypedEncoder[A]) {
+final class TableDef[A] private (val tableName: TableName)(implicit
+  val typedEncoder: TypedEncoder[A]) {
 
   def in(dbSettings: DatabaseSettings)(implicit sparkSession: SparkSession): SparkTableSession[A] =
     new SparkTableSession[A](this, dbSettings, STConfig.defaultConfig)
@@ -18,8 +18,10 @@ object TableDef {
     new TableDef[A](tableName)
 }
 
-final class SparkTableSession[A](tableDef: TableDef[A], dbSettings: DatabaseSettings, cfg: STConfig)(
-  implicit sparkSession: SparkSession)
+final class SparkTableSession[A](
+  tableDef: TableDef[A],
+  dbSettings: DatabaseSettings,
+  cfg: STConfig)(implicit sparkSession: SparkSession)
     extends UpdateParams[STConfig, SparkTableSession[A]] {
   import tableDef.typedEncoder
 
@@ -40,7 +42,7 @@ final class SparkTableSession[A](tableDef: TableDef[A], dbSettings: DatabaseSett
   def fromDisk(path: String): TypedDataset[A] =
     sd.fromDisk(params.fileFormat, path)
 
-  def fromDisk(): TypedDataset[A] =
+  def fromDisk: TypedDataset[A] =
     fromDisk(params.pathBuilder(TablePathBuild(tableDef.tableName, params.fileFormat)))
 
   def upload(dataset: TypedDataset[A]): Unit =

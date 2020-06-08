@@ -13,8 +13,6 @@ import com.github.chenharryhua.nanjin.spark.kafka._
 import com.landoop.transportation.nyc.trip.yellow.trip_record
 import frameless.TypedDataset
 import frameless.cats.implicits._
-import io.circe.generic.auto._
-import io.circe.syntax._
 import org.scalatest.funsuite.AnyFunSuite
 
 class SparKafkaTest extends AnyFunSuite {
