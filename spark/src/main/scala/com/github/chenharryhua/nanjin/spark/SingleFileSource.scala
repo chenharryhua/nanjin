@@ -17,14 +17,15 @@ import org.apache.hadoop.conf.Configuration
 final class SingleFileSource[F[_]](blocker: Blocker, conf: Configuration) {
 
   def csv[A: RowDecoder](pathStr: String, csvConfig: CsvConfiguration)(implicit
-    F: Sync[F],
+    F: ConcurrentEffect[F],
     cs: ContextShift[F]): Stream[F, A] = {
     val hadoop = new NJHadoop[F](conf, blocker)
     val pipe   = new CsvDeserialization[F, A](csvConfig)
     hadoop.source(pathStr).through(pipe.deserialize)
   }
 
-  def csv[A: RowDecoder](pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): Stream[F, A] =
+  def csv[A: RowDecoder](
+    pathStr: String)(implicit F: ConcurrentEffect[F], cs: ContextShift[F]): Stream[F, A] =
     csv[A](pathStr, CsvConfiguration.rfc)
 
   def json[A: JsonDecoder](

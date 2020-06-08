@@ -16,12 +16,12 @@ import kantan.csv.{CsvConfiguration, RowDecoder}
 final class FtpSource[F[_], C, S <: RemoteFileSettings](downloader: FtpDownloader[F, C, S]) {
 
   def csv[A: RowDecoder](pathStr: String, csvConfig: CsvConfiguration)(implicit
-    r: RaiseThrowable[F]): Stream[F, A] = {
+    r: ConcurrentEffect[F]): Stream[F, A] = {
     val pipe = new CsvDeserialization[F, A](csvConfig)
     downloader.download(pathStr).through(pipe.deserialize)
   }
 
-  def csv[A: RowDecoder](pathStr: String)(implicit r: RaiseThrowable[F]): Stream[F, A] =
+  def csv[A: RowDecoder](pathStr: String)(implicit r: ConcurrentEffect[F]): Stream[F, A] =
     csv[A](pathStr, CsvConfiguration.rfc)
 
   def json[A: JsonDecoder](pathStr: String)(implicit F: RaiseThrowable[F]): Stream[F, A] = {
