@@ -2,8 +2,8 @@ package mtest
 
 import cats.effect.IO
 import cats.implicits._
-import com.github.chenharryhua.nanjin.pipes.AvroSerialization
-import fs2.Stream
+import com.github.chenharryhua.nanjin.pipes.{AvroDeserialization, AvroSerialization}
+import fs2.{Chunk, Stream}
 import org.scalatest.funsuite.AnyFunSuite
 
 object AvroPipesTestData {
@@ -16,29 +16,15 @@ object AvroPipesTestData {
 
 class AvroPipesTest extends AnyFunSuite {
   import AvroPipesTestData._
-  val pipe = new AvroSerialization[IO, Test](blocker)
+  val ser  = new AvroSerialization[IO, Test]
+  val dser = new AvroDeserialization[IO, Test]
 
-  data.through(pipe.toPrettyJson).showLinesStdOut.compile.drain.unsafeRunSync()
+  data.through(ser.toPrettyJson).showLinesStdOut.compile.drain.unsafeRunSync()
   test("jackson identity") {
-    data.through(pipe.toByteJson).through(pipe.fromJson).compile.toList === list
+    data.through(ser.toByteJson).through(dser.fromJackson).compile.toList === list
   }
 
-  test("data identity") {
-    data
-      .through(pipe.toData)
-      .chunkLimit(3)
-      .map(_.toArray)
-      .through(pipe.fromData)
-      .compile
-      .toList === list
-  }
   test("binary identity") {
-    data
-      .through(pipe.toBinary)
-      .chunkLimit(2)
-      .map(_.toArray)
-      .through(pipe.fromBinary)
-      .compile
-      .toList === list
+    data.through(ser.toBinary).through(dser.fromBinary).compile.toList === list
   }
 }
