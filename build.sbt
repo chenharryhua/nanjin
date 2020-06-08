@@ -86,7 +86,8 @@ lazy val commonSettings = Seq(
     "-Ywarn-numeric-widen",
     "-Xfuture"
   ),
-  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
+  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
+  bloopExportJarClassifiers in Global := Some(Set("sources"))
 )
 
 val hadoopLib = Seq(
