@@ -47,7 +47,7 @@ object KafkaMonitoringApi {
 
     private def watch(aor: AutoOffsetReset): F[Unit] =
       Blocker[F].use { blocker =>
-        val pipe = new AvroSerialization[F, NJConsumerRecord[K, V]](blocker)
+        val pipe = new AvroSerialization[F, NJConsumerRecord[K, V]]
         Keyboard.signal.flatMap { signal =>
           fs2Channel
             .withConsumerSettings(_.withAutoOffsetReset(aor))
@@ -68,7 +68,7 @@ object KafkaMonitoringApi {
       predict: ConsumerRecord[Try[K], Try[V]] => Boolean,
       aor: AutoOffsetReset): F[Unit] =
       Blocker[F].use { blocker =>
-        val pipe = new AvroSerialization[F, NJConsumerRecord[K, V]](blocker)
+        val pipe = new AvroSerialization[F, NJConsumerRecord[K, V]]
         Keyboard.signal.flatMap { signal =>
           fs2Channel
             .withConsumerSettings(_.withAutoOffsetReset(aor))
@@ -86,7 +86,7 @@ object KafkaMonitoringApi {
     override def watchFrom(njt: NJTimestamp): F[Unit] = {
       val run: Stream[F, Unit] = for {
         blocker <- Stream.resource(Blocker[F])
-        pipe = new AvroSerialization[F, NJConsumerRecord[K, V]](blocker)
+        pipe = new AvroSerialization[F, NJConsumerRecord[K, V]]
         kcs <- Stream.resource(topic.shortLivedConsumer)
         gtp <- Stream.eval(for {
           os <- kcs.offsetsForTimes(njt)

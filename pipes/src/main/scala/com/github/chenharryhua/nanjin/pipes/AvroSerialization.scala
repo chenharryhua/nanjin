@@ -22,21 +22,23 @@ import io.circe.Printer
 import io.circe.jackson.jacksonToCirce
 import org.apache.avro.Schema
 
-final class AvroSerialization[F[_]: ContextShift: ConcurrentEffect, A: AvroEncoder](
-  blocker: Blocker) {
+final class AvroSerialization[F[_]: ContextShift: ConcurrentEffect, A: AvroEncoder] {
   private val chunkSize: Int = 2048
 
   // serialize
   private def serialize(fmt: AvroFormat): Stream[F, A] => Stream[F, Byte] = { (ss: Stream[F, A]) =>
-    readOutputStream[F](blocker, chunkSize) { os =>
-      val aos = new AvroOutputStreamBuilder[A](fmt).to(os).build()
-      def go(bs: Stream[F, A]): Pull[F, Byte, Unit] =
-        bs.pull.uncons.flatMap {
-          case Some((hl, tl)) => Pull.pure(hl.foreach(aos.write)) >> go(tl)
-          case None           => Pull.pure(aos.close()) >> Pull.done
-        }
-      go(ss).stream.compile.drain
-    }
+    for {
+      blocker <- Stream.resource(Blocker[F])
+      bs <- readOutputStream[F](blocker, chunkSize) { os =>
+        val aos = new AvroOutputStreamBuilder[A](fmt).to(os).build()
+        def go(bs: Stream[F, A]): Pull[F, Byte, Unit] =
+          bs.pull.uncons.flatMap {
+            case Some((hl, tl)) => Pull.pure(hl.foreach(aos.write)) >> go(tl)
+            case None           => Pull.pure(aos.close()) >> Pull.done
+          }
+        go(ss).stream.compile.drain
+      }
+    } yield bs
   }
 
   private val pretty: Pipe[F, String, String] = {
@@ -51,7 +53,7 @@ final class AvroSerialization[F[_]: ContextShift: ConcurrentEffect, A: AvroEncod
   val toPrettyJson: Pipe[F, A, String]  = toByteJson >>> utf8Decode[F] >>> lines[F] >>> pretty
 }
 
-final class AvroDeserialization[F[_]: ConcurrentEffect, A: AvroDecoder](blocker: Blocker) {
+final class AvroDeserialization[F[_]: ConcurrentEffect, A: AvroDecoder] {
 
   private def deserialize(fmt: AvroFormat, is: InputStream): Stream[F, A] = {
     val schema: Schema          = AvroDecoder[A].schema

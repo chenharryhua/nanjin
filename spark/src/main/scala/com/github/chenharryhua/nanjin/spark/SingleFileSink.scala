@@ -44,14 +44,14 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
   def binary[A: AvroEncoder](
     pathStr: String)(implicit cs: ContextShift[F], ce: ConcurrentEffect[F]): Pipe[F, A, Unit] = {
     val hadoop = new NJHadoop[F](conf, blocker)
-    val pipe   = new AvroSerialization[F, A](blocker)
+    val pipe   = new AvroSerialization[F, A]
     (ss: Stream[F, A]) => ss.through(pipe.toBinary).through(hadoop.sink(pathStr))
   }
 
   def jackson[A: AvroEncoder](
     pathStr: String)(implicit cs: ContextShift[F], ce: ConcurrentEffect[F]): Pipe[F, A, Unit] = {
     val hadoop = new NJHadoop[F](conf, blocker)
-    val pipe   = new AvroSerialization[F, A](blocker)
+    val pipe   = new AvroSerialization[F, A]
     (ss: Stream[F, A]) => ss.through(pipe.toByteJson).through(hadoop.sink(pathStr))
   }
 
