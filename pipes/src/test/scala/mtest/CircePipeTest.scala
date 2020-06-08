@@ -11,7 +11,7 @@ class CircePipeTest extends AnyFunSuite {
   val ser  = new CirceSerialization[IO, Test]
   val dser = new CirceDeserialization[IO, Test]
 
-  test("jackson identity") {
+  test("circe identity") {
     data.through(ser.serialize).through(dser.deserialize).compile.toList === list
   }
 }

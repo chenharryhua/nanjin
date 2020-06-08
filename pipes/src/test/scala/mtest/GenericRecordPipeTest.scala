@@ -12,7 +12,7 @@ class GenericRecordPipeTest extends AnyFunSuite {
   val ser  = new GenericRecordSerialization[IO, Test]
   val dser = new GenericRecordDeserialization[IO, Test]
 
-  test("binary identity") {
+  test("generic record identity") {
     data.through(ser.serialize).through(dser.deserialize).compile.toList === list
   }
 }

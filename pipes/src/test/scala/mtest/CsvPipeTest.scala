@@ -11,7 +11,7 @@ class CsvPipeTest extends AnyFunSuite {
   val ser  = new CsvSerialization[IO, Test](CsvConfiguration.rfc)
   val dser = new CsvDeserialization[IO, Test](CsvConfiguration.rfc)
 
-  test("jackson identity") {
+  test("csv identity") {
     data.through(ser.serialize).through(dser.deserialize).compile.toList === list
   }
 }
