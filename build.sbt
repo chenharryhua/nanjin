@@ -247,6 +247,7 @@ val dbLib = Seq(
 )
 
 val kantanLib = Seq(
+  "com.nrinaudo" %% "kantan.csv",
   "com.nrinaudo" %% "kantan.csv-java8",
   "com.nrinaudo" %% "kantan.csv-generic",
   "com.nrinaudo" %% "kantan.csv-cats"

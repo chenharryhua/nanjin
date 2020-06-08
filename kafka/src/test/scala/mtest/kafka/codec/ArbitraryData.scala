@@ -18,7 +18,6 @@ import fs2.kafka.{
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.scalacheck.{Arbitrary, Cogen, Gen}
-import genMessage._
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducerRecord}
 
@@ -30,7 +29,7 @@ final case class PrimitiveTypeCombined(
   e: String
 )
 
-trait ArbitraryData extends GenKafkaMessage with GenFs2Message with GenAkkaMessage {
+trait ArbitraryData extends genMessage.GenFs2Message with genMessage.GenAkkaMessage {
 
   //kafka
   implicit val abKafkaConsumerRecord: Arbitrary[ConsumerRecord[Int, Int]] =

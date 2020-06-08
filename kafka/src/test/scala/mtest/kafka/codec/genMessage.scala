@@ -38,7 +38,7 @@ import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducer
 
 object genMessage {
 
-  trait GenKafkaMessage {
+  trait GenKafkaMessage { self =>
 
     val genHeader: Gen[Header] = for {
       key <- Gen.asciiPrintableStr
@@ -116,7 +116,7 @@ object genMessage {
 
   }
 
-  trait GenFs2Message extends GenKafkaMessage {
+  trait GenFs2Message extends GenKafkaMessage { self => 
     import fs2.kafka.{CommittableConsumerRecord, CommittableOffset, ProducerRecords}
 
     val genFs2ConsumerRecord: Gen[Fs2ConsumerRecord[Int, Int]] =
@@ -165,7 +165,7 @@ object genMessage {
 
   }
 
-  trait GenAkkaMessage extends GenKafkaMessage {
+  trait GenAkkaMessage extends GenKafkaMessage { self => 
     import akka.kafka.ConsumerMessage.{GroupTopicPartition, PartitionOffset}
 
     val genAkkaGroupTopicPartition: Gen[GroupTopicPartition] = for {
