@@ -2,7 +2,7 @@ scalaVersion in ThisBuild      := "2.12.11"
 scapegoatVersion in ThisBuild  := "1.3.11"
 parallelExecution in ThisBuild := false
 
-version in ThisBuild := "0.6.13-SNAPSHOT"
+version in ThisBuild := "0.6.14-SNAPSHOT"
 
 val confluent    = "5.3.0"
 val kafkaVersion = "2.5.0"
@@ -28,7 +28,7 @@ val akka = "2.6.6"
 val akkaKafka = "2.0.3"
 val fs2Kafka  = "1.0.0"
 
-val sparkVersion = "2.4.6"
+val sparkVersion = "2.4.5"
 val frameless    = "0.8.0"
 
 val circe         = "0.13.0"
@@ -86,7 +86,8 @@ lazy val commonSettings = Seq(
     "-Ywarn-numeric-widen",
     "-Xfuture"
   ),
-  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
+  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
+  bloopExportJarClassifiers in Global := Some(Set("sources"))
 )
 
 val hadoopLib = Seq(
@@ -246,6 +247,7 @@ val dbLib = Seq(
 )
 
 val kantanLib = Seq(
+  "com.nrinaudo" %% "kantan.csv",
   "com.nrinaudo" %% "kantan.csv-java8",
   "com.nrinaudo" %% "kantan.csv-generic",
   "com.nrinaudo" %% "kantan.csv-cats"
@@ -265,14 +267,24 @@ lazy val datetime = (project in file("datetime"))
   .settings(name := "nj-datetime")
   .settings(libraryDependencies ++= baseLib ++ monocleLib ++ testLib)
 
+lazy val devices = (project in file("devices"))
+  .settings(commonSettings: _*)
+  .settings(name := "nj-devices")
+  .settings(
+    libraryDependencies ++=
+      Seq("com.lightbend.akka" %% "akka-stream-alpakka-ftp" % "2.0.0") ++
+        baseLib ++ fs2Lib ++ hadoopLib ++ avroLib ++ effectLib ++ akkaLib ++ testLib)
+
 lazy val pipes = (project in file("pipes"))
   .settings(commonSettings: _*)
   .settings(name := "nj-pipes")
   .settings(libraryDependencies ++=
-    Seq("com.lightbend.akka" %% "akka-stream-alpakka-ftp" % "2.0.0") ++
-      baseLib ++ fs2Lib ++ hadoopLib ++ effectLib ++ akkaLib ++ jsonLib ++ kantanLib ++ avroLib ++ testLib)
+    baseLib ++ fs2Lib ++ effectLib ++ jsonLib ++ kantanLib ++ avroLib ++ testLib)
 
 lazy val kafka = (project in file("kafka"))
+  .dependsOn(pipes)
+  .dependsOn(datetime)
+  .dependsOn(common)
   .settings(commonSettings: _*)
   .settings(name := "nj-kafka")
   .settings(
@@ -283,8 +295,6 @@ lazy val kafka = (project in file("kafka"))
     ) ++ effectLib ++ kafkaLib ++ akkaLib ++ avroLib ++ jsonLib ++ testLib,
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
-  .dependsOn(datetime)
-  .dependsOn(common)
 
 lazy val database = (project in file("database"))
   .dependsOn(common)
@@ -296,6 +306,7 @@ lazy val database = (project in file("database"))
 lazy val spark = (project in file("spark"))
   .dependsOn(kafka)
   .dependsOn(database)
+  .dependsOn(devices)
   .dependsOn(pipes)
   .settings(commonSettings: _*)
   .settings(name := "nj-spark")
@@ -323,4 +334,4 @@ lazy val flink = (project in file("flink"))
 lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
-    .aggregate(common, datetime, pipes, kafka, flink, database, spark)
+    .aggregate(common, datetime, devices, pipes, kafka, flink, database, spark)

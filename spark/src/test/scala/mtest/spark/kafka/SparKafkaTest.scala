@@ -13,8 +13,6 @@ import com.github.chenharryhua.nanjin.spark.kafka._
 import com.landoop.transportation.nyc.trip.yellow.trip_record
 import frameless.TypedDataset
 import frameless.cats.implicits._
-import io.circe.generic.auto._
-import io.circe.syntax._
 import org.scalatest.funsuite.AnyFunSuite
 
 class SparKafkaTest extends AnyFunSuite {
@@ -35,14 +33,6 @@ class SparKafkaTest extends AnyFunSuite {
     val rst =
       topic.sparKafka.fromKafka.flatMap(_.crDataset.values.collect[IO]()).unsafeRunSync
     assert(rst.toList === List(data, data))
-  }
-
-  test("save topic to disk") {
-    topic.sparKafka
-      .withParamUpdate(_.withOverwrite.withPathBuilder((_, _) => "./data/test/st"))
-      .fromKafka
-      .map(_.crDataset.save)
-      .unsafeRunSync
   }
 
   test("read topic from kafka and show aggragation result") {

@@ -33,12 +33,6 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
     cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
     new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valCodec)
 
-  def toJackson[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): Json =
-    topicDef.toJackson(decoder(cr).record)
-
-  def fromJackson(jsonString: String): Try[NJConsumerRecord[K, V]] =
-    topicDef.fromJackson(jsonString)
-
   override def toString: String = {
     import cats.derived.auto.show._
     s"""

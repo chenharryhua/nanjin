@@ -76,18 +76,6 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def show(implicit F: Sync[F]): F[Unit] =
     typedDataset.show[F](params.showDs.rowNum, params.showDs.isTruncate)
 
-  def save(implicit F: Sync[F]): F[Long] = {
-    val data = typedDataset.persist()
-    F.delay {
-      sk.save(
-        data,
-        topic,
-        params.fileFormat,
-        params.saveMode,
-        params.pathBuilder(topic.topicName, params.fileFormat))
-    }.flatMap(_ => data.count[F]())
-  }
-
   // state change
   def toProducerRecords: FsmProducerRecords[F, K, V] =
     new FsmProducerRecords(

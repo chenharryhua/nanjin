@@ -1,13 +1,12 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import java.time.ZonedDateTime
-
-import cats.effect.{ConcurrentEffect, ContextShift, Timer}
+import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.codec.NJConsumerMessage._
 import com.github.chenharryhua.nanjin.kafka.codec.iso
-import com.github.chenharryhua.nanjin.kafka.common.KafkaOffset
+import com.github.chenharryhua.nanjin.kafka.common.{KafkaOffset, NJConsumerRecord}
+import com.github.chenharryhua.nanjin.pipes.AvroSerialization
 import com.github.chenharryhua.nanjin.utils.Keyboard
 import fs2.Stream
 import fs2.kafka.{produce, AutoOffsetReset, ProducerRecord, ProducerRecords}
@@ -20,7 +19,7 @@ sealed trait KafkaMonitoringApi[F[_], K, V] {
   def watchFromEarliest: F[Unit]
   def watchFrom(njt: NJTimestamp): F[Unit]
 
-  def filter(pred: ConsumerRecord[Try[K], Try[V]]             => Boolean): F[Unit]
+  def filter(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit]
   def filterFromEarliest(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit]
 
   def badRecordsFromEarliest: F[Unit]
@@ -41,55 +40,67 @@ object KafkaMonitoringApi {
     topic: KafkaTopic[F, K, V])(implicit F: ConcurrentEffect[F])
       extends KafkaMonitoringApi[F, K, V] {
 
+    import topic.topicDef.{avroKeyDecoder, avroKeyEncoder, avroValDecoder, avroValEncoder}
+
     private val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
       topic.fs2Channel.withConsumerSettings(_.withEnableAutoCommit(false))
 
     private def watch(aor: AutoOffsetReset): F[Unit] =
-      Keyboard.signal.flatMap { signal =>
-        fs2Channel
-          .withConsumerSettings(_.withAutoOffsetReset(aor))
-          .stream
-          .map { m =>
-            val (err, r) = topic.decoder(m).logRecord.run
-            err.map(e => pprint.pprintln(e))
-            s"""|local now: ${ZonedDateTime.now}
-                |timestamp: ${NJTimestamp(r.timestamp).local}
-                |${topic.topicDef.toJackson(r).spaces2}""".stripMargin
-          }
-          .showLinesStdOut
-          .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
-          .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
-      }.compile.drain
+      Blocker[F].use { blocker =>
+        val pipe = new AvroSerialization[F, NJConsumerRecord[K, V]]
+        Keyboard.signal.flatMap { signal =>
+          fs2Channel
+            .withConsumerSettings(_.withAutoOffsetReset(aor))
+            .stream
+            .map { m =>
+              val (err, r) = topic.decoder(m).logRecord.run
+              err.map(e => pprint.pprintln(e))
+              r
+            }
+            .through(pipe.toPrettyJson)
+            .showLinesStdOut
+            .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
+            .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
+        }.compile.drain
+      }
 
     private def filterWatch(
       predict: ConsumerRecord[Try[K], Try[V]] => Boolean,
       aor: AutoOffsetReset): F[Unit] =
-      Keyboard.signal.flatMap { signal =>
-        fs2Channel
-          .withConsumerSettings(_.withAutoOffsetReset(aor))
-          .stream
-          .filter(m =>
-            predict(iso.isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record)))
-          .map(m => topic.toJackson(m).spaces2)
-          .showLinesStdOut
-          .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
-          .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
-      }.compile.drain
+      Blocker[F].use { blocker =>
+        val pipe = new AvroSerialization[F, NJConsumerRecord[K, V]]
+        Keyboard.signal.flatMap { signal =>
+          fs2Channel
+            .withConsumerSettings(_.withAutoOffsetReset(aor))
+            .stream
+            .filter(m =>
+              predict(iso.isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record)))
+            .map(m => topic.decoder(m).record)
+            .through(pipe.toPrettyJson)
+            .showLinesStdOut
+            .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
+            .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
+        }.compile.drain
+      }
 
     override def watchFrom(njt: NJTimestamp): F[Unit] = {
       val run: Stream[F, Unit] = for {
+        blocker <- Stream.resource(Blocker[F])
+        pipe = new AvroSerialization[F, NJConsumerRecord[K, V]]
         kcs <- Stream.resource(topic.shortLivedConsumer)
         gtp <- Stream.eval(for {
           os <- kcs.offsetsForTimes(njt)
           e <- kcs.endOffsets
         } yield os.combineWith(e)(_.orElse(_)))
         signal <- Keyboard.signal
-        _ <- fs2Channel
-          .assign(gtp.flatten[KafkaOffset].mapValues(_.value).value)
-          .map(m => topic.toJackson(m).spaces2)
-          .showLinesStdOut
-          .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
-          .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
+        _ <-
+          fs2Channel
+            .assign(gtp.flatten[KafkaOffset].mapValues(_.value).value)
+            .map(m => topic.decoder(m).record)
+            .through(pipe.toPrettyJson)
+            .showLinesStdOut
+            .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
+            .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
       } yield ()
       run.compile.drain
     }
@@ -113,8 +124,8 @@ object KafkaMonitoringApi {
       topic.shortLivedConsumer.use { consumer =>
         for {
           num <- consumer.numOfRecords
-          first <- consumer.retrieveFirstRecords.map(_.map(cr =>
-            topic.decoder(cr).tryDecodeKeyValue))
+          first <-
+            consumer.retrieveFirstRecords.map(_.map(cr => topic.decoder(cr).tryDecodeKeyValue))
           last <- consumer.retrieveLastRecords.map(_.map(cr => topic.decoder(cr).tryDecodeKeyValue))
         } yield println(s"""
                            |summaries:

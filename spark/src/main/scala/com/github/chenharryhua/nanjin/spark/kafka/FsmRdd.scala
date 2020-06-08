@@ -7,7 +7,6 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
-import com.github.chenharryhua.nanjin.pipes.hadoop
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
@@ -83,8 +82,7 @@ final class FsmRdd[F[_], K, V](
   def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
     Blocker[F].use { blocker =>
       val pathStr = params.replayPath(topic.topicName)
-      hadoop.delete(pathStr, sparkSession.sparkContext.hadoopConfiguration, blocker) >>
-        F.delay(rdd.saveAsObjectFile(pathStr))
+      fileSink(blocker).delete(pathStr) >> F.delay(rdd.saveAsObjectFile(pathStr))
     }
 
   def saveJson(pathStr: String)(implicit
@@ -92,19 +90,23 @@ final class FsmRdd[F[_], K, V](
     cs: ContextShift[F],
     ek: JsonEncoder[K],
     ev: JsonEncoder[V]): F[Unit] =
-    stream.through(fileSink.json(pathStr)).compile.drain
-
-  def save(implicit F: Sync[F], cs: ContextShift[F]): F[Long] = {
-    val fmt  = params.fileFormat
-    val path = params.pathBuilder(topic.topicName, fmt)
-    val data = rdd.persist()
-    val run: Stream[F, Unit] = fmt match {
-      case NJFileFormat.Avro    => data.stream.through(fileSink.avro(path))
-      case NJFileFormat.Jackson => data.stream.through(fileSink.jackson(path))
-      case NJFileFormat.Parquet => data.stream.through(fileSink.parquet(path))
+    Blocker[F].use { blocker =>
+      stream.through(fileSink(blocker).json(pathStr)).compile.drain
     }
-    run.compile.drain.as(data.count) <* F.delay(data.unpersist())
-  }
+
+  def save(implicit F: ConcurrentEffect[F], cs: ContextShift[F]): F[Long] =
+    Blocker[F].use { blocker =>
+      val fmt  = params.fileFormat
+      val path = params.pathBuilder(topic.topicName, fmt)
+      val data = rdd.persist()
+      val run: Stream[F, Unit] = fmt match {
+        case NJFileFormat.Avro       => data.stream.through(fileSink(blocker).avro(path))
+        case NJFileFormat.AvroBinary => data.stream.through(fileSink(blocker).binary(path))
+        case NJFileFormat.Jackson    => data.stream.through(fileSink(blocker).jackson(path))
+        case NJFileFormat.Parquet    => data.stream.through(fileSink(blocker).parquet(path))
+      }
+      run.compile.drain.as(data.count) <* F.delay(data.unpersist())
+    }
 
   // pipe
   def pipeTo(otherTopic: KafkaTopic[F, K, V])(implicit

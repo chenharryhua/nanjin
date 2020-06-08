@@ -39,7 +39,7 @@ private[spark] object SKParams {
       timeRange = NJDateTimeRange.infinite,
       uploadRate = NJUploadRate.default,
       pathBuilder =
-        (topicName, fmt) => s"./data/sparKafka/${topicName.value}/${fmt.format}${fmt.suffix}",
+        (topicName, fmt) => s"./data/sparKafka/${topicName.value}/${fmt.alias}.${fmt.format}",
       replayPath = topicName => s"./data/sparKafka/${topicName.value}/replay/",
       fileFormat = NJFileFormat.Jackson,
       saveMode = SaveMode.ErrorIfExists,
@@ -107,6 +107,7 @@ final private[spark] case class SKConfig private (value: Fix[SKConfigF]) extends
 
   def withJackson: SKConfig = withFileFormat(NJFileFormat.Jackson)
   def withAvro: SKConfig    = withFileFormat(NJFileFormat.Avro)
+  def withBinary: SKConfig  = withFileFormat(NJFileFormat.AvroBinary)
   def withParquet: SKConfig = withFileFormat(NJFileFormat.Parquet)
 
   def withTimeRange(tr: NJDateTimeRange): SKConfig = SKConfig(Fix(WithTimeRange(tr, value)))

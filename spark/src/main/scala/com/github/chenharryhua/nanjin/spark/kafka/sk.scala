@@ -71,23 +71,6 @@ object sk {
     sparkSession: SparkSession): F[RDD[NJConsumerRecord[K, V]]] =
     Sync[F].delay(sparkSession.sparkContext.objectFile[NJConsumerRecord[K, V]](path))
 
-  def save[F[_], K, V](
-    dataset: TypedDataset[NJConsumerRecord[K, V]],
-    topic: KafkaTopic[F, K, V],
-    fileFormat: NJFileFormat,
-    saveMode: SaveMode,
-    path: String): Unit =
-    fileFormat match {
-      case NJFileFormat.Avro | NJFileFormat.Parquet =>
-        dataset.write.mode(saveMode).format(fileFormat.format).save(path)
-      case NJFileFormat.Jackson =>
-        dataset.deserialized
-          .map(m => topic.topicDef.toJackson(m).noSpaces)
-          .write
-          .mode(saveMode)
-          .text(path)
-    }
-
   def uploader[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
     topic: KafkaTopic[F, K, V],
     uploadRate: NJUploadRate): Pipe[F, NJProducerRecord[K, V], ProducerResult[K, V, Unit]] =
