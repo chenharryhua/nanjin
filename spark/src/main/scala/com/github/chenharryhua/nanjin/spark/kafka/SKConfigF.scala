@@ -39,7 +39,7 @@ private[spark] object SKParams {
       timeRange = NJDateTimeRange.infinite,
       uploadRate = NJUploadRate.default,
       pathBuilder =
-        (topicName, fmt) => s"./data/sparKafka/${topicName.value}/${fmt.format}${fmt.suffix}",
+        (topicName, fmt) => s"./data/sparKafka/${topicName.value}/${fmt.alias}.${fmt.format}",
       replayPath = topicName => s"./data/sparKafka/${topicName.value}/replay/",
       fileFormat = NJFileFormat.Jackson,
       saveMode = SaveMode.ErrorIfExists,
