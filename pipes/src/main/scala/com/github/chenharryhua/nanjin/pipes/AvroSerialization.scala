@@ -23,7 +23,6 @@ import io.circe.jackson.jacksonToCirce
 import org.apache.avro.Schema
 
 final class AvroSerialization[F[_]: ContextShift: ConcurrentEffect, A: AvroEncoder] {
-  private val chunkSize: Int = 2048
 
   // serialize
   private def serialize(fmt: AvroFormat): Stream[F, A] => Stream[F, Byte] = { (ss: Stream[F, A]) =>
