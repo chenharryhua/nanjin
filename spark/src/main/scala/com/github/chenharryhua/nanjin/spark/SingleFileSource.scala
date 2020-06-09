@@ -56,7 +56,6 @@ final class SingleFileSource[F[_]](blocker: Blocker, conf: Configuration) {
   def parquet[A: AvroDecoder](
     pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): Stream[F, A] = {
     val hadoop = new NJHadoop[F](conf, blocker)
-    val pipe   = new GenericRecordDeserialization[F, A]
-    hadoop.parquetSource(pathStr).through(pipe.deserialize)
+    hadoop.parquetSource(pathStr)
   }
 }
