@@ -34,5 +34,4 @@ final class FtpSource[F[_], C, S <: RemoteFileSettings](downloader: FtpDownloade
     val pipe = new AvroDeserialization[F, A]
     downloader.download(pathStr).through(pipe.fromJackson)
   }
-
 }
