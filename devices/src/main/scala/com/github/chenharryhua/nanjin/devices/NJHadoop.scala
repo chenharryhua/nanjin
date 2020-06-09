@@ -49,7 +49,7 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
   def inputStream(pathStr: String): Stream[F, InputStream] =
     Stream.resource(fsInput(pathStr).widen)
 
-  def source(pathStr: String): Stream[F, Byte] =
+  def byteStream(pathStr: String): Stream[F, Byte] =
     for {
       is <- inputStream(pathStr)
       bt <- readInputStream[F](Sync[F].pure(is), chunkSize, blocker)

@@ -5,8 +5,7 @@ import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.pipes.{
   AvroDeserialization,
   CirceDeserialization,
-  CsvDeserialization,
-  GenericRecordDeserialization
+  CsvDeserialization
 }
 import com.sksamuel.avro4s.{Decoder => AvroDecoder}
 import fs2.Stream
@@ -21,7 +20,7 @@ final class SingleFileSource[F[_]](blocker: Blocker, conf: Configuration) {
     cs: ContextShift[F]): Stream[F, A] = {
     val hadoop = new NJHadoop[F](conf, blocker)
     val pipe   = new CsvDeserialization[F, A](csvConfig)
-    hadoop.source(pathStr).through(pipe.deserialize)
+    hadoop.byteStream(pathStr).through(pipe.deserialize)
   }
 
   def csv[A: RowDecoder](
@@ -32,7 +31,7 @@ final class SingleFileSource[F[_]](blocker: Blocker, conf: Configuration) {
     pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): Stream[F, A] = {
     val hadoop = new NJHadoop[F](conf, blocker)
     val pipe   = new CirceDeserialization[F, A]
-    hadoop.source(pathStr).through(pipe.deserialize)
+    hadoop.byteStream(pathStr).through(pipe.deserialize)
   }
 
   def avro[A: AvroDecoder](
@@ -54,8 +53,6 @@ final class SingleFileSource[F[_]](blocker: Blocker, conf: Configuration) {
   }
 
   def parquet[A: AvroDecoder](
-    pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): Stream[F, A] = {
-    val hadoop = new NJHadoop[F](conf, blocker)
-    hadoop.parquetSource(pathStr)
-  }
+    pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): Stream[F, A] =
+    new NJHadoop[F](conf, blocker).parquetSource(pathStr)
 }

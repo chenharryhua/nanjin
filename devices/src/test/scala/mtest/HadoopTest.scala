@@ -8,9 +8,15 @@ import fs2.io.readInputStream
 import org.apache.hadoop.conf.Configuration
 import org.scalatest.funsuite.AnyFunSuite
 
+import scala.util.Random
+
 object HadoopTestData {
   final case class Panda(name: String, age: Int)
-  val pandas: List[Panda] = List(Panda("aa", 0), Panda("bb", 1), Panda("cc", 2))
+
+  val pandas: List[Panda] = List(
+    Panda("aa", Random.nextInt()),
+    Panda("bb", Random.nextInt()),
+    Panda("cc", Random.nextInt()))
 }
 
 class HadoopTest extends AnyFunSuite {
@@ -18,7 +24,7 @@ class HadoopTest extends AnyFunSuite {
 
   test("hadoop text write/read identity") {
     val pathStr    = "./data/devices/hadoop/test.txt"
-    val testString = "save string to hadoop"
+    val testString = s"save string to hadoop ${Random.nextInt()}"
     val ts: Stream[IO, Byte] =
       Stream(testString).through(fs2.text.utf8Encode)
 

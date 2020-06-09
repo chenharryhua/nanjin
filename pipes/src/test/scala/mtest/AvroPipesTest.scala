@@ -6,10 +6,13 @@ import com.github.chenharryhua.nanjin.pipes.{AvroDeserialization, AvroSerializat
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 
+import scala.util.Random
+
 object TestData {
   case class Test(a: Int, b: String)
 
-  val list: List[Test] = (1 to 10).map(x => Test(x, List.fill(x)("a").mkString("\n"))).toList
+  val list: List[Test] =
+    (1 to 10).map(x => Test(Random.nextInt(), List.fill(x)("a").mkString("\n"))).toList
 
   val data: Stream[IO, Test] = Stream.fromIterator[IO](list.iterator)
 }
