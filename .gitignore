@@ -18,5 +18,5 @@ project/plugins/project/
 .metals
 .bloop
 test-data/
-data/
+data/*
 project/metals.sbt
