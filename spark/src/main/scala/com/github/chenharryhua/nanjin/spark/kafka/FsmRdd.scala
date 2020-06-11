@@ -85,6 +85,7 @@ final class FsmRdd[F[_], K, V](
       fileSink(blocker).delete(pathStr) >> F.delay(rdd.saveAsObjectFile(pathStr))
     }
 
+  //actions
   def saveJson(pathStr: String)(implicit
     F: Sync[F],
     cs: ContextShift[F],
