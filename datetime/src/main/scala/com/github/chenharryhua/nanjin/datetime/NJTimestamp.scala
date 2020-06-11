@@ -26,6 +26,15 @@ final case class NJTimestamp(milliseconds: Long) extends AnyVal {
   def monthStr(zoneId: ZoneId): String = f"${atZone(zoneId).getMonthValue}%02d"
   def dayStr(zoneId: ZoneId): String   = f"${atZone(zoneId).getDayOfMonth}%02d"
 
+  def `yyyy-mm-dd`(zoneId: ZoneId): String =
+    s"${yearStr(zoneId)}-${monthStr(zoneId)}-${dayStr(zoneId)}"
+
+  def `yyyy_mm_dd`(zoneId: ZoneId): String =
+    s"${yearStr(zoneId)}_${monthStr(zoneId)}_${dayStr(zoneId)}"
+
+  def `yyyy/mm/dd`(zoneId: ZoneId): String =
+    s"${yearStr(zoneId)}/${monthStr(zoneId)}/${dayStr(zoneId)}"
+
   def minus(amount: Long, unit: TemporalUnit): NJTimestamp =
     NJTimestamp(instant.minus(amount, unit))
 
