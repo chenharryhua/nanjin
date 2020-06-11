@@ -2,9 +2,9 @@ package com.github.chenharryhua.nanjin.spark
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
-import cats.{Eq, Order}
 import cats.effect.{ConcurrentEffect, Sync}
 import cats.implicits._
+import cats.{Eq, Order}
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.interop.reactivestreams._
@@ -38,10 +38,8 @@ private[spark] trait DatasetExtensions {
         )
         .toList
         .sorted
-        .map(k => persisted.filter(a => k === bucketing(a)).stream[F].through(out(k)))
-        .reduce(_ ++ _)
-        .compile
-        .drain >> ConcurrentEffect[F].delay(persisted.unpersist())
+        .map(k => persisted.filter(a => k === bucketing(a)).stream[F].through(out(k)).compile.drain)
+        .reduce(_ >> _) >> ConcurrentEffect[F].delay(persisted.unpersist())
     }
   }
 
