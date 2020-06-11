@@ -29,11 +29,20 @@ final case class NJTimestamp(milliseconds: Long) extends AnyVal {
   def `yyyy-mm-dd`(zoneId: ZoneId): String =
     s"${yearStr(zoneId)}-${monthStr(zoneId)}-${dayStr(zoneId)}"
 
-  def `yyyy_mm_dd`(zoneId: ZoneId): String =
-    s"${yearStr(zoneId)}_${monthStr(zoneId)}_${dayStr(zoneId)}"
+  def `Year=yyyy/Month=mm/Day=dd`(zoneId: ZoneId): String =
+    s"Year=${yearStr(zoneId)}/Month=${monthStr(zoneId)}/Day=${dayStr(zoneId)}"
 
-  def `yyyy/mm/dd`(zoneId: ZoneId): String =
-    s"${yearStr(zoneId)}/${monthStr(zoneId)}/${dayStr(zoneId)}"
+  def localDate(zoneId: ZoneId): LocalDate = atZone(zoneId).toLocalDate
+
+  def hourResolution(zoneId: ZoneId): LocalDateTime = {
+    val dt: LocalDateTime = atZone(zoneId).toLocalDateTime
+    LocalDateTime.of(dt.toLocalDate, LocalTime.of(dt.getHour, 0))
+  }
+
+  def minuteResolution(zoneId: ZoneId): LocalDateTime = {
+    val dt: LocalDateTime = atZone(zoneId).toLocalDateTime
+    LocalDateTime.of(dt.toLocalDate, LocalTime.of(dt.getHour, dt.getMinute))
+  }
 
   def minus(amount: Long, unit: TemporalUnit): NJTimestamp =
     NJTimestamp(instant.minus(amount, unit))
