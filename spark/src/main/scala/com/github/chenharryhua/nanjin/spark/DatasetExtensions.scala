@@ -27,13 +27,13 @@ private[spark] trait DatasetExtensions {
     def typedDataset(implicit ev: TypedEncoder[A], ss: SparkSession): TypedDataset[A] =
       TypedDataset.create(rdd)
 
-    def partitionSink[F[_]: ConcurrentEffect, K: Eq: ClassTag: Order](bucketing: A => K)(
+    def partitionSink[F[_]: Sync, K: Eq: ClassTag: Order](bucketing: A => K)(
       out: K => Pipe[F, A, Unit]): F[Unit] = {
       val persisted: RDD[A] = rdd.persist()
       val keys: List[K]     = persisted.map(bucketing).distinct().collect().toSet.toList.sorted
       keys
         .map(k => persisted.filter(a => k === bucketing(a)).stream[F].through(out(k)).compile.drain)
-        .reduce(_ >> _) >> ConcurrentEffect[F].delay(persisted.unpersist())
+        .reduce(_ >> _) >> Sync[F].delay(persisted.unpersist())
     }
   }
 

@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import java.time.{LocalDate, LocalDateTime, LocalTime}
+import java.time.{LocalDate, LocalDateTime}
 
 import cats.effect.Sync
 import com.github.chenharryhua.nanjin.datetime._
@@ -75,8 +75,7 @@ final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Ser
 
   def dailyHour(implicit ev: Sync[F]): F[Unit] = {
     val dayHour: TypedDataset[LocalDateTime] = typedDataset.deserialized.map { m =>
-      val dt = NJTimestamp(m.timestamp).atZone(params.timeRange.zoneId).toLocalDateTime
-      LocalDateTime.of(dt.toLocalDate, LocalTime.of(dt.getHour, 0))
+      NJTimestamp(m.timestamp).hourResolution(params.timeRange.zoneId)
     }
     val res = dayHour.groupBy(dayHour.asCol).agg(count(dayHour.asCol)).as[DailyHourAggResult]
     res.orderBy(res('date).asc).show[F](params.showDs.rowNum, params.showDs.isTruncate)
@@ -84,8 +83,7 @@ final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Ser
 
   def dailyMinute(implicit ev: Sync[F]): F[Unit] = {
     val dayMinute: TypedDataset[LocalDateTime] = typedDataset.deserialized.map { m =>
-      val dt = NJTimestamp(m.timestamp).atZone(params.timeRange.zoneId).toLocalDateTime
-      LocalDateTime.of(dt.toLocalDate, LocalTime.of(dt.getHour, dt.getMinute))
+      NJTimestamp(m.timestamp).minuteResolution(params.timeRange.zoneId)
     }
     val res =
       dayMinute.groupBy(dayMinute.asCol).agg(count(dayMinute.asCol)).as[DailyMinuteAggResult]
