@@ -30,14 +30,8 @@ private[spark] trait DatasetExtensions {
     def partitionSink[F[_]: ConcurrentEffect, K: Eq: ClassTag: Order](bucketing: A => K)(
       out: K => Pipe[F, A, Unit]): F[Unit] = {
       val persisted: RDD[A] = rdd.persist()
-      persisted
-        .groupBy(bucketing)
-        .aggregate(Set.empty[K])(
-          { case (s, (k, _)) => s + k },
-          (s1, s2) => s1 ++ s2
-        )
-        .toList
-        .sorted
+      val keys: List[K]     = persisted.map(bucketing).distinct().collect().toSet.toList.sorted
+      keys
         .map(k => persisted.filter(a => k === bucketing(a)).stream[F].through(out(k)).compile.drain)
         .reduce(_ >> _) >> ConcurrentEffect[F].delay(persisted.unpersist())
     }
