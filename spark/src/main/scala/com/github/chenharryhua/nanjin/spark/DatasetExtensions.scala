@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
-import cats.Eq
+import cats.{Eq, Order}
 import cats.effect.{ConcurrentEffect, Sync}
 import cats.implicits._
 import frameless.cats.implicits._
@@ -27,7 +27,7 @@ private[spark] trait DatasetExtensions {
     def typedDataset(implicit ev: TypedEncoder[A], ss: SparkSession): TypedDataset[A] =
       TypedDataset.create(rdd)
 
-    def partitionOutput[F[_]: ConcurrentEffect, K: Eq: ClassTag: Ordering](bucketing: A => K)(
+    def partitionSink[F[_]: ConcurrentEffect, K: Eq: ClassTag: Order](bucketing: A => K)(
       out: K => Pipe[F, A, Unit]): F[Unit] = {
       val persisted: RDD[A] = rdd.persist()
       persisted
