@@ -1,0 +1,64 @@
+package mtest.spark.kafka
+
+import cats.effect.IO
+import cats.implicits._
+import com.github.chenharryhua.nanjin.common.NJFileFormat.{Avro, Parquet}
+import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
+import com.github.chenharryhua.nanjin.spark._
+import com.github.chenharryhua.nanjin.spark.kafka._
+import frameless.cats.implicits._
+import fs2.kafka.ProducerRecord
+import org.scalatest.funsuite.AnyFunSuite
+
+import scala.util.Random
+
+object SaveTestData {
+  final case class Foo(a: Int, b: String)
+  val topic: KafkaTopic[IO, Int, Foo] = TopicDef[Int, Foo](TopicName("test.save.load")).in(ctx)
+
+}
+
+class SaveTest extends AnyFunSuite {
+  import SaveTestData._
+
+  val list: List[ProducerRecord[Int, Foo]] =
+    List.fill(100)(topic.fs2PR(Random.nextInt(), Foo(Random.nextInt(), "aaa")))
+  val vlist: List[Foo] = list.map(_.value)
+
+  (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
+    topic.send(list)).unsafeRunSync()
+
+  test("dump") {
+    topic.sparKafka.dump.unsafeRunSync()
+  }
+  test("jackson") {
+    assert(topic.sparKafka.fromKafka.flatMap(_.save).unsafeRunSync() == 100)
+  }
+  test("avro") {
+
+    val action = topic.sparKafka
+      .withParamUpdate(_.withAvro)
+      .fromKafka
+      .flatMap(_.save)
+      .map(r => assert(r == 100)) >>
+      sparkSession
+        .avro[NJConsumerRecord[Int, Foo]](topic.sparKafka.params.pathBuilder(topic.topicName, Avro))
+        .collect[IO]()
+        .map(r => assert(r.sorted.flatMap(_.value).toList == vlist))
+    action.unsafeRunSync()
+  }
+  test("parquet") {
+    val action = topic.sparKafka
+      .withParamUpdate(_.withParquet)
+      .fromKafka
+      .flatMap(_.save)
+      .map(r => assert(r == 100)) >>
+      sparkSession
+        .parquet[NJConsumerRecord[Int, Foo]](
+          topic.sparKafka.params.pathBuilder(topic.topicName, Parquet))
+        .collect[IO]()
+        .map(r => assert(r.sorted.flatMap(_.value).toList == vlist))
+    action.unsafeRunSync()
+  }
+}
