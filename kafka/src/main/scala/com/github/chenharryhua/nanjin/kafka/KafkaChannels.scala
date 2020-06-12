@@ -2,8 +2,8 @@ package com.github.chenharryhua.nanjin.kafka
 
 import akka.kafka.{
   CommitterSettings => AkkaCommitterSettings,
-  ConsumerSettings  => AkkaConsumerSettings,
-  ProducerSettings  => AkkaProducerSettings
+  ConsumerSettings => AkkaConsumerSettings,
+  ProducerSettings => AkkaProducerSettings
 }
 import akka.stream.Materializer
 import cats.data.{NonEmptyList, Reader}
@@ -105,12 +105,12 @@ object KafkaChannels {
     val source: Source[CommittableMessage[Array[Byte], Array[Byte]], Consumer.Control] =
       Consumer.committableSource(consumerSettings, Subscriptions.topics(topicName.value))
 
-    def stream(
-      implicit mat: Materializer): Stream[F, CommittableMessage[Array[Byte], Array[Byte]]] =
+    def stream(implicit
+      mat: Materializer): Stream[F, CommittableMessage[Array[Byte], Array[Byte]]] =
       source.runWith(Sink.asPublisher(fanout = false)).toStream[F]
 
-    def offsetRanged(offsetRange: KafkaTopicPartition[KafkaOffsetRange])(
-      implicit mat: Materializer): Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]] = {
+    def offsetRanged(offsetRange: KafkaTopicPartition[KafkaOffsetRange])(implicit
+      mat: Materializer): Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]] = {
       val totalSize   = offsetRange.mapValues(_.distance).value.values.sum
       val endPosition = offsetRange.mapValues(_.until.value)
       assign(offsetRange.value.mapValues(_.from.value))
@@ -122,10 +122,10 @@ object KafkaChannels {
         .toStream[F]
     }
 
-    def timeRanged(dateTimeRange: NJDateTimeRange)(
-      implicit mat: Materializer): Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]] = {
+    def timeRanged(dateTimeRange: NJDateTimeRange)(implicit
+      mat: Materializer): Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]] = {
       val exec: F[Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]]] =
-        ShortLivedConsumer[F](topicName, utils.toProperties(consumerSettings.properties))
+        ShortLiveConsumer[F](topicName, utils.toProperties(consumerSettings.properties))
           .use(_.offsetRangeFor(dateTimeRange).map(_.flatten[KafkaOffsetRange]))
           .map(offsetRanged)
       Stream.force(exec)

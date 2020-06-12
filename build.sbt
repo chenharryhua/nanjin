@@ -27,7 +27,7 @@ val akka = "2.6.6"
 
 val akkaKafka = "2.0.3"
 
-val sparkVersion = "2.4.5"
+val sparkVersion = "2.4.6"
 val frameless    = "0.8.0"
 
 val circe         = "0.13.0"
@@ -144,6 +144,7 @@ val monocleLib = Seq(
 
 val avroLib = Seq(
   "org.apache.avro"                        % "avro"                     % "1.9.2",
+  "org.apache.avro"                        % "avro-compiler"            % "1.9.2",
   "io.confluent"                           % "kafka-streams-avro-serde" % "5.5.0",
   "org.apache.parquet"                     % "parquet-avro"             % "1.11.0",
   "com.julianpeeters" %% "avrohugger-core" % "1.0.0-RC21",

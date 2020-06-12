@@ -87,7 +87,7 @@ object KafkaMonitoringApi {
       val run: Stream[F, Unit] = for {
         blocker <- Stream.resource(Blocker[F])
         pipe = new AvroSerialization[F, NJConsumerRecord[K, V]]
-        kcs <- Stream.resource(topic.shortLivedConsumer)
+        kcs <- Stream.resource(topic.shortLiveConsumer)
         gtp <- Stream.eval(for {
           os <- kcs.offsetsForTimes(njt)
           e <- kcs.endOffsets
@@ -121,7 +121,7 @@ object KafkaMonitoringApi {
       filter(cr => cr.key().isFailure || cr.value().isFailure)
 
     override def summaries: F[Unit] =
-      topic.shortLivedConsumer.use { consumer =>
+      topic.shortLiveConsumer.use { consumer =>
         for {
           num <- consumer.numOfRecords
           first <-

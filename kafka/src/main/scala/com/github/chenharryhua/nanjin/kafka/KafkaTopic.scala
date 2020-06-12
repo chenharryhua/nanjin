@@ -57,8 +57,8 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
   def admin(implicit concurrent: Concurrent[F], contextShift: ContextShift[F]): KafkaAdminApi[F] =
     KafkaAdminApi[F, K, V](this)
 
-  def shortLivedConsumer(implicit sync: Sync[F]): Resource[F, ShortLivedConsumer[F]] =
-    ShortLivedConsumer(topicName, settings.consumerSettings.javaProperties)
+  def shortLiveConsumer(implicit sync: Sync[F]): Resource[F, ShortLiveConsumer[F]] =
+    ShortLiveConsumer(topicName, settings.consumerSettings.javaProperties)
 
   def monitor(implicit
     concurrentEffect: ConcurrentEffect[F],
