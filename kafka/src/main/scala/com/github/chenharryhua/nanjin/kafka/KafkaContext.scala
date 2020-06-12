@@ -7,8 +7,7 @@ import fs2.Stream
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.scala.StreamsBuilder
 
-sealed class KafkaContext[F[_]](val settings: KafkaSettings)(
-  implicit
+sealed class KafkaContext[F[_]](val settings: KafkaSettings)(implicit
   val timer: Timer[F],
   val contextShift: ContextShift[F],
   val concurrentEffect: ConcurrentEffect[F]) {
@@ -27,19 +26,22 @@ sealed class KafkaContext[F[_]](val settings: KafkaSettings)(
 
   final def kafkaStreams(topology: Reader[StreamsBuilder, Unit]): Stream[F, KafkaStreams] =
     new KafkaStreamRunner[F](settings.streamSettings).stream(topology)
+
+  final def genCaseClass(topicName: TopicName): F[String] =
+    new SchemaRegistryApi[F](settings.schemaRegistrySettings).genCaseClass(topicName)
 }
 
 final class IoKafkaContext(settings: KafkaSettings)(implicit cs: ContextShift[IO], timer: Timer[IO])
     extends KafkaContext[IO](settings) {}
 
-final class ZioKafkaContext(settings: KafkaSettings)(
-  implicit cs: ContextShift[zio.Task],
+final class ZioKafkaContext(settings: KafkaSettings)(implicit
+  cs: ContextShift[zio.Task],
   timer: Timer[zio.Task],
   ce: ConcurrentEffect[zio.Task]
 ) extends KafkaContext[zio.Task](settings) {}
 
-final class MonixKafkaContext(settings: KafkaSettings)(
-  implicit cs: ContextShift[monix.eval.Task],
+final class MonixKafkaContext(settings: KafkaSettings)(implicit
+  cs: ContextShift[monix.eval.Task],
   timer: Timer[monix.eval.Task],
   ce: ConcurrentEffect[monix.eval.Task])
     extends KafkaContext[monix.eval.Task](settings) {}

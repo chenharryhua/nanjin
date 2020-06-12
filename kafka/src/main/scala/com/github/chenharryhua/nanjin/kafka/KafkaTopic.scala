@@ -53,8 +53,6 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
   }
 
   // APIs
-  def schemaRegistry(implicit sync: Sync[F]): KafkaSchemaRegistryApi[F] =
-    KafkaSchemaRegistryApi[F](this)
 
   def admin(implicit concurrent: Concurrent[F], contextShift: ContextShift[F]): KafkaAdminApi[F] =
     KafkaAdminApi[F, K, V](this)
@@ -66,4 +64,5 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
     concurrentEffect: ConcurrentEffect[F],
     timer: Timer[F],
     contextShift: ContextShift[F]): KafkaMonitoringApi[F, K, V] = KafkaMonitoringApi[F, K, V](this)
+
 }

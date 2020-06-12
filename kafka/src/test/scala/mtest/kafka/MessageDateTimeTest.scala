@@ -58,7 +58,7 @@ class MessageDateTimeTest extends AnyFunSuite {
       Instant.ofEpochMilli(Instant.now.toEpochMilli))
     val rst = for {
       _ <- topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
-      _ <- topic.schemaRegistry.delete
+      _ <- topic.schemaDelete
       _ <- topic.send(0, m)
       r <- topic.shortLivedConsumer.use(_.retrieveLastRecords)
     } yield assert(topic.decoder(r.head).decodeValue.value() === m)

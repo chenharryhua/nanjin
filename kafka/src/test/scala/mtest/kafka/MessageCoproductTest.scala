@@ -33,7 +33,7 @@ class MessageCoproductTest extends AnyFunSuite {
     val m     = CaseClass(1, "b")
     val rst = for {
       _ <- topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
-      _ <- topic.schemaRegistry.delete
+      _ <- topic.schemaDelete
       _ <- topic.send(0, m)
       r <- topic.shortLivedConsumer.use(_.retrieveLastRecords)
     } yield assert(topic.decoder(r.head).decodeValue.value() === m)
@@ -45,7 +45,7 @@ class MessageCoproductTest extends AnyFunSuite {
     val m     = PC(Coproduct[PrimCops](20121026.000001f), Coproduct[PrimCops]("aaa"), 1)
     val rst = for {
       _ <- topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
-      _ <- topic.schemaRegistry.delete
+      _ <- topic.schemaDelete
       _ <- topic.send(0, m)
       r <- topic.shortLivedConsumer.use(_.retrieveLastRecords)
     } yield assert(topic.decoder(r.head).decodeValue.value() === m)
@@ -57,7 +57,7 @@ class MessageCoproductTest extends AnyFunSuite {
     val m     = CompositeT(C1(1), C2(1, "a"), C3("a", 1.0f, 1))
     val rst = for {
       _ <- topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
-      _ <- topic.schemaRegistry.delete
+      _ <- topic.schemaDelete
       _ <- topic.send(0, m)
       r <- topic.shortLivedConsumer.use(_.retrieveLastRecords)
     } yield assert(topic.decoder(r.head).decodeValue.value() === m)
@@ -73,7 +73,7 @@ class MessageCoproductTest extends AnyFunSuite {
 
     val rst = for {
       _ <- topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
-      _ <- topic.schemaRegistry.delete
+      _ <- topic.schemaDelete
       _ <- topic.send(1, m1)
       r1 <- topic.shortLivedConsumer.use(_.retrieveLastRecords)
       _ <- topic.send(2, m2)

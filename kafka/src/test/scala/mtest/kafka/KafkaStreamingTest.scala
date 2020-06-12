@@ -7,7 +7,6 @@ import io.chrisdavenport.cats.time._
 import org.apache.kafka.streams.scala.ImplicitConversions._
 import com.github.chenharryhua.nanjin.kafka.TopicName
 
-
 object KafkaStreamingCases {
 
   case class StreamOneValue(name: String, size: Int)
@@ -31,7 +30,7 @@ class KafkaStreamingTest extends AnyFunSuite {
   implicit val tgtValue = tgt.codec.valSerde
 
   ignore("generate data") {
-    (one.schemaRegistry.register >> two.schemaRegistry.register).unsafeRunSync()
+    (one.schemaRegister >> two.schemaRegister).unsafeRunSync()
     fs2.Stream
       .range(0, 100)
       .covary[IO]

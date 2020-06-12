@@ -26,7 +26,7 @@ class DecimalTopicTest extends AnyFunSuite {
   implicit val roundingMode = RoundingMode.HALF_UP
   val topic                 = ctx.topic[Int, HasDecimal](TopicName("decimal.test"))
   (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
-    topic.schemaRegistry.register >>
+    topic.schemaRegister >>
     topic.send(1, data) >> topic.send(2, data)).unsafeRunSync()
 
   test("kafka and spark agree on avro") {
