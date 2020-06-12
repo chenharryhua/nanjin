@@ -197,9 +197,7 @@ val kafkaLib = Seq(
   "org.apache.kafka" %% "kafka-streams-scala").map(_ % kafkaVersion) ++
   Seq(
     "com.typesafe.akka" %% "akka-stream-kafka" % akkaKafka,
-    "com.github.fd4s" %% "fs2-kafka"           % "1.0.0",
-    "com.github.fd4s" %% "fs2-kafka-vulcan"    % "1.0.0",
-    "com.github.fd4s" %% "vulcan"              % "1.1.0"
+    "com.github.fd4s" %% "fs2-kafka"           % "1.0.0"
   )
 
 val baseLib = Seq(
