@@ -27,7 +27,7 @@ val akka = "2.6.6"
 
 val akkaKafka = "2.0.3"
 
-val sparkVersion = "2.4.5"
+val sparkVersion = "2.4.6"
 val frameless    = "0.8.0"
 
 val circe         = "0.13.0"
