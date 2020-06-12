@@ -17,4 +17,7 @@ class SchemaRegistryTest extends AnyFunSuite {
   test("register schema") {
     topic.schemaRegister.unsafeRunSync()
   }
+  test("gen case class") {
+    ctx.genCaseClass(topic.topicName).unsafeRunSync
+  }
 }
