@@ -33,9 +33,6 @@ val frameless    = "0.8.0"
 val circe         = "0.13.0"
 val kantanVersion = "0.6.1"
 
-val apacheAvro = "1.9.2"
-val avrohugger = "1.0.0-RC21"
-
 val silencerVersion = "1.7.0"
 val jline           = "3.15.0"
 
@@ -146,14 +143,10 @@ val monocleLib = Seq(
 ).map(_ % monocle)
 
 val avroLib = Seq(
-  "org.apache.avro"                        % "avro-tools"               % apacheAvro,
-  "org.apache.avro"                        % "avro-mapred"              % apacheAvro,
-  "org.apache.avro"                        % "avro"                     % apacheAvro,
-  "org.apache.avro"                        % "avro-compiler"            % apacheAvro,
-  "org.apache.avro"                        % "avro-ipc"                 % apacheAvro,
-  ("io.confluent"                          % "kafka-streams-avro-serde" % "5.5.0").classifier(""),
+  "org.apache.avro"                        % "avro"                     % "1.9.2",
+  "io.confluent"                           % "kafka-streams-avro-serde" % "5.5.0",
   "org.apache.parquet"                     % "parquet-avro"             % "1.11.0",
-  "com.julianpeeters" %% "avrohugger-core" % avrohugger,
+  "com.julianpeeters" %% "avrohugger-core" % "1.0.0-RC21",
   "com.sksamuel.avro4s" %% "avro4s-core"   % "3.1.1"
 )
 
