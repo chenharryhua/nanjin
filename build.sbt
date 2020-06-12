@@ -144,6 +144,7 @@ val monocleLib = Seq(
 
 val avroLib = Seq(
   "org.apache.avro"                        % "avro"                     % "1.9.2",
+  "org.apache.avro"                        % "avro-compiler"            % "1.9.2",
   "io.confluent"                           % "kafka-streams-avro-serde" % "5.5.0",
   "org.apache.parquet"                     % "parquet-avro"             % "1.11.0",
   "com.julianpeeters" %% "avrohugger-core" % "1.0.0-RC21",

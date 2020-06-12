@@ -44,7 +44,7 @@ object sk {
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy)(implicit
     sparkSession: SparkSession): F[RDD[ConsumerRecord[Array[Byte], Array[Byte]]]] =
-    topic.shortLivedConsumer.use(_.offsetRangeFor(timeRange)).map { gtp =>
+    topic.shortLiveConsumer.use(_.offsetRangeFor(timeRange)).map { gtp =>
       KafkaUtils.createRDD[Array[Byte], Array[Byte]](
         sparkSession.sparkContext,
         props(topic.settings.consumerSettings.config),
@@ -149,7 +149,7 @@ object sk {
     encoder: TypedEncoder[A]): F[TypedDataset[A]] = {
 
     import sparkSession.implicits._
-    topic.shortLivedConsumer.use(_.offsetRangeFor(timeRange)).map { gtp =>
+    topic.shortLiveConsumer.use(_.offsetRangeFor(timeRange)).map { gtp =>
       TypedDataset
         .create(
           sparkSession.readStream

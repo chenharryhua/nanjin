@@ -34,14 +34,15 @@ class ConsumeMessageAkkaTest extends AnyFunSuite {
   test("assignment") {
     val datetime = LocalDateTime.now
     val ret = for {
-      start <- topic.shortLivedConsumer.use(_.beginningOffsets)
+      start <- topic.shortLiveConsumer.use(_.beginningOffsets)
       offsets = start.flatten[KafkaOffset].value.mapValues(_.value)
-      _ <- chn
-        .assign(offsets)
-        .map(m => topic.decoder(m).decode)
-        .map(_.show)
-        .take(1)
-        .runWith(akkaSinks.ignore[IO])
+      _ <-
+        chn
+          .assign(offsets)
+          .map(m => topic.decoder(m).decode)
+          .map(_.show)
+          .take(1)
+          .runWith(akkaSinks.ignore[IO])
     } yield ()
     ret.unsafeRunSync
   }

@@ -35,7 +35,7 @@ class MessageCoproductTest extends AnyFunSuite {
       _ <- topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- topic.schemaDelete
       _ <- topic.send(0, m)
-      r <- topic.shortLivedConsumer.use(_.retrieveLastRecords)
+      r <- topic.shortLiveConsumer.use(_.retrieveLastRecords)
     } yield assert(topic.decoder(r.head).decodeValue.value() === m)
     rst.unsafeRunSync()
   }
@@ -47,7 +47,7 @@ class MessageCoproductTest extends AnyFunSuite {
       _ <- topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- topic.schemaDelete
       _ <- topic.send(0, m)
-      r <- topic.shortLivedConsumer.use(_.retrieveLastRecords)
+      r <- topic.shortLiveConsumer.use(_.retrieveLastRecords)
     } yield assert(topic.decoder(r.head).decodeValue.value() === m)
     rst.unsafeRunSync()
   }
@@ -59,7 +59,7 @@ class MessageCoproductTest extends AnyFunSuite {
       _ <- topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- topic.schemaDelete
       _ <- topic.send(0, m)
-      r <- topic.shortLivedConsumer.use(_.retrieveLastRecords)
+      r <- topic.shortLiveConsumer.use(_.retrieveLastRecords)
     } yield assert(topic.decoder(r.head).decodeValue.value() === m)
     rst.unsafeRunSync()
   }
@@ -75,11 +75,11 @@ class MessageCoproductTest extends AnyFunSuite {
       _ <- topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- topic.schemaDelete
       _ <- topic.send(1, m1)
-      r1 <- topic.shortLivedConsumer.use(_.retrieveLastRecords)
+      r1 <- topic.shortLiveConsumer.use(_.retrieveLastRecords)
       _ <- topic.send(2, m2)
-      r2 <- topic.shortLivedConsumer.use(_.retrieveLastRecords)
+      r2 <- topic.shortLiveConsumer.use(_.retrieveLastRecords)
       _ <- topic.send(3, m3)
-      r3 <- topic.shortLivedConsumer.use(_.retrieveLastRecords)
+      r3 <- topic.shortLiveConsumer.use(_.retrieveLastRecords)
 
     } yield {
       assert(topic.decoder(r1.head).decodeValue.value() === m1)
