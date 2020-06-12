@@ -26,7 +26,6 @@ val catsEffect = "2.1.3"
 val akka = "2.6.6"
 
 val akkaKafka = "2.0.3"
-val fs2Kafka  = "1.0.0"
 
 val sparkVersion = "2.4.5"
 val frameless    = "0.8.0"
@@ -86,7 +85,7 @@ lazy val commonSettings = Seq(
     "-Ywarn-numeric-widen",
     "-Xfuture"
   ),
-  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
+  Test / classLoaderLayeringStrategy  := ClassLoaderLayeringStrategy.Flat,
   bloopExportJarClassifiers in Global := Some(Set("sources"))
 )
 
@@ -198,7 +197,10 @@ val kafkaLib = Seq(
   "org.apache.kafka" %% "kafka-streams-scala").map(_ % kafkaVersion) ++
   Seq(
     "com.typesafe.akka" %% "akka-stream-kafka" % akkaKafka,
-    "com.github.fd4s" %% "fs2-kafka"           % fs2Kafka)
+    "com.github.fd4s" %% "fs2-kafka"           % "1.0.0",
+    "com.github.fd4s" %% "fs2-kafka-vulcan"    % "1.0.0",
+    "com.github.fd4s" %% "vulcan"              % "1.1.0"
+  )
 
 val baseLib = Seq(
   "com.github.krasserm" %% "streamz-converter" % "0.13-RC1",
