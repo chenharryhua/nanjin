@@ -15,7 +15,7 @@ import scala.util.Random
 
 object SaveTestData {
   final case class Foo(a: Int, b: String)
-  val topic: KafkaTopic[IO, Int, Foo] = TopicDef[Int, Foo](TopicName("test.serDeser")).in(ctx)
+  val topic: KafkaTopic[IO, Int, Foo] = TopicDef[Int, Foo](TopicName("test.save.load")).in(ctx)
 
 }
 
