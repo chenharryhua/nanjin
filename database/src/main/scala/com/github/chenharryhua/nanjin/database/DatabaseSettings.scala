@@ -39,14 +39,14 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
   final def transactorStream[F[_]: ContextShift: Async]: Stream[F, HikariTransactor[F]] =
     Stream.resource(transactorResource)
 
-  final def genCaseClass[F[_]: ContextShift: Async]: F[Unit] = transactorResource.use {
-    _.configure { hikari =>
-      Async[F]
-        .delay(new SimpleJdbcCodegen(() => hikari.getConnection, ""))
-        .map(_.writeStrings.toList.mkString("\n"))
-        .map(println)
+  final def genCaseClass[F[_]: ContextShift: Async]: F[String] =
+    transactorResource.use {
+      _.configure { hikari =>
+        Async[F]
+          .delay(new SimpleJdbcCodegen(() => hikari.getConnection, ""))
+          .map(_.writeStrings.toList.mkString("\n"))
+      }
     }
-  }
 
   final def runQuery[F[_]: ContextShift: Async, A](action: ConnectionIO[A]): F[A] =
     transactorResource.use(_.trans.apply(action))
