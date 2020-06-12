@@ -112,7 +112,7 @@ final class SchemaRegistryApi[F[_]](srs: SchemaRegistrySettings)(implicit F: Syn
   private val csrClient: Resource[F, CachedSchemaRegistryClient] =
     Resource.make[F, CachedSchemaRegistryClient](
       F.delay(srs.config.get(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG) match {
-        case None => sys.error("schema url was mandatory but not configured")
+        case None => sys.error("schema url is mandatory but not configured")
         case Some(url) =>
           val size: Int = srs.config
             .get(AbstractKafkaSchemaSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DOC)
