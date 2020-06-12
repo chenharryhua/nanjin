@@ -3,11 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, Resource, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.codec._
-import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
-import io.circe.Json
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
-
-import scala.util.Try
 
 final class KafkaTopic[F[_], K, V] private[kafka] (
   val topicDef: TopicDef[K, V],
@@ -57,8 +53,6 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
   }
 
   // APIs
-  def schemaRegistry(implicit sync: Sync[F]): KafkaSchemaRegistryApi[F] =
-    KafkaSchemaRegistryApi[F](this)
 
   def admin(implicit concurrent: Concurrent[F], contextShift: ContextShift[F]): KafkaAdminApi[F] =
     KafkaAdminApi[F, K, V](this)

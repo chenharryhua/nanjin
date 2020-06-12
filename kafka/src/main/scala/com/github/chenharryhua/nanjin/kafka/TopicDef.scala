@@ -13,9 +13,6 @@ final class TopicDef[K, V] private (val topicName: TopicName)(implicit
 
   override def toString: String = topicName.value
 
-  val keySchemaLoc: String = s"${topicName.value}-key"
-  val valSchemaLoc: String = s"${topicName.value}-value"
-
   def withTopicName(tn: String): TopicDef[K, V] = TopicDef[K, V](TopicName.unsafeFrom(tn))
 
   implicit val avroKeyEncoder: AvroEncoder[K] = serdeOfKey.avroEncoder

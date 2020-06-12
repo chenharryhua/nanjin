@@ -18,7 +18,7 @@ class CompilationTest extends AnyFunSuite {
     val chn = topic.akkaChannel
     val task =
       topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
-        topic.schemaRegistry.register >>
+        topic.schemaRegister >>
         topic.send(List.fill(10)(topic.fs2PR(1, 1))) >> {
         val ret: Source[ConsumerMessage.CommittableMessage[Int, Int], Consumer.Control] =
           chn.source.map(m => topic.decoder(m).decode).take(1)

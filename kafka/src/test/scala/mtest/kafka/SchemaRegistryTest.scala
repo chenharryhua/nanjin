@@ -11,13 +11,10 @@ class SchemaRegistryTest extends AnyFunSuite {
 
   val topic: KafkaTopic[IO, Int, trip_record] = nyc.in(ctx)
 
-  test("latest schema") {
-    topic.schemaRegistry.latestMeta.map(_.show).unsafeRunSync()
-  }
   test("compatiable test") {
-    topic.schemaRegistry.testCompatibility.map(println).unsafeRunSync
+    topic.schemaCompatibility.map(println).unsafeRunSync
   }
   test("register schema") {
-    topic.schemaRegistry.register.unsafeRunSync()
+    topic.schemaRegister.unsafeRunSync()
   }
 }

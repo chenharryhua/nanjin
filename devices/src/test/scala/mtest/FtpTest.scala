@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.implicits._
 import com.github.chenharryhua.nanjin.devices.{AkkaFtpDownloader, AkkaFtpUploader}
 import fs2.Stream
+import org.scalatest.Ignore
 import org.scalatest.funsuite.AnyFunSuite
 
 class FtpTest extends AnyFunSuite {
@@ -17,7 +18,8 @@ class FtpTest extends AnyFunSuite {
   val ts: Stream[IO, Byte] =
     Stream(testString).through(fs2.text.utf8Encode)
 
-  test("identity ftp") {
+ 
+  ignore("identity ftp") {
     val action = ts.through(uploader.upload(pathStr)).compile.toList >>
       downloader.download(pathStr).through(fs2.text.utf8Decode).compile.lastOrError
 

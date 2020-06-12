@@ -4,14 +4,20 @@ import avrohugger.Generator
 import avrohugger.format.Standard
 import avrohugger.types._
 import cats.Show
-import cats.effect.Sync
+import cats.effect.{Resource, Sync}
 import cats.implicits._
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaMetadata}
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
+import org.apache.avro.Schema
 
 import scala.collection.JavaConverters._
 import scala.util.Try
+
+private case class SchemaLocation(topicName: TopicName) {
+  val keyLoc: String = s"${topicName.value}-key"
+  val valLoc: String = s"${topicName.value}-value"
+}
 
 object genCaseClass {
 
@@ -20,7 +26,9 @@ object genCaseClass {
 
   @throws[Exception]
   def apply(schemaStr: String): String =
-    Generator(Standard, avroScalaCustomTypes = scalaTypes).stringToStrings(schemaStr).mkString("\n") + "\n"
+    Generator(Standard, avroScalaCustomTypes = scalaTypes)
+      .stringToStrings(schemaStr)
+      .mkString("\n") + "\n"
 }
 
 final case class KvSchemaMetadata(key: Option[SchemaMetadata], value: Option[SchemaMetadata]) {
@@ -98,81 +106,72 @@ final case class CompatibilityTestReport(
     key.flatMap(k => value.map(v => k && v)).fold(_ => false, identity)
 }
 
-sealed trait KafkaSchemaRegistryApi[F[_]] extends Serializable {
-  def delete: F[(List[Integer], List[Integer])]
-  def register: F[(Option[Int], Option[Int])]
-  def latestMeta: F[KvSchemaMetadata]
-  def testCompatibility: F[CompatibilityTestReport]
-}
+final class SchemaRegistryApi[F[_]](srs: SchemaRegistrySettings)(implicit F: Sync[F])
+    extends Serializable {
 
-object KafkaSchemaRegistryApi {
-
-  def apply[F[_]: Sync](topic: KafkaTopic[F, _, _]): KafkaSchemaRegistryApi[F] =
-    new KafkaSchemaRegistryImpl(topic)
-
-  final private class KafkaSchemaRegistryImpl[F[_]: Sync](topic: KafkaTopic[F, _, _])
-      extends KafkaSchemaRegistryApi[F] {
-
-    val srSettings: SchemaRegistrySettings = topic.settings.schemaRegistrySettings
-    val topicName: TopicName               = topic.topicDef.topicName
-    val keySchemaLoc: String               = topic.topicDef.keySchemaLoc
-    val valueSchemaLoc: String             = topic.topicDef.valSchemaLoc
-    val keySchema: AvroSchema              = new AvroSchema(topic.codec.keySchemaFor.schema)
-    val valueSchema: AvroSchema            = new AvroSchema(topic.codec.valSchemaFor.schema)
-
-    private lazy val csrClient: CachedSchemaRegistryClient = {
-      val alias = AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG
-      srSettings.config.get(alias) match {
-        case None => sys.error(s"$alias was mandatory but not configured")
+  private val csrClient: Resource[F, CachedSchemaRegistryClient] =
+    Resource.make[F, CachedSchemaRegistryClient](
+      F.delay(srs.config.get(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG) match {
+        case None => sys.error("schema url was mandatory but not configured")
         case Some(url) =>
-          val size: Int = srSettings.config
+          val size: Int = srs.config
             .get(AbstractKafkaSchemaSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DOC)
             .flatMap(n => Try(n.toInt).toOption)
             .getOrElse(AbstractKafkaSchemaSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DEFAULT)
           new CachedSchemaRegistryClient(url, size)
-      }
+      }))(cr => F.pure(()))
+
+  def kvSchema(topicName: TopicName): F[KvSchemaMetadata] = {
+    val loc = SchemaLocation(topicName)
+    csrClient.use { client =>
+      F.delay(
+        KvSchemaMetadata(
+          Try(client.getLatestSchemaMetadata(loc.keyLoc)).toOption,
+          Try(client.getLatestSchemaMetadata(loc.valLoc)).toOption))
     }
+  }
 
-    override def delete: F[(List[Integer], List[Integer])] = {
-      val deleteKey =
-        Sync[F].delay(csrClient.deleteSubject(keySchemaLoc).asScala.toList).handleError(_ => Nil)
-      val deleteValue =
-        Sync[F]
-          .delay(
-            csrClient.deleteSubject(valueSchemaLoc).asScala.toList
-          )
-          .handleError(_ => Nil)
-      (deleteKey, deleteValue).mapN((_, _))
+  def genCaseClass(topicName: TopicName): F[String] = kvSchema(topicName).map(_.show)
+
+  def register(
+    topicName: TopicName,
+    keySchema: Schema,
+    valSchema: Schema): F[(Option[Int], Option[Int])] = {
+    val loc = SchemaLocation(topicName)
+    csrClient.use { client =>
+      (
+        F.delay(client.register(loc.keyLoc, new AvroSchema(keySchema))).attempt.map(_.toOption),
+        F.delay(client.register(loc.valLoc, new AvroSchema(valSchema))).attempt.map(_.toOption))
+        .mapN((_, _))
     }
+  }
 
-    override def register: F[(Option[Int], Option[Int])] =
+  def delete(topicName: TopicName): F[(List[Integer], List[Integer])] = {
+    val loc = SchemaLocation(topicName)
+    csrClient.use { client =>
       (
-        Sync[F].delay(csrClient.register(keySchemaLoc, keySchema)).attempt.map(_.toOption),
-        Sync[F].delay(csrClient.register(valueSchemaLoc, valueSchema)).attempt.map(_.toOption)
-      ).mapN((_, _))
-
-    override def testCompatibility: F[CompatibilityTestReport] =
-      (
-        Sync[F]
-          .delay(
-            csrClient.testCompatibility(keySchemaLoc, keySchema)
-          )
+        F.delay(client.deleteSubject(loc.keyLoc).asScala.toList)
           .attempt
-          .map(_.leftMap(_.getMessage)),
-        Sync[F]
-          .delay(
-            csrClient.testCompatibility(valueSchemaLoc, valueSchema)
-          )
+          .map(_.toOption.sequence.flatten),
+        F.delay(client.deleteSubject(loc.valLoc).asScala.toList)
           .attempt
-          .map(_.leftMap(_.getMessage)),
-        latestMeta
-      ).mapN((k, v, meta) =>
-        CompatibilityTestReport(topicName, srSettings, meta, keySchema, valueSchema, k, v))
+          .map(_.toOption.sequence.flatten)).mapN((_, _))
+    }
+  }
 
-    override def latestMeta: F[KvSchemaMetadata] =
+  def testCompatibility(
+    topicName: TopicName,
+    keySchema: Schema,
+    valSchema: Schema): F[CompatibilityTestReport] = {
+    val loc = SchemaLocation(topicName)
+    csrClient.use { client =>
+      val ks = new AvroSchema(keySchema)
+      val vs = new AvroSchema(valSchema)
       (
-        Sync[F].delay(csrClient.getLatestSchemaMetadata(keySchemaLoc)).attempt.map(_.toOption),
-        Sync[F].delay(csrClient.getLatestSchemaMetadata(valueSchemaLoc)).attempt.map(_.toOption)
-      ).mapN(KvSchemaMetadata(_, _))
+        F.delay(client.testCompatibility(loc.keyLoc, ks)).attempt.map(_.leftMap(_.getMessage)),
+        F.delay(client.testCompatibility(loc.valLoc, vs)).attempt.map(_.leftMap(_.getMessage)),
+        kvSchema(topicName)).mapN((k, v, m) =>
+        CompatibilityTestReport(topicName, srs, m, ks, vs, k, v))
+    }
   }
 }
