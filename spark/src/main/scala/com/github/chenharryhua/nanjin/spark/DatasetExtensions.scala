@@ -17,11 +17,10 @@ import scala.reflect.ClassTag
 private[spark] trait DatasetExtensions {
 
   implicit class RddExt[A](private val rdd: RDD[A]) {
-    def validRecords(implicit tag: ClassTag[A]): RDD[A]   = rdd.flatMap(Option(_))
-    def invalidRecords(implicit tag: ClassTag[A]): RDD[A] = rdd.subtract(validRecords)
 
-    def stream[F[_]: Sync]: Stream[F, A] =
-      Stream.fromIterator(rdd.toLocalIterator.flatMap(Option(_)))
+    def validRecords(implicit tag: ClassTag[A]): RDD[A] = rdd.flatMap[A](Option(_))
+
+    def stream[F[_]: Sync]: Stream[F, A] = Stream.fromIterator(rdd.toLocalIterator)
 
     def source[F[_]: ConcurrentEffect]: Source[A, NotUsed] =
       Source.fromPublisher[A](stream[F].toUnicastPublisher())
@@ -29,13 +28,15 @@ private[spark] trait DatasetExtensions {
     def typedDataset(implicit ev: TypedEncoder[A], ss: SparkSession): TypedDataset[A] =
       TypedDataset.create(rdd)
 
-    def partitionSink[F[_]: Sync, K: ClassTag: Order](bucketing: A => K)(
-      out: K => Pipe[F, A, Unit]): F[Unit] = {
+    def partitionSink[F[_]: Sync, K: Order: ClassTag](bucketing: A => K)(
+      out: K => Pipe[F, A, Unit]): F[Long] = {
       val persisted: RDD[A] = rdd.persist()
       val keys: List[K]     = persisted.map(bucketing).distinct().collect().toList.sorted
       keys
         .map(k => persisted.filter(a => k === bucketing(a)).stream[F].through(out(k)).compile.drain)
-        .reduce(_ >> _) >> Sync[F].delay(persisted.unpersist())
+        .reduce(_ >> _) >>
+        Sync[F].delay(persisted.count()) <*
+        Sync[F].delay(persisted.unpersist())
     }
   }
 
@@ -50,9 +51,6 @@ private[spark] trait DatasetExtensions {
       import tds.encoder
       tds.deserialized.flatMap(Option(_))
     }
-
-    def invalidRecords: TypedDataset[A] =
-      tds.except(validRecords)
   }
 
   implicit class DataframeExt(private val df: DataFrame) {
