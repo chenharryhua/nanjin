@@ -18,7 +18,8 @@ private[spark] trait DatasetExtensions {
 
   implicit class RddExt[A](private val rdd: RDD[A]) {
 
-    def validRecords(implicit tag: ClassTag[A]): RDD[A] = rdd.flatMap[A](Option(_))
+    def noNull: RDD[A]    = rdd.filter(_ != null)
+    def nullRecords: Long = rdd.subtract(noNull).count()
 
     def stream[F[_]: Sync]: Stream[F, A] = Stream.fromIterator(rdd.toLocalIterator)
 
@@ -47,10 +48,8 @@ private[spark] trait DatasetExtensions {
     def source[F[_]: ConcurrentEffect]: Source[A, NotUsed] =
       Source.fromPublisher[A](stream[F].toUnicastPublisher())
 
-    def validRecords: TypedDataset[A] = {
-      import tds.encoder
-      tds.deserialized.flatMap(Option(_))
-    }
+    def noNull: TypedDataset[A]          = tds.deserialized.filter(_ != null)
+    def nullRecords[F[_]: Sync]: F[Long] = tds.except(noNull).count[F]()
   }
 
   implicit class DataframeExt(private val df: DataFrame) {
@@ -66,6 +65,12 @@ private[spark] trait DatasetExtensions {
 
     def avro[A: TypedEncoder](pathStr: String): TypedDataset[A] =
       TypedDataset.createUnsafe(ss.read.format("avro").load(pathStr))
+
+    def json[A: TypedEncoder](pathStr: String): TypedDataset[A] =
+      TypedDataset.createUnsafe[A](ss.read.json(pathStr))
+
+    def csv[A: TypedEncoder](pathStr: String): TypedDataset[A] =
+      TypedDataset.createUnsafe[A](ss.read.csv(pathStr))
 
     def text(path: String): TypedDataset[String] =
       TypedDataset.create(ss.read.textFile(path))

@@ -7,6 +7,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.kafka.common._
+import com.github.chenharryhua.nanjin.spark.RddExt
 import com.github.chenharryhua.nanjin.utils.Keyboard
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Pipe
@@ -44,11 +45,13 @@ object sk {
     locationStrategy: LocationStrategy)(implicit
     sparkSession: SparkSession): F[RDD[ConsumerRecord[Array[Byte], Array[Byte]]]] =
     topic.shortLiveConsumer.use(_.offsetRangeFor(timeRange)).map { gtp =>
-      KafkaUtils.createRDD[Array[Byte], Array[Byte]](
-        sparkSession.sparkContext,
-        props(topic.settings.consumerSettings.config),
-        offsetRanges(gtp),
-        locationStrategy)
+      KafkaUtils
+        .createRDD[Array[Byte], Array[Byte]](
+          sparkSession.sparkContext,
+          props(topic.settings.consumerSettings.config),
+          offsetRanges(gtp),
+          locationStrategy)
+        .noNull
     }
 
   private val logger: Logger = org.log4s.getLogger("spark.kafka")
