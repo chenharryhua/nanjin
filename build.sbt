@@ -133,7 +133,7 @@ val testLib = Seq(
   "org.typelevel" %% "cats-laws"                              % "2.1.1" % Test,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.5" % Test,
   "org.scalatest" %% "scalatest"                              % "3.1.2" % Test,
-  "com.github.julien-truffaut" %% "monocle-law"               % "2.0.4" % Test,
+  "com.github.julien-truffaut" %% "monocle-law"               % "2.0.5" % Test,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.3.5" % Test,
   "org.tpolecat" %% "doobie-postgres"                         % "0.9.0" % Test,
   "com.typesafe.akka" %% "akka-stream-testkit"                % "2.6.6" % Test,
