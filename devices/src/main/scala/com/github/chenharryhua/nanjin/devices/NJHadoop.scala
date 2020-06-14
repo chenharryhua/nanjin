@@ -39,7 +39,7 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
       rs <- Resource.fromAutoCloseable(blocker.delay(fs.open(new Path(pathStr))))
     } yield rs
 
-  def sink(pathStr: String): Pipe[F, Byte, Unit] = { (ss: Stream[F, Byte]) =>
+  def byteSink(pathStr: String): Pipe[F, Byte, Unit] = { (ss: Stream[F, Byte]) =>
     for {
       fs <- Stream.resource(fsOutput(pathStr))
       _ <- ss.through(writeOutputStream[F](Sync[F].pure(fs), blocker))
