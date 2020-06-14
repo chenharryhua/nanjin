@@ -29,7 +29,7 @@ class HadoopTest extends AnyFunSuite {
       Stream(testString).through(fs2.text.utf8Encode)
 
     val action = hdp.delete(pathStr) >>
-      ts.through(hdp.sink(pathStr)).compile.drain >>
+      ts.through(hdp.byteSink(pathStr)).compile.drain >>
       hdp
         .inputStream(pathStr)
         .flatMap(is => readInputStream(IO(is), 64, blocker).through(fs2.text.utf8Decode))

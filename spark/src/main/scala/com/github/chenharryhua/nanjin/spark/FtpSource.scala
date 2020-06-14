@@ -6,7 +6,8 @@ import com.github.chenharryhua.nanjin.devices.FtpDownloader
 import com.github.chenharryhua.nanjin.pipes.{
   AvroDeserialization,
   CirceDeserialization,
-  CsvDeserialization
+  CsvDeserialization,
+  TextDeserialization
 }
 import com.sksamuel.avro4s.{Decoder => AvroDecoder}
 import fs2.{RaiseThrowable, Stream}
@@ -33,5 +34,11 @@ final class FtpSource[F[_], C, S <: RemoteFileSettings](downloader: FtpDownloade
     pathStr: String)(implicit cs: ContextShift[F], ce: ConcurrentEffect[F]): Stream[F, A] = {
     val pipe = new AvroDeserialization[F, A]
     downloader.download(pathStr).through(pipe.fromJackson)
+  }
+
+  def text(
+    pathStr: String)(implicit cs: ContextShift[F], ce: ConcurrentEffect[F]): Stream[F, String] = {
+    val pipe = new TextDeserialization[F]
+    downloader.download(pathStr).through(pipe.deserialize)
   }
 }

@@ -2,9 +2,9 @@ package com.github.chenharryhua.nanjin.spark
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
-import cats.Order
 import cats.effect.{ConcurrentEffect, Sync}
 import cats.implicits._
+import cats.kernel.Eq
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.interop.reactivestreams._
@@ -29,10 +29,10 @@ private[spark] trait DatasetExtensions {
     def typedDataset(implicit ev: TypedEncoder[A], ss: SparkSession): TypedDataset[A] =
       TypedDataset.create(rdd)
 
-    def partitionSink[F[_]: Sync, K: Order: ClassTag](bucketing: A => K)(
+    def partitionSink[F[_]: Sync, K: ClassTag: Eq](bucketing: A => K)(
       out: K => Pipe[F, A, Unit]): F[Long] = {
       val persisted: RDD[A] = rdd.persist()
-      val keys: List[K]     = persisted.map(bucketing).distinct().collect().toList.sorted
+      val keys: List[K]     = persisted.map(bucketing).distinct().collect().toList
       keys
         .map(k => persisted.filter(a => k === bucketing(a)).stream[F].through(out(k)).compile.drain)
         .reduce(_ >> _) >>
