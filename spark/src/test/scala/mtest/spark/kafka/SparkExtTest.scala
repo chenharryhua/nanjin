@@ -2,13 +2,13 @@ package mtest.spark.kafka
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.kafka.{akkaSinks, KafkaTopic, TopicName}
+import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.kafka._
 import com.landoop.transportation.nyc.trip.yellow.trip_record
+import frameless.TypedDataset
 import frameless.cats.implicits._
 import org.apache.spark.rdd.RDD
 import org.scalatest.funsuite.AnyFunSuite
-import com.github.chenharryhua.nanjin.spark._
-import frameless.TypedDataset
 
 object SparkExtTestData {
   final case class Foo(a: Int, b: String)
@@ -28,26 +28,29 @@ class SparkExtTest extends AnyFunSuite {
       .unsafeRunSync
   }
 
-  test("rdd remove primitive null ") {
+  test("rdd deal with primitive null ") {
     val rdd: RDD[Int] =
       sparkSession.sparkContext.parallelize(List(1, null.asInstanceOf[Int], 3))
-    assert(rdd.validRecords.collect().toList == List(1, 0, 3))
+    assert(rdd.dismissNulls.collect().toList == List(1, 0, 3))
+    assert(rdd.numOfNulls == 0)
   }
 
-  test("rdd remove object null ") {
+  test("rdd remove null object") {
     import SparkExtTestData._
     val rdd: RDD[Foo] = sparkSession.sparkContext.parallelize(list)
-    assert(rdd.validRecords.collect().toList == List(Foo(1, "a"), Foo(3, "c")))
+    assert(rdd.dismissNulls.collect().toList == List(Foo(1, "a"), Foo(3, "c")))
+    assert(rdd.numOfNulls == 1)
   }
-  test("typed dataset remove primitive null ") {
+  test("typed dataset deal with primitive null ") {
     val tds = TypedDataset.create[Int](List(1, null.asInstanceOf[Int], 3))
-    assert(tds.validRecords.collect[IO]().unsafeRunSync().toList == List(1, 0, 3))
+    assert(tds.dismissNulls.collect[IO]().unsafeRunSync().toList == List(1, 0, 3))
+    assert(tds.numOfNulls[IO].unsafeRunSync() == 0)
   }
 
-  test("typed dataset remove object null ") {
+  test("typed dataset remove null object") {
     import SparkExtTestData._
     val tds = TypedDataset.create[Foo](sparkSession.sparkContext.parallelize(list))
-    assert(tds.validRecords.collect[IO]().unsafeRunSync().toList == List(Foo(1, "a"), Foo(3, "c")))
+    assert(tds.dismissNulls.collect[IO]().unsafeRunSync().toList == List(Foo(1, "a"), Foo(3, "c")))
+    assert(tds.numOfNulls[IO].unsafeRunSync() == 1)
   }
-
 }
