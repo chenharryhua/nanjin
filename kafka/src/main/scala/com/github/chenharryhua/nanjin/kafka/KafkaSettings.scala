@@ -4,7 +4,7 @@ import java.util.Properties
 
 import cats.effect.{ConcurrentEffect, ContextShift, IO, Timer}
 import com.github.chenharryhua.nanjin.utils
-import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig
+import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import monocle.Traversal
 import monocle.function.At.at
 import monocle.macros.Lenses
@@ -103,14 +103,14 @@ final case class KafkaAppId(value: String) extends AnyVal
   def ioContext(implicit contextShift: ContextShift[IO], timer: Timer[IO]): IoKafkaContext =
     new IoKafkaContext(this)
 
-  def zioContext(
-    implicit contextShift: ContextShift[zio.Task],
+  def zioContext(implicit
+    contextShift: ContextShift[zio.Task],
     timer: Timer[zio.Task],
     ce: ConcurrentEffect[zio.Task]) =
     new ZioKafkaContext(this)
 
-  def monixContext(
-    implicit contextShift: ContextShift[monix.eval.Task],
+  def monixContext(implicit
+    contextShift: ContextShift[monix.eval.Task],
     timer: Timer[monix.eval.Task],
     ce: ConcurrentEffect[monix.eval.Task]) =
     new MonixKafkaContext(this)
@@ -130,7 +130,7 @@ object KafkaSettings {
     empty
       .withBrokers(brokers)
       .withSchemaRegistryProperty(
-        AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG,
+        AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG,
         schemaRegistry)
       .withConsumerProperty(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "100")
       .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")

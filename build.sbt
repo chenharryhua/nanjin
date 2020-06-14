@@ -62,8 +62,10 @@ lazy val commonSettings = Seq(
   addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
   addCompilerPlugin(("org.scalamacros" %% "paradise" % "2.1.1").cross(CrossVersion.full)),
   libraryDependencies ++= Seq(
-    "org.scala-lang" % "scala-reflect"  % scalaVersion.value % Provided,
-    "org.scala-lang" % "scala-compiler" % scalaVersion.value % Provided
+    "org.scala-lang"                                      % "scala-reflect"  % scalaVersion.value % Provided,
+    "org.scala-lang"                                      % "scala-compiler" % scalaVersion.value % Provided,
+    "org.scala-lang.modules" %% "scala-collection-compat" % "2.1.6",
+    "org.scala-lang.modules" %% "scala-java8-compat"      % "0.9.1"
   ),
   scalacOptions ++= Seq(
     "-Ypartial-unification",
