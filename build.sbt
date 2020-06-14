@@ -4,51 +4,6 @@ parallelExecution in ThisBuild := false
 
 version in ThisBuild := "0.7.0-SNAPSHOT"
 
-val confluent    = "5.3.0"
-val kafkaVersion = "2.5.0"
-
-val shapeless  = "2.3.3"
-val contextual = "1.2.1"
-val kittens    = "2.1.0"
-val catsCore   = "2.1.1"
-val fs2Version = "2.4.2"
-val catsMtl    = "0.7.1"
-val catsTime   = "0.3.0"
-val tagless    = "0.11"
-val monocle    = "2.0.4"
-val refined    = "0.9.14"
-val droste     = "0.8.0"
-
-val zioCats    = "2.1.3.0-RC15"
-val monix      = "3.2.2"
-val catsEffect = "2.1.3"
-
-val akka = "2.6.6"
-
-val akkaKafka = "2.0.3"
-
-val sparkVersion = "2.4.6"
-val frameless    = "0.8.0"
-
-val circe         = "0.13.0"
-val kantanVersion = "0.6.1"
-
-val silencerVersion = "1.7.0"
-val jline           = "3.15.0"
-
-val scalatest = "3.1.2"
-
-val doobie = "0.9.0"
-val quill  = "3.5.1"
-
-val neotypes = "0.13.3"
-
-val flinkVersion = "1.10.1"
-
-val hadoopVersion = "3.2.1"
-
-val awsVersion = "1.11.802"
-
 lazy val commonSettings = Seq(
   organization := "com.github.chenharryhua",
   scalaVersion := scalaVersion.value,
@@ -92,8 +47,8 @@ val hadoopLib = Seq(
   "org.apache.hadoop" % "hadoop-aws",
   "org.apache.hadoop" % "hadoop-common",
   "org.apache.hadoop" % "hadoop-client",
-  "org.apache.hadoop" % "hadoop-hdfs").map(_ % hadoopVersion) ++
-  Seq("com.amazonaws" % "aws-java-sdk-bundle" % awsVersion)
+  "org.apache.hadoop" % "hadoop-hdfs").map(_ % "3.2.1") ++
+  Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.802")
 
 val flinkLib = Seq(
   "org.apache.flink" %% "flink-connector-kafka",
@@ -104,7 +59,7 @@ val flinkLib = Seq(
   "org.apache.flink" %% "flink-jdbc",
   "org.apache.flink" %% "flink-hadoop-compatibility",
   "org.apache.flink" % "flink-s3-fs-hadoop"
-).map(_ % flinkVersion)
+).map(_ % "1.10.1")
 
 val neotypesLib = Seq(
   "com.dimafeng" %% "neotypes",
@@ -117,8 +72,7 @@ val neotypesLib = Seq(
   "com.dimafeng" %% "neotypes-zio-stream",
   "com.dimafeng" %% "neotypes-refined",
   "com.dimafeng" %% "neotypes-cats-data"
-).map(_                  % neotypes) ++
-  Seq("org.neo4j.driver" % "neo4j-java-driver" % "1.7.5")
+).map(_ % "0.13.3") ++ Seq("org.neo4j.driver" % "neo4j-java-driver" % "1.7.5")
 
 val jsonLib = Seq(
   "io.circe" %% "circe-core",
@@ -128,13 +82,13 @@ val jsonLib = Seq(
   "io.circe" %% "circe-jawn",
   "io.circe" %% "circe-optics",
   "io.circe" %% "circe-jackson210"
-).map(_ % circe)
+).map(_ % "0.13.0")
 
 val fs2Lib = Seq(
   "co.fs2" %% "fs2-core",
   "co.fs2" %% "fs2-reactive-streams",
   "co.fs2" %% "fs2-io"
-).map(_ % fs2Version)
+).map(_ % "2.4.2")
 
 val monocleLib = Seq(
   "com.github.julien-truffaut" %% "monocle-core",
@@ -142,7 +96,7 @@ val monocleLib = Seq(
   "com.github.julien-truffaut" %% "monocle-macro",
   "com.github.julien-truffaut" %% "monocle-state",
   "com.github.julien-truffaut" %% "monocle-unsafe"
-).map(_ % monocle)
+).map(_ % "2.0.4")
 
 val avroLib = Seq(
   "org.apache.avro"                        % "avro"                     % "1.9.2",
@@ -165,34 +119,34 @@ val sparkLib = Seq(
   "org.apache.spark" %% "spark-sql-kafka-0-10",
   "org.apache.spark" %% "spark-avro",
   "org.apache.spark" %% "spark-graphx"
-).map(_ % sparkVersion)
+).map(_ % "2.4.6")
 
 val framelessLib = Seq(
   "org.typelevel" %% "frameless-dataset",
   "org.typelevel" %% "frameless-ml",
   "org.typelevel" %% "frameless-cats"
-).map(_ % frameless)
+).map(_ % "0.8.0")
 
 val testLib = Seq(
-  "org.typelevel" %% "cats-testkit-scalatest"                 % "1.0.1"   % Test,
-  "org.typelevel" %% "discipline-scalatest"                   % "1.0.1"   % Test,
-  "org.typelevel" %% "cats-laws"                              % catsCore  % Test,
-  "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.5"   % Test,
-  "org.scalatest" %% "scalatest"                              % scalatest % Test,
-  "com.github.julien-truffaut" %% "monocle-law"               % monocle   % Test,
-  "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.3.5"   % Test,
-  "org.tpolecat" %% "doobie-postgres"                         % doobie    % Test,
-  "com.typesafe.akka" %% "akka-stream-testkit"                % akka      % Test,
-  "org.typelevel" %% "algebra-laws"                           % "2.0.1"   % Test,
-  "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % akkaKafka % Test
+  "org.typelevel" %% "cats-testkit-scalatest"                 % "1.0.1" % Test,
+  "org.typelevel" %% "discipline-scalatest"                   % "1.0.1" % Test,
+  "org.typelevel" %% "cats-laws"                              % "2.1.1" % Test,
+  "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.5" % Test,
+  "org.scalatest" %% "scalatest"                              % "3.1.2" % Test,
+  "com.github.julien-truffaut" %% "monocle-law"               % "2.0.4" % Test,
+  "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.3.5" % Test,
+  "org.tpolecat" %% "doobie-postgres"                         % "0.9.0" % Test,
+  "com.typesafe.akka" %% "akka-stream-testkit"                % "2.6.6" % Test,
+  "org.typelevel" %% "algebra-laws"                           % "2.0.1" % Test,
+  "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % "2.0.3" % Test
 )
 
 val kafkaLib = Seq(
   "org.apache.kafka" % "kafka-clients",
   "org.apache.kafka" % "kafka-streams",
-  "org.apache.kafka" %% "kafka-streams-scala").map(_ % kafkaVersion) ++
+  "org.apache.kafka" %% "kafka-streams-scala").map(_ % "2.5.0") ++
   Seq(
-    "com.typesafe.akka" %% "akka-stream-kafka" % akkaKafka,
+    "com.typesafe.akka" %% "akka-stream-kafka" % "2.0.3",
     "com.github.fd4s" %% "fs2-kafka"           % "1.0.0"
   )
 
@@ -203,20 +157,20 @@ val baseLib = Seq(
   "com.beachape" %% "enumeratum"               % "1.6.1",
   "com.twitter" %% "algebird-core"             % "0.13.7",
   "org.typelevel" %% "algebra"                 % "2.0.1",
-  "io.chrisdavenport" %% "cats-time"           % catsTime,
-  "eu.timepit" %% "refined"                    % refined,
-  "eu.timepit" %% "refined-cats"               % refined,
-  "org.typelevel" %% "cats-core"               % catsCore,
-  "org.typelevel" %% "cats-free"               % catsCore,
-  "org.typelevel" %% "alleycats-core"          % catsCore,
-  "org.typelevel" %% "cats-mtl-core"           % catsMtl,
-  "org.typelevel" %% "kittens"                 % kittens,
-  "com.propensive" %% "contextual"             % contextual,
-  "com.chuusai" %% "shapeless"                 % shapeless,
-  "io.higherkindness" %% "droste-core"         % droste,
-  "io.higherkindness" %% "droste-macros"       % droste,
-  "io.higherkindness" %% "droste-meta"         % droste,
-  "org.typelevel" %% "cats-tagless-macros"     % tagless
+  "io.chrisdavenport" %% "cats-time"           % "0.3.0",
+  "eu.timepit" %% "refined"                    % "0.9.14",
+  "eu.timepit" %% "refined-cats"               % "0.9.14",
+  "org.typelevel" %% "cats-core"               % "2.1.1",
+  "org.typelevel" %% "cats-free"               % "2.1.1",
+  "org.typelevel" %% "alleycats-core"          % "2.1.1",
+  "org.typelevel" %% "cats-mtl-core"           % "0.7.1",
+  "org.typelevel" %% "kittens"                 % "2.1.0",
+  "com.propensive" %% "contextual"             % "1.2.1",
+  "com.chuusai" %% "shapeless"                 % "2.3.3",
+  "io.higherkindness" %% "droste-core"         % "0.8.0",
+  "io.higherkindness" %% "droste-macros"       % "0.8.0",
+  "io.higherkindness" %% "droste-meta"         % "0.8.0",
+  "org.typelevel" %% "cats-tagless-macros"     % "0.11"
 )
 
 val akkaLib = Seq(
@@ -226,20 +180,20 @@ val akkaLib = Seq(
   "com.typesafe.akka" %% "akka-slf4j",
   "com.typesafe.akka" %% "akka-stream-typed",
   "com.typesafe.akka" %% "akka-stream"
-).map(_ % akka)
+).map(_ % "2.6.6")
 
 val effectLib = Seq(
-  "org.typelevel" %% "cats-effect" % catsEffect,
-  "dev.zio" %% "zio-interop-cats"  % zioCats,
-  "io.monix" %% "monix"            % monix)
+  "org.typelevel" %% "cats-effect" % "2.1.3",
+  "dev.zio" %% "zio-interop-cats"  % "2.1.3.0-RC15",
+  "io.monix" %% "monix"            % "3.2.2")
 
 val dbLib = Seq(
-  "io.getquill" %% "quill-core"         % quill,
-  "io.getquill" %% "quill-codegen-jdbc" % quill,
-  "io.getquill" %% "quill-spark"        % quill,
-  "org.tpolecat" %% "doobie-core"       % doobie,
-  "org.tpolecat" %% "doobie-hikari"     % doobie,
-  "org.tpolecat" %% "doobie-quill"      % doobie
+  "io.getquill" %% "quill-core"         % "3.5.1",
+  "io.getquill" %% "quill-codegen-jdbc" % "3.5.1",
+  "io.getquill" %% "quill-spark"        % "3.5.1",
+  "org.tpolecat" %% "doobie-core"       % "0.9.0",
+  "org.tpolecat" %% "doobie-hikari"     % "0.9.0",
+  "org.tpolecat" %% "doobie-quill"      % "0.9.0"
 )
 
 val kantanLib = Seq(
@@ -247,14 +201,14 @@ val kantanLib = Seq(
   "com.nrinaudo" %% "kantan.csv-java8",
   "com.nrinaudo" %% "kantan.csv-generic",
   "com.nrinaudo" %% "kantan.csv-cats"
-).map(_ % kantanVersion)
+).map(_ % "0.6.1")
 
 lazy val common = (project in file("common"))
   .settings(commonSettings: _*)
   .settings(name := "nj-common")
   .settings(
     libraryDependencies ++= Seq(
-      "org.jline"               % "jline" % jline,
+      "org.jline"               % "jline" % "3.15.0",
       "com.lihaoyi" %% "pprint" % "0.5.9") ++
       baseLib ++ fs2Lib ++ monocleLib ++ testLib)
 
@@ -285,9 +239,8 @@ lazy val kafka = (project in file("kafka"))
   .settings(name := "nj-kafka")
   .settings(
     libraryDependencies ++= Seq(
-      compilerPlugin(
-        ("com.github.ghik" % "silencer-plugin" % silencerVersion).cross(CrossVersion.full)),
-      ("com.github.ghik"   % "silencer-lib"    % silencerVersion % Provided).cross(CrossVersion.full)
+      compilerPlugin(("com.github.ghik" % "silencer-plugin" % "1.7.0").cross(CrossVersion.full)),
+      ("com.github.ghik"                % "silencer-lib"    % "1.7.0" % Provided).cross(CrossVersion.full)
     ) ++ effectLib ++ kafkaLib ++ akkaLib ++ avroLib ++ jsonLib ++ testLib,
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
