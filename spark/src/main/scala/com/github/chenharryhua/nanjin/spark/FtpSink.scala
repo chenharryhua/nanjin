@@ -7,7 +7,8 @@ import com.github.chenharryhua.nanjin.devices.FtpUploader
 import com.github.chenharryhua.nanjin.pipes.{
   AvroSerialization,
   CirceSerialization,
-  CsvSerialization
+  CsvSerialization,
+  TextSerialization
 }
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import fs2.{Pipe, Stream}
@@ -39,4 +40,8 @@ final class FtpSink[F[_], C, S <: RemoteFileSettings](uploader: FtpUploader[F, C
     (ss: Stream[F, A]) => ss.through(pipe.toByteJson).through(uploader.upload(pathStr))
   }
 
+  def text(pathStr: String): Pipe[F, String, IOResult] = {
+    val pipe = new TextSerialization[F]
+    (ss: Stream[F, String]) => ss.through(pipe.serialize).through(uploader.upload(pathStr))
+  }
 }

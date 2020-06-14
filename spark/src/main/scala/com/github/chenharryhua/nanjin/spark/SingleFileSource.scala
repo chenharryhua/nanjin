@@ -5,7 +5,8 @@ import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.pipes.{
   AvroDeserialization,
   CirceDeserialization,
-  CsvDeserialization
+  CsvDeserialization,
+  TextDeserialization
 }
 import com.sksamuel.avro4s.{Decoder => AvroDecoder}
 import fs2.Stream
@@ -55,4 +56,10 @@ final class SingleFileSource[F[_]](blocker: Blocker, conf: Configuration) {
   def parquet[A: AvroDecoder](
     pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): Stream[F, A] =
     new NJHadoop[F](conf, blocker).parquetSource(pathStr)
+
+  def text(
+    pathStr: String)(implicit cs: ContextShift[F], ce: ConcurrentEffect[F]): Stream[F, String] = {
+    val pipe = new TextDeserialization[F]
+    new NJHadoop[F](conf, blocker).byteStream(pathStr).through(pipe.deserialize)
+  }
 }

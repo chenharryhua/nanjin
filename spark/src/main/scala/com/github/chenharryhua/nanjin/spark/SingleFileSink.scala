@@ -5,7 +5,8 @@ import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.pipes.{
   AvroSerialization,
   CirceSerialization,
-  CsvSerialization
+  CsvSerialization,
+  TextSerialization
 }
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import fs2.{Pipe, Stream}
@@ -59,6 +60,11 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
     val hadoop = new NJHadoop[F](conf, blocker)
     val schema = AvroEncoder[A].schema
     (ss: Stream[F, A]) => ss.through(hadoop.parquetSink(pathStr))
+  }
+
+  def text(pathStr: String): Pipe[F, String, Byte] = {
+    val pipe = new TextSerialization[F]
+    (ss: Stream[F, String]) => ss.through(pipe.serialize)
   }
 
   def delete(pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): F[Boolean] =
