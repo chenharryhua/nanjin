@@ -23,8 +23,6 @@ final class FsmRdd[F[_], K, V](
   cfg: SKConfig)(implicit sparkSession: SparkSession)
     extends SparKafkaUpdateParams[FsmRdd[F, K, V]] {
 
-  import topic.topicDef.{avroKeyEncoder, avroValEncoder}
-
   override def params: SKParams = SKConfigF.evalConfig(cfg)
 
   override def withParamUpdate(f: SKConfig => SKConfig): FsmRdd[F, K, V] =
@@ -50,6 +48,9 @@ final class FsmRdd[F[_], K, V](
   def flatMapTo[K2, V2](other: KafkaTopic[F, K2, V2])(
     f: NJConsumerRecord[K, V] => TraversableOnce[NJConsumerRecord[K2, V2]]): FsmRdd[F, K2, V2] =
     new FsmRdd[F, K2, V2](rdd.flatMap(f), other, cfg)
+
+  def dismissNulls: FsmRdd[F, K, V] =
+    new FsmRdd[F, K, V](rdd.dismissNulls, topic, cfg)
 
   // out of FsmRdd
 
@@ -95,19 +96,21 @@ final class FsmRdd[F[_], K, V](
       stream.through(fileSink(blocker).json(pathStr)).compile.drain
     }
 
-  def save(implicit F: ConcurrentEffect[F], cs: ContextShift[F]): F[Long] =
+  def save(implicit F: ConcurrentEffect[F], cs: ContextShift[F]): F[Long] = {
+    import topic.topicDef.{avroKeyEncoder, avroValEncoder}
     Blocker[F].use { blocker =>
       val fmt  = params.fileFormat
       val path = params.pathBuilder(topic.topicName, fmt)
       val data = rdd.persist()
       val run: Stream[F, Unit] = fmt match {
-        case NJFileFormat.Avro       => data.stream.through(fileSink(blocker).avro(path))
-        case NJFileFormat.AvroBinary => data.stream.through(fileSink(blocker).binary(path))
-        case NJFileFormat.Jackson    => data.stream.through(fileSink(blocker).jackson(path))
-        case NJFileFormat.Parquet    => data.stream.through(fileSink(blocker).parquet(path))
+        case NJFileFormat.Avro       => data.stream[F].through(fileSink(blocker).avro(path))
+        case NJFileFormat.AvroBinary => data.stream[F].through(fileSink(blocker).binary(path))
+        case NJFileFormat.Jackson    => data.stream[F].through(fileSink(blocker).jackson(path))
+        case NJFileFormat.Parquet    => data.stream[F].through(fileSink(blocker).parquet(path))
       }
       run.compile.drain.as(data.count) <* F.delay(data.unpersist())
     }
+  }
 
   // pipe
   def pipeTo(otherTopic: KafkaTopic[F, K, V])(implicit

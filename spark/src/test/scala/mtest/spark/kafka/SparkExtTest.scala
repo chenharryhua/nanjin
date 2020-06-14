@@ -31,26 +31,26 @@ class SparkExtTest extends AnyFunSuite {
   test("rdd deal with primitive null ") {
     val rdd: RDD[Int] =
       sparkSession.sparkContext.parallelize(List(1, null.asInstanceOf[Int], 3))
-    assert(rdd.noNull.collect().toList == List(1, 0, 3))
-    assert(rdd.nullRecords == 0)
+    assert(rdd.dismissNulls.collect().toList == List(1, 0, 3))
+    assert(rdd.numOfNulls == 0)
   }
 
   test("rdd remove null object") {
     import SparkExtTestData._
     val rdd: RDD[Foo] = sparkSession.sparkContext.parallelize(list)
-    assert(rdd.noNull.collect().toList == List(Foo(1, "a"), Foo(3, "c")))
-    assert(rdd.nullRecords == 1)
+    assert(rdd.dismissNulls.collect().toList == List(Foo(1, "a"), Foo(3, "c")))
+    assert(rdd.numOfNulls == 1)
   }
   test("typed dataset deal with primitive null ") {
     val tds = TypedDataset.create[Int](List(1, null.asInstanceOf[Int], 3))
-    assert(tds.noNull.collect[IO]().unsafeRunSync().toList == List(1, 0, 3))
-    assert(tds.nullRecords[IO].unsafeRunSync() == 0)
+    assert(tds.dismissNulls.collect[IO]().unsafeRunSync().toList == List(1, 0, 3))
+    assert(tds.numOfNulls[IO].unsafeRunSync() == 0)
   }
 
   test("typed dataset remove null object") {
     import SparkExtTestData._
     val tds = TypedDataset.create[Foo](sparkSession.sparkContext.parallelize(list))
-    assert(tds.noNull.collect[IO]().unsafeRunSync().toList == List(Foo(1, "a"), Foo(3, "c")))
-    assert(tds.nullRecords[IO].unsafeRunSync() == 1)
+    assert(tds.dismissNulls.collect[IO]().unsafeRunSync().toList == List(Foo(1, "a"), Foo(3, "c")))
+    assert(tds.numOfNulls[IO].unsafeRunSync() == 1)
   }
 }

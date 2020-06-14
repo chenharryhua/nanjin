@@ -18,8 +18,8 @@ private[spark] trait DatasetExtensions {
 
   implicit class RddExt[A](private val rdd: RDD[A]) {
 
-    def noNull: RDD[A]    = rdd.filter(_ != null)
-    def nullRecords: Long = rdd.subtract(noNull).count()
+    def dismissNulls: RDD[A] = rdd.filter(_ != null)
+    def numOfNulls: Long     = rdd.subtract(dismissNulls).count()
 
     def stream[F[_]: Sync]: Stream[F, A] = Stream.fromIterator(rdd.toLocalIterator)
 
@@ -48,8 +48,8 @@ private[spark] trait DatasetExtensions {
     def source[F[_]: ConcurrentEffect]: Source[A, NotUsed] =
       Source.fromPublisher[A](stream[F].toUnicastPublisher())
 
-    def noNull: TypedDataset[A]          = tds.deserialized.filter(_ != null)
-    def nullRecords[F[_]: Sync]: F[Long] = tds.except(noNull).count[F]()
+    def dismissNulls: TypedDataset[A]   = tds.deserialized.filter(_ != null)
+    def numOfNulls[F[_]: Sync]: F[Long] = tds.except(dismissNulls).count[F]()
   }
 
   implicit class DataframeExt(private val df: DataFrame) {
