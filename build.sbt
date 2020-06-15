@@ -44,6 +44,7 @@ val elastic  = "7.7.0"
 
 // format
 val circe   = "0.13.0"
+val jackson = "2.10.4"
 val kantan  = "0.6.1"
 val parquet = "1.11.0"
 val avro    = "1.9.2"
@@ -338,11 +339,9 @@ lazy val spark = (project in file("spark"))
       "org.log4s" %% "log4s" % "1.8.2") ++
       sparkLib ++ avroLib ++ hadoopLib ++ testLib,
     dependencyOverrides ++= Seq(
-      "io.netty"                                               % "netty-all"        % "4.1.17.Final",
-      "io.netty"                                               % "netty"            % "3.9.9.Final",
-      "com.fasterxml.jackson.core"                             % "jackson-databind" % "2.10.2",
-      "com.fasterxml.jackson.core"                             % "jackson-core"     % "2.10.2",
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.10.2",
+      "com.fasterxml.jackson.core"                             % "jackson-databind" % jackson,
+      "com.fasterxml.jackson.core"                             % "jackson-core"     % jackson,
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jackson,
       "org.json4s" %% "json4s-core"                            % "3.5.5"
     )
   )
