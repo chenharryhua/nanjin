@@ -4,9 +4,6 @@ parallelExecution in ThisBuild := false
 
 version in ThisBuild := "0.7.0-SNAPSHOT"
 
-val confluent    = "5.3.0"
-val kafkaVersion = "2.5.0"
-
 val shapeless  = "2.3.3"
 val contextual = "1.2.1"
 val kittens    = "2.1.0"
@@ -24,8 +21,11 @@ val zioCats    = "2.1.3.0-RC15"
 val monix      = "3.2.2"
 val catsEffect = "2.1.3"
 
-val akka      = "2.6.6"
+val akka26 = "2.6.6"
+
+val kafka25   = "2.5.0"
 val akkaKafka = "2.0.3"
+val fs2Kafka  = "1.0.0"
 
 val spark24   = "2.4.6"
 val frameless = "0.8.0"
@@ -42,7 +42,7 @@ val doobie   = "0.9.0"
 val quill    = "3.5.1"
 val neotypes = "0.13.3"
 
-val flinkVersion = "1.10.1"
+val flink110 = "1.10.1"
 
 val hadoop = "3.2.1"
 
@@ -99,7 +99,7 @@ val flinkLib = Seq(
   "org.apache.flink" %% "flink-jdbc",
   "org.apache.flink" %% "flink-hadoop-compatibility",
   "org.apache.flink" % "flink-s3-fs-hadoop"
-).map(_ % flinkVersion)
+).map(_ % flink110)
 
 val neotypesLib = Seq(
   "com.dimafeng" %% "neotypes",
@@ -175,7 +175,7 @@ val testLib = Seq(
   "com.github.julien-truffaut" %% "monocle-law"               % monocle   % Test,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.3.5"   % Test,
   "org.tpolecat" %% "doobie-postgres"                         % doobie    % Test,
-  "com.typesafe.akka" %% "akka-stream-testkit"                % akka      % Test,
+  "com.typesafe.akka" %% "akka-stream-testkit"                % akka26      % Test,
   "org.typelevel" %% "algebra-laws"                           % "2.0.1"   % Test,
   "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % akkaKafka % Test
 )
@@ -183,11 +183,10 @@ val testLib = Seq(
 val kafkaLib = Seq(
   "org.apache.kafka" % "kafka-clients",
   "org.apache.kafka" % "kafka-streams",
-  "org.apache.kafka" %% "kafka-streams-scala").map(_ % kafkaVersion) ++
+  "org.apache.kafka" %% "kafka-streams-scala").map(_ % kafka25) ++
   Seq(
     "com.typesafe.akka" %% "akka-stream-kafka" % akkaKafka,
-    "com.github.fd4s" %% "fs2-kafka"           % "1.0.0"
-  )
+    "com.github.fd4s" %% "fs2-kafka"           % fs2Kafka)
 
 val enumLib = Seq(
   "com.beachape" %% "enumeratum-cats",
@@ -232,7 +231,7 @@ val akkaLib = Seq(
   "com.typesafe.akka" %% "akka-slf4j",
   "com.typesafe.akka" %% "akka-stream-typed",
   "com.typesafe.akka" %% "akka-stream"
-).map(_ % akka)
+).map(_ % akka26)
 
 val effectLib = Seq(
   "org.typelevel" %% "cats-effect" % catsEffect,
