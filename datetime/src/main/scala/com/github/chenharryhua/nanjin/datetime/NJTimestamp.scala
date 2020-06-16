@@ -2,16 +2,15 @@ package com.github.chenharryhua.nanjin.datetime
 
 import java.sql.Timestamp
 import java.time._
-import java.time.format.DateTimeFormatter
 import java.time.temporal.{ChronoUnit, TemporalUnit}
 import java.util.concurrent.TimeUnit
 
+import cats.implicits._
 import cats.{Hash, Order, Show}
 import monocle.Iso
 
-import scala.util.Try
-
 final case class NJTimestamp(milliseconds: Long) extends AnyVal {
+
   def timeUnit: TimeUnit   = TimeUnit.MILLISECONDS
   def instant: Instant     = Instant.ofEpochMilli(milliseconds)
   def utc: ZonedDateTime   = instant.atZone(ZoneId.of("Etc/UTC"))
@@ -68,12 +67,19 @@ object NJTimestamp {
   def apply(ts: LocalDate, zoneId: ZoneId): NJTimestamp =
     apply(LocalDateTime.of(ts, LocalTime.MIDNIGHT), zoneId)
 
-  def parse(
-    dateTimeStr: String,
-    zoneId: ZoneId,
-    formatter: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME): Option[NJTimestamp] =
-    Try(LocalDateTime.parse(dateTimeStr, formatter)).toOption.map(ldt =>
-      NJTimestamp(ZonedDateTime.of(ldt, zoneId)))
+  private def parser: DateTimeParser[NJTimestamp] =
+    DateTimeParser[Instant].map(NJTimestamp(_)) <+>
+      DateTimeParser[ZonedDateTime].map(NJTimestamp(_)) <+>
+      DateTimeParser[OffsetDateTime].map(NJTimestamp(_))
+
+  def parse(dateTimeStr: String): Either[Throwable, NJTimestamp] = parser.parse(dateTimeStr)
+
+  @throws[Exception]
+  def apply(str: String): NJTimestamp =
+    parse(str) match {
+      case Right(nj) => nj
+      case Left(ex)  => throw ex
+    }
 
   def now(clock: Clock): NJTimestamp = NJTimestamp(Instant.now(clock))
   def now(): NJTimestamp             = NJTimestamp(Instant.now)

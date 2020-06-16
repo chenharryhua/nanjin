@@ -7,7 +7,7 @@ import cats.tests.CatsSuite
 import com.github.chenharryhua.nanjin.datetime._
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
-class DateTimeOrderHashTests extends CatsSuite with FunSuiteDiscipline{
+class HashOrderTests extends CatsSuite with FunSuiteDiscipline {
   import ArbitaryData._
 
   checkAll("Timestamp", HashTests[Timestamp].hash)
@@ -18,6 +18,9 @@ class DateTimeOrderHashTests extends CatsSuite with FunSuiteDiscipline{
 
   checkAll("NJTimestamp", HashTests[NJTimestamp].hash)
   checkAll("NJTimestamp", OrderTests[NJTimestamp].order)
+
+  checkAll("NJDateTime", HashTests[NJDateTime].hash)
+  checkAll("NJDateTime", OrderTests[NJDateTime].order)
 
   checkAll("JavaZonedDateTime", HashTests[JavaZonedDateTime].hash)
   checkAll("JavaZonedDateTime", OrderTests[JavaZonedDateTime].order)

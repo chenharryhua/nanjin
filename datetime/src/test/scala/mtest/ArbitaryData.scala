@@ -4,7 +4,12 @@ import java.sql.{Date, Timestamp}
 import java.time.{OffsetDateTime, ZoneId}
 
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8._
-import com.github.chenharryhua.nanjin.datetime.{JavaOffsetDateTime, JavaZonedDateTime, NJTimestamp}
+import com.github.chenharryhua.nanjin.datetime.{
+  JavaOffsetDateTime,
+  JavaZonedDateTime,
+  NJDateTime,
+  NJTimestamp
+}
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 
 object ArbitaryData {
@@ -19,6 +24,9 @@ object ArbitaryData {
   implicit val coNJTimestamp: Cogen[NJTimestamp] =
     Cogen[NJTimestamp]((a: NJTimestamp) => a.milliseconds)
 
+  implicit val coNJDateTime: Cogen[NJDateTime] =
+    Cogen[NJDateTime]((a: NJDateTime) => a.timestamp.milliseconds)
+
   implicit val coJavaZoned: Cogen[JavaZonedDateTime] =
     Cogen[JavaZonedDateTime]((a: JavaZonedDateTime) => a.zonedDateTime.toEpochSecond)
 
@@ -30,6 +38,9 @@ object ArbitaryData {
 
   implicit val arbTimestamp: Arbitrary[Timestamp] = Arbitrary(
     genZonedDateTimeWithZone(None).map(d => new Timestamp(d.toInstant.getEpochSecond)))
+
+  implicit val arbDateTime: Arbitrary[NJDateTime] = Arbitrary(
+    genZonedDateTime.map(d => NJDateTime(d)))
 
   implicit val arbKafkaTimestamp: Arbitrary[NJTimestamp] = Arbitrary(
     genZonedDateTimeWithZone(None).map(d => NJTimestamp(d.toInstant.getEpochSecond)))
