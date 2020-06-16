@@ -20,6 +20,9 @@ object DateTimeParser {
   implicit val localDateTimeParser: DateTimeParser[LocalDateTime] = (str: String) =>
     Try(LocalDateTime.parse(str)).toEither
 
+  implicit val localTimeParser: DateTimeParser[LocalTime] = (str: String) =>
+    Try(LocalTime.parse(str)).toEither
+
   implicit val instantParser: DateTimeParser[Instant] = (str: String) =>
     Try(Instant.parse(str)).toEither
 

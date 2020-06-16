@@ -10,13 +10,14 @@ import cats.{Hash, Order, Show}
 import monocle.Iso
 
 final case class NJTimestamp(milliseconds: Long) extends AnyVal {
-
   def timeUnit: TimeUnit   = TimeUnit.MILLISECONDS
   def instant: Instant     = Instant.ofEpochMilli(milliseconds)
   def utc: ZonedDateTime   = instant.atZone(ZoneId.of("Etc/UTC"))
   def local: ZonedDateTime = atZone(ZoneId.systemDefault())
 
   def atZone(zoneId: ZoneId): ZonedDateTime = instant.atZone(zoneId)
+
+  @throws[Exception]
   def atZone(zoneId: String): ZonedDateTime = atZone(ZoneId.of(zoneId))
 
   def javaLong: java.lang.Long = milliseconds
@@ -67,10 +68,16 @@ object NJTimestamp {
   def apply(ts: LocalDate, zoneId: ZoneId): NJTimestamp =
     apply(LocalDateTime.of(ts, LocalTime.MIDNIGHT), zoneId)
 
+  def apply(lt: LocalTime, zoneId: ZoneId): NJTimestamp =
+    apply(LocalDateTime.of(LocalDate.now(), lt), zoneId)
+
   private def parser: DateTimeParser[NJTimestamp] =
     DateTimeParser[Instant].map(NJTimestamp(_)) <+>
       DateTimeParser[ZonedDateTime].map(NJTimestamp(_)) <+>
-      DateTimeParser[OffsetDateTime].map(NJTimestamp(_))
+      DateTimeParser[OffsetDateTime].map(NJTimestamp(_)) <+>
+      DateTimeParser[LocalDate].map(NJTimestamp(_, ZoneId.systemDefault())) <+>
+      DateTimeParser[LocalDateTime].map(NJTimestamp(_, ZoneId.systemDefault())) <+>
+      DateTimeParser[LocalTime].map(NJTimestamp(_, ZoneId.systemDefault()))
 
   def parse(dateTimeStr: String): Either[Throwable, NJTimestamp] = parser.parse(dateTimeStr)
 

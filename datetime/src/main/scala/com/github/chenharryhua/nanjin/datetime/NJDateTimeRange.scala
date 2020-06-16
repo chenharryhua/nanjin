@@ -24,6 +24,9 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
     implicit val localDate: Case.Aux[LocalDate, NJTimestamp] =
       at[LocalDate](NJTimestamp(_, zoneId))
 
+    implicit val localTime: Case.Aux[LocalTime, NJTimestamp] =
+      at[LocalTime](NJTimestamp(_, zoneId))
+
     implicit val localDateTime: Case.Aux[LocalDateTime, NJTimestamp] =
       at[LocalDateTime](NJTimestamp(_, zoneId))
 
@@ -72,6 +75,9 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
   implicit private val localDate: Prism[NJDateTimeRange.TimeTypes, LocalDate] =
     coProductPrism[NJDateTimeRange.TimeTypes, LocalDate]
 
+  implicit private val localTime: Prism[NJDateTimeRange.TimeTypes, LocalTime] =
+    coProductPrism[NJDateTimeRange.TimeTypes, LocalTime]
+
   implicit private val localDateTime: Prism[NJDateTimeRange.TimeTypes, LocalDateTime] =
     coProductPrism[NJDateTimeRange.TimeTypes, LocalDateTime]
 
@@ -87,17 +93,26 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
     NJDateTimeRange.end.set(Some(prism.reverseGet(a)))(this)
 
   //start
+  def withStartTime(ts: LocalTime): NJDateTimeRange     = setStart(ts)
   def withStartTime(ts: LocalDate): NJDateTimeRange     = setStart(ts)
   def withStartTime(ts: LocalDateTime): NJDateTimeRange = setStart(ts)
   def withStartTime(ts: Instant): NJDateTimeRange       = setStart(NJTimestamp(ts))
   def withStartTime(ts: Long): NJDateTimeRange          = setStart(NJTimestamp(ts))
   def withStartTime(ts: Timestamp): NJDateTimeRange     = setStart(NJTimestamp(ts))
+
+  @throws[Exception]
+  def withStartTime(ts: String): NJDateTimeRange = setStart(NJTimestamp(ts))
+
   //end
+  def withEndTime(ts: LocalTime): NJDateTimeRange     = setEnd(ts)
   def withEndTime(ts: LocalDate): NJDateTimeRange     = setEnd(ts)
   def withEndTime(ts: LocalDateTime): NJDateTimeRange = setEnd(ts)
   def withEndTime(ts: Instant): NJDateTimeRange       = setEnd(NJTimestamp(ts))
   def withEndTime(ts: Long): NJDateTimeRange          = setEnd(NJTimestamp(ts))
   def withEndTime(ts: Timestamp): NJDateTimeRange     = setEnd(NJTimestamp(ts))
+
+  @throws[Exception]
+  def withEndTime(ts: String): NJDateTimeRange = setEnd(NJTimestamp(ts))
 
   def isInBetween(ts: Long): Boolean =
     (startTimestamp, endTimestamp) match {
@@ -119,7 +134,7 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
 
 object NJDateTimeRange {
 
-  final type TimeTypes = NJTimestamp :+: LocalDateTime :+: LocalDate :+: CNil
+  final type TimeTypes = NJTimestamp :+: LocalDateTime :+: LocalDate :+: LocalTime :+: CNil
 
   implicit val showNJDateTimeRange: Show[NJDateTimeRange] =
     tr =>
