@@ -1,17 +1,40 @@
 package mtest
 
-import java.time.{LocalDate, ZoneId}
+import java.time.{LocalDate, LocalTime, ZoneId, ZonedDateTime}
 
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import org.scalatest.funsuite.AnyFunSuite
 
 class NJTimestampTest extends AnyFunSuite {
-  val date   = LocalDate.of(2012, 1, 26)
-  val zoneId = ZoneId.of("Australia/Melbourne")
-  val nj     = NJTimestamp(date, zoneId)
-  test("year moth day") {
-    assert(nj.yearStr(zoneId) === "2012")
-    assert(nj.monthStr(zoneId) === "01")
-    assert(nj.dayStr(zoneId) === "26")
+  test("Local Date") {
+    assert(
+      NJTimestamp("2020-01-01").local === ZonedDateTime
+        .of(LocalDate.of(2020, 1, 1), LocalTime.MIDNIGHT, ZoneId.systemDefault()))
   }
+
+  test("Local Time") {
+    assert(
+      NJTimestamp("00:00:00").local === ZonedDateTime
+        .of(LocalDate.now, LocalTime.MIDNIGHT, ZoneId.systemDefault()))
+
+  }
+
+  test("Local Date Time") {
+    assert(
+      NJTimestamp("2020-01-01T00:00:00").local === ZonedDateTime
+        .of(LocalDate.of(2020, 1, 1), LocalTime.MIDNIGHT, ZoneId.systemDefault()))
+  }
+
+  test("UTC") {
+    assert(
+      NJTimestamp("2020-01-01T00:00:00Z").utc === ZonedDateTime
+        .of(LocalDate.of(2020, 1, 1), LocalTime.MIDNIGHT, ZoneId.of("Etc/UTC")))
+  }
+
+  test("Zoned Date Time") {
+    assert(
+      NJTimestamp("2020-01-01T00:00+11:00[Australia/Melbourne]").local === ZonedDateTime
+        .of(LocalDate.of(2020, 1, 1), LocalTime.MIDNIGHT, ZoneId.systemDefault()))
+  }
+
 }

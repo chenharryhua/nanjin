@@ -3,11 +3,12 @@ package mtest
 import java.sql.{Date, Timestamp}
 
 import cats.kernel.laws.discipline.{HashTests, OrderTests}
+import cats.laws.discipline.AlternativeTests
 import cats.tests.CatsSuite
 import com.github.chenharryhua.nanjin.datetime._
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
-class DateTimeOrderHashTests extends CatsSuite with FunSuiteDiscipline{
+class HashOrderTests extends CatsSuite with FunSuiteDiscipline {
   import ArbitaryData._
 
   checkAll("Timestamp", HashTests[Timestamp].hash)
@@ -25,4 +26,5 @@ class DateTimeOrderHashTests extends CatsSuite with FunSuiteDiscipline{
   checkAll("JavaOffsetDateTime", HashTests[JavaOffsetDateTime].hash)
   checkAll("JavaOffsetDateTime", OrderTests[JavaOffsetDateTime].order)
 
+  //checkAll("parsing", AlternativeTests[DateTimeParser].alternative)
 }

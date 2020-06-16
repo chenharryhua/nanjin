@@ -4,7 +4,11 @@ import java.sql.{Date, Timestamp}
 import java.time.{OffsetDateTime, ZoneId}
 
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8._
-import com.github.chenharryhua.nanjin.datetime.{JavaOffsetDateTime, JavaZonedDateTime, NJTimestamp}
+import com.github.chenharryhua.nanjin.datetime.{
+  JavaOffsetDateTime,
+  JavaZonedDateTime,
+  NJTimestamp
+}
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 
 object ArbitaryData {
