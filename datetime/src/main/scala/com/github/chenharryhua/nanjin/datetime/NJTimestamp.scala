@@ -76,8 +76,8 @@ object NJTimestamp {
       DateTimeParser[ZonedDateTime].map(NJTimestamp(_)) <+>
       DateTimeParser[OffsetDateTime].map(NJTimestamp(_)) <+>
       DateTimeParser[LocalDate].map(NJTimestamp(_, ZoneId.systemDefault())) <+>
-      DateTimeParser[LocalDateTime].map(NJTimestamp(_, ZoneId.systemDefault())) <+>
-      DateTimeParser[LocalTime].map(NJTimestamp(_, ZoneId.systemDefault()))
+      DateTimeParser[LocalTime].map(NJTimestamp(_, ZoneId.systemDefault())) <+>
+      DateTimeParser[LocalDateTime].map(NJTimestamp(_, ZoneId.systemDefault()))
 
   def parse(dateTimeStr: String): Either[Throwable, NJTimestamp] = parser.parse(dateTimeStr)
 

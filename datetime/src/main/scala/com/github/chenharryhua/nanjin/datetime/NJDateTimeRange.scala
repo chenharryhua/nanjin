@@ -69,6 +69,7 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
   def withZoneId(zoneId: ZoneId): NJDateTimeRange =
     NJDateTimeRange.zoneId.set(zoneId)(this)
 
+  @throws[Exception]
   def withZoneId(zoneId: String): NJDateTimeRange =
     NJDateTimeRange.zoneId.set(ZoneId.of(zoneId))(this)
 
