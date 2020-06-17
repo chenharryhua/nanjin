@@ -13,11 +13,12 @@ sealed trait DateTimeParser[A] extends Serializable { self =>
 object DateTimeParser {
   def apply[A](implicit ev: DateTimeParser[A]): DateTimeParser[A] = ev
 
-  implicit val localDateParser: DateTimeParser[LocalDate] = new DateTimeParser[LocalDate] {
+  implicit val localDateParser: DateTimeParser[LocalDate] =
+    new DateTimeParser[LocalDate] {
 
-    override def parse(str: String): Either[Throwable, LocalDate] =
-      Either.catchNonFatal(LocalDate.parse(str))
-  }
+      override def parse(str: String): Either[Throwable, LocalDate] =
+        Either.catchNonFatal(LocalDate.parse(str))
+    }
 
   implicit val localTimeParser: DateTimeParser[LocalTime] =
     new DateTimeParser[LocalTime] {

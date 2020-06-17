@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.datetime
 
 import java.sql.Timestamp
 import java.time._
-import java.util.concurrent.TimeUnit
 
 import cats.implicits._
 import cats.kernel.UpperBounded
@@ -12,7 +11,7 @@ import monocle.generic.coproduct.coProductPrism
 import monocle.macros.Lenses
 import shapeless.{:+:, CNil, Poly1}
 
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration.FiniteDuration
 
 @Lenses final case class NJDateTimeRange(
   private val start: Option[NJDateTimeRange.TimeTypes],
@@ -56,7 +55,6 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
   val zonedEndTime: Option[ZonedDateTime]   = endTimestamp.map(_.atZone(zoneId))
 
   /**
-    *
     * @return list of local-date from start date(inclusive) to end date(exclusive)
     *         empty if start date === end date
     *         empty if infinite
@@ -94,23 +92,27 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
     NJDateTimeRange.end.set(Some(prism.reverseGet(a)))(this)
 
   //start
-  def withStartTime(ts: LocalTime): NJDateTimeRange     = setStart(ts)
-  def withStartTime(ts: LocalDate): NJDateTimeRange     = setStart(ts)
-  def withStartTime(ts: LocalDateTime): NJDateTimeRange = setStart(ts)
-  def withStartTime(ts: Instant): NJDateTimeRange       = setStart(NJTimestamp(ts))
-  def withStartTime(ts: Long): NJDateTimeRange          = setStart(NJTimestamp(ts))
-  def withStartTime(ts: Timestamp): NJDateTimeRange     = setStart(NJTimestamp(ts))
+  def withStartTime(ts: LocalTime): NJDateTimeRange      = setStart(ts)
+  def withStartTime(ts: LocalDate): NJDateTimeRange      = setStart(ts)
+  def withStartTime(ts: LocalDateTime): NJDateTimeRange  = setStart(ts)
+  def withStartTime(ts: OffsetDateTime): NJDateTimeRange = setStart(NJTimestamp(ts))
+  def withStartTime(ts: ZonedDateTime): NJDateTimeRange  = setStart(NJTimestamp(ts))
+  def withStartTime(ts: Instant): NJDateTimeRange        = setStart(NJTimestamp(ts))
+  def withStartTime(ts: Long): NJDateTimeRange           = setStart(NJTimestamp(ts))
+  def withStartTime(ts: Timestamp): NJDateTimeRange      = setStart(NJTimestamp(ts))
 
   @throws[Exception]
   def withStartTime(ts: String): NJDateTimeRange = setStart(NJTimestamp(ts))
 
   //end
-  def withEndTime(ts: LocalTime): NJDateTimeRange     = setEnd(ts)
-  def withEndTime(ts: LocalDate): NJDateTimeRange     = setEnd(ts)
-  def withEndTime(ts: LocalDateTime): NJDateTimeRange = setEnd(ts)
-  def withEndTime(ts: Instant): NJDateTimeRange       = setEnd(NJTimestamp(ts))
-  def withEndTime(ts: Long): NJDateTimeRange          = setEnd(NJTimestamp(ts))
-  def withEndTime(ts: Timestamp): NJDateTimeRange     = setEnd(NJTimestamp(ts))
+  def withEndTime(ts: LocalTime): NJDateTimeRange      = setEnd(ts)
+  def withEndTime(ts: LocalDate): NJDateTimeRange      = setEnd(ts)
+  def withEndTime(ts: LocalDateTime): NJDateTimeRange  = setEnd(ts)
+  def withEndTime(ts: OffsetDateTime): NJDateTimeRange = setEnd(NJTimestamp(ts))
+  def withEndTime(ts: ZonedDateTime): NJDateTimeRange  = setEnd(NJTimestamp(ts))
+  def withEndTime(ts: Instant): NJDateTimeRange        = setEnd(NJTimestamp(ts))
+  def withEndTime(ts: Long): NJDateTimeRange           = setEnd(NJTimestamp(ts))
+  def withEndTime(ts: Timestamp): NJDateTimeRange      = setEnd(NJTimestamp(ts))
 
   @throws[Exception]
   def withEndTime(ts: String): NJDateTimeRange = setEnd(NJTimestamp(ts))
@@ -124,8 +126,7 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
     }
 
   val duration: Option[FiniteDuration] =
-    (startTimestamp, endTimestamp).mapN((s, e) =>
-      Duration(e.milliseconds - s.milliseconds, TimeUnit.MILLISECONDS))
+    (startTimestamp, endTimestamp).mapN((s, e) => e.minus(s))
 
   require(
     duration.forall(_.length > 0),
