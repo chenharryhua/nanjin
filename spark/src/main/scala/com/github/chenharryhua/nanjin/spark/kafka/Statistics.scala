@@ -67,7 +67,7 @@ final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Ser
 
   def daily(implicit ev: Sync[F]): F[Unit] = {
     val day: TypedDataset[LocalDate] = typedDataset.deserialized.map { m =>
-      NJTimestamp(m.timestamp).atZone(params.timeRange.zoneId).toLocalDate
+      NJTimestamp(m.timestamp).localDate(params.timeRange.zoneId)
     }
     val res = day.groupBy(day.asCol).agg(count(day.asCol)).as[DailyAggResult]
     res.orderBy(res('date).asc).show[F](params.showDs.rowNum, params.showDs.isTruncate)

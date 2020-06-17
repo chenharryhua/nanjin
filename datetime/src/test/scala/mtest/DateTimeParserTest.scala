@@ -27,23 +27,30 @@ class DateTimeParserTest extends AnyFunSuite {
   }
 
   test("UTC") {
-    assert(
-      range.withStartTime("2020-01-01T00:00:00Z").startTimestamp.get === NJTimestamp(
-        ZonedDateTime.of(LocalDate.of(2020, 1, 1), LocalTime.MIDNIGHT, ZoneId.of("Etc/UTC"))))
+    val date =
+      NJTimestamp(
+        ZonedDateTime.of(LocalDate.of(2020, 1, 1), LocalTime.MIDNIGHT, ZoneId.of("Etc/UTC")))
+    assert(range.withStartTime("2020-01-01T00:00:00Z").startTimestamp.get === date)
+    assert(NJTimestamp("2020-01-01T00:00:00Z") === date)
+    assert(NJTimestamp("2020-01-01T11:00+11:00") === date)
+    assert(NJTimestamp("2020-01-01T11:00+11:00[Australia/Melbourne]") === date)
   }
 
   test("Zoned Date Time") {
+    val date =
+      ZonedDateTime.of(LocalDate.of(2020, 1, 1), LocalTime.MIDNIGHT, ZoneId.systemDefault())
     assert(
       range
         .withStartTime("2020-01-01T00:00+11:00[Australia/Melbourne]")
         .zonedStartTime
-        .get === ZonedDateTime
-        .of(LocalDate.of(2020, 1, 1), LocalTime.MIDNIGHT, ZoneId.systemDefault()))
-  }
+        .get === date)
 
-  test("Customized Date") {
-    assert(
-      range.withStartTime("20200101").zonedStartTime.get === ZonedDateTime
-        .of(LocalDate.of(2020, 1, 1), LocalTime.MIDNIGHT, ZoneId.systemDefault()))
+    assert(NJTimestamp("2020-01-01T00:00+11:00[Australia/Melbourne]").local === date)
+  }
+  test("Offset Date Time") {
+    val date =
+      ZonedDateTime.of(LocalDate.of(2020, 1, 1), LocalTime.MIDNIGHT, ZoneId.systemDefault())
+    assert(range.withStartTime("2020-01-01T00:00+11:00").zonedStartTime.get === date)
+    assert(NJTimestamp("2020-01-01T00:00+11:00").local === date)
   }
 }

@@ -10,7 +10,7 @@ final case class FailedParsers(parsers: NonEmptyList[String]) extends AnyVal {
   def concat(other: FailedParsers): FailedParsers = FailedParsers(parsers ::: other.parsers)
 
   def show(str: String): String =
-    s"""failed parse "$str" by any of [${parsers.toList.mkString(",")}]"""
+    s"""can not parse "$str" by any of [${parsers.toList.mkString(",")}]"""
 }
 
 object FailedParsers {
