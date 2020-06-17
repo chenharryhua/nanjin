@@ -28,7 +28,6 @@ import scala.concurrent.duration.FiniteDuration
 
   private object calcDateTime extends Poly1 {
 
-    @throws[Exception]
     implicit val stringDateTime: Case.Aux[String, NJTimestamp] =
       at[String](s =>
         parser.parse(s) match {
@@ -83,7 +82,6 @@ import scala.concurrent.duration.FiniteDuration
   def withZoneId(zoneId: ZoneId): NJDateTimeRange =
     NJDateTimeRange.zoneId.set(zoneId)(this)
 
-  @throws[Exception]
   def withZoneId(zoneId: String): NJDateTimeRange =
     NJDateTimeRange.zoneId.set(ZoneId.of(zoneId))(this)
 
@@ -119,9 +117,7 @@ import scala.concurrent.duration.FiniteDuration
   def withStartTime(ts: Instant): NJDateTimeRange        = setStart(NJTimestamp(ts))
   def withStartTime(ts: Long): NJDateTimeRange           = setStart(NJTimestamp(ts))
   def withStartTime(ts: Timestamp): NJDateTimeRange      = setStart(NJTimestamp(ts))
-
-  @throws[Exception]
-  def withStartTime(ts: String): NJDateTimeRange = setStart(ts)
+  def withStartTime(ts: String): NJDateTimeRange         = setStart(ts)
 
   //end
   def withEndTime(ts: LocalTime): NJDateTimeRange      = setEnd(ts)
@@ -132,9 +128,7 @@ import scala.concurrent.duration.FiniteDuration
   def withEndTime(ts: Instant): NJDateTimeRange        = setEnd(NJTimestamp(ts))
   def withEndTime(ts: Long): NJDateTimeRange           = setEnd(NJTimestamp(ts))
   def withEndTime(ts: Timestamp): NJDateTimeRange      = setEnd(NJTimestamp(ts))
-
-  @throws[Exception]
-  def withEndTime(ts: String): NJDateTimeRange = setEnd(ts)
+  def withEndTime(ts: String): NJDateTimeRange         = setEnd(ts)
 
   def isInBetween(ts: Long): Boolean =
     (startTimestamp, endTimestamp) match {

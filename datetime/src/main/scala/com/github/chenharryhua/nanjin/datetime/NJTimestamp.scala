@@ -19,7 +19,6 @@ final case class NJTimestamp(milliseconds: Long) extends AnyVal {
 
   def atZone(zoneId: ZoneId): ZonedDateTime = instant.atZone(zoneId)
 
-  @throws[Exception]
   def atZone(zoneId: String): ZonedDateTime = atZone(ZoneId.of(zoneId))
 
   def javaLong: java.lang.Long = milliseconds
@@ -83,7 +82,6 @@ object NJTimestamp {
       DateTimeParser[ZonedDateTime].map(NJTimestamp(_)) <+>
       DateTimeParser[OffsetDateTime].map(NJTimestamp(_))
 
-  @throws[Exception]
   def apply(str: String): NJTimestamp =
     parser.parse(str) match {
       case Right(r) => r
