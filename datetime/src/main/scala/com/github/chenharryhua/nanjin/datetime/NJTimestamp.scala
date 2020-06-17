@@ -9,6 +9,8 @@ import cats.implicits._
 import cats.{Hash, Order, Show}
 import monocle.Iso
 
+import scala.concurrent.duration.{Duration, FiniteDuration}
+
 final case class NJTimestamp(milliseconds: Long) extends AnyVal {
   def timeUnit: TimeUnit   = TimeUnit.MILLISECONDS
   def instant: Instant     = Instant.ofEpochMilli(milliseconds)
@@ -52,6 +54,11 @@ final case class NJTimestamp(milliseconds: Long) extends AnyVal {
 
   def minus(amount: Long): NJTimestamp = minus(amount, ChronoUnit.MILLIS)
   def plus(amount: Long): NJTimestamp  = plus(amount, ChronoUnit.MILLIS)
+
+  def minus(other: NJTimestamp): FiniteDuration =
+    Duration(this.milliseconds - other.milliseconds, timeUnit)
+
+  def -(other: NJTimestamp): FiniteDuration = minus(other)
 
   override def toString: String = local.toString
 }
