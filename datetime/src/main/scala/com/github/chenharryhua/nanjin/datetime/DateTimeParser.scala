@@ -1,11 +1,10 @@
 package com.github.chenharryhua.nanjin.datetime
 
+import java.text.SimpleDateFormat
 import java.time._
 
 import cats.Alternative
 import cats.implicits._
-
-import scala.util.Try
 
 trait DateTimeParser[A] extends Serializable { self =>
   def parse(str: String): Either[Throwable, A]
@@ -15,22 +14,27 @@ object DateTimeParser {
   def apply[A](implicit ev: DateTimeParser[A]): DateTimeParser[A] = ev
 
   implicit val localDateParser: DateTimeParser[LocalDate] = (str: String) =>
-    Try(LocalDate.parse(str)).toEither
-
-  implicit val localDateTimeParser: DateTimeParser[LocalDateTime] = (str: String) =>
-    Try(LocalDateTime.parse(str)).toEither
+    Either.catchNonFatal(LocalDate.parse(str))
 
   implicit val localTimeParser: DateTimeParser[LocalTime] = (str: String) =>
-    Try(LocalTime.parse(str)).toEither
+    Either.catchNonFatal(LocalTime.parse(str))
+
+  implicit val localDateTimeParser: DateTimeParser[LocalDateTime] = (str: String) =>
+    Either.catchNonFatal(LocalDateTime.parse(str))
 
   implicit val instantParser: DateTimeParser[Instant] = (str: String) =>
-    Try(Instant.parse(str)).toEither
+    Either.catchNonFatal(Instant.parse(str))
 
   implicit val zonedParser: DateTimeParser[ZonedDateTime] = (str: String) =>
-    Try(ZonedDateTime.parse(str)).toEither
+    Either.catchNonFatal(ZonedDateTime.parse(str))
 
   implicit val offsetParser: DateTimeParser[OffsetDateTime] = (str: String) =>
-    Try(OffsetDateTime.parse(str)).toEither
+    Either.catchNonFatal(OffsetDateTime.parse(str))
+
+  implicit val customerizedParser: DateTimeParser[NJTimestamp] = { (str: String) =>
+    val fmt = new SimpleDateFormat("yyyyMMdd")
+    Either.catchNonFatal(NJTimestamp(fmt.parse(str).toInstant))
+  }
 
   implicit val alternativeDateTimeParser: Alternative[DateTimeParser] =
     new Alternative[DateTimeParser] {
