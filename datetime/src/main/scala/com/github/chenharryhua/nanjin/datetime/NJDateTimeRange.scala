@@ -33,8 +33,7 @@ import scala.concurrent.duration.FiniteDuration
       at[String](s =>
         parser.parse(s) match {
           case Right(r) => r
-          case Left(ex) =>
-            throw new Exception(s"""fail to parse "$s" by any of [${ex.toList.mkString(",")}]""")
+          case Left(ex) => throw new Exception(ex.show(s))
         })
 
     implicit val localDate: Case.Aux[LocalDate, NJTimestamp] =
@@ -120,7 +119,9 @@ import scala.concurrent.duration.FiniteDuration
   def withStartTime(ts: Instant): NJDateTimeRange        = setStart(NJTimestamp(ts))
   def withStartTime(ts: Long): NJDateTimeRange           = setStart(NJTimestamp(ts))
   def withStartTime(ts: Timestamp): NJDateTimeRange      = setStart(NJTimestamp(ts))
-  def withStartTime(ts: String): NJDateTimeRange         = setStart(ts)
+
+  @throws[Exception]
+  def withStartTime(ts: String): NJDateTimeRange = setStart(ts)
 
   //end
   def withEndTime(ts: LocalTime): NJDateTimeRange      = setEnd(ts)
@@ -131,7 +132,9 @@ import scala.concurrent.duration.FiniteDuration
   def withEndTime(ts: Instant): NJDateTimeRange        = setEnd(NJTimestamp(ts))
   def withEndTime(ts: Long): NJDateTimeRange           = setEnd(NJTimestamp(ts))
   def withEndTime(ts: Timestamp): NJDateTimeRange      = setEnd(NJTimestamp(ts))
-  def withEndTime(ts: String): NJDateTimeRange         = setEnd(ts)
+
+  @throws[Exception]
+  def withEndTime(ts: String): NJDateTimeRange = setEnd(ts)
 
   def isInBetween(ts: Long): Boolean =
     (startTimestamp, endTimestamp) match {
@@ -144,10 +147,13 @@ import scala.concurrent.duration.FiniteDuration
   val duration: Option[FiniteDuration] =
     (startTimestamp, endTimestamp).mapN((s, e) => e.minus(s))
 
+  override def toString: String =
+    s"NJDateTimeRange(startTime=${zonedStartTime.toString}, endTime=${zonedEndTime.toString})"
+
   require(
     duration.forall(_.length > 0),
-    s"start time(${startTimestamp.map(_.utc)}) should be strictly before end time(${endTimestamp
-      .map(_.utc)}).")
+    s"start time should be strictly before end time - $toString."
+  )
 }
 
 object NJDateTimeRange {
@@ -160,9 +166,7 @@ object NJDateTimeRange {
       String :+: // date-time in string, like "03:12"
       CNil
 
-  implicit val showNJDateTimeRange: Show[NJDateTimeRange] =
-    tr =>
-      s"NJDateTimeRange(startTime=${tr.zonedStartTime.toString}, endTime=${tr.zonedEndTime.toString})"
+  implicit val showNJDateTimeRange: Show[NJDateTimeRange] = _.toString
 
   implicit val upperBoundedNJDateTimeRange: UpperBounded[NJDateTimeRange] with Eq[NJDateTimeRange] =
     new UpperBounded[NJDateTimeRange] with Eq[NJDateTimeRange] {
