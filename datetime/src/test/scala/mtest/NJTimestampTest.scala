@@ -37,4 +37,9 @@ class NJTimestampTest extends AnyFunSuite {
         .of(LocalDate.of(2020, 1, 1), LocalTime.MIDNIGHT, ZoneId.systemDefault()))
   }
 
+  test("Customized Date") {
+    assert(
+      NJTimestamp("20200101").local === ZonedDateTime
+        .of(LocalDate.of(2020, 1, 1), LocalTime.MIDNIGHT, ZoneId.systemDefault()))
+  }
 }
