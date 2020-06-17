@@ -7,6 +7,8 @@ package object datetime extends DateTimeInstances {
   val today: NJDateTimeRange     = NJDateTimeRange.today
   val yesterday: NJDateTimeRange = NJDateTimeRange.yesterday
 
+  val infiniteRange: NJDateTimeRange = NJDateTimeRange.infinite
+
   val utcTime: ZoneId = ZoneId.of("Etc/UTC")
 
   val melbourneTime: ZoneId = ZoneId.of("Australia/Melbourne")

@@ -24,13 +24,18 @@ import scala.concurrent.duration.FiniteDuration
       DateTimeParser[OffsetDateTime].map(NJTimestamp(_)) <+>
       DateTimeParser[LocalDate].map(NJTimestamp(_, zoneId)) <+>
       DateTimeParser[LocalTime].map(NJTimestamp(_, zoneId)) <+>
-      DateTimeParser[LocalDateTime].map(NJTimestamp(_, zoneId)) <+>
-      DateTimeParser[NJTimestamp]
+      DateTimeParser[LocalDateTime].map(NJTimestamp(_, zoneId))
 
   private object calcDateTime extends Poly1 {
 
+    @throws[Exception]
     implicit val stringDateTime: Case.Aux[String, NJTimestamp] =
-      at[String](s => parser.parse(s).right.get)
+      at[String](s =>
+        parser.parse(s) match {
+          case Right(r) => r
+          case Left(ex) =>
+            throw new Exception(s"""fail to parse "$s" by any of [${ex.toList.mkString(",")}]""")
+        })
 
     implicit val localDate: Case.Aux[LocalDate, NJTimestamp] =
       at[LocalDate](NJTimestamp(_, zoneId))
@@ -115,9 +120,7 @@ import scala.concurrent.duration.FiniteDuration
   def withStartTime(ts: Instant): NJDateTimeRange        = setStart(NJTimestamp(ts))
   def withStartTime(ts: Long): NJDateTimeRange           = setStart(NJTimestamp(ts))
   def withStartTime(ts: Timestamp): NJDateTimeRange      = setStart(NJTimestamp(ts))
-
-  @throws[Exception]
-  def withStartTime(ts: String): NJDateTimeRange = setStart(ts)
+  def withStartTime(ts: String): NJDateTimeRange         = setStart(ts)
 
   //end
   def withEndTime(ts: LocalTime): NJDateTimeRange      = setEnd(ts)
@@ -128,9 +131,7 @@ import scala.concurrent.duration.FiniteDuration
   def withEndTime(ts: Instant): NJDateTimeRange        = setEnd(NJTimestamp(ts))
   def withEndTime(ts: Long): NJDateTimeRange           = setEnd(NJTimestamp(ts))
   def withEndTime(ts: Timestamp): NJDateTimeRange      = setEnd(NJTimestamp(ts))
-
-  @throws[Exception]
-  def withEndTime(ts: String): NJDateTimeRange = setEnd(ts)
+  def withEndTime(ts: String): NJDateTimeRange         = setEnd(ts)
 
   def isInBetween(ts: Long): Boolean =
     (startTimestamp, endTimestamp) match {
