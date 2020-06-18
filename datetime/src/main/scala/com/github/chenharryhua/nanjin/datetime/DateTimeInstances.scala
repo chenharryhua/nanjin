@@ -29,11 +29,14 @@ private[datetime] trait IsoDateTimeInstance extends Serializable {
   implicit val isoInstant: Iso[Instant, Timestamp] =
     Iso[Instant, Timestamp](Timestamp.from)(_.toInstant)
 
-  implicit val isoLocalDate: Iso[LocalDate, Date] =
-    Iso[LocalDate, Date](Date.valueOf)(_.toLocalDate)
+  implicit val isoLocalDate: Iso[LocalDate, JavaLocalDate] =
+    Iso[LocalDate, JavaLocalDate](JavaLocalDate(_))(_.localDate)
 
-  implicit def isoLocalDateTime: Iso[LocalDateTime, Timestamp] =
-    Iso[LocalDateTime, Timestamp](Timestamp.valueOf)(_.toLocalDateTime)
+  implicit val isoLocalTime: Iso[LocalTime, JavaLocalTime] =
+    Iso[LocalTime, JavaLocalTime](JavaLocalTime(_))(_.localTime)
+
+  implicit def isoLocalDateTime: Iso[LocalDateTime, JavaLocalDateTime] =
+    Iso[LocalDateTime, JavaLocalDateTime](JavaLocalDateTime(_))(_.localDateTime)
 
   implicit val isoOffsetDateTime: Iso[OffsetDateTime, JavaOffsetDateTime] =
     Iso[OffsetDateTime, JavaOffsetDateTime](JavaOffsetDateTime(_))(_.offsetDateTime)

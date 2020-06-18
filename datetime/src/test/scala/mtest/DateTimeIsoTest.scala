@@ -18,6 +18,18 @@ class DateTimeIsoTest extends AnyFunSuite with FunSuiteDiscipline with Configura
   checkAll("instant", IsoTests[Instant, Timestamp](implicitly[Iso[Instant, Timestamp]]))
 
   checkAll(
+    "local-date",
+    IsoTests[LocalDate, JavaLocalDate](implicitly[Iso[LocalDate, JavaLocalDate]]))
+
+  checkAll(
+    "local-time",
+    IsoTests[LocalTime, JavaLocalTime](implicitly[Iso[LocalTime, JavaLocalTime]]))
+
+  checkAll(
+    "local-date-time",
+    IsoTests[LocalDateTime, JavaLocalDateTime](implicitly[Iso[LocalDateTime, JavaLocalDateTime]]))
+
+  checkAll(
     "zoned-date-time",
     IsoTests[ZonedDateTime, JavaZonedDateTime](implicitly[Iso[ZonedDateTime, JavaZonedDateTime]]))
 
@@ -25,9 +37,4 @@ class DateTimeIsoTest extends AnyFunSuite with FunSuiteDiscipline with Configura
     "offset-date-time",
     IsoTests[OffsetDateTime, JavaOffsetDateTime](
       implicitly[Iso[OffsetDateTime, JavaOffsetDateTime]]))
-
-  implicit val nj: Iso[NJTimestamp, Timestamp] = NJTimestamp.isoKafkaTimestamp
-  checkAll(
-    "nanjin-timestamp",
-    IsoTests[NJTimestamp, Timestamp](implicitly[Iso[NJTimestamp, Timestamp]]))
 }

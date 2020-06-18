@@ -91,10 +91,6 @@ object NJTimestamp {
   def now(clock: Clock): NJTimestamp = NJTimestamp(Instant.now(clock))
   def now(): NJTimestamp             = NJTimestamp(Instant.now)
 
-  val isoKafkaTimestamp: Iso[NJTimestamp, Timestamp] =
-    Iso[NJTimestamp, Timestamp]((a: NJTimestamp) => new Timestamp(a.milliseconds))((b: Timestamp) =>
-      NJTimestamp(b.getTime))
-
   implicit val njTimestampInstance
     : Hash[NJTimestamp] with Order[NJTimestamp] with Show[NJTimestamp] =
     new Hash[NJTimestamp] with Order[NJTimestamp] with Show[NJTimestamp] {

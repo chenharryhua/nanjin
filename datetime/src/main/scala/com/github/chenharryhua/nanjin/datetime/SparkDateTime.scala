@@ -48,3 +48,66 @@ object JavaZonedDateTime {
       override def show(x: JavaZonedDateTime): String = x.zonedDateTime.show
     }
 }
+
+final case class JavaLocalDate private (year: Int, month: Int, day: Int) {
+  val localDate: LocalDate = LocalDate.of(year, month, day)
+}
+
+object JavaLocalDate {
+
+  def apply(ld: LocalDate): JavaLocalDate =
+    JavaLocalDate(ld.getYear, ld.getMonthValue, ld.getDayOfMonth)
+
+  implicit val javaLocalDateInstance
+    : Hash[JavaLocalDate] with Order[JavaLocalDate] with Show[JavaLocalDate] =
+    new Hash[JavaLocalDate] with Order[JavaLocalDate] with Show[JavaLocalDate] {
+      override def hash(x: JavaLocalDate): Int = x.hashCode
+
+      override def compare(x: JavaLocalDate, y: JavaLocalDate): Int =
+        x.localDate.compareTo(y.localDate)
+
+      override def show(x: JavaLocalDate): String = x.localDate.show
+    }
+}
+
+final case class JavaLocalTime private (hour: Int, minute: Int, second: Int, nanoOfSecond: Int) {
+  val localTime: LocalTime = LocalTime.of(hour, minute, second, nanoOfSecond)
+}
+
+object JavaLocalTime {
+
+  def apply(lt: LocalTime): JavaLocalTime =
+    JavaLocalTime(lt.getHour, lt.getMinute, lt.getSecond, lt.getNano)
+
+  implicit val javaLocalTimeInstance
+    : Hash[JavaLocalTime] with Order[JavaLocalTime] with Show[JavaLocalTime] =
+    new Hash[JavaLocalTime] with Order[JavaLocalTime] with Show[JavaLocalTime] {
+      override def hash(x: JavaLocalTime): Int = x.hashCode
+
+      override def compare(x: JavaLocalTime, y: JavaLocalTime): Int =
+        x.localTime.compareTo(y.localTime)
+
+      override def show(x: JavaLocalTime): String = x.localTime.show
+    }
+}
+
+final case class JavaLocalDateTime private (date: LocalDate, time: LocalTime) {
+  val localDateTime: LocalDateTime = LocalDateTime.of(date, time)
+}
+
+object JavaLocalDateTime {
+
+  def apply(ldt: LocalDateTime): JavaLocalDateTime =
+    JavaLocalDateTime(ldt.toLocalDate, ldt.toLocalTime)
+
+  implicit val javaLocalDateTimeInstance
+    : Hash[JavaLocalDateTime] with Order[JavaLocalDateTime] with Show[JavaLocalDateTime] =
+    new Hash[JavaLocalDateTime] with Order[JavaLocalDateTime] with Show[JavaLocalDateTime] {
+      override def hash(x: JavaLocalDateTime): Int = x.hashCode
+
+      override def compare(x: JavaLocalDateTime, y: JavaLocalDateTime): Int =
+        x.localDateTime.compareTo(y.localDateTime)
+
+      override def show(x: JavaLocalDateTime): String = x.localDateTime.show
+    }
+}
