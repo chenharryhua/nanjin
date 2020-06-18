@@ -9,7 +9,7 @@ import fs2.{Chunk, Pipe, Stream}
 import io.getquill.codegen.jdbc.SimpleJdbcCodegen
 import monocle.macros.Lenses
 
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 sealed abstract class DatabaseSettings(username: Username, password: Password) {
   def driver: DriverString
@@ -53,17 +53,18 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
 
   final def runBatch[F[_]: ContextShift: Concurrent: Timer, A, B](
     f: A => ConnectionIO[B],
-    batchSize: Int): Pipe[F, A, Chunk[B]] =
+    batchSize: Int,
+    duration: FiniteDuration): Pipe[F, A, Chunk[B]] =
     (src: Stream[F, A]) =>
       for {
         xa <- transactorStream
-        data <- src.groupWithin(batchSize, 5.seconds)
+        data <- src.groupWithin(batchSize, duration)
         rst <- Stream.eval(xa.trans.apply(data.traverse(f)(AsyncConnectionIO)))
       } yield rst
 
   final def runBatch[F[_]: ContextShift: Concurrent: Timer, A, B](
     f: A => ConnectionIO[B]): Pipe[F, A, Chunk[B]] =
-    runBatch[F, A, B](f, 1000)
+    runBatch[F, A, B](f, batchSize = 1000, duration = 5.seconds)
 }
 
 @Lenses final case class Postgres(

@@ -1,9 +1,13 @@
 package com.github.chenharryhua.nanjin
 
-import java.time.ZoneId
+import java.time.{LocalDate, LocalDateTime, LocalTime, ZoneId}
 
 package object datetime extends DateTimeInstances {
   object iso extends IsoDateTimeInstance
+
+  def toLocalDateTime(ts: LocalTime): LocalDateTime = ts.atDate(LocalDate.now)
+  def toLocalDateTime(ts: LocalDate): LocalDateTime = ts.atTime(LocalTime.MIDNIGHT)
+
   val today: NJDateTimeRange     = NJDateTimeRange.today
   val yesterday: NJDateTimeRange = NJDateTimeRange.yesterday
 

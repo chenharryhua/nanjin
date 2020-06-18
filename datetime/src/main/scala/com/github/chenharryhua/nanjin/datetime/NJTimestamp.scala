@@ -7,15 +7,15 @@ import java.util.concurrent.TimeUnit
 
 import cats.implicits._
 import cats.{Hash, Order, Show}
-import monocle.Iso
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 final case class NJTimestamp(milliseconds: Long) extends AnyVal {
-  def timeUnit: TimeUnit   = TimeUnit.MILLISECONDS
-  def instant: Instant     = Instant.ofEpochMilli(milliseconds)
-  def utc: ZonedDateTime   = instant.atZone(utcTime)
-  def local: ZonedDateTime = atZone(ZoneId.systemDefault())
+  def timeUnit: TimeUnit      = TimeUnit.MILLISECONDS
+  def instant: Instant        = Instant.ofEpochMilli(milliseconds)
+  def utc: ZonedDateTime      = instant.atZone(utcTime)
+  def local: ZonedDateTime    = atZone(ZoneId.systemDefault())
+  def sqlTimestamp: Timestamp = new Timestamp(milliseconds)
 
   def atZone(zoneId: ZoneId): ZonedDateTime = instant.atZone(zoneId)
 
@@ -72,10 +72,10 @@ object NJTimestamp {
     apply(ts.atZone(zoneId).toInstant)
 
   def apply(ts: LocalDate, zoneId: ZoneId): NJTimestamp =
-    apply(LocalDateTime.of(ts, LocalTime.MIDNIGHT), zoneId)
+    apply(toLocalDateTime(ts), zoneId)
 
   def apply(lt: LocalTime, zoneId: ZoneId): NJTimestamp =
-    apply(LocalDateTime.of(LocalDate.now(), lt), zoneId)
+    apply(toLocalDateTime(lt), zoneId)
 
   private val parser: DateTimeParser[NJTimestamp] =
     DateTimeParser[Instant].map(NJTimestamp(_)) <+>
@@ -85,15 +85,11 @@ object NJTimestamp {
   def apply(str: String): NJTimestamp =
     parser.parse(str) match {
       case Right(r) => r
-      case Left(ex) => throw new Exception(ex.show(str))
+      case Left(ex) => throw ex.parseException(str)
     }
 
   def now(clock: Clock): NJTimestamp = NJTimestamp(Instant.now(clock))
   def now(): NJTimestamp             = NJTimestamp(Instant.now)
-
-  val isoKafkaTimestamp: Iso[NJTimestamp, Timestamp] =
-    Iso[NJTimestamp, Timestamp]((a: NJTimestamp) => new Timestamp(a.milliseconds))((b: Timestamp) =>
-      NJTimestamp(b.getTime))
 
   implicit val njTimestampInstance
     : Hash[NJTimestamp] with Order[NJTimestamp] with Show[NJTimestamp] =

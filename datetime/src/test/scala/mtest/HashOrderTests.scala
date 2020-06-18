@@ -26,5 +26,14 @@ class HashOrderTests extends CatsSuite with FunSuiteDiscipline {
   checkAll("JavaOffsetDateTime", HashTests[JavaOffsetDateTime].hash)
   checkAll("JavaOffsetDateTime", OrderTests[JavaOffsetDateTime].order)
 
+  checkAll("JavaLocalTime", HashTests[JavaLocalTime].hash)
+  checkAll("JavaLocalTime", OrderTests[JavaLocalTime].order)
+
+  checkAll("JavaLocalDate", HashTests[JavaLocalDate].hash)
+  checkAll("JavaLocalDate", OrderTests[JavaLocalDate].order)
+
+  checkAll("JavaLocalDateTime", HashTests[JavaLocalDateTime].hash)
+  checkAll("JavaLocalDateTime", OrderTests[JavaLocalDateTime].order)
+
   //checkAll("parsing", AlternativeTests[DateTimeParser].alternative)
 }
