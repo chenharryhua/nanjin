@@ -1,36 +1,53 @@
 package mtest.spark.kafka
 
-import java.time.{Instant, LocalDate, LocalDateTime}
+import java.sql.{Date, Timestamp}
+import java.time.{Instant, LocalDate, ZoneId, ZonedDateTime}
 
+import cats.derived.auto.eq._
 import cats.effect.IO
 import cats.implicits._
 import com.github.chenharryhua.nanjin.database.TableName
-import com.github.chenharryhua.nanjin.spark.database._
 import com.github.chenharryhua.nanjin.datetime.iso._
+import com.github.chenharryhua.nanjin.spark.database._
 import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.TypedDataset
 import frameless.cats.implicits._
+import io.scalaland.chimney.dsl._
 import org.apache.spark.sql.SaveMode
 import org.scalatest.funsuite.AnyFunSuite
 
-final case class DbTableInst(a: LocalDate, b: LocalDateTime, c: Int, d: String, e: Instant)
+final case class DomainObject(a: LocalDate, b: ZonedDateTime, c: Int, d: String, e: Instant)
+
+final case class DbTableInstDB(a: Date, b: Timestamp, c: Int, d: String, e: Timestamp)
 
 class SparkTableTest extends AnyFunSuite {
-  val table: TableDef[DbTableInst] = TableDef[DbTableInst](TableName("public.sparktabletest"))
+  val table: TableDef[DbTableInstDB] = TableDef[DbTableInstDB](TableName("public.sparktabletest"))
 
-  val sample: DbTableInst = DbTableInst(LocalDate.now, LocalDateTime.now, 10, "d", Instant.now)
+  val sample: DomainObject = DomainObject(LocalDate.now, ZonedDateTime.now, 10, "d", Instant.now)
 
-  ignore("upload dataset to table") {
-    val data = TypedDataset.create(List(sample))
+  test("upload dataset to table") {
+    val data = TypedDataset.create(List(sample.transformInto[DbTableInstDB]))
     data.dbUpload(table.in(db).withParamUpdate(_.withDbSaveMode(SaveMode.Overwrite)))
   }
 
-  ignore("save db table to disk") {
+  test("save db table to disk") {
     table.in(db).save()
   }
 
   test("read table on disk") {
-    val rst = table.in(db).fromDisk.collect[IO].map(_.head).unsafeRunSync
-    assert(rst === sample)
+    val rst: DomainObject =
+      table
+        .in(db)
+        .fromDisk
+        .collect[IO]
+        .map(
+          _.head
+            .into[DomainObject]
+            .withFieldComputed(
+              _.b,
+              db => ZonedDateTime.ofInstant(db.b.toInstant, ZoneId.systemDefault()))
+            .transform)
+        .unsafeRunSync
+    assert(rst.==(sample))
   }
 }
