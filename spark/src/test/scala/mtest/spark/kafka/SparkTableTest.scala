@@ -20,12 +20,12 @@ class SparkTableTest extends AnyFunSuite {
 
   val sample: DbTableInst = DbTableInst(LocalDate.now, LocalDateTime.now, 10, "d", Instant.now)
 
-  test("upload dataset to table") {
+  ignore("upload dataset to table") {
     val data = TypedDataset.create(List(sample))
     data.dbUpload(table.in(db).withParamUpdate(_.withDbSaveMode(SaveMode.Overwrite)))
   }
 
-  test("save db table to disk") {
+  ignore("save db table to disk") {
     table.in(db).save()
   }
 

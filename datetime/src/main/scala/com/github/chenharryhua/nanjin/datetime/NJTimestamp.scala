@@ -7,15 +7,15 @@ import java.util.concurrent.TimeUnit
 
 import cats.implicits._
 import cats.{Hash, Order, Show}
-import monocle.Iso
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 final case class NJTimestamp(milliseconds: Long) extends AnyVal {
-  def timeUnit: TimeUnit   = TimeUnit.MILLISECONDS
-  def instant: Instant     = Instant.ofEpochMilli(milliseconds)
-  def utc: ZonedDateTime   = instant.atZone(utcTime)
-  def local: ZonedDateTime = atZone(ZoneId.systemDefault())
+  def timeUnit: TimeUnit      = TimeUnit.MILLISECONDS
+  def instant: Instant        = Instant.ofEpochMilli(milliseconds)
+  def utc: ZonedDateTime      = instant.atZone(utcTime)
+  def local: ZonedDateTime    = atZone(ZoneId.systemDefault())
+  def sqlTimestamp: Timestamp = new Timestamp(milliseconds)
 
   def atZone(zoneId: ZoneId): ZonedDateTime = instant.atZone(zoneId)
 
