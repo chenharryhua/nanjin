@@ -72,10 +72,10 @@ object NJTimestamp {
     apply(ts.atZone(zoneId).toInstant)
 
   def apply(ts: LocalDate, zoneId: ZoneId): NJTimestamp =
-    apply(LocalDateTime.of(ts, LocalTime.MIDNIGHT), zoneId)
+    apply(toLocalDateTime(ts), zoneId)
 
   def apply(lt: LocalTime, zoneId: ZoneId): NJTimestamp =
-    apply(LocalDateTime.of(LocalDate.now(), lt), zoneId)
+    apply(toLocalDateTime(lt), zoneId)
 
   private val parser: DateTimeParser[NJTimestamp] =
     DateTimeParser[Instant].map(NJTimestamp(_)) <+>
@@ -85,7 +85,7 @@ object NJTimestamp {
   def apply(str: String): NJTimestamp =
     parser.parse(str) match {
       case Right(r) => r
-      case Left(ex) => throw new Exception(ex.show(str))
+      case Left(ex) => throw ex.parseException(str)
     }
 
   def now(clock: Clock): NJTimestamp = NJTimestamp(Instant.now(clock))

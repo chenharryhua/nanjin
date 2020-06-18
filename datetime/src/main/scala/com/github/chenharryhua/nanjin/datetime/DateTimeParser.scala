@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.datetime
 
 import java.time._
+import java.time.format.DateTimeParseException
 
 import cats.Alternative
 import cats.data.NonEmptyList
@@ -9,8 +10,11 @@ import cats.implicits._
 final case class FailedParsers(parsers: NonEmptyList[String]) extends AnyVal {
   def concat(other: FailedParsers): FailedParsers = FailedParsers(parsers ::: other.parsers)
 
-  def show(str: String): String =
-    s"""can not parse "$str" by any of [${parsers.toList.mkString(",")}]"""
+  def parseException(str: String): DateTimeParseException =
+    new DateTimeParseException(
+      s"""can not parse "$str" by any of [${parsers.toList.mkString(",")}]""",
+      str,
+      -1)
 }
 
 object FailedParsers {

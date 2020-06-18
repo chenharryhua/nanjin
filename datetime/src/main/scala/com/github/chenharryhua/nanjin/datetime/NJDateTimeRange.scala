@@ -32,35 +32,14 @@ import scala.concurrent.duration.FiniteDuration
       at[String](s =>
         parser.parse(s) match {
           case Right(r) => r
-          case Left(ex) => throw new Exception(ex.show(s))
+          case Left(ex) => throw ex.parseException(s)
         })
-
-    implicit val localDate: Case.Aux[LocalDate, NJTimestamp] =
-      at[LocalDate](NJTimestamp(_, zoneId))
-
-    implicit val localTime: Case.Aux[LocalTime, NJTimestamp] =
-      at[LocalTime](NJTimestamp(_, zoneId))
 
     implicit val localDateTime: Case.Aux[LocalDateTime, NJTimestamp] =
       at[LocalDateTime](NJTimestamp(_, zoneId))
 
-    implicit val instant: Case.Aux[Instant, NJTimestamp] =
-      at[Instant](NJTimestamp(_))
-
     implicit val njTimestamp: Case.Aux[NJTimestamp, NJTimestamp] =
       at[NJTimestamp](identity)
-
-    implicit val zonedDatetime: Case.Aux[ZonedDateTime, NJTimestamp] =
-      at[ZonedDateTime](NJTimestamp(_))
-
-    implicit val offsetDateTime: Case.Aux[OffsetDateTime, NJTimestamp] =
-      at[OffsetDateTime](NJTimestamp(_))
-
-    implicit val longTime: Case.Aux[Long, NJTimestamp] =
-      at[Long](NJTimestamp(_))
-
-    implicit val timstamp: Case.Aux[Timestamp, NJTimestamp] =
-      at[Timestamp](NJTimestamp(_))
 
   }
 
@@ -85,19 +64,13 @@ import scala.concurrent.duration.FiniteDuration
   def withZoneId(zoneId: String): NJDateTimeRange =
     NJDateTimeRange.zoneId.set(ZoneId.of(zoneId))(this)
 
-  implicit private val localDate: Prism[NJDateTimeRange.TimeTypes, LocalDate] =
-    coProductPrism[NJDateTimeRange.TimeTypes, LocalDate]
-
-  implicit private val localTime: Prism[NJDateTimeRange.TimeTypes, LocalTime] =
-    coProductPrism[NJDateTimeRange.TimeTypes, LocalTime]
-
-  implicit private val localDateTime: Prism[NJDateTimeRange.TimeTypes, LocalDateTime] =
+  implicit private val localDateTimePrism: Prism[NJDateTimeRange.TimeTypes, LocalDateTime] =
     coProductPrism[NJDateTimeRange.TimeTypes, LocalDateTime]
 
-  implicit private val njTimestamp: Prism[NJDateTimeRange.TimeTypes, NJTimestamp] =
+  implicit private val njTimestampPrism: Prism[NJDateTimeRange.TimeTypes, NJTimestamp] =
     coProductPrism[NJDateTimeRange.TimeTypes, NJTimestamp]
 
-  implicit private val stringDatetime: Prism[NJDateTimeRange.TimeTypes, String] =
+  implicit private val stringDatetimePrism: Prism[NJDateTimeRange.TimeTypes, String] =
     coProductPrism[NJDateTimeRange.TimeTypes, String]
 
   private def setStart[A](a: A)(implicit
@@ -109,8 +82,8 @@ import scala.concurrent.duration.FiniteDuration
     NJDateTimeRange.end.set(Some(prism.reverseGet(a)))(this)
 
   //start
-  def withStartTime(ts: LocalTime): NJDateTimeRange      = setStart(ts)
-  def withStartTime(ts: LocalDate): NJDateTimeRange      = setStart(ts)
+  def withStartTime(ts: LocalTime): NJDateTimeRange      = setStart(toLocalDateTime(ts))
+  def withStartTime(ts: LocalDate): NJDateTimeRange      = setStart(toLocalDateTime(ts))
   def withStartTime(ts: LocalDateTime): NJDateTimeRange  = setStart(ts)
   def withStartTime(ts: OffsetDateTime): NJDateTimeRange = setStart(NJTimestamp(ts))
   def withStartTime(ts: ZonedDateTime): NJDateTimeRange  = setStart(NJTimestamp(ts))
@@ -120,8 +93,8 @@ import scala.concurrent.duration.FiniteDuration
   def withStartTime(ts: String): NJDateTimeRange         = setStart(ts)
 
   //end
-  def withEndTime(ts: LocalTime): NJDateTimeRange      = setEnd(ts)
-  def withEndTime(ts: LocalDate): NJDateTimeRange      = setEnd(ts)
+  def withEndTime(ts: LocalTime): NJDateTimeRange      = setEnd(toLocalDateTime(ts))
+  def withEndTime(ts: LocalDate): NJDateTimeRange      = setEnd(toLocalDateTime(ts))
   def withEndTime(ts: LocalDateTime): NJDateTimeRange  = setEnd(ts)
   def withEndTime(ts: OffsetDateTime): NJDateTimeRange = setEnd(NJTimestamp(ts))
   def withEndTime(ts: ZonedDateTime): NJDateTimeRange  = setEnd(NJTimestamp(ts))
@@ -155,8 +128,6 @@ object NJDateTimeRange {
   final type TimeTypes =
     NJTimestamp :+:
       LocalDateTime :+:
-      LocalDate :+:
-      LocalTime :+:
       String :+: // date-time in string, like "03:12"
       CNil
 
@@ -168,7 +139,6 @@ object NJDateTimeRange {
 
       private def lessStart(a: Option[NJTimestamp], b: Option[NJTimestamp]): Boolean =
         (a, b) match {
-          case (None, None)       => true
           case (None, _)          => true
           case (_, None)          => false
           case (Some(x), Some(y)) => x <= y
@@ -176,7 +146,6 @@ object NJDateTimeRange {
 
       private def biggerEnd(a: Option[NJTimestamp], b: Option[NJTimestamp]): Boolean =
         (a, b) match {
-          case (None, None)       => true
           case (None, _)          => true
           case (_, None)          => false
           case (Some(x), Some(y)) => x > y
