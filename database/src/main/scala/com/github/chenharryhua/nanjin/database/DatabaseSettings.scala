@@ -5,11 +5,11 @@ import cats.effect.{Async, Blocker, Concurrent, ContextShift, Resource, Timer}
 import cats.implicits._
 import doobie.free.connection.{AsyncConnectionIO, ConnectionIO}
 import doobie.hikari.HikariTransactor
+import doobie.implicits._
 import doobie.util.ExecutionContexts
 import fs2.{Chunk, Pipe, Stream}
 import io.getquill.codegen.jdbc.SimpleJdbcCodegen
 import monocle.macros.Lenses
-
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 sealed abstract class DatabaseSettings(username: Username, password: Password) {
@@ -41,7 +41,7 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
     Stream.resource(transactorResource)
 
   final def genCaseClass[F[_]: ContextShift: Async]: F[String] =
-    transactorResource.use {
+    transactorResource[F].use {
       _.configure { hikari =>
         Async[F]
           .delay(new SimpleJdbcCodegen(() => hikari.getConnection, ""))
@@ -50,18 +50,10 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
     }
 
   final def runQuery[F[_]: ContextShift: Async, A](action: ConnectionIO[A]): F[A] =
-    transactorResource.use(_.trans.apply(action))
+    transactorResource[F].use(_.trans.apply(action))
 
-  final def runStream[F[_]: ContextShift: Async, A](action: Stream[ConnectionIO, A]): Stream[F, A] =
-    for {
-      xa <- transactorStream
-      a <- action.translate {
-        new FunctionK[ConnectionIO, F] {
-          override def apply[B](fa: ConnectionIO[B]): F[B] =
-            xa.trans.apply(fa)
-        }
-      }
-    } yield a
+  final def runStream[F[_]: ContextShift: Async, A](stm: Stream[ConnectionIO, A]): Stream[F, A] =
+    transactorStream[F].flatMap(xa => stm.transact(xa))
 
   final def runBatch[F[_]: ContextShift: Concurrent: Timer, A, B](
     f: A => ConnectionIO[B],
@@ -69,7 +61,7 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
     duration: FiniteDuration): Pipe[F, A, Chunk[B]] =
     (src: Stream[F, A]) =>
       for {
-        xa <- transactorStream
+        xa <- transactorStream[F]
         data <- src.groupWithin(batchSize, duration)
         rst <- Stream.eval(xa.trans.apply(data.traverse(f)(AsyncConnectionIO)))
       } yield rst
