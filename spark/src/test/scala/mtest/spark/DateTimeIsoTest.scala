@@ -1,11 +1,12 @@
-package mtest
+package mtest.spark
 
 import java.sql.Timestamp
 import java.time._
 
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8._
 import com.github.chenharryhua.nanjin.datetime._
-import com.github.chenharryhua.nanjin.datetime.iso._
+import com.github.chenharryhua.nanjin.spark._
+import com.github.chenharryhua.nanjin.spark.injection._
 import monocle.Iso
 import monocle.law.discipline.IsoTests
 import org.scalatest.funsuite.AnyFunSuite

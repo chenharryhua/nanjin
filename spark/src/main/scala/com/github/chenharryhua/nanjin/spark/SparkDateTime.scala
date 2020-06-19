@@ -1,9 +1,10 @@
-package com.github.chenharryhua.nanjin.datetime
+package com.github.chenharryhua.nanjin.spark
 
 import java.time._
 
 import cats.implicits._
 import cats.{Hash, Order, Show}
+import com.github.chenharryhua.nanjin.datetime._
 
 /**
   * for spark
