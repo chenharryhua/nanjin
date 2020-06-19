@@ -7,7 +7,7 @@ import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, StreamingQu
 final class NJFileSink[F[_], A](dsw: DataStreamWriter[A], cfg: StreamConfig, path: String)
     extends NJStreamSink[F] {
 
-  override val params: StreamParams = StreamConfigF.evalConfig(cfg)
+  override val params: StreamParams = cfg.evalConfig
 
   // ops
   def withOptions(f: DataStreamWriter[A] => DataStreamWriter[A]): NJFileSink[F, A] =

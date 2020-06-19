@@ -7,7 +7,7 @@ import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, StreamingQu
 final class NJConsoleSink[F[_], A](dsw: DataStreamWriter[A], cfg: StreamConfig)
     extends NJStreamSink[F] {
 
-  override val params: StreamParams = StreamConfigF.evalConfig(cfg)
+  override val params: StreamParams = cfg.evalConfig
 
   override def queryStream(
     implicit F: Concurrent[F],

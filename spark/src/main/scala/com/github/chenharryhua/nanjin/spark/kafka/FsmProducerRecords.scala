@@ -17,7 +17,7 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   cfg: SKConfig
 ) extends SparKafkaUpdateParams[FsmProducerRecords[F, K, V]] {
   
-  override val params: SKParams = SKConfigF.evalConfig(cfg)
+  override val params: SKParams = cfg.evalConfig
 
   override def withParamUpdate(f: SKConfig => SKConfig): FsmProducerRecords[F, K, V] =
     new FsmProducerRecords[F, K, V](prs, topic, f(cfg))

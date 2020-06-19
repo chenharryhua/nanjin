@@ -130,6 +130,8 @@ final private[spark] case class SKConfig private (value: Fix[SKConfigF]) extends
 
   def withReplayPath(f: TopicName => String): SKConfig =
     SKConfig(Fix(WithReplayPath(f, value)))
+
+  def evalConfig: SKParams = SKConfigF.evalConfig(this)
 }
 
 private[spark] object SKConfig {

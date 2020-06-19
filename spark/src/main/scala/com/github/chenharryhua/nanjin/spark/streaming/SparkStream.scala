@@ -14,7 +14,7 @@ trait SparkStreamUpdateParams[A] extends UpdateParams[StreamConfig, A] with Seri
 final class SparkStream[F[_], A: TypedEncoder](ds: Dataset[A], cfg: StreamConfig)
     extends SparkStreamUpdateParams[SparkStream[F, A]] {
 
-  override val params: StreamParams = StreamConfigF.evalConfig(cfg)
+  override val params: StreamParams = cfg.evalConfig
 
   override def withParamUpdate(f: StreamConfig => StreamConfig): SparkStream[F, A] =
     new SparkStream[F, A](ds, f(cfg))

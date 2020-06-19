@@ -102,6 +102,8 @@ final private[spark] case class StreamConfig(value: Fix[StreamConfigF]) extends 
 
   def withContinousTrigger(ms: Long): StreamConfig =
     withTrigger(Trigger.Continuous(ms, TimeUnit.MILLISECONDS))
+
+  def evalConfig:StreamParams = StreamConfigF.evalConfig(this)
 }
 
 private[spark] object StreamConfig {

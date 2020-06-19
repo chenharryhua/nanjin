@@ -3,7 +3,6 @@ package mtest.spark.kafka
 import java.sql.{Date, Timestamp}
 import java.time.{Instant, LocalDate, ZoneId, ZonedDateTime}
 
-import cats.derived.auto.eq._
 import cats.effect.IO
 import cats.implicits._
 import com.github.chenharryhua.nanjin.database.TableName
