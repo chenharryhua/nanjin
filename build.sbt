@@ -59,7 +59,7 @@ val silencer = "1.7.0"
 val jline    = "3.15.0"
 
 // test
-val scalatest = "3.1.2"
+val scalatest = "3.2.0"
 
 // deprecate ?
 val flink110 = "1.10.1"
