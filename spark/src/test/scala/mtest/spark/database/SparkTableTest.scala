@@ -1,4 +1,4 @@
-package mtest.spark.kafka
+package mtest.spark.database
 
 import java.sql.{Date, Timestamp}
 import java.time.{Instant, LocalDate, ZoneId, ZonedDateTime}

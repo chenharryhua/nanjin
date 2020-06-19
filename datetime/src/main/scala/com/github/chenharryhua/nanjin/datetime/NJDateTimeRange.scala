@@ -13,6 +13,7 @@ import shapeless.{:+:, CNil, Poly1}
 
 import scala.concurrent.duration.FiniteDuration
 
+// both start and end are lazy
 @Lenses final case class NJDateTimeRange(
   private val start: Option[NJDateTimeRange.TimeTypes],
   private val end: Option[NJDateTimeRange.TimeTypes],

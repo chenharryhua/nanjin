@@ -20,13 +20,6 @@ package object kafka {
 
   val ctx: IoKafkaContext = KafkaSettings.local.withGroupId("spark.kafka.unit.test").ioContext
 
-  val db: Postgres = Postgres(
-    Username("postgres"),
-    Password("postgres"),
-    Host("localhost"),
-    Port(5432),
-    DatabaseName("postgres"))
-
   implicit val sparkSession: SparkSession =
     SparkSettings.default
       .withConfigUpdate(_.setMaster("local[*]").setAppName("test-spark"))

@@ -29,7 +29,7 @@ private[spark] trait InjectionInstances extends Serializable {
   implicit val isoZonedDateTime: Iso[ZonedDateTime, JavaZonedDateTime] =
     Iso[ZonedDateTime, JavaZonedDateTime](JavaZonedDateTime(_))(_.zonedDateTime)
 
-  //fraemless injection
+  // frameless injection
   implicit val javaSQLTimestampInjection: Injection[Timestamp, SQLTimestamp] =
     Injection[Timestamp, SQLTimestamp](
       a => SQLTimestamp(DateTimeUtils.fromJavaTimestamp(a)),
@@ -47,7 +47,7 @@ private[spark] trait InjectionInstances extends Serializable {
   implicit def chimneyTransform[A, B](implicit iso: Iso[A, B]): Transformer[A, B] =
     (src: A) => iso.get(src)
 
-  implicit def chimneyTransformReverse[A, B](implicit iso: Iso[A, B]): Transformer[B, A] =
+  implicit def chimneyTransform2[A, B](implicit iso: Iso[A, B]): Transformer[B, A] =
     (src: B) => iso.reverseGet(src)
 
   implicit val instantTransform: Transformer[Instant, Timestamp] =

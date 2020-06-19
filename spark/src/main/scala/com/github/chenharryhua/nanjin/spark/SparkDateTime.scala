@@ -1,17 +1,16 @@
 package com.github.chenharryhua.nanjin.spark
 
+import java.sql.Timestamp
 import java.time._
 
 import cats.implicits._
 import cats.{Hash, Order, Show}
 import com.github.chenharryhua.nanjin.datetime._
 
-/**
-  * for spark
-  */
-
+// spark doesn't spart java.time, yet
 final case class JavaOffsetDateTime private (instant: Instant, offset: Int) {
   val offsetDateTime: OffsetDateTime = instant.atOffset(ZoneOffset.ofTotalSeconds(offset))
+  val timestamp: Timestamp           = Timestamp.from(instant)
 }
 
 object JavaOffsetDateTime {
@@ -32,6 +31,7 @@ object JavaOffsetDateTime {
 
 final case class JavaZonedDateTime private (instant: Instant, zoneId: String) {
   val zonedDateTime: ZonedDateTime = ZonedDateTime.ofInstant(instant, ZoneId.of(zoneId))
+  val timestamp: Timestamp         = Timestamp.from(instant)
 }
 
 object JavaZonedDateTime {

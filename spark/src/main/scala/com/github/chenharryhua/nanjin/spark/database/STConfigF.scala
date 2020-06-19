@@ -22,7 +22,7 @@ private[spark] object STParams {
   val default: STParams = STParams(
     dbSaveMode = SaveMode.ErrorIfExists,
     fileSaveMode = SaveMode.Overwrite,
-    pathBuilder = Reader(tn => s"./data/spark/database/${tn.tableName}/${tn.fileFormat}/"),
+    pathBuilder = Reader(tn => s"./data/spark/database/${tn.tableName}/${tn.fileFormat.format}/"),
     fileFormat = NJFileFormat.Parquet
   )
 }
