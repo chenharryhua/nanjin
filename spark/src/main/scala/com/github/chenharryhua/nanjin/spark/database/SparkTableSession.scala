@@ -25,7 +25,7 @@ final class SparkTableSession[A](
     extends UpdateParams[STConfig, SparkTableSession[A]] {
   import tableDef.typedEncoder
 
-  val params: STParams = STConfigF.evalConfig(cfg)
+  val params: STParams = cfg.evalConfig
 
   override def withParamUpdate(f: STConfig => STConfig): SparkTableSession[A] =
     new SparkTableSession[A](tableDef, dbSettings, f(cfg))

@@ -40,7 +40,7 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
     Stream.resource(transactorResource)
 
   final def genCaseClass[F[_]: ContextShift: Async]: F[String] =
-    transactorResource.use {
+    transactorResource[F].use {
       _.configure { hikari =>
         Async[F]
           .delay(new SimpleJdbcCodegen(() => hikari.getConnection, ""))
@@ -49,7 +49,10 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
     }
 
   final def runQuery[F[_]: ContextShift: Async, A](action: ConnectionIO[A]): F[A] =
-    transactorResource.use(_.trans.apply(action))
+    transactorResource[F].use(_.trans.apply(action))
+
+  final def runStream[F[_]: ContextShift: Async, A](stm: Stream[ConnectionIO, A]): Stream[F, A] =
+    transactorStream[F].flatMap(_.transP.apply(stm))
 
   final def runBatch[F[_]: ContextShift: Concurrent: Timer, A, B](
     f: A => ConnectionIO[B],
@@ -57,7 +60,7 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
     duration: FiniteDuration): Pipe[F, A, Chunk[B]] =
     (src: Stream[F, A]) =>
       for {
-        xa <- transactorStream
+        xa <- transactorStream[F]
         data <- src.groupWithin(batchSize, duration)
         rst <- Stream.eval(xa.trans.apply(data.traverse(f)(AsyncConnectionIO)))
       } yield rst
@@ -78,6 +81,7 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
   private val credential: String         = s"user=${username.value}&password=${password.value}"
   override val connStr: ConnectionString = ConnectionString(s"$url?$credential")
   override val driver: DriverString      = DriverString("org.postgresql.Driver")
+
 }
 
 @Lenses final case class Redshift(
@@ -93,6 +97,7 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
 
   override val connStr: ConnectionString = ConnectionString(s"$url?$credential&$ssl")
   override val driver: DriverString      = DriverString("com.amazon.redshift.jdbc42.Driver")
+
 }
 
 @Lenses final case class SqlServer(
@@ -110,4 +115,5 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
 
   override val driver: DriverString =
     DriverString("com.microsoft.sqlserver.jdbc.SQLServerDriver")
+
 }
