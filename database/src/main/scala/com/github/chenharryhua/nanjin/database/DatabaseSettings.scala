@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.database
 
+import cats.arrow.FunctionK
 import cats.effect.{Async, Blocker, Concurrent, ContextShift, Resource, Timer}
 import cats.implicits._
 import doobie.free.connection.{AsyncConnectionIO, ConnectionIO}
@@ -50,6 +51,17 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
 
   final def runQuery[F[_]: ContextShift: Async, A](action: ConnectionIO[A]): F[A] =
     transactorResource.use(_.trans.apply(action))
+
+  final def runStream[F[_]: ContextShift: Async, A](action: Stream[ConnectionIO, A]): Stream[F, A] =
+    for {
+      xa <- transactorStream
+      a <- action.translate {
+        new FunctionK[ConnectionIO, F] {
+          override def apply[B](fa: ConnectionIO[B]): F[B] =
+            xa.trans.apply(fa)
+        }
+      }
+    } yield a
 
   final def runBatch[F[_]: ContextShift: Concurrent: Timer, A, B](
     f: A => ConnectionIO[B],
