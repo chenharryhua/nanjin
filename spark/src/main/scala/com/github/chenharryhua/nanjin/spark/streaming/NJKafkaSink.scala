@@ -16,7 +16,7 @@ final class NJKafkaSink[F[_]](
   topicName: TopicName
 ) extends NJStreamSink[F] {
 
-  override val params: StreamParams = StreamConfigF.evalConfig(cfg)
+  override val params: StreamParams = cfg.evalConfig
 
   //  https://spark.apache.org/docs/2.4.5/structured-streaming-kafka-integration.html
   private def producerOptions(m: Map[String, String]): Map[String, String] = {

@@ -23,7 +23,7 @@ final class FsmRdd[F[_], K, V](
   cfg: SKConfig)(implicit sparkSession: SparkSession)
     extends SparKafkaUpdateParams[FsmRdd[F, K, V]] {
 
-  override def params: SKParams = SKConfigF.evalConfig(cfg)
+  override def params: SKParams = cfg.evalConfig
 
   override def withParamUpdate(f: SKConfig => SKConfig): FsmRdd[F, K, V] =
     new FsmRdd[F, K, V](rdd, topic, f(cfg))

@@ -37,7 +37,7 @@ final private[kafka] case class DailyMinuteAggResult(date: LocalDateTime, count:
 
 final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Serializable {
 
-  val params: SKParams = SKConfigF.evalConfig(cfg)
+  val params: SKParams = cfg.evalConfig
 
   @transient private lazy val typedDataset: TypedDataset[CRMetaInfo] =
     TypedDataset.create(ds)

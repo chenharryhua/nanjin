@@ -25,7 +25,7 @@ final class KafkaCRStream[F[_], K: TypedEncoder, V: TypedEncoder](
 
   @transient lazy val typedDataset: TypedDataset[NJConsumerRecord[K, V]] = TypedDataset.create(ds)
 
-  override val params: StreamParams = StreamConfigF.evalConfig(cfg)
+  override val params: StreamParams = cfg.evalConfig
 
   def someValues: KafkaCRStream[F, K, V] =
     new KafkaCRStream[F, K, V](typedDataset.filter(typedDataset('value).isNotNone).dataset, cfg)
