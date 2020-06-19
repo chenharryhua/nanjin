@@ -1,15 +1,14 @@
 package com.github.chenharryhua.nanjin.database
 
-import cats.arrow.FunctionK
 import cats.effect.{Async, Blocker, Concurrent, ContextShift, Resource, Timer}
 import cats.implicits._
 import doobie.free.connection.{AsyncConnectionIO, ConnectionIO}
 import doobie.hikari.HikariTransactor
-import doobie.implicits._
 import doobie.util.ExecutionContexts
 import fs2.{Chunk, Pipe, Stream}
 import io.getquill.codegen.jdbc.SimpleJdbcCodegen
 import monocle.macros.Lenses
+
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 sealed abstract class DatabaseSettings(username: Username, password: Password) {
@@ -53,7 +52,7 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
     transactorResource[F].use(_.trans.apply(action))
 
   final def runStream[F[_]: ContextShift: Async, A](stm: Stream[ConnectionIO, A]): Stream[F, A] =
-    transactorStream[F].flatMap(xa => stm.transact(xa))
+    transactorStream[F].flatMap(_.transP.apply(stm))
 
   final def runBatch[F[_]: ContextShift: Concurrent: Timer, A, B](
     f: A => ConnectionIO[B],
@@ -82,6 +81,7 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
   private val credential: String         = s"user=${username.value}&password=${password.value}"
   override val connStr: ConnectionString = ConnectionString(s"$url?$credential")
   override val driver: DriverString      = DriverString("org.postgresql.Driver")
+
 }
 
 @Lenses final case class Redshift(
@@ -97,6 +97,7 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
 
   override val connStr: ConnectionString = ConnectionString(s"$url?$credential&$ssl")
   override val driver: DriverString      = DriverString("com.amazon.redshift.jdbc42.Driver")
+
 }
 
 @Lenses final case class SqlServer(
@@ -114,4 +115,5 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
 
   override val driver: DriverString =
     DriverString("com.microsoft.sqlserver.jdbc.SQLServerDriver")
+
 }

@@ -20,10 +20,10 @@ final case class TablePathBuild(tableName: TableName, fileFormat: NJFileFormat)
 private[spark] object STParams {
 
   val default: STParams = STParams(
-    dbSaveMode   = SaveMode.ErrorIfExists,
+    dbSaveMode = SaveMode.ErrorIfExists,
     fileSaveMode = SaveMode.Overwrite,
-    pathBuilder  = Reader(tn => s"./data/spark/database/${tn.tableName}/${tn.fileFormat}/"),
-    fileFormat   = NJFileFormat.Parquet
+    pathBuilder = Reader(tn => s"./data/spark/database/${tn.tableName}/${tn.fileFormat}/"),
+    fileFormat = NJFileFormat.Parquet
   )
 }
 @deriveTraverse sealed private[spark] trait STConfigF[A]
@@ -67,6 +67,8 @@ final private[spark] case class STConfig(value: Fix[STConfigF]) extends AnyVal {
 
   def withPathBuilder(f: TablePathBuild => String): STConfig =
     STConfig(Fix(WithPathBuilder(Reader(f), value)))
+
+  def evalConfig: STParams = STConfigF.evalConfig(this)
 }
 
 private[spark] object STConfig {
