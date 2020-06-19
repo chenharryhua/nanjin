@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark
 
 import java.sql.{Date, Timestamp}
-import java.time.{Instant, LocalDate, OffsetDateTime, ZonedDateTime}
+import java.time._
 
 import frameless.{Injection, SQLDate, SQLTimestamp}
 import io.scalaland.chimney.Transformer
@@ -10,6 +10,26 @@ import org.apache.spark.sql.catalyst.util.DateTimeUtils
 
 private[spark] trait InjectionInstances extends Serializable {
 
+  // monocle iso
+  implicit val isoInstant: Iso[Instant, Timestamp] =
+    Iso[Instant, Timestamp](Timestamp.from)(_.toInstant)
+
+  implicit val isoLocalDate: Iso[LocalDate, JavaLocalDate] =
+    Iso[LocalDate, JavaLocalDate](JavaLocalDate(_))(_.localDate)
+
+  implicit val isoLocalTime: Iso[LocalTime, JavaLocalTime] =
+    Iso[LocalTime, JavaLocalTime](JavaLocalTime(_))(_.localTime)
+
+  implicit def isoLocalDateTime: Iso[LocalDateTime, JavaLocalDateTime] =
+    Iso[LocalDateTime, JavaLocalDateTime](JavaLocalDateTime(_))(_.localDateTime)
+
+  implicit val isoOffsetDateTime: Iso[OffsetDateTime, JavaOffsetDateTime] =
+    Iso[OffsetDateTime, JavaOffsetDateTime](JavaOffsetDateTime(_))(_.offsetDateTime)
+
+  implicit val isoZonedDateTime: Iso[ZonedDateTime, JavaZonedDateTime] =
+    Iso[ZonedDateTime, JavaZonedDateTime](JavaZonedDateTime(_))(_.zonedDateTime)
+
+  //fraemless injection
   implicit val javaSQLTimestampInjection: Injection[Timestamp, SQLTimestamp] =
     Injection[Timestamp, SQLTimestamp](
       a => SQLTimestamp(DateTimeUtils.fromJavaTimestamp(a)),
@@ -23,6 +43,7 @@ private[spark] trait InjectionInstances extends Serializable {
   implicit def isoInjection[A, B](implicit iso: Iso[A, B]): Injection[A, B] =
     Injection[A, B](iso.get, iso.reverseGet)
 
+  // chimney transformers
   implicit def chimneyTransform[A, B](implicit iso: Iso[A, B]): Transformer[A, B] =
     (src: A) => iso.get(src)
 

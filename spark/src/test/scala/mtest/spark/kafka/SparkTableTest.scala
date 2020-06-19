@@ -6,7 +6,6 @@ import java.time.{Instant, LocalDate, ZoneId, ZonedDateTime}
 import cats.effect.IO
 import cats.implicits._
 import com.github.chenharryhua.nanjin.database.TableName
-import com.github.chenharryhua.nanjin.datetime.iso._
 import com.github.chenharryhua.nanjin.spark.database._
 import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.TypedDataset

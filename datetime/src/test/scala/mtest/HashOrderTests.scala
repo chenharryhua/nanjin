@@ -3,7 +3,6 @@ package mtest
 import java.sql.{Date, Timestamp}
 
 import cats.kernel.laws.discipline.{HashTests, OrderTests}
-import cats.laws.discipline.AlternativeTests
 import cats.tests.CatsSuite
 import com.github.chenharryhua.nanjin.datetime._
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
@@ -19,21 +18,6 @@ class HashOrderTests extends CatsSuite with FunSuiteDiscipline {
 
   checkAll("NJTimestamp", HashTests[NJTimestamp].hash)
   checkAll("NJTimestamp", OrderTests[NJTimestamp].order)
-
-  checkAll("JavaZonedDateTime", HashTests[JavaZonedDateTime].hash)
-  checkAll("JavaZonedDateTime", OrderTests[JavaZonedDateTime].order)
-
-  checkAll("JavaOffsetDateTime", HashTests[JavaOffsetDateTime].hash)
-  checkAll("JavaOffsetDateTime", OrderTests[JavaOffsetDateTime].order)
-
-  checkAll("JavaLocalTime", HashTests[JavaLocalTime].hash)
-  checkAll("JavaLocalTime", OrderTests[JavaLocalTime].order)
-
-  checkAll("JavaLocalDate", HashTests[JavaLocalDate].hash)
-  checkAll("JavaLocalDate", OrderTests[JavaLocalDate].order)
-
-  checkAll("JavaLocalDateTime", HashTests[JavaLocalDateTime].hash)
-  checkAll("JavaLocalDateTime", OrderTests[JavaLocalDateTime].order)
 
   //checkAll("parsing", AlternativeTests[DateTimeParser].alternative)
 }
