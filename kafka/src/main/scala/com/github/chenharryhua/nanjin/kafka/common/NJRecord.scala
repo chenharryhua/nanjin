@@ -12,7 +12,7 @@ import org.apache.kafka.clients.producer.ProducerRecord
 
 /**
   * compatible with spark kafka streaming
-  * https://spark.apache.org/docs/2.4.6/structured-streaming-kafka-integration.html
+  * https://spark.apache.org/docs/3.0.0/structured-streaming-kafka-integration.html
   */
 @Lenses final case class NJConsumerRecord[K, V](
   partition: Int,
