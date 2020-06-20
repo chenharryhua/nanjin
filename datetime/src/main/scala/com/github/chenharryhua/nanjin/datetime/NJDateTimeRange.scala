@@ -5,7 +5,7 @@ import java.time._
 
 import cats.implicits._
 import cats.kernel.UpperBounded
-import cats.{Eq, PartialOrder, Show}
+import cats.{PartialOrder, Show}
 import monocle.Prism
 import monocle.generic.coproduct.coProductPrism
 import monocle.macros.Lenses
@@ -13,7 +13,7 @@ import shapeless.{:+:, CNil, Poly1}
 
 import scala.concurrent.duration.FiniteDuration
 
-// both start and end are lazy
+// lazy range
 @Lenses final case class NJDateTimeRange(
   private val start: Option[NJDateTimeRange.TimeTypes],
   private val end: Option[NJDateTimeRange.TimeTypes],
@@ -134,8 +134,10 @@ object NJDateTimeRange {
 
   implicit val showNJDateTimeRange: Show[NJDateTimeRange] = _.toString
 
-  implicit val upperBoundedNJDateTimeRange: UpperBounded[NJDateTimeRange] with Eq[NJDateTimeRange] =
-    new UpperBounded[NJDateTimeRange] with Eq[NJDateTimeRange] {
+  implicit val upperBoundedNJDateTimeRange
+    : UpperBounded[NJDateTimeRange] with PartialOrder[NJDateTimeRange] with Show[NJDateTimeRange] =
+    new UpperBounded[NJDateTimeRange]
+      with PartialOrder[NJDateTimeRange] with Show[NJDateTimeRange] {
       override val maxBound: NJDateTimeRange = NJDateTimeRange(None, None, ZoneId.systemDefault())
 
       private def lessStart(a: Option[NJTimestamp], b: Option[NJTimestamp]): Boolean =
@@ -168,8 +170,10 @@ object NJDateTimeRange {
         case _ => Double.NaN
       }
 
-      override def eqv(x: NJDateTimeRange, y: NJDateTimeRange): Boolean =
-        partialOrder.eqv(x, y)
+      override def show(x: NJDateTimeRange): String = x.toString
+
+      override def partialCompare(x: NJDateTimeRange, y: NJDateTimeRange): Double =
+        partialOrder.partialCompare(x, y)
     }
 
   final val infinite: NJDateTimeRange = UpperBounded[NJDateTimeRange].maxBound
