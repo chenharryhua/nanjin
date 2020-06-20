@@ -59,6 +59,9 @@ import scala.concurrent.duration.FiniteDuration
       s.toLocalDate.toEpochDay.until(e.toLocalDate.toEpochDay).map(LocalDate.ofEpochDay).toList
     }.flatten
 
+  def period: Option[Period] =
+    (zonedStartTime, zonedEndTime).mapN((s, e) => Period.between(s.toLocalDate, e.toLocalDate))
+
   def withZoneId(zoneId: ZoneId): NJDateTimeRange =
     NJDateTimeRange.zoneId.set(zoneId)(this)
 
