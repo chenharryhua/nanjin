@@ -3,6 +3,13 @@ package mtest.spark
 import cats.kernel.laws.discipline.{HashTests, OrderTests}
 import cats.tests.CatsSuite
 import com.github.chenharryhua.nanjin.spark._
+import com.github.chenharryhua.nanjin.spark.datetime.{
+  JavaLocalDate,
+  JavaLocalDateTime,
+  JavaLocalTime,
+  JavaOffsetDateTime,
+  JavaZonedDateTime
+}
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
 class HashOrderTests extends CatsSuite with FunSuiteDiscipline {

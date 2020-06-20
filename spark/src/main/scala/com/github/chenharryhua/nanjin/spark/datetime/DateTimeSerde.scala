@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.spark
+package com.github.chenharryhua.nanjin.spark.datetime
 
 import java.sql.Timestamp
 import java.time._

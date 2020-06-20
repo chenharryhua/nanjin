@@ -8,6 +8,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.database.TableName
 import com.github.chenharryhua.nanjin.spark.database._
 import com.github.chenharryhua.nanjin.spark.injection._
+import com.github.chenharryhua.nanjin.spark.datetime._
 import frameless.TypedDataset
 import frameless.cats.implicits._
 import io.scalaland.chimney.dsl._
@@ -16,7 +17,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 final case class DomainObject(a: LocalDate, b: ZonedDateTime, c: Int, d: String, e: Instant)
 
-final case class DbTableInstDB(a: Date, b: Timestamp, c: Int, d: String, e: Timestamp)
+final case class DbTableInstDB(a: LocalDate, b: Timestamp, c: Int, d: String, e: Timestamp)
 
 class SparkTableTest extends AnyFunSuite {
   val table: TableDef[DbTableInstDB] = TableDef[DbTableInstDB](TableName("public.sparktabletest"))
