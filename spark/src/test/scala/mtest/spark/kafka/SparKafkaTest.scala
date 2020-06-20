@@ -23,7 +23,7 @@ class SparKafkaTest extends AnyFunSuite {
     LocalDate.now,
     Instant.ofEpochMilli(Instant.now.toEpochMilli),
     embed)
-  val topic = ctx.topic[Int, ForTaskSerializable](TopicName("serializable.test"))
+  val topic = TopicDef[Int, ForTaskSerializable](TopicName("serializable.test")).in(ctx)
 
   (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >> topic.schemaRegister >>
     topic.send(List(topic.fs2PR(0, data), topic.fs2PR(1, data)))).unsafeRunSync()
@@ -47,8 +47,8 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("should be able to bimap to other topic") {
-    val src: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int](TopicName("src.topic"))
-    val tgt: KafkaTopic[IO, String, Int]             = ctx.topic[String, Int](TopicName("target.topic"))
+    val src: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int]("src.topic")
+    val tgt: KafkaTopic[IO, String, Int]             = ctx.topic[String, Int]("target.topic")
     val d1: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0)
     val d2: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 2, 0, None, Some(2), "t", 0)
     val d3: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 3, 0, None, None, "t", 0)
@@ -67,8 +67,8 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("should be able to flatmap to other topic") {
-    val src: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int](TopicName("src.topic"))
-    val tgt: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int](TopicName("target.topic"))
+    val src: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int]("src.topic")
+    val tgt: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int]("target.topic")
     val d1: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0)
     val d2: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 2, 0, None, Some(2), "t", 0)
     val d3: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 3, 0, None, None, "t", 0)

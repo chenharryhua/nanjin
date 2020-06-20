@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.spark.kafka._
 import frameless.cats.implicits._
 import org.scalatest.funsuite.AnyFunSuite
+import com.github.chenharryhua.nanjin.kafka.TopicDef
 
 object CopyData {
   final case class MyTestData(a: Int, b: String)
@@ -13,8 +14,8 @@ object CopyData {
 
 class CopyDataTest extends AnyFunSuite {
   import CopyData._
-  val src = ctx.topic[Int, MyTestData](TopicName("copy.src"))
-  val tgt = ctx.topic[Int, MyTestData](TopicName("copy.target"))
+  val src = TopicDef[Int, MyTestData](TopicName("copy.src")).in(ctx)
+  val tgt = TopicDef[Int, MyTestData](TopicName("copy.target")).in(ctx)
 
   val d1 = src.fs2PR(0, MyTestData(1, "a")).withTimestamp(10)
   val d2 = src.fs2PR(1, MyTestData(2, "b")).withTimestamp(20)
