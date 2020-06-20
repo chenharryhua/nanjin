@@ -37,9 +37,9 @@ object sparkCoproduct {
   val cp1 = Person3("aa", Coproduct[CoParent](Child1(1, "a")))
   val cp2 = Person3("bb", Coproduct[CoParent](Child2(2, "b")))
 
-  val topic  = ctx.topic[Int, Person](TopicName("coproduct.person"))
-  val topic2 = ctx.topic[Int, Person2](TopicName("coproduct.person2"))
-  val topic3 = ctx.topic[Int, Person3](TopicName("coproduct.person3"))
+  val topic  = ctx.topic[Int, Person]("coproduct.person")
+  val topic2 = ctx.topic[Int, Person2]("coproduct.person2")
+  val topic3 = ctx.topic[Int, Person3]("coproduct.person3")
 
 }
 

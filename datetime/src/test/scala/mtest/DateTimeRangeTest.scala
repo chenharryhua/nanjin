@@ -2,7 +2,7 @@ package mtest
 
 import java.time.{LocalDate, LocalDateTime, LocalTime, ZoneId}
 
-import cats.kernel.laws.discipline.UpperBoundedTests
+import cats.kernel.laws.discipline.{PartialOrderTests, UpperBoundedTests}
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8.genZonedDateTimeWithZone
 import com.github.chenharryhua.nanjin.datetime._
 import org.scalacheck.{Arbitrary, Cogen, Gen}
@@ -23,7 +23,8 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
   implicit val cogen: Cogen[NJDateTimeRange] =
     Cogen(m => m.startTimestamp.map(_.milliseconds).getOrElse(0))
 
-  checkAll("NJDateTimeRange", UpperBoundedTests[NJDateTimeRange].upperBounded)
+  checkAll("NJDateTimeRange-UpperBounded", UpperBoundedTests[NJDateTimeRange].upperBounded)
+  checkAll("NJDateTimeRange-PartialOrder", PartialOrderTests[NJDateTimeRange].partialOrder)
 
   test("order of applying time data does not matter") {
     val zoneId    = ZoneId.of("Asia/Chongqing")

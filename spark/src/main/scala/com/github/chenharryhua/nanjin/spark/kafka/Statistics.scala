@@ -6,6 +6,7 @@ import cats.effect.Sync
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.injection._
+import com.github.chenharryhua.nanjin.spark.datetime._
 import frameless.TypedDataset
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.functions.aggregate.count

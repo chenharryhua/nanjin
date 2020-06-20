@@ -23,5 +23,5 @@ package object kafka {
       .ioContext
 
   val taxi: KafkaTopic[IO, Int, trip_record] =
-    ctx.topic[Int, trip_record](TopicName("nyc_yellow_taxi_trip_data"))
+    ctx.topic[Int, trip_record]("nyc_yellow_taxi_trip_data")
 }

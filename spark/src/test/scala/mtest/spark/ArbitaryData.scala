@@ -4,14 +4,15 @@ import java.sql.{Date, Timestamp}
 import java.time.{LocalDate, LocalTime, OffsetDateTime, ZoneId}
 
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8._
-import com.github.chenharryhua.nanjin.spark.{
+import com.github.chenharryhua.nanjin.spark.datetime.{
   JavaLocalDate,
   JavaLocalDateTime,
   JavaLocalTime,
   JavaOffsetDateTime,
   JavaZonedDateTime
 }
-import org.scalacheck.{Arbitrary, Cogen}
+import frameless.{SQLDate, SQLTimestamp}
+import org.scalacheck.{Arbitrary, Cogen, Gen}
 
 object ArbitaryData {
   implicit val zoneId: ZoneId = ZoneId.systemDefault()
@@ -23,6 +24,12 @@ object ArbitaryData {
 
   implicit val coTimestamp: Cogen[Timestamp] =
     Cogen[Timestamp]((a: Timestamp) => a.getTime)
+
+  implicit val coSqlTimestamp: Cogen[SQLTimestamp] =
+    Cogen[SQLTimestamp]((a: SQLTimestamp) => a.us)
+
+  implicit val coSqlDate: Cogen[SQLDate] =
+    Cogen[SQLDate]((a: SQLDate) => a.days.toLong)
 
   implicit val coLocalDate: Cogen[LocalDate] =
     Cogen[LocalDate]((a: LocalDate) => a.toEpochDay)
@@ -50,8 +57,16 @@ object ArbitaryData {
 
 // arbs
 
+  val days: Int = 2000000000
+
   implicit val arbDate: Arbitrary[Date] = Arbitrary(
-    genZonedDateTime.map(d => Date.valueOf(d.toLocalDate)))
+    Gen.choose[Long](-days.toLong, days.toLong).map(d => Date.valueOf(LocalDate.ofEpochDay(d))))
+
+  implicit val arbSQLDate: Arbitrary[SQLDate] =
+    Arbitrary(Gen.choose[Int](-days, days).map(SQLDate))
+
+  implicit val arbSQLTimestamp: Arbitrary[SQLTimestamp] = Arbitrary(
+    genZonedDateTime.map(d => SQLTimestamp(d.toInstant.getEpochSecond)))
 
   implicit val arbTimestamp: Arbitrary[Timestamp] = Arbitrary(
     genZonedDateTime.map(d => new Timestamp(d.toInstant.getEpochSecond)))

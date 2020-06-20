@@ -63,16 +63,16 @@ final case class NJTimestamp(milliseconds: Long) extends AnyVal {
 }
 
 object NJTimestamp {
-  def apply(ts: Timestamp): NJTimestamp      = NJTimestamp(ts.getTime)
-  def apply(ts: Instant): NJTimestamp        = NJTimestamp(ts.toEpochMilli)
-  def apply(ts: ZonedDateTime): NJTimestamp  = apply(ts.toInstant)
-  def apply(ts: OffsetDateTime): NJTimestamp = apply(ts.toInstant)
+  def apply(ts: Timestamp): NJTimestamp       = NJTimestamp(ts.getTime)
+  def apply(ins: Instant): NJTimestamp        = NJTimestamp(ins.toEpochMilli)
+  def apply(zdt: ZonedDateTime): NJTimestamp  = apply(zdt.toInstant)
+  def apply(odt: OffsetDateTime): NJTimestamp = apply(odt.toInstant)
 
-  def apply(ts: LocalDateTime, zoneId: ZoneId): NJTimestamp =
-    apply(ts.atZone(zoneId).toInstant)
+  def apply(ldt: LocalDateTime, zoneId: ZoneId): NJTimestamp =
+    apply(ldt.atZone(zoneId).toInstant)
 
-  def apply(ts: LocalDate, zoneId: ZoneId): NJTimestamp =
-    apply(toLocalDateTime(ts), zoneId)
+  def apply(ld: LocalDate, zoneId: ZoneId): NJTimestamp =
+    apply(toLocalDateTime(ld), zoneId)
 
   def apply(lt: LocalTime, zoneId: ZoneId): NJTimestamp =
     apply(toLocalDateTime(lt), zoneId)

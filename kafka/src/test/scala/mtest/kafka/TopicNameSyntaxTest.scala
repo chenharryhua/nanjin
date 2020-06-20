@@ -6,11 +6,11 @@ import com.landoop.telecom.telecomitalia.telecommunications.{smsCallInternet, Ke
 import io.circe.generic.auto._
 
 class TopicNameSyntaxTest {
-  val topic1 = ctx.topic[KJson[PKey], Payment](TopicName("topic1"))
-  val topic2 = ctx.topic[PKey, KJson[Payment]](TopicName("topic2"))
-  val topic3 = ctx.topic[Int, Int](TopicName("topic3"))
-  val tooic4 = ctx.topic(TopicDef[Int, KJson[Payment]](TopicName("topic4")))
-  val topic5 = ctx.topic(TopicDef[Int, Payment](TopicName("topic5")))
+  val topic1 = ctx.topic[KJson[PKey], Payment]("topic1")
+  val topic2 = ctx.topic[PKey, KJson[Payment]]("topic2")
+  val topic3 = ctx.topic[Int, Int]("topic3")
+  val tooic4 = ctx.topic[Int, KJson[Payment]]("topic4")
+  val topic5 = TopicDef[Int, Payment](TopicName("topic5")).in(ctx)
   val topic6 = TopicDef[Int, Int](TopicName("topic6")).in(ctx)
 
   val topic7 = TopicDef(
