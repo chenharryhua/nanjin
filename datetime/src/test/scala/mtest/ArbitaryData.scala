@@ -1,14 +1,14 @@
 package mtest
 
 import java.sql.{Date, Timestamp}
-import java.time.{LocalDate, LocalTime, OffsetDateTime, ZoneId}
+import java.time._
 
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8._
-import com.github.chenharryhua.nanjin.datetime.NJTimestamp
+import com.github.chenharryhua.nanjin.datetime.{newyorkTime, NJTimestamp}
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 
 object ArbitaryData {
-  implicit val zoneId: ZoneId = ZoneId.systemDefault()
+  implicit val zoneId: ZoneId = newyorkTime
 
   // cogens
 
@@ -46,10 +46,15 @@ object ArbitaryData {
   implicit val arbKafkaTimestamp: Arbitrary[NJTimestamp] = Arbitrary(
     genZonedDateTime.map(d => NJTimestamp(d.toInstant.getEpochSecond)))
 
-  implicit val arbLocalTime: Arbitrary[LocalTime] = Arbitrary(
-    genZonedDateTime.map(zd => zd.toLocalDateTime.toLocalTime))
+  implicit val arbLocalDateTime: Arbitrary[LocalDateTime] = Arbitrary(
+    genZonedDateTimeWithZone(Some(zoneId)).map(zd => zd.toLocalDateTime))
 
-  implicit val arbJavaOffset2: Arbitrary[OffsetDateTime] = Arbitrary(
-    genZonedDateTime.map(zd => OffsetDateTime.of(zd.toLocalDateTime, zd.getOffset))
+  implicit val arbOffsetDateTime: Arbitrary[OffsetDateTime] = Arbitrary(
+    genZonedDateTimeWithZone(Some(zoneId)).map(zd =>
+      OffsetDateTime.of(zd.toLocalDateTime, zd.getOffset))
+  )
+
+  implicit val arbZonedDateTime: Arbitrary[ZonedDateTime] = Arbitrary(
+    genZonedDateTimeWithZone(Some(zoneId))
   )
 }

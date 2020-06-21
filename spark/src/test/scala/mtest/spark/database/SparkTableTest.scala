@@ -27,7 +27,7 @@ final case class DomainObject(
 
 final case class DBTable(
   a: Date,
-  d: Date,
+  d: LocalDate,
   e: Instant,
   f: Instant,
   g: Instant,

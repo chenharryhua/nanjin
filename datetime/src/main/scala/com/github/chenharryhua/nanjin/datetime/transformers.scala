@@ -11,25 +11,14 @@ object transformers extends LowPriorityReverse {
   implicit val zonedDateTimeTransform: Transformer[ZonedDateTime, Instant] =
     (src: ZonedDateTime) => src.toInstant
 
-  implicit def zonedDateTimeTransformReverse(implicit
-    zoneId: ZoneId): Transformer[Instant, ZonedDateTime] =
-    (src: Instant) => ZonedDateTime.ofInstant(src, zoneId)
-
   implicit val offsetDateTimeTransform: Transformer[OffsetDateTime, Instant] =
     (src: OffsetDateTime) => src.toInstant
-
-  implicit def offsetDateTimeTransformReverse(implicit
-    zoneId: ZoneId): Transformer[Instant, OffsetDateTime] =
-    (src: Instant) => OffsetDateTime.ofInstant(src, zoneId)
 
   implicit def localDateTimeTransform(implicit
     zoneId: ZoneId): Transformer[LocalDateTime, Instant] =
     (src: LocalDateTime) => src.atZone(zoneId).toInstant
 
-  implicit def localDateTimeTransformReverse(implicit
-    zoneId: ZoneId): Transformer[Instant, LocalDateTime] =
-    (src: Instant) => src.atZone(zoneId).toLocalDateTime
-
+  // generic
   implicit def chimneyTransform[A, B](implicit iso: Iso[A, B]): Transformer[A, B] =
     (src: A) => iso.get(src)
 
@@ -40,6 +29,19 @@ object transformers extends LowPriorityReverse {
 
 private[datetime] trait LowPriorityReverse {
 
+  implicit def localDateTimeTransformReverse(implicit
+    zoneId: ZoneId): Transformer[Instant, LocalDateTime] =
+    (src: Instant) => src.atZone(zoneId).toLocalDateTime
+
+  implicit def offsetDateTimeTransformReverse(implicit
+    zoneId: ZoneId): Transformer[Instant, OffsetDateTime] =
+    (src: Instant) => OffsetDateTime.ofInstant(src, zoneId)
+
+  implicit def zonedDateTimeTransformReverse(implicit
+    zoneId: ZoneId): Transformer[Instant, ZonedDateTime] =
+    (src: Instant) => ZonedDateTime.ofInstant(src, zoneId)
+
+  //generic
   implicit def chimneyTransformReverse[A, B](implicit iso: Iso[A, B]): Transformer[B, A] =
     (src: B) => iso.reverseGet(src)
 
