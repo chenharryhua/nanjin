@@ -6,7 +6,7 @@ import java.time._
 import io.scalaland.chimney.Transformer
 import monocle.Iso
 
-object transformers extends LowPriorityReverse {
+object transformers extends ReverseTransformers {
 
   implicit val zonedDateTimeTransform: Transformer[ZonedDateTime, Instant] =
     (src: ZonedDateTime) => src.toInstant
@@ -27,7 +27,7 @@ object transformers extends LowPriorityReverse {
     (src: A) => isoInstant.get(trans.transform(src))
 }
 
-private[datetime] trait LowPriorityReverse {
+private[datetime] trait ReverseTransformers {
 
   implicit def localDateTimeTransformReverse(implicit
     zoneId: ZoneId): Transformer[Instant, LocalDateTime] =
