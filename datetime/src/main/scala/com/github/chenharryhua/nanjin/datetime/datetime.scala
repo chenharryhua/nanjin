@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin
 
 import java.time.{LocalDate, LocalDateTime, LocalTime, ZoneId}
 
-package object datetime extends DateTimeInstances {
+package object datetime extends DateTimeInstances with Isos {
 
   def toLocalDateTime(ts: LocalTime): LocalDateTime = ts.atDate(LocalDate.now)
   def toLocalDateTime(ts: LocalDate): LocalDateTime = ts.atTime(LocalTime.MIDNIGHT)

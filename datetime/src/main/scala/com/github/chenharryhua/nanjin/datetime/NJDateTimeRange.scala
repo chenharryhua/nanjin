@@ -62,6 +62,9 @@ import scala.concurrent.duration.FiniteDuration
   def period: Option[Period] =
     (zonedStartTime, zonedEndTime).mapN((s, e) => Period.between(s.toLocalDate, e.toLocalDate))
 
+  def javaDuration: Option[java.time.Duration] =
+    (zonedStartTime, zonedEndTime).mapN((s, e) => java.time.Duration.between(s, e))
+
   def withZoneId(zoneId: ZoneId): NJDateTimeRange =
     NJDateTimeRange.zoneId.set(zoneId)(this)
 

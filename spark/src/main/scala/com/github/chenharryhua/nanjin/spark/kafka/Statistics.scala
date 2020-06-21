@@ -1,15 +1,14 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import java.time.{LocalDate, LocalDateTime}
+import java.time.{Instant, LocalDate, LocalDateTime}
 
 import cats.effect.Sync
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.injection._
-import com.github.chenharryhua.nanjin.spark.datetime._
-import frameless.TypedDataset
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.functions.aggregate.count
+import frameless.{Injection, TypedDataset}
 import org.apache.spark.sql.Dataset
 
 final private[kafka] case class CRMetaInfo(
@@ -39,6 +38,14 @@ final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Ser
 
   val params: SKParams = cfg.evalConfig
 
+  implicit private val serde: Injection[LocalDateTime, Instant] =
+    new Injection[LocalDateTime, Instant] {
+      override def apply(a: LocalDateTime): Instant = a.atZone(params.timeRange.zoneId).toInstant
+
+      override def invert(b: Instant): LocalDateTime =
+        b.atZone(params.timeRange.zoneId).toLocalDateTime
+    }
+
   @transient private lazy val typedDataset: TypedDataset[CRMetaInfo] =
     TypedDataset.create(ds)
 
@@ -67,7 +74,7 @@ final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Ser
 
   def daily(implicit ev: Sync[F]): F[Unit] = {
     val day: TypedDataset[LocalDate] = typedDataset.deserialized.map { m =>
-      NJTimestamp(m.timestamp).localDate(params.timeRange.zoneId)
+      NJTimestamp(m.timestamp).dayResolution(params.timeRange.zoneId)
     }
     val res = day.groupBy(day.asCol).agg(count(day.asCol)).as[DailyAggResult]
     res.orderBy(res('date).asc).show[F](params.showDs.rowNum, params.showDs.isTruncate)
