@@ -1,9 +1,11 @@
 package com.github.chenharryhua.nanjin.datetime
 
 import java.sql.{Date, Timestamp}
+import java.time.{Instant, LocalDate}
 
 import cats.{Hash, Order, Show}
 import io.chrisdavenport.cats.time.instances.all
+import monocle.Iso
 
 private[datetime] trait DateTimeInstances extends all {
 
@@ -20,4 +22,14 @@ private[datetime] trait DateTimeInstances extends all {
       override def compare(x: Date, y: Date): Int = x.compareTo(y)
       override def show(x: Date): String          = x.toString
     }
+}
+
+private[datetime] trait Isos {
+
+  implicit val isoInstant: Iso[Instant, Timestamp] =
+    Iso[Instant, Timestamp](Timestamp.from)(_.toInstant)
+
+  implicit val isoLocalDate: Iso[LocalDate, Date] =
+    Iso[LocalDate, Date](a => Date.valueOf(a))(b => b.toLocalDate)
+
 }
