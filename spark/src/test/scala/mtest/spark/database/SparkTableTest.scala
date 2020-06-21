@@ -8,7 +8,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.database.TableName
 import com.github.chenharryhua.nanjin.spark.database._
 import com.github.chenharryhua.nanjin.spark.injection._
-import com.github.chenharryhua.nanjin.spark.datetime._
+import com.github.chenharryhua.nanjin.spark.transformers.datetime._
 import frameless.TypedDataset
 import frameless.cats.implicits._
 import io.scalaland.chimney.dsl._

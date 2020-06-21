@@ -16,11 +16,7 @@ class TimeInjectionProps extends Properties("date time") {
   val date           = TypedEncoder[Date]
   val timestamp      = TypedEncoder[Timestamp]
   val localdate      = TypedEncoder[LocalDate]
-  val localtime      = TypedEncoder[LocalTime]
-  val localdatetime  = TypedEncoder[LocalDateTime]
   val instant        = TypedEncoder[Instant]
-  val zoneddatetime  = TypedEncoder[ZonedDateTime]
-  val offsetdatetime = TypedEncoder[OffsetDateTime]
   val njtimestamp    = TypedEncoder[NJTimestamp]
 
   property("timezone has no effect on epoch-second") = forAll { (ins: Instant) =>

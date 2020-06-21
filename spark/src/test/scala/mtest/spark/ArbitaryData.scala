@@ -1,19 +1,12 @@
 package mtest.spark
 
 import java.sql.{Date, Timestamp}
-import java.time.{Instant, LocalDate, LocalDateTime, LocalTime, OffsetDateTime, ZoneId}
+import java.time._
 
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8._
-import com.github.chenharryhua.nanjin.spark.datetime.{
-  JavaLocalDate,
-  JavaLocalDateTime,
-  JavaLocalTime,
-  JavaOffsetDateTime,
-  JavaZonedDateTime
-}
 import frameless.{SQLDate, SQLTimestamp}
+import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.{Arbitrary, Cogen, Gen}
-import Arbitrary.arbitrary
 
 object ArbitaryData {
   implicit val zoneId: ZoneId = ZoneId.systemDefault()
@@ -35,26 +28,11 @@ object ArbitaryData {
   implicit val coLocalDate: Cogen[LocalDate] =
     Cogen[LocalDate]((a: LocalDate) => a.toEpochDay)
 
-  implicit val coJavaLocalDate: Cogen[JavaLocalDate] =
-    Cogen[JavaLocalDate]((a: JavaLocalDate) => a.localDate.toEpochDay)
-
   implicit val coLocalTime: Cogen[LocalTime] =
     Cogen[LocalTime]((a: LocalTime) => a.toNanoOfDay)
 
-  implicit val coJavaLocalTime: Cogen[JavaLocalTime] =
-    Cogen[JavaLocalTime]((a: JavaLocalTime) => a.localTime.toNanoOfDay)
-
-  implicit val coJavaLocalDateTime: Cogen[JavaLocalDateTime] =
-    Cogen[JavaLocalDateTime]((a: JavaLocalDateTime) => a.localDateTime.toLocalTime.toNanoOfDay)
-
-  implicit val coJavaZoned: Cogen[JavaZonedDateTime] =
-    Cogen[JavaZonedDateTime]((a: JavaZonedDateTime) => a.zonedDateTime.toEpochSecond)
-
   implicit val coOffsetDateTime: Cogen[OffsetDateTime] =
     Cogen[OffsetDateTime]((a: OffsetDateTime) => a.toInstant.getEpochSecond)
-
-  implicit val coJavaOffset: Cogen[JavaOffsetDateTime] =
-    Cogen[JavaOffsetDateTime]((a: JavaOffsetDateTime) => a.offsetDateTime.toEpochSecond)
 
 // arbs
 
@@ -79,25 +57,8 @@ object ArbitaryData {
   implicit val arbTimestamp: Arbitrary[Timestamp] = Arbitrary(
     Gen.choose[Long](Int.MinValue.toLong, Int.MaxValue.toLong).map(d => new Timestamp(d)))
 
-  implicit val arbJavaLocalDate: Arbitrary[JavaLocalDate] = Arbitrary(
-    genZonedDateTime.map(zd => JavaLocalDate(zd.toLocalDate)))
-
-  implicit val arbJavaLocalTime: Arbitrary[JavaLocalTime] = Arbitrary(
-    genZonedDateTime.map(zd => JavaLocalTime(zd.toLocalDateTime.toLocalTime)))
-
   implicit val arbLocalTime: Arbitrary[LocalTime] = Arbitrary(
     genZonedDateTime.map(zd => zd.toLocalDateTime.toLocalTime))
-
-  implicit val arbJavaLocalDateTime: Arbitrary[JavaLocalDateTime] = Arbitrary(
-    genZonedDateTime.map(zd => JavaLocalDateTime(zd.toLocalDateTime)))
-
-  implicit val arbJavaZoned: Arbitrary[JavaZonedDateTime] = Arbitrary(
-    genZonedDateTime.map(zd => JavaZonedDateTime(zd))
-  )
-
-  implicit val arbJavaOffset: Arbitrary[JavaOffsetDateTime] = Arbitrary(
-    genZonedDateTime.map(zd => JavaOffsetDateTime(zd.toOffsetDateTime))
-  )
 
   implicit val arbJavaOffset2: Arbitrary[OffsetDateTime] = Arbitrary(
     genZonedDateTime.map(zd => OffsetDateTime.of(zd.toLocalDateTime, zd.getOffset))

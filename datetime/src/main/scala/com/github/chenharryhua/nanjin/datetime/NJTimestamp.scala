@@ -33,7 +33,7 @@ final case class NJTimestamp(milliseconds: Long) extends AnyVal {
   def `Year=yyyy/Month=mm/Day=dd`(zoneId: ZoneId): String =
     s"Year=${yearStr(zoneId)}/Month=${monthStr(zoneId)}/Day=${dayStr(zoneId)}"
 
-  def localDate(zoneId: ZoneId): LocalDate = atZone(zoneId).toLocalDate
+  def dayResolution(zoneId: ZoneId): LocalDate = atZone(zoneId).toLocalDate
 
   def hourResolution(zoneId: ZoneId): LocalDateTime = {
     val dt: LocalDateTime = atZone(zoneId).toLocalDateTime
