@@ -1,7 +1,7 @@
 package mtest.spark
 
 import java.sql.{Date, Timestamp}
-import java.time.{LocalDate, LocalTime, OffsetDateTime, ZoneId}
+import java.time.{Instant, LocalDate, LocalDateTime, LocalTime, OffsetDateTime, ZoneId}
 
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8._
 import com.github.chenharryhua.nanjin.spark.datetime.{
@@ -13,6 +13,7 @@ import com.github.chenharryhua.nanjin.spark.datetime.{
 }
 import frameless.{SQLDate, SQLTimestamp}
 import org.scalacheck.{Arbitrary, Cogen, Gen}
+import Arbitrary.arbitrary
 
 object ArbitaryData {
   implicit val zoneId: ZoneId = ZoneId.systemDefault()
@@ -57,13 +58,20 @@ object ArbitaryData {
 
 // arbs
 
-  val days: Int = 2000000000
+  val days: Int = Int.MaxValue
 
   implicit val arbDate: Arbitrary[Date] = Arbitrary(
     Gen.choose[Long](-days.toLong, days.toLong).map(d => Date.valueOf(LocalDate.ofEpochDay(d))))
 
   implicit val arbSQLDate: Arbitrary[SQLDate] =
-    Arbitrary(Gen.choose[Int](-days, days).map(SQLDate))
+    Arbitrary(arbitrary[Int].map(SQLDate))
+
+  implicit val arbLocalDate: Arbitrary[LocalDate] =
+    Arbitrary(arbitrary[Int].map(d => LocalDate.ofEpochDay(d.toLong)))
+
+  implicit val arbLocalDateTime: Arbitrary[LocalDateTime] =
+    Arbitrary(arbitrary[Long].map(d =>
+      LocalDateTime.ofInstant(Instant.ofEpochMilli(d), ZoneId.of("Etc/UTC"))))
 
   implicit val arbSQLTimestamp: Arbitrary[SQLTimestamp] = Arbitrary(
     genZonedDateTime.map(d => SQLTimestamp(d.toInstant.getEpochSecond)))

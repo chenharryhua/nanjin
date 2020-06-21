@@ -8,9 +8,6 @@ import monocle.Iso
 
 package object datetime {
 
-  implicit val isoLocalDate: Iso[LocalDate, JavaLocalDate] =
-    Iso[LocalDate, JavaLocalDate](JavaLocalDate(_))(_.localDate)
-
   implicit val isoLocalTime: Iso[LocalTime, JavaLocalTime] =
     Iso[LocalTime, JavaLocalTime](JavaLocalTime(_))(_.localTime)
 

@@ -20,16 +20,19 @@ private[spark] trait InjectionInstances extends Serializable {
     Iso[Timestamp, SQLTimestamp](a => SQLTimestamp(DateTimeUtils.fromJavaTimestamp(a)))(b =>
       DateTimeUtils.toJavaTimestamp(b.us))
 
-  implicit val orderSQLTimestamp: Order[SQLTimestamp] =
-    (x: SQLTimestamp, y: SQLTimestamp) => x.us.compareTo(y.us)
-
   implicit val isoJavaSQLDate: Iso[Date, SQLDate] =
-    Iso[Date, SQLDate](a => SQLDate(DateTimeUtils.fromJavaDate(a))) { b =>
-      DateTimeUtils.toJavaDate(b.days)
-    }
+    Iso[Date, SQLDate](a => SQLDate(DateTimeUtils.fromJavaDate(a)))(b =>
+      DateTimeUtils.toJavaDate(b.days))
+
+  implicit val isoLocalDate: Iso[LocalDate, SQLDate] =
+    Iso[LocalDate, SQLDate](a => SQLDate(a.toEpochDay.toInt))(b =>
+      LocalDate.ofEpochDay(b.days.toLong))
 
   implicit val oderSQLDate: Order[SQLDate] =
     (x: SQLDate, y: SQLDate) => x.days.compareTo(y.days)
+
+  implicit val orderSQLTimestamp: Order[SQLTimestamp] =
+    (x: SQLTimestamp, y: SQLTimestamp) => x.us.compareTo(y.us)
 
   // injection
   implicit def isoInjection[A, B](implicit iso: Iso[A, B]): Injection[A, B] =
@@ -39,7 +42,7 @@ private[spark] trait InjectionInstances extends Serializable {
   implicit def chimneyTransform[A, B](implicit iso: Iso[A, B]): Transformer[A, B] =
     (src: A) => iso.get(src)
 
-  implicit def chimneyTransform2[A, B](implicit iso: Iso[A, B]): Transformer[B, A] =
+  implicit def chimneyTransformReverse[A, B](implicit iso: Iso[A, B]): Transformer[B, A] =
     (src: B) => iso.reverseGet(src)
 
 }
