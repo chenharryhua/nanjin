@@ -36,16 +36,16 @@ object ArbitaryData {
 
 // arbs
 
+  val dateRange: Long = 700000
+
   implicit val arbDate: Arbitrary[Date] = Arbitrary(
-    Gen
-      .choose[Long](Int.MinValue.toLong, Int.MaxValue.toLong)
-      .map(d => Date.valueOf(LocalDate.ofEpochDay(d))))
+    Gen.choose[Long](-dateRange, dateRange).map(d => Date.valueOf(LocalDate.ofEpochDay(d))))
+
+  implicit val arbLocalDate: Arbitrary[LocalDate] =
+    Arbitrary(Gen.choose[Long](-dateRange, dateRange).map(d => LocalDate.ofEpochDay(d.toLong)))
 
   implicit val arbSQLDate: Arbitrary[SQLDate] =
     Arbitrary(arbitrary[Int].map(SQLDate))
-
-  implicit val arbLocalDate: Arbitrary[LocalDate] =
-    Arbitrary(arbitrary[Int].map(d => LocalDate.ofEpochDay(d.toLong)))
 
   implicit val arbLocalDateTime: Arbitrary[LocalDateTime] =
     Arbitrary(arbitrary[Long].map(d =>

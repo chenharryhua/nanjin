@@ -1,10 +1,11 @@
 package mtest.spark.database
 
-import java.sql.Timestamp
-import java.time.{Instant, LocalDate, ZoneId, ZonedDateTime}
+import java.sql.{Date, Timestamp}
+import java.time._
 
 import cats.effect.IO
 import cats.implicits._
+import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.datetime.transformers._
 import com.github.chenharryhua.nanjin.database.TableName
 import com.github.chenharryhua.nanjin.spark.database._
@@ -15,18 +16,41 @@ import io.scalaland.chimney.dsl._
 import org.apache.spark.sql.SaveMode
 import org.scalatest.funsuite.AnyFunSuite
 
-final case class DomainObject(a: LocalDate, b: ZonedDateTime, c: Int, d: String, e: Instant)
+final case class DomainObject(
+  a: LocalDate,
+  d: Date,
+  e: ZonedDateTime,
+  f: OffsetDateTime,
+  g: Instant,
+  h: LocalDateTime,
+  i: Timestamp)
 
-final case class DbTableInstDB(a: LocalDate, b: Timestamp, c: Int, d: String, e: Timestamp)
+final case class DBTable(
+  a: Date,
+  d: Date,
+  e: Instant,
+  f: Instant,
+  g: Instant,
+  h: Timestamp,
+  i: Timestamp)
 
 class SparkTableTest extends AnyFunSuite {
-  implicit val zoneId: ZoneId        = ZoneId.systemDefault()
-  val table: TableDef[DbTableInstDB] = TableDef[DbTableInstDB](TableName("public.sparktabletest"))
+  implicit val zoneId: ZoneId  = beijingTime
+  val table: TableDef[DBTable] = TableDef[DBTable](TableName("public.sparktabletest"))
 
-  val sample: DomainObject = DomainObject(LocalDate.now, ZonedDateTime.now, 10, "d", Instant.now)
+  val sample: DomainObject =
+    DomainObject(
+      LocalDate.now,
+      Date.valueOf(LocalDate.now),
+      ZonedDateTime.now(zoneId),
+      OffsetDateTime.now(zoneId),
+      Instant.now,
+      LocalDateTime.now(zoneId),
+      new Timestamp(1351245600000L)
+    )
 
   test("upload dataset to table") {
-    val data = TypedDataset.create(List(sample.transformInto[DbTableInstDB]))
+    val data = TypedDataset.create(List(sample.transformInto[DBTable]))
     data.dbUpload(table.in(db).withParamUpdate(_.withDbSaveMode(SaveMode.Overwrite)))
   }
 

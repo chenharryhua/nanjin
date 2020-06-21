@@ -4,6 +4,7 @@ import java.time.Instant
 
 import cats.effect.IO
 import cats.implicits._
+import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark._

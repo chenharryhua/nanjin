@@ -5,7 +5,7 @@ import java.time.{LocalDate, LocalTime, OffsetDateTime, ZoneId}
 
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import org.scalacheck.{Arbitrary, Cogen}
+import org.scalacheck.{Arbitrary, Cogen, Gen}
 
 object ArbitaryData {
   implicit val zoneId: ZoneId = ZoneId.systemDefault()
@@ -32,8 +32,13 @@ object ArbitaryData {
 
 // arbs
 
+  val dateRange: Long = 700000
+
   implicit val arbDate: Arbitrary[Date] = Arbitrary(
-    genZonedDateTime.map(d => Date.valueOf(d.toLocalDate)))
+    Gen.choose[Long](-dateRange, dateRange).map(d => Date.valueOf(LocalDate.ofEpochDay(d))))
+
+  implicit val arbLocalDate: Arbitrary[LocalDate] =
+    Arbitrary(Gen.choose[Long](-dateRange, dateRange).map(d => LocalDate.ofEpochDay(d.toLong)))
 
   implicit val arbTimestamp: Arbitrary[Timestamp] = Arbitrary(
     genZonedDateTime.map(d => new Timestamp(d.toInstant.getEpochSecond)))
