@@ -9,7 +9,6 @@ import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.spark.injection._
 import com.github.chenharryhua.nanjin.spark.kafka._
-import com.github.chenharryhua.nanjin.spark.datetime._
 import com.landoop.transportation.nyc.trip.yellow.trip_record
 import frameless.TypedDataset
 import frameless.cats.implicits._

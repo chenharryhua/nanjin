@@ -1,14 +1,14 @@
 package mtest.spark.database
 
-import java.sql.{Date, Timestamp}
+import java.sql.Timestamp
 import java.time.{Instant, LocalDate, ZoneId, ZonedDateTime}
 
 import cats.effect.IO
 import cats.implicits._
+import com.github.chenharryhua.nanjin.datetime.transformers._
 import com.github.chenharryhua.nanjin.database.TableName
 import com.github.chenharryhua.nanjin.spark.database._
 import com.github.chenharryhua.nanjin.spark.injection._
-import com.github.chenharryhua.nanjin.spark.transformers.datetime._
 import frameless.TypedDataset
 import frameless.cats.implicits._
 import io.scalaland.chimney.dsl._
@@ -20,6 +20,7 @@ final case class DomainObject(a: LocalDate, b: ZonedDateTime, c: Int, d: String,
 final case class DbTableInstDB(a: LocalDate, b: Timestamp, c: Int, d: String, e: Timestamp)
 
 class SparkTableTest extends AnyFunSuite {
+  implicit val zoneId: ZoneId        = ZoneId.systemDefault()
   val table: TableDef[DbTableInstDB] = TableDef[DbTableInstDB](TableName("public.sparktabletest"))
 
   val sample: DomainObject = DomainObject(LocalDate.now, ZonedDateTime.now, 10, "d", Instant.now)
@@ -35,18 +36,7 @@ class SparkTableTest extends AnyFunSuite {
 
   test("read table on disk") {
     val rst: DomainObject =
-      table
-        .in(db)
-        .fromDisk
-        .collect[IO]
-        .map(
-          _.head
-            .into[DomainObject]
-            .withFieldComputed(
-              _.b,
-              db => ZonedDateTime.ofInstant(db.b.toInstant, ZoneId.systemDefault()))
-            .transform)
-        .unsafeRunSync
+      table.in(db).fromDisk.collect[IO].map(_.head.transformInto[DomainObject]).unsafeRunSync
     assert(rst.==(sample))
   }
 }
