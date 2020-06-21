@@ -58,10 +58,10 @@ object ArbitaryData {
 
 // arbs
 
-  val days: Int = Int.MaxValue
-
   implicit val arbDate: Arbitrary[Date] = Arbitrary(
-    Gen.choose[Long](-days.toLong, days.toLong).map(d => Date.valueOf(LocalDate.ofEpochDay(d))))
+    Gen
+      .choose[Long](Int.MinValue.toLong, Int.MaxValue.toLong)
+      .map(d => Date.valueOf(LocalDate.ofEpochDay(d))))
 
   implicit val arbSQLDate: Arbitrary[SQLDate] =
     Arbitrary(arbitrary[Int].map(SQLDate))
@@ -74,10 +74,10 @@ object ArbitaryData {
       LocalDateTime.ofInstant(Instant.ofEpochMilli(d), ZoneId.of("Etc/UTC"))))
 
   implicit val arbSQLTimestamp: Arbitrary[SQLTimestamp] = Arbitrary(
-    genZonedDateTime.map(d => SQLTimestamp(d.toInstant.getEpochSecond)))
+    arbitrary[Long].map(d => SQLTimestamp(d)))
 
   implicit val arbTimestamp: Arbitrary[Timestamp] = Arbitrary(
-    genZonedDateTime.map(d => new Timestamp(d.toInstant.getEpochSecond)))
+    Gen.choose[Long](Int.MinValue.toLong, Int.MaxValue.toLong).map(d => new Timestamp(d)))
 
   implicit val arbJavaLocalDate: Arbitrary[JavaLocalDate] = Arbitrary(
     genZonedDateTime.map(zd => JavaLocalDate(zd.toLocalDate)))
