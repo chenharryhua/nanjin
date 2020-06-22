@@ -57,6 +57,7 @@ val akkaFtp = "2.0.1"
 // misc
 val silencer = "1.7.0"
 val jline    = "3.15.0"
+val log4s    = "1.8.2"
 
 // test
 val scalatest = "3.2.0"
@@ -296,7 +297,9 @@ lazy val devices = (project in file("devices"))
   .settings(name := "nj-devices")
   .settings(
     libraryDependencies ++=
-      Seq("com.lightbend.akka" %% "akka-stream-alpakka-ftp" % akkaFtp) ++
+      Seq(
+        "com.lightbend.akka" %% "akka-stream-alpakka-ftp" % akkaFtp,
+        "org.log4s" %% "log4s"                            % log4s) ++
         baseLib ++ fs2Lib ++ hadoopLib ++ avroLib ++ effectLib ++ akkaLib ++ testLib)
 
 lazy val pipes = (project in file("pipes"))
@@ -334,9 +337,7 @@ lazy val spark = (project in file("spark"))
   .settings(commonSettings: _*)
   .settings(name := "nj-spark")
   .settings(
-    libraryDependencies ++= Seq(
-      "org.locationtech.jts" % "jts-core" % "1.16.1",
-      "org.log4s" %% "log4s" % "1.8.2") ++
+    libraryDependencies ++= Seq("org.locationtech.jts" % "jts-core" % "1.16.1") ++
       sparkLib ++ avroLib ++ hadoopLib ++ testLib,
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core"                             % "jackson-databind" % jackson,

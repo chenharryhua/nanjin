@@ -51,7 +51,7 @@ object sk {
         locationStrategy)
     }
 
-  private val logger: Logger = org.log4s.getLogger("spark.kafka")
+  private val logger: Logger = org.log4s.getLogger("nj.spark.kafka")
 
   def loadKafkaRdd[F[_]: Sync, K, V, A: ClassTag](
     topic: KafkaTopic[F, K, V],
@@ -126,20 +126,19 @@ object sk {
       val cr =
         NJConsumerRecord.timestamp.set(rawCr.timestamp / 1000)(rawCr) //spark use micro-second.
       cr.bimap(
-          k =>
-            topic.codec.keyCodec
-              .tryDecode(k)
-              .toEither
-              .leftMap(logger.warn(_)(s"key decode error. ${smi.metaInfo(cr)}"))
-              .toOption,
-          v =>
-            topic.codec.valCodec
-              .tryDecode(v)
-              .toEither
-              .leftMap(logger.warn(_)(s"value decode error. ${smi.metaInfo(cr)}"))
-              .toOption
-        )
-        .flatten[K, V]
+        k =>
+          topic.codec.keyCodec
+            .tryDecode(k)
+            .toEither
+            .leftMap(logger.warn(_)(s"key decode error. ${smi.metaInfo(cr)}"))
+            .toOption,
+        v =>
+          topic.codec.valCodec
+            .tryDecode(v)
+            .toEither
+            .leftMap(logger.warn(_)(s"value decode error. ${smi.metaInfo(cr)}"))
+            .toOption
+      ).flatten[K, V]
     }
 
   def streaming[F[_]: Sync, K, V, A](topic: KafkaTopic[F, K, V], timeRange: NJDateTimeRange)(
