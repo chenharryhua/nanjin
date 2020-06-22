@@ -21,8 +21,10 @@ import org.apache.parquet.avro.{AvroParquetReader, AvroParquetWriter}
 import org.apache.parquet.hadoop.ParquetFileWriter
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
+import org.log4s.Logger
 
 final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: Blocker) {
+  private val logger: Logger = org.log4s.getLogger("nj.devices.hadoop")
 
   private def fileSystem(pathStr: String): Resource[F, FileSystem] =
     Resource.fromAutoCloseable(blocker.delay(FileSystem.get(new URI(pathStr), config)))
@@ -108,8 +110,13 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
   def avroSink[A: AvroEncoder](pathStr: String): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
     def go(as: Stream[F, A], aos: AvroOutputStream[A]): Pull[F, Unit, Unit] =
       as.pull.uncons.flatMap {
-        case Some((hl, tl)) => Pull.pure(hl.foreach(aos.write)) >> go(tl, aos)
-        case None           => Pull.pure(aos.close) >> Pull.done
+        case Some((hl, tl)) =>
+          Pull.pure(
+            hl.foreach(d =>
+              Either
+                .catchNonFatal(aos.write(d))
+                .leftMap(ex => logger.warn(ex)(s"data:${d.toString}")))) >> go(tl, aos)
+        case None => Pull.pure(aos.close) >> Pull.done
       }
     for {
       aos <- Stream.resource(fsOutput(pathStr).map(os => AvroOutputStream.data[A].to(os).build()))

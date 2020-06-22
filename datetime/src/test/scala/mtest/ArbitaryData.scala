@@ -15,6 +15,9 @@ object ArbitaryData {
   implicit val coDate: Cogen[Date] =
     Cogen[Date]((a: Date) => a.getTime)
 
+  implicit val coInstant: Cogen[Instant] =
+    Cogen[Instant]((a: Instant) => a.getEpochSecond)
+
   implicit val coTimestamp: Cogen[Timestamp] =
     Cogen[Timestamp]((a: Timestamp) => a.getTime)
 
@@ -38,7 +41,7 @@ object ArbitaryData {
     Gen.choose[Long](-dateRange, dateRange).map(d => Date.valueOf(LocalDate.ofEpochDay(d))))
 
   implicit val arbLocalDate: Arbitrary[LocalDate] =
-    Arbitrary(Gen.choose[Long](-dateRange, dateRange).map(d => LocalDate.ofEpochDay(d)))
+    Arbitrary(Gen.choose[Long](-dateRange, dateRange * 2000).map(d => LocalDate.ofEpochDay(d)))
 
   implicit val arbTimestamp: Arbitrary[Timestamp] = Arbitrary(
     genZonedDateTime.map(d => new Timestamp(d.toInstant.getEpochSecond)))
@@ -46,15 +49,11 @@ object ArbitaryData {
   implicit val arbKafkaTimestamp: Arbitrary[NJTimestamp] = Arbitrary(
     genZonedDateTime.map(d => NJTimestamp(d.toInstant.getEpochSecond)))
 
-  implicit val arbLocalDateTime: Arbitrary[LocalDateTime] = Arbitrary(
-    genZonedDateTimeWithZone(Some(zoneId)).map(zd => zd.toLocalDateTime))
-
   implicit val arbOffsetDateTime: Arbitrary[OffsetDateTime] = Arbitrary(
     genZonedDateTimeWithZone(Some(zoneId)).map(zd =>
       OffsetDateTime.of(zd.toLocalDateTime, zd.getOffset))
   )
 
-  implicit val arbZonedDateTime: Arbitrary[ZonedDateTime] = Arbitrary(
-    genZonedDateTimeWithZone(Some(zoneId))
-  )
+  implicit val arbZonedDateTime: Arbitrary[ZonedDateTime] =
+    Arbitrary(genZonedDateTimeWithZone(Some(zoneId)))
 }

@@ -14,7 +14,6 @@ final case class NJTimestamp(milliseconds: Long) extends AnyVal {
   def timeUnit: TimeUnit      = TimeUnit.MILLISECONDS
   def instant: Instant        = Instant.ofEpochMilli(milliseconds)
   def utc: ZonedDateTime      = instant.atZone(utcTime)
-  def local: ZonedDateTime    = atZone(ZoneId.systemDefault())
   def sqlTimestamp: Timestamp = new Timestamp(milliseconds)
 
   def atZone(zoneId: ZoneId): ZonedDateTime = instant.atZone(zoneId)
@@ -59,7 +58,7 @@ final case class NJTimestamp(milliseconds: Long) extends AnyVal {
 
   def -(other: NJTimestamp): FiniteDuration = minus(other)
 
-  override def toString: String = local.toString
+  override def toString: String = utc.toString
 }
 
 object NJTimestamp {

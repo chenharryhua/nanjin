@@ -18,6 +18,8 @@ import org.scalatest.funsuite.AnyFunSuite
 
 final case class DomainObject(
   a: LocalDate,
+  b: LocalDate,
+  c: Date,
   d: Date,
   e: ZonedDateTime,
   f: OffsetDateTime,
@@ -27,6 +29,8 @@ final case class DomainObject(
 
 final case class DBTable(
   a: Date,
+  b: LocalDate,
+  c: Date,
   d: LocalDate,
   e: Instant,
   f: Instant,
@@ -41,6 +45,8 @@ class SparkTableTest extends AnyFunSuite {
   val sample: DomainObject =
     DomainObject(
       LocalDate.now,
+      LocalDate.now,
+      Date.valueOf(LocalDate.now),
       Date.valueOf(LocalDate.now),
       ZonedDateTime.now(zoneId),
       OffsetDateTime.now(zoneId),

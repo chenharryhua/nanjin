@@ -14,7 +14,7 @@ import shapeless.{:+:, CNil, Poly1}
 import scala.concurrent.duration.FiniteDuration
 
 // lazy range
-@Lenses final case class NJDateTimeRange(
+@Lenses final case class NJDateTimeRange private (
   private val start: Option[NJDateTimeRange.TimeTypes],
   private val end: Option[NJDateTimeRange.TimeTypes],
   zoneId: ZoneId) {
@@ -137,8 +137,6 @@ object NJDateTimeRange {
       LocalDateTime :+:
       String :+: // date-time in string, like "03:12"
       CNil
-
-  implicit val showNJDateTimeRange: Show[NJDateTimeRange] = _.toString
 
   implicit val upperBoundedNJDateTimeRange
     : UpperBounded[NJDateTimeRange] with PartialOrder[NJDateTimeRange] with Show[NJDateTimeRange] =

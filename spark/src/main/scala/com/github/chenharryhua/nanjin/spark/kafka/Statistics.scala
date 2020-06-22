@@ -1,14 +1,14 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import java.time.{Instant, LocalDate, LocalDateTime}
+import java.time.{LocalDate, LocalDateTime, ZoneId}
 
 import cats.effect.Sync
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.injection._
+import frameless.TypedDataset
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.functions.aggregate.count
-import frameless.{Injection, TypedDataset}
 import org.apache.spark.sql.Dataset
 
 final private[kafka] case class CRMetaInfo(
@@ -38,13 +38,7 @@ final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Ser
 
   val params: SKParams = cfg.evalConfig
 
-  implicit private val serde: Injection[LocalDateTime, Instant] =
-    new Injection[LocalDateTime, Instant] {
-      override def apply(a: LocalDateTime): Instant = a.atZone(params.timeRange.zoneId).toInstant
-
-      override def invert(b: Instant): LocalDateTime =
-        b.atZone(params.timeRange.zoneId).toLocalDateTime
-    }
+  implicit private val zoneId: ZoneId = params.timeRange.zoneId
 
   @transient private lazy val typedDataset: TypedDataset[CRMetaInfo] =
     TypedDataset.create(ds)

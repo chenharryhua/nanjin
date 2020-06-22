@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import java.time.ZoneId
+
 import akka.kafka.ConsumerMessage.CommittableMessage
 import cats.Show
 import cats.implicits._
@@ -11,6 +13,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
 
 private[kafka] trait ShowKafkaMessage {
+  private val zoneId: ZoneId = ZoneId.systemDefault()
 
   implicit def showConsumerRecord[K: Show, V: Show]: Show[ConsumerRecord[K, V]] =
     (t: ConsumerRecord[K, V]) => {
@@ -20,7 +23,7 @@ private[kafka] trait ShowKafkaMessage {
          |topic:        ${t.topic()}
          |partition:    ${t.partition()}
          |offset:       ${t.offset()}
-         |local-time:   ${ts.local}
+         |local-time:   ${ts.atZone(zoneId)}
          |key:          ${Option(t.key).map(_.show).getOrElse("null")}
          |value:        ${Option(t.value).map(_.show).getOrElse("null")}
          |key-size:     ${t.serializedKeySize()}
@@ -39,7 +42,7 @@ private[kafka] trait ShowKafkaMessage {
          |producer record:
          |topic:      ${t.topic}
          |partition:  ${t.partition}
-         |local-time: ${ts.local}
+         |local-time: ${ts.atZone(zoneId)}
          |key:        ${Option(t.key).map(_.show).getOrElse("null")}
          |value:      ${Option(t.value).map(_.show).getOrElse("null")}
          |timestamp:  ${t.timestamp()}
@@ -64,7 +67,7 @@ private[kafka] trait ShowKafkaMessage {
        |offset:    ${t.offset()}
        |timestamp: ${t.timestamp()}
        |utc:       ${ts.utc}
-       |local:     ${ts.local}
+       |local:     ${ts.atZone(zoneId)}
        |""".stripMargin
   }
 

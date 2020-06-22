@@ -2,28 +2,29 @@ package mtest
 
 import java.time.{LocalDate, LocalTime, ZoneId, ZonedDateTime}
 
-import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
+import com.github.chenharryhua.nanjin.datetime.{melbourneTime, NJDateTimeRange, NJTimestamp}
 import org.scalatest.funsuite.AnyFunSuite
 
 class DateTimeParserTest extends AnyFunSuite {
+  val zoneId: ZoneId         = melbourneTime
   val range: NJDateTimeRange = NJDateTimeRange.infinite
   test("Local Date") {
     assert(
       range.withStartTime("2020-01-01").startTimestamp.get === NJTimestamp(
-        ZonedDateTime.of(LocalDate.of(2020, 1, 1), LocalTime.MIDNIGHT, ZoneId.systemDefault())))
+        ZonedDateTime.of(LocalDate.of(2020, 1, 1), LocalTime.MIDNIGHT, zoneId)))
   }
 
   test("Local Time") {
     assert(
       range.withStartTime("00:00:00").zonedStartTime.get === ZonedDateTime
-        .of(LocalDate.now, LocalTime.MIDNIGHT, ZoneId.systemDefault()))
+        .of(LocalDate.now, LocalTime.MIDNIGHT, zoneId))
 
   }
 
   test("Local Date Time") {
     assert(
       range.withStartTime("2020-01-01T00:00:00").zonedStartTime.get === ZonedDateTime
-        .of(LocalDate.of(2020, 1, 1), LocalTime.MIDNIGHT, ZoneId.systemDefault()))
+        .of(LocalDate.of(2020, 1, 1), LocalTime.MIDNIGHT, zoneId))
   }
 
   test("UTC") {
@@ -38,19 +39,19 @@ class DateTimeParserTest extends AnyFunSuite {
 
   test("Zoned Date Time") {
     val date =
-      ZonedDateTime.of(LocalDate.of(2020, 1, 1), LocalTime.MIDNIGHT, ZoneId.systemDefault())
+      ZonedDateTime.of(LocalDate.of(2020, 1, 1), LocalTime.MIDNIGHT, zoneId)
     assert(
       range
         .withStartTime("2020-01-01T00:00+11:00[Australia/Melbourne]")
         .zonedStartTime
         .get === date)
 
-    assert(NJTimestamp("2020-01-01T00:00+11:00[Australia/Melbourne]").local === date)
+    assert(NJTimestamp("2020-01-01T00:00+11:00[Australia/Melbourne]").atZone(zoneId) === date)
   }
   test("Offset Date Time") {
     val date =
-      ZonedDateTime.of(LocalDate.of(2020, 1, 1), LocalTime.MIDNIGHT, ZoneId.systemDefault())
+      ZonedDateTime.of(LocalDate.of(2020, 1, 1), LocalTime.MIDNIGHT, zoneId)
     assert(range.withStartTime("2020-01-01T00:00+11:00").zonedStartTime.get === date)
-    assert(NJTimestamp("2020-01-01T00:00+11:00").local === date)
+    assert(NJTimestamp("2020-01-01T00:00+11:00").atZone(zoneId) === date)
   }
 }
