@@ -107,7 +107,7 @@ val hadoopLib = Seq(
   "org.apache.hadoop" % "hadoop-common",
   "org.apache.hadoop" % "hadoop-client",
   "org.apache.hadoop" % "hadoop-hdfs").map(_ % hadoop) ++
-  Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.807")
+  Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.808")
 
 val flinkLib = Seq(
   "org.apache.flink" %% "flink-connector-kafka",
