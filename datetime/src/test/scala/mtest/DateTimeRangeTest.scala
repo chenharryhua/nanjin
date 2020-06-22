@@ -16,7 +16,7 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
   implicit val arbiNJDateTimeRange: Arbitrary[NJDateTimeRange] =
     Arbitrary(for {
       date <- genZonedDateTimeWithZone(None)
-      inc <- Gen.posNum[Long]
+      inc <- Gen.choose[Long](1, 50 * 365 * 24 * 3600) // 50 years
       d = date.toLocalDateTime
     } yield NJDateTimeRange.infinite.withStartTime(d).withEndTime(d.plusSeconds(inc)))
 

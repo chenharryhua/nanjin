@@ -41,7 +41,7 @@ object ArbitaryData {
     Gen.choose[Long](-dateRange, dateRange).map(d => Date.valueOf(LocalDate.ofEpochDay(d))))
 
   implicit val arbLocalDate: Arbitrary[LocalDate] =
-    Arbitrary(Gen.choose[Long](-dateRange, dateRange).map(d => LocalDate.ofEpochDay(d)))
+    Arbitrary(Gen.choose[Long](-dateRange, dateRange * 2000).map(d => LocalDate.ofEpochDay(d)))
 
   implicit val arbTimestamp: Arbitrary[Timestamp] = Arbitrary(
     genZonedDateTime.map(d => new Timestamp(d.toInstant.getEpochSecond)))
