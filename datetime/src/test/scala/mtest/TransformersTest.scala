@@ -3,7 +3,10 @@ package mtest
 import java.sql.{Date, Timestamp}
 import java.time._
 
-import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8.arbInstantJdk8
+import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8.{
+  arbInstantJdk8,
+  arbLocalDateTimeJdk8
+}
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.datetime.transformers._
 import io.scalaland.chimney.dsl._

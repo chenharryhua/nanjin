@@ -17,6 +17,7 @@ package object datetime extends DateTimeInstances with Isos {
   val melbourneTime: ZoneId = ZoneId.of("Australia/Melbourne")
   val sydneyTime: ZoneId    = ZoneId.of("Australia/Sydney")
   val beijingTime: ZoneId   = ZoneId.of("Asia/Shanghai")
+  val singaporeTime: ZoneId = ZoneId.of("Asia/Singapore")
   val newyorkTime: ZoneId   = ZoneId.of("America/New_York")
   val londonTime: ZoneId    = ZoneId.of("Europe/London")
   val berlinTime: ZoneId    = ZoneId.of("Europe/Berlin")

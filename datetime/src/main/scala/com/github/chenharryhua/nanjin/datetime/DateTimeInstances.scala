@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.datetime
 
 import java.sql.{Date, Timestamp}
-import java.time.{Instant, LocalDate}
+import java.time.{Instant, LocalDate, LocalDateTime, ZoneId}
 
 import cats.{Hash, Order, Show}
 import io.chrisdavenport.cats.time.instances.all
@@ -31,5 +31,9 @@ private[datetime] trait Isos {
 
   implicit val isoLocalDate: Iso[LocalDate, Date] =
     Iso[LocalDate, Date](a => Date.valueOf(a))(b => b.toLocalDate)
+
+  implicit def isoLocalDateTime(implicit zoneId: ZoneId): Iso[LocalDateTime, Instant] =
+    Iso[LocalDateTime, Instant](a => a.atZone(zoneId).toInstant)(b =>
+      LocalDateTime.ofInstant(b, zoneId))
 
 }

@@ -8,15 +8,11 @@ import monocle.Iso
 
 object transformers extends ReverseTransformers {
 
-  implicit val zonedDateTimeTransform: Transformer[ZonedDateTime, Instant] =
-    (src: ZonedDateTime) => src.toInstant
-
   implicit val offsetDateTimeTransform: Transformer[OffsetDateTime, Instant] =
     (src: OffsetDateTime) => src.toInstant
 
-  implicit def localDateTimeTransform(implicit
-    zoneId: ZoneId): Transformer[LocalDateTime, Instant] =
-    (src: LocalDateTime) => src.atZone(zoneId).toInstant
+  implicit val zonedDateTimeTransform: Transformer[ZonedDateTime, Instant] =
+    (src: ZonedDateTime) => src.toInstant
 
   // generic
   implicit def chimneyTransform[A, B](implicit iso: Iso[A, B]): Transformer[A, B] =
@@ -28,10 +24,6 @@ object transformers extends ReverseTransformers {
 }
 
 private[datetime] trait ReverseTransformers {
-
-  implicit def localDateTimeTransformReverse(implicit
-    zoneId: ZoneId): Transformer[Instant, LocalDateTime] =
-    (src: Instant) => src.atZone(zoneId).toLocalDateTime
 
   implicit def offsetDateTimeTransformReverse(implicit
     zoneId: ZoneId): Transformer[Instant, OffsetDateTime] =
