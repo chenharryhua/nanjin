@@ -7,6 +7,7 @@ import cats.effect.{Blocker, ContextShift, Resource, Sync}
 import cats.implicits._
 import com.sksamuel.avro4s.{
   AvroInputStream,
+  AvroInputStreamBuilder,
   AvroOutputStream,
   Record,
   Decoder => AvroDecoder,
@@ -14,6 +15,7 @@ import com.sksamuel.avro4s.{
 }
 import fs2.io.{readInputStream, writeOutputStream}
 import fs2.{Pipe, Pull, Stream}
+import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataInputStream, FSDataOutputStream, FileSystem, Path}
@@ -73,11 +75,11 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
               .withSchema(AvroEncoder[A].schema)
               .withDataModel(GenericData.get())
               .build())))
-      _ <- ss.map { a =>
-        writer.write(AvroEncoder[A].encode(a) match {
+      _ <- ss.evalMap { a =>
+        blocker.delay(writer.write(AvroEncoder[A].encode(a) match {
           case record: Record => record
           case output         => sys.error(s"Cannot marshall $output")
-        })
+        }))
       }
     } yield ()
   }
@@ -109,8 +111,9 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
   def avroSink[A: AvroEncoder](pathStr: String): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
     def go(as: Stream[F, A], aos: AvroOutputStream[A]): Pull[F, Unit, Unit] =
       as.pull.uncons.flatMap {
-        case Some((hl, tl)) => Pull.pure(hl.foreach(aos.write)) >> go(tl, aos)
-        case None           => Pull.pure(aos.close) >> Pull.done
+        case Some((hl, tl)) =>
+          Pull.eval(hl.traverse(a => blocker.delay(aos.write(a)))) >> go(tl, aos)
+        case None => Pull.eval(blocker.delay(aos.close)) >> Pull.done
       }
     for {
       aos <- Stream.resource(fsOutput(pathStr).map(os => AvroOutputStream.data[A].to(os).build()))
@@ -118,10 +121,12 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
     } yield ()
   }
 
-  def avroSource[A: AvroDecoder](pathStr: String): Stream[F, A] =
+  def avroSource[A: AvroDecoder](pathStr: String): Stream[F, A] = {
+    val schema: Schema                  = AvroDecoder[A].schema
+    val aisb: AvroInputStreamBuilder[A] = AvroInputStream.data[A]
     for {
       is <- Stream.resource(fsInput(pathStr))
-      a <-
-        Stream.fromIterator(AvroInputStream.data[A].from(is).build(AvroDecoder[A].schema).iterator)
+      a <- Stream.fromIterator(aisb.from(is).build(schema).iterator)
     } yield a
+  }
 }
