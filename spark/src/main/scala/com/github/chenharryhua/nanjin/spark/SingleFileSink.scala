@@ -2,12 +2,7 @@ package com.github.chenharryhua.nanjin.spark
 
 import cats.effect.{Blocker, Concurrent, ConcurrentEffect, ContextShift, Sync}
 import com.github.chenharryhua.nanjin.devices.NJHadoop
-import com.github.chenharryhua.nanjin.pipes.{
-  AvroSerialization,
-  CirceSerialization,
-  CsvSerialization,
-  TextSerialization
-}
+import com.github.chenharryhua.nanjin.pipes._
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import fs2.{Pipe, Stream}
 import io.circe.{Encoder => JsonEncoder}
@@ -65,8 +60,9 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
 
   def parquet[A: AvroEncoder](
     pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): Pipe[F, A, Unit] = {
-    val hadoop = new NJHadoop[F](conf, blocker).parquetSink(pathStr)
-    (ss: Stream[F, A]) => ss.through(hadoop)
+    val hadoop = new NJHadoop[F](conf, blocker).parquetSink(pathStr, AvroEncoder[A].schema)
+    val grs    = new GenericRecordSerialization
+    (ss: Stream[F, A]) => ss.through(grs.serialize).through(hadoop)
   }
 
   def delete(pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): F[Boolean] =

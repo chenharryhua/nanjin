@@ -9,7 +9,6 @@ import com.sksamuel.avro4s.{
   AvroInputStream,
   AvroInputStreamBuilder,
   AvroOutputStream,
-  Record,
   Decoder => AvroDecoder,
   Encoder => AvroEncoder
 }
@@ -61,40 +60,27 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
     fileSystem(pathStr).use(fs => blocker.delay(fs.delete(new Path(pathStr), true)))
 
   /// parquet
-  def parquetSink[A: AvroEncoder](pathStr: String): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
-    val outputFile = HadoopOutputFile.fromPath(new Path(pathStr), config)
-    for {
-      writer <- Stream.resource(
-        Resource.fromAutoCloseable(
-          blocker.delay(
-            AvroParquetWriter
-              .builder[GenericRecord](outputFile)
-              .withConf(config)
-              .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)
-              .withCompressionCodec(CompressionCodecName.SNAPPY)
-              .withSchema(AvroEncoder[A].schema)
-              .withDataModel(GenericData.get())
-              .build())))
-      _ <- ss.evalMap { a =>
-        blocker.delay(writer.write(AvroEncoder[A].encode(a) match {
-          case record: Record => record
-          case output         => sys.error(s"Cannot marshall $output")
-        }))
-      }
-    } yield ()
+  def parquetSink(pathStr: String, schema: Schema): Pipe[F, GenericRecord, Unit] = {
+    (ss: Stream[F, GenericRecord]) =>
+      val outputFile = HadoopOutputFile.fromPath(new Path(pathStr), config)
+      for {
+        writer <- Stream.resource(
+          Resource.fromAutoCloseable(
+            blocker.delay(
+              AvroParquetWriter
+                .builder[GenericRecord](outputFile)
+                .withConf(config)
+                .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)
+                .withCompressionCodec(CompressionCodecName.SNAPPY)
+                .withSchema(schema)
+                .withDataModel(GenericData.get())
+                .build())))
+        _ <- ss.evalMap(a => blocker.delay(writer.write(a)))
+      } yield ()
   }
 
-  def parquetSource[A: AvroDecoder](pathStr: String): Stream[F, A] = {
+  def parquetSource(pathStr: String): Stream[F, GenericRecord] = {
     val inputFile = HadoopInputFile.fromPath(new Path(pathStr), config)
-    def go(as: Stream[F, GenericRecord]): Pull[F, A, Unit] =
-      as.pull.uncons1.flatMap {
-        case Some((h, tl)) =>
-          Option(h) match {
-            case None    => Pull.done
-            case Some(v) => Pull.output1(AvroDecoder[A].decode(v)) >> go(tl)
-          }
-        case None => Pull.done
-      }
     for {
       reader <- Stream.resource(
         Resource.fromAutoCloseable(
@@ -103,7 +89,7 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
               .builder[GenericRecord](inputFile)
               .withDataModel(GenericData.get())
               .build())))
-      a <- go(Stream.repeatEval(blocker.delay(reader.read()))).stream
+      a <- Stream.repeatEval(blocker.delay(reader.read()))
     } yield a
   }
 
@@ -115,10 +101,10 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
           Pull.eval(hl.traverse(a => blocker.delay(aos.write(a)))) >> go(tl, aos)
         case None => Pull.eval(blocker.delay(aos.close)) >> Pull.done
       }
-    for {
-      aos <- Stream.resource(fsOutput(pathStr).map(os => AvroOutputStream.data[A].to(os).build()))
-      _ <- go(ss, aos).stream
-    } yield ()
+    Stream
+      .resource(fsOutput(pathStr))
+      .map(os => AvroOutputStream.data[A].to(os).build())
+      .flatMap(aos => go(ss, aos).stream)
   }
 
   def avroSource[A: AvroDecoder](pathStr: String): Stream[F, A] = {
