@@ -32,8 +32,8 @@ final class AvroSerialization[F[_]: ContextShift: ConcurrentEffect, A: AvroEncod
         val aos = new AvroOutputStreamBuilder[A](fmt).to(os).build()
         def go(bs: Stream[F, A]): Pull[F, Byte, Unit] =
           bs.pull.uncons.flatMap {
-            case Some((hl, tl)) => Pull.pure(hl.foreach(aos.write)) >> go(tl)
-            case None           => Pull.pure(aos.close()) >> Pull.done
+            case Some((hl, tl)) => Pull.eval(hl.traverse(a => blocker.delay(aos.write(a)))) >> go(tl)
+            case None           => Pull.eval(blocker.delay(aos.close())) >> Pull.done
           }
         go(ss).stream.compile.drain
       }
