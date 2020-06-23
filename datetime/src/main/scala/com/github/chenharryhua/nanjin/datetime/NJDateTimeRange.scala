@@ -182,9 +182,4 @@ object NJDateTimeRange {
 
   final val infinite: NJDateTimeRange = UpperBounded[NJDateTimeRange].maxBound
 
-  def oneDay(ts: LocalDate): NJDateTimeRange =
-    NJDateTimeRange.infinite.withStartTime(ts).withEndTime(ts.plusDays(1))
-
-  def today: NJDateTimeRange     = oneDay(LocalDate.now)
-  def yesterday: NJDateTimeRange = oneDay(LocalDate.now.minusDays(1))
 }
