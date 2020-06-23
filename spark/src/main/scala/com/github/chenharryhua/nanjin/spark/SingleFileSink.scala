@@ -53,16 +53,17 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
   }
 
   def avro[A: AvroEncoder](
-    pathStr: String)(implicit cs: ContextShift[F], ce: ConcurrentEffect[F]): Pipe[F, A, Unit] = {
-    val hadoop = new NJHadoop[F](conf, blocker).avroSink(pathStr)
-    (ss: Stream[F, A]) => ss.through(hadoop)
+    pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): Pipe[F, A, Unit] = {
+    val hadoop = new NJHadoop[F](conf, blocker).avroSink(pathStr, AvroEncoder[A].schema)
+    val pipe   = new GenericRecordSerialization
+    (ss: Stream[F, A]) => ss.through(pipe.serialize).through(hadoop)
   }
 
   def parquet[A: AvroEncoder](
     pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): Pipe[F, A, Unit] = {
     val hadoop = new NJHadoop[F](conf, blocker).parquetSink(pathStr, AvroEncoder[A].schema)
-    val grs    = new GenericRecordSerialization
-    (ss: Stream[F, A]) => ss.through(grs.serialize).through(hadoop)
+    val pipe   = new GenericRecordSerialization
+    (ss: Stream[F, A]) => ss.through(pipe.serialize).through(hadoop)
   }
 
   def delete(pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): F[Boolean] =

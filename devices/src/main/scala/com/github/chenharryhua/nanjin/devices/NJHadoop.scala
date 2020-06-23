@@ -5,17 +5,12 @@ import java.net.URI
 
 import cats.effect.{Blocker, ContextShift, Resource, Sync}
 import cats.implicits._
-import com.sksamuel.avro4s.{
-  AvroInputStream,
-  AvroInputStreamBuilder,
-  AvroOutputStream,
-  Decoder => AvroDecoder,
-  Encoder => AvroEncoder
-}
+import com.sksamuel.avro4s.{AvroInputStream, AvroInputStreamBuilder, Decoder => AvroDecoder}
 import fs2.io.{readInputStream, writeOutputStream}
 import fs2.{Pipe, Pull, Stream}
 import org.apache.avro.Schema
-import org.apache.avro.generic.{GenericData, GenericRecord}
+import org.apache.avro.file.DataFileWriter
+import org.apache.avro.generic.{GenericData, GenericDatumWriter, GenericRecord}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataInputStream, FSDataOutputStream, FileSystem, Path}
 import org.apache.parquet.avro.{AvroParquetReader, AvroParquetWriter}
@@ -93,18 +88,25 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
     } yield a
   }
 
-  //avro data
-  def avroSink[A: AvroEncoder](pathStr: String): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
-    def go(as: Stream[F, A], aos: AvroOutputStream[A]): Pull[F, Unit, Unit] =
-      as.pull.uncons.flatMap {
+  // avro data
+  def avroSink(pathStr: String, schema: Schema): Pipe[F, GenericRecord, Unit] = {
+    def go(
+      grs: Stream[F, GenericRecord],
+      writer: DataFileWriter[GenericRecord]): Pull[F, Unit, Unit] =
+      grs.pull.uncons.flatMap {
         case Some((hl, tl)) =>
-          Pull.eval(hl.traverse(a => blocker.delay(aos.write(a)))) >> go(tl, aos)
-        case None => Pull.eval(blocker.delay(aos.close)) >> Pull.done
+          Pull.eval(hl.traverse(gr => blocker.delay(writer.append(gr)))) >> go(tl, writer)
+        case None => Pull.eval(blocker.delay(writer.close())) >> Pull.done
       }
-    Stream
-      .resource(fsOutput(pathStr))
-      .map(os => AvroOutputStream.data[A].to(os).build())
-      .flatMap(aos => go(ss, aos).stream)
+
+    (ss: Stream[F, GenericRecord]) =>
+      for {
+        dfw <- Stream.resource(
+          Resource.fromAutoCloseable[F, DataFileWriter[GenericRecord]](
+            blocker.delay(new DataFileWriter(new GenericDatumWriter(schema)))))
+        writer <- Stream.resource(fsOutput(pathStr)).map(os => dfw.create(schema, os))
+        _ <- go(ss, writer).stream
+      } yield ()
   }
 
   def avroSource[A: AvroDecoder](pathStr: String): Stream[F, A] = {
@@ -115,4 +117,5 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
       a <- Stream.fromIterator(aisb.from(is).build(schema).iterator)
     } yield a
   }
+
 }
