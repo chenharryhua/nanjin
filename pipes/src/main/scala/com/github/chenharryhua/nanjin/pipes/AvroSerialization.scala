@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.pipes
 
 import java.io.InputStream
 
-import cats.effect.{Blocker, ConcurrentEffect, ContextShift}
+import cats.effect.{Blocker, Concurrent, ConcurrentEffect, ContextShift}
 import cats.implicits._
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.sksamuel.avro4s.{
@@ -22,7 +22,7 @@ import io.circe.Printer
 import io.circe.jackson.jacksonToCirce
 import org.apache.avro.Schema
 
-final class AvroSerialization[F[_]: ContextShift: ConcurrentEffect, A: AvroEncoder] {
+final class AvroSerialization[F[_]: ContextShift: Concurrent, A: AvroEncoder] {
 
   // serialize
   private def serialize(fmt: AvroFormat): Stream[F, A] => Stream[F, Byte] = { (ss: Stream[F, A]) =>
@@ -32,8 +32,9 @@ final class AvroSerialization[F[_]: ContextShift: ConcurrentEffect, A: AvroEncod
         val aos = new AvroOutputStreamBuilder[A](fmt).to(os).build()
         def go(bs: Stream[F, A]): Pull[F, Byte, Unit] =
           bs.pull.uncons.flatMap {
-            case Some((hl, tl)) => Pull.eval(hl.traverse(a => blocker.delay(aos.write(a)))) >> go(tl)
-            case None           => Pull.eval(blocker.delay(aos.close())) >> Pull.done
+            case Some((hl, tl)) =>
+              Pull.eval(hl.traverse(a => blocker.delay(aos.write(a)))) >> go(tl)
+            case None => Pull.eval(blocker.delay(aos.close())) >> Pull.done
           }
         go(ss).stream.compile.drain
       }

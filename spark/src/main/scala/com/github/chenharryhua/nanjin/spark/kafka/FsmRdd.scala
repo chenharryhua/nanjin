@@ -79,7 +79,7 @@ final class FsmRdd[F[_], K, V](
   def values(implicit ev: ClassTag[V]): RDD[V] = rdd.flatMap(_.value)
   def keys(implicit ev: ClassTag[K]): RDD[K]   = rdd.flatMap(_.key)
 
-  // save
+  // dump java object
   def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
     Blocker[F].use { blocker =>
       val pathStr = params.replayPath(topic.topicName)

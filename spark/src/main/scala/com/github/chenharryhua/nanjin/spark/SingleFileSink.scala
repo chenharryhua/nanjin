@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark
 
-import cats.effect.{Blocker, Concurrent, ConcurrentEffect, ContextShift, Sync}
+import cats.effect.{Blocker, Concurrent, ContextShift, Sync}
 import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.pipes._
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
@@ -13,7 +13,7 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
 
   // text
   def csv[A: RowEncoder](pathStr: String, csvConfig: CsvConfiguration)(implicit
-    F: Concurrent[F],
+    ce: Concurrent[F],
     cs: ContextShift[F]): Pipe[F, A, Unit] = {
     val hadoop = new NJHadoop[F](conf, blocker).byteSink(pathStr)
     val pipe   = new CsvSerialization[F, A](csvConfig)
@@ -21,7 +21,7 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
   }
 
   def csv[A: RowEncoder](
-    pathStr: String)(implicit F: Concurrent[F], cs: ContextShift[F]): Pipe[F, A, Unit] =
+    pathStr: String)(implicit ce: Concurrent[F], cs: ContextShift[F]): Pipe[F, A, Unit] =
     csv[A](pathStr, CsvConfiguration.rfc)
 
   def json[A: JsonEncoder](
@@ -39,14 +39,14 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
 
   // avro
   def binary[A: AvroEncoder](
-    pathStr: String)(implicit cs: ContextShift[F], ce: ConcurrentEffect[F]): Pipe[F, A, Unit] = {
+    pathStr: String)(implicit ce: Concurrent[F], cs: ContextShift[F]): Pipe[F, A, Unit] = {
     val hadoop = new NJHadoop[F](conf, blocker).byteSink(pathStr)
     val pipe   = new AvroSerialization[F, A]
     (ss: Stream[F, A]) => ss.through(pipe.toBinary).through(hadoop)
   }
 
   def jackson[A: AvroEncoder](
-    pathStr: String)(implicit cs: ContextShift[F], ce: ConcurrentEffect[F]): Pipe[F, A, Unit] = {
+    pathStr: String)(implicit ce: Concurrent[F], cs: ContextShift[F]): Pipe[F, A, Unit] = {
     val hadoop = new NJHadoop[F](conf, blocker).byteSink(pathStr)
     val pipe   = new AvroSerialization[F, A]
     (ss: Stream[F, A]) => ss.through(pipe.toByteJson).through(hadoop)
