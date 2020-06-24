@@ -12,9 +12,8 @@ object TestData {
   case class Test(a: Int, b: String)
 
   val list: List[Test] =
-    (1 to 10).map(x => Test(Random.nextInt(), List.fill(x)("a").mkString("\n"))).toList
+    (1 to 10).map(x => Test(Random.nextInt(), "a")).toList
 
-  val data: Stream[IO, Test] = Stream.fromIterator[IO](list.iterator)
 }
 
 class AvroPipesTest extends AnyFunSuite {
@@ -22,12 +21,22 @@ class AvroPipesTest extends AnyFunSuite {
   val ser  = new AvroSerialization[IO, Test]
   val dser = new AvroDeserialization[IO, Test]
 
-  data.through(ser.toPrettyJson).showLinesStdOut.compile.drain.unsafeRunSync()
   test("jackson identity") {
-    data.through(ser.toByteJson).through(dser.fromJackson).compile.toList === list
+    val data: Stream[IO, Test] = Stream.fromIterator[IO](list.iterator)
+
+    assert(
+      data
+        .through(ser.toByteJson)
+        .through(dser.fromJackson)
+        .compile
+        .toList
+        .unsafeRunSync() === list)
   }
 
   test("binary identity") {
-    data.through(ser.toBinary).through(dser.fromBinary).compile.toList === list
+    val data: Stream[IO, Test] = Stream.fromIterator[IO](list.iterator)
+
+    assert(
+      data.through(ser.toBinary).through(dser.fromBinary).compile.toList.unsafeRunSync() === list)
   }
 }
