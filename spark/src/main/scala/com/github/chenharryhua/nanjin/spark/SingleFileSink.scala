@@ -11,6 +11,9 @@ import org.apache.hadoop.conf.Configuration
 
 final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
 
+  def delete(pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): F[Boolean] =
+    new NJHadoop[F](conf, blocker).delete(pathStr)
+
   // text
   def csv[A: RowEncoder](pathStr: String, csvConfig: CsvConfiguration)(implicit
     ce: Concurrent[F],
@@ -66,6 +69,10 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
     (ss: Stream[F, A]) => ss.through(pipe.serialize).through(hadoop)
   }
 
-  def delete(pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): F[Boolean] =
-    new NJHadoop[F](conf, blocker).delete(pathStr)
+  def javaObject[A](
+    pathStr: String)(implicit F: Concurrent[F], cs: ContextShift[F]): Pipe[F, A, Unit] = {
+    val hadoop = new NJHadoop[F](conf, blocker).byteSink(pathStr)
+    val pipe   = new JavaObjectSerialization[F, A]
+    (ss: Stream[F, A]) => ss.through(pipe.serialize).through(hadoop)
+  }
 }

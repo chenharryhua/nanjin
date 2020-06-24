@@ -86,6 +86,13 @@ class SingleFileTest extends AnyFunSuite {
       source.csv[Swordfish](path).compile.toList
 
     assert(run.unsafeRunSync() === fishes)
+  }
 
+  test("java-object") {
+    val path = "./data/test/spark/singleFile/swordfish.obj"
+    val run = delete(path) >>
+      ss.through(sink.javaObject[Swordfish](path)).compile.drain >>
+      source.javaObject[Swordfish](path).compile.toList
+    assert(run.unsafeRunSync() === fishes)
   }
 }

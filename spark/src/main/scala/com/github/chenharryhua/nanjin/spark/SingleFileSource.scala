@@ -59,4 +59,10 @@ final class SingleFileSource[F[_]](blocker: Blocker, conf: Configuration) {
     val pipe = new GenericRecordDeserialization[F, A]
     new NJHadoop[F](conf, blocker).parquetSource(pathStr).through(pipe.deserialize)
   }
+
+  def javaObject[A](
+    pathStr: String)(implicit cs: ContextShift[F], ce: ConcurrentEffect[F]): Stream[F, A] = {
+    val pipe = new JavaObjectDeserialization[F, A]
+    new NJHadoop[F](conf, blocker).byteStream(pathStr).through(pipe.deserialize)
+  }
 }
