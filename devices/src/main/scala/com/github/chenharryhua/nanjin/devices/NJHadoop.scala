@@ -40,7 +40,7 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
   def byteSink(pathStr: String): Pipe[F, Byte, Unit] = { (ss: Stream[F, Byte]) =>
     for {
       fs <- Stream.resource(fsOutput(pathStr))
-      _ <- ss.through(writeOutputStream[F](Sync[F].pure(fs), blocker))
+      _ <- ss.through(writeOutputStream[F](blocker.delay(fs), blocker))
     } yield ()
   }
 
@@ -50,7 +50,7 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
   def byteStream(pathStr: String): Stream[F, Byte] =
     for {
       is <- inputStream(pathStr)
-      bt <- readInputStream[F](Sync[F].pure(is), chunkSize, blocker)
+      bt <- readInputStream[F](blocker.delay(is), chunkSize, blocker)
     } yield bt
 
   def delete(pathStr: String): F[Boolean] =
