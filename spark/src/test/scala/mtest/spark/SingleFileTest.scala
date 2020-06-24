@@ -26,6 +26,7 @@ class SingleFileTest extends AnyFunSuite {
   val sink                 = fileSink[IO](blocker)
   val source               = fileSource[IO](blocker)
   def delete(path: String) = sink.delete(path)
+  import sparkSession.implicits._
 
   test("avro") {
     val path = "./data/test/spark/singleFile/swordfish.avro"
@@ -34,6 +35,9 @@ class SingleFileTest extends AnyFunSuite {
       source.avro[Swordfish](path).compile.toList
 
     assert(run.unsafeRunSync() === fishes)
+
+    val s = sparkSession.read.format("avro").load(path).as[Swordfish].collect().toSet
+    assert(s == fishes.toSet)
   }
 
   test("avro-binary") {
@@ -52,6 +56,9 @@ class SingleFileTest extends AnyFunSuite {
       source.parquet[Swordfish](path).compile.toList
 
     assert(run.unsafeRunSync() === fishes)
+
+    val s = sparkSession.read.parquet(path).as[Swordfish].collect().toSet
+    assert(s == fishes.toSet)
   }
   test("json") {
     val path = "./data/test/spark/singleFile/swordfish.json"
@@ -60,6 +67,7 @@ class SingleFileTest extends AnyFunSuite {
       source.json[Swordfish](path).compile.toList
 
     assert(run.unsafeRunSync() === fishes)
+
   }
   test("jackson") {
     val path = "./data/test/spark/singleFile/swordfish-jackson.json"
@@ -68,6 +76,7 @@ class SingleFileTest extends AnyFunSuite {
       source.jackson[Swordfish](path).compile.toList
 
     assert(run.unsafeRunSync() === fishes)
+
   }
 
   test("csv") {
@@ -77,5 +86,6 @@ class SingleFileTest extends AnyFunSuite {
       source.csv[Swordfish](path).compile.toList
 
     assert(run.unsafeRunSync() === fishes)
+
   }
 }
