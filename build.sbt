@@ -38,7 +38,7 @@ val frameless = "0.8.0"
 
 // database
 val doobie   = "0.9.0"
-val quill    = "3.5.1"
+val quill    = "3.5.2"
 val neotypes = "0.13.3"
 val elastic  = "7.8.0"
 
