@@ -13,9 +13,9 @@ import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericDatumWri
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataInputStream, FSDataOutputStream, FileSystem, Path}
 import org.apache.parquet.avro.{AvroParquetReader, AvroParquetWriter}
-import org.apache.parquet.hadoop.ParquetFileWriter
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
+import org.apache.parquet.hadoop.{ParquetFileWriter, ParquetWriter}
 
 import scala.collection.JavaConverters._
 
@@ -58,6 +58,15 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
 
   /// parquet
   def parquetSink(pathStr: String, schema: Schema): Pipe[F, GenericRecord, Unit] = {
+    def go(
+      grs: Stream[F, GenericRecord],
+      writer: ParquetWriter[GenericRecord]): Pull[F, Unit, Unit] =
+      grs.pull.uncons.flatMap {
+        case Some((hl, tl)) =>
+          Pull.eval(hl.traverse(gr => blocker.delay(writer.write(gr)))) >> go(tl, writer)
+        case None =>
+          Pull.eval(blocker.delay(writer.close())) >> Pull.done
+      }
     (ss: Stream[F, GenericRecord]) =>
       val outputFile = HadoopOutputFile.fromPath(new Path(pathStr), config)
       for {
@@ -72,7 +81,7 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
                 .withSchema(schema)
                 .withDataModel(GenericData.get())
                 .build())))
-        _ <- ss.evalMap(a => blocker.delay(writer.write(a)))
+        _ <- go(ss, writer).stream
       } yield ()
   }
 
