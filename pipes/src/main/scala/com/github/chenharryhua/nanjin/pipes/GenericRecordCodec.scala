@@ -8,7 +8,7 @@ import org.apache.avro.generic.GenericRecord
 
 final class GenericRecordEncoder[F[_], A: AvroEncoder](implicit F: ApplicativeError[F, Throwable]) {
 
-  def serialize: Pipe[F, A, GenericRecord] =
+  def encode: Pipe[F, A, GenericRecord] =
     (ss: Stream[F, A]) =>
       ss.evalMap { rec =>
         AvroEncoder[A].encode(rec) match {
@@ -21,7 +21,7 @@ final class GenericRecordEncoder[F[_], A: AvroEncoder](implicit F: ApplicativeEr
 
 final class GenericRecordDecoder[F[_], A: AvroDecoder] {
 
-  def deserialize: Pipe[F, GenericRecord, A] =
+  def decode: Pipe[F, GenericRecord, A] =
     (ss: Stream[F, GenericRecord]) => ss.map(rec => AvroDecoder[A].decode(rec))
 
 }

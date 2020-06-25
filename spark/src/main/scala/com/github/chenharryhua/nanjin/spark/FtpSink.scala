@@ -39,7 +39,7 @@ final class FtpSink[F[_], C, S <: RemoteFileSettings](uploader: FtpUploader[F, C
     ce: ConcurrentEffect[F]): Pipe[F, A, IOResult] = {
     val pipe = new JsonAvroSerialization[F](AvroEncoder[A].schema)
     val gr   = new GenericRecordEncoder[F, A]
-    _.through(gr.serialize).through(pipe.serialize).through(uploader.upload(pathStr))
+    _.through(gr.encode).through(pipe.serialize).through(uploader.upload(pathStr))
   }
 
   def text(pathStr: String): Pipe[F, String, IOResult] = {

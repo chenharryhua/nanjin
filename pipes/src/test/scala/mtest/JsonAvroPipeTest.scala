@@ -23,10 +23,10 @@ class JsonAvroPipeTest extends AnyFunSuite {
 
     assert(
       data
-        .through(gser.serialize)
+        .through(gser.encode)
         .through(ser.serialize)
         .through(dser.deserialize)
-        .through(gdser.deserialize)
+        .through(gdser.decode)
         .compile
         .toList
         .unsafeRunSync() === list)

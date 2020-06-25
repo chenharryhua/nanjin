@@ -58,7 +58,7 @@ object KafkaMonitoringApi {
               err.map(e => pprint.pprintln(e))
               r
             }
-            .through(gr.serialize)
+            .through(gr.encode)
             .through(pipe.prettyJson)
             .showLinesStdOut
             .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
@@ -79,7 +79,7 @@ object KafkaMonitoringApi {
             .filter(m =>
               predict(iso.isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record)))
             .map(m => topic.decoder(m).record)
-            .through(gr.serialize)
+            .through(gr.encode)
             .through(pipe.prettyJson)
             .showLinesStdOut
             .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
@@ -102,7 +102,7 @@ object KafkaMonitoringApi {
           fs2Channel
             .assign(gtp.flatten[KafkaOffset].mapValues(_.value).value)
             .map(m => topic.decoder(m).record)
-            .through(gr.serialize)
+            .through(gr.encode)
             .through(pipe.prettyJson)
             .showLinesStdOut
             .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
