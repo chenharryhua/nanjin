@@ -86,15 +86,6 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
   }
 
   def parquetSource(pathStr: String): Stream[F, GenericRecord] = {
-    def go(as: Stream[F, GenericRecord]): Pull[F, GenericRecord, Unit] =
-      as.pull.uncons1.flatMap {
-        case Some((h, tl)) =>
-          Option(h) match {
-            case None    => Pull.done
-            case Some(v) => Pull.output1(v) >> go(tl)
-          }
-        case None => Pull.done
-      }
     val inputFile = HadoopInputFile.fromPath(new Path(pathStr), config)
     for {
       reader <- Stream.resource(
@@ -104,8 +95,8 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
               .builder[GenericRecord](inputFile)
               .withDataModel(GenericData.get())
               .build())))
-      a <- go(Stream.repeatEval(blocker.delay(reader.read()))).stream
-    } yield a
+      gr <- Stream.repeatEval(blocker.delay(Option(reader.read()))).unNoneTerminate
+    } yield gr
   }
 
   // avro data
