@@ -28,17 +28,17 @@ final class AvroSerialization[F[_]: ContextShift: Concurrent, A: AvroEncoder] {
   private def serialize(fmt: AvroFormat): Stream[F, A] => Stream[F, Byte] = { (ss: Stream[F, A]) =>
     for {
       blocker <- Stream.resource(Blocker[F])
-      bs <- readOutputStream[F](blocker, chunkSize) { os =>
+      byte <- readOutputStream[F](blocker, chunkSize) { os =>
         val aos = new AvroOutputStreamBuilder[A](fmt).to(os).build()
-        def go(bs: Stream[F, A]): Pull[F, Byte, Unit] =
-          bs.pull.uncons.flatMap {
+        def go(as: Stream[F, A]): Pull[F, Byte, Unit] =
+          as.pull.uncons.flatMap {
             case Some((hl, tl)) =>
               Pull.eval(hl.traverse(a => blocker.delay(aos.write(a)))) >> go(tl)
             case None => Pull.eval(blocker.delay(aos.close())) >> Pull.done
           }
         go(ss).stream.compile.drain
       }
-    } yield bs
+    } yield byte
   }
 
   private val pretty: Pipe[F, String, String] = {
@@ -47,7 +47,7 @@ final class AvroSerialization[F[_]: ContextShift: Concurrent, A: AvroEncoder] {
   }
 
   val toByteJson: Stream[F, A] => Stream[F, Byte] = serialize(JsonFormat)
-  val toBinary: Pipe[F, A, Byte]                  = serialize(BinaryFormat)
+  val toBinaryAvro: Pipe[F, A, Byte]              = serialize(BinaryFormat)
 
   val toCompactJson: Pipe[F, A, String] = toByteJson >>> utf8Decode[F] >>> lines[F]
   val toPrettyJson: Pipe[F, A, String]  = toByteJson >>> utf8Decode[F] >>> lines[F] >>> pretty
@@ -61,9 +61,9 @@ final class AvroDeserialization[F[_]: ConcurrentEffect, A: AvroDecoder] {
     Stream.fromIterator[F](ais.iterator)
   }
 
-  def fromJackson(is: InputStream): Stream[F, A] = deserialize(JsonFormat, is)
-  def fromBinary(is: InputStream): Stream[F, A]  = deserialize(BinaryFormat, is)
+  def fromJackson(is: InputStream): Stream[F, A]    = deserialize(JsonFormat, is)
+  def fromBinaryAvro(is: InputStream): Stream[F, A] = deserialize(BinaryFormat, is)
 
-  def fromJackson: Pipe[F, Byte, A] = _.through(toInputStream[F]).flatMap(fromJackson)
-  def fromBinary: Pipe[F, Byte, A]  = _.through(toInputStream[F]).flatMap(fromBinary)
+  def fromJackson: Pipe[F, Byte, A]    = _.through(toInputStream[F]).flatMap(fromJackson)
+  def fromBinaryAvro: Pipe[F, Byte, A] = _.through(toInputStream[F]).flatMap(fromBinaryAvro)
 }

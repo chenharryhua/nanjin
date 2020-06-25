@@ -45,7 +45,7 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
     pathStr: String)(implicit ce: Concurrent[F], cs: ContextShift[F]): Pipe[F, A, Unit] = {
     val hadoop = new NJHadoop[F](conf, blocker).byteSink(pathStr)
     val pipe   = new AvroSerialization[F, A]
-    (ss: Stream[F, A]) => ss.through(pipe.toBinary).through(hadoop)
+    (ss: Stream[F, A]) => ss.through(pipe.toBinaryAvro).through(hadoop)
   }
 
   def jackson[A: AvroEncoder](

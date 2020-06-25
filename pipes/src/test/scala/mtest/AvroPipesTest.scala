@@ -37,6 +37,11 @@ class AvroPipesTest extends AnyFunSuite {
     val data: Stream[IO, Test] = Stream.fromIterator[IO](list.iterator)
 
     assert(
-      data.through(ser.toBinary).through(dser.fromBinary).compile.toList.unsafeRunSync() === list)
+      data
+        .through(ser.toBinaryAvro)
+        .through(dser.fromBinaryAvro)
+        .compile
+        .toList
+        .unsafeRunSync() === list)
   }
 }
