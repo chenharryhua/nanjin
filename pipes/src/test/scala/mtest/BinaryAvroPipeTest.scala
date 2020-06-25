@@ -15,7 +15,7 @@ class BinaryAvroPipeTest extends AnyFunSuite {
   import TestData._
   val gser  = new GenericRecordEncoder[IO, Tigger]
   val gdser = new GenericRecordDecoder[IO, Tigger]
-  val ser   = new BinaryAvroSerialization[IO](AvroSchema[Tigger])
+  val ser   = new BinaryAvroSerialization[IO](AvroSchema[Tigger], blocker)
   val dser  = new BinaryAvroDeserialization[IO](AvroSchema[Tigger])
 
   test("binary-json identity") {

@@ -7,7 +7,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class JavaObjectPipeTest extends AnyFunSuite {
   import TestData._
-  val ser                      = new JavaObjectSerialization[IO, Tigger]
+  val ser                      = new JavaObjectSerialization[IO, Tigger](blocker)
   val dser                     = new JavaObjectDeserialization[IO, Tigger]
   val data: Stream[IO, Tigger] = Stream.fromIterator[IO](list.iterator)
 

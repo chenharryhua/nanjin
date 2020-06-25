@@ -10,11 +10,12 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericDatumReader, GenericDatumWriter, GenericRecord}
 import org.apache.avro.io.{DecoderFactory, EncoderFactory}
 
-final class BinaryAvroSerialization[F[_]: ContextShift: Concurrent](schema: Schema) {
+final class BinaryAvroSerialization[F[_]: ContextShift: Concurrent](
+  schema: Schema,
+  blocker: Blocker) {
 
   def serialize: Pipe[F, GenericRecord, Byte] = { (ss: Stream[F, GenericRecord]) =>
     for {
-      blocker <- Stream.resource(Blocker[F])
       byte <- readOutputStream[F](blocker, chunkSize) { os =>
         val datumWriter = new GenericDatumWriter[GenericRecord](schema)
         val encoder     = EncoderFactory.get().binaryEncoder(os, null)

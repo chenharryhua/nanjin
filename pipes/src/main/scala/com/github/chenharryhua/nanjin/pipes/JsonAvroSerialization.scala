@@ -14,11 +14,12 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericDatumReader, GenericDatumWriter, GenericRecord}
 import org.apache.avro.io.{DecoderFactory, EncoderFactory}
 
-final class JsonAvroSerialization[F[_]: ContextShift: Concurrent](schema: Schema) {
+final class JsonAvroSerialization[F[_]: ContextShift: Concurrent](
+  schema: Schema,
+  blocker: Blocker) {
 
   def serialize: Stream[F, GenericRecord] => Stream[F, Byte] = { (ss: Stream[F, GenericRecord]) =>
     for {
-      blocker <- Stream.resource(Blocker[F])
       byte <- readOutputStream[F](blocker, chunkSize) { os =>
         val datumWriter = new GenericDatumWriter[GenericRecord](schema)
         val encoder     = EncoderFactory.get().jsonEncoder(schema, os)

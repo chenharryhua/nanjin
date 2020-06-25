@@ -4,7 +4,7 @@ import cats.effect.{Blocker, Concurrent, ContextShift, Sync}
 import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.pipes._
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
-import fs2.{Pipe, Stream}
+import fs2.Pipe
 import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.hadoop.conf.Configuration
@@ -19,7 +19,7 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
     ce: Concurrent[F],
     cs: ContextShift[F]): Pipe[F, A, Unit] = {
     val hadoop = new NJHadoop[F](conf, blocker).byteSink(pathStr)
-    val pipe   = new CsvSerialization[F, A](csvConfig)
+    val pipe   = new CsvSerialization[F, A](csvConfig, blocker)
     _.through(pipe.serialize).through(hadoop)
   }
 
@@ -45,7 +45,7 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
     pathStr: String)(implicit ce: Concurrent[F], cs: ContextShift[F]): Pipe[F, A, Unit] = {
     val hadoop = new NJHadoop[F](conf, blocker).byteSink(pathStr)
     val gr     = new GenericRecordEncoder[F, A]
-    val pipe   = new BinaryAvroSerialization[F](AvroEncoder[A].schema)
+    val pipe   = new BinaryAvroSerialization[F](AvroEncoder[A].schema, blocker)
     _.through(gr.encode).through(pipe.serialize).through(hadoop)
   }
 
@@ -53,7 +53,7 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
     pathStr: String)(implicit ce: Concurrent[F], cs: ContextShift[F]): Pipe[F, A, Unit] = {
     val hadoop = new NJHadoop[F](conf, blocker).byteSink(pathStr)
     val gr     = new GenericRecordEncoder[F, A]
-    val pipe   = new JsonAvroSerialization[F](AvroEncoder[A].schema)
+    val pipe   = new JsonAvroSerialization[F](AvroEncoder[A].schema, blocker)
     _.through(gr.encode).through(pipe.serialize).through(hadoop)
   }
 
@@ -74,7 +74,7 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
   def javaObject[A](
     pathStr: String)(implicit F: Concurrent[F], cs: ContextShift[F]): Pipe[F, A, Unit] = {
     val hadoop = new NJHadoop[F](conf, blocker).byteSink(pathStr)
-    val pipe   = new JavaObjectSerialization[F, A]
+    val pipe   = new JavaObjectSerialization[F, A](blocker)
     _.through(pipe.serialize).through(hadoop)
   }
 }
