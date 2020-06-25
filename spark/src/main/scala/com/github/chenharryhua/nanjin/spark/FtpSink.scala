@@ -2,17 +2,11 @@ package com.github.chenharryhua.nanjin.spark
 
 import akka.stream.IOResult
 import akka.stream.alpakka.ftp.RemoteFileSettings
-import cats.effect.{Blocker, Concurrent, ConcurrentEffect, ContextShift}
+import cats.effect.{Concurrent, ConcurrentEffect, ContextShift}
 import com.github.chenharryhua.nanjin.devices.FtpUploader
-import com.github.chenharryhua.nanjin.pipes.{
-  CirceSerialization,
-  CsvSerialization,
-  GenericRecordEncoder,
-  JsonAvroSerialization,
-  TextSerialization
-}
+import com.github.chenharryhua.nanjin.pipes._
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
-import fs2.{Pipe, Stream}
+import fs2.Pipe
 import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.{CsvConfiguration, RowEncoder}
 
