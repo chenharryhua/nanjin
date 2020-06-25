@@ -16,14 +16,12 @@ import fs2.{Pipe, Stream}
 import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.{CsvConfiguration, RowEncoder}
 
-final class FtpSink[F[_], C, S <: RemoteFileSettings](
-  uploader: FtpUploader[F, C, S],
-  blocker: Blocker) {
+final class FtpSink[F[_], C, S <: RemoteFileSettings](uploader: FtpUploader[F, C, S]) {
 
   def csv[A: RowEncoder](pathStr: String, csvConfig: CsvConfiguration)(implicit
     cr: Concurrent[F],
     cs: ContextShift[F]): Pipe[F, A, IOResult] = {
-    val pipe = new CsvSerialization[F, A](csvConfig, blocker)
+    val pipe = new CsvSerialization[F, A](csvConfig)
     _.through(pipe.serialize).through(uploader.upload(pathStr))
   }
 
@@ -39,7 +37,7 @@ final class FtpSink[F[_], C, S <: RemoteFileSettings](
   def jackson[A: AvroEncoder](pathStr: String)(implicit
     cs: ContextShift[F],
     ce: ConcurrentEffect[F]): Pipe[F, A, IOResult] = {
-    val pipe = new JsonAvroSerialization[F](AvroEncoder[A].schema, blocker)
+    val pipe = new JsonAvroSerialization[F](AvroEncoder[A].schema)
     val gr   = new GenericRecordEncoder[F, A]
     _.through(gr.encode).through(pipe.serialize).through(uploader.upload(pathStr))
   }

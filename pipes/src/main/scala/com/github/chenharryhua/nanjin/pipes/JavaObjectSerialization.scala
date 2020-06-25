@@ -7,10 +7,11 @@ import cats.implicits._
 import fs2.io.{readOutputStream, toInputStream}
 import fs2.{Pipe, Pull, Stream}
 
-final class JavaObjectSerialization[F[_]: Concurrent: ContextShift, A](blocker: Blocker) {
+final class JavaObjectSerialization[F[_]: Concurrent: ContextShift, A] {
 
   def serialize: Pipe[F, A, Byte] = { (ss: Stream[F, A]) =>
     for {
+      blocker <- Stream.resource(Blocker[F])
       bs <- readOutputStream[F](blocker, chunkSize) { bos =>
         val oos = new ObjectOutputStream(bos)
         def go(as: Stream[F, A]): Pull[F, Byte, Unit] =

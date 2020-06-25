@@ -18,17 +18,17 @@ package object spark extends DatasetExtensions {
   def fileSource[F[_]](blocker: Blocker)(implicit ss: SparkSession): SingleFileSource[F] =
     new SingleFileSource[F](blocker, ss.sparkContext.hadoopConfiguration)
 
-  def ftpSink[F[_]: ConcurrentEffect: ContextShift](settings: FtpSettings, blocker: Blocker)(
-    implicit mat: Materializer): FtpSink[F, FTPClient, FtpSettings] =
-    new FtpSink(new AkkaFtpUploader[F](settings), blocker)
+  def ftpSink[F[_]: ConcurrentEffect: ContextShift](settings: FtpSettings)(implicit
+    mat: Materializer): FtpSink[F, FTPClient, FtpSettings] =
+    new FtpSink(new AkkaFtpUploader[F](settings))
 
-  def ftpSink[F[_]: ConcurrentEffect: ContextShift](settings: SftpSettings, blocker: Blocker)(
-    implicit mat: Materializer): FtpSink[F, SSHClient, SftpSettings] =
-    new FtpSink(new AkkaSftpUploader[F](settings), blocker)
+  def ftpSink[F[_]: ConcurrentEffect: ContextShift](settings: SftpSettings)(implicit
+    mat: Materializer): FtpSink[F, SSHClient, SftpSettings] =
+    new FtpSink(new AkkaSftpUploader[F](settings))
 
-  def ftpSink[F[_]: ConcurrentEffect: ContextShift](settings: FtpsSettings, blocker: Blocker)(
-    implicit mat: Materializer): FtpSink[F, FTPSClient, FtpsSettings] =
-    new FtpSink(new AkkaFtpsUploader[F](settings), blocker)
+  def ftpSink[F[_]: ConcurrentEffect: ContextShift](settings: FtpsSettings)(implicit
+    mat: Materializer): FtpSink[F, FTPSClient, FtpsSettings] =
+    new FtpSink(new AkkaFtpsUploader[F](settings))
 
   def ftpSource[F[_]: ContextShift: Concurrent](settings: FtpSettings)(implicit
     mat: Materializer): FtpSource[F, FTPClient, FtpSettings] =

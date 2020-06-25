@@ -7,12 +7,12 @@ import fs2.{Pipe, Pull, Stream}
 import kantan.csv.{CsvConfiguration, CsvWriter, RowDecoder, RowEncoder}
 
 final class CsvSerialization[F[_]: Concurrent: ContextShift, A: RowEncoder](
-  conf: CsvConfiguration,
-  blocker: Blocker) {
+  conf: CsvConfiguration) {
   import kantan.csv.ops._
 
   def serialize: Pipe[F, A, Byte] = { (ss: Stream[F, A]) =>
     for {
+      blocker <- Stream.resource(Blocker[F])
       bs <- readOutputStream[F](blocker, chunkSize) { os =>
         def go(as: Stream[F, A], cw: CsvWriter[A]): Pull[F, Unit, Unit] =
           as.pull.uncons.flatMap {
