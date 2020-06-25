@@ -5,9 +5,10 @@ import akka.stream.alpakka.ftp.RemoteFileSettings
 import cats.effect.{Concurrent, ConcurrentEffect, ContextShift}
 import com.github.chenharryhua.nanjin.devices.FtpUploader
 import com.github.chenharryhua.nanjin.pipes.{
-  AvroSerialization,
   CirceSerialization,
   CsvSerialization,
+  GenericRecordEncoder,
+  JsonAvroSerialization,
   TextSerialization
 }
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
@@ -21,7 +22,7 @@ final class FtpSink[F[_], C, S <: RemoteFileSettings](uploader: FtpUploader[F, C
     cr: Concurrent[F],
     cs: ContextShift[F]): Pipe[F, A, IOResult] = {
     val pipe = new CsvSerialization[F, A](csvConfig)
-    (ss: Stream[F, A]) => ss.through(pipe.serialize).through(uploader.upload(pathStr))
+    _.through(pipe.serialize).through(uploader.upload(pathStr))
   }
 
   def csv[A: RowEncoder](
@@ -30,18 +31,19 @@ final class FtpSink[F[_], C, S <: RemoteFileSettings](uploader: FtpUploader[F, C
 
   def json[A: JsonEncoder](pathStr: String): Pipe[F, A, IOResult] = {
     val pipe = new CirceSerialization[F, A]
-    (ss: Stream[F, A]) => ss.through(pipe.serialize).through(uploader.upload(pathStr))
+    _.through(pipe.serialize).through(uploader.upload(pathStr))
   }
 
   def jackson[A: AvroEncoder](pathStr: String)(implicit
     cs: ContextShift[F],
     ce: ConcurrentEffect[F]): Pipe[F, A, IOResult] = {
-    val pipe = new AvroSerialization[F, A]
-    (ss: Stream[F, A]) => ss.through(pipe.toByteJson).through(uploader.upload(pathStr))
+    val pipe = new JsonAvroSerialization[F](AvroEncoder[A].schema)
+    val gr   = new GenericRecordEncoder[F, A]
+    _.through(gr.serialize).through(pipe.serialize).through(uploader.upload(pathStr))
   }
 
   def text(pathStr: String): Pipe[F, String, IOResult] = {
     val pipe = new TextSerialization[F]
-    (ss: Stream[F, String]) => ss.through(pipe.serialize).through(uploader.upload(pathStr))
+    _.through(pipe.serialize).through(uploader.upload(pathStr))
   }
 }

@@ -9,9 +9,9 @@ import io.circe.generic.auto._
 
 class CircePipeTest extends AnyFunSuite {
   import TestData._
-  val ser                    = new CirceSerialization[IO, Test]
-  val dser                   = new CirceDeserialization[IO, Test]
-  val data: Stream[IO, Test] = Stream.fromIterator[IO](list.iterator)
+  val ser                      = new CirceSerialization[IO, Tigger]
+  val dser                     = new CirceDeserialization[IO, Tigger]
+  val data: Stream[IO, Tigger] = Stream.fromIterator[IO](list.iterator)
 
   test("circe identity") {
     assert(

@@ -1,18 +1,15 @@
 package mtest
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.pipes.{
-  GenericRecordDeserialization,
-  GenericRecordSerialization
-}
+import com.github.chenharryhua.nanjin.pipes.{GenericRecordDecoder, GenericRecordEncoder}
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 
 class GenericRecordPipeTest extends AnyFunSuite {
   import TestData._
-  val ser                    = new GenericRecordSerialization[IO, Test]
-  val dser                   = new GenericRecordDeserialization[IO, Test]
-  val data: Stream[IO, Test] = Stream.fromIterator[IO](list.iterator)
+  val ser                      = new GenericRecordEncoder[IO, Tigger]
+  val dser                     = new GenericRecordDecoder[IO, Tigger]
+  val data: Stream[IO, Tigger] = Stream.fromIterator[IO](list.iterator)
 
   test("generic-record identity") {
     assert(

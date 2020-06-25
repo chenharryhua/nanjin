@@ -36,9 +36,7 @@ final class JavaObjectDeserialization[F[_]: ConcurrentEffect: ContextShift, A] {
     Pull
       .functionKInstance(
         F.delay(try Some(ois.readObject().asInstanceOf[A])
-        catch {
-          case ex: EOFException => None
-        }))
+        catch { case ex: EOFException => None }))
       .flatMap {
         case Some(a) => Pull.output1(a) >> Pull.pure(Some(ois))
         case None    => Pull.eval(F.delay(ois.close())) >> Pull.pure(None)
