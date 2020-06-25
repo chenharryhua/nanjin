@@ -1,4 +1,4 @@
-import cats.effect.{ContextShift, IO, Timer}
+import cats.effect.{Blocker, ContextShift, IO, Timer}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
