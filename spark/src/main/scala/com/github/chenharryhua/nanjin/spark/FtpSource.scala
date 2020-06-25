@@ -3,12 +3,7 @@ package com.github.chenharryhua.nanjin.spark
 import akka.stream.alpakka.ftp.RemoteFileSettings
 import cats.effect.{ConcurrentEffect, ContextShift}
 import com.github.chenharryhua.nanjin.devices.FtpDownloader
-import com.github.chenharryhua.nanjin.pipes.{
-  AvroDeserialization,
-  CirceDeserialization,
-  CsvDeserialization,
-  TextDeserialization
-}
+import com.github.chenharryhua.nanjin.pipes._
 import com.sksamuel.avro4s.{Decoder => AvroDecoder}
 import fs2.{RaiseThrowable, Stream}
 import io.circe.{Decoder => JsonDecoder}
@@ -32,8 +27,9 @@ final class FtpSource[F[_], C, S <: RemoteFileSettings](downloader: FtpDownloade
 
   def jackson[A: AvroDecoder](
     pathStr: String)(implicit cs: ContextShift[F], ce: ConcurrentEffect[F]): Stream[F, A] = {
-    val pipe = new AvroDeserialization[F, A]
-    downloader.download(pathStr).through(pipe.fromJackson)
+    val pipe = new JsonAvroDeserialization[F](AvroDecoder[A].schema)
+    val gr   = new GenericRecordDecoder[F, A]
+    downloader.download(pathStr).through(pipe.deserialize).through(gr.deserialize)
   }
 
   def text(
