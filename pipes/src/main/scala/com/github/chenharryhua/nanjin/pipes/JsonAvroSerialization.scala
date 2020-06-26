@@ -26,9 +26,7 @@ final class JsonAvroSerialization[F[_]: ContextShift: Concurrent](schema: Schema
         def go(as: Stream[F, GenericRecord]): Pull[F, Byte, Unit] =
           as.pull.uncons.flatMap {
             case Some((hl, tl)) =>
-              Pull.eval(hl.traverse(a => blocker.delay(datumWriter.write(a, encoder)))) >>
-                Pull.eval(blocker.delay(encoder.flush())) >>
-                go(tl)
+              Pull.eval(hl.traverse(a => blocker.delay(datumWriter.write(a, encoder)))) >> go(tl)
             case None =>
               Pull.eval(blocker.delay(encoder.flush())) >>
                 Pull.eval(blocker.delay(os.close())) >>
