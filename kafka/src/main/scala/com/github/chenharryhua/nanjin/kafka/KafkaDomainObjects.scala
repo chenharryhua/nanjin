@@ -1,11 +1,10 @@
-package com.github.chenharryhua.nanjin.kafka.common
+package com.github.chenharryhua.nanjin.kafka
 
 import java.{lang, util}
 
 import cats.implicits._
 import cats.{Order, PartialOrder, Show}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import com.github.chenharryhua.nanjin.kafka.KafkaGroupId
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.NonNegative
 import eu.timepit.refined.refineV
@@ -115,8 +114,8 @@ final case class KafkaTopicPartition[V](value: Map[TopicPartition, V]) extends A
 
   def topicPartitions: ListOfTopicPartitions = ListOfTopicPartitions(value.keys.toList)
 
-  def offsets(
-    implicit ev: V =:= Option[OffsetAndTimestamp]): KafkaTopicPartition[Option[KafkaOffset]] =
+  def offsets(implicit
+    ev: V =:= Option[OffsetAndTimestamp]): KafkaTopicPartition[Option[KafkaOffset]] =
     copy(value = value.mapValues(_.map(x => KafkaOffset(x.offset))))
 }
 

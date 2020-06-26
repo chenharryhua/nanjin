@@ -5,7 +5,6 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage._
 import com.github.chenharryhua.nanjin.messages.kafka._
-import com.github.chenharryhua.nanjin.kafka.common.{KafkaOffset}
 import com.github.chenharryhua.nanjin.pipes.{GenericRecordEncoder, JsonAvroSerialization}
 import com.github.chenharryhua.nanjin.utils.Keyboard
 import fs2.Stream

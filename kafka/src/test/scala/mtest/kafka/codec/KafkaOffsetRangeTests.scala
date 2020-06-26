@@ -2,7 +2,8 @@ package mtest.kafka.codec
 
 import cats.derived.auto.eq._
 import cats.kernel.laws.discipline.{OrderTests, PartialOrderTests}
-import com.github.chenharryhua.nanjin.kafka.common.{KafkaOffset, KafkaOffsetRange, KafkaPartition}
+import com.github.chenharryhua.nanjin.kafka.{KafkaOffset, KafkaOffsetRange, KafkaPartition}
+import com.github.chenharryhua.nanjin.kafka.common.KafkaOffsetRange
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
