@@ -7,6 +7,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.kafka.common._
+import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.utils.Keyboard
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Pipe
@@ -82,7 +83,7 @@ object sk {
             .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
             .chunkN(uploadRate.batchSize)
             .metered(uploadRate.duration)
-            .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName))))
+            .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName.value))))
             .through(produce(topic.fs2ProducerSettings))
       } yield rst
 
