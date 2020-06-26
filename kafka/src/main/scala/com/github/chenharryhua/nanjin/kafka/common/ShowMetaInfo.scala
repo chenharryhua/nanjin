@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka.common
 
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
+import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 
@@ -13,8 +14,8 @@ object ShowMetaInfo {
 
   implicit def kafkaConsumerRecordHasMetaInfo[K, V]: ShowMetaInfo[ConsumerRecord[K, V]] =
     (a: ConsumerRecord[K, V]) =>
-      s"partition=${a.partition()}, offset=${a
-        .offset()}, timestamp=${NJTimestamp(a.timestamp())}, topic=${a.topic()}"
+      s"partition=${a.partition()}, offset=${a.offset()}, timestamp=${NJTimestamp(
+        a.timestamp())}, topic=${a.topic()}"
 
   implicit def kafkaProducerRecordHasMetaInfo[K, V]: ShowMetaInfo[ProducerRecord[K, V]] =
     (a: ProducerRecord[K, V]) =>

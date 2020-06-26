@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.kafka.codec
+package com.github.chenharryhua.nanjin.messages.kafka
 
 import fs2.kafka.{
   ConsumerRecord => Fs2ConsumerRecord,
@@ -16,7 +16,7 @@ import org.apache.kafka.common.record.TimestampType
 
 import scala.compat.java8.OptionConverters._
 
-object iso {
+private[kafka] trait Isos {
 
   implicit def isoIdentityProducerRecord[K, V]: Iso[ProducerRecord[K, V], ProducerRecord[K, V]] =
     Iso[ProducerRecord[K, V], ProducerRecord[K, V]](identity)(identity)
@@ -44,8 +44,8 @@ object iso {
     (fpr: Fs2ProducerRecord[K, V]) =>
       new ProducerRecord[K, V](
         fpr.topic,
-        fpr.partition.map(Integer.valueOf(_)).orNull,
-        fpr.timestamp.map(java.lang.Long.valueOf(_)).orNull,
+        fpr.partition.map(Integer.valueOf).orNull,
+        fpr.timestamp.map(java.lang.Long.valueOf).orNull,
         fpr.key,
         fpr.value,
         fpr.headers.asJava)
@@ -89,6 +89,6 @@ object iso {
         fcr.key,
         fcr.value,
         new RecordHeaders(fcr.headers.asJava),
-        fcr.leaderEpoch.map(Integer.valueOf(_)).asJava
+        fcr.leaderEpoch.map(Integer.valueOf).asJava
       )
 }

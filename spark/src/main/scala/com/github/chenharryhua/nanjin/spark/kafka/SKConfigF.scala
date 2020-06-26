@@ -105,10 +105,11 @@ final private[spark] case class SKConfig private (value: Fix[SKConfigF]) extends
 
   private def withFileFormat(ff: NJFileFormat): SKConfig = SKConfig(Fix(WithFileFormat(ff, value)))
 
-  def withJackson: SKConfig = withFileFormat(NJFileFormat.Jackson)
-  def withAvro: SKConfig    = withFileFormat(NJFileFormat.Avro)
-  def withBinary: SKConfig  = withFileFormat(NJFileFormat.AvroBinary)
-  def withParquet: SKConfig = withFileFormat(NJFileFormat.Parquet)
+  def withJackson: SKConfig    = withFileFormat(NJFileFormat.Jackson)
+  def withAvro: SKConfig       = withFileFormat(NJFileFormat.Avro)
+  def withBinary: SKConfig     = withFileFormat(NJFileFormat.AvroBinary)
+  def withParquet: SKConfig    = withFileFormat(NJFileFormat.Parquet)
+  def withJavaObject: SKConfig = withFileFormat(NJFileFormat.JavaObject)
 
   def withTimeRange(tr: NJDateTimeRange): SKConfig = SKConfig(Fix(WithTimeRange(tr, value)))
   def withStartTime(s: LocalDateTime): SKConfig    = SKConfig(Fix(WithStartTime(s, value)))

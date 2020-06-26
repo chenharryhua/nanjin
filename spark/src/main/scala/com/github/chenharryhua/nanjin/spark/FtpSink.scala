@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark
 
 import akka.stream.IOResult
 import akka.stream.alpakka.ftp.RemoteFileSettings
-import cats.effect.{Concurrent, ConcurrentEffect, ContextShift}
+import cats.effect.{Blocker, Concurrent, ConcurrentEffect, ContextShift}
 import com.github.chenharryhua.nanjin.devices.FtpUploader
 import com.github.chenharryhua.nanjin.pipes._
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
@@ -10,12 +10,14 @@ import fs2.Pipe
 import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.{CsvConfiguration, RowEncoder}
 
-final class FtpSink[F[_], C, S <: RemoteFileSettings](uploader: FtpUploader[F, C, S]) {
+final class FtpSink[F[_], C, S <: RemoteFileSettings](
+  uploader: FtpUploader[F, C, S],
+  blocker: Blocker) {
 
   def csv[A: RowEncoder](pathStr: String, csvConfig: CsvConfiguration)(implicit
     cr: Concurrent[F],
     cs: ContextShift[F]): Pipe[F, A, IOResult] = {
-    val pipe = new CsvSerialization[F, A](csvConfig)
+    val pipe = new CsvSerialization[F, A](csvConfig, blocker)
     _.through(pipe.serialize).through(uploader.upload(pathStr))
   }
 

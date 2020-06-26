@@ -4,7 +4,7 @@ import java.time.{LocalDate, LocalDateTime, ZoneId}
 
 import cats.effect.Sync
 import com.github.chenharryhua.nanjin.datetime._
-import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.TypedDataset
 import frameless.cats.implicits.framelessCatsSparkDelayForSync

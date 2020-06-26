@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.kafka.common
+package com.github.chenharryhua.nanjin.messages.kafka
 
 import enumeratum.values.{CatsValueEnum, IntEnum, IntEnumEntry}
 import monocle.Prism
@@ -12,7 +12,7 @@ sealed abstract class KeyValueTag(override val value: Int, val name: String, val
 object KeyValueTag extends CatsValueEnum[Int, KeyValueTag] with IntEnum[KeyValueTag] {
   override val values: immutable.IndexedSeq[KeyValueTag] = findValues
 
-  case object Key extends KeyValueTag(0, "Key", isKey     = true)
+  case object Key extends KeyValueTag(0, "Key", isKey = true)
   case object Value extends KeyValueTag(1, "Value", isKey = false)
 
   type Key   = Key.type

@@ -1,33 +1,28 @@
-package com.github.chenharryhua.nanjin.kafka.codec
+package com.github.chenharryhua.nanjin.messages.kafka
 
 import akka.kafka.ConsumerMessage.{
-  CommittableMessage   => AkkaCommittableMessage,
+  CommittableMessage => AkkaCommittableMessage,
   TransactionalMessage => AkkaTransactionalMessage
 }
 import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage}
-import cats.data.Chain
 import cats.implicits._
-import cats.mtl.FunctorTell
 import cats.{Applicative, Bitraverse, Eval}
-import com.github.chenharryhua.nanjin.kafka.common.{KeyValueTag, NJConsumerRecord, NJProducerRecord}
 import fs2.kafka.{
   CommittableConsumerRecord => Fs2CommittableConsumerRecord,
-  ConsumerRecord            => Fs2ConsumerRecord,
-  ProducerRecord            => Fs2ProducerRecord
+  ConsumerRecord => Fs2ConsumerRecord,
+  ProducerRecord => Fs2ProducerRecord
 }
 import monocle.PLens
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 
-import scala.util.Try
-
-sealed private[codec] trait BitraverseMessage[F[_, _]] extends Bitraverse[F] {
+sealed trait BitraverseMessage[F[_, _]] extends Bitraverse[F] {
   type H[_, _]
   implicit def baseInst: Bitraverse[H]
   def lens[K1, V1, K2, V2]: PLens[F[K1, V1], F[K2, V2], H[K1, V1], H[K2, V2]]
 
-  final override def bitraverse[G[_], A, B, C, D](fab: F[A, B])(f: A => G[C], g: B => G[D])(
-    implicit G: Applicative[G]): G[F[C, D]] =
+  final override def bitraverse[G[_], A, B, C, D](fab: F[A, B])(f: A => G[C], g: B => G[D])(implicit
+    G: Applicative[G]): G[F[C, D]] =
     lens.modifyF((cr: H[A, B]) => cr.bitraverse(f, g))(fab)
 
   final override def bifoldLeft[A, B, C](fab: F[A, B], c: C)(f: (C, A) => C, g: (C, B) => C): C =
@@ -42,21 +37,6 @@ sealed private[codec] trait BitraverseMessage[F[_, _]] extends Bitraverse[F] {
 sealed trait NJConsumerMessage[F[_, _]] extends BitraverseMessage[F] with BitraverseKafkaRecord {
   final override type H[K, V] = ConsumerRecord[K, V]
   final override val baseInst: Bitraverse[ConsumerRecord] = bitraverseConsumerRecord
-
-  final def record[M[_]: Applicative, K, V](fcr: F[Option[Try[K]], Try[V]])(
-    implicit M: FunctorTell[M, Chain[ConsumerRecordError]]): M[NJConsumerRecord[K, V]] = {
-    val cr = lens.get(fcr)
-    def log(ex: Throwable, tag: KeyValueTag): M[Unit] =
-      M.tell(Chain.one(ConsumerRecordError(ex, tag, cr)))
-
-    val logKey: M[Option[K]] =
-      cr.key.flatTraverse(_.toEither.leftTraverse(log(_, KeyValueTag.Key)).map(_.toOption))
-
-    val logValue: M[Option[V]] =
-      cr.value.toEither.leftTraverse(log(_, KeyValueTag.Value)).map(_.toOption)
-
-    (logKey, logValue).mapN((k, v) => NJConsumerRecord(cr.bimap(_ => k, _ => v)))
-  }
 }
 
 object NJConsumerMessage {
@@ -91,8 +71,8 @@ object NJConsumerMessage {
           Fs2ConsumerRecord[K1, V1],
           Fs2ConsumerRecord[K2, V2],
           ConsumerRecord[K1, V1],
-          ConsumerRecord[K2, V2]](iso.isoFs2ComsumerRecord.get) { b => _ =>
-          iso.isoFs2ComsumerRecord.reverseGet(b)
+          ConsumerRecord[K2, V2]](isoFs2ComsumerRecord.get) { b => _ =>
+          isoFs2ComsumerRecord.reverseGet(b)
         }
 
     }
@@ -141,8 +121,8 @@ object NJConsumerMessage {
           Fs2CommittableConsumerRecord[F, K1, V1],
           Fs2CommittableConsumerRecord[F, K2, V2],
           ConsumerRecord[K1, V1],
-          ConsumerRecord[K2, V2]](cm => iso.isoFs2ComsumerRecord.get(cm.record)) { b => s =>
-          Fs2CommittableConsumerRecord(iso.isoFs2ComsumerRecord.reverseGet(b), s.offset)
+          ConsumerRecord[K2, V2]](cm => isoFs2ComsumerRecord.get(cm.record)) { b => s =>
+          Fs2CommittableConsumerRecord(isoFs2ComsumerRecord.reverseGet(b), s.offset)
         }
     }
 }
@@ -187,8 +167,8 @@ object NJProducerMessage {
           Fs2ProducerRecord[K1, V1],
           Fs2ProducerRecord[K2, V2],
           ProducerRecord[K1, V1],
-          ProducerRecord[K2, V2]](iso.isoFs2ProducerRecord[K1, V1].get) { b => _ =>
-          iso.isoFs2ProducerRecord[K2, V2].reverseGet(b)
+          ProducerRecord[K2, V2]](isoFs2ProducerRecord[K1, V1].get) { b => _ =>
+          isoFs2ProducerRecord[K2, V2].reverseGet(b)
         }
     }
 

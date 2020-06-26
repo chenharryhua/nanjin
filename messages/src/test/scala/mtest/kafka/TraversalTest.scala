@@ -1,21 +1,20 @@
-package mtest.kafka.codec
+package mtest.kafka
 
 import akka.kafka.ProducerMessage.{MultiMessage => AkkaMultiMessage}
 import cats.effect.IO
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.codec._
-import com.github.chenharryhua.nanjin.kafka.codec.eq._
+import com.github.chenharryhua.nanjin.messages.kafka._
 import fs2.kafka.{
-  CommittableProducerRecords   => Fs2CommittableProducerRecords,
-  ProducerRecords              => Fs2ProducerRecords,
+  CommittableProducerRecords => Fs2CommittableProducerRecords,
+  ProducerRecords => Fs2ProducerRecords,
   TransactionalProducerRecords => Fs2TransactionalProducerRecords
 }
 import monocle.law.discipline.TraversalTests
 import org.scalatest.funsuite.AnyFunSuite
-import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 import org.scalatest.prop.Configuration
+import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
-class TraversalTest extends AnyFunSuite with FunSuiteDiscipline with Configuration{
+class TraversalTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
   checkAll(
     "akka.producer.MultiMessage",
     TraversalTests(

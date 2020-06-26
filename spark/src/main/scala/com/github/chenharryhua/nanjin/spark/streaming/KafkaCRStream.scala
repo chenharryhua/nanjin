@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.streaming
 
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
 

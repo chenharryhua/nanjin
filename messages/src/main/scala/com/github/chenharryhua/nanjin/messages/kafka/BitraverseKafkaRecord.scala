@@ -1,11 +1,11 @@
-package com.github.chenharryhua.nanjin.kafka.codec
+package com.github.chenharryhua.nanjin.messages.kafka
 
 import cats.{Applicative, Bitraverse, Eval}
 import com.github.ghik.silencer.silent
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 
-private[codec] trait BitraverseKafkaRecord {
+private[kafka] trait BitraverseKafkaRecord {
 
   implicit final val bitraverseConsumerRecord: Bitraverse[ConsumerRecord] =
     new Bitraverse[ConsumerRecord] {
@@ -26,9 +26,9 @@ private[codec] trait BitraverseKafkaRecord {
           cr.headers,
           cr.leaderEpoch)
 
-      override def bitraverse[G[_], A, B, C, D](fab: ConsumerRecord[A, B])(
-        f: A => G[C],
-        g: B => G[D])(implicit G: Applicative[G]): G[ConsumerRecord[C, D]] =
+      override def bitraverse[G[_], A, B, C, D](
+        fab: ConsumerRecord[A, B])(f: A => G[C], g: B => G[D])(implicit
+        G: Applicative[G]): G[ConsumerRecord[C, D]] =
         G.map2(f(fab.key), g(fab.value))((k, v) => bimap(fab)(_ => k, _ => v))
 
       override def bifoldLeft[A, B, C](fab: ConsumerRecord[A, B], c: C)(
@@ -53,9 +53,9 @@ private[codec] trait BitraverseKafkaRecord {
           v(pr.value),
           pr.headers)
 
-      override def bitraverse[G[_], A, B, C, D](fab: ProducerRecord[A, B])(
-        f: A => G[C],
-        g: B => G[D])(implicit G: Applicative[G]): G[ProducerRecord[C, D]] =
+      override def bitraverse[G[_], A, B, C, D](
+        fab: ProducerRecord[A, B])(f: A => G[C], g: B => G[D])(implicit
+        G: Applicative[G]): G[ProducerRecord[C, D]] =
         G.map2(f(fab.key), g(fab.value))((k, v) => bimap(fab)(_ => k, _ => v))
 
       override def bifoldLeft[A, B, C](fab: ProducerRecord[A, B], c: C)(

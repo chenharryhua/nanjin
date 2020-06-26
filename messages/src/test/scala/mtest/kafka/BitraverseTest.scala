@@ -1,20 +1,16 @@
-package mtest.kafka.codec
+package mtest.kafka
 
 import akka.kafka.{ConsumerMessage => AkkaConsumerMessage, ProducerMessage => AkkaProducerMessage}
 import cats.Id
 import cats.effect.IO
 import cats.implicits._
 import cats.laws.discipline.BitraverseTests
-import com.github.chenharryhua.nanjin.kafka.codec.BitraverseMessages._
-import com.github.chenharryhua.nanjin.kafka.codec.NJConsumerMessage._
-import com.github.chenharryhua.nanjin.kafka.codec.NJProducerMessage._
-import com.github.chenharryhua.nanjin.kafka.codec.eq._
 import fs2.kafka.{
-  CommittableConsumerRecord    => Fs2CommittableConsumerRecord,
-  CommittableProducerRecords   => Fs2CommittableProducerRecords,
-  ConsumerRecord               => Fs2ConsumerRecord,
-  ProducerRecord               => Fs2ProducerRecord,
-  ProducerRecords              => Fs2ProducerRecords,
+  CommittableConsumerRecord => Fs2CommittableConsumerRecord,
+  CommittableProducerRecords => Fs2CommittableProducerRecords,
+  ConsumerRecord => Fs2ConsumerRecord,
+  ProducerRecord => Fs2ProducerRecord,
+  ProducerRecords => Fs2ProducerRecords,
   TransactionalProducerRecords => Fs2TransactionalProducerRecords
 }
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -22,10 +18,14 @@ import org.apache.kafka.clients.producer.ProducerRecord
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.funsuite.AnyFunSuite
-import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 import org.scalatest.prop.Configuration
+import org.typelevel.discipline.scalatest.FunSuiteDiscipline
+import com.github.chenharryhua.nanjin.messages.kafka._
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage._
+import com.github.chenharryhua.nanjin.messages.kafka.NJProducerMessage._
+import com.github.chenharryhua.nanjin.messages.kafka.BitraverseMessages._
 
-class BitraverseTest extends AnyFunSuite with FunSuiteDiscipline with Configuration{
+class BitraverseTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
 
   implicit val arbChain: Arbitrary[List[Int]] =
     Arbitrary(Gen.containerOfN[List, Int](3, arbitrary[Int]))

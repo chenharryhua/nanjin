@@ -1,8 +1,7 @@
-package com.github.chenharryhua.nanjin.kafka.common
+package com.github.chenharryhua.nanjin.messages.kafka
 
 import cats.{Bifunctor, Order}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import com.github.chenharryhua.nanjin.kafka.TopicName
 import fs2.kafka.{ProducerRecord => Fs2ProducerRecord}
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
@@ -112,9 +111,9 @@ object NJConsumerRecord {
     NJProducerRecord.value.modify((_: Option[V]).map(f))(this)
 
   @SuppressWarnings(Array("AsInstanceOf"))
-  def toFs2ProducerRecord(topicName: TopicName): Fs2ProducerRecord[K, V] = {
+  def toFs2ProducerRecord(topicName: String): Fs2ProducerRecord[K, V] = {
     val pr = Fs2ProducerRecord(
-      topicName.value,
+      topicName,
       key.getOrElse(null.asInstanceOf[K]),
       value.getOrElse(null.asInstanceOf[V]))
     val pt = partition.fold(pr)(pr.withPartition)

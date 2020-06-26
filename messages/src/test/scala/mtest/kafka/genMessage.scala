@@ -1,19 +1,16 @@
-package mtest.kafka.codec
+package mtest.kafka
 
 import java.util.Optional
-import java.util.concurrent.CompletionStage
 
-import akka.Done
 import akka.kafka.ConsumerMessage
 import akka.kafka.ConsumerMessage.{
   CommittableMessage => AkkaConsumerMessage,
   TransactionalMessage => AkkaTransactionalMessage
 }
-import akka.kafka.testkit.ConsumerResultFactory
 import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage, MultiMessage => AkkaMultiMessage}
-import akka.kafka.internal.CommittableOffsetImpl
+import akka.kafka.testkit.ConsumerResultFactory
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.kafka.codec._
+import com.github.chenharryhua.nanjin.messages.kafka._
 import fs2.Chunk
 import fs2.kafka.{
   CommittableProducerRecords => Fs2CommittableProducerRecords,
@@ -31,8 +28,6 @@ import org.scalacheck.Arbitrary.{arbitrary, _}
 import org.scalacheck.Gen
 
 import scala.compat.java8.OptionConverters._
-import scala.concurrent.Future
-import com.github.chenharryhua.nanjin.messages.kafka._
 
 object genMessage {
 

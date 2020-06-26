@@ -6,7 +6,7 @@ import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
@@ -107,6 +107,7 @@ final class FsmRdd[F[_], K, V](
         case NJFileFormat.AvroBinary => data.stream[F].through(fileSink(blocker).binary(path))
         case NJFileFormat.Jackson    => data.stream[F].through(fileSink(blocker).jackson(path))
         case NJFileFormat.Parquet    => data.stream[F].through(fileSink(blocker).parquet(path))
+        case NJFileFormat.JavaObject => data.stream[F].through(fileSink(blocker).javaObject(path))
       }
       run.compile.drain.as(data.count) <* F.delay(data.unpersist())
     }

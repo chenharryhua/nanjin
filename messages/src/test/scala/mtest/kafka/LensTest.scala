@@ -1,28 +1,26 @@
-package mtest.kafka.codec
+package mtest.kafka
 
 import akka.kafka.ConsumerMessage.{
-  CommittableMessage   => AkkaConsumerMessage,
+  CommittableMessage => AkkaConsumerMessage,
   TransactionalMessage => AkkaTransactionalMessage
 }
 import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage}
 import cats.effect.IO
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.codec._
-import com.github.chenharryhua.nanjin.kafka.codec.eq._
-import com.github.chenharryhua.nanjin.kafka.codec.{NJConsumerMessage, NJProducerMessage}
+import com.github.chenharryhua.nanjin.messages.kafka._
 import fs2.kafka.{
   CommittableConsumerRecord => Fs2CommittableConsumerRecord,
-  ConsumerRecord            => Fs2ConsumerRecord,
-  ProducerRecord            => Fs2ProducerRecord
+  ConsumerRecord => Fs2ConsumerRecord,
+  ProducerRecord => Fs2ProducerRecord
 }
 import monocle.law.discipline.LensTests
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.scalatest.funsuite.AnyFunSuite
-import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 import org.scalatest.prop.Configuration
+import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
-class LensTest extends AnyFunSuite with FunSuiteDiscipline with Configuration{
+class LensTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
 
   checkAll(
     "fs2.consumer.CommittableConsumerRecord",

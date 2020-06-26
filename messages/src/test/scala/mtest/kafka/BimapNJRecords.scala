@@ -1,10 +1,10 @@
-package mtest.kafka.codec
+package mtest.kafka
 
 import cats.derived.auto.eq._
 import cats.implicits._
 import cats.kernel.laws.discipline.OrderTests
 import cats.laws.discipline.BifunctorTests
-import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducerRecord}
+import com.github.chenharryhua.nanjin.messages.kafka._
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.Configuration
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline

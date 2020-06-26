@@ -1,24 +1,24 @@
-package com.github.chenharryhua.nanjin.kafka.codec
+package com.github.chenharryhua.nanjin.messages.kafka
 
 import java.util.Optional
 
 import akka.kafka.ConsumerMessage.{
-  CommittableMessage   => AkkaConsumerMessage,
-  CommittableOffset    => AkkaCommittableOffset,
-  GroupTopicPartition  => AkkaGroupTopicPartition,
-  PartitionOffset      => AkkaPartitionOffset,
+  CommittableMessage => AkkaConsumerMessage,
+  CommittableOffset => AkkaCommittableOffset,
+  GroupTopicPartition => AkkaGroupTopicPartition,
+  PartitionOffset => AkkaPartitionOffset,
   TransactionalMessage => AkkaTransactionalMessage
 }
 import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage, MultiMessage => AkkaMultiMessage}
 import cats.Eq
 import cats.implicits._
 import fs2.kafka.{
-  CommittableConsumerRecord    => Fs2CommittableConsumerRecord,
-  CommittableOffset            => Fs2CommittableOffset,
-  CommittableProducerRecords   => Fs2CommittableProducerRecords,
-  ConsumerRecord               => Fs2ConsumerRecord,
-  ProducerRecord               => Fs2ProducerRecord,
-  ProducerRecords              => Fs2ProducerRecords,
+  CommittableConsumerRecord => Fs2CommittableConsumerRecord,
+  CommittableOffset => Fs2CommittableOffset,
+  CommittableProducerRecords => Fs2CommittableProducerRecords,
+  ConsumerRecord => Fs2ConsumerRecord,
+  ProducerRecord => Fs2ProducerRecord,
+  ProducerRecords => Fs2ProducerRecords,
   TransactionalProducerRecords => Fs2TransactionalProducerRecords
 }
 import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
@@ -28,7 +28,7 @@ import org.apache.kafka.common.header.{Header, Headers}
 
 import scala.compat.java8.OptionConverters._
 
-private[codec] trait EqMessage {
+private[kafka] trait EqMessage {
 
   // kafka
   implicit val eqArrayByte: Eq[Array[Byte]] =
@@ -109,11 +109,11 @@ private[codec] trait EqMessage {
 
   implicit final def eqConsumerRecordFs2[K: Eq, V: Eq]: Eq[Fs2ConsumerRecord[K, V]] =
     (x: Fs2ConsumerRecord[K, V], y: Fs2ConsumerRecord[K, V]) =>
-      iso.isoFs2ComsumerRecord.get(x) === iso.isoFs2ComsumerRecord.get(y)
+      isoFs2ComsumerRecord.get(x) === isoFs2ComsumerRecord.get(y)
 
   implicit final def eqProducerRecordFs2[K: Eq, V: Eq]: Eq[Fs2ProducerRecord[K, V]] =
     (x: Fs2ProducerRecord[K, V], y: Fs2ProducerRecord[K, V]) =>
-      iso.isoFs2ProducerRecord.get(x) === iso.isoFs2ProducerRecord.get(y)
+      isoFs2ProducerRecord.get(x) === isoFs2ProducerRecord.get(y)
 
   implicit final def eqProducerRecordsFs2[K: Eq, V: Eq, P: Eq]: Eq[Fs2ProducerRecords[K, V, P]] =
     (x: Fs2ProducerRecords[K, V, P], y: Fs2ProducerRecords[K, V, P]) =>

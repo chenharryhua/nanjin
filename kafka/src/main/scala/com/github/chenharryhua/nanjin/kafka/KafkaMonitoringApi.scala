@@ -3,9 +3,9 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import com.github.chenharryhua.nanjin.kafka.codec.NJConsumerMessage._
-import com.github.chenharryhua.nanjin.kafka.codec.iso
-import com.github.chenharryhua.nanjin.kafka.common.{KafkaOffset, NJConsumerRecord}
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage._
+import com.github.chenharryhua.nanjin.messages.kafka._
+import com.github.chenharryhua.nanjin.kafka.common.{KafkaOffset}
 import com.github.chenharryhua.nanjin.pipes.{GenericRecordEncoder, JsonAvroSerialization}
 import com.github.chenharryhua.nanjin.utils.Keyboard
 import fs2.Stream
@@ -18,6 +18,7 @@ sealed trait KafkaMonitoringApi[F[_], K, V] {
   def watch: F[Unit]
   def watchFromEarliest: F[Unit]
   def watchFrom(njt: NJTimestamp): F[Unit]
+  def watchFrom(njt: String): F[Unit]
 
   def filter(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit]
   def filterFromEarliest(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit]
@@ -77,7 +78,7 @@ object KafkaMonitoringApi {
             .withConsumerSettings(_.withAutoOffsetReset(aor))
             .stream
             .filter(m =>
-              predict(iso.isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record)))
+              predict(isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record)))
             .map(m => topic.decoder(m).record)
             .through(gr.encode)
             .through(pipe.prettyJson)
@@ -110,6 +111,9 @@ object KafkaMonitoringApi {
       } yield ()
       run.compile.drain
     }
+
+    override def watchFrom(njt: String): F[Unit] =
+      watchFrom(NJTimestamp(njt))
 
     override def watch: F[Unit]             = watch(AutoOffsetReset.Latest)
     override def watchFromEarliest: F[Unit] = watch(AutoOffsetReset.Earliest)

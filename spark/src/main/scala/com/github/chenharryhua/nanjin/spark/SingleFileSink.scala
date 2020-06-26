@@ -19,7 +19,7 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
     ce: Concurrent[F],
     cs: ContextShift[F]): Pipe[F, A, Unit] = {
     val hadoop = new NJHadoop[F](conf, blocker).byteSink(pathStr)
-    val pipe   = new CsvSerialization[F, A](csvConfig)
+    val pipe   = new CsvSerialization[F, A](csvConfig, blocker)
     _.through(pipe.serialize).through(hadoop)
   }
 
