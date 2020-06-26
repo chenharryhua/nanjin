@@ -44,8 +44,8 @@ object iso {
     (fpr: Fs2ProducerRecord[K, V]) =>
       new ProducerRecord[K, V](
         fpr.topic,
-        fpr.partition.map(Integer.valueOf(_)).orNull,
-        fpr.timestamp.map(java.lang.Long.valueOf(_)).orNull,
+        fpr.partition.map(Integer.valueOf).orNull,
+        fpr.timestamp.map(java.lang.Long.valueOf).orNull,
         fpr.key,
         fpr.value,
         fpr.headers.asJava)
@@ -89,6 +89,6 @@ object iso {
         fcr.key,
         fcr.value,
         new RecordHeaders(fcr.headers.asJava),
-        fcr.leaderEpoch.map(Integer.valueOf(_)).asJava
+        fcr.leaderEpoch.map(Integer.valueOf).asJava
       )
 }

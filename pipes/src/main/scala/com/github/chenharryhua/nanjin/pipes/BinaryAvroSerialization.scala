@@ -22,7 +22,9 @@ final class BinaryAvroSerialization[F[_]: ContextShift: Concurrent](schema: Sche
         def go(as: Stream[F, GenericRecord]): Pull[F, Byte, Unit] =
           as.pull.uncons.flatMap {
             case Some((hl, tl)) =>
-              Pull.eval(hl.traverse(a => blocker.delay(datumWriter.write(a, encoder)))) >> go(tl)
+              Pull.eval(hl.traverse(a => blocker.delay(datumWriter.write(a, encoder)))) >>
+                Pull.eval(blocker.delay(encoder.flush())) >>
+                go(tl)
             case None =>
               Pull.eval(blocker.delay(encoder.flush())) >>
                 Pull.eval(blocker.delay(os.close())) >>
