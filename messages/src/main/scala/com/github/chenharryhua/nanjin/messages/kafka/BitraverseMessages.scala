@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.kafka.codec
+package com.github.chenharryhua.nanjin.messages.kafka
 
 import akka.kafka.ProducerMessage.{MultiMessage => AkkaMultiMessage}
 import cats.implicits._
@@ -45,9 +45,9 @@ object BitraverseMessages {
           Fs2ProducerRecords[K1, V1, P],
           Fs2ProducerRecords[K2, V2, P],
           Chunk[ProducerRecord[K1, V1]],
-          Chunk[ProducerRecord[K2, V2]]](prs =>
-          prs.records.map(r => iso.isoFs2ProducerRecord.get(r))) { cpr => s =>
-          Fs2ProducerRecords(cpr.map(iso.isoFs2ProducerRecord.reverseGet), s.passthrough)
+          Chunk[ProducerRecord[K2, V2]]](prs => prs.records.map(r => isoFs2ProducerRecord.get(r))) {
+          cpr => s =>
+            Fs2ProducerRecords(cpr.map(isoFs2ProducerRecord.reverseGet), s.passthrough)
         }.composeTraversal(
           PTraversal.fromTraverse[Chunk, ProducerRecord[K1, V1], ProducerRecord[K2, V2]])
     }
@@ -64,9 +64,9 @@ object BitraverseMessages {
           Fs2CommittableProducerRecords[F, K1, V1],
           Fs2CommittableProducerRecords[F, K2, V2],
           Chunk[ProducerRecord[K1, V1]],
-          Chunk[ProducerRecord[K2, V2]]](prs =>
-          prs.records.map(r => iso.isoFs2ProducerRecord.get(r))) { cpr => s =>
-          Fs2CommittableProducerRecords(cpr.map(iso.isoFs2ProducerRecord.reverseGet), s.offset)
+          Chunk[ProducerRecord[K2, V2]]](prs => prs.records.map(r => isoFs2ProducerRecord.get(r))) {
+          cpr => s =>
+            Fs2CommittableProducerRecords(cpr.map(isoFs2ProducerRecord.reverseGet), s.offset)
         }.composeTraversal(
           PTraversal.fromTraverse[Chunk, ProducerRecord[K1, V1], ProducerRecord[K2, V2]])
     }

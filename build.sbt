@@ -292,6 +292,15 @@ lazy val datetime = (project in file("datetime"))
   .settings(name := "nj-datetime")
   .settings(libraryDependencies ++= baseLib ++ monocleLib ++ testLib)
 
+lazy val messages = (project in file("messages"))
+  .dependsOn(datetime)
+  .settings(commonSettings: _*)
+  .settings(name := "nj-messages")
+  .settings(libraryDependencies ++= Seq(
+    compilerPlugin(("com.github.ghik" % "silencer-plugin" % silencer).cross(CrossVersion.full)),
+    ("com.github.ghik"                % "silencer-lib"    % silencer % Provided).cross(CrossVersion.full)
+  ) ++ baseLib ++ fs2Lib ++ jsonLib ++ kafkaLib ++ monocleLib ++ testLib)
+
 lazy val devices = (project in file("devices"))
   .settings(commonSettings: _*)
   .settings(name := "nj-devices")
@@ -301,10 +310,11 @@ lazy val devices = (project in file("devices"))
         baseLib ++ fs2Lib ++ hadoopLib ++ avroLib ++ effectLib ++ akkaLib ++ testLib)
 
 lazy val pipes = (project in file("pipes"))
+  .dependsOn(messages)
   .settings(commonSettings: _*)
   .settings(name := "nj-pipes")
   .settings(libraryDependencies ++=
-    baseLib ++ fs2Lib ++ effectLib ++ jsonLib ++ kantanLib ++ avroLib ++ testLib)
+    baseLib ++ fs2Lib ++ effectLib ++ kantanLib ++ avroLib ++ testLib)
 
 lazy val kafka = (project in file("kafka"))
   .dependsOn(pipes)
@@ -356,4 +366,4 @@ lazy val flink = (project in file("flink"))
 lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
-    .aggregate(common, datetime, devices, pipes, kafka, flink, database, spark)
+    .aggregate(common, messages, datetime, devices, pipes, kafka, flink, database, spark)
