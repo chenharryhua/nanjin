@@ -5,8 +5,12 @@ import java.util
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.kafka.{KafkaOffsetRange, KafkaTopic, KafkaTopicPartition}
-import com.github.chenharryhua.nanjin.kafka.common._
+import com.github.chenharryhua.nanjin.kafka.{
+  KafkaOffsetRange,
+  KafkaTopic,
+  KafkaTopicPartition,
+  ShowMetaInfo
+}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.utils.Keyboard
 import frameless.{TypedDataset, TypedEncoder}
@@ -22,7 +26,6 @@ import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategy, Offset
 import org.log4s.Logger
 
 import scala.collection.JavaConverters._
-import scala.reflect.ClassTag
 
 object sk {
 
