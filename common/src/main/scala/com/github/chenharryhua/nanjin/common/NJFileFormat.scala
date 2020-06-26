@@ -19,11 +19,13 @@ object NJFileFormat extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[N
   case object Parquet extends NJFileFormat(2, "parquet", "apache")
   case object Avro extends NJFileFormat(3, "avro", "data")
   case object AvroBinary extends NJFileFormat(4, "avro", "binary")
+  case object JavaObject extends NJFileFormat(5, "obj", "java")
 
   type Jackson    = Jackson.type
   type Parquet    = Parquet.type
   type Avro       = Avro.type
   type AvroBinary = AvroBinary.type
+  type JavaObject = JavaObject.type
 
   implicit val prismJackson: Prism[NJFileFormat, Jackson] =
     GenPrism[NJFileFormat, Jackson]

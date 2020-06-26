@@ -107,6 +107,7 @@ final class FsmRdd[F[_], K, V](
         case NJFileFormat.AvroBinary => data.stream[F].through(fileSink(blocker).binary(path))
         case NJFileFormat.Jackson    => data.stream[F].through(fileSink(blocker).jackson(path))
         case NJFileFormat.Parquet    => data.stream[F].through(fileSink(blocker).parquet(path))
+        case NJFileFormat.JavaObject => data.stream[F].through(fileSink(blocker).javaObject(path))
       }
       run.compile.drain.as(data.count) <* F.delay(data.unpersist())
     }

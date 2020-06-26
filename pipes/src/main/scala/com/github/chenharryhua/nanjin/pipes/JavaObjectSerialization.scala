@@ -1,24 +1,22 @@
 package com.github.chenharryhua.nanjin.pipes
 
-import java.io.{EOFException, InputStream, ObjectInputStream, ObjectOutputStream}
+import java.io._
 
-import cats.effect.{Blocker, Concurrent, ConcurrentEffect, ContextShift, Resource}
+import cats.effect.{ConcurrentEffect, ContextShift, Resource}
 import cats.implicits._
-import fs2.io.{readOutputStream, toInputStream}
+import fs2.io.toInputStream
 import fs2.{Pipe, Pull, Stream}
 
-final class JavaObjectSerialization[F[_]: Concurrent: ContextShift, A](blocker: Blocker) {
+final class JavaObjectSerialization[F[_], A] {
 
   def serialize: Pipe[F, A, Byte] = { (ss: Stream[F, A]) =>
-    readOutputStream[F](blocker, chunkSize) { bos =>
+    ss.chunkN(chunkSize).flatMap { as =>
+      val bos = new ByteArrayOutputStream()
       val oos = new ObjectOutputStream(bos)
-      def go(as: Stream[F, A]): Pull[F, Byte, Unit] =
-        as.pull.uncons.flatMap {
-          case Some((hl, tl)) =>
-            Pull.eval(hl.traverse(a => blocker.delay(oos.writeObject(a)))) >> go(tl)
-          case None => Pull.eval(blocker.delay(oos.close())) >> Pull.done
-        }
-      go(ss).stream.compile.drain
+      as.foreach(oos.writeObject)
+      oos.close()
+      bos.close()
+      Stream.emits(bos.toByteArray)
     }
   }
 }

@@ -74,7 +74,7 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
   def javaObject[A](
     pathStr: String)(implicit F: Concurrent[F], cs: ContextShift[F]): Pipe[F, A, Unit] = {
     val hadoop = new NJHadoop[F](conf, blocker).byteSink(pathStr)
-    val pipe   = new JavaObjectSerialization[F, A](blocker)
+    val pipe   = new JavaObjectSerialization[F, A]
     _.through(pipe.serialize).through(hadoop)
   }
 }
