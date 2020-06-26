@@ -153,7 +153,7 @@ val kantanLib = Seq(
 val avroLib = Seq(
   "org.apache.avro"                        % "avro"                     % avro,
   "org.apache.avro"                        % "avro-compiler"            % avro,
-  "io.confluent"                           % "kafka-streams-avro-serde" % "5.5.0",
+  "io.confluent"                           % "kafka-streams-avro-serde" % "5.5.1",
   "org.apache.parquet"                     % "parquet-avro"             % parquet,
   "com.julianpeeters" %% "avrohugger-core" % "1.0.0-RC21",
   "com.sksamuel.avro4s" %% "avro4s-core"   % avro4s
