@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka.codec
 
-import com.github.chenharryhua.nanjin.kafka.common.ShowMetaInfo
+import com.github.chenharryhua.nanjin.kafka.ShowMetaInfo
 import com.github.chenharryhua.nanjin.messages.kafka.KeyValueTag
 import monocle.macros.Lenses
 import org.apache.avro.Schema

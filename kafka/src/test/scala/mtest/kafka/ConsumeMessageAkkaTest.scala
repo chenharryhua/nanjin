@@ -4,11 +4,9 @@ import java.time.LocalDateTime
 
 import cats.derived.auto.show._
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka._
-import com.github.chenharryhua.nanjin.kafka.common.KafkaOffset
+import com.github.chenharryhua.nanjin.kafka.{KafkaOffset, TopicName, _}
 import org.scalatest.funsuite.AnyFunSuite
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.kafka.TopicName
 
 class ConsumeMessageAkkaTest extends AnyFunSuite {
 

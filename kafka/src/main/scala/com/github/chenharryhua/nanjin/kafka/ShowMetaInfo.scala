@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.kafka.common
+package com.github.chenharryhua.nanjin.kafka
 
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}

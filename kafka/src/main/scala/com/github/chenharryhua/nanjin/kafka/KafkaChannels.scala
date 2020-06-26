@@ -11,7 +11,6 @@ import cats.effect._
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.codec.NJSerde
-import com.github.chenharryhua.nanjin.kafka.common.{KafkaOffsetRange, KafkaTopicPartition}
 import com.github.chenharryhua.nanjin.utils
 import fs2.Stream
 import fs2.interop.reactivestreams._

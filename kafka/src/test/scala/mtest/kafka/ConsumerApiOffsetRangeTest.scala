@@ -4,12 +4,14 @@ import cats.effect.IO
 import cats.implicits._
 import cats.kernel.UpperBounded
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.kafka.common.{
+import com.github.chenharryhua.nanjin.kafka.{
   KafkaOffset,
   KafkaOffsetRange,
-  KafkaTopicPartition
+  KafkaTopic,
+  KafkaTopicPartition,
+  TopicDef,
+  TopicName
 }
-import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import fs2.kafka.ProducerRecord
 import org.apache.kafka.common.TopicPartition
 import org.scalatest.funsuite.AnyFunSuite
