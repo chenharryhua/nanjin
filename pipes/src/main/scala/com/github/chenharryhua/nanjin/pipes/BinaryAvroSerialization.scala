@@ -10,27 +10,26 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericDatumReader, GenericDatumWriter, GenericRecord}
 import org.apache.avro.io.{DecoderFactory, EncoderFactory}
 
-final class BinaryAvroSerialization[F[_]: ContextShift: Concurrent](schema: Schema) {
+final class BinaryAvroSerialization[F[_]: ContextShift: Concurrent](
+  schema: Schema,
+  blocker: Blocker) {
 
   def serialize: Pipe[F, GenericRecord, Byte] = { (ss: Stream[F, GenericRecord]) =>
-    for {
-      blocker <- Stream.resource(Blocker[F])
-      byte <- readOutputStream[F](blocker, chunkSize) { os =>
-        val datumWriter = new GenericDatumWriter[GenericRecord](schema)
-        val encoder     = EncoderFactory.get().binaryEncoder(os, null)
+    readOutputStream[F](blocker, chunkSize) { os =>
+      val datumWriter = new GenericDatumWriter[GenericRecord](schema)
+      val encoder     = EncoderFactory.get().binaryEncoder(os, null)
 
-        def go(as: Stream[F, GenericRecord]): Pull[F, Byte, Unit] =
-          as.pull.uncons.flatMap {
-            case Some((hl, tl)) =>
-              Pull.eval(hl.traverse(a => blocker.delay(datumWriter.write(a, encoder)))) >> go(tl)
-            case None =>
-              Pull.eval(blocker.delay(encoder.flush())) >>
-                Pull.eval(blocker.delay(os.close())) >>
-                Pull.done
-          }
-        go(ss).stream.compile.drain
-      }
-    } yield byte
+      def go(as: Stream[F, GenericRecord]): Pull[F, Byte, Unit] =
+        as.pull.uncons.flatMap {
+          case Some((hl, tl)) =>
+            Pull.eval(hl.traverse(a => blocker.delay(datumWriter.write(a, encoder)))) >> go(tl)
+          case None =>
+            Pull.eval(blocker.delay(encoder.flush())) >>
+              Pull.eval(blocker.delay(os.close())) >>
+              Pull.done
+        }
+      go(ss).stream.compile.drain
+    }
   }
 }
 
