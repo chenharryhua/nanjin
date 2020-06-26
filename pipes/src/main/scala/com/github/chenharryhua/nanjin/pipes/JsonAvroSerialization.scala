@@ -1,38 +1,30 @@
 package com.github.chenharryhua.nanjin.pipes
 
-import java.io.{EOFException, InputStream}
+import java.io.{ByteArrayOutputStream, EOFException, InputStream}
 
-import cats.effect.{Blocker, Concurrent, ConcurrentEffect, ContextShift}
+import cats.effect.ConcurrentEffect
 import cats.implicits._
 import com.fasterxml.jackson.databind.ObjectMapper
-import fs2.io.{readOutputStream, toInputStream}
+import fs2.io.toInputStream
 import fs2.text.{lines, utf8Decode}
 import fs2.{Pipe, Pull, Stream}
 import io.circe.Printer
 import io.circe.jackson.jacksonToCirce
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericDatumReader, GenericDatumWriter, GenericRecord}
-import org.apache.avro.io.{DecoderFactory, EncoderFactory}
+import org.apache.avro.io.{DecoderFactory, EncoderFactory, JsonEncoder}
 
-final class JsonAvroSerialization[F[_]: ContextShift: Concurrent](
-  schema: Schema,
-  blocker: Blocker) {
+final class JsonAvroSerialization[F[_]](schema: Schema) {
 
   def serialize: Stream[F, GenericRecord] => Stream[F, Byte] = { (ss: Stream[F, GenericRecord]) =>
-    readOutputStream[F](blocker, chunkSize) { os =>
-      val datumWriter = new GenericDatumWriter[GenericRecord](schema)
-      val encoder     = EncoderFactory.get().jsonEncoder(schema, os)
-
-      def go(as: Stream[F, GenericRecord]): Pull[F, Byte, Unit] =
-        as.pull.uncons.flatMap {
-          case Some((hl, tl)) =>
-            Pull.eval(hl.traverse(a => blocker.delay(datumWriter.write(a, encoder)))) >> go(tl)
-          case None =>
-            Pull.eval(blocker.delay(encoder.flush())) >>
-              Pull.eval(blocker.delay(os.close())) >>
-              Pull.done
-        }
-      go(ss).stream.compile.drain
+    val datumWriter = new GenericDatumWriter[GenericRecord](schema)
+    ss.chunkN(chunkSize).flatMap { grs =>
+      val baos: ByteArrayOutputStream = new ByteArrayOutputStream()
+      val encoder: JsonEncoder        = EncoderFactory.get().jsonEncoder(schema, baos)
+      grs.foreach(gr => datumWriter.write(gr, encoder))
+      encoder.flush()
+      baos.close()
+      Stream.emits(baos.toByteArray)
     }
   }
 

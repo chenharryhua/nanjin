@@ -15,7 +15,7 @@ class JsonAvroPipeTest extends AnyFunSuite {
   import TestData._
   val gser  = new GenericRecordEncoder[IO, Tigger]
   val gdser = new GenericRecordDecoder[IO, Tigger]
-  val ser   = new JsonAvroSerialization[IO](AvroSchema[Tigger], blocker)
+  val ser   = new JsonAvroSerialization[IO](AvroSchema[Tigger])
   val dser  = new JsonAvroDeserialization[IO](AvroSchema[Tigger])
 
   test("json-avro identity") {
