@@ -6,7 +6,7 @@ import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
-import com.github.chenharryhua.nanjin.kafka.codec.eq._
+import com.github.chenharryhua.nanjin.messages.kafka._
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.codec.KJson
 import org.scalatest.prop.Configuration

@@ -3,9 +3,9 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import com.github.chenharryhua.nanjin.kafka.codec.NJConsumerMessage._
-import com.github.chenharryhua.nanjin.kafka.codec.iso
-import com.github.chenharryhua.nanjin.kafka.common.{KafkaOffset, NJConsumerRecord}
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage._
+import com.github.chenharryhua.nanjin.messages.kafka._
+import com.github.chenharryhua.nanjin.kafka.common.{KafkaOffset}
 import com.github.chenharryhua.nanjin.pipes.{GenericRecordEncoder, JsonAvroSerialization}
 import com.github.chenharryhua.nanjin.utils.Keyboard
 import fs2.Stream
@@ -78,7 +78,7 @@ object KafkaMonitoringApi {
             .withConsumerSettings(_.withAutoOffsetReset(aor))
             .stream
             .filter(m =>
-              predict(iso.isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record)))
+              predict(isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record)))
             .map(m => topic.decoder(m).record)
             .through(gr.encode)
             .through(pipe.prettyJson)

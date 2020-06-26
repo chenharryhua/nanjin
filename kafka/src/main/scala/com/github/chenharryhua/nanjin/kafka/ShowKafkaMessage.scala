@@ -6,7 +6,7 @@ import akka.kafka.ConsumerMessage.CommittableMessage
 import cats.Show
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import com.github.chenharryhua.nanjin.kafka.codec.iso
+import com.github.chenharryhua.nanjin.messages.kafka._
 import com.sksamuel.avro4s.Record
 import fs2.kafka.CommittableConsumerRecord
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -52,7 +52,7 @@ private[kafka] trait ShowKafkaMessage {
 
   implicit def showFs2CommittableMessage[F[_], K: Show, V: Show]
     : Show[CommittableConsumerRecord[F, K, V]] =
-    (t: CommittableConsumerRecord[F, K, V]) => iso.isoFs2ComsumerRecord.get(t.record).show
+    (t: CommittableConsumerRecord[F, K, V]) => isoFs2ComsumerRecord.get(t.record).show
 
   implicit def showAkkaCommittableMessage[K: Show, V: Show]: Show[CommittableMessage[K, V]] =
     (t: CommittableMessage[K, V]) => t.record.show

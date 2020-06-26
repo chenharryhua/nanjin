@@ -19,8 +19,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducerRecord}
-
+import com.github.chenharryhua.nanjin.messages.kafka._ 
 final case class PrimitiveTypeCombined(
   a: Int,
   b: Long,

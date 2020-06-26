@@ -1,8 +1,8 @@
 package mtest.kafka.codec
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.kafka.common.KeyValueTag
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
+import com.github.chenharryhua.nanjin.messages.kafka.KeyValueTag
 import mtest.kafka.ctx
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.scalatest.funsuite.AnyFunSuite

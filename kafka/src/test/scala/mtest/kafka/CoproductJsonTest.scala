@@ -1,7 +1,6 @@
 package mtest.kafka
 
 import com.github.chenharryhua.nanjin.kafka.TopicDef
-import com.github.chenharryhua.nanjin.kafka.common.NJConsumerRecord
 import io.circe.generic.auto._
 import io.circe.parser.decode
 import io.circe.shapes._
@@ -9,6 +8,7 @@ import io.circe.syntax._
 import org.scalatest.funsuite.AnyFunSuite
 import shapeless._
 import com.github.chenharryhua.nanjin.kafka.TopicName
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 
 object CoproductJsons {
   final case class Foo(a: Int, b: String)

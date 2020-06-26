@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka.codec
 
-import com.github.chenharryhua.nanjin.kafka.common.{KeyValueTag, ShowMetaInfo}
+import com.github.chenharryhua.nanjin.kafka.common.ShowMetaInfo
+import com.github.chenharryhua.nanjin.messages.kafka.KeyValueTag
 import monocle.macros.Lenses
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
@@ -13,30 +14,30 @@ object CodecException {
 
   final case class EncodeException(topic: String, error: Throwable, data: String)
       extends CodecException(s"""|encode avro failure: 
-                                |topic:    $topic
-                                |error:    ${error.getMessage}
-                                |cause:    ${error.getCause}
-                                |data:     $data""".stripMargin)
+                                 |topic:    $topic
+                                 |error:    ${error.getMessage}
+                                 |cause:    ${error.getCause}
+                                 |data:     $data""".stripMargin)
 
   final case object DecodingNullException extends CodecException("decoding null")
 
   final case class CorruptedRecordException(topic: String, error: Throwable)
       extends CodecException(s"""|decode avro failure:
-                                |topic:    $topic
-                                |error:    ${error.getMessage}
-                                |cause:    ${error.getCause}""".stripMargin)
+                                 |topic:    $topic
+                                 |error:    ${error.getMessage}
+                                 |cause:    ${error.getCause}""".stripMargin)
 
   final case class InvalidObjectException(
     topic: String,
     error: Throwable,
     genericRecord: GenericRecord)
       extends CodecException(s"""|decode avro failure:
-                                |topic:         $topic
-                                |error:         ${error.getMessage}
-                                |cause:         ${error.getCause}
-                                |GenericRecord: ${genericRecord.toString}
-                                |
-                                |Most likely the schem includes non-standard Logical Type""".stripMargin)
+                                 |topic:         $topic
+                                 |error:         ${error.getMessage}
+                                 |cause:         ${error.getCause}
+                                 |GenericRecord: ${genericRecord.toString}
+                                 |
+                                 |Most likely the schem includes non-standard Logical Type""".stripMargin)
 
   final case class DecodingJsonException(msg: String) extends CodecException(msg)
 }

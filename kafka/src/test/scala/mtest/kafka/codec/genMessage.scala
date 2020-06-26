@@ -6,20 +6,19 @@ import java.util.concurrent.CompletionStage
 import akka.Done
 import akka.kafka.ConsumerMessage
 import akka.kafka.ConsumerMessage.{
-  CommittableMessage   => AkkaConsumerMessage,
+  CommittableMessage => AkkaConsumerMessage,
   TransactionalMessage => AkkaTransactionalMessage
 }
 import akka.kafka.testkit.ConsumerResultFactory
 import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage, MultiMessage => AkkaMultiMessage}
 import akka.kafka.internal.CommittableOffsetImpl
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.kafka.common.NJProducerRecord
 import com.github.chenharryhua.nanjin.kafka.codec._
 import fs2.Chunk
 import fs2.kafka.{
-  CommittableProducerRecords   => Fs2CommittableProducerRecords,
-  ConsumerRecord               => Fs2ConsumerRecord,
-  ProducerRecord               => Fs2ProducerRecord,
+  CommittableProducerRecords => Fs2CommittableProducerRecords,
+  ConsumerRecord => Fs2ConsumerRecord,
+  ProducerRecord => Fs2ProducerRecord,
   TransactionalProducerRecords => Fs2TransactionalProducerRecords
 }
 import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
@@ -33,8 +32,7 @@ import org.scalacheck.Gen
 
 import scala.compat.java8.OptionConverters._
 import scala.concurrent.Future
-import com.github.chenharryhua.nanjin.kafka.codec.iso._
-import com.github.chenharryhua.nanjin.kafka.common.{NJConsumerRecord, NJProducerRecord}
+import com.github.chenharryhua.nanjin.messages.kafka._
 
 object genMessage {
 
@@ -42,8 +40,8 @@ object genMessage {
 
     val genHeader: Gen[Header] = for {
       key <- Gen.asciiPrintableStr
-      value <- Gen
-        .containerOfN[Array, Byte](2, arbitrary[Byte]) //avoid GC overhead limit exceeded issue
+      value <-
+        Gen.containerOfN[Array, Byte](2, arbitrary[Byte]) //avoid GC overhead limit exceeded issue
     } yield new RecordHeader(key, value)
 
     val genHeaders: Gen[RecordHeaders] = for {
@@ -116,7 +114,7 @@ object genMessage {
 
   }
 
-  trait GenFs2Message extends GenKafkaMessage { self => 
+  trait GenFs2Message extends GenKafkaMessage { self =>
     import fs2.kafka.{CommittableConsumerRecord, CommittableOffset, ProducerRecords}
 
     val genFs2ConsumerRecord: Gen[Fs2ConsumerRecord[Int, Int]] =
@@ -158,14 +156,13 @@ object genMessage {
     val genFs2TransactionalProducerRecords
       : Gen[Fs2TransactionalProducerRecords[IO, Int, Int, String]] = for {
       cpr <- genFs2CommittableProducerRecords
-      cprs <- Gen
-        .containerOfN[List, Fs2CommittableProducerRecords[IO, Int, Int]](10, cpr)
-        .map(Chunk.seq)
+      cprs <-
+        Gen.containerOfN[List, Fs2CommittableProducerRecords[IO, Int, Int]](10, cpr).map(Chunk.seq)
     } yield Fs2TransactionalProducerRecords(cprs, "path-through")
 
   }
 
-  trait GenAkkaMessage extends GenKafkaMessage { self => 
+  trait GenAkkaMessage extends GenKafkaMessage { self =>
     import akka.kafka.ConsumerMessage.{GroupTopicPartition, PartitionOffset}
 
     val genAkkaGroupTopicPartition: Gen[GroupTopicPartition] = for {
