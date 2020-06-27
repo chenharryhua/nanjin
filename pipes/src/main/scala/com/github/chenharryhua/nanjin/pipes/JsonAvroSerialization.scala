@@ -6,7 +6,7 @@ import cats.effect.ConcurrentEffect
 import cats.implicits._
 import com.fasterxml.jackson.databind.ObjectMapper
 import fs2.io.toInputStream
-import fs2.{Pipe, Pull, Stream}
+import fs2.{Chunk, Pipe, Pull, Stream}
 import io.circe.Printer
 import io.circe.jackson.jacksonToCirce
 import org.apache.avro.Schema
@@ -49,7 +49,7 @@ final class JsonAvroSerialization[F[_]](schema: Schema) {
       encoder.flush()
       baos.close()
       baos.toByteArray
-    }.intersperse(splitter).flatMap(Stream.emits(_))
+    }.intersperse(splitter).flatMap(ba => Stream.chunk(Chunk.bytes(ba)))
   }
 }
 

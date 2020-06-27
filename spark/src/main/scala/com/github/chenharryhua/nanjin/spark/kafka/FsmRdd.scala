@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import akka.NotUsed
 import akka.stream.scaladsl.Source
 import cats.Show
-import cats.effect.{Blocker, Concurrent, ConcurrentEffect, ContextShift, Sync, Timer}
+import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
@@ -12,7 +12,6 @@ import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import io.circe.{Encoder => JsonEncoder}
-import kantan.csv.CellEncoder
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 

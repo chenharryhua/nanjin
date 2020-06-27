@@ -33,14 +33,13 @@ class SaveTest extends AnyFunSuite {
     topic.sparKafka.dump.unsafeRunSync()
   }
   test("jackson") {
-    assert(topic.sparKafka.fromKafka.flatMap(_.save).unsafeRunSync() == 100)
+    assert(topic.sparKafka.fromKafka.flatMap(_.saveJackson(blocker)).unsafeRunSync() == 100)
   }
   test("avro") {
 
     val action = topic.sparKafka
-      .withParamUpdate(_.withAvro)
       .fromKafka
-      .flatMap(_.save)
+      .flatMap(_.saveAvro(blocker))
       .map(r => assert(r == 100)) >>
       sparkSession
         .avro[NJConsumerRecord[Int, Foo]](topic.sparKafka.params.pathBuilder(topic.topicName, Avro))
@@ -50,9 +49,8 @@ class SaveTest extends AnyFunSuite {
   }
   test("parquet") {
     val action = topic.sparKafka
-      .withParamUpdate(_.withParquet)
       .fromKafka
-      .flatMap(_.save)
+      .flatMap(_.saveParquet(blocker))
       .map(r => assert(r == 100)) >>
       sparkSession
         .parquet[NJConsumerRecord[Int, Foo]](
