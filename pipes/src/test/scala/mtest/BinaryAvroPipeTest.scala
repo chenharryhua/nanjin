@@ -19,7 +19,7 @@ class BinaryAvroPipeTest extends AnyFunSuite {
   val dser  = new BinaryAvroDeserialization[IO](AvroSchema[Tigger])
 
   test("binary-json identity") {
-    val data: Stream[IO, Tigger] = Stream.fromIterator[IO](list.iterator)
+    val data: Stream[IO, Tigger] = Stream.emits(list)
 
     assert(
       data

@@ -11,7 +11,7 @@ class CircePipeTest extends AnyFunSuite {
   import TestData._
   val ser                      = new CirceSerialization[IO, Tigger]
   val dser                     = new CirceDeserialization[IO, Tigger]
-  val data: Stream[IO, Tigger] = Stream.fromIterator[IO](list.iterator)
+  val data: Stream[IO, Tigger] = Stream.emits(list)
 
   test("circe identity") {
     assert(

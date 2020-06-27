@@ -10,11 +10,11 @@ import kantan.csv.generic._
 
 class CsvPipeTest extends AnyFunSuite {
   import TestData._
-  val ser                      = new CsvSerialization[IO, Tigger](CsvConfiguration.rfc, blocker)
-  val dser                     = new CsvDeserialization[IO, Tigger](CsvConfiguration.rfc)
-  val data: Stream[IO, Tigger] = Stream.fromIterator[IO](list.iterator)
+  val ser  = new CsvSerialization[IO, Tigger](CsvConfiguration.rfc, blocker)
+  val dser = new CsvDeserialization[IO, Tigger](CsvConfiguration.rfc)
 
   test("csv identity") {
+    val data: Stream[IO, Tigger] = Stream.emits(list)
     assert(
       data.through(ser.serialize).through(dser.deserialize).compile.toList.unsafeRunSync() === list)
   }
