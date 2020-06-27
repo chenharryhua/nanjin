@@ -12,7 +12,7 @@ final class CsvSerialization[F[_]: Concurrent: ContextShift, A: RowEncoder](
   import kantan.csv.ops._
 
   def serialize: Pipe[F, A, Byte] = { (ss: Stream[F, A]) =>
-    readOutputStream[F](blocker, chunkSize) { os =>
+    readOutputStream[F](blocker, 8096) { os =>
       def go(as: Stream[F, A], cw: CsvWriter[A]): Pull[F, Unit, Unit] =
         as.pull.uncons.flatMap {
           case Some((hl, tl)) => Pull.pure(hl.foreach(cw.write)) >> go(tl, cw)
