@@ -55,9 +55,10 @@ val hadoop  = "3.2.1"
 val akkaFtp = "2.0.1"
 
 // misc
-val silencer = "1.7.0"
-val jline    = "3.15.0"
-val log4s    = "1.8.2"
+val silencer    = "1.7.0"
+val jline       = "3.15.0"
+val log4s       = "1.8.2"
+val betterFiles = "3.9.1"
 
 // test
 val scalatest = "3.2.0"
@@ -323,10 +324,7 @@ lazy val kafka = (project in file("kafka"))
   .settings(commonSettings: _*)
   .settings(name := "nj-kafka")
   .settings(
-    libraryDependencies ++= Seq(
-      compilerPlugin(("com.github.ghik" % "silencer-plugin" % silencer).cross(CrossVersion.full)),
-      ("com.github.ghik"                % "silencer-lib"    % silencer % Provided).cross(CrossVersion.full)
-    ) ++ effectLib ++ kafkaLib ++ akkaLib ++ avroLib ++ jsonLib ++ testLib,
+    libraryDependencies ++= effectLib ++ kafkaLib ++ akkaLib ++ avroLib ++ jsonLib ++ testLib,
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
 
@@ -346,8 +344,9 @@ lazy val spark = (project in file("spark"))
   .settings(name := "nj-spark")
   .settings(
     libraryDependencies ++= Seq(
-      "org.locationtech.jts" % "jts-core" % "1.16.1",
-      "org.log4s" %% "log4s" % log4s) ++
+      "com.github.pathikrit" %% "better-files" % betterFiles,
+      "org.locationtech.jts"                   % "jts-core" % "1.16.1",
+      "org.log4s" %% "log4s"                   % log4s) ++
       sparkLib ++ avroLib ++ hadoopLib ++ testLib,
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core"                             % "jackson-databind" % jackson,

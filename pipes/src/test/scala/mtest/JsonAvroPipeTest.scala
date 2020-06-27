@@ -1,5 +1,6 @@
 package mtest
 
+import cats.derived.auto.show._
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.pipes.{
   GenericRecordDecoder,
@@ -10,6 +11,7 @@ import com.github.chenharryhua.nanjin.pipes.{
 import com.sksamuel.avro4s.AvroSchema
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
+import cats.implicits._
 
 class JsonAvroPipeTest extends AnyFunSuite {
   import TestData._
@@ -19,7 +21,7 @@ class JsonAvroPipeTest extends AnyFunSuite {
   val dser  = new JsonAvroDeserialization[IO](AvroSchema[Tigger])
 
   test("json-avro identity") {
-    val data: Stream[IO, Tigger] = Stream.fromIterator[IO](list.iterator)
+    val data: Stream[IO, Tigger] = Stream.emits(list)
 
     assert(
       data

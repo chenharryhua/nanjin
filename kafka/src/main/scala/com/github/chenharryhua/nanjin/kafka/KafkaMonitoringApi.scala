@@ -48,7 +48,7 @@ object KafkaMonitoringApi {
     private def watch(aor: AutoOffsetReset): F[Unit] =
       Blocker[F].use { blocker =>
         val pipe = new JsonAvroSerialization[F](topic.topicDef.schemaFor.schema)
-        val gr   = new GenericRecordEncoder[F, NJConsumerRecord[K, V]]()
+        val gr   = new GenericRecordEncoder[F, NJConsumerRecord[K, V]]
         Keyboard.signal.flatMap { signal =>
           fs2Channel
             .withConsumerSettings(_.withAutoOffsetReset(aor))

@@ -27,7 +27,6 @@ private[spark] object NJUploadRate {
   uploadRate: NJUploadRate,
   pathBuilder: (TopicName, NJFileFormat) => String,
   replayPath: TopicName => String,
-  fileFormat: NJFileFormat,
   saveMode: SaveMode,
   locationStrategy: LocationStrategy,
   showDs: NJShowDataset)
@@ -41,7 +40,6 @@ private[spark] object SKParams {
       pathBuilder =
         (topicName, fmt) => s"./data/sparKafka/${topicName.value}/${fmt.alias}.${fmt.format}",
       replayPath = topicName => s"./data/sparKafka/${topicName.value}/replay/",
-      fileFormat = NJFileFormat.Jackson,
       saveMode = SaveMode.ErrorIfExists,
       locationStrategy = LocationStrategies.PreferConsistent,
       showDs = NJShowDataset(20, isTruncate = false)
@@ -55,8 +53,6 @@ private[spark] object SKConfigF {
 
   final case class WithBatchSize[K](value: Int, cont: K) extends SKConfigF[K]
   final case class WithDuration[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
-
-  final case class WithFileFormat[K](value: NJFileFormat, cont: K) extends SKConfigF[K]
 
   final case class WithStartTime[K](value: LocalDateTime, cont: K) extends SKConfigF[K]
   final case class WithEndTime[K](value: LocalDateTime, cont: K) extends SKConfigF[K]
@@ -79,7 +75,6 @@ private[spark] object SKConfigF {
     case DefaultParams()            => SKParams.default
     case WithBatchSize(v, c)        => SKParams.uploadRate.composeLens(NJUploadRate.batchSize).set(v)(c)
     case WithDuration(v, c)         => SKParams.uploadRate.composeLens(NJUploadRate.duration).set(v)(c)
-    case WithFileFormat(v, c)       => SKParams.fileFormat.set(v)(c)
     case WithStartTime(v, c)        => SKParams.timeRange.modify(_.withStartTime(v))(c)
     case WithEndTime(v, c)          => SKParams.timeRange.modify(_.withEndTime(v))(c)
     case WithZoneId(v, c)           => SKParams.timeRange.modify(_.withZoneId(v))(c)
@@ -102,14 +97,6 @@ final private[spark] case class SKConfig private (value: Fix[SKConfigF]) extends
   def withBatchSize(bs: Int): SKConfig           = SKConfig(Fix(WithBatchSize(bs, value)))
   def withDuration(fd: FiniteDuration): SKConfig = SKConfig(Fix(WithDuration(fd, value)))
   def withDuration(ms: Long): SKConfig           = withDuration(FiniteDuration(ms, TimeUnit.MILLISECONDS))
-
-  private def withFileFormat(ff: NJFileFormat): SKConfig = SKConfig(Fix(WithFileFormat(ff, value)))
-
-  def withJackson: SKConfig    = withFileFormat(NJFileFormat.Jackson)
-  def withAvro: SKConfig       = withFileFormat(NJFileFormat.Avro)
-  def withBinary: SKConfig     = withFileFormat(NJFileFormat.AvroBinary)
-  def withParquet: SKConfig    = withFileFormat(NJFileFormat.Parquet)
-  def withJavaObject: SKConfig = withFileFormat(NJFileFormat.JavaObject)
 
   def withTimeRange(tr: NJDateTimeRange): SKConfig = SKConfig(Fix(WithTimeRange(tr, value)))
   def withStartTime(s: LocalDateTime): SKConfig    = SKConfig(Fix(WithStartTime(s, value)))

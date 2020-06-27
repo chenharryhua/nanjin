@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
-import cats.{Bifunctor, Order}
+import cats.implicits._
+import cats.{Bifunctor, Order, Show}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import fs2.kafka.{ProducerRecord => Fs2ProducerRecord}
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
@@ -70,6 +71,11 @@ object NJConsumerRecord {
 
   implicit def njConsumerRecordOrdering[K, V]: Ordering[NJConsumerRecord[K, V]] =
     njConsumerRecordOrder[K, V].toOrdering
+
+  implicit def showNJConsumerRecord[K: Show, V: Show]: Show[NJConsumerRecord[K, V]] =
+    nj =>
+      s"CR(pt=${nj.partition},os=${nj.offset},ts=${NJTimestamp(
+        nj.timestamp).utc},k=${nj.key.show},v=${nj.value.show})"
 }
 
 @Lenses final case class NJProducerRecord[K, V](
@@ -147,4 +153,7 @@ object NJProducerRecord {
         fab: NJProducerRecord[A, B])(f: A => C, g: B => D): NJProducerRecord[C, D] =
         fab.copy(key = fab.key.map(f), value = fab.value.map(g))
     }
+
+  implicit def showNJProducerRecord[K: Show, V: Show]: Show[NJProducerRecord[K, V]] =
+    nj => s"PR(k=${nj.key.show},v=${nj.value.show})"
 }

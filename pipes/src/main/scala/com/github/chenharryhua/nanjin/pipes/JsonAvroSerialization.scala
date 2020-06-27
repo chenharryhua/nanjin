@@ -6,8 +6,7 @@ import cats.effect.ConcurrentEffect
 import cats.implicits._
 import com.fasterxml.jackson.databind.ObjectMapper
 import fs2.io.toInputStream
-import fs2.text.{lines, utf8Decode}
-import fs2.{Pipe, Pull, Stream}
+import fs2.{Chunk, Pipe, Pull, Stream}
 import io.circe.Printer
 import io.circe.jackson.jacksonToCirce
 import org.apache.avro.Schema
@@ -16,28 +15,42 @@ import org.apache.avro.io.{DecoderFactory, EncoderFactory, JsonEncoder}
 
 final class JsonAvroSerialization[F[_]](schema: Schema) {
 
-  def serialize: Stream[F, GenericRecord] => Stream[F, Byte] = { (ss: Stream[F, GenericRecord]) =>
+  private def toJsonStr(isPretty: Boolean): Pipe[F, GenericRecord, String] = {
     val datumWriter = new GenericDatumWriter[GenericRecord](schema)
-    ss.chunkN(chunkSize).flatMap { grs =>
+    val objMapper   = new ObjectMapper()
+
+    _.repeatPull(_.uncons1.flatMap {
+      case None => Pull.pure(None)
+      case Some((h, tl)) =>
+        val baos: ByteArrayOutputStream = new ByteArrayOutputStream()
+        val encoder: JsonEncoder        = EncoderFactory.get().jsonEncoder(schema, baos)
+        datumWriter.write(h, encoder)
+        encoder.flush()
+        baos.close()
+        val json =
+          if (isPretty)
+            jacksonToCirce(objMapper.readTree(baos.toString)).printWith(Printer.spaces2)
+          else
+            baos.toString
+        Pull.output1(json).as(Some(tl))
+    })
+  }
+
+  def prettyJson: Pipe[F, GenericRecord, String]  = toJsonStr(true)
+  def compactJson: Pipe[F, GenericRecord, String] = toJsonStr(false)
+
+  def serialize: Pipe[F, GenericRecord, Byte] = {
+    val datumWriter = new GenericDatumWriter[GenericRecord](schema)
+    val splitter    = "\n".getBytes()
+    _.chunkN(chunkSize).map { grs =>
       val baos: ByteArrayOutputStream = new ByteArrayOutputStream()
       val encoder: JsonEncoder        = EncoderFactory.get().jsonEncoder(schema, baos)
       grs.foreach(gr => datumWriter.write(gr, encoder))
       encoder.flush()
       baos.close()
-      Stream.emits(baos.toByteArray)
-    }
+      baos.toByteArray
+    }.intersperse(splitter).flatMap(ba => Stream.chunk(Chunk.bytes(ba)))
   }
-
-  private val pretty: Pipe[F, String, String] = {
-    val mapper: ObjectMapper = new ObjectMapper()
-    _.map(s => jacksonToCirce(mapper.readTree(s)).printWith(Printer.spaces2))
-  }
-
-  def prettyJson: Pipe[F, GenericRecord, String] =
-    serialize >>> utf8Decode[F] >>> lines[F] >>> pretty
-
-  def compactJson: Pipe[F, GenericRecord, String] =
-    serialize >>> utf8Decode[F] >>> lines[F]
 }
 
 final class JsonAvroDeserialization[F[_]: ConcurrentEffect](schema: Schema) {
@@ -50,7 +63,7 @@ final class JsonAvroDeserialization[F[_]: ConcurrentEffect](schema: Schema) {
       def pullAll(is: InputStream): Pull[F, GenericRecord, Option[InputStream]] =
         Pull
           .functionKInstance(F.delay(try Some(datumReader.read(null, jsonDecoder))
-          catch { case ex: EOFException => None }))
+          catch { case _: EOFException => None }))
           .flatMap {
             case Some(a) => Pull.output1(a) >> Pull.pure(Some(is))
             case None    => Pull.eval(F.delay(is.close())) >> Pull.pure(None)

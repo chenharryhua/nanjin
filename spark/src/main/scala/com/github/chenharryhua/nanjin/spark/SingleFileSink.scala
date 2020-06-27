@@ -1,6 +1,8 @@
 package com.github.chenharryhua.nanjin.spark
 
+import cats.Show
 import cats.effect.{Blocker, Concurrent, ContextShift, Sync}
+import cats.implicits._
 import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.pipes._
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
@@ -34,14 +36,22 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
     _.through(pipe.serialize).through(hadoop)
   }
 
-  def text(pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): Pipe[F, String, Unit] = {
+  def text[A: Show](pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): Pipe[F, A, Unit] = {
     val hadoop = new NJHadoop[F](conf, blocker).byteSink(pathStr)
     val pipe   = new TextSerialization[F]
+    _.map(_.show).through(pipe.serialize).through(hadoop)
+  }
+
+  // java native serialization
+  def javaObject[A](
+    pathStr: String)(implicit F: Concurrent[F], cs: ContextShift[F]): Pipe[F, A, Unit] = {
+    val hadoop = new NJHadoop[F](conf, blocker).byteSink(pathStr)
+    val pipe   = new JavaObjectSerialization[F, A]
     _.through(pipe.serialize).through(hadoop)
   }
 
   // avro
-  def binary[A: AvroEncoder](
+  def binaryAvro[A: AvroEncoder](
     pathStr: String)(implicit ce: Concurrent[F], cs: ContextShift[F]): Pipe[F, A, Unit] = {
     val hadoop = new NJHadoop[F](conf, blocker).byteSink(pathStr)
     val gr     = new GenericRecordEncoder[F, A]
@@ -60,21 +70,15 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
   def avro[A: AvroEncoder](
     pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): Pipe[F, A, Unit] = {
     val hadoop = new NJHadoop[F](conf, blocker).avroSink(pathStr, AvroEncoder[A].schema)
-    val pipe   = new GenericRecordEncoder
+    val pipe   = new GenericRecordEncoder[F, A]
     _.through(pipe.encode).through(hadoop)
   }
 
   def parquet[A: AvroEncoder](
     pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): Pipe[F, A, Unit] = {
     val hadoop = new NJHadoop[F](conf, blocker).parquetSink(pathStr, AvroEncoder[A].schema)
-    val pipe   = new GenericRecordEncoder
+    val pipe   = new GenericRecordEncoder[F, A]
     _.through(pipe.encode).through(hadoop)
   }
 
-  def javaObject[A](
-    pathStr: String)(implicit F: Concurrent[F], cs: ContextShift[F]): Pipe[F, A, Unit] = {
-    val hadoop = new NJHadoop[F](conf, blocker).byteSink(pathStr)
-    val pipe   = new JavaObjectSerialization[F, A]
-    _.through(pipe.serialize).through(hadoop)
-  }
 }

@@ -8,6 +8,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import io.circe.generic.auto._
 import kantan.csv.generic._
 import scala.util.Random
+import better.files._
 
 object SingleFileTestData {
   final case class Swordfish(from: String, weight: Float, code: Int)
@@ -43,7 +44,7 @@ class SingleFileTest extends AnyFunSuite {
   test("avro-binary - identity") {
     val path = "./data/test/spark/singleFile/swordfish-binary.avro"
     val run = delete(path) >>
-      ss.through(sink.binary[Swordfish](path)).compile.drain >>
+      ss.through(sink.binaryAvro[Swordfish](path)).compile.drain >>
       source.binary[Swordfish](path).compile.toList
 
     assert(run.unsafeRunSync() === fishes)
@@ -67,6 +68,7 @@ class SingleFileTest extends AnyFunSuite {
       source.json[Swordfish](path).compile.toList
 
     assert(run.unsafeRunSync() === fishes)
+    assert(File(path).lineCount == 3L)
 
   }
   test("jackson - identity") {
@@ -76,7 +78,7 @@ class SingleFileTest extends AnyFunSuite {
       source.jackson[Swordfish](path).compile.toList
 
     assert(run.unsafeRunSync() === fishes)
-
+    assert(File(path).lineCount == 3L)
   }
 
   test("csv - identity") {
@@ -86,6 +88,7 @@ class SingleFileTest extends AnyFunSuite {
       source.csv[Swordfish](path).compile.toList
 
     assert(run.unsafeRunSync() === fishes)
+    assert(File(path).lineCount == 3L)
   }
 
   test("java-object - identity") {

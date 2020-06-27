@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
+import cats.Show
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
@@ -86,32 +87,69 @@ final class FsmRdd[F[_], K, V](
       fileSink(blocker).delete(pathStr) >> F.delay(rdd.saveAsObjectFile(pathStr))
     }
 
-  //actions
-  def saveJson(pathStr: String)(implicit
-    F: Sync[F],
+  //save actions
+  def saveJson(blocker: Blocker)(implicit
+    ce: Sync[F],
     cs: ContextShift[F],
     ek: JsonEncoder[K],
-    ev: JsonEncoder[V]): F[Unit] =
-    Blocker[F].use { blocker =>
-      stream.through(fileSink(blocker).json(pathStr)).compile.drain
-    }
-
-  def save(implicit F: ConcurrentEffect[F], cs: ContextShift[F]): F[Long] = {
-    import topic.topicDef.{avroKeyEncoder, avroValEncoder}
-    Blocker[F].use { blocker =>
-      val fmt  = params.fileFormat
-      val path = params.pathBuilder(topic.topicName, fmt)
-      val data = rdd.persist()
-      val run: Stream[F, Unit] = fmt match {
-        case NJFileFormat.Avro       => data.stream[F].through(fileSink(blocker).avro(path))
-        case NJFileFormat.AvroBinary => data.stream[F].through(fileSink(blocker).binary(path))
-        case NJFileFormat.Jackson    => data.stream[F].through(fileSink(blocker).jackson(path))
-        case NJFileFormat.Parquet    => data.stream[F].through(fileSink(blocker).parquet(path))
-        case NJFileFormat.JavaObject => data.stream[F].through(fileSink(blocker).javaObject(path))
-      }
-      run.compile.drain.as(data.count) <* F.delay(data.unpersist())
-    }
+    ev: JsonEncoder[V]): F[Long] = {
+    val path = params.pathBuilder(topic.topicName, NJFileFormat.Json)
+    val data = rdd.persist()
+    stream.through(fileSink(blocker).json(path)).compile.drain.as(data.count()) <* ce.delay(
+      data.unpersist())
   }
+
+  def saveText(blocker: Blocker)(implicit
+    showK: Show[K],
+    showV: Show[V],
+    ce: Sync[F],
+    cs: ContextShift[F]): F[Long] = {
+    val path = params.pathBuilder(topic.topicName, NJFileFormat.Text)
+    val data = rdd.persist()
+    stream
+      .through(fileSink[F](blocker).text[NJConsumerRecord[K, V]](path))
+      .compile
+      .drain
+      .as(data.count()) <*
+      ce.delay(data.unpersist())
+  }
+
+  private def avroLike(blocker: Blocker, fmt: NJFileFormat)(implicit
+    ce: ConcurrentEffect[F],
+    cs: ContextShift[F]): F[Long] = {
+    import topic.topicDef.{avroKeyEncoder, avroValEncoder}
+
+    val path = params.pathBuilder(topic.topicName, fmt)
+    val data = rdd.persist()
+    val run: Stream[F, Unit] = fmt match {
+      case NJFileFormat.Avro       => data.stream[F].through(fileSink(blocker).avro(path))
+      case NJFileFormat.BinaryAvro => data.stream[F].through(fileSink(blocker).binaryAvro(path))
+      case NJFileFormat.Jackson    => data.stream[F].through(fileSink(blocker).jackson(path))
+      case NJFileFormat.Parquet    => data.stream[F].through(fileSink(blocker).parquet(path))
+      case NJFileFormat.JavaObject => data.stream[F].through(fileSink(blocker).javaObject(path))
+      case _                       => sys.error("never happen")
+    }
+    run.compile.drain.as(data.count) <* ce.delay(data.unpersist())
+  }
+
+  def saveJackson(
+    blocker: Blocker)(implicit ce: ConcurrentEffect[F], cs: ContextShift[F]): F[Long] =
+    avroLike(blocker, NJFileFormat.Jackson)
+
+  def saveAvro(blocker: Blocker)(implicit ce: ConcurrentEffect[F], cs: ContextShift[F]): F[Long] =
+    avroLike(blocker, NJFileFormat.Avro)
+
+  def saveBinaryAvro(
+    blocker: Blocker)(implicit ce: ConcurrentEffect[F], cs: ContextShift[F]): F[Long] =
+    avroLike(blocker, NJFileFormat.BinaryAvro)
+
+  def saveParquet(
+    blocker: Blocker)(implicit ce: ConcurrentEffect[F], cs: ContextShift[F]): F[Long] =
+    avroLike(blocker, NJFileFormat.Parquet)
+
+  def saveJavaObject(
+    blocker: Blocker)(implicit ce: ConcurrentEffect[F], cs: ContextShift[F]): F[Long] =
+    avroLike(blocker, NJFileFormat.JavaObject)
 
   // pipe
   def pipeTo(otherTopic: KafkaTopic[F, K, V])(implicit
