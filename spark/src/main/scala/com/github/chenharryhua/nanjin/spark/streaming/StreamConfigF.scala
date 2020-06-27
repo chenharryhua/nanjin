@@ -33,15 +33,15 @@ final private[spark] case class NJFailOnDataLoss(value: Boolean) extends AnyVal
 
 private[spark] object StreamParams {
 
-  def apply(tr: NJDateTimeRange, sd: NJShowDataset, ff: NJFileFormat): StreamParams =
+  def apply(tr: NJDateTimeRange, sd: NJShowDataset): StreamParams =
     StreamParams(
-      timeRange  = tr,
-      showDs     = sd,
-      fileFormat = ff,
+      timeRange = tr,
+      showDs = sd,
+      fileFormat = NJFileFormat.Parquet,
       checkpoint = NJCheckpoint("./data/checkpoint/"),
-      dataLoss   = NJFailOnDataLoss(true),
+      dataLoss = NJFailOnDataLoss(true),
       outputMode = OutputMode.Append,
-      trigger    = Trigger.ProcessingTime(0)
+      trigger = Trigger.ProcessingTime(0)
     )
 }
 
@@ -49,7 +49,7 @@ private[spark] object StreamParams {
 
 private[spark] object StreamConfigF {
 
-  final case class DefaultParams[K](tr: NJDateTimeRange, showDs: NJShowDataset, ff: NJFileFormat)
+  final case class DefaultParams[K](tr: NJDateTimeRange, showDs: NJShowDataset)
       extends StreamConfigF[K]
 
   final case class WithCheckpointReplace[K](value: String, cont: K) extends StreamConfigF[K]
@@ -61,7 +61,7 @@ private[spark] object StreamConfigF {
 
   private val algebra: Algebra[StreamConfigF, StreamParams] =
     Algebra[StreamConfigF, StreamParams] {
-      case DefaultParams(tr, sd, ff)   => StreamParams(tr, sd, ff)
+      case DefaultParams(tr, sd)       => StreamParams(tr, sd)
       case WithCheckpointReplace(v, c) => StreamParams.checkpoint.set(NJCheckpoint(v))(c)
       case WithCheckpointAppend(v, c)  => StreamParams.checkpoint.modify(_.append(v))(c)
       case WithFailOnDataLoss(v, c)    => StreamParams.dataLoss.set(NJFailOnDataLoss(v))(c)
@@ -103,11 +103,11 @@ final private[spark] case class StreamConfig(value: Fix[StreamConfigF]) extends 
   def withContinousTrigger(ms: Long): StreamConfig =
     withTrigger(Trigger.Continuous(ms, TimeUnit.MILLISECONDS))
 
-  def evalConfig:StreamParams = StreamConfigF.evalConfig(this)
+  def evalConfig: StreamParams = StreamConfigF.evalConfig(this)
 }
 
 private[spark] object StreamConfig {
 
-  def apply(tr: NJDateTimeRange, sd: NJShowDataset, ff: NJFileFormat): StreamConfig =
-    StreamConfig(Fix(StreamConfigF.DefaultParams[Fix[StreamConfigF]](tr, sd, ff)))
+  def apply(tr: NJDateTimeRange, sd: NJShowDataset): StreamConfig =
+    StreamConfig(Fix(StreamConfigF.DefaultParams[Fix[StreamConfigF]](tr, sd)))
 }

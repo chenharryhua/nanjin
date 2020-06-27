@@ -90,7 +90,7 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
       .map(s =>
         new SparkStream(
           s.dataset,
-          StreamConfig(params.timeRange, params.showDs, params.fileFormat)
+          StreamConfig(params.timeRange, params.showDs)
             .withCheckpointAppend(s"kafka/${topic.topicName.value}")))
 
   def streaming(implicit
@@ -101,6 +101,6 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
       .map(s =>
         new KafkaCRStream[F, K, V](
           s.dataset,
-          StreamConfig(params.timeRange, params.showDs, params.fileFormat)
+          StreamConfig(params.timeRange, params.showDs)
             .withCheckpointAppend(s"kafkacr/${topic.topicName.value}")))
 }

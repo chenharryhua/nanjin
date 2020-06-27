@@ -39,7 +39,7 @@ final class JsonAvroSerialization[F[_]](schema: Schema) {
   def prettyJson: Pipe[F, GenericRecord, String]  = toJsonStr(true)
   def compactJson: Pipe[F, GenericRecord, String] = toJsonStr(false)
 
-  def serialize: Stream[F, GenericRecord] => Stream[F, Byte] = {
+  def serialize: Pipe[F, GenericRecord, Byte] = {
     val datumWriter = new GenericDatumWriter[GenericRecord](schema)
     val splitter    = "\n".getBytes()
     _.chunkN(chunkSize).map { grs =>

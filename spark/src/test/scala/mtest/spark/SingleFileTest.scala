@@ -43,7 +43,7 @@ class SingleFileTest extends AnyFunSuite {
   test("avro-binary - identity") {
     val path = "./data/test/spark/singleFile/swordfish-binary.avro"
     val run = delete(path) >>
-      ss.through(sink.binary[Swordfish](path)).compile.drain >>
+      ss.through(sink.binaryAvro[Swordfish](path)).compile.drain >>
       source.binary[Swordfish](path).compile.toList
 
     assert(run.unsafeRunSync() === fishes)
