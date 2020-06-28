@@ -58,7 +58,7 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
 
     assert(dtr.days.eqv(List(d1, d2)))
 
-    assert(dtr.oneDay(d3).days.eqv(List(d3)))
+    assert(dtr.withOneDay(d3).days.eqv(List(d3)))
   }
 
   test("infinite range should return empty list") {

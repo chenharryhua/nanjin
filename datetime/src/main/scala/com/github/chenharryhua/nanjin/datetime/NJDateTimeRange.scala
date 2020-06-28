@@ -105,6 +105,18 @@ import scala.concurrent.duration.FiniteDuration
   def withTimeRange(start: String, end: String): NJDateTimeRange =
     withStartTime(start).withEndTime(end)
 
+  def withOneDay(ts: LocalDate): NJDateTimeRange =
+    withStartTime(ts).withEndTime(ts.plusDays(1))
+
+  def withOneDay(ts: String): NJDateTimeRange =
+    DateTimeParser.localDateParser.parse(ts).map(withOneDay) match {
+      case Left(ex)   => throw ex.parseException(ts)
+      case Right(day) => day
+    }
+
+  def withToday: NJDateTimeRange     = withOneDay(LocalDate.now)
+  def withYesterday: NJDateTimeRange = withOneDay(LocalDate.now.minusDays(1))
+
   def isInBetween(ts: Long): Boolean =
     (startTimestamp, endTimestamp) match {
       case (Some(s), Some(e)) => ts >= s.milliseconds && ts < e.milliseconds
@@ -119,17 +131,6 @@ import scala.concurrent.duration.FiniteDuration
   override def toString: String =
     s"NJDateTimeRange(startTime=${zonedStartTime.toString}, endTime=${zonedEndTime.toString})"
 
-  def oneDay(ts: LocalDate): NJDateTimeRange =
-    withStartTime(ts).withEndTime(ts.plusDays(1))
-
-  def oneDay(ts: String): NJDateTimeRange =
-    DateTimeParser.localDateParser.parse(ts).map(oneDay) match {
-      case Left(ex)   => throw ex.parseException(ts)
-      case Right(day) => day
-    }
-
-  def today: NJDateTimeRange     = oneDay(LocalDate.now)
-  def yesterday: NJDateTimeRange = oneDay(LocalDate.now.minusDays(1))
 }
 
 object NJDateTimeRange {
