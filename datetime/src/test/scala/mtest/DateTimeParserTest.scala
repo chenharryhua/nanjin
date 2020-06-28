@@ -7,7 +7,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class DateTimeParserTest extends AnyFunSuite {
   val zoneId: ZoneId         = melbourneTime
-  val range: NJDateTimeRange = NJDateTimeRange.infinite
+  val range: NJDateTimeRange = NJDateTimeRange(melbourneTime)
   test("Local Date") {
     assert(
       range.withStartTime("2020-01-01").startTimestamp.get === NJTimestamp(

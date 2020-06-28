@@ -3,7 +3,7 @@ package mtest.kafka
 import cats.effect.IO
 import cats.implicits._
 import cats.kernel.UpperBounded
-import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
+import com.github.chenharryhua.nanjin.datetime.{melbourneTime, NJDateTimeRange}
 import com.github.chenharryhua.nanjin.kafka.{
   KafkaOffset,
   KafkaOffsetRange,
@@ -33,7 +33,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
         Map(new TopicPartition("range.test", 0) ->
           KafkaOffsetRange(KafkaOffset(1), KafkaOffset(2))))
 
-    val r = NJDateTimeRange.infinite.withStartTime(110).withEndTime(250)
+    val r = NJDateTimeRange(melbourneTime).withStartTime(110).withEndTime(250)
 
     topic.shortLiveConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
   }
@@ -44,7 +44,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
         Map(new TopicPartition("range.test", 0) ->
           KafkaOffsetRange(KafkaOffset(1), KafkaOffset(3))))
 
-    val r = NJDateTimeRange.infinite.withStartTime(110).withEndTime(500)
+    val r = NJDateTimeRange(melbourneTime).withStartTime(110).withEndTime(500)
 
     topic.shortLiveConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
   }
@@ -55,7 +55,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
         Map(new TopicPartition("range.test", 0) ->
           KafkaOffsetRange(KafkaOffset(0), KafkaOffset(1))))
 
-    val r = NJDateTimeRange.infinite.withStartTime(10).withEndTime(110)
+    val r = NJDateTimeRange(melbourneTime).withStartTime(10).withEndTime(110)
 
     topic.shortLiveConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
   }
@@ -64,7 +64,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     val expect =
       KafkaTopicPartition(Map(new TopicPartition("range.test", 0) -> None))
 
-    val r = NJDateTimeRange.infinite.withStartTime(10).withEndTime(30)
+    val r = NJDateTimeRange(melbourneTime).withStartTime(10).withEndTime(30)
 
     topic.shortLiveConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
   }
@@ -72,7 +72,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     val expect =
       KafkaTopicPartition(Map(new TopicPartition("range.test", 0) -> None))
 
-    val r = NJDateTimeRange.infinite.withStartTime(500).withEndTime(600)
+    val r = NJDateTimeRange(melbourneTime).withStartTime(500).withEndTime(600)
 
     topic.shortLiveConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
   }
@@ -83,7 +83,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
         Map(new TopicPartition("range.test", 0) ->
           KafkaOffsetRange(KafkaOffset(0), KafkaOffset(3))))
 
-    val r = UpperBounded[NJDateTimeRange].maxBound
+    val r = NJDateTimeRange(melbourneTime)
     topic.shortLiveConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
   }
 

@@ -7,14 +7,6 @@ package object datetime extends DateTimeInstances with Isos {
   def toLocalDateTime(ts: LocalTime): LocalDateTime = ts.atDate(LocalDate.now)
   def toLocalDateTime(ts: LocalDate): LocalDateTime = ts.atTime(LocalTime.MIDNIGHT)
 
-  def oneDay(ts: LocalDate): NJDateTimeRange =
-    NJDateTimeRange.infinite.withStartTime(ts).withEndTime(ts.plusDays(1))
-
-  def today: NJDateTimeRange     = oneDay(LocalDate.now)
-  def yesterday: NJDateTimeRange = oneDay(LocalDate.now.minusDays(1))
-
-  val infiniteRange: NJDateTimeRange = NJDateTimeRange.infinite
-
   val utcTime: ZoneId = ZoneId.of("Etc/UTC")
 
   val melbourneTime: ZoneId = ZoneId.of("Australia/Melbourne")
