@@ -18,7 +18,7 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
       date <- genZonedDateTimeWithZone(None)
       inc <- Gen.choose[Long](1, 50 * 365 * 24 * 3600) // 50 years
       d = date.toLocalDateTime
-    } yield NJDateTimeRange(melbourneTime).withStartTime(d).withEndTime(d.plusSeconds(inc)))
+    } yield NJDateTimeRange(darwinTime).withStartTime(d).withEndTime(d.plusSeconds(inc)))
 
   implicit val cogen: Cogen[NJDateTimeRange] =
     Cogen(m => m.startTimestamp.map(_.milliseconds).getOrElse(0))

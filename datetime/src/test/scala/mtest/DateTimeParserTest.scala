@@ -2,12 +2,12 @@ package mtest
 
 import java.time.{LocalDate, LocalTime, ZoneId, ZonedDateTime}
 
-import com.github.chenharryhua.nanjin.datetime.{melbourneTime, NJDateTimeRange, NJTimestamp}
+import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJDateTimeRange, NJTimestamp}
 import org.scalatest.funsuite.AnyFunSuite
 
 class DateTimeParserTest extends AnyFunSuite {
-  val zoneId: ZoneId         = melbourneTime
-  val range: NJDateTimeRange = NJDateTimeRange(melbourneTime)
+  val zoneId: ZoneId         = sydneyTime
+  val range: NJDateTimeRange = NJDateTimeRange(sydneyTime)
   test("Local Date") {
     assert(
       range.withStartTime("2020-01-01").startTimestamp.get === NJTimestamp(
@@ -34,7 +34,7 @@ class DateTimeParserTest extends AnyFunSuite {
     assert(range.withStartTime("2020-01-01T00:00:00Z").startTimestamp.get === date)
     assert(NJTimestamp("2020-01-01T00:00:00Z") === date)
     assert(NJTimestamp("2020-01-01T11:00+11:00") === date)
-    assert(NJTimestamp("2020-01-01T11:00+11:00[Australia/Melbourne]") === date)
+    assert(NJTimestamp("2020-01-01T11:00+11:00[Australia/Sydney]") === date)
   }
 
   test("Zoned Date Time") {
