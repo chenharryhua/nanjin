@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import java.time.{LocalDateTime, ZoneId}
+import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 
 import com.github.chenharryhua.nanjin.common.NJFileFormat
@@ -54,10 +54,11 @@ private[spark] object SKConfigF {
   final case class WithBatchSize[K](value: Int, cont: K) extends SKConfigF[K]
   final case class WithDuration[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
 
-  final case class WithStartTime[K](value: LocalDateTime, cont: K) extends SKConfigF[K]
-  final case class WithEndTime[K](value: LocalDateTime, cont: K) extends SKConfigF[K]
+  final case class WithStartTime[K](value: String, cont: K) extends SKConfigF[K]
+  final case class WithEndTime[K](value: String, cont: K) extends SKConfigF[K]
   final case class WithZoneId[K](value: ZoneId, cont: K) extends SKConfigF[K]
   final case class WithTimeRange[K](value: NJDateTimeRange, cont: K) extends SKConfigF[K]
+  final case class WithNSeconds[K](value: Long, cont: K) extends SKConfigF[K]
 
   final case class WithSaveMode[K](value: SaveMode, cont: K) extends SKConfigF[K]
 
@@ -78,6 +79,7 @@ private[spark] object SKConfigF {
     case WithStartTime(v, c)        => SKParams.timeRange.modify(_.withStartTime(v))(c)
     case WithEndTime(v, c)          => SKParams.timeRange.modify(_.withEndTime(v))(c)
     case WithZoneId(v, c)           => SKParams.timeRange.modify(_.withZoneId(v))(c)
+    case WithNSeconds(v, c)         => SKParams.timeRange.modify(_.withNSeconds(v))(c)
     case WithTimeRange(v, c)        => SKParams.timeRange.set(v)(c)
     case WithSaveMode(v, c)         => SKParams.saveMode.set(v)(c)
     case WithLocationStrategy(v, c) => SKParams.locationStrategy.set(v)(c)
@@ -85,7 +87,6 @@ private[spark] object SKConfigF {
     case WithShowTruncate(v, c)     => SKParams.showDs.composeLens(NJShowDataset.isTruncate).set(v)(c)
     case WithPathBuilder(v, c)      => SKParams.pathBuilder.set(v)(c)
     case WithReplayPath(v, c)       => SKParams.replayPath.set(v)(c)
-
   }
 
   def evalConfig(cfg: SKConfig): SKParams = scheme.cata(algebra).apply(cfg.value)
@@ -99,9 +100,10 @@ final private[spark] case class SKConfig private (value: Fix[SKConfigF]) extends
   def withDuration(ms: Long): SKConfig           = withDuration(FiniteDuration(ms, TimeUnit.MILLISECONDS))
 
   def withTimeRange(tr: NJDateTimeRange): SKConfig = SKConfig(Fix(WithTimeRange(tr, value)))
-  def withStartTime(s: LocalDateTime): SKConfig    = SKConfig(Fix(WithStartTime(s, value)))
-  def withEndTime(s: LocalDateTime): SKConfig      = SKConfig(Fix(WithEndTime(s, value)))
+  def withStartTime(s: String): SKConfig           = SKConfig(Fix(WithStartTime(s, value)))
+  def withEndTime(s: String): SKConfig             = SKConfig(Fix(WithEndTime(s, value)))
   def withZoneId(s: ZoneId): SKConfig              = SKConfig(Fix(WithZoneId(s, value)))
+  def withNSeconds(s: Long): SKConfig              = SKConfig(Fix(WithNSeconds(s, value)))
 
   def withLocationStrategy(ls: LocationStrategy): SKConfig =
     SKConfig(Fix(WithLocationStrategy(ls, value)))
