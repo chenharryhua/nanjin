@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import java.time.ZoneId
+import java.time.{LocalDate, ZoneId}
 import java.util.concurrent.TimeUnit
 
 import com.github.chenharryhua.nanjin.common.NJFileFormat
@@ -59,6 +59,8 @@ private[spark] object SKConfigF {
   final case class WithZoneId[K](value: ZoneId, cont: K) extends SKConfigF[K]
   final case class WithTimeRange[K](value: NJDateTimeRange, cont: K) extends SKConfigF[K]
   final case class WithNSeconds[K](value: Long, cont: K) extends SKConfigF[K]
+  final case class WithOneDay[K](value: LocalDate, cont: K) extends SKConfigF[K]
+  final case class WithOneDayStr[K](value: String, cont: K) extends SKConfigF[K]
 
   final case class WithSaveMode[K](value: SaveMode, cont: K) extends SKConfigF[K]
 
@@ -81,6 +83,8 @@ private[spark] object SKConfigF {
     case WithZoneId(v, c)           => SKParams.timeRange.modify(_.withZoneId(v))(c)
     case WithNSeconds(v, c)         => SKParams.timeRange.modify(_.withNSeconds(v))(c)
     case WithTimeRange(v, c)        => SKParams.timeRange.set(v)(c)
+    case WithOneDay(v, c)           => SKParams.timeRange.modify(_.withOneDay(v))(c)
+    case WithOneDayStr(v, c)        => SKParams.timeRange.modify(_.withOneDay(v))(c)
     case WithSaveMode(v, c)         => SKParams.saveMode.set(v)(c)
     case WithLocationStrategy(v, c) => SKParams.locationStrategy.set(v)(c)
     case WithShowRows(v, c)         => SKParams.showDs.composeLens(NJShowDataset.rowNum).set(v)(c)
@@ -105,6 +109,10 @@ final private[spark] case class SKConfig private (value: Fix[SKConfigF]) extends
   def withNSeconds(s: Long): SKConfig                     = SKConfig(Fix(WithNSeconds(s, value)))
   def withTimeRange(tr: NJDateTimeRange): SKConfig        = SKConfig(Fix(WithTimeRange(tr, value)))
   def withTimeRange(start: String, end: String): SKConfig = withStartTime(start).withEndTime(end)
+  def withOneDay(s: String): SKConfig                     = SKConfig(Fix(WithOneDayStr(s, value)))
+  def withOneDay(s: LocalDate): SKConfig                  = SKConfig(Fix(WithOneDay(s, value)))
+  def withToday: SKConfig                                 = withOneDay(LocalDate.now)
+  def withYesterday: SKConfig                             = withOneDay(LocalDate.now.minusDays(1))
 
   def withLocationStrategy(ls: LocationStrategy): SKConfig =
     SKConfig(Fix(WithLocationStrategy(ls, value)))
