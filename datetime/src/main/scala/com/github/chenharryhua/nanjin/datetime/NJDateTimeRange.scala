@@ -102,6 +102,9 @@ import scala.concurrent.duration.FiniteDuration
     withStartTime(now.minusSeconds(seconds)).withEndTime(now)
   }
 
+  def withTimeRange(start: String, end: String): NJDateTimeRange =
+    withStartTime(start).withEndTime(end)
+
   def isInBetween(ts: Long): Boolean =
     (startTimestamp, endTimestamp) match {
       case (Some(s), Some(e)) => ts >= s.milliseconds && ts < e.milliseconds

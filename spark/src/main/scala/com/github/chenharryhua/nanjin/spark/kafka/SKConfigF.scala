@@ -99,11 +99,12 @@ final private[spark] case class SKConfig private (value: Fix[SKConfigF]) extends
   def withDuration(fd: FiniteDuration): SKConfig = SKConfig(Fix(WithDuration(fd, value)))
   def withDuration(ms: Long): SKConfig           = withDuration(FiniteDuration(ms, TimeUnit.MILLISECONDS))
 
-  def withTimeRange(tr: NJDateTimeRange): SKConfig = SKConfig(Fix(WithTimeRange(tr, value)))
-  def withStartTime(s: String): SKConfig           = SKConfig(Fix(WithStartTime(s, value)))
-  def withEndTime(s: String): SKConfig             = SKConfig(Fix(WithEndTime(s, value)))
-  def withZoneId(s: ZoneId): SKConfig              = SKConfig(Fix(WithZoneId(s, value)))
-  def withNSeconds(s: Long): SKConfig              = SKConfig(Fix(WithNSeconds(s, value)))
+  def withStartTime(s: String): SKConfig                  = SKConfig(Fix(WithStartTime(s, value)))
+  def withEndTime(s: String): SKConfig                    = SKConfig(Fix(WithEndTime(s, value)))
+  def withZoneId(s: ZoneId): SKConfig                     = SKConfig(Fix(WithZoneId(s, value)))
+  def withNSeconds(s: Long): SKConfig                     = SKConfig(Fix(WithNSeconds(s, value)))
+  def withTimeRange(tr: NJDateTimeRange): SKConfig        = SKConfig(Fix(WithTimeRange(tr, value)))
+  def withTimeRange(start: String, end: String): SKConfig = withStartTime(start).withEndTime(end)
 
   def withLocationStrategy(ls: LocationStrategy): SKConfig =
     SKConfig(Fix(WithLocationStrategy(ls, value)))
