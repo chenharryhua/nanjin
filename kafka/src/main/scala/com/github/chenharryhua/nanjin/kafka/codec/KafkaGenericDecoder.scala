@@ -1,11 +1,9 @@
 package com.github.chenharryhua.nanjin.kafka.codec
 
-import cats.data.{Chain, Writer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.messages.kafka._
-import org.apache.kafka.clients.consumer.ConsumerRecord
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Success, Try}
 
 final class KafkaGenericDecoder[F[_, _], K, V](
   data: F[Array[Byte], Array[Byte]],
@@ -26,31 +24,4 @@ final class KafkaGenericDecoder[F[_, _], K, V](
     data.bimap(
       k => keyCodec.prism.getOption(k).getOrElse(null.asInstanceOf[K]),
       v => valCodec.prism.getOption(v).getOrElse(null.asInstanceOf[V]))
-
-  //optional key, mandatory value
-  def optionTryDecode: F[Option[Try[K]], Try[V]] =
-    data.bimap(Option(_).map(keyCodec.tryDecode), valCodec.tryDecode)
-
-  def logRecord: Writer[Chain[ConsumerRecordError], NJConsumerRecord[K, V]] = {
-    val cr: ConsumerRecord[Option[Try[K]], Try[V]] = BM.lens.get(optionTryDecode)
-    def log(ex: Throwable, tag: KeyValueTag): Chain[ConsumerRecordError] =
-      Chain.one(ConsumerRecordError(ex, tag, cr))
-
-    val logKey: (Chain[ConsumerRecordError], Option[K]) =
-      cr.key match {
-        case None              => (Chain.empty, None)
-        case Some(Success(k))  => (Chain.empty, Some(k))
-        case Some(Failure(ex)) => (log(ex, KeyValueTag.Key), None)
-      }
-
-    val logValue: (Chain[ConsumerRecordError], Option[V]) =
-      cr.value match {
-        case Success(v)  => (Chain.empty, Some(v))
-        case Failure(ex) => (log(ex, KeyValueTag.Value), None)
-      }
-
-    Writer(logKey._1 ++ logValue._1, NJConsumerRecord(cr.bimap(_ => logKey._2, _ => logValue._2)))
-  }
-
-  def record: NJConsumerRecord[K, V] = logRecord.run._2
 }

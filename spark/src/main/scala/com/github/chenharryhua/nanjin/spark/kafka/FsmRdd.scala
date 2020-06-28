@@ -60,10 +60,15 @@ final class FsmRdd[F[_], K, V](
   def stats: Statistics[F] =
     new Statistics(TypedDataset.create(rdd.map(CRMetaInfo(_))).dataset, cfg)
 
+  def typedDataset(implicit
+    keyEncoder: TypedEncoder[K],
+    valEncoder: TypedEncoder[V]): TypedDataset[NJConsumerRecord[K, V]] =
+    TypedDataset.create(rdd)
+
   def crDataset(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords(TypedDataset.create(rdd).dataset, topic, cfg)
+    new FsmConsumerRecords(typedDataset.dataset, topic, cfg)
 
   def stream(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
     rdd.stream[F]

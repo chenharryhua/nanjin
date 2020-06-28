@@ -32,6 +32,9 @@ import org.apache.kafka.clients.producer.ProducerRecord
     evV: V <:< Option[V2]
   ): NJConsumerRecord[K2, V2] =
     copy(key = key.flatten, value = value.flatten)
+
+  def metaInfo: String =
+    s"MetaInfo(topic=$topic,partition=$partition,offset=$offset,timestamp=${NJTimestamp(timestamp).utc})"
 }
 
 object NJConsumerRecord {

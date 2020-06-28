@@ -31,7 +31,7 @@ class DecimalTopicTest extends AnyFunSuite {
 
   test("kafka and spark agree on avro") {
     topic.fs2Channel.stream
-      .map(m => topic.decoder(m).record)
+      .map(m => topic.njDecoder.decode(m).run._2)
       .take(2)
       .through(fileSink(blocker).avro("./data/test/decimal.avro"))
       .compile

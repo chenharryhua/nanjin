@@ -39,7 +39,6 @@ object KafkaMonitoringApi {
   final private class KafkaTopicMonitoring[F[_]: ContextShift: Timer, K, V](
     topic: KafkaTopic[F, K, V])(implicit F: ConcurrentEffect[F])
       extends KafkaMonitoringApi[F, K, V] {
-
     import topic.topicDef.{avroKeyDecoder, avroKeyEncoder, avroValDecoder, avroValEncoder}
 
     private val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
@@ -49,13 +48,14 @@ object KafkaMonitoringApi {
       Blocker[F].use { blocker =>
         val pipe = new JsonAvroSerialization[F](topic.topicDef.schemaFor.schema)
         val gr   = new GenericRecordEncoder[F, NJConsumerRecord[K, V]]
+
         Keyboard.signal.flatMap { signal =>
           fs2Channel
             .withConsumerSettings(_.withAutoOffsetReset(aor))
             .stream
             .map { m =>
-              val (err, r) = topic.decoder(m).logRecord.run
-              err.map(e => pprint.pprintln(e))
+              val (errs, r) = topic.njDecoder.decode(m).run
+              errs.toList.foreach(e => pprint.pprintln(e))
               r
             }
             .through(gr.encode)
@@ -78,7 +78,7 @@ object KafkaMonitoringApi {
             .stream
             .filter(m =>
               predict(isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record)))
-            .map(m => topic.decoder(m).record)
+            .map(m => topic.njDecoder.decode(m).run._2)
             .through(gr.encode)
             .through(pipe.prettyJson)
             .showLinesStdOut
@@ -101,7 +101,7 @@ object KafkaMonitoringApi {
         _ <-
           fs2Channel
             .assign(gtp.flatten[KafkaOffset].mapValues(_.value).value)
-            .map(m => topic.decoder(m).record)
+            .map(m => topic.njDecoder.decode(m).run._2)
             .through(gr.encode)
             .through(pipe.prettyJson)
             .showLinesStdOut

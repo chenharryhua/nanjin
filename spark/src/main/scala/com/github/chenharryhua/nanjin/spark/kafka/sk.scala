@@ -5,12 +5,7 @@ import java.util
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.kafka.{
-  KafkaOffsetRange,
-  KafkaTopic,
-  KafkaTopicPartition,
-  ShowMetaInfo
-}
+import com.github.chenharryhua.nanjin.kafka.{KafkaOffsetRange, KafkaTopic, KafkaTopicPartition}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.utils.Keyboard
 import frameless.{TypedDataset, TypedEncoder}
@@ -62,10 +57,10 @@ object sk {
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy)(implicit
     sparkSession: SparkSession): F[RDD[NJConsumerRecord[K, V]]] =
-    kafkaRDD[F, K, V](topic, timeRange, locationStrategy).map(_.mapPartitions {
-      _.map { m =>
-        val (errs, cr) = topic.decoder(m).logRecord.run
-        errs.map(x => logger.warn(x.error)(x.metaInfo))
+    kafkaRDD[F, K, V](topic, timeRange, locationStrategy).map(_.mapPartitions { ms =>
+      ms.map { m =>
+        val (errs, cr) = topic.njDecoder.decode(m).run
+        errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
         cr
       }
     })
@@ -123,28 +118,6 @@ object sk {
     }
   }
 
-  private def decodeSparkStreamCR[F[_], K, V](topic: KafkaTopic[F, K, V])
-    : NJConsumerRecord[Array[Byte], Array[Byte]] => NJConsumerRecord[K, V] =
-    rawCr => {
-      val smi = ShowMetaInfo[NJConsumerRecord[Array[Byte], Array[Byte]]]
-      val cr =
-        NJConsumerRecord.timestamp.set(rawCr.timestamp / 1000)(rawCr) //spark use micro-second.
-      cr.bimap(
-        k =>
-          topic.codec.keyCodec
-            .tryDecode(k)
-            .toEither
-            .leftMap(logger.warn(_)(s"key decode error. ${smi.metaInfo(cr)}"))
-            .toOption,
-        v =>
-          topic.codec.valCodec
-            .tryDecode(v)
-            .toEither
-            .leftMap(logger.warn(_)(s"value decode error. ${smi.metaInfo(cr)}"))
-            .toOption
-      ).flatten[K, V]
-    }
-
   def streaming[F[_]: Sync, K, V, A](topic: KafkaTopic[F, K, V], timeRange: NJDateTimeRange)(
     f: NJConsumerRecord[K, V] => A)(implicit
     sparkSession: SparkSession,
@@ -162,7 +135,11 @@ object sk {
             .load()
             .as[NJConsumerRecord[Array[Byte], Array[Byte]]])
         .deserialized
-        .mapPartitions(_.map(decodeSparkStreamCR(topic).andThen(f)))
+        .mapPartitions(_.map { cr =>
+          val (errs, msg) = topic.njDecoder.decode(cr).run
+          errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
+          f(NJConsumerRecord.timestamp.modify(_ / 1000)(msg)) // spark use micro-second.
+        })
     }
   }
 }

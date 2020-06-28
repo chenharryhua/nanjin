@@ -15,7 +15,9 @@ import scala.util.Random
 
 object SaveTestData {
   final case class Foo(a: Int, b: String)
-  val topic: KafkaTopic[IO, Int, Foo] = TopicDef[Int, Foo](TopicName("test.save.load")).in(ctx)
+
+  val topic: KafkaTopic[IO, Int, Foo] =
+    TopicDef[Int, Foo](TopicName("test.spark.kafka.save.load")).in(ctx)
 
 }
 
@@ -37,26 +39,23 @@ class SaveTest extends AnyFunSuite {
   }
   test("avro") {
 
-    val action = topic.sparKafka
-      .fromKafka
-      .flatMap(_.saveAvro(blocker))
-      .map(r => assert(r == 100)) >>
-      sparkSession
-        .avro[NJConsumerRecord[Int, Foo]](topic.sparKafka.params.pathBuilder(topic.topicName, Avro))
-        .collect[IO]()
-        .map(r => assert(r.sorted.flatMap(_.value).toList == vlist))
+    val action =
+      topic.sparKafka.fromKafka.flatMap(_.saveAvro(blocker)).map(r => assert(r == 100)) >>
+        sparkSession
+          .avro[NJConsumerRecord[Int, Foo]](
+            topic.sparKafka.params.pathBuilder(topic.topicName, Avro))
+          .collect[IO]()
+          .map(r => assert(r.sorted.flatMap(_.value).toList == vlist))
     action.unsafeRunSync()
   }
   test("parquet") {
-    val action = topic.sparKafka
-      .fromKafka
-      .flatMap(_.saveParquet(blocker))
-      .map(r => assert(r == 100)) >>
-      sparkSession
-        .parquet[NJConsumerRecord[Int, Foo]](
-          topic.sparKafka.params.pathBuilder(topic.topicName, Parquet))
-        .collect[IO]()
-        .map(r => assert(r.sorted.flatMap(_.value).toList == vlist))
+    val action =
+      topic.sparKafka.fromKafka.flatMap(_.saveParquet(blocker)).map(r => assert(r == 100)) >>
+        sparkSession
+          .parquet[NJConsumerRecord[Int, Foo]](
+            topic.sparKafka.params.pathBuilder(topic.topicName, Parquet))
+          .collect[IO]()
+          .map(r => assert(r.sorted.flatMap(_.value).toList == vlist))
     action.unsafeRunSync()
   }
 }
