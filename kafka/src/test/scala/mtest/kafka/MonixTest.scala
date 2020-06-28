@@ -21,7 +21,7 @@ class MonixTest extends AnyFunSuite {
     val topic = TopicDef[String, trip_record](TopicName("nyc_yellow_taxi_trip_data")).in(ctx)
     val task =
       topic.fs2Channel.stream
-        .map(m => topic.decoder(m).logRecord.run)
+        .map(m => topic.njDecoder.decode(m).run._2)
         .take(3)
         .map(println)
         .compile

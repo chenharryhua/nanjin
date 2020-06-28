@@ -1,10 +1,9 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import com.github.chenharryhua.nanjin.kafka.codec.{NJCodec, NJSerde}
-import org.apache.avro.Schema
-import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 import cats.implicits._
+import com.github.chenharryhua.nanjin.kafka.codec.{NJCodec, NJSerde}
 import com.sksamuel.avro4s.SchemaFor
+import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 
 final class KafkaTopicCodec[K, V] private[kafka] (
   val keyCodec: NJCodec[K],

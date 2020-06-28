@@ -33,4 +33,17 @@ class JsonAvroPipeTest extends AnyFunSuite {
         .toList
         .unsafeRunSync() === list)
   }
+  test("jackson-compact-string size") {
+    val data: Stream[IO, Tigger] = Stream.emits(list)
+
+    assert(
+      data.through(gser.encode).through(ser.compactJson).compile.toList.unsafeRunSync().size == 10)
+  }
+  test("jackson-pretty-string size") {
+    val data: Stream[IO, Tigger] = Stream.emits(list)
+
+    assert(
+      data.through(gser.encode).through(ser.prettyJson).compile.toList.unsafeRunSync().size == 10)
+  }
+
 }

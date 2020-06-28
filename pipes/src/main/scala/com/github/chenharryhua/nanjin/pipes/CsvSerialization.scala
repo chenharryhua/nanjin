@@ -26,8 +26,7 @@ final class CsvSerialization[F[_]: Concurrent: ContextShift, A: RowEncoder](
 final class CsvDeserialization[F[_]: ConcurrentEffect, A: RowDecoder](conf: CsvConfiguration) {
   import kantan.csv.ops._
 
-  def deserialize: Pipe[F, Byte, A] = { (ss: Stream[F, Byte]) =>
-    ss.through(toInputStream[F])
-      .flatMap(is => Stream.fromIterator[F](is.asCsvReader[A](conf).toIterator).rethrow)
-  }
+  def deserialize: Pipe[F, Byte, A] =
+    _.through(toInputStream[F]).flatMap(is =>
+      Stream.fromIterator[F](is.asCsvReader[A](conf).toIterator).rethrow)
 }
