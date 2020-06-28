@@ -18,12 +18,12 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
       date <- genZonedDateTimeWithZone(None)
       inc <- Gen.choose[Long](1, 50 * 365 * 24 * 3600) // 50 years
       d = date.toLocalDateTime
-    } yield NJDateTimeRange.infinite.withStartTime(d).withEndTime(d.plusSeconds(inc)))
+    } yield NJDateTimeRange(melbourneTime).withStartTime(d).withEndTime(d.plusSeconds(inc)))
 
   implicit val cogen: Cogen[NJDateTimeRange] =
     Cogen(m => m.startTimestamp.map(_.milliseconds).getOrElse(0))
 
-  checkAll("NJDateTimeRange-UpperBounded", UpperBoundedTests[NJDateTimeRange].upperBounded)
+  checkAll("NJDateTimeRange-UpperBounded", PartialOrderTests[NJDateTimeRange].partialOrder)
   checkAll("NJDateTimeRange-PartialOrder", PartialOrderTests[NJDateTimeRange].partialOrder)
 
   test("order of applying time data does not matter") {
@@ -31,7 +31,7 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     val startTime = LocalDateTime.of(2012, 10, 26, 18, 0, 0)
     val endTime   = LocalDateTime.of(2012, 10, 26, 23, 0, 0)
 
-    val param = NJDateTimeRange.infinite
+    val param = NJDateTimeRange(sydneyTime)
 
     val a = param.withEndTime(endTime).withZoneId(zoneId).withStartTime(startTime)
     val b = param.withStartTime(startTime).withZoneId(zoneId).withEndTime(endTime)
@@ -54,15 +54,15 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     val d2 = LocalDate.of(2012, 10, 27)
     val d3 = LocalDate.of(2012, 10, 28)
 
-    val dtr = NJDateTimeRange.infinite.withStartTime(d1).withEndTime(d3)
+    val dtr = NJDateTimeRange(beijingTime).withStartTime(d1).withEndTime(d3)
 
     assert(dtr.days.eqv(List(d1, d2)))
 
-    assert(oneDay(d3).days.eqv(List(d3)))
+    assert(dtr.oneDay(d3).days.eqv(List(d3)))
   }
 
   test("infinite range should return empty list") {
-    assert(NJDateTimeRange.infinite.days.isEmpty)
+    assert(NJDateTimeRange(cairoTime).days.isEmpty)
   }
 
   test("days of same day should return empty list") {
@@ -70,7 +70,7 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     val dt4 = LocalDateTime.of(d3, LocalTime.of(10, 1, 1))
     val dt5 = LocalDateTime.of(d3, LocalTime.of(10, 1, 2))
 
-    val sameDay = NJDateTimeRange.infinite.withStartTime(dt4).withEndTime(dt5)
+    val sameDay = NJDateTimeRange(newyorkTime).withStartTime(dt4).withEndTime(dt5)
     assert(sameDay.days.isEmpty)
   }
 }

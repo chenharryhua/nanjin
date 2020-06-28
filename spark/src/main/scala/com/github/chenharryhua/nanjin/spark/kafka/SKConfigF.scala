@@ -35,7 +35,7 @@ private[spark] object SKParams {
 
   val default: SKParams =
     SKParams(
-      timeRange = NJDateTimeRange.infinite,
+      timeRange = NJDateTimeRange(ZoneId.systemDefault()),
       uploadRate = NJUploadRate.default,
       pathBuilder =
         (topicName, fmt) => s"./data/sparKafka/${topicName.value}/${fmt.alias}.${fmt.format}",

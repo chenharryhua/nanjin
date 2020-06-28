@@ -4,7 +4,6 @@ import java.sql.Timestamp
 import java.time._
 
 import cats.implicits._
-import cats.kernel.UpperBounded
 import cats.{PartialOrder, Show}
 import monocle.Prism
 import monocle.generic.coproduct.coProductPrism
@@ -19,22 +18,10 @@ import scala.concurrent.duration.FiniteDuration
   private val end: Option[NJDateTimeRange.TimeTypes],
   zoneId: ZoneId) {
 
-  private val parser: DateTimeParser[NJTimestamp] =
-    DateTimeParser[Instant].map(NJTimestamp(_)) <+>
-      DateTimeParser[ZonedDateTime].map(NJTimestamp(_)) <+>
-      DateTimeParser[OffsetDateTime].map(NJTimestamp(_)) <+>
-      DateTimeParser[LocalDate].map(NJTimestamp(_, zoneId)) <+>
-      DateTimeParser[LocalTime].map(NJTimestamp(_, zoneId)) <+>
-      DateTimeParser[LocalDateTime].map(NJTimestamp(_, zoneId))
-
   private object calcDateTime extends Poly1 {
 
     implicit val stringDateTime: Case.Aux[String, NJTimestamp] =
-      at[String](s =>
-        parser.parse(s) match {
-          case Right(r) => r
-          case Left(ex) => throw ex.parseException(s)
-        })
+      at[String](s => NJTimestamp(s, zoneId))
 
     implicit val localDateTime: Case.Aux[LocalDateTime, NJTimestamp] =
       at[LocalDateTime](NJTimestamp(_, zoneId))
@@ -118,16 +105,17 @@ import scala.concurrent.duration.FiniteDuration
       case (None, None)       => true
     }
 
-  val duration: Option[FiniteDuration] =
+  def duration: Option[FiniteDuration] =
     (startTimestamp, endTimestamp).mapN((s, e) => e.minus(s))
 
   override def toString: String =
     s"NJDateTimeRange(startTime=${zonedStartTime.toString}, endTime=${zonedEndTime.toString})"
 
-  require(
-    duration.forall(_.length > 0),
-    s"start time should be strictly before end time - $toString."
-  )
+  def oneDay(ts: LocalDate): NJDateTimeRange =
+    withStartTime(ts).withEndTime(ts.plusDays(1))
+
+  def today: NJDateTimeRange     = oneDay(LocalDate.now)
+  def yesterday: NJDateTimeRange = oneDay(LocalDate.now.minusDays(1))
 }
 
 object NJDateTimeRange {
@@ -138,11 +126,9 @@ object NJDateTimeRange {
       String :+: // date-time in string, like "03:12"
       CNil
 
-  implicit val upperBoundedNJDateTimeRange
-    : UpperBounded[NJDateTimeRange] with PartialOrder[NJDateTimeRange] with Show[NJDateTimeRange] =
-    new UpperBounded[NJDateTimeRange]
-      with PartialOrder[NJDateTimeRange] with Show[NJDateTimeRange] {
-      override val maxBound: NJDateTimeRange = NJDateTimeRange(None, None, ZoneId.systemDefault())
+  implicit val partialOrderNJDateTimeRange
+    : PartialOrder[NJDateTimeRange] with Show[NJDateTimeRange] =
+    new PartialOrder[NJDateTimeRange] with Show[NJDateTimeRange] {
 
       private def lessStart(a: Option[NJTimestamp], b: Option[NJTimestamp]): Boolean =
         (a, b) match {
@@ -158,28 +144,28 @@ object NJDateTimeRange {
           case (Some(x), Some(y)) => x > y
         }
 
-      override val partialOrder: PartialOrder[NJDateTimeRange] = {
-        case (a, b) if a.endTimestamp === b.endTimestamp && a.startTimestamp === b.startTimestamp =>
-          0.0
-        case (a, b)
-            if lessStart(a.startTimestamp, b.startTimestamp) && biggerEnd(
-              a.endTimestamp,
-              b.endTimestamp) =>
-          1.0
-        case (a, b)
-            if lessStart(b.startTimestamp, a.startTimestamp) && biggerEnd(
-              b.endTimestamp,
-              a.endTimestamp) =>
-          -1.0
-        case _ => Double.NaN
-      }
+      override def partialCompare(x: NJDateTimeRange, y: NJDateTimeRange): Double =
+        (x, y) match {
+          case (a, b)
+              if a.endTimestamp === b.endTimestamp && a.startTimestamp === b.startTimestamp =>
+            0.0
+          case (a, b)
+              if lessStart(a.startTimestamp, b.startTimestamp) && biggerEnd(
+                a.endTimestamp,
+                b.endTimestamp) =>
+            1.0
+          case (a, b)
+              if lessStart(b.startTimestamp, a.startTimestamp) && biggerEnd(
+                b.endTimestamp,
+                a.endTimestamp) =>
+            -1.0
+          case _ => Double.NaN
+        }
 
       override def show(x: NJDateTimeRange): String = x.toString
 
-      override def partialCompare(x: NJDateTimeRange, y: NJDateTimeRange): Double =
-        partialOrder.partialCompare(x, y)
     }
 
-  final val infinite: NJDateTimeRange = UpperBounded[NJDateTimeRange].maxBound
+  final def apply(zoneId: ZoneId): NJDateTimeRange = NJDateTimeRange(None, None, zoneId)
 
 }

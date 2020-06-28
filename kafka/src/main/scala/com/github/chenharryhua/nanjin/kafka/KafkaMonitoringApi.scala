@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import java.time.ZoneId
+
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
@@ -17,7 +19,7 @@ sealed trait KafkaMonitoringApi[F[_], K, V] {
   def watch: F[Unit]
   def watchFromEarliest: F[Unit]
   def watchFrom(njt: NJTimestamp): F[Unit]
-  def watchFrom(njt: String): F[Unit]
+  def watchFrom(njt: String)(implicit zoneId: ZoneId): F[Unit]
 
   def filter(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit]
   def filterFromEarliest(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit]
@@ -111,8 +113,8 @@ object KafkaMonitoringApi {
       run.compile.drain
     }
 
-    override def watchFrom(njt: String): F[Unit] =
-      watchFrom(NJTimestamp(njt))
+    override def watchFrom(njt: String)(implicit zoneId: ZoneId): F[Unit] =
+      watchFrom(NJTimestamp(njt, zoneId))
 
     override def watch: F[Unit]             = watch(AutoOffsetReset.Latest)
     override def watchFromEarliest: F[Unit] = watch(AutoOffsetReset.Earliest)
