@@ -47,7 +47,7 @@ val circe   = "0.13.0"
 val jackson = "2.10.4"
 val kantan  = "0.6.1"
 val parquet = "1.11.0"
-val avro    = "1.9.2"
+val avro    = "1.10.0"
 val avro4s  = "3.1.1"
 
 // connect
