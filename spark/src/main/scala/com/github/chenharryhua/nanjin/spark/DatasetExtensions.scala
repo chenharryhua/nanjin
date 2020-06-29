@@ -5,10 +5,15 @@ import akka.stream.scaladsl.Source
 import cats.effect.{ConcurrentEffect, Sync}
 import cats.implicits._
 import cats.kernel.Eq
+import com.sksamuel.avro4s.{Decoder => AvroDecoder}
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.interop.reactivestreams._
 import fs2.{Pipe, Stream}
+import io.circe.parser.decode
+import io.circe.{Decoder => JsonDecoder}
+import org.apache.avro.generic.{GenericDatumReader, GenericRecord}
+import org.apache.avro.io.DecoderFactory
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
@@ -66,8 +71,24 @@ private[spark] trait DatasetExtensions {
     def avro[A: TypedEncoder](pathStr: String): TypedDataset[A] =
       TypedDataset.createUnsafe(ss.read.format("avro").load(pathStr))
 
-    def json[A: TypedEncoder](pathStr: String): TypedDataset[A] =
-      TypedDataset.createUnsafe[A](ss.read.json(pathStr))
+    def jackson[A: AvroDecoder: ClassTag](pathStr: String): RDD[A] = {
+      val schema = AvroDecoder[A].schema
+      ss.sparkContext.textFile(pathStr).mapPartitions { strs =>
+        val datumReader = new GenericDatumReader[GenericRecord](AvroDecoder[A].schema)
+        strs.map { str =>
+          val jsonDecoder = DecoderFactory.get().jsonDecoder(schema, str)
+          AvroDecoder[A].decode(datumReader.read(null, jsonDecoder))
+        }
+      }
+    }
+
+    def json[A: JsonDecoder: ClassTag](pathStr: String): RDD[A] =
+      ss.sparkContext
+        .textFile(pathStr)
+        .map(decode[A](_) match {
+          case Left(ex) => throw ex
+          case Right(r) => r
+        })
 
     def csv[A: TypedEncoder](pathStr: String): TypedDataset[A] =
       TypedDataset.createUnsafe[A](ss.read.csv(pathStr))

@@ -2,7 +2,7 @@ package mtest.spark.kafka
 
 import cats.effect.IO
 import cats.implicits._
-import com.github.chenharryhua.nanjin.common.NJFileFormat.{Avro, Parquet}
+import com.github.chenharryhua.nanjin.common.NJFileFormat.{Avro, Jackson, Json, Parquet}
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.spark._
@@ -10,6 +10,7 @@ import com.github.chenharryhua.nanjin.spark.kafka._
 import frameless.cats.implicits._
 import fs2.kafka.ProducerRecord
 import org.scalatest.funsuite.AnyFunSuite
+import io.circe.generic.auto._
 
 import scala.util.Random
 
@@ -35,8 +36,29 @@ class SaveTest extends AnyFunSuite {
     topic.sparKafka.dump.unsafeRunSync()
   }
   test("jackson") {
-    assert(topic.sparKafka.fromKafka.flatMap(_.saveJackson(blocker)).unsafeRunSync() == 100)
+    val action =
+      topic.sparKafka.fromKafka.flatMap(_.saveJackson(blocker)).map(r => assert(r == 100)) >>
+        sparkSession
+          .jackson[NJConsumerRecord[Int, Foo]](
+            topic.sparKafka.params.pathBuilder(topic.topicName, Jackson))
+          .typedDataset
+          .collect[IO]()
+          .map(r => assert(r.sorted.flatMap(_.value).toList == vlist))
+    action.unsafeRunSync()
   }
+
+  test("json") {
+    val action =
+      topic.sparKafka.fromKafka.flatMap(_.saveJson(blocker)).map(r => assert(r == 100)) >>
+        sparkSession
+          .json[NJConsumerRecord[Int, Foo]](
+            topic.sparKafka.params.pathBuilder(topic.topicName, Json))
+          .typedDataset
+          .collect[IO]()
+          .map(r => assert(r.sorted.flatMap(_.value).toList == vlist))
+    action.unsafeRunSync()
+  }
+
   test("avro") {
 
     val action =
