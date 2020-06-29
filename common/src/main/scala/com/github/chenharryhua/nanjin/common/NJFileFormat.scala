@@ -3,7 +3,8 @@ package com.github.chenharryhua.nanjin.common
 import cats.instances.int._
 import enumeratum.values.{CatsOrderValueEnum, IntEnum, IntEnumEntry}
 import monocle.Prism
-import monocle.macros.GenPrism
+import monocle.generic.coproduct.coProductPrism
+import shapeless.{:+:, CNil}
 
 import scala.collection.immutable
 
@@ -14,12 +15,10 @@ sealed abstract class NJFileFormat(val value: Int, val format: String, val alias
 
 object NJFileFormat extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[NJFileFormat] {
   override val values: immutable.IndexedSeq[NJFileFormat] = findValues
-//text
   case object Jackson extends NJFileFormat(1, "json", "jackson")
   case object Json extends NJFileFormat(2, "json", "circe")
   case object Text extends NJFileFormat(3, "txt", "plain")
   case object Csv extends NJFileFormat(4, "csv", "kantan")
-//binary
   case object Parquet extends NJFileFormat(10, "parquet", "apache")
   case object Avro extends NJFileFormat(11, "avro", "data")
   case object BinaryAvro extends NJFileFormat(12, "avro", "binary")
@@ -34,14 +33,59 @@ object NJFileFormat extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[N
   type BinaryAvro = BinaryAvro.type
   type JavaObject = JavaObject.type
 
-  implicit val prismJackson: Prism[NJFileFormat, Jackson] =
-    GenPrism[NJFileFormat, Jackson]
+  // json family
+  type JsonFamily = Jackson :+: Json :+: CNil
 
-  implicit val prismParquet: Prism[NJFileFormat, Parquet] =
-    GenPrism[NJFileFormat, Parquet]
+  implicit val jsonPrimsJackson: Prism[JsonFamily, Jackson] =
+    coProductPrism[JsonFamily, Jackson]
 
-  implicit val prismAvro: Prism[NJFileFormat, Avro] =
-    GenPrism[NJFileFormat, Avro]
+  implicit val jsonPrimsJson: Prism[JsonFamily, Json] =
+    coProductPrism[JsonFamily, Json]
+
+  // text family
+  type TextFamily = Jackson :+: Json :+: Text :+: Csv :+: CNil
+
+  implicit val textPrismJackson: Prism[TextFamily, Jackson] =
+    coProductPrism[TextFamily, Jackson]
+
+  implicit val textPrismJson: Prism[TextFamily, Json] =
+    coProductPrism[TextFamily, Json]
+
+  implicit val textPrismText: Prism[TextFamily, Text] =
+    coProductPrism[TextFamily, Text]
+
+  implicit val textPrismCsv: Prism[TextFamily, Csv] =
+    coProductPrism[TextFamily, Csv]
+
+  // binary family
+  type BinaryFamily = Parquet :+: Avro :+: BinaryAvro :+: JavaObject :+: CNil
+
+  implicit val binPrismJavaObject: Prism[BinaryFamily, JavaObject] =
+    coProductPrism[BinaryFamily, JavaObject]
+
+  implicit val binPrismBinaryAvro: Prism[BinaryFamily, BinaryAvro] =
+    coProductPrism[BinaryFamily, BinaryAvro]
+
+  implicit val binPrismParquet: Prism[BinaryFamily, Parquet] =
+    coProductPrism[BinaryFamily, Parquet]
+
+  implicit val binPrismAvro: Prism[BinaryFamily, Avro] =
+    coProductPrism[BinaryFamily, Avro]
+
+  // avro family
+  type AvroFamily = Jackson :+: Parquet :+: Avro :+: BinaryAvro :+: CNil
+
+  implicit val avroPrismJackson: Prism[AvroFamily, Jackson] =
+    coProductPrism[AvroFamily, Jackson]
+
+  implicit val avroPrismBinaryAvro: Prism[AvroFamily, BinaryAvro] =
+    coProductPrism[AvroFamily, BinaryAvro]
+
+  implicit val avroPrismParquet: Prism[AvroFamily, Parquet] =
+    coProductPrism[AvroFamily, Parquet]
+
+  implicit val avroPrismAvro: Prism[AvroFamily, Avro] =
+    coProductPrism[AvroFamily, Avro]
 
 }
 
