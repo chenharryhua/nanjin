@@ -38,9 +38,8 @@ private[spark] trait DatasetExtensions {
       out: K => Pipe[F, A, Unit]): F[Long] = {
       val persisted: RDD[A] = rdd.persist()
       val keys: List[K]     = persisted.map(bucketing).distinct().collect().toList
-      keys
-        .map(k => persisted.filter(a => k === bucketing(a)).stream[F].through(out(k)).compile.drain)
-        .reduce(_ >> _) >>
+      keys.traverse(k =>
+        persisted.filter(a => k === bucketing(a)).stream[F].through(out(k)).compile.drain) >>
         Sync[F].delay(persisted.count()) <*
         Sync[F].delay(persisted.unpersist())
     }
