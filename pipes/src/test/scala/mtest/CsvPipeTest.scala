@@ -14,8 +14,13 @@ class CsvPipeTest extends AnyFunSuite {
   val dser = new CsvDeserialization[IO, Tigger](CsvConfiguration.rfc)
 
   test("csv identity") {
-    val data: Stream[IO, Tigger] = Stream.emits(list)
+    val data: Stream[IO, Tigger] = Stream.emits(tiggers)
     assert(
-      data.through(ser.serialize).through(dser.deserialize).compile.toList.unsafeRunSync() === list)
+      data
+        .through(ser.serialize)
+        .through(dser.deserialize)
+        .compile
+        .toList
+        .unsafeRunSync() === tiggers)
   }
 }

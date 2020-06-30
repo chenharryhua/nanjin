@@ -21,7 +21,7 @@ class JsonAvroPipeTest extends AnyFunSuite {
   val dser  = new JsonAvroDeserialization[IO](AvroSchema[Tigger])
 
   test("json-avro identity") {
-    val data: Stream[IO, Tigger] = Stream.emits(list)
+    val data: Stream[IO, Tigger] = Stream.emits(tiggers)
 
     assert(
       data
@@ -31,16 +31,16 @@ class JsonAvroPipeTest extends AnyFunSuite {
         .through(gdser.decode)
         .compile
         .toList
-        .unsafeRunSync() === list)
+        .unsafeRunSync() === tiggers)
   }
   test("jackson-compact-string size") {
-    val data: Stream[IO, Tigger] = Stream.emits(list)
+    val data: Stream[IO, Tigger] = Stream.emits(tiggers)
 
     assert(
       data.through(gser.encode).through(ser.compactJson).compile.toList.unsafeRunSync().size == 10)
   }
   test("jackson-pretty-string size") {
-    val data: Stream[IO, Tigger] = Stream.emits(list)
+    val data: Stream[IO, Tigger] = Stream.emits(tiggers)
 
     assert(
       data.through(gser.encode).through(ser.prettyJson).compile.toList.unsafeRunSync().size == 10)

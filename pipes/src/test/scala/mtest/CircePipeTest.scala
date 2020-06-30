@@ -11,10 +11,15 @@ class CircePipeTest extends AnyFunSuite {
   import TestData._
   val ser                      = new CirceSerialization[IO, Tigger]
   val dser                     = new CirceDeserialization[IO, Tigger]
-  val data: Stream[IO, Tigger] = Stream.emits(list)
+  val data: Stream[IO, Tigger] = Stream.emits(tiggers)
 
   test("circe identity") {
     assert(
-      data.through(ser.serialize).through(dser.deserialize).compile.toList.unsafeRunSync() === list)
+      data
+        .through(ser.serialize)
+        .through(dser.deserialize)
+        .compile
+        .toList
+        .unsafeRunSync() === tiggers)
   }
 }
