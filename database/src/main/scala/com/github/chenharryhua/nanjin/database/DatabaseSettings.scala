@@ -22,10 +22,10 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
        |connStr: ${connStr.value}
        |""".stripMargin
 
-  final def transactorResource[F[_]: ContextShift: Async]: Resource[F, HikariTransactor[F]] =
+  final def transactorResource[F[_]: ContextShift: Async](
+    blocker: Blocker): Resource[F, HikariTransactor[F]] =
     for {
       threadPool <- ExecutionContexts.fixedThreadPool[F](8)
-      blocker <- Blocker[F]
       xa <- HikariTransactor.newHikariTransactor[F](
         driver.value,
         connStr.value,
@@ -36,38 +36,48 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
       )
     } yield xa
 
-  final def transactorStream[F[_]: ContextShift: Async]: Stream[F, HikariTransactor[F]] =
-    Stream.resource(transactorResource)
+  final def transactorStream[F[_]: ContextShift: Async](
+    blocker: Blocker): Stream[F, HikariTransactor[F]] =
+    Stream.resource(transactorResource(blocker))
 
   final def genCaseClass[F[_]: ContextShift: Async]: F[String] =
-    transactorResource[F].use {
-      _.configure { hikari =>
-        Async[F]
-          .delay(new SimpleJdbcCodegen(() => hikari.getConnection, ""))
-          .map(_.writeStrings.toList.mkString("\n"))
+    Blocker[F].use { blocker =>
+      transactorResource[F](blocker).use {
+        _.configure { hikari =>
+          Async[F]
+            .delay(new SimpleJdbcCodegen(() => hikari.getConnection, ""))
+            .map(_.writeStrings.toList.mkString("\n"))
+        }
       }
     }
 
-  final def runQuery[F[_]: ContextShift: Async, A](action: ConnectionIO[A]): F[A] =
-    transactorResource[F].use(_.trans.apply(action))
+  final def runQuery[F[_]: ContextShift: Async, A](
+    action: ConnectionIO[A],
+    blocker: Blocker): F[A] =
+    transactorResource[F](blocker).use(_.trans.apply(action))
 
-  final def runStream[F[_]: ContextShift: Async, A](script: Stream[ConnectionIO, A]): Stream[F, A] =
-    transactorStream[F].flatMap(_.transP.apply(script))
+  final def runStream[F[_]: ContextShift: Async, A](
+    script: Stream[ConnectionIO, A],
+    blocker: Blocker): Stream[F, A] =
+    transactorStream[F](blocker).flatMap(_.transP.apply(script))
 
   final def runBatch[F[_]: ContextShift: Concurrent: Timer, A, B](
     f: A => ConnectionIO[B],
+    blocker: Blocker,
     batchSize: Int,
-    duration: FiniteDuration): Pipe[F, A, Chunk[B]] =
+    duration: FiniteDuration
+  ): Pipe[F, A, Chunk[B]] =
     (src: Stream[F, A]) =>
       for {
-        xa <- transactorStream[F]
+        xa <- transactorStream[F](blocker)
         data <- src.groupWithin(batchSize, duration)
         rst <- Stream.eval(xa.trans.apply(data.traverse(f)(AsyncConnectionIO)))
       } yield rst
 
   final def runBatch[F[_]: ContextShift: Concurrent: Timer, A, B](
-    f: A => ConnectionIO[B]): Pipe[F, A, Chunk[B]] =
-    runBatch[F, A, B](f, batchSize = 1000, duration = 5.seconds)
+    f: A => ConnectionIO[B],
+    blocker: Blocker): Pipe[F, A, Chunk[B]] =
+    runBatch[F, A, B](f, blocker, batchSize = 1000, duration = 5.seconds)
 }
 
 @Lenses final case class Postgres(

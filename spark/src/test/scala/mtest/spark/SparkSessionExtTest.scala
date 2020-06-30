@@ -1,5 +1,7 @@
 package mtest.spark
 
+import java.time.LocalDateTime
+
 import cats.effect.IO
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime._
@@ -7,17 +9,17 @@ import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.cats.implicits._
 import fs2.Stream
-import org.apache.spark.sql.AnalysisException
 import org.scalatest.funsuite.AnyFunSuite
 import kantan.csv.generic._
+import kantan.csv.java8._
 
 object SparkSessionExtTestData {
-  final case class Elephant(age: Long, weight: Double, food: List[String])
+  final case class Elephant(birthDay: LocalDateTime, weight: Double, food: List[String])
 
   val elephants = List(
-    Elephant(1, 100.3, List("apple", "orange")),
-    Elephant(2, 200.3, List("lemon")),
-    Elephant(3, 300.3, List("rice", "leaf", "grass"))
+    Elephant(LocalDateTime.of(2020, 6, 1, 12, 10, 10), 100.3, List("apple", "orange")),
+    Elephant(LocalDateTime.of(2021, 6, 1, 12, 10, 10), 200.3, List("lemon")),
+    Elephant(LocalDateTime.of(2022, 6, 1, 12, 10, 10), 300.3, List("rice", "leaf", "grass"))
   )
 }
 
@@ -34,8 +36,7 @@ class SparkSessionExtTest extends AnyFunSuite {
     val prepare = delete(path) >> data.through(sink.csv[Elephant](path)).compile.drain
     prepare.unsafeRunSync()
 
-    assertThrows[AnalysisException](
-      sparkSession.csv[Elephant](path).collect[IO]().unsafeRunSync().toSet)
+    assertThrows[Exception](sparkSession.csv[Elephant](path).collect[IO]().unsafeRunSync().toSet)
   }
   test("source shoud be able to read varying lengh csv") {
     val path    = "./data/test/spark/sse/elephant-nj.csv"
