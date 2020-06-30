@@ -1,14 +1,16 @@
 package mtest.spark
 
+import better.files._
 import cats.effect.IO
 import cats.implicits._
 import com.github.chenharryhua.nanjin.spark._
+import frameless.cats.implicits._
 import fs2.Stream
-import org.scalatest.funsuite.AnyFunSuite
 import io.circe.generic.auto._
+import kantan.csv.CsvConfiguration
+import org.scalatest.funsuite.AnyFunSuite
 import kantan.csv.generic._
 import scala.util.Random
-import better.files._
 
 object SingleFileTestData {
   final case class Swordfish(from: String, weight: Float, code: Int)
@@ -27,7 +29,6 @@ class SingleFileTest extends AnyFunSuite {
   val sink                 = fileSink[IO](blocker)
   val source               = fileSource[IO](blocker)
   def delete(path: String) = sink.delete(path)
-  import sparkSession.implicits._
 
   test("avro - identity") {
     val path = "./data/test/spark/singleFile/swordfish.avro"
@@ -37,7 +38,7 @@ class SingleFileTest extends AnyFunSuite {
 
     assert(run.unsafeRunSync() === fishes)
 
-    val s = sparkSession.read.format("avro").load(path).as[Swordfish].collect().toSet
+    val s = sparkSession.avro[Swordfish](path).collect[IO]().unsafeRunSync().toSet
     assert(s == fishes.toSet)
   }
 
@@ -58,7 +59,7 @@ class SingleFileTest extends AnyFunSuite {
 
     assert(run.unsafeRunSync() === fishes)
 
-    val s = sparkSession.read.parquet(path).as[Swordfish].collect().toSet
+    val s = sparkSession.parquet[Swordfish](path).collect[IO]().unsafeRunSync().toSet
     assert(s == fishes.toSet)
   }
   test("json - identity") {
@@ -70,6 +71,9 @@ class SingleFileTest extends AnyFunSuite {
     assert(run.unsafeRunSync() === fishes)
     assert(File(path).lineCount == 3L)
 
+    val s = sparkSession.json[Swordfish](path).typedDataset.collect[IO]().unsafeRunSync().toSet
+    assert(s == fishes.toSet)
+
   }
   test("jackson - identity") {
     val path = "./data/test/spark/singleFile/swordfish-jackson.json"
@@ -79,6 +83,8 @@ class SingleFileTest extends AnyFunSuite {
 
     assert(run.unsafeRunSync() === fishes)
     assert(File(path).lineCount == 3L)
+    val s = sparkSession.jackson[Swordfish](path).typedDataset.collect[IO]().unsafeRunSync().toSet
+    assert(s == fishes.toSet)
   }
 
   test("csv - identity") {
@@ -89,6 +95,24 @@ class SingleFileTest extends AnyFunSuite {
 
     assert(run.unsafeRunSync() === fishes)
     assert(File(path).lineCount == 3L)
+
+    val s = sparkSession.csv[Swordfish](path).collect[IO]().unsafeRunSync().toSet
+    assert(s == fishes.toSet)
+  }
+
+  test("csv with header - identity") {
+    val path = "./data/test/spark/singleFile/swordfish-header.csv"
+    val rfc  = CsvConfiguration.rfc.withHeader("from", "weight", "code").withCellSeparator('|')
+
+    val run = delete(path) >>
+      ss.through(sink.csv[Swordfish](path, rfc)).compile.drain >>
+      source.csv[Swordfish](path, rfc).compile.toList
+
+    assert(run.unsafeRunSync() === fishes)
+    assert(File(path).lineCount == 4L)
+
+    val s = sparkSession.csv[Swordfish](path, rfc).collect[IO]().unsafeRunSync().toSet
+    assert(s == fishes.toSet)
   }
 
   test("java-object - identity") {
