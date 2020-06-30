@@ -52,18 +52,18 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
     }
 
   final def runQuery[F[_]: ContextShift: Async, A](
-    action: ConnectionIO[A],
-    blocker: Blocker): F[A] =
+    blocker: Blocker,
+    action: ConnectionIO[A]): F[A] =
     transactorResource[F](blocker).use(_.trans.apply(action))
 
   final def runStream[F[_]: ContextShift: Async, A](
-    script: Stream[ConnectionIO, A],
-    blocker: Blocker): Stream[F, A] =
+    blocker: Blocker,
+    script: Stream[ConnectionIO, A]): Stream[F, A] =
     transactorStream[F](blocker).flatMap(_.transP.apply(script))
 
   final def runBatch[F[_]: ContextShift: Concurrent: Timer, A, B](
-    f: A => ConnectionIO[B],
     blocker: Blocker,
+    f: A => ConnectionIO[B],
     batchSize: Int,
     duration: FiniteDuration
   ): Pipe[F, A, Chunk[B]] =
@@ -75,9 +75,9 @@ sealed abstract class DatabaseSettings(username: Username, password: Password) {
       } yield rst
 
   final def runBatch[F[_]: ContextShift: Concurrent: Timer, A, B](
-    f: A => ConnectionIO[B],
-    blocker: Blocker): Pipe[F, A, Chunk[B]] =
-    runBatch[F, A, B](f, blocker, batchSize = 1000, duration = 5.seconds)
+    blocker: Blocker,
+    f: A => ConnectionIO[B]): Pipe[F, A, Chunk[B]] =
+    runBatch[F, A, B](blocker, f, batchSize = 1000, duration = 5.seconds)
 }
 
 @Lenses final case class Postgres(
