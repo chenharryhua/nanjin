@@ -11,16 +11,16 @@ import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
 class BimapNJRecords extends AnyFunSuite with FunSuiteDiscipline with Configuration {
   checkAll(
-    "NJConsumerRecord - bifunctor",
+    "NJConsumerRecord.bifunctor",
     BifunctorTests[NJConsumerRecord].bifunctor[Int, Int, Int, Int, Int, Int])
 
   checkAll(
-    "NJProducerRecord - bifunctor",
+    "NJProducerRecord.bifunctor",
     BifunctorTests[NJProducerRecord].bifunctor[Int, Int, Int, Int, Int, Int])
 
-  checkAll("NJConsumerRecord - order", OrderTests[NJConsumerRecord[Int, Int]].order)
+  checkAll("NJConsumerRecord.order", OrderTests[NJConsumerRecord[Int, Int]].order)
 
   checkAll(
-    "NJConsumerRecord - lowerbounded",
+    "NJConsumerRecord.lowerbounded",
     LowerBoundedTests[NJConsumerRecord[Int, Int]].lowerBounded)
 }
