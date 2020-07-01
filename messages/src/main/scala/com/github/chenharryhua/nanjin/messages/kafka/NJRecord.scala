@@ -1,6 +1,8 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
+import alleycats.Empty
 import cats.implicits._
+import cats.kernel.{LowerBounded, PartialOrder}
 import cats.{Bifunctor, Order, Show}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import fs2.kafka.{ProducerRecord => Fs2ProducerRecord}
@@ -49,6 +51,13 @@ object NJConsumerRecord {
       cr.topic,
       cr.timestampType.id)
 
+  implicit def emptyNJConsumerRecord[K, V]: Empty[NJConsumerRecord[K, V]] =
+    new Empty[NJConsumerRecord[K, V]] {
+
+      override val empty: NJConsumerRecord[K, V] =
+        NJConsumerRecord(Int.MinValue, Long.MinValue, Long.MinValue, None, None, "", -1)
+    }
+
   implicit def jsonNJConsumerRecordEncoder[K: JsonEncoder, V: JsonEncoder]
     : JsonEncoder[NJConsumerRecord[K, V]] = deriveEncoder[NJConsumerRecord[K, V]]
 
@@ -70,6 +79,13 @@ object NJConsumerRecord {
       if (ts != 0) ts.toInt
       else if (os != 0) os.toInt
       else x.partition - y.partition
+    }
+
+  implicit def NJConsumerRecordLowerBounded[K, V]: LowerBounded[NJConsumerRecord[K, V]] =
+    new LowerBounded[NJConsumerRecord[K, V]] {
+      override def partialOrder: PartialOrder[NJConsumerRecord[K, V]] = njConsumerRecordOrder
+
+      override def minBound: NJConsumerRecord[K, V] = emptyNJConsumerRecord.empty
     }
 
   implicit def njConsumerRecordOrdering[K, V]: Ordering[NJConsumerRecord[K, V]] =
@@ -140,6 +156,11 @@ object NJProducerRecord {
 
   def apply[K, V](v: V): NJProducerRecord[K, V] =
     NJProducerRecord(None, None, None, Option(v))
+
+  implicit def emptyNJProducerRecord[K, V]: Empty[NJProducerRecord[K, V]] =
+    new Empty[NJProducerRecord[K, V]] {
+      override val empty: NJProducerRecord[K, V] = NJProducerRecord(None, None, None, None)
+    }
 
   implicit def jsonNJProducerRecordEncoder[K: JsonEncoder, V: JsonEncoder]
     : JsonEncoder[NJProducerRecord[K, V]] =

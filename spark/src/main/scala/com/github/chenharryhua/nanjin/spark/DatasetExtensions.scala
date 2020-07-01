@@ -67,6 +67,16 @@ private[spark] trait DatasetExtensions {
 
   implicit class SparkSessionExt(private val ss: SparkSession) {
 
+    def withGroupId(groupId: String): SparkSession = {
+      ss.sparkContext.setLocalProperty("spark.jobGroup.id", groupId)
+      ss
+    }
+
+    def withDescription(description: String): SparkSession = {
+      ss.sparkContext.setLocalProperty("spark.job.description", description)
+      ss
+    }
+
     def parquet[A: TypedEncoder](pathStr: String): TypedDataset[A] =
       TypedDataset.createUnsafe[A](ss.read.parquet(pathStr))
 
