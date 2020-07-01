@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
+import alleycats.Empty
 import cats.implicits._
 import cats.{Bifunctor, Order, Show}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
@@ -48,6 +49,11 @@ object NJConsumerRecord {
       cr.value,
       cr.topic,
       cr.timestampType.id)
+
+  implicit def emptyNJConsumerRecord[K, V]: Empty[NJConsumerRecord[K, V]] =
+    new Empty[NJConsumerRecord[K, V]] {
+      override val empty: NJConsumerRecord[K, V] = NJConsumerRecord(-1, -1, -1, None, None, "", -1)
+    }
 
   implicit def jsonNJConsumerRecordEncoder[K: JsonEncoder, V: JsonEncoder]
     : JsonEncoder[NJConsumerRecord[K, V]] = deriveEncoder[NJConsumerRecord[K, V]]
@@ -140,6 +146,11 @@ object NJProducerRecord {
 
   def apply[K, V](v: V): NJProducerRecord[K, V] =
     NJProducerRecord(None, None, None, Option(v))
+
+  implicit def emptyNJProducerRecord[K, V]: Empty[NJProducerRecord[K, V]] =
+    new Empty[NJProducerRecord[K, V]] {
+      override val empty: NJProducerRecord[K, V] = NJProducerRecord(None, None, None, None)
+    }
 
   implicit def jsonNJProducerRecordEncoder[K: JsonEncoder, V: JsonEncoder]
     : JsonEncoder[NJProducerRecord[K, V]] =
