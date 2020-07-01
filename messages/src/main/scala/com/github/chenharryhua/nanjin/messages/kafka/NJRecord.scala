@@ -58,13 +58,13 @@ object NJConsumerRecord {
         NJConsumerRecord(Int.MinValue, Long.MinValue, Long.MinValue, None, None, "", -1)
     }
 
-  implicit def jsonNJConsumerRecordEncoder[K: JsonEncoder, V: JsonEncoder]
+  implicit def jsonEncoderNJConsumerRecord[K: JsonEncoder, V: JsonEncoder]
     : JsonEncoder[NJConsumerRecord[K, V]] = deriveEncoder[NJConsumerRecord[K, V]]
 
-  implicit def jsonNJConsumerRecordDecoder[K: JsonDecoder, V: JsonDecoder]
+  implicit def jsonDecoderNJConsumerRecord[K: JsonDecoder, V: JsonDecoder]
     : JsonDecoder[NJConsumerRecord[K, V]] = deriveDecoder[NJConsumerRecord[K, V]]
 
-  implicit val njConsumerRecordBifunctor: Bifunctor[NJConsumerRecord] =
+  implicit val bifunctorNJConsumerRecord: Bifunctor[NJConsumerRecord] =
     new Bifunctor[NJConsumerRecord] {
 
       override def bimap[A, B, C, D](
@@ -72,7 +72,7 @@ object NJConsumerRecord {
         fab.copy(key = fab.key.map(f), value = fab.value.map(g))
     }
 
-  implicit def njConsumerRecordOrder[K, V]: Order[NJConsumerRecord[K, V]] =
+  implicit def orderNJConsumerRecord[K, V]: Order[NJConsumerRecord[K, V]] =
     (x: NJConsumerRecord[K, V], y: NJConsumerRecord[K, V]) => {
       val ts = x.timestamp - y.timestamp
       val os = x.offset - y.offset
@@ -81,15 +81,15 @@ object NJConsumerRecord {
       else x.partition - y.partition
     }
 
-  implicit def NJConsumerRecordLowerBounded[K, V]: LowerBounded[NJConsumerRecord[K, V]] =
+  implicit def lowerBoundedNJConsumerRecord[K, V]: LowerBounded[NJConsumerRecord[K, V]] =
     new LowerBounded[NJConsumerRecord[K, V]] {
-      override def partialOrder: PartialOrder[NJConsumerRecord[K, V]] = njConsumerRecordOrder
+      override def partialOrder: PartialOrder[NJConsumerRecord[K, V]] = orderNJConsumerRecord
 
       override def minBound: NJConsumerRecord[K, V] = emptyNJConsumerRecord.empty
     }
 
-  implicit def njConsumerRecordOrdering[K, V]: Ordering[NJConsumerRecord[K, V]] =
-    njConsumerRecordOrder[K, V].toOrdering
+  implicit def orderingNJConsumerRecord[K, V]: Ordering[NJConsumerRecord[K, V]] =
+    orderNJConsumerRecord[K, V].toOrdering
 
   implicit def showNJConsumerRecord[K: Show, V: Show]: Show[NJConsumerRecord[K, V]] =
     nj =>
@@ -162,15 +162,15 @@ object NJProducerRecord {
       override val empty: NJProducerRecord[K, V] = NJProducerRecord(None, None, None, None)
     }
 
-  implicit def jsonNJProducerRecordEncoder[K: JsonEncoder, V: JsonEncoder]
+  implicit def jsonEncoderNJProducerRecord[K: JsonEncoder, V: JsonEncoder]
     : JsonEncoder[NJProducerRecord[K, V]] =
     deriveEncoder[NJProducerRecord[K, V]]
 
-  implicit def jsonNJProducerRecordDecoder[K: JsonDecoder, V: JsonDecoder]
+  implicit def jsonDecoderNJProducerRecord[K: JsonDecoder, V: JsonDecoder]
     : JsonDecoder[NJProducerRecord[K, V]] =
     deriveDecoder[NJProducerRecord[K, V]]
 
-  implicit val njProducerRecordBifunctor: Bifunctor[NJProducerRecord] =
+  implicit val bifunctorNJProducerRecord: Bifunctor[NJProducerRecord] =
     new Bifunctor[NJProducerRecord] {
 
       override def bimap[A, B, C, D](
