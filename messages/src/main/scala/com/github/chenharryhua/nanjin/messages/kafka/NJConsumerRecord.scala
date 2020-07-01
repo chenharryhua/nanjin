@@ -3,26 +3,26 @@ package com.github.chenharryhua.nanjin.messages.kafka
 import alleycats.Empty
 import cats.implicits._
 import cats.kernel.{LowerBounded, PartialOrder}
-import cats.{Bifunctor, Order, Show}
+import cats.{Applicative, Bifunctor, Bitraverse, Eval, Order, Show}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
+import io.scalaland.chimney.dsl._
 import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.ConsumerRecord
-import io.scalaland.chimney.dsl._
 
 /**
   * compatible with spark kafka streaming
   * https://spark.apache.org/docs/3.0.0/structured-streaming-kafka-integration.html
   */
 sealed trait NJConsumerRecordBase[K, V] { self =>
-  def partition: Int
-  def offset: Long
-  def timestamp: Long
-  def key: K
-  def value: V
-  def topic: String
-  def timestampType: Int
+  val partition: Int
+  val offset: Long
+  val timestamp: Long
+  val key: K
+  val value: V
+  val topic: String
+  val timestampType: Int
 
   final def compare(other: NJConsumerRecordBase[K, V]): Int = {
     val ts = self.timestamp - other.timestamp
@@ -31,6 +31,15 @@ sealed trait NJConsumerRecordBase[K, V] { self =>
     else if (os != 0) os.toInt
     else self.partition - other.partition
   }
+
+  final def njTimestamp: NJTimestamp = NJTimestamp(timestamp)
+
+  final def metaInfo: String =
+    s"Meta(topic=$topic,partition=$partition,offset=$offset,ts=${njTimestamp.utc})"
+
+  final def show(implicit k: Show[K], v: Show[V]): String =
+    s"CR($metaInfo,key=${key.show},value=${value.show})"
+
 }
 
 @Lenses final case class NJConsumerRecord[K, V](
@@ -42,7 +51,6 @@ sealed trait NJConsumerRecordBase[K, V] { self =>
   topic: String,
   timestampType: Int)
     extends NJConsumerRecordBase[Option[K], Option[V]] {
-  def njTimestamp: NJTimestamp = NJTimestamp(timestamp)
 
   def toNJProducerRecord: NJProducerRecord[K, V] =
     NJProducerRecord[K, V](Option(partition), Option(timestamp), key, value)
@@ -53,23 +61,16 @@ sealed trait NJConsumerRecordBase[K, V] { self =>
   ): NJConsumerRecord[K2, V2] =
     copy(key = key.flatten, value = value.flatten)
 
-  def metaInfo: String =
-    s"MetaInfo(topic=$topic,partition=$partition,offset=$offset,timestamp=${NJTimestamp(timestamp).utc})"
+  def compulsoryK: Option[CompulsoryK[K, V]] =
+    key.map(k => this.into[CompulsoryK[K, V]].withFieldConst(_.key, k).transform)
 
-  def compulsoryK: Option[NJConsumerRecordK[K, V]] =
-    key.map(k => this.into[NJConsumerRecordK[K, V]].withFieldConst(_.key, k).transform)
+  def compulsoryV: Option[CompulsoryV[K, V]] =
+    value.map(v => this.into[CompulsoryV[K, V]].withFieldConst(_.value, v).transform)
 
-  def compulsoryV: Option[NJConsumerRecordV[K, V]] =
-    value.map(v => this.into[NJConsumerRecordV[K, V]].withFieldConst(_.value, v).transform)
-
-  def compulsoryKV: Option[NJConsumerRecordKV[K, V]] =
+  def compulsoryKV: Option[CompulsoryKV[K, V]] =
     (key, value).mapN {
       case (k, v) =>
-        this
-          .into[NJConsumerRecordKV[K, V]]
-          .withFieldConst(_.key, k)
-          .withFieldConst(_.value, v)
-          .transform
+        this.into[CompulsoryKV[K, V]].withFieldConst(_.key, k).withFieldConst(_.value, v).transform
     }
 }
 
@@ -118,14 +119,9 @@ object NJConsumerRecord {
 
   implicit def orderingNJConsumerRecord[K, V]: Ordering[NJConsumerRecord[K, V]] =
     orderNJConsumerRecord.toOrdering
-
-  implicit def showNJConsumerRecord[K: Show, V: Show]: Show[NJConsumerRecord[K, V]] =
-    nj =>
-      s"CR(pt=${nj.partition},os=${nj.offset},ts=${NJTimestamp(
-        nj.timestamp).utc},k=${nj.key.show},v=${nj.value.show})"
 }
 
-final case class NJConsumerRecordV[K, V](
+final case class CompulsoryV[K, V](
   partition: Int,
   offset: Long,
   timestamp: Long,
@@ -133,27 +129,32 @@ final case class NJConsumerRecordV[K, V](
   value: V,
   topic: String,
   timestampType: Int)
-    extends NJConsumerRecordBase[Option[K], V]
+    extends NJConsumerRecordBase[Option[K], V] {
 
-object NJConsumerRecordV {
-
-  implicit val bifunctorNJConsumerRecordV: Bifunctor[NJConsumerRecordV] =
-    new Bifunctor[NJConsumerRecordV] {
-
-      override def bimap[A, B, C, D](
-        fab: NJConsumerRecordV[A, B])(f: A => C, g: B => D): NJConsumerRecordV[C, D] =
-        fab.copy(key = fab.key.map(f), value = g(fab.value))
-    }
-
-  implicit def orderNJConsumerRecordV[K, V]: Order[NJConsumerRecordV[K, V]] =
-    (x: NJConsumerRecordV[K, V], y: NJConsumerRecordV[K, V]) => x.compare(y)
-
-  implicit def orderingNJConsumerRecordV[K, V]: Ordering[NJConsumerRecordV[K, V]] =
-    orderNJConsumerRecordV.toOrdering
+  def compulsoryK: Option[CompulsoryKV[K, V]] =
+    key.map(k => this.into[CompulsoryKV[K, V]].withFieldConst(_.key, k).transform)
 
 }
 
-final case class NJConsumerRecordK[K, V](
+object CompulsoryV {
+
+  implicit val bifunctorCompulsoryV: Bifunctor[CompulsoryV] =
+    new Bifunctor[CompulsoryV] {
+
+      override def bimap[A, B, C, D](
+        fab: CompulsoryV[A, B])(f: A => C, g: B => D): CompulsoryV[C, D] =
+        fab.copy(key = fab.key.map(f), value = g(fab.value))
+    }
+
+  implicit def orderCompulsoryV[K, V]: Order[CompulsoryV[K, V]] =
+    (x: CompulsoryV[K, V], y: CompulsoryV[K, V]) => x.compare(y)
+
+  implicit def orderingCompulsoryV[K, V]: Ordering[CompulsoryV[K, V]] =
+    orderCompulsoryV.toOrdering
+
+}
+
+final case class CompulsoryK[K, V](
   partition: Int,
   offset: Long,
   timestamp: Long,
@@ -161,27 +162,32 @@ final case class NJConsumerRecordK[K, V](
   value: Option[V],
   topic: String,
   timestampType: Int)
-    extends NJConsumerRecordBase[K, Option[V]]
+    extends NJConsumerRecordBase[K, Option[V]] {
 
-object NJConsumerRecordK {
-
-  implicit val bifunctorNJConsumerRecordK: Bifunctor[NJConsumerRecordK] =
-    new Bifunctor[NJConsumerRecordK] {
-
-      override def bimap[A, B, C, D](
-        fab: NJConsumerRecordK[A, B])(f: A => C, g: B => D): NJConsumerRecordK[C, D] =
-        fab.copy(key = f(fab.key), value = fab.value.map(g))
-    }
-
-  implicit def orderNJConsumerRecordK[K, V]: Order[NJConsumerRecordK[K, V]] =
-    (x: NJConsumerRecordK[K, V], y: NJConsumerRecordK[K, V]) => x.compare(y)
-
-  implicit def orderingNJConsumerRecordK[K, V]: Ordering[NJConsumerRecordK[K, V]] =
-    orderNJConsumerRecordK.toOrdering
+  def compulsoryV: Option[CompulsoryKV[K, V]] =
+    value.map(v => this.into[CompulsoryKV[K, V]].withFieldConst(_.value, v).transform)
 
 }
 
-final case class NJConsumerRecordKV[K, V](
+object CompulsoryK {
+
+  implicit val bifunctorCompulsoryK: Bifunctor[CompulsoryK] =
+    new Bifunctor[CompulsoryK] {
+
+      override def bimap[A, B, C, D](
+        fab: CompulsoryK[A, B])(f: A => C, g: B => D): CompulsoryK[C, D] =
+        fab.copy(key = f(fab.key), value = fab.value.map(g))
+    }
+
+  implicit def orderCompulsoryK[K, V]: Order[CompulsoryK[K, V]] =
+    (x: CompulsoryK[K, V], y: CompulsoryK[K, V]) => x.compare(y)
+
+  implicit def orderingCompulsoryK[K, V]: Ordering[CompulsoryK[K, V]] =
+    orderCompulsoryK.toOrdering
+
+}
+
+final case class CompulsoryKV[K, V](
   partition: Int,
   offset: Long,
   timestamp: Long,
@@ -191,19 +197,32 @@ final case class NJConsumerRecordKV[K, V](
   timestampType: Int)
     extends NJConsumerRecordBase[K, V]
 
-object NJConsumerRecordKV {
+object CompulsoryKV {
 
-  implicit val bifunctorNJConsumerRecordKV: Bifunctor[NJConsumerRecordKV] =
-    new Bifunctor[NJConsumerRecordKV] {
+  implicit val bifunctorCompulsoryKV: Bitraverse[CompulsoryKV] =
+    new Bitraverse[CompulsoryKV] {
 
       override def bimap[A, B, C, D](
-        fab: NJConsumerRecordKV[A, B])(f: A => C, g: B => D): NJConsumerRecordKV[C, D] =
+        fab: CompulsoryKV[A, B])(f: A => C, g: B => D): CompulsoryKV[C, D] =
         fab.copy(key = f(fab.key), value = g(fab.value))
+
+      override def bitraverse[G[_], A, B, C, D](
+        fab: CompulsoryKV[A, B])(f: A => G[C], g: B => G[D])(implicit
+        G: Applicative[G]): G[CompulsoryKV[C, D]] =
+        G.map2(f(fab.key), g(fab.value))((k, v) => bimap(fab)(_ => k, _ => v))
+
+      override def bifoldLeft[A, B, C](fab: CompulsoryKV[A, B], c: C)(
+        f: (C, A) => C,
+        g: (C, B) => C): C = g(f(c, fab.key), fab.value)
+
+      override def bifoldRight[A, B, C](fab: CompulsoryKV[A, B], c: Eval[C])(
+        f: (A, Eval[C]) => Eval[C],
+        g: (B, Eval[C]) => Eval[C]): Eval[C] = g(fab.value, f(fab.key, c))
     }
 
-  implicit def orderNJConsumerRecordKV[K, V]: Order[NJConsumerRecordKV[K, V]] =
-    (x: NJConsumerRecordKV[K, V], y: NJConsumerRecordKV[K, V]) => x.compare(y)
+  implicit def orderCompulsoryKV[K, V]: Order[CompulsoryKV[K, V]] =
+    (x: CompulsoryKV[K, V], y: CompulsoryKV[K, V]) => x.compare(y)
 
-  implicit def orderingNJConsumerRecordKV[K, V]: Ordering[NJConsumerRecordKV[K, V]] =
-    orderNJConsumerRecordKV.toOrdering
+  implicit def orderingNJConsumerRecordKV[K, V]: Ordering[CompulsoryKV[K, V]] =
+    orderCompulsoryKV.toOrdering
 }
