@@ -8,7 +8,7 @@ import io.circe.syntax._
 import org.scalatest.funsuite.AnyFunSuite
 import shapeless._
 import com.github.chenharryhua.nanjin.kafka.TopicName
-import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
+import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 
 object CoproductJsons {
   final case class Foo(a: Int, b: String)
@@ -32,10 +32,10 @@ class CoproductJsonTest extends AnyFunSuite {
   }
 
   test("jackson json coproduct is invertable. witness by toJackson/fromJackson") {
-    val msg1: NJConsumerRecord[Int, FB] =
-      NJConsumerRecord(0, 0, 0, Some(0), Some(fb1), "coproduct.test", 0)
-    val msg2: NJConsumerRecord[Int, FB] =
-      NJConsumerRecord(0, 0, 0, Some(0), Some(fb2), "coproduct.test", 0)
+    val msg1: OptionalKV[Int, FB] =
+      OptionalKV(0, 0, 0, Some(0), Some(fb1), "coproduct.test", 0)
+    val msg2: OptionalKV[Int, FB] =
+      OptionalKV(0, 0, 0, Some(0), Some(fb2), "coproduct.test", 0)
 
   }
 }

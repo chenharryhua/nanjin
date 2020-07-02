@@ -24,7 +24,7 @@ final class TopicDef[K, V] private (val topicName: TopicName)(implicit
   implicit val keySchemaFor: SchemaFor[K] = serdeOfKey.schemaFor
   implicit val valSchemaFor: SchemaFor[V] = serdeOfVal.schemaFor
 
-  val schemaFor: SchemaFor[NJConsumerRecord[K, V]] = SchemaFor[NJConsumerRecord[K, V]]
+  val schemaFor: SchemaFor[OptionalKV[K, V]] = SchemaFor[OptionalKV[K, V]]
 
   def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[F, K, V] =
     ctx.topic[K, V](this)

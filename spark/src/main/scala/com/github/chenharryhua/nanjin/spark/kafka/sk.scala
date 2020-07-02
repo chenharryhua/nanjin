@@ -6,7 +6,7 @@ import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaOffsetRange, KafkaTopic, KafkaTopicPartition}
-import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
+import com.github.chenharryhua.nanjin.messages.kafka.{NJProducerRecord, OptionalKV}
 import com.github.chenharryhua.nanjin.utils.Keyboard
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Pipe
@@ -56,7 +56,7 @@ object sk {
     topic: KafkaTopic[F, K, V],
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy)(implicit
-    sparkSession: SparkSession): F[RDD[NJConsumerRecord[K, V]]] =
+    sparkSession: SparkSession): F[RDD[OptionalKV[K, V]]] =
     kafkaRDD[F, K, V](topic, timeRange, locationStrategy).map(_.mapPartitions { ms =>
       ms.map { m =>
         val (errs, cr) = topic.njDecoder.decode(m).run
@@ -66,8 +66,8 @@ object sk {
     })
 
   def loadDiskRdd[F[_]: Sync, K, V](path: String)(implicit
-    sparkSession: SparkSession): F[RDD[NJConsumerRecord[K, V]]] =
-    Sync[F].delay(sparkSession.sparkContext.objectFile[NJConsumerRecord[K, V]](path))
+    sparkSession: SparkSession): F[RDD[OptionalKV[K, V]]] =
+    Sync[F].delay(sparkSession.sparkContext.objectFile[OptionalKV[K, V]](path))
 
   def uploader[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
     topic: KafkaTopic[F, K, V],
@@ -119,7 +119,7 @@ object sk {
   }
 
   def streaming[F[_]: Sync, K, V, A](topic: KafkaTopic[F, K, V], timeRange: NJDateTimeRange)(
-    f: NJConsumerRecord[K, V] => A)(implicit
+    f: OptionalKV[K, V] => A)(implicit
     sparkSession: SparkSession,
     encoder: TypedEncoder[A]): F[TypedDataset[A]] = {
 
@@ -133,12 +133,12 @@ object sk {
             .option("startingOffsets", startingOffsets(gtp))
             .option("subscribe", topic.topicDef.topicName.value)
             .load()
-            .as[NJConsumerRecord[Array[Byte], Array[Byte]]])
+            .as[OptionalKV[Array[Byte], Array[Byte]]])
         .deserialized
         .mapPartitions(_.map { cr =>
           val (errs, msg) = topic.njDecoder.decode(cr).run
           errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
-          f(NJConsumerRecord.timestamp.modify(_ / 1000)(msg)) // spark use micro-second.
+          f(OptionalKV.timestamp.modify(_ / 1000)(msg)) // spark use micro-second.
         })
     }
   }

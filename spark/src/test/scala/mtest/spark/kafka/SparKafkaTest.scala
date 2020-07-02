@@ -6,7 +6,7 @@ import cats.effect.IO
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.kafka.codec.WithAvroSchema
-import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
+import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.spark.injection._
 import com.github.chenharryhua.nanjin.spark.kafka._
@@ -48,13 +48,13 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("should be able to bimap to other topic") {
-    val src: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int]("src.topic")
-    val tgt: KafkaTopic[IO, String, Int]             = ctx.topic[String, Int]("target.topic")
-    val d1: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0)
-    val d2: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 2, 0, None, Some(2), "t", 0)
-    val d3: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 3, 0, None, None, "t", 0)
-    val d4: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 4, 0, None, Some(4), "t", 0)
-    val ds: TypedDataset[NJConsumerRecord[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
+    val src: KafkaTopic[IO, Int, Int]          = ctx.topic[Int, Int]("src.topic")
+    val tgt: KafkaTopic[IO, String, Int]       = ctx.topic[String, Int]("target.topic")
+    val d1: OptionalKV[Int, Int]               = OptionalKV(0, 1, 0, None, Some(1), "t", 0)
+    val d2: OptionalKV[Int, Int]               = OptionalKV(0, 2, 0, None, Some(2), "t", 0)
+    val d3: OptionalKV[Int, Int]               = OptionalKV(0, 3, 0, None, None, "t", 0)
+    val d4: OptionalKV[Int, Int]               = OptionalKV(0, 4, 0, None, Some(4), "t", 0)
+    val ds: TypedDataset[OptionalKV[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
 
     val birst =
       src.sparKafka.crDataset(ds).bimap(_.toString, _ + 1).values.collect[IO]().unsafeRunSync.toSet
@@ -62,18 +62,18 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("should be able to flatmap to other topic") {
-    val src: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int]("src.topic")
-    val tgt: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int]("target.topic")
-    val d1: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0)
-    val d2: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 2, 0, None, Some(2), "t", 0)
-    val d3: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 3, 0, None, None, "t", 0)
-    val d4: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 4, 0, None, Some(4), "t", 0)
-    val ds: TypedDataset[NJConsumerRecord[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
+    val src: KafkaTopic[IO, Int, Int]          = ctx.topic[Int, Int]("src.topic")
+    val tgt: KafkaTopic[IO, Int, Int]          = ctx.topic[Int, Int]("target.topic")
+    val d1: OptionalKV[Int, Int]               = OptionalKV(0, 1, 0, None, Some(1), "t", 0)
+    val d2: OptionalKV[Int, Int]               = OptionalKV(0, 2, 0, None, Some(2), "t", 0)
+    val d3: OptionalKV[Int, Int]               = OptionalKV(0, 3, 0, None, None, "t", 0)
+    val d4: OptionalKV[Int, Int]               = OptionalKV(0, 4, 0, None, Some(4), "t", 0)
+    val ds: TypedDataset[OptionalKV[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
 
     val birst =
       src.sparKafka
         .crDataset(ds)
-        .flatMap(m => m.value.map(x => NJConsumerRecord.value.set(Some(x - 1))(m)))
+        .flatMap(m => m.value.map(x => OptionalKV.value.set(Some(x - 1))(m)))
         .values
         .collect[IO]()
         .unsafeRunSync
@@ -82,11 +82,11 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("someValue should filter out none values") {
-    val cr1: NJConsumerRecord[Int, Int]              = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0)
-    val cr2: NJConsumerRecord[Int, Int]              = NJConsumerRecord(0, 2, 0, Some(2), None, "t", 0)
-    val cr3: NJConsumerRecord[Int, Int]              = NJConsumerRecord(0, 3, 0, Some(3), None, "t", 0)
-    val crs: List[NJConsumerRecord[Int, Int]]        = List(cr1, cr2, cr3)
-    val ds: TypedDataset[NJConsumerRecord[Int, Int]] = TypedDataset.create(crs)
+    val cr1: OptionalKV[Int, Int]              = OptionalKV(0, 1, 0, None, Some(1), "t", 0)
+    val cr2: OptionalKV[Int, Int]              = OptionalKV(0, 2, 0, Some(2), None, "t", 0)
+    val cr3: OptionalKV[Int, Int]              = OptionalKV(0, 3, 0, Some(3), None, "t", 0)
+    val crs: List[OptionalKV[Int, Int]]        = List(cr1, cr2, cr3)
+    val ds: TypedDataset[OptionalKV[Int, Int]] = TypedDataset.create(crs)
 
     val t   = TopicDef[Int, Int](TopicName("some.value")).in(ctx).sparKafka.crDataset(ds)
     val rst = t.someValues.typedDataset.collect[IO]().unsafeRunSync()

@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryK,
   CompulsoryKV,
   CompulsoryV,
-  NJConsumerRecord
+  OptionalKV
 }
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import frameless.{TypedDataset, TypedEncoder}
@@ -25,7 +25,7 @@ import scala.collection.immutable.Queue
 import scala.reflect.ClassTag
 
 final class FsmRdd[F[_], K, V](
-  val rdd: RDD[NJConsumerRecord[K, V]],
+  val rdd: RDD[OptionalKV[K, V]],
   topic: KafkaTopic[F, K, V],
   cfg: SKConfig)(implicit sparkSession: SparkSession)
     extends SparKafkaUpdateParams[FsmRdd[F, K, V]] {
@@ -53,7 +53,7 @@ final class FsmRdd[F[_], K, V](
     new FsmRdd[F, K2, V2](rdd.map(_.bimap(k, v)), other, cfg)
 
   def flatMapTo[K2, V2](other: KafkaTopic[F, K2, V2])(
-    f: NJConsumerRecord[K, V] => TraversableOnce[NJConsumerRecord[K2, V2]]): FsmRdd[F, K2, V2] =
+    f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]]): FsmRdd[F, K2, V2] =
     new FsmRdd[F, K2, V2](rdd.flatMap(f), other, cfg)
 
   def dismissNulls: FsmRdd[F, K, V] =
@@ -68,7 +68,7 @@ final class FsmRdd[F[_], K, V](
 
   def typedDataset(implicit
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): TypedDataset[NJConsumerRecord[K, V]] =
+    valEncoder: TypedEncoder[V]): TypedDataset[OptionalKV[K, V]] =
     TypedDataset.create(rdd)
 
   def crDataset(implicit
@@ -76,13 +76,13 @@ final class FsmRdd[F[_], K, V](
     valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] =
     new FsmConsumerRecords(typedDataset.dataset, cfg)
 
-  def stream(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
+  def stream(implicit F: Sync[F]): Stream[F, OptionalKV[K, V]] =
     rdd.stream[F]
 
-  def source(implicit F: ConcurrentEffect[F]): Source[NJConsumerRecord[K, V], NotUsed] =
+  def source(implicit F: ConcurrentEffect[F]): Source[OptionalKV[K, V], NotUsed] =
     rdd.source[F]
 
-  def malOrdered(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
+  def malOrdered(implicit F: Sync[F]): Stream[F, OptionalKV[K, V]] =
     stream.sliding(2).mapFilter {
       case Queue(a, b) => if (a.timestamp <= b.timestamp) None else Some(a)
     }
@@ -108,7 +108,7 @@ final class FsmRdd[F[_], K, V](
     val path = params.pathBuilder(topic.topicName, NJFileFormat.Json)
     val data = rdd.persist()
     stream
-      .through(fileSink(blocker).json[NJConsumerRecord[K, V]](path))
+      .through(fileSink(blocker).json[OptionalKV[K, V]](path))
       .compile
       .drain
       .as(data.count()) <* ce.delay(data.unpersist())
@@ -122,7 +122,7 @@ final class FsmRdd[F[_], K, V](
     val path = params.pathBuilder(topic.topicName, NJFileFormat.Text)
     val data = rdd.persist()
     stream
-      .through(fileSink[F](blocker).text[NJConsumerRecord[K, V]](path))
+      .through(fileSink[F](blocker).text[OptionalKV[K, V]](path))
       .compile
       .drain
       .as(data.count()) <*

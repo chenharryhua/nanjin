@@ -4,7 +4,7 @@ import java.time.{LocalDate, LocalDateTime, ZoneId}
 
 import cats.effect.Sync
 import com.github.chenharryhua.nanjin.datetime._
-import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
+import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.TypedDataset
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
@@ -19,7 +19,7 @@ final private[kafka] case class CRMetaInfo(
 
 private[kafka] object CRMetaInfo {
 
-  def apply[K, V](cr: NJConsumerRecord[K, V]): CRMetaInfo =
+  def apply[K, V](cr: OptionalKV[K, V]): CRMetaInfo =
     CRMetaInfo(
       cr.topic,
       cr.partition,

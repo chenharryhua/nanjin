@@ -1,25 +1,26 @@
 package mtest.kafka.codec
 
 import akka.kafka.ConsumerMessage.{
-  CommittableMessage   => AkkaConsumerMessage,
+  CommittableMessage => AkkaConsumerMessage,
   TransactionalMessage => AkkaTransactionalMessage
 }
 import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage, MultiMessage => AkkaMultiMessage}
 import cats.effect.IO
 import fs2.Chunk
 import fs2.kafka.{
-  CommittableConsumerRecord    => Fs2ConsumerMessage,
-  CommittableProducerRecords   => Fs2CommittableProducerRecords,
-  ConsumerRecord               => Fs2ConsumerRecord,
-  ProducerRecord               => Fs2ProducerRecord,
-  ProducerRecords              => Fs2ProducerRecords,
+  CommittableConsumerRecord => Fs2ConsumerMessage,
+  CommittableProducerRecords => Fs2CommittableProducerRecords,
+  ConsumerRecord => Fs2ConsumerRecord,
+  ProducerRecord => Fs2ProducerRecord,
+  ProducerRecords => Fs2ProducerRecords,
   TransactionalProducerRecords => Fs2TransactionalProducerRecords
 }
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.messages.kafka._ 
+import com.github.chenharryhua.nanjin.messages.kafka._
+
 final case class PrimitiveTypeCombined(
   a: Int,
   b: Long,
@@ -93,19 +94,17 @@ trait ArbitraryData extends genMessage.GenFs2Message with genMessage.GenAkkaMess
   implicit val cogenAkkaProducerRecordF: Cogen[AkkaProducerMessage[Int, Int, String]] =
     Cogen(_.record.value().toLong)
 
-  implicit val abAkkaProducerRecords: Arbitrary[AkkaMultiMessage[Int, Int, String]] = {
+  implicit val abAkkaProducerRecords: Arbitrary[AkkaMultiMessage[Int, Int, String]] =
     Arbitrary(genAkkaProducerMultiMessage)
-  }
 
-  implicit val abAkkaTransactionalMessage: Arbitrary[AkkaTransactionalMessage[Int, Int]] = {
+  implicit val abAkkaTransactionalMessage: Arbitrary[AkkaTransactionalMessage[Int, Int]] =
     Arbitrary(genAkkaTransactionalMessage)
-  }
 
   //nj
-  implicit val abNJConsumerRecord: Arbitrary[NJConsumerRecord[Int, Int]] =
+  implicit val abNJConsumerRecord: Arbitrary[OptionalKV[Int, Int]] =
     Arbitrary(genNJConsumerRecord)
 
-  implicit val cogenNJConsumerRecord: Cogen[NJConsumerRecord[Int, Int]] =
+  implicit val cogenNJConsumerRecord: Cogen[OptionalKV[Int, Int]] =
     Cogen(m => (m.key |+| m.value).getOrElse(0).toLong)
 
   implicit val abNJProducerRecord: Arbitrary[NJProducerRecord[Int, Int]] =

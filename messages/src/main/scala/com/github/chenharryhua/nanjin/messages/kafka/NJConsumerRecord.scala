@@ -13,7 +13,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
   * compatible with spark kafka streaming
   * https://spark.apache.org/docs/3.0.0/structured-streaming-kafka-integration.html
   */
-sealed trait NJConsumerRecordBase[K, V] { self =>
+sealed trait NJConsumerRecord[K, V] { self =>
   val partition: Int
   val offset: Long
   val timestamp: Long
@@ -22,7 +22,7 @@ sealed trait NJConsumerRecordBase[K, V] { self =>
   val topic: String
   val timestampType: Int
 
-  final def compare(other: NJConsumerRecordBase[K, V]): Int = {
+  final def compare(other: NJConsumerRecord[K, V]): Int = {
     val ts = self.timestamp - other.timestamp
     val os = self.offset - other.offset
     if (ts != 0) ts.toInt
@@ -40,23 +40,23 @@ sealed trait NJConsumerRecordBase[K, V] { self =>
 
 }
 
-object NJConsumerRecordBase {
+object NJConsumerRecord {
 
-  implicit def showNJConsumerRecordBase[A, K, V](implicit
-    a: A <:< NJConsumerRecordBase[K, V],
+  implicit def showNJConsumerRecord[A, K, V](implicit
+    a: A <:< NJConsumerRecord[K, V],
     k: Show[K],
     v: Show[V]): Show[A] = _.show(k, v)
 
-  implicit def orderNJConsumerRecordBase[A, K, V](implicit
-    a: A <:< NJConsumerRecordBase[K, V]
+  implicit def orderNJConsumerRecord[A, K, V](implicit
+    a: A <:< NJConsumerRecord[K, V]
   ): Order[A] = (x: A, y: A) => x.compare(y)
 
-  implicit def orderingNJConsumerRecordBase[A, K, V](implicit
-    a: A <:< NJConsumerRecordBase[K, V]): Ordering[A] =
-    orderNJConsumerRecordBase[A, K, V].toOrdering
+  implicit def orderingNJConsumerRecord[A, K, V](implicit
+    a: A <:< NJConsumerRecord[K, V]): Ordering[A] =
+    orderNJConsumerRecord[A, K, V].toOrdering
 }
 
-@Lenses final case class NJConsumerRecord[K, V](
+@Lenses final case class OptionalKV[K, V](
   partition: Int,
   offset: Long,
   timestamp: Long,
@@ -64,7 +64,7 @@ object NJConsumerRecordBase {
   value: Option[V],
   topic: String,
   timestampType: Int)
-    extends NJConsumerRecordBase[Option[K], Option[V]] {
+    extends NJConsumerRecord[Option[K], Option[V]] {
 
   def toNJProducerRecord: NJProducerRecord[K, V] =
     NJProducerRecord[K, V](Option(partition), Option(timestamp), key, value)
@@ -72,7 +72,7 @@ object NJConsumerRecordBase {
   def flatten[K2, V2](implicit
     evK: K <:< Option[K2],
     evV: V <:< Option[V2]
-  ): NJConsumerRecord[K2, V2] =
+  ): OptionalKV[K2, V2] =
     copy(key = key.flatten, value = value.flatten)
 
   def compulsoryK: Option[CompulsoryK[K, V]] =
@@ -88,10 +88,10 @@ object NJConsumerRecordBase {
     }
 }
 
-object NJConsumerRecord {
+object OptionalKV {
 
-  def apply[K, V](cr: ConsumerRecord[Option[K], Option[V]]): NJConsumerRecord[K, V] =
-    NJConsumerRecord(
+  def apply[K, V](cr: ConsumerRecord[Option[K], Option[V]]): OptionalKV[K, V] =
+    OptionalKV(
       cr.partition,
       cr.offset,
       cr.timestamp,
@@ -100,29 +100,29 @@ object NJConsumerRecord {
       cr.topic,
       cr.timestampType.id)
 
-  implicit val bifunctorNJConsumerRecord: Bifunctor[NJConsumerRecord] =
-    new Bifunctor[NJConsumerRecord] {
+  implicit val bifunctorOptionalKV: Bifunctor[OptionalKV] =
+    new Bifunctor[OptionalKV] {
 
       override def bimap[A, B, C, D](
-        fab: NJConsumerRecord[A, B])(f: A => C, g: B => D): NJConsumerRecord[C, D] =
+        fab: OptionalKV[A, B])(f: A => C, g: B => D): OptionalKV[C, D] =
         fab.copy(key = fab.key.map(f), value = fab.value.map(g))
     }
 
-  implicit def emptyNJConsumerRecord[K, V]: Empty[NJConsumerRecord[K, V]] =
-    new Empty[NJConsumerRecord[K, V]] {
+  implicit def emptyOptionalKV[K, V]: Empty[OptionalKV[K, V]] =
+    new Empty[OptionalKV[K, V]] {
 
-      override val empty: NJConsumerRecord[K, V] =
-        NJConsumerRecord(Int.MinValue, Long.MinValue, Long.MinValue, None, None, "", -1)
+      override val empty: OptionalKV[K, V] =
+        OptionalKV(Int.MinValue, Long.MinValue, Long.MinValue, None, None, "", -1)
     }
 
-  implicit def lowerBoundedNJConsumerRecord[K, V]: LowerBounded[NJConsumerRecord[K, V]] =
-    new LowerBounded[NJConsumerRecord[K, V]] {
+  implicit def lowerBoundedOptionalKV[K, V]: LowerBounded[OptionalKV[K, V]] =
+    new LowerBounded[OptionalKV[K, V]] {
 
-      override def partialOrder: PartialOrder[NJConsumerRecord[K, V]] =
-        Order[NJConsumerRecord[K, V]]
+      override def partialOrder: PartialOrder[OptionalKV[K, V]] =
+        Order[OptionalKV[K, V]]
 
-      override def minBound: NJConsumerRecord[K, V] =
-        emptyNJConsumerRecord.empty
+      override def minBound: OptionalKV[K, V] =
+        emptyOptionalKV.empty
     }
 
 }
@@ -135,7 +135,7 @@ final case class CompulsoryV[K, V](
   value: V,
   topic: String,
   timestampType: Int)
-    extends NJConsumerRecordBase[Option[K], V] {
+    extends NJConsumerRecord[Option[K], V] {
 
   def compulsoryK: Option[CompulsoryKV[K, V]] =
     key.map(k => this.into[CompulsoryKV[K, V]].withFieldConst(_.key, k).transform)
@@ -161,7 +161,7 @@ final case class CompulsoryK[K, V](
   value: Option[V],
   topic: String,
   timestampType: Int)
-    extends NJConsumerRecordBase[K, Option[V]] {
+    extends NJConsumerRecord[K, Option[V]] {
 
   def compulsoryV: Option[CompulsoryKV[K, V]] =
     value.map(v => this.into[CompulsoryKV[K, V]].withFieldConst(_.value, v).transform)
@@ -187,7 +187,7 @@ final case class CompulsoryKV[K, V](
   value: V,
   topic: String,
   timestampType: Int)
-    extends NJConsumerRecordBase[K, V]
+    extends NJConsumerRecord[K, V]
 
 object CompulsoryKV {
 
