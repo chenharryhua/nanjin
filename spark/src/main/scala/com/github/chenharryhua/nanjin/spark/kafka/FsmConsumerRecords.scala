@@ -63,6 +63,10 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def keyValues: TypedDataset[CompulsoryKV[K, V]] =
     typedDataset.deserialized.flatMap(_.compulsoryKV)
 
+  // there is data-missing when the set is non-empty
+  def missingData: TypedDataset[CRMetaInfo] =
+    new MissingData(values.deserialized.map(CRMetaInfo(_)).dataset).run
+
   // actions
   def nullValuesCount(implicit F: Sync[F]): F[Long] =
     typedDataset.filter(typedDataset('value).isNone).count[F]

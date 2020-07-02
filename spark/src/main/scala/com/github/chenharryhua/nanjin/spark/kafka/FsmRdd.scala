@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import java.io.ByteArrayOutputStream
+
 import akka.NotUsed
 import akka.stream.scaladsl.Source
 import cats.Show
@@ -14,7 +16,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   OptionalKV
 }
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
-import com.sksamuel.avro4s.{Encoder => AvroEncoder}
+import com.sksamuel.avro4s.{AvroOutputStream, Encoder => AvroEncoder}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import io.circe.generic.auto._
@@ -62,11 +64,6 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
 
   // out of FsmRdd
 
-  def count: Long = rdd.count()
-
-  def stats: Statistics[F] =
-    new Statistics(TypedDataset.create(rdd.map(CRMetaInfo(_))).dataset, cfg)
-
   def typedDataset(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): TypedDataset[OptionalKV[K, V]] =
@@ -88,26 +85,35 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
       case Queue(a, b) => if (a.timestamp <= b.timestamp) None else Some(a)
     }
 
-  def missingData(implicit F: Sync[F]): F[Unit] =
-    values
-      .groupBy(_.partition)
-      .map {
-        case (_, iter) =>
-          iter.sliding(2).flatMap {
-            case List(a, b) => if (a.offset + 1 === b.offset) None else Some(a)
-          }
-      }
-      .flatMap(_.toList)
-      .stream[F]
-      .map(_.metaInfo)
-      .showLinesStdOut
-      .compile
-      .drain
-
   // rdd
   def values: RDD[CompulsoryV[K, V]]     = rdd.flatMap(_.compulsoryV)
   def keys: RDD[CompulsoryK[K, V]]       = rdd.flatMap(_.compulsoryK)
   def keyValues: RDD[CompulsoryKV[K, V]] = rdd.flatMap(_.compulsoryKV)
+
+  // investigation
+  def count: Long = rdd.count()
+
+  def stats: Statistics[F] =
+    new Statistics(TypedDataset.create(rdd.map(CRMetaInfo(_))).dataset, cfg)
+
+  def missingData: TypedDataset[CRMetaInfo] =
+    new MissingData(TypedDataset.create(values.map(CRMetaInfo(_))).dataset).run
+
+  def compareDataset(other: RDD[OptionalKV[K, V]]) = {
+    val my = rdd.map { m =>
+      val os  = new ByteArrayOutputStream()
+      val aos = AvroOutputStream.binary[OptionalKV[K, V]].to(os).build()
+      aos.close()
+      KafkaMsgDigest(m.partition, m.offset, md5(os.toByteArray))
+    }
+    val you = other.map { m =>
+      val os  = new ByteArrayOutputStream()
+      val aos = AvroOutputStream.binary[OptionalKV[K, V]].to(os).build()
+      aos.close()
+      KafkaMsgDigest(m.partition, m.offset, md5(os.toByteArray))
+    }
+
+  }
 
   // dump java object
   def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
