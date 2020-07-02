@@ -3,7 +3,12 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.effect.Sync
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
+import com.github.chenharryhua.nanjin.messages.kafka.{
+  CompulsoryK,
+  CompulsoryKV,
+  CompulsoryV,
+  OptionalKV
+}
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
@@ -31,11 +36,6 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]]): FsmConsumerRecords[F, K2, V2] =
     new FsmConsumerRecords[F, K2, V2](typedDataset.deserialized.flatMap(f).dataset, cfg)
 
-  def someValues: FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](
-      typedDataset.filter(typedDataset('value).isNotNone).dataset,
-      cfg)
-
   def filter(f: OptionalKV[K, V] => Boolean): FsmConsumerRecords[F, K, V] =
     new FsmConsumerRecords[F, K, V](crs.filter(f), cfg)
 
@@ -53,11 +53,15 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     new FsmConsumerRecords[F, K, V](crs.persist(), cfg)
 
   // dataset
-  def values: TypedDataset[V] =
-    typedDataset.select(typedDataset('value)).as[Option[V]].deserialized.flatMap[V](x => x)
 
-  def keys: TypedDataset[K] =
-    typedDataset.select(typedDataset('key)).as[Option[K]].deserialized.flatMap[K](x => x)
+  def values: TypedDataset[CompulsoryV[K, V]] =
+    typedDataset.deserialized.flatMap(_.compulsoryV)
+
+  def keys: TypedDataset[CompulsoryK[K, V]] =
+    typedDataset.deserialized.flatMap(_.compulsoryK)
+
+  def keyValues: TypedDataset[CompulsoryKV[K, V]] =
+    typedDataset.deserialized.flatMap(_.compulsoryKV)
 
   // actions
   def nullValuesCount(implicit F: Sync[F]): F[Long] =

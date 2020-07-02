@@ -17,6 +17,7 @@ import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
+import io.circe.generic.auto._
 import io.circe.{Encoder => JsonEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
@@ -87,10 +88,26 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
       case Queue(a, b) => if (a.timestamp <= b.timestamp) None else Some(a)
     }
 
+  def missingData(implicit F: Sync[F]): F[Unit] =
+    values
+      .groupBy(_.partition)
+      .map {
+        case (_, iter) =>
+          iter.sliding(2).flatMap {
+            case List(a, b) => if (a.offset + 1 === b.offset) None else Some(a)
+          }
+      }
+      .flatMap(_.toList)
+      .stream[F]
+      .map(_.metaInfo)
+      .showLinesStdOut
+      .compile
+      .drain
+
   // rdd
-  def values: RDD[CompulsoryV[K, V]] = rdd.flatMap(_.compulsoryV)
-  def keys: RDD[CompulsoryK[K, V]]   = rdd.flatMap(_.compulsoryK)
-  def kvs: RDD[CompulsoryKV[K, V]]   = rdd.flatMap(_.compulsoryKV)
+  def values: RDD[CompulsoryV[K, V]]     = rdd.flatMap(_.compulsoryV)
+  def keys: RDD[CompulsoryK[K, V]]       = rdd.flatMap(_.compulsoryK)
+  def keyValues: RDD[CompulsoryKV[K, V]] = rdd.flatMap(_.compulsoryKV)
 
   // dump java object
   def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =

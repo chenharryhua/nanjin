@@ -39,18 +39,6 @@ sealed trait NJConsumerRecord[K, V] {
 
   final def show(k: Show[K], v: Show[V]): String =
     s"CR($metaInfo,key=${k.show(key)},value=${v.show(value)})"
-
-  final def toJson(k: JsonEncoder[K], v: JsonEncoder[V]): Json =
-    Json.obj(
-      "partition" -> Json.fromInt(self.partition),
-      "offset" -> Json.fromLong(self.offset),
-      "timestamp" -> Json.fromLong(self.timestamp),
-      "key" -> k(self.key),
-      "value" -> v(self.value),
-      "topic" -> Json.fromString(self.topic),
-      "typestampType" -> Json.fromInt(self.timestampType)
-    )
-
 }
 
 object NJConsumerRecord {
@@ -67,12 +55,6 @@ object NJConsumerRecord {
   implicit def orderingNJConsumerRecord[A, K, V](implicit
     ev: A <:< NJConsumerRecord[K, V]): Ordering[A] =
     orderNJConsumerRecord[A, K, V].toOrdering
-
-  implicit def jsonEncoderNJConsumerRecord[A, K, V](implicit
-    ev: A <:< NJConsumerRecord[K, V],
-    k: JsonEncoder[K],
-    v: JsonEncoder[V]): JsonEncoder[A] =
-    (a: A) => a.toJson(k, v)
 }
 
 @Lenses final case class OptionalKV[K, V](
