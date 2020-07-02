@@ -57,13 +57,7 @@ class SparKafkaTest extends AnyFunSuite {
     val ds: TypedDataset[NJConsumerRecord[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
 
     val birst =
-      src.sparKafka
-        .crDataset(ds)
-        .bimapTo(tgt)(_.toString, _ + 1)
-        .values
-        .collect[IO]()
-        .unsafeRunSync
-        .toSet
+      src.sparKafka.crDataset(ds).bimap(_.toString, _ + 1).values.collect[IO]().unsafeRunSync.toSet
     assert(birst == Set(2, 3, 5))
   }
 
@@ -79,7 +73,7 @@ class SparKafkaTest extends AnyFunSuite {
     val birst =
       src.sparKafka
         .crDataset(ds)
-        .flatMapTo(tgt)(m => m.value.map(x => NJConsumerRecord.value.set(Some(x - 1))(m)))
+        .flatMap(m => m.value.map(x => NJConsumerRecord.value.set(Some(x - 1))(m)))
         .values
         .collect[IO]()
         .unsafeRunSync

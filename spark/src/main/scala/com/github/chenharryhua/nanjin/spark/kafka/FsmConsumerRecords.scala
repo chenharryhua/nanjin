@@ -10,12 +10,11 @@ import org.apache.spark.sql.Dataset
 
 final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   crs: Dataset[NJConsumerRecord[K, V]],
-  topic: KafkaTopic[F, K, V],
   cfg: SKConfig)
     extends SparKafkaUpdateParams[FsmConsumerRecords[F, K, V]] {
 
   override def withParamUpdate(f: SKConfig => SKConfig): FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs, topic, f(cfg))
+    new FsmConsumerRecords[F, K, V](crs, f(cfg))
 
   @transient lazy val typedDataset: TypedDataset[NJConsumerRecord[K, V]] =
     TypedDataset.create(crs)
@@ -23,39 +22,36 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   override val params: SKParams = cfg.evalConfig
 
   // transformations
-  def bimapTo[K2: TypedEncoder, V2: TypedEncoder](
-    other: KafkaTopic[F, K2, V2])(k: K => K2, v: V => V2): FsmConsumerRecords[F, K2, V2] =
-    new FsmConsumerRecords[F, K2, V2](
-      typedDataset.deserialized.map(_.bimap(k, v)).dataset,
-      other,
-      cfg)
+  def bimap[K2: TypedEncoder, V2: TypedEncoder](
+    k: K => K2,
+    v: V => V2): FsmConsumerRecords[F, K2, V2] =
+    new FsmConsumerRecords[F, K2, V2](typedDataset.deserialized.map(_.bimap(k, v)).dataset, cfg)
 
-  def flatMapTo[K2: TypedEncoder, V2: TypedEncoder](other: KafkaTopic[F, K2, V2])(
+  def flatMap[K2: TypedEncoder, V2: TypedEncoder](
     f: NJConsumerRecord[K, V] => TraversableOnce[NJConsumerRecord[K2, V2]])
     : FsmConsumerRecords[F, K2, V2] =
-    new FsmConsumerRecords[F, K2, V2](typedDataset.deserialized.flatMap(f).dataset, other, cfg)
+    new FsmConsumerRecords[F, K2, V2](typedDataset.deserialized.flatMap(f).dataset, cfg)
 
   def someValues: FsmConsumerRecords[F, K, V] =
     new FsmConsumerRecords[F, K, V](
       typedDataset.filter(typedDataset('value).isNotNone).dataset,
-      topic,
       cfg)
 
   def filter(f: NJConsumerRecord[K, V] => Boolean): FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs.filter(f), topic, cfg)
+    new FsmConsumerRecords[F, K, V](crs.filter(f), cfg)
 
-  def sorted: FsmConsumerRecords[F, K, V] = {
+  def ascending: FsmConsumerRecords[F, K, V] = {
     val sd = typedDataset.orderBy(typedDataset('timestamp).asc)
-    new FsmConsumerRecords[F, K, V](sd.dataset, topic, cfg)
+    new FsmConsumerRecords[F, K, V](sd.dataset, cfg)
   }
 
   def descending: FsmConsumerRecords[F, K, V] = {
     val sd = typedDataset.orderBy(typedDataset('timestamp).desc)
-    new FsmConsumerRecords[F, K, V](sd.dataset, topic, cfg)
+    new FsmConsumerRecords[F, K, V](sd.dataset, cfg)
   }
 
   def persist: FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs.persist(), topic, cfg)
+    new FsmConsumerRecords[F, K, V](crs.persist(), cfg)
 
   // dataset
   def values: TypedDataset[V] =
@@ -78,9 +74,6 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
 
   // state change
   def toProducerRecords: FsmProducerRecords[F, K, V] =
-    new FsmProducerRecords(
-      (typedDataset.deserialized.map(_.toNJProducerRecord)).dataset,
-      topic,
-      cfg)
+    new FsmProducerRecords((typedDataset.deserialized.map(_.toNJProducerRecord)).dataset, cfg)
 
 }

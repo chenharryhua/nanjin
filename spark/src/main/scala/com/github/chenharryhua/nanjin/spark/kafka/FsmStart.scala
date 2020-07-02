@@ -65,12 +65,12 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
   def crDataset(tds: TypedDataset[NJConsumerRecord[K, V]])(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]) =
-    new FsmConsumerRecords[F, K, V](tds.dataset, topic, cfg)
+    new FsmConsumerRecords[F, K, V](tds.dataset, cfg)
 
   def prDataset(tds: TypedDataset[NJProducerRecord[K, V]])(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]) =
-    new FsmProducerRecords[F, K, V](tds.dataset, topic, cfg)
+    new FsmProducerRecords[F, K, V](tds.dataset, cfg)
 
   /**
     * streaming

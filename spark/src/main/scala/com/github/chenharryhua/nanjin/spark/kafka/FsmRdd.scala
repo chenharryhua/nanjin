@@ -7,7 +7,12 @@ import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
+import com.github.chenharryhua.nanjin.messages.kafka.{
+  CompulsoryK,
+  CompulsoryKV,
+  CompulsoryV,
+  NJConsumerRecord
+}
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
@@ -35,8 +40,8 @@ final class FsmRdd[F[_], K, V](
   def kafkaPartition(num: Int): FsmRdd[F, K, V] =
     new FsmRdd[F, K, V](rdd.filter(_.partition === num), topic, cfg)
 
-  def sorted: FsmRdd[F, K, V] =
-    new FsmRdd[F, K, V](rdd.sortBy(identity), topic, cfg)
+  def ascending: FsmRdd[F, K, V] =
+    new FsmRdd[F, K, V](rdd.sortBy(identity, ascending = true), topic, cfg)
 
   def descending: FsmRdd[F, K, V] =
     new FsmRdd[F, K, V](rdd.sortBy(identity, ascending = false), topic, cfg)
@@ -69,7 +74,7 @@ final class FsmRdd[F[_], K, V](
   def crDataset(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords(typedDataset.dataset, topic, cfg)
+    new FsmConsumerRecords(typedDataset.dataset, cfg)
 
   def stream(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
     rdd.stream[F]
@@ -83,8 +88,9 @@ final class FsmRdd[F[_], K, V](
     }
 
   // rdd
-  def values(implicit ev: ClassTag[V]): RDD[V] = rdd.flatMap(_.value)
-  def keys(implicit ev: ClassTag[K]): RDD[K]   = rdd.flatMap(_.key)
+  def values: RDD[CompulsoryV[K, V]] = rdd.flatMap(_.compulsoryV)
+  def keys: RDD[CompulsoryK[K, V]]   = rdd.flatMap(_.compulsoryK)
+  def kvs: RDD[CompulsoryKV[K, V]]   = rdd.flatMap(_.compulsoryKV)
 
   // dump java object
   def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
