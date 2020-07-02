@@ -33,12 +33,19 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
 
   def fromKafka(implicit sync: Sync[F]): F[FsmRdd[F, K, V]] =
     sk.loadKafkaRdd(topic, params.timeRange, params.locationStrategy)
-      .map(new FsmRdd[F, K, V](_, topic, cfg))
+      .map(
+        new FsmRdd[F, K, V](_, topic.topicName, cfg)(
+          sparkSession,
+          topic.topicDef.avroKeyEncoder,
+          topic.topicDef.avroValEncoder))
 
   def fromDisk(implicit sync: Sync[F]): F[FsmRdd[F, K, V]] =
     sk.loadDiskRdd[F, K, V](params.replayPath(topic.topicName))
       .map(rdd =>
-        new FsmRdd[F, K, V](rdd.filter(m => params.timeRange.isInBetween(m.timestamp)), topic, cfg))
+        new FsmRdd[F, K, V](
+          rdd.filter(m => params.timeRange.isInBetween(m.timestamp)),
+          topic.topicName,
+          cfg)(sparkSession, topic.topicDef.avroKeyEncoder, topic.topicDef.avroValEncoder))
 
   /**
     * shorthand

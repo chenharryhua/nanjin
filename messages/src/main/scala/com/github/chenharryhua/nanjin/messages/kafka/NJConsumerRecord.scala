@@ -5,6 +5,7 @@ import cats.implicits._
 import cats.kernel.{LowerBounded, PartialOrder}
 import cats.{Applicative, Bifunctor, Bitraverse, Eval, Order, Show}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
+import io.circe.{Json, Encoder => JsonEncoder}
 import io.scalaland.chimney.dsl._
 import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -13,7 +14,8 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
   * compatible with spark kafka streaming
   * https://spark.apache.org/docs/3.0.0/structured-streaming-kafka-integration.html
   */
-sealed trait NJConsumerRecord[K, V] { self =>
+sealed trait NJConsumerRecord[K, V] {
+  self =>
   val partition: Int
   val offset: Long
   val timestamp: Long
@@ -38,22 +40,39 @@ sealed trait NJConsumerRecord[K, V] { self =>
   final def show(k: Show[K], v: Show[V]): String =
     s"CR($metaInfo,key=${k.show(key)},value=${v.show(value)})"
 
+  final def toJson(k: JsonEncoder[K], v: JsonEncoder[V]): Json =
+    Json.obj(
+      "partition" -> Json.fromInt(self.partition),
+      "offset" -> Json.fromLong(self.offset),
+      "timestamp" -> Json.fromLong(self.timestamp),
+      "key" -> k(self.key),
+      "value" -> v(self.value),
+      "topic" -> Json.fromString(self.topic),
+      "typestampType" -> Json.fromInt(self.timestampType)
+    )
+
 }
 
 object NJConsumerRecord {
 
   implicit def showNJConsumerRecord[A, K, V](implicit
-    a: A <:< NJConsumerRecord[K, V],
+    ev: A <:< NJConsumerRecord[K, V],
     k: Show[K],
     v: Show[V]): Show[A] = _.show(k, v)
 
   implicit def orderNJConsumerRecord[A, K, V](implicit
-    a: A <:< NJConsumerRecord[K, V]
+    ev: A <:< NJConsumerRecord[K, V]
   ): Order[A] = (x: A, y: A) => x.compare(y)
 
   implicit def orderingNJConsumerRecord[A, K, V](implicit
-    a: A <:< NJConsumerRecord[K, V]): Ordering[A] =
+    ev: A <:< NJConsumerRecord[K, V]): Ordering[A] =
     orderNJConsumerRecord[A, K, V].toOrdering
+
+  implicit def jsonEncoderNJConsumerRecord[A, K, V](implicit
+    ev: A <:< NJConsumerRecord[K, V],
+    k: JsonEncoder[K],
+    v: JsonEncoder[V]): JsonEncoder[A] =
+    (a: A) => a.toJson(k, v)
 }
 
 @Lenses final case class OptionalKV[K, V](

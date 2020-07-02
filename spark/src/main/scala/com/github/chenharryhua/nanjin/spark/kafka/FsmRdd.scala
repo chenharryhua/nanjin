@@ -6,7 +6,7 @@ import cats.Show
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryK,
   CompulsoryKV,
@@ -14,50 +14,50 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   OptionalKV
 }
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
+import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
-import io.circe.generic.auto._
 import io.circe.{Encoder => JsonEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
 import scala.collection.immutable.Queue
-import scala.reflect.ClassTag
 
-final class FsmRdd[F[_], K, V](
-  val rdd: RDD[OptionalKV[K, V]],
-  topic: KafkaTopic[F, K, V],
-  cfg: SKConfig)(implicit sparkSession: SparkSession)
+final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicName, cfg: SKConfig)(
+  implicit
+  sparkSession: SparkSession,
+  avroKeyEncoder: AvroEncoder[K],
+  avroValEncoder: AvroEncoder[V])
     extends SparKafkaUpdateParams[FsmRdd[F, K, V]] {
 
   override def params: SKParams = cfg.evalConfig
 
   override def withParamUpdate(f: SKConfig => SKConfig): FsmRdd[F, K, V] =
-    new FsmRdd[F, K, V](rdd, topic, f(cfg))
+    new FsmRdd[F, K, V](rdd, topicName, f(cfg))
 
   //transformation
 
   def kafkaPartition(num: Int): FsmRdd[F, K, V] =
-    new FsmRdd[F, K, V](rdd.filter(_.partition === num), topic, cfg)
+    new FsmRdd[F, K, V](rdd.filter(_.partition === num), topicName, cfg)
 
   def ascending: FsmRdd[F, K, V] =
-    new FsmRdd[F, K, V](rdd.sortBy(identity, ascending = true), topic, cfg)
+    new FsmRdd[F, K, V](rdd.sortBy(identity, ascending = true), topicName, cfg)
 
   def descending: FsmRdd[F, K, V] =
-    new FsmRdd[F, K, V](rdd.sortBy(identity, ascending = false), topic, cfg)
+    new FsmRdd[F, K, V](rdd.sortBy(identity, ascending = false), topicName, cfg)
 
   def repartition(num: Int): FsmRdd[F, K, V] =
-    new FsmRdd[F, K, V](rdd.repartition(num), topic, cfg)
+    new FsmRdd[F, K, V](rdd.repartition(num), topicName, cfg)
 
-  def bimapTo[K2, V2](other: KafkaTopic[F, K2, V2])(k: K => K2, v: V => V2): FsmRdd[F, K2, V2] =
-    new FsmRdd[F, K2, V2](rdd.map(_.bimap(k, v)), other, cfg)
+  def bimap[K2: AvroEncoder, V2: AvroEncoder](k: K => K2, v: V => V2): FsmRdd[F, K2, V2] =
+    new FsmRdd[F, K2, V2](rdd.map(_.bimap(k, v)), topicName, cfg)
 
-  def flatMapTo[K2, V2](other: KafkaTopic[F, K2, V2])(
+  def flatMap[K2: AvroEncoder, V2: AvroEncoder](
     f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]]): FsmRdd[F, K2, V2] =
-    new FsmRdd[F, K2, V2](rdd.flatMap(f), other, cfg)
+    new FsmRdd[F, K2, V2](rdd.flatMap(f), topicName, cfg)
 
   def dismissNulls: FsmRdd[F, K, V] =
-    new FsmRdd[F, K, V](rdd.dismissNulls, topic, cfg)
+    new FsmRdd[F, K, V](rdd.dismissNulls, topicName, cfg)
 
   // out of FsmRdd
 
@@ -95,7 +95,7 @@ final class FsmRdd[F[_], K, V](
   // dump java object
   def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
     Blocker[F].use { blocker =>
-      val pathStr = params.replayPath(topic.topicName)
+      val pathStr = params.replayPath(topicName)
       fileSink(blocker).delete(pathStr) >> F.delay(rdd.saveAsObjectFile(pathStr))
     }
 
@@ -105,7 +105,7 @@ final class FsmRdd[F[_], K, V](
     cs: ContextShift[F],
     ek: JsonEncoder[K],
     ev: JsonEncoder[V]): F[Long] = {
-    val path = params.pathBuilder(topic.topicName, NJFileFormat.Json)
+    val path = params.pathBuilder(topicName, NJFileFormat.Json)
     val data = rdd.persist()
     stream
       .through(fileSink(blocker).json[OptionalKV[K, V]](path))
@@ -119,7 +119,7 @@ final class FsmRdd[F[_], K, V](
     showV: Show[V],
     ce: Sync[F],
     cs: ContextShift[F]): F[Long] = {
-    val path = params.pathBuilder(topic.topicName, NJFileFormat.Text)
+    val path = params.pathBuilder(topicName, NJFileFormat.Text)
     val data = rdd.persist()
     stream
       .through(fileSink[F](blocker).text[OptionalKV[K, V]](path))
@@ -132,9 +132,8 @@ final class FsmRdd[F[_], K, V](
   private def avroLike(blocker: Blocker, fmt: NJFileFormat)(implicit
     ce: ConcurrentEffect[F],
     cs: ContextShift[F]): F[Long] = {
-    import topic.topicDef.{avroKeyEncoder, avroValEncoder}
 
-    val path = params.pathBuilder(topic.topicName, fmt)
+    val path = params.pathBuilder(topicName, fmt)
     val data = rdd.persist()
     val run: Stream[F, Unit] = fmt match {
       case NJFileFormat.Avro       => data.stream[F].through(fileSink(blocker).avro(path))
