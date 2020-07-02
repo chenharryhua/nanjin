@@ -3,7 +3,7 @@ package mtest.spark.kafka
 import cats.effect.IO
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat.{Avro, Jackson, Json, Parquet}
-import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
+import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.kafka._
@@ -39,7 +39,7 @@ class SaveTest extends AnyFunSuite {
     val action =
       topic.sparKafka.fromKafka.flatMap(_.saveJackson(blocker)).map(r => assert(r == 100)) >>
         sparkSession
-          .jackson[NJConsumerRecord[Int, Foo]](
+          .jackson[OptionalKV[Int, Foo]](
             topic.sparKafka.params.pathBuilder(topic.topicName, Jackson))
           .typedDataset
           .collect[IO]()
@@ -51,8 +51,7 @@ class SaveTest extends AnyFunSuite {
     val action =
       topic.sparKafka.fromKafka.flatMap(_.saveJson(blocker)).map(r => assert(r == 100)) >>
         sparkSession
-          .json[NJConsumerRecord[Int, Foo]](
-            topic.sparKafka.params.pathBuilder(topic.topicName, Json))
+          .json[OptionalKV[Int, Foo]](topic.sparKafka.params.pathBuilder(topic.topicName, Json))
           .typedDataset
           .collect[IO]()
           .map(r => assert(r.sorted.flatMap(_.value).toList == vlist))
@@ -64,8 +63,7 @@ class SaveTest extends AnyFunSuite {
     val action =
       topic.sparKafka.fromKafka.flatMap(_.saveAvro(blocker)).map(r => assert(r == 100)) >>
         sparkSession
-          .avro[NJConsumerRecord[Int, Foo]](
-            topic.sparKafka.params.pathBuilder(topic.topicName, Avro))
+          .avro[OptionalKV[Int, Foo]](topic.sparKafka.params.pathBuilder(topic.topicName, Avro))
           .collect[IO]()
           .map(r => assert(r.sorted.flatMap(_.value).toList == vlist))
     action.unsafeRunSync()
@@ -74,7 +72,7 @@ class SaveTest extends AnyFunSuite {
     val action =
       topic.sparKafka.fromKafka.flatMap(_.saveParquet(blocker)).map(r => assert(r == 100)) >>
         sparkSession
-          .parquet[NJConsumerRecord[Int, Foo]](
+          .parquet[OptionalKV[Int, Foo]](
             topic.sparKafka.params.pathBuilder(topic.topicName, Parquet))
           .collect[IO]()
           .map(r => assert(r.sorted.flatMap(_.value).toList == vlist))

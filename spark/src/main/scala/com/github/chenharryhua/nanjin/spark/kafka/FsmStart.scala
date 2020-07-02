@@ -4,7 +4,7 @@ import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
+import com.github.chenharryhua.nanjin.messages.kafka.{NJProducerRecord, OptionalKV}
 import com.github.chenharryhua.nanjin.spark.streaming.{KafkaCRStream, SparkStream, StreamConfig}
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.avro.Schema
@@ -33,12 +33,19 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
 
   def fromKafka(implicit sync: Sync[F]): F[FsmRdd[F, K, V]] =
     sk.loadKafkaRdd(topic, params.timeRange, params.locationStrategy)
-      .map(new FsmRdd[F, K, V](_, topic, cfg))
+      .map(
+        new FsmRdd[F, K, V](_, topic.topicName, cfg)(
+          sparkSession,
+          topic.topicDef.avroKeyEncoder,
+          topic.topicDef.avroValEncoder))
 
   def fromDisk(implicit sync: Sync[F]): F[FsmRdd[F, K, V]] =
     sk.loadDiskRdd[F, K, V](params.replayPath(topic.topicName))
       .map(rdd =>
-        new FsmRdd[F, K, V](rdd.filter(m => params.timeRange.isInBetween(m.timestamp)), topic, cfg))
+        new FsmRdd[F, K, V](
+          rdd.filter(m => params.timeRange.isInBetween(m.timestamp)),
+          topic.topicName,
+          cfg)(sparkSession, topic.topicDef.avroKeyEncoder, topic.topicDef.avroValEncoder))
 
   /**
     * shorthand
@@ -47,7 +54,7 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
     fromKafka.flatMap(_.dump)
 
   def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
-    fromDisk.flatMap(_.replay)
+    fromDisk.flatMap(_.pipeTo(topic))
 
   def countKafka(implicit F: Sync[F]): F[Long] = fromKafka.map(_.count)
   def countDisk(implicit F: Sync[F]): F[Long]  = fromDisk.map(_.count)
@@ -62,15 +69,15 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
     * inject dataset
     */
 
-  def crDataset(tds: TypedDataset[NJConsumerRecord[K, V]])(implicit
+  def crDataset(tds: TypedDataset[OptionalKV[K, V]])(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]) =
-    new FsmConsumerRecords[F, K, V](tds.dataset, topic, cfg)
+    new FsmConsumerRecords[F, K, V](tds.dataset, cfg)
 
   def prDataset(tds: TypedDataset[NJProducerRecord[K, V]])(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]) =
-    new FsmProducerRecords[F, K, V](tds.dataset, topic, cfg)
+    new FsmProducerRecords[F, K, V](tds.dataset, cfg)
 
   /**
     * streaming
@@ -83,7 +90,7 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
     valEncoder: TypedEncoder[V]): F[Unit] =
     streaming.flatMap(_.someValues.toProducerRecords.kafkaSink(otherTopic).showProgress)
 
-  def streaming[A](f: NJConsumerRecord[K, V] => A)(implicit
+  def streaming[A](f: OptionalKV[K, V] => A)(implicit
     sync: Sync[F],
     encoder: TypedEncoder[A]): F[SparkStream[F, A]] =
     sk.streaming[F, K, V, A](topic, params.timeRange)(f)
@@ -97,7 +104,7 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
     sync: Sync[F],
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[KafkaCRStream[F, K, V]] =
-    sk.streaming[F, K, V, NJConsumerRecord[K, V]](topic, params.timeRange)(identity)
+    sk.streaming[F, K, V, OptionalKV[K, V]](topic, params.timeRange)(identity)
       .map(s =>
         new KafkaCRStream[F, K, V](
           s.dataset,
