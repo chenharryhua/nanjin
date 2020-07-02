@@ -47,7 +47,7 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
     fromKafka.flatMap(_.dump)
 
   def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
-    fromDisk.flatMap(_.replay)
+    fromDisk.flatMap(_.pipeTo(topic))
 
   def countKafka(implicit F: Sync[F]): F[Long] = fromKafka.map(_.count)
   def countDisk(implicit F: Sync[F]): F[Long]  = fromDisk.map(_.count)

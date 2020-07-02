@@ -5,8 +5,6 @@ import cats.implicits._
 import cats.kernel.{LowerBounded, PartialOrder}
 import cats.{Applicative, Bifunctor, Bitraverse, Eval, Order, Show}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
-import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import io.scalaland.chimney.dsl._
 import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -37,9 +35,25 @@ sealed trait NJConsumerRecordBase[K, V] { self =>
   final def metaInfo: String =
     s"Meta(topic=$topic,partition=$partition,offset=$offset,ts=${njTimestamp.utc})"
 
-  final def show(implicit k: Show[K], v: Show[V]): String =
-    s"CR($metaInfo,key=${key.show},value=${value.show})"
+  final def show(k: Show[K], v: Show[V]): String =
+    s"CR($metaInfo,key=${k.show(key)},value=${v.show(value)})"
 
+}
+
+object NJConsumerRecordBase {
+
+  implicit def showNJConsumerRecordBase[A, K, V](implicit
+    a: A <:< NJConsumerRecordBase[K, V],
+    k: Show[K],
+    v: Show[V]): Show[A] = _.show(k, v)
+
+  implicit def orderNJConsumerRecordBase[A, K, V](implicit
+    a: A <:< NJConsumerRecordBase[K, V]
+  ): Order[A] = (x: A, y: A) => x.compare(y)
+
+  implicit def orderingNJConsumerRecordBase[A, K, V](implicit
+    a: A <:< NJConsumerRecordBase[K, V]): Ordering[A] =
+    orderNJConsumerRecordBase[A, K, V].toOrdering
 }
 
 @Lenses final case class NJConsumerRecord[K, V](
@@ -86,12 +100,6 @@ object NJConsumerRecord {
       cr.topic,
       cr.timestampType.id)
 
-  implicit def jsonEncoderNJConsumerRecord[K: JsonEncoder, V: JsonEncoder]
-    : JsonEncoder[NJConsumerRecord[K, V]] = deriveEncoder[NJConsumerRecord[K, V]]
-
-  implicit def jsonDecoderNJConsumerRecord[K: JsonDecoder, V: JsonDecoder]
-    : JsonDecoder[NJConsumerRecord[K, V]] = deriveDecoder[NJConsumerRecord[K, V]]
-
   implicit val bifunctorNJConsumerRecord: Bifunctor[NJConsumerRecord] =
     new Bifunctor[NJConsumerRecord] {
 
@@ -107,18 +115,16 @@ object NJConsumerRecord {
         NJConsumerRecord(Int.MinValue, Long.MinValue, Long.MinValue, None, None, "", -1)
     }
 
-  implicit def orderNJConsumerRecord[K, V]: Order[NJConsumerRecord[K, V]] =
-    (x: NJConsumerRecord[K, V], y: NJConsumerRecord[K, V]) => x.compare(y)
-
   implicit def lowerBoundedNJConsumerRecord[K, V]: LowerBounded[NJConsumerRecord[K, V]] =
     new LowerBounded[NJConsumerRecord[K, V]] {
 
-      override def partialOrder: PartialOrder[NJConsumerRecord[K, V]] = orderNJConsumerRecord
-      override def minBound: NJConsumerRecord[K, V]                   = emptyNJConsumerRecord.empty
+      override def partialOrder: PartialOrder[NJConsumerRecord[K, V]] =
+        Order[NJConsumerRecord[K, V]]
+
+      override def minBound: NJConsumerRecord[K, V] =
+        emptyNJConsumerRecord.empty
     }
 
-  implicit def orderingNJConsumerRecord[K, V]: Ordering[NJConsumerRecord[K, V]] =
-    orderNJConsumerRecord.toOrdering
 }
 
 final case class CompulsoryV[K, V](
@@ -145,13 +151,6 @@ object CompulsoryV {
         fab: CompulsoryV[A, B])(f: A => C, g: B => D): CompulsoryV[C, D] =
         fab.copy(key = fab.key.map(f), value = g(fab.value))
     }
-
-  implicit def orderCompulsoryV[K, V]: Order[CompulsoryV[K, V]] =
-    (x: CompulsoryV[K, V], y: CompulsoryV[K, V]) => x.compare(y)
-
-  implicit def orderingCompulsoryV[K, V]: Ordering[CompulsoryV[K, V]] =
-    orderCompulsoryV.toOrdering
-
 }
 
 final case class CompulsoryK[K, V](
@@ -178,13 +177,6 @@ object CompulsoryK {
         fab: CompulsoryK[A, B])(f: A => C, g: B => D): CompulsoryK[C, D] =
         fab.copy(key = f(fab.key), value = fab.value.map(g))
     }
-
-  implicit def orderCompulsoryK[K, V]: Order[CompulsoryK[K, V]] =
-    (x: CompulsoryK[K, V], y: CompulsoryK[K, V]) => x.compare(y)
-
-  implicit def orderingCompulsoryK[K, V]: Ordering[CompulsoryK[K, V]] =
-    orderCompulsoryK.toOrdering
-
 }
 
 final case class CompulsoryKV[K, V](
@@ -219,10 +211,4 @@ object CompulsoryKV {
         f: (A, Eval[C]) => Eval[C],
         g: (B, Eval[C]) => Eval[C]): Eval[C] = g(fab.value, f(fab.key, c))
     }
-
-  implicit def orderCompulsoryKV[K, V]: Order[CompulsoryKV[K, V]] =
-    (x: CompulsoryKV[K, V], y: CompulsoryKV[K, V]) => x.compare(y)
-
-  implicit def orderingNJConsumerRecordKV[K, V]: Ordering[CompulsoryKV[K, V]] =
-    orderCompulsoryKV.toOrdering
 }

@@ -11,6 +11,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
+import io.circe.generic.auto._
 import io.circe.{Encoder => JsonEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
@@ -100,8 +101,11 @@ final class FsmRdd[F[_], K, V](
     ev: JsonEncoder[V]): F[Long] = {
     val path = params.pathBuilder(topic.topicName, NJFileFormat.Json)
     val data = rdd.persist()
-    stream.through(fileSink(blocker).json(path)).compile.drain.as(data.count()) <* ce.delay(
-      data.unpersist())
+    stream
+      .through(fileSink(blocker).json[NJConsumerRecord[K, V]](path))
+      .compile
+      .drain
+      .as(data.count()) <* ce.delay(data.unpersist())
   }
 
   def saveText(blocker: Blocker)(implicit
@@ -167,8 +171,4 @@ final class FsmRdd[F[_], K, V](
       .map(_ => print("."))
       .compile
       .drain
-
-  def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
-    pipeTo(topic)
-
 }
