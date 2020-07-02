@@ -5,7 +5,6 @@ import cats.implicits._
 import cats.kernel.{LowerBounded, PartialOrder}
 import cats.{Applicative, Bifunctor, Bitraverse, Eval, Order, Show}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import io.circe.{Json, Encoder => JsonEncoder}
 import io.scalaland.chimney.dsl._
 import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -141,6 +140,9 @@ final case class CompulsoryV[K, V](
   def compulsoryK: Option[CompulsoryKV[K, V]] =
     key.map(k => this.into[CompulsoryKV[K, V]].withFieldConst(_.key, k).transform)
 
+  def toNJProducerRecord: NJProducerRecord[K, V] =
+    NJProducerRecord[K, V](Option(partition), Option(timestamp), key, Option(value))
+
 }
 
 object CompulsoryV {
@@ -167,6 +169,9 @@ final case class CompulsoryK[K, V](
   def compulsoryV: Option[CompulsoryKV[K, V]] =
     value.map(v => this.into[CompulsoryKV[K, V]].withFieldConst(_.value, v).transform)
 
+  def toNJProducerRecord: NJProducerRecord[K, V] =
+    NJProducerRecord[K, V](Option(partition), Option(timestamp), Option(key), value)
+
 }
 
 object CompulsoryK {
@@ -188,7 +193,12 @@ final case class CompulsoryKV[K, V](
   value: V,
   topic: String,
   timestampType: Int)
-    extends NJConsumerRecord[K, V]
+    extends NJConsumerRecord[K, V] {
+
+  def toNJProducerRecord: NJProducerRecord[K, V] =
+    NJProducerRecord[K, V](Option(partition), Option(timestamp), Option(key), Option(value))
+
+}
 
 object CompulsoryKV {
 
