@@ -3,7 +3,11 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.implicits._
 import frameless.TypedDataset
 import frameless.cats.implicits._
-import org.apache.spark.sql.Dataset // e.g., count, sum, avg
+import org.apache.spark.sql.Dataset
+
+/**
+  * offset increased exactly 1 in each partition
+  */
 final class MissingData(ds: Dataset[CRMetaInfo]) extends Serializable {
   @transient private val typedDataset: TypedDataset[CRMetaInfo] = TypedDataset.create(ds)
 
@@ -16,8 +20,11 @@ final class MissingData(ds: Dataset[CRMetaInfo]) extends Serializable {
     }
 }
 
-final case class KafkaMsgDigest(partition: Int, offset: Long, digest: String)
+final case class KafkaMsgDigest(partition: Int, offset: Long, keyHash: Int, valHash: Int)
 
+/**
+  * find mismatch between left set and right set using hash code
+  */
 final class CompareDataset(left: Dataset[KafkaMsgDigest], right: Dataset[KafkaMsgDigest]) {
 
   @transient private val l: TypedDataset[KafkaMsgDigest] = TypedDataset.create(left)
@@ -27,6 +34,8 @@ final class CompareDataset(left: Dataset[KafkaMsgDigest], right: Dataset[KafkaMs
     l.joinLeft(r)((l('partition) === r('partition)) && (l('offset) === r('offset)))
       .deserialized
       .flatMap {
-        case (m, om) => if (om.forall(_.digest =!= m.digest)) Some(m) else None
+        case (m, om) =>
+          if (om.forall(x => (x.keyHash =!= m.keyHash) || (x.valHash =!= m.valHash))) Some(m)
+          else None
       }
 }

@@ -100,19 +100,11 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
     new MissingData(TypedDataset.create(values.map(CRMetaInfo(_))).dataset).run
 
   def compareDataset(other: RDD[OptionalKV[K, V]]): TypedDataset[KafkaMsgDigest] = {
-    val my = rdd.map { m =>
-      val os  = new ByteArrayOutputStream()
-      val aos = AvroOutputStream.binary[OptionalKV[K, V]].to(os).build()
-      aos.close()
-      KafkaMsgDigest(m.partition, m.offset, md5(os.toByteArray))
-    }
-    val yours = other.map { m =>
-      val os  = new ByteArrayOutputStream()
-      val aos = AvroOutputStream.binary[OptionalKV[K, V]].to(os).build()
-      aos.close()
-      KafkaMsgDigest(m.partition, m.offset, md5(os.toByteArray))
-    }
-    new CompareDataset(TypedDataset.create(my).dataset, TypedDataset.create(yours).dataset).run
+    val mine: RDD[KafkaMsgDigest] =
+      rdd.map(m => KafkaMsgDigest(m.partition, m.offset, m.key.hashCode(), m.value.hashCode()))
+    val yours: RDD[KafkaMsgDigest] =
+      other.map(m => KafkaMsgDigest(m.partition, m.offset, m.key.hashCode(), m.value.hashCode()))
+    new CompareDataset(TypedDataset.create(mine).dataset, TypedDataset.create(yours).dataset).run
   }
 
   // dump java object
