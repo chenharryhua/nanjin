@@ -62,11 +62,6 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
 
   // out of FsmRdd
 
-  def count: Long = rdd.count()
-
-  def stats: Statistics[F] =
-    new Statistics(TypedDataset.create(rdd.map(CRMetaInfo(_))).dataset, cfg)
-
   def typedDataset(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): TypedDataset[OptionalKV[K, V]] =
@@ -88,26 +83,22 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
       case Queue(a, b) => if (a.timestamp <= b.timestamp) None else Some(a)
     }
 
-  def missingData(implicit F: Sync[F]): F[Unit] =
-    values
-      .groupBy(_.partition)
-      .map {
-        case (_, iter) =>
-          iter.sliding(2).flatMap {
-            case List(a, b) => if (a.offset + 1 === b.offset) None else Some(a)
-          }
-      }
-      .flatMap(_.toList)
-      .stream[F]
-      .map(_.metaInfo)
-      .showLinesStdOut
-      .compile
-      .drain
-
   // rdd
   def values: RDD[CompulsoryV[K, V]]     = rdd.flatMap(_.compulsoryV)
   def keys: RDD[CompulsoryK[K, V]]       = rdd.flatMap(_.compulsoryK)
   def keyValues: RDD[CompulsoryKV[K, V]] = rdd.flatMap(_.compulsoryKV)
+
+  // investigation
+  def count: Long = rdd.count()
+
+  def stats: Statistics[F] =
+    new Statistics(TypedDataset.create(rdd.map(CRMetaInfo(_))).dataset, cfg)
+
+  def missingData: TypedDataset[CRMetaInfo] =
+    inv.missingData(TypedDataset.create(values.map(CRMetaInfo(_))))
+
+  def dupRecords: TypedDataset[DupResult] =
+    inv.dupRecords(TypedDataset.create(values.map(CRMetaInfo(_))))
 
   // dump java object
   def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =

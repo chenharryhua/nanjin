@@ -4,22 +4,18 @@ import java.time.{LocalDate, LocalDateTime, ZoneId}
 
 import cats.effect.Sync
 import com.github.chenharryhua.nanjin.datetime._
-import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.TypedDataset
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.functions.aggregate.count
 import org.apache.spark.sql.Dataset
 
-final private[kafka] case class CRMetaInfo(
-  topic: String,
-  partition: Int,
-  offset: Long,
-  timestamp: Long)
+final case class CRMetaInfo(topic: String, partition: Int, offset: Long, timestamp: Long)
 
-private[kafka] object CRMetaInfo {
+object CRMetaInfo {
 
-  def apply[K, V](cr: OptionalKV[K, V]): CRMetaInfo =
+  def apply[K, V](cr: NJConsumerRecord[K, V]): CRMetaInfo =
     CRMetaInfo(
       cr.topic,
       cr.partition,
@@ -42,14 +38,6 @@ final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Ser
 
   @transient private lazy val typedDataset: TypedDataset[CRMetaInfo] =
     TypedDataset.create(ds)
-
-  def dupIdentities(implicit ev: Sync[F]): F[Unit] =
-    typedDataset
-      .groupBy(typedDataset.asCol)
-      .agg(count())
-      .deserialized
-      .filter(_._2 > 1)
-      .show[F](params.showDs.rowNum, params.showDs.isTruncate)
 
   def minutely(implicit ev: Sync[F]): F[Unit] = {
     val minute: TypedDataset[Int] = typedDataset.deserialized.map { m =>

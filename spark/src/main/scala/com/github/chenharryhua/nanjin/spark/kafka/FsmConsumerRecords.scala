@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import cats.Eq
 import cats.effect.Sync
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryK,
   CompulsoryKV,
@@ -63,12 +63,17 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def keyValues: TypedDataset[CompulsoryKV[K, V]] =
     typedDataset.deserialized.flatMap(_.compulsoryKV)
 
-  // actions
-  def nullValuesCount(implicit F: Sync[F]): F[Long] =
-    typedDataset.filter(typedDataset('value).isNone).count[F]
+  // investigations:
+  def missingData: TypedDataset[CRMetaInfo] =
+    inv.missingData(values.deserialized.map(CRMetaInfo(_)))
 
-  def nullKeysCount(implicit F: Sync[F]): F[Long] =
-    typedDataset.filter(typedDataset('key).isNone).count[F]
+  def dupRecords: TypedDataset[DupResult] =
+    inv.dupRecords(typedDataset.deserialized.map(CRMetaInfo(_)))
+
+  def diff(other: TypedDataset[OptionalKV[K, V]])(implicit
+    ke: Eq[K],
+    ve: Eq[V]): TypedDataset[DiffResult[K, V]] =
+    inv.diffDataset(typedDataset, other)
 
   def count(implicit F: Sync[F]): F[Long] = typedDataset.count[F]()
 

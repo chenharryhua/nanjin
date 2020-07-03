@@ -6,7 +6,7 @@ import cats.effect.IO
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.kafka.codec.WithAvroSchema
-import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
+import com.github.chenharryhua.nanjin.messages.kafka.{CompulsoryV, OptionalKV}
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.spark.injection._
 import com.github.chenharryhua.nanjin.spark.kafka._
@@ -15,16 +15,20 @@ import frameless.TypedDataset
 import frameless.cats.implicits._
 import org.scalatest.funsuite.AnyFunSuite
 
-class SparKafkaTest extends AnyFunSuite {
-  val embed = EmbeddedForTaskSerializable(0, "embeded")
+object SparKafkaTestData {
+  final case class Duck(f: Int, g: String)
 
-  val data = ForTaskSerializable(
-    0,
-    "a",
-    LocalDate.now,
-    Instant.ofEpochMilli(Instant.now.toEpochMilli),
-    embed)
-  val topic = TopicDef[Int, ForTaskSerializable](TopicName("serializable.test")).in(ctx)
+  final case class HasDuck(a: Int, b: String, c: LocalDate, d: Instant, e: Duck)
+  val duck: Duck = Duck(0, "embeded")
+
+  val data: HasDuck =
+    HasDuck(0, "a", LocalDate.now, Instant.ofEpochMilli(Instant.now.toEpochMilli), duck)
+}
+
+class SparKafkaTest extends AnyFunSuite {
+  import SparKafkaTestData._
+
+  val topic: KafkaTopic[IO, Int, HasDuck] = TopicDef[Int, HasDuck](TopicName("duck.test")).in(ctx)
 
   (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >> topic.schemaRegister >>
     topic.send(List(topic.fs2PR(0, data), topic.fs2PR(1, data)))).unsafeRunSync()
@@ -32,19 +36,11 @@ class SparKafkaTest extends AnyFunSuite {
   test("read topic from kafka") {
     val rst =
       topic.sparKafka.fromKafka.flatMap(_.crDataset.values.collect[IO]()).unsafeRunSync
-    assert(rst.toList === List(data, data))
+    assert(rst.toList.map(_.value) === List(data, data))
   }
 
   test("read topic from kafka and show aggragation result") {
     topic.sparKafka.fromKafka.flatMap(_.stats.minutely).unsafeRunSync
-  }
-
-  test("read topic from kafka and show json") {
-    val tpk = TopicDef[String, trip_record](
-      TopicName("nyc_yellow_taxi_trip_data"),
-      WithAvroSchema[trip_record](trip_record.schema)).in(ctx)
-
-    tpk.sparKafka.fromKafka.flatMap(_.crDataset.show).unsafeRunSync
   }
 
   test("should be able to bimap to other topic") {
@@ -56,9 +52,9 @@ class SparKafkaTest extends AnyFunSuite {
     val d4: OptionalKV[Int, Int]               = OptionalKV(0, 4, 0, None, Some(4), "t", 0)
     val ds: TypedDataset[OptionalKV[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
 
-    val birst =
+    val birst: Set[CompulsoryV[String, Int]] =
       src.sparKafka.crDataset(ds).bimap(_.toString, _ + 1).values.collect[IO]().unsafeRunSync.toSet
-    assert(birst == Set(2, 3, 5))
+    assert(birst.map(_.value) == Set(2, 3, 5))
   }
 
   test("should be able to flatmap to other topic") {
@@ -70,7 +66,7 @@ class SparKafkaTest extends AnyFunSuite {
     val d4: OptionalKV[Int, Int]               = OptionalKV(0, 4, 0, None, Some(4), "t", 0)
     val ds: TypedDataset[OptionalKV[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
 
-    val birst =
+    val birst: Set[CompulsoryV[Int, Int]] =
       src.sparKafka
         .crDataset(ds)
         .flatMap(m => m.value.map(x => OptionalKV.value.set(Some(x - 1))(m)))
@@ -78,7 +74,7 @@ class SparKafkaTest extends AnyFunSuite {
         .collect[IO]()
         .unsafeRunSync
         .toSet
-    assert(birst == Set(0, 1, 3))
+    assert(birst.map(_.value) == Set(0, 1, 3))
   }
 
   test("someValue should filter out none values") {
@@ -89,7 +85,7 @@ class SparKafkaTest extends AnyFunSuite {
     val ds: TypedDataset[OptionalKV[Int, Int]] = TypedDataset.create(crs)
 
     val t   = TopicDef[Int, Int](TopicName("some.value")).in(ctx).sparKafka.crDataset(ds)
-    val rst = t.someValues.typedDataset.collect[IO]().unsafeRunSync()
-    assert(rst === Seq(cr1))
+    val rst = t.values.collect[IO]().unsafeRunSync().map(_.value)
+    assert(rst === Seq(cr1.value.get))
   }
 }
