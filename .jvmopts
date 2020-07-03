@@ -1,4 +1,4 @@
 -Xms4G
--Xmx8G
+-Xmx16G
 -Xss8M
 -XX:MaxMetaspaceSize=2G
