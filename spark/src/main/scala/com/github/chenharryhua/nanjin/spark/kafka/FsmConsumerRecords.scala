@@ -63,9 +63,22 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def keyValues: TypedDataset[CompulsoryKV[K, V]] =
     typedDataset.deserialized.flatMap(_.compulsoryKV)
 
-  // there is data-missing when the set is non-empty
+  // investigations:
   def missingData: TypedDataset[CRMetaInfo] =
-    new MissingData(values.deserialized.map(CRMetaInfo(_)).dataset).run
+    inv.missingData(values.deserialized.map(CRMetaInfo(_)))
+
+  def duplicatedRecords: TypedDataset[(CRMetaInfo, Long)] =
+    inv.duplicatedRecords(typedDataset.deserialized.map(CRMetaInfo(_)))
+
+  def compareDataset(other: TypedDataset[OptionalKV[K, V]]): TypedDataset[KafkaMsgDigest] = {
+    val mine: TypedDataset[KafkaMsgDigest] =
+      typedDataset.deserialized.map(m =>
+        KafkaMsgDigest(m.partition, m.offset, m.key.hashCode(), m.value.hashCode()))
+    val yours: TypedDataset[KafkaMsgDigest] =
+      other.deserialized.map(m =>
+        KafkaMsgDigest(m.partition, m.offset, m.key.hashCode(), m.value.hashCode()))
+    inv.compareDataset(mine, yours)
+  }
 
   // actions
   def nullValuesCount(implicit F: Sync[F]): F[Long] =

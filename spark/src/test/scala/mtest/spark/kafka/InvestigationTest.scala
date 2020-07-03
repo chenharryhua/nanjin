@@ -1,12 +1,12 @@
 package mtest.spark.kafka
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.spark.kafka.{CompareDataset, KafkaMsgDigest}
+import com.github.chenharryhua.nanjin.spark.kafka.{inv, CRMetaInfo, KafkaMsgDigest}
 import frameless.TypedDataset
 import org.scalatest.funsuite.AnyFunSuite
 import frameless.cats.implicits._
 
-object InvestigationCompareDataTestData {
+object InvestigationTestData {
   final case class Mouse(size: Int, weight: Float)
 
   val mouses1 = List(
@@ -43,35 +43,67 @@ object InvestigationCompareDataTestData {
     KafkaMsgDigest(1, 4, "mike4".hashCode, Mouse(4, 0.4f).hashCode()),
     KafkaMsgDigest(1, 6, "mike6".hashCode, Mouse(6, 0.6f).hashCode())
   )
+
+  val mouses5 = List( // missing (1,5)
+    CRMetaInfo("topic", 0, 1, 1),
+    CRMetaInfo("topic", 0, 2, 2),
+    CRMetaInfo("topic", 0, 3, 3),
+    CRMetaInfo("topic", 1, 4, 4),
+    CRMetaInfo("topic", 1, 6, 6))
+
+  val mouses6 = List( // missing (0,2) duplicate
+    CRMetaInfo("topic", 0, 1, 1),
+    CRMetaInfo("topic", 0, 2, 2),
+    CRMetaInfo("topic", 0, 2, 3),
+    CRMetaInfo("topic", 1, 4, 4),
+    CRMetaInfo("topic", 1, 5, 6)
+  )
+
 }
 
-class InvestigationCompareDataTest extends AnyFunSuite {
-  import InvestigationCompareDataTestData._
+class InvestigationTest extends AnyFunSuite {
+  import InvestigationTestData._
 
   test("identical") {
 
     assert(
-      0 === new CompareDataset(
-        TypedDataset.create(mouses1).dataset,
-        TypedDataset.create(mouses2).dataset).run.count[IO]().unsafeRunSync())
+      0 === inv
+        .compareDataset(TypedDataset.create(mouses1), TypedDataset.create(mouses2))
+        .count[IO]()
+        .unsafeRunSync())
 
   }
 
   test("one mismatch") {
 
     assert(
-      KafkaMsgDigest(1, 6, "mike6".hashCode, Mouse(6, 0.6f).hashCode()) === new CompareDataset(
-        TypedDataset.create(mouses1).dataset,
-        TypedDataset.create(mouses3).dataset).run.collect[IO]().unsafeRunSync().head)
+      KafkaMsgDigest(1, 6, "mike6".hashCode, Mouse(6, 0.6f).hashCode()) === inv
+        .compareDataset(TypedDataset.create(mouses1), TypedDataset.create(mouses3))
+        .collect[IO]()
+        .unsafeRunSync()
+        .head)
 
   }
 
   test("one lost") {
 
     assert(
-      KafkaMsgDigest(1, 5, "mike5".hashCode, Mouse(5, 0.5f).hashCode()) === new CompareDataset(
-        TypedDataset.create(mouses1).dataset,
-        TypedDataset.create(mouses4).dataset).run.collect[IO]().unsafeRunSync().head)
+      KafkaMsgDigest(1, 5, "mike5".hashCode, Mouse(5, 0.5f).hashCode()) === inv
+        .compareDataset(TypedDataset.create(mouses1), TypedDataset.create(mouses4))
+        .collect[IO]()
+        .unsafeRunSync()
+        .head)
+  }
 
+  test("missing data") {
+    assert(
+      CRMetaInfo("topic", 1, 4, 4) ===
+        inv.missingData(TypedDataset.create(mouses5)).collect[IO]().unsafeRunSync().head)
+  }
+
+  test("duplicate") {
+    assert(
+      CRMetaInfo("topic", 0, 2, 2) ===
+        inv.missingData(TypedDataset.create(mouses6)).collect[IO]().unsafeRunSync().head)
   }
 }

@@ -97,15 +97,18 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
     new Statistics(TypedDataset.create(rdd.map(CRMetaInfo(_))).dataset, cfg)
 
   def missingData: TypedDataset[CRMetaInfo] =
-    new MissingData(TypedDataset.create(values.map(CRMetaInfo(_))).dataset).run
+    inv.missingData(TypedDataset.create(values.map(CRMetaInfo(_))))
 
   def compareDataset(other: RDD[OptionalKV[K, V]]): TypedDataset[KafkaMsgDigest] = {
     val mine: RDD[KafkaMsgDigest] =
       rdd.map(m => KafkaMsgDigest(m.partition, m.offset, m.key.hashCode(), m.value.hashCode()))
     val yours: RDD[KafkaMsgDigest] =
       other.map(m => KafkaMsgDigest(m.partition, m.offset, m.key.hashCode(), m.value.hashCode()))
-    new CompareDataset(TypedDataset.create(mine).dataset, TypedDataset.create(yours).dataset).run
+    inv.compareDataset(TypedDataset.create(mine), TypedDataset.create(yours))
   }
+
+  def duplicatedRecords: TypedDataset[(CRMetaInfo, Long)] =
+    inv.duplicatedRecords(TypedDataset.create(values.map(CRMetaInfo(_))))
 
   // dump java object
   def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
