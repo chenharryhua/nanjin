@@ -79,9 +79,12 @@ class InvestigationTest extends AnyFunSuite {
       .collect[IO]()
       .unsafeRunSync()
       .toSet
-    assert(
-      Set(KafkaMsgDigest(1, 6, "mike6".hashCode, Mouse(6, 0.6f).hashCode())) ===
-        rst.map(_._1))
+
+    val tup = (
+      KafkaMsgDigest(1, 6, "mike6".hashCode, Mouse(6, 0.6f).hashCode()),
+      Some(KafkaMsgDigest(1, 6, "mike6".hashCode, Mouse(6, 2.0f).hashCode())))
+
+    assert(Set(tup) === rst)
 
   }
 
@@ -91,10 +94,8 @@ class InvestigationTest extends AnyFunSuite {
       .collect[IO]()
       .unsafeRunSync()
       .toSet
-
-    assert(
-      Set(KafkaMsgDigest(1, 5, "mike5".hashCode, Mouse(5, 0.5f).hashCode())) ===
-        rst.map(_._1))
+    val tup = (KafkaMsgDigest(1, 5, "mike5".hashCode, Mouse(5, 0.5f).hashCode()), None)
+    assert(Set(tup) === rst)
   }
 
   test("missing data") {
