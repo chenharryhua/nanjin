@@ -1,16 +1,14 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.derived.auto.eq.kittensMkEq
+import cats.Eq
 import cats.implicits._
-import frameless.TypedDataset
+import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import frameless.cats.implicits._
 import frameless.functions.aggregate.count
-
-// inputs
-final case class KafkaMsgDigest(partition: Int, offset: Long, keyHash: Int, valHash: Int)
+import frameless.{TypedDataset, TypedEncoder}
 
 // outputs
-final case class DiffResult(left: KafkaMsgDigest, right: Option[KafkaMsgDigest])
+final case class DiffResult[K, V](left: OptionalKV[K, V], right: Option[OptionalKV[K, V]])
 final case class DupResult(partition: Int, offset: Long, num: Long)
 
 object inv {
@@ -27,19 +25,26 @@ object inv {
     }
 
   /**
-    * find mismatch between left set and right set using hash code
+    * same kafka dataset saved in different format, avro, parquet,json, etc
+    * are they identical?
     */
-  def diffDataset(
-    left: TypedDataset[KafkaMsgDigest],
-    right: TypedDataset[KafkaMsgDigest]): TypedDataset[DiffResult] =
+  def diffDataset[K: Eq: TypedEncoder, V: Eq: TypedEncoder](
+    left: TypedDataset[OptionalKV[K, V]],
+    right: TypedDataset[OptionalKV[K, V]]): TypedDataset[DiffResult[K, V]] =
     left
       .joinLeft(right)(
         (left('partition) === right('partition)) && (left('offset) === right('offset)))
       .deserialized
-      .flatMap { case (m, om) => if (om.exists(_ === m)) None else Some(DiffResult(m, om)) }
+      .flatMap {
+        case (m, om) =>
+          if (om.exists(o => (o.key === m.key) && (o.value === m.value)))
+            None
+          else
+            Some(DiffResult(m, om))
+      }
 
   /**
-    * (partition, offset) should be unique but if not
+    * (partition, offset) should be unique
     */
   def dupRecords(tds: TypedDataset[CRMetaInfo]): TypedDataset[DupResult] =
     tds

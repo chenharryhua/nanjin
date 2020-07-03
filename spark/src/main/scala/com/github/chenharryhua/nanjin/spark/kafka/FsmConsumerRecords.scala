@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import cats.Eq
 import cats.effect.Sync
 import cats.implicits._
 import com.github.chenharryhua.nanjin.messages.kafka.{
@@ -69,16 +70,10 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def dupRecords: TypedDataset[DupResult] =
     inv.dupRecords(typedDataset.deserialized.map(CRMetaInfo(_)))
 
-  def diff(other: TypedDataset[OptionalKV[K, V]])
-    : TypedDataset[DiffResult] = {
-    val mine: TypedDataset[KafkaMsgDigest] =
-      typedDataset.deserialized.map(m =>
-        KafkaMsgDigest(m.partition, m.offset, m.key.hashCode(), m.value.hashCode()))
-    val yours: TypedDataset[KafkaMsgDigest] =
-      other.deserialized.map(m =>
-        KafkaMsgDigest(m.partition, m.offset, m.key.hashCode(), m.value.hashCode()))
-    inv.diffDataset(mine, yours)
-  }
+  def diff(other: TypedDataset[OptionalKV[K, V]])(implicit
+    ke: Eq[K],
+    ve: Eq[V]): TypedDataset[DiffResult[K, V]] =
+    inv.diffDataset(typedDataset, other)
 
   def count(implicit F: Sync[F]): F[Long] = typedDataset.count[F]()
 

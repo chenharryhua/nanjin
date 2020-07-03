@@ -1,7 +1,5 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import java.io.ByteArrayOutputStream
-
 import akka.NotUsed
 import akka.stream.scaladsl.Source
 import cats.Show
@@ -16,7 +14,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   OptionalKV
 }
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
-import com.sksamuel.avro4s.{AvroOutputStream, Encoder => AvroEncoder}
+import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import io.circe.generic.auto._
@@ -98,14 +96,6 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
 
   def missingData: TypedDataset[CRMetaInfo] =
     inv.missingData(TypedDataset.create(values.map(CRMetaInfo(_))))
-
-  def diff(other: RDD[OptionalKV[K, V]]): TypedDataset[DiffResult] = {
-    val mine: RDD[KafkaMsgDigest] =
-      rdd.map(m => KafkaMsgDigest(m.partition, m.offset, m.key.hashCode(), m.value.hashCode()))
-    val yours: RDD[KafkaMsgDigest] =
-      other.map(m => KafkaMsgDigest(m.partition, m.offset, m.key.hashCode(), m.value.hashCode()))
-    inv.diffDataset(TypedDataset.create(mine), TypedDataset.create(yours))
-  }
 
   def dupRecords: TypedDataset[DupResult] =
     inv.dupRecords(TypedDataset.create(values.map(CRMetaInfo(_))))
