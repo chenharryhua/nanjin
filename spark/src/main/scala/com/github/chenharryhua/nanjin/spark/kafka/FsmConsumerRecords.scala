@@ -70,7 +70,7 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def duplicatedRecords: TypedDataset[(CRMetaInfo, Long)] =
     inv.duplicatedRecords(typedDataset.deserialized.map(CRMetaInfo(_)))
 
-  def compareDataset(other: TypedDataset[OptionalKV[K, V]]): TypedDataset[KafkaMsgDigest] = {
+  def diff(other: TypedDataset[OptionalKV[K, V]]): TypedDataset[KafkaMsgDigest] = {
     val mine: TypedDataset[KafkaMsgDigest] =
       typedDataset.deserialized.map(m =>
         KafkaMsgDigest(m.partition, m.offset, m.key.hashCode(), m.value.hashCode()))
