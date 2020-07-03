@@ -5,15 +5,6 @@ import java.time.{Instant, LocalDate}
 import frameless.Injection
 import io.circe.generic.JsonCodec
 
-final case class EmbeddedForTaskSerializable(f: Int, g: String)
-
-final case class ForTaskSerializable(
-  a: Int,
-  b: String,
-  c: LocalDate,
-  d: Instant,
-  e: EmbeddedForTaskSerializable)
-
 @JsonCodec case class Payment(
   id: String,
   time: String,
@@ -29,17 +20,19 @@ object Colorish {
   implicit val colorInjection: Injection[Colorish, String] =
     new Injection[Colorish, String] {
 
-      override def apply(a: Colorish): String = a match {
-        case Red   => "red"
-        case Blue  => "blue"
-        case Green => "green"
-      }
+      override def apply(a: Colorish): String =
+        a match {
+          case Red   => "red"
+          case Blue  => "blue"
+          case Green => "green"
+        }
 
-      override def invert(b: String): Colorish = b match {
-        case "red"   => Red
-        case "blue"  => Blue
-        case "green" => Green
-      }
+      override def invert(b: String): Colorish =
+        b match {
+          case "red"   => Red
+          case "blue"  => Blue
+          case "green" => Green
+        }
     }
   case object Red extends Colorish
   case object Green extends Colorish

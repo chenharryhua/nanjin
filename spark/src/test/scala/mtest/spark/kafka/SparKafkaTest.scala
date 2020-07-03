@@ -16,20 +16,19 @@ import frameless.cats.implicits._
 import org.scalatest.funsuite.AnyFunSuite
 
 object SparKafkaTestData {
-  val embed = EmbeddedForTaskSerializable(0, "embeded")
+  final case class Duck(f: Int, g: String)
 
-  val data = ForTaskSerializable(
-    0,
-    "a",
-    LocalDate.now,
-    Instant.ofEpochMilli(Instant.now.toEpochMilli),
-    embed)
+  final case class HasDuck(a: Int, b: String, c: LocalDate, d: Instant, e: Duck)
+  val duck: Duck = Duck(0, "embeded")
+
+  val data =
+    HasDuck(0, "a", LocalDate.now, Instant.ofEpochMilli(Instant.now.toEpochMilli), duck)
 }
 
 class SparKafkaTest extends AnyFunSuite {
   import SparKafkaTestData._
 
-  val topic = TopicDef[Int, ForTaskSerializable](TopicName("serializable.test")).in(ctx)
+  val topic = TopicDef[Int, HasDuck](TopicName("duck.test")).in(ctx)
 
   (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >> topic.schemaRegister >>
     topic.send(List(topic.fs2PR(0, data), topic.fs2PR(1, data)))).unsafeRunSync()
@@ -42,14 +41,6 @@ class SparKafkaTest extends AnyFunSuite {
 
   test("read topic from kafka and show aggragation result") {
     topic.sparKafka.fromKafka.flatMap(_.stats.minutely).unsafeRunSync
-  }
-
-  test("read topic from kafka and show json") {
-    val tpk = TopicDef[String, trip_record](
-      TopicName("nyc_yellow_taxi_trip_data"),
-      WithAvroSchema[trip_record](trip_record.schema)).in(ctx)
-
-    tpk.sparKafka.fromKafka.flatMap(_.crDataset.show).unsafeRunSync
   }
 
   test("should be able to bimap to other topic") {
