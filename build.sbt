@@ -345,7 +345,7 @@ lazy val spark = (project in file("spark"))
   .settings(
     libraryDependencies ++= Seq(
       "com.github.pathikrit" %% "better-files" % betterFiles,
-      "org.locationtech.jts"                   % "jts-core" % "1.16.1",
+      "org.locationtech.jts"                   % "jts-core" % "1.17.0",
       "org.log4s" %% "log4s"                   % log4s) ++
       sparkLib ++ avroLib ++ hadoopLib ++ testLib,
     dependencyOverrides ++= Seq(
