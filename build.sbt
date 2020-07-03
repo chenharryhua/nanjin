@@ -1,6 +1,8 @@
 scalaVersion in ThisBuild      := "2.12.11"
 scapegoatVersion in ThisBuild  := "1.3.11"
 parallelExecution in ThisBuild := false
+Compile / parallelExecution in ThisBuild := false
+Test / parallelExecution in ThisBuild := false
 
 version in ThisBuild := "0.7.0-SNAPSHOT"
 
