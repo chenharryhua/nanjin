@@ -108,7 +108,7 @@ val hadoopLib = Seq(
   "org.apache.hadoop" % "hadoop-common",
   "org.apache.hadoop" % "hadoop-client",
   "org.apache.hadoop" % "hadoop-hdfs").map(_ % hadoop) ++
-  Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.815")
+  Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.816")
 
 val flinkLib = Seq(
   "org.apache.flink" %% "flink-connector-kafka",
@@ -345,7 +345,7 @@ lazy val spark = (project in file("spark"))
   .settings(
     libraryDependencies ++= Seq(
       "com.github.pathikrit" %% "better-files" % betterFiles,
-      "org.locationtech.jts"                   % "jts-core" % "1.16.1",
+      "org.locationtech.jts"                   % "jts-core" % "1.17.0",
       "org.log4s" %% "log4s"                   % log4s) ++
       sparkLib ++ avroLib ++ hadoopLib ++ testLib,
     dependencyOverrides ++= Seq(
