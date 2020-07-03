@@ -66,18 +66,18 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def missingData: TypedDataset[CRMetaInfo] =
     inv.missingData(values.deserialized.map(CRMetaInfo(_)))
 
-  def dupRecords: TypedDataset[(Int, Long, Long)] =
+  def dupRecords: TypedDataset[DupResult] =
     inv.dupRecords(typedDataset.deserialized.map(CRMetaInfo(_)))
 
   def diff(other: TypedDataset[OptionalKV[K, V]])
-    : TypedDataset[(KafkaMsgDigest, Option[KafkaMsgDigest])] = {
+    : TypedDataset[DiffResult] = {
     val mine: TypedDataset[KafkaMsgDigest] =
       typedDataset.deserialized.map(m =>
         KafkaMsgDigest(m.partition, m.offset, m.key.hashCode(), m.value.hashCode()))
     val yours: TypedDataset[KafkaMsgDigest] =
       other.deserialized.map(m =>
         KafkaMsgDigest(m.partition, m.offset, m.key.hashCode(), m.value.hashCode()))
-    inv.compareDataset(mine, yours)
+    inv.diffDataset(mine, yours)
   }
 
   def count(implicit F: Sync[F]): F[Long] = typedDataset.count[F]()

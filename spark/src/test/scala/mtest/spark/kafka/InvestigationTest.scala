@@ -1,7 +1,13 @@
 package mtest.spark.kafka
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.spark.kafka.{inv, CRMetaInfo, KafkaMsgDigest}
+import com.github.chenharryhua.nanjin.spark.kafka.{
+  inv,
+  CRMetaInfo,
+  DiffResult,
+  DupResult,
+  KafkaMsgDigest
+}
 import frameless.TypedDataset
 import org.scalatest.funsuite.AnyFunSuite
 import frameless.cats.implicits._
@@ -67,20 +73,20 @@ class InvestigationTest extends AnyFunSuite {
 
     assert(
       0 === inv
-        .compareDataset(TypedDataset.create(mouses1), TypedDataset.create(mouses2))
+        .diffDataset(TypedDataset.create(mouses1), TypedDataset.create(mouses2))
         .count[IO]()
         .unsafeRunSync())
 
   }
 
   test("one mismatch") {
-    val rst: Set[(KafkaMsgDigest, Option[KafkaMsgDigest])] = inv
-      .compareDataset(TypedDataset.create(mouses1), TypedDataset.create(mouses3))
+    val rst: Set[DiffResult] = inv
+      .diffDataset(TypedDataset.create(mouses1), TypedDataset.create(mouses3))
       .collect[IO]()
       .unsafeRunSync()
       .toSet
 
-    val tup = (
+    val tup = DiffResult(
       KafkaMsgDigest(1, 6, "mike6".hashCode, Mouse(6, 0.6f).hashCode()),
       Some(KafkaMsgDigest(1, 6, "mike6".hashCode, Mouse(6, 2.0f).hashCode())))
 
@@ -89,12 +95,12 @@ class InvestigationTest extends AnyFunSuite {
   }
 
   test("one lost") {
-    val rst: Set[(KafkaMsgDigest, Option[KafkaMsgDigest])] = inv
-      .compareDataset(TypedDataset.create(mouses1), TypedDataset.create(mouses4))
+    val rst: Set[DiffResult] = inv
+      .diffDataset(TypedDataset.create(mouses1), TypedDataset.create(mouses4))
       .collect[IO]()
       .unsafeRunSync()
       .toSet
-    val tup = (KafkaMsgDigest(1, 5, "mike5".hashCode, Mouse(5, 0.5f).hashCode()), None)
+    val tup = DiffResult(KafkaMsgDigest(1, 5, "mike5".hashCode, Mouse(5, 0.5f).hashCode()), None)
     assert(Set(tup) === rst)
   }
 
@@ -106,8 +112,8 @@ class InvestigationTest extends AnyFunSuite {
   }
 
   test("duplicate") {
-    val rst: Set[(Int, Long, Long)] =
+    val rst: Set[DupResult] =
       inv.dupRecords(TypedDataset.create(mouses6)).collect[IO]().unsafeRunSync().toSet
-    assert(Set((0, 2, 3)) === rst)
+    assert(Set(DupResult(0, 2, 3)) === rst)
   }
 }
