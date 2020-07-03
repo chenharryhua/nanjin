@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import cats.derived.auto.eq.kittensMkEq
 import cats.implicits._
 import frameless.TypedDataset
 import frameless.cats.implicits._
@@ -25,21 +26,17 @@ object inv {
     */
   def compareDataset(
     left: TypedDataset[KafkaMsgDigest],
-    right: TypedDataset[KafkaMsgDigest]): TypedDataset[KafkaMsgDigest] =
+    right: TypedDataset[KafkaMsgDigest]): TypedDataset[(KafkaMsgDigest, Option[KafkaMsgDigest])] =
     left
       .joinLeft(right)(
         (left('partition) === right('partition)) && (left('offset) === right('offset)))
       .deserialized
-      .flatMap {
-        case (m, om) =>
-          if (om.forall(x => (x.keyHash =!= m.keyHash) || (x.valHash =!= m.valHash))) Some(m)
-          else None
-      }
+      .flatMap { case (m, om) => if (om.exists(_ === m)) None else Some((m, om)) }
 
   /**
     * (partition, offset) should be unique but if not
     */
-  def duplicatedRecords(tds: TypedDataset[CRMetaInfo]): TypedDataset[(CRMetaInfo, Long)] =
-    tds.groupBy(tds.asCol).agg(count()).deserialized.filter(_._2 > 1)
+  def dupRecords(tds: TypedDataset[CRMetaInfo]): TypedDataset[(Int, Long, Long)] =
+    tds.groupBy(tds('partition), tds('offset)).agg(count()).deserialized.filter(_._3 > 1)
 
 }

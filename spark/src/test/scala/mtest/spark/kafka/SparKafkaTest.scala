@@ -21,14 +21,14 @@ object SparKafkaTestData {
   final case class HasDuck(a: Int, b: String, c: LocalDate, d: Instant, e: Duck)
   val duck: Duck = Duck(0, "embeded")
 
-  val data =
+  val data: HasDuck =
     HasDuck(0, "a", LocalDate.now, Instant.ofEpochMilli(Instant.now.toEpochMilli), duck)
 }
 
 class SparKafkaTest extends AnyFunSuite {
   import SparKafkaTestData._
 
-  val topic = TopicDef[Int, HasDuck](TopicName("duck.test")).in(ctx)
+  val topic: KafkaTopic[IO, Int, HasDuck] = TopicDef[Int, HasDuck](TopicName("duck.test")).in(ctx)
 
   (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >> topic.schemaRegister >>
     topic.send(List(topic.fs2PR(0, data), topic.fs2PR(1, data)))).unsafeRunSync()

@@ -51,13 +51,12 @@ object InvestigationTestData {
     CRMetaInfo("topic", 1, 4, 4),
     CRMetaInfo("topic", 1, 6, 6))
 
-  val mouses6 = List( // missing (0,2) duplicate
+  val mouses6 = List( // (0,2) duplicate
     CRMetaInfo("topic", 0, 1, 1),
     CRMetaInfo("topic", 0, 2, 2),
     CRMetaInfo("topic", 0, 2, 3),
-    CRMetaInfo("topic", 1, 4, 4),
-    CRMetaInfo("topic", 1, 5, 6)
-  )
+    CRMetaInfo("topic", 0, 2, 4),
+    CRMetaInfo("topic", 1, 5, 6))
 
 }
 
@@ -75,35 +74,39 @@ class InvestigationTest extends AnyFunSuite {
   }
 
   test("one mismatch") {
-
+    val rst: Set[(KafkaMsgDigest, Option[KafkaMsgDigest])] = inv
+      .compareDataset(TypedDataset.create(mouses1), TypedDataset.create(mouses3))
+      .collect[IO]()
+      .unsafeRunSync()
+      .toSet
     assert(
-      KafkaMsgDigest(1, 6, "mike6".hashCode, Mouse(6, 0.6f).hashCode()) === inv
-        .compareDataset(TypedDataset.create(mouses1), TypedDataset.create(mouses3))
-        .collect[IO]()
-        .unsafeRunSync()
-        .head)
+      Set(KafkaMsgDigest(1, 6, "mike6".hashCode, Mouse(6, 0.6f).hashCode())) ===
+        rst.map(_._1))
 
   }
 
   test("one lost") {
+    val rst: Set[(KafkaMsgDigest, Option[KafkaMsgDigest])] = inv
+      .compareDataset(TypedDataset.create(mouses1), TypedDataset.create(mouses4))
+      .collect[IO]()
+      .unsafeRunSync()
+      .toSet
 
     assert(
-      KafkaMsgDigest(1, 5, "mike5".hashCode, Mouse(5, 0.5f).hashCode()) === inv
-        .compareDataset(TypedDataset.create(mouses1), TypedDataset.create(mouses4))
-        .collect[IO]()
-        .unsafeRunSync()
-        .head)
+      Set(KafkaMsgDigest(1, 5, "mike5".hashCode, Mouse(5, 0.5f).hashCode())) ===
+        rst.map(_._1))
   }
 
   test("missing data") {
     assert(
-      CRMetaInfo("topic", 1, 4, 4) ===
-        inv.missingData(TypedDataset.create(mouses5)).collect[IO]().unsafeRunSync().head)
+      Set(CRMetaInfo("topic", 1, 4, 4)) ===
+        inv.missingData(TypedDataset.create(mouses5)).collect[IO]().unsafeRunSync().toSet)
+
   }
 
   test("duplicate") {
-    assert(
-      CRMetaInfo("topic", 0, 2, 2) ===
-        inv.missingData(TypedDataset.create(mouses6)).collect[IO]().unsafeRunSync().head)
+    val rst: Set[(Int, Long, Long)] =
+      inv.dupRecords(TypedDataset.create(mouses6)).collect[IO]().unsafeRunSync().toSet
+    assert(Set((0, 2, 3)) === rst)
   }
 }

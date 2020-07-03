@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.Sync
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryK,
   CompulsoryKV,
@@ -67,10 +66,11 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def missingData: TypedDataset[CRMetaInfo] =
     inv.missingData(values.deserialized.map(CRMetaInfo(_)))
 
-  def duplicatedRecords: TypedDataset[(CRMetaInfo, Long)] =
-    inv.duplicatedRecords(typedDataset.deserialized.map(CRMetaInfo(_)))
+  def dupRecords: TypedDataset[(Int, Long, Long)] =
+    inv.dupRecords(typedDataset.deserialized.map(CRMetaInfo(_)))
 
-  def diff(other: TypedDataset[OptionalKV[K, V]]): TypedDataset[KafkaMsgDigest] = {
+  def diff(other: TypedDataset[OptionalKV[K, V]])
+    : TypedDataset[(KafkaMsgDigest, Option[KafkaMsgDigest])] = {
     val mine: TypedDataset[KafkaMsgDigest] =
       typedDataset.deserialized.map(m =>
         KafkaMsgDigest(m.partition, m.offset, m.key.hashCode(), m.value.hashCode()))
@@ -79,13 +79,6 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
         KafkaMsgDigest(m.partition, m.offset, m.key.hashCode(), m.value.hashCode()))
     inv.compareDataset(mine, yours)
   }
-
-  // actions
-  def nullValuesCount(implicit F: Sync[F]): F[Long] =
-    typedDataset.filter(typedDataset('value).isNone).count[F]
-
-  def nullKeysCount(implicit F: Sync[F]): F[Long] =
-    typedDataset.filter(typedDataset('key).isNone).count[F]
 
   def count(implicit F: Sync[F]): F[Long] = typedDataset.count[F]()
 
