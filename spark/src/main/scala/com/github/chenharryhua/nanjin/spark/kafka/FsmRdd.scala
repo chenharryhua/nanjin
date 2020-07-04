@@ -13,8 +13,9 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryV,
   OptionalKV
 }
+import com.github.chenharryhua.nanjin.pipes.{GenericRecordEncoder, JsonAvroSerialization}
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt, SparkSessionExt}
-import com.sksamuel.avro4s.{Encoder => AvroEncoder}
+import com.sksamuel.avro4s.{AvroSchema, Encoder => AvroEncoder}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import io.circe.generic.auto._
@@ -23,6 +24,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
 import scala.collection.immutable.Queue
+import com.sksamuel.avro4s.SchemaFor
 
 final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicName, cfg: SKConfig)(
   implicit
@@ -100,11 +102,33 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
   def dupRecords: TypedDataset[DupResult] =
     inv.dupRecords(TypedDataset.create(values.map(CRMetaInfo(_))))
 
+  def find(f: OptionalKV[K, V] => Boolean)(implicit F: Sync[F]): F[Unit] = {
+    val maxRows: Int = params.showDs.rowNum
+    sparkSession
+      .withGroupId("nj.spark.kafka.find")
+      .withDescription(s"filter and show result. max rows: $maxRows")
+    implicit val ks = SchemaFor[K](avroKeyEncoder.schema)
+    implicit val vs = SchemaFor[V](avroValEncoder.schema)
+
+    val pipe = new JsonAvroSerialization[F](AvroSchema[OptionalKV[K, V]])
+    val gr   = new GenericRecordEncoder[F, OptionalKV[K, V]]()
+    rdd
+      .filter(f)
+      .stream[F]
+      .through(gr.encode)
+      .through(pipe.compactJson)
+      .showLinesStdOut
+      .take(maxRows.toLong)
+      .compile
+      .drain
+  }
+
   // dump java object
   def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
     sparkSession
       .withGroupId("nj.spark.kafka.dump")
-      .withDescription(s"dump topic data ${topicName.value} to ${params.replayPath(topicName)}")
+      .withDescription(s"to: ${params.replayPath(topicName)}")
+
     Blocker[F].use { blocker =>
       val pathStr = params.replayPath(topicName)
       fileSink(blocker).delete(pathStr) >> F.delay(rdd.saveAsObjectFile(pathStr))
@@ -118,9 +142,9 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
     ek: JsonEncoder[K],
     ev: JsonEncoder[V]): F[Long] = {
     sparkSession
-      .withGroupId("nj.spark.kafka.save.circe.json")
-      .withDescription(
-        s"save topic ${topicName.value} to ${params.pathBuilder(topicName, NJFileFormat.Json)}")
+      .withGroupId("nj.spark.kafka.save")
+      .withDescription(s"to: ${params.pathBuilder(topicName, NJFileFormat.Json)}")
+
     val path = params.pathBuilder(topicName, NJFileFormat.Json)
     val data = rdd.persist()
     stream
@@ -136,9 +160,9 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
     ce: Sync[F],
     cs: ContextShift[F]): F[Long] = {
     sparkSession
-      .withGroupId("nj.spark.kafka.save.text")
-      .withDescription(
-        s"save topic ${topicName.value} to ${params.pathBuilder(topicName, NJFileFormat.Text)}")
+      .withGroupId("nj.spark.kafka.save")
+      .withDescription(s"to: ${params.pathBuilder(topicName, NJFileFormat.Text)}")
+
     val path = params.pathBuilder(topicName, NJFileFormat.Text)
     val data = rdd.persist()
     stream
@@ -153,8 +177,8 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
     ce: ConcurrentEffect[F],
     cs: ContextShift[F]): F[Long] = {
     sparkSession
-      .withGroupId(s"nj.spark.kafka.save.${fmt.alias}.${fmt.format}")
-      .withDescription(s"save topic ${topicName.value} to ${params.pathBuilder(topicName, fmt)}")
+      .withGroupId(s"nj.spark.kafka.save")
+      .withDescription(s"to: ${params.pathBuilder(topicName, fmt)}")
 
     val path = params.pathBuilder(topicName, fmt)
     val data = rdd.persist()
