@@ -66,14 +66,14 @@ object NJConsumerRecord {
   timestampType: Int)
     extends NJConsumerRecord[Option[K], Option[V]] {
 
-  def toNJProducerRecord: NJProducerRecord[K, V] =
-    NJProducerRecord[K, V](Option(partition), Option(timestamp), key, value)
-
   def flatten[K2, V2](implicit
     evK: K <:< Option[K2],
     evV: V <:< Option[V2]
   ): OptionalKV[K2, V2] =
     copy(key = key.flatten, value = value.flatten)
+
+  def toNJProducerRecord: NJProducerRecord[K, V] =
+    NJProducerRecord[K, V](Some(partition), Some(timestamp), key, value)
 
   def toCompulsoryK: Option[CompulsoryK[K, V]] =
     key.map(k => this.into[CompulsoryK[K, V]].withFieldConst(_.key, k).transform)
@@ -137,14 +137,14 @@ final case class CompulsoryV[K, V](
   timestampType: Int)
     extends NJConsumerRecord[Option[K], V] {
 
-  def toCompulsoryK: Option[CompulsoryKV[K, V]] =
+  def toNJProducerRecord: NJProducerRecord[K, V] =
+    NJProducerRecord[K, V](Some(partition), Some(timestamp), key, Some(value))
+
+  def toCompulsoryKV: Option[CompulsoryKV[K, V]] =
     key.map(k => this.into[CompulsoryKV[K, V]].withFieldConst(_.key, k).transform)
 
-  def toNJProducerRecord: NJProducerRecord[K, V] =
-    NJProducerRecord[K, V](Option(partition), Option(timestamp), key, Option(value))
-
   def toOptionalKV: OptionalKV[K, V] =
-    this.into[OptionalKV[K, V]].withFieldConst(_.value, Option(value)).transform
+    this.into[OptionalKV[K, V]].withFieldConst(_.value, Some(value)).transform
 
 }
 
@@ -169,14 +169,14 @@ final case class CompulsoryK[K, V](
   timestampType: Int)
     extends NJConsumerRecord[K, Option[V]] {
 
-  def toCompulsoryV: Option[CompulsoryKV[K, V]] =
+  def toNJProducerRecord: NJProducerRecord[K, V] =
+    NJProducerRecord[K, V](Some(partition), Some(timestamp), Some(key), value)
+
+  def toCompulsoryKV: Option[CompulsoryKV[K, V]] =
     value.map(v => this.into[CompulsoryKV[K, V]].withFieldConst(_.value, v).transform)
 
-  def toNJProducerRecord: NJProducerRecord[K, V] =
-    NJProducerRecord[K, V](Option(partition), Option(timestamp), Option(key), value)
-
   def toOptionalKV: OptionalKV[K, V] =
-    this.into[OptionalKV[K, V]].withFieldConst(_.key, Option(key)).transform
+    this.into[OptionalKV[K, V]].withFieldConst(_.key, Some(key)).transform
 
 }
 
@@ -202,13 +202,13 @@ final case class CompulsoryKV[K, V](
     extends NJConsumerRecord[K, V] {
 
   def toNJProducerRecord: NJProducerRecord[K, V] =
-    NJProducerRecord[K, V](Option(partition), Option(timestamp), Option(key), Option(value))
+    NJProducerRecord[K, V](Some(partition), Some(timestamp), Some(key), Some(value))
 
   def toOptionalKV: OptionalKV[K, V] =
     this
       .into[OptionalKV[K, V]]
-      .withFieldConst(_.key, Option(key))
-      .withFieldConst(_.value, Option(value))
+      .withFieldConst(_.key, Some(key))
+      .withFieldConst(_.value, Some(value))
       .transform
 
 }
