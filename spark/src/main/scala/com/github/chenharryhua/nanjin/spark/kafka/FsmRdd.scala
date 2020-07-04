@@ -105,7 +105,7 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
     val maxRows: Int = params.showDs.rowNum
     sparkSession
       .withGroupId("nj.spark.kafka.find")
-      .withDescription(s"filter and show result. max rows: $maxRows")
+      .withDescription(s"${topicName.value}. max rows: $maxRows")
     implicit val ks: SchemaFor[K] = SchemaFor[K](avroKeyEncoder.schema)
     implicit val vs: SchemaFor[V] = SchemaFor[V](avroValEncoder.schema)
 
