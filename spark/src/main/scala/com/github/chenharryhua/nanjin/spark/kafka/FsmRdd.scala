@@ -102,7 +102,7 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
   def dupRecords: TypedDataset[DupResult] =
     inv.dupRecords(TypedDataset.create(values.map(CRMetaInfo(_))))
 
-  def find(f: OptionalKV[K, V] => Boolean)(implicit F: Sync[F]): F[Unit] = {
+  def find(f: CompulsoryKV[K, V] => Boolean)(implicit F: Sync[F]): F[Unit] = {
     val maxRows: Int = params.showDs.rowNum
     sparkSession
       .withGroupId("nj.spark.kafka.find")
@@ -110,9 +110,10 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
     implicit val ks = SchemaFor[K](avroKeyEncoder.schema)
     implicit val vs = SchemaFor[V](avroValEncoder.schema)
 
-    val pipe = new JsonAvroSerialization[F](AvroSchema[OptionalKV[K, V]])
-    val gr   = new GenericRecordEncoder[F, OptionalKV[K, V]]()
+    val pipe = new JsonAvroSerialization[F](AvroSchema[CompulsoryKV[K, V]])
+    val gr   = new GenericRecordEncoder[F, CompulsoryKV[K, V]]()
     rdd
+      .flatMap(_.toCompulsoryKV)
       .filter(f)
       .stream[F]
       .through(gr.encode)
