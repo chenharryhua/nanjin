@@ -52,7 +52,7 @@ object sk {
 
   private val logger: Logger = org.log4s.getLogger("nj.spark.kafka")
 
-  def loadKafkaRdd[F[_]: Sync, K, V](
+  def unloadKafka[F[_]: Sync, K, V](
     topic: KafkaTopic[F, K, V],
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy)(implicit

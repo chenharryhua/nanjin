@@ -32,7 +32,7 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
   def parquetSchema: MessageType = new AvroSchemaConverter().convert(avroSchema)
 
   def fromKafka(implicit sync: Sync[F]): F[FsmRdd[F, K, V]] =
-    sk.loadKafkaRdd(topic, params.timeRange, params.locationStrategy)
+    sk.unloadKafka(topic, params.timeRange, params.locationStrategy)
       .map(
         new FsmRdd[F, K, V](_, topic.topicName, cfg)(
           sparkSession,

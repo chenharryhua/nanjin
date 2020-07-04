@@ -25,7 +25,7 @@ object inv {
     }
 
   /**
-    * same kafka dataset saved in different format, avro, parquet,json, etc
+    * kafka dataset could be saved in different format, avro, parquet,json, etc
     * are they identical?
     */
   def diffDataset[K: Eq: TypedEncoder, V: Eq: TypedEncoder](

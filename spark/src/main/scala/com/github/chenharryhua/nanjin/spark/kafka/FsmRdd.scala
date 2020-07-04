@@ -13,7 +13,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryV,
   OptionalKV
 }
-import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
+import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt, SparkSessionExt}
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
@@ -101,11 +101,15 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
     inv.dupRecords(TypedDataset.create(values.map(CRMetaInfo(_))))
 
   // dump java object
-  def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
+  def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
+    sparkSession
+      .withGroupId("nj.spark.kafka.dump")
+      .withDescription(s"dump topic data ${topicName.value} to ${params.replayPath(topicName)}")
     Blocker[F].use { blocker =>
       val pathStr = params.replayPath(topicName)
       fileSink(blocker).delete(pathStr) >> F.delay(rdd.saveAsObjectFile(pathStr))
     }
+  }
 
   //save actions
   def saveJson(blocker: Blocker)(implicit
@@ -113,6 +117,10 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
     cs: ContextShift[F],
     ek: JsonEncoder[K],
     ev: JsonEncoder[V]): F[Long] = {
+    sparkSession
+      .withGroupId("nj.spark.kafka.save.circe.json")
+      .withDescription(
+        s"save topic ${topicName.value} to ${params.pathBuilder(topicName, NJFileFormat.Json)}")
     val path = params.pathBuilder(topicName, NJFileFormat.Json)
     val data = rdd.persist()
     stream
@@ -127,6 +135,10 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
     showV: Show[V],
     ce: Sync[F],
     cs: ContextShift[F]): F[Long] = {
+    sparkSession
+      .withGroupId("nj.spark.kafka.save.text")
+      .withDescription(
+        s"save topic ${topicName.value} to ${params.pathBuilder(topicName, NJFileFormat.Text)}")
     val path = params.pathBuilder(topicName, NJFileFormat.Text)
     val data = rdd.persist()
     stream
@@ -140,6 +152,9 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
   private def avroLike(blocker: Blocker, fmt: NJFileFormat)(implicit
     ce: ConcurrentEffect[F],
     cs: ContextShift[F]): F[Long] = {
+    sparkSession
+      .withGroupId(s"nj.spark.kafka.save.${fmt.alias}.${fmt.format}")
+      .withDescription(s"save topic ${topicName.value} to ${params.pathBuilder(topicName, fmt)}")
 
     val path = params.pathBuilder(topicName, fmt)
     val data = rdd.persist()
