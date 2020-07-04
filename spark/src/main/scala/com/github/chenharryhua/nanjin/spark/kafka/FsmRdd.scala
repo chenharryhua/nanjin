@@ -111,13 +111,13 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
 
     val pipe = new JsonAvroSerialization[F](AvroSchema[OptionalKV[K, V]])
     val gr   = new GenericRecordEncoder[F, OptionalKV[K, V]]()
-    rdd
-      .filter(f)
-      .stream[F]
+
+    Stream
+      .emits(rdd.filter(f).take(maxRows))
+      .covary[F]
       .through(gr.encode)
       .through(pipe.compactJson)
       .showLinesStdOut
-      .take(maxRows.toLong)
       .compile
       .drain
   }

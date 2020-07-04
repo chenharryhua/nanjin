@@ -36,7 +36,7 @@ sealed trait NJConsumerRecord[K, V] {
   final def metaInfo: String =
     s"Meta(topic=$topic,partition=$partition,offset=$offset,ts=${njTimestamp.utc})"
 
-  final def show(k: Show[K], v: Show[V]): String =
+  final def display(k: Show[K], v: Show[V]): String =
     s"CR($metaInfo,key=${k.show(key)},value=${v.show(value)})"
 }
 
@@ -45,7 +45,7 @@ object NJConsumerRecord {
   implicit def showNJConsumerRecord[A, K, V](implicit
     ev: A <:< NJConsumerRecord[K, V],
     k: Show[K],
-    v: Show[V]): Show[A] = _.show(k, v)
+    v: Show[V]): Show[A] = _.display(k, v)
 
   implicit def orderNJConsumerRecord[A, K, V](implicit
     ev: A <:< NJConsumerRecord[K, V]
