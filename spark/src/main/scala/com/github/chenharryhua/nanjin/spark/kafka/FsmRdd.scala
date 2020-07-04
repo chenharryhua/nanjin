@@ -15,7 +15,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
 }
 import com.github.chenharryhua.nanjin.pipes.{GenericRecordEncoder, JsonAvroSerialization}
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt, SparkSessionExt}
-import com.sksamuel.avro4s.{AvroSchema, Encoder => AvroEncoder}
+import com.sksamuel.avro4s.{AvroSchema, SchemaFor, Encoder => AvroEncoder}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import io.circe.generic.auto._
@@ -24,7 +24,6 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
 import scala.collection.immutable.Queue
-import com.sksamuel.avro4s.SchemaFor
 
 final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicName, cfg: SKConfig)(
   implicit
@@ -102,18 +101,17 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
   def dupRecords: TypedDataset[DupResult] =
     inv.dupRecords(TypedDataset.create(values.map(CRMetaInfo(_))))
 
-  def find(f: CompulsoryKV[K, V] => Boolean)(implicit F: Sync[F]): F[Unit] = {
+  def find(f: OptionalKV[K, V] => Boolean)(implicit F: Sync[F]): F[Unit] = {
     val maxRows: Int = params.showDs.rowNum
     sparkSession
       .withGroupId("nj.spark.kafka.find")
       .withDescription(s"filter and show result. max rows: $maxRows")
-    implicit val ks = SchemaFor[K](avroKeyEncoder.schema)
-    implicit val vs = SchemaFor[V](avroValEncoder.schema)
+    implicit val ks: SchemaFor[K] = SchemaFor[K](avroKeyEncoder.schema)
+    implicit val vs: SchemaFor[V] = SchemaFor[V](avroValEncoder.schema)
 
-    val pipe = new JsonAvroSerialization[F](AvroSchema[CompulsoryKV[K, V]])
-    val gr   = new GenericRecordEncoder[F, CompulsoryKV[K, V]]()
+    val pipe = new JsonAvroSerialization[F](AvroSchema[OptionalKV[K, V]])
+    val gr   = new GenericRecordEncoder[F, OptionalKV[K, V]]()
     rdd
-      .flatMap(_.toCompulsoryKV)
       .filter(f)
       .stream[F]
       .through(gr.encode)
