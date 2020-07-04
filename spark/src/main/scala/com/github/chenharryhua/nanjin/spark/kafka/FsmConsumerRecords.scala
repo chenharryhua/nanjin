@@ -55,13 +55,13 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   // dataset
 
   def values: TypedDataset[CompulsoryV[K, V]] =
-    typedDataset.deserialized.flatMap(_.compulsoryV)
+    typedDataset.deserialized.flatMap(_.toCompulsoryV)
 
   def keys: TypedDataset[CompulsoryK[K, V]] =
-    typedDataset.deserialized.flatMap(_.compulsoryK)
+    typedDataset.deserialized.flatMap(_.toCompulsoryK)
 
   def keyValues: TypedDataset[CompulsoryKV[K, V]] =
-    typedDataset.deserialized.flatMap(_.compulsoryKV)
+    typedDataset.deserialized.flatMap(_.toCompulsoryKV)
 
   // investigations:
   def missingData: TypedDataset[CRMetaInfo] =

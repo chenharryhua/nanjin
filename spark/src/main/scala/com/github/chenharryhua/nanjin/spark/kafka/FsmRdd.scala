@@ -84,9 +84,9 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
     }
 
   // rdd
-  def values: RDD[CompulsoryV[K, V]]     = rdd.flatMap(_.compulsoryV)
-  def keys: RDD[CompulsoryK[K, V]]       = rdd.flatMap(_.compulsoryK)
-  def keyValues: RDD[CompulsoryKV[K, V]] = rdd.flatMap(_.compulsoryKV)
+  def values: RDD[CompulsoryV[K, V]]     = rdd.flatMap(_.toCompulsoryV)
+  def keys: RDD[CompulsoryK[K, V]]       = rdd.flatMap(_.toCompulsoryK)
+  def keyValues: RDD[CompulsoryKV[K, V]] = rdd.flatMap(_.toCompulsoryKV)
 
   // investigation
   def count: Long = rdd.count()
