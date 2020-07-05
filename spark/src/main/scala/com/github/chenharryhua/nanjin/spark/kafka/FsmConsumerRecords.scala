@@ -116,12 +116,14 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   }
 
   def count(implicit F: Sync[F]): F[Long] = {
-    crs.sparkSession.withGroupId("nj.cr.count").withDescription(s"count datasets")
+    val id = utils.random4d.value
+    crs.sparkSession.withGroupId(s"nj.cr.count.$id").withDescription(s"count datasets")
     typedDataset.count[F]()
   }
 
   def show(implicit F: Sync[F]): F[Unit] = {
-    crs.sparkSession.withGroupId("nj.cr.show").withDescription(s"show datasets")
+    val id = utils.random4d.value
+    crs.sparkSession.withGroupId(s"nj.cr.show.$id").withDescription(s"show datasets")
     typedDataset.show[F](params.showDs.rowNum, params.showDs.isTruncate)
   }
 

@@ -18,7 +18,7 @@ import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt, SparkSessionExt}
 import com.github.chenharryhua.nanjin.utils
 import com.sksamuel.avro4s.{AvroSchema, SchemaFor, Encoder => AvroEncoder}
 import frameless.{TypedDataset, TypedEncoder}
-import fs2.{Chunk, Stream}
+import fs2.Stream
 import io.circe.generic.auto._
 import io.circe.{Encoder => JsonEncoder}
 import org.apache.spark.rdd.RDD
