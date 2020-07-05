@@ -2,9 +2,9 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
-import cats.Show
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
+import cats.{Eq, Show}
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.{
@@ -92,8 +92,10 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
   // investigation
   def count: Long = rdd.count()
 
-  def stats: Statistics[F] =
+  def stats: Statistics[F] = {
+    sparkSession.withGroupId("nj.spark.kafka.stats").withDescription(topicName.value)
     new Statistics(TypedDataset.create(rdd.map(CRMetaInfo(_))).dataset, cfg)
+  }
 
   def missingData: TypedDataset[CRMetaInfo] =
     inv.missingData(TypedDataset.create(values.map(CRMetaInfo(_))))
@@ -120,6 +122,11 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
       .showLinesStdOut
       .compile
       .drain
+  }
+
+  def diff(other: RDD[OptionalKV[K, V]])(implicit ek: Eq[K], ev: Eq[V]): RDD[DiffResult[K, V]] = {
+    sparkSession.withGroupId("nj.spark.kafka.diff").withDescription(s"compare two datasets")
+    inv.diffRdd(rdd, other)
   }
 
   // dump java object
@@ -215,11 +222,15 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
   def pipeTo(otherTopic: KafkaTopic[F, K, V])(implicit
     ce: ConcurrentEffect[F],
     timer: Timer[F],
-    cs: ContextShift[F]): F[Unit] =
+    cs: ContextShift[F]): F[Unit] = {
+    sparkSession
+      .withGroupId("nj.spark.kafka.pipe")
+      .withDescription(s"to: ${otherTopic.topicName.value}")
     stream
       .map(_.toNJProducerRecord.noMeta)
       .through(sk.uploader(otherTopic, params.uploadRate))
       .map(_ => print("."))
       .compile
       .drain
+  }
 }
