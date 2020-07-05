@@ -90,10 +90,13 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
   def keyValues: RDD[CompulsoryKV[K, V]] = rdd.flatMap(_.toCompulsoryKV)
 
   // investigation
-  def count: Long = rdd.count()
+  def count: Long = {
+    sparkSession.withGroupId("nj.rdd.inv.count").withDescription(topicName.value)
+    rdd.count()
+  }
 
   def stats: Statistics[F] = {
-    sparkSession.withGroupId("nj.rdd.stats").withDescription(topicName.value)
+    sparkSession.withGroupId("nj.rdd.inv.stats").withDescription(topicName.value)
     new Statistics(TypedDataset.create(rdd.map(CRMetaInfo(_))).dataset, cfg)
   }
 

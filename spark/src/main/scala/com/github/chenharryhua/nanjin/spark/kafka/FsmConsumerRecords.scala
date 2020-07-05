@@ -66,29 +66,29 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
 
   // investigations:
   def missingData: TypedDataset[CRMetaInfo] = {
-    crs.sparkSession.withGroupId("nj.tds.inv").withDescription(s"missing data")
+    crs.sparkSession.withGroupId("nj.cr.inv").withDescription(s"missing data")
     inv.missingData(values.deserialized.map(CRMetaInfo(_)))
   }
 
   def dupRecords: TypedDataset[DupResult] = {
-    crs.sparkSession.withGroupId("nj.tds.inv").withDescription(s"find dup data")
+    crs.sparkSession.withGroupId("nj.cr.inv").withDescription(s"find dup data")
     inv.dupRecords(typedDataset.deserialized.map(CRMetaInfo(_)))
   }
 
   def diff(other: TypedDataset[OptionalKV[K, V]])(implicit
     ke: Eq[K],
     ve: Eq[V]): TypedDataset[DiffResult[K, V]] = {
-    crs.sparkSession.withGroupId("nj.tds.inv").withDescription(s"compare two datasets")
+    crs.sparkSession.withGroupId("nj.cr.inv").withDescription(s"compare two datasets")
     inv.diffDataset(typedDataset, other)
   }
 
   def count(implicit F: Sync[F]): F[Long] = {
-    crs.sparkSession.withGroupId("nj.tds.inv").withDescription(s"count datasets")
+    crs.sparkSession.withGroupId("nj.cr.inv").withDescription(s"count datasets")
     typedDataset.count[F]()
   }
 
   def show(implicit F: Sync[F]): F[Unit] = {
-    crs.sparkSession.withGroupId("nj.tds.inv").withDescription(s"show datasets")
+    crs.sparkSession.withGroupId("nj.cr.inv").withDescription(s"show datasets")
     typedDataset.show[F](params.showDs.rowNum, params.showDs.isTruncate)
   }
 
