@@ -41,8 +41,10 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def pipeTo[K2, V2](other: KafkaTopic[F, K2, V2])(k: K => K2, v: V => V2)(implicit
     ce: ConcurrentEffect[F],
     timer: Timer[F],
-    cs: ContextShift[F]): Stream[F, ProducerResult[K2, V2, Unit]] =
+    cs: ContextShift[F]): Stream[F, ProducerResult[K2, V2, Unit]] = {
+    prs.sparkSession.withGroupId("nj.pr.pipe").withDescription(other.topicName.value)
     typedDataset.stream[F].map(_.bimap(k, v)).through(sk.uploader(other, params.uploadRate))
+  }
 
   def upload(other: KafkaTopic[F, K, V])(implicit
     ce: ConcurrentEffect[F],
@@ -50,10 +52,13 @@ final class FsmProducerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
     pipeTo(other)(identity, identity)
 
-  def count(implicit ev: Sync[F]): F[Long] =
+  def count(implicit ev: Sync[F]): F[Long] = {
+    prs.sparkSession.withGroupId("nj.pr.inv").withDescription("count")
     typedDataset.count[F]()
+  }
 
-  def show(implicit ev: Sync[F]): F[Unit] =
+  def show(implicit ev: Sync[F]): F[Unit] = {
+    prs.sparkSession.withGroupId("nj.pr.inv").withDescription("show")
     typedDataset.show[F](params.showDs.rowNum, params.showDs.isTruncate)
-
+  }
 }

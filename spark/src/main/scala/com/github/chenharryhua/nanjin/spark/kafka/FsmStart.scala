@@ -2,11 +2,14 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.common.UpdateParams
+import com.github.chenharryhua.nanjin.common.{NJFileFormat, UpdateParams}
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.{NJProducerRecord, OptionalKV}
+import com.github.chenharryhua.nanjin.spark.SparkSessionExt
 import com.github.chenharryhua.nanjin.spark.streaming.{KafkaCRStream, SparkStream, StreamConfig}
 import frameless.{TypedDataset, TypedEncoder}
+import io.circe.generic.auto._
+import io.circe.{Decoder => JsonDecoder}
 import org.apache.avro.Schema
 import org.apache.parquet.avro.AvroSchemaConverter
 import org.apache.parquet.schema.MessageType
@@ -73,6 +76,51 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]) =
     new FsmConsumerRecords[F, K, V](tds.dataset, cfg)
+
+  def readAvro(pathStr: String)(implicit
+    keyEncoder: TypedEncoder[K],
+    valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] =
+    crDataset(sparkSession.avro[OptionalKV[K, V]](pathStr))
+
+  def readAvro(implicit
+    keyEncoder: TypedEncoder[K],
+    valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] =
+    readAvro(params.pathBuilder(topic.topicName, NJFileFormat.Avro))
+
+  def readParquet(pathStr: String)(implicit
+    keyEncoder: TypedEncoder[K],
+    valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] =
+    crDataset(sparkSession.parquet[OptionalKV[K, V]](pathStr))
+
+  def readParquet(implicit
+    keyEncoder: TypedEncoder[K],
+    valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] =
+    readParquet(params.pathBuilder(topic.topicName, NJFileFormat.Parquet))
+
+  def readJson(pathStr: String)(implicit
+    keyJsonDecoder: JsonDecoder[K],
+    valJsonDecoder: JsonDecoder[V]): FsmRdd[F, K, V] =
+    new FsmRdd[F, K, V](sparkSession.json[OptionalKV[K, V]](pathStr), topic.topicName, cfg)(
+      sparkSession,
+      topic.topicDef.avroKeyEncoder,
+      topic.topicDef.avroValEncoder)
+
+  def readJson(implicit
+    keyJsonDecoder: JsonDecoder[K],
+    valJsonDecoder: JsonDecoder[V]): FsmRdd[F, K, V] =
+    readJson(params.pathBuilder(topic.topicName, NJFileFormat.Json))
+
+  def readJackson(pathStr: String): FsmRdd[F, K, V] = {
+    import topic.topicDef.{avroKeyDecoder, avroValDecoder}
+
+    new FsmRdd[F, K, V](sparkSession.jackson[OptionalKV[K, V]](pathStr), topic.topicName, cfg)(
+      sparkSession,
+      topic.topicDef.avroKeyEncoder,
+      topic.topicDef.avroValEncoder)
+  }
+
+  def readJackson: FsmRdd[F, K, V] =
+    readJackson(params.pathBuilder(topic.topicName, NJFileFormat.Jackson))
 
   def prDataset(tds: TypedDataset[NJProducerRecord[K, V]])(implicit
     keyEncoder: TypedEncoder[K],

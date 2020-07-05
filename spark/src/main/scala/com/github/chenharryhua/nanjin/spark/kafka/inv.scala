@@ -2,12 +2,25 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Eq
 import cats.implicits._
-import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
+import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, OptionalKV}
 import frameless.cats.implicits._
 import frameless.functions.aggregate.count
 import frameless.{TypedDataset, TypedEncoder}
+import org.apache.spark.rdd.RDD
 
-// outputs
+final case class CRMetaInfo(topic: String, partition: Int, offset: Long, timestamp: Long)
+
+object CRMetaInfo {
+
+  def apply[K, V](cr: NJConsumerRecord[K, V]): CRMetaInfo =
+    CRMetaInfo(
+      cr.topic,
+      cr.partition,
+      cr.offset,
+      cr.timestamp
+    )
+}
+
 final case class DiffResult[K, V](left: OptionalKV[K, V], right: Option[OptionalKV[K, V]])
 final case class DupResult(partition: Int, offset: Long, num: Long)
 
@@ -42,6 +55,26 @@ object inv {
           else
             Some(DiffResult(m, om))
       }
+
+  def diffRdd[K: Eq, V: Eq](
+    left: RDD[OptionalKV[K, V]],
+    right: RDD[OptionalKV[K, V]]): RDD[DiffResult[K, V]] = {
+
+    val mine  = left.groupBy(okv => (okv.partition, okv.offset))
+    val yours = right.groupBy(okv => (okv.partition, okv.offset))
+    mine.leftOuterJoin(yours).flatMap {
+      case ((_, _), (iterL, oIterR)) =>
+        for {
+          l <- iterL
+          r <- oIterR.traverse(_.toList)
+          dr <-
+            if (r.exists(o => (o.key === l.key) && (o.value === l.value)))
+              None
+            else
+              Some(DiffResult(l, r))
+        } yield dr
+    }
+  }
 
   /**
     * (partition, offset) should be unique

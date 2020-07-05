@@ -4,25 +4,11 @@ import java.time.{LocalDate, LocalDateTime, ZoneId}
 
 import cats.effect.Sync
 import com.github.chenharryhua.nanjin.datetime._
-import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.TypedDataset
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.functions.aggregate.count
 import org.apache.spark.sql.Dataset
-
-final case class CRMetaInfo(topic: String, partition: Int, offset: Long, timestamp: Long)
-
-object CRMetaInfo {
-
-  def apply[K, V](cr: NJConsumerRecord[K, V]): CRMetaInfo =
-    CRMetaInfo(
-      cr.topic,
-      cr.partition,
-      cr.offset,
-      cr.timestamp
-    )
-}
 
 final private[kafka] case class MinutelyAggResult(minute: Int, count: Long)
 final private[kafka] case class HourlyAggResult(hour: Int, count: Long)

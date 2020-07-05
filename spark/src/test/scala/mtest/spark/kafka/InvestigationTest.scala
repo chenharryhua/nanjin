@@ -67,43 +67,44 @@ class InvestigationTest extends AnyFunSuite {
   import InvestigationTestData._
 
   test("identical") {
-
-    assert(
-      0 === inv
-        .diffDataset(TypedDataset.create(mouses1), TypedDataset.create(mouses2))
-        .count[IO]()
-        .unsafeRunSync())
+    val m1 = TypedDataset.create(mouses1)
+    val m2 = TypedDataset.create(mouses2)
+    assert(0 === inv.diffDataset(m1, m2).count[IO]().unsafeRunSync())
+    assert(0 === inv.diffRdd(m1.dataset.rdd, m2.dataset.rdd).count())
 
   }
 
   test("one mismatch") {
-    val rst: Set[DiffResult[String, Mouse]] = inv
-      .diffDataset(
-        TypedDataset.create[OptionalKV[String, Mouse]](mouses1),
-        TypedDataset.create[OptionalKV[String, Mouse]](mouses3))
-      .collect[IO]()
-      .unsafeRunSync()
-      .toSet
+    val m1 = TypedDataset.create[OptionalKV[String, Mouse]](mouses1)
+    val m3 = TypedDataset.create[OptionalKV[String, Mouse]](mouses3)
+
+    val rst: Set[DiffResult[String, Mouse]] =
+      inv.diffDataset(m1, m3).collect[IO]().unsafeRunSync().toSet
+
+    val rst2: Set[DiffResult[String, Mouse]] =
+      inv.diffRdd(m1.dataset.rdd, m3.dataset.rdd).collect().toSet
 
     val tup = DiffResult(
       OptionalKV(1, 6, 60, Some("mike6"), Some(Mouse(6, 0.6f)), "topic", 0),
       Some(OptionalKV(1, 6, 60, Some("mike6"), Some(Mouse(6, 2.0f)), "topic", 0)))
 
     assert(Set(tup) == rst)
+    assert(Set(tup) == rst2)
 
   }
 
   test("one lost") {
-    val rst: Set[DiffResult[String, Mouse]] = inv
-      .diffDataset(
-        TypedDataset.create[OptionalKV[String, Mouse]](mouses1),
-        TypedDataset.create[OptionalKV[String, Mouse]](mouses4))
-      .collect[IO]()
-      .unsafeRunSync()
-      .toSet
+    val m1 = TypedDataset.create[OptionalKV[String, Mouse]](mouses1)
+    val m4 = TypedDataset.create[OptionalKV[String, Mouse]](mouses4)
+
+    val rst: Set[DiffResult[String, Mouse]] =
+      inv.diffDataset(m1, m4).collect[IO]().unsafeRunSync().toSet
+    val rst2: Set[DiffResult[String, Mouse]] =
+      inv.diffRdd(m1.dataset.rdd, m4.dataset.rdd).collect().toSet
     val tup =
       DiffResult(OptionalKV(1, 5, 50, Some("mike5"), Some(Mouse(5, 0.5f)), "topic", 0), None)
     assert(Set(tup) == rst)
+    assert(Set(tup) == rst2)
   }
 
   test("missing data") {
