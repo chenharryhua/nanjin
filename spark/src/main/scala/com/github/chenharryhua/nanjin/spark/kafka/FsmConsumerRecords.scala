@@ -10,9 +10,12 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryV,
   OptionalKV
 }
+import com.github.chenharryhua.nanjin.pipes.{GenericRecordEncoder, JsonAvroSerialization}
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
+import fs2.Stream
+import com.sksamuel.avro4s.{AvroSchema, SchemaFor, Encoder => AvroEncoder}
 
 final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   crs: Dataset[OptionalKV[K, V]],
@@ -66,19 +69,19 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
 
   // investigations:
   def missingData: TypedDataset[CRMetaInfo] = {
-    crs.sparkSession.withGroupId("nj.cr.inv").withDescription(s"missing data")
+    crs.sparkSession.withGroupId("nj.cr.inv.miss").withDescription(s"missing data")
     inv.missingData(values.deserialized.map(CRMetaInfo(_)))
   }
 
   def dupRecords: TypedDataset[DupResult] = {
-    crs.sparkSession.withGroupId("nj.cr.inv").withDescription(s"find dup data")
+    crs.sparkSession.withGroupId("nj.cr.inv.dup").withDescription(s"find dup data")
     inv.dupRecords(typedDataset.deserialized.map(CRMetaInfo(_)))
   }
 
   def diff(other: TypedDataset[OptionalKV[K, V]])(implicit
     ke: Eq[K],
     ve: Eq[V]): TypedDataset[DiffResult[K, V]] = {
-    crs.sparkSession.withGroupId("nj.cr.inv").withDescription(s"compare two datasets")
+    crs.sparkSession.withGroupId("nj.cr.inv.diff").withDescription(s"compare two datasets")
     inv.diffDataset(typedDataset, other)
   }
 
@@ -87,13 +90,33 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     ve: Eq[V]): TypedDataset[DiffResult[K, V]] =
     diff(other.typedDataset)
 
+  def find(f: OptionalKV[K, V] => Boolean)(implicit
+    F: Sync[F],
+    avroKeyEncoder: AvroEncoder[K],
+    avroValEncoder: AvroEncoder[V]): F[Unit] = {
+    crs.sparkSession.withGroupId("nj.cr.inv.find").withDescription(s"find records")
+    implicit val ks: SchemaFor[K] = SchemaFor[K](avroKeyEncoder.schema)
+    implicit val vs: SchemaFor[V] = SchemaFor[V](avroValEncoder.schema)
+
+    val pipe = new JsonAvroSerialization[F](AvroSchema[OptionalKV[K, V]])
+    val gr   = new GenericRecordEncoder[F, OptionalKV[K, V]]()
+
+    Stream
+      .force(filter(f).typedDataset.take[F](params.showDs.rowNum).map(Stream.emits(_).covary[F]))
+      .through(gr.encode)
+      .through(pipe.compactJson)
+      .showLinesStdOut
+      .compile
+      .drain
+  }
+
   def count(implicit F: Sync[F]): F[Long] = {
-    crs.sparkSession.withGroupId("nj.cr.inv").withDescription(s"count datasets")
+    crs.sparkSession.withGroupId("nj.cr.inv.count").withDescription(s"count datasets")
     typedDataset.count[F]()
   }
 
   def show(implicit F: Sync[F]): F[Unit] = {
-    crs.sparkSession.withGroupId("nj.cr.inv").withDescription(s"show datasets")
+    crs.sparkSession.withGroupId("nj.cr.inv.show").withDescription(s"show datasets")
     typedDataset.show[F](params.showDs.rowNum, params.showDs.isTruncate)
   }
 
