@@ -136,6 +136,9 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
     inv.diffRdd(rdd, other)
   }
 
+  def diff(other: FsmRdd[F, K, V])(implicit ek: Eq[K], ev: Eq[V]): RDD[DiffResult[K, V]] =
+    diff(other.rdd)
+
   // dump java object
   def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
     sparkSession.withGroupId("nj.rdd.dump").withDescription(s"to: ${params.replayPath(topicName)}")
