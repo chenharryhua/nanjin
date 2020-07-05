@@ -15,22 +15,22 @@ import io.circe.generic.auto._
 import scala.util.Random
 
 object SaveTestData {
-  final case class Foo(a: Int, b: String)
+  final case class Chicken(a: Int, b: String)
 
-  val topic: KafkaTopic[IO, Int, Foo] =
-    TopicDef[Int, Foo](TopicName("test.spark.kafka.save.load")).in(ctx)
+  val topic: KafkaTopic[IO, Int, Chicken] =
+    TopicDef[Int, Chicken](TopicName("test.spark.kafka.save.load")).in(ctx)
 
 }
 
 class SaveTest extends AnyFunSuite {
   import SaveTestData._
 
-  val list: List[ProducerRecord[Int, Foo]] =
-    List.fill(100)(topic.fs2PR(Random.nextInt(), Foo(Random.nextInt(), "aaa")))
-  val vlist: List[Foo] = list.map(_.value)
+  val chickenPR: List[ProducerRecord[Int, Chicken]] =
+    List.fill(100)(topic.fs2PR(Random.nextInt(), Chicken(Random.nextInt(), "aaa")))
+  val chickens: List[Chicken] = chickenPR.map(_.value)
 
   (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
-    topic.send(list)).unsafeRunSync()
+    topic.send(chickenPR)).unsafeRunSync()
 
   test("dump") {
     topic.sparKafka.dump.unsafeRunSync()
@@ -39,11 +39,11 @@ class SaveTest extends AnyFunSuite {
     val action =
       topic.sparKafka.fromKafka.flatMap(_.saveJackson(blocker)).map(r => assert(r == 100)) >>
         sparkSession
-          .jackson[OptionalKV[Int, Foo]](
+          .jackson[OptionalKV[Int, Chicken]](
             topic.sparKafka.params.pathBuilder(topic.topicName, Jackson))
           .typedDataset
           .collect[IO]()
-          .map(r => assert(r.sorted.flatMap(_.value).toList == vlist))
+          .map(r => assert(r.sorted.flatMap(_.value).toList == chickens))
     action.unsafeRunSync()
   }
 
@@ -51,10 +51,10 @@ class SaveTest extends AnyFunSuite {
     val action =
       topic.sparKafka.fromKafka.flatMap(_.saveJson(blocker)).map(r => assert(r == 100)) >>
         sparkSession
-          .json[OptionalKV[Int, Foo]](topic.sparKafka.params.pathBuilder(topic.topicName, Json))
+          .json[OptionalKV[Int, Chicken]](topic.sparKafka.params.pathBuilder(topic.topicName, Json))
           .typedDataset
           .collect[IO]()
-          .map(r => assert(r.sorted.flatMap(_.value).toList == vlist))
+          .map(r => assert(r.sorted.flatMap(_.value).toList == chickens))
     action.unsafeRunSync()
   }
 
@@ -63,19 +63,19 @@ class SaveTest extends AnyFunSuite {
     val action =
       topic.sparKafka.fromKafka.flatMap(_.saveAvro(blocker)).map(r => assert(r == 100)) >>
         sparkSession
-          .avro[OptionalKV[Int, Foo]](topic.sparKafka.params.pathBuilder(topic.topicName, Avro))
+          .avro[OptionalKV[Int, Chicken]](topic.sparKafka.params.pathBuilder(topic.topicName, Avro))
           .collect[IO]()
-          .map(r => assert(r.sorted.flatMap(_.value).toList == vlist))
+          .map(r => assert(r.sorted.flatMap(_.value).toList == chickens))
     action.unsafeRunSync()
   }
   test("parquet") {
     val action =
       topic.sparKafka.fromKafka.flatMap(_.saveParquet(blocker)).map(r => assert(r == 100)) >>
         sparkSession
-          .parquet[OptionalKV[Int, Foo]](
+          .parquet[OptionalKV[Int, Chicken]](
             topic.sparKafka.params.pathBuilder(topic.topicName, Parquet))
           .collect[IO]()
-          .map(r => assert(r.sorted.flatMap(_.value).toList == vlist))
+          .map(r => assert(r.sorted.flatMap(_.value).toList == chickens))
     action.unsafeRunSync()
   }
 }
