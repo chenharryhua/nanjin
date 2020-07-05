@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.Eq
 import cats.effect.Sync
 import cats.implicits._
-import com.github.chenharryhua.nanjin.spark.SparkSessionExt
 import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryK,
   CompulsoryKV,
@@ -11,11 +10,13 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   OptionalKV
 }
 import com.github.chenharryhua.nanjin.pipes.{GenericRecordEncoder, JsonAvroSerialization}
+import com.github.chenharryhua.nanjin.spark.SparkSessionExt
+import com.github.chenharryhua.nanjin.utils
+import com.sksamuel.avro4s.{AvroSchema, SchemaFor, Encoder => AvroEncoder}
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
-import org.apache.spark.sql.Dataset
 import fs2.Stream
-import com.sksamuel.avro4s.{AvroSchema, SchemaFor, Encoder => AvroEncoder}
+import org.apache.spark.sql.Dataset
 
 final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   crs: Dataset[OptionalKV[K, V]],
@@ -69,19 +70,22 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
 
   // investigations:
   def missingData: TypedDataset[CRMetaInfo] = {
-    crs.sparkSession.withGroupId("nj.cr.inv.miss").withDescription(s"missing data")
+    val id = utils.random4d.value
+    crs.sparkSession.withGroupId(s"nj.cr.miss.$id").withDescription(s"missing data")
     inv.missingData(values.deserialized.map(CRMetaInfo(_)))
   }
 
   def dupRecords: TypedDataset[DupResult] = {
-    crs.sparkSession.withGroupId("nj.cr.inv.dup").withDescription(s"find dup data")
+    val id = utils.random4d.value
+    crs.sparkSession.withGroupId(s"nj.cr.dup.$id").withDescription(s"find dup data")
     inv.dupRecords(typedDataset.deserialized.map(CRMetaInfo(_)))
   }
 
   def diff(other: TypedDataset[OptionalKV[K, V]])(implicit
     ke: Eq[K],
     ve: Eq[V]): TypedDataset[DiffResult[K, V]] = {
-    crs.sparkSession.withGroupId("nj.cr.inv.diff").withDescription(s"compare two datasets")
+    val id = utils.random4d.value
+    crs.sparkSession.withGroupId(s"nj.cr.diff.$id").withDescription(s"compare two datasets")
     inv.diffDataset(typedDataset, other)
   }
 
@@ -94,7 +98,8 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     F: Sync[F],
     avroKeyEncoder: AvroEncoder[K],
     avroValEncoder: AvroEncoder[V]): F[Unit] = {
-    crs.sparkSession.withGroupId("nj.cr.inv.find").withDescription(s"find records")
+    val id = utils.random4d.value
+    crs.sparkSession.withGroupId(s"nj.cr.find.$id").withDescription(s"find records")
     implicit val ks: SchemaFor[K] = SchemaFor[K](avroKeyEncoder.schema)
     implicit val vs: SchemaFor[V] = SchemaFor[V](avroValEncoder.schema)
 
@@ -111,12 +116,14 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   }
 
   def count(implicit F: Sync[F]): F[Long] = {
-    crs.sparkSession.withGroupId("nj.cr.inv.count").withDescription(s"count datasets")
+    val id = utils.random4d.value
+    crs.sparkSession.withGroupId(s"nj.cr.count.$id").withDescription(s"count datasets")
     typedDataset.count[F]()
   }
 
   def show(implicit F: Sync[F]): F[Unit] = {
-    crs.sparkSession.withGroupId("nj.cr.inv.show").withDescription(s"show datasets")
+    val id = utils.random4d.value
+    crs.sparkSession.withGroupId(s"nj.cr.show.$id").withDescription(s"show datasets")
     typedDataset.show[F](params.showDs.rowNum, params.showDs.isTruncate)
   }
 
