@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.Eq
 import cats.effect.Sync
 import cats.implicits._
+import com.github.chenharryhua.nanjin.spark.SparkSessionExt
 import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryK,
   CompulsoryKV,
@@ -64,21 +65,32 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     typedDataset.deserialized.flatMap(_.toCompulsoryKV)
 
   // investigations:
-  def missingData: TypedDataset[CRMetaInfo] =
+  def missingData: TypedDataset[CRMetaInfo] = {
+    crs.sparkSession.withGroupId("nj.tds.inv").withDescription(s"missing data")
     inv.missingData(values.deserialized.map(CRMetaInfo(_)))
+  }
 
-  def dupRecords: TypedDataset[DupResult] =
+  def dupRecords: TypedDataset[DupResult] = {
+    crs.sparkSession.withGroupId("nj.tds.inv").withDescription(s"find dup data")
     inv.dupRecords(typedDataset.deserialized.map(CRMetaInfo(_)))
+  }
 
   def diff(other: TypedDataset[OptionalKV[K, V]])(implicit
     ke: Eq[K],
-    ve: Eq[V]): TypedDataset[DiffResult[K, V]] =
+    ve: Eq[V]): TypedDataset[DiffResult[K, V]] = {
+    crs.sparkSession.withGroupId("nj.tds.inv").withDescription(s"compare two datasets")
     inv.diffDataset(typedDataset, other)
+  }
 
-  def count(implicit F: Sync[F]): F[Long] = typedDataset.count[F]()
+  def count(implicit F: Sync[F]): F[Long] = {
+    crs.sparkSession.withGroupId("nj.tds.inv").withDescription(s"count datasets")
+    typedDataset.count[F]()
+  }
 
-  def show(implicit F: Sync[F]): F[Unit] =
+  def show(implicit F: Sync[F]): F[Unit] = {
+    crs.sparkSession.withGroupId("nj.tds.inv").withDescription(s"show datasets")
     typedDataset.show[F](params.showDs.rowNum, params.showDs.isTruncate)
+  }
 
   // state change
   def toProducerRecords: FsmProducerRecords[F, K, V] =
