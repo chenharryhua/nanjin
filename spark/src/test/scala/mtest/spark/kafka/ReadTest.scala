@@ -2,7 +2,12 @@ package mtest.spark.kafka
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
-import com.github.chenharryhua.nanjin.messages.kafka.{CompulsoryKV, OptionalKV}
+import com.github.chenharryhua.nanjin.messages.kafka.{
+  CompulsoryK,
+  CompulsoryKV,
+  CompulsoryV,
+  OptionalKV
+}
 import frameless.TypedDataset
 import org.apache.spark.sql.SaveMode
 import org.scalatest.funsuite.AnyFunSuite
@@ -52,25 +57,25 @@ class ReadTest extends AnyFunSuite {
     assert(rst === dogs.toSet)
   }
 
-  test("read parquet - compulsory") {
-    val data: TypedDataset[CompulsoryKV[Int, Dog]] =
-      TypedDataset.create(dogs.flatMap(_.toCompulsoryKV))
+  test("read parquet - compulsoryK") {
+    val data: TypedDataset[CompulsoryK[Int, Dog]] =
+      TypedDataset.create(dogs.flatMap(_.toCompulsoryK))
     val path = "./data/test/spark/kafka/read/parquet-compulsory"
     data.write.mode(SaveMode.Overwrite).parquet(path)
     val rst = topic.sparKafka.readParquet(path).typedDataset.collect[IO]().unsafeRunSync().toSet
     assert(rst === dogs.toSet)
   }
 
-  test("read avro - compulsory") {
-    val data: TypedDataset[CompulsoryKV[Int, Dog]] =
-      TypedDataset.create(dogs.flatMap(_.toCompulsoryKV))
+  test("read avro - compulsoryV") {
+    val data: TypedDataset[CompulsoryV[Int, Dog]] =
+      TypedDataset.create(dogs.flatMap(_.toCompulsoryV))
     val path = "./data/test/spark/kafka/read/avro-compulsory"
     data.write.mode(SaveMode.Overwrite).format("avro").save(path)
     val rst = topic.sparKafka.readAvro(path).typedDataset.collect[IO]().unsafeRunSync().toSet
     assert(rst === dogs.toSet)
   }
 
-  test("read json - compulsory") {
+  test("read json - compulsoryKV") {
     val data: TypedDataset[CompulsoryKV[Int, Dog]] =
       TypedDataset.create(dogs.flatMap(_.toCompulsoryKV))
     val path = "./data/test/spark/kafka/read/json-compulsory"
