@@ -82,6 +82,11 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     inv.diffDataset(typedDataset, other)
   }
 
+  def diff(other: FsmConsumerRecords[F, K, V])(implicit
+    ke: Eq[K],
+    ve: Eq[V]): TypedDataset[DiffResult[K, V]] =
+    diff(other.typedDataset)
+
   def count(implicit F: Sync[F]): F[Long] = {
     crs.sparkSession.withGroupId("nj.cr.inv").withDescription(s"count datasets")
     typedDataset.count[F]()
