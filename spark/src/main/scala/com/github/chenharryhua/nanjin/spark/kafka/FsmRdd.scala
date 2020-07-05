@@ -17,7 +17,7 @@ import com.github.chenharryhua.nanjin.pipes.{GenericRecordEncoder, JsonAvroSeria
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt, SparkSessionExt}
 import com.sksamuel.avro4s.{AvroSchema, SchemaFor, Encoder => AvroEncoder}
 import frameless.{TypedDataset, TypedEncoder}
-import fs2.Stream
+import fs2.{Chunk, Stream}
 import io.circe.generic.auto._
 import io.circe.{Encoder => JsonEncoder}
 import org.apache.spark.rdd.RDD
@@ -122,8 +122,8 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
     val gr   = new GenericRecordEncoder[F, OptionalKV[K, V]]()
 
     Stream
-      .emits(rdd.filter(f).take(maxRows))
-      .covary[F]
+      .eval(F.delay(rdd.filter(f).take(maxRows)))
+      .flatMap(ao => Stream.emits(ao))
       .through(gr.encode)
       .through(pipe.compactJson)
       .showLinesStdOut
