@@ -16,17 +16,19 @@ import com.github.chenharryhua.nanjin.spark.kafka._
 import scala.util.Random
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import io.circe.generic.auto._
+import cats.derived.auto.eq._
+import cats.implicits._
 
 object ReadTestData {
   final case class Dog(a: Int, b: String)
 
   val dogs: List[OptionalKV[Int, Dog]] = List
     .fill(100)(Dog(Random.nextInt(), "dog"))
-    .map(d => OptionalKV[Int, Dog](0, 0, 0, Some(1), Some(d), "topic", 0))
+    .mapWithIndex((d, i) => OptionalKV[Int, Dog](0, i.toLong, 0, Some(1), Some(d), "topic", 0))
 
   val dogs_noKey: List[OptionalKV[Int, Dog]] = List
     .fill(100)(Dog(Random.nextInt(), "dog"))
-    .map(d => OptionalKV[Int, Dog](0, 0, 0, None, Some(d), "topic-nokey", 0))
+    .mapWithIndex((d, i) => OptionalKV[Int, Dog](0, i.toLong, 0, None, Some(d), "topic-nokey", 0))
 
   val topic: KafkaTopic[IO, Int, Dog] =
     TopicDef[Int, Dog](TopicName("test.spark.kafka.dogs")).in(ctx)
@@ -40,25 +42,24 @@ class ReadTest extends AnyFunSuite {
     val data = TypedDataset.create(dogs_noKey)
     val path = "./data/test/spark/kafka/read/parquet"
     data.write.mode(SaveMode.Overwrite).parquet(path)
-    val rst = topic.sparKafka.readParquet(path).typedDataset.collect[IO]().unsafeRunSync().toSet
-    assert(rst === dogs_noKey.toSet)
+    val rst = topic.sparKafka.readParquet(path)
+    assert(rst.diff(data).count[IO].unsafeRunSync() == 0)
   }
 
   test("read avro") {
     val data = TypedDataset.create(dogs_noKey)
     val path = "./data/test/spark/kafka/read/avro"
     data.write.mode(SaveMode.Overwrite).format("avro").save(path)
-    val rst = topic.sparKafka.readAvro(path).typedDataset.collect[IO]().unsafeRunSync().toSet
-    assert(rst === dogs_noKey.toSet)
+    val rst = topic.sparKafka.readAvro(path)
+    assert(rst.diff(data).count[IO].unsafeRunSync() == 0)
   }
 
   test("read json") {
     val data = TypedDataset.create(dogs_noKey)
     val path = "./data/test/spark/kafka/read/json"
     data.write.mode(SaveMode.Overwrite).json(path)
-    val rst =
-      topic.sparKafka.readJson(path).crDataset.typedDataset.collect[IO]().unsafeRunSync().toSet
-    assert(rst === dogs_noKey.toSet)
+    val rst = topic.sparKafka.readJson(path)
+    assert(rst.diff(data.dataset.rdd).count == 0)
   }
 
   test("read parquet - compulsoryK") {
@@ -66,8 +67,8 @@ class ReadTest extends AnyFunSuite {
       TypedDataset.create(dogs.flatMap(_.toCompulsoryK))
     val path = "./data/test/spark/kafka/read/parquet-compulsory"
     data.write.mode(SaveMode.Overwrite).parquet(path)
-    val rst = topic.sparKafka.readParquet(path).typedDataset.collect[IO]().unsafeRunSync().toSet
-    assert(rst === dogs.toSet)
+    val rst = topic.sparKafka.readParquet(path)
+    assert(rst.diff(data.deserialized.map(_.toOptionalKV)).count[IO].unsafeRunSync() == 0)
   }
 
   test("read avro - compulsoryV") {
@@ -75,8 +76,8 @@ class ReadTest extends AnyFunSuite {
       TypedDataset.create(dogs.flatMap(_.toCompulsoryV))
     val path = "./data/test/spark/kafka/read/avro-compulsory"
     data.write.mode(SaveMode.Overwrite).format("avro").save(path)
-    val rst = topic.sparKafka.readAvro(path).typedDataset.collect[IO]().unsafeRunSync().toSet
-    assert(rst === dogs.toSet)
+    val rst = topic.sparKafka.readAvro(path)
+    assert(rst.diff(data.deserialized.map(_.toOptionalKV)).count[IO].unsafeRunSync() == 0)
   }
 
   test("read json - compulsoryKV") {
@@ -84,8 +85,7 @@ class ReadTest extends AnyFunSuite {
       TypedDataset.create(dogs.flatMap(_.toCompulsoryKV))
     val path = "./data/test/spark/kafka/read/json-compulsory"
     data.write.mode(SaveMode.Overwrite).json(path)
-    val rst =
-      topic.sparKafka.readJson(path).crDataset.typedDataset.collect[IO]().unsafeRunSync().toSet
-    assert(rst === dogs.toSet)
+    val rst = topic.sparKafka.readJson(path)
+    assert(rst.diff(data.dataset.rdd.map(_.toOptionalKV)).count == 0)
   }
 }
