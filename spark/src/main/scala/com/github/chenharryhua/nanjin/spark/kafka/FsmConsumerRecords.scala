@@ -75,6 +75,11 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     typedDataset.deserialized.flatMap(_.toCompulsoryKV)
 
   // investigations:
+  def stats: Statistics[F] = {
+    crs.sparkSession.withGroupId(s"nj.cr.stats.${utils.random4d.value}")
+    new Statistics[F](typedDataset.deserialized.map(CRMetaInfo(_)).dataset, cfg)
+  }
+
   def missingData: TypedDataset[CRMetaInfo] = {
     crs.sparkSession.withGroupId(s"nj.cr.miss.${utils.random4d.value}")
     inv.missingData(values.deserialized.map(CRMetaInfo(_)))
