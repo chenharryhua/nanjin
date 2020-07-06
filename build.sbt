@@ -64,7 +64,7 @@ val betterFiles = "3.9.1"
 val scalatest = "3.2.0"
 
 // deprecate ?
-val flink110 = "1.10.1"
+val flink110 = "1.11.0"
 
 lazy val commonSettings = Seq(
   organization := "com.github.chenharryhua",
