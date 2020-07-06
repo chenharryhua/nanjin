@@ -102,6 +102,16 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     ve: Eq[V]): TypedDataset[DiffResult[K, V]] =
     diff(other.typedDataset)
 
+  def kvDiff(other: TypedDataset[OptionalKV[K, V]]): TypedDataset[(Option[K], Option[V])] = {
+    crs.sparkSession.withGroupId(s"nj.cr.kvdiff.${utils.random4d.value}")
+    val mine  = typedDataset.deserialized.map(m => (m.key, m.value))
+    val yours = other.deserialized.map(m => (m.key, m.value))
+    mine.except(yours)
+  }
+
+  def kvDiff(other: FsmConsumerRecords[F, K, V]): TypedDataset[(Option[K], Option[V])] =
+    kvDiff(other.typedDataset)
+
   def find(f: OptionalKV[K, V] => Boolean)(implicit F: Sync[F]): F[List[OptionalKV[K, V]]] = {
     crs.sparkSession.withGroupId(s"nj.cr.find.${utils.random4d.value}")
     filter(f).typedDataset.take[F](params.showDs.rowNum).map(_.toList)
@@ -118,8 +128,7 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   }
 
   def first(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] = F.delay(crs.rdd.cminOption)
-
-  def last(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] = F.delay(crs.rdd.cmaxOption)
+  def last(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]]  = F.delay(crs.rdd.cmaxOption)
 
   // state change
   def toProducerRecords: FsmProducerRecords[F, K, V] =

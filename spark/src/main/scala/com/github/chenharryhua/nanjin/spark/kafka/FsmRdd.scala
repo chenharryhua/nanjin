@@ -63,7 +63,10 @@ final class FsmRdd[F[_], K: AvroEncoder, V: AvroEncoder](
     new FsmRdd[F, K, V](rdd.dismissNulls, topicName, cfg)
 
   def inRange(dr: NJDateTimeRange): FsmRdd[F, K, V] =
-    new FsmRdd[F, K, V](rdd.filter(m => dr.isInBetween(m.timestamp)), topicName, cfg)
+    new FsmRdd[F, K, V](
+      rdd.filter(m => dr.isInBetween(m.timestamp)),
+      topicName,
+      cfg.withTimeRange(dr))
 
   def inRange: FsmRdd[F, K, V] = inRange(params.timeRange)
 
@@ -132,6 +135,16 @@ final class FsmRdd[F[_], K: AvroEncoder, V: AvroEncoder](
 
   def diff(other: FsmRdd[F, K, V])(implicit ek: Eq[K], ev: Eq[V]): RDD[DiffResult[K, V]] =
     diff(other.rdd)
+
+  def kvDiff(other: RDD[OptionalKV[K, V]]): RDD[(Option[K], Option[V])] = {
+    sparkSession.withGroupId(s"nj.rdd.kvdiff.${utils.random4d.value}")
+    val mine  = rdd.map(x => (x.key, x.value))
+    val yours = other.map(x => (x.key, x.value))
+    mine.subtract(yours)
+  }
+
+  def kvDiff(other: FsmRdd[F, K, V]): RDD[(Option[K], Option[V])] =
+    kvDiff(other.rdd)
 
   def first(implicit F: SparkDelay[F]): F[Option[OptionalKV[K, V]]] = F.delay(rdd.cminOption)
   def last(implicit F: SparkDelay[F]): F[Option[OptionalKV[K, V]]]  = F.delay(rdd.cmaxOption)
