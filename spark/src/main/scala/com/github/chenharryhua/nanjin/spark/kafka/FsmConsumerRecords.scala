@@ -76,22 +76,19 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
 
   // investigations:
   def missingData: TypedDataset[CRMetaInfo] = {
-    val id = utils.random4d.value
-    crs.sparkSession.withGroupId(s"nj.cr.miss.$id").withDescription(s"missing data")
+    crs.sparkSession.withGroupId(s"nj.cr.miss.${utils.random4d.value}")
     inv.missingData(values.deserialized.map(CRMetaInfo(_)))
   }
 
   def dupRecords: TypedDataset[DupResult] = {
-    val id = utils.random4d.value
-    crs.sparkSession.withGroupId(s"nj.cr.dup.$id").withDescription(s"find dup data")
+    crs.sparkSession.withGroupId(s"nj.cr.dup.${utils.random4d.value}")
     inv.dupRecords(typedDataset.deserialized.map(CRMetaInfo(_)))
   }
 
   def diff(other: TypedDataset[OptionalKV[K, V]])(implicit
     ke: Eq[K],
     ve: Eq[V]): TypedDataset[DiffResult[K, V]] = {
-    val id = utils.random4d.value
-    crs.sparkSession.withGroupId(s"nj.cr.diff.$id").withDescription(s"compare two datasets")
+    crs.sparkSession.withGroupId(s"nj.cr.diff.${utils.random4d.value}")
     inv.diffDataset(typedDataset, other)
   }
 
@@ -101,20 +98,17 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     diff(other.typedDataset)
 
   def find(f: OptionalKV[K, V] => Boolean)(implicit F: Sync[F]): F[List[OptionalKV[K, V]]] = {
-    val id = utils.random4d.value
-    crs.sparkSession.withGroupId(s"nj.cr.find.$id").withDescription(s"find records")
+    crs.sparkSession.withGroupId(s"nj.cr.find.${utils.random4d.value}")
     filter(f).typedDataset.take[F](params.showDs.rowNum).map(_.toList)
   }
 
   def count(implicit F: SparkDelay[F]): F[Long] = {
-    val id = utils.random4d.value
-    crs.sparkSession.withGroupId(s"nj.cr.count.$id").withDescription(s"count datasets")
+    crs.sparkSession.withGroupId(s"nj.cr.count.${utils.random4d.value}")
     typedDataset.count[F]()
   }
 
   def show(implicit F: SparkDelay[F]): F[Unit] = {
-    val id = utils.random4d.value
-    crs.sparkSession.withGroupId(s"nj.cr.show.$id").withDescription(s"show datasets")
+    crs.sparkSession.withGroupId(s"nj.cr.show.${utils.random4d.value}")
     typedDataset.show[F](params.showDs.rowNum, params.showDs.isTruncate)
   }
 
