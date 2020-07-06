@@ -7,7 +7,8 @@ import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.{NJProducerRecord, OptionalKV}
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
 import com.github.chenharryhua.nanjin.spark.streaming.{KafkaCRStream, SparkStream, StreamConfig}
-import frameless.{TypedDataset, TypedEncoder}
+import frameless.cats.implicits.framelessCatsSparkDelayForSync
+import frameless.{SparkDelay, TypedDataset, TypedEncoder}
 import io.circe.generic.auto._
 import io.circe.{Decoder => JsonDecoder}
 import org.apache.avro.Schema
@@ -38,17 +39,15 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
     sk.unloadKafka(topic, params.timeRange, params.locationStrategy)
       .map(
         new FsmRdd[F, K, V](_, topic.topicName, cfg)(
-          sparkSession,
           topic.topicDef.avroKeyEncoder,
-          topic.topicDef.avroValEncoder))
+          topic.topicDef.avroValEncoder,
+          sparkSession))
 
-  def fromDisk(implicit sync: Sync[F]): F[FsmRdd[F, K, V]] =
-    sk.loadDiskRdd[F, K, V](params.replayPath(topic.topicName))
-      .map(rdd =>
-        new FsmRdd[F, K, V](
-          rdd.filter(m => params.timeRange.isInBetween(m.timestamp)),
-          topic.topicName,
-          cfg)(sparkSession, topic.topicDef.avroKeyEncoder, topic.topicDef.avroValEncoder))
+  def fromDisk: FsmRdd[F, K, V] =
+    new FsmRdd[F, K, V](
+      sk.loadDiskRdd[K, V](params.replayPath(topic.topicName)),
+      topic.topicName,
+      cfg)(topic.topicDef.avroKeyEncoder, topic.topicDef.avroValEncoder, sparkSession)
 
   /**
     * shorthand
@@ -57,10 +56,10 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
     fromKafka.flatMap(_.dump)
 
   def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
-    fromDisk.flatMap(_.pipeTo(topic))
+    fromDisk.pipeTo(topic)
 
-  def countKafka(implicit F: Sync[F]): F[Long] = fromKafka.map(_.count)
-  def countDisk(implicit F: Sync[F]): F[Long]  = fromDisk.map(_.count)
+  def countKafka(implicit F: Sync[F]): F[Long]      = fromKafka.flatMap(_.count)
+  def countDisk(implicit F: SparkDelay[F]): F[Long] = fromDisk.count
 
   def pipeTo(other: KafkaTopic[F, K, V])(implicit
     ce: ConcurrentEffect[F],
@@ -74,8 +73,8 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
 
   def crDataset(tds: TypedDataset[OptionalKV[K, V]])(implicit
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]) =
-    new FsmConsumerRecords[F, K, V](tds.dataset, cfg)
+    valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] =
+    new FsmConsumerRecords[F, K, V](tds.dataset, cfg)(keyEncoder, valEncoder)
 
   def readAvro(pathStr: String)(implicit
     keyEncoder: TypedEncoder[K],
@@ -98,25 +97,24 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
     readParquet(params.pathBuilder(topic.topicName, NJFileFormat.Parquet))
 
   def readJson(pathStr: String)(implicit
-    keyJsonDecoder: JsonDecoder[K],
-    valJsonDecoder: JsonDecoder[V]): FsmRdd[F, K, V] =
+    jsonKeyDecoder: JsonDecoder[K],
+    jsonValDecoder: JsonDecoder[V]): FsmRdd[F, K, V] =
     new FsmRdd[F, K, V](sparkSession.json[OptionalKV[K, V]](pathStr), topic.topicName, cfg)(
-      sparkSession,
       topic.topicDef.avroKeyEncoder,
-      topic.topicDef.avroValEncoder)
+      topic.topicDef.avroValEncoder,
+      sparkSession)
 
   def readJson(implicit
-    keyJsonDecoder: JsonDecoder[K],
-    valJsonDecoder: JsonDecoder[V]): FsmRdd[F, K, V] =
+    jsonKeyDecoder: JsonDecoder[K],
+    jsonValDecoder: JsonDecoder[V]): FsmRdd[F, K, V] =
     readJson(params.pathBuilder(topic.topicName, NJFileFormat.Json))
 
   def readJackson(pathStr: String): FsmRdd[F, K, V] = {
     import topic.topicDef.{avroKeyDecoder, avroValDecoder}
-
     new FsmRdd[F, K, V](sparkSession.jackson[OptionalKV[K, V]](pathStr), topic.topicName, cfg)(
-      sparkSession,
       topic.topicDef.avroKeyEncoder,
-      topic.topicDef.avroValEncoder)
+      topic.topicDef.avroValEncoder,
+      sparkSession)
   }
 
   def readJackson: FsmRdd[F, K, V] =

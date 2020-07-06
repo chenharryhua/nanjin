@@ -116,7 +116,7 @@ val flinkLib = Seq(
   "org.apache.flink" %% "flink-gelly",
   "org.apache.flink" %% "flink-cep",
   "org.apache.flink" %% "flink-parquet",
-  "org.apache.flink" %% "flink-jdbc",
+ // "org.apache.flink" %% "flink-jdbc",
   "org.apache.flink" %% "flink-hadoop-compatibility",
   "org.apache.flink" % "flink-s3-fs-hadoop"
 ).map(_ % flink110)

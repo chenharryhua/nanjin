@@ -6,6 +6,7 @@ import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import cats.{Eq, Show}
 import com.github.chenharryhua.nanjin.common.NJFileFormat
+import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryK,
@@ -13,11 +14,11 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryV,
   OptionalKV
 }
-import com.github.chenharryhua.nanjin.pipes.{GenericRecordEncoder, JsonAvroSerialization}
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt, SparkSessionExt}
 import com.github.chenharryhua.nanjin.utils
-import com.sksamuel.avro4s.{AvroSchema, SchemaFor, Encoder => AvroEncoder}
-import frameless.{TypedDataset, TypedEncoder}
+import com.sksamuel.avro4s.{Encoder => AvroEncoder}
+import frameless.cats.implicits.rddOps
+import frameless.{SparkDelay, TypedDataset, TypedEncoder}
 import fs2.Stream
 import io.circe.generic.auto._
 import io.circe.{Encoder => JsonEncoder}
@@ -26,11 +27,10 @@ import org.apache.spark.sql.SparkSession
 
 import scala.collection.immutable.Queue
 
-final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicName, cfg: SKConfig)(
-  implicit
-  sparkSession: SparkSession,
-  avroKeyEncoder: AvroEncoder[K],
-  avroValEncoder: AvroEncoder[V])
+final class FsmRdd[F[_], K: AvroEncoder, V: AvroEncoder](
+  val rdd: RDD[OptionalKV[K, V]],
+  topicName: TopicName,
+  cfg: SKConfig)(implicit sparkSession: SparkSession)
     extends SparKafkaUpdateParams[FsmRdd[F, K, V]] {
 
   override def params: SKParams = cfg.evalConfig
@@ -62,6 +62,17 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
   def dismissNulls: FsmRdd[F, K, V] =
     new FsmRdd[F, K, V](rdd.dismissNulls, topicName, cfg)
 
+  def inRange(dr: NJDateTimeRange): FsmRdd[F, K, V] =
+    new FsmRdd[F, K, V](
+      rdd.filter(m => dr.isInBetween(m.timestamp)),
+      topicName,
+      cfg.withTimeRange(dr))
+
+  def inRange: FsmRdd[F, K, V] = inRange(params.timeRange)
+
+  def inRange(start: String, end: String): FsmRdd[F, K, V] =
+    inRange(params.timeRange.withTimeRange(start, end))
+
   // out of FsmRdd
 
   def typedDataset(implicit
@@ -80,78 +91,72 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
   def source(implicit F: ConcurrentEffect[F]): Source[OptionalKV[K, V], NotUsed] =
     rdd.source[F]
 
-  def malOrdered(implicit F: Sync[F]): Stream[F, OptionalKV[K, V]] =
-    stream.sliding(2).mapFilter {
-      case Queue(a, b) => if (a.timestamp <= b.timestamp) None else Some(a)
-    }
-
   // rdd
   def values: RDD[CompulsoryV[K, V]]     = rdd.flatMap(_.toCompulsoryV)
   def keys: RDD[CompulsoryK[K, V]]       = rdd.flatMap(_.toCompulsoryK)
   def keyValues: RDD[CompulsoryKV[K, V]] = rdd.flatMap(_.toCompulsoryKV)
 
   // investigation
-  def count: Long = {
-    val id = utils.random4d.value
-    sparkSession.withGroupId(s"nj.rdd.count.$id").withDescription(topicName.value)
-    rdd.count()
+  def count(implicit F: SparkDelay[F]): F[Long] = {
+    sparkSession.withGroupId(s"nj.rdd.count.${utils.random4d.value}")
+    F.delay(rdd.count())
+  }
+
+  def show(implicit F: SparkDelay[F]): F[Unit] = {
+    sparkSession.withGroupId(s"nj.rdd.show.${utils.random4d.value}")
+    F.delay(rdd.take(params.showDs.rowNum).foreach(println))
   }
 
   def stats: Statistics[F] = {
-    val id = utils.random4d.value
-    sparkSession.withGroupId(s"nj.rdd.stats.$id").withDescription(topicName.value)
-    new Statistics(TypedDataset.create(rdd.map(CRMetaInfo(_))).dataset, cfg)
+    sparkSession.withGroupId(s"nj.rdd.stats.${utils.random4d.value}")
+    new Statistics[F](TypedDataset.create(rdd.map(CRMetaInfo(_))).dataset, cfg)
   }
 
+  def malOrder(implicit F: Sync[F]): Stream[F, OptionalKV[K, V]] =
+    stream.sliding(2).mapFilter {
+      case Queue(a, b) => if (a.timestamp <= b.timestamp) None else Some(a)
+    }
+
   def missingData: TypedDataset[CRMetaInfo] = {
-    val id = utils.random4d.value
-    sparkSession.withGroupId(s"nj.rdd.miss.$id").withDescription(topicName.value)
+    sparkSession.withGroupId(s"nj.rdd.miss.${utils.random4d.value}")
     inv.missingData(TypedDataset.create(values.map(CRMetaInfo(_))))
   }
 
   def dupRecords: TypedDataset[DupResult] = {
-    val id = utils.random4d.value
-    sparkSession.withGroupId(s"nj.rdd.dup.$id").withDescription(topicName.value)
+    sparkSession.withGroupId(s"nj.rdd.dup.${utils.random4d.value}")
     inv.dupRecords(TypedDataset.create(values.map(CRMetaInfo(_))))
   }
 
-  def find(f: OptionalKV[K, V] => Boolean)(implicit F: Sync[F]): F[Unit] = {
+  def find(f: OptionalKV[K, V] => Boolean)(implicit F: SparkDelay[F]): F[List[OptionalKV[K, V]]] = {
     val maxRows: Int = params.showDs.rowNum
-    val id           = utils.random4d.value
-    sparkSession
-      .withGroupId(s"nj.rdd.find.$id")
-      .withDescription(s"${topicName.value}. max rows: $maxRows")
-    implicit val ks: SchemaFor[K] = SchemaFor[K](avroKeyEncoder.schema)
-    implicit val vs: SchemaFor[V] = SchemaFor[V](avroValEncoder.schema)
-
-    val pipe = new JsonAvroSerialization[F](AvroSchema[OptionalKV[K, V]])
-    val gr   = new GenericRecordEncoder[F, OptionalKV[K, V]]()
-
-    Stream
-      .eval(F.delay(rdd.filter(f).take(maxRows)))
-      .flatMap(ao => Stream.emits(ao))
-      .through(gr.encode)
-      .through(pipe.compactJson)
-      .showLinesStdOut
-      .compile
-      .drain
+    sparkSession.withGroupId(s"nj.rdd.find.${utils.random4d.value}")
+    F.delay(rdd.filter(f).take(maxRows).toList)
   }
 
   def diff(other: RDD[OptionalKV[K, V]])(implicit ek: Eq[K], ev: Eq[V]): RDD[DiffResult[K, V]] = {
-    val id = utils.random4d.value
-    sparkSession.withGroupId(s"nj.rdd.diff.$id").withDescription(s"compare two rdds")
+    sparkSession.withGroupId(s"nj.rdd.diff.pos.${utils.random4d.value}")
     inv.diffRdd(rdd, other)
   }
 
   def diff(other: FsmRdd[F, K, V])(implicit ek: Eq[K], ev: Eq[V]): RDD[DiffResult[K, V]] =
     diff(other.rdd)
 
+  def kvDiff(other: RDD[OptionalKV[K, V]]): RDD[(Option[K], Option[V])] = {
+    sparkSession.withGroupId(s"nj.rdd.diff.kv.${utils.random4d.value}")
+    val mine  = rdd.map(x => (x.key, x.value))
+    val yours = other.map(x => (x.key, x.value))
+    mine.subtract(yours)
+  }
+
+  def kvDiff(other: FsmRdd[F, K, V]): RDD[(Option[K], Option[V])] =
+    kvDiff(other.rdd)
+
+  def first(implicit F: SparkDelay[F]): F[Option[OptionalKV[K, V]]] = F.delay(rdd.cminOption)
+  def last(implicit F: SparkDelay[F]): F[Option[OptionalKV[K, V]]]  = F.delay(rdd.cmaxOption)
+
   // dump java object
   def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
-    val id = utils.random4d.value
-    sparkSession
-      .withGroupId(s"nj.rdd.dump.$id")
-      .withDescription(s"to: ${params.replayPath(topicName)}")
+    sparkSession.withGroupId(s"nj.rdd.dump.${utils.random4d.value}")
 
     Blocker[F].use { blocker =>
       val pathStr = params.replayPath(topicName)
@@ -165,10 +170,7 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
     cs: ContextShift[F],
     ek: JsonEncoder[K],
     ev: JsonEncoder[V]): F[Long] = {
-    val id = utils.random4d.value
-    sparkSession
-      .withGroupId(s"nj.rdd.save.$id")
-      .withDescription(s"to: ${params.pathBuilder(topicName, NJFileFormat.Json)}")
+    sparkSession.withGroupId(s"nj.rdd.save.${utils.random4d.value}")
 
     val path = params.pathBuilder(topicName, NJFileFormat.Json)
     val data = rdd.persist()
@@ -184,11 +186,7 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
     showV: Show[V],
     ce: Sync[F],
     cs: ContextShift[F]): F[Long] = {
-    val id = utils.random4d.value
-    sparkSession
-      .withGroupId(s"nj.rdd.save.$id")
-      .withDescription(s"to: ${params.pathBuilder(topicName, NJFileFormat.Text)}")
-
+    sparkSession.withGroupId(s"nj.rdd.save.${utils.random4d.value}")
     val path = params.pathBuilder(topicName, NJFileFormat.Text)
     val data = rdd.persist()
     stream
@@ -202,10 +200,7 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
   private def avroLike(blocker: Blocker, fmt: NJFileFormat)(implicit
     ce: ConcurrentEffect[F],
     cs: ContextShift[F]): F[Long] = {
-    val id = utils.random4d.value
-    sparkSession
-      .withGroupId(s"nj.rdd.save.$id")
-      .withDescription(s"to: ${params.pathBuilder(topicName, fmt)}")
+    sparkSession.withGroupId(s"nj.rdd.save.${utils.random4d.value}")
 
     val path = params.pathBuilder(topicName, fmt)
     val data = rdd.persist()
@@ -244,10 +239,7 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
     ce: ConcurrentEffect[F],
     timer: Timer[F],
     cs: ContextShift[F]): F[Unit] = {
-    val id = utils.random4d.value
-    sparkSession
-      .withGroupId(s"nj.rdd.pipe.$id")
-      .withDescription(s"to: ${otherTopic.topicName.value}")
+    sparkSession.withGroupId(s"nj.rdd.pipe.${utils.random4d.value}")
     stream
       .map(_.toNJProducerRecord.noMeta)
       .through(sk.uploader(otherTopic, params.uploadRate))

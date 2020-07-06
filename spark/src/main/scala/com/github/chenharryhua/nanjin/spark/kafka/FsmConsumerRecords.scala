@@ -3,19 +3,17 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.Eq
 import cats.effect.Sync
 import cats.implicits._
+import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryK,
   CompulsoryKV,
   CompulsoryV,
   OptionalKV
 }
-import com.github.chenharryhua.nanjin.pipes.{GenericRecordEncoder, JsonAvroSerialization}
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
 import com.github.chenharryhua.nanjin.utils
-import com.sksamuel.avro4s.{AvroSchema, SchemaFor, Encoder => AvroEncoder}
 import frameless.cats.implicits._
-import frameless.{TypedDataset, TypedEncoder}
-import fs2.Stream
+import frameless.{SparkDelay, TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
 
 final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
@@ -57,6 +55,14 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def persist: FsmConsumerRecords[F, K, V] =
     new FsmConsumerRecords[F, K, V](crs.persist(), cfg)
 
+  def inRange(dr: NJDateTimeRange): FsmConsumerRecords[F, K, V] =
+    filter(m => dr.isInBetween(m.timestamp))
+
+  def inRange: FsmConsumerRecords[F, K, V] = inRange(params.timeRange)
+
+  def inRange(start: String, end: String): FsmConsumerRecords[F, K, V] =
+    inRange(params.timeRange.withTimeRange(start, end))
+
   // dataset
 
   def values: TypedDataset[CompulsoryV[K, V]] =
@@ -69,23 +75,25 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     typedDataset.deserialized.flatMap(_.toCompulsoryKV)
 
   // investigations:
+  def stats: Statistics[F] = {
+    crs.sparkSession.withGroupId(s"nj.cr.stats.${utils.random4d.value}")
+    new Statistics[F](typedDataset.deserialized.map(CRMetaInfo(_)).dataset, cfg)
+  }
+
   def missingData: TypedDataset[CRMetaInfo] = {
-    val id = utils.random4d.value
-    crs.sparkSession.withGroupId(s"nj.cr.miss.$id").withDescription(s"missing data")
+    crs.sparkSession.withGroupId(s"nj.cr.miss.${utils.random4d.value}")
     inv.missingData(values.deserialized.map(CRMetaInfo(_)))
   }
 
   def dupRecords: TypedDataset[DupResult] = {
-    val id = utils.random4d.value
-    crs.sparkSession.withGroupId(s"nj.cr.dup.$id").withDescription(s"find dup data")
+    crs.sparkSession.withGroupId(s"nj.cr.dup.${utils.random4d.value}")
     inv.dupRecords(typedDataset.deserialized.map(CRMetaInfo(_)))
   }
 
   def diff(other: TypedDataset[OptionalKV[K, V]])(implicit
     ke: Eq[K],
     ve: Eq[V]): TypedDataset[DiffResult[K, V]] = {
-    val id = utils.random4d.value
-    crs.sparkSession.withGroupId(s"nj.cr.diff.$id").withDescription(s"compare two datasets")
+    crs.sparkSession.withGroupId(s"nj.cr.diff.pos.${utils.random4d.value}")
     inv.diffDataset(typedDataset, other)
   }
 
@@ -94,38 +102,33 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     ve: Eq[V]): TypedDataset[DiffResult[K, V]] =
     diff(other.typedDataset)
 
-  def find(f: OptionalKV[K, V] => Boolean)(implicit
-    F: Sync[F],
-    avroKeyEncoder: AvroEncoder[K],
-    avroValEncoder: AvroEncoder[V]): F[Unit] = {
-    val id = utils.random4d.value
-    crs.sparkSession.withGroupId(s"nj.cr.find.$id").withDescription(s"find records")
-    implicit val ks: SchemaFor[K] = SchemaFor[K](avroKeyEncoder.schema)
-    implicit val vs: SchemaFor[V] = SchemaFor[V](avroValEncoder.schema)
-
-    val pipe = new JsonAvroSerialization[F](AvroSchema[OptionalKV[K, V]])
-    val gr   = new GenericRecordEncoder[F, OptionalKV[K, V]]()
-
-    Stream
-      .force(filter(f).typedDataset.take[F](params.showDs.rowNum).map(Stream.emits(_).covary[F]))
-      .through(gr.encode)
-      .through(pipe.compactJson)
-      .showLinesStdOut
-      .compile
-      .drain
+  def kvDiff(other: TypedDataset[OptionalKV[K, V]]): TypedDataset[(Option[K], Option[V])] = {
+    crs.sparkSession.withGroupId(s"nj.cr.diff.kv.${utils.random4d.value}")
+    val mine  = typedDataset.deserialized.map(m => (m.key, m.value))
+    val yours = other.deserialized.map(m => (m.key, m.value))
+    mine.except(yours)
   }
 
-  def count(implicit F: Sync[F]): F[Long] = {
-    val id = utils.random4d.value
-    crs.sparkSession.withGroupId(s"nj.cr.count.$id").withDescription(s"count datasets")
+  def kvDiff(other: FsmConsumerRecords[F, K, V]): TypedDataset[(Option[K], Option[V])] =
+    kvDiff(other.typedDataset)
+
+  def find(f: OptionalKV[K, V] => Boolean)(implicit F: Sync[F]): F[List[OptionalKV[K, V]]] = {
+    crs.sparkSession.withGroupId(s"nj.cr.find.${utils.random4d.value}")
+    filter(f).typedDataset.take[F](params.showDs.rowNum).map(_.toList)
+  }
+
+  def count(implicit F: SparkDelay[F]): F[Long] = {
+    crs.sparkSession.withGroupId(s"nj.cr.count.${utils.random4d.value}")
     typedDataset.count[F]()
   }
 
-  def show(implicit F: Sync[F]): F[Unit] = {
-    val id = utils.random4d.value
-    crs.sparkSession.withGroupId(s"nj.cr.show.$id").withDescription(s"show datasets")
+  def show(implicit F: SparkDelay[F]): F[Unit] = {
+    crs.sparkSession.withGroupId(s"nj.cr.show.${utils.random4d.value}")
     typedDataset.show[F](params.showDs.rowNum, params.showDs.isTruncate)
   }
+
+  def first(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] = F.delay(crs.rdd.cminOption)
+  def last(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]]  = F.delay(crs.rdd.cmaxOption)
 
   // state change
   def toProducerRecords: FsmProducerRecords[F, K, V] =
