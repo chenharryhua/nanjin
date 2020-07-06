@@ -93,7 +93,7 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def diff(other: TypedDataset[OptionalKV[K, V]])(implicit
     ke: Eq[K],
     ve: Eq[V]): TypedDataset[DiffResult[K, V]] = {
-    crs.sparkSession.withGroupId(s"nj.cr.diff.${utils.random4d.value}")
+    crs.sparkSession.withGroupId(s"nj.cr.diff.pos.${utils.random4d.value}")
     inv.diffDataset(typedDataset, other)
   }
 
@@ -103,7 +103,7 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     diff(other.typedDataset)
 
   def kvDiff(other: TypedDataset[OptionalKV[K, V]]): TypedDataset[(Option[K], Option[V])] = {
-    crs.sparkSession.withGroupId(s"nj.cr.kvdiff.${utils.random4d.value}")
+    crs.sparkSession.withGroupId(s"nj.cr.diff.kv.${utils.random4d.value}")
     val mine  = typedDataset.deserialized.map(m => (m.key, m.value))
     val yours = other.deserialized.map(m => (m.key, m.value))
     mine.except(yours)

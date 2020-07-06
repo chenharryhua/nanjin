@@ -97,10 +97,15 @@ final class FsmRdd[F[_], K: AvroEncoder, V: AvroEncoder](
   def keyValues: RDD[CompulsoryKV[K, V]] = rdd.flatMap(_.toCompulsoryKV)
 
   // investigation
-  def count(implicit F: SparkDelay[F]): F[Long] = F.delay(rdd.count())
+  def count(implicit F: SparkDelay[F]): F[Long] = {
+    sparkSession.withGroupId(s"nj.rdd.count.${utils.random4d.value}")
+    F.delay(rdd.count())
+  }
 
-  def show(implicit F: SparkDelay[F]): F[Unit] =
+  def show(implicit F: SparkDelay[F]): F[Unit] = {
+    sparkSession.withGroupId(s"nj.rdd.show.${utils.random4d.value}")
     F.delay(rdd.take(params.showDs.rowNum).foreach(println))
+  }
 
   def stats: Statistics[F] = {
     sparkSession.withGroupId(s"nj.rdd.stats.${utils.random4d.value}")
@@ -129,7 +134,7 @@ final class FsmRdd[F[_], K: AvroEncoder, V: AvroEncoder](
   }
 
   def diff(other: RDD[OptionalKV[K, V]])(implicit ek: Eq[K], ev: Eq[V]): RDD[DiffResult[K, V]] = {
-    sparkSession.withGroupId(s"nj.rdd.diff.${utils.random4d.value}")
+    sparkSession.withGroupId(s"nj.rdd.diff.pos.${utils.random4d.value}")
     inv.diffRdd(rdd, other)
   }
 
@@ -137,7 +142,7 @@ final class FsmRdd[F[_], K: AvroEncoder, V: AvroEncoder](
     diff(other.rdd)
 
   def kvDiff(other: RDD[OptionalKV[K, V]]): RDD[(Option[K], Option[V])] = {
-    sparkSession.withGroupId(s"nj.rdd.kvdiff.${utils.random4d.value}")
+    sparkSession.withGroupId(s"nj.rdd.diff.kv.${utils.random4d.value}")
     val mine  = rdd.map(x => (x.key, x.value))
     val yours = other.map(x => (x.key, x.value))
     mine.subtract(yours)
