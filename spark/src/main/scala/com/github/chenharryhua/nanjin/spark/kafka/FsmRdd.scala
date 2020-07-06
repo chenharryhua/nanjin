@@ -14,11 +14,10 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryV,
   OptionalKV
 }
-import com.github.chenharryhua.nanjin.pipes.{GenericRecordEncoder, JsonAvroSerialization}
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt, SparkSessionExt}
 import com.github.chenharryhua.nanjin.utils
-import com.sksamuel.avro4s.{AvroSchema, SchemaFor, Encoder => AvroEncoder}
-import frameless.{TypedDataset, TypedEncoder}
+import com.sksamuel.avro4s.{Encoder => AvroEncoder}
+import frameless.{SparkDelay, TypedDataset, TypedEncoder}
 import fs2.Stream
 import io.circe.generic.auto._
 import io.circe.{Encoder => JsonEncoder}
@@ -94,16 +93,12 @@ final class FsmRdd[F[_], K: AvroEncoder, V: AvroEncoder](
   def keyValues: RDD[CompulsoryKV[K, V]] = rdd.flatMap(_.toCompulsoryKV)
 
   // investigation
-  def count: Long = {
-    val id = utils.random4d.value
-    sparkSession.withGroupId(s"nj.rdd.count.$id").withDescription(topicName.value)
-    rdd.count()
-  }
+  def count(implicit F: SparkDelay[F]): F[Long] = F.delay(rdd.count())
 
-  def stats: Statistics[F] = {
+  def stats(implicit F: SparkDelay[F]): Statistics[F] = {
     val id = utils.random4d.value
     sparkSession.withGroupId(s"nj.rdd.stats.$id").withDescription(topicName.value)
-    new Statistics(TypedDataset.create(rdd.map(CRMetaInfo(_))).dataset, cfg)
+    new Statistics[F](TypedDataset.create(rdd.map(CRMetaInfo(_))).dataset, cfg)
   }
 
   def malOrder(implicit F: Sync[F]): Stream[F, OptionalKV[K, V]] =
@@ -123,26 +118,13 @@ final class FsmRdd[F[_], K: AvroEncoder, V: AvroEncoder](
     inv.dupRecords(TypedDataset.create(values.map(CRMetaInfo(_))))
   }
 
-  def find(f: OptionalKV[K, V] => Boolean)(implicit F: Sync[F]): F[Unit] = {
+  def find(f: OptionalKV[K, V] => Boolean)(implicit F: SparkDelay[F]): F[List[OptionalKV[K, V]]] = {
     val maxRows: Int = params.showDs.rowNum
     val id           = utils.random4d.value
     sparkSession
       .withGroupId(s"nj.rdd.find.$id")
       .withDescription(s"${topicName.value}. max rows: $maxRows")
-    implicit val ks: SchemaFor[K] = SchemaFor[K](AvroEncoder[K].schema)
-    implicit val vs: SchemaFor[V] = SchemaFor[V](AvroEncoder[V].schema)
-
-    val pipe = new JsonAvroSerialization[F](AvroSchema[OptionalKV[K, V]])
-    val gr   = new GenericRecordEncoder[F, OptionalKV[K, V]]()
-
-    Stream
-      .eval(F.delay(rdd.filter(f).take(maxRows)))
-      .flatMap(ao => Stream.emits(ao))
-      .through(gr.encode)
-      .through(pipe.compactJson)
-      .showLinesStdOut
-      .compile
-      .drain
+    F.delay(rdd.filter(f).take(maxRows).toList)
   }
 
   def diff(other: RDD[OptionalKV[K, V]])(implicit ek: Eq[K], ev: Eq[V]): RDD[DiffResult[K, V]] = {

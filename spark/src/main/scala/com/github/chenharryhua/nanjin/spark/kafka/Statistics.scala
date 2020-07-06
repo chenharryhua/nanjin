@@ -2,12 +2,11 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import java.time.{LocalDate, LocalDateTime, ZoneId}
 
-import cats.effect.Sync
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.spark.injection._
-import frameless.TypedDataset
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.functions.aggregate.count
+import frameless.{SparkDelay, TypedDataset}
 import org.apache.spark.sql.Dataset
 
 final private[kafka] case class MinutelyAggResult(minute: Int, count: Long)
@@ -16,7 +15,8 @@ final private[kafka] case class DailyAggResult(date: LocalDate, count: Long)
 final private[kafka] case class DailyHourAggResult(date: LocalDateTime, count: Long)
 final private[kafka] case class DailyMinuteAggResult(date: LocalDateTime, count: Long)
 
-final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Serializable {
+final class Statistics[F[_]: SparkDelay](ds: Dataset[CRMetaInfo], cfg: SKConfig)
+    extends Serializable {
 
   val params: SKParams = cfg.evalConfig
 
@@ -25,7 +25,7 @@ final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Ser
   @transient private lazy val typedDataset: TypedDataset[CRMetaInfo] =
     TypedDataset.create(ds)
 
-  def minutely(implicit ev: Sync[F]): F[Unit] = {
+  def minutely: F[Unit] = {
     val minute: TypedDataset[Int] = typedDataset.deserialized.map { m =>
       NJTimestamp(m.timestamp).atZone(params.timeRange.zoneId).getMinute
     }
@@ -33,14 +33,14 @@ final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Ser
     res.orderBy(res('minute).asc).show[F](params.showDs.rowNum, params.showDs.isTruncate)
   }
 
-  def hourly(implicit ev: Sync[F]): F[Unit] = {
+  def hourly: F[Unit] = {
     val hour = typedDataset.deserialized.map(m =>
       NJTimestamp(m.timestamp).atZone(params.timeRange.zoneId).getHour)
     val res = hour.groupBy(hour.asCol).agg(count(hour.asCol)).as[HourlyAggResult]
     res.orderBy(res('hour).asc).show[F](params.showDs.rowNum, params.showDs.isTruncate)
   }
 
-  def daily(implicit ev: Sync[F]): F[Unit] = {
+  def daily: F[Unit] = {
     val day: TypedDataset[LocalDate] = typedDataset.deserialized.map { m =>
       NJTimestamp(m.timestamp).dayResolution(params.timeRange.zoneId)
     }
@@ -48,7 +48,7 @@ final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Ser
     res.orderBy(res('date).asc).show[F](params.showDs.rowNum, params.showDs.isTruncate)
   }
 
-  def dailyHour(implicit ev: Sync[F]): F[Unit] = {
+  def dailyHour: F[Unit] = {
     val dayHour: TypedDataset[LocalDateTime] = typedDataset.deserialized.map { m =>
       NJTimestamp(m.timestamp).hourResolution(params.timeRange.zoneId)
     }
@@ -56,7 +56,7 @@ final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Ser
     res.orderBy(res('date).asc).show[F](params.showDs.rowNum, params.showDs.isTruncate)
   }
 
-  def dailyMinute(implicit ev: Sync[F]): F[Unit] = {
+  def dailyMinute: F[Unit] = {
     val dayMinute: TypedDataset[LocalDateTime] = typedDataset.deserialized.map { m =>
       NJTimestamp(m.timestamp).minuteResolution(params.timeRange.zoneId)
     }

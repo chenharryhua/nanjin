@@ -7,7 +7,8 @@ import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.{NJProducerRecord, OptionalKV}
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
 import com.github.chenharryhua.nanjin.spark.streaming.{KafkaCRStream, SparkStream, StreamConfig}
-import frameless.{TypedDataset, TypedEncoder}
+import frameless.cats.implicits.framelessCatsSparkDelayForSync
+import frameless.{SparkDelay, TypedDataset, TypedEncoder}
 import io.circe.generic.auto._
 import io.circe.{Decoder => JsonDecoder}
 import org.apache.avro.Schema
@@ -42,7 +43,7 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
           topic.topicDef.avroValEncoder,
           sparkSession))
 
-  def fromDisk(implicit sync: Sync[F]): FsmRdd[F, K, V] =
+  def fromDisk: FsmRdd[F, K, V] =
     new FsmRdd[F, K, V](
       sk.loadDiskRdd[K, V](params.replayPath(topic.topicName)),
       topic.topicName,
@@ -57,8 +58,8 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
   def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
     fromDisk.pipeTo(topic)
 
-  def countKafka(implicit F: Sync[F]): F[Long] = fromKafka.map(_.count)
-  def countDisk(implicit F: Sync[F]): Long     = fromDisk.count
+  def countKafka(implicit F: Sync[F]): F[Long]      = fromKafka.flatMap(_.count)
+  def countDisk(implicit F: SparkDelay[F]): F[Long] = fromDisk.count
 
   def pipeTo(other: KafkaTopic[F, K, V])(implicit
     ce: ConcurrentEffect[F],
@@ -73,11 +74,7 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
   def crDataset(tds: TypedDataset[OptionalKV[K, V]])(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](tds.dataset, cfg)(
-      keyEncoder,
-      topic.topicDef.avroKeyEncoder,
-      valEncoder,
-      topic.topicDef.avroValEncoder)
+    new FsmConsumerRecords[F, K, V](tds.dataset, cfg)(keyEncoder, valEncoder)
 
   def readAvro(pathStr: String)(implicit
     keyEncoder: TypedEncoder[K],
