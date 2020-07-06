@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.Eq
 import cats.effect.Sync
 import cats.implicits._
+import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryK,
   CompulsoryKV,
@@ -18,7 +19,7 @@ import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import org.apache.spark.sql.Dataset
 
-final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
+final class FsmConsumerRecords[F[_], K: TypedEncoder: AvroEncoder, V: TypedEncoder: AvroEncoder](
   crs: Dataset[OptionalKV[K, V]],
   cfg: SKConfig)
     extends SparKafkaUpdateParams[FsmConsumerRecords[F, K, V]] {
@@ -32,12 +33,12 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   override val params: SKParams = cfg.evalConfig
 
   // transformations
-  def bimap[K2: TypedEncoder, V2: TypedEncoder](
+  def bimap[K2: TypedEncoder: AvroEncoder, V2: TypedEncoder: AvroEncoder](
     k: K => K2,
     v: V => V2): FsmConsumerRecords[F, K2, V2] =
     new FsmConsumerRecords[F, K2, V2](typedDataset.deserialized.map(_.bimap(k, v)).dataset, cfg)
 
-  def flatMap[K2: TypedEncoder, V2: TypedEncoder](
+  def flatMap[K2: TypedEncoder: AvroEncoder, V2: TypedEncoder: AvroEncoder](
     f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]]): FsmConsumerRecords[F, K2, V2] =
     new FsmConsumerRecords[F, K2, V2](typedDataset.deserialized.flatMap(f).dataset, cfg)
 
@@ -56,6 +57,11 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
 
   def persist: FsmConsumerRecords[F, K, V] =
     new FsmConsumerRecords[F, K, V](crs.persist(), cfg)
+
+  def inRange(dr: NJDateTimeRange): FsmConsumerRecords[F, K, V] =
+    filter(m => dr.isInBetween(m.timestamp))
+
+  def inRange: FsmConsumerRecords[F, K, V] = inRange(params.timeRange)
 
   // dataset
 
@@ -94,14 +100,11 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     ve: Eq[V]): TypedDataset[DiffResult[K, V]] =
     diff(other.typedDataset)
 
-  def find(f: OptionalKV[K, V] => Boolean)(implicit
-    F: Sync[F],
-    avroKeyEncoder: AvroEncoder[K],
-    avroValEncoder: AvroEncoder[V]): F[Unit] = {
+  def find(f: OptionalKV[K, V] => Boolean)(implicit F: Sync[F]): F[Unit] = {
     val id = utils.random4d.value
     crs.sparkSession.withGroupId(s"nj.cr.find.$id").withDescription(s"find records")
-    implicit val ks: SchemaFor[K] = SchemaFor[K](avroKeyEncoder.schema)
-    implicit val vs: SchemaFor[V] = SchemaFor[V](avroValEncoder.schema)
+    implicit val ks: SchemaFor[K] = SchemaFor[K](AvroEncoder[K].schema)
+    implicit val vs: SchemaFor[V] = SchemaFor[V](AvroEncoder[V].schema)
 
     val pipe = new JsonAvroSerialization[F](AvroSchema[OptionalKV[K, V]])
     val gr   = new GenericRecordEncoder[F, OptionalKV[K, V]]()

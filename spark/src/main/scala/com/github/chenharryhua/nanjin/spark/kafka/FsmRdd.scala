@@ -6,6 +6,7 @@ import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import cats.{Eq, Show}
 import com.github.chenharryhua.nanjin.common.NJFileFormat
+import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryK,
@@ -26,11 +27,10 @@ import org.apache.spark.sql.SparkSession
 
 import scala.collection.immutable.Queue
 
-final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicName, cfg: SKConfig)(
-  implicit
-  sparkSession: SparkSession,
-  avroKeyEncoder: AvroEncoder[K],
-  avroValEncoder: AvroEncoder[V])
+final class FsmRdd[F[_], K: AvroEncoder, V: AvroEncoder](
+  val rdd: RDD[OptionalKV[K, V]],
+  topicName: TopicName,
+  cfg: SKConfig)(implicit sparkSession: SparkSession)
     extends SparKafkaUpdateParams[FsmRdd[F, K, V]] {
 
   override def params: SKParams = cfg.evalConfig
@@ -62,6 +62,11 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
   def dismissNulls: FsmRdd[F, K, V] =
     new FsmRdd[F, K, V](rdd.dismissNulls, topicName, cfg)
 
+  def inRange(dr: NJDateTimeRange): FsmRdd[F, K, V] =
+    new FsmRdd[F, K, V](rdd.filter(m => dr.isInBetween(m.timestamp)), topicName, cfg)
+
+  def inRange: FsmRdd[F, K, V] = inRange(params.timeRange)
+
   // out of FsmRdd
 
   def typedDataset(implicit
@@ -79,11 +84,6 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
 
   def source(implicit F: ConcurrentEffect[F]): Source[OptionalKV[K, V], NotUsed] =
     rdd.source[F]
-
-  def malOrdered(implicit F: Sync[F]): Stream[F, OptionalKV[K, V]] =
-    stream.sliding(2).mapFilter {
-      case Queue(a, b) => if (a.timestamp <= b.timestamp) None else Some(a)
-    }
 
   // rdd
   def values: RDD[CompulsoryV[K, V]]     = rdd.flatMap(_.toCompulsoryV)
@@ -103,6 +103,11 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
     new Statistics(TypedDataset.create(rdd.map(CRMetaInfo(_))).dataset, cfg)
   }
 
+  def malOrder(implicit F: Sync[F]): Stream[F, OptionalKV[K, V]] =
+    stream.sliding(2).mapFilter {
+      case Queue(a, b) => if (a.timestamp <= b.timestamp) None else Some(a)
+    }
+
   def missingData: TypedDataset[CRMetaInfo] = {
     val id = utils.random4d.value
     sparkSession.withGroupId(s"nj.rdd.miss.$id").withDescription(topicName.value)
@@ -121,8 +126,8 @@ final class FsmRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicN
     sparkSession
       .withGroupId(s"nj.rdd.find.$id")
       .withDescription(s"${topicName.value}. max rows: $maxRows")
-    implicit val ks: SchemaFor[K] = SchemaFor[K](avroKeyEncoder.schema)
-    implicit val vs: SchemaFor[V] = SchemaFor[V](avroValEncoder.schema)
+    implicit val ks: SchemaFor[K] = SchemaFor[K](AvroEncoder[K].schema)
+    implicit val vs: SchemaFor[V] = SchemaFor[V](AvroEncoder[V].schema)
 
     val pipe = new JsonAvroSerialization[F](AvroSchema[OptionalKV[K, V]])
     val gr   = new GenericRecordEncoder[F, OptionalKV[K, V]]()

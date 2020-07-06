@@ -65,9 +65,8 @@ object sk {
       }
     })
 
-  def loadDiskRdd[F[_]: Sync, K, V](path: String)(implicit
-    sparkSession: SparkSession): F[RDD[OptionalKV[K, V]]] =
-    Sync[F].delay(sparkSession.sparkContext.objectFile[OptionalKV[K, V]](path))
+  def loadDiskRdd[K, V](path: String)(implicit sparkSession: SparkSession): RDD[OptionalKV[K, V]] =
+    sparkSession.sparkContext.objectFile[OptionalKV[K, V]](path)
 
   def uploader[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
     topic: KafkaTopic[F, K, V],
