@@ -95,7 +95,10 @@ final class FsmRdd[F[_], K: AvroEncoder, V: AvroEncoder](
   // investigation
   def count(implicit F: SparkDelay[F]): F[Long] = F.delay(rdd.count())
 
-  def stats(implicit F: SparkDelay[F]): Statistics[F] = {
+  def show(implicit F: SparkDelay[F]): F[Unit] =
+    F.delay(rdd.take(params.showDs.rowNum).foreach(println))
+
+  def stats: Statistics[F] = {
     val id = utils.random4d.value
     sparkSession.withGroupId(s"nj.rdd.stats.$id").withDescription(topicName.value)
     new Statistics[F](TypedDataset.create(rdd.map(CRMetaInfo(_))).dataset, cfg)

@@ -13,7 +13,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
 import com.github.chenharryhua.nanjin.utils
 import frameless.cats.implicits._
-import frameless.{TypedDataset, TypedEncoder}
+import frameless.{SparkDelay, TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
 
 final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
@@ -106,13 +106,13 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     filter(f).typedDataset.take[F](params.showDs.rowNum).map(_.toList)
   }
 
-  def count(implicit F: Sync[F]): F[Long] = {
+  def count(implicit F: SparkDelay[F]): F[Long] = {
     val id = utils.random4d.value
     crs.sparkSession.withGroupId(s"nj.cr.count.$id").withDescription(s"count datasets")
     typedDataset.count[F]()
   }
 
-  def show(implicit F: Sync[F]): F[Unit] = {
+  def show(implicit F: SparkDelay[F]): F[Unit] = {
     val id = utils.random4d.value
     crs.sparkSession.withGroupId(s"nj.cr.show.$id").withDescription(s"show datasets")
     typedDataset.show[F](params.showDs.rowNum, params.showDs.isTruncate)
