@@ -67,6 +67,9 @@ final class FsmRdd[F[_], K: AvroEncoder, V: AvroEncoder](
 
   def inRange: FsmRdd[F, K, V] = inRange(params.timeRange)
 
+  def inRange(start: String, end: String): FsmRdd[F, K, V] =
+    inRange(params.timeRange.withTimeRange(start, end))
+
   // out of FsmRdd
 
   def typedDataset(implicit

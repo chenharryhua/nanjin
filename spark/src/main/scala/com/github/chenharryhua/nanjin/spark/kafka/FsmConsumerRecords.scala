@@ -63,6 +63,9 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder: AvroEncoder, V: TypedEncod
 
   def inRange: FsmConsumerRecords[F, K, V] = inRange(params.timeRange)
 
+  def inRange(start: String, end: String): FsmConsumerRecords[F, K, V] =
+    inRange(params.timeRange.withTimeRange(start, end))
+
   // dataset
 
   def values: TypedDataset[CompulsoryV[K, V]] =
