@@ -17,6 +17,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt, SparkSessionExt}
 import com.github.chenharryhua.nanjin.utils
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
+import frameless.cats.implicits.rddOps
 import frameless.{SparkDelay, TypedDataset, TypedEncoder}
 import fs2.Stream
 import io.circe.generic.auto._
@@ -131,6 +132,9 @@ final class FsmRdd[F[_], K: AvroEncoder, V: AvroEncoder](
 
   def diff(other: FsmRdd[F, K, V])(implicit ek: Eq[K], ev: Eq[V]): RDD[DiffResult[K, V]] =
     diff(other.rdd)
+
+  def first(implicit F: SparkDelay[F]): F[Option[OptionalKV[K, V]]] = F.delay(rdd.cminOption)
+  def last(implicit F: SparkDelay[F]): F[Option[OptionalKV[K, V]]]  = F.delay(rdd.cmaxOption)
 
   // dump java object
   def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {

@@ -117,6 +117,10 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     typedDataset.show[F](params.showDs.rowNum, params.showDs.isTruncate)
   }
 
+  def first(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] = F.delay(crs.rdd.cminOption)
+
+  def last(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] = F.delay(crs.rdd.cmaxOption)
+
   // state change
   def toProducerRecords: FsmProducerRecords[F, K, V] =
     new FsmProducerRecords((typedDataset.deserialized.map(_.toNJProducerRecord)).dataset, cfg)
