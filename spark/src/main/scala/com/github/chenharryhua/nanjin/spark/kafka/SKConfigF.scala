@@ -33,9 +33,9 @@ private[spark] object NJUploadRate {
 
 private[spark] object SKParams {
 
-  val default: SKParams =
+  def apply(zoneId: ZoneId): SKParams =
     SKParams(
-      timeRange = NJDateTimeRange(ZoneId.systemDefault()),
+      timeRange = NJDateTimeRange(zoneId),
       uploadRate = NJUploadRate.default,
       pathBuilder =
         (topicName, fmt) => s"./data/sparKafka/${topicName.value}/${fmt.alias}.${fmt.format}",
@@ -49,7 +49,7 @@ private[spark] object SKParams {
 @deriveTraverse sealed private[spark] trait SKConfigF[A]
 
 private[spark] object SKConfigF {
-  final case class DefaultParams[K]() extends SKConfigF[K]
+  final case class DefaultParams[K](zoneId: ZoneId) extends SKConfigF[K]
 
   final case class WithBatchSize[K](value: Int, cont: K) extends SKConfigF[K]
   final case class WithDuration[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
@@ -77,7 +77,7 @@ private[spark] object SKConfigF {
   final case class WithReplayPath[K](value: TopicName => String, cont: K) extends SKConfigF[K]
 
   private val algebra: Algebra[SKConfigF, SKParams] = Algebra[SKConfigF, SKParams] {
-    case DefaultParams()            => SKParams.default
+    case DefaultParams(v)           => SKParams(v)
     case WithBatchSize(v, c)        => SKParams.uploadRate.composeLens(NJUploadRate.batchSize).set(v)(c)
     case WithDuration(v, c)         => SKParams.uploadRate.composeLens(NJUploadRate.duration).set(v)(c)
     case WithStartTimeStr(v, c)     => SKParams.timeRange.modify(_.withStartTime(v))(c)
@@ -140,5 +140,10 @@ final private[spark] case class SKConfig private (value: Fix[SKConfigF]) extends
 }
 
 private[spark] object SKConfig {
-  val defaultConfig: SKConfig = SKConfig(Fix(SKConfigF.DefaultParams[Fix[SKConfigF]]()))
+
+  def apply(zoneId: ZoneId): SKConfig =
+    SKConfig(Fix(SKConfigF.DefaultParams[Fix[SKConfigF]](zoneId)))
+
+  def apply(dtr: NJDateTimeRange): SKConfig =
+    apply(dtr.zoneId).withTimeRange(dtr)
 }

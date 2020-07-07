@@ -54,7 +54,7 @@ class KafkaCoproductTest extends AnyFunSuite {
     val run = topicCO.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicCO.schemaRegister >>
       topicCO.send(1, co1) >> topicCO
-      .send(2, co2) >> topicCO.sparKafka.fromKafka(range).flatMap(_.saveAvro(blocker))
+      .send(2, co2) >> topicCO.sparKafka(range).fromKafka.flatMap(_.saveAvro(blocker))
     intercept[Exception](run.unsafeRunSync())
   }
 
@@ -62,7 +62,7 @@ class KafkaCoproductTest extends AnyFunSuite {
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegister >>
       topicEnum.send(1, en1) >> topicEnum
-      .send(2, en2) >> topicEnum.sparKafka.fromKafka(range).flatMap(_.saveParquet(blocker))
+      .send(2, en2) >> topicEnum.sparKafka(range).fromKafka.flatMap(_.saveParquet(blocker))
     assert(run.unsafeRunSync() == 2)
   }
 
@@ -70,7 +70,7 @@ class KafkaCoproductTest extends AnyFunSuite {
     val run = topicCoProd.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicCoProd.schemaRegister >>
       topicCoProd.send(1, cp1) >> topicCoProd
-      .send(2, cp2) >> topicCoProd.sparKafka.fromKafka(range).flatMap(_.saveJackson(blocker))
+      .send(2, cp2) >> topicCoProd.sparKafka(range).fromKafka.flatMap(_.saveJackson(blocker))
     assert(run.unsafeRunSync() == 2)
   }
 }

@@ -25,6 +25,8 @@ object SaveTestData {
 class SaveTest extends AnyFunSuite {
   import SaveTestData._
 
+  val sk: FsmStart[IO, Int, Chicken] = topic.sparKafka(range)
+
   val chickenPR: List[ProducerRecord[Int, Chicken]] =
     List.fill(100)(topic.fs2PR(Random.nextInt(), Chicken(Random.nextInt(), "aaa")))
   val chickens: List[Chicken] = chickenPR.map(_.value)
@@ -33,14 +35,14 @@ class SaveTest extends AnyFunSuite {
     topic.send(chickenPR)).unsafeRunSync()
 
   test("dump") {
-    topic.sparKafka.dump.unsafeRunSync()
+    topic.sparKafka(range).dump.unsafeRunSync()
   }
   test("jackson") {
+
     val action =
-      topic.sparKafka.fromKafka(range).flatMap(_.saveJackson(blocker)).map(r => assert(r == 100)) >>
+      sk.fromKafka.flatMap(_.saveJackson(blocker)).map(r => assert(r == 100)) >>
         sparkSession
-          .jackson[OptionalKV[Int, Chicken]](
-            topic.sparKafka.params.pathBuilder(topic.topicName, Jackson))
+          .jackson[OptionalKV[Int, Chicken]](sk.params.pathBuilder(topic.topicName, Jackson))
           .typedDataset
           .collect[IO]()
           .map(r => assert(r.sorted.flatMap(_.value).toList == chickens))
@@ -49,9 +51,9 @@ class SaveTest extends AnyFunSuite {
 
   test("json") {
     val action =
-      topic.sparKafka.fromKafka(range).flatMap(_.saveJson(blocker)).map(r => assert(r == 100)) >>
+      sk.fromKafka.flatMap(_.saveJson(blocker)).map(r => assert(r == 100)) >>
         sparkSession
-          .json[OptionalKV[Int, Chicken]](topic.sparKafka.params.pathBuilder(topic.topicName, Json))
+          .json[OptionalKV[Int, Chicken]](sk.params.pathBuilder(topic.topicName, Json))
           .typedDataset
           .collect[IO]()
           .map(r => assert(r.sorted.flatMap(_.value).toList == chickens))
@@ -61,19 +63,18 @@ class SaveTest extends AnyFunSuite {
   test("avro") {
 
     val action =
-      topic.sparKafka.fromKafka(range).flatMap(_.saveAvro(blocker)).map(r => assert(r == 100)) >>
+      sk.fromKafka.flatMap(_.saveAvro(blocker)).map(r => assert(r == 100)) >>
         sparkSession
-          .avro[OptionalKV[Int, Chicken]](topic.sparKafka.params.pathBuilder(topic.topicName, Avro))
+          .avro[OptionalKV[Int, Chicken]](sk.params.pathBuilder(topic.topicName, Avro))
           .collect[IO]()
           .map(r => assert(r.sorted.flatMap(_.value).toList == chickens))
     action.unsafeRunSync()
   }
   test("parquet") {
     val action =
-      topic.sparKafka.fromKafka(range).flatMap(_.saveParquet(blocker)).map(r => assert(r == 100)) >>
+      sk.fromKafka.flatMap(_.saveParquet(blocker)).map(r => assert(r == 100)) >>
         sparkSession
-          .parquet[OptionalKV[Int, Chicken]](
-            topic.sparKafka.params.pathBuilder(topic.topicName, Parquet))
+          .parquet[OptionalKV[Int, Chicken]](sk.params.pathBuilder(topic.topicName, Parquet))
           .collect[IO]()
           .map(r => assert(r.sorted.flatMap(_.value).toList == chickens))
     action.unsafeRunSync()

@@ -1,11 +1,8 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import java.time.ZoneId
-
 import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.{NJFileFormat, UpdateParams}
-import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.{NJProducerRecord, OptionalKV}
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
@@ -38,8 +35,8 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
   def sparkSchema: DataType      = SchemaConverters.toSqlType(avroSchema).dataType
   def parquetSchema: MessageType = new AvroSchemaConverter().convert(avroSchema)
 
-  def fromKafka(dtr: NJDateTimeRange)(implicit sync: Sync[F]): F[FsmRdd[F, K, V]] =
-    sk.unloadKafka(topic, dtr, params.locationStrategy)
+  def fromKafka(implicit sync: Sync[F]): F[FsmRdd[F, K, V]] =
+    sk.unloadKafka(topic, params.timeRange, params.locationStrategy)
       .map(
         new FsmRdd[F, K, V](_, topic.topicName, cfg)(
           topic.topicDef.avroKeyEncoder,
@@ -55,24 +52,20 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
   /**
     * shorthand
     */
-
-  // use systemDefault is safe here because the range is unlimited
-  private val unlimited: NJDateTimeRange = NJDateTimeRange(ZoneId.systemDefault())
-
   def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
-    fromKafka(unlimited).flatMap(_.dump)
+    fromKafka.flatMap(_.dump)
 
   def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
     fromDisk.pipeTo(topic)
 
-  def countKafka(implicit F: Sync[F]): F[Long]      = fromKafka(unlimited).flatMap(_.count)
+  def countKafka(implicit F: Sync[F]): F[Long]      = fromKafka.flatMap(_.count)
   def countDisk(implicit F: SparkDelay[F]): F[Long] = fromDisk.count
 
   def pipeTo(other: KafkaTopic[F, K, V])(implicit
     ce: ConcurrentEffect[F],
     timer: Timer[F],
     cs: ContextShift[F]): F[Unit] =
-    fromKafka(unlimited).flatMap(_.pipeTo(other))
+    fromKafka.flatMap(_.pipeTo(other))
 
   /**
     * inject dataset
@@ -118,6 +111,7 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
 
   def readJackson(pathStr: String): FsmRdd[F, K, V] = {
     import topic.topicDef.{avroKeyDecoder, avroValDecoder}
+
     new FsmRdd[F, K, V](sparkSession.jackson[OptionalKV[K, V]](pathStr), topic.topicName, cfg)(
       topic.topicDef.avroKeyEncoder,
       topic.topicDef.avroValEncoder,
