@@ -20,10 +20,11 @@ class SparkExtTest extends AnyFunSuite {
   val topic: KafkaTopic[IO, String, trip_record] =
     ctx.topic[String, trip_record]("nyc_yellow_taxi_trip_data")
   test("stream") {
-    topic.sparKafka.fromKafka.flatMap(_.ascending.stream.compile.drain).unsafeRunSync
+    topic.sparKafka.fromKafka(range).flatMap(_.ascending.stream.compile.drain).unsafeRunSync
   }
   test("source") {
-    topic.sparKafka.fromKafka
+    topic.sparKafka
+      .fromKafka(range)
       .flatMap(_.ascending.source.map(println).take(10).runWith(akkaSinks.ignore[IO]))
       .unsafeRunSync
   }

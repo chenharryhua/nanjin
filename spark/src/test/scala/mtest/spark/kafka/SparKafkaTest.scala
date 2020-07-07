@@ -35,12 +35,12 @@ class SparKafkaTest extends AnyFunSuite {
 
   test("read topic from kafka") {
     val rst =
-      topic.sparKafka.fromKafka.flatMap(_.crDataset.values.collect[IO]()).unsafeRunSync
+      topic.sparKafka.fromKafka(range).flatMap(_.crDataset.values.collect[IO]()).unsafeRunSync
     assert(rst.toList.map(_.value) === List(data, data))
   }
 
   test("read topic from kafka and show aggragation result") {
-    topic.sparKafka.fromKafka.flatMap(_.stats.minutely).unsafeRunSync
+    topic.sparKafka.fromKafka(range).flatMap(_.stats.minutely).unsafeRunSync
   }
 
   test("should be able to bimap to other topic") {

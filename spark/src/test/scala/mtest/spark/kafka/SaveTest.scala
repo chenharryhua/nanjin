@@ -37,7 +37,7 @@ class SaveTest extends AnyFunSuite {
   }
   test("jackson") {
     val action =
-      topic.sparKafka.fromKafka.flatMap(_.saveJackson(blocker)).map(r => assert(r == 100)) >>
+      topic.sparKafka.fromKafka(range).flatMap(_.saveJackson(blocker)).map(r => assert(r == 100)) >>
         sparkSession
           .jackson[OptionalKV[Int, Chicken]](
             topic.sparKafka.params.pathBuilder(topic.topicName, Jackson))
@@ -49,7 +49,7 @@ class SaveTest extends AnyFunSuite {
 
   test("json") {
     val action =
-      topic.sparKafka.fromKafka.flatMap(_.saveJson(blocker)).map(r => assert(r == 100)) >>
+      topic.sparKafka.fromKafka(range).flatMap(_.saveJson(blocker)).map(r => assert(r == 100)) >>
         sparkSession
           .json[OptionalKV[Int, Chicken]](topic.sparKafka.params.pathBuilder(topic.topicName, Json))
           .typedDataset
@@ -61,7 +61,7 @@ class SaveTest extends AnyFunSuite {
   test("avro") {
 
     val action =
-      topic.sparKafka.fromKafka.flatMap(_.saveAvro(blocker)).map(r => assert(r == 100)) >>
+      topic.sparKafka.fromKafka(range).flatMap(_.saveAvro(blocker)).map(r => assert(r == 100)) >>
         sparkSession
           .avro[OptionalKV[Int, Chicken]](topic.sparKafka.params.pathBuilder(topic.topicName, Avro))
           .collect[IO]()
@@ -70,7 +70,7 @@ class SaveTest extends AnyFunSuite {
   }
   test("parquet") {
     val action =
-      topic.sparKafka.fromKafka.flatMap(_.saveParquet(blocker)).map(r => assert(r == 100)) >>
+      topic.sparKafka.fromKafka(range).flatMap(_.saveParquet(blocker)).map(r => assert(r == 100)) >>
         sparkSession
           .parquet[OptionalKV[Int, Chicken]](
             topic.sparKafka.params.pathBuilder(topic.topicName, Parquet))

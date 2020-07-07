@@ -4,6 +4,7 @@ import akka.actor.ActorSystem
 import cats.effect.{Blocker, ContextShift, IO, Timer}
 import com.github.chenharryhua.nanjin.common.NJLogLevel
 import com.github.chenharryhua.nanjin.database._
+import com.github.chenharryhua.nanjin.datetime.{beijingTime, NJDateTimeRange}
 import com.github.chenharryhua.nanjin.kafka.{IoKafkaContext, KafkaSettings}
 import com.github.chenharryhua.nanjin.spark.SparkSettings
 import org.apache.spark.sql.SparkSession
@@ -26,4 +27,5 @@ package object kafka {
       .withLogLevel(NJLogLevel.ERROR)
       .session
 
+  val range: NJDateTimeRange = NJDateTimeRange(beijingTime)
 }

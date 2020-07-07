@@ -32,8 +32,8 @@ class CopyDataTest extends AnyFunSuite {
     val rst = for {
       _ <- prepareData
       _ <- src.sparKafka.pipeTo(tgt)
-      srcData <- src.sparKafka.fromKafka.flatMap(_.crDataset.typedDataset.collect[IO])
-      tgtData <- tgt.sparKafka.fromKafka.flatMap(_.crDataset.typedDataset.collect[IO])
+      srcData <- src.sparKafka.fromKafka(range).flatMap(_.crDataset.typedDataset.collect[IO])
+      tgtData <- tgt.sparKafka.fromKafka(range).flatMap(_.crDataset.typedDataset.collect[IO])
     } yield {
       assert(srcData.size == 5)
       assert(tgtData.size == 5)
