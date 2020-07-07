@@ -143,9 +143,7 @@ final class CrRdd[F[_], K: AvroEncoder, V: AvroEncoder](
 
   def kvDiff(other: RDD[OptionalKV[K, V]]): RDD[(Option[K], Option[V])] = {
     sparkSession.withGroupId(s"nj.rdd.diff.kv.${utils.random4d.value}")
-    val mine  = rdd.map(x => (x.key, x.value))
-    val yours = other.map(x => (x.key, x.value))
-    mine.subtract(yours)
+    inv.kvDiffRdd(rdd, other)
   }
 
   def kvDiff(other: CrRdd[F, K, V]): RDD[(Option[K], Option[V])] =

@@ -103,9 +103,7 @@ final class CrDataset[F[_], K: TypedEncoder, V: TypedEncoder](
 
   def kvDiff(other: TypedDataset[OptionalKV[K, V]]): TypedDataset[(Option[K], Option[V])] = {
     crs.sparkSession.withGroupId(s"nj.cr.diff.kv.${utils.random4d.value}")
-    val mine  = typedDataset.deserialized.map(m => (m.key, m.value))
-    val yours = other.deserialized.map(m => (m.key, m.value))
-    mine.except(yours)
+    inv.kvDiffDataset(typedDataset, other)
   }
 
   def kvDiff(other: CrDataset[F, K, V]): TypedDataset[(Option[K], Option[V])] =
