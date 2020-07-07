@@ -25,7 +25,7 @@ object SaveTestData {
 class SaveTest extends AnyFunSuite {
   import SaveTestData._
 
-  val sk: FsmStart[IO, Int, Chicken] = topic.sparKafka(range)
+  val sk: SparKafka[IO, Int, Chicken] = topic.sparKafka(range)
 
   val chickenPR: List[ProducerRecord[Int, Chicken]] =
     List.fill(100)(topic.fs2PR(Random.nextInt(), Chicken(Random.nextInt(), "aaa")))

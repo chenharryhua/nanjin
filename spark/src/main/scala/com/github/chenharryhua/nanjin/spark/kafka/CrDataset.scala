@@ -16,13 +16,13 @@ import frameless.cats.implicits._
 import frameless.{SparkDelay, TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
 
-final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
+final class CrDataset[F[_], K: TypedEncoder, V: TypedEncoder](
   crs: Dataset[OptionalKV[K, V]],
   cfg: SKConfig)
-    extends SparKafkaUpdateParams[FsmConsumerRecords[F, K, V]] {
+    extends SparKafkaUpdateParams[CrDataset[F, K, V]] {
 
-  override def withParamUpdate(f: SKConfig => SKConfig): FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs, f(cfg))
+  override def withParamUpdate(f: SKConfig => SKConfig): CrDataset[F, K, V] =
+    new CrDataset[F, K, V](crs, f(cfg))
 
   @transient lazy val typedDataset: TypedDataset[OptionalKV[K, V]] =
     TypedDataset.create(crs)
@@ -30,37 +30,37 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   override val params: SKParams = cfg.evalConfig
 
   // transformations
-  def bimap[K2: TypedEncoder, V2: TypedEncoder](
-    k: K => K2,
-    v: V => V2): FsmConsumerRecords[F, K2, V2] =
-    new FsmConsumerRecords[F, K2, V2](typedDataset.deserialized.map(_.bimap(k, v)).dataset, cfg)
+  def bimap[K2: TypedEncoder, V2: TypedEncoder](k: K => K2, v: V => V2): CrDataset[F, K2, V2] =
+    new CrDataset[F, K2, V2](typedDataset.deserialized.map(_.bimap(k, v)).dataset, cfg)
 
   def flatMap[K2: TypedEncoder, V2: TypedEncoder](
-    f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]]): FsmConsumerRecords[F, K2, V2] =
-    new FsmConsumerRecords[F, K2, V2](typedDataset.deserialized.flatMap(f).dataset, cfg)
+    f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]]): CrDataset[F, K2, V2] =
+    new CrDataset[F, K2, V2](typedDataset.deserialized.flatMap(f).dataset, cfg)
 
-  def filter(f: OptionalKV[K, V] => Boolean): FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs.filter(f), cfg)
+  def filter(f: OptionalKV[K, V] => Boolean): CrDataset[F, K, V] =
+    new CrDataset[F, K, V](crs.filter(f), cfg)
 
-  def ascending: FsmConsumerRecords[F, K, V] = {
+  def ascending: CrDataset[F, K, V] = {
     val sd = typedDataset.orderBy(typedDataset('timestamp).asc)
-    new FsmConsumerRecords[F, K, V](sd.dataset, cfg)
+    new CrDataset[F, K, V](sd.dataset, cfg)
   }
 
-  def descending: FsmConsumerRecords[F, K, V] = {
+  def descending: CrDataset[F, K, V] = {
     val sd = typedDataset.orderBy(typedDataset('timestamp).desc)
-    new FsmConsumerRecords[F, K, V](sd.dataset, cfg)
+    new CrDataset[F, K, V](sd.dataset, cfg)
   }
 
-  def persist: FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](crs.persist(), cfg)
+  def persist: CrDataset[F, K, V] =
+    new CrDataset[F, K, V](crs.persist(), cfg)
 
-  def inRange(dr: NJDateTimeRange): FsmConsumerRecords[F, K, V] =
-    filter(m => dr.isInBetween(m.timestamp))
+  def inRange(dr: NJDateTimeRange): CrDataset[F, K, V] =
+    new CrDataset[F, K, V](
+      crs.filter((m: OptionalKV[K, V]) => dr.isInBetween(m.timestamp)),
+      cfg.withTimeRange(dr))
 
-  def inRange: FsmConsumerRecords[F, K, V] = inRange(params.timeRange)
+  def inRange: CrDataset[F, K, V] = inRange(params.timeRange)
 
-  def inRange(start: String, end: String): FsmConsumerRecords[F, K, V] =
+  def inRange(start: String, end: String): CrDataset[F, K, V] =
     inRange(params.timeRange.withTimeRange(start, end))
 
   // dataset
@@ -97,9 +97,8 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     inv.diffDataset(typedDataset, other)
   }
 
-  def diff(other: FsmConsumerRecords[F, K, V])(implicit
-    ke: Eq[K],
-    ve: Eq[V]): TypedDataset[DiffResult[K, V]] =
+  def diff(
+    other: CrDataset[F, K, V])(implicit ke: Eq[K], ve: Eq[V]): TypedDataset[DiffResult[K, V]] =
     diff(other.typedDataset)
 
   def kvDiff(other: TypedDataset[OptionalKV[K, V]]): TypedDataset[(Option[K], Option[V])] = {
@@ -109,7 +108,7 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
     mine.except(yours)
   }
 
-  def kvDiff(other: FsmConsumerRecords[F, K, V]): TypedDataset[(Option[K], Option[V])] =
+  def kvDiff(other: CrDataset[F, K, V]): TypedDataset[(Option[K], Option[V])] =
     kvDiff(other.typedDataset)
 
   def find(f: OptionalKV[K, V] => Boolean)(implicit F: Sync[F]): F[List[OptionalKV[K, V]]] = {
@@ -131,7 +130,7 @@ final class FsmConsumerRecords[F[_], K: TypedEncoder, V: TypedEncoder](
   def last(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]]  = F.delay(crs.rdd.cmaxOption)
 
   // state change
-  def toProducerRecords: FsmProducerRecords[F, K, V] =
-    new FsmProducerRecords((typedDataset.deserialized.map(_.toNJProducerRecord)).dataset, cfg)
+  def toProducerRecords: PrDataset[F, K, V] =
+    new PrDataset((typedDataset.deserialized.map(_.toNJProducerRecord)).dataset, cfg)
 
 }
