@@ -2,7 +2,7 @@ scalaVersion in ThisBuild      := "2.12.11"
 scapegoatVersion in ThisBuild  := "1.3.11"
 parallelExecution in ThisBuild := false
 
-version in ThisBuild := "0.7.0-SNAPSHOT"
+version in ThisBuild := "0.8.0-SNAPSHOT"
 
 // generic
 val shapeless  = "2.3.3"
