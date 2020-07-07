@@ -1,5 +1,7 @@
 package mtest.spark.kafka
 
+import java.io
+
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.spark.kafka.{inv, CRMetaInfo, DiffResult, DupResult}
@@ -72,6 +74,8 @@ class InvestigationTest extends AnyFunSuite {
     assert(0 === inv.diffDataset(m1, m2).count[IO]().unsafeRunSync())
     assert(0 === inv.diffRdd(m1.dataset.rdd, m2.dataset.rdd).count())
 
+    assert(0 === inv.kvDiffDataset(m1, m2).count[IO]().unsafeRunSync())
+    assert(0 === inv.kvDiffRdd(m1.dataset.rdd, m2.dataset.rdd).count())
   }
 
   test("one mismatch") {
@@ -91,6 +95,14 @@ class InvestigationTest extends AnyFunSuite {
     assert(Set(tup) == rst)
     assert(Set(tup) == rst2)
 
+    val kv = Set((Some("mike6"), Some(Mouse(6, 0.6f))))
+    val rst3: Set[(Option[String], Option[Mouse])] =
+      inv.kvDiffDataset(m1, m3).collect[IO]().unsafeRunSync().toSet
+
+    val rst4: Set[(Option[String], Option[Mouse])] =
+      inv.kvDiffRdd(m1.dataset.rdd, m3.dataset.rdd).collect().toSet
+    assert(rst3 == kv)
+    assert(rst4 == kv)
   }
 
   test("one lost") {
@@ -105,6 +117,14 @@ class InvestigationTest extends AnyFunSuite {
       DiffResult(OptionalKV(1, 5, 50, Some("mike5"), Some(Mouse(5, 0.5f)), "topic", 0), None)
     assert(Set(tup) == rst)
     assert(Set(tup) == rst2)
+
+    val rst3: Set[(Option[String], Option[Mouse])] =
+      inv.kvDiffDataset(m1, m4).collect[IO]().unsafeRunSync().toSet
+    val rst4: Set[(Option[String], Option[Mouse])] =
+      inv.kvDiffRdd(m1.dataset.rdd, m4.dataset.rdd).collect().toSet
+    val kv = Set((Some("mike5"), Some(Mouse(5, 0.5f))))
+    assert(rst3 == kv)
+    assert(rst4 == kv)
   }
 
   test("missing data") {

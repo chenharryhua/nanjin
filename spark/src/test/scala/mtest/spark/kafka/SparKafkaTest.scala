@@ -35,12 +35,12 @@ class SparKafkaTest extends AnyFunSuite {
 
   test("read topic from kafka") {
     val rst =
-      topic.sparKafka.fromKafka.flatMap(_.crDataset.values.collect[IO]()).unsafeRunSync
+      topic.sparKafka(range).fromKafka.flatMap(_.crDataset.values.collect[IO]()).unsafeRunSync
     assert(rst.toList.map(_.value) === List(data, data))
   }
 
   test("read topic from kafka and show aggragation result") {
-    topic.sparKafka.fromKafka.flatMap(_.stats.minutely).unsafeRunSync
+    topic.sparKafka(range).fromKafka.flatMap(_.stats.minutely).unsafeRunSync
   }
 
   test("should be able to bimap to other topic") {
@@ -53,7 +53,14 @@ class SparKafkaTest extends AnyFunSuite {
     val ds: TypedDataset[OptionalKV[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
 
     val birst: Set[CompulsoryV[String, Int]] =
-      src.sparKafka.crDataset(ds).bimap(_.toString, _ + 1).values.collect[IO]().unsafeRunSync.toSet
+      src
+        .sparKafka(range)
+        .crDataset(ds)
+        .bimap(_.toString, _ + 1)
+        .values
+        .collect[IO]()
+        .unsafeRunSync
+        .toSet
     assert(birst.map(_.value) == Set(2, 3, 5))
   }
 
@@ -67,7 +74,8 @@ class SparKafkaTest extends AnyFunSuite {
     val ds: TypedDataset[OptionalKV[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
 
     val birst: Set[CompulsoryV[Int, Int]] =
-      src.sparKafka
+      src
+        .sparKafka(range)
         .crDataset(ds)
         .flatMap(m => m.value.map(x => OptionalKV.value.set(Some(x - 1))(m)))
         .values
@@ -84,7 +92,7 @@ class SparKafkaTest extends AnyFunSuite {
     val crs: List[OptionalKV[Int, Int]]        = List(cr1, cr2, cr3)
     val ds: TypedDataset[OptionalKV[Int, Int]] = TypedDataset.create(crs)
 
-    val t   = TopicDef[Int, Int](TopicName("some.value")).in(ctx).sparKafka.crDataset(ds)
+    val t   = TopicDef[Int, Int](TopicName("some.value")).in(ctx).sparKafka(range).crDataset(ds)
     val rst = t.values.collect[IO]().unsafeRunSync().map(_.value)
     assert(rst === Seq(cr1.value.get))
   }

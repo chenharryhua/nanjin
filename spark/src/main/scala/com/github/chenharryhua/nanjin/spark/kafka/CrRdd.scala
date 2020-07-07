@@ -27,50 +27,50 @@ import org.apache.spark.sql.SparkSession
 
 import scala.collection.immutable.Queue
 
-final class FsmRdd[F[_], K: AvroEncoder, V: AvroEncoder](
+final class CrRdd[F[_], K: AvroEncoder, V: AvroEncoder](
   val rdd: RDD[OptionalKV[K, V]],
   topicName: TopicName,
   cfg: SKConfig)(implicit sparkSession: SparkSession)
-    extends SparKafkaUpdateParams[FsmRdd[F, K, V]] {
+    extends SparKafkaUpdateParams[CrRdd[F, K, V]] {
 
   override def params: SKParams = cfg.evalConfig
 
-  override def withParamUpdate(f: SKConfig => SKConfig): FsmRdd[F, K, V] =
-    new FsmRdd[F, K, V](rdd, topicName, f(cfg))
+  override def withParamUpdate(f: SKConfig => SKConfig): CrRdd[F, K, V] =
+    new CrRdd[F, K, V](rdd, topicName, f(cfg))
 
   //transformation
 
-  def kafkaPartition(num: Int): FsmRdd[F, K, V] =
-    new FsmRdd[F, K, V](rdd.filter(_.partition === num), topicName, cfg)
+  def kafkaPartition(num: Int): CrRdd[F, K, V] =
+    new CrRdd[F, K, V](rdd.filter(_.partition === num), topicName, cfg)
 
-  def ascending: FsmRdd[F, K, V] =
-    new FsmRdd[F, K, V](rdd.sortBy(identity, ascending = true), topicName, cfg)
+  def ascending: CrRdd[F, K, V] =
+    new CrRdd[F, K, V](rdd.sortBy(identity, ascending = true), topicName, cfg)
 
-  def descending: FsmRdd[F, K, V] =
-    new FsmRdd[F, K, V](rdd.sortBy(identity, ascending = false), topicName, cfg)
+  def descending: CrRdd[F, K, V] =
+    new CrRdd[F, K, V](rdd.sortBy(identity, ascending = false), topicName, cfg)
 
-  def repartition(num: Int): FsmRdd[F, K, V] =
-    new FsmRdd[F, K, V](rdd.repartition(num), topicName, cfg)
+  def repartition(num: Int): CrRdd[F, K, V] =
+    new CrRdd[F, K, V](rdd.repartition(num), topicName, cfg)
 
-  def bimap[K2: AvroEncoder, V2: AvroEncoder](k: K => K2, v: V => V2): FsmRdd[F, K2, V2] =
-    new FsmRdd[F, K2, V2](rdd.map(_.bimap(k, v)), topicName, cfg)
+  def bimap[K2: AvroEncoder, V2: AvroEncoder](k: K => K2, v: V => V2): CrRdd[F, K2, V2] =
+    new CrRdd[F, K2, V2](rdd.map(_.bimap(k, v)), topicName, cfg)
 
   def flatMap[K2: AvroEncoder, V2: AvroEncoder](
-    f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]]): FsmRdd[F, K2, V2] =
-    new FsmRdd[F, K2, V2](rdd.flatMap(f), topicName, cfg)
+    f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]]): CrRdd[F, K2, V2] =
+    new CrRdd[F, K2, V2](rdd.flatMap(f), topicName, cfg)
 
-  def dismissNulls: FsmRdd[F, K, V] =
-    new FsmRdd[F, K, V](rdd.dismissNulls, topicName, cfg)
+  def dismissNulls: CrRdd[F, K, V] =
+    new CrRdd[F, K, V](rdd.dismissNulls, topicName, cfg)
 
-  def inRange(dr: NJDateTimeRange): FsmRdd[F, K, V] =
-    new FsmRdd[F, K, V](
+  def inRange(dr: NJDateTimeRange): CrRdd[F, K, V] =
+    new CrRdd[F, K, V](
       rdd.filter(m => dr.isInBetween(m.timestamp)),
       topicName,
       cfg.withTimeRange(dr))
 
-  def inRange: FsmRdd[F, K, V] = inRange(params.timeRange)
+  def inRange: CrRdd[F, K, V] = inRange(params.timeRange)
 
-  def inRange(start: String, end: String): FsmRdd[F, K, V] =
+  def inRange(start: String, end: String): CrRdd[F, K, V] =
     inRange(params.timeRange.withTimeRange(start, end))
 
   // out of FsmRdd
@@ -82,8 +82,8 @@ final class FsmRdd[F[_], K: AvroEncoder, V: AvroEncoder](
 
   def crDataset(implicit
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords(typedDataset.dataset, cfg)
+    valEncoder: TypedEncoder[V]): CrDataset[F, K, V] =
+    new CrDataset(typedDataset.dataset, cfg)
 
   def stream(implicit F: Sync[F]): Stream[F, OptionalKV[K, V]] =
     rdd.stream[F]
@@ -138,17 +138,15 @@ final class FsmRdd[F[_], K: AvroEncoder, V: AvroEncoder](
     inv.diffRdd(rdd, other)
   }
 
-  def diff(other: FsmRdd[F, K, V])(implicit ek: Eq[K], ev: Eq[V]): RDD[DiffResult[K, V]] =
+  def diff(other: CrRdd[F, K, V])(implicit ek: Eq[K], ev: Eq[V]): RDD[DiffResult[K, V]] =
     diff(other.rdd)
 
   def kvDiff(other: RDD[OptionalKV[K, V]]): RDD[(Option[K], Option[V])] = {
     sparkSession.withGroupId(s"nj.rdd.diff.kv.${utils.random4d.value}")
-    val mine  = rdd.map(x => (x.key, x.value))
-    val yours = other.map(x => (x.key, x.value))
-    mine.subtract(yours)
+    inv.kvDiffRdd(rdd, other)
   }
 
-  def kvDiff(other: FsmRdd[F, K, V]): RDD[(Option[K], Option[V])] =
+  def kvDiff(other: CrRdd[F, K, V]): RDD[(Option[K], Option[V])] =
     kvDiff(other.rdd)
 
   def first(implicit F: SparkDelay[F]): F[Option[OptionalKV[K, V]]] = F.delay(rdd.cminOption)

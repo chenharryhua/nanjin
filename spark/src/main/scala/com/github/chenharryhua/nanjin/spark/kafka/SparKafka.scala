@@ -22,12 +22,12 @@ trait SparKafkaUpdateParams[A] extends UpdateParams[SKConfig, A] with Serializab
   def params: SKParams
 }
 
-final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(implicit
+final class SparKafka[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(implicit
   sparkSession: SparkSession)
-    extends SparKafkaUpdateParams[FsmStart[F, K, V]] {
+    extends SparKafkaUpdateParams[SparKafka[F, K, V]] {
 
-  override def withParamUpdate(f: SKConfig => SKConfig): FsmStart[F, K, V] =
-    new FsmStart[F, K, V](topic, f(cfg))
+  override def withParamUpdate(f: SKConfig => SKConfig): SparKafka[F, K, V] =
+    new SparKafka[F, K, V](topic, f(cfg))
 
   override val params: SKParams = cfg.evalConfig
 
@@ -35,16 +35,16 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
   def sparkSchema: DataType      = SchemaConverters.toSqlType(avroSchema).dataType
   def parquetSchema: MessageType = new AvroSchemaConverter().convert(avroSchema)
 
-  def fromKafka(implicit sync: Sync[F]): F[FsmRdd[F, K, V]] =
+  def fromKafka(implicit sync: Sync[F]): F[CrRdd[F, K, V]] =
     sk.unloadKafka(topic, params.timeRange, params.locationStrategy)
       .map(
-        new FsmRdd[F, K, V](_, topic.topicName, cfg)(
+        new CrRdd[F, K, V](_, topic.topicName, cfg)(
           topic.topicDef.avroKeyEncoder,
           topic.topicDef.avroValEncoder,
           sparkSession))
 
-  def fromDisk: FsmRdd[F, K, V] =
-    new FsmRdd[F, K, V](
+  def fromDisk: CrRdd[F, K, V] =
+    new CrRdd[F, K, V](
       sk.loadDiskRdd[K, V](params.replayPath(topic.topicName)),
       topic.topicName,
       cfg)(topic.topicDef.avroKeyEncoder, topic.topicDef.avroValEncoder, sparkSession)
@@ -52,7 +52,7 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
   /**
     * shorthand
     */
-  def dump(implicit sync: Sync[F], cs: ContextShift[F]): F[Unit] =
+  def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
     fromKafka.flatMap(_.dump)
 
   def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
@@ -73,57 +73,58 @@ final class FsmStart[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(impl
 
   def crDataset(tds: TypedDataset[OptionalKV[K, V]])(implicit
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] =
-    new FsmConsumerRecords[F, K, V](tds.dataset, cfg)(keyEncoder, valEncoder)
+    valEncoder: TypedEncoder[V]): CrDataset[F, K, V] =
+    new CrDataset[F, K, V](tds.dataset, cfg)(keyEncoder, valEncoder)
 
   def readAvro(pathStr: String)(implicit
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] =
+    valEncoder: TypedEncoder[V]): CrDataset[F, K, V] =
     crDataset(sparkSession.avro[OptionalKV[K, V]](pathStr))
 
   def readAvro(implicit
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] =
+    valEncoder: TypedEncoder[V]): CrDataset[F, K, V] =
     readAvro(params.pathBuilder(topic.topicName, NJFileFormat.Avro))
 
   def readParquet(pathStr: String)(implicit
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] =
+    valEncoder: TypedEncoder[V]): CrDataset[F, K, V] =
     crDataset(sparkSession.parquet[OptionalKV[K, V]](pathStr))
 
   def readParquet(implicit
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): FsmConsumerRecords[F, K, V] =
+    valEncoder: TypedEncoder[V]): CrDataset[F, K, V] =
     readParquet(params.pathBuilder(topic.topicName, NJFileFormat.Parquet))
 
   def readJson(pathStr: String)(implicit
     jsonKeyDecoder: JsonDecoder[K],
-    jsonValDecoder: JsonDecoder[V]): FsmRdd[F, K, V] =
-    new FsmRdd[F, K, V](sparkSession.json[OptionalKV[K, V]](pathStr), topic.topicName, cfg)(
+    jsonValDecoder: JsonDecoder[V]): CrRdd[F, K, V] =
+    new CrRdd[F, K, V](sparkSession.json[OptionalKV[K, V]](pathStr), topic.topicName, cfg)(
       topic.topicDef.avroKeyEncoder,
       topic.topicDef.avroValEncoder,
       sparkSession)
 
   def readJson(implicit
     jsonKeyDecoder: JsonDecoder[K],
-    jsonValDecoder: JsonDecoder[V]): FsmRdd[F, K, V] =
+    jsonValDecoder: JsonDecoder[V]): CrRdd[F, K, V] =
     readJson(params.pathBuilder(topic.topicName, NJFileFormat.Json))
 
-  def readJackson(pathStr: String): FsmRdd[F, K, V] = {
+  def readJackson(pathStr: String): CrRdd[F, K, V] = {
     import topic.topicDef.{avroKeyDecoder, avroValDecoder}
-    new FsmRdd[F, K, V](sparkSession.jackson[OptionalKV[K, V]](pathStr), topic.topicName, cfg)(
+
+    new CrRdd[F, K, V](sparkSession.jackson[OptionalKV[K, V]](pathStr), topic.topicName, cfg)(
       topic.topicDef.avroKeyEncoder,
       topic.topicDef.avroValEncoder,
       sparkSession)
   }
 
-  def readJackson: FsmRdd[F, K, V] =
+  def readJackson: CrRdd[F, K, V] =
     readJackson(params.pathBuilder(topic.topicName, NJFileFormat.Jackson))
 
   def prDataset(tds: TypedDataset[NJProducerRecord[K, V]])(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]) =
-    new FsmProducerRecords[F, K, V](tds.dataset, cfg)
+    new PrDataset[F, K, V](tds.dataset, cfg)
 
   /**
     * streaming

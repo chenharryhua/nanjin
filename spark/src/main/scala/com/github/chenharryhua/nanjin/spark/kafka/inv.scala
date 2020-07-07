@@ -76,6 +76,24 @@ object inv {
     }
   }
 
+  def kvDiffDataset[K: TypedEncoder, V: TypedEncoder](
+    left: TypedDataset[OptionalKV[K, V]],
+    right: TypedDataset[OptionalKV[K, V]]): TypedDataset[(Option[K], Option[V])] = {
+    val mine: TypedDataset[(Option[K], Option[V])] =
+      left.select(left('key), left('value)).distinct
+    val yours: TypedDataset[(Option[K], Option[V])] =
+      right.select(right('key), right('value)).distinct
+    mine.except(yours)
+  }
+
+  def kvDiffRdd[K, V](
+    left: RDD[OptionalKV[K, V]],
+    right: RDD[OptionalKV[K, V]]): RDD[(Option[K], Option[V])] = {
+    val mine: RDD[(Option[K], Option[V])]  = left.map(x => (x.key, x.value)).distinct()
+    val yours: RDD[(Option[K], Option[V])] = right.map(x => (x.key, x.value)).distinct()
+    mine.subtract(yours)
+  }
+
   /**
     * (partition, offset) should be unique
     */

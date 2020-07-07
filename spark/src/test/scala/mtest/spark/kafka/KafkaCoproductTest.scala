@@ -53,24 +53,24 @@ class KafkaCoproductTest extends AnyFunSuite {
   test("not work with case object -- task serializable issue(avro4s) - happy failure") {
     val run = topicCO.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicCO.schemaRegister >>
-      topicCO.send(1, co1) >> topicCO.send(2, co2) >> topicCO.sparKafka.fromKafka
-      .flatMap(_.saveAvro(blocker))
+      topicCO.send(1, co1) >> topicCO
+      .send(2, co2) >> topicCO.sparKafka(range).fromKafka.flatMap(_.saveAvro(blocker))
     intercept[Exception](run.unsafeRunSync())
   }
 
   test("should be sent to kafka and save to parquet") {
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegister >>
-      topicEnum.send(1, en1) >> topicEnum.send(2, en2) >> topicEnum.sparKafka.fromKafka
-      .flatMap(_.saveParquet(blocker))
+      topicEnum.send(1, en1) >> topicEnum
+      .send(2, en2) >> topicEnum.sparKafka(range).fromKafka.flatMap(_.saveParquet(blocker))
     assert(run.unsafeRunSync() == 2)
   }
 
   test("should be sent to kafka and save to jackson") {
     val run = topicCoProd.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicCoProd.schemaRegister >>
-      topicCoProd.send(1, cp1) >> topicCoProd.send(2, cp2) >> topicCoProd.sparKafka.fromKafka
-      .flatMap(_.saveJackson(blocker))
+      topicCoProd.send(1, cp1) >> topicCoProd
+      .send(2, cp2) >> topicCoProd.sparKafka(range).fromKafka.flatMap(_.saveJackson(blocker))
     assert(run.unsafeRunSync() == 2)
   }
 }
