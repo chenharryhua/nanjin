@@ -52,7 +52,7 @@ final class SparKafka[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(imp
   /**
     * shorthand
     */
-  def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
+  def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Long] =
     fromKafka.flatMap(_.dump)
 
   def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
