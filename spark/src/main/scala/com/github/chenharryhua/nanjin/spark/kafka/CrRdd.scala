@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
-import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync, Timer}
+import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Resource, Sync, Timer}
 import cats.implicits._
 import cats.{Eq, Show}
 import com.github.chenharryhua.nanjin.common.NJFileFormat
@@ -152,65 +152,77 @@ final class CrRdd[F[_], K: AvroEncoder, V: AvroEncoder](
   def first(implicit F: SparkDelay[F]): F[Option[OptionalKV[K, V]]] = F.delay(rdd.cminOption)
   def last(implicit F: SparkDelay[F]): F[Option[OptionalKV[K, V]]]  = F.delay(rdd.cmaxOption)
 
+  private def rddResource(implicit F: Sync[F]): Resource[F, RDD[OptionalKV[K, V]]] =
+    Resource.make(F.delay(rdd.persist()))(r => F.delay(r.unpersist()))
+
   // dump java object
-  def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
+  def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Long] = {
     sparkSession.withGroupId(s"nj.rdd.dump.${utils.random4d.value}")
 
     Blocker[F].use { blocker =>
       val pathStr = params.replayPath(topicName)
-      fileSink(blocker).delete(pathStr) >> F.delay(rdd.saveAsObjectFile(pathStr))
+      fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
+        F.delay(data.saveAsObjectFile(pathStr)).as(data.count())
+      }
     }
   }
 
   //save actions
   def saveJson(blocker: Blocker)(implicit
-    ce: Sync[F],
+    F: Sync[F],
     cs: ContextShift[F],
     ek: JsonEncoder[K],
     ev: JsonEncoder[V]): F[Long] = {
-    sparkSession.withGroupId(s"nj.rdd.save.${utils.random4d.value}")
+    sparkSession.withGroupId(s"nj.rdd.save.circe.json.${utils.random4d.value}")
 
     val path = params.pathBuilder(topicName, NJFileFormat.Json)
-    val data = rdd.persist()
-    stream
-      .through(fileSink(blocker).json[OptionalKV[K, V]](path))
-      .compile
-      .drain
-      .as(data.count()) <* ce.delay(data.unpersist())
+
+    rddResource.use { data =>
+      data
+        .stream[F]
+        .through(fileSink(blocker).json[OptionalKV[K, V]](path))
+        .compile
+        .drain
+        .as(data.count())
+    }
   }
 
   def saveText(blocker: Blocker)(implicit
     showK: Show[K],
     showV: Show[V],
-    ce: Sync[F],
+    F: Sync[F],
     cs: ContextShift[F]): F[Long] = {
-    sparkSession.withGroupId(s"nj.rdd.save.${utils.random4d.value}")
+    sparkSession.withGroupId(s"nj.rdd.save.text.${utils.random4d.value}")
+
     val path = params.pathBuilder(topicName, NJFileFormat.Text)
-    val data = rdd.persist()
-    stream
-      .through(fileSink[F](blocker).text[OptionalKV[K, V]](path))
-      .compile
-      .drain
-      .as(data.count()) <*
-      ce.delay(data.unpersist())
+
+    rddResource.use { data =>
+      data
+        .stream[F]
+        .through(fileSink(blocker).text[OptionalKV[K, V]](path))
+        .compile
+        .drain
+        .as(data.count())
+    }
   }
 
   private def avroLike(blocker: Blocker, fmt: NJFileFormat)(implicit
-    ce: ConcurrentEffect[F],
+    F: ConcurrentEffect[F],
     cs: ContextShift[F]): F[Long] = {
-    sparkSession.withGroupId(s"nj.rdd.save.${utils.random4d.value}")
+    sparkSession.withGroupId(s"nj.rdd.save.${fmt.alias}.${fmt.format}.${utils.random4d.value}")
 
     val path = params.pathBuilder(topicName, fmt)
-    val data = rdd.persist()
-    val run: Stream[F, Unit] = fmt match {
-      case NJFileFormat.Avro       => data.stream[F].through(fileSink(blocker).avro(path))
-      case NJFileFormat.BinaryAvro => data.stream[F].through(fileSink(blocker).binaryAvro(path))
-      case NJFileFormat.Jackson    => data.stream[F].through(fileSink(blocker).jackson(path))
-      case NJFileFormat.Parquet    => data.stream[F].through(fileSink(blocker).parquet(path))
-      case NJFileFormat.JavaObject => data.stream[F].through(fileSink(blocker).javaObject(path))
-      case _                       => sys.error("never happen")
-    }
-    run.compile.drain.as(data.count) <* ce.delay(data.unpersist())
+
+    def run(data: RDD[OptionalKV[K, V]]): Stream[F, Unit] =
+      fmt match {
+        case NJFileFormat.Avro       => data.stream[F].through(fileSink(blocker).avro(path))
+        case NJFileFormat.BinaryAvro => data.stream[F].through(fileSink(blocker).binaryAvro(path))
+        case NJFileFormat.Jackson    => data.stream[F].through(fileSink(blocker).jackson(path))
+        case NJFileFormat.Parquet    => data.stream[F].through(fileSink(blocker).parquet(path))
+        case NJFileFormat.JavaObject => data.stream[F].through(fileSink(blocker).javaObject(path))
+        case _                       => sys.error("never happen")
+      }
+    rddResource.use(data => run(data).compile.drain.as(data.count()))
   }
 
   def saveJackson(
