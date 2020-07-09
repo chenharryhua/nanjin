@@ -141,13 +141,12 @@ final class CrRdd[F[_], K: AvroEncoder, V: AvroEncoder](
   def diff(other: CrRdd[F, K, V])(implicit ek: Eq[K], ev: Eq[V]): RDD[DiffResult[K, V]] =
     diff(other.rdd)
 
-  def kvDiff(other: RDD[OptionalKV[K, V]]): RDD[(Option[K], Option[V])] = {
+  def kvDiff(other: RDD[OptionalKV[K, V]]): RDD[KvDiffResult[K, V]] = {
     sparkSession.withGroupId(s"nj.rdd.diff.kv.${utils.random4d.value}")
     inv.kvDiffRdd(rdd, other)
   }
 
-  def kvDiff(other: CrRdd[F, K, V]): RDD[(Option[K], Option[V])] =
-    kvDiff(other.rdd)
+  def kvDiff(other: CrRdd[F, K, V]): RDD[KvDiffResult[K, V]] = kvDiff(other.rdd)
 
   def first(implicit F: SparkDelay[F]): F[Option[OptionalKV[K, V]]] = F.delay(rdd.cminOption)
   def last(implicit F: SparkDelay[F]): F[Option[OptionalKV[K, V]]]  = F.delay(rdd.cmaxOption)
