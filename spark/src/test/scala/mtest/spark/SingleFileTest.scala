@@ -17,9 +17,10 @@ object SingleFileTestData {
 
   val fishes =
     List(
-      Swordfish("pacific occean", 10.3f, Random.nextInt()),
+      Swordfish("pacific|occean", 10.3f, Random.nextInt()),
       Swordfish("india occean", 2.5f, Random.nextInt()),
-      Swordfish("atlantic occean", 5.5f, Random.nextInt()))
+      Swordfish("atlantic occean", 5.5f, Random.nextInt())
+    )
 
   val fishStream: Stream[IO, Swordfish] = Stream.emits(fishes).covary[IO]
 }
@@ -105,17 +106,21 @@ class SingleFileTest extends AnyFunSuite {
 
   test("csv with header - identity") {
     val path = "./data/test/spark/singleFile/swordfish-header.csv"
-    val rfc  = CsvConfiguration.rfc.withHeader("from", "weight", "code").withCellSeparator('|')
+    val rfc = CsvConfiguration.rfc
+      .withHeader("from", "weight", "code")
+      .withCellSeparator('|')
+      .withQuote('\"')
+      .quoteAll
 
     val run = delete(path) >>
       fishStream.through(sink.csv[Swordfish](path, rfc)).compile.drain >>
       source.csv[Swordfish](path, rfc).compile.toList
 
-    assert(run.unsafeRunSync() === fishes)
+    assert(run.unsafeRunSync() === fishes, "source")
     assert(File(path).lineCount == 4L)
 
     val s = sparkSession.csv[Swordfish](path, rfc).collect[IO]().unsafeRunSync().toSet
-    assert(s == fishes.toSet)
+    assert(s == fishes.toSet, "spark")
   }
 
   test("java-object - identity") {
