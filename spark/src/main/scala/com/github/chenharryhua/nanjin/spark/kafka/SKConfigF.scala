@@ -3,12 +3,13 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import java.time.{LocalDate, LocalDateTime, ZoneId}
 import java.util.concurrent.TimeUnit
 
+import cats.derived.auto.functor._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.spark.NJShowDataset
 import higherkindness.droste.data.Fix
-import higherkindness.droste.macros.deriveTraverse
+import higherkindness.droste.macros.deriveFixedPoint
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
@@ -46,7 +47,7 @@ private[spark] object SKParams {
     )
 }
 
-@deriveTraverse sealed private[spark] trait SKConfigF[A]
+@deriveFixedPoint sealed private[spark] trait SKConfigF[_]
 
 private[spark] object SKConfigF {
   final case class DefaultParams[K](zoneId: ZoneId) extends SKConfigF[K]
