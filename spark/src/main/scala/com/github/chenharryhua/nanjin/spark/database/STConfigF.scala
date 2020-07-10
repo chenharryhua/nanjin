@@ -1,10 +1,11 @@
 package com.github.chenharryhua.nanjin.spark.database
 
 import cats.data.Reader
+import cats.derived.auto.functor._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.database.TableName
 import higherkindness.droste.data.Fix
-import higherkindness.droste.macros.deriveTraverse
+import higherkindness.droste.macros.deriveFixedPoint
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
@@ -26,7 +27,7 @@ private[spark] object STParams {
     fileFormat = NJFileFormat.Parquet
   )
 }
-@deriveTraverse sealed private[spark] trait STConfigF[A]
+@deriveFixedPoint sealed private[spark] trait STConfigF[_]
 
 object STConfigF {
   final case class DefaultParams[K]() extends STConfigF[K]

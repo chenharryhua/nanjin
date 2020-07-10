@@ -101,12 +101,12 @@ final class CrDataset[F[_], K: TypedEncoder, V: TypedEncoder](
     other: CrDataset[F, K, V])(implicit ke: Eq[K], ve: Eq[V]): TypedDataset[DiffResult[K, V]] =
     diff(other.typedDataset)
 
-  def kvDiff(other: TypedDataset[OptionalKV[K, V]]): TypedDataset[(Option[K], Option[V])] = {
+  def kvDiff(other: TypedDataset[OptionalKV[K, V]]): TypedDataset[KvDiffResult[K, V]] = {
     crs.sparkSession.withGroupId(s"nj.cr.diff.kv.${utils.random4d.value}")
     inv.kvDiffDataset(typedDataset, other)
   }
 
-  def kvDiff(other: CrDataset[F, K, V]): TypedDataset[(Option[K], Option[V])] =
+  def kvDiff(other: CrDataset[F, K, V]): TypedDataset[KvDiffResult[K, V]] =
     kvDiff(other.typedDataset)
 
   def find(f: OptionalKV[K, V] => Boolean)(implicit F: Sync[F]): F[List[OptionalKV[K, V]]] = {

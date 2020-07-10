@@ -1,15 +1,19 @@
 package mtest.spark.kafka
 
-import java.io
-
-import cats.effect.IO
-import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
-import com.github.chenharryhua.nanjin.spark.kafka.{inv, CRMetaInfo, DiffResult, DupResult}
-import frameless.TypedDataset
-import org.scalatest.funsuite.AnyFunSuite
-import frameless.cats.implicits._
 import cats.derived.auto.eq.kittensMkEq
+import cats.effect.IO
 import cats.implicits._
+import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
+import com.github.chenharryhua.nanjin.spark.kafka.{
+  inv,
+  CRMetaInfo,
+  DiffResult,
+  DupResult,
+  KvDiffResult
+}
+import frameless.TypedDataset
+import frameless.cats.implicits._
+import org.scalatest.funsuite.AnyFunSuite
 
 object InvestigationTestData {
   final case class Mouse(size: Int, weight: Float)
@@ -88,18 +92,19 @@ class InvestigationTest extends AnyFunSuite {
     val rst2: Set[DiffResult[String, Mouse]] =
       inv.diffRdd(m1.dataset.rdd, m3.dataset.rdd).collect().toSet
 
-    val tup = DiffResult(
+    val tup: DiffResult[String, Mouse] = DiffResult(
       OptionalKV(1, 6, 60, Some("mike6"), Some(Mouse(6, 0.6f)), "topic", 0),
       Some(OptionalKV(1, 6, 60, Some("mike6"), Some(Mouse(6, 2.0f)), "topic", 0)))
 
     assert(Set(tup) == rst)
     assert(Set(tup) == rst2)
 
-    val kv = Set((Some("mike6"), Some(Mouse(6, 0.6f))))
-    val rst3: Set[(Option[String], Option[Mouse])] =
+    val kv: Set[KvDiffResult[String, Mouse]] =
+      Set(KvDiffResult(Some("mike6"), Some(Mouse(6, 0.6f))))
+    val rst3: Set[KvDiffResult[String, Mouse]] =
       inv.kvDiffDataset(m1, m3).collect[IO]().unsafeRunSync().toSet
 
-    val rst4: Set[(Option[String], Option[Mouse])] =
+    val rst4: Set[KvDiffResult[String, Mouse]] =
       inv.kvDiffRdd(m1.dataset.rdd, m3.dataset.rdd).collect().toSet
     assert(rst3 == kv)
     assert(rst4 == kv)
@@ -118,11 +123,11 @@ class InvestigationTest extends AnyFunSuite {
     assert(Set(tup) == rst)
     assert(Set(tup) == rst2)
 
-    val rst3: Set[(Option[String], Option[Mouse])] =
+    val rst3: Set[KvDiffResult[String, Mouse]] =
       inv.kvDiffDataset(m1, m4).collect[IO]().unsafeRunSync().toSet
-    val rst4: Set[(Option[String], Option[Mouse])] =
+    val rst4: Set[KvDiffResult[String, Mouse]] =
       inv.kvDiffRdd(m1.dataset.rdd, m4.dataset.rdd).collect().toSet
-    val kv = Set((Some("mike5"), Some(Mouse(5, 0.5f))))
+    val kv = Set(KvDiffResult(Some("mike5"), Some(Mouse(5, 0.5f))))
     assert(rst3 == kv)
     assert(rst4 == kv)
   }
