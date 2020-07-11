@@ -45,7 +45,7 @@ object KJson {
                 case Right(r) => KJson(r)
                 case Left(ex) => throw ex
               }
-            case ex => throw new Exception(s"not a string")
+            case ex => sys.error(s"not a string")
           }
 
         override val schemaFor: SchemaFor[KJson[A]] = SchemaFor[String].forType[KJson[A]]

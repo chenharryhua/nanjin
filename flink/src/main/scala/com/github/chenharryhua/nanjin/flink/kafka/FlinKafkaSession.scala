@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.flink.kafka
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
-import com.github.chenharryhua.nanjin.pipes.NJConsumerRecordDecoder
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJConsumerRecordDecoder
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer, KafkaDeserializationSchema}
