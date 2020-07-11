@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka.codec
 
-import com.sksamuel.avro4s.{Decoder, DefaultFieldMapper, Encoder, SchemaFor}
-import org.apache.avro.Schema
+import com.sksamuel.avro4s.{Decoder, Encoder, SchemaFor}
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 import org.apache.kafka.streams.scala.Serdes
 

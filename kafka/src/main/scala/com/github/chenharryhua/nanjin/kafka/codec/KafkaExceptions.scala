@@ -36,7 +36,3 @@ object CodecException {
 
   final case class DecodingJsonException(msg: String) extends CodecException(msg)
 }
-
-final case class UncaughtKafkaStreamingException(thread: Thread, ex: Throwable)
-    extends Exception(ex.getMessage)
-final case class KafkaStreamingException(msg: String) extends Exception(msg)
