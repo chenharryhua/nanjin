@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.messages.avro
+package com.github.chenharryhua.nanjin.messages.kafka.codec
 
 import com.github.chenharryhua.nanjin.messages.kafka.KeyValueTag
 import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
@@ -50,7 +50,7 @@ sealed abstract class SerdeOf[A](val schemaFor: SchemaFor[A]) extends Serializab
     new NJSerde(KeyValueTag.Value, schemaFor, props, serializer, deserializer) {}
 }
 
-sealed private[avro] trait SerdeOfPriority0 {
+sealed private[codec] trait SerdeOfPriority0 {
 
   implicit final def inferedAvroSerde[A: AvroEncoder: AvroDecoder]: SerdeOf[A] = {
     val ser: KafkaAvroSerializer[A]     = KafkaAvroSerializer[A](AvroEncoder[A])

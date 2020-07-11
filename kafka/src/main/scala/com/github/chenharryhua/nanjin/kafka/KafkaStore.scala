@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import java.time.Duration
 
-import com.github.chenharryhua.nanjin.messages.avro.NJSerde
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJSerde
 import org.apache.kafka.streams.processor.StateStore
 import org.apache.kafka.streams.scala.kstream.Materialized
 import org.apache.kafka.streams.state._
@@ -62,9 +62,8 @@ object KafkaStore {
       QueryableStoreTypes.sessionStore[K, V]
 
     override val materialized: Materialized[K, V, scala.ByteArraySessionStore] =
-      Materialized.as(Stores.persistentSessionStore(storeName.value, retentionPeriod))(
-        keySerde,
-        valueSerde)
+      Materialized
+        .as(Stores.persistentSessionStore(storeName.value, retentionPeriod))(keySerde, valueSerde)
   }
 
   final class Window[K, V](

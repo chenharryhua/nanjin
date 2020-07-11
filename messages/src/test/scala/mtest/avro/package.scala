@@ -1,6 +1,6 @@
 package mtest
 
-import com.github.chenharryhua.nanjin.messages.avro.{KJson, NJCodec, SerdeOf}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, NJCodec, SerdeOf}
 
 package object avro {
   val sr: Map[String, String] = Map("schema.registry.url" -> "http://localhost:8081")

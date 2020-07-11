@@ -1,6 +1,5 @@
 package mtest.avro
 
-import com.github.chenharryhua.nanjin.messages.avro.{KJson, NJCodec, SerdeOf}
 import org.scalatest.funsuite.AnyFunSuite
 import io.circe.generic.auto._
 

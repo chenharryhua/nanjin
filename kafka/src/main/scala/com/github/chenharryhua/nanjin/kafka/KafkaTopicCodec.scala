@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.implicits._
-import com.github.chenharryhua.nanjin.messages.avro.{NJCodec, NJSerde}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJCodec, NJSerde}
 import com.sksamuel.avro4s.SchemaFor
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 

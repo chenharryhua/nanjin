@@ -2,8 +2,8 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.implicits._
 import cats.kernel.Eq
-import com.github.chenharryhua.nanjin.messages.avro._
 import com.github.chenharryhua.nanjin.messages.kafka._
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{SerdeOf, WithAvroSchema}
 import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
 
 final class TopicDef[K, V] private (val topicName: TopicName)(implicit
