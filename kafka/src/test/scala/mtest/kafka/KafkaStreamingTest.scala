@@ -2,11 +2,10 @@ package mtest.kafka
 
 import cats.effect.IO
 import cats.implicits._
-import org.scalatest.funsuite.AnyFunSuite
-import io.chrisdavenport.cats.time._
+import com.github.chenharryhua.nanjin.kafka.codec.NJSerde
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import org.apache.kafka.streams.scala.ImplicitConversions._
-import com.github.chenharryhua.nanjin.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.TopicDef
+import org.scalatest.funsuite.AnyFunSuite
 
 object KafkaStreamingCases {
 
@@ -22,13 +21,19 @@ object KafkaStreamingCases {
 
 class KafkaStreamingTest extends AnyFunSuite {
   import KafkaStreamingCases._
-  val one               = TopicDef[StreamKey, StreamOneValue](TopicName("stream-one")).in(ctx)
-  val two               = TopicDef[StreamKey, StreamTwoValue](TopicName("stream-two")).in(ctx)
-  val tgt               = TopicDef[StreamKey, StreamTarget](TopicName("stream-target")).in(ctx)
-  implicit val oneKey   = one.codec.keySerde
-  implicit val oneValue = one.codec.valSerde
-  implicit val twoValue = two.codec.valSerde
-  implicit val tgtValue = tgt.codec.valSerde
+
+  val one: KafkaTopic[IO, StreamKey, StreamOneValue] =
+    TopicDef[StreamKey, StreamOneValue](TopicName("stream-one")).in(ctx)
+
+  val two: KafkaTopic[IO, StreamKey, StreamTwoValue] =
+    TopicDef[StreamKey, StreamTwoValue](TopicName("stream-two")).in(ctx)
+
+  val tgt: KafkaTopic[IO, StreamKey, StreamTarget] =
+    TopicDef[StreamKey, StreamTarget](TopicName("stream-target")).in(ctx)
+  implicit val oneKey: NJSerde[StreamKey]        = one.codec.keySerde
+  implicit val oneValue: NJSerde[StreamOneValue] = one.codec.valSerde
+  implicit val twoValue: NJSerde[StreamTwoValue] = two.codec.valSerde
+  implicit val tgtValue: NJSerde[StreamTarget]   = tgt.codec.valSerde
 
   ignore("generate data") {
     (one.schemaRegister >> two.schemaRegister).unsafeRunSync()
