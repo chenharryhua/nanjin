@@ -14,7 +14,6 @@ import zio.random.Random
 import zio.system.System
 import zio.{Runtime, Task}
 
-@Ignore
 class ZioTest extends AnyFunSuite {
   type Environment = Clock with Console with System with Random with Blocking
 
