@@ -1,10 +1,13 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
+import java.io.ByteArrayOutputStream
+
 import alleycats.Empty
 import cats.implicits._
 import cats.kernel.{LowerBounded, PartialOrder}
 import cats.{Applicative, Bifunctor, Bitraverse, Eval, Order, Show}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
+import com.sksamuel.avro4s.{AvroOutputStream, Encoder => AvroEncoder}
 import io.scalaland.chimney.dsl._
 import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -38,6 +41,7 @@ sealed trait NJConsumerRecord[K, V] {
 
   final def display(k: Show[K], v: Show[V]): String =
     s"CR($metaInfo,key=${k.show(key)},value=${v.show(value)})"
+
 }
 
 object NJConsumerRecord {
@@ -86,6 +90,15 @@ object NJConsumerRecord {
       case (k, v) =>
         this.into[CompulsoryKV[K, V]].withFieldConst(_.key, k).withFieldConst(_.value, v).transform
     }
+
+  def jackson(implicit k: AvroEncoder[K], v: AvroEncoder[V]): String = {
+    val aos = new ByteArrayOutputStream()
+    val os  = AvroOutputStream.json[OptionalKV[K, V]].to(aos).build()
+    os.write(this)
+    os.flush()
+    os.close()
+    aos.toString
+  }
 }
 
 object OptionalKV {

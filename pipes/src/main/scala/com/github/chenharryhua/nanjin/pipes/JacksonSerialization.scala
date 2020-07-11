@@ -13,7 +13,7 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericDatumReader, GenericDatumWriter, GenericRecord}
 import org.apache.avro.io.{DecoderFactory, EncoderFactory, JsonEncoder}
 
-final class JsonAvroSerialization[F[_]](schema: Schema) {
+final class JacksonSerialization[F[_]](schema: Schema) {
 
   private def toJsonStr(isPretty: Boolean): Pipe[F, GenericRecord, String] = {
     val datumWriter = new GenericDatumWriter[GenericRecord](schema)
@@ -53,7 +53,7 @@ final class JsonAvroSerialization[F[_]](schema: Schema) {
   }
 }
 
-final class JsonAvroDeserialization[F[_]: ConcurrentEffect](schema: Schema) {
+final class JacksonDeserialization[F[_]: ConcurrentEffect](schema: Schema) {
   private val F: ConcurrentEffect[F] = ConcurrentEffect[F]
 
   def deserialize: Pipe[F, Byte, GenericRecord] = { (ss: Stream[F, Byte]) =>

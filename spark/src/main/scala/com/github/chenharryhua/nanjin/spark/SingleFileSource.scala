@@ -51,7 +51,7 @@ final class SingleFileSource[F[_]](blocker: Blocker, conf: Configuration) {
 
   def jackson[A: AvroDecoder](
     pathStr: String)(implicit cs: ContextShift[F], ce: ConcurrentEffect[F]): Stream[F, A] = {
-    val pipe = new JsonAvroDeserialization[F](AvroDecoder[A].schema)
+    val pipe = new JacksonDeserialization[F](AvroDecoder[A].schema)
     val gr   = new GenericRecordDecoder[F, A]
     new NJHadoop[F](conf, blocker).byteStream(pathStr).through(pipe.deserialize).through(gr.decode)
   }
