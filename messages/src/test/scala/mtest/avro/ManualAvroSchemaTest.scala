@@ -1,6 +1,6 @@
 package mtest.avro
 
-import com.github.chenharryhua.nanjin.messages.avro.WithAvroSchema
+import com.github.chenharryhua.nanjin.messages.kafka.codec.WithAvroSchema
 import org.apache.avro.Schema
 import org.scalatest.funsuite.AnyFunSuite
 

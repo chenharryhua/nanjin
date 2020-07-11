@@ -126,13 +126,16 @@ final class CrRdd[F[_], K: AvroEncoder, V: AvroEncoder](
   private def showResult(rs: Array[OptionalKV[K, V]])(implicit F: Sync[F]): F[Unit] = {
     implicit val ks: SchemaFor[K] = AvroEncoder[K].schemaFor
     implicit val vs: SchemaFor[V] = AvroEncoder[V].schemaFor
-    val jackson                   = new JacksonSerialization[F](AvroSchema[OptionalKV[K, V]])
-    val gre                       = new GenericRecordEncoder[F, OptionalKV[K, V]]()
+
+    val pipe: JacksonSerialization[F] = new JacksonSerialization[F](AvroSchema[OptionalKV[K, V]])
+    val gre: GenericRecordEncoder[F, OptionalKV[K, V]] =
+      new GenericRecordEncoder[F, OptionalKV[K, V]]()
+
     Stream
       .emits(rs)
       .covary[F]
       .through(gre.encode)
-      .through(jackson.compactJson)
+      .through(pipe.compactJson)
       .showLinesStdOut
       .compile
       .drain

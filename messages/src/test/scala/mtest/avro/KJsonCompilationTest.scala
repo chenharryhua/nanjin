@@ -1,6 +1,6 @@
 package mtest.avro
 
-import com.github.chenharryhua.nanjin.messages.avro.{KJson, SerdeOf}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, SerdeOf}
 import org.scalatest.funsuite.AnyFunSuite
 import shapeless.test.illTyped
 

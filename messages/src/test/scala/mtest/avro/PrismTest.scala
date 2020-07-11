@@ -2,8 +2,8 @@ package mtest.avro
 
 import cats.Eq
 import cats.implicits._
-import com.github.chenharryhua.nanjin.messages.avro.KJson
 import com.github.chenharryhua.nanjin.messages.kafka._
+import com.github.chenharryhua.nanjin.messages.kafka.codec.KJson
 import monocle.law.discipline.PrismTests
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.{Arbitrary, Gen}

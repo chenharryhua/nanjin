@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.pipes
+package com.github.chenharryhua.nanjin.messages.kafka.codec
 
 import cats.data.{Chain, Writer}
 import cats.implicits._

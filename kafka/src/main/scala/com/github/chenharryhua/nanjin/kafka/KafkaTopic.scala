@@ -2,9 +2,11 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, Resource, Sync, Timer}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.messages.avro._
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage
-import com.github.chenharryhua.nanjin.pipes.NJConsumerRecordDecoder
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{
+  KafkaGenericDecoder,
+  NJConsumerRecordDecoder
+}
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
 final class KafkaTopic[F[_], K, V] private[kafka] (
