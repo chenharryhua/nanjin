@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import java.time.Duration
 
-import com.github.chenharryhua.nanjin.kafka.codec.NJSerde
+import com.github.chenharryhua.nanjin.messages.avro.NJSerde
 import org.apache.kafka.streams.processor.StateStore
 import org.apache.kafka.streams.scala.kstream.Materialized
 import org.apache.kafka.streams.state._

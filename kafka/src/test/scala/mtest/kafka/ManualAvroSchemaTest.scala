@@ -1,6 +1,6 @@
 package mtest.kafka
 
-import com.github.chenharryhua.nanjin.kafka.codec.WithAvroSchema
+import com.github.chenharryhua.nanjin.messages.avro.WithAvroSchema
 import org.apache.avro.Schema
 import org.scalatest.funsuite.AnyFunSuite
 

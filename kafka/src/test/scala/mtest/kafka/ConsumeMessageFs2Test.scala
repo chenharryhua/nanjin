@@ -3,7 +3,7 @@ package mtest.kafka
 import cats.derived.auto.show._
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka._
-import com.github.chenharryhua.nanjin.kafka.codec.{KJson, _}
+import com.github.chenharryhua.nanjin.messages.avro.{KJson, _}
 import com.landoop.telecom.telecomitalia.telecommunications.{smsCallInternet, Key}
 import fs2.kafka.AutoOffsetReset
 import io.circe.generic.auto._
