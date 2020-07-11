@@ -1,4 +1,4 @@
-package mtest.kafka
+package mtest.avro
 
 import com.github.chenharryhua.nanjin.messages.avro.WithAvroSchema
 import org.apache.avro.Schema
@@ -16,7 +16,7 @@ object ManualAvroSchemaTestData {
   "type": "record",
   "name": "UnderTest",
   "doc" : "test",
-  "namespace" : "mtest.kafka.ManualAvroSchemaTestData",
+  "namespace" : "mtest.avro.ManualAvroSchemaTestData",
   "fields": [
     {
       "name": "a",
@@ -38,7 +38,7 @@ object ManualAvroSchemaTestData {
   "type": "record",
   "name": "UnderTest",
   "doc" : "test",
-  "namespace" : "mtest.kafka.ManualAvroSchemaTestData",
+  "namespace" : "mtest.avro.ManualAvroSchemaTestData",
   "fields": [
     {
       "name": "a",
