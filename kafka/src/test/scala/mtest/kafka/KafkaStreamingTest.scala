@@ -2,7 +2,7 @@ package mtest.kafka
 
 import cats.effect.IO
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.codec.NJSerde
+import com.github.chenharryhua.nanjin.messages.avro.NJSerde
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import org.apache.kafka.streams.scala.ImplicitConversions._
 import org.scalatest.funsuite.AnyFunSuite

@@ -14,9 +14,10 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryV,
   OptionalKV
 }
+import com.github.chenharryhua.nanjin.pipes.{GenericRecordEncoder, JacksonSerialization}
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt, SparkSessionExt}
 import com.github.chenharryhua.nanjin.utils
-import com.sksamuel.avro4s.{Encoder => AvroEncoder}
+import com.sksamuel.avro4s.{AvroSchema, SchemaFor, Encoder => AvroEncoder}
 import frameless.cats.implicits.rddOps
 import frameless.{SparkDelay, TypedDataset, TypedEncoder}
 import fs2.Stream
@@ -102,11 +103,6 @@ final class CrRdd[F[_], K: AvroEncoder, V: AvroEncoder](
     F.delay(rdd.count())
   }
 
-  def show(implicit F: SparkDelay[F]): F[Unit] = {
-    sparkSession.withGroupId(s"nj.rdd.show.${utils.random4d.value}")
-    F.delay(rdd.take(params.showDs.rowNum).foreach(println))
-  }
-
   def stats: Statistics[F] = {
     sparkSession.withGroupId(s"nj.rdd.stats.${utils.random4d.value}")
     new Statistics[F](TypedDataset.create(rdd.map(CRMetaInfo(_))).dataset, cfg)
@@ -127,11 +123,28 @@ final class CrRdd[F[_], K: AvroEncoder, V: AvroEncoder](
     inv.dupRecords(TypedDataset.create(values.map(CRMetaInfo(_))))
   }
 
-  def find(f: OptionalKV[K, V] => Boolean)(implicit F: SparkDelay[F]): F[List[OptionalKV[K, V]]] = {
-    val maxRows: Int = params.showDs.rowNum
-    sparkSession.withGroupId(s"nj.rdd.find.${utils.random4d.value}")
-    F.delay(rdd.filter(f).take(maxRows).toList)
+  private def showResult(rs: Array[OptionalKV[K, V]])(implicit F: Sync[F]): F[Unit] = {
+    implicit val ks: SchemaFor[K] = AvroEncoder[K].schemaFor
+    implicit val vs: SchemaFor[V] = AvroEncoder[V].schemaFor
+    val jackson                   = new JacksonSerialization[F](AvroSchema[OptionalKV[K, V]])
+    val gre                       = new GenericRecordEncoder[F, OptionalKV[K, V]]()
+    Stream
+      .emits(rs)
+      .covary[F]
+      .through(gre.encode)
+      .through(jackson.compactJson)
+      .showLinesStdOut
+      .compile
+      .drain
   }
+
+  def find(f: OptionalKV[K, V] => Boolean)(implicit F: Sync[F]): F[Unit] = {
+    sparkSession.withGroupId(s"nj.rdd.find.${utils.random4d.value}")
+    showResult(rdd.filter(f).take(params.showDs.rowNum))
+  }
+
+  def show(implicit F: Sync[F]): F[Unit] =
+    showResult(rdd.take(params.showDs.rowNum))
 
   def diff(other: RDD[OptionalKV[K, V]])(implicit ek: Eq[K], ev: Eq[V]): RDD[DiffResult[K, V]] = {
     sparkSession.withGroupId(s"nj.rdd.diff.pos.${utils.random4d.value}")

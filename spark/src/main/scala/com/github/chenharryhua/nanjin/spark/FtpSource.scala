@@ -27,7 +27,7 @@ final class FtpSource[F[_], C, S <: RemoteFileSettings](downloader: FtpDownloade
 
   def jackson[A: AvroDecoder](
     pathStr: String)(implicit cs: ContextShift[F], ce: ConcurrentEffect[F]): Stream[F, A] = {
-    val pipe = new JsonAvroDeserialization[F](AvroDecoder[A].schema)
+    val pipe = new JacksonDeserialization[F](AvroDecoder[A].schema)
     val gr   = new GenericRecordDecoder[F, A]
     downloader.download(pathStr).through(pipe.deserialize).through(gr.decode)
   }

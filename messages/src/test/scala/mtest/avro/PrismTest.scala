@@ -1,15 +1,15 @@
-package mtest.kafka.codec
+package mtest.avro
 
 import cats.Eq
+import cats.implicits._
+import com.github.chenharryhua.nanjin.messages.avro.KJson
+import com.github.chenharryhua.nanjin.messages.kafka._
 import monocle.law.discipline.PrismTests
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.funsuite.AnyFunSuite
-import org.typelevel.discipline.scalatest.FunSuiteDiscipline
-import com.github.chenharryhua.nanjin.messages.kafka._
-import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.codec.KJson
 import org.scalatest.prop.Configuration
+import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
 class PrismTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
 

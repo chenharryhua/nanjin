@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.kafka.codec
+package com.github.chenharryhua.nanjin.messages.avro
 
 import cats.implicits._
 import com.github.chenharryhua.nanjin.messages.kafka._

@@ -1,14 +1,12 @@
-package mtest.kafka
+package mtest.avro
 
-import cats.effect.IO
-import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
+import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import io.circe.generic.auto._
 import io.circe.parser.decode
 import io.circe.shapes._
 import io.circe.syntax._
 import org.scalatest.funsuite.AnyFunSuite
 import shapeless._
-import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 
 object CoproductJsons {
   final case class Foo(a: Int, b: String)
@@ -20,11 +18,10 @@ object CoproductJsons {
 
 class CoproductJsonTest extends AnyFunSuite {
   import CoproductJsons._
-  val foo: Foo                       = Foo(1, "foo-1")
-  val bar: Bar                       = Bar(2, "bar-2")
-  val fb1: FB                        = FB(Coproduct[FooBar](foo), 0)
-  val fb2: FB                        = FB(Coproduct[FooBar](bar), 1)
-  val topic: KafkaTopic[IO, Int, FB] = TopicDef[Int, FB](TopicName("coproduct.test")).in(ctx)
+  val foo: Foo = Foo(1, "foo-1")
+  val bar: Bar = Bar(2, "bar-2")
+  val fb1: FB  = FB(Coproduct[FooBar](foo), 0)
+  val fb2: FB  = FB(Coproduct[FooBar](bar), 1)
 
   test("circe json coproduct is not invertable") {
     assert(decode[FB](fb1.asJson.noSpaces).toOption.get === fb1)

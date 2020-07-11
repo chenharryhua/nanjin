@@ -4,13 +4,13 @@ import cats.data.Reader
 import cats.effect.ConcurrentEffect
 import cats.effect.concurrent.Deferred
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.codec.{
-  KafkaStreamingException,
-  UncaughtKafkaStreamingException
-}
 import fs2.Stream
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.scala.StreamsBuilder
+
+final case class UncaughtKafkaStreamingException(thread: Thread, ex: Throwable)
+    extends Exception(ex.getMessage)
+final case class KafkaStreamingException(msg: String) extends Exception(msg)
 
 final class KafkaStreamRunner[F[_]](settings: KafkaStreamSettings)(implicit
   F: ConcurrentEffect[F]) {

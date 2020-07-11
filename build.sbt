@@ -300,7 +300,7 @@ lazy val messages = (project in file("messages"))
   .settings(libraryDependencies ++= Seq(
     compilerPlugin(("com.github.ghik" % "silencer-plugin" % silencer).cross(CrossVersion.full)),
     ("com.github.ghik"                % "silencer-lib"    % silencer % Provided).cross(CrossVersion.full)
-  ) ++ baseLib ++ fs2Lib ++ jsonLib ++ kafkaLib ++ monocleLib ++ testLib)
+  ) ++ baseLib ++ fs2Lib ++ avroLib ++ jsonLib ++ kafkaLib ++ monocleLib ++ testLib)
 
 lazy val devices = (project in file("devices"))
   .settings(commonSettings: _*)
@@ -324,7 +324,7 @@ lazy val kafka = (project in file("kafka"))
   .settings(commonSettings: _*)
   .settings(name := "nj-kafka")
   .settings(
-    libraryDependencies ++= effectLib ++ kafkaLib ++ akkaLib ++ avroLib ++ jsonLib ++ testLib,
+    libraryDependencies ++= effectLib ++ kafkaLib ++ akkaLib ++ testLib,
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
 

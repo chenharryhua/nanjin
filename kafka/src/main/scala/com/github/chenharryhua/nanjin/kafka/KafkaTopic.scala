@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, Resource, Sync, Timer}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.kafka.codec._
+import com.github.chenharryhua.nanjin.messages.avro._
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage
 import com.github.chenharryhua.nanjin.pipes.NJConsumerRecordDecoder
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
@@ -23,8 +23,8 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
 
   //need to reconstruct codec when working in spark
   @transient lazy val codec: KafkaTopicCodec[K, V] = new KafkaTopicCodec(
-    serdeOfKey.asKey(settings.schemaRegistrySettings.config).codec(topicDef.topicName),
-    serdeOfVal.asValue(settings.schemaRegistrySettings.config).codec(topicDef.topicName)
+    serdeOfKey.asKey(settings.schemaRegistrySettings.config).codec(topicDef.topicName.value),
+    serdeOfVal.asValue(settings.schemaRegistrySettings.config).codec(topicDef.topicName.value)
   )
 
   def decoder[G[_, _]: NJConsumerMessage](

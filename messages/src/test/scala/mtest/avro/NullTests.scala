@@ -1,9 +1,13 @@
-package mtest.kafka.codec
+package mtest.avro
 
-import com.github.chenharryhua.nanjin.kafka.codec.KJson
+import com.github.chenharryhua.nanjin.messages.avro.{KJson, NJCodec, SerdeOf}
 import org.scalatest.funsuite.AnyFunSuite
+import io.circe.generic.auto._
+
+object NullTestsData {}
 
 class NullTests extends AnyFunSuite {
+  import NullTestsData._
 
   test("decode null should return null") {
     assert(intCodec.decode(null) === 0)
@@ -13,7 +17,7 @@ class NullTests extends AnyFunSuite {
     assert(strCodec.decode(null) === null)
     assert(byteArrayCodec.decode(null) === null)
     assert(primitiviesCodec.decode(null) === null)
-    assert(jsonPrimCodec.decode(null) === KJson(null))
+    assert(jsonPrimCodec.decode(null) === null)
   }
 
   test("tryDecode null should return failure") {
@@ -35,7 +39,7 @@ class NullTests extends AnyFunSuite {
     assert(strCodec.prism.getOption(null) === Some(null))
     assert(byteArrayCodec.prism.getOption(null) === Some(null))
     assert(primitiviesCodec.prism.getOption(null) === Some(null))
-    assert(jsonPrimCodec.prism.getOption(null) === Some(KJson(null)))
+    assert(jsonPrimCodec.prism.getOption(null) === Some(null))
   }
 
   test("encode null should return null") {
@@ -46,6 +50,6 @@ class NullTests extends AnyFunSuite {
     assert(strCodec.encode(null) === null)
     assert(byteArrayCodec.encode(null) === null)
     assert(primitiviesCodec.encode(null) === null)
-    assert(jsonPrimCodec.encode(KJson(null)) === null)
+    assert(jsonPrimCodec.encode(null) === null)
   }
 }

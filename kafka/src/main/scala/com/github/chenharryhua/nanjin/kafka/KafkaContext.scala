@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.data.Reader
 import cats.effect.{ConcurrentEffect, ContextShift, IO, Timer}
-import com.github.chenharryhua.nanjin.kafka.codec.{NJSerde, SerdeOf}
+import com.github.chenharryhua.nanjin.messages.avro.{NJSerde, SerdeOf}
 import fs2.Stream
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.scala.StreamsBuilder

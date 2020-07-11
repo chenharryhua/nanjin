@@ -5,7 +5,7 @@ import java.time.{Instant, LocalDate}
 import cats.effect.IO
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime._
-import com.github.chenharryhua.nanjin.kafka.codec.WithAvroSchema
+import com.github.chenharryhua.nanjin.messages.avro.WithAvroSchema
 import com.github.chenharryhua.nanjin.messages.kafka.{CompulsoryV, OptionalKV}
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.spark.injection._

@@ -38,6 +38,7 @@ sealed trait NJConsumerRecord[K, V] {
 
   final def display(k: Show[K], v: Show[V]): String =
     s"CR($metaInfo,key=${k.show(key)},value=${v.show(value)})"
+
 }
 
 object NJConsumerRecord {

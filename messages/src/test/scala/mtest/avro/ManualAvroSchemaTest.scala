@@ -1,6 +1,6 @@
-package mtest.kafka
+package mtest.avro
 
-import com.github.chenharryhua.nanjin.kafka.codec.WithAvroSchema
+import com.github.chenharryhua.nanjin.messages.avro.WithAvroSchema
 import org.apache.avro.Schema
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -16,7 +16,7 @@ object ManualAvroSchemaTestData {
   "type": "record",
   "name": "UnderTest",
   "doc" : "test",
-  "namespace" : "mtest.kafka.ManualAvroSchemaTestData",
+  "namespace" : "mtest.avro.ManualAvroSchemaTestData",
   "fields": [
     {
       "name": "a",
@@ -38,7 +38,7 @@ object ManualAvroSchemaTestData {
   "type": "record",
   "name": "UnderTest",
   "doc" : "test",
-  "namespace" : "mtest.kafka.ManualAvroSchemaTestData",
+  "namespace" : "mtest.avro.ManualAvroSchemaTestData",
   "fields": [
     {
       "name": "a",
