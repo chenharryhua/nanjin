@@ -5,8 +5,8 @@ import fs2.Stream
 import monocle.macros.Lenses
 import neotypes.cats.effect.implicits._
 import neotypes.{GraphDatabase, Session, Transaction}
-import org.neo4j.driver.v1.Config.ConfigBuilder
-import org.neo4j.driver.v1.{AuthToken, AuthTokens, Config}
+import org.neo4j.driver.Config.ConfigBuilder
+import org.neo4j.driver.{AuthToken, AuthTokens, Config}
 
 @Lenses final case class Neo4j(
   username: Username,
