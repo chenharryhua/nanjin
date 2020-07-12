@@ -39,7 +39,7 @@ val frameless = "0.8.0"
 // database
 val doobie   = "0.9.0"
 val quill    = "3.5.2"
-val neotypes = "0.13.3"
+val neotypes = "0.14.0"
 val elastic  = "7.8.0"
 
 // format
@@ -158,7 +158,7 @@ val avroLib = Seq(
   "org.apache.parquet"                     % "parquet-avro"              % parquet,
   "com.julianpeeters" %% "avrohugger-core" % "1.0.0-RC21",
   "com.sksamuel.avro4s" %% "avro4s-core"   % avro4s,
-  "io.confluent"                           % "kafka-protobuf-serializer" % "5.5.0"
+  "io.confluent"                           % "kafka-protobuf-serializer" % "5.5.1"
 )
 
 val fs2Lib = Seq(
