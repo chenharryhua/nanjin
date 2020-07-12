@@ -158,7 +158,7 @@ val avroLib = Seq(
   "org.apache.parquet"                     % "parquet-avro"              % parquet,
   "com.julianpeeters" %% "avrohugger-core" % "1.0.0-RC21",
   "com.sksamuel.avro4s" %% "avro4s-core"   % avro4s,
-  "io.confluent"                           % "kafka-protobuf-serializer" % "5.5.0"
+  "io.confluent"                           % "kafka-protobuf-serializer" % "5.5.1"
 )
 
 val fs2Lib = Seq(
