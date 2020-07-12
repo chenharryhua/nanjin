@@ -1,10 +1,11 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
+import java.time.Instant
+
 import alleycats.Empty
 import cats.implicits._
 import cats.kernel.{LowerBounded, PartialOrder}
 import cats.{Applicative, Bifunctor, Bitraverse, Eval, Order, Show}
-import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import io.scalaland.chimney.dsl._
 import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -31,10 +32,8 @@ sealed trait NJConsumerRecord[K, V] {
     else self.partition - other.partition
   }
 
-  final def njTimestamp: NJTimestamp = NJTimestamp(timestamp)
-
   final def metaInfo: String =
-    s"Meta(topic=$topic,partition=$partition,offset=$offset,ts=${njTimestamp.utc})"
+    s"Meta(topic=$topic,partition=$partition,offset=$offset,ts=${Instant.ofEpochMilli(timestamp)})"
 
   final def display(k: Show[K], v: Show[V]): String =
     s"CR($metaInfo,key=${k.show(key)},value=${v.show(value)})"

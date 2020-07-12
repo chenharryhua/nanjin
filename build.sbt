@@ -295,7 +295,6 @@ lazy val datetime = (project in file("datetime"))
   .settings(libraryDependencies ++= baseLib ++ monocleLib ++ testLib)
 
 lazy val messages = (project in file("messages"))
-  .dependsOn(datetime)
   .settings(commonSettings: _*)
   .settings(name := "nj-messages")
   .settings(libraryDependencies ++= Seq(
@@ -312,13 +311,13 @@ lazy val devices = (project in file("devices"))
         baseLib ++ fs2Lib ++ hadoopLib ++ avroLib ++ effectLib ++ akkaLib ++ testLib)
 
 lazy val pipes = (project in file("pipes"))
-  .dependsOn(messages)
   .settings(commonSettings: _*)
   .settings(name := "nj-pipes")
   .settings(libraryDependencies ++=
-    baseLib ++ fs2Lib ++ effectLib ++ kantanLib ++ avroLib ++ testLib)
+    baseLib ++ fs2Lib ++ effectLib ++ kantanLib ++ jsonLib ++ avroLib ++ testLib)
 
 lazy val kafka = (project in file("kafka"))
+  .dependsOn(messages)
   .dependsOn(pipes)
   .dependsOn(datetime)
   .dependsOn(common)
@@ -340,7 +339,6 @@ lazy val spark = (project in file("spark"))
   .dependsOn(kafka)
   .dependsOn(database)
   .dependsOn(devices)
-  .dependsOn(pipes)
   .settings(commonSettings: _*)
   .settings(name := "nj-spark")
   .settings(

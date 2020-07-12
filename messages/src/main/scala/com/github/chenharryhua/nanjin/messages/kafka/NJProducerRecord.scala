@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.messages.kafka
 import alleycats.Empty
 import cats.implicits._
 import cats.{Bifunctor, Show}
-import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import fs2.kafka.{ProducerRecord => Fs2ProducerRecord}
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
@@ -15,8 +14,6 @@ import org.apache.kafka.clients.producer.ProducerRecord
   timestamp: Option[Long],
   key: Option[K],
   value: Option[V]) {
-
-  def njTimestamp: Option[NJTimestamp] = timestamp.map(NJTimestamp(_))
 
   def newPartition(pt: Int): NJProducerRecord[K, V] =
     NJProducerRecord.partition.set(Some(pt))(this)
