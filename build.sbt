@@ -116,7 +116,7 @@ val flinkLib = Seq(
   "org.apache.flink" %% "flink-gelly",
   "org.apache.flink" %% "flink-cep",
   "org.apache.flink" %% "flink-parquet",
- // "org.apache.flink" %% "flink-jdbc",
+  // "org.apache.flink" %% "flink-jdbc",
   "org.apache.flink" %% "flink-hadoop-compatibility",
   "org.apache.flink" % "flink-s3-fs-hadoop"
 ).map(_ % flink110)
@@ -152,12 +152,13 @@ val kantanLib = Seq(
 ).map(_ % kantan)
 
 val avroLib = Seq(
-  "org.apache.avro"                        % "avro"                     % avro,
-  "org.apache.avro"                        % "avro-compiler"            % avro,
-  "io.confluent"                           % "kafka-streams-avro-serde" % "5.5.1",
-  "org.apache.parquet"                     % "parquet-avro"             % parquet,
+  "org.apache.avro"                        % "avro"                      % avro,
+  "org.apache.avro"                        % "avro-compiler"             % avro,
+  "io.confluent"                           % "kafka-streams-avro-serde"  % "5.5.1",
+  "org.apache.parquet"                     % "parquet-avro"              % parquet,
   "com.julianpeeters" %% "avrohugger-core" % "1.0.0-RC21",
-  "com.sksamuel.avro4s" %% "avro4s-core"   % avro4s
+  "com.sksamuel.avro4s" %% "avro4s-core"   % avro4s,
+  "io.confluent"                           % "kafka-protobuf-serializer" % "5.5.0"
 )
 
 val fs2Lib = Seq(
@@ -366,4 +367,3 @@ lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
     .aggregate(common, messages, datetime, devices, pipes, kafka, flink, database, spark)
-    

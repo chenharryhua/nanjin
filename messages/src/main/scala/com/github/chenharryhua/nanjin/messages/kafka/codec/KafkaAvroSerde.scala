@@ -4,7 +4,6 @@ import java.util
 
 import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
 import io.confluent.kafka.streams.serdes.avro.{GenericAvroDeserializer, GenericAvroSerializer}
-import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 import org.apache.kafka.streams.scala.Serdes
@@ -17,12 +16,12 @@ trait KafkaAvroSerializer[A] extends Serializer[A] with Serializable {
 object KafkaAvroSerializer {
   def apply[A](implicit ev: KafkaAvroSerializer[A]): KafkaAvroSerializer[A] = ev
 
-  def apply[A](encoder: AvroEncoder[A], schema: Schema): KafkaAvroSerializer[A] =
+  def apply[A](encoder: AvroEncoder[A], schemaFor: SchemaFor[A]): KafkaAvroSerializer[A] =
     new KafkaAvroSerializer[A] {
       @transient private[this] lazy val ser: GenericAvroSerializer = new GenericAvroSerializer
 
       override val avroEncoder: AvroEncoder[A] =
-        encoder.withSchema(SchemaFor[A](schema)).resolveEncoder()
+        encoder.withSchema(schemaFor).resolveEncoder()
 
       override def configure(configs: util.Map[String, _], isKey: Boolean): Unit =
         ser.configure(configs, isKey)
@@ -41,7 +40,7 @@ object KafkaAvroSerializer {
     }
 
   def apply[A](encoder: AvroEncoder[A]): KafkaAvroSerializer[A] =
-    apply(encoder, encoder.schema)
+    apply(encoder, encoder.schemaFor)
 
   implicit object IntPrimitiveSerializer extends KafkaAvroSerializer[Int] {
     override val avroEncoder: AvroEncoder[Int] = AvroEncoder[Int]
@@ -96,7 +95,7 @@ trait KafkaAvroDeserializer[A] extends Deserializer[A] with Serializable {
 object KafkaAvroDeserializer {
   def apply[A](implicit ev: KafkaAvroDeserializer[A]): KafkaAvroDeserializer[A] = ev
 
-  def apply[A](decoder: AvroDecoder[A], schema: Schema): KafkaAvroDeserializer[A] =
+  def apply[A](decoder: AvroDecoder[A], schemaFor: SchemaFor[A]): KafkaAvroDeserializer[A] =
     new KafkaAvroDeserializer[A] {
       @transient private[this] lazy val deSer: GenericAvroDeserializer = new GenericAvroDeserializer
 
@@ -106,7 +105,7 @@ object KafkaAvroDeserializer {
       override def close(): Unit = deSer.close()
 
       override val avroDecoder: AvroDecoder[A] =
-        decoder.withSchema(SchemaFor[A](schema)).resolveDecoder()
+        decoder.withSchema(schemaFor).resolveDecoder()
 
       override def deserialize(topic: String, data: Array[Byte]): A =
         Option(data) match {
@@ -116,7 +115,7 @@ object KafkaAvroDeserializer {
     }
 
   def apply[A](decoder: AvroDecoder[A]): KafkaAvroDeserializer[A] =
-    apply[A](decoder, decoder.schema)
+    apply[A](decoder, decoder.schemaFor)
 
   implicit object IntPrimitiveDeserializer extends KafkaAvroDeserializer[Int] {
     override val avroDecoder: AvroDecoder[Int] = AvroDecoder[Int]
