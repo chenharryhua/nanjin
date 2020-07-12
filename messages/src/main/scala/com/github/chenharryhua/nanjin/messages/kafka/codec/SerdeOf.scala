@@ -68,8 +68,8 @@ object SerdeOf extends SerdeOfPriority0 {
   def apply[A](implicit ev: SerdeOf[A]): SerdeOf[A] = ev
 
   def apply[A](inst: WithAvroSchema[A]): SerdeOf[A] = {
-    val ser: KafkaAvroSerializer[A]     = KafkaAvroSerializer[A](inst.avroEncoder, inst.schema)
-    val deSer: KafkaAvroDeserializer[A] = KafkaAvroDeserializer[A](inst.avroDecoder, inst.schema)
+    val ser: KafkaAvroSerializer[A]     = KafkaAvroSerializer[A](inst.avroEncoder, inst.schemaFor)
+    val deSer: KafkaAvroDeserializer[A] = KafkaAvroDeserializer[A](inst.avroDecoder, inst.schemaFor)
     new SerdeOf[A](inst.avroDecoder.schemaFor) {
       override val avroDecoder: AvroDecoder[A]   = deSer.avroDecoder
       override val avroEncoder: AvroEncoder[A]   = ser.avroEncoder
