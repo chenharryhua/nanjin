@@ -151,14 +151,15 @@ val kantanLib = Seq(
   "com.nrinaudo" %% "kantan.csv-cats"
 ).map(_ % kantan)
 
-val avroLib = Seq(
-  "org.apache.avro"                        % "avro"                      % avro,
-  "org.apache.avro"                        % "avro-compiler"             % avro,
-  "io.confluent"                           % "kafka-streams-avro-serde"  % "5.5.1",
-  "org.apache.parquet"                     % "parquet-avro"              % parquet,
-  "com.julianpeeters" %% "avrohugger-core" % "1.0.0-RC21",
-  "com.sksamuel.avro4s" %% "avro4s-core"   % avro4s,
-  "io.confluent"                           % "kafka-protobuf-serializer" % "5.5.1"
+val serDeLib = Seq(
+  "org.apache.avro"                           % "avro"                      % avro,
+  "org.apache.avro"                           % "avro-compiler"             % avro,
+  "org.apache.parquet"                        % "parquet-avro"              % parquet,
+  "com.julianpeeters" %% "avrohugger-core"    % "1.0.0-RC21",
+  "com.sksamuel.avro4s" %% "avro4s-core"      % avro4s,
+  "io.confluent"                              % "kafka-streams-avro-serde"  % "5.5.1",
+  "io.confluent"                              % "kafka-protobuf-serializer" % "5.5.1",
+  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.10.7"
 )
 
 val fs2Lib = Seq(
@@ -300,7 +301,7 @@ lazy val messages = (project in file("messages"))
   .settings(libraryDependencies ++= Seq(
     compilerPlugin(("com.github.ghik" % "silencer-plugin" % silencer).cross(CrossVersion.full)),
     ("com.github.ghik"                % "silencer-lib"    % silencer % Provided).cross(CrossVersion.full)
-  ) ++ baseLib ++ fs2Lib ++ avroLib ++ jsonLib ++ kafkaLib ++ monocleLib ++ testLib)
+  ) ++ baseLib ++ fs2Lib ++ serDeLib ++ jsonLib ++ kafkaLib ++ monocleLib ++ testLib)
 
 lazy val devices = (project in file("devices"))
   .settings(commonSettings: _*)
@@ -308,13 +309,13 @@ lazy val devices = (project in file("devices"))
   .settings(
     libraryDependencies ++=
       Seq("com.lightbend.akka" %% "akka-stream-alpakka-ftp" % akkaFtp) ++
-        baseLib ++ fs2Lib ++ hadoopLib ++ avroLib ++ effectLib ++ akkaLib ++ testLib)
+        baseLib ++ fs2Lib ++ hadoopLib ++ serDeLib ++ effectLib ++ akkaLib ++ testLib)
 
 lazy val pipes = (project in file("pipes"))
   .settings(commonSettings: _*)
   .settings(name := "nj-pipes")
   .settings(libraryDependencies ++=
-    baseLib ++ fs2Lib ++ effectLib ++ kantanLib ++ jsonLib ++ avroLib ++ testLib)
+    baseLib ++ fs2Lib ++ effectLib ++ kantanLib ++ jsonLib ++ serDeLib ++ testLib)
 
 lazy val kafka = (project in file("kafka"))
   .dependsOn(messages)
@@ -346,7 +347,7 @@ lazy val spark = (project in file("spark"))
       "com.github.pathikrit" %% "better-files" % betterFiles,
       "org.locationtech.jts"                   % "jts-core" % "1.17.0",
       "org.log4s" %% "log4s"                   % log4s) ++
-      sparkLib ++ avroLib ++ hadoopLib ++ testLib,
+      sparkLib ++ serDeLib ++ hadoopLib ++ testLib,
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core"                             % "jackson-databind" % jackson,
       "com.fasterxml.jackson.core"                             % "jackson-core"     % jackson,
