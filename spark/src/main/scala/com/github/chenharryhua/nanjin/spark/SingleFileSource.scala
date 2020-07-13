@@ -8,6 +8,7 @@ import fs2.Stream
 import io.circe.{Decoder => JsonDecoder}
 import kantan.csv.{CsvConfiguration, RowDecoder}
 import org.apache.hadoop.conf.Configuration
+import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
 final class SingleFileSource[F[_]](blocker: Blocker, conf: Configuration) {
 
@@ -65,6 +66,15 @@ final class SingleFileSource[F[_]](blocker: Blocker, conf: Configuration) {
   def javaObject[A](
     pathStr: String)(implicit cs: ContextShift[F], ce: ConcurrentEffect[F]): Stream[F, A] = {
     val pipe = new JavaObjectDeserialization[F, A]
+    new NJHadoop[F](conf, blocker).byteStream(pathStr).through(pipe.deserialize)
+  }
+
+  //
+  def protobuf[A <: GeneratedMessage](pathStr: String)(implicit
+    cs: ContextShift[F],
+    ce: ConcurrentEffect[F],
+    ev: GeneratedMessageCompanion[A]): Stream[F, A] = {
+    val pipe = new ProtoBufDeserialization[F, A]()
     new NJHadoop[F](conf, blocker).byteStream(pathStr).through(pipe.deserialize)
   }
 }
