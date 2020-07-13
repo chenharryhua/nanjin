@@ -21,6 +21,15 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
   def withGroupId(gid: String): KafkaTopic[F, K, V] =
     new KafkaTopic[F, K, V](topicDef, settings.withGroupId(gid))
 
+  def withTopicName(tn: String): KafkaTopic[F, K, V] =
+    new KafkaTopic[F, K, V](topicDef.withTopicName(tn), settings)
+
+  def withSettings(ks: KafkaSettings): KafkaTopic[F, K, V] =
+    new KafkaTopic[F, K, V](topicDef, ks)
+
+  def withContext[G[_]](ct: KafkaContext[G]): KafkaTopic[G, K, V] =
+    ct.topic(topicDef)
+
   override def extract(key: K, value: V, rc: RecordContext): String = topicName.value
 
   //need to reconstruct codec when working in spark
