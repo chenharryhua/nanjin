@@ -24,7 +24,6 @@ object KPB {
       override def close(): Unit = ser.close()
 
       override val avroEncoder: AvroEncoder[KPB[A]] = new AvroEncoder[KPB[A]] {
-
         override def encode(value: KPB[A]): Array[Byte] = value.value.toByteArray
         override val schemaFor: SchemaFor[KPB[A]]       = SchemaFor[Array[Byte]].forType[KPB[A]]
       }
@@ -51,7 +50,6 @@ object KPB {
       override def close(): Unit = deSer.close()
 
       override val avroDecoder: AvroDecoder[KPB[A]] = new AvroDecoder[KPB[A]] {
-
         override val schemaFor: SchemaFor[KPB[A]] = SchemaFor[Array[Byte]].forType[KPB[A]]
 
         override def decode(value: Any): KPB[A] =
@@ -64,7 +62,7 @@ object KPB {
       override def deserialize(topic: String, data: Array[Byte]): KPB[A] =
         Option(data) match {
           case None    => null.asInstanceOf[KPB[A]]
-          case Some(v) => KPB(ev.parseFrom(deSer.deserialize(topic, data).toByteArray))
+          case Some(v) => avroDecoder.decode(deSer.deserialize(topic, data).toByteArray)
         }
     }
 }
