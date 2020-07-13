@@ -53,8 +53,8 @@ sealed abstract class SerdeOf[A](val schemaFor: SchemaFor[A]) extends Serializab
 sealed private[codec] trait SerdeOfPriority0 {
 
   implicit final def inferedAvroSerde[A: AvroEncoder: AvroDecoder]: SerdeOf[A] = {
-    val ser: KafkaAvroSerializer[A]     = KafkaAvroSerializer[A](AvroEncoder[A])
-    val deSer: KafkaAvroDeserializer[A] = KafkaAvroDeserializer[A](AvroDecoder[A])
+    val ser: KafkaSerializer[A]     = KafkaSerializer[A](AvroEncoder[A])
+    val deSer: KafkaDeserializer[A] = KafkaDeserializer[A](AvroDecoder[A])
     new SerdeOf[A](ser.avroEncoder.schemaFor) {
       override val avroDecoder: AvroDecoder[A]   = deSer.avroDecoder
       override val avroEncoder: AvroEncoder[A]   = ser.avroEncoder
@@ -68,8 +68,8 @@ object SerdeOf extends SerdeOfPriority0 {
   def apply[A](implicit ev: SerdeOf[A]): SerdeOf[A] = ev
 
   def apply[A](inst: WithAvroSchema[A]): SerdeOf[A] = {
-    val ser: KafkaAvroSerializer[A]     = KafkaAvroSerializer[A](inst.avroEncoder, inst.schemaFor)
-    val deSer: KafkaAvroDeserializer[A] = KafkaAvroDeserializer[A](inst.avroDecoder, inst.schemaFor)
+    val ser: KafkaSerializer[A]     = KafkaSerializer[A](inst.avroEncoder, inst.schemaFor)
+    val deSer: KafkaDeserializer[A] = KafkaDeserializer[A](inst.avroDecoder, inst.schemaFor)
     new SerdeOf[A](inst.avroDecoder.schemaFor) {
       override val avroDecoder: AvroDecoder[A]   = deSer.avroDecoder
       override val avroEncoder: AvroEncoder[A]   = ser.avroEncoder
@@ -78,9 +78,9 @@ object SerdeOf extends SerdeOfPriority0 {
     }
   }
 
-  implicit def knownSerde[A: KafkaAvroSerializer: KafkaAvroDeserializer]: SerdeOf[A] = {
-    val ser   = KafkaAvroSerializer[A]
-    val deser = KafkaAvroDeserializer[A]
+  implicit def knownSerde[A: KafkaSerializer: KafkaDeserializer]: SerdeOf[A] = {
+    val ser   = KafkaSerializer[A]
+    val deser = KafkaDeserializer[A]
     new SerdeOf[A](ser.avroEncoder.schemaFor) {
       override val avroDecoder: AvroDecoder[A]   = deser.avroDecoder
       override val avroEncoder: AvroEncoder[A]   = ser.avroEncoder

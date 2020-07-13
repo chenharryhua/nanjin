@@ -12,8 +12,8 @@ final case class KPB[A](value: A)
 
 object KPB {
 
-  implicit def kpbSerializer[A](implicit ev: A <:< GeneratedMessage): KafkaAvroSerializer[KPB[A]] =
-    new KafkaAvroSerializer[KPB[A]] {
+  implicit def kpbSerializer[A](implicit ev: A <:< GeneratedMessage): KafkaSerializer[KPB[A]] =
+    new KafkaSerializer[KPB[A]] {
 
       @transient private[this] lazy val ser: KafkaProtobufSerializer[DynamicMessage] =
         new KafkaProtobufSerializer[DynamicMessage]()
@@ -39,8 +39,16 @@ object KPB {
     }
 
   implicit def kpbDeserializer[A <: GeneratedMessage](implicit
-    ev: GeneratedMessageCompanion[A]): KafkaAvroDeserializer[KPB[A]] =
-    new KafkaAvroDeserializer[KPB[A]] {
+    ev: GeneratedMessageCompanion[A]): KafkaDeserializer[KPB[A]] =
+    new KafkaDeserializer[KPB[A]] {
+
+      @transient private[this] lazy val deSer: KafkaProtobufDeserializer[DynamicMessage] =
+        new KafkaProtobufDeserializer[DynamicMessage]()
+
+      override def configure(configs: util.Map[String, _], isKey: Boolean): Unit =
+        deSer.configure(configs, isKey)
+
+      override def close(): Unit = deSer.close()
 
       override val avroDecoder: AvroDecoder[KPB[A]] = new AvroDecoder[KPB[A]] {
 
@@ -56,7 +64,7 @@ object KPB {
       override def deserialize(topic: String, data: Array[Byte]): KPB[A] =
         Option(data) match {
           case None    => null.asInstanceOf[KPB[A]]
-          case Some(v) => KPB(ev.parseFrom(data))
+          case Some(v) => KPB(ev.parseFrom(deSer.deserialize(topic, data).toByteArray))
         }
     }
 }

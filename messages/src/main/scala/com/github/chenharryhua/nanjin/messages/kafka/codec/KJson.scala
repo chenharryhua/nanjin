@@ -15,8 +15,8 @@ object KJson {
     (t: KJson[A]) => s"""KJson(${Option(t.value).map(_.asJson.noSpaces).getOrElse("null")})"""
   implicit def eqKJson[A: Eq]: Eq[KJson[A]] = cats.derived.semi.eq[KJson[A]]
 
-  implicit def jsonSerializer[A: JsonEncoder]: KafkaAvroSerializer[KJson[A]] =
-    new KafkaAvroSerializer[KJson[A]] {
+  implicit def jsonSerializer[A: JsonEncoder]: KafkaSerializer[KJson[A]] =
+    new KafkaSerializer[KJson[A]] {
 
       override val avroEncoder: AvroEncoder[KJson[A]] = new AvroEncoder[KJson[A]] {
 
@@ -33,8 +33,8 @@ object KJson {
       }
     }
 
-  implicit def jsonDeserializer[A: JsonDecoder]: KafkaAvroDeserializer[KJson[A]] =
-    new KafkaAvroDeserializer[KJson[A]] {
+  implicit def jsonDeserializer[A: JsonDecoder]: KafkaDeserializer[KJson[A]] =
+    new KafkaDeserializer[KJson[A]] {
 
       override val avroDecoder: AvroDecoder[KJson[A]] = new AvroDecoder[KJson[A]] {
 
