@@ -39,6 +39,9 @@ final class CrRdd[F[_], K: AvroEncoder, V: AvroEncoder](
   override def withParamUpdate(f: SKConfig => SKConfig): CrRdd[F, K, V] =
     new CrRdd[F, K, V](rdd, topicName, f(cfg))
 
+  def withTopicName(tn: String): CrRdd[F, K, V] =
+    new CrRdd[F, K, V](rdd, TopicName.unsafeFrom(tn), cfg)
+
   //transformation
 
   def kafkaPartition(num: Int): CrRdd[F, K, V] =
