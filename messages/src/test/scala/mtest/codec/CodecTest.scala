@@ -1,4 +1,4 @@
-package mtest.avro
+package mtest.codec
 
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJCodec, SerdeOf}
 import org.scalatest.funsuite.AnyFunSuite

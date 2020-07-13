@@ -2,7 +2,7 @@ package mtest
 
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, NJCodec, SerdeOf}
 
-package object avro {
+package object codec {
   val sr: Map[String, String] = Map("schema.registry.url" -> "http://localhost:8081")
 
   final case class PrimitiveTypeCombined(
