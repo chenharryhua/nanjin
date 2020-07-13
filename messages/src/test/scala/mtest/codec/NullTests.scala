@@ -1,4 +1,4 @@
-package mtest.avro
+package mtest.codec
 
 import org.scalatest.funsuite.AnyFunSuite
 import io.circe.generic.auto._

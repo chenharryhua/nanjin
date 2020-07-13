@@ -8,16 +8,16 @@ import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 import org.apache.kafka.streams.scala.Serdes
 
-trait KafkaAvroSerializer[A] extends Serializer[A] with Serializable {
+trait KafkaSerializer[A] extends Serializer[A] with Serializable {
   val avroEncoder: AvroEncoder[A]
   override def serialize(topic: String, data: A): Array[Byte]
 }
 
-object KafkaAvroSerializer {
-  def apply[A](implicit ev: KafkaAvroSerializer[A]): KafkaAvroSerializer[A] = ev
+object KafkaSerializer {
+  def apply[A](implicit ev: KafkaSerializer[A]): KafkaSerializer[A] = ev
 
-  def apply[A](encoder: AvroEncoder[A], schemaFor: SchemaFor[A]): KafkaAvroSerializer[A] =
-    new KafkaAvroSerializer[A] {
+  def apply[A](encoder: AvroEncoder[A], schemaFor: SchemaFor[A]): KafkaSerializer[A] =
+    new KafkaSerializer[A] {
       @transient private[this] lazy val ser: GenericAvroSerializer = new GenericAvroSerializer
 
       override val avroEncoder: AvroEncoder[A] =
@@ -39,38 +39,38 @@ object KafkaAvroSerializer {
         }
     }
 
-  def apply[A](encoder: AvroEncoder[A]): KafkaAvroSerializer[A] =
+  def apply[A](encoder: AvroEncoder[A]): KafkaSerializer[A] =
     apply(encoder, encoder.schemaFor)
 
-  implicit object IntPrimitiveSerializer extends KafkaAvroSerializer[Int] {
+  implicit object IntPrimitiveSerializer extends KafkaSerializer[Int] {
     override val avroEncoder: AvroEncoder[Int] = AvroEncoder[Int]
 
     override def serialize(topic: String, data: Int): Array[Byte] =
       Serdes.Integer.serializer.serialize(topic, data)
   }
 
-  implicit object LongPrimitiveSerializer extends KafkaAvroSerializer[Long] {
+  implicit object LongPrimitiveSerializer extends KafkaSerializer[Long] {
     override val avroEncoder: AvroEncoder[Long] = AvroEncoder[Long]
 
     override def serialize(topic: String, data: Long): Array[Byte] =
       Serdes.Long.serializer.serialize(topic, data)
   }
 
-  implicit object StringPrimitiveSerializer extends KafkaAvroSerializer[String] {
+  implicit object StringPrimitiveSerializer extends KafkaSerializer[String] {
     override val avroEncoder: AvroEncoder[String] = AvroEncoder[String]
 
     override def serialize(topic: String, data: String): Array[Byte] =
       Serdes.String.serializer.serialize(topic, data)
   }
 
-  implicit object DoublePrimitiveSerializer extends KafkaAvroSerializer[Double] {
+  implicit object DoublePrimitiveSerializer extends KafkaSerializer[Double] {
     override val avroEncoder: AvroEncoder[Double] = AvroEncoder[Double]
 
     override def serialize(topic: String, data: Double): Array[Byte] =
       Serdes.Double.serializer.serialize(topic, data)
   }
 
-  implicit object FloatPrimitiveSerializer extends KafkaAvroSerializer[Float] {
+  implicit object FloatPrimitiveSerializer extends KafkaSerializer[Float] {
 
     override val avroEncoder: AvroEncoder[Float] = AvroEncoder[Float]
 
@@ -78,7 +78,7 @@ object KafkaAvroSerializer {
       Serdes.Float.serializer.serialize(topic, data)
   }
 
-  implicit object ByteArrayPrimitiveSerializer extends KafkaAvroSerializer[Array[Byte]] {
+  implicit object ByteArrayPrimitiveSerializer extends KafkaSerializer[Array[Byte]] {
 
     override val avroEncoder: AvroEncoder[Array[Byte]] = AvroEncoder[Array[Byte]]
 
@@ -87,16 +87,16 @@ object KafkaAvroSerializer {
   }
 }
 
-trait KafkaAvroDeserializer[A] extends Deserializer[A] with Serializable {
+trait KafkaDeserializer[A] extends Deserializer[A] with Serializable {
   val avroDecoder: AvroDecoder[A]
   override def deserialize(topic: String, data: Array[Byte]): A
 }
 
-object KafkaAvroDeserializer {
-  def apply[A](implicit ev: KafkaAvroDeserializer[A]): KafkaAvroDeserializer[A] = ev
+object KafkaDeserializer {
+  def apply[A](implicit ev: KafkaDeserializer[A]): KafkaDeserializer[A] = ev
 
-  def apply[A](decoder: AvroDecoder[A], schemaFor: SchemaFor[A]): KafkaAvroDeserializer[A] =
-    new KafkaAvroDeserializer[A] {
+  def apply[A](decoder: AvroDecoder[A], schemaFor: SchemaFor[A]): KafkaDeserializer[A] =
+    new KafkaDeserializer[A] {
       @transient private[this] lazy val deSer: GenericAvroDeserializer = new GenericAvroDeserializer
 
       override def configure(configs: util.Map[String, _], isKey: Boolean): Unit =
@@ -114,24 +114,24 @@ object KafkaAvroDeserializer {
         }
     }
 
-  def apply[A](decoder: AvroDecoder[A]): KafkaAvroDeserializer[A] =
+  def apply[A](decoder: AvroDecoder[A]): KafkaDeserializer[A] =
     apply[A](decoder, decoder.schemaFor)
 
-  implicit object IntPrimitiveDeserializer extends KafkaAvroDeserializer[Int] {
+  implicit object IntPrimitiveDeserializer extends KafkaDeserializer[Int] {
     override val avroDecoder: AvroDecoder[Int] = AvroDecoder[Int]
 
     override def deserialize(topic: String, data: Array[Byte]): Int =
       Serdes.Integer.deserializer.deserialize(topic, data)
   }
 
-  implicit object LongPrimitiveDeserializer extends KafkaAvroDeserializer[Long] {
+  implicit object LongPrimitiveDeserializer extends KafkaDeserializer[Long] {
     override val avroDecoder: AvroDecoder[Long] = AvroDecoder[Long]
 
     override def deserialize(topic: String, data: Array[Byte]): Long =
       Serdes.Long.deserializer.deserialize(topic, data)
   }
 
-  implicit object StringPrimitiveDeserializer extends KafkaAvroDeserializer[String] {
+  implicit object StringPrimitiveDeserializer extends KafkaDeserializer[String] {
 
     override val avroDecoder: AvroDecoder[String] = AvroDecoder[String]
 
@@ -139,21 +139,21 @@ object KafkaAvroDeserializer {
       Serdes.String.deserializer.deserialize(topic, data)
   }
 
-  implicit object DoublePrimitiveDeserializer extends KafkaAvroDeserializer[Double] {
+  implicit object DoublePrimitiveDeserializer extends KafkaDeserializer[Double] {
     override val avroDecoder: AvroDecoder[Double] = AvroDecoder[Double]
 
     override def deserialize(topic: String, data: Array[Byte]): Double =
       Serdes.Double.deserializer.deserialize(topic, data)
   }
 
-  implicit object FloatPrimitiveDeserializer extends KafkaAvroDeserializer[Float] {
+  implicit object FloatPrimitiveDeserializer extends KafkaDeserializer[Float] {
     override val avroDecoder: AvroDecoder[Float] = AvroDecoder[Float]
 
     override def deserialize(topic: String, data: Array[Byte]): Float =
       Serdes.Float.deserializer.deserialize(topic, data)
   }
 
-  implicit object ByteArrayPrimitiveDeserializer extends KafkaAvroDeserializer[Array[Byte]] {
+  implicit object ByteArrayPrimitiveDeserializer extends KafkaDeserializer[Array[Byte]] {
     override val avroDecoder: AvroDecoder[Array[Byte]] = AvroDecoder[Array[Byte]]
 
     override def deserialize(topic: String, data: Array[Byte]): Array[Byte] =

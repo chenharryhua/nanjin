@@ -1,4 +1,4 @@
-package mtest.avro
+package mtest.codec
 
 import cats.Eq
 import cats.implicits._

@@ -1,4 +1,4 @@
-package mtest.avro
+package mtest.codec
 
 import java.util.Optional
 
