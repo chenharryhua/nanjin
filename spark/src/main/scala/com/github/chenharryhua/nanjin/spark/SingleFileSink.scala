@@ -88,7 +88,7 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
     cs: ContextShift[F],
     ev: A <:< GeneratedMessage): Pipe[F, A, Unit] = {
     val hadoop = new NJHadoop[F](conf, blocker).byteSink(pathStr)
-    val pipe   = new ProtoBufSerialization[F, A](blocker)
+    val pipe   = new DelimitedProtoBufSerialization[F, A](blocker)
     _.through(pipe.serialize).through(hadoop)
   }
 }

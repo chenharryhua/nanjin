@@ -27,9 +27,9 @@ object SingleFileTestData {
   val fishStream: Stream[IO, Swordfish] = Stream.emits(fishes).covary[IO]
 
   val whales = List(
-    Whale("", Random.nextInt()),
-    Whale("", Random.nextInt()),
-    Whale("", Random.nextInt())
+    Whale("aaa", Random.nextInt()),
+    Whale("bbb", Random.nextInt()),
+    Whale("ccc", Random.nextInt())
   )
   val whaleStream: Stream[IO, Whale] = Stream.emits(whales).covary[IO]
 }

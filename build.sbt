@@ -29,6 +29,7 @@ val akka26     = "2.6.7"
 
 // kafka
 val kafka25   = "2.5.0"
+val confluent = "5.5.1"
 val akkaKafka = "2.0.3"
 val fs2Kafka  = "1.0.0"
 
@@ -66,7 +67,6 @@ val scalatest = "3.2.0"
 // deprecate ?
 val flink110 = "1.11.0"
 
-
 lazy val commonSettings = Seq(
   organization := "com.github.chenharryhua",
   scalaVersion := scalaVersion.value,
@@ -101,7 +101,7 @@ lazy val commonSettings = Seq(
     "-Xfuture"
   ),
   Test / classLoaderLayeringStrategy  := ClassLoaderLayeringStrategy.Flat,
-  PB.targets in Test := Seq(scalapb.gen() -> (sourceManaged in Test).value),
+  PB.targets in Test                  := Seq(scalapb.gen() -> (sourceManaged in Test).value),
   bloopExportJarClassifiers in Global := Some(Set("sources"))
 )
 
@@ -156,12 +156,15 @@ val kantanLib = Seq(
 val serdeLib = Seq(
   "org.apache.avro"                           % "avro"                      % avro,
   "org.apache.avro"                           % "avro-compiler"             % avro,
+  "org.apache.avro"                           % "avro-protobuf"             % avro,
   "org.apache.parquet"                        % "parquet-avro"              % parquet,
+  "org.apache.parquet"                        % "parquet-protobuf"          % parquet,
+  "io.confluent"                              % "kafka-streams-avro-serde"  % confluent,
+  "io.confluent"                              % "kafka-protobuf-serializer" % confluent,
   "com.julianpeeters" %% "avrohugger-core"    % "1.0.0-RC21",
   "com.sksamuel.avro4s" %% "avro4s-core"      % avro4s,
-  "io.confluent"                              % "kafka-streams-avro-serde"  % "5.5.1",
-  "io.confluent"                              % "kafka-protobuf-serializer" % "5.5.1",
-  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.10.7"
+  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.10.7",
+  "io.higherkindness" %% "skeuomorph" % "0.0.24"
 )
 
 val fs2Lib = Seq(

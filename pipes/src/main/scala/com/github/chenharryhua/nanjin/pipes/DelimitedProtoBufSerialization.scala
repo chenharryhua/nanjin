@@ -7,8 +7,8 @@ import fs2.io.{readOutputStream, toInputStream}
 import fs2.{Pipe, Stream}
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
-final class ProtoBufSerialization[F[_]: Concurrent: ContextShift, A](blocker: Blocker)(implicit
-  ev: A <:< GeneratedMessage) {
+final class DelimitedProtoBufSerialization[F[_]: Concurrent: ContextShift, A](blocker: Blocker)(
+  implicit ev: A <:< GeneratedMessage) {
 
   def serialize: Pipe[F, A, Byte] = { (ss: Stream[F, A]) =>
     readOutputStream[F](blocker, chunkSize) { os =>
@@ -17,7 +17,7 @@ final class ProtoBufSerialization[F[_]: Concurrent: ContextShift, A](blocker: Bl
   }
 }
 
-final class ProtoBufDeserialization[F[_]: ConcurrentEffect, A <: GeneratedMessage](implicit
+final class DelimitedProtoBufDeserialization[F[_]: ConcurrentEffect, A <: GeneratedMessage](implicit
   ev: GeneratedMessageCompanion[A]) {
 
   def deserialize: Pipe[F, Byte, A] =
@@ -25,4 +25,15 @@ final class ProtoBufDeserialization[F[_]: ConcurrentEffect, A <: GeneratedMessag
       val cis = CodedInputStream.newInstance(is)
       Stream.repeatEval(ConcurrentEffect[F].delay(ev.parseDelimitedFrom(cis))).unNoneTerminate
     }
+}
+
+final class ProtoBufSerialization[F[_], A](implicit ev: A <:< GeneratedMessage) {
+
+  def serialize: Pipe[F, A, Array[Byte]] = _.map(_.toByteArray)
+}
+
+final class ProtoBufDeserialization[F[_], A <: GeneratedMessage](implicit
+  ev: GeneratedMessageCompanion[A]) {
+
+  def deserialize: Pipe[F, Array[Byte], A] = _.map(ev.parseFrom)
 }

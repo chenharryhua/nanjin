@@ -74,7 +74,7 @@ final class SingleFileSource[F[_]](blocker: Blocker, conf: Configuration) {
     cs: ContextShift[F],
     ce: ConcurrentEffect[F],
     ev: GeneratedMessageCompanion[A]): Stream[F, A] = {
-    val pipe = new ProtoBufDeserialization[F, A]()
+    val pipe = new DelimitedProtoBufDeserialization[F, A]()
     new NJHadoop[F](conf, blocker).byteStream(pathStr).through(pipe.deserialize)
   }
 }
