@@ -48,7 +48,7 @@ object KafkaCoproductData {
 class KafkaCoproductTest extends AnyFunSuite {
   import KafkaCoproductData._
 
-  test("not work with case object -- task serializable issue(avro4s) - happy failure") {
+  test("sparKafka not work with case object -- task serializable issue(avro4s) - happy failure") {
     val run = topicCO.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicCO.schemaRegister >>
       topicCO.send(1, co1) >> topicCO
@@ -56,7 +56,7 @@ class KafkaCoproductTest extends AnyFunSuite {
     intercept[Exception](run.unsafeRunSync())
   }
 
-  test("should be sent to kafka and save to parquet") {
+  test("sparKafka should be sent to kafka and save to parquet") {
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegister >>
       topicEnum.send(1, en1) >> topicEnum
@@ -64,7 +64,7 @@ class KafkaCoproductTest extends AnyFunSuite {
     assert(run.unsafeRunSync() == 2)
   }
 
-  test("should be sent to kafka and save to jackson") {
+  test("sparKafka should be sent to kafka and save to jackson") {
     val run = topicCoProd.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicCoProd.schemaRegister >>
       topicCoProd.send(1, cp1) >> topicCoProd

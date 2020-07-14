@@ -24,7 +24,7 @@ object JoinTestData {
 
 class JoinTest extends AnyFunSuite {
   import JoinTestData._
-  test("left join") {
+  test("spark left join") {
     val db = TypedDataset.create(brothers)
     val ds = TypedDataset.create(sisters)
 

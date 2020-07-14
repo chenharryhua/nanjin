@@ -72,7 +72,7 @@ object InvestigationTestData {
 class InvestigationTest extends AnyFunSuite {
   import InvestigationTestData._
 
-  test("identical") {
+  test("sparKafka identical") {
     val m1 = TypedDataset.create(mouses1)
     val m2 = TypedDataset.create(mouses2)
     assert(0 === inv.diffDataset(m1, m2).count[IO]().unsafeRunSync())
@@ -82,7 +82,7 @@ class InvestigationTest extends AnyFunSuite {
     assert(0 === inv.kvDiffRdd(m1.dataset.rdd, m2.dataset.rdd).count())
   }
 
-  test("one mismatch") {
+  test("sparKafka one mismatch") {
     val m1 = TypedDataset.create[OptionalKV[String, Mouse]](mouses1)
     val m3 = TypedDataset.create[OptionalKV[String, Mouse]](mouses3)
 
@@ -110,7 +110,7 @@ class InvestigationTest extends AnyFunSuite {
     assert(rst4 == kv)
   }
 
-  test("one lost") {
+  test("sparKafka one lost") {
     val m1 = TypedDataset.create[OptionalKV[String, Mouse]](mouses1)
     val m4 = TypedDataset.create[OptionalKV[String, Mouse]](mouses4)
 
@@ -132,14 +132,14 @@ class InvestigationTest extends AnyFunSuite {
     assert(rst4 == kv)
   }
 
-  test("missing data") {
+  test("sparKafka missing data") {
     assert(
       Set(CRMetaInfo("topic", 1, 4, 4)) ==
         inv.missingData(TypedDataset.create(mouses5)).collect[IO]().unsafeRunSync().toSet)
 
   }
 
-  test("duplicate") {
+  test("sparKafka duplicate") {
     val rst: Set[DupResult] =
       inv.dupRecords(TypedDataset.create(mouses6)).collect[IO]().unsafeRunSync().toSet
     assert(Set(DupResult(0, 2, 3)) == rst)

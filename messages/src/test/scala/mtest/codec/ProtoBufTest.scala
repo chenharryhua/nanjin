@@ -1,7 +1,7 @@
 package mtest.codec
 
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KPB, KafkaDeserializer, KafkaSerializer}
-import mtest.pb.example.Person
+import mtest.pb.test.Person
 import org.scalacheck.Prop.{forAll, propBoolean}
 import org.scalacheck.{Arbitrary, Gen, Properties}
 import scalapb.UnknownFieldSet

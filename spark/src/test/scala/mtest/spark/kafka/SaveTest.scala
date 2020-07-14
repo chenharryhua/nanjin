@@ -34,10 +34,10 @@ class SaveTest extends AnyFunSuite {
   (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
     topic.send(chickenPR)).unsafeRunSync()
 
-  test("dump") {
+  test("sparKafka dump") {
     topic.sparKafka(range).dump.unsafeRunSync()
   }
-  test("jackson") {
+  test("sparKafka jackson") {
 
     val action =
       sk.fromKafka.flatMap(_.saveJackson(blocker)).map(r => assert(r == 100)) >>
@@ -49,7 +49,7 @@ class SaveTest extends AnyFunSuite {
     action.unsafeRunSync()
   }
 
-  test("json") {
+  test("sparKafka json") {
     val action =
       sk.fromKafka.flatMap(_.saveJson(blocker)).map(r => assert(r == 100)) >>
         sparkSession
@@ -60,7 +60,7 @@ class SaveTest extends AnyFunSuite {
     action.unsafeRunSync()
   }
 
-  test("avro") {
+  test("sparKafka avro") {
 
     val action =
       sk.fromKafka.flatMap(_.saveAvro(blocker)).map(r => assert(r == 100)) >>
@@ -70,7 +70,7 @@ class SaveTest extends AnyFunSuite {
           .map(r => assert(r.sorted.flatMap(_.value).toList == chickens))
     action.unsafeRunSync()
   }
-  test("parquet") {
+  test("sparKafka parquet") {
     val action =
       sk.fromKafka.flatMap(_.saveParquet(blocker)).map(r => assert(r == 100)) >>
         sparkSession

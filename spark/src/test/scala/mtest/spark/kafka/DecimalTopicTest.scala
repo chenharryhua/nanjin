@@ -29,7 +29,7 @@ class DecimalTopicTest extends AnyFunSuite {
     topic.schemaRegister >>
     topic.send(1, data) >> topic.send(2, data)).unsafeRunSync()
 
-  test("kafka and spark agree on avro") {
+  test("sparKafka kafka and spark agree on avro") {
     topic.fs2Channel.stream
       .map(m => topic.njDecoder.decode(m).run._2)
       .take(2)

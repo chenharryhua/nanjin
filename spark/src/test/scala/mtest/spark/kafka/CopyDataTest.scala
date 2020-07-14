@@ -28,7 +28,7 @@ class CopyDataTest extends AnyFunSuite {
       tgt.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >> tgt.schemaDelete >> tgt.schemaRegister >>
       src.send(d1) >> src.send(d2) >> src.send(d3) >> src.send(d4) >> src.send(d5)
 
-  test("pipeTo should copy data from source to target") {
+  test("sparKafka pipeTo should copy data from source to target") {
     val rst = for {
       _ <- prepareData
       _ <- src.sparKafka(range).pipeTo(tgt)

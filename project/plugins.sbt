@@ -14,3 +14,7 @@ addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.10.0-RC1")
 addSbtPlugin("ch.epfl.scala" % "sbt-bloop" % "1.4.3")
 
 //addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.9.18")
+
+addSbtPlugin("com.thesamet" % "sbt-protoc" % "0.99.34")
+
+libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.10.7"

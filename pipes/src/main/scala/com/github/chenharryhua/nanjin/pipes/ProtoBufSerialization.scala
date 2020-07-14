@@ -11,7 +11,7 @@ final class ProtoBufSerialization[F[_]: Concurrent: ContextShift, A](blocker: Bl
   ev: A <:< GeneratedMessage) {
 
   def serialize: Pipe[F, A, Byte] = { (ss: Stream[F, A]) =>
-    readOutputStream[F](blocker, 8096) { os =>
+    readOutputStream[F](blocker, chunkSize) { os =>
       ss.map(_.writeDelimitedTo(os)).compile.drain
     }
   }

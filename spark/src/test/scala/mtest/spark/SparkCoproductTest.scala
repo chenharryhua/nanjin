@@ -23,7 +23,7 @@ object SparkCoproductTestData {
 
 class SparkCoproductTest extends AnyFunSuite {
   import SparkCoproductTestData._
-  test("frameless does not directly support coproduct yet - wonderful if fail") {
+  test("spark frameless does not directly support coproduct yet - wonderful if fail") {
     illTyped(""" implicitly[TypedEncoder[Parent]] """)
     illTyped(""" implicitly[TypedEncoder[CoParent]] """)
     illTyped(""" implicitly[TypedEncoder[Address]] """)

@@ -30,26 +30,26 @@ class SparkExtTest extends AnyFunSuite {
       .unsafeRunSync
   }
 
-  test("rdd deal with primitive null ") {
+  test("sparKafka rdd deal with primitive null ") {
     val rdd: RDD[Int] =
       sparkSession.sparkContext.parallelize(List(1, null.asInstanceOf[Int], 3))
     assert(rdd.dismissNulls.collect().toList == List(1, 0, 3))
     assert(rdd.numOfNulls == 0)
   }
 
-  test("rdd remove null object") {
+  test("sparKafka rdd remove null object") {
     import SparkExtTestData._
     val rdd: RDD[Foo] = sparkSession.sparkContext.parallelize(list)
     assert(rdd.dismissNulls.collect().toList == List(Foo(1, "a"), Foo(3, "c")))
     assert(rdd.numOfNulls == 1)
   }
-  test("typed dataset deal with primitive null ") {
+  test("sparKafka typed dataset deal with primitive null ") {
     val tds = TypedDataset.create[Int](List(1, null.asInstanceOf[Int], 3))
     assert(tds.dismissNulls.collect[IO]().unsafeRunSync().toList == List(1, 0, 3))
     assert(tds.numOfNulls[IO].unsafeRunSync() == 0)
   }
 
-  test("typed dataset remove null object") {
+  test("sparKafka typed dataset remove null object") {
     import SparkExtTestData._
     val tds = TypedDataset.create[Foo](sparkSession.sparkContext.parallelize(list))
     assert(tds.dismissNulls.collect[IO]().unsafeRunSync().toList == List(Foo(1, "a"), Foo(3, "c")))

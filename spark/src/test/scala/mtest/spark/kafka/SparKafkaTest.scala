@@ -33,17 +33,17 @@ class SparKafkaTest extends AnyFunSuite {
   (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >> topic.schemaRegister >>
     topic.send(List(topic.fs2PR(0, data), topic.fs2PR(1, data)))).unsafeRunSync()
 
-  test("read topic from kafka") {
+  test("sparKafka read topic from kafka") {
     val rst =
       topic.sparKafka(range).fromKafka.flatMap(_.crDataset.values.collect[IO]()).unsafeRunSync
     assert(rst.toList.map(_.value) === List(data, data))
   }
 
-  test("read topic from kafka and show aggragation result") {
+  test("sparKafka read topic from kafka and show aggragation result") {
     topic.sparKafka(range).fromKafka.flatMap(_.stats.minutely).unsafeRunSync
   }
 
-  test("should be able to bimap to other topic") {
+  test("sparKafka should be able to bimap to other topic") {
     val src: KafkaTopic[IO, Int, Int]          = ctx.topic[Int, Int]("src.topic")
     val tgt: KafkaTopic[IO, String, Int]       = ctx.topic[String, Int]("target.topic")
     val d1: OptionalKV[Int, Int]               = OptionalKV(0, 1, 0, None, Some(1), "t", 0)
@@ -64,7 +64,7 @@ class SparKafkaTest extends AnyFunSuite {
     assert(birst.map(_.value) == Set(2, 3, 5))
   }
 
-  test("should be able to flatmap to other topic") {
+  test("sparKafka should be able to flatmap to other topic") {
     val src: KafkaTopic[IO, Int, Int]          = ctx.topic[Int, Int]("src.topic")
     val tgt: KafkaTopic[IO, Int, Int]          = ctx.topic[Int, Int]("target.topic")
     val d1: OptionalKV[Int, Int]               = OptionalKV(0, 1, 0, None, Some(1), "t", 0)
@@ -85,7 +85,7 @@ class SparKafkaTest extends AnyFunSuite {
     assert(birst.map(_.value) == Set(0, 1, 3))
   }
 
-  test("someValue should filter out none values") {
+  test("sparKafka someValue should filter out none values") {
     val cr1: OptionalKV[Int, Int]              = OptionalKV(0, 1, 0, None, Some(1), "t", 0)
     val cr2: OptionalKV[Int, Int]              = OptionalKV(0, 2, 0, Some(2), None, "t", 0)
     val cr3: OptionalKV[Int, Int]              = OptionalKV(0, 3, 0, Some(3), None, "t", 0)
