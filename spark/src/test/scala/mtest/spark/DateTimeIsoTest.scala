@@ -15,8 +15,8 @@ import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 class DateTimeIsoTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
   import ArbitaryData._
 
-  checkAll("sql-timestamp", IsoTests[Timestamp, SQLTimestamp](isoSQLTimestamp))
+  checkAll("spark sql-timestamp", IsoTests[Timestamp, SQLTimestamp](isoSQLTimestamp))
 
-  checkAll("sql-date", IsoTests[Date, SQLDate](isoSQLDate))
+  checkAll("spark sql-date", IsoTests[Date, SQLDate](isoSQLDate))
 
 }

@@ -38,7 +38,7 @@ class SparkSessionExtTest extends AnyFunSuite {
 
     assertThrows[Exception](sparkSession.csv[Elephant](path).collect[IO]().unsafeRunSync().toSet)
   }
-  test("source shoud be able to read varying lengh csv") {
+  test("spark source shoud be able to read varying lengh csv") {
     val path    = "./data/test/spark/sse/elephant-nj.csv"
     val data    = Stream.emits(elephants)
     val prepare = delete(path) >> data.through(sink.csv[Elephant](path)).compile.drain

@@ -39,6 +39,9 @@ final class CrRdd[F[_], K: AvroEncoder, V: AvroEncoder](
   override def withParamUpdate(f: SKConfig => SKConfig): CrRdd[F, K, V] =
     new CrRdd[F, K, V](rdd, topicName, f(cfg))
 
+  def withTopicName(tn: String): CrRdd[F, K, V] =
+    new CrRdd[F, K, V](rdd, TopicName.unsafeFrom(tn), cfg)
+
   //transformation
 
   def kafkaPartition(num: Int): CrRdd[F, K, V] =
@@ -123,7 +126,7 @@ final class CrRdd[F[_], K: AvroEncoder, V: AvroEncoder](
     inv.dupRecords(TypedDataset.create(values.map(CRMetaInfo(_))))
   }
 
-  private def showResult(rs: Array[OptionalKV[K, V]])(implicit F: Sync[F]): F[Unit] = {
+  def showJackson(rs: Array[OptionalKV[K, V]])(implicit F: Sync[F]): F[Unit] = {
     implicit val ks: SchemaFor[K] = AvroEncoder[K].schemaFor
     implicit val vs: SchemaFor[V] = AvroEncoder[V].schemaFor
 
@@ -143,11 +146,11 @@ final class CrRdd[F[_], K: AvroEncoder, V: AvroEncoder](
 
   def find(f: OptionalKV[K, V] => Boolean)(implicit F: Sync[F]): F[Unit] = {
     sparkSession.withGroupId(s"nj.rdd.find.${utils.random4d.value}")
-    showResult(rdd.filter(f).take(params.showDs.rowNum))
+    showJackson(rdd.filter(f).take(params.showDs.rowNum))
   }
 
   def show(implicit F: Sync[F]): F[Unit] =
-    showResult(rdd.take(params.showDs.rowNum))
+    showJackson(rdd.take(params.showDs.rowNum))
 
   def diff(other: RDD[OptionalKV[K, V]])(implicit ek: Eq[K], ev: Eq[V]): RDD[DiffResult[K, V]] = {
     sparkSession.withGroupId(s"nj.rdd.diff.pos.${utils.random4d.value}")

@@ -31,6 +31,9 @@ final class SparKafka[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(imp
 
   override val params: SKParams = cfg.evalConfig
 
+  def withTopicName(tn: String): SparKafka[F, K, V] =
+    new SparKafka[F, K, V](topic.withTopicName(tn), cfg)
+
   def avroSchema: Schema         = topic.topicDef.schemaFor.schema
   def sparkSchema: DataType      = SchemaConverters.toSqlType(avroSchema).dataType
   def parquetSchema: MessageType = new AvroSchemaConverter().convert(avroSchema)

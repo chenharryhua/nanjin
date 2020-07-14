@@ -24,7 +24,7 @@ val chimney    = "0.5.2"
 // runtime
 val zioCats    = "2.1.3.0-RC16"
 val monix      = "3.2.2"
-val catsEffect = "2.1.4"
+val catsEffect = "2.2.0-RC1"
 val akka26     = "2.6.7"
 
 // kafka
@@ -66,6 +66,7 @@ val scalatest = "3.2.0"
 // deprecate ?
 val flink110 = "1.11.0"
 
+
 lazy val commonSettings = Seq(
   organization := "com.github.chenharryhua",
   scalaVersion := scalaVersion.value,
@@ -100,6 +101,7 @@ lazy val commonSettings = Seq(
     "-Xfuture"
   ),
   Test / classLoaderLayeringStrategy  := ClassLoaderLayeringStrategy.Flat,
+  PB.targets in Test := Seq(scalapb.gen() -> (sourceManaged in Test).value),
   bloopExportJarClassifiers in Global := Some(Set("sources"))
 )
 

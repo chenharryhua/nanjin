@@ -55,16 +55,16 @@ class SparkTableTest extends AnyFunSuite {
       new Timestamp(1351245600000L)
     )
 
-  test("upload dataset to table") {
+  test("sparkTable upload dataset to table") {
     val data = TypedDataset.create(List(sample.transformInto[DBTable]))
     data.dbUpload(table.in(db).withParamUpdate(_.withDbSaveMode(SaveMode.Overwrite)))
   }
 
-  test("save db table to disk") {
+  test("sparkTable save db table to disk") {
     table.in(db).save()
   }
 
-  test("read table on disk") {
+  test("sparkTable read table on disk") {
     val rst: DomainObject =
       table.in(db).fromDisk.collect[IO].map(_.head.transformInto[DomainObject]).unsafeRunSync
     assert(rst.==(sample))

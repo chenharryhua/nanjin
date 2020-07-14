@@ -38,7 +38,7 @@ object ReadTestData {
 class ReadTest extends AnyFunSuite {
   import ReadTestData._
 
-  test("read parquet") {
+  test("sparKafka read parquet") {
     val data = TypedDataset.create(dogs_noKey)
     val path = "./data/test/spark/kafka/read/parquet"
     data.write.mode(SaveMode.Overwrite).parquet(path)
@@ -46,7 +46,7 @@ class ReadTest extends AnyFunSuite {
     assert(rst.diff(data).count[IO].unsafeRunSync() == 0)
   }
 
-  test("read avro") {
+  test("sparKafka read avro") {
     val data = TypedDataset.create(dogs_noKey)
     val path = "./data/test/spark/kafka/read/avro"
     data.write.mode(SaveMode.Overwrite).format("avro").save(path)
@@ -54,7 +54,7 @@ class ReadTest extends AnyFunSuite {
     assert(rst.diff(data).count[IO].unsafeRunSync() == 0)
   }
 
-  test("read json") {
+  test("sparKafka read json") {
     val data = TypedDataset.create(dogs_noKey)
     val path = "./data/test/spark/kafka/read/json"
     data.write.mode(SaveMode.Overwrite).json(path)
@@ -62,7 +62,7 @@ class ReadTest extends AnyFunSuite {
     assert(rst.diff(data.dataset.rdd).count == 0)
   }
 
-  test("read parquet - compulsoryK") {
+  test("sparKafka read parquet - compulsoryK") {
     val data: TypedDataset[CompulsoryK[Int, Dog]] =
       TypedDataset.create(dogs.flatMap(_.toCompulsoryK))
     val path = "./data/test/spark/kafka/read/parquet-compulsory"
@@ -71,7 +71,7 @@ class ReadTest extends AnyFunSuite {
     assert(rst.diff(data.deserialized.map(_.toOptionalKV)).count[IO].unsafeRunSync() == 0)
   }
 
-  test("read avro - compulsoryV") {
+  test("sparKafka read avro - compulsoryV") {
     val data: TypedDataset[CompulsoryV[Int, Dog]] =
       TypedDataset.create(dogs.flatMap(_.toCompulsoryV))
     val path = "./data/test/spark/kafka/read/avro-compulsory"
@@ -80,7 +80,7 @@ class ReadTest extends AnyFunSuite {
     assert(rst.diff(data.deserialized.map(_.toOptionalKV)).count[IO].unsafeRunSync() == 0)
   }
 
-  test("read json - compulsoryKV") {
+  test("sparKafka read json - compulsoryKV") {
     val data: TypedDataset[CompulsoryKV[Int, Dog]] =
       TypedDataset.create(dogs.flatMap(_.toCompulsoryKV))
     val path = "./data/test/spark/kafka/read/json-compulsory"

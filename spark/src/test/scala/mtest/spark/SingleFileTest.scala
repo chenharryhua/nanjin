@@ -10,6 +10,8 @@ import io.circe.generic.auto._
 import kantan.csv.CsvConfiguration
 import org.scalatest.funsuite.AnyFunSuite
 import kantan.csv.generic._
+import mtest.spark.pb.test.Whale
+
 import scala.util.Random
 
 object SingleFileTestData {
@@ -23,6 +25,13 @@ object SingleFileTestData {
     )
 
   val fishStream: Stream[IO, Swordfish] = Stream.emits(fishes).covary[IO]
+
+  val whales = List(
+    Whale("", Random.nextInt()),
+    Whale("", Random.nextInt()),
+    Whale("", Random.nextInt())
+  )
+  val whaleStream: Stream[IO, Whale] = Stream.emits(whales).covary[IO]
 }
 
 class SingleFileTest extends AnyFunSuite {
@@ -31,7 +40,7 @@ class SingleFileTest extends AnyFunSuite {
   val source               = fileSource[IO](blocker)
   def delete(path: String) = sink.delete(path)
 
-  test("avro - identity") {
+  test("spark avro - identity") {
     val path = "./data/test/spark/singleFile/swordfish.avro"
     val run = delete(path) >>
       fishStream.through(sink.avro[Swordfish](path)).compile.drain >>
@@ -43,7 +52,7 @@ class SingleFileTest extends AnyFunSuite {
     assert(s == fishes.toSet)
   }
 
-  test("avro-binary - identity") {
+  test("spark avro-binary - identity") {
     val path = "./data/test/spark/singleFile/swordfish-binary.avro"
     val run = delete(path) >>
       fishStream.through(sink.binaryAvro[Swordfish](path)).compile.drain >>
@@ -53,7 +62,7 @@ class SingleFileTest extends AnyFunSuite {
     //spark doesn't understand binary-avro
   }
 
-  test("parquet - identity") {
+  test("spark parquet - identity") {
     val path = "./data/test/spark/singleFile/swordfish.parquet"
     val run = delete(path) >>
       fishStream.through(sink.parquet[Swordfish](path)).compile.drain >>
@@ -65,7 +74,7 @@ class SingleFileTest extends AnyFunSuite {
     assert(s == fishes.toSet)
   }
 
-  test("json - identity") {
+  test("spark json - identity") {
     val path = "./data/test/spark/singleFile/swordfish.json"
     val run = delete(path) >>
       fishStream.through(sink.json[Swordfish](path)).compile.drain >>
@@ -78,7 +87,7 @@ class SingleFileTest extends AnyFunSuite {
     assert(s == fishes.toSet)
 
   }
-  test("jackson - identity") {
+  test("spark jackson - identity") {
     val path = "./data/test/spark/singleFile/swordfish-jackson.json"
     val run = delete(path) >>
       fishStream.through(sink.jackson[Swordfish](path)).compile.drain >>
@@ -91,7 +100,7 @@ class SingleFileTest extends AnyFunSuite {
     assert(s == fishes.toSet)
   }
 
-  test("csv - identity") {
+  test("spark csv - identity") {
     val path = "./data/test/spark/singleFile/swordfish.csv"
     val run = delete(path) >>
       fishStream.through(sink.csv[Swordfish](path)).compile.drain >>
@@ -104,7 +113,7 @@ class SingleFileTest extends AnyFunSuite {
     assert(s == fishes.toSet)
   }
 
-  test("csv with header - identity") {
+  test("spark csv with header - identity") {
     val path = "./data/test/spark/singleFile/swordfish-header.csv"
     val rfc = CsvConfiguration.rfc
       .withHeader("from", "weight", "code")
@@ -123,11 +132,19 @@ class SingleFileTest extends AnyFunSuite {
     assert(s == fishes.toSet, "spark")
   }
 
-  test("java-object - identity") {
+  test("spark java-object - identity") {
     val path = "./data/test/spark/singleFile/swordfish.obj"
     val run = delete(path) >>
       fishStream.through(sink.javaObject[Swordfish](path)).compile.drain >>
       source.javaObject[Swordfish](path).compile.toList
     assert(run.unsafeRunSync() === fishes)
+  }
+
+  test("spark protobuf - identity") {
+    val path = "./data/test/spark/singleFile/whales.pb"
+    val run = delete(path) >>
+      whaleStream.through(sink.protobuf[Whale](path)).compile.drain >>
+      source.protobuf[Whale](path).compile.toList
+    assert(run.unsafeRunSync() === whales)
   }
 }

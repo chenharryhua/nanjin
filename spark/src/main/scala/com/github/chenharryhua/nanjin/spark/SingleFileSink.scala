@@ -10,6 +10,7 @@ import fs2.Pipe
 import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.hadoop.conf.Configuration
+import scalapb.GeneratedMessage
 
 final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
 
@@ -81,4 +82,13 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
     _.through(pipe.encode).through(hadoop)
   }
 
+  // protobuf
+  def protobuf[A](pathStr: String)(implicit
+    ce: Concurrent[F],
+    cs: ContextShift[F],
+    ev: A <:< GeneratedMessage): Pipe[F, A, Unit] = {
+    val hadoop = new NJHadoop[F](conf, blocker).byteSink(pathStr)
+    val pipe   = new ProtoBufSerialization[F, A](blocker)
+    _.through(pipe.serialize).through(hadoop)
+  }
 }
