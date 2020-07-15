@@ -62,7 +62,7 @@ object KPB {
       override def deserialize(topic: String, data: Array[Byte]): KPB[A] =
         Option(data) match {
           case None    => null.asInstanceOf[KPB[A]]
-          case Some(v) => avroDecoder.decode(deSer.deserialize(topic, data).toByteArray)
+          case Some(v) => KPB(ev.parseFrom(deSer.deserialize(topic, data).toByteArray))
         }
     }
 }
