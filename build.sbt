@@ -22,7 +22,7 @@ val enumeratum = "1.6.1"
 val chimney    = "0.5.2"
 
 // runtime
-val zioCats    = "2.1.3.0-RC16"
+val zioCats    = "2.1.4.0-RC17"
 val monix      = "3.2.2"
 val catsEffect = "2.2.0-RC1"
 val akka26     = "2.6.7"
@@ -156,15 +156,15 @@ val kantanLib = Seq(
 val serdeLib = Seq(
   "org.apache.avro"                           % "avro"                      % avro,
   "org.apache.avro"                           % "avro-compiler"             % avro,
-  "org.apache.avro"                           % "avro-protobuf"             % avro,
   "org.apache.parquet"                        % "parquet-avro"              % parquet,
-  "org.apache.parquet"                        % "parquet-protobuf"          % parquet,
   "io.confluent"                              % "kafka-streams-avro-serde"  % confluent,
   "io.confluent"                              % "kafka-protobuf-serializer" % confluent,
   "com.julianpeeters" %% "avrohugger-core"    % "1.0.0-RC21",
   "com.sksamuel.avro4s" %% "avro4s-core"      % avro4s,
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.10.7",
-  "io.higherkindness" %% "skeuomorph" % "0.0.24"
+  "io.higherkindness" %% "skeuomorph"         % "0.0.24",
+  "com.google.protobuf"                       % "protobuf-java"             % "3.12.2",
+  "com.google.protobuf"                       % "protobuf-java-util"        % "3.12.2"
 )
 
 val fs2Lib = Seq(
@@ -349,9 +349,11 @@ lazy val spark = (project in file("spark"))
   .settings(name := "nj-spark")
   .settings(
     libraryDependencies ++= Seq(
-      "com.github.pathikrit" %% "better-files" % betterFiles,
-      "org.locationtech.jts"                   % "jts-core" % "1.17.0",
-      "org.log4s" %% "log4s"                   % log4s) ++
+      "org.locationtech.jts"                       % "jts-core" % "1.17.0",
+      "com.github.pathikrit" %% "better-files"     % betterFiles,
+      "com.thesamet.scalapb" %% "sparksql-scalapb" % "0.10.4",
+      "org.log4s" %% "log4s"                       % log4s
+    ) ++
       sparkLib ++ serdeLib ++ hadoopLib ++ testLib,
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core"                             % "jackson-databind" % jackson,
