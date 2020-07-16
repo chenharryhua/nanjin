@@ -160,8 +160,8 @@ val serdeLib = Seq(
   "io.confluent"                              % "kafka-streams-avro-serde"  % confluent,
   "io.confluent"                              % "kafka-protobuf-serializer" % confluent,
   "com.sksamuel.avro4s" %% "avro4s-core"      % avro4s,
-  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.10.7",
   "io.higherkindness" %% "skeuomorph"         % "0.0.24",
+  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.10.7",
   "com.google.protobuf"                       % "protobuf-java"             % "3.12.2",
   "com.google.protobuf"                       % "protobuf-java-util"        % "3.12.2"
 )
@@ -273,8 +273,7 @@ val effectLib = Seq(
 
 val quillLib = Seq(
   "io.getquill" %% "quill-core",
-  "io.getquill" %% "quill-codegen-jdbc",
-  "io.getquill" %% "quill-spark"
+  "io.getquill" %% "quill-codegen-jdbc"
 ).map(_ % quill)
 
 val doobieLib = Seq(
@@ -349,9 +348,10 @@ lazy val spark = (project in file("spark"))
   .settings(
     libraryDependencies ++= Seq(
       "org.locationtech.jts"                       % "jts-core" % "1.17.0",
+      "org.log4s" %% "log4s"                       % log4s,
       "com.github.pathikrit" %% "better-files"     % betterFiles,
-      "com.thesamet.scalapb" %% "sparksql-scalapb" % "0.10.4",
-      "org.log4s" %% "log4s"                       % log4s
+      "io.getquill" %% "quill-spark"               % quill,
+      "com.thesamet.scalapb" %% "sparksql-scalapb" % "0.10.4"
     ) ++
       sparkLib ++ serdeLib ++ hadoopLib ++ testLib,
     dependencyOverrides ++= Seq(
