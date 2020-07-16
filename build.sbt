@@ -107,9 +107,12 @@ lazy val commonSettings = Seq(
 
 val hadoopLib = Seq(
   "org.apache.hadoop" % "hadoop-aws",
+  "org.apache.hadoop" % "hadoop-auth",
+  "org.apache.hadoop" % "hadoop-annotations",
   "org.apache.hadoop" % "hadoop-common",
   "org.apache.hadoop" % "hadoop-client",
-  "org.apache.hadoop" % "hadoop-hdfs").map(_ % hadoop) ++
+  "org.apache.hadoop" % "hadoop-hdfs"
+).map(_               % hadoop) ++
   Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.818")
 
 val flinkLib = Seq(
@@ -159,10 +162,9 @@ val serdeLib = Seq(
   "org.apache.parquet"                        % "parquet-avro"              % parquet,
   "io.confluent"                              % "kafka-streams-avro-serde"  % confluent,
   "io.confluent"                              % "kafka-protobuf-serializer" % confluent,
-  "com.julianpeeters" %% "avrohugger-core"    % "1.0.0-RC21",
   "com.sksamuel.avro4s" %% "avro4s-core"      % avro4s,
-  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.10.7",
   "io.higherkindness" %% "skeuomorph"         % "0.0.24",
+  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.10.7",
   "com.google.protobuf"                       % "protobuf-java"             % "3.12.2",
   "com.google.protobuf"                       % "protobuf-java-util"        % "3.12.2"
 )
@@ -274,8 +276,7 @@ val effectLib = Seq(
 
 val quillLib = Seq(
   "io.getquill" %% "quill-core",
-  "io.getquill" %% "quill-codegen-jdbc",
-  "io.getquill" %% "quill-spark"
+  "io.getquill" %% "quill-codegen-jdbc"
 ).map(_ % quill)
 
 val doobieLib = Seq(
@@ -349,12 +350,17 @@ lazy val spark = (project in file("spark"))
   .settings(name := "nj-spark")
   .settings(
     libraryDependencies ++= Seq(
-      "org.locationtech.jts"                       % "jts-core" % "1.17.0",
-      "com.github.pathikrit" %% "better-files"     % betterFiles,
+      "org.locationtech.jts"                   % "jts-core" % "1.17.0",
+      "org.log4s" %% "log4s"                   % log4s,
+      "com.github.pathikrit" %% "better-files" % betterFiles,
+      // for spark
+      "io.getquill" %% "quill-spark"               % quill,
       "com.thesamet.scalapb" %% "sparksql-scalapb" % "0.10.4",
-      "org.log4s" %% "log4s"                       % log4s
-    ) ++
-      sparkLib ++ serdeLib ++ hadoopLib ++ testLib,
+      // override dependency
+      "io.netty" % "netty"     % "3.10.6.Final",
+      "io.netty" % "netty-all" % "4.1.51.Final"
+    ) ++ sparkLib ++ serdeLib ++ hadoopLib ++ testLib,
+    excludeDependencies ++= Seq(ExclusionRule(organization = "io.netty")),
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core"                             % "jackson-databind" % jackson,
       "com.fasterxml.jackson.core"                             % "jackson-core"     % jackson,
@@ -373,3 +379,4 @@ lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
     .aggregate(common, messages, datetime, devices, pipes, kafka, flink, database, spark)
+
