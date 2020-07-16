@@ -52,7 +52,7 @@ val avro    = "1.10.0"
 val avro4s  = "3.1.1"
 
 // connect
-val hadoop  = "3.3.0"
+val hadoop  = "3.2.1" //spark don't like 3.3.0
 val akkaFtp = "2.0.1"
 
 // misc
@@ -159,7 +159,6 @@ val serdeLib = Seq(
   "org.apache.parquet"                        % "parquet-avro"              % parquet,
   "io.confluent"                              % "kafka-streams-avro-serde"  % confluent,
   "io.confluent"                              % "kafka-protobuf-serializer" % confluent,
-  "com.julianpeeters" %% "avrohugger-core"    % "1.0.0-RC21",
   "com.sksamuel.avro4s" %% "avro4s-core"      % avro4s,
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.10.7",
   "io.higherkindness" %% "skeuomorph"         % "0.0.24",
