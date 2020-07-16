@@ -52,7 +52,7 @@ val avro    = "1.10.0"
 val avro4s  = "3.1.1"
 
 // connect
-val hadoop  = "3.2.1" //spark don't like 3.3.0
+val hadoop  = "3.3.0"
 val akkaFtp = "2.0.1"
 
 // misc
@@ -107,9 +107,12 @@ lazy val commonSettings = Seq(
 
 val hadoopLib = Seq(
   "org.apache.hadoop" % "hadoop-aws",
+  "org.apache.hadoop" % "hadoop-auth",
+  "org.apache.hadoop" % "hadoop-annotations",
   "org.apache.hadoop" % "hadoop-common",
   "org.apache.hadoop" % "hadoop-client",
-  "org.apache.hadoop" % "hadoop-hdfs").map(_ % hadoop) ++
+  "org.apache.hadoop" % "hadoop-hdfs"
+).map(_               % hadoop) ++
   Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.818")
 
 val flinkLib = Seq(
@@ -347,13 +350,19 @@ lazy val spark = (project in file("spark"))
   .settings(name := "nj-spark")
   .settings(
     libraryDependencies ++= Seq(
-      "org.locationtech.jts"                       % "jts-core" % "1.17.0",
-      "org.log4s" %% "log4s"                       % log4s,
-      "com.github.pathikrit" %% "better-files"     % betterFiles,
+      "org.locationtech.jts"                   % "jts-core" % "1.17.0",
+      "org.log4s" %% "log4s"                   % log4s,
+      "com.github.pathikrit" %% "better-files" % betterFiles,
+      // for spark
       "io.getquill" %% "quill-spark"               % quill,
-      "com.thesamet.scalapb" %% "sparksql-scalapb" % "0.10.4"
-    ) ++
-      sparkLib ++ serdeLib ++ hadoopLib ++ testLib,
+      "com.thesamet.scalapb" %% "sparksql-scalapb" % "0.10.4",
+      // override dependency
+      "io.netty" % "netty"     % "3.9.9.Final",
+      "io.netty" % "netty-all" % "4.1.47.Final"
+    ) ++ sparkLib ++ serdeLib ++ hadoopLib ++ testLib,
+    excludeDependencies ++= Seq(
+      ExclusionRule(organization = "io.netty")
+    ),
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core"                             % "jackson-databind" % jackson,
       "com.fasterxml.jackson.core"                             % "jackson-core"     % jackson,
@@ -372,3 +381,11 @@ lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
     .aggregate(common, messages, datetime, devices, pipes, kafka, flink, database, spark)
+    .settings(
+      skip in publish := true,
+      credentials in ThisBuild += Credentials(Path.userHome / ".sbt" / ".credentials"),
+      publishTo in ThisBuild := Some(
+        "tabcorp-maven".at("https://artifacts.tabdigital.com.au/artifactory/tabcorp-maven")),
+      publishConfiguration in ThisBuild      := publishConfiguration.value.withOverwrite(true),
+      publishLocalConfiguration in ThisBuild := publishLocalConfiguration.value.withOverwrite(true)
+    )
