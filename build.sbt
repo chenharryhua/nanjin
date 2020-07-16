@@ -45,7 +45,8 @@ val elastic  = "7.8.0"
 
 // format
 val circe   = "0.13.0"
-val jackson = "2.10.4"
+val jackson = "2.11.1"
+val json4s  = "3.5.5"
 val kantan  = "0.6.1"
 val parquet = "1.11.0"
 val avro    = "1.10.0"
@@ -139,7 +140,7 @@ val neotypesLib = Seq(
   "com.dimafeng" %% "neotypes-cats-data"
 ).map(_ % neotypes) ++ Seq("org.neo4j.driver" % "neo4j-java-driver" % "4.1.0")
 
-val jsonLib = Seq(
+val circeLib = Seq(
   "io.circe" %% "circe-core",
   "io.circe" %% "circe-generic",
   "io.circe" %% "circe-parser",
@@ -148,6 +149,23 @@ val jsonLib = Seq(
   "io.circe" %% "circe-optics",
   "io.circe" %% "circe-jackson210"
 ).map(_ % circe)
+
+val jacksonLib = Seq(
+  "com.fasterxml.jackson.core"     % "jackson-annotations",
+  "com.fasterxml.jackson.core"     % "jackson-core",
+  "com.fasterxml.jackson.core"     % "jackson-databind",
+  "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8",
+  "com.fasterxml.jackson.module"   % "jackson-module-jaxb-annotations",
+  "com.fasterxml.jackson.module" %% "jackson-module-scala"
+).map(_ % jackson)
+
+val json4sLib = Seq(
+  "org.json4s" %% "json4s-ast",
+  "org.json4s" %% "json4s-core",
+  "org.json4s" %% "json4s-jackson",
+  "org.json4s" %% "json4s-navtive",
+  "org.json4s" %% "json4s-scalap"
+).map(_ % json4s)
 
 val kantanLib = Seq(
   "com.nrinaudo" %% "kantan.csv",
@@ -167,7 +185,7 @@ val serdeLib = Seq(
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.10.7",
   "com.google.protobuf"                       % "protobuf-java"             % "3.12.2",
   "com.google.protobuf"                       % "protobuf-java-util"        % "3.12.2"
-)
+) ++ jacksonLib ++ circeLib
 
 val fs2Lib = Seq(
   "co.fs2" %% "fs2-core",
@@ -307,7 +325,7 @@ lazy val messages = (project in file("messages"))
   .settings(libraryDependencies ++= Seq(
     compilerPlugin(("com.github.ghik" % "silencer-plugin" % silencer).cross(CrossVersion.full)),
     ("com.github.ghik"                % "silencer-lib"    % silencer % Provided).cross(CrossVersion.full)
-  ) ++ baseLib ++ fs2Lib ++ serdeLib ++ jsonLib ++ kafkaLib ++ monocleLib ++ testLib)
+  ) ++ baseLib ++ fs2Lib ++ serdeLib ++ kafkaLib ++ monocleLib ++ testLib)
 
 lazy val devices = (project in file("devices"))
   .settings(commonSettings: _*)
@@ -321,7 +339,14 @@ lazy val pipes = (project in file("pipes"))
   .settings(commonSettings: _*)
   .settings(name := "nj-pipes")
   .settings(libraryDependencies ++=
-    baseLib ++ fs2Lib ++ effectLib ++ kantanLib ++ jsonLib ++ serdeLib ++ testLib)
+    baseLib ++ fs2Lib ++ effectLib ++ kantanLib ++ serdeLib ++ testLib)
+
+lazy val database = (project in file("database"))
+  .dependsOn(common)
+  .settings(commonSettings: _*)
+  .settings(name := "nj-database")
+  .settings(
+    libraryDependencies ++= baseLib ++ dbLib ++ neotypesLib ++ elastic4sLib ++ testLib)
 
 lazy val kafka = (project in file("kafka"))
   .dependsOn(messages)
@@ -334,13 +359,6 @@ lazy val kafka = (project in file("kafka"))
     libraryDependencies ++= effectLib ++ kafkaLib ++ akkaLib ++ testLib,
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
-
-lazy val database = (project in file("database"))
-  .dependsOn(common)
-  .settings(commonSettings: _*)
-  .settings(name := "nj-database")
-  .settings(
-    libraryDependencies ++= baseLib ++ jsonLib ++ dbLib ++ neotypesLib ++ elastic4sLib ++ testLib)
 
 lazy val spark = (project in file("spark"))
   .dependsOn(kafka)
@@ -361,12 +379,7 @@ lazy val spark = (project in file("spark"))
       "io.netty" % "netty-all" % "4.1.51.Final"
     ) ++ sparkLib ++ serdeLib ++ hadoopLib ++ testLib,
     excludeDependencies ++= Seq(ExclusionRule(organization = "io.netty")),
-    dependencyOverrides ++= Seq(
-      "com.fasterxml.jackson.core"                             % "jackson-databind" % jackson,
-      "com.fasterxml.jackson.core"                             % "jackson-core"     % jackson,
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jackson,
-      "org.json4s" %% "json4s-core"                            % "3.5.5"
-    )
+    dependencyOverrides ++= json4sLib
   )
 
 lazy val flink = (project in file("flink"))
@@ -379,4 +392,3 @@ lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
     .aggregate(common, messages, datetime, devices, pipes, kafka, flink, database, spark)
-
