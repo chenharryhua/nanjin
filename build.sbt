@@ -357,12 +357,10 @@ lazy val spark = (project in file("spark"))
       "io.getquill" %% "quill-spark"               % quill,
       "com.thesamet.scalapb" %% "sparksql-scalapb" % "0.10.4",
       // override dependency
-      "io.netty" % "netty"     % "3.9.9.Final",
-      "io.netty" % "netty-all" % "4.1.47.Final"
+      "io.netty" % "netty"     % "3.10.6.Final",
+      "io.netty" % "netty-all" % "4.1.51.Final"
     ) ++ sparkLib ++ serdeLib ++ hadoopLib ++ testLib,
-    excludeDependencies ++= Seq(
-      ExclusionRule(organization = "io.netty")
-    ),
+    excludeDependencies ++= Seq(ExclusionRule(organization = "io.netty")),
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core"                             % "jackson-databind" % jackson,
       "com.fasterxml.jackson.core"                             % "jackson-core"     % jackson,
