@@ -303,7 +303,7 @@ val doobieLib = Seq(
   "org.tpolecat" %% "doobie-quill"
 ).map(_ % doobie)
 
-val dbLib = doobieLib ++ quillLib
+val dbLib = doobieLib ++ quillLib ++ neotypesLib ++ elastic4sLib
 
 lazy val common = (project in file("common"))
   .settings(commonSettings: _*)
@@ -345,8 +345,7 @@ lazy val database = (project in file("database"))
   .dependsOn(common)
   .settings(commonSettings: _*)
   .settings(name := "nj-database")
-  .settings(
-    libraryDependencies ++= baseLib ++ dbLib ++ neotypesLib ++ elastic4sLib ++ testLib)
+  .settings(libraryDependencies ++= baseLib ++ dbLib ++ testLib)
 
 lazy val kafka = (project in file("kafka"))
   .dependsOn(messages)
