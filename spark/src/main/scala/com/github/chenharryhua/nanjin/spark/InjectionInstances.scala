@@ -7,6 +7,7 @@ import cats.implicits._
 import frameless.{Injection, SQLDate, SQLTimestamp}
 import monocle.Iso
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
+import shapeless.Witness
 
 private[spark] trait InjectionInstances extends Serializable {
 
@@ -27,4 +28,6 @@ private[spark] trait InjectionInstances extends Serializable {
   implicit def isoInjection[A, B](implicit iso: Iso[A, B]): Injection[A, B] =
     Injection[A, B](iso.get, iso.reverseGet)
 
+  implicit def enumToStringInjection[E <: Enumeration](implicit
+    w: Witness.Aux[E]): Injection[E#Value, String] = Injection(_.toString, x => w.value.withName(x))
 }

@@ -81,22 +81,26 @@ final class SparKafka[F[_], K, V](topic: KafkaTopic[F, K, V], cfg: SKConfig)(imp
 
   def readAvro(pathStr: String)(implicit
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): CrDataset[F, K, V] =
-    crDataset(sparkSession.avro[OptionalKV[K, V]](pathStr))
+    valEncoder: TypedEncoder[V]): CrRdd[F, K, V] =
+    new CrRdd[F, K, V](
+      sparkSession.avro[OptionalKV[K, V]](pathStr).dataset.rdd,
+      topic.topicName,
+      cfg)(topic.topicDef.avroKeyEncoder, topic.topicDef.avroValEncoder, sparkSession)
 
-  def readAvro(implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): CrDataset[F, K, V] =
+  def readAvro(implicit keyEncoder: TypedEncoder[K], valEncoder: TypedEncoder[V]): CrRdd[F, K, V] =
     readAvro(params.pathBuilder(topic.topicName, NJFileFormat.Avro))
 
   def readParquet(pathStr: String)(implicit
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): CrDataset[F, K, V] =
-    crDataset(sparkSession.parquet[OptionalKV[K, V]](pathStr))
+    valEncoder: TypedEncoder[V]): CrRdd[F, K, V] =
+    new CrRdd[F, K, V](
+      sparkSession.parquet[OptionalKV[K, V]](pathStr).dataset.rdd,
+      topic.topicName,
+      cfg)(topic.topicDef.avroKeyEncoder, topic.topicDef.avroValEncoder, sparkSession)
 
   def readParquet(implicit
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): CrDataset[F, K, V] =
+    valEncoder: TypedEncoder[V]): CrRdd[F, K, V] =
     readParquet(params.pathBuilder(topic.topicName, NJFileFormat.Parquet))
 
   def readJson(pathStr: String)(implicit

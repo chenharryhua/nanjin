@@ -43,7 +43,7 @@ class ReadTest extends AnyFunSuite {
     val path = "./data/test/spark/kafka/read/parquet"
     data.write.mode(SaveMode.Overwrite).parquet(path)
     val rst = topic.sparKafka(range).readParquet(path)
-    assert(rst.diff(data).count[IO].unsafeRunSync() == 0)
+    assert(rst.diff(data.dataset.rdd).count == 0)
   }
 
   test("sparKafka read avro") {
@@ -51,7 +51,7 @@ class ReadTest extends AnyFunSuite {
     val path = "./data/test/spark/kafka/read/avro"
     data.write.mode(SaveMode.Overwrite).format("avro").save(path)
     val rst = topic.sparKafka(range).readAvro(path)
-    assert(rst.diff(data).count[IO].unsafeRunSync() == 0)
+    assert(rst.diff(data.dataset.rdd).count == 0)
   }
 
   test("sparKafka read json") {
@@ -68,7 +68,7 @@ class ReadTest extends AnyFunSuite {
     val path = "./data/test/spark/kafka/read/parquet-compulsory"
     data.write.mode(SaveMode.Overwrite).parquet(path)
     val rst = topic.sparKafka(range).readParquet(path)
-    assert(rst.diff(data.deserialized.map(_.toOptionalKV)).count[IO].unsafeRunSync() == 0)
+    assert(rst.diff(data.deserialized.map(_.toOptionalKV).dataset.rdd).count == 0)
   }
 
   test("sparKafka read avro - compulsoryV") {
@@ -77,7 +77,7 @@ class ReadTest extends AnyFunSuite {
     val path = "./data/test/spark/kafka/read/avro-compulsory"
     data.write.mode(SaveMode.Overwrite).format("avro").save(path)
     val rst = topic.sparKafka(range).readAvro(path)
-    assert(rst.diff(data.deserialized.map(_.toOptionalKV)).count[IO].unsafeRunSync() == 0)
+    assert(rst.diff(data.deserialized.map(_.toOptionalKV).dataset.rdd).count == 0)
   }
 
   test("sparKafka read json - compulsoryKV") {

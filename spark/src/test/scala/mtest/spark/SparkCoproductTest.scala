@@ -3,6 +3,8 @@ package mtest.spark
 import org.scalatest.funsuite.AnyFunSuite
 import shapeless.test.illTyped
 import shapeless.{:+:, CNil}
+import com.github.chenharryhua.nanjin.spark.injection._
+import frameless.TypedEncoder
 
 object SparkCoproductTestData {
   sealed trait Parent
@@ -27,6 +29,8 @@ class SparkCoproductTest extends AnyFunSuite {
     illTyped(""" implicitly[TypedEncoder[Parent]] """)
     illTyped(""" implicitly[TypedEncoder[CoParent]] """)
     illTyped(""" implicitly[TypedEncoder[Address]] """)
-    illTyped(""" implicitly[TypedEncoder[PhoneType.Value]] """)
+  }
+  test("support coproduct should be compile") {
+    val phone = TypedEncoder[PhoneType.Value]
   }
 }
