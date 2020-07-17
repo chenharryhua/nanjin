@@ -156,6 +156,8 @@ val jacksonLib = Seq(
   "com.fasterxml.jackson.core"     % "jackson-databind",
   "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8",
   "com.fasterxml.jackson.module"   % "jackson-module-jaxb-annotations",
+  "com.fasterxml.jackson.jaxrs"    % "jackson-jaxrs-base",
+  "com.fasterxml.jackson.jaxrs"    % "jackson-jaxrs-json-provider",
   "com.fasterxml.jackson.module" %% "jackson-module-scala"
 ).map(_ % jackson)
 
