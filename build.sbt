@@ -16,7 +16,7 @@ val catsMtl    = "0.7.1"
 val catsTime   = "0.3.0"
 val tagless    = "0.11"
 val monocle    = "2.0.5"
-val refined    = "0.9.14"
+val refined    = "0.9.15"
 val droste     = "0.8.0"
 val enumeratum = "1.6.1"
 val chimney    = "0.5.2"
@@ -156,6 +156,8 @@ val jacksonLib = Seq(
   "com.fasterxml.jackson.core"     % "jackson-databind",
   "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8",
   "com.fasterxml.jackson.module"   % "jackson-module-jaxb-annotations",
+  "com.fasterxml.jackson.jaxrs"    % "jackson-jaxrs-base",
+  "com.fasterxml.jackson.jaxrs"    % "jackson-jaxrs-json-provider",
   "com.fasterxml.jackson.module" %% "jackson-module-scala"
 ).map(_ % jackson)
 
