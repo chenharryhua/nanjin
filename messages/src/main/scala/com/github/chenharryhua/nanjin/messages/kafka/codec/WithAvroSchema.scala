@@ -20,11 +20,11 @@ object WithAvroSchema {
 
     require(SchemaCompatibility.schemaNameEquals(inferred, input), "schema name is different")
 
-    if (SchemaCompatibilityType.COMPATIBLE.compareTo(rw) =!= 0)
-      println(s"catch attention - rw:\ninput:\n$input\ninfered:\n$inferred")
-
-    if (SchemaCompatibilityType.COMPATIBLE.compareTo(wr) =!= 0)
-      println(s"catch attention - wr:\ninput:\n$input\ninfered:\n$inferred")
+    if (SchemaCompatibilityType.COMPATIBLE.compareTo(rw) =!= 0 ||
+      SchemaCompatibilityType.COMPATIBLE.compareTo(wr) =!= 0)
+      println(s"schema diff: \n input: ${input}\n infer: ${inferred}")
+    else
+      println("schema is validated")
 
     val sf: SchemaFor[A] = SchemaFor[A](input)
     WithAvroSchema(sf, AvroDecoder[A].withSchema(sf), AvroEncoder[A].withSchema(sf))
