@@ -1,5 +1,6 @@
 package mtest.codec
 
+import cats.data.Ior
 import com.github.chenharryhua.nanjin.messages.kafka.codec.WithAvroSchema
 import org.apache.avro.Schema
 import org.scalatest.funsuite.AnyFunSuite
@@ -42,12 +43,12 @@ object ManualAvroSchemaTestData {
   "fields": [
     {
       "name": "a",
-      "type": "int",
+      "type": ["null","int"],
       "doc" : "a type"
     },
     {
       "name": "b",
-      "type": ["null","string"],
+      "type": "string",
       "doc" : "b type"
     }
   ]
@@ -89,9 +90,31 @@ class ManualAvroSchemaTest extends AnyFunSuite {
 
   test("decoder/encoder have the same schema") {
     val input = (new Schema.Parser).parse(UnderTest.schema1)
-    val ms    = WithAvroSchema[UnderTest](UnderTest.schema1)
 
-    assert(input == ms.avroDecoder.schema)
-    assert(input == ms.avroEncoder.schema)
+    val ms1: Ior[String, WithAvroSchema[UnderTest]] =
+      WithAvroSchema[UnderTest](UnderTest.schema1)
+
+    assert(input == ms1.right.get.avroDecoder.schema)
+    assert(input == ms1.right.get.avroEncoder.schema)
+  }
+
+  test("read-write incompatiable but acceptable") {
+    val input = (new Schema.Parser).parse(UnderTest.schema2)
+
+    val ms2: Ior[String, WithAvroSchema[UnderTest]] =
+      WithAvroSchema[UnderTest](UnderTest.schema2)
+
+    assert(input == ms2.right.get.avroDecoder.schema)
+    assert(input == ms2.right.get.avroEncoder.schema)
+    assert(ms2.isBoth)
+  }
+
+  test("incompatiable") {
+    val input = (new Schema.Parser).parse(UnderTest.schema3)
+
+    val ms3: Ior[String, WithAvroSchema[UnderTest]] =
+      WithAvroSchema[UnderTest](UnderTest.schema3)
+
+    assert(ms3.isLeft)
   }
 }

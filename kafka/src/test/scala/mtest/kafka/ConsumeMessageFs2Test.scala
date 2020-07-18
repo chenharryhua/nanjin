@@ -15,8 +15,8 @@ class ConsumeMessageFs2Test extends AnyFunSuite {
 
   val sms = TopicDef(
     TopicName("telecom_italia_data"),
-    WithAvroSchema[Key](Key.schema),
-    WithAvroSchema[smsCallInternet](smsCallInternet.schema))
+    WithAvroSchema[Key](Key.schema).right.get,
+    WithAvroSchema[smsCallInternet](smsCallInternet.schema).right.get)
 
   test("should be able to consume json topic") {
     val topic = backblaze_smart.in(ctx)
