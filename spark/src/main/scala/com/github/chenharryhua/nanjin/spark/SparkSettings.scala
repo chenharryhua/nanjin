@@ -51,17 +51,19 @@ import org.apache.spark.sql.SparkSession
 object SparkSettings {
 
   val default: SparkSettings =
-    SparkSettings(new SparkConf, NJLogLevel.WARN).withConfigUpdate(
-      _.set("spark.master", "local[*]")
-        .set("spark.ui.enabled", "true")
-        .set("spark.network.timeout", "800")
-        .set("spark.debug.maxToStringFields", "1000")
-        .set(
-          "spark.hadoop.fs.s3a.aws.credentials.provider",
-          "com.amazonaws.auth.DefaultAWSCredentialsProviderChain")
-        .set("spark.hadoop.fs.s3a.connection.maximum", "100")
-        .set("spark.hadoop.fs.s3a.experimental.input.fadvise", "sequential")
-        .set("spark.hadoop.fs.s3a.committer.name", "directory")
-        .set("spark.streaming.kafka.consumer.poll.ms", "180000")
-        .set("spark.streaming.kafka.allowNonConsecutiveOffsets", "true"))
+    SparkSettings(new SparkConf, NJLogLevel.WARN)
+      .withAppName("nj-spark")
+      .withMaster("local[*]")
+      .withUI
+      .withConfigUpdate(
+        _.set("spark.network.timeout", "800")
+          .set("spark.debug.maxToStringFields", "1000")
+          .set(
+            "spark.hadoop.fs.s3a.aws.credentials.provider",
+            "com.amazonaws.auth.DefaultAWSCredentialsProviderChain")
+          .set("spark.hadoop.fs.s3a.connection.maximum", "100")
+          .set("spark.hadoop.fs.s3a.experimental.input.fadvise", "sequential")
+          .set("spark.hadoop.fs.s3a.committer.name", "directory")
+          .set("spark.streaming.kafka.consumer.poll.ms", "180000")
+          .set("spark.streaming.kafka.allowNonConsecutiveOffsets", "true"))
 }

@@ -69,7 +69,7 @@ final class SingleFileSource[F[_]](blocker: Blocker, conf: Configuration) {
     new NJHadoop[F](conf, blocker).byteStream(pathStr).through(pipe.deserialize)
   }
 
-  //
+  // protobuf
   def protobuf[A <: GeneratedMessage](pathStr: String)(implicit
     cs: ContextShift[F],
     ce: ConcurrentEffect[F],
