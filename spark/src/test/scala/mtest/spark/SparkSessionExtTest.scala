@@ -33,6 +33,7 @@ class SparkSessionExtTest extends AnyFunSuite {
   def delete(path: String) = sink.delete(path)
   implicit val zoneId      = sydneyTime
 
+
   test("spark can not process varying length csv -- hope it fails someday") {
     val path    = "./data/test/spark/sse/elephant-spark.csv"
     val data    = Stream.emits(elephants)

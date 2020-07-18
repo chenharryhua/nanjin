@@ -5,6 +5,6 @@ import frameless.TypedDataset
 private[database] trait DatasetExtensions {
 
   implicit final class SparkDBSyntax[A](val data: TypedDataset[A]) {
-    def dbUpload[F[_]](db: SparkTableSession[A]): Unit = db.upload(data)
+    def dbUpload[F[_]](db: SparkTable[A]): Unit = db.upload(data)
   }
 }

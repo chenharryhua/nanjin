@@ -8,8 +8,8 @@ import org.apache.spark.sql.SparkSession
 final class TableDef[A] private (val tableName: TableName)(implicit
   val typedEncoder: TypedEncoder[A]) {
 
-  def in(dbSettings: DatabaseSettings)(implicit sparkSession: SparkSession): SparkTableSession[A] =
-    new SparkTableSession[A](this, dbSettings, STConfig.defaultConfig)
+  def in(dbSettings: DatabaseSettings)(implicit sparkSession: SparkSession): SparkTable[A] =
+    new SparkTable[A](this, dbSettings, STConfig.defaultConfig)
 }
 
 object TableDef {
@@ -18,17 +18,15 @@ object TableDef {
     new TableDef[A](tableName)
 }
 
-final class SparkTableSession[A](
-  tableDef: TableDef[A],
-  dbSettings: DatabaseSettings,
-  cfg: STConfig)(implicit sparkSession: SparkSession)
-    extends UpdateParams[STConfig, SparkTableSession[A]] {
+final class SparkTable[A](tableDef: TableDef[A], dbSettings: DatabaseSettings, cfg: STConfig)(
+  implicit sparkSession: SparkSession)
+    extends UpdateParams[STConfig, SparkTable[A]] {
   import tableDef.typedEncoder
 
   val params: STParams = cfg.evalConfig
 
-  override def withParamUpdate(f: STConfig => STConfig): SparkTableSession[A] =
-    new SparkTableSession[A](tableDef, dbSettings, f(cfg))
+  override def withParamUpdate(f: STConfig => STConfig): SparkTable[A] =
+    new SparkTable[A](tableDef, dbSettings, f(cfg))
 
   def fromDB: TypedDataset[A] =
     sd.fromDB(dbSettings.connStr, dbSettings.driver, tableDef.tableName)
