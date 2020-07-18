@@ -15,10 +15,13 @@ private[kafka] trait DatasetExtensions {
       new SparKafka(topic, cfg)
 
     def sparKafka(zoneId: ZoneId)(implicit spark: SparkSession): SparKafka[F, K, V] =
-      new SparKafka(topic, SKConfig(zoneId))
+      sparKafka(SKConfig(zoneId))
 
     def sparKafka(dtr: NJDateTimeRange)(implicit spark: SparkSession): SparKafka[F, K, V] =
-      new SparKafka(topic, SKConfig(dtr))
+      sparKafka(SKConfig(dtr))
+
+    def sparKafka(implicit spark: SparkSession): SparKafka[F, K, V] =
+      sparKafka(SKConfig(ZoneId.systemDefault()))
 
   }
 }

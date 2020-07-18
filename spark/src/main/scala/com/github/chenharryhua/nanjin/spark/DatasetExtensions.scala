@@ -7,7 +7,7 @@ import cats.implicits._
 import cats.kernel.Eq
 import com.sksamuel.avro4s.{Decoder => AvroDecoder}
 import frameless.cats.implicits._
-import frameless.{TypedDataset, TypedEncoder}
+import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import fs2.interop.reactivestreams._
 import fs2.{Pipe, Stream}
 import io.circe.parser.decode
@@ -16,8 +16,6 @@ import kantan.csv.CsvConfiguration
 import org.apache.avro.generic.{GenericDatumReader, GenericRecord}
 import org.apache.avro.io.DecoderFactory
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.ScalaReflection
-import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import scala.reflect.ClassTag
@@ -102,10 +100,10 @@ private[spark] trait DatasetExtensions {
           case Right(r) => r
         })
 
-    def csv[A: TypedEncoder: ScalaReflection.universe.TypeTag](
+    def csv[A: TypedEncoder: ClassTag](
       pathStr: String,
       csvConfig: CsvConfiguration): TypedDataset[A] = {
-      val schema = ScalaReflection.schemaFor[A].dataType.asInstanceOf[StructType]
+      val schema = TypedExpressionEncoder.targetStructType(TypedEncoder[A])
       TypedDataset.createUnsafe(
         ss.read
           .schema(schema)
@@ -116,7 +114,7 @@ private[spark] trait DatasetExtensions {
           .csv(pathStr))
     }
 
-    def csv[A: TypedEncoder: ScalaReflection.universe.TypeTag](pathStr: String): TypedDataset[A] =
+    def csv[A: TypedEncoder: ClassTag](pathStr: String): TypedDataset[A] =
       csv[A](pathStr, CsvConfiguration.rfc)
 
     def text(path: String): TypedDataset[String] =

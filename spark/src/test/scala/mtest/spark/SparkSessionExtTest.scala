@@ -7,11 +7,14 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.injection._
+import frameless.TypedDataset
 import frameless.cats.implicits._
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import kantan.csv.generic._
 import kantan.csv.java8._
+import io.circe.generic.auto._
+import org.apache.spark.sql.SaveMode
 
 object SparkSessionExtTestData {
   final case class Elephant(birthDay: LocalDateTime, weight: Double, food: List[String])
@@ -30,6 +33,7 @@ class SparkSessionExtTest extends AnyFunSuite {
   def delete(path: String) = sink.delete(path)
   implicit val zoneId      = sydneyTime
 
+
   test("spark can not process varying length csv -- hope it fails someday") {
     val path    = "./data/test/spark/sse/elephant-spark.csv"
     val data    = Stream.emits(elephants)
@@ -45,6 +49,19 @@ class SparkSessionExtTest extends AnyFunSuite {
     prepare.unsafeRunSync()
 
     assert(source.csv[Elephant](path).compile.toList.unsafeRunSync().toSet == elephants.toSet)
+  }
 
+  test("spark avro read/write identity") {
+    val path = "./data/test/spark/sse/elephant.avro"
+    TypedDataset.create(elephants).write.mode(SaveMode.Overwrite).format("avro").save(path)
+    val rst = sparkSession.avro[Elephant](path).collect[IO]().unsafeRunSync().toSet
+    assert(rst == elephants.toSet)
+  }
+
+  test("spark parquet read/write identity") {
+    val path = "./data/test/spark/sse/elephant.parquet"
+    TypedDataset.create(elephants).write.mode(SaveMode.Overwrite).parquet(path)
+    val rst = sparkSession.parquet[Elephant](path).collect[IO]().unsafeRunSync().toSet
+    assert(rst == elephants.toSet)
   }
 }

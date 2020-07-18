@@ -23,6 +23,7 @@ private[kafka] trait ReadOps[F[_], K, V] { self: SparKafka[F, K, V] =>
       topic.topicName,
       cfg)
 
+  // avro
   final def readAvro(pathStr: String)(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): CrRdd[F, K, V] =
@@ -36,6 +37,7 @@ private[kafka] trait ReadOps[F[_], K, V] { self: SparKafka[F, K, V] =>
     valEncoder: TypedEncoder[V]): CrRdd[F, K, V] =
     readAvro(params.pathBuilder(topic.topicName, NJFileFormat.Avro))
 
+  // parquet
   final def readParquet(pathStr: String)(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): CrRdd[F, K, V] =
@@ -49,6 +51,7 @@ private[kafka] trait ReadOps[F[_], K, V] { self: SparKafka[F, K, V] =>
     valEncoder: TypedEncoder[V]): CrRdd[F, K, V] =
     readParquet(params.pathBuilder(topic.topicName, NJFileFormat.Parquet))
 
+  // json
   final def readJson(pathStr: String)(implicit
     jsonKeyDecoder: JsonDecoder[K],
     jsonValDecoder: JsonDecoder[V]): CrRdd[F, K, V] =
@@ -59,6 +62,7 @@ private[kafka] trait ReadOps[F[_], K, V] { self: SparKafka[F, K, V] =>
     jsonValDecoder: JsonDecoder[V]): CrRdd[F, K, V] =
     readJson(params.pathBuilder(topic.topicName, NJFileFormat.Json))
 
+  // jackson
   final def readJackson(pathStr: String): CrRdd[F, K, V] =
     new CrRdd[F, K, V](sparkSession.jackson[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
 

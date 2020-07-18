@@ -42,7 +42,7 @@ class ReadTest extends AnyFunSuite {
     val data = TypedDataset.create(dogs_noKey)
     val path = "./data/test/spark/kafka/read/parquet"
     data.write.mode(SaveMode.Overwrite).parquet(path)
-    val rst = topic.sparKafka(range).readParquet(path)
+    val rst = topic.sparKafka.readParquet(path)
     assert(rst.diff(data.dataset.rdd).count == 0)
   }
 
@@ -50,7 +50,7 @@ class ReadTest extends AnyFunSuite {
     val data = TypedDataset.create(dogs_noKey)
     val path = "./data/test/spark/kafka/read/avro"
     data.write.mode(SaveMode.Overwrite).format("avro").save(path)
-    val rst = topic.sparKafka(range).readAvro(path)
+    val rst = topic.sparKafka.readAvro(path)
     assert(rst.diff(data.dataset.rdd).count == 0)
   }
 
@@ -58,7 +58,7 @@ class ReadTest extends AnyFunSuite {
     val data = TypedDataset.create(dogs_noKey)
     val path = "./data/test/spark/kafka/read/json"
     data.write.mode(SaveMode.Overwrite).json(path)
-    val rst = topic.sparKafka(range).readJson(path)
+    val rst = topic.sparKafka.readJson(path)
     assert(rst.diff(data.dataset.rdd).count == 0)
   }
 
