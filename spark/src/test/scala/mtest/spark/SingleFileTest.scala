@@ -36,9 +36,9 @@ object SingleFileTestData {
 
 class SingleFileTest extends AnyFunSuite {
   import SingleFileTestData._
-  val sink                 = fileSink[IO](blocker)
-  val source               = fileSource[IO](blocker)
-  def delete(path: String) = sink.delete(path)
+  val sink: SingleFileSink[IO]          = fileSink[IO](blocker)
+  val source: SingleFileSource[IO]      = fileSource[IO](blocker)
+  def delete(path: String): IO[Boolean] = sink.delete(path)
 
   test("spark avro - identity") {
     val path = "./data/test/spark/singleFile/swordfish.avro"
