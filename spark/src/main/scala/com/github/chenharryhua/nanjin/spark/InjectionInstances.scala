@@ -29,5 +29,10 @@ private[spark] trait InjectionInstances extends Serializable {
     Injection[A, B](iso.get, iso.reverseGet)
 
   implicit def enumToStringInjection[E <: Enumeration](implicit
-    w: Witness.Aux[E]): Injection[E#Value, String] = Injection(_.toString, x => w.value.withName(x))
+    w: Witness.Aux[E]): Injection[E#Value, String] =
+    Injection(_.toString, x => w.value.withName(x))
+
+  implicit def orderScalaEnum[E <: Enumeration](implicit
+    ev: shapeless.Witness.Aux[E]): Order[E#Value] =
+    (x: E#Value, y: E#Value) => ev.value(x.id).compare(ev.value(y.id))
 }

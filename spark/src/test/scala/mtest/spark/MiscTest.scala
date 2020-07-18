@@ -1,11 +1,15 @@
 package mtest.spark
 
 import cats.effect.IO
-import frameless.{TypedDataset, TypedEncoder}
-import org.scalatest.funsuite.AnyFunSuite
+import cats.kernel.Eq
+import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.cats.implicits._
+import frameless.{TypedDataset, TypedEncoder}
 import mtest.spark.pb.test.Whale
 import org.apache.spark.sql.SaveMode
+import org.scalatest.funsuite.AnyFunSuite
+import cats.derived.auto.eq._
+import cats.implicits._
 
 import scala.util.Random
 
@@ -24,6 +28,14 @@ object JoinTestData {
     Sister(1, "y"),
     Sister(3, "z")
   )
+
+  object Fruit extends Enumeration {
+    val Apple, Watermelon = Value
+  }
+
+  final case class Food(kind: Fruit.Value, num: Int)
+
+  val shouldCompile: Eq[Food] = implicitly[Eq[Food]]
 }
 
 class MiscTest extends AnyFunSuite {
@@ -52,6 +64,6 @@ class MiscTest extends AnyFunSuite {
         .collect[IO]
         .unsafeRunSync()
         .toSet
-    assert(rst === whales.toSet)
+    assert(rst == whales.toSet)
   }
 }
