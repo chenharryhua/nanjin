@@ -24,14 +24,16 @@ import fs2.Stream
 import io.circe.generic.auto._
 import io.circe.{Encoder => JsonEncoder}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import scala.collection.immutable.Queue
+import scala.reflect.runtime.universe.TypeTag
 
-final class CrRdd[F[_], K: AvroEncoder, V: AvroEncoder](
-  val rdd: RDD[OptionalKV[K, V]],
-  topicName: TopicName,
-  cfg: SKConfig)(implicit sparkSession: SparkSession)
+final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicName, cfg: SKConfig)(
+  implicit
+  sparkSession: SparkSession,
+  keyEncoder: AvroEncoder[K],
+  valEncoder: AvroEncoder[V])
     extends SparKafkaUpdateParams[CrRdd[F, K, V]] {
 
   override def params: SKParams = cfg.evalConfig
@@ -84,6 +86,9 @@ final class CrRdd[F[_], K: AvroEncoder, V: AvroEncoder](
     valEncoder: TypedEncoder[V]): TypedDataset[OptionalKV[K, V]] =
     TypedDataset.create(rdd)
 
+  def toDF(implicit ev: TypeTag[K], ev2: TypeTag[V]): DataFrame =
+    sparkSession.createDataFrame(rdd)
+
   def crDataset(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): CrDataset[F, K, V] =
@@ -127,8 +132,8 @@ final class CrRdd[F[_], K: AvroEncoder, V: AvroEncoder](
   }
 
   def showJackson(rs: Array[OptionalKV[K, V]])(implicit F: Sync[F]): F[Unit] = {
-    implicit val ks: SchemaFor[K] = AvroEncoder[K].schemaFor
-    implicit val vs: SchemaFor[V] = AvroEncoder[V].schemaFor
+    implicit val ks: SchemaFor[K] = keyEncoder.schemaFor
+    implicit val vs: SchemaFor[V] = valEncoder.schemaFor
 
     val pipe: JacksonSerialization[F] = new JacksonSerialization[F](AvroSchema[OptionalKV[K, V]])
     val gre: GenericRecordEncoder[F, OptionalKV[K, V]] =
