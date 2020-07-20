@@ -24,7 +24,7 @@ final class SingleFileSource[F[_]](blocker: Blocker, conf: Configuration) {
     pathStr: String)(implicit F: ConcurrentEffect[F], cs: ContextShift[F]): Stream[F, A] =
     csv[A](pathStr, CsvConfiguration.rfc)
 
-  def json[A: JsonDecoder](
+  def circe[A: JsonDecoder](
     pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): Stream[F, A] = {
     val pipe = new CirceDeserialization[F, A]
     new NJHadoop[F](conf, blocker).byteStream(pathStr).through(pipe.deserialize)

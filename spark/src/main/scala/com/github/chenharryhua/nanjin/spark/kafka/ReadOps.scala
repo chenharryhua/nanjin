@@ -5,7 +5,6 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
-import frameless.TypedEncoder
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import io.circe.generic.auto._
 import io.circe.{Decoder => JsonDecoder}
@@ -37,16 +36,23 @@ private[kafka] trait ReadOps[F[_], K, V] { self: SparKafka[F, K, V] =>
   final def readParquet: CrRdd[F, K, V] =
     readParquet(params.pathBuilder(topic.topicName, NJFileFormat.Parquet))
 
-  // json
-  final def readJson(pathStr: String)(implicit
-    jsonKeyDecoder: JsonDecoder[K],
-    jsonValDecoder: JsonDecoder[V]): CrRdd[F, K, V] =
+  // spark json
+  final def readJson(pathStr: String): CrRdd[F, K, V] =
     new CrRdd[F, K, V](sparkSession.json[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
 
-  final def readJson(implicit
+  final def readJson: CrRdd[F, K, V] =
+    readJson(params.pathBuilder(topic.topicName, NJFileFormat.SparkJson))
+
+  // circe json
+  final def readCirce(pathStr: String)(implicit
     jsonKeyDecoder: JsonDecoder[K],
     jsonValDecoder: JsonDecoder[V]): CrRdd[F, K, V] =
-    readJson(params.pathBuilder(topic.topicName, NJFileFormat.Json))
+    new CrRdd[F, K, V](sparkSession.circe[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
+
+  final def readCirce(implicit
+    jsonKeyDecoder: JsonDecoder[K],
+    jsonValDecoder: JsonDecoder[V]): CrRdd[F, K, V] =
+    readCirce(params.pathBuilder(topic.topicName, NJFileFormat.CirceJson))
 
   // jackson
   final def readJackson(pathStr: String): CrRdd[F, K, V] =

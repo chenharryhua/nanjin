@@ -85,7 +85,7 @@ class ReadTest extends AnyFunSuite {
       TypedDataset.create(dogs.flatMap(_.toCompulsoryKV))
     val path = "./data/test/spark/kafka/read/json-compulsory"
     data.write.mode(SaveMode.Overwrite).json(path)
-    val rst = topic.sparKafka(range).readJson(path)
+    val rst = topic.sparKafka(range).readCirce(path)
     assert(rst.diff(data.dataset.rdd.map(_.toOptionalKV)).count == 0)
   }
 }

@@ -100,6 +100,13 @@ private[spark] trait DatasetExtensions {
     def parquet[A: ClassTag: AvroDecoder](pathStr: String): RDD[A] =
       toRDD(ss.read.parquet(pathStr))
 
+    def json[A: ClassTag: AvroDecoder](pathStr: String): RDD[A] = {
+      val avroSchema: Schema          = AvroDecoder[A].schema
+      val sparkDataType: DataType     = SchemaConverters.toSqlType(avroSchema).dataType
+      val sparkStructType: StructType = sparkDataType.asInstanceOf[StructType]
+      toRDD(ss.read.schema(sparkStructType).json(pathStr))
+    }
+
     def jackson[A: ClassTag: AvroDecoder](pathStr: String): RDD[A] = {
       val schema = AvroDecoder[A].schema
       ss.sparkContext.textFile(pathStr).mapPartitions { strs =>
@@ -111,7 +118,7 @@ private[spark] trait DatasetExtensions {
       }
     }
 
-    def json[A: ClassTag: JsonDecoder](pathStr: String): RDD[A] =
+    def circe[A: ClassTag: JsonDecoder](pathStr: String): RDD[A] =
       ss.sparkContext
         .textFile(pathStr)
         .map(decode[A](_) match {

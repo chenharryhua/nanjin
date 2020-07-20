@@ -30,7 +30,7 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
     pathStr: String)(implicit ce: Concurrent[F], cs: ContextShift[F]): Pipe[F, A, Unit] =
     csv[A](pathStr, CsvConfiguration.rfc)
 
-  def json[A: JsonEncoder](
+  def circe[A: JsonEncoder](
     pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): Pipe[F, A, Unit] = {
     val hadoop = new NJHadoop[F](conf, blocker).byteSink(pathStr)
     val pipe   = new CirceSerialization[F, A]

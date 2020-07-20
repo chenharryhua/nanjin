@@ -74,16 +74,16 @@ class SingleFileTest extends AnyFunSuite {
     assert(s == fishes.toSet)
   }
 
-  test("spark json - identity") {
+  test("spark circe json - identity") {
     val path = "./data/test/spark/singleFile/swordfish.json"
     val run = delete(path) >>
-      fishStream.through(sink.json[Swordfish](path)).compile.drain >>
-      source.json[Swordfish](path).compile.toList
+      fishStream.through(sink.circe[Swordfish](path)).compile.drain >>
+      source.circe[Swordfish](path).compile.toList
 
     assert(run.unsafeRunSync() === fishes)
     assert(File(path).lineCount == 3L)
 
-    val s = sparkSession.json[Swordfish](path).typedDataset.collect[IO]().unsafeRunSync().toSet
+    val s = sparkSession.circe[Swordfish](path).typedDataset.collect[IO]().unsafeRunSync().toSet
     assert(s == fishes.toSet)
 
   }

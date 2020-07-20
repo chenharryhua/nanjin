@@ -215,26 +215,26 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicNa
   }
 
   //save actions
-  def saveJson(blocker: Blocker)(implicit
+  def saveSingleCirce(blocker: Blocker)(implicit
     F: Sync[F],
     cs: ContextShift[F],
     ek: JsonEncoder[K],
     ev: JsonEncoder[V]): F[Long] = {
     sparkSession.withGroupId(s"nj.rdd.save.circe.json.${utils.random4d.value}")
 
-    val path = params.pathBuilder(topicName, NJFileFormat.Json)
+    val path = params.pathBuilder(topicName, NJFileFormat.CirceJson)
 
     rddResource.use { data =>
       data
         .stream[F]
-        .through(fileSink(blocker).json[OptionalKV[K, V]](path))
+        .through(fileSink(blocker).circe[OptionalKV[K, V]](path))
         .compile
         .drain
         .as(data.count())
     }
   }
 
-  def saveText(blocker: Blocker)(implicit
+  def saveSingleText(blocker: Blocker)(implicit
     showK: Show[K],
     showV: Show[V],
     F: Sync[F],
@@ -272,22 +272,23 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicNa
     rddResource.use(data => run(data).compile.drain.as(data.count()))
   }
 
-  def saveJackson(
+  def saveSingleJackson(
     blocker: Blocker)(implicit ce: ConcurrentEffect[F], cs: ContextShift[F]): F[Long] =
     avroLike(blocker, NJFileFormat.Jackson)
 
-  def saveAvro(blocker: Blocker)(implicit ce: ConcurrentEffect[F], cs: ContextShift[F]): F[Long] =
+  def saveSingleAvro(
+    blocker: Blocker)(implicit ce: ConcurrentEffect[F], cs: ContextShift[F]): F[Long] =
     avroLike(blocker, NJFileFormat.Avro)
 
-  def saveBinaryAvro(
+  def saveSingleBinaryAvro(
     blocker: Blocker)(implicit ce: ConcurrentEffect[F], cs: ContextShift[F]): F[Long] =
     avroLike(blocker, NJFileFormat.BinaryAvro)
 
-  def saveParquet(
+  def saveSingleParquet(
     blocker: Blocker)(implicit ce: ConcurrentEffect[F], cs: ContextShift[F]): F[Long] =
     avroLike(blocker, NJFileFormat.Parquet)
 
-  def saveJavaObject(
+  def saveSingleJavaObject(
     blocker: Blocker)(implicit ce: ConcurrentEffect[F], cs: ContextShift[F]): F[Long] =
     avroLike(blocker, NJFileFormat.JavaObject)
 
