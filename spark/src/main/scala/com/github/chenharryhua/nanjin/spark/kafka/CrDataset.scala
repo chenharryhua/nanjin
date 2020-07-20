@@ -41,12 +41,18 @@ final class CrDataset[F[_], K: TypedEncoder, V: TypedEncoder](
     new CrDataset[F, K, V](crs.filter(f), cfg)
 
   def ascending: CrDataset[F, K, V] = {
-    val sd = typedDataset.orderBy(typedDataset('timestamp).asc)
+    val sd = typedDataset.orderBy(
+      typedDataset('timestamp).asc,
+      typedDataset('offset).asc,
+      typedDataset('partition).asc)
     new CrDataset[F, K, V](sd.dataset, cfg)
   }
 
   def descending: CrDataset[F, K, V] = {
-    val sd = typedDataset.orderBy(typedDataset('timestamp).desc)
+    val sd = typedDataset.orderBy(
+      typedDataset('timestamp).desc,
+      typedDataset('offset).desc,
+      typedDataset('partition).desc)
     new CrDataset[F, K, V](sd.dataset, cfg)
   }
 
