@@ -3,14 +3,14 @@ package mtest.spark.kafka
 import cats.effect.IO
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat.{Avro, Jackson, Json, Parquet}
-import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
+import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.kafka._
 import frameless.cats.implicits._
 import fs2.kafka.ProducerRecord
-import org.scalatest.funsuite.AnyFunSuite
 import io.circe.generic.auto._
+import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
 
@@ -59,25 +59,24 @@ class SaveTest extends AnyFunSuite {
           .map(r => assert(r.sorted.flatMap(_.value).toList == chickens))
     action.unsafeRunSync()
   }
-/*
+
   test("sparKafka avro") {
 
-    val action =
-      sk.fromKafka.flatMap(_.saveAvro(blocker)).map(r => assert(r == 100)) >>
-        sparkSession
-          .avro[OptionalKV[Int, Chicken]](sk.params.pathBuilder(topic.topicName, Avro))
-          .collect[IO]()
-          .map(r => assert(r.sorted.flatMap(_.value).toList == chickens))
+    val action = sk.fromKafka.flatMap(_.saveAvro(blocker)).map(r => assert(r == 100))
     action.unsafeRunSync()
+    val rst: Array[OptionalKV[Int, Chicken]] = sparkSession
+      .avro[OptionalKV[Int, Chicken]](sk.params.pathBuilder(topic.topicName, Avro))
+      .collect()
+      .sorted
+    assert(rst.flatMap(_.value).toList == chickens)
   }
   test("sparKafka parquet") {
-    val action =
-      sk.fromKafka.flatMap(_.saveParquet(blocker)).map(r => assert(r == 100)) >>
-        sparkSession
-          .parquet[OptionalKV[Int, Chicken]](sk.params.pathBuilder(topic.topicName, Parquet))
-          .collect[IO]()
-          .map(r => assert(r.sorted.flatMap(_.value).toList == chickens))
+    val action = sk.fromKafka.flatMap(_.saveParquet(blocker)).map(r => assert(r == 100))
     action.unsafeRunSync()
+    val rst = sparkSession
+      .parquet[OptionalKV[Int, Chicken]](sk.params.pathBuilder(topic.topicName, Parquet))
+      .collect()
+      .sorted
+    assert(rst.flatMap(_.value).toList == chickens)
   }
-  */
 }

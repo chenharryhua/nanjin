@@ -10,6 +10,8 @@ import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.cats.implicits._
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
+import kantan.csv.generic._
+import kantan.csv.java8._
 
 object SparkSessionExtTestData {
   final case class Elephant(birthDay: LocalDateTime, weight: Double, food: List[String])
@@ -46,17 +48,19 @@ class SparkSessionExtTest extends AnyFunSuite {
   }
 
   test("spark avro read/write identity") {
-    val path = "./data/test/spark/sse/elephant.avro"
-    val data = Stream.emits(elephants)
-    (delete(path) >> data.through(sink.avro[Elephant](path)).compile.drain).unsafeRunSync()
+    val path    = "./data/test/spark/sse/elephant.avro"
+    val data    = Stream.emits(elephants)
+    val prepare = delete(path) >> data.through(sink.avro[Elephant](path)).compile.drain
+    prepare.unsafeRunSync()
     val rst = sparkSession.avro[Elephant](path).collect.toSet
     assert(rst == elephants.toSet)
   }
 
   test("spark parquet read/write identity") {
-    val path = "./data/test/spark/sse/elephant.parquet"
-    val data = Stream.emits(elephants)
-    (delete(path) >> data.through(sink.parquet[Elephant](path)).compile.drain).unsafeRunSync()
+    val path    = "./data/test/spark/sse/elephant.parquet"
+    val data    = Stream.emits(elephants)
+    val prepare = delete(path) >> data.through(sink.parquet[Elephant](path)).compile.drain
+    prepare.unsafeRunSync()
     val rst = sparkSession.parquet[Elephant](path).collect.toSet
     assert(rst == elephants.toSet)
   }
