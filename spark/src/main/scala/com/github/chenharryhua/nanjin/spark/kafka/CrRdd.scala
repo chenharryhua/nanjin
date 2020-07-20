@@ -97,18 +97,19 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicNa
     implicit val vs: SchemaFor[V]        = valEncoder.schemaFor
     val toGR: ToRecord[OptionalKV[K, V]] = ToRecord[OptionalKV[K, V]]
     val avroSchema: Schema               = AvroSchema[OptionalKV[K, V]]
-    val sparkSchema: DataType            = SchemaConverters.toSqlType(avroSchema).dataType
+    val sparkDataType: DataType          = SchemaConverters.toSqlType(avroSchema).dataType
+    val sparkStructType: StructType      = sparkDataType.asInstanceOf[StructType]
     val rowEnconder: ExpressionEncoder[Row] =
-      RowEncoder.apply(sparkSchema.asInstanceOf[StructType]).resolveAndBind()
+      RowEncoder.apply(sparkStructType).resolveAndBind()
 
     sparkSession.createDataFrame(
       rdd.mapPartitions { rcds =>
-        val deSer: AvroDeserializer = new AvroDeserializer(avroSchema, sparkSchema)
+        val deSer: AvroDeserializer = new AvroDeserializer(avroSchema, sparkDataType)
         rcds.map { rcd =>
           rowEnconder.fromRow(deSer.deserialize(toGR.to(rcd)).asInstanceOf[InternalRow])
         }
       },
-      sparkSchema.asInstanceOf[StructType]
+      sparkStructType
     )
   }
 

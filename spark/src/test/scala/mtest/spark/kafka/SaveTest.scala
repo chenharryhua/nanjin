@@ -59,7 +59,7 @@ class SaveTest extends AnyFunSuite {
           .map(r => assert(r.sorted.flatMap(_.value).toList == chickens))
     action.unsafeRunSync()
   }
-
+/*
   test("sparKafka avro") {
 
     val action =
@@ -79,4 +79,5 @@ class SaveTest extends AnyFunSuite {
           .map(r => assert(r.sorted.flatMap(_.value).toList == chickens))
     action.unsafeRunSync()
   }
+  */
 }

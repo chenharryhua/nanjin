@@ -48,7 +48,7 @@ class SingleFileTest extends AnyFunSuite {
 
     assert(run.unsafeRunSync() === fishes)
 
-    val s = sparkSession.avro[Swordfish](path).collect[IO]().unsafeRunSync().toSet
+    val s = sparkSession.avro[Swordfish](path).collect.toSet
     assert(s == fishes.toSet)
   }
 
@@ -70,7 +70,7 @@ class SingleFileTest extends AnyFunSuite {
 
     assert(run.unsafeRunSync() === fishes)
 
-    val s = sparkSession.parquet[Swordfish](path).collect[IO]().unsafeRunSync().toSet
+    val s = sparkSession.parquet[Swordfish](path).collect.toSet
     assert(s == fishes.toSet)
   }
 

@@ -24,31 +24,17 @@ private[kafka] trait ReadOps[F[_], K, V] { self: SparKafka[F, K, V] =>
       cfg)
 
   // avro
-  final def readAvro(pathStr: String)(implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](
-      sparkSession.avro[OptionalKV[K, V]](pathStr).dataset.rdd,
-      topic.topicName,
-      cfg)
+  final def readAvro(pathStr: String): CrRdd[F, K, V] =
+    new CrRdd[F, K, V](sparkSession.avro[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
 
-  final def readAvro(implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): CrRdd[F, K, V] =
+  final def readAvro: CrRdd[F, K, V] =
     readAvro(params.pathBuilder(topic.topicName, NJFileFormat.Avro))
 
   // parquet
-  final def readParquet(pathStr: String)(implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](
-      sparkSession.parquet[OptionalKV[K, V]](pathStr).dataset.rdd,
-      topic.topicName,
-      cfg)
+  final def readParquet(pathStr: String): CrRdd[F, K, V] =
+    new CrRdd[F, K, V](sparkSession.parquet[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
 
-  final def readParquet(implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): CrRdd[F, K, V] =
+  final def readParquet: CrRdd[F, K, V] =
     readParquet(params.pathBuilder(topic.topicName, NJFileFormat.Parquet))
 
   // json
