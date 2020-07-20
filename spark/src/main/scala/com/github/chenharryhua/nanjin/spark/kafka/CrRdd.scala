@@ -17,17 +17,21 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
 import com.github.chenharryhua.nanjin.pipes.{GenericRecordEncoder, JacksonSerialization}
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt, SparkSessionExt}
 import com.github.chenharryhua.nanjin.utils
-import com.sksamuel.avro4s.{AvroSchema, SchemaFor, Encoder => AvroEncoder}
+import com.sksamuel.avro4s.{AvroSchema, SchemaFor, ToRecord, Encoder => AvroEncoder}
 import frameless.cats.implicits.rddOps
 import frameless.{SparkDelay, TypedDataset, TypedEncoder}
 import fs2.Stream
 import io.circe.generic.auto._
 import io.circe.{Encoder => JsonEncoder}
+import org.apache.avro.Schema
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.avro.{AvroDeserializer, SchemaConverters}
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.encoders.{ExpressionEncoder, RowEncoder}
+import org.apache.spark.sql.types.{DataType, StructType}
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 
 import scala.collection.immutable.Queue
-import scala.reflect.runtime.universe.TypeTag
 
 final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicName, cfg: SKConfig)(
   implicit
@@ -86,8 +90,27 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], topicName: TopicNa
     valEncoder: TypedEncoder[V]): TypedDataset[OptionalKV[K, V]] =
     TypedDataset.create(rdd)
 
-  def toDF(implicit ev: TypeTag[K], ev2: TypeTag[V]): DataFrame =
-    sparkSession.createDataFrame(rdd)
+  // untyped world
+  @SuppressWarnings(Array("AsInstanceOf"))
+  def toDF: DataFrame = {
+    implicit val ks: SchemaFor[K]        = keyEncoder.schemaFor
+    implicit val vs: SchemaFor[V]        = valEncoder.schemaFor
+    val toGR: ToRecord[OptionalKV[K, V]] = ToRecord[OptionalKV[K, V]]
+    val avroSchema: Schema               = AvroSchema[OptionalKV[K, V]]
+    val sparkSchema: DataType            = SchemaConverters.toSqlType(avroSchema).dataType
+    val rowEnconder: ExpressionEncoder[Row] =
+      RowEncoder.apply(sparkSchema.asInstanceOf[StructType]).resolveAndBind()
+
+    sparkSession.createDataFrame(
+      rdd.mapPartitions { rcds =>
+        val deSer: AvroDeserializer = new AvroDeserializer(avroSchema, sparkSchema)
+        rcds.map { rcd =>
+          rowEnconder.fromRow(deSer.deserialize(toGR.to(rcd)).asInstanceOf[InternalRow])
+        }
+      },
+      sparkSchema.asInstanceOf[StructType]
+    )
+  }
 
   def crDataset(implicit
     keyEncoder: TypedEncoder[K],
