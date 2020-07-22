@@ -54,14 +54,6 @@ class ReadTest extends AnyFunSuite {
     assert(rst.diff(data.dataset.rdd).count == 0)
   }
 
-  test("sparKafka read json") {
-    val data = TypedDataset.create(dogs_noKey)
-    val path = "./data/test/spark/kafka/read/json"
-    data.write.mode(SaveMode.Overwrite).json(path)
-    val rst = topic.sparKafka.readJson(path)
-    assert(rst.diff(data.dataset.rdd).count == 0)
-  }
-
   test("sparKafka read parquet - compulsoryK") {
     val data: TypedDataset[CompulsoryK[Int, Dog]] =
       TypedDataset.create(dogs.flatMap(_.toCompulsoryK))

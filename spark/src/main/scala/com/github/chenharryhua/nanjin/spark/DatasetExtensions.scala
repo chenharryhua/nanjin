@@ -5,7 +5,7 @@ import akka.stream.scaladsl.Source
 import cats.effect.{ConcurrentEffect, Sync}
 import cats.implicits._
 import cats.kernel.Eq
-import com.sksamuel.avro4s.{FromRecord, Decoder => AvroDecoder}
+import com.sksamuel.avro4s.{AvroInputStream, Decoder => AvroDecoder}
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import fs2.interop.reactivestreams._
@@ -13,14 +13,10 @@ import fs2.{Pipe, Stream}
 import io.circe.parser.decode
 import io.circe.{Decoder => JsonDecoder}
 import kantan.csv.CsvConfiguration
-import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericDatumReader, GenericRecord}
 import org.apache.avro.io.DecoderFactory
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.avro.{AvroSerializer, SchemaConverters}
-import org.apache.spark.sql.catalyst.encoders.{ExpressionEncoder, RowEncoder}
-import org.apache.spark.sql.types.{DataType, StructType}
-import org.apache.spark.sql.{DataFrame, Row, SparkSession}
+import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import scala.reflect.ClassTag
 
@@ -79,33 +75,17 @@ private[spark] trait DatasetExtensions {
       ss
     }
 
-    @SuppressWarnings(Array("AsInstanceOf"))
-    private def toRDD[A: ClassTag](df: DataFrame)(implicit decoder: AvroDecoder[A]): RDD[A] = {
-      val fromGR: FromRecord[A]       = FromRecord[A]
-      val avroSchema: Schema          = decoder.schema
-      val sparkDataType: DataType     = SchemaConverters.toSqlType(avroSchema).dataType
-      val sparkStructType: StructType = sparkDataType.asInstanceOf[StructType]
-      val rowEnconder: ExpressionEncoder[Row] =
-        RowEncoder.apply(sparkStructType).resolveAndBind()
-
-      df.rdd.mapPartitions { rcds =>
-        val ser: AvroSerializer = new AvroSerializer(sparkDataType, avroSchema, false)
-        rcds.map(r => fromGR.from(ser.serialize(rowEnconder.toRow(r)).asInstanceOf[GenericRecord]))
-      }
-    }
+    def parquet[A: TypedEncoder](pathStr: String): TypedDataset[A] =
+      TypedDataset.createUnsafe[A](ss.read.parquet(pathStr))
 
     def avro[A: ClassTag: AvroDecoder](pathStr: String): RDD[A] =
-      toRDD(ss.read.format("avro").load(pathStr))
-
-    def parquet[A: ClassTag: AvroDecoder](pathStr: String): RDD[A] =
-      toRDD(ss.read.parquet(pathStr))
-
-    def json[A: ClassTag: AvroDecoder](pathStr: String): RDD[A] = {
-      val avroSchema: Schema          = AvroDecoder[A].schema
-      val sparkDataType: DataType     = SchemaConverters.toSqlType(avroSchema).dataType
-      val sparkStructType: StructType = sparkDataType.asInstanceOf[StructType]
-      toRDD(ss.read.schema(sparkStructType).json(pathStr))
-    }
+      ss.sparkContext.binaryFiles(pathStr).flatMap {
+        case (_, pds) =>
+          val is  = pds.open()
+          val ais = AvroInputStream.data[A].from(is).build(AvroDecoder[A].schema)
+          try ais.iterator.toList
+          finally ais.close()
+      }
 
     def jackson[A: ClassTag: AvroDecoder](pathStr: String): RDD[A] = {
       val schema = AvroDecoder[A].schema
