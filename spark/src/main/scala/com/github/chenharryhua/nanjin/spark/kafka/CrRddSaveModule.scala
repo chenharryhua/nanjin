@@ -1,20 +1,26 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import java.io.ByteArrayOutputStream
+
 import cats.Show
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Resource, Sync}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
+import com.github.chenharryhua.nanjin.messages.kafka
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
-import com.sksamuel.avro4s.{AvroSchema, SchemaFor, ToRecord}
+import com.sksamuel.avro4s.{AvroOutputStream, AvroSchema, SchemaFor, ToRecord}
 import frameless.cats.implicits.rddOps
 import fs2.Stream
 import io.circe.generic.auto._
+import io.circe.syntax._
 import io.circe.{Encoder => JsonEncoder}
 import org.apache.avro.generic.GenericRecord
 import org.apache.avro.mapred.AvroKey
-import org.apache.avro.mapreduce.AvroKeyOutputFormat
-import org.apache.hadoop.io.NullWritable
+import org.apache.avro.mapreduce.{AvroJob, AvroKeyOutputFormat}
+import org.apache.hadoop.io.{NullWritable, Text}
+import org.apache.hadoop.mapreduce.Job
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat
 import org.apache.spark.rdd.RDD
 
 private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
@@ -38,12 +44,31 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
       F.delay {
         implicit val ks: SchemaFor[K] = keyEncoder.schemaFor
         implicit val vs: SchemaFor[V] = valEncoder.schemaFor
-        sparkSession.sparkContext.hadoopConfiguration
-          .set("avro.schema.output.key", AvroSchema[OptionalKV[K, V]].toString)
+
+        val job = Job.getInstance(sparkSession.sparkContext.hadoopConfiguration)
+        AvroJob.setOutputKeySchema(job, AvroSchema[OptionalKV[K, V]])
+        sparkSession.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
+
         data.mapPartitions { rcds =>
           val to = ToRecord[OptionalKV[K, V]]
           rcds.map(rcd => (new AvroKey[GenericRecord](to.to(rcd)), NullWritable.get()))
         }.saveAsNewAPIHadoopFile[AvroKeyOutputFormat[GenericRecord]](path)
+        data.count()
+      }
+    }
+  }
+
+  def saveMultiCirce(blocker: Blocker)(implicit
+    F: Sync[F],
+    cs: ContextShift[F],
+    ek: JsonEncoder[K],
+    ev: JsonEncoder[V]): F[Long] = {
+    val path = params.pathBuilder(topicName, NJFileFormat.MultiCirce)
+    fileSink(blocker).delete(path) >> rddResource.use { data =>
+      F.delay {
+        data.mapPartitions { rcds =>
+          rcds.map(rcd => (new Text(rcd.asJson.noSpaces), NullWritable.get()))
+        }.saveAsNewAPIHadoopFile[TextOutputFormat[Text, NullWritable]](path)
         data.count()
       }
     }

@@ -5,6 +5,7 @@ import java.sql.{Date, Timestamp}
 import cats.Order
 import cats.implicits._
 import frameless.{Injection, SQLDate, SQLTimestamp}
+import io.circe.{Decoder, Encoder}
 import monocle.Iso
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import shapeless.Witness
@@ -32,7 +33,13 @@ private[spark] trait InjectionInstances extends Serializable {
     w: Witness.Aux[E]): Injection[E#Value, String] =
     Injection(_.toString, x => w.value.withName(x))
 
+  implicit def enumCirceEncoder[E <: Enumeration](implicit w: Witness.Aux[E]): Encoder[E#Value] =
+    Encoder.encodeEnumeration(w.value)
+
+  implicit def enumCirceDecoder[E <: Enumeration](implicit w: Witness.Aux[E]): Decoder[E#Value] =
+    Decoder.decodeEnumeration(w.value)
+
   implicit def orderScalaEnum[E <: Enumeration](implicit
-    ev: shapeless.Witness.Aux[E]): Order[E#Value] =
-    (x: E#Value, y: E#Value) => ev.value(x.id).compare(ev.value(y.id))
+    w: shapeless.Witness.Aux[E]): Order[E#Value] =
+    (x: E#Value, y: E#Value) => w.value(x.id).compare(w.value(y.id))
 }

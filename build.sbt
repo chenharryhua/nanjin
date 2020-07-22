@@ -180,6 +180,7 @@ val kantanLib = Seq(
 val serdeLib = Seq(
   "org.apache.avro"                           % "avro"                      % avro,
   "org.apache.avro"                           % "avro-compiler"             % avro,
+  "org.apache.avro"                           % "avro-mapred"               % avro,
   "org.apache.parquet"                        % "parquet-avro"              % parquet,
   "io.confluent"                              % "kafka-streams-avro-serde"  % confluent,
   "io.confluent"                              % "kafka-protobuf-serializer" % confluent,

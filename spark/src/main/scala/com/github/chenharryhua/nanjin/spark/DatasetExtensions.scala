@@ -5,7 +5,7 @@ import akka.stream.scaladsl.Source
 import cats.effect.{ConcurrentEffect, Sync}
 import cats.implicits._
 import cats.kernel.Eq
-import com.sksamuel.avro4s.{AvroInputStream, Decoder => AvroDecoder}
+import com.sksamuel.avro4s.{Decoder => AvroDecoder}
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import fs2.interop.reactivestreams._
@@ -13,8 +13,12 @@ import fs2.{Pipe, Stream}
 import io.circe.parser.decode
 import io.circe.{Decoder => JsonDecoder}
 import kantan.csv.CsvConfiguration
-import org.apache.avro.generic.{GenericDatumReader, GenericRecord}
+import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericRecord}
 import org.apache.avro.io.DecoderFactory
+import org.apache.avro.mapred.AvroKey
+import org.apache.avro.mapreduce.{AvroJob, AvroKeyInputFormat}
+import org.apache.hadoop.io.NullWritable
+import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
@@ -78,14 +82,20 @@ private[spark] trait DatasetExtensions {
     def parquet[A: TypedEncoder](pathStr: String): TypedDataset[A] =
       TypedDataset.createUnsafe[A](ss.read.parquet(pathStr))
 
-    def avro[A: ClassTag: AvroDecoder](pathStr: String): RDD[A] =
-      ss.sparkContext.binaryFiles(pathStr).flatMap {
-        case (_, pds) =>
-          val is  = pds.open()
-          val ais = AvroInputStream.data[A].from(is).build(AvroDecoder[A].schema)
-          try ais.iterator.toList
-          finally ais.close()
-      }
+    def avro[A: ClassTag](pathStr: String)(implicit decoder: AvroDecoder[A]): RDD[A] = {
+      val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
+      AvroJob.setDataModelClass(job, classOf[GenericData])
+      AvroJob.setInputKeySchema(job, decoder.schema)
+      ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
+
+      ss.sparkContext
+        .newAPIHadoopFile(
+          pathStr,
+          classOf[AvroKeyInputFormat[GenericRecord]],
+          classOf[AvroKey[GenericRecord]],
+          classOf[NullWritable])
+        .map { case (gr, _) => decoder.decode(gr.datum()) }
+    }
 
     def jackson[A: ClassTag: AvroDecoder](pathStr: String): RDD[A] = {
       val schema = AvroDecoder[A].schema
