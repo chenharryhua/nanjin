@@ -10,8 +10,6 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryV,
   OptionalKV
 }
-import com.github.chenharryhua.nanjin.spark.SparkSessionExt
-import com.github.chenharryhua.nanjin.utils
 import frameless.cats.implicits._
 import frameless.{SparkDelay, TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
@@ -81,54 +79,38 @@ final class CrDataset[F[_], K: TypedEncoder, V: TypedEncoder](
     typedDataset.deserialized.flatMap(_.toCompulsoryKV)
 
   // investigations:
-  def stats: Statistics[F] = {
-    crs.sparkSession.withGroupId(s"nj.cr.stats.${utils.random4d.value}")
+  def stats: Statistics[F] =
     new Statistics[F](typedDataset.deserialized.map(CRMetaInfo(_)).dataset, cfg)
-  }
 
-  def missingData: TypedDataset[CRMetaInfo] = {
-    crs.sparkSession.withGroupId(s"nj.cr.miss.${utils.random4d.value}")
+  def missingData: TypedDataset[CRMetaInfo] =
     inv.missingData(values.deserialized.map(CRMetaInfo(_)))
-  }
 
-  def dupRecords: TypedDataset[DupResult] = {
-    crs.sparkSession.withGroupId(s"nj.cr.dup.${utils.random4d.value}")
+  def dupRecords: TypedDataset[DupResult] =
     inv.dupRecords(typedDataset.deserialized.map(CRMetaInfo(_)))
-  }
 
   def diff(other: TypedDataset[OptionalKV[K, V]])(implicit
     ke: Eq[K],
-    ve: Eq[V]): TypedDataset[DiffResult[K, V]] = {
-    crs.sparkSession.withGroupId(s"nj.cr.diff.pos.${utils.random4d.value}")
+    ve: Eq[V]): TypedDataset[DiffResult[K, V]] =
     inv.diffDataset(typedDataset, other)
-  }
 
   def diff(
     other: CrDataset[F, K, V])(implicit ke: Eq[K], ve: Eq[V]): TypedDataset[DiffResult[K, V]] =
     diff(other.typedDataset)
 
-  def kvDiff(other: TypedDataset[OptionalKV[K, V]]): TypedDataset[KvDiffResult[K, V]] = {
-    crs.sparkSession.withGroupId(s"nj.cr.diff.kv.${utils.random4d.value}")
+  def kvDiff(other: TypedDataset[OptionalKV[K, V]]): TypedDataset[KvDiffResult[K, V]] =
     inv.kvDiffDataset(typedDataset, other)
-  }
 
   def kvDiff(other: CrDataset[F, K, V]): TypedDataset[KvDiffResult[K, V]] =
     kvDiff(other.typedDataset)
 
-  def find(f: OptionalKV[K, V] => Boolean)(implicit F: Sync[F]): F[List[OptionalKV[K, V]]] = {
-    crs.sparkSession.withGroupId(s"nj.cr.find.${utils.random4d.value}")
+  def find(f: OptionalKV[K, V] => Boolean)(implicit F: Sync[F]): F[List[OptionalKV[K, V]]] =
     filter(f).typedDataset.take[F](params.showDs.rowNum).map(_.toList)
-  }
 
-  def count(implicit F: SparkDelay[F]): F[Long] = {
-    crs.sparkSession.withGroupId(s"nj.cr.count.${utils.random4d.value}")
+  def count(implicit F: SparkDelay[F]): F[Long] =
     typedDataset.count[F]()
-  }
 
-  def show(implicit F: SparkDelay[F]): F[Unit] = {
-    crs.sparkSession.withGroupId(s"nj.cr.show.${utils.random4d.value}")
+  def show(implicit F: SparkDelay[F]): F[Unit] =
     typedDataset.show[F](params.showDs.rowNum, params.showDs.isTruncate)
-  }
 
   def first(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] = F.delay(crs.rdd.cminOption)
   def last(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]]  = F.delay(crs.rdd.cmaxOption)

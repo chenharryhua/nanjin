@@ -25,11 +25,11 @@ sealed trait NJConsumerRecord[K, V] {
   val timestampType: Int
 
   final def compare(other: NJConsumerRecord[K, V]): Int = {
-    val ts = self.timestamp - other.timestamp
-    val os = self.offset - other.offset
-    if (ts != 0) ts.toInt
-    else if (os != 0) os.toInt
-    else self.partition - other.partition
+    val ts = self.timestamp.compareTo(other.timestamp)
+    val os = self.offset.compareTo(other.offset)
+    if (ts != 0) ts
+    else if (os != 0) os
+    else self.partition.compareTo(other.partition)
   }
 
   final def metaInfo: String =
