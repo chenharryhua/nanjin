@@ -82,10 +82,10 @@ private[spark] trait DatasetExtensions {
     def parquet[A: TypedEncoder](pathStr: String): TypedDataset[A] =
       TypedDataset.createUnsafe[A](ss.read.parquet(pathStr))
 
-    def avro[A: ClassTag: AvroDecoder](pathStr: String): RDD[A] = {
+    def avro[A: ClassTag](pathStr: String)(implicit decoder: AvroDecoder[A]): RDD[A] = {
       val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
       AvroJob.setDataModelClass(job, classOf[GenericData])
-      AvroJob.setInputKeySchema(job, AvroDecoder[A].schema)
+      AvroJob.setInputKeySchema(job, decoder.schema)
       ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
 
       ss.sparkContext
@@ -94,7 +94,7 @@ private[spark] trait DatasetExtensions {
           classOf[AvroKeyInputFormat[GenericRecord]],
           classOf[AvroKey[GenericRecord]],
           classOf[NullWritable])
-        .map { case (gr, _) => AvroDecoder[A].decode(gr.datum()) }
+        .map { case (gr, _) => decoder.decode(gr.datum()) }
     }
 
     def jackson[A: ClassTag: AvroDecoder](pathStr: String): RDD[A] = {

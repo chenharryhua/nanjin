@@ -68,6 +68,11 @@ final class CrRdd[F[_], K, V](
     f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]]): CrRdd[F, K2, V2] =
     new CrRdd[F, K2, V2](rdd.flatMap(f), topicName, cfg)
 
+  def union(other: RDD[OptionalKV[K, V]]): CrRdd[F, K, V] =
+    new CrRdd[F, K, V](rdd.union(other), topicName, cfg)
+
+  def union(other: CrRdd[F, K, V]): CrRdd[F, K, V] = union(other.rdd)
+
   def dismissNulls: CrRdd[F, K, V] =
     new CrRdd[F, K, V](rdd.dismissNulls, topicName, cfg)
 
