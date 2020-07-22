@@ -5,7 +5,7 @@ import akka.stream.scaladsl.Source
 import cats.effect.{ConcurrentEffect, Sync}
 import cats.implicits._
 import cats.kernel.Eq
-import com.sksamuel.avro4s.{Decoder => AvroDecoder}
+import com.sksamuel.avro4s.{AvroInputStream, Decoder => AvroDecoder}
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import fs2.interop.reactivestreams._
@@ -78,10 +78,16 @@ private[spark] trait DatasetExtensions {
     def parquet[A: TypedEncoder](pathStr: String): TypedDataset[A] =
       TypedDataset.createUnsafe[A](ss.read.parquet(pathStr))
 
-    def avro[A: TypedEncoder](pathStr: String): TypedDataset[A] =
-      TypedDataset.createUnsafe(ss.read.format("avro").load(pathStr))
+    def avro[A: ClassTag: AvroDecoder](pathStr: String): RDD[A] =
+      ss.sparkContext.binaryFiles(pathStr).flatMap {
+        case (_, pds) =>
+          val is  = pds.open()
+          val ais = AvroInputStream.data[A].from(is).build(AvroDecoder[A].schema)
+          try ais.iterator.toList
+          finally ais.close()
+      }
 
-    def jackson[A: AvroDecoder: ClassTag](pathStr: String): RDD[A] = {
+    def jackson[A: ClassTag: AvroDecoder](pathStr: String): RDD[A] = {
       val schema = AvroDecoder[A].schema
       ss.sparkContext.textFile(pathStr).mapPartitions { strs =>
         val datumReader = new GenericDatumReader[GenericRecord](AvroDecoder[A].schema)
@@ -92,7 +98,7 @@ private[spark] trait DatasetExtensions {
       }
     }
 
-    def json[A: JsonDecoder: ClassTag](pathStr: String): RDD[A] =
+    def circe[A: ClassTag: JsonDecoder](pathStr: String): RDD[A] =
       ss.sparkContext
         .textFile(pathStr)
         .map(decode[A](_) match {
@@ -100,7 +106,7 @@ private[spark] trait DatasetExtensions {
           case Right(r) => r
         })
 
-    def csv[A: TypedEncoder: ClassTag](
+    def csv[A: ClassTag: TypedEncoder](
       pathStr: String,
       csvConfig: CsvConfiguration): TypedDataset[A] = {
       val schema = TypedExpressionEncoder.targetStructType(TypedEncoder[A])
@@ -114,7 +120,7 @@ private[spark] trait DatasetExtensions {
           .csv(pathStr))
     }
 
-    def csv[A: TypedEncoder: ClassTag](pathStr: String): TypedDataset[A] =
+    def csv[A: ClassTag: TypedEncoder](pathStr: String): TypedDataset[A] =
       csv[A](pathStr, CsvConfiguration.rfc)
 
     def text(path: String): TypedDataset[String] =

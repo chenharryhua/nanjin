@@ -17,44 +17,51 @@ object NJFileFormat extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[N
   override val values: immutable.IndexedSeq[NJFileFormat] = findValues
   //text
   case object Jackson extends NJFileFormat(1, "json", "jackson")
-  case object Json extends NJFileFormat(2, "json", "circe")
-  case object Text extends NJFileFormat(3, "txt", "plain")
-  case object Csv extends NJFileFormat(4, "csv", "kantan")
+  case object CirceJson extends NJFileFormat(2, "json", "circe")
+  case object SparkJson extends NJFileFormat(3, "json", "spark")
+  case object Text extends NJFileFormat(4, "txt", "plain")
+  case object Csv extends NJFileFormat(5, "csv", "kantan")
   //binary
   case object Parquet extends NJFileFormat(11, "parquet", "apache")
   case object Avro extends NJFileFormat(12, "avro", "data")
-  case object BinaryAvro extends NJFileFormat(13, "avro", "binary")
-  case object JavaObject extends NJFileFormat(14, "obj", "java")
-  case object ProtoBuf extends NJFileFormat(15, "pb", "google")
+  case object MultiAvro extends NJFileFormat(13, "avro", "multi")
+  case object BinaryAvro extends NJFileFormat(14, "avro", "binary")
+  case object JavaObject extends NJFileFormat(15, "obj", "java")
+  case object ProtoBuf extends NJFileFormat(16, "pb", "google")
 
   // types
   type Jackson    = Jackson.type
-  type Json       = Json.type
+  type CirceJson  = CirceJson.type
+  type SparkJson  = SparkJson.type
   type Text       = Text.type
   type Csv        = Csv.type
   type Parquet    = Parquet.type
   type Avro       = Avro.type
+  type MultiAvro  = MultiAvro.type
   type BinaryAvro = BinaryAvro.type
   type JavaObject = JavaObject.type
   type ProtoBuf   = ProtoBuf.type
 
   // json family
-  type JsonFamily = Jackson :+: Json :+: CNil
+  type JsonFamily = Jackson :+: CirceJson :+: SparkJson :+: CNil
 
   implicit val jsonPrimsJackson: Prism[JsonFamily, Jackson] =
     coProductPrism[JsonFamily, Jackson]
 
-  implicit val jsonPrimsJson: Prism[JsonFamily, Json] =
-    coProductPrism[JsonFamily, Json]
+  implicit val jsonPrimsJson: Prism[JsonFamily, CirceJson] =
+    coProductPrism[JsonFamily, CirceJson]
+
+  implicit val jsonPrimsSpark: Prism[JsonFamily, SparkJson] =
+    coProductPrism[JsonFamily, SparkJson]
 
   // text family
-  type TextFamily = Jackson :+: Json :+: Text :+: Csv :+: CNil
+  type TextFamily = Jackson :+: CirceJson :+: SparkJson :+: Text :+: Csv :+: CNil
 
   implicit val textPrismJackson: Prism[TextFamily, Jackson] =
     coProductPrism[TextFamily, Jackson]
 
-  implicit val textPrismJson: Prism[TextFamily, Json] =
-    coProductPrism[TextFamily, Json]
+  implicit val textPrismJson: Prism[TextFamily, CirceJson] =
+    coProductPrism[TextFamily, CirceJson]
 
   implicit val textPrismText: Prism[TextFamily, Text] =
     coProductPrism[TextFamily, Text]
@@ -62,8 +69,12 @@ object NJFileFormat extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[N
   implicit val textPrismCsv: Prism[TextFamily, Csv] =
     coProductPrism[TextFamily, Csv]
 
+  implicit val textPrismSpark: Prism[TextFamily, SparkJson] =
+    coProductPrism[TextFamily, SparkJson]
+
   // binary family
-  type BinaryFamily = Parquet :+: Avro :+: BinaryAvro :+: JavaObject :+: ProtoBuf :+: CNil
+  type BinaryFamily =
+    Parquet :+: Avro :+: MultiAvro :+: BinaryAvro :+: JavaObject :+: ProtoBuf :+: CNil
 
   implicit val binPrismJavaObject: Prism[BinaryFamily, JavaObject] =
     coProductPrism[BinaryFamily, JavaObject]
@@ -77,11 +88,14 @@ object NJFileFormat extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[N
   implicit val binPrismAvro: Prism[BinaryFamily, Avro] =
     coProductPrism[BinaryFamily, Avro]
 
+  implicit val multiPrismAvro: Prism[BinaryFamily, MultiAvro] =
+    coProductPrism[BinaryFamily, MultiAvro]
+
   implicit val binPrismProtobuf: Prism[BinaryFamily, ProtoBuf] =
     coProductPrism[BinaryFamily, ProtoBuf]
 
   // avro family
-  type AvroFamily = Jackson :+: Parquet :+: Avro :+: BinaryAvro :+: CNil
+  type AvroFamily = Jackson :+: Parquet :+: Avro :+: MultiAvro :+: BinaryAvro :+: CNil
 
   implicit val avroPrismJackson: Prism[AvroFamily, Jackson] =
     coProductPrism[AvroFamily, Jackson]
@@ -91,6 +105,9 @@ object NJFileFormat extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[N
 
   implicit val avroPrismParquet: Prism[AvroFamily, Parquet] =
     coProductPrism[AvroFamily, Parquet]
+
+  implicit val avroPrismMultiAvro: Prism[AvroFamily, MultiAvro] =
+    coProductPrism[AvroFamily, MultiAvro]
 
   implicit val avroPrismAvro: Prism[AvroFamily, Avro] =
     coProductPrism[AvroFamily, Avro]

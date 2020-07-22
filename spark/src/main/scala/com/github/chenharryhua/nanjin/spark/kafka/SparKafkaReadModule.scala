@@ -5,12 +5,12 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
-import frameless.TypedEncoder
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import io.circe.generic.auto._
 import io.circe.{Decoder => JsonDecoder}
+import frameless.TypedEncoder
 
-private[kafka] trait ReadOps[F[_], K, V] { self: SparKafka[F, K, V] =>
+private[kafka] trait SparKafkaReadModule[F[_], K, V] { self: SparKafka[F, K, V] =>
   import self.topic.topicDef._
 
   final def fromKafka(implicit sync: Sync[F]): F[CrRdd[F, K, V]] =
@@ -24,43 +24,33 @@ private[kafka] trait ReadOps[F[_], K, V] { self: SparKafka[F, K, V] =>
       cfg)
 
   // avro
-  final def readAvro(pathStr: String)(implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](
-      sparkSession.avro[OptionalKV[K, V]](pathStr).dataset.rdd,
-      topic.topicName,
-      cfg)
+  final def readAvro(pathStr: String): CrRdd[F, K, V] =
+    new CrRdd[F, K, V](sparkSession.avro[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
 
-  final def readAvro(implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): CrRdd[F, K, V] =
+  final def readAvro: CrRdd[F, K, V] =
     readAvro(params.pathBuilder(topic.topicName, NJFileFormat.Avro))
 
   // parquet
-  final def readParquet(pathStr: String)(implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): CrRdd[F, K, V] =
+  final def readParquet(
+    pathStr: String)(implicit k: TypedEncoder[K], v: TypedEncoder[V]): CrRdd[F, K, V] =
     new CrRdd[F, K, V](
       sparkSession.parquet[OptionalKV[K, V]](pathStr).dataset.rdd,
       topic.topicName,
       cfg)
 
-  final def readParquet(implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): CrRdd[F, K, V] =
+  final def readParquet(implicit k: TypedEncoder[K], v: TypedEncoder[V]): CrRdd[F, K, V] =
     readParquet(params.pathBuilder(topic.topicName, NJFileFormat.Parquet))
 
-  // json
-  final def readJson(pathStr: String)(implicit
+  // circe json
+  final def readCirce(pathStr: String)(implicit
     jsonKeyDecoder: JsonDecoder[K],
     jsonValDecoder: JsonDecoder[V]): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](sparkSession.json[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
+    new CrRdd[F, K, V](sparkSession.circe[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
 
-  final def readJson(implicit
+  final def readCirce(implicit
     jsonKeyDecoder: JsonDecoder[K],
     jsonValDecoder: JsonDecoder[V]): CrRdd[F, K, V] =
-    readJson(params.pathBuilder(topic.topicName, NJFileFormat.Json))
+    readCirce(params.pathBuilder(topic.topicName, NJFileFormat.CirceJson))
 
   // jackson
   final def readJackson(pathStr: String): CrRdd[F, K, V] =
