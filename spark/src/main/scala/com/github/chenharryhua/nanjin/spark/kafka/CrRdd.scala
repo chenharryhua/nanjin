@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
+import cats.Order
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
@@ -26,6 +27,8 @@ import org.apache.spark.sql.catalyst.encoders.{ExpressionEncoder, RowEncoder}
 import org.apache.spark.sql.types.{DataType, StructType}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 
+import scala.reflect.ClassTag
+
 final class CrRdd[F[_], K, V](
   val rdd: RDD[OptionalKV[K, V]],
   val topicName: TopicName,
@@ -49,11 +52,11 @@ final class CrRdd[F[_], K, V](
   def kafkaPartition(num: Int): CrRdd[F, K, V] =
     new CrRdd[F, K, V](rdd.filter(_.partition === num), topicName, cfg)
 
-  def ascending: CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd.sortBy(identity, ascending = true), topicName, cfg)
+  def sortBy[A: Order: ClassTag](f: OptionalKV[K, V] => A, ascending: Boolean) =
+    new CrRdd[F, K, V](rdd.sortBy(f, ascending), topicName, cfg)
 
-  def descending: CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd.sortBy(identity, ascending = false), topicName, cfg)
+  def ascending: CrRdd[F, K, V]  = sortBy(identity, ascending = true)
+  def descending: CrRdd[F, K, V] = sortBy(identity, ascending = false)
 
   def repartition(num: Int): CrRdd[F, K, V] =
     new CrRdd[F, K, V](rdd.repartition(num), topicName, cfg)

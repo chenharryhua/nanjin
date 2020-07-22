@@ -13,8 +13,9 @@ import io.circe.generic.auto._
 import io.circe.{Encoder => JsonEncoder}
 import org.apache.avro.generic.GenericRecord
 import org.apache.avro.mapred.AvroKey
-import org.apache.avro.mapreduce.AvroKeyOutputFormat
+import org.apache.avro.mapreduce.{AvroJob, AvroKeyOutputFormat}
 import org.apache.hadoop.io.NullWritable
+import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
 
 private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
@@ -38,8 +39,11 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
       F.delay {
         implicit val ks: SchemaFor[K] = keyEncoder.schemaFor
         implicit val vs: SchemaFor[V] = valEncoder.schemaFor
-        sparkSession.sparkContext.hadoopConfiguration
-          .set("avro.schema.output.key", AvroSchema[OptionalKV[K, V]].toString)
+
+        val job = Job.getInstance(sparkSession.sparkContext.hadoopConfiguration)
+        AvroJob.setOutputKeySchema(job, AvroSchema[OptionalKV[K, V]])
+        sparkSession.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
+
         data.mapPartitions { rcds =>
           val to = ToRecord[OptionalKV[K, V]]
           rcds.map(rcd => (new AvroKey[GenericRecord](to.to(rcd)), NullWritable.get()))
