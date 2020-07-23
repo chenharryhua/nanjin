@@ -30,8 +30,8 @@ object NJFileFormat extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[N
   case object ProtoBuf extends NJFileFormat(15, "pb", "google")
 
   // multi
-  case object MultiAvro extends NJFileFormat(21, "avro", "multi-avro")
-  case object MultiJackson extends NJFileFormat(22, "json", "multi-jackson")
+  case object MultiAvro extends NJFileFormat(21, "avro", "multi")
+  case object MultiJackson extends NJFileFormat(22, "jackson", "multi")
 
   // types
   type Jackson      = Jackson.type

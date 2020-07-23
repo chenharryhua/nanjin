@@ -1,27 +1,22 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import java.io.ByteArrayOutputStream
-
 import cats.Show
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Resource, Sync}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.github.chenharryhua.nanjin.messages.kafka
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.spark.mapreduce.AvroJsonKeyOutputFormat
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
-import com.sksamuel.avro4s.{AvroOutputStream, AvroSchema, SchemaFor, ToRecord}
+import com.sksamuel.avro4s.{AvroSchema, SchemaFor, ToRecord}
 import frameless.cats.implicits.rddOps
 import fs2.Stream
 import io.circe.generic.auto._
-import io.circe.syntax._
 import io.circe.{Encoder => JsonEncoder}
 import org.apache.avro.generic.GenericRecord
 import org.apache.avro.mapred.AvroKey
 import org.apache.avro.mapreduce.{AvroJob, AvroKeyOutputFormat}
-import org.apache.hadoop.io.{NullWritable, Text}
+import org.apache.hadoop.io.NullWritable
 import org.apache.hadoop.mapreduce.Job
-import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat
 import org.apache.spark.rdd.RDD
 
 private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
