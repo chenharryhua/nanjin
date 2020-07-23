@@ -20,12 +20,12 @@ object MultiSaveTestData {
   val food = List(
     Food(Coproduct[Fruit](Apple(1, "beijing")), Random.nextInt),
     Food(Coproduct[Fruit](WaterMelon(2, 1.1f)), Random.nextInt),
-    Food(Coproduct[Fruit](Apple(3, "beijing")), Random.nextInt),
-    Food(Coproduct[Fruit](Apple(4, "beijing")), Random.nextInt),
+    Food(Coproduct[Fruit](Apple(3, "hunan")), Random.nextInt),
+    Food(Coproduct[Fruit](Apple(4, "chengdu")), Random.nextInt),
     Food(Coproduct[Fruit](WaterMelon(5, 1.1f)), Random.nextInt),
-    Food(Coproduct[Fruit](Apple(6, "beijing")), Random.nextInt),
+    Food(Coproduct[Fruit](Apple(6, "wuhan")), Random.nextInt),
     Food(Coproduct[Fruit](WaterMelon(7, 1.1f)), Random.nextInt),
-    Food(Coproduct[Fruit](Apple(8, "beijing")), Random.nextInt),
+    Food(Coproduct[Fruit](Apple(8, "chongqin")), Random.nextInt),
     Food(Coproduct[Fruit](WaterMelon(9, 1.1f)), Random.nextInt),
     Food(Coproduct[Fruit](Apple(10, "shanghai")), Random.nextInt)
   )
@@ -49,9 +49,9 @@ class MultiSaveTest extends AnyFunSuite {
     }
     assert(rst.unsafeRunSync() == food.toSet)
   }
-  test("multi-save circe json") {
-    val rst = topic.sparKafka.fromKafka.flatMap(_.repartition(3).saveMultiCirce(blocker)) >> IO {
-      topic.sparKafka.readMultiCirce.rdd.collect().flatMap(_.value).toSet
+  test("multi-save jackson") {
+    val rst = topic.sparKafka.fromKafka.flatMap(_.repartition(3).saveMultiJackson(blocker)) >> IO {
+      topic.sparKafka.readMultiJackson.rdd.collect().flatMap(_.value).toSet
     }
     assert(rst.unsafeRunSync() == food.toSet)
   }

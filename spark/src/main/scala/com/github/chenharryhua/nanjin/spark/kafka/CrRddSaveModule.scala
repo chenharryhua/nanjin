@@ -8,6 +8,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.messages.kafka
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
+import com.github.chenharryhua.nanjin.spark.hadoop.AvroJsonKeyOutputFormat
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import com.sksamuel.avro4s.{AvroOutputStream, AvroSchema, SchemaFor, ToRecord}
 import frameless.cats.implicits.rddOps
@@ -38,37 +39,36 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
     }
 
   //save actions
+
+  private def grPair(data: RDD[OptionalKV[K, V]]): RDD[(AvroKey[GenericRecord], NullWritable)] = {
+    implicit val ks: SchemaFor[K] = keyEncoder.schemaFor
+    implicit val vs: SchemaFor[V] = valEncoder.schemaFor
+
+    val job = Job.getInstance(sparkSession.sparkContext.hadoopConfiguration)
+    AvroJob.setOutputKeySchema(job, AvroSchema[OptionalKV[K, V]])
+    sparkSession.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
+
+    data.mapPartitions { rcds =>
+      val to = ToRecord[OptionalKV[K, V]]
+      rcds.map(rcd => (new AvroKey[GenericRecord](to.to(rcd)), NullWritable.get()))
+    }
+  }
+
   def saveMultiAvro(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Long] = {
     val path = params.pathBuilder(topicName, NJFileFormat.MultiAvro)
     fileSink(blocker).delete(path) >> rddResource.use { data =>
       F.delay {
-        implicit val ks: SchemaFor[K] = keyEncoder.schemaFor
-        implicit val vs: SchemaFor[V] = valEncoder.schemaFor
-
-        val job = Job.getInstance(sparkSession.sparkContext.hadoopConfiguration)
-        AvroJob.setOutputKeySchema(job, AvroSchema[OptionalKV[K, V]])
-        sparkSession.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
-
-        data.mapPartitions { rcds =>
-          val to = ToRecord[OptionalKV[K, V]]
-          rcds.map(rcd => (new AvroKey[GenericRecord](to.to(rcd)), NullWritable.get()))
-        }.saveAsNewAPIHadoopFile[AvroKeyOutputFormat[GenericRecord]](path)
+        grPair(data).saveAsNewAPIHadoopFile[AvroKeyOutputFormat[GenericRecord]](path)
         data.count()
       }
     }
   }
 
-  def saveMultiCirce(blocker: Blocker)(implicit
-    F: Sync[F],
-    cs: ContextShift[F],
-    ek: JsonEncoder[K],
-    ev: JsonEncoder[V]): F[Long] = {
-    val path = params.pathBuilder(topicName, NJFileFormat.MultiCirce)
+  def saveMultiJackson(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Long] = {
+    val path = params.pathBuilder(topicName, NJFileFormat.MultiJackson)
     fileSink(blocker).delete(path) >> rddResource.use { data =>
       F.delay {
-        data.mapPartitions { rcds =>
-          rcds.map(rcd => (new Text(rcd.asJson.noSpaces), NullWritable.get()))
-        }.saveAsNewAPIHadoopFile[TextOutputFormat[Text, NullWritable]](path)
+        grPair(data).saveAsNewAPIHadoopFile[AvroJsonKeyOutputFormat](path)
         data.count()
       }
     }
