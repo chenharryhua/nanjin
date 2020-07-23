@@ -7,7 +7,6 @@ import org.apache.avro.generic.{GenericDatumWriter, GenericRecord}
 import org.apache.avro.io.{EncoderFactory, JsonEncoder}
 import org.apache.avro.mapred.AvroKey
 import org.apache.avro.mapreduce.{AvroJob, AvroOutputFormatBase}
-import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.NullWritable
 import org.apache.hadoop.mapreduce.lib.output.{FileOutputCommitter, FileOutputFormat}
@@ -25,10 +24,9 @@ final class AvroJsonKeyOutputFormat
   }
 
   override def getRecordWriter(
-    job: TaskAttemptContext): RecordWriter[AvroKey[GenericRecord], NullWritable] = {
-    val conf: Configuration = job.getConfiguration
-    val schema: Schema      = AvroJob.getOutputKeySchema(conf)
-    val out: OutputStream   = fileOutputStream(job)
+    context: TaskAttemptContext): RecordWriter[AvroKey[GenericRecord], NullWritable] = {
+    val schema: Schema    = AvroJob.getOutputKeySchema(context.getConfiguration)
+    val out: OutputStream = fileOutputStream(context)
     new AvroJsonKeyRecordWriter(schema, out)
   }
 }

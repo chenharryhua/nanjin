@@ -26,7 +26,7 @@ import scala.reflect.ClassTag
 
 private[spark] trait DatasetExtensions {
 
-  implicit class RddExt[A](private val rdd: RDD[A]) {
+  implicit final class RddExt[A](private val rdd: RDD[A]) {
 
     def dismissNulls: RDD[A] = rdd.filter(_ != null)
     def numOfNulls: Long     = rdd.subtract(dismissNulls).count()
@@ -50,7 +50,7 @@ private[spark] trait DatasetExtensions {
     }
   }
 
-  implicit class TypedDatasetExt[A](private val tds: TypedDataset[A]) {
+  implicit final class TypedDatasetExt[A](private val tds: TypedDataset[A]) {
 
     def stream[F[_]: Sync]: Stream[F, A] = tds.dataset.rdd.stream[F]
 
@@ -61,13 +61,13 @@ private[spark] trait DatasetExtensions {
     def numOfNulls[F[_]: Sync]: F[Long] = tds.except(dismissNulls).count[F]()
   }
 
-  implicit class DataframeExt(private val df: DataFrame) {
+  implicit final class DataframeExt(private val df: DataFrame) {
 
     def genCaseClass: String = NJDataTypeF.genCaseClass(df.schema)
 
   }
 
-  implicit class SparkSessionExt(private val ss: SparkSession) {
+  implicit final class SparkSessionExt(private val ss: SparkSession) {
 
     def withGroupId(groupId: String): SparkSession = {
       ss.sparkContext.setLocalProperty("spark.jobGroup.id", groupId)
@@ -97,13 +97,13 @@ private[spark] trait DatasetExtensions {
         .map { case (gr, _) => decoder.decode(gr.datum()) }
     }
 
-    def jackson[A: ClassTag: AvroDecoder](pathStr: String): RDD[A] = {
-      val schema = AvroDecoder[A].schema
+    def jackson[A: ClassTag](pathStr: String)(implicit decoder: AvroDecoder[A]): RDD[A] = {
+      val schema = decoder.schema
       ss.sparkContext.textFile(pathStr).mapPartitions { strs =>
-        val datumReader = new GenericDatumReader[GenericRecord](AvroDecoder[A].schema)
+        val datumReader = new GenericDatumReader[GenericRecord](schema)
         strs.map { str =>
           val jsonDecoder = DecoderFactory.get().jsonDecoder(schema, str)
-          AvroDecoder[A].decode(datumReader.read(null, jsonDecoder))
+          decoder.decode(datumReader.read(null, jsonDecoder))
         }
       }
     }
