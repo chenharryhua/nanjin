@@ -31,7 +31,7 @@ val akka26     = "2.6.8"
 // kafka
 val kafka25   = "2.5.0"
 val confluent = "5.5.1"
-val akkaKafka = "2.0.3"
+val akkaKafka = "2.0.4"
 val fs2Kafka  = "1.0.0"
 
 // spark
@@ -115,7 +115,7 @@ val hadoopLib = Seq(
   "org.apache.hadoop" % "hadoop-client",
   "org.apache.hadoop" % "hadoop-hdfs"
 ).map(_               % hadoop) ++
-  Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.822")
+  Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.825")
 
 val flinkLib = Seq(
   "org.apache.flink" %% "flink-connector-kafka",
