@@ -8,7 +8,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.messages.kafka
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
-import com.github.chenharryhua.nanjin.spark.hadoop.AvroJsonKeyOutputFormat
+import com.github.chenharryhua.nanjin.spark.mapreduce.AvroJsonKeyOutputFormat
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import com.sksamuel.avro4s.{AvroOutputStream, AvroSchema, SchemaFor, ToRecord}
 import frameless.cats.implicits.rddOps
