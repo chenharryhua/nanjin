@@ -1,6 +1,6 @@
 package mtest.spark.kafka
 
-import java.time.{Instant, LocalDate, LocalDateTime, ZoneId}
+import java.time.{Instant, LocalDate, LocalDateTime, OffsetDateTime, ZoneId, ZonedDateTime}
 
 import cats.effect.IO
 import cats.implicits._
@@ -13,12 +13,13 @@ import com.github.chenharryhua.nanjin.spark.kafka._
 import frameless.cats.implicits._
 import fs2.kafka.ProducerRecord
 import io.circe.generic.auto._
-import org.apache.spark.sql.SaveMode
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
 
 object SaveTestData {
+  implicit val zoneId: ZoneId = sydneyTime
+
   final case class Chicken(a: Int, b: String, now: Instant, ldt: LocalDateTime, ld: LocalDate)
 
   val topic: KafkaTopic[IO, Int, Chicken] =
@@ -26,11 +27,11 @@ object SaveTestData {
 
 }
 
-class SaveTest extends AnyFunSuite {
+class SaveDateTimeTest extends AnyFunSuite {
   import SaveTestData._
-  implicit val zoneId: ZoneId = sydneyTime
 
-  val sk: SparKafka[IO, Int, Chicken] = topic.sparKafka(range)
+  def sk(path: String): SparKafka[IO, Int, Chicken] =
+    topic.sparKafka(range).withParamUpdate(_.withPathBuilder((_, _) => path))
 
   val chickenPR: List[ProducerRecord[Int, Chicken]] =
     List.fill(100)(
@@ -42,76 +43,53 @@ class SaveTest extends AnyFunSuite {
   (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
     topic.send(chickenPR)).unsafeRunSync()
 
-  test("sparKafka dump") {
-    topic.sparKafka(range).dump.unsafeRunSync()
+  test("sparKafka datetime dump") {
+    sk("doesn't matter").dump.unsafeRunSync()
   }
 
-  test("sparKafka single jackson") {
+  test("sparKafka datetime single jackson") {
     val path = "./data/test/spark/kafka/single/jackson.json"
-    val action = sk
-      .withParamUpdate(_.withPathBuilder((_, _) => path))
-      .fromKafka
-      .flatMap(_.saveSingleJackson(blocker))
-      .map(r => assert(r == 100))
+
+    val action = sk(path).fromKafka.flatMap(_.saveSingleJackson(blocker)).map(r => assert(r == 100))
     action.unsafeRunSync()
     val rst = sparkSession.jackson[OptionalKV[Int, Chicken]](path).collect().sorted
 
     assert(rst.flatMap(_.value).toList == chickens)
   }
 
-  test("sparKafka single circe json") {
+  test("sparKafka datetime single circe json") {
     val path = "./data/test/spark/kafka/single/circe.json"
     val action =
-      sk.withParamUpdate(_.withPathBuilder((_, _) => path))
-        .fromKafka
-        .flatMap(_.saveSingleCirce(blocker))
-        .map(r => assert(r == 100))
+      sk(path).fromKafka.flatMap(_.saveSingleCirce(blocker)).map(r => assert(r == 100))
     action.unsafeRunSync()
     val rst = sparkSession.circe[OptionalKV[Int, Chicken]](path).collect().sorted
     assert(rst.flatMap(_.value).toList == chickens)
   }
 
-  test("sparKafka single avro") {
-    val path = "./data/test/spark/kafka/single/data.avro"
-    val action = sk
-      .withParamUpdate(_.withPathBuilder((_, _) => path))
-      .fromKafka
-      .flatMap(_.saveSingleAvro(blocker))
-      .map(r => assert(r == 100))
+  test("sparKafka datetime single avro") {
+    val path   = "./data/test/spark/kafka/single/data.avro"
+    val action = sk(path).fromKafka.flatMap(_.saveSingleAvro(blocker)).map(r => assert(r == 100))
     action.unsafeRunSync()
     val rst: Array[OptionalKV[Int, Chicken]] =
       sparkSession.avro[OptionalKV[Int, Chicken]](path).collect().sorted
     assert(rst.flatMap(_.value).toList == chickens)
   }
 
-  ignore("sparKafka single parquet") {
-    val path = "./data/test/spark/kafka/single/data.parquet"
-    val action = sk
-      .withParamUpdate(_.withPathBuilder((_, _) => path))
-      .fromKafka
-      .flatMap(_.saveSingleParquet(blocker))
-      .map(r => assert(r == 100))
+  test("sparKafka datetime multi avro") {
+    val path   = "./data/test/spark/kafka/multi/data.avro"
+    val action = sk(path).fromKafka.flatMap(_.saveMultiAvro(blocker)).map(r => assert(r == 100))
     action.unsafeRunSync()
-    val rst =
-      sparkSession.parquet[OptionalKV[Int, Chicken]](path).collect[IO]().unsafeRunSync().sorted
+    val rst: Array[OptionalKV[Int, Chicken]] =
+      sparkSession.avro[OptionalKV[Int, Chicken]](path).collect().sorted
     assert(rst.flatMap(_.value).toList == chickens)
   }
 
-  ignore("sparKafka multi parquet") {
-    val path = "./data/test/spark/kafka/multi/parquet"
-    val action =
-      sk.fromKafka.map(_.toDF.repartition(3).write.mode(SaveMode.Overwrite).parquet(path))
+  test("sparKafka datetime multi jackson") {
+    val path   = "./data/test/spark/kafka/multi/jackson.json"
+    val action = sk(path).fromKafka.flatMap(_.saveMultiJackson(blocker)).map(r => assert(r == 100))
     action.unsafeRunSync()
-    val rst = topic.sparKafka.readParquet(path).rdd.collect().toList.sorted
-    assert(rst.flatMap(_.value).toList == chickens)
-  }
-
-  ignore("sparKafka multi avro") {
-    val path = "./data/test/spark/kafka/multi/avro"
-    val action = sk.fromKafka.map(
-      _.toDF.repartition(3).write.mode(SaveMode.Overwrite).format("avro").save(path))
-    action.unsafeRunSync()
-    val rst = topic.sparKafka.readAvro(path).rdd.collect().sorted
+    val rst: Array[OptionalKV[Int, Chicken]] =
+      sparkSession.jackson[OptionalKV[Int, Chicken]](path).collect().sorted
     assert(rst.flatMap(_.value).toList == chickens)
   }
 }

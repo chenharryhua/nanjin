@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.datetime
 
 import java.sql.{Date, Timestamp}
-import java.time.{Instant, LocalDate, LocalDateTime, ZoneId}
+import java.time.{Instant, LocalDate, LocalDateTime, OffsetDateTime, ZoneId, ZonedDateTime}
 
 import cats.{Hash, Order, Show}
 import io.chrisdavenport.cats.time.instances.all
@@ -35,5 +35,11 @@ private[datetime] trait Isos {
   implicit def isoLocalDateTime(implicit zoneId: ZoneId): Iso[LocalDateTime, Instant] =
     Iso[LocalDateTime, Instant](a => a.atZone(zoneId).toInstant)(b =>
       LocalDateTime.ofInstant(b, zoneId))
+
+  implicit def isoOffsetDatatime(implicit zoneId: ZoneId): Iso[OffsetDateTime, Instant] =
+    Iso[OffsetDateTime, Instant](_.toInstant)(_.atZone(zoneId).toOffsetDateTime)
+
+  implicit def isoZonedDatatime(implicit zoneId: ZoneId): Iso[ZonedDateTime, Instant] =
+    Iso[ZonedDateTime, Instant](_.toInstant)(_.atZone(zoneId))
 
 }

@@ -18,7 +18,7 @@ object MultiSaveTestData {
   final case class Food(fruit: Fruit, num: Int)
 
   val food = List(
-    Food(Coproduct[Fruit](Apple(1, "beijing")), Random.nextInt),
+    Food(Coproduct[Fruit](Apple(1, "qidong")), Random.nextInt),
     Food(Coproduct[Fruit](WaterMelon(2, 1.1f)), Random.nextInt),
     Food(Coproduct[Fruit](Apple(3, "hunan")), Random.nextInt),
     Food(Coproduct[Fruit](Apple(4, "chengdu")), Random.nextInt),
