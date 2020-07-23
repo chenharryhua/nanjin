@@ -51,12 +51,7 @@ private[kafka] trait SparKafkaReadModule[F[_], K, V] { self: SparKafka[F, K, V] 
     jsonValDecoder: JsonDecoder[V]): CrRdd[F, K, V] =
     new CrRdd[F, K, V](sparkSession.circe[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
 
-  final def readMultiCirce(implicit
-    jsonKeyDecoder: JsonDecoder[K],
-    jsonValDecoder: JsonDecoder[V]): CrRdd[F, K, V] =
-    readCirce(params.pathBuilder(topic.topicName, NJFileFormat.MultiCirce))
-
-  final def readSingleCirce(implicit
+  final def readCirce(implicit
     jsonKeyDecoder: JsonDecoder[K],
     jsonValDecoder: JsonDecoder[V]): CrRdd[F, K, V] =
     readCirce(params.pathBuilder(topic.topicName, NJFileFormat.CirceJson))
@@ -65,6 +60,9 @@ private[kafka] trait SparKafkaReadModule[F[_], K, V] { self: SparKafka[F, K, V] 
   final def readJackson(pathStr: String): CrRdd[F, K, V] =
     new CrRdd[F, K, V](sparkSession.jackson[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
 
-  final def readJackson: CrRdd[F, K, V] =
+  final def readMultiJackson: CrRdd[F, K, V] =
+    readJackson(params.pathBuilder(topic.topicName, NJFileFormat.MultiJackson))
+
+  final def readSingleJackson: CrRdd[F, K, V] =
     readJackson(params.pathBuilder(topic.topicName, NJFileFormat.Jackson))
 }
