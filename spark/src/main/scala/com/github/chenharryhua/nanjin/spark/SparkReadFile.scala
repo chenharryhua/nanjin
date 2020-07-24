@@ -71,9 +71,6 @@ final class SparkReadFile(ss: SparkSession) {
         .csv(pathStr))
   }
 
-  def csv[A: ClassTag: TypedEncoder](pathStr: String): TypedDataset[A] =
-    csv[A](pathStr, CsvConfiguration.rfc)
-
   def text(path: String): TypedDataset[String] =
     TypedDataset.create(ss.read.textFile(path))
 }

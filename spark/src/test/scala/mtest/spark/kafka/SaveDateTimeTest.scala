@@ -50,7 +50,7 @@ class SaveDateTimeTest extends AnyFunSuite {
   test("sparKafka datetime single jackson") {
     val path = "./data/test/spark/kafka/single/jackson.json"
 
-    val action = sk(path).fromKafka.flatMap(_.saveSingleJackson(blocker)).map(r => assert(r == 100))
+    val action = sk(path).fromKafka.flatMap(_.save.single(blocker).jackson).map(r => assert(r == 100))
     action.unsafeRunSync()
     val rst = sparkSession.jackson[OptionalKV[Int, Chicken]](path).collect().sorted
 
@@ -60,7 +60,7 @@ class SaveDateTimeTest extends AnyFunSuite {
   test("sparKafka datetime single circe json") {
     val path = "./data/test/spark/kafka/single/circe.json"
     val action =
-      sk(path).fromKafka.flatMap(_.saveSingleCirce(blocker)).map(r => assert(r == 100))
+      sk(path).fromKafka.flatMap(_.save.single(blocker).circe).map(r => assert(r == 100))
     action.unsafeRunSync()
     val rst = sparkSession.circe[OptionalKV[Int, Chicken]](path).collect().sorted
     assert(rst.flatMap(_.value).toList == chickens)
@@ -68,7 +68,7 @@ class SaveDateTimeTest extends AnyFunSuite {
 
   test("sparKafka datetime single avro") {
     val path   = "./data/test/spark/kafka/single/data.avro"
-    val action = sk(path).fromKafka.flatMap(_.saveSingleAvro(blocker)).map(r => assert(r == 100))
+    val action = sk(path).fromKafka.flatMap(_.save.single(blocker).avro).map(r => assert(r == 100))
     action.unsafeRunSync()
     val rst: Array[OptionalKV[Int, Chicken]] =
       sparkSession.avro[OptionalKV[Int, Chicken]](path).collect().sorted
@@ -77,7 +77,7 @@ class SaveDateTimeTest extends AnyFunSuite {
 
   test("sparKafka datetime multi avro") {
     val path   = "./data/test/spark/kafka/multi/data.avro"
-    val action = sk(path).fromKafka.flatMap(_.saveMultiAvro(blocker)).map(r => assert(r == 100))
+    val action = sk(path).fromKafka.flatMap(_.save.multi(blocker).avro).map(r => assert(r == 100))
     action.unsafeRunSync()
     val rst: Array[OptionalKV[Int, Chicken]] =
       sparkSession.avro[OptionalKV[Int, Chicken]](path).collect().sorted
@@ -86,7 +86,7 @@ class SaveDateTimeTest extends AnyFunSuite {
 
   test("sparKafka datetime multi jackson") {
     val path   = "./data/test/spark/kafka/multi/jackson.json"
-    val action = sk(path).fromKafka.flatMap(_.saveMultiJackson(blocker)).map(r => assert(r == 100))
+    val action = sk(path).fromKafka.flatMap(_.save.multi(blocker).jackson).map(r => assert(r == 100))
     action.unsafeRunSync()
     val rst: Array[OptionalKV[Int, Chicken]] =
       sparkSession.jackson[OptionalKV[Int, Chicken]](path).collect().sorted

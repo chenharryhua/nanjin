@@ -56,8 +56,8 @@ class KafkaCoproductTest extends AnyFunSuite {
     val run = topicCO.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicCO.schemaRegister >>
       topicCO.send(data) >>
-      sk.fromKafka.flatMap(_.saveSingleAvro(blocker)) >>
-      IO(sk.readAvro(path).rdd.take(10).toSet)
+      sk.fromKafka.flatMap(_.save.single(blocker).avro) >>
+      IO(sk.read.avro(path).rdd.take(10).toSet)
     intercept[Exception](run.unsafeRunSync().flatMap(_.value) == Set(co1, co2))
   }
 
@@ -69,8 +69,8 @@ class KafkaCoproductTest extends AnyFunSuite {
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegister >>
       topicEnum.send(data) >>
-      sk.fromKafka.flatMap(_.saveSingleAvro(blocker)) >>
-      IO(sk.readAvro(path).rdd.take(10).toSet)
+      sk.fromKafka.flatMap(_.save.single(blocker).avro) >>
+      IO(sk.read.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 
@@ -82,8 +82,8 @@ class KafkaCoproductTest extends AnyFunSuite {
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegister >>
       topicEnum.send(data) >>
-      sk.fromKafka.flatMap(_.saveMultiAvro(blocker)) >>
-      IO(sk.readAvro(path).rdd.take(10).toSet)
+      sk.fromKafka.flatMap(_.save.multi(blocker).avro) >>
+      IO(sk.read.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 
@@ -95,8 +95,8 @@ class KafkaCoproductTest extends AnyFunSuite {
     val run = topicCoProd.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicCoProd.schemaRegister >>
       topicCoProd.send(data) >>
-      sk.fromKafka.flatMap(_.saveSingleJackson(blocker)) >>
-      IO(sk.readJackson(path).rdd.take(10).toSet)
+      sk.fromKafka.flatMap(_.save.single(blocker).jackson) >>
+      IO(sk.read.jackson(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(cp1, cp2))
   }
 
@@ -108,8 +108,8 @@ class KafkaCoproductTest extends AnyFunSuite {
     val run = topicCoProd.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicCoProd.schemaRegister >>
       topicCoProd.send(data) >>
-      sk.fromKafka.flatMap(_.saveMultiJackson(blocker)) >>
-      IO(sk.readJackson(path).rdd.take(10).toSet)
+      sk.fromKafka.flatMap(_.save.multi(blocker).jackson) >>
+      IO(sk.read.jackson(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(cp1, cp2))
   }
 }

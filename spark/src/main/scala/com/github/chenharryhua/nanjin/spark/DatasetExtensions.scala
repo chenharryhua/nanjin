@@ -7,10 +7,11 @@ import cats.implicits._
 import cats.kernel.Eq
 import com.sksamuel.avro4s.{Decoder => AvroDecoder}
 import frameless.cats.implicits._
-import frameless.{TypedDataset, TypedEncoder}
+import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import fs2.interop.reactivestreams._
 import fs2.{Pipe, Stream}
 import io.circe.{Decoder => JsonDecoder}
+import kantan.csv.CsvConfiguration
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
@@ -104,5 +105,16 @@ private[spark] trait DatasetExtensions {
 
     def jackson[A: ClassTag](pathStr: String)(implicit decoder: AvroDecoder[A]): RDD[A] =
       delegate.jackson[A](pathStr)
+
+    def csv[A: ClassTag: TypedEncoder](
+      pathStr: String,
+      csvConfig: CsvConfiguration): TypedDataset[A] =
+      delegate.csv(pathStr, csvConfig)
+
+    def csv[A: ClassTag: TypedEncoder](pathStr: String): TypedDataset[A] =
+      csv[A](pathStr, CsvConfiguration.rfc)
+
+    def text(pathStr: String): TypedDataset[String] =
+      delegate.text(pathStr)
   }
 }
