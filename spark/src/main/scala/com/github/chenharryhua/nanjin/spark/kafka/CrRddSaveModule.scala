@@ -1,146 +1,59 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Show
-import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Resource, Sync}
+import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
-import com.github.chenharryhua.nanjin.spark.mapreduce.AvroJsonKeyOutputFormat
-import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
-import com.sksamuel.avro4s.{AvroSchema, SchemaFor, ToRecord}
+import com.github.chenharryhua.nanjin.spark.{PersistMultiFile, PersistSingleFile}
 import frameless.cats.implicits.rddOps
-import fs2.Stream
 import io.circe.generic.auto._
 import io.circe.{Encoder => JsonEncoder}
-import org.apache.avro.generic.GenericRecord
-import org.apache.avro.mapred.AvroKey
-import org.apache.avro.mapreduce.{AvroJob, AvroKeyOutputFormat}
-import org.apache.hadoop.io.NullWritable
-import org.apache.hadoop.mapreduce.Job
-import org.apache.spark.rdd.RDD
 
 private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
 
-  private def rddResource(implicit F: Sync[F]): Resource[F, RDD[OptionalKV[K, V]]] =
-    Resource.make(F.delay(rdd.persist()))(r => F.delay(r.unpersist()))
+  object save {
 
-  // dump java object
-  def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Long] =
-    Blocker[F].use { blocker =>
-      val pathStr = params.replayPath(topicName)
-      fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
-        F.delay(data.saveAsObjectFile(pathStr)).as(data.count())
-      }
+    final class SingleFileSave(delegate: PersistSingleFile[F, OptionalKV[K, V]]) {
+
+      def dump(implicit F: Sync[F]): F[Long] =
+        delegate.dump(params.replayPath(topicName))
+
+      def circe(implicit F: Sync[F], ek: JsonEncoder[K], ev: JsonEncoder[V]): F[Long] =
+        delegate.circe(params.pathBuilder(topicName, NJFileFormat.CirceJson))
+
+      def text(implicit F: Sync[F], showK: Show[K], showV: Show[V]): F[Long] =
+        delegate.text(params.pathBuilder(topicName, NJFileFormat.Text))
+
+      def jackson(implicit ce: ConcurrentEffect[F]): F[Long] =
+        delegate.jackson(params.pathBuilder(topicName, NJFileFormat.Jackson))
+
+      def avro(implicit ce: ConcurrentEffect[F]): F[Long] =
+        delegate.avro(params.pathBuilder(topicName, NJFileFormat.Avro))
+
+      def binAvro(implicit ce: ConcurrentEffect[F]): F[Long] =
+        delegate.binAvro(params.pathBuilder(topicName, NJFileFormat.BinaryAvro))
+
+      def parquet(implicit ce: ConcurrentEffect[F]): F[Long] =
+        delegate.parquet(params.pathBuilder(topicName, NJFileFormat.Parquet))
+
+      def javaObject(implicit ce: ConcurrentEffect[F]): F[Long] =
+        delegate.javaObj(params.pathBuilder(topicName, NJFileFormat.JavaObject))
     }
 
-  //save actions
+    final class MultiFileSave(delegate: PersistMultiFile[F, OptionalKV[K, V]]) {
 
-  private def grPair(data: RDD[OptionalKV[K, V]]): RDD[(AvroKey[GenericRecord], NullWritable)] = {
-    implicit val ks: SchemaFor[K] = keyEncoder.schemaFor
-    implicit val vs: SchemaFor[V] = valEncoder.schemaFor
+      def avro: F[Long] =
+        delegate.avro(params.pathBuilder(topicName, NJFileFormat.MultiAvro))
 
-    val job = Job.getInstance(sparkSession.sparkContext.hadoopConfiguration)
-    AvroJob.setOutputKeySchema(job, AvroSchema[OptionalKV[K, V]])
-    sparkSession.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
-
-    data.mapPartitions { rcds =>
-      val to = ToRecord[OptionalKV[K, V]]
-      rcds.map(rcd => (new AvroKey[GenericRecord](to.to(rcd)), NullWritable.get()))
+      def jackson: F[Long] =
+        delegate.jackson(params.pathBuilder(topicName, NJFileFormat.MultiJackson))
     }
+
+    def single(blocker: Blocker)(implicit cs: ContextShift[F]) =
+      new SingleFileSave(new PersistSingleFile[F, OptionalKV[K, V]](rdd, blocker))
+
+    def multi(blocker: Blocker)(implicit cs: ContextShift[F], F: Sync[F]) =
+      new MultiFileSave(new PersistMultiFile[F, OptionalKV[K, V]](rdd, blocker))
   }
-
-  def saveMultiAvro(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Long] = {
-    val path = params.pathBuilder(topicName, NJFileFormat.MultiAvro)
-    fileSink(blocker).delete(path) >> rddResource.use { data =>
-      F.delay {
-        grPair(data).saveAsNewAPIHadoopFile[AvroKeyOutputFormat[GenericRecord]](path)
-        data.count()
-      }
-    }
-  }
-
-  def saveMultiJackson(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Long] = {
-    val path = params.pathBuilder(topicName, NJFileFormat.MultiJackson)
-    fileSink(blocker).delete(path) >> rddResource.use { data =>
-      F.delay {
-        grPair(data).saveAsNewAPIHadoopFile[AvroJsonKeyOutputFormat](path)
-        data.count()
-      }
-    }
-  }
-
-  def saveSingleCirce(blocker: Blocker)(implicit
-    F: Sync[F],
-    cs: ContextShift[F],
-    ek: JsonEncoder[K],
-    ev: JsonEncoder[V]): F[Long] = {
-
-    val path = params.pathBuilder(topicName, NJFileFormat.CirceJson)
-
-    rddResource.use { data =>
-      data
-        .stream[F]
-        .through(fileSink(blocker).circe[OptionalKV[K, V]](path))
-        .compile
-        .drain
-        .as(data.count())
-    }
-  }
-
-  def saveSingleText(blocker: Blocker)(implicit
-    showK: Show[K],
-    showV: Show[V],
-    F: Sync[F],
-    cs: ContextShift[F]): F[Long] = {
-
-    val path = params.pathBuilder(topicName, NJFileFormat.Text)
-
-    rddResource.use { data =>
-      data
-        .stream[F]
-        .through(fileSink(blocker).text[OptionalKV[K, V]](path))
-        .compile
-        .drain
-        .as(data.count())
-    }
-  }
-
-  private def avroLike(blocker: Blocker, fmt: NJFileFormat)(implicit
-    F: ConcurrentEffect[F],
-    cs: ContextShift[F]): F[Long] = {
-
-    val path = params.pathBuilder(topicName, fmt)
-
-    def run(data: RDD[OptionalKV[K, V]]): Stream[F, Unit] =
-      fmt match {
-        case NJFileFormat.Avro       => data.stream[F].through(fileSink(blocker).avro(path))
-        case NJFileFormat.BinaryAvro => data.stream[F].through(fileSink(blocker).binaryAvro(path))
-        case NJFileFormat.Jackson    => data.stream[F].through(fileSink(blocker).jackson(path))
-        case NJFileFormat.Parquet    => data.stream[F].through(fileSink(blocker).parquet(path))
-        case NJFileFormat.JavaObject => data.stream[F].through(fileSink(blocker).javaObject(path))
-        case _                       => sys.error("never happen")
-      }
-    rddResource.use(data => run(data).compile.drain.as(data.count()))
-  }
-
-  def saveSingleJackson(
-    blocker: Blocker)(implicit ce: ConcurrentEffect[F], cs: ContextShift[F]): F[Long] =
-    avroLike(blocker, NJFileFormat.Jackson)
-
-  def saveSingleAvro(
-    blocker: Blocker)(implicit ce: ConcurrentEffect[F], cs: ContextShift[F]): F[Long] =
-    avroLike(blocker, NJFileFormat.Avro)
-
-  def saveSingleBinaryAvro(
-    blocker: Blocker)(implicit ce: ConcurrentEffect[F], cs: ContextShift[F]): F[Long] =
-    avroLike(blocker, NJFileFormat.BinaryAvro)
-
-  def saveSingleParquet(
-    blocker: Blocker)(implicit ce: ConcurrentEffect[F], cs: ContextShift[F]): F[Long] =
-    avroLike(blocker, NJFileFormat.Parquet)
-
-  def saveSingleJavaObject(
-    blocker: Blocker)(implicit ce: ConcurrentEffect[F], cs: ContextShift[F]): F[Long] =
-    avroLike(blocker, NJFileFormat.JavaObject)
-
 }
