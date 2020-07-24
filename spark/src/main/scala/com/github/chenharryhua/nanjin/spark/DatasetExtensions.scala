@@ -45,12 +45,13 @@ private[spark] trait DatasetExtensions {
     def multi[F[_]](blocker: Blocker)(implicit
       ss: SparkSession,
       cs: ContextShift[F],
-      F: Sync[F]): PersistMultiFile[F, A] =
-      new PersistMultiFile[F, A](rdd, blocker)
+      F: Sync[F]): RddPersistMultiFile[F, A] =
+      new RddPersistMultiFile[F, A](rdd, blocker)
 
-    def single[F[_]](
-      blocker: Blocker)(implicit ss: SparkSession, cs: ContextShift[F]): PersistSingleFile[F, A] =
-      new PersistSingleFile[F, A](rdd, blocker)
+    def single[F[_]](blocker: Blocker)(implicit
+      ss: SparkSession,
+      cs: ContextShift[F]): RddPersistSingleFile[F, A] =
+      new RddPersistSingleFile[F, A](rdd, blocker)
   }
 
   implicit final class TypedDatasetExt[A](private val tds: TypedDataset[A]) {
@@ -66,11 +67,12 @@ private[spark] trait DatasetExtensions {
     def multi[F[_]](blocker: Blocker)(implicit
       ss: SparkSession,
       cs: ContextShift[F],
-      F: Sync[F]): PersistMultiFile[F, A] =
+      F: Sync[F]): RddPersistMultiFile[F, A] =
       tds.dataset.rdd.multi(blocker)
 
-    def single[F[_]](
-      blocker: Blocker)(implicit ss: SparkSession, cs: ContextShift[F]): PersistSingleFile[F, A] =
+    def single[F[_]](blocker: Blocker)(implicit
+      ss: SparkSession,
+      cs: ContextShift[F]): RddPersistSingleFile[F, A] =
       tds.dataset.rdd.single(blocker)
   }
 

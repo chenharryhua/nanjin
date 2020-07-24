@@ -5,7 +5,7 @@ import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
-import com.github.chenharryhua.nanjin.spark.{PersistMultiFile, PersistSingleFile}
+import com.github.chenharryhua.nanjin.spark.{RddPersistMultiFile, RddPersistSingleFile}
 import frameless.cats.implicits.rddOps
 import io.circe.generic.auto._
 import io.circe.{Encoder => JsonEncoder}
@@ -14,7 +14,7 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
 
   object save {
 
-    final class SingleFileSave(delegate: PersistSingleFile[F, OptionalKV[K, V]]) {
+    final class SingleFile(delegate: RddPersistSingleFile[F, OptionalKV[K, V]]) {
 
       def dump(implicit F: Sync[F]): F[Long] =
         delegate.dump(params.replayPath(topicName))
@@ -41,7 +41,7 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
         delegate.javaObj(params.pathBuilder(topicName, NJFileFormat.JavaObject))
     }
 
-    final class MultiFileSave(delegate: PersistMultiFile[F, OptionalKV[K, V]]) {
+    final class MultiFile(delegate: RddPersistMultiFile[F, OptionalKV[K, V]]) {
 
       def avro: F[Long] =
         delegate.avro(params.pathBuilder(topicName, NJFileFormat.MultiAvro))
@@ -50,10 +50,10 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
         delegate.jackson(params.pathBuilder(topicName, NJFileFormat.MultiJackson))
     }
 
-    final def single(blocker: Blocker)(implicit cs: ContextShift[F]) =
-      new SingleFileSave(new PersistSingleFile[F, OptionalKV[K, V]](rdd, blocker))
+    final def single(blocker: Blocker)(implicit cs: ContextShift[F]): SingleFile =
+      new SingleFile(new RddPersistSingleFile[F, OptionalKV[K, V]](rdd, blocker))
 
-    final def multi(blocker: Blocker)(implicit cs: ContextShift[F], F: Sync[F]) =
-      new MultiFileSave(new PersistMultiFile[F, OptionalKV[K, V]](rdd, blocker))
+    final def multi(blocker: Blocker)(implicit cs: ContextShift[F], F: Sync[F]): MultiFile =
+      new MultiFile(new RddPersistMultiFile[F, OptionalKV[K, V]](rdd, blocker))
   }
 }

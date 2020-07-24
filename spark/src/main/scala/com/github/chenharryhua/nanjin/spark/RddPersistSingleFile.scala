@@ -8,7 +8,7 @@ import io.circe.{Encoder => JsonEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
-final class PersistSingleFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
+final class RddPersistSingleFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
   ss: SparkSession,
   cs: ContextShift[F]) {
 

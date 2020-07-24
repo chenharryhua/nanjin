@@ -13,7 +13,7 @@ import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
-final class PersistMultiFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
+final class RddPersistMultiFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
   ss: SparkSession,
   cs: ContextShift[F],
   F: Sync[F]) {
