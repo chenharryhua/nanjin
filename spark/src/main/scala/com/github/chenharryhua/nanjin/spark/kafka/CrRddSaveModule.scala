@@ -50,10 +50,10 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
         delegate.jackson(params.pathBuilder(topicName, NJFileFormat.MultiJackson))
     }
 
-    def single(blocker: Blocker)(implicit cs: ContextShift[F]) =
+    final def single(blocker: Blocker)(implicit cs: ContextShift[F]) =
       new SingleFileSave(new PersistSingleFile[F, OptionalKV[K, V]](rdd, blocker))
 
-    def multi(blocker: Blocker)(implicit cs: ContextShift[F], F: Sync[F]) =
+    final def multi(blocker: Blocker)(implicit cs: ContextShift[F], F: Sync[F]) =
       new MultiFileSave(new PersistMultiFile[F, OptionalKV[K, V]](rdd, blocker))
   }
 }
