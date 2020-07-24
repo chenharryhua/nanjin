@@ -19,35 +19,61 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
       def dump(implicit F: Sync[F]): F[Long] =
         delegate.dump(params.replayPath(topicName))
 
+      def circe(
+        pathStr: String)(implicit F: Sync[F], ek: JsonEncoder[K], ev: JsonEncoder[V]): F[Long] =
+        delegate.circe(pathStr)
+
       def circe(implicit F: Sync[F], ek: JsonEncoder[K], ev: JsonEncoder[V]): F[Long] =
-        delegate.circe(params.pathBuilder(topicName, NJFileFormat.CirceJson))
+        circe(params.pathBuilder(topicName, NJFileFormat.CirceJson))
+
+      def text(pathStr: String)(implicit F: Sync[F], showK: Show[K], showV: Show[V]): F[Long] =
+        delegate.text(pathStr)
 
       def text(implicit F: Sync[F], showK: Show[K], showV: Show[V]): F[Long] =
-        delegate.text(params.pathBuilder(topicName, NJFileFormat.Text))
+        text(params.pathBuilder(topicName, NJFileFormat.Text))
+
+      def jackson(pathStr: String)(implicit ce: ConcurrentEffect[F]): F[Long] =
+        delegate.jackson(pathStr)
 
       def jackson(implicit ce: ConcurrentEffect[F]): F[Long] =
-        delegate.jackson(params.pathBuilder(topicName, NJFileFormat.Jackson))
+        jackson(params.pathBuilder(topicName, NJFileFormat.Jackson))
+
+      def avro(pathStr: String)(implicit ce: ConcurrentEffect[F]): F[Long] =
+        delegate.avro(pathStr)
 
       def avro(implicit ce: ConcurrentEffect[F]): F[Long] =
-        delegate.avro(params.pathBuilder(topicName, NJFileFormat.Avro))
+        avro(params.pathBuilder(topicName, NJFileFormat.Avro))
+
+      def binAvro(pathStr: String)(implicit ce: ConcurrentEffect[F]): F[Long] =
+        delegate.binAvro(pathStr)
 
       def binAvro(implicit ce: ConcurrentEffect[F]): F[Long] =
-        delegate.binAvro(params.pathBuilder(topicName, NJFileFormat.BinaryAvro))
+        binAvro(params.pathBuilder(topicName, NJFileFormat.BinaryAvro))
+
+      def parquet(pathStr: String)(implicit ce: ConcurrentEffect[F]): F[Long] =
+        delegate.parquet(pathStr)
 
       def parquet(implicit ce: ConcurrentEffect[F]): F[Long] =
-        delegate.parquet(params.pathBuilder(topicName, NJFileFormat.Parquet))
+        parquet(params.pathBuilder(topicName, NJFileFormat.Parquet))
 
-      def javaObject(implicit ce: ConcurrentEffect[F]): F[Long] =
-        delegate.javaObj(params.pathBuilder(topicName, NJFileFormat.JavaObject))
+      def javaObj(pathStr: String)(implicit ce: ConcurrentEffect[F]): F[Long] =
+        delegate.javaObj(pathStr)
+
+      def javaObj(implicit ce: ConcurrentEffect[F]): F[Long] =
+        javaObj(params.pathBuilder(topicName, NJFileFormat.JavaObject))
     }
 
     final class MultiFile(delegate: RddPersistMultiFile[F, OptionalKV[K, V]]) {
 
-      def avro: F[Long] =
-        delegate.avro(params.pathBuilder(topicName, NJFileFormat.MultiAvro))
+      def avro(pathStr: String): F[Long] = delegate.avro(pathStr)
+
+      def avro: F[Long] = avro(params.pathBuilder(topicName, NJFileFormat.MultiAvro))
+
+      def jackson(pathStr: String): F[Long] =
+        delegate.jackson(pathStr)
 
       def jackson: F[Long] =
-        delegate.jackson(params.pathBuilder(topicName, NJFileFormat.MultiJackson))
+        jackson(params.pathBuilder(topicName, NJFileFormat.MultiJackson))
     }
 
     final def single(blocker: Blocker)(implicit cs: ContextShift[F]): SingleFile =
