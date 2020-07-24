@@ -4,13 +4,15 @@ import cats.effect.Sync
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
-import com.github.chenharryhua.nanjin.spark.SparkSessionExt
+import com.github.chenharryhua.nanjin.spark.SparkReadFile
+import frameless.TypedEncoder
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import io.circe.generic.auto._
 import io.circe.{Decoder => JsonDecoder}
-import frameless.TypedEncoder
 
-private[kafka] trait SparKafkaReadModule[F[_], K, V] { self: SparKafka[F, K, V] =>
+private[kafka] trait SparKafkaReadModule[F[_], K, V] {
+  self: SparKafka[F, K, V] =>
+
   import self.topic.topicDef._
 
   final def fromKafka(implicit sync: Sync[F]): F[CrRdd[F, K, V]] =
@@ -23,46 +25,56 @@ private[kafka] trait SparKafkaReadModule[F[_], K, V] { self: SparKafka[F, K, V] 
       topic.topicName,
       cfg)
 
-  // avro
-  final def readAvro(pathStr: String): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](sparkSession.avro[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
+  private val delegate = new SparkReadFile(sparkSession)
 
-  final def readSingleAvro: CrRdd[F, K, V] =
-    readAvro(params.pathBuilder(topic.topicName, NJFileFormat.Avro))
+  object read {
 
-  final def readMultiAvro: CrRdd[F, K, V] =
-    readAvro(params.pathBuilder(topic.topicName, NJFileFormat.MultiAvro))
+    final def avro(pathStr: String): CrRdd[F, K, V] =
+      new CrRdd[F, K, V](delegate.avro[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
 
-  // parquet
-  final def readParquet(
-    pathStr: String)(implicit k: TypedEncoder[K], v: TypedEncoder[V]): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](
-      sparkSession.parquet[OptionalKV[K, V]](pathStr).dataset.rdd,
-      topic.topicName,
-      cfg)
+    final def parquet(
+      pathStr: String)(implicit k: TypedEncoder[K], v: TypedEncoder[V]): CrRdd[F, K, V] =
+      new CrRdd[F, K, V](
+        delegate.parquet[OptionalKV[K, V]](pathStr).dataset.rdd,
+        topic.topicName,
+        cfg)
 
-  final def readParquet(implicit k: TypedEncoder[K], v: TypedEncoder[V]): CrRdd[F, K, V] =
-    readParquet(params.pathBuilder(topic.topicName, NJFileFormat.Parquet))
+    final def circe(pathStr: String)(implicit
+      jsonKeyDecoder: JsonDecoder[K],
+      jsonValDecoder: JsonDecoder[V]): CrRdd[F, K, V] =
+      new CrRdd[F, K, V](delegate.circe[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
 
-  // circe json
+    final def jackson(pathStr: String): CrRdd[F, K, V] =
+      new CrRdd[F, K, V](delegate.jackson[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
 
-  final def readCirce(pathStr: String)(implicit
-    jsonKeyDecoder: JsonDecoder[K],
-    jsonValDecoder: JsonDecoder[V]): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](sparkSession.circe[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
+    final val single: SingleFile = new SingleFile
+    final val multi: MultiFile   = new MultiFile
 
-  final def readCirce(implicit
-    jsonKeyDecoder: JsonDecoder[K],
-    jsonValDecoder: JsonDecoder[V]): CrRdd[F, K, V] =
-    readCirce(params.pathBuilder(topic.topicName, NJFileFormat.CirceJson))
+    final class SingleFile {
 
-  // jackson
-  final def readJackson(pathStr: String): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](sparkSession.jackson[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
+      def avro: CrRdd[F, K, V] =
+        read.avro(params.pathBuilder(topic.topicName, NJFileFormat.Avro))
 
-  final def readMultiJackson: CrRdd[F, K, V] =
-    readJackson(params.pathBuilder(topic.topicName, NJFileFormat.MultiJackson))
+      def jackson: CrRdd[F, K, V] =
+        read.jackson(params.pathBuilder(topic.topicName, NJFileFormat.Jackson))
 
-  final def readSingleJackson: CrRdd[F, K, V] =
-    readJackson(params.pathBuilder(topic.topicName, NJFileFormat.Jackson))
+      def parquet(implicit k: TypedEncoder[K], v: TypedEncoder[V]): CrRdd[F, K, V] =
+        read.parquet(params.pathBuilder(topic.topicName, NJFileFormat.Parquet))
+
+      def circe(implicit
+        jsonKeyDecoder: JsonDecoder[K],
+        jsonValDecoder: JsonDecoder[V]): CrRdd[F, K, V] =
+        read.circe(params.pathBuilder(topic.topicName, NJFileFormat.CirceJson))
+    }
+
+    final class MultiFile {
+
+      def avro: CrRdd[F, K, V] =
+        read.avro(params.pathBuilder(topic.topicName, NJFileFormat.MultiAvro))
+
+      def jackson: CrRdd[F, K, V] =
+        read.jackson(params.pathBuilder(topic.topicName, NJFileFormat.MultiJackson))
+
+    }
+  }
 }
