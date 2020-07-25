@@ -5,6 +5,7 @@ import cats.effect.{Blocker, Concurrent, ContextShift, Resource, Sync}
 import cats.implicits._
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import io.circe.{Encoder => JsonEncoder}
+import kantan.csv.RowEncoder
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
@@ -45,8 +46,14 @@ final class RddPersistSingleFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implici
       data.stream[F].through(fileSink(blocker).circe[A](pathStr)).compile.drain.as(data.count())
     }
 
-  def text(pathStr: String)(implicit enc: Show[A], sync: Sync[F]): F[Long] =
+  def csv(pathStr: String)(implicit enc: RowEncoder[A], F: Concurrent[F]): F[Long] =
+    rddResource.use { data =>
+      data.stream[F].through(fileSink(blocker).csv[A](pathStr)).compile.drain.as(data.count())
+    }
+
+  def text(pathStr: String)(implicit enc: Show[A], F: Sync[F]): F[Long] =
     rddResource.use { data =>
       data.stream[F].through(fileSink(blocker).text[A](pathStr)).compile.drain.as(data.count())
     }
+
 }

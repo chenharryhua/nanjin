@@ -8,6 +8,7 @@ import io.circe.generic.auto._
 import io.circe.shapes._
 import org.scalatest.funsuite.AnyFunSuite
 import frameless.cats.implicits._
+
 import scala.util.Random
 
 object SimpleFormatTestData {
@@ -69,5 +70,18 @@ class SimpleFormatTest extends AnyFunSuite {
 
     assert(sparkSession.parquet[Simple](single).collect().toSet == simple.toSet)
     assert(sparkSession.parquet[Simple](multi).collect().toSet == simple.toSet)
+  }
+
+  test("csv read/write identity") {
+    import kantan.csv.generic._
+    val single = "./data/test/spark/simple/csv/single.csv"
+    val multi  = "./data/test/spark/simple/csv/multi.csv"
+    val rdd    = sparkSession.sparkContext.parallelize(simple)
+    val prepare = rdd.single[IO](blocker).csv(single) >>
+      rdd.multi(blocker).csv(multi)
+    prepare.unsafeRunSync()
+
+    assert(sparkSession.csv[Simple](single).collect().toSet == simple.toSet)
+    //  assert(sparkSession.csv[Simple](multi).collect().toSet == simple.toSet)
   }
 }

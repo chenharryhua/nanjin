@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.spark.mapreduce.AvroJacksonKeyOutputFormat
 import com.sksamuel.avro4s.{ToRecord, Encoder => AvroEncoder}
 import frameless.cats.implicits._
 import io.circe.{Encoder => JsonEncoder}
+import kantan.csv.CsvConfiguration
 import org.apache.avro.generic.GenericRecord
 import org.apache.avro.mapred.AvroKey
 import org.apache.avro.mapreduce.{AvroJob, AvroKeyOutputFormat}
@@ -82,4 +83,20 @@ final class RddPersistMultiFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
         data.count()
       }
     }
+
+  def csv(pathStr: String, csvConfig: CsvConfiguration)(implicit enc: AvroEncoder[A]): F[Long] =
+    fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
+      F.delay {
+        new RddToDataFrame(data).toDF.write
+          .option("sep", csvConfig.cellSeparator.toString)
+          .option("header", csvConfig.hasHeader)
+          .option("quote", csvConfig.quote.toString)
+          .option("charset", "UTF8")
+          .csv(pathStr)
+        data.count()
+      }
+    }
+
+  def csv(pathStr: String)(implicit enc: AvroEncoder[A]): F[Long] =
+    csv(pathStr, CsvConfiguration.rfc)
 }

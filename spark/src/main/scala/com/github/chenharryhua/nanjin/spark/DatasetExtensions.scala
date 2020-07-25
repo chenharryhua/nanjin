@@ -13,10 +13,9 @@ import fs2.{Pipe, Stream}
 import io.circe.{Decoder => JsonDecoder}
 import kantan.csv.CsvConfiguration
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.{DataFrame, SparkSession, Encoder => SparkEncoder}
 
 import scala.reflect.ClassTag
-import kantan.csv.RowDecoder
 
 private[spark] trait DatasetExtensions {
 
@@ -112,10 +111,10 @@ private[spark] trait DatasetExtensions {
     def circe[A: ClassTag: JsonDecoder](pathStr: String): RDD[A] =
       delegate.circe[A](pathStr)
 
-    def csv[A: ClassTag: RowDecoder](pathStr: String, csvConfig: CsvConfiguration): RDD[A] =
+    def csv[A: TypedEncoder](pathStr: String, csvConfig: CsvConfiguration): RDD[A] =
       delegate.csv(pathStr, csvConfig)
 
-    def csv[A: ClassTag: RowDecoder](pathStr: String): RDD[A] =
+    def csv[A: TypedEncoder](pathStr: String): RDD[A] =
       csv[A](pathStr, CsvConfiguration.rfc)
 
     def text(pathStr: String): RDD[String] =

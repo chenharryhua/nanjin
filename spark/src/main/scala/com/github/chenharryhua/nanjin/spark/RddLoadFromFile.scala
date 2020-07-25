@@ -2,10 +2,11 @@ package com.github.chenharryhua.nanjin.spark
 
 import cats.implicits._
 import com.sksamuel.avro4s.{Decoder => AvroDecoder}
+import frameless.{TypedDataset, TypedEncoder}
 import frameless.cats.implicits._
 import io.circe.parser.decode
 import io.circe.{Decoder => JsonDecoder}
-import kantan.csv.{CsvConfiguration, RowDecoder}
+import kantan.csv.CsvConfiguration
 import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericRecord}
 import org.apache.avro.io.DecoderFactory
 import org.apache.avro.mapred.AvroKey
@@ -14,7 +15,8 @@ import org.apache.hadoop.io.NullWritable
 import org.apache.hadoop.mapreduce.Job
 import org.apache.parquet.avro.{AvroParquetInputFormat, GenericDataSupplier}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import scala.reflect.ClassTag
 
@@ -68,18 +70,21 @@ final class RddLoadFromFile(ss: SparkSession) {
         case Right(r) => r
       })
 
-  def csv[A: ClassTag](pathStr: String, csvConfig: CsvConfiguration)(implicit
-    dec: RowDecoder[A]): RDD[A] = {
-    def oneRow(str: String): A =
-      dec.unsafeDecode(str.split(csvConfig.cellSeparator))
+  def csv[A: TypedEncoder](pathStr: String, csvConfig: CsvConfiguration): RDD[A] = {
+    val structType = TypedEncoder[A].catalystRepr.asInstanceOf[StructType]
+    val df: DataFrame = ss.read
+      .schema(structType)
+      .option("sep", csvConfig.cellSeparator.toString)
+      .option("header", csvConfig.hasHeader)
+      .option("quote", csvConfig.quote.toString)
+      .option("charset", "UTF8")
+      .csv(pathStr)
 
-    ss.sparkContext.textFile(pathStr).mapPartitionsWithIndex { (idx, iter) =>
-      if (idx == 0 && csvConfig.hasHeader)
-        iter.drop(1).map(oneRow)
-      else
-        iter.map(oneRow)
-    }
+    TypedDataset.createUnsafe[A](df).dataset.rdd
   }
+
+  def csv[A: TypedEncoder](pathStr: String): RDD[A] =
+    csv(pathStr, CsvConfiguration.rfc)
 
   def text(path: String): RDD[String] =
     ss.sparkContext.textFile(path)
