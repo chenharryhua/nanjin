@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark
 
 import cats.effect.{Blocker, ContextShift, Resource, Sync}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.spark.mapreduce.AvroJsonKeyOutputFormat
+import com.github.chenharryhua.nanjin.spark.mapreduce.AvroJacksonKeyOutputFormat
 import com.sksamuel.avro4s.{ToRecord, Encoder => AvroEncoder}
 import frameless.cats.implicits._
 import io.circe.{Encoder => JsonEncoder}
@@ -46,7 +46,7 @@ final class RddPersistMultiFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
   def jackson(pathStr: String)(implicit enc: AvroEncoder[A]): F[Long] =
     fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
       F.delay {
-        grPair(data).saveAsNewAPIHadoopFile[AvroJsonKeyOutputFormat](pathStr)
+        grPair(data).saveAsNewAPIHadoopFile[AvroJacksonKeyOutputFormat](pathStr)
         data.count()
       }
     }

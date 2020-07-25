@@ -27,7 +27,7 @@ final class RddPersistSingleFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implici
 
   def binAvro(pathStr: String)(implicit enc: AvroEncoder[A], F: Concurrent[F]): F[Long] =
     rddResource.use { data =>
-      data.stream[F].through(fileSink(blocker).binaryAvro[A](pathStr)).compile.drain.as(data.count)
+      data.stream[F].through(fileSink(blocker).binAvro[A](pathStr)).compile.drain.as(data.count)
     }
 
   def parquet(pathStr: String)(implicit enc: AvroEncoder[A], F: Sync[F]): F[Long] =

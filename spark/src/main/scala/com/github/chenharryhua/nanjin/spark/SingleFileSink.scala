@@ -52,7 +52,7 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
   }
 
   // avro
-  def binaryAvro[A: AvroEncoder](
+  def binAvro[A: AvroEncoder](
     pathStr: String)(implicit ce: Concurrent[F], cs: ContextShift[F]): Pipe[F, A, Unit] = {
     val hadoop = new NJHadoop[F](conf, blocker).byteSink(pathStr)
     val gr     = new GenericRecordEncoder[F, A]
