@@ -93,6 +93,7 @@ class FormatCapabilityTest extends AnyFunSuite {
       fileSink[IO](blocker).delete(multi) >>
       rdd.multi[IO](blocker).circe(multi)
     prepare.unsafeRunSync()
+
     assert(sparkSession.circe[Salmon](single).collect().toSet != salmon.toSet)
     assert(sparkSession.circe[Salmon](multi).collect().toSet != salmon.toSet)
   }

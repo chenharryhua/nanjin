@@ -30,20 +30,21 @@ class SingleWriteSparkReadTest extends AnyFunSuite {
   def delete(path: String) = sink.delete(path)
   implicit val zoneId      = sydneyTime
 
-  test("should be able to process varying length csv") {
+  test("spark source is able to read varying length csv") {
     val path    = "./data/test/spark/sse/elephant-spark.csv"
     val data    = Stream.emits(elephants)
     val prepare = delete(path) >> data.through(sink.csv[Elephant](path)).compile.drain
     prepare.unsafeRunSync()
 
-    assert(sparkSession.csv[Elephant](path).collect().toSet == elephants.toSet)
+    val rst = fileSource[IO](blocker).csv[Elephant](path).compile.toList.unsafeRunSync()
+    assert(rst.toSet == elephants.toSet)
   }
-  test("spark source shoud be able to read varying lengh csv") {
+  test("spark is unable to read varying lengh csv") {
     val path    = "./data/test/spark/sse/elephant-nj.csv"
     val data    = Stream.emits(elephants)
     val prepare = delete(path) >> data.through(sink.csv[Elephant](path)).compile.drain
     prepare.unsafeRunSync()
-    assert(sparkSession.csv[Elephant](path).collect.toSet == elephants.toSet)
+    assertThrows[Exception](sparkSession.csv[Elephant](path).collect.toSet == elephants.toSet)
   }
 
   test("spark avro read/write identity") {
