@@ -73,10 +73,14 @@ class FormatCapabilityTest extends AnyFunSuite {
 
   test("unable to save to parquet (happy failure)") {
     val single = "./data/test/spark/cap/parquet/single.parquet"
-    val rdd    = sparkSession.sparkContext.parallelize(salmon)
+    val multi  = "./data/test/spark/cap/parquet/multi.parquet"
+
+    val rdd = sparkSession.sparkContext.parallelize(salmon)
     val prepare = fileSink[IO](blocker).delete(single) >>
       rdd.single[IO](blocker).parquet(single)
+
     assertThrows[Exception](prepare.unsafeRunSync())
+    assertThrows[Exception](rdd.multi[IO](blocker).parquet(multi).unsafeRunSync())
   }
 
   test("circe read/write unequal (happy failure)") {

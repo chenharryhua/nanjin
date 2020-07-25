@@ -15,11 +15,6 @@ final class RddPersistSingleFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implici
   private def rddResource(implicit F: Sync[F]): Resource[F, RDD[A]] =
     Resource.make(F.delay(rdd.persist()))(r => F.delay(r.unpersist()))
 
-  def dump(pathStr: String)(implicit F: Sync[F]): F[Long] =
-    fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
-      F.delay(data.saveAsObjectFile(pathStr)).as(data.count())
-    }
-
   def avro(pathStr: String)(implicit enc: AvroEncoder[A], F: Sync[F]): F[Long] =
     rddResource.use { data =>
       data.stream[F].through(fileSink(blocker).avro[A](pathStr)).compile.drain.as(data.count)

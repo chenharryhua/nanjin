@@ -32,19 +32,24 @@ object NJFileFormat extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[N
   // multi
   case object MultiAvro extends NJFileFormat(21, "avro", "multi")
   case object MultiJackson extends NJFileFormat(22, "jackson", "multi")
+  case object MultiCirce extends NJFileFormat(23, "circe", "multi")
+  case object MultiParquet extends NJFileFormat(24, "parquet", "multi")
 
   // types
-  type Jackson      = Jackson.type
-  type CirceJson    = CirceJson.type
-  type Text         = Text.type
-  type Csv          = Csv.type
-  type Parquet      = Parquet.type
-  type Avro         = Avro.type
-  type BinaryAvro   = BinaryAvro.type
-  type JavaObject   = JavaObject.type
-  type ProtoBuf     = ProtoBuf.type
+  type Jackson    = Jackson.type
+  type CirceJson  = CirceJson.type
+  type Text       = Text.type
+  type Csv        = Csv.type
+  type Parquet    = Parquet.type
+  type Avro       = Avro.type
+  type BinaryAvro = BinaryAvro.type
+  type JavaObject = JavaObject.type
+  type ProtoBuf   = ProtoBuf.type
+
   type MultiAvro    = MultiAvro.type
   type MultiJackson = MultiJackson.type
+  type MultiCirce   = MultiCirce.type
+  type MultiParquet = MultiParquet.type
 
   // json family
   type JsonFamily = Jackson :+: CirceJson :+: CNil

@@ -22,6 +22,11 @@ final class RddPersistMultiFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
   private def rddResource(implicit F: Sync[F]): Resource[F, RDD[A]] =
     Resource.make(F.delay(rdd.persist()))(r => F.delay(r.unpersist()))
 
+  def dump(pathStr: String)(implicit F: Sync[F]): F[Long] =
+    fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
+      F.delay(data.saveAsObjectFile(pathStr)).as(data.count())
+    }
+
   private def grPair(data: RDD[A])(implicit
     encoder: AvroEncoder[A]): RDD[(AvroKey[GenericRecord], NullWritable)] = {
 
@@ -55,6 +60,14 @@ final class RddPersistMultiFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
     fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
       F.delay {
         rdd.map(enc(_).noSpaces).saveAsTextFile(pathStr)
+        data.count()
+      }
+    }
+
+  def parquet(pathStr: String)(implicit enc: AvroEncoder[A]): F[Long] =
+    fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
+      F.delay {
+        new RddToDataFrame[A](rdd).toDF.write.parquet(pathStr)
         data.count()
       }
     }

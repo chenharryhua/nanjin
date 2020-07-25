@@ -16,9 +16,6 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
 
     final class SingleFile(delegate: RddPersistSingleFile[F, OptionalKV[K, V]]) {
 
-      def dump(implicit F: Sync[F]): F[Long] =
-        delegate.dump(params.replayPath(topicName))
-
       def circe(
         pathStr: String)(implicit F: Sync[F], ek: JsonEncoder[K], ev: JsonEncoder[V]): F[Long] =
         delegate.circe(pathStr)
@@ -65,15 +62,29 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
 
     final class MultiFile(delegate: RddPersistMultiFile[F, OptionalKV[K, V]]) {
 
+      def dump(implicit F: Sync[F]): F[Long] =
+        delegate.dump(params.replayPath(topicName))
+
       def avro(pathStr: String): F[Long] = delegate.avro(pathStr)
 
       def avro: F[Long] = avro(params.pathBuilder(topicName, NJFileFormat.MultiAvro))
 
-      def jackson(pathStr: String): F[Long] =
-        delegate.jackson(pathStr)
+      def jackson(pathStr: String): F[Long] = delegate.jackson(pathStr)
 
       def jackson: F[Long] =
         jackson(params.pathBuilder(topicName, NJFileFormat.MultiJackson))
+
+      def parquet(pathStr: String): F[Long] = delegate.parquet(pathStr)
+
+      def parquet: F[Long] =
+        parquet(params.pathBuilder(topicName, NJFileFormat.MultiParquet))
+
+      def circe(pathStr: String)(implicit k: JsonEncoder[K], v: JsonEncoder[V]): F[Long] =
+        delegate.circe(pathStr)
+
+      def circe(implicit k: JsonEncoder[K], v: JsonEncoder[V]): F[Long] =
+        delegate.circe(params.pathBuilder(topicName, NJFileFormat.MultiCirce))
+
     }
 
     final def single(blocker: Blocker)(implicit cs: ContextShift[F]): SingleFile =
