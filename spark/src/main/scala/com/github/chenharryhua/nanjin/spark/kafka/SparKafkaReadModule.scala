@@ -71,6 +71,13 @@ private[kafka] trait SparKafkaReadModule[F[_], K, V] {
       def jackson: CrRdd[F, K, V] =
         read.jackson(params.pathBuilder(topic.topicName, NJFileFormat.MultiJackson))
 
+      def parquet: CrRdd[F, K, V] =
+        read.parquet(params.pathBuilder(topic.topicName, NJFileFormat.MultiParquet))
+
+      def circe(implicit
+        jsonKeyDecoder: JsonDecoder[K],
+        jsonValDecoder: JsonDecoder[V]): CrRdd[F, K, V] =
+        read.circe(params.pathBuilder(topic.topicName, NJFileFormat.MultiCirce))
     }
   }
 }
