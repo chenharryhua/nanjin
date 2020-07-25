@@ -5,6 +5,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.spark.mapreduce.AvroJsonKeyOutputFormat
 import com.sksamuel.avro4s.{ToRecord, Encoder => AvroEncoder}
 import frameless.cats.implicits._
+import io.circe.{Encoder => JsonEncoder}
 import org.apache.avro.generic.GenericRecord
 import org.apache.avro.mapred.AvroKey
 import org.apache.avro.mapreduce.{AvroJob, AvroKeyOutputFormat}
@@ -46,6 +47,14 @@ final class RddPersistMultiFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
     fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
       F.delay {
         grPair(data).saveAsNewAPIHadoopFile[AvroJsonKeyOutputFormat](pathStr)
+        data.count()
+      }
+    }
+
+  def circe(pathStr: String)(implicit enc: JsonEncoder[A]): F[Long] =
+    fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
+      F.delay {
+        rdd.map(enc(_).noSpaces).saveAsTextFile(pathStr)
         data.count()
       }
     }

@@ -5,9 +5,9 @@ import akka.stream.scaladsl.Source
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync}
 import cats.implicits._
 import cats.kernel.Eq
-import com.sksamuel.avro4s.{Decoder => AvroDecoder}
+import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
 import frameless.cats.implicits._
-import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
+import frameless.{TypedDataset, TypedEncoder}
 import fs2.interop.reactivestreams._
 import fs2.{Pipe, Stream}
 import io.circe.{Decoder => JsonDecoder}
@@ -52,6 +52,9 @@ private[spark] trait DatasetExtensions {
       ss: SparkSession,
       cs: ContextShift[F]): RddPersistSingleFile[F, A] =
       new RddPersistSingleFile[F, A](rdd, blocker)
+
+    def toDF(implicit encoder: AvroEncoder[A], ss: SparkSession): DataFrame =
+      new RddToDataFrame[A](rdd).toDF
   }
 
   implicit final class TypedDatasetExt[A](private val tds: TypedDataset[A]) {
