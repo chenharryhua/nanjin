@@ -5,6 +5,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.spark.mapreduce.AvroJacksonKeyOutputFormat
 import com.sksamuel.avro4s.{ToRecord, Encoder => AvroEncoder}
 import frameless.cats.implicits._
+import frameless.{TypedDataset, TypedEncoder}
 import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.CsvConfiguration
 import org.apache.avro.generic.GenericRecord
@@ -12,7 +13,6 @@ import org.apache.avro.mapred.AvroKey
 import org.apache.avro.mapreduce.{AvroJob, AvroKeyOutputFormat}
 import org.apache.hadoop.io.NullWritable
 import org.apache.hadoop.mapreduce.Job
-import org.apache.parquet.avro.{AvroParquetOutputFormat, GenericDataSupplier}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
@@ -66,37 +66,25 @@ final class RddPersistMultiFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
       }
     }
 
-  def parquet(pathStr: String)(implicit enc: AvroEncoder[A]): F[Long] =
+  // avro supports union type while parquet doesn't
+  def parquet(pathStr: String)(implicit enc: TypedEncoder[A]): F[Long] =
     fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
-      F.delay {
-        val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
-        AvroParquetOutputFormat.setAvroDataSupplier(job, classOf[GenericDataSupplier])
-        AvroParquetOutputFormat.setSchema(job, enc.schema)
-        ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
-        data // null as java Void
-          .map(a => (null, enc.encode(a).asInstanceOf[GenericRecord]))
-          .saveAsNewAPIHadoopFile(
-            pathStr,
-            classOf[Void],
-            classOf[GenericRecord],
-            classOf[AvroParquetOutputFormat[GenericRecord]])
-        data.count()
-      }
+      val tds = TypedDataset.create(data)
+      F.delay(tds.write.parquet(pathStr)) >> tds.count[F]()
     }
 
-  def csv(pathStr: String, csvConfig: CsvConfiguration)(implicit enc: AvroEncoder[A]): F[Long] =
+  def csv(pathStr: String, csvConfig: CsvConfiguration)(implicit enc: TypedEncoder[A]): F[Long] =
     fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
-      F.delay {
-        new RddToDataFrame(data).toDF.write
+      val tds = TypedDataset.create(data)
+      F.delay(
+        tds.write
           .option("sep", csvConfig.cellSeparator.toString)
           .option("header", csvConfig.hasHeader)
           .option("quote", csvConfig.quote.toString)
           .option("charset", "UTF8")
-          .csv(pathStr)
-        data.count()
-      }
+          .csv(pathStr)) >> tds.count[F]()
     }
 
-  def csv(pathStr: String)(implicit enc: AvroEncoder[A]): F[Long] =
+  def csv(pathStr: String)(implicit enc: TypedEncoder[A]): F[Long] =
     csv(pathStr, CsvConfiguration.rfc)
 }

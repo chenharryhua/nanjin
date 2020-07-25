@@ -78,9 +78,7 @@ class FormatCapabilityTest extends AnyFunSuite {
     val rdd = sparkSession.sparkContext.parallelize(salmon)
     val prepare = fileSink[IO](blocker).delete(single) >>
       rdd.single[IO](blocker).parquet(single)
-
     assertThrows[Exception](prepare.unsafeRunSync())
-    assertThrows[Exception](rdd.multi[IO](blocker).parquet(multi).unsafeRunSync())
   }
 
   test("circe read/write unequal (happy failure)") {
