@@ -4,7 +4,7 @@ import cats.effect.Sync
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
-import com.github.chenharryhua.nanjin.spark.SparkReadFile
+import com.github.chenharryhua.nanjin.spark.RddLoadFromFile
 import frameless.TypedEncoder
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import io.circe.generic.auto._
@@ -25,27 +25,23 @@ private[kafka] trait SparKafkaReadModule[F[_], K, V] {
       topic.topicName,
       cfg)
 
-  private val delegate = new SparkReadFile(sparkSession)
+  private val delegate = new RddLoadFromFile(sparkSession)
 
   object read {
 
     final def avro(pathStr: String): CrRdd[F, K, V] =
       new CrRdd[F, K, V](delegate.avro[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
 
-    final def parquet(
-      pathStr: String)(implicit k: TypedEncoder[K], v: TypedEncoder[V]): CrRdd[F, K, V] =
-      new CrRdd[F, K, V](
-        delegate.parquet[OptionalKV[K, V]](pathStr).dataset.rdd,
-        topic.topicName,
-        cfg)
+    final def parquet(pathStr: String): CrRdd[F, K, V] =
+      new CrRdd[F, K, V](delegate.parquet[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
+
+    final def jackson(pathStr: String): CrRdd[F, K, V] =
+      new CrRdd[F, K, V](delegate.jackson[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
 
     final def circe(pathStr: String)(implicit
       jsonKeyDecoder: JsonDecoder[K],
       jsonValDecoder: JsonDecoder[V]): CrRdd[F, K, V] =
       new CrRdd[F, K, V](delegate.circe[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
-
-    final def jackson(pathStr: String): CrRdd[F, K, V] =
-      new CrRdd[F, K, V](delegate.jackson[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
 
     final val single: SingleFile = new SingleFile
     final val multi: MultiFile   = new MultiFile

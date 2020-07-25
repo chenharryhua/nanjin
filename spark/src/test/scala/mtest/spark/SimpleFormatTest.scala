@@ -67,7 +67,7 @@ class SimpleFormatTest extends AnyFunSuite {
       rdd.multi[IO](blocker).parquet(multi)
     prepare.unsafeRunSync()
 
-    assert(sparkSession.parquet[Simple](single).collect[IO]().unsafeRunSync().toSet == simple.toSet)
-    assert(sparkSession.parquet[Simple](multi).collect[IO]().unsafeRunSync().toSet == simple.toSet)
+    assert(sparkSession.parquet[Simple](single).collect().toSet == simple.toSet)
+    assert(sparkSession.parquet[Simple](multi).collect().toSet == simple.toSet)
   }
 }

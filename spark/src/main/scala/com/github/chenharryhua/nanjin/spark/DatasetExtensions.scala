@@ -16,6 +16,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import scala.reflect.ClassTag
+import kantan.csv.RowDecoder
 
 private[spark] trait DatasetExtensions {
 
@@ -97,29 +98,27 @@ private[spark] trait DatasetExtensions {
       ss
     }
 
-    private val delegate: SparkReadFile = new SparkReadFile(ss)
+    private val delegate: RddLoadFromFile = new RddLoadFromFile(ss)
 
-    def parquet[A: TypedEncoder](pathStr: String): TypedDataset[A] =
+    def parquet[A: ClassTag: AvroDecoder](pathStr: String): RDD[A] =
       delegate.parquet[A](pathStr)
 
-    def avro[A: ClassTag](pathStr: String)(implicit decoder: AvroDecoder[A]): RDD[A] =
+    def avro[A: ClassTag: AvroDecoder](pathStr: String): RDD[A] =
       delegate.avro[A](pathStr)
+
+    def jackson[A: ClassTag: AvroDecoder](pathStr: String): RDD[A] =
+      delegate.jackson[A](pathStr)
 
     def circe[A: ClassTag: JsonDecoder](pathStr: String): RDD[A] =
       delegate.circe[A](pathStr)
 
-    def jackson[A: ClassTag](pathStr: String)(implicit decoder: AvroDecoder[A]): RDD[A] =
-      delegate.jackson[A](pathStr)
-
-    def csv[A: ClassTag: TypedEncoder](
-      pathStr: String,
-      csvConfig: CsvConfiguration): TypedDataset[A] =
+    def csv[A: ClassTag: RowDecoder](pathStr: String, csvConfig: CsvConfiguration): RDD[A] =
       delegate.csv(pathStr, csvConfig)
 
-    def csv[A: ClassTag: TypedEncoder](pathStr: String): TypedDataset[A] =
+    def csv[A: ClassTag: RowDecoder](pathStr: String): RDD[A] =
       csv[A](pathStr, CsvConfiguration.rfc)
 
-    def text(pathStr: String): TypedDataset[String] =
+    def text(pathStr: String): RDD[String] =
       delegate.text(pathStr)
   }
 }
