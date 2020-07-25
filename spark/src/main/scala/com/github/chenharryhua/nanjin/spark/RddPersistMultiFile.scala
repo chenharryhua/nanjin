@@ -11,6 +11,7 @@ import org.apache.avro.mapred.AvroKey
 import org.apache.avro.mapreduce.{AvroJob, AvroKeyOutputFormat}
 import org.apache.hadoop.io.NullWritable
 import org.apache.hadoop.mapreduce.Job
+import org.apache.parquet.avro.{AvroParquetOutputFormat, GenericDataSupplier}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
@@ -67,7 +68,17 @@ final class RddPersistMultiFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
   def parquet(pathStr: String)(implicit enc: AvroEncoder[A]): F[Long] =
     fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
       F.delay {
-        new RddToDataFrame[A](rdd).toDF.write.parquet(pathStr)
+        val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
+        AvroParquetOutputFormat.setAvroDataSupplier(job, classOf[GenericDataSupplier])
+        AvroParquetOutputFormat.setSchema(job, enc.schema)
+        ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
+        data // null as java Void
+          .map(a => (null, enc.encode(a).asInstanceOf[GenericRecord]))
+          .saveAsNewAPIHadoopFile(
+            pathStr,
+            classOf[Void],
+            classOf[GenericRecord],
+            classOf[AvroParquetOutputFormat[GenericRecord]])
         data.count()
       }
     }
