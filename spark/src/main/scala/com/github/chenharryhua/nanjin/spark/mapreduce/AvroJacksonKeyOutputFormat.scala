@@ -12,7 +12,7 @@ import org.apache.hadoop.io.NullWritable
 import org.apache.hadoop.mapreduce.lib.output.{FileOutputCommitter, FileOutputFormat}
 import org.apache.hadoop.mapreduce.{RecordWriter, TaskAttemptContext}
 
-final class AvroJsonKeyOutputFormat
+final class AvroJacksonKeyOutputFormat
     extends AvroOutputFormatBase[AvroKey[GenericRecord], NullWritable] {
 
   private def fileOutputStream(context: TaskAttemptContext): OutputStream = {
@@ -27,11 +27,11 @@ final class AvroJsonKeyOutputFormat
     context: TaskAttemptContext): RecordWriter[AvroKey[GenericRecord], NullWritable] = {
     val schema: Schema    = AvroJob.getOutputKeySchema(context.getConfiguration)
     val out: OutputStream = fileOutputStream(context)
-    new AvroJsonKeyRecordWriter(schema, out)
+    new AvroJacksonKeyRecordWriter(schema, out)
   }
 }
 
-final class AvroJsonKeyRecordWriter(schema: Schema, outputStream: OutputStream)
+final class AvroJacksonKeyRecordWriter(schema: Schema, outputStream: OutputStream)
     extends RecordWriter[AvroKey[GenericRecord], NullWritable] {
 
   private val datumWriter: GenericDatumWriter[GenericRecord] =

@@ -5,15 +5,15 @@ import akka.stream.scaladsl.Source
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync}
 import cats.implicits._
 import cats.kernel.Eq
-import com.sksamuel.avro4s.{Decoder => AvroDecoder}
+import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
 import frameless.cats.implicits._
-import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
+import frameless.{TypedDataset, TypedEncoder}
 import fs2.interop.reactivestreams._
 import fs2.{Pipe, Stream}
 import io.circe.{Decoder => JsonDecoder}
 import kantan.csv.CsvConfiguration
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.{DataFrame, SparkSession, Encoder => SparkEncoder}
 
 import scala.reflect.ClassTag
 
@@ -45,12 +45,16 @@ private[spark] trait DatasetExtensions {
     def multi[F[_]](blocker: Blocker)(implicit
       ss: SparkSession,
       cs: ContextShift[F],
-      F: Sync[F]): PersistMultiFile[F, A] =
-      new PersistMultiFile[F, A](rdd, blocker)
+      F: Sync[F]): RddPersistMultiFile[F, A] =
+      new RddPersistMultiFile[F, A](rdd, blocker)
 
-    def single[F[_]](
-      blocker: Blocker)(implicit ss: SparkSession, cs: ContextShift[F]): PersistSingleFile[F, A] =
-      new PersistSingleFile[F, A](rdd, blocker)
+    def single[F[_]](blocker: Blocker)(implicit
+      ss: SparkSession,
+      cs: ContextShift[F]): RddPersistSingleFile[F, A] =
+      new RddPersistSingleFile[F, A](rdd, blocker)
+
+    def toDF(implicit encoder: AvroEncoder[A], ss: SparkSession): DataFrame =
+      new RddToDataFrame[A](rdd).toDF
   }
 
   implicit final class TypedDatasetExt[A](private val tds: TypedDataset[A]) {
@@ -66,11 +70,12 @@ private[spark] trait DatasetExtensions {
     def multi[F[_]](blocker: Blocker)(implicit
       ss: SparkSession,
       cs: ContextShift[F],
-      F: Sync[F]): PersistMultiFile[F, A] =
+      F: Sync[F]): RddPersistMultiFile[F, A] =
       tds.dataset.rdd.multi(blocker)
 
-    def single[F[_]](
-      blocker: Blocker)(implicit ss: SparkSession, cs: ContextShift[F]): PersistSingleFile[F, A] =
+    def single[F[_]](blocker: Blocker)(implicit
+      ss: SparkSession,
+      cs: ContextShift[F]): RddPersistSingleFile[F, A] =
       tds.dataset.rdd.single(blocker)
   }
 
@@ -92,29 +97,27 @@ private[spark] trait DatasetExtensions {
       ss
     }
 
-    private val delegate: SparkReadFile = new SparkReadFile(ss)
+    private val delegate: RddLoadFromFile = new RddLoadFromFile(ss)
 
-    def parquet[A: TypedEncoder](pathStr: String): TypedDataset[A] =
+    def parquet[A: ClassTag: AvroDecoder](pathStr: String): RDD[A] =
       delegate.parquet[A](pathStr)
 
-    def avro[A: ClassTag](pathStr: String)(implicit decoder: AvroDecoder[A]): RDD[A] =
+    def avro[A: ClassTag: AvroDecoder](pathStr: String): RDD[A] =
       delegate.avro[A](pathStr)
+
+    def jackson[A: ClassTag: AvroDecoder](pathStr: String): RDD[A] =
+      delegate.jackson[A](pathStr)
 
     def circe[A: ClassTag: JsonDecoder](pathStr: String): RDD[A] =
       delegate.circe[A](pathStr)
 
-    def jackson[A: ClassTag](pathStr: String)(implicit decoder: AvroDecoder[A]): RDD[A] =
-      delegate.jackson[A](pathStr)
-
-    def csv[A: ClassTag: TypedEncoder](
-      pathStr: String,
-      csvConfig: CsvConfiguration): TypedDataset[A] =
+    def csv[A: TypedEncoder](pathStr: String, csvConfig: CsvConfiguration): RDD[A] =
       delegate.csv(pathStr, csvConfig)
 
-    def csv[A: ClassTag: TypedEncoder](pathStr: String): TypedDataset[A] =
+    def csv[A: TypedEncoder](pathStr: String): RDD[A] =
       csv[A](pathStr, CsvConfiguration.rfc)
 
-    def text(pathStr: String): TypedDataset[String] =
+    def text(pathStr: String): RDD[String] =
       delegate.text(pathStr)
   }
 }

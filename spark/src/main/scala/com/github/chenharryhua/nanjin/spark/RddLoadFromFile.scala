@@ -2,8 +2,8 @@ package com.github.chenharryhua.nanjin.spark
 
 import cats.implicits._
 import com.sksamuel.avro4s.{Decoder => AvroDecoder}
+import frameless.{TypedDataset, TypedEncoder}
 import frameless.cats.implicits._
-import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import io.circe.parser.decode
 import io.circe.{Decoder => JsonDecoder}
 import kantan.csv.CsvConfiguration
@@ -13,15 +13,28 @@ import org.apache.avro.mapred.AvroKey
 import org.apache.avro.mapreduce.{AvroJob, AvroKeyInputFormat}
 import org.apache.hadoop.io.NullWritable
 import org.apache.hadoop.mapreduce.Job
+import org.apache.parquet.avro.{AvroParquetInputFormat, GenericDataSupplier}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import scala.reflect.ClassTag
 
-final class SparkReadFile(ss: SparkSession) {
+final class RddLoadFromFile(ss: SparkSession) {
 
-  def parquet[A: TypedEncoder](pathStr: String): TypedDataset[A] =
-    TypedDataset.createUnsafe[A](ss.read.parquet(pathStr))
+  def parquet[A: ClassTag](pathStr: String)(implicit decoder: AvroDecoder[A]): RDD[A] = {
+    val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
+    AvroParquetInputFormat.setAvroDataSupplier(job, classOf[GenericDataSupplier])
+    ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
+
+    ss.sparkContext
+      .newAPIHadoopFile(
+        pathStr,
+        classOf[AvroParquetInputFormat[GenericRecord]],
+        classOf[Void],
+        classOf[GenericRecord])
+      .map { case (_, gr) => decoder.decode(gr) }
+  }
 
   def avro[A: ClassTag](pathStr: String)(implicit decoder: AvroDecoder[A]): RDD[A] = {
     val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
@@ -57,20 +70,22 @@ final class SparkReadFile(ss: SparkSession) {
         case Right(r) => r
       })
 
-  def csv[A: ClassTag: TypedEncoder](
-    pathStr: String,
-    csvConfig: CsvConfiguration): TypedDataset[A] = {
-    val schema = TypedExpressionEncoder.targetStructType(TypedEncoder[A])
-    TypedDataset.createUnsafe(
-      ss.read
-        .schema(schema)
-        .option("sep", csvConfig.cellSeparator.toString)
-        .option("header", csvConfig.hasHeader)
-        .option("quote", csvConfig.quote.toString)
-        .option("charset", "UTF8")
-        .csv(pathStr))
+  def csv[A: TypedEncoder](pathStr: String, csvConfig: CsvConfiguration): RDD[A] = {
+    val structType = TypedEncoder[A].catalystRepr.asInstanceOf[StructType]
+    val df: DataFrame = ss.read
+      .schema(structType)
+      .option("sep", csvConfig.cellSeparator.toString)
+      .option("header", csvConfig.hasHeader)
+      .option("quote", csvConfig.quote.toString)
+      .option("charset", "UTF8")
+      .csv(pathStr)
+
+    TypedDataset.createUnsafe[A](df).dataset.rdd
   }
 
-  def text(path: String): TypedDataset[String] =
-    TypedDataset.create(ss.read.textFile(path))
+  def csv[A: TypedEncoder](pathStr: String): RDD[A] =
+    csv(pathStr, CsvConfiguration.rfc)
+
+  def text(path: String): RDD[String] =
+    ss.sparkContext.textFile(path)
 }

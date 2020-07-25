@@ -13,19 +13,14 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryV,
   OptionalKV
 }
-import com.github.chenharryhua.nanjin.spark.{RddExt, SparkSessionExt}
+import com.github.chenharryhua.nanjin.spark.{RddExt, RddToDataFrame, SparkSessionExt}
 import com.github.chenharryhua.nanjin.utils
-import com.sksamuel.avro4s.{AvroSchema, SchemaFor, ToRecord, Encoder => AvroEncoder}
+import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.cats.implicits.rddOps
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
-import org.apache.avro.Schema
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.avro.{AvroDeserializer, SchemaConverters}
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.encoders.{ExpressionEncoder, RowEncoder}
-import org.apache.spark.sql.types.{DataType, StructType}
-import org.apache.spark.sql.{DataFrame, Row, SparkSession}
+import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import scala.reflect.ClassTag
 
@@ -94,28 +89,7 @@ final class CrRdd[F[_], K, V](
     valEncoder: TypedEncoder[V]): TypedDataset[OptionalKV[K, V]] =
     TypedDataset.create(rdd)
 
-  // untyped world
-  @SuppressWarnings(Array("AsInstanceOf"))
-  def toDF: DataFrame = {
-    implicit val ks: SchemaFor[K]        = keyEncoder.schemaFor
-    implicit val vs: SchemaFor[V]        = valEncoder.schemaFor
-    val toGR: ToRecord[OptionalKV[K, V]] = ToRecord[OptionalKV[K, V]]
-    val avroSchema: Schema               = AvroSchema[OptionalKV[K, V]]
-    val sparkDataType: DataType          = SchemaConverters.toSqlType(avroSchema).dataType
-    val sparkStructType: StructType      = sparkDataType.asInstanceOf[StructType]
-    val rowEnconder: ExpressionEncoder[Row] =
-      RowEncoder.apply(sparkStructType).resolveAndBind()
-
-    sparkSession.createDataFrame(
-      rdd.mapPartitions { rcds =>
-        val deSer: AvroDeserializer = new AvroDeserializer(avroSchema, sparkDataType)
-        rcds.map { rcd =>
-          rowEnconder.fromRow(deSer.deserialize(toGR.to(rcd)).asInstanceOf[InternalRow])
-        }
-      },
-      sparkStructType
-    )
-  }
+  def toDF: DataFrame = new RddToDataFrame[OptionalKV[K, V]](rdd).toDF
 
   def crDataset(implicit
     keyEncoder: TypedEncoder[K],

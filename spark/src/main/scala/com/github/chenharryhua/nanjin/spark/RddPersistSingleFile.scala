@@ -5,20 +5,16 @@ import cats.effect.{Blocker, Concurrent, ContextShift, Resource, Sync}
 import cats.implicits._
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import io.circe.{Encoder => JsonEncoder}
+import kantan.csv.RowEncoder
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
-final class PersistSingleFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
+final class RddPersistSingleFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
   ss: SparkSession,
   cs: ContextShift[F]) {
 
   private def rddResource(implicit F: Sync[F]): Resource[F, RDD[A]] =
     Resource.make(F.delay(rdd.persist()))(r => F.delay(r.unpersist()))
-
-  def dump(pathStr: String)(implicit F: Sync[F]): F[Long] =
-    fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
-      F.delay(data.saveAsObjectFile(pathStr)).as(data.count())
-    }
 
   def avro(pathStr: String)(implicit enc: AvroEncoder[A], F: Sync[F]): F[Long] =
     rddResource.use { data =>
@@ -27,7 +23,7 @@ final class PersistSingleFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
 
   def binAvro(pathStr: String)(implicit enc: AvroEncoder[A], F: Concurrent[F]): F[Long] =
     rddResource.use { data =>
-      data.stream[F].through(fileSink(blocker).binaryAvro[A](pathStr)).compile.drain.as(data.count)
+      data.stream[F].through(fileSink(blocker).binAvro[A](pathStr)).compile.drain.as(data.count)
     }
 
   def parquet(pathStr: String)(implicit enc: AvroEncoder[A], F: Sync[F]): F[Long] =
@@ -50,8 +46,14 @@ final class PersistSingleFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
       data.stream[F].through(fileSink(blocker).circe[A](pathStr)).compile.drain.as(data.count())
     }
 
-  def text(pathStr: String)(implicit enc: Show[A], sync: Sync[F]): F[Long] =
+  def csv(pathStr: String)(implicit enc: RowEncoder[A], F: Concurrent[F]): F[Long] =
+    rddResource.use { data =>
+      data.stream[F].through(fileSink(blocker).csv[A](pathStr)).compile.drain.as(data.count())
+    }
+
+  def text(pathStr: String)(implicit enc: Show[A], F: Sync[F]): F[Long] =
     rddResource.use { data =>
       data.stream[F].through(fileSink(blocker).text[A](pathStr)).compile.drain.as(data.count())
     }
+
 }

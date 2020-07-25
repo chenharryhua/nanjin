@@ -43,7 +43,7 @@ final class SingleFileSource[F[_]](blocker: Blocker, conf: Configuration) {
     new NJHadoop[F](conf, blocker).avroSource(pathStr).through(pipe.decode)
   }
 
-  def binary[A: AvroDecoder](
+  def binAvro[A: AvroDecoder](
     pathStr: String)(implicit cs: ContextShift[F], ce: ConcurrentEffect[F]): Stream[F, A] = {
     val pipe = new BinaryAvroDeserialization[F](AvroDecoder[A].schema)
     val gr   = new GenericRecordDecoder[F, A]

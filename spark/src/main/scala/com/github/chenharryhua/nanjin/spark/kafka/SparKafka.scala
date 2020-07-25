@@ -39,7 +39,7 @@ final class SparKafka[F[_], K, V](val topic: KafkaTopic[F, K, V], val cfg: SKCon
     * shorthand
     */
   def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Long] =
-    Blocker[F].use(blocker => fromKafka.flatMap(_.save.single(blocker).dump))
+    Blocker[F].use(blocker => fromKafka.flatMap(_.save.multi(blocker).dump))
 
   def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
     fromDisk.pipeTo(topic)
