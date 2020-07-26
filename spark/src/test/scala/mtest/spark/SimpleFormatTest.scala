@@ -1,7 +1,10 @@
 package mtest.spark
 
+import java.time.Instant
+
 import cats.effect.IO
 import cats.implicits._
+import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.spark.{fileSink, _}
 import com.github.chenharryhua.nanjin.spark.injection._
 import io.circe.generic.auto._
@@ -12,10 +15,11 @@ import frameless.cats.implicits._
 import scala.util.Random
 
 object SimpleFormatTestData {
-  final case class Simple(a: Int, b: String, c: Float, d: Double)
+  final case class Simple(a: Int, b: String, c: Float, d: Double, instant: Instant)
 
   val simple: List[Simple] =
-    List.fill(300)(Simple(Random.nextInt(), "a", Random.nextFloat(), Random.nextDouble()))
+    List.fill(300)(
+      Simple(Random.nextInt(), "a", Random.nextFloat(), Random.nextDouble(), Instant.now))
 }
 
 class SimpleFormatTest extends AnyFunSuite {
@@ -35,11 +39,10 @@ class SimpleFormatTest extends AnyFunSuite {
   }
 
   test("jackson read/write identity") {
-    val single = "./data/test/spark/simple/jackson/jackson.json"
-    val multi  = "./data/test/spark/simple/jackson/multi.jackson"
-    val rdd    = sparkSession.sparkContext.parallelize(simple)
-    val prepare = rdd.single[IO](blocker).jackson(single) >>
-      rdd.multi[IO](blocker).jackson(multi)
+    val single  = "./data/test/spark/simple/jackson/jackson.json"
+    val multi   = "./data/test/spark/simple/jackson/multi.jackson"
+    val rdd     = sparkSession.sparkContext.parallelize(simple)
+    val prepare = rdd.single[IO](blocker).jackson(single) >> rdd.multi[IO](blocker).jackson(multi)
     prepare.unsafeRunSync()
 
     assert(sparkSession.jackson[Simple](single).collect().toSet == simple.toSet)
@@ -50,9 +53,8 @@ class SimpleFormatTest extends AnyFunSuite {
     val single = "./data/test/spark/simple/circe/circe.json"
     val multi  = "./data/test/spark/simple/circe/multi.circe"
 
-    val rdd = sparkSession.sparkContext.parallelize(simple)
-    val prepare = rdd.single[IO](blocker).circe(single) >>
-      rdd.multi[IO](blocker).circe(multi)
+    val rdd     = sparkSession.sparkContext.parallelize(simple)
+    val prepare = rdd.single[IO](blocker).circe(single) >> rdd.multi[IO](blocker).circe(multi)
     prepare.unsafeRunSync()
 
     assert(sparkSession.circe[Simple](single).collect().toSet == simple.toSet)
@@ -63,9 +65,8 @@ class SimpleFormatTest extends AnyFunSuite {
     val single = "./data/test/spark/simple/parquet/single.parquet"
     val multi  = "./data/test/spark/simple/parquet/multi.parquet"
 
-    val rdd = sparkSession.sparkContext.parallelize(simple)
-    val prepare = rdd.single[IO](blocker).parquet(single) >>
-      rdd.multi[IO](blocker).parquet(multi)
+    val rdd     = sparkSession.sparkContext.parallelize(simple)
+    val prepare = rdd.single[IO](blocker).parquet(single) >> rdd.multi[IO](blocker).parquet(multi)
     prepare.unsafeRunSync()
 
     assert(sparkSession.parquet[Simple](single).collect().toSet == simple.toSet)
@@ -74,11 +75,11 @@ class SimpleFormatTest extends AnyFunSuite {
 
   test("csv read/write identity") {
     import kantan.csv.generic._
-    val single = "./data/test/spark/simple/csv/single.csv"
-    val multi  = "./data/test/spark/simple/csv/multi.csv"
-    val rdd    = sparkSession.sparkContext.parallelize(simple)
-    val prepare = rdd.single[IO](blocker).csv(single) >>
-      rdd.multi(blocker).csv(multi)
+    import kantan.csv.java8._
+    val single  = "./data/test/spark/simple/csv/single.csv"
+    val multi   = "./data/test/spark/simple/csv/multi.csv"
+    val rdd     = sparkSession.sparkContext.parallelize(simple)
+    val prepare = rdd.single[IO](blocker).csv(single) >> rdd.multi(blocker).csv(multi)
     prepare.unsafeRunSync()
 
     assert(sparkSession.csv[Simple](single).collect().toSet == simple.toSet)

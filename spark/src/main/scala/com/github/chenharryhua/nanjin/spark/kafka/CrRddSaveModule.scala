@@ -6,7 +6,6 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.spark.{RddPersistMultiFile, RddPersistSingleFile}
-import frameless.TypedEncoder
 import frameless.cats.implicits.rddOps
 import io.circe.{Encoder => JsonEncoder}
 
@@ -46,16 +45,10 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
       def binAvro(implicit ce: ConcurrentEffect[F]): F[Long] =
         binAvro(params.pathBuilder(topicName, NJFileFormat.BinaryAvro))
 
-      def parquet(pathStr: String)(implicit
-        ce: ConcurrentEffect[F],
-        k: TypedEncoder[K],
-        v: TypedEncoder[V]): F[Long] =
+      def parquet(pathStr: String)(implicit ce: ConcurrentEffect[F]): F[Long] =
         delegate.parquet(pathStr)
 
-      def parquet(implicit
-        ce: ConcurrentEffect[F],
-        k: TypedEncoder[K],
-        v: TypedEncoder[V]): F[Long] =
+      def parquet(implicit ce: ConcurrentEffect[F]): F[Long] =
         parquet(params.pathBuilder(topicName, NJFileFormat.Parquet))
 
       def javaObj(pathStr: String)(implicit ce: ConcurrentEffect[F]): F[Long] =
@@ -79,17 +72,17 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
       def jackson: F[Long] =
         jackson(params.pathBuilder(topicName, NJFileFormat.MultiJackson))
 
-      def parquet(pathStr: String)(implicit k: TypedEncoder[K], v: TypedEncoder[V]): F[Long] =
+      def parquet(pathStr: String): F[Long] =
         delegate.parquet(pathStr)
 
-      def parquet(implicit k: TypedEncoder[K], v: TypedEncoder[V]): F[Long] =
+      def parquet: F[Long] =
         parquet(params.pathBuilder(topicName, NJFileFormat.MultiParquet))
 
       def circe(pathStr: String)(implicit ev: JsonEncoder[OptionalKV[K, V]]): F[Long] =
         delegate.circe(pathStr)
 
       def circe(implicit ev: JsonEncoder[OptionalKV[K, V]]): F[Long] =
-        delegate.circe(params.pathBuilder(topicName, NJFileFormat.MultiCirce))
+        circe(params.pathBuilder(topicName, NJFileFormat.MultiCirce))
 
     }
 
