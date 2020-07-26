@@ -32,8 +32,8 @@ private[kafka] trait SparKafkaReadModule[F[_], K, V] {
     final def avro(pathStr: String): CrRdd[F, K, V] =
       new CrRdd[F, K, V](delegate.avro[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
 
-    final def parquet(pathStr: String)(implicit
-      constraint: TypedEncoder[OptionalKV[K, V]]): CrRdd[F, K, V] =
+    final def parquet(
+      pathStr: String)(implicit k: TypedEncoder[K], v: TypedEncoder[V]): CrRdd[F, K, V] =
       new CrRdd[F, K, V](delegate.parquet[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
 
     final def jackson(pathStr: String): CrRdd[F, K, V] =
@@ -55,7 +55,7 @@ private[kafka] trait SparKafkaReadModule[F[_], K, V] {
       def jackson: CrRdd[F, K, V] =
         read.jackson(params.pathBuilder(topic.topicName, NJFileFormat.Jackson))
 
-      def parquet(implicit constraint: TypedEncoder[OptionalKV[K, V]]): CrRdd[F, K, V] =
+      def parquet(implicit k: TypedEncoder[K], v: TypedEncoder[V]): CrRdd[F, K, V] =
         read.parquet(params.pathBuilder(topic.topicName, NJFileFormat.Parquet))
 
       def circe(implicit
@@ -72,7 +72,7 @@ private[kafka] trait SparKafkaReadModule[F[_], K, V] {
       def jackson: CrRdd[F, K, V] =
         read.jackson(params.pathBuilder(topic.topicName, NJFileFormat.MultiJackson))
 
-      def parquet(implicit constraint: TypedEncoder[OptionalKV[K, V]]): CrRdd[F, K, V] =
+      def parquet(implicit k: TypedEncoder[K], v: TypedEncoder[V]): CrRdd[F, K, V] =
         read.parquet(params.pathBuilder(topic.topicName, NJFileFormat.MultiParquet))
 
       def circe(implicit

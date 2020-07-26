@@ -74,7 +74,7 @@ class HadoopTest extends AnyFunSuite {
     val ts      = Stream.emits(pandas).covary[IO]
     val action = hdp.delete(pathStr) >>
       ts.through(hdp.parquetSink(pathStr, pandaSchema)).compile.drain >>
-      hdp.parquetSource(pathStr).compile.toList
+      hdp.parquetSource(pathStr,pandaSchema).compile.toList
     assert(action.unsafeRunSync == pandas)
   }
 
@@ -84,7 +84,7 @@ class HadoopTest extends AnyFunSuite {
     val ts      = Stream.emits(pandas).covary[IO]
     val action = hdp.delete(pathStr) >>
       ts.through(hdp.avroSink(pathStr, pandaSchema)).compile.drain >>
-      hdp.avroSource(pathStr).compile.toList
+      hdp.avroSource(pathStr,pandaSchema).compile.toList
     assert(action.unsafeRunSync == pandas)
   }
 }
