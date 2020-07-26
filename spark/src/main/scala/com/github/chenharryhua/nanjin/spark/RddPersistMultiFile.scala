@@ -67,7 +67,7 @@ final class RddPersistMultiFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
       }
     }
 
-  def parquet(pathStr: String)(implicit enc: AvroEncoder[A]): F[Long] =
+  def parquet(pathStr: String)(implicit enc: AvroEncoder[A], constraint: TypedEncoder[A]): F[Long] =
     fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
       F.delay {
         val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
