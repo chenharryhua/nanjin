@@ -99,7 +99,7 @@ private[spark] trait DatasetExtensions {
 
     private val delegate: RddLoadFromFile = new RddLoadFromFile(ss)
 
-    def parquet[A: ClassTag: AvroDecoder](pathStr: String): RDD[A] =
+    def parquet[A: TypedEncoder: AvroDecoder](pathStr: String): RDD[A] =
       delegate.parquet[A](pathStr)
 
     def avro[A: ClassTag: AvroDecoder](pathStr: String): RDD[A] =

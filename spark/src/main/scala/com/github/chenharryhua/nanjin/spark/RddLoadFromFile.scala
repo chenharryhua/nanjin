@@ -2,8 +2,8 @@ package com.github.chenharryhua.nanjin.spark
 
 import cats.implicits._
 import com.sksamuel.avro4s.{Decoder => AvroDecoder}
-import frameless.{TypedDataset, TypedEncoder}
 import frameless.cats.implicits._
+import frameless.{TypedDataset, TypedEncoder}
 import io.circe.parser.decode
 import io.circe.{Decoder => JsonDecoder}
 import kantan.csv.CsvConfiguration
@@ -22,11 +22,15 @@ import scala.reflect.ClassTag
 
 final class RddLoadFromFile(ss: SparkSession) {
 
-  def parquet[A: ClassTag](pathStr: String)(implicit decoder: AvroDecoder[A]): RDD[A] = {
+  def parquet[A](
+    pathStr: String)(implicit decoder: AvroDecoder[A], constraint: TypedEncoder[A]): RDD[A] = {
+
     val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
     AvroParquetInputFormat.setAvroDataSupplier(job, classOf[GenericDataSupplier])
     AvroParquetInputFormat.setAvroReadSchema(job, decoder.schema)
     ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
+
+    import constraint.classTag
 
     ss.sparkContext
       .newAPIHadoopFile(
