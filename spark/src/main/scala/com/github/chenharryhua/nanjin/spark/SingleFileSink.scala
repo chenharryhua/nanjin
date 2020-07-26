@@ -6,6 +6,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.pipes._
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
+import frameless.TypedEncoder
 import fs2.Pipe
 import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.{CsvConfiguration, RowEncoder}
@@ -75,7 +76,7 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
     _.through(pipe.encode).through(hadoop)
   }
 
-  def parquet[A: AvroEncoder](
+  def parquet[A: AvroEncoder: TypedEncoder](
     pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): Pipe[F, A, Unit] = {
     val hadoop = new NJHadoop[F](conf, blocker).parquetSink(pathStr, AvroEncoder[A].schema)
     val pipe   = new GenericRecordEncoder[F, A]
