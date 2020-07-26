@@ -76,7 +76,7 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
     _.through(pipe.encode).through(hadoop)
   }
 
-  def parquet[A: AvroEncoder](
+  def parquet[A: AvroEncoder: TypedEncoder](
     pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): Pipe[F, A, Unit] = {
     val hadoop = new NJHadoop[F](conf, blocker).parquetSink(pathStr, AvroEncoder[A].schema)
     val pipe   = new GenericRecordEncoder[F, A]

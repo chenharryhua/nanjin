@@ -4,6 +4,7 @@ import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync}
 import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.pipes._
 import com.sksamuel.avro4s.{Decoder => AvroDecoder}
+import frameless.TypedEncoder
 import fs2.Stream
 import io.circe.{Decoder => JsonDecoder}
 import kantan.csv.{CsvConfiguration, RowDecoder}
@@ -57,7 +58,7 @@ final class SingleFileSource[F[_]](blocker: Blocker, conf: Configuration) {
     new NJHadoop[F](conf, blocker).byteStream(pathStr).through(pipe.deserialize).through(gr.decode)
   }
 
-  def parquet[A: AvroDecoder](
+  def parquet[A: AvroDecoder: TypedEncoder](
     pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): Stream[F, A] = {
     val pipe = new GenericRecordDecoder[F, A]
     new NJHadoop[F](conf, blocker)
