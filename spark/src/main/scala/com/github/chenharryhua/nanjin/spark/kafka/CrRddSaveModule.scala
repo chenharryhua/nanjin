@@ -6,8 +6,8 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.spark.{RddPersistMultiFile, RddPersistSingleFile}
+import frameless.TypedEncoder
 import frameless.cats.implicits.rddOps
-import io.circe.generic.auto._
 import io.circe.{Encoder => JsonEncoder}
 
 private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
@@ -16,17 +16,16 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
 
     final class SingleFile(delegate: RddPersistSingleFile[F, OptionalKV[K, V]]) {
 
-      def circe(
-        pathStr: String)(implicit F: Sync[F], ek: JsonEncoder[K], ev: JsonEncoder[V]): F[Long] =
+      def circe(pathStr: String)(implicit F: Sync[F], ev: JsonEncoder[OptionalKV[K, V]]): F[Long] =
         delegate.circe(pathStr)
 
-      def circe(implicit F: Sync[F], ek: JsonEncoder[K], ev: JsonEncoder[V]): F[Long] =
+      def circe(implicit F: Sync[F], ev: JsonEncoder[OptionalKV[K, V]]): F[Long] =
         circe(params.pathBuilder(topicName, NJFileFormat.CirceJson))
 
-      def text(pathStr: String)(implicit F: Sync[F], showK: Show[K], showV: Show[V]): F[Long] =
+      def text(pathStr: String)(implicit F: Sync[F], ev: Show[OptionalKV[K, V]]): F[Long] =
         delegate.text(pathStr)
 
-      def text(implicit F: Sync[F], showK: Show[K], showV: Show[V]): F[Long] =
+      def text(implicit F: Sync[F], ev: Show[OptionalKV[K, V]]): F[Long] =
         text(params.pathBuilder(topicName, NJFileFormat.Text))
 
       def jackson(pathStr: String)(implicit ce: ConcurrentEffect[F]): F[Long] =
@@ -47,10 +46,16 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
       def binAvro(implicit ce: ConcurrentEffect[F]): F[Long] =
         binAvro(params.pathBuilder(topicName, NJFileFormat.BinaryAvro))
 
-      def parquet(pathStr: String)(implicit ce: ConcurrentEffect[F]): F[Long] =
+      def parquet(pathStr: String)(implicit
+        ce: ConcurrentEffect[F],
+        k: TypedEncoder[K],
+        v: TypedEncoder[V]): F[Long] =
         delegate.parquet(pathStr)
 
-      def parquet(implicit ce: ConcurrentEffect[F]): F[Long] =
+      def parquet(implicit
+        ce: ConcurrentEffect[F],
+        k: TypedEncoder[K],
+        v: TypedEncoder[V]): F[Long] =
         parquet(params.pathBuilder(topicName, NJFileFormat.Parquet))
 
       def javaObj(pathStr: String)(implicit ce: ConcurrentEffect[F]): F[Long] =
@@ -74,15 +79,16 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
       def jackson: F[Long] =
         jackson(params.pathBuilder(topicName, NJFileFormat.MultiJackson))
 
-      def parquet(pathStr: String): F[Long] = delegate.parquet(pathStr)
+      def parquet(pathStr: String)(implicit k: TypedEncoder[K], v: TypedEncoder[V]): F[Long] =
+        delegate.parquet(pathStr)
 
-      def parquet: F[Long] =
+      def parquet(implicit k: TypedEncoder[K], v: TypedEncoder[V]): F[Long] =
         parquet(params.pathBuilder(topicName, NJFileFormat.MultiParquet))
 
-      def circe(pathStr: String)(implicit k: JsonEncoder[K], v: JsonEncoder[V]): F[Long] =
+      def circe(pathStr: String)(implicit ev: JsonEncoder[OptionalKV[K, V]]): F[Long] =
         delegate.circe(pathStr)
 
-      def circe(implicit k: JsonEncoder[K], v: JsonEncoder[V]): F[Long] =
+      def circe(implicit ev: JsonEncoder[OptionalKV[K, V]]): F[Long] =
         delegate.circe(params.pathBuilder(topicName, NJFileFormat.MultiCirce))
 
     }
