@@ -40,7 +40,7 @@ final class SingleFileSource[F[_]](blocker: Blocker, conf: Configuration) {
   def avro[A: AvroDecoder](
     pathStr: String)(implicit cs: ContextShift[F], ce: ConcurrentEffect[F]): Stream[F, A] = {
     val pipe = new GenericRecordDecoder[F, A]
-    new NJHadoop[F](conf, blocker).avroSource(pathStr).through(pipe.decode)
+    new NJHadoop[F](conf, blocker).avroSource(pathStr, AvroDecoder[A].schema).through(pipe.decode)
   }
 
   def binAvro[A: AvroDecoder](
@@ -60,7 +60,9 @@ final class SingleFileSource[F[_]](blocker: Blocker, conf: Configuration) {
   def parquet[A: AvroDecoder](
     pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): Stream[F, A] = {
     val pipe = new GenericRecordDecoder[F, A]
-    new NJHadoop[F](conf, blocker).parquetSource(pathStr).through(pipe.decode)
+    new NJHadoop[F](conf, blocker)
+      .parquetSource(pathStr, AvroDecoder[A].schema)
+      .through(pipe.decode)
   }
 
   def javaObject[A](

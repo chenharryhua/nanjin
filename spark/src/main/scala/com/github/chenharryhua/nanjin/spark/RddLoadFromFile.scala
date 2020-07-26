@@ -25,6 +25,7 @@ final class RddLoadFromFile(ss: SparkSession) {
   def parquet[A: ClassTag](pathStr: String)(implicit decoder: AvroDecoder[A]): RDD[A] = {
     val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
     AvroParquetInputFormat.setAvroDataSupplier(job, classOf[GenericDataSupplier])
+    AvroParquetInputFormat.setAvroReadSchema(job, decoder.schema)
     ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
 
     ss.sparkContext

@@ -12,7 +12,7 @@ import org.apache.avro.file.{DataFileStream, DataFileWriter}
 import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericDatumWriter, GenericRecord}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataInputStream, FSDataOutputStream, FileSystem, Path}
-import org.apache.parquet.avro.{AvroParquetReader, AvroParquetWriter}
+import org.apache.parquet.avro.{AvroParquetReader, AvroParquetWriter, AvroReadSupport}
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
 import org.apache.parquet.hadoop.{ParquetFileWriter, ParquetWriter}
@@ -85,8 +85,9 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
       } yield ()
   }
 
-  def parquetSource(pathStr: String): Stream[F, GenericRecord] = {
+  def parquetSource(pathStr: String, schema: Schema): Stream[F, GenericRecord] = {
     val inputFile = HadoopInputFile.fromPath(new Path(pathStr), config)
+    AvroReadSupport.setAvroReadSchema(config, schema)
     for {
       reader <- Stream.resource(
         Resource.fromAutoCloseableBlocking(blocker)(
@@ -94,6 +95,7 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
             AvroParquetReader
               .builder[GenericRecord](inputFile)
               .withDataModel(GenericData.get())
+              .withConf(config)
               .build())))
       gr <- Stream.repeatEval(blocker.delay(Option(reader.read()))).unNoneTerminate
     } yield gr
@@ -119,12 +121,12 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
       } yield ()
   }
 
-  def avroSource(pathStr: String): Stream[F, GenericRecord] =
+  def avroSource(pathStr: String, schema: Schema): Stream[F, GenericRecord] =
     for {
       is <- Stream.resource(fsInput(pathStr))
       dfs <- Stream.resource(
         Resource.fromAutoCloseableBlocking[F, DataFileStream[GenericRecord]](blocker)(
-          blocker.delay(new DataFileStream(is, new GenericDatumReader))))
+          blocker.delay(new DataFileStream(is, new GenericDatumReader(schema)))))
       gr <- Stream.fromIterator(dfs.iterator().asScala)
     } yield gr
 }

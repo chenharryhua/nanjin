@@ -6,12 +6,14 @@ import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
 import fs2.{Pipe, Stream}
 import org.apache.avro.generic.GenericRecord
 
-final class GenericRecordEncoder[F[_], A: AvroEncoder](implicit F: ApplicativeError[F, Throwable]) {
+final class GenericRecordEncoder[F[_], A](implicit
+  enc: AvroEncoder[A],
+  F: ApplicativeError[F, Throwable]) {
 
   def encode: Pipe[F, A, GenericRecord] =
     (ss: Stream[F, A]) =>
       ss.evalMap { rec =>
-        AvroEncoder[A].encode(rec) match {
+        enc.encode(rec) match {
           case gr: GenericRecord => F.pure(gr)
           case x =>
             F.raiseError[GenericRecord](new Exception(s"not a generic record ${x.toString}"))
@@ -19,9 +21,9 @@ final class GenericRecordEncoder[F[_], A: AvroEncoder](implicit F: ApplicativeEr
       }
 }
 
-final class GenericRecordDecoder[F[_], A: AvroDecoder] {
+final class GenericRecordDecoder[F[_], A](implicit dec: AvroDecoder[A]) {
 
   def decode: Pipe[F, GenericRecord, A] =
-    (ss: Stream[F, GenericRecord]) => ss.map(rec => AvroDecoder[A].decode(rec))
+    (ss: Stream[F, GenericRecord]) => ss.map(rec => dec.decode(rec))
 
 }
