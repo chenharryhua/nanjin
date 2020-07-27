@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark
 
+import cats.Show
 import cats.effect.{Blocker, ContextShift, Resource, Sync}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.spark.mapreduce.AvroJacksonKeyOutputFormat
@@ -99,4 +100,12 @@ final class RddPersistMultiFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
 
   def csv(pathStr: String)(implicit enc: TypedEncoder[A]): F[Long] =
     csv(pathStr, CsvConfiguration.rfc)
+
+  def text(pathStr: String)(implicit enc: Show[A]): F[Long] =
+    fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
+      F.delay {
+        rdd.map(enc.show).saveAsTextFile(pathStr)
+        data.count()
+      }
+    }
 }

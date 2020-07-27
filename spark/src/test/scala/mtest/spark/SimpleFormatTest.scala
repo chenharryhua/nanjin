@@ -85,4 +85,17 @@ class SimpleFormatTest extends AnyFunSuite {
     assert(sparkSession.csv[Simple](single).collect().toSet == simple.toSet)
     //  assert(sparkSession.csv[Simple](multi).collect().toSet == simple.toSet)
   }
+
+  test("text write") {
+    import cats.derived.auto.show._
+    val single = "./data/test/spark/simple/text/simple.txt"
+    val multi  = "./data/test/spark/simple/text/multi.txt"
+
+    val rdd     = sparkSession.sparkContext.parallelize(simple)
+    val prepare = rdd.single[IO](blocker).text(single) >> rdd.multi[IO](blocker).text(multi)
+    prepare.unsafeRunSync()
+
+    assert(sparkSession.text(single).count == simple.size)
+    assert(sparkSession.text(multi).count == simple.size)
+  }
 }
