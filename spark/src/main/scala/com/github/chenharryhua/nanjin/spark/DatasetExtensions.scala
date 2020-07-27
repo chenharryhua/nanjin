@@ -91,16 +91,6 @@ private[spark] trait DatasetExtensions {
 
   implicit final class SparkSessionExt(private val ss: SparkSession) {
 
-    def withGroupId(groupId: String): SparkSession = {
-      ss.sparkContext.setLocalProperty("spark.jobGroup.id", groupId)
-      ss
-    }
-
-    def withDescription(description: String): SparkSession = {
-      ss.sparkContext.setLocalProperty("spark.job.description", description)
-      ss
-    }
-
     val load: RddFileLoader = new RddFileLoader(ss)
   }
 }
