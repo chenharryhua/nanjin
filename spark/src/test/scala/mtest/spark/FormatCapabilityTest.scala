@@ -48,13 +48,13 @@ class FormatCapabilityTest extends AnyFunSuite {
     val multi  = "./data/test/spark/cap/avro/multi.avro"
     val rdd    = sparkSession.sparkContext.parallelize(salmon)
     val prepare = fileSink[IO](blocker).delete(single) >>
-      rdd.single[IO](blocker).avro(single) >>
+      rdd.save.single[IO](blocker).avro(single) >>
       fileSink[IO](blocker).delete(multi) >>
-      rdd.multi[IO](blocker).avro(multi)
+      rdd.save.multi[IO](blocker).avro(multi)
     prepare.unsafeRunSync()
 
-    assert(sparkSession.avro[Salmon](single).collect().toSet == salmon.toSet)
-    assert(sparkSession.avro[Salmon](multi).collect().toSet == salmon.toSet)
+    assert(sparkSession.load.avro[Salmon](single).collect().toSet == salmon.toSet)
+    assert(sparkSession.load.avro[Salmon](multi).collect().toSet == salmon.toSet)
   }
 
   test("jackson read/write identity") {
@@ -62,13 +62,13 @@ class FormatCapabilityTest extends AnyFunSuite {
     val multi  = "./data/test/spark/cap/jackson/multi.jackson"
     val rdd    = sparkSession.sparkContext.parallelize(salmon)
     val prepare = fileSink[IO](blocker).delete(single) >>
-      rdd.single[IO](blocker).jackson(single) >>
+      rdd.save.single[IO](blocker).jackson(single) >>
       fileSink[IO](blocker).delete(multi) >>
-      rdd.multi[IO](blocker).jackson(multi)
+      rdd.save.multi[IO](blocker).jackson(multi)
     prepare.unsafeRunSync()
 
-    assert(sparkSession.jackson[Salmon](single).collect().toSet == salmon.toSet)
-    assert(sparkSession.jackson[Salmon](multi).collect().toSet == salmon.toSet)
+    assert(sparkSession.load.jackson[Salmon](single).collect().toSet == salmon.toSet)
+    assert(sparkSession.load.jackson[Salmon](multi).collect().toSet == salmon.toSet)
   }
 
   test("unable to save to parquet because it doesn't support union") {
@@ -86,12 +86,12 @@ class FormatCapabilityTest extends AnyFunSuite {
 
     val rdd = sparkSession.sparkContext.parallelize(salmon)
     val prepare = fileSink[IO](blocker).delete(single) >>
-      rdd.single[IO](blocker).circe(single) >>
+      rdd.save.single[IO](blocker).circe(single) >>
       fileSink[IO](blocker).delete(multi) >>
-      rdd.multi[IO](blocker).circe(multi)
+      rdd.save.multi[IO](blocker).circe(multi)
     prepare.unsafeRunSync()
 
-    assert(sparkSession.circe[Salmon](single).collect().toSet != salmon.toSet)
-    assert(sparkSession.circe[Salmon](multi).collect().toSet != salmon.toSet)
+    assert(sparkSession.load.circe[Salmon](single).collect().toSet != salmon.toSet)
+    assert(sparkSession.load.circe[Salmon](multi).collect().toSet != salmon.toSet)
   }
 }

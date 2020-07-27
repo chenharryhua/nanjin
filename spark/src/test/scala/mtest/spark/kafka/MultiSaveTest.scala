@@ -14,20 +14,21 @@ import scala.util.Random
 object MultiSaveTestData {
   final case class Apple(size: Int, locale: String)
   final case class WaterMelon(size: Int, weight: Float)
-  type Fruit = Apple :+: WaterMelon :+: CNil
+  final case class Orange(size: Int, locale: String)
+  type Fruit = Apple :+: WaterMelon :+: Orange :+: CNil
   final case class Food(fruit: Fruit, num: Int)
 
   val food = List(
     Food(Coproduct[Fruit](Apple(1, "qidong")), Random.nextInt),
     Food(Coproduct[Fruit](WaterMelon(2, 1.1f)), Random.nextInt),
-    Food(Coproduct[Fruit](Apple(3, "hunan")), Random.nextInt),
+    Food(Coproduct[Fruit](Orange(3, "hunan")), Random.nextInt),
     Food(Coproduct[Fruit](Apple(4, "chengdu")), Random.nextInt),
     Food(Coproduct[Fruit](WaterMelon(5, 1.1f)), Random.nextInt),
-    Food(Coproduct[Fruit](Apple(6, "wuhan")), Random.nextInt),
+    Food(Coproduct[Fruit](Orange(6, "wuhan")), Random.nextInt),
     Food(Coproduct[Fruit](WaterMelon(7, 1.1f)), Random.nextInt),
     Food(Coproduct[Fruit](Apple(8, "chongqin")), Random.nextInt),
     Food(Coproduct[Fruit](WaterMelon(9, 1.1f)), Random.nextInt),
-    Food(Coproduct[Fruit](Apple(10, "shanghai")), Random.nextInt)
+    Food(Coproduct[Fruit](Orange(10, "shanghai")), Random.nextInt)
   )
 
   val topic: KafkaTopic[IO, Int, Food] =
@@ -44,15 +45,20 @@ class MultiSaveTest extends AnyFunSuite {
     topic.send(prs)).unsafeRunSync()
 
   test("multi-save avro") {
-    val rst = topic.sparKafka.fromKafka.flatMap(_.repartition(3).save.multi(blocker).avro) >> IO {
-      topic.sparKafka.read.multi.avro.rdd.collect.flatMap(_.value).toSet
-    }
+    val path = "./data/test/spark/kafka/multi/avro"
+
+    val rst =
+      topic.sparKafka.fromKafka.flatMap(_.repartition(3).save.multi(blocker).avro(path)) >> IO {
+        topic.sparKafka.load.avro(path).rdd.collect.flatMap(_.value).toSet
+      }
     assert(rst.unsafeRunSync() == food.toSet)
   }
   test("multi-save jackson") {
-    val rst = topic.sparKafka.fromKafka.flatMap(_.repartition(3).save.multi(blocker).jackson) >> IO {
-      topic.sparKafka.read.multi.jackson.rdd.collect().flatMap(_.value).toSet
-    }
+    val path = "./data/test/spark/kafka/multi/jackson"
+    val rst =
+      topic.sparKafka.fromKafka.flatMap(_.repartition(3).save.multi(blocker).jackson(path)) >> IO {
+        topic.sparKafka.load.jackson(path).rdd.collect().flatMap(_.value).toSet
+      }
     assert(rst.unsafeRunSync() == food.toSet)
   }
 }

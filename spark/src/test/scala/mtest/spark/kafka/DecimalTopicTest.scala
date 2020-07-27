@@ -42,7 +42,7 @@ class DecimalTopicTest extends AnyFunSuite {
       .unsafeRunSync
 
     val res: List[HasDecimal] =
-      sparkSession
+      sparkSession.load
         .avro[OptionalKV[Int, HasDecimal]]("./data/test/spark/kafka/decimal.avro")
         .collect
         .toList

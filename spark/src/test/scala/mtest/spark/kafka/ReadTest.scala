@@ -42,7 +42,7 @@ class ReadTest extends AnyFunSuite {
     val data = TypedDataset.create(dogs_noKey)
     val path = "./data/test/spark/kafka/read/parquet"
     data.write.mode(SaveMode.Overwrite).parquet(path)
-    val rst = topic.sparKafka.read.parquet(path)
+    val rst = topic.sparKafka.load.parquet(path)
     assert(rst.diff(data.dataset.rdd).count == 0)
   }
 
@@ -50,7 +50,7 @@ class ReadTest extends AnyFunSuite {
     val data = TypedDataset.create(dogs_noKey)
     val path = "./data/test/spark/kafka/read/avro"
     data.write.mode(SaveMode.Overwrite).format("avro").save(path)
-    val rst = topic.sparKafka.read.avro(path)
+    val rst = topic.sparKafka.load.avro(path)
     assert(rst.diff(data.dataset.rdd).count == 0)
   }
 
@@ -59,7 +59,7 @@ class ReadTest extends AnyFunSuite {
       TypedDataset.create(dogs.flatMap(_.toCompulsoryK))
     val path = "./data/test/spark/kafka/read/parquet-compulsory"
     data.write.mode(SaveMode.Overwrite).parquet(path)
-    val rst = topic.sparKafka(range).read.parquet(path)
+    val rst = topic.sparKafka(range).load.parquet(path)
     assert(rst.diff(data.deserialized.map(_.toOptionalKV).dataset.rdd).count == 0)
   }
 
@@ -68,7 +68,7 @@ class ReadTest extends AnyFunSuite {
       TypedDataset.create(dogs.flatMap(_.toCompulsoryV))
     val path = "./data/test/spark/kafka/read/avro-compulsory"
     data.write.mode(SaveMode.Overwrite).format("avro").save(path)
-    val rst = topic.sparKafka(range).read.avro(path)
+    val rst = topic.sparKafka(range).load.avro(path)
     assert(rst.diff(data.deserialized.map(_.toOptionalKV).dataset.rdd).count == 0)
   }
 
@@ -77,7 +77,7 @@ class ReadTest extends AnyFunSuite {
       TypedDataset.create(dogs.flatMap(_.toCompulsoryKV))
     val path = "./data/test/spark/kafka/read/json-compulsory"
     data.write.mode(SaveMode.Overwrite).json(path)
-    val rst = topic.sparKafka(range).read.circe(path)
+    val rst = topic.sparKafka(range).load.circe(path)
     assert(rst.diff(data.dataset.rdd.map(_.toOptionalKV)).count == 0)
   }
 }

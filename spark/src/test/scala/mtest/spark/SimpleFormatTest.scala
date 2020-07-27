@@ -29,24 +29,24 @@ class SimpleFormatTest extends AnyFunSuite {
     val multi  = "./data/test/spark/simple/avro/multi.avro"
     val rdd    = sparkSession.sparkContext.parallelize(simple)
     val prepare = fileSink[IO](blocker).delete(single) >>
-      rdd.single[IO](blocker).avro(single) >>
+      rdd.save.single[IO](blocker).avro(single) >>
       fileSink[IO](blocker).delete(multi) >>
-      rdd.multi[IO](blocker).avro(multi)
+      rdd.save.multi[IO](blocker).avro(multi)
     prepare.unsafeRunSync()
 
-    assert(sparkSession.avro[Simple](single).collect().toSet == simple.toSet)
-    assert(sparkSession.avro[Simple](multi).collect().toSet == simple.toSet)
+    assert(sparkSession.load.avro[Simple](single).collect().toSet == simple.toSet)
+    assert(sparkSession.load.avro[Simple](multi).collect().toSet == simple.toSet)
   }
 
   test("jackson read/write identity") {
     val single  = "./data/test/spark/simple/jackson/jackson.json"
     val multi   = "./data/test/spark/simple/jackson/multi.jackson"
     val rdd     = sparkSession.sparkContext.parallelize(simple)
-    val prepare = rdd.single[IO](blocker).jackson(single) >> rdd.multi[IO](blocker).jackson(multi)
+    val prepare = rdd.save.single[IO](blocker).jackson(single) >> rdd.save.multi[IO](blocker).jackson(multi)
     prepare.unsafeRunSync()
 
-    assert(sparkSession.jackson[Simple](single).collect().toSet == simple.toSet)
-    assert(sparkSession.jackson[Simple](multi).collect().toSet == simple.toSet)
+    assert(sparkSession.load.jackson[Simple](single).collect().toSet == simple.toSet)
+    assert(sparkSession.load.jackson[Simple](multi).collect().toSet == simple.toSet)
   }
 
   test("circe read/write identity") {
@@ -54,11 +54,11 @@ class SimpleFormatTest extends AnyFunSuite {
     val multi  = "./data/test/spark/simple/circe/multi.circe"
 
     val rdd     = sparkSession.sparkContext.parallelize(simple)
-    val prepare = rdd.single[IO](blocker).circe(single) >> rdd.multi[IO](blocker).circe(multi)
+    val prepare = rdd.save.single[IO](blocker).circe(single) >> rdd.save.multi[IO](blocker).circe(multi)
     prepare.unsafeRunSync()
 
-    assert(sparkSession.circe[Simple](single).collect().toSet == simple.toSet)
-    assert(sparkSession.circe[Simple](multi).collect().toSet == simple.toSet)
+    assert(sparkSession.load.circe[Simple](single).collect().toSet == simple.toSet)
+    assert(sparkSession.load.circe[Simple](multi).collect().toSet == simple.toSet)
   }
 
   test("parquet read/write identity") {
@@ -66,11 +66,11 @@ class SimpleFormatTest extends AnyFunSuite {
     val multi  = "./data/test/spark/simple/parquet/multi.parquet"
 
     val rdd     = sparkSession.sparkContext.parallelize(simple)
-    val prepare = rdd.single[IO](blocker).parquet(single) >> rdd.multi[IO](blocker).parquet(multi)
+    val prepare = rdd.save.single[IO](blocker).parquet(single) >> rdd.save.multi[IO](blocker).parquet(multi)
     prepare.unsafeRunSync()
 
-    assert(sparkSession.parquet[Simple](single).collect().toSet == simple.toSet)
-    assert(sparkSession.parquet[Simple](multi).collect().toSet == simple.toSet)
+    assert(sparkSession.load.parquet[Simple](single).collect().toSet == simple.toSet)
+    assert(sparkSession.load.parquet[Simple](multi).collect().toSet == simple.toSet)
   }
 
   test("csv read/write identity") {
@@ -79,10 +79,23 @@ class SimpleFormatTest extends AnyFunSuite {
     val single  = "./data/test/spark/simple/csv/single.csv"
     val multi   = "./data/test/spark/simple/csv/multi.csv"
     val rdd     = sparkSession.sparkContext.parallelize(simple)
-    val prepare = rdd.single[IO](blocker).csv(single) >> rdd.multi(blocker).csv(multi)
+    val prepare = rdd.save.single[IO](blocker).csv(single) >> rdd.save.multi(blocker).csv(multi)
     prepare.unsafeRunSync()
 
-    assert(sparkSession.csv[Simple](single).collect().toSet == simple.toSet)
+    assert(sparkSession.load.csv[Simple](single).collect().toSet == simple.toSet)
     //  assert(sparkSession.csv[Simple](multi).collect().toSet == simple.toSet)
+  }
+
+  test("text write") {
+    import cats.derived.auto.show._
+    val single = "./data/test/spark/simple/text/simple.txt"
+    val multi  = "./data/test/spark/simple/text/multi.txt"
+
+    val rdd     = sparkSession.sparkContext.parallelize(simple)
+    val prepare = rdd.save.single[IO](blocker).text(single) >> rdd.save.multi[IO](blocker).text(multi)
+    prepare.unsafeRunSync()
+
+    assert(sparkSession.load.text(single).count == simple.size)
+    assert(sparkSession.load.text(multi).count == simple.size)
   }
 }

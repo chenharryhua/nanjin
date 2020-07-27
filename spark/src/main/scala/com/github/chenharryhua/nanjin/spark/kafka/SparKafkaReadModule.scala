@@ -4,7 +4,7 @@ import cats.effect.Sync
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
-import com.github.chenharryhua.nanjin.spark.RddLoadFromFile
+import com.github.chenharryhua.nanjin.spark.RddFileLoader
 import frameless.TypedEncoder
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import io.circe.generic.auto._
@@ -25,60 +25,36 @@ private[kafka] trait SparKafkaReadModule[F[_], K, V] {
       topic.topicName,
       cfg)
 
-  private val delegate = new RddLoadFromFile(sparkSession)
+  private val fileLoader = new RddFileLoader(sparkSession)
 
-  object read {
+  object load {
 
-    final def avro(pathStr: String): CrRdd[F, K, V] =
-      new CrRdd[F, K, V](delegate.avro[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
+    def avro(pathStr: String): CrRdd[F, K, V] =
+      new CrRdd[F, K, V](fileLoader.avro[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
 
-    final def parquet(
-      pathStr: String)(implicit k: TypedEncoder[K], v: TypedEncoder[V]): CrRdd[F, K, V] =
-      new CrRdd[F, K, V](delegate.parquet[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
+    def parquet(pathStr: String)(implicit k: TypedEncoder[K], v: TypedEncoder[V]): CrRdd[F, K, V] =
+      new CrRdd[F, K, V](fileLoader.parquet[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
 
-    final def jackson(pathStr: String): CrRdd[F, K, V] =
-      new CrRdd[F, K, V](delegate.jackson[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
+    def jackson(pathStr: String): CrRdd[F, K, V] =
+      new CrRdd[F, K, V](fileLoader.jackson[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
 
-    final def circe(pathStr: String)(implicit
+    def circe(pathStr: String)(implicit
       jsonKeyDecoder: JsonDecoder[K],
       jsonValDecoder: JsonDecoder[V]): CrRdd[F, K, V] =
-      new CrRdd[F, K, V](delegate.circe[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
+      new CrRdd[F, K, V](fileLoader.circe[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
 
-    final val single: SingleFile = new SingleFile
-    final val multi: MultiFile   = new MultiFile
+    def avro: CrRdd[F, K, V] =
+      avro(params.pathBuilder(topic.topicName, NJFileFormat.Avro))
 
-    final class SingleFile {
+    def jackson: CrRdd[F, K, V] =
+      jackson(params.pathBuilder(topic.topicName, NJFileFormat.Jackson))
 
-      def avro: CrRdd[F, K, V] =
-        read.avro(params.pathBuilder(topic.topicName, NJFileFormat.Avro))
+    def parquet(implicit k: TypedEncoder[K], v: TypedEncoder[V]): CrRdd[F, K, V] =
+      parquet(params.pathBuilder(topic.topicName, NJFileFormat.Parquet))
 
-      def jackson: CrRdd[F, K, V] =
-        read.jackson(params.pathBuilder(topic.topicName, NJFileFormat.Jackson))
-
-      def parquet(implicit k: TypedEncoder[K], v: TypedEncoder[V]): CrRdd[F, K, V] =
-        read.parquet(params.pathBuilder(topic.topicName, NJFileFormat.Parquet))
-
-      def circe(implicit
-        jsonKeyDecoder: JsonDecoder[K],
-        jsonValDecoder: JsonDecoder[V]): CrRdd[F, K, V] =
-        read.circe(params.pathBuilder(topic.topicName, NJFileFormat.CirceJson))
-    }
-
-    final class MultiFile {
-
-      def avro: CrRdd[F, K, V] =
-        read.avro(params.pathBuilder(topic.topicName, NJFileFormat.MultiAvro))
-
-      def jackson: CrRdd[F, K, V] =
-        read.jackson(params.pathBuilder(topic.topicName, NJFileFormat.MultiJackson))
-
-      def parquet(implicit k: TypedEncoder[K], v: TypedEncoder[V]): CrRdd[F, K, V] =
-        read.parquet(params.pathBuilder(topic.topicName, NJFileFormat.MultiParquet))
-
-      def circe(implicit
-        jsonKeyDecoder: JsonDecoder[K],
-        jsonValDecoder: JsonDecoder[V]): CrRdd[F, K, V] =
-        read.circe(params.pathBuilder(topic.topicName, NJFileFormat.MultiCirce))
-    }
+    def circe(implicit
+      jsonKeyDecoder: JsonDecoder[K],
+      jsonValDecoder: JsonDecoder[V]): CrRdd[F, K, V] =
+      circe(params.pathBuilder(topic.topicName, NJFileFormat.CirceJson))
   }
 }

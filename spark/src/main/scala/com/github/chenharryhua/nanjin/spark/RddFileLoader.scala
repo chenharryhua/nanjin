@@ -20,8 +20,37 @@ import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import scala.reflect.ClassTag
 
-final class RddLoadFromFile(ss: SparkSession) {
+final class RddFileLoader(ss: SparkSession) {
 
+// 1
+  def avro[A: ClassTag](pathStr: String)(implicit decoder: AvroDecoder[A]): RDD[A] = {
+    val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
+    AvroJob.setDataModelClass(job, classOf[GenericData])
+    AvroJob.setInputKeySchema(job, decoder.schema)
+    ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
+
+    ss.sparkContext
+      .newAPIHadoopFile(
+        pathStr,
+        classOf[AvroKeyInputFormat[GenericRecord]],
+        classOf[AvroKey[GenericRecord]],
+        classOf[NullWritable])
+      .map { case (gr, _) => decoder.decode(gr.datum()) }
+  }
+
+// 2
+  def jackson[A: ClassTag](pathStr: String)(implicit decoder: AvroDecoder[A]): RDD[A] = {
+    val schema = decoder.schema
+    ss.sparkContext.textFile(pathStr).mapPartitions { strs =>
+      val datumReader = new GenericDatumReader[GenericRecord](schema)
+      strs.map { str =>
+        val jsonDecoder = DecoderFactory.get().jsonDecoder(schema, str)
+        decoder.decode(datumReader.read(null, jsonDecoder))
+      }
+    }
+  }
+
+// 3
   def parquet[A](
     pathStr: String)(implicit decoder: AvroDecoder[A], constraint: TypedEncoder[A]): RDD[A] = {
 
@@ -41,32 +70,7 @@ final class RddLoadFromFile(ss: SparkSession) {
       .map { case (_, gr) => decoder.decode(gr) }
   }
 
-  def avro[A: ClassTag](pathStr: String)(implicit decoder: AvroDecoder[A]): RDD[A] = {
-    val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
-    AvroJob.setDataModelClass(job, classOf[GenericData])
-    AvroJob.setInputKeySchema(job, decoder.schema)
-    ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
-
-    ss.sparkContext
-      .newAPIHadoopFile(
-        pathStr,
-        classOf[AvroKeyInputFormat[GenericRecord]],
-        classOf[AvroKey[GenericRecord]],
-        classOf[NullWritable])
-      .map { case (gr, _) => decoder.decode(gr.datum()) }
-  }
-
-  def jackson[A: ClassTag](pathStr: String)(implicit decoder: AvroDecoder[A]): RDD[A] = {
-    val schema = decoder.schema
-    ss.sparkContext.textFile(pathStr).mapPartitions { strs =>
-      val datumReader = new GenericDatumReader[GenericRecord](schema)
-      strs.map { str =>
-        val jsonDecoder = DecoderFactory.get().jsonDecoder(schema, str)
-        decoder.decode(datumReader.read(null, jsonDecoder))
-      }
-    }
-  }
-
+// 4
   def circe[A: ClassTag: JsonDecoder](pathStr: String): RDD[A] =
     ss.sparkContext
       .textFile(pathStr)
@@ -75,6 +79,11 @@ final class RddLoadFromFile(ss: SparkSession) {
         case Right(r) => r
       })
 
+// 5
+  def text(path: String): RDD[String] =
+    ss.sparkContext.textFile(path)
+
+// 6
   def csv[A: TypedEncoder](pathStr: String, csvConfig: CsvConfiguration): RDD[A] = {
     val structType = TypedEncoder[A].catalystRepr.asInstanceOf[StructType]
     val df: DataFrame = ss.read
@@ -91,6 +100,4 @@ final class RddLoadFromFile(ss: SparkSession) {
   def csv[A: TypedEncoder](pathStr: String): RDD[A] =
     csv(pathStr, CsvConfiguration.rfc)
 
-  def text(path: String): RDD[String] =
-    ss.sparkContext.textFile(path)
 }
