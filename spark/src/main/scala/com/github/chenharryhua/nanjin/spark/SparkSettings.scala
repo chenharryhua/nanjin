@@ -12,13 +12,12 @@ import org.apache.spark.sql.SparkSession
   def withAppName(appName: String): SparkSettings =
     withConfigUpdate(_.set("spark.app.name", appName))
 
-  def withKms(kmsKey: String): SparkSettings =
+  def withKms(kmsKey: String): SparkSettings = {
+    val kms = if (kmsKey.startsWith("alias/")) kmsKey else s"alias/$kmsKey"
     withConfigUpdate(
       _.set("spark.hadoop.fs.s3a.server-side-encryption-algorithm", "SSE-KMS")
-        .set("spark.hadoop.fs.s3a.server-side-encryption.key", kmsKey))
-
-  def withKmsAlias(alias: String): SparkSettings =
-    withKms(s"alias/$alias")
+        .set("spark.hadoop.fs.s3a.server-side-encryption.key", kms))
+  }
 
   def withMaster(master: String): SparkSettings =
     withConfigUpdate(_.set("spark.master", master))
