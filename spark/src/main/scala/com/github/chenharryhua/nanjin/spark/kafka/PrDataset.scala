@@ -5,7 +5,6 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
 import com.github.chenharryhua.nanjin.spark._
-import com.github.chenharryhua.nanjin.utils
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
@@ -41,11 +40,8 @@ final class PrDataset[F[_], K: TypedEncoder, V: TypedEncoder](
   def pipeTo[K2, V2](other: KafkaTopic[F, K2, V2])(k: K => K2, v: V => V2)(implicit
     ce: ConcurrentEffect[F],
     timer: Timer[F],
-    cs: ContextShift[F]): Stream[F, ProducerResult[K2, V2, Unit]] = {
-    val id = utils.random4d.value
-    prs.sparkSession.withGroupId(s"nj.pr.pipe.$id").withDescription(other.topicName.value)
+    cs: ContextShift[F]): Stream[F, ProducerResult[K2, V2, Unit]] =
     typedDataset.stream[F].map(_.bimap(k, v)).through(sk.uploader(other, params.uploadRate))
-  }
 
   def upload(other: KafkaTopic[F, K, V])(implicit
     ce: ConcurrentEffect[F],
@@ -53,15 +49,9 @@ final class PrDataset[F[_], K: TypedEncoder, V: TypedEncoder](
     cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
     pipeTo(other)(identity, identity)
 
-  def count(implicit ev: Sync[F]): F[Long] = {
-    val id = utils.random4d.value
-    prs.sparkSession.withGroupId(s"nj.pr.count.$id").withDescription("count")
+  def count(implicit ev: Sync[F]): F[Long] =
     typedDataset.count[F]()
-  }
 
-  def show(implicit ev: Sync[F]): F[Unit] = {
-    val id = utils.random4d.value
-    prs.sparkSession.withGroupId(s"nj.pr.show.$id").withDescription("show")
+  def show(implicit ev: Sync[F]): F[Unit] =
     typedDataset.show[F](params.showDs.rowNum, params.showDs.isTruncate)
-  }
 }

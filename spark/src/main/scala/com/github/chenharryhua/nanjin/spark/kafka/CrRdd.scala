@@ -13,8 +13,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryV,
   OptionalKV
 }
-import com.github.chenharryhua.nanjin.spark.{RddExt, RddToDataFrame, SparkSessionExt}
-import com.github.chenharryhua.nanjin.utils
+import com.github.chenharryhua.nanjin.spark.{RddExt, RddToDataFrame}
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.cats.implicits.rddOps
 import frameless.{TypedDataset, TypedEncoder}
@@ -111,13 +110,11 @@ final class CrRdd[F[_], K, V](
   def pipeTo(otherTopic: KafkaTopic[F, K, V])(implicit
     ce: ConcurrentEffect[F],
     timer: Timer[F],
-    cs: ContextShift[F]): F[Unit] = {
-    sparkSession.withGroupId(s"nj.rdd.pipe.${utils.random4d.value}")
+    cs: ContextShift[F]): F[Unit] =
     stream
       .map(_.toNJProducerRecord.noMeta)
       .through(sk.uploader(otherTopic, params.uploadRate))
       .map(_ => print("."))
       .compile
       .drain
-  }
 }
