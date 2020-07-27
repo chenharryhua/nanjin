@@ -57,7 +57,7 @@ class KafkaCoproductTest extends AnyFunSuite {
       topicCO.schemaRegister >>
       topicCO.send(data) >>
       sk.fromKafka.flatMap(_.save.single(blocker).avro) >>
-      IO(sk.read.avro(path).rdd.take(10).toSet)
+      IO(sk.load.avro(path).rdd.take(10).toSet)
     intercept[Exception](run.unsafeRunSync().flatMap(_.value) == Set(co1, co2))
   }
 
@@ -70,7 +70,7 @@ class KafkaCoproductTest extends AnyFunSuite {
       topicEnum.schemaRegister >>
       topicEnum.send(data) >>
       sk.fromKafka.flatMap(_.save.single(blocker).avro) >>
-      IO(sk.read.avro(path).rdd.take(10).toSet)
+      IO(sk.load.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 
@@ -83,7 +83,7 @@ class KafkaCoproductTest extends AnyFunSuite {
       topicEnum.schemaRegister >>
       topicEnum.send(data) >>
       sk.fromKafka.flatMap(_.save.multi(blocker).avro) >>
-      IO(sk.read.avro(path).rdd.take(10).toSet)
+      IO(sk.load.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 
@@ -96,7 +96,7 @@ class KafkaCoproductTest extends AnyFunSuite {
       topicCoProd.schemaRegister >>
       topicCoProd.send(data) >>
       sk.fromKafka.flatMap(_.save.single(blocker).jackson) >>
-      IO(sk.read.jackson(path).rdd.take(10).toSet)
+      IO(sk.load.jackson(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(cp1, cp2))
   }
 
@@ -109,7 +109,7 @@ class KafkaCoproductTest extends AnyFunSuite {
       topicCoProd.schemaRegister >>
       topicCoProd.send(data) >>
       sk.fromKafka.flatMap(_.save.multi(blocker).jackson) >>
-      IO(sk.read.jackson(path).rdd.take(10).toSet)
+      IO(sk.load.jackson(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(cp1, cp2))
   }
 }

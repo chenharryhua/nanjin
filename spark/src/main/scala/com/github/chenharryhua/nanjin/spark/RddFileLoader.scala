@@ -20,7 +20,7 @@ import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import scala.reflect.ClassTag
 
-final class RddLoadFromFile(ss: SparkSession) {
+final class RddFileLoader(ss: SparkSession) {
 
   def parquet[A](
     pathStr: String)(implicit decoder: AvroDecoder[A], constraint: TypedEncoder[A]): RDD[A] = {

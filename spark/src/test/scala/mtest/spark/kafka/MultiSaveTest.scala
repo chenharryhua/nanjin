@@ -45,14 +45,15 @@ class MultiSaveTest extends AnyFunSuite {
 
   test("multi-save avro") {
     val rst = topic.sparKafka.fromKafka.flatMap(_.repartition(3).save.multi(blocker).avro) >> IO {
-      topic.sparKafka.read.multi.avro.rdd.collect.flatMap(_.value).toSet
+      topic.sparKafka.load.multi.avro.rdd.collect.flatMap(_.value).toSet
     }
     assert(rst.unsafeRunSync() == food.toSet)
   }
   test("multi-save jackson") {
-    val rst = topic.sparKafka.fromKafka.flatMap(_.repartition(3).save.multi(blocker).jackson) >> IO {
-      topic.sparKafka.read.multi.jackson.rdd.collect().flatMap(_.value).toSet
-    }
+    val rst =
+      topic.sparKafka.fromKafka.flatMap(_.repartition(3).save.multi(blocker).jackson) >> IO {
+        topic.sparKafka.load.multi.jackson.rdd.collect().flatMap(_.value).toSet
+      }
     assert(rst.unsafeRunSync() == food.toSet)
   }
 }

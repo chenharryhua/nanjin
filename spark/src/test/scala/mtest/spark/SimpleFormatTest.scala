@@ -34,8 +34,8 @@ class SimpleFormatTest extends AnyFunSuite {
       rdd.multi[IO](blocker).avro(multi)
     prepare.unsafeRunSync()
 
-    assert(sparkSession.avro[Simple](single).collect().toSet == simple.toSet)
-    assert(sparkSession.avro[Simple](multi).collect().toSet == simple.toSet)
+    assert(sparkSession.load.avro[Simple](single).collect().toSet == simple.toSet)
+    assert(sparkSession.load.avro[Simple](multi).collect().toSet == simple.toSet)
   }
 
   test("jackson read/write identity") {
@@ -45,8 +45,8 @@ class SimpleFormatTest extends AnyFunSuite {
     val prepare = rdd.single[IO](blocker).jackson(single) >> rdd.multi[IO](blocker).jackson(multi)
     prepare.unsafeRunSync()
 
-    assert(sparkSession.jackson[Simple](single).collect().toSet == simple.toSet)
-    assert(sparkSession.jackson[Simple](multi).collect().toSet == simple.toSet)
+    assert(sparkSession.load.jackson[Simple](single).collect().toSet == simple.toSet)
+    assert(sparkSession.load.jackson[Simple](multi).collect().toSet == simple.toSet)
   }
 
   test("circe read/write identity") {
@@ -57,8 +57,8 @@ class SimpleFormatTest extends AnyFunSuite {
     val prepare = rdd.single[IO](blocker).circe(single) >> rdd.multi[IO](blocker).circe(multi)
     prepare.unsafeRunSync()
 
-    assert(sparkSession.circe[Simple](single).collect().toSet == simple.toSet)
-    assert(sparkSession.circe[Simple](multi).collect().toSet == simple.toSet)
+    assert(sparkSession.load.circe[Simple](single).collect().toSet == simple.toSet)
+    assert(sparkSession.load.circe[Simple](multi).collect().toSet == simple.toSet)
   }
 
   test("parquet read/write identity") {
@@ -69,8 +69,8 @@ class SimpleFormatTest extends AnyFunSuite {
     val prepare = rdd.single[IO](blocker).parquet(single) >> rdd.multi[IO](blocker).parquet(multi)
     prepare.unsafeRunSync()
 
-    assert(sparkSession.parquet[Simple](single).collect().toSet == simple.toSet)
-    assert(sparkSession.parquet[Simple](multi).collect().toSet == simple.toSet)
+    assert(sparkSession.load.parquet[Simple](single).collect().toSet == simple.toSet)
+    assert(sparkSession.load.parquet[Simple](multi).collect().toSet == simple.toSet)
   }
 
   test("csv read/write identity") {
@@ -82,7 +82,7 @@ class SimpleFormatTest extends AnyFunSuite {
     val prepare = rdd.single[IO](blocker).csv(single) >> rdd.multi(blocker).csv(multi)
     prepare.unsafeRunSync()
 
-    assert(sparkSession.csv[Simple](single).collect().toSet == simple.toSet)
+    assert(sparkSession.load.csv[Simple](single).collect().toSet == simple.toSet)
     //  assert(sparkSession.csv[Simple](multi).collect().toSet == simple.toSet)
   }
 
@@ -95,7 +95,7 @@ class SimpleFormatTest extends AnyFunSuite {
     val prepare = rdd.single[IO](blocker).text(single) >> rdd.multi[IO](blocker).text(multi)
     prepare.unsafeRunSync()
 
-    assert(sparkSession.text(single).count == simple.size)
-    assert(sparkSession.text(multi).count == simple.size)
+    assert(sparkSession.load.text(single).count == simple.size)
+    assert(sparkSession.load.text(multi).count == simple.size)
   }
 }

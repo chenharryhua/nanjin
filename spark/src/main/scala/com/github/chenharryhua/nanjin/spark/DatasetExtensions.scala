@@ -5,15 +5,13 @@ import akka.stream.scaladsl.Source
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync}
 import cats.implicits._
 import cats.kernel.Eq
-import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
+import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.interop.reactivestreams._
 import fs2.{Pipe, Stream}
-import io.circe.{Decoder => JsonDecoder}
-import kantan.csv.CsvConfiguration
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{DataFrame, SparkSession, Encoder => SparkEncoder}
+import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import scala.reflect.ClassTag
 
@@ -97,27 +95,6 @@ private[spark] trait DatasetExtensions {
       ss
     }
 
-    private val delegate: RddLoadFromFile = new RddLoadFromFile(ss)
-
-    def parquet[A: TypedEncoder: AvroDecoder](pathStr: String): RDD[A] =
-      delegate.parquet[A](pathStr)
-
-    def avro[A: ClassTag: AvroDecoder](pathStr: String): RDD[A] =
-      delegate.avro[A](pathStr)
-
-    def jackson[A: ClassTag: AvroDecoder](pathStr: String): RDD[A] =
-      delegate.jackson[A](pathStr)
-
-    def circe[A: ClassTag: JsonDecoder](pathStr: String): RDD[A] =
-      delegate.circe[A](pathStr)
-
-    def csv[A: TypedEncoder](pathStr: String, csvConfig: CsvConfiguration): RDD[A] =
-      delegate.csv(pathStr, csvConfig)
-
-    def csv[A: TypedEncoder](pathStr: String): RDD[A] =
-      csv[A](pathStr, CsvConfiguration.rfc)
-
-    def text(pathStr: String): RDD[String] =
-      delegate.text(pathStr)
+    val load: RddFileLoader = new RddFileLoader(ss)
   }
 }

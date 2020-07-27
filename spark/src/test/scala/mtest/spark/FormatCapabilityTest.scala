@@ -53,8 +53,8 @@ class FormatCapabilityTest extends AnyFunSuite {
       rdd.multi[IO](blocker).avro(multi)
     prepare.unsafeRunSync()
 
-    assert(sparkSession.avro[Salmon](single).collect().toSet == salmon.toSet)
-    assert(sparkSession.avro[Salmon](multi).collect().toSet == salmon.toSet)
+    assert(sparkSession.load.avro[Salmon](single).collect().toSet == salmon.toSet)
+    assert(sparkSession.load.avro[Salmon](multi).collect().toSet == salmon.toSet)
   }
 
   test("jackson read/write identity") {
@@ -67,8 +67,8 @@ class FormatCapabilityTest extends AnyFunSuite {
       rdd.multi[IO](blocker).jackson(multi)
     prepare.unsafeRunSync()
 
-    assert(sparkSession.jackson[Salmon](single).collect().toSet == salmon.toSet)
-    assert(sparkSession.jackson[Salmon](multi).collect().toSet == salmon.toSet)
+    assert(sparkSession.load.jackson[Salmon](single).collect().toSet == salmon.toSet)
+    assert(sparkSession.load.jackson[Salmon](multi).collect().toSet == salmon.toSet)
   }
 
   test("unable to save to parquet because it doesn't support union") {
@@ -91,7 +91,7 @@ class FormatCapabilityTest extends AnyFunSuite {
       rdd.multi[IO](blocker).circe(multi)
     prepare.unsafeRunSync()
 
-    assert(sparkSession.circe[Salmon](single).collect().toSet != salmon.toSet)
-    assert(sparkSession.circe[Salmon](multi).collect().toSet != salmon.toSet)
+    assert(sparkSession.load.circe[Salmon](single).collect().toSet != salmon.toSet)
+    assert(sparkSession.load.circe[Salmon](multi).collect().toSet != salmon.toSet)
   }
 }
