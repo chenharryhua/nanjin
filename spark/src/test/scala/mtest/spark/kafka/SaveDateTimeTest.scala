@@ -60,7 +60,7 @@ class SaveDateTimeTest extends AnyFunSuite {
   test("sparKafka datetime single circe json") {
     val path = "./data/test/spark/kafka/single/circe.json"
     val action =
-      sk(path).fromKafka.flatMap(_.save.single(blocker).circe).map(r => assert(r == 100))
+      sk(path).fromKafka.flatMap(_.rdd.save.single(blocker).circe(path)).map(r => assert(r == 100))
     action.unsafeRunSync()
     val rst = sparkSession.load.circe[OptionalKV[Int, Chicken]](path).collect().sorted
     assert(rst.flatMap(_.value).toList == chickens)

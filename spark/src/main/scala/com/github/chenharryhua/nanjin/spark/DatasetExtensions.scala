@@ -40,19 +40,22 @@ private[spark] trait DatasetExtensions {
         Sync[F].delay(persisted.unpersist())
     }
 
-    def multi[F[_]](blocker: Blocker)(implicit
-      ss: SparkSession,
-      cs: ContextShift[F],
-      F: Sync[F]): RddPersistMultiFile[F, A] =
-      new RddPersistMultiFile[F, A](rdd, blocker)
-
-    def single[F[_]](blocker: Blocker)(implicit
-      ss: SparkSession,
-      cs: ContextShift[F]): RddPersistSingleFile[F, A] =
-      new RddPersistSingleFile[F, A](rdd, blocker)
-
     def toDF(implicit encoder: AvroEncoder[A], ss: SparkSession): DataFrame =
       new RddToDataFrame[A](rdd).toDF
+
+    object save {
+
+      def multi[F[_]](blocker: Blocker)(implicit
+        ss: SparkSession,
+        cs: ContextShift[F],
+        F: Sync[F]): RddPersistMultiFile[F, A] =
+        new RddPersistMultiFile[F, A](rdd, blocker)
+
+      def single[F[_]](blocker: Blocker)(implicit
+        ss: SparkSession,
+        cs: ContextShift[F]): RddPersistSingleFile[F, A] =
+        new RddPersistSingleFile[F, A](rdd, blocker)
+    }
   }
 
   implicit final class TypedDatasetExt[A](private val tds: TypedDataset[A]) {
@@ -65,16 +68,19 @@ private[spark] trait DatasetExtensions {
     def dismissNulls: TypedDataset[A]   = tds.deserialized.filter(_ != null)
     def numOfNulls[F[_]: Sync]: F[Long] = tds.except(dismissNulls).count[F]()
 
-    def multi[F[_]](blocker: Blocker)(implicit
-      ss: SparkSession,
-      cs: ContextShift[F],
-      F: Sync[F]): RddPersistMultiFile[F, A] =
-      tds.dataset.rdd.multi(blocker)
+    object save {
 
-    def single[F[_]](blocker: Blocker)(implicit
-      ss: SparkSession,
-      cs: ContextShift[F]): RddPersistSingleFile[F, A] =
-      tds.dataset.rdd.single(blocker)
+      def multi[F[_]](blocker: Blocker)(implicit
+        ss: SparkSession,
+        cs: ContextShift[F],
+        F: Sync[F]): RddPersistMultiFile[F, A] =
+        tds.dataset.rdd.save.multi(blocker)
+
+      def single[F[_]](blocker: Blocker)(implicit
+        ss: SparkSession,
+        cs: ContextShift[F]): RddPersistSingleFile[F, A] =
+        tds.dataset.rdd.save.single(blocker)
+    }
   }
 
   implicit final class DataframeExt(private val df: DataFrame) {

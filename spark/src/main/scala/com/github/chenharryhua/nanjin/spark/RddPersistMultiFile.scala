@@ -3,7 +3,10 @@ package com.github.chenharryhua.nanjin.spark
 import cats.Show
 import cats.effect.{Blocker, ContextShift, Resource, Sync}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.spark.mapreduce.AvroJacksonKeyOutputFormat
+import com.github.chenharryhua.nanjin.spark.mapreduce.{
+  NJAvroKeyOutputFormat,
+  NJJacksonKeyOutputFormat
+}
 import com.sksamuel.avro4s.{ToRecord, Encoder => AvroEncoder}
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
@@ -11,7 +14,7 @@ import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.CsvConfiguration
 import org.apache.avro.generic.GenericRecord
 import org.apache.avro.mapred.AvroKey
-import org.apache.avro.mapreduce.{AvroJob, AvroKeyOutputFormat}
+import org.apache.avro.mapreduce.AvroJob
 import org.apache.hadoop.io.NullWritable
 import org.apache.hadoop.mapreduce.Job
 import org.apache.parquet.avro.{AvroParquetOutputFormat, GenericDataSupplier}
@@ -26,6 +29,7 @@ final class RddPersistMultiFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
   private def rddResource(implicit F: Sync[F]): Resource[F, RDD[A]] =
     Resource.make(F.delay(rdd.persist()))(r => F.delay(r.unpersist()))
 
+// 0
   def dump(pathStr: String)(implicit F: Sync[F]): F[Long] =
     fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
       F.delay(data.saveAsObjectFile(pathStr)).as(data.count())
@@ -44,30 +48,25 @@ final class RddPersistMultiFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
     }
   }
 
+// 1
   def avro(pathStr: String)(implicit enc: AvroEncoder[A]): F[Long] =
     fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
       F.delay {
-        grPair(data).saveAsNewAPIHadoopFile[AvroKeyOutputFormat[GenericRecord]](pathStr)
+        grPair(data).saveAsNewAPIHadoopFile[NJAvroKeyOutputFormat](pathStr)
         data.count()
       }
     }
 
+// 2
   def jackson(pathStr: String)(implicit enc: AvroEncoder[A]): F[Long] =
     fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
       F.delay {
-        grPair(data).saveAsNewAPIHadoopFile[AvroJacksonKeyOutputFormat](pathStr)
+        grPair(data).saveAsNewAPIHadoopFile[NJJacksonKeyOutputFormat](pathStr)
         data.count()
       }
     }
 
-  def circe(pathStr: String)(implicit enc: JsonEncoder[A]): F[Long] =
-    fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
-      F.delay {
-        rdd.map(enc(_).noSpaces).saveAsTextFile(pathStr)
-        data.count()
-      }
-    }
-
+// 3
   def parquet(pathStr: String)(implicit enc: AvroEncoder[A], constraint: TypedEncoder[A]): F[Long] =
     fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
       F.delay {
@@ -86,6 +85,25 @@ final class RddPersistMultiFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
       }
     }
 
+// 4
+  def circe(pathStr: String)(implicit enc: JsonEncoder[A]): F[Long] =
+    fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
+      F.delay {
+        rdd.map(enc(_).noSpaces).saveAsTextFile(pathStr)
+        data.count()
+      }
+    }
+
+// 5
+  def text(pathStr: String)(implicit enc: Show[A]): F[Long] =
+    fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
+      F.delay {
+        rdd.map(enc.show).saveAsTextFile(pathStr)
+        data.count()
+      }
+    }
+
+// 6
   def csv(pathStr: String, csvConfig: CsvConfiguration)(implicit enc: TypedEncoder[A]): F[Long] =
     fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
       val tds = TypedDataset.create(data)
@@ -101,11 +119,4 @@ final class RddPersistMultiFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
   def csv(pathStr: String)(implicit enc: TypedEncoder[A]): F[Long] =
     csv(pathStr, CsvConfiguration.rfc)
 
-  def text(pathStr: String)(implicit enc: Show[A]): F[Long] =
-    fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
-      F.delay {
-        rdd.map(enc.show).saveAsTextFile(pathStr)
-        data.count()
-      }
-    }
 }
