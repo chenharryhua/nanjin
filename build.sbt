@@ -23,7 +23,7 @@ val enumeratum = "1.6.1"
 val chimney    = "0.5.3"
 
 // runtime
-val zioCats    = "2.1.4.0-RC17"
+val zioCats    = "2.1.4.0-RC17+1-307f2f6c-SNAPSHOT"
 val monix      = "3.2.2"
 val catsEffect = "2.2.0-RC1"
 val akka26     = "2.6.8"
