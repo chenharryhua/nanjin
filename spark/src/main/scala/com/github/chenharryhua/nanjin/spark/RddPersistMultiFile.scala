@@ -31,8 +31,9 @@ final class RddPersistMultiFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
 
 // 0
   def dump(pathStr: String)(implicit F: Sync[F]): F[Long] =
-    fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
-      F.delay(data.saveAsObjectFile(pathStr)).as(data.count())
+    rddResource.use { data =>
+      fileSink(blocker).delete(pathStr) >>
+        F.delay(data.saveAsObjectFile(pathStr)).as(data.count())
     }
 
   private def grPair(data: RDD[A])(implicit
@@ -50,70 +51,66 @@ final class RddPersistMultiFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
 
 // 1
   def avro(pathStr: String)(implicit enc: AvroEncoder[A]): F[Long] =
-    fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
-      F.delay {
-        grPair(data).saveAsNewAPIHadoopFile[NJAvroKeyOutputFormat](pathStr)
-        data.count()
-      }
+    rddResource.use { data =>
+      fileSink(blocker).delete(pathStr) >>
+        F.delay(grPair(data).saveAsNewAPIHadoopFile[NJAvroKeyOutputFormat](pathStr))
+          .as(data.count())
     }
 
 // 2
   def jackson(pathStr: String)(implicit enc: AvroEncoder[A]): F[Long] =
-    fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
-      F.delay {
-        grPair(data).saveAsNewAPIHadoopFile[NJJacksonKeyOutputFormat](pathStr)
-        data.count()
-      }
+    rddResource.use { data =>
+      fileSink(blocker).delete(pathStr) >>
+        F.delay(grPair(data).saveAsNewAPIHadoopFile[NJJacksonKeyOutputFormat](pathStr))
+          .as(data.count())
     }
 
 // 3
   def parquet(pathStr: String)(implicit enc: AvroEncoder[A], constraint: TypedEncoder[A]): F[Long] =
-    fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
-      F.delay {
-        val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
-        AvroParquetOutputFormat.setAvroDataSupplier(job, classOf[GenericDataSupplier])
-        AvroParquetOutputFormat.setSchema(job, enc.schema)
-        ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
-        data // null as java Void
-          .map(a => (null, enc.encode(a).asInstanceOf[GenericRecord]))
-          .saveAsNewAPIHadoopFile(
-            pathStr,
-            classOf[Void],
-            classOf[GenericRecord],
-            classOf[AvroParquetOutputFormat[GenericRecord]])
-        data.count()
-      }
+    rddResource.use { data =>
+      fileSink(blocker).delete(pathStr) >>
+        F.delay {
+          val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
+          AvroParquetOutputFormat.setAvroDataSupplier(job, classOf[GenericDataSupplier])
+          AvroParquetOutputFormat.setSchema(job, enc.schema)
+          ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
+          data // null as java Void
+            .map(a => (null, enc.encode(a).asInstanceOf[GenericRecord]))
+            .saveAsNewAPIHadoopFile(
+              pathStr,
+              classOf[Void],
+              classOf[GenericRecord],
+              classOf[AvroParquetOutputFormat[GenericRecord]])
+        }.as(data.count())
     }
 
 // 4
   def circe(pathStr: String)(implicit enc: JsonEncoder[A]): F[Long] =
-    fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
-      F.delay {
-        rdd.map(enc(_).noSpaces).saveAsTextFile(pathStr)
-        data.count()
-      }
+    rddResource.use { data =>
+      fileSink(blocker).delete(pathStr) >>
+        F.delay(rdd.map(enc(_).noSpaces).saveAsTextFile(pathStr)).as(data.count())
     }
 
 // 5
   def text(pathStr: String)(implicit enc: Show[A]): F[Long] =
-    fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
-      F.delay {
-        rdd.map(enc.show).saveAsTextFile(pathStr)
-        data.count()
-      }
+    rddResource.use { data =>
+      fileSink(blocker).delete(pathStr) >>
+        F.delay(rdd.map(enc.show).saveAsTextFile(pathStr)).as(data.count())
     }
 
 // 6
   def csv(pathStr: String, csvConfig: CsvConfiguration)(implicit enc: TypedEncoder[A]): F[Long] =
-    fileSink(blocker).delete(pathStr) >> rddResource.use { data =>
+    rddResource.use { data =>
       val tds = TypedDataset.create(data)
-      F.delay(
-        tds.write
-          .option("sep", csvConfig.cellSeparator.toString)
-          .option("header", csvConfig.hasHeader)
-          .option("quote", csvConfig.quote.toString)
-          .option("charset", "UTF8")
-          .csv(pathStr)) >> tds.count[F]()
+      fileSink(blocker).delete(pathStr) >>
+        F.delay(
+          tds.write
+            .option("sep", csvConfig.cellSeparator.toString)
+            .option("header", csvConfig.hasHeader)
+            .option("quote", csvConfig.quote.toString)
+            .option("charset", "UTF8")
+            .csv(pathStr)) >>
+        tds.count[F]()
     }
 
   def csv(pathStr: String)(implicit enc: TypedEncoder[A]): F[Long] =

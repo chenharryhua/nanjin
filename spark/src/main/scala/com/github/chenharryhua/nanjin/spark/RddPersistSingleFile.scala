@@ -21,13 +21,20 @@ final class RddPersistSingleFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implici
 // 1
   def avro(pathStr: String)(implicit enc: AvroEncoder[A], F: Sync[F]): F[Long] =
     rddResource.use { data =>
-      data.stream[F].through(fileSink[F](blocker).avro[A](pathStr)).compile.drain.as(data.count)
+      fileSink(blocker).delete(pathStr) >>
+        data.stream[F].through(fileSink[F](blocker).avro[A](pathStr)).compile.drain.as(data.count)
     }
 
 // 2
   def jackson(pathStr: String)(implicit enc: AvroEncoder[A], F: Concurrent[F]): F[Long] =
     rddResource.use { data =>
-      data.stream[F].through(fileSink[F](blocker).jackson[A](pathStr)).compile.drain.as(data.count)
+      fileSink(blocker).delete(pathStr) >>
+        data
+          .stream[F]
+          .through(fileSink[F](blocker).jackson[A](pathStr))
+          .compile
+          .drain
+          .as(data.count)
     }
 
 // 3
@@ -36,25 +43,39 @@ final class RddPersistSingleFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implici
     constraint: TypedEncoder[A],
     F: Sync[F]): F[Long] =
     rddResource.use { data =>
-      data.stream[F].through(fileSink[F](blocker).parquet[A](pathStr)).compile.drain.as(data.count)
+      fileSink(blocker).delete(pathStr) >>
+        data
+          .stream[F]
+          .through(fileSink[F](blocker).parquet[A](pathStr))
+          .compile
+          .drain
+          .as(data.count)
     }
 
 // 4
   def circe(pathStr: String)(implicit enc: JsonEncoder[A], F: Sync[F]): F[Long] =
     rddResource.use { data =>
-      data.stream[F].through(fileSink[F](blocker).circe[A](pathStr)).compile.drain.as(data.count())
+      fileSink(blocker).delete(pathStr) >>
+        data
+          .stream[F]
+          .through(fileSink[F](blocker).circe[A](pathStr))
+          .compile
+          .drain
+          .as(data.count())
     }
 
 // 5
   def text(pathStr: String)(implicit enc: Show[A], F: Sync[F]): F[Long] =
     rddResource.use { data =>
-      data.stream[F].through(fileSink[F](blocker).text[A](pathStr)).compile.drain.as(data.count())
+      fileSink(blocker).delete(pathStr) >>
+        data.stream[F].through(fileSink[F](blocker).text[A](pathStr)).compile.drain.as(data.count())
     }
 
 // 6
   def csv(pathStr: String)(implicit enc: RowEncoder[A], F: Concurrent[F]): F[Long] =
     rddResource.use { data =>
-      data.stream[F].through(fileSink[F](blocker).csv[A](pathStr)).compile.drain.as(data.count())
+      fileSink(blocker).delete(pathStr) >>
+        data.stream[F].through(fileSink[F](blocker).csv[A](pathStr)).compile.drain.as(data.count())
     }
 
 // 7
@@ -63,28 +84,36 @@ final class RddPersistSingleFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implici
     cs: ContextShift[F],
     ev: A <:< GeneratedMessage): F[Long] =
     rddResource.use { data =>
-      data
-        .stream[F]
-        .through(fileSink[F](blocker).protobuf[A](pathStr))
-        .compile
-        .drain
-        .as(data.count())
+      fileSink(blocker).delete(pathStr) >>
+        data
+          .stream[F]
+          .through(fileSink[F](blocker).protobuf[A](pathStr))
+          .compile
+          .drain
+          .as(data.count())
     }
 
 // 8
   def binAvro(pathStr: String)(implicit enc: AvroEncoder[A], F: Concurrent[F]): F[Long] =
     rddResource.use { data =>
-      data.stream[F].through(fileSink[F](blocker).binAvro[A](pathStr)).compile.drain.as(data.count)
+      fileSink(blocker).delete(pathStr) >>
+        data
+          .stream[F]
+          .through(fileSink[F](blocker).binAvro[A](pathStr))
+          .compile
+          .drain
+          .as(data.count)
     }
 
 // 9
   def javaObj(pathStr: String)(implicit F: Concurrent[F]): F[Long] =
     rddResource.use { data =>
-      data
-        .stream[F]
-        .through(fileSink[F](blocker).javaObject[A](pathStr))
-        .compile
-        .drain
-        .as(data.count)
+      fileSink(blocker).delete(pathStr) >>
+        data
+          .stream[F]
+          .through(fileSink[F](blocker).javaObject[A](pathStr))
+          .compile
+          .drain
+          .as(data.count)
     }
 }
