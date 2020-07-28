@@ -25,7 +25,7 @@ val chimney    = "0.5.3"
 // runtime
 val zioCats    = "2.1.4.0-RC17"
 val monix      = "3.2.2"
-val catsEffect = "2.2.0-RC2"
+val catsEffect = "2.2.0-RC3"
 val akka26     = "2.6.8"
 
 // kafka
@@ -116,7 +116,7 @@ val hadoopLib = Seq(
   "org.apache.hadoop" % "hadoop-client",
   "org.apache.hadoop" % "hadoop-hdfs"
 ).map(_               % hadoop) ++
-  Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.826")
+  Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.828")
 
 val flinkLib = Seq(
   "org.apache.flink" %% "flink-connector-kafka",
