@@ -48,8 +48,6 @@ class CompatTest extends AnyFunSuite {
 
     TypedDataset
       .create(sparkSession.sparkContext.parallelize(pigeons))
-      .dataset
-      .rdd
       .save
       .multi(blocker)
       .avro(path)
@@ -66,8 +64,6 @@ class CompatTest extends AnyFunSuite {
 
     TypedDataset
       .create(sparkSession.sparkContext.parallelize(pigeons))
-      .dataset
-      .rdd
       .save
       .multi(blocker)
       .parquet(path)
