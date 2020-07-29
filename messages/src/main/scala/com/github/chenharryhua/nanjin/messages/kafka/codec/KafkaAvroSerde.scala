@@ -20,8 +20,7 @@ object KafkaSerializer {
     new KafkaSerializer[A] {
       @transient private[this] lazy val ser: GenericAvroSerializer = new GenericAvroSerializer
 
-      override val avroEncoder: AvroEncoder[A] =
-        encoder.withSchema(schemaFor).resolveEncoder()
+      override val avroEncoder: AvroEncoder[A] = encoder.withSchema(schemaFor)
 
       override def configure(configs: util.Map[String, _], isKey: Boolean): Unit =
         ser.configure(configs, isKey)
@@ -104,8 +103,7 @@ object KafkaDeserializer {
 
       override def close(): Unit = deSer.close()
 
-      override val avroDecoder: AvroDecoder[A] =
-        decoder.withSchema(schemaFor).resolveDecoder()
+      override val avroDecoder: AvroDecoder[A] = decoder.withSchema(schemaFor)
 
       override def deserialize(topic: String, data: Array[Byte]): A =
         Option(data) match {
