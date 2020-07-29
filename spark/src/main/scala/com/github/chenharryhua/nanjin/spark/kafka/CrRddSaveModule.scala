@@ -47,6 +47,13 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
         v: TypedEncoder[V]): F[Long] =
         parquet(params.pathBuilder(topicName, NJFileFormat.Parquet))
 
+// 4
+      def binAvro(pathStr: String)(implicit ce: ConcurrentEffect[F]): F[Long] =
+        saver.binAvro(pathStr)
+
+      def binAvro(implicit ce: ConcurrentEffect[F]): F[Long] =
+        binAvro(params.pathBuilder(topicName, NJFileFormat.BinaryAvro))
+
     }
 
     final class MultiFile(saver: RddPersistMultiFile[F, OptionalKV[K, V]]) {
@@ -57,8 +64,7 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
 
 // 1
       def avro(pathStr: String): F[Long] = saver.avro(pathStr)
-
-      def avro: F[Long] = avro(params.pathBuilder(topicName, NJFileFormat.Avro))
+      def avro: F[Long]                  = avro(params.pathBuilder(topicName, NJFileFormat.Avro))
 
 // 2
       def jackson(pathStr: String): F[Long] = saver.jackson(pathStr)
@@ -72,7 +78,6 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
 
       def parquet(implicit k: TypedEncoder[K], v: TypedEncoder[V]): F[Long] =
         parquet(params.pathBuilder(topicName, NJFileFormat.Parquet))
-
     }
   }
 }

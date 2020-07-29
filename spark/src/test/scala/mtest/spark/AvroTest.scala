@@ -8,6 +8,7 @@ import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
+import com.github.chenharryhua.nanjin.messages.kafka.codec.SerdeOf
 
 object AvroTestData {
 
@@ -32,8 +33,9 @@ object AvroTestData {
 
   final case class HasByteArray(name: String, bytes: Array[Byte])
   val serde = WithAvroSchema[HasByteArray](schema)
+  println(serde.right.get.schemaFor.schema)
 
-  val data = List.fill(10)(HasByteArray("a", Array[Byte](1, 2, 3, Random.nextInt().toByte)))
+  val data = List.fill(10)(HasByteArray("a", Array[Byte](1, 2, 3, 4, 5, 6, 7, 8, 9, Random.nextInt().toByte)))
 
 }
 
