@@ -36,7 +36,8 @@ final class RddPersistMultiFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
         F.delay(data.saveAsObjectFile(pathStr)).as(data.count())
     }
 
-  private def grPair(data: RDD[A])(implicit
+  private def grPair(
+    data: RDD[A],
     enc: AvroEncoder[A]): RDD[(AvroKey[GenericRecord], NullWritable)] = {
 
     val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
@@ -44,7 +45,7 @@ final class RddPersistMultiFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
     ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
 
     data.mapPartitions { rcds =>
-      val to = ToRecord[A]
+      val to = ToRecord[A](enc)
       rcds.map(rcd => (new AvroKey[GenericRecord](to.to(rcd)), NullWritable.get()))
     }
   }
@@ -53,7 +54,7 @@ final class RddPersistMultiFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
   def avro(pathStr: String)(implicit enc: AvroEncoder[A]): F[Long] =
     rddResource.use { data =>
       fileSink(blocker).delete(pathStr) >>
-        F.delay(grPair(data).saveAsNewAPIHadoopFile[NJAvroKeyOutputFormat](pathStr))
+        F.delay(grPair(data, enc).saveAsNewAPIHadoopFile[NJAvroKeyOutputFormat](pathStr))
           .as(data.count())
     }
 
@@ -61,7 +62,7 @@ final class RddPersistMultiFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
   def jackson(pathStr: String)(implicit enc: AvroEncoder[A]): F[Long] =
     rddResource.use { data =>
       fileSink(blocker).delete(pathStr) >>
-        F.delay(grPair(data).saveAsNewAPIHadoopFile[NJJacksonKeyOutputFormat](pathStr))
+        F.delay(grPair(data, enc).saveAsNewAPIHadoopFile[NJJacksonKeyOutputFormat](pathStr))
           .as(data.count())
     }
 
