@@ -187,8 +187,8 @@ val serdeLib = Seq(
   "com.sksamuel.avro4s" %% "avro4s-core"      % avro4s,
   "io.higherkindness" %% "skeuomorph"         % "0.0.24",
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.10.7",
-  "com.google.protobuf"                       % "protobuf-java"             % "3.12.2",
-  "com.google.protobuf"                       % "protobuf-java-util"        % "3.12.2"
+  "com.google.protobuf"                       % "protobuf-java"             % "3.12.4",
+  "com.google.protobuf"                       % "protobuf-java-util"        % "3.12.4"
 ) ++ jacksonLib ++ circeLib
 
 val fs2Lib = Seq(
