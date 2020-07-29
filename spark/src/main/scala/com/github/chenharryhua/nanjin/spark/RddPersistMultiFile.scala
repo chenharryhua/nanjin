@@ -37,10 +37,10 @@ final class RddPersistMultiFile[F[_], A](rdd: RDD[A], blocker: Blocker)(implicit
     }
 
   private def grPair(data: RDD[A])(implicit
-    encoder: AvroEncoder[A]): RDD[(AvroKey[GenericRecord], NullWritable)] = {
+    enc: AvroEncoder[A]): RDD[(AvroKey[GenericRecord], NullWritable)] = {
 
     val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
-    AvroJob.setOutputKeySchema(job, encoder.schema)
+    AvroJob.setOutputKeySchema(job, enc.schema)
     ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
 
     data.mapPartitions { rcds =>

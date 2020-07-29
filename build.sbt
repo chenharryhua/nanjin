@@ -100,6 +100,7 @@ lazy val commonSettings = Seq(
     "-Yno-adapted-args",
     "-Ywarn-dead-code",
     "-Ywarn-numeric-widen",
+    "-Ywarn-value-discard",
     "-Xfuture"
   ),
   Test / classLoaderLayeringStrategy  := ClassLoaderLayeringStrategy.Flat,

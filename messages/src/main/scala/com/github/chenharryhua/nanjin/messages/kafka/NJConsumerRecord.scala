@@ -50,10 +50,6 @@ object NJConsumerRecord {
   implicit def orderNJConsumerRecord[A, K, V](implicit
     ev: A <:< NJConsumerRecord[K, V]
   ): Order[A] = (x: A, y: A) => x.compare(y)
-
-  implicit def orderingNJConsumerRecord[A, K, V](implicit
-    ev: A <:< NJConsumerRecord[K, V]): Ordering[A] =
-    orderNJConsumerRecord[A, K, V].toOrdering
 }
 
 @Lenses final case class OptionalKV[K, V](

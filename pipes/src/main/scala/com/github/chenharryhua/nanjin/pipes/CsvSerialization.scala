@@ -15,8 +15,9 @@ final class CsvSerialization[F[_]: Concurrent: ContextShift, A: RowEncoder](
     readOutputStream[F](blocker, 8096) { os =>
       def go(as: Stream[F, A], cw: CsvWriter[A]): Pull[F, Unit, Unit] =
         as.pull.uncons.flatMap {
-          case Some((hl, tl)) => Pull.pure(hl.foreach(cw.write)) >> go(tl, cw)
-          case None           => Pull.pure(cw.close()) >> Pull.done
+          case Some((hl, tl)) =>
+            Pull.pure(hl.foldLeft(cw) { case (w, item) => w.write(item) }).flatMap(go(tl, _))
+          case None => Pull.pure(cw.close()) >> Pull.done
         }
       go(ss, os.asCsvWriter(conf)).stream.compile.drain
     }
