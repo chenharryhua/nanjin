@@ -1,11 +1,11 @@
 package mtest.common
 
 import com.github.chenharryhua.nanjin.common.transformers._
-import io.scalaland.chimney.Transformer
+import io.scalaland.chimney.dsl._
 import io.scalaland.enumz.Enum
-import monocle.Iso
+import org.scalatest.funsuite.AnyFunSuite
 
-object ScalaEnumTest {
+object ScalaEnumStringTest {
 
   object Phone extends Enumeration {
     val Mobile, G3, G4 = Value
@@ -14,21 +14,16 @@ object ScalaEnumTest {
   final case class Address(street: String, phone: Phone.Value)
   final case class Address2(street: String, phone: String)
 
-  implicit val en: Enum[Phone.Value] = Enum[Phone.Value]
-
-  val addr: Transformer[Address2, Address]  = Transformer.derive[Address2, Address]
-  val addr2: Transformer[Address, Address2] = Transformer.derive[Address, Address2]
-
 }
 
-object IsoTest {
-  final case class Num(a: Int, b: Float)
-  final case class NumStr(a: Int, b: String)
+object ScalaEnumIntTest {
 
-  implicit val iso: Iso[Float, String] = null
+  object Phone extends Enumeration {
+    val Mobile, G3, G4 = Value
+  }
 
-  val n1 = Transformer.derive[Num, NumStr]
-  val n2 = Transformer.derive[NumStr, Num]
+  final case class Address(street: String, phone: Phone.Value)
+  final case class Address2(street: String, phone: Int)
 
 }
 
@@ -41,9 +36,30 @@ object SumTypeTest {
   final case class Address(street: String, phone: Phone)
   final case class Address2(street: String, phone: String)
 
-  implicit val en: Enum[Phone] = Enum[Phone]
+}
 
-  val addr  = Transformer.derive[Address2, Address]
-  val addr2 = Transformer.derive[Address, Address2]
+class EnumLikeTest extends AnyFunSuite {
+  test("enum string transformation") {
+    import ScalaEnumStringTest._
+    implicit val en = Enum[Phone.Value]
+    val add         = Address("stream", Phone.Mobile)
+    val add2        = add.transformInto[Address2]
+    assert(add2 == Address2("stream", "Mobile"))
+  }
+  test("enum Int transformation") {
+    import ScalaEnumIntTest._
+    implicit val en = Enum[Phone.Value]
 
+    val add  = Address("stream", Phone.Mobile)
+    val add2 = add.transformInto[Address2]
+    assert(add2 == Address2("stream", 0))
+  }
+  test("enum sum transformation") {
+    import SumTypeTest._
+    implicit val en = Enum[Phone]
+
+    val add  = Address("stream", Mobile)
+    val add2 = add.transformInto[Address2]
+    assert(add2 == Address2("stream", "Mobile"))
+  }
 }
