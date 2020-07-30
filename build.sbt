@@ -277,6 +277,7 @@ val refinedLib = Seq(
 val baseLib = Seq(
   "com.github.krasserm" %% "streamz-converter" % streamz,
   "io.scalaland" %% "chimney"                  % chimney,
+  "io.scalaland" %% "enumz"                    % "1.0.0",
   "com.twitter" %% "algebird-core"             % "0.13.7",
   "io.chrisdavenport" %% "cats-time"           % catsTime,
   "com.propensive" %% "contextual"             % contextual,
