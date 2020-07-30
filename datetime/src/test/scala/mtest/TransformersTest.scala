@@ -8,7 +8,7 @@ import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8.{
   arbLocalDateTimeJdk8
 }
 import com.github.chenharryhua.nanjin.datetime._
-import com.github.chenharryhua.nanjin.datetime.transformers._
+import com.github.chenharryhua.nanjin.common.transformers._
 import io.scalaland.chimney.dsl._
 import org.scalacheck.Prop.{forAll, propBoolean}
 import org.scalacheck.Properties

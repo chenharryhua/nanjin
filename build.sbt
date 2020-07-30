@@ -321,6 +321,7 @@ lazy val common = (project in file("common"))
       baseLib ++ fs2Lib ++ monocleLib ++ testLib)
 
 lazy val datetime = (project in file("datetime"))
+  .dependsOn(common)
   .settings(commonSettings: _*)
   .settings(name := "nj-datetime")
   .settings(libraryDependencies ++= baseLib ++ monocleLib ++ testLib)
