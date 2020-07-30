@@ -10,7 +10,7 @@ import monocle.Iso
 object transformers extends ReverseTransformers {
 
   implicit def str2Enum[E](implicit ev: Enum[E]): Transformer[String, E] =
-    (src: String) => ev.withName(src)
+    (src: String) => ev.withNameInsensitive(src)
 
   implicit def aISOb[A, B](implicit iso: Iso[A, B]): Transformer[A, B] =
     (src: A) => iso.get(src)
