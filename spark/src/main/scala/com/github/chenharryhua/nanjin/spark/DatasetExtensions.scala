@@ -47,7 +47,7 @@ private[spark] trait DatasetExtensions {
     def toDF(implicit encoder: AvroEncoder[A], ss: SparkSession): DataFrame =
       new RddToDataFrame[A](rdd, encoder, ss).toDF
 
-    def save: NJRddFileSaver[A] = new NJRddFileSaver[A](rdd)
+    def save[F[_]]: NJRddFileSaver[F, A] = new NJRddFileSaver[F, A](rdd)
   }
 
   implicit final class TypedDatasetExt[A](private val tds: TypedDataset[A]) {
@@ -60,8 +60,8 @@ private[spark] trait DatasetExtensions {
     def dismissNulls: TypedDataset[A]   = tds.deserialized.filter(_ != null)
     def numOfNulls[F[_]: Sync]: F[Long] = tds.except(dismissNulls).count[F]()
 
-    def save: NJRddFileSaver[A] =
-      new NJRddFileSaver[A](tds.dataset.rdd)
+    def save[F[_]]: NJRddFileSaver[F, A] =
+      new NJRddFileSaver[F, A](tds.dataset.rdd)
 
   }
 

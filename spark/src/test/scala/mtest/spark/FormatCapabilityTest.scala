@@ -48,9 +48,9 @@ class FormatCapabilityTest extends AnyFunSuite {
     val multi  = "./data/test/spark/cap/avro/multi.avro"
     val rdd    = sparkSession.sparkContext.parallelize(salmon)
     val prepare = fileSink[IO](blocker).delete(single) >>
-      rdd.save.avro(single).single.run[IO](blocker) >>
+      rdd.save[IO].avro(single).single.run(blocker) >>
       fileSink[IO](blocker).delete(multi) >>
-      rdd.save.avro(multi).multi.run[IO](blocker)
+      rdd.save[IO].avro(multi).multi.run(blocker)
     prepare.unsafeRunSync()
 
     assert(sparkSession.load.avro[Salmon](single).collect().toSet == salmon.toSet)
@@ -62,9 +62,9 @@ class FormatCapabilityTest extends AnyFunSuite {
     val multi  = "./data/test/spark/cap/jackson/multi.jackson"
     val rdd    = sparkSession.sparkContext.parallelize(salmon)
     val prepare = fileSink[IO](blocker).delete(single) >>
-      rdd.save.jackson(single).single.run[IO](blocker) >>
+      rdd.save[IO].jackson(single).single.run(blocker) >>
       fileSink[IO](blocker).delete(multi) >>
-      rdd.save.jackson(multi).multi.run[IO](blocker)
+      rdd.save[IO].jackson(multi).multi.run(blocker)
     prepare.unsafeRunSync()
 
     assert(sparkSession.load.jackson[Salmon](single).collect().toSet == salmon.toSet)
@@ -86,9 +86,9 @@ class FormatCapabilityTest extends AnyFunSuite {
 
     val rdd = sparkSession.sparkContext.parallelize(salmon)
     val prepare = fileSink[IO](blocker).delete(single) >>
-      rdd.save.circe(single).single.run[IO](blocker) >>
+      rdd.save[IO].circe(single).single.run(blocker) >>
       fileSink[IO](blocker).delete(multi) >>
-      rdd.save.circe(multi).multi.run[IO](blocker)
+      rdd.save[IO].circe(multi).multi.run(blocker)
     prepare.unsafeRunSync()
 
     assert(sparkSession.load.circe[Salmon](single).collect().toSet != salmon.toSet)

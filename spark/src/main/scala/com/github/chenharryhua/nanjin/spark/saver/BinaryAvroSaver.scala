@@ -8,25 +8,24 @@ import monocle.macros.Lenses
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
-@Lenses final case class BinaryAvroSaver[A](
+@Lenses final case class BinaryAvroSaver[F[_], A](
   rdd: RDD[A],
   encoder: Encoder[A],
   outPath: String,
   saveMode: SaveMode) {
-      implicit private val enc: Encoder[A] = encoder
+  implicit private val enc: Encoder[A] = encoder
 
-
-  def mode(sm: SaveMode): BinaryAvroSaver[A] =
+  def mode(sm: SaveMode): BinaryAvroSaver[F, A] =
     BinaryAvroSaver.saveMode.set(sm)(this)
 
-  def overwrite: BinaryAvroSaver[A]     = mode(SaveMode.Overwrite)
-  def errorIfExists: BinaryAvroSaver[A] = mode(SaveMode.ErrorIfExists)
+  def overwrite: BinaryAvroSaver[F, A]     = mode(SaveMode.Overwrite)
+  def errorIfExists: BinaryAvroSaver[F, A] = mode(SaveMode.ErrorIfExists)
 
-  private def writeSingleFile[F[_]](
+  private def writeSingleFile(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     rdd.stream[F].through(fileSink[F](blocker).binAvro(outPath)).compile.drain
 
-  def run[F[_]](
+  def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     saveMode match {
       case SaveMode.Append => F.raiseError(new Exception("append mode is not support"))

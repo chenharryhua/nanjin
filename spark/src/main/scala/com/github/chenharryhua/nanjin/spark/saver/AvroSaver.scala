@@ -10,7 +10,7 @@ import org.apache.avro.Schema
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
-@Lenses final case class AvroSaver[A](
+@Lenses final case class AvroSaver[F[_], A](
   rdd: RDD[A],
   encoder: Encoder[A],
   outPath: String,
@@ -19,41 +19,40 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
   sparkOrHadoop: SparkOrHadoop) {
   implicit private val enc: Encoder[A] = encoder
 
-  def withEncoder(enc: Encoder[A]): AvroSaver[A] =
+  def withEncoder(enc: Encoder[A]): AvroSaver[F, A] =
     AvroSaver.encoder.set(enc)(this)
 
-  def withSchema(schema: Schema): AvroSaver[A] = {
+  def withSchema(schema: Schema): AvroSaver[F, A] = {
     val schemaFor: SchemaFor[A] = SchemaFor[A](schema)
-    AvroSaver.encoder[A].modify(e => e.withSchema(schemaFor))(this)
+    AvroSaver.encoder[F, A].modify(e => e.withSchema(schemaFor))(this)
   }
 
-  def mode(sm: SaveMode): AvroSaver[A] =
+  def mode(sm: SaveMode): AvroSaver[F, A] =
     AvroSaver.saveMode.set(sm)(this)
 
-  def overwrite: AvroSaver[A]     = mode(SaveMode.Overwrite)
-  def errorIfExists: AvroSaver[A] = mode(SaveMode.ErrorIfExists)
+  def overwrite: AvroSaver[F, A]     = mode(SaveMode.Overwrite)
+  def errorIfExists: AvroSaver[F, A] = mode(SaveMode.ErrorIfExists)
 
-  def single: AvroSaver[A] =
+  def single: AvroSaver[F, A] =
     AvroSaver.singleOrMulti.set(SingleOrMulti.Single)(this)
 
-  def multi: AvroSaver[A] =
+  def multi: AvroSaver[F, A] =
     AvroSaver.singleOrMulti.set(SingleOrMulti.Multi)(this)
 
-  def spark: AvroSaver[A] =
+  def spark: AvroSaver[F, A] =
     AvroSaver.sparkOrHadoop.set(SparkOrHadoop.Spark)(this)
 
-  def hadoop: AvroSaver[A] =
+  def hadoop: AvroSaver[F, A] =
     AvroSaver.sparkOrHadoop.set(SparkOrHadoop.Hadoop)(this)
 
-  private def writeSingleFile[F[_]](
+  private def writeSingleFile(
     blocker: Blocker)(implicit ss: SparkSession, F: Sync[F], cs: ContextShift[F]): F[Unit] =
     rdd.stream[F].through(fileSink[F](blocker).avro(outPath)).compile.drain
 
   private def writeMultiFiles(ss: SparkSession): Unit =
     utils.genericRecordPair(rdd, encoder, ss).saveAsNewAPIHadoopFile[NJAvroKeyOutputFormat](outPath)
 
-  def run[F[_]](
-    blocker: Blocker)(implicit ss: SparkSession, F: Sync[F], cs: ContextShift[F]): F[Unit] =
+  def run(blocker: Blocker)(implicit ss: SparkSession, F: Sync[F], cs: ContextShift[F]): F[Unit] =
     singleOrMulti match {
       case SingleOrMulti.Single =>
         saveMode match {

@@ -9,7 +9,7 @@ import monocle.macros.Lenses
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
-@Lenses final case class CsvSaver[A](
+@Lenses final case class CsvSaver[F[_], A](
   rdd: RDD[A],
   encoder: RowEncoder[A],
   csvConfiguration: CsvConfiguration,
@@ -19,22 +19,22 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
   constraint: TypedEncoder[A]) {
   implicit private val enc: RowEncoder[A] = encoder
 
-  def updateCsvConfig(f: CsvConfiguration => CsvConfiguration): CsvSaver[A] =
-    CsvSaver.csvConfiguration[A].modify(f)(this)
+  def updateCsvConfig(f: CsvConfiguration => CsvConfiguration): CsvSaver[F, A] =
+    CsvSaver.csvConfiguration[F, A].modify(f)(this)
 
-  def mode(sm: SaveMode): CsvSaver[A] =
+  def mode(sm: SaveMode): CsvSaver[F, A] =
     CsvSaver.saveMode.set(sm)(this)
 
-  def overwrite: CsvSaver[A]     = mode(SaveMode.Overwrite)
-  def errorIfExists: CsvSaver[A] = mode(SaveMode.ErrorIfExists)
+  def overwrite: CsvSaver[F, A]     = mode(SaveMode.Overwrite)
+  def errorIfExists: CsvSaver[F, A] = mode(SaveMode.ErrorIfExists)
 
-  def single: CsvSaver[A] =
+  def single: CsvSaver[F, A] =
     CsvSaver.singleOrMulti.set(SingleOrMulti.Single)(this)
 
-  def multi: CsvSaver[A] =
+  def multi: CsvSaver[F, A] =
     CsvSaver.singleOrMulti.set(SingleOrMulti.Multi)(this)
 
-  private def writeSingleFile[F[_]](
+  private def writeSingleFile(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     rdd.stream[F].through(fileSink[F](blocker).csv(outPath, csvConfiguration)).compile.drain
 
@@ -48,7 +48,7 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
       .option("charset", "UTF8")
       .csv(outPath)
 
-  def run[F[_]](
+  def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     singleOrMulti match {
       case SingleOrMulti.Single =>

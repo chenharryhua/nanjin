@@ -8,7 +8,7 @@ import monocle.macros.Lenses
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
-@Lenses final case class CirceJsonSaver[A](
+@Lenses final case class CirceJsonSaver[F[_], A](
   rdd: RDD[A],
   encoder: Encoder[A],
   outPath: String,
@@ -17,26 +17,26 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
   implicit private val enc: Encoder[A] = encoder
 
-  def mode(sm: SaveMode): CirceJsonSaver[A] =
+  def mode(sm: SaveMode): CirceJsonSaver[F, A] =
     CirceJsonSaver.saveMode.set(sm)(this)
 
-  def overwrite: CirceJsonSaver[A]     = mode(SaveMode.Overwrite)
-  def errorIfExists: CirceJsonSaver[A] = mode(SaveMode.ErrorIfExists)
+  def overwrite: CirceJsonSaver[F, A]     = mode(SaveMode.Overwrite)
+  def errorIfExists: CirceJsonSaver[F, A] = mode(SaveMode.ErrorIfExists)
 
-  def single: CirceJsonSaver[A] =
+  def single: CirceJsonSaver[F, A] =
     CirceJsonSaver.singleOrMulti.set(SingleOrMulti.Single)(this)
 
-  def multi: CirceJsonSaver[A] =
+  def multi: CirceJsonSaver[F, A] =
     CirceJsonSaver.singleOrMulti.set(SingleOrMulti.Multi)(this)
 
-  private def writeSingleFile[F[_]](
+  private def writeSingleFile(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     rdd.stream[F].through(fileSink[F](blocker).circe(outPath)).compile.drain
 
   private def writeMultiFiles(ss: SparkSession): Unit =
     rdd.map(encoder(_).noSpaces).saveAsTextFile(outPath)
 
-  def run[F[_]](
+  def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     singleOrMulti match {
       case SingleOrMulti.Single =>

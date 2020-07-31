@@ -13,7 +13,7 @@ import org.apache.parquet.avro.{AvroParquetOutputFormat, GenericDataSupplier}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
-@Lenses final case class ParquetSaver[A](
+@Lenses final case class ParquetSaver[F[_], A](
   rdd: RDD[A],
   encoder: Encoder[A],
   outPath: String,
@@ -25,33 +25,33 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
   implicit private val te: TypedEncoder[A] = constraint
   implicit private val enc: Encoder[A]     = encoder
 
-  def withEncoder(enc: Encoder[A]): ParquetSaver[A] =
+  def withEncoder(enc: Encoder[A]): ParquetSaver[F, A] =
     ParquetSaver.encoder.set(enc)(this)
 
-  def withSchema(schema: Schema): ParquetSaver[A] = {
+  def withSchema(schema: Schema): ParquetSaver[F, A] = {
     val schemaFor: SchemaFor[A] = SchemaFor[A](schema)
-    ParquetSaver.encoder[A].modify(e => e.withSchema(schemaFor))(this)
+    ParquetSaver.encoder[F, A].modify(e => e.withSchema(schemaFor))(this)
   }
 
-  def mode(sm: SaveMode): ParquetSaver[A] =
+  def mode(sm: SaveMode): ParquetSaver[F, A] =
     ParquetSaver.saveMode.set(sm)(this)
 
-  def overwrite: ParquetSaver[A]     = mode(SaveMode.Overwrite)
-  def errorIfExists: ParquetSaver[A] = mode(SaveMode.ErrorIfExists)
+  def overwrite: ParquetSaver[F, A]     = mode(SaveMode.Overwrite)
+  def errorIfExists: ParquetSaver[F, A] = mode(SaveMode.ErrorIfExists)
 
-  def single: ParquetSaver[A] =
+  def single: ParquetSaver[F, A] =
     ParquetSaver.singleOrMulti.set(SingleOrMulti.Single)(this)
 
-  def multi: ParquetSaver[A] =
+  def multi: ParquetSaver[F, A] =
     ParquetSaver.singleOrMulti.set(SingleOrMulti.Multi)(this)
 
-  def spark: ParquetSaver[A] =
+  def spark: ParquetSaver[F, A] =
     ParquetSaver.sparkOrHadoop.set(SparkOrHadoop.Spark)(this)
 
-  def hadoop: ParquetSaver[A] =
+  def hadoop: ParquetSaver[F, A] =
     ParquetSaver.sparkOrHadoop.set(SparkOrHadoop.Hadoop)(this)
 
-  private def writeSingleFile[F[_]](
+  private def writeSingleFile(
     blocker: Blocker)(implicit ss: SparkSession, F: Sync[F], cs: ContextShift[F]): F[Unit] =
     rdd.stream[F].through(fileSink[F](blocker).parquet(outPath)).compile.drain
 
@@ -69,8 +69,7 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
         classOf[AvroParquetOutputFormat[GenericRecord]])
   }
 
-  def run[F[_]](
-    blocker: Blocker)(implicit ss: SparkSession, F: Sync[F], cs: ContextShift[F]): F[Unit] =
+  def run(blocker: Blocker)(implicit ss: SparkSession, F: Sync[F], cs: ContextShift[F]): F[Unit] =
     singleOrMulti match {
       case SingleOrMulti.Single =>
         saveMode match {

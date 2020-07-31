@@ -8,7 +8,7 @@ import monocle.macros.Lenses
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
-@Lenses final case class TextSaver[A](
+@Lenses final case class TextSaver[F[_], A](
   rdd: RDD[A],
   encoder: Show[A],
   outPath: String,
@@ -16,26 +16,26 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
   singleOrMulti: SingleOrMulti) {
   implicit private val enc: Show[A] = encoder
 
-  def mode(sm: SaveMode): TextSaver[A] =
+  def mode(sm: SaveMode): TextSaver[F, A] =
     TextSaver.saveMode.set(sm)(this)
 
-  def overwrite: TextSaver[A]     = mode(SaveMode.Overwrite)
-  def errorIfExists: TextSaver[A] = mode(SaveMode.ErrorIfExists)
+  def overwrite: TextSaver[F, A]     = mode(SaveMode.Overwrite)
+  def errorIfExists: TextSaver[F, A] = mode(SaveMode.ErrorIfExists)
 
-  def single: TextSaver[A] =
+  def single: TextSaver[F, A] =
     TextSaver.singleOrMulti.set(SingleOrMulti.Single)(this)
 
-  def multi: TextSaver[A] =
+  def multi: TextSaver[F, A] =
     TextSaver.singleOrMulti.set(SingleOrMulti.Multi)(this)
 
-  private def writeSingleFile[F[_]](
+  private def writeSingleFile(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     rdd.stream[F].through(fileSink[F](blocker).text(outPath)).compile.drain
 
   private def writeMultiFiles(ss: SparkSession): Unit =
     rdd.map(encoder.show).saveAsTextFile(outPath)
 
-  def run[F[_]](
+  def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     singleOrMulti match {
       case SingleOrMulti.Single =>

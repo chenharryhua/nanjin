@@ -9,7 +9,7 @@ import monocle.macros.Lenses
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
-@Lenses final case class JacksonSaver[A](
+@Lenses final case class JacksonSaver[F[_], A](
   rdd: RDD[A],
   encoder: Encoder[A],
   outPath: String,
@@ -18,19 +18,19 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
   implicit private val enc: Encoder[A] = encoder
 
-  def mode(sm: SaveMode): JacksonSaver[A] =
+  def mode(sm: SaveMode): JacksonSaver[F, A] =
     JacksonSaver.saveMode.set(sm)(this)
 
-  def overwrite: JacksonSaver[A]     = mode(SaveMode.Overwrite)
-  def errorIfExists: JacksonSaver[A] = mode(SaveMode.ErrorIfExists)
+  def overwrite: JacksonSaver[F, A]     = mode(SaveMode.Overwrite)
+  def errorIfExists: JacksonSaver[F, A] = mode(SaveMode.ErrorIfExists)
 
-  def single: JacksonSaver[A] =
+  def single: JacksonSaver[F, A] =
     JacksonSaver.singleOrMulti.set(SingleOrMulti.Single)(this)
 
-  def multi: JacksonSaver[A] =
+  def multi: JacksonSaver[F, A] =
     JacksonSaver.singleOrMulti.set(SingleOrMulti.Multi)(this)
 
-  private def writeSingleFile[F[_]](
+  private def writeSingleFile(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     rdd.stream[F].through(fileSink[F](blocker).jackson(outPath)).compile.drain
 
@@ -39,7 +39,7 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
       .genericRecordPair(rdd, encoder, ss)
       .saveAsNewAPIHadoopFile[NJJacksonKeyOutputFormat](outPath)
 
-  def run[F[_]](
+  def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     singleOrMulti match {
       case SingleOrMulti.Single =>

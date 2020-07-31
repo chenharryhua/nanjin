@@ -5,9 +5,9 @@ import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
-final class JavaObjectSaver[A](rdd: RDD[A], outPath: String) extends Serializable {
+final class JavaObjectSaver[F[_], A](rdd: RDD[A], outPath: String) extends Serializable {
 
-  def run[F[_]](
+  def run(
     blocker: Blocker)(implicit F: Concurrent[F], ce: ContextShift[F], ss: SparkSession): F[Unit] =
     rdd.stream[F].through(fileSink[F](blocker).javaObject(outPath)).compile.drain
 
