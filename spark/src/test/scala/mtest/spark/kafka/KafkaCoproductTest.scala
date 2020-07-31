@@ -51,7 +51,7 @@ class KafkaCoproductTest extends AnyFunSuite {
   test("sparKafka not work with case object -- task serializable issue(avro4s) - happy failure") {
     val data = List(topicCO.fs2PR(0, co1), topicCO.fs2PR(1, co2))
     val path = "./data/test/spark/kafka/coproduct/caseobject.avro"
-    val sk   = topicCO.sparKafka.withParamUpdate(_.withPathBuilder((_, _) => path))
+    val sk   = topicCO.sparKafka
 
     val run = topicCO.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicCO.schemaRegister >>
@@ -64,7 +64,7 @@ class KafkaCoproductTest extends AnyFunSuite {
   test("sparKafka should be sent to kafka and save to single avro") {
     val data = List(topicEnum.fs2PR(0, en1), topicEnum.fs2PR(1, en2))
     val path = "./data/test/spark/kafka/coproduct/scalaenum.avro"
-    val sk   = topicEnum.sparKafka.withParamUpdate(_.withPathBuilder((_, _) => path))
+    val sk   = topicEnum.sparKafka
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegister >>
@@ -77,7 +77,7 @@ class KafkaCoproductTest extends AnyFunSuite {
   test("sparKafka should be sent to kafka and save to multi avro") {
     val data = List(topicEnum.fs2PR(0, en1), topicEnum.fs2PR(1, en2))
     val path = "./data/test/spark/kafka/coproduct/multi-scalaenum.avro"
-    val sk   = topicEnum.sparKafka.withParamUpdate(_.withPathBuilder((_, _) => path))
+    val sk   = topicEnum.sparKafka
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegister >>
@@ -90,7 +90,7 @@ class KafkaCoproductTest extends AnyFunSuite {
   test("sparKafka should be sent to kafka and save to single jackson") {
     val data = List(topicCoProd.fs2PR(0, cp1), topicCoProd.fs2PR(1, cp2))
     val path = "./data/test/spark/kafka/coproduct/coprod.json"
-    val sk   = topicCoProd.sparKafka.withParamUpdate(_.withPathBuilder((_, _) => path))
+    val sk   = topicCoProd.sparKafka
 
     val run = topicCoProd.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicCoProd.schemaRegister >>
@@ -103,7 +103,7 @@ class KafkaCoproductTest extends AnyFunSuite {
   test("sparKafka should be sent to kafka and save to multi jackson") {
     val data = List(topicCoProd.fs2PR(0, cp1), topicCoProd.fs2PR(1, cp2))
     val path = "./data/test/spark/kafka/coproduct/multi-coprod.json"
-    val sk   = topicCoProd.sparKafka.withParamUpdate(_.withPathBuilder((_, _) => path))
+    val sk   = topicCoProd.sparKafka
 
     val run = topicCoProd.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicCoProd.schemaRegister >>

@@ -42,19 +42,5 @@ private[kafka] trait SparKafkaReadModule[F[_], K, V] {
       jsonKeyDecoder: JsonDecoder[K],
       jsonValDecoder: JsonDecoder[V]): CrRdd[F, K, V] =
       new CrRdd[F, K, V](fileLoader.circe[OptionalKV[K, V]](pathStr), topic.topicName, cfg)
-
-    def avro: CrRdd[F, K, V] =
-      avro(params.pathBuilder(topic.topicName, NJFileFormat.Avro))
-
-    def jackson: CrRdd[F, K, V] =
-      jackson(params.pathBuilder(topic.topicName, NJFileFormat.Jackson))
-
-    def parquet(implicit k: TypedEncoder[K], v: TypedEncoder[V]): CrRdd[F, K, V] =
-      parquet(params.pathBuilder(topic.topicName, NJFileFormat.Parquet))
-
-    def circe(implicit
-      jsonKeyDecoder: JsonDecoder[K],
-      jsonValDecoder: JsonDecoder[V]): CrRdd[F, K, V] =
-      circe(params.pathBuilder(topic.topicName, NJFileFormat.CirceJson))
   }
 }

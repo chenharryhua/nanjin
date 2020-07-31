@@ -31,7 +31,7 @@ class SaveDateTimeTest extends AnyFunSuite {
   import SaveTestData._
 
   def sk(path: String): SparKafka[IO, Int, Chicken] =
-    topic.sparKafka(range).withParamUpdate(_.withPathBuilder((_, _) => path))
+    topic.sparKafka(range)
 
   val chickenPR: List[ProducerRecord[Int, Chicken]] =
     List.fill(100)(
