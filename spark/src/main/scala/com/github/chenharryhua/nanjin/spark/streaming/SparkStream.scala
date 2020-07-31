@@ -7,16 +7,16 @@ import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
 
-trait SparkStreamUpdateParams[A] extends UpdateParams[StreamConfig, A] with Serializable {
-  def params: StreamParams
+trait SparkStreamUpdateParams[A] extends UpdateParams[NJStreamConfig, A] with Serializable {
+  def params: NJStreamParams
 }
 
-final class SparkStream[F[_], A: TypedEncoder](ds: Dataset[A], cfg: StreamConfig)
+final class SparkStream[F[_], A: TypedEncoder](ds: Dataset[A], cfg: NJStreamConfig)
     extends SparkStreamUpdateParams[SparkStream[F, A]] {
 
-  override val params: StreamParams = cfg.evalConfig
+  override val params: NJStreamParams = cfg.evalConfig
 
-  override def withParamUpdate(f: StreamConfig => StreamConfig): SparkStream[F, A] =
+  override def withParamUpdate(f: NJStreamConfig => NJStreamConfig): SparkStream[F, A] =
     new SparkStream[F, A](ds, f(cfg))
 
   @transient lazy val typedDataset: TypedDataset[A] = TypedDataset.create(ds)
@@ -43,7 +43,7 @@ final class SparkStream[F[_], A: TypedEncoder](ds: Dataset[A], cfg: StreamConfig
   def fileSink(path: String): NJFileSink[F, A] =
     new NJFileSink[F, A](ds.writeStream, cfg, path)
 
-  def kafkaSink[K: TypedEncoder, V: TypedEncoder](kit: KafkaTopic[F, K, V])(
-    implicit ev: A =:= NJProducerRecord[K, V]): NJKafkaSink[F] =
+  def kafkaSink[K: TypedEncoder, V: TypedEncoder](kit: KafkaTopic[F, K, V])(implicit
+    ev: A =:= NJProducerRecord[K, V]): NJKafkaSink[F] =
     new KafkaPRStream[F, K, V](typedDataset.deserialized.map(ev).dataset, cfg).kafkaSink(kit)
 }

@@ -5,7 +5,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.{NJProducerRecord, OptionalKV}
-import com.github.chenharryhua.nanjin.spark.streaming.{KafkaCRStream, SparkStream, StreamConfig}
+import com.github.chenharryhua.nanjin.spark.streaming.{KafkaCRStream, NJStreamConfig, SparkStream}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.{SparkDelay, TypedDataset, TypedEncoder}
 import org.apache.avro.Schema
@@ -87,7 +87,7 @@ final class SparKafka[F[_], K, V](val topic: KafkaTopic[F, K, V], val cfg: SKCon
       .map(s =>
         new SparkStream(
           s.dataset,
-          StreamConfig(params.timeRange, params.showDs)
+          NJStreamConfig(params.timeRange, params.showDs)
             .withCheckpointAppend(s"kafka/${topic.topicName.value}")))
 
   def streaming(implicit
@@ -98,6 +98,6 @@ final class SparKafka[F[_], K, V](val topic: KafkaTopic[F, K, V], val cfg: SKCon
       .map(s =>
         new KafkaCRStream[F, K, V](
           s.dataset,
-          StreamConfig(params.timeRange, params.showDs)
+          NJStreamConfig(params.timeRange, params.showDs)
             .withCheckpointAppend(s"kafkacr/${topic.topicName.value}")))
 }
