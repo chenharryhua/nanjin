@@ -8,15 +8,15 @@ import org.apache.spark.sql.Dataset
 
 final class KafkaPRStream[F[_], K: TypedEncoder, V: TypedEncoder](
   ds: Dataset[NJProducerRecord[K, V]],
-  cfg: StreamConfig
+  cfg: NJStreamConfig
 ) extends SparkStreamUpdateParams[KafkaPRStream[F, K, V]] {
 
-  override def withParamUpdate(f: StreamConfig => StreamConfig): KafkaPRStream[F, K, V] =
+  override def withParamUpdate(f: NJStreamConfig => NJStreamConfig): KafkaPRStream[F, K, V] =
     new KafkaPRStream[F, K, V](ds, f(cfg))
 
   @transient lazy val typedDataset: TypedDataset[NJProducerRecord[K, V]] = TypedDataset.create(ds)
 
-  override val params: StreamParams = cfg.evalConfig
+  override val params: NJStreamParams = cfg.evalConfig
 
   def someValues: KafkaPRStream[F, K, V] =
     new KafkaPRStream[F, K, V](typedDataset.filter(typedDataset('value).isNotNone).dataset, cfg)

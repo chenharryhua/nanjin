@@ -17,15 +17,15 @@ final case class DatePartitionedCR[K, V](
 
 final class KafkaCRStream[F[_], K: TypedEncoder, V: TypedEncoder](
   ds: Dataset[OptionalKV[K, V]],
-  cfg: StreamConfig)
+  cfg: NJStreamConfig)
     extends SparkStreamUpdateParams[KafkaCRStream[F, K, V]] {
 
-  override def withParamUpdate(f: StreamConfig => StreamConfig): KafkaCRStream[F, K, V] =
+  override def withParamUpdate(f: NJStreamConfig => NJStreamConfig): KafkaCRStream[F, K, V] =
     new KafkaCRStream[F, K, V](ds, f(cfg))
 
   @transient lazy val typedDataset: TypedDataset[OptionalKV[K, V]] = TypedDataset.create(ds)
 
-  override val params: StreamParams = cfg.evalConfig
+  override val params: NJStreamParams = cfg.evalConfig
 
   def someValues: KafkaCRStream[F, K, V] =
     new KafkaCRStream[F, K, V](typedDataset.filter(typedDataset('value).isNotNone).dataset, cfg)

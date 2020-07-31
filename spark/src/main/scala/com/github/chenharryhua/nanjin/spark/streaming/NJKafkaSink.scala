@@ -11,12 +11,12 @@ import org.apache.spark.sql.streaming.{DataStreamWriter, StreamingQueryProgress}
 
 final class NJKafkaSink[F[_]](
   dsw: DataStreamWriter[NJProducerRecord[Array[Byte], Array[Byte]]],
-  cfg: StreamConfig,
+  cfg: NJStreamConfig,
   producer: KafkaProducerSettings,
   topicName: TopicName
 ) extends NJStreamSink[F] {
 
-  override val params: StreamParams = cfg.evalConfig
+  override val params: NJStreamParams = cfg.evalConfig
 
   //  https://spark.apache.org/docs/2.4.5/structured-streaming-kafka-integration.html
   private def producerOptions(m: Map[String, String]): Map[String, String] = {
@@ -25,8 +25,8 @@ final class NJKafkaSink[F[_]](
     rm1.andThen(rm2)(m).map { case (k, v) => s"kafka.$k" -> v }
   }
 
-  override def queryStream(
-    implicit F: Concurrent[F],
+  override def queryStream(implicit
+    F: Concurrent[F],
     timer: Timer[F]): Stream[F, StreamingQueryProgress] =
     ss.queryStream(
       dsw
