@@ -2,9 +2,10 @@ package com.github.chenharryhua.nanjin.spark
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
-import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync}
+import cats.effect.{Blocker, ConcurrentEffect, Resource, Sync}
 import cats.implicits._
 import cats.kernel.Eq
+import com.github.chenharryhua.nanjin.spark.saver.NJRddFileSaver
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
@@ -30,6 +31,9 @@ private[spark] trait DatasetExtensions {
     def typedDataset(implicit ev: TypedEncoder[A], ss: SparkSession): TypedDataset[A] =
       TypedDataset.create(rdd)
 
+    def resource[F[_]](implicit F: Sync[F]): Resource[F, RDD[A]] =
+      Resource.make[F, RDD[A]](F.delay(rdd.persist()))(a => F.delay(a.unpersist(true)).as(()))
+
     def partitionSink[F[_]: Sync, K: ClassTag: Eq](bucketing: A => K)(
       out: K => Pipe[F, A, Unit]): F[Long] = {
       val persisted: RDD[A] = rdd.persist()
@@ -41,21 +45,9 @@ private[spark] trait DatasetExtensions {
     }
 
     def toDF(implicit encoder: AvroEncoder[A], ss: SparkSession): DataFrame =
-      new RddToDataFrame[A](rdd).toDF
+      new RddToDataFrame[A](rdd, encoder, ss).toDF
 
-    object save {
-
-      def multi[F[_]](blocker: Blocker)(implicit
-        ss: SparkSession,
-        cs: ContextShift[F],
-        F: Sync[F]): RddPersistMultiFile[F, A] =
-        new RddPersistMultiFile[F, A](rdd, blocker)
-
-      def single[F[_]](blocker: Blocker)(implicit
-        ss: SparkSession,
-        cs: ContextShift[F]): RddPersistSingleFile[F, A] =
-        new RddPersistSingleFile[F, A](rdd, blocker)
-    }
+    def save: NJRddFileSaver[A] = new NJRddFileSaver[A](rdd)
   }
 
   implicit final class TypedDatasetExt[A](private val tds: TypedDataset[A]) {
@@ -68,19 +60,9 @@ private[spark] trait DatasetExtensions {
     def dismissNulls: TypedDataset[A]   = tds.deserialized.filter(_ != null)
     def numOfNulls[F[_]: Sync]: F[Long] = tds.except(dismissNulls).count[F]()
 
-    object save {
+    def save: NJRddFileSaver[A] =
+      new NJRddFileSaver[A](tds.dataset.rdd)
 
-      def multi[F[_]](blocker: Blocker)(implicit
-        ss: SparkSession,
-        cs: ContextShift[F],
-        F: Sync[F]): RddPersistMultiFile[F, A] =
-        tds.dataset.rdd.save.multi(blocker)
-
-      def single[F[_]](blocker: Blocker)(implicit
-        ss: SparkSession,
-        cs: ContextShift[F]): RddPersistSingleFile[F, A] =
-        tds.dataset.rdd.save.single(blocker)
-    }
   }
 
   implicit final class DataframeExt(private val df: DataFrame) {

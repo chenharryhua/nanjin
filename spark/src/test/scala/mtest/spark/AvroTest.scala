@@ -35,7 +35,8 @@ object AvroTestData {
   val serde = WithAvroSchema[HasByteArray](schema)
   println(serde.right.get.schemaFor.schema)
 
-  val data = List.fill(10)(HasByteArray("a", Array[Byte](1, 2, 3, 4, 5, 6, 7, 8, 9, Random.nextInt().toByte)))
+  val data = List.fill(10)(
+    HasByteArray("a", Array[Byte](1, 2, 3, 4, 5, 6, 7, 8, 9, Random.nextInt().toByte)))
 
 }
 

@@ -12,6 +12,9 @@ import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import kantan.csv.generic._
 import kantan.csv.java8._
+import kantan.csv.RowEncoder
+import kantan.csv.RowDecoder
+import com.sksamuel.avro4s.Encoder
 
 object SingleWriteSparkReadTestData {
   final case class Elephant(birthDay: LocalDateTime, weight: Double, food: List[String])
@@ -31,35 +34,43 @@ class SingleWriteSparkReadTest extends AnyFunSuite {
   implicit val zoneId      = sydneyTime
 
   test("spark source is able to read varying length csv") {
-    val path    = "./data/test/spark/sse/elephant-spark.csv"
-    val data    = Stream.emits(elephants)
-    val prepare = delete(path) >> data.through(sink.csv[Elephant](path)).compile.drain
+    val path = "./data/test/spark/sse/elephant-spark.csv"
+    val data = Stream.emits(elephants)
+    val prepare =
+      delete(path) >> data.through(sink.csv[Elephant](path)).compile.drain
     prepare.unsafeRunSync()
 
-    val rst = fileSource[IO](blocker).csv[Elephant](path).compile.toList.unsafeRunSync()
+    val rst = fileSource[IO](blocker)
+      .csv[Elephant](path)
+      .compile
+      .toList
+      .unsafeRunSync()
     assert(rst.toSet == elephants.toSet)
   }
   test("spark is unable to read varying lengh csv") {
-    val path    = "./data/test/spark/sse/elephant-nj.csv"
-    val data    = Stream.emits(elephants)
-    val prepare = delete(path) >> data.through(sink.csv[Elephant](path)).compile.drain
+    val path = "./data/test/spark/sse/elephant-nj.csv"
+    val data = Stream.emits(elephants)
+    val prepare =
+      delete(path) >> data.through(sink.csv[Elephant](path)).compile.drain
     prepare.unsafeRunSync()
     assertThrows[Exception](sparkSession.load.csv[Elephant](path).collect.toSet == elephants.toSet)
   }
 
   test("spark avro read/write identity") {
-    val path    = "./data/test/spark/sse/elephant.avro"
-    val data    = Stream.emits(elephants)
-    val prepare = delete(path) >> data.through(sink.avro[Elephant](path)).compile.drain
+    val path = "./data/test/spark/sse/elephant.avro"
+    val data = Stream.emits(elephants)
+    val prepare =
+      delete(path) >> data.through(sink.avro[Elephant](path)).compile.drain
     prepare.unsafeRunSync()
     val rst = sparkSession.load.avro[Elephant](path).collect.toSet
     assert(rst == elephants.toSet)
   }
 
   test("spark parquet read/write identity") {
-    val path    = "./data/test/spark/sse/elephant.parquet"
-    val data    = Stream.emits(elephants)
-    val prepare = delete(path) >> data.through(sink.parquet[Elephant](path)).compile.drain
+    val path = "./data/test/spark/sse/elephant.parquet"
+    val data = Stream.emits(elephants)
+    val prepare =
+      delete(path) >> data.through(sink.parquet[Elephant](path)).compile.drain
     prepare.unsafeRunSync()
     val rst = sparkSession.load.parquet[Elephant](path).collect.toSet
     assert(rst == elephants.toSet)

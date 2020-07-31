@@ -48,7 +48,7 @@ class MultiSaveTest extends AnyFunSuite {
     val path = "./data/test/spark/kafka/multi/avro"
 
     val rst =
-      topic.sparKafka.fromKafka.flatMap(_.repartition(3).save.multi(blocker).avro(path)) >> IO {
+      topic.sparKafka.fromKafka.flatMap(_.repartition(3).save.avro(path).multi.run[IO](blocker)) >> IO {
         topic.sparKafka.load.avro(path).rdd.collect.flatMap(_.value).toSet
       }
     assert(rst.unsafeRunSync() == food.toSet)
@@ -56,7 +56,7 @@ class MultiSaveTest extends AnyFunSuite {
   test("multi-save jackson") {
     val path = "./data/test/spark/kafka/multi/jackson"
     val rst =
-      topic.sparKafka.fromKafka.flatMap(_.repartition(3).save.multi(blocker).jackson(path)) >> IO {
+      topic.sparKafka.fromKafka.flatMap(_.repartition(3).save.jackson(path).multi.run[IO](blocker)) >> IO {
         topic.sparKafka.load.jackson(path).rdd.collect().flatMap(_.value).toSet
       }
     assert(rst.unsafeRunSync() == food.toSet)

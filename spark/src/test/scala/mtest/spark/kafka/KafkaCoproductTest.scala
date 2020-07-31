@@ -56,7 +56,7 @@ class KafkaCoproductTest extends AnyFunSuite {
     val run = topicCO.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicCO.schemaRegister >>
       topicCO.send(data) >>
-      sk.fromKafka.flatMap(_.save.single(blocker).avro) >>
+      sk.fromKafka.flatMap(_.save.avro(path).single.run[IO](blocker)) >>
       IO(sk.load.avro(path).rdd.take(10).toSet)
     intercept[Exception](run.unsafeRunSync().flatMap(_.value) == Set(co1, co2))
   }
@@ -69,7 +69,7 @@ class KafkaCoproductTest extends AnyFunSuite {
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegister >>
       topicEnum.send(data) >>
-      sk.fromKafka.flatMap(_.save.single(blocker).avro) >>
+      sk.fromKafka.flatMap(_.save.avro(path).single.run[IO](blocker)) >>
       IO(sk.load.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
@@ -82,7 +82,7 @@ class KafkaCoproductTest extends AnyFunSuite {
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegister >>
       topicEnum.send(data) >>
-      sk.fromKafka.flatMap(_.save.multi(blocker).avro) >>
+      sk.fromKafka.flatMap(_.save.avro(path).multi.run[IO](blocker)) >>
       IO(sk.load.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
@@ -95,7 +95,7 @@ class KafkaCoproductTest extends AnyFunSuite {
     val run = topicCoProd.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicCoProd.schemaRegister >>
       topicCoProd.send(data) >>
-      sk.fromKafka.flatMap(_.save.single(blocker).jackson) >>
+      sk.fromKafka.flatMap(_.save.jackson(path).single.run[IO](blocker)) >>
       IO(sk.load.jackson(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(cp1, cp2))
   }
@@ -108,7 +108,7 @@ class KafkaCoproductTest extends AnyFunSuite {
     val run = topicCoProd.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicCoProd.schemaRegister >>
       topicCoProd.send(data) >>
-      sk.fromKafka.flatMap(_.save.multi(blocker).jackson) >>
+      sk.fromKafka.flatMap(_.save.jackson(path).multi.run[IO](blocker)) >>
       IO(sk.load.jackson(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(cp1, cp2))
   }

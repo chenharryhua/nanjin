@@ -6,8 +6,7 @@ import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
 import fs2.{Pipe, Stream}
 import org.apache.avro.generic.GenericRecord
 
-final class GenericRecordEncoder[F[_], A](implicit
-  enc: AvroEncoder[A],
+final class GenericRecordEncoder[F[_], A](enc: AvroEncoder[A])(implicit
   F: ApplicativeError[F, Throwable]) {
 
   def encode: Pipe[F, A, GenericRecord] =
@@ -21,7 +20,7 @@ final class GenericRecordEncoder[F[_], A](implicit
       }
 }
 
-final class GenericRecordDecoder[F[_], A](implicit dec: AvroDecoder[A]) {
+final class GenericRecordDecoder[F[_], A](dec: AvroDecoder[A]) {
 
   def decode: Pipe[F, GenericRecord, A] =
     (ss: Stream[F, GenericRecord]) => ss.map(rec => dec.decode(rec))
