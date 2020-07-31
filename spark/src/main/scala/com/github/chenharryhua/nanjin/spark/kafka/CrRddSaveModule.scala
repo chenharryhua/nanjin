@@ -1,13 +1,16 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Show
-import cats.effect.Blocker
 import cats.implicits._
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.spark.saver._
 import frameless.TypedEncoder
 import frameless.cats.implicits.rddOps
 import io.circe.{Encoder => JsonEncoder}
+import kantan.csv.RowEncoder
+import scalapb.GeneratedMessage
+
+import scala.reflect.ClassTag
 
 private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
 
@@ -29,6 +32,16 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
 
     def javaObject(pathStr: String): JavaObjectSaver[F, OptionalKV[K, V]] =
       saver.javaObject(pathStr)
+
+    def csv[A: RowEncoder](pathStr: String)(f: OptionalKV[K, V] => A)(implicit
+      ev: TypedEncoder[A]): CsvSaver[F, A] = {
+      import ev.classTag
+      saver.map(f).csv(pathStr)
+    }
+
+    def protobuf[A: ClassTag](pathStr: String)(f: OptionalKV[K, V] => A)(implicit
+      ev: A <:< GeneratedMessage): ProtobufSaver[F, A] =
+      saver.map(f).protobuf(pathStr)
 
     def dump(pathStr: String): Dumper[F, OptionalKV[K, V]] =
       saver.dump(pathStr)
