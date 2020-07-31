@@ -43,14 +43,69 @@ class CompatTest extends AnyFunSuite {
     // assert(rst == pigeons.toSet)
   }
 
-  test("nj generated avro can be consumed by spark - multi") {
+  test("hadoop avro can be consumed by spark - multi") {
     import sparkSession.implicits._
-    val path = "./data/test/spark/compat/nj-multi.avro"
+    val path = "./data/test/spark/compat/nj-hadoop-multi.avro"
 
     TypedDataset
       .create(sparkSession.sparkContext.parallelize(pigeons))
       .save[IO]
       .avro(path)
+      .multi
+      .hadoop
+      .run(blocker)
+      .unsafeRunSync()
+
+    val rst = sparkSession.read.format("avro").load(path).as[Pigeon].collect().toSet
+
+    assert(rst == pigeons.toSet)
+  }
+
+  test("hadoop parquet can be consumed by spark - multi") {
+    import sparkSession.implicits._
+    val path = "./data/test/spark/compat/nj-hadoop-multi.parquet"
+
+    TypedDataset
+      .create(sparkSession.sparkContext.parallelize(pigeons))
+      .save[IO]
+      .parquet(path)
+      .multi
+      .hadoop
+      .run(blocker)
+      .unsafeRunSync()
+
+    val rst = sparkSession.read.parquet(path).as[Pigeon].collect().toSet
+
+    assert(rst == pigeons.toSet)
+  }
+
+  test("spark parquet - multi") {
+    import sparkSession.implicits._
+    val path = "./data/test/spark/compat/nj-spark-multi.parquet"
+
+    TypedDataset
+      .create(sparkSession.sparkContext.parallelize(pigeons))
+      .save[IO]
+      .parquet(path)
+      .spark
+      .multi
+      .run(blocker)
+      .unsafeRunSync()
+
+    val rst = sparkSession.read.parquet(path).as[Pigeon].collect().toSet
+
+    assert(rst == pigeons.toSet)
+  }
+  test("spark avro - multi") {
+    import sparkSession.implicits._
+    val path = "./data/test/spark/compat/nj-spark-multi.avro"
+
+    TypedDataset
+      .create(sparkSession.sparkContext.parallelize(pigeons))
+      .save[IO]
+      .avro(path)
+      .spark
+      .multi
       .run(blocker)
       .unsafeRunSync()
 
@@ -67,6 +122,8 @@ class CompatTest extends AnyFunSuite {
       .create(sparkSession.sparkContext.parallelize(pigeons))
       .save[IO]
       .parquet(path)
+      .hadoop
+      .multi
       .run(blocker)
       .unsafeRunSync()
 
@@ -86,6 +143,7 @@ class CompatTest extends AnyFunSuite {
       .save[IO]
       .avro(path)
       .single
+      .hadoop
       .run(blocker)
       .unsafeRunSync()
 
@@ -105,6 +163,7 @@ class CompatTest extends AnyFunSuite {
       .save[IO]
       .parquet(path)
       .single
+      .hadoop
       .run(blocker)
       .unsafeRunSync()
 
