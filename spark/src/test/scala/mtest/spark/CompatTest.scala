@@ -11,6 +11,7 @@ import org.apache.spark.sql.SaveMode
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
+import cats.effect.IO
 
 object CompatTestData {
   final case class Pigeon(canFly: Boolean, legs: Int, weight: Float, now: Timestamp)
@@ -48,9 +49,9 @@ class CompatTest extends AnyFunSuite {
 
     TypedDataset
       .create(sparkSession.sparkContext.parallelize(pigeons))
-      .save
-      .multi(blocker)
+      .save[IO]
       .avro(path)
+      .run(blocker)
       .unsafeRunSync()
 
     val rst = sparkSession.read.format("avro").load(path).as[Pigeon].collect().toSet
@@ -64,9 +65,9 @@ class CompatTest extends AnyFunSuite {
 
     TypedDataset
       .create(sparkSession.sparkContext.parallelize(pigeons))
-      .save
-      .multi(blocker)
+      .save[IO]
       .parquet(path)
+      .run(blocker)
       .unsafeRunSync()
 
     val rst = sparkSession.read.parquet(path).as[Pigeon].collect().toSet
@@ -82,9 +83,10 @@ class CompatTest extends AnyFunSuite {
       .create(sparkSession.sparkContext.parallelize(pigeons))
       .dataset
       .rdd
-      .save
-      .single(blocker)
+      .save[IO]
       .avro(path)
+      .single
+      .run(blocker)
       .unsafeRunSync()
 
     val rst = sparkSession.read.format("avro").load(path).as[Pigeon].collect().toSet
@@ -100,9 +102,10 @@ class CompatTest extends AnyFunSuite {
       .create(sparkSession.sparkContext.parallelize(pigeons))
       .dataset
       .rdd
-      .save
-      .single(blocker)
+      .save[IO]
       .parquet(path)
+      .single
+      .run(blocker)
       .unsafeRunSync()
 
     val rst = sparkSession.read.parquet(path).as[Pigeon].collect().toSet

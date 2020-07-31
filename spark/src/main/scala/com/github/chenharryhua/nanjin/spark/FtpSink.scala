@@ -14,19 +14,20 @@ final class FtpSink[F[_], C, S <: RemoteFileSettings](
   uploader: FtpUploader[F, C, S],
   blocker: Blocker) {
 
-  def csv[A: RowEncoder](pathStr: String, csvConfig: CsvConfiguration)(implicit
+  def csv[A](pathStr: String, enc: RowEncoder[A], csvConfig: CsvConfiguration)(implicit
     cr: Concurrent[F],
     cs: ContextShift[F]): Pipe[F, A, IOResult] = {
-    val pipe = new CsvSerialization[F, A](csvConfig, blocker)
+    val pipe = new CsvSerialization[F, A](enc, csvConfig, blocker)
     _.through(pipe.serialize).through(uploader.upload(pathStr))
   }
 
-  def csv[A: RowEncoder](
-    pathStr: String)(implicit cr: Concurrent[F], cs: ContextShift[F]): Pipe[F, A, IOResult] =
-    csv[A](pathStr, CsvConfiguration.rfc)
+  def csv[A](pathStr: String, enc: RowEncoder[A])(implicit
+    cr: Concurrent[F],
+    cs: ContextShift[F]): Pipe[F, A, IOResult] =
+    csv[A](pathStr, enc, CsvConfiguration.rfc)
 
   def json[A: JsonEncoder](pathStr: String): Pipe[F, A, IOResult] = {
-    val pipe = new CirceSerialization[F, A]
+    val pipe = new CirceSerialization[F, A](JsonEncoder[A])
     _.through(pipe.serialize).through(uploader.upload(pathStr))
   }
 
@@ -34,7 +35,7 @@ final class FtpSink[F[_], C, S <: RemoteFileSettings](
     cs: ContextShift[F],
     ce: ConcurrentEffect[F]): Pipe[F, A, IOResult] = {
     val pipe = new JacksonSerialization[F](AvroEncoder[A].schema)
-    val gr   = new GenericRecordEncoder[F, A]
+    val gr   = new GenericRecordEncoder[F, A](AvroEncoder[A])
     _.through(gr.encode).through(pipe.serialize).through(uploader.upload(pathStr))
   }
 

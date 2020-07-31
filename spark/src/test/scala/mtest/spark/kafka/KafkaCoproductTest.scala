@@ -51,12 +51,12 @@ class KafkaCoproductTest extends AnyFunSuite {
   test("sparKafka not work with case object -- task serializable issue(avro4s) - happy failure") {
     val data = List(topicCO.fs2PR(0, co1), topicCO.fs2PR(1, co2))
     val path = "./data/test/spark/kafka/coproduct/caseobject.avro"
-    val sk   = topicCO.sparKafka.withParamUpdate(_.withPathBuilder((_, _) => path))
+    val sk   = topicCO.sparKafka
 
     val run = topicCO.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicCO.schemaRegister >>
       topicCO.send(data) >>
-      sk.fromKafka.flatMap(_.save.single(blocker).avro) >>
+      sk.fromKafka.flatMap(_.save.avro(path).single.run(blocker)) >>
       IO(sk.load.avro(path).rdd.take(10).toSet)
     intercept[Exception](run.unsafeRunSync().flatMap(_.value) == Set(co1, co2))
   }
@@ -64,12 +64,12 @@ class KafkaCoproductTest extends AnyFunSuite {
   test("sparKafka should be sent to kafka and save to single avro") {
     val data = List(topicEnum.fs2PR(0, en1), topicEnum.fs2PR(1, en2))
     val path = "./data/test/spark/kafka/coproduct/scalaenum.avro"
-    val sk   = topicEnum.sparKafka.withParamUpdate(_.withPathBuilder((_, _) => path))
+    val sk   = topicEnum.sparKafka
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegister >>
       topicEnum.send(data) >>
-      sk.fromKafka.flatMap(_.save.single(blocker).avro) >>
+      sk.fromKafka.flatMap(_.save.avro(path).single.run(blocker)) >>
       IO(sk.load.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
@@ -77,12 +77,12 @@ class KafkaCoproductTest extends AnyFunSuite {
   test("sparKafka should be sent to kafka and save to multi avro") {
     val data = List(topicEnum.fs2PR(0, en1), topicEnum.fs2PR(1, en2))
     val path = "./data/test/spark/kafka/coproduct/multi-scalaenum.avro"
-    val sk   = topicEnum.sparKafka.withParamUpdate(_.withPathBuilder((_, _) => path))
+    val sk   = topicEnum.sparKafka
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegister >>
       topicEnum.send(data) >>
-      sk.fromKafka.flatMap(_.save.multi(blocker).avro) >>
+      sk.fromKafka.flatMap(_.save.avro(path).multi.run(blocker)) >>
       IO(sk.load.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
@@ -90,12 +90,12 @@ class KafkaCoproductTest extends AnyFunSuite {
   test("sparKafka should be sent to kafka and save to single jackson") {
     val data = List(topicCoProd.fs2PR(0, cp1), topicCoProd.fs2PR(1, cp2))
     val path = "./data/test/spark/kafka/coproduct/coprod.json"
-    val sk   = topicCoProd.sparKafka.withParamUpdate(_.withPathBuilder((_, _) => path))
+    val sk   = topicCoProd.sparKafka
 
     val run = topicCoProd.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicCoProd.schemaRegister >>
       topicCoProd.send(data) >>
-      sk.fromKafka.flatMap(_.save.single(blocker).jackson) >>
+      sk.fromKafka.flatMap(_.save.jackson(path).single.run(blocker)) >>
       IO(sk.load.jackson(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(cp1, cp2))
   }
@@ -103,12 +103,12 @@ class KafkaCoproductTest extends AnyFunSuite {
   test("sparKafka should be sent to kafka and save to multi jackson") {
     val data = List(topicCoProd.fs2PR(0, cp1), topicCoProd.fs2PR(1, cp2))
     val path = "./data/test/spark/kafka/coproduct/multi-coprod.json"
-    val sk   = topicCoProd.sparKafka.withParamUpdate(_.withPathBuilder((_, _) => path))
+    val sk   = topicCoProd.sparKafka
 
     val run = topicCoProd.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicCoProd.schemaRegister >>
       topicCoProd.send(data) >>
-      sk.fromKafka.flatMap(_.save.multi(blocker).jackson) >>
+      sk.fromKafka.flatMap(_.save.jackson(path).multi.run(blocker)) >>
       IO(sk.load.jackson(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(cp1, cp2))
   }

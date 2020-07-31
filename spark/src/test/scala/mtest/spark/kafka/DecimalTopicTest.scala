@@ -15,6 +15,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.math.BigDecimal
 import scala.math.BigDecimal.RoundingMode
+import com.sksamuel.avro4s.Encoder
 
 object DecimalTopicTestCase {
   final case class HasDecimal(a: BigDecimal, b: Instant)
@@ -36,7 +37,8 @@ class DecimalTopicTest extends AnyFunSuite {
     topic.fs2Channel.stream
       .map(m => topic.njDecoder.decode(m).run._2)
       .take(2)
-      .through(fileSink(blocker).avro("./data/test/spark/kafka/decimal.avro"))
+      .through(fileSink(blocker)
+        .avro("./data/test/spark/kafka/decimal.avro"))
       .compile
       .drain
       .unsafeRunSync
@@ -50,5 +52,4 @@ class DecimalTopicTest extends AnyFunSuite {
 
     assert(res === List(data, data))
   }
-
 }

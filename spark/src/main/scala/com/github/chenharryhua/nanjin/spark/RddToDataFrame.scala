@@ -9,13 +9,13 @@ import org.apache.spark.sql.catalyst.encoders.{ExpressionEncoder, RowEncoder}
 import org.apache.spark.sql.types.{DataType, StructType}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 
-final class RddToDataFrame[A](rdd: RDD[A]) {
+final class RddToDataFrame[A](rdd: RDD[A], encoder: AvroEncoder[A], ss: SparkSession) {
 
   // untyped world
   @SuppressWarnings(Array("AsInstanceOf"))
-  def toDF(implicit encoder: AvroEncoder[A], ss: SparkSession): DataFrame = {
+  def toDF: DataFrame = {
     val avroSchema: Schema     = encoder.schema
-    val toGR: ToRecord[A]      = ToRecord[A]
+    val toGR: ToRecord[A]      = ToRecord[A](encoder)
     val dataType: DataType     = SchemaConverters.toSqlType(avroSchema).dataType
     val structType: StructType = dataType.asInstanceOf[StructType]
     val rowEnconder: ExpressionEncoder[Row] =

@@ -6,10 +6,12 @@ import fs2.io.{readOutputStream, toInputStream}
 import fs2.{Pipe, Pull, Stream}
 import kantan.csv.{CsvConfiguration, CsvWriter, RowDecoder, RowEncoder}
 
-final class CsvSerialization[F[_]: Concurrent: ContextShift, A: RowEncoder](
+final class CsvSerialization[F[_]: Concurrent: ContextShift, A](
+  enc: RowEncoder[A],
   conf: CsvConfiguration,
   blocker: Blocker) {
   import kantan.csv.ops._
+  implicit private val encoder: RowEncoder[A] = enc
 
   def serialize: Pipe[F, A, Byte] = { (ss: Stream[F, A]) =>
     readOutputStream[F](blocker, 8096) { os =>
@@ -24,8 +26,11 @@ final class CsvSerialization[F[_]: Concurrent: ContextShift, A: RowEncoder](
   }
 }
 
-final class CsvDeserialization[F[_]: ConcurrentEffect, A: RowDecoder](conf: CsvConfiguration) {
+final class CsvDeserialization[F[_]: ConcurrentEffect, A](
+  dec: RowDecoder[A],
+  conf: CsvConfiguration) {
   import kantan.csv.ops._
+  implicit private val decoder: RowDecoder[A] = dec
 
   def deserialize: Pipe[F, Byte, A] =
     _.through(toInputStream[F]).flatMap(is =>

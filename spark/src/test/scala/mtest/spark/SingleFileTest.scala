@@ -13,6 +13,11 @@ import kantan.csv.generic._
 import mtest.spark.pb.test.Whale
 
 import scala.util.Random
+import com.sksamuel.avro4s.Encoder
+import com.sksamuel.avro4s.Decoder
+import io.circe.{Encoder => JsonEncoder, Decoder => JsonDecoder}
+import kantan.csv.RowEncoder
+import kantan.csv.RowDecoder
 
 object SingleFileTestData {
   final case class Swordfish(from: String, weight: Float, code: Int)
@@ -83,7 +88,8 @@ class SingleFileTest extends AnyFunSuite {
     assert(run.unsafeRunSync() === fishes)
     assert(File(path).lineCount == 3L)
 
-    val s = sparkSession.load.circe[Swordfish](path).typedDataset.collect[IO]().unsafeRunSync().toSet
+    val s =
+      sparkSession.load.circe[Swordfish](path).typedDataset.collect[IO]().unsafeRunSync().toSet
     assert(s == fishes.toSet)
 
   }
@@ -96,7 +102,8 @@ class SingleFileTest extends AnyFunSuite {
     assert(run.unsafeRunSync() === fishes)
     assert(File(path).lineCount == 3L)
 
-    val s = sparkSession.load.jackson[Swordfish](path).typedDataset.collect[IO]().unsafeRunSync().toSet
+    val s =
+      sparkSession.load.jackson[Swordfish](path).typedDataset.collect[IO]().unsafeRunSync().toSet
     assert(s == fishes.toSet)
   }
 

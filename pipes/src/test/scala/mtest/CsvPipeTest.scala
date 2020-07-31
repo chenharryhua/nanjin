@@ -10,8 +10,8 @@ import kantan.csv.generic._
 
 class CsvPipeTest extends AnyFunSuite {
   import TestData._
-  val ser  = new CsvSerialization[IO, Tigger](CsvConfiguration.rfc, blocker)
-  val dser = new CsvDeserialization[IO, Tigger](CsvConfiguration.rfc)
+  val ser  = new CsvSerialization[IO, Tigger](RowEncoder[Tigger],CsvConfiguration.rfc, blocker)
+  val dser = new CsvDeserialization[IO, Tigger](RowDecoder[Tigger],CsvConfiguration.rfc)
 
   test("csv identity") {
     val data: Stream[IO, Tigger] = Stream.emits(tiggers)

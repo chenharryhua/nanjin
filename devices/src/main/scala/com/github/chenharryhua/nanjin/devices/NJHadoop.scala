@@ -37,6 +37,12 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
       rs <- Resource.fromAutoCloseableBlocking(blocker)(blocker.delay(fs.open(new Path(pathStr))))
     } yield rs
 
+  def delete(pathStr: String): F[Boolean] =
+    fileSystem(pathStr).use(fs => blocker.delay(fs.delete(new Path(pathStr), true)))
+
+  def isExist(pathStr: String): F[Boolean] =
+    fileSystem(pathStr).use(fs => blocker.delay(fs.exists(new Path(pathStr))))
+
   def byteSink(pathStr: String): Pipe[F, Byte, Unit] = { (ss: Stream[F, Byte]) =>
     for {
       fs <- Stream.resource(fsOutput(pathStr))
@@ -52,9 +58,6 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
       is <- inputStream(pathStr)
       bt <- readInputStream[F](blocker.delay(is), chunkSize, blocker)
     } yield bt
-
-  def delete(pathStr: String): F[Boolean] =
-    fileSystem(pathStr).use(fs => blocker.delay(fs.delete(new Path(pathStr), true)))
 
   /// parquet
   def parquetSink(pathStr: String, schema: Schema): Pipe[F, GenericRecord, Unit] = {

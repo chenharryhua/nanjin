@@ -6,12 +6,15 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.pipes.{GenericRecordEncoder, JacksonSerialization}
 import com.sksamuel.avro4s.{AvroSchema, SchemaFor}
+import com.sksamuel.avro4s.{Encoder => AvroEncoder}
+
 import frameless.cats.implicits.rddOps
 import frameless.{SparkDelay, TypedDataset}
 import fs2.Stream
 import org.apache.spark.rdd.RDD
 
 import scala.collection.immutable.Queue
+import org.apache.avro.reflect.AvroEncode
 
 trait CrRddInvModule[F[_], K, V] { self: CrRdd[F, K, V] =>
 
@@ -38,7 +41,7 @@ trait CrRddInvModule[F[_], K, V] { self: CrRdd[F, K, V] =>
 
     val pipe: JacksonSerialization[F] = new JacksonSerialization[F](AvroSchema[OptionalKV[K, V]])
     val gre: GenericRecordEncoder[F, OptionalKV[K, V]] =
-      new GenericRecordEncoder[F, OptionalKV[K, V]]()
+      new GenericRecordEncoder[F, OptionalKV[K, V]](AvroEncoder[OptionalKV[K, V]])
 
     Stream
       .emits(rs)

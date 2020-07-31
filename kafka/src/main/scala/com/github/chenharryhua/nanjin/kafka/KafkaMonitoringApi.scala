@@ -14,6 +14,7 @@ import fs2.kafka.{produce, AutoOffsetReset, ProducerRecord, ProducerRecords}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
 import scala.util.Try
+import _root_.com.sksamuel.avro4s.Encoder
 
 sealed trait KafkaMonitoringApi[F[_], K, V] {
   def watch: F[Unit]
@@ -49,7 +50,7 @@ object KafkaMonitoringApi {
     private def watch(aor: AutoOffsetReset): F[Unit] =
       Blocker[F].use { blocker =>
         val pipe = new JacksonSerialization[F](topic.topicDef.schemaFor.schema)
-        val gr   = new GenericRecordEncoder[F, OptionalKV[K, V]]
+        val gr   = new GenericRecordEncoder[F, OptionalKV[K, V]](Encoder[OptionalKV[K,V]])
 
         Keyboard.signal.flatMap { signal =>
           fs2Channel
@@ -73,7 +74,7 @@ object KafkaMonitoringApi {
       aor: AutoOffsetReset): F[Unit] =
       Blocker[F].use { blocker =>
         val pipe = new JacksonSerialization[F](topic.topicDef.schemaFor.schema)
-        val gr   = new GenericRecordEncoder[F, OptionalKV[K, V]]()
+        val gr   = new GenericRecordEncoder[F, OptionalKV[K, V]](Encoder[OptionalKV[K,V]])
         Keyboard.signal.flatMap { signal =>
           fs2Channel
             .withConsumerSettings(_.withAutoOffsetReset(aor))
@@ -93,7 +94,7 @@ object KafkaMonitoringApi {
       val run: Stream[F, Unit] = for {
         blocker <- Stream.resource(Blocker[F])
         pipe = new JacksonSerialization[F](topic.topicDef.schemaFor.schema)
-        gr   = new GenericRecordEncoder[F, OptionalKV[K, V]]()
+        gr   = new GenericRecordEncoder[F, OptionalKV[K, V]](Encoder[OptionalKV[K,V]])
         kcs <- Stream.resource(topic.shortLiveConsumer)
         gtp <- Stream.eval(for {
           os <- kcs.offsetsForTimes(njt)

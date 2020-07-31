@@ -12,11 +12,13 @@ import com.sksamuel.avro4s.AvroSchema
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import cats.implicits._
+import com.sksamuel.avro4s.Encoder
+import com.sksamuel.avro4s.Decoder
 
 class JsonAvroPipeTest extends AnyFunSuite {
   import TestData._
-  val gser  = new GenericRecordEncoder[IO, Tigger]
-  val gdser = new GenericRecordDecoder[IO, Tigger]
+  val gser  = new GenericRecordEncoder[IO, Tigger](Encoder[Tigger])
+  val gdser = new GenericRecordDecoder[IO, Tigger](Decoder[Tigger])
   val ser   = new JacksonSerialization[IO](AvroSchema[Tigger])
   val dser  = new JacksonDeserialization[IO](AvroSchema[Tigger])
 

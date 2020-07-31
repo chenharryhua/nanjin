@@ -88,7 +88,8 @@ final class CrRdd[F[_], K, V](
     valEncoder: TypedEncoder[V]): TypedDataset[OptionalKV[K, V]] =
     TypedDataset.create(rdd)
 
-  def toDF: DataFrame = new RddToDataFrame[OptionalKV[K, V]](rdd).toDF
+  def toDF: DataFrame =
+    new RddToDataFrame[OptionalKV[K, V]](rdd, AvroEncoder[OptionalKV[K, V]], sparkSession).toDF
 
   def crDataset(implicit
     keyEncoder: TypedEncoder[K],

@@ -26,7 +26,6 @@ private[spark] object NJUploadRate {
 @Lenses final private[spark] case class SKParams private (
   timeRange: NJDateTimeRange,
   uploadRate: NJUploadRate,
-  pathBuilder: (TopicName, NJFileFormat) => String,
   replayPath: TopicName => String,
   saveMode: SaveMode,
   locationStrategy: LocationStrategy,
@@ -38,8 +37,6 @@ private[spark] object SKParams {
     SKParams(
       timeRange = NJDateTimeRange(zoneId),
       uploadRate = NJUploadRate.default,
-      pathBuilder =
-        (topicName, fmt) => s"./data/sparKafka/${topicName.value}/${fmt.alias}.${fmt.format}",
       replayPath = topicName => s"./data/sparKafka/${topicName.value}/replay/",
       saveMode = SaveMode.ErrorIfExists,
       locationStrategy = LocationStrategies.PreferConsistent,
@@ -72,9 +69,6 @@ private[spark] object SKConfigF {
   final case class WithShowRows[K](value: Int, cont: K) extends SKConfigF[K]
   final case class WithShowTruncate[K](isTruncate: Boolean, cont: K) extends SKConfigF[K]
 
-  final case class WithPathBuilder[K](value: (TopicName, NJFileFormat) => String, cont: K)
-      extends SKConfigF[K]
-
   final case class WithReplayPath[K](value: TopicName => String, cont: K) extends SKConfigF[K]
 
   private val algebra: Algebra[SKConfigF, SKParams] = Algebra[SKConfigF, SKParams] {
@@ -94,7 +88,6 @@ private[spark] object SKConfigF {
     case WithLocationStrategy(v, c) => SKParams.locationStrategy.set(v)(c)
     case WithShowRows(v, c)         => SKParams.showDs.composeLens(NJShowDataset.rowNum).set(v)(c)
     case WithShowTruncate(v, c)     => SKParams.showDs.composeLens(NJShowDataset.isTruncate).set(v)(c)
-    case WithPathBuilder(v, c)      => SKParams.pathBuilder.set(v)(c)
     case WithReplayPath(v, c)       => SKParams.replayPath.set(v)(c)
   }
 
@@ -130,9 +123,6 @@ final private[spark] case class SKConfig private (value: Fix[SKConfigF]) extends
 
   def withSaveMode(sm: SaveMode): SKConfig = SKConfig(Fix(WithSaveMode(sm, value)))
   def withOverwrite: SKConfig              = withSaveMode(SaveMode.Overwrite)
-
-  def withPathBuilder(f: (TopicName, NJFileFormat) => String): SKConfig =
-    SKConfig(Fix(WithPathBuilder(f, value)))
 
   def withReplayPath(f: TopicName => String): SKConfig =
     SKConfig(Fix(WithReplayPath(f, value)))
