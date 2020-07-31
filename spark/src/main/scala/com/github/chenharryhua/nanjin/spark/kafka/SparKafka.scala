@@ -62,7 +62,11 @@ final class SparKafka[F[_], K, V](val topic: KafkaTopic[F, K, V], val cfg: SKCon
   def crDataset(tds: TypedDataset[OptionalKV[K, V]])(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): CrDataset[F, K, V] =
-    new CrDataset[F, K, V](tds.dataset, cfg)(keyEncoder, valEncoder)
+    new CrDataset[F, K, V](tds.dataset, cfg)(
+      keyEncoder,
+      topic.topicDef.avroKeyEncoder,
+      valEncoder,
+      topic.topicDef.avroValEncoder)
 
   def prDataset(tds: TypedDataset[NJProducerRecord[K, V]])(implicit
     keyEncoder: TypedEncoder[K],

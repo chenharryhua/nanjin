@@ -10,14 +10,17 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryV,
   OptionalKV
 }
+import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.cats.implicits._
 import frameless.{SparkDelay, TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
 
-final class CrDataset[F[_], K: TypedEncoder, V: TypedEncoder](
-  crs: Dataset[OptionalKV[K, V]],
-  cfg: SKConfig)
-    extends SparKafkaUpdateParams[CrDataset[F, K, V]] {
+final class CrDataset[F[_], K, V](crs: Dataset[OptionalKV[K, V]], cfg: SKConfig)(implicit
+  val keyEncoder: TypedEncoder[K],
+  val avroKeyEncoder: AvroEncoder[K],
+  val valEncoder: TypedEncoder[V],
+  val avroValEncoder: AvroEncoder[V]
+) extends SparKafkaUpdateParams[CrDataset[F, K, V]] with CrDatasetSaveModule[F, K, V] {
 
   override def withParamUpdate(f: SKConfig => SKConfig): CrDataset[F, K, V] =
     new CrDataset[F, K, V](crs, f(cfg))
@@ -28,10 +31,12 @@ final class CrDataset[F[_], K: TypedEncoder, V: TypedEncoder](
   override val params: SKParams = cfg.evalConfig
 
   // transformations
-  def bimap[K2: TypedEncoder, V2: TypedEncoder](k: K => K2, v: V => V2): CrDataset[F, K2, V2] =
+  def bimap[K2: TypedEncoder: AvroEncoder, V2: TypedEncoder: AvroEncoder](
+    k: K => K2,
+    v: V => V2): CrDataset[F, K2, V2] =
     new CrDataset[F, K2, V2](typedDataset.deserialized.map(_.bimap(k, v)).dataset, cfg)
 
-  def flatMap[K2: TypedEncoder, V2: TypedEncoder](
+  def flatMap[K2: TypedEncoder: AvroEncoder, V2: TypedEncoder: AvroEncoder](
     f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]]): CrDataset[F, K2, V2] =
     new CrDataset[F, K2, V2](typedDataset.deserialized.flatMap(f).dataset, cfg)
 

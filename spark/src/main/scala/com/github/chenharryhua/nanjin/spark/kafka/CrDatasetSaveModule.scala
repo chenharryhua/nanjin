@@ -1,18 +1,16 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Show
-import cats.implicits._
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.spark.saver._
 import frameless.TypedEncoder
-import frameless.cats.implicits.rddOps
 import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.RowEncoder
 import scalapb.GeneratedMessage
 
 import scala.reflect.ClassTag
 
-private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
+private[kafka] trait CrDatasetSaveModule[F[_], K, V] { self: CrDataset[F, K, V] =>
 
   final class FileSaver(saver: NJRddFileSaver[F, OptionalKV[K, V]]) {
 
@@ -22,8 +20,7 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
     def jackson(pathStr: String): JacksonSaver[F, OptionalKV[K, V]] =
       saver.jackson(pathStr)
 
-    def parquet(pathStr: String)(implicit
-      ev: TypedEncoder[OptionalKV[K, V]]): ParquetSaver[F, OptionalKV[K, V]] =
+    def parquet(pathStr: String): ParquetSaver[F, OptionalKV[K, V]] =
       saver.parquet(pathStr)
 
     def binAvro(pathStr: String): BinaryAvroSaver[F, OptionalKV[K, V]] = saver.binAvro(pathStr)
@@ -52,6 +49,6 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
   }
 
   def save: FileSaver =
-    new FileSaver(new NJRddFileSaver[F, OptionalKV[K, V]](rdd))
+    new FileSaver(new NJRddFileSaver[F, OptionalKV[K, V]](typedDataset.dataset.rdd))
 
 }
