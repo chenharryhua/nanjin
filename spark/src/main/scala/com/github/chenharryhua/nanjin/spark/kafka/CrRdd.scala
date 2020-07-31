@@ -28,8 +28,8 @@ final class CrRdd[F[_], K, V](
   val topicName: TopicName,
   val cfg: SKConfig)(implicit
   val sparkSession: SparkSession,
-  val keyEncoder: AvroEncoder[K],
-  val valEncoder: AvroEncoder[V])
+  val keyAvroEncoder: AvroEncoder[K],
+  val valAvroEncoder: AvroEncoder[V])
     extends SparKafkaUpdateParams[CrRdd[F, K, V]] with CrRddSaveModule[F, K, V]
     with CrRddInvModule[F, K, V] {
 
@@ -94,7 +94,7 @@ final class CrRdd[F[_], K, V](
   def crDataset(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): CrDataset[F, K, V] =
-    new CrDataset(typedDataset.dataset, cfg)
+    new CrDataset(typedDataset.dataset, cfg)(keyEncoder, keyAvroEncoder, valEncoder, valAvroEncoder)
 
   def stream(implicit F: Sync[F]): Stream[F, OptionalKV[K, V]] =
     rdd.stream[F]
