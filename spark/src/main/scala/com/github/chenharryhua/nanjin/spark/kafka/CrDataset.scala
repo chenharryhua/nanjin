@@ -15,7 +15,7 @@ import frameless.cats.implicits._
 import frameless.{SparkDelay, TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
 
-final class CrDataset[F[_], K, V](crs: Dataset[OptionalKV[K, V]], cfg: SKConfig)(implicit
+final class CrDataset[F[_], K, V](val crs: Dataset[OptionalKV[K, V]], cfg: SKConfig)(implicit
   val keyEncoder: TypedEncoder[K],
   val avroKeyEncoder: AvroEncoder[K],
   val valEncoder: TypedEncoder[V],

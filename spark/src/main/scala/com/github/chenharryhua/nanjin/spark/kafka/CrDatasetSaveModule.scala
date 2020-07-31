@@ -23,13 +23,15 @@ private[kafka] trait CrDatasetSaveModule[F[_], K, V] { self: CrDataset[F, K, V] 
     def parquet(pathStr: String): ParquetSaver[F, OptionalKV[K, V]] =
       saver.parquet(pathStr)
 
-    def binAvro(pathStr: String): BinaryAvroSaver[F, OptionalKV[K, V]] = saver.binAvro(pathStr)
+    def binAvro(pathStr: String): BinaryAvroSaver[F, OptionalKV[K, V]] =
+      saver.binAvro(pathStr)
 
     def text(pathStr: String)(implicit ev: Show[OptionalKV[K, V]]): TextSaver[F, OptionalKV[K, V]] =
       saver.text(pathStr)
 
     def circe(pathStr: String)(implicit
-      ev: JsonEncoder[OptionalKV[K, V]]): CirceJsonSaver[F, OptionalKV[K, V]] = saver.circe(pathStr)
+      ev: JsonEncoder[OptionalKV[K, V]]): CirceJsonSaver[F, OptionalKV[K, V]] =
+      saver.circe(pathStr)
 
     def javaObject(pathStr: String): JavaObjectSaver[F, OptionalKV[K, V]] =
       saver.javaObject(pathStr)
@@ -49,6 +51,6 @@ private[kafka] trait CrDatasetSaveModule[F[_], K, V] { self: CrDataset[F, K, V] 
   }
 
   def save: FileSaver =
-    new FileSaver(new NJRddFileSaver[F, OptionalKV[K, V]](typedDataset.dataset.rdd))
+    new FileSaver(new NJRddFileSaver[F, OptionalKV[K, V]](crs.rdd))
 
 }
