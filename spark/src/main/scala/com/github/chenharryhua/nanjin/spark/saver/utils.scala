@@ -15,9 +15,6 @@ import scala.collection.immutable
 
 private[saver] object utils {
 
-  def rddResource[F[_], A](rdd: RDD[A])(implicit F: Sync[F]): Resource[F, RDD[A]] =
-    Resource.make(F.delay(rdd.persist()))(r => F.delay(r.unpersist()))
-
   def genericRecordPair[A](
     data: RDD[A],
     enc: AvroEncoder[A],
