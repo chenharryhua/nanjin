@@ -22,9 +22,12 @@ final case class NJTimestamp(milliseconds: Long) extends AnyVal {
 
   def javaLong: java.lang.Long = milliseconds
 
-  def yearStr(zoneId: ZoneId): String  = f"${atZone(zoneId).getYear}%4d"
-  def monthStr(zoneId: ZoneId): String = f"${atZone(zoneId).getMonthValue}%02d"
-  def dayStr(zoneId: ZoneId): String   = f"${atZone(zoneId).getDayOfMonth}%02d"
+  def yearStr(zoneId: ZoneId): String   = f"${atZone(zoneId).getYear}%4d"
+  def monthStr(zoneId: ZoneId): String  = f"${atZone(zoneId).getMonthValue}%02d"
+  def dayStr(zoneId: ZoneId): String    = f"${atZone(zoneId).getDayOfMonth}%02d"
+  def hourStr(zoneId: ZoneId): String   = f"${atZone(zoneId).getHour}%02d"
+  def minuteStr(zoneId: ZoneId): String = f"${atZone(zoneId).getMinute}%02d"
+  def secondStr(zoneId: ZoneId): String = f"${atZone(zoneId).getSecond}%02d"
 
   def `yyyy-mm-dd`(zoneId: ZoneId): String =
     s"${yearStr(zoneId)}-${monthStr(zoneId)}-${dayStr(zoneId)}"
