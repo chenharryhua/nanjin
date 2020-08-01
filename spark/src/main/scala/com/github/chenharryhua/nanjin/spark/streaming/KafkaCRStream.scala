@@ -48,8 +48,8 @@ final class KafkaCRStream[F[_], K: TypedEncoder, V: TypedEncoder](
       cfg,
       path).partitionBy("Year", "Month", "Day")
 
-  def sparkStream: SparkStream[F, OptionalKV[K, V]] =
-    new SparkStream[F, OptionalKV[K, V]](ds, cfg)
+  def sparkStream: NJSparkStream[F, OptionalKV[K, V]] =
+    new NJSparkStream[F, OptionalKV[K, V]](ds, cfg)
 
   def toProducerRecords: KafkaPRStream[F, K, V] =
     new KafkaPRStream[F, K, V](typedDataset.deserialized.map(_.toNJProducerRecord).dataset, cfg)

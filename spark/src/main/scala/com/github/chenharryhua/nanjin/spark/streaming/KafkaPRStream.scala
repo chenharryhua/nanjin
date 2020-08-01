@@ -31,7 +31,7 @@ final class KafkaPRStream[F[_], K: TypedEncoder, V: TypedEncoder](
       kit.settings.producerSettings,
       kit.topicName)
 
-  def sparkStream: SparkStream[F, NJProducerRecord[K, V]] =
-    new SparkStream[F, NJProducerRecord[K, V]](ds, cfg)
+  def sparkStream: NJSparkStream[F, NJProducerRecord[K, V]] =
+    new NJSparkStream[F, NJProducerRecord[K, V]](ds, cfg)
 
 }
