@@ -55,12 +55,12 @@ final class NJRddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
     CsvSaver[F, A](rdd, enc, CsvConfiguration.rfc, pathStr, defaultSaveMode, defaultSM, constraint)
 
 // 8
-  def protobuf(pathStr: String)(implicit ev: A <:< GeneratedMessage) =
+  def protobuf(pathStr: String)(implicit ev: A <:< GeneratedMessage): ProtobufSaver[F, A] =
     new ProtobufSaver[F, A](rdd, pathStr)
 
 // 9
   def javaObject(pathStr: String): JavaObjectSaver[F, A] =
-    new JavaObjectSaver[F, A](rdd, pathStr)
+    new JavaObjectSaver[F, A](rdd, pathStr, defaultSaveMode)
 
 // 10
   def dump(pathStr: String): Dumper[F, A] =
