@@ -37,7 +37,7 @@ private[spark] object NJStreamParams {
     NJStreamParams(
       timeRange = tr,
       showDs = sd,
-      fileFormat = NJFileFormat.Parquet,
+      fileFormat = NJFileFormat.Jackson,
       checkpoint = NJCheckpoint("./data/checkpoint/"),
       dataLoss = NJFailOnDataLoss(true),
       outputMode = OutputMode.Append,
@@ -59,6 +59,8 @@ private[spark] object NJStreamConfigF {
   final case class WithOutputMode[K](value: OutputMode, cont: K) extends NJStreamConfigF[K]
   final case class WithTrigger[K](value: Trigger, cont: K) extends NJStreamConfigF[K]
 
+  final case class WithFormat[K](value: NJFileFormat, cont: K) extends NJStreamConfigF[K]
+
   private val algebra: Algebra[NJStreamConfigF, NJStreamParams] =
     Algebra[NJStreamConfigF, NJStreamParams] {
       case DefaultParams(tr, sd)       => NJStreamParams(tr, sd)
@@ -67,6 +69,7 @@ private[spark] object NJStreamConfigF {
       case WithFailOnDataLoss(v, c)    => NJStreamParams.dataLoss.set(NJFailOnDataLoss(v))(c)
       case WithOutputMode(v, c)        => NJStreamParams.outputMode.set(v)(c)
       case WithTrigger(v, c)           => NJStreamParams.trigger.set(v)(c)
+      case WithFormat(v, c)            => NJStreamParams.fileFormat.set(v)(c)
     }
 
   def evalConfig(cfg: NJStreamConfig): NJStreamParams = scheme.cata(algebra).apply(cfg.value)
@@ -102,6 +105,10 @@ final private[spark] case class NJStreamConfig(value: Fix[NJStreamConfigF]) exte
 
   def withContinousTrigger(ms: Long): NJStreamConfig =
     withTrigger(Trigger.Continuous(ms, TimeUnit.MILLISECONDS))
+
+  def withJson: NJStreamConfig    = NJStreamConfig(Fix(WithFormat(NJFileFormat.Jackson, value)))
+  def withParquet: NJStreamConfig = NJStreamConfig(Fix(WithFormat(NJFileFormat.Parquet, value)))
+  def withAvro: NJStreamConfig    = NJStreamConfig(Fix(WithFormat(NJFileFormat.Avro, value)))
 
   def evalConfig: NJStreamParams = NJStreamConfigF.evalConfig(this)
 }
