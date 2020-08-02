@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
-import cats.effect.{Blocker, ConcurrentEffect, Resource, Sync}
+import cats.effect.{ConcurrentEffect, Resource, Sync}
 import cats.implicits._
 import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.spark.saver.NJRddFileSaver

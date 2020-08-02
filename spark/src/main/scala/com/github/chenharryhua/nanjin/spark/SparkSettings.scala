@@ -6,6 +6,7 @@ import fs2.Stream
 import monocle.macros.Lenses
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.streaming.{Duration, StreamingContext}
 
 @Lenses final case class SparkSettings(conf: SparkConf, logLevel: NJLogLevel) {
 
@@ -45,6 +46,10 @@ import org.apache.spark.sql.SparkSession
 
   def sessionStream[F[_]: Sync]: Stream[F, SparkSession] =
     Stream.resource(sessionResource)
+
+  def streamingContext(batchDuration: Duration): StreamingContext =
+    new StreamingContext(conf, batchDuration)
+
 }
 
 object SparkSettings {
