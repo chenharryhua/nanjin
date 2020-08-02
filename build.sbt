@@ -46,7 +46,7 @@ val elastic  = "7.8.1"
 
 // format
 val circe   = "0.13.0"
-val jackson = "2.11.1"
+val jackson = "2.11.2"
 val json4s  = "3.5.5"
 val kantan  = "0.6.1"
 val parquet = "1.11.0"
@@ -187,7 +187,7 @@ val serdeLib = Seq(
   "io.confluent"                              % "kafka-protobuf-serializer" % confluent,
   "com.sksamuel.avro4s" %% "avro4s-core"      % avro4s,
   "io.higherkindness" %% "skeuomorph"         % "0.0.24",
-  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.10.7",
+  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.10.8",
   "com.google.protobuf"                       % "protobuf-java"             % "3.12.4",
   "com.google.protobuf"                       % "protobuf-java-util"        % "3.12.4"
 ) ++ jacksonLib ++ circeLib
