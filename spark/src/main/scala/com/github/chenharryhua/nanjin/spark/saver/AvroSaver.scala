@@ -2,11 +2,14 @@ package com.github.chenharryhua.nanjin.spark.saver
 
 import cats.effect.{Blocker, ContextShift, Sync}
 import cats.implicits._
+import com.github.chenharryhua.nanjin.spark.utils
 import com.github.chenharryhua.nanjin.spark.mapreduce.NJAvroKeyOutputFormat
-import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt, RddToDataFrame}
+import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import com.sksamuel.avro4s.{Encoder, SchemaFor}
 import monocle.macros.Lenses
 import org.apache.avro.Schema
+import org.apache.avro.mapreduce.AvroJob
+import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
@@ -49,8 +52,12 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
     blocker: Blocker)(implicit ss: SparkSession, F: Sync[F], cs: ContextShift[F]): F[Unit] =
     rdd.stream[F].through(fileSink[F](blocker).avro(outPath)).compile.drain
 
-  private def writeMultiFiles(ss: SparkSession): Unit =
-    utils.genericRecordPair(rdd, encoder, ss).saveAsNewAPIHadoopFile[NJAvroKeyOutputFormat](outPath)
+  private def writeMultiFiles(ss: SparkSession): Unit = {
+    val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
+    AvroJob.setOutputKeySchema(job, enc.schema)
+    ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
+    utils.genericRecordPair(rdd, encoder).saveAsNewAPIHadoopFile[NJAvroKeyOutputFormat](outPath)
+  }
 
   def run(blocker: Blocker)(implicit ss: SparkSession, F: Sync[F], cs: ContextShift[F]): F[Unit] =
     singleOrMulti match {
@@ -75,12 +82,7 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
       case SingleOrMulti.Multi =>
         sparkOrHadoop match {
           case SparkOrHadoop.Spark =>
-            F.delay {
-              new RddToDataFrame[A](rdd, encoder, ss).toDF.write
-                .mode(saveMode)
-                .format("avro")
-                .save(outPath)
-            }
+            F.delay(rdd.toDF.write.mode(saveMode).format("avro").save(outPath))
           case SparkOrHadoop.Hadoop =>
             saveMode match {
               case SaveMode.Append => F.raiseError(new Exception("append mode is not support"))

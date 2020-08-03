@@ -17,7 +17,14 @@ import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategy, OffsetRange}
+import org.apache.spark.streaming.StreamingContext
+import org.apache.spark.streaming.dstream.DStream
+import org.apache.spark.streaming.kafka010.{
+  ConsumerStrategies,
+  KafkaUtils,
+  LocationStrategy,
+  OffsetRange
+}
 import org.log4s.Logger
 
 import scala.collection.JavaConverters._
@@ -52,13 +59,32 @@ object sk {
 
   private val logger: Logger = org.log4s.getLogger("nj.spark.kafka")
 
-  def unloadKafka[F[_]: Sync, K, V](
+  def kafkaDStream[F[_], K, V](
+    topic: KafkaTopic[F, K, V],
+    streamingContext: StreamingContext,
+    locationStrategy: LocationStrategy): DStream[OptionalKV[K, V]] = {
+    val consumerStrategy =
+      ConsumerStrategies.Subscribe[Array[Byte], Array[Byte]](
+        List(topic.topicName.value),
+        props(topic.settings.consumerSettings.config).asScala)
+    KafkaUtils
+      .createDirectStream(streamingContext, locationStrategy, consumerStrategy)
+      .mapPartitions {
+        _.map { m =>
+          val (errs, cr) = topic.njDecoder.decode(m).run
+          errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
+          cr
+        }
+      }
+  }
+
+  def kafkaBatch[F[_]: Sync, K, V](
     topic: KafkaTopic[F, K, V],
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy)(implicit
     sparkSession: SparkSession): F[RDD[OptionalKV[K, V]]] =
-    kafkaRDD[F, K, V](topic, timeRange, locationStrategy).map(_.mapPartitions { ms =>
-      ms.map { m =>
+    kafkaRDD[F, K, V](topic, timeRange, locationStrategy).map(_.mapPartitions {
+      _.map { m =>
         val (errs, cr) = topic.njDecoder.decode(m).run
         errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
         cr

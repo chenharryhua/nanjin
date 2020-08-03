@@ -13,7 +13,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryV,
   OptionalKV
 }
-import com.github.chenharryhua.nanjin.spark.{RddExt, RddToDataFrame}
+import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.cats.implicits.rddOps
 import frameless.{TypedDataset, TypedEncoder}
@@ -88,8 +88,7 @@ final class CrRdd[F[_], K, V](
     valEncoder: TypedEncoder[V]): TypedDataset[OptionalKV[K, V]] =
     TypedDataset.create(rdd)
 
-  def toDF: DataFrame =
-    new RddToDataFrame[OptionalKV[K, V]](rdd, AvroEncoder[OptionalKV[K, V]], sparkSession).toDF
+  def toDF: DataFrame = rdd.toDF
 
   def crDataset(implicit
     keyEncoder: TypedEncoder[K],

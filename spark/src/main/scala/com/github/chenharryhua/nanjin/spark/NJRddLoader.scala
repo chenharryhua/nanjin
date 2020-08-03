@@ -20,7 +20,7 @@ import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import scala.reflect.ClassTag
 
-final class RddFileLoader(ss: SparkSession) {
+final class NJRddLoader(ss: SparkSession) extends Serializable {
 
 // 1
   def avro[A: ClassTag](pathStr: String)(implicit decoder: AvroDecoder[A]): RDD[A] = {

@@ -45,7 +45,7 @@ private[spark] trait DatasetExtensions {
     }
 
     def toDF(implicit encoder: AvroEncoder[A], ss: SparkSession): DataFrame =
-      new RddToDataFrame[A](rdd, encoder, ss).toDF
+      utils.rddToDataFrame[A](rdd, encoder, ss)
 
     def save[F[_]]: NJRddFileSaver[F, A] = new NJRddFileSaver[F, A](rdd)
   }
@@ -73,6 +73,6 @@ private[spark] trait DatasetExtensions {
 
   implicit final class SparkSessionExt(private val ss: SparkSession) {
 
-    val load: RddFileLoader = new RddFileLoader(ss)
+    val load: NJRddLoader = new NJRddLoader(ss)
   }
 }

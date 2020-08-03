@@ -3,9 +3,11 @@ package com.github.chenharryhua.nanjin.spark.saver
 import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.spark.mapreduce.NJJacksonKeyOutputFormat
-import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
+import com.github.chenharryhua.nanjin.spark.{fileSink, utils, RddExt}
 import com.sksamuel.avro4s.Encoder
 import monocle.macros.Lenses
+import org.apache.avro.mapreduce.AvroJob
+import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
@@ -34,10 +36,12 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     rdd.stream[F].through(fileSink[F](blocker).jackson(outPath)).compile.drain
 
-  private def writeMultiFiles(ss: SparkSession): Unit =
-    utils
-      .genericRecordPair(rdd, encoder, ss)
-      .saveAsNewAPIHadoopFile[NJJacksonKeyOutputFormat](outPath)
+  private def writeMultiFiles(ss: SparkSession): Unit = {
+    val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
+    AvroJob.setOutputKeySchema(job, enc.schema)
+    ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
+    utils.genericRecordPair(rdd, encoder).saveAsNewAPIHadoopFile[NJJacksonKeyOutputFormat](outPath)
+  }
 
   def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =

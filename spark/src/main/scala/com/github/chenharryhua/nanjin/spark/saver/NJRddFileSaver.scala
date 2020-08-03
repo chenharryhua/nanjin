@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.saver
 
 import cats.Show
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
+import enumeratum.{Enum, EnumEntry}
 import frameless.TypedEncoder
 import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.{CsvConfiguration, RowEncoder}
@@ -9,7 +10,26 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SaveMode
 import scalapb.GeneratedMessage
 
+import scala.collection.immutable
 import scala.reflect.ClassTag
+
+sealed trait SingleOrMulti extends EnumEntry with Serializable
+
+object SingleOrMulti extends Enum[SingleOrMulti] {
+  override val values: immutable.IndexedSeq[SingleOrMulti] = findValues
+
+  case object Single extends SingleOrMulti
+  case object Multi extends SingleOrMulti
+}
+
+sealed trait SparkOrHadoop extends EnumEntry with Serializable
+
+object SparkOrHadoop extends Enum[SingleOrMulti] {
+  override val values: immutable.IndexedSeq[SingleOrMulti] = findValues
+
+  case object Spark extends SparkOrHadoop
+  case object Hadoop extends SparkOrHadoop
+}
 
 final class NJRddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
 

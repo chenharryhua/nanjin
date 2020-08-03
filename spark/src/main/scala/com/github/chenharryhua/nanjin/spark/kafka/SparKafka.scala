@@ -14,6 +14,8 @@ import org.apache.parquet.schema.MessageType
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.avro.SchemaConverters
 import org.apache.spark.sql.types.DataType
+import org.apache.spark.streaming.StreamingContext
+import org.apache.spark.streaming.dstream.DStream
 
 trait SparKafkaUpdateParams[A] extends UpdateParams[SKConfig, A] with Serializable {
   def params: SKParams
@@ -72,6 +74,13 @@ final class SparKafka[F[_], K, V](val topic: KafkaTopic[F, K, V], val cfg: SKCon
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]) =
     new PrDataset[F, K, V](tds.dataset, cfg)
+
+  /**
+    * dstream
+    */
+
+  def dstream(sc: StreamingContext): DStream[OptionalKV[K, V]] =
+    sk.kafkaDStream[F, K, V](topic, sc, params.locationStrategy)
 
   /**
     * streaming
