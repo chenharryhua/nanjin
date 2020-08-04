@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.spark.streaming
+package com.github.chenharryhua.nanjin.spark.sstream
 
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic

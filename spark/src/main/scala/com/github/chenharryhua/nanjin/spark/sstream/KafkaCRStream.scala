@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.spark.streaming
+package com.github.chenharryhua.nanjin.spark.sstream
 
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV

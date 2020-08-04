@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.spark.streaming
+package com.github.chenharryhua.nanjin.spark.sstream
 
 import java.util.concurrent.TimeUnit
 

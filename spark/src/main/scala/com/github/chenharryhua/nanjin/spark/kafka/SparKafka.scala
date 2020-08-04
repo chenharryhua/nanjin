@@ -5,7 +5,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.{NJProducerRecord, OptionalKV}
-import com.github.chenharryhua.nanjin.spark.streaming.{KafkaCRStream, NJSparkStream, NJStreamConfig}
+import com.github.chenharryhua.nanjin.spark.sstream.{KafkaCRStream, NJSparkStream, NJStreamConfig}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.{SparkDelay, TypedDataset, TypedEncoder}
 import org.apache.avro.Schema
@@ -86,14 +86,14 @@ final class SparKafka[F[_], K, V](val topic: KafkaTopic[F, K, V], val cfg: SKCon
     * streaming
     */
 
-  def streamingPipeTo(otherTopic: KafkaTopic[F, K, V])(implicit
+  def sstreamPipeTo(otherTopic: KafkaTopic[F, K, V])(implicit
     concurrent: Concurrent[F],
     timer: Timer[F],
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[Unit] =
-    streaming.flatMap(_.someValues.toProducerRecords.kafkaSink(otherTopic).showProgress)
+    sstream.flatMap(_.someValues.toProducerRecords.kafkaSink(otherTopic).showProgress)
 
-  def streaming[A](f: OptionalKV[K, V] => A)(implicit
+  def sstream[A](f: OptionalKV[K, V] => A)(implicit
     sync: Sync[F],
     encoder: TypedEncoder[A]): F[NJSparkStream[F, A]] =
     sk.streaming[F, K, V, A](topic, params.timeRange)(f)
@@ -103,7 +103,7 @@ final class SparKafka[F[_], K, V](val topic: KafkaTopic[F, K, V], val cfg: SKCon
           NJStreamConfig(params.timeRange, params.showDs)
             .withCheckpointAppend(s"kafka/${topic.topicName.value}")))
 
-  def streaming(implicit
+  def sstream(implicit
     sync: Sync[F],
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[KafkaCRStream[F, K, V]] =
