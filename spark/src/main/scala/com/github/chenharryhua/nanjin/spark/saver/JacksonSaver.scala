@@ -14,7 +14,8 @@ final class JacksonSaver[F[_], A](
   rdd: RDD[A],
   encoder: Encoder[A],
   outPath: String,
-  cfg: SaverConfig) {
+  cfg: SaverConfig)
+    extends Serializable {
 
   implicit private val enc: Encoder[A] = encoder
 

@@ -11,11 +11,8 @@ import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
-final class AvroSaver[F[_], A](
-  rdd: RDD[A],
-  encoder: Encoder[A],
-  outPath: String,
-  cfg: SaverConfig) {
+final class AvroSaver[F[_], A](rdd: RDD[A], encoder: Encoder[A], outPath: String, cfg: SaverConfig)
+    extends Serializable {
   implicit private val enc: Encoder[A] = encoder
 
   val params: SaverParams = cfg.evalConfig

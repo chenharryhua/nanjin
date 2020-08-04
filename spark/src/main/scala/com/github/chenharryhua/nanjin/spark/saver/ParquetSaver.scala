@@ -17,7 +17,8 @@ final class ParquetSaver[F[_], A](
   encoder: Encoder[A],
   outPath: String,
   constraint: TypedEncoder[A],
-  cfg: SaverConfig) {
+  cfg: SaverConfig)
+    extends Serializable {
 
   implicit private val te: TypedEncoder[A] = constraint
   implicit private val enc: Encoder[A]     = encoder

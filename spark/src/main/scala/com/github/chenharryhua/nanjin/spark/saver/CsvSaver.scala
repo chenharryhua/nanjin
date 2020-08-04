@@ -14,7 +14,8 @@ final class CsvSaver[F[_], A](
   csvConfiguration: CsvConfiguration,
   outPath: String,
   constraint: TypedEncoder[A],
-  cfg: SaverConfig) {
+  cfg: SaverConfig)
+    extends Serializable {
   implicit private val enc: RowEncoder[A] = encoder
 
   val params: SaverParams = cfg.evalConfig

@@ -7,7 +7,8 @@ import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
-final class TextSaver[F[_], A](rdd: RDD[A], encoder: Show[A], outPath: String, cfg: SaverConfig) {
+final class TextSaver[F[_], A](rdd: RDD[A], encoder: Show[A], outPath: String, cfg: SaverConfig)
+    extends Serializable {
   implicit private val enc: Show[A] = encoder
 
   val params: SaverParams = cfg.evalConfig
