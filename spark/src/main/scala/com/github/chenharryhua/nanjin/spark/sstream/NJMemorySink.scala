@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.spark.streaming
+package com.github.chenharryhua.nanjin.spark.sstream
 
 import cats.effect.{Concurrent, Timer}
 import fs2.Stream

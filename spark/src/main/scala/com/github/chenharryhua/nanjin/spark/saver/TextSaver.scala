@@ -4,29 +4,26 @@ import cats.Show
 import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
-import monocle.macros.Lenses
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
-@Lenses final case class TextSaver[F[_], A](
-  rdd: RDD[A],
-  encoder: Show[A],
-  outPath: String,
-  saveMode: SaveMode,
-  singleOrMulti: SingleOrMulti) {
+final class TextSaver[F[_], A](rdd: RDD[A], encoder: Show[A], outPath: String, cfg: SaverConfig)
+    extends Serializable {
   implicit private val enc: Show[A] = encoder
 
+  val params: SaverParams = cfg.evalConfig
+
   def mode(sm: SaveMode): TextSaver[F, A] =
-    TextSaver.saveMode.set(sm)(this)
+    new TextSaver[F, A](rdd, encoder, outPath, cfg.withSaveMode(sm))
 
   def overwrite: TextSaver[F, A]     = mode(SaveMode.Overwrite)
   def errorIfExists: TextSaver[F, A] = mode(SaveMode.ErrorIfExists)
 
   def single: TextSaver[F, A] =
-    TextSaver.singleOrMulti.set(SingleOrMulti.Single)(this)
+    new TextSaver[F, A](rdd, encoder, outPath, cfg.withSingle)
 
   def multi: TextSaver[F, A] =
-    TextSaver.singleOrMulti.set(SingleOrMulti.Multi)(this)
+    new TextSaver[F, A](rdd, encoder, outPath, cfg.withMulti)
 
   private def writeSingleFile(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
@@ -37,9 +34,9 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
   def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
-    singleOrMulti match {
+    params.singleOrMulti match {
       case SingleOrMulti.Single =>
-        saveMode match {
+        params.saveMode match {
           case SaveMode.Append => F.raiseError(new Exception("append mode is not support"))
           case SaveMode.Overwrite =>
             fileSink[F](blocker).delete(outPath) >> writeSingleFile(blocker)
@@ -57,7 +54,7 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
         }
 
       case SingleOrMulti.Multi =>
-        saveMode match {
+        params.saveMode match {
           case SaveMode.Append => F.raiseError(new Exception("append mode is not support"))
           case SaveMode.Overwrite =>
             fileSink[F](blocker).delete(outPath) >> F.delay(writeMultiFiles(ss))

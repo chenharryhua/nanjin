@@ -25,34 +25,34 @@ final class NJRddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
 
 // 1
   def avro(pathStr: String)(implicit enc: AvroEncoder[A]): AvroSaver[F, A] =
-    AvroSaver[F, A](rdd, enc, pathStr, defaultSaveMode, defaultSM, defaultSH)
+    new AvroSaver[F, A](rdd, enc, pathStr, SaverConfig.default)
 
 // 2
   def jackson(pathStr: String)(implicit enc: AvroEncoder[A]): JacksonSaver[F, A] =
-    JacksonSaver[F, A](rdd, enc, pathStr, defaultSaveMode, defaultSM)
+    new JacksonSaver[F, A](rdd, enc, pathStr, SaverConfig.default)
 
 // 3
   def binAvro(pathStr: String)(implicit enc: AvroEncoder[A]): BinaryAvroSaver[F, A] =
-    BinaryAvroSaver[F, A](rdd, enc, pathStr, defaultSaveMode)
+    new BinaryAvroSaver[F, A](rdd, enc, pathStr, SaverConfig.default)
 
 // 4
   def parquet(pathStr: String)(implicit
     enc: AvroEncoder[A],
     constraint: TypedEncoder[A]): ParquetSaver[F, A] =
-    ParquetSaver[F, A](rdd, enc, pathStr, defaultSaveMode, defaultSM, defaultSH, constraint)
+    new ParquetSaver[F, A](rdd, enc, pathStr, constraint, SaverConfig.default)
 
 // 5
   def circe(pathStr: String)(implicit enc: JsonEncoder[A]): CirceJsonSaver[F, A] =
-    CirceJsonSaver[F, A](rdd, enc, pathStr, defaultSaveMode, defaultSM)
+    new CirceJsonSaver[F, A](rdd, enc, pathStr, SaverConfig.default)
 
 // 6
   def text(pathStr: String)(implicit enc: Show[A]): TextSaver[F, A] =
-    TextSaver[F, A](rdd, enc, pathStr, defaultSaveMode, defaultSM)
+    new TextSaver[F, A](rdd, enc, pathStr, SaverConfig.default)
 
 // 7
   def csv(
     pathStr: String)(implicit enc: RowEncoder[A], constraint: TypedEncoder[A]): CsvSaver[F, A] =
-    CsvSaver[F, A](rdd, enc, CsvConfiguration.rfc, pathStr, defaultSaveMode, defaultSM, constraint)
+    new CsvSaver[F, A](rdd, enc, CsvConfiguration.rfc, pathStr, constraint, SaverConfig.default)
 
 // 8
   def protobuf(pathStr: String)(implicit ev: A <:< GeneratedMessage): ProtobufSaver[F, A] =
@@ -60,7 +60,7 @@ final class NJRddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
 
 // 9
   def javaObject(pathStr: String): JavaObjectSaver[F, A] =
-    new JavaObjectSaver[F, A](rdd, pathStr, defaultSaveMode)
+    new JavaObjectSaver[F, A](rdd, pathStr, SaverConfig.default)
 
 // 10
   def dump(pathStr: String): Dumper[F, A] =

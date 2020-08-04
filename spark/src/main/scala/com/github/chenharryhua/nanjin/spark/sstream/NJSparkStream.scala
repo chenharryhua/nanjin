@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.spark.streaming
+package com.github.chenharryhua.nanjin.spark.sstream
 
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.UpdateParams
@@ -11,29 +11,29 @@ trait SparkStreamUpdateParams[A] extends UpdateParams[NJStreamConfig, A] with Se
   def params: NJStreamParams
 }
 
-final class SparkStream[F[_], A: TypedEncoder](ds: Dataset[A], cfg: NJStreamConfig)
-    extends SparkStreamUpdateParams[SparkStream[F, A]] {
+final class NJSparkStream[F[_], A: TypedEncoder](ds: Dataset[A], cfg: NJStreamConfig)
+    extends SparkStreamUpdateParams[NJSparkStream[F, A]] {
 
   override val params: NJStreamParams = cfg.evalConfig
 
-  override def withParamUpdate(f: NJStreamConfig => NJStreamConfig): SparkStream[F, A] =
-    new SparkStream[F, A](ds, f(cfg))
+  override def withParamUpdate(f: NJStreamConfig => NJStreamConfig): NJSparkStream[F, A] =
+    new NJSparkStream[F, A](ds, f(cfg))
 
   @transient lazy val typedDataset: TypedDataset[A] = TypedDataset.create(ds)
 
   // transforms
 
-  def filter(f: A => Boolean): SparkStream[F, A] =
-    new SparkStream[F, A](ds.filter(f), cfg)
+  def filter(f: A => Boolean): NJSparkStream[F, A] =
+    new NJSparkStream[F, A](ds.filter(f), cfg)
 
-  def map[B: TypedEncoder](f: A => B): SparkStream[F, B] =
-    new SparkStream[F, B](typedDataset.deserialized.map(f).dataset, cfg)
+  def map[B: TypedEncoder](f: A => B): NJSparkStream[F, B] =
+    new NJSparkStream[F, B](typedDataset.deserialized.map(f).dataset, cfg)
 
-  def flatMap[B: TypedEncoder](f: A => TraversableOnce[B]): SparkStream[F, B] =
-    new SparkStream[F, B](typedDataset.deserialized.flatMap(f).dataset, cfg)
+  def flatMap[B: TypedEncoder](f: A => TraversableOnce[B]): NJSparkStream[F, B] =
+    new NJSparkStream[F, B](typedDataset.deserialized.flatMap(f).dataset, cfg)
 
   def transform[B: TypedEncoder](f: TypedDataset[A] => TypedDataset[B]) =
-    new SparkStream[F, B](f(typedDataset).dataset, cfg)
+    new NJSparkStream[F, B](f(typedDataset).dataset, cfg)
 
   // sinks
 

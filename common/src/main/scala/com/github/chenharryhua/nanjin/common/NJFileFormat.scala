@@ -18,7 +18,7 @@ object NJFileFormat extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[N
 
   //text
   case object Jackson extends NJFileFormat(1, "json", "jackson")
-  case object CirceJson extends NJFileFormat(2, "json", "circe")
+  case object Circe extends NJFileFormat(2, "json", "circe")
   case object Text extends NJFileFormat(3, "txt", "plain")
   case object Csv extends NJFileFormat(4, "csv", "kantan")
 
@@ -31,7 +31,7 @@ object NJFileFormat extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[N
 
   // types
   type Jackson    = Jackson.type
-  type CirceJson  = CirceJson.type
+  type Circe      = Circe.type
   type Text       = Text.type
   type Csv        = Csv.type
   type Parquet    = Parquet.type
@@ -41,22 +41,22 @@ object NJFileFormat extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[N
   type ProtoBuf   = ProtoBuf.type
 
   // json family
-  type JsonFamily = Jackson :+: CirceJson :+: CNil
+  type JsonFamily = Jackson :+: Circe :+: CNil
 
   implicit val jsonPrimsJackson: Prism[JsonFamily, Jackson] =
     coProductPrism[JsonFamily, Jackson]
 
-  implicit val jsonPrimsJson: Prism[JsonFamily, CirceJson] =
-    coProductPrism[JsonFamily, CirceJson]
+  implicit val jsonPrimsJson: Prism[JsonFamily, Circe] =
+    coProductPrism[JsonFamily, Circe]
 
   // text family
-  type TextFamily = Jackson :+: CirceJson :+: Text :+: Csv :+: CNil
+  type TextFamily = Jackson :+: Circe :+: Text :+: Csv :+: CNil
 
   implicit val textPrismJackson: Prism[TextFamily, Jackson] =
     coProductPrism[TextFamily, Jackson]
 
-  implicit val textPrismJson: Prism[TextFamily, CirceJson] =
-    coProductPrism[TextFamily, CirceJson]
+  implicit val textPrismJson: Prism[TextFamily, Circe] =
+    coProductPrism[TextFamily, Circe]
 
   implicit val textPrismText: Prism[TextFamily, Text] =
     coProductPrism[TextFamily, Text]

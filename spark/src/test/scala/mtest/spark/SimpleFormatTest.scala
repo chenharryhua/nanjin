@@ -15,11 +15,10 @@ import frameless.cats.implicits._
 import scala.util.Random
 
 object SimpleFormatTestData {
-  final case class Simple(a: Int, b: String, c: Float, d: Double, instant: Instant)
+  final case class Simple(a: Int, b: String, c: Float, d: Double)
 
   val simple: List[Simple] =
-    List.fill(300)(
-      Simple(Random.nextInt(), "a", Random.nextFloat(), Random.nextDouble(), Instant.now))
+    List.fill(3)(Simple(Random.nextInt(), "a", Random.nextFloat(), Random.nextDouble()))
 }
 
 class SimpleFormatTest extends AnyFunSuite {
@@ -29,8 +28,8 @@ class SimpleFormatTest extends AnyFunSuite {
     val multi  = "./data/test/spark/simple/avro/multi.avro"
     val rdd    = sparkSession.sparkContext.parallelize(simple)
     val prepare =
-      rdd.save[IO].avro(single).single.overwrite.run(blocker) >>
-        rdd.save[IO].avro(multi).multi.overwrite.run(blocker)
+      rdd.save[IO].avro(single).hadoop.single.overwrite.run(blocker) >>
+        rdd.save[IO].avro(multi).spark.multi.overwrite.run(blocker)
     prepare.unsafeRunSync()
 
     assert(sparkSession.load.avro[Simple](single).collect().toSet == simple.toSet)
@@ -41,7 +40,8 @@ class SimpleFormatTest extends AnyFunSuite {
     val single = "./data/test/spark/simple/jackson/jackson.json"
     val multi  = "./data/test/spark/simple/jackson/multi.jackson"
     val rdd    = sparkSession.sparkContext.parallelize(simple)
-    val prepare = rdd.save[IO].jackson(single).single.run(blocker) >> rdd.save[IO]
+    val prepare = rdd.save[IO].jackson(single).single.run(blocker) >> rdd
+      .save[IO]
       .jackson(multi)
       .multi
       .run(blocker)
@@ -69,10 +69,11 @@ class SimpleFormatTest extends AnyFunSuite {
     val multi  = "./data/test/spark/simple/parquet/multi.parquet"
 
     val rdd = sparkSession.sparkContext.parallelize(simple)
-    val prepare = rdd.save[IO].parquet(single).single.run(blocker) >> rdd.save[IO]
-      .parquet(multi)
-      .multi
-      .run(blocker)
+    val prepare = rdd
+      .save[IO]
+      .parquet(single)
+      .single
+      .run(blocker) >> rdd.save[IO].parquet(multi).spark.multi.run(blocker)
     prepare.unsafeRunSync()
 
     assert(sparkSession.load.parquet[Simple](single).collect().toSet == simple.toSet)

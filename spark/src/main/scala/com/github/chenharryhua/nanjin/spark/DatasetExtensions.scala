@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
-import cats.effect.{Blocker, ConcurrentEffect, Resource, Sync}
+import cats.effect.{ConcurrentEffect, Resource, Sync}
 import cats.implicits._
 import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.spark.saver.NJRddFileSaver
@@ -45,7 +45,7 @@ private[spark] trait DatasetExtensions {
     }
 
     def toDF(implicit encoder: AvroEncoder[A], ss: SparkSession): DataFrame =
-      new RddToDataFrame[A](rdd, encoder, ss).toDF
+      utils.rddToDataFrame[A](rdd, encoder, ss)
 
     def save[F[_]]: NJRddFileSaver[F, A] = new NJRddFileSaver[F, A](rdd)
   }
@@ -73,6 +73,6 @@ private[spark] trait DatasetExtensions {
 
   implicit final class SparkSessionExt(private val ss: SparkSession) {
 
-    val load: RddFileLoader = new RddFileLoader(ss)
+    val load: NJRddLoader = new NJRddLoader(ss)
   }
 }

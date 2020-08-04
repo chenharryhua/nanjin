@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.spark.streaming
+package com.github.chenharryhua.nanjin.spark.sstream
 
 import cats.effect.{Concurrent, Timer}
 import cats.implicits._
@@ -20,7 +20,7 @@ trait NJStreamSink[F[_]] extends Serializable {
     queryStream.mapFilter(Option(_).map(_.prettyJson)).showLinesStdOut.compile.drain
 }
 
-private[streaming] object ss {
+private[sstream] object ss {
 
   def queryStream[F[_], A](dsw: DataStreamWriter[A])(implicit
     F: Concurrent[F],

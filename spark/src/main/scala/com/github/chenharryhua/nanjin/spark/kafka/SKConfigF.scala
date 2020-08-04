@@ -27,6 +27,8 @@ private[spark] object NJUploadRate {
   timeRange: NJDateTimeRange,
   uploadRate: NJUploadRate,
   replayPath: TopicName => String,
+  fileFormat: NJFileFormat,
+  outPath: (TopicName, NJFileFormat) => String,
   saveMode: SaveMode,
   locationStrategy: LocationStrategy,
   showDs: NJShowDataset)
@@ -38,6 +40,8 @@ private[spark] object SKParams {
       timeRange = NJDateTimeRange(zoneId),
       uploadRate = NJUploadRate.default,
       replayPath = topicName => s"./data/sparKafka/${topicName.value}/replay/",
+      fileFormat = NJFileFormat.Jackson,
+      outPath = (tn, fmt) => s"./data/sparKafka/${tn.value}/${fmt.alias}.${fmt.format}",
       saveMode = SaveMode.ErrorIfExists,
       locationStrategy = LocationStrategies.PreferConsistent,
       showDs = NJShowDataset(20, isTruncate = false)
@@ -71,6 +75,9 @@ private[spark] object SKConfigF {
 
   final case class WithReplayPath[K](value: TopicName => String, cont: K) extends SKConfigF[K]
 
+  final case class WithOutPath[K](value: (TopicName, NJFileFormat) => String, cont: K)
+      extends SKConfigF[K]
+
   private val algebra: Algebra[SKConfigF, SKParams] = Algebra[SKConfigF, SKParams] {
     case DefaultParams(v)           => SKParams(v)
     case WithBatchSize(v, c)        => SKParams.uploadRate.composeLens(NJUploadRate.batchSize).set(v)(c)
@@ -89,6 +96,7 @@ private[spark] object SKConfigF {
     case WithShowRows(v, c)         => SKParams.showDs.composeLens(NJShowDataset.rowNum).set(v)(c)
     case WithShowTruncate(v, c)     => SKParams.showDs.composeLens(NJShowDataset.isTruncate).set(v)(c)
     case WithReplayPath(v, c)       => SKParams.replayPath.set(v)(c)
+    case WithOutPath(v, c)          => SKParams.outPath.set(v)(c)
   }
 
   def evalConfig(cfg: SKConfig): SKParams = scheme.cata(algebra).apply(cfg.value)
@@ -126,6 +134,9 @@ final private[spark] case class SKConfig private (value: Fix[SKConfigF]) extends
 
   def withReplayPath(f: TopicName => String): SKConfig =
     SKConfig(Fix(WithReplayPath(f, value)))
+
+  def withOutPath(f: (TopicName, NJFileFormat) => String): SKConfig =
+    SKConfig(Fix(WithOutPath(f, value)))
 
   def evalConfig: SKParams = SKConfigF.evalConfig(this)
 }

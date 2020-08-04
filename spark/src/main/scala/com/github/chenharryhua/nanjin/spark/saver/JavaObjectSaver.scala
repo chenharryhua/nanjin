@@ -3,15 +3,16 @@ package com.github.chenharryhua.nanjin.spark.saver
 import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
-import monocle.macros.Lenses
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
-@Lenses final case class JavaObjectSaver[F[_], A](rdd: RDD[A], outPath: String, saveMode: SaveMode)
+final class JavaObjectSaver[F[_], A](rdd: RDD[A], outPath: String, cfg: SaverConfig)
     extends Serializable {
 
+  val params: SaverParams = cfg.evalConfig
+
   def mode(sm: SaveMode): JavaObjectSaver[F, A] =
-    JavaObjectSaver.saveMode.set(sm)(this)
+    new JavaObjectSaver[F, A](rdd, outPath, cfg.withSaveMode(sm))
 
   def overwrite: JavaObjectSaver[F, A]     = mode(SaveMode.Overwrite)
   def errorIfExists: JavaObjectSaver[F, A] = mode(SaveMode.ErrorIfExists)
@@ -22,7 +23,7 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
   def run(
     blocker: Blocker)(implicit F: Concurrent[F], ce: ContextShift[F], ss: SparkSession): F[Unit] =
-    saveMode match {
+    params.saveMode match {
       case SaveMode.Append => F.raiseError(new Exception("append mode is not support"))
       case SaveMode.Overwrite =>
         fileSink[F](blocker).delete(outPath) >> writeSingleFile(blocker)
