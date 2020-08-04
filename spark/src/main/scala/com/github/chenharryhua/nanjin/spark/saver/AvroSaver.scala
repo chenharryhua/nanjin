@@ -2,51 +2,49 @@ package com.github.chenharryhua.nanjin.spark.saver
 
 import cats.effect.{Blocker, ContextShift, Sync}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.spark.utils
 import com.github.chenharryhua.nanjin.spark.mapreduce.NJAvroKeyOutputFormat
-import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
+import com.github.chenharryhua.nanjin.spark.{fileSink, utils, RddExt}
 import com.sksamuel.avro4s.{Encoder, SchemaFor}
-import monocle.macros.Lenses
 import org.apache.avro.Schema
 import org.apache.avro.mapreduce.AvroJob
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
-@Lenses final case class AvroSaver[F[_], A](
+final class AvroSaver[F[_], A](
   rdd: RDD[A],
   encoder: Encoder[A],
   outPath: String,
-  saveMode: SaveMode,
-  singleOrMulti: SingleOrMulti,
-  sparkOrHadoop: SparkOrHadoop) {
+  cfg: SaverConfig) {
   implicit private val enc: Encoder[A] = encoder
 
+  val params: SaverParams = cfg.evalConfig
+
   def withEncoder(enc: Encoder[A]): AvroSaver[F, A] =
-    AvroSaver.encoder.set(enc)(this)
+    new AvroSaver[F, A](rdd, enc, outPath, cfg)
 
   def withSchema(schema: Schema): AvroSaver[F, A] = {
     val schemaFor: SchemaFor[A] = SchemaFor[A](schema)
-    AvroSaver.encoder[F, A].modify(e => e.withSchema(schemaFor))(this)
+    new AvroSaver[F, A](rdd, encoder.withSchema(schemaFor), outPath, cfg)
   }
 
   def mode(sm: SaveMode): AvroSaver[F, A] =
-    AvroSaver.saveMode.set(sm)(this)
+    new AvroSaver[F, A](rdd, encoder, outPath, cfg.withSaveMode(sm))
 
   def overwrite: AvroSaver[F, A]     = mode(SaveMode.Overwrite)
   def errorIfExists: AvroSaver[F, A] = mode(SaveMode.ErrorIfExists)
 
   def single: AvroSaver[F, A] =
-    AvroSaver.singleOrMulti.set(SingleOrMulti.Single)(this)
+    new AvroSaver[F, A](rdd, encoder, outPath, cfg.withSingle)
 
   def multi: AvroSaver[F, A] =
-    AvroSaver.singleOrMulti.set(SingleOrMulti.Multi)(this)
+    new AvroSaver[F, A](rdd, encoder, outPath, cfg.withMulti)
 
   def spark: AvroSaver[F, A] =
-    AvroSaver.sparkOrHadoop.set(SparkOrHadoop.Spark)(this)
+    new AvroSaver[F, A](rdd, encoder, outPath, cfg.withSpark)
 
   def hadoop: AvroSaver[F, A] =
-    AvroSaver.sparkOrHadoop.set(SparkOrHadoop.Hadoop)(this)
+    new AvroSaver[F, A](rdd, encoder, outPath, cfg.withHadoop)
 
   private def writeSingleFile(
     blocker: Blocker)(implicit ss: SparkSession, F: Sync[F], cs: ContextShift[F]): F[Unit] =
@@ -60,9 +58,9 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
   }
 
   def run(blocker: Blocker)(implicit ss: SparkSession, F: Sync[F], cs: ContextShift[F]): F[Unit] =
-    singleOrMulti match {
+    params.singleOrMulti match {
       case SingleOrMulti.Single =>
-        saveMode match {
+        params.saveMode match {
           case SaveMode.Append => F.raiseError(new Exception("append mode is not support"))
           case SaveMode.Overwrite =>
             fileSink[F](blocker).delete(outPath) >> writeSingleFile(blocker)
@@ -80,11 +78,11 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
         }
 
       case SingleOrMulti.Multi =>
-        sparkOrHadoop match {
+        params.sparkOrHadoop match {
           case SparkOrHadoop.Spark =>
-            F.delay(rdd.toDF.write.mode(saveMode).format("avro").save(outPath))
+            F.delay(rdd.toDF.write.mode(params.saveMode).format("avro").save(outPath))
           case SparkOrHadoop.Hadoop =>
-            saveMode match {
+            params.saveMode match {
               case SaveMode.Append => F.raiseError(new Exception("append mode is not support"))
               case SaveMode.Overwrite =>
                 fileSink[F](blocker).delete(outPath) >> F.delay(writeMultiFiles(ss))

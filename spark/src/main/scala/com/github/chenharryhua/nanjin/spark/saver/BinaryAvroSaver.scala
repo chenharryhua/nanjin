@@ -4,19 +4,20 @@ import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import com.sksamuel.avro4s.Encoder
-import monocle.macros.Lenses
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
-@Lenses final case class BinaryAvroSaver[F[_], A](
+final class BinaryAvroSaver[F[_], A](
   rdd: RDD[A],
   encoder: Encoder[A],
   outPath: String,
-  saveMode: SaveMode) {
+  cfg: SaverConfig) {
   implicit private val enc: Encoder[A] = encoder
 
+  val params: SaverParams = cfg.evalConfig
+
   def mode(sm: SaveMode): BinaryAvroSaver[F, A] =
-    BinaryAvroSaver.saveMode.set(sm)(this)
+    new BinaryAvroSaver(rdd, encoder, outPath, cfg.withSaveMode(sm))
 
   def overwrite: BinaryAvroSaver[F, A]     = mode(SaveMode.Overwrite)
   def errorIfExists: BinaryAvroSaver[F, A] = mode(SaveMode.ErrorIfExists)
@@ -27,7 +28,7 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
   def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
-    saveMode match {
+    params.saveMode match {
       case SaveMode.Append => F.raiseError(new Exception("append mode is not support"))
       case SaveMode.Overwrite =>
         fileSink[F](blocker).delete(outPath) >> writeSingleFile(blocker)

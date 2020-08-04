@@ -5,34 +5,34 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import frameless.{TypedDataset, TypedEncoder}
 import kantan.csv.{CsvConfiguration, RowEncoder}
-import monocle.macros.Lenses
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
-@Lenses final case class CsvSaver[F[_], A](
+final class CsvSaver[F[_], A](
   rdd: RDD[A],
   encoder: RowEncoder[A],
   csvConfiguration: CsvConfiguration,
   outPath: String,
-  saveMode: SaveMode,
-  singleOrMulti: SingleOrMulti,
-  constraint: TypedEncoder[A]) {
+  constraint: TypedEncoder[A],
+  cfg: SaverConfig) {
   implicit private val enc: RowEncoder[A] = encoder
 
+  val params: SaverParams = cfg.evalConfig
+
   def updateCsvConfig(f: CsvConfiguration => CsvConfiguration): CsvSaver[F, A] =
-    CsvSaver.csvConfiguration[F, A].modify(f)(this)
+    new CsvSaver[F, A](rdd, encoder, f(csvConfiguration), outPath, constraint, cfg)
 
   def mode(sm: SaveMode): CsvSaver[F, A] =
-    CsvSaver.saveMode.set(sm)(this)
+    new CsvSaver[F, A](rdd, encoder, csvConfiguration, outPath, constraint, cfg.withSaveMode(sm))
 
   def overwrite: CsvSaver[F, A]     = mode(SaveMode.Overwrite)
   def errorIfExists: CsvSaver[F, A] = mode(SaveMode.ErrorIfExists)
 
   def single: CsvSaver[F, A] =
-    CsvSaver.singleOrMulti.set(SingleOrMulti.Single)(this)
+    new CsvSaver[F, A](rdd, encoder, csvConfiguration, outPath, constraint, cfg.withSingle)
 
   def multi: CsvSaver[F, A] =
-    CsvSaver.singleOrMulti.set(SingleOrMulti.Multi)(this)
+    new CsvSaver[F, A](rdd, encoder, csvConfiguration, outPath, constraint, cfg.withMulti)
 
   private def writeSingleFile(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
@@ -50,9 +50,9 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
   def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
-    singleOrMulti match {
+    params.singleOrMulti match {
       case SingleOrMulti.Single =>
-        saveMode match {
+        params.saveMode match {
           case SaveMode.Append => F.raiseError(new Exception("append mode is not support"))
           case SaveMode.Overwrite =>
             fileSink[F](blocker).delete(outPath) >> writeSingleFile(blocker)
@@ -70,7 +70,7 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
         }
 
       case SingleOrMulti.Multi =>
-        saveMode match {
+        params.saveMode match {
           case SaveMode.Append => F.raiseError(new Exception("append mode is not support"))
           case SaveMode.Overwrite =>
             fileSink[F](blocker).delete(outPath) >> F.delay(writeMultiFiles(ss))
