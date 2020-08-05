@@ -24,7 +24,10 @@ class NJAvroKeyOutputFormat extends AvroOutputFormatBase[AvroKey[GenericRecord],
     }
 
     val path: Path =
-      new Path(committer, FileOutputFormat.getUniqueFile(context, "nj", ".avro"))
+      new Path(
+        committer,
+        FileOutputFormat
+          .getUniqueFile(context, s"nj-${context.getTaskAttemptID.getJobID.toString}", ".avro"))
 
     path.getFileSystem(context.getConfiguration).create(path)
   }
