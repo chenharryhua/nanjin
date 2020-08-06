@@ -12,12 +12,13 @@ import org.apache.hadoop.fs.s3a.commit.AbstractS3ACommitter
 import org.apache.hadoop.io.NullWritable
 import org.apache.hadoop.mapreduce.lib.output.{FileOutputCommitter, FileOutputFormat}
 import org.apache.hadoop.mapreduce.{RecordWriter, TaskAttemptContext}
+import org.log4s.Logger
 
 // avro build-in(AvroKeyOutputFormat) does not support s3, yet
 class NJAvroKeyOutputFormat extends AvroOutputFormatBase[AvroKey[GenericRecord], NullWritable] {
 
   private def fileOutputStream(context: TaskAttemptContext): OutputStream = {
-    val committer = getOutputCommitter(context) match {
+    val workPath = getOutputCommitter(context) match {
       case c: FileOutputCommitter  => c.getWorkPath
       case s: AbstractS3ACommitter => s.getWorkPath
       case ex                      => throw new Exception(s"not support: ${ex.toString}")
@@ -25,7 +26,7 @@ class NJAvroKeyOutputFormat extends AvroOutputFormatBase[AvroKey[GenericRecord],
 
     val path: Path =
       new Path(
-        committer,
+        workPath,
         FileOutputFormat
           .getUniqueFile(context, s"nj-${context.getTaskAttemptID.getJobID.toString}", ".avro"))
 
@@ -42,6 +43,7 @@ class NJAvroKeyOutputFormat extends AvroOutputFormatBase[AvroKey[GenericRecord],
 
 final class AvroKeyRecordWriter(schema: Schema, os: OutputStream)
     extends RecordWriter[AvroKey[GenericRecord], NullWritable] {
+  val logger: Logger = org.log4s.getLogger("nj.spark.mapreduce.avro")
 
   private val datumWriter: GenericDatumWriter[GenericRecord] =
     new GenericDatumWriter[GenericRecord](schema)
@@ -50,7 +52,8 @@ final class AvroKeyRecordWriter(schema: Schema, os: OutputStream)
     new DataFileWriter[GenericRecord](datumWriter).create(schema, os)
 
   override def write(key: AvroKey[GenericRecord], value: NullWritable): Unit =
-    dataFileWriter.append(key.datum())
+    try dataFileWriter.append(key.datum())
+    catch { case ex: Throwable => logger.error(ex)(key.datum().toString) }
 
   override def close(context: TaskAttemptContext): Unit = {
     dataFileWriter.flush()

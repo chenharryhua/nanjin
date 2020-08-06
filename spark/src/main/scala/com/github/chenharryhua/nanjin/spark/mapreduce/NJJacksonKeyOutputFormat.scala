@@ -12,6 +12,7 @@ import org.apache.hadoop.fs.s3a.commit.AbstractS3ACommitter
 import org.apache.hadoop.io.NullWritable
 import org.apache.hadoop.mapreduce.lib.output.{FileOutputCommitter, FileOutputFormat}
 import org.apache.hadoop.mapreduce.{RecordWriter, TaskAttemptContext}
+import org.log4s.Logger
 
 final class NJJacksonKeyOutputFormat
     extends AvroOutputFormatBase[AvroKey[GenericRecord], NullWritable] {
@@ -44,13 +45,15 @@ final class NJJacksonKeyOutputFormat
 
 final class JacksonKeyRecordWriter(schema: Schema, os: OutputStream)
     extends RecordWriter[AvroKey[GenericRecord], NullWritable] {
+  val logger: Logger = org.log4s.getLogger("nj.spark.mapreduce.jackson")
 
   private val datumWriter: GenericDatumWriter[GenericRecord] =
     new GenericDatumWriter[GenericRecord](schema)
   private val encoder: JsonEncoder = EncoderFactory.get().jsonEncoder(schema, os)
 
   override def write(key: AvroKey[GenericRecord], value: NullWritable): Unit =
-    datumWriter.write(key.datum(), encoder)
+    try datumWriter.write(key.datum(), encoder)
+    catch { case ex: Throwable => logger.error(ex)(key.datum().toString) }
 
   override def close(context: TaskAttemptContext): Unit = {
     encoder.flush()
