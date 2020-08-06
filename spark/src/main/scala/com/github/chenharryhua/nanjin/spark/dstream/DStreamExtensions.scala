@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.dstream
 
-import cats.data.Reader
-import cats.effect.{Blocker, ConcurrentEffect, ContextShift}
+import cats.effect.{ConcurrentEffect, ContextShift}
 import com.github.chenharryhua.nanjin.spark.mapreduce.{
   NJAvroKeyOutputFormat,
   NJJacksonKeyOutputFormat
@@ -25,34 +24,32 @@ private[dstream] trait DStreamExtensions {
       enc: AvroEncoder[A],
       ss: SparkSession,
       F: ConcurrentEffect[F],
-      cs: ContextShift[F]): Reader[Blocker, Unit] = {
+      cs: ContextShift[F]): Unit = {
       val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
       AvroJob.setOutputKeySchema(job, enc.schema)
       ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
 
-      Reader((blocker: Blocker) =>
-        ds.foreachRDD { (rdd, time) =>
-          if (!rdd.isEmpty())
-            utils
-              .genericRecordPair(rdd, enc)
-              .saveAsNewAPIHadoopFile[NJJacksonKeyOutputFormat](pathStr)
-        })
+      ds.foreachRDD { (rdd, _) =>
+        if (!rdd.isEmpty())
+          utils
+            .genericRecordPair(rdd, enc)
+            .saveAsNewAPIHadoopFile[NJJacksonKeyOutputFormat](pathStr)
+      }
     }
 
     def avro[F[_]](pathStr: String)(implicit
       enc: AvroEncoder[A],
       ss: SparkSession,
       F: ConcurrentEffect[F],
-      cs: ContextShift[F]): Reader[Blocker, Unit] = {
+      cs: ContextShift[F]): Unit = {
       val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
       AvroJob.setOutputKeySchema(job, enc.schema)
       ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
 
-      Reader((blocker: Blocker) =>
-        ds.foreachRDD { (rdd, time) =>
-          if (!rdd.isEmpty())
-            utils.genericRecordPair(rdd, enc).saveAsNewAPIHadoopFile[NJAvroKeyOutputFormat](pathStr)
-        })
+      ds.foreachRDD { (rdd, _) =>
+        if (!rdd.isEmpty())
+          utils.genericRecordPair(rdd, enc).saveAsNewAPIHadoopFile[NJAvroKeyOutputFormat](pathStr)
+      }
     }
   }
 }
