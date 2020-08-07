@@ -41,7 +41,7 @@ private[spark] object NJStreamParams {
       checkpoint = NJCheckpoint("./data/checkpoint/"),
       dataLoss = NJFailOnDataLoss(true),
       outputMode = OutputMode.Append,
-      trigger = Trigger.ProcessingTime(0)
+      trigger = Trigger.ProcessingTime(1, TimeUnit.MINUTES)
     )
 }
 
