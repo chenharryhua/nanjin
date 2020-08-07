@@ -20,11 +20,7 @@ private[dstream] trait DStreamExtensions {
 
   implicit class DStreamExt[A](private val ds: DStream[A]) {
 
-    def jackson[F[_]](pathStr: String)(implicit
-      enc: AvroEncoder[A],
-      ss: SparkSession,
-      F: ConcurrentEffect[F],
-      cs: ContextShift[F]): Unit = {
+    def jackson(pathStr: String)(implicit enc: AvroEncoder[A], ss: SparkSession): Unit = {
       val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
       AvroJob.setOutputKeySchema(job, enc.schema)
       ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
@@ -37,11 +33,7 @@ private[dstream] trait DStreamExtensions {
       }
     }
 
-    def avro[F[_]](pathStr: String)(implicit
-      enc: AvroEncoder[A],
-      ss: SparkSession,
-      F: ConcurrentEffect[F],
-      cs: ContextShift[F]): Unit = {
+    def avro(pathStr: String)(implicit enc: AvroEncoder[A], ss: SparkSession): Unit = {
       val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
       AvroJob.setOutputKeySchema(job, enc.schema)
       ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
