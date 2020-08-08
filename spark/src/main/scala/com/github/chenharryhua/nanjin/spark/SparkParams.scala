@@ -42,7 +42,7 @@ final private[spark] case class DatePartitionedCR[K, V](
   key: Option[K],
   value: Option[V])
 
-object DatePartitionedCR {
+private[spark] object DatePartitionedCR {
 
   def apply[K, V](zoneId: ZoneId)(kv: OptionalKV[K, V]): DatePartitionedCR[K, V] = {
     val time = NJTimestamp(kv.timestamp)
