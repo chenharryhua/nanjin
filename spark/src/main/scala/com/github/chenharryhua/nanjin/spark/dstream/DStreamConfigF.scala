@@ -3,7 +3,9 @@ package com.github.chenharryhua.nanjin.spark.dstream
 import higherkindness.droste.data.Fix
 import higherkindness.droste.macros.deriveFixedPoint
 
-final case class DStreamParams()
+final case class DStreamParams(
+  outPath: String
+)
 
 @deriveFixedPoint trait DStreamConfigF[_]
 

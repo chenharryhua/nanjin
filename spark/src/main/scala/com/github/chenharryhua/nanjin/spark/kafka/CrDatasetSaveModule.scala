@@ -17,24 +17,40 @@ private[kafka] trait CrDatasetSaveModule[F[_], K, V] { self: CrDataset[F, K, V] 
     def avro(pathStr: String): AvroSaver[F, OptionalKV[K, V]] =
       saver.avro(pathStr)
 
+    def avro: AvroSaver[F, OptionalKV[K, V]] = avro(params.outPath)
+
     def jackson(pathStr: String): JacksonSaver[F, OptionalKV[K, V]] =
       saver.jackson(pathStr)
+
+    def jackson: JacksonSaver[F, OptionalKV[K, V]] = jackson(params.outPath)
 
     def parquet(pathStr: String): ParquetSaver[F, OptionalKV[K, V]] =
       saver.parquet(pathStr)
 
+    def parquet: ParquetSaver[F, OptionalKV[K, V]] = parquet(params.outPath)
+
     def binAvro(pathStr: String): BinaryAvroSaver[F, OptionalKV[K, V]] =
       saver.binAvro(pathStr)
 
+    def binAvro: BinaryAvroSaver[F, OptionalKV[K, V]] = binAvro(params.outPath)
+
     def text(pathStr: String)(implicit ev: Show[OptionalKV[K, V]]): TextSaver[F, OptionalKV[K, V]] =
       saver.text(pathStr)
+
+    def text(implicit ev: Show[OptionalKV[K, V]]): TextSaver[F, OptionalKV[K, V]] =
+      text(params.outPath)
 
     def circe(pathStr: String)(implicit
       ev: JsonEncoder[OptionalKV[K, V]]): CirceJsonSaver[F, OptionalKV[K, V]] =
       saver.circe(pathStr)
 
+    def circe(implicit ev: JsonEncoder[OptionalKV[K, V]]): CirceJsonSaver[F, OptionalKV[K, V]] =
+      circe(params.outPath)
+
     def javaObject(pathStr: String): JavaObjectSaver[F, OptionalKV[K, V]] =
       saver.javaObject(pathStr)
+
+    def javaObject: JavaObjectSaver[F, OptionalKV[K, V]] = javaObject(params.outPath)
 
     def csv[A: RowEncoder](pathStr: String)(f: OptionalKV[K, V] => A)(implicit
       ev: TypedEncoder[A]): CsvSaver[F, A] = {
@@ -42,12 +58,19 @@ private[kafka] trait CrDatasetSaveModule[F[_], K, V] { self: CrDataset[F, K, V] 
       saver.map(f).csv(pathStr)
     }
 
+    def csv[A: RowEncoder](f: OptionalKV[K, V] => A)(implicit ev: TypedEncoder[A]): CsvSaver[F, A] =
+      csv(params.outPath)(f)
+
     def protobuf[A: ClassTag](pathStr: String)(f: OptionalKV[K, V] => A)(implicit
       ev: A <:< GeneratedMessage): ProtobufSaver[F, A] =
       saver.map(f).protobuf(pathStr)
 
-    def dump(pathStr: String): Dumper[F, OptionalKV[K, V]] =
-      saver.dump(pathStr)
+    def protobuf[A: ClassTag](f: OptionalKV[K, V] => A)(implicit
+      ev: A <:< GeneratedMessage): ProtobufSaver[F, A] =
+      protobuf(params.outPath)(f)
+
+    def dump: Dumper[F, OptionalKV[K, V]] =
+      saver.dump(params.replayPath)
   }
 
   def save: FileSaver =
