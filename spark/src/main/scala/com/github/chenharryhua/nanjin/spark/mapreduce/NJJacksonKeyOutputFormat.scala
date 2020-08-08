@@ -45,15 +45,13 @@ final class NJJacksonKeyOutputFormat
 
 final class JacksonKeyRecordWriter(schema: Schema, os: OutputStream)
     extends RecordWriter[AvroKey[GenericRecord], NullWritable] {
-  val logger: Logger = org.log4s.getLogger("nj.spark.mapreduce.jackson")
 
   private val datumWriter: GenericDatumWriter[GenericRecord] =
     new GenericDatumWriter[GenericRecord](schema)
   private val encoder: JsonEncoder = EncoderFactory.get().jsonEncoder(schema, os)
 
   override def write(key: AvroKey[GenericRecord], value: NullWritable): Unit =
-    try datumWriter.write(key.datum(), encoder)
-    catch { case ex: Throwable => logger.error(ex)(key.datum().toString) }
+    datumWriter.write(key.datum(), encoder)
 
   override def close(context: TaskAttemptContext): Unit = {
     encoder.flush()

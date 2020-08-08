@@ -43,7 +43,6 @@ class NJAvroKeyOutputFormat extends AvroOutputFormatBase[AvroKey[GenericRecord],
 
 final class AvroKeyRecordWriter(schema: Schema, os: OutputStream)
     extends RecordWriter[AvroKey[GenericRecord], NullWritable] {
-  val logger: Logger = org.log4s.getLogger("nj.spark.mapreduce.avro")
 
   private val datumWriter: GenericDatumWriter[GenericRecord] =
     new GenericDatumWriter[GenericRecord](schema)
@@ -52,8 +51,7 @@ final class AvroKeyRecordWriter(schema: Schema, os: OutputStream)
     new DataFileWriter[GenericRecord](datumWriter).create(schema, os)
 
   override def write(key: AvroKey[GenericRecord], value: NullWritable): Unit =
-    try dataFileWriter.append(key.datum())
-    catch { case ex: Throwable => logger.error(ex)(key.datum().toString) }
+    dataFileWriter.append(key.datum())
 
   override def close(context: TaskAttemptContext): Unit = {
     dataFileWriter.flush()
