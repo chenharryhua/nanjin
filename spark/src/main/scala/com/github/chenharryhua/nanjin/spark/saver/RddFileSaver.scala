@@ -10,13 +10,13 @@ import scalapb.GeneratedMessage
 
 import scala.reflect.ClassTag
 
-final class NJRddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
+final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
 
-  def map[B: ClassTag](f: A => B): NJRddFileSaver[F, B] =
-    new NJRddFileSaver[F, B](rdd.map(f))
+  def map[B: ClassTag](f: A => B): RddFileSaver[F, B] =
+    new RddFileSaver[F, B](rdd.map(f))
 
-  def flatMap[B: ClassTag](f: A => TraversableOnce[B]): NJRddFileSaver[F, B] =
-    new NJRddFileSaver[F, B](rdd.flatMap(f))
+  def flatMap[B: ClassTag](f: A => TraversableOnce[B]): RddFileSaver[F, B] =
+    new RddFileSaver[F, B](rdd.flatMap(f))
 
 // 1
   def avro(pathStr: String)(implicit enc: AvroEncoder[A]): AvroSaver[F, A] =

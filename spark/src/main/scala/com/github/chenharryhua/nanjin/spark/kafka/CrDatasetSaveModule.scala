@@ -12,7 +12,7 @@ import scala.reflect.ClassTag
 
 private[kafka] trait CrDatasetSaveModule[F[_], K, V] { self: CrDataset[F, K, V] =>
 
-  final class FileSaver(saver: NJRddFileSaver[F, OptionalKV[K, V]]) {
+  final class FileSaver(saver: RddFileSaver[F, OptionalKV[K, V]]) {
 
     def avro(pathStr: String): AvroSaver[F, OptionalKV[K, V]] =
       saver.avro(pathStr)
@@ -74,6 +74,6 @@ private[kafka] trait CrDatasetSaveModule[F[_], K, V] { self: CrDataset[F, K, V] 
   }
 
   def save: FileSaver =
-    new FileSaver(new NJRddFileSaver[F, OptionalKV[K, V]](crs.rdd))
+    new FileSaver(new RddFileSaver[F, OptionalKV[K, V]](crs.rdd))
 
 }

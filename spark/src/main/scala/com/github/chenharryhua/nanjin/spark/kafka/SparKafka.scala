@@ -5,7 +5,6 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.{NJProducerRecord, OptionalKV}
-import com.github.chenharryhua.nanjin.spark.dstream.{DStreamConfig, KafkaCrDStream}
 import com.github.chenharryhua.nanjin.spark.sstream.{KafkaCrSStream, SStreamConfig, SparkSStream}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.{SparkDelay, TypedDataset, TypedEncoder}
@@ -75,10 +74,12 @@ final class SparKafka[F[_], K, V](val topic: KafkaTopic[F, K, V], val cfg: SKCon
     * direct stream
     */
 
-  def dstream(sc: StreamingContext): KafkaCrDStream[F, K, V] =
-    new KafkaCrDStream[F, K, V](
-      sk.kafkaDStream[F, K, V](topic, sc, params.locationStrategy),
-      DStreamConfig())
+  def dstream(sc: StreamingContext): CrDStream[F, K, V] =
+    new CrDStream[F, K, V](sk.kafkaDStream[F, K, V](topic, sc, params.locationStrategy), cfg)(
+      sparkSession,
+      topic.topicDef.avroKeyEncoder,
+      topic.topicDef.avroValEncoder
+    )
 
   /**
     * structured stream

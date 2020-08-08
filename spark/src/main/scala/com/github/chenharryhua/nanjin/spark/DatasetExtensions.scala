@@ -5,7 +5,7 @@ import akka.stream.scaladsl.Source
 import cats.effect.{ConcurrentEffect, Resource, Sync}
 import cats.implicits._
 import cats.kernel.Eq
-import com.github.chenharryhua.nanjin.spark.saver.NJRddFileSaver
+import com.github.chenharryhua.nanjin.spark.saver.RddFileSaver
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
@@ -47,7 +47,7 @@ private[spark] trait DatasetExtensions {
     def toDF(implicit encoder: AvroEncoder[A], ss: SparkSession): DataFrame =
       utils.rddToDataFrame[A](rdd, encoder, ss)
 
-    def save[F[_]]: NJRddFileSaver[F, A] = new NJRddFileSaver[F, A](rdd)
+    def save[F[_]]: RddFileSaver[F, A] = new RddFileSaver[F, A](rdd)
   }
 
   implicit final class TypedDatasetExt[A](private val tds: TypedDataset[A]) {
@@ -60,8 +60,8 @@ private[spark] trait DatasetExtensions {
     def dismissNulls: TypedDataset[A]   = tds.deserialized.filter(_ != null)
     def numOfNulls[F[_]: Sync]: F[Long] = tds.except(dismissNulls).count[F]()
 
-    def save[F[_]]: NJRddFileSaver[F, A] =
-      new NJRddFileSaver[F, A](tds.dataset.rdd)
+    def save[F[_]]: RddFileSaver[F, A] =
+      new RddFileSaver[F, A](tds.dataset.rdd)
 
   }
 
