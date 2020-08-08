@@ -29,7 +29,7 @@ import org.log4s.Logger
 
 import scala.collection.JavaConverters._
 
-object sk {
+private[kafka] object sk {
 
   private def props(config: Map[String, String]): util.Map[String, Object] =
     (remove(ConsumerConfig.CLIENT_ID_CONFIG)(config) ++ Map(
@@ -143,28 +143,25 @@ object sk {
     }
   }
 
-  def streaming[F[_]: Sync, K, V, A](topic: KafkaTopic[F, K, V], timeRange: NJDateTimeRange)(
+  def kafkaSStream[F[_]: Sync, K, V, A](topic: KafkaTopic[F, K, V])(
     f: OptionalKV[K, V] => A)(implicit
     sparkSession: SparkSession,
-    encoder: TypedEncoder[A]): F[TypedDataset[A]] = {
+    encoder: TypedEncoder[A]): TypedDataset[A] = {
 
     import sparkSession.implicits._
-    topic.shortLiveConsumer.use(_.offsetRangeFor(timeRange)).map { gtp =>
-      TypedDataset
-        .create(
-          sparkSession.readStream
-            .format("kafka")
-            .options(consumerOptions(topic.settings.consumerSettings.config))
-            .option("startingOffsets", startingOffsets(gtp))
-            .option("subscribe", topic.topicDef.topicName.value)
-            .load()
-            .as[OptionalKV[Array[Byte], Array[Byte]]])
-        .deserialized
-        .mapPartitions(_.map { cr =>
-          val (errs, msg) = topic.njDecoder.decode(cr).run
-          errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
-          f(OptionalKV.timestamp.modify(_ / 1000)(msg)) // spark use micro-second.
-        })
-    }
+    TypedDataset
+      .create(
+        sparkSession.readStream
+          .format("kafka")
+          .options(consumerOptions(topic.settings.consumerSettings.config))
+          .option("subscribe", topic.topicDef.topicName.value)
+          .load()
+          .as[OptionalKV[Array[Byte], Array[Byte]]])
+      .deserialized
+      .mapPartitions(_.map { cr =>
+        val (errs, msg) = topic.njDecoder.decode(cr).run
+        errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
+        f(OptionalKV.timestamp.modify(_ / 1000)(msg)) // spark use micro-second.
+      })
   }
 }

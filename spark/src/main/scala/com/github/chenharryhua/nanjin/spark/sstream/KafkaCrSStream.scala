@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
 
-final case class DatePartitionedCR[K, V](
+final private[sstream] case class DatePartitionedCR[K, V](
   Year: String,
   Month: String,
   Day: String,
@@ -15,20 +15,20 @@ final case class DatePartitionedCR[K, V](
   key: Option[K],
   value: Option[V])
 
-final class KafkaCRStream[F[_], K: TypedEncoder, V: TypedEncoder](
+final class KafkaCrSStream[F[_], K: TypedEncoder, V: TypedEncoder](
   ds: Dataset[OptionalKV[K, V]],
-  cfg: NJStreamConfig)
-    extends SparkStreamUpdateParams[KafkaCRStream[F, K, V]] {
+  cfg: SStreamConfig)
+    extends SparkStreamUpdateParams[KafkaCrSStream[F, K, V]] {
 
-  override def withParamUpdate(f: NJStreamConfig => NJStreamConfig): KafkaCRStream[F, K, V] =
-    new KafkaCRStream[F, K, V](ds, f(cfg))
+  override def withParamUpdate(f: SStreamConfig => SStreamConfig): KafkaCrSStream[F, K, V] =
+    new KafkaCrSStream[F, K, V](ds, f(cfg))
 
   @transient lazy val typedDataset: TypedDataset[OptionalKV[K, V]] = TypedDataset.create(ds)
 
-  override val params: NJStreamParams = cfg.evalConfig
+  override val params: SStreamParams = cfg.evalConfig
 
-  def someValues: KafkaCRStream[F, K, V] =
-    new KafkaCRStream[F, K, V](typedDataset.filter(typedDataset('value).isNotNone).dataset, cfg)
+  def someValues: KafkaCrSStream[F, K, V] =
+    new KafkaCrSStream[F, K, V](typedDataset.filter(typedDataset('value).isNotNone).dataset, cfg)
 
   def datePartitionFileSink(path: String): NJFileSink[F, DatePartitionedCR[K, V]] =
     new NJFileSink[F, DatePartitionedCR[K, V]](
@@ -48,9 +48,9 @@ final class KafkaCRStream[F[_], K: TypedEncoder, V: TypedEncoder](
       cfg,
       path).partitionBy("Year", "Month", "Day")
 
-  def sparkStream: NJSparkStream[F, OptionalKV[K, V]] =
-    new NJSparkStream[F, OptionalKV[K, V]](ds, cfg)
+  def sstream: SparkSStream[F, OptionalKV[K, V]] =
+    new SparkSStream[F, OptionalKV[K, V]](ds, cfg)
 
-  def toProducerRecords: KafkaPRStream[F, K, V] =
-    new KafkaPRStream[F, K, V](typedDataset.deserialized.map(_.toNJProducerRecord).dataset, cfg)
+  def toProducerRecords: KafkaPrSStream[F, K, V] =
+    new KafkaPrSStream[F, K, V](typedDataset.deserialized.map(_.toNJProducerRecord).dataset, cfg)
 }

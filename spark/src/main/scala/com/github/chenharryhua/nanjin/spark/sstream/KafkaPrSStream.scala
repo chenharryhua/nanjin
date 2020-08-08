@@ -6,20 +6,20 @@ import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
 
-final class KafkaPRStream[F[_], K: TypedEncoder, V: TypedEncoder](
+final class KafkaPrSStream[F[_], K: TypedEncoder, V: TypedEncoder](
   ds: Dataset[NJProducerRecord[K, V]],
-  cfg: NJStreamConfig
-) extends SparkStreamUpdateParams[KafkaPRStream[F, K, V]] {
+  cfg: SStreamConfig
+) extends SparkStreamUpdateParams[KafkaPrSStream[F, K, V]] {
 
-  override def withParamUpdate(f: NJStreamConfig => NJStreamConfig): KafkaPRStream[F, K, V] =
-    new KafkaPRStream[F, K, V](ds, f(cfg))
+  override def withParamUpdate(f: SStreamConfig => SStreamConfig): KafkaPrSStream[F, K, V] =
+    new KafkaPrSStream[F, K, V](ds, f(cfg))
 
   @transient lazy val typedDataset: TypedDataset[NJProducerRecord[K, V]] = TypedDataset.create(ds)
 
-  override val params: NJStreamParams = cfg.evalConfig
+  override val params: SStreamParams = cfg.evalConfig
 
-  def someValues: KafkaPRStream[F, K, V] =
-    new KafkaPRStream[F, K, V](typedDataset.filter(typedDataset('value).isNotNone).dataset, cfg)
+  def someValues: KafkaPrSStream[F, K, V] =
+    new KafkaPrSStream[F, K, V](typedDataset.filter(typedDataset('value).isNotNone).dataset, cfg)
 
   def kafkaSink(kit: KafkaTopic[F, K, V]): NJKafkaSink[F] =
     new NJKafkaSink[F](
@@ -31,7 +31,7 @@ final class KafkaPRStream[F[_], K: TypedEncoder, V: TypedEncoder](
       kit.settings.producerSettings,
       kit.topicName)
 
-  def sparkStream: NJSparkStream[F, NJProducerRecord[K, V]] =
-    new NJSparkStream[F, NJProducerRecord[K, V]](ds, cfg)
+  def sparkStream: SparkSStream[F, NJProducerRecord[K, V]] =
+    new SparkSStream[F, NJProducerRecord[K, V]](ds, cfg)
 
 }

@@ -14,3 +14,15 @@ final private[spark] case class NJPath(value: String) extends AnyVal {
 }
 
 @Lenses final private[spark] case class NJShowDataset(rowNum: Int, isTruncate: Boolean)
+
+final private[spark] case class NJCheckpoint(value: String) {
+  require(!value.contains(" ") && value.nonEmpty, "should not empty or contains empty string")
+
+  def append(sub: String): NJCheckpoint = {
+    val s = if (sub.startsWith("/")) sub.tail else sub
+    val v = if (value.endsWith("/")) value.dropRight(1) else value
+    NJCheckpoint(s"$v/$s")
+  }
+}
+
+final private[spark] case class NJFailOnDataLoss(value: Boolean) extends AnyVal

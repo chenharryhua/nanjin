@@ -17,7 +17,7 @@ import org.apache.hadoop.mapreduce.{RecordWriter, TaskAttemptContext}
 class NJAvroKeyOutputFormat extends AvroOutputFormatBase[AvroKey[GenericRecord], NullWritable] {
 
   private def fileOutputStream(context: TaskAttemptContext): OutputStream = {
-    val committer = getOutputCommitter(context) match {
+    val workPath = getOutputCommitter(context) match {
       case c: FileOutputCommitter  => c.getWorkPath
       case s: AbstractS3ACommitter => s.getWorkPath
       case ex                      => throw new Exception(s"not support: ${ex.toString}")
@@ -25,7 +25,7 @@ class NJAvroKeyOutputFormat extends AvroOutputFormatBase[AvroKey[GenericRecord],
 
     val path: Path =
       new Path(
-        committer,
+        workPath,
         FileOutputFormat
           .getUniqueFile(context, s"nj-${context.getTaskAttemptID.getJobID.toString}", ".avro"))
 
