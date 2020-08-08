@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
 
-final case class DatePartitionedCR[K, V](
+final private[sstream] case class DatePartitionedCR[K, V](
   Year: String,
   Month: String,
   Day: String,
