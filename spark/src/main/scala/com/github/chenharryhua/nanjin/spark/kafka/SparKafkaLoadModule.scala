@@ -33,8 +33,8 @@ private[kafka] trait SparKafkaLoadModule[F[_], K, V] {
     def parquet(pathStr: String)(implicit ev: TypedEncoder[OptionalKV[K, V]]): CrRdd[F, K, V] =
       new CrRdd[F, K, V](loader.parquet[OptionalKV[K, V]](pathStr), cfg)
 
-    def parquet(implicit ev: TypedEncoder[OptionalKV[K, V]]): CrRdd[F, K, V]
-    parquet(params.outPath)
+    def parquet(implicit ev: TypedEncoder[OptionalKV[K, V]]): CrRdd[F, K, V] =
+      parquet(params.outPath)
 
     def jackson(pathStr: String): CrRdd[F, K, V] =
       new CrRdd[F, K, V](loader.jackson[OptionalKV[K, V]](pathStr), cfg)
