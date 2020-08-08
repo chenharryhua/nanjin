@@ -4,10 +4,10 @@ import cats.effect.{Concurrent, Timer}
 import fs2.Stream
 import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, StreamingQueryProgress}
 
-final class NJFileSink[F[_], A](dsw: DataStreamWriter[A], cfg: NJStreamConfig, path: String)
+final class NJFileSink[F[_], A](dsw: DataStreamWriter[A], cfg: NJSStreamConfig, path: String)
     extends NJStreamSink[F] {
 
-  override val params: NJStreamParams = cfg.evalConfig
+  override val params: NJSStreamParams = cfg.evalConfig
 
   // ops
   def withOptions(f: DataStreamWriter[A] => DataStreamWriter[A]): NJFileSink[F, A] =

@@ -5,10 +5,9 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.{NJProducerRecord, OptionalKV}
-import com.github.chenharryhua.nanjin.spark.sstream.{KafkaCRStream, NJSparkStream, NJStreamConfig}
+import com.github.chenharryhua.nanjin.spark.sstream.{KafkaCrSStream, NJSStreamConfig, NJSparkStream}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.{SparkDelay, TypedDataset, TypedEncoder}
-import fs2.Stream
 import org.apache.avro.Schema
 import org.apache.parquet.avro.AvroSchemaConverter
 import org.apache.parquet.schema.MessageType
@@ -92,28 +91,22 @@ final class SparKafka[F[_], K, V](val topic: KafkaTopic[F, K, V], val cfg: SKCon
     timer: Timer[F],
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): F[Unit] =
-    sstream.flatMap(_.someValues.toProducerRecords.kafkaSink(otherTopic).showProgress).compile.drain
+    sstream.someValues.toProducerRecords.kafkaSink(otherTopic).showProgress.compile.drain
 
   def sstream[A](f: OptionalKV[K, V] => A)(implicit
     sync: Sync[F],
-    encoder: TypedEncoder[A]): Stream[F, NJSparkStream[F, A]] =
-    Stream.eval(
-      sk.streaming[F, K, V, A](topic, params.timeRange)(f)
-        .map(s =>
-          new NJSparkStream[F, A](
-            s.dataset,
-            NJStreamConfig(params.timeRange, params.showDs)
-              .withCheckpointAppend(s"kafka/${topic.topicName.value}"))))
+    encoder: TypedEncoder[A]): NJSparkStream[F, A] =
+    new NJSparkStream[F, A](
+      sk.kafkaSStream[F, K, V, A](topic)(f).dataset,
+      NJSStreamConfig(params.timeRange, params.showDs)
+        .withCheckpointAppend(s"kafka/${topic.topicName.value}"))
 
   def sstream(implicit
     sync: Sync[F],
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): Stream[F, KafkaCRStream[F, K, V]] =
-    Stream.eval(
-      sk.streaming[F, K, V, OptionalKV[K, V]](topic, params.timeRange)(identity)
-        .map(s =>
-          new KafkaCRStream[F, K, V](
-            s.dataset,
-            NJStreamConfig(params.timeRange, params.showDs)
-              .withCheckpointAppend(s"kafkacr/${topic.topicName.value}"))))
+    valEncoder: TypedEncoder[V]): KafkaCrSStream[F, K, V] =
+    new KafkaCrSStream[F, K, V](
+      sk.kafkaSStream[F, K, V, OptionalKV[K, V]](topic)(identity).dataset,
+      NJSStreamConfig(params.timeRange, params.showDs)
+        .withCheckpointAppend(s"kafkacr/${topic.topicName.value}"))
 }
