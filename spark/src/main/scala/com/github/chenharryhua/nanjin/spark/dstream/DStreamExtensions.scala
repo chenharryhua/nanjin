@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.spark.dstream
 
-import cats.effect.{ConcurrentEffect, ContextShift}
 import com.github.chenharryhua.nanjin.spark.mapreduce.{
   NJAvroKeyOutputFormat,
   NJJacksonKeyOutputFormat

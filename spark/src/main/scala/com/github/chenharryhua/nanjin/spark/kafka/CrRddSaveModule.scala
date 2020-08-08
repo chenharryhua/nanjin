@@ -26,13 +26,15 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
       ev: TypedEncoder[OptionalKV[K, V]]): ParquetSaver[F, OptionalKV[K, V]] =
       saver.parquet(pathStr)
 
-    def binAvro(pathStr: String): BinaryAvroSaver[F, OptionalKV[K, V]] = saver.binAvro(pathStr)
+    def binAvro(pathStr: String): BinaryAvroSaver[F, OptionalKV[K, V]] =
+      saver.binAvro(pathStr)
 
     def text(pathStr: String)(implicit ev: Show[OptionalKV[K, V]]): TextSaver[F, OptionalKV[K, V]] =
       saver.text(pathStr)
 
     def circe(pathStr: String)(implicit
-      ev: JsonEncoder[OptionalKV[K, V]]): CirceJsonSaver[F, OptionalKV[K, V]] = saver.circe(pathStr)
+      ev: JsonEncoder[OptionalKV[K, V]]): CirceJsonSaver[F, OptionalKV[K, V]] =
+      saver.circe(pathStr)
 
     def javaObject(pathStr: String): JavaObjectSaver[F, OptionalKV[K, V]] =
       saver.javaObject(pathStr)

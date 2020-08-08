@@ -4,6 +4,7 @@ import java.time.ZoneId
 
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
+import io.scalaland.chimney.dsl._
 import monocle.macros.Lenses
 
 final private[spark] case class NJRepartition(value: Int) extends AnyVal
@@ -45,14 +46,10 @@ object DatePartitionedCR {
 
   def apply[K, V](zoneId: ZoneId)(kv: OptionalKV[K, V]): DatePartitionedCR[K, V] = {
     val time = NJTimestamp(kv.timestamp)
-    DatePartitionedCR(
-      time.yearStr(zoneId),
-      time.monthStr(zoneId),
-      time.dayStr(zoneId),
-      kv.partition,
-      kv.offset,
-      kv.timestamp,
-      kv.key,
-      kv.value)
+    kv.into[DatePartitionedCR[K, V]]
+      .withFieldConst(_.Year, time.yearStr(zoneId))
+      .withFieldConst(_.Month, time.monthStr(zoneId))
+      .withFieldConst(_.Day, time.dayStr(zoneId))
+      .transform
   }
 }
