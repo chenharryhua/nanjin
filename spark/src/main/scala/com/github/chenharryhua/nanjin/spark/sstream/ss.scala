@@ -9,7 +9,7 @@ import org.apache.spark.sql.streaming.{DataStreamWriter, StreamingQueryProgress}
 import scala.concurrent.duration._
 
 trait NJStreamSink[F[_]] extends Serializable {
-  def params: NJSStreamParams
+  def params: SStreamParams
 
   def queryStream(implicit F: Concurrent[F], timer: Timer[F]): Stream[F, StreamingQueryProgress]
 

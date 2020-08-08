@@ -12,7 +12,6 @@ import org.apache.hadoop.fs.s3a.commit.AbstractS3ACommitter
 import org.apache.hadoop.io.NullWritable
 import org.apache.hadoop.mapreduce.lib.output.{FileOutputCommitter, FileOutputFormat}
 import org.apache.hadoop.mapreduce.{RecordWriter, TaskAttemptContext}
-import org.log4s.Logger
 
 // avro build-in(AvroKeyOutputFormat) does not support s3, yet
 class NJAvroKeyOutputFormat extends AvroOutputFormatBase[AvroKey[GenericRecord], NullWritable] {

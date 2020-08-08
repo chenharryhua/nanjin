@@ -1,11 +1,12 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.effect.{Blocker, Concurrent, ConcurrentEffect, ContextShift, Sync, Timer}
+import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.{NJProducerRecord, OptionalKV}
-import com.github.chenharryhua.nanjin.spark.sstream.{KafkaCrSStream, NJSStreamConfig, NJSparkStream}
+import com.github.chenharryhua.nanjin.spark.dstream.KafkaCrDStream
+import com.github.chenharryhua.nanjin.spark.sstream.{KafkaCrSStream, SStreamConfig, SparkSStream}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.{SparkDelay, TypedDataset, TypedEncoder}
 import org.apache.avro.Schema
@@ -15,7 +16,6 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.avro.SchemaConverters
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.streaming.StreamingContext
-import org.apache.spark.streaming.dstream.DStream
 
 trait SparKafkaUpdateParams[A] extends UpdateParams[SKConfig, A] with Serializable {
   def params: SKParams
@@ -76,29 +76,22 @@ final class SparKafka[F[_], K, V](val topic: KafkaTopic[F, K, V], val cfg: SKCon
     new PrDataset[F, K, V](tds.dataset, cfg)
 
   /**
-    * dstream
+    * direct stream
     */
 
-  def dstream(sc: StreamingContext): DStream[OptionalKV[K, V]] =
-    sk.kafkaDStream[F, K, V](topic, sc, params.locationStrategy)
+  def dstream(sc: StreamingContext): KafkaCrDStream[F, K, V] =
+    new KafkaCrDStream[F, K, V](sk.kafkaDStream[F, K, V](topic, sc, params.locationStrategy))
 
   /**
-    * streaming
+    * structured stream
     */
-
-  def pipeStreamTo(otherTopic: KafkaTopic[F, K, V])(implicit
-    concurrent: Concurrent[F],
-    timer: Timer[F],
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): F[Unit] =
-    sstream.someValues.toProducerRecords.kafkaSink(otherTopic).showProgress.compile.drain
 
   def sstream[A](f: OptionalKV[K, V] => A)(implicit
     sync: Sync[F],
-    encoder: TypedEncoder[A]): NJSparkStream[F, A] =
-    new NJSparkStream[F, A](
+    encoder: TypedEncoder[A]): SparkSStream[F, A] =
+    new SparkSStream[F, A](
       sk.kafkaSStream[F, K, V, A](topic)(f).dataset,
-      NJSStreamConfig(params.timeRange, params.showDs)
+      SStreamConfig(params.timeRange, params.showDs)
         .withCheckpointAppend(s"kafka/${topic.topicName.value}"))
 
   def sstream(implicit
@@ -107,6 +100,6 @@ final class SparKafka[F[_], K, V](val topic: KafkaTopic[F, K, V], val cfg: SKCon
     valEncoder: TypedEncoder[V]): KafkaCrSStream[F, K, V] =
     new KafkaCrSStream[F, K, V](
       sk.kafkaSStream[F, K, V, OptionalKV[K, V]](topic)(identity).dataset,
-      NJSStreamConfig(params.timeRange, params.showDs)
+      SStreamConfig(params.timeRange, params.showDs)
         .withCheckpointAppend(s"kafkacr/${topic.topicName.value}"))
 }

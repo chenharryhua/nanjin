@@ -7,33 +7,33 @@ import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
 
-trait SparkStreamUpdateParams[A] extends UpdateParams[NJSStreamConfig, A] with Serializable {
-  def params: NJSStreamParams
+trait SparkStreamUpdateParams[A] extends UpdateParams[SStreamConfig, A] with Serializable {
+  def params: SStreamParams
 }
 
-final class NJSparkStream[F[_], A: TypedEncoder](ds: Dataset[A], cfg: NJSStreamConfig)
-    extends SparkStreamUpdateParams[NJSparkStream[F, A]] {
+final class SparkSStream[F[_], A: TypedEncoder](ds: Dataset[A], cfg: SStreamConfig)
+    extends SparkStreamUpdateParams[SparkSStream[F, A]] {
 
-  override val params: NJSStreamParams = cfg.evalConfig
+  override val params: SStreamParams = cfg.evalConfig
 
-  override def withParamUpdate(f: NJSStreamConfig => NJSStreamConfig): NJSparkStream[F, A] =
-    new NJSparkStream[F, A](ds, f(cfg))
+  override def withParamUpdate(f: SStreamConfig => SStreamConfig): SparkSStream[F, A] =
+    new SparkSStream[F, A](ds, f(cfg))
 
   @transient lazy val typedDataset: TypedDataset[A] = TypedDataset.create(ds)
 
   // transforms
 
-  def filter(f: A => Boolean): NJSparkStream[F, A] =
-    new NJSparkStream[F, A](ds.filter(f), cfg)
+  def filter(f: A => Boolean): SparkSStream[F, A] =
+    new SparkSStream[F, A](ds.filter(f), cfg)
 
-  def map[B: TypedEncoder](f: A => B): NJSparkStream[F, B] =
-    new NJSparkStream[F, B](typedDataset.deserialized.map(f).dataset, cfg)
+  def map[B: TypedEncoder](f: A => B): SparkSStream[F, B] =
+    new SparkSStream[F, B](typedDataset.deserialized.map(f).dataset, cfg)
 
-  def flatMap[B: TypedEncoder](f: A => TraversableOnce[B]): NJSparkStream[F, B] =
-    new NJSparkStream[F, B](typedDataset.deserialized.flatMap(f).dataset, cfg)
+  def flatMap[B: TypedEncoder](f: A => TraversableOnce[B]): SparkSStream[F, B] =
+    new SparkSStream[F, B](typedDataset.deserialized.flatMap(f).dataset, cfg)
 
   def transform[B: TypedEncoder](f: TypedDataset[A] => TypedDataset[B]) =
-    new NJSparkStream[F, B](f(typedDataset).dataset, cfg)
+    new SparkSStream[F, B](f(typedDataset).dataset, cfg)
 
   // sinks
 

@@ -17,15 +17,15 @@ final case class DatePartitionedCR[K, V](
 
 final class KafkaCrSStream[F[_], K: TypedEncoder, V: TypedEncoder](
   ds: Dataset[OptionalKV[K, V]],
-  cfg: NJSStreamConfig)
+  cfg: SStreamConfig)
     extends SparkStreamUpdateParams[KafkaCrSStream[F, K, V]] {
 
-  override def withParamUpdate(f: NJSStreamConfig => NJSStreamConfig): KafkaCrSStream[F, K, V] =
+  override def withParamUpdate(f: SStreamConfig => SStreamConfig): KafkaCrSStream[F, K, V] =
     new KafkaCrSStream[F, K, V](ds, f(cfg))
 
   @transient lazy val typedDataset: TypedDataset[OptionalKV[K, V]] = TypedDataset.create(ds)
 
-  override val params: NJSStreamParams = cfg.evalConfig
+  override val params: SStreamParams = cfg.evalConfig
 
   def someValues: KafkaCrSStream[F, K, V] =
     new KafkaCrSStream[F, K, V](typedDataset.filter(typedDataset('value).isNotNone).dataset, cfg)
@@ -48,8 +48,8 @@ final class KafkaCrSStream[F[_], K: TypedEncoder, V: TypedEncoder](
       cfg,
       path).partitionBy("Year", "Month", "Day")
 
-  def sparkStream: NJSparkStream[F, OptionalKV[K, V]] =
-    new NJSparkStream[F, OptionalKV[K, V]](ds, cfg)
+  def sstream: SparkSStream[F, OptionalKV[K, V]] =
+    new SparkSStream[F, OptionalKV[K, V]](ds, cfg)
 
   def toProducerRecords: KafkaPrSStream[F, K, V] =
     new KafkaPrSStream[F, K, V](typedDataset.deserialized.map(_.toNJProducerRecord).dataset, cfg)

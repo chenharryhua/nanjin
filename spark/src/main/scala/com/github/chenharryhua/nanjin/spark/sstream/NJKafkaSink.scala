@@ -1,9 +1,8 @@
 package com.github.chenharryhua.nanjin.spark.sstream
 
 import cats.effect.{Concurrent, Timer}
-import com.github.chenharryhua.nanjin.kafka.KafkaProducerSettings
+import com.github.chenharryhua.nanjin.kafka.{KafkaProducerSettings, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
-import com.github.chenharryhua.nanjin.kafka.TopicName
 import fs2.Stream
 import monocle.function.At.remove
 import org.apache.kafka.clients.producer.ProducerConfig
@@ -11,12 +10,12 @@ import org.apache.spark.sql.streaming.{DataStreamWriter, StreamingQueryProgress}
 
 final class NJKafkaSink[F[_]](
   dsw: DataStreamWriter[NJProducerRecord[Array[Byte], Array[Byte]]],
-  cfg: NJSStreamConfig,
+  cfg: SStreamConfig,
   producer: KafkaProducerSettings,
   topicName: TopicName
 ) extends NJStreamSink[F] {
 
-  override val params: NJSStreamParams = cfg.evalConfig
+  override val params: SStreamParams = cfg.evalConfig
 
   //  https://spark.apache.org/docs/2.4.5/structured-streaming-kafka-integration.html
   private def producerOptions(m: Map[String, String]): Map[String, String] = {
