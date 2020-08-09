@@ -79,6 +79,8 @@ private[spark] object SKConfigF {
   final case class WithShowRows[K](value: Int, cont: K) extends SKConfigF[K]
   final case class WithShowTruncate[K](isTruncate: Boolean, cont: K) extends SKConfigF[K]
 
+  final case class WithNJFileFormat[K](value: NJFileFormat, cont: K) extends SKConfigF[K]
+
   final case class WithReplayPathBuilder[K](value: TopicName => String, cont: K)
       extends SKConfigF[K]
 
@@ -105,6 +107,7 @@ private[spark] object SKConfigF {
     case WithShowTruncate(v, c)      => SKParams.showDs.composeLens(NJShowDataset.isTruncate).set(v)(c)
     case WithReplayPathBuilder(v, c) => SKParams.replayPathBuilder.set(v)(c)
     case WithPathBuilder(v, c)       => SKParams.pathBuilder.set(v)(c)
+    case WithNJFileFormat(v, c)      => SKParams.fileFormat.set(v)(c)
   }
 
   def evalConfig(cfg: SKConfig): SKParams = scheme.cata(algebra).apply(cfg.value)
@@ -148,6 +151,9 @@ final private[spark] case class SKConfig private (value: Fix[SKConfigF]) extends
 
   def withPathBuilder(f: (TopicName, NJFileFormat) => String): SKConfig =
     SKConfig(Fix(WithPathBuilder(f, value)))
+
+  def withFileFormat(fmt: NJFileFormat): SKConfig =
+    SKConfig(Fix(WithNJFileFormat(fmt, value)))
 
   def evalConfig: SKParams = SKConfigF.evalConfig(this)
 }
