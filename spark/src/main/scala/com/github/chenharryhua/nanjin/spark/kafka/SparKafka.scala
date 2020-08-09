@@ -11,6 +11,7 @@ import frameless.{SparkDelay, TypedDataset, TypedEncoder}
 import org.apache.avro.Schema
 import org.apache.parquet.avro.AvroSchemaConverter
 import org.apache.parquet.schema.MessageType
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.avro.SchemaConverters
 import org.apache.spark.sql.types.DataType
@@ -55,6 +56,11 @@ final class SparKafka[F[_], K, V](val topic: KafkaTopic[F, K, V], val cfg: SKCon
   /**
     * inject dataset
     */
+  def crRdd(rdd: RDD[OptionalKV[K, V]]) =
+    new CrRdd[F, K, V](rdd, cfg)(
+      sparkSession,
+      topic.topicDef.avroKeyEncoder,
+      topic.topicDef.avroValEncoder)
 
   def crDataset(tds: TypedDataset[OptionalKV[K, V]])(implicit
     keyEncoder: TypedEncoder[K],
