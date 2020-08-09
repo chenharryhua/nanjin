@@ -38,13 +38,16 @@ final class NJRddLoader(ss: SparkSession) extends Serializable {
       .map { case (gr, _) => decoder.decode(gr.datum()) }
   }
 
+// 2
   def binAvro[A: ClassTag](pathStr: String)(implicit decoder: AvroDecoder[A]): RDD[A] =
     ss.sparkContext.binaryFiles(pathStr).flatMap {
-      case (_, is) =>
-        AvroInputStream.binary[A].from(is.open()).build(decoder.schema).iterator
+      case (_, pds) =>
+        val is = pds.open()
+        try AvroInputStream.binary[A].from(is).build(decoder.schema).iterator.toVector
+        finally is.close()
     }
 
-// 2
+// 3
   def jackson[A: ClassTag](pathStr: String)(implicit decoder: AvroDecoder[A]): RDD[A] = {
     val schema = decoder.schema
     ss.sparkContext.textFile(pathStr).mapPartitions { strs =>
@@ -56,7 +59,7 @@ final class NJRddLoader(ss: SparkSession) extends Serializable {
     }
   }
 
-// 3
+// 4
   def parquet[A](
     pathStr: String)(implicit decoder: AvroDecoder[A], constraint: TypedEncoder[A]): RDD[A] = {
 
@@ -76,7 +79,7 @@ final class NJRddLoader(ss: SparkSession) extends Serializable {
       .map { case (_, gr) => decoder.decode(gr) }
   }
 
-// 4
+// 5
   def circe[A: ClassTag: JsonDecoder](pathStr: String): RDD[A] =
     ss.sparkContext
       .textFile(pathStr)
@@ -85,11 +88,11 @@ final class NJRddLoader(ss: SparkSession) extends Serializable {
         case Right(r) => r
       })
 
-// 5
+// 6
   def text(path: String): RDD[String] =
     ss.sparkContext.textFile(path)
 
-// 6
+// 7
   def csv[A: TypedEncoder](pathStr: String, csvConfig: CsvConfiguration): RDD[A] = {
     val structType = TypedEncoder[A].catalystRepr.asInstanceOf[StructType]
     val df: DataFrame = ss.read
