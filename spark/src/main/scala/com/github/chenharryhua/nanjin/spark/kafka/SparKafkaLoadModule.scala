@@ -12,39 +12,38 @@ import io.circe.{Decoder => JsonDecoder}
 
 private[kafka] trait SparKafkaLoadModule[F[_], K, V] {
   self: SparKafka[F, K, V] =>
-
   import self.topic.topicDef._
 
   final def fromKafka(implicit sync: Sync[F]): F[CrRdd[F, K, V]] =
-    sk.kafkaBatch(topic, params.timeRange, params.locationStrategy).map(new CrRdd[F, K, V](_, cfg))
+    sk.kafkaBatch(topic, params.timeRange, params.locationStrategy).map(crRdd)
 
   final def fromDisk: CrRdd[F, K, V] =
-    new CrRdd[F, K, V](sk.loadDiskRdd[K, V](params.replayPath), cfg)
+    crRdd(sk.loadDiskRdd[K, V](params.replayPath))
 
   private val loader = new NJRddLoader(sparkSession)
 
   object load {
 
     def avro(pathStr: String): CrRdd[F, K, V] =
-      new CrRdd[F, K, V](loader.avro[OptionalKV[K, V]](pathStr), cfg)
+      crRdd(loader.avro[OptionalKV[K, V]](pathStr))
 
     def avro: CrRdd[F, K, V] =
       avro(params.outPath(NJFileFormat.Avro))
 
     def binAvro(pathStr: String): CrRdd[F, K, V] =
-      new CrRdd[F, K, V](loader.binAvro[OptionalKV[K, V]](pathStr), cfg)
+      crRdd(loader.binAvro[OptionalKV[K, V]](pathStr))
 
     def binAvro: CrRdd[F, K, V] =
       binAvro(params.outPath(NJFileFormat.BinaryAvro))
 
     def parquet(pathStr: String)(implicit ev: TypedEncoder[OptionalKV[K, V]]): CrRdd[F, K, V] =
-      new CrRdd[F, K, V](loader.parquet[OptionalKV[K, V]](pathStr), cfg)
+      crRdd(loader.parquet[OptionalKV[K, V]](pathStr))
 
     def parquet(implicit ev: TypedEncoder[OptionalKV[K, V]]): CrRdd[F, K, V] =
       parquet(params.outPath(NJFileFormat.Parquet))
 
     def jackson(pathStr: String): CrRdd[F, K, V] =
-      new CrRdd[F, K, V](loader.jackson[OptionalKV[K, V]](pathStr), cfg)
+      crRdd(loader.jackson[OptionalKV[K, V]](pathStr))
 
     def jackson: CrRdd[F, K, V] =
       jackson(params.outPath(NJFileFormat.Jackson))
@@ -52,7 +51,7 @@ private[kafka] trait SparKafkaLoadModule[F[_], K, V] {
     def circe(pathStr: String)(implicit
       jsonKeyDecoder: JsonDecoder[K],
       jsonValDecoder: JsonDecoder[V]): CrRdd[F, K, V] =
-      new CrRdd[F, K, V](loader.circe[OptionalKV[K, V]](pathStr), cfg)
+      crRdd(loader.circe[OptionalKV[K, V]](pathStr))
 
     def circe(implicit
       jsonKeyDecoder: JsonDecoder[K],

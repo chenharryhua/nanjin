@@ -54,7 +54,7 @@ final class SparKafka[F[_], K, V](val topic: KafkaTopic[F, K, V], val cfg: SKCon
     fromKafka.flatMap(_.pipeTo(other))
 
   /**
-    * inject dataset
+    * rdd and dataset
     */
   def crRdd(rdd: RDD[OptionalKV[K, V]]) =
     new CrRdd[F, K, V](rdd, cfg)(
