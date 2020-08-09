@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.Sync
 import cats.implicits._
+import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.spark.NJRddLoader
 import frameless.TypedEncoder
@@ -28,19 +29,25 @@ private[kafka] trait SparKafkaLoadModule[F[_], K, V] {
       new CrRdd[F, K, V](loader.avro[OptionalKV[K, V]](pathStr), cfg)
 
     def avro: CrRdd[F, K, V] =
-      avro(params.outPath)
+      avro(params.outPath(NJFileFormat.Avro))
+
+    def binAvro(pathStr: String): CrRdd[F, K, V] =
+      new CrRdd[F, K, V](loader.binAvro[OptionalKV[K, V]](pathStr), cfg)
+
+    def binAvro: CrRdd[F, K, V] =
+      binAvro(params.outPath(NJFileFormat.BinaryAvro))
 
     def parquet(pathStr: String)(implicit ev: TypedEncoder[OptionalKV[K, V]]): CrRdd[F, K, V] =
       new CrRdd[F, K, V](loader.parquet[OptionalKV[K, V]](pathStr), cfg)
 
     def parquet(implicit ev: TypedEncoder[OptionalKV[K, V]]): CrRdd[F, K, V] =
-      parquet(params.outPath)
+      parquet(params.outPath(NJFileFormat.Parquet))
 
     def jackson(pathStr: String): CrRdd[F, K, V] =
       new CrRdd[F, K, V](loader.jackson[OptionalKV[K, V]](pathStr), cfg)
 
     def jackson: CrRdd[F, K, V] =
-      jackson(params.outPath)
+      jackson(params.outPath(NJFileFormat.Jackson))
 
     def circe(pathStr: String)(implicit
       jsonKeyDecoder: JsonDecoder[K],
@@ -50,6 +57,6 @@ private[kafka] trait SparKafkaLoadModule[F[_], K, V] {
     def circe(implicit
       jsonKeyDecoder: JsonDecoder[K],
       jsonValDecoder: JsonDecoder[V]): CrRdd[F, K, V] =
-      circe(params.outPath)
+      circe(params.outPath(NJFileFormat.Circe))
   }
 }

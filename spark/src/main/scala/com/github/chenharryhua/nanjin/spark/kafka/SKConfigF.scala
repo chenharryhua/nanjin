@@ -28,13 +28,12 @@ private[spark] object NJUploadRate {
   timeRange: NJDateTimeRange,
   uploadRate: NJUploadRate,
   replayPathBuilder: TopicName => String,
-  fileFormat: NJFileFormat,
   pathBuilder: (TopicName, NJFileFormat) => String,
   saveMode: SaveMode,
   locationStrategy: LocationStrategy,
   showDs: NJShowDataset) {
-  val outPath: String    = pathBuilder(topicName, fileFormat)
-  val replayPath: String = replayPathBuilder(topicName)
+  def outPath(fmt: NJFileFormat): String = pathBuilder(topicName, fmt)
+  val replayPath: String                 = replayPathBuilder(topicName)
 }
 
 private[spark] object SKParams {
@@ -45,7 +44,6 @@ private[spark] object SKParams {
       timeRange = NJDateTimeRange(zoneId),
       uploadRate = NJUploadRate.default,
       replayPathBuilder = topicName => s"./data/sparKafka/${topicName.value}/replay/",
-      fileFormat = NJFileFormat.Jackson,
       pathBuilder = (tn, fmt) => s"./data/sparKafka/${tn.value}/${fmt.alias}.${fmt.format}",
       saveMode = SaveMode.ErrorIfExists,
       locationStrategy = LocationStrategies.PreferConsistent,

@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Show
+import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.spark.saver._
 import frameless.TypedEncoder
@@ -17,40 +18,44 @@ private[kafka] trait CrDatasetSaveModule[F[_], K, V] { self: CrDataset[F, K, V] 
     def avro(pathStr: String): AvroSaver[F, OptionalKV[K, V]] =
       saver.avro(pathStr)
 
-    def avro: AvroSaver[F, OptionalKV[K, V]] = avro(params.outPath)
+    def avro: AvroSaver[F, OptionalKV[K, V]] = avro(params.outPath(NJFileFormat.Avro))
 
     def jackson(pathStr: String): JacksonSaver[F, OptionalKV[K, V]] =
       saver.jackson(pathStr)
 
-    def jackson: JacksonSaver[F, OptionalKV[K, V]] = jackson(params.outPath)
+    def jackson: JacksonSaver[F, OptionalKV[K, V]] =
+      jackson(params.outPath(NJFileFormat.Jackson))
 
     def parquet(pathStr: String): ParquetSaver[F, OptionalKV[K, V]] =
       saver.parquet(pathStr)
 
-    def parquet: ParquetSaver[F, OptionalKV[K, V]] = parquet(params.outPath)
+    def parquet: ParquetSaver[F, OptionalKV[K, V]] =
+      parquet(params.outPath(NJFileFormat.Parquet))
 
     def binAvro(pathStr: String): BinaryAvroSaver[F, OptionalKV[K, V]] =
       saver.binAvro(pathStr)
 
-    def binAvro: BinaryAvroSaver[F, OptionalKV[K, V]] = binAvro(params.outPath)
+    def binAvro: BinaryAvroSaver[F, OptionalKV[K, V]] =
+      binAvro(params.outPath(NJFileFormat.BinaryAvro))
 
     def text(pathStr: String)(implicit ev: Show[OptionalKV[K, V]]): TextSaver[F, OptionalKV[K, V]] =
       saver.text(pathStr)
 
     def text(implicit ev: Show[OptionalKV[K, V]]): TextSaver[F, OptionalKV[K, V]] =
-      text(params.outPath)
+      text(params.outPath(NJFileFormat.Text))
 
     def circe(pathStr: String)(implicit
       ev: JsonEncoder[OptionalKV[K, V]]): CirceJsonSaver[F, OptionalKV[K, V]] =
       saver.circe(pathStr)
 
     def circe(implicit ev: JsonEncoder[OptionalKV[K, V]]): CirceJsonSaver[F, OptionalKV[K, V]] =
-      circe(params.outPath)
+      circe(params.outPath(NJFileFormat.Circe))
 
     def javaObject(pathStr: String): JavaObjectSaver[F, OptionalKV[K, V]] =
       saver.javaObject(pathStr)
 
-    def javaObject: JavaObjectSaver[F, OptionalKV[K, V]] = javaObject(params.outPath)
+    def javaObject: JavaObjectSaver[F, OptionalKV[K, V]] =
+      javaObject(params.outPath(NJFileFormat.JavaObject))
 
     def csv[A: RowEncoder](pathStr: String)(f: OptionalKV[K, V] => A)(implicit
       ev: TypedEncoder[A]): CsvSaver[F, A] = {
@@ -59,7 +64,7 @@ private[kafka] trait CrDatasetSaveModule[F[_], K, V] { self: CrDataset[F, K, V] 
     }
 
     def csv[A: RowEncoder](f: OptionalKV[K, V] => A)(implicit ev: TypedEncoder[A]): CsvSaver[F, A] =
-      csv(params.outPath)(f)
+      csv(params.outPath(NJFileFormat.Csv))(f)
 
     def protobuf[A: ClassTag](pathStr: String)(f: OptionalKV[K, V] => A)(implicit
       ev: A <:< GeneratedMessage): ProtobufSaver[F, A] =
@@ -67,7 +72,7 @@ private[kafka] trait CrDatasetSaveModule[F[_], K, V] { self: CrDataset[F, K, V] 
 
     def protobuf[A: ClassTag](f: OptionalKV[K, V] => A)(implicit
       ev: A <:< GeneratedMessage): ProtobufSaver[F, A] =
-      protobuf(params.outPath)(f)
+      protobuf(params.outPath(NJFileFormat.ProtoBuf))(f)
 
     def dump: Dumper[F, OptionalKV[K, V]] =
       saver.dump(params.replayPath)
