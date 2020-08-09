@@ -40,14 +40,19 @@ final class NJRddLoader(ss: SparkSession) extends Serializable {
 
 // 2
   def binAvro[A: ClassTag](pathStr: String)(implicit decoder: AvroDecoder[A]): RDD[A] =
-    ss.sparkContext.binaryFiles(pathStr).flatMap {
-      case (_, pds) =>
-        val is = pds.open()
-        try AvroInputStream.binary[A].from(is).build(decoder.schema).iterator.toVector
-        finally is.close()
-    }
+    ss.sparkContext
+      .binaryFiles(pathStr)
+      .mapPartitions(_.flatMap {
+        case (_, pds) => // resource leak ???
+          val is   = pds.open()
+          val iter = AvroInputStream.binary[A].from(is).build(decoder.schema).iterator
+          new Iterator[A] {
+            override def hasNext: Boolean = if (iter.hasNext) true else { is.close(); false }
+            override def next(): A        = iter.next()
+          }
+      })
 
-// 3
+  // 3
   def jackson[A: ClassTag](pathStr: String)(implicit decoder: AvroDecoder[A]): RDD[A] = {
     val schema = decoder.schema
     ss.sparkContext.textFile(pathStr).mapPartitions { strs =>
