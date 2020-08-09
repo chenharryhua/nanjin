@@ -24,24 +24,29 @@ private[spark] object NJUploadRate {
 }
 
 @Lenses final private[spark] case class SKParams private (
+  topicName: TopicName,
   timeRange: NJDateTimeRange,
   uploadRate: NJUploadRate,
-  replayPath: TopicName => String,
+  replayPathBuilder: TopicName => String,
   fileFormat: NJFileFormat,
-  outPath: (TopicName, NJFileFormat) => String,
+  pathBuilder: (TopicName, NJFileFormat) => String,
   saveMode: SaveMode,
   locationStrategy: LocationStrategy,
-  showDs: NJShowDataset)
+  showDs: NJShowDataset) {
+  val outPath: String    = pathBuilder(topicName, fileFormat)
+  val replayPath: String = replayPathBuilder(topicName)
+}
 
 private[spark] object SKParams {
 
-  def apply(zoneId: ZoneId): SKParams =
+  def apply(topicName: TopicName, zoneId: ZoneId): SKParams =
     SKParams(
+      topicName = topicName,
       timeRange = NJDateTimeRange(zoneId),
       uploadRate = NJUploadRate.default,
-      replayPath = topicName => s"./data/sparKafka/${topicName.value}/replay/",
+      replayPathBuilder = topicName => s"./data/sparKafka/${topicName.value}/replay/",
       fileFormat = NJFileFormat.Jackson,
-      outPath = (tn, fmt) => s"./data/sparKafka/${tn.value}/${fmt.alias}.${fmt.format}",
+      pathBuilder = (tn, fmt) => s"./data/sparKafka/${tn.value}/${fmt.alias}.${fmt.format}",
       saveMode = SaveMode.ErrorIfExists,
       locationStrategy = LocationStrategies.PreferConsistent,
       showDs = NJShowDataset(20, isTruncate = false)
@@ -51,8 +56,9 @@ private[spark] object SKParams {
 @deriveFixedPoint sealed private[spark] trait SKConfigF[_]
 
 private[spark] object SKConfigF {
-  final case class DefaultParams[K](zoneId: ZoneId) extends SKConfigF[K]
+  final case class DefaultParams[K](topicName: TopicName, zoneId: ZoneId) extends SKConfigF[K]
 
+  final case class WithTopicName[K](value: TopicName, cont: K) extends SKConfigF[K]
   final case class WithBatchSize[K](value: Int, cont: K) extends SKConfigF[K]
   final case class WithDuration[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
 
@@ -73,30 +79,32 @@ private[spark] object SKConfigF {
   final case class WithShowRows[K](value: Int, cont: K) extends SKConfigF[K]
   final case class WithShowTruncate[K](isTruncate: Boolean, cont: K) extends SKConfigF[K]
 
-  final case class WithReplayPath[K](value: TopicName => String, cont: K) extends SKConfigF[K]
+  final case class WithReplayPathBuilder[K](value: TopicName => String, cont: K)
+      extends SKConfigF[K]
 
-  final case class WithOutPath[K](value: (TopicName, NJFileFormat) => String, cont: K)
+  final case class WithPathBuilder[K](value: (TopicName, NJFileFormat) => String, cont: K)
       extends SKConfigF[K]
 
   private val algebra: Algebra[SKConfigF, SKParams] = Algebra[SKConfigF, SKParams] {
-    case DefaultParams(v)           => SKParams(v)
-    case WithBatchSize(v, c)        => SKParams.uploadRate.composeLens(NJUploadRate.batchSize).set(v)(c)
-    case WithDuration(v, c)         => SKParams.uploadRate.composeLens(NJUploadRate.duration).set(v)(c)
-    case WithStartTimeStr(v, c)     => SKParams.timeRange.modify(_.withStartTime(v))(c)
-    case WithEndTimeStr(v, c)       => SKParams.timeRange.modify(_.withEndTime(v))(c)
-    case WithStartTime(v, c)        => SKParams.timeRange.modify(_.withStartTime(v))(c)
-    case WithEndTime(v, c)          => SKParams.timeRange.modify(_.withEndTime(v))(c)
-    case WithZoneId(v, c)           => SKParams.timeRange.modify(_.withZoneId(v))(c)
-    case WithTimeRange(v, c)        => SKParams.timeRange.set(v)(c)
-    case WithNSeconds(v, c)         => SKParams.timeRange.modify(_.withNSeconds(v))(c)
-    case WithOneDay(v, c)           => SKParams.timeRange.modify(_.withOneDay(v))(c)
-    case WithOneDayStr(v, c)        => SKParams.timeRange.modify(_.withOneDay(v))(c)
-    case WithSaveMode(v, c)         => SKParams.saveMode.set(v)(c)
-    case WithLocationStrategy(v, c) => SKParams.locationStrategy.set(v)(c)
-    case WithShowRows(v, c)         => SKParams.showDs.composeLens(NJShowDataset.rowNum).set(v)(c)
-    case WithShowTruncate(v, c)     => SKParams.showDs.composeLens(NJShowDataset.isTruncate).set(v)(c)
-    case WithReplayPath(v, c)       => SKParams.replayPath.set(v)(c)
-    case WithOutPath(v, c)          => SKParams.outPath.set(v)(c)
+    case DefaultParams(t, z)         => SKParams(t, z)
+    case WithTopicName(v, c)         => SKParams.topicName.set(v)(c)
+    case WithBatchSize(v, c)         => SKParams.uploadRate.composeLens(NJUploadRate.batchSize).set(v)(c)
+    case WithDuration(v, c)          => SKParams.uploadRate.composeLens(NJUploadRate.duration).set(v)(c)
+    case WithStartTimeStr(v, c)      => SKParams.timeRange.modify(_.withStartTime(v))(c)
+    case WithEndTimeStr(v, c)        => SKParams.timeRange.modify(_.withEndTime(v))(c)
+    case WithStartTime(v, c)         => SKParams.timeRange.modify(_.withStartTime(v))(c)
+    case WithEndTime(v, c)           => SKParams.timeRange.modify(_.withEndTime(v))(c)
+    case WithZoneId(v, c)            => SKParams.timeRange.modify(_.withZoneId(v))(c)
+    case WithTimeRange(v, c)         => SKParams.timeRange.set(v)(c)
+    case WithNSeconds(v, c)          => SKParams.timeRange.modify(_.withNSeconds(v))(c)
+    case WithOneDay(v, c)            => SKParams.timeRange.modify(_.withOneDay(v))(c)
+    case WithOneDayStr(v, c)         => SKParams.timeRange.modify(_.withOneDay(v))(c)
+    case WithSaveMode(v, c)          => SKParams.saveMode.set(v)(c)
+    case WithLocationStrategy(v, c)  => SKParams.locationStrategy.set(v)(c)
+    case WithShowRows(v, c)          => SKParams.showDs.composeLens(NJShowDataset.rowNum).set(v)(c)
+    case WithShowTruncate(v, c)      => SKParams.showDs.composeLens(NJShowDataset.isTruncate).set(v)(c)
+    case WithReplayPathBuilder(v, c) => SKParams.replayPathBuilder.set(v)(c)
+    case WithPathBuilder(v, c)       => SKParams.pathBuilder.set(v)(c)
   }
 
   def evalConfig(cfg: SKConfig): SKParams = scheme.cata(algebra).apply(cfg.value)
@@ -104,6 +112,9 @@ private[spark] object SKConfigF {
 
 final private[spark] case class SKConfig private (value: Fix[SKConfigF]) extends AnyVal {
   import SKConfigF._
+
+  def withTopicName(tn: String): SKConfig =
+    SKConfig(Fix(WithTopicName(TopicName.unsafeFrom(tn), value)))
 
   def withBatchSize(bs: Int): SKConfig           = SKConfig(Fix(WithBatchSize(bs, value)))
   def withDuration(fd: FiniteDuration): SKConfig = SKConfig(Fix(WithDuration(fd, value)))
@@ -132,20 +143,20 @@ final private[spark] case class SKConfig private (value: Fix[SKConfigF]) extends
   def withSaveMode(sm: SaveMode): SKConfig = SKConfig(Fix(WithSaveMode(sm, value)))
   def withOverwrite: SKConfig              = withSaveMode(SaveMode.Overwrite)
 
-  def withReplayPath(f: TopicName => String): SKConfig =
-    SKConfig(Fix(WithReplayPath(f, value)))
+  def withReplayPathBuilder(f: TopicName => String): SKConfig =
+    SKConfig(Fix(WithReplayPathBuilder(f, value)))
 
-  def withOutPath(f: (TopicName, NJFileFormat) => String): SKConfig =
-    SKConfig(Fix(WithOutPath(f, value)))
+  def withPathBuilder(f: (TopicName, NJFileFormat) => String): SKConfig =
+    SKConfig(Fix(WithPathBuilder(f, value)))
 
   def evalConfig: SKParams = SKConfigF.evalConfig(this)
 }
 
 private[spark] object SKConfig {
 
-  def apply(zoneId: ZoneId): SKConfig =
-    SKConfig(Fix(SKConfigF.DefaultParams[Fix[SKConfigF]](zoneId)))
+  def apply(topicName: TopicName, zoneId: ZoneId): SKConfig =
+    SKConfig(Fix(SKConfigF.DefaultParams[Fix[SKConfigF]](topicName, zoneId)))
 
-  def apply(dtr: NJDateTimeRange): SKConfig =
-    apply(dtr.zoneId).withTimeRange(dtr)
+  def apply(topicName: TopicName, dtr: NJDateTimeRange): SKConfig =
+    apply(topicName, dtr.zoneId).withTimeRange(dtr)
 }

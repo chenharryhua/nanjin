@@ -2,12 +2,10 @@ package com.github.chenharryhua.nanjin.spark
 
 import cats.effect.{Resource, Sync}
 import com.github.chenharryhua.nanjin.common.NJLogLevel
-import com.github.chenharryhua.nanjin.spark.dstream.NJDStreamRunner
 import fs2.Stream
 import monocle.macros.Lenses
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.streaming.{Duration, StreamingContext}
 
 @Lenses final case class SparkSettings(conf: SparkConf, logLevel: NJLogLevel) {
 

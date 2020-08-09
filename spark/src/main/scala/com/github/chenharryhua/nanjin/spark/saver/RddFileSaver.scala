@@ -6,22 +6,17 @@ import frameless.TypedEncoder
 import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.SaveMode
 import scalapb.GeneratedMessage
 
 import scala.reflect.ClassTag
 
-final class NJRddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
+final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
 
-  def map[B: ClassTag](f: A => B): NJRddFileSaver[F, B] =
-    new NJRddFileSaver[F, B](rdd.map(f))
+  def map[B: ClassTag](f: A => B): RddFileSaver[F, B] =
+    new RddFileSaver[F, B](rdd.map(f))
 
-  def flatMap[B: ClassTag](f: A => TraversableOnce[B]): NJRddFileSaver[F, B] =
-    new NJRddFileSaver[F, B](rdd.flatMap(f))
-
-  private val defaultSaveMode: SaveMode = SaveMode.Overwrite
-  private val defaultSM: SingleOrMulti  = SingleOrMulti.Multi
-  private val defaultSH: SparkOrHadoop  = SparkOrHadoop.Hadoop
+  def flatMap[B: ClassTag](f: A => TraversableOnce[B]): RddFileSaver[F, B] =
+    new RddFileSaver[F, B](rdd.flatMap(f))
 
 // 1
   def avro(pathStr: String)(implicit enc: AvroEncoder[A]): AvroSaver[F, A] =
@@ -55,12 +50,12 @@ final class NJRddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
     new CsvSaver[F, A](rdd, enc, CsvConfiguration.rfc, pathStr, constraint, SaverConfig.default)
 
 // 8
-  def protobuf(pathStr: String)(implicit ev: A <:< GeneratedMessage): ProtobufSaver[F, A] =
-    new ProtobufSaver[F, A](rdd, pathStr)
-
-// 9
   def javaObject(pathStr: String): JavaObjectSaver[F, A] =
     new JavaObjectSaver[F, A](rdd, pathStr, SaverConfig.default)
+
+// 9
+  def protobuf(pathStr: String)(implicit ev: A <:< GeneratedMessage): ProtobufSaver[F, A] =
+    new ProtobufSaver[F, A](rdd, pathStr)
 
 // 10
   def dump(pathStr: String): Dumper[F, A] =

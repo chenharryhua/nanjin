@@ -6,7 +6,7 @@ import cats.Order
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicName}
+import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryK,
   CompulsoryKV,
@@ -23,10 +23,7 @@ import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import scala.reflect.ClassTag
 
-final class CrRdd[F[_], K, V](
-  val rdd: RDD[OptionalKV[K, V]],
-  val topicName: TopicName,
-  val cfg: SKConfig)(implicit
+final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)(implicit
   val sparkSession: SparkSession,
   val keyAvroEncoder: AvroEncoder[K],
   val valAvroEncoder: AvroEncoder[V])
@@ -36,45 +33,39 @@ final class CrRdd[F[_], K, V](
   override def params: SKParams = cfg.evalConfig
 
   override def withParamUpdate(f: SKConfig => SKConfig): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd, topicName, f(cfg))
-
-  def withTopicName(tn: String): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd, TopicName.unsafeFrom(tn), cfg)
+    new CrRdd[F, K, V](rdd, f(cfg))
 
   //transformation
 
   def kafkaPartition(num: Int): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd.filter(_.partition === num), topicName, cfg)
+    new CrRdd[F, K, V](rdd.filter(_.partition === num), cfg)
 
   def sortBy[A: Order: ClassTag](f: OptionalKV[K, V] => A, ascending: Boolean) =
-    new CrRdd[F, K, V](rdd.sortBy(f, ascending), topicName, cfg)
+    new CrRdd[F, K, V](rdd.sortBy(f, ascending), cfg)
 
   def ascending: CrRdd[F, K, V]  = sortBy(identity, ascending = true)
   def descending: CrRdd[F, K, V] = sortBy(identity, ascending = false)
 
   def repartition(num: Int): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd.repartition(num), topicName, cfg)
+    new CrRdd[F, K, V](rdd.repartition(num), cfg)
 
   def bimap[K2: AvroEncoder, V2: AvroEncoder](k: K => K2, v: V => V2): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](rdd.map(_.bimap(k, v)), topicName, cfg)
+    new CrRdd[F, K2, V2](rdd.map(_.bimap(k, v)), cfg)
 
   def flatMap[K2: AvroEncoder, V2: AvroEncoder](
     f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](rdd.flatMap(f), topicName, cfg)
+    new CrRdd[F, K2, V2](rdd.flatMap(f), cfg)
 
   def union(other: RDD[OptionalKV[K, V]]): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd.union(other), topicName, cfg)
+    new CrRdd[F, K, V](rdd.union(other), cfg)
 
   def union(other: CrRdd[F, K, V]): CrRdd[F, K, V] = union(other.rdd)
 
   def dismissNulls: CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd.dismissNulls, topicName, cfg)
+    new CrRdd[F, K, V](rdd.dismissNulls, cfg)
 
   def inRange(dr: NJDateTimeRange): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](
-      rdd.filter(m => dr.isInBetween(m.timestamp)),
-      topicName,
-      cfg.withTimeRange(dr))
+    new CrRdd[F, K, V](rdd.filter(m => dr.isInBetween(m.timestamp)), cfg.withTimeRange(dr))
 
   def inRange: CrRdd[F, K, V] = inRange(params.timeRange)
 

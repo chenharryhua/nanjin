@@ -5,7 +5,6 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.{NJProducerRecord, OptionalKV}
-import com.github.chenharryhua.nanjin.spark.dstream.{DStreamConfig, KafkaCrDStream}
 import com.github.chenharryhua.nanjin.spark.sstream.{KafkaCrSStream, SStreamConfig, SparkSStream}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.{SparkDelay, TypedDataset, TypedEncoder}
@@ -23,15 +22,12 @@ trait SparKafkaUpdateParams[A] extends UpdateParams[SKConfig, A] with Serializab
 
 final class SparKafka[F[_], K, V](val topic: KafkaTopic[F, K, V], val cfg: SKConfig)(implicit
   val sparkSession: SparkSession)
-    extends SparKafkaUpdateParams[SparKafka[F, K, V]] with SparKafkaReadModule[F, K, V] {
+    extends SparKafkaUpdateParams[SparKafka[F, K, V]] with SparKafkaLoadModule[F, K, V] {
 
   override def withParamUpdate(f: SKConfig => SKConfig): SparKafka[F, K, V] =
     new SparKafka[F, K, V](topic, f(cfg))
 
   override val params: SKParams = cfg.evalConfig
-
-  def withTopicName(tn: String): SparKafka[F, K, V] =
-    new SparKafka[F, K, V](topic.withTopicName(tn), cfg)
 
   def avroSchema: Schema         = topic.topicDef.schemaFor.schema
   def sparkSchema: DataType      = SchemaConverters.toSqlType(avroSchema).dataType
@@ -42,8 +38,7 @@ final class SparKafka[F[_], K, V](val topic: KafkaTopic[F, K, V], val cfg: SKCon
     */
   def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Long] =
     Blocker[F].use(blocker =>
-      fromKafka.flatMap(cr =>
-        cr.save.dump(params.replayPath(topic.topicName)).run(blocker).flatMap(_ => cr.count)))
+      fromKafka.flatMap(cr => cr.save.dump.run(blocker).flatMap(_ => cr.count)))
 
   def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
     fromDisk.pipeTo(topic)
@@ -79,9 +74,12 @@ final class SparKafka[F[_], K, V](val topic: KafkaTopic[F, K, V], val cfg: SKCon
     * direct stream
     */
 
-  def dstream(sc: StreamingContext): KafkaCrDStream[F, K, V] =
-    new KafkaCrDStream[F, K, V](
-      sk.kafkaDStream[F, K, V](topic, sc, params.locationStrategy), DStreamConfig())
+  def dstream(sc: StreamingContext): CrDStream[F, K, V] =
+    new CrDStream[F, K, V](sk.kafkaDStream[F, K, V](topic, sc, params.locationStrategy), cfg)(
+      sparkSession,
+      topic.topicDef.avroKeyEncoder,
+      topic.topicDef.avroValEncoder
+    )
 
   /**
     * structured stream
