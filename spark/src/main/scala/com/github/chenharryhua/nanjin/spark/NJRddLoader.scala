@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark
 
 import cats.implicits._
-import com.sksamuel.avro4s.{Decoder => AvroDecoder}
+import com.sksamuel.avro4s.{AvroInputStream, Decoder => AvroDecoder}
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import io.circe.parser.decode
@@ -37,6 +37,12 @@ final class NJRddLoader(ss: SparkSession) extends Serializable {
         classOf[NullWritable])
       .map { case (gr, _) => decoder.decode(gr.datum()) }
   }
+
+  def binAvro[A: ClassTag](pathStr: String)(implicit decoder: AvroDecoder[A]): RDD[A] =
+    ss.sparkContext.binaryFiles(pathStr).flatMap {
+      case (_, is) =>
+        AvroInputStream.binary[A].from(is.open()).build(decoder.schema).iterator
+    }
 
 // 2
   def jackson[A: ClassTag](pathStr: String)(implicit decoder: AvroDecoder[A]): RDD[A] = {

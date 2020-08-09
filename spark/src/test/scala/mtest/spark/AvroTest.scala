@@ -55,6 +55,9 @@ class AvroTest extends AnyFunSuite {
     run.unsafeRunSync()
     val rst = fileSource[IO](blocker).binAvro[HasByteArray](path).compile.toList
     assert(rst.unsafeRunSync().zip(data).forall { case (a, b) => a.bytes.deep === b.bytes.deep })
+    assert(sparkSession.load.binAvro[HasByteArray](path).collect().zip(data).forall {
+      case (a, b) => a.bytes.deep === b.bytes.deep
+    })
   }
 
   test("provide schema to avoid auto-derived schema - data") {
