@@ -13,47 +13,91 @@ import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 
 import scala.reflect.ClassTag
 
-final class JacksonSaver[F[_], A](rdd: RDD[A], encoder: Encoder[A], cfg: SaverConfig)
+sealed abstract private[saver] class AbstractJacksonSaver[F[_], A](
+  rdd: RDD[A],
+  encoder: Encoder[A],
+  cfg: SaverConfig)
     extends AbstractSaver[F, A](cfg) {
-
   implicit private val enc: Encoder[A] = encoder
 
-  private def mode(sm: SaveMode): JacksonSaver[F, A] =
-    new JacksonSaver(rdd, encoder, cfg.withSaveMode(sm))
+  def overwrite: AbstractJacksonSaver[F, A]
+  def errorIfExists: AbstractJacksonSaver[F, A]
+  def single: AbstractJacksonSaver[F, A]
+  def multi: AbstractJacksonSaver[F, A]
 
-  def overwrite: JacksonSaver[F, A]     = mode(SaveMode.Overwrite)
-  def errorIfExists: JacksonSaver[F, A] = mode(SaveMode.ErrorIfExists)
-
-  def single: JacksonSaver[F, A] =
-    new JacksonSaver[F, A](rdd, encoder, cfg.withSingle)
-
-  def multi: JacksonSaver[F, A] =
-    new JacksonSaver[F, A](rdd, encoder, cfg.withMulti)
-
-  override protected def writeSingleFile(rdd: RDD[A], outPath: String, blocker: Blocker)(implicit
-    ss: SparkSession,
-    F: Concurrent[F],
-    cs: ContextShift[F]): F[Unit] =
+  final override protected def writeSingleFile(
+    rdd: RDD[A],
+    outPath: String,
+    blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     rdd.stream[F].through(fileSink[F](blocker).jackson(outPath)).compile.drain
 
-  override protected def writeMultiFiles(rdd: RDD[A], outPath: String, ss: SparkSession): Unit = {
+  final override protected def writeMultiFiles(
+    rdd: RDD[A],
+    outPath: String,
+    ss: SparkSession): Unit = {
     val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
     AvroJob.setOutputKeySchema(job, enc.schema)
     ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
     utils.genericRecordPair(rdd, encoder).saveAsNewAPIHadoopFile[NJJacksonKeyOutputFormat](outPath)
   }
 
-  override protected def toDataFrame(rdd: RDD[A])(implicit ss: SparkSession): DataFrame =
+  final override protected def toDataFrame(rdd: RDD[A])(implicit ss: SparkSession): DataFrame =
     rdd.toDF
 
-  def run(
+}
+
+final class JacksonSaver[F[_], A](rdd: RDD[A], encoder: Encoder[A], cfg: SaverConfig)
+    extends AbstractJacksonSaver[F, A](rdd, encoder, cfg) {
+
+  private def mode(sm: SaveMode): JacksonSaver[F, A] =
+    new JacksonSaver(rdd, encoder, cfg.withSaveMode(sm))
+
+  override def overwrite: JacksonSaver[F, A]     = mode(SaveMode.Overwrite)
+  override def errorIfExists: JacksonSaver[F, A] = mode(SaveMode.ErrorIfExists)
+
+  override def single: JacksonSaver[F, A] =
+    new JacksonSaver[F, A](rdd, encoder, cfg.withSingle)
+
+  override def multi: JacksonSaver[F, A] =
+    new JacksonSaver[F, A](rdd, encoder, cfg.withMulti)
+
+  override def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     saveRdd(rdd, params.outPath, blocker)
 
-  def runPartition[K: ClassTag: Eq](blocker: Blocker)(bucketing: A => K)(
-    pathBuilder: K => String)(implicit
-    F: Concurrent[F],
-    ce: ContextShift[F],
-    ss: SparkSession): F[Unit] =
+}
+
+final class JacksonPartitionSaver[F[_], A, K: ClassTag: Eq](
+  rdd: RDD[A],
+  encoder: Encoder[A],
+  cfg: SaverConfig,
+  bucketing: A => K,
+  pathBuilder: K => String)
+    extends AbstractJacksonSaver[F, A](rdd, encoder, cfg) {
+
+  override def overwrite: JacksonPartitionSaver[F, A, K] =
+    new JacksonPartitionSaver(
+      rdd,
+      encoder,
+      cfg.withSaveMode(SaveMode.Overwrite),
+      bucketing,
+      pathBuilder)
+
+  override def errorIfExists: JacksonPartitionSaver[F, A, K] =
+    new JacksonPartitionSaver(
+      rdd,
+      encoder,
+      cfg.withSaveMode(SaveMode.ErrorIfExists),
+      bucketing,
+      pathBuilder)
+
+  override def single: JacksonPartitionSaver[F, A, K] =
+    new JacksonPartitionSaver(rdd, encoder, cfg.withSingle, bucketing, pathBuilder)
+
+  override def multi: JacksonPartitionSaver[F, A, K] =
+    new JacksonPartitionSaver(rdd, encoder, cfg.withMulti, bucketing, pathBuilder)
+
+  override def run(
+    blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     savePartitionedRdd(rdd, blocker, bucketing, pathBuilder)
 }

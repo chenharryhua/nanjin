@@ -36,6 +36,15 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
   def jackson(pathStr: String)(implicit enc: AvroEncoder[A]): JacksonSaver[F, A] =
     new JacksonSaver[F, A](rdd, enc, SaverConfig(pathStr, NJFileFormat.Jackson))
 
+  def jackson[K: ClassTag: Eq](bucketing: A => K, pathBuilder: K => String)(implicit
+    enc: AvroEncoder[A]): JacksonPartitionSaver[F, A, K] =
+    new JacksonPartitionSaver[F, A, K](
+      rdd,
+      enc,
+      SaverConfig("", NJFileFormat.Avro),
+      bucketing,
+      pathBuilder)
+
 // 3
   def binAvro(pathStr: String)(implicit enc: AvroEncoder[A]): BinaryAvroSaver[F, A] =
     new BinaryAvroSaver[F, A](rdd, enc, SaverConfig(pathStr, NJFileFormat.BinaryAvro).withSingle)
