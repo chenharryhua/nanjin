@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.saver
 
-import cats.Show
+import cats.{Eq, Show}
+import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.TypedEncoder
 import io.circe.{Encoder => JsonEncoder}
@@ -20,42 +21,71 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
 
 // 1
   def avro(pathStr: String)(implicit enc: AvroEncoder[A]): AvroSaver[F, A] =
-    new AvroSaver[F, A](rdd, enc, pathStr, SaverConfig.default)
+    new AvroSaver[F, A](rdd, enc, SaverConfig(pathStr, NJFileFormat.Avro).withHadoop.withMulti)
+
+  def avro[K: ClassTag: Eq](bucketing: A => K, pathBuilder: K => String)(implicit
+    enc: AvroEncoder[A]): AvroPartitionSaver[F, A, K] =
+    new AvroPartitionSaver[F, A, K](
+      rdd,
+      enc,
+      SaverConfig("", NJFileFormat.Avro),
+      bucketing,
+      pathBuilder)
 
 // 2
   def jackson(pathStr: String)(implicit enc: AvroEncoder[A]): JacksonSaver[F, A] =
-    new JacksonSaver[F, A](rdd, enc, pathStr, SaverConfig.default)
+    new JacksonSaver[F, A](
+      rdd,
+      enc,
+      SaverConfig(pathStr, NJFileFormat.Jackson).withHadoop.withMulti)
 
 // 3
   def binAvro(pathStr: String)(implicit enc: AvroEncoder[A]): BinaryAvroSaver[F, A] =
-    new BinaryAvroSaver[F, A](rdd, enc, pathStr, SaverConfig.default)
+    new BinaryAvroSaver[F, A](
+      rdd,
+      enc,
+      SaverConfig(pathStr, NJFileFormat.BinaryAvro).withHadoop.withSingle)
 
 // 4
   def parquet(pathStr: String)(implicit
     enc: AvroEncoder[A],
     constraint: TypedEncoder[A]): ParquetSaver[F, A] =
-    new ParquetSaver[F, A](rdd, enc, pathStr, constraint, SaverConfig.default)
+    new ParquetSaver[F, A](
+      rdd,
+      enc,
+      constraint,
+      SaverConfig(pathStr, NJFileFormat.Parquet).withHadoop.withMulti)
 
 // 5
   def circe(pathStr: String)(implicit enc: JsonEncoder[A]): CirceJsonSaver[F, A] =
-    new CirceJsonSaver[F, A](rdd, enc, pathStr, SaverConfig.default)
+    new CirceJsonSaver[F, A](
+      rdd,
+      enc,
+      SaverConfig(pathStr, NJFileFormat.Circe).withHadoop.withMulti)
 
 // 6
   def text(pathStr: String)(implicit enc: Show[A]): TextSaver[F, A] =
-    new TextSaver[F, A](rdd, enc, pathStr, SaverConfig.default)
+    new TextSaver[F, A](rdd, enc, SaverConfig(pathStr, NJFileFormat.Text).withHadoop.withMulti)
 
 // 7
   def csv(
     pathStr: String)(implicit enc: RowEncoder[A], constraint: TypedEncoder[A]): CsvSaver[F, A] =
-    new CsvSaver[F, A](rdd, enc, CsvConfiguration.rfc, pathStr, constraint, SaverConfig.default)
+    new CsvSaver[F, A](
+      rdd,
+      enc,
+      CsvConfiguration.rfc,
+      constraint,
+      SaverConfig(pathStr, NJFileFormat.Csv).withHadoop.withMulti)
 
 // 8
   def javaObject(pathStr: String): JavaObjectSaver[F, A] =
-    new JavaObjectSaver[F, A](rdd, pathStr, SaverConfig.default)
+    new JavaObjectSaver[F, A](
+      rdd,
+      SaverConfig(pathStr, NJFileFormat.JavaObject).withHadoop.withSingle)
 
 // 9
   def protobuf(pathStr: String)(implicit ev: A <:< GeneratedMessage): ProtobufSaver[F, A] =
-    new ProtobufSaver[F, A](rdd, pathStr)
+    new ProtobufSaver[F, A](rdd, SaverConfig(pathStr, NJFileFormat.ProtoBuf).withSingle.withHadoop)
 
 // 10
   def dump(pathStr: String): Dumper[F, A] =

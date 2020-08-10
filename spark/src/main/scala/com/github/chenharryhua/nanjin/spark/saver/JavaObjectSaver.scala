@@ -2,40 +2,36 @@ package com.github.chenharryhua.nanjin.spark.saver
 
 import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.implicits._
+import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
-final class JavaObjectSaver[F[_], A](rdd: RDD[A], outPath: String, cfg: SaverConfig)
-    extends Serializable {
+import scala.reflect.ClassTag
 
-  val params: SaverParams = cfg.evalConfig
+final class JavaObjectSaver[F[_], A](rdd: RDD[A], cfg: SaverConfig)
+    extends AbstractSaver[F, A](cfg) {
 
-  def mode(sm: SaveMode): JavaObjectSaver[F, A] =
-    new JavaObjectSaver[F, A](rdd, outPath, cfg.withSaveMode(sm))
+  private def mode(sm: SaveMode): JavaObjectSaver[F, A] =
+    new JavaObjectSaver[F, A](rdd, cfg.withSaveMode(sm))
 
   def overwrite: JavaObjectSaver[F, A]     = mode(SaveMode.Overwrite)
   def errorIfExists: JavaObjectSaver[F, A] = mode(SaveMode.ErrorIfExists)
 
-  private def writeSingleFile(
-    blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
+  override protected def writeSingleFile(rdd: RDD[A], outPath: String, blocker: Blocker)(implicit
+    ss: SparkSession,
+    F: Concurrent[F],
+    cs: ContextShift[F]): F[Unit] =
     rdd.stream[F].through(fileSink[F](blocker).javaObject(outPath)).compile.drain
 
   def run(
     blocker: Blocker)(implicit F: Concurrent[F], ce: ContextShift[F], ss: SparkSession): F[Unit] =
-    params.saveMode match {
-      case SaveMode.Append => F.raiseError(new Exception("append mode is not support"))
-      case SaveMode.Overwrite =>
-        fileSink[F](blocker).delete(outPath) >> writeSingleFile(blocker)
-      case SaveMode.ErrorIfExists =>
-        fileSink[F](blocker).isExist(outPath).flatMap {
-          case true  => F.raiseError(new Exception(s"$outPath already exist"))
-          case false => writeSingleFile(blocker)
-        }
-      case SaveMode.Ignore =>
-        fileSink[F](blocker).isExist(outPath).flatMap {
-          case true  => F.pure(())
-          case false => writeSingleFile(blocker)
-        }
-    }
+    saveRdd(rdd, params.outPath, blocker)
+
+  def runPartition[K: ClassTag: Eq](blocker: Blocker)(bucketing: A => K)(
+    pathBuilder: K => String)(implicit
+    F: Concurrent[F],
+    ce: ContextShift[F],
+    ss: SparkSession): F[Unit] =
+    savePartitionedRdd(rdd, blocker, bucketing, pathBuilder)
 }
