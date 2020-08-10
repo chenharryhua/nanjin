@@ -127,6 +127,13 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
   def javaObject(pathStr: String): JavaObjectSaver[F, A] =
     new JavaObjectSaver[F, A](rdd, SaverConfig(pathStr, NJFileFormat.JavaObject).withSingle)
 
+  def javaObject[K: ClassTag: Eq](bucketing: A => K, pathBuilder: K => String) =
+    new JavaObjectPartitionSaver[F, A, K](
+      rdd,
+      SaverConfig("", NJFileFormat.JavaObject),
+      bucketing,
+      pathBuilder)
+
 // 9
   def protobuf(pathStr: String)(implicit ev: A <:< GeneratedMessage): ProtobufSaver[F, A] =
     new ProtobufSaver[F, A](rdd, SaverConfig(pathStr, NJFileFormat.ProtoBuf).withSingle)
