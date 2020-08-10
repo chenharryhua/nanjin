@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.saver
 
 import cats.derived.auto.functor.kittensMkFunctor
+import com.github.chenharryhua.nanjin.common.NJFileFormat
 import enumeratum.{Enum, EnumEntry}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.macros.deriveFixedPoint
@@ -29,27 +30,29 @@ object SparkOrHadoop extends Enum[SingleOrMulti] {
 }
 
 @Lenses final case class SaverParams(
+  outPath: String,
+  fileFormat: NJFileFormat,
   singleOrMulti: SingleOrMulti,
   sparkOrHadoop: SparkOrHadoop,
   saveMode: SaveMode)
 
 object SaverParams {
 
-  val default: SaverParams =
-    SaverParams(SingleOrMulti.Multi, SparkOrHadoop.Hadoop, SaveMode.Overwrite)
+  def apply(outPath: String, fmt: NJFileFormat): SaverParams =
+    SaverParams(outPath, fmt, SingleOrMulti.Multi, SparkOrHadoop.Hadoop, SaveMode.Overwrite)
 }
 
 @deriveFixedPoint sealed trait SaverConfigF[_]
 
 object SaverConfigF {
-  final case class DefaultParams[K]() extends SaverConfigF[K]
+  final case class DefaultParams[K](outPath: String, fmt: NJFileFormat) extends SaverConfigF[K]
   final case class WithSingleOrMulti[K](value: SingleOrMulti, cont: K) extends SaverConfigF[K]
   final case class WithSparkOrHadoop[K](value: SparkOrHadoop, cont: K) extends SaverConfigF[K]
   final case class WithSaveMode[K](value: SaveMode, cont: K) extends SaverConfigF[K]
 
   private val algebra: Algebra[SaverConfigF, SaverParams] =
     Algebra[SaverConfigF, SaverParams] {
-      case DefaultParams()         => SaverParams.default
+      case DefaultParams(p, f)     => SaverParams(p, f)
       case WithSingleOrMulti(v, c) => SaverParams.singleOrMulti.set(v)(c)
       case WithSparkOrHadoop(v, c) => SaverParams.sparkOrHadoop.set(v)(c)
       case WithSaveMode(v, c)      => SaverParams.saveMode.set(v)(c)
@@ -72,5 +75,7 @@ final case class SaverConfig(value: Fix[SaverConfigF]) {
 }
 
 object SaverConfig {
-  val default: SaverConfig = SaverConfig(Fix(SaverConfigF.DefaultParams[Fix[SaverConfigF]]()))
+
+  def apply(outPath: String, fmt: NJFileFormat): SaverConfig =
+    SaverConfig(Fix(SaverConfigF.DefaultParams[Fix[SaverConfigF]](outPath, fmt)))
 }

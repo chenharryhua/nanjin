@@ -1,61 +1,49 @@
 package com.github.chenharryhua.nanjin.spark.saver
 
-import cats.effect.{Blocker, ContextShift, Sync}
+import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.implicits._
+import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import com.sksamuel.avro4s.{Encoder, SchemaFor}
-import frameless.{TypedDataset, TypedEncoder}
+import frameless.TypedEncoder
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.apache.hadoop.mapreduce.Job
 import org.apache.parquet.avro.{AvroParquetOutputFormat, GenericDataSupplier}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{SaveMode, SparkSession}
+import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 
-final class ParquetSaver[F[_], A](
+import scala.reflect.ClassTag
+
+sealed abstract private[saver] class AbstractParquetSaver[F[_], A](
   rdd: RDD[A],
   encoder: Encoder[A],
-  outPath: String,
   constraint: TypedEncoder[A],
   cfg: SaverConfig)
-    extends Serializable {
+    extends AbstractSaver[F, A](cfg) {
 
   implicit private val te: TypedEncoder[A] = constraint
   implicit private val enc: Encoder[A]     = encoder
 
-  val params: SaverParams = cfg.evalConfig
+  def withEncoder(enc: Encoder[A]): AbstractParquetSaver[F, A]
+  def withSchema(schema: Schema): AbstractParquetSaver[F, A]
+  def overwrite: AbstractParquetSaver[F, A]
+  def errorIfExists: AbstractParquetSaver[F, A]
+  def single: AbstractParquetSaver[F, A]
+  def multi: AbstractParquetSaver[F, A]
+  def spark: AbstractParquetSaver[F, A]
+  def hadoop: AbstractParquetSaver[F, A]
 
-  def withEncoder(enc: Encoder[A]): ParquetSaver[F, A] =
-    new ParquetSaver[F, A](rdd, enc, outPath, constraint, cfg)
-
-  def withSchema(schema: Schema): ParquetSaver[F, A] = {
-    val schemaFor: SchemaFor[A] = SchemaFor[A](schema)
-    new ParquetSaver[F, A](rdd, encoder.withSchema(schemaFor), outPath, constraint, cfg)
-  }
-
-  def mode(sm: SaveMode): ParquetSaver[F, A] =
-    new ParquetSaver[F, A](rdd, encoder, outPath, constraint, cfg.withSaveMode(sm))
-
-  def overwrite: ParquetSaver[F, A]     = mode(SaveMode.Overwrite)
-  def errorIfExists: ParquetSaver[F, A] = mode(SaveMode.ErrorIfExists)
-
-  def single: ParquetSaver[F, A] =
-    new ParquetSaver[F, A](rdd, encoder, outPath, constraint, cfg.withSingle)
-
-  def multi: ParquetSaver[F, A] =
-    new ParquetSaver[F, A](rdd, encoder, outPath, constraint, cfg.withMulti)
-
-  def spark: ParquetSaver[F, A] =
-    new ParquetSaver[F, A](rdd, encoder, outPath, constraint, cfg.withSpark)
-
-  def hadoop: ParquetSaver[F, A] =
-    new ParquetSaver[F, A](rdd, encoder, outPath, constraint, cfg.withHadoop)
-
-  private def writeSingleFile(
-    blocker: Blocker)(implicit ss: SparkSession, F: Sync[F], cs: ContextShift[F]): F[Unit] =
+  final override protected def writeSingleFile(
+    rdd: RDD[A],
+    outPath: String,
+    blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     rdd.stream[F].through(fileSink[F](blocker).parquet(outPath)).compile.drain
 
-  private def writeMultiFiles(ss: SparkSession): Unit = {
+  final override protected def writeMultiFiles(
+    rdd: RDD[A],
+    outPath: String,
+    ss: SparkSession): Unit = {
     val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
     AvroParquetOutputFormat.setAvroDataSupplier(job, classOf[GenericDataSupplier])
     AvroParquetOutputFormat.setSchema(job, encoder.schema)
@@ -69,46 +57,128 @@ final class ParquetSaver[F[_], A](
         classOf[AvroParquetOutputFormat[GenericRecord]])
   }
 
-  def run(blocker: Blocker)(implicit ss: SparkSession, F: Sync[F], cs: ContextShift[F]): F[Unit] =
-    params.singleOrMulti match {
-      case SingleOrMulti.Single =>
-        params.saveMode match {
-          case SaveMode.Append => F.raiseError(new Exception("append mode is not support"))
-          case SaveMode.Overwrite =>
-            fileSink[F](blocker).delete(outPath) >> writeSingleFile(blocker)
+  final override protected def toDataFrame(rdd: RDD[A])(implicit ss: SparkSession): DataFrame =
+    rdd.toDF
 
-          case SaveMode.ErrorIfExists =>
-            fileSink[F](blocker).isExist(outPath).flatMap {
-              case true  => F.raiseError(new Exception(s"$outPath already exist"))
-              case false => writeSingleFile(blocker)
-            }
-          case SaveMode.Ignore =>
-            fileSink[F](blocker).isExist(outPath).flatMap {
-              case true  => F.pure(())
-              case false => writeSingleFile(blocker)
-            }
-        }
+}
 
-      case SingleOrMulti.Multi =>
-        params.sparkOrHadoop match {
-          case SparkOrHadoop.Spark =>
-            F.delay(TypedDataset.create(rdd).write.mode(params.saveMode).parquet(outPath))
-          case SparkOrHadoop.Hadoop =>
-            params.saveMode match {
-              case SaveMode.Append => F.raiseError(new Exception("append mode is not support"))
-              case SaveMode.Overwrite =>
-                fileSink[F](blocker).delete(outPath) >> F.delay(writeMultiFiles(ss))
-              case SaveMode.ErrorIfExists =>
-                fileSink[F](blocker).isExist(outPath).flatMap {
-                  case true  => F.raiseError(new Exception(s"$outPath already exist"))
-                  case false => F.delay(writeMultiFiles(ss))
-                }
-              case SaveMode.Ignore =>
-                fileSink[F](blocker).isExist(outPath).flatMap {
-                  case true  => F.pure(())
-                  case false => F.delay(writeMultiFiles(ss))
-                }
-            }
-        }
-    }
+final class ParquetSaver[F[_], A](
+  rdd: RDD[A],
+  encoder: Encoder[A],
+  constraint: TypedEncoder[A],
+  cfg: SaverConfig)
+    extends AbstractParquetSaver[F, A](rdd, encoder, constraint, cfg) {
+
+  override def withEncoder(enc: Encoder[A]): ParquetSaver[F, A] =
+    new ParquetSaver[F, A](rdd, enc, constraint, cfg)
+
+  override def withSchema(schema: Schema): ParquetSaver[F, A] = {
+    val schemaFor: SchemaFor[A] = SchemaFor[A](schema)
+    new ParquetSaver[F, A](rdd, encoder.withSchema(schemaFor), constraint, cfg)
+  }
+
+  private def mode(sm: SaveMode): ParquetSaver[F, A] =
+    new ParquetSaver[F, A](rdd, encoder, constraint, cfg.withSaveMode(sm))
+
+  override def overwrite: ParquetSaver[F, A]     = mode(SaveMode.Overwrite)
+  override def errorIfExists: ParquetSaver[F, A] = mode(SaveMode.ErrorIfExists)
+
+  override def single: ParquetSaver[F, A] =
+    new ParquetSaver[F, A](rdd, encoder, constraint, cfg.withSingle)
+
+  override def multi: ParquetSaver[F, A] =
+    new ParquetSaver[F, A](rdd, encoder, constraint, cfg.withMulti)
+
+  override def spark: ParquetSaver[F, A] =
+    new ParquetSaver[F, A](rdd, encoder, constraint, cfg.withSpark)
+
+  override def hadoop: ParquetSaver[F, A] =
+    new ParquetSaver[F, A](rdd, encoder, constraint, cfg.withHadoop)
+
+  override def run(
+    blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
+    saveRdd(rdd, params.outPath, blocker)
+
+}
+
+final class ParquetPartitionSaver[F[_], A, K: ClassTag: Eq](
+  rdd: RDD[A],
+  encoder: Encoder[A],
+  constraint: TypedEncoder[A],
+  cfg: SaverConfig,
+  bucketing: A => K,
+  pathBuilder: K => String)
+    extends AbstractParquetSaver[F, A](rdd, encoder, constraint, cfg) {
+
+  override def withEncoder(enc: Encoder[A]): ParquetPartitionSaver[F, A, K] =
+    new ParquetPartitionSaver[F, A, K](rdd, enc, constraint, cfg, bucketing, pathBuilder)
+
+  override def withSchema(schema: Schema): ParquetPartitionSaver[F, A, K] = {
+    val schemaFor = SchemaFor[A](schema)
+    new ParquetPartitionSaver[F, A, K](
+      rdd,
+      encoder.withSchema(schemaFor),
+      constraint,
+      cfg,
+      bucketing,
+      pathBuilder)
+  }
+
+  override def overwrite: ParquetPartitionSaver[F, A, K] =
+    new ParquetPartitionSaver[F, A, K](
+      rdd,
+      encoder,
+      constraint,
+      cfg.withSaveMode(SaveMode.Overwrite),
+      bucketing,
+      pathBuilder)
+
+  override def errorIfExists: ParquetPartitionSaver[F, A, K] =
+    new ParquetPartitionSaver[F, A, K](
+      rdd,
+      encoder,
+      constraint,
+      cfg.withSaveMode(SaveMode.ErrorIfExists),
+      bucketing,
+      pathBuilder)
+
+  override def single: ParquetPartitionSaver[F, A, K] =
+    new ParquetPartitionSaver[F, A, K](
+      rdd,
+      encoder,
+      constraint,
+      cfg.withSingle,
+      bucketing,
+      pathBuilder)
+
+  override def multi: ParquetPartitionSaver[F, A, K] =
+    new ParquetPartitionSaver[F, A, K](
+      rdd,
+      encoder,
+      constraint,
+      cfg.withMulti,
+      bucketing,
+      pathBuilder)
+
+  override def spark: ParquetPartitionSaver[F, A, K] =
+    new ParquetPartitionSaver[F, A, K](
+      rdd,
+      encoder,
+      constraint,
+      cfg.withSpark,
+      bucketing,
+      pathBuilder)
+
+  override def hadoop: ParquetPartitionSaver[F, A, K] =
+    new ParquetPartitionSaver[F, A, K](
+      rdd,
+      encoder,
+      constraint,
+      cfg.withHadoop,
+      bucketing,
+      pathBuilder)
+
+  override def run(
+    blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
+    savePartitionedRdd(rdd, blocker, bucketing, pathBuilder)
 }
