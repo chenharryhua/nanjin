@@ -83,7 +83,7 @@ final class AvroSaver[F[_], A](rdd: RDD[A], encoder: Encoder[A], cfg: SaverConfi
   override def hadoop: AvroSaver[F, A] =
     new AvroSaver[F, A](rdd, encoder, cfg.withHadoop)
 
-  def run(
+  override def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     saveRdd(rdd, params.outPath, blocker)
 
@@ -126,7 +126,7 @@ final class AvroPartitionSaver[F[_], A, K: ClassTag: Eq](
   override def hadoop: AvroPartitionSaver[F, A, K] =
     new AvroPartitionSaver[F, A, K](rdd, encoder, cfg.withHadoop, bucketing, pathBuilder)
 
-  def run(
+  override def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     savePartitionedRdd(rdd, blocker, bucketing, pathBuilder)
 }

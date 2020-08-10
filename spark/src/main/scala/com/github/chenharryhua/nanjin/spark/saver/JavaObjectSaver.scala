@@ -25,7 +25,7 @@ final class JavaObjectSaver[F[_], A](rdd: RDD[A], cfg: SaverConfig)
     rdd.stream[F].through(fileSink[F](blocker).javaObject(outPath)).compile.drain
 
   def run(
-    blocker: Blocker)(implicit F: Concurrent[F], ce: ContextShift[F], ss: SparkSession): F[Unit] =
+    blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     saveRdd(rdd, params.outPath, blocker)
 
   def runPartition[K: ClassTag: Eq](blocker: Blocker)(bucketing: A => K)(
