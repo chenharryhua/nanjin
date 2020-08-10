@@ -113,7 +113,7 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
 
   def csv[K: ClassTag: Eq](bucketing: A => K, pathBuilder: K => String)(implicit
     enc: RowEncoder[A],
-    constraint: TypedEncoder[A]) =
+    constraint: TypedEncoder[A]): CsvPartitionSaver[F, A, K] =
     new CsvPartitionSaver[F, A, K](
       rdd,
       enc,
@@ -127,7 +127,9 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
   def javaObject(pathStr: String): JavaObjectSaver[F, A] =
     new JavaObjectSaver[F, A](rdd, SaverConfig(pathStr, NJFileFormat.JavaObject).withSingle)
 
-  def javaObject[K: ClassTag: Eq](bucketing: A => K, pathBuilder: K => String) =
+  def javaObject[K: ClassTag: Eq](
+    bucketing: A => K,
+    pathBuilder: K => String): JavaObjectPartitionSaver[F, A, K] =
     new JavaObjectPartitionSaver[F, A, K](
       rdd,
       SaverConfig("", NJFileFormat.JavaObject),
@@ -137,6 +139,14 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
 // 9
   def protobuf(pathStr: String)(implicit ev: A <:< GeneratedMessage): ProtobufSaver[F, A] =
     new ProtobufSaver[F, A](rdd, SaverConfig(pathStr, NJFileFormat.ProtoBuf).withSingle)
+
+  def protobuf[K: ClassTag: Eq](bucketing: A => K, pathBuilder: K => String)(implicit
+    ev: A <:< GeneratedMessage): ProtobufPartitionSaver[F, A, K] =
+    new ProtobufPartitionSaver[F, A, K](
+      rdd,
+      SaverConfig("", NJFileFormat.JavaObject),
+      bucketing,
+      pathBuilder)
 
 // 10
   def dump(pathStr: String): Dumper[F, A] =
