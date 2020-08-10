@@ -54,7 +54,7 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
     new BinaryAvroPartitionSaver[F, A, K](
       rdd,
       enc,
-      SaverConfig("", NJFileFormat.Avro),
+      SaverConfig("", NJFileFormat.Avro).withSingle,
       bucketing,
       pathBuilder)
 
@@ -92,6 +92,15 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
   def text(pathStr: String)(implicit enc: Show[A]): TextSaver[F, A] =
     new TextSaver[F, A](rdd, enc, SaverConfig(pathStr, NJFileFormat.Text))
 
+  def text[K: ClassTag: Eq](bucketing: A => K, pathBuilder: K => String)(implicit
+    enc: Show[A]): TextPartitionSaver[F, A, K] =
+    new TextPartitionSaver[F, A, K](
+      rdd,
+      enc,
+      SaverConfig("", NJFileFormat.Text),
+      bucketing,
+      pathBuilder)
+
 // 7
   def csv(
     pathStr: String)(implicit enc: RowEncoder[A], constraint: TypedEncoder[A]): CsvSaver[F, A] =
@@ -101,6 +110,18 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
       CsvConfiguration.rfc,
       constraint,
       SaverConfig(pathStr, NJFileFormat.Csv))
+
+  def csv[K: ClassTag: Eq](bucketing: A => K, pathBuilder: K => String)(implicit
+    enc: RowEncoder[A],
+    constraint: TypedEncoder[A]) =
+    new CsvPartitionSaver[F, A, K](
+      rdd,
+      enc,
+      CsvConfiguration.rfc,
+      constraint,
+      SaverConfig("", NJFileFormat.Csv),
+      bucketing,
+      pathBuilder)
 
 // 8
   def javaObject(pathStr: String): JavaObjectSaver[F, A] =
