@@ -56,8 +56,17 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
     new ParquetSaver[F, A](rdd, enc, constraint, SaverConfig(pathStr, NJFileFormat.Parquet))
 
 // 5
-  def circe(pathStr: String)(implicit enc: JsonEncoder[A]): CirceJsonSaver[F, A] =
-    new CirceJsonSaver[F, A](rdd, enc, SaverConfig(pathStr, NJFileFormat.Circe))
+  def circe(pathStr: String)(implicit enc: JsonEncoder[A]): CirceSaver[F, A] =
+    new CirceSaver[F, A](rdd, enc, SaverConfig(pathStr, NJFileFormat.Circe))
+
+  def circe[K: ClassTag: Eq](bucketing: A => K, pathBuilder: K => String)(implicit
+    enc: JsonEncoder[A]): CircePartitionSaver[F, A, K] =
+    new CircePartitionSaver[F, A, K](
+      rdd,
+      enc,
+      SaverConfig("", NJFileFormat.Avro),
+      bucketing,
+      pathBuilder)
 
 // 6
   def text(pathStr: String)(implicit enc: Show[A]): TextSaver[F, A] =

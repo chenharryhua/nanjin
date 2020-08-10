@@ -49,10 +49,10 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
       saver.text(params.outPath(NJFileFormat.Text))
 
     def circe(pathStr: String)(implicit
-      ev: JsonEncoder[OptionalKV[K, V]]): CirceJsonSaver[F, OptionalKV[K, V]] =
+      ev: JsonEncoder[OptionalKV[K, V]]): CirceSaver[F, OptionalKV[K, V]] =
       saver.circe(pathStr)
 
-    def circe(implicit ev: JsonEncoder[OptionalKV[K, V]]): CirceJsonSaver[F, OptionalKV[K, V]] =
+    def circe(implicit ev: JsonEncoder[OptionalKV[K, V]]): CirceSaver[F, OptionalKV[K, V]] =
       saver.circe(params.outPath(NJFileFormat.Circe))
 
     def javaObject(pathStr: String): JavaObjectSaver[F, OptionalKV[K, V]] =
