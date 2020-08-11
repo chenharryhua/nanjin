@@ -73,7 +73,15 @@ final class CircePartitionSaver[F[_], A, K: ClassTag: Eq](
     new CircePartitionSaver[F, A, K](rdd, encoder, cfg.withMulti, bucketing, pathBuilder)
 
   override def single: CircePartitionSaver[F, A, K] =
-    new CircePartitionSaver[F, A,K](rdd, encoder, cfg.withSingle, bucketing, pathBuilder)
+    new CircePartitionSaver[F, A, K](rdd, encoder, cfg.withSingle, bucketing, pathBuilder)
+
+  def reBucket[K1: ClassTag: Eq](
+    bucketing: A => K1,
+    pathBuilder: K1 => String): CircePartitionSaver[F, A, K1] =
+    new CircePartitionSaver[F, A, K1](rdd, encoder, cfg, bucketing, pathBuilder)
+
+  def rePath(pathBuilder: K => String): CircePartitionSaver[F, A, K] =
+    new CircePartitionSaver[F, A, K](rdd, encoder, cfg, bucketing, pathBuilder)
 
   override def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =

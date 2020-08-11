@@ -44,15 +44,23 @@ final class JavaObjectPartitionSaver[F[_], A, K: ClassTag: Eq](
   pathBuilder: K => String)
     extends AbstractJavaObjectSaver[F, A](rdd, cfg) {
 
-  override def overwrite: AbstractJavaObjectSaver[F, A] =
+  override def overwrite: JavaObjectPartitionSaver[F, A, K] =
     new JavaObjectPartitionSaver(rdd, cfg.withSaveMode(SaveMode.Overwrite), bucketing, pathBuilder)
 
-  override def errorIfExists: AbstractJavaObjectSaver[F, A] =
+  override def errorIfExists: JavaObjectPartitionSaver[F, A, K] =
     new JavaObjectPartitionSaver(
       rdd,
       cfg.withSaveMode(SaveMode.ErrorIfExists),
       bucketing,
       pathBuilder)
+
+  def reBucket[K1: ClassTag: Eq](
+    bucketing: A => K1,
+    pathBuilder: K1 => String): JavaObjectPartitionSaver[F, A, K1] =
+    new JavaObjectPartitionSaver[F, A, K1](rdd, cfg, bucketing, pathBuilder)
+
+  def rePath(pathBuilder: K => String): JavaObjectPartitionSaver[F, A, K] =
+    new JavaObjectPartitionSaver[F, A, K](rdd, cfg, bucketing, pathBuilder)
 
   override def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =

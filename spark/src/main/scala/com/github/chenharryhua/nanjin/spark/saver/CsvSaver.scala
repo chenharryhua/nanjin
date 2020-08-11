@@ -140,6 +140,28 @@ final class CsvPartitionSaver[F[_], A, K: ClassTag: Eq](
       bucketing,
       pathBuilder)
 
+  def reBucket[K1: ClassTag: Eq](
+    bucketing: A => K1,
+    pathBuilder: K1 => String): CsvPartitionSaver[F, A, K1] =
+    new CsvPartitionSaver[F, A, K1](
+      rdd,
+      encoder,
+      csvConfiguration,
+      constraint,
+      cfg,
+      bucketing,
+      pathBuilder)
+
+  def rePath(pathBuilder: K => String): CsvPartitionSaver[F, A, K] =
+    new CsvPartitionSaver[F, A, K](
+      rdd,
+      encoder,
+      csvConfiguration,
+      constraint,
+      cfg,
+      bucketing,
+      pathBuilder)
+
   override def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     savePartitionedRdd(rdd, blocker, bucketing, pathBuilder)
