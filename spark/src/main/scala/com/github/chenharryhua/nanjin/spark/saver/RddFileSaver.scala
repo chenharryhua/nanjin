@@ -132,7 +132,7 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
     pathBuilder: K => String): JavaObjectPartitionSaver[F, A, K] =
     new JavaObjectPartitionSaver[F, A, K](
       rdd,
-      SaverConfig("", NJFileFormat.JavaObject),
+      SaverConfig("", NJFileFormat.JavaObject).withSingle,
       bucketing,
       pathBuilder)
 
@@ -144,7 +144,7 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
     ev: A <:< GeneratedMessage): ProtobufPartitionSaver[F, A, K] =
     new ProtobufPartitionSaver[F, A, K](
       rdd,
-      SaverConfig("", NJFileFormat.JavaObject),
+      SaverConfig("", NJFileFormat.JavaObject).withSingle,
       bucketing,
       pathBuilder)
 

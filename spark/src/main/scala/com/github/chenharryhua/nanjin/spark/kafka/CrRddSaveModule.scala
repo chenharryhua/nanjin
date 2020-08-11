@@ -18,7 +18,10 @@ import scala.reflect.ClassTag
 
 private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
 
-  final class FileSaver(saver: RddFileSaver[F, OptionalKV[K, V]]) {
+  final class FileSaver(saver: RddFileSaver[F, OptionalKV[K, V]]) extends Serializable {
+
+    private def bucketing(kv: OptionalKV[K, V]): LocalDate =
+      NJTimestamp(kv.timestamp).dayResolution(params.timeRange.zoneId)
 
     def avro(pathStr: String): AvroSaver[F, OptionalKV[K, V]] =
       saver.avro(pathStr)
@@ -27,9 +30,7 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
       saver.avro(params.outPath(NJFileFormat.Avro))
 
     def partitionAvro: AvroPartitionSaver[F, OptionalKV[K, V], LocalDate] =
-      saver.avro[LocalDate](
-        kv => NJTimestamp(kv.timestamp).dayResolution(params.timeRange.zoneId),
-        params.datePartition(NJFileFormat.Avro))
+      saver.avro[LocalDate](bucketing, params.datePartition(NJFileFormat.Avro))
 
     def jackson(pathStr: String): JacksonSaver[F, OptionalKV[K, V]] =
       saver.jackson(pathStr)
@@ -38,9 +39,7 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
       saver.jackson(params.outPath(NJFileFormat.Jackson))
 
     def partitionJackson: JacksonPartitionSaver[F, OptionalKV[K, V], LocalDate] =
-      saver.jackson[LocalDate](
-        kv => NJTimestamp(kv.timestamp).dayResolution(params.timeRange.zoneId),
-        params.datePartition(NJFileFormat.Jackson))
+      saver.jackson[LocalDate](bucketing, params.datePartition(NJFileFormat.Jackson))
 
     def parquet(pathStr: String)(implicit
       ev: TypedEncoder[OptionalKV[K, V]]): ParquetSaver[F, OptionalKV[K, V]] =
@@ -51,9 +50,7 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
 
     def partitionParquet(implicit
       ev: TypedEncoder[OptionalKV[K, V]]): ParquetPartitionSaver[F, OptionalKV[K, V], LocalDate] =
-      saver.parquet[LocalDate](
-        kv => NJTimestamp(kv.timestamp).dayResolution(params.timeRange.zoneId),
-        params.datePartition(NJFileFormat.Parquet))
+      saver.parquet[LocalDate](bucketing, params.datePartition(NJFileFormat.Parquet))
 
     def binAvro(pathStr: String): BinaryAvroSaver[F, OptionalKV[K, V]] =
       saver.binAvro(pathStr)
@@ -62,9 +59,7 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
       saver.binAvro(params.outPath(NJFileFormat.BinaryAvro))
 
     def partitionBinAvro: BinaryAvroPartitionSaver[F, OptionalKV[K, V], LocalDate] =
-      saver.binAvro[LocalDate](
-        kv => NJTimestamp(kv.timestamp).dayResolution(params.timeRange.zoneId),
-        params.datePartition(NJFileFormat.BinaryAvro))
+      saver.binAvro[LocalDate](bucketing, params.datePartition(NJFileFormat.BinaryAvro))
 
     def text(pathStr: String)(implicit ev: Show[OptionalKV[K, V]]): TextSaver[F, OptionalKV[K, V]] =
       saver.text(pathStr)
@@ -74,9 +69,7 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
 
     def partitionText(implicit
       ev: Show[OptionalKV[K, V]]): TextPartitionSaver[F, OptionalKV[K, V], LocalDate] =
-      saver.text[LocalDate](
-        kv => NJTimestamp(kv.timestamp).dayResolution(params.timeRange.zoneId),
-        params.datePartition(NJFileFormat.Text))
+      saver.text[LocalDate](bucketing, params.datePartition(NJFileFormat.Text))
 
     def circe(pathStr: String)(implicit
       ev: JsonEncoder[OptionalKV[K, V]]): CirceSaver[F, OptionalKV[K, V]] =
@@ -87,9 +80,7 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
 
     def partitionCirce(implicit
       ev: JsonEncoder[OptionalKV[K, V]]): CircePartitionSaver[F, OptionalKV[K, V], LocalDate] =
-      saver.circe[LocalDate](
-        kv => NJTimestamp(kv.timestamp).dayResolution(params.timeRange.zoneId),
-        params.datePartition(NJFileFormat.Avro))
+      saver.circe[LocalDate](bucketing, params.datePartition(NJFileFormat.Circe))
 
     def javaObject(pathStr: String): JavaObjectSaver[F, OptionalKV[K, V]] =
       saver.javaObject(pathStr)
@@ -98,9 +89,7 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
       saver.javaObject(params.outPath(NJFileFormat.JavaObject))
 
     def partitionJavaObject: JavaObjectPartitionSaver[F, OptionalKV[K, V], LocalDate] =
-      saver.javaObject[LocalDate](
-        kv => NJTimestamp(kv.timestamp).dayResolution(params.timeRange.zoneId),
-        params.datePartition(NJFileFormat.Avro))
+      saver.javaObject[LocalDate](bucketing, params.datePartition(NJFileFormat.JavaObject))
 
     def csv[A: RowEncoder](pathStr: String)(f: OptionalKV[K, V] => A)(implicit
       ev: TypedEncoder[A]): CsvSaver[F, A] = {
