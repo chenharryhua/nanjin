@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 
 import cats.derived.auto.functor._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
+import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.spark.NJShowDataset
 import higherkindness.droste.data.Fix
@@ -29,26 +29,36 @@ private[spark] object NJUploadRate {
   uploadRate: NJUploadRate,
   replayPathBuilder: TopicName => String,
   pathBuilder: (TopicName, NJFileFormat) => String,
+  datePartitionPathBuilder: (TopicName, NJFileFormat, LocalDate) => String,
   saveMode: SaveMode,
   locationStrategy: LocationStrategy,
   showDs: NJShowDataset) {
   def outPath(fmt: NJFileFormat): String = pathBuilder(topicName, fmt)
   val replayPath: String                 = replayPathBuilder(topicName)
+
+  def datePartition(fmt: NJFileFormat): LocalDate => String =
+    datePartitionPathBuilder(topicName, fmt, _)
 }
 
 private[spark] object SKParams {
 
-  def apply(topicName: TopicName, zoneId: ZoneId): SKParams =
+  def apply(topicName: TopicName, zoneId: ZoneId): SKParams = {
+    val partitionPath: (TopicName, NJFileFormat, LocalDate) => String =
+      (tn, fmt, date) =>
+        s"./data/sparKafka/${tn.value}/${NJTimestamp(date, zoneId).`Year=yyyy/Month=mm/Day=dd`(
+          zoneId)}/${fmt.alias}.${fmt.format}"
     SKParams(
       topicName = topicName,
       timeRange = NJDateTimeRange(zoneId),
       uploadRate = NJUploadRate.default,
       replayPathBuilder = topicName => s"./data/sparKafka/${topicName.value}/replay/",
       pathBuilder = (tn, fmt) => s"./data/sparKafka/${tn.value}/${fmt.alias}.${fmt.format}",
+      datePartitionPathBuilder = partitionPath,
       saveMode = SaveMode.ErrorIfExists,
       locationStrategy = LocationStrategies.PreferConsistent,
       showDs = NJShowDataset(20, isTruncate = false)
     )
+  }
 }
 
 @deriveFixedPoint sealed private[spark] trait SKConfigF[_]
@@ -83,26 +93,32 @@ private[spark] object SKConfigF {
   final case class WithPathBuilder[K](value: (TopicName, NJFileFormat) => String, cont: K)
       extends SKConfigF[K]
 
+  final case class WithDatePartitionPathBuilder[K](
+    value: (TopicName, NJFileFormat, LocalDate) => String,
+    cont: K)
+      extends SKConfigF[K]
+
   private val algebra: Algebra[SKConfigF, SKParams] = Algebra[SKConfigF, SKParams] {
-    case DefaultParams(t, z)         => SKParams(t, z)
-    case WithTopicName(v, c)         => SKParams.topicName.set(v)(c)
-    case WithBatchSize(v, c)         => SKParams.uploadRate.composeLens(NJUploadRate.batchSize).set(v)(c)
-    case WithDuration(v, c)          => SKParams.uploadRate.composeLens(NJUploadRate.duration).set(v)(c)
-    case WithStartTimeStr(v, c)      => SKParams.timeRange.modify(_.withStartTime(v))(c)
-    case WithEndTimeStr(v, c)        => SKParams.timeRange.modify(_.withEndTime(v))(c)
-    case WithStartTime(v, c)         => SKParams.timeRange.modify(_.withStartTime(v))(c)
-    case WithEndTime(v, c)           => SKParams.timeRange.modify(_.withEndTime(v))(c)
-    case WithZoneId(v, c)            => SKParams.timeRange.modify(_.withZoneId(v))(c)
-    case WithTimeRange(v, c)         => SKParams.timeRange.set(v)(c)
-    case WithNSeconds(v, c)          => SKParams.timeRange.modify(_.withNSeconds(v))(c)
-    case WithOneDay(v, c)            => SKParams.timeRange.modify(_.withOneDay(v))(c)
-    case WithOneDayStr(v, c)         => SKParams.timeRange.modify(_.withOneDay(v))(c)
-    case WithSaveMode(v, c)          => SKParams.saveMode.set(v)(c)
-    case WithLocationStrategy(v, c)  => SKParams.locationStrategy.set(v)(c)
-    case WithShowRows(v, c)          => SKParams.showDs.composeLens(NJShowDataset.rowNum).set(v)(c)
-    case WithShowTruncate(v, c)      => SKParams.showDs.composeLens(NJShowDataset.isTruncate).set(v)(c)
-    case WithReplayPathBuilder(v, c) => SKParams.replayPathBuilder.set(v)(c)
-    case WithPathBuilder(v, c)       => SKParams.pathBuilder.set(v)(c)
+    case DefaultParams(t, z)                => SKParams(t, z)
+    case WithTopicName(v, c)                => SKParams.topicName.set(v)(c)
+    case WithBatchSize(v, c)                => SKParams.uploadRate.composeLens(NJUploadRate.batchSize).set(v)(c)
+    case WithDuration(v, c)                 => SKParams.uploadRate.composeLens(NJUploadRate.duration).set(v)(c)
+    case WithStartTimeStr(v, c)             => SKParams.timeRange.modify(_.withStartTime(v))(c)
+    case WithEndTimeStr(v, c)               => SKParams.timeRange.modify(_.withEndTime(v))(c)
+    case WithStartTime(v, c)                => SKParams.timeRange.modify(_.withStartTime(v))(c)
+    case WithEndTime(v, c)                  => SKParams.timeRange.modify(_.withEndTime(v))(c)
+    case WithZoneId(v, c)                   => SKParams.timeRange.modify(_.withZoneId(v))(c)
+    case WithTimeRange(v, c)                => SKParams.timeRange.set(v)(c)
+    case WithNSeconds(v, c)                 => SKParams.timeRange.modify(_.withNSeconds(v))(c)
+    case WithOneDay(v, c)                   => SKParams.timeRange.modify(_.withOneDay(v))(c)
+    case WithOneDayStr(v, c)                => SKParams.timeRange.modify(_.withOneDay(v))(c)
+    case WithSaveMode(v, c)                 => SKParams.saveMode.set(v)(c)
+    case WithLocationStrategy(v, c)         => SKParams.locationStrategy.set(v)(c)
+    case WithShowRows(v, c)                 => SKParams.showDs.composeLens(NJShowDataset.rowNum).set(v)(c)
+    case WithShowTruncate(v, c)             => SKParams.showDs.composeLens(NJShowDataset.isTruncate).set(v)(c)
+    case WithReplayPathBuilder(v, c)        => SKParams.replayPathBuilder.set(v)(c)
+    case WithPathBuilder(v, c)              => SKParams.pathBuilder.set(v)(c)
+    case WithDatePartitionPathBuilder(v, c) => SKParams.datePartitionPathBuilder.set(v)(c)
   }
 
   def evalConfig(cfg: SKConfig): SKParams = scheme.cata(algebra).apply(cfg.value)
@@ -146,6 +162,9 @@ final private[spark] case class SKConfig private (value: Fix[SKConfigF]) extends
 
   def withPathBuilder(f: (TopicName, NJFileFormat) => String): SKConfig =
     SKConfig(Fix(WithPathBuilder(f, value)))
+
+  def withDatePartitionBuilder(f: (TopicName, NJFileFormat, LocalDate) => String): SKConfig =
+    SKConfig(Fix(WithDatePartitionPathBuilder(f, value)))
 
   def evalConfig: SKParams = SKConfigF.evalConfig(this)
 }

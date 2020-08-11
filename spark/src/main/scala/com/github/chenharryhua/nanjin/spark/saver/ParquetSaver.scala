@@ -178,6 +178,14 @@ final class ParquetPartitionSaver[F[_], A, K: ClassTag: Eq](
       bucketing,
       pathBuilder)
 
+  def reBucket[K1: ClassTag: Eq](
+    bucketing: A => K1,
+    pathBuilder: K1 => String): ParquetPartitionSaver[F, A, K1] =
+    new ParquetPartitionSaver[F, A, K1](rdd, encoder, constraint, cfg, bucketing, pathBuilder)
+
+  def rePath(pathBuilder: K => String): ParquetPartitionSaver[F, A, K] =
+    new ParquetPartitionSaver[F, A, K](rdd, encoder, constraint, cfg, bucketing, pathBuilder)
+
   override def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     savePartitionedRdd(rdd, blocker, bucketing, pathBuilder)

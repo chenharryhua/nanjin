@@ -1,8 +1,11 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import java.time.LocalDate
+
 import cats.Show
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
+import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.spark.saver._
 import frameless.TypedEncoder
@@ -23,11 +26,21 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
     def avro: AvroSaver[F, OptionalKV[K, V]] =
       saver.avro(params.outPath(NJFileFormat.Avro))
 
+    def partitionAvro: AvroPartitionSaver[F, OptionalKV[K, V], LocalDate] =
+      saver.avro[LocalDate](
+        kv => NJTimestamp(kv.timestamp).dayResolution(params.timeRange.zoneId),
+        params.datePartition(NJFileFormat.Avro))
+
     def jackson(pathStr: String): JacksonSaver[F, OptionalKV[K, V]] =
       saver.jackson(pathStr)
 
     def jackson: JacksonSaver[F, OptionalKV[K, V]] =
       saver.jackson(params.outPath(NJFileFormat.Jackson))
+
+    def partitionJackson: JacksonPartitionSaver[F, OptionalKV[K, V], LocalDate] =
+      saver.jackson[LocalDate](
+        kv => NJTimestamp(kv.timestamp).dayResolution(params.timeRange.zoneId),
+        params.datePartition(NJFileFormat.Jackson))
 
     def parquet(pathStr: String)(implicit
       ev: TypedEncoder[OptionalKV[K, V]]): ParquetSaver[F, OptionalKV[K, V]] =
@@ -36,17 +49,34 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
     def parquet(implicit ev: TypedEncoder[OptionalKV[K, V]]): ParquetSaver[F, OptionalKV[K, V]] =
       saver.parquet(params.outPath(NJFileFormat.Parquet))
 
+    def partitionParquet(implicit
+      ev: TypedEncoder[OptionalKV[K, V]]): ParquetPartitionSaver[F, OptionalKV[K, V], LocalDate] =
+      saver.parquet[LocalDate](
+        kv => NJTimestamp(kv.timestamp).dayResolution(params.timeRange.zoneId),
+        params.datePartition(NJFileFormat.Parquet))
+
     def binAvro(pathStr: String): BinaryAvroSaver[F, OptionalKV[K, V]] =
       saver.binAvro(pathStr)
 
     def binAvro: BinaryAvroSaver[F, OptionalKV[K, V]] =
       saver.binAvro(params.outPath(NJFileFormat.BinaryAvro))
 
+    def partitionBinAvro: BinaryAvroPartitionSaver[F, OptionalKV[K, V], LocalDate] =
+      saver.binAvro[LocalDate](
+        kv => NJTimestamp(kv.timestamp).dayResolution(params.timeRange.zoneId),
+        params.datePartition(NJFileFormat.BinaryAvro))
+
     def text(pathStr: String)(implicit ev: Show[OptionalKV[K, V]]): TextSaver[F, OptionalKV[K, V]] =
       saver.text(pathStr)
 
     def text(implicit ev: Show[OptionalKV[K, V]]): TextSaver[F, OptionalKV[K, V]] =
       saver.text(params.outPath(NJFileFormat.Text))
+
+    def partitionText(implicit
+      ev: Show[OptionalKV[K, V]]): TextPartitionSaver[F, OptionalKV[K, V], LocalDate] =
+      saver.text[LocalDate](
+        kv => NJTimestamp(kv.timestamp).dayResolution(params.timeRange.zoneId),
+        params.datePartition(NJFileFormat.Text))
 
     def circe(pathStr: String)(implicit
       ev: JsonEncoder[OptionalKV[K, V]]): CirceSaver[F, OptionalKV[K, V]] =
@@ -55,11 +85,22 @@ private[kafka] trait CrRddSaveModule[F[_], K, V] { self: CrRdd[F, K, V] =>
     def circe(implicit ev: JsonEncoder[OptionalKV[K, V]]): CirceSaver[F, OptionalKV[K, V]] =
       saver.circe(params.outPath(NJFileFormat.Circe))
 
+    def partitionCirce(implicit
+      ev: JsonEncoder[OptionalKV[K, V]]): CircePartitionSaver[F, OptionalKV[K, V], LocalDate] =
+      saver.circe[LocalDate](
+        kv => NJTimestamp(kv.timestamp).dayResolution(params.timeRange.zoneId),
+        params.datePartition(NJFileFormat.Avro))
+
     def javaObject(pathStr: String): JavaObjectSaver[F, OptionalKV[K, V]] =
       saver.javaObject(pathStr)
 
     def javaObject: JavaObjectSaver[F, OptionalKV[K, V]] =
       saver.javaObject(params.outPath(NJFileFormat.JavaObject))
+
+    def partitionJavaObject: JavaObjectPartitionSaver[F, OptionalKV[K, V], LocalDate] =
+      saver.javaObject[LocalDate](
+        kv => NJTimestamp(kv.timestamp).dayResolution(params.timeRange.zoneId),
+        params.datePartition(NJFileFormat.Avro))
 
     def csv[A: RowEncoder](pathStr: String)(f: OptionalKV[K, V] => A)(implicit
       ev: TypedEncoder[A]): CsvSaver[F, A] = {

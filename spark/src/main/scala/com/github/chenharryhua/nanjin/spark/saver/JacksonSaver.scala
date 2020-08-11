@@ -97,6 +97,14 @@ final class JacksonPartitionSaver[F[_], A, K: ClassTag: Eq](
   override def multi: JacksonPartitionSaver[F, A, K] =
     new JacksonPartitionSaver(rdd, encoder, cfg.withMulti, bucketing, pathBuilder)
 
+  def reBucket[K1: ClassTag: Eq](
+    bucketing: A => K1,
+    pathBuilder: K1 => String): JacksonPartitionSaver[F, A, K1] =
+    new JacksonPartitionSaver[F, A, K1](rdd, encoder, cfg, bucketing, pathBuilder)
+
+  def rePath(pathBuilder: K => String): JacksonPartitionSaver[F, A, K] =
+    new JacksonPartitionSaver[F, A, K](rdd, encoder, cfg, bucketing, pathBuilder)
+
   override def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     savePartitionedRdd(rdd, blocker, bucketing, pathBuilder)
