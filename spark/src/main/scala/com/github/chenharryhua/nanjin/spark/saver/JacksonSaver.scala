@@ -21,8 +21,6 @@ sealed abstract private[saver] class AbstractJacksonSaver[F[_], A](
     extends AbstractSaver[F, A](cfg) {
   implicit private val enc: Encoder[A] = encoder
 
-  def overwrite: AbstractJacksonSaver[F, A]
-  def errorIfExists: AbstractJacksonSaver[F, A]
   def single: AbstractJacksonSaver[F, A]
   def multi: AbstractJacksonSaver[F, A]
 
@@ -53,8 +51,9 @@ final class JacksonSaver[F[_], A](rdd: RDD[A], encoder: Encoder[A], cfg: SaverCo
   private def mode(sm: SaveMode): JacksonSaver[F, A] =
     new JacksonSaver(rdd, encoder, cfg.withSaveMode(sm))
 
-  override def overwrite: JacksonSaver[F, A]     = mode(SaveMode.Overwrite)
-  override def errorIfExists: JacksonSaver[F, A] = mode(SaveMode.ErrorIfExists)
+  override def overwrite: JacksonSaver[F, A]      = mode(SaveMode.Overwrite)
+  override def errorIfExists: JacksonSaver[F, A]  = mode(SaveMode.ErrorIfExists)
+  override def ignoreIfExists: JacksonSaver[F, A] = mode(SaveMode.Ignore)
 
   override def single: JacksonSaver[F, A] =
     new JacksonSaver[F, A](rdd, encoder, cfg.withSingle)
@@ -89,6 +88,14 @@ final class JacksonPartitionSaver[F[_], A, K: ClassTag: Eq](
       rdd,
       encoder,
       cfg.withSaveMode(SaveMode.ErrorIfExists),
+      bucketing,
+      pathBuilder)
+
+  override def ignoreIfExists: JacksonPartitionSaver[F, A, K] =
+    new JacksonPartitionSaver(
+      rdd,
+      encoder,
+      cfg.withSaveMode(SaveMode.Ignore),
       bucketing,
       pathBuilder)
 

@@ -24,8 +24,7 @@ sealed abstract private[saver] class AbstractAvroSaver[F[_], A](
 
   def withEncoder(enc: Encoder[A]): AbstractAvroSaver[F, A]
   def withSchema(schema: Schema): AbstractAvroSaver[F, A]
-  def overwrite: AbstractAvroSaver[F, A]
-  def errorIfExists: AbstractAvroSaver[F, A]
+
   def single: AbstractAvroSaver[F, A]
   def multi: AbstractAvroSaver[F, A]
   def spark: AbstractAvroSaver[F, A]
@@ -66,11 +65,9 @@ final class AvroSaver[F[_], A](rdd: RDD[A], encoder: Encoder[A], cfg: SaverConfi
   private def mode(sm: SaveMode): AvroSaver[F, A] =
     new AvroSaver[F, A](rdd, encoder, cfg.withSaveMode(sm))
 
-  override def errorIfExists: AvroSaver[F, A] =
-    mode(SaveMode.ErrorIfExists)
-
-  override def overwrite: AvroSaver[F, A] =
-    mode(SaveMode.Overwrite)
+  override def errorIfExists: AvroSaver[F, A]  = mode(SaveMode.ErrorIfExists)
+  override def overwrite: AvroSaver[F, A]      = mode(SaveMode.Overwrite)
+  override def ignoreIfExists: AvroSaver[F, A] = mode(SaveMode.Ignore)
 
   override def single: AvroSaver[F, A] =
     new AvroSaver[F, A](rdd, encoder, cfg.withSingle)
@@ -109,11 +106,9 @@ final class AvroPartitionSaver[F[_], A, K: ClassTag: Eq](
   private def mode(sm: SaveMode): AvroPartitionSaver[F, A, K] =
     new AvroPartitionSaver[F, A, K](rdd, encoder, cfg.withSaveMode(sm), bucketing, pathBuilder)
 
-  override def errorIfExists: AvroPartitionSaver[F, A, K] =
-    mode(SaveMode.ErrorIfExists)
-
-  override def overwrite: AvroPartitionSaver[F, A, K] =
-    mode(SaveMode.Overwrite)
+  override def errorIfExists: AvroPartitionSaver[F, A, K]  = mode(SaveMode.ErrorIfExists)
+  override def overwrite: AvroPartitionSaver[F, A, K]      = mode(SaveMode.Overwrite)
+  override def ignoreIfExists: AvroPartitionSaver[F, A, K] = mode(SaveMode.Ignore)
 
   override def single: AvroPartitionSaver[F, A, K] =
     new AvroPartitionSaver[F, A, K](rdd, encoder, cfg.withSingle, bucketing, pathBuilder)

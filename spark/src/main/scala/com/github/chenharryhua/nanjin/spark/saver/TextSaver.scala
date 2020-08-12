@@ -17,8 +17,6 @@ sealed abstract private[saver] class AbstractTextSaver[F[_], A](
     extends AbstractSaver[F, A](cfg) {
   implicit private val enc: Show[A] = encoder
 
-  def overwrite: AbstractTextSaver[F, A]
-  def errorIfExists: AbstractTextSaver[F, A]
   def single: AbstractTextSaver[F, A]
   def multi: AbstractTextSaver[F, A]
 
@@ -42,8 +40,9 @@ final class TextSaver[F[_], A](rdd: RDD[A], encoder: Show[A], cfg: SaverConfig)
   private def mode(sm: SaveMode): TextSaver[F, A] =
     new TextSaver[F, A](rdd, encoder, cfg.withSaveMode(sm))
 
-  override def overwrite: TextSaver[F, A]     = mode(SaveMode.Overwrite)
-  override def errorIfExists: TextSaver[F, A] = mode(SaveMode.ErrorIfExists)
+  override def overwrite: TextSaver[F, A]      = mode(SaveMode.Overwrite)
+  override def errorIfExists: TextSaver[F, A]  = mode(SaveMode.ErrorIfExists)
+  override def ignoreIfExists: TextSaver[F, A] = mode(SaveMode.Ignore)
 
   override def single: TextSaver[F, A] =
     new TextSaver[F, A](rdd, encoder, cfg.withSingle)
@@ -77,6 +76,14 @@ final class TextPartitionSaver[F[_], A, K: ClassTag: Eq](
       rdd,
       encoder,
       cfg.withSaveMode(SaveMode.ErrorIfExists),
+      bucketing,
+      pathBuilder)
+
+  override def ignoreIfExists: TextPartitionSaver[F, A, K] =
+    new TextPartitionSaver[F, A, K](
+      rdd,
+      encoder,
+      cfg.withSaveMode(SaveMode.Ignore),
       bucketing,
       pathBuilder)
 

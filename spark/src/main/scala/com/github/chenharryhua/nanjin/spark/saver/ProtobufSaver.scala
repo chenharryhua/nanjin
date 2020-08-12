@@ -13,8 +13,6 @@ import scala.reflect.ClassTag
 sealed abstract private[saver] class AbstractProtobufSaver[F[_], A](rdd: RDD[A], cfg: SaverConfig)(
   implicit enc: A <:< GeneratedMessage)
     extends AbstractSaver[F, A](cfg) {
-  def overwrite: AbstractProtobufSaver[F, A]
-  def errorIfExists: AbstractProtobufSaver[F, A]
 
   final override protected def writeSingleFile(
     rdd: RDD[A],
@@ -37,6 +35,9 @@ final class ProtobufSaver[F[_], A](rdd: RDD[A], cfg: SaverConfig)(implicit
 
   override def errorIfExists: ProtobufSaver[F, A] =
     new ProtobufSaver[F, A](rdd, cfg.withSaveMode(SaveMode.ErrorIfExists))
+
+  override def ignoreIfExists: ProtobufSaver[F, A] =
+    new ProtobufSaver[F, A](rdd, cfg.withSaveMode(SaveMode.Ignore))
 }
 
 final class ProtobufPartitionSaver[F[_], A, K: ClassTag: Eq](
@@ -57,6 +58,13 @@ final class ProtobufPartitionSaver[F[_], A, K: ClassTag: Eq](
     new ProtobufPartitionSaver[F, A, K](
       rdd,
       cfg.withSaveMode(SaveMode.ErrorIfExists),
+      bucketing,
+      pathBuilder)
+
+  override def ignoreIfExists: ProtobufPartitionSaver[F, A, K] =
+    new ProtobufPartitionSaver[F, A, K](
+      rdd,
+      cfg.withSaveMode(SaveMode.Ignore),
       bucketing,
       pathBuilder)
 

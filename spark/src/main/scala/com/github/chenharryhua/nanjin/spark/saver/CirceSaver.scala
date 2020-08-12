@@ -18,8 +18,6 @@ sealed abstract private[saver] class AbstractCirceSaver[F[_], A](
     extends AbstractSaver[F, A](cfg) {
   implicit private val enc: Encoder[A] = encoder
 
-  def overwrite: AbstractCirceSaver[F, A]
-  def errorIfExists: AbstractCirceSaver[F, A]
   def single: AbstractCirceSaver[F, A]
   def multi: AbstractCirceSaver[F, A]
 
@@ -42,8 +40,9 @@ final class CirceSaver[F[_], A](rdd: RDD[A], encoder: Encoder[A], cfg: SaverConf
   private def mode(sm: SaveMode): CirceSaver[F, A] =
     new CirceSaver[F, A](rdd, encoder, cfg.withSaveMode(sm))
 
-  override def overwrite: CirceSaver[F, A]     = mode(SaveMode.Overwrite)
-  override def errorIfExists: CirceSaver[F, A] = mode(SaveMode.ErrorIfExists)
+  override def overwrite: CirceSaver[F, A]      = mode(SaveMode.Overwrite)
+  override def errorIfExists: CirceSaver[F, A]  = mode(SaveMode.ErrorIfExists)
+  override def ignoreIfExists: CirceSaver[F, A] = mode(SaveMode.Ignore)
 
   override def single: CirceSaver[F, A] =
     new CirceSaver[F, A](rdd, encoder, cfg.withSingle)
@@ -67,8 +66,9 @@ final class CircePartitionSaver[F[_], A, K: ClassTag: Eq](
   private def mode(sm: SaveMode): CircePartitionSaver[F, A, K] =
     new CircePartitionSaver[F, A, K](rdd, encoder, cfg.withSaveMode(sm), bucketing, pathBuilder)
 
-  override def overwrite: CircePartitionSaver[F, A, K]     = mode(SaveMode.Overwrite)
-  override def errorIfExists: CircePartitionSaver[F, A, K] = mode(SaveMode.ErrorIfExists)
+  override def overwrite: CircePartitionSaver[F, A, K]      = mode(SaveMode.Overwrite)
+  override def errorIfExists: CircePartitionSaver[F, A, K]  = mode(SaveMode.ErrorIfExists)
+  override def ignoreIfExists: CircePartitionSaver[F, A, K] = mode(SaveMode.Ignore)
 
   override def multi: CircePartitionSaver[F, A, K] =
     new CircePartitionSaver[F, A, K](rdd, encoder, cfg.withMulti, bucketing, pathBuilder)

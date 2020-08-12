@@ -14,6 +14,10 @@ import scala.reflect.ClassTag
 abstract private[saver] class AbstractSaver[F[_], A](cfg: SaverConfig) extends Serializable {
   final val params: SaverParams = cfg.evalConfig
 
+  def overwrite: AbstractSaver[F, A]
+  def errorIfExists: AbstractSaver[F, A]
+  def ignoreIfExists: AbstractSaver[F, A]
+
   protected def writeSingleFile(rdd: RDD[A], outPath: String, blocker: Blocker)(implicit
     ss: SparkSession,
     F: Concurrent[F],

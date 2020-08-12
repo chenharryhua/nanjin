@@ -12,8 +12,6 @@ import scala.reflect.ClassTag
 
 sealed abstract private[saver] class AbstractJavaObjectSaver[F[_], A](rdd: RDD[A], cfg: SaverConfig)
     extends AbstractSaver[F, A](cfg) {
-  def overwrite: AbstractJavaObjectSaver[F, A]
-  def errorIfExists: AbstractJavaObjectSaver[F, A]
 
   final override protected def writeSingleFile(
     rdd: RDD[A],
@@ -29,8 +27,9 @@ final class JavaObjectSaver[F[_], A](rdd: RDD[A], cfg: SaverConfig)
   private def mode(sm: SaveMode): JavaObjectSaver[F, A] =
     new JavaObjectSaver[F, A](rdd, cfg.withSaveMode(sm))
 
-  override def overwrite: JavaObjectSaver[F, A]     = mode(SaveMode.Overwrite)
-  override def errorIfExists: JavaObjectSaver[F, A] = mode(SaveMode.ErrorIfExists)
+  override def overwrite: JavaObjectSaver[F, A]      = mode(SaveMode.Overwrite)
+  override def errorIfExists: JavaObjectSaver[F, A]  = mode(SaveMode.ErrorIfExists)
+  override def ignoreIfExists: JavaObjectSaver[F, A] = mode(SaveMode.Ignore)
 
   def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
@@ -54,6 +53,9 @@ final class JavaObjectPartitionSaver[F[_], A, K: ClassTag: Eq](
       cfg.withSaveMode(SaveMode.ErrorIfExists),
       bucketing,
       pathBuilder)
+
+  override def ignoreIfExists: JavaObjectPartitionSaver[F, A, K] =
+    new JavaObjectPartitionSaver(rdd, cfg.withSaveMode(SaveMode.Ignore), bucketing, pathBuilder)
 
   override def reBucket[K1: ClassTag: Eq](
     bucketing: A => K1,

@@ -23,8 +23,6 @@ sealed abstract private[saver] class AbstractCsvSaver[F[_], A](
   implicit private val te: TypedEncoder[A] = constraint
 
   def updateCsvConfig(f: CsvConfiguration => CsvConfiguration): AbstractCsvSaver[F, A]
-  def overwrite: AbstractCsvSaver[F, A]
-  def errorIfExists: AbstractCsvSaver[F, A]
   def single: AbstractCsvSaver[F, A]
   def multi: AbstractCsvSaver[F, A]
 
@@ -66,8 +64,9 @@ final class CsvSaver[F[_], A](
   private def mode(sm: SaveMode): CsvSaver[F, A] =
     new CsvSaver[F, A](rdd, encoder, csvConfiguration, constraint, cfg.withSaveMode(sm))
 
-  override def overwrite: CsvSaver[F, A]     = mode(SaveMode.Overwrite)
-  override def errorIfExists: CsvSaver[F, A] = mode(SaveMode.ErrorIfExists)
+  override def overwrite: CsvSaver[F, A]      = mode(SaveMode.Overwrite)
+  override def errorIfExists: CsvSaver[F, A]  = mode(SaveMode.ErrorIfExists)
+  override def ignoreIfExists: CsvSaver[F, A] = mode(SaveMode.Ignore)
 
   override def single: CsvSaver[F, A] =
     new CsvSaver[F, A](rdd, encoder, csvConfiguration, constraint, cfg.withSingle)
@@ -119,6 +118,16 @@ final class CsvPartitionSaver[F[_], A, K: ClassTag: Eq](
       csvConfiguration,
       constraint,
       cfg.withSaveMode(SaveMode.ErrorIfExists),
+      bucketing,
+      pathBuilder)
+
+  override def ignoreIfExists: CsvPartitionSaver[F, A, K] =
+    new CsvPartitionSaver[F, A, K](
+      rdd,
+      encoder,
+      csvConfiguration,
+      constraint,
+      cfg.withSaveMode(SaveMode.Ignore),
       bucketing,
       pathBuilder)
 

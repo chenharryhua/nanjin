@@ -28,8 +28,6 @@ sealed abstract private[saver] class AbstractParquetSaver[F[_], A](
 
   def withEncoder(enc: Encoder[A]): AbstractParquetSaver[F, A]
   def withSchema(schema: Schema): AbstractParquetSaver[F, A]
-  def overwrite: AbstractParquetSaver[F, A]
-  def errorIfExists: AbstractParquetSaver[F, A]
   def single: AbstractParquetSaver[F, A]
   def multi: AbstractParquetSaver[F, A]
   def spark: AbstractParquetSaver[F, A]
@@ -81,8 +79,9 @@ final class ParquetSaver[F[_], A](
   private def mode(sm: SaveMode): ParquetSaver[F, A] =
     new ParquetSaver[F, A](rdd, encoder, constraint, cfg.withSaveMode(sm))
 
-  override def overwrite: ParquetSaver[F, A]     = mode(SaveMode.Overwrite)
-  override def errorIfExists: ParquetSaver[F, A] = mode(SaveMode.ErrorIfExists)
+  override def overwrite: ParquetSaver[F, A]      = mode(SaveMode.Overwrite)
+  override def errorIfExists: ParquetSaver[F, A]  = mode(SaveMode.ErrorIfExists)
+  override def ignoreIfExists: ParquetSaver[F, A] = mode(SaveMode.Ignore)
 
   override def single: ParquetSaver[F, A] =
     new ParquetSaver[F, A](rdd, encoder, constraint, cfg.withSingle)
@@ -140,6 +139,15 @@ final class ParquetPartitionSaver[F[_], A, K: ClassTag: Eq](
       encoder,
       constraint,
       cfg.withSaveMode(SaveMode.ErrorIfExists),
+      bucketing,
+      pathBuilder)
+
+  override def ignoreIfExists: ParquetPartitionSaver[F, A, K] =
+    new ParquetPartitionSaver[F, A, K](
+      rdd,
+      encoder,
+      constraint,
+      cfg.withSaveMode(SaveMode.Ignore),
       bucketing,
       pathBuilder)
 
