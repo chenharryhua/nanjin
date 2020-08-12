@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.saver
 
 import cats.derived.auto.functor.kittensMkFunctor
 import com.github.chenharryhua.nanjin.common.NJFileFormat
+import com.github.chenharryhua.nanjin.utils.defaultLocalParallelism
 import enumeratum.{Enum, EnumEntry}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.macros.deriveFixedPoint
@@ -34,12 +35,19 @@ object SparkOrHadoop extends Enum[SingleOrMulti] {
   fileFormat: NJFileFormat,
   singleOrMulti: SingleOrMulti,
   sparkOrHadoop: SparkOrHadoop,
-  saveMode: SaveMode)
+  saveMode: SaveMode,
+  parallelism: Long)
 
 object SaverParams {
 
   def apply(outPath: String, fmt: NJFileFormat): SaverParams =
-    SaverParams(outPath, fmt, SingleOrMulti.Multi, SparkOrHadoop.Hadoop, SaveMode.Overwrite)
+    SaverParams(
+      outPath,
+      fmt,
+      SingleOrMulti.Multi,
+      SparkOrHadoop.Hadoop,
+      SaveMode.Overwrite,
+      defaultLocalParallelism.toLong)
 }
 
 @deriveFixedPoint sealed trait SaverConfigF[_]
@@ -49,6 +57,7 @@ object SaverConfigF {
   final case class WithSingleOrMulti[K](value: SingleOrMulti, cont: K) extends SaverConfigF[K]
   final case class WithSparkOrHadoop[K](value: SparkOrHadoop, cont: K) extends SaverConfigF[K]
   final case class WithSaveMode[K](value: SaveMode, cont: K) extends SaverConfigF[K]
+  final case class WithParallism[K](value: Long, cont: K) extends SaverConfigF[K]
 
   private val algebra: Algebra[SaverConfigF, SaverParams] =
     Algebra[SaverConfigF, SaverParams] {
@@ -56,6 +65,7 @@ object SaverConfigF {
       case WithSingleOrMulti(v, c) => SaverParams.singleOrMulti.set(v)(c)
       case WithSparkOrHadoop(v, c) => SaverParams.sparkOrHadoop.set(v)(c)
       case WithSaveMode(v, c)      => SaverParams.saveMode.set(v)(c)
+      case WithParallism(v, c)     => SaverParams.parallelism.set(v)(c)
     }
 
   def evalConfig(cfg: SaverConfig): SaverParams = scheme.cata(algebra).apply(cfg.value)
@@ -72,6 +82,9 @@ final case class SaverConfig(value: Fix[SaverConfigF]) {
 
   def withSaveMode(saveMode: SaveMode): SaverConfig =
     SaverConfig(Fix(WithSaveMode(saveMode, value)))
+
+  def withParallism(num: Long): SaverConfig =
+    SaverConfig(Fix(WithParallism(num, value)))
 }
 
 object SaverConfig {

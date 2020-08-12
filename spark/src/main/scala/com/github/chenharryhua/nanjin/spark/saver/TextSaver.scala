@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.spark.saver
 
-import cats.Show
 import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.implicits._
 import cats.kernel.Eq
+import cats.{Parallel, Show}
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SaveMode, SparkSession}
@@ -51,7 +51,7 @@ final class TextSaver[F[_], A](rdd: RDD[A], encoder: Show[A], cfg: SaverConfig)
   override def multi: TextSaver[F, A] =
     new TextSaver[F, A](rdd, encoder, cfg.withMulti)
 
-  override def run(
+  def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     saveRdd(rdd, params.outPath, blocker)
 }
@@ -62,7 +62,7 @@ final class TextPartitionSaver[F[_], A, K: ClassTag: Eq](
   cfg: SaverConfig,
   bucketing: A => K,
   pathBuilder: K => String)
-    extends AbstractTextSaver[F, A](rdd, encoder, cfg) {
+    extends AbstractTextSaver[F, A](rdd, encoder, cfg) with Partition[F, A, K] {
 
   override def overwrite: TextPartitionSaver[F, A, K] =
     new TextPartitionSaver[F, A, K](
@@ -86,15 +86,21 @@ final class TextPartitionSaver[F[_], A, K: ClassTag: Eq](
   override def multi: TextPartitionSaver[F, A, K] =
     new TextPartitionSaver[F, A, K](rdd, encoder, cfg.withMulti, bucketing, pathBuilder)
 
-  def reBucket[K1: ClassTag: Eq](
+  override def reBucket[K1: ClassTag: Eq](
     bucketing: A => K1,
     pathBuilder: K1 => String): TextPartitionSaver[F, A, K1] =
     new TextPartitionSaver[F, A, K1](rdd, encoder, cfg, bucketing, pathBuilder)
 
-  def rePath(pathBuilder: K => String): TextPartitionSaver[F, A, K] =
+  override def rePath(pathBuilder: K => String): TextPartitionSaver[F, A, K] =
     new TextPartitionSaver[F, A, K](rdd, encoder, cfg, bucketing, pathBuilder)
 
-  override def run(
-    blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
+  override def parallel(num: Long): TextPartitionSaver[F, A, K] =
+    new TextPartitionSaver[F, A, K](rdd, encoder, cfg.withParallism(num), bucketing, pathBuilder)
+
+  override def run(blocker: Blocker)(implicit
+    ss: SparkSession,
+    F: Concurrent[F],
+    cs: ContextShift[F],
+    P: Parallel[F]): F[Unit] =
     savePartitionedRdd(rdd, blocker, bucketing, pathBuilder)
 }

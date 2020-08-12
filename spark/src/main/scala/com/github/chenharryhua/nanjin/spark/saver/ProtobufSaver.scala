@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.saver
 
+import cats.Parallel
 import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
@@ -27,7 +28,7 @@ final class ProtobufSaver[F[_], A](rdd: RDD[A], cfg: SaverConfig)(implicit
   enc: A <:< GeneratedMessage)
     extends AbstractProtobufSaver[F, A](rdd, cfg) {
 
-  override def run(
+  def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     saveRdd(rdd, params.outPath, blocker)
 
@@ -43,7 +44,7 @@ final class ProtobufPartitionSaver[F[_], A, K: ClassTag: Eq](
   cfg: SaverConfig,
   bucketing: A => K,
   pathBuilder: K => String)(implicit enc: A <:< GeneratedMessage)
-    extends AbstractProtobufSaver[F, A](rdd, cfg) {
+    extends AbstractProtobufSaver[F, A](rdd, cfg) with Partition[F, A, K] {
 
   override def overwrite: ProtobufPartitionSaver[F, A, K] =
     new ProtobufPartitionSaver[F, A, K](
@@ -59,15 +60,21 @@ final class ProtobufPartitionSaver[F[_], A, K: ClassTag: Eq](
       bucketing,
       pathBuilder)
 
-  def reBucket[K1: ClassTag: Eq](
+  override def reBucket[K1: ClassTag: Eq](
     bucketing: A => K1,
     pathBuilder: K1 => String): ProtobufPartitionSaver[F, A, K1] =
     new ProtobufPartitionSaver[F, A, K1](rdd, cfg, bucketing, pathBuilder)
 
-  def rePath(pathBuilder: K => String): ProtobufPartitionSaver[F, A, K] =
+  override def rePath(pathBuilder: K => String): ProtobufPartitionSaver[F, A, K] =
     new ProtobufPartitionSaver[F, A, K](rdd, cfg, bucketing, pathBuilder)
 
-  override def run(
-    blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
+  override def parallel(num: Long): ProtobufPartitionSaver[F, A, K] =
+    new ProtobufPartitionSaver[F, A, K](rdd, cfg.withParallism(num), bucketing, pathBuilder)
+
+  override def run(blocker: Blocker)(implicit
+    ss: SparkSession,
+    F: Concurrent[F],
+    cs: ContextShift[F],
+    P: Parallel[F]): F[Unit] =
     savePartitionedRdd(rdd, blocker, bucketing, pathBuilder)
 }

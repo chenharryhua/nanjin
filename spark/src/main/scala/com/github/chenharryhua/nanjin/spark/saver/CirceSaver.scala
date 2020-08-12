@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.saver
 
+import cats.Parallel
 import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.implicits._
 import cats.kernel.Eq
@@ -50,7 +51,7 @@ final class CirceSaver[F[_], A](rdd: RDD[A], encoder: Encoder[A], cfg: SaverConf
   override def multi: CirceSaver[F, A] =
     new CirceSaver[F, A](rdd, encoder, cfg.withMulti)
 
-  override def run(
+  def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     saveRdd(rdd, params.outPath, blocker)
 }
@@ -61,7 +62,7 @@ final class CircePartitionSaver[F[_], A, K: ClassTag: Eq](
   cfg: SaverConfig,
   bucketing: A => K,
   pathBuilder: K => String)
-    extends AbstractCirceSaver[F, A](rdd, encoder, cfg) {
+    extends AbstractCirceSaver[F, A](rdd, encoder, cfg) with Partition[F, A, K] {
 
   private def mode(sm: SaveMode): CircePartitionSaver[F, A, K] =
     new CircePartitionSaver[F, A, K](rdd, encoder, cfg.withSaveMode(sm), bucketing, pathBuilder)
@@ -75,16 +76,22 @@ final class CircePartitionSaver[F[_], A, K: ClassTag: Eq](
   override def single: CircePartitionSaver[F, A, K] =
     new CircePartitionSaver[F, A, K](rdd, encoder, cfg.withSingle, bucketing, pathBuilder)
 
-  def reBucket[K1: ClassTag: Eq](
+  override def reBucket[K1: ClassTag: Eq](
     bucketing: A => K1,
     pathBuilder: K1 => String): CircePartitionSaver[F, A, K1] =
     new CircePartitionSaver[F, A, K1](rdd, encoder, cfg, bucketing, pathBuilder)
 
-  def rePath(pathBuilder: K => String): CircePartitionSaver[F, A, K] =
+  override def rePath(pathBuilder: K => String): CircePartitionSaver[F, A, K] =
     new CircePartitionSaver[F, A, K](rdd, encoder, cfg, bucketing, pathBuilder)
 
-  override def run(
-    blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
+  override def parallel(num: Long): CircePartitionSaver[F, A, K] =
+    new CircePartitionSaver[F, A, K](rdd, encoder, cfg.withParallism(num), bucketing, pathBuilder)
+
+  override def run(blocker: Blocker)(implicit
+    ss: SparkSession,
+    F: Concurrent[F],
+    CS: ContextShift[F],
+    P: Parallel[F]): F[Unit] =
     savePartitionedRdd(rdd, blocker, bucketing, pathBuilder)
 
 }

@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.saver
 
+import cats.Parallel
 import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.implicits._
 import cats.kernel.Eq
@@ -31,7 +32,7 @@ final class JavaObjectSaver[F[_], A](rdd: RDD[A], cfg: SaverConfig)
   override def overwrite: JavaObjectSaver[F, A]     = mode(SaveMode.Overwrite)
   override def errorIfExists: JavaObjectSaver[F, A] = mode(SaveMode.ErrorIfExists)
 
-  override def run(
+  def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     saveRdd(rdd, params.outPath, blocker)
 
@@ -42,7 +43,7 @@ final class JavaObjectPartitionSaver[F[_], A, K: ClassTag: Eq](
   cfg: SaverConfig,
   bucketing: A => K,
   pathBuilder: K => String)
-    extends AbstractJavaObjectSaver[F, A](rdd, cfg) {
+    extends AbstractJavaObjectSaver[F, A](rdd, cfg) with Partition[F, A, K] {
 
   override def overwrite: JavaObjectPartitionSaver[F, A, K] =
     new JavaObjectPartitionSaver(rdd, cfg.withSaveMode(SaveMode.Overwrite), bucketing, pathBuilder)
@@ -54,15 +55,21 @@ final class JavaObjectPartitionSaver[F[_], A, K: ClassTag: Eq](
       bucketing,
       pathBuilder)
 
-  def reBucket[K1: ClassTag: Eq](
+  override def reBucket[K1: ClassTag: Eq](
     bucketing: A => K1,
     pathBuilder: K1 => String): JavaObjectPartitionSaver[F, A, K1] =
     new JavaObjectPartitionSaver[F, A, K1](rdd, cfg, bucketing, pathBuilder)
 
-  def rePath(pathBuilder: K => String): JavaObjectPartitionSaver[F, A, K] =
+  override def rePath(pathBuilder: K => String): JavaObjectPartitionSaver[F, A, K] =
     new JavaObjectPartitionSaver[F, A, K](rdd, cfg, bucketing, pathBuilder)
 
-  override def run(
-    blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
+  override def parallel(num: Long): JavaObjectPartitionSaver[F, A, K] =
+    new JavaObjectPartitionSaver[F, A, K](rdd, cfg.withParallism(num), bucketing, pathBuilder)
+
+  override def run(blocker: Blocker)(implicit
+    ss: SparkSession,
+    F: Concurrent[F],
+    cs: ContextShift[F],
+    P: Parallel[F]): F[Unit] =
     savePartitionedRdd(rdd, blocker, bucketing, pathBuilder)
 }

@@ -94,25 +94,4 @@ class SaveDateTimeTest extends AnyFunSuite {
     assert(rst.flatMap(_.value).toList == chickens)
   }
 
-  test("partition avro") {
-    topic.sparKafka.fromKafka.flatMap(_.save.partitionAvro.run(blocker)).unsafeRunSync()
-  }
-  test("partition binary avro") {
-    topic.sparKafka.fromKafka.flatMap(_.save.partitionBinAvro.run(blocker)).unsafeRunSync()
-  }
-  test("partition jackson") {
-    topic.sparKafka.fromKafka.flatMap(_.save.partitionJackson.run(blocker)).unsafeRunSync()
-  }
-  test("partition parquet") {
-    topic.sparKafka.fromKafka.flatMap(_.save.partitionParquet.run(blocker)).unsafeRunSync()
-  }
-  test("partition circe") {
-    topic.sparKafka.fromKafka.flatMap(_.save.partitionCirce.run(blocker)).unsafeRunSync()
-  }
-  test("partition java object") {
-    topic.sparKafka.fromKafka.flatMap(_.save.partitionJavaObject.run(blocker)).unsafeRunSync()
-  }
-  test("partition text") {
-    topic.sparKafka.fromKafka.flatMap(_.save.partitionText.run(blocker)).unsafeRunSync()
-  }
 }
