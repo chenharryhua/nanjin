@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.saver
 
+import cats.Parallel
 import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.implicits._
 import cats.kernel.Eq
@@ -27,8 +28,6 @@ sealed abstract private[saver] class AbstractParquetSaver[F[_], A](
 
   def withEncoder(enc: Encoder[A]): AbstractParquetSaver[F, A]
   def withSchema(schema: Schema): AbstractParquetSaver[F, A]
-  def overwrite: AbstractParquetSaver[F, A]
-  def errorIfExists: AbstractParquetSaver[F, A]
   def single: AbstractParquetSaver[F, A]
   def multi: AbstractParquetSaver[F, A]
   def spark: AbstractParquetSaver[F, A]
@@ -80,8 +79,9 @@ final class ParquetSaver[F[_], A](
   private def mode(sm: SaveMode): ParquetSaver[F, A] =
     new ParquetSaver[F, A](rdd, encoder, constraint, cfg.withSaveMode(sm))
 
-  override def overwrite: ParquetSaver[F, A]     = mode(SaveMode.Overwrite)
-  override def errorIfExists: ParquetSaver[F, A] = mode(SaveMode.ErrorIfExists)
+  override def overwrite: ParquetSaver[F, A]      = mode(SaveMode.Overwrite)
+  override def errorIfExists: ParquetSaver[F, A]  = mode(SaveMode.ErrorIfExists)
+  override def ignoreIfExists: ParquetSaver[F, A] = mode(SaveMode.Ignore)
 
   override def single: ParquetSaver[F, A] =
     new ParquetSaver[F, A](rdd, encoder, constraint, cfg.withSingle)
@@ -95,7 +95,7 @@ final class ParquetSaver[F[_], A](
   override def hadoop: ParquetSaver[F, A] =
     new ParquetSaver[F, A](rdd, encoder, constraint, cfg.withHadoop)
 
-  override def run(
+  def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     saveRdd(rdd, params.outPath, blocker)
 
@@ -108,7 +108,7 @@ final class ParquetPartitionSaver[F[_], A, K: ClassTag: Eq](
   cfg: SaverConfig,
   bucketing: A => K,
   pathBuilder: K => String)
-    extends AbstractParquetSaver[F, A](rdd, encoder, constraint, cfg) {
+    extends AbstractParquetSaver[F, A](rdd, encoder, constraint, cfg) with Partition[F, A, K] {
 
   override def withEncoder(enc: Encoder[A]): ParquetPartitionSaver[F, A, K] =
     new ParquetPartitionSaver[F, A, K](rdd, enc, constraint, cfg, bucketing, pathBuilder)
@@ -139,6 +139,15 @@ final class ParquetPartitionSaver[F[_], A, K: ClassTag: Eq](
       encoder,
       constraint,
       cfg.withSaveMode(SaveMode.ErrorIfExists),
+      bucketing,
+      pathBuilder)
+
+  override def ignoreIfExists: ParquetPartitionSaver[F, A, K] =
+    new ParquetPartitionSaver[F, A, K](
+      rdd,
+      encoder,
+      constraint,
+      cfg.withSaveMode(SaveMode.Ignore),
       bucketing,
       pathBuilder)
 
@@ -178,15 +187,27 @@ final class ParquetPartitionSaver[F[_], A, K: ClassTag: Eq](
       bucketing,
       pathBuilder)
 
-  def reBucket[K1: ClassTag: Eq](
+  override def reBucket[K1: ClassTag: Eq](
     bucketing: A => K1,
     pathBuilder: K1 => String): ParquetPartitionSaver[F, A, K1] =
     new ParquetPartitionSaver[F, A, K1](rdd, encoder, constraint, cfg, bucketing, pathBuilder)
 
-  def rePath(pathBuilder: K => String): ParquetPartitionSaver[F, A, K] =
+  override def rePath(pathBuilder: K => String): ParquetPartitionSaver[F, A, K] =
     new ParquetPartitionSaver[F, A, K](rdd, encoder, constraint, cfg, bucketing, pathBuilder)
 
-  override def run(
-    blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
+  override def parallel(num: Long): ParquetPartitionSaver[F, A, K] =
+    new ParquetPartitionSaver[F, A, K](
+      rdd,
+      encoder,
+      constraint,
+      cfg.withParallism(num),
+      bucketing,
+      pathBuilder)
+
+  override def run(blocker: Blocker)(implicit
+    ss: SparkSession,
+    F: Concurrent[F],
+    cs: ContextShift[F],
+    P: Parallel[F]): F[Unit] =
     savePartitionedRdd(rdd, blocker, bucketing, pathBuilder)
 }

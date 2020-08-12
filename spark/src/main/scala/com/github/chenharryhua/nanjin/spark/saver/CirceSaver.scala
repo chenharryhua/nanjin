@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.saver
 
+import cats.Parallel
 import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.implicits._
 import cats.kernel.Eq
@@ -17,8 +18,6 @@ sealed abstract private[saver] class AbstractCirceSaver[F[_], A](
     extends AbstractSaver[F, A](cfg) {
   implicit private val enc: Encoder[A] = encoder
 
-  def overwrite: AbstractCirceSaver[F, A]
-  def errorIfExists: AbstractCirceSaver[F, A]
   def single: AbstractCirceSaver[F, A]
   def multi: AbstractCirceSaver[F, A]
 
@@ -41,8 +40,9 @@ final class CirceSaver[F[_], A](rdd: RDD[A], encoder: Encoder[A], cfg: SaverConf
   private def mode(sm: SaveMode): CirceSaver[F, A] =
     new CirceSaver[F, A](rdd, encoder, cfg.withSaveMode(sm))
 
-  override def overwrite: CirceSaver[F, A]     = mode(SaveMode.Overwrite)
-  override def errorIfExists: CirceSaver[F, A] = mode(SaveMode.ErrorIfExists)
+  override def overwrite: CirceSaver[F, A]      = mode(SaveMode.Overwrite)
+  override def errorIfExists: CirceSaver[F, A]  = mode(SaveMode.ErrorIfExists)
+  override def ignoreIfExists: CirceSaver[F, A] = mode(SaveMode.Ignore)
 
   override def single: CirceSaver[F, A] =
     new CirceSaver[F, A](rdd, encoder, cfg.withSingle)
@@ -50,7 +50,7 @@ final class CirceSaver[F[_], A](rdd: RDD[A], encoder: Encoder[A], cfg: SaverConf
   override def multi: CirceSaver[F, A] =
     new CirceSaver[F, A](rdd, encoder, cfg.withMulti)
 
-  override def run(
+  def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     saveRdd(rdd, params.outPath, blocker)
 }
@@ -61,13 +61,14 @@ final class CircePartitionSaver[F[_], A, K: ClassTag: Eq](
   cfg: SaverConfig,
   bucketing: A => K,
   pathBuilder: K => String)
-    extends AbstractCirceSaver[F, A](rdd, encoder, cfg) {
+    extends AbstractCirceSaver[F, A](rdd, encoder, cfg) with Partition[F, A, K] {
 
   private def mode(sm: SaveMode): CircePartitionSaver[F, A, K] =
     new CircePartitionSaver[F, A, K](rdd, encoder, cfg.withSaveMode(sm), bucketing, pathBuilder)
 
-  override def overwrite: CircePartitionSaver[F, A, K]     = mode(SaveMode.Overwrite)
-  override def errorIfExists: CircePartitionSaver[F, A, K] = mode(SaveMode.ErrorIfExists)
+  override def overwrite: CircePartitionSaver[F, A, K]      = mode(SaveMode.Overwrite)
+  override def errorIfExists: CircePartitionSaver[F, A, K]  = mode(SaveMode.ErrorIfExists)
+  override def ignoreIfExists: CircePartitionSaver[F, A, K] = mode(SaveMode.Ignore)
 
   override def multi: CircePartitionSaver[F, A, K] =
     new CircePartitionSaver[F, A, K](rdd, encoder, cfg.withMulti, bucketing, pathBuilder)
@@ -75,16 +76,22 @@ final class CircePartitionSaver[F[_], A, K: ClassTag: Eq](
   override def single: CircePartitionSaver[F, A, K] =
     new CircePartitionSaver[F, A, K](rdd, encoder, cfg.withSingle, bucketing, pathBuilder)
 
-  def reBucket[K1: ClassTag: Eq](
+  override def reBucket[K1: ClassTag: Eq](
     bucketing: A => K1,
     pathBuilder: K1 => String): CircePartitionSaver[F, A, K1] =
     new CircePartitionSaver[F, A, K1](rdd, encoder, cfg, bucketing, pathBuilder)
 
-  def rePath(pathBuilder: K => String): CircePartitionSaver[F, A, K] =
+  override def rePath(pathBuilder: K => String): CircePartitionSaver[F, A, K] =
     new CircePartitionSaver[F, A, K](rdd, encoder, cfg, bucketing, pathBuilder)
 
-  override def run(
-    blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
+  override def parallel(num: Long): CircePartitionSaver[F, A, K] =
+    new CircePartitionSaver[F, A, K](rdd, encoder, cfg.withParallism(num), bucketing, pathBuilder)
+
+  override def run(blocker: Blocker)(implicit
+    ss: SparkSession,
+    F: Concurrent[F],
+    CS: ContextShift[F],
+    P: Parallel[F]): F[Unit] =
     savePartitionedRdd(rdd, blocker, bucketing, pathBuilder)
 
 }

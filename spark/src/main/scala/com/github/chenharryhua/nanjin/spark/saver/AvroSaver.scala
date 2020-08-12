@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.saver
 
+import cats.Parallel
 import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.implicits._
 import cats.kernel.Eq
@@ -23,8 +24,7 @@ sealed abstract private[saver] class AbstractAvroSaver[F[_], A](
 
   def withEncoder(enc: Encoder[A]): AbstractAvroSaver[F, A]
   def withSchema(schema: Schema): AbstractAvroSaver[F, A]
-  def overwrite: AbstractAvroSaver[F, A]
-  def errorIfExists: AbstractAvroSaver[F, A]
+
   def single: AbstractAvroSaver[F, A]
   def multi: AbstractAvroSaver[F, A]
   def spark: AbstractAvroSaver[F, A]
@@ -65,11 +65,9 @@ final class AvroSaver[F[_], A](rdd: RDD[A], encoder: Encoder[A], cfg: SaverConfi
   private def mode(sm: SaveMode): AvroSaver[F, A] =
     new AvroSaver[F, A](rdd, encoder, cfg.withSaveMode(sm))
 
-  override def errorIfExists: AvroSaver[F, A] =
-    mode(SaveMode.ErrorIfExists)
-
-  override def overwrite: AvroSaver[F, A] =
-    mode(SaveMode.Overwrite)
+  override def errorIfExists: AvroSaver[F, A]  = mode(SaveMode.ErrorIfExists)
+  override def overwrite: AvroSaver[F, A]      = mode(SaveMode.Overwrite)
+  override def ignoreIfExists: AvroSaver[F, A] = mode(SaveMode.Ignore)
 
   override def single: AvroSaver[F, A] =
     new AvroSaver[F, A](rdd, encoder, cfg.withSingle)
@@ -83,7 +81,7 @@ final class AvroSaver[F[_], A](rdd: RDD[A], encoder: Encoder[A], cfg: SaverConfi
   override def hadoop: AvroSaver[F, A] =
     new AvroSaver[F, A](rdd, encoder, cfg.withHadoop)
 
-  override def run(
+  def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     saveRdd(rdd, params.outPath, blocker)
 
@@ -95,7 +93,7 @@ final class AvroPartitionSaver[F[_], A, K: ClassTag: Eq](
   cfg: SaverConfig,
   bucketing: A => K,
   pathBuilder: K => String)
-    extends AbstractAvroSaver[F, A](rdd, encoder, cfg) {
+    extends AbstractAvroSaver[F, A](rdd, encoder, cfg) with Partition[F, A, K] {
 
   override def withEncoder(enc: Encoder[A]): AvroPartitionSaver[F, A, K] =
     new AvroPartitionSaver(rdd, enc, cfg, bucketing, pathBuilder)
@@ -108,11 +106,9 @@ final class AvroPartitionSaver[F[_], A, K: ClassTag: Eq](
   private def mode(sm: SaveMode): AvroPartitionSaver[F, A, K] =
     new AvroPartitionSaver[F, A, K](rdd, encoder, cfg.withSaveMode(sm), bucketing, pathBuilder)
 
-  override def errorIfExists: AvroPartitionSaver[F, A, K] =
-    mode(SaveMode.ErrorIfExists)
-
-  override def overwrite: AvroPartitionSaver[F, A, K] =
-    mode(SaveMode.Overwrite)
+  override def errorIfExists: AvroPartitionSaver[F, A, K]  = mode(SaveMode.ErrorIfExists)
+  override def overwrite: AvroPartitionSaver[F, A, K]      = mode(SaveMode.Overwrite)
+  override def ignoreIfExists: AvroPartitionSaver[F, A, K] = mode(SaveMode.Ignore)
 
   override def single: AvroPartitionSaver[F, A, K] =
     new AvroPartitionSaver[F, A, K](rdd, encoder, cfg.withSingle, bucketing, pathBuilder)
@@ -126,15 +122,21 @@ final class AvroPartitionSaver[F[_], A, K: ClassTag: Eq](
   override def hadoop: AvroPartitionSaver[F, A, K] =
     new AvroPartitionSaver[F, A, K](rdd, encoder, cfg.withHadoop, bucketing, pathBuilder)
 
-  def reBucket[K1: ClassTag: Eq](
+  override def reBucket[K1: ClassTag: Eq](
     bucketing: A => K1,
     pathBuilder: K1 => String): AvroPartitionSaver[F, A, K1] =
     new AvroPartitionSaver[F, A, K1](rdd, encoder, cfg, bucketing, pathBuilder)
 
-  def rePath(pathBuilder: K => String): AvroPartitionSaver[F, A, K] =
+  override def rePath(pathBuilder: K => String): AvroPartitionSaver[F, A, K] =
     new AvroPartitionSaver[F, A, K](rdd, encoder, cfg, bucketing, pathBuilder)
 
-  override def run(
-    blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
+  override def parallel(num: Long): AvroPartitionSaver[F, A, K] =
+    new AvroPartitionSaver[F, A, K](rdd, encoder, cfg.withParallism(num), bucketing, pathBuilder)
+
+  override def run(blocker: Blocker)(implicit
+    ss: SparkSession,
+    F: Concurrent[F],
+    CS: ContextShift[F],
+    P: Parallel[F]): F[Unit] =
     savePartitionedRdd(rdd, blocker, bucketing, pathBuilder)
 }

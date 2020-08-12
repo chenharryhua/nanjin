@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.saver
 
+import cats.Parallel
 import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.implicits._
 import cats.kernel.Eq
@@ -22,8 +23,6 @@ sealed abstract private[saver] class AbstractCsvSaver[F[_], A](
   implicit private val te: TypedEncoder[A] = constraint
 
   def updateCsvConfig(f: CsvConfiguration => CsvConfiguration): AbstractCsvSaver[F, A]
-  def overwrite: AbstractCsvSaver[F, A]
-  def errorIfExists: AbstractCsvSaver[F, A]
   def single: AbstractCsvSaver[F, A]
   def multi: AbstractCsvSaver[F, A]
 
@@ -65,8 +64,9 @@ final class CsvSaver[F[_], A](
   private def mode(sm: SaveMode): CsvSaver[F, A] =
     new CsvSaver[F, A](rdd, encoder, csvConfiguration, constraint, cfg.withSaveMode(sm))
 
-  override def overwrite: CsvSaver[F, A]     = mode(SaveMode.Overwrite)
-  override def errorIfExists: CsvSaver[F, A] = mode(SaveMode.ErrorIfExists)
+  override def overwrite: CsvSaver[F, A]      = mode(SaveMode.Overwrite)
+  override def errorIfExists: CsvSaver[F, A]  = mode(SaveMode.ErrorIfExists)
+  override def ignoreIfExists: CsvSaver[F, A] = mode(SaveMode.Ignore)
 
   override def single: CsvSaver[F, A] =
     new CsvSaver[F, A](rdd, encoder, csvConfiguration, constraint, cfg.withSingle)
@@ -74,7 +74,7 @@ final class CsvSaver[F[_], A](
   override def multi: CsvSaver[F, A] =
     new CsvSaver[F, A](rdd, encoder, csvConfiguration, constraint, cfg.withMulti)
 
-  override def run(
+  def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     saveRdd(rdd, params.outPath, blocker)
 }
@@ -87,7 +87,8 @@ final class CsvPartitionSaver[F[_], A, K: ClassTag: Eq](
   cfg: SaverConfig,
   bucketing: A => K,
   pathBuilder: K => String
-) extends AbstractCsvSaver[F, A](rdd, encoder, csvConfiguration, constraint, cfg) {
+) extends AbstractCsvSaver[F, A](rdd, encoder, csvConfiguration, constraint, cfg)
+    with Partition[F, A, K] {
 
   override def updateCsvConfig(
     f: CsvConfiguration => CsvConfiguration): CsvPartitionSaver[F, A, K] =
@@ -120,6 +121,16 @@ final class CsvPartitionSaver[F[_], A, K: ClassTag: Eq](
       bucketing,
       pathBuilder)
 
+  override def ignoreIfExists: CsvPartitionSaver[F, A, K] =
+    new CsvPartitionSaver[F, A, K](
+      rdd,
+      encoder,
+      csvConfiguration,
+      constraint,
+      cfg.withSaveMode(SaveMode.Ignore),
+      bucketing,
+      pathBuilder)
+
   override def single: CsvPartitionSaver[F, A, K] =
     new CsvPartitionSaver[F, A, K](
       rdd,
@@ -140,7 +151,7 @@ final class CsvPartitionSaver[F[_], A, K: ClassTag: Eq](
       bucketing,
       pathBuilder)
 
-  def reBucket[K1: ClassTag: Eq](
+  override def reBucket[K1: ClassTag: Eq](
     bucketing: A => K1,
     pathBuilder: K1 => String): CsvPartitionSaver[F, A, K1] =
     new CsvPartitionSaver[F, A, K1](
@@ -152,7 +163,7 @@ final class CsvPartitionSaver[F[_], A, K: ClassTag: Eq](
       bucketing,
       pathBuilder)
 
-  def rePath(pathBuilder: K => String): CsvPartitionSaver[F, A, K] =
+  override def rePath(pathBuilder: K => String): CsvPartitionSaver[F, A, K] =
     new CsvPartitionSaver[F, A, K](
       rdd,
       encoder,
@@ -162,7 +173,20 @@ final class CsvPartitionSaver[F[_], A, K: ClassTag: Eq](
       bucketing,
       pathBuilder)
 
-  override def run(
-    blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
+  override def parallel(num: Long): CsvPartitionSaver[F, A, K] =
+    new CsvPartitionSaver[F, A, K](
+      rdd,
+      encoder,
+      csvConfiguration,
+      constraint,
+      cfg.withParallism(num),
+      bucketing,
+      pathBuilder)
+
+  override def run(blocker: Blocker)(implicit
+    ss: SparkSession,
+    F: Concurrent[F],
+    cs: ContextShift[F],
+    P: Parallel[F]): F[Unit] =
     savePartitionedRdd(rdd, blocker, bucketing, pathBuilder)
 }
