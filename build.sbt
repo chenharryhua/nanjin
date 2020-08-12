@@ -49,7 +49,7 @@ val circe   = "0.13.0"
 val jackson = "2.11.2"
 val json4s  = "3.5.5"
 val kantan  = "0.6.1"
-val parquet = "1.11.0"
+val parquet = "1.11.1"
 val avro    = "1.10.0"
 val avro4s  = "3.1.1"
 
