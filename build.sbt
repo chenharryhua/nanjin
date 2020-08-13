@@ -29,10 +29,10 @@ val catsEffect = "2.2.0-RC3"
 val akka26     = "2.6.8"
 
 // kafka
-val kafka25   = "2.6.0"
-val confluent = "5.5.1"
-val akkaKafka = "2.0.4"
-val fs2Kafka  = "1.0.0"
+val confltKafka = "5.5.1-ccs"
+val confluent   = "5.5.1"
+val akkaKafka   = "2.0.4"
+val fs2Kafka    = "1.0.0"
 
 // spark
 val spark24   = "2.4.6"
@@ -241,7 +241,7 @@ val testLib = Seq(
 val kafkaLib = Seq(
   "org.apache.kafka" % "kafka-clients",
   "org.apache.kafka" % "kafka-streams",
-  "org.apache.kafka" %% "kafka-streams-scala").map(_ % kafka25) ++
+  "org.apache.kafka" %% "kafka-streams-scala").map(_ % confltKafka) ++
   Seq(
     "com.typesafe.akka" %% "akka-stream-kafka" % akkaKafka,
     "com.github.fd4s" %% "fs2-kafka"           % fs2Kafka)
