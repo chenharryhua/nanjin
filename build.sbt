@@ -316,8 +316,9 @@ lazy val common = (project in file("common"))
   .settings(name := "nj-common")
   .settings(
     libraryDependencies ++= Seq(
-      "org.jline"               % "jline" % jline,
-      "com.lihaoyi" %% "pprint" % "0.6.0") ++
+      "org.log4s" %% "log4s"    % log4s,
+      "com.lihaoyi" %% "pprint" % "0.6.0",
+      "org.jline"               % "jline" % jline) ++
       baseLib ++ fs2Lib ++ monocleLib ++ testLib)
 
 lazy val datetime = (project in file("datetime"))
@@ -375,7 +376,6 @@ lazy val spark = (project in file("spark"))
   .settings(
     libraryDependencies ++= Seq(
       "org.locationtech.jts"                   % "jts-core" % "1.17.0",
-      "org.log4s" %% "log4s"                   % log4s,
       "com.github.pathikrit" %% "better-files" % betterFiles,
       // for spark
       "io.getquill" %% "quill-spark"               % quill,
