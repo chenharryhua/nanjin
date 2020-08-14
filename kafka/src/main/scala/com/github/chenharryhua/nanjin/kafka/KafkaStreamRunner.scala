@@ -28,7 +28,6 @@ final class KafkaStreamRunner[F[_]](settings: KafkaStreamSettings)(implicit
       extends KafkaStreams.StateListener {
 
     override def onChange(newState: KafkaStreams.State, oldState: KafkaStreams.State): Unit = {
-      logger.info(s"state change: $oldState ==> $newState")
       newState match {
         case KafkaStreams.State.RUNNING =>
           F.toIO(value.complete(Right(()))).attempt.void.unsafeRunSync()
@@ -55,6 +54,7 @@ final class KafkaStreamRunner[F[_]](settings: KafkaStreamSettings)(implicit
           })(ks => F.delay(ks.close()))
           .evalMap(ks =>
             F.delay {
+              logger.info(settings.config.show)
               ks.cleanUp()
               ks.setUncaughtExceptionHandler(new StreamErrorHandler(eh))
               ks.setStateListener(new Latch(latch))
