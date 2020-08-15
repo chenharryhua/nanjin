@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin
 
 import akka.actor.ActorSystem
-import cats.effect.{Async, Blocker, ContextShift, Resource}
+import cats.effect.{Async, ContextShift, Resource}
 import cats.implicits._
 import eu.timepit.refined.W
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
@@ -18,11 +18,11 @@ package object kafka extends ShowKafkaMessage {
 
   object StoreName extends RefinedTypeOps[StoreName, String] with CatsRefinedTypeOpsSyntax
 
-  def akkaResource[F[_]: ContextShift: Async](blocker: Blocker): Resource[F, ActorSystem] =
-    Resource.make(blocker.delay(ActorSystem("nj-akka")))(a =>
-      Async.fromFuture(blocker.delay(a.terminate().map(_ => ())(blocker.blockingContext))))
+  def akkaResource[F[_]: ContextShift](implicit F: Async[F]): Resource[F, ActorSystem] =
+    Resource.make(F.delay(ActorSystem("nj-akka")))(a =>
+      Async.fromFuture(F.delay(a.terminate().map(_ => ())(a.dispatcher))))
 
-  def akkaStream[F[_]: ContextShift: Async](blocker: Blocker): Stream[F, ActorSystem] =
-    Stream.resource(akkaResource[F](blocker))
+  def akkaStream[F[_]: ContextShift: Async]: Stream[F, ActorSystem] =
+    Stream.resource(akkaResource[F])
 
 }
