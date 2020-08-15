@@ -1,16 +1,15 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.data.Reader
-import cats.effect.{ConcurrentEffect, ContextShift, IO, Timer}
+import cats.effect.{ConcurrentEffect, IO, Sync}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJSerde, SerdeOf}
 import fs2.Stream
+import monix.eval.{Task => MTask}
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.scala.StreamsBuilder
+import zio.{Task => ZTask}
 
-sealed class KafkaContext[F[_]](val settings: KafkaSettings)(implicit
-  val timer: Timer[F],
-  val contextShift: ContextShift[F],
-  val concurrentEffect: ConcurrentEffect[F]) {
+sealed abstract class KafkaContext[F[_]](val settings: KafkaSettings) extends Serializable {
 
   final def asKey[K: SerdeOf]: NJSerde[K] =
     SerdeOf[K].asKey(settings.schemaRegistrySettings.config)
@@ -24,24 +23,14 @@ sealed class KafkaContext[F[_]](val settings: KafkaSettings)(implicit
   final def topic[K: SerdeOf, V: SerdeOf](topicName: String): KafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](TopicName.unsafeFrom(topicName)))
 
-  final def kafkaStreams(topology: Reader[StreamsBuilder, Unit]): Stream[F, KafkaStreams] =
+  final def runStreams(topology: Reader[StreamsBuilder, Unit])(implicit
+    ce: ConcurrentEffect[F]): Stream[F, KafkaStreams] =
     new KafkaStreamRunner[F](settings.streamSettings).stream(topology)
 
-  final def genCaseClass(topicName: TopicName): F[String] =
+  final def genCaseClass(topicName: TopicName)(implicit F: Sync[F]): F[String] =
     new SchemaRegistryApi[F](settings.schemaRegistrySettings).genCaseClass(topicName)
 }
 
-final class IoKafkaContext(settings: KafkaSettings)(implicit cs: ContextShift[IO], timer: Timer[IO])
-    extends KafkaContext[IO](settings) {}
-
-final class ZioKafkaContext(settings: KafkaSettings)(implicit
-  cs: ContextShift[zio.Task],
-  timer: Timer[zio.Task],
-  ce: ConcurrentEffect[zio.Task]
-) extends KafkaContext[zio.Task](settings) {}
-
-final class MonixKafkaContext(settings: KafkaSettings)(implicit
-  cs: ContextShift[monix.eval.Task],
-  timer: Timer[monix.eval.Task],
-  ce: ConcurrentEffect[monix.eval.Task])
-    extends KafkaContext[monix.eval.Task](settings) {}
+final class IoKafkaContext(settings: KafkaSettings) extends KafkaContext[IO](settings)
+final class ZioKafkaContext(settings: KafkaSettings) extends KafkaContext[ZTask](settings)
+final class MonixKafkaContext(settings: KafkaSettings) extends KafkaContext[MTask](settings)

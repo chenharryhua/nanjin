@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.kafka
 
 import java.util.Properties
 
-import cats.effect.{ConcurrentEffect, ContextShift, IO, Timer}
 import com.github.chenharryhua.nanjin.utils
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import monocle.Traversal
@@ -100,20 +99,9 @@ final case class KafkaAppId(value: String) extends AnyVal
   def withApplicationId(appId: String): KafkaSettings =
     withStreamingProperty(StreamsConfig.APPLICATION_ID_CONFIG, appId)
 
-  def ioContext(implicit contextShift: ContextShift[IO], timer: Timer[IO]): IoKafkaContext =
-    new IoKafkaContext(this)
-
-  def zioContext(implicit
-    contextShift: ContextShift[zio.Task],
-    timer: Timer[zio.Task],
-    ce: ConcurrentEffect[zio.Task]) =
-    new ZioKafkaContext(this)
-
-  def monixContext(implicit
-    contextShift: ContextShift[monix.eval.Task],
-    timer: Timer[monix.eval.Task],
-    ce: ConcurrentEffect[monix.eval.Task]) =
-    new MonixKafkaContext(this)
+  def ioContext: IoKafkaContext       = new IoKafkaContext(this)
+  def zioContext: ZioKafkaContext     = new ZioKafkaContext(this)
+  def monixContext: MonixKafkaContext = new MonixKafkaContext(this)
 }
 
 object KafkaSettings {
