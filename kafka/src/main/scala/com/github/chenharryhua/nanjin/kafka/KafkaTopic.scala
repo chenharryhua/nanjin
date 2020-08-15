@@ -11,7 +11,7 @@ import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
 final class KafkaTopic[F[_], K, V] private[kafka] (
   val topicDef: TopicDef[K, V],
-  val settings: KafkaSettings)
+  val context: KafkaContext[F])
     extends TopicNameExtractor[K, V] with KafkaTopicSettings[F, K, V]
     with KafkaTopicProducer[F, K, V] with Serializable {
   import topicDef.{serdeOfKey, serdeOfVal}
@@ -19,13 +19,13 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
   val topicName: TopicName = topicDef.topicName
 
   def withGroupId(gid: String): KafkaTopic[F, K, V] =
-    new KafkaTopic[F, K, V](topicDef, settings.withGroupId(gid))
+    new KafkaTopic[F, K, V](topicDef, context.updateSettings(_.withGroupId(gid)))
 
   def withTopicName(tn: String): KafkaTopic[F, K, V] =
-    new KafkaTopic[F, K, V](topicDef.withTopicName(tn), settings)
+    new KafkaTopic[F, K, V](topicDef.withTopicName(tn), context)
 
   def withSettings(ks: KafkaSettings): KafkaTopic[F, K, V] =
-    new KafkaTopic[F, K, V](topicDef, ks)
+    new KafkaTopic[F, K, V](topicDef, context.updateSettings(_ => ks))
 
   def withContext[G[_]](ct: KafkaContext[G]): KafkaTopic[G, K, V] =
     ct.topic(topicDef)
@@ -34,8 +34,12 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
 
   //need to reconstruct codec when working in spark
   @transient lazy val codec: KafkaTopicCodec[K, V] = new KafkaTopicCodec(
-    serdeOfKey.asKey(settings.schemaRegistrySettings.config).codec(topicDef.topicName.value),
-    serdeOfVal.asValue(settings.schemaRegistrySettings.config).codec(topicDef.topicName.value)
+    serdeOfKey
+      .asKey(context.settings.schemaRegistrySettings.config)
+      .codec(topicDef.topicName.value),
+    serdeOfVal
+      .asValue(context.settings.schemaRegistrySettings.config)
+      .codec(topicDef.topicName.value)
   )
 
   def decoder[G[_, _]: NJConsumerMessage](
@@ -52,14 +56,14 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
     import cats.derived.auto.show._
     s"""
        |topic: $topicName
-       |consumer-group-id: ${settings.groupId}
-       |stream-app-id:     ${settings.appId}
+       |consumer-group-id: ${context.settings.groupId}
+       |stream-app-id:     ${context.settings.appId}
        |settings:
-       |${settings.consumerSettings.show}
-       |${settings.producerSettings.show}
-       |${settings.schemaRegistrySettings.show}
-       |${settings.adminSettings.show}
-       |${settings.streamSettings.show}
+       |${context.settings.consumerSettings.show}
+       |${context.settings.producerSettings.show}
+       |${context.settings.schemaRegistrySettings.show}
+       |${context.settings.adminSettings.show}
+       |${context.settings.streamSettings.show}
        |
        |${codec.keySerde.tag}:
        |${codec.keySerde.configProps}
@@ -77,7 +81,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
     KafkaAdminApi[F, K, V](this)
 
   def shortLiveConsumer(implicit sync: Sync[F]): Resource[F, ShortLiveConsumer[F]] =
-    ShortLiveConsumer(topicName, settings.consumerSettings.javaProperties)
+    ShortLiveConsumer(topicName, context.settings.consumerSettings.javaProperties)
 
   def monitor(implicit
     concurrentEffect: ConcurrentEffect[F],

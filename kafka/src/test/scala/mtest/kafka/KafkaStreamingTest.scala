@@ -58,6 +58,6 @@ class KafkaStreamingTest extends AnyFunSuite {
       .join(b)((v1, v2) => StreamTarget(v1.name, v2.name, v1.size, v2.color))
       // .toStream
       .to(tgt)
-    (ctx.kafkaStreams(top) >> fs2.Stream.never[IO]).compile.drain.unsafeRunSync()
+    (ctx.runStreams(top) >> fs2.Stream.never[IO]).compile.drain.unsafeRunSync()
   }
 }

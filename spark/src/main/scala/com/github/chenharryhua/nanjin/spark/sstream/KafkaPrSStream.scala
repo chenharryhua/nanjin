@@ -28,7 +28,7 @@ final class KafkaPrSStream[F[_], K: TypedEncoder, V: TypedEncoder](
         .dataset
         .writeStream,
       cfg,
-      kit.settings.producerSettings,
+      kit.context.settings.producerSettings,
       kit.topicName)
 
   def sparkStream: SparkSStream[F, NJProducerRecord[K, V]] =

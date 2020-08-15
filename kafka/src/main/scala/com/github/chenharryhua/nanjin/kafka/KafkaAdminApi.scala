@@ -29,7 +29,7 @@ object KafkaAdminApi {
 
     override val adminResource: Resource[F, KafkaAdminClient[F]] =
       adminClientResource[F](
-        AdminClientSettings[F].withProperties(topic.settings.adminSettings.config))
+        AdminClientSettings[F].withProperties(topic.context.settings.adminSettings.config))
 
     override def idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       : F[Either[Throwable, Unit]] =

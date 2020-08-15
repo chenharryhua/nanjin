@@ -32,5 +32,5 @@ final class FlinKafkaSession[F[_], K: TypeInformation, V: TypeInformation](
             record: ConsumerRecord[Array[Byte], Array[Byte]]): OptionalKV[K, V] =
             topic.njDecoder.decode(record).run._2
         },
-        topic.settings.consumerSettings.javaProperties))
+        topic.context.settings.consumerSettings.javaProperties))
 }
