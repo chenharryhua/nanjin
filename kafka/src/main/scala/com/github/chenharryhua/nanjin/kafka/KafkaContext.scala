@@ -11,6 +11,9 @@ import zio.{Task => ZTask}
 
 sealed abstract class KafkaContext[F[_]](val settings: KafkaSettings) extends Serializable {
 
+  final def updateSettings(f: KafkaSettings => KafkaSettings): KafkaContext[F] =
+    new KafkaContext[F](f(settings)) {}
+
   final def asKey[K: SerdeOf]: NJSerde[K] =
     SerdeOf[K].asKey(settings.schemaRegistrySettings.config)
 
@@ -18,7 +21,7 @@ sealed abstract class KafkaContext[F[_]](val settings: KafkaSettings) extends Se
     SerdeOf[V].asValue(settings.schemaRegistrySettings.config)
 
   final def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] =
-    new KafkaTopic[F, K, V](topicDef, settings)
+    new KafkaTopic[F, K, V](topicDef, this)
 
   final def topic[K: SerdeOf, V: SerdeOf](topicName: String): KafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](TopicName.unsafeFrom(topicName)))

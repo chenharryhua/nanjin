@@ -52,7 +52,7 @@ private[kafka] object sk {
     topic.shortLiveConsumer.use(_.offsetRangeFor(timeRange)).map { gtp =>
       KafkaUtils.createRDD[Array[Byte], Array[Byte]](
         sparkSession.sparkContext,
-        props(topic.settings.consumerSettings.config),
+        props(topic.context.settings.consumerSettings.config),
         offsetRanges(gtp),
         locationStrategy)
     }
@@ -66,7 +66,7 @@ private[kafka] object sk {
     val consumerStrategy =
       ConsumerStrategies.Subscribe[Array[Byte], Array[Byte]](
         List(topic.topicName.value),
-        props(topic.settings.consumerSettings.config).asScala)
+        props(topic.context.settings.consumerSettings.config).asScala)
     KafkaUtils
       .createDirectStream(streamingContext, locationStrategy, consumerStrategy)
       .mapPartitions {
@@ -153,7 +153,7 @@ private[kafka] object sk {
       .create(
         sparkSession.readStream
           .format("kafka")
-          .options(consumerOptions(topic.settings.consumerSettings.config))
+          .options(consumerOptions(topic.context.settings.consumerSettings.config))
           .option("subscribe", topic.topicDef.topicName.value)
           .load()
           .as[OptionalKV[Array[Byte], Array[Byte]]])
