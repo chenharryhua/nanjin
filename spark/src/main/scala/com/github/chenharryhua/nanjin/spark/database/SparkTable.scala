@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.database
 
 import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.github.chenharryhua.nanjin.database.{DatabaseSettings, TableName}
+import com.github.chenharryhua.nanjin.database.{DatabaseName, DatabaseSettings, TableName}
 import com.github.chenharryhua.nanjin.spark.NJRddLoader
 import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
 import frameless.{TypedDataset, TypedEncoder}
@@ -10,29 +10,27 @@ import kantan.csv.CsvConfiguration
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
-import scala.reflect.ClassTag
-
-final class TableDef[A: AvroEncoder: AvroDecoder: ClassTag] private (val tableName: TableName)(
-  implicit val typedEncoder: TypedEncoder[A]) {
+final class TableDef[A: AvroEncoder: AvroDecoder] private (val tableName: TableName)(implicit
+  val typedEncoder: TypedEncoder[A]) {
 
   def in[F[_]](dbSettings: DatabaseSettings)(implicit
     sparkSession: SparkSession): SparkTable[F, A] =
-    new SparkTable[F, A](this, dbSettings, STConfig(tableName))
+    new SparkTable[F, A](this, dbSettings, STConfig(dbSettings.database, tableName))
 }
 
 object TableDef {
 
-  def apply[A: TypedEncoder: AvroEncoder: AvroDecoder: ClassTag](
-    tableName: TableName): TableDef[A] =
+  def apply[A: TypedEncoder: AvroEncoder: AvroDecoder](tableName: TableName): TableDef[A] =
     new TableDef[A](tableName)
 }
 
-final class SparkTable[F[_], A: AvroEncoder: AvroDecoder: ClassTag](
+final class SparkTable[F[_], A: AvroEncoder: AvroDecoder](
   tableDef: TableDef[A],
   dbSettings: DatabaseSettings,
   cfg: STConfig)(implicit sparkSession: SparkSession)
     extends Serializable {
   import tableDef.typedEncoder
+  import tableDef.typedEncoder.classTag
 
   val params: STParams = cfg.evalConfig
 
@@ -43,6 +41,9 @@ final class SparkTable[F[_], A: AvroEncoder: AvroDecoder: ClassTag](
   def append: SparkTable[F, A]         = mode(SaveMode.Append)
   def ignoreIfExists: SparkTable[F, A] = mode(SaveMode.Ignore)
   def errorIfExists: SparkTable[F, A]  = mode(SaveMode.ErrorIfExists)
+
+  def withPathBuilder(f: (DatabaseName, TableName, NJFileFormat) => String): SparkTable[F, A] =
+    new SparkTable[F, A](tableDef, dbSettings, cfg.withPathBuilder(f))
 
   def fromDB: TableDataset[F, A] =
     new TableDataset[F, A](

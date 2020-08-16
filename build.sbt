@@ -149,7 +149,8 @@ val circeLib = Seq(
   "io.circe" %% "circe-shapes",
   "io.circe" %% "circe-jawn",
   "io.circe" %% "circe-optics",
-  "io.circe" %% "circe-jackson210"
+  "io.circe" %% "circe-jackson210",
+  "io.circe" %% "circe-generic-extras"
 ).map(_ % circe)
 
 val jacksonLib = Seq(
