@@ -1,10 +1,13 @@
 package com.github.chenharryhua.nanjin.spark.database
 
-import frameless.TypedDataset
+import cats.effect.Sync
+import org.apache.spark.rdd.RDD
 
 private[database] trait DatasetExtensions {
 
-  implicit final class SparkDBSyntax[A](val data: TypedDataset[A]) {
-    def dbUpload[F[_]](db: SparkTable[A]): Unit = db.upload(data)
+  implicit final class SparkDBSyntax[A](val rdd: RDD[A]) {
+
+    def dbUpload[F[_]: Sync](db: SparkTable[F, A]): F[Unit] =
+      db.tableDataset(rdd).upload
   }
 }

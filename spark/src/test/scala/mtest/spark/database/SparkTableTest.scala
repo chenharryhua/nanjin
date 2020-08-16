@@ -5,16 +5,14 @@ import java.time._
 
 import cats.effect.IO
 import cats.implicits._
-import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.common.transformers._
 import com.github.chenharryhua.nanjin.database.TableName
+import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.spark.database._
 import com.github.chenharryhua.nanjin.spark.injection._
-import com.github.chenharryhua.nanjin.spark._
 import frameless.TypedDataset
 import frameless.cats.implicits._
 import io.scalaland.chimney.dsl._
-import org.apache.spark.sql.SaveMode
 import org.scalatest.funsuite.AnyFunSuite
 
 final case class DomainObject(
@@ -40,8 +38,10 @@ final case class DBTable(
   i: Timestamp)
 
 class SparkTableTest extends AnyFunSuite {
-  implicit val zoneId: ZoneId  = beijingTime
-  val table: TableDef[DBTable] = TableDef[DBTable](TableName("public.sparktabletest"))
+  implicit val zoneId: ZoneId = beijingTime
+
+  val table: SparkTable[IO, DBTable] =
+    TableDef[DBTable](TableName("public.sparktabletest")).in[IO](postgres).overwrite
 
   val sample: DomainObject =
     DomainObject(
@@ -57,19 +57,25 @@ class SparkTableTest extends AnyFunSuite {
     )
 
   test("sparkTable upload dataset to table") {
-    val data = TypedDataset.create(List(sample.transformInto[DBTable]))
-    data.dbUpload(table.in(db).withParamUpdate(_.withDbSaveMode(SaveMode.Overwrite)))
+    val data = TypedDataset.create(List(sample.transformInto[DBTable])).dataset.rdd
+    data.dbUpload(table).unsafeRunSync()
   }
 
   val path = "./data/test/spark/database/jackson.json"
 
   test("sparkTable save db table to disk") {
-    // table.in(db).fromDB.dataset.rdd.save[IO].avro(path).single.run(blocker).unsafeRunSync()
+    table.fromDB.save.jackson(path).single.run(blocker).unsafeRunSync()
   }
 
   test("sparkTable read table on disk") {
-    //  val rst: DomainObject =
-    //    table.in(db).fromDisk(path).collect[IO].map(_.head.transformInto[DomainObject]).unsafeRunSync
-    //  assert(rst.==(sample))
+    val rst: DomainObject =
+      table.load
+        .jackson(path)
+        .typedDataset
+        .collect[IO]
+        .unsafeRunSync()
+        .head
+        .transformInto[DomainObject]
+    assert(rst == sample)
   }
 }

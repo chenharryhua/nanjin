@@ -26,7 +26,7 @@ package object database {
       .withLogLevel(NJLogLevel.ERROR)
       .session
 
-  val db: Postgres = Postgres(
+  val postgres: Postgres = Postgres(
     Username("postgres"),
     Password("postgres"),
     Host("localhost"),

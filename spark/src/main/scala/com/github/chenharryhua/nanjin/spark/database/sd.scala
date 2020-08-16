@@ -1,14 +1,12 @@
 package com.github.chenharryhua.nanjin.spark.database
 
-import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.database.{ConnectionString, DriverString, TableName}
-import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
-import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{SaveMode, SparkSession}
+import frameless.{TypedDataset, TypedEncoder}
+import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
 
 private[database] object sd {
 
-  def fromDB[A: TypedEncoder](
+  def unload[A: TypedEncoder](
     connStr: ConnectionString,
     driver: DriverString,
     tableName: TableName)(implicit sparkSession: SparkSession): TypedDataset[A] =
@@ -20,22 +18,8 @@ private[database] object sd {
         .option("dbtable", tableName.value)
         .load())
 
-  def fromDisk[A: TypedEncoder](fileFormat: NJFileFormat, path: String)(implicit
-    sparkSession: SparkSession): TypedDataset[A] = {
-    val schema: StructType = TypedExpressionEncoder.targetStructType(TypedEncoder[A])
-    TypedDataset.createUnsafe[A](
-      sparkSession.read.schema(schema).format(fileFormat.format).load(path))
-  }
-
-  def save[A](
-    dataset: TypedDataset[A],
-    fileSaveMode: SaveMode,
-    fileFormat: NJFileFormat,
-    path: String): Unit =
-    dataset.write.mode(fileSaveMode).format(fileFormat.format).save(path)
-
   def upload[A](
-    dataset: TypedDataset[A],
+    dataset: Dataset[A],
     dbSaveMode: SaveMode,
     connStr: ConnectionString,
     driver: DriverString,
