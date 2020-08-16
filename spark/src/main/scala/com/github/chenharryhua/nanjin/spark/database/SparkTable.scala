@@ -79,5 +79,8 @@ final class SparkTable[F[_], A: AvroEncoder: AvroDecoder](
       tableDataset(loader.csv(pathStr))
 
     def csv: TableDataset[F, A] = csv(params.outPath(NJFileFormat.Csv), CsvConfiguration.rfc)
+
+    def text(pathStr: String)(f: String => A): TableDataset[F, A] =
+      tableDataset(loader.text(pathStr).map(f))
   }
 }

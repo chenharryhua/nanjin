@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.database
 
+import cats.Show
 import cats.effect.Sync
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.database.DatabaseSettings
@@ -33,11 +34,18 @@ final class TableDataset[F[_], A](ds: Dataset[A], dbSettings: DatabaseSettings, 
   private val saver: RddFileSaver[F, A] = new RddFileSaver[F, A](ds.rdd)
 
   object save extends Serializable {
-    def avro(pathStr: String): AvroSaver[F, A] = saver.avro(pathStr)
-    def avro: AvroSaver[F, A]                  = saver.avro(params.outPath(NJFileFormat.Avro))
 
-    def binAvro(pathStr: String): BinaryAvroSaver[F, A] = saver.binAvro(pathStr)
-    def binAvro: BinaryAvroSaver[F, A]                  = saver.binAvro(params.outPath(NJFileFormat.BinaryAvro))
+    def avro(pathStr: String): AvroSaver[F, A] =
+      saver.avro(pathStr)
+
+    def avro: AvroSaver[F, A] =
+      saver.avro(params.outPath(NJFileFormat.Avro))
+
+    def binAvro(pathStr: String): BinaryAvroSaver[F, A] =
+      saver.binAvro(pathStr)
+
+    def binAvro: BinaryAvroSaver[F, A] =
+      saver.binAvro(params.outPath(NJFileFormat.BinaryAvro))
 
     def circe(pathStr: String)(implicit ev: JsonEncoder[A]): CirceSaver[F, A] =
       saver.circe(pathStr)
@@ -45,21 +53,35 @@ final class TableDataset[F[_], A](ds: Dataset[A], dbSettings: DatabaseSettings, 
     def circe(implicit ev: JsonEncoder[A]): CirceSaver[F, A] =
       saver.circe(params.outPath(NJFileFormat.Circe))
 
-    def jackson(pathStr: String): JacksonSaver[F, A] = saver.jackson(pathStr)
-    def jackson: JacksonSaver[F, A]                  = saver.jackson(params.outPath(NJFileFormat.Jackson))
+    def jackson(pathStr: String): JacksonSaver[F, A] =
+      saver.jackson(pathStr)
 
-    def parquet(pathStr: String): ParquetSaver[F, A] = saver.parquet(pathStr)
-    def parquet: ParquetSaver[F, A]                  = saver.parquet(params.outPath(NJFileFormat.Parquet))
+    def jackson: JacksonSaver[F, A] =
+      saver.jackson(params.outPath(NJFileFormat.Jackson))
 
-    def csv(pathStr: String)(implicit ev: RowEncoder[A]): CsvSaver[F, A] = saver.csv(pathStr)
+    def parquet(pathStr: String): ParquetSaver[F, A] =
+      saver.parquet(pathStr)
+
+    def parquet: ParquetSaver[F, A] =
+      saver.parquet(params.outPath(NJFileFormat.Parquet))
+
+    def csv(pathStr: String)(implicit ev: RowEncoder[A]): CsvSaver[F, A] =
+      saver.csv(pathStr)
 
     def csv(implicit ev: RowEncoder[A]): CsvSaver[F, A] =
       saver.csv(params.outPath(NJFileFormat.Csv))
 
-    def javaObject(pathStr: String): JavaObjectSaver[F, A] = saver.javaObject(pathStr)
+    def javaObject(pathStr: String): JavaObjectSaver[F, A] =
+      saver.javaObject(pathStr)
 
     def javaObject: JavaObjectSaver[F, A] =
       saver.javaObject(params.outPath(NJFileFormat.JavaObject))
+
+    def text(pathStr: String)(implicit ev: Show[A]): TextSaver[F, A] =
+      saver.text(pathStr)
+
+    def text(implicit ev: Show[A]): TextSaver[F, A] =
+      saver.text(params.outPath(NJFileFormat.Text))
 
     object partition extends Serializable {
 
@@ -77,6 +99,9 @@ final class TableDataset[F[_], A](ds: Dataset[A], dbSettings: DatabaseSettings, 
 
       def csv(implicit ev: RowEncoder[A]): CsvPartitionSaver[F, A, Unit] =
         saver.partition.csv(a => (), Unit => params.outPath(NJFileFormat.Csv))
+
+      def text(implicit ev: Show[A]): TextPartitionSaver[F, A, Unit] =
+        saver.partition.text(a => (), Unit => params.outPath(NJFileFormat.Text))
     }
   }
 }

@@ -73,4 +73,13 @@ class SparkTableTest extends AnyFunSuite {
       IO(())
     run.unsafeRunSync
   }
+  test("save") {
+    val run = table.fromDB.save.jackson.single.run(blocker) >>
+      table.fromDB.save.avro.single.run(blocker) >>
+      table.fromDB.save.parquet.single.run(blocker) >>
+      table.fromDB.save.circe.single.run(blocker) >>
+      table.fromDB.save.csv.single.run(blocker) >>
+      IO(())
+    run.unsafeRunSync
+  }
 }
