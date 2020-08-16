@@ -22,22 +22,22 @@ sealed abstract private[saver] class AbstractProtobufSaver[F[_], A](rdd: RDD[A],
 
 }
 
-final class ProtobufSaver[F[_], A](rdd: RDD[A], cfg: SaverConfig)(implicit
+final class ProtobufSaver[F[_], A](rdd: RDD[A], cfg: SaverConfig, outPath: String)(implicit
   enc: A <:< GeneratedMessage)
     extends AbstractProtobufSaver[F, A](rdd, cfg) {
 
   def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
-    saveRdd(rdd, params.outPath, blocker)
+    saveRdd(rdd, outPath, blocker)
 
   override def overwrite: ProtobufSaver[F, A] =
-    new ProtobufSaver[F, A](rdd, cfg.withSaveMode(SaveMode.Overwrite))
+    new ProtobufSaver[F, A](rdd, cfg.withSaveMode(SaveMode.Overwrite), outPath)
 
   override def errorIfExists: ProtobufSaver[F, A] =
-    new ProtobufSaver[F, A](rdd, cfg.withSaveMode(SaveMode.ErrorIfExists))
+    new ProtobufSaver[F, A](rdd, cfg.withSaveMode(SaveMode.ErrorIfExists), outPath)
 
   override def ignoreIfExists: ProtobufSaver[F, A] =
-    new ProtobufSaver[F, A](rdd, cfg.withSaveMode(SaveMode.Ignore))
+    new ProtobufSaver[F, A](rdd, cfg.withSaveMode(SaveMode.Ignore), outPath)
 }
 
 final class ProtobufPartitionSaver[F[_], A, K: ClassTag: Eq](

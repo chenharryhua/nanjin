@@ -45,25 +45,29 @@ sealed abstract private[saver] class AbstractJacksonSaver[F[_], A](
 
 }
 
-final class JacksonSaver[F[_], A](rdd: RDD[A], encoder: Encoder[A], cfg: SaverConfig)
+final class JacksonSaver[F[_], A](
+  rdd: RDD[A],
+  encoder: Encoder[A],
+  cfg: SaverConfig,
+  outPath: String)
     extends AbstractJacksonSaver[F, A](rdd, encoder, cfg) {
 
   private def mode(sm: SaveMode): JacksonSaver[F, A] =
-    new JacksonSaver(rdd, encoder, cfg.withSaveMode(sm))
+    new JacksonSaver(rdd, encoder, cfg.withSaveMode(sm), outPath)
 
   override def overwrite: JacksonSaver[F, A]      = mode(SaveMode.Overwrite)
   override def errorIfExists: JacksonSaver[F, A]  = mode(SaveMode.ErrorIfExists)
   override def ignoreIfExists: JacksonSaver[F, A] = mode(SaveMode.Ignore)
 
   override def single: JacksonSaver[F, A] =
-    new JacksonSaver[F, A](rdd, encoder, cfg.withSingle)
+    new JacksonSaver[F, A](rdd, encoder, cfg.withSingle, outPath)
 
   override def multi: JacksonSaver[F, A] =
-    new JacksonSaver[F, A](rdd, encoder, cfg.withMulti)
+    new JacksonSaver[F, A](rdd, encoder, cfg.withMulti, outPath)
 
   def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
-    saveRdd(rdd, params.outPath, blocker)
+    saveRdd(rdd, outPath, blocker)
 
 }
 

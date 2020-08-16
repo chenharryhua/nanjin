@@ -21,11 +21,11 @@ sealed abstract private[saver] class AbstractJavaObjectSaver[F[_], A](rdd: RDD[A
 
 }
 
-final class JavaObjectSaver[F[_], A](rdd: RDD[A], cfg: SaverConfig)
+final class JavaObjectSaver[F[_], A](rdd: RDD[A], cfg: SaverConfig, outPath: String)
     extends AbstractJavaObjectSaver[F, A](rdd, cfg) {
 
   private def mode(sm: SaveMode): JavaObjectSaver[F, A] =
-    new JavaObjectSaver[F, A](rdd, cfg.withSaveMode(sm))
+    new JavaObjectSaver[F, A](rdd, cfg.withSaveMode(sm), outPath)
 
   override def overwrite: JavaObjectSaver[F, A]      = mode(SaveMode.Overwrite)
   override def errorIfExists: JavaObjectSaver[F, A]  = mode(SaveMode.ErrorIfExists)
@@ -33,7 +33,7 @@ final class JavaObjectSaver[F[_], A](rdd: RDD[A], cfg: SaverConfig)
 
   def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
-    saveRdd(rdd, params.outPath, blocker)
+    saveRdd(rdd, outPath, blocker)
 
 }
 

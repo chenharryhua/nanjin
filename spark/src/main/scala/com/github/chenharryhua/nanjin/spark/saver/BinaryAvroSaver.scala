@@ -28,11 +28,15 @@ sealed abstract private[saver] class AbstractBinaryAvroSaver[F[_], A](
     rdd.toDF
 }
 
-final class BinaryAvroSaver[F[_], A](rdd: RDD[A], encoder: Encoder[A], cfg: SaverConfig)
+final class BinaryAvroSaver[F[_], A](
+  rdd: RDD[A],
+  encoder: Encoder[A],
+  cfg: SaverConfig,
+  outPath: String)
     extends AbstractBinaryAvroSaver[F, A](rdd, encoder, cfg) {
 
   private def mode(sm: SaveMode): BinaryAvroSaver[F, A] =
-    new BinaryAvroSaver(rdd, encoder, cfg.withSaveMode(sm))
+    new BinaryAvroSaver(rdd, encoder, cfg.withSaveMode(sm), outPath)
 
   override def overwrite: BinaryAvroSaver[F, A]      = mode(SaveMode.Overwrite)
   override def errorIfExists: BinaryAvroSaver[F, A]  = mode(SaveMode.ErrorIfExists)
@@ -40,7 +44,7 @@ final class BinaryAvroSaver[F[_], A](rdd: RDD[A], encoder: Encoder[A], cfg: Save
 
   def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
-    saveRdd(rdd, params.outPath, blocker)
+    saveRdd(rdd, outPath, blocker)
 }
 
 final class BinaryAvroPartitionSaver[F[_], A, K: ClassTag: Eq](

@@ -34,25 +34,25 @@ sealed abstract private[saver] class AbstractCirceSaver[F[_], A](
     rdd.map(encoder(_).noSpaces).saveAsTextFile(outPath)
 }
 
-final class CirceSaver[F[_], A](rdd: RDD[A], encoder: Encoder[A], cfg: SaverConfig)
+final class CirceSaver[F[_], A](rdd: RDD[A], encoder: Encoder[A], cfg: SaverConfig, outPath: String)
     extends AbstractCirceSaver[F, A](rdd, encoder, cfg) {
 
   private def mode(sm: SaveMode): CirceSaver[F, A] =
-    new CirceSaver[F, A](rdd, encoder, cfg.withSaveMode(sm))
+    new CirceSaver[F, A](rdd, encoder, cfg.withSaveMode(sm), outPath)
 
   override def overwrite: CirceSaver[F, A]      = mode(SaveMode.Overwrite)
   override def errorIfExists: CirceSaver[F, A]  = mode(SaveMode.ErrorIfExists)
   override def ignoreIfExists: CirceSaver[F, A] = mode(SaveMode.Ignore)
 
   override def single: CirceSaver[F, A] =
-    new CirceSaver[F, A](rdd, encoder, cfg.withSingle)
+    new CirceSaver[F, A](rdd, encoder, cfg.withSingle, outPath)
 
   override def multi: CirceSaver[F, A] =
-    new CirceSaver[F, A](rdd, encoder, cfg.withMulti)
+    new CirceSaver[F, A](rdd, encoder, cfg.withMulti, outPath)
 
   def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
-    saveRdd(rdd, params.outPath, blocker)
+    saveRdd(rdd, outPath, blocker)
 }
 
 final class CircePartitionSaver[F[_], A, K: ClassTag: Eq](

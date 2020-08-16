@@ -31,7 +31,6 @@ private[saver] object SparkOrHadoop extends Enum[SingleOrMulti] {
 }
 
 @Lenses final private[saver] case class SaverParams(
-  outPath: String,
   fileFormat: NJFileFormat,
   singleOrMulti: SingleOrMulti,
   sparkOrHadoop: SparkOrHadoop,
@@ -40,9 +39,8 @@ private[saver] object SparkOrHadoop extends Enum[SingleOrMulti] {
 
 private[saver] object SaverParams {
 
-  def apply(outPath: String, fmt: NJFileFormat): SaverParams =
+  def apply(fmt: NJFileFormat): SaverParams =
     SaverParams(
-      outPath,
       fmt,
       SingleOrMulti.Multi,
       SparkOrHadoop.Hadoop,
@@ -53,7 +51,7 @@ private[saver] object SaverParams {
 @deriveFixedPoint sealed private[saver] trait SaverConfigF[_]
 
 private[saver] object SaverConfigF {
-  final case class DefaultParams[K](outPath: String, fmt: NJFileFormat) extends SaverConfigF[K]
+  final case class DefaultParams[K](fmt: NJFileFormat) extends SaverConfigF[K]
   final case class WithSingleOrMulti[K](value: SingleOrMulti, cont: K) extends SaverConfigF[K]
   final case class WithSparkOrHadoop[K](value: SparkOrHadoop, cont: K) extends SaverConfigF[K]
   final case class WithSaveMode[K](value: SaveMode, cont: K) extends SaverConfigF[K]
@@ -61,7 +59,7 @@ private[saver] object SaverConfigF {
 
   private val algebra: Algebra[SaverConfigF, SaverParams] =
     Algebra[SaverConfigF, SaverParams] {
-      case DefaultParams(p, f)     => SaverParams(p, f)
+      case DefaultParams(v)        => SaverParams(v)
       case WithSingleOrMulti(v, c) => SaverParams.singleOrMulti.set(v)(c)
       case WithSparkOrHadoop(v, c) => SaverParams.sparkOrHadoop.set(v)(c)
       case WithSaveMode(v, c)      => SaverParams.saveMode.set(v)(c)
@@ -89,6 +87,6 @@ final private[saver] case class SaverConfig(value: Fix[SaverConfigF]) {
 
 private[saver] object SaverConfig {
 
-  def apply(outPath: String, fmt: NJFileFormat): SaverConfig =
-    SaverConfig(Fix(SaverConfigF.DefaultParams[Fix[SaverConfigF]](outPath, fmt)))
+  def apply(fmt: NJFileFormat): SaverConfig =
+    SaverConfig(Fix(SaverConfigF.DefaultParams[Fix[SaverConfigF]](fmt)))
 }
