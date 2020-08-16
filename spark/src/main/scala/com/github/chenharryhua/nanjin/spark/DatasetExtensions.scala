@@ -2,19 +2,16 @@ package com.github.chenharryhua.nanjin.spark
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
-import cats.effect.{ConcurrentEffect, Resource, Sync}
+import cats.effect.{ConcurrentEffect, Sync}
 import cats.implicits._
-import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.spark.saver.RddFileSaver
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
+import fs2.Stream
 import fs2.interop.reactivestreams._
-import fs2.{Pipe, Stream}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}
-
-import scala.reflect.ClassTag
 
 private[spark] trait DatasetExtensions {
 
@@ -30,19 +27,6 @@ private[spark] trait DatasetExtensions {
 
     def typedDataset(implicit ev: TypedEncoder[A], ss: SparkSession): TypedDataset[A] =
       TypedDataset.create(rdd)
-
-    def resource[F[_]](implicit F: Sync[F]): Resource[F, RDD[A]] =
-      Resource.make[F, RDD[A]](F.delay(rdd.persist()))(a => F.delay(a.unpersist(true)).as(()))
-
-    def partitionSink[F[_]: Sync, K: ClassTag: Eq](bucketing: A => K)(
-      out: K => Pipe[F, A, Unit]): F[Long] = {
-      val persisted: RDD[A] = rdd.persist()
-      val keys: List[K]     = persisted.map(bucketing).distinct().collect().toList
-      keys.traverse(k =>
-        persisted.filter(a => k === bucketing(a)).stream[F].through(out(k)).compile.drain) >>
-        Sync[F].delay(persisted.count()) <*
-        Sync[F].delay(persisted.unpersist())
-    }
 
     def toDF(implicit encoder: AvroEncoder[A], ss: SparkSession): DataFrame =
       utils.rddToDataFrame[A](rdd, encoder, ss)

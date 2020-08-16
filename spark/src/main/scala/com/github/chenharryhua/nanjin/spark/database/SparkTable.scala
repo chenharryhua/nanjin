@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.database
 
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.database.{DatabaseSettings, TableName}
+import com.github.chenharryhua.nanjin.spark.saver.RddFileSaver
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SparkSession
 
@@ -31,17 +32,13 @@ final class SparkTable[A](tableDef: TableDef[A], dbSettings: DatabaseSettings, c
   def fromDB: TypedDataset[A] =
     sd.fromDB(dbSettings.connStr, dbSettings.driver, tableDef.tableName)
 
-  def save(path: String): Unit =
-    sd.save(fromDB, params.fileSaveMode, params.fileFormat, path)
-
-  def save(): Unit =
-    save(params.pathBuilder(TablePathBuild(tableDef.tableName, params.fileFormat)))
+  def save[F[_]]: RddFileSaver[F, A] = new RddFileSaver[F, A](fromDB.dataset.rdd)
 
   def fromDisk(path: String): TypedDataset[A] =
     sd.fromDisk(params.fileFormat, path)
 
   def fromDisk: TypedDataset[A] =
-    fromDisk(params.pathBuilder(TablePathBuild(tableDef.tableName, params.fileFormat)))
+    fromDisk(params.pathBuilder(tableDef.tableName, params.fileFormat))
 
   def upload(dataset: TypedDataset[A]): Unit =
     sd.upload(dataset, params.dbSaveMode, dbSettings.connStr, dbSettings.driver, tableDef.tableName)

@@ -1,5 +1,6 @@
 package mtest.spark
 
+import cats.effect.{Blocker, ContextShift, IO, Timer}
 import com.github.chenharryhua.nanjin.common.NJLogLevel
 import com.github.chenharryhua.nanjin.database.{
   DatabaseName,
@@ -12,7 +13,12 @@ import com.github.chenharryhua.nanjin.database.{
 import com.github.chenharryhua.nanjin.spark.SparkSettings
 import org.apache.spark.sql.SparkSession
 
+import scala.concurrent.ExecutionContext.Implicits.global
+
 package object database {
+  val blocker: Blocker              = Blocker.liftExecutionContext(global)
+  implicit val cs: ContextShift[IO] = IO.contextShift(global)
+  implicit val timer: Timer[IO]     = IO.timer(global)
 
   implicit val sparkSession: SparkSession =
     SparkSettings.default

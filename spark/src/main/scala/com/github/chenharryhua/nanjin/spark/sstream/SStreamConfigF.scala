@@ -11,7 +11,7 @@ import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
 import org.apache.spark.sql.streaming.{OutputMode, Trigger}
 
-@Lenses final private[spark] case class SStreamParams private (
+@Lenses final private[sstream] case class SStreamParams private (
   timeRange: NJDateTimeRange,
   showDs: NJShowDataset,
   fileFormat: NJFileFormat,
@@ -20,7 +20,7 @@ import org.apache.spark.sql.streaming.{OutputMode, Trigger}
   outputMode: OutputMode,
   trigger: Trigger)
 
-private[spark] object SStreamParams {
+private[sstream] object SStreamParams {
 
   def apply(tr: NJDateTimeRange, sd: NJShowDataset): SStreamParams =
     SStreamParams(
@@ -34,9 +34,9 @@ private[spark] object SStreamParams {
     )
 }
 
-@deriveTraverse sealed private[spark] trait SStreamConfigF[A]
+@deriveTraverse sealed private[sstream] trait SStreamConfigF[A]
 
-private[spark] object SStreamConfigF {
+private[sstream] object SStreamConfigF {
 
   final case class DefaultParams[K](tr: NJDateTimeRange, showDs: NJShowDataset)
       extends SStreamConfigF[K]
@@ -65,7 +65,7 @@ private[spark] object SStreamConfigF {
 
 }
 
-final private[spark] case class SStreamConfig(value: Fix[SStreamConfigF]) extends AnyVal {
+final private[sstream] case class SStreamConfig(value: Fix[SStreamConfigF]) extends AnyVal {
   import SStreamConfigF._
 
   def withCheckpointReplace(cp: String): SStreamConfig =
@@ -102,7 +102,7 @@ final private[spark] case class SStreamConfig(value: Fix[SStreamConfigF]) extend
   def evalConfig: SStreamParams = SStreamConfigF.evalConfig(this)
 }
 
-private[spark] object SStreamConfig {
+private[sstream] object SStreamConfig {
 
   def apply(tr: NJDateTimeRange, sd: NJShowDataset): SStreamConfig =
     SStreamConfig(Fix(SStreamConfigF.DefaultParams[Fix[SStreamConfigF]](tr, sd)))
