@@ -34,25 +34,25 @@ sealed abstract private[saver] class AbstractTextSaver[F[_], A](
 
 }
 
-final class TextSaver[F[_], A](rdd: RDD[A], encoder: Show[A], cfg: SaverConfig)
+final class TextSaver[F[_], A](rdd: RDD[A], encoder: Show[A], cfg: SaverConfig, outPath: String)
     extends AbstractTextSaver[F, A](rdd, encoder, cfg) {
 
   private def mode(sm: SaveMode): TextSaver[F, A] =
-    new TextSaver[F, A](rdd, encoder, cfg.withSaveMode(sm))
+    new TextSaver[F, A](rdd, encoder, cfg.withSaveMode(sm), outPath)
 
   override def overwrite: TextSaver[F, A]      = mode(SaveMode.Overwrite)
   override def errorIfExists: TextSaver[F, A]  = mode(SaveMode.ErrorIfExists)
   override def ignoreIfExists: TextSaver[F, A] = mode(SaveMode.Ignore)
 
   override def single: TextSaver[F, A] =
-    new TextSaver[F, A](rdd, encoder, cfg.withSingle)
+    new TextSaver[F, A](rdd, encoder, cfg.withSingle, outPath)
 
   override def multi: TextSaver[F, A] =
-    new TextSaver[F, A](rdd, encoder, cfg.withMulti)
+    new TextSaver[F, A](rdd, encoder, cfg.withMulti, outPath)
 
   def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
-    saveRdd(rdd, params.outPath, blocker)
+    saveRdd(rdd, outPath, blocker)
 }
 
 final class TextPartitionSaver[F[_], A, K: ClassTag: Eq](

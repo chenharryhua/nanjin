@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark
 import cats.implicits._
 import com.sksamuel.avro4s.{AvroInputStream, Decoder => AvroDecoder}
 import frameless.cats.implicits._
-import frameless.{TypedDataset, TypedEncoder}
+import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import io.circe.parser.decode
 import io.circe.{Decoder => JsonDecoder}
 import kantan.csv.CsvConfiguration
@@ -99,7 +99,7 @@ final class NJRddLoader(ss: SparkSession) extends Serializable {
 
 // 7
   def csv[A: TypedEncoder](pathStr: String, csvConfig: CsvConfiguration): RDD[A] = {
-    val structType = TypedEncoder[A].catalystRepr.asInstanceOf[StructType]
+    val structType: StructType = TypedExpressionEncoder.targetStructType(TypedEncoder[A])
     val df: DataFrame = ss.read
       .schema(structType)
       .option("sep", csvConfig.cellSeparator.toString)

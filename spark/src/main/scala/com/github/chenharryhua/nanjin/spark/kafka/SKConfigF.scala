@@ -17,13 +17,13 @@ import org.apache.spark.streaming.kafka010.{LocationStrategies, LocationStrategy
 
 import scala.concurrent.duration._
 
-@Lenses final private[spark] case class NJUploadRate(batchSize: Int, duration: FiniteDuration)
+@Lenses final private[kafka] case class NJUploadRate(batchSize: Int, duration: FiniteDuration)
 
-private[spark] object NJUploadRate {
+private[kafka] object NJUploadRate {
   val default: NJUploadRate = NJUploadRate(batchSize = 1000, duration = 1.second)
 }
 
-@Lenses final private[spark] case class SKParams private (
+@Lenses final private[kafka] case class SKParams private (
   topicName: TopicName,
   timeRange: NJDateTimeRange,
   uploadRate: NJUploadRate,
@@ -40,7 +40,7 @@ private[spark] object NJUploadRate {
     datePartitionPathBuilder(topicName, fmt, _)
 }
 
-private[spark] object SKParams {
+private[kafka] object SKParams {
 
   def apply(topicName: TopicName, zoneId: ZoneId): SKParams = {
     val partitionPath: (TopicName, NJFileFormat, LocalDate) => String =
@@ -61,9 +61,9 @@ private[spark] object SKParams {
   }
 }
 
-@deriveFixedPoint sealed private[spark] trait SKConfigF[_]
+@deriveFixedPoint sealed private[kafka] trait SKConfigF[_]
 
-private[spark] object SKConfigF {
+private[kafka] object SKConfigF {
   final case class DefaultParams[K](topicName: TopicName, zoneId: ZoneId) extends SKConfigF[K]
 
   final case class WithTopicName[K](value: TopicName, cont: K) extends SKConfigF[K]
@@ -124,7 +124,7 @@ private[spark] object SKConfigF {
   def evalConfig(cfg: SKConfig): SKParams = scheme.cata(algebra).apply(cfg.value)
 }
 
-final private[spark] case class SKConfig private (value: Fix[SKConfigF]) extends AnyVal {
+final private[kafka] case class SKConfig private (value: Fix[SKConfigF]) extends AnyVal {
   import SKConfigF._
 
   def withTopicName(tn: String): SKConfig =
@@ -169,7 +169,7 @@ final private[spark] case class SKConfig private (value: Fix[SKConfigF]) extends
   def evalConfig: SKParams = SKConfigF.evalConfig(this)
 }
 
-private[spark] object SKConfig {
+private[kafka] object SKConfig {
 
   def apply(topicName: TopicName, zoneId: ZoneId): SKConfig =
     SKConfig(Fix(SKConfigF.DefaultParams[Fix[SKConfigF]](topicName, zoneId)))

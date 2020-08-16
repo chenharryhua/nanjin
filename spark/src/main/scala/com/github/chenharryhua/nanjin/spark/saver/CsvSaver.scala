@@ -17,8 +17,8 @@ sealed abstract private[saver] class AbstractCsvSaver[F[_], A](
   encoder: RowEncoder[A],
   csvConfiguration: CsvConfiguration,
   constraint: TypedEncoder[A],
-  cfg: SaverConfig)
-    extends AbstractSaver[F, A](cfg) {
+  cfg: SaverConfig
+) extends AbstractSaver[F, A](cfg) {
   implicit private val enc: RowEncoder[A]  = encoder
   implicit private val te: TypedEncoder[A] = constraint
 
@@ -55,28 +55,29 @@ final class CsvSaver[F[_], A](
   encoder: RowEncoder[A],
   csvConfiguration: CsvConfiguration,
   constraint: TypedEncoder[A],
-  cfg: SaverConfig)
+  cfg: SaverConfig,
+  outPath: String)
     extends AbstractCsvSaver[F, A](rdd, encoder, csvConfiguration, constraint, cfg) {
 
   override def updateCsvConfig(f: CsvConfiguration => CsvConfiguration): CsvSaver[F, A] =
-    new CsvSaver[F, A](rdd, encoder, f(csvConfiguration), constraint, cfg)
+    new CsvSaver[F, A](rdd, encoder, f(csvConfiguration), constraint, cfg, outPath)
 
   private def mode(sm: SaveMode): CsvSaver[F, A] =
-    new CsvSaver[F, A](rdd, encoder, csvConfiguration, constraint, cfg.withSaveMode(sm))
+    new CsvSaver[F, A](rdd, encoder, csvConfiguration, constraint, cfg.withSaveMode(sm), outPath)
 
   override def overwrite: CsvSaver[F, A]      = mode(SaveMode.Overwrite)
   override def errorIfExists: CsvSaver[F, A]  = mode(SaveMode.ErrorIfExists)
   override def ignoreIfExists: CsvSaver[F, A] = mode(SaveMode.Ignore)
 
   override def single: CsvSaver[F, A] =
-    new CsvSaver[F, A](rdd, encoder, csvConfiguration, constraint, cfg.withSingle)
+    new CsvSaver[F, A](rdd, encoder, csvConfiguration, constraint, cfg.withSingle, outPath)
 
   override def multi: CsvSaver[F, A] =
-    new CsvSaver[F, A](rdd, encoder, csvConfiguration, constraint, cfg.withMulti)
+    new CsvSaver[F, A](rdd, encoder, csvConfiguration, constraint, cfg.withMulti, outPath)
 
   def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
-    saveRdd(rdd, params.outPath, blocker)
+    saveRdd(rdd, outPath, blocker)
 }
 
 final class CsvPartitionSaver[F[_], A, K: ClassTag: Eq](

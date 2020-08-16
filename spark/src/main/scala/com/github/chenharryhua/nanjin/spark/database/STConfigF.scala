@@ -1,77 +1,67 @@
 package com.github.chenharryhua.nanjin.spark.database
 
-import cats.data.Reader
 import cats.derived.auto.functor._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.github.chenharryhua.nanjin.database.TableName
+import com.github.chenharryhua.nanjin.database.{DatabaseName, TableName}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.macros.deriveFixedPoint
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
 
-final case class TablePathBuild(tableName: TableName, fileFormat: NJFileFormat)
-
-@Lenses final private[spark] case class STParams(
+@Lenses final private[database] case class STParams(
+  databaseName: DatabaseName,
+  tableName: TableName,
   dbSaveMode: SaveMode,
-  fileSaveMode: SaveMode,
-  pathBuilder: Reader[TablePathBuild, String],
-  fileFormat: NJFileFormat)
-
-private[spark] object STParams {
-
-  val default: STParams = STParams(
-    dbSaveMode = SaveMode.ErrorIfExists,
-    fileSaveMode = SaveMode.Overwrite,
-    pathBuilder = Reader(tn => s"./data/spark/database/${tn.tableName}/${tn.fileFormat.format}/"),
-    fileFormat = NJFileFormat.Parquet
-  )
+  pathBuilder: (DatabaseName, TableName, NJFileFormat) => String) {
+  def outPath(fmt: NJFileFormat): String = pathBuilder(databaseName, tableName, fmt)
 }
-@deriveFixedPoint sealed private[spark] trait STConfigF[_]
 
-object STConfigF {
-  final case class DefaultParams[K]() extends STConfigF[K]
+private[database] object STParams {
 
-  final case class WithFileFormat[K](value: NJFileFormat, cont: K) extends STConfigF[K]
+  def apply(dbName: DatabaseName, tableName: TableName): STParams =
+    STParams(
+      databaseName = dbName,
+      tableName = tableName,
+      dbSaveMode = SaveMode.ErrorIfExists,
+      pathBuilder = (dn, tn, fmt) =>
+        s"./data/spark/database/${dn.value}/${tn.value}/${fmt.alias}.${fmt.format}/"
+    )
+}
+@deriveFixedPoint sealed private[database] trait STConfigF[_]
+
+private[database] object STConfigF {
+  final case class DefaultParams[K](dbName: DatabaseName, tableName: TableName) extends STConfigF[K]
 
   final case class WithDbSaveMode[K](value: SaveMode, cont: K) extends STConfigF[K]
-  final case class WithFileSaveMode[K](value: SaveMode, cont: K) extends STConfigF[K]
 
-  final case class WithPathBuilder[K](value: Reader[TablePathBuild, String], cont: K)
+  final case class WithPathBuilder[K](
+    value: (DatabaseName, TableName, NJFileFormat) => String,
+    cont: K)
       extends STConfigF[K]
 
   private val algebra: Algebra[STConfigF, STParams] = Algebra[STConfigF, STParams] {
-    case DefaultParams()        => STParams.default
-    case WithFileFormat(v, c)   => STParams.fileFormat.set(v)(c)
-    case WithDbSaveMode(v, c)   => STParams.dbSaveMode.set(v)(c)
-    case WithFileSaveMode(v, c) => STParams.fileSaveMode.set(v)(c)
-    case WithPathBuilder(v, c)  => STParams.pathBuilder.set(v)(c)
+    case DefaultParams(dn, tn) => STParams(dn, tn)
+    case WithDbSaveMode(v, c)  => STParams.dbSaveMode.set(v)(c)
+    case WithPathBuilder(v, c) => STParams.pathBuilder.set(v)(c)
   }
 
   def evalConfig(cfg: STConfig): STParams = scheme.cata(algebra).apply(cfg.value)
 }
 
-final private[spark] case class STConfig(value: Fix[STConfigF]) extends AnyVal {
+final private[database] case class STConfig(value: Fix[STConfigF]) extends AnyVal {
   import STConfigF._
-  private def withFileFormat(ff: NJFileFormat): STConfig = STConfig(Fix(WithFileFormat(ff, value)))
-
-  def withJackson: STConfig = withFileFormat(NJFileFormat.Jackson)
-  def withAvro: STConfig    = withFileFormat(NJFileFormat.Avro)
-  def withParquet: STConfig = withFileFormat(NJFileFormat.Parquet)
 
   def withDbSaveMode(sm: SaveMode): STConfig = STConfig(Fix(WithDbSaveMode(sm, value)))
-  def withDBOverwrite: STConfig              = withDbSaveMode(SaveMode.Overwrite)
-  def withDBAppend: STConfig                 = withDbSaveMode(SaveMode.Append)
 
-  def withFileSaveMode(sm: SaveMode): STConfig = STConfig(Fix(WithFileSaveMode(sm, value)))
-  def withFileOverwrite: STConfig              = withFileSaveMode(SaveMode.Overwrite)
-
-  def withPathBuilder(f: TablePathBuild => String): STConfig =
-    STConfig(Fix(WithPathBuilder(Reader(f), value)))
+  def withPathBuilder(f: (DatabaseName, TableName, NJFileFormat) => String): STConfig =
+    STConfig(Fix(WithPathBuilder(f, value)))
 
   def evalConfig: STParams = STConfigF.evalConfig(this)
 }
 
-private[spark] object STConfig {
-  val defaultConfig: STConfig = STConfig(Fix(STConfigF.DefaultParams[Fix[STConfigF]]()))
+private[database] object STConfig {
+
+  def apply(dbName: DatabaseName, tableName: TableName): STConfig =
+    STConfig(Fix(STConfigF.DefaultParams[Fix[STConfigF]](dbName, tableName)))
 }

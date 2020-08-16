@@ -51,39 +51,39 @@ sealed abstract private[saver] class AbstractAvroSaver[F[_], A](
 
 }
 
-final class AvroSaver[F[_], A](rdd: RDD[A], encoder: Encoder[A], cfg: SaverConfig)
+final class AvroSaver[F[_], A](rdd: RDD[A], encoder: Encoder[A], cfg: SaverConfig, outPath: String)
     extends AbstractAvroSaver[F, A](rdd, encoder, cfg) {
 
   override def withEncoder(enc: Encoder[A]): AvroSaver[F, A] =
-    new AvroSaver(rdd, enc, cfg)
+    new AvroSaver(rdd, enc, cfg, outPath)
 
   override def withSchema(schema: Schema): AvroSaver[F, A] = {
     val schemaFor: SchemaFor[A] = SchemaFor[A](schema)
-    new AvroSaver[F, A](rdd, encoder.withSchema(schemaFor), cfg)
+    new AvroSaver[F, A](rdd, encoder.withSchema(schemaFor), cfg, outPath)
   }
 
   private def mode(sm: SaveMode): AvroSaver[F, A] =
-    new AvroSaver[F, A](rdd, encoder, cfg.withSaveMode(sm))
+    new AvroSaver[F, A](rdd, encoder, cfg.withSaveMode(sm), outPath)
 
   override def errorIfExists: AvroSaver[F, A]  = mode(SaveMode.ErrorIfExists)
   override def overwrite: AvroSaver[F, A]      = mode(SaveMode.Overwrite)
   override def ignoreIfExists: AvroSaver[F, A] = mode(SaveMode.Ignore)
 
   override def single: AvroSaver[F, A] =
-    new AvroSaver[F, A](rdd, encoder, cfg.withSingle)
+    new AvroSaver[F, A](rdd, encoder, cfg.withSingle, outPath)
 
   override def multi: AvroSaver[F, A] =
-    new AvroSaver[F, A](rdd, encoder, cfg.withMulti)
+    new AvroSaver[F, A](rdd, encoder, cfg.withMulti, outPath)
 
   override def spark: AvroSaver[F, A] =
-    new AvroSaver[F, A](rdd, encoder, cfg.withSpark)
+    new AvroSaver[F, A](rdd, encoder, cfg.withSpark, outPath)
 
   override def hadoop: AvroSaver[F, A] =
-    new AvroSaver[F, A](rdd, encoder, cfg.withHadoop)
+    new AvroSaver[F, A](rdd, encoder, cfg.withHadoop, outPath)
 
   def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
-    saveRdd(rdd, params.outPath, blocker)
+    saveRdd(rdd, outPath, blocker)
 
 }
 

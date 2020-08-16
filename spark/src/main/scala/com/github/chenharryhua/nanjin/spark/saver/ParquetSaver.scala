@@ -65,39 +65,40 @@ final class ParquetSaver[F[_], A](
   rdd: RDD[A],
   encoder: Encoder[A],
   constraint: TypedEncoder[A],
-  cfg: SaverConfig)
+  cfg: SaverConfig,
+  outPath: String)
     extends AbstractParquetSaver[F, A](rdd, encoder, constraint, cfg) {
 
   override def withEncoder(enc: Encoder[A]): ParquetSaver[F, A] =
-    new ParquetSaver[F, A](rdd, enc, constraint, cfg)
+    new ParquetSaver[F, A](rdd, enc, constraint, cfg, outPath)
 
   override def withSchema(schema: Schema): ParquetSaver[F, A] = {
     val schemaFor: SchemaFor[A] = SchemaFor[A](schema)
-    new ParquetSaver[F, A](rdd, encoder.withSchema(schemaFor), constraint, cfg)
+    new ParquetSaver[F, A](rdd, encoder.withSchema(schemaFor), constraint, cfg, outPath)
   }
 
   private def mode(sm: SaveMode): ParquetSaver[F, A] =
-    new ParquetSaver[F, A](rdd, encoder, constraint, cfg.withSaveMode(sm))
+    new ParquetSaver[F, A](rdd, encoder, constraint, cfg.withSaveMode(sm), outPath)
 
   override def overwrite: ParquetSaver[F, A]      = mode(SaveMode.Overwrite)
   override def errorIfExists: ParquetSaver[F, A]  = mode(SaveMode.ErrorIfExists)
   override def ignoreIfExists: ParquetSaver[F, A] = mode(SaveMode.Ignore)
 
   override def single: ParquetSaver[F, A] =
-    new ParquetSaver[F, A](rdd, encoder, constraint, cfg.withSingle)
+    new ParquetSaver[F, A](rdd, encoder, constraint, cfg.withSingle, outPath)
 
   override def multi: ParquetSaver[F, A] =
-    new ParquetSaver[F, A](rdd, encoder, constraint, cfg.withMulti)
+    new ParquetSaver[F, A](rdd, encoder, constraint, cfg.withMulti, outPath)
 
   override def spark: ParquetSaver[F, A] =
-    new ParquetSaver[F, A](rdd, encoder, constraint, cfg.withSpark)
+    new ParquetSaver[F, A](rdd, encoder, constraint, cfg.withSpark, outPath)
 
   override def hadoop: ParquetSaver[F, A] =
-    new ParquetSaver[F, A](rdd, encoder, constraint, cfg.withHadoop)
+    new ParquetSaver[F, A](rdd, encoder, constraint, cfg.withHadoop, outPath)
 
   def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
-    saveRdd(rdd, params.outPath, blocker)
+    saveRdd(rdd, outPath, blocker)
 
 }
 

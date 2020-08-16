@@ -11,9 +11,11 @@ import monocle.macros.Lenses
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
-sealed abstract class DatabaseSettings(username: Username, password: Password) {
+sealed abstract class DatabaseSettings(username: Username, password: Password)
+    extends Serializable {
   def driver: DriverString
   def connStr: ConnectionString
+  def database: DatabaseName
 
   final def show: String =
     s"""

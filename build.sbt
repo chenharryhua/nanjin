@@ -9,7 +9,7 @@ version in ThisBuild := "0.8.0-SNAPSHOT"
 val shapeless  = "2.3.3"
 val contextual = "1.2.1"
 val kittens    = "2.1.0"
-val catsCore   = "2.1.1"
+val catsCore   = "2.2.0-RC3"
 val algebra    = "2.0.1"
 val fs2Version = "2.4.2"
 val streamz    = "0.13-RC1"
@@ -149,7 +149,8 @@ val circeLib = Seq(
   "io.circe" %% "circe-shapes",
   "io.circe" %% "circe-jawn",
   "io.circe" %% "circe-optics",
-  "io.circe" %% "circe-jackson210"
+  "io.circe" %% "circe-jackson210",
+  "io.circe" %% "circe-generic-extras"
 ).map(_ % circe)
 
 val jacksonLib = Seq(

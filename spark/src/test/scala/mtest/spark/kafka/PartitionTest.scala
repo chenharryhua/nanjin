@@ -38,24 +38,24 @@ class PartitionTest extends AnyFunSuite {
     topic.send(data)).unsafeRunSync()
 
   test("partition avro") {
-    topic.sparKafka.fromKafka.flatMap(_.save.partitionAvro.multi.run(blocker)).unsafeRunSync()
+    topic.sparKafka.fromKafka.flatMap(_.save.partition.avro.multi.run(blocker)).unsafeRunSync()
   }
   test("partition binary avro") {
-    topic.sparKafka.fromKafka.flatMap(_.save.partitionBinAvro.run(blocker)).unsafeRunSync()
+    topic.sparKafka.fromKafka.flatMap(_.save.partition.binAvro.run(blocker)).unsafeRunSync()
   }
   test("partition jackson") {
-    topic.sparKafka.fromKafka.flatMap(_.save.partitionJackson.multi.run(blocker)).unsafeRunSync()
+    topic.sparKafka.fromKafka.flatMap(_.save.partition.jackson.multi.run(blocker)).unsafeRunSync()
   }
   test("partition parquet") {
-    topic.sparKafka.fromKafka.flatMap(_.save.partitionParquet.single.run(blocker)).unsafeRunSync()
+    topic.sparKafka.fromKafka.flatMap(_.save.partition.parquet.single.run(blocker)).unsafeRunSync()
   }
   test("partition circe") {
-    topic.sparKafka.fromKafka.flatMap(_.save.partitionCirce.run(blocker)).unsafeRunSync()
+    topic.sparKafka.fromKafka.flatMap(_.save.partition.circe.run(blocker)).unsafeRunSync()
   }
   test("partition java object") {
-    topic.sparKafka.fromKafka.flatMap(_.save.partitionJavaObject.run(blocker)).unsafeRunSync()
+    topic.sparKafka.fromKafka.flatMap(_.save.partition.javaObject.run(blocker)).unsafeRunSync()
   }
   test("partition text") {
-    topic.sparKafka.fromKafka.flatMap(_.save.partitionText.single.run(blocker)).unsafeRunSync()
+    topic.sparKafka.fromKafka.flatMap(_.save.partition.text.single.run(blocker)).unsafeRunSync()
   }
 }

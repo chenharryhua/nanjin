@@ -1,72 +1,76 @@
 package mtest.spark.database
 
-import java.sql.{Date, Timestamp}
+import java.sql.Date
 import java.time._
 
 import cats.effect.IO
 import cats.implicits._
-import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.common.transformers._
 import com.github.chenharryhua.nanjin.database.TableName
+import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.spark.database._
 import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.TypedDataset
 import frameless.cats.implicits._
+import io.circe.generic.auto._
 import io.scalaland.chimney.dsl._
-import org.apache.spark.sql.SaveMode
+import kantan.csv.generic._
+import kantan.csv.java8._
 import org.scalatest.funsuite.AnyFunSuite
 
 final case class DomainObject(
   a: LocalDate,
-  b: LocalDate,
-  c: Date,
-  d: Date,
-  e: ZonedDateTime,
-  f: OffsetDateTime,
-  g: Instant,
-  h: LocalDateTime,
-  i: Timestamp)
+  b: Date,
+  c: ZonedDateTime,
+  d: OffsetDateTime,
+  e: Instant)
 
-final case class DBTable(
-  a: Date,
-  b: LocalDate,
-  c: Date,
-  d: LocalDate,
-  e: Instant,
-  f: Instant,
-  g: Instant,
-  h: Timestamp,
-  i: Timestamp)
+final case class DBTable(a: LocalDate, b: LocalDate, c: Instant, d: Instant, e: Instant)
 
 class SparkTableTest extends AnyFunSuite {
-  implicit val zoneId: ZoneId  = beijingTime
-  val table: TableDef[DBTable] = TableDef[DBTable](TableName("public.sparktabletest"))
+  implicit val zoneId: ZoneId = beijingTime
+
+  val table: SparkTable[IO, DBTable] =
+    TableDef[DBTable](TableName("public.sparktabletest")).in[IO](postgres).overwrite
 
   val sample: DomainObject =
     DomainObject(
       LocalDate.now,
-      LocalDate.now,
-      Date.valueOf(LocalDate.now),
       Date.valueOf(LocalDate.now),
       ZonedDateTime.now(zoneId),
       OffsetDateTime.now(zoneId),
-      Instant.now,
-      LocalDateTime.now(zoneId),
-      new Timestamp(1351245600000L)
-    )
+      Instant.now)
 
   test("sparkTable upload dataset to table") {
-    val data = TypedDataset.create(List(sample.transformInto[DBTable]))
-    data.dbUpload(table.in(db).withParamUpdate(_.withDbSaveMode(SaveMode.Overwrite)))
+    val data = TypedDataset.create(List(sample.transformInto[DBTable])).dataset.rdd
+    data.dbUpload(table).unsafeRunSync()
   }
 
+  val path = "./data/test/spark/database/jackson.json"
+
   test("sparkTable save db table to disk") {
-    table.in(db).save()
+    table.fromDB.save.jackson(path).single.run(blocker).unsafeRunSync()
   }
 
   test("sparkTable read table on disk") {
     val rst: DomainObject =
-      table.in(db).fromDisk.collect[IO].map(_.head.transformInto[DomainObject]).unsafeRunSync
-    assert(rst.==(sample))
+      table.load
+        .jackson(path)
+        .typedDataset
+        .collect[IO]
+        .unsafeRunSync()
+        .head
+        .transformInto[DomainObject]
+    assert(rst == sample)
+  }
+
+  test("partition save") {
+    val run = table.fromDB.save.partition.jackson.run(blocker) >>
+      table.fromDB.save.partition.avro.run(blocker) >>
+      table.fromDB.save.partition.parquet.run(blocker) >>
+      table.fromDB.save.partition.circe.run(blocker) >>
+      table.fromDB.save.partition.csv.run(blocker) >>
+      IO(())
+    run.unsafeRunSync
   }
 }
