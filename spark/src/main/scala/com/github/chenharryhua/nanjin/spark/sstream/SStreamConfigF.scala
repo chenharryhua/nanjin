@@ -102,7 +102,7 @@ final private[sstream] case class SStreamConfig(value: Fix[SStreamConfigF]) exte
   def evalConfig: SStreamParams = SStreamConfigF.evalConfig(this)
 }
 
-private[sstream] object SStreamConfig {
+private[spark] object SStreamConfig {
 
   def apply(tr: NJDateTimeRange, sd: NJShowDataset): SStreamConfig =
     SStreamConfig(Fix(SStreamConfigF.DefaultParams[Fix[SStreamConfigF]](tr, sd)))

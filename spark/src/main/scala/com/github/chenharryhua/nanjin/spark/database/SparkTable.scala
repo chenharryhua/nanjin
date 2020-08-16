@@ -10,7 +10,7 @@ final class TableDef[A] private (val tableName: TableName)(implicit
   val typedEncoder: TypedEncoder[A]) {
 
   def in(dbSettings: DatabaseSettings)(implicit sparkSession: SparkSession): SparkTable[A] =
-    new SparkTable[A](this, dbSettings, STConfig.defaultConfig)
+    new SparkTable[A](this, dbSettings, STConfig(tableName))
 }
 
 object TableDef {
@@ -33,12 +33,6 @@ final class SparkTable[A](tableDef: TableDef[A], dbSettings: DatabaseSettings, c
     sd.fromDB(dbSettings.connStr, dbSettings.driver, tableDef.tableName)
 
   def save[F[_]]: RddFileSaver[F, A] = new RddFileSaver[F, A](fromDB.dataset.rdd)
-
-  def fromDisk(path: String): TypedDataset[A] =
-    sd.fromDisk(params.fileFormat, path)
-
-  def fromDisk: TypedDataset[A] =
-    fromDisk(params.pathBuilder(tableDef.tableName, params.fileFormat))
 
   def upload(dataset: TypedDataset[A]): Unit =
     sd.upload(dataset, params.dbSaveMode, dbSettings.connStr, dbSettings.driver, tableDef.tableName)

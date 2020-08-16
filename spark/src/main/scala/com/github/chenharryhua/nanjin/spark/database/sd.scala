@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.spark.database
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.database.{ConnectionString, DriverString, TableName}
 import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
 private[database] object sd {
@@ -10,9 +11,7 @@ private[database] object sd {
   def fromDB[A: TypedEncoder](
     connStr: ConnectionString,
     driver: DriverString,
-    tableName: TableName)(
-    implicit
-    sparkSession: SparkSession): TypedDataset[A] =
+    tableName: TableName)(implicit sparkSession: SparkSession): TypedDataset[A] =
     TypedDataset.createUnsafe[A](
       sparkSession.read
         .format("jdbc")
@@ -21,10 +20,9 @@ private[database] object sd {
         .option("dbtable", tableName.value)
         .load())
 
-  def fromDisk[A: TypedEncoder](fileFormat: NJFileFormat, path: String)(
-    implicit
+  def fromDisk[A: TypedEncoder](fileFormat: NJFileFormat, path: String)(implicit
     sparkSession: SparkSession): TypedDataset[A] = {
-    val schema = TypedExpressionEncoder.targetStructType(TypedEncoder[A])
+    val schema: StructType = TypedExpressionEncoder.targetStructType(TypedEncoder[A])
     TypedDataset.createUnsafe[A](
       sparkSession.read.schema(schema).format(fileFormat.format).load(path))
   }
