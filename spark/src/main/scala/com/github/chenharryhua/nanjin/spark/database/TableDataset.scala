@@ -27,6 +27,9 @@ final class TableDataset[F[_], A](ds: Dataset[A], dbSettings: DatabaseSettings, 
   def flatMap[B: AvroEncoder: TypedEncoder](f: A => TraversableOnce[B]): TableDataset[F, B] =
     new TableDataset[F, B](typedDataset.deserialized.flatMap(f).dataset, dbSettings, cfg)
 
+  def repartition(num: Int): TableDataset[F, A] =
+    new TableDataset[F, A](ds.repartition(num), dbSettings, cfg)
+
   def upload(implicit F: Sync[F]): F[Unit] =
     F.delay(
       sd.upload(ds, params.dbSaveMode, dbSettings.connStr, dbSettings.driver, params.tableName))

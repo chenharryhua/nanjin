@@ -6,13 +6,14 @@ import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.implicits._
 import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.spark._
+import monocle.Lens
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 
 import scala.reflect.ClassTag
 
-abstract private[saver] class AbstractSaver[F[_], A](cfg: SaverConfig) extends Serializable {
-  final val params: SaverParams = cfg.evalConfig
+private[saver] trait AbstractSaver[F[_], A] extends Serializable {
+  def updateConfig(cfg: SaverConfig): AbstractSaver[F, A]
 
   def overwrite: AbstractSaver[F, A]
   def errorIfExists: AbstractSaver[F, A]
@@ -29,7 +30,8 @@ abstract private[saver] class AbstractSaver[F[_], A](cfg: SaverConfig) extends S
   protected def toDataFrame(rdd: RDD[A])(implicit ss: SparkSession): DataFrame =
     throw new Exception("not support")
 
-  final protected def saveRdd(rdd: RDD[A], outPath: String, blocker: Blocker)(implicit
+  final protected def saveRdd(rdd: RDD[A], outPath: String, params: SaverParams, blocker: Blocker)(
+    implicit
     F: Concurrent[F],
     ce: ContextShift[F],
     ss: SparkSession): F[Unit] =
@@ -79,8 +81,9 @@ abstract private[saver] class AbstractSaver[F[_], A](cfg: SaverConfig) extends S
         }
     }
 
-  final protected def savePartitionedRdd[K: ClassTag: Eq](
+  final protected def savePartitionRdd[K: ClassTag: Eq](
     rdd: RDD[A],
+    params: SaverParams,
     blocker: Blocker,
     bucketing: A => K,
     pathBuilder: K => String)(implicit
@@ -92,7 +95,7 @@ abstract private[saver] class AbstractSaver[F[_], A](cfg: SaverConfig) extends S
       val keys: List[K] = pr.map(bucketing).distinct().collect().toList
       keys
         .parTraverseN(params.parallelism) { k =>
-          saveRdd(pr.filter(a => k === bucketing(a)), pathBuilder(k), blocker)
+          saveRdd(pr.filter(a => k === bucketing(a)), pathBuilder(k), params, blocker)
         }
         .void
     }(pr => blocker.delay(pr.unpersist()))

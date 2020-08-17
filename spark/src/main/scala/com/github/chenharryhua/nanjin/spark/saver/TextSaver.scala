@@ -6,15 +6,12 @@ import cats.kernel.Eq
 import cats.{Parallel, Show}
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{SaveMode, SparkSession}
+import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
 
-sealed abstract private[saver] class AbstractTextSaver[F[_], A](
-  rdd: RDD[A],
-  encoder: Show[A],
-  cfg: SaverConfig)
-    extends AbstractSaver[F, A](cfg) {
+sealed abstract private[saver] class AbstractTextSaver[F[_], A](encoder: Show[A])
+    extends AbstractSaver[F, A] {
   implicit private val enc: Show[A] = encoder
 
   def single: AbstractTextSaver[F, A]
@@ -34,80 +31,57 @@ sealed abstract private[saver] class AbstractTextSaver[F[_], A](
 
 }
 
-final class TextSaver[F[_], A](rdd: RDD[A], encoder: Show[A], cfg: SaverConfig, outPath: String)
-    extends AbstractTextSaver[F, A](rdd, encoder, cfg) {
+final class TextSaver[F[_], A](rdd: RDD[A], encoder: Show[A], outPath: String, cfg: SaverConfig)
+    extends AbstractTextSaver[F, A](encoder) {
 
-  private def mode(sm: SaveMode): TextSaver[F, A] =
-    new TextSaver[F, A](rdd, encoder, cfg.withSaveMode(sm), outPath)
+  override def updateConfig(cfg: SaverConfig): TextSaver[F, A] =
+    new TextSaver[F, A](rdd, encoder, outPath, cfg)
 
-  override def overwrite: TextSaver[F, A]      = mode(SaveMode.Overwrite)
-  override def errorIfExists: TextSaver[F, A]  = mode(SaveMode.ErrorIfExists)
-  override def ignoreIfExists: TextSaver[F, A] = mode(SaveMode.Ignore)
+  override def errorIfExists: TextSaver[F, A]  = updateConfig(cfg.withError)
+  override def overwrite: TextSaver[F, A]      = updateConfig(cfg.withOverwrite)
+  override def ignoreIfExists: TextSaver[F, A] = updateConfig(cfg.withIgnore)
 
-  override def single: TextSaver[F, A] =
-    new TextSaver[F, A](rdd, encoder, cfg.withSingle, outPath)
-
-  override def multi: TextSaver[F, A] =
-    new TextSaver[F, A](rdd, encoder, cfg.withMulti, outPath)
+  override def single: TextSaver[F, A] = updateConfig(cfg.withSingle)
+  override def multi: TextSaver[F, A]  = updateConfig(cfg.withMulti)
 
   def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
-    saveRdd(rdd, outPath, blocker)
+    saveRdd(rdd, outPath, cfg.evalConfig, blocker)
 }
 
 final class TextPartitionSaver[F[_], A, K: ClassTag: Eq](
   rdd: RDD[A],
   encoder: Show[A],
-  cfg: SaverConfig,
   bucketing: A => K,
-  pathBuilder: K => String)
-    extends AbstractTextSaver[F, A](rdd, encoder, cfg) with Partition[F, A, K] {
+  pathBuilder: K => String,
+  val cfg: SaverConfig)
+    extends AbstractTextSaver[F, A](encoder) with Partition[F, A, K] {
 
-  override def overwrite: TextPartitionSaver[F, A, K] =
-    new TextPartitionSaver[F, A, K](
-      rdd,
-      encoder,
-      cfg.withSaveMode(SaveMode.Overwrite),
-      bucketing,
-      pathBuilder)
+  override def updateConfig(cfg: SaverConfig): TextPartitionSaver[F, A, K] =
+    new TextPartitionSaver[F, A, K](rdd, encoder, bucketing, pathBuilder, cfg)
 
-  override def errorIfExists: TextPartitionSaver[F, A, K] =
-    new TextPartitionSaver[F, A, K](
-      rdd,
-      encoder,
-      cfg.withSaveMode(SaveMode.ErrorIfExists),
-      bucketing,
-      pathBuilder)
+  override def errorIfExists: TextPartitionSaver[F, A, K]  = updateConfig(cfg.withError)
+  override def overwrite: TextPartitionSaver[F, A, K]      = updateConfig(cfg.withOverwrite)
+  override def ignoreIfExists: TextPartitionSaver[F, A, K] = updateConfig(cfg.withIgnore)
 
-  override def ignoreIfExists: TextPartitionSaver[F, A, K] =
-    new TextPartitionSaver[F, A, K](
-      rdd,
-      encoder,
-      cfg.withSaveMode(SaveMode.Ignore),
-      bucketing,
-      pathBuilder)
+  override def single: TextPartitionSaver[F, A, K] = updateConfig(cfg.withSingle)
+  override def multi: TextPartitionSaver[F, A, K]  = updateConfig(cfg.withMulti)
 
-  override def single: TextPartitionSaver[F, A, K] =
-    new TextPartitionSaver[F, A, K](rdd, encoder, cfg.withSingle, bucketing, pathBuilder)
-
-  override def multi: TextPartitionSaver[F, A, K] =
-    new TextPartitionSaver[F, A, K](rdd, encoder, cfg.withMulti, bucketing, pathBuilder)
+  override def parallel(num: Long): TextPartitionSaver[F, A, K] =
+    updateConfig(cfg.withParallel(num))
 
   override def reBucket[K1: ClassTag: Eq](
     bucketing: A => K1,
     pathBuilder: K1 => String): TextPartitionSaver[F, A, K1] =
-    new TextPartitionSaver[F, A, K1](rdd, encoder, cfg, bucketing, pathBuilder)
+    new TextPartitionSaver[F, A, K1](rdd, encoder, bucketing, pathBuilder, cfg)
 
   override def rePath(pathBuilder: K => String): TextPartitionSaver[F, A, K] =
-    new TextPartitionSaver[F, A, K](rdd, encoder, cfg, bucketing, pathBuilder)
-
-  override def parallel(num: Long): TextPartitionSaver[F, A, K] =
-    new TextPartitionSaver[F, A, K](rdd, encoder, cfg.withParallism(num), bucketing, pathBuilder)
+    new TextPartitionSaver[F, A, K](rdd, encoder, bucketing, pathBuilder, cfg)
 
   override def run(blocker: Blocker)(implicit
     ss: SparkSession,
     F: Concurrent[F],
     cs: ContextShift[F],
     P: Parallel[F]): F[Unit] =
-    savePartitionedRdd(rdd, blocker, bucketing, pathBuilder)
+    savePartitionRdd(rdd, cfg.evalConfig, blocker, bucketing, pathBuilder)
 }

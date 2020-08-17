@@ -7,18 +7,17 @@ import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import frameless.{TypedDataset, TypedEncoder}
 import kantan.csv.{CsvConfiguration, RowEncoder}
+import monocle.Lens
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 
 import scala.reflect.ClassTag
 
 sealed abstract private[saver] class AbstractCsvSaver[F[_], A](
-  rdd: RDD[A],
   encoder: RowEncoder[A],
   csvConfiguration: CsvConfiguration,
-  constraint: TypedEncoder[A],
-  cfg: SaverConfig
-) extends AbstractSaver[F, A](cfg) {
+  constraint: TypedEncoder[A])
+    extends AbstractSaver[F, A] {
   implicit private val enc: RowEncoder[A]  = encoder
   implicit private val te: TypedEncoder[A] = constraint
 
@@ -55,29 +54,27 @@ final class CsvSaver[F[_], A](
   encoder: RowEncoder[A],
   csvConfiguration: CsvConfiguration,
   constraint: TypedEncoder[A],
-  cfg: SaverConfig,
-  outPath: String)
-    extends AbstractCsvSaver[F, A](rdd, encoder, csvConfiguration, constraint, cfg) {
+  outPath: String,
+  cfg: SaverConfig)
+    extends AbstractCsvSaver[F, A](encoder, csvConfiguration, constraint) {
 
   override def updateCsvConfig(f: CsvConfiguration => CsvConfiguration): CsvSaver[F, A] =
-    new CsvSaver[F, A](rdd, encoder, f(csvConfiguration), constraint, cfg, outPath)
+    new CsvSaver[F, A](rdd, encoder, f(csvConfiguration), constraint, outPath, cfg)
 
-  private def mode(sm: SaveMode): CsvSaver[F, A] =
-    new CsvSaver[F, A](rdd, encoder, csvConfiguration, constraint, cfg.withSaveMode(sm), outPath)
+  override def updateConfig(cfg: SaverConfig): CsvSaver[F, A] =
+    new CsvSaver[F, A](rdd, encoder, csvConfiguration, constraint, outPath, cfg)
 
-  override def overwrite: CsvSaver[F, A]      = mode(SaveMode.Overwrite)
-  override def errorIfExists: CsvSaver[F, A]  = mode(SaveMode.ErrorIfExists)
-  override def ignoreIfExists: CsvSaver[F, A] = mode(SaveMode.Ignore)
+  override def errorIfExists: CsvSaver[F, A]  = updateConfig(cfg.withError)
+  override def overwrite: CsvSaver[F, A]      = updateConfig(cfg.withOverwrite)
+  override def ignoreIfExists: CsvSaver[F, A] = updateConfig(cfg.withIgnore)
 
-  override def single: CsvSaver[F, A] =
-    new CsvSaver[F, A](rdd, encoder, csvConfiguration, constraint, cfg.withSingle, outPath)
-
-  override def multi: CsvSaver[F, A] =
-    new CsvSaver[F, A](rdd, encoder, csvConfiguration, constraint, cfg.withMulti, outPath)
+  override def single: CsvSaver[F, A] = updateConfig(cfg.withSingle)
+  override def multi: CsvSaver[F, A]  = updateConfig(cfg.withMulti)
 
   def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
-    saveRdd(rdd, outPath, blocker)
+    saveRdd(rdd, outPath, cfg.evalConfig, blocker)
+
 }
 
 final class CsvPartitionSaver[F[_], A, K: ClassTag: Eq](
@@ -85,11 +82,10 @@ final class CsvPartitionSaver[F[_], A, K: ClassTag: Eq](
   encoder: RowEncoder[A],
   csvConfiguration: CsvConfiguration,
   constraint: TypedEncoder[A],
-  cfg: SaverConfig,
   bucketing: A => K,
-  pathBuilder: K => String
-) extends AbstractCsvSaver[F, A](rdd, encoder, csvConfiguration, constraint, cfg)
-    with Partition[F, A, K] {
+  pathBuilder: K => String,
+  val cfg: SaverConfig
+) extends AbstractCsvSaver[F, A](encoder, csvConfiguration, constraint) with Partition[F, A, K] {
 
   override def updateCsvConfig(
     f: CsvConfiguration => CsvConfiguration): CsvPartitionSaver[F, A, K] =
@@ -98,59 +94,29 @@ final class CsvPartitionSaver[F[_], A, K: ClassTag: Eq](
       encoder,
       f(csvConfiguration),
       constraint,
-      cfg,
       bucketing,
-      pathBuilder)
+      pathBuilder,
+      cfg)
 
-  override def overwrite: CsvPartitionSaver[F, A, K] =
+  override def updateConfig(cfg: SaverConfig): CsvPartitionSaver[F, A, K] =
     new CsvPartitionSaver[F, A, K](
       rdd,
       encoder,
       csvConfiguration,
       constraint,
-      cfg.withSaveMode(SaveMode.Overwrite),
       bucketing,
-      pathBuilder)
+      pathBuilder,
+      cfg)
 
-  override def errorIfExists: CsvPartitionSaver[F, A, K] =
-    new CsvPartitionSaver[F, A, K](
-      rdd,
-      encoder,
-      csvConfiguration,
-      constraint,
-      cfg.withSaveMode(SaveMode.ErrorIfExists),
-      bucketing,
-      pathBuilder)
+  override def errorIfExists: CsvPartitionSaver[F, A, K]  = updateConfig(cfg.withError)
+  override def overwrite: CsvPartitionSaver[F, A, K]      = updateConfig(cfg.withOverwrite)
+  override def ignoreIfExists: CsvPartitionSaver[F, A, K] = updateConfig(cfg.withIgnore)
 
-  override def ignoreIfExists: CsvPartitionSaver[F, A, K] =
-    new CsvPartitionSaver[F, A, K](
-      rdd,
-      encoder,
-      csvConfiguration,
-      constraint,
-      cfg.withSaveMode(SaveMode.Ignore),
-      bucketing,
-      pathBuilder)
+  override def single: CsvPartitionSaver[F, A, K] = updateConfig(cfg.withSingle)
+  override def multi: CsvPartitionSaver[F, A, K]  = updateConfig(cfg.withMulti)
 
-  override def single: CsvPartitionSaver[F, A, K] =
-    new CsvPartitionSaver[F, A, K](
-      rdd,
-      encoder,
-      csvConfiguration,
-      constraint,
-      cfg.withSingle,
-      bucketing,
-      pathBuilder)
-
-  override def multi: CsvPartitionSaver[F, A, K] =
-    new CsvPartitionSaver[F, A, K](
-      rdd,
-      encoder,
-      csvConfiguration,
-      constraint,
-      cfg.withMulti,
-      bucketing,
-      pathBuilder)
+  override def parallel(num: Long): CsvPartitionSaver[F, A, K] =
+    updateConfig(cfg.withParallel(num))
 
   override def reBucket[K1: ClassTag: Eq](
     bucketing: A => K1,
@@ -160,9 +126,9 @@ final class CsvPartitionSaver[F[_], A, K: ClassTag: Eq](
       encoder,
       csvConfiguration,
       constraint,
-      cfg,
       bucketing,
-      pathBuilder)
+      pathBuilder,
+      cfg)
 
   override def rePath(pathBuilder: K => String): CsvPartitionSaver[F, A, K] =
     new CsvPartitionSaver[F, A, K](
@@ -170,24 +136,15 @@ final class CsvPartitionSaver[F[_], A, K: ClassTag: Eq](
       encoder,
       csvConfiguration,
       constraint,
-      cfg,
       bucketing,
-      pathBuilder)
-
-  override def parallel(num: Long): CsvPartitionSaver[F, A, K] =
-    new CsvPartitionSaver[F, A, K](
-      rdd,
-      encoder,
-      csvConfiguration,
-      constraint,
-      cfg.withParallism(num),
-      bucketing,
-      pathBuilder)
+      pathBuilder,
+      cfg)
 
   override def run(blocker: Blocker)(implicit
     ss: SparkSession,
     F: Concurrent[F],
     cs: ContextShift[F],
     P: Parallel[F]): F[Unit] =
-    savePartitionedRdd(rdd, blocker, bucketing, pathBuilder)
+    savePartitionRdd(rdd, cfg.evalConfig, blocker, bucketing, pathBuilder)
+
 }

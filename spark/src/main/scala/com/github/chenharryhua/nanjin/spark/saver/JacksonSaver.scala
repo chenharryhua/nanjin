@@ -10,15 +10,12 @@ import com.sksamuel.avro4s.Encoder
 import org.apache.avro.mapreduce.AvroJob
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
+import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import scala.reflect.ClassTag
 
-sealed abstract private[saver] class AbstractJacksonSaver[F[_], A](
-  rdd: RDD[A],
-  encoder: Encoder[A],
-  cfg: SaverConfig)
-    extends AbstractSaver[F, A](cfg) {
+sealed abstract private[saver] class AbstractJacksonSaver[F[_], A](encoder: Encoder[A])
+    extends AbstractSaver[F, A] {
   implicit private val enc: Encoder[A] = encoder
 
   def single: AbstractJacksonSaver[F, A]
@@ -48,82 +45,59 @@ sealed abstract private[saver] class AbstractJacksonSaver[F[_], A](
 final class JacksonSaver[F[_], A](
   rdd: RDD[A],
   encoder: Encoder[A],
-  cfg: SaverConfig,
-  outPath: String)
-    extends AbstractJacksonSaver[F, A](rdd, encoder, cfg) {
+  outPath: String,
+  cfg: SaverConfig)
+    extends AbstractJacksonSaver[F, A](encoder) {
 
-  private def mode(sm: SaveMode): JacksonSaver[F, A] =
-    new JacksonSaver(rdd, encoder, cfg.withSaveMode(sm), outPath)
+  override def updateConfig(cfg: SaverConfig): JacksonSaver[F, A] =
+    new JacksonSaver(rdd, encoder, outPath, cfg)
 
-  override def overwrite: JacksonSaver[F, A]      = mode(SaveMode.Overwrite)
-  override def errorIfExists: JacksonSaver[F, A]  = mode(SaveMode.ErrorIfExists)
-  override def ignoreIfExists: JacksonSaver[F, A] = mode(SaveMode.Ignore)
+  override def errorIfExists: JacksonSaver[F, A]  = updateConfig(cfg.withError)
+  override def overwrite: JacksonSaver[F, A]      = updateConfig(cfg.withOverwrite)
+  override def ignoreIfExists: JacksonSaver[F, A] = updateConfig(cfg.withIgnore)
 
-  override def single: JacksonSaver[F, A] =
-    new JacksonSaver[F, A](rdd, encoder, cfg.withSingle, outPath)
-
-  override def multi: JacksonSaver[F, A] =
-    new JacksonSaver[F, A](rdd, encoder, cfg.withMulti, outPath)
+  override def single: JacksonSaver[F, A] = updateConfig(cfg.withSingle)
+  override def multi: JacksonSaver[F, A]  = updateConfig(cfg.withMulti)
 
   def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
-    saveRdd(rdd, outPath, blocker)
+    saveRdd(rdd, outPath, cfg.evalConfig, blocker)
 
 }
 
 final class JacksonPartitionSaver[F[_], A, K: ClassTag: Eq](
   rdd: RDD[A],
   encoder: Encoder[A],
-  cfg: SaverConfig,
   bucketing: A => K,
-  pathBuilder: K => String)
-    extends AbstractJacksonSaver[F, A](rdd, encoder, cfg) with Partition[F, A, K] {
+  pathBuilder: K => String,
+  val cfg: SaverConfig)
+    extends AbstractJacksonSaver[F, A](encoder) with Partition[F, A, K] {
 
-  override def overwrite: JacksonPartitionSaver[F, A, K] =
-    new JacksonPartitionSaver(
-      rdd,
-      encoder,
-      cfg.withSaveMode(SaveMode.Overwrite),
-      bucketing,
-      pathBuilder)
+  override def updateConfig(cfg: SaverConfig): JacksonPartitionSaver[F, A, K] =
+    new JacksonPartitionSaver[F, A, K](rdd, encoder, bucketing, pathBuilder, cfg)
 
-  override def errorIfExists: JacksonPartitionSaver[F, A, K] =
-    new JacksonPartitionSaver(
-      rdd,
-      encoder,
-      cfg.withSaveMode(SaveMode.ErrorIfExists),
-      bucketing,
-      pathBuilder)
+  override def errorIfExists: JacksonPartitionSaver[F, A, K]  = updateConfig(cfg.withError)
+  override def overwrite: JacksonPartitionSaver[F, A, K]      = updateConfig(cfg.withOverwrite)
+  override def ignoreIfExists: JacksonPartitionSaver[F, A, K] = updateConfig(cfg.withIgnore)
 
-  override def ignoreIfExists: JacksonPartitionSaver[F, A, K] =
-    new JacksonPartitionSaver(
-      rdd,
-      encoder,
-      cfg.withSaveMode(SaveMode.Ignore),
-      bucketing,
-      pathBuilder)
+  override def single: JacksonPartitionSaver[F, A, K] = updateConfig(cfg.withSingle)
+  override def multi: JacksonPartitionSaver[F, A, K]  = updateConfig(cfg.withMulti)
 
-  override def single: JacksonPartitionSaver[F, A, K] =
-    new JacksonPartitionSaver(rdd, encoder, cfg.withSingle, bucketing, pathBuilder)
-
-  override def multi: JacksonPartitionSaver[F, A, K] =
-    new JacksonPartitionSaver(rdd, encoder, cfg.withMulti, bucketing, pathBuilder)
+  override def parallel(num: Long): JacksonPartitionSaver[F, A, K] =
+    updateConfig(cfg.withParallel(num))
 
   override def reBucket[K1: ClassTag: Eq](
     bucketing: A => K1,
     pathBuilder: K1 => String): JacksonPartitionSaver[F, A, K1] =
-    new JacksonPartitionSaver[F, A, K1](rdd, encoder, cfg, bucketing, pathBuilder)
+    new JacksonPartitionSaver[F, A, K1](rdd, encoder, bucketing, pathBuilder, cfg)
 
   override def rePath(pathBuilder: K => String): JacksonPartitionSaver[F, A, K] =
-    new JacksonPartitionSaver[F, A, K](rdd, encoder, cfg, bucketing, pathBuilder)
-
-  override def parallel(num: Long): JacksonPartitionSaver[F, A, K] =
-    new JacksonPartitionSaver[F, A, K](rdd, encoder, cfg.withParallism(num), bucketing, pathBuilder)
+    new JacksonPartitionSaver[F, A, K](rdd, encoder, bucketing, pathBuilder, cfg)
 
   override def run(blocker: Blocker)(implicit
     ss: SparkSession,
     F: Concurrent[F],
     cs: ContextShift[F],
     P: Parallel[F]): F[Unit] =
-    savePartitionedRdd(rdd, blocker, bucketing, pathBuilder)
+    savePartitionRdd(rdd, cfg.evalConfig, blocker, bucketing, pathBuilder)
 }

@@ -9,14 +9,14 @@ private[database] object sd {
   def unload[A: TypedEncoder](
     connStr: ConnectionString,
     driver: DriverString,
-    tableName: TableName)(implicit sparkSession: SparkSession): TypedDataset[A] =
-    TypedDataset.createUnsafe[A](
-      sparkSession.read
-        .format("jdbc")
-        .option("url", connStr.value)
-        .option("driver", driver.value)
-        .option("dbtable", tableName.value)
-        .load())
+    tableName: TableName,
+    query: Option[String])(implicit sparkSession: SparkSession): TypedDataset[A] = {
+    val mandatory = Map("url" -> connStr.value, "driver" -> driver.value)
+    //https://spark.apache.org/docs/latest/sql-data-sources-jdbc.html
+    val sparkOptions: Map[String, String] =
+      mandatory + query.fold("dbtable" -> tableName.value)(q => "query" -> q)
+    TypedDataset.createUnsafe[A](sparkSession.read.format("jdbc").options(sparkOptions).load())
+  }
 
   def upload[A](
     dataset: Dataset[A],

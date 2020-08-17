@@ -12,6 +12,7 @@ import org.apache.spark.sql.SaveMode
 @Lenses final private[database] case class STParams(
   databaseName: DatabaseName,
   tableName: TableName,
+  query: Option[String],
   dbSaveMode: SaveMode,
   pathBuilder: (DatabaseName, TableName, NJFileFormat) => String) {
   def outPath(fmt: NJFileFormat): String = pathBuilder(databaseName, tableName, fmt)
@@ -23,6 +24,7 @@ private[database] object STParams {
     STParams(
       databaseName = dbName,
       tableName = tableName,
+      None,
       dbSaveMode = SaveMode.ErrorIfExists,
       pathBuilder = (dn, tn, fmt) =>
         s"./data/spark/database/${dn.value}/${tn.value}/${fmt.alias}.${fmt.format}/"
@@ -40,10 +42,13 @@ private[database] object STConfigF {
     cont: K)
       extends STConfigF[K]
 
+  final case class WithQuery[K](value: String, cont: K) extends STConfigF[K]
+
   private val algebra: Algebra[STConfigF, STParams] = Algebra[STConfigF, STParams] {
     case DefaultParams(dn, tn) => STParams(dn, tn)
     case WithDbSaveMode(v, c)  => STParams.dbSaveMode.set(v)(c)
     case WithPathBuilder(v, c) => STParams.pathBuilder.set(v)(c)
+    case WithQuery(v, c)       => STParams.query.set(Some(v))(c)
   }
 
   def evalConfig(cfg: STConfig): STParams = scheme.cata(algebra).apply(cfg.value)
@@ -56,6 +61,9 @@ final private[database] case class STConfig(value: Fix[STConfigF]) extends AnyVa
 
   def withPathBuilder(f: (DatabaseName, TableName, NJFileFormat) => String): STConfig =
     STConfig(Fix(WithPathBuilder(f, value)))
+
+  def withQuery(query: String): STConfig =
+    STConfig(Fix(WithQuery(query, value)))
 
   def evalConfig: STParams = STConfigF.evalConfig(this)
 }
