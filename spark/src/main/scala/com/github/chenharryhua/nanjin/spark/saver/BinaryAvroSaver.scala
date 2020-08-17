@@ -11,11 +11,8 @@ import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 
 import scala.reflect.ClassTag
 
-sealed abstract private[saver] class AbstractBinaryAvroSaver[F[_], A](
-  rdd: RDD[A],
-  encoder: Encoder[A],
-  cfg: SaverConfig)
-    extends AbstractSaver[F, A](cfg) {
+sealed abstract private[saver] class AbstractBinaryAvroSaver[F[_], A](encoder: Encoder[A])
+    extends AbstractSaver[F, A] {
   implicit private val enc: Encoder[A] = encoder
 
   final override protected def writeSingleFile(
@@ -31,57 +28,54 @@ sealed abstract private[saver] class AbstractBinaryAvroSaver[F[_], A](
 final class BinaryAvroSaver[F[_], A](
   rdd: RDD[A],
   encoder: Encoder[A],
-  cfg: SaverConfig,
-  outPath: String)
-    extends AbstractBinaryAvroSaver[F, A](rdd, encoder, cfg) {
+  outPath: String,
+  cfg: SaverConfig)
+    extends AbstractBinaryAvroSaver[F, A](encoder) {
 
-  private def mode(sm: SaveMode): BinaryAvroSaver[F, A] =
-    new BinaryAvroSaver(rdd, encoder, cfg.withSaveMode(sm), outPath)
+  override def updateConfig(cfg: SaverConfig): BinaryAvroSaver[F, A] =
+    new BinaryAvroSaver(rdd, encoder, outPath, cfg)
 
-  override def overwrite: BinaryAvroSaver[F, A]      = mode(SaveMode.Overwrite)
-  override def errorIfExists: BinaryAvroSaver[F, A]  = mode(SaveMode.ErrorIfExists)
-  override def ignoreIfExists: BinaryAvroSaver[F, A] = mode(SaveMode.Ignore)
+  override def errorIfExists: BinaryAvroSaver[F, A]  = updateConfig(cfg.withError)
+  override def overwrite: BinaryAvroSaver[F, A]      = updateConfig(cfg.withOverwrite)
+  override def ignoreIfExists: BinaryAvroSaver[F, A] = updateConfig(cfg.withIgnore)
 
   def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
-    saveRdd(rdd, outPath, blocker)
+    saveRdd(rdd, outPath, cfg.evalConfig, blocker)
+
 }
 
 final class BinaryAvroPartitionSaver[F[_], A, K: ClassTag: Eq](
   rdd: RDD[A],
   encoder: Encoder[A],
-  cfg: SaverConfig,
   bucketing: A => K,
-  pathBuilder: K => String)
-    extends AbstractBinaryAvroSaver[F, A](rdd, encoder, cfg) with Partition[F, A, K] {
+  pathBuilder: K => String,
+  val cfg: SaverConfig)
+    extends AbstractBinaryAvroSaver[F, A](encoder) with Partition[F, A, K] {
 
-  private def mode(sm: SaveMode): BinaryAvroPartitionSaver[F, A, K] =
-    new BinaryAvroPartitionSaver(rdd, encoder, cfg.withSaveMode(sm), bucketing, pathBuilder)
+  override def updateConfig(cfg: SaverConfig): BinaryAvroPartitionSaver[F, A, K] =
+    new BinaryAvroPartitionSaver(rdd, encoder, bucketing, pathBuilder, cfg)
 
-  override def overwrite: BinaryAvroPartitionSaver[F, A, K]      = mode(SaveMode.Overwrite)
-  override def errorIfExists: BinaryAvroPartitionSaver[F, A, K]  = mode(SaveMode.ErrorIfExists)
-  override def ignoreIfExists: BinaryAvroPartitionSaver[F, A, K] = mode(SaveMode.Ignore)
+  override def errorIfExists: BinaryAvroPartitionSaver[F, A, K]  = updateConfig(cfg.withError)
+  override def overwrite: BinaryAvroPartitionSaver[F, A, K]      = updateConfig(cfg.withOverwrite)
+  override def ignoreIfExists: BinaryAvroPartitionSaver[F, A, K] = updateConfig(cfg.withIgnore)
+
+  override def parallel(num: Long): BinaryAvroPartitionSaver[F, A, K] =
+    updateConfig(cfg.withParallel(num))
 
   override def reBucket[K1: ClassTag: Eq](
     bucketing: A => K1,
     pathBuilder: K1 => String): BinaryAvroPartitionSaver[F, A, K1] =
-    new BinaryAvroPartitionSaver[F, A, K1](rdd, encoder, cfg, bucketing, pathBuilder)
+    new BinaryAvroPartitionSaver[F, A, K1](rdd, encoder, bucketing, pathBuilder, cfg)
 
   override def rePath(pathBuilder: K => String): BinaryAvroPartitionSaver[F, A, K] =
-    new BinaryAvroPartitionSaver[F, A, K](rdd, encoder, cfg, bucketing, pathBuilder)
-
-  override def parallel(num: Long): BinaryAvroPartitionSaver[F, A, K] =
-    new BinaryAvroPartitionSaver[F, A, K](
-      rdd,
-      encoder,
-      cfg.withParallism(num),
-      bucketing,
-      pathBuilder)
+    new BinaryAvroPartitionSaver[F, A, K](rdd, encoder, bucketing, pathBuilder, cfg)
 
   override def run(blocker: Blocker)(implicit
     ss: SparkSession,
     F: Concurrent[F],
     CS: ContextShift[F],
     P: Parallel[F]): F[Unit] =
-    savePartitionedRdd(rdd, blocker, bucketing, pathBuilder)
+    savePartitionRdd(rdd, cfg.evalConfig, blocker, bucketing, pathBuilder)
+
 }

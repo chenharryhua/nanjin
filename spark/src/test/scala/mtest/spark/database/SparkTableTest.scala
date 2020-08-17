@@ -82,4 +82,13 @@ class SparkTableTest extends AnyFunSuite {
       IO(())
     run.unsafeRunSync
   }
+  test("with query") {
+    table
+      .withQuery(s"select * from ${table.tableName.value}")
+      .fromDB
+      .save
+      .jackson
+      .single
+      .run(blocker)
+  }
 }

@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.{NJProducerRecord, OptionalKV}
 import com.github.chenharryhua.nanjin.spark.sstream.{KafkaCrSStream, SStreamConfig, SparkSStream}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
-import frameless.{SparkDelay, TypedDataset, TypedEncoder}
+import frameless.{TypedDataset, TypedEncoder}
 import org.apache.avro.Schema
 import org.apache.parquet.avro.AvroSchemaConverter
 import org.apache.parquet.schema.MessageType
@@ -44,8 +44,8 @@ final class SparKafka[F[_], K, V](val topic: KafkaTopic[F, K, V], val cfg: SKCon
   def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
     fromDisk.pipeTo(topic)
 
-  def countKafka(implicit F: Sync[F]): F[Long]      = fromKafka.flatMap(_.count)
-  def countDisk(implicit F: SparkDelay[F]): F[Long] = fromDisk.count
+  def countKafka(implicit F: Sync[F]): F[Long] = fromKafka.flatMap(_.count)
+  def countDisk(implicit F: Sync[F]): F[Long]  = fromDisk.count
 
   def pipeTo(other: KafkaTopic[F, K, V])(implicit
     ce: ConcurrentEffect[F],

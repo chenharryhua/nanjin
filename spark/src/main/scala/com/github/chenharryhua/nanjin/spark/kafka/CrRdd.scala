@@ -14,6 +14,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   OptionalKV
 }
 import com.github.chenharryhua.nanjin.spark.RddExt
+import com.github.chenharryhua.nanjin.spark.saver.RddFileSaver
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.cats.implicits.rddOps
 import frameless.{TypedDataset, TypedEncoder}
@@ -27,8 +28,7 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
   val sparkSession: SparkSession,
   val keyAvroEncoder: AvroEncoder[K],
   val valAvroEncoder: AvroEncoder[V])
-    extends SparKafkaUpdateParams[CrRdd[F, K, V]] with CrRddSaveModule[F, K, V]
-    with CrRddInvModule[F, K, V] {
+    extends SparKafkaUpdateParams[CrRdd[F, K, V]] with CrRddInvModule[F, K, V] {
 
   override def params: SKParams = cfg.evalConfig
 
@@ -108,4 +108,7 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
       .map(_ => print("."))
       .compile
       .drain
+
+  def save: CrRddFileSaver[F, K, V] =
+    new CrRddFileSaver[F, K, V](new RddFileSaver(rdd), params)
 }

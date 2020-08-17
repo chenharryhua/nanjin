@@ -21,29 +21,29 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
 
 // 1
   def avro(pathStr: String)(implicit enc: AvroEncoder[A]): AvroSaver[F, A] =
-    new AvroSaver[F, A](rdd, enc, SaverConfig(NJFileFormat.Avro), pathStr)
+    new AvroSaver[F, A](rdd, enc, pathStr, SaverConfig(NJFileFormat.Avro))
 
 // 2
   def jackson(pathStr: String)(implicit enc: AvroEncoder[A]): JacksonSaver[F, A] =
-    new JacksonSaver[F, A](rdd, enc, SaverConfig(NJFileFormat.Jackson), pathStr)
+    new JacksonSaver[F, A](rdd, enc, pathStr, SaverConfig(NJFileFormat.Jackson))
 
 // 3
   def binAvro(pathStr: String)(implicit enc: AvroEncoder[A]): BinaryAvroSaver[F, A] =
-    new BinaryAvroSaver[F, A](rdd, enc, SaverConfig(NJFileFormat.BinaryAvro).withSingle, pathStr)
+    new BinaryAvroSaver[F, A](rdd, enc, pathStr, SaverConfig(NJFileFormat.BinaryAvro).withSingle)
 
 // 4
   def parquet(pathStr: String)(implicit
     enc: AvroEncoder[A],
     constraint: TypedEncoder[A]): ParquetSaver[F, A] =
-    new ParquetSaver[F, A](rdd, enc, constraint, SaverConfig(NJFileFormat.Parquet), pathStr)
+    new ParquetSaver[F, A](rdd, enc, constraint, pathStr, SaverConfig(NJFileFormat.Parquet))
 
 // 5
   def circe(pathStr: String)(implicit enc: JsonEncoder[A]): CirceSaver[F, A] =
-    new CirceSaver[F, A](rdd, enc, SaverConfig(NJFileFormat.Circe), pathStr)
+    new CirceSaver[F, A](rdd, enc, pathStr, SaverConfig(NJFileFormat.Circe))
 
 // 6
   def text(pathStr: String)(implicit enc: Show[A]): TextSaver[F, A] =
-    new TextSaver[F, A](rdd, enc, SaverConfig(NJFileFormat.Text), pathStr)
+    new TextSaver[F, A](rdd, enc, pathStr, SaverConfig(NJFileFormat.Text))
 
 // 7
   def csv(
@@ -53,16 +53,16 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
       enc,
       CsvConfiguration.rfc,
       constraint,
-      SaverConfig(NJFileFormat.Csv),
-      pathStr)
+      pathStr,
+      SaverConfig(NJFileFormat.Csv))
 
 // 8
   def javaObject(pathStr: String): JavaObjectSaver[F, A] =
-    new JavaObjectSaver[F, A](rdd, SaverConfig(NJFileFormat.JavaObject).withSingle, pathStr)
+    new JavaObjectSaver[F, A](rdd, pathStr, SaverConfig(NJFileFormat.JavaObject).withSingle)
 
 // 9
   def protobuf(pathStr: String)(implicit ev: A <:< GeneratedMessage): ProtobufSaver[F, A] =
-    new ProtobufSaver[F, A](rdd, SaverConfig(NJFileFormat.ProtoBuf).withSingle, pathStr)
+    new ProtobufSaver[F, A](rdd, pathStr, SaverConfig(NJFileFormat.ProtoBuf).withSingle)
 
 // 10
   def dump(pathStr: String): Dumper[F, A] =
@@ -76,9 +76,9 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
       new AvroPartitionSaver[F, A, K](
         rdd,
         enc,
-        SaverConfig(NJFileFormat.Avro),
         bucketing,
-        pathBuilder)
+        pathBuilder,
+        SaverConfig(NJFileFormat.Avro))
 
 // 2
     def jackson[K: ClassTag: Eq](bucketing: A => K, pathBuilder: K => String)(implicit
@@ -86,9 +86,9 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
       new JacksonPartitionSaver[F, A, K](
         rdd,
         enc,
-        SaverConfig(NJFileFormat.Avro),
         bucketing,
-        pathBuilder)
+        pathBuilder,
+        SaverConfig(NJFileFormat.Jackson))
 
 // 3
     def binAvro[K: ClassTag: Eq](bucketing: A => K, pathBuilder: K => String)(implicit
@@ -96,9 +96,9 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
       new BinaryAvroPartitionSaver[F, A, K](
         rdd,
         enc,
-        SaverConfig(NJFileFormat.Avro).withSingle,
         bucketing,
-        pathBuilder)
+        pathBuilder,
+        SaverConfig(NJFileFormat.BinaryAvro).withSingle)
 
 // 4
     def parquet[K: ClassTag: Eq](bucketing: A => K, pathBuilder: K => String)(implicit
@@ -108,9 +108,9 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
         rdd,
         enc,
         constraint,
-        SaverConfig(NJFileFormat.Parquet),
         bucketing,
-        pathBuilder)
+        pathBuilder,
+        SaverConfig(NJFileFormat.Parquet))
 
 // 5
     def circe[K: ClassTag: Eq](bucketing: A => K, pathBuilder: K => String)(implicit
@@ -118,9 +118,9 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
       new CircePartitionSaver[F, A, K](
         rdd,
         enc,
-        SaverConfig(NJFileFormat.Avro),
         bucketing,
-        pathBuilder)
+        pathBuilder,
+        SaverConfig(NJFileFormat.Circe))
 
 // 6
     def text[K: ClassTag: Eq](bucketing: A => K, pathBuilder: K => String)(implicit
@@ -128,9 +128,9 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
       new TextPartitionSaver[F, A, K](
         rdd,
         enc,
-        SaverConfig(NJFileFormat.Text),
         bucketing,
-        pathBuilder)
+        pathBuilder,
+        SaverConfig(NJFileFormat.Text))
 
 // 7
     def csv[K: ClassTag: Eq](bucketing: A => K, pathBuilder: K => String)(implicit
@@ -141,9 +141,9 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
         enc,
         CsvConfiguration.rfc,
         constraint,
-        SaverConfig(NJFileFormat.Csv),
         bucketing,
-        pathBuilder)
+        pathBuilder,
+        SaverConfig(NJFileFormat.Csv))
 
 // 8
     def javaObject[K: ClassTag: Eq](
@@ -151,18 +151,18 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
       pathBuilder: K => String): JavaObjectPartitionSaver[F, A, K] =
       new JavaObjectPartitionSaver[F, A, K](
         rdd,
-        SaverConfig(NJFileFormat.JavaObject).withSingle,
         bucketing,
-        pathBuilder)
+        pathBuilder,
+        SaverConfig(NJFileFormat.JavaObject).withSingle)
 
 // 9
     def protobuf[K: ClassTag: Eq](bucketing: A => K, pathBuilder: K => String)(implicit
       ev: A <:< GeneratedMessage): ProtobufPartitionSaver[F, A, K] =
       new ProtobufPartitionSaver[F, A, K](
         rdd,
-        SaverConfig(NJFileFormat.JavaObject).withSingle,
         bucketing,
-        pathBuilder)
+        pathBuilder,
+        SaverConfig(NJFileFormat.ProtoBuf).withSingle)
 
   }
 }

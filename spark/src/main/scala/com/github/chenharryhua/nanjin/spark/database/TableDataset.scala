@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.database.DatabaseSettings
 import com.github.chenharryhua.nanjin.spark.saver._
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
+import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.{TypedDataset, TypedEncoder}
 import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.RowEncoder
@@ -27,9 +28,14 @@ final class TableDataset[F[_], A](ds: Dataset[A], dbSettings: DatabaseSettings, 
   def flatMap[B: AvroEncoder: TypedEncoder](f: A => TraversableOnce[B]): TableDataset[F, B] =
     new TableDataset[F, B](typedDataset.deserialized.flatMap(f).dataset, dbSettings, cfg)
 
+  def repartition(num: Int): TableDataset[F, A] =
+    new TableDataset[F, A](ds.repartition(num), dbSettings, cfg)
+
   def upload(implicit F: Sync[F]): F[Unit] =
     F.delay(
       sd.upload(ds, params.dbSaveMode, dbSettings.connStr, dbSettings.driver, params.tableName))
+
+  def count(implicit F: Sync[F]): F[Long] = typedDataset.count[F]()
 
   private val saver: RddFileSaver[F, A] = new RddFileSaver[F, A](ds.rdd)
 

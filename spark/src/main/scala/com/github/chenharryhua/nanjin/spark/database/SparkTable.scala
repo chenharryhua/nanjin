@@ -34,6 +34,8 @@ final class SparkTable[F[_], A: AvroEncoder: AvroDecoder](
 
   val params: STParams = cfg.evalConfig
 
+  val tableName: TableName = tableDef.tableName
+
   private def mode(sm: SaveMode): SparkTable[F, A] =
     new SparkTable[F, A](tableDef, dbSettings, cfg.withDbSaveMode(sm))
 
@@ -42,12 +44,15 @@ final class SparkTable[F[_], A: AvroEncoder: AvroDecoder](
   def ignoreIfExists: SparkTable[F, A] = mode(SaveMode.Ignore)
   def errorIfExists: SparkTable[F, A]  = mode(SaveMode.ErrorIfExists)
 
+  def withQuery(query: String): SparkTable[F, A] =
+    new SparkTable[F, A](tableDef, dbSettings, cfg.withQuery(query))
+
   def withPathBuilder(f: (DatabaseName, TableName, NJFileFormat) => String): SparkTable[F, A] =
     new SparkTable[F, A](tableDef, dbSettings, cfg.withPathBuilder(f))
 
   def fromDB: TableDataset[F, A] =
     new TableDataset[F, A](
-      sd.unload(dbSettings.connStr, dbSettings.driver, tableDef.tableName).dataset,
+      sd.unload(dbSettings.connStr, dbSettings.driver, tableDef.tableName, params.query).dataset,
       dbSettings,
       cfg)
 
@@ -76,9 +81,13 @@ final class SparkTable[F[_], A: AvroEncoder: AvroDecoder](
       circe(params.outPath(NJFileFormat.Circe))
 
     def csv(pathStr: String, csvConfig: CsvConfiguration): TableDataset[F, A] =
-      tableDataset(loader.csv(pathStr))
+      tableDataset(loader.csv(pathStr, csvConfig))
 
-    def csv: TableDataset[F, A] = csv(params.outPath(NJFileFormat.Csv), CsvConfiguration.rfc)
+    def csv(pathStr: String): TableDataset[F, A] =
+      csv(pathStr, CsvConfiguration.rfc)
+
+    def csv: TableDataset[F, A] =
+      csv(params.outPath(NJFileFormat.Csv))
 
     def text(pathStr: String)(f: String => A): TableDataset[F, A] =
       tableDataset(loader.text(pathStr).map(f))

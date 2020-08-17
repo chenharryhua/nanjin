@@ -55,7 +55,7 @@ private[saver] object SaverConfigF {
   final case class WithSingleOrMulti[K](value: SingleOrMulti, cont: K) extends SaverConfigF[K]
   final case class WithSparkOrHadoop[K](value: SparkOrHadoop, cont: K) extends SaverConfigF[K]
   final case class WithSaveMode[K](value: SaveMode, cont: K) extends SaverConfigF[K]
-  final case class WithParallism[K](value: Long, cont: K) extends SaverConfigF[K]
+  final case class WithParallelism[K](value: Long, cont: K) extends SaverConfigF[K]
 
   private val algebra: Algebra[SaverConfigF, SaverParams] =
     Algebra[SaverConfigF, SaverParams] {
@@ -63,7 +63,7 @@ private[saver] object SaverConfigF {
       case WithSingleOrMulti(v, c) => SaverParams.singleOrMulti.set(v)(c)
       case WithSparkOrHadoop(v, c) => SaverParams.sparkOrHadoop.set(v)(c)
       case WithSaveMode(v, c)      => SaverParams.saveMode.set(v)(c)
-      case WithParallism(v, c)     => SaverParams.parallelism.set(v)(c)
+      case WithParallelism(v, c)   => SaverParams.parallelism.set(v)(c)
     }
 
   def evalConfig(cfg: SaverConfig): SaverParams = scheme.cata(algebra).apply(cfg.value)
@@ -75,14 +75,19 @@ final private[saver] case class SaverConfig(value: Fix[SaverConfigF]) {
 
   def withSingle: SaverConfig = SaverConfig(Fix(WithSingleOrMulti(SingleOrMulti.Single, value)))
   def withMulti: SaverConfig  = SaverConfig(Fix(WithSingleOrMulti(SingleOrMulti.Multi, value)))
+
   def withSpark: SaverConfig  = SaverConfig(Fix(WithSparkOrHadoop(SparkOrHadoop.Spark, value)))
   def withHadoop: SaverConfig = SaverConfig(Fix(WithSparkOrHadoop(SparkOrHadoop.Hadoop, value)))
 
   def withSaveMode(saveMode: SaveMode): SaverConfig =
     SaverConfig(Fix(WithSaveMode(saveMode, value)))
 
-  def withParallism(num: Long): SaverConfig =
-    SaverConfig(Fix(WithParallism(num, value)))
+  def withError: SaverConfig     = withSaveMode(SaveMode.ErrorIfExists)
+  def withIgnore: SaverConfig    = withSaveMode(SaveMode.Ignore)
+  def withOverwrite: SaverConfig = withSaveMode(SaveMode.Overwrite)
+
+  def withParallel(num: Long): SaverConfig =
+    SaverConfig(Fix(WithParallelism(num, value)))
 }
 
 private[saver] object SaverConfig {
