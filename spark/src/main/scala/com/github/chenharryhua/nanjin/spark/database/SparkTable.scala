@@ -81,9 +81,13 @@ final class SparkTable[F[_], A: AvroEncoder: AvroDecoder](
       circe(params.outPath(NJFileFormat.Circe))
 
     def csv(pathStr: String, csvConfig: CsvConfiguration): TableDataset[F, A] =
-      tableDataset(loader.csv(pathStr))
+      tableDataset(loader.csv(pathStr, csvConfig))
 
-    def csv: TableDataset[F, A] = csv(params.outPath(NJFileFormat.Csv), CsvConfiguration.rfc)
+    def csv(pathStr: String): TableDataset[F, A] =
+      csv(pathStr, CsvConfiguration.rfc)
+
+    def csv: TableDataset[F, A] =
+      csv(params.outPath(NJFileFormat.Csv))
 
     def text(pathStr: String)(f: String => A): TableDataset[F, A] =
       tableDataset(loader.text(pathStr).map(f))
