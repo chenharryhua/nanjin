@@ -15,7 +15,7 @@ import scala.collection.immutable.Queue
 
 trait CrRddInvModule[F[_], K, V] { self: CrRdd[F, K, V] =>
 
-  def count(implicit F: SparkDelay[F]): F[Long] =
+  def count(implicit F: Sync[F]): F[Long] =
     F.delay(rdd.count())
 
   def stats: Statistics[F] =
