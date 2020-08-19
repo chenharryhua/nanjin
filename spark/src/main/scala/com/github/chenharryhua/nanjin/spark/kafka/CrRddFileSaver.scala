@@ -34,10 +34,13 @@ final class CrRddFileSaver[F[_], K, V](saver: RddFileSaver[F, OptionalKV[K, V]],
     saver.jackson(params.outPath(NJFileFormat.Jackson))
 
   def parquet(pathStr: String)(implicit
-    ev: TypedEncoder[OptionalKV[K, V]]): ParquetSaver[F, OptionalKV[K, V]] =
+    keyEncoder: TypedEncoder[K],
+    valEncoder: TypedEncoder[V]): ParquetSaver[F, OptionalKV[K, V]] =
     saver.parquet(pathStr)
 
-  def parquet(implicit ev: TypedEncoder[OptionalKV[K, V]]): ParquetSaver[F, OptionalKV[K, V]] =
+  def parquet(implicit
+    keyEncoder: TypedEncoder[K],
+    valEncoder: TypedEncoder[V]): ParquetSaver[F, OptionalKV[K, V]] =
     saver.parquet(params.outPath(NJFileFormat.Parquet))
 
   def binAvro(pathStr: String): BinaryAvroSaver[F, OptionalKV[K, V]] =
@@ -53,10 +56,13 @@ final class CrRddFileSaver[F[_], K, V](saver: RddFileSaver[F, OptionalKV[K, V]],
     saver.text(params.outPath(NJFileFormat.Text))
 
   def circe(pathStr: String)(implicit
-    ev: JsonEncoder[OptionalKV[K, V]]): CirceSaver[F, OptionalKV[K, V]] =
+    jsonKeyDecoder: JsonEncoder[K],
+    jsonValDecoder: JsonEncoder[V]): CirceSaver[F, OptionalKV[K, V]] =
     saver.circe(pathStr)
 
-  def circe(implicit ev: JsonEncoder[OptionalKV[K, V]]): CirceSaver[F, OptionalKV[K, V]] =
+  def circe(implicit
+    jsonKeyDecoder: JsonEncoder[K],
+    jsonValDecoder: JsonEncoder[V]): CirceSaver[F, OptionalKV[K, V]] =
     saver.circe(params.outPath(NJFileFormat.Circe))
 
   def javaObject(pathStr: String): JavaObjectSaver[F, OptionalKV[K, V]] =
@@ -94,7 +100,8 @@ final class CrRddFileSaver[F[_], K, V](saver: RddFileSaver[F, OptionalKV[K, V]],
       saver.partition.jackson[LocalDate](bucketing, params.datePartition(NJFileFormat.Jackson))
 
     def parquet(implicit
-      ev: TypedEncoder[OptionalKV[K, V]]): ParquetPartitionSaver[F, OptionalKV[K, V], LocalDate] =
+      keyEncoder: TypedEncoder[K],
+      valEncoder: TypedEncoder[V]): ParquetPartitionSaver[F, OptionalKV[K, V], LocalDate] =
       saver.partition.parquet[LocalDate](bucketing, params.datePartition(NJFileFormat.Parquet))
 
     def binAvro: BinaryAvroPartitionSaver[F, OptionalKV[K, V], LocalDate] =
@@ -112,7 +119,8 @@ final class CrRddFileSaver[F[_], K, V](saver: RddFileSaver[F, OptionalKV[K, V]],
         .javaObject[LocalDate](bucketing, params.datePartition(NJFileFormat.JavaObject))
 
     def circe(implicit
-      ev: JsonEncoder[OptionalKV[K, V]]): CircePartitionSaver[F, OptionalKV[K, V], LocalDate] =
+      jsonKeyDecoder: JsonEncoder[K],
+      jsonValDecoder: JsonEncoder[V]): CircePartitionSaver[F, OptionalKV[K, V], LocalDate] =
       saver.partition.circe[LocalDate](bucketing, params.datePartition(NJFileFormat.Circe))
   }
 }

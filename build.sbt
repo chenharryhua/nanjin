@@ -51,7 +51,7 @@ val json4s  = "3.5.5"
 val kantan  = "0.6.1"
 val parquet = "1.11.1"
 val avro    = "1.10.0"
-val avro4s  = "3.1.1"
+val avro4s  = "4.0.0-RC2"
 
 // connect
 val hadoop  = "3.3.0"

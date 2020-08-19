@@ -2,7 +2,13 @@ package com.github.chenharryhua.nanjin.messages.kafka.codec
 
 import cats.data.Ior
 import cats.implicits._
-import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
+import com.sksamuel.avro4s.{
+  DecoderHelpers,
+  EncoderHelpers,
+  SchemaFor,
+  Decoder => AvroDecoder,
+  Encoder => AvroEncoder
+}
 import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType
 import org.apache.avro.{Schema, SchemaCompatibility}
 
@@ -39,18 +45,18 @@ object WithAvroSchema {
           Some("write-read incompatiable.")
         else None
 
-      val compat: Option[String] = rwCompat |+| wrCompat
-      val sf: SchemaFor[A]       = SchemaFor[A](input)
+      val compat: Option[String]  = rwCompat |+| wrCompat
+      val schemaFor: SchemaFor[A] = SchemaFor[A](input)
       val was: Either[String, WithAvroSchema[A]] = for {
         d <-
           Either
-            .catchNonFatal(decoder.withSchema(sf))
+            .catchNonFatal(DecoderHelpers.buildWithSchema(decoder, schemaFor))
             .leftMap(_ => "avro4s decline decode schema change")
         e <-
           Either
-            .catchNonFatal(encoder.withSchema(sf))
+            .catchNonFatal(EncoderHelpers.buildWithSchema(encoder, schemaFor))
             .leftMap(_ => "avro4s decline encode schema change")
-      } yield WithAvroSchema(sf, d, e)
+      } yield WithAvroSchema(schemaFor, d, e)
       Ior.fromEither(was).flatMap { w =>
         compat.fold[Ior[String, WithAvroSchema[A]]](Ior.right(w))(warn => Ior.both(warn, w))
       }

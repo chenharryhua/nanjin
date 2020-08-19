@@ -23,7 +23,7 @@ private[spark] trait DatasetExtensions {
     def stream[F[_]: Sync]: Stream[F, A] = Stream.fromIterator(rdd.toLocalIterator)
 
     def source[F[_]: ConcurrentEffect]: Source[A, NotUsed] =
-      Source.fromPublisher[A](stream[F].toUnicastPublisher())
+      Source.fromPublisher[A](stream[F].toUnicastPublisher)
 
     def typedDataset(implicit ev: TypedEncoder[A], ss: SparkSession): TypedDataset[A] =
       TypedDataset.create(rdd)
@@ -39,7 +39,7 @@ private[spark] trait DatasetExtensions {
     def stream[F[_]: Sync]: Stream[F, A] = tds.dataset.rdd.stream[F]
 
     def source[F[_]: ConcurrentEffect]: Source[A, NotUsed] =
-      Source.fromPublisher[A](stream[F].toUnicastPublisher())
+      Source.fromPublisher[A](stream[F].toUnicastPublisher)
 
     def dismissNulls: TypedDataset[A]   = tds.deserialized.filter(_ != null)
     def numOfNulls[F[_]: Sync]: F[Long] = tds.except(dismissNulls).count[F]()
