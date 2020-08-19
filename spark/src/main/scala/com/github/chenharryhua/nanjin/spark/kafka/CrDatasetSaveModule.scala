@@ -45,10 +45,13 @@ private[kafka] trait CrDatasetSaveModule[F[_], K, V] { self: CrDataset[F, K, V] 
       text(params.outPath(NJFileFormat.Text))
 
     def circe(pathStr: String)(implicit
-      ev: JsonEncoder[OptionalKV[K, V]]): CirceSaver[F, OptionalKV[K, V]] =
+      jsonKeyDecoder: JsonEncoder[K],
+      jsonValDecoder: JsonEncoder[V]): CirceSaver[F, OptionalKV[K, V]] =
       saver.circe(pathStr)
 
-    def circe(implicit ev: JsonEncoder[OptionalKV[K, V]]): CirceSaver[F, OptionalKV[K, V]] =
+    def circe(implicit
+      jsonKeyDecoder: JsonEncoder[K],
+      jsonValDecoder: JsonEncoder[V]): CirceSaver[F, OptionalKV[K, V]] =
       circe(params.outPath(NJFileFormat.Circe))
 
     def javaObject(pathStr: String): JavaObjectSaver[F, OptionalKV[K, V]] =

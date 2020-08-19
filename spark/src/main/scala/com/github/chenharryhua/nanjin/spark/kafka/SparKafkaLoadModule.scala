@@ -36,10 +36,12 @@ private[kafka] trait SparKafkaLoadModule[F[_], K, V] {
     def binAvro: CrRdd[F, K, V] =
       binAvro(params.outPath(NJFileFormat.BinaryAvro))
 
-    def parquet(pathStr: String)(implicit ev: TypedEncoder[OptionalKV[K, V]]): CrRdd[F, K, V] =
+    def parquet(pathStr: String)(implicit
+      keyEncoder: TypedEncoder[K],
+      valEncoder: TypedEncoder[V]): CrRdd[F, K, V] =
       crRdd(loader.parquet[OptionalKV[K, V]](pathStr))
 
-    def parquet(implicit ev: TypedEncoder[OptionalKV[K, V]]): CrRdd[F, K, V] =
+    def parquet(implicit keyEncoder: TypedEncoder[K], valEncoder: TypedEncoder[V]): CrRdd[F, K, V] =
       parquet(params.outPath(NJFileFormat.Parquet))
 
     def jackson(pathStr: String): CrRdd[F, K, V] =
