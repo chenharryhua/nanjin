@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.database
 
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.database.{DatabaseName, DatabaseSettings, TableName}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.WithAvroSchema
 import com.github.chenharryhua.nanjin.spark.NJRddLoader
 import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
 import frameless.{TypedDataset, TypedEncoder}
@@ -10,8 +11,10 @@ import kantan.csv.CsvConfiguration
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
-final class TableDef[A: AvroEncoder: AvroDecoder] private (val tableName: TableName)(implicit
-  val typedEncoder: TypedEncoder[A]) {
+final class TableDef[A] private (val tableName: TableName)(implicit
+  val typedEncoder: TypedEncoder[A],
+  val avroEncoder: AvroEncoder[A],
+  val avroDecoder: AvroDecoder[A]) {
 
   def in[F[_]](dbSettings: DatabaseSettings)(implicit
     sparkSession: SparkSession): SparkTable[F, A] =
@@ -22,6 +25,9 @@ object TableDef {
 
   def apply[A: TypedEncoder: AvroEncoder: AvroDecoder](tableName: TableName): TableDef[A] =
     new TableDef[A](tableName)
+
+  def apply[A](tableName: TableName, schema: WithAvroSchema[A])(implicit encoder: TypedEncoder[A]) =
+    new TableDef[A](tableName)(encoder, schema.avroEncoder, schema.avroDecoder)
 }
 
 final class SparkTable[F[_], A: AvroEncoder: AvroDecoder](
