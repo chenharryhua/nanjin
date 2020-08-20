@@ -21,3 +21,4 @@ test-data/
 data/*
 project/metals.sbt
 out/*
+.vscode/*
