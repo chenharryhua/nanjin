@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.spark
+package com.github.chenharryhua.nanjin.spark.saver
 
 import cats.implicits._
 import com.sksamuel.avro4s.{AvroInputStream, Decoder => AvroDecoder}
@@ -20,7 +20,7 @@ import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import scala.reflect.ClassTag
 
-final class NJRddLoader(ss: SparkSession) extends Serializable {
+final class RddFileLoader(ss: SparkSession) extends Serializable {
 
 // 1
   def avro[A: ClassTag](pathStr: String)(implicit decoder: AvroDecoder[A]): RDD[A] = {
@@ -98,8 +98,9 @@ final class NJRddLoader(ss: SparkSession) extends Serializable {
     ss.sparkContext.textFile(path)
 
 // 7
-  def csv[A: TypedEncoder](pathStr: String, csvConfig: CsvConfiguration): RDD[A] = {
-    val structType: StructType = TypedExpressionEncoder.targetStructType(TypedEncoder[A])
+  def csv[A](pathStr: String, csvConfig: CsvConfiguration)(implicit
+    enc: TypedEncoder[A]): RDD[A] = {
+    val structType: StructType = TypedExpressionEncoder.targetStructType(enc)
     val df: DataFrame = ss.read
       .schema(structType)
       .option("sep", csvConfig.cellSeparator.toString)

@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.database
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.database.{DatabaseName, DatabaseSettings, TableName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.WithAvroSchema
-import com.github.chenharryhua.nanjin.spark.NJRddLoader
+import com.github.chenharryhua.nanjin.spark.saver.RddFileLoader
 import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
 import frameless.{TypedDataset, TypedEncoder}
 import io.circe.{Decoder => JsonDecoder}
@@ -66,7 +66,7 @@ final class SparkTable[F[_], A: AvroEncoder: AvroDecoder](
     new TableDataset[F, A](TypedDataset.create(rdd).dataset, dbSettings, cfg)
 
   object load extends Serializable {
-    private val loader: NJRddLoader = new NJRddLoader(sparkSession)
+    private val loader: RddFileLoader = new RddFileLoader(sparkSession)
 
     def avro(pathStr: String): TableDataset[F, A] = tableDataset(loader.avro[A](pathStr))
     def avro: TableDataset[F, A]                  = avro(params.outPath(NJFileFormat.Avro))
