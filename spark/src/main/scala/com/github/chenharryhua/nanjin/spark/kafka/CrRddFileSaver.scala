@@ -12,6 +12,7 @@ import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.TypedEncoder
 import frameless.cats.implicits.rddOps
 import io.circe.{Encoder => JsonEncoder}
+import io.circe.generic.auto._
 import kantan.csv.RowEncoder
 import scalapb.GeneratedMessage
 

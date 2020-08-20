@@ -9,8 +9,6 @@ import cats.{Applicative, Bifunctor, Bitraverse, Eval, Order, Show}
 import io.scalaland.chimney.dsl._
 import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.ConsumerRecord
-import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
-import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
 
 /**
   * compatible with spark kafka streaming
@@ -98,21 +96,6 @@ object OptionalKV {
       cr.topic,
       cr.timestampType.id)
 
-  // no return type!
-  implicit def avroEncoderOptionalKV[K: AvroEncoder, V: AvroEncoder] =
-    AvroEncoder[OptionalKV[K, V]]
-
-  implicit def avroDecoderOptionalKV[K: AvroDecoder, V: AvroDecoder] =
-    AvroDecoder[OptionalKV[K, V]]
-
-  implicit def jsonEncoderOptionalKV[K: JsonEncoder, V: JsonEncoder]
-    : JsonEncoder[OptionalKV[K, V]] =
-    io.circe.generic.semiauto.deriveEncoder[OptionalKV[K, V]]
-
-  implicit def jsonDecoderOptionalKV[K: JsonDecoder, V: JsonDecoder]
-    : JsonDecoder[OptionalKV[K, V]] =
-    io.circe.generic.semiauto.deriveDecoder[OptionalKV[K, V]]
-
   implicit val bifunctorOptionalKV: Bifunctor[OptionalKV] =
     new Bifunctor[OptionalKV] {
 
@@ -163,20 +146,6 @@ final case class CompulsoryV[K, V](
 
 object CompulsoryV {
 
-  implicit def avroEncoderCompulsoryV[K: AvroEncoder, V: AvroEncoder] =
-    AvroEncoder[CompulsoryV[K, V]]
-
-  implicit def avroDecoderCompulsoryV[K: AvroDecoder, V: AvroDecoder] =
-    AvroDecoder[CompulsoryV[K, V]]
-
-  implicit def jsonEncoderCompulsoryV[K: JsonEncoder, V: JsonEncoder]
-    : JsonEncoder[CompulsoryV[K, V]] =
-    io.circe.generic.semiauto.deriveEncoder[CompulsoryV[K, V]]
-
-  implicit def jsonDecoderCompulsoryV[K: JsonDecoder, V: JsonDecoder]
-    : JsonDecoder[CompulsoryV[K, V]] =
-    io.circe.generic.semiauto.deriveDecoder[CompulsoryV[K, V]]
-
   implicit val bifunctorCompulsoryV: Bifunctor[CompulsoryV] =
     new Bifunctor[CompulsoryV] {
 
@@ -208,20 +177,6 @@ final case class CompulsoryK[K, V](
 }
 
 object CompulsoryK {
-
-  implicit def avroEncoderCompulsoryK[K: AvroEncoder, V: AvroEncoder] =
-    AvroEncoder[CompulsoryK[K, V]]
-
-  implicit def avroDecoderCompulsoryK[K: AvroDecoder, V: AvroDecoder] =
-    AvroDecoder[CompulsoryK[K, V]]
-
-  implicit def jsonEncoderCompulsoryK[K: JsonEncoder, V: JsonEncoder]
-    : JsonEncoder[CompulsoryK[K, V]] =
-    io.circe.generic.semiauto.deriveEncoder[CompulsoryK[K, V]]
-
-  implicit def jsonDecoderCompulsoryK[K: JsonDecoder, V: JsonDecoder]
-    : JsonDecoder[CompulsoryK[K, V]] =
-    io.circe.generic.semiauto.deriveDecoder[CompulsoryK[K, V]]
 
   implicit val bifunctorCompulsoryK: Bifunctor[CompulsoryK] =
     new Bifunctor[CompulsoryK] {
@@ -255,20 +210,6 @@ final case class CompulsoryKV[K, V](
 }
 
 object CompulsoryKV {
-
-  implicit def avroEncoderCompulsoryKV[K: AvroEncoder, V: AvroEncoder] =
-    AvroEncoder[CompulsoryKV[K, V]]
-
-  implicit def avroDecoderCompulsoryKV[K: AvroDecoder, V: AvroDecoder] =
-    AvroDecoder[CompulsoryKV[K, V]]
-
-  implicit def jsonEncoderCompulsoryKV[K: JsonEncoder, V: JsonEncoder]
-    : JsonEncoder[CompulsoryKV[K, V]] =
-    io.circe.generic.semiauto.deriveEncoder[CompulsoryKV[K, V]]
-
-  implicit def jsonDecoderCompulsoryKV[K: JsonDecoder, V: JsonDecoder]
-    : JsonDecoder[CompulsoryKV[K, V]] =
-    io.circe.generic.semiauto.deriveDecoder[CompulsoryKV[K, V]]
 
   implicit val bifunctorCompulsoryKV: Bitraverse[CompulsoryKV] =
     new Bitraverse[CompulsoryKV] {
