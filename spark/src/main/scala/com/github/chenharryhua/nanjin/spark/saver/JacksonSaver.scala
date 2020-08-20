@@ -68,7 +68,7 @@ final class JacksonSaver[F[_], A](
 final class JacksonPartitionSaver[F[_], A, K: ClassTag: Eq](
   rdd: RDD[A],
   encoder: Encoder[A],
-  bucketing: A => K,
+  bucketing: A => Option[K],
   pathBuilder: K => String,
   val cfg: SaverConfig)
     extends AbstractJacksonSaver[F, A](encoder) with Partition[F, A, K] {
@@ -87,7 +87,7 @@ final class JacksonPartitionSaver[F[_], A, K: ClassTag: Eq](
     updateConfig(cfg.withParallel(num))
 
   override def reBucket[K1: ClassTag: Eq](
-    bucketing: A => K1,
+    bucketing: A => Option[K1],
     pathBuilder: K1 => String): JacksonPartitionSaver[F, A, K1] =
     new JacksonPartitionSaver[F, A, K1](rdd, encoder, bucketing, pathBuilder, cfg)
 

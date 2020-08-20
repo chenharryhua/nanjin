@@ -4,7 +4,7 @@ import cats.effect.Sync
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
-import com.github.chenharryhua.nanjin.spark.NJRddLoader
+import com.github.chenharryhua.nanjin.spark.saver.RddFileLoader
 import frameless.TypedEncoder
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import io.circe.generic.auto._
@@ -20,7 +20,7 @@ private[kafka] trait SparKafkaLoadModule[F[_], K, V] {
   final def fromDisk: CrRdd[F, K, V] =
     crRdd(sk.loadDiskRdd[K, V](params.replayPath))
 
-  private val loader = new NJRddLoader(sparkSession)
+  private val loader = new RddFileLoader(sparkSession)
 
   object load {
 

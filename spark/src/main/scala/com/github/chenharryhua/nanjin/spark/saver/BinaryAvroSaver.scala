@@ -48,7 +48,7 @@ final class BinaryAvroSaver[F[_], A](
 final class BinaryAvroPartitionSaver[F[_], A, K: ClassTag: Eq](
   rdd: RDD[A],
   encoder: Encoder[A],
-  bucketing: A => K,
+  bucketing: A => Option[K],
   pathBuilder: K => String,
   val cfg: SaverConfig)
     extends AbstractBinaryAvroSaver[F, A](encoder) with Partition[F, A, K] {
@@ -64,7 +64,7 @@ final class BinaryAvroPartitionSaver[F[_], A, K: ClassTag: Eq](
     updateConfig(cfg.withParallel(num))
 
   override def reBucket[K1: ClassTag: Eq](
-    bucketing: A => K1,
+    bucketing: A => Option[K1],
     pathBuilder: K1 => String): BinaryAvroPartitionSaver[F, A, K1] =
     new BinaryAvroPartitionSaver[F, A, K1](rdd, encoder, bucketing, pathBuilder, cfg)
 

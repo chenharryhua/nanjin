@@ -38,7 +38,7 @@ final class JavaObjectSaver[F[_], A](rdd: RDD[A], outPath: String, cfg: SaverCon
 
 final class JavaObjectPartitionSaver[F[_], A, K: ClassTag: Eq](
   rdd: RDD[A],
-  bucketing: A => K,
+  bucketing: A => Option[K],
   pathBuilder: K => String,
   val cfg: SaverConfig)
     extends AbstractJavaObjectSaver[F, A] with Partition[F, A, K] {
@@ -54,7 +54,7 @@ final class JavaObjectPartitionSaver[F[_], A, K: ClassTag: Eq](
     updateConfig(cfg.withParallel(num))
 
   override def reBucket[K1: ClassTag: Eq](
-    bucketing: A => K1,
+    bucketing: A => Option[K1],
     pathBuilder: K1 => String): JavaObjectPartitionSaver[F, A, K1] =
     new JavaObjectPartitionSaver[F, A, K1](rdd, bucketing, pathBuilder, cfg)
 

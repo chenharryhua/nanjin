@@ -6,7 +6,6 @@ import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.implicits._
 import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.spark._
-import monocle.Lens
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 
@@ -85,17 +84,17 @@ private[saver] trait AbstractSaver[F[_], A] extends Serializable {
     rdd: RDD[A],
     params: SaverParams,
     blocker: Blocker,
-    bucketing: A => K,
+    bucketing: A => Option[K],
     pathBuilder: K => String)(implicit
     F: Concurrent[F],
     CS: ContextShift[F],
     P: Parallel[F],
     ss: SparkSession): F[Unit] =
     F.bracket(blocker.delay(rdd.persist())) { pr =>
-      val keys: List[K] = pr.map(bucketing).distinct().collect().toList
+      val keys: List[K] = pr.flatMap(bucketing(_)).distinct().collect().toList
       keys
         .parTraverseN(params.parallelism) { k =>
-          saveRdd(pr.filter(a => k === bucketing(a)), pathBuilder(k), params, blocker)
+          saveRdd(pr.filter(a => bucketing(a).exists(_ === k)), pathBuilder(k), params, blocker)
         }
         .void
     }(pr => blocker.delay(pr.unpersist()))
@@ -103,7 +102,9 @@ private[saver] trait AbstractSaver[F[_], A] extends Serializable {
 
 private[saver] trait Partition[F[_], A, K] {
 
-  def reBucket[K1: ClassTag: Eq](bucketing: A => K1, pathBuilder: K1 => String): Partition[F, A, K1]
+  def reBucket[K1: ClassTag: Eq](
+    bucketing: A => Option[K1],
+    pathBuilder: K1 => String): Partition[F, A, K1]
 
   def rePath(pathBuilder: K => String): Partition[F, A, K]
 

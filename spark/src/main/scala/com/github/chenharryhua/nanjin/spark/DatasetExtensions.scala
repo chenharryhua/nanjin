@@ -4,7 +4,7 @@ import akka.NotUsed
 import akka.stream.scaladsl.Source
 import cats.effect.{ConcurrentEffect, Sync}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.spark.saver.RddFileSaver
+import com.github.chenharryhua.nanjin.spark.saver.{RddFileLoader, RddFileSaver}
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
@@ -57,6 +57,6 @@ private[spark] trait DatasetExtensions {
 
   implicit final class SparkSessionExt(private val ss: SparkSession) {
 
-    val load: NJRddLoader = new NJRddLoader(ss)
+    val load: RddFileLoader = new RddFileLoader(ss)
   }
 }

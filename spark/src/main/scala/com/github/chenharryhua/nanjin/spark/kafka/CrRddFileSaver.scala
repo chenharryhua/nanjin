@@ -12,6 +12,7 @@ import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.TypedEncoder
 import frameless.cats.implicits.rddOps
 import io.circe.{Encoder => JsonEncoder}
+import io.circe.generic.auto._
 import kantan.csv.RowEncoder
 import scalapb.GeneratedMessage
 
@@ -93,8 +94,8 @@ final class CrRddFileSaver[F[_], K, V](saver: RddFileSaver[F, OptionalKV[K, V]],
 
   object partition extends Serializable {
 
-    private def bucketing(kv: OptionalKV[K, V]): LocalDate =
-      NJTimestamp(kv.timestamp).dayResolution(params.timeRange.zoneId)
+    private def bucketing(kv: OptionalKV[K, V]): Option[LocalDate] =
+      Some(NJTimestamp(kv.timestamp).dayResolution(params.timeRange.zoneId))
 
     def jackson: JacksonPartitionSaver[F, OptionalKV[K, V], LocalDate] =
       saver.partition.jackson[LocalDate](bucketing, params.datePartition(NJFileFormat.Jackson))

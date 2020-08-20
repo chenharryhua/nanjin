@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.database
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.database.{DatabaseName, DatabaseSettings, TableName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.WithAvroSchema
-import com.github.chenharryhua.nanjin.spark.NJRddLoader
+import com.github.chenharryhua.nanjin.spark.saver.RddFileLoader
 import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
 import frameless.{TypedDataset, TypedEncoder}
 import io.circe.{Decoder => JsonDecoder}
@@ -11,31 +11,37 @@ import kantan.csv.CsvConfiguration
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
-final class TableDef[A] private (val tableName: TableName)(implicit
-  val typedEncoder: TypedEncoder[A],
-  val avroEncoder: AvroEncoder[A],
-  val avroDecoder: AvroDecoder[A]) {
+final case class TableDef[A] private (
+  tableName: TableName,
+  typedEncoder: TypedEncoder[A],
+  avroEncoder: AvroEncoder[A],
+  avroDecoder: AvroDecoder[A]) {
 
   def in[F[_]](dbSettings: DatabaseSettings)(implicit
     sparkSession: SparkSession): SparkTable[F, A] =
-    new SparkTable[F, A](this, dbSettings, STConfig(dbSettings.database, tableName))
+    new SparkTable[F, A](this, dbSettings, STConfig(dbSettings.database, tableName), sparkSession)
 }
 
 object TableDef {
 
-  def apply[A: TypedEncoder: AvroEncoder: AvroDecoder](tableName: TableName): TableDef[A] =
-    new TableDef[A](tableName)
+  def apply[A: AvroEncoder: AvroDecoder: TypedEncoder](tableName: TableName): TableDef[A] =
+    new TableDef[A](tableName, TypedEncoder[A], AvroEncoder[A], AvroDecoder[A])
 
-  def apply[A](tableName: TableName, schema: WithAvroSchema[A])(implicit encoder: TypedEncoder[A]) =
-    new TableDef[A](tableName)(encoder, schema.avroEncoder, schema.avroDecoder)
+  def apply[A](tableName: TableName, schema: WithAvroSchema[A])(implicit
+    typedEncoder: TypedEncoder[A]) =
+    new TableDef[A](tableName, typedEncoder, schema.avroEncoder, schema.avroDecoder)
 }
 
-final class SparkTable[F[_], A: AvroEncoder: AvroDecoder](
+final class SparkTable[F[_], A](
   tableDef: TableDef[A],
   dbSettings: DatabaseSettings,
-  cfg: STConfig)(implicit sparkSession: SparkSession)
+  cfg: STConfig,
+  ss: SparkSession)
     extends Serializable {
-  import tableDef.typedEncoder
+  implicit val sparkSession: SparkSession    = ss
+  implicit val avroDecoder: AvroDecoder[A]   = tableDef.avroDecoder
+  implicit val avroEncoder: AvroEncoder[A]   = tableDef.avroEncoder
+  implicit val typedEncoder: TypedEncoder[A] = tableDef.typedEncoder
   import tableDef.typedEncoder.classTag
 
   val params: STParams = cfg.evalConfig
@@ -43,7 +49,7 @@ final class SparkTable[F[_], A: AvroEncoder: AvroDecoder](
   val tableName: TableName = tableDef.tableName
 
   private def mode(sm: SaveMode): SparkTable[F, A] =
-    new SparkTable[F, A](tableDef, dbSettings, cfg.withDbSaveMode(sm))
+    new SparkTable[F, A](tableDef, dbSettings, cfg.withDbSaveMode(sm), ss)
 
   def overwrite: SparkTable[F, A]      = mode(SaveMode.Overwrite)
   def append: SparkTable[F, A]         = mode(SaveMode.Append)
@@ -51,10 +57,10 @@ final class SparkTable[F[_], A: AvroEncoder: AvroDecoder](
   def errorIfExists: SparkTable[F, A]  = mode(SaveMode.ErrorIfExists)
 
   def withQuery(query: String): SparkTable[F, A] =
-    new SparkTable[F, A](tableDef, dbSettings, cfg.withQuery(query))
+    new SparkTable[F, A](tableDef, dbSettings, cfg.withQuery(query), ss)
 
   def withPathBuilder(f: (DatabaseName, TableName, NJFileFormat) => String): SparkTable[F, A] =
-    new SparkTable[F, A](tableDef, dbSettings, cfg.withPathBuilder(f))
+    new SparkTable[F, A](tableDef, dbSettings, cfg.withPathBuilder(f), ss)
 
   def fromDB: TableDataset[F, A] =
     new TableDataset[F, A](
@@ -66,7 +72,7 @@ final class SparkTable[F[_], A: AvroEncoder: AvroDecoder](
     new TableDataset[F, A](TypedDataset.create(rdd).dataset, dbSettings, cfg)
 
   object load extends Serializable {
-    private val loader: NJRddLoader = new NJRddLoader(sparkSession)
+    private val loader: RddFileLoader = new RddFileLoader(sparkSession)
 
     def avro(pathStr: String): TableDataset[F, A] = tableDataset(loader.avro[A](pathStr))
     def avro: TableDataset[F, A]                  = avro(params.outPath(NJFileFormat.Avro))

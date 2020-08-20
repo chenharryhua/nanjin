@@ -6,9 +6,9 @@ import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.spark.saver._
 import frameless.TypedEncoder
 import io.circe.{Encoder => JsonEncoder}
+import io.circe.generic.auto._
 import kantan.csv.RowEncoder
 import scalapb.GeneratedMessage
-
 import scala.reflect.ClassTag
 
 private[kafka] trait CrDatasetSaveModule[F[_], K, V] { self: CrDataset[F, K, V] =>

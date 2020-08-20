@@ -92,22 +92,22 @@ final class TableDataset[F[_], A](ds: Dataset[A], dbSettings: DatabaseSettings, 
     object partition extends Serializable {
 
       def avro: AvroPartitionSaver[F, A, Unit] =
-        saver.partition.avro(a => (), Unit => params.outPath(NJFileFormat.Avro))
+        saver.partition.avro(a => Some(()), Unit => params.outPath(NJFileFormat.Avro))
 
       def jackson: JacksonPartitionSaver[F, A, Unit] =
-        saver.partition.jackson(a => (), Unit => params.outPath(NJFileFormat.Jackson))
+        saver.partition.jackson(a => Some(()), Unit => params.outPath(NJFileFormat.Jackson))
 
       def circe(implicit ev: JsonEncoder[A]): CircePartitionSaver[F, A, Unit] =
-        saver.partition.circe(a => (), Unit => params.outPath(NJFileFormat.Circe))
+        saver.partition.circe(a => Some(()), Unit => params.outPath(NJFileFormat.Circe))
 
       def parquet: ParquetPartitionSaver[F, A, Unit] =
-        saver.partition.parquet(a => (), Unit => params.outPath(NJFileFormat.Parquet))
+        saver.partition.parquet(a => Some(()), Unit => params.outPath(NJFileFormat.Parquet))
 
       def csv(implicit ev: RowEncoder[A]): CsvPartitionSaver[F, A, Unit] =
-        saver.partition.csv(a => (), Unit => params.outPath(NJFileFormat.Csv))
+        saver.partition.csv(a => Some(()), Unit => params.outPath(NJFileFormat.Csv))
 
       def text(implicit ev: Show[A]): TextPartitionSaver[F, A, Unit] =
-        saver.partition.text(a => (), Unit => params.outPath(NJFileFormat.Text))
+        saver.partition.text(a => Some(()), Unit => params.outPath(NJFileFormat.Text))
     }
   }
 }
