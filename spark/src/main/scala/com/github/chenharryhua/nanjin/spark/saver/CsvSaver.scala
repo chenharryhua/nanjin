@@ -82,7 +82,7 @@ final class CsvPartitionSaver[F[_], A, K: ClassTag: Eq](
   encoder: RowEncoder[A],
   csvConfiguration: CsvConfiguration,
   constraint: TypedEncoder[A],
-  bucketing: A => K,
+  bucketing: A => Option[K],
   pathBuilder: K => String,
   val cfg: SaverConfig
 ) extends AbstractCsvSaver[F, A](encoder, csvConfiguration, constraint) with Partition[F, A, K] {
@@ -119,7 +119,7 @@ final class CsvPartitionSaver[F[_], A, K: ClassTag: Eq](
     updateConfig(cfg.withParallel(num))
 
   override def reBucket[K1: ClassTag: Eq](
-    bucketing: A => K1,
+    bucketing: A => Option[K1],
     pathBuilder: K1 => String): CsvPartitionSaver[F, A, K1] =
     new CsvPartitionSaver[F, A, K1](
       rdd,

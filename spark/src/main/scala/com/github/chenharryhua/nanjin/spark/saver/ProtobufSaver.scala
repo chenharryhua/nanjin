@@ -41,7 +41,7 @@ final class ProtobufSaver[F[_], A](rdd: RDD[A], outPath: String, cfg: SaverConfi
 
 final class ProtobufPartitionSaver[F[_], A, K: ClassTag: Eq](
   rdd: RDD[A],
-  bucketing: A => K,
+  bucketing: A => Option[K],
   pathBuilder: K => String,
   val cfg: SaverConfig)(implicit enc: A <:< GeneratedMessage)
     extends AbstractProtobufSaver[F, A] with Partition[F, A, K] {
@@ -57,7 +57,7 @@ final class ProtobufPartitionSaver[F[_], A, K: ClassTag: Eq](
     updateConfig(cfg.withParallel(num))
 
   override def reBucket[K1: ClassTag: Eq](
-    bucketing: A => K1,
+    bucketing: A => Option[K1],
     pathBuilder: K1 => String): ProtobufPartitionSaver[F, A, K1] =
     new ProtobufPartitionSaver[F, A, K1](rdd, bucketing, pathBuilder, cfg)
 
