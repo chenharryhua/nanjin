@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.pipes
 import java.io._
 
 import cats.effect.{ConcurrentEffect, ContextShift, Resource}
-import cats.implicits._
 import fs2.io.toInputStream
 import fs2.{Pipe, Pull, Stream}
 

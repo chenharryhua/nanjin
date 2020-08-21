@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.spark
 import java.sql.{Date, Timestamp}
 
 import cats.Order
-import cats.implicits._
 import frameless.{Injection, SQLDate, SQLTimestamp}
 import io.circe.{Decoder, Encoder}
 import monocle.Iso

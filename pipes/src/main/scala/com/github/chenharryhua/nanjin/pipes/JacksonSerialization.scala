@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.pipes
 import java.io.{ByteArrayOutputStream, EOFException, InputStream}
 
 import cats.effect.ConcurrentEffect
-import cats.implicits._
 import com.fasterxml.jackson.databind.ObjectMapper
 import fs2.io.toInputStream
 import fs2.{Chunk, Pipe, Pull, Stream}

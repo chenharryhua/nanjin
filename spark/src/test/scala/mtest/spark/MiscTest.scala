@@ -2,6 +2,7 @@ package mtest.spark
 
 import cats.effect.IO
 import cats.kernel.Eq
+import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
@@ -46,6 +47,7 @@ class MiscTest extends AnyFunSuite {
 
     val res = db.joinLeft(ds)(db('id) === ds('id))
     res.show[IO](truncate = false).unsafeRunSync()
+
   }
 
   test("typed encoder of scalapb generate case class") {
@@ -65,5 +67,10 @@ class MiscTest extends AnyFunSuite {
         .unsafeRunSync()
         .toSet
     assert(rst == whales.toSet)
+  }
+
+  test("gen case class") {
+    val ds = TypedDataset.create(sisters)
+    println(ds.dataset.toDF().genCaseClass)
   }
 }

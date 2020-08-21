@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.pipes
 
 import cats.effect.{Blocker, Concurrent, ConcurrentEffect, ContextShift}
-import cats.implicits._
 import com.google.protobuf.CodedInputStream
 import fs2.io.{readOutputStream, toInputStream}
 import fs2.{Pipe, Stream}

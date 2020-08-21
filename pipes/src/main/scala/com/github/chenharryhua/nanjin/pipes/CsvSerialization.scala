@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.pipes
 
 import cats.effect.{Blocker, Concurrent, ConcurrentEffect, ContextShift}
-import cats.implicits._
 import fs2.io.{readOutputStream, toInputStream}
 import fs2.{Pipe, Pull, Stream}
 import kantan.csv.{CsvConfiguration, CsvWriter, RowDecoder, RowEncoder}

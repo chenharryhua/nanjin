@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.spark
 import akka.NotUsed
 import akka.stream.scaladsl.Source
 import cats.effect.{ConcurrentEffect, Sync}
-import cats.implicits._
 import com.github.chenharryhua.nanjin.database.{DatabaseSettings, TableName}
 import com.github.chenharryhua.nanjin.spark.database.sd
 import com.github.chenharryhua.nanjin.spark.saver.{RddFileLoader, RddFileSaver}
