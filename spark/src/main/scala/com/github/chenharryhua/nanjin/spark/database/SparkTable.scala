@@ -9,7 +9,7 @@ import frameless.{TypedDataset, TypedEncoder}
 import io.circe.{Decoder => JsonDecoder}
 import kantan.csv.CsvConfiguration
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{SaveMode, SparkSession}
+import org.apache.spark.sql.SparkSession
 
 final case class TableDef[A] private (
   tableName: TableName,
@@ -48,14 +48,6 @@ final class SparkTable[F[_], A](
 
   val tableName: TableName = tableDef.tableName
 
-  private def mode(sm: SaveMode): SparkTable[F, A] =
-    new SparkTable[F, A](tableDef, dbSettings, cfg.withDbSaveMode(sm), ss)
-
-  def overwrite: SparkTable[F, A]      = mode(SaveMode.Overwrite)
-  def append: SparkTable[F, A]         = mode(SaveMode.Append)
-  def ignoreIfExists: SparkTable[F, A] = mode(SaveMode.Ignore)
-  def errorIfExists: SparkTable[F, A]  = mode(SaveMode.ErrorIfExists)
-
   def withQuery(query: String): SparkTable[F, A] =
     new SparkTable[F, A](tableDef, dbSettings, cfg.withQuery(query), ss)
 
@@ -64,7 +56,7 @@ final class SparkTable[F[_], A](
 
   def fromDB: TableDataset[F, A] =
     new TableDataset[F, A](
-      sd.unload(dbSettings.connStr, dbSettings.driver, tableDef.tableName, params.query).dataset,
+      sd.unloadDS(dbSettings.connStr, dbSettings.driver, tableDef.tableName, params.query).dataset,
       dbSettings,
       cfg)
 

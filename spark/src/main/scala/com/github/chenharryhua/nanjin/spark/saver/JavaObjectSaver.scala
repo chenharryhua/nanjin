@@ -15,8 +15,9 @@ sealed private[saver] trait AbstractJavaObjectSaver[F[_], A] extends AbstractSav
   final override protected def writeSingleFile(
     rdd: RDD[A],
     outPath: String,
-    blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
-    rdd.stream[F].through(fileSink[F](blocker).javaObject(outPath)).compile.drain
+    ss: SparkSession,
+    blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
+    rdd.stream[F].through(fileSink[F](blocker)(ss).javaObject(outPath)).compile.drain
 
 }
 

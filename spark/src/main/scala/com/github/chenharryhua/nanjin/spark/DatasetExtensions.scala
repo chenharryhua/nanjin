@@ -4,13 +4,17 @@ import akka.NotUsed
 import akka.stream.scaladsl.Source
 import cats.effect.{ConcurrentEffect, Sync}
 import cats.implicits._
+import com.github.chenharryhua.nanjin.database.{DatabaseSettings, TableName}
+import com.github.chenharryhua.nanjin.spark.database.sd
 import com.github.chenharryhua.nanjin.spark.saver.{RddFileLoader, RddFileSaver}
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import fs2.interop.reactivestreams._
+import org.apache.avro.Schema
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.avro.SchemaConverters
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
 private[spark] trait DatasetExtensions {
@@ -52,11 +56,25 @@ private[spark] trait DatasetExtensions {
   implicit final class DataframeExt(private val df: DataFrame) {
 
     def genCaseClass: String = NJDataTypeF.genCaseClass(df.schema)
+    def genSchema: Schema    = SchemaConverters.toAvroType(df.schema)
+
+  }
+
+  final class SparkWithDBSettings(ss: SparkSession, dbSettings: DatabaseSettings) {
+
+    def df(tableName: String): DataFrame =
+      sd.unloadDF(dbSettings.connStr, dbSettings.driver, TableName.unsafeFrom(tableName), None)(ss)
+
+    def schema(tableName: String): Schema =
+      df(tableName).genSchema
 
   }
 
   implicit final class SparkSessionExt(private val ss: SparkSession) {
 
     val load: RddFileLoader = new RddFileLoader(ss)
+
+    def alongWith(dbSettings: DatabaseSettings): SparkWithDBSettings =
+      new SparkWithDBSettings(ss, dbSettings)
   }
 }

@@ -34,8 +34,9 @@ sealed abstract private[saver] class AbstractParquetSaver[F[_], A](
   final override protected def writeSingleFile(
     rdd: RDD[A],
     outPath: String,
-    blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
-    rdd.stream[F].through(fileSink[F](blocker).parquet(outPath)).compile.drain
+    ss: SparkSession,
+    blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
+    rdd.stream[F].through(fileSink[F](blocker)(ss).parquet(outPath)).compile.drain
 
   final override protected def writeMultiFiles(
     rdd: RDD[A],
@@ -54,8 +55,8 @@ sealed abstract private[saver] class AbstractParquetSaver[F[_], A](
         classOf[AvroParquetOutputFormat[GenericRecord]])
   }
 
-  final override protected def toDataFrame(rdd: RDD[A])(implicit ss: SparkSession): DataFrame =
-    rdd.toDF
+  final override protected def toDataFrame(rdd: RDD[A], ss: SparkSession): DataFrame =
+    rdd.toDF(encoder, ss)
 }
 
 final class ParquetSaver[F[_], A](

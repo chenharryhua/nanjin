@@ -20,8 +20,9 @@ sealed abstract private[saver] class AbstractTextSaver[F[_], A](encoder: Show[A]
   final override protected def writeSingleFile(
     rdd: RDD[A],
     outPath: String,
-    blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
-    rdd.stream[F].through(fileSink[F](blocker).text(outPath)).compile.drain
+    ss: SparkSession,
+    blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
+    rdd.stream[F].through(fileSink[F](blocker)(ss).text(outPath)).compile.drain
 
   final override protected def writeMultiFiles(
     rdd: RDD[A],

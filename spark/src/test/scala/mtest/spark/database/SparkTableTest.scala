@@ -31,7 +31,7 @@ class SparkTableTest extends AnyFunSuite {
   implicit val zoneId: ZoneId = beijingTime
 
   val table: SparkTable[IO, DBTable] =
-    TableDef[DBTable](TableName("public.sparktabletest")).in[IO](postgres).overwrite
+    TableDef[DBTable](TableName("public.sparktabletest")).in[IO](postgres)
 
   val sample: DomainObject =
     DomainObject(
@@ -43,7 +43,7 @@ class SparkTableTest extends AnyFunSuite {
 
   test("sparkTable upload dataset to table") {
     val data = TypedDataset.create(List(sample.transformInto[DBTable])).dataset.rdd
-    data.dbUpload(table).unsafeRunSync()
+    data.upload(table).overwrite.run.unsafeRunSync()
   }
 
   val path = "./data/test/spark/database/jackson.json"
