@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import java.time.LocalDate
 
 import cats.Show
-import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV

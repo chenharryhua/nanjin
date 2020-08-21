@@ -1,12 +1,12 @@
 package com.github.chenharryhua.nanjin.spark
 
-import cats.implicits._
+import cats.Functor
 import higherkindness.droste.data.Fix
-import higherkindness.droste.macros.deriveTraverse
+import higherkindness.droste.macros.deriveFixedPoint
 import higherkindness.droste.{scheme, Algebra, Coalgebra}
 import org.apache.spark.sql.types._
 
-@deriveTraverse sealed private[spark] trait NJDataTypeF[A]
+@deriveFixedPoint sealed private[spark] trait NJDataTypeF[_]
 
 private[spark] object NJDataTypeF {
   type NJDataType = Fix[NJDataTypeF]
@@ -119,6 +119,9 @@ private[spark] object NJDataTypeF {
     case NullType => NJNullType()
 
   }
+
+  implicit val functorNJDataTypeF: Functor[NJDataTypeF] =
+    cats.derived.semi.functor[NJDataTypeF]
 
   private def cata(dt: NJDataType): DataType = scheme.cata(algebra).apply(dt)
   private def ana(sdt: DataType): NJDataType = scheme.ana(coalgebra).apply(sdt)

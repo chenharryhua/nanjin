@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.pipes
 import java.io.{ByteArrayOutputStream, EOFException, InputStream}
 
 import cats.effect.ConcurrentEffect
-import cats.implicits._
 import fs2.io.toInputStream
 import fs2.{Pipe, Pull, Stream}
 import org.apache.avro.Schema

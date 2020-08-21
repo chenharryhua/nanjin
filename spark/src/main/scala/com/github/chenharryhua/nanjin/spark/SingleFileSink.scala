@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.spark
 
 import cats.Show
 import cats.effect.{Blocker, Concurrent, ContextShift, Sync}
-import cats.implicits._
 import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.pipes._
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}

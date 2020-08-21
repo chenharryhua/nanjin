@@ -7,7 +7,6 @@ import akka.kafka.{
   ProducerSettings => AkkaProducerSettings
 }
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
-import cats.implicits._
 import fs2.kafka.{
   ConsumerSettings => Fs2ConsumerSettings,
   Deserializer => Fs2Deserializer,

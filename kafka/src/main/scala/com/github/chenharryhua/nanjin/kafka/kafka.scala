@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin
 
 import akka.actor.ActorSystem
 import cats.effect.{Async, ContextShift, Resource}
-import cats.implicits._
 import eu.timepit.refined.W
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
 import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
