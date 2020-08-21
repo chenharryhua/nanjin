@@ -18,15 +18,15 @@ private[saver] trait AbstractSaver[F[_], A] extends Serializable {
   def errorIfExists: AbstractSaver[F, A]
   def ignoreIfExists: AbstractSaver[F, A]
 
-  protected def writeSingleFile(rdd: RDD[A], outPath: String, blocker: Blocker)(implicit
-    ss: SparkSession,
+  protected def writeSingleFile(rdd: RDD[A], outPath: String, ss: SparkSession, blocker: Blocker)(
+    implicit
     F: Concurrent[F],
     cs: ContextShift[F]): F[Unit]
 
   protected def writeMultiFiles(rdd: RDD[A], outPath: String, ss: SparkSession): Unit =
     throw new Exception("not support")
 
-  protected def toDataFrame(rdd: RDD[A])(implicit ss: SparkSession): DataFrame =
+  protected def toDataFrame(rdd: RDD[A], ss: SparkSession): DataFrame =
     throw new Exception("not support")
 
   final protected def saveRdd(rdd: RDD[A], outPath: String, params: SaverParams, blocker: Blocker)(
@@ -39,17 +39,17 @@ private[saver] trait AbstractSaver[F[_], A] extends Serializable {
         params.saveMode match {
           case SaveMode.Append => F.raiseError(new Exception("append mode is not support"))
           case SaveMode.Overwrite =>
-            fileSink[F](blocker).delete(outPath) >> writeSingleFile(rdd, outPath, blocker)
+            fileSink[F](blocker).delete(outPath) >> writeSingleFile(rdd, outPath, ss, blocker)
 
           case SaveMode.ErrorIfExists =>
             fileSink[F](blocker).isExist(outPath).flatMap {
               case true  => F.raiseError(new Exception(s"$outPath already exist"))
-              case false => writeSingleFile(rdd, outPath, blocker)
+              case false => writeSingleFile(rdd, outPath, ss, blocker)
             }
           case SaveMode.Ignore =>
             fileSink[F](blocker).isExist(outPath).flatMap {
               case true  => F.pure(())
-              case false => writeSingleFile(rdd, outPath, blocker)
+              case false => writeSingleFile(rdd, outPath, ss, blocker)
             }
         }
 
@@ -57,7 +57,7 @@ private[saver] trait AbstractSaver[F[_], A] extends Serializable {
         params.sparkOrHadoop match {
           case SparkOrHadoop.Spark =>
             F.delay(
-              toDataFrame(rdd).write
+              toDataFrame(rdd, ss).write
                 .mode(params.saveMode)
                 .format(params.fileFormat.format)
                 .save(outPath))

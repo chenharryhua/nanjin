@@ -7,7 +7,7 @@ private[database] trait DatasetExtensions {
 
   implicit final class SparkDBSyntax[A](val rdd: RDD[A]) {
 
-    def dbUpload[F[_]: Sync](db: SparkTable[F, A]): F[Unit] =
+    def upload[F[_]: Sync](db: SparkTable[F, A]): DbUploader[F, A] =
       db.tableDataset(rdd).upload
   }
 }

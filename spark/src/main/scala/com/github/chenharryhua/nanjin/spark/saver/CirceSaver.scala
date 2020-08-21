@@ -21,8 +21,9 @@ sealed abstract private[saver] class AbstractCirceSaver[F[_], A](encoder: Encode
   final override protected def writeSingleFile(
     rdd: RDD[A],
     outPath: String,
-    blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
-    rdd.stream[F].through(fileSink[F](blocker).circe(outPath)).compile.drain
+    ss: SparkSession,
+    blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
+    rdd.stream[F].through(fileSink[F](blocker)(ss).circe(outPath)).compile.drain
 
   final override protected def writeMultiFiles(
     rdd: RDD[A],

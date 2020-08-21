@@ -31,11 +31,9 @@ final class TableDataset[F[_], A](ds: Dataset[A], dbSettings: DatabaseSettings, 
   def repartition(num: Int): TableDataset[F, A] =
     new TableDataset[F, A](ds.repartition(num), dbSettings, cfg)
 
-  def upload(implicit F: Sync[F]): F[Unit] =
-    F.delay(
-      sd.upload(ds, params.dbSaveMode, dbSettings.connStr, dbSettings.driver, params.tableName))
-
   def count(implicit F: Sync[F]): F[Long] = typedDataset.count[F]()
+
+  def upload: DbUploader[F, A] = new DbUploader[F, A](ds, dbSettings, avroEncoder, cfg)
 
   private val saver: RddFileSaver[F, A] = new RddFileSaver[F, A](ds.rdd)
 

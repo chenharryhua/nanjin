@@ -17,8 +17,9 @@ sealed abstract private[saver] class AbstractProtobufSaver[F[_], A](implicit
   final override protected def writeSingleFile(
     rdd: RDD[A],
     outPath: String,
-    blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
-    rdd.stream[F].through(fileSink[F](blocker).protobuf[A](outPath)).compile.drain
+    ss: SparkSession,
+    blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
+    rdd.stream[F].through(fileSink[F](blocker)(ss).protobuf[A](outPath)).compile.drain
 
 }
 

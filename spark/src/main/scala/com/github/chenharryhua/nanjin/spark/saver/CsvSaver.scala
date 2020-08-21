@@ -7,9 +7,8 @@ import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import frameless.{TypedDataset, TypedEncoder}
 import kantan.csv.{CsvConfiguration, RowEncoder}
-import monocle.Lens
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
+import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import scala.reflect.ClassTag
 
@@ -28,8 +27,9 @@ sealed abstract private[saver] class AbstractCsvSaver[F[_], A](
   final override protected def writeSingleFile(
     rdd: RDD[A],
     outPath: String,
-    blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
-    rdd.stream[F].through(fileSink[F](blocker).csv(outPath, csvConfiguration)).compile.drain
+    ss: SparkSession,
+    blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
+    rdd.stream[F].through(fileSink[F](blocker)(ss).csv(outPath, csvConfiguration)).compile.drain
 
   final override protected def writeMultiFiles(
     rdd: RDD[A],
@@ -44,8 +44,8 @@ sealed abstract private[saver] class AbstractCsvSaver[F[_], A](
       .option("charset", "UTF8")
       .csv(outPath)
 
-  final override protected def toDataFrame(rdd: RDD[A])(implicit ss: SparkSession): DataFrame =
-    TypedDataset.create(rdd).dataset.toDF()
+  final override protected def toDataFrame(rdd: RDD[A], ss: SparkSession): DataFrame =
+    TypedDataset.create(rdd)(constraint, ss).dataset.toDF()
 
 }
 
