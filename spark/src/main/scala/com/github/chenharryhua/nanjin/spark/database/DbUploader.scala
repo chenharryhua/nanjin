@@ -11,7 +11,8 @@ final class DbUploader[F[_], A](
   ds: Dataset[A],
   dbSettings: DatabaseSettings,
   avroEncoder: Encoder[A],
-  cfg: STConfig) {
+  cfg: STConfig)
+    extends Serializable {
 
   val params: STParams = cfg.evalConfig
 
