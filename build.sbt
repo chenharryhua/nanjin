@@ -9,7 +9,7 @@ version in ThisBuild := "0.8.0-SNAPSHOT"
 val shapeless  = "2.3.3"
 val contextual = "1.2.1"
 val kittens    = "2.1.0"
-val catsCore   = "2.2.0-RC3"
+val catsCore   = "2.2.0-RC4"
 val algebra    = "2.0.1"
 val fs2Version = "2.4.3"
 val streamz    = "0.13-RC1"
@@ -25,7 +25,7 @@ val chimney    = "0.5.3"
 // runtime
 val zioCats    = "2.1.4.0"
 val monix      = "3.2.2"
-val catsEffect = "2.2.0-RC3"
+val catsEffect = "2.2.0-RC4"
 val akka26     = "2.6.8"
 
 // kafka
