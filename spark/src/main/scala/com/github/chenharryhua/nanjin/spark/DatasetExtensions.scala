@@ -13,7 +13,6 @@ import fs2.Stream
 import fs2.interop.reactivestreams._
 import org.apache.avro.Schema
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.avro.SchemaConverters
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
 private[spark] trait DatasetExtensions {
@@ -64,8 +63,8 @@ private[spark] trait DatasetExtensions {
     def dataframe(tableName: String): DataFrame =
       sd.unloadDF(dbSettings.connStr, dbSettings.driver, TableName.unsafeFrom(tableName), None)(ss)
 
-    def schema(tableName: String): Schema =
-      dataframe(tableName).genSchema
+    def genCaseClass(tableName: String): String = dataframe(tableName).genCaseClass
+    def genSchema(tableName: String): Schema    = dataframe(tableName).genSchema
 
   }
 
