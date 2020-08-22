@@ -6,6 +6,8 @@ import higherkindness.droste.macros.deriveFixedPoint
 import higherkindness.droste.{scheme, Algebra, Coalgebra}
 import org.apache.avro.{LogicalTypes, Schema, SchemaBuilder}
 import org.apache.spark.sql.types._
+import com.github.chenharryhua.nanjin.utils.random4d
+import scala.util.Random
 
 @deriveFixedPoint sealed private[spark] trait NJDataTypeF[_]
 
@@ -32,11 +34,18 @@ private[spark] object NJDataTypeF {
 
   final case class NJNullType[K]() extends NJDataTypeF[K]
 
-  final case class NJStructType[K](name: String, namespace: String, fields: List[NJStructField])
+  final case class NJStructType[K](
+    className: String,
+    namespace: String,
+    fields: List[NJStructField])
       extends NJDataTypeF[K]
 
-  final case class NJStructField(colName: String, dataType: NJDataType, nullable: Boolean) {
-    private val dt: String = dataType.toString
+  final case class NJStructField(
+    index: Int,
+    colName: String,
+    dataType: NJDataType,
+    nullable: Boolean) {
+    private val dt: String = dataType.toCaseClass
 
     val optionalFieldStr: String =
       s"""  $colName:${if (nullable) s"Option[$dt]" else dt}"""
@@ -82,10 +91,10 @@ private[spark] object NJDataTypeF {
     case NJDecimalType(p, s) => s"BigDecimal($p,$s)"
 
     case NJArrayType(_, dt) => s"Array[$dt]"
-    case NJMapType(k, v)    => s"Map[${k.toString},${v.toString}]"
-    case NJStructType(n, ns, fields) =>
+    case NJMapType(k, v)    => s"Map[${k.toCaseClass},${v.toCaseClass}]"
+    case NJStructType(cn, ns, fields) =>
       s"""
-         |final case class $ns.$n (
+         |final case class $ns.$cn (
          |${fields.map(_.fieldStr).mkString(",\n")}
          |)
          |""".stripMargin
@@ -93,7 +102,10 @@ private[spark] object NJDataTypeF {
     case NJNullType() => "FixMe-NullTypeInferred"
   }
 
-  private lazy val nullSchema: Schema = Schema.create(Schema.Type.NULL)
+  private val nullSchema: Schema = Schema.create(Schema.Type.NULL)
+
+  private def unionNull(nullable: Boolean, sm: Schema): Schema =
+    if (nullable) Schema.createUnion(sm, nullSchema) else sm
 
   /**
     * [[org.apache.spark.sql.avro.SchemaConverters]] translate decimal to avro fixed type
@@ -116,17 +128,16 @@ private[spark] object NJDataTypeF {
       case NJDateType()        => LogicalTypes.date().addToSchema(builder.intType())
       case NJDecimalType(p, s) => LogicalTypes.decimal(p, s).addToSchema(builder.bytesType())
 
-      case NJArrayType(containsNull, sm) =>
-        val s = if (containsNull) Schema.createUnion(sm, nullSchema) else sm
-        builder.array().items(s)
+      case NJArrayType(containsNull, sm) => builder.array().items(unionNull(containsNull, sm))
       case NJMapType(_, v) =>
         builder.map().values(v.toSchema(builder))
 
-      case NJStructType(n, ns, fields) =>
-        val fieldsAssembler = builder.record(n).namespace(ns).fields()
+      case NJStructType(cn, ns, fields) =>
+        val fieldsAssembler = SchemaBuilder.builder(ns).record(cn).fields()
         fields.foreach { fs =>
-          val s = fs.dataType.toSchema(builder)
-          fieldsAssembler.name(fs.colName).`type`(s).noDefault()
+          val dt     = fs.dataType.toSchema(SchemaBuilder.builder(ns))
+          val schema = unionNull(fs.nullable, dt)
+          fieldsAssembler.name(fs.colName).`type`(schema).noDefault()
         }
         fieldsAssembler.endRecord()
 
@@ -157,12 +168,15 @@ private[spark] object NJDataTypeF {
 
     case StructType(fields) =>
       NJStructType(
-        "FixMe",
+        s"FixMe${random4d.value}",
         "nj.spark",
-        fields.toList.map(st => NJStructField(st.name, NJDataType(st.dataType), st.nullable)))
+        fields.toList.zipWithIndex.map {
+          case (st, idx) =>
+            NJStructField(idx, st.name, NJDataType(st.dataType), st.nullable)
+        }
+      )
 
     case NullType => NJNullType()
-
   }
 
   implicit val functorNJDataTypeF: Functor[NJDataTypeF] =
@@ -174,8 +188,7 @@ private[spark] object NJDataTypeF {
     def toSchema(builder: SchemaBuilder.TypeBuilder[Schema]): Schema =
       scheme.cata(schemaAlgebra(builder)).apply(value)
 
-    override def toString: String = scheme.cata(strAlgebra).apply(value)
-
+    def toCaseClass: String = scheme.cata(strAlgebra).apply(value)
   }
 
   object NJDataType {
@@ -184,6 +197,6 @@ private[spark] object NJDataTypeF {
       NJDataType(scheme.ana(coalgebra).apply(spark))
   }
 
-  def genCaseClass(sdt: DataType): String = NJDataType(sdt).toString
+  def genCaseClass(sdt: DataType): String = NJDataType(sdt).toCaseClass
   def genSchema(sdt: DataType): Schema    = NJDataType(sdt).toSchema(SchemaBuilder.builder())
 }
