@@ -72,5 +72,6 @@ class MiscTest extends AnyFunSuite {
   test("gen case class") {
     val ds = TypedDataset.create(sisters)
     println(ds.dataset.toDF().genCaseClass)
+    println(ds.dataset.toDF().genSchema)
   }
 }

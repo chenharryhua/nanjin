@@ -4,12 +4,13 @@ import cats.Functor
 import higherkindness.droste.data.Fix
 import higherkindness.droste.macros.deriveFixedPoint
 import higherkindness.droste.{scheme, Algebra, Coalgebra}
+import org.apache.avro.{LogicalTypes, Schema, SchemaBuilder}
 import org.apache.spark.sql.types._
 
 @deriveFixedPoint sealed private[spark] trait NJDataTypeF[_]
 
 private[spark] object NJDataTypeF {
-  type NJDataType = Fix[NJDataTypeF]
+
   //numeric types
   final case class NJByteType[K]() extends NJDataTypeF[K]
   final case class NJShortType[K]() extends NJDataTypeF[K]
@@ -31,16 +32,17 @@ private[spark] object NJDataTypeF {
 
   final case class NJNullType[K]() extends NJDataTypeF[K]
 
+  final case class NJStructType[K](name: String, namespace: String, fields: List[NJStructField])
+      extends NJDataTypeF[K]
+
   final case class NJStructField(colName: String, dataType: NJDataType, nullable: Boolean) {
-    private val dt: String = stringify(dataType)
+    private val dt: String = dataType.toString
 
     val optionalFieldStr: String =
       s"""  $colName:${if (nullable) s"Option[$dt]" else dt}"""
 
     val fieldStr: String = s"""  $colName:$dt"""
   }
-
-  final case class NJStructType[K](fields: List[NJStructField]) extends NJDataTypeF[K]
 
   private val algebra: Algebra[NJDataTypeF, DataType] = Algebra[NJDataTypeF, DataType] {
     case NJByteType()      => ByteType
@@ -58,9 +60,9 @@ private[spark] object NJDataTypeF {
     case NJDecimalType(p, s) => DecimalType(p, s)
 
     case NJArrayType(c, dt) => ArrayType(dt, c)
-    case NJMapType(k, v)    => MapType(cata(k), cata(v))
-    case NJStructType(fields) =>
-      StructType(fields.map(a => StructField(a.colName, cata(a.dataType), a.nullable)))
+    case NJMapType(k, v)    => MapType(k.toSpark, v.toSpark)
+    case NJStructType(_, _, fields) =>
+      StructType(fields.map(a => StructField(a.colName, a.dataType.toSpark, a.nullable)))
 
     case NJNullType() => NullType
   }
@@ -80,16 +82,56 @@ private[spark] object NJDataTypeF {
     case NJDecimalType(p, s) => s"BigDecimal($p,$s)"
 
     case NJArrayType(_, dt) => s"Array[$dt]"
-    case NJMapType(k, v)    => s"Map[${stringify(k)},${stringify(v)}]"
-    case NJStructType(fields) =>
+    case NJMapType(k, v)    => s"Map[${k.toString},${v.toString}]"
+    case NJStructType(n, ns, fields) =>
       s"""
-         |final case class -FixMe- (
+         |final case class $ns.$n (
          |${fields.map(_.fieldStr).mkString(",\n")}
          |)
          |""".stripMargin
 
     case NJNullType() => "FixMe-NullTypeInferred"
   }
+
+  private lazy val nullSchema: Schema = Schema.create(Schema.Type.NULL)
+
+  /**
+    * [[org.apache.spark.sql.avro.SchemaConverters]] translate decimal to avro fixed type
+    * which was not supported by avro-hugger yet
+    */
+  private def schemaAlgebra(
+    builder: SchemaBuilder.TypeBuilder[Schema]): Algebra[NJDataTypeF, Schema] =
+    Algebra[NJDataTypeF, Schema] {
+      case NJByteType()    => builder.intType()
+      case NJShortType()   => builder.intType()
+      case NJIntegerType() => builder.intType()
+      case NJLongType()    => builder.longType()
+      case NJFloatType()   => builder.floatType()
+      case NJDoubleType()  => builder.doubleType()
+      case NJStringType()  => builder.stringType()
+      case NJBooleanType() => builder.booleanType()
+      case NJBinaryType()  => builder.bytesType()
+
+      case NJTimestampType()   => LogicalTypes.timestampMicros().addToSchema(builder.longType())
+      case NJDateType()        => LogicalTypes.date().addToSchema(builder.intType())
+      case NJDecimalType(p, s) => LogicalTypes.decimal(p, s).addToSchema(builder.bytesType())
+
+      case NJArrayType(containsNull, sm) =>
+        val s = if (containsNull) Schema.createUnion(sm, nullSchema) else sm
+        builder.array().items(s)
+      case NJMapType(_, v) =>
+        builder.map().values(v.toSchema(builder))
+
+      case NJStructType(n, ns, fields) =>
+        val fieldsAssembler = builder.record(n).namespace(ns).fields()
+        fields.foreach { fs =>
+          val s = fs.dataType.toSchema(builder)
+          fieldsAssembler.name(fs.colName).`type`(s).noDefault()
+        }
+        fieldsAssembler.endRecord()
+
+      case NJNullType() => nullSchema
+    }
 
   @SuppressWarnings(Array("SuspiciousMatchOnClassObject"))
   private val coalgebra: Coalgebra[NJDataTypeF, DataType] = Coalgebra[NJDataTypeF, DataType] {
@@ -111,10 +153,13 @@ private[spark] object NJDataTypeF {
     case DateType      => NJDateType()
 
     case ArrayType(dt, c) => NJArrayType(c, dt)
-    case MapType(k, v, _) => NJMapType(ana(k), ana(v))
+    case MapType(k, v, _) => NJMapType(NJDataType(k), NJDataType(v))
 
     case StructType(fields) =>
-      NJStructType(fields.toList.map(st => NJStructField(st.name, ana(st.dataType), st.nullable)))
+      NJStructType(
+        "FixMe",
+        "nj.spark",
+        fields.toList.map(st => NJStructField(st.name, NJDataType(st.dataType), st.nullable)))
 
     case NullType => NJNullType()
 
@@ -123,10 +168,22 @@ private[spark] object NJDataTypeF {
   implicit val functorNJDataTypeF: Functor[NJDataTypeF] =
     cats.derived.semi.functor[NJDataTypeF]
 
-  private def cata(dt: NJDataType): DataType = scheme.cata(algebra).apply(dt)
-  private def ana(sdt: DataType): NJDataType = scheme.ana(coalgebra).apply(sdt)
+  final case class NJDataType(value: Fix[NJDataTypeF]) extends AnyVal {
+    def toSpark: DataType = scheme.cata(algebra).apply(value)
 
-  private def stringify(dt: NJDataType): String = scheme.cata(strAlgebra).apply(dt)
+    def toSchema(builder: SchemaBuilder.TypeBuilder[Schema]): Schema =
+      scheme.cata(schemaAlgebra(builder)).apply(value)
 
-  def genCaseClass(sdt: DataType): String = scheme.cata(strAlgebra).apply(ana(sdt))
+    override def toString: String = scheme.cata(strAlgebra).apply(value)
+
+  }
+
+  object NJDataType {
+
+    def apply(spark: DataType): NJDataType =
+      NJDataType(scheme.ana(coalgebra).apply(spark))
+  }
+
+  def genCaseClass(sdt: DataType): String = NJDataType(sdt).toString
+  def genSchema(sdt: DataType): Schema    = NJDataType(sdt).toSchema(SchemaBuilder.builder())
 }
