@@ -55,17 +55,17 @@ private[spark] trait DatasetExtensions {
   implicit final class DataframeExt(private val df: DataFrame) {
 
     def genCaseClass: String = NJDataTypeF.genCaseClass(df.schema)
-    def genSchema: Schema    = SchemaConverters.toAvroType(df.schema)
+    def genSchema: Schema    = NJDataTypeF.genSchema(df.schema)
 
   }
 
   final class SparkWithDBSettings(ss: SparkSession, dbSettings: DatabaseSettings) {
 
-    def df(tableName: String): DataFrame =
+    def dataframe(tableName: String): DataFrame =
       sd.unloadDF(dbSettings.connStr, dbSettings.driver, TableName.unsafeFrom(tableName), None)(ss)
 
     def schema(tableName: String): Schema =
-      df(tableName).genSchema
+      dataframe(tableName).genSchema
 
   }
 
