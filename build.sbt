@@ -64,7 +64,7 @@ val log4s       = "1.8.2"
 val betterFiles = "3.9.1"
 
 // test
-val scalatest = "3.2.1"
+val scalatest = "3.2.2"
 
 // deprecate ?
 val flink110 = "1.11.0"
