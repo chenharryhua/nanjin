@@ -1,13 +1,12 @@
 package com.github.chenharryhua.nanjin.spark
 
 import cats.Functor
+import com.github.chenharryhua.nanjin.utils.random4d
 import higherkindness.droste.data.Fix
 import higherkindness.droste.macros.deriveFixedPoint
 import higherkindness.droste.{scheme, Algebra, Coalgebra}
 import org.apache.avro.{LogicalTypes, Schema, SchemaBuilder}
 import org.apache.spark.sql.types._
-import com.github.chenharryhua.nanjin.utils.random4d
-import scala.util.Random
 
 @deriveFixedPoint sealed private[spark] trait NJDataTypeF[_]
 
@@ -30,7 +29,9 @@ private[spark] object NJDataTypeF {
   final case class NJDateType[K]() extends NJDataTypeF[K]
 
   final case class NJArrayType[K](containsNull: Boolean, cont: K) extends NJDataTypeF[K]
-  final case class NJMapType[K](key: NJDataType, value: NJDataType) extends NJDataTypeF[K]
+
+  final case class NJMapType[K](key: NJDataType, value: NJDataType, containsNull: Boolean)
+      extends NJDataTypeF[K]
 
   final case class NJNullType[K]() extends NJDataTypeF[K]
 
@@ -69,7 +70,7 @@ private[spark] object NJDataTypeF {
     case NJDecimalType(p, s) => DecimalType(p, s)
 
     case NJArrayType(c, dt) => ArrayType(dt, c)
-    case NJMapType(k, v)    => MapType(k.toSpark, v.toSpark)
+    case NJMapType(k, v, n) => MapType(k.toSpark, v.toSpark, n)
     case NJStructType(_, _, fields) =>
       StructType(fields.map(a => StructField(a.colName, a.dataType.toSpark, a.nullable)))
 
@@ -91,7 +92,9 @@ private[spark] object NJDataTypeF {
     case NJDecimalType(p, s) => s"BigDecimal($p,$s)"
 
     case NJArrayType(_, dt) => s"Array[$dt]"
-    case NJMapType(k, v)    => s"Map[${k.toCaseClass},${v.toCaseClass}]"
+    case NJMapType(k, v, n) =>
+      val vstr = if (n) s"Option[${v.toCaseClass}]" else v.toCaseClass
+      s"Map[${k.toCaseClass}, $vstr]"
     case NJStructType(cn, ns, fields) =>
       s"""
          |final case class $ns.$cn (
@@ -124,19 +127,21 @@ private[spark] object NJDataTypeF {
       case NJBooleanType() => builder.booleanType()
       case NJBinaryType()  => builder.bytesType()
 
-      case NJTimestampType()   => LogicalTypes.timestampMicros().addToSchema(builder.longType())
+      case NJTimestampType()   => LogicalTypes.timestampMillis().addToSchema(builder.longType())
       case NJDateType()        => LogicalTypes.date().addToSchema(builder.intType())
       case NJDecimalType(p, s) => LogicalTypes.decimal(p, s).addToSchema(builder.bytesType())
 
-      case NJArrayType(containsNull, sm) => builder.array().items(unionNull(containsNull, sm))
-      case NJMapType(_, v) =>
-        builder.map().values(v.toSchema(builder))
+      case NJArrayType(containsNull, sm) =>
+        builder.array().items(unionNull(containsNull, sm))
+      case NJMapType(NJDataType(NJStringType()), v, n) =>
+        builder.map().values(unionNull(n, v.toSchema(builder)))
+      case NJMapType(_, _, _) => throw new Exception("map key must be String")
 
       case NJStructType(cn, ns, fields) =>
         val fieldsAssembler = SchemaBuilder.builder(ns).record(cn).fields()
         fields.foreach { fs =>
-          val dt     = fs.dataType.toSchema(SchemaBuilder.builder(ns))
-          val schema = unionNull(fs.nullable, dt)
+          val dts    = fs.dataType.toSchema(SchemaBuilder.builder())
+          val schema = unionNull(fs.nullable, dts)
           fieldsAssembler.name(fs.colName).`type`(schema).noDefault()
         }
         fieldsAssembler.endRecord()
@@ -164,7 +169,7 @@ private[spark] object NJDataTypeF {
     case DateType      => NJDateType()
 
     case ArrayType(dt, c) => NJArrayType(c, dt)
-    case MapType(k, v, _) => NJMapType(NJDataType(k), NJDataType(v))
+    case MapType(k, v, n) => NJMapType(NJDataType(k), NJDataType(v), n)
 
     case StructType(fields) =>
       NJStructType(
