@@ -6,6 +6,7 @@ import alleycats.Empty
 import cats.implicits._
 import cats.kernel.{LowerBounded, PartialOrder}
 import cats.{Applicative, Bifunctor, Bitraverse, Eval, Order, Show}
+import com.sksamuel.avro4s.AvroDoc
 import io.scalaland.chimney.dsl._
 import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -52,14 +53,15 @@ object NJConsumerRecord {
   ): Order[A] = (x: A, y: A) => x.compare(y)
 }
 
-@Lenses final case class OptionalKV[K, V](
-  partition: Int,
-  offset: Long,
-  timestamp: Long,
+@Lenses @AvroDoc("kafka record, optional Key and Value")
+final case class OptionalKV[K, V](
+  @AvroDoc("kafka partition") partition: Int,
+  @AvroDoc("kafka offset") offset: Long,
+  @AvroDoc("kafka timestamp in millisecond") timestamp: Long,
   key: Option[K],
   value: Option[V],
-  topic: String,
-  timestampType: Int)
+  @AvroDoc("kafka topic") topic: String,
+  @AvroDoc("kafka timestamp type") timestampType: Int)
     extends NJConsumerRecord[Option[K], Option[V]] {
 
   def flatten[K2, V2](implicit
@@ -123,6 +125,7 @@ object OptionalKV {
 
 }
 
+@AvroDoc("kafka record, optional Key and compulsory Value")
 final case class CompulsoryV[K, V](
   partition: Int,
   offset: Long,
@@ -155,6 +158,7 @@ object CompulsoryV {
     }
 }
 
+@AvroDoc("kafka record, compulsory Key and optional Value")
 final case class CompulsoryK[K, V](
   partition: Int,
   offset: Long,
@@ -187,6 +191,7 @@ object CompulsoryK {
     }
 }
 
+@AvroDoc("kafka record, compulsory Key and Value")
 final case class CompulsoryKV[K, V](
   partition: Int,
   offset: Long,
