@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.database
 import cats.Show
 import cats.effect.Sync
 import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.github.chenharryhua.nanjin.database.{DatabaseSettings, TableName}
+import com.github.chenharryhua.nanjin.database.{DatabaseName, DatabaseSettings, TableName}
 import com.github.chenharryhua.nanjin.spark.saver._
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
@@ -34,6 +34,9 @@ final class TableDataset[F[_], A](ds: Dataset[A], dbSettings: DatabaseSettings, 
   def count(implicit F: Sync[F]): F[Long] = typedDataset.count[F]()
 
   def upload: DbUploader[F, A] = new DbUploader[F, A](ds, dbSettings, avroEncoder, cfg)
+
+  def withPathBuilder(f: (DatabaseName, TableName, NJFileFormat) => String) =
+    new TableDataset[F, A](ds, dbSettings, cfg.withPathBuilder(f))
 
   private val saver: RddFileSaver[F, A] = new RddFileSaver[F, A](ds.rdd)
 

@@ -8,6 +8,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.common.transformers._
 import com.github.chenharryhua.nanjin.database.TableName
 import com.github.chenharryhua.nanjin.datetime._
+import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.database._
 import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.TypedDataset
@@ -30,8 +31,7 @@ final case class DBTable(a: LocalDate, b: LocalDate, c: Instant, d: Instant, e: 
 class SparkTableTest extends AnyFunSuite {
   implicit val zoneId: ZoneId = beijingTime
 
-  val table: SparkTable[IO, DBTable] =
-    TableDef[DBTable](TableName("public.sparktabletest")).in[IO](postgres)
+  val table: TableDef[DBTable] = TableDef[DBTable](TableName("public.sparktabletest"))
 
   val sample: DomainObject =
     DomainObject(
@@ -43,18 +43,36 @@ class SparkTableTest extends AnyFunSuite {
 
   test("sparkTable upload dataset to table") {
     val data = TypedDataset.create(List(sample.transformInto[DBTable])).dataset.rdd
-    data.upload(table).overwrite.run.unsafeRunSync()
+    sparkSession
+      .alongWith[IO](postgres)
+      .table(table)
+      .tableDataset(data)
+      .upload
+      .overwrite
+      .run
+      .unsafeRunSync()
   }
 
   val path = "./data/test/spark/database/jackson.json"
 
   test("sparkTable save db table to disk") {
-    table.fromDB.save.jackson(path).single.run(blocker).unsafeRunSync()
+    sparkSession
+      .alongWith[IO](postgres)
+      .table(table)
+      .fromDB
+      .save
+      .jackson(path)
+      .single
+      .run(blocker)
+      .unsafeRunSync()
   }
 
   test("sparkTable read table on disk") {
     val rst: DomainObject =
-      table.load
+      sparkSession
+        .alongWith[IO](postgres)
+        .table(table)
+        .load
         .jackson(path)
         .typedDataset
         .collect[IO]
@@ -65,25 +83,26 @@ class SparkTableTest extends AnyFunSuite {
   }
 
   test("partition save") {
-    val run = table.fromDB.save.partition.jackson.run(blocker) >>
-      table.fromDB.save.partition.avro.run(blocker) >>
-      table.fromDB.save.partition.parquet.run(blocker) >>
-      table.fromDB.save.partition.circe.run(blocker) >>
-      table.fromDB.save.partition.csv.run(blocker) >>
+    val run = table.in[IO](postgres).fromDB.save.partition.jackson.run(blocker) >>
+      table.in[IO](postgres).fromDB.save.partition.avro.run(blocker) >>
+      table.in[IO](postgres).fromDB.save.partition.parquet.run(blocker) >>
+      table.in[IO](postgres).fromDB.save.partition.circe.run(blocker) >>
+      table.in[IO](postgres).fromDB.save.partition.csv.run(blocker) >>
       IO(())
     run.unsafeRunSync
   }
   test("save") {
-    val run = table.fromDB.save.jackson.single.run(blocker) >>
-      table.fromDB.save.avro.single.run(blocker) >>
-      table.fromDB.save.parquet.single.run(blocker) >>
-      table.fromDB.save.circe.single.run(blocker) >>
-      table.fromDB.save.csv.single.run(blocker) >>
+    val run = table.in[IO](postgres).fromDB.save.jackson.single.run(blocker) >>
+      table.in[IO](postgres).fromDB.save.avro.single.run(blocker) >>
+      table.in[IO](postgres).fromDB.save.parquet.single.run(blocker) >>
+      table.in[IO](postgres).fromDB.save.circe.single.run(blocker) >>
+      table.in[IO](postgres).fromDB.save.csv.single.run(blocker) >>
       IO(())
     run.unsafeRunSync
   }
   test("with query") {
     table
+      .in[IO](postgres)
       .withQuery(s"select * from ${table.tableName.value}")
       .fromDB
       .save
