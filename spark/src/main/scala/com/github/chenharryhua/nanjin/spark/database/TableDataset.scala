@@ -5,7 +5,7 @@ import cats.effect.Sync
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.database.{DatabaseName, DatabaseSettings, TableName}
 import com.github.chenharryhua.nanjin.spark.saver._
-import com.sksamuel.avro4s.{Encoder => AvroEncoder}
+import com.sksamuel.avro4s.{Encoder => AvroEncoder, Decoder => AvroDecoder}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.{TypedDataset, TypedEncoder}
 import io.circe.{Encoder => JsonEncoder}
@@ -15,6 +15,7 @@ import org.apache.spark.sql.Dataset
 final class TableDataset[F[_], A](ds: Dataset[A], dbSettings: DatabaseSettings, cfg: STConfig)(
   implicit
   avroEncoder: AvroEncoder[A],
+  avroDecoder: AvroDecoder[A],
   typedEncoder: TypedEncoder[A])
     extends Serializable {
 
@@ -22,10 +23,11 @@ final class TableDataset[F[_], A](ds: Dataset[A], dbSettings: DatabaseSettings, 
 
   def typedDataset: TypedDataset[A] = TypedDataset.create(ds)
 
-  def map[B: AvroEncoder: TypedEncoder](f: A => B): TableDataset[F, B] =
+  def map[B: AvroEncoder: AvroDecoder: TypedEncoder](f: A => B): TableDataset[F, B] =
     new TableDataset[F, B](typedDataset.deserialized.map(f).dataset, dbSettings, cfg)
 
-  def flatMap[B: AvroEncoder: TypedEncoder](f: A => TraversableOnce[B]): TableDataset[F, B] =
+  def flatMap[B: AvroEncoder: AvroDecoder: TypedEncoder](
+    f: A => TraversableOnce[B]): TableDataset[F, B] =
     new TableDataset[F, B](typedDataset.deserialized.flatMap(f).dataset, dbSettings, cfg)
 
   def repartition(num: Int): TableDataset[F, A] =

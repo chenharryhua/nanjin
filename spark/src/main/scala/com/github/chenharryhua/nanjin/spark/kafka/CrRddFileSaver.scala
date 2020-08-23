@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.spark.saver._
-import com.sksamuel.avro4s.{Encoder => AvroEncoder}
+import com.sksamuel.avro4s.{Encoder => AvroEncoder, Decoder => AvroDecoder}
 import frameless.TypedEncoder
 import frameless.cats.implicits.rddOps
 import io.circe.generic.auto._
@@ -18,7 +18,9 @@ import scalapb.GeneratedMessage
 import scala.reflect.ClassTag
 
 final class CrRddFileSaver[F[_], K, V](saver: RddFileSaver[F, OptionalKV[K, V]], params: SKParams)(
-  implicit avroEncoder: AvroEncoder[OptionalKV[K, V]])
+  implicit
+  avroEncoder: AvroEncoder[OptionalKV[K, V]],
+  avroDecoder: AvroDecoder[OptionalKV[K, V]])
     extends Serializable {
 
   def avro(pathStr: String): AvroSaver[F, OptionalKV[K, V]] =
@@ -71,13 +73,14 @@ final class CrRddFileSaver[F[_], K, V](saver: RddFileSaver[F, OptionalKV[K, V]],
   def javaObject: JavaObjectSaver[F, OptionalKV[K, V]] =
     saver.javaObject(params.outPath(NJFileFormat.JavaObject))
 
-  def csv[A: RowEncoder: AvroEncoder](pathStr: String)(f: OptionalKV[K, V] => A)(implicit
-    ev: TypedEncoder[A]): CsvSaver[F, A] = {
+  def csv[A: RowEncoder: AvroEncoder: AvroDecoder](pathStr: String)(f: OptionalKV[K, V] => A)(
+    implicit ev: TypedEncoder[A]): CsvSaver[F, A] = {
     import ev.classTag
     saver.map(f).csv(pathStr)
   }
 
-  def csv[A: RowEncoder: AvroEncoder: TypedEncoder](f: OptionalKV[K, V] => A): CsvSaver[F, A] =
+  def csv[A: RowEncoder: AvroEncoder: AvroDecoder: TypedEncoder](
+    f: OptionalKV[K, V] => A): CsvSaver[F, A] =
     csv(params.outPath(NJFileFormat.Csv))(f)
 
   def protobuf[A: ClassTag](pathStr: String)(f: OptionalKV[K, V] => A)(implicit

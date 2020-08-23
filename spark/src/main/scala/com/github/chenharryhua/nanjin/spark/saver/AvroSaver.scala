@@ -19,7 +19,7 @@ sealed abstract private[saver] class AbstractAvroSaver[F[_], A](encoder: Encoder
     extends AbstractSaver[F, A] {
   implicit private val enc: Encoder[A] = encoder
 
-  def withEncoder(enc: Encoder[A]): AbstractAvroSaver[F, A]
+  def withEncoder(avroEncoder: Encoder[A]): AbstractAvroSaver[F, A]
   def withSchema(schema: Schema): AbstractAvroSaver[F, A]
 
   def single: AbstractAvroSaver[F, A]
@@ -56,8 +56,8 @@ final class AvroSaver[F[_], A](
   val cfg: SaverConfig)
     extends AbstractAvroSaver[F, A](encoder) {
 
-  override def withEncoder(enc: Encoder[A]): AvroSaver[F, A] =
-    new AvroSaver(rdd, enc, outPath, cfg)
+  override def withEncoder(avroEncoder: Encoder[A]): AvroSaver[F, A] =
+    new AvroSaver(rdd, avroEncoder, outPath, cfg)
 
   override def withSchema(schema: Schema): AvroSaver[F, A] = {
     val schemaFor: SchemaFor[A] = SchemaFor[A](schema)
@@ -94,8 +94,8 @@ final class AvroPartitionSaver[F[_], A, K: ClassTag: Eq](
   override def updateConfig(cfg: SaverConfig): AvroPartitionSaver[F, A, K] =
     new AvroPartitionSaver[F, A, K](rdd, encoder, bucketing, pathBuilder, cfg)
 
-  override def withEncoder(enc: Encoder[A]): AvroPartitionSaver[F, A, K] =
-    new AvroPartitionSaver(rdd, enc, bucketing, pathBuilder, cfg)
+  override def withEncoder(avroEncoder: Encoder[A]): AvroPartitionSaver[F, A, K] =
+    new AvroPartitionSaver(rdd, avroEncoder, bucketing, pathBuilder, cfg)
 
   override def withSchema(schema: Schema): AvroPartitionSaver[F, A, K] = {
     val schemaFor: SchemaFor[A] = SchemaFor[A](schema)

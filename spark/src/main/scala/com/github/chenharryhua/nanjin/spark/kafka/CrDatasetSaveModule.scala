@@ -4,7 +4,7 @@ import cats.Show
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.spark.saver._
-import com.sksamuel.avro4s.{Encoder => AvroEncoder}
+import com.sksamuel.avro4s.{Encoder => AvroEncoder, Decoder => AvroDecoder}
 import frameless.TypedEncoder
 import io.circe.generic.auto._
 import io.circe.{Encoder => JsonEncoder}
@@ -62,13 +62,13 @@ private[kafka] trait CrDatasetSaveModule[F[_], K, V] { self: CrDataset[F, K, V] 
     def javaObject: JavaObjectSaver[F, OptionalKV[K, V]] =
       javaObject(params.outPath(NJFileFormat.JavaObject))
 
-    def csv[A: RowEncoder: AvroEncoder](pathStr: String)(f: OptionalKV[K, V] => A)(implicit
-      ev: TypedEncoder[A]): CsvSaver[F, A] = {
+    def csv[A: RowEncoder: AvroEncoder: AvroDecoder](pathStr: String)(f: OptionalKV[K, V] => A)(
+      implicit ev: TypedEncoder[A]): CsvSaver[F, A] = {
       import ev.classTag
       saver.map(f).csv(pathStr)
     }
 
-    def csv[A: RowEncoder: AvroEncoder](f: OptionalKV[K, V] => A)(implicit
+    def csv[A: RowEncoder: AvroEncoder: AvroDecoder](f: OptionalKV[K, V] => A)(implicit
       ev: TypedEncoder[A]): CsvSaver[F, A] =
       csv(params.outPath(NJFileFormat.Csv))(f)
 

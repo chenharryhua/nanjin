@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.{NJProducerRecord, OptionalKV}
 import com.github.chenharryhua.nanjin.spark.sstream.{KafkaCrSStream, SStreamConfig, SparkSStream}
+import com.sksamuel.avro4s.{Decoder, Encoder}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.avro.Schema
@@ -26,6 +27,11 @@ final class SparKafka[F[_], K, V](
   val sparkSession: SparkSession,
   val cfg: SKConfig
 ) extends SparKafkaUpdateParams[SparKafka[F, K, V]] with SparKafkaLoadModule[F, K, V] {
+
+  implicit val avroKeyEncoder: Encoder[K] = topic.topicDef.avroKeyEncoder
+  implicit val avroValEncoder: Encoder[V] = topic.topicDef.avroValEncoder
+  implicit val avroKeyDecoder: Decoder[K] = topic.topicDef.avroKeyDecoder
+  implicit val avroValDecoder: Decoder[V] = topic.topicDef.avroValDecoder
 
   implicit val ss: SparkSession = sparkSession
 
@@ -60,20 +66,12 @@ final class SparKafka[F[_], K, V](
   /**
     * rdd and dataset
     */
-  def crRdd(rdd: RDD[OptionalKV[K, V]]) =
-    new CrRdd[F, K, V](rdd, cfg)(
-      sparkSession,
-      topic.topicDef.avroKeyEncoder,
-      topic.topicDef.avroValEncoder)
+  def crRdd(rdd: RDD[OptionalKV[K, V]]) = new CrRdd[F, K, V](rdd, cfg)
 
   def crDataset(tds: TypedDataset[OptionalKV[K, V]])(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): CrDataset[F, K, V] =
-    new CrDataset[F, K, V](tds.dataset, cfg)(
-      keyEncoder,
-      topic.topicDef.avroKeyEncoder,
-      valEncoder,
-      topic.topicDef.avroValEncoder)
+    new CrDataset[F, K, V](tds.dataset, cfg)
 
   def prDataset(tds: TypedDataset[NJProducerRecord[K, V]])(implicit
     keyEncoder: TypedEncoder[K],
@@ -85,11 +83,7 @@ final class SparKafka[F[_], K, V](
     */
 
   def dstream(sc: StreamingContext): CrDStream[F, K, V] =
-    new CrDStream[F, K, V](sk.kafkaDStream[F, K, V](topic, sc, params.locationStrategy), cfg)(
-      sparkSession,
-      topic.topicDef.avroKeyEncoder,
-      topic.topicDef.avroValEncoder
-    )
+    new CrDStream[F, K, V](sk.kafkaDStream[F, K, V](topic, sc, params.locationStrategy), cfg)
 
   /**
     * structured stream
