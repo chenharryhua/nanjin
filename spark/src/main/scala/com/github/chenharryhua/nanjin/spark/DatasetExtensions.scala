@@ -57,8 +57,8 @@ private[spark] trait DatasetExtensions {
 
   implicit final class DataframeExt(private val df: DataFrame) {
 
-    def genCaseClass: String = NJDataTypeF.genCaseClass(df.schema)
-    def genSchema: Schema    = NJDataTypeF.genSchema(df.schema)
+    def genCaseClass: String = NJDataType(df.schema).toCaseClass
+    def genSchema: Schema    = NJDataType(df.schema).toSchema
 
   }
 
@@ -88,7 +88,7 @@ private[spark] trait DatasetExtensions {
         topicDef.in[F](ctx),
         ss,
         SKConfig(topicDef.topicName, ZoneId.systemDefault())
-        )
+      )
   }
 
   implicit final class SparkSessionExt(private val ss: SparkSession) {

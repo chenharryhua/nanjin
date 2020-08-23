@@ -30,7 +30,8 @@ class NJDataTypePrimitiveTypeTest extends AnyFunSuite {
   import NJDataTypeFTestData._
   val generator: Generator = Generator(Standard)
   test("primitive types") {
-    val rst = NJDataTypeF.genSchema(st)
+    val rst = NJDataType(st).toSchema
+    println(NJDataType(st).toCaseClass)
     println(rst)
     println(generator.schemaToStrings(rst))
   }

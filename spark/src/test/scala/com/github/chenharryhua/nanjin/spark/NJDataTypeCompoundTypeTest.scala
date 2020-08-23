@@ -26,14 +26,14 @@ class NJDataTypeCompoundTypeTest extends AnyFunSuite {
     Generator(Standard, avroScalaCustomTypes = Some(AvroScalaTypes(array = ScalaArray)))
 
   test("array type") {
-    val s = NJDataTypeF.genSchema(dogfish.catalystRepr)
+    val s = NJDataType(dogfish.catalystRepr).toSchema
     println(dogfish.catalystRepr)
     println(s)
     println(generator.schemaToStrings(s))
   }
 
   test("map type") {
-    val s = NJDataTypeF.genSchema(squalidae.catalystRepr)
+    val s = NJDataType(squalidae.catalystRepr).toSchema
     println(squalidae.catalystRepr)
     println(s)
     println(generator.schemaToStrings(s))

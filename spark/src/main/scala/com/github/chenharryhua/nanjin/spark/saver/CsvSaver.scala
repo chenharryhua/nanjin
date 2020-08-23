@@ -7,13 +7,16 @@ import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import frameless.{TypedDataset, TypedEncoder}
 import kantan.csv.{CsvConfiguration, RowEncoder}
+import org.apache.avro.Schema
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import scala.reflect.ClassTag
+import com.sksamuel.avro4s.{SchemaFor, Encoder => AvroEncoder}
 
 sealed abstract private[saver] class AbstractCsvSaver[F[_], A](
   encoder: RowEncoder[A],
+  avroEncoder: AvroEncoder[A],
   csvConfiguration: CsvConfiguration,
   constraint: TypedEncoder[A])
     extends AbstractSaver[F, A] {
@@ -23,6 +26,11 @@ sealed abstract private[saver] class AbstractCsvSaver[F[_], A](
   def updateCsvConfig(f: CsvConfiguration => CsvConfiguration): AbstractCsvSaver[F, A]
   def single: AbstractCsvSaver[F, A]
   def multi: AbstractCsvSaver[F, A]
+
+  def repartition(num: Int): AbstractCsvSaver[F, A]
+
+  def withEncoder(enc: AvroEncoder[A]): AbstractCsvSaver[F, A]
+  def withSchema(schema: Schema): AbstractCsvSaver[F, A]
 
   final override protected def writeSingleFile(
     rdd: RDD[A],
@@ -35,8 +43,8 @@ sealed abstract private[saver] class AbstractCsvSaver[F[_], A](
     rdd: RDD[A],
     outPath: String,
     ss: SparkSession): Unit =
-    TypedDataset
-      .create(rdd)(constraint, ss)
+    rdd
+      .toDF(avroEncoder, ss)
       .write
       .option("sep", csvConfiguration.cellSeparator.toString)
       .option("header", csvConfiguration.hasHeader)
@@ -45,24 +53,48 @@ sealed abstract private[saver] class AbstractCsvSaver[F[_], A](
       .csv(outPath)
 
   final override protected def toDataFrame(rdd: RDD[A], ss: SparkSession): DataFrame =
-    TypedDataset.create(rdd)(constraint, ss).dataset.toDF()
+    rdd.toDF(avroEncoder, ss)
 
 }
 
 final class CsvSaver[F[_], A](
   rdd: RDD[A],
   encoder: RowEncoder[A],
+  avroEncoder: AvroEncoder[A],
   csvConfiguration: CsvConfiguration,
   constraint: TypedEncoder[A],
   outPath: String,
   cfg: SaverConfig)
-    extends AbstractCsvSaver[F, A](encoder, csvConfiguration, constraint) {
+    extends AbstractCsvSaver[F, A](encoder, avroEncoder, csvConfiguration, constraint) {
+
+  override def repartition(num: Int): CsvSaver[F, A] =
+    new CsvSaver[F, A](
+      rdd.repartition(num),
+      encoder,
+      avroEncoder,
+      csvConfiguration,
+      constraint,
+      outPath,
+      cfg)
+
+  override def withEncoder(avroEncoder: AvroEncoder[A]): CsvSaver[F, A] =
+    new CsvSaver[F, A](rdd, encoder, avroEncoder, csvConfiguration, constraint, outPath, cfg)
+
+  override def withSchema(schema: Schema): CsvSaver[F, A] =
+    new CsvSaver[F, A](
+      rdd,
+      encoder,
+      avroEncoder.withSchema(SchemaFor[A](schema)),
+      csvConfiguration,
+      constraint,
+      outPath,
+      cfg)
 
   override def updateCsvConfig(f: CsvConfiguration => CsvConfiguration): CsvSaver[F, A] =
-    new CsvSaver[F, A](rdd, encoder, f(csvConfiguration), constraint, outPath, cfg)
+    new CsvSaver[F, A](rdd, encoder, avroEncoder, f(csvConfiguration), constraint, outPath, cfg)
 
   override def updateConfig(cfg: SaverConfig): CsvSaver[F, A] =
-    new CsvSaver[F, A](rdd, encoder, csvConfiguration, constraint, outPath, cfg)
+    new CsvSaver[F, A](rdd, encoder, avroEncoder, csvConfiguration, constraint, outPath, cfg)
 
   override def errorIfExists: CsvSaver[F, A]  = updateConfig(cfg.withError)
   override def overwrite: CsvSaver[F, A]      = updateConfig(cfg.withOverwrite)
@@ -80,18 +112,54 @@ final class CsvSaver[F[_], A](
 final class CsvPartitionSaver[F[_], A, K: ClassTag: Eq](
   rdd: RDD[A],
   encoder: RowEncoder[A],
+  avroEncoder: AvroEncoder[A],
   csvConfiguration: CsvConfiguration,
   constraint: TypedEncoder[A],
   bucketing: A => Option[K],
   pathBuilder: K => String,
   val cfg: SaverConfig
-) extends AbstractCsvSaver[F, A](encoder, csvConfiguration, constraint) with Partition[F, A, K] {
+) extends AbstractCsvSaver[F, A](encoder, avroEncoder, csvConfiguration, constraint)
+    with Partition[F, A, K] {
+
+  override def repartition(num: Int): CsvPartitionSaver[F, A, K] =
+    new CsvPartitionSaver[F, A, K](
+      rdd.repartition(num),
+      encoder,
+      avroEncoder,
+      csvConfiguration,
+      constraint,
+      bucketing,
+      pathBuilder,
+      cfg)
+
+  override def withEncoder(avroEncoder: AvroEncoder[A]): CsvPartitionSaver[F, A, K] =
+    new CsvPartitionSaver[F, A, K](
+      rdd,
+      encoder,
+      avroEncoder,
+      csvConfiguration,
+      constraint,
+      bucketing,
+      pathBuilder,
+      cfg)
+
+  override def withSchema(schema: Schema): CsvPartitionSaver[F, A, K] =
+    new CsvPartitionSaver[F, A, K](
+      rdd,
+      encoder,
+      avroEncoder.withSchema(SchemaFor[A](schema)),
+      csvConfiguration,
+      constraint,
+      bucketing,
+      pathBuilder,
+      cfg)
 
   override def updateCsvConfig(
     f: CsvConfiguration => CsvConfiguration): CsvPartitionSaver[F, A, K] =
     new CsvPartitionSaver[F, A, K](
       rdd,
       encoder,
+      avroEncoder,
       f(csvConfiguration),
       constraint,
       bucketing,
@@ -102,6 +170,7 @@ final class CsvPartitionSaver[F[_], A, K: ClassTag: Eq](
     new CsvPartitionSaver[F, A, K](
       rdd,
       encoder,
+      avroEncoder,
       csvConfiguration,
       constraint,
       bucketing,
@@ -124,6 +193,7 @@ final class CsvPartitionSaver[F[_], A, K: ClassTag: Eq](
     new CsvPartitionSaver[F, A, K1](
       rdd,
       encoder,
+      avroEncoder,
       csvConfiguration,
       constraint,
       bucketing,
@@ -134,6 +204,7 @@ final class CsvPartitionSaver[F[_], A, K: ClassTag: Eq](
     new CsvPartitionSaver[F, A, K](
       rdd,
       encoder,
+      avroEncoder,
       csvConfiguration,
       constraint,
       bucketing,

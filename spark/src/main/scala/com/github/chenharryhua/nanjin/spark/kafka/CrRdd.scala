@@ -30,6 +30,9 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
   val valAvroEncoder: AvroEncoder[V])
     extends SparKafkaUpdateParams[CrRdd[F, K, V]] with CrRddInvModule[F, K, V] {
 
+  implicit private val optionalKVAvroEncoder: AvroEncoder[OptionalKV[K, V]] =
+    shapeless.cachedImplicit
+
   override def params: SKParams = cfg.evalConfig
 
   override def withParamUpdate(f: SKConfig => SKConfig): CrRdd[F, K, V] =

@@ -46,11 +46,14 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
     new TextSaver[F, A](rdd, enc, pathStr, SaverConfig(NJFileFormat.Text))
 
 // 7
-  def csv(
-    pathStr: String)(implicit enc: RowEncoder[A], constraint: TypedEncoder[A]): CsvSaver[F, A] =
+  def csv(pathStr: String)(implicit
+    enc: RowEncoder[A],
+    avroEncoder: AvroEncoder[A],
+    constraint: TypedEncoder[A]): CsvSaver[F, A] =
     new CsvSaver[F, A](
       rdd,
       enc,
+      avroEncoder,
       CsvConfiguration.rfc,
       constraint,
       pathStr,
@@ -135,10 +138,12 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
 // 7
     def csv[K: ClassTag: Eq](bucketing: A => Option[K], pathBuilder: K => String)(implicit
       enc: RowEncoder[A],
+      avroEncoder: AvroEncoder[A],
       constraint: TypedEncoder[A]): CsvPartitionSaver[F, A, K] =
       new CsvPartitionSaver[F, A, K](
         rdd,
         enc,
+        avroEncoder,
         CsvConfiguration.rfc,
         constraint,
         bucketing,
