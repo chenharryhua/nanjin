@@ -88,7 +88,7 @@ class DecimalTest extends AnyFunSuite {
     val single = "./data/test/spark/decimal/avro/single.avro"
 
     val run = for {
-      _ <- saver.avro(multi).multi.run(blocker)
+      _ <- saver.avro(multi).multi.repartition(1).run(blocker)
       _ <- saver.avro(single).single.run(blocker)
       m <- loader.avro[Duck](multi).typedDataset.collect[IO]()
       s <- loader.avro[Duck](single).typedDataset.collect[IO]()
@@ -100,7 +100,7 @@ class DecimalTest extends AnyFunSuite {
     val single = "./data/test/spark/decimal/parquet/single.parquet"
 
     val run = for {
-      _ <- saver.parquet(multi).multi.run(blocker)
+      _ <- saver.parquet(multi).multi.repartition(2).run(blocker)
       _ <- saver.parquet(single).single.run(blocker)
       m <- loader.parquet[Duck](multi).typedDataset.collect[IO]()
       s <- loader.parquet[Duck](single).typedDataset.collect[IO]()
@@ -113,7 +113,7 @@ class DecimalTest extends AnyFunSuite {
     val single = "./data/test/spark/decimal/jackson/single.json"
 
     val run = for {
-      _ <- saver.jackson(multi).multi.run(blocker)
+      _ <- saver.jackson(multi).multi.repartition(2).run(blocker)
       _ <- saver.jackson(single).single.run(blocker)
       m <- loader.jackson[Duck](multi).typedDataset.collect[IO]()
       s <- loader.jackson[Duck](single).typedDataset.collect[IO]()
@@ -126,7 +126,7 @@ class DecimalTest extends AnyFunSuite {
     val single = "./data/test/spark/decimal/circe/single.json"
 
     val run = for {
-      _ <- saver.circe(multi).multi.run(blocker)
+      _ <- saver.circe(multi).multi.repartition(1).run(blocker)
       _ <- saver.circe(single).single.run(blocker)
       m <- loader.circe[Duck](multi).typedDataset.collect[IO]()
       s <- loader.circe[Duck](single).typedDataset.collect[IO]()
@@ -139,7 +139,7 @@ class DecimalTest extends AnyFunSuite {
     val single = "./data/test/spark/decimal/csv/single.csv"
 
     val run = for {
-      _ <- saver.csv(multi).multi.run(blocker)
+      _ <- saver.csv(multi).multi.repartition(2).run(blocker)
       _ <- saver.csv(single).single.run(blocker)
       m <- loader.csv[Duck](multi).typedDataset.collect[IO]()
       s <- loader.csv[Duck](single).typedDataset.collect[IO]()
