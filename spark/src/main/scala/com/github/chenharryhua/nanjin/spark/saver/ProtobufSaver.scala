@@ -27,6 +27,9 @@ final class ProtobufSaver[F[_], A](rdd: RDD[A], outPath: String, cfg: SaverConfi
   enc: A <:< GeneratedMessage)
     extends AbstractProtobufSaver[F, A] {
 
+  override def repartition(num: Int): ProtobufSaver[F, A] =
+    new ProtobufSaver[F, A](rdd.repartition(num), outPath, cfg)
+
   def run(
     blocker: Blocker)(implicit ss: SparkSession, F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     saveRdd(rdd, outPath, cfg.evalConfig, blocker)
@@ -46,6 +49,9 @@ final class ProtobufPartitionSaver[F[_], A, K: ClassTag: Eq](
   pathBuilder: K => String,
   val cfg: SaverConfig)(implicit enc: A <:< GeneratedMessage)
     extends AbstractProtobufSaver[F, A] with Partition[F, A, K] {
+
+  override def repartition(num: Int): ProtobufPartitionSaver[F, A, K] =
+    new ProtobufPartitionSaver[F, A, K](rdd.repartition(num), bucketing, pathBuilder, cfg)
 
   override def updateConfig(cfg: SaverConfig): ProtobufPartitionSaver[F, A, K] =
     new ProtobufPartitionSaver[F, A, K](rdd, bucketing, pathBuilder, cfg)

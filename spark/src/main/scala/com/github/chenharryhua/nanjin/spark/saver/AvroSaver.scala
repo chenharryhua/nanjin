@@ -6,7 +6,7 @@ import cats.implicits._
 import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.spark.mapreduce.NJAvroKeyOutputFormat
 import com.github.chenharryhua.nanjin.spark.{fileSink, utils, RddExt}
-import com.sksamuel.avro4s.{Encoder, SchemaFor}
+import com.sksamuel.avro4s.{Encoder => AvroEncoder, SchemaFor}
 import org.apache.avro.Schema
 import org.apache.avro.mapreduce.AvroJob
 import org.apache.hadoop.mapreduce.Job
@@ -15,11 +15,12 @@ import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import scala.reflect.ClassTag
 
-sealed abstract private[saver] class AbstractAvroSaver[F[_], A](encoder: Encoder[A])
+sealed abstract private[saver] class AbstractAvroSaver[F[_], A](encoder: AvroEncoder[A])
     extends AbstractSaver[F, A] {
-  implicit private val enc: Encoder[A] = encoder
 
-  def withEncoder(avroEncoder: Encoder[A]): AbstractAvroSaver[F, A]
+  implicit private val enc: AvroEncoder[A] = encoder
+
+  def withEncoder(avroEncoder: AvroEncoder[A]): AbstractAvroSaver[F, A]
   def withSchema(schema: Schema): AbstractAvroSaver[F, A]
 
   def single: AbstractAvroSaver[F, A]
@@ -51,12 +52,15 @@ sealed abstract private[saver] class AbstractAvroSaver[F[_], A](encoder: Encoder
 
 final class AvroSaver[F[_], A](
   rdd: RDD[A],
-  encoder: Encoder[A],
+  encoder: AvroEncoder[A],
   outPath: String,
   val cfg: SaverConfig)
     extends AbstractAvroSaver[F, A](encoder) {
 
-  override def withEncoder(avroEncoder: Encoder[A]): AvroSaver[F, A] =
+  override def repartition(num: Int): AvroSaver[F, A] =
+    new AvroSaver(rdd.repartition(num), encoder, outPath, cfg)
+
+  override def withEncoder(avroEncoder: AvroEncoder[A]): AvroSaver[F, A] =
     new AvroSaver(rdd, avroEncoder, outPath, cfg)
 
   override def withSchema(schema: Schema): AvroSaver[F, A] = {
@@ -85,16 +89,19 @@ final class AvroSaver[F[_], A](
 
 final class AvroPartitionSaver[F[_], A, K: ClassTag: Eq](
   rdd: RDD[A],
-  encoder: Encoder[A],
+  encoder: AvroEncoder[A],
   bucketing: A => Option[K],
   pathBuilder: K => String,
   val cfg: SaverConfig)
     extends AbstractAvroSaver[F, A](encoder) with Partition[F, A, K] {
 
+  override def repartition(num: Int): AvroPartitionSaver[F, A, K] =
+    new AvroPartitionSaver[F, A, K](rdd.repartition(num), encoder, bucketing, pathBuilder, cfg)
+
   override def updateConfig(cfg: SaverConfig): AvroPartitionSaver[F, A, K] =
     new AvroPartitionSaver[F, A, K](rdd, encoder, bucketing, pathBuilder, cfg)
 
-  override def withEncoder(avroEncoder: Encoder[A]): AvroPartitionSaver[F, A, K] =
+  override def withEncoder(avroEncoder: AvroEncoder[A]): AvroPartitionSaver[F, A, K] =
     new AvroPartitionSaver(rdd, avroEncoder, bucketing, pathBuilder, cfg)
 
   override def withSchema(schema: Schema): AvroPartitionSaver[F, A, K] = {

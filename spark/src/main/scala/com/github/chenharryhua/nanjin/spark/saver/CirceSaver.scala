@@ -56,6 +56,9 @@ final class CirceSaver[F[_], A](
   cfg: SaverConfig)
     extends AbstractCirceSaver[F, A](encoder, avroEncoder, avroDecoder) {
 
+  override def repartition(num: Int): CirceSaver[F, A] =
+    new CirceSaver(rdd.repartition(num), encoder, avroEncoder, avroDecoder, outPath, cfg)
+
   override def withEncoder(avroEncoder: AvroEncoder[A]): CirceSaver[F, A] =
     new CirceSaver(rdd, encoder, avroEncoder, avroDecoder, outPath, cfg)
 
@@ -89,6 +92,16 @@ final class CircePartitionSaver[F[_], A, K: ClassTag: Eq](
   pathBuilder: K => String,
   val cfg: SaverConfig)
     extends AbstractCirceSaver[F, A](encoder, avroEncoder, avroDecoder) with Partition[F, A, K] {
+
+  override def repartition(num: Int): CircePartitionSaver[F, A, K] =
+    new CircePartitionSaver[F, A, K](
+      rdd.repartition(num),
+      encoder,
+      avroEncoder,
+      avroDecoder,
+      bucketing,
+      pathBuilder,
+      cfg)
 
   override def withEncoder(avroEncoder: AvroEncoder[A]): CircePartitionSaver[F, A, K] =
     new CircePartitionSaver[F, A, K](

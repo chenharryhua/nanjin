@@ -33,6 +33,9 @@ final class BinaryAvroSaver[F[_], A](
   cfg: SaverConfig)
     extends AbstractBinaryAvroSaver[F, A](encoder) {
 
+  override def repartition(num: Int): BinaryAvroSaver[F, A] =
+    new BinaryAvroSaver(rdd.repartition(num), encoder, outPath, cfg)
+
   override def updateConfig(cfg: SaverConfig): BinaryAvroSaver[F, A] =
     new BinaryAvroSaver(rdd, encoder, outPath, cfg)
 
@@ -53,6 +56,9 @@ final class BinaryAvroPartitionSaver[F[_], A, K: ClassTag: Eq](
   pathBuilder: K => String,
   val cfg: SaverConfig)
     extends AbstractBinaryAvroSaver[F, A](encoder) with Partition[F, A, K] {
+
+  override def repartition(num: Int): BinaryAvroPartitionSaver[F, A, K] =
+    new BinaryAvroPartitionSaver(rdd.repartition(num), encoder, bucketing, pathBuilder, cfg)
 
   override def updateConfig(cfg: SaverConfig): BinaryAvroPartitionSaver[F, A, K] =
     new BinaryAvroPartitionSaver(rdd, encoder, bucketing, pathBuilder, cfg)
