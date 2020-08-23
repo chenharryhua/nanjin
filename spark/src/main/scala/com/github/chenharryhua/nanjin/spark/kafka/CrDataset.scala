@@ -22,6 +22,12 @@ final class CrDataset[F[_], K, V](val crs: Dataset[OptionalKV[K, V]], cfg: SKCon
   val avroValEncoder: AvroEncoder[V]
 ) extends SparKafkaUpdateParams[CrDataset[F, K, V]] with CrDatasetSaveModule[F, K, V] {
 
+  implicit private val optionalKVAvroEncoder: AvroEncoder[OptionalKV[K, V]] =
+    shapeless.cachedImplicit
+
+  implicit private val optionalKVTypedEncoder: TypedEncoder[OptionalKV[K, V]] =
+    shapeless.cachedImplicit
+
   override def withParamUpdate(f: SKConfig => SKConfig): CrDataset[F, K, V] =
     new CrDataset[F, K, V](crs, f(cfg))
 

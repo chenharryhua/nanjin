@@ -21,6 +21,8 @@ sealed abstract private[saver] class AbstractJacksonSaver[F[_], A](encoder: Enco
   def single: AbstractJacksonSaver[F, A]
   def multi: AbstractJacksonSaver[F, A]
 
+  def repartition(num: Int): AbstractJacksonSaver[F, A]
+
   final override protected def writeSingleFile(
     rdd: RDD[A],
     outPath: String,
@@ -50,6 +52,9 @@ final class JacksonSaver[F[_], A](
   cfg: SaverConfig)
     extends AbstractJacksonSaver[F, A](encoder) {
 
+  override def repartition(num: Int): JacksonSaver[F, A] =
+    new JacksonSaver(rdd.repartition(num), encoder, outPath, cfg)
+
   override def updateConfig(cfg: SaverConfig): JacksonSaver[F, A] =
     new JacksonSaver(rdd, encoder, outPath, cfg)
 
@@ -73,6 +78,9 @@ final class JacksonPartitionSaver[F[_], A, K: ClassTag: Eq](
   pathBuilder: K => String,
   val cfg: SaverConfig)
     extends AbstractJacksonSaver[F, A](encoder) with Partition[F, A, K] {
+
+  override def repartition(num: Int): JacksonPartitionSaver[F, A, K] =
+    new JacksonPartitionSaver[F, A, K](rdd.repartition(num), encoder, bucketing, pathBuilder, cfg)
 
   override def updateConfig(cfg: SaverConfig): JacksonPartitionSaver[F, A, K] =
     new JacksonPartitionSaver[F, A, K](rdd, encoder, bucketing, pathBuilder, cfg)

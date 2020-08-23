@@ -1,10 +1,14 @@
 package com.github.chenharryhua.nanjin.spark
 
+import java.time.ZoneId
+
 import akka.NotUsed
 import akka.stream.scaladsl.Source
 import cats.effect.{ConcurrentEffect, Sync}
 import com.github.chenharryhua.nanjin.database.{DatabaseSettings, TableName}
-import com.github.chenharryhua.nanjin.spark.database.sd
+import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicDef}
+import com.github.chenharryhua.nanjin.spark.database.{sd, STConfig, SparkTable, TableDef}
+import com.github.chenharryhua.nanjin.spark.kafka.{SKConfig, SparKafka}
 import com.github.chenharryhua.nanjin.spark.saver.{RddFileLoader, RddFileSaver}
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.cats.implicits._
@@ -53,12 +57,13 @@ private[spark] trait DatasetExtensions {
 
   implicit final class DataframeExt(private val df: DataFrame) {
 
-    def genCaseClass: String = NJDataTypeF.genCaseClass(df.schema)
-    def genSchema: Schema    = NJDataTypeF.genSchema(df.schema)
+    def genCaseClass: String = NJDataType(df.schema).toCaseClass
+    def genSchema: Schema    = NJDataType(df.schema).toSchema
 
   }
 
-  final class SparkWithDBSettings(ss: SparkSession, dbSettings: DatabaseSettings) {
+  final class SparkWithDBSettings[F[_]](ss: SparkSession, dbSettings: DatabaseSettings)
+      extends Serializable {
 
     def dataframe(tableName: String): DataFrame =
       sd.unloadDF(dbSettings.connStr, dbSettings.driver, TableName.unsafeFrom(tableName), None)(ss)
@@ -66,13 +71,34 @@ private[spark] trait DatasetExtensions {
     def genCaseClass(tableName: String): String = dataframe(tableName).genCaseClass
     def genSchema(tableName: String): Schema    = dataframe(tableName).genSchema
 
+    def table[A](tableDef: TableDef[A]): SparkTable[F, A] =
+      new SparkTable[F, A](
+        tableDef,
+        dbSettings,
+        STConfig(dbSettings.database, tableDef.tableName),
+        ss)
+
+  }
+
+  final class SparkWithKafkaContext[F[_]](ss: SparkSession, ctx: KafkaContext[F])
+      extends Serializable {
+
+    def topic[K, V](topicDef: TopicDef[K, V]): SparKafka[F, K, V] =
+      new SparKafka[F, K, V](
+        topicDef.in[F](ctx),
+        ss,
+        SKConfig(topicDef.topicName, ZoneId.systemDefault())
+      )
   }
 
   implicit final class SparkSessionExt(private val ss: SparkSession) {
 
     val load: RddFileLoader = new RddFileLoader(ss)
 
-    def alongWith(dbSettings: DatabaseSettings): SparkWithDBSettings =
-      new SparkWithDBSettings(ss, dbSettings)
+    def alongWith[F[_]](dbSettings: DatabaseSettings): SparkWithDBSettings[F] =
+      new SparkWithDBSettings[F](ss, dbSettings)
+
+    def alongWith[F[_]](ctx: KafkaContext[F]): SparkWithKafkaContext[F] =
+      new SparkWithKafkaContext[F](ss, ctx)
   }
 }

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.database
 
 import cats.effect.Sync
-import com.github.chenharryhua.nanjin.database.DatabaseSettings
+import com.github.chenharryhua.nanjin.database.{DatabaseSettings, TableName}
 import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.{Encoder, SchemaFor}
 import org.apache.avro.Schema
@@ -29,6 +29,13 @@ final class DbUploader[F[_], A](
 
   def withSchema(schema: Schema): DbUploader[F, A] =
     new DbUploader[F, A](ds, dbSettings, avroEncoder.withSchema(SchemaFor[A](schema)), cfg)
+
+  def withTableName(tableName: String): DbUploader[F, A] =
+    new DbUploader[F, A](
+      ds,
+      dbSettings,
+      avroEncoder,
+      cfg.withTableName(TableName.unsafeFrom(tableName)))
 
   def run(implicit F: Sync[F]): F[Unit] =
     F.delay {

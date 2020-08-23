@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.spark.kafka._
+import com.github.chenharryhua.nanjin.spark._
 import fs2.kafka.ProducerRecord
 import org.scalatest.funsuite.AnyFunSuite
 import shapeless.{:+:, CNil, Coproduct}
@@ -31,8 +32,9 @@ object MultiSaveTestData {
     Food(Coproduct[Fruit](Orange(10, "shanghai")), Random.nextInt)
   )
 
-  val topic: KafkaTopic[IO, Int, Food] =
-    TopicDef[Int, Food](TopicName("test.spark.kafka.multi.save")).in(ctx)
+  val topicDef = TopicDef[Int, Food](TopicName("test.spark.kafka.multi.save"))
+
+  val topic: KafkaTopic[IO, Int, Food] = topicDef.in(ctx)
 
   val prs: List[ProducerRecord[Int, Food]] = food.map(f => topic.fs2PR(0, f))
 
@@ -48,21 +50,30 @@ class MultiSaveTest extends AnyFunSuite {
     val path = "./data/test/spark/kafka/multi/avro"
 
     val rst =
-      topic.sparKafka.fromKafka.flatMap(_.repartition(3).save.avro(path).multi.run(blocker)) >> IO {
+      sparkSession
+        .alongWith(ctx)
+        .topic(topicDef)
+        .fromKafka
+        .flatMap(_.repartition(3).save.avro(path).multi.run(blocker)) >> IO {
         topic.sparKafka.load.avro(path).rdd.collect.flatMap(_.value).toSet
       }
     assert(rst.unsafeRunSync() == food.toSet)
   }
   test("multi-save jackson") {
     val path = "./data/test/spark/kafka/multi/jackson"
+
     val rst =
-      topic.sparKafka.fromKafka.flatMap(
-        _.withParamUpdate(_.withPathBuilder((_, _) => path))
-          .repartition(3)
-          .save
-          .jackson
-          .multi
-          .run(blocker)) >> IO {
+      sparkSession
+        .alongWith(ctx)
+        .topic(topicDef)
+        .fromKafka
+        .flatMap(
+          _.withParamUpdate(_.withPathBuilder((_, _) => path))
+            .repartition(3)
+            .save
+            .jackson
+            .multi
+            .run(blocker)) >> IO {
         topic.sparKafka.load.jackson(path).rdd.collect().flatMap(_.value).toSet
       }
     assert(rst.unsafeRunSync() == food.toSet)

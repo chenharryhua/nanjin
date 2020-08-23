@@ -10,8 +10,8 @@ import com.github.chenharryhua.nanjin.spark.saver._
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.TypedEncoder
 import frameless.cats.implicits.rddOps
-import io.circe.{Encoder => JsonEncoder}
 import io.circe.generic.auto._
+import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.RowEncoder
 import scalapb.GeneratedMessage
 
@@ -71,13 +71,13 @@ final class CrRddFileSaver[F[_], K, V](saver: RddFileSaver[F, OptionalKV[K, V]],
   def javaObject: JavaObjectSaver[F, OptionalKV[K, V]] =
     saver.javaObject(params.outPath(NJFileFormat.JavaObject))
 
-  def csv[A: RowEncoder](pathStr: String)(f: OptionalKV[K, V] => A)(implicit
+  def csv[A: RowEncoder: AvroEncoder](pathStr: String)(f: OptionalKV[K, V] => A)(implicit
     ev: TypedEncoder[A]): CsvSaver[F, A] = {
     import ev.classTag
     saver.map(f).csv(pathStr)
   }
 
-  def csv[A: RowEncoder](f: OptionalKV[K, V] => A)(implicit ev: TypedEncoder[A]): CsvSaver[F, A] =
+  def csv[A: RowEncoder: AvroEncoder: TypedEncoder](f: OptionalKV[K, V] => A): CsvSaver[F, A] =
     csv(params.outPath(NJFileFormat.Csv))(f)
 
   def protobuf[A: ClassTag](pathStr: String)(f: OptionalKV[K, V] => A)(implicit
