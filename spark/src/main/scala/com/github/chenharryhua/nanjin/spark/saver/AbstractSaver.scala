@@ -14,6 +14,8 @@ import scala.reflect.ClassTag
 private[saver] trait AbstractSaver[F[_], A] extends Serializable {
   def updateConfig(cfg: SaverConfig): AbstractSaver[F, A]
 
+  def repartition(num: Int): AbstractSaver[F, A]
+
   def overwrite: AbstractSaver[F, A]
   def errorIfExists: AbstractSaver[F, A]
   def ignoreIfExists: AbstractSaver[F, A]

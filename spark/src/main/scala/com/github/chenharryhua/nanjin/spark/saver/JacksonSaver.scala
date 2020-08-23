@@ -6,7 +6,7 @@ import cats.implicits._
 import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.spark.mapreduce.NJJacksonKeyOutputFormat
 import com.github.chenharryhua.nanjin.spark.{fileSink, utils, RddExt}
-import com.sksamuel.avro4s.Encoder
+import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import org.apache.avro.mapreduce.AvroJob
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
@@ -14,14 +14,13 @@ import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import scala.reflect.ClassTag
 
-sealed abstract private[saver] class AbstractJacksonSaver[F[_], A](encoder: Encoder[A])
+sealed abstract private[saver] class AbstractJacksonSaver[F[_], A](encoder: AvroEncoder[A])
     extends AbstractSaver[F, A] {
-  implicit private val enc: Encoder[A] = encoder
+
+  implicit private val enc: AvroEncoder[A] = encoder
 
   def single: AbstractJacksonSaver[F, A]
   def multi: AbstractJacksonSaver[F, A]
-
-  def repartition(num: Int): AbstractJacksonSaver[F, A]
 
   final override protected def writeSingleFile(
     rdd: RDD[A],
@@ -47,7 +46,7 @@ sealed abstract private[saver] class AbstractJacksonSaver[F[_], A](encoder: Enco
 
 final class JacksonSaver[F[_], A](
   rdd: RDD[A],
-  encoder: Encoder[A],
+  encoder: AvroEncoder[A],
   outPath: String,
   cfg: SaverConfig)
     extends AbstractJacksonSaver[F, A](encoder) {
@@ -73,7 +72,7 @@ final class JacksonSaver[F[_], A](
 
 final class JacksonPartitionSaver[F[_], A, K: ClassTag: Eq](
   rdd: RDD[A],
-  encoder: Encoder[A],
+  encoder: AvroEncoder[A],
   bucketing: A => Option[K],
   pathBuilder: K => String,
   val cfg: SaverConfig)

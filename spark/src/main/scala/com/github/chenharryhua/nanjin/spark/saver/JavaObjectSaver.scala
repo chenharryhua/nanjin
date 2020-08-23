@@ -24,6 +24,9 @@ sealed private[saver] trait AbstractJavaObjectSaver[F[_], A] extends AbstractSav
 final class JavaObjectSaver[F[_], A](rdd: RDD[A], outPath: String, cfg: SaverConfig)
     extends AbstractJavaObjectSaver[F, A] {
 
+  override def repartition(num: Int): JavaObjectSaver[F, A] =
+    new JavaObjectSaver[F, A](rdd.repartition(num), outPath, cfg)
+
   override def updateConfig(cfg: SaverConfig): JavaObjectSaver[F, A] =
     new JavaObjectSaver[F, A](rdd, outPath, cfg)
 
@@ -43,6 +46,9 @@ final class JavaObjectPartitionSaver[F[_], A, K: ClassTag: Eq](
   pathBuilder: K => String,
   val cfg: SaverConfig)
     extends AbstractJavaObjectSaver[F, A] with Partition[F, A, K] {
+
+  override def repartition(num: Int): JavaObjectPartitionSaver[F, A, K] =
+    new JavaObjectPartitionSaver[F, A, K](rdd.repartition(num), bucketing, pathBuilder, cfg)
 
   override def updateConfig(cfg: SaverConfig): JavaObjectPartitionSaver[F, A, K] =
     new JavaObjectPartitionSaver[F, A, K](rdd, bucketing, pathBuilder, cfg)

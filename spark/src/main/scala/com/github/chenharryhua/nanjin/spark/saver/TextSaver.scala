@@ -35,6 +35,9 @@ sealed abstract private[saver] class AbstractTextSaver[F[_], A](encoder: Show[A]
 final class TextSaver[F[_], A](rdd: RDD[A], encoder: Show[A], outPath: String, cfg: SaverConfig)
     extends AbstractTextSaver[F, A](encoder) {
 
+  override def repartition(num: Int): TextSaver[F, A] =
+    new TextSaver[F, A](rdd.repartition(num), encoder, outPath, cfg)
+
   override def updateConfig(cfg: SaverConfig): TextSaver[F, A] =
     new TextSaver[F, A](rdd, encoder, outPath, cfg)
 
@@ -57,6 +60,9 @@ final class TextPartitionSaver[F[_], A, K: ClassTag: Eq](
   pathBuilder: K => String,
   val cfg: SaverConfig)
     extends AbstractTextSaver[F, A](encoder) with Partition[F, A, K] {
+
+  override def repartition(num: Int): TextPartitionSaver[F, A, K] =
+    new TextPartitionSaver[F, A, K](rdd.repartition(num), encoder, bucketing, pathBuilder, cfg)
 
   override def updateConfig(cfg: SaverConfig): TextPartitionSaver[F, A, K] =
     new TextPartitionSaver[F, A, K](rdd, encoder, bucketing, pathBuilder, cfg)

@@ -29,8 +29,6 @@ sealed abstract private[saver] class AbstractCsvSaver[F[_], A](
   def single: AbstractCsvSaver[F, A]
   def multi: AbstractCsvSaver[F, A]
 
-  def repartition(num: Int): AbstractCsvSaver[F, A]
-
   def withEncoder(enc: AvroEncoder[A]): AbstractCsvSaver[F, A]
   def withSchema(schema: Schema): AbstractCsvSaver[F, A]
 

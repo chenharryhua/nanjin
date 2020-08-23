@@ -67,6 +67,9 @@ final class ParquetSaver[F[_], A](
   val cfg: SaverConfig)
     extends AbstractParquetSaver[F, A](encoder, constraint) {
 
+  override def repartition(num: Int): ParquetSaver[F, A] =
+    new ParquetSaver[F, A](rdd.repartition(num), encoder, constraint, outPath, cfg)
+
   override def withEncoder(enc: Encoder[A]): ParquetSaver[F, A] =
     new ParquetSaver[F, A](rdd, enc, constraint, outPath, cfg)
 
@@ -102,6 +105,15 @@ final class ParquetPartitionSaver[F[_], A, K: ClassTag: Eq](
   pathBuilder: K => String,
   val cfg: SaverConfig)
     extends AbstractParquetSaver[F, A](encoder, constraint) with Partition[F, A, K] {
+
+  override def repartition(num: Int): ParquetPartitionSaver[F, A, K] =
+    new ParquetPartitionSaver[F, A, K](
+      rdd.repartition(num),
+      encoder,
+      constraint,
+      bucketing,
+      pathBuilder,
+      cfg)
 
   override def withEncoder(enc: Encoder[A]): ParquetPartitionSaver[F, A, K] =
     new ParquetPartitionSaver[F, A, K](rdd, enc, constraint, bucketing, pathBuilder, cfg)
