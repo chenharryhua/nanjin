@@ -15,7 +15,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
 }
 import com.github.chenharryhua.nanjin.spark.RddExt
 import com.github.chenharryhua.nanjin.spark.saver.RddFileSaver
-import com.sksamuel.avro4s.{Encoder => AvroEncoder}
+import com.sksamuel.avro4s.{Encoder => AvroEncoder, Decoder => AvroDecoder}
 import frameless.cats.implicits.rddOps
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
@@ -27,10 +27,15 @@ import scala.reflect.ClassTag
 final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)(implicit
   val sparkSession: SparkSession,
   val keyAvroEncoder: AvroEncoder[K],
-  val valAvroEncoder: AvroEncoder[V])
+  val keyAvroDecoder: AvroDecoder[K],
+  val valAvroEncoder: AvroEncoder[V],
+  val valAvroDecoder: AvroDecoder[V])
     extends SparKafkaUpdateParams[CrRdd[F, K, V]] with CrRddInvModule[F, K, V] {
 
   implicit private val optionalKVAvroEncoder: AvroEncoder[OptionalKV[K, V]] =
+    shapeless.cachedImplicit
+
+  implicit private val optionalKVAvroDecoder: AvroDecoder[OptionalKV[K, V]] =
     shapeless.cachedImplicit
 
   override def params: SKParams = cfg.evalConfig
@@ -52,10 +57,12 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
   def repartition(num: Int): CrRdd[F, K, V] =
     new CrRdd[F, K, V](rdd.repartition(num), cfg)
 
-  def bimap[K2: AvroEncoder, V2: AvroEncoder](k: K => K2, v: V => V2): CrRdd[F, K2, V2] =
+  def bimap[K2: AvroEncoder: AvroDecoder, V2: AvroEncoder: AvroDecoder](
+    k: K => K2,
+    v: V => V2): CrRdd[F, K2, V2] =
     new CrRdd[F, K2, V2](rdd.map(_.bimap(k, v)), cfg)
 
-  def flatMap[K2: AvroEncoder, V2: AvroEncoder](
+  def flatMap[K2: AvroEncoder: AvroDecoder, V2: AvroEncoder: AvroDecoder](
     f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]]): CrRdd[F, K2, V2] =
     new CrRdd[F, K2, V2](rdd.flatMap(f), cfg)
 
@@ -87,7 +94,7 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
   def crDataset(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): CrDataset[F, K, V] =
-    new CrDataset(typedDataset.dataset, cfg)(keyEncoder, keyAvroEncoder, valEncoder, valAvroEncoder)
+    new CrDataset(typedDataset.dataset, cfg)
 
   def stream(implicit F: Sync[F]): Stream[F, OptionalKV[K, V]] =
     rdd.stream[F]

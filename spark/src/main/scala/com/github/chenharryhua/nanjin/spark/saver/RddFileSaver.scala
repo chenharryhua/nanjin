@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.saver
 
 import cats.{Eq, Show}
 import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.sksamuel.avro4s.{Encoder => AvroEncoder}
+import com.sksamuel.avro4s.{Encoder => AvroEncoder, Decoder => AvroDecoder}
 import frameless.TypedEncoder
 import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.{CsvConfiguration, RowEncoder}
@@ -38,8 +38,17 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
     new ParquetSaver[F, A](rdd, enc, constraint, pathStr, SaverConfig(NJFileFormat.Parquet))
 
 // 5
-  def circe(pathStr: String)(implicit enc: JsonEncoder[A]): CirceSaver[F, A] =
-    new CirceSaver[F, A](rdd, enc, pathStr, SaverConfig(NJFileFormat.Circe))
+  def circe(pathStr: String)(implicit
+    enc: JsonEncoder[A],
+    avroEncoder: AvroEncoder[A],
+    avroDecoder: AvroDecoder[A]): CirceSaver[F, A] =
+    new CirceSaver[F, A](
+      rdd,
+      enc,
+      avroEncoder,
+      avroDecoder,
+      pathStr,
+      SaverConfig(NJFileFormat.Circe))
 
 // 6
   def text(pathStr: String)(implicit enc: Show[A]): TextSaver[F, A] =
@@ -49,11 +58,13 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
   def csv(pathStr: String)(implicit
     enc: RowEncoder[A],
     avroEncoder: AvroEncoder[A],
+    avroDecoder: AvroDecoder[A],
     constraint: TypedEncoder[A]): CsvSaver[F, A] =
     new CsvSaver[F, A](
       rdd,
       enc,
       avroEncoder,
+      avroDecoder,
       CsvConfiguration.rfc,
       constraint,
       pathStr,
@@ -117,10 +128,14 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
 
 // 5
     def circe[K: ClassTag: Eq](bucketing: A => Option[K], pathBuilder: K => String)(implicit
-      enc: JsonEncoder[A]): CircePartitionSaver[F, A, K] =
+      enc: JsonEncoder[A],
+      avroEncoder: AvroEncoder[A],
+      avroDecoder: AvroDecoder[A]): CircePartitionSaver[F, A, K] =
       new CircePartitionSaver[F, A, K](
         rdd,
         enc,
+        avroEncoder,
+        avroDecoder,
         bucketing,
         pathBuilder,
         SaverConfig(NJFileFormat.Circe))
@@ -139,11 +154,13 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
     def csv[K: ClassTag: Eq](bucketing: A => Option[K], pathBuilder: K => String)(implicit
       enc: RowEncoder[A],
       avroEncoder: AvroEncoder[A],
+      avroDecoder: AvroDecoder[A],
       constraint: TypedEncoder[A]): CsvPartitionSaver[F, A, K] =
       new CsvPartitionSaver[F, A, K](
         rdd,
         enc,
         avroEncoder,
+        avroDecoder,
         CsvConfiguration.rfc,
         constraint,
         bucketing,

@@ -12,7 +12,7 @@ import io.circe.{Decoder => JsonDecoder}
 
 private[kafka] trait SparKafkaLoadModule[F[_], K, V] {
   self: SparKafka[F, K, V] =>
-  import self.topic.topicDef._
+  import self._
 
   final def fromKafka(implicit sync: Sync[F]): F[CrRdd[F, K, V]] =
     sk.kafkaBatch(topic, params.timeRange, params.locationStrategy).map(crRdd)
