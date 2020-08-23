@@ -11,16 +11,16 @@ private[kafka] trait DatasetExtensions {
   implicit final class SparKafkaTopicSyntax[F[_], K, V](topic: KafkaTopic[F, K, V])
       extends Serializable {
 
-    def sparKafka(cfg: SKConfig)(implicit spark: SparkSession): SparKafka[F, K, V] =
-      new SparKafka(topic, cfg)
+    def sparKafka(cfg: SKConfig)(implicit ss: SparkSession): SparKafka[F, K, V] =
+      new SparKafka(topic, ss, cfg)
 
-    def sparKafka(zoneId: ZoneId)(implicit spark: SparkSession): SparKafka[F, K, V] =
+    def sparKafka(zoneId: ZoneId)(implicit ss: SparkSession): SparKafka[F, K, V] =
       sparKafka(SKConfig(topic.topicDef.topicName, zoneId))
 
-    def sparKafka(dtr: NJDateTimeRange)(implicit spark: SparkSession): SparKafka[F, K, V] =
+    def sparKafka(dtr: NJDateTimeRange)(implicit ss: SparkSession): SparKafka[F, K, V] =
       sparKafka(SKConfig(topic.topicDef.topicName, dtr))
 
-    def sparKafka(implicit spark: SparkSession): SparKafka[F, K, V] =
+    def sparKafka(implicit ss: SparkSession): SparKafka[F, K, V] =
       sparKafka(SKConfig(topic.topicDef.topicName, ZoneId.systemDefault()))
 
   }

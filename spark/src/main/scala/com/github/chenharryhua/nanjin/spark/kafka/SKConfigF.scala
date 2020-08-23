@@ -169,7 +169,7 @@ final private[kafka] case class SKConfig private (value: Fix[SKConfigF]) extends
   def evalConfig: SKParams = SKConfigF.evalConfig(this)
 }
 
-private[kafka] object SKConfig {
+private[spark] object SKConfig {
 
   def apply(topicName: TopicName, zoneId: ZoneId): SKConfig =
     SKConfig(Fix(SKConfigF.DefaultParams[Fix[SKConfigF]](topicName, zoneId)))

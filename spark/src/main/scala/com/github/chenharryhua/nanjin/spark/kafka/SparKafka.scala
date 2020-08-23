@@ -21,12 +21,16 @@ trait SparKafkaUpdateParams[A] extends UpdateParams[SKConfig, A] with Serializab
   def params: SKParams
 }
 
-final class SparKafka[F[_], K, V](val topic: KafkaTopic[F, K, V], val cfg: SKConfig)(implicit
-  val sparkSession: SparkSession)
-    extends SparKafkaUpdateParams[SparKafka[F, K, V]] with SparKafkaLoadModule[F, K, V] {
+final class SparKafka[F[_], K, V](
+  val topic: KafkaTopic[F, K, V],
+  val sparkSession: SparkSession,
+  val cfg: SKConfig
+) extends SparKafkaUpdateParams[SparKafka[F, K, V]] with SparKafkaLoadModule[F, K, V] {
+
+  implicit val ss: SparkSession = sparkSession
 
   override def withParamUpdate(f: SKConfig => SKConfig): SparKafka[F, K, V] =
-    new SparKafka[F, K, V](topic, f(cfg))
+    new SparKafka[F, K, V](topic, sparkSession, f(cfg))
 
   override val params: SKParams = cfg.evalConfig
 
