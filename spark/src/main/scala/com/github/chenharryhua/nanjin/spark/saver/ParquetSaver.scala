@@ -4,9 +4,9 @@ import cats.Parallel
 import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.implicits._
 import cats.kernel.Eq
-import com.github.chenharryhua.nanjin.spark.{fileSink, NJDataType, RddExt}
+import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import com.sksamuel.avro4s.{Encoder, SchemaFor}
-import frameless.{TypedDataset, TypedEncoder}
+import frameless.TypedEncoder
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.apache.hadoop.mapreduce.Job
@@ -58,7 +58,6 @@ sealed abstract private[saver] class AbstractParquetSaver[F[_], A](
 
   final override protected def toDataFrame(rdd: RDD[A], ss: SparkSession): DataFrame = {
     val schema = SchemaConverters.toAvroType(SchemaConverters.toSqlType(encoder.schema).dataType)
-    println(schema)
     rdd.toDF(encoder.withSchema(SchemaFor(schema)), ss)
   }
 }
