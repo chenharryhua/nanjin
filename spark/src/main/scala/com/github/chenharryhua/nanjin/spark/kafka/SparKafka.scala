@@ -13,6 +13,7 @@ import org.apache.avro.Schema
 import org.apache.parquet.avro.AvroSchemaConverter
 import org.apache.parquet.schema.MessageType
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.avro.SchemaConverters
 import org.apache.spark.sql.types.DataType
@@ -72,6 +73,11 @@ final class SparKafka[F[_], K, V](
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): CrDataset[F, K, V] =
     new CrDataset[F, K, V](tds.dataset, cfg)
+
+  def crDataset(ds: Dataset[OptionalKV[K, V]])(implicit
+    keyEncoder: TypedEncoder[K],
+    valEncoder: TypedEncoder[V]): CrDataset[F, K, V] =
+    new CrDataset[F, K, V](ds, cfg)
 
   def prDataset(tds: TypedDataset[NJProducerRecord[K, V]])(implicit
     keyEncoder: TypedEncoder[K],
