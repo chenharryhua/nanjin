@@ -65,12 +65,12 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
        |${context.settings.adminSettings.show}
        |${context.settings.streamSettings.show}
        |
-       |${codec.keySerde.tag}:
-       |${codec.keySerde.configProps}
+       |${codec.keyCodec.cfg.tag}:
+       |${codec.keyCodec.cfg.configProps}
        |${codec.keySchemaFor.schema.toString(true)}
        |
-       |${codec.valSerde.tag}:
-       |${codec.valSerde.configProps}
+       |${codec.valCodec.cfg.tag}:
+       |${codec.valCodec.cfg.configProps}
        |${codec.valSchemaFor.schema.toString(true)}
    """.stripMargin
   }

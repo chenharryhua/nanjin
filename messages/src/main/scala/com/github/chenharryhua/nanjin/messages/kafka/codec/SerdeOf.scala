@@ -1,17 +1,21 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
+import java.util
+
 import com.github.chenharryhua.nanjin.messages.kafka.KeyValueTag
 import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
+import io.confluent.kafka.streams.serdes.avro.{GenericAvroDeserializer, GenericAvroSerializer}
 import monocle.Prism
+import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
+import org.apache.kafka.streams.scala.Serdes
 
-import scala.annotation.implicitNotFound
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Try}
 
-final class NJCodec[A](val topicName: String, val serde: NJSerde[A]) extends Serializable {
-  def encode(a: A): Array[Byte]  = serde.serializer.serialize(topicName, a)
-  def decode(ab: Array[Byte]): A = serde.deserializer.deserialize(topicName, ab)
+final class NJCodec[A](val topicName: String, val cfg: NJSerdeConfig[A]) extends Serializable {
+  def encode(a: A): Array[Byte]  = cfg.serde.serializer.serialize(topicName, a)
+  def decode(ab: Array[Byte]): A = cfg.serde.deserializer.deserialize(topicName, ab)
 
   def tryDecode(ab: Array[Byte]): Try[A] =
     Option(ab).fold[Try[A]](Failure(new NullPointerException))(x => Try(decode(x)))
@@ -20,72 +24,204 @@ final class NJCodec[A](val topicName: String, val serde: NJSerde[A]) extends Ser
     Prism[Array[Byte], A](x => Try(decode(x)).toOption)(encode)
 }
 
-sealed abstract class NJSerde[A](
+sealed abstract class NJSerdeConfig[A](
   val tag: KeyValueTag,
-  val schemaFor: SchemaFor[A],
-  val configProps: Map[String, String],
-  override val serializer: Serializer[A],
-  override val deserializer: Deserializer[A])
-    extends Serde[A] with Serializable {
+  val serde: SerdeOf[A],
+  val configProps: Map[String, String])
+    extends Serializable {
 
-  serializer.configure(configProps.asJava, tag.isKey)
-  deserializer.configure(configProps.asJava, tag.isKey)
+  serde.serializer.configure(configProps.asJava, tag.isKey)
+  serde.deserializer.configure(configProps.asJava, tag.isKey)
 
-  final def codec(topicName: String) = new NJCodec[A](topicName, this)
+  final def codec(topicName: String): NJCodec[A] = new NJCodec[A](topicName, this)
 }
 
-@implicitNotFound(
-  "Could not find an instance of SerdeOf[${A}], primitive types and case classes are supported")
-sealed abstract class SerdeOf[A](val schemaFor: SchemaFor[A]) extends Serializable {
-  val serializer: Serializer[A]
-  val deserializer: Deserializer[A]
+trait SerdeOf[A] extends Serde[A] with Serializable {
+  val avroCodec: NJAvroCodec[A]
 
-  val avroEncoder: AvroEncoder[A]
-  val avroDecoder: AvroDecoder[A]
+  final def asKey(props: Map[String, String]): NJSerdeConfig[A] =
+    new NJSerdeConfig(KeyValueTag.Key, this, props) {}
 
-  final def asKey(props: Map[String, String]): NJSerde[A] =
-    new NJSerde(KeyValueTag.Key, schemaFor, props, serializer, deserializer) {}
-
-  final def asValue(props: Map[String, String]): NJSerde[A] =
-    new NJSerde(KeyValueTag.Value, schemaFor, props, serializer, deserializer) {}
+  final def asValue(props: Map[String, String]): NJSerdeConfig[A] =
+    new NJSerdeConfig(KeyValueTag.Value, this, props) {}
 }
 
-sealed private[codec] trait SerdeOfPriority0 {
+private[codec] trait LowerPriority {
 
-  implicit final def inferedAvroSerde[A: AvroEncoder: AvroDecoder]: SerdeOf[A] = {
-    val ser: KafkaSerializer[A]     = KafkaSerializer[A](AvroEncoder[A])
-    val deSer: KafkaDeserializer[A] = KafkaDeserializer[A](AvroDecoder[A])
-    new SerdeOf[A](ser.avroEncoder.schemaFor) {
-      override val avroDecoder: AvroDecoder[A]   = deSer.avroDecoder
-      override val avroEncoder: AvroEncoder[A]   = ser.avroEncoder
-      override val deserializer: Deserializer[A] = deSer
-      override val serializer: Serializer[A]     = ser
-    }
-  }
+  implicit def avro4sCodec[A: SchemaFor: AvroEncoder: AvroDecoder]: SerdeOf[A] =
+    SerdeOf(NJAvroCodec[A])
 }
 
-object SerdeOf extends SerdeOfPriority0 {
+object SerdeOf extends LowerPriority {
   def apply[A](implicit ev: SerdeOf[A]): SerdeOf[A] = ev
 
-  def apply[A](inst: WithAvroSchema[A]): SerdeOf[A] = {
-    val ser: KafkaSerializer[A]     = KafkaSerializer[A](inst.avroEncoder, inst.schemaFor)
-    val deSer: KafkaDeserializer[A] = KafkaDeserializer[A](inst.avroDecoder, inst.schemaFor)
-    new SerdeOf[A](inst.avroDecoder.schemaFor) {
-      override val avroDecoder: AvroDecoder[A]   = deSer.avroDecoder
-      override val avroEncoder: AvroEncoder[A]   = ser.avroEncoder
-      override val deserializer: Deserializer[A] = deSer
-      override val serializer: Serializer[A]     = ser
+  def apply[A](codec: NJAvroCodec[A]): SerdeOf[A] =
+    new SerdeOf[A] {
+
+      override val serializer: Serializer[A] =
+        new Serializer[A] with Serializable {
+          @transient private[this] lazy val ser: GenericAvroSerializer = new GenericAvroSerializer
+
+          override def configure(configs: util.Map[String, _], isKey: Boolean): Unit =
+            ser.configure(configs, isKey)
+
+          override def close(): Unit = ser.close()
+
+          override def serialize(topic: String, data: A): Array[Byte] =
+            Option(data) match {
+              case None => null.asInstanceOf[Array[Byte]]
+              case Some(value) =>
+                avroCodec.avroEncoder.encode(value) match {
+                  case gr: GenericRecord => ser.serialize(topic, gr)
+                  case ex                => sys.error(s"not a generic record: ${ex.toString}")
+                }
+            }
+        }
+
+      override val deserializer: Deserializer[A] =
+        new Deserializer[A] with Serializable {
+
+          @transient private[this] lazy val deSer: GenericAvroDeserializer =
+            new GenericAvroDeserializer
+
+          override def close(): Unit =
+            deSer.close()
+
+          override def configure(configs: util.Map[String, _], isKey: Boolean): Unit =
+            deSer.configure(configs, isKey)
+
+          override def deserialize(topic: String, data: Array[Byte]): A =
+            Option(data) match {
+              case None        => null.asInstanceOf[A]
+              case Some(value) => avroCodec.avroDecoder.decode(deSer.deserialize(topic, value))
+            }
+        }
+      override val avroCodec: NJAvroCodec[A] = codec
     }
+
+  implicit object IntPrimitiveSerde extends SerdeOf[Int] {
+
+    override val avroCodec: NJAvroCodec[Int] = NJAvroCodec[Int]
+
+    override val serializer: Serializer[Int] =
+      new Serializer[Int] with Serializable {
+        override def close(): Unit = ()
+
+        override def serialize(topic: String, data: Int): Array[Byte] =
+          Serdes.Integer.serializer.serialize(topic, data)
+      }
+
+    override val deserializer: Deserializer[Int] =
+      new Deserializer[Int] with Serializable {
+        override def close(): Unit = ()
+
+        override def deserialize(topic: String, data: Array[Byte]): Int =
+          Serdes.Integer.deserializer.deserialize(topic, data)
+      }
   }
 
-  implicit def knownSerde[A: KafkaSerializer: KafkaDeserializer]: SerdeOf[A] = {
-    val ser   = KafkaSerializer[A]
-    val deser = KafkaDeserializer[A]
-    new SerdeOf[A](ser.avroEncoder.schemaFor) {
-      override val avroDecoder: AvroDecoder[A]   = deser.avroDecoder
-      override val avroEncoder: AvroEncoder[A]   = ser.avroEncoder
-      override val deserializer: Deserializer[A] = deser
-      override val serializer: Serializer[A]     = ser
-    }
+  implicit object LongPrimitiveSerde extends SerdeOf[Long] {
+
+    override val avroCodec: NJAvroCodec[Long] = NJAvroCodec[Long]
+
+    override val serializer: Serializer[Long] =
+      new Serializer[Long] with Serializable {
+        override def close(): Unit = ()
+
+        override def serialize(topic: String, data: Long): Array[Byte] =
+          Serdes.Long.serializer.serialize(topic, data)
+      }
+
+    override val deserializer: Deserializer[Long] =
+      new Deserializer[Long] with Serializable {
+        override def close(): Unit = ()
+
+        override def deserialize(topic: String, data: Array[Byte]): Long =
+          Serdes.Long.deserializer.deserialize(topic, data)
+      }
+  }
+
+  implicit object StringPrimitiveSerde extends SerdeOf[String] {
+
+    override val avroCodec: NJAvroCodec[String] = NJAvroCodec[String]
+
+    override val serializer: Serializer[String] =
+      new Serializer[String] with Serializable {
+        override def close(): Unit = ()
+
+        override def serialize(topic: String, data: String): Array[Byte] =
+          Serdes.String.serializer.serialize(topic, data)
+      }
+
+    override val deserializer: Deserializer[String] =
+      new Deserializer[String] with Serializable {
+        override def close(): Unit = ()
+
+        override def deserialize(topic: String, data: Array[Byte]): String =
+          Serdes.String.deserializer.deserialize(topic, data)
+      }
+  }
+
+  implicit object DoublePrimitiveSerde extends SerdeOf[Double] {
+
+    override val avroCodec: NJAvroCodec[Double] = NJAvroCodec[Double]
+
+    override val serializer: Serializer[Double] =
+      new Serializer[Double] with Serializable {
+        override def close(): Unit = ()
+
+        override def serialize(topic: String, data: Double): Array[Byte] =
+          Serdes.Double.serializer.serialize(topic, data)
+      }
+
+    override val deserializer: Deserializer[Double] =
+      new Deserializer[Double] with Serializable {
+        override def close(): Unit = ()
+
+        override def deserialize(topic: String, data: Array[Byte]): Double =
+          Serdes.Double.deserializer.deserialize(topic, data)
+      }
+  }
+
+  implicit object FloatPrimitiveSerde extends SerdeOf[Float] {
+
+    override val avroCodec: NJAvroCodec[Float] = NJAvroCodec[Float]
+
+    override val serializer: Serializer[Float] =
+      new Serializer[Float] with Serializable {
+        override def close(): Unit = ()
+
+        override def serialize(topic: String, data: Float): Array[Byte] =
+          Serdes.Float.serializer.serialize(topic, data)
+      }
+
+    override val deserializer: Deserializer[Float] =
+      new Deserializer[Float] with Serializable {
+        override def close(): Unit = ()
+
+        override def deserialize(topic: String, data: Array[Byte]): Float =
+          Serdes.Float.deserializer.deserialize(topic, data)
+      }
+  }
+
+  implicit object ByteArrayPrimitiveSerde extends SerdeOf[Array[Byte]] {
+
+    override val avroCodec: NJAvroCodec[Array[Byte]] = NJAvroCodec[Array[Byte]]
+
+    override val serializer: Serializer[Array[Byte]] =
+      new Serializer[Array[Byte]] with Serializable {
+        override def close(): Unit = ()
+
+        override def serialize(topic: String, data: Array[Byte]): Array[Byte] =
+          Serdes.ByteArray.serializer.serialize(topic, data)
+      }
+
+    override val deserializer: Deserializer[Array[Byte]] =
+      new Deserializer[Array[Byte]] with Serializable {
+        override def close(): Unit = ()
+
+        override def deserialize(topic: String, data: Array[Byte]): Array[Byte] =
+          Serdes.ByteArray.deserializer.deserialize(topic, data)
+      }
   }
 }

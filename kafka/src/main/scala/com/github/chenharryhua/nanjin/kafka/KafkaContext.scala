@@ -2,9 +2,10 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.data.Reader
 import cats.effect.{ConcurrentEffect, IO, Sync}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJSerde, SerdeOf}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.SerdeOf
 import fs2.Stream
 import monix.eval.{Task => MTask}
+import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.scala.StreamsBuilder
 import zio.{Task => ZTask}
@@ -14,11 +15,11 @@ sealed abstract class KafkaContext[F[_]](val settings: KafkaSettings) extends Se
   final def updateSettings(f: KafkaSettings => KafkaSettings): KafkaContext[F] =
     new KafkaContext[F](f(settings)) {}
 
-  final def asKey[K: SerdeOf]: NJSerde[K] =
-    SerdeOf[K].asKey(settings.schemaRegistrySettings.config)
+  final def asKey[K: SerdeOf]: Serde[K] =
+    SerdeOf[K].asKey(settings.schemaRegistrySettings.config).serde
 
-  final def asValue[V: SerdeOf]: NJSerde[V] =
-    SerdeOf[V].asValue(settings.schemaRegistrySettings.config)
+  final def asValue[V: SerdeOf]: Serde[V] =
+    SerdeOf[V].asValue(settings.schemaRegistrySettings.config).serde
 
   final def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] =
     new KafkaTopic[F, K, V](topicDef, this)

@@ -3,7 +3,8 @@ package mtest.kafka
 import cats.effect.IO
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJSerde
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJSerdeConfig, SerdeOf}
+import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.ImplicitConversions._
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -30,10 +31,10 @@ class KafkaStreamingTest extends AnyFunSuite {
 
   val tgt: KafkaTopic[IO, StreamKey, StreamTarget] =
     TopicDef[StreamKey, StreamTarget](TopicName("stream-target")).in(ctx)
-  implicit val oneKey: NJSerde[StreamKey]        = one.codec.keySerde
-  implicit val oneValue: NJSerde[StreamOneValue] = one.codec.valSerde
-  implicit val twoValue: NJSerde[StreamTwoValue] = two.codec.valSerde
-  implicit val tgtValue: NJSerde[StreamTarget]   = tgt.codec.valSerde
+  implicit val oneKey: Serde[StreamKey]        = one.codec.keySerde
+  implicit val oneValue: Serde[StreamOneValue] = one.codec.valSerde
+  implicit val twoValue: Serde[StreamTwoValue] = two.codec.valSerde
+  implicit val tgtValue: Serde[StreamTarget]   = tgt.codec.valSerde
 
   ignore("generate data") {
     (one.schemaRegister >> two.schemaRegister).unsafeRunSync()

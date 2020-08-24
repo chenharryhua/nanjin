@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.implicits._
 import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.messages.kafka._
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{SerdeOf, WithAvroSchema}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJAvroCodec, SerdeOf}
 import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
 
 final class TopicDef[K, V] private (val topicName: TopicName)(implicit
@@ -15,14 +15,14 @@ final class TopicDef[K, V] private (val topicName: TopicName)(implicit
 
   def withTopicName(tn: String): TopicDef[K, V] = TopicDef[K, V](TopicName.unsafeFrom(tn))
 
-  implicit val avroKeyEncoder: AvroEncoder[K] = serdeOfKey.avroEncoder
-  implicit val avroKeyDecoder: AvroDecoder[K] = serdeOfKey.avroDecoder
+  implicit val avroKeyEncoder: AvroEncoder[K] = serdeOfKey.avroCodec.avroEncoder
+  implicit val avroKeyDecoder: AvroDecoder[K] = serdeOfKey.avroCodec.avroDecoder
 
-  implicit val avroValEncoder: AvroEncoder[V] = serdeOfVal.avroEncoder
-  implicit val avroValDecoder: AvroDecoder[V] = serdeOfVal.avroDecoder
+  implicit val avroValEncoder: AvroEncoder[V] = serdeOfVal.avroCodec.avroEncoder
+  implicit val avroValDecoder: AvroDecoder[V] = serdeOfVal.avroCodec.avroDecoder
 
-  implicit val keySchemaFor: SchemaFor[K] = serdeOfKey.schemaFor
-  implicit val valSchemaFor: SchemaFor[V] = serdeOfVal.schemaFor
+  implicit val keySchemaFor: SchemaFor[K] = serdeOfKey.avroCodec.schemaFor
+  implicit val valSchemaFor: SchemaFor[V] = serdeOfVal.avroCodec.schemaFor
 
   val schemaFor: SchemaFor[OptionalKV[K, V]] = SchemaFor[OptionalKV[K, V]]
 
@@ -38,13 +38,13 @@ object TopicDef {
 
   def apply[K, V](
     topicName: TopicName,
-    keySchema: WithAvroSchema[K],
-    valueSchema: WithAvroSchema[V]): TopicDef[K, V] =
+    keySchema: NJAvroCodec[K],
+    valueSchema: NJAvroCodec[V]): TopicDef[K, V] =
     new TopicDef(topicName)(SerdeOf(keySchema), SerdeOf(valueSchema))
 
   def apply[K: SerdeOf, V: SerdeOf](topicName: TopicName): TopicDef[K, V] =
     new TopicDef(topicName)(SerdeOf[K], SerdeOf[V])
 
-  def apply[K: SerdeOf, V](topicName: TopicName, valueSchema: WithAvroSchema[V]): TopicDef[K, V] =
+  def apply[K: SerdeOf, V](topicName: TopicName, valueSchema: NJAvroCodec[V]): TopicDef[K, V] =
     new TopicDef(topicName)(SerdeOf[K], SerdeOf(valueSchema))
 }

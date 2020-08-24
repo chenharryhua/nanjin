@@ -58,8 +58,8 @@ object DecimalTestData {
   val goodData: RDD[Duck] = sparkSession.sparkContext.parallelize(
     List(
       Duck(BigDecimal("1234.56"), BigDecimal("1234.567"), Random.nextInt()),
-      Duck(BigDecimal("1234"), BigDecimal("12.34567"), Random.nextInt()),
-      Duck(BigDecimal("1234.00"), BigDecimal("1234.0000001"), Random.nextInt())
+      Duck(BigDecimal("1234"), BigDecimal("1234"), Random.nextInt()),
+      Duck(BigDecimal("1234.005"), BigDecimal("1234.0000001"), Random.nextInt())
     ))
 
   val schema: Schema = (new Schema.Parser).parse(schemaText)
@@ -86,25 +86,47 @@ class DecimalTest extends AnyFunSuite {
   test("avro multi/single should be same") {
     val multi  = "./data/test/spark/decimal/avro/multi"
     val single = "./data/test/spark/decimal/avro/single.avro"
-
+    val spark  = "./data/test/spark/decimal/avro/spark.avro"
+    import sparkSession.implicits._
     val run = for {
       _ <- saver.avro(multi).multi.repartition(1).run(blocker)
       _ <- saver.avro(single).single.run(blocker)
+      _ <- saver.avro(spark).multi.spark.repartition(1).run(blocker)
       m <- loader.avro[Duck](multi).typedDataset.collect[IO]()
       s <- loader.avro[Duck](single).typedDataset.collect[IO]()
-    } yield assert(m.toSet == s.toSet)
+      //k <- loader.avro[Duck](spark).typedDataset.collect[IO]()
+      ss <- IO(sparkSession.read.format("avro").load(single).as[Duck].collect())
+      sm <- IO(sparkSession.read.format("avro").load(multi).as[Duck].collect())
+      sk <- IO(sparkSession.read.format("avro").load(spark).as[Duck].collect())
+    } yield {
+      assert(m.toSet == s.toSet)
+      assert(m.toSet == ss.toSet)
+      assert(m.toSet == sm.toSet)
+      assert(m.toSet == sk.toSet)
+    }
     run.unsafeRunSync()
   }
   test("parquet multi/single should be same") {
     val multi  = "./data/test/spark/decimal/parquet/multi"
     val single = "./data/test/spark/decimal/parquet/single.parquet"
+    val spark  = "./data/test/spark/decimal/parquet/spark.parquet"
+    import sparkSession.implicits._
 
     val run = for {
       _ <- saver.parquet(multi).multi.repartition(2).run(blocker)
       _ <- saver.parquet(single).single.run(blocker)
+      _ <- saver.parquet(spark).multi.repartition(1).spark.run(blocker)
       m <- loader.parquet[Duck](multi).typedDataset.collect[IO]()
       s <- loader.parquet[Duck](single).typedDataset.collect[IO]()
-    } yield assert(m.toSet == s.toSet)
+      // ss <- IO(sparkSession.read.parquet(single).as[Duck].collect())
+      // sm <- IO(sparkSession.read.parquet(multi).as[Duck].collect())
+      sk <- IO(sparkSession.read.parquet(spark).as[Duck].collect())
+    } yield {
+      assert(m.toSet == s.toSet)
+      // assert(m.toSet == ss.toSet)
+      // assert(m.toSet == sm.toSet)
+      assert(m.toSet == sk.toSet)
+    }
     run.unsafeRunSync()
   }
 

@@ -3,7 +3,7 @@ package mtest.kafka
 import cats.derived.auto.show._
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.{TopicName, _}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, WithAvroSchema}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, NJAvroCodec}
 import com.landoop.telecom.telecomitalia.telecommunications.{smsCallInternet, Key}
 import fs2.kafka.AutoOffsetReset
 import io.circe.generic.auto._
@@ -15,8 +15,8 @@ class ConsumeMessageFs2Test extends AnyFunSuite {
 
   val sms = TopicDef(
     TopicName("telecom_italia_data"),
-    WithAvroSchema[Key](Key.schema).right.get,
-    WithAvroSchema[smsCallInternet](smsCallInternet.schema).right.get)
+    NJAvroCodec[Key](Key.schema).right.get,
+    NJAvroCodec[smsCallInternet](smsCallInternet.schema).right.get)
 
   test("should be able to consume json topic") {
     val topic = backblaze_smart.in(ctx)

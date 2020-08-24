@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.implicits._
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJCodec, NJSerde}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJCodec, SerdeOf}
 import com.sksamuel.avro4s.SchemaFor
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 
@@ -12,11 +12,11 @@ final class KafkaTopicCodec[K, V] private[kafka] (
     keyCodec.topicName === valCodec.topicName,
     "key and value codec should have same topic name")
 
-  implicit val keySerde: NJSerde[K] = keyCodec.serde
-  implicit val valSerde: NJSerde[V] = valCodec.serde
+  implicit val keySerde: SerdeOf[K] = keyCodec.cfg.serde
+  implicit val valSerde: SerdeOf[V] = valCodec.cfg.serde
 
-  val keySchemaFor: SchemaFor[K] = keySerde.schemaFor
-  val valSchemaFor: SchemaFor[V] = valSerde.schemaFor
+  val keySchemaFor: SchemaFor[K] = keySerde.avroCodec.schemaFor
+  val valSchemaFor: SchemaFor[V] = valSerde.avroCodec.schemaFor
 
   val keySerializer: Serializer[K] = keySerde.serializer
   val valSerializer: Serializer[V] = valSerde.serializer
