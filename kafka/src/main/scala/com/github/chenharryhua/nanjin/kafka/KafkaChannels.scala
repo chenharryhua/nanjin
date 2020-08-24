@@ -10,7 +10,6 @@ import cats.data.{NonEmptyList, Reader}
 import cats.effect._
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJSerde
 import com.github.chenharryhua.nanjin.utils
 import fs2.Stream
 import fs2.interop.reactivestreams._
@@ -18,6 +17,7 @@ import fs2.kafka.{ConsumerSettings => Fs2ConsumerSettings, ProducerSettings => F
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
+import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.kstream.GlobalKTable
 
 object KafkaChannels {
@@ -133,8 +133,8 @@ object KafkaChannels {
 
   final class StreamingChannel[K, V] private[kafka] (
     val topicName: TopicName,
-    val keySerde: NJSerde[K],
-    val valueSerde: NJSerde[V]) {
+    val keySerde: Serde[K],
+    val valueSerde: Serde[V]) {
     import org.apache.kafka.streams.scala.StreamsBuilder
     import org.apache.kafka.streams.scala.kstream.{Consumed, KStream, KTable}
 

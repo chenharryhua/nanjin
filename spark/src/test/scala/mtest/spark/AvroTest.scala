@@ -2,7 +2,7 @@ package mtest.spark
 
 import cats.effect.IO
 import cats.implicits._
-import com.github.chenharryhua.nanjin.messages.kafka.codec.WithAvroSchema
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark._
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
@@ -32,7 +32,7 @@ object AvroTestData {
     """.stripMargin
 
   final case class HasByteArray(name: String, bytes: Array[Byte])
-  val serde = WithAvroSchema[HasByteArray](schema)
+  val serde = NJAvroCodec[HasByteArray](schema)
   println(serde.right.get.schemaFor.schema)
 
   val data = List.fill(10)(

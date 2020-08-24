@@ -7,7 +7,7 @@ import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import io.circe.Encoder
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import scala.reflect.ClassTag
 import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
@@ -45,6 +45,9 @@ sealed abstract private[saver] class AbstractCirceSaver[F[_], A](
     rdd
       .map(a => encoder(avroDecoder.decode(avroEncoder.encode(a))).noSpaces)
       .saveAsTextFile(outPath)
+
+  final override protected def toDataFrame(rdd: RDD[A], ss: SparkSession): DataFrame =
+    rdd.toDF(avroEncoder, ss)
 }
 
 final class CirceSaver[F[_], A](

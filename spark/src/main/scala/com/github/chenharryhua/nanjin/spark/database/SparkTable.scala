@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.database
 
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.database.{DatabaseName, DatabaseSettings, TableName}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.WithAvroSchema
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.saver.RddFileLoader
 import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
 import frameless.{TypedDataset, TypedEncoder}
@@ -27,7 +27,7 @@ object TableDef {
   def apply[A: AvroEncoder: AvroDecoder: TypedEncoder](tableName: TableName): TableDef[A] =
     new TableDef[A](tableName, TypedEncoder[A], AvroEncoder[A], AvroDecoder[A])
 
-  def apply[A](tableName: TableName, schema: WithAvroSchema[A])(implicit
+  def apply[A](tableName: TableName, schema: NJAvroCodec[A])(implicit
     typedEncoder: TypedEncoder[A]) =
     new TableDef[A](tableName, typedEncoder, schema.avroEncoder, schema.avroDecoder)
 }

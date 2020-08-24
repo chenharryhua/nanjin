@@ -14,7 +14,7 @@ import org.apache.avro.{Schema, SchemaCompatibility}
 
 import scala.util.Try
 
-final case class WithAvroSchema[A] private (
+final case class NJAvroCodec[A] private[codec] (
   schemaFor: SchemaFor[A],
   avroDecoder: AvroDecoder[A],
   avroEncoder: AvroEncoder[A])
@@ -24,11 +24,11 @@ final case class WithAvroSchema[A] private (
   * right - WithAvroSchema
   * both  - (warnings, WithAvroSchema)
   */
-object WithAvroSchema {
+object NJAvroCodec {
 
   def apply[A](input: Schema)(implicit
     decoder: AvroDecoder[A],
-    encoder: AvroEncoder[A]): Ior[String, WithAvroSchema[A]] = {
+    encoder: AvroEncoder[A]): Ior[String, NJAvroCodec[A]] = {
     val inferred: Schema = encoder.schema
 
     if (SchemaCompatibility.schemaNameEquals(inferred, input)) {
@@ -47,7 +47,7 @@ object WithAvroSchema {
 
       val compat: Option[String]  = rwCompat |+| wrCompat
       val schemaFor: SchemaFor[A] = SchemaFor[A](input)
-      val was: Either[String, WithAvroSchema[A]] = for {
+      val was: Either[String, NJAvroCodec[A]] = for {
         d <-
           Either
             .catchNonFatal(DecoderHelpers.buildWithSchema(decoder, schemaFor))
@@ -56,17 +56,20 @@ object WithAvroSchema {
           Either
             .catchNonFatal(EncoderHelpers.buildWithSchema(encoder, schemaFor))
             .leftMap(_ => "avro4s decline encode schema change")
-      } yield WithAvroSchema(schemaFor, d, e)
+      } yield NJAvroCodec(schemaFor, d, e)
       Ior.fromEither(was).flatMap { w =>
-        compat.fold[Ior[String, WithAvroSchema[A]]](Ior.right(w))(warn => Ior.both(warn, w))
+        compat.fold[Ior[String, NJAvroCodec[A]]](Ior.right(w))(warn => Ior.both(warn, w))
       }
     } else
       Ior.left("schema name is different")
   }
 
-  def apply[A: AvroDecoder: AvroEncoder](schemaText: String): Ior[String, WithAvroSchema[A]] =
-    Try((new Schema.Parser).parse(schemaText)).fold[Ior[String, WithAvroSchema[A]]](
+  def apply[A: AvroDecoder: AvroEncoder](schemaText: String): Ior[String, NJAvroCodec[A]] =
+    Try((new Schema.Parser).parse(schemaText)).fold[Ior[String, NJAvroCodec[A]]](
       ex => Ior.left(ex.getMessage),
       schema => apply(schema)
     )
+
+  def apply[A: AvroDecoder: AvroEncoder: SchemaFor]: NJAvroCodec[A] =
+    NJAvroCodec(SchemaFor[A], AvroDecoder[A], AvroEncoder[A])
 }

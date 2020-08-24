@@ -7,7 +7,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.messages.kafka.{CompulsoryV, OptionalKV}
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.WithAvroSchema
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.injection._
 import com.github.chenharryhua.nanjin.spark.kafka._
 import com.landoop.transportation.nyc.trip.yellow.trip_record

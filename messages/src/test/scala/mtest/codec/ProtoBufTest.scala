@@ -1,6 +1,6 @@
 package mtest.codec
 
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{KPB, KafkaDeserializer, KafkaSerializer}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{KPB, SerdeOf}
 import mtest.pb.test.Person
 import org.scalacheck.Prop.{forAll, propBoolean}
 import org.scalacheck.{Arbitrary, Gen, Properties}
@@ -8,8 +8,7 @@ import scalapb.UnknownFieldSet
 
 class ProtoBufTest extends Properties("protobuf") {
 
-  val ser: KafkaSerializer[KPB[Person]]     = KafkaSerializer[KPB[Person]]
-  val serDe: KafkaDeserializer[KPB[Person]] = KafkaDeserializer[KPB[Person]]
+  val ser: SerdeOf[KPB[Person]] = SerdeOf[KPB[Person]]
 
   val genPerson: Gen[Person] = for {
     name <- Gen.asciiStr
@@ -24,8 +23,8 @@ class ProtoBufTest extends Properties("protobuf") {
   implicit val arbPerson: Arbitrary[Person] = Arbitrary(genPerson)
 
   property("encode/decode identity") = forAll { (p: Person) =>
-    val encoded = ser.avroEncoder.encode(KPB(p))
-    val decoded = serDe.avroDecoder.decode(encoded)
+    val encoded = ser.avroCodec.avroEncoder.encode(KPB(p))
+    val decoded = ser.avroCodec.avroDecoder.decode(encoded)
     decoded.value == p
   }
 }
