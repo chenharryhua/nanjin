@@ -40,11 +40,7 @@ class SingleWriteSparkReadTest extends AnyFunSuite {
       delete(path) >> data.through(sink.csv[Elephant](path)).compile.drain
     prepare.unsafeRunSync()
 
-    val rst = fileSource[IO](blocker)
-      .csv[Elephant](path)
-      .compile
-      .toList
-      .unsafeRunSync()
+    val rst = fileSource[IO](blocker).csv[Elephant](path).compile.toList.unsafeRunSync()
     assert(rst.toSet == elephants.toSet)
   }
   test("spark is unable to read varying lengh csv") {
@@ -63,16 +59,6 @@ class SingleWriteSparkReadTest extends AnyFunSuite {
       delete(path) >> data.through(sink.avro[Elephant](path)).compile.drain
     prepare.unsafeRunSync()
     val rst = sparkSession.load.avro[Elephant](path).collect.toSet
-    assert(rst == elephants.toSet)
-  }
-
-  test("spark parquet read/write identity") {
-    val path = "./data/test/spark/sse/elephant.parquet"
-    val data = Stream.emits(elephants)
-    val prepare =
-      delete(path) >> data.through(sink.parquet[Elephant](path)).compile.drain
-    prepare.unsafeRunSync()
-    val rst = sparkSession.load.parquet[Elephant](path).collect.toSet
     assert(rst == elephants.toSet)
   }
 }

@@ -47,7 +47,7 @@ class PartitionTest extends AnyFunSuite {
     topic.sparKafka.fromKafka.flatMap(_.save.partition.jackson.multi.run(blocker)).unsafeRunSync()
   }
   test("partition parquet") {
-    topic.sparKafka.fromKafka.flatMap(_.save.partition.parquet.single.run(blocker)).unsafeRunSync()
+    topic.sparKafka.fromKafka.flatMap(_.save.partition.parquet.run(blocker)).unsafeRunSync()
   }
   test("partition circe") {
     topic.sparKafka.fromKafka.flatMap(_.save.partition.circe.run(blocker)).unsafeRunSync()

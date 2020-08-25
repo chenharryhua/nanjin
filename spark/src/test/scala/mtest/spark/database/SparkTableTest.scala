@@ -94,7 +94,7 @@ class SparkTableTest extends AnyFunSuite {
   test("save") {
     val run = table.in[IO](postgres).fromDB.save.jackson.single.run(blocker) >>
       table.in[IO](postgres).fromDB.save.avro.single.run(blocker) >>
-      table.in[IO](postgres).fromDB.save.parquet.single.run(blocker) >>
+      table.in[IO](postgres).fromDB.save.parquet.run(blocker) >>
       table.in[IO](postgres).fromDB.save.circe.single.run(blocker) >>
       table.in[IO](postgres).fromDB.save.csv.single.run(blocker) >>
       IO(())

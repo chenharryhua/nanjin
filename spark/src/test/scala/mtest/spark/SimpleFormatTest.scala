@@ -69,11 +69,10 @@ class SimpleFormatTest extends AnyFunSuite {
     val multi  = "./data/test/spark/simple/parquet/multi.parquet"
 
     val rdd = sparkSession.sparkContext.parallelize(simple)
-    val prepare = rdd
+    val prepare = rdd.save[IO].parquet(single).run(blocker) >> rdd
       .save[IO]
-      .parquet(single)
-      .single
-      .run(blocker) >> rdd.save[IO].parquet(multi).spark.multi.run(blocker)
+      .parquet(multi)
+      .run(blocker)
     prepare.unsafeRunSync()
 
     assert(sparkSession.load.parquet[Simple](single).collect().toSet == simple.toSet)

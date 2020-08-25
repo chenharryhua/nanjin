@@ -55,11 +55,18 @@ object DecimalTestData {
       |}
       |""".stripMargin
 
-  val goodData: RDD[Duck] = sparkSession.sparkContext.parallelize(
+  val expected =
+    Set(
+      Duck(BigDecimal("1234.56"), BigDecimal("1234.567"), 1),
+      Duck(BigDecimal("1234.00"), BigDecimal("1234.000"), 2),
+      Duck(BigDecimal("1234.01"), BigDecimal("1234.000"), 3)
+    )
+
+  val rdd: RDD[Duck] = sparkSession.sparkContext.parallelize(
     List(
-      Duck(BigDecimal("1234.56"), BigDecimal("1234.567"), Random.nextInt()),
-      Duck(BigDecimal("1234"), BigDecimal("1234"), Random.nextInt()),
-      Duck(BigDecimal("1234.005"), BigDecimal("1234.0000001"), Random.nextInt())
+      Duck(BigDecimal("1234.56"), BigDecimal("1234.567"), 1),
+      Duck(BigDecimal("1234"), BigDecimal("1234"), 2),
+      Duck(BigDecimal("1234.005"), BigDecimal("1234.0000001"), 3)
     ))
 
   val schema: Schema = (new Schema.Parser).parse(schemaText)
@@ -68,11 +75,12 @@ object DecimalTestData {
 
   implicit val avroEncoder: Encoder[Duck] =
     shapeless.cachedImplicit[Encoder[Duck]].withSchema(SchemaFor[Duck](schema))
+
   implicit val typedEncoder: TypedEncoder[Duck] = shapeless.cachedImplicit
   implicit val rowEncoder: RowEncoder[Duck]     = shapeless.cachedImplicit
   implicit val circeCodec: Codec[Duck]          = io.circe.generic.semiauto.deriveCodec
 
-  val saver = new RddFileSaver[IO, Duck](goodData)
+  val saver = new RddFileSaver[IO, Duck](rdd)
 
   val loader = new RddFileLoader(sparkSession)
 
@@ -99,33 +107,30 @@ class DecimalTest extends AnyFunSuite {
       sm <- IO(sparkSession.read.format("avro").load(multi).as[Duck].collect())
       sk <- IO(sparkSession.read.format("avro").load(spark).as[Duck].collect())
     } yield {
-      assert(m.toSet == s.toSet)
-      assert(m.toSet == ss.toSet)
-      assert(m.toSet == sm.toSet)
-      assert(m.toSet == sk.toSet)
+      assert(expected == m.toSet)
+      assert(expected == s.toSet)
+      assert(expected == ss.toSet)
+      assert(expected == sm.toSet)
+      assert(expected == sk.toSet)
     }
     run.unsafeRunSync()
   }
   test("parquet multi/single should be same") {
     val multi  = "./data/test/spark/decimal/parquet/multi"
     val single = "./data/test/spark/decimal/parquet/single.parquet"
-    val spark  = "./data/test/spark/decimal/parquet/spark.parquet"
     import sparkSession.implicits._
 
     val run = for {
-      _ <- saver.parquet(multi).multi.repartition(2).run(blocker)
-      _ <- saver.parquet(single).single.run(blocker)
-      _ <- saver.parquet(spark).multi.repartition(1).spark.run(blocker)
+      _ <- saver.parquet(multi).repartition(1).run(blocker)
+      _ <- saver.parquet(single).run(blocker)
       m <- loader.parquet[Duck](multi).typedDataset.collect[IO]()
       s <- loader.parquet[Duck](single).typedDataset.collect[IO]()
-      // ss <- IO(sparkSession.read.parquet(single).as[Duck].collect())
-      // sm <- IO(sparkSession.read.parquet(multi).as[Duck].collect())
-      sk <- IO(sparkSession.read.parquet(spark).as[Duck].collect())
+      ss <- IO(sparkSession.read.parquet(single).as[Duck].collect())
+      sm <- IO(sparkSession.read.parquet(multi).as[Duck].collect())
     } yield {
-      assert(m.toSet == s.toSet)
-      // assert(m.toSet == ss.toSet)
-      // assert(m.toSet == sm.toSet)
-      assert(m.toSet == sk.toSet)
+      // assert(m.toSet == s.toSet)
+      assert(expected == ss.toSet)
+      assert(expected == sm.toSet)
     }
     run.unsafeRunSync()
   }

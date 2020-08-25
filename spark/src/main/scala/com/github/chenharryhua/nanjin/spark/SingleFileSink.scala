@@ -42,7 +42,7 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
   }
 
 // 3
-  def parquet[A: TypedEncoder](pathStr: String)(implicit
+  def parquet[A](pathStr: String)(implicit
     enc: AvroEncoder[A],
     F: Sync[F],
     cs: ContextShift[F]): Pipe[F, A, Unit] = {

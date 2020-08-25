@@ -33,14 +33,13 @@ class CompatTest extends AnyFunSuite {
     // assert(rst == pigeons.toSet)
   }
 
-  test("spark generated parquet can not be comsumed by nj") {
+  test("spark generated parquet can be comsumed by nj") {
     val path = "./data/test/spark/compat/spark.parquet"
 
     val tds = TypedDataset.create(sparkSession.sparkContext.parallelize(pigeons))
     tds.write.mode(SaveMode.Overwrite).parquet(path)
-
-    // val rst = sparkSession.load.parquet[Pigeon](path).collect().toSet
-    // assert(rst == pigeons.toSet)
+    val rst = sparkSession.load.parquet[Pigeon](path).collect().toSet
+    assert(rst == pigeons.toSet)
   }
 
   test("hadoop avro can be consumed by spark - multi") {
@@ -61,7 +60,7 @@ class CompatTest extends AnyFunSuite {
     assert(rst == pigeons.toSet)
   }
 
-  test("hadoop parquet can be consumed by spark - multi") {
+  test("parquet can be consumed by spark - multi") {
     import sparkSession.implicits._
     val path = "./data/test/spark/compat/nj-hadoop-multi.parquet"
 
@@ -69,8 +68,6 @@ class CompatTest extends AnyFunSuite {
       .create(sparkSession.sparkContext.parallelize(pigeons))
       .save[IO]
       .parquet(path)
-      .multi
-      .hadoop
       .run(blocker)
       .unsafeRunSync()
 
@@ -79,23 +76,6 @@ class CompatTest extends AnyFunSuite {
     assert(rst == pigeons.toSet)
   }
 
-  test("spark parquet - multi") {
-    import sparkSession.implicits._
-    val path = "./data/test/spark/compat/nj-spark-multi.parquet"
-
-    TypedDataset
-      .create(sparkSession.sparkContext.parallelize(pigeons))
-      .save[IO]
-      .parquet(path)
-      .spark
-      .multi
-      .run(blocker)
-      .unsafeRunSync()
-
-    val rst = sparkSession.read.parquet(path).as[Pigeon].collect().toSet
-
-    assert(rst == pigeons.toSet)
-  }
   test("spark avro - multi") {
     import sparkSession.implicits._
     val path = "./data/test/spark/compat/nj-spark-multi.avro"
@@ -122,8 +102,6 @@ class CompatTest extends AnyFunSuite {
       .create(sparkSession.sparkContext.parallelize(pigeons))
       .save[IO]
       .parquet(path)
-      .hadoop
-      .multi
       .run(blocker)
       .unsafeRunSync()
 
@@ -152,23 +130,4 @@ class CompatTest extends AnyFunSuite {
     assert(rst == pigeons.toSet)
   }
 
-  test("nj generated parquet can be consumed by spark - single") {
-    import sparkSession.implicits._
-    val path = "./data/test/spark/compat/nj-single.parquet"
-
-    TypedDataset
-      .create(sparkSession.sparkContext.parallelize(pigeons))
-      .dataset
-      .rdd
-      .save[IO]
-      .parquet(path)
-      .single
-      .hadoop
-      .run(blocker)
-      .unsafeRunSync()
-
-    val rst = sparkSession.read.parquet(path).as[Pigeon].collect().toSet
-
-    assert(rst == pigeons.toSet)
-  }
 }
