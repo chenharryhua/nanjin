@@ -65,24 +65,8 @@ final class RddFileLoader(ss: SparkSession) extends Serializable {
   }
 
 // 4
-  def parquet[A](
-    pathStr: String)(implicit decoder: AvroDecoder[A], constraint: TypedEncoder[A]): RDD[A] = {
-
-    val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
-    AvroParquetInputFormat.setAvroDataSupplier(job, classOf[GenericDataSupplier])
-    AvroParquetInputFormat.setAvroReadSchema(job, decoder.schema)
-    ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
-
-    import constraint.classTag
-
-    ss.sparkContext
-      .newAPIHadoopFile(
-        pathStr,
-        classOf[AvroParquetInputFormat[GenericRecord]],
-        classOf[Void],
-        classOf[GenericRecord])
-      .map { case (_, gr) => decoder.decode(gr) }
-  }
+  def parquet[A](pathStr: String)(implicit encoder: TypedEncoder[A]): RDD[A] =
+    TypedDataset.createUnsafe(ss.read.parquet(pathStr)).dataset.rdd
 
 // 5
   def circe[A: ClassTag: JsonDecoder](pathStr: String): RDD[A] =
