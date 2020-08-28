@@ -31,7 +31,10 @@ private[spark] trait DatasetExtensions {
     def source[F[_]: ConcurrentEffect]: Source[A, NotUsed] =
       Source.fromPublisher[A](stream[F].toUnicastPublisher)
 
-    def typedDataset(implicit ev: TypedEncoder[A], ss: SparkSession): TypedDataset[A] =
+    def typedDataset(implicit
+      te: TypedEncoder[A],
+      avro: AvroEncoder[A],
+      ss: SparkSession): TypedDataset[A] =
       TypedDataset.create(rdd)
 
     def toDF(implicit encoder: AvroEncoder[A], ss: SparkSession): DataFrame =

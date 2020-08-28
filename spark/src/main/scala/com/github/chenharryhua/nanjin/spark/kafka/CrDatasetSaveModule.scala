@@ -1,3 +1,4 @@
+/*
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Show
@@ -88,3 +89,4 @@ private[kafka] trait CrDatasetSaveModule[F[_], K, V] { self: CrDataset[F, K, V] 
     new FileSaver(new RddFileSaver[F, OptionalKV[K, V]](crs.rdd))
 
 }
+ */

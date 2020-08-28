@@ -13,9 +13,9 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryV,
   OptionalKV
 }
-import com.github.chenharryhua.nanjin.spark.RddExt
+import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt}
 import com.github.chenharryhua.nanjin.spark.saver.RddFileSaver
-import com.sksamuel.avro4s.{Encoder => AvroEncoder, Decoder => AvroDecoder}
+import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
 import frameless.cats.implicits.rddOps
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream

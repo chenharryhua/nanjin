@@ -4,14 +4,14 @@ import java.time.{Instant, LocalDate}
 
 import cats.effect.IO
 import cats.implicits._
-import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.messages.kafka.{CompulsoryV, OptionalKV}
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.injection._
 import com.github.chenharryhua.nanjin.spark.kafka._
 import com.landoop.transportation.nyc.trip.yellow.trip_record
-import frameless.TypedDataset
+import com.sksamuel.avro4s.SchemaFor
+import frameless.{TypedDataset, TypedEncoder}
 import frameless.cats.implicits._
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -23,6 +23,9 @@ object SparKafkaTestData {
 
   val data: HasDuck =
     HasDuck(0, "a", LocalDate.now, Instant.ofEpochMilli(Instant.now.toEpochMilli), duck)
+
+  implicit val hasDuckEncoder: TypedEncoder[HasDuck] = shapeless.cachedImplicit
+  println(SchemaFor[HasDuck].schema)
 }
 
 class SparKafkaTest extends AnyFunSuite {

@@ -24,7 +24,8 @@ final class TopicDef[K, V] private (val topicName: TopicName)(implicit
   implicit val keySchemaFor: SchemaFor[K] = serdeOfKey.avroCodec.schemaFor
   implicit val valSchemaFor: SchemaFor[V] = serdeOfVal.avroCodec.schemaFor
 
-  val schemaFor: SchemaFor[OptionalKV[K, V]] = SchemaFor[OptionalKV[K, V]]
+  implicit val schemaFor: SchemaFor[OptionalKV[K, V]] =
+    shapeless.cachedImplicit[SchemaFor[OptionalKV[K, V]]]
 
   def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[F, K, V] =
     ctx.topic[K, V](this)

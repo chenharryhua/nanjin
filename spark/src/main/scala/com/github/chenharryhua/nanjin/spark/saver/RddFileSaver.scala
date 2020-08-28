@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.spark.saver
 
-import cats.{Eq, Show}
+import cats.Show
 import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.sksamuel.avro4s.{Encoder => AvroEncoder, Decoder => AvroDecoder}
-import frameless.TypedEncoder
+import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
+import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
 import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.spark.rdd.RDD
@@ -20,171 +20,92 @@ final class RddFileSaver[F[_], A](rdd: RDD[A]) extends Serializable {
     new RddFileSaver[F, B](rdd.flatMap(f))
 
 // 1
-  def avro(pathStr: String)(implicit enc: AvroEncoder[A]): AvroSaver[F, A] =
-    new AvroSaver[F, A](rdd, enc, pathStr, SaverConfig(NJFileFormat.Avro))
+  def hadoopAvro(pathStr: String)(implicit enc: AvroEncoder[A]): ConfigFileSaver[F, A] =
+    new ConfigFileSaver[F, A](
+      rdd,
+      pathStr,
+      new AvroWriter[F, A](enc),
+      SaverConfig(NJFileFormat.Avro))
+
+  def avro(pathStr: String)(implicit enc: AvroTypedEncoder[A]): ConfigFileSaver[F, A] =
+    new ConfigFileSaver[F, A](
+      rdd,
+      pathStr,
+      new SparkAvroWriter[F, A](enc),
+      SaverConfig(NJFileFormat.Avro))
 
 // 2
-  def jackson(pathStr: String)(implicit enc: AvroEncoder[A]): JacksonSaver[F, A] =
-    new JacksonSaver[F, A](rdd, enc, pathStr, SaverConfig(NJFileFormat.Jackson))
+  def jackson(pathStr: String)(implicit enc: AvroEncoder[A]): ConfigFileSaver[F, A] =
+    new ConfigFileSaver[F, A](
+      rdd,
+      pathStr,
+      new JacksonWriter[F, A](enc),
+      SaverConfig(NJFileFormat.Jackson))
 
 // 3
-  def binAvro(pathStr: String)(implicit enc: AvroEncoder[A]): BinaryAvroSaver[F, A] =
-    new BinaryAvroSaver[F, A](rdd, enc, pathStr, SaverConfig(NJFileFormat.BinaryAvro).withSingle)
+  def binAvro(pathStr: String)(implicit enc: AvroEncoder[A]): ConfigFileSaver[F, A] =
+    new ConfigFileSaver[F, A](
+      rdd,
+      pathStr,
+      new BinAvroWriter[F, A](enc),
+      SaverConfig(NJFileFormat.BinaryAvro).withSingle)
 
 // 4
-  def parquet(pathStr: String)(implicit
-    enc: AvroEncoder[A],
-    constraint: TypedEncoder[A]): ParquetSaver[F, A] =
-    new ParquetSaver[F, A](rdd, enc, constraint, pathStr, SaverConfig(NJFileFormat.Parquet))
+  def parquet(pathStr: String)(implicit enc: AvroTypedEncoder[A]): ConfigFileSaver[F, A] =
+    new ConfigFileSaver[F, A](
+      rdd,
+      pathStr,
+      new ParquetWriter[F, A](enc),
+      SaverConfig(NJFileFormat.Parquet))
 
 // 5
   def circe(pathStr: String)(implicit
     enc: JsonEncoder[A],
     avroEncoder: AvroEncoder[A],
-    avroDecoder: AvroDecoder[A]): CirceSaver[F, A] =
-    new CirceSaver[F, A](
+    avroDecoder: AvroDecoder[A],
+    tag: ClassTag[A]): ConfigFileSaver[F, A] =
+    new ConfigFileSaver[F, A](
       rdd,
-      enc,
-      avroEncoder,
-      avroDecoder,
       pathStr,
+      new CirceWriter[F, A](enc, avroEncoder, avroDecoder),
       SaverConfig(NJFileFormat.Circe))
 
 // 6
-  def text(pathStr: String)(implicit enc: Show[A]): TextSaver[F, A] =
-    new TextSaver[F, A](rdd, enc, pathStr, SaverConfig(NJFileFormat.Text))
+  def text(
+    pathStr: String)(implicit enc: Show[A], ate: AvroTypedEncoder[A]): ConfigFileSaver[F, A] =
+    new ConfigFileSaver[F, A](
+      rdd,
+      pathStr,
+      new TextWriter[F, A](enc, ate),
+      SaverConfig(NJFileFormat.Text))
 
 // 7
-  def csv(pathStr: String)(implicit
-    enc: RowEncoder[A],
-    avroEncoder: AvroEncoder[A],
-    avroDecoder: AvroDecoder[A],
-    constraint: TypedEncoder[A]): CsvSaver[F, A] =
-    new CsvSaver[F, A](
+  def csv(
+    pathStr: String)(implicit enc: RowEncoder[A], ate: AvroTypedEncoder[A]): ConfigFileSaver[F, A] =
+    new ConfigFileSaver[F, A](
       rdd,
-      enc,
-      avroEncoder,
-      avroDecoder,
-      CsvConfiguration.rfc,
-      constraint,
       pathStr,
+      new CsvWriter(CsvConfiguration.rfc, enc, ate),
       SaverConfig(NJFileFormat.Csv))
 
 // 8
-  def javaObject(pathStr: String): JavaObjectSaver[F, A] =
-    new JavaObjectSaver[F, A](rdd, pathStr, SaverConfig(NJFileFormat.JavaObject).withSingle)
+  def javaObject(pathStr: String): ConfigFileSaver[F, A] =
+    new ConfigFileSaver[F, A](
+      rdd,
+      pathStr,
+      new JavaObjectWriter[F, A],
+      SaverConfig(NJFileFormat.JavaObject).withSingle)
 
 // 9
-  def protobuf(pathStr: String)(implicit ev: A <:< GeneratedMessage): ProtobufSaver[F, A] =
-    new ProtobufSaver[F, A](rdd, pathStr, SaverConfig(NJFileFormat.ProtoBuf).withSingle)
+  def protobuf(pathStr: String)(implicit ev: A <:< GeneratedMessage): ConfigFileSaver[F, A] =
+    new ConfigFileSaver[F, A](
+      rdd,
+      pathStr,
+      new ProtobufWriter[F, A](),
+      SaverConfig(NJFileFormat.ProtoBuf).withSingle)
 
 // 10
   def dump(pathStr: String): Dumper[F, A] =
     new Dumper[F, A](rdd, pathStr)
 
-  object partition extends Serializable {
-
-// 1
-    def avro[K: ClassTag: Eq](bucketing: A => Option[K], pathBuilder: K => String)(implicit
-      enc: AvroEncoder[A]): AvroPartitionSaver[F, A, K] =
-      new AvroPartitionSaver[F, A, K](
-        rdd,
-        enc,
-        bucketing,
-        pathBuilder,
-        SaverConfig(NJFileFormat.Avro))
-
-// 2
-    def jackson[K: ClassTag: Eq](bucketing: A => Option[K], pathBuilder: K => String)(implicit
-      enc: AvroEncoder[A]): JacksonPartitionSaver[F, A, K] =
-      new JacksonPartitionSaver[F, A, K](
-        rdd,
-        enc,
-        bucketing,
-        pathBuilder,
-        SaverConfig(NJFileFormat.Jackson))
-
-// 3
-    def binAvro[K: ClassTag: Eq](bucketing: A => Option[K], pathBuilder: K => String)(implicit
-      enc: AvroEncoder[A]): BinaryAvroPartitionSaver[F, A, K] =
-      new BinaryAvroPartitionSaver[F, A, K](
-        rdd,
-        enc,
-        bucketing,
-        pathBuilder,
-        SaverConfig(NJFileFormat.BinaryAvro).withSingle)
-
-// 4
-    def parquet[K: ClassTag: Eq](bucketing: A => Option[K], pathBuilder: K => String)(implicit
-      enc: AvroEncoder[A],
-      constraint: TypedEncoder[A]): ParquetPartitionSaver[F, A, K] =
-      new ParquetPartitionSaver[F, A, K](
-        rdd,
-        enc,
-        constraint,
-        bucketing,
-        pathBuilder,
-        SaverConfig(NJFileFormat.Parquet))
-
-// 5
-    def circe[K: ClassTag: Eq](bucketing: A => Option[K], pathBuilder: K => String)(implicit
-      enc: JsonEncoder[A],
-      avroEncoder: AvroEncoder[A],
-      avroDecoder: AvroDecoder[A]): CircePartitionSaver[F, A, K] =
-      new CircePartitionSaver[F, A, K](
-        rdd,
-        enc,
-        avroEncoder,
-        avroDecoder,
-        bucketing,
-        pathBuilder,
-        SaverConfig(NJFileFormat.Circe))
-
-// 6
-    def text[K: ClassTag: Eq](bucketing: A => Option[K], pathBuilder: K => String)(implicit
-      enc: Show[A]): TextPartitionSaver[F, A, K] =
-      new TextPartitionSaver[F, A, K](
-        rdd,
-        enc,
-        bucketing,
-        pathBuilder,
-        SaverConfig(NJFileFormat.Text))
-
-// 7
-    def csv[K: ClassTag: Eq](bucketing: A => Option[K], pathBuilder: K => String)(implicit
-      enc: RowEncoder[A],
-      avroEncoder: AvroEncoder[A],
-      avroDecoder: AvroDecoder[A],
-      constraint: TypedEncoder[A]): CsvPartitionSaver[F, A, K] =
-      new CsvPartitionSaver[F, A, K](
-        rdd,
-        enc,
-        avroEncoder,
-        avroDecoder,
-        CsvConfiguration.rfc,
-        constraint,
-        bucketing,
-        pathBuilder,
-        SaverConfig(NJFileFormat.Csv))
-
-// 8
-    def javaObject[K: ClassTag: Eq](
-      bucketing: A => Option[K],
-      pathBuilder: K => String): JavaObjectPartitionSaver[F, A, K] =
-      new JavaObjectPartitionSaver[F, A, K](
-        rdd,
-        bucketing,
-        pathBuilder,
-        SaverConfig(NJFileFormat.JavaObject).withSingle)
-
-// 9
-    def protobuf[K: ClassTag: Eq](bucketing: A => Option[K], pathBuilder: K => String)(implicit
-      ev: A <:< GeneratedMessage): ProtobufPartitionSaver[F, A, K] =
-      new ProtobufPartitionSaver[F, A, K](
-        rdd,
-        bucketing,
-        pathBuilder,
-        SaverConfig(NJFileFormat.ProtoBuf).withSingle)
-
-  }
 }

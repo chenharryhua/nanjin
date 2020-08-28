@@ -3,19 +3,16 @@ package com.github.chenharryhua.nanjin.spark.database
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.database.{DatabaseName, DatabaseSettings, TableName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.saver.RddFileLoader
-import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
+import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
 import frameless.{TypedDataset, TypedEncoder}
 import io.circe.{Decoder => JsonDecoder}
 import kantan.csv.CsvConfiguration
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
-final case class TableDef[A] private (
-  tableName: TableName,
-  typedEncoder: TypedEncoder[A],
-  avroEncoder: AvroEncoder[A],
-  avroDecoder: AvroDecoder[A]) {
+final case class TableDef[A] private (tableName: TableName, encoder: AvroTypedEncoder[A]) {
 
   def in[F[_]](dbSettings: DatabaseSettings)(implicit
     sparkSession: SparkSession): SparkTable[F, A] =
@@ -24,12 +21,13 @@ final case class TableDef[A] private (
 
 object TableDef {
 
-  def apply[A: AvroEncoder: AvroDecoder: TypedEncoder](tableName: TableName): TableDef[A] =
-    new TableDef[A](tableName, TypedEncoder[A], AvroEncoder[A], AvroDecoder[A])
+  def apply[A: AvroEncoder: AvroDecoder: SchemaFor: TypedEncoder](
+    tableName: TableName): TableDef[A] =
+    new TableDef[A](tableName, new AvroTypedEncoder(TypedEncoder[A], NJAvroCodec[A]))
 
-  def apply[A](tableName: TableName, schema: NJAvroCodec[A])(implicit
+  def apply[A](tableName: TableName, codec: NJAvroCodec[A])(implicit
     typedEncoder: TypedEncoder[A]) =
-    new TableDef[A](tableName, typedEncoder, schema.avroEncoder, schema.avroDecoder)
+    new TableDef[A](tableName, new AvroTypedEncoder(typedEncoder, codec))
 }
 
 final class SparkTable[F[_], A](
@@ -38,11 +36,12 @@ final class SparkTable[F[_], A](
   cfg: STConfig,
   ss: SparkSession)
     extends Serializable {
-  implicit val sparkSession: SparkSession    = ss
-  implicit val avroDecoder: AvroDecoder[A]   = tableDef.avroDecoder
-  implicit val avroEncoder: AvroEncoder[A]   = tableDef.avroEncoder
-  implicit val typedEncoder: TypedEncoder[A] = tableDef.typedEncoder
-  import tableDef.typedEncoder.classTag
+  implicit val sparkSession: SparkSession = ss
+  implicit val ate: AvroTypedEncoder[A]   = tableDef.encoder
+  implicit val te: TypedEncoder[A]        = tableDef.encoder.sparkEncoder
+  implicit val ad : AvroDecoder[A] = tableDef.encoder.sparkAvroDecoder
+
+  import tableDef.encoder.sparkEncoder.classTag
 
   val params: STParams = cfg.evalConfig
 
@@ -56,7 +55,7 @@ final class SparkTable[F[_], A](
 
   def fromDB: TableDataset[F, A] =
     new TableDataset[F, A](
-      sd.unloadDS(dbSettings.connStr, dbSettings.driver, tableDef.tableName, params.query).dataset,
+      sd.unloadDS[A](dbSettings.connStr, dbSettings.driver, tableDef.tableName, params.query).dataset,
       dbSettings,
       cfg)
 

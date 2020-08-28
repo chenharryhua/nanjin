@@ -6,7 +6,7 @@ import java.time.{Instant, LocalDate}
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.injection._
-import frameless.TypedDataset
+import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.SaveMode
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -19,6 +19,7 @@ object CompatTestData {
   val pigeons: List[Pigeon] =
     List.fill(100)(Pigeon(Random.nextBoolean(), 2, Random.nextFloat(), Timestamp.from(Instant.now)))
 
+  implicit val pg: TypedEncoder[Pigeon] = shapeless.cachedImplicit
 }
 
 class CompatTest extends AnyFunSuite {
