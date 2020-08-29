@@ -12,6 +12,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
 import cats.effect.IO
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 
 object CompatTestData {
   final case class Pigeon(canFly: Boolean, legs: Int, weight: Float, now: Timestamp)
@@ -20,6 +21,8 @@ object CompatTestData {
     List.fill(100)(Pigeon(Random.nextBoolean(), 2, Random.nextFloat(), Timestamp.from(Instant.now)))
 
   implicit val pg: TypedEncoder[Pigeon] = shapeless.cachedImplicit
+
+  implicit val ate: AvroTypedEncoder[Pigeon] = new AvroTypedEncoder(pg, NJAvroCodec[Pigeon])
 }
 
 class CompatTest extends AnyFunSuite {
@@ -51,8 +54,6 @@ class CompatTest extends AnyFunSuite {
       .create(sparkSession.sparkContext.parallelize(pigeons))
       .save[IO]
       .avro(path)
-      .multi
-      .hadoop
       .run(blocker)
       .unsafeRunSync()
 
@@ -85,7 +86,6 @@ class CompatTest extends AnyFunSuite {
       .create(sparkSession.sparkContext.parallelize(pigeons))
       .save[IO]
       .avro(path)
-      .spark
       .multi
       .run(blocker)
       .unsafeRunSync()
@@ -103,6 +103,7 @@ class CompatTest extends AnyFunSuite {
       .create(sparkSession.sparkContext.parallelize(pigeons))
       .save[IO]
       .parquet(path)
+      .multi
       .run(blocker)
       .unsafeRunSync()
 
@@ -122,7 +123,6 @@ class CompatTest extends AnyFunSuite {
       .save[IO]
       .avro(path)
       .single
-      .hadoop
       .run(blocker)
       .unsafeRunSync()
 

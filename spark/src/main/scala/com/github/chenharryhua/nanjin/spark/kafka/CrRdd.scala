@@ -13,14 +13,14 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryV,
   OptionalKV
 }
-import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt}
-import com.github.chenharryhua.nanjin.spark.saver.RddFileSaver
+import com.github.chenharryhua.nanjin.spark.RddExt
+import com.github.chenharryhua.nanjin.spark.saver.RawAvroSaver
 import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
 import frameless.cats.implicits.rddOps
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
 
@@ -89,7 +89,8 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
     valEncoder: TypedEncoder[V]): TypedDataset[OptionalKV[K, V]] =
     TypedDataset.create(rdd)
 
-  def toDF: DataFrame = rdd.toDF
+  def save: RawAvroSaver[F, OptionalKV[K, V]] =
+    new RawAvroSaver[F, OptionalKV[K, V]](rdd, AvroEncoder[OptionalKV[K, V]], sparkSession)
 
   def crDataset(implicit
     keyEncoder: TypedEncoder[K],
@@ -119,6 +120,4 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
       .compile
       .drain
 
-  def save: CrRddFileSaver[F, K, V] =
-    new CrRddFileSaver[F, K, V](new RddFileSaver(rdd), params)
 }

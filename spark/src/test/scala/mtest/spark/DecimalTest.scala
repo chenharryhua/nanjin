@@ -2,7 +2,7 @@ package mtest.spark
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.spark._
-import com.github.chenharryhua.nanjin.spark.saver.{RddFileLoader, RddFileSaver}
+import com.github.chenharryhua.nanjin.spark.saver.{RawAvroLoader, RddFileSaver}
 import com.sksamuel.avro4s.{Decoder, Encoder, SchemaFor}
 import frameless.TypedEncoder
 import kantan.csv.RowEncoder
@@ -18,6 +18,7 @@ import scala.util.Random
 import cats.implicits._
 import io.circe.Codec
 import io.circe.generic.auto._
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 
 object DecimalTestData {
   final case class Duck(a: BigDecimal, b: BigDecimal, c: Int)
@@ -82,10 +83,12 @@ object DecimalTestData {
 
   val saver = new RddFileSaver[IO, Duck](rdd)
 
-  val loader = new RddFileLoader(sparkSession)
+  val loader = new RawAvroLoader(sparkSession)
 
   implicit val avroDecoder: Decoder[Duck] =
     shapeless.cachedImplicit[Decoder[Duck]].withSchema(SchemaFor[Duck](schema))
+
+  implicit val ate: AvroTypedEncoder[Duck] = new AvroTypedEncoder(typedEncoder, NJAvroCodec[Duck])
 
 }
 
@@ -99,7 +102,7 @@ class DecimalTest extends AnyFunSuite {
     val run = for {
       _ <- saver.avro(multi).multi.repartition(1).run(blocker)
       _ <- saver.avro(single).single.run(blocker)
-      _ <- saver.avro(spark).multi.spark.repartition(1).run(blocker)
+      _ <- saver.avro(spark).multi.repartition(1).run(blocker)
       m <- loader.avro[Duck](multi).typedDataset.collect[IO]()
       s <- loader.avro[Duck](single).typedDataset.collect[IO]()
       //k <- loader.avro[Duck](spark).typedDataset.collect[IO]()

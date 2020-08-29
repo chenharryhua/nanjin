@@ -36,7 +36,7 @@ class PartitionTest extends AnyFunSuite {
   import PartitionTestData._
   (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
     topic.send(data)).unsafeRunSync()
-
+/*
   test("partition avro") {
     topic.sparKafka.fromKafka.flatMap(_.save.partition.avro.multi.run(blocker)).unsafeRunSync()
   }
@@ -57,5 +57,5 @@ class PartitionTest extends AnyFunSuite {
   }
   test("partition text") {
     topic.sparKafka.fromKafka.flatMap(_.save.partition.text.single.run(blocker)).unsafeRunSync()
-  }
+  }*/
 }

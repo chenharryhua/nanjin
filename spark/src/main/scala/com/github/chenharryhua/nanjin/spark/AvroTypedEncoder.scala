@@ -1,26 +1,25 @@
 package com.github.chenharryhua.nanjin.spark
 
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
-import com.sksamuel.avro4s.{Decoder, Encoder, SchemaFor}
+import com.github.chenharryhua.nanjin.spark.saver.{RawAvroLoader, TdsLoader}
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.avro.Schema
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.avro.SchemaConverters
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
 final class AvroTypedEncoder[A](typed: TypedEncoder[A], codec: NJAvroCodec[A])
-    extends Serializable {
+    extends Serializable { self =>
+
+  import typed.classTag
 
   val sparkDatatype: DataType = SchemaConverters.toSqlType(codec.schemaFor.schema).dataType
 
   val sparkAvroSchema: Schema = SchemaConverters.toAvroType(sparkDatatype)
 
-  val sparkAvroEncoder: Encoder[A] = codec.avroEncoder.withSchema(SchemaFor(sparkAvroSchema))
-  val sparkAvroDecoder: Decoder[A] = codec.avroDecoder.withSchema(SchemaFor(sparkAvroSchema))
-
-  val sparkEncoder: TypedEncoder[A] = new TypedEncoder[A]()(typed.classTag) {
+  implicit val sparkEncoder: TypedEncoder[A] = new TypedEncoder[A]()(typed.classTag) {
     override def nullable: Boolean                          = typed.nullable
     override def jvmRepr: DataType                          = typed.jvmRepr
     override def catalystRepr: DataType                     = sparkDatatype
@@ -28,8 +27,31 @@ final class AvroTypedEncoder[A](typed: TypedEncoder[A], codec: NJAvroCodec[A])
     override def toCatalyst(path: Expression): Expression   = typed.toCatalyst(path)
   }
 
-  def typedDataset(rdd: RDD[A], ss: SparkSession): TypedDataset[A] = {
-    import typed.classTag
-    TypedDataset.create(rdd.map(codec.idConversion))(sparkEncoder, ss)
+  def fromRDD(rdd: RDD[A])(implicit ss: SparkSession): TypedDataset[A] =
+    TypedDataset.create(rdd).deserialized.map(codec.idConversion)
+
+  def fromDS(ds: Dataset[A]): TypedDataset[A] =
+    TypedDataset.create(ds).deserialized.map(codec.idConversion)
+
+  def fromDF(ds: DataFrame): TypedDataset[A] =
+    TypedDataset.createUnsafe(ds).deserialized.map(codec.idConversion)
+
+  def load(implicit ss: SparkSession): Loader = new Loader(ss)
+  def save(implicit ss: SparkSession): Saver  = new Saver(ss)
+
+  final class Loader(ss: SparkSession) {
+    implicit val dec = codec.avroDecoder
+
+    def tds: TdsLoader[A]     = new TdsLoader[A](ss, self)
+    def rdd: RawAvroLoader[A] = new RawAvroLoader[A](ss, codec.avroDecoder)
+
   }
+
+  final class Saver(ss: SparkSession) {}
+}
+
+object AvroTypedEncoder {
+
+  def apply[A](implicit t: TypedEncoder[A], c: NJAvroCodec[A]): AvroTypedEncoder[A] =
+    new AvroTypedEncoder[A](t, c)
 }

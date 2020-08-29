@@ -88,9 +88,8 @@ class SingleFileTest extends AnyFunSuite {
     assert(run.unsafeRunSync() === fishes)
     assert(File(path).lineCount == 3L)
 
-    val s =
-      sparkSession.load.circe[Swordfish](path).typedDataset.collect[IO]().unsafeRunSync().toSet
-    assert(s == fishes.toSet)
+  //  val s = sparkSession.load.circe[Swordfish](path).typedDataset.collect[IO]().unsafeRunSync().toSet
+  //  assert(s == fishes.toSet)
 
   }
   test("spark jackson - identity") {
@@ -102,9 +101,8 @@ class SingleFileTest extends AnyFunSuite {
     assert(run.unsafeRunSync() === fishes)
     assert(File(path).lineCount == 3L)
 
-    val s =
-      sparkSession.load.jackson[Swordfish](path).typedDataset.collect[IO]().unsafeRunSync().toSet
-    assert(s == fishes.toSet)
+   // val s =sparkSession.load.jackson[Swordfish](path).typedDataset.collect[IO]().unsafeRunSync().toSet
+   // assert(s == fishes.toSet)
   }
 
   test("spark csv - identity") {

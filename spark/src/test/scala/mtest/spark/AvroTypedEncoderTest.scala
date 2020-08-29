@@ -71,7 +71,7 @@ class AvroTypedEncoderTest extends AnyFunSuite {
   test("att") {
     implicit val encode: TypedEncoder[Goldenfish] = avroTypedEncoder.sparkEncoder
     println(avroTypedEncoder.sparkDatatype)
-    val tds = avroTypedEncoder.typedDataset(rdd, sparkSession)
+    val tds = avroTypedEncoder.fromRDD(rdd)
     tds.select(tds('c)).show[IO](truncate = false).unsafeRunSync()
     TypedDataset.create(rdd).show[IO](truncate = false).unsafeRunSync()
   }

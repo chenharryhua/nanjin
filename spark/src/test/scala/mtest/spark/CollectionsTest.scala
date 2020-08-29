@@ -65,33 +65,34 @@ object CollectionsTestData {
   implicit val savroEncoder: Encoder[SimpleList] = shapeless.cachedImplicit
   implicit val savroDecoder: Decoder[SimpleList] = shapeless.cachedImplicit
 
-  val avroTypedEncoder = new AvroTypedEncoder[SimpleList](sate, NJAvroCodec[SimpleList])
+  implicit val avroTypedEncoder: AvroTypedEncoder[SimpleList] =
+    new AvroTypedEncoder[SimpleList](sate, NJAvroCodec[SimpleList])
 }
 
 class CollectionsTest extends AnyFunSuite {
   import CollectionsTestData._
 
-  test("avro multi") {
+  test("hadoop avro multi") {
     val path = "./data/test/spark/collection/multi.avro"
     val run = for {
-      _ <- simpleData.save[IO].avro(path).multi.repartition(1).run(blocker)
+      _ <- simpleData.save[IO].hadoopAvro(path).multi.repartition(1).run(blocker)
       r <- IO(sparkSession.load.avro[SimpleList](path).take(100))
     } yield assert(r.toSet == simple.toSet)
     run.unsafeRunSync()
   }
 
-  test("avro multi spark.. waiting for https://issues.apache.org/jira/browse/SPARK-30267") {
+  test("spark avro multi") {
     import sparkSession.implicits._
     val path = "./data/test/spark/collection/spark.avro"
     val run = for {
       _ <- IO(
         avroTypedEncoder
-          .typedDataset(simpleData, sparkSession)
+          .fromRDD(simpleData, sparkSession)
           .write
           .mode(SaveMode.Overwrite)
           .format("avro")
           .save(path))
-      //  _ <- simpleData.save[IO].avro(path).multi.spark.run(blocker)
+      _ <- simpleData.save[IO].avro(path).multi.repartition(1).run(blocker)
       r <-
         TypedDataset
           .createUnsafe[SimpleList](sparkSession.read.format("avro").load(path))
@@ -108,13 +109,13 @@ class CollectionsTest extends AnyFunSuite {
     } yield assert(r.toSet == simple.toSet)
     run.unsafeRunSync()
   }
+  /*
   test("avro partition") {
     val path = "./data/test/spark/collection/partition.avro"
     val run = for {
       _ <-
         simpleData
           .save[IO]
-          .partition
           .avro(x => Some(x.index))(i => s"$path/$i")
           .repartition(1)
           .run(blocker)
@@ -127,5 +128,7 @@ class CollectionsTest extends AnyFunSuite {
     } yield assert((r1 ++ r2 ++ r3 ++ r4 ++ r5 ++ r6).toSet == simple.toSet)
     run.unsafeRunSync()
   }
+
+   */
 
 }

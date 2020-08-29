@@ -12,6 +12,7 @@ import frameless.TypedEncoder
 import frameless.cats.implicits._
 import org.apache.spark.rdd.RDD
 import org.scalatest.funsuite.AnyFunSuite
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 
 object DateTimeTestData {
 
@@ -38,6 +39,9 @@ object DateTimeTestData {
   )
 
   val rdd: RDD[Rooster] = sparkSession.sparkContext.parallelize(List(data))
+
+  implicit val ate: AvroTypedEncoder[Rooster] =
+    new AvroTypedEncoder(TypedEncoder[Rooster], NJAvroCodec[Rooster])
 
 }
 
