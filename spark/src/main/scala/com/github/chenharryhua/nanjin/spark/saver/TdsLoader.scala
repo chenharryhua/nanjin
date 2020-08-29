@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import frameless.TypedDataset
 import org.apache.spark.sql.{DataFrameWriter, Dataset, SaveMode, SparkSession}
 
-final class TdsLoader[A](ss: SparkSession, ate: AvroTypedEncoder[A]) extends Serializable {
+final class TdsLoader[A](ate: AvroTypedEncoder[A], ss: SparkSession) extends Serializable {
 
   def avro(pathStr: String): TypedDataset[A] =
     ate.fromDF(ss.read.format("avro").load(pathStr))
@@ -14,10 +14,10 @@ final class TdsLoader[A](ss: SparkSession, ate: AvroTypedEncoder[A]) extends Ser
     ate.fromDF(ss.read.parquet(pathStr))
 
   def csv(pathStr: String): TypedDataset[A] =
-    ate.fromDF(ss.read.csv(pathStr))
+    ate.fromDF(ss.read.schema(ate.sparkStructType).csv(pathStr))
 
   def json(pathStr: String): TypedDataset[A] =
-    ate.fromDF(ss.read.json(pathStr))
+    ate.fromDF(ss.read.schema(ate.sparkStructType).json(pathStr))
 }
 
 final class TdsSaver[F[_], A](ds: Dataset[A], ate: AvroTypedEncoder[A]) extends Serializable {

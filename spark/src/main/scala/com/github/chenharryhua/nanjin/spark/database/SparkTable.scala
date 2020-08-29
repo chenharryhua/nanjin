@@ -38,7 +38,7 @@ final class SparkTable[F[_], A](
     extends Serializable {
 
   val ate: AvroTypedEncoder[A]            = tableDef.encoder
-  implicit val te: TypedEncoder[A]        = ate.sparkEncoder
+  implicit val te: TypedEncoder[A]        = ate.sparkTypedEncoder
   implicit val sparkSession: SparkSession = ss
 
   val params: STParams = cfg.evalConfig

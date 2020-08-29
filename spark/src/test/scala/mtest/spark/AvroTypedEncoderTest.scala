@@ -69,7 +69,7 @@ object AvroTypedEncoderTestData {
 class AvroTypedEncoderTest extends AnyFunSuite {
   import AvroTypedEncoderTestData._
   test("att") {
-    implicit val encode: TypedEncoder[Goldenfish] = avroTypedEncoder.sparkEncoder
+    implicit val encode: TypedEncoder[Goldenfish] = avroTypedEncoder.sparkTypedEncoder
     println(avroTypedEncoder.sparkDatatype)
     val tds = avroTypedEncoder.fromRDD(rdd)
     tds.select(tds('c)).show[IO](truncate = false).unsafeRunSync()

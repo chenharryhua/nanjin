@@ -25,7 +25,7 @@ import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
 
-final class RawAvroLoader[A: ClassTag](ss: SparkSession, decoder: AvroDecoder[A])
+final class RawAvroLoader[A: ClassTag](decoder: AvroDecoder[A], ss: SparkSession)
     extends Serializable {
   implicit private val dec: AvroDecoder[A] = decoder
 

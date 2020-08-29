@@ -13,7 +13,7 @@ import cats.effect.ContextShift
 /**
   * may not load what be saved if coproduct type involved
   */
-final class CirceLoader[A: ClassTag](ss: SparkSession, decoder: JsonDecoder[A])
+final class CirceLoader[A: ClassTag](decoder: JsonDecoder[A], ss: SparkSession)
     extends Serializable {
   implicit private val dec: JsonDecoder[A] = decoder
 

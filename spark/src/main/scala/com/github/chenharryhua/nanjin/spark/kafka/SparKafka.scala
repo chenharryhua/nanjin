@@ -67,13 +67,12 @@ final class SparKafka[F[_], K, V](
 
     object rdd {
 
-      private val avroLoader: RawAvroLoader[OptionalKV[K, V]] =
-        new RawAvroLoader[OptionalKV[K, V]](sparkSession, Decoder[OptionalKV[K, V]])
-      def avro(pathStr: String): CrRdd[F, K, V]    = crRdd(avroLoader.avro(pathStr))
-      def binAvro(pathStr: String): CrRdd[F, K, V] = crRdd(avroLoader.binAvro(pathStr))
-      def jackson(pathStr: String): CrRdd[F, K, V] = crRdd(avroLoader.jackson(pathStr))
-      def parquet(pathStr: String): CrRdd[F, K, V] = crRdd(avroLoader.parquet(pathStr))
-
+      private val loader: RawAvroLoader[OptionalKV[K, V]] =
+        new RawAvroLoader[OptionalKV[K, V]](Decoder[OptionalKV[K, V]], sparkSession)
+      def avro(pathStr: String): CrRdd[F, K, V]    = crRdd(loader.avro(pathStr))
+      def binAvro(pathStr: String): CrRdd[F, K, V] = crRdd(loader.binAvro(pathStr))
+      def jackson(pathStr: String): CrRdd[F, K, V] = crRdd(loader.jackson(pathStr))
+      def parquet(pathStr: String): CrRdd[F, K, V] = crRdd(loader.parquet(pathStr))
     }
 
     def tds(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]) =
@@ -85,7 +84,7 @@ final class SparKafka[F[_], K, V](
     final class KafkaLoader(ate: AvroTypedEncoder[OptionalKV[K, V]])(implicit
       tek: TypedEncoder[K],
       tev: TypedEncoder[V]) {
-      private val loader: TdsLoader[OptionalKV[K, V]]  = new TdsLoader(sparkSession, ate)
+      private val loader: TdsLoader[OptionalKV[K, V]]  = new TdsLoader(ate, sparkSession)
       def avro(pathStr: String): CrDataset[F, K, V]    = crDataset(loader.avro(pathStr))
       def parquet(pathStr: String): CrDataset[F, K, V] = crDataset(loader.parquet(pathStr))
       def json(pathStr: String): CrDataset[F, K, V]    = crDataset(loader.json(pathStr))

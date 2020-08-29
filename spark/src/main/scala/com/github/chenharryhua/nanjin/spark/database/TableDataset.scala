@@ -17,7 +17,7 @@ final class TableDataset[F[_], A](ds: Dataset[A], dbSettings: DatabaseSettings, 
   implicit ate: AvroTypedEncoder[A])
     extends Serializable {
 
-  import ate.sparkEncoder.classTag
+  import ate.sparkTypedEncoder.classTag
 
   val params: STParams = cfg.evalConfig
 

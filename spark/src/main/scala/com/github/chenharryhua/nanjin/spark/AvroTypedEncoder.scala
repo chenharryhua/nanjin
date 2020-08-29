@@ -1,13 +1,12 @@
 package com.github.chenharryhua.nanjin.spark
 
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
-import com.github.chenharryhua.nanjin.spark.saver.{RawAvroLoader, TdsLoader}
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.avro.Schema
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.avro.SchemaConverters
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.types.{DataType, StructType}
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
 final class AvroTypedEncoder[A](typed: TypedEncoder[A], codec: NJAvroCodec[A])
@@ -17,9 +16,11 @@ final class AvroTypedEncoder[A](typed: TypedEncoder[A], codec: NJAvroCodec[A])
 
   val sparkDatatype: DataType = SchemaConverters.toSqlType(codec.schemaFor.schema).dataType
 
+  val sparkStructType: StructType = sparkDatatype.asInstanceOf[StructType]
+
   val sparkAvroSchema: Schema = SchemaConverters.toAvroType(sparkDatatype)
 
-  implicit val sparkEncoder: TypedEncoder[A] = new TypedEncoder[A]()(typed.classTag) {
+  implicit val sparkTypedEncoder: TypedEncoder[A] = new TypedEncoder[A]()(typed.classTag) {
     override def nullable: Boolean                          = typed.nullable
     override def jvmRepr: DataType                          = typed.jvmRepr
     override def catalystRepr: DataType                     = sparkDatatype
@@ -35,19 +36,6 @@ final class AvroTypedEncoder[A](typed: TypedEncoder[A], codec: NJAvroCodec[A])
 
   def fromDF(ds: DataFrame): TypedDataset[A] =
     TypedDataset.createUnsafe(ds).deserialized.map(codec.idConversion)
-
-  def load(implicit ss: SparkSession): Loader = new Loader(ss)
-  def save(implicit ss: SparkSession): Saver  = new Saver(ss)
-
-  final class Loader(ss: SparkSession) {
-    implicit val dec = codec.avroDecoder
-
-    def tds: TdsLoader[A]     = new TdsLoader[A](ss, self)
-    def rdd: RawAvroLoader[A] = new RawAvroLoader[A](ss, codec.avroDecoder)
-
-  }
-
-  final class Saver(ss: SparkSession) {}
 }
 
 object AvroTypedEncoder {
