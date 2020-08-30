@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.injection._
+import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.sksamuel.avro4s.ScalePrecision
 import frameless.cats.implicits._
 import org.scalatest.funsuite.AnyFunSuite
@@ -34,21 +35,17 @@ class DecimalTopicTest extends AnyFunSuite {
     topic.send(1, data) >> topic.send(2, data)).unsafeRunSync()
 
   test("sparKafka kafka and spark agree on avro") {
+    val path = "./data/test/spark/kafka/decimal.avro"
     topic.fs2Channel.stream
       .map(m => topic.njDecoder.decode(m).run._2)
       .take(2)
-      .through(fileSink(blocker)
-        .avro("./data/test/spark/kafka/decimal.avro"))
+      .through(fileSink(blocker).avro(path))
       .compile
       .drain
       .unsafeRunSync
 
     val res: List[HasDecimal] =
-      sparkSession.load
-        .avro[OptionalKV[Int, HasDecimal]]("./data/test/spark/kafka/decimal.avro")
-        .collect
-        .toList
-        .flatMap(_.value)
+      loaders.rdd.avro[OptionalKV[Int, HasDecimal]](path).flatMap(_.value).collect().toList
 
     assert(res === List(data, data))
   }

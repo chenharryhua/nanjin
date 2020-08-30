@@ -3,7 +3,9 @@ package mtest.spark.kafka
 import cats.effect.IO
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.spark.kafka._
+import com.github.chenharryhua.nanjin.spark.persist.{loaders, savers}
 import frameless.cats.implicits._
 import org.scalatest.funsuite.AnyFunSuite
 import shapeless._
@@ -56,9 +58,10 @@ class KafkaCoproductTest extends AnyFunSuite {
     val run = topicCO.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicCO.schemaRegister >>
       topicCO.send(data) >>
-      sk.fromKafka.flatMap(_.save.avro(path).single.run(blocker)) >>
-      IO(sk.load.avro(path).rdd.take(10).toSet)
-    intercept[Exception](run.unsafeRunSync().flatMap(_.value) == Set(co1, co2))
+      sk.fromKafka.map(cr => savers.rdd.avro(cr.rdd, path)) >>
+      IO(loaders.rdd.avro[OptionalKV[Int, PersonCaseObject]](path).take(10).toSet)
+    assert(run.unsafeRunSync().flatMap(_.value) == Set(co1, co2))
+
   }
 
   test("sparKafka should be sent to kafka and save to single avro") {
@@ -69,8 +72,8 @@ class KafkaCoproductTest extends AnyFunSuite {
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegister >>
       topicEnum.send(data) >>
-      sk.fromKafka.flatMap(_.save.avro(path).single.run(blocker)) >>
-      IO(sk.load.avro(path).rdd.take(10).toSet)
+      sk.fromKafka.map(cr => savers.rdd.avro(cr.rdd, path)) >>
+      IO(loaders.rdd.avro[OptionalKV[Int, PersonEnum]](path).take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 
@@ -82,34 +85,9 @@ class KafkaCoproductTest extends AnyFunSuite {
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegister >>
       topicEnum.send(data) >>
-      sk.fromKafka.flatMap(_.save.avro(path).multi.run(blocker)) >>
-      IO(sk.load.avro(path).rdd.take(10).toSet)
+      sk.fromKafka.map(cr => savers.rdd.avro(cr.rdd, path)) >>
+      IO(loaders.rdd.avro[OptionalKV[Int, PersonEnum]](path).take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 
-  test("sparKafka should be sent to kafka and save to single jackson") {
-    val data = List(topicCoProd.fs2PR(0, cp1), topicCoProd.fs2PR(1, cp2))
-    val path = "./data/test/spark/kafka/coproduct/coprod.json"
-    val sk   = topicCoProd.sparKafka
-
-    val run = topicCoProd.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
-      topicCoProd.schemaRegister >>
-      topicCoProd.send(data) >>
-      sk.fromKafka.flatMap(_.save.jackson(path).single.run(blocker)) >>
-      IO(sk.load.jackson(path).rdd.take(10).toSet)
-    assert(run.unsafeRunSync().flatMap(_.value) == Set(cp1, cp2))
-  }
-
-  test("sparKafka should be sent to kafka and save to multi jackson") {
-    val data = List(topicCoProd.fs2PR(0, cp1), topicCoProd.fs2PR(1, cp2))
-    val path = "./data/test/spark/kafka/coproduct/multi-coprod.json"
-    val sk   = topicCoProd.sparKafka
-
-    val run = topicCoProd.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
-      topicCoProd.schemaRegister >>
-      topicCoProd.send(data) >>
-      sk.fromKafka.flatMap(_.save.jackson(path).multi.run(blocker)) >>
-      IO(sk.load.jackson(path).rdd.take(10).toSet)
-    assert(run.unsafeRunSync().flatMap(_.value) == Set(cp1, cp2))
-  }
 }

@@ -1,10 +1,12 @@
-package mtest.spark.saver
+package mtest.spark.persist
 
 import java.sql.Timestamp
 import java.time.Instant
 
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
+import com.github.chenharryhua.nanjin.spark.injection._
+import com.sksamuel.avro4s.{Decoder, Encoder}
 import frameless.TypedEncoder
 import org.apache.avro.Schema
 
@@ -19,7 +21,7 @@ object GoldenFish {
     """
       |{
       |  "type": "record",
-      |  "name": "Goldenfish",
+      |  "name": "GoldenFish",
       |  "namespace": "mtest.spark.AvroTypedEncoderTestData",
       |  "fields": [
       |    {
@@ -52,10 +54,18 @@ object GoldenFish {
   val schema: Schema = (new Schema.Parser).parse(schemaText)
 
   implicit val roundingMode: BigDecimal.RoundingMode.Value = RoundingMode.HALF_UP
-  val avroCodec: NJAvroCodec[GoldenFish]                   = NJAvroCodec[GoldenFish](schemaText).right.get
-  implicit val typedEncoder: TypedEncoder[GoldenFish]      = shapeless.cachedImplicit
+  implicit val avroEncoder: Encoder[GoldenFish]            = shapeless.cachedImplicit
+  implicit val avroDecoder: Decoder[GoldenFish]            = shapeless.cachedImplicit
+
+  implicit val typedEncoder: TypedEncoder[GoldenFish] = shapeless.cachedImplicit
+
+  implicit val avroCodec: NJAvroCodec[GoldenFish] =
+    NJAvroCodec[GoldenFish](schema)(avroDecoder, avroEncoder).right.get
 
   implicit val avroTypedEncoder: AvroTypedEncoder[GoldenFish] =
     AvroTypedEncoder[GoldenFish](avroCodec)
+
+  println(avroTypedEncoder.sparkDatatype)
+  println(avroTypedEncoder.sparkAvroSchema)
 
 }

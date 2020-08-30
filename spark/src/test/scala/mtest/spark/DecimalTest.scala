@@ -2,7 +2,6 @@ package mtest.spark
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.spark._
-import com.github.chenharryhua.nanjin.spark.persist.{RawAvroLoader, RddFileSaver}
 import com.sksamuel.avro4s.{Decoder, Encoder, SchemaFor}
 import frameless.TypedEncoder
 import kantan.csv.RowEncoder
@@ -81,14 +80,10 @@ object DecimalTestData {
   implicit val rowEncoder: RowEncoder[Duck]     = shapeless.cachedImplicit
   implicit val circeCodec: Codec[Duck]          = io.circe.generic.semiauto.deriveCodec
 
-  val saver = new RddFileSaver[IO, Duck](rdd)
-
-  val loader = new RawAvroLoader(sparkSession)
 
   implicit val avroDecoder: Decoder[Duck] =
     shapeless.cachedImplicit[Decoder[Duck]].withSchema(SchemaFor[Duck](schema))
 
-  implicit val ate: AvroTypedEncoder[Duck] = new AvroTypedEncoder(typedEncoder, NJAvroCodec[Duck])
 
 }
 
@@ -99,82 +94,28 @@ class DecimalTest extends AnyFunSuite {
     val single = "./data/test/spark/decimal/avro/single.avro"
     val spark  = "./data/test/spark/decimal/avro/spark.avro"
     import sparkSession.implicits._
-    val run = for {
-      _ <- saver.avro(multi).multi.repartition(1).run(blocker)
-      _ <- saver.avro(single).single.run(blocker)
-      _ <- saver.avro(spark).multi.repartition(1).run(blocker)
-      m <- loader.avro[Duck](multi).typedDataset.collect[IO]()
-      s <- loader.avro[Duck](single).typedDataset.collect[IO]()
-      //k <- loader.avro[Duck](spark).typedDataset.collect[IO]()
-      ss <- IO(sparkSession.read.format("avro").load(single).as[Duck].collect())
-      sm <- IO(sparkSession.read.format("avro").load(multi).as[Duck].collect())
-      sk <- IO(sparkSession.read.format("avro").load(spark).as[Duck].collect())
-    } yield {
-      assert(expected == m.toSet)
-      assert(expected == s.toSet)
-      assert(expected == ss.toSet)
-      assert(expected == sm.toSet)
-      assert(expected == sk.toSet)
-    }
-    run.unsafeRunSync()
   }
   test("parquet multi/single should be same") {
     val multi  = "./data/test/spark/decimal/parquet/multi"
     val single = "./data/test/spark/decimal/parquet/single.parquet"
-    import sparkSession.implicits._
-
-    val run = for {
-      _ <- saver.parquet(multi).repartition(1).run(blocker)
-      _ <- saver.parquet(single).run(blocker)
-      m <- loader.parquet[Duck](multi).typedDataset.collect[IO]()
-      s <- loader.parquet[Duck](single).typedDataset.collect[IO]()
-      ss <- IO(sparkSession.read.parquet(single).as[Duck].collect())
-      sm <- IO(sparkSession.read.parquet(multi).as[Duck].collect())
-    } yield {
-      // assert(m.toSet == s.toSet)
-      assert(expected == ss.toSet)
-      assert(expected == sm.toSet)
-    }
-    run.unsafeRunSync()
   }
 
   test("jackson multi/single should be same") {
     val multi  = "./data/test/spark/decimal/jackson/multi"
     val single = "./data/test/spark/decimal/jackson/single.json"
 
-    val run = for {
-      _ <- saver.jackson(multi).multi.repartition(2).run(blocker)
-      _ <- saver.jackson(single).single.run(blocker)
-      m <- loader.jackson[Duck](multi).typedDataset.collect[IO]()
-      s <- loader.jackson[Duck](single).typedDataset.collect[IO]()
-    } yield assert(m.toSet == s.toSet)
-    run.unsafeRunSync()
   }
 
   test("circe multi/single should be same") {
     val multi  = "./data/test/spark/decimal/circe/multi"
     val single = "./data/test/spark/decimal/circe/single.json"
 
-    val run = for {
-      _ <- saver.circe(multi).multi.repartition(1).run(blocker)
-      _ <- saver.circe(single).single.run(blocker)
-      m <- loader.circe[Duck](multi).typedDataset.collect[IO]()
-      s <- loader.circe[Duck](single).typedDataset.collect[IO]()
-    } yield assert(m.toSet == s.toSet)
-    run.unsafeRunSync()
   }
 
   test("csv multi/single should be same") {
     val multi  = "./data/test/spark/decimal/csv/multi"
     val single = "./data/test/spark/decimal/csv/single.csv"
 
-    val run = for {
-      _ <- saver.csv(multi).multi.repartition(2).run(blocker)
-      _ <- saver.csv(single).single.run(blocker)
-      m <- loader.csv[Duck](multi).typedDataset.collect[IO]()
-      s <- loader.csv[Duck](single).typedDataset.collect[IO]()
-    } yield assert(m.toSet == s.toSet)
-    run.unsafeRunSync()
   }
 
 }

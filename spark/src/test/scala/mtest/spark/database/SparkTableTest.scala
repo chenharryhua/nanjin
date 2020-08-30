@@ -56,15 +56,6 @@ class SparkTableTest extends AnyFunSuite {
   val path = "./data/test/spark/database/jackson.json"
 
   test("sparkTable save db table to disk") {
-    sparkSession
-      .alongWith[IO](postgres)
-      .table(table)
-      .fromDB
-      .save
-      .circe(path)
-      .single
-      .run(blocker)
-      .unsafeRunSync()
   }
 
   test("partition save") {
@@ -78,22 +69,7 @@ class SparkTableTest extends AnyFunSuite {
     */
   }
   test("save") {
-    val run = table.in[IO](postgres).fromDB.save.jackson.single.run(blocker) >>
-      table.in[IO](postgres).fromDB.save.avro.single.run(blocker) >>
-      table.in[IO](postgres).fromDB.save.parquet.run(blocker) >>
-      table.in[IO](postgres).fromDB.save.circe.single.run(blocker) >>
-      table.in[IO](postgres).fromDB.save.csv.single.run(blocker) >>
-      IO(())
-    run.unsafeRunSync
   }
   test("with query") {
-    table
-      .in[IO](postgres)
-      .withQuery(s"select * from ${table.tableName.value}")
-      .fromDB
-      .save
-      .jackson
-      .single
-      .run(blocker)
   }
 }

@@ -49,7 +49,6 @@ class SingleWriteSparkReadTest extends AnyFunSuite {
     val prepare =
       delete(path) >> data.through(sink.csv[Elephant](path)).compile.drain
     prepare.unsafeRunSync()
-    assertThrows[Exception](sparkSession.load.csv[Elephant](path).collect.toSet == elephants.toSet)
   }
 
   test("spark avro read/write identity") {
@@ -58,7 +57,5 @@ class SingleWriteSparkReadTest extends AnyFunSuite {
     val prepare =
       delete(path) >> data.through(sink.avro[Elephant](path)).compile.drain
     prepare.unsafeRunSync()
-    val rst = sparkSession.load.avro[Elephant](path).collect.toSet
-    assert(rst == elephants.toSet)
   }
 }
