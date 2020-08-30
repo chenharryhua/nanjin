@@ -2,7 +2,7 @@ package mtest.spark
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.spark._
-import com.github.chenharryhua.nanjin.spark.saver.{RawAvroLoader, RddFileSaver}
+import com.github.chenharryhua.nanjin.spark.persist.{RawAvroLoader, RddFileSaver}
 import com.sksamuel.avro4s.{Decoder, Encoder, SchemaFor}
 import frameless.TypedEncoder
 import kantan.csv.RowEncoder

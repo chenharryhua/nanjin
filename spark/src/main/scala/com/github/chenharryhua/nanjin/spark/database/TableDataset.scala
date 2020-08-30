@@ -5,7 +5,7 @@ import cats.effect.Sync
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.database.{DatabaseName, DatabaseSettings, TableName}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.spark.saver._
+import com.github.chenharryhua.nanjin.spark.persist._
 import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.{TypedDataset, TypedEncoder}

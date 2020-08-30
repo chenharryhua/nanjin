@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.spark.saver
+package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Show
 import com.github.chenharryhua.nanjin.common.NJFileFormat

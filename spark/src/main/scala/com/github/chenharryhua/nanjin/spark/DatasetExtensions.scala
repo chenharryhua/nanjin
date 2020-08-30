@@ -9,7 +9,6 @@ import com.github.chenharryhua.nanjin.database.{DatabaseSettings, TableName}
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicDef}
 import com.github.chenharryhua.nanjin.spark.database.{sd, STConfig, SparkTable, TableDef}
 import com.github.chenharryhua.nanjin.spark.kafka.{SKConfig, SparKafka}
-import com.github.chenharryhua.nanjin.spark.saver.{RawAvroLoader, RddFileSaver}
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.TypedDataset
 import frameless.cats.implicits._

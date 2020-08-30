@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.spark.saver
+package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.derived.auto.functor.kittensMkFunctor
 import com.github.chenharryhua.nanjin.common.NJFileFormat
@@ -12,32 +12,32 @@ import org.apache.spark.sql.SaveMode
 
 import scala.collection.immutable
 
-sealed private[saver] trait SingleOrMulti extends EnumEntry with Serializable
+sealed private[persist] trait SingleOrMulti extends EnumEntry with Serializable
 
-private[saver] object SingleOrMulti extends Enum[SingleOrMulti] {
+private[persist] object SingleOrMulti extends Enum[SingleOrMulti] {
   override val values: immutable.IndexedSeq[SingleOrMulti] = findValues
 
   case object Single extends SingleOrMulti
   case object Multi extends SingleOrMulti
 }
 
-sealed private[saver] trait SparkOrHadoop extends EnumEntry with Serializable
+sealed private[persist] trait SparkOrHadoop extends EnumEntry with Serializable
 
-private[saver] object SparkOrHadoop extends Enum[SingleOrMulti] {
+private[persist] object SparkOrHadoop extends Enum[SingleOrMulti] {
   override val values: immutable.IndexedSeq[SingleOrMulti] = findValues
 
   case object Spark extends SparkOrHadoop
   case object Hadoop extends SparkOrHadoop
 }
 
-@Lenses final private[saver] case class SaverParams(
+@Lenses final private[persist] case class SaverParams(
   fileFormat: NJFileFormat,
   singleOrMulti: SingleOrMulti,
   sparkOrHadoop: SparkOrHadoop,
   saveMode: SaveMode,
   parallelism: Long)
 
-private[saver] object SaverParams {
+private[persist] object SaverParams {
 
   def apply(fmt: NJFileFormat): SaverParams =
     SaverParams(
@@ -48,9 +48,9 @@ private[saver] object SaverParams {
       defaultLocalParallelism.toLong)
 }
 
-@deriveFixedPoint sealed private[saver] trait SaverConfigF[_]
+@deriveFixedPoint sealed private[persist] trait SaverConfigF[_]
 
-private[saver] object SaverConfigF {
+private[persist] object SaverConfigF {
   final case class DefaultParams[K](fmt: NJFileFormat) extends SaverConfigF[K]
   final case class WithSingleOrMulti[K](value: SingleOrMulti, cont: K) extends SaverConfigF[K]
   final case class WithSparkOrHadoop[K](value: SparkOrHadoop, cont: K) extends SaverConfigF[K]
@@ -69,7 +69,7 @@ private[saver] object SaverConfigF {
   def evalConfig(cfg: SaverConfig): SaverParams = scheme.cata(algebra).apply(cfg.value)
 }
 
-final private[saver] case class SaverConfig(value: Fix[SaverConfigF]) {
+final private[persist] case class SaverConfig(value: Fix[SaverConfigF]) {
   import SaverConfigF._
   val evalConfig: SaverParams = SaverConfigF.evalConfig(this)
 
@@ -90,7 +90,7 @@ final private[saver] case class SaverConfig(value: Fix[SaverConfigF]) {
     SaverConfig(Fix(WithParallelism(num, value)))
 }
 
-private[saver] object SaverConfig {
+private[persist] object SaverConfig {
 
   def apply(fmt: NJFileFormat): SaverConfig =
     SaverConfig(Fix(SaverConfigF.DefaultParams[Fix[SaverConfigF]](fmt)))

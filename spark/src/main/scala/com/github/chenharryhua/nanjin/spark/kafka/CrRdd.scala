@@ -14,7 +14,6 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   OptionalKV
 }
 import com.github.chenharryhua.nanjin.spark.RddExt
-import com.github.chenharryhua.nanjin.spark.saver.RawAvroSaver
 import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
 import frameless.cats.implicits.rddOps
 import frameless.{TypedDataset, TypedEncoder}
@@ -88,9 +87,6 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): TypedDataset[OptionalKV[K, V]] =
     TypedDataset.create(rdd)
-
-  def save: RawAvroSaver[F, OptionalKV[K, V]] =
-    new RawAvroSaver[F, OptionalKV[K, V]](rdd, AvroEncoder[OptionalKV[K, V]], sparkSession)
 
   def crDataset(implicit
     keyEncoder: TypedEncoder[K],

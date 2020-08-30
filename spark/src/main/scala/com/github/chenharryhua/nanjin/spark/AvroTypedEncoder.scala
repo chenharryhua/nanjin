@@ -9,37 +9,42 @@ import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.types.{DataType, StructType}
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
-final class AvroTypedEncoder[A](typed: TypedEncoder[A], codec: NJAvroCodec[A])
+final class AvroTypedEncoder[A] private (
+  val avroCodec: NJAvroCodec[A],
+  typedEncoder: TypedEncoder[A])
     extends Serializable { self =>
 
-  import typed.classTag
+  import typedEncoder.classTag
 
-  val sparkDatatype: DataType = SchemaConverters.toSqlType(codec.schemaFor.schema).dataType
+  val sparkDatatype: DataType = SchemaConverters.toSqlType(avroCodec.schemaFor.schema).dataType
 
   val sparkStructType: StructType = sparkDatatype.asInstanceOf[StructType]
 
   val sparkAvroSchema: Schema = SchemaConverters.toAvroType(sparkDatatype)
 
-  implicit val sparkTypedEncoder: TypedEncoder[A] = new TypedEncoder[A]()(typed.classTag) {
-    override def nullable: Boolean                          = typed.nullable
-    override def jvmRepr: DataType                          = typed.jvmRepr
+  implicit val sparkTypedEncoder: TypedEncoder[A] = new TypedEncoder[A]()(typedEncoder.classTag) {
+    override def nullable: Boolean                          = typedEncoder.nullable
+    override def jvmRepr: DataType                          = typedEncoder.jvmRepr
     override def catalystRepr: DataType                     = sparkDatatype
-    override def fromCatalyst(path: Expression): Expression = typed.fromCatalyst(path)
-    override def toCatalyst(path: Expression): Expression   = typed.toCatalyst(path)
+    override def fromCatalyst(path: Expression): Expression = typedEncoder.fromCatalyst(path)
+    override def toCatalyst(path: Expression): Expression   = typedEncoder.toCatalyst(path)
   }
 
   def fromRDD(rdd: RDD[A])(implicit ss: SparkSession): TypedDataset[A] =
-    TypedDataset.create(rdd).deserialized.map(codec.idConversion)
+    TypedDataset.create(rdd).deserialized.map(avroCodec.idConversion)
 
   def fromDS(ds: Dataset[A]): TypedDataset[A] =
-    TypedDataset.create(ds).deserialized.map(codec.idConversion)
+    TypedDataset.create(ds).deserialized.map(avroCodec.idConversion)
 
   def fromDF(ds: DataFrame): TypedDataset[A] =
-    TypedDataset.createUnsafe(ds).deserialized.map(codec.idConversion)
+    TypedDataset.createUnsafe(ds).deserialized.map(avroCodec.idConversion)
 }
 
 object AvroTypedEncoder {
 
   def apply[A](implicit t: TypedEncoder[A], c: NJAvroCodec[A]): AvroTypedEncoder[A] =
-    new AvroTypedEncoder[A](t, c)
+    new AvroTypedEncoder[A](c, t)
+
+  def apply[A](c: NJAvroCodec[A])(implicit t: TypedEncoder[A]): AvroTypedEncoder[A] =
+    new AvroTypedEncoder[A](c, t)
 }

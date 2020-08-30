@@ -4,7 +4,6 @@ import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.database.{DatabaseName, DatabaseSettings, TableName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.spark.saver.RawAvroLoader
 import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
 import frameless.{TypedDataset, TypedEncoder}
 import io.circe.{Decoder => JsonDecoder}
@@ -23,11 +22,11 @@ object TableDef {
 
   def apply[A: AvroEncoder: AvroDecoder: SchemaFor: TypedEncoder](
     tableName: TableName): TableDef[A] =
-    new TableDef[A](tableName, new AvroTypedEncoder(TypedEncoder[A], NJAvroCodec[A]))
+    new TableDef[A](tableName, AvroTypedEncoder(NJAvroCodec[A]))
 
   def apply[A](tableName: TableName, codec: NJAvroCodec[A])(implicit
     typedEncoder: TypedEncoder[A]) =
-    new TableDef[A](tableName, new AvroTypedEncoder(typedEncoder, codec))
+    new TableDef[A](tableName, AvroTypedEncoder(codec))
 }
 
 final class SparkTable[F[_], A](

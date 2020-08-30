@@ -4,28 +4,21 @@ import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.{NJProducerRecord, OptionalKV}
-import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.spark.saver.{
-  ObjectFileLoader,
-  ObjectFileSaver,
-  RawAvroLoader,
-  TdsLoader
-}
+import com.github.chenharryhua.nanjin.spark.fileSink
+import com.github.chenharryhua.nanjin.spark.persist.{loaders, savers}
 import com.github.chenharryhua.nanjin.spark.sstream.{KafkaCrSStream, SStreamConfig, SparkSStream}
-import com.sksamuel.avro4s.{Decoder, Encoder}
+import com.sksamuel.avro4s.{Decoder, Encoder, SchemaFor}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.avro.Schema
 import org.apache.parquet.avro.AvroSchemaConverter
 import org.apache.parquet.schema.MessageType
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.sql.avro.SchemaConverters
 import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.streaming.StreamingContext
-import com.sksamuel.avro4s.SchemaFor
 
 trait SparKafkaUpdateParams[A] extends UpdateParams[SKConfig, A] with Serializable {
   def params: SKParams
@@ -58,47 +51,20 @@ final class SparKafka[F[_], K, V](
   def fromKafka(implicit sync: Sync[F]): F[CrRdd[F, K, V]] =
     sk.kafkaBatch(topic, params.timeRange, params.locationStrategy).map(crRdd)
 
-  def fromDisk: CrRdd[F, K, V] = {
-    val loader = new ObjectFileLoader[OptionalKV[K, V]](sparkSession)
-    crRdd(loader.load(params.replayPath))
-  }
-
-  object load {
-
-    object rdd {
-
-      private val loader: RawAvroLoader[OptionalKV[K, V]] =
-        new RawAvroLoader[OptionalKV[K, V]](Decoder[OptionalKV[K, V]], sparkSession)
-      def avro(pathStr: String): CrRdd[F, K, V]    = crRdd(loader.avro(pathStr))
-      def binAvro(pathStr: String): CrRdd[F, K, V] = crRdd(loader.binAvro(pathStr))
-      def jackson(pathStr: String): CrRdd[F, K, V] = crRdd(loader.jackson(pathStr))
-      def parquet(pathStr: String): CrRdd[F, K, V] = crRdd(loader.parquet(pathStr))
-    }
-
-    def tds(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]) =
-      new KafkaLoader(
-        new AvroTypedEncoder[OptionalKV[K, V]](
-          TypedEncoder[OptionalKV[K, V]],
-          NJAvroCodec[OptionalKV[K, V]]))
-
-    final class KafkaLoader(ate: AvroTypedEncoder[OptionalKV[K, V]])(implicit
-      tek: TypedEncoder[K],
-      tev: TypedEncoder[V]) {
-      private val loader: TdsLoader[OptionalKV[K, V]]  = new TdsLoader(ate, sparkSession)
-      def avro(pathStr: String): CrDataset[F, K, V]    = crDataset(loader.avro(pathStr))
-      def parquet(pathStr: String): CrDataset[F, K, V] = crDataset(loader.parquet(pathStr))
-      def json(pathStr: String): CrDataset[F, K, V]    = crDataset(loader.json(pathStr))
-    }
-  }
+  def fromDisk: CrRdd[F, K, V] =
+    crRdd(loaders.rdd.objectFile(params.replayPath))
 
   /**
     * shorthand
     */
   def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Long] =
     Blocker[F].use(blocker =>
-      fromKafka.flatMap { cr =>
-        val dumper = new ObjectFileSaver[F, OptionalKV[K, V]](cr.rdd)
-        dumper.save(params.replayPath, blocker).flatMap(_ => cr.count)
+      for {
+        _ <- fileSink[F](blocker).delete(params.replayPath)
+        cr <- fromKafka
+      } yield {
+        savers.rdd.objectFile(cr.rdd, params.replayPath)
+        cr.rdd.count
       })
 
   def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
