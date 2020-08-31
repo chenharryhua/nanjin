@@ -210,7 +210,6 @@ final class SaveText[F[_], A: ClassTag](
           outPath,
           blocker)
       case SingleOrMulti.Multi =>
-        implicit val sc: NJAvroCodec[String] = NJAvroCodec[String]
-        sma.run(F.delay(savers.text(rdd.map(show.show), outPath)), outPath, blocker)
+        sma.run(F.delay(savers.text(rdd, outPath)), outPath, blocker)
     }
 }

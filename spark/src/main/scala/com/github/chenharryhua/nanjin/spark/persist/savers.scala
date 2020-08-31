@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
+import cats.Show
 import cats.implicits._
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.mapreduce.{
@@ -36,10 +37,8 @@ object savers {
   def csv[A](rdd: RDD[A], pathStr: String)(implicit codec: NJAvroCodec[A], ss: SparkSession): Unit =
     utils.toDF(rdd, codec.avroEncoder).write.mode(SaveMode.Overwrite).csv(pathStr)
 
-  def text[A](rdd: RDD[A], pathStr: String)(implicit
-    codec: NJAvroCodec[A],
-    ss: SparkSession): Unit =
-    utils.toDF(rdd, codec.avroEncoder).write.mode(SaveMode.Overwrite).text(pathStr)
+  def text[A](rdd: RDD[A], pathStr: String)(implicit show: Show[A], codec: NJAvroCodec[A]): Unit =
+    rdd.map(a => show.show(codec.idConversion(a))).saveAsTextFile(pathStr)
 
   def avro[A](rdd: RDD[A], pathStr: String)(implicit
     codec: NJAvroCodec[A],

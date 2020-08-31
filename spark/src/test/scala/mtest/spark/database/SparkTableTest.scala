@@ -18,6 +18,7 @@ import io.scalaland.chimney.dsl._
 import kantan.csv.generic._
 import kantan.csv.java8._
 import org.scalatest.funsuite.AnyFunSuite
+import cats.derived.auto.show._
 
 final case class DomainObject(
   a: LocalDate,
@@ -74,7 +75,11 @@ class SparkTableTest extends AnyFunSuite {
         saver.single.parquet(root + "single.parquet").run(blocker) >>
         saver.raw.parquet(root + "raw.parquet").run(blocker) >>
         saver.multi.circe(root + "multi.circe.json").run(blocker) >>
-        saver.single.circe(root + "single.circe.json").run(blocker)
+        saver.single.circe(root + "single.circe.json").run(blocker) >>
+        saver.multi.text(root + "multi.text").run(blocker) >>
+        saver.single.text(root + "single.text").run(blocker) >>
+        saver.multi.csv(root + "multi.csv").run(blocker) >>
+        saver.single.csv(root + "single.csv").run(blocker)
 
     run.unsafeRunSync()
   }
