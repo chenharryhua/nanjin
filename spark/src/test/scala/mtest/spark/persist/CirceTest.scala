@@ -11,10 +11,11 @@ class CirceTest extends AnyFunSuite {
   import RoosterData._
 
   test("rdd read/write identity") {
-    val path = "./data/test/spark/persist/circe"
+    val path = "./data/test/spark/persist/circe/rooster"
     delete(path)
     savers.circe(rdd, path)
     val t = loaders.rdd.circe[Rooster](path)
     assert(expected == t.collect().toSet)
+    println(Bee.avroDecoder.schema)
   }
 }
