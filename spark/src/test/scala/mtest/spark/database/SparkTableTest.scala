@@ -11,6 +11,7 @@ import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.database._
 import com.github.chenharryhua.nanjin.spark.injection._
+import com.github.chenharryhua.nanjin.spark.persist.loaders
 import frameless.TypedDataset
 import frameless.cats.implicits._
 import io.circe.generic.auto._
@@ -19,6 +20,7 @@ import kantan.csv.generic._
 import kantan.csv.java8._
 import org.scalatest.funsuite.AnyFunSuite
 import cats.derived.auto.show._
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 
 final case class DomainObject(
   a: LocalDate,
@@ -32,6 +34,9 @@ final case class DBTable(a: LocalDate, b: LocalDate, c: Instant, d: Instant, e: 
 class SparkTableTest extends AnyFunSuite {
   implicit val zoneId: ZoneId = beijingTime
 
+  implicit val codec                          = NJAvroCodec[DBTable]
+  implicit val ate: AvroTypedEncoder[DBTable] = AvroTypedEncoder[DBTable](codec)
+
   val table: TableDef[DBTable] = TableDef[DBTable](TableName("public.sparktabletest"))
 
   val sample: DomainObject =
@@ -41,6 +46,8 @@ class SparkTableTest extends AnyFunSuite {
       ZonedDateTime.now(zoneId),
       OffsetDateTime.now(zoneId),
       Instant.now)
+
+  val dbData: DBTable = sample.transformInto[DBTable]
 
   test("sparkTable upload dataset to table") {
     val data = TypedDataset.create(List(sample.transformInto[DBTable])).dataset.rdd
@@ -64,15 +71,15 @@ class SparkTableTest extends AnyFunSuite {
     run.unsafeRunSync
      */
   }
-  test("save") {
+  test("save and load") {
     val root  = "./data/test/spark/database/postgres/"
     val saver = table.in[IO](postgres).fromDB.save
     val run =
-      saver.multi.avro(root + "multi.avro").run(blocker) >>
-        saver.single.avro(root + "single.avro").run(blocker) >>
+      saver.multi.avro(root + "multi.spark.avro").run(blocker) >>
+        saver.single.avro(root + "single.raw.avro").run(blocker) >>
         saver.raw.avro(root + "raw.avro").run(blocker) >>
-        saver.multi.parquet(root + "multi.parquet").run(blocker) >>
-        saver.single.parquet(root + "single.parquet").run(blocker) >>
+        saver.multi.parquet(root + "multi.spark.parquet").run(blocker) >>
+        saver.single.parquet(root + "single.raw.parquet").run(blocker) >>
         saver.raw.parquet(root + "raw.parquet").run(blocker) >>
         saver.multi.circe(root + "multi.circe.json").run(blocker) >>
         saver.single.circe(root + "single.circe.json").run(blocker) >>
@@ -82,6 +89,19 @@ class SparkTableTest extends AnyFunSuite {
         saver.single.csv(root + "single.csv").run(blocker)
 
     run.unsafeRunSync()
+
+    assert(loaders.avro(root + "multi.spark.avro").collect[IO]().unsafeRunSync().head == dbData)
+    assert(loaders.raw.avro(root + "single.raw.avro").collect().head == dbData)
+    assert(loaders.raw.avro(root + "raw.avro").collect.head == dbData)
+
+    assert(
+      loaders.parquet(root + "multi.spark.parquet").collect[IO]().unsafeRunSync().head == dbData)
+    assert(loaders.raw.parquet(root + "single.raw.parquet").collect.head == dbData)
+    assert(loaders.raw.parquet(root + "raw.parquet").collect.head == dbData)
+
+    assert(loaders.circe[DBTable](root + "multi.circe.json").collect().head == dbData)
+    assert(loaders.circe[DBTable](root + "single.circe.json").collect().head == dbData)
+
   }
   test("with query") {}
 }
