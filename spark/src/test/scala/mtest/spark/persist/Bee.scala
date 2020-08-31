@@ -23,6 +23,7 @@ object Bee {
       |  "type": "record",
       |  "name": "Bee",
       |  "namespace": "mtest.spark.persist",
+      |  "doc": "test save and load array-byte type",
       |  "fields": [
       |    {
       |      "name": "a",

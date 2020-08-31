@@ -26,14 +26,14 @@ final class AvroTypedEncoder[A] private (
     override def toCatalyst(path: Expression): Expression   = typedEncoder.toCatalyst(path)
   }
 
+  def fromDF(ds: DataFrame): TypedDataset[A] =
+    TypedDataset.createUnsafe(ds)
+
   def normalize(rdd: RDD[A])(implicit ss: SparkSession): TypedDataset[A] =
-    TypedDataset.createUnsafe[A](utils.toDF(rdd, avroCodec.avroEncoder))
+    fromDF(utils.toDF(rdd, avroCodec.avroEncoder))
 
   def normalize(ds: Dataset[A]): TypedDataset[A] =
     normalize(ds.rdd)(ds.sparkSession)
-
-  def fromDF(ds: DataFrame): TypedDataset[A] =
-    TypedDataset.createUnsafe(ds)
 
 }
 

@@ -14,7 +14,7 @@ class CirceTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/circe/rooster"
     delete(path)
     savers.circe(rdd, path)
-    val t = loaders.rdd.circe[Rooster](path)
+    val t = loaders.circe[Rooster](path)
     assert(expected == t.collect().toSet)
     println(Bee.avroDecoder.schema)
   }

@@ -24,35 +24,51 @@ import scala.reflect.ClassTag
 
 object loaders {
 
-  object rdd {
+  def objectFile[A: ClassTag](pathStr: String)(implicit ss: SparkSession): RDD[A] =
+    ss.sparkContext.objectFile[A](pathStr)
 
-    def objectFile[A: ClassTag](pathStr: String)(implicit ss: SparkSession): RDD[A] =
-      ss.sparkContext.objectFile[A](pathStr)
+  def circe[A: ClassTag: JsonDecoder](pathStr: String)(implicit ss: SparkSession): RDD[A] =
+    ss.sparkContext
+      .textFile(pathStr)
+      .map(decode[A](_) match {
+        case Left(ex) => throw ex
+        case Right(r) => r
+      })
 
-    def circe[A: ClassTag: JsonDecoder](pathStr: String)(implicit ss: SparkSession): RDD[A] =
-      ss.sparkContext
-        .textFile(pathStr)
-        .map(decode[A](_) match {
-          case Left(ex) => throw ex
-          case Right(r) => r
-        })
+  def protobuf[A <: GeneratedMessage: ClassTag](
+    pathStr: String,
+    ss: SparkSession,
+    decoder: GeneratedMessageCompanion[A]): RDD[A] =
+    ss.sparkContext
+      .binaryFiles(pathStr)
+      .mapPartitions(_.flatMap {
+        case (_, pds) =>
+          val is   = pds.open()
+          val cis  = CodedInputStream.newInstance(is)
+          val iter = decoder.parseDelimitedFrom(cis)
+          new Iterator[A] {
+            override def hasNext: Boolean = if (iter.isDefined) true else { is.close(); false }
+            override def next(): A        = iter.get
+          }
+      })
 
-    def protobuf[A <: GeneratedMessage: ClassTag](
-      pathStr: String,
-      ss: SparkSession,
-      decoder: GeneratedMessageCompanion[A]): RDD[A] =
-      ss.sparkContext
-        .binaryFiles(pathStr)
-        .mapPartitions(_.flatMap {
-          case (_, pds) =>
-            val is   = pds.open()
-            val cis  = CodedInputStream.newInstance(is)
-            val iter = decoder.parseDelimitedFrom(cis)
-            new Iterator[A] {
-              override def hasNext: Boolean = if (iter.isDefined) true else { is.close(); false }
-              override def next(): A        = iter.get
-            }
-        })
+  def avro[A](
+    pathStr: String)(implicit ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
+    ate.fromDF(ss.read.format("avro").load(pathStr))
+
+  def parquet[A](
+    pathStr: String)(implicit ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
+    ate.fromDF(ss.read.parquet(pathStr))
+
+  def csv[A](
+    pathStr: String)(implicit ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
+    ate.fromDF(ss.read.schema(ate.sparkStructType).csv(pathStr))
+
+  def json[A](
+    pathStr: String)(implicit ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
+    ate.fromDF(ss.read.schema(ate.sparkStructType).json(pathStr))
+
+  object raw {
 
     def avro[A: ClassTag](
       pathStr: String)(implicit codec: NJAvroCodec[A], ss: SparkSession): RDD[A] = {
@@ -112,25 +128,5 @@ object loaders {
           classOf[GenericRecord])
         .map { case (_, gr) => codec.avroDecoder.decode(gr) }
     }
-  }
-
-  object tds {
-
-    def avro[A](
-      pathStr: String)(implicit ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
-      ate.fromDF(ss.read.format("avro").load(pathStr))
-
-    def parquet[A](
-      pathStr: String)(implicit ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
-      ate.fromDF(ss.read.parquet(pathStr))
-
-    def csv[A](
-      pathStr: String)(implicit ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
-      ate.fromDF(ss.read.schema(ate.sparkStructType).csv(pathStr))
-
-    def json[A](
-      pathStr: String)(implicit ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
-      ate.fromDF(ss.read.schema(ate.sparkStructType).json(pathStr))
-
   }
 }

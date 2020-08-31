@@ -13,7 +13,7 @@ class JsonTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/json"
     delete(path)
     savers.json(rdd, path)
-    val t: TypedDataset[Rooster] = loaders.tds.json[Rooster](path)
+    val t: TypedDataset[Rooster] = loaders.json[Rooster](path)
     assert(expected == t.collect[IO]().unsafeRunSync().toSet)
   }
 }

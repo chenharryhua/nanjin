@@ -1,23 +1,21 @@
 package com.github.chenharryhua.nanjin.spark.database
 
-import cats.Show
-import cats.effect.Sync
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.database.{DatabaseName, DatabaseSettings, TableName}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist._
-import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
+import frameless.TypedDataset
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
-import frameless.{TypedDataset, TypedEncoder}
-import io.circe.{Encoder => JsonEncoder}
-import kantan.csv.RowEncoder
-import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.{Dataset, SparkSession}
 
 final class TableDataset[F[_], A](ds: Dataset[A], dbSettings: DatabaseSettings, cfg: STConfig)(
   implicit ate: AvroTypedEncoder[A])
     extends Serializable {
 
   import ate.sparkTypedEncoder.classTag
+  implicit private val ss: SparkSession   = ds.sparkSession
+  implicit private val ae: NJAvroCodec[A] = ate.avroCodec
 
   val params: STParams = cfg.evalConfig
 
@@ -30,5 +28,7 @@ final class TableDataset[F[_], A](ds: Dataset[A], dbSettings: DatabaseSettings, 
   def typedDataset: TypedDataset[A] = ate.normalize(ds)
 
   def upload: DbUploader[F, A] = new DbUploader[F, A](ds, dbSettings, ate, cfg)
+
+  def save: RddFileSaver[F, A] = new RddFileSaver[F, A](ds.rdd)
 
 }

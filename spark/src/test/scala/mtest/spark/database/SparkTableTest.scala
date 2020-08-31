@@ -53,23 +53,30 @@ class SparkTableTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  val path = "./data/test/spark/database/jackson.json"
-
-  test("sparkTable save db table to disk") {
-  }
-
   test("partition save") {
-  /*  val run = table.in[IO](postgres).fromDB.save.partition.jackson.run(blocker) >>
+    /*  val run = table.in[IO](postgres).fromDB.save.partition.jackson.run(blocker) >>
       table.in[IO](postgres).fromDB.save.partition.avro.run(blocker) >>
       table.in[IO](postgres).fromDB.save.partition.parquet.run(blocker) >>
       table.in[IO](postgres).fromDB.save.partition.circe.run(blocker) >>
       table.in[IO](postgres).fromDB.save.partition.csv.run(blocker) >>
       IO(())
     run.unsafeRunSync
-    */
+     */
   }
   test("save") {
+    val root  = "./data/test/spark/database/postgres/"
+    val saver = table.in[IO](postgres).fromDB.save
+    val run =
+      saver.multi.avro(root + "multi.avro").run(blocker) >>
+        saver.single.avro(root + "single.avro").run(blocker) >>
+        saver.raw.avro(root + "raw.avro").run(blocker) >>
+        saver.multi.parquet(root + "multi.parquet").run(blocker) >>
+        saver.single.parquet(root + "single.parquet").run(blocker) >>
+        saver.raw.parquet(root + "raw.parquet").run(blocker) >>
+        saver.multi.circe(root + "multi.circe.json").run(blocker) >>
+        saver.single.circe(root + "single.circe.json").run(blocker)
+
+    run.unsafeRunSync()
   }
-  test("with query") {
-  }
+  test("with query") {}
 }

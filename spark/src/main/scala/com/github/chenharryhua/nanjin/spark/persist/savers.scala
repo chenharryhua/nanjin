@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.spark.mapreduce.{
   NJAvroKeyOutputFormat,
   NJJacksonKeyOutputFormat
 }
-import com.github.chenharryhua.nanjin.spark.{utils, AvroTypedEncoder}
+import com.github.chenharryhua.nanjin.spark.utils
 import frameless.cats.implicits._
 import io.circe.{Encoder => JsonEncoder}
 import org.apache.avro.generic.GenericRecord
@@ -14,7 +14,7 @@ import org.apache.avro.mapreduce.AvroJob
 import org.apache.hadoop.mapreduce.Job
 import org.apache.parquet.avro.{AvroParquetOutputFormat, GenericDataSupplier}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
+import org.apache.spark.sql.{SaveMode, SparkSession}
 
 import scala.reflect.ClassTag
 

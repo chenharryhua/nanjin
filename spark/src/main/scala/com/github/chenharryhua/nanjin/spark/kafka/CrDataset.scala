@@ -4,6 +4,7 @@ import cats.Eq
 import cats.effect.Sync
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryK,
   CompulsoryKV,
@@ -12,10 +13,11 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   OptionalKV
 }
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
+import com.github.chenharryhua.nanjin.spark.persist.RddFileSaver
 import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
 import frameless.cats.implicits._
 import frameless.{SparkDelay, TypedDataset, TypedEncoder}
-import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.{Dataset, SparkSession}
 
 final class CrDataset[F[_], K, V](val crs: Dataset[OptionalKV[K, V]], cfg: SKConfig)(implicit
   val keyEncoder: TypedEncoder[K],
@@ -154,4 +156,9 @@ final class CrDataset[F[_], K, V](val crs: Dataset[OptionalKV[K, V]], cfg: SKCon
   def toProducerRecords: PrDataset[F, K, V] =
     new PrDataset((typedDataset.deserialized.map(_.toNJProducerRecord)).dataset, cfg)
 
+//  def save: RddFileSaver[F, OptionalKV[K, V]] = {
+//    implicit val ss: SparkSession                  = crs.sparkSession
+//    implicit val ac: NJAvroCodec[OptionalKV[K, V]] = shapeless.cachedImplicit
+//    new RddFileSaver[F, OptionalKV[K, V]](crs.rdd)
+//  }
 }

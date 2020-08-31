@@ -17,6 +17,7 @@ object Ant {
       |  "type": "record",
       |  "name": "Ant",
       |  "namespace": "mtest.spark.persist",
+      |  "doc": "test save and load collection type",
       |  "fields": [
       |    {
       |      "name": "a",

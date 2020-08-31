@@ -9,7 +9,7 @@ class JacksonTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/jackson"
     delete(path)
     savers.raw.jackson(rdd, path)
-    val r = loaders.rdd.jackson[Rooster](path)
+    val r = loaders.raw.jackson[Rooster](path)
     assert(expected == r.collect().toSet)
   }
 }

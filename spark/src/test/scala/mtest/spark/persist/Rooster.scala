@@ -28,6 +28,7 @@ object Rooster {
       |  "type": "record",
       |  "name": "Rooster",
       |  "namespace": "mtest.spark.persist",
+      |  "doc": "test save and load data time type",
       |  "fields": [
       |    {
       |      "name": "index",

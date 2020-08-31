@@ -13,7 +13,7 @@ class ParquetTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/parquet/rooster/raw"
     delete(path)
     savers.raw.parquet(rdd, path)
-    val r: RDD[Rooster] = loaders.rdd.parquet[Rooster](path)
+    val r: RDD[Rooster] = loaders.raw.parquet[Rooster](path)
     assert(expected == r.collect().toSet)
   }
 
@@ -21,7 +21,7 @@ class ParquetTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/parquet/rooster/spark"
     delete(path)
     savers.parquet(rdd, path)
-    val t: TypedDataset[Rooster] = loaders.tds.parquet[Rooster](path)
+    val t: TypedDataset[Rooster] = loaders.parquet[Rooster](path)
     assert(expected == t.collect[IO]().unsafeRunSync().toSet)
   }
 
@@ -31,7 +31,7 @@ class ParquetTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/parquet/bee/raw"
     delete(path)
     savers.raw.parquet(rdd, path)
-    val t = loaders.rdd.parquet[Bee](path)
+    val t = loaders.raw.parquet[Bee](path)
     assert(bees.sortBy(_.b).zip(t.collect().toList.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
 
@@ -41,7 +41,7 @@ class ParquetTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/parquet/bee/spark"
     delete(path)
     savers.parquet(rdd, path)
-    val t = loaders.tds.parquet[Bee](path).collect[IO].unsafeRunSync().toList
+    val t = loaders.parquet[Bee](path).collect[IO].unsafeRunSync().toList
     assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
 
@@ -50,7 +50,7 @@ class ParquetTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/parquet/ant/raw"
     delete(path)
     savers.raw.parquet(rdd, path)
-    val t = loaders.rdd.parquet[Ant](path)
+    val t = loaders.raw.parquet[Ant](path)
     assert(ants.toSet == t.collect().toSet)
   }
 

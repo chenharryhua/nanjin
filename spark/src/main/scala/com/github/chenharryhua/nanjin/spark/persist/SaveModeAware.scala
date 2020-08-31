@@ -9,7 +9,7 @@ final class SaveModeAware[F[_]](saveMode: SaveMode, sparkSession: SparkSession)
     extends Serializable {
   implicit val ss: SparkSession = sparkSession
 
-  def run(outPath: String, f: F[Unit], blocker: Blocker)(implicit
+  def run(f: F[Unit], outPath: String, blocker: Blocker)(implicit
     F: Sync[F],
     cs: ContextShift[F]): F[Unit] =
     saveMode match {

@@ -14,8 +14,8 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/rooster/raw"
     delete(path)
     savers.raw.avro(rdd, path)
-    val r: RDD[Rooster]          = loaders.rdd.avro[Rooster](path)
-    val t: TypedDataset[Rooster] = loaders.tds.avro[Rooster](path)
+    val r: RDD[Rooster]          = loaders.raw.avro[Rooster](path)
+    val t: TypedDataset[Rooster] = loaders.avro[Rooster](path)
     assert(expected == r.collect().toSet)
     assert(expected == t.collect[IO]().unsafeRunSync().toSet)
   }
@@ -25,7 +25,7 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/rooster/spark"
     delete(path)
     savers.avro(rdd, path)
-    val t: TypedDataset[Rooster] = loaders.tds.avro[Rooster](path)
+    val t: TypedDataset[Rooster] = loaders.avro[Rooster](path)
     assert(expected == t.collect[IO]().unsafeRunSync().toSet)
   }
 
@@ -35,7 +35,7 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/bee/raw"
     delete(path)
     savers.raw.avro(rdd, path)
-    val t = loaders.rdd.avro[Bee](path)
+    val t = loaders.raw.avro[Bee](path)
     assert(bees.sortBy(_.b).zip(t.collect().toList.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
 
@@ -45,7 +45,7 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/bee/spark"
     delete(path)
     savers.avro(rdd, path)
-    val t = loaders.tds.avro[Bee](path).collect[IO].unsafeRunSync().toList
+    val t = loaders.avro[Bee](path).collect[IO].unsafeRunSync().toList
     assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
 
@@ -54,7 +54,7 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/ant/raw"
     delete(path)
     savers.raw.avro(rdd, path)
-    val t = loaders.rdd.avro[Ant](path)
+    val t = loaders.raw.avro[Ant](path)
     assert(ants.toSet == t.collect().toSet)
   }
 
