@@ -7,24 +7,21 @@ import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import org.apache.spark.rdd.RDD
 import org.scalatest.funsuite.AnyFunSuite
 
-class AvroTest extends AnyFunSuite {
+class ParquetTest extends AnyFunSuite {
   import RoosterData._
-
   test("rdd read/write identity") {
-    val path = "./data/test/spark/persist/avro/raw"
+    val path = "./data/test/spark/persist/parquet/raw"
     delete(path)
-    savers.raw.avro(rdd, path)
-    val r: RDD[Rooster]          = loaders.rdd.avro[Rooster](path)
-    val t: TypedDataset[Rooster] = loaders.tds.avro[Rooster](path)
+    savers.raw.parquet(rdd, path)
+    val r: RDD[Rooster] = loaders.rdd.parquet[Rooster](path)
     assert(expected == r.collect().toSet)
-    assert(expected == t.collect[IO]().unsafeRunSync().toSet)
   }
 
   test("tds read/write identity") {
-    val path = "./data/test/spark/persist/avro/spark"
+    val path = "./data/test/spark/persist/parquet/spark"
     delete(path)
-    savers.avro(rdd, path)
-    val t: TypedDataset[Rooster] = loaders.tds.avro[Rooster](path)
+    savers.parquet(rdd, path)
+    val t: TypedDataset[Rooster] = loaders.tds.parquet[Rooster](path)
     assert(expected == t.collect[IO]().unsafeRunSync().toSet)
   }
 }

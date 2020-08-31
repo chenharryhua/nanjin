@@ -5,8 +5,8 @@ import java.time.{Instant, LocalDate, LocalDateTime, ZoneId}
 
 import cats.Order
 import frameless.{Injection, SQLDate, SQLTimestamp}
-import io.circe.{Decoder, Encoder}
-import monocle.Iso
+import io.circe.Decoder.Result
+import io.circe._
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import shapeless.Witness
 
@@ -60,6 +60,22 @@ private[spark] trait InjectionInstances extends Serializable {
 
   implicit def enumCirceDecoder[E <: Enumeration](implicit w: Witness.Aux[E]): Decoder[E#Value] =
     Decoder.decodeEnumeration(w.value)
+
+  implicit val timestampCirceCodec: Codec[Timestamp] = new Codec[Timestamp] {
+    import io.circe.syntax._
+    override def apply(a: Timestamp): Json = a.toInstant.asJson
+
+    override def apply(c: HCursor): Result[Timestamp] =
+      Decoder[Instant].apply(c).map(Timestamp.from)
+  }
+
+  implicit val dateCirceCodec: Codec[Date] = new Codec[Date] {
+    import io.circe.syntax._
+    override def apply(a: Date): Json = a.toLocalDate.asJson
+
+    override def apply(c: HCursor): Result[Date] =
+      Decoder[LocalDate].apply(c).map(Date.valueOf)
+  }
 
   implicit def orderScalaEnum[E <: Enumeration](implicit
     w: shapeless.Witness.Aux[E]): Order[E#Value] =

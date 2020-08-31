@@ -5,18 +5,14 @@ import java.time.Instant
 import cats.effect.IO
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.datetime._
-import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.injection._
-import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.sksamuel.avro4s.ScalePrecision
 import frameless.cats.implicits._
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.math.BigDecimal
 import scala.math.BigDecimal.RoundingMode
-import com.sksamuel.avro4s.Encoder
 
 object DecimalTopicTestCase {
   final case class HasDecimal(a: BigDecimal, b: Instant)
@@ -44,9 +40,5 @@ class DecimalTopicTest extends AnyFunSuite {
       .drain
       .unsafeRunSync
 
-    val res: List[HasDecimal] =
-      loaders.rdd.avro[OptionalKV[Int, HasDecimal]](path).flatMap(_.value).collect().toList
-
-    assert(res === List(data, data))
   }
 }

@@ -57,10 +57,7 @@ class KafkaCoproductTest extends AnyFunSuite {
 
     val run = topicCO.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicCO.schemaRegister >>
-      topicCO.send(data) >>
-      sk.fromKafka.map(cr => savers.rdd.avro(cr.rdd, path)) >>
-      IO(loaders.rdd.avro[OptionalKV[Int, PersonCaseObject]](path).take(10).toSet)
-    assert(run.unsafeRunSync().flatMap(_.value) == Set(co1, co2))
+      topicCO.send(data)
 
   }
 
@@ -71,10 +68,7 @@ class KafkaCoproductTest extends AnyFunSuite {
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegister >>
-      topicEnum.send(data) >>
-      sk.fromKafka.map(cr => savers.rdd.avro(cr.rdd, path)) >>
-      IO(loaders.rdd.avro[OptionalKV[Int, PersonEnum]](path).take(10).toSet)
-    assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
+      topicEnum.send(data)
   }
 
   test("sparKafka should be sent to kafka and save to multi avro") {
@@ -84,10 +78,7 @@ class KafkaCoproductTest extends AnyFunSuite {
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegister >>
-      topicEnum.send(data) >>
-      sk.fromKafka.map(cr => savers.rdd.avro(cr.rdd, path)) >>
-      IO(loaders.rdd.avro[OptionalKV[Int, PersonEnum]](path).take(10).toSet)
-    assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
+      topicEnum.send(data)
   }
 
 }

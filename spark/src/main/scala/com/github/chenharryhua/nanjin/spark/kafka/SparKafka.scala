@@ -63,7 +63,7 @@ final class SparKafka[F[_], K, V](
         _ <- fileSink[F](blocker).delete(params.replayPath)
         cr <- fromKafka
       } yield {
-        savers.rdd.objectFile(cr.rdd, params.replayPath)
+        savers.objectFile(cr.rdd, params.replayPath)
         cr.rdd.count
       })
 

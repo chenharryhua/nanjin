@@ -31,7 +31,7 @@ private[spark] trait DatasetExtensions {
       Source.fromPublisher[A](stream[F].toUnicastPublisher)
 
     def typedDataset(implicit ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
-      ate.fromRDD(rdd)(ss)
+      ate.normalize(rdd)(ss)
 
   }
 

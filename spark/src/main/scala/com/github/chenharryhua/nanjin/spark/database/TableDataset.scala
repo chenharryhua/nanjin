@@ -27,7 +27,7 @@ final class TableDataset[F[_], A](ds: Dataset[A], dbSettings: DatabaseSettings, 
   def withPathBuilder(f: (DatabaseName, TableName, NJFileFormat) => String) =
     new TableDataset[F, A](ds, dbSettings, cfg.withPathBuilder(f))
 
-  def typedDataset: TypedDataset[A] = ate.fromDS(ds)
+  def typedDataset: TypedDataset[A] = ate.normalize(ds)
 
   def upload: DbUploader[F, A] = new DbUploader[F, A](ds, dbSettings, ate, cfg)
 

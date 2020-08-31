@@ -28,7 +28,7 @@ final class DbUploader[F[_], A](
   def run(implicit F: Sync[F]): F[Unit] =
     F.delay {
       ate
-        .fromDS(ds)
+        .normalize(ds)
         .write
         .mode(params.dbSaveMode)
         .format("jdbc")

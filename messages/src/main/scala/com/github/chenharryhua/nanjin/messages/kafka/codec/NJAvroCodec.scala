@@ -18,6 +18,7 @@ final case class NJAvroCodec[A] private[codec] (
   schemaFor: SchemaFor[A],
   avroDecoder: AvroDecoder[A],
   avroEncoder: AvroEncoder[A]) {
+  val schema: Schema        = schemaFor.schema
   def idConversion(a: A): A = avroDecoder.decode(avroEncoder.encode(a))
 }
 

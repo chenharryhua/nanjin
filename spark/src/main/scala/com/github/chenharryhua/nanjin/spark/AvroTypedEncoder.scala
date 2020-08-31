@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.spark
 
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import frameless.{TypedDataset, TypedEncoder}
-import org.apache.avro.Schema
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.avro.SchemaConverters
 import org.apache.spark.sql.catalyst.expressions.Expression
@@ -12,32 +11,30 @@ import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 final class AvroTypedEncoder[A] private (
   val avroCodec: NJAvroCodec[A],
   typedEncoder: TypedEncoder[A])
-    extends Serializable { self =>
+    extends Serializable {
 
-  import typedEncoder.classTag
-
-  val sparkDatatype: DataType = SchemaConverters.toSqlType(avroCodec.schemaFor.schema).dataType
+  val sparkDatatype: DataType = SchemaConverters.toSqlType(avroCodec.schema).dataType
 
   val sparkStructType: StructType = sparkDatatype.asInstanceOf[StructType]
 
-  val sparkAvroSchema: Schema = SchemaConverters.toAvroType(sparkDatatype)
-
   implicit val sparkTypedEncoder: TypedEncoder[A] = new TypedEncoder[A]()(typedEncoder.classTag) {
-    override def nullable: Boolean                          = typedEncoder.nullable
-    override def jvmRepr: DataType                          = typedEncoder.jvmRepr
-    override def catalystRepr: DataType                     = sparkDatatype
+    override val nullable: Boolean      = typedEncoder.nullable
+    override val jvmRepr: DataType      = typedEncoder.jvmRepr
+    override val catalystRepr: DataType = sparkDatatype
+
     override def fromCatalyst(path: Expression): Expression = typedEncoder.fromCatalyst(path)
     override def toCatalyst(path: Expression): Expression   = typedEncoder.toCatalyst(path)
   }
 
-  def fromRDD(rdd: RDD[A])(implicit ss: SparkSession): TypedDataset[A] =
-    TypedDataset.create(rdd).deserialized.map(avroCodec.idConversion)
+  def normalize(rdd: RDD[A])(implicit ss: SparkSession): TypedDataset[A] =
+    TypedDataset.createUnsafe[A](utils.toDF(rdd, avroCodec.avroEncoder))
 
-  def fromDS(ds: Dataset[A]): TypedDataset[A] =
-    TypedDataset.create(ds).deserialized.map(avroCodec.idConversion)
+  def normalize(ds: Dataset[A]): TypedDataset[A] =
+    normalize(ds.rdd)(ds.sparkSession)
 
   def fromDF(ds: DataFrame): TypedDataset[A] =
-    TypedDataset.createUnsafe(ds).deserialized.map(avroCodec.idConversion)
+    TypedDataset.createUnsafe(ds)
+
 }
 
 object AvroTypedEncoder {

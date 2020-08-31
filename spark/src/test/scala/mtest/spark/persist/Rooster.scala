@@ -13,29 +13,38 @@ import org.apache.avro.Schema
 import scala.math.BigDecimal
 import scala.math.BigDecimal.RoundingMode
 
-final case class GoldenFish(a: Instant, b: Timestamp, c: BigDecimal)
+final case class Rooster(
+  index: Int,
+  a: Instant,
+  b: Timestamp,
+  c: BigDecimal,
+  d: Option[Int] = Some(1))
 
-object GoldenFish {
+object Rooster {
 
   val schemaText: String =
     """
       |{
       |  "type": "record",
-      |  "name": "GoldenFish",
-      |  "namespace": "mtest.spark.AvroTypedEncoderTestData",
+      |  "name": "Rooster",
+      |  "namespace": "mtest.spark.persist",
       |  "fields": [
+      |    {
+      |      "name": "index",
+      |      "type": "int"
+      |    },
       |    {
       |      "name": "a",
       |      "type": {
       |        "type": "long",
-      |        "logicalType": "timestamp-micros"
+      |        "logicalType": "timestamp-millis"
       |      }
       |    },
       |    {
       |      "name": "b",
       |      "type": {
       |        "type": "long",
-      |        "logicalType": "timestamp-micros"
+      |        "logicalType": "timestamp-millis"
       |      }
       |    },
       |    {
@@ -46,6 +55,8 @@ object GoldenFish {
       |        "precision": 7,
       |        "scale": 3
       |      }
+      |    },
+      |    { "name":"d", "type":["int","null"]
       |    }
       |  ]
       |}
@@ -54,18 +65,14 @@ object GoldenFish {
   val schema: Schema = (new Schema.Parser).parse(schemaText)
 
   implicit val roundingMode: BigDecimal.RoundingMode.Value = RoundingMode.HALF_UP
-  implicit val avroEncoder: Encoder[GoldenFish]            = shapeless.cachedImplicit
-  implicit val avroDecoder: Decoder[GoldenFish]            = shapeless.cachedImplicit
+  implicit val avroEncoder: Encoder[Rooster]               = shapeless.cachedImplicit
+  implicit val avroDecoder: Decoder[Rooster]               = shapeless.cachedImplicit
 
-  implicit val typedEncoder: TypedEncoder[GoldenFish] = shapeless.cachedImplicit
+  implicit val typedEncoder: TypedEncoder[Rooster] = shapeless.cachedImplicit
 
-  implicit val avroCodec: NJAvroCodec[GoldenFish] =
-    NJAvroCodec[GoldenFish](schema)(avroDecoder, avroEncoder).right.get
+  implicit val avroCodec: NJAvroCodec[Rooster] =
+    NJAvroCodec[Rooster](schema).right.get
 
-  implicit val avroTypedEncoder: AvroTypedEncoder[GoldenFish] =
-    AvroTypedEncoder[GoldenFish](avroCodec)
-
-  println(avroTypedEncoder.sparkDatatype)
-  println(avroTypedEncoder.sparkAvroSchema)
-
+  implicit val ate: AvroTypedEncoder[Rooster] =
+    AvroTypedEncoder[Rooster](TypedEncoder[Rooster], avroCodec)
 }

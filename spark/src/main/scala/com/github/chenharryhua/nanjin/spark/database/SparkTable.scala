@@ -58,6 +58,6 @@ final class SparkTable[F[_], A](
       cfg)(ate)
 
   def tableDataset(rdd: RDD[A]): TableDataset[F, A] =
-    new TableDataset[F, A](ate.fromRDD(rdd).dataset, dbSettings, cfg)(ate)
+    new TableDataset[F, A](ate.normalize(rdd).dataset, dbSettings, cfg)(ate)
 
 }
