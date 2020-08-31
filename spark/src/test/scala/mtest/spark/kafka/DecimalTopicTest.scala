@@ -5,8 +5,11 @@ import java.time.Instant
 import cats.effect.IO
 import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.injection._
+import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.sksamuel.avro4s.ScalePrecision
 import frameless.cats.implicits._
 import org.scalatest.funsuite.AnyFunSuite
@@ -25,6 +28,7 @@ class DecimalTopicTest extends AnyFunSuite {
   import DecimalTopicTestCase._
   implicit val sp: ScalePrecision                          = ScalePrecision(10, 20)
   implicit val roundingMode: BigDecimal.RoundingMode.Value = RoundingMode.HALF_UP
+  implicit val codec                                       = NJAvroCodec[OptionalKV[Int, HasDecimal]]
   val topic: KafkaTopic[IO, Int, HasDecimal]               = ctx.topic[Int, HasDecimal]("decimal.test")
   (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
     topic.schemaRegister >>
@@ -39,6 +43,8 @@ class DecimalTopicTest extends AnyFunSuite {
       .compile
       .drain
       .unsafeRunSync
+
+    assert(loaders.raw.avro[OptionalKV[Int, HasDecimal]](path).collect().head.value.get == data)
 
   }
 }

@@ -5,7 +5,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.spark.kafka._
-import com.github.chenharryhua.nanjin.spark.persist.{loaders, savers}
+import com.github.chenharryhua.nanjin.spark.persist.loaders
 import frameless.cats.implicits._
 import org.scalatest.funsuite.AnyFunSuite
 import shapeless._
@@ -54,31 +54,42 @@ class KafkaCoproductTest extends AnyFunSuite {
     val data = List(topicCO.fs2PR(0, co1), topicCO.fs2PR(1, co2))
     val path = "./data/test/spark/kafka/coproduct/caseobject.avro"
     val sk   = topicCO.sparKafka
+    import sk.optionalKVCodec
 
     val run = topicCO.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicCO.schemaRegister >>
-      topicCO.send(data)
-
+      topicCO.send(data) >>
+      sk.fromKafka.flatMap(_.save.single.avro(path).run(blocker)) >>
+      IO(loaders.raw.avro(path).collect().toSet)
+    intercept[Exception](run.unsafeRunSync().flatMap(_.value) == Set(co1, co2))
   }
 
   test("sparKafka should be sent to kafka and save to single avro") {
     val data = List(topicEnum.fs2PR(0, en1), topicEnum.fs2PR(1, en2))
     val path = "./data/test/spark/kafka/coproduct/scalaenum.avro"
     val sk   = topicEnum.sparKafka
+    import sk.optionalKVCodec
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegister >>
-      topicEnum.send(data)
+      topicEnum.send(data) >>
+      sk.fromKafka.flatMap(_.save.single.avro(path).run(blocker)) >>
+      IO(loaders.raw.avro(path).take(10).toSet)
+    assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 
   test("sparKafka should be sent to kafka and save to multi avro") {
     val data = List(topicEnum.fs2PR(0, en1), topicEnum.fs2PR(1, en2))
     val path = "./data/test/spark/kafka/coproduct/multi-scalaenum.avro"
     val sk   = topicEnum.sparKafka
+    import sk.optionalKVCodec
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegister >>
-      topicEnum.send(data)
+      topicEnum.send(data) >>
+      sk.fromKafka.flatMap(_.save.multi.raw.avro(path).run(blocker)) >>
+      IO(loaders.raw.avro(path).take(10).toSet)
+    assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 
 }

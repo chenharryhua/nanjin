@@ -16,7 +16,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
 }
 import com.github.chenharryhua.nanjin.spark.RddExt
 import com.github.chenharryhua.nanjin.spark.persist.RddFileSaver
-import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
+import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder, SchemaFor}
 import frameless.cats.implicits.rddOps
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
@@ -27,6 +27,8 @@ import scala.reflect.ClassTag
 
 final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)(implicit
   val sparkSession: SparkSession,
+  val schemaForKey: SchemaFor[K],
+  val schemaForVal: SchemaFor[V],
   val keyAvroEncoder: AvroEncoder[K],
   val keyAvroDecoder: AvroDecoder[K],
   val valAvroEncoder: AvroEncoder[V],
@@ -38,6 +40,11 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
 
   implicit private val optionalKVAvroDecoder: AvroDecoder[OptionalKV[K, V]] =
     shapeless.cachedImplicit
+
+  implicit private val schemaForOptionalKV: SchemaFor[OptionalKV[K, V]] =
+    shapeless.cachedImplicit
+
+  implicit private val njAvroCodec: NJAvroCodec[OptionalKV[K, V]] = NJAvroCodec[OptionalKV[K, V]]
 
   override def params: SKParams = cfg.evalConfig
 
@@ -58,12 +65,12 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
   def repartition(num: Int): CrRdd[F, K, V] =
     new CrRdd[F, K, V](rdd.repartition(num), cfg)
 
-  def bimap[K2: AvroEncoder: AvroDecoder, V2: AvroEncoder: AvroDecoder](
+  def bimap[K2: AvroEncoder: AvroDecoder: SchemaFor, V2: AvroEncoder: AvroDecoder: SchemaFor](
     k: K => K2,
     v: V => V2): CrRdd[F, K2, V2] =
     new CrRdd[F, K2, V2](rdd.map(_.bimap(k, v)), cfg)
 
-  def flatMap[K2: AvroEncoder: AvroDecoder, V2: AvroEncoder: AvroDecoder](
+  def flatMap[K2: AvroEncoder: AvroDecoder: SchemaFor, V2: AvroEncoder: AvroDecoder: SchemaFor](
     f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]]): CrRdd[F, K2, V2] =
     new CrRdd[F, K2, V2](rdd.flatMap(f), cfg)
 
@@ -118,8 +125,6 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
       .compile
       .drain
 
-//  def save = {
-//    implicit val ac: NJAvroCodec[OptionalKV[K, V]] = shapeless.cachedImplicit
-//    new RddFileSaver[F, OptionalKV[K, V]](rdd)
-//  }
+  def save: RddFileSaver[F, OptionalKV[K, V]] =
+    new RddFileSaver[F, OptionalKV[K, V]](rdd)
 }

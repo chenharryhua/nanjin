@@ -4,9 +4,10 @@ import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.{NJProducerRecord, OptionalKV}
 import com.github.chenharryhua.nanjin.spark.fileSink
-import com.github.chenharryhua.nanjin.spark.persist.{loaders, savers}
+import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.github.chenharryhua.nanjin.spark.sstream.{KafkaCrSStream, SStreamConfig, SparkSStream}
 import com.sksamuel.avro4s.{Decoder, Encoder, SchemaFor}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
@@ -37,6 +38,8 @@ final class SparKafka[F[_], K, V](
   implicit val schemaForKey: SchemaFor[K] = topic.topicDef.keySchemaFor
   implicit val schemaForVal: SchemaFor[V] = topic.topicDef.valSchemaFor
 
+  implicit val optionalKVCodec: NJAvroCodec[OptionalKV[K, V]] = NJAvroCodec[OptionalKV[K, V]]
+
   implicit val ss: SparkSession = sparkSession
 
   override def withParamUpdate(f: SKConfig => SKConfig): SparKafka[F, K, V] =
@@ -63,7 +66,7 @@ final class SparKafka[F[_], K, V](
         _ <- fileSink[F](blocker).delete(params.replayPath)
         cr <- fromKafka
       } yield {
-        savers.objectFile(cr.rdd, params.replayPath)
+        cr.rdd.saveAsObjectFile(params.replayPath)
         cr.rdd.count
       })
 

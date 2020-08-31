@@ -1,6 +1,7 @@
 package mtest.spark.persist
 
-import com.github.chenharryhua.nanjin.spark.persist.{loaders, savers}
+import cats.effect.IO
+import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddFileSaver}
 import org.scalatest.funsuite.AnyFunSuite
 
 class JacksonTest extends AnyFunSuite {
@@ -8,7 +9,8 @@ class JacksonTest extends AnyFunSuite {
     import RoosterData._
     val path = "./data/test/spark/persist/jackson"
     delete(path)
-    savers.raw.jackson(rdd, path)
+    val saver = new RddFileSaver[IO, Rooster](rdd)
+    saver.raw.jackson(path).run(blocker).unsafeRunSync()
     val r = loaders.raw.jackson[Rooster](path)
     assert(expected == r.collect().toSet)
   }
