@@ -4,7 +4,6 @@ import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.{Eq, Parallel}
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
-import com.github.chenharryhua.nanjin.spark.mapreduce.NJJacksonKeyOutputFormat
 import com.github.chenharryhua.nanjin.spark.{fileSink, utils, RddExt}
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import org.apache.avro.mapreduce.AvroJob
