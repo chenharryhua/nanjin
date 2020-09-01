@@ -13,7 +13,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   OptionalKV
 }
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.spark.persist.RddFileSaver
+import com.github.chenharryhua.nanjin.spark.persist.RddFileHoader
 import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
 import frameless.cats.implicits._
 import frameless.{SparkDelay, TypedDataset, TypedEncoder}

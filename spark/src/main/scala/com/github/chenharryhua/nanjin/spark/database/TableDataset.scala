@@ -29,6 +29,6 @@ final class TableDataset[F[_], A](ds: Dataset[A], dbSettings: DatabaseSettings, 
 
   def upload: DbUploader[F, A] = new DbUploader[F, A](ds, dbSettings, ate, cfg)
 
-  def save: RddFileSaver[F, A] = new RddFileSaver[F, A](ds.rdd)
+  def save: RddFileHoader[F, A] = new RddFileHoader[F, A](ds.rdd)
 
 }

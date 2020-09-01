@@ -12,28 +12,38 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
 import scala.reflect.ClassTag
 
-final class SaveParquet[F[_], A: ClassTag](
-  rdd: RDD[A],
-  outPath: String,
-  sma: SaveModeAware[F],
-  cfg: SaverConfig)(implicit codec: NJAvroCodec[A], ss: SparkSession)
+final class SaveParquet[F[_], A: ClassTag](rdd: RDD[A], outPath: String, cfg: HoarderConfig)(
+  implicit
+  codec: NJAvroCodec[A],
+  ss: SparkSession)
     extends Serializable {
-  val params: SaverParams = cfg.evalConfig
+  val params: HoarderParams = cfg.evalConfig
+
+  private def updateConfig(cfg: HoarderConfig): SaveParquet[F, A] =
+    new SaveParquet[F, A](rdd, outPath, cfg)
+
+  def spark: SaveParquet[F, A] = updateConfig(cfg.withSpark)
+  def raw: SaveParquet[F, A]   = updateConfig(cfg.withRaw)
+
+  def single: SaveParquet[F, A] = updateConfig(cfg.withSingle)
+  def multi: SaveParquet[F, A]  = updateConfig(cfg.withMulti)
 
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
     implicit val encoder: AvroEncoder[A] = codec.avroEncoder
+    val sma: SaveModeAware[F]            = new SaveModeAware[F](params.saveMode, outPath, ss)
+
     (params.singleOrMulti, params.sparkOrRaw) match {
       case (SingleOrMulti.Single, _) =>
-        sma.run(
-          rdd.stream[F].through(fileSink[F](blocker).parquet(outPath)).compile.drain,
-          outPath,
-          blocker)
+        sma.checkAndRun(blocker)(
+          rdd.stream[F].through(fileSink[F](blocker).parquet(outPath)).compile.drain)
       case (SingleOrMulti.Multi, SparkOrRaw.Spark) =>
-        sma.run(
+        sma.checkAndRun(blocker)(
           F.delay(
-            utils.toDF(rdd, codec.avroEncoder).write.mode(SaveMode.Overwrite).parquet(outPath)),
-          outPath,
-          blocker)
+            utils
+              .normalizedDF(rdd, codec.avroEncoder)
+              .write
+              .mode(SaveMode.Overwrite)
+              .parquet(outPath)))
       case (SingleOrMulti.Multi, SparkOrRaw.Raw) =>
         val sparkjob = F.delay {
           val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
@@ -48,7 +58,7 @@ final class SaveParquet[F[_], A: ClassTag](
               classOf[GenericRecord],
               classOf[AvroParquetOutputFormat[GenericRecord]])
         }
-        sma.run(sparkjob, outPath, blocker)
+        sma.checkAndRun(blocker)(sparkjob)
     }
   }
 }

@@ -30,7 +30,7 @@ final class AvroTypedEncoder[A] private (
     TypedDataset.createUnsafe(ds)
 
   def normalize(rdd: RDD[A])(implicit ss: SparkSession): TypedDataset[A] =
-    fromDF(utils.toDF(rdd, avroCodec.avroEncoder))
+    fromDF(utils.normalizedDF(rdd, avroCodec.avroEncoder))
 
   def normalize(ds: Dataset[A]): TypedDataset[A] =
     normalize(ds.rdd)(ds.sparkSession)

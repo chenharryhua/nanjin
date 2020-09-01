@@ -9,26 +9,34 @@ import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
 
-final class SaveCirce[F[_], A: ClassTag](
-  rdd: RDD[A],
-  outPath: String,
-  sma: SaveModeAware[F],
-  cfg: SaverConfig)(implicit jsonEncoder: JsonEncoder[A], codec: NJAvroCodec[A], ss: SparkSession)
+final class SaveCirce[F[_], A: ClassTag](rdd: RDD[A], outPath: String, cfg: HoarderConfig)(implicit
+  jsonEncoder: JsonEncoder[A],
+  codec: NJAvroCodec[A],
+  ss: SparkSession)
     extends Serializable {
-  val params: SaverParams = cfg.evalConfig
+  val params: HoarderParams = cfg.evalConfig
 
-  def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
+  private def updateConfig(cfg: HoarderConfig): SaveCirce[F, A] =
+    new SaveCirce[F, A](rdd, outPath, cfg)
+
+  def single: SaveCirce[F, A] = updateConfig(cfg.withSingle)
+  def multi: SaveCirce[F, A]  = updateConfig(cfg.withMulti)
+
+  def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
+    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, outPath, ss)
     params.singleOrMulti match {
       case SingleOrMulti.Single =>
-        sma.run(
-          rdd.stream[F].through(fileSink[F](blocker).circe(outPath)).compile.drain,
-          outPath,
-          blocker)
+        sma.checkAndRun(blocker)(
+          rdd
+            .map(codec.idConversion)
+            .stream[F]
+            .through(fileSink[F](blocker).circe(outPath))
+            .compile
+            .drain)
       case SingleOrMulti.Multi =>
-        sma.run(
+        sma.checkAndRun(blocker)(
           F.delay(
-            rdd.map(a => jsonEncoder(codec.idConversion(a)).noSpaces).saveAsTextFile(outPath)),
-          outPath,
-          blocker)
+            rdd.map(a => jsonEncoder(codec.idConversion(a)).noSpaces).saveAsTextFile(outPath)))
     }
+  }
 }

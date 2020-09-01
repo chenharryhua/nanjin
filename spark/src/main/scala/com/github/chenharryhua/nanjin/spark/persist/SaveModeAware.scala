@@ -5,13 +5,11 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.spark.fileSink
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
-final class SaveModeAware[F[_]](saveMode: SaveMode, sparkSession: SparkSession)
+final class SaveModeAware[F[_]](saveMode: SaveMode, outPath: String, sparkSession: SparkSession)
     extends Serializable {
   implicit val ss: SparkSession = sparkSession
 
-  def run(f: F[Unit], outPath: String, blocker: Blocker)(implicit
-    F: Sync[F],
-    cs: ContextShift[F]): F[Unit] =
+  def checkAndRun(blocker: Blocker)(f: F[Unit])(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
     saveMode match {
       case SaveMode.Append    => F.raiseError(new Exception("append mode is not support"))
       case SaveMode.Overwrite => fileSink[F](blocker).delete(outPath) >> f

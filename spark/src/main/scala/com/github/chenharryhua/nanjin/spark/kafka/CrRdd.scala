@@ -15,7 +15,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   OptionalKV
 }
 import com.github.chenharryhua.nanjin.spark.RddExt
-import com.github.chenharryhua.nanjin.spark.persist.RddFileSaver
+import com.github.chenharryhua.nanjin.spark.persist.RddFileHoader
 import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder, SchemaFor}
 import frameless.cats.implicits.rddOps
 import frameless.{TypedDataset, TypedEncoder}
@@ -125,6 +125,6 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
       .compile
       .drain
 
-  def save: RddFileSaver[F, OptionalKV[K, V]] =
-    new RddFileSaver[F, OptionalKV[K, V]](rdd)
+  def save: RddFileHoader[F, OptionalKV[K, V]] =
+    new RddFileHoader[F, OptionalKV[K, V]](rdd)
 }

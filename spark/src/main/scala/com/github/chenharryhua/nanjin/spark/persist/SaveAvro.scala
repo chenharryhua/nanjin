@@ -14,33 +14,41 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
 import scala.reflect.ClassTag
 
-final class SaveAvro[F[_], A: ClassTag](
-  rdd: RDD[A],
-  outPath: String,
-  sma: SaveModeAware[F],
-  cfg: SaverConfig)(implicit codec: NJAvroCodec[A], ss: SparkSession)
+final class SaveAvro[F[_], A: ClassTag](rdd: RDD[A], outPath: String, cfg: HoarderConfig)(implicit
+  codec: NJAvroCodec[A],
+  ss: SparkSession)
     extends Serializable {
-  val params: SaverParams = cfg.evalConfig
+
+  val params: HoarderParams = cfg.evalConfig
+
+  private def updateConfig(cfg: HoarderConfig): SaveAvro[F, A] =
+    new SaveAvro[F, A](rdd, outPath, cfg)
+
+  def spark: SaveAvro[F, A] = updateConfig(cfg.withSpark)
+  def raw: SaveAvro[F, A]   = updateConfig(cfg.withRaw)
+
+  def single: SaveAvro[F, A] = updateConfig(cfg.withSingle)
+  def multi: SaveAvro[F, A]  = updateConfig(cfg.withMulti)
 
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
     implicit val encoder: AvroEncoder[A] = codec.avroEncoder
+
+    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, outPath, ss)
+
     (params.singleOrMulti, params.sparkOrRaw) match {
       case (SingleOrMulti.Single, _) =>
-        sma.run(
-          rdd.stream[F].through(fileSink[F](blocker).avro(outPath)).compile.drain,
-          outPath,
-          blocker)
+        sma.checkAndRun(blocker)(
+          rdd.stream[F].through(fileSink[F](blocker).avro(outPath)).compile.drain)
       case (SingleOrMulti.Multi, SparkOrRaw.Spark) =>
-        sma.run(
+        sma.checkAndRun(blocker)(
           F.delay(
             utils
-              .toDF(rdd, codec.avroEncoder)
+              .normalizedDF(rdd, codec.avroEncoder)
               .write
               .mode(SaveMode.Overwrite)
               .format("avro")
-              .save(outPath)),
-          outPath,
-          blocker)
+              .save(outPath))
+        )
       case (SingleOrMulti.Multi, SparkOrRaw.Raw) =>
         val sparkjob = F.delay {
           val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
@@ -50,22 +58,7 @@ final class SaveAvro[F[_], A: ClassTag](
             .genericRecordPair(rdd.map(codec.idConversion), codec.avroEncoder)
             .saveAsNewAPIHadoopFile[NJAvroKeyOutputFormat](outPath)
         }
-        sma.run(sparkjob, outPath, blocker)
+        sma.checkAndRun(blocker)(sparkjob)
     }
-  }
-}
-
-final class SaveBinaryAvro[F[_], A: ClassTag](rdd: RDD[A], outPath: String, sma: SaveModeAware[F])(
-  implicit
-  codec: NJAvroCodec[A],
-  ss: SparkSession)
-    extends Serializable {
-
-  def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
-    implicit val encoder: AvroEncoder[A] = codec.avroEncoder
-    sma.run(
-      rdd.stream[F].through(fileSink[F](blocker).binAvro(outPath)).compile.drain,
-      outPath,
-      blocker)
   }
 }

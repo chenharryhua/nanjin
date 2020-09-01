@@ -13,25 +13,34 @@ final class SaveCSV[F[_], A: ClassTag](
   rdd: RDD[A],
   outPath: String,
   csvConfiguration: CsvConfiguration,
-  sma: SaveModeAware[F],
-  cfg: SaverConfig)(implicit rowEncoder: RowEncoder[A], codec: NJAvroCodec[A], ss: SparkSession)
+  cfg: HoarderConfig)(implicit rowEncoder: RowEncoder[A], codec: NJAvroCodec[A], ss: SparkSession)
     extends Serializable {
-  val params: SaverParams = cfg.evalConfig
+  val params: HoarderParams = cfg.evalConfig
 
-  def updateConfig(f: CsvConfiguration => CsvConfiguration) =
-    new SaveCSV[F, A](rdd, outPath, f(csvConfiguration), sma, params)
+  def updateCsvConfig(f: CsvConfiguration => CsvConfiguration) =
+    new SaveCSV[F, A](rdd, outPath, f(csvConfiguration), cfg)
 
-  def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
+  private def updateConfig(cfg: HoarderConfig): SaveCSV[F, A] =
+    new SaveCSV[F, A](rdd, outPath, csvConfiguration, cfg)
+
+  def single: SaveCSV[F, A] = updateConfig(cfg.withSingle)
+  def multi: SaveCSV[F, A]  = updateConfig(cfg.withMulti)
+
+  def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
+    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, outPath, ss)
     params.singleOrMulti match {
       case SingleOrMulti.Single =>
-        sma.run(
-          rdd.stream[F].through(fileSink[F](blocker).csv(outPath, csvConfiguration)).compile.drain,
-          outPath,
-          blocker)
+        sma.checkAndRun(blocker)(
+          rdd
+            .map(codec.idConversion)
+            .stream[F]
+            .through(fileSink[F](blocker).csv(outPath, csvConfiguration))
+            .compile
+            .drain)
       case SingleOrMulti.Multi =>
         val csv = F.delay(
           utils
-            .toDF(rdd, codec.avroEncoder)
+            .normalizedDF(rdd, codec.avroEncoder)
             .write
             .mode(SaveMode.Overwrite)
             .option("sep", csvConfiguration.cellSeparator.toString)
@@ -39,6 +48,7 @@ final class SaveCSV[F[_], A: ClassTag](
             .option("quote", csvConfiguration.quote.toString)
             .option("charset", "UTF8")
             .csv(outPath))
-        sma.run(csv, outPath, blocker)
+        sma.checkAndRun(blocker)(csv)
     }
+  }
 }

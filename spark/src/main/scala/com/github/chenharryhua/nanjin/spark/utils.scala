@@ -8,7 +8,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.avro.{AvroDeserializer, SchemaConverters}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.encoders.{ExpressionEncoder, RowEncoder}
-import org.apache.spark.sql.types.{DataType, StructType}
+import org.apache.spark.sql.types.{DataType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 
 object utils {
@@ -22,9 +22,14 @@ object utils {
     }
 
   @SuppressWarnings(Array("AsInstanceOf"))
-  def toDF[A](rdd: RDD[A], encoder: AvroEncoder[A])(implicit ss: SparkSession): DataFrame = {
-    val datatype: DataType         = SchemaConverters.toSqlType(encoder.schema).dataType
-    val structType: StructType     = datatype.asInstanceOf[StructType]
+  def normalizedDF[A](rdd: RDD[A], encoder: AvroEncoder[A])(implicit
+    ss: SparkSession): DataFrame = {
+    val datatype: DataType = SchemaConverters.toSqlType(encoder.schema).dataType
+    val structType: StructType = datatype match {
+      case st: StructType => st
+      case pm             => StructType(List(StructField(pm.typeName, pm, nullable = false)))
+    }
+
     val re: ExpressionEncoder[Row] = RowEncoder.apply(structType).resolveAndBind()
     val rows: RDD[Row] = rdd.mapPartitions { iter =>
       val sa = new AvroDeserializer(encoder.schema, datatype)
@@ -35,7 +40,7 @@ object utils {
     ss.createDataFrame(rows, structType)
   }
 
-  def toDF[A](ds: Dataset[A], encoder: AvroEncoder[A]): DataFrame =
-    toDF[A](ds.rdd, encoder)(ds.sparkSession)
+  def normalizedDF[A](ds: Dataset[A], encoder: AvroEncoder[A]): DataFrame =
+    normalizedDF[A](ds.rdd, encoder)(ds.sparkSession)
 
 }

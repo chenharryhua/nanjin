@@ -12,22 +12,31 @@ import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
 
-final class SaveJackson[F[_], A: ClassTag](
-  rdd: RDD[A],
-  outPath: String,
-  sma: SaveModeAware[F],
-  cfg: SaverConfig)(implicit codec: NJAvroCodec[A], ss: SparkSession)
+final class SaveJackson[F[_], A: ClassTag](rdd: RDD[A], outPath: String, cfg: HoarderConfig)(
+  implicit
+  codec: NJAvroCodec[A],
+  ss: SparkSession)
     extends Serializable {
-  val params: SaverParams = cfg.evalConfig
+  val params: HoarderParams = cfg.evalConfig
+
+  private def updateConfig(cfg: HoarderConfig): SaveJackson[F, A] =
+    new SaveJackson[F, A](rdd, outPath, cfg)
+
+  def single: SaveJackson[F, A] = updateConfig(cfg.withSingle)
+  def multi: SaveJackson[F, A]  = updateConfig(cfg.withMulti)
 
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
     implicit val encoder: AvroEncoder[A] = codec.avroEncoder
+    val sma: SaveModeAware[F]            = new SaveModeAware[F](params.saveMode, outPath, ss)
     params.singleOrMulti match {
       case SingleOrMulti.Single =>
-        sma.run(
-          rdd.stream[F].through(fileSink[F](blocker).jackson(outPath)).compile.drain,
-          outPath,
-          blocker)
+        sma.checkAndRun(blocker)(
+          rdd
+            .map(codec.idConversion)
+            .stream[F]
+            .through(fileSink[F](blocker).jackson(outPath))
+            .compile
+            .drain)
       case SingleOrMulti.Multi =>
         val sparkjob = F.delay {
           val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
@@ -37,7 +46,7 @@ final class SaveJackson[F[_], A: ClassTag](
             .genericRecordPair(rdd.map(codec.idConversion), codec.avroEncoder)
             .saveAsNewAPIHadoopFile[NJJacksonKeyOutputFormat](outPath)
         }
-        sma.run(sparkjob, outPath, blocker)
+        sma.checkAndRun(blocker)(sparkjob)
     }
   }
 }
