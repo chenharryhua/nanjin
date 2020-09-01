@@ -9,7 +9,7 @@ import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
 
-final class SaveText[F[_], A: ClassTag](rdd: RDD[A], outPath: String, cfg: HoarderConfig)(implicit
+final class SaveText[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(implicit
   show: Show[A],
   codec: NJAvroCodec[A],
   ss: SparkSession)
@@ -17,21 +17,21 @@ final class SaveText[F[_], A: ClassTag](rdd: RDD[A], outPath: String, cfg: Hoard
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveText[F, A] =
-    new SaveText[F, A](rdd, outPath, cfg)
+    new SaveText[F, A](rdd, cfg)
 
   def single: SaveText[F, A] = updateConfig(cfg.withSingle)
   def multi: SaveText[F, A]  = updateConfig(cfg.withMulti)
 
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
 
-    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, outPath, ss)
+    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
     params.singleOrMulti match {
       case SingleOrMulti.Single =>
         sma.checkAndRun(blocker)(
-          rdd.stream[F].through(fileSink[F](blocker).text(outPath)).compile.drain)
+          rdd.stream[F].through(fileSink[F](blocker).text(params.outPath)).compile.drain)
       case SingleOrMulti.Multi =>
         sma.checkAndRun(blocker)(
-          F.delay(rdd.map(a => show.show(codec.idConversion(a))).saveAsTextFile(outPath)))
+          F.delay(rdd.map(a => show.show(codec.idConversion(a))).saveAsTextFile(params.outPath)))
     }
   }
 }

@@ -14,7 +14,7 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
 import scala.reflect.ClassTag
 
-final class SaveAvro[F[_], A: ClassTag](rdd: RDD[A], outPath: String, cfg: HoarderConfig)(implicit
+final class SaveAvro[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(implicit
   codec: NJAvroCodec[A],
   ss: SparkSession)
     extends Serializable {
@@ -22,7 +22,11 @@ final class SaveAvro[F[_], A: ClassTag](rdd: RDD[A], outPath: String, cfg: Hoard
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveAvro[F, A] =
-    new SaveAvro[F, A](rdd, outPath, cfg)
+    new SaveAvro[F, A](rdd, cfg)
+
+  def overwrite: SaveAvro[F, A]      = updateConfig(cfg.withOverwrite)
+  def errorIfExists: SaveAvro[F, A]  = updateConfig(cfg.withError)
+  def ignoreIfExists: SaveAvro[F, A] = updateConfig(cfg.withIgnore)
 
   def spark: SaveAvro[F, A] = updateConfig(cfg.withSpark)
   def raw: SaveAvro[F, A]   = updateConfig(cfg.withRaw)
@@ -33,12 +37,12 @@ final class SaveAvro[F[_], A: ClassTag](rdd: RDD[A], outPath: String, cfg: Hoard
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
     implicit val encoder: AvroEncoder[A] = codec.avroEncoder
 
-    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, outPath, ss)
+    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
 
     (params.singleOrMulti, params.sparkOrRaw) match {
       case (SingleOrMulti.Single, _) =>
         sma.checkAndRun(blocker)(
-          rdd.stream[F].through(fileSink[F](blocker).avro(outPath)).compile.drain)
+          rdd.stream[F].through(fileSink[F](blocker).avro(params.outPath)).compile.drain)
       case (SingleOrMulti.Multi, SparkOrRaw.Spark) =>
         sma.checkAndRun(blocker)(
           F.delay(
@@ -47,7 +51,7 @@ final class SaveAvro[F[_], A: ClassTag](rdd: RDD[A], outPath: String, cfg: Hoard
               .write
               .mode(SaveMode.Overwrite)
               .format("avro")
-              .save(outPath))
+              .save(params.outPath))
         )
       case (SingleOrMulti.Multi, SparkOrRaw.Raw) =>
         val sparkjob = F.delay {
@@ -56,7 +60,7 @@ final class SaveAvro[F[_], A: ClassTag](rdd: RDD[A], outPath: String, cfg: Hoard
           ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
           utils
             .genericRecordPair(rdd.map(codec.idConversion), codec.avroEncoder)
-            .saveAsNewAPIHadoopFile[NJAvroKeyOutputFormat](outPath)
+            .saveAsNewAPIHadoopFile[NJAvroKeyOutputFormat](params.outPath)
         }
         sma.checkAndRun(blocker)(sparkjob)
     }

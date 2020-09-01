@@ -11,30 +11,33 @@ import scala.reflect.ClassTag
 
 final class SaveCSV[F[_], A: ClassTag](
   rdd: RDD[A],
-  outPath: String,
   csvConfiguration: CsvConfiguration,
   cfg: HoarderConfig)(implicit rowEncoder: RowEncoder[A], codec: NJAvroCodec[A], ss: SparkSession)
     extends Serializable {
   val params: HoarderParams = cfg.evalConfig
 
   def updateCsvConfig(f: CsvConfiguration => CsvConfiguration) =
-    new SaveCSV[F, A](rdd, outPath, f(csvConfiguration), cfg)
+    new SaveCSV[F, A](rdd, f(csvConfiguration), cfg)
 
   private def updateConfig(cfg: HoarderConfig): SaveCSV[F, A] =
-    new SaveCSV[F, A](rdd, outPath, csvConfiguration, cfg)
+    new SaveCSV[F, A](rdd, csvConfiguration, cfg)
 
   def single: SaveCSV[F, A] = updateConfig(cfg.withSingle)
   def multi: SaveCSV[F, A]  = updateConfig(cfg.withMulti)
 
+  def overwrite: SaveCSV[F, A]      = updateConfig(cfg.withOverwrite)
+  def errorIfExists: SaveCSV[F, A]  = updateConfig(cfg.withError)
+  def ignoreIfExists: SaveCSV[F, A] = updateConfig(cfg.withIgnore)
+
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
-    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, outPath, ss)
+    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
     params.singleOrMulti match {
       case SingleOrMulti.Single =>
         sma.checkAndRun(blocker)(
           rdd
             .map(codec.idConversion)
             .stream[F]
-            .through(fileSink[F](blocker).csv(outPath, csvConfiguration))
+            .through(fileSink[F](blocker).csv(params.outPath, csvConfiguration))
             .compile
             .drain)
       case SingleOrMulti.Multi =>
@@ -47,7 +50,7 @@ final class SaveCSV[F[_], A: ClassTag](
             .option("header", csvConfiguration.hasHeader)
             .option("quote", csvConfiguration.quote.toString)
             .option("charset", "UTF8")
-            .csv(outPath))
+            .csv(params.outPath))
         sma.checkAndRun(blocker)(csv)
     }
   }

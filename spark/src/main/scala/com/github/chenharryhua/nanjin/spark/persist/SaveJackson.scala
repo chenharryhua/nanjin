@@ -12,29 +12,32 @@ import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
 
-final class SaveJackson[F[_], A: ClassTag](rdd: RDD[A], outPath: String, cfg: HoarderConfig)(
-  implicit
+final class SaveJackson[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(implicit
   codec: NJAvroCodec[A],
   ss: SparkSession)
     extends Serializable {
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveJackson[F, A] =
-    new SaveJackson[F, A](rdd, outPath, cfg)
+    new SaveJackson[F, A](rdd, cfg)
 
   def single: SaveJackson[F, A] = updateConfig(cfg.withSingle)
   def multi: SaveJackson[F, A]  = updateConfig(cfg.withMulti)
 
+  def overwrite: SaveJackson[F, A]      = updateConfig(cfg.withOverwrite)
+  def errorIfExists: SaveJackson[F, A]  = updateConfig(cfg.withError)
+  def ignoreIfExists: SaveJackson[F, A] = updateConfig(cfg.withIgnore)
+
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
     implicit val encoder: AvroEncoder[A] = codec.avroEncoder
-    val sma: SaveModeAware[F]            = new SaveModeAware[F](params.saveMode, outPath, ss)
+    val sma: SaveModeAware[F]            = new SaveModeAware[F](params.saveMode, params.outPath, ss)
     params.singleOrMulti match {
       case SingleOrMulti.Single =>
         sma.checkAndRun(blocker)(
           rdd
             .map(codec.idConversion)
             .stream[F]
-            .through(fileSink[F](blocker).jackson(outPath))
+            .through(fileSink[F](blocker).jackson(params.outPath))
             .compile
             .drain)
       case SingleOrMulti.Multi =>
@@ -44,7 +47,7 @@ final class SaveJackson[F[_], A: ClassTag](rdd: RDD[A], outPath: String, cfg: Ho
           ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
           utils
             .genericRecordPair(rdd.map(codec.idConversion), codec.avroEncoder)
-            .saveAsNewAPIHadoopFile[NJJacksonKeyOutputFormat](outPath)
+            .saveAsNewAPIHadoopFile[NJJacksonKeyOutputFormat](params.outPath)
         }
         sma.checkAndRun(blocker)(sparkjob)
     }

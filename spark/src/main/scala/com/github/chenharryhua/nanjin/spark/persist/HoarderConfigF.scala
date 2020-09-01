@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.derived.auto.functor.kittensMkFunctor
+import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.utils.defaultLocalParallelism
 import enumeratum.{Enum, EnumEntry}
 import higherkindness.droste.data.Fix
@@ -30,6 +31,8 @@ private[persist] object SparkOrRaw extends Enum[SingleOrMulti] {
 }
 
 @Lenses final private[persist] case class HoarderParams(
+  format: NJFileFormat,
+  outPath: String,
   singleOrMulti: SingleOrMulti,
   sparkOrRaw: SparkOrRaw,
   saveMode: SaveMode,
@@ -37,8 +40,10 @@ private[persist] object SparkOrRaw extends Enum[SingleOrMulti] {
 
 private[persist] object HoarderParams {
 
-  def apply(): HoarderParams =
+  def apply(fmt: NJFileFormat): HoarderParams =
     HoarderParams(
+      fmt,
+      "",
       SingleOrMulti.Multi,
       SparkOrRaw.Spark,
       SaveMode.Overwrite,
@@ -48,19 +53,21 @@ private[persist] object HoarderParams {
 @deriveFixedPoint sealed private[persist] trait HoarderConfigF[_]
 
 private[persist] object HoarderConfigF {
-  final case class DefaultParams[K]() extends HoarderConfigF[K]
+  final case class DefaultParams[K](fmt: NJFileFormat) extends HoarderConfigF[K]
   final case class WithSingleOrMulti[K](value: SingleOrMulti, cont: K) extends HoarderConfigF[K]
   final case class WithSparkOrHadoop[K](value: SparkOrRaw, cont: K) extends HoarderConfigF[K]
   final case class WithSaveMode[K](value: SaveMode, cont: K) extends HoarderConfigF[K]
   final case class WithParallelism[K](value: Long, cont: K) extends HoarderConfigF[K]
+  final case class WithOutputPath[K](value: String, cont: K) extends HoarderConfigF[K]
 
   private val algebra: Algebra[HoarderConfigF, HoarderParams] =
     Algebra[HoarderConfigF, HoarderParams] {
-      case DefaultParams()         => HoarderParams()
+      case DefaultParams(fmt)      => HoarderParams(fmt)
       case WithSingleOrMulti(v, c) => HoarderParams.singleOrMulti.set(v)(c)
       case WithSparkOrHadoop(v, c) => HoarderParams.sparkOrRaw.set(v)(c)
       case WithSaveMode(v, c)      => HoarderParams.saveMode.set(v)(c)
       case WithParallelism(v, c)   => HoarderParams.parallelism.set(v)(c)
+      case WithOutputPath(v, c)    => HoarderParams.outPath.set(v)(c)
     }
 
   def evalConfig(cfg: HoarderConfig): HoarderParams = scheme.cata(algebra).apply(cfg.value)
@@ -85,9 +92,13 @@ final private[persist] case class HoarderConfig(value: Fix[HoarderConfigF]) {
 
   def withParallel(num: Long): HoarderConfig =
     HoarderConfig(Fix(WithParallelism(num, value)))
+
+  def withOutPutPath(outPath: String): HoarderConfig =
+    HoarderConfig(Fix(WithOutputPath(outPath, value)))
 }
 
 private[persist] object HoarderConfig {
 
-  def apply(): HoarderConfig = HoarderConfig(Fix(HoarderConfigF.DefaultParams()))
+  def apply(fmt: NJFileFormat): HoarderConfig =
+    HoarderConfig(Fix(HoarderConfigF.DefaultParams[Fix[HoarderConfigF]](fmt)))
 }

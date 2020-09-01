@@ -12,7 +12,7 @@ class JacksonTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/jackson"
     delete(path)
     val saver = new RddFileHoader[IO, Rooster](rdd)
-    saver.overwrite.jackson(path).multi.run(blocker).unsafeRunSync()
+    saver.jackson(path).multi.run(blocker).unsafeRunSync()
     val r = loaders.raw.jackson[Rooster](path)
     assert(expected == r.collect().toSet)
   }

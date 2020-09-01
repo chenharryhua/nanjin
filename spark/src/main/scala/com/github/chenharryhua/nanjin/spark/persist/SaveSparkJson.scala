@@ -8,7 +8,7 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
 import scala.reflect.ClassTag
 
-final class SaveJson[F[_], A: ClassTag](rdd: RDD[A], outPath: String, cfg: HoarderConfig)(implicit
+final class SaveSparkJson[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(implicit
   codec: NJAvroCodec[A],
   ss: SparkSession)
     extends Serializable {
@@ -16,10 +16,14 @@ final class SaveJson[F[_], A: ClassTag](rdd: RDD[A], outPath: String, cfg: Hoard
   val params: HoarderParams = cfg.evalConfig
 
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
-    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, outPath, ss)
+    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
 
     sma.checkAndRun(blocker)(
       F.delay(
-        utils.normalizedDF(rdd, codec.avroEncoder).write.mode(SaveMode.Overwrite).json(outPath)))
+        utils
+          .normalizedDF(rdd, codec.avroEncoder)
+          .write
+          .mode(SaveMode.Overwrite)
+          .json(params.outPath)))
   }
 }
