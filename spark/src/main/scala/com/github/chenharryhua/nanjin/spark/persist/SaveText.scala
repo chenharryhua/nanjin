@@ -19,17 +19,17 @@ final class SaveText[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(implici
   private def updateConfig(cfg: HoarderConfig): SaveText[F, A] =
     new SaveText[F, A](rdd, cfg)
 
-  def single: SaveText[F, A] = updateConfig(cfg.withSingle)
-  def multi: SaveText[F, A]  = updateConfig(cfg.withMulti)
+  def file: SaveText[F, A]   = updateConfig(cfg.withFile)
+  def folder: SaveText[F, A] = updateConfig(cfg.withFolder)
 
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
 
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
     params.singleOrMulti match {
-      case SingleOrMulti.Single =>
+      case FolderOrFile.SingleFile =>
         sma.checkAndRun(blocker)(
           rdd.stream[F].through(fileSink[F](blocker).text(params.outPath)).compile.drain)
-      case SingleOrMulti.Multi =>
+      case FolderOrFile.Folder =>
         sma.checkAndRun(blocker)(
           F.delay(rdd.map(a => show.show(codec.idConversion(a))).saveAsTextFile(params.outPath)))
     }

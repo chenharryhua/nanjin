@@ -16,6 +16,8 @@ sealed abstract class NJFileFormat(val value: Int, val format: String, val alias
 object NJFileFormat extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[NJFileFormat] {
   override val values: immutable.IndexedSeq[NJFileFormat] = findValues
 
+  case object Unknown extends NJFileFormat(-1, "unknown", "unknown")
+
   //text
   case object Jackson extends NJFileFormat(1, "json", "jackson")
   case object Circe extends NJFileFormat(2, "json", "circe")

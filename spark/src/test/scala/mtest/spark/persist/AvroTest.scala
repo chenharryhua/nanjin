@@ -16,7 +16,7 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/rooster/raw"
     delete(path)
     val saver = new RddFileHoader[IO, Rooster](rdd)
-    saver.avro(path).raw.multi.run(blocker).unsafeRunSync()
+    saver.avro(path).raw.folder.run(blocker).unsafeRunSync()
     val r: RDD[Rooster]          = loaders.raw.avro[Rooster](path)
     val t: TypedDataset[Rooster] = loaders.avro[Rooster](path)
     assert(expected == r.collect().toSet)
@@ -28,7 +28,7 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/rooster/spark"
     delete(path)
     val saver = new RddFileHoader[IO, Rooster](rdd)
-    saver.avro(path).spark.multi.run(blocker).unsafeRunSync()
+    saver.avro(path).spark.folder.run(blocker).unsafeRunSync()
     val t: TypedDataset[Rooster] = loaders.avro[Rooster](path)
     assert(expected == t.collect[IO]().unsafeRunSync().toSet)
   }
@@ -39,7 +39,7 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/bee/raw"
     delete(path)
     val saver = new RddFileHoader[IO, Bee](rdd)
-    saver.avro(path).raw.multi.run(blocker).unsafeRunSync()
+    saver.avro(path).raw.folder.run(blocker).unsafeRunSync()
     val t = loaders.raw.avro[Bee](path)
     assert(bees.sortBy(_.b).zip(t.collect().toList.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
@@ -50,7 +50,7 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/bee/spark.avro"
     delete(path)
     val saver = new RddFileHoader[IO, Bee](rdd)
-    saver.avro(path).spark.single.run(blocker).unsafeRunSync()
+    saver.avro(path).spark.file.run(blocker).unsafeRunSync()
     val t = loaders.avro[Bee](path).collect[IO].unsafeRunSync().toList
     assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
@@ -60,7 +60,7 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/ant/raw.avro"
     delete(path)
     val saver = new RddFileHoader[IO, Ant](rdd)
-    saver.avro(path).raw.single.run(blocker).unsafeRunSync()
+    saver.avro(path).raw.file.run(blocker).unsafeRunSync()
     val t = loaders.raw.avro[Ant](path)
     assert(ants.toSet == t.collect().toSet)
   }

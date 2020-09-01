@@ -24,15 +24,11 @@ final class SaveAvro[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(implici
   private def updateConfig(cfg: HoarderConfig): SaveAvro[F, A] =
     new SaveAvro[F, A](rdd, cfg)
 
-  def overwrite: SaveAvro[F, A]      = updateConfig(cfg.withOverwrite)
-  def errorIfExists: SaveAvro[F, A]  = updateConfig(cfg.withError)
-  def ignoreIfExists: SaveAvro[F, A] = updateConfig(cfg.withIgnore)
-
   def spark: SaveAvro[F, A] = updateConfig(cfg.withSpark)
   def raw: SaveAvro[F, A]   = updateConfig(cfg.withRaw)
 
-  def single: SaveAvro[F, A] = updateConfig(cfg.withSingle)
-  def multi: SaveAvro[F, A]  = updateConfig(cfg.withMulti)
+  def file: SaveAvro[F, A]   = updateConfig(cfg.withFile)
+  def folder: SaveAvro[F, A] = updateConfig(cfg.withFolder)
 
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
     implicit val encoder: AvroEncoder[A] = codec.avroEncoder
@@ -40,10 +36,10 @@ final class SaveAvro[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(implici
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
 
     (params.singleOrMulti, params.sparkOrRaw) match {
-      case (SingleOrMulti.Single, _) =>
+      case (FolderOrFile.SingleFile, _) =>
         sma.checkAndRun(blocker)(
           rdd.stream[F].through(fileSink[F](blocker).avro(params.outPath)).compile.drain)
-      case (SingleOrMulti.Multi, SparkOrRaw.Spark) =>
+      case (FolderOrFile.Folder, SparkOrRaw.Spark) =>
         sma.checkAndRun(blocker)(
           F.delay(
             utils
@@ -53,7 +49,7 @@ final class SaveAvro[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(implici
               .format("avro")
               .save(params.outPath))
         )
-      case (SingleOrMulti.Multi, SparkOrRaw.Raw) =>
+      case (FolderOrFile.Folder, SparkOrRaw.Raw) =>
         val sparkjob = F.delay {
           val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
           AvroJob.setOutputKeySchema(job, codec.schema)

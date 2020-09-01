@@ -22,17 +22,13 @@ final class SaveCSV[F[_], A: ClassTag](
   private def updateConfig(cfg: HoarderConfig): SaveCSV[F, A] =
     new SaveCSV[F, A](rdd, csvConfiguration, cfg)
 
-  def single: SaveCSV[F, A] = updateConfig(cfg.withSingle)
-  def multi: SaveCSV[F, A]  = updateConfig(cfg.withMulti)
-
-  def overwrite: SaveCSV[F, A]      = updateConfig(cfg.withOverwrite)
-  def errorIfExists: SaveCSV[F, A]  = updateConfig(cfg.withError)
-  def ignoreIfExists: SaveCSV[F, A] = updateConfig(cfg.withIgnore)
+  def file: SaveCSV[F, A]   = updateConfig(cfg.withFile)
+  def folder: SaveCSV[F, A] = updateConfig(cfg.withFolder)
 
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
     params.singleOrMulti match {
-      case SingleOrMulti.Single =>
+      case FolderOrFile.SingleFile =>
         sma.checkAndRun(blocker)(
           rdd
             .map(codec.idConversion)
@@ -40,7 +36,7 @@ final class SaveCSV[F[_], A: ClassTag](
             .through(fileSink[F](blocker).csv(params.outPath, csvConfiguration))
             .compile
             .drain)
-      case SingleOrMulti.Multi =>
+      case FolderOrFile.Folder =>
         val csv = F.delay(
           utils
             .normalizedDF(rdd, codec.avroEncoder)

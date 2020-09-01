@@ -75,18 +75,18 @@ class SparkTableTest extends AnyFunSuite {
     val root  = "./data/test/spark/database/postgres/"
     val saver = table.in[IO](postgres).fromDB.save
     val run =
-      saver.avro(root + "multi.spark.avro").multi.spark.run(blocker) >>
-        saver.avro(root + "single.raw.avro").single.raw.run(blocker) >>
+      saver.avro(root + "multi.spark.avro").folder.spark.run(blocker) >>
+        saver.avro(root + "single.raw.avro").file.raw.run(blocker) >>
         saver.avro(root + "raw.avro").raw.run(blocker) >>
-        saver.parquet(root + "multi.spark.parquet").multi.spark.run(blocker) >>
-        saver.parquet(root + "single.raw.parquet").single.raw.run(blocker) >>
+        saver.parquet(root + "multi.spark.parquet").folder.spark.run(blocker) >>
+        saver.parquet(root + "single.raw.parquet").file.raw.run(blocker) >>
         saver.parquet(root + "raw.parquet").raw.run(blocker) >>
-        saver.circe(root + "multi.circe.json").multi.run(blocker) >>
-        saver.circe(root + "single.circe.json").single.run(blocker) >>
-        saver.text(root + "multi.text").multi.run(blocker) >>
-        saver.text(root + "single.text").single.run(blocker) >>
-        saver.csv(root + "multi.csv").multi.run(blocker) >>
-        saver.csv(root + "single.csv").single.run(blocker)
+        saver.circe(root + "multi.circe.json").folder.run(blocker) >>
+        saver.circe(root + "single.circe.json").file.run(blocker) >>
+        saver.text(root + "multi.text").folder.run(blocker) >>
+        saver.text(root + "single.text").file.run(blocker) >>
+        saver.csv(root + "multi.csv").folder.run(blocker) >>
+        saver.csv(root + "single.csv").file.run(blocker)
 
     run.unsafeRunSync()
 

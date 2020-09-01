@@ -19,17 +19,13 @@ final class SaveCirce[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(implic
   private def updateConfig(cfg: HoarderConfig): SaveCirce[F, A] =
     new SaveCirce[F, A](rdd, cfg)
 
-  def single: SaveCirce[F, A] = updateConfig(cfg.withSingle)
-  def multi: SaveCirce[F, A]  = updateConfig(cfg.withMulti)
-
-  def overwrite: SaveCirce[F, A]      = updateConfig(cfg.withOverwrite)
-  def errorIfExists: SaveCirce[F, A]  = updateConfig(cfg.withError)
-  def ignoreIfExists: SaveCirce[F, A] = updateConfig(cfg.withIgnore)
+  def file: SaveCirce[F, A]   = updateConfig(cfg.withFile)
+  def folder: SaveCirce[F, A] = updateConfig(cfg.withFolder)
 
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
     params.singleOrMulti match {
-      case SingleOrMulti.Single =>
+      case FolderOrFile.SingleFile =>
         sma.checkAndRun(blocker)(
           rdd
             .map(codec.idConversion)
@@ -37,7 +33,7 @@ final class SaveCirce[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(implic
             .through(fileSink[F](blocker).circe(params.outPath))
             .compile
             .drain)
-      case SingleOrMulti.Multi =>
+      case FolderOrFile.Folder =>
         sma.checkAndRun(blocker)(F.delay(
           rdd.map(a => jsonEncoder(codec.idConversion(a)).noSpaces).saveAsTextFile(params.outPath)))
     }

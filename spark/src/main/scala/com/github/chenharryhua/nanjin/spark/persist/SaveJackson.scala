@@ -21,18 +21,14 @@ final class SaveJackson[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(impl
   private def updateConfig(cfg: HoarderConfig): SaveJackson[F, A] =
     new SaveJackson[F, A](rdd, cfg)
 
-  def single: SaveJackson[F, A] = updateConfig(cfg.withSingle)
-  def multi: SaveJackson[F, A]  = updateConfig(cfg.withMulti)
-
-  def overwrite: SaveJackson[F, A]      = updateConfig(cfg.withOverwrite)
-  def errorIfExists: SaveJackson[F, A]  = updateConfig(cfg.withError)
-  def ignoreIfExists: SaveJackson[F, A] = updateConfig(cfg.withIgnore)
+  def file: SaveJackson[F, A]   = updateConfig(cfg.withFile)
+  def folder: SaveJackson[F, A] = updateConfig(cfg.withFolder)
 
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
     implicit val encoder: AvroEncoder[A] = codec.avroEncoder
     val sma: SaveModeAware[F]            = new SaveModeAware[F](params.saveMode, params.outPath, ss)
     params.singleOrMulti match {
-      case SingleOrMulti.Single =>
+      case FolderOrFile.SingleFile =>
         sma.checkAndRun(blocker)(
           rdd
             .map(codec.idConversion)
@@ -40,7 +36,7 @@ final class SaveJackson[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(impl
             .through(fileSink[F](blocker).jackson(params.outPath))
             .compile
             .drain)
-      case SingleOrMulti.Multi =>
+      case FolderOrFile.Folder =>
         val sparkjob = F.delay {
           val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
           AvroJob.setOutputKeySchema(job, codec.schema)

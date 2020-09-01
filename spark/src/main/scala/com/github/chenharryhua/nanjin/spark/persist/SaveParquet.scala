@@ -24,22 +24,18 @@ final class SaveParquet[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(impl
   def spark: SaveParquet[F, A] = updateConfig(cfg.withSpark)
   def raw: SaveParquet[F, A]   = updateConfig(cfg.withRaw)
 
-  def single: SaveParquet[F, A] = updateConfig(cfg.withSingle)
-  def multi: SaveParquet[F, A]  = updateConfig(cfg.withMulti)
-
-  def overwrite: SaveParquet[F, A]      = updateConfig(cfg.withOverwrite)
-  def errorIfExists: SaveParquet[F, A]  = updateConfig(cfg.withError)
-  def ignoreIfExists: SaveParquet[F, A] = updateConfig(cfg.withIgnore)
+  def file: SaveParquet[F, A]   = updateConfig(cfg.withFile)
+  def folder: SaveParquet[F, A] = updateConfig(cfg.withFolder)
 
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
     implicit val encoder: AvroEncoder[A] = codec.avroEncoder
     val sma: SaveModeAware[F]            = new SaveModeAware[F](params.saveMode, params.outPath, ss)
 
     (params.singleOrMulti, params.sparkOrRaw) match {
-      case (SingleOrMulti.Single, _) =>
+      case (FolderOrFile.SingleFile, _) =>
         sma.checkAndRun(blocker)(
           rdd.stream[F].through(fileSink[F](blocker).parquet(params.outPath)).compile.drain)
-      case (SingleOrMulti.Multi, SparkOrRaw.Spark) =>
+      case (FolderOrFile.Folder, SparkOrRaw.Spark) =>
         sma.checkAndRun(blocker)(
           F.delay(
             utils
@@ -47,7 +43,7 @@ final class SaveParquet[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(impl
               .write
               .mode(SaveMode.Overwrite)
               .parquet(params.outPath)))
-      case (SingleOrMulti.Multi, SparkOrRaw.Raw) =>
+      case (FolderOrFile.Folder, SparkOrRaw.Raw) =>
         val sparkjob = F.delay {
           val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
           AvroParquetOutputFormat.setAvroDataSupplier(job, classOf[GenericDataSupplier])

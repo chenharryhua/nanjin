@@ -15,13 +15,6 @@ final class SaveBinaryAvro[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(i
     extends Serializable {
   val params: HoarderParams = cfg.evalConfig
 
-  private def updateConfig(cfg: HoarderConfig): SaveBinaryAvro[F, A] =
-    new SaveBinaryAvro[F, A](rdd, cfg)
-
-  def overwrite: SaveBinaryAvro[F, A]      = updateConfig(cfg.withOverwrite)
-  def errorIfExists: SaveBinaryAvro[F, A]  = updateConfig(cfg.withError)
-  def ignoreIfExists: SaveBinaryAvro[F, A] = updateConfig(cfg.withIgnore)
-
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
     implicit val encoder: Encoder[A] = codec.avroEncoder
 
