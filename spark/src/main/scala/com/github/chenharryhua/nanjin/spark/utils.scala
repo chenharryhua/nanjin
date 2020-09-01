@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.spark
 
 import com.sksamuel.avro4s.{ToRecord, Encoder => AvroEncoder}
-import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.apache.avro.mapred.AvroKey
 import org.apache.hadoop.io.NullWritable
@@ -9,8 +8,8 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.avro.{AvroDeserializer, SchemaConverters}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.encoders.{ExpressionEncoder, RowEncoder}
-import org.apache.spark.sql.types.{DataType, StructType}
-import org.apache.spark.sql.{DataFrame, Row, SparkSession}
+import org.apache.spark.sql.types.{DataType, StructField, StructType}
+import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 
 object utils {
 
@@ -23,22 +22,25 @@ object utils {
     }
 
   @SuppressWarnings(Array("AsInstanceOf"))
-  def rddToDataFrame[A](rdd: RDD[A], encoder: AvroEncoder[A], ss: SparkSession): DataFrame = {
-    val avroSchema: Schema     = encoder.schema
-    val toGR: ToRecord[A]      = ToRecord[A](encoder)
-    val dataType: DataType     = SchemaConverters.toSqlType(avroSchema).dataType
-    val structType: StructType = dataType.asInstanceOf[StructType]
-    val rowEnconder: ExpressionEncoder[Row] =
-      RowEncoder.apply(structType).resolveAndBind()
+  def normalizedDF[A](rdd: RDD[A], encoder: AvroEncoder[A])(implicit
+    ss: SparkSession): DataFrame = {
+    val datatype: DataType = SchemaConverters.toSqlType(encoder.schema).dataType
+    val structType: StructType = datatype match {
+      case st: StructType => st
+      case pm             => StructType(List(StructField(pm.typeName, pm, nullable = false)))
+    }
 
-    ss.createDataFrame(
-      rdd.mapPartitions { rcds =>
-        val deSer: AvroDeserializer = new AvroDeserializer(avroSchema, dataType)
-        rcds.map { rcd =>
-          rowEnconder.fromRow(deSer.deserialize(toGR.to(rcd)).asInstanceOf[InternalRow])
-        }
-      },
-      structType
-    )
+    val re: ExpressionEncoder[Row] = RowEncoder.apply(structType).resolveAndBind()
+    val rows: RDD[Row] = rdd.mapPartitions { iter =>
+      val sa = new AvroDeserializer(encoder.schema, datatype)
+      iter.map { a =>
+        re.fromRow(sa.deserialize(encoder.encode(a)).asInstanceOf[InternalRow])
+      }
+    }
+    ss.createDataFrame(rows, structType)
   }
+
+  def normalizedDF[A](ds: Dataset[A], encoder: AvroEncoder[A]): DataFrame =
+    normalizedDF[A](ds.rdd, encoder)(ds.sparkSession)
+
 }

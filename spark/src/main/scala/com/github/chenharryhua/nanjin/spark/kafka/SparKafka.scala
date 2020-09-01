@@ -4,19 +4,21 @@ import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.{NJProducerRecord, OptionalKV}
+import com.github.chenharryhua.nanjin.spark.fileSink
+import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.github.chenharryhua.nanjin.spark.sstream.{KafkaCrSStream, SStreamConfig, SparkSStream}
-import com.sksamuel.avro4s.{Decoder, Encoder}
+import com.sksamuel.avro4s.{Decoder, Encoder, SchemaFor}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.avro.Schema
 import org.apache.parquet.avro.AvroSchemaConverter
 import org.apache.parquet.schema.MessageType
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.Dataset
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.avro.SchemaConverters
 import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.streaming.StreamingContext
 
 trait SparKafkaUpdateParams[A] extends UpdateParams[SKConfig, A] with Serializable {
@@ -27,12 +29,16 @@ final class SparKafka[F[_], K, V](
   val topic: KafkaTopic[F, K, V],
   val sparkSession: SparkSession,
   val cfg: SKConfig
-) extends SparKafkaUpdateParams[SparKafka[F, K, V]] with SparKafkaLoadModule[F, K, V] {
+) extends SparKafkaUpdateParams[SparKafka[F, K, V]] {
 
   implicit val avroKeyEncoder: Encoder[K] = topic.topicDef.avroKeyEncoder
   implicit val avroValEncoder: Encoder[V] = topic.topicDef.avroValEncoder
   implicit val avroKeyDecoder: Decoder[K] = topic.topicDef.avroKeyDecoder
   implicit val avroValDecoder: Decoder[V] = topic.topicDef.avroValDecoder
+  implicit val schemaForKey: SchemaFor[K] = topic.topicDef.keySchemaFor
+  implicit val schemaForVal: SchemaFor[V] = topic.topicDef.valSchemaFor
+
+  implicit val optionalKVCodec: NJAvroCodec[OptionalKV[K, V]] = NJAvroCodec[OptionalKV[K, V]]
 
   implicit val ss: SparkSession = sparkSession
 
@@ -45,12 +51,24 @@ final class SparKafka[F[_], K, V](
   def sparkSchema: DataType      = SchemaConverters.toSqlType(avroSchema).dataType
   def parquetSchema: MessageType = new AvroSchemaConverter().convert(avroSchema)
 
+  def fromKafka(implicit sync: Sync[F]): F[CrRdd[F, K, V]] =
+    sk.kafkaBatch(topic, params.timeRange, params.locationStrategy).map(crRdd)
+
+  def fromDisk: CrRdd[F, K, V] =
+    crRdd(loaders.objectFile(params.replayPath))
+
   /**
     * shorthand
     */
   def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Long] =
     Blocker[F].use(blocker =>
-      fromKafka.flatMap(cr => cr.save.dump.run(blocker).flatMap(_ => cr.count)))
+      for {
+        _ <- fileSink[F](blocker).delete(params.replayPath)
+        cr <- fromKafka
+      } yield {
+        cr.rdd.saveAsObjectFile(params.replayPath)
+        cr.rdd.count
+      })
 
   def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
     fromDisk.pipeTo(topic)

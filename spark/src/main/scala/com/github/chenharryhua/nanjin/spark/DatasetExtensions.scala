@@ -9,10 +9,9 @@ import com.github.chenharryhua.nanjin.database.{DatabaseSettings, TableName}
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicDef}
 import com.github.chenharryhua.nanjin.spark.database.{sd, STConfig, SparkTable, TableDef}
 import com.github.chenharryhua.nanjin.spark.kafka.{SKConfig, SparKafka}
-import com.github.chenharryhua.nanjin.spark.saver.{RddFileLoader, RddFileSaver}
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
+import frameless.TypedDataset
 import frameless.cats.implicits._
-import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import fs2.interop.reactivestreams._
 import org.apache.avro.Schema
@@ -31,13 +30,9 @@ private[spark] trait DatasetExtensions {
     def source[F[_]: ConcurrentEffect]: Source[A, NotUsed] =
       Source.fromPublisher[A](stream[F].toUnicastPublisher)
 
-    def typedDataset(implicit ev: TypedEncoder[A], ss: SparkSession): TypedDataset[A] =
-      TypedDataset.create(rdd)
+    def typedDataset(implicit ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
+      ate.normalize(rdd)(ss)
 
-    def toDF(implicit encoder: AvroEncoder[A], ss: SparkSession): DataFrame =
-      utils.rddToDataFrame[A](rdd, encoder, ss)
-
-    def save[F[_]]: RddFileSaver[F, A] = new RddFileSaver[F, A](rdd)
   }
 
   implicit final class TypedDatasetExt[A](private val tds: TypedDataset[A]) {
@@ -49,9 +44,6 @@ private[spark] trait DatasetExtensions {
 
     def dismissNulls: TypedDataset[A]   = tds.deserialized.filter(_ != null)
     def numOfNulls[F[_]: Sync]: F[Long] = tds.except(dismissNulls).count[F]()
-
-    def save[F[_]]: RddFileSaver[F, A] =
-      new RddFileSaver[F, A](tds.dataset.rdd)
 
   }
 
@@ -92,8 +84,6 @@ private[spark] trait DatasetExtensions {
   }
 
   implicit final class SparkSessionExt(private val ss: SparkSession) {
-
-    val load: RddFileLoader = new RddFileLoader(ss)
 
     def alongWith[F[_]](dbSettings: DatabaseSettings): SparkWithDBSettings[F] =
       new SparkWithDBSettings[F](ss, dbSettings)

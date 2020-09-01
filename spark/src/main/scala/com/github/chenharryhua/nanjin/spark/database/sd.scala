@@ -18,10 +18,12 @@ private[spark] object sd {
     sparkSession.read.format("jdbc").options(sparkOptions).load()
   }
 
-  def unloadDS[A: TypedEncoder](
+  def unloadDS[A](
     connStr: ConnectionString,
     driver: DriverString,
     tableName: TableName,
-    query: Option[String])(implicit sparkSession: SparkSession): TypedDataset[A] =
+    query: Option[String])(implicit
+    te: TypedEncoder[A],
+    sparkSession: SparkSession): TypedDataset[A] =
     TypedDataset.createUnsafe[A](unloadDF(connStr, driver, tableName, query))
 }

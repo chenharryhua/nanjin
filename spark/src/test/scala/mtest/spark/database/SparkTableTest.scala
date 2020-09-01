@@ -11,6 +11,7 @@ import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.database._
 import com.github.chenharryhua.nanjin.spark.injection._
+import com.github.chenharryhua.nanjin.spark.persist.loaders
 import frameless.TypedDataset
 import frameless.cats.implicits._
 import io.circe.generic.auto._
@@ -18,6 +19,8 @@ import io.scalaland.chimney.dsl._
 import kantan.csv.generic._
 import kantan.csv.java8._
 import org.scalatest.funsuite.AnyFunSuite
+import cats.derived.auto.show._
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 
 final case class DomainObject(
   a: LocalDate,
@@ -31,6 +34,9 @@ final case class DBTable(a: LocalDate, b: LocalDate, c: Instant, d: Instant, e: 
 class SparkTableTest extends AnyFunSuite {
   implicit val zoneId: ZoneId = beijingTime
 
+  implicit val codec                          = NJAvroCodec[DBTable]
+  implicit val ate: AvroTypedEncoder[DBTable] = AvroTypedEncoder[DBTable](codec)
+
   val table: TableDef[DBTable] = TableDef[DBTable](TableName("public.sparktabletest"))
 
   val sample: DomainObject =
@@ -40,6 +46,8 @@ class SparkTableTest extends AnyFunSuite {
       ZonedDateTime.now(zoneId),
       OffsetDateTime.now(zoneId),
       Instant.now)
+
+  val dbData: DBTable = sample.transformInto[DBTable]
 
   test("sparkTable upload dataset to table") {
     val data = TypedDataset.create(List(sample.transformInto[DBTable])).dataset.rdd
@@ -53,61 +61,47 @@ class SparkTableTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  val path = "./data/test/spark/database/jackson.json"
-
-  test("sparkTable save db table to disk") {
-    sparkSession
-      .alongWith[IO](postgres)
-      .table(table)
-      .fromDB
-      .save
-      .jackson(path)
-      .single
-      .run(blocker)
-      .unsafeRunSync()
-  }
-
-  test("sparkTable read table on disk") {
-    val rst: DomainObject =
-      sparkSession
-        .alongWith[IO](postgres)
-        .table(table)
-        .load
-        .jackson(path)
-        .typedDataset
-        .collect[IO]
-        .unsafeRunSync()
-        .head
-        .transformInto[DomainObject]
-    assert(rst == sample)
-  }
-
   test("partition save") {
-    val run = table.in[IO](postgres).fromDB.save.partition.jackson.run(blocker) >>
+    /*  val run = table.in[IO](postgres).fromDB.save.partition.jackson.run(blocker) >>
       table.in[IO](postgres).fromDB.save.partition.avro.run(blocker) >>
       table.in[IO](postgres).fromDB.save.partition.parquet.run(blocker) >>
       table.in[IO](postgres).fromDB.save.partition.circe.run(blocker) >>
       table.in[IO](postgres).fromDB.save.partition.csv.run(blocker) >>
       IO(())
     run.unsafeRunSync
+     */
   }
-  test("save") {
-    val run = table.in[IO](postgres).fromDB.save.jackson.single.run(blocker) >>
-      table.in[IO](postgres).fromDB.save.avro.single.run(blocker) >>
-      table.in[IO](postgres).fromDB.save.parquet.run(blocker) >>
-      table.in[IO](postgres).fromDB.save.circe.single.run(blocker) >>
-      table.in[IO](postgres).fromDB.save.csv.single.run(blocker) >>
-      IO(())
-    run.unsafeRunSync
+  test("save and load") {
+    val root  = "./data/test/spark/database/postgres/"
+    val saver = table.in[IO](postgres).fromDB.save
+    val run =
+      saver.avro(root + "multi.spark.avro").folder.spark.run(blocker) >>
+        saver.avro(root + "single.raw.avro").file.raw.run(blocker) >>
+        saver.avro(root + "raw.avro").raw.run(blocker) >>
+        saver.parquet(root + "multi.spark.parquet").folder.spark.run(blocker) >>
+        saver.parquet(root + "single.raw.parquet").file.raw.run(blocker) >>
+        saver.parquet(root + "raw.parquet").raw.run(blocker) >>
+        saver.circe(root + "multi.circe.json").folder.run(blocker) >>
+        saver.circe(root + "single.circe.json").file.run(blocker) >>
+        saver.text(root + "multi.text").folder.run(blocker) >>
+        saver.text(root + "single.text").file.run(blocker) >>
+        saver.csv(root + "multi.csv").folder.run(blocker) >>
+        saver.csv(root + "single.csv").file.run(blocker)
+
+    run.unsafeRunSync()
+
+    assert(loaders.avro(root + "multi.spark.avro").collect[IO]().unsafeRunSync().head == dbData)
+    assert(loaders.raw.avro(root + "single.raw.avro").collect().head == dbData)
+    assert(loaders.raw.avro(root + "raw.avro").collect.head == dbData)
+
+    assert(
+      loaders.parquet(root + "multi.spark.parquet").collect[IO]().unsafeRunSync().head == dbData)
+    assert(loaders.raw.parquet(root + "single.raw.parquet").collect.head == dbData)
+    assert(loaders.raw.parquet(root + "raw.parquet").collect.head == dbData)
+
+    assert(loaders.circe[DBTable](root + "multi.circe.json").collect().head == dbData)
+    assert(loaders.circe[DBTable](root + "single.circe.json").collect().head == dbData)
+
   }
-  test("with query") {
-    table
-      .in[IO](postgres)
-      .withQuery(s"select * from ${table.tableName.value}")
-      .fromDB
-      .save
-      .jackson
-      .single
-      .run(blocker)
-  }
+  test("with query") {}
 }

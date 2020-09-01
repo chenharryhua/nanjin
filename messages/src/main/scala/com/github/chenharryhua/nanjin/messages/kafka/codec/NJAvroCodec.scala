@@ -17,7 +17,10 @@ import scala.util.Try
 final case class NJAvroCodec[A] private[codec] (
   schemaFor: SchemaFor[A],
   avroDecoder: AvroDecoder[A],
-  avroEncoder: AvroEncoder[A])
+  avroEncoder: AvroEncoder[A]) {
+  val schema: Schema        = schemaFor.schema
+  def idConversion(a: A): A = avroDecoder.decode(avroEncoder.encode(a))
+}
 
 /**
   * left  - error
@@ -64,11 +67,14 @@ object NJAvroCodec {
       Ior.left("schema name is different")
   }
 
-  def apply[A: AvroDecoder: AvroEncoder](schemaText: String): Ior[String, NJAvroCodec[A]] =
-    Try((new Schema.Parser).parse(schemaText)).fold[Ior[String, NJAvroCodec[A]]](
-      ex => Ior.left(ex.getMessage),
-      schema => apply(schema)
-    )
+  def apply[A: AvroDecoder: AvroEncoder](schemaText: String): Ior[String, NJAvroCodec[A]] = {
+    val codec: Either[String, Ior[String, NJAvroCodec[A]]] =
+      Try((new Schema.Parser).parse(schemaText))
+        .flatMap(s => Try(apply(s)))
+        .toEither
+        .leftMap(_.getMessage)
+    Ior.fromEither(codec).flatten
+  }
 
   def apply[A: AvroDecoder: AvroEncoder: SchemaFor]: NJAvroCodec[A] =
     NJAvroCodec(SchemaFor[A], AvroDecoder[A], AvroEncoder[A])

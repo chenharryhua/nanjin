@@ -4,33 +4,52 @@ import cats.Eq
 import cats.effect.Sync
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryK,
   CompulsoryKV,
   CompulsoryV,
+  NJProducerRecord,
   OptionalKV
 }
-import com.sksamuel.avro4s.{Encoder => AvroEncoder, Decoder => AvroDecoder}
+import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
+import com.github.chenharryhua.nanjin.spark.persist.RddFileHoader
+import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
 import frameless.cats.implicits._
 import frameless.{SparkDelay, TypedDataset, TypedEncoder}
-import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.{Dataset, SparkSession}
 
 final class CrDataset[F[_], K, V](val crs: Dataset[OptionalKV[K, V]], cfg: SKConfig)(implicit
   val keyEncoder: TypedEncoder[K],
-  val valEncoder: TypedEncoder[V],
-  val avroKeyEncoder: AvroEncoder[K],
-  val avroValEncoder: AvroEncoder[V],
-  val avroKeyDecoder: AvroDecoder[K],
-  val avroValDecoder: AvroDecoder[V]
-) extends SparKafkaUpdateParams[CrDataset[F, K, V]] with CrDatasetSaveModule[F, K, V] {
+  val valEncoder: TypedEncoder[V]
+//  val avroKeyEncoder: AvroEncoder[K],
+//  val avroValEncoder: AvroEncoder[V],
+//  val avroKeyDecoder: AvroDecoder[K],
+//  val avroValDecoder: AvroDecoder[V]
+) extends SparKafkaUpdateParams[CrDataset[F, K, V]] {
 
-  implicit private val optionalKVAvroEncoder: AvroEncoder[OptionalKV[K, V]] =
-    shapeless.cachedImplicit
+//  implicit private val optionalKVAvroEncoder: AvroEncoder[OptionalKV[K, V]] =
+//    shapeless.cachedImplicit
 
-  implicit private val optionalKVAvroDecoder: AvroDecoder[OptionalKV[K, V]] =
-    shapeless.cachedImplicit
+//  implicit private val optionalKVAvroDecoder: AvroDecoder[OptionalKV[K, V]] =
+//    shapeless.cachedImplicit
 
   implicit private val optionalKVTypedEncoder: TypedEncoder[OptionalKV[K, V]] =
+    shapeless.cachedImplicit
+
+  implicit private val compulsoryVTypedEncoder: TypedEncoder[CompulsoryV[K, V]] =
+    shapeless.cachedImplicit
+
+  implicit private val compulsoryKTypedEncoder: TypedEncoder[CompulsoryK[K, V]] =
+    shapeless.cachedImplicit
+
+  implicit private val compulsoryKVTypedEncoder: TypedEncoder[CompulsoryKV[K, V]] =
+    shapeless.cachedImplicit
+
+  implicit private val CRMetaInfoTypedEncoder: TypedEncoder[CRMetaInfo] =
+    shapeless.cachedImplicit
+
+  implicit private val NJProducerRecordTypedEncoder: TypedEncoder[NJProducerRecord[K, V]] =
     shapeless.cachedImplicit
 
   override def withParamUpdate(f: SKConfig => SKConfig): CrDataset[F, K, V] =
@@ -137,4 +156,9 @@ final class CrDataset[F[_], K, V](val crs: Dataset[OptionalKV[K, V]], cfg: SKCon
   def toProducerRecords: PrDataset[F, K, V] =
     new PrDataset((typedDataset.deserialized.map(_.toNJProducerRecord)).dataset, cfg)
 
+//  def save: RddFileSaver[F, OptionalKV[K, V]] = {
+//    implicit val ss: SparkSession                  = crs.sparkSession
+//    implicit val ac: NJAvroCodec[OptionalKV[K, V]] = shapeless.cachedImplicit
+//    new RddFileSaver[F, OptionalKV[K, V]](crs.rdd)
+//  }
 }

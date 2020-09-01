@@ -1,116 +1,40 @@
 package com.github.chenharryhua.nanjin.spark.database
 
-import cats.Show
-import cats.effect.Sync
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.database.{DatabaseName, DatabaseSettings, TableName}
-import com.github.chenharryhua.nanjin.spark.saver._
-import com.sksamuel.avro4s.{Encoder => AvroEncoder, Decoder => AvroDecoder}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
+import com.github.chenharryhua.nanjin.spark.persist._
+import frameless.TypedDataset
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
-import frameless.{TypedDataset, TypedEncoder}
-import io.circe.{Encoder => JsonEncoder}
-import kantan.csv.RowEncoder
-import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.{Dataset, SparkSession}
 
 final class TableDataset[F[_], A](ds: Dataset[A], dbSettings: DatabaseSettings, cfg: STConfig)(
-  implicit
-  avroEncoder: AvroEncoder[A],
-  avroDecoder: AvroDecoder[A],
-  typedEncoder: TypedEncoder[A])
+  implicit ate: AvroTypedEncoder[A])
     extends Serializable {
 
+  import ate.sparkTypedEncoder.classTag
+  implicit private val ss: SparkSession   = ds.sparkSession
+  implicit private val ae: NJAvroCodec[A] = ate.avroCodec
+
   val params: STParams = cfg.evalConfig
-
-  def typedDataset: TypedDataset[A] = TypedDataset.create(ds)
-
-  def map[B: AvroEncoder: AvroDecoder: TypedEncoder](f: A => B): TableDataset[F, B] =
-    new TableDataset[F, B](typedDataset.deserialized.map(f).dataset, dbSettings, cfg)
-
-  def flatMap[B: AvroEncoder: AvroDecoder: TypedEncoder](
-    f: A => TraversableOnce[B]): TableDataset[F, B] =
-    new TableDataset[F, B](typedDataset.deserialized.flatMap(f).dataset, dbSettings, cfg)
 
   def repartition(num: Int): TableDataset[F, A] =
     new TableDataset[F, A](ds.repartition(num), dbSettings, cfg)
 
-  def count(implicit F: Sync[F]): F[Long] = typedDataset.count[F]()
-
-  def upload: DbUploader[F, A] = new DbUploader[F, A](ds, dbSettings, avroEncoder, cfg)
-
   def withPathBuilder(f: (DatabaseName, TableName, NJFileFormat) => String) =
     new TableDataset[F, A](ds, dbSettings, cfg.withPathBuilder(f))
 
-  private val saver: RddFileSaver[F, A] = new RddFileSaver[F, A](ds.rdd)
+  def typedDataset: TypedDataset[A] = ate.normalize(ds)
 
-  object save extends Serializable {
+  def upload: DbUploader[F, A] = new DbUploader[F, A](ds, dbSettings, ate, cfg)
 
-    def avro(pathStr: String): AvroSaver[F, A] =
-      saver.avro(pathStr)
+  def save: RddFileHoader[F, A] = new RddFileHoader[F, A](ds.rdd)
 
-    def avro: AvroSaver[F, A] =
-      saver.avro(params.outPath(NJFileFormat.Avro))
+  def partition =
+    new RddPartitionHoarder[F, A, Unit](
+      ds.rdd,
+      a => Some(()),
+      (fmt, _) => params.pathBuilder(dbSettings.database, params.tableName, fmt))
 
-    def binAvro(pathStr: String): BinaryAvroSaver[F, A] =
-      saver.binAvro(pathStr)
-
-    def binAvro: BinaryAvroSaver[F, A] =
-      saver.binAvro(params.outPath(NJFileFormat.BinaryAvro))
-
-    def circe(pathStr: String)(implicit ev: JsonEncoder[A]): CirceSaver[F, A] =
-      saver.circe(pathStr)
-
-    def circe(implicit ev: JsonEncoder[A]): CirceSaver[F, A] =
-      saver.circe(params.outPath(NJFileFormat.Circe))
-
-    def jackson(pathStr: String): JacksonSaver[F, A] =
-      saver.jackson(pathStr)
-
-    def jackson: JacksonSaver[F, A] =
-      saver.jackson(params.outPath(NJFileFormat.Jackson))
-
-    def parquet(pathStr: String): ParquetSaver[F, A] =
-      saver.parquet(pathStr)
-
-    def parquet: ParquetSaver[F, A] =
-      saver.parquet(params.outPath(NJFileFormat.Parquet))
-
-    def csv(pathStr: String)(implicit ev: RowEncoder[A]): CsvSaver[F, A] =
-      saver.csv(pathStr)
-
-    def csv(implicit ev: RowEncoder[A]): CsvSaver[F, A] =
-      saver.csv(params.outPath(NJFileFormat.Csv))
-
-    def javaObject(pathStr: String): JavaObjectSaver[F, A] =
-      saver.javaObject(pathStr)
-
-    def javaObject: JavaObjectSaver[F, A] =
-      saver.javaObject(params.outPath(NJFileFormat.JavaObject))
-
-    def text(pathStr: String)(implicit ev: Show[A]): TextSaver[F, A] =
-      saver.text(pathStr)
-
-    def text(implicit ev: Show[A]): TextSaver[F, A] =
-      saver.text(params.outPath(NJFileFormat.Text))
-
-    object partition extends Serializable {
-
-      def avro: AvroPartitionSaver[F, A, Unit] =
-        saver.partition.avro(a => Some(()), Unit => params.outPath(NJFileFormat.Avro))
-
-      def jackson: JacksonPartitionSaver[F, A, Unit] =
-        saver.partition.jackson(a => Some(()), Unit => params.outPath(NJFileFormat.Jackson))
-
-      def circe(implicit ev: JsonEncoder[A]): CircePartitionSaver[F, A, Unit] =
-        saver.partition.circe(a => Some(()), Unit => params.outPath(NJFileFormat.Circe))
-
-      def parquet: ParquetPartitionSaver[F, A, Unit] =
-        saver.partition.parquet(a => Some(()), Unit => params.outPath(NJFileFormat.Parquet))
-
-      def csv(implicit ev: RowEncoder[A]): CsvPartitionSaver[F, A, Unit] =
-        saver.partition.csv(a => Some(()), Unit => params.outPath(NJFileFormat.Csv))
-
-      def text(implicit ev: Show[A]): TextPartitionSaver[F, A, Unit] =
-        saver.partition.text(a => Some(()), Unit => params.outPath(NJFileFormat.Text))
-    }
-  }
 }

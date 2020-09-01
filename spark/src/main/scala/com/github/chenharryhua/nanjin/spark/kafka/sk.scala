@@ -91,9 +91,6 @@ private[kafka] object sk {
       }
     })
 
-  def loadDiskRdd[K, V](path: String)(implicit sparkSession: SparkSession): RDD[OptionalKV[K, V]] =
-    sparkSession.sparkContext.objectFile[OptionalKV[K, V]](path)
-
   def uploader[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
     topic: KafkaTopic[F, K, V],
     uploadRate: NJUploadRate): Pipe[F, NJProducerRecord[K, V], ProducerResult[K, V, Unit]] =

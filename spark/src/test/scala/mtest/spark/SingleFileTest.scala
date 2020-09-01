@@ -53,8 +53,6 @@ class SingleFileTest extends AnyFunSuite {
 
     assert(run.unsafeRunSync() === fishes)
 
-    val s = sparkSession.load.avro[Swordfish](path).collect.toSet
-    assert(s == fishes.toSet)
   }
 
   test("spark avro-binary - identity") {
@@ -75,8 +73,6 @@ class SingleFileTest extends AnyFunSuite {
 
     assert(run.unsafeRunSync() === fishes)
 
-    val s = sparkSession.load.parquet[Swordfish](path).collect.toSet
-    assert(s == fishes.toSet)
   }
 
   test("spark circe json - identity") {
@@ -88,9 +84,8 @@ class SingleFileTest extends AnyFunSuite {
     assert(run.unsafeRunSync() === fishes)
     assert(File(path).lineCount == 3L)
 
-    val s =
-      sparkSession.load.circe[Swordfish](path).typedDataset.collect[IO]().unsafeRunSync().toSet
-    assert(s == fishes.toSet)
+  //  val s = sparkSession.load.circe[Swordfish](path).typedDataset.collect[IO]().unsafeRunSync().toSet
+  //  assert(s == fishes.toSet)
 
   }
   test("spark jackson - identity") {
@@ -102,9 +97,8 @@ class SingleFileTest extends AnyFunSuite {
     assert(run.unsafeRunSync() === fishes)
     assert(File(path).lineCount == 3L)
 
-    val s =
-      sparkSession.load.jackson[Swordfish](path).typedDataset.collect[IO]().unsafeRunSync().toSet
-    assert(s == fishes.toSet)
+   // val s =sparkSession.load.jackson[Swordfish](path).typedDataset.collect[IO]().unsafeRunSync().toSet
+   // assert(s == fishes.toSet)
   }
 
   test("spark csv - identity") {
@@ -116,8 +110,6 @@ class SingleFileTest extends AnyFunSuite {
     assert(run.unsafeRunSync() === fishes)
     assert(File(path).lineCount == 3L)
 
-    val s = sparkSession.load.csv[Swordfish](path).collect().toSet
-    assert(s == fishes.toSet)
   }
 
   test("spark csv with header - identity") {
@@ -135,8 +127,6 @@ class SingleFileTest extends AnyFunSuite {
     assert(run.unsafeRunSync() === fishes, "source")
     assert(File(path).lineCount == 4L)
 
-    val s = sparkSession.load.csv[Swordfish](path, rfc).collect().toSet
-    assert(s == fishes.toSet, "spark")
   }
 
   test("spark java-object - identity") {
