@@ -1,6 +1,8 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
+import cats.{Eq, Parallel}
 import cats.effect.{Blocker, Concurrent, ContextShift}
+import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.utils
 import org.apache.spark.rdd.RDD
@@ -26,4 +28,25 @@ final class SaveSparkJson[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(im
           .mode(SaveMode.Overwrite)
           .json(params.outPath)))
   }
+}
+
+final class PartitionSparkJson[F[_], A: ClassTag, K: ClassTag: Eq](
+  rdd: RDD[A],
+  cfg: HoarderConfig,
+  bucketing: A => Option[K],
+  pathBuilder: (NJFileFormat, K) => String)(implicit codec: NJAvroCodec[A], ss: SparkSession)
+    extends AbstractPartition[F, A, K] {
+
+  val params: HoarderParams = cfg.evalConfig
+
+  def run(
+    blocker: Blocker)(implicit F: Concurrent[F], CS: ContextShift[F], P: Parallel[F]): F[Unit] =
+    savePartition(
+      blocker,
+      rdd,
+      params.parallelism,
+      params.format,
+      bucketing,
+      pathBuilder,
+      (r, p) => new SaveSparkJson[F, A](r, cfg.withOutPutPath(p)).run(blocker))
 }

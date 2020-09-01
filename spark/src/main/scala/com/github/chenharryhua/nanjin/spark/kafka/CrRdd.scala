@@ -1,11 +1,13 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import java.time.LocalDate
+
 import akka.NotUsed
 import akka.stream.scaladsl.Source
 import cats.Order
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
+import com.github.chenharryhua.nanjin.datetime.{localdateInstances, NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.{
@@ -15,8 +17,8 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   OptionalKV
 }
 import com.github.chenharryhua.nanjin.spark.RddExt
-import com.github.chenharryhua.nanjin.spark.persist.RddFileHoader
-import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder, SchemaFor}
+import com.github.chenharryhua.nanjin.spark.persist.{RddFileHoader, RddPartitionHoarder}
+import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
 import frameless.cats.implicits.rddOps
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
@@ -127,4 +129,13 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
 
   def save: RddFileHoader[F, OptionalKV[K, V]] =
     new RddFileHoader[F, OptionalKV[K, V]](rdd)
+
+  private def bucketing(kv: OptionalKV[K, V]): Option[LocalDate] =
+    Some(NJTimestamp(kv.timestamp).dayResolution(params.timeRange.zoneId))
+
+  def partition: RddPartitionHoarder[F, OptionalKV[K, V], LocalDate] =
+    new RddPartitionHoarder[F, OptionalKV[K, V], LocalDate](
+      rdd,
+      bucketing,
+      params.datePartitionPathBuilder(params.topicName, _, _))
 }

@@ -79,7 +79,7 @@ final private[persist] case class HoarderConfig(value: Fix[HoarderConfigF]) {
   import HoarderConfigF._
   val evalConfig: HoarderParams = HoarderConfigF.evalConfig(this)
 
-  def withFile: HoarderConfig =
+  def withSingleFile: HoarderConfig =
     HoarderConfig(Fix(WithSingleOrMulti(FolderOrFile.SingleFile, value)))
   def withFolder: HoarderConfig = HoarderConfig(Fix(WithSingleOrMulti(FolderOrFile.Folder, value)))
 

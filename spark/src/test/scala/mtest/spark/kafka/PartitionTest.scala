@@ -36,26 +36,22 @@ class PartitionTest extends AnyFunSuite {
   import PartitionTestData._
   (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
     topic.send(data)).unsafeRunSync()
-/*
   test("partition avro") {
-    topic.sparKafka.fromKafka.flatMap(_.save.partition.avro.multi.run(blocker)).unsafeRunSync()
+    topic.sparKafka.fromKafka.flatMap(_.partition.folder.avro.run(blocker)).unsafeRunSync()
   }
   test("partition binary avro") {
-    topic.sparKafka.fromKafka.flatMap(_.save.partition.binAvro.run(blocker)).unsafeRunSync()
+    topic.sparKafka.fromKafka.flatMap(_.partition.binAvro.run(blocker)).unsafeRunSync()
   }
   test("partition jackson") {
-    topic.sparKafka.fromKafka.flatMap(_.save.partition.jackson.multi.run(blocker)).unsafeRunSync()
+    topic.sparKafka.fromKafka.flatMap(_.partition.folder.jackson.run(blocker)).unsafeRunSync()
   }
   test("partition parquet") {
-    topic.sparKafka.fromKafka.flatMap(_.save.partition.parquet.run(blocker)).unsafeRunSync()
+    topic.sparKafka.fromKafka.flatMap(_.partition.parquet.run(blocker)).unsafeRunSync()
   }
   test("partition circe") {
-    topic.sparKafka.fromKafka.flatMap(_.save.partition.circe.run(blocker)).unsafeRunSync()
-  }
-  test("partition java object") {
-    topic.sparKafka.fromKafka.flatMap(_.save.partition.javaObject.run(blocker)).unsafeRunSync()
+    topic.sparKafka.fromKafka.flatMap(_.partition.circe.run(blocker)).unsafeRunSync()
   }
   test("partition text") {
-    topic.sparKafka.fromKafka.flatMap(_.save.partition.text.single.run(blocker)).unsafeRunSync()
-  }*/
+    topic.sparKafka.fromKafka.flatMap(_.partition.file.text.run(blocker)).unsafeRunSync()
+  }
 }

@@ -40,8 +40,8 @@ final class RddFileHoader[F[_], A: ClassTag](
   def json(outPath: String) =
     new SaveSparkJson[F, A](rdd, cfg.withFormat(NJFileFormat.SparkJson).withOutPutPath(outPath))
 
-  def csv(outPath: String)(implicit ev: RowEncoder[A]): SaveCSV[F, A] =
-    new SaveCSV[F, A](
+  def csv(outPath: String)(implicit ev: RowEncoder[A]): SaveCsv[F, A] =
+    new SaveCsv[F, A](
       rdd,
       CsvConfiguration.rfc,
       cfg.withFormat(NJFileFormat.Csv).withOutPutPath(outPath))

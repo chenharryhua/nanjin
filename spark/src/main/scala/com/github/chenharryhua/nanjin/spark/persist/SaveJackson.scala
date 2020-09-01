@@ -1,6 +1,8 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.{Blocker, Concurrent, ContextShift}
+import cats.{Eq, Parallel}
+import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.mapreduce.NJJacksonKeyOutputFormat
 import com.github.chenharryhua.nanjin.spark.{fileSink, utils, RddExt}
@@ -21,7 +23,7 @@ final class SaveJackson[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(impl
   private def updateConfig(cfg: HoarderConfig): SaveJackson[F, A] =
     new SaveJackson[F, A](rdd, cfg)
 
-  def file: SaveJackson[F, A]   = updateConfig(cfg.withFile)
+  def file: SaveJackson[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveJackson[F, A] = updateConfig(cfg.withFolder)
 
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
@@ -48,4 +50,25 @@ final class SaveJackson[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(impl
         sma.checkAndRun(blocker)(sparkjob)
     }
   }
+}
+
+final class PartitionJackson[F[_], A: ClassTag, K: ClassTag: Eq](
+  rdd: RDD[A],
+  cfg: HoarderConfig,
+  bucketing: A => Option[K],
+  pathBuilder: (NJFileFormat, K) => String)(implicit codec: NJAvroCodec[A], ss: SparkSession)
+    extends AbstractPartition[F, A, K] {
+
+  val params: HoarderParams = cfg.evalConfig
+
+  def run(
+    blocker: Blocker)(implicit F: Concurrent[F], CS: ContextShift[F], P: Parallel[F]): F[Unit] =
+    savePartition(
+      blocker,
+      rdd,
+      params.parallelism,
+      params.format,
+      bucketing,
+      pathBuilder,
+      (r, p) => new SaveJackson[F, A](r, cfg.withOutPutPath(p)).run(blocker))
 }

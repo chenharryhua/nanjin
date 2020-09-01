@@ -31,4 +31,10 @@ final class TableDataset[F[_], A](ds: Dataset[A], dbSettings: DatabaseSettings, 
 
   def save: RddFileHoader[F, A] = new RddFileHoader[F, A](ds.rdd)
 
+  def partition =
+    new RddPartitionHoarder[F, A, Unit](
+      ds.rdd,
+      a => Some(()),
+      (fmt, _) => params.pathBuilder(dbSettings.database, params.tableName, fmt))
+
 }

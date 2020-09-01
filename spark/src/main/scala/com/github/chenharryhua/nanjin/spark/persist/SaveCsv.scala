@@ -1,6 +1,8 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
+import cats.{Eq, Parallel}
 import cats.effect.{Blocker, Concurrent, ContextShift}
+import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.{fileSink, utils, RddExt}
 import kantan.csv.{CsvConfiguration, RowEncoder}
@@ -9,7 +11,7 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
 import scala.reflect.ClassTag
 
-final class SaveCSV[F[_], A: ClassTag](
+final class SaveCsv[F[_], A: ClassTag](
   rdd: RDD[A],
   csvConfiguration: CsvConfiguration,
   cfg: HoarderConfig)(implicit rowEncoder: RowEncoder[A], codec: NJAvroCodec[A], ss: SparkSession)
@@ -17,13 +19,13 @@ final class SaveCSV[F[_], A: ClassTag](
   val params: HoarderParams = cfg.evalConfig
 
   def updateCsvConfig(f: CsvConfiguration => CsvConfiguration) =
-    new SaveCSV[F, A](rdd, f(csvConfiguration), cfg)
+    new SaveCsv[F, A](rdd, f(csvConfiguration), cfg)
 
-  private def updateConfig(cfg: HoarderConfig): SaveCSV[F, A] =
-    new SaveCSV[F, A](rdd, csvConfiguration, cfg)
+  private def updateConfig(cfg: HoarderConfig): SaveCsv[F, A] =
+    new SaveCsv[F, A](rdd, csvConfiguration, cfg)
 
-  def file: SaveCSV[F, A]   = updateConfig(cfg.withFile)
-  def folder: SaveCSV[F, A] = updateConfig(cfg.withFolder)
+  def file: SaveCsv[F, A]   = updateConfig(cfg.withSingleFile)
+  def folder: SaveCsv[F, A] = updateConfig(cfg.withFolder)
 
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
@@ -50,4 +52,29 @@ final class SaveCSV[F[_], A: ClassTag](
         sma.checkAndRun(blocker)(csv)
     }
   }
+}
+
+final class PartitionCsv[F[_], A: ClassTag, K: ClassTag: Eq](
+  rdd: RDD[A],
+  csvConfiguration: CsvConfiguration,
+  cfg: HoarderConfig,
+  bucketing: A => Option[K],
+  pathBuilder: (NJFileFormat, K) => String)(implicit
+  rowEncoder: RowEncoder[A],
+  codec: NJAvroCodec[A],
+  ss: SparkSession)
+    extends AbstractPartition[F, A, K] {
+
+  val params: HoarderParams = cfg.evalConfig
+
+  def run(
+    blocker: Blocker)(implicit F: Concurrent[F], CS: ContextShift[F], P: Parallel[F]): F[Unit] =
+    savePartition(
+      blocker,
+      rdd,
+      params.parallelism,
+      params.format,
+      bucketing,
+      pathBuilder,
+      (r, p) => new SaveCsv[F, A](r, csvConfiguration, cfg.withOutPutPath(p)).run(blocker))
 }
