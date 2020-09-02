@@ -19,20 +19,10 @@ import frameless.cats.implicits._
 import frameless.{SparkDelay, TypedDataset, TypedEncoder}
 import org.apache.spark.sql.{Dataset, SparkSession}
 
-final class CrDataset[F[_], K, V](val crs: Dataset[OptionalKV[K, V]], cfg: SKConfig)(implicit
+final class CrDataset[F[_], K, V](val dataset: Dataset[OptionalKV[K, V]], cfg: SKConfig)(implicit
   val keyEncoder: TypedEncoder[K],
   val valEncoder: TypedEncoder[V]
-//  val avroKeyEncoder: AvroEncoder[K],
-//  val avroValEncoder: AvroEncoder[V],
-//  val avroKeyDecoder: AvroDecoder[K],
-//  val avroValDecoder: AvroDecoder[V]
 ) extends SparKafkaUpdateParams[CrDataset[F, K, V]] {
-
-//  implicit private val optionalKVAvroEncoder: AvroEncoder[OptionalKV[K, V]] =
-//    shapeless.cachedImplicit
-
-//  implicit private val optionalKVAvroDecoder: AvroDecoder[OptionalKV[K, V]] =
-//    shapeless.cachedImplicit
 
   implicit private val optionalKVTypedEncoder: TypedEncoder[OptionalKV[K, V]] =
     shapeless.cachedImplicit
@@ -53,10 +43,10 @@ final class CrDataset[F[_], K, V](val crs: Dataset[OptionalKV[K, V]], cfg: SKCon
     shapeless.cachedImplicit
 
   override def withParamUpdate(f: SKConfig => SKConfig): CrDataset[F, K, V] =
-    new CrDataset[F, K, V](crs, f(cfg))
+    new CrDataset[F, K, V](dataset, f(cfg))
 
   @transient lazy val typedDataset: TypedDataset[OptionalKV[K, V]] =
-    TypedDataset.create(crs)
+    TypedDataset.create(dataset)
 
   override val params: SKParams = cfg.evalConfig
 
@@ -73,7 +63,7 @@ final class CrDataset[F[_], K, V](val crs: Dataset[OptionalKV[K, V]], cfg: SKCon
     new CrDataset[F, K2, V2](typedDataset.deserialized.flatMap(f).dataset, cfg)
 
   def filter(f: OptionalKV[K, V] => Boolean): CrDataset[F, K, V] =
-    new CrDataset[F, K, V](crs.filter(f), cfg)
+    new CrDataset[F, K, V](dataset.filter(f), cfg)
 
   def ascending: CrDataset[F, K, V] = {
     val sd = typedDataset.orderBy(
@@ -92,11 +82,11 @@ final class CrDataset[F[_], K, V](val crs: Dataset[OptionalKV[K, V]], cfg: SKCon
   }
 
   def persist: CrDataset[F, K, V] =
-    new CrDataset[F, K, V](crs.persist(), cfg)
+    new CrDataset[F, K, V](dataset.persist(), cfg)
 
   def inRange(dr: NJDateTimeRange): CrDataset[F, K, V] =
     new CrDataset[F, K, V](
-      crs.filter((m: OptionalKV[K, V]) => dr.isInBetween(m.timestamp)),
+      dataset.filter((m: OptionalKV[K, V]) => dr.isInBetween(m.timestamp)),
       cfg.withTimeRange(dr))
 
   def inRange: CrDataset[F, K, V] = inRange(params.timeRange)
@@ -149,8 +139,8 @@ final class CrDataset[F[_], K, V](val crs: Dataset[OptionalKV[K, V]], cfg: SKCon
   def show(implicit F: SparkDelay[F]): F[Unit] =
     typedDataset.show[F](params.showDs.rowNum, params.showDs.isTruncate)
 
-  def first(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] = F.delay(crs.rdd.cminOption)
-  def last(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]]  = F.delay(crs.rdd.cmaxOption)
+  def first(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] = F.delay(dataset.rdd.cminOption)
+  def last(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]]  = F.delay(dataset.rdd.cmaxOption)
 
   // state change
   def toProducerRecords: PrDataset[F, K, V] =

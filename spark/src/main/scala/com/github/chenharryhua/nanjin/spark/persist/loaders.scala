@@ -37,9 +37,7 @@ object loaders {
       })
 
   def protobuf[A <: GeneratedMessage: ClassTag](
-    pathStr: String,
-    ss: SparkSession,
-    decoder: GeneratedMessageCompanion[A]): RDD[A] =
+    pathStr: String)(implicit decoder: GeneratedMessageCompanion[A], ss: SparkSession): RDD[A] =
     ss.sparkContext
       .binaryFiles(pathStr)
       .mapPartitions(_.flatMap {
