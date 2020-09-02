@@ -54,13 +54,12 @@ class KafkaCoproductTest extends AnyFunSuite {
     val data = List(topicCO.fs2PR(0, co1), topicCO.fs2PR(1, co2))
     val path = "./data/test/spark/kafka/coproduct/caseobject.avro"
     val sk   = topicCO.sparKafka
-    import sk.optionalKVCodec
 
     val run = topicCO.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicCO.schemaRegister >>
       topicCO.send(data) >>
-      sk.fromKafka.flatMap(_.save.avro(path).file.run(blocker)) >>
-      IO(loaders.raw.avro(path).collect().toSet)
+      sk.fromKafka.flatMap(_.save.avro(path).raw.file.run(blocker)) >>
+      IO(sk.load.rdd.avro(path).rdd.collect().toSet)
     intercept[Exception](run.unsafeRunSync().flatMap(_.value) == Set(co1, co2))
   }
 
@@ -68,13 +67,12 @@ class KafkaCoproductTest extends AnyFunSuite {
     val data = List(topicEnum.fs2PR(0, en1), topicEnum.fs2PR(1, en2))
     val path = "./data/test/spark/kafka/coproduct/scalaenum.avro"
     val sk   = topicEnum.sparKafka
-    import sk.optionalKVCodec
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegister >>
       topicEnum.send(data) >>
-      sk.fromKafka.flatMap(_.save.avro(path).file.run(blocker)) >>
-      IO(loaders.raw.avro(path).take(10).toSet)
+      sk.fromKafka.flatMap(_.save.avro(path).raw.file.run(blocker)) >>
+      IO(sk.load.rdd.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 
@@ -82,13 +80,12 @@ class KafkaCoproductTest extends AnyFunSuite {
     val data = List(topicEnum.fs2PR(0, en1), topicEnum.fs2PR(1, en2))
     val path = "./data/test/spark/kafka/coproduct/multi-scalaenum.avro"
     val sk   = topicEnum.sparKafka
-    import sk.optionalKVCodec
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegister >>
       topicEnum.send(data) >>
-      sk.fromKafka.flatMap(_.save.avro(path).folder.raw.run(blocker)) >>
-      IO(loaders.raw.avro(path).take(10).toSet)
+      sk.fromKafka.flatMap(_.save.avro(path).raw.folder.run(blocker)) >>
+      IO(sk.load.rdd.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 

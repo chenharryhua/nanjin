@@ -6,11 +6,11 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
-import frameless.{TypedDataset, TypedEncoder}
+import frameless.TypedEncoder
 import io.circe.{Decoder => JsonDecoder}
 import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
+import org.apache.spark.sql.{Dataset, SparkSession}
 
 import scala.reflect.ClassTag
 
@@ -39,11 +39,11 @@ final class SparkTable[F[_], A](
   ss: SparkSession)
     extends Serializable {
 
-  implicit val ate: AvroTypedEncoder[A]   = tableDef.encoder
-  implicit val codec: NJAvroCodec[A]      = ate.avroCodec
-  implicit val te: TypedEncoder[A]        = ate.sparkTypedEncoder
-  implicit val tag: ClassTag[A]           = ate.sparkTypedEncoder.classTag
-  implicit val sparkSession: SparkSession = ss
+  implicit private val ate: AvroTypedEncoder[A]   = tableDef.encoder
+  implicit private val codec: NJAvroCodec[A]      = ate.avroCodec
+  implicit private val te: TypedEncoder[A]        = ate.sparkTypedEncoder
+  implicit private val tag: ClassTag[A]           = ate.sparkTypedEncoder.classTag
+  implicit private val sparkSession: SparkSession = ss
 
   val params: STParams = cfg.evalConfig
 

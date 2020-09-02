@@ -14,7 +14,7 @@ import org.apache.avro.{Schema, SchemaCompatibility}
 
 import scala.util.Try
 
-final case class NJAvroCodec[A] private[codec] (
+final case class NJAvroCodec[A](
   schemaFor: SchemaFor[A],
   avroDecoder: AvroDecoder[A],
   avroEncoder: AvroEncoder[A]) {
