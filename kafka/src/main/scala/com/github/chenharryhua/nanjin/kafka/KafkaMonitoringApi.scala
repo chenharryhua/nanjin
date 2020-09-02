@@ -14,7 +14,6 @@ import fs2.kafka.{produce, AutoOffsetReset, ProducerRecord, ProducerRecords}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
 import scala.util.Try
-import _root_.com.sksamuel.avro4s.Encoder
 
 sealed trait KafkaMonitoringApi[F[_], K, V] {
   def watch: F[Unit]
@@ -42,15 +41,14 @@ object KafkaMonitoringApi {
   final private class KafkaTopicMonitoring[F[_]: ContextShift: Timer, K, V](
     topic: KafkaTopic[F, K, V])(implicit F: ConcurrentEffect[F])
       extends KafkaMonitoringApi[F, K, V] {
-    import topic.topicDef.{avroKeyDecoder, avroKeyEncoder, avroValDecoder, avroValEncoder}
 
     private val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
       topic.fs2Channel.withConsumerSettings(_.withEnableAutoCommit(false))
 
     private def watch(aor: AutoOffsetReset): F[Unit] =
       Blocker[F].use { blocker =>
-        val pipe = new JacksonSerialization[F](topic.topicDef.schemaFor.schema)
-        val gr   = new GenericRecordEncoder[F, OptionalKV[K, V]](Encoder[OptionalKV[K,V]])
+        val pipe = new JacksonSerialization[F](topic.topicDef.schemaForOptionalKV.schema)
+        val gr   = new GenericRecordEncoder[F, OptionalKV[K, V]](topic.topicDef.optionalKVEncoder)
 
         Keyboard.signal.flatMap { signal =>
           fs2Channel
@@ -73,8 +71,8 @@ object KafkaMonitoringApi {
       predict: ConsumerRecord[Try[K], Try[V]] => Boolean,
       aor: AutoOffsetReset): F[Unit] =
       Blocker[F].use { blocker =>
-        val pipe = new JacksonSerialization[F](topic.topicDef.schemaFor.schema)
-        val gr   = new GenericRecordEncoder[F, OptionalKV[K, V]](Encoder[OptionalKV[K,V]])
+        val pipe = new JacksonSerialization[F](topic.topicDef.schemaForOptionalKV.schema)
+        val gr   = new GenericRecordEncoder[F, OptionalKV[K, V]](topic.topicDef.optionalKVEncoder)
         Keyboard.signal.flatMap { signal =>
           fs2Channel
             .withConsumerSettings(_.withAutoOffsetReset(aor))
@@ -93,8 +91,8 @@ object KafkaMonitoringApi {
     override def watchFrom(njt: NJTimestamp): F[Unit] = {
       val run: Stream[F, Unit] = for {
         blocker <- Stream.resource(Blocker[F])
-        pipe = new JacksonSerialization[F](topic.topicDef.schemaFor.schema)
-        gr   = new GenericRecordEncoder[F, OptionalKV[K, V]](Encoder[OptionalKV[K,V]])
+        pipe = new JacksonSerialization[F](topic.topicDef.schemaForOptionalKV.schema)
+        gr   = new GenericRecordEncoder[F, OptionalKV[K, V]](topic.topicDef.optionalKVEncoder)
         kcs <- Stream.resource(topic.shortLiveConsumer)
         gtp <- Stream.eval(for {
           os <- kcs.offsetsForTimes(njt)

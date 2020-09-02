@@ -9,6 +9,7 @@ import frameless.TypedDataset
 import frameless.cats.implicits._
 import io.circe.parser.decode
 import io.circe.{Decoder => JsonDecoder}
+import kantan.csv.CsvConfiguration
 import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericRecord}
 import org.apache.avro.io.DecoderFactory
 import org.apache.avro.mapred.AvroKey
@@ -36,9 +37,7 @@ object loaders {
       })
 
   def protobuf[A <: GeneratedMessage: ClassTag](
-    pathStr: String,
-    ss: SparkSession,
-    decoder: GeneratedMessageCompanion[A]): RDD[A] =
+    pathStr: String)(implicit decoder: GeneratedMessageCompanion[A], ss: SparkSession): RDD[A] =
     ss.sparkContext
       .binaryFiles(pathStr)
       .mapPartitions(_.flatMap {
@@ -60,9 +59,21 @@ object loaders {
     pathStr: String)(implicit ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
     ate.fromDF(ss.read.parquet(pathStr))
 
+  def csv[A](pathStr: String, csvConfiguration: CsvConfiguration)(implicit
+    ate: AvroTypedEncoder[A],
+    ss: SparkSession): TypedDataset[A] =
+    ate.fromDF(
+      ss.read
+        .schema(ate.sparkStructType)
+        .option("sep", csvConfiguration.cellSeparator.toString)
+        .option("header", csvConfiguration.hasHeader)
+        .option("quote", csvConfiguration.quote.toString)
+        .option("charset", "UTF8")
+        .csv(pathStr))
+
   def csv[A](
     pathStr: String)(implicit ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
-    ate.fromDF(ss.read.schema(ate.sparkStructType).csv(pathStr))
+    csv[A](pathStr, CsvConfiguration.rfc)
 
   def json[A](
     pathStr: String)(implicit ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =

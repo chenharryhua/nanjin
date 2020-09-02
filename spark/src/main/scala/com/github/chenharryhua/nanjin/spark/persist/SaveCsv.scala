@@ -18,7 +18,7 @@ final class SaveCsv[F[_], A: ClassTag](
     extends Serializable {
   val params: HoarderParams = cfg.evalConfig
 
-  def updateCsvConfig(f: CsvConfiguration => CsvConfiguration) =
+  def updateCsvConfig(f: CsvConfiguration => CsvConfiguration): SaveCsv[F, A] =
     new SaveCsv[F, A](rdd, f(csvConfiguration), cfg)
 
   private def updateConfig(cfg: HoarderConfig): SaveCsv[F, A] =
@@ -66,6 +66,9 @@ final class PartitionCsv[F[_], A: ClassTag, K: ClassTag: Eq](
     extends AbstractPartition[F, A, K] {
 
   val params: HoarderParams = cfg.evalConfig
+
+  def updateCsvConfig(f: CsvConfiguration => CsvConfiguration): PartitionCsv[F, A, K] =
+    new PartitionCsv[F, A, K](rdd, f(csvConfiguration), cfg, bucketing, pathBuilder)
 
   def run(
     blocker: Blocker)(implicit F: Concurrent[F], CS: ContextShift[F], P: Parallel[F]): F[Unit] =

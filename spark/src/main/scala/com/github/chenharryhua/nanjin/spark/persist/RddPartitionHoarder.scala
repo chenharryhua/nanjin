@@ -1,26 +1,17 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.Eq
+import cats.{Eq, Show}
 import cats.implicits._
+import com.github.chenharryhua.nanjin.common.NJFileFormat
+import com.github.chenharryhua.nanjin.common.NJFileFormat._
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.SparkSession
 import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.{CsvConfiguration, RowEncoder}
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.SparkSession
+import scalapb.GeneratedMessage
 
 import scala.reflect.ClassTag
-import cats.Show
-import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.github.chenharryhua.nanjin.common.NJFileFormat.{
-  Avro,
-  BinaryAvro,
-  Circe,
-  Csv,
-  Jackson,
-  Parquet,
-  SparkJson,
-  Text
-}
 
 class RddPartitionHoarder[F[_], A: ClassTag, K: Eq: ClassTag](
   rdd: RDD[A],
@@ -53,27 +44,19 @@ class RddPartitionHoarder[F[_], A: ClassTag, K: Eq: ClassTag](
   def rePath(pathBuilder: (NJFileFormat, K) => String): RddPartitionHoarder[F, A, K] =
     new RddPartitionHoarder[F, A, K](rdd, bucketing, pathBuilder, cfg)
 
-  def avro: PartitionAvro[F, A, K] =
-    new PartitionAvro[F, A, K](rdd, cfg.withFormat(Avro), bucketing, pathBuilder)
-
-  def parquet: PartitionParquet[F, A, K] =
-    new PartitionParquet[F, A, K](rdd, cfg.withFormat(Parquet), bucketing, pathBuilder)
-
-  def binAvro: PartitionBinaryAvro[F, A, K] =
-    new PartitionBinaryAvro[F, A, K](rdd, cfg.withFormat(BinaryAvro), bucketing, pathBuilder)
-
+// 1
   def jackson: PartitionJackson[F, A, K] =
     new PartitionJackson[F, A, K](rdd, cfg.withFormat(Jackson), bucketing, pathBuilder)
 
-  def json: PartitionSparkJson[F, A, K] =
-    new PartitionSparkJson[F, A, K](rdd, cfg.withFormat(SparkJson), bucketing, pathBuilder)
-
-  def text(implicit ev: Show[A]): PartitionText[F, A, K] =
-    new PartitionText[F, A, K](rdd, cfg.withFormat(Text), bucketing, pathBuilder)
-
+// 2
   def circe(implicit ev: JsonEncoder[A]): PartitionCirce[F, A, K] =
     new PartitionCirce[F, A, K](rdd, cfg.withFormat(Circe), bucketing, pathBuilder)
 
+// 3
+  def text(implicit ev: Show[A]): PartitionText[F, A, K] =
+    new PartitionText[F, A, K](rdd, cfg.withFormat(Text), bucketing, pathBuilder)
+
+// 4
   def csv(implicit ev: RowEncoder[A]): PartitionCsv[F, A, K] =
     new PartitionCsv[F, A, K](
       rdd,
@@ -81,4 +64,28 @@ class RddPartitionHoarder[F[_], A: ClassTag, K: Eq: ClassTag](
       cfg.withFormat(Csv),
       bucketing,
       pathBuilder)
+
+// 5
+  def json: PartitionSparkJson[F, A, K] =
+    new PartitionSparkJson[F, A, K](rdd, cfg.withFormat(SparkJson), bucketing, pathBuilder)
+
+// 11
+  def parquet: PartitionParquet[F, A, K] =
+    new PartitionParquet[F, A, K](rdd, cfg.withFormat(Parquet), bucketing, pathBuilder)
+
+// 12
+  def avro: PartitionAvro[F, A, K] =
+    new PartitionAvro[F, A, K](rdd, cfg.withFormat(Avro), bucketing, pathBuilder)
+
+// 13
+  def binAvro: PartitionBinaryAvro[F, A, K] =
+    new PartitionBinaryAvro[F, A, K](rdd, cfg.withFormat(BinaryAvro), bucketing, pathBuilder)
+
+// 14
+  def objectFile: PartitionObjectFile[F, A, K] =
+    new PartitionObjectFile[F, A, K](rdd, cfg.withFormat(JavaObject), bucketing, pathBuilder)
+
+// 15
+  def protobuf(implicit ev: A <:< GeneratedMessage): PartitionProtobuf[F, A, K] =
+    new PartitionProtobuf[F, A, K](rdd, cfg.withFormat(ProtoBuf), bucketing, pathBuilder)
 }

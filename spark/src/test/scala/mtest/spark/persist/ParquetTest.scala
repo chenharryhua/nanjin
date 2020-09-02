@@ -12,7 +12,7 @@ import org.scalatest.funsuite.AnyFunSuite
 class ParquetTest extends AnyFunSuite {
   import RoosterData._
   val saver = new RddFileHoader[IO, Rooster](rdd)
-  test("rdd read/write identity") {
+  test("datetime rdd read/write identity") {
     val path = "./data/test/spark/persist/parquet/rooster/raw"
     delete(path)
     saver.parquet(path).raw.run(blocker).unsafeRunSync()
@@ -20,7 +20,7 @@ class ParquetTest extends AnyFunSuite {
     assert(expected == r.collect().toSet)
   }
 
-  test("tds read/write identity") {
+  test("datetime tds read/write identity") {
     val path = "./data/test/spark/persist/parquet/rooster/spark"
     delete(path)
     saver.parquet(path).spark.run(blocker).unsafeRunSync()

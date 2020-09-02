@@ -14,15 +14,6 @@ import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 final class SingleFileSource[F[_]](blocker: Blocker, conf: Configuration) {
 
 // 1
-  def avro[A](pathStr: String)(implicit
-    dec: AvroDecoder[A],
-    cs: ContextShift[F],
-    ce: ConcurrentEffect[F]): Stream[F, A] = {
-    val pipe = new GenericRecordDecoder[F, A](dec)
-    new NJHadoop[F](conf, blocker).avroSource(pathStr, dec.schema).through(pipe.decode)
-  }
-
-// 2
   def jackson[A](pathStr: String)(implicit
     dec: AvroDecoder[A],
     cs: ContextShift[F],
@@ -32,30 +23,21 @@ final class SingleFileSource[F[_]](blocker: Blocker, conf: Configuration) {
     new NJHadoop[F](conf, blocker).byteStream(pathStr).through(pipe.deserialize).through(gr.decode)
   }
 
-// 3
-  def parquet[A: TypedEncoder](pathStr: String)(implicit
-    dec: AvroDecoder[A],
-    F: Sync[F],
-    cs: ContextShift[F]): Stream[F, A] = {
-    val pipe = new GenericRecordDecoder[F, A](dec)
-    new NJHadoop[F](conf, blocker).parquetSource(pathStr, dec.schema).through(pipe.decode)
-  }
-
-// 4
+// 2
   def circe[A: JsonDecoder](
     pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): Stream[F, A] = {
     val pipe = new CirceDeserialization[F, A](JsonDecoder[A])
     new NJHadoop[F](conf, blocker).byteStream(pathStr).through(pipe.deserialize)
   }
 
-// 5
+// 3
   def text(
     pathStr: String)(implicit cs: ContextShift[F], ce: ConcurrentEffect[F]): Stream[F, String] = {
     val pipe = new TextDeserialization[F]
     new NJHadoop[F](conf, blocker).byteStream(pathStr).through(pipe.deserialize)
   }
 
-// 6
+// 4
   def csv[A](pathStr: String, csvConfig: CsvConfiguration)(implicit
     dec: RowDecoder[A],
     F: ConcurrentEffect[F],
@@ -70,16 +52,25 @@ final class SingleFileSource[F[_]](blocker: Blocker, conf: Configuration) {
     cs: ContextShift[F]): Stream[F, A] =
     csv[A](pathStr, CsvConfiguration.rfc)
 
-// 7
-  def protobuf[A <: GeneratedMessage](pathStr: String)(implicit
-    cs: ContextShift[F],
-    ce: ConcurrentEffect[F],
-    ev: GeneratedMessageCompanion[A]): Stream[F, A] = {
-    val pipe = new DelimitedProtoBufDeserialization[F, A]()
-    new NJHadoop[F](conf, blocker).byteStream(pathStr).through(pipe.deserialize)
+// 11
+  def parquet[A: TypedEncoder](pathStr: String)(implicit
+    dec: AvroDecoder[A],
+    F: Sync[F],
+    cs: ContextShift[F]): Stream[F, A] = {
+    val pipe = new GenericRecordDecoder[F, A](dec)
+    new NJHadoop[F](conf, blocker).parquetSource(pathStr, dec.schema).through(pipe.decode)
   }
 
-// 8
+// 12
+  def avro[A](pathStr: String)(implicit
+    dec: AvroDecoder[A],
+    cs: ContextShift[F],
+    ce: ConcurrentEffect[F]): Stream[F, A] = {
+    val pipe = new GenericRecordDecoder[F, A](dec)
+    new NJHadoop[F](conf, blocker).avroSource(pathStr, dec.schema).through(pipe.decode)
+  }
+
+// 13
   def binAvro[A](pathStr: String)(implicit
     dec: AvroDecoder[A],
     cs: ContextShift[F],
@@ -89,10 +80,20 @@ final class SingleFileSource[F[_]](blocker: Blocker, conf: Configuration) {
     new NJHadoop[F](conf, blocker).byteStream(pathStr).through(pipe.deserialize).through(gr.decode)
   }
 
-// 9
+// 14
   def javaObject[A](
     pathStr: String)(implicit cs: ContextShift[F], ce: ConcurrentEffect[F]): Stream[F, A] = {
     val pipe = new JavaObjectDeserialization[F, A]
+    new NJHadoop[F](conf, blocker).byteStream(pathStr).through(pipe.deserialize)
+
+  }
+
+// 15
+  def protobuf[A <: GeneratedMessage](pathStr: String)(implicit
+    cs: ContextShift[F],
+    ce: ConcurrentEffect[F],
+    ev: GeneratedMessageCompanion[A]): Stream[F, A] = {
+    val pipe = new DelimitedProtoBufDeserialization[F, A]()
     new NJHadoop[F](conf, blocker).byteStream(pathStr).through(pipe.deserialize)
   }
 }
