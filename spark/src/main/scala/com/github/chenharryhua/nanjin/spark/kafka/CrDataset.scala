@@ -133,10 +133,10 @@ final class CrDataset[F[_], K, V](val dataset: Dataset[OptionalKV[K, V]], cfg: S
   def find(f: OptionalKV[K, V] => Boolean)(implicit F: Sync[F]): F[List[OptionalKV[K, V]]] =
     filter(f).typedDataset.take[F](params.showDs.rowNum).map(_.toList)
 
-  def count(implicit F: SparkDelay[F]): F[Long] =
+  def count(implicit F: Sync[F]): F[Long] =
     typedDataset.count[F]()
 
-  def show(implicit F: SparkDelay[F]): F[Unit] =
+  def show(implicit F: Sync[F]): F[Unit] =
     typedDataset.show[F](params.showDs.rowNum, params.showDs.isTruncate)
 
   def first(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] = F.delay(dataset.rdd.cminOption)
