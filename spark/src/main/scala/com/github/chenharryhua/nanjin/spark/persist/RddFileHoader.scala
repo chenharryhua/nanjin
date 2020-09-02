@@ -23,6 +23,9 @@ final class RddFileHoader[F[_], A: ClassTag](
   def errorIfExists: RddFileHoader[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: RddFileHoader[F, A] = updateConfig(cfg.withIgnore)
 
+  def repartition(num: Int): RddFileHoader[F, A] =
+    new RddFileHoader[F, A](rdd.repartition(num), cfg)
+
 // 1
   def jackson(outPath: String): SaveJackson[F, A] =
     new SaveJackson[F, A](rdd, cfg.withFormat(Jackson).withOutPutPath(outPath))
@@ -40,7 +43,7 @@ final class RddFileHoader[F[_], A: ClassTag](
     new SaveCsv[F, A](rdd, CsvConfiguration.rfc, cfg.withFormat(Csv).withOutPutPath(outPath))
 
 // 5
-  def json(outPath: String) =
+  def json(outPath: String): SaveSparkJson[F, A] =
     new SaveSparkJson[F, A](rdd, cfg.withFormat(SparkJson).withOutPutPath(outPath))
 
 // 11

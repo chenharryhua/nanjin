@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.spark.persist._
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.{Dataset, SparkSession}
+import cats.effect.Sync
 
 final class TableDataset[F[_], A](
   val dataset: Dataset[A],
@@ -29,6 +30,8 @@ final class TableDataset[F[_], A](
     new TableDataset[F, A](dataset, dbSettings, cfg.withPathBuilder(f))
 
   def typedDataset: TypedDataset[A] = TypedDataset.create(dataset)
+
+  def count(implicit F: Sync[F]): F[Long] = F.delay(dataset.count())
 
   def upload: DbUploader[F, A] = new DbUploader[F, A](dataset, dbSettings, ate, cfg)
 

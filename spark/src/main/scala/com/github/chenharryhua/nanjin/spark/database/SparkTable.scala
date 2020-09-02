@@ -89,5 +89,8 @@ final class SparkTable[F[_], A](
     def json(pathStr: String): TableDataset[F, A] =
       tableDataset(loaders.json(pathStr).dataset)
 
+    def jackson(pathStr: String): TableDataset[F, A] =
+      tableDataset(loaders.raw.jackson(pathStr))
+
   }
 }
