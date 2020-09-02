@@ -60,11 +60,13 @@ class ParquetTest extends AnyFunSuite {
     assert(ants.toSet == t.collect().toSet)
   }
 
-  test("collection spark read/write identity (happy failure)") {
+  test("collection spark read/write identity") {
     import AntData._
     val path = "./data/test/spark/persist/avro/ant/spark"
     delete(path)
-    // assertThrows[Throwable](savers.avro(rdd, path))
+    val saver = new RddFileHoader[IO, Ant](rdd)
+    saver.parquet(path).spark.run(blocker).unsafeRunSync()
+    val t = loaders.parquet[Ant](path)
+    assert(ants.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
-
 }

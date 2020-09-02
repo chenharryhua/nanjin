@@ -35,8 +35,8 @@ val akkaKafka   = "2.0.4"
 val fs2Kafka    = "1.0.0"
 
 // spark
-val spark24   = "2.4.6"
-val frameless = "0.8.0"
+val spark24   = "3.0.0"
+val frameless = "0.9.0-SNAPSHOT"
 
 // database
 val doobie   = "0.9.0"
@@ -47,7 +47,7 @@ val elastic  = "7.9.0"
 // format
 val circe   = "0.13.0"
 val jackson = "2.11.2"
-val json4s  = "3.5.5"
+val json4s  = "3.6.9"  // for spark
 val kantan  = "0.6.1"
 val parquet = "1.11.1"
 val avro    = "1.10.0"

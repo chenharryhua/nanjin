@@ -30,11 +30,12 @@ object utils {
       case pm             => StructType(List(StructField(pm.typeName, pm, nullable = false)))
     }
 
-    val re: ExpressionEncoder[Row] = RowEncoder.apply(structType).resolveAndBind()
+    val enRow: ExpressionEncoder.Deserializer[Row] =
+      RowEncoder.apply(structType).resolveAndBind().createDeserializer()
     val rows: RDD[Row] = rdd.mapPartitions { iter =>
       val sa = new AvroDeserializer(encoder.schema, datatype)
       iter.map { a =>
-        re.fromRow(sa.deserialize(encoder.encode(a)).asInstanceOf[InternalRow])
+        enRow(sa.deserialize(encoder.encode(a)).asInstanceOf[InternalRow])
       }
     }
     ss.createDataFrame(rows, structType)

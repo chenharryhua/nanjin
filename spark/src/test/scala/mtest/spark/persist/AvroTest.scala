@@ -65,8 +65,13 @@ class AvroTest extends AnyFunSuite {
     assert(ants.toSet == t.collect().toSet)
   }
 
-  test("collection spark read/write identity (happy failure)") {
+  test("collection spark read/write identity") {
+    import AntData._
     val path = "./data/test/spark/persist/avro/ant/spark"
     delete(path)
+    val saver = new RddFileHoader[IO, Ant](rdd)
+    saver.avro(path).spark.folder.run(blocker).unsafeRunSync()
+    val t = loaders.avro[Ant](path)
+    assert(ants.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
 }
