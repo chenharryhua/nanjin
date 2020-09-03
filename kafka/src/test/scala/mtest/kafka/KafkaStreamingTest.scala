@@ -1,7 +1,7 @@
 package mtest.kafka
 
 import cats.effect.IO
-import cats.implicits._
+import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJSerdeConfig, SerdeOf}
 import org.apache.kafka.common.serialization.Serde

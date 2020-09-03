@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
 import akka.kafka.ProducerMessage.{MultiMessage => AkkaMultiMessage}
-import cats.implicits._
+import cats.syntax.all._
 import cats.{Applicative, Bitraverse, Eval}
 import fs2.Chunk
 import fs2.kafka.{

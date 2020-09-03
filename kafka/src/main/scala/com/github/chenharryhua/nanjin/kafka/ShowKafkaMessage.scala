@@ -4,7 +4,7 @@ import java.time.ZoneId
 
 import akka.kafka.ConsumerMessage.CommittableMessage
 import cats.Show
-import cats.implicits._
+import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.messages.kafka._
 import com.sksamuel.avro4s.Record

@@ -11,7 +11,6 @@ import com.github.chenharryhua.nanjin.pipes.{
 import com.sksamuel.avro4s.AvroSchema
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
-import cats.implicits._
 import com.sksamuel.avro4s.Encoder
 import com.sksamuel.avro4s.Decoder
 

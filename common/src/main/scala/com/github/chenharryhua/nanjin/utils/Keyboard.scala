@@ -4,7 +4,7 @@ import cats.effect.{Concurrent, Sync}
 import fs2.Stream
 import fs2.concurrent.Signal
 import org.jline.terminal.{Terminal, TerminalBuilder}
-import cats.implicits._
+import cats.syntax.all._
 
 object Keyboard {
   val pauSe: Char    = 's'

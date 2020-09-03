@@ -1,7 +1,6 @@
 package mtest
 
 import cats.effect.IO
-import cats.implicits._
 import com.github.chenharryhua.nanjin.pipes.{CsvDeserialization, CsvSerialization}
 import fs2.Stream
 import kantan.csv._

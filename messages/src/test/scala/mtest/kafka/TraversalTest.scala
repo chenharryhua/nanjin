@@ -2,7 +2,6 @@ package mtest.kafka
 
 import akka.kafka.ProducerMessage.{MultiMessage => AkkaMultiMessage}
 import cats.effect.IO
-import cats.implicits._
 import com.github.chenharryhua.nanjin.messages.kafka._
 import fs2.kafka.{
   CommittableProducerRecords => Fs2CommittableProducerRecords,

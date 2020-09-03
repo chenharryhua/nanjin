@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.{Eq, Show}
-import cats.implicits._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.common.NJFileFormat._
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec

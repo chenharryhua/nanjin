@@ -1,7 +1,6 @@
 package com.landoop.transportation.nyc.trip.yellow
 
-import cats.Show
-import cats.implicits._ 
+import cats.Show 
 
 case class trip_record(
   VendorID: Int,

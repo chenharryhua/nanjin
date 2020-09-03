@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.implicits._
+import cats.syntax.all._
 import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.messages.kafka._
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJAvroCodec, SerdeOf}

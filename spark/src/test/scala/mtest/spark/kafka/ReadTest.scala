@@ -17,7 +17,7 @@ import scala.util.Random
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import io.circe.generic.auto._
 import cats.derived.auto.eq._
-import cats.implicits._
+import cats.syntax.all._
 import frameless.TypedEncoder
 
 object ReadTestData {

@@ -1,7 +1,6 @@
 package mtest
 
 import cats.effect.{Blocker, ContextShift, IO, Timer}
-import cats.implicits._
 import com.github.chenharryhua.nanjin.kafka.{IoKafkaContext, KafkaSettings, KafkaTopic}
 import org.apache.kafka.clients.consumer.ConsumerConfig
 

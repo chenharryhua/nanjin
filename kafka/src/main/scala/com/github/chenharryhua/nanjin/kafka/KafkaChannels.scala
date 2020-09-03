@@ -8,7 +8,7 @@ import akka.kafka.{
 import akka.stream.Materializer
 import cats.data.{NonEmptyList, Reader}
 import cats.effect._
-import cats.implicits._
+import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.utils
 import fs2.Stream

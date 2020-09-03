@@ -5,7 +5,7 @@ import java.time.temporal.ChronoUnit
 
 import cats.derived.auto.show._
 import cats.effect.IO
-import cats.implicits._
+import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.spark.kafka._
 import fs2.kafka.ProducerRecord

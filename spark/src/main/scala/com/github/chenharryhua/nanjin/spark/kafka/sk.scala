@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import java.util
 
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
-import cats.implicits._
+import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaOffsetRange, KafkaTopic, KafkaTopicPartition}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJProducerRecord, OptionalKV}

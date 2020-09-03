@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
-import cats.implicits._
+import cats.syntax.all._
 import com.github.chenharryhua.nanjin.messages.kafka._
 
 import scala.util.{Success, Try}

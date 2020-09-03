@@ -1,6 +1,4 @@
 package mtest.kafka
-
-import cats.implicits._
 import fs2.kafka.{ConsumerRecord => Fs2ConsumerRecord, ProducerRecord => Fs2ProducerRecord}
 import monocle.law.discipline.IsoTests
 import org.apache.kafka.clients.consumer.ConsumerRecord
