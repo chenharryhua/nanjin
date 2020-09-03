@@ -50,7 +50,7 @@ class MiscTest extends AnyFunSuite {
 
   }
 
-  test("typed encoder of scalapb generate case class") {
+  ignore("typed encoder of scalapb generate case class") {
     import scalapb.spark.Implicits._
     val pt: TypedEncoder[Whale] = TypedEncoder[Whale] // should compile
     val whales = List(

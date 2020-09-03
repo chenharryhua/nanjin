@@ -33,9 +33,9 @@ trait CrRddInvModule[F[_], K, V] { self: CrRdd[F, K, V] =>
     inv.dupRecords(TypedDataset.create(values.map(CRMetaInfo(_))))
 
   def showJackson(rs: Array[OptionalKV[K, V]])(implicit F: Sync[F]): F[Unit] = {
-    val pipe: JacksonSerialization[F] = new JacksonSerialization[F](AvroSchema[OptionalKV[K, V]])
+    val pipe: JacksonSerialization[F] = new JacksonSerialization[F](codec.schemaForOptionalKV.schema)
     val gre: GenericRecordEncoder[F, OptionalKV[K, V]] =
-      new GenericRecordEncoder[F, OptionalKV[K, V]](AvroEncoder[OptionalKV[K, V]])
+      new GenericRecordEncoder[F, OptionalKV[K, V]](codec.optionalKVEncoder)
 
     Stream
       .emits(rs)

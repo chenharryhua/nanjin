@@ -14,7 +14,7 @@ object AvroTypedEncoderTestData {
 
   implicit val stringCodec: NJAvroCodec[StringWraper] = NJAvroCodec[StringWraper]
   implicit val te: TypedEncoder[StringWraper]         = shapeless.cachedImplicit
-  implicit val ate: AvroTypedEncoder[StringWraper]    = AvroTypedEncoder[StringWraper]
+  implicit val ate: AvroTypedEncoder[StringWraper]    = AvroTypedEncoder[StringWraper](stringCodec)
 
   val rdd: RDD[StringWraper] = sparkSession.sparkContext.parallelize(
     List(StringWraper("a"), StringWraper("b"), StringWraper("c")))

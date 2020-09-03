@@ -14,7 +14,7 @@ final class AvroTypedEncoder[A] private (
 
   val sparkStructType: StructType = utils.schemaToStructType(avroCodec.schema)
 
-  implicit val sparkTypedEncoder: TypedEncoder[A] = new TypedEncoder[A]()(typedEncoder.classTag) {
+  val sparkTypedEncoder: TypedEncoder[A] = new TypedEncoder[A]()(typedEncoder.classTag) {
     override val nullable: Boolean      = typedEncoder.nullable
     override val jvmRepr: DataType      = typedEncoder.jvmRepr
     override val catalystRepr: DataType = sparkStructType
@@ -24,7 +24,7 @@ final class AvroTypedEncoder[A] private (
   }
 
   def fromDF(ds: DataFrame): TypedDataset[A] =
-    TypedDataset.createUnsafe(ds)
+    TypedDataset.createUnsafe(ds)(sparkTypedEncoder)
 
   def normalize(rdd: RDD[A])(implicit ss: SparkSession): TypedDataset[A] =
     fromDF(utils.normalizedDF(rdd, avroCodec.avroEncoder))
@@ -36,7 +36,7 @@ final class AvroTypedEncoder[A] private (
 
 object AvroTypedEncoder {
 
-  def apply[A](implicit t: TypedEncoder[A], c: NJAvroCodec[A]): AvroTypedEncoder[A] =
+  def apply[A](t: TypedEncoder[A], c: NJAvroCodec[A]): AvroTypedEncoder[A] =
     new AvroTypedEncoder[A](c, t)
 
   def apply[A](c: NJAvroCodec[A])(implicit t: TypedEncoder[A]): AvroTypedEncoder[A] =

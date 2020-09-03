@@ -27,65 +27,54 @@ import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
 
-final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)(implicit
-  val sparkSession: SparkSession,
-  val schemaForKey: SchemaFor[K],
-  val schemaForVal: SchemaFor[V],
-  val keyAvroEncoder: AvroEncoder[K],
-  val keyAvroDecoder: AvroDecoder[K],
-  val valAvroEncoder: AvroEncoder[V],
-  val valAvroDecoder: AvroDecoder[V])
+final class CrRdd[F[_], K, V](
+  val rdd: RDD[OptionalKV[K, V]],
+  val codec: KafkaAvroCodec[K, V],
+  val cfg: SKConfig)(implicit val sparkSession: SparkSession)
     extends SparKafkaUpdateParams[CrRdd[F, K, V]] with CrRddInvModule[F, K, V] {
-
-  implicit private val optionalKVAvroEncoder: AvroEncoder[OptionalKV[K, V]] =
-    shapeless.cachedImplicit
-
-  implicit private val optionalKVAvroDecoder: AvroDecoder[OptionalKV[K, V]] =
-    shapeless.cachedImplicit
-
-  implicit private val schemaForOptionalKV: SchemaFor[OptionalKV[K, V]] =
-    shapeless.cachedImplicit
-
-  implicit private val njAvroCodec: NJAvroCodec[OptionalKV[K, V]] = NJAvroCodec[OptionalKV[K, V]]
 
   override def params: SKParams = cfg.evalConfig
 
   override def withParamUpdate(f: SKConfig => SKConfig): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd, f(cfg))
+    new CrRdd[F, K, V](rdd, codec, f(cfg))
 
   //transformation
 
   def kafkaPartition(num: Int): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd.filter(_.partition === num), cfg)
+    new CrRdd[F, K, V](rdd.filter(_.partition === num), codec, cfg)
 
   def sortBy[A: Order: ClassTag](f: OptionalKV[K, V] => A, ascending: Boolean) =
-    new CrRdd[F, K, V](rdd.sortBy(f, ascending), cfg)
+    new CrRdd[F, K, V](rdd.sortBy(f, ascending), codec, cfg)
 
   def ascending: CrRdd[F, K, V]  = sortBy(identity, ascending = true)
   def descending: CrRdd[F, K, V] = sortBy(identity, ascending = false)
 
   def repartition(num: Int): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd.repartition(num), cfg)
+    new CrRdd[F, K, V](rdd.repartition(num), codec, cfg)
 
   def bimap[K2: AvroEncoder: AvroDecoder: SchemaFor, V2: AvroEncoder: AvroDecoder: SchemaFor](
     k: K => K2,
-    v: V => V2): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](rdd.map(_.bimap(k, v)), cfg)
+    v: V => V2): CrRdd[F, K2, V2] = {
+    val codec = new KafkaAvroCodec[K2, V2](NJAvroCodec[K2], NJAvroCodec[V2])
+    new CrRdd[F, K2, V2](rdd.map(_.bimap(k, v)), codec, cfg)
+  }
 
   def flatMap[K2: AvroEncoder: AvroDecoder: SchemaFor, V2: AvroEncoder: AvroDecoder: SchemaFor](
-    f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](rdd.flatMap(f), cfg)
+    f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]]): CrRdd[F, K2, V2] = {
+    val codec = new KafkaAvroCodec[K2, V2](NJAvroCodec[K2], NJAvroCodec[V2])
+    new CrRdd[F, K2, V2](rdd.flatMap(f), codec, cfg)
+  }
 
   def union(other: RDD[OptionalKV[K, V]]): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd.union(other), cfg)
+    new CrRdd[F, K, V](rdd.union(other), codec, cfg)
 
   def union(other: CrRdd[F, K, V]): CrRdd[F, K, V] = union(other.rdd)
 
   def dismissNulls: CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd.dismissNulls, cfg)
+    new CrRdd[F, K, V](rdd.dismissNulls, codec, cfg)
 
   def inRange(dr: NJDateTimeRange): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd.filter(m => dr.isInBetween(m.timestamp)), cfg.withTimeRange(dr))
+    new CrRdd[F, K, V](rdd.filter(m => dr.isInBetween(m.timestamp)), codec, cfg.withTimeRange(dr))
 
   def inRange: CrRdd[F, K, V] = inRange(params.timeRange)
 
@@ -101,8 +90,10 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
 
   def crDataset(implicit
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): CrDataset[F, K, V] =
-    new CrDataset(typedDataset.dataset, cfg)
+    valEncoder: TypedEncoder[V]): CrDataset[F, K, V] = {
+    val c = new KafkaAvroTypedEncoder[K, V](keyEncoder, valEncoder, codec)
+    new CrDataset(typedDataset.dataset, c, cfg)
+  }
 
   def stream(implicit F: Sync[F]): Stream[F, OptionalKV[K, V]] =
     rdd.stream[F]
@@ -127,15 +118,19 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
       .compile
       .drain
 
-  def save: RddFileHoarder[F, OptionalKV[K, V]] =
+  def save: RddFileHoarder[F, OptionalKV[K, V]] = {
+    implicit val c: NJAvroCodec[OptionalKV[K, V]] = codec.optionalKVCodec
     new RddFileHoarder[F, OptionalKV[K, V]](rdd)
+  }
 
   private def bucketing(kv: OptionalKV[K, V]): Option[LocalDate] =
     Some(NJTimestamp(kv.timestamp).dayResolution(params.timeRange.zoneId))
 
-  def partition: RddPartitionHoarder[F, OptionalKV[K, V], LocalDate] =
+  def partition: RddPartitionHoarder[F, OptionalKV[K, V], LocalDate] = {
+    implicit val c: NJAvroCodec[OptionalKV[K, V]] = codec.optionalKVCodec
     new RddPartitionHoarder[F, OptionalKV[K, V], LocalDate](
       rdd,
       bucketing,
       params.datePartitionPathBuilder(params.topicName, _, _))
+  }
 }

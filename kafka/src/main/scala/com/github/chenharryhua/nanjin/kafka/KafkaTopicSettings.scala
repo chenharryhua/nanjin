@@ -73,13 +73,13 @@ private[kafka] trait KafkaTopicSettings[F[_], K, V] { topic: KafkaTopic[F, K, V]
   // schema registry operations
   def schemaRegister(implicit F: Sync[F]): F[(Option[Int], Option[Int])] =
     new SchemaRegistryApi[F](context.settings.schemaRegistrySettings)
-      .register(topicName, topicDef.keySchemaFor.schema, topicDef.valSchemaFor.schema)
+      .register(topicName, topicDef.schemaForKey.schema, topicDef.schemaForVal.schema)
 
   def schemaDelete(implicit F: Sync[F]): F[(List[Integer], List[Integer])] =
     new SchemaRegistryApi[F](context.settings.schemaRegistrySettings).delete(topicName)
 
   def schemaCompatibility(implicit F: Sync[F]): F[CompatibilityTestReport] =
     new SchemaRegistryApi[F](context.settings.schemaRegistrySettings)
-      .testCompatibility(topicName, topicDef.keySchemaFor.schema, topicDef.valSchemaFor.schema)
+      .testCompatibility(topicName, topicDef.schemaForKey.schema, topicDef.schemaForVal.schema)
 
 }

@@ -6,12 +6,12 @@ import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.{NJProducerRecord, OptionalKV}
-import com.github.chenharryhua.nanjin.spark.{fileSink, AvroTypedEncoder}
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.github.chenharryhua.nanjin.spark.sstream.{KafkaCrSStream, SStreamConfig, SparkSStream}
-import com.sksamuel.avro4s.{Decoder, Encoder, SchemaFor}
+import com.github.chenharryhua.nanjin.spark.{fileSink, AvroTypedEncoder}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.{TypedDataset, TypedEncoder}
+import io.circe.{Decoder => JsonDecoder}
 import org.apache.avro.Schema
 import org.apache.parquet.avro.AvroSchemaConverter
 import org.apache.parquet.schema.MessageType
@@ -20,7 +20,6 @@ import org.apache.spark.sql.avro.SchemaConverters
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.streaming.StreamingContext
-import io.circe.{Decoder => JsonDecoder}
 
 trait SparKafkaUpdateParams[A] extends UpdateParams[SKConfig, A] with Serializable {
   def params: SKParams
@@ -32,15 +31,10 @@ final class SparKafka[F[_], K, V](
   val cfg: SKConfig
 ) extends SparKafkaUpdateParams[SparKafka[F, K, V]] {
 
-  implicit private val avroKeyEncoder: Encoder[K] = topic.topicDef.avroKeyEncoder
-  implicit private val avroValEncoder: Encoder[V] = topic.topicDef.avroValEncoder
-  implicit private val avroKeyDecoder: Decoder[K] = topic.topicDef.avroKeyDecoder
-  implicit private val avroValDecoder: Decoder[V] = topic.topicDef.avroValDecoder
-  implicit private val schemaForKey: SchemaFor[K] = topic.topicDef.keySchemaFor
-  implicit private val schemaForVal: SchemaFor[V] = topic.topicDef.valSchemaFor
-
-  implicit private val optionalKVCodec: NJAvroCodec[OptionalKV[K, V]] =
-    topic.topicDef.optionalKVCodec
+  val codec: KafkaAvroCodec[K, V] =
+    new KafkaAvroCodec[K, V](
+      topic.topicDef.serdeOfKey.avroCodec,
+      topic.topicDef.serdeOfVal.avroCodec)
 
   implicit val ss: SparkSession = sparkSession
 
@@ -49,7 +43,7 @@ final class SparKafka[F[_], K, V](
 
   override val params: SKParams = cfg.evalConfig
 
-  def avroSchema: Schema         = topic.topicDef.schemaForOptionalKV.schema
+  def avroSchema: Schema         = codec.schemaForOptionalKV.schema
   def sparkSchema: DataType      = SchemaConverters.toSqlType(avroSchema).dataType
   def parquetSchema: MessageType = new AvroSchemaConverter().convert(avroSchema)
 
@@ -87,17 +81,21 @@ final class SparKafka[F[_], K, V](
   /**
     * rdd and dataset
     */
-  def crRdd(rdd: RDD[OptionalKV[K, V]]) = new CrRdd[F, K, V](rdd, cfg)
+  def crRdd(rdd: RDD[OptionalKV[K, V]]) = new CrRdd[F, K, V](rdd, codec, cfg)
 
   def crDataset(tds: TypedDataset[OptionalKV[K, V]])(implicit
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): CrDataset[F, K, V] =
-    new CrDataset[F, K, V](tds.dataset, cfg)
+    valEncoder: TypedEncoder[V]): CrDataset[F, K, V] = {
+    val c = new KafkaAvroTypedEncoder[K, V](keyEncoder, valEncoder, codec)
+    new CrDataset[F, K, V](tds.dataset, c, cfg)
+  }
 
   def crDataset(ds: Dataset[OptionalKV[K, V]])(implicit
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): CrDataset[F, K, V] =
-    new CrDataset[F, K, V](ds, cfg)
+    valEncoder: TypedEncoder[V]): CrDataset[F, K, V] = {
+    val c = new KafkaAvroTypedEncoder[K, V](keyEncoder, valEncoder, codec)
+    new CrDataset[F, K, V](ds, c, cfg)
+  }
 
   def prDataset(tds: TypedDataset[NJProducerRecord[K, V]])(implicit
     keyEncoder: TypedEncoder[K],
@@ -119,28 +117,27 @@ final class SparKafka[F[_], K, V](
         keyEncoder: TypedEncoder[K],
         valEncoder: TypedEncoder[V]): CrDataset[F, K, V] =
         crDataset(
-          loaders.avro(pathStr)(
-            AvroTypedEncoder[OptionalKV[K, V]](topic.topicDef.optionalKVCodec),
-            sparkSession))
+          loaders
+            .avro(pathStr)(AvroTypedEncoder[OptionalKV[K, V]](codec.optionalKVCodec), sparkSession))
 
       def parquet(pathStr: String)(implicit
         keyEncoder: TypedEncoder[K],
         valEncoder: TypedEncoder[V]): CrDataset[F, K, V] =
         crDataset(
           loaders.parquet(pathStr)(
-            AvroTypedEncoder[OptionalKV[K, V]](topic.topicDef.optionalKVCodec),
+            AvroTypedEncoder[OptionalKV[K, V]](codec.optionalKVCodec),
             sparkSession))
 
       def json(pathStr: String)(implicit
         keyEncoder: TypedEncoder[K],
         valEncoder: TypedEncoder[V]): CrDataset[F, K, V] =
         crDataset(
-          loaders.json(pathStr)(
-            AvroTypedEncoder[OptionalKV[K, V]](topic.topicDef.optionalKVCodec),
-            sparkSession))
+          loaders
+            .json(pathStr)(AvroTypedEncoder[OptionalKV[K, V]](codec.optionalKVCodec), sparkSession))
     }
 
     object rdd {
+      implicit private val optionalKV: NJAvroCodec[OptionalKV[K, V]] = codec.optionalKVCodec
 
       def avro(pathStr: String): CrRdd[F, K, V] =
         crRdd(loaders.raw.avro[OptionalKV[K, V]](pathStr))
