@@ -2,9 +2,7 @@ package mtest.spark.persist
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddFileHoarder}
-import frameless.TypedDataset
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
-import org.apache.spark.rdd.RDD
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
