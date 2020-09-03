@@ -17,7 +17,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   OptionalKV
 }
 import com.github.chenharryhua.nanjin.spark.RddExt
-import com.github.chenharryhua.nanjin.spark.persist.{RddFileHoader, RddPartitionHoarder}
+import com.github.chenharryhua.nanjin.spark.persist.{RddFileHoarder, RddPartitionHoarder}
 import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
 import frameless.cats.implicits.rddOps
 import frameless.{TypedDataset, TypedEncoder}
@@ -127,8 +127,8 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
       .compile
       .drain
 
-  def save: RddFileHoader[F, OptionalKV[K, V]] =
-    new RddFileHoader[F, OptionalKV[K, V]](rdd)
+  def save: RddFileHoarder[F, OptionalKV[K, V]] =
+    new RddFileHoarder[F, OptionalKV[K, V]](rdd)
 
   private def bucketing(kv: OptionalKV[K, V]): Option[LocalDate] =
     Some(NJTimestamp(kv.timestamp).dayResolution(params.timeRange.zoneId))

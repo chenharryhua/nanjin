@@ -11,20 +11,20 @@ import scalapb.GeneratedMessage
 
 import scala.reflect.ClassTag
 
-final class RddFileHoader[F[_], A: ClassTag](
+final class RddFileHoarder[F[_], A: ClassTag](
   rdd: RDD[A],
   cfg: HoarderConfig = HoarderConfig.default)(implicit codec: NJAvroCodec[A], ss: SparkSession)
     extends Serializable {
 
-  private def updateConfig(cfg: HoarderConfig): RddFileHoader[F, A] =
-    new RddFileHoader[F, A](rdd, cfg)
+  private def updateConfig(cfg: HoarderConfig): RddFileHoarder[F, A] =
+    new RddFileHoarder[F, A](rdd, cfg)
 
-  def overwrite: RddFileHoader[F, A]      = updateConfig(cfg.withOverwrite)
-  def errorIfExists: RddFileHoader[F, A]  = updateConfig(cfg.withError)
-  def ignoreIfExists: RddFileHoader[F, A] = updateConfig(cfg.withIgnore)
+  def overwrite: RddFileHoarder[F, A]      = updateConfig(cfg.withOverwrite)
+  def errorIfExists: RddFileHoarder[F, A]  = updateConfig(cfg.withError)
+  def ignoreIfExists: RddFileHoarder[F, A] = updateConfig(cfg.withIgnore)
 
-  def repartition(num: Int): RddFileHoader[F, A] =
-    new RddFileHoader[F, A](rdd.repartition(num), cfg)
+  def repartition(num: Int): RddFileHoarder[F, A] =
+    new RddFileHoarder[F, A](rdd.repartition(num), cfg)
 
 // 1
   def jackson(outPath: String): SaveJackson[F, A] =

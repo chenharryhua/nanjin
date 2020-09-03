@@ -1,7 +1,7 @@
 package mtest.spark.persist
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddFileHoader}
+import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddFileHoarder}
 import frameless.TypedDataset
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import org.apache.spark.rdd.RDD
@@ -11,7 +11,7 @@ import org.scalatest.funsuite.AnyFunSuite
 @DoNotDiscover
 class ParquetTest extends AnyFunSuite {
   import RoosterData._
-  val saver = new RddFileHoader[IO, Rooster](rdd)
+  val saver = new RddFileHoarder[IO, Rooster](rdd)
   test("datetime rdd read/write identity") {
     val path = "./data/test/spark/persist/parquet/rooster/raw"
     delete(path)
@@ -33,7 +33,7 @@ class ParquetTest extends AnyFunSuite {
     import cats.implicits._
     val path = "./data/test/spark/persist/parquet/bee/raw"
     delete(path)
-    val saver = new RddFileHoader[IO, Bee](rdd)
+    val saver = new RddFileHoarder[IO, Bee](rdd)
     saver.parquet(path).raw.run(blocker).unsafeRunSync()
     val t = loaders.raw.parquet[Bee](path)
     assert(bees.sortBy(_.b).zip(t.collect().toList.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
@@ -44,7 +44,7 @@ class ParquetTest extends AnyFunSuite {
     import cats.implicits._
     val path = "./data/test/spark/persist/parquet/bee/spark"
     delete(path)
-    val saver = new RddFileHoader[IO, Bee](rdd)
+    val saver = new RddFileHoarder[IO, Bee](rdd)
     saver.parquet(path).spark.run(blocker).unsafeRunSync()
     val t = loaders.parquet[Bee](path).collect[IO].unsafeRunSync().toList
     assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
@@ -54,7 +54,7 @@ class ParquetTest extends AnyFunSuite {
     import AntData._
     val path = "./data/test/spark/persist/parquet/ant/raw"
     delete(path)
-    val saver = new RddFileHoader[IO, Ant](rdd)
+    val saver = new RddFileHoarder[IO, Ant](rdd)
     saver.parquet(path).raw.run(blocker).unsafeRunSync()
     val t = loaders.raw.parquet[Ant](path)
     assert(ants.toSet == t.collect().toSet)
@@ -64,7 +64,7 @@ class ParquetTest extends AnyFunSuite {
     import AntData._
     val path = "./data/test/spark/persist/avro/ant/spark"
     delete(path)
-    val saver = new RddFileHoader[IO, Ant](rdd)
+    val saver = new RddFileHoarder[IO, Ant](rdd)
     saver.parquet(path).spark.run(blocker).unsafeRunSync()
     val t = loaders.parquet[Ant](path)
     assert(ants.toSet == t.collect[IO]().unsafeRunSync().toSet)

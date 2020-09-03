@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.spark
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.avro.SchemaConverters
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.types.{DataType, StructType}
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
@@ -13,14 +12,12 @@ final class AvroTypedEncoder[A] private (
   typedEncoder: TypedEncoder[A])
     extends Serializable {
 
-  val sparkDatatype: DataType = SchemaConverters.toSqlType(avroCodec.schema).dataType
-
-  val sparkStructType: StructType = sparkDatatype.asInstanceOf[StructType]
+  val sparkStructType: StructType = utils.schemaToStructType(avroCodec.schema)
 
   implicit val sparkTypedEncoder: TypedEncoder[A] = new TypedEncoder[A]()(typedEncoder.classTag) {
     override val nullable: Boolean      = typedEncoder.nullable
     override val jvmRepr: DataType      = typedEncoder.jvmRepr
-    override val catalystRepr: DataType = sparkDatatype
+    override val catalystRepr: DataType = sparkStructType
 
     override def fromCatalyst(path: Expression): Expression = typedEncoder.fromCatalyst(path)
     override def toCatalyst(path: Expression): Expression   = typedEncoder.toCatalyst(path)

@@ -1,7 +1,7 @@
 package mtest.spark.persist
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddFileHoader}
+import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddFileHoarder}
 import frameless.TypedDataset
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import org.apache.spark.rdd.RDD
@@ -15,7 +15,7 @@ class AvroTest extends AnyFunSuite {
     import RoosterData._
     val path = "./data/test/spark/persist/avro/rooster/raw"
     delete(path)
-    val saver = new RddFileHoader[IO, Rooster](rdd)
+    val saver = new RddFileHoarder[IO, Rooster](rdd)
     saver.avro(path).raw.folder.run(blocker).unsafeRunSync()
     val r: RDD[Rooster]          = loaders.raw.avro[Rooster](path)
     val t: TypedDataset[Rooster] = loaders.avro[Rooster](path)
@@ -27,7 +27,7 @@ class AvroTest extends AnyFunSuite {
     import RoosterData._
     val path = "./data/test/spark/persist/avro/rooster/spark"
     delete(path)
-    val saver = new RddFileHoader[IO, Rooster](rdd)
+    val saver = new RddFileHoarder[IO, Rooster](rdd)
     saver.avro(path).spark.folder.run(blocker).unsafeRunSync()
     val t: TypedDataset[Rooster] = loaders.avro[Rooster](path)
     assert(expected == t.collect[IO]().unsafeRunSync().toSet)
@@ -38,7 +38,7 @@ class AvroTest extends AnyFunSuite {
     import cats.implicits._
     val path = "./data/test/spark/persist/avro/bee/raw"
     delete(path)
-    val saver = new RddFileHoader[IO, Bee](rdd)
+    val saver = new RddFileHoarder[IO, Bee](rdd)
     saver.avro(path).raw.folder.run(blocker).unsafeRunSync()
     val t = loaders.raw.avro[Bee](path)
     assert(bees.sortBy(_.b).zip(t.collect().toList.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
@@ -49,7 +49,7 @@ class AvroTest extends AnyFunSuite {
     import cats.implicits._
     val path = "./data/test/spark/persist/avro/bee/spark.avro"
     delete(path)
-    val saver = new RddFileHoader[IO, Bee](rdd)
+    val saver = new RddFileHoarder[IO, Bee](rdd)
     saver.avro(path).spark.file.run(blocker).unsafeRunSync()
     val t = loaders.avro[Bee](path).collect[IO].unsafeRunSync().toList
     assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
@@ -59,7 +59,7 @@ class AvroTest extends AnyFunSuite {
     import AntData._
     val path = "./data/test/spark/persist/avro/ant/raw.avro"
     delete(path)
-    val saver = new RddFileHoader[IO, Ant](rdd)
+    val saver = new RddFileHoarder[IO, Ant](rdd)
     saver.avro(path).raw.file.run(blocker).unsafeRunSync()
     val t = loaders.raw.avro[Ant](path)
     assert(ants.toSet == t.collect().toSet)
@@ -69,7 +69,7 @@ class AvroTest extends AnyFunSuite {
     import AntData._
     val path = "./data/test/spark/persist/avro/ant/spark"
     delete(path)
-    val saver = new RddFileHoader[IO, Ant](rdd)
+    val saver = new RddFileHoarder[IO, Ant](rdd)
     saver.avro(path).spark.folder.run(blocker).unsafeRunSync()
     val t = loaders.avro[Ant](path)
     assert(ants.toSet == t.collect[IO]().unsafeRunSync().toSet)

@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark
 
 import com.sksamuel.avro4s.{ToRecord, Encoder => AvroEncoder}
+import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.apache.avro.mapred.AvroKey
 import org.apache.hadoop.io.NullWritable
@@ -21,19 +22,23 @@ object utils {
       rcds.map(rcd => (new AvroKey[GenericRecord](to.to(rcd)), NullWritable.get()))
     }
 
+  // primitive types?
+  def schemaToStructType(schema: Schema): StructType =
+    SchemaConverters.toSqlType(schema).dataType match {
+      case st: StructType => st
+      case pt =>
+        throw new Exception(s"${pt.toString} can not be convert to spark struct type")
+    }
+
   @SuppressWarnings(Array("AsInstanceOf"))
   def normalizedDF[A](rdd: RDD[A], encoder: AvroEncoder[A])(implicit
     ss: SparkSession): DataFrame = {
-    val datatype: DataType = SchemaConverters.toSqlType(encoder.schema).dataType
-    val structType: StructType = datatype match {
-      case st: StructType => st
-      case pm             => StructType(List(StructField(pm.typeName, pm, nullable = false)))
-    }
+    val structType: StructType = schemaToStructType(encoder.schema)
 
     val enRow: ExpressionEncoder.Deserializer[Row] =
       RowEncoder.apply(structType).resolveAndBind().createDeserializer()
     val rows: RDD[Row] = rdd.mapPartitions { iter =>
-      val sa = new AvroDeserializer(encoder.schema, datatype)
+      val sa = new AvroDeserializer(encoder.schema, structType)
       iter.map { a =>
         enRow(sa.deserialize(encoder.encode(a)).asInstanceOf[InternalRow])
       }

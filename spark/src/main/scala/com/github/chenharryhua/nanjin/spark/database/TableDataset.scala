@@ -35,7 +35,7 @@ final class TableDataset[F[_], A](
 
   def upload: DbUploader[F, A] = new DbUploader[F, A](dataset, dbSettings, ate, cfg)
 
-  def save: RddFileHoader[F, A] = new RddFileHoader[F, A](dataset.rdd)
+  def save: RddFileHoarder[F, A] = new RddFileHoarder[F, A](dataset.rdd)
 
   def partition =
     new RddPartitionHoarder[F, A, Unit](
