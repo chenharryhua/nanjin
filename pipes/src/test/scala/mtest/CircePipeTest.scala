@@ -1,7 +1,6 @@
 package mtest
 
 import cats.effect.IO
-import cats.implicits._
 import com.github.chenharryhua.nanjin.pipes.{CirceDeserialization, CirceSerialization}
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite

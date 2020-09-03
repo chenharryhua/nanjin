@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.{Blocker, Concurrent, ContextShift}
-import cats.implicits._
 import cats.{Eq, Parallel}
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec

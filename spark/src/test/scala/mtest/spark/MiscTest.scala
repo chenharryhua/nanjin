@@ -10,7 +10,6 @@ import mtest.spark.pb.test.Whale
 import org.apache.spark.sql.SaveMode
 import org.scalatest.funsuite.AnyFunSuite
 import cats.derived.auto.eq._
-import cats.implicits._
 
 import scala.util.Random
 

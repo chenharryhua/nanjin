@@ -2,7 +2,7 @@ package mtest.kafka
 
 import akka.Done
 import cats.effect.IO
-import cats.implicits._
+import cats.syntax.all._
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.scalatest.funsuite.AnyFunSuite
 import fs2.kafka.{ProducerRecords => Fs2ProducerRecords, ProducerRecord => Fs2ProducerRecord}

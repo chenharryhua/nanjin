@@ -5,7 +5,7 @@ import akka.kafka.ConsumerMessage.{
   TransactionalMessage => AkkaTransactionalMessage
 }
 import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage}
-import cats.implicits._
+import cats.syntax.all._
 import cats.{Applicative, Bitraverse, Eval}
 import fs2.kafka.{
   CommittableConsumerRecord => Fs2CommittableConsumerRecord,

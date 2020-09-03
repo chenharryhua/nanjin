@@ -4,7 +4,7 @@ import akka.NotUsed
 import akka.kafka.ProducerMessage
 import cats.Traverse
 import cats.effect.{ConcurrentEffect, ContextShift, Resource}
-import cats.implicits._
+import cats.syntax.all._
 import fs2.kafka.{
   producerResource,
   KafkaProducer   => Fs2KafkaProducer,

@@ -1,6 +1,4 @@
 package mtest.spark.kafka
-
-import cats.implicits._
 import com.landoop.transportation.nyc.trip.yellow.trip_record
 import com.github.chenharryhua.nanjin.kafka.TopicName
 

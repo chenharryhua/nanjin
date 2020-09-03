@@ -1,7 +1,6 @@
 package mtest.kafka
 
-import cats.Show
-import cats.implicits._  
+import cats.Show  
 
 case class Payment(
   id: String,

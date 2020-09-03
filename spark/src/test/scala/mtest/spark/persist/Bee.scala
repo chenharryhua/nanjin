@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.sksamuel.avro4s.{Decoder, Encoder}
 import frameless.TypedEncoder
-import cats.implicits._
+import cats.syntax.all._
 
 final case class Bee(a: Array[Byte], b: Int)
 

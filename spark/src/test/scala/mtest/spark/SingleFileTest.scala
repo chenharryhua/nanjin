@@ -2,7 +2,7 @@ package mtest.spark
 
 import better.files._
 import cats.effect.IO
-import cats.implicits._
+import cats.syntax.all._
 import com.github.chenharryhua.nanjin.spark._
 import frameless.cats.implicits._
 import fs2.Stream

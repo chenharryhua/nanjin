@@ -1,6 +1,4 @@
 package mtest
-
-import cats.implicits._
 import mtest.pb.test.Lion
 
 import scala.util.Random

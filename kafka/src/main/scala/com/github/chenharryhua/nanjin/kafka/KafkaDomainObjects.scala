@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import java.{lang, util}
 
-import cats.implicits._
+import cats.syntax.all._
 import cats.{Order, PartialOrder, Show}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import eu.timepit.refined.api.Refined

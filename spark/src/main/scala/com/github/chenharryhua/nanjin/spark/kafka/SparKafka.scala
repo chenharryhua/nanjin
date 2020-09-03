@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync, Timer}
-import cats.implicits._
+import cats.syntax.all._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec

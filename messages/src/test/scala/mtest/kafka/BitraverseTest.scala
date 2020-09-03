@@ -3,7 +3,6 @@ package mtest.kafka
 import akka.kafka.{ConsumerMessage => AkkaConsumerMessage, ProducerMessage => AkkaProducerMessage}
 import cats.Id
 import cats.effect.IO
-import cats.implicits._
 import cats.laws.discipline.BitraverseTests
 import fs2.kafka.{
   CommittableConsumerRecord => Fs2CommittableConsumerRecord,

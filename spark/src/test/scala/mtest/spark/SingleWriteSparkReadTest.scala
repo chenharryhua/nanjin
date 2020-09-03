@@ -3,7 +3,7 @@ package mtest.spark
 import java.time.LocalDateTime
 
 import cats.effect.IO
-import cats.implicits._
+import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.injection._

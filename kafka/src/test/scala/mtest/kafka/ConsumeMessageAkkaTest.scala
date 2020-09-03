@@ -3,7 +3,7 @@ package mtest.kafka
 import java.time.LocalDateTime
 
 import cats.derived.auto.show._
-import cats.implicits._
+import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.{KafkaOffset, TopicName, _}
 import org.scalatest.funsuite.AnyFunSuite
 import cats.effect.IO

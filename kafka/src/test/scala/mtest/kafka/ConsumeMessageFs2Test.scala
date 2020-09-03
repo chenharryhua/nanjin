@@ -1,7 +1,7 @@
 package mtest.kafka
 
 import cats.derived.auto.show._
-import cats.implicits._
+import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.{TopicName, _}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, NJAvroCodec}
 import com.landoop.telecom.telecomitalia.telecommunications.{smsCallInternet, Key}

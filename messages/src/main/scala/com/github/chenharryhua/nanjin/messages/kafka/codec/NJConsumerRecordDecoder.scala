@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
 import cats.data.{Chain, Writer}
-import cats.implicits._
+import cats.syntax.all._
 import com.github.chenharryhua.nanjin.messages.kafka._
 import org.apache.kafka.common.serialization.Deserializer
 

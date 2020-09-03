@@ -1,7 +1,6 @@
 package mtest.spark.persist
 
 import cats.effect.IO
-import cats.implicits._
 import com.github.chenharryhua.nanjin.spark.injection._
 import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddFileHoader}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
