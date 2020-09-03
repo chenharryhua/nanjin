@@ -2,9 +2,7 @@ package mtest.spark.persist
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddFileHoarder}
-import frameless.TypedDataset
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
-import org.apache.spark.rdd.RDD
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -16,16 +14,16 @@ class ParquetTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/parquet/rooster/raw"
     delete(path)
     saver.parquet(path).raw.run(blocker).unsafeRunSync()
-    val r: RDD[Rooster] = loaders.raw.parquet[Rooster](path)
-    assert(expected == r.collect().toSet)
+    val r = loaders.raw.parquet[Rooster](path).collect().toSet
+    assert(expected == r)
   }
 
   test("datetime tds read/write identity") {
     val path = "./data/test/spark/persist/parquet/rooster/spark"
     delete(path)
     saver.parquet(path).spark.run(blocker).unsafeRunSync()
-    val t: TypedDataset[Rooster] = loaders.parquet[Rooster](path)
-    assert(expected == t.collect[IO]().unsafeRunSync().toSet)
+    val t = loaders.parquet[Rooster](path).collect[IO]().unsafeRunSync().toSet
+    assert(expected == t)
   }
 
   test("byte-array rdd read/write identity") {
@@ -35,8 +33,8 @@ class ParquetTest extends AnyFunSuite {
     delete(path)
     val saver = new RddFileHoarder[IO, Bee](rdd)
     saver.parquet(path).raw.run(blocker).unsafeRunSync()
-    val t = loaders.raw.parquet[Bee](path)
-    assert(bees.sortBy(_.b).zip(t.collect().toList.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
+    val t = loaders.raw.parquet[Bee](path).collect().toList
+    assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
 
   test("byte-array spark read/write identity") {
@@ -56,8 +54,8 @@ class ParquetTest extends AnyFunSuite {
     delete(path)
     val saver = new RddFileHoarder[IO, Ant](rdd)
     saver.parquet(path).raw.run(blocker).unsafeRunSync()
-    val t = loaders.raw.parquet[Ant](path)
-    assert(ants.toSet == t.collect().toSet)
+    val t = loaders.raw.parquet[Ant](path).collect().toSet
+    assert(ants.toSet == t)
   }
 
   test("collection spark read/write identity") {
@@ -66,7 +64,7 @@ class ParquetTest extends AnyFunSuite {
     delete(path)
     val saver = new RddFileHoarder[IO, Ant](rdd)
     saver.parquet(path).spark.run(blocker).unsafeRunSync()
-    val t = loaders.parquet[Ant](path)
-    assert(ants.toSet == t.collect[IO]().unsafeRunSync().toSet)
+    val t = loaders.parquet[Ant](path).collect[IO]().unsafeRunSync().toSet
+    assert(ants.toSet == t)
   }
 }

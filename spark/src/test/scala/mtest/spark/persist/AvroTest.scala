@@ -17,10 +17,10 @@ class AvroTest extends AnyFunSuite {
     delete(path)
     val saver = new RddFileHoarder[IO, Rooster](rdd)
     saver.avro(path).raw.folder.run(blocker).unsafeRunSync()
-    val r: RDD[Rooster]          = loaders.raw.avro[Rooster](path)
-    val t: TypedDataset[Rooster] = loaders.avro[Rooster](path)
-    assert(expected == r.collect().toSet)
-    assert(expected == t.collect[IO]().unsafeRunSync().toSet)
+    val r = loaders.raw.avro[Rooster](path).collect().toSet
+    val t = loaders.avro[Rooster](path).collect[IO]().unsafeRunSync().toSet
+    assert(expected == r)
+    assert(expected == t)
   }
 
   test("datetime spark read/write identity") {
@@ -29,8 +29,8 @@ class AvroTest extends AnyFunSuite {
     delete(path)
     val saver = new RddFileHoarder[IO, Rooster](rdd)
     saver.avro(path).spark.folder.run(blocker).unsafeRunSync()
-    val t: TypedDataset[Rooster] = loaders.avro[Rooster](path)
-    assert(expected == t.collect[IO]().unsafeRunSync().toSet)
+    val t = loaders.avro[Rooster](path).collect[IO]().unsafeRunSync().toSet
+    assert(expected == t)
   }
 
   test("byte-array rdd read/write identity") {
@@ -40,8 +40,10 @@ class AvroTest extends AnyFunSuite {
     delete(path)
     val saver = new RddFileHoarder[IO, Bee](rdd)
     saver.avro(path).raw.folder.run(blocker).unsafeRunSync()
-    val t = loaders.raw.avro[Bee](path)
-    assert(bees.sortBy(_.b).zip(t.collect().toList.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
+    val t = loaders.raw.avro[Bee](path).collect().toList
+    val r = loaders.avro[Bee](path).collect[IO]().unsafeRunSync.toList
+    assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
+    assert(bees.sortBy(_.b).zip(r.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
 
   test("byte-array spark read/write identity") {
@@ -61,8 +63,10 @@ class AvroTest extends AnyFunSuite {
     delete(path)
     val saver = new RddFileHoarder[IO, Ant](rdd)
     saver.avro(path).raw.file.run(blocker).unsafeRunSync()
-    val t = loaders.raw.avro[Ant](path)
-    assert(ants.toSet == t.collect().toSet)
+    val t = loaders.raw.avro[Ant](path).collect().toSet
+    val r = loaders.avro[Ant](path).collect[IO]().unsafeRunSync().toSet
+    assert(ants.toSet == t)
+    assert(ants.toSet == r)
   }
 
   test("collection spark read/write identity") {
@@ -71,7 +75,7 @@ class AvroTest extends AnyFunSuite {
     delete(path)
     val saver = new RddFileHoarder[IO, Ant](rdd)
     saver.avro(path).spark.folder.run(blocker).unsafeRunSync()
-    val t = loaders.avro[Ant](path)
-    assert(ants.toSet == t.collect[IO]().unsafeRunSync().toSet)
+    val t = loaders.avro[Ant](path).collect[IO]().unsafeRunSync().toSet
+    assert(ants.toSet == t)
   }
 }
