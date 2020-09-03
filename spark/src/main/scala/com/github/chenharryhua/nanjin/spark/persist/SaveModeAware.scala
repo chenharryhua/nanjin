@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.{Blocker, ContextShift, Sync}
-import cats.implicits._
+import cats.syntax.all._
 import com.github.chenharryhua.nanjin.spark.fileSink
 import org.apache.spark.sql.{SaveMode, SparkSession}
 

@@ -4,7 +4,7 @@ import java.io.InputStream
 import java.net.URI
 
 import cats.effect.{Blocker, ContextShift, Resource, Sync}
-import cats.implicits._
+import cats.syntax.all._
 import fs2.io.{readInputStream, writeOutputStream}
 import fs2.{Pipe, Pull, Stream}
 import org.apache.avro.Schema

@@ -1,7 +1,7 @@
 package mtest.kafka
 
 import cats.derived.auto.show._
-import cats.implicits._
+import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka._
 import org.scalatest.Ignore
 import org.scalatest.funsuite.AnyFunSuite

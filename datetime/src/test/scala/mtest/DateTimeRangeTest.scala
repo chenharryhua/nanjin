@@ -9,7 +9,7 @@ import org.scalacheck.{Arbitrary, Cogen, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.Configuration
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
-import cats.implicits._
+import cats.syntax.all._
 
 class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
 

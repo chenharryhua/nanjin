@@ -4,7 +4,7 @@ import java.sql.Date
 import java.time._
 
 import cats.effect.IO
-import cats.implicits._
+import cats.syntax.all._
 import com.github.chenharryhua.nanjin.common.transformers._
 import com.github.chenharryhua.nanjin.database.TableName
 import com.github.chenharryhua.nanjin.datetime._

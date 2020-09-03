@@ -1,7 +1,6 @@
 package mtest.kafka
 
 import cats.derived.auto.eq._
-import cats.implicits._
 import cats.kernel.laws.discipline.{LowerBoundedTests, OrderTests}
 import cats.laws.discipline.BifunctorTests
 import com.github.chenharryhua.nanjin.messages.kafka._

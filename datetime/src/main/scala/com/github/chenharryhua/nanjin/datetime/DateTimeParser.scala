@@ -5,7 +5,7 @@ import java.time.format.DateTimeParseException
 
 import cats.Alternative
 import cats.data.NonEmptyList
-import cats.implicits._
+import cats.syntax.all._
 
 final case class FailedParsers(parsers: NonEmptyList[String]) extends AnyVal {
   def concat(other: FailedParsers): FailedParsers = FailedParsers(parsers ::: other.parsers)

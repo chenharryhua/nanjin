@@ -4,8 +4,9 @@ import java.time.LocalDate
 
 import cats.Eq
 import cats.effect.Sync
-import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.{localdateInstances, NJDateTimeRange, NJTimestamp}
+import cats.syntax.all._
+import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryK,

@@ -4,7 +4,7 @@ import akka.kafka.ConsumerMessage
 import akka.kafka.scaladsl.Consumer
 import akka.stream.scaladsl.Source
 import org.scalatest.funsuite.AnyFunSuite
-import cats.implicits._
+import cats.syntax.all._
 
 import scala.util.Try
 import cats.effect.IO

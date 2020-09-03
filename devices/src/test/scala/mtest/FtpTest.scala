@@ -1,7 +1,7 @@
 package mtest
 
 import cats.effect.IO
-import cats.implicits._
+import cats.syntax.all._
 import com.github.chenharryhua.nanjin.devices.{AkkaFtpDownloader, AkkaFtpUploader}
 import fs2.Stream
 import org.scalatest.Ignore

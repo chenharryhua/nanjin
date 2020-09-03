@@ -4,7 +4,7 @@ import akka.stream.Materializer
 import akka.stream.alpakka.ftp.scaladsl.{Ftp, FtpApi, Ftps, Sftp}
 import akka.stream.alpakka.ftp.{FtpSettings, FtpsSettings, RemoteFileSettings, SftpSettings}
 import cats.effect.{Async, Concurrent, ContextShift}
-import cats.implicits._
+import cats.syntax.all._
 import fs2.{Chunk, Stream}
 import net.schmizz.sshj.SSHClient
 import org.apache.commons.net.ftp.{FTPClient, FTPSClient}

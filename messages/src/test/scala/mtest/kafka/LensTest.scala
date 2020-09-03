@@ -6,7 +6,6 @@ import akka.kafka.ConsumerMessage.{
 }
 import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage}
 import cats.effect.IO
-import cats.implicits._
 import com.github.chenharryhua.nanjin.messages.kafka._
 import fs2.kafka.{
   CommittableConsumerRecord => Fs2CommittableConsumerRecord,

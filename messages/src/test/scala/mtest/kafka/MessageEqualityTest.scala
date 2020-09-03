@@ -1,8 +1,6 @@
 package mtest.kafka
 
 import java.util.Optional
-
-import cats.implicits._
 import cats.kernel.laws.discipline.EqTests
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord

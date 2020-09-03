@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
 import alleycats.Empty
-import cats.implicits._
+import cats.implicits.toShow
 import cats.{Bifunctor, Show}
 import fs2.kafka.{ProducerRecord => Fs2ProducerRecord}
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}

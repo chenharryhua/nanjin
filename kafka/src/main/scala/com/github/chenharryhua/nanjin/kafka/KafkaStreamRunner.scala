@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.data.Reader
 import cats.effect.ConcurrentEffect
 import cats.effect.concurrent.Deferred
-import cats.implicits._
+import cats.syntax.all._
 import fs2.Stream
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.scala.StreamsBuilder

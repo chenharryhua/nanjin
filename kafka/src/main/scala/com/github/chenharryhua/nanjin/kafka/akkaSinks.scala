@@ -6,7 +6,7 @@ import akka.stream.stage.{GraphStageLogic, GraphStageWithMaterializedValue, InHa
 import akka.stream.{Attributes, Inlet, SinkShape}
 import cats.effect.ConcurrentEffect
 import cats.effect.concurrent.Deferred
-import cats.implicits._
+import cats.syntax.all._
 
 object akkaSinks {
 

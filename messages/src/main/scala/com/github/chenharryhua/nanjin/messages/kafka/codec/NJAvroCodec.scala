@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
 import cats.data.Ior
-import cats.implicits._
+import cats.syntax.all._
 import com.sksamuel.avro4s.{
   DecoderHelpers,
   EncoderHelpers,

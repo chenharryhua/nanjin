@@ -1,6 +1,4 @@
 package com.github.chenharryhua.nanjin.common
-
-import cats.instances.int._
 import enumeratum.values.{CatsOrderValueEnum, IntEnum, IntEnumEntry}
 import monocle.Prism
 import monocle.generic.coproduct.coProductPrism

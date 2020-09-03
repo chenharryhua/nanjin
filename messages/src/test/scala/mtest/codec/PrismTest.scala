@@ -1,7 +1,6 @@
 package mtest.codec
 
 import cats.Eq
-import cats.implicits._
 import com.github.chenharryhua.nanjin.messages.kafka._
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KJson
 import monocle.law.discipline.PrismTests

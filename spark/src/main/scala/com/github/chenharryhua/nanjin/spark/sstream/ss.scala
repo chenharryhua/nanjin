@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.sstream
 
 import cats.effect.{Concurrent, Timer}
-import cats.implicits._
+import cats.syntax.all._
 import com.github.chenharryhua.nanjin.utils.Keyboard
 import fs2.Stream
 import org.apache.spark.sql.streaming.{DataStreamWriter, StreamingQueryProgress}

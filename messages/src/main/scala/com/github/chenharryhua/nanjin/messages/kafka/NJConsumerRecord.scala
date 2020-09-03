@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.messages.kafka
 import java.time.Instant
 
 import alleycats.Empty
-import cats.implicits._
+import cats.implicits.catsSyntaxTuple2Semigroupal
 import cats.kernel.{LowerBounded, PartialOrder}
 import cats.{Applicative, Bifunctor, Bitraverse, Eval, Order, Show}
 import com.sksamuel.avro4s.AvroDoc

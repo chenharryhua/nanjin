@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import java.time.ZoneId
 
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Timer}
-import cats.implicits._
+import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage._
 import com.github.chenharryhua.nanjin.messages.kafka._

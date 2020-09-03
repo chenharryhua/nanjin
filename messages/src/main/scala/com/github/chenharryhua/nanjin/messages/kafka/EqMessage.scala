@@ -11,7 +11,7 @@ import akka.kafka.ConsumerMessage.{
 }
 import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage, MultiMessage => AkkaMultiMessage}
 import cats.Eq
-import cats.implicits._
+import cats.syntax.all._
 import fs2.kafka.{
   CommittableConsumerRecord => Fs2CommittableConsumerRecord,
   CommittableOffset => Fs2CommittableOffset,

@@ -5,7 +5,7 @@ import java.time._
 import java.time.temporal.{ChronoUnit, TemporalUnit}
 import java.util.concurrent.TimeUnit
 
-import cats.implicits._
+import cats.syntax.all._
 import cats.{Hash, Order, Show}
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
