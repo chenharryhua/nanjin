@@ -4,7 +4,7 @@ import java.time.{Instant, LocalDate}
 
 import cats.effect.IO
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.messages.kafka.{CompulsoryV, OptionalKV}
+import com.github.chenharryhua.nanjin.spark.kafka.CompulsoryV
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.injection._

@@ -1,13 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
-import com.github.chenharryhua.nanjin.messages.kafka.{
-  CompulsoryK,
-  CompulsoryKV,
-  CompulsoryV,
-  NJProducerRecord,
-  OptionalKV
-}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.sksamuel.avro4s.{Decoder, Encoder, SchemaFor}
 import frameless.TypedEncoder

@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark
 import java.time.ZoneId
 
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
+import com.github.chenharryhua.nanjin.spark.kafka.OptionalKV
 import io.scalaland.chimney.dsl._
 import monocle.macros.Lenses
 

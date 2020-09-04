@@ -6,8 +6,6 @@ import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaOffsetRange, KafkaTopic, KafkaTopicPartition}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJConsumerRecordDecoder
-import com.github.chenharryhua.nanjin.messages.kafka.{NJProducerRecord, OptionalKV}
 import com.github.chenharryhua.nanjin.utils.Keyboard
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Pipe

@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Eq
 import cats.implicits._
-import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, OptionalKV}
 import frameless.cats.implicits._
 import frameless.functions.aggregate.count
 import frameless.{TypedDataset, TypedEncoder}

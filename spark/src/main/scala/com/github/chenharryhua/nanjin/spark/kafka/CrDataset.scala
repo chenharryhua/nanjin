@@ -7,12 +7,6 @@ import cats.effect.Sync
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.{localdateInstances, NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
-import com.github.chenharryhua.nanjin.messages.kafka.{
-  CompulsoryK,
-  CompulsoryKV,
-  CompulsoryV,
-  OptionalKV
-}
 import com.github.chenharryhua.nanjin.spark.persist.{RddFileHoarder, RddPartitionHoarder}
 import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
 import frameless.cats.implicits._

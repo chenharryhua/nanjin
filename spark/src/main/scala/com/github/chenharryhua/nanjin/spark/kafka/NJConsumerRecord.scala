@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.messages.kafka
+package com.github.chenharryhua.nanjin.spark.kafka
 
 import java.time.Instant
 
@@ -6,7 +6,9 @@ import alleycats.Empty
 import cats.implicits.catsSyntaxTuple2Semigroupal
 import cats.kernel.{LowerBounded, PartialOrder}
 import cats.{Applicative, Bifunctor, Bitraverse, Eval, Order, Show}
+import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.sksamuel.avro4s.AvroDoc
+import frameless.TypedEncoder
 import io.scalaland.chimney.dsl._
 import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.ConsumerRecord

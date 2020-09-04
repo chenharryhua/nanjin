@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.messages.kafka
+package com.github.chenharryhua.nanjin.spark.kafka
 
 import alleycats.Empty
 import cats.implicits.toShow

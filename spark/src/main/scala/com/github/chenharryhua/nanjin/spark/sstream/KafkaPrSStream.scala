@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.sstream
 
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
+import com.github.chenharryhua.nanjin.spark.kafka.NJProducerRecord
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
 

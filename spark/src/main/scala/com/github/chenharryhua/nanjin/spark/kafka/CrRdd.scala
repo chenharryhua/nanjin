@@ -10,12 +10,6 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.{localdateInstances, NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
-import com.github.chenharryhua.nanjin.messages.kafka.{
-  CompulsoryK,
-  CompulsoryKV,
-  CompulsoryV,
-  OptionalKV
-}
 import com.github.chenharryhua.nanjin.spark.persist.{RddFileHoarder, RddPartitionHoarder}
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt}
 import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}

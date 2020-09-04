@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.dstream.DStream

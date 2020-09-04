@@ -2,12 +2,7 @@ package mtest.spark.kafka
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
-import com.github.chenharryhua.nanjin.messages.kafka.{
-  CompulsoryK,
-  CompulsoryKV,
-  CompulsoryV,
-  OptionalKV
-}
+import com.github.chenharryhua.nanjin.spark.kafka.CompulsoryKV
 import frameless.TypedDataset
 import org.apache.spark.sql.SaveMode
 import org.scalatest.funsuite.AnyFunSuite

@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.sstream
 
 import cats.effect.{Concurrent, Timer}
 import com.github.chenharryhua.nanjin.kafka.{KafkaProducerSettings, TopicName}
-import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
+import com.github.chenharryhua.nanjin.spark.kafka.NJProducerRecord
 import fs2.Stream
 import monocle.function.At.remove
 import org.apache.kafka.clients.producer.ProducerConfig

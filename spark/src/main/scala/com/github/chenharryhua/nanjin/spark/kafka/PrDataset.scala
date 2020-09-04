@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
 import com.github.chenharryhua.nanjin.spark._
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}

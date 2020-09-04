@@ -5,7 +5,6 @@ import cats.syntax.all._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
-import com.github.chenharryhua.nanjin.messages.kafka.{NJProducerRecord, OptionalKV}
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.github.chenharryhua.nanjin.spark.sstream.{KafkaCrSStream, SStreamConfig, SparkSStream}
 import com.github.chenharryhua.nanjin.spark.{fileSink, AvroTypedEncoder}
