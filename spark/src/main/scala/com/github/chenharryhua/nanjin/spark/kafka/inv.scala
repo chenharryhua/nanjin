@@ -11,6 +11,7 @@ import org.apache.spark.rdd.RDD
 final case class CRMetaInfo(topic: String, partition: Int, offset: Long, timestamp: Long)
 
 object CRMetaInfo {
+  implicit val typedEncoder: TypedEncoder[CRMetaInfo] = shapeless.cachedImplicit
 
   def apply[K, V](cr: NJConsumerRecord[K, V]): CRMetaInfo =
     CRMetaInfo(

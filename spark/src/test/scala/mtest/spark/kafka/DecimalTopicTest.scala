@@ -5,15 +5,11 @@ import java.time.Instant
 import cats.effect.IO
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
-import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
-import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.injection._
 import com.github.chenharryhua.nanjin.spark.kafka._
-import com.sksamuel.avro4s.Encoder
 import frameless.cats.implicits._
 import org.scalatest.funsuite.AnyFunSuite
-import io.circe.generic.auto._
 
 import scala.math.BigDecimal
 import scala.math.BigDecimal.RoundingMode
@@ -84,17 +80,8 @@ class DecimalTopicTest extends AnyFunSuite {
     topic.send(1, data) >> topic.send(2, data)).unsafeRunSync()
 
   test("sparKafka kafka and spark agree on avro") {
-    implicit val e: Encoder[HasDecimal]                   = topic.topicDef.avroValEncoder
-    implicit val e2: Encoder[OptionalKV[Int, HasDecimal]] = shapeless.cachedImplicit
-    val path                                              = "./data/test/spark/kafka/decimal.avro"
-    topic.fs2Channel.stream
-      .map(m => topic.njDecoder.decode(m).run._2)
-      .take(2)
-      .through(fileSink(blocker).avro(path))
-      .compile
-      .drain
-      .unsafeRunSync
-
+    val path = "./data/test/spark/kafka/decimal.avro"
+    topic.sparKafka.fromKafka.flatMap(_.save.avro(path).raw.file.run(blocker)).unsafeRunSync
     assert(topic.sparKafka.load.rdd.avro(path).rdd.collect().head.value.get == expected)
   }
 }

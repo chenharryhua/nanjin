@@ -59,20 +59,22 @@ object AvroTypedEncoderTestData {
   implicit val encoder: TypedEncoder[Lion] = shapeless.cachedImplicit
   implicit val ate: AvroTypedEncoder[Lion] = AvroTypedEncoder[Lion](codec)
 
+  val now = Instant.now
+
   val lions: List[Lion] = List(
-    Lion(1, Instant.now, BigDecimal("1234.567")),
-    Lion(2, Instant.now, BigDecimal("1234.56789")),
-    Lion(3, Instant.now, BigDecimal("0.123456789")),
-    Lion(4, Instant.now, BigDecimal("0.10001")),
-    Lion(5, Instant.now, BigDecimal("1.2345"))
+    Lion(1, now, BigDecimal("1234.567")),
+    Lion(2, now, BigDecimal("1234.56789")),
+    Lion(3, now, BigDecimal("0.123456789")),
+    Lion(4, now, BigDecimal("0.10001")),
+    Lion(5, now, BigDecimal("1.2345"))
   )
 
   val expected: List[Lion] = List(
-    Lion(1, Instant.now, BigDecimal("1234.567")),
-    Lion(2, Instant.now, BigDecimal("1234.568")),
-    Lion(3, Instant.now, BigDecimal("0.123")),
-    Lion(4, Instant.now, BigDecimal("0.1")),
-    Lion(5, Instant.now, BigDecimal("1.235"))
+    Lion(1, now, BigDecimal("1234.567")),
+    Lion(2, now, BigDecimal("1234.568")),
+    Lion(3, now, BigDecimal("0.123")),
+    Lion(4, now, BigDecimal("0.1")),
+    Lion(5, now, BigDecimal("1.235"))
   )
 
   val expectedSchema: StructType = StructType(

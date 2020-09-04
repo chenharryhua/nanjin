@@ -5,7 +5,6 @@ import java.time.ZoneId
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Timer}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage._
 import com.github.chenharryhua.nanjin.messages.kafka._
 import com.github.chenharryhua.nanjin.utils.Keyboard
 import fs2.Stream
@@ -39,7 +38,7 @@ object KafkaMonitoringApi {
 
   final private class KafkaTopicMonitoring[F[_]: ContextShift: Timer, K, V](
     topic: KafkaTopic[F, K, V])(implicit F: ConcurrentEffect[F])
-      extends KafkaMonitoringApi[F, K, V] {
+      extends KafkaMonitoringApi[F, K, V] with ShowKafkaMessage {
 
     private val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
       topic.fs2Channel.withConsumerSettings(_.withEnableAutoCommit(false))
@@ -50,11 +49,7 @@ object KafkaMonitoringApi {
           fs2Channel
             .withConsumerSettings(_.withAutoOffsetReset(aor))
             .stream
-            .map { m =>
-              val (errs, r) = topic.njDecoder.decode(m).run
-              errs.toList.foreach(e => pprint.pprintln(e))
-              r.toString
-            }
+            .map(m => topic.decoder(m).tryDecodeKeyValue.show)
             .showLinesStdOut
             .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
             .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
@@ -71,7 +66,7 @@ object KafkaMonitoringApi {
             .stream
             .filter(m =>
               predict(isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record)))
-            .map(m => topic.njDecoder.decode(m).run._2.toString)
+            .map(m => topic.decoder(m).tryDecodeKeyValue.show)
             .showLinesStdOut
             .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
             .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
@@ -90,7 +85,7 @@ object KafkaMonitoringApi {
         _ <-
           fs2Channel
             .assign(gtp.flatten[KafkaOffset].mapValues(_.value).value)
-            .map(m => topic.njDecoder.decode(m).run._2.toString)
+            .map(m => topic.decoder(m).tryDecodeKeyValue.show)
             .showLinesStdOut
             .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
             .interruptWhen(signal.map(_.contains(Keyboard.Quit)))

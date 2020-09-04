@@ -66,9 +66,6 @@ val betterFiles = "3.9.1"
 // test
 val scalatest = "3.2.2"
 
-// deprecate ?
-val flink110 = "1.11.1"
-
 lazy val commonSettings = Seq(
   organization := "com.github.chenharryhua",
   scalaVersion := scalaVersion.value,
@@ -117,17 +114,6 @@ val hadoopLib = Seq(
   "org.apache.hadoop" % "hadoop-hdfs"
 ).map(_               % hadoop) ++
   Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.855")
-
-val flinkLib = Seq(
-  "org.apache.flink" %% "flink-connector-kafka",
-  "org.apache.flink" %% "flink-streaming-scala",
-  "org.apache.flink" %% "flink-gelly",
-  "org.apache.flink" %% "flink-cep",
-  "org.apache.flink" %% "flink-parquet",
-  // "org.apache.flink" %% "flink-jdbc",
-  "org.apache.flink" %% "flink-hadoop-compatibility",
-  "org.apache.flink" % "flink-s3-fs-hadoop"
-).map(_ % flink110)
 
 val neotypesLib = Seq(
   "com.dimafeng" %% "neotypes",
@@ -390,13 +376,7 @@ lazy val spark = (project in file("spark"))
     dependencyOverrides ++= json4sLib
   )
 
-lazy val flink = (project in file("flink"))
-  .dependsOn(kafka)
-  .settings(commonSettings: _*)
-  .settings(name := "nj-flink")
-  .settings(libraryDependencies ++= flinkLib ++ testLib)
-
 lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
-    .aggregate(common, messages, datetime, devices, pipes, kafka, flink, database, spark)
+    .aggregate(common, messages, datetime, devices, pipes, kafka, database, spark)

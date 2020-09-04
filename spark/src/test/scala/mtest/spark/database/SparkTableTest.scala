@@ -38,7 +38,7 @@ class SparkTableTest extends AnyFunSuite {
   implicit val ate: AvroTypedEncoder[DBTable] = AvroTypedEncoder[DBTable](codec)
   implicit val re: RowEncoder[DBTable]        = shapeless.cachedImplicit
 
-  val table: TableDef[DBTable] = TableDef[DBTable](TableName("public.sparktabletest"))
+  val table: TableDef[DBTable] = TableDef[DBTable](TableName("sparktest"), ate)
 
   val sample: DomainObject =
     DomainObject(

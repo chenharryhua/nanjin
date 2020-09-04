@@ -15,7 +15,7 @@ import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
 private[kafka] trait ShowKafkaMessage {
   private val zoneId: ZoneId = ZoneId.systemDefault()
 
-  implicit def showConsumerRecord[K: Show, V: Show]: Show[ConsumerRecord[K, V]] =
+  implicit def showConsumerRecord[K, V]: Show[ConsumerRecord[K, V]] =
     (t: ConsumerRecord[K, V]) => {
       val ts = NJTimestamp(t.timestamp())
       s"""
@@ -24,8 +24,8 @@ private[kafka] trait ShowKafkaMessage {
          |partition:    ${t.partition()}
          |offset:       ${t.offset()}
          |local-time:   ${ts.atZone(zoneId)}
-         |key:          ${Option(t.key).map(_.show).getOrElse("null")}
-         |value:        ${Option(t.value).map(_.show).getOrElse("null")}
+         |key:          ${Option(t.key).map(_.toString).getOrElse("null")}
+         |value:        ${Option(t.value).map(_.toString).getOrElse("null")}
          |key-size:     ${t.serializedKeySize()}
          |value-size:   ${t.serializedValueSize()}
          |ts-type:      ${t.timestampType()}
@@ -35,7 +35,7 @@ private[kafka] trait ShowKafkaMessage {
          |leader epoch: ${t.leaderEpoch}""".stripMargin
     }
 
-  implicit def showProducerRecord[K: Show, V: Show]: Show[ProducerRecord[K, V]] =
+  implicit def showProducerRecord[K, V]: Show[ProducerRecord[K, V]] =
     (t: ProducerRecord[K, V]) => {
       val ts = NJTimestamp(t.timestamp())
       s"""
@@ -43,18 +43,17 @@ private[kafka] trait ShowKafkaMessage {
          |topic:      ${t.topic}
          |partition:  ${t.partition}
          |local-time: ${ts.atZone(zoneId)}
-         |key:        ${Option(t.key).map(_.show).getOrElse("null")}
-         |value:      ${Option(t.value).map(_.show).getOrElse("null")}
+         |key:        ${Option(t.key).map(_.toString).getOrElse("null")}
+         |value:      ${Option(t.value).map(_.toString).getOrElse("null")}
          |timestamp:  ${t.timestamp()}
          |utc:        ${ts.utc}
          |headers:    ${t.headers}""".stripMargin
     }
 
-  implicit def showFs2CommittableMessage[F[_], K: Show, V: Show]
-    : Show[CommittableConsumerRecord[F, K, V]] =
+  implicit def showFs2CommittableMessage[F[_], K, V]: Show[CommittableConsumerRecord[F, K, V]] =
     (t: CommittableConsumerRecord[F, K, V]) => isoFs2ComsumerRecord.get(t.record).show
 
-  implicit def showAkkaCommittableMessage[K: Show, V: Show]: Show[CommittableMessage[K, V]] =
+  implicit def showAkkaCommittableMessage[K, V]: Show[CommittableMessage[K, V]] =
     (t: CommittableMessage[K, V]) => t.record.show
 
   implicit val showArrayByte: Show[Array[Byte]] = _ => "Array[Byte]"

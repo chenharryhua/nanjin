@@ -30,7 +30,7 @@ class ZioTest extends AnyFunSuite {
       .map(_.toEither)
       .rethrow
       .take(1)
-      .map(_.show)
+      .map(_.toString)
       .map(println)
       .compile
       .drain
@@ -44,7 +44,7 @@ class ZioTest extends AnyFunSuite {
       .source
       .map(x => topic.decoder(x).decodeValue)
       .take(1)
-      .map(_.show)
+      .map(_.toString)
       .map(println)
       .runWith(akkaSinks.ignore)
     runtime.unsafeRun(task)

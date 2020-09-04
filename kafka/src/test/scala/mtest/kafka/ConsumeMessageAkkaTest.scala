@@ -21,7 +21,7 @@ class ConsumeMessageAkkaTest extends AnyFunSuite {
       .withCommitterSettings(_.withParallelism(10))
       .source
       .map(m => topic.decoder(m).decodeValue)
-      .map(_.show)
+      .map(_.toString)
       .map(println)
       .take(1)
       .runWith(akkaSinks.ignore[IO])
@@ -38,7 +38,7 @@ class ConsumeMessageAkkaTest extends AnyFunSuite {
         chn
           .assign(offsets)
           .map(m => topic.decoder(m).decode)
-          .map(_.show)
+          .map(_.toString)
           .take(1)
           .runWith(akkaSinks.ignore[IO])
     } yield ()

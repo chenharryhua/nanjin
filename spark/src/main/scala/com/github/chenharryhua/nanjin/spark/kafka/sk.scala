@@ -6,6 +6,7 @@ import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaOffsetRange, KafkaTopic, KafkaTopicPartition}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJConsumerRecordDecoder
 import com.github.chenharryhua.nanjin.messages.kafka.{NJProducerRecord, OptionalKV}
 import com.github.chenharryhua.nanjin.utils.Keyboard
 import frameless.{TypedDataset, TypedEncoder}
@@ -63,15 +64,20 @@ private[kafka] object sk {
     topic: KafkaTopic[F, K, V],
     streamingContext: StreamingContext,
     locationStrategy: LocationStrategy): DStream[OptionalKV[K, V]] = {
+
     val consumerStrategy =
       ConsumerStrategies.Subscribe[Array[Byte], Array[Byte]](
         List(topic.topicName.value),
         props(topic.context.settings.consumerSettings.config).asScala)
     KafkaUtils
       .createDirectStream(streamingContext, locationStrategy, consumerStrategy)
-      .mapPartitions {
-        _.map { m =>
-          val (errs, cr) = topic.njDecoder.decode(m).run
+      .mapPartitions { ms =>
+        val decoder = new NJConsumerRecordDecoder[F, K, V](
+          topic.topicName.value,
+          topic.codec.keyDeserializer,
+          topic.codec.valDeserializer)
+        ms.map { m =>
+          val (errs, cr) = decoder.decode(m).run
           errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
           cr
         }
@@ -83,9 +89,13 @@ private[kafka] object sk {
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy)(implicit
     sparkSession: SparkSession): F[RDD[OptionalKV[K, V]]] =
-    kafkaRDD[F, K, V](topic, timeRange, locationStrategy).map(_.mapPartitions {
-      _.map { m =>
-        val (errs, cr) = topic.njDecoder.decode(m).run
+    kafkaRDD[F, K, V](topic, timeRange, locationStrategy).map(_.mapPartitions { ms =>
+      val decoder = new NJConsumerRecordDecoder[F, K, V](
+        topic.topicName.value,
+        topic.codec.keyDeserializer,
+        topic.codec.valDeserializer)
+      ms.map { m =>
+        val (errs, cr) = decoder.decode(m).run
         errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
         cr
       }
@@ -155,10 +165,16 @@ private[kafka] object sk {
           .load()
           .as[OptionalKV[Array[Byte], Array[Byte]]])
       .deserialized
-      .mapPartitions(_.map { cr =>
-        val (errs, msg) = topic.njDecoder.decode(cr).run
-        errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
-        f(OptionalKV.timestamp.modify(_ / 1000)(msg)) // spark use micro-second.
-      })
+      .mapPartitions { ms =>
+        val decoder = new NJConsumerRecordDecoder[F, K, V](
+          topic.topicName.value,
+          topic.codec.keyDeserializer,
+          topic.codec.valDeserializer)
+        ms.map { cr =>
+          val (errs, msg) = decoder.decode(cr).run
+          errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
+          f(OptionalKV.timestamp.modify(_ / 1000)(msg)) // spark use micro-second.
+        }
+      }
   }
 }

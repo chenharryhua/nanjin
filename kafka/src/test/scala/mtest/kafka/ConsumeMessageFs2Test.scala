@@ -26,7 +26,7 @@ class ConsumeMessageFs2Test extends AnyFunSuite {
         .stream
         .map(m => topic.decoder(m).tryDecodeKeyValue)
         .take(1)
-        .map(_.show)
+        .map(_.toString)
         .map(println)
         .compile
         .toList
@@ -39,7 +39,7 @@ class ConsumeMessageFs2Test extends AnyFunSuite {
     val ret = topic.fs2Channel.stream
       .map(m => topic.decoder(m).decodeValue)
       .take(1)
-      .map(_.show)
+      .map(_.toString)
       .map(println)
       .compile
       .toList
@@ -54,7 +54,7 @@ class ConsumeMessageFs2Test extends AnyFunSuite {
       .map(_.toEither)
       .rethrow
       .take(1)
-      .map(_.show)
+      .map(_.toString)
       .compile
       .toList
       .unsafeRunSync()

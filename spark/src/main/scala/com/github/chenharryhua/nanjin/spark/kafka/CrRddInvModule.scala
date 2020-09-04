@@ -5,7 +5,6 @@ import cats.effect.Sync
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.pipes.{GenericRecordEncoder, JacksonSerialization}
-import com.sksamuel.avro4s.{AvroSchema, SchemaFor, Encoder => AvroEncoder}
 import frameless.cats.implicits.rddOps
 import frameless.{SparkDelay, TypedDataset}
 import fs2.Stream
@@ -33,7 +32,8 @@ trait CrRddInvModule[F[_], K, V] { self: CrRdd[F, K, V] =>
     inv.dupRecords(TypedDataset.create(values.map(CRMetaInfo(_))))
 
   def showJackson(rs: Array[OptionalKV[K, V]])(implicit F: Sync[F]): F[Unit] = {
-    val pipe: JacksonSerialization[F] = new JacksonSerialization[F](codec.schemaForOptionalKV.schema)
+    val pipe: JacksonSerialization[F] =
+      new JacksonSerialization[F](codec.schemaForOptionalKV.schema)
     val gre: GenericRecordEncoder[F, OptionalKV[K, V]] =
       new GenericRecordEncoder[F, OptionalKV[K, V]](codec.optionalKVEncoder)
 
