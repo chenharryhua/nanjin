@@ -4,38 +4,89 @@ import java.time.Instant
 
 import cats.effect.IO
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.injection._
-import com.github.chenharryhua.nanjin.spark.persist.loaders
-import com.sksamuel.avro4s.ScalePrecision
+import com.github.chenharryhua.nanjin.spark.kafka._
+import com.sksamuel.avro4s.Encoder
 import frameless.cats.implicits._
 import org.scalatest.funsuite.AnyFunSuite
+import io.circe.generic.auto._
 
 import scala.math.BigDecimal
 import scala.math.BigDecimal.RoundingMode
 
 object DecimalTopicTestCase {
-  final case class HasDecimal(a: BigDecimal, b: Instant)
+
+  val schemaText: String =
+    """
+      |
+      |{
+      |  "type": "record",
+      |  "name": "HasDecimal",
+      |  "namespace": "mtest.spark.kafka.DecimalTopicTestCase",
+      |  "fields": [
+      |    {
+      |      "name": "a",
+      |      "type": {
+      |        "type": "bytes",
+      |        "logicalType": "decimal",
+      |        "precision": 6,
+      |        "scale": 0
+      |      }
+      |    },
+      |    {
+      |      "name": "b",
+      |      "type": {
+      |        "type": "bytes",
+      |        "logicalType": "decimal",
+      |        "precision": 7,
+      |        "scale": 3
+      |      }
+      |    },
+      |    {
+      |      "name": "c",
+      |      "type": {
+      |        "type": "long",
+      |        "logicalType": "timestamp-millis"
+      |      }
+      |    }
+      |  ]
+      |}
+      |""".stripMargin
+
+  final case class HasDecimal(a: BigDecimal, b: BigDecimal, c: Instant)
+  implicit val roundingMode: BigDecimal.RoundingMode.Value = RoundingMode.HALF_UP
+
+  val codec: NJAvroCodec[HasDecimal] =
+    NJAvroCodec[HasDecimal](schemaText).right.get
+
+  val topicDef: TopicDef[Int, HasDecimal] =
+    TopicDef[Int, HasDecimal](TopicName("kafka.decimal.test"), codec)
+
+  val now = Instant.ofEpochMilli(Instant.now.toEpochMilli)
 
   val data: HasDecimal =
-    HasDecimal(BigDecimal(1.0101010101), Instant.ofEpochMilli(Instant.now.toEpochMilli))
+    HasDecimal(BigDecimal(123456.001), BigDecimal(1234.5678), now)
+
+  val expected = HasDecimal(BigDecimal(123456), BigDecimal(1234.568), now)
 }
 
 class DecimalTopicTest extends AnyFunSuite {
   import DecimalTopicTestCase._
-  implicit val sp: ScalePrecision                          = ScalePrecision(10, 20)
-  implicit val roundingMode: BigDecimal.RoundingMode.Value = RoundingMode.HALF_UP
-  implicit val codec                                       = NJAvroCodec[OptionalKV[Int, HasDecimal]]
-  val topic: KafkaTopic[IO, Int, HasDecimal]               = ctx.topic[Int, HasDecimal]("decimal.test")
+
+  val topic: KafkaTopic[IO, Int, HasDecimal] = topicDef.in(ctx)
+
   (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
     topic.schemaRegister >>
     topic.send(1, data) >> topic.send(2, data)).unsafeRunSync()
 
   test("sparKafka kafka and spark agree on avro") {
-    val path = "./data/test/spark/kafka/decimal.avro"
+    implicit val e: Encoder[HasDecimal]                   = topic.topicDef.avroValEncoder
+    implicit val e2: Encoder[OptionalKV[Int, HasDecimal]] = shapeless.cachedImplicit
+    val path                                              = "./data/test/spark/kafka/decimal.avro"
     topic.fs2Channel.stream
       .map(m => topic.njDecoder.decode(m).run._2)
       .take(2)
@@ -44,7 +95,6 @@ class DecimalTopicTest extends AnyFunSuite {
       .drain
       .unsafeRunSync
 
-    assert(loaders.raw.avro[OptionalKV[Int, HasDecimal]](path).collect().head.value.get == data)
-
+    assert(topic.sparKafka.load.rdd.avro(path).rdd.collect().head.value.get == expected)
   }
 }
