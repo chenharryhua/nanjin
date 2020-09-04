@@ -15,12 +15,12 @@ import shapeless.cachedImplicit
 
 final class KafkaAvroCodec[K, V](val keyCodec: NJAvroCodec[K], val valCodec: NJAvroCodec[V])
     extends Serializable {
-  implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
-  implicit val schemaForVal: SchemaFor[V] = valCodec.schemaFor
-  implicit val keyDecoder: Decoder[K]     = keyCodec.avroDecoder
-  implicit val valDecoder: Decoder[V]     = valCodec.avroDecoder
-  implicit val keyEncoder: Encoder[K]     = keyCodec.avroEncoder
-  implicit val valEncoder: Encoder[V]     = valCodec.avroEncoder
+  implicit private val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
+  implicit private val schemaForVal: SchemaFor[V] = valCodec.schemaFor
+  implicit private val keyDecoder: Decoder[K]     = keyCodec.avroDecoder
+  implicit private val valDecoder: Decoder[V]     = valCodec.avroDecoder
+  implicit private val keyEncoder: Encoder[K]     = keyCodec.avroEncoder
+  implicit private val valEncoder: Encoder[V]     = valCodec.avroEncoder
 
   // optional key/value
   val schemaForOptionalKV: SchemaFor[OptionalKV[K, V]] = cachedImplicit
@@ -54,6 +54,16 @@ final class KafkaAvroCodec[K, V](val keyCodec: NJAvroCodec[K], val valCodec: NJA
   val compulsoryKVCodec: NJAvroCodec[CompulsoryKV[K, V]] =
     NJAvroCodec[CompulsoryKV[K, V]](schemaForCompulsoryKV, compulsoryKVDecoder, compulsoryKVEncoder)
 
+  // producer record
+  val schemaForProducerRecord: SchemaFor[NJProducerRecord[K, V]] = cachedImplicit
+  val producerRecordDecoder: Decoder[NJProducerRecord[K, V]]     = cachedImplicit
+  val producerRecordEncoder: Encoder[NJProducerRecord[K, V]]     = cachedImplicit
+
+  val producerRecordCodec: NJAvroCodec[NJProducerRecord[K, V]] =
+    NJAvroCodec[NJProducerRecord[K, V]](
+      schemaForProducerRecord,
+      producerRecordDecoder,
+      producerRecordEncoder)
 }
 
 final class KafkaAvroTypedEncoder[K, V](
@@ -61,23 +71,27 @@ final class KafkaAvroTypedEncoder[K, V](
   val valEncoder: TypedEncoder[V],
   val codec: KafkaAvroCodec[K, V])
     extends Serializable {
-  implicit private val ke: TypedEncoder[K]                          = keyEncoder
-  implicit private val ve: TypedEncoder[V]                          = valEncoder
-  implicit val optionalKV: TypedEncoder[OptionalKV[K, V]]           = cachedImplicit
-  implicit val compulsoryK: TypedEncoder[CompulsoryK[K, V]]         = cachedImplicit
-  implicit val compulsoryV: TypedEncoder[CompulsoryV[K, V]]         = cachedImplicit
-  implicit val compulsoryKV: TypedEncoder[CompulsoryKV[K, V]]       = cachedImplicit
-  implicit val producerRecord: TypedEncoder[NJProducerRecord[K, V]] = cachedImplicit
+  implicit private val ke: TypedEncoder[K] = keyEncoder
+  implicit private val ve: TypedEncoder[V] = valEncoder
+
+  val optionalKV: TypedEncoder[OptionalKV[K, V]]           = cachedImplicit
+  val compulsoryK: TypedEncoder[CompulsoryK[K, V]]         = cachedImplicit
+  val compulsoryV: TypedEncoder[CompulsoryV[K, V]]         = cachedImplicit
+  val compulsoryKV: TypedEncoder[CompulsoryKV[K, V]]       = cachedImplicit
+  val producerRecord: TypedEncoder[NJProducerRecord[K, V]] = cachedImplicit
 
   val ateOptionalKV: AvroTypedEncoder[OptionalKV[K, V]] =
-    AvroTypedEncoder[OptionalKV[K, V]](codec.optionalKVCodec)
+    AvroTypedEncoder[OptionalKV[K, V]](codec.optionalKVCodec)(optionalKV)
 
   val ateCompulsoryK: AvroTypedEncoder[CompulsoryK[K, V]] =
-    AvroTypedEncoder[CompulsoryK[K, V]](codec.compulsoryKCodec)
+    AvroTypedEncoder[CompulsoryK[K, V]](codec.compulsoryKCodec)(compulsoryK)
 
   val ateCompulsoryV: AvroTypedEncoder[CompulsoryV[K, V]] =
-    AvroTypedEncoder[CompulsoryV[K, V]](codec.compulsoryVCodec)
+    AvroTypedEncoder[CompulsoryV[K, V]](codec.compulsoryVCodec)(compulsoryV)
 
   val ateCompulsoryKV: AvroTypedEncoder[CompulsoryKV[K, V]] =
-    AvroTypedEncoder[CompulsoryKV[K, V]](codec.compulsoryKVCodec)
+    AvroTypedEncoder[CompulsoryKV[K, V]](codec.compulsoryKVCodec)(compulsoryKV)
+
+  val ateProducerRecord: AvroTypedEncoder[NJProducerRecord[K, V]] =
+    AvroTypedEncoder[NJProducerRecord[K, V]](codec.producerRecordCodec)(producerRecord)
 }

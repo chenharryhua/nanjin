@@ -81,7 +81,8 @@ final class SparKafka[F[_], K, V](
   /**
     * rdd and dataset
     */
-  def crRdd(rdd: RDD[OptionalKV[K, V]]) = new CrRdd[F, K, V](rdd, codec, cfg)
+  def crRdd(rdd: RDD[OptionalKV[K, V]]) =
+    new CrRdd[F, K, V](rdd, codec, cfg)
 
   def crDataset(tds: TypedDataset[OptionalKV[K, V]])(implicit
     keyEncoder: TypedEncoder[K],
@@ -99,8 +100,10 @@ final class SparKafka[F[_], K, V](
 
   def prDataset(tds: TypedDataset[NJProducerRecord[K, V]])(implicit
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]) =
-    new PrDataset[F, K, V](tds.dataset, cfg)
+    valEncoder: TypedEncoder[V]): PrDataset[F, K, V] = {
+    val kate = new KafkaAvroTypedEncoder[K, V](keyEncoder, valEncoder, codec)
+    new PrDataset[F, K, V](tds.dataset, kate, cfg)
+  }
 
   /**
     * direct stream
@@ -115,25 +118,24 @@ final class SparKafka[F[_], K, V](
 
       def avro(pathStr: String)(implicit
         keyEncoder: TypedEncoder[K],
-        valEncoder: TypedEncoder[V]): CrDataset[F, K, V] =
-        crDataset(
-          loaders
-            .avro(pathStr)(AvroTypedEncoder[OptionalKV[K, V]](codec.optionalKVCodec), sparkSession))
+        valEncoder: TypedEncoder[V]): CrDataset[F, K, V] = {
+        val ate = AvroTypedEncoder[OptionalKV[K, V]](codec.optionalKVCodec)
+        crDataset(loaders.avro(pathStr)(ate, sparkSession))
+      }
 
       def parquet(pathStr: String)(implicit
         keyEncoder: TypedEncoder[K],
-        valEncoder: TypedEncoder[V]): CrDataset[F, K, V] =
-        crDataset(
-          loaders.parquet(pathStr)(
-            AvroTypedEncoder[OptionalKV[K, V]](codec.optionalKVCodec),
-            sparkSession))
+        valEncoder: TypedEncoder[V]): CrDataset[F, K, V] = {
+        val ate = AvroTypedEncoder[OptionalKV[K, V]](codec.optionalKVCodec)
+        crDataset(loaders.parquet(pathStr)(ate, sparkSession))
+      }
 
       def json(pathStr: String)(implicit
         keyEncoder: TypedEncoder[K],
-        valEncoder: TypedEncoder[V]): CrDataset[F, K, V] =
-        crDataset(
-          loaders
-            .json(pathStr)(AvroTypedEncoder[OptionalKV[K, V]](codec.optionalKVCodec), sparkSession))
+        valEncoder: TypedEncoder[V]): CrDataset[F, K, V] = {
+        val ate = AvroTypedEncoder[OptionalKV[K, V]](codec.optionalKVCodec)
+        crDataset(loaders.json(pathStr)(ate, sparkSession))
+      }
     }
 
     object rdd {

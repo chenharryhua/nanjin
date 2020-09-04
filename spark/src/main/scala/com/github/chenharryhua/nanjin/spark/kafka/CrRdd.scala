@@ -16,8 +16,8 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryV,
   OptionalKV
 }
-import com.github.chenharryhua.nanjin.spark.RddExt
 import com.github.chenharryhua.nanjin.spark.persist.{RddFileHoarder, RddPartitionHoarder}
+import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt}
 import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
 import frameless.cats.implicits.rddOps
 import frameless.{TypedDataset, TypedEncoder}
@@ -85,8 +85,10 @@ final class CrRdd[F[_], K, V](
 
   def typedDataset(implicit
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): TypedDataset[OptionalKV[K, V]] =
-    TypedDataset.create(rdd)
+    valEncoder: TypedEncoder[V]): TypedDataset[OptionalKV[K, V]] = {
+    val ate = AvroTypedEncoder[OptionalKV[K, V]](codec.optionalKVCodec)
+    ate.normalize(rdd)
+  }
 
   def crDataset(implicit
     keyEncoder: TypedEncoder[K],

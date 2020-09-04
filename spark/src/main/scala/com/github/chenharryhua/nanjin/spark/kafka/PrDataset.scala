@@ -11,30 +11,34 @@ import fs2.Stream
 import fs2.kafka.ProducerResult
 import org.apache.spark.sql.Dataset
 
-final class PrDataset[F[_], K: TypedEncoder, V: TypedEncoder](
+final class PrDataset[F[_], K, V](
   prs: Dataset[NJProducerRecord[K, V]],
+  codec: KafkaAvroTypedEncoder[K, V],
   cfg: SKConfig
 ) extends SparKafkaUpdateParams[PrDataset[F, K, V]] {
+
+  implicit private val prEncoder: TypedEncoder[NJProducerRecord[K, V]] = codec.producerRecord
+  implicit private val valTypedEncoder: TypedEncoder[V]                = codec.valEncoder
 
   override val params: SKParams = cfg.evalConfig
 
   override def withParamUpdate(f: SKConfig => SKConfig): PrDataset[F, K, V] =
-    new PrDataset[F, K, V](prs, f(cfg))
+    new PrDataset[F, K, V](prs, codec, f(cfg))
 
   @transient lazy val typedDataset: TypedDataset[NJProducerRecord[K, V]] =
     TypedDataset.create(prs)
 
   def noTimestamp: PrDataset[F, K, V] =
-    new PrDataset[F, K, V](typedDataset.deserialized.map(_.noTimestamp).dataset, cfg)
+    new PrDataset[F, K, V](typedDataset.deserialized.map(_.noTimestamp).dataset, codec, cfg)
 
   def noPartition: PrDataset[F, K, V] =
-    new PrDataset[F, K, V](typedDataset.deserialized.map(_.noPartition).dataset, cfg)
+    new PrDataset[F, K, V](typedDataset.deserialized.map(_.noPartition).dataset, codec, cfg)
 
   def noMeta: PrDataset[F, K, V] =
-    new PrDataset[F, K, V](typedDataset.deserialized.map(_.noMeta).dataset, cfg)
+    new PrDataset[F, K, V](typedDataset.deserialized.map(_.noMeta).dataset, codec, cfg)
 
   def someValues: PrDataset[F, K, V] =
-    new PrDataset[F, K, V](typedDataset.filter(typedDataset('value).isNotNone).dataset, cfg)
+    new PrDataset[F, K, V](typedDataset.filter(typedDataset('value).isNotNone).dataset, codec, cfg)
 
   // actions
   def pipeTo[K2, V2](other: KafkaTopic[F, K2, V2])(k: K => K2, v: V => V2)(implicit

@@ -41,8 +41,7 @@ final class SparkTable[F[_], A](
 
   implicit private val ate: AvroTypedEncoder[A]   = tableDef.encoder
   implicit private val codec: NJAvroCodec[A]      = ate.avroCodec
-  implicit private val te: TypedEncoder[A]        = ate.sparkTypedEncoder
-  implicit private val tag: ClassTag[A]           = ate.sparkTypedEncoder.classTag
+  implicit private val tag: ClassTag[A]           = ate.classTag
   implicit private val sparkSession: SparkSession = ss
 
   val params: STParams = cfg.evalConfig
@@ -55,12 +54,11 @@ final class SparkTable[F[_], A](
   def withPathBuilder(f: (DatabaseName, TableName, NJFileFormat) => String): SparkTable[F, A] =
     new SparkTable[F, A](tableDef, dbSettings, cfg.withPathBuilder(f), ss)
 
-  def fromDB: TableDataset[F, A] =
-    new TableDataset[F, A](
-      sd.unloadDS[A](dbSettings.connStr, dbSettings.driver, tableDef.tableName, params.query)
-        .dataset,
-      dbSettings,
-      cfg)(ate)
+  def fromDB: TableDataset[F, A] = {
+    val df =
+      sd.unloadDF(dbSettings.connStr, dbSettings.driver, tableDef.tableName, params.query)
+    new TableDataset[F, A](ate.fromDF(df).dataset, dbSettings, cfg)(ate)
+  }
 
   def tableDataset(ds: Dataset[A]): TableDataset[F, A] =
     new TableDataset[F, A](ate.normalize(ds).dataset, dbSettings, cfg)(ate)

@@ -1,4 +1,5 @@
 package com.github.chenharryhua.nanjin.spark.persist
+
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.google.protobuf.CodedInputStream
@@ -62,7 +63,7 @@ object loaders {
     ss: SparkSession): TypedDataset[A] =
     ate.fromDF(
       ss.read
-        .schema(ate.sparkStructType)
+        .schema(ate.sparkSchema)
         .option("sep", csvConfiguration.cellSeparator.toString)
         .option("header", csvConfiguration.hasHeader)
         .option("quote", csvConfiguration.quote.toString)
@@ -75,7 +76,7 @@ object loaders {
 
   def json[A](
     pathStr: String)(implicit ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
-    ate.fromDF(ss.read.schema(ate.sparkStructType).json(pathStr))
+    ate.fromDF(ss.read.schema(ate.sparkSchema).json(pathStr))
 
   object raw {
 

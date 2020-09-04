@@ -4,24 +4,21 @@ import java.time.LocalDate
 
 import cats.Eq
 import cats.effect.Sync
-import com.github.chenharryhua.nanjin.datetime.{localdateInstances, NJDateTimeRange, NJTimestamp}
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
+import com.github.chenharryhua.nanjin.datetime.{localdateInstances, NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.{
   CompulsoryK,
   CompulsoryKV,
   CompulsoryV,
-  NJProducerRecord,
   OptionalKV
 }
-import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.{RddFileHoarder, RddPartitionHoarder}
-import com.sksamuel.avro4s.{Decoder => AvroDecoder, Encoder => AvroEncoder}
+import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
 import frameless.cats.implicits._
-import frameless.{SparkDelay, TypedDataset, TypedEncoder}
+import frameless.{TypedDataset, TypedEncoder}
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{Dataset, SparkSession}
-import com.sksamuel.avro4s.SchemaFor
 
 final class CrDataset[F[_], K, V](
   val dataset: Dataset[OptionalKV[K, V]],
@@ -33,7 +30,7 @@ final class CrDataset[F[_], K, V](
     new CrDataset[F, K, V](dataset, codec, f(cfg))
 
   @transient lazy val typedDataset: TypedDataset[OptionalKV[K, V]] =
-    TypedDataset.create(dataset)(codec.optionalKV)
+    codec.ateOptionalKV.normalize(dataset)
 
   override val params: SKParams = cfg.evalConfig
 
@@ -150,10 +147,11 @@ final class CrDataset[F[_], K, V](
 
   // state change
   def toProducerRecords: PrDataset[F, K, V] = {
-    implicit val k: TypedEncoder[K] = codec.keyEncoder
-    implicit val v: TypedEncoder[V] = codec.valEncoder
+    implicit val kte: TypedEncoder[K] = codec.keyEncoder
+    implicit val vte: TypedEncoder[V] = codec.valEncoder
     new PrDataset(
       (typedDataset.deserialized.map(_.toNJProducerRecord)(codec.producerRecord)).dataset,
+      codec,
       cfg)
   }
 
