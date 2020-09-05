@@ -12,7 +12,7 @@ final class SparkTable[F[_], A](
   ss: SparkSession)
     extends Serializable {
 
-  private val ate: AvroTypedEncoder[A] = tableDef.encoder
+  implicit private val ate: AvroTypedEncoder[A] = tableDef.avroTypedEncoder
 
   implicit private val sparkSession: SparkSession = ss
 
@@ -28,10 +28,10 @@ final class SparkTable[F[_], A](
 
   def fromDB: TableDataset[F, A] = {
     val df = sd.unloadDF(dbSettings.connStr, dbSettings.driver, tableDef.tableName, params.query)
-    new TableDataset[F, A](ate.normalizeDF(df).dataset, dbSettings, cfg)(ate)
+    new TableDataset[F, A](ate.normalizeDF(df).dataset, dbSettings, cfg)
   }
 
   def tableset(ds: Dataset[A]): TableDataset[F, A] =
-    new TableDataset[F, A](ate.normalize(ds).dataset, dbSettings, cfg)(ate)
+    new TableDataset[F, A](ate.normalize(ds).dataset, dbSettings, cfg)
 
 }

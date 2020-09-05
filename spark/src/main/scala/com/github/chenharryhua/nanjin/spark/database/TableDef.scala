@@ -11,23 +11,23 @@ import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.spark.sql.SparkSession
 import scala.reflect.ClassTag
 
-final case class TableDef[A] private (tableName: TableName, encoder: AvroTypedEncoder[A]) {
+final case class TableDef[A] private (tableName: TableName, avroTypedEncoder: AvroTypedEncoder[A]) {
 
   def in[F[_]](dbSettings: DatabaseSettings)(implicit
     sparkSession: SparkSession): SparkTable[F, A] =
     new SparkTable[F, A](this, dbSettings, STConfig(dbSettings.database, tableName), sparkSession)
 
   object load {
-    implicit private val ate: AvroTypedEncoder[A] = encoder
-    implicit private val codec: AvroCodec[A]      = encoder.avroCodec
-    implicit private val enc: TypedEncoder[A]     = encoder.typedEncoder
-    implicit private val tag: ClassTag[A]         = encoder.classTag
+    implicit private val ate: AvroTypedEncoder[A] = avroTypedEncoder
+    implicit private val codec: AvroCodec[A]      = avroTypedEncoder.avroCodec
+    implicit private val tenc: TypedEncoder[A]    = avroTypedEncoder.typedEncoder
+    implicit private val tag: ClassTag[A]         = avroTypedEncoder.classTag
 
     def parquet(pathStr: String)(implicit ss: SparkSession): TypedDataset[A] =
-      loaders.parquet(pathStr)
+      loaders.parquet[A](pathStr)
 
     def avro(pathStr: String)(implicit ss: SparkSession): TypedDataset[A] =
-      loaders.avro(pathStr)
+      loaders.avro[A](pathStr)
 
     def circe(pathStr: String)(implicit ev: JsonDecoder[A], ss: SparkSession): TypedDataset[A] =
       TypedDataset.create(loaders.circe[A](pathStr))
@@ -45,7 +45,6 @@ final case class TableDef[A] private (tableName: TableName, encoder: AvroTypedEn
 
     def jackson(pathStr: String)(implicit ss: SparkSession): TypedDataset[A] =
       TypedDataset.create(loaders.raw.jackson[A](pathStr))
-
   }
 }
 
