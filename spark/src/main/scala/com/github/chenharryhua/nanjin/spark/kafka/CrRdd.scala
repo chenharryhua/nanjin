@@ -108,8 +108,7 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
       .compile
       .drain
 
-  def save: RddFileHoarder[F, OptionalKV[K, V]] =
-    new RddFileHoarder[F, OptionalKV[K, V]](rdd)
+  def save: RddFileHoarder[F, OptionalKV[K, V]] = rdd.save[F]
 
   private def bucketing(kv: OptionalKV[K, V]): Option[LocalDate] =
     Some(NJTimestamp(kv.timestamp).dayResolution(params.timeRange.zoneId))

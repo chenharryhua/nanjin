@@ -33,12 +33,11 @@ final case class DBTable(a: LocalDate, b: LocalDate, c: Instant, d: Instant, e: 
 class SparkTableTest extends AnyFunSuite {
   implicit val zoneId: ZoneId = beijingTime
 
-  implicit val codec: AvroCodec[DBTable]      = AvroCodec[DBTable]
-  implicit val te: TypedEncoder[DBTable]      = shapeless.cachedImplicit
-  implicit val ate: AvroTypedEncoder[DBTable] = AvroTypedEncoder[DBTable](codec)
-  implicit val re: RowEncoder[DBTable]        = shapeless.cachedImplicit
+  val codec: AvroCodec[DBTable]          = AvroCodec[DBTable]
+  implicit val te: TypedEncoder[DBTable] = shapeless.cachedImplicit
+  implicit val re: RowEncoder[DBTable]   = shapeless.cachedImplicit
 
-  val table: TableDef[DBTable] = TableDef[DBTable](TableName("sparktest"), ate)
+  val table: TableDef[DBTable] = TableDef[DBTable](TableName("sparktest"), codec)
 
   val sample: DomainObject =
     DomainObject(
@@ -51,11 +50,11 @@ class SparkTableTest extends AnyFunSuite {
   val dbData: DBTable = sample.transformInto[DBTable]
 
   test("sparkTable upload dataset to table") {
-    val data = TypedDataset.create(List(sample.transformInto[DBTable])).dataset.rdd
+    val data = TypedDataset.create(List(sample.transformInto[DBTable])).dataset
     sparkSession
       .alongWith[IO](postgres)
       .table(table)
-      .tableDataset(data)
+      .tableset(data)
       .upload
       .overwrite
       .run
@@ -74,8 +73,7 @@ class SparkTableTest extends AnyFunSuite {
   val root                        = "./data/test/spark/database/postgres/"
   val tb: SparkTable[IO, DBTable] = table.in[IO](postgres)
 
-  val loader = tb.load
-  val saver  = tb.fromDB.save
+  val saver = tb.fromDB.save
 
   test("avro") {
 
@@ -83,9 +81,9 @@ class SparkTableTest extends AnyFunSuite {
       saver.avro(root + "single.raw.avro").file.raw.run(blocker) >>
       saver.avro(root + "multi.raw.avro").folder.raw.run(blocker)
     avro.unsafeRunSync()
-    assert(loader.avro(root + "multi.spark.avro").dataset.collect.head == dbData)
-    assert(loader.avro(root + "single.raw.avro").dataset.collect.head == dbData)
-    assert(loader.avro(root + "multi.raw.avro").dataset.collect.head == dbData)
+    assert(table.load.avro(root + "multi.spark.avro").dataset.collect.head == dbData)
+    assert(table.load.avro(root + "single.raw.avro").dataset.collect.head == dbData)
+    assert(table.load.avro(root + "multi.raw.avro").dataset.collect.head == dbData)
 
   }
   test("parquet") {
@@ -93,29 +91,29 @@ class SparkTableTest extends AnyFunSuite {
       saver.parquet(root + "single.raw.parquet").file.raw.run(blocker) >>
       saver.parquet(root + "raw.parquet").raw.run(blocker)
     parquet.unsafeRunSync()
-    assert(loader.parquet(root + "multi.spark.parquet").dataset.collect.head == dbData)
-    assert(loader.parquet(root + "single.raw.parquet").dataset.collect.head == dbData)
-    assert(loader.parquet(root + "raw.parquet").dataset.collect.head == dbData)
+    assert(table.load.parquet(root + "multi.spark.parquet").dataset.collect.head == dbData)
+    assert(table.load.parquet(root + "single.raw.parquet").dataset.collect.head == dbData)
+    assert(table.load.parquet(root + "raw.parquet").dataset.collect.head == dbData)
 
   }
   test("circe") {
     val circe = saver.circe(root + "multi.circe.json").folder.run(blocker) >>
       saver.circe(root + "single.circe.json").file.run(blocker)
     circe.unsafeRunSync()
-    assert(loader.circe(root + "multi.circe.json").dataset.collect.head == dbData)
-    assert(loader.circe(root + "single.circe.json").dataset.collect.head == dbData)
+    assert(table.load.circe(root + "multi.circe.json").dataset.collect.head == dbData)
+    assert(table.load.circe(root + "single.circe.json").dataset.collect.head == dbData)
   }
 
   test("csv") {
     val csv = saver.csv(root + "multi.csv").folder.run(blocker) >>
       saver.csv(root + "single.csv").file.run(blocker)
     csv.unsafeRunSync()
-    assert(loader.csv(root + "multi.csv").dataset.collect.head == dbData)
-    assert(loader.csv(root + "single.csv").dataset.collect.head == dbData)
+    assert(table.load.csv(root + "multi.csv").dataset.collect.head == dbData)
+    assert(table.load.csv(root + "single.csv").dataset.collect.head == dbData)
   }
   test("spark json") {
     val json = saver.json(root + "spark.json").run(blocker)
     json.unsafeRunSync()
-    assert(loader.json(root + "spark.json").dataset.collect.head == dbData)
+    assert(table.load.json(root + "spark.json").dataset.collect.head == dbData)
   }
 }

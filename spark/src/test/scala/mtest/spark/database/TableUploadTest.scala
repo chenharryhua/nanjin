@@ -3,9 +3,9 @@ package mtest.spark.database
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.database.TableName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.database.{SparkTable, TableDef}
-import com.sksamuel.avro4s.SchemaFor
+import com.github.chenharryhua.nanjin.spark.database.{SparkDBSyntax, SparkTable, TableDef}
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.Dataset
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.math.BigDecimal
@@ -17,7 +17,7 @@ object TableUploadTestData {
 
   implicit val roundingMode: BigDecimal.RoundingMode.Value = RoundingMode.HALF_UP
 
-  val schema = AvroCodec[Beaver](
+  val schema: AvroCodec[Beaver] = AvroCodec[Beaver](
     """
       |{
       |  "type": "record",
@@ -54,11 +54,13 @@ object TableUploadTestData {
       Beaver(BigDecimal("12.3456"), Random.nextFloat(), Random.nextDouble()),
       Beaver(BigDecimal("123456"), Random.nextFloat(), Random.nextDouble()))
   )
+  import sparkSession.implicits._
+  val ds: Dataset[Beaver] = sparkSession.createDataset(data)
 }
 
 class TableUploadTest extends AnyFunSuite {
   import TableUploadTestData._
   test("upload") {
-    table.tableDataset(data).upload.overwrite.run.unsafeRunSync()
+    ds.upload(table).overwrite.run.unsafeRunSync()
   }
 }

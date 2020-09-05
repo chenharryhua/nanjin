@@ -5,14 +5,13 @@ import cats.syntax.all._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.spark.fileSink
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.github.chenharryhua.nanjin.spark.sstream.{KafkaCrSStream, SStreamConfig, SparkSStream}
-import com.github.chenharryhua.nanjin.spark.{fileSink, AvroTypedEncoder}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.{TypedDataset, TypedEncoder}
-import io.circe.{Decoder => JsonDecoder}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{Dataset, SparkSession}
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.StreamingContext
 
 trait SparKafkaUpdateParams[A] extends UpdateParams[SKConfig, A] with Serializable {
@@ -78,51 +77,6 @@ final class SparKafka[F[_], K, V](
 
   def dstream(sc: StreamingContext): CrDStream[F, K, V] =
     new CrDStream[F, K, V](sk.kafkaDStream[F, K, V](topic, sc, params.locationStrategy), cfg)
-
-  object load {
-
-    private val codec: AvroCodec[OptionalKV[K, V]] = shapeless.cachedImplicit
-
-    def avro(pathStr: String)(implicit
-      keyEncoder: TypedEncoder[K],
-      valEncoder: TypedEncoder[V]): CrRdd[F, K, V] = {
-      val ate: AvroTypedEncoder[OptionalKV[K, V]] = AvroTypedEncoder(codec)
-      crRdd(loaders.avro[OptionalKV[K, V]](pathStr)(ate, ss))
-    }
-
-    def parquet(pathStr: String)(implicit
-      keyEncoder: TypedEncoder[K],
-      valEncoder: TypedEncoder[V]): CrRdd[F, K, V] = {
-      val ate: AvroTypedEncoder[OptionalKV[K, V]] = AvroTypedEncoder(codec)
-      crRdd(loaders.parquet[OptionalKV[K, V]](pathStr)(ate, ss))
-    }
-
-    def json(pathStr: String)(implicit
-      keyEncoder: TypedEncoder[K],
-      valEncoder: TypedEncoder[V]): CrRdd[F, K, V] = {
-      val ate: AvroTypedEncoder[OptionalKV[K, V]] = AvroTypedEncoder(codec)
-      crRdd(loaders.json[OptionalKV[K, V]](pathStr)(ate, ss))
-    }
-
-    object raw {
-
-      def avro(pathStr: String): CrRdd[F, K, V] =
-        crRdd(loaders.raw.avro[OptionalKV[K, V]](pathStr))
-
-      def parquet(pathStr: String): CrRdd[F, K, V] =
-        crRdd(loaders.raw.parquet[OptionalKV[K, V]](pathStr))
-
-      def jackson(pathStr: String): CrRdd[F, K, V] =
-        crRdd(loaders.raw.jackson[OptionalKV[K, V]](pathStr))
-
-      def binAvro(pathStr: String): CrRdd[F, K, V] =
-        crRdd(loaders.raw.binAvro[OptionalKV[K, V]](pathStr))
-
-      def circe(pathStr: String)(implicit ev: JsonDecoder[OptionalKV[K, V]]): CrRdd[F, K, V] =
-        crRdd(loaders.circe[OptionalKV[K, V]](pathStr))
-
-    }
-  }
 
   /**
     * structured stream
