@@ -63,6 +63,15 @@ import shapeless.cachedImplicit
 
 object NJProducerRecord {
 
+  def apply[K, V](pr: ProducerRecord[Option[K], Option[V]]): NJProducerRecord[K, V] =
+    NJProducerRecord(Option(pr.partition), Option(pr.timestamp), pr.key, pr.value)
+
+  def apply[K, V](k: K, v: V): NJProducerRecord[K, V] =
+    NJProducerRecord(None, None, Option(k), Option(v))
+
+  def apply[K, V](v: V): NJProducerRecord[K, V] =
+    NJProducerRecord(None, None, None, Option(v))
+
   implicit def producerRecordCodec[K, V](implicit
     keyCodec: AvroCodec[K],
     valCodec: AvroCodec[V]): AvroCodec[NJProducerRecord[K, V]] = {
@@ -83,15 +92,6 @@ object NJProducerRecord {
     ev: TypedEncoder[V],
     c: AvroCodec[NJProducerRecord[K, V]]): AvroTypedEncoder[NJProducerRecord[K, V]] =
     AvroTypedEncoder[NJProducerRecord[K, V]](c)
-
-  def apply[K, V](pr: ProducerRecord[Option[K], Option[V]]): NJProducerRecord[K, V] =
-    NJProducerRecord(Option(pr.partition), Option(pr.timestamp), pr.key, pr.value)
-
-  def apply[K, V](k: K, v: V): NJProducerRecord[K, V] =
-    NJProducerRecord(None, None, Option(k), Option(v))
-
-  def apply[K, V](v: V): NJProducerRecord[K, V] =
-    NJProducerRecord(None, None, None, Option(v))
 
   implicit def emptyNJProducerRecord[K, V]: Empty[NJProducerRecord[K, V]] =
     new Empty[NJProducerRecord[K, V]] {

@@ -92,6 +92,16 @@ final case class OptionalKV[K, V](
 
 object OptionalKV {
 
+  def apply[K, V](cr: ConsumerRecord[Option[K], Option[V]]): OptionalKV[K, V] =
+    OptionalKV(
+      cr.partition,
+      cr.offset,
+      cr.timestamp,
+      cr.key,
+      cr.value,
+      cr.topic,
+      cr.timestampType.id)
+
   implicit def optionaKVCodec[K, V](implicit
     keyCodec: AvroCodec[K],
     valCodec: AvroCodec[V]): AvroCodec[OptionalKV[K, V]] = {
@@ -112,16 +122,6 @@ object OptionalKV {
     ev: TypedEncoder[V],
     c: AvroCodec[OptionalKV[K, V]]): AvroTypedEncoder[OptionalKV[K, V]] =
     AvroTypedEncoder[OptionalKV[K, V]](c)
-
-  def apply[K, V](cr: ConsumerRecord[Option[K], Option[V]]): OptionalKV[K, V] =
-    OptionalKV(
-      cr.partition,
-      cr.offset,
-      cr.timestamp,
-      cr.key,
-      cr.value,
-      cr.topic,
-      cr.timestampType.id)
 
   implicit val bifunctorOptionalKV: Bifunctor[OptionalKV] =
     new Bifunctor[OptionalKV] {
@@ -192,8 +192,10 @@ object CompulsoryV {
   implicit def compulsoryVAvroTypedEncoer[K, V](implicit
     ek: TypedEncoder[K],
     ev: TypedEncoder[V],
-    c: AvroCodec[CompulsoryV[K, V]]): AvroTypedEncoder[CompulsoryV[K, V]] =
+    c: AvroCodec[CompulsoryV[K, V]]): AvroTypedEncoder[CompulsoryV[K, V]] = {
+    implicit val te: TypedEncoder[CompulsoryV[K, V]] = cachedImplicit
     AvroTypedEncoder[CompulsoryV[K, V]](c)
+  }
 
   implicit val bifunctorCompulsoryV: Bifunctor[CompulsoryV] =
     new Bifunctor[CompulsoryV] {
@@ -246,8 +248,10 @@ object CompulsoryK {
   implicit def compulsoryKAvroTypedEncoer[K, V](implicit
     ek: TypedEncoder[K],
     ev: TypedEncoder[V],
-    c: AvroCodec[CompulsoryK[K, V]]): AvroTypedEncoder[CompulsoryK[K, V]] =
+    c: AvroCodec[CompulsoryK[K, V]]): AvroTypedEncoder[CompulsoryK[K, V]] = {
+    implicit val te: TypedEncoder[CompulsoryK[K, V]] = cachedImplicit
     AvroTypedEncoder[CompulsoryK[K, V]](c)
+  }
 
   implicit val bifunctorCompulsoryK: Bifunctor[CompulsoryK] =
     new Bifunctor[CompulsoryK] {
@@ -301,8 +305,10 @@ object CompulsoryKV {
   implicit def compulsoryKVAvroTypedEncoer[K, V](implicit
     ek: TypedEncoder[K],
     ev: TypedEncoder[V],
-    c: AvroCodec[CompulsoryKV[K, V]]): AvroTypedEncoder[CompulsoryKV[K, V]] =
+    c: AvroCodec[CompulsoryKV[K, V]]): AvroTypedEncoder[CompulsoryKV[K, V]] = {
+    implicit val te: TypedEncoder[CompulsoryKV[K, V]] = cachedImplicit
     AvroTypedEncoder[CompulsoryKV[K, V]](c)
+  }
 
   implicit val bifunctorCompulsoryKV: Bitraverse[CompulsoryKV] =
     new Bitraverse[CompulsoryKV] {
