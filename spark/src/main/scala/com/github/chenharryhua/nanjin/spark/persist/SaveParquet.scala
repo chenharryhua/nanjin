@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.{Eq, Parallel}
 import cats.effect.{Blocker, Concurrent, ContextShift}
 import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.{fileSink, utils, RddExt}
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import org.apache.avro.generic.GenericRecord
@@ -15,7 +15,7 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 import scala.reflect.ClassTag
 
 final class SaveParquet[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(implicit
-  codec: NJAvroCodec[A],
+  codec: AvroCodec[A],
   ss: SparkSession)
     extends Serializable {
   val params: HoarderParams = cfg.evalConfig
@@ -68,7 +68,7 @@ final class PartitionParquet[F[_], A: ClassTag, K: ClassTag: Eq](
   rdd: RDD[A],
   cfg: HoarderConfig,
   bucketing: A => Option[K],
-  pathBuilder: (NJFileFormat, K) => String)(implicit codec: NJAvroCodec[A], ss: SparkSession)
+  pathBuilder: (NJFileFormat, K) => String)(implicit codec: AvroCodec[A], ss: SparkSession)
     extends AbstractPartition[F, A, K] {
 
   val params: HoarderParams = cfg.evalConfig

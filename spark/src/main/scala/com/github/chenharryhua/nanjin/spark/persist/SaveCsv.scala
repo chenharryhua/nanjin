@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.{Eq, Parallel}
 import cats.effect.{Blocker, Concurrent, ContextShift}
 import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.{fileSink, utils, RddExt}
 import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.spark.rdd.RDD
@@ -14,7 +14,7 @@ import scala.reflect.ClassTag
 final class SaveCsv[F[_], A: ClassTag](
   rdd: RDD[A],
   csvConfiguration: CsvConfiguration,
-  cfg: HoarderConfig)(implicit rowEncoder: RowEncoder[A], codec: NJAvroCodec[A], ss: SparkSession)
+  cfg: HoarderConfig)(implicit rowEncoder: RowEncoder[A], codec: AvroCodec[A], ss: SparkSession)
     extends Serializable {
   val params: HoarderParams = cfg.evalConfig
 
@@ -61,7 +61,7 @@ final class PartitionCsv[F[_], A: ClassTag, K: ClassTag: Eq](
   bucketing: A => Option[K],
   pathBuilder: (NJFileFormat, K) => String)(implicit
   rowEncoder: RowEncoder[A],
-  codec: NJAvroCodec[A],
+  codec: AvroCodec[A],
   ss: SparkSession)
     extends AbstractPartition[F, A, K] {
 

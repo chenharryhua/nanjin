@@ -1,12 +1,12 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.sksamuel.avro4s.{Decoder, Encoder, SchemaFor}
 import frameless.TypedEncoder
 import shapeless.cachedImplicit
 
-final class KafkaAvroCodec[K, V](val keyCodec: NJAvroCodec[K], val valCodec: NJAvroCodec[V])
+final class KafkaAvroCodec[K, V](val keyCodec: AvroCodec[K], val valCodec: AvroCodec[V])
     extends Serializable {
   implicit private val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
   implicit private val schemaForVal: SchemaFor[V] = valCodec.schemaFor
@@ -20,40 +20,40 @@ final class KafkaAvroCodec[K, V](val keyCodec: NJAvroCodec[K], val valCodec: NJA
   val optionalKVDecoder: Decoder[OptionalKV[K, V]]     = cachedImplicit
   val optionalKVEncoder: Encoder[OptionalKV[K, V]]     = cachedImplicit
 
-  val optionalKVCodec: NJAvroCodec[OptionalKV[K, V]] =
-    NJAvroCodec[OptionalKV[K, V]](schemaForOptionalKV, optionalKVDecoder, optionalKVEncoder)
+  val optionalKVCodec: AvroCodec[OptionalKV[K, V]] =
+    AvroCodec[OptionalKV[K, V]](schemaForOptionalKV, optionalKVDecoder, optionalKVEncoder)
 
   // compulsory key
   val schemaForCompulsoryK: SchemaFor[CompulsoryK[K, V]] = cachedImplicit
   val compulsoryKDecoder: Decoder[CompulsoryK[K, V]]     = cachedImplicit
   val compulsoryKEncoder: Encoder[CompulsoryK[K, V]]     = cachedImplicit
 
-  val compulsoryKCodec: NJAvroCodec[CompulsoryK[K, V]] =
-    NJAvroCodec[CompulsoryK[K, V]](schemaForCompulsoryK, compulsoryKDecoder, compulsoryKEncoder)
+  val compulsoryKCodec: AvroCodec[CompulsoryK[K, V]] =
+    AvroCodec[CompulsoryK[K, V]](schemaForCompulsoryK, compulsoryKDecoder, compulsoryKEncoder)
 
   // compulsory val
   val schemaForCompulsoryV: SchemaFor[CompulsoryV[K, V]] = cachedImplicit
   val compulsoryVDecoder: Decoder[CompulsoryV[K, V]]     = cachedImplicit
   val compulsoryVEncoder: Encoder[CompulsoryV[K, V]]     = cachedImplicit
 
-  val compulsoryVCodec: NJAvroCodec[CompulsoryV[K, V]] =
-    NJAvroCodec[CompulsoryV[K, V]](schemaForCompulsoryV, compulsoryVDecoder, compulsoryVEncoder)
+  val compulsoryVCodec: AvroCodec[CompulsoryV[K, V]] =
+    AvroCodec[CompulsoryV[K, V]](schemaForCompulsoryV, compulsoryVDecoder, compulsoryVEncoder)
 
   // compulsory key/value
   val schemaForCompulsoryKV: SchemaFor[CompulsoryKV[K, V]] = cachedImplicit
   val compulsoryKVDecoder: Decoder[CompulsoryKV[K, V]]     = cachedImplicit
   val compulsoryKVEncoder: Encoder[CompulsoryKV[K, V]]     = cachedImplicit
 
-  val compulsoryKVCodec: NJAvroCodec[CompulsoryKV[K, V]] =
-    NJAvroCodec[CompulsoryKV[K, V]](schemaForCompulsoryKV, compulsoryKVDecoder, compulsoryKVEncoder)
+  val compulsoryKVCodec: AvroCodec[CompulsoryKV[K, V]] =
+    AvroCodec[CompulsoryKV[K, V]](schemaForCompulsoryKV, compulsoryKVDecoder, compulsoryKVEncoder)
 
   // producer record
   val schemaForProducerRecord: SchemaFor[NJProducerRecord[K, V]] = cachedImplicit
   val producerRecordDecoder: Decoder[NJProducerRecord[K, V]]     = cachedImplicit
   val producerRecordEncoder: Encoder[NJProducerRecord[K, V]]     = cachedImplicit
 
-  val producerRecordCodec: NJAvroCodec[NJProducerRecord[K, V]] =
-    NJAvroCodec[NJProducerRecord[K, V]](
+  val producerRecordCodec: AvroCodec[NJProducerRecord[K, V]] =
+    AvroCodec[NJProducerRecord[K, V]](
       schemaForProducerRecord,
       producerRecordDecoder,
       producerRecordEncoder)

@@ -4,8 +4,8 @@ import cats.Eq
 import cats.effect.Sync
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.pipes.{GenericRecordEncoder, JacksonSerialization}
+import frameless.TypedDataset
 import frameless.cats.implicits.rddOps
-import frameless.{SparkDelay, TypedDataset}
 import fs2.Stream
 import org.apache.spark.rdd.RDD
 
@@ -63,7 +63,7 @@ trait CrRddInvModule[F[_], K, V] { self: CrRdd[F, K, V] =>
 
   def kvDiff(other: CrRdd[F, K, V]): RDD[KvDiffResult[K, V]] = kvDiff(other.rdd)
 
-  def first(implicit F: SparkDelay[F]): F[Option[OptionalKV[K, V]]] = F.delay(rdd.cminOption)
-  def last(implicit F: SparkDelay[F]): F[Option[OptionalKV[K, V]]]  = F.delay(rdd.cmaxOption)
+  def first(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] = F.delay(rdd.cminOption)
+  def last(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]]  = F.delay(rdd.cmaxOption)
 
 }

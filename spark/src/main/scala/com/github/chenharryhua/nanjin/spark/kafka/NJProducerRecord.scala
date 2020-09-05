@@ -3,11 +3,16 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import alleycats.Empty
 import cats.implicits.toShow
 import cats.{Bifunctor, Show}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
+import com.sksamuel.avro4s.{Decoder, Encoder, SchemaFor}
+import frameless.TypedEncoder
 import fs2.kafka.{ProducerRecord => Fs2ProducerRecord}
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import monocle.macros.Lenses
 import org.apache.kafka.clients.producer.ProducerRecord
+import shapeless.cachedImplicit
 
 @Lenses final case class NJProducerRecord[K, V](
   partition: Option[Int],
@@ -57,6 +62,27 @@ import org.apache.kafka.clients.producer.ProducerRecord
 }
 
 object NJProducerRecord {
+
+  implicit def producerRecordCodec[K, V](implicit
+    keyCodec: AvroCodec[K],
+    valCodec: AvroCodec[V]): AvroCodec[NJProducerRecord[K, V]] = {
+    implicit val schemaForKey: SchemaFor[K]  = keyCodec.schemaFor
+    implicit val schemaForVal: SchemaFor[V]  = valCodec.schemaFor
+    implicit val keyDecoder: Decoder[K]      = keyCodec.avroDecoder
+    implicit val valDecoder: Decoder[V]      = valCodec.avroDecoder
+    implicit val keyEncoder: Encoder[K]      = keyCodec.avroEncoder
+    implicit val valEncoder: Encoder[V]      = valCodec.avroEncoder
+    val s: SchemaFor[NJProducerRecord[K, V]] = cachedImplicit
+    val d: Decoder[NJProducerRecord[K, V]]   = cachedImplicit
+    val e: Encoder[NJProducerRecord[K, V]]   = cachedImplicit
+    AvroCodec[NJProducerRecord[K, V]](s, d, e)
+  }
+
+  implicit def producerRecordKAvroTypedEncoer[K, V](implicit
+    ek: TypedEncoder[K],
+    ev: TypedEncoder[V],
+    c: AvroCodec[NJProducerRecord[K, V]]): AvroTypedEncoder[NJProducerRecord[K, V]] =
+    AvroTypedEncoder[NJProducerRecord[K, V]](c)
 
   def apply[K, V](pr: ProducerRecord[Option[K], Option[V]]): NJProducerRecord[K, V] =
     NJProducerRecord(Option(pr.partition), Option(pr.timestamp), pr.key, pr.value)

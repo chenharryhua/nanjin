@@ -8,7 +8,7 @@ import cats.syntax.all._
 import com.github.chenharryhua.nanjin.common.transformers._
 import com.github.chenharryhua.nanjin.database.TableName
 import com.github.chenharryhua.nanjin.datetime._
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.database._
 import com.github.chenharryhua.nanjin.spark.injection._
@@ -33,7 +33,7 @@ final case class DBTable(a: LocalDate, b: LocalDate, c: Instant, d: Instant, e: 
 class SparkTableTest extends AnyFunSuite {
   implicit val zoneId: ZoneId = beijingTime
 
-  implicit val codec: NJAvroCodec[DBTable]    = NJAvroCodec[DBTable]
+  implicit val codec: AvroCodec[DBTable]      = AvroCodec[DBTable]
   implicit val te: TypedEncoder[DBTable]      = shapeless.cachedImplicit
   implicit val ate: AvroTypedEncoder[DBTable] = AvroTypedEncoder[DBTable](codec)
   implicit val re: RowEncoder[DBTable]        = shapeless.cachedImplicit

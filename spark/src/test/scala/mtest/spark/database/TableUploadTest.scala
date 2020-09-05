@@ -2,7 +2,7 @@ package mtest.spark.database
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.database.TableName
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.database.{SparkTable, TableDef}
 import com.sksamuel.avro4s.SchemaFor
 import org.apache.spark.rdd.RDD
@@ -17,7 +17,7 @@ object TableUploadTestData {
 
   implicit val roundingMode: BigDecimal.RoundingMode.Value = RoundingMode.HALF_UP
 
-  val schema = NJAvroCodec[Beaver](
+  val schema = AvroCodec[Beaver](
     """
       |{
       |  "type": "record",

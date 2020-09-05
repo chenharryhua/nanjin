@@ -63,7 +63,7 @@ object KJson {
             }
         }
 
-      override val avroCodec: NJAvroCodec[KJson[A]] =
-        NJAvroCodec(jsonSchemaFor, avroDecoder, avroEncoder)
+      override val avroCodec: AvroCodec[KJson[A]] =
+        AvroCodec(jsonSchemaFor, avroDecoder, avroEncoder)
     }
 }

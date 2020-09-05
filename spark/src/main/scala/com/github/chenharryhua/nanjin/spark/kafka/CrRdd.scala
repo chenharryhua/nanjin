@@ -9,7 +9,7 @@ import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.{localdateInstances, NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.persist.{RddFileHoarder, RddPartitionHoarder}
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt}
 import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
@@ -49,13 +49,13 @@ final class CrRdd[F[_], K, V](
   def bimap[K2: AvroEncoder: AvroDecoder: SchemaFor, V2: AvroEncoder: AvroDecoder: SchemaFor](
     k: K => K2,
     v: V => V2): CrRdd[F, K2, V2] = {
-    val codec = new KafkaAvroCodec[K2, V2](NJAvroCodec[K2], NJAvroCodec[V2])
+    val codec = new KafkaAvroCodec[K2, V2](AvroCodec[K2], AvroCodec[V2])
     new CrRdd[F, K2, V2](rdd.map(_.bimap(k, v)), codec, cfg)
   }
 
   def flatMap[K2: AvroEncoder: AvroDecoder: SchemaFor, V2: AvroEncoder: AvroDecoder: SchemaFor](
     f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]]): CrRdd[F, K2, V2] = {
-    val codec = new KafkaAvroCodec[K2, V2](NJAvroCodec[K2], NJAvroCodec[V2])
+    val codec = new KafkaAvroCodec[K2, V2](AvroCodec[K2], AvroCodec[V2])
     new CrRdd[F, K2, V2](rdd.flatMap(f), codec, cfg)
   }
 
@@ -115,7 +115,7 @@ final class CrRdd[F[_], K, V](
       .drain
 
   def save: RddFileHoarder[F, OptionalKV[K, V]] = {
-    implicit val c: NJAvroCodec[OptionalKV[K, V]] = codec.optionalKVCodec
+    implicit val c: AvroCodec[OptionalKV[K, V]] = codec.optionalKVCodec
     new RddFileHoarder[F, OptionalKV[K, V]](rdd)
   }
 
@@ -123,7 +123,7 @@ final class CrRdd[F[_], K, V](
     Some(NJTimestamp(kv.timestamp).dayResolution(params.timeRange.zoneId))
 
   def partition: RddPartitionHoarder[F, OptionalKV[K, V], LocalDate] = {
-    implicit val c: NJAvroCodec[OptionalKV[K, V]] = codec.optionalKVCodec
+    implicit val c: AvroCodec[OptionalKV[K, V]] = codec.optionalKVCodec
     new RddPartitionHoarder[F, OptionalKV[K, V], LocalDate](
       rdd,
       bucketing,

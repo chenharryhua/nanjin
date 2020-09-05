@@ -4,7 +4,7 @@ import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.github.chenharryhua.nanjin.spark.sstream.{KafkaCrSStream, SStreamConfig, SparkSStream}
 import com.github.chenharryhua.nanjin.spark.{fileSink, AvroTypedEncoder}
@@ -138,7 +138,7 @@ final class SparKafka[F[_], K, V](
     }
 
     object rdd {
-      implicit private val optionalKV: NJAvroCodec[OptionalKV[K, V]] = codec.optionalKVCodec
+      implicit private val optionalKV: AvroCodec[OptionalKV[K, V]] = codec.optionalKVCodec
 
       def avro(pathStr: String): CrRdd[F, K, V] =
         crRdd(loaders.raw.avro[OptionalKV[K, V]](pathStr))

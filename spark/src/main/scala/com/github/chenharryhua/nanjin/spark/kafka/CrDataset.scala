@@ -6,7 +6,7 @@ import cats.Eq
 import cats.effect.Sync
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.{localdateInstances, NJDateTimeRange, NJTimestamp}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.persist.{RddFileHoarder, RddPartitionHoarder}
 import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
 import frameless.cats.implicits._
@@ -37,7 +37,7 @@ final class CrDataset[F[_], K, V](
     val codec = new KafkaAvroTypedEncoder[K2, V2](
       TypedEncoder[K2],
       TypedEncoder[V2],
-      new KafkaAvroCodec[K2, V2](NJAvroCodec[K2], NJAvroCodec[V2]))
+      new KafkaAvroCodec[K2, V2](AvroCodec[K2], AvroCodec[V2]))
     new CrDataset[F, K2, V2](typedDataset.deserialized.map(_.bimap(k, v)).dataset, codec, cfg)
   }
 
@@ -48,7 +48,7 @@ final class CrDataset[F[_], K, V](
     val codec = new KafkaAvroTypedEncoder[K2, V2](
       TypedEncoder[K2],
       TypedEncoder[V2],
-      new KafkaAvroCodec[K2, V2](NJAvroCodec[K2], NJAvroCodec[V2]))
+      new KafkaAvroCodec[K2, V2](AvroCodec[K2], AvroCodec[V2]))
     new CrDataset[F, K2, V2](typedDataset.deserialized.flatMap(f).dataset, codec, cfg)
   }
 
@@ -150,8 +150,8 @@ final class CrDataset[F[_], K, V](
   }
 
   def save: RddFileHoarder[F, OptionalKV[K, V]] = {
-    implicit val ss: SparkSession                  = dataset.sparkSession
-    implicit val ac: NJAvroCodec[OptionalKV[K, V]] = codec.ateOptionalKV.avroCodec
+    implicit val ss: SparkSession                = dataset.sparkSession
+    implicit val ac: AvroCodec[OptionalKV[K, V]] = codec.ateOptionalKV.avroCodec
     new RddFileHoarder[F, OptionalKV[K, V]](dataset.rdd)
   }
 
@@ -159,8 +159,8 @@ final class CrDataset[F[_], K, V](
     Some(NJTimestamp(kv.timestamp).dayResolution(params.timeRange.zoneId))
 
   def partition: RddPartitionHoarder[F, OptionalKV[K, V], LocalDate] = {
-    implicit val c: NJAvroCodec[OptionalKV[K, V]] = codec.ateOptionalKV.avroCodec
-    implicit val ss: SparkSession                 = dataset.sparkSession
+    implicit val c: AvroCodec[OptionalKV[K, V]] = codec.ateOptionalKV.avroCodec
+    implicit val ss: SparkSession               = dataset.sparkSession
     new RddPartitionHoarder[F, OptionalKV[K, V], LocalDate](
       dataset.rdd,
       bucketing,

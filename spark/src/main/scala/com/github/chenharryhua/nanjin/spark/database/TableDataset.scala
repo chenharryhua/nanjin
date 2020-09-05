@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.database
 import cats.effect.Sync
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.database.{DatabaseName, DatabaseSettings, TableName}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist._
 import frameless.TypedDataset
@@ -20,7 +20,7 @@ final class TableDataset[F[_], A](
 
   implicit private val classTag: ClassTag[A] = ate.classTag
   implicit private val ss: SparkSession      = dataset.sparkSession
-  implicit private val ae: NJAvroCodec[A]    = ate.avroCodec
+  implicit private val ae: AvroCodec[A]      = ate.avroCodec
 
   val params: STParams = cfg.evalConfig
 

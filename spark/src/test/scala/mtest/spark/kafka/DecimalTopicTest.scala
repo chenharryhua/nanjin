@@ -5,7 +5,7 @@ import java.time.Instant
 import cats.effect.IO
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.injection._
 import com.github.chenharryhua.nanjin.spark.kafka._
 import frameless.cats.implicits._
@@ -56,8 +56,8 @@ object DecimalTopicTestCase {
   final case class HasDecimal(a: BigDecimal, b: BigDecimal, c: Instant)
   implicit val roundingMode: BigDecimal.RoundingMode.Value = RoundingMode.HALF_UP
 
-  val codec: NJAvroCodec[HasDecimal] =
-    NJAvroCodec[HasDecimal](schemaText).right.get
+  val codec: AvroCodec[HasDecimal] =
+    AvroCodec[HasDecimal](schemaText).right.get
 
   val topicDef: TopicDef[Int, HasDecimal] =
     TopicDef[Int, HasDecimal](TopicName("kafka.decimal.test"), codec)

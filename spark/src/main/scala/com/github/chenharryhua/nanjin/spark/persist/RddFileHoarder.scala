@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Show
 import com.github.chenharryhua.nanjin.common.NJFileFormat._
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.spark.rdd.RDD
@@ -13,7 +13,7 @@ import scala.reflect.ClassTag
 
 final class RddFileHoarder[F[_], A: ClassTag](
   rdd: RDD[A],
-  cfg: HoarderConfig = HoarderConfig.default)(implicit codec: NJAvroCodec[A], ss: SparkSession)
+  cfg: HoarderConfig = HoarderConfig.default)(implicit codec: AvroCodec[A], ss: SparkSession)
     extends Serializable {
 
   private def updateConfig(cfg: HoarderConfig): RddFileHoarder[F, A] =

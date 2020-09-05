@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.database
 
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.database.{DatabaseName, DatabaseSettings, TableName}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
@@ -25,10 +25,9 @@ object TableDef {
 
   def apply[A: AvroEncoder: AvroDecoder: SchemaFor: TypedEncoder](
     tableName: TableName): TableDef[A] =
-    new TableDef[A](tableName, AvroTypedEncoder(NJAvroCodec[A]))
+    new TableDef[A](tableName, AvroTypedEncoder(AvroCodec[A]))
 
-  def apply[A](tableName: TableName, codec: NJAvroCodec[A])(implicit
-    typedEncoder: TypedEncoder[A]) =
+  def apply[A](tableName: TableName, codec: AvroCodec[A])(implicit typedEncoder: TypedEncoder[A]) =
     new TableDef[A](tableName, AvroTypedEncoder(codec))
 }
 
@@ -40,7 +39,7 @@ final class SparkTable[F[_], A](
     extends Serializable {
 
   implicit private val ate: AvroTypedEncoder[A]   = tableDef.encoder
-  implicit private val codec: NJAvroCodec[A]      = ate.avroCodec
+  implicit private val codec: AvroCodec[A]        = ate.avroCodec
   implicit private val tag: ClassTag[A]           = ate.classTag
   implicit private val sparkSession: SparkSession = ss
 
@@ -57,7 +56,7 @@ final class SparkTable[F[_], A](
   def fromDB: TableDataset[F, A] = {
     val df =
       sd.unloadDF(dbSettings.connStr, dbSettings.driver, tableDef.tableName, params.query)
-    new TableDataset[F, A](ate.fromDF(df).dataset, dbSettings, cfg)(ate)
+    new TableDataset[F, A](ate.normalizeDF(df).dataset, dbSettings, cfg)(ate)
   }
 
   def tableDataset(ds: Dataset[A]): TableDataset[F, A] =

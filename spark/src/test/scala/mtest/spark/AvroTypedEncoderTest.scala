@@ -3,7 +3,7 @@ package mtest.spark
 import java.time.Instant
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.injection._
 import com.github.chenharryhua.nanjin.spark.persist.loaders
@@ -55,7 +55,7 @@ object AvroTypedEncoderTestData {
 
   implicit val roundingMode: BigDecimal.RoundingMode.Value = RoundingMode.HALF_UP
 
-  implicit val codec: NJAvroCodec[Lion]    = NJAvroCodec[Lion](schemaText).right.get
+  implicit val codec: AvroCodec[Lion]      = AvroCodec[Lion](schemaText).right.get
   implicit val encoder: TypedEncoder[Lion] = shapeless.cachedImplicit
   implicit val ate: AvroTypedEncoder[Lion] = AvroTypedEncoder[Lion](codec)
 
@@ -104,7 +104,7 @@ class AvroTypedEncoderTest extends AnyFunSuite {
     assert(n.schema == expectedSchema)
   }
   test("normalize dataframe") {
-    val n = ate.fromDF(df)
+    val n = ate.normalizeDF(df)
     assert(n.collect[IO]().unsafeRunSync().toSet == expected.toSet)
     assert(n.schema == expectedSchema)
   }

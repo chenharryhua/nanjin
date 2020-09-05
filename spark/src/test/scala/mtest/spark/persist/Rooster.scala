@@ -3,7 +3,7 @@ package mtest.spark.persist
 import java.sql.Timestamp
 import java.time.Instant
 
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.injection._
 import com.sksamuel.avro4s.{Decoder, Encoder}
@@ -71,8 +71,8 @@ object Rooster {
 
   implicit val typedEncoder: TypedEncoder[Rooster] = shapeless.cachedImplicit
 
-  implicit val avroCodec: NJAvroCodec[Rooster] =
-    NJAvroCodec[Rooster](schema).right.get
+  implicit val avroCodec: AvroCodec[Rooster] =
+    AvroCodec[Rooster](schema).right.get
 
   implicit val ate: AvroTypedEncoder[Rooster] =
     AvroTypedEncoder[Rooster](TypedEncoder[Rooster], avroCodec)

@@ -10,7 +10,7 @@ import shapeless.{:+:, CNil, Coproduct}
 import io.circe.shapes._
 import io.circe.generic.auto._
 import frameless.TypedEncoder
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 
 object FormatCapabilityTestData {
 

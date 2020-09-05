@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.syntax.all._
 import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.messages.kafka._
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJAvroCodec, SerdeOf}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, SerdeOf}
 import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
 
 final class TopicDef[K, V] private (val topicName: TopicName)(implicit
@@ -38,13 +38,13 @@ object TopicDef {
 
   def apply[K, V](
     topicName: TopicName,
-    keySchema: NJAvroCodec[K],
-    valueSchema: NJAvroCodec[V]): TopicDef[K, V] =
+    keySchema: AvroCodec[K],
+    valueSchema: AvroCodec[V]): TopicDef[K, V] =
     new TopicDef(topicName)(SerdeOf(keySchema), SerdeOf(valueSchema))
 
   def apply[K: SerdeOf, V: SerdeOf](topicName: TopicName): TopicDef[K, V] =
     new TopicDef(topicName)(SerdeOf[K], SerdeOf[V])
 
-  def apply[K: SerdeOf, V](topicName: TopicName, valueSchema: NJAvroCodec[V]): TopicDef[K, V] =
+  def apply[K: SerdeOf, V](topicName: TopicName, valueSchema: AvroCodec[V]): TopicDef[K, V] =
     new TopicDef(topicName)(SerdeOf[K], SerdeOf(valueSchema))
 }
