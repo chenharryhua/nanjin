@@ -118,10 +118,15 @@ object OptionalKV {
   }
 
   implicit def optionalAvroTypedEncoer[K, V](implicit
-    ek: TypedEncoder[K],
-    ev: TypedEncoder[V],
-    c: AvroCodec[OptionalKV[K, V]]): AvroTypedEncoder[OptionalKV[K, V]] =
-    AvroTypedEncoder[OptionalKV[K, V]](c)
+    ek: AvroTypedEncoder[K],
+    ev: AvroTypedEncoder[V]): AvroTypedEncoder[OptionalKV[K, V]] = {
+    implicit val k: TypedEncoder[K]        = ek.typedEncoder
+    implicit val v: TypedEncoder[V]        = ev.typedEncoder
+    implicit val ck: AvroCodec[K]          = ek.avroCodec
+    implicit val cv: AvroCodec[V]          = ev.avroCodec
+    val codec: AvroCodec[OptionalKV[K, V]] = shapeless.cachedImplicit
+    AvroTypedEncoder[OptionalKV[K, V]](codec)
+  }
 
   implicit val bifunctorOptionalKV: Bifunctor[OptionalKV] =
     new Bifunctor[OptionalKV] {

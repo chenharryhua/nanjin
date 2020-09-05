@@ -5,31 +5,33 @@ import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.types.{DataType, StructType}
-import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
+import org.apache.spark.sql.{DataFrame, Dataset, Encoder, SparkSession}
 
 import scala.reflect.ClassTag
 
-final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], sparkEncoder: TypedEncoder[A])
+final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], te: TypedEncoder[A])
     extends Serializable {
 
-  val classTag: ClassTag[A] = sparkEncoder.classTag
+  val classTag: ClassTag[A] = te.classTag
 
-  val sparkSchema: StructType = TypedExpressionEncoder[A](sparkEncoder).schema
+  val sparkSchema: StructType = TypedExpressionEncoder[A](te).schema
 
   private val avroStructType: StructType = utils.schemaToStructType(avroCodec.schema)
 
-  private val avroEncoder: TypedEncoder[A] =
+  val typedEncoder: TypedEncoder[A] =
     new TypedEncoder[A]()(classTag) {
-      override val nullable: Boolean      = sparkEncoder.nullable
-      override val jvmRepr: DataType      = sparkEncoder.jvmRepr
+      override val nullable: Boolean      = te.nullable
+      override val jvmRepr: DataType      = te.jvmRepr
       override val catalystRepr: DataType = avroStructType
 
-      override def fromCatalyst(path: Expression): Expression = sparkEncoder.fromCatalyst(path)
-      override def toCatalyst(path: Expression): Expression   = sparkEncoder.toCatalyst(path)
+      override def fromCatalyst(path: Expression): Expression = te.fromCatalyst(path)
+      override def toCatalyst(path: Expression): Expression   = te.toCatalyst(path)
     }
 
+  val sparkEncoder: Encoder[A] = TypedExpressionEncoder(typedEncoder)
+
   def normalize(rdd: RDD[A])(implicit ss: SparkSession): TypedDataset[A] =
-    TypedDataset.createUnsafe(utils.normalizedDF(rdd, avroCodec.avroEncoder))(avroEncoder)
+    TypedDataset.createUnsafe(utils.normalizedDF(rdd, avroCodec.avroEncoder))(typedEncoder)
 
   def normalize(ds: Dataset[A]): TypedDataset[A] =
     normalize(ds.rdd)(ds.sparkSession)
@@ -38,7 +40,7 @@ final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], sparkEncod
     normalize(tds.dataset)
 
   def normalizeDF(ds: DataFrame): TypedDataset[A] =
-    normalize(TypedDataset.createUnsafe(ds)(sparkEncoder))
+    normalize(TypedDataset.createUnsafe(ds)(te))
 
 }
 

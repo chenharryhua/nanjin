@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.Eq
 import cats.effect.Sync
 import cats.syntax.all._
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.pipes.{GenericRecordEncoder, JacksonSerialization}
 import frameless.TypedDataset
 import frameless.cats.implicits.rddOps
@@ -11,7 +12,7 @@ import org.apache.spark.rdd.RDD
 
 import scala.collection.immutable.Queue
 
-trait CrRddInvModule[F[_], K, V] { self: CrRdd[F, K, V] =>
+trait InvModule[F[_], K, V] { self: CrRdd[F, K, V] =>
 
   def count(implicit F: Sync[F]): F[Long] =
     F.delay(rdd.count())
@@ -31,10 +32,11 @@ trait CrRddInvModule[F[_], K, V] { self: CrRdd[F, K, V] =>
     inv.dupRecords(TypedDataset.create(values.map(CRMetaInfo(_))))
 
   def showJackson(rs: Array[OptionalKV[K, V]])(implicit F: Sync[F]): F[Unit] = {
+    val codec: AvroCodec[OptionalKV[K, V]] = shapeless.cachedImplicit
     val pipe: JacksonSerialization[F] =
-      new JacksonSerialization[F](codec.schemaForOptionalKV.schema)
+      new JacksonSerialization[F](codec.schema)
     val gre: GenericRecordEncoder[F, OptionalKV[K, V]] =
-      new GenericRecordEncoder[F, OptionalKV[K, V]](codec.optionalKVEncoder)
+      new GenericRecordEncoder[F, OptionalKV[K, V]](codec.avroEncoder)
 
     Stream
       .emits(rs)
