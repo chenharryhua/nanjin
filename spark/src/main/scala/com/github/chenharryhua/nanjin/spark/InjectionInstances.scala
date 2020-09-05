@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark
 
 import java.sql.{Date, Timestamp}
-import java.time.{Instant, LocalDate, LocalDateTime, ZoneId}
+import java.time.{Instant, LocalDate}
 
 import cats.Order
 import frameless.{Injection, SQLDate, SQLTimestamp}
@@ -33,12 +33,6 @@ private[spark] trait InjectionInstances extends Serializable {
     new Injection[Instant, Timestamp] {
       override def apply(a: Instant): Timestamp  = Timestamp.from(a)
       override def invert(b: Timestamp): Instant = b.toInstant
-    }
-
-  implicit def localDateTimeInjection(implicit zoneId: ZoneId): Injection[LocalDateTime, Instant] =
-    new Injection[LocalDateTime, Instant] {
-      override def apply(a: LocalDateTime): Instant  = a.atZone(zoneId).toInstant
-      override def invert(b: Instant): LocalDateTime = b.atZone(zoneId).toLocalDateTime
     }
 
   implicit val timestampInjection: Injection[Timestamp, SQLTimestamp] =

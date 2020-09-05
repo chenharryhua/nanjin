@@ -1,11 +1,11 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import java.time.{LocalDate, LocalDateTime, ZoneId}
+import java.time.{Instant, LocalDate, LocalDateTime, ZoneId}
 
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.functions.aggregate.count
-import frameless.{SparkDelay, TypedDataset}
+import frameless.{Injection, SparkDelay, TypedDataset}
 import org.apache.spark.sql.Dataset
 
 final private[kafka] case class MinutelyAggResult(minute: Int, count: Long)
@@ -18,7 +18,12 @@ final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Ser
 
   val params: SKParams = cfg.evalConfig
 
-  implicit private val zoneId: ZoneId = params.timeRange.zoneId
+  implicit def localDateTimeInjection: Injection[LocalDateTime, Instant] =
+    new Injection[LocalDateTime, Instant] {
+      private val zoneId: ZoneId                     = params.timeRange.zoneId
+      override def apply(a: LocalDateTime): Instant  = a.atZone(zoneId).toInstant
+      override def invert(b: Instant): LocalDateTime = b.atZone(zoneId).toLocalDateTime
+    }
 
   @transient private lazy val typedDataset: TypedDataset[CRMetaInfo] =
     TypedDataset.create(ds)
