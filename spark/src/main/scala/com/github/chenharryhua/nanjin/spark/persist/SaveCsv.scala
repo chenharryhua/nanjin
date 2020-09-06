@@ -31,7 +31,7 @@ final class SaveCsv[F[_], A: ClassTag](
 
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
-    params.singleOrMulti match {
+    params.folderOrFile match {
       case FolderOrFile.SingleFile =>
         sma.checkAndRun(blocker)(
           rdd

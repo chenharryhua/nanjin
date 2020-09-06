@@ -40,7 +40,7 @@ final class SaveAvro[F[_], A: ClassTag](
 
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
 
-    (params.singleOrMulti, ote) match {
+    (params.folderOrFile, ote) match {
       case (FolderOrFile.SingleFile, _) =>
         sma.checkAndRun(blocker)(
           rdd.stream[F].through(fileSink[F](blocker).avro(params.outPath)).compile.drain)

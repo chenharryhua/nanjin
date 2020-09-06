@@ -38,7 +38,7 @@ final class SaveParquet[F[_], A: ClassTag](
     implicit val encoder: AvroEncoder[A] = codec.avroEncoder
     val sma: SaveModeAware[F]            = new SaveModeAware[F](params.saveMode, params.outPath, ss)
 
-    (params.singleOrMulti, ote) match {
+    (params.folderOrFile, ote) match {
       case (FolderOrFile.SingleFile, _) =>
         sma.checkAndRun(blocker)(
           rdd.stream[F].through(fileSink[F](blocker).parquet(params.outPath)).compile.drain)

@@ -28,7 +28,7 @@ final class SaveJackson[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(impl
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
     implicit val encoder: AvroEncoder[A] = codec.avroEncoder
     val sma: SaveModeAware[F]            = new SaveModeAware[F](params.saveMode, params.outPath, ss)
-    params.singleOrMulti match {
+    params.folderOrFile match {
       case FolderOrFile.SingleFile =>
         sma.checkAndRun(blocker)(
           rdd
