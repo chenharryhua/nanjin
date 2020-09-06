@@ -85,6 +85,7 @@ class AvroTest extends AnyFunSuite {
     val saver = new RddFileHoarder[IO, Bee](rdd).repartition(1)
     saver.avro(path).file.run(blocker).unsafeRunSync()
     val t = loaders.raw.avro[Bee](path).collect().toList
+    println(loaders.raw.avro[Bee](path).map(_.toWasp).collect().toList)
     assert(!bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
 

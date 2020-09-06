@@ -34,7 +34,6 @@ class JacksonTest extends AnyFunSuite {
     val saver = new RddFileHoarder[IO, Bee](rdd).repartition(1)
     saver.jackson(path).folder.run(blocker).unsafeRunSync()
     val t = loaders.raw.jackson[Bee](path).collect().toList
-    println(t)
     assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
 }
