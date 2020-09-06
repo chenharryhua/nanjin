@@ -3,9 +3,12 @@ package com.github.chenharryhua.nanjin.spark
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.avro.{AvroDeserializer, SchemaConverters}
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.encoders.{ExpressionEncoder, RowEncoder}
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.types.{DataType, StructType}
-import org.apache.spark.sql.{DataFrame, Dataset, Encoder, SparkSession}
+import org.apache.spark.sql._
 
 import scala.reflect.ClassTag
 
@@ -16,7 +19,12 @@ final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], te: TypedE
 
   val sparkSchema: StructType = TypedExpressionEncoder[A](te).schema
 
-  private val avroStructType: StructType = utils.schemaToStructType(avroCodec.schema)
+  private val avroStructType: StructType =
+    SchemaConverters.toSqlType(avroCodec.schema).dataType match {
+      case st: StructType => st
+      case pt =>
+        throw new Exception(s"${pt.toString} can not be convert to spark struct type")
+    }
 
   val typedEncoder: TypedEncoder[A] =
     new TypedEncoder[A]()(classTag) {
@@ -31,7 +39,7 @@ final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], te: TypedE
   val sparkEncoder: Encoder[A] = TypedExpressionEncoder(typedEncoder)
 
   def normalize(rdd: RDD[A])(implicit ss: SparkSession): TypedDataset[A] =
-    TypedDataset.createUnsafe(utils.normalizedDF(rdd, avroCodec.avroEncoder))(typedEncoder)
+    TypedDataset.createUnsafe(toDF(rdd))(typedEncoder)
 
   def normalize(ds: Dataset[A]): TypedDataset[A] =
     normalize(ds.rdd)(ds.sparkSession)
@@ -42,6 +50,18 @@ final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], te: TypedE
   def normalizeDF(ds: DataFrame): TypedDataset[A] =
     normalize(TypedDataset.createUnsafe(ds)(te))
 
+  @SuppressWarnings(Array("AsInstanceOf"))
+  private def toDF(rdd: RDD[A])(implicit ss: SparkSession): DataFrame = {
+    val enRow: ExpressionEncoder.Deserializer[Row] =
+      RowEncoder.apply(avroStructType).resolveAndBind().createDeserializer()
+    val rows: RDD[Row] = rdd.mapPartitions { iter =>
+      val sa = new AvroDeserializer(avroCodec.schema, avroStructType)
+      iter.map { a =>
+        enRow(sa.deserialize(avroCodec.avroEncoder.encode(a)).asInstanceOf[InternalRow])
+      }
+    }
+    ss.createDataFrame(rows, avroStructType)
+  }
 }
 
 object AvroTypedEncoder {

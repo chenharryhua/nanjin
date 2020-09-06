@@ -3,6 +3,8 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.Show
 import com.github.chenharryhua.nanjin.common.NJFileFormat._
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
+import frameless.TypedEncoder
 import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.spark.rdd.RDD
@@ -39,20 +41,24 @@ final class RddFileHoarder[F[_], A: ClassTag](
     new SaveText[F, A](rdd, cfg.withFormat(Text).withOutPutPath(outPath))
 
 // 4
-  def csv(outPath: String)(implicit ev: RowEncoder[A]): SaveCsv[F, A] =
+  def csv(outPath: String)(implicit ev: RowEncoder[A], te: TypedEncoder[A]): SaveCsv[F, A] = {
+    implicit val ate: AvroTypedEncoder[A] = AvroTypedEncoder[A](codec)
     new SaveCsv[F, A](rdd, CsvConfiguration.rfc, cfg.withFormat(Csv).withOutPutPath(outPath))
+  }
 
-// 5
-  def json(outPath: String): SaveSparkJson[F, A] =
+  // 5
+  def json(outPath: String)(implicit ev: TypedEncoder[A]): SaveSparkJson[F, A] = {
+    implicit val ate: AvroTypedEncoder[A] = AvroTypedEncoder[A](codec)
     new SaveSparkJson[F, A](rdd, cfg.withFormat(SparkJson).withOutPutPath(outPath))
+  }
 
-// 11
+  // 11
   def parquet(outPath: String): SaveParquet[F, A] =
-    new SaveParquet[F, A](rdd, cfg.withFormat(Parquet).withOutPutPath(outPath))
+    new SaveParquet[F, A](rdd, None, cfg.withFormat(Parquet).withOutPutPath(outPath))
 
 // 12
   def avro(outPath: String): SaveAvro[F, A] =
-    new SaveAvro[F, A](rdd, cfg.withFormat(Avro).withOutPutPath(outPath))
+    new SaveAvro[F, A](rdd, None, cfg.withFormat(Avro).withOutPutPath(outPath))
 
 // 13
   def binAvro(outPath: String): SaveBinaryAvro[F, A] =
