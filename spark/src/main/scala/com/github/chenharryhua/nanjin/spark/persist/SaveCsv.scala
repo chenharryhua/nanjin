@@ -1,9 +1,8 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.{Eq, Parallel}
 import cats.effect.{Blocker, Concurrent, ContextShift}
+import cats.{Eq, Parallel}
 import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.{fileSink, AvroTypedEncoder, RddExt}
 import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.spark.rdd.RDD

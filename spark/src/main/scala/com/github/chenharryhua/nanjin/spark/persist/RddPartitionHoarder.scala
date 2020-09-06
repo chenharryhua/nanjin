@@ -56,7 +56,7 @@ class RddPartitionHoarder[F[_], A: ClassTag, K: Eq: ClassTag](
 
 // 4
   def csv(implicit ev: RowEncoder[A], te: TypedEncoder[A]): PartitionCsv[F, A, K] = {
-    implicit val ate: AvroTypedEncoder[A] = AvroTypedEncoder[A](codec)
+    implicit val ate: AvroTypedEncoder[A] = AvroTypedEncoder[A](te, codec)
     new PartitionCsv[F, A, K](
       rdd,
       CsvConfiguration.rfc,
@@ -66,8 +66,8 @@ class RddPartitionHoarder[F[_], A: ClassTag, K: Eq: ClassTag](
   }
 
   // 5
-  def json(implicit ev: TypedEncoder[A]): PartitionSparkJson[F, A, K] = {
-    implicit val ate: AvroTypedEncoder[A] = AvroTypedEncoder[A](codec)
+  def json(implicit te: TypedEncoder[A]): PartitionSparkJson[F, A, K] = {
+    implicit val ate: AvroTypedEncoder[A] = AvroTypedEncoder[A](te, codec)
     new PartitionSparkJson[F, A, K](rdd, cfg.withFormat(SparkJson), bucketing, pathBuilder)
   }
 

@@ -42,13 +42,13 @@ final class RddFileHoarder[F[_], A: ClassTag](
 
 // 4
   def csv(outPath: String)(implicit ev: RowEncoder[A], te: TypedEncoder[A]): SaveCsv[F, A] = {
-    implicit val ate: AvroTypedEncoder[A] = AvroTypedEncoder[A](codec)
+    implicit val ate: AvroTypedEncoder[A] = AvroTypedEncoder[A](te, codec)
     new SaveCsv[F, A](rdd, CsvConfiguration.rfc, cfg.withFormat(Csv).withOutPutPath(outPath))
   }
 
   // 5
-  def json(outPath: String)(implicit ev: TypedEncoder[A]): SaveSparkJson[F, A] = {
-    implicit val ate: AvroTypedEncoder[A] = AvroTypedEncoder[A](codec)
+  def json(outPath: String)(implicit te: TypedEncoder[A]): SaveSparkJson[F, A] = {
+    implicit val ate: AvroTypedEncoder[A] = AvroTypedEncoder[A](te, codec)
     new SaveSparkJson[F, A](rdd, cfg.withFormat(SparkJson).withOutPutPath(outPath))
   }
 
