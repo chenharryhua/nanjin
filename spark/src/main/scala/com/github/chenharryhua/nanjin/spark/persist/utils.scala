@@ -6,7 +6,7 @@ import org.apache.avro.mapred.AvroKey
 import org.apache.hadoop.io.NullWritable
 import org.apache.spark.rdd.RDD
 
-object utils {
+private[persist] object utils {
 
   def genericRecordPair[A](
     rdd: RDD[A],
