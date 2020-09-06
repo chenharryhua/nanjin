@@ -15,7 +15,6 @@ import org.apache.avro.mapred.AvroKey
 import org.apache.avro.mapreduce.{AvroJob, AvroKeyInputFormat}
 import org.apache.hadoop.io.NullWritable
 import org.apache.hadoop.mapreduce.Job
-import org.apache.parquet.avro.{AvroParquetInputFormat, GenericDataSupplier}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
@@ -121,22 +120,6 @@ object loaders {
           codec.avroDecoder.decode(datumReader.read(null, jsonDecoder))
         }
       }
-    }
-
-    def parquet[A: ClassTag](
-      pathStr: String)(implicit codec: AvroCodec[A], ss: SparkSession): RDD[A] = {
-      val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
-      AvroParquetInputFormat.setAvroDataSupplier(job, classOf[GenericDataSupplier])
-      AvroParquetInputFormat.setAvroReadSchema(job, codec.schema)
-      ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
-
-      ss.sparkContext
-        .newAPIHadoopFile(
-          pathStr,
-          classOf[AvroParquetInputFormat[GenericRecord]],
-          classOf[Void],
-          classOf[GenericRecord])
-        .map { case (_, gr) => codec.avroDecoder.decode(gr) }
     }
   }
 }

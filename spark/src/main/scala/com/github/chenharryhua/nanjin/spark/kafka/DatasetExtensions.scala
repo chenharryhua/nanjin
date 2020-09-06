@@ -68,9 +68,6 @@ private[kafka] trait DatasetExtensions {
         def avro(pathStr: String)(implicit ss: SparkSession): RDD[OptionalKV[K, V]] =
           loaders.raw.avro[OptionalKV[K, V]](pathStr)
 
-        def parquet(pathStr: String)(implicit ss: SparkSession): RDD[OptionalKV[K, V]] =
-          loaders.raw.parquet[OptionalKV[K, V]](pathStr)
-
         def jackson(pathStr: String)(implicit ss: SparkSession): RDD[OptionalKV[K, V]] =
           loaders.raw.jackson[OptionalKV[K, V]](pathStr)
 

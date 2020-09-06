@@ -7,7 +7,11 @@ import com.sksamuel.avro4s.{Decoder, Encoder}
 import frameless.TypedEncoder
 import cats.syntax.all._
 
-final case class Bee(a: Array[Byte], b: Int)
+final case class Bee(a: Array[Byte], b: Int) {
+
+  override def toString: String =
+    s"Bee(a=${a.toList},b=${b.toString})"
+}
 
 object Bee {
 

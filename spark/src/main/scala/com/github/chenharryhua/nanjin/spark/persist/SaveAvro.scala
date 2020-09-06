@@ -29,9 +29,6 @@ final class SaveAvro[F[_], A: ClassTag](
   def spark(implicit te: TypedEncoder[A]): SaveAvro[F, A] =
     new SaveAvro[F, A](rdd, Some(te), cfg)
 
-  def raw: SaveAvro[F, A] =
-    new SaveAvro[F, A](rdd, None, cfg)
-
   def file: SaveAvro[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveAvro[F, A] = updateConfig(cfg.withFolder)
 
@@ -76,9 +73,6 @@ final class PartitionAvro[F[_], A: ClassTag, K: ClassTag: Eq](
 
   def spark(implicit te: TypedEncoder[A]): PartitionAvro[F, A, K] =
     new PartitionAvro[F, A, K](rdd, Some(te), cfg, bucketing, pathBuilder)
-
-  def raw: PartitionAvro[F, A, K] =
-    new PartitionAvro[F, A, K](rdd, None, cfg, bucketing, pathBuilder)
 
   def run(
     blocker: Blocker)(implicit F: Concurrent[F], CS: ContextShift[F], P: Parallel[F]): F[Unit] =
