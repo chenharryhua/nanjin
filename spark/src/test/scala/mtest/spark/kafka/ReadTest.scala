@@ -2,12 +2,7 @@ package mtest.spark.kafka
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
-import com.github.chenharryhua.nanjin.messages.kafka.{
-  CompulsoryK,
-  CompulsoryKV,
-  CompulsoryV,
-  OptionalKV
-}
+import com.github.chenharryhua.nanjin.spark.kafka.CompulsoryKV
 import frameless.TypedDataset
 import org.apache.spark.sql.SaveMode
 import org.scalatest.funsuite.AnyFunSuite
@@ -47,16 +42,16 @@ class ReadTest extends AnyFunSuite {
     val data = TypedDataset.create(dogs_noKey)
     val path = "./data/test/spark/kafka/read/parquet"
     data.write.mode(SaveMode.Overwrite).parquet(path)
-    assert(tp.load.tds.parquet(path).dataset.collect.toSet == dogs_noKey.toSet)
-    assert(tp.load.rdd.parquet(path).rdd.collect.toSet == dogs_noKey.toSet)
+    assert(topic.load.parquet(path).dataset.collect.toSet == dogs_noKey.toSet)
+    assert(topic.load.raw.parquet(path).collect.toSet == dogs_noKey.toSet)
   }
 
   test("sparKafka read avro") {
     val data = TypedDataset.create(dogs_noKey)
     val path = "./data/test/spark/kafka/read/avro"
     data.write.mode(SaveMode.Overwrite).format("avro").save(path)
-    assert(tp.load.tds.avro(path).dataset.collect.toSet == dogs_noKey.toSet)
-    assert(tp.load.rdd.avro(path).rdd.collect.toSet == dogs_noKey.toSet)
+    assert(topic.load.avro(path).dataset.collect.toSet == dogs_noKey.toSet)
+    assert(topic.load.raw.avro(path).collect.toSet == dogs_noKey.toSet)
   }
 
   test("sparKafka read parquet - compulsoryK") {
@@ -64,8 +59,8 @@ class ReadTest extends AnyFunSuite {
       TypedDataset.create(dogs.flatMap(_.toCompulsoryK))
     val path = "./data/test/spark/kafka/read/parquet-compulsory"
     data.write.mode(SaveMode.Overwrite).parquet(path)
-    assert(tp.load.tds.parquet(path).dataset.collect.toSet == dogs.toSet)
-    assert(tp.load.rdd.parquet(path).rdd.collect.toSet == dogs.toSet)
+    assert(topic.load.parquet(path).dataset.collect.toSet == dogs.toSet)
+    assert(topic.load.raw.parquet(path).collect.toSet == dogs.toSet)
   }
 
   test("sparKafka read avro - compulsoryV") {
@@ -73,8 +68,8 @@ class ReadTest extends AnyFunSuite {
       TypedDataset.create(dogs.flatMap(_.toCompulsoryV))
     val path = "./data/test/spark/kafka/read/avro-compulsory"
     data.write.mode(SaveMode.Overwrite).format("avro").save(path)
-    assert(tp.load.tds.avro(path).dataset.collect.toSet == dogs.toSet)
-    assert(tp.load.rdd.avro(path).rdd.collect.toSet == dogs.toSet)
+    assert(topic.load.avro(path).rdd.collect.toSet == dogs.toSet)
+    assert(topic.load.raw.avro(path).collect.toSet == dogs.toSet)
   }
 
   test("sparKafka read json - compulsoryKV") {
@@ -82,6 +77,6 @@ class ReadTest extends AnyFunSuite {
       TypedDataset.create(dogs.flatMap(_.toCompulsoryKV))
     val path = "./data/test/spark/kafka/read/json-compulsory"
     data.write.mode(SaveMode.Overwrite).json(path)
-    assert(tp.load.tds.json(path).dataset.collect.toSet == dogs.toSet)
+    assert(topic.load.json(path).dataset.collect.toSet == dogs.toSet)
   }
 }

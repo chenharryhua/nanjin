@@ -5,9 +5,7 @@ import java.time.ZoneId
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Timer}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage._
 import com.github.chenharryhua.nanjin.messages.kafka._
-import com.github.chenharryhua.nanjin.pipes.{GenericRecordEncoder, JacksonSerialization}
 import com.github.chenharryhua.nanjin.utils.Keyboard
 import fs2.Stream
 import fs2.kafka.{produce, AutoOffsetReset, ProducerRecord, ProducerRecords}
@@ -40,27 +38,18 @@ object KafkaMonitoringApi {
 
   final private class KafkaTopicMonitoring[F[_]: ContextShift: Timer, K, V](
     topic: KafkaTopic[F, K, V])(implicit F: ConcurrentEffect[F])
-      extends KafkaMonitoringApi[F, K, V] {
+      extends KafkaMonitoringApi[F, K, V] with ShowKafkaMessage {
 
     private val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
       topic.fs2Channel.withConsumerSettings(_.withEnableAutoCommit(false))
 
     private def watch(aor: AutoOffsetReset): F[Unit] =
       Blocker[F].use { blocker =>
-        val pipe = new JacksonSerialization[F](topic.topicDef.schemaForOptionalKV.schema)
-        val gr   = new GenericRecordEncoder[F, OptionalKV[K, V]](topic.topicDef.optionalKVEncoder)
-
         Keyboard.signal.flatMap { signal =>
           fs2Channel
             .withConsumerSettings(_.withAutoOffsetReset(aor))
             .stream
-            .map { m =>
-              val (errs, r) = topic.njDecoder.decode(m).run
-              errs.toList.foreach(e => pprint.pprintln(e))
-              r
-            }
-            .through(gr.encode)
-            .through(pipe.prettyJson)
+            .map(m => topic.decoder(m).tryDecodeKeyValue.show)
             .showLinesStdOut
             .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
             .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
@@ -71,17 +60,13 @@ object KafkaMonitoringApi {
       predict: ConsumerRecord[Try[K], Try[V]] => Boolean,
       aor: AutoOffsetReset): F[Unit] =
       Blocker[F].use { blocker =>
-        val pipe = new JacksonSerialization[F](topic.topicDef.schemaForOptionalKV.schema)
-        val gr   = new GenericRecordEncoder[F, OptionalKV[K, V]](topic.topicDef.optionalKVEncoder)
         Keyboard.signal.flatMap { signal =>
           fs2Channel
             .withConsumerSettings(_.withAutoOffsetReset(aor))
             .stream
             .filter(m =>
               predict(isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record)))
-            .map(m => topic.njDecoder.decode(m).run._2)
-            .through(gr.encode)
-            .through(pipe.prettyJson)
+            .map(m => topic.decoder(m).tryDecodeKeyValue.show)
             .showLinesStdOut
             .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
             .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
@@ -91,8 +76,6 @@ object KafkaMonitoringApi {
     override def watchFrom(njt: NJTimestamp): F[Unit] = {
       val run: Stream[F, Unit] = for {
         blocker <- Stream.resource(Blocker[F])
-        pipe = new JacksonSerialization[F](topic.topicDef.schemaForOptionalKV.schema)
-        gr   = new GenericRecordEncoder[F, OptionalKV[K, V]](topic.topicDef.optionalKVEncoder)
         kcs <- Stream.resource(topic.shortLiveConsumer)
         gtp <- Stream.eval(for {
           os <- kcs.offsetsForTimes(njt)
@@ -102,9 +85,7 @@ object KafkaMonitoringApi {
         _ <-
           fs2Channel
             .assign(gtp.flatten[KafkaOffset].mapValues(_.value).value)
-            .map(m => topic.njDecoder.decode(m).run._2)
-            .through(gr.encode)
-            .through(pipe.prettyJson)
+            .map(m => topic.decoder(m).tryDecodeKeyValue.show)
             .showLinesStdOut
             .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
             .interruptWhen(signal.map(_.contains(Keyboard.Quit)))

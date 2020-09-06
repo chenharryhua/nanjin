@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.google.protobuf.CodedInputStream
 import com.sksamuel.avro4s.AvroInputStream
@@ -51,18 +52,18 @@ object loaders {
 
   def avro[A](
     pathStr: String)(implicit ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
-    ate.fromDF(ss.read.format("avro").load(pathStr))
+    ate.normalizeDF(ss.read.format("avro").load(pathStr))
 
   def parquet[A](
     pathStr: String)(implicit ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
-    ate.fromDF(ss.read.parquet(pathStr))
+    ate.normalizeDF(ss.read.parquet(pathStr))
 
   def csv[A](pathStr: String, csvConfiguration: CsvConfiguration)(implicit
     ate: AvroTypedEncoder[A],
     ss: SparkSession): TypedDataset[A] =
-    ate.fromDF(
+    ate.normalizeDF(
       ss.read
-        .schema(ate.sparkStructType)
+        .schema(ate.sparkSchema)
         .option("sep", csvConfiguration.cellSeparator.toString)
         .option("header", csvConfiguration.hasHeader)
         .option("quote", csvConfiguration.quote.toString)
@@ -75,12 +76,12 @@ object loaders {
 
   def json[A](
     pathStr: String)(implicit ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
-    ate.fromDF(ss.read.schema(ate.sparkStructType).json(pathStr))
+    ate.normalizeDF(ss.read.schema(ate.sparkSchema).json(pathStr))
 
   object raw {
 
     def avro[A: ClassTag](
-      pathStr: String)(implicit codec: NJAvroCodec[A], ss: SparkSession): RDD[A] = {
+      pathStr: String)(implicit codec: AvroCodec[A], ss: SparkSession): RDD[A] = {
       val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
       AvroJob.setDataModelClass(job, classOf[GenericData])
       AvroJob.setInputKeySchema(job, codec.schema)
@@ -96,7 +97,7 @@ object loaders {
     }
 
     def binAvro[A: ClassTag](
-      pathStr: String)(implicit codec: NJAvroCodec[A], ss: SparkSession): RDD[A] =
+      pathStr: String)(implicit codec: AvroCodec[A], ss: SparkSession): RDD[A] =
       ss.sparkContext
         .binaryFiles(pathStr)
         .mapPartitions(_.flatMap {
@@ -111,7 +112,7 @@ object loaders {
         })
 
     def jackson[A: ClassTag](
-      pathStr: String)(implicit codec: NJAvroCodec[A], ss: SparkSession): RDD[A] = {
+      pathStr: String)(implicit codec: AvroCodec[A], ss: SparkSession): RDD[A] = {
       val schema = codec.schema
       ss.sparkContext.textFile(pathStr).mapPartitions { strs =>
         val datumReader = new GenericDatumReader[GenericRecord](schema)
@@ -123,7 +124,7 @@ object loaders {
     }
 
     def parquet[A: ClassTag](
-      pathStr: String)(implicit codec: NJAvroCodec[A], ss: SparkSession): RDD[A] = {
+      pathStr: String)(implicit codec: AvroCodec[A], ss: SparkSession): RDD[A] = {
       val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
       AvroParquetInputFormat.setAvroDataSupplier(job, classOf[GenericDataSupplier])
       AvroParquetInputFormat.setAvroReadSchema(job, codec.schema)

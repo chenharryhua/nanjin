@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.messages.kafka.codec
+package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.data.{Chain, Writer}
 import cats.syntax.all._

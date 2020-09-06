@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.sstream
 
-import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.spark.DatePartitionedCR
+import com.github.chenharryhua.nanjin.spark.kafka.OptionalKV
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
 

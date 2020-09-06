@@ -2,13 +2,13 @@ package mtest.spark.kafka
 
 import cats.derived.auto.eq.kittensMkEq
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import com.github.chenharryhua.nanjin.spark.kafka.{
   inv,
   CRMetaInfo,
   DiffResult,
   DupResult,
-  KvDiffResult
+  KvDiffResult,
+  OptionalKV
 }
 import frameless.TypedDataset
 import frameless.cats.implicits._

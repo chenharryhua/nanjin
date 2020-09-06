@@ -3,7 +3,7 @@ scapegoatVersion in ThisBuild  := "1.3.11"
 parallelExecution in ThisBuild := false
 cancelable in Global           := true
 
-version in ThisBuild := "0.8.0-SNAPSHOT"
+version in ThisBuild := "0.9.0-SNAPSHOT"
 
 // generic
 val shapeless  = "2.3.3"
@@ -35,8 +35,8 @@ val akkaKafka   = "2.0.4"
 val fs2Kafka    = "1.0.0"
 
 // spark
-val spark24   = "2.4.6"
-val frameless = "0.8.0"
+val spark24   = "3.0.0"
+val frameless = "0.9.0-SNAPSHOT"
 
 // database
 val doobie   = "0.9.0"
@@ -47,7 +47,7 @@ val elastic  = "7.9.0"
 // format
 val circe   = "0.13.0"
 val jackson = "2.11.2"
-val json4s  = "3.5.5"
+val json4s  = "3.6.9"  // for spark
 val kantan  = "0.6.1"
 val parquet = "1.11.1"
 val avro    = "1.10.0"
@@ -65,9 +65,6 @@ val betterFiles = "3.9.1"
 
 // test
 val scalatest = "3.2.2"
-
-// deprecate ?
-val flink110 = "1.11.1"
 
 lazy val commonSettings = Seq(
   organization := "com.github.chenharryhua",
@@ -117,17 +114,6 @@ val hadoopLib = Seq(
   "org.apache.hadoop" % "hadoop-hdfs"
 ).map(_               % hadoop) ++
   Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.855")
-
-val flinkLib = Seq(
-  "org.apache.flink" %% "flink-connector-kafka",
-  "org.apache.flink" %% "flink-streaming-scala",
-  "org.apache.flink" %% "flink-gelly",
-  "org.apache.flink" %% "flink-cep",
-  "org.apache.flink" %% "flink-parquet",
-  // "org.apache.flink" %% "flink-jdbc",
-  "org.apache.flink" %% "flink-hadoop-compatibility",
-  "org.apache.flink" % "flink-s3-fs-hadoop"
-).map(_ % flink110)
 
 val neotypesLib = Seq(
   "com.dimafeng" %% "neotypes",
@@ -390,13 +376,7 @@ lazy val spark = (project in file("spark"))
     dependencyOverrides ++= json4sLib
   )
 
-lazy val flink = (project in file("flink"))
-  .dependsOn(kafka)
-  .settings(commonSettings: _*)
-  .settings(name := "nj-flink")
-  .settings(libraryDependencies ++= flinkLib ++ testLib)
-
 lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
-    .aggregate(common, messages, datetime, devices, pipes, kafka, flink, database, spark)
+    .aggregate(common, messages, datetime, devices, pipes, kafka, database, spark)

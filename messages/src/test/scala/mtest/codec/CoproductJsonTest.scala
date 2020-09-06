@@ -1,6 +1,5 @@
 package mtest.codec
 
-import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
 import io.circe.generic.auto._
 import io.circe.parser.decode
 import io.circe.shapes._
@@ -26,13 +25,5 @@ class CoproductJsonTest extends AnyFunSuite {
   test("circe json coproduct is not invertable") {
     assert(decode[FB](fb1.asJson.noSpaces).toOption.get === fb1)
     assert(decode[FB](fb2.asJson.noSpaces).toOption.get !== fb2)
-  }
-
-  test("jackson json coproduct is invertable. witness by toJackson/fromJackson") {
-    val msg1: OptionalKV[Int, FB] =
-      OptionalKV(0, 0, 0, Some(0), Some(fb1), "coproduct.test", 0)
-    val msg2: OptionalKV[Int, FB] =
-      OptionalKV(0, 0, 0, Some(0), Some(fb2), "coproduct.test", 0)
-
   }
 }

@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark
 
-import com.github.chenharryhua.nanjin.messages.kafka.OptionalKV
+import com.github.chenharryhua.nanjin.spark.kafka.OptionalKV
 import frameless.TypedEncoder
 import org.apache.commons.codec.digest.DigestUtils
 

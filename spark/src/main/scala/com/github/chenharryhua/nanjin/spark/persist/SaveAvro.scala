@@ -3,9 +3,10 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.{Eq, Parallel}
 import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
-import com.github.chenharryhua.nanjin.spark.{fileSink, utils, RddExt}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.spark.{fileSink, AvroTypedEncoder, RddExt}
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
+import frameless.TypedEncoder
 import frameless.cats.implicits._
 import org.apache.avro.mapreduce.AvroJob
 import org.apache.hadoop.mapreduce.Job
@@ -14,18 +15,22 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
 import scala.reflect.ClassTag
 
-final class SaveAvro[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(implicit
-  codec: NJAvroCodec[A],
-  ss: SparkSession)
+final class SaveAvro[F[_], A: ClassTag](
+  rdd: RDD[A],
+  ote: Option[TypedEncoder[A]],
+  cfg: HoarderConfig)(implicit codec: AvroCodec[A], ss: SparkSession)
     extends Serializable {
 
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveAvro[F, A] =
-    new SaveAvro[F, A](rdd, cfg)
+    new SaveAvro[F, A](rdd, ote, cfg)
 
-  def spark: SaveAvro[F, A] = updateConfig(cfg.withSpark)
-  def raw: SaveAvro[F, A]   = updateConfig(cfg.withRaw)
+  def spark(implicit te: TypedEncoder[A]): SaveAvro[F, A] =
+    new SaveAvro[F, A](rdd, Some(te), cfg)
+
+  def raw: SaveAvro[F, A] =
+    new SaveAvro[F, A](rdd, None, cfg)
 
   def file: SaveAvro[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveAvro[F, A] = updateConfig(cfg.withFolder)
@@ -35,21 +40,17 @@ final class SaveAvro[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(implici
 
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
 
-    (params.singleOrMulti, params.sparkOrRaw) match {
+    (params.folderOrFile, ote) match {
       case (FolderOrFile.SingleFile, _) =>
         sma.checkAndRun(blocker)(
           rdd.stream[F].through(fileSink[F](blocker).avro(params.outPath)).compile.drain)
-      case (FolderOrFile.Folder, SparkOrRaw.Spark) =>
+      case (FolderOrFile.Folder, Some(te)) =>
+        val ate = AvroTypedEncoder[A](te, codec)
         sma.checkAndRun(blocker)(
           F.delay(
-            utils
-              .normalizedDF(rdd, codec.avroEncoder)
-              .write
-              .mode(SaveMode.Overwrite)
-              .format("avro")
-              .save(params.outPath))
+            ate.normalize(rdd).write.mode(SaveMode.Overwrite).format("avro").save(params.outPath))
         )
-      case (FolderOrFile.Folder, SparkOrRaw.Raw) =>
+      case (FolderOrFile.Folder, None) =>
         val sparkjob = F.delay {
           val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
           AvroJob.setOutputKeySchema(job, codec.schema)
@@ -65,12 +66,19 @@ final class SaveAvro[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(implici
 
 final class PartitionAvro[F[_], A: ClassTag, K: ClassTag: Eq](
   rdd: RDD[A],
+  ote: Option[TypedEncoder[A]],
   cfg: HoarderConfig,
   bucketing: A => Option[K],
-  pathBuilder: (NJFileFormat, K) => String)(implicit codec: NJAvroCodec[A], ss: SparkSession)
+  pathBuilder: (NJFileFormat, K) => String)(implicit codec: AvroCodec[A], ss: SparkSession)
     extends AbstractPartition[F, A, K] {
 
   val params: HoarderParams = cfg.evalConfig
+
+  def spark(implicit te: TypedEncoder[A]): PartitionAvro[F, A, K] =
+    new PartitionAvro[F, A, K](rdd, Some(te), cfg, bucketing, pathBuilder)
+
+  def raw: PartitionAvro[F, A, K] =
+    new PartitionAvro[F, A, K](rdd, None, cfg, bucketing, pathBuilder)
 
   def run(
     blocker: Blocker)(implicit F: Concurrent[F], CS: ContextShift[F], P: Parallel[F]): F[Unit] =
@@ -81,5 +89,5 @@ final class PartitionAvro[F[_], A: ClassTag, K: ClassTag: Eq](
       params.format,
       bucketing,
       pathBuilder,
-      (r, p) => new SaveAvro[F, A](r, cfg.withOutPutPath(p)).run(blocker))
+      (r, p) => new SaveAvro[F, A](r, ote, cfg.withOutPutPath(p)).run(blocker))
 }

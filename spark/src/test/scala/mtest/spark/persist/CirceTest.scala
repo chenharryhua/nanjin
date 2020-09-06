@@ -2,7 +2,7 @@ package mtest.spark.persist
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.spark.injection._
-import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddFileHoader}
+import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddFileHoarder}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import io.circe.generic.auto._
 import org.scalatest.DoNotDiscover
@@ -15,7 +15,7 @@ class CirceTest extends AnyFunSuite {
   test("rdd read/write identity multi") {
     val path = "./data/test/spark/persist/circe/rooster/multi"
     delete(path)
-    val saver = new RddFileHoader[IO, Rooster](rdd)
+    val saver = new RddFileHoarder[IO, Rooster](rdd)
     saver.circe(path).folder.run(blocker).unsafeRunSync()
     val t = loaders.circe[Rooster](path)
     assert(expected == t.collect().toSet)
@@ -24,7 +24,7 @@ class CirceTest extends AnyFunSuite {
   test("rdd read/write identity") {
     val path = "./data/test/spark/persist/circe/rooster/single.json"
     delete(path)
-    val saver = new RddFileHoader[IO, Rooster](rdd)
+    val saver = new RddFileHoarder[IO, Rooster](rdd)
     saver.circe(path).file.run(blocker).unsafeRunSync()
     val t = loaders.circe[Rooster](path)
     assert(expected == t.collect().toSet)

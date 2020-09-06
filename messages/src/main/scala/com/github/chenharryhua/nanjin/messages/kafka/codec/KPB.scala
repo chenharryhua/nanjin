@@ -74,8 +74,8 @@ object KPB {
             }
         }
 
-      override val avroCodec: NJAvroCodec[KPB[A]] =
-        NJAvroCodec[KPB[A]](schemaForPB, avroDecoder, avroEncoder)
+      override val avroCodec: AvroCodec[KPB[A]] =
+        AvroCodec[KPB[A]](schemaForPB, avroDecoder, avroEncoder)
 
     }
 }

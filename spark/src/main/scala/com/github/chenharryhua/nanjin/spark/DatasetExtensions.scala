@@ -7,8 +7,10 @@ import akka.stream.scaladsl.Source
 import cats.effect.{ConcurrentEffect, Sync}
 import com.github.chenharryhua.nanjin.database.{DatabaseSettings, TableName}
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicDef}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.database.{sd, STConfig, SparkTable, TableDef}
 import com.github.chenharryhua.nanjin.spark.kafka.{SKConfig, SparKafka}
+import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
 import frameless.TypedDataset
 import frameless.cats.implicits._
 import fs2.Stream
@@ -16,10 +18,11 @@ import fs2.interop.reactivestreams._
 import org.apache.avro.Schema
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}
+import scala.reflect.ClassTag
 
 private[spark] trait DatasetExtensions {
 
-  implicit final class RddExt[A](private val rdd: RDD[A]) {
+  implicit final class RddExt[A](rdd: RDD[A]) extends Serializable {
 
     def dismissNulls: RDD[A] = rdd.filter(_ != null)
     def numOfNulls: Long     = rdd.subtract(dismissNulls).count()
@@ -32,9 +35,14 @@ private[spark] trait DatasetExtensions {
     def typedDataset(implicit ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
       ate.normalize(rdd)(ss)
 
+    def save[F[_]](implicit
+      tag: ClassTag[A],
+      codec: AvroCodec[A],
+      ss: SparkSession): RddFileHoarder[F, A] =
+      new RddFileHoarder[F, A](rdd)
   }
 
-  implicit final class TypedDatasetExt[A](private val tds: TypedDataset[A]) {
+  implicit final class TypedDatasetExt[A](tds: TypedDataset[A]) extends Serializable {
 
     def stream[F[_]: Sync]: Stream[F, A] = tds.dataset.rdd.stream[F]
 
@@ -44,9 +52,11 @@ private[spark] trait DatasetExtensions {
     def dismissNulls: TypedDataset[A]   = tds.deserialized.filter(_ != null)
     def numOfNulls[F[_]: Sync]: F[Long] = tds.except(dismissNulls).count[F]()
 
+    def save[F[_]](implicit ate: AvroTypedEncoder[A]): RddFileHoarder[F, A] =
+      new RddFileHoarder[F, A](tds.dataset.rdd)(ate.classTag, ate.avroCodec, tds.sparkSession)
   }
 
-  implicit final class DataframeExt(private val df: DataFrame) {
+  implicit final class DataframeExt(df: DataFrame) extends Serializable {
 
     def genCaseClass: String = NJDataType(df.schema).toCaseClass
     def genSchema: Schema    = NJDataType(df.schema).toSchema
@@ -68,7 +78,6 @@ private[spark] trait DatasetExtensions {
         dbSettings,
         STConfig(dbSettings.database, tableDef.tableName),
         ss)
-
   }
 
   final class SparkWithKafkaContext[F[_]](ss: SparkSession, ctx: KafkaContext[F])
@@ -82,12 +91,13 @@ private[spark] trait DatasetExtensions {
       )
   }
 
-  implicit final class SparkSessionExt(private val ss: SparkSession) {
+  implicit final class SparkSessionExt(ss: SparkSession) extends Serializable {
 
     def alongWith[F[_]](dbSettings: DatabaseSettings): SparkWithDBSettings[F] =
       new SparkWithDBSettings[F](ss, dbSettings)
 
     def alongWith[F[_]](ctx: KafkaContext[F]): SparkWithKafkaContext[F] =
       new SparkWithKafkaContext[F](ss, ctx)
+
   }
 }

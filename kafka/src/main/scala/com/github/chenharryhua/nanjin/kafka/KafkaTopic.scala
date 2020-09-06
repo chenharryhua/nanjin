@@ -3,10 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, Resource, Sync, Timer}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{
-  KafkaGenericDecoder,
-  NJConsumerRecordDecoder
-}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaGenericDecoder
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
 final class KafkaTopic[F[_], K, V] private[kafka] (
@@ -45,12 +42,6 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
   def decoder[G[_, _]: NJConsumerMessage](
     cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
     new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valCodec)
-
-  @transient lazy val njDecoder: NJConsumerRecordDecoder[F, K, V] =
-    new NJConsumerRecordDecoder[F, K, V](
-      topicName.value,
-      codec.keyDeserializer,
-      codec.valDeserializer)
 
   override def toString: String = {
     import cats.derived.auto.show._

@@ -21,20 +21,10 @@ private[persist] object FolderOrFile extends Enum[FolderOrFile] {
   case object SingleFile extends FolderOrFile
 }
 
-sealed private[persist] trait SparkOrRaw extends EnumEntry with Serializable
-
-private[persist] object SparkOrRaw extends Enum[FolderOrFile] {
-  override val values: immutable.IndexedSeq[FolderOrFile] = findValues
-
-  case object Spark extends SparkOrRaw
-  case object Raw extends SparkOrRaw
-}
-
 @Lenses final private[persist] case class HoarderParams(
   format: NJFileFormat,
   outPath: String,
-  singleOrMulti: FolderOrFile,
-  sparkOrRaw: SparkOrRaw,
+  folderOrFile: FolderOrFile,
   saveMode: SaveMode,
   parallelism: Long)
 
@@ -45,7 +35,6 @@ private[persist] object HoarderParams {
       NJFileFormat.Unknown,
       "",
       FolderOrFile.Folder,
-      SparkOrRaw.Spark,
       SaveMode.Overwrite,
       defaultLocalParallelism.toLong)
 }
@@ -54,8 +43,7 @@ private[persist] object HoarderParams {
 
 private[persist] object HoarderConfigF {
   final case class DefaultParams[K]() extends HoarderConfigF[K]
-  final case class WithSingleOrMulti[K](value: FolderOrFile, cont: K) extends HoarderConfigF[K]
-  final case class WithSparkOrHadoop[K](value: SparkOrRaw, cont: K) extends HoarderConfigF[K]
+  final case class WithFolderOrFile[K](value: FolderOrFile, cont: K) extends HoarderConfigF[K]
   final case class WithSaveMode[K](value: SaveMode, cont: K) extends HoarderConfigF[K]
   final case class WithParallelism[K](value: Long, cont: K) extends HoarderConfigF[K]
   final case class WithOutputPath[K](value: String, cont: K) extends HoarderConfigF[K]
@@ -63,13 +51,12 @@ private[persist] object HoarderConfigF {
 
   private val algebra: Algebra[HoarderConfigF, HoarderParams] =
     Algebra[HoarderConfigF, HoarderParams] {
-      case DefaultParams()         => HoarderParams.default
-      case WithSingleOrMulti(v, c) => HoarderParams.singleOrMulti.set(v)(c)
-      case WithSparkOrHadoop(v, c) => HoarderParams.sparkOrRaw.set(v)(c)
-      case WithSaveMode(v, c)      => HoarderParams.saveMode.set(v)(c)
-      case WithParallelism(v, c)   => HoarderParams.parallelism.set(v)(c)
-      case WithOutputPath(v, c)    => HoarderParams.outPath.set(v)(c)
-      case WithFileFormat(v, c)    => HoarderParams.format.set(v)(c)
+      case DefaultParams()        => HoarderParams.default
+      case WithFolderOrFile(v, c) => HoarderParams.folderOrFile.set(v)(c)
+      case WithSaveMode(v, c)     => HoarderParams.saveMode.set(v)(c)
+      case WithParallelism(v, c)  => HoarderParams.parallelism.set(v)(c)
+      case WithOutputPath(v, c)   => HoarderParams.outPath.set(v)(c)
+      case WithFileFormat(v, c)   => HoarderParams.format.set(v)(c)
     }
 
   def evalConfig(cfg: HoarderConfig): HoarderParams = scheme.cata(algebra).apply(cfg.value)
@@ -80,11 +67,8 @@ final private[persist] case class HoarderConfig(value: Fix[HoarderConfigF]) {
   val evalConfig: HoarderParams = HoarderConfigF.evalConfig(this)
 
   def withSingleFile: HoarderConfig =
-    HoarderConfig(Fix(WithSingleOrMulti(FolderOrFile.SingleFile, value)))
-  def withFolder: HoarderConfig = HoarderConfig(Fix(WithSingleOrMulti(FolderOrFile.Folder, value)))
-
-  def withSpark: HoarderConfig = HoarderConfig(Fix(WithSparkOrHadoop(SparkOrRaw.Spark, value)))
-  def withRaw: HoarderConfig   = HoarderConfig(Fix(WithSparkOrHadoop(SparkOrRaw.Raw, value)))
+    HoarderConfig(Fix(WithFolderOrFile(FolderOrFile.SingleFile, value)))
+  def withFolder: HoarderConfig = HoarderConfig(Fix(WithFolderOrFile(FolderOrFile.Folder, value)))
 
   def withSaveMode(saveMode: SaveMode): HoarderConfig =
     HoarderConfig(Fix(WithSaveMode(saveMode, value)))

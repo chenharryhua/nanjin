@@ -1,7 +1,7 @@
 package mtest.spark.persist
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddFileHoader}
+import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddFileHoarder}
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -11,7 +11,7 @@ class JacksonTest extends AnyFunSuite {
     import RoosterData._
     val path = "./data/test/spark/persist/jackson"
     delete(path)
-    val saver = new RddFileHoader[IO, Rooster](rdd)
+    val saver = new RddFileHoarder[IO, Rooster](rdd)
     saver.jackson(path).folder.run(blocker).unsafeRunSync()
     val r = loaders.raw.jackson[Rooster](path)
     assert(expected == r.collect().toSet)
@@ -20,7 +20,7 @@ class JacksonTest extends AnyFunSuite {
     import RoosterData._
     val path = "./data/test/spark/persist/jackson"
     delete(path)
-    val saver = new RddFileHoader[IO, Rooster](rdd)
+    val saver = new RddFileHoarder[IO, Rooster](rdd)
     saver.jackson(path).file.run(blocker).unsafeRunSync()
     val r = loaders.raw.jackson[Rooster](path)
     assert(expected == r.collect().toSet)

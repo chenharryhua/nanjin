@@ -9,16 +9,9 @@ import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.{localdateInstances, NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
-import com.github.chenharryhua.nanjin.messages.kafka.{
-  CompulsoryK,
-  CompulsoryKV,
-  CompulsoryV,
-  OptionalKV
-}
-import com.github.chenharryhua.nanjin.spark.RddExt
-import com.github.chenharryhua.nanjin.spark.persist.{RddFileHoader, RddPartitionHoarder}
-import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.spark.persist.{RddFileHoarder, RddPartitionHoarder}
+import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt}
 import frameless.cats.implicits.rddOps
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
@@ -28,25 +21,12 @@ import org.apache.spark.sql.SparkSession
 import scala.reflect.ClassTag
 
 final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)(implicit
-  val sparkSession: SparkSession,
-  val schemaForKey: SchemaFor[K],
-  val schemaForVal: SchemaFor[V],
-  val keyAvroEncoder: AvroEncoder[K],
-  val keyAvroDecoder: AvroDecoder[K],
-  val valAvroEncoder: AvroEncoder[V],
-  val valAvroDecoder: AvroDecoder[V])
-    extends SparKafkaUpdateParams[CrRdd[F, K, V]] with CrRddInvModule[F, K, V] {
+  val keyCodec: AvroCodec[K],
+  val valCodec: AvroCodec[V],
+  val sparkSession: SparkSession)
+    extends SparKafkaUpdateParams[CrRdd[F, K, V]] with InvModule[F, K, V] {
 
-  implicit private val optionalKVAvroEncoder: AvroEncoder[OptionalKV[K, V]] =
-    shapeless.cachedImplicit
-
-  implicit private val optionalKVAvroDecoder: AvroDecoder[OptionalKV[K, V]] =
-    shapeless.cachedImplicit
-
-  implicit private val schemaForOptionalKV: SchemaFor[OptionalKV[K, V]] =
-    shapeless.cachedImplicit
-
-  implicit private val njAvroCodec: NJAvroCodec[OptionalKV[K, V]] = NJAvroCodec[OptionalKV[K, V]]
+  private val codec: AvroCodec[OptionalKV[K, V]] = shapeless.cachedImplicit
 
   override def params: SKParams = cfg.evalConfig
 
@@ -67,13 +47,14 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
   def repartition(num: Int): CrRdd[F, K, V] =
     new CrRdd[F, K, V](rdd.repartition(num), cfg)
 
-  def bimap[K2: AvroEncoder: AvroDecoder: SchemaFor, V2: AvroEncoder: AvroDecoder: SchemaFor](
-    k: K => K2,
-    v: V => V2): CrRdd[F, K2, V2] =
+  def bimap[K2, V2](k: K => K2, v: V => V2)(implicit
+    ck2: AvroCodec[K2],
+    cv2: AvroCodec[V2]): CrRdd[F, K2, V2] =
     new CrRdd[F, K2, V2](rdd.map(_.bimap(k, v)), cfg)
 
-  def flatMap[K2: AvroEncoder: AvroDecoder: SchemaFor, V2: AvroEncoder: AvroDecoder: SchemaFor](
-    f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]]): CrRdd[F, K2, V2] =
+  def flatMap[K2, V2](f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]])(implicit
+    ck2: AvroCodec[K2],
+    cv2: AvroCodec[V2]): CrRdd[F, K2, V2] =
     new CrRdd[F, K2, V2](rdd.flatMap(f), cfg)
 
   def union(other: RDD[OptionalKV[K, V]]): CrRdd[F, K, V] =
@@ -96,13 +77,10 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
 
   def typedDataset(implicit
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): TypedDataset[OptionalKV[K, V]] =
-    TypedDataset.create(rdd)
-
-  def crDataset(implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): CrDataset[F, K, V] =
-    new CrDataset(typedDataset.dataset, cfg)
+    valEncoder: TypedEncoder[V]): TypedDataset[OptionalKV[K, V]] = {
+    val ate: AvroTypedEncoder[OptionalKV[K, V]] = AvroTypedEncoder(codec)
+    ate.normalize(rdd)
+  }
 
   def stream(implicit F: Sync[F]): Stream[F, OptionalKV[K, V]] =
     rdd.stream[F]
@@ -114,6 +92,9 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
   def values: RDD[CompulsoryV[K, V]]     = rdd.flatMap(_.toCompulsoryV)
   def keys: RDD[CompulsoryK[K, V]]       = rdd.flatMap(_.toCompulsoryK)
   def keyValues: RDD[CompulsoryKV[K, V]] = rdd.flatMap(_.toCompulsoryKV)
+
+  def toPrRdd: PrRdd[F, K, V] =
+    new PrRdd[F, K, V](rdd.map(_.toNJProducerRecord), cfg)
 
   // pipe
   def pipeTo(otherTopic: KafkaTopic[F, K, V])(implicit
@@ -127,8 +108,7 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
       .compile
       .drain
 
-  def save: RddFileHoader[F, OptionalKV[K, V]] =
-    new RddFileHoader[F, OptionalKV[K, V]](rdd)
+  def save: RddFileHoarder[F, OptionalKV[K, V]] = rdd.save[F]
 
   private def bucketing(kv: OptionalKV[K, V]): Option[LocalDate] =
     Some(NJTimestamp(kv.timestamp).dayResolution(params.timeRange.zoneId))

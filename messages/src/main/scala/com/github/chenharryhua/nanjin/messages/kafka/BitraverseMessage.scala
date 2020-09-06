@@ -130,9 +130,6 @@ object NJConsumerMessage {
 sealed trait NJProducerMessage[F[_, _]] extends BitraverseMessage[F] with BitraverseKafkaRecord {
   final override type H[K, V] = ProducerRecord[K, V]
   final override val baseInst: Bitraverse[ProducerRecord] = bitraverseProducerRecord
-
-  final def record[K, V](cr: F[Option[K], Option[V]]): NJProducerRecord[K, V] =
-    NJProducerRecord(lens.get(cr))
 }
 
 object NJProducerMessage {

@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.{Eq, Parallel, Show}
 import cats.effect.{Blocker, Concurrent, ContextShift}
 import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
@@ -12,7 +12,7 @@ import scala.reflect.ClassTag
 
 final class SaveText[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(implicit
   show: Show[A],
-  codec: NJAvroCodec[A],
+  codec: AvroCodec[A],
   ss: SparkSession)
     extends Serializable {
   val params: HoarderParams = cfg.evalConfig
@@ -26,7 +26,7 @@ final class SaveText[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(implici
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
 
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
-    params.singleOrMulti match {
+    params.folderOrFile match {
       case FolderOrFile.SingleFile =>
         sma.checkAndRun(blocker)(
           rdd.stream[F].through(fileSink[F](blocker).text(params.outPath)).compile.drain)
@@ -43,7 +43,7 @@ final class PartitionText[F[_], A: ClassTag, K: ClassTag: Eq](
   bucketing: A => Option[K],
   pathBuilder: (NJFileFormat, K) => String)(implicit
   show: Show[A],
-  codec: NJAvroCodec[A],
+  codec: AvroCodec[A],
   ss: SparkSession)
     extends AbstractPartition[F, A, K] {
 

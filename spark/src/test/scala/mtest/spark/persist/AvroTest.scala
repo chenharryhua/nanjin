@@ -1,10 +1,8 @@
 package mtest.spark.persist
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddFileHoader}
-import frameless.TypedDataset
+import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddFileHoarder}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
-import org.apache.spark.rdd.RDD
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -15,22 +13,22 @@ class AvroTest extends AnyFunSuite {
     import RoosterData._
     val path = "./data/test/spark/persist/avro/rooster/raw"
     delete(path)
-    val saver = new RddFileHoader[IO, Rooster](rdd)
+    val saver = new RddFileHoarder[IO, Rooster](rdd)
     saver.avro(path).raw.folder.run(blocker).unsafeRunSync()
-    val r: RDD[Rooster]          = loaders.raw.avro[Rooster](path)
-    val t: TypedDataset[Rooster] = loaders.avro[Rooster](path)
-    assert(expected == r.collect().toSet)
-    assert(expected == t.collect[IO]().unsafeRunSync().toSet)
+    val r = loaders.raw.avro[Rooster](path).collect().toSet
+    val t = loaders.avro[Rooster](path).collect[IO]().unsafeRunSync().toSet
+    assert(expected == r)
+    assert(expected == t)
   }
 
   test("datetime spark read/write identity") {
     import RoosterData._
     val path = "./data/test/spark/persist/avro/rooster/spark"
     delete(path)
-    val saver = new RddFileHoader[IO, Rooster](rdd)
+    val saver = new RddFileHoarder[IO, Rooster](rdd)
     saver.avro(path).spark.folder.run(blocker).unsafeRunSync()
-    val t: TypedDataset[Rooster] = loaders.avro[Rooster](path)
-    assert(expected == t.collect[IO]().unsafeRunSync().toSet)
+    val t = loaders.avro[Rooster](path).collect[IO]().unsafeRunSync().toSet
+    assert(expected == t)
   }
 
   test("byte-array rdd read/write identity") {
@@ -38,10 +36,12 @@ class AvroTest extends AnyFunSuite {
     import cats.implicits._
     val path = "./data/test/spark/persist/avro/bee/raw"
     delete(path)
-    val saver = new RddFileHoader[IO, Bee](rdd)
+    val saver = new RddFileHoarder[IO, Bee](rdd)
     saver.avro(path).raw.folder.run(blocker).unsafeRunSync()
-    val t = loaders.raw.avro[Bee](path)
-    assert(bees.sortBy(_.b).zip(t.collect().toList.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
+    val t = loaders.raw.avro[Bee](path).collect().toList
+    val r = loaders.avro[Bee](path).collect[IO]().unsafeRunSync.toList
+    assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
+    assert(bees.sortBy(_.b).zip(r.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
 
   test("byte-array spark read/write identity") {
@@ -49,7 +49,7 @@ class AvroTest extends AnyFunSuite {
     import cats.implicits._
     val path = "./data/test/spark/persist/avro/bee/spark.avro"
     delete(path)
-    val saver = new RddFileHoader[IO, Bee](rdd)
+    val saver = new RddFileHoarder[IO, Bee](rdd)
     saver.avro(path).spark.file.run(blocker).unsafeRunSync()
     val t = loaders.avro[Bee](path).collect[IO].unsafeRunSync().toList
     assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
@@ -59,14 +59,21 @@ class AvroTest extends AnyFunSuite {
     import AntData._
     val path = "./data/test/spark/persist/avro/ant/raw.avro"
     delete(path)
-    val saver = new RddFileHoader[IO, Ant](rdd)
+    val saver = new RddFileHoarder[IO, Ant](rdd)
     saver.avro(path).raw.file.run(blocker).unsafeRunSync()
-    val t = loaders.raw.avro[Ant](path)
-    assert(ants.toSet == t.collect().toSet)
+    val t = loaders.raw.avro[Ant](path).collect().toSet
+    val r = loaders.avro[Ant](path).collect[IO]().unsafeRunSync().toSet
+    assert(ants.toSet == t)
+    assert(ants.toSet == r)
   }
 
-  test("collection spark read/write identity (happy failure)") {
+  test("collection spark read/write identity") {
+    import AntData._
     val path = "./data/test/spark/persist/avro/ant/spark"
     delete(path)
+    val saver = new RddFileHoarder[IO, Ant](rdd)
+    saver.avro(path).spark.folder.run(blocker).unsafeRunSync()
+    val t = loaders.avro[Ant](path).collect[IO]().unsafeRunSync().toSet
+    assert(ants.toSet == t)
   }
 }

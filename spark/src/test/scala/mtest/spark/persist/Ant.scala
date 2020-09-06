@@ -1,6 +1,6 @@
 package mtest.spark.persist
 
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.sksamuel.avro4s.{Decoder, Encoder}
 import frameless.TypedEncoder
@@ -54,7 +54,7 @@ object Ant {
   implicit val avroEncoder: Encoder[Ant] = shapeless.cachedImplicit
   implicit val avroDecoder: Decoder[Ant] = shapeless.cachedImplicit
 
-  implicit val njCodec: NJAvroCodec[Ant]       = NJAvroCodec[Ant](schemaText).right.get
+  implicit val njCodec: AvroCodec[Ant]         = AvroCodec[Ant](schemaText).right.get
   implicit val typedEncoder: TypedEncoder[Ant] = shapeless.cachedImplicit
 
   implicit val ate: AvroTypedEncoder[Ant] = AvroTypedEncoder[Ant](njCodec)

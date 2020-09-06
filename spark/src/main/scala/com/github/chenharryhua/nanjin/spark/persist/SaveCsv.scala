@@ -1,10 +1,9 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.{Eq, Parallel}
 import cats.effect.{Blocker, Concurrent, ContextShift}
+import cats.{Eq, Parallel}
 import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
-import com.github.chenharryhua.nanjin.spark.{fileSink, utils, RddExt}
+import com.github.chenharryhua.nanjin.spark.{fileSink, AvroTypedEncoder, RddExt}
 import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SaveMode, SparkSession}
@@ -14,7 +13,10 @@ import scala.reflect.ClassTag
 final class SaveCsv[F[_], A: ClassTag](
   rdd: RDD[A],
   csvConfiguration: CsvConfiguration,
-  cfg: HoarderConfig)(implicit rowEncoder: RowEncoder[A], codec: NJAvroCodec[A], ss: SparkSession)
+  cfg: HoarderConfig)(implicit
+  rowEncoder: RowEncoder[A],
+  ate: AvroTypedEncoder[A],
+  ss: SparkSession)
     extends Serializable {
   val params: HoarderParams = cfg.evalConfig
 
@@ -29,19 +31,19 @@ final class SaveCsv[F[_], A: ClassTag](
 
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
-    params.singleOrMulti match {
+    params.folderOrFile match {
       case FolderOrFile.SingleFile =>
         sma.checkAndRun(blocker)(
           rdd
-            .map(codec.idConversion)
+            .map(ate.avroCodec.idConversion)
             .stream[F]
             .through(fileSink[F](blocker).csv(params.outPath, csvConfiguration))
             .compile
             .drain)
       case FolderOrFile.Folder =>
         val csv = F.delay(
-          utils
-            .normalizedDF(rdd, codec.avroEncoder)
+          ate
+            .normalize(rdd)
             .write
             .mode(SaveMode.Overwrite)
             .option("sep", csvConfiguration.cellSeparator.toString)
@@ -61,7 +63,7 @@ final class PartitionCsv[F[_], A: ClassTag, K: ClassTag: Eq](
   bucketing: A => Option[K],
   pathBuilder: (NJFileFormat, K) => String)(implicit
   rowEncoder: RowEncoder[A],
-  codec: NJAvroCodec[A],
+  ate: AvroTypedEncoder[A],
   ss: SparkSession)
     extends AbstractPartition[F, A, K] {
 

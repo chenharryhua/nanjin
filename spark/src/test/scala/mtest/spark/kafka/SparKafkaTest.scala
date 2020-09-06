@@ -4,14 +4,12 @@ import java.time.{Instant, LocalDate}
 
 import cats.effect.IO
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.messages.kafka.{CompulsoryV, OptionalKV}
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.injection._
-import com.github.chenharryhua.nanjin.spark.kafka._
-import com.landoop.transportation.nyc.trip.yellow.trip_record
+import com.github.chenharryhua.nanjin.spark.kafka.{CompulsoryV, _}
 import com.sksamuel.avro4s.SchemaFor
-import frameless.{TypedDataset, TypedEncoder}
+import frameless.TypedDataset
 import frameless.cats.implicits._
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -24,7 +22,10 @@ object SparKafkaTestData {
   val data: HasDuck =
     HasDuck(0, "a", LocalDate.now, Instant.ofEpochMilli(Instant.now.toEpochMilli), duck)
 
-  implicit val hasDuckEncoder: TypedEncoder[HasDuck] = shapeless.cachedImplicit
+  implicit val hasDuckEncoder: AvroCodec[HasDuck] = AvroCodec[HasDuck]
+  implicit val intCodec                           = AvroCodec[Int]
+  implicit val stringCodec                        = AvroCodec[String]
+
   println(SchemaFor[HasDuck].schema)
 }
 
@@ -38,7 +39,7 @@ class SparKafkaTest extends AnyFunSuite {
 
   test("sparKafka read topic from kafka") {
     val rst =
-      topic.sparKafka(range).fromKafka.flatMap(_.crDataset.values.collect[IO]()).unsafeRunSync
+      topic.sparKafka(range).fromKafka.map(_.values.collect()).unsafeRunSync
     assert(rst.toList.map(_.value) === List(data, data))
   }
 
@@ -56,14 +57,7 @@ class SparKafkaTest extends AnyFunSuite {
     val ds: TypedDataset[OptionalKV[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
 
     val birst: Set[CompulsoryV[String, Int]] =
-      src
-        .sparKafka(range)
-        .crDataset(ds)
-        .bimap(_.toString, _ + 1)
-        .values
-        .collect[IO]()
-        .unsafeRunSync
-        .toSet
+      src.sparKafka(range).crRdd(ds).bimap(_.toString, _ + 1).values.collect().toSet
     assert(birst.map(_.value) == Set(2, 3, 5))
   }
 
@@ -79,11 +73,10 @@ class SparKafkaTest extends AnyFunSuite {
     val birst: Set[CompulsoryV[Int, Int]] =
       src
         .sparKafka(range)
-        .crDataset(ds)
+        .crRdd(ds)
         .flatMap(m => m.value.map(x => OptionalKV.value.set(Some(x - 1))(m)))
         .values
-        .collect[IO]()
-        .unsafeRunSync
+        .collect()
         .toSet
     assert(birst.map(_.value) == Set(0, 1, 3))
   }
@@ -95,8 +88,8 @@ class SparKafkaTest extends AnyFunSuite {
     val crs: List[OptionalKV[Int, Int]]        = List(cr1, cr2, cr3)
     val ds: TypedDataset[OptionalKV[Int, Int]] = TypedDataset.create(crs)
 
-    val t   = TopicDef[Int, Int](TopicName("some.value")).in(ctx).sparKafka(range).crDataset(ds)
-    val rst = t.values.collect[IO]().unsafeRunSync().map(_.value)
+    val t   = TopicDef[Int, Int](TopicName("some.value")).in(ctx).sparKafka(range).crRdd(ds)
+    val rst = t.values.collect().map(_.value)
     assert(rst === Seq(cr1.value.get))
   }
 }

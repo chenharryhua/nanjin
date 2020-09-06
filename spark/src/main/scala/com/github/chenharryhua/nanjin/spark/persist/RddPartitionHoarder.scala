@@ -3,7 +3,9 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.{Eq, Show}
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.common.NJFileFormat._
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
+import frameless.TypedEncoder
 import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.spark.rdd.RDD
@@ -16,7 +18,7 @@ class RddPartitionHoarder[F[_], A: ClassTag, K: Eq: ClassTag](
   rdd: RDD[A],
   bucketing: A => Option[K],
   pathBuilder: (NJFileFormat, K) => String,
-  cfg: HoarderConfig = HoarderConfig.default)(implicit codec: NJAvroCodec[A], ss: SparkSession)
+  cfg: HoarderConfig = HoarderConfig.default)(implicit codec: AvroCodec[A], ss: SparkSession)
     extends Serializable {
 
   private def updateConfig(cfg: HoarderConfig): RddPartitionHoarder[F, A, K] =
@@ -28,9 +30,6 @@ class RddPartitionHoarder[F[_], A: ClassTag, K: Eq: ClassTag](
 
   def file: RddPartitionHoarder[F, A, K]   = updateConfig(cfg.withSingleFile)
   def folder: RddPartitionHoarder[F, A, K] = updateConfig(cfg.withFolder)
-
-  def spark: RddPartitionHoarder[F, A, K] = updateConfig(cfg.withSpark)
-  def raw: RddPartitionHoarder[F, A, K]   = updateConfig(cfg.withRaw)
 
   def parallel(num: Long): RddPartitionHoarder[F, A, K] =
     updateConfig(cfg.withParallel(num))
@@ -56,25 +55,29 @@ class RddPartitionHoarder[F[_], A: ClassTag, K: Eq: ClassTag](
     new PartitionText[F, A, K](rdd, cfg.withFormat(Text), bucketing, pathBuilder)
 
 // 4
-  def csv(implicit ev: RowEncoder[A]): PartitionCsv[F, A, K] =
+  def csv(implicit ev: RowEncoder[A], te: TypedEncoder[A]): PartitionCsv[F, A, K] = {
+    implicit val ate: AvroTypedEncoder[A] = AvroTypedEncoder[A](te, codec)
     new PartitionCsv[F, A, K](
       rdd,
       CsvConfiguration.rfc,
       cfg.withFormat(Csv),
       bucketing,
       pathBuilder)
+  }
 
-// 5
-  def json: PartitionSparkJson[F, A, K] =
+  // 5
+  def json(implicit te: TypedEncoder[A]): PartitionSparkJson[F, A, K] = {
+    implicit val ate: AvroTypedEncoder[A] = AvroTypedEncoder[A](te, codec)
     new PartitionSparkJson[F, A, K](rdd, cfg.withFormat(SparkJson), bucketing, pathBuilder)
+  }
 
-// 11
+  // 11
   def parquet: PartitionParquet[F, A, K] =
-    new PartitionParquet[F, A, K](rdd, cfg.withFormat(Parquet), bucketing, pathBuilder)
+    new PartitionParquet[F, A, K](rdd, None, cfg.withFormat(Parquet), bucketing, pathBuilder)
 
 // 12
   def avro: PartitionAvro[F, A, K] =
-    new PartitionAvro[F, A, K](rdd, cfg.withFormat(Avro), bucketing, pathBuilder)
+    new PartitionAvro[F, A, K](rdd, None, cfg.withFormat(Avro), bucketing, pathBuilder)
 
 // 13
   def binAvro: PartitionBinaryAvro[F, A, K] =

@@ -2,6 +2,9 @@ package com.github.chenharryhua.nanjin.datetime
 
 import java.sql.Timestamp
 import java.time._
+
+import cats.implicits.catsSyntaxTuple2Semigroupal
+import cats.syntax.all._
 import cats.{PartialOrder, Show}
 import monocle.Prism
 import monocle.generic.coproduct.coProductPrism

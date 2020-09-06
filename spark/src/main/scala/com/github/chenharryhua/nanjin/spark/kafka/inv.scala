@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Eq
 import cats.implicits._
-import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, OptionalKV}
 import frameless.cats.implicits._
 import frameless.functions.aggregate.count
 import frameless.{TypedDataset, TypedEncoder}
@@ -11,6 +10,7 @@ import org.apache.spark.rdd.RDD
 final case class CRMetaInfo(topic: String, partition: Int, offset: Long, timestamp: Long)
 
 object CRMetaInfo {
+  implicit val typedEncoder: TypedEncoder[CRMetaInfo] = shapeless.cachedImplicit
 
   def apply[K, V](cr: NJConsumerRecord[K, V]): CRMetaInfo =
     CRMetaInfo(
