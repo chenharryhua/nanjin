@@ -80,8 +80,11 @@ class AvroTest extends AnyFunSuite {
 
   /**
     * the data saved to disk is correct.
-    * loaders.raw.avro can not rightly read it back.
-    * loaders.avro can.. weird
+    * loaders.rdd.avro can not rightly read it back.
+    * loaders.avro can.
+    * avro4s decode:https://github.com/sksamuel/avro4s/blob/release/4.0.x/avro4s-core/src/main/scala/com/sksamuel/avro4s/ByteIterables.scala#L31
+    * should follow spark's implementation:
+    * https://github.com/apache/spark/blob/branch-3.0/external/avro/src/main/scala/org/apache/spark/sql/avro/AvroDeserializer.scala#L158
     */
   test("byte-array read/write identity single read (happy failure)") {
     import BeeData._
