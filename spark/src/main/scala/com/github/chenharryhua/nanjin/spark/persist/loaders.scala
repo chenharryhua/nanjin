@@ -23,32 +23,6 @@ import scala.reflect.ClassTag
 
 object loaders {
 
-  def objectFile[A: ClassTag](pathStr: String)(implicit ss: SparkSession): RDD[A] =
-    ss.sparkContext.objectFile[A](pathStr)
-
-  def circe[A: ClassTag: JsonDecoder](pathStr: String)(implicit ss: SparkSession): RDD[A] =
-    ss.sparkContext
-      .textFile(pathStr)
-      .map(decode[A](_) match {
-        case Left(ex) => throw ex
-        case Right(r) => r
-      })
-
-  def protobuf[A <: GeneratedMessage: ClassTag](
-    pathStr: String)(implicit decoder: GeneratedMessageCompanion[A], ss: SparkSession): RDD[A] =
-    ss.sparkContext
-      .binaryFiles(pathStr)
-      .mapPartitions(_.flatMap {
-        case (_, pds) =>
-          val is   = pds.open()
-          val cis  = CodedInputStream.newInstance(is)
-          val iter = decoder.parseDelimitedFrom(cis)
-          new Iterator[A] {
-            override def hasNext: Boolean = if (iter.isDefined) true else { is.close(); false }
-            override def next(): A        = iter.get
-          }
-      })
-
   def avro[A](
     pathStr: String)(implicit ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
     ate.normalizeDF(ss.read.format("avro").load(pathStr))
@@ -77,7 +51,33 @@ object loaders {
     pathStr: String)(implicit ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
     ate.normalizeDF(ss.read.schema(ate.sparkSchema).json(pathStr))
 
-  object raw {
+  object rdd {
+
+    def objectFile[A: ClassTag](pathStr: String)(implicit ss: SparkSession): RDD[A] =
+      ss.sparkContext.objectFile[A](pathStr)
+
+    def circe[A: ClassTag: JsonDecoder](pathStr: String)(implicit ss: SparkSession): RDD[A] =
+      ss.sparkContext
+        .textFile(pathStr)
+        .map(decode[A](_) match {
+          case Left(ex) => throw ex
+          case Right(r) => r
+        })
+
+    def protobuf[A <: GeneratedMessage: ClassTag](
+      pathStr: String)(implicit decoder: GeneratedMessageCompanion[A], ss: SparkSession): RDD[A] =
+      ss.sparkContext
+        .binaryFiles(pathStr)
+        .mapPartitions(_.flatMap {
+          case (_, pds) =>
+            val is   = pds.open()
+            val cis  = CodedInputStream.newInstance(is)
+            val iter = decoder.parseDelimitedFrom(cis)
+            new Iterator[A] {
+              override def hasNext: Boolean = if (iter.isDefined) true else { is.close(); false }
+              override def next(): A        = iter.get
+            }
+        })
 
     def avro[A: ClassTag](
       pathStr: String)(implicit codec: AvroCodec[A], ss: SparkSession): RDD[A] = {

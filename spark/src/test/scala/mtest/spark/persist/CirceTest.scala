@@ -17,7 +17,7 @@ class CirceTest extends AnyFunSuite {
     delete(path)
     val saver = new RddFileHoarder[IO, Rooster](rdd)
     saver.circe(path).folder.run(blocker).unsafeRunSync()
-    val t = loaders.circe[Rooster](path)
+    val t = loaders.rdd.circe[Rooster](path)
     assert(expected == t.collect().toSet)
   }
 
@@ -26,7 +26,7 @@ class CirceTest extends AnyFunSuite {
     delete(path)
     val saver = new RddFileHoarder[IO, Rooster](rdd)
     saver.circe(path).file.run(blocker).unsafeRunSync()
-    val t = loaders.circe[Rooster](path)
+    val t = loaders.rdd.circe[Rooster](path)
     assert(expected == t.collect().toSet)
   }
 }

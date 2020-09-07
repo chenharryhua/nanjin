@@ -10,7 +10,7 @@ import org.scalatest.funsuite.AnyFunSuite
 class ParquetTest extends AnyFunSuite {
   import RoosterData._
 
-  test("datetime rdd read/write identity") {
+  test("datetime read/write identity") {
     val path = "./data/test/spark/persist/parquet/rooster/multi.parquet"
     delete(path)
     val saver = new RddFileHoarder[IO, Rooster](rdd).repartition(1)
@@ -19,7 +19,7 @@ class ParquetTest extends AnyFunSuite {
     assert(expected == r)
   }
 
-  test("byte-array spark read/write identity") {
+  test("byte-array read/write identity") {
     import BeeData._
     import cats.implicits._
     val path = "./data/test/spark/persist/parquet/bee/multi.parquet"
@@ -30,7 +30,7 @@ class ParquetTest extends AnyFunSuite {
     assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
 
-  test("collection spark read/write identity") {
+  test("collection read/write identity") {
     import AntData._
     val path = "./data/test/spark/persist/parquet/ant/multi.parquet"
     delete(path)
@@ -40,7 +40,7 @@ class ParquetTest extends AnyFunSuite {
     assert(ants.toSet == t)
   }
 
-  test("enum multi read/write identity") {
+  test("enum read/write identity") {
     import CopData._
     val path = "./data/test/spark/persist/parquet/emcop/multi.parquet"
     delete(path)
@@ -49,4 +49,8 @@ class ParquetTest extends AnyFunSuite {
     val t = loaders.parquet[EmCop](path).collect[IO].unsafeRunSync().toSet
     assert(emCops.toSet == t)
   }
+
+  /**
+    * frameless/spark does not support coproduct so cocop and cpcop do not compile
+    */
 }

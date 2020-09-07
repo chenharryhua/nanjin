@@ -38,7 +38,7 @@ final class SparKafka[F[_], K, V](
     sk.kafkaBatch(topic, params.timeRange, params.locationStrategy).map(crRdd)
 
   def fromDisk: CrRdd[F, K, V] =
-    crRdd(loaders.objectFile[OptionalKV[K, V]](params.replayPath))
+    crRdd(loaders.rdd.objectFile[OptionalKV[K, V]](params.replayPath))
 
   /**
     * shorthand

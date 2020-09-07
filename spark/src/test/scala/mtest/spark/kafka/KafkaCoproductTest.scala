@@ -58,7 +58,7 @@ class KafkaCoproductTest extends AnyFunSuite {
       topicCO.schemaRegister >>
       topicCO.send(data) >>
       sk.fromKafka.flatMap(_.save.avro(path).file.run(blocker)) >>
-      IO(topicCO.topicDef.load.raw.avro(path).collect().toSet)
+      IO(topicCO.topicDef.load.rdd.avro(path).collect().toSet)
     intercept[Exception](run.unsafeRunSync().flatMap(_.value) == Set(co1, co2))
   }
 
@@ -71,7 +71,7 @@ class KafkaCoproductTest extends AnyFunSuite {
       topicEnum.schemaRegister >>
       topicEnum.send(data) >>
       sk.fromKafka.flatMap(_.save.avro(path).file.run(blocker)) >>
-      IO(topicEnum.topicDef.load.raw.avro(path).take(10).toSet)
+      IO(topicEnum.topicDef.load.rdd.avro(path).take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 
@@ -84,7 +84,7 @@ class KafkaCoproductTest extends AnyFunSuite {
       topicEnum.schemaRegister >>
       topicEnum.send(data) >>
       sk.fromKafka.flatMap(_.save.avro(path).folder.run(blocker)) >>
-      IO(topicEnum.topicDef.load.raw.avro(path).take(10).toSet)
+      IO(topicEnum.topicDef.load.rdd.avro(path).take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 }

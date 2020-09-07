@@ -48,7 +48,7 @@ class ReadTest extends AnyFunSuite {
     val path = "./data/test/spark/kafka/read/avro"
     data.write.mode(SaveMode.Overwrite).format("avro").save(path)
     assert(topic.load.avro(path).dataset.collect.toSet == dogs_noKey.toSet)
-    assert(topic.load.raw.avro(path).collect.toSet == dogs_noKey.toSet)
+    assert(topic.load.rdd.avro(path).collect.toSet == dogs_noKey.toSet)
   }
 
   test("sparKafka read parquet - compulsoryK") {
@@ -65,7 +65,7 @@ class ReadTest extends AnyFunSuite {
     val path = "./data/test/spark/kafka/read/avro-compulsory"
     data.write.mode(SaveMode.Overwrite).format("avro").save(path)
     assert(topic.load.avro(path).rdd.collect.toSet == dogs.toSet)
-    assert(topic.load.raw.avro(path).collect.toSet == dogs.toSet)
+    assert(topic.load.rdd.avro(path).collect.toSet == dogs.toSet)
   }
 
   test("sparKafka read json - compulsoryKV") {
