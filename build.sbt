@@ -39,9 +39,9 @@ val spark24   = "3.0.0"
 val frameless = "0.9.0-SNAPSHOT"
 
 // database
-val doobie   = "0.9.0"
+val doobie   = "0.9.2"
 val quill    = "3.5.2"
-val neotypes = "0.15.0"
+val neotypes = "0.15.1"
 val elastic  = "7.9.0"
 
 // format
@@ -369,7 +369,7 @@ lazy val spark = (project in file("spark"))
       "com.thesamet.scalapb" %% "sparksql-scalapb" % "0.10.4",
       // override dependency
       "io.netty" % "netty"     % "3.10.6.Final",
-      "io.netty" % "netty-all" % "4.1.51.Final",
+      "io.netty" % "netty-all" % "4.1.52.Final",
       "com.julianpeeters" %% "avrohugger-core" % "1.0.0-RC21" % Test
     ) ++ sparkLib ++ serdeLib ++ hadoopLib ++ testLib,
     excludeDependencies ++= Seq(ExclusionRule(organization = "io.netty")),
