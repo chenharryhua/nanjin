@@ -70,31 +70,25 @@ class SparkTableTest extends AnyFunSuite {
       IO(())
     run.unsafeRunSync
   }
-  val root                        = "./data/test/spark/database/postgres/"
+  val root = "./data/test/spark/database/postgres/"
+
   val tb: SparkTable[IO, DBTable] = table.in[IO](postgres)
 
   val saver = tb.fromDB.save
 
   test("avro") {
-
     val avro = saver.avro(root + "multi.spark.avro").folder.spark.run(blocker) >>
-      saver.avro(root + "single.raw.avro").file.raw.run(blocker) >>
-      saver.avro(root + "multi.raw.avro").folder.raw.run(blocker)
+      saver.avro(root + "single.raw.avro").file.run(blocker) >>
+      saver.avro(root + "multi.raw.avro").folder.run(blocker)
     avro.unsafeRunSync()
     assert(table.load.avro(root + "multi.spark.avro").dataset.collect.head == dbData)
     assert(table.load.avro(root + "single.raw.avro").dataset.collect.head == dbData)
     assert(table.load.avro(root + "multi.raw.avro").dataset.collect.head == dbData)
-
   }
   test("parquet") {
-    val parquet = saver.parquet(root + "multi.spark.parquet").folder.spark.run(blocker) >>
-      saver.parquet(root + "single.raw.parquet").file.raw.run(blocker) >>
-      saver.parquet(root + "raw.parquet").raw.run(blocker)
+    val parquet = saver.parquet(root + "multi.parquet").run(blocker)
     parquet.unsafeRunSync()
-    assert(table.load.parquet(root + "multi.spark.parquet").dataset.collect.head == dbData)
-    assert(table.load.parquet(root + "single.raw.parquet").dataset.collect.head == dbData)
-    assert(table.load.parquet(root + "raw.parquet").dataset.collect.head == dbData)
-
+    assert(table.load.parquet(root + "multi.parquet").dataset.collect.head == dbData)
   }
   test("circe") {
     val circe = saver.circe(root + "multi.circe.json").folder.run(blocker) >>

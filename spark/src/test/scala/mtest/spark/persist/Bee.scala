@@ -6,8 +6,17 @@ import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.sksamuel.avro4s.{Decoder, Encoder}
 import frameless.TypedEncoder
 import cats.syntax.all._
+import io.scalaland.chimney.dsl._
 
-final case class Bee(a: Array[Byte], b: Int)
+final case class Bee(a: Array[Byte], b: Int) {
+
+  override def toString: String =
+    s"Bee(a=${a.toList},b=${b.toString})"
+
+  def toWasp: Wasp = this.transformInto[Wasp]
+}
+
+final case class Wasp(a: List[Byte], b: Int)
 
 object Bee {
 

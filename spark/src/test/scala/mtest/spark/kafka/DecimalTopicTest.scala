@@ -81,7 +81,7 @@ class DecimalTopicTest extends AnyFunSuite {
 
   test("sparKafka kafka and spark agree on avro") {
     val path = "./data/test/spark/kafka/decimal.avro"
-    topic.sparKafka.fromKafka.flatMap(_.save.avro(path).raw.file.run(blocker)).unsafeRunSync
+    topic.sparKafka.fromKafka.flatMap(_.save.avro(path).file.run(blocker)).unsafeRunSync
     assert(topicDef.load.avro(path).dataset.collect().head.value.get == expected)
   }
 }

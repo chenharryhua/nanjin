@@ -63,24 +63,21 @@ private[kafka] trait DatasetExtensions {
         loaders.json[OptionalKV[K, V]](pathStr)(ate, ss)
       }
 
-      object raw {
+      object rdd {
 
         def avro(pathStr: String)(implicit ss: SparkSession): RDD[OptionalKV[K, V]] =
-          loaders.raw.avro[OptionalKV[K, V]](pathStr)
-
-        def parquet(pathStr: String)(implicit ss: SparkSession): RDD[OptionalKV[K, V]] =
-          loaders.raw.parquet[OptionalKV[K, V]](pathStr)
+          loaders.rdd.avro[OptionalKV[K, V]](pathStr)
 
         def jackson(pathStr: String)(implicit ss: SparkSession): RDD[OptionalKV[K, V]] =
-          loaders.raw.jackson[OptionalKV[K, V]](pathStr)
+          loaders.rdd.jackson[OptionalKV[K, V]](pathStr)
 
         def binAvro(pathStr: String)(implicit ss: SparkSession): RDD[OptionalKV[K, V]] =
-          loaders.raw.binAvro[OptionalKV[K, V]](pathStr)
+          loaders.rdd.binAvro[OptionalKV[K, V]](pathStr)
 
         def circe(pathStr: String)(implicit
           ev: JsonDecoder[OptionalKV[K, V]],
           ss: SparkSession): RDD[OptionalKV[K, V]] =
-          loaders.circe[OptionalKV[K, V]](pathStr)
+          loaders.rdd.circe[OptionalKV[K, V]](pathStr)
       }
     }
   }

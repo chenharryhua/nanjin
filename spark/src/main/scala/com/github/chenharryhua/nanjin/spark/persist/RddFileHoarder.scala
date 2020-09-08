@@ -53,10 +53,12 @@ final class RddFileHoarder[F[_], A: ClassTag](
   }
 
   // 11
-  def parquet(outPath: String): SaveParquet[F, A] =
-    new SaveParquet[F, A](rdd, None, cfg.withFormat(Parquet).withOutPutPath(outPath))
+  def parquet(outPath: String)(implicit te: TypedEncoder[A]): SaveParquet[F, A] = {
+    implicit val ate: AvroTypedEncoder[A] = AvroTypedEncoder[A](te, codec)
+    new SaveParquet[F, A](rdd, cfg.withFormat(Parquet).withOutPutPath(outPath))
+  }
 
-// 12
+  // 12
   def avro(outPath: String): SaveAvro[F, A] =
     new SaveAvro[F, A](rdd, None, cfg.withFormat(Avro).withOutPutPath(outPath))
 

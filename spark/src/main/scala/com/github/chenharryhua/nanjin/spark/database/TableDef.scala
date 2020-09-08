@@ -30,7 +30,7 @@ final case class TableDef[A] private (tableName: TableName, avroTypedEncoder: Av
       loaders.avro[A](pathStr)
 
     def circe(pathStr: String)(implicit ev: JsonDecoder[A], ss: SparkSession): TypedDataset[A] =
-      TypedDataset.create(loaders.circe[A](pathStr))
+      ate.normalize(loaders.rdd.circe[A](pathStr))
 
     def csv(pathStr: String)(implicit ev: RowEncoder[A], ss: SparkSession): TypedDataset[A] =
       loaders.csv[A](pathStr)
@@ -44,7 +44,7 @@ final case class TableDef[A] private (tableName: TableName, avroTypedEncoder: Av
       loaders.json[A](pathStr)
 
     def jackson(pathStr: String)(implicit ss: SparkSession): TypedDataset[A] =
-      TypedDataset.create(loaders.raw.jackson[A](pathStr))
+      ate.normalize(loaders.rdd.jackson[A](pathStr))
   }
 }
 

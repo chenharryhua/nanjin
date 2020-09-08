@@ -57,8 +57,8 @@ class KafkaCoproductTest extends AnyFunSuite {
     val run = topicCO.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicCO.schemaRegister >>
       topicCO.send(data) >>
-      sk.fromKafka.flatMap(_.save.avro(path).raw.file.run(blocker)) >>
-      IO(topicCO.topicDef.load.raw.avro(path).collect().toSet)
+      sk.fromKafka.flatMap(_.save.avro(path).file.run(blocker)) >>
+      IO(topicCO.topicDef.load.rdd.avro(path).collect().toSet)
     intercept[Exception](run.unsafeRunSync().flatMap(_.value) == Set(co1, co2))
   }
 
@@ -70,8 +70,8 @@ class KafkaCoproductTest extends AnyFunSuite {
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegister >>
       topicEnum.send(data) >>
-      sk.fromKafka.flatMap(_.save.avro(path).raw.file.run(blocker)) >>
-      IO(topicEnum.topicDef.load.raw.avro(path).take(10).toSet)
+      sk.fromKafka.flatMap(_.save.avro(path).file.run(blocker)) >>
+      IO(topicEnum.topicDef.load.rdd.avro(path).take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 
@@ -83,8 +83,8 @@ class KafkaCoproductTest extends AnyFunSuite {
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegister >>
       topicEnum.send(data) >>
-      sk.fromKafka.flatMap(_.save.avro(path).raw.folder.run(blocker)) >>
-      IO(topicEnum.topicDef.load.raw.avro(path).take(10).toSet)
+      sk.fromKafka.flatMap(_.save.avro(path).folder.run(blocker)) >>
+      IO(topicEnum.topicDef.load.rdd.avro(path).take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 }

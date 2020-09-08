@@ -15,7 +15,6 @@ import org.apache.avro.mapred.AvroKey
 import org.apache.avro.mapreduce.{AvroJob, AvroKeyInputFormat}
 import org.apache.hadoop.io.NullWritable
 import org.apache.hadoop.mapreduce.Job
-import org.apache.parquet.avro.{AvroParquetInputFormat, GenericDataSupplier}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
@@ -23,32 +22,6 @@ import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 import scala.reflect.ClassTag
 
 object loaders {
-
-  def objectFile[A: ClassTag](pathStr: String)(implicit ss: SparkSession): RDD[A] =
-    ss.sparkContext.objectFile[A](pathStr)
-
-  def circe[A: ClassTag: JsonDecoder](pathStr: String)(implicit ss: SparkSession): RDD[A] =
-    ss.sparkContext
-      .textFile(pathStr)
-      .map(decode[A](_) match {
-        case Left(ex) => throw ex
-        case Right(r) => r
-      })
-
-  def protobuf[A <: GeneratedMessage: ClassTag](
-    pathStr: String)(implicit decoder: GeneratedMessageCompanion[A], ss: SparkSession): RDD[A] =
-    ss.sparkContext
-      .binaryFiles(pathStr)
-      .mapPartitions(_.flatMap {
-        case (_, pds) =>
-          val is   = pds.open()
-          val cis  = CodedInputStream.newInstance(is)
-          val iter = decoder.parseDelimitedFrom(cis)
-          new Iterator[A] {
-            override def hasNext: Boolean = if (iter.isDefined) true else { is.close(); false }
-            override def next(): A        = iter.get
-          }
-      })
 
   def avro[A](
     pathStr: String)(implicit ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
@@ -78,7 +51,33 @@ object loaders {
     pathStr: String)(implicit ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
     ate.normalizeDF(ss.read.schema(ate.sparkSchema).json(pathStr))
 
-  object raw {
+  object rdd {
+
+    def objectFile[A: ClassTag](pathStr: String)(implicit ss: SparkSession): RDD[A] =
+      ss.sparkContext.objectFile[A](pathStr)
+
+    def circe[A: ClassTag: JsonDecoder](pathStr: String)(implicit ss: SparkSession): RDD[A] =
+      ss.sparkContext
+        .textFile(pathStr)
+        .map(decode[A](_) match {
+          case Left(ex) => throw ex
+          case Right(r) => r
+        })
+
+    def protobuf[A <: GeneratedMessage: ClassTag](
+      pathStr: String)(implicit decoder: GeneratedMessageCompanion[A], ss: SparkSession): RDD[A] =
+      ss.sparkContext
+        .binaryFiles(pathStr)
+        .mapPartitions(_.flatMap {
+          case (_, pds) =>
+            val is   = pds.open()
+            val cis  = CodedInputStream.newInstance(is)
+            val iter = decoder.parseDelimitedFrom(cis)
+            new Iterator[A] {
+              override def hasNext: Boolean = if (iter.isDefined) true else { is.close(); false }
+              override def next(): A        = iter.get
+            }
+        })
 
     def avro[A: ClassTag](
       pathStr: String)(implicit codec: AvroCodec[A], ss: SparkSession): RDD[A] = {
@@ -121,22 +120,6 @@ object loaders {
           codec.avroDecoder.decode(datumReader.read(null, jsonDecoder))
         }
       }
-    }
-
-    def parquet[A: ClassTag](
-      pathStr: String)(implicit codec: AvroCodec[A], ss: SparkSession): RDD[A] = {
-      val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
-      AvroParquetInputFormat.setAvroDataSupplier(job, classOf[GenericDataSupplier])
-      AvroParquetInputFormat.setAvroReadSchema(job, codec.schema)
-      ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
-
-      ss.sparkContext
-        .newAPIHadoopFile(
-          pathStr,
-          classOf[AvroParquetInputFormat[GenericRecord]],
-          classOf[Void],
-          classOf[GenericRecord])
-        .map { case (_, gr) => codec.avroDecoder.decode(gr) }
     }
   }
 }

@@ -72,10 +72,12 @@ class RddPartitionHoarder[F[_], A: ClassTag, K: Eq: ClassTag](
   }
 
   // 11
-  def parquet: PartitionParquet[F, A, K] =
-    new PartitionParquet[F, A, K](rdd, None, cfg.withFormat(Parquet), bucketing, pathBuilder)
+  def parquet(implicit te: TypedEncoder[A]): PartitionParquet[F, A, K] = {
+    implicit val ate: AvroTypedEncoder[A] = AvroTypedEncoder[A](te, codec)
+    new PartitionParquet[F, A, K](rdd, cfg.withFormat(Parquet), bucketing, pathBuilder)
+  }
 
-// 12
+  // 12
   def avro: PartitionAvro[F, A, K] =
     new PartitionAvro[F, A, K](rdd, None, cfg.withFormat(Avro), bucketing, pathBuilder)
 
