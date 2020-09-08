@@ -17,7 +17,7 @@ import shapeless.cachedImplicit
 
 /**
   * compatible with spark kafka streaming
-  * https://spark.apache.org/docs/3.0.0/structured-streaming-kafka-integration.html
+  * https://spark.apache.org/docs/3.0.1/structured-streaming-kafka-integration.html
   */
 sealed trait NJConsumerRecord[K, V] {
   self =>
