@@ -31,7 +31,7 @@ val akka26     = "2.6.8"
 // kafka
 val confltKafka = "5.5.1-ccs"
 val confluent   = "5.5.1"
-val akkaKafka   = "2.0.4"
+val akkaKafka   = "2.0.5"
 val fs2Kafka    = "1.0.0"
 
 // spark
