@@ -7,7 +7,7 @@ import cats.Monad
 import cats.data.Kleisli
 import cats.effect.{Resource, Sync}
 import cats.implicits._
-import cats.mtl.ApplicativeAsk
+import cats.mtl.Ask
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import fs2.kafka.KafkaByteConsumer
 import org.apache.kafka.clients.consumer.{ConsumerRecord, KafkaConsumer, OffsetAndMetadata}
@@ -32,11 +32,11 @@ sealed trait KafkaPrimitiveConsumerApi[F[_]] {
 private[kafka] object KafkaPrimitiveConsumerApi {
 
   def apply[F[_]: Monad](topicName: TopicName)(implicit
-    F: ApplicativeAsk[F, KafkaByteConsumer]): KafkaPrimitiveConsumerApi[F] =
+    F: Ask[F, KafkaByteConsumer]): KafkaPrimitiveConsumerApi[F] =
     new KafkaPrimitiveConsumerApiImpl[F](topicName)
 
   final private[this] class KafkaPrimitiveConsumerApiImpl[F[_]: Monad](topicName: TopicName)(
-    implicit kbc: ApplicativeAsk[F, KafkaByteConsumer]
+    implicit kbc: Ask[F, KafkaByteConsumer]
   ) extends KafkaPrimitiveConsumerApi[F] {
 
     val partitionsFor: F[ListOfTopicPartitions] =
@@ -149,10 +149,9 @@ object ShortLiveConsumer {
       execute {
         for {
           end <- kpc.endOffsets
-          rec <- end.value.toList.traverse {
-            case (tp, of) =>
-              of.filter(_.value > 0)
-                .flatTraverse(x => kpc.retrieveRecord(KafkaPartition(tp.partition), x.asLast))
+          rec <- end.value.toList.traverse { case (tp, of) =>
+            of.filter(_.value > 0)
+              .flatTraverse(x => kpc.retrieveRecord(KafkaPartition(tp.partition), x.asLast))
           }
         } yield rec.flatten.sortBy(_.partition())
       }
@@ -161,9 +160,8 @@ object ShortLiveConsumer {
       execute {
         for {
           beg <- kpc.beginningOffsets
-          rec <- beg.value.toList.traverse {
-            case (tp, of) =>
-              of.flatTraverse(x => kpc.retrieveRecord(KafkaPartition(tp.partition), x))
+          rec <- beg.value.toList.traverse { case (tp, of) =>
+            of.flatTraverse(x => kpc.retrieveRecord(KafkaPartition(tp.partition), x))
           }
         } yield rec.flatten.sortBy(_.partition())
       }
@@ -173,9 +171,8 @@ object ShortLiveConsumer {
       execute {
         for {
           oft <- kpc.offsetsForTimes(ts)
-          rec <- oft.value.toList.traverse {
-            case (tp, of) =>
-              of.flatTraverse(x => kpc.retrieveRecord(KafkaPartition(tp.partition), x))
+          rec <- oft.value.toList.traverse { case (tp, of) =>
+            of.flatTraverse(x => kpc.retrieveRecord(KafkaPartition(tp.partition), x))
           }
         } yield rec.flatten
       }

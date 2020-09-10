@@ -13,7 +13,7 @@ val catsCore   = "2.2.0"
 val algebra    = "2.0.1"
 val fs2Version = "2.4.4"
 val streamz    = "0.13-RC1"
-val catsMtl    = "0.7.1"
+val catsMtl    = "1.0.0"
 val catsTime   = "0.3.4"
 val tagless    = "0.11"
 val monocle    = "2.1.0"
@@ -250,7 +250,7 @@ val catsLib = Seq(
   "org.typelevel" %% "alleycats-core"
 ).map(_ % catsCore) ++
   Seq(
-    "org.typelevel" %% "cats-mtl-core"       % catsMtl,
+    "org.typelevel" %% "cats-mtl"           % catsMtl,
     "org.typelevel" %% "kittens"             % kittens,
     "org.typelevel" %% "cats-tagless-macros" % tagless,
     "org.typelevel" %% "algebra"             % algebra
