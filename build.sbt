@@ -26,7 +26,7 @@ val chimney    = "0.5.3"
 val zioCats    = "2.1.4.0"
 val monix      = "3.2.2"
 val catsEffect = "2.2.0"
-val akka26     = "2.6.8"
+val akka26     = "2.6.9"
 
 // kafka
 val confltKafka = "5.5.1-ccs"
@@ -113,7 +113,7 @@ val hadoopLib = Seq(
   "org.apache.hadoop" % "hadoop-client",
   "org.apache.hadoop" % "hadoop-hdfs"
 ).map(_               % hadoop) ++
-  Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.855")
+  Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.858")
 
 val neotypesLib = Seq(
   "com.dimafeng" %% "neotypes",
