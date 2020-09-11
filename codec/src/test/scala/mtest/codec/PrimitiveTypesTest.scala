@@ -1,6 +1,5 @@
 package mtest.codec
 
-import com.github.chenharryhua.nanjin.codec.avro.AvroSchema
 import com.sksamuel.avro4s.SchemaFor
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -14,6 +13,5 @@ class PrimitiveTypesTest extends AnyFunSuite {
         |}
         |""".stripMargin
 
-    println(AvroSchema(date))
   }
 }
