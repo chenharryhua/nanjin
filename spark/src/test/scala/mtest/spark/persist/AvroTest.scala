@@ -86,7 +86,7 @@ class AvroTest extends AnyFunSuite {
     * should follow spark's implementation:
     * https://github.com/apache/spark/blob/branch-3.0/external/avro/src/main/scala/org/apache/spark/sql/avro/AvroDeserializer.scala#L158
     */
-  test("byte-array read/write identity single read (happy failure)") {
+  test("byte-array read/write identity single - use customized codec") {
     import BeeData._
     import cats.implicits._
     val path = "./data/test/spark/persist/avro/bee/single2.raw.avro"
@@ -95,7 +95,7 @@ class AvroTest extends AnyFunSuite {
     saver.avro(path).file.run(blocker).unsafeRunSync()
     val t = loaders.rdd.avro[Bee](path).collect().toList
     println(loaders.rdd.avro[Bee](path).map(_.toWasp).collect().toList)
-    assert(!bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
+    assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
 
   test("collection read/write identity single") {

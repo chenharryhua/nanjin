@@ -1,12 +1,15 @@
 package mtest.spark.persist
 
+import java.nio.ByteBuffer
+
 import cats.Eq
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.sksamuel.avro4s.{Decoder, Encoder}
+import com.sksamuel.avro4s.{Avro4sDecodingException, Decoder, Encoder, SchemaFor}
 import frameless.TypedEncoder
 import cats.syntax.all._
 import io.scalaland.chimney.dsl._
+import org.apache.avro.generic.GenericFixed
 
 final case class Bee(a: Array[Byte], b: Int) {
 
@@ -45,6 +48,26 @@ object Bee {
       |  ]
       |}
       |""".stripMargin
+
+  implicit object byteArrayDecoder extends Decoder[Array[Byte]] {
+
+    def decode(value: Any): Array[Byte] =
+      value match {
+        case buffer: ByteBuffer =>
+          val bytes = new Array[Byte](buffer.remaining)
+          buffer.get(bytes)
+          bytes
+        case array: Array[Byte]  => array
+        case fixed: GenericFixed => fixed.bytes
+        case _ =>
+          throw new Avro4sDecodingException(
+            s"Byte array decoder cannot decode '$value'",
+            value,
+            this)
+      }
+
+    override def schemaFor: SchemaFor[Array[Byte]] = SchemaFor[Array[Byte]]
+  }
 
   implicit val avroEncoder: Encoder[Bee] = shapeless.cachedImplicit
   implicit val avroDecoder: Decoder[Bee] = shapeless.cachedImplicit

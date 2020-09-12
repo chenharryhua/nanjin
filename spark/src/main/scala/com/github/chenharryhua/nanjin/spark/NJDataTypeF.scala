@@ -173,9 +173,8 @@ private[spark] object NJDataTypeF {
         NJStructType(
           s"FixMe${random4d.value}",
           "nj.spark",
-          fields.toList.zipWithIndex.map {
-            case (st, idx) =>
-              NJStructField(idx, st.name, NJDataType(st.dataType), st.nullable)
+          fields.toList.zipWithIndex.map { case (st, idx) =>
+            NJStructField(idx, st.name, NJDataType(st.dataType), st.nullable)
           }
         )
 

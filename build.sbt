@@ -13,7 +13,7 @@ val catsCore   = "2.2.0"
 val algebra    = "2.0.1"
 val fs2Version = "2.4.4"
 val streamz    = "0.13-RC1"
-val catsMtl    = "0.7.1"
+val catsMtl    = "1.0.0"
 val catsTime   = "0.3.4"
 val tagless    = "0.11"
 val monocle    = "2.1.0"
@@ -35,7 +35,7 @@ val akkaKafka   = "2.0.5"
 val fs2Kafka    = "1.0.0"
 
 // spark
-val spark24   = "3.0.0"
+val spark24   = "3.0.1"
 val frameless = "0.9.0-SNAPSHOT"
 
 // database
@@ -250,7 +250,7 @@ val catsLib = Seq(
   "org.typelevel" %% "alleycats-core"
 ).map(_ % catsCore) ++
   Seq(
-    "org.typelevel" %% "cats-mtl-core"       % catsMtl,
+    "org.typelevel" %% "cats-mtl"           % catsMtl,
     "org.typelevel" %% "kittens"             % kittens,
     "org.typelevel" %% "cats-tagless-macros" % tagless,
     "org.typelevel" %% "algebra"             % algebra
@@ -376,7 +376,15 @@ lazy val spark = (project in file("spark"))
     dependencyOverrides ++= json4sLib
   )
 
+lazy val schema = (project in file("schema"))
+  .settings(commonSettings: _*)
+  .settings(name := "nj-codec")
+  .settings(libraryDependencies ++= 
+    Seq("com.github.fd4s" %% "vulcan" % "1.2.0",
+        "com.github.fd4s" %% "vulcan-generic" % "1.2.0") ++
+    baseLib ++ serdeLib ++ monocleLib ++ testLib)
+
 lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
-    .aggregate(common, messages, datetime, devices, pipes, kafka, database, spark)
+    .aggregate(common, messages, schema, datetime, devices, pipes, kafka, database, spark)
