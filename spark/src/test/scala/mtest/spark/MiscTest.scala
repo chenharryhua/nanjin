@@ -5,9 +5,9 @@ import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.cats.implicits._
-import frameless.{TypedDataset, TypedEncoder}
+import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import mtest.spark.pb.test.Whale
-import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.{DataFrame, Dataset, SaveMode}
 import org.scalatest.funsuite.AnyFunSuite
 import cats.derived.auto.eq._
 
@@ -16,6 +16,9 @@ import scala.util.Random
 object JoinTestData {
   final case class Brother(id: Int, rel: String)
   final case class Sister(id: Int, sibling: String)
+
+  implicit val se: TypedEncoder[Sister]  = shapeless.cachedImplicit
+  implicit val be: TypedEncoder[Brother] = shapeless.cachedImplicit
 
   val brothers = List(
     Brother(1, "a"),
@@ -28,6 +31,8 @@ object JoinTestData {
     Sister(1, "y"),
     Sister(3, "z")
   )
+
+  val rdd = sparkSession.sparkContext.parallelize(sisters)
 
   object Fruit extends Enumeration {
     val Apple, Watermelon = Value
@@ -69,8 +74,19 @@ class MiscTest extends AnyFunSuite {
   }
 
   test("gen case class") {
-    val ds = TypedDataset.create(sisters)
-    println(ds.dataset.toDF().genCaseClass)
-    println(ds.dataset.toDF().genSchema)
+    val tds = TypedDataset.create(rdd)(se, sparkSession)
+    tds.printSchema()
+  }
+
+  test("schema") {
+    import sparkSession.implicits._
+    val s = TypedExpressionEncoder.targetStructType(se)
+    val df: DataFrame =
+      sparkSession.createDataFrame(rdd.toDF().rdd, s)
+    println(s)
+
+    val tds: TypedDataset[Sister] = TypedDataset.create(rdd)
+    df.printSchema()
+    tds.printSchema()
   }
 }

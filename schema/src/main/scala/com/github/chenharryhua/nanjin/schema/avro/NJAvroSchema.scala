@@ -1,7 +1,7 @@
-package com.github.chenharryhua.nanjin.codec.avro
+package com.github.chenharryhua.nanjin.schema.avro
 
 import cats.implicits.catsSyntaxEq
-import com.github.chenharryhua.nanjin.codec.avro.NJLogicalTypes._
+import NJLogicalTypes._
 import org.apache.avro.SchemaBuilder.FieldBuilder
 import org.apache.avro.{Schema, SchemaBuilder}
 
@@ -81,8 +81,8 @@ object NJAvroSchema {
     doc: Option[String],
     `type`: NJAvroSchema,
     default: Option[String],
-    order: NJOrder = NJOrder.Ascending,
-    aliases: List[String]) {}
+    aliases: List[String],
+    order: NJOrder = NJOrder.Ascending)
 
   final case class NJRecord(
     name: String,
@@ -104,7 +104,11 @@ object NJAvroSchema {
           case NJOrder.Descending => withDoc.orderDescending()
           case NJOrder.Ignore     => withDoc.orderIgnore()
         }
-        withOrder.`type`(field.`type`.schema)
+
+        field.default match {
+          case None    => withOrder.`type`(field.`type`.schema).noDefault()
+          case Some(s) => withOrder.`type`(field.`type`.schema).withDefault(s)
+        }
       }
       fieldsAssembler.endRecord()
     }

@@ -38,8 +38,13 @@ final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], te: TypedE
 
   val sparkEncoder: Encoder[A] = TypedExpressionEncoder(typedEncoder)
 
-  def normalize(rdd: RDD[A])(implicit ss: SparkSession): TypedDataset[A] =
-    TypedDataset.createUnsafe(toDF(rdd))(typedEncoder)
+  def normalize(rdd: RDD[A])(implicit ss: SparkSession): TypedDataset[A] = {
+    val schema: StructType           = TypedExpressionEncoder.targetStructType(typedEncoder)
+    implicit val encoder: Encoder[A] = TypedExpressionEncoder(typedEncoder)
+    import ss.implicits._
+    TypedDataset.createUnsafe[A](
+      ss.createDataFrame(rdd.map(avroCodec.idConversion)(classTag).toDF.rdd, schema))(typedEncoder)
+  }
 
   def normalize(ds: Dataset[A]): TypedDataset[A] =
     normalize(ds.rdd)(ds.sparkSession)
@@ -49,19 +54,6 @@ final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], te: TypedE
 
   def normalizeDF(ds: DataFrame): TypedDataset[A] =
     normalize(TypedDataset.createUnsafe(ds)(te))
-
-  @SuppressWarnings(Array("AsInstanceOf"))
-  private def toDF(rdd: RDD[A])(implicit ss: SparkSession): DataFrame = {
-    val enRow: ExpressionEncoder.Deserializer[Row] =
-      RowEncoder.apply(avroStructType).resolveAndBind().createDeserializer()
-    val rows: RDD[Row] = rdd.mapPartitions { iter =>
-      val sa = new AvroDeserializer(avroCodec.schema, avroStructType)
-      iter.map { a =>
-        enRow(sa.deserialize(avroCodec.avroEncoder.encode(a)).asInstanceOf[InternalRow])
-      }
-    }
-    ss.createDataFrame(rows, avroStructType)
-  }
 }
 
 object AvroTypedEncoder {

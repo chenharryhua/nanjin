@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.codec.avro
+package com.github.chenharryhua.nanjin.schema.avro
 
 import org.apache.avro.{LogicalType, LogicalTypes}
 import shapeless.{:+:, CNil, Poly1}
@@ -110,5 +110,4 @@ object NJLogicalTypes {
     implicit val decimal: Case.Aux[NJUuid.type, LogicalType] =
       at[NJUuid.type](_.logicalType)
   }
-
 }

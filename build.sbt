@@ -35,7 +35,7 @@ val akkaKafka   = "2.0.5"
 val fs2Kafka    = "1.0.0"
 
 // spark
-val spark24   = "3.0.0"
+val spark24   = "3.0.1"
 val frameless = "0.9.0-SNAPSHOT"
 
 // database
@@ -376,7 +376,7 @@ lazy val spark = (project in file("spark"))
     dependencyOverrides ++= json4sLib
   )
 
-lazy val codec = (project in file("codec"))
+lazy val schema = (project in file("schema"))
   .settings(commonSettings: _*)
   .settings(name := "nj-codec")
   .settings(libraryDependencies ++= 
@@ -387,4 +387,4 @@ lazy val codec = (project in file("codec"))
 lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
-    .aggregate(common, messages, codec, datetime, devices, pipes, kafka, database, spark)
+    .aggregate(common, messages, schema, datetime, devices, pipes, kafka, database, spark)
