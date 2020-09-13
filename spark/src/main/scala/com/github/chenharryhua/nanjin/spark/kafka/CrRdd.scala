@@ -82,6 +82,16 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
     ate.normalize(rdd)
   }
 
+  def valueSet(implicit valEncoder: TypedEncoder[V]): TypedDataset[V] = {
+    val ate: AvroTypedEncoder[V] = AvroTypedEncoder(valCodec)
+    ate.normalize(rdd.flatMap(_.value)(valEncoder.classTag))
+  }
+
+  def keySet(implicit keyEncoder: TypedEncoder[K]): TypedDataset[K] = {
+    val ate: AvroTypedEncoder[K] = AvroTypedEncoder(keyCodec)
+    ate.normalize(rdd.flatMap(_.key)(keyEncoder.classTag))
+  }
+
   def stream(implicit F: Sync[F]): Stream[F, OptionalKV[K, V]] =
     rdd.stream[F]
 

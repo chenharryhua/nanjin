@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import java.util
 
+import cats.data.{Chain, Writer}
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
@@ -39,8 +40,8 @@ private[kafka] object sk {
 
   private def offsetRanges(
     range: KafkaTopicPartition[Option[KafkaOffsetRange]]): Array[OffsetRange] =
-    range.flatten[KafkaOffsetRange].value.toArray.map {
-      case (tp, r) => OffsetRange.create(tp, r.from.value, r.until.value)
+    range.flatten[KafkaOffsetRange].value.toArray.map { case (tp, r) =>
+      OffsetRange.create(tp, r.from.value, r.until.value)
     }
 
   private def kafkaRDD[F[_]: Sync, K, V](
@@ -70,7 +71,7 @@ private[kafka] object sk {
     KafkaUtils
       .createDirectStream(streamingContext, locationStrategy, consumerStrategy)
       .mapPartitions { ms =>
-        val decoder = new NJConsumerRecordDecoder[F, K, V](
+        val decoder = new NJConsumerRecordDecoder[Writer[Chain[Throwable], *], K, V](
           topic.topicName.value,
           topic.codec.keyDeserializer,
           topic.codec.valDeserializer)
@@ -88,7 +89,7 @@ private[kafka] object sk {
     locationStrategy: LocationStrategy)(implicit
     sparkSession: SparkSession): F[RDD[OptionalKV[K, V]]] =
     kafkaRDD[F, K, V](topic, timeRange, locationStrategy).map(_.mapPartitions { ms =>
-      val decoder = new NJConsumerRecordDecoder[F, K, V](
+      val decoder = new NJConsumerRecordDecoder[Writer[Chain[Throwable], *], K, V](
         topic.topicName.value,
         topic.codec.keyDeserializer,
         topic.codec.valDeserializer)
@@ -123,13 +124,12 @@ private[kafka] object sk {
       .flatten[KafkaOffsetRange]
       .value
       .map { case (tp, kor) => (tp.topic(), tp.partition(), kor) }
-      .foldLeft(Map.empty[String, Map[String, Long]]) {
-        case (sum, item) =>
-          val rst = Map(item._2.toString -> item._3.from.value)
-          sum.get(item._1) match {
-            case Some(m) => Map(item._1 -> (m ++ rst))
-            case None    => Map(item._1 -> rst)
-          }
+      .foldLeft(Map.empty[String, Map[String, Long]]) { case (sum, item) =>
+        val rst = Map(item._2.toString -> item._3.from.value)
+        sum.get(item._1) match {
+          case Some(m) => Map(item._1 -> (m ++ rst))
+          case None    => Map(item._1 -> rst)
+        }
       }
     start.asJson.noSpaces
   }
@@ -143,8 +143,8 @@ private[kafka] object sk {
     val rm5 = remove(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG)(_: Map[String, String])
     val rm6 = remove(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG)(_: Map[String, String])
 
-    rm1.andThen(rm2).andThen(rm3).andThen(rm4).andThen(rm5).andThen(rm6)(m).map {
-      case (k, v) => s"kafka.$k" -> v
+    rm1.andThen(rm2).andThen(rm3).andThen(rm4).andThen(rm5).andThen(rm6)(m).map { case (k, v) =>
+      s"kafka.$k" -> v
     }
   }
 
@@ -164,7 +164,7 @@ private[kafka] object sk {
           .as[OptionalKV[Array[Byte], Array[Byte]]])
       .deserialized
       .mapPartitions { ms =>
-        val decoder = new NJConsumerRecordDecoder[F, K, V](
+        val decoder = new NJConsumerRecordDecoder[Writer[Chain[Throwable], *], K, V](
           topic.topicName.value,
           topic.codec.keyDeserializer,
           topic.codec.valDeserializer)
