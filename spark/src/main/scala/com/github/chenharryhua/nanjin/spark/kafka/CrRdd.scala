@@ -118,7 +118,8 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
       .compile
       .drain
 
-  def save: RddFileHoarder[F, OptionalKV[K, V]] = rdd.save[F]
+  def save: RddFileHoarder[F, OptionalKV[K, V]] =
+    new RddFileHoarder[F, OptionalKV[K, V]](rdd, codec)
 
   private def bucketing(kv: OptionalKV[K, V]): Option[LocalDate] =
     Some(NJTimestamp(kv.timestamp).dayResolution(params.timeRange.zoneId))
@@ -126,6 +127,7 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
   def partition: RddPartitionHoarder[F, OptionalKV[K, V], LocalDate] =
     new RddPartitionHoarder[F, OptionalKV[K, V], LocalDate](
       rdd,
+      codec,
       bucketing,
       params.datePartitionPathBuilder(params.topicName, _, _))
 }

@@ -15,18 +15,19 @@ import scala.reflect.ClassTag
 
 final class RddFileHoarder[F[_], A: ClassTag](
   rdd: RDD[A],
-  cfg: HoarderConfig = HoarderConfig.default)(implicit codec: AvroCodec[A], ss: SparkSession)
+  codec: AvroCodec[A],
+  cfg: HoarderConfig = HoarderConfig.default)(implicit ss: SparkSession)
     extends Serializable {
 
   private def updateConfig(cfg: HoarderConfig): RddFileHoarder[F, A] =
-    new RddFileHoarder[F, A](rdd, cfg)
+    new RddFileHoarder[F, A](rdd, codec, cfg)
 
   def overwrite: RddFileHoarder[F, A]      = updateConfig(cfg.withOverwrite)
   def errorIfExists: RddFileHoarder[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: RddFileHoarder[F, A] = updateConfig(cfg.withIgnore)
 
   def repartition(num: Int): RddFileHoarder[F, A] =
-    new RddFileHoarder[F, A](rdd.repartition(num), cfg)
+    new RddFileHoarder[F, A](rdd.repartition(num), codec, cfg)
 
 // 1
   def jackson(outPath: String): SaveJackson[F, A] =

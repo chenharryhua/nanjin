@@ -39,7 +39,7 @@ private[spark] trait DatasetExtensions {
       tag: ClassTag[A],
       codec: AvroCodec[A],
       ss: SparkSession): RddFileHoarder[F, A] =
-      new RddFileHoarder[F, A](rdd)
+      new RddFileHoarder[F, A](rdd, codec)
   }
 
   implicit final class TypedDatasetExt[A](tds: TypedDataset[A]) extends Serializable {
@@ -53,7 +53,7 @@ private[spark] trait DatasetExtensions {
     def numOfNulls[F[_]: Sync]: F[Long] = tds.except(dismissNulls).count[F]()
 
     def save[F[_]](implicit ate: AvroTypedEncoder[A]): RddFileHoarder[F, A] =
-      new RddFileHoarder[F, A](tds.dataset.rdd)(ate.classTag, ate.avroCodec, tds.sparkSession)
+      new RddFileHoarder[F, A](tds.dataset.rdd, ate.avroCodec)(ate.classTag, tds.sparkSession)
   }
 
   implicit final class DataframeExt(df: DataFrame) extends Serializable {

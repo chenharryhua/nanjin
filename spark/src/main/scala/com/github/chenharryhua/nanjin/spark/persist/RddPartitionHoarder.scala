@@ -16,13 +16,14 @@ import scala.reflect.ClassTag
 
 class RddPartitionHoarder[F[_], A: ClassTag, K: Eq: ClassTag](
   rdd: RDD[A],
+  codec: AvroCodec[A],
   bucketing: A => Option[K],
   pathBuilder: (NJFileFormat, K) => String,
-  cfg: HoarderConfig = HoarderConfig.default)(implicit codec: AvroCodec[A], ss: SparkSession)
+  cfg: HoarderConfig = HoarderConfig.default)(implicit ss: SparkSession)
     extends Serializable {
 
   private def updateConfig(cfg: HoarderConfig): RddPartitionHoarder[F, A, K] =
-    new RddPartitionHoarder[F, A, K](rdd, bucketing, pathBuilder, cfg)
+    new RddPartitionHoarder[F, A, K](rdd, codec, bucketing, pathBuilder, cfg)
 
   def errorIfExists: RddPartitionHoarder[F, A, K]  = updateConfig(cfg.withError)
   def overwrite: RddPartitionHoarder[F, A, K]      = updateConfig(cfg.withOverwrite)
@@ -37,10 +38,10 @@ class RddPartitionHoarder[F[_], A: ClassTag, K: Eq: ClassTag](
   def reBucket[K1: ClassTag: Eq](
     bucketing: A => Option[K1],
     pathBuilder: (NJFileFormat, K1) => String): RddPartitionHoarder[F, A, K1] =
-    new RddPartitionHoarder[F, A, K1](rdd, bucketing, pathBuilder, cfg)
+    new RddPartitionHoarder[F, A, K1](rdd, codec, bucketing, pathBuilder, cfg)
 
   def rePath(pathBuilder: (NJFileFormat, K) => String): RddPartitionHoarder[F, A, K] =
-    new RddPartitionHoarder[F, A, K](rdd, bucketing, pathBuilder, cfg)
+    new RddPartitionHoarder[F, A, K](rdd, codec, bucketing, pathBuilder, cfg)
 
 // 1
   def jackson: PartitionJackson[F, A, K] =

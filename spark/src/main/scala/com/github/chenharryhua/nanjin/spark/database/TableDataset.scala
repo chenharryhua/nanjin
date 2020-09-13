@@ -36,11 +36,12 @@ final class TableDataset[F[_], A](
 
   def upload: DbUploader[F, A] = new DbUploader[F, A](dataset, dbSettings, ate, cfg)
 
-  def save: RddFileHoarder[F, A] = new RddFileHoarder[F, A](dataset.rdd)
+  def save: RddFileHoarder[F, A] = new RddFileHoarder[F, A](dataset.rdd, ate.avroCodec)
 
   def partition: RddPartitionHoarder[F, A, Unit] =
     new RddPartitionHoarder[F, A, Unit](
       dataset.rdd,
+      ate.avroCodec,
       a => Some(()),
       (fmt, _) => params.pathBuilder(dbSettings.database, params.tableName, fmt))
 }

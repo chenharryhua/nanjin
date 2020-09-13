@@ -116,28 +116,28 @@ class AvroTypedEncoderTest extends AnyFunSuite {
   test("loaded json should be normalized") {
     val path = "./data/test/spark/ate/json"
     ds.write.mode(SaveMode.Overwrite).json(path)
-    val r = loaders.json[Lion](path)
+    val r = loaders.json[Lion](path, ate)
     assert(r.collect[IO]().unsafeRunSync().toSet == expected.toSet)
     assert(r.schema == expectedSchema)
   }
   test("loaded csv should be normalized") {
     val path = "./data/test/spark/ate/csv"
     ds.write.mode(SaveMode.Overwrite).csv(path)
-    val r = loaders.csv[Lion](path)
+    val r = loaders.csv[Lion](path, ate)
     assert(r.collect[IO]().unsafeRunSync().toSet == expected.toSet)
     assert(r.schema == expectedSchema)
   }
   test("loaded avro should be normalized") {
     val path = "./data/test/spark/ate/avro"
     ds.write.format("avro").mode(SaveMode.Overwrite).save(path)
-    val r = loaders.avro[Lion](path)
+    val r = loaders.avro[Lion](path, ate)
     assert(r.collect[IO]().unsafeRunSync().toSet == expected.toSet)
     assert(r.schema == expectedSchema)
   }
   test("loaded parquet should be normalized") {
     val path = "./data/test/spark/ate/parquet"
     ds.write.mode(SaveMode.Overwrite).parquet(path)
-    val r = loaders.parquet[Lion](path)
+    val r = loaders.parquet[Lion](path, ate)
     assert(r.collect[IO]().unsafeRunSync().toSet == expected.toSet)
     assert(r.schema == expectedSchema)
   }
