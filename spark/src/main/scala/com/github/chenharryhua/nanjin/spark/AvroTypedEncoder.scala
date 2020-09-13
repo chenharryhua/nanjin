@@ -3,12 +3,10 @@ package com.github.chenharryhua.nanjin.spark
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.avro.{AvroDeserializer, SchemaConverters}
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.encoders.{ExpressionEncoder, RowEncoder}
+import org.apache.spark.sql._
+import org.apache.spark.sql.avro.SchemaConverters
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.types.{DataType, StructType}
-import org.apache.spark.sql._
 
 import scala.reflect.ClassTag
 
@@ -39,11 +37,10 @@ final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], te: TypedE
   val sparkEncoder: Encoder[A] = TypedExpressionEncoder(typedEncoder)
 
   def normalize(rdd: RDD[A])(implicit ss: SparkSession): TypedDataset[A] = {
-    val schema: StructType           = TypedExpressionEncoder.targetStructType(typedEncoder)
-    implicit val encoder: Encoder[A] = TypedExpressionEncoder(typedEncoder)
-    import ss.implicits._
-    TypedDataset.createUnsafe[A](
-      ss.createDataFrame(rdd.map(avroCodec.idConversion)(classTag).toDF.rdd, schema))(typedEncoder)
+    val schema: StructType  = TypedExpressionEncoder.targetStructType(typedEncoder)
+    val encoder: Encoder[A] = TypedExpressionEncoder(typedEncoder)
+    val ds: Dataset[A]      = ss.createDataset(rdd)(encoder).map(avroCodec.idConversion)(encoder)
+    TypedDataset.createUnsafe[A](ss.createDataFrame(ds.toDF.rdd, schema))(typedEncoder)
   }
 
   def normalize(ds: Dataset[A]): TypedDataset[A] =

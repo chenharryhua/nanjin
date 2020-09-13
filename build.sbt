@@ -376,15 +376,7 @@ lazy val spark = (project in file("spark"))
     dependencyOverrides ++= json4sLib
   )
 
-lazy val schema = (project in file("schema"))
-  .settings(commonSettings: _*)
-  .settings(name := "nj-codec")
-  .settings(libraryDependencies ++= 
-    Seq("com.github.fd4s" %% "vulcan" % "1.2.0",
-        "com.github.fd4s" %% "vulcan-generic" % "1.2.0") ++
-    baseLib ++ serdeLib ++ monocleLib ++ testLib)
-
 lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
-    .aggregate(common, messages, schema, datetime, devices, pipes, kafka, database, spark)
+    .aggregate(common, messages, datetime, devices, pipes, kafka, database, spark)
