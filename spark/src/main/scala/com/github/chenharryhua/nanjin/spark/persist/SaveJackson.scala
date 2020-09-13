@@ -13,14 +13,13 @@ import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
 
-final class SaveJackson[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(implicit
-  codec: AvroCodec[A],
-  ss: SparkSession)
+final class SaveJackson[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConfig)(
+  implicit ss: SparkSession)
     extends Serializable {
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveJackson[F, A] =
-    new SaveJackson[F, A](rdd, cfg)
+    new SaveJackson[F, A](rdd, codec, cfg)
 
   def file: SaveJackson[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveJackson[F, A] = updateConfig(cfg.withFolder)
@@ -53,9 +52,10 @@ final class SaveJackson[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(impl
 
 final class PartitionJackson[F[_], A: ClassTag, K: ClassTag: Eq](
   rdd: RDD[A],
+  codec: AvroCodec[A],
   cfg: HoarderConfig,
   bucketing: A => Option[K],
-  pathBuilder: (NJFileFormat, K) => String)(implicit codec: AvroCodec[A], ss: SparkSession)
+  pathBuilder: (NJFileFormat, K) => String)(implicit ss: SparkSession)
     extends AbstractPartition[F, A, K] {
 
   val params: HoarderParams = cfg.evalConfig
@@ -69,5 +69,5 @@ final class PartitionJackson[F[_], A: ClassTag, K: ClassTag: Eq](
       params.format,
       bucketing,
       pathBuilder,
-      (r, p) => new SaveJackson[F, A](r, cfg.withOutPutPath(p)).run(blocker))
+      (r, p) => new SaveJackson[F, A](r, codec, cfg.withOutPutPath(p)).run(blocker))
 }

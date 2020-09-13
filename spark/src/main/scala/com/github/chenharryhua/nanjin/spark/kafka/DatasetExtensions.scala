@@ -44,7 +44,7 @@ private[kafka] trait DatasetExtensions {
         valEncoder: TypedEncoder[V],
         ss: SparkSession): TypedDataset[OptionalKV[K, V]] = {
         val ate: AvroTypedEncoder[OptionalKV[K, V]] = AvroTypedEncoder(codec)
-        loaders.avro[OptionalKV[K, V]](pathStr)(ate, ss)
+        loaders.avro[OptionalKV[K, V]](pathStr, ate)(ss)
       }
 
       def parquet(pathStr: String)(implicit
@@ -52,7 +52,7 @@ private[kafka] trait DatasetExtensions {
         valEncoder: TypedEncoder[V],
         ss: SparkSession): TypedDataset[OptionalKV[K, V]] = {
         val ate: AvroTypedEncoder[OptionalKV[K, V]] = AvroTypedEncoder(codec)
-        loaders.parquet[OptionalKV[K, V]](pathStr)(ate, ss)
+        loaders.parquet[OptionalKV[K, V]](pathStr, ate)(ss)
       }
 
       def json(pathStr: String)(implicit
@@ -60,19 +60,19 @@ private[kafka] trait DatasetExtensions {
         valEncoder: TypedEncoder[V],
         ss: SparkSession): TypedDataset[OptionalKV[K, V]] = {
         val ate: AvroTypedEncoder[OptionalKV[K, V]] = AvroTypedEncoder(codec)
-        loaders.json[OptionalKV[K, V]](pathStr)(ate, ss)
+        loaders.json[OptionalKV[K, V]](pathStr, ate)(ss)
       }
 
       object rdd {
 
         def avro(pathStr: String)(implicit ss: SparkSession): RDD[OptionalKV[K, V]] =
-          loaders.rdd.avro[OptionalKV[K, V]](pathStr)
+          loaders.rdd.avro[OptionalKV[K, V]](pathStr, codec)
 
         def jackson(pathStr: String)(implicit ss: SparkSession): RDD[OptionalKV[K, V]] =
-          loaders.rdd.jackson[OptionalKV[K, V]](pathStr)
+          loaders.rdd.jackson[OptionalKV[K, V]](pathStr, codec)
 
         def binAvro(pathStr: String)(implicit ss: SparkSession): RDD[OptionalKV[K, V]] =
-          loaders.rdd.binAvro[OptionalKV[K, V]](pathStr)
+          loaders.rdd.binAvro[OptionalKV[K, V]](pathStr, codec)
 
         def circe(pathStr: String)(implicit
           ev: JsonDecoder[OptionalKV[K, V]],

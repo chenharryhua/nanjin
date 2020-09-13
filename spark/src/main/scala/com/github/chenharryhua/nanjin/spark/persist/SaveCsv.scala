@@ -10,21 +10,21 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
 import scala.reflect.ClassTag
 
-final class SaveCsv[F[_], A: ClassTag](
+final class SaveCsv[F[_], A](
   rdd: RDD[A],
-  csvConfiguration: CsvConfiguration,
-  cfg: HoarderConfig)(implicit
-  rowEncoder: RowEncoder[A],
   ate: AvroTypedEncoder[A],
-  ss: SparkSession)
+  csvConfiguration: CsvConfiguration,
+  cfg: HoarderConfig)(implicit rowEncoder: RowEncoder[A], ss: SparkSession)
     extends Serializable {
+  implicit private val tag: ClassTag[A] = ate.classTag
+
   val params: HoarderParams = cfg.evalConfig
 
   def updateCsvConfig(f: CsvConfiguration => CsvConfiguration): SaveCsv[F, A] =
-    new SaveCsv[F, A](rdd, f(csvConfiguration), cfg)
+    new SaveCsv[F, A](rdd, ate, f(csvConfiguration), cfg)
 
   private def updateConfig(cfg: HoarderConfig): SaveCsv[F, A] =
-    new SaveCsv[F, A](rdd, csvConfiguration, cfg)
+    new SaveCsv[F, A](rdd, ate, csvConfiguration, cfg)
 
   def file: SaveCsv[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveCsv[F, A] = updateConfig(cfg.withFolder)
@@ -56,21 +56,20 @@ final class SaveCsv[F[_], A: ClassTag](
   }
 }
 
-final class PartitionCsv[F[_], A: ClassTag, K: ClassTag: Eq](
+final class PartitionCsv[F[_], A, K: ClassTag: Eq](
   rdd: RDD[A],
+  ate: AvroTypedEncoder[A],
   csvConfiguration: CsvConfiguration,
   cfg: HoarderConfig,
   bucketing: A => Option[K],
-  pathBuilder: (NJFileFormat, K) => String)(implicit
-  rowEncoder: RowEncoder[A],
-  ate: AvroTypedEncoder[A],
-  ss: SparkSession)
+  pathBuilder: (NJFileFormat, K) => String)(implicit rowEncoder: RowEncoder[A], ss: SparkSession)
     extends AbstractPartition[F, A, K] {
+  implicit private val tag: ClassTag[A] = ate.classTag
 
   val params: HoarderParams = cfg.evalConfig
 
   def updateCsvConfig(f: CsvConfiguration => CsvConfiguration): PartitionCsv[F, A, K] =
-    new PartitionCsv[F, A, K](rdd, f(csvConfiguration), cfg, bucketing, pathBuilder)
+    new PartitionCsv[F, A, K](rdd, ate, f(csvConfiguration), cfg, bucketing, pathBuilder)
 
   def run(
     blocker: Blocker)(implicit F: Concurrent[F], CS: ContextShift[F], P: Parallel[F]): F[Unit] =
@@ -81,5 +80,5 @@ final class PartitionCsv[F[_], A: ClassTag, K: ClassTag: Eq](
       params.format,
       bucketing,
       pathBuilder,
-      (r, p) => new SaveCsv[F, A](r, csvConfiguration, cfg.withOutPutPath(p)).run(blocker))
+      (r, p) => new SaveCsv[F, A](r, ate, csvConfiguration, cfg.withOutPutPath(p)).run(blocker))
 }

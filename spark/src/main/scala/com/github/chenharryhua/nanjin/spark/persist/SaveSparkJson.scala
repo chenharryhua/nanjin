@@ -10,9 +10,8 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
 import scala.reflect.ClassTag
 
-final class SaveSparkJson[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(implicit
-  ate: AvroTypedEncoder[A],
-  ss: SparkSession)
+final class SaveSparkJson[F[_], A](rdd: RDD[A], ate: AvroTypedEncoder[A], cfg: HoarderConfig)(
+  implicit ss: SparkSession)
     extends Serializable {
 
   val params: HoarderParams = cfg.evalConfig
@@ -27,9 +26,10 @@ final class SaveSparkJson[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(im
 
 final class PartitionSparkJson[F[_], A: ClassTag, K: ClassTag: Eq](
   rdd: RDD[A],
+  ate: AvroTypedEncoder[A],
   cfg: HoarderConfig,
   bucketing: A => Option[K],
-  pathBuilder: (NJFileFormat, K) => String)(implicit ate: AvroTypedEncoder[A], ss: SparkSession)
+  pathBuilder: (NJFileFormat, K) => String)(implicit ss: SparkSession)
     extends AbstractPartition[F, A, K] {
 
   val params: HoarderParams = cfg.evalConfig
@@ -43,5 +43,5 @@ final class PartitionSparkJson[F[_], A: ClassTag, K: ClassTag: Eq](
       params.format,
       bucketing,
       pathBuilder,
-      (r, p) => new SaveSparkJson[F, A](r, cfg.withOutPutPath(p)).run(blocker))
+      (r, p) => new SaveSparkJson[F, A](r, ate, cfg.withOutPutPath(p)).run(blocker))
 }

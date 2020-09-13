@@ -11,9 +11,9 @@ import scalapb.GeneratedMessage
 
 import scala.reflect.ClassTag
 
-final class SaveProtobuf[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(implicit
+final class SaveProtobuf[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConfig)(
+  implicit
   enc: A <:< GeneratedMessage,
-  codec: AvroCodec[A],
   ss: SparkSession) {
 
   val params: HoarderParams = cfg.evalConfig
@@ -29,12 +29,10 @@ final class SaveProtobuf[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(imp
 
 final class PartitionProtobuf[F[_], A: ClassTag, K: ClassTag: Eq](
   rdd: RDD[A],
+  codec: AvroCodec[A],
   cfg: HoarderConfig,
   bucketing: A => Option[K],
-  pathBuilder: (NJFileFormat, K) => String)(implicit
-  enc: A <:< GeneratedMessage,
-  codec: AvroCodec[A],
-  ss: SparkSession)
+  pathBuilder: (NJFileFormat, K) => String)(implicit enc: A <:< GeneratedMessage, ss: SparkSession)
     extends AbstractPartition[F, A, K] {
 
   val params: HoarderParams = cfg.evalConfig
@@ -48,5 +46,5 @@ final class PartitionProtobuf[F[_], A: ClassTag, K: ClassTag: Eq](
       params.format,
       bucketing,
       pathBuilder,
-      (r, p) => new SaveProtobuf[F, A](r, cfg.withOutPutPath(p)).run(blocker))
+      (r, p) => new SaveProtobuf[F, A](r, codec, cfg.withOutPutPath(p)).run(blocker))
 }

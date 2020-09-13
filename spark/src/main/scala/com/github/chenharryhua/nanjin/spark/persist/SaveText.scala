@@ -10,15 +10,15 @@ import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
 
-final class SaveText[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(implicit
+final class SaveText[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConfig)(
+  implicit
   show: Show[A],
-  codec: AvroCodec[A],
   ss: SparkSession)
     extends Serializable {
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveText[F, A] =
-    new SaveText[F, A](rdd, cfg)
+    new SaveText[F, A](rdd, codec, cfg)
 
   def file: SaveText[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveText[F, A] = updateConfig(cfg.withFolder)
@@ -39,12 +39,10 @@ final class SaveText[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(implici
 
 final class PartitionText[F[_], A: ClassTag, K: ClassTag: Eq](
   rdd: RDD[A],
+  codec: AvroCodec[A],
   cfg: HoarderConfig,
   bucketing: A => Option[K],
-  pathBuilder: (NJFileFormat, K) => String)(implicit
-  show: Show[A],
-  codec: AvroCodec[A],
-  ss: SparkSession)
+  pathBuilder: (NJFileFormat, K) => String)(implicit show: Show[A], ss: SparkSession)
     extends AbstractPartition[F, A, K] {
 
   val params: HoarderParams = cfg.evalConfig
@@ -58,5 +56,5 @@ final class PartitionText[F[_], A: ClassTag, K: ClassTag: Eq](
       params.format,
       bucketing,
       pathBuilder,
-      (r, p) => new SaveText[F, A](r, cfg.withOutPutPath(p)).run(blocker))
+      (r, p) => new SaveText[F, A](r, codec, cfg.withOutPutPath(p)).run(blocker))
 }

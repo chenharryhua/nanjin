@@ -11,15 +11,15 @@ import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
 
-final class SaveCirce[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(implicit
+final class SaveCirce[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConfig)(
+  implicit
   jsonEncoder: JsonEncoder[A],
-  codec: AvroCodec[A],
   ss: SparkSession)
     extends Serializable {
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveCirce[F, A] =
-    new SaveCirce[F, A](rdd, cfg)
+    new SaveCirce[F, A](rdd, codec, cfg)
 
   def file: SaveCirce[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveCirce[F, A] = updateConfig(cfg.withFolder)
@@ -44,12 +44,10 @@ final class SaveCirce[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(implic
 
 final class PartitionCirce[F[_], A: ClassTag, K: ClassTag: Eq](
   rdd: RDD[A],
+  codec: AvroCodec[A],
   cfg: HoarderConfig,
   bucketing: A => Option[K],
-  pathBuilder: (NJFileFormat, K) => String)(implicit
-  jsonEncoder: JsonEncoder[A],
-  codec: AvroCodec[A],
-  ss: SparkSession)
+  pathBuilder: (NJFileFormat, K) => String)(implicit jsonEncoder: JsonEncoder[A], ss: SparkSession)
     extends AbstractPartition[F, A, K] {
 
   val params: HoarderParams = cfg.evalConfig
@@ -63,5 +61,5 @@ final class PartitionCirce[F[_], A: ClassTag, K: ClassTag: Eq](
       params.format,
       bucketing,
       pathBuilder,
-      (r, p) => new SaveCirce[F, A](r, cfg.withOutPutPath(p)).run(blocker))
+      (r, p) => new SaveCirce[F, A](r, codec, cfg.withOutPutPath(p)).run(blocker))
 }

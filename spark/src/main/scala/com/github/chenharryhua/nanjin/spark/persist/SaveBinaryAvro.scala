@@ -11,9 +11,8 @@ import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
 
-final class SaveBinaryAvro[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(implicit
-  codec: AvroCodec[A],
-  ss: SparkSession)
+final class SaveBinaryAvro[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConfig)(
+  implicit ss: SparkSession)
     extends Serializable {
   val params: HoarderParams = cfg.evalConfig
 
@@ -29,9 +28,10 @@ final class SaveBinaryAvro[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(i
 
 final class PartitionBinaryAvro[F[_], A: ClassTag, K: ClassTag: Eq](
   rdd: RDD[A],
+  codec: AvroCodec[A],
   cfg: HoarderConfig,
   bucketing: A => Option[K],
-  pathBuilder: (NJFileFormat, K) => String)(implicit codec: AvroCodec[A], ss: SparkSession)
+  pathBuilder: (NJFileFormat, K) => String)(implicit ss: SparkSession)
     extends AbstractPartition[F, A, K] {
 
   val params: HoarderParams = cfg.evalConfig
@@ -45,5 +45,5 @@ final class PartitionBinaryAvro[F[_], A: ClassTag, K: ClassTag: Eq](
       params.format,
       bucketing,
       pathBuilder,
-      (r, p) => new SaveBinaryAvro[F, A](r, cfg.withOutPutPath(p)).run(blocker))
+      (r, p) => new SaveBinaryAvro[F, A](r, codec, cfg.withOutPutPath(p)).run(blocker))
 }

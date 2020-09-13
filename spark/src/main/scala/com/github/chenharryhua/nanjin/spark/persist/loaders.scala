@@ -23,16 +23,15 @@ import scala.reflect.ClassTag
 
 object loaders {
 
-  def avro[A](
-    pathStr: String)(implicit ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
+  def avro[A](pathStr: String, ate: AvroTypedEncoder[A])(implicit
+    ss: SparkSession): TypedDataset[A] =
     ate.normalizeDF(ss.read.format("avro").load(pathStr))
 
-  def parquet[A](
-    pathStr: String)(implicit ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
+  def parquet[A](pathStr: String, ate: AvroTypedEncoder[A])(implicit
+    ss: SparkSession): TypedDataset[A] =
     ate.normalizeDF(ss.read.parquet(pathStr))
 
-  def csv[A](pathStr: String, csvConfiguration: CsvConfiguration)(implicit
-    ate: AvroTypedEncoder[A],
+  def csv[A](pathStr: String, csvConfiguration: CsvConfiguration, ate: AvroTypedEncoder[A])(implicit
     ss: SparkSession): TypedDataset[A] =
     ate.normalizeDF(
       ss.read
@@ -43,12 +42,12 @@ object loaders {
         .option("charset", "UTF8")
         .csv(pathStr))
 
-  def csv[A](
-    pathStr: String)(implicit ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
-    csv[A](pathStr, CsvConfiguration.rfc)
+  def csv[A](pathStr: String, ate: AvroTypedEncoder[A])(implicit
+    ss: SparkSession): TypedDataset[A] =
+    csv[A](pathStr, CsvConfiguration.rfc, ate)
 
-  def json[A](
-    pathStr: String)(implicit ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
+  def json[A](pathStr: String, ate: AvroTypedEncoder[A])(implicit
+    ss: SparkSession): TypedDataset[A] =
     ate.normalizeDF(ss.read.schema(ate.sparkSchema).json(pathStr))
 
   object rdd {
@@ -68,19 +67,18 @@ object loaders {
       pathStr: String)(implicit decoder: GeneratedMessageCompanion[A], ss: SparkSession): RDD[A] =
       ss.sparkContext
         .binaryFiles(pathStr)
-        .mapPartitions(_.flatMap {
-          case (_, pds) =>
-            val is   = pds.open()
-            val cis  = CodedInputStream.newInstance(is)
-            val iter = decoder.parseDelimitedFrom(cis)
-            new Iterator[A] {
-              override def hasNext: Boolean = if (iter.isDefined) true else { is.close(); false }
-              override def next(): A        = iter.get
-            }
+        .mapPartitions(_.flatMap { case (_, pds) =>
+          val is   = pds.open()
+          val cis  = CodedInputStream.newInstance(is)
+          val iter = decoder.parseDelimitedFrom(cis)
+          new Iterator[A] {
+            override def hasNext: Boolean = if (iter.isDefined) true else { is.close(); false }
+            override def next(): A        = iter.get
+          }
         })
 
-    def avro[A: ClassTag](
-      pathStr: String)(implicit codec: AvroCodec[A], ss: SparkSession): RDD[A] = {
+    def avro[A: ClassTag](pathStr: String, codec: AvroCodec[A])(implicit
+      ss: SparkSession): RDD[A] = {
       val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
       AvroJob.setDataModelClass(job, classOf[GenericData])
       AvroJob.setInputKeySchema(job, codec.schema)
@@ -95,23 +93,22 @@ object loaders {
         .map { case (gr, _) => codec.avroDecoder.decode(gr.datum()) }
     }
 
-    def binAvro[A: ClassTag](
-      pathStr: String)(implicit codec: AvroCodec[A], ss: SparkSession): RDD[A] =
+    def binAvro[A: ClassTag](pathStr: String, codec: AvroCodec[A])(implicit
+      ss: SparkSession): RDD[A] =
       ss.sparkContext
         .binaryFiles(pathStr)
-        .mapPartitions(_.flatMap {
-          case (_, pds) => // resource leak ???
-            val is = pds.open()
-            val iter =
-              AvroInputStream.binary[A](codec.avroDecoder).from(is).build(codec.schema).iterator
-            new Iterator[A] {
-              override def hasNext: Boolean = if (iter.hasNext) true else { is.close(); false }
-              override def next(): A        = iter.next()
-            }
+        .mapPartitions(_.flatMap { case (_, pds) => // resource leak ???
+          val is = pds.open()
+          val iter =
+            AvroInputStream.binary[A](codec.avroDecoder).from(is).build(codec.schema).iterator
+          new Iterator[A] {
+            override def hasNext: Boolean = if (iter.hasNext) true else { is.close(); false }
+            override def next(): A        = iter.next()
+          }
         })
 
-    def jackson[A: ClassTag](
-      pathStr: String)(implicit codec: AvroCodec[A], ss: SparkSession): RDD[A] = {
+    def jackson[A: ClassTag](pathStr: String, codec: AvroCodec[A])(implicit
+      ss: SparkSession): RDD[A] = {
       val schema = codec.schema
       ss.sparkContext.textFile(pathStr).mapPartitions { strs =>
         val datumReader = new GenericDatumReader[GenericRecord](schema)
