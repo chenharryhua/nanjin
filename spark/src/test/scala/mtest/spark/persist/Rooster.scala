@@ -18,7 +18,8 @@ final case class Rooster(
   a: Instant,
   b: Timestamp,
   c: BigDecimal,
-  d: Option[Int] = Some(1))
+  d: BigDecimal,
+  e: Option[Int] = Some(1))
 
 object Rooster {
 
@@ -57,7 +58,16 @@ object Rooster {
       |        "scale": 3
       |      }
       |    },
-      |    { "name":"d", "type":["int","null"]
+      |    {
+      |      "name": "d",
+      |      "type": {
+      |        "type": "bytes",
+      |        "logicalType": "decimal",
+      |        "precision": 6,
+      |        "scale": 0
+      |      }
+      |    },
+      |    { "name":"e", "type":["int","null"]
       |    }
       |  ]
       |}
