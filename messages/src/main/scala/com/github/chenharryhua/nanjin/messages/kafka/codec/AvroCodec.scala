@@ -50,7 +50,7 @@ object AvroCodec {
 
       val compat: Option[String]  = rwCompat |+| wrCompat
       val schemaFor: SchemaFor[A] = SchemaFor[A](input)
-      val was: Either[String, AvroCodec[A]] = for {
+      val esa: Either[String, AvroCodec[A]] = for {
         d <-
           Either
             .catchNonFatal(DecoderHelpers.buildWithSchema(decoder, schemaFor))
@@ -60,7 +60,7 @@ object AvroCodec {
             .catchNonFatal(EncoderHelpers.buildWithSchema(encoder, schemaFor))
             .leftMap(_ => "avro4s decline encode schema change")
       } yield AvroCodec(schemaFor, d, e)
-      Ior.fromEither(was).flatMap { w =>
+      Ior.fromEither(esa).flatMap { w =>
         compat.fold[Ior[String, AvroCodec[A]]](Ior.right(w))(warn => Ior.both(warn, w))
       }
     } else

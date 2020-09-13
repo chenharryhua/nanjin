@@ -18,8 +18,8 @@ final class NJConsumerRecordDecoder[F[_], K, V](
     cm: NJConsumerMessage[G],
     tell: Tell[F, Chain[Throwable]]): F[OptionalKV[K, V]] = {
     val cr = cm.lens.get(gaa)
-    val k  = Option(cr.key()).traverse(dk => Try(keyDeserializer.deserialize(topicName, dk)))
-    val v  = Option(cr.value()).traverse(dv => Try(valDeserializer.deserialize(topicName, dv)))
+    val k  = Option(cr.key).traverse(dk => Try(keyDeserializer.deserialize(topicName, dk)))
+    val v  = Option(cr.value).traverse(dv => Try(valDeserializer.deserialize(topicName, dv)))
     val nj = OptionalKV(cr.bimap(_ => k.toOption.flatten, _ => v.toOption.flatten))
     val log = (k, v) match {
       case (Success(kv), Success(vv)) => Chain.empty

@@ -37,9 +37,9 @@ final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], te: TypedE
   val sparkEncoder: Encoder[A] = TypedExpressionEncoder(typedEncoder)
 
   def normalize(rdd: RDD[A])(implicit ss: SparkSession): TypedDataset[A] = {
-    val schema: StructType  = TypedExpressionEncoder.targetStructType(typedEncoder)
-    val encoder: Encoder[A] = TypedExpressionEncoder(typedEncoder)
-    val ds: Dataset[A]      = ss.createDataset(rdd)(encoder).map(avroCodec.idConversion)(encoder)
+    val schema: StructType = TypedExpressionEncoder.targetStructType(typedEncoder)
+    val ds: Dataset[A] =
+      ss.createDataset(rdd)(sparkEncoder).map(avroCodec.idConversion)(sparkEncoder)
     TypedDataset.createUnsafe[A](ss.createDataFrame(ds.toDF.rdd, schema))(typedEncoder)
   }
 
