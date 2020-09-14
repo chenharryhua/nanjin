@@ -11,18 +11,18 @@ class JacksonTest extends AnyFunSuite {
     import RoosterData._
     val path = "./data/test/spark/persist/jackson/rooster/multi.json"
     delete(path)
-    val saver = new RddFileHoarder[IO, Rooster](rdd)
+    val saver = new RddFileHoarder[IO, Rooster](rdd, Rooster.avroCodec)
     saver.jackson(path).folder.run(blocker).unsafeRunSync()
-    val r = loaders.rdd.jackson[Rooster](path)
+    val r = loaders.rdd.jackson[Rooster](path, Rooster.avroCodec)
     assert(expected == r.collect().toSet)
   }
   test("datetime read/write identity - single") {
     import RoosterData._
     val path = "./data/test/spark/persist/jackson/rooster/single.json"
     delete(path)
-    val saver = new RddFileHoarder[IO, Rooster](rdd)
+    val saver = new RddFileHoarder[IO, Rooster](rdd, Rooster.avroCodec)
     saver.jackson(path).file.run(blocker).unsafeRunSync()
-    val r = loaders.rdd.jackson[Rooster](path)
+    val r = loaders.rdd.jackson[Rooster](path, Rooster.avroCodec)
     assert(expected == r.collect().toSet)
   }
 
@@ -31,9 +31,9 @@ class JacksonTest extends AnyFunSuite {
     import cats.implicits._
     val path = "./data/test/spark/persist/jackson/bee/single.json"
     delete(path)
-    val saver = new RddFileHoarder[IO, Bee](rdd).repartition(1)
+    val saver = new RddFileHoarder[IO, Bee](rdd, Bee.codec).repartition(1)
     saver.jackson(path).file.run(blocker).unsafeRunSync()
-    val t = loaders.rdd.jackson[Bee](path).collect().toList
+    val t = loaders.rdd.jackson[Bee](path, Bee.codec).collect().toList
     assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
   test("byte-array read/write identity - multi") {
@@ -41,9 +41,9 @@ class JacksonTest extends AnyFunSuite {
     import cats.implicits._
     val path = "./data/test/spark/persist/jackson/bee/multi.json"
     delete(path)
-    val saver = new RddFileHoarder[IO, Bee](rdd).repartition(1)
+    val saver = new RddFileHoarder[IO, Bee](rdd, Bee.codec).repartition(1)
     saver.jackson(path).folder.run(blocker).unsafeRunSync()
-    val t = loaders.rdd.jackson[Bee](path).collect().toList
+    val t = loaders.rdd.jackson[Bee](path, Bee.codec).collect().toList
     assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
 }

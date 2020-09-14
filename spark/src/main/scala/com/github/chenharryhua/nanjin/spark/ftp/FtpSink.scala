@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.spark
+package com.github.chenharryhua.nanjin.spark.ftp
 
 import akka.stream.IOResult
 import akka.stream.alpakka.ftp.RemoteFileSettings

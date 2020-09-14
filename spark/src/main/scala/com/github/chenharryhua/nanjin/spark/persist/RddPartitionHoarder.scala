@@ -16,13 +16,14 @@ import scala.reflect.ClassTag
 
 class RddPartitionHoarder[F[_], A: ClassTag, K: Eq: ClassTag](
   rdd: RDD[A],
+  codec: AvroCodec[A],
   bucketing: A => Option[K],
   pathBuilder: (NJFileFormat, K) => String,
-  cfg: HoarderConfig = HoarderConfig.default)(implicit codec: AvroCodec[A], ss: SparkSession)
+  cfg: HoarderConfig = HoarderConfig.default)
     extends Serializable {
 
   private def updateConfig(cfg: HoarderConfig): RddPartitionHoarder[F, A, K] =
-    new RddPartitionHoarder[F, A, K](rdd, bucketing, pathBuilder, cfg)
+    new RddPartitionHoarder[F, A, K](rdd, codec, bucketing, pathBuilder, cfg)
 
   def errorIfExists: RddPartitionHoarder[F, A, K]  = updateConfig(cfg.withError)
   def overwrite: RddPartitionHoarder[F, A, K]      = updateConfig(cfg.withOverwrite)
@@ -37,28 +38,29 @@ class RddPartitionHoarder[F[_], A: ClassTag, K: Eq: ClassTag](
   def reBucket[K1: ClassTag: Eq](
     bucketing: A => Option[K1],
     pathBuilder: (NJFileFormat, K1) => String): RddPartitionHoarder[F, A, K1] =
-    new RddPartitionHoarder[F, A, K1](rdd, bucketing, pathBuilder, cfg)
+    new RddPartitionHoarder[F, A, K1](rdd, codec, bucketing, pathBuilder, cfg)
 
   def rePath(pathBuilder: (NJFileFormat, K) => String): RddPartitionHoarder[F, A, K] =
-    new RddPartitionHoarder[F, A, K](rdd, bucketing, pathBuilder, cfg)
+    new RddPartitionHoarder[F, A, K](rdd, codec, bucketing, pathBuilder, cfg)
 
 // 1
   def jackson: PartitionJackson[F, A, K] =
-    new PartitionJackson[F, A, K](rdd, cfg.withFormat(Jackson), bucketing, pathBuilder)
+    new PartitionJackson[F, A, K](rdd, codec, cfg.withFormat(Jackson), bucketing, pathBuilder)
 
 // 2
   def circe(implicit ev: JsonEncoder[A]): PartitionCirce[F, A, K] =
-    new PartitionCirce[F, A, K](rdd, cfg.withFormat(Circe), bucketing, pathBuilder)
+    new PartitionCirce[F, A, K](rdd, codec, cfg.withFormat(Circe), bucketing, pathBuilder)
 
 // 3
   def text(implicit ev: Show[A]): PartitionText[F, A, K] =
-    new PartitionText[F, A, K](rdd, cfg.withFormat(Text), bucketing, pathBuilder)
+    new PartitionText[F, A, K](rdd, codec, cfg.withFormat(Text), bucketing, pathBuilder)
 
 // 4
   def csv(implicit ev: RowEncoder[A], te: TypedEncoder[A]): PartitionCsv[F, A, K] = {
-    implicit val ate: AvroTypedEncoder[A] = AvroTypedEncoder[A](te, codec)
+    val ate: AvroTypedEncoder[A] = AvroTypedEncoder[A](te, codec)
     new PartitionCsv[F, A, K](
       rdd,
+      ate,
       CsvConfiguration.rfc,
       cfg.withFormat(Csv),
       bucketing,
@@ -67,23 +69,23 @@ class RddPartitionHoarder[F[_], A: ClassTag, K: Eq: ClassTag](
 
   // 5
   def json(implicit te: TypedEncoder[A]): PartitionSparkJson[F, A, K] = {
-    implicit val ate: AvroTypedEncoder[A] = AvroTypedEncoder[A](te, codec)
-    new PartitionSparkJson[F, A, K](rdd, cfg.withFormat(SparkJson), bucketing, pathBuilder)
+    val ate: AvroTypedEncoder[A] = AvroTypedEncoder[A](te, codec)
+    new PartitionSparkJson[F, A, K](rdd, ate, cfg.withFormat(SparkJson), bucketing, pathBuilder)
   }
 
   // 11
   def parquet(implicit te: TypedEncoder[A]): PartitionParquet[F, A, K] = {
-    implicit val ate: AvroTypedEncoder[A] = AvroTypedEncoder[A](te, codec)
-    new PartitionParquet[F, A, K](rdd, cfg.withFormat(Parquet), bucketing, pathBuilder)
+    val ate: AvroTypedEncoder[A] = AvroTypedEncoder[A](te, codec)
+    new PartitionParquet[F, A, K](rdd, ate, cfg.withFormat(Parquet), bucketing, pathBuilder)
   }
 
   // 12
   def avro: PartitionAvro[F, A, K] =
-    new PartitionAvro[F, A, K](rdd, None, cfg.withFormat(Avro), bucketing, pathBuilder)
+    new PartitionAvro[F, A, K](rdd, codec, None, cfg.withFormat(Avro), bucketing, pathBuilder)
 
 // 13
   def binAvro: PartitionBinaryAvro[F, A, K] =
-    new PartitionBinaryAvro[F, A, K](rdd, cfg.withFormat(BinaryAvro), bucketing, pathBuilder)
+    new PartitionBinaryAvro[F, A, K](rdd, codec, cfg.withFormat(BinaryAvro), bucketing, pathBuilder)
 
 // 14
   def objectFile: PartitionObjectFile[F, A, K] =
@@ -91,5 +93,5 @@ class RddPartitionHoarder[F[_], A: ClassTag, K: Eq: ClassTag](
 
 // 15
   def protobuf(implicit ev: A <:< GeneratedMessage): PartitionProtobuf[F, A, K] =
-    new PartitionProtobuf[F, A, K](rdd, cfg.withFormat(ProtoBuf), bucketing, pathBuilder)
+    new PartitionProtobuf[F, A, K](rdd, codec, cfg.withFormat(ProtoBuf), bucketing, pathBuilder)
 }

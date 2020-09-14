@@ -7,6 +7,7 @@ import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.injection._
+import com.github.chenharryhua.nanjin.spark.persist.{fileSink,fileSource}
 import frameless.cats.implicits._
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite

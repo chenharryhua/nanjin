@@ -1,30 +1,29 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.{Eq, Parallel}
 import cats.effect.{Blocker, Concurrent, ContextShift}
+import cats.{Eq, Parallel}
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.{fileSink, RddExt}
+import com.github.chenharryhua.nanjin.spark.RddExt
 import io.circe.{Encoder => JsonEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
 
-final class SaveCirce[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(implicit
-  jsonEncoder: JsonEncoder[A],
-  codec: AvroCodec[A],
-  ss: SparkSession)
+final class SaveCirce[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConfig)(
+  implicit jsonEncoder: JsonEncoder[A])
     extends Serializable {
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveCirce[F, A] =
-    new SaveCirce[F, A](rdd, cfg)
+    new SaveCirce[F, A](rdd, codec, cfg)
 
   def file: SaveCirce[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveCirce[F, A] = updateConfig(cfg.withFolder)
 
-  def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
+  def run(
+    blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], ss: SparkSession): F[Unit] = {
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
@@ -44,18 +43,19 @@ final class SaveCirce[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)(implic
 
 final class PartitionCirce[F[_], A: ClassTag, K: ClassTag: Eq](
   rdd: RDD[A],
+  codec: AvroCodec[A],
   cfg: HoarderConfig,
   bucketing: A => Option[K],
-  pathBuilder: (NJFileFormat, K) => String)(implicit
-  jsonEncoder: JsonEncoder[A],
-  codec: AvroCodec[A],
-  ss: SparkSession)
+  pathBuilder: (NJFileFormat, K) => String)(implicit jsonEncoder: JsonEncoder[A])
     extends AbstractPartition[F, A, K] {
 
   val params: HoarderParams = cfg.evalConfig
 
-  def run(
-    blocker: Blocker)(implicit F: Concurrent[F], CS: ContextShift[F], P: Parallel[F]): F[Unit] =
+  def run(blocker: Blocker)(implicit
+    F: Concurrent[F],
+    CS: ContextShift[F],
+    P: Parallel[F],
+    ss: SparkSession): F[Unit] =
     savePartition(
       blocker,
       rdd,
@@ -63,5 +63,5 @@ final class PartitionCirce[F[_], A: ClassTag, K: ClassTag: Eq](
       params.format,
       bucketing,
       pathBuilder,
-      (r, p) => new SaveCirce[F, A](r, cfg.withOutPutPath(p)).run(blocker))
+      (r, p) => new SaveCirce[F, A](r, codec, cfg.withOutPutPath(p)).run(blocker))
 }

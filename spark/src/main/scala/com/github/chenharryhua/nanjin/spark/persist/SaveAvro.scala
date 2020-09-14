@@ -4,7 +4,7 @@ import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.{Eq, Parallel}
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.{fileSink, AvroTypedEncoder, RddExt}
+import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt}
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.TypedEncoder
 import frameless.cats.implicits._
@@ -17,22 +17,24 @@ import scala.reflect.ClassTag
 
 final class SaveAvro[F[_], A: ClassTag](
   rdd: RDD[A],
+  codec: AvroCodec[A],
   ote: Option[TypedEncoder[A]],
-  cfg: HoarderConfig)(implicit codec: AvroCodec[A], ss: SparkSession)
+  cfg: HoarderConfig)
     extends Serializable {
 
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveAvro[F, A] =
-    new SaveAvro[F, A](rdd, ote, cfg)
+    new SaveAvro[F, A](rdd, codec, ote, cfg)
 
   def spark(implicit te: TypedEncoder[A]): SaveAvro[F, A] =
-    new SaveAvro[F, A](rdd, Some(te), cfg)
+    new SaveAvro[F, A](rdd, codec, Some(te), cfg)
 
   def file: SaveAvro[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveAvro[F, A] = updateConfig(cfg.withFolder)
 
-  def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
+  def run(
+    blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], ss: SparkSession): F[Unit] = {
     implicit val encoder: AvroEncoder[A] = codec.avroEncoder
 
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
@@ -63,19 +65,23 @@ final class SaveAvro[F[_], A: ClassTag](
 
 final class PartitionAvro[F[_], A: ClassTag, K: ClassTag: Eq](
   rdd: RDD[A],
+  codec: AvroCodec[A],
   ote: Option[TypedEncoder[A]],
   cfg: HoarderConfig,
   bucketing: A => Option[K],
-  pathBuilder: (NJFileFormat, K) => String)(implicit codec: AvroCodec[A], ss: SparkSession)
+  pathBuilder: (NJFileFormat, K) => String)
     extends AbstractPartition[F, A, K] {
 
   val params: HoarderParams = cfg.evalConfig
 
   def spark(implicit te: TypedEncoder[A]): PartitionAvro[F, A, K] =
-    new PartitionAvro[F, A, K](rdd, Some(te), cfg, bucketing, pathBuilder)
+    new PartitionAvro[F, A, K](rdd, codec, Some(te), cfg, bucketing, pathBuilder)
 
-  def run(
-    blocker: Blocker)(implicit F: Concurrent[F], CS: ContextShift[F], P: Parallel[F]): F[Unit] =
+  def run(blocker: Blocker)(implicit
+    F: Concurrent[F],
+    CS: ContextShift[F],
+    P: Parallel[F],
+    ss: SparkSession): F[Unit] =
     savePartition(
       blocker,
       rdd,
@@ -83,5 +89,5 @@ final class PartitionAvro[F[_], A: ClassTag, K: ClassTag: Eq](
       params.format,
       bucketing,
       pathBuilder,
-      (r, p) => new SaveAvro[F, A](r, ote, cfg.withOutPutPath(p)).run(blocker))
+      (r, p) => new SaveAvro[F, A](r, codec, ote, cfg.withOutPutPath(p)).run(blocker))
 }

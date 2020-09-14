@@ -86,7 +86,7 @@ class FormatCapabilityTest extends AnyFunSuite {
     val multi  = "./data/test/spark/cap/avro/multi.avro"
     val rdd    = sparkSession.sparkContext.parallelize(salmon)
     ate.normalize(rdd).write.mode(SaveMode.Overwrite).json(multi)
-    loaders.json[Salmon](multi).dataset.show(truncate = false)
+    loaders.json[Salmon](multi, ate).dataset.show(truncate = false)
   }
 
   test("jackson read/write identity") {

@@ -84,9 +84,8 @@ final case class OptionalKV[K, V](
     value.map(v => this.into[CompulsoryV[K, V]].withFieldConst(_.value, v).transform)
 
   def toCompulsoryKV: Option[CompulsoryKV[K, V]] =
-    (key, value).mapN {
-      case (k, v) =>
-        this.into[CompulsoryKV[K, V]].withFieldConst(_.key, k).withFieldConst(_.value, v).transform
+    (key, value).mapN { case (k, v) =>
+      this.into[CompulsoryKV[K, V]].withFieldConst(_.key, k).withFieldConst(_.value, v).transform
     }
 }
 
@@ -124,7 +123,7 @@ object OptionalKV {
     implicit val v: TypedEncoder[V]        = ev.typedEncoder
     implicit val ck: AvroCodec[K]          = ek.avroCodec
     implicit val cv: AvroCodec[V]          = ev.avroCodec
-    val codec: AvroCodec[OptionalKV[K, V]] = shapeless.cachedImplicit
+    val codec: AvroCodec[OptionalKV[K, V]] = cachedImplicit
     AvroTypedEncoder[OptionalKV[K, V]](codec)
   }
 

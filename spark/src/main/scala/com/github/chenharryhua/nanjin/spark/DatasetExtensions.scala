@@ -18,6 +18,7 @@ import fs2.interop.reactivestreams._
 import org.apache.avro.Schema
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}
+
 import scala.reflect.ClassTag
 
 private[spark] trait DatasetExtensions {
@@ -32,14 +33,11 @@ private[spark] trait DatasetExtensions {
     def source[F[_]: ConcurrentEffect]: Source[A, NotUsed] =
       Source.fromPublisher[A](stream[F].toUnicastPublisher)
 
-    def typedDataset(implicit ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
+    def typedDataset(ate: AvroTypedEncoder[A])(implicit ss: SparkSession): TypedDataset[A] =
       ate.normalize(rdd)(ss)
 
-    def save[F[_]](implicit
-      tag: ClassTag[A],
-      codec: AvroCodec[A],
-      ss: SparkSession): RddFileHoarder[F, A] =
-      new RddFileHoarder[F, A](rdd)
+    def save[F[_]](codec: AvroCodec[A])(implicit tag: ClassTag[A]): RddFileHoarder[F, A] =
+      new RddFileHoarder[F, A](rdd, codec)
   }
 
   implicit final class TypedDatasetExt[A](tds: TypedDataset[A]) extends Serializable {
@@ -52,8 +50,8 @@ private[spark] trait DatasetExtensions {
     def dismissNulls: TypedDataset[A]   = tds.deserialized.filter(_ != null)
     def numOfNulls[F[_]: Sync]: F[Long] = tds.except(dismissNulls).count[F]()
 
-    def save[F[_]](implicit ate: AvroTypedEncoder[A]): RddFileHoarder[F, A] =
-      new RddFileHoarder[F, A](tds.dataset.rdd)(ate.classTag, ate.avroCodec, tds.sparkSession)
+    def save[F[_]](ate: AvroTypedEncoder[A]): RddFileHoarder[F, A] =
+      new RddFileHoarder[F, A](tds.dataset.rdd, ate.avroCodec)(ate.classTag)
   }
 
   implicit final class DataframeExt(df: DataFrame) extends Serializable {

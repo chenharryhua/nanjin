@@ -14,9 +14,9 @@ class JsonTest extends AnyFunSuite {
     import RoosterData._
     val path = "./data/test/spark/persist/json"
     delete(path)
-    val saver = new RddFileHoarder[IO, Rooster](rdd)
+    val saver = new RddFileHoarder[IO, Rooster](rdd,Rooster.avroCodec)
     saver.json(path).run(blocker).unsafeRunSync()
-    val t: TypedDataset[Rooster] = loaders.json[Rooster](path)
+    val t: TypedDataset[Rooster] = loaders.json[Rooster](path,Rooster.ate)
     assert(expected == t.collect[IO]().unsafeRunSync().toSet)
   }
 }

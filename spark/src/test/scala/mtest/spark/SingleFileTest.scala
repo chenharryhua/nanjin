@@ -4,6 +4,8 @@ import better.files._
 import cats.effect.IO
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.spark._
+import com.github.chenharryhua.nanjin.spark.persist.{SingleFileSink, SingleFileSource}
+import com.github.chenharryhua.nanjin.spark.persist.{fileSink,fileSource}
 import frameless.cats.implicits._
 import fs2.Stream
 import io.circe.generic.auto._
@@ -15,7 +17,7 @@ import mtest.spark.pb.test.Whale
 import scala.util.Random
 import com.sksamuel.avro4s.Encoder
 import com.sksamuel.avro4s.Decoder
-import io.circe.{Encoder => JsonEncoder, Decoder => JsonDecoder}
+import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import kantan.csv.RowEncoder
 import kantan.csv.RowDecoder
 
@@ -84,8 +86,8 @@ class SingleFileTest extends AnyFunSuite {
     assert(run.unsafeRunSync() === fishes)
     assert(File(path).lineCount == 3L)
 
-  //  val s = sparkSession.load.circe[Swordfish](path).typedDataset.collect[IO]().unsafeRunSync().toSet
-  //  assert(s == fishes.toSet)
+    //  val s = sparkSession.load.circe[Swordfish](path).typedDataset.collect[IO]().unsafeRunSync().toSet
+    //  assert(s == fishes.toSet)
 
   }
   test("spark jackson - identity") {
@@ -97,8 +99,8 @@ class SingleFileTest extends AnyFunSuite {
     assert(run.unsafeRunSync() === fishes)
     assert(File(path).lineCount == 3L)
 
-   // val s =sparkSession.load.jackson[Swordfish](path).typedDataset.collect[IO]().unsafeRunSync().toSet
-   // assert(s == fishes.toSet)
+    // val s =sparkSession.load.jackson[Swordfish](path).typedDataset.collect[IO]().unsafeRunSync().toSet
+    // assert(s == fishes.toSet)
   }
 
   test("spark csv - identity") {

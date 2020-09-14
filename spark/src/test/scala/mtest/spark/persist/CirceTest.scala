@@ -15,7 +15,7 @@ class CirceTest extends AnyFunSuite {
   test("rdd read/write identity multi") {
     val path = "./data/test/spark/persist/circe/rooster/multi"
     delete(path)
-    val saver = new RddFileHoarder[IO, Rooster](rdd)
+    val saver = new RddFileHoarder[IO, Rooster](rdd, Rooster.avroCodec)
     saver.circe(path).folder.run(blocker).unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path)
     assert(expected == t.collect().toSet)
@@ -24,7 +24,7 @@ class CirceTest extends AnyFunSuite {
   test("rdd read/write identity") {
     val path = "./data/test/spark/persist/circe/rooster/single.json"
     delete(path)
-    val saver = new RddFileHoarder[IO, Rooster](rdd)
+    val saver = new RddFileHoarder[IO, Rooster](rdd, Rooster.avroCodec)
     saver.circe(path).file.run(blocker).unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path)
     assert(expected == t.collect().toSet)

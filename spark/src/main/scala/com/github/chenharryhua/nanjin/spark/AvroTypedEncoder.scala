@@ -21,7 +21,7 @@ final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], te: TypedE
     SchemaConverters.toSqlType(avroCodec.schema).dataType match {
       case st: StructType => st
       case pt =>
-        throw new Exception(s"${pt.toString} can not be convert to spark struct type")
+        throw new Exception(s"${pt.toString} can not be converted to spark struct type")
     }
 
   val typedEncoder: TypedEncoder[A] =
@@ -55,9 +55,9 @@ final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], te: TypedE
 
 object AvroTypedEncoder {
 
-  def apply[A](t: TypedEncoder[A], c: AvroCodec[A]): AvroTypedEncoder[A] =
-    new AvroTypedEncoder[A](c, t)
+  def apply[A](te: TypedEncoder[A], ac: AvroCodec[A]): AvroTypedEncoder[A] =
+    new AvroTypedEncoder[A](ac, te)
 
-  def apply[A](c: AvroCodec[A])(implicit t: TypedEncoder[A]): AvroTypedEncoder[A] =
-    new AvroTypedEncoder[A](c, t)
+  def apply[A](ac: AvroCodec[A])(implicit te: TypedEncoder[A]): AvroTypedEncoder[A] =
+    new AvroTypedEncoder[A](ac, te)
 }
