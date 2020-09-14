@@ -14,7 +14,7 @@ final class SaveCsv[F[_], A](
   rdd: RDD[A],
   ate: AvroTypedEncoder[A],
   csvConfiguration: CsvConfiguration,
-  cfg: HoarderConfig)(implicit rowEncoder: RowEncoder[A], ss: SparkSession)
+  cfg: HoarderConfig)(implicit rowEncoder: RowEncoder[A])
     extends Serializable {
   implicit private val tag: ClassTag[A] = ate.classTag
 
@@ -29,7 +29,8 @@ final class SaveCsv[F[_], A](
   def file: SaveCsv[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveCsv[F, A] = updateConfig(cfg.withFolder)
 
-  def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
+  def run(
+    blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], ss: SparkSession): F[Unit] = {
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
@@ -62,7 +63,7 @@ final class PartitionCsv[F[_], A, K: ClassTag: Eq](
   csvConfiguration: CsvConfiguration,
   cfg: HoarderConfig,
   bucketing: A => Option[K],
-  pathBuilder: (NJFileFormat, K) => String)(implicit rowEncoder: RowEncoder[A], ss: SparkSession)
+  pathBuilder: (NJFileFormat, K) => String)(implicit rowEncoder: RowEncoder[A])
     extends AbstractPartition[F, A, K] {
   implicit private val tag: ClassTag[A] = ate.classTag
 
@@ -71,8 +72,11 @@ final class PartitionCsv[F[_], A, K: ClassTag: Eq](
   def updateCsvConfig(f: CsvConfiguration => CsvConfiguration): PartitionCsv[F, A, K] =
     new PartitionCsv[F, A, K](rdd, ate, f(csvConfiguration), cfg, bucketing, pathBuilder)
 
-  def run(
-    blocker: Blocker)(implicit F: Concurrent[F], CS: ContextShift[F], P: Parallel[F]): F[Unit] =
+  def run(blocker: Blocker)(implicit
+    F: Concurrent[F],
+    CS: ContextShift[F],
+    P: Parallel[F],
+    ss: SparkSession): F[Unit] =
     savePartition(
       blocker,
       rdd,

@@ -12,13 +12,12 @@ import scalapb.GeneratedMessage
 import scala.reflect.ClassTag
 
 final class SaveProtobuf[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConfig)(
-  implicit
-  enc: A <:< GeneratedMessage,
-  ss: SparkSession) {
+  implicit enc: A <:< GeneratedMessage) {
 
   val params: HoarderParams = cfg.evalConfig
 
-  def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
+  def run(
+    blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], ss: SparkSession): F[Unit] =
     rdd
       .map(codec.idConversion)
       .stream[F]
@@ -32,13 +31,16 @@ final class PartitionProtobuf[F[_], A: ClassTag, K: ClassTag: Eq](
   codec: AvroCodec[A],
   cfg: HoarderConfig,
   bucketing: A => Option[K],
-  pathBuilder: (NJFileFormat, K) => String)(implicit enc: A <:< GeneratedMessage, ss: SparkSession)
+  pathBuilder: (NJFileFormat, K) => String)(implicit enc: A <:< GeneratedMessage)
     extends AbstractPartition[F, A, K] {
 
   val params: HoarderParams = cfg.evalConfig
 
-  def run(
-    blocker: Blocker)(implicit F: Concurrent[F], CS: ContextShift[F], P: Parallel[F]): F[Unit] =
+  def run(blocker: Blocker)(implicit
+    F: Concurrent[F],
+    CS: ContextShift[F],
+    P: Parallel[F],
+    ss: SparkSession): F[Unit] =
     savePartition(
       blocker,
       rdd,

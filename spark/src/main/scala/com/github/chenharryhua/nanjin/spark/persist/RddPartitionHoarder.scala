@@ -19,7 +19,7 @@ class RddPartitionHoarder[F[_], A: ClassTag, K: Eq: ClassTag](
   codec: AvroCodec[A],
   bucketing: A => Option[K],
   pathBuilder: (NJFileFormat, K) => String,
-  cfg: HoarderConfig = HoarderConfig.default)(implicit ss: SparkSession)
+  cfg: HoarderConfig = HoarderConfig.default)
     extends Serializable {
 
   private def updateConfig(cfg: HoarderConfig): RddPartitionHoarder[F, A, K] =

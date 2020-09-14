@@ -10,8 +10,7 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
 import scala.reflect.ClassTag
 
-final class SaveParquet[F[_], A](rdd: RDD[A], ate: AvroTypedEncoder[A], cfg: HoarderConfig)(implicit
-  ss: SparkSession)
+final class SaveParquet[F[_], A](rdd: RDD[A], ate: AvroTypedEncoder[A], cfg: HoarderConfig)
     extends Serializable {
 
   val params: HoarderParams = cfg.evalConfig
@@ -19,7 +18,8 @@ final class SaveParquet[F[_], A](rdd: RDD[A], ate: AvroTypedEncoder[A], cfg: Hoa
   private def updateConfig(cfg: HoarderConfig): SaveParquet[F, A] =
     new SaveParquet[F, A](rdd, ate, cfg)
 
-  def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
+  def run(
+    blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], ss: SparkSession): F[Unit] = {
     implicit val encoder: AvroEncoder[A] = ate.avroCodec.avroEncoder
     val sma: SaveModeAware[F]            = new SaveModeAware[F](params.saveMode, params.outPath, ss)
     sma.checkAndRun(blocker)(
@@ -32,13 +32,16 @@ final class PartitionParquet[F[_], A, K: ClassTag: Eq](
   ate: AvroTypedEncoder[A],
   cfg: HoarderConfig,
   bucketing: A => Option[K],
-  pathBuilder: (NJFileFormat, K) => String)(implicit ss: SparkSession)
+  pathBuilder: (NJFileFormat, K) => String)
     extends AbstractPartition[F, A, K] {
 
   val params: HoarderParams = cfg.evalConfig
 
-  def run(
-    blocker: Blocker)(implicit F: Concurrent[F], CS: ContextShift[F], P: Parallel[F]): F[Unit] =
+  def run(blocker: Blocker)(implicit
+    F: Concurrent[F],
+    CS: ContextShift[F],
+    P: Parallel[F],
+    ss: SparkSession): F[Unit] =
     savePartition(
       blocker,
       rdd,

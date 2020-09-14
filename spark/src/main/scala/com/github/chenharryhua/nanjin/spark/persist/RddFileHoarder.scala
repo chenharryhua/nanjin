@@ -16,7 +16,7 @@ import scala.reflect.ClassTag
 final class RddFileHoarder[F[_], A: ClassTag](
   rdd: RDD[A],
   codec: AvroCodec[A],
-  cfg: HoarderConfig = HoarderConfig.default)(implicit ss: SparkSession)
+  cfg: HoarderConfig = HoarderConfig.default)
     extends Serializable {
 
   private def updateConfig(cfg: HoarderConfig): RddFileHoarder[F, A] =

@@ -11,9 +11,7 @@ import org.apache.spark.sql.SparkSession
 import scala.reflect.ClassTag
 
 final class SaveText[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConfig)(
-  implicit
-  show: Show[A],
-  ss: SparkSession)
+  implicit show: Show[A])
     extends Serializable {
   val params: HoarderParams = cfg.evalConfig
 
@@ -23,7 +21,8 @@ final class SaveText[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], cfg: H
   def file: SaveText[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveText[F, A] = updateConfig(cfg.withFolder)
 
-  def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
+  def run(
+    blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], ss: SparkSession): F[Unit] = {
 
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
     params.folderOrFile match {
@@ -42,13 +41,16 @@ final class PartitionText[F[_], A: ClassTag, K: ClassTag: Eq](
   codec: AvroCodec[A],
   cfg: HoarderConfig,
   bucketing: A => Option[K],
-  pathBuilder: (NJFileFormat, K) => String)(implicit show: Show[A], ss: SparkSession)
+  pathBuilder: (NJFileFormat, K) => String)(implicit show: Show[A])
     extends AbstractPartition[F, A, K] {
 
   val params: HoarderParams = cfg.evalConfig
 
-  def run(
-    blocker: Blocker)(implicit F: Concurrent[F], CS: ContextShift[F], P: Parallel[F]): F[Unit] =
+  def run(blocker: Blocker)(implicit
+    F: Concurrent[F],
+    CS: ContextShift[F],
+    P: Parallel[F],
+    ss: SparkSession): F[Unit] =
     savePartition(
       blocker,
       rdd,
