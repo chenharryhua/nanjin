@@ -4,7 +4,7 @@ import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.{Eq, Parallel}
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.{fileSink, AvroTypedEncoder, RddExt}
+import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt}
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.TypedEncoder
 import frameless.cats.implicits._

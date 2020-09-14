@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.spark
+package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Show
 import cats.effect.{Blocker, Concurrent, ContextShift, Sync}

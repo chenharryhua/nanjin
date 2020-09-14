@@ -1,7 +1,9 @@
 package mtest.spark
 
 import cats.effect.{Blocker, ContextShift, IO, Timer}
-import com.github.chenharryhua.nanjin.spark.{fileSink, SparkSettings}
+import com.github.chenharryhua.nanjin.spark.SparkSettings
+import com.github.chenharryhua.nanjin.spark.persist.fileSink
+
 import org.apache.spark.sql.SparkSession
 
 import scala.concurrent.ExecutionContext.Implicits.global

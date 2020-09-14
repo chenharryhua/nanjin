@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.spark
+package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync}
 import com.github.chenharryhua.nanjin.devices.NJHadoop
