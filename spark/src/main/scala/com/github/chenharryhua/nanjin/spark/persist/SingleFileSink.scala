@@ -8,7 +8,9 @@ import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import fs2.Pipe
 import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.{CsvConfiguration, RowEncoder}
+import org.apache.avro.file.CodecFactory
 import org.apache.hadoop.conf.Configuration
+import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import scalapb.GeneratedMessage
 
 final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
@@ -65,21 +67,21 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
     csv[A](pathStr, CsvConfiguration.rfc)
 
 // 11
-  def parquet[A](pathStr: String)(implicit
+  def parquet[A](pathStr: String, ccn: CompressionCodecName)(implicit
     enc: AvroEncoder[A],
     F: Sync[F],
     cs: ContextShift[F]): Pipe[F, A, Unit] = {
-    val hadoop = new NJHadoop[F](conf, blocker).parquetSink(pathStr, enc.schema)
+    val hadoop = new NJHadoop[F](conf, blocker).parquetSink(pathStr, enc.schema, ccn)
     val pipe   = new GenericRecordEncoder[F, A](enc)
     _.through(pipe.encode).through(hadoop)
   }
 
 // 12
-  def avro[A](pathStr: String)(implicit
+  def avro[A](pathStr: String, cf: CodecFactory)(implicit
     enc: AvroEncoder[A],
     F: Sync[F],
     cs: ContextShift[F]): Pipe[F, A, Unit] = {
-    val hadoop = new NJHadoop[F](conf, blocker).avroSink(pathStr, enc.schema)
+    val hadoop = new NJHadoop[F](conf, blocker).avroSink(pathStr, enc.schema, cf)
     val pipe   = new GenericRecordEncoder[F, A](enc)
     _.through(pipe.encode).through(hadoop)
   }

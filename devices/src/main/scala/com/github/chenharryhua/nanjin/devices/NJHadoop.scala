@@ -8,7 +8,7 @@ import cats.syntax.all._
 import fs2.io.{readInputStream, writeOutputStream}
 import fs2.{Pipe, Pull, Stream}
 import org.apache.avro.Schema
-import org.apache.avro.file.{DataFileStream, DataFileWriter}
+import org.apache.avro.file.{CodecFactory, DataFileStream, DataFileWriter}
 import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericDatumWriter, GenericRecord}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataInputStream, FSDataOutputStream, FileSystem, Path}
@@ -60,7 +60,10 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
     } yield bt
 
   /// parquet
-  def parquetSink(pathStr: String, schema: Schema): Pipe[F, GenericRecord, Unit] = {
+  def parquetSink(
+    pathStr: String,
+    schema: Schema,
+    ccn: CompressionCodecName): Pipe[F, GenericRecord, Unit] = {
     def go(
       grs: Stream[F, GenericRecord],
       writer: ParquetWriter[GenericRecord]): Pull[F, Unit, Unit] =
@@ -80,7 +83,7 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
                 .builder[GenericRecord](outputFile)
                 .withConf(config)
                 .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)
-                .withCompressionCodec(CompressionCodecName.SNAPPY)
+                .withCompressionCodec(ccn)
                 .withSchema(schema)
                 .withDataModel(GenericData.get())
                 .build())))
@@ -105,7 +108,7 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
   }
 
   // avro data
-  def avroSink(pathStr: String, schema: Schema): Pipe[F, GenericRecord, Unit] = {
+  def avroSink(pathStr: String, schema: Schema, cf: CodecFactory): Pipe[F, GenericRecord, Unit] = {
     def go(
       grs: Stream[F, GenericRecord],
       writer: DataFileWriter[GenericRecord]): Pull[F, Unit, Unit] =
@@ -118,7 +121,7 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
       for {
         dfw <- Stream.resource(
           Resource.fromAutoCloseableBlocking[F, DataFileWriter[GenericRecord]](blocker)(
-            blocker.delay(new DataFileWriter(new GenericDatumWriter(schema)))))
+            blocker.delay(new DataFileWriter(new GenericDatumWriter(schema)).setCodec(cf))))
         writer <- Stream.resource(fsOutput(pathStr)).map(os => dfw.create(schema, os))
         _ <- go(ss, writer).stream
       } yield ()

@@ -20,6 +20,8 @@ import com.sksamuel.avro4s.Decoder
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import kantan.csv.RowEncoder
 import kantan.csv.RowDecoder
+import org.apache.avro.file.CodecFactory
+import org.apache.parquet.hadoop.metadata.CompressionCodecName
 
 object SingleFileTestData {
   final case class Swordfish(from: String, weight: Float, code: Int)
@@ -50,11 +52,9 @@ class SingleFileTest extends AnyFunSuite {
   test("spark avro - identity") {
     val path = "./data/test/spark/singleFile/swordfish.avro"
     val run = delete(path) >>
-      fishStream.through(sink.avro[Swordfish](path)).compile.drain >>
+      fishStream.through(sink.avro[Swordfish](path, CodecFactory.snappyCodec)).compile.drain >>
       source.avro[Swordfish](path).compile.toList
-
     assert(run.unsafeRunSync() === fishes)
-
   }
 
   test("spark avro-binary - identity") {
@@ -70,7 +70,7 @@ class SingleFileTest extends AnyFunSuite {
   test("spark parquet - identity") {
     val path = "./data/test/spark/singleFile/swordfish.parquet"
     val run = delete(path) >>
-      fishStream.through(sink.parquet[Swordfish](path)).compile.drain >>
+      fishStream.through(sink.parquet[Swordfish](path,CompressionCodecName.SNAPPY)).compile.drain >>
       source.parquet[Swordfish](path).compile.toList
 
     assert(run.unsafeRunSync() === fishes)

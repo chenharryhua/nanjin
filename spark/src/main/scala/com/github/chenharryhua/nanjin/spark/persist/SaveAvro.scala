@@ -13,6 +13,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
+import org.apache.avro.file.CodecFactory
 
 final class SaveAvro[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConfig)
     extends Serializable {
@@ -34,7 +35,11 @@ final class SaveAvro[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], cfg: H
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
         sma.checkAndRun(blocker)(
-          rdd.stream[F].through(fileSink[F](blocker).avro(params.outPath)).compile.drain)
+          rdd
+            .stream[F]
+            .through(fileSink[F](blocker).avro(params.outPath, CodecFactory.nullCodec))
+            .compile
+            .drain)
       case FolderOrFile.Folder =>
         val sparkjob = F.delay {
           val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)

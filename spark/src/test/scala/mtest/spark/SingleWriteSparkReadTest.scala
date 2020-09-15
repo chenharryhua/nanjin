@@ -7,7 +7,7 @@ import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.injection._
-import com.github.chenharryhua.nanjin.spark.persist.{fileSink,fileSource}
+import com.github.chenharryhua.nanjin.spark.persist.{fileSink, fileSource}
 import frameless.cats.implicits._
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
@@ -16,6 +16,7 @@ import kantan.csv.java8._
 import kantan.csv.RowEncoder
 import kantan.csv.RowDecoder
 import com.sksamuel.avro4s.Encoder
+import org.apache.avro.file.CodecFactory
 
 object SingleWriteSparkReadTestData {
   final case class Elephant(birthDay: LocalDateTime, weight: Double, food: List[String])
@@ -56,7 +57,10 @@ class SingleWriteSparkReadTest extends AnyFunSuite {
     val path = "./data/test/spark/sse/elephant.avro"
     val data = Stream.emits(elephants)
     val prepare =
-      delete(path) >> data.through(sink.avro[Elephant](path)).compile.drain
+      delete(path) >> data
+        .through(sink.avro[Elephant](path, CodecFactory.deflateCodec(6)))
+        .compile
+        .drain
     prepare.unsafeRunSync()
   }
 }
