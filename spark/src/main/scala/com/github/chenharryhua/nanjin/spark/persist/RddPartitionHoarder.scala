@@ -81,7 +81,7 @@ class RddPartitionHoarder[F[_], A: ClassTag, K: Eq: ClassTag](
 
   // 12
   def avro: PartitionAvro[F, A, K] =
-    new PartitionAvro[F, A, K](rdd, codec, None, cfg.withFormat(Avro), bucketing, pathBuilder)
+    new PartitionAvro[F, A, K](rdd, codec, cfg.withFormat(Avro), bucketing, pathBuilder)
 
 // 13
   def binAvro: PartitionBinaryAvro[F, A, K] =

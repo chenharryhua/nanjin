@@ -61,7 +61,7 @@ final class RddFileHoarder[F[_], A: ClassTag](
 
   // 12
   def avro(outPath: String): SaveAvro[F, A] =
-    new SaveAvro[F, A](rdd, codec, None, cfg.withFormat(Avro).withOutPutPath(outPath))
+    new SaveAvro[F, A](rdd, codec, cfg.withFormat(Avro).withOutPutPath(outPath))
 
 // 13
   def binAvro(outPath: String): SaveBinaryAvro[F, A] =
