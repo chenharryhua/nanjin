@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import frameless.TypedEncoder
 import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.{CsvConfiguration, RowEncoder}
+import org.apache.avro.file.CodecFactory
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import scalapb.GeneratedMessage
@@ -76,12 +77,24 @@ class RddPartitionHoarder[F[_], A: ClassTag, K: Eq: ClassTag](
   // 11
   def parquet(implicit te: TypedEncoder[A]): PartitionParquet[F, A, K] = {
     val ate: AvroTypedEncoder[A] = AvroTypedEncoder[A](te, codec)
-    new PartitionParquet[F, A, K](rdd, ate, cfg.withFormat(Parquet), bucketing, pathBuilder)
+    new PartitionParquet[F, A, K](
+      rdd,
+      ate,
+      Compression.Uncompressed,
+      cfg.withFormat(Parquet),
+      bucketing,
+      pathBuilder)
   }
 
   // 12
   def avro: PartitionAvro[F, A, K] =
-    new PartitionAvro[F, A, K](rdd, codec, None, cfg.withFormat(Avro), bucketing, pathBuilder)
+    new PartitionAvro[F, A, K](
+      rdd,
+      codec,
+      Compression.Uncompressed,
+      cfg.withFormat(Avro),
+      bucketing,
+      pathBuilder)
 
 // 13
   def binAvro: PartitionBinaryAvro[F, A, K] =

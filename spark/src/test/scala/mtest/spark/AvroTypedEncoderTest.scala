@@ -141,4 +141,9 @@ class AvroTypedEncoderTest extends AnyFunSuite {
     assert(r.collect[IO]().unsafeRunSync().toSet == expected.toSet)
     assert(r.schema == expectedSchema)
   }
+
+  test("empty set") {
+    assert(ate.emptyDataset.count[IO].unsafeRunSync() == 0)
+  }
+
 }

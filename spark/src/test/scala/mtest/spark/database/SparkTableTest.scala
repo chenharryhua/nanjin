@@ -77,11 +77,9 @@ class SparkTableTest extends AnyFunSuite {
   val saver = tb.fromDB.save
 
   test("avro") {
-    val avro = saver.avro(root + "multi.spark.avro").folder.spark.run(blocker) >>
-      saver.avro(root + "single.raw.avro").file.run(blocker) >>
+    val avro = saver.avro(root + "single.raw.avro").file.run(blocker) >>
       saver.avro(root + "multi.raw.avro").folder.run(blocker)
     avro.unsafeRunSync()
-    assert(table.load.avro(root + "multi.spark.avro").dataset.collect.head == dbData)
     assert(table.load.avro(root + "single.raw.avro").dataset.collect.head == dbData)
     assert(table.load.avro(root + "multi.raw.avro").dataset.collect.head == dbData)
   }

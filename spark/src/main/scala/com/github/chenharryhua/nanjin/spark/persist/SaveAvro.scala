@@ -4,34 +4,39 @@ import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.{Eq, Parallel}
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt}
+import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
-import frameless.TypedEncoder
 import frameless.cats.implicits._
 import org.apache.avro.mapreduce.AvroJob
 import org.apache.hadoop.mapreduce.Job
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{SaveMode, SparkSession}
+import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
 
 final class SaveAvro[F[_], A: ClassTag](
   rdd: RDD[A],
   codec: AvroCodec[A],
-  ote: Option[TypedEncoder[A]],
+  compression: Compression,
   cfg: HoarderConfig)
     extends Serializable {
 
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveAvro[F, A] =
-    new SaveAvro[F, A](rdd, codec, ote, cfg)
-
-  def spark(implicit te: TypedEncoder[A]): SaveAvro[F, A] =
-    new SaveAvro[F, A](rdd, codec, Some(te), cfg)
+    new SaveAvro[F, A](rdd, codec, compression, cfg)
 
   def file: SaveAvro[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveAvro[F, A] = updateConfig(cfg.withFolder)
+
+  private def updateCompression(compression: Compression): SaveAvro[F, A] =
+    new SaveAvro[F, A](rdd, codec, compression, cfg)
+
+  def deflate(level: Int): SaveAvro[F, A] = updateCompression(Compression.Deflate(level))
+  def xz(level: Int): SaveAvro[F, A]      = updateCompression(Compression.Xz(level))
+  def snappy: SaveAvro[F, A]              = updateCompression(Compression.Snappy)
+  def bzip2: SaveAvro[F, A]               = updateCompression(Compression.Bzip2)
 
   def run(
     blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], ss: SparkSession): F[Unit] = {
@@ -39,20 +44,20 @@ final class SaveAvro[F[_], A: ClassTag](
 
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
 
-    (params.folderOrFile, ote) match {
-      case (FolderOrFile.SingleFile, _) =>
+    params.folderOrFile match {
+      case FolderOrFile.SingleFile =>
         sma.checkAndRun(blocker)(
-          rdd.stream[F].through(fileSink[F](blocker).avro(params.outPath)).compile.drain)
-      case (FolderOrFile.Folder, Some(te)) =>
-        val ate = AvroTypedEncoder[A](te, codec)
-        sma.checkAndRun(blocker)(
-          F.delay(
-            ate.normalize(rdd).write.mode(SaveMode.Overwrite).format("avro").save(params.outPath))
-        )
-      case (FolderOrFile.Folder, None) =>
+          rdd
+            .stream[F]
+            .through(fileSink[F](blocker)
+              .avro(params.outPath, compression.avro(ss.sparkContext.hadoopConfiguration)))
+            .compile
+            .drain)
+      case FolderOrFile.Folder =>
         val sparkjob = F.delay {
           val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
           AvroJob.setOutputKeySchema(job, codec.schema)
+          compression.avro(ss.sparkContext.hadoopConfiguration)
           ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
           utils
             .genericRecordPair(rdd.map(codec.idConversion), codec.avroEncoder)
@@ -66,7 +71,7 @@ final class SaveAvro[F[_], A: ClassTag](
 final class PartitionAvro[F[_], A: ClassTag, K: ClassTag: Eq](
   rdd: RDD[A],
   codec: AvroCodec[A],
-  ote: Option[TypedEncoder[A]],
+  compression: Compression,
   cfg: HoarderConfig,
   bucketing: A => Option[K],
   pathBuilder: (NJFileFormat, K) => String)
@@ -74,8 +79,13 @@ final class PartitionAvro[F[_], A: ClassTag, K: ClassTag: Eq](
 
   val params: HoarderParams = cfg.evalConfig
 
-  def spark(implicit te: TypedEncoder[A]): PartitionAvro[F, A, K] =
-    new PartitionAvro[F, A, K](rdd, codec, Some(te), cfg, bucketing, pathBuilder)
+  private def updateCompression(compression: Compression): PartitionAvro[F, A, K] =
+    new PartitionAvro[F, A, K](rdd, codec, compression, cfg, bucketing, pathBuilder)
+
+  def deflate(level: Int): PartitionAvro[F, A, K] = updateCompression(Compression.Deflate(level))
+  def xz(level: Int): PartitionAvro[F, A, K]      = updateCompression(Compression.Xz(level))
+  def snappy: PartitionAvro[F, A, K]              = updateCompression(Compression.Snappy)
+  def bzip2: PartitionAvro[F, A, K]               = updateCompression(Compression.Bzip2)
 
   def run(blocker: Blocker)(implicit
     F: Concurrent[F],
@@ -89,5 +99,5 @@ final class PartitionAvro[F[_], A: ClassTag, K: ClassTag: Eq](
       params.format,
       bucketing,
       pathBuilder,
-      (r, p) => new SaveAvro[F, A](r, codec, ote, cfg.withOutPutPath(p)).run(blocker))
+      (r, p) => new SaveAvro[F, A](r, codec, compression, cfg.withOutPutPath(p)).run(blocker))
 }

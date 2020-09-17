@@ -3,10 +3,11 @@ package com.github.chenharryhua.nanjin.spark.persist
 import java.io.OutputStream
 
 import org.apache.avro.Schema
-import org.apache.avro.file.DataFileWriter
+import org.apache.avro.file.{CodecFactory, DataFileWriter}
 import org.apache.avro.generic.{GenericDatumWriter, GenericRecord}
 import org.apache.avro.mapred.AvroKey
-import org.apache.avro.mapreduce.{AvroJob, AvroOutputFormatBase}
+import org.apache.avro.mapreduce.AvroOutputFormatBase.{getCompressionCodec, getSyncInterval}
+import org.apache.avro.mapreduce.{AvroJob, AvroOutputFormatBase, Syncable}
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.fs.s3a.commit.AbstractS3ACommitter
 import org.apache.hadoop.io.NullWritable
@@ -23,12 +24,14 @@ final class NJAvroKeyOutputFormat
       case s: AbstractS3ACommitter => s.getWorkPath
       case ex                      => throw new Exception(s"not support: ${ex.toString}")
     }
-
+    val compression = getCompressionCodec(context).toString
     val path: Path =
       new Path(
         workPath,
-        FileOutputFormat
-          .getUniqueFile(context, s"nj-${context.getTaskAttemptID.getJobID.toString}", ".avro"))
+        FileOutputFormat.getUniqueFile(
+          context,
+          s"${context.getTaskAttemptID.getJobID.toString}.$compression",
+          ".avro"))
 
     path.getFileSystem(context.getConfiguration).create(path)
   }
@@ -37,18 +40,27 @@ final class NJAvroKeyOutputFormat
     context: TaskAttemptContext): RecordWriter[AvroKey[GenericRecord], NullWritable] = {
     val schema: Schema    = AvroJob.getOutputKeySchema(context.getConfiguration)
     val out: OutputStream = fileOutputStream(context)
-    new AvroKeyRecordWriter(schema, out)
+    val compression       = getCompressionCodec(context)
+    val syncInterval      = getSyncInterval(context)
+    new AvroKeyRecordWriter(schema, out, compression, syncInterval)
   }
 }
 
-final class AvroKeyRecordWriter(schema: Schema, os: OutputStream)
-    extends RecordWriter[AvroKey[GenericRecord], NullWritable] {
+final class AvroKeyRecordWriter(
+  schema: Schema,
+  os: OutputStream,
+  cf: CodecFactory,
+  syncInterval: Int)
+    extends RecordWriter[AvroKey[GenericRecord], NullWritable] with Syncable {
 
   private val datumWriter: GenericDatumWriter[GenericRecord] =
     new GenericDatumWriter[GenericRecord](schema)
 
   private val dataFileWriter: DataFileWriter[GenericRecord] =
-    new DataFileWriter[GenericRecord](datumWriter).create(schema, os)
+    new DataFileWriter[GenericRecord](datumWriter)
+      .setCodec(cf)
+      .setSyncInterval(syncInterval)
+      .create(schema, os)
 
   override def write(key: AvroKey[GenericRecord], value: NullWritable): Unit =
     dataFileWriter.append(key.datum())
@@ -57,4 +69,7 @@ final class AvroKeyRecordWriter(schema: Schema, os: OutputStream)
     dataFileWriter.flush()
     os.close()
   }
+
+  override def sync(): Long = dataFileWriter.sync()
+
 }
