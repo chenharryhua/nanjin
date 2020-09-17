@@ -13,7 +13,7 @@ class CirceTest extends AnyFunSuite {
   import RoosterData._
 
   test("rdd read/write identity multi.uncompressed") {
-    val path = "./data/test/spark/persist/circe/rooster/multi"
+    val path = "./data/test/spark/persist/circe/rooster/multi.uncompressed"
     delete(path)
     val saver = new RddFileHoarder[IO, Rooster](rdd, Rooster.avroCodec)
     saver.circe(path).folder.run(blocker).unsafeRunSync()

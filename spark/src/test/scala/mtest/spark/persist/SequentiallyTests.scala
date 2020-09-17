@@ -8,5 +8,6 @@ class SequentiallyTests
       new ParquetTest,
       new CirceTest,
       new JacksonTest,
-      new JsonTest
+      new JsonTest,
+      new CsvTest
     )

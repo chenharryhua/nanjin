@@ -7,7 +7,6 @@ import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.pipes.CirceSerialization
 import com.github.chenharryhua.nanjin.spark.RddExt
-import fs2.Pipe
 import io.circe.{Encoder => JsonEncoder}
 import org.apache.hadoop.io.compress.{CompressionCodec, DeflateCodec, GzipCodec}
 import org.apache.spark.rdd.RDD
@@ -35,14 +34,7 @@ final class SaveCirce[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], cfg: 
     blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], ss: SparkSession): F[Unit] = {
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
 
-    val single: Pipe[F, Byte, Byte] = params.compression match {
-      case Compression.Uncompressed   => identity
-      case Compression.Gzip           => fs2.compression.gzip()
-      case Compression.Deflate(level) => fs2.compression.deflate(level)
-      case c                          => throw new Exception(s"not support $c")
-    }
-
-    val multi: Class[_ <: CompressionCodec] = params.compression match {
+    val cc: Class[_ <: CompressionCodec] = params.compression match {
       case Compression.Uncompressed   => null
       case Compression.Gzip           => classOf[GzipCodec]
       case Compression.Deflate(level) => classOf[DeflateCodec]
@@ -59,7 +51,7 @@ final class SaveCirce[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], cfg: 
             .map(codec.idConversion)
             .stream[F]
             .through(pipe.serialize)
-            .through(single)
+            .through(params.compression.byteCompress[F])
             .through(hadoop)
             .compile
             .drain)
@@ -68,7 +60,7 @@ final class SaveCirce[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], cfg: 
           F.delay(
             rdd
               .map(a => jsonEncoder(codec.idConversion(a)).noSpaces)
-              .saveAsTextFile(params.outPath, multi)))
+              .saveAsTextFile(params.outPath, cc)))
     }
   }
 }

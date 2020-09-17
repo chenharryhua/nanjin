@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
+import cats.effect.Sync
+import fs2.Pipe
 import org.apache.avro.file.{CodecFactory, DataFileConstants}
 import org.apache.avro.mapred.AvroOutputFormat
 import org.apache.avro.mapreduce.AvroJob
@@ -42,11 +44,19 @@ private[persist] trait Compression {
     case c                        => throw new Exception(s"not support $c")
   }
 
-  def json: String = this match {
+  def textCodec: String = this match {
     case Compression.Uncompressed => "uncompressed"
     case Compression.Gzip         => "gzip"
     case Compression.Bzip2        => "bzip2"
+    case Compression.Deflate(_)   => "deflate"
     case c                        => s"not support $c"
+  }
+
+  def byteCompress[F[_]: Sync]: Pipe[F, Byte, Byte] = this match {
+    case Compression.Uncompressed   => identity
+    case Compression.Gzip           => fs2.compression.gzip[F]()
+    case Compression.Deflate(level) => fs2.compression.deflate(level)
+    case c                          => throw new Exception(s"not support $c")
   }
 }
 
