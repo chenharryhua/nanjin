@@ -10,7 +10,6 @@ import frameless.cats.implicits._
 import org.apache.avro.file.CodecFactory
 import org.apache.avro.mapreduce.AvroJob
 import org.apache.hadoop.mapreduce.Job
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 

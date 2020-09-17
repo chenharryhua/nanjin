@@ -43,9 +43,10 @@ private[persist] trait Compression {
   }
 
   def json: String = this match {
-    case Compression.Uncompressed => "none"
+    case Compression.Uncompressed => "uncompressed"
     case Compression.Gzip         => "gzip"
-    case c                        => "not support $c"
+    case Compression.Bzip2        => "bzip2"
+    case c                        => s"not support $c"
   }
 }
 
