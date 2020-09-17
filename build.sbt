@@ -40,7 +40,7 @@ val frameless = "0.9.0-SNAPSHOT"
 
 // database
 val doobie   = "0.9.2"
-val quill    = "3.5.2"
+val quill    = "3.5.3"
 val neotypes = "0.15.1"
 val elastic  = "7.9.0"
 
