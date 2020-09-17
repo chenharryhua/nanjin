@@ -71,7 +71,13 @@ class RddPartitionHoarder[F[_], A: ClassTag, K: Eq: ClassTag](
   // 5
   def json(implicit te: TypedEncoder[A]): PartitionSparkJson[F, A, K] = {
     val ate: AvroTypedEncoder[A] = AvroTypedEncoder[A](te, codec)
-    new PartitionSparkJson[F, A, K](rdd, ate, cfg.withFormat(SparkJson), bucketing, pathBuilder)
+    new PartitionSparkJson[F, A, K](
+      rdd,
+      ate,
+      Compression.Uncompressed,
+      cfg.withFormat(SparkJson),
+      bucketing,
+      pathBuilder)
   }
 
   // 11

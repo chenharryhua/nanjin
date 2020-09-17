@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.cats.implicits._
+import org.apache.avro.file.CodecFactory
 import org.apache.avro.mapreduce.AvroJob
 import org.apache.hadoop.mapreduce.Job
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
@@ -43,21 +44,16 @@ final class SaveAvro[F[_], A: ClassTag](
     implicit val encoder: AvroEncoder[A] = codec.avroEncoder
 
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
+    val cf: CodecFactory      = compression.avro(ss.sparkContext.hadoopConfiguration)
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
         sma.checkAndRun(blocker)(
-          rdd
-            .stream[F]
-            .through(fileSink[F](blocker)
-              .avro(params.outPath, compression.avro(ss.sparkContext.hadoopConfiguration)))
-            .compile
-            .drain)
+          rdd.stream[F].through(fileSink[F](blocker).avro(params.outPath, cf)).compile.drain)
       case FolderOrFile.Folder =>
         val sparkjob = F.delay {
           val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
           AvroJob.setOutputKeySchema(job, codec.schema)
-          compression.avro(ss.sparkContext.hadoopConfiguration)
           ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
           utils
             .genericRecordPair(rdd.map(codec.idConversion), codec.avroEncoder)

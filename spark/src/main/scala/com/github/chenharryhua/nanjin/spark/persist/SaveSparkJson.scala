@@ -10,29 +10,50 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
 import scala.reflect.ClassTag
 
-final class SaveSparkJson[F[_], A](rdd: RDD[A], ate: AvroTypedEncoder[A], cfg: HoarderConfig)
+final class SaveSparkJson[F[_], A](
+  rdd: RDD[A],
+  ate: AvroTypedEncoder[A],
+  compression: Compression,
+  cfg: HoarderConfig)
     extends Serializable {
 
   val params: HoarderParams = cfg.evalConfig
+
+  private def updateCompression(compression: Compression): SaveSparkJson[F, A] =
+    new SaveSparkJson[F, A](rdd, ate, compression, cfg)
+
+  def gzip: SaveSparkJson[F, A] = updateCompression(Compression.Gzip)
 
   def run(
     blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], ss: SparkSession): F[Unit] = {
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
 
     sma.checkAndRun(blocker)(
-      F.delay(ate.normalize(rdd).write.mode(SaveMode.Overwrite).json(params.outPath)))
+      F.delay(
+        ate
+          .normalize(rdd)
+          .write
+          .mode(SaveMode.Overwrite)
+          .option("compression", compression.json)
+          .json(params.outPath)))
   }
 }
 
 final class PartitionSparkJson[F[_], A: ClassTag, K: ClassTag: Eq](
   rdd: RDD[A],
   ate: AvroTypedEncoder[A],
+  compression: Compression,
   cfg: HoarderConfig,
   bucketing: A => Option[K],
   pathBuilder: (NJFileFormat, K) => String)
     extends AbstractPartition[F, A, K] {
 
   val params: HoarderParams = cfg.evalConfig
+
+  private def updateCompression(compression: Compression): PartitionSparkJson[F, A, K] =
+    new PartitionSparkJson[F, A, K](rdd, ate, compression, cfg, bucketing, pathBuilder)
+
+  def gzip: PartitionSparkJson[F, A, K] = updateCompression(Compression.Gzip)
 
   def run(blocker: Blocker)(implicit
     F: Concurrent[F],
@@ -46,5 +67,5 @@ final class PartitionSparkJson[F[_], A: ClassTag, K: ClassTag: Eq](
       params.format,
       bucketing,
       pathBuilder,
-      (r, p) => new SaveSparkJson[F, A](r, ate, cfg.withOutPutPath(p)).run(blocker))
+      (r, p) => new SaveSparkJson[F, A](r, ate, compression, cfg.withOutPutPath(p)).run(blocker))
 }

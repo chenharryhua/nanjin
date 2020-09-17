@@ -51,7 +51,11 @@ final class RddFileHoarder[F[_], A: ClassTag](
   // 5
   def json(outPath: String)(implicit te: TypedEncoder[A]): SaveSparkJson[F, A] = {
     val ate: AvroTypedEncoder[A] = AvroTypedEncoder[A](te, codec)
-    new SaveSparkJson[F, A](rdd, ate, cfg.withFormat(SparkJson).withOutPutPath(outPath))
+    new SaveSparkJson[F, A](
+      rdd,
+      ate,
+      Compression.Uncompressed,
+      cfg.withFormat(SparkJson).withOutPutPath(outPath))
   }
 
   // 11

@@ -41,6 +41,12 @@ private[persist] trait Compression {
     case Compression.Gzip         => CompressionCodecName.GZIP
     case c                        => throw new Exception(s"not support $c")
   }
+
+  def json: String = this match {
+    case Compression.Uncompressed => "none"
+    case Compression.Gzip         => "gzip"
+    case c                        => "not support $c"
+  }
 }
 
 private[persist] object Compression {
