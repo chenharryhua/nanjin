@@ -15,12 +15,23 @@ final class SaveSparkJson[F[_], A](rdd: RDD[A], ate: AvroTypedEncoder[A], cfg: H
 
   val params: HoarderParams = cfg.evalConfig
 
+  private def updateConfig(cfg: HoarderConfig): SaveSparkJson[F, A] =
+    new SaveSparkJson[F, A](rdd, ate, cfg)
+
+  def gzip: SaveSparkJson[F, A] = updateConfig(cfg.withCompression(Compression.Gzip))
+
   def run(
     blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], ss: SparkSession): F[Unit] = {
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
 
     sma.checkAndRun(blocker)(
-      F.delay(ate.normalize(rdd).write.mode(SaveMode.Overwrite).json(params.outPath)))
+      F.delay(
+        ate
+          .normalize(rdd)
+          .write
+          .mode(SaveMode.Overwrite)
+          .option("compression", params.compression.json)
+          .json(params.outPath)))
   }
 }
 
@@ -33,6 +44,12 @@ final class PartitionSparkJson[F[_], A: ClassTag, K: ClassTag: Eq](
     extends AbstractPartition[F, A, K] {
 
   val params: HoarderParams = cfg.evalConfig
+
+  private def updateConfig(cfg: HoarderConfig): PartitionSparkJson[F, A, K] =
+    new PartitionSparkJson[F, A, K](rdd, ate, cfg, bucketing, pathBuilder)
+
+  def gzip: PartitionSparkJson[F, A, K] =
+    updateConfig(cfg.withCompression(Compression.Gzip))
 
   def run(blocker: Blocker)(implicit
     F: Concurrent[F],

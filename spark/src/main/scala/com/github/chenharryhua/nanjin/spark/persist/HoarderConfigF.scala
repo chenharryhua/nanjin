@@ -26,7 +26,8 @@ private[persist] object FolderOrFile extends Enum[FolderOrFile] {
   outPath: String,
   folderOrFile: FolderOrFile,
   saveMode: SaveMode,
-  parallelism: Long)
+  parallelism: Long,
+  compression: Compression)
 
 private[persist] object HoarderParams {
 
@@ -36,7 +37,8 @@ private[persist] object HoarderParams {
       "",
       FolderOrFile.Folder,
       SaveMode.Overwrite,
-      defaultLocalParallelism.toLong)
+      defaultLocalParallelism.toLong,
+      Compression.Uncompressed)
 }
 
 @deriveFixedPoint sealed private[persist] trait HoarderConfigF[_]
@@ -48,6 +50,7 @@ private[persist] object HoarderConfigF {
   final case class WithParallelism[K](value: Long, cont: K) extends HoarderConfigF[K]
   final case class WithOutputPath[K](value: String, cont: K) extends HoarderConfigF[K]
   final case class WithFileFormat[K](value: NJFileFormat, cont: K) extends HoarderConfigF[K]
+  final case class WithCompression[K](value: Compression, cont: K) extends HoarderConfigF[K]
 
   private val algebra: Algebra[HoarderConfigF, HoarderParams] =
     Algebra[HoarderConfigF, HoarderParams] {
@@ -57,6 +60,7 @@ private[persist] object HoarderConfigF {
       case WithParallelism(v, c)  => HoarderParams.parallelism.set(v)(c)
       case WithOutputPath(v, c)   => HoarderParams.outPath.set(v)(c)
       case WithFileFormat(v, c)   => HoarderParams.format.set(v)(c)
+      case WithCompression(v, c)  => HoarderParams.compression.set(v)(c)
     }
 
   def evalConfig(cfg: HoarderConfig): HoarderParams = scheme.cata(algebra).apply(cfg.value)
@@ -85,6 +89,9 @@ final private[persist] case class HoarderConfig(value: Fix[HoarderConfigF]) {
 
   def withFormat(fmt: NJFileFormat): HoarderConfig =
     HoarderConfig(Fix(WithFileFormat(fmt, value)))
+
+  def withCompression(compression: Compression): HoarderConfig =
+    HoarderConfig(Fix(WithCompression(compression, value)))
 
 }
 
