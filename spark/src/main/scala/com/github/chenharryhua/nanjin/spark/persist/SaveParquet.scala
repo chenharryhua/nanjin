@@ -10,26 +10,43 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
 import scala.reflect.ClassTag
 
-final class SaveParquet[F[_], A](rdd: RDD[A], ate: AvroTypedEncoder[A], cfg: HoarderConfig)
+final class SaveParquet[F[_], A](
+  rdd: RDD[A],
+  ate: AvroTypedEncoder[A],
+  compression: Compression,
+  cfg: HoarderConfig)
     extends Serializable {
 
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveParquet[F, A] =
-    new SaveParquet[F, A](rdd, ate, cfg)
+    new SaveParquet[F, A](rdd, ate, compression, cfg)
+
+  private def updateCompression(compression: Compression): SaveParquet[F, A] =
+    new SaveParquet[F, A](rdd, ate, compression, cfg)
+
+  def snappy: SaveParquet[F, A] = updateCompression(Compression.Snappy)
+  def gzip: SaveParquet[F, A]   = updateCompression(Compression.Gzip)
 
   def run(
     blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], ss: SparkSession): F[Unit] = {
     implicit val encoder: AvroEncoder[A] = ate.avroCodec.avroEncoder
     val sma: SaveModeAware[F]            = new SaveModeAware[F](params.saveMode, params.outPath, ss)
     sma.checkAndRun(blocker)(
-      F.delay(ate.normalize(rdd).write.mode(SaveMode.Overwrite).parquet(params.outPath)))
+      F.delay(
+        ate
+          .normalize(rdd)
+          .write
+          .option("compression", compression.parquet.name)
+          .mode(SaveMode.Overwrite)
+          .parquet(params.outPath)))
   }
 }
 
 final class PartitionParquet[F[_], A, K: ClassTag: Eq](
   rdd: RDD[A],
   ate: AvroTypedEncoder[A],
+  compression: Compression,
   cfg: HoarderConfig,
   bucketing: A => Option[K],
   pathBuilder: (NJFileFormat, K) => String)
@@ -49,5 +66,5 @@ final class PartitionParquet[F[_], A, K: ClassTag: Eq](
       params.format,
       bucketing,
       pathBuilder,
-      (r, p) => new SaveParquet[F, A](r, ate, cfg.withOutPutPath(p)).run(blocker))
+      (r, p) => new SaveParquet[F, A](r, ate, compression, cfg.withOutPutPath(p)).run(blocker))
 }

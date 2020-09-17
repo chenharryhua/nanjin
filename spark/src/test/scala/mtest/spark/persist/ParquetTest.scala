@@ -10,11 +10,29 @@ import org.scalatest.funsuite.AnyFunSuite
 class ParquetTest extends AnyFunSuite {
   import RoosterData._
 
-  test("datetime read/write identity") {
-    val path = "./data/test/spark/persist/parquet/rooster/multi.parquet"
+  test("datetime read/write identity multi.uncompressed") {
+    val path = "./data/test/spark/persist/parquet/rooster/multi.uncompressed.parquet"
     delete(path)
     val saver = new RddFileHoarder[IO, Rooster](rdd, Rooster.avroCodec).repartition(1)
     saver.parquet(path).run(blocker).unsafeRunSync()
+    val r = loaders.parquet[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
+    assert(expected == r)
+  }
+
+  test("datetime read/write identity multi.snappy") {
+    val path = "./data/test/spark/persist/parquet/rooster/multi.snappy.parquet"
+    delete(path)
+    val saver = new RddFileHoarder[IO, Rooster](rdd, Rooster.avroCodec).repartition(1)
+    saver.parquet(path).snappy.run(blocker).unsafeRunSync()
+    val r = loaders.parquet[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
+    assert(expected == r)
+  }
+
+  test("datetime read/write identity multi.gzip") {
+    val path = "./data/test/spark/persist/parquet/rooster/multi.gzip.parquet"
+    delete(path)
+    val saver = new RddFileHoarder[IO, Rooster](rdd, Rooster.avroCodec).repartition(1)
+    saver.parquet(path).gzip.run(blocker).unsafeRunSync()
     val r = loaders.parquet[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
     assert(expected == r)
   }

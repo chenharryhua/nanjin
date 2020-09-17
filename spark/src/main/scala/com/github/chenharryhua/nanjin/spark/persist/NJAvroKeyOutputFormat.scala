@@ -30,7 +30,7 @@ final class NJAvroKeyOutputFormat
         workPath,
         FileOutputFormat.getUniqueFile(
           context,
-          s"nj-$compression-${context.getTaskAttemptID.getJobID.toString}",
+          s"${context.getTaskAttemptID.getJobID.toString}.$compression",
           ".avro"))
 
     path.getFileSystem(context.getConfiguration).create(path)

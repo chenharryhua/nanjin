@@ -39,9 +39,6 @@ private[persist] trait Compression {
     case Compression.Uncompressed => CompressionCodecName.UNCOMPRESSED
     case Compression.Snappy       => CompressionCodecName.SNAPPY
     case Compression.Gzip         => CompressionCodecName.GZIP
-    case Compression.LZO          => CompressionCodecName.LZO
-    case Compression.LZ4          => CompressionCodecName.LZ4
-    case Compression.BROTLI       => CompressionCodecName.BROTLI
     case c                        => throw new Exception(s"not support $c")
   }
 }
