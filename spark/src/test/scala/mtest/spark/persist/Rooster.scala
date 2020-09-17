@@ -8,10 +8,13 @@ import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.injection._
 import com.sksamuel.avro4s.{Decoder, Encoder}
 import frameless.TypedEncoder
+import kantan.csv.RowEncoder
 import org.apache.avro.Schema
 
 import scala.math.BigDecimal
 import scala.math.BigDecimal.RoundingMode
+import kantan.csv.generic._
+import kantan.csv.java8._
 
 final case class Rooster(
   index: Int,
@@ -86,4 +89,5 @@ object Rooster {
 
   implicit val ate: AvroTypedEncoder[Rooster] =
     AvroTypedEncoder[Rooster](TypedEncoder[Rooster], avroCodec)
+
 }

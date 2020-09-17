@@ -3,6 +3,8 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.{Eq, Parallel}
 import com.github.chenharryhua.nanjin.common.NJFileFormat
+import com.github.chenharryhua.nanjin.devices.NJHadoop
+import com.github.chenharryhua.nanjin.pipes.CsvSerialization
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt}
 import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.spark.rdd.RDD
@@ -29,16 +31,29 @@ final class SaveCsv[F[_], A](
   def file: SaveCsv[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveCsv[F, A] = updateConfig(cfg.withFolder)
 
+  def gzip: SaveCsv[F, A] = updateConfig(cfg.withCompression(Compression.Gzip))
+
+  def deflate(level: Int): SaveCsv[F, A] =
+    updateConfig(cfg.withCompression(Compression.Deflate(level)))
+
   def run(
     blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], ss: SparkSession): F[Unit] = {
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
+
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
+        val hadoop =
+          new NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker).byteSink(params.outPath)
+        val pipe =
+          new CsvSerialization[F, A](rowEncoder, csvConfiguration, blocker)
+
         sma.checkAndRun(blocker)(
           rdd
             .map(ate.avroCodec.idConversion)
             .stream[F]
-            .through(fileSink[F](blocker).csv(params.outPath, csvConfiguration))
+            .through(pipe.serialize)
+            .through(params.compression.byteCompress[F])
+            .through(hadoop)
             .compile
             .drain)
       case FolderOrFile.Folder =>
@@ -47,6 +62,7 @@ final class SaveCsv[F[_], A](
             .normalize(rdd)
             .write
             .mode(SaveMode.Overwrite)
+            .option("compression", params.compression.textCodec)
             .option("sep", csvConfiguration.cellSeparator.toString)
             .option("header", csvConfiguration.hasHeader)
             .option("quote", csvConfiguration.quote.toString)
@@ -71,6 +87,17 @@ final class PartitionCsv[F[_], A, K: ClassTag: Eq](
 
   def updateCsvConfig(f: CsvConfiguration => CsvConfiguration): PartitionCsv[F, A, K] =
     new PartitionCsv[F, A, K](rdd, ate, f(csvConfiguration), cfg, bucketing, pathBuilder)
+
+  private def updateConfig(cfg: HoarderConfig): PartitionCsv[F, A, K] =
+    new PartitionCsv[F, A, K](rdd, ate, csvConfiguration, cfg, bucketing, pathBuilder)
+
+  def file: PartitionCsv[F, A, K]   = updateConfig(cfg.withSingleFile)
+  def folder: PartitionCsv[F, A, K] = updateConfig(cfg.withFolder)
+
+  def gzip: PartitionCsv[F, A, K] = updateConfig(cfg.withCompression(Compression.Gzip))
+
+  def deflate(level: Int): PartitionCsv[F, A, K] =
+    updateConfig(cfg.withCompression(Compression.Deflate(level)))
 
   def run(blocker: Blocker)(implicit
     F: Concurrent[F],

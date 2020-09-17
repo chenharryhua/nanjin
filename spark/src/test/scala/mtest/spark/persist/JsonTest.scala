@@ -29,4 +29,24 @@ class JsonTest extends AnyFunSuite {
     val t: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate)
     assert(expected == t.collect[IO]().unsafeRunSync().toSet)
   }
+
+  test("rdd read/write identity bzip2") {
+    import RoosterData._
+    val path = "./data/test/spark/persist/json/bzip2.json"
+    delete(path)
+    val saver = new RddFileHoarder[IO, Rooster](rdd, Rooster.avroCodec)
+    saver.json(path).bzip2.run(blocker).unsafeRunSync()
+    val t: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate)
+    assert(expected == t.collect[IO]().unsafeRunSync().toSet)
+  }
+
+  test("rdd read/write identity deflate") {
+    import RoosterData._
+    val path = "./data/test/spark/persist/json/deflate.json"
+    delete(path)
+    val saver = new RddFileHoarder[IO, Rooster](rdd, Rooster.avroCodec)
+    saver.json(path).deflate(1).run(blocker).unsafeRunSync()
+    val t: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate)
+    assert(expected == t.collect[IO]().unsafeRunSync().toSet)
+  }
 }
