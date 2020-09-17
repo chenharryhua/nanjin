@@ -10,31 +10,28 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
 import scala.reflect.ClassTag
 
-final class SaveParquet[F[_], A](
-  rdd: RDD[A],
-  ate: AvroTypedEncoder[A],
-  compression: Compression,
-  cfg: HoarderConfig)
+final class SaveParquet[F[_], A](rdd: RDD[A], ate: AvroTypedEncoder[A], cfg: HoarderConfig)
     extends Serializable {
 
   val params: HoarderParams = cfg.evalConfig
 
-  private def updateCompression(compression: Compression): SaveParquet[F, A] =
-    new SaveParquet[F, A](rdd, ate, compression, cfg)
+  private def updateConfig(cfg: HoarderConfig): SaveParquet[F, A] =
+    new SaveParquet[F, A](rdd, ate, cfg)
 
-  def snappy: SaveParquet[F, A] = updateCompression(Compression.Snappy)
-  def gzip: SaveParquet[F, A]   = updateCompression(Compression.Gzip)
+  def snappy: SaveParquet[F, A] = updateConfig(cfg.withCompression(Compression.Snappy))
+  def gzip: SaveParquet[F, A]   = updateConfig(cfg.withCompression(Compression.Gzip))
 
   def run(
     blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], ss: SparkSession): F[Unit] = {
     implicit val encoder: AvroEncoder[A] = ate.avroCodec.avroEncoder
-    val sma: SaveModeAware[F]            = new SaveModeAware[F](params.saveMode, params.outPath, ss)
+
+    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
     sma.checkAndRun(blocker)(
       F.delay(
         ate
           .normalize(rdd)
           .write
-          .option("compression", compression.parquet.name)
+          .option("compression", params.compression.parquet.name)
           .mode(SaveMode.Overwrite)
           .parquet(params.outPath)))
   }
@@ -43,7 +40,6 @@ final class SaveParquet[F[_], A](
 final class PartitionParquet[F[_], A, K: ClassTag: Eq](
   rdd: RDD[A],
   ate: AvroTypedEncoder[A],
-  compression: Compression,
   cfg: HoarderConfig,
   bucketing: A => Option[K],
   pathBuilder: (NJFileFormat, K) => String)
@@ -51,11 +47,14 @@ final class PartitionParquet[F[_], A, K: ClassTag: Eq](
 
   val params: HoarderParams = cfg.evalConfig
 
-  private def updateCompression(compression: Compression): PartitionParquet[F, A, K] =
-    new PartitionParquet[F, A, K](rdd, ate, compression, cfg, bucketing, pathBuilder)
+  private def updateConfig(cfg: HoarderConfig): PartitionParquet[F, A, K] =
+    new PartitionParquet[F, A, K](rdd, ate, cfg, bucketing, pathBuilder)
 
-  def snappy: PartitionParquet[F, A, K] = updateCompression(Compression.Snappy)
-  def gzip: PartitionParquet[F, A, K]   = updateCompression(Compression.Gzip)
+  def snappy: PartitionParquet[F, A, K] =
+    updateConfig(cfg.withCompression(Compression.Snappy))
+
+  def gzip: PartitionParquet[F, A, K] =
+    updateConfig(cfg.withCompression(Compression.Gzip))
 
   def run(blocker: Blocker)(implicit
     F: Concurrent[F],
@@ -69,5 +68,5 @@ final class PartitionParquet[F[_], A, K: ClassTag: Eq](
       params.format,
       bucketing,
       pathBuilder,
-      (r, p) => new SaveParquet[F, A](r, ate, compression, cfg.withOutPutPath(p)).run(blocker))
+      (r, p) => new SaveParquet[F, A](r, ate, cfg.withOutPutPath(p)).run(blocker))
 }

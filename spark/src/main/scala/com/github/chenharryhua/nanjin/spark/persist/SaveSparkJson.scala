@@ -10,19 +10,15 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
 import scala.reflect.ClassTag
 
-final class SaveSparkJson[F[_], A](
-  rdd: RDD[A],
-  ate: AvroTypedEncoder[A],
-  compression: Compression,
-  cfg: HoarderConfig)
+final class SaveSparkJson[F[_], A](rdd: RDD[A], ate: AvroTypedEncoder[A], cfg: HoarderConfig)
     extends Serializable {
 
   val params: HoarderParams = cfg.evalConfig
 
-  private def updateCompression(compression: Compression): SaveSparkJson[F, A] =
-    new SaveSparkJson[F, A](rdd, ate, compression, cfg)
+  private def updateConfig(cfg: HoarderConfig): SaveSparkJson[F, A] =
+    new SaveSparkJson[F, A](rdd, ate, cfg)
 
-  def gzip: SaveSparkJson[F, A] = updateCompression(Compression.Gzip)
+  def gzip: SaveSparkJson[F, A] = updateConfig(cfg.withCompression(Compression.Gzip))
 
   def run(
     blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], ss: SparkSession): F[Unit] = {
@@ -34,7 +30,7 @@ final class SaveSparkJson[F[_], A](
           .normalize(rdd)
           .write
           .mode(SaveMode.Overwrite)
-          .option("compression", compression.json)
+          .option("compression", params.compression.json)
           .json(params.outPath)))
   }
 }
@@ -42,7 +38,6 @@ final class SaveSparkJson[F[_], A](
 final class PartitionSparkJson[F[_], A: ClassTag, K: ClassTag: Eq](
   rdd: RDD[A],
   ate: AvroTypedEncoder[A],
-  compression: Compression,
   cfg: HoarderConfig,
   bucketing: A => Option[K],
   pathBuilder: (NJFileFormat, K) => String)
@@ -50,10 +45,11 @@ final class PartitionSparkJson[F[_], A: ClassTag, K: ClassTag: Eq](
 
   val params: HoarderParams = cfg.evalConfig
 
-  private def updateCompression(compression: Compression): PartitionSparkJson[F, A, K] =
-    new PartitionSparkJson[F, A, K](rdd, ate, compression, cfg, bucketing, pathBuilder)
+  private def updateConfig(cfg: HoarderConfig): PartitionSparkJson[F, A, K] =
+    new PartitionSparkJson[F, A, K](rdd, ate, cfg, bucketing, pathBuilder)
 
-  def gzip: PartitionSparkJson[F, A, K] = updateCompression(Compression.Gzip)
+  def gzip: PartitionSparkJson[F, A, K] =
+    updateConfig(cfg.withCompression(Compression.Gzip))
 
   def run(blocker: Blocker)(implicit
     F: Concurrent[F],
@@ -67,5 +63,5 @@ final class PartitionSparkJson[F[_], A: ClassTag, K: ClassTag: Eq](
       params.format,
       bucketing,
       pathBuilder,
-      (r, p) => new SaveSparkJson[F, A](r, ate, compression, cfg.withOutPutPath(p)).run(blocker))
+      (r, p) => new SaveSparkJson[F, A](r, ate, cfg.withOutPutPath(p)).run(blocker))
 }
