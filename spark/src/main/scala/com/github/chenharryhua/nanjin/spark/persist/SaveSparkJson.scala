@@ -17,9 +17,11 @@ final class SaveSparkJson[F[_], A](rdd: RDD[A], ate: AvroTypedEncoder[A], cfg: H
   private def updateConfig(cfg: HoarderConfig): SaveSparkJson[F, A] =
     new SaveSparkJson[F, A](rdd, ate, cfg)
 
-  def gzip: SaveSparkJson[F, A]    = updateConfig(cfg.withCompression(Compression.Gzip))
-  def bzip2: SaveSparkJson[F, A]   = updateConfig(cfg.withCompression(Compression.Bzip2))
-  def deflate: SaveSparkJson[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(-1)))
+  def gzip: SaveSparkJson[F, A]  = updateConfig(cfg.withCompression(Compression.Gzip))
+  def bzip2: SaveSparkJson[F, A] = updateConfig(cfg.withCompression(Compression.Bzip2))
+
+  def deflate(level: Int): SaveSparkJson[F, A] = updateConfig(
+    cfg.withCompression(Compression.Deflate(level)))
 
   def run(
     blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], ss: SparkSession): F[Unit] = {
@@ -55,8 +57,8 @@ final class PartitionSparkJson[F[_], A: ClassTag, K: ClassTag: Eq](
   def bzip2: PartitionSparkJson[F, A, K] =
     updateConfig(cfg.withCompression(Compression.Bzip2))
 
-  def deflate: PartitionSparkJson[F, A, K] =
-    updateConfig(cfg.withCompression(Compression.Deflate(-1)))
+  def deflate(level: Int): PartitionSparkJson[F, A, K] =
+    updateConfig(cfg.withCompression(Compression.Deflate(level)))
 
   def run(blocker: Blocker)(implicit
     F: Concurrent[F],
