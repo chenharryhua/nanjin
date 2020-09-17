@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import frameless.TypedEncoder
 import io.circe.{Encoder => JsonEncoder}
 import kantan.csv.{CsvConfiguration, RowEncoder}
+import org.apache.avro.file.CodecFactory
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import scalapb.GeneratedMessage
@@ -61,7 +62,11 @@ final class RddFileHoarder[F[_], A: ClassTag](
 
   // 12
   def avro(outPath: String): SaveAvro[F, A] =
-    new SaveAvro[F, A](rdd, codec, cfg.withFormat(Avro).withOutPutPath(outPath))
+    new SaveAvro[F, A](
+      rdd,
+      codec,
+      Compression.Uncompressed,
+      cfg.withFormat(Avro).withOutPutPath(outPath))
 
 // 13
   def binAvro(outPath: String): SaveBinaryAvro[F, A] =
