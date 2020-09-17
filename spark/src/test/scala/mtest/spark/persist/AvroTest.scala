@@ -25,7 +25,7 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/rooster/multi.snappy.avro"
     delete(path)
     val saver = new RddFileHoarder[IO, Rooster](rdd, Rooster.avroCodec)
-    saver.repartition(1).avro(path).folder.snappy.run(blocker).unsafeRunSync()
+    saver.repartition(2).avro(path).folder.snappy.run(blocker).unsafeRunSync()
     val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec).collect().toSet
     val t = loaders.avro[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
     assert(expected == r)
@@ -37,7 +37,7 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/rooster/multi.deflate.avro"
     delete(path)
     val saver = new RddFileHoarder[IO, Rooster](rdd, Rooster.avroCodec)
-    saver.repartition(1).avro(path).folder.deflate(3).run(blocker).unsafeRunSync()
+    saver.repartition(3).avro(path).folder.deflate(3).run(blocker).unsafeRunSync()
     val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec).collect().toSet
     val t = loaders.avro[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
     assert(expected == r)
@@ -48,7 +48,7 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/rooster/multi.xz.avro"
     delete(path)
     val saver = new RddFileHoarder[IO, Rooster](rdd, Rooster.avroCodec)
-    saver.repartition(1).avro(path).folder.xz(3).run(blocker).unsafeRunSync()
+    saver.repartition(4).avro(path).folder.xz(3).run(blocker).unsafeRunSync()
     val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec).collect().toSet
     val t = loaders.avro[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
     assert(expected == r)
@@ -59,7 +59,7 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/rooster/multi.bzip2.avro"
     delete(path)
     val saver = new RddFileHoarder[IO, Rooster](rdd, Rooster.avroCodec)
-    saver.repartition(1).avro(path).folder.bzip2.run(blocker).unsafeRunSync()
+    saver.repartition(5).avro(path).folder.bzip2.run(blocker).unsafeRunSync()
     val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec).collect().toSet
     val t = loaders.avro[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
     assert(expected == r)

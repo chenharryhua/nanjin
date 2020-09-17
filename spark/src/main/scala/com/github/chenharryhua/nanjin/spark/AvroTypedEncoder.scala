@@ -51,6 +51,9 @@ final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], te: TypedE
 
   def normalizeDF(ds: DataFrame): TypedDataset[A] =
     normalize(TypedDataset.createUnsafe(ds)(te))
+
+  def emptyDataset(implicit ss: SparkSession): TypedDataset[A] =
+    normalize(ss.sparkContext.emptyRDD[A](classTag))
 }
 
 object AvroTypedEncoder {

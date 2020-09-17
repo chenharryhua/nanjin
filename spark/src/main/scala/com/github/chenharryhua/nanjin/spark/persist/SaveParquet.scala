@@ -19,9 +19,6 @@ final class SaveParquet[F[_], A](
 
   val params: HoarderParams = cfg.evalConfig
 
-  private def updateConfig(cfg: HoarderConfig): SaveParquet[F, A] =
-    new SaveParquet[F, A](rdd, ate, compression, cfg)
-
   private def updateCompression(compression: Compression): SaveParquet[F, A] =
     new SaveParquet[F, A](rdd, ate, compression, cfg)
 
@@ -53,6 +50,12 @@ final class PartitionParquet[F[_], A, K: ClassTag: Eq](
     extends AbstractPartition[F, A, K] {
 
   val params: HoarderParams = cfg.evalConfig
+
+  private def updateCompression(compression: Compression): PartitionParquet[F, A, K] =
+    new PartitionParquet[F, A, K](rdd, ate, compression, cfg, bucketing, pathBuilder)
+
+  def snappy: PartitionParquet[F, A, K] = updateCompression(Compression.Snappy)
+  def gzip: PartitionParquet[F, A, K]   = updateCompression(Compression.Gzip)
 
   def run(blocker: Blocker)(implicit
     F: Concurrent[F],
