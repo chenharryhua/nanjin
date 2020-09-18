@@ -3,25 +3,24 @@ package mtest.spark
 import better.files._
 import cats.effect.IO
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.spark._
-import com.github.chenharryhua.nanjin.spark.persist.{SingleFileSink, SingleFileSource}
-import com.github.chenharryhua.nanjin.spark.persist.{fileSink,fileSource}
+import com.github.chenharryhua.nanjin.spark.persist.{
+  fileSink,
+  fileSource,
+  SingleFileSink,
+  SingleFileSource
+}
+import frameless.TypedEncoder
 import frameless.cats.implicits._
 import fs2.Stream
 import io.circe.generic.auto._
-import kantan.csv.CsvConfiguration
-import org.scalatest.funsuite.AnyFunSuite
+import kantan.csv.{CsvConfiguration, RowDecoder, RowEncoder}
 import kantan.csv.generic._
 import mtest.spark.pb.test.Whale
-
-import scala.util.Random
-import com.sksamuel.avro4s.Encoder
-import com.sksamuel.avro4s.Decoder
-import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
-import kantan.csv.RowEncoder
-import kantan.csv.RowDecoder
 import org.apache.avro.file.CodecFactory
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
+import org.scalatest.funsuite.AnyFunSuite
+
+import scala.util.Random
 
 object SingleFileTestData {
   final case class Swordfish(from: String, weight: Float, code: Int)
@@ -41,6 +40,11 @@ object SingleFileTestData {
     Whale("ccc", Random.nextInt())
   )
   val whaleStream: Stream[IO, Whale] = Stream.emits(whales).covary[IO]
+
+  implicit val te: TypedEncoder[Swordfish] = shapeless.cachedImplicit
+  implicit val rd: RowDecoder[Swordfish]   = shapeless.cachedImplicit
+  implicit val re: RowEncoder[Swordfish]   = shapeless.cachedImplicit
+
 }
 
 class SingleFileTest extends AnyFunSuite {
@@ -50,7 +54,7 @@ class SingleFileTest extends AnyFunSuite {
   def delete(path: String): IO[Boolean] = sink.delete(path)
 
   test("spark avro - identity") {
-    val path = "./data/test/spark/singleFile/swordfish.avro"
+    val path = "./data/test/spark/singleFile/swordfish.snappy.avro"
     val run = delete(path) >>
       fishStream.through(sink.avro[Swordfish](path, CodecFactory.snappyCodec)).compile.drain >>
       source.avro[Swordfish](path).compile.toList
@@ -68,9 +72,12 @@ class SingleFileTest extends AnyFunSuite {
   }
 
   test("spark parquet - identity") {
-    val path = "./data/test/spark/singleFile/swordfish.parquet"
+    val path = "./data/test/spark/singleFile/swordfish.snappy.parquet"
     val run = delete(path) >>
-      fishStream.through(sink.parquet[Swordfish](path,CompressionCodecName.SNAPPY)).compile.drain >>
+      fishStream
+        .through(sink.parquet[Swordfish](path, CompressionCodecName.SNAPPY))
+        .compile
+        .drain >>
       source.parquet[Swordfish](path).compile.toList
 
     assert(run.unsafeRunSync() === fishes)

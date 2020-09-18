@@ -10,7 +10,7 @@ import com.github.chenharryhua.nanjin.spark.persist.loaders
 import frameless.TypedEncoder
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.types.{DecimalType, IntegerType, StructField, StructType, TimestampType}
+import org.apache.spark.sql.types._
 import org.apache.spark.sql.{DataFrame, Dataset, SaveMode}
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -55,11 +55,11 @@ object AvroTypedEncoderTestData {
 
   implicit val roundingMode: BigDecimal.RoundingMode.Value = RoundingMode.HALF_UP
 
-  implicit val codec: AvroCodec[Lion]      = AvroCodec[Lion](schemaText).right.get
+  val codec: AvroCodec[Lion]               = AvroCodec[Lion](schemaText).right.get
   implicit val encoder: TypedEncoder[Lion] = shapeless.cachedImplicit
-  implicit val ate: AvroTypedEncoder[Lion] = AvroTypedEncoder[Lion](codec)
+  val ate: AvroTypedEncoder[Lion]          = AvroTypedEncoder[Lion](codec)
 
-  val now = Instant.now
+  val now: Instant = Instant.now
 
   val lions: List[Lion] = List(
     Lion(1, now, BigDecimal("1234.567")),
@@ -79,15 +79,16 @@ object AvroTypedEncoderTestData {
 
   val expectedSchema: StructType = StructType(
     List(
-      StructField("index", IntegerType, false),
-      StructField("a", TimestampType, false),
-      StructField("b", DecimalType(7, 3), false)))
+      StructField("index", IntegerType, nullable = false),
+      StructField("a", TimestampType, nullable = false),
+      StructField("b", DecimalType(7, 3), nullable = false)))
 
   val rdd: RDD[Lion] = sparkSession.sparkContext.parallelize(lions)
   import sparkSession.implicits._
 
   val ds: Dataset[Lion] = sparkSession.createDataset(lions)
   val df: DataFrame     = ds.toDF()
+
 }
 
 class AvroTypedEncoderTest extends AnyFunSuite {
@@ -143,7 +144,8 @@ class AvroTypedEncoderTest extends AnyFunSuite {
   }
 
   test("empty set") {
-    assert(ate.emptyDataset.count[IO].unsafeRunSync() == 0)
+    val eds = ate.emptyDataset
+    assert(eds.count[IO].unsafeRunSync() == 0)
+    assert(eds.schema == expectedSchema)
   }
-
 }

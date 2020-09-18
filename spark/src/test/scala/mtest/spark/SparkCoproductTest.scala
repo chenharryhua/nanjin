@@ -30,7 +30,4 @@ class SparkCoproductTest extends AnyFunSuite {
     illTyped(""" implicitly[TypedEncoder[CoParent]] """)
     illTyped(""" implicitly[TypedEncoder[Address]] """)
   }
-  test("support coproduct should be compile") {
-    val phone = TypedEncoder[PhoneType.Value]
-  }
 }
