@@ -42,18 +42,16 @@ final class SaveCsv[F[_], A](
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
-        val hadoop =
-          new NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker).byteSink(params.outPath)
-        val pipe =
-          new CsvSerialization[F, A](rowEncoder, csvConfiguration, blocker)
+        val hadoop = new NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)
+        val pipe   = new CsvSerialization[F, A](rowEncoder, csvConfiguration, blocker)
 
         sma.checkAndRun(blocker)(
           rdd
             .map(ate.avroCodec.idConversion)
             .stream[F]
             .through(pipe.serialize)
-            .through(params.compression.byteCompress[F])
-            .through(hadoop)
+            .through(params.compression.ccg.pipe)
+            .through(hadoop.byteSink(params.outPath))
             .compile
             .drain)
       case FolderOrFile.Folder =>
@@ -62,7 +60,7 @@ final class SaveCsv[F[_], A](
             .normalize(rdd)
             .write
             .mode(SaveMode.Overwrite)
-            .option("compression", params.compression.textCodec)
+            .option("compression", params.compression.ccg.name)
             .option("sep", csvConfiguration.cellSeparator.toString)
             .option("header", csvConfiguration.hasHeader)
             .option("quote", csvConfiguration.quote.toString)
