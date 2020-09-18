@@ -68,9 +68,6 @@ final class PartitionText[F[_], A: ClassTag, K: ClassTag: Eq](
   private def updateConfig(cfg: HoarderConfig): PartitionText[F, A, K] =
     new PartitionText[F, A, K](rdd, codec, cfg, bucketing, pathBuilder)
 
-  def file: PartitionText[F, A, K]   = updateConfig(cfg.withSingleFile)
-  def folder: PartitionText[F, A, K] = updateConfig(cfg.withFolder)
-
   def gzip: PartitionText[F, A, K] = updateConfig(cfg.withCompression(Compression.Gzip))
 
   def deflate(level: Int): PartitionText[F, A, K] =

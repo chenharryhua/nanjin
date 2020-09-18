@@ -8,6 +8,7 @@ import cats.effect.IO
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.spark.kafka._
+import frameless.TypedEncoder
 import fs2.kafka.ProducerRecord
 import io.circe.generic.auto._
 import org.scalatest.funsuite.AnyFunSuite
@@ -30,6 +31,8 @@ object PartitionTestData {
     topic.fs2PR(Random.nextInt(), Shark(Random.nextInt(), "today")).withTimestamp(today))
 
   val data: List[ProducerRecord[Int, Shark]] = yt ++ tt
+
+  implicit val te: TypedEncoder[Shark] = shapeless.cachedImplicit
 }
 
 class PartitionTest extends AnyFunSuite {
@@ -53,5 +56,22 @@ class PartitionTest extends AnyFunSuite {
   }
   test("partition text") {
     topic.sparKafka.fromKafka.flatMap(_.partition.file.text.run(blocker)).unsafeRunSync()
+  }
+
+  test("partition bzip2 avro") {
+    topic.sparKafka.fromKafka.flatMap(_.partition.folder.avro.bzip2.run(blocker)).unsafeRunSync()
+  }
+  test("partition snappy parquet") {
+    topic.sparKafka.fromKafka
+      .flatMap(_.partition.folder.parquet.snappy.run(blocker))
+      .unsafeRunSync()
+  }
+  test("partition gzip circe") {
+    topic.sparKafka.fromKafka.flatMap(_.partition.folder.circe.gzip.run(blocker)).unsafeRunSync()
+  }
+  test("partition deflate text") {
+    topic.sparKafka.fromKafka
+      .flatMap(_.partition.folder.text.deflate(6).run(blocker))
+      .unsafeRunSync()
   }
 }

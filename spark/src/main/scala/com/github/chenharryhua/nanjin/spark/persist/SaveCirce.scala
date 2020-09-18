@@ -70,9 +70,6 @@ final class PartitionCirce[F[_], A: ClassTag, K: ClassTag: Eq](
   private def updateConfig(cfg: HoarderConfig): PartitionCirce[F, A, K] =
     new PartitionCirce[F, A, K](rdd, codec, cfg, bucketing, pathBuilder)
 
-  def file: PartitionCirce[F, A, K]   = updateConfig(cfg.withSingleFile)
-  def folder: PartitionCirce[F, A, K] = updateConfig(cfg.withFolder)
-
   def gzip: PartitionCirce[F, A, K] = updateConfig(cfg.withCompression(Compression.Gzip))
 
   def deflate(level: Int): PartitionCirce[F, A, K] =

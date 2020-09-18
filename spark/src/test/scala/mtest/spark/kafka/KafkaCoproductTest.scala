@@ -87,4 +87,29 @@ class KafkaCoproductTest extends AnyFunSuite {
       IO(topicEnum.topicDef.load.rdd.avro(path).take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
+
+  test("should be sent to kafka and save to multi snappy avro") {
+    val data = List(topicEnum.fs2PR(0, en1), topicEnum.fs2PR(1, en2))
+    val path = "./data/test/spark/kafka/coproduct/multi-scalaenum.snappy.avro"
+    val sk   = topicEnum.sparKafka
+
+    val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
+      topicEnum.schemaRegister >>
+      topicEnum.send(data) >>
+      sk.fromKafka.flatMap(_.save.avro(path).folder.snappy.run(blocker)) >>
+      IO(topicEnum.topicDef.load.rdd.avro(path).take(10).toSet)
+    assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
+  }
+  test("should be sent to kafka and save to single snappy avro") {
+    val data = List(topicEnum.fs2PR(0, en1), topicEnum.fs2PR(1, en2))
+    val path = "./data/test/spark/kafka/coproduct/single-scalaenum.snappy.avro"
+    val sk   = topicEnum.sparKafka
+
+    val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
+      topicEnum.schemaRegister >>
+      topicEnum.send(data) >>
+      sk.fromKafka.flatMap(_.save.avro(path).file.snappy.run(blocker)) >>
+      IO(topicEnum.topicDef.load.rdd.avro(path).take(10).toSet)
+    assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
+  }
 }

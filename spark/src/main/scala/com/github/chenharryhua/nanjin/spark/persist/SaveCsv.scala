@@ -89,9 +89,6 @@ final class PartitionCsv[F[_], A, K: ClassTag: Eq](
   private def updateConfig(cfg: HoarderConfig): PartitionCsv[F, A, K] =
     new PartitionCsv[F, A, K](rdd, ate, csvConfiguration, cfg, bucketing, pathBuilder)
 
-  def file: PartitionCsv[F, A, K]   = updateConfig(cfg.withSingleFile)
-  def folder: PartitionCsv[F, A, K] = updateConfig(cfg.withFolder)
-
   def gzip: PartitionCsv[F, A, K] = updateConfig(cfg.withCompression(Compression.Gzip))
 
   def deflate(level: Int): PartitionCsv[F, A, K] =
