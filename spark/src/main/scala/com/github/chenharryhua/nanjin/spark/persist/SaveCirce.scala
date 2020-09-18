@@ -8,7 +8,6 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.pipes.CirceSerialization
 import com.github.chenharryhua.nanjin.spark.RddExt
 import io.circe.{Encoder => JsonEncoder}
-import org.apache.hadoop.io.compress.{CompressionCodec, DeflateCodec, GzipCodec}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
@@ -34,25 +33,17 @@ final class SaveCirce[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], cfg: 
     blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], ss: SparkSession): F[Unit] = {
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
 
-    val cc: Class[_ <: CompressionCodec] = params.compression match {
-      case Compression.Uncompressed   => null
-      case Compression.Gzip           => classOf[GzipCodec]
-      case Compression.Deflate(level) => classOf[DeflateCodec]
-      case c                          => throw new Exception(s"not support $c")
-    }
-
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
-        val hadoop =
-          new NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker).byteSink(params.outPath)
-        val pipe = new CirceSerialization[F, A](jsonEncoder)
+        val hadoop = new NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)
+        val pipe   = new CirceSerialization[F, A](jsonEncoder)
         sma.checkAndRun(blocker)(
           rdd
             .map(codec.idConversion)
             .stream[F]
             .through(pipe.serialize)
-            .through(params.compression.byteCompress[F])
-            .through(hadoop)
+            .through(params.compression.ccg.pipe)
+            .through(hadoop.byteSink(params.outPath))
             .compile
             .drain)
       case FolderOrFile.Folder =>
@@ -60,7 +51,7 @@ final class SaveCirce[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], cfg: 
           F.delay(
             rdd
               .map(a => jsonEncoder(codec.idConversion(a)).noSpaces)
-              .saveAsTextFile(params.outPath, cc)))
+              .saveAsTextFile(params.outPath, params.compression.ccg.klass)))
     }
   }
 }
@@ -77,9 +68,6 @@ final class PartitionCirce[F[_], A: ClassTag, K: ClassTag: Eq](
 
   private def updateConfig(cfg: HoarderConfig): PartitionCirce[F, A, K] =
     new PartitionCirce[F, A, K](rdd, codec, cfg, bucketing, pathBuilder)
-
-  def file: PartitionCirce[F, A, K]   = updateConfig(cfg.withSingleFile)
-  def folder: PartitionCirce[F, A, K] = updateConfig(cfg.withFolder)
 
   def gzip: PartitionCirce[F, A, K] = updateConfig(cfg.withCompression(Compression.Gzip))
 

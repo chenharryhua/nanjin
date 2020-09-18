@@ -2,12 +2,19 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.Sync
 import fs2.Pipe
+import fs2.compression.{deflate, gzip}
 import org.apache.avro.file.{CodecFactory, DataFileConstants}
 import org.apache.avro.mapred.AvroOutputFormat
 import org.apache.avro.mapreduce.AvroJob
 import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.io.compress.{CompressionCodec, DeflateCodec, GzipCodec}
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
+
+final private[persist] case class CompressionCodecGroup[F[_]](
+  klass: Class[_ <: CompressionCodec],
+  name: String,
+  pipe: Pipe[F, Byte, Byte])
 
 private[persist] trait Compression {
 
@@ -44,19 +51,14 @@ private[persist] trait Compression {
     case c                        => throw new Exception(s"not support $c")
   }
 
-  def textCodec: String = this match {
-    case Compression.Uncompressed => "uncompressed"
-    case Compression.Gzip         => "gzip"
-    case Compression.Bzip2        => "bzip2"
-    case Compression.Deflate(_)   => "deflate"
-    case c                        => s"not support $c"
-  }
-
-  def byteCompress[F[_]: Sync]: Pipe[F, Byte, Byte] = this match {
-    case Compression.Uncompressed   => identity
-    case Compression.Gzip           => fs2.compression.gzip[F]()
-    case Compression.Deflate(level) => fs2.compression.deflate(level)
-    case c                          => throw new Exception(s"not support $c")
+  def ccg[F[_]: Sync]: CompressionCodecGroup[F] = this match {
+    case Compression.Uncompressed =>
+      CompressionCodecGroup[F](null, "uncompressed", identity)
+    case Compression.Gzip =>
+      CompressionCodecGroup[F](classOf[GzipCodec], "gzip", gzip[F]())
+    case Compression.Deflate(level) =>
+      CompressionCodecGroup[F](classOf[DeflateCodec], "deflate", deflate[F](level))
+    case c => throw new Exception(s"not support $c")
   }
 }
 
