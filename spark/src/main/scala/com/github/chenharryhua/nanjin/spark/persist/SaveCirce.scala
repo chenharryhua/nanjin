@@ -35,16 +35,15 @@ final class SaveCirce[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], cfg: 
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
-        val hadoop =
-          new NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker).byteSink(params.outPath)
-        val pipe = new CirceSerialization[F, A](jsonEncoder)
+        val hadoop = new NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)
+        val pipe   = new CirceSerialization[F, A](jsonEncoder)
         sma.checkAndRun(blocker)(
           rdd
             .map(codec.idConversion)
             .stream[F]
             .through(pipe.serialize)
             .through(params.compression.ccg.pipe)
-            .through(hadoop)
+            .through(hadoop.byteSink(params.outPath))
             .compile
             .drain)
       case FolderOrFile.Folder =>
