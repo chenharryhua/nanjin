@@ -4,19 +4,20 @@ import java.time.LocalDateTime
 
 import cats.effect.IO
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.datetime._
-import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.injection._
-import com.github.chenharryhua.nanjin.spark.persist.{fileSink, fileSource}
+import com.github.chenharryhua.nanjin.spark.persist.{
+  fileSink,
+  fileSource,
+  SingleFileSink,
+  SingleFileSource
+}
 import frameless.cats.implicits._
 import fs2.Stream
-import org.scalatest.funsuite.AnyFunSuite
+import kantan.csv.{RowDecoder, RowEncoder}
 import kantan.csv.generic._
 import kantan.csv.java8._
-import kantan.csv.RowEncoder
-import kantan.csv.RowDecoder
-import com.sksamuel.avro4s.Encoder
 import org.apache.avro.file.CodecFactory
+import org.scalatest.funsuite.AnyFunSuite
 
 object SingleWriteSparkReadTestData {
   final case class Elephant(birthDay: LocalDateTime, weight: Double, food: List[String])
@@ -26,14 +27,16 @@ object SingleWriteSparkReadTestData {
     Elephant(LocalDateTime.of(2021, 6, 1, 12, 10, 10), 200.3, List("lemon")),
     Elephant(LocalDateTime.of(2022, 6, 1, 12, 10, 10), 300.3, List("rice", "leaf", "grass"))
   )
+  implicit val rd: RowDecoder[Elephant] = shapeless.cachedImplicit
+  implicit val re: RowEncoder[Elephant] = shapeless.cachedImplicit
+
 }
 
 class SingleWriteSparkReadTest extends AnyFunSuite {
   import SingleWriteSparkReadTestData._
-  val sink                 = fileSink[IO](blocker)
-  val source               = fileSource[IO](blocker)
-  def delete(path: String) = sink.delete(path)
-  implicit val zoneId      = sydneyTime
+  val sink: SingleFileSink[IO]          = fileSink[IO](blocker)
+  val source: SingleFileSource[IO]      = fileSource[IO](blocker)
+  def delete(path: String): IO[Boolean] = sink.delete(path)
 
   test("spark source is able to read varying length csv") {
     val path = "./data/test/spark/sse/elephant-spark.csv"

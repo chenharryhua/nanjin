@@ -10,6 +10,7 @@ import mtest.spark.pb.test.Whale
 import org.apache.spark.sql.{DataFrame, Dataset, SaveMode}
 import org.scalatest.funsuite.AnyFunSuite
 import cats.derived.auto.eq._
+import org.apache.spark.rdd.RDD
 
 import scala.util.Random
 
@@ -32,7 +33,7 @@ object JoinTestData {
     Sister(3, "z")
   )
 
-  val rdd = sparkSession.sparkContext.parallelize(sisters)
+  val rdd: RDD[Sister] = sparkSession.sparkContext.parallelize(sisters)
 
   object Fruit extends Enumeration {
     val Apple, Watermelon = Value
@@ -78,7 +79,7 @@ class MiscTest extends AnyFunSuite {
     tds.printSchema()
   }
 
-  test("schema") {
+  test("gen schema") {
     import sparkSession.implicits._
     val s = TypedExpressionEncoder.targetStructType(se)
     val df: DataFrame =
