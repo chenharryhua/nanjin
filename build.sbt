@@ -55,7 +55,7 @@ val avro4s  = "4.0.0"
 
 // connect
 val hadoop  = "3.3.0"
-val akkaFtp = "2.0.1"
+val akkaFtp = "2.0.2"
 
 // misc
 val silencer    = "1.7.1"
@@ -113,7 +113,7 @@ val hadoopLib = Seq(
   "org.apache.hadoop" % "hadoop-client",
   "org.apache.hadoop" % "hadoop-hdfs"
 ).map(_               % hadoop) ++
-  Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.860")
+  Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.865")
 
 val neotypesLib = Seq(
   "com.dimafeng" %% "neotypes",
