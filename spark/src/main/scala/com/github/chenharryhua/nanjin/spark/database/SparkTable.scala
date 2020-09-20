@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.spark.database
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.database.{DatabaseName, DatabaseSettings, TableName}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
+import frameless.TypedDataset
 import org.apache.spark.sql.{Dataset, SparkSession}
 
 final class SparkTable[F[_], A](
@@ -33,5 +34,8 @@ final class SparkTable[F[_], A](
 
   def tableset(ds: Dataset[A]): TableDataset[F, A] =
     new TableDataset[F, A](ate.normalize(ds).dataset, dbSettings, cfg)
+
+  def tableset(tds: TypedDataset[A]): TableDataset[F, A] =
+    new TableDataset[F, A](ate.normalize(tds).dataset, dbSettings, cfg)
 
 }
