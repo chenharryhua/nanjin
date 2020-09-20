@@ -28,6 +28,8 @@ final class SparKafka[F[_], K, V](
 
   implicit private val ss: SparkSession = sparkSession
 
+  val avroCodec: AvroCodec[OptionalKV[K, V]] = shapeless.cachedImplicit
+
   override def withParamUpdate(f: SKConfig => SKConfig): SparKafka[F, K, V] =
     new SparKafka[F, K, V](topic, sparkSession, f(cfg))
 
