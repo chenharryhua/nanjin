@@ -14,20 +14,24 @@ final class FtpSink[F[_], C, S <: RemoteFileSettings](
   uploader: FtpUploader[F, C, S],
   blocker: Blocker) {
 
-  def csv[A](pathStr: String, enc: RowEncoder[A], csvConfig: CsvConfiguration)(implicit
-    cr: Concurrent[F],
+  def csv[A](pathStr: String, csvConfig: CsvConfiguration)(implicit
+    enc: RowEncoder[A],
+    cr: ConcurrentEffect[F],
     cs: ContextShift[F]): Pipe[F, A, IOResult] = {
-    val pipe = new CsvSerialization[F, A](enc, csvConfig, blocker)
-    _.through(pipe.serialize).through(uploader.upload(pathStr))
+    val pipe = new CsvSerialization[F, A](csvConfig)
+    _.through(pipe.serialize(blocker)).through(uploader.upload(pathStr))
   }
 
-  def csv[A](pathStr: String, enc: RowEncoder[A])(implicit
-    cr: Concurrent[F],
+  def csv[A](pathStr: String)(implicit
+    enc: RowEncoder[A],
+    cr: ConcurrentEffect[F],
     cs: ContextShift[F]): Pipe[F, A, IOResult] =
-    csv[A](pathStr, enc, CsvConfiguration.rfc)
+    csv[A](pathStr, CsvConfiguration.rfc)
 
-  def json[A: JsonEncoder](pathStr: String): Pipe[F, A, IOResult] = {
-    val pipe = new CirceSerialization[F, A](JsonEncoder[A])
+  def json[A: JsonEncoder](pathStr: String)(implicit
+    cr: ConcurrentEffect[F],
+    cs: ContextShift[F]): Pipe[F, A, IOResult] = {
+    val pipe = new CirceSerialization[F, A]
     _.through(pipe.serialize).through(uploader.upload(pathStr))
   }
 
@@ -35,11 +39,13 @@ final class FtpSink[F[_], C, S <: RemoteFileSettings](
     cs: ContextShift[F],
     ce: ConcurrentEffect[F]): Pipe[F, A, IOResult] = {
     val pipe = new JacksonSerialization[F](AvroEncoder[A].schema)
-    val gr   = new GenericRecordEncoder[F, A](AvroEncoder[A])
+    val gr   = new GenericRecordEncoder[F, A]
     _.through(gr.encode).through(pipe.serialize).through(uploader.upload(pathStr))
   }
 
-  def text(pathStr: String): Pipe[F, String, IOResult] = {
+  def text(pathStr: String)(implicit
+    cr: ConcurrentEffect[F],
+    cs: ContextShift[F]): Pipe[F, String, IOResult] = {
     val pipe = new TextSerialization[F]
     _.through(pipe.serialize).through(uploader.upload(pathStr))
   }

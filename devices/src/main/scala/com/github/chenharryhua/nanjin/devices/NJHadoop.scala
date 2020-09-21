@@ -19,51 +19,55 @@ import org.apache.parquet.hadoop.{ParquetFileWriter, ParquetWriter}
 
 import scala.collection.JavaConverters._
 
-final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: Blocker) {
+final class NJHadoop[F[_]](config: Configuration, blocker: Blocker) {
 
-  private def fileSystem(pathStr: String): Resource[F, FileSystem] =
+  private def fileSystem(
+    pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): Resource[F, FileSystem] =
     Resource.fromAutoCloseableBlocking(blocker)(
       blocker.delay(FileSystem.get(new URI(pathStr), config)))
 
-  private def fsOutput(pathStr: String): Resource[F, FSDataOutputStream] =
+  private def fsOutput(
+    pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): Resource[F, FSDataOutputStream] =
     for {
       fs <- fileSystem(pathStr)
       rs <- Resource.fromAutoCloseableBlocking(blocker)(blocker.delay(fs.create(new Path(pathStr))))
     } yield rs
 
-  private def fsInput(pathStr: String): Resource[F, FSDataInputStream] =
+  private def fsInput(
+    pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): Resource[F, FSDataInputStream] =
     for {
       fs <- fileSystem(pathStr)
       rs <- Resource.fromAutoCloseableBlocking(blocker)(blocker.delay(fs.open(new Path(pathStr))))
     } yield rs
 
-  def delete(pathStr: String): F[Boolean] =
+  def delete(pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): F[Boolean] =
     fileSystem(pathStr).use(fs => blocker.delay(fs.delete(new Path(pathStr), true)))
 
-  def isExist(pathStr: String): F[Boolean] =
+  def isExist(pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): F[Boolean] =
     fileSystem(pathStr).use(fs => blocker.delay(fs.exists(new Path(pathStr))))
 
-  def byteSink(pathStr: String): Pipe[F, Byte, Unit] = { (ss: Stream[F, Byte]) =>
-    for {
-      fs <- Stream.resource(fsOutput(pathStr))
-      _ <- ss.through(writeOutputStream[F](blocker.delay(fs), blocker))
-    } yield ()
+  def byteSink(pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): Pipe[F, Byte, Unit] = {
+    (ss: Stream[F, Byte]) =>
+      for {
+        fs <- Stream.resource(fsOutput(pathStr))
+        _ <- ss.through(writeOutputStream[F](blocker.delay(fs), blocker))
+      } yield ()
   }
 
-  def inputStream(pathStr: String): Stream[F, InputStream] =
+  def inputStream(
+    pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): Stream[F, InputStream] =
     Stream.resource(fsInput(pathStr).widen)
 
-  def byteStream(pathStr: String): Stream[F, Byte] =
+  def byteStream(pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): Stream[F, Byte] =
     for {
       is <- inputStream(pathStr)
       bt <- readInputStream[F](blocker.delay(is), chunkSize, blocker)
     } yield bt
 
   /// parquet
-  def parquetSink(
-    pathStr: String,
-    schema: Schema,
-    ccn: CompressionCodecName): Pipe[F, GenericRecord, Unit] = {
+  def parquetSink(pathStr: String, schema: Schema, ccn: CompressionCodecName)(implicit
+    F: Sync[F],
+    cs: ContextShift[F]): Pipe[F, GenericRecord, Unit] = {
     def go(
       grs: Stream[F, GenericRecord],
       writer: ParquetWriter[GenericRecord]): Pull[F, Unit, Unit] =
@@ -91,7 +95,9 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
       } yield ()
   }
 
-  def parquetSource(pathStr: String, schema: Schema): Stream[F, GenericRecord] = {
+  def parquetSource(pathStr: String, schema: Schema)(implicit
+    F: Sync[F],
+    cs: ContextShift[F]): Stream[F, GenericRecord] = {
     val inputFile = HadoopInputFile.fromPath(new Path(pathStr), config)
     AvroReadSupport.setAvroReadSchema(config, schema)
     for {
@@ -108,7 +114,9 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
   }
 
   // avro data
-  def avroSink(pathStr: String, schema: Schema, cf: CodecFactory): Pipe[F, GenericRecord, Unit] = {
+  def avroSink(pathStr: String, schema: Schema, cf: CodecFactory)(implicit
+    F: Sync[F],
+    cs: ContextShift[F]): Pipe[F, GenericRecord, Unit] = {
     def go(
       grs: Stream[F, GenericRecord],
       writer: DataFileWriter[GenericRecord]): Pull[F, Unit, Unit] =
@@ -127,7 +135,9 @@ final class NJHadoop[F[_]: Sync: ContextShift](config: Configuration, blocker: B
       } yield ()
   }
 
-  def avroSource(pathStr: String, schema: Schema): Stream[F, GenericRecord] =
+  def avroSource(pathStr: String, schema: Schema)(implicit
+    F: Sync[F],
+    cs: ContextShift[F]): Stream[F, GenericRecord] =
     for {
       is <- Stream.resource(fsInput(pathStr))
       dfs <- Stream.resource(

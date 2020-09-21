@@ -1,21 +1,14 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.{Eq, Show}
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.common.NJFileFormat._
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import frameless.TypedEncoder
-import io.circe.{Encoder => JsonEncoder}
-import kantan.csv.{CsvConfiguration, RowEncoder}
-import org.apache.avro.file.CodecFactory
+import kantan.csv.CsvConfiguration
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.SparkSession
-import scalapb.GeneratedMessage
 
-import scala.reflect.ClassTag
-
-class RddPartitionHoarder[F[_], A: ClassTag, K: Eq: ClassTag](
+class RddPartitionHoarder[F[_], A, K](
   rdd: RDD[A],
   codec: AvroCodec[A],
   bucketing: A => Option[K],
@@ -36,7 +29,7 @@ class RddPartitionHoarder[F[_], A: ClassTag, K: Eq: ClassTag](
   def parallel(num: Long): RddPartitionHoarder[F, A, K] =
     updateConfig(cfg.withParallel(num))
 
-  def reBucket[K1: ClassTag: Eq](
+  def reBucket[K1](
     bucketing: A => Option[K1],
     pathBuilder: (NJFileFormat, K1) => String): RddPartitionHoarder[F, A, K1] =
     new RddPartitionHoarder[F, A, K1](rdd, codec, bucketing, pathBuilder, cfg)
@@ -49,15 +42,15 @@ class RddPartitionHoarder[F[_], A: ClassTag, K: Eq: ClassTag](
     new PartitionJackson[F, A, K](rdd, codec, cfg.withFormat(Jackson), bucketing, pathBuilder)
 
 // 2
-  def circe(implicit ev: JsonEncoder[A]): PartitionCirce[F, A, K] =
+  def circe: PartitionCirce[F, A, K] =
     new PartitionCirce[F, A, K](rdd, codec, cfg.withFormat(Circe), bucketing, pathBuilder)
 
 // 3
-  def text(implicit ev: Show[A]): PartitionText[F, A, K] =
+  def text: PartitionText[F, A, K] =
     new PartitionText[F, A, K](rdd, codec, cfg.withFormat(Text), bucketing, pathBuilder)
 
 // 4
-  def csv(implicit ev: RowEncoder[A], te: TypedEncoder[A]): PartitionCsv[F, A, K] = {
+  def csv(implicit te: TypedEncoder[A]): PartitionCsv[F, A, K] = {
     val ate: AvroTypedEncoder[A] = AvroTypedEncoder[A](te, codec)
     new PartitionCsv[F, A, K](
       rdd,
@@ -93,6 +86,6 @@ class RddPartitionHoarder[F[_], A: ClassTag, K: Eq: ClassTag](
     new PartitionObjectFile[F, A, K](rdd, cfg.withFormat(JavaObject), bucketing, pathBuilder)
 
 // 15
-  def protobuf(implicit ev: A <:< GeneratedMessage): PartitionProtobuf[F, A, K] =
+  def protobuf: PartitionProtobuf[F, A, K] =
     new PartitionProtobuf[F, A, K](rdd, codec, cfg.withFormat(ProtoBuf), bucketing, pathBuilder)
 }

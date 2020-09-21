@@ -10,8 +10,8 @@ import io.circe.Decoder
 
 class CircePipeTest extends AnyFunSuite {
   import TestData._
-  val ser                      = new CirceSerialization[IO, Tigger](Encoder[Tigger])
-  val dser                     = new CirceDeserialization[IO, Tigger](Decoder[Tigger])
+  val ser                      = new CirceSerialization[IO, Tigger]
+  val dser                     = new CirceDeserialization[IO, Tigger]
   val data: Stream[IO, Tigger] = Stream.emits(tiggers)
 
   test("circe identity") {

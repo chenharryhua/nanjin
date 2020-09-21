@@ -12,8 +12,7 @@ import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
 
-final class SaveText[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConfig)(
-  implicit show: Show[A])
+final class SaveText[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConfig)
     extends Serializable {
   val params: HoarderParams = cfg.evalConfig
 
@@ -28,8 +27,12 @@ final class SaveText[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], cfg: H
   def deflate(level: Int): SaveText[F, A] =
     updateConfig(cfg.withCompression(Compression.Deflate(level)))
 
-  def run(
-    blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], ss: SparkSession): F[Unit] = {
+  def run(blocker: Blocker)(implicit
+    F: Concurrent[F],
+    cs: ContextShift[F],
+    ss: SparkSession,
+    show: Show[A],
+    tag: ClassTag[A]): F[Unit] = {
 
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
     params.folderOrFile match {
@@ -39,7 +42,7 @@ final class SaveText[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], cfg: H
         sma.checkAndRun(blocker)(
           rdd
             .stream[F]
-            .map(show.show)
+            .map(a => show.show(codec.idConversion(a)))
             .through(pipe.serialize)
             .through(params.compression.ccg.pipe)
             .through(hadoop.byteSink(params.outPath))
@@ -55,12 +58,12 @@ final class SaveText[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], cfg: H
   }
 }
 
-final class PartitionText[F[_], A: ClassTag, K: ClassTag: Eq](
+final class PartitionText[F[_], A, K](
   rdd: RDD[A],
   codec: AvroCodec[A],
   cfg: HoarderConfig,
   bucketing: A => Option[K],
-  pathBuilder: (NJFileFormat, K) => String)(implicit show: Show[A])
+  pathBuilder: (NJFileFormat, K) => String)
     extends AbstractPartition[F, A, K] {
 
   val params: HoarderParams = cfg.evalConfig
@@ -77,7 +80,11 @@ final class PartitionText[F[_], A: ClassTag, K: ClassTag: Eq](
     F: Concurrent[F],
     CS: ContextShift[F],
     P: Parallel[F],
-    ss: SparkSession): F[Unit] =
+    ss: SparkSession,
+    show: Show[A],
+    tagA: ClassTag[A],
+    tagK: ClassTag[K],
+    eq: Eq[K]): F[Unit] =
     savePartition(
       blocker,
       rdd,

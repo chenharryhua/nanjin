@@ -37,7 +37,7 @@ final class SaveParquet[F[_], A](rdd: RDD[A], ate: AvroTypedEncoder[A], cfg: Hoa
   }
 }
 
-final class PartitionParquet[F[_], A, K: ClassTag: Eq](
+final class PartitionParquet[F[_], A, K](
   rdd: RDD[A],
   ate: AvroTypedEncoder[A],
   cfg: HoarderConfig,
@@ -60,7 +60,9 @@ final class PartitionParquet[F[_], A, K: ClassTag: Eq](
     F: Concurrent[F],
     CS: ContextShift[F],
     P: Parallel[F],
-    ss: SparkSession): F[Unit] =
+    ss: SparkSession,
+    tagK: ClassTag[K],
+    eq: Eq[K]): F[Unit] =
     savePartition(
       blocker,
       rdd,

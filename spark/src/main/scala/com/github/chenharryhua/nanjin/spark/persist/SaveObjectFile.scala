@@ -7,16 +7,16 @@ import org.apache.spark.rdd.RDD
 
 import scala.reflect.ClassTag
 
-final class SaveObjectFile[F[_], A: ClassTag](rdd: RDD[A], cfg: HoarderConfig)
-    extends Serializable {
+final class SaveObjectFile[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends Serializable {
 
   val params: HoarderParams = cfg.evalConfig
 
-  def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
+  def run(
+    blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], tag: ClassTag[A]): F[Unit] =
     F.delay(rdd.saveAsObjectFile(params.outPath))
 }
 
-final class PartitionObjectFile[F[_], A: ClassTag, K: ClassTag: Eq](
+final class PartitionObjectFile[F[_], A, K](
   rdd: RDD[A],
   cfg: HoarderConfig,
   bucketing: A => Option[K],
@@ -25,8 +25,13 @@ final class PartitionObjectFile[F[_], A: ClassTag, K: ClassTag: Eq](
 
   val params: HoarderParams = cfg.evalConfig
 
-  def run(
-    blocker: Blocker)(implicit F: Concurrent[F], CS: ContextShift[F], P: Parallel[F]): F[Unit] =
+  def run(blocker: Blocker)(implicit
+    F: Concurrent[F],
+    CS: ContextShift[F],
+    P: Parallel[F],
+    tagA: ClassTag[A],
+    tagK: ClassTag[K],
+    eq: Eq[K]): F[Unit] =
     savePartition(
       blocker,
       rdd,

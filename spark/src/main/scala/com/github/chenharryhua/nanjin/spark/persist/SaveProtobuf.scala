@@ -11,13 +11,17 @@ import scalapb.GeneratedMessage
 
 import scala.reflect.ClassTag
 
-final class SaveProtobuf[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConfig)(
-  implicit enc: A <:< GeneratedMessage) {
+final class SaveProtobuf[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConfig)
+    extends Serializable {
 
   val params: HoarderParams = cfg.evalConfig
 
-  def run(
-    blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], ss: SparkSession): F[Unit] =
+  def run(blocker: Blocker)(implicit
+    F: Concurrent[F],
+    cs: ContextShift[F],
+    ss: SparkSession,
+    enc: A <:< GeneratedMessage,
+    tag: ClassTag[A]): F[Unit] =
     rdd
       .map(codec.idConversion)
       .stream[F]
@@ -26,12 +30,12 @@ final class SaveProtobuf[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], cf
       .drain
 }
 
-final class PartitionProtobuf[F[_], A: ClassTag, K: ClassTag: Eq](
+final class PartitionProtobuf[F[_], A, K](
   rdd: RDD[A],
   codec: AvroCodec[A],
   cfg: HoarderConfig,
   bucketing: A => Option[K],
-  pathBuilder: (NJFileFormat, K) => String)(implicit enc: A <:< GeneratedMessage)
+  pathBuilder: (NJFileFormat, K) => String)
     extends AbstractPartition[F, A, K] {
 
   val params: HoarderParams = cfg.evalConfig
@@ -40,7 +44,12 @@ final class PartitionProtobuf[F[_], A: ClassTag, K: ClassTag: Eq](
     F: Concurrent[F],
     CS: ContextShift[F],
     P: Parallel[F],
-    ss: SparkSession): F[Unit] =
+    ss: SparkSession,
+    enc: A <:< GeneratedMessage,
+    tagA: ClassTag[A],
+    tagK: ClassTag[K],
+    eq: Eq[K]
+  ): F[Unit] =
     savePartition(
       blocker,
       rdd,

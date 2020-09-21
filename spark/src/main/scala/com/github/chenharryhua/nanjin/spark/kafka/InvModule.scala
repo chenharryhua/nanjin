@@ -21,8 +21,8 @@ trait InvModule[F[_], K, V] { self: CrRdd[F, K, V] =>
     new Statistics[F](TypedDataset.create(rdd.map(CRMetaInfo(_))).dataset, cfg)
 
   def malOrder(implicit F: Sync[F]): Stream[F, OptionalKV[K, V]] =
-    stream.sliding(2).mapFilter {
-      case Queue(a, b) => if (a.timestamp <= b.timestamp) None else Some(a)
+    stream.sliding(2).mapFilter { case Queue(a, b) =>
+      if (a.timestamp <= b.timestamp) None else Some(a)
     }
 
   def missingData: TypedDataset[CRMetaInfo] =
@@ -33,15 +33,14 @@ trait InvModule[F[_], K, V] { self: CrRdd[F, K, V] =>
 
   def showJackson(rs: Array[OptionalKV[K, V]])(implicit F: Sync[F]): F[Unit] = {
     val codec: AvroCodec[OptionalKV[K, V]] = shapeless.cachedImplicit
-    val pipe: JacksonSerialization[F] =
-      new JacksonSerialization[F](codec.schema)
+    val pipe: JacksonSerialization[F]      = new JacksonSerialization[F](codec.schema)
     val gre: GenericRecordEncoder[F, OptionalKV[K, V]] =
-      new GenericRecordEncoder[F, OptionalKV[K, V]](codec.avroEncoder)
+      new GenericRecordEncoder[F, OptionalKV[K, V]]
 
     Stream
       .emits(rs)
       .covary[F]
-      .through(gre.encode)
+      .through(gre.encode(codec.avroEncoder, F))
       .through(pipe.compactJson)
       .showLinesStdOut
       .compile

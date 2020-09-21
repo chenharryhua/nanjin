@@ -19,14 +19,14 @@ final class SingleFileSource[F[_]](blocker: Blocker, conf: Configuration) {
     cs: ContextShift[F],
     ce: ConcurrentEffect[F]): Stream[F, A] = {
     val pipe = new JacksonDeserialization[F](dec.schema)
-    val gr   = new GenericRecordDecoder[F, A](dec)
+    val gr   = new GenericRecordDecoder[F, A]
     new NJHadoop[F](conf, blocker).byteStream(pathStr).through(pipe.deserialize).through(gr.decode)
   }
 
 // 2
   def circe[A: JsonDecoder](
     pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): Stream[F, A] = {
-    val pipe = new CirceDeserialization[F, A](JsonDecoder[A])
+    val pipe = new CirceDeserialization[F, A]
     new NJHadoop[F](conf, blocker).byteStream(pathStr).through(pipe.deserialize)
   }
 
@@ -42,7 +42,7 @@ final class SingleFileSource[F[_]](blocker: Blocker, conf: Configuration) {
     dec: RowDecoder[A],
     F: ConcurrentEffect[F],
     cs: ContextShift[F]): Stream[F, A] = {
-    val pipe = new CsvDeserialization[F, A](dec, csvConfig)
+    val pipe = new CsvDeserialization[F, A](csvConfig)
     new NJHadoop[F](conf, blocker).byteStream(pathStr).through(pipe.deserialize)
   }
 
@@ -57,7 +57,7 @@ final class SingleFileSource[F[_]](blocker: Blocker, conf: Configuration) {
     dec: AvroDecoder[A],
     F: Sync[F],
     cs: ContextShift[F]): Stream[F, A] = {
-    val pipe = new GenericRecordDecoder[F, A](dec)
+    val pipe = new GenericRecordDecoder[F, A]
     new NJHadoop[F](conf, blocker).parquetSource(pathStr, dec.schema).through(pipe.decode)
   }
 
@@ -66,7 +66,7 @@ final class SingleFileSource[F[_]](blocker: Blocker, conf: Configuration) {
     dec: AvroDecoder[A],
     cs: ContextShift[F],
     ce: ConcurrentEffect[F]): Stream[F, A] = {
-    val pipe = new GenericRecordDecoder[F, A](dec)
+    val pipe = new GenericRecordDecoder[F, A]
     new NJHadoop[F](conf, blocker).avroSource(pathStr, dec.schema).through(pipe.decode)
   }
 
@@ -76,7 +76,7 @@ final class SingleFileSource[F[_]](blocker: Blocker, conf: Configuration) {
     cs: ContextShift[F],
     ce: ConcurrentEffect[F]): Stream[F, A] = {
     val pipe = new BinaryAvroDeserialization[F](dec.schema)
-    val gr   = new GenericRecordDecoder[F, A](dec)
+    val gr   = new GenericRecordDecoder[F, A]
     new NJHadoop[F](conf, blocker).byteStream(pathStr).through(pipe.deserialize).through(gr.decode)
   }
 
