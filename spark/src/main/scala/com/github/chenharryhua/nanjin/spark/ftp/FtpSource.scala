@@ -15,7 +15,7 @@ final class FtpSource[F[_], C, S <: RemoteFileSettings](downloader: FtpDownloade
     dec: RowDecoder[A],
     r: ConcurrentEffect[F],
     cs: ContextShift[F]): Stream[F, A] = {
-    val pipe = new CsvDeserialization[F, A](csvConfig)
+    val pipe = new CsvSerialization[F, A](csvConfig)
     downloader.download(pathStr).through(pipe.deserialize)
   }
 
@@ -27,20 +27,20 @@ final class FtpSource[F[_], C, S <: RemoteFileSettings](downloader: FtpDownloade
 
   def json[A: JsonDecoder](
     pathStr: String)(implicit r: ConcurrentEffect[F], cs: ContextShift[F]): Stream[F, A] = {
-    val pipe = new CirceDeserialization[F, A]
+    val pipe = new CirceSerialization[F, A]
     downloader.download(pathStr).through(pipe.deserialize)
   }
 
   def jackson[A: AvroDecoder](
     pathStr: String)(implicit cs: ContextShift[F], ce: ConcurrentEffect[F]): Stream[F, A] = {
-    val pipe = new JacksonDeserialization[F](AvroDecoder[A].schema)
-    val gr   = new GenericRecordDecoder[F, A]
+    val pipe = new JacksonSerialization[F](AvroDecoder[A].schema)
+    val gr   = new GenericRecordCodec[F, A]
     downloader.download(pathStr).through(pipe.deserialize).through(gr.decode)
   }
 
   def text(
     pathStr: String)(implicit cs: ContextShift[F], ce: ConcurrentEffect[F]): Stream[F, String] = {
-    val pipe = new TextDeserialization[F]
+    val pipe = new TextSerialization[F]
     downloader.download(pathStr).through(pipe.deserialize)
   }
 }

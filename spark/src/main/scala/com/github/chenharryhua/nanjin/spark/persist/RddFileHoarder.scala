@@ -69,3 +69,4 @@ final class RddFileHoarder[F[_], A](
   def protobuf(outPath: String): SaveProtobuf[F, A] =
     new SaveProtobuf[F, A](rdd, codec, cfg.withFormat(ProtoBuf).withOutPutPath(outPath))
 }
+ 
