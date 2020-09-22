@@ -22,10 +22,6 @@ final class CsvSerialization[F[_], A](conf: CsvConfiguration) extends Serializab
       go(ss, os.asCsvWriter(conf)).stream.compile.drain
     }
   }
-}
-
-final class CsvDeserialization[F[_], A](conf: CsvConfiguration) extends Serializable {
-  import kantan.csv.ops._
 
   def deserialize(implicit dec: RowDecoder[A], ce: ConcurrentEffect[F]): Pipe[F, Byte, A] =
     _.through(toInputStream[F]).flatMap(is =>

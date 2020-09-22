@@ -18,9 +18,6 @@ final class JavaObjectSerialization[F[_], A] extends Serializable {
       Stream.emits(bos.toByteArray)
     }
   }
-}
-
-final class JavaObjectDeserialization[F[_], A] extends Serializable {
 
   /**
     * rely on EOFException.. not sure it is the right way

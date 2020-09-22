@@ -5,7 +5,7 @@ import com.sksamuel.avro4s.{ToRecord, Decoder => AvroDecoder, Encoder => AvroEnc
 import fs2.{Pipe, Stream}
 import org.apache.avro.generic.GenericRecord
 
-final class GenericRecordEncoder[F[_], A] extends Serializable {
+final class GenericRecordCodec[F[_], A] extends Serializable {
 
   def encode(implicit
     enc: AvroEncoder[A],
@@ -13,9 +13,6 @@ final class GenericRecordEncoder[F[_], A] extends Serializable {
     val to: ToRecord[A] = ToRecord(enc)
     (ss: Stream[F, A]) => ss.map(to.to)
   }
-}
-
-final class GenericRecordDecoder[F[_], A] extends Serializable {
 
   def decode(implicit dec: AvroDecoder[A]): Pipe[F, GenericRecord, A] =
     (ss: Stream[F, GenericRecord]) => ss.map(rec => dec.decode(rec))

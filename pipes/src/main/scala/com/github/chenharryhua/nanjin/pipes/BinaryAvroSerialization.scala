@@ -22,9 +22,6 @@ final class BinaryAvroSerialization[F[_]](schema: Schema) extends Serializable {
       Stream.emits(baos.toByteArray)
     }
   }
-}
-
-final class BinaryAvroDeserialization[F[_]](schema: Schema) extends Serializable {
 
   def deserialize(implicit F: ConcurrentEffect[F]): Pipe[F, Byte, GenericRecord] = {
     (ss: Stream[F, Byte]) =>

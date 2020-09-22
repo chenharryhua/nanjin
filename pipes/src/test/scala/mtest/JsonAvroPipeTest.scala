@@ -1,25 +1,15 @@
 package mtest
 
-import cats.derived.auto.show._
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.pipes.{
-  GenericRecordDecoder,
-  GenericRecordEncoder,
-  JacksonDeserialization,
-  JacksonSerialization
-}
+import com.github.chenharryhua.nanjin.pipes.{GenericRecordCodec, JacksonSerialization}
 import com.sksamuel.avro4s.AvroSchema
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
-import com.sksamuel.avro4s.Encoder
-import com.sksamuel.avro4s.Decoder
 
 class JsonAvroPipeTest extends AnyFunSuite {
   import TestData._
-  val gser  = new GenericRecordEncoder[IO, Tigger](Encoder[Tigger])
-  val gdser = new GenericRecordDecoder[IO, Tigger](Decoder[Tigger])
-  val ser   = new JacksonSerialization[IO](AvroSchema[Tigger])
-  val dser  = new JacksonDeserialization[IO](AvroSchema[Tigger])
+  val gser = new GenericRecordCodec[IO, Tigger]
+  val ser  = new JacksonSerialization[IO](AvroSchema[Tigger])
 
   test("json-avro identity") {
     val data: Stream[IO, Tigger] = Stream.emits(tiggers)
@@ -28,8 +18,8 @@ class JsonAvroPipeTest extends AnyFunSuite {
       data
         .through(gser.encode)
         .through(ser.serialize)
-        .through(dser.deserialize)
-        .through(gdser.decode)
+        .through(ser.deserialize)
+        .through(gser.decode)
         .compile
         .toList
         .unsafeRunSync() === tiggers)

@@ -50,9 +50,6 @@ final class JacksonSerialization[F[_]](schema: Schema) extends Serializable {
       baos.toByteArray
     }.intersperse(splitter).flatMap(ba => Stream.chunk(Chunk.bytes(ba)))
   }
-}
-
-final class JacksonDeserialization[F[_]](schema: Schema) extends Serializable {
 
   def deserialize(implicit F: ConcurrentEffect[F]): Pipe[F, Byte, GenericRecord] = {
     (ss: Stream[F, Byte]) =>
