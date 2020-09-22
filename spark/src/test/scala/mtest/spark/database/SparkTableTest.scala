@@ -12,6 +12,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.database._
 import com.github.chenharryhua.nanjin.spark.injection._
+import doobie.implicits._
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import io.circe.generic.auto._
@@ -29,6 +30,22 @@ final case class DomainObject(
   e: Instant)
 
 final case class DBTable(a: LocalDate, b: LocalDate, c: Instant, d: Instant, e: Instant)
+
+object DBTable {
+
+  val drop: doobie.ConnectionIO[Int] =
+    sql"DROP TABLE IF EXISTS sparktest".update.run
+
+  val create: doobie.ConnectionIO[Int] =
+    sql"""
+         CREATE TABLE sparktest (
+             a  date,
+             b  date,
+             c  timestamp,
+             d  timestamp,
+             e  timestamp
+         );""".update.run
+}
 
 class SparkTableTest extends AnyFunSuite {
   implicit val zoneId: ZoneId = beijingTime
@@ -49,8 +66,11 @@ class SparkTableTest extends AnyFunSuite {
 
   val dbData: DBTable = sample.transformInto[DBTable]
 
+  postgres.runQuery[IO, Int](blocker, DBTable.drop *> DBTable.create).unsafeRunSync()
+
   test("sparkTable upload dataset to table") {
     val data = TypedDataset.create(List(sample.transformInto[DBTable])).dataset
+
     sparkSession
       .alongWith[IO](postgres)
       .table(table)
