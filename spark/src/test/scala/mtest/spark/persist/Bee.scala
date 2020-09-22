@@ -14,7 +14,7 @@ import org.apache.avro.generic.GenericFixed
 final case class Bee(a: Array[Byte], b: Int) {
 
   override def toString: String =
-    s"Bee(a=${a.toList},b=${b.toString})"
+    s"Bee(a=Array(${a.mkString(",")}),b=${b.toString})"
 
   def toWasp: Wasp = this.transformInto[Wasp]
 }
