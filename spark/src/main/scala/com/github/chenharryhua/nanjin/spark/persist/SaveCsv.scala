@@ -16,7 +16,7 @@ final class SaveCsv[F[_], A](
   rdd: RDD[A],
   ate: AvroTypedEncoder[A],
   csvConfiguration: CsvConfiguration,
-  cfg: HoarderConfig)(implicit rowEncoder: RowEncoder[A])
+  cfg: HoarderConfig)
     extends Serializable {
   implicit private val tag: ClassTag[A] = ate.classTag
 
@@ -36,20 +36,23 @@ final class SaveCsv[F[_], A](
   def deflate(level: Int): SaveCsv[F, A] =
     updateConfig(cfg.withCompression(Compression.Deflate(level)))
 
-  def run(
-    blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], ss: SparkSession): F[Unit] = {
+  def run(blocker: Blocker)(implicit
+    F: Concurrent[F],
+    cs: ContextShift[F],
+    ss: SparkSession,
+    rowEncoder: RowEncoder[A]): F[Unit] = {
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
         val hadoop = new NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)
-        val pipe   = new CsvSerialization[F, A](rowEncoder, csvConfiguration, blocker)
+        val pipe   = new CsvSerialization[F, A](csvConfiguration)
 
         sma.checkAndRun(blocker)(
           rdd
             .map(ate.avroCodec.idConversion)
             .stream[F]
-            .through(pipe.serialize)
+            .through(pipe.serialize(blocker))
             .through(params.compression.ccg.pipe)
             .through(hadoop.byteSink(params.outPath))
             .compile
@@ -71,13 +74,13 @@ final class SaveCsv[F[_], A](
   }
 }
 
-final class PartitionCsv[F[_], A, K: ClassTag: Eq](
+final class PartitionCsv[F[_], A, K](
   rdd: RDD[A],
   ate: AvroTypedEncoder[A],
   csvConfiguration: CsvConfiguration,
   cfg: HoarderConfig,
   bucketing: A => Option[K],
-  pathBuilder: (NJFileFormat, K) => String)(implicit rowEncoder: RowEncoder[A])
+  pathBuilder: (NJFileFormat, K) => String)
     extends AbstractPartition[F, A, K] {
   implicit private val tag: ClassTag[A] = ate.classTag
 
@@ -98,7 +101,10 @@ final class PartitionCsv[F[_], A, K: ClassTag: Eq](
     F: Concurrent[F],
     CS: ContextShift[F],
     P: Parallel[F],
-    ss: SparkSession): F[Unit] =
+    ss: SparkSession,
+    rowEncoder: RowEncoder[A],
+    tagK: ClassTag[K],
+    eq: Eq[K]): F[Unit] =
     savePartition(
       blocker,
       rdd,

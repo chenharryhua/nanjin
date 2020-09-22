@@ -13,8 +13,7 @@ import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
 
-final class SaveCirce[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConfig)(
-  implicit jsonEncoder: JsonEncoder[A])
+final class SaveCirce[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConfig)
     extends Serializable {
   val params: HoarderParams = cfg.evalConfig
 
@@ -29,14 +28,18 @@ final class SaveCirce[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], cfg: 
   def deflate(level: Int): SaveCirce[F, A] =
     updateConfig(cfg.withCompression(Compression.Deflate(level)))
 
-  def run(
-    blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], ss: SparkSession): F[Unit] = {
+  def run(blocker: Blocker)(implicit
+    F: Concurrent[F],
+    cs: ContextShift[F],
+    ss: SparkSession,
+    jsonEncoder: JsonEncoder[A],
+    tag: ClassTag[A]): F[Unit] = {
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
         val hadoop = new NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)
-        val pipe   = new CirceSerialization[F, A](jsonEncoder)
+        val pipe   = new CirceSerialization[F, A]
         sma.checkAndRun(blocker)(
           rdd
             .map(codec.idConversion)
@@ -56,12 +59,12 @@ final class SaveCirce[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], cfg: 
   }
 }
 
-final class PartitionCirce[F[_], A: ClassTag, K: ClassTag: Eq](
+final class PartitionCirce[F[_], A, K](
   rdd: RDD[A],
   codec: AvroCodec[A],
   cfg: HoarderConfig,
   bucketing: A => Option[K],
-  pathBuilder: (NJFileFormat, K) => String)(implicit jsonEncoder: JsonEncoder[A])
+  pathBuilder: (NJFileFormat, K) => String)
     extends AbstractPartition[F, A, K] {
 
   val params: HoarderParams = cfg.evalConfig
@@ -78,7 +81,11 @@ final class PartitionCirce[F[_], A: ClassTag, K: ClassTag: Eq](
     F: Concurrent[F],
     CS: ContextShift[F],
     P: Parallel[F],
-    ss: SparkSession): F[Unit] =
+    ss: SparkSession,
+    jsonEncoder: JsonEncoder[A],
+    tagA: ClassTag[A],
+    tagK: ClassTag[K],
+    eq: Eq[K]): F[Unit] =
     savePartition(
       blocker,
       rdd,

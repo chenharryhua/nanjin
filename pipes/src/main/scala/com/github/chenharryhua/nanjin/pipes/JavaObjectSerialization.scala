@@ -2,11 +2,11 @@ package com.github.chenharryhua.nanjin.pipes
 
 import java.io._
 
-import cats.effect.{ConcurrentEffect, ContextShift, Resource}
+import cats.effect.{ConcurrentEffect, ContextShift, Resource, Sync}
 import fs2.io.toInputStream
 import fs2.{Pipe, Pull, Stream}
 
-final class JavaObjectSerialization[F[_], A] {
+final class JavaObjectSerialization[F[_], A] extends Serializable {
 
   def serialize: Pipe[F, A, Byte] = { (ss: Stream[F, A]) =>
     ss.chunkN(chunkSize).flatMap { as =>
@@ -18,15 +18,12 @@ final class JavaObjectSerialization[F[_], A] {
       Stream.emits(bos.toByteArray)
     }
   }
-}
-
-final class JavaObjectDeserialization[F[_]: ConcurrentEffect: ContextShift, A] {
-  private val F: ConcurrentEffect[F] = ConcurrentEffect[F]
 
   /**
     * rely on EOFException.. not sure it is the right way
     */
-  private def pullAll(ois: ObjectInputStream): Pull[F, A, Option[ObjectInputStream]] =
+  private def pullAll(ois: ObjectInputStream)(implicit
+    F: Sync[F]): Pull[F, A, Option[ObjectInputStream]] =
     Pull
       .functionKInstance(
         F.delay(try Some(ois.readObject().asInstanceOf[A])
@@ -36,13 +33,14 @@ final class JavaObjectDeserialization[F[_]: ConcurrentEffect: ContextShift, A] {
         case None    => Pull.eval(F.delay(ois.close())) >> Pull.pure(None)
       }
 
-  private def readInputStream(is: InputStream): Stream[F, A] =
+  private def readInputStream(is: InputStream)(implicit F: Sync[F]): Stream[F, A] =
     for {
       ois <- Stream.resource(Resource.fromAutoCloseable(F.delay(new ObjectInputStream(is))))
       a <- Pull.loop(pullAll)(ois).void.stream
     } yield a
 
-  def deserialize: Pipe[F, Byte, A] = { (ss: Stream[F, Byte]) =>
-    ss.through(toInputStream).flatMap(readInputStream)
+  def deserialize(implicit cs: ContextShift[F], ce: ConcurrentEffect[F]): Pipe[F, Byte, A] = {
+    (ss: Stream[F, Byte]) =>
+      ss.through(toInputStream).flatMap(readInputStream)
   }
 }

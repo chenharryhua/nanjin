@@ -1,20 +1,13 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.Show
 import com.github.chenharryhua.nanjin.common.NJFileFormat._
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import frameless.TypedEncoder
-import io.circe.{Encoder => JsonEncoder}
-import kantan.csv.{CsvConfiguration, RowEncoder}
-import org.apache.avro.file.CodecFactory
+import kantan.csv.CsvConfiguration
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.SparkSession
-import scalapb.GeneratedMessage
 
-import scala.reflect.ClassTag
-
-final class RddFileHoarder[F[_], A: ClassTag](
+final class RddFileHoarder[F[_], A](
   rdd: RDD[A],
   codec: AvroCodec[A],
   cfg: HoarderConfig = HoarderConfig.default)
@@ -35,15 +28,15 @@ final class RddFileHoarder[F[_], A: ClassTag](
     new SaveJackson[F, A](rdd, codec, cfg.withFormat(Jackson).withOutPutPath(outPath))
 
 // 2
-  def circe(outPath: String)(implicit ev: JsonEncoder[A]): SaveCirce[F, A] =
+  def circe(outPath: String): SaveCirce[F, A] =
     new SaveCirce[F, A](rdd, codec, cfg.withFormat(Circe).withOutPutPath(outPath))
 
 // 3
-  def text(outPath: String)(implicit ev: Show[A]): SaveText[F, A] =
+  def text(outPath: String): SaveText[F, A] =
     new SaveText[F, A](rdd, codec, cfg.withFormat(Text).withOutPutPath(outPath))
 
 // 4
-  def csv(outPath: String)(implicit ev: RowEncoder[A], te: TypedEncoder[A]): SaveCsv[F, A] = {
+  def csv(outPath: String)(implicit te: TypedEncoder[A]): SaveCsv[F, A] = {
     val ate: AvroTypedEncoder[A] = AvroTypedEncoder[A](te, codec)
     new SaveCsv[F, A](rdd, ate, CsvConfiguration.rfc, cfg.withFormat(Csv).withOutPutPath(outPath))
   }
@@ -73,6 +66,7 @@ final class RddFileHoarder[F[_], A: ClassTag](
     new SaveObjectFile[F, A](rdd, cfg.withFormat(JavaObject).withOutPutPath(outPath))
 
 // 15
-  def protobuf(outPath: String)(implicit ev: A <:< GeneratedMessage): SaveProtobuf[F, A] =
+  def protobuf(outPath: String): SaveProtobuf[F, A] =
     new SaveProtobuf[F, A](rdd, codec, cfg.withFormat(ProtoBuf).withOutPutPath(outPath))
 }
+ 

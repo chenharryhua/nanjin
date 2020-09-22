@@ -12,6 +12,7 @@ import frameless.TypedEncoder
 import fs2.kafka.ProducerRecord
 import io.circe.generic.auto._
 import org.scalatest.funsuite.AnyFunSuite
+import com.github.chenharryhua.nanjin.datetime._
 
 import scala.util.Random
 

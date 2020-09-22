@@ -1,12 +1,7 @@
 package mtest
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.pipes.{
-  DelimitedProtoBufDeserialization,
-  DelimitedProtoBufSerialization,
-  ProtoBufDeserialization,
-  ProtoBufSerialization
-}
+import com.github.chenharryhua.nanjin.pipes.{DelimitedProtoBufSerialization, ProtoBufSerialization}
 import fs2.Stream
 import mtest.pb.test.Lion
 import org.scalatest.funsuite.AnyFunSuite
@@ -16,13 +11,12 @@ class ProtobufPipeTest extends AnyFunSuite {
 
   test("delimited protobuf identity") {
     val data: Stream[IO, Lion] = Stream.emits(lions)
-    val ser                    = new DelimitedProtoBufSerialization[IO, Lion](blocker)
-    val dser                   = new DelimitedProtoBufDeserialization[IO, Lion]
+    val ser                    = new DelimitedProtoBufSerialization[IO, Lion]
 
     assert(
       data
-        .through(ser.serialize)
-        .through(dser.deserialize)
+        .through(ser.serialize(blocker))
+        .through(ser.deserialize)
         .compile
         .toList
         .unsafeRunSync() === lions)
@@ -31,16 +25,10 @@ class ProtobufPipeTest extends AnyFunSuite {
   test("protobuf identity") {
     val data: Stream[IO, Lion] = Stream.emits(lions)
 
-    val ser  = new ProtoBufSerialization[IO, Lion]
-    val dser = new ProtoBufDeserialization[IO, Lion]
+    val ser = new ProtoBufSerialization[IO, Lion]
 
     assert(
-      data
-        .through(ser.serialize)
-        .through(dser.deserialize)
-        .compile
-        .toList
-        .unsafeRunSync() === lions)
+      data.through(ser.serialize).through(ser.deserialize).compile.toList.unsafeRunSync() === lions)
   }
 
 }

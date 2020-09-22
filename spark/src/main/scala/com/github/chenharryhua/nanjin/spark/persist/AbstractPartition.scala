@@ -9,7 +9,7 @@ import org.apache.spark.rdd.RDD
 
 import scala.reflect.ClassTag
 
-abstract class AbstractPartition[F[_], A, K: ClassTag: Eq] extends Serializable {
+abstract class AbstractPartition[F[_], A, K] extends Serializable {
 
   protected def savePartition(
     blocker: Blocker,
@@ -19,7 +19,12 @@ abstract class AbstractPartition[F[_], A, K: ClassTag: Eq] extends Serializable 
     bucketing: A => Option[K],
     pathBuilder: (NJFileFormat, K) => String,
     save: (RDD[A], String) => F[Unit]
-  )(implicit F: Concurrent[F], CS: ContextShift[F], P: Parallel[F]): F[Unit] =
+  )(implicit
+    F: Concurrent[F],
+    CS: ContextShift[F],
+    P: Parallel[F],
+    kTag: ClassTag[K],
+    eqK: Eq[K]): F[Unit] =
     F.bracket(blocker.delay(rdd.persist())) { pr =>
       val keys: List[K] = pr.flatMap(bucketing(_)).distinct().collect().toList
       keys

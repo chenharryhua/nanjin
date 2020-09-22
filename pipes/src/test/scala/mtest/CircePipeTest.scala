@@ -1,24 +1,21 @@
 package mtest
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.pipes.{CirceDeserialization, CirceSerialization}
+import com.github.chenharryhua.nanjin.pipes.CirceSerialization
 import fs2.Stream
-import org.scalatest.funsuite.AnyFunSuite
 import io.circe.generic.auto._
-import io.circe.Encoder
-import io.circe.Decoder
+import org.scalatest.funsuite.AnyFunSuite
 
 class CircePipeTest extends AnyFunSuite {
   import TestData._
-  val ser                      = new CirceSerialization[IO, Tigger](Encoder[Tigger])
-  val dser                     = new CirceDeserialization[IO, Tigger](Decoder[Tigger])
+  val ser                      = new CirceSerialization[IO, Tigger]
   val data: Stream[IO, Tigger] = Stream.emits(tiggers)
 
   test("circe identity") {
     assert(
       data
         .through(ser.serialize)
-        .through(dser.deserialize)
+        .through(ser.deserialize)
         .compile
         .toList
         .unsafeRunSync() === tiggers)

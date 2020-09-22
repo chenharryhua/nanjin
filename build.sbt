@@ -35,7 +35,7 @@ val akkaKafka   = "2.0.5"
 val fs2Kafka    = "1.0.0"
 
 // spark
-val spark24   = "3.0.1"
+val spark3   = "3.0.1"
 val frameless = "0.9.0-SNAPSHOT"
 
 // database
@@ -47,7 +47,7 @@ val elastic  = "7.9.0"
 // format
 val circe   = "0.13.0"
 val jackson = "2.11.2"
-val json4s  = "3.6.9"  // for spark
+val json4s  = "3.7.0-M6"  // for spark
 val kantan  = "0.6.1"
 val parquet = "1.11.1"
 val avro    = "1.10.0"
@@ -205,7 +205,7 @@ val sparkLib = Seq(
   "org.apache.spark" %% "spark-sql-kafka-0-10",
   "org.apache.spark" %% "spark-avro",
   "org.apache.spark" %% "spark-graphx"
-).map(_ % spark24) ++ Seq(
+).map(_ % spark3) ++ Seq(
   "org.typelevel" %% "frameless-dataset",
   "org.typelevel" %% "frameless-ml",
   "org.typelevel" %% "frameless-cats"

@@ -11,12 +11,15 @@ import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
 
-final class SaveBinaryAvro[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConfig)
+final class SaveBinaryAvro[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConfig)
     extends Serializable {
   val params: HoarderParams = cfg.evalConfig
 
-  def run(
-    blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], ss: SparkSession): F[Unit] = {
+  def run(blocker: Blocker)(implicit
+    F: Concurrent[F],
+    cs: ContextShift[F],
+    ss: SparkSession,
+    tag: ClassTag[A]): F[Unit] = {
     implicit val encoder: Encoder[A] = codec.avroEncoder
 
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
@@ -26,7 +29,7 @@ final class SaveBinaryAvro[F[_], A: ClassTag](rdd: RDD[A], codec: AvroCodec[A], 
   }
 }
 
-final class PartitionBinaryAvro[F[_], A: ClassTag, K: ClassTag: Eq](
+final class PartitionBinaryAvro[F[_], A, K](
   rdd: RDD[A],
   codec: AvroCodec[A],
   cfg: HoarderConfig,
@@ -40,7 +43,10 @@ final class PartitionBinaryAvro[F[_], A: ClassTag, K: ClassTag: Eq](
     F: Concurrent[F],
     CS: ContextShift[F],
     P: Parallel[F],
-    ss: SparkSession): F[Unit] =
+    ss: SparkSession,
+    tagA: ClassTag[A],
+    tagK: ClassTag[K],
+    eq: Eq[K]): F[Unit] =
     savePartition(
       blocker,
       rdd,

@@ -4,7 +4,7 @@ import cats.Eq
 import cats.effect.Sync
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.pipes.{GenericRecordEncoder, JacksonSerialization}
+import com.github.chenharryhua.nanjin.pipes.{GenericRecordCodec, JacksonSerialization}
 import frameless.TypedDataset
 import frameless.cats.implicits.rddOps
 import fs2.Stream
@@ -21,8 +21,8 @@ trait InvModule[F[_], K, V] { self: CrRdd[F, K, V] =>
     new Statistics[F](TypedDataset.create(rdd.map(CRMetaInfo(_))).dataset, cfg)
 
   def malOrder(implicit F: Sync[F]): Stream[F, OptionalKV[K, V]] =
-    stream.sliding(2).mapFilter {
-      case Queue(a, b) => if (a.timestamp <= b.timestamp) None else Some(a)
+    stream.sliding(2).mapFilter { case Queue(a, b) =>
+      if (a.timestamp <= b.timestamp) None else Some(a)
     }
 
   def missingData: TypedDataset[CRMetaInfo] =
@@ -32,16 +32,14 @@ trait InvModule[F[_], K, V] { self: CrRdd[F, K, V] =>
     inv.dupRecords(TypedDataset.create(values.map(CRMetaInfo(_))))
 
   def showJackson(rs: Array[OptionalKV[K, V]])(implicit F: Sync[F]): F[Unit] = {
-    val codec: AvroCodec[OptionalKV[K, V]] = shapeless.cachedImplicit
-    val pipe: JacksonSerialization[F] =
-      new JacksonSerialization[F](codec.schema)
-    val gre: GenericRecordEncoder[F, OptionalKV[K, V]] =
-      new GenericRecordEncoder[F, OptionalKV[K, V]](codec.avroEncoder)
+    val codec: AvroCodec[OptionalKV[K, V]]           = shapeless.cachedImplicit
+    val pipe: JacksonSerialization[F]                = new JacksonSerialization[F](codec.schema)
+    val gre: GenericRecordCodec[F, OptionalKV[K, V]] = new GenericRecordCodec[F, OptionalKV[K, V]]
 
     Stream
       .emits(rs)
       .covary[F]
-      .through(gre.encode)
+      .through(gre.encode(codec.avroEncoder, F))
       .through(pipe.compactJson)
       .showLinesStdOut
       .compile

@@ -12,7 +12,7 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericDatumReader, GenericDatumWriter, GenericRecord}
 import org.apache.avro.io.{DecoderFactory, EncoderFactory, JsonEncoder}
 
-final class JacksonSerialization[F[_]](schema: Schema) {
+final class JacksonSerialization[F[_]](schema: Schema) extends Serializable {
 
   private def toJsonStr(isPretty: Boolean): Pipe[F, GenericRecord, String] = {
     val datumWriter = new GenericDatumWriter[GenericRecord](schema)
@@ -50,24 +50,21 @@ final class JacksonSerialization[F[_]](schema: Schema) {
       baos.toByteArray
     }.intersperse(splitter).flatMap(ba => Stream.chunk(Chunk.bytes(ba)))
   }
-}
 
-final class JacksonDeserialization[F[_]: ConcurrentEffect](schema: Schema) {
-  private val F: ConcurrentEffect[F] = ConcurrentEffect[F]
-
-  def deserialize: Pipe[F, Byte, GenericRecord] = { (ss: Stream[F, Byte]) =>
-    ss.through(toInputStream).flatMap { is =>
-      val jsonDecoder = DecoderFactory.get().jsonDecoder(schema, is)
-      val datumReader = new GenericDatumReader[GenericRecord](schema)
-      def pullAll(is: InputStream): Pull[F, GenericRecord, Option[InputStream]] =
-        Pull
-          .functionKInstance(F.delay(try Some(datumReader.read(null, jsonDecoder))
-          catch { case _: EOFException => None }))
-          .flatMap {
-            case Some(a) => Pull.output1(a) >> Pull.pure(Some(is))
-            case None    => Pull.eval(F.delay(is.close())) >> Pull.pure(None)
-          }
-      Pull.loop(pullAll)(is).void.stream
-    }
+  def deserialize(implicit F: ConcurrentEffect[F]): Pipe[F, Byte, GenericRecord] = {
+    (ss: Stream[F, Byte]) =>
+      ss.through(toInputStream).flatMap { is =>
+        val jsonDecoder = DecoderFactory.get().jsonDecoder(schema, is)
+        val datumReader = new GenericDatumReader[GenericRecord](schema)
+        def pullAll(is: InputStream): Pull[F, GenericRecord, Option[InputStream]] =
+          Pull
+            .functionKInstance(F.delay(try Some(datumReader.read(null, jsonDecoder))
+            catch { case _: EOFException => None }))
+            .flatMap {
+              case Some(a) => Pull.output1(a) >> Pull.pure(Some(is))
+              case None    => Pull.eval(F.delay(is.close())) >> Pull.pure(None)
+            }
+        Pull.loop(pullAll)(is).void.stream
+      }
   }
 }
