@@ -35,7 +35,7 @@ val akkaKafka   = "2.0.5"
 val fs2Kafka    = "1.0.0"
 
 // spark
-val spark24   = "3.0.1"
+val spark3   = "3.0.1"
 val frameless = "0.9.0-SNAPSHOT"
 
 // database
@@ -205,7 +205,7 @@ val sparkLib = Seq(
   "org.apache.spark" %% "spark-sql-kafka-0-10",
   "org.apache.spark" %% "spark-avro",
   "org.apache.spark" %% "spark-graphx"
-).map(_ % spark24) ++ Seq(
+).map(_ % spark3) ++ Seq(
   "org.typelevel" %% "frameless-dataset",
   "org.typelevel" %% "frameless-ml",
   "org.typelevel" %% "frameless-cats"
