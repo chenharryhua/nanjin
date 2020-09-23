@@ -70,12 +70,20 @@ class CirceTest extends AnyFunSuite {
     val t = loaders.rdd.circe[Rooster](path)
     assert(expected == t.collect().toSet)
   }
-
-  test("byte-array rdd read/write identity bee") {
+  test("byte-array rdd read/write identity multi") {
+    import BeeData._
+    val path = "./data/test/spark/persist/circe/bee/multi.json"
+    delete(path)
+    val saver = new RddFileHoarder[IO, Bee](rdd, Bee.codec).repartition(1)
+    saver.circe(path).folder.run(blocker).unsafeRunSync()
+    val t = loaders.rdd.circe[Bee](path)
+    assert(t.collect.map(_.toWasp).toSet === bees.map(_.toWasp).toSet)
+  }
+  test("byte-array rdd read/write identity single") {
     import BeeData._
     val path = "./data/test/spark/persist/circe/bee/single.json"
     delete(path)
-    val saver = new RddFileHoarder[IO, Bee](rdd, Bee.codec)
+    val saver = new RddFileHoarder[IO, Bee](rdd, Bee.codec).repartition(1)
     saver.circe(path).file.run(blocker).unsafeRunSync()
     val t = loaders.rdd.circe[Bee](path)
     assert(t.collect.map(_.toWasp).toSet === bees.map(_.toWasp).toSet)

@@ -16,17 +16,17 @@ import scalapb.GeneratedMessage
 final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
 
   def delete(pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): F[Boolean] =
-    new NJHadoop[F](conf, blocker).delete(pathStr)
+    new NJHadoop[F](conf).delete(pathStr, blocker)
 
   def isExist(pathStr: String)(implicit F: Sync[F], cs: ContextShift[F]): F[Boolean] =
-    new NJHadoop[F](conf, blocker).isExist(pathStr)
+    new NJHadoop[F](conf).isExist(pathStr, blocker)
 
 // 1
   def jackson[A](pathStr: String)(implicit
     enc: AvroEncoder[A],
     ce: Concurrent[F],
     cs: ContextShift[F]): Pipe[F, A, Unit] = {
-    val hadoop = new NJHadoop[F](conf, blocker).byteSink(pathStr)
+    val hadoop = new NJHadoop[F](conf).byteSink(pathStr, blocker)
     val gr     = new GenericRecordCodec[F, A]
     val pipe   = new JacksonSerialization[F](enc.schema)
     _.through(gr.encode).through(pipe.serialize).through(hadoop)
@@ -37,7 +37,7 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
     enc: JsonEncoder[A],
     F: Sync[F],
     cs: ContextShift[F]): Pipe[F, A, Unit] = {
-    val hadoop = new NJHadoop[F](conf, blocker).byteSink(pathStr)
+    val hadoop = new NJHadoop[F](conf).byteSink(pathStr, blocker)
     val pipe   = new CirceSerialization[F, A]
     _.through(pipe.serialize).through(hadoop)
   }
@@ -45,7 +45,7 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
 // 3
   def text[A](
     pathStr: String)(implicit enc: Show[A], F: Sync[F], cs: ContextShift[F]): Pipe[F, A, Unit] = {
-    val hadoop = new NJHadoop[F](conf, blocker).byteSink(pathStr)
+    val hadoop = new NJHadoop[F](conf).byteSink(pathStr, blocker)
     val pipe   = new TextSerialization[F]
     _.map(enc.show).through(pipe.serialize).through(hadoop)
   }
@@ -55,7 +55,7 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
     enc: RowEncoder[A],
     ce: Concurrent[F],
     cs: ContextShift[F]): Pipe[F, A, Unit] = {
-    val hadoop = new NJHadoop[F](conf, blocker).byteSink(pathStr)
+    val hadoop = new NJHadoop[F](conf).byteSink(pathStr, blocker)
     val pipe   = new CsvSerialization[F, A](csvConfig)
     _.through(pipe.serialize(blocker)).through(hadoop)
   }
@@ -71,7 +71,7 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
     enc: AvroEncoder[A],
     F: Sync[F],
     cs: ContextShift[F]): Pipe[F, A, Unit] = {
-    val hadoop = new NJHadoop[F](conf, blocker).parquetSink(pathStr, enc.schema, ccn)
+    val hadoop = new NJHadoop[F](conf).parquetSink(pathStr, enc.schema, ccn, blocker)
     val pipe   = new GenericRecordCodec[F, A]
     _.through(pipe.encode).through(hadoop)
   }
@@ -81,7 +81,7 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
     enc: AvroEncoder[A],
     F: Sync[F],
     cs: ContextShift[F]): Pipe[F, A, Unit] = {
-    val hadoop = new NJHadoop[F](conf, blocker).avroSink(pathStr, enc.schema, cf)
+    val hadoop = new NJHadoop[F](conf).avroSink(pathStr, enc.schema, cf, blocker)
     val pipe   = new GenericRecordCodec[F, A]
     _.through(pipe.encode).through(hadoop)
   }
@@ -91,7 +91,7 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
     enc: AvroEncoder[A],
     ce: Concurrent[F],
     cs: ContextShift[F]): Pipe[F, A, Unit] = {
-    val hadoop = new NJHadoop[F](conf, blocker).byteSink(pathStr)
+    val hadoop = new NJHadoop[F](conf).byteSink(pathStr, blocker)
     val gr     = new GenericRecordCodec[F, A]
     val pipe   = new BinaryAvroSerialization[F](enc.schema)
     _.through(gr.encode).through(pipe.serialize).through(hadoop)
@@ -100,7 +100,7 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
 // 14
   def javaObject[A](
     pathStr: String)(implicit F: Concurrent[F], cs: ContextShift[F]): Pipe[F, A, Unit] = {
-    val hadoop = new NJHadoop[F](conf, blocker).byteSink(pathStr)
+    val hadoop = new NJHadoop[F](conf).byteSink(pathStr, blocker)
     val pipe   = new JavaObjectSerialization[F, A]
     _.through(pipe.serialize).through(hadoop)
   }
@@ -110,7 +110,7 @@ final class SingleFileSink[F[_]](blocker: Blocker, conf: Configuration) {
     ce: Concurrent[F],
     cs: ContextShift[F],
     ev: A <:< GeneratedMessage): Pipe[F, A, Unit] = {
-    val hadoop = new NJHadoop[F](conf, blocker).byteSink(pathStr)
+    val hadoop = new NJHadoop[F](conf).byteSink(pathStr, blocker)
     val pipe   = new DelimitedProtoBufSerialization[F]
     _.through(pipe.serialize(blocker)).through(hadoop)
   }
