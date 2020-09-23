@@ -45,7 +45,7 @@ final class SaveCsv[F[_], A](
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
-        val hadoop = new NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)
+        val hadoop = new NJHadoop[F](ss.sparkContext.hadoopConfiguration)
         val pipe   = new CsvSerialization[F, A](csvConfiguration)
 
         sma.checkAndRun(blocker)(
@@ -54,7 +54,7 @@ final class SaveCsv[F[_], A](
             .stream[F]
             .through(pipe.serialize(blocker))
             .through(params.compression.ccg.pipe)
-            .through(hadoop.byteSink(params.outPath))
+            .through(hadoop.byteSink(params.outPath, blocker))
             .compile
             .drain)
       case FolderOrFile.Folder =>
