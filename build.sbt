@@ -30,7 +30,7 @@ val akka26     = "2.6.9"
 
 // kafka
 val confltKafka = "5.5.1-ccs"
-val confluent   = "5.5.1"
+val confluent   = "6.0.0"
 val akkaKafka   = "2.0.5"
 val fs2Kafka    = "1.0.0"
 
