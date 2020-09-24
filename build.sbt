@@ -30,7 +30,7 @@ val akka26     = "2.6.9"
 
 // kafka
 val confltKafka = "6.0.0-ce"
-val confluent   = "5.5.1"
+val confluent   = "6.0.0"
 val akkaKafka   = "2.0.5"
 val fs2Kafka    = "1.0.0"
 
@@ -42,7 +42,7 @@ val frameless = "0.9.0-SNAPSHOT"
 val doobie   = "0.9.2"
 val quill    = "3.5.3"
 val neotypes = "0.15.1"
-val elastic  = "7.9.0"
+val elastic  = "7.9.1"
 
 // format
 val circe   = "0.13.0"
