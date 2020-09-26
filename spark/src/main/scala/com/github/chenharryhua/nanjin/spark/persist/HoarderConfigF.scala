@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.derived.auto.functor.kittensMkFunctor
 import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.github.chenharryhua.nanjin.utils.defaultLocalParallelism
 import enumeratum.{Enum, EnumEntry}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.macros.deriveFixedPoint
@@ -26,7 +25,6 @@ private[persist] object FolderOrFile extends Enum[FolderOrFile] {
   outPath: String,
   folderOrFile: FolderOrFile,
   saveMode: SaveMode,
-  parallelism: Long,
   compression: Compression)
 
 private[persist] object HoarderParams {
@@ -37,7 +35,6 @@ private[persist] object HoarderParams {
       "",
       FolderOrFile.Folder,
       SaveMode.Overwrite,
-      defaultLocalParallelism.toLong,
       Compression.Uncompressed)
 }
 
@@ -47,7 +44,6 @@ private[persist] object HoarderConfigF {
   final case class DefaultParams[K]() extends HoarderConfigF[K]
   final case class WithFolderOrFile[K](value: FolderOrFile, cont: K) extends HoarderConfigF[K]
   final case class WithSaveMode[K](value: SaveMode, cont: K) extends HoarderConfigF[K]
-  final case class WithParallelism[K](value: Long, cont: K) extends HoarderConfigF[K]
   final case class WithOutputPath[K](value: String, cont: K) extends HoarderConfigF[K]
   final case class WithFileFormat[K](value: NJFileFormat, cont: K) extends HoarderConfigF[K]
   final case class WithCompression[K](value: Compression, cont: K) extends HoarderConfigF[K]
@@ -57,7 +53,6 @@ private[persist] object HoarderConfigF {
       case DefaultParams()        => HoarderParams.default
       case WithFolderOrFile(v, c) => HoarderParams.folderOrFile.set(v)(c)
       case WithSaveMode(v, c)     => HoarderParams.saveMode.set(v)(c)
-      case WithParallelism(v, c)  => HoarderParams.parallelism.set(v)(c)
       case WithOutputPath(v, c)   => HoarderParams.outPath.set(v)(c)
       case WithFileFormat(v, c)   => HoarderParams.format.set(v)(c)
       case WithCompression(v, c)  => HoarderParams.compression.set(v)(c)
@@ -80,9 +75,6 @@ final private[persist] case class HoarderConfig(value: Fix[HoarderConfigF]) {
   def withError: HoarderConfig     = withSaveMode(SaveMode.ErrorIfExists)
   def withIgnore: HoarderConfig    = withSaveMode(SaveMode.Ignore)
   def withOverwrite: HoarderConfig = withSaveMode(SaveMode.Overwrite)
-
-  def withParallel(num: Long): HoarderConfig =
-    HoarderConfig(Fix(WithParallelism(num, value)))
 
   def withOutPutPath(outPath: String): HoarderConfig =
     HoarderConfig(Fix(WithOutputPath(outPath, value)))

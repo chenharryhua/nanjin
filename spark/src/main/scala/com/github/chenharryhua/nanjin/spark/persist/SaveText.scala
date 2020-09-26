@@ -1,8 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
+import cats.Show
 import cats.effect.{Blocker, Concurrent, ContextShift}
-import cats.{Eq, Parallel, Show}
-import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.pipes.TextSerialization
@@ -56,41 +55,4 @@ final class SaveText[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConf
               .saveAsTextFile(params.outPath, params.compression.ccg.klass)))
     }
   }
-}
-
-final class PartitionText[F[_], A, K](
-  rdd: RDD[A],
-  codec: AvroCodec[A],
-  cfg: HoarderConfig,
-  bucketing: A => Option[K],
-  pathBuilder: (NJFileFormat, K) => String)
-    extends AbstractPartition[F, A, K] {
-
-  val params: HoarderParams = cfg.evalConfig
-
-  private def updateConfig(cfg: HoarderConfig): PartitionText[F, A, K] =
-    new PartitionText[F, A, K](rdd, codec, cfg, bucketing, pathBuilder)
-
-  def gzip: PartitionText[F, A, K] = updateConfig(cfg.withCompression(Compression.Gzip))
-
-  def deflate(level: Int): PartitionText[F, A, K] =
-    updateConfig(cfg.withCompression(Compression.Deflate(level)))
-
-  def run(blocker: Blocker)(implicit
-    F: Concurrent[F],
-    CS: ContextShift[F],
-    P: Parallel[F],
-    ss: SparkSession,
-    show: Show[A],
-    tagA: ClassTag[A],
-    tagK: ClassTag[K],
-    eq: Eq[K]): F[Unit] =
-    savePartition(
-      blocker,
-      rdd,
-      params.parallelism,
-      params.format,
-      bucketing,
-      pathBuilder,
-      (r, p) => new SaveText[F, A](r, codec, cfg.withOutPutPath(p)).run(blocker))
 }

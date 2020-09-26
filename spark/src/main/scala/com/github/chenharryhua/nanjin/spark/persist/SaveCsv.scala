@@ -1,8 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.{Blocker, Concurrent, ContextShift}
-import cats.{Eq, Parallel}
-import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.pipes.CsvSerialization
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt}
@@ -72,45 +70,4 @@ final class SaveCsv[F[_], A](
         sma.checkAndRun(blocker)(csv)
     }
   }
-}
-
-final class PartitionCsv[F[_], A, K](
-  rdd: RDD[A],
-  ate: AvroTypedEncoder[A],
-  csvConfiguration: CsvConfiguration,
-  cfg: HoarderConfig,
-  bucketing: A => Option[K],
-  pathBuilder: (NJFileFormat, K) => String)
-    extends AbstractPartition[F, A, K] {
-  implicit private val tag: ClassTag[A] = ate.classTag
-
-  val params: HoarderParams = cfg.evalConfig
-
-  def updateCsvConfig(f: CsvConfiguration => CsvConfiguration): PartitionCsv[F, A, K] =
-    new PartitionCsv[F, A, K](rdd, ate, f(csvConfiguration), cfg, bucketing, pathBuilder)
-
-  private def updateConfig(cfg: HoarderConfig): PartitionCsv[F, A, K] =
-    new PartitionCsv[F, A, K](rdd, ate, csvConfiguration, cfg, bucketing, pathBuilder)
-
-  def gzip: PartitionCsv[F, A, K] = updateConfig(cfg.withCompression(Compression.Gzip))
-
-  def deflate(level: Int): PartitionCsv[F, A, K] =
-    updateConfig(cfg.withCompression(Compression.Deflate(level)))
-
-  def run(blocker: Blocker)(implicit
-    F: Concurrent[F],
-    CS: ContextShift[F],
-    P: Parallel[F],
-    ss: SparkSession,
-    rowEncoder: RowEncoder[A],
-    tagK: ClassTag[K],
-    eq: Eq[K]): F[Unit] =
-    savePartition(
-      blocker,
-      rdd,
-      params.parallelism,
-      params.format,
-      bucketing,
-      pathBuilder,
-      (r, p) => new SaveCsv[F, A](r, ate, csvConfiguration, cfg.withOutPutPath(p)).run(blocker))
 }
