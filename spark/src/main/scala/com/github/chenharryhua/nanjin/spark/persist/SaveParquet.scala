@@ -36,39 +36,3 @@ final class SaveParquet[F[_], A](rdd: RDD[A], ate: AvroTypedEncoder[A], cfg: Hoa
           .parquet(params.outPath)))
   }
 }
-
-final class PartitionParquet[F[_], A, K](
-  rdd: RDD[A],
-  ate: AvroTypedEncoder[A],
-  cfg: HoarderConfig,
-  bucketing: A => Option[K],
-  pathBuilder: (NJFileFormat, K) => String)
-    extends AbstractPartition[F, A, K] {
-
-  val params: HoarderParams = cfg.evalConfig
-
-  private def updateConfig(cfg: HoarderConfig): PartitionParquet[F, A, K] =
-    new PartitionParquet[F, A, K](rdd, ate, cfg, bucketing, pathBuilder)
-
-  def snappy: PartitionParquet[F, A, K] =
-    updateConfig(cfg.withCompression(Compression.Snappy))
-
-  def gzip: PartitionParquet[F, A, K] =
-    updateConfig(cfg.withCompression(Compression.Gzip))
-
-  def run(blocker: Blocker)(implicit
-    F: Concurrent[F],
-    CS: ContextShift[F],
-    P: Parallel[F],
-    ss: SparkSession,
-    tagK: ClassTag[K],
-    eq: Eq[K]): F[Unit] =
-    savePartition(
-      blocker,
-      rdd,
-      params.parallelism,
-      params.format,
-      bucketing,
-      pathBuilder,
-      (r, p) => new SaveParquet[F, A](r, ate, cfg.withOutPutPath(p)).run(blocker))
-}

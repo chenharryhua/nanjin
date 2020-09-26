@@ -80,16 +80,6 @@ class SparkTableTest extends AnyFunSuite {
       .run
       .unsafeRunSync()
   }
-
-  test("partition save") {
-    val run = table.in[IO](postgres).fromDB.partition.jackson.run(blocker) >>
-      table.in[IO](postgres).fromDB.partition.avro.run(blocker) >>
-      table.in[IO](postgres).fromDB.partition.parquet.run(blocker) >>
-      table.in[IO](postgres).fromDB.partition.circe.run(blocker) >>
-      table.in[IO](postgres).fromDB.partition.csv.run(blocker) >>
-      IO(())
-    run.unsafeRunSync
-  }
   val root = "./data/test/spark/database/postgres/"
 
   val tb: SparkTable[IO, DBTable] = table.in[IO](postgres)

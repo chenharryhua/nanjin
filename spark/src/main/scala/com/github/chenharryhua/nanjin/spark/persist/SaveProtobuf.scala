@@ -29,33 +29,3 @@ final class SaveProtobuf[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: Hoarder
       .compile
       .drain
 }
-
-final class PartitionProtobuf[F[_], A, K](
-  rdd: RDD[A],
-  codec: AvroCodec[A],
-  cfg: HoarderConfig,
-  bucketing: A => Option[K],
-  pathBuilder: (NJFileFormat, K) => String)
-    extends AbstractPartition[F, A, K] {
-
-  val params: HoarderParams = cfg.evalConfig
-
-  def run(blocker: Blocker)(implicit
-    F: Concurrent[F],
-    CS: ContextShift[F],
-    P: Parallel[F],
-    ss: SparkSession,
-    enc: A <:< GeneratedMessage,
-    tagA: ClassTag[A],
-    tagK: ClassTag[K],
-    eq: Eq[K]
-  ): F[Unit] =
-    savePartition(
-      blocker,
-      rdd,
-      params.parallelism,
-      params.format,
-      bucketing,
-      pathBuilder,
-      (r, p) => new SaveProtobuf[F, A](r, codec, cfg.withOutPutPath(p)).run(blocker))
-}

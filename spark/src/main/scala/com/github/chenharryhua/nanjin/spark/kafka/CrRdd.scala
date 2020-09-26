@@ -10,7 +10,6 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.{localdateInstances, NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.persist.{RddFileHoarder, RddPartitionHoarder}
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt}
 import frameless.cats.implicits.rddOps
 import frameless.{TypedDataset, TypedEncoder}
@@ -19,6 +18,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
+import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
 
 final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)(implicit
   val keyCodec: AvroCodec[K],
@@ -120,14 +120,4 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
 
   def save: RddFileHoarder[F, OptionalKV[K, V]] =
     new RddFileHoarder[F, OptionalKV[K, V]](rdd, codec)
-
-  private def bucketing(kv: OptionalKV[K, V]): Option[LocalDate] =
-    Some(NJTimestamp(kv.timestamp).dayResolution(params.timeRange.zoneId))
-
-  def partition: RddPartitionHoarder[F, OptionalKV[K, V], LocalDate] =
-    new RddPartitionHoarder[F, OptionalKV[K, V], LocalDate](
-      rdd,
-      codec,
-      bucketing,
-      params.datePartitionPathBuilder(params.topicName, _, _))
 }
