@@ -36,7 +36,7 @@ val fs2Kafka    = "1.0.0"
 
 // spark
 val spark3   = "3.0.1"
-val frameless = "0.9.0-SNAPSHOT"
+val frameless = "0.9.0"
 
 // database
 val doobie   = "0.9.2"
