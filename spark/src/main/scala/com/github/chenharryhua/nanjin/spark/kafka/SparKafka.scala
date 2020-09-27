@@ -1,11 +1,11 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync, Timer}
+import cats.effect.{Blocker, Concurrent, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.persist.{fileSink, loaders}
+import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.github.chenharryhua.nanjin.spark.sstream.{KafkaCrSStream, SStreamConfig, SparkSStream}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.{TypedDataset, TypedEncoder}
@@ -44,15 +44,9 @@ final class SparKafka[F[_], K, V](
   /**
     * shorthand
     */
-  def dump(implicit F: Sync[F], cs: ContextShift[F]): F[Long] =
+  def dump(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     Blocker[F].use(blocker =>
-      for {
-        _ <- fileSink[F](blocker).delete(params.replayPath)
-        cr <- fromKafka
-      } yield {
-        cr.rdd.saveAsObjectFile(params.replayPath)
-        cr.rdd.count
-      })
+      fromKafka.flatMap(_.save.overwrite.objectFile(params.replayPath).run(blocker)))
 
   def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
     fromDisk.pipeTo(topic)

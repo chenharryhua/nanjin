@@ -9,8 +9,7 @@ import org.scalatest.funsuite.AnyFunSuite
 class JacksonTest extends AnyFunSuite {
   test("datetime read/write identity - multi") {
     import RoosterData._
-    val path = "./data/test/spark/persist/jackson/rooster/multi.json"
-    delete(path)
+    val path  = "./data/test/spark/persist/jackson/rooster/multi.json"
     val saver = new RddFileHoarder[IO, Rooster](rdd, Rooster.avroCodec)
     saver.jackson(path).folder.run(blocker).unsafeRunSync()
     val r = loaders.rdd.jackson[Rooster](path, Rooster.avroCodec)
@@ -18,8 +17,7 @@ class JacksonTest extends AnyFunSuite {
   }
   test("datetime read/write identity - single") {
     import RoosterData._
-    val path = "./data/test/spark/persist/jackson/rooster/single.json"
-    delete(path)
+    val path  = "./data/test/spark/persist/jackson/rooster/single.json"
     val saver = new RddFileHoarder[IO, Rooster](rdd, Rooster.avroCodec)
     saver.jackson(path).file.run(blocker).unsafeRunSync()
     val r = loaders.rdd.jackson[Rooster](path, Rooster.avroCodec)
@@ -29,8 +27,7 @@ class JacksonTest extends AnyFunSuite {
   test("byte-array read/write identity - single") {
     import BeeData._
     import cats.implicits._
-    val path = "./data/test/spark/persist/jackson/bee/single.json"
-    delete(path)
+    val path  = "./data/test/spark/persist/jackson/bee/single.json"
     val saver = new RddFileHoarder[IO, Bee](rdd, Bee.codec).repartition(1)
     saver.jackson(path).file.run(blocker).unsafeRunSync()
     val t = loaders.rdd.jackson[Bee](path, Bee.codec).collect().toList
@@ -39,8 +36,7 @@ class JacksonTest extends AnyFunSuite {
   test("byte-array read/write identity - multi") {
     import BeeData._
     import cats.implicits._
-    val path = "./data/test/spark/persist/jackson/bee/multi.json"
-    delete(path)
+    val path  = "./data/test/spark/persist/jackson/bee/multi.json"
     val saver = new RddFileHoarder[IO, Bee](rdd, Bee.codec).repartition(1)
     saver.jackson(path).folder.run(blocker).unsafeRunSync()
     val t = loaders.rdd.jackson[Bee](path, Bee.codec).collect().toList

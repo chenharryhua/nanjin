@@ -1,7 +1,9 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.{Blocker, Concurrent, ContextShift}
+import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.pipes.{GenericRecordCodec, JacksonSerialization}
 import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import org.apache.avro.mapreduce.AvroJob
@@ -30,11 +32,16 @@ final class SaveJackson[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderC
     val sma: SaveModeAware[F]            = new SaveModeAware[F](params.saveMode, params.outPath, ss)
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
+        val hadoop = new NJHadoop[F](ss.sparkContext.hadoopConfiguration)
+        val gr     = new GenericRecordCodec[F, A]
+        val pipe   = new JacksonSerialization[F](codec.schema)
         sma.checkAndRun(blocker)(
           rdd
             .map(codec.idConversion)
             .stream[F]
-            .through(fileSink[F](blocker).jackson(params.outPath))
+            .through(gr.encode)
+            .through(pipe.serialize)
+            .through(hadoop.byteSink(params.outPath, blocker))
             .compile
             .drain)
       case FolderOrFile.Folder =>
