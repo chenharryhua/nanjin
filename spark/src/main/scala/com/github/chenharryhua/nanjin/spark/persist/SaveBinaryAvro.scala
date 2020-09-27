@@ -1,7 +1,9 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.{Blocker, Concurrent, ContextShift}
+import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.pipes.{BinaryAvroSerialization, GenericRecordCodec}
 import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.Encoder
 import org.apache.spark.rdd.RDD
@@ -21,8 +23,12 @@ final class SaveBinaryAvro[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: Hoard
     implicit val encoder: Encoder[A] = codec.avroEncoder
 
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
+    val hadoop =
+      new NJHadoop[F](ss.sparkContext.hadoopConfiguration).byteSink(params.outPath, blocker)
+    val gr   = new GenericRecordCodec[F, A]
+    val pipe = new BinaryAvroSerialization[F](codec.schema)
 
     sma.checkAndRun(blocker)(
-      rdd.stream[F].through(fileSink[F](blocker).binAvro(params.outPath)).compile.drain)
+      rdd.stream[F].through(gr.encode).through(pipe.serialize).through(hadoop).compile.drain)
   }
 }
