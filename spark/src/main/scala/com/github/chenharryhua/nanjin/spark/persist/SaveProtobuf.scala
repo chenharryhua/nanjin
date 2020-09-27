@@ -22,16 +22,19 @@ final class SaveProtobuf[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: Hoarder
     ss: SparkSession,
     enc: A <:< GeneratedMessage,
     tag: ClassTag[A]): F[Unit] = {
+    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
+
     val hadoop =
       new NJHadoop[F](ss.sparkContext.hadoopConfiguration).byteSink(params.outPath, blocker)
     val pipe = new DelimitedProtoBufSerialization[F]
 
-    rdd
-      .map(codec.idConversion)
-      .stream[F]
-      .through(pipe.serialize(blocker))
-      .through(hadoop)
-      .compile
-      .drain
+    sma.checkAndRun(blocker)(
+      rdd
+        .map(codec.idConversion)
+        .stream[F]
+        .through(pipe.serialize(blocker))
+        .through(hadoop)
+        .compile
+        .drain)
   }
 }
