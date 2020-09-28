@@ -63,6 +63,31 @@ private[kafka] trait DatasetExtensions {
         ss: SparkSession): TypedDataset[OptionalKV[K, V]] =
         loaders.json[OptionalKV[K, V]](pathStr, ate)(ss)
 
+      def jackson(pathStr: String)(implicit
+        keyEncoder: TypedEncoder[K],
+        valEncoder: TypedEncoder[V],
+        ss: SparkSession): TypedDataset[OptionalKV[K, V]] =
+        loaders.jackson[OptionalKV[K, V]](pathStr, ate)(ss)
+
+      def binAvro(pathStr: String)(implicit
+        keyEncoder: TypedEncoder[K],
+        valEncoder: TypedEncoder[V],
+        ss: SparkSession): TypedDataset[OptionalKV[K, V]] =
+        loaders.binAvro[OptionalKV[K, V]](pathStr, ate)(ss)
+
+      def circe(pathStr: String)(implicit
+        keyEncoder: TypedEncoder[K],
+        valEncoder: TypedEncoder[V],
+        ev: JsonDecoder[OptionalKV[K, V]],
+        ss: SparkSession): TypedDataset[OptionalKV[K, V]] =
+        loaders.circe[OptionalKV[K, V]](pathStr, ate)
+
+      def objectFile(pathStr: String)(implicit
+        keyEncoder: TypedEncoder[K],
+        valEncoder: TypedEncoder[V],
+        ss: SparkSession): TypedDataset[OptionalKV[K, V]] =
+        loaders.objectFile[OptionalKV[K, V]](pathStr, ate)
+
       object rdd {
 
         def avro(pathStr: String)(implicit ss: SparkSession): RDD[OptionalKV[K, V]] =
@@ -81,6 +106,7 @@ private[kafka] trait DatasetExtensions {
 
         def objectFile(pathStr: String)(implicit ss: SparkSession): RDD[OptionalKV[K, V]] =
           loaders.rdd.objectFile[OptionalKV[K, V]](pathStr)
+
       }
     }
   }

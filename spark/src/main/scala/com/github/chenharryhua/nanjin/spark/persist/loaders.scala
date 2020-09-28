@@ -50,6 +50,28 @@ object loaders {
     ss: SparkSession): TypedDataset[A] =
     ate.normalizeDF(ss.read.schema(ate.sparkSchema).json(pathStr))
 
+  def objectFile[A](pathStr: String, ate: AvroTypedEncoder[A])(implicit
+    ss: SparkSession): TypedDataset[A] =
+    ate.normalize(rdd.objectFile[A](pathStr)(ate.classTag, ss))
+
+  def circe[A](pathStr: String, ate: AvroTypedEncoder[A])(implicit
+    dec: JsonDecoder[A],
+    ss: SparkSession): TypedDataset[A] =
+    ate.normalize(rdd.circe[A](pathStr)(ate.classTag, dec, ss))
+
+  def jackson[A](pathStr: String, ate: AvroTypedEncoder[A])(implicit
+    ss: SparkSession): TypedDataset[A] =
+    ate.normalize(rdd.jackson[A](pathStr, ate.avroCodec)(ate.classTag, ss))
+
+  def binAvro[A](pathStr: String, ate: AvroTypedEncoder[A])(implicit
+    ss: SparkSession): TypedDataset[A] =
+    ate.normalize(rdd.binAvro[A](pathStr, ate.avroCodec)(ate.classTag, ss))
+
+  def protobuf[A <: GeneratedMessage](pathStr: String, ate: AvroTypedEncoder[A])(implicit
+    decoder: GeneratedMessageCompanion[A],
+    ss: SparkSession): TypedDataset[A] =
+    ate.normalize(rdd.protobuf[A](pathStr)(ate.classTag, decoder, ss))
+
   object rdd {
 
     def objectFile[A: ClassTag](pathStr: String)(implicit ss: SparkSession): RDD[A] =
