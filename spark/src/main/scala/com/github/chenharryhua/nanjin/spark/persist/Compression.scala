@@ -7,9 +7,11 @@ import org.apache.avro.file.{CodecFactory, DataFileConstants}
 import org.apache.avro.mapred.AvroOutputFormat
 import org.apache.avro.mapreduce.AvroJob
 import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import org.apache.hadoop.io.compress.{CompressionCodec, DeflateCodec, GzipCodec}
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
+import io.scalaland.enumz.Enum
 
 final private[persist] case class CompressionCodecGroup[F[_]](
   klass: Class[_ <: CompressionCodec],
@@ -51,12 +53,13 @@ private[persist] trait Compression {
     case c                        => throw new Exception(s"not support $c")
   }
 
-  def ccg[F[_]: Sync]: CompressionCodecGroup[F] = this match {
+  def ccg[F[_]: Sync](conf: Configuration): CompressionCodecGroup[F] = this match {
     case Compression.Uncompressed =>
       CompressionCodecGroup[F](null, "uncompressed", identity)
     case Compression.Gzip =>
       CompressionCodecGroup[F](classOf[GzipCodec], "gzip", gzip[F]())
     case Compression.Deflate(level) =>
+      conf.set("zlib.compress.level", Enum[CompressionLevel].withIndex(level).toString)
       CompressionCodecGroup[F](classOf[DeflateCodec], "deflate", deflate[F](level))
     case c => throw new Exception(s"not support $c")
   }

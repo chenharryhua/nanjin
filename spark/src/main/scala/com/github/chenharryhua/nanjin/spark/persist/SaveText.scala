@@ -34,6 +34,8 @@ final class SaveText[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConf
     tag: ClassTag[A]): F[Unit] = {
 
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
+    val ccg                   = params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
+
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
         val hadoop = new NJHadoop[F](ss.sparkContext.hadoopConfiguration)
@@ -43,16 +45,13 @@ final class SaveText[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConf
             .stream[F]
             .map(a => show.show(codec.idConversion(a)))
             .through(pipe.serialize)
-            .through(params.compression.ccg.pipe)
+            .through(ccg.pipe)
             .through(hadoop.byteSink(params.outPath, blocker))
             .compile
             .drain)
       case FolderOrFile.Folder =>
-        sma.checkAndRun(blocker)(
-          F.delay(
-            rdd
-              .map(a => show.show(codec.idConversion(a)))
-              .saveAsTextFile(params.outPath, params.compression.ccg.klass)))
+        sma.checkAndRun(blocker)(F.delay(
+          rdd.map(a => show.show(codec.idConversion(a))).saveAsTextFile(params.outPath, ccg.klass)))
     }
   }
 }

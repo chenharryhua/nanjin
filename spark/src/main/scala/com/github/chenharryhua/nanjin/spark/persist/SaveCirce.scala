@@ -34,6 +34,8 @@ final class SaveCirce[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderCon
     tag: ClassTag[A]): F[Unit] = {
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
 
+    val ccg = params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
+
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
         val hadoop = new NJHadoop[F](ss.sparkContext.hadoopConfiguration)
@@ -43,7 +45,7 @@ final class SaveCirce[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderCon
             .map(codec.idConversion)
             .stream[F]
             .through(pipe.serialize)
-            .through(params.compression.ccg.pipe)
+            .through(ccg.pipe)
             .through(hadoop.byteSink(params.outPath, blocker))
             .compile
             .drain)
@@ -52,7 +54,7 @@ final class SaveCirce[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderCon
           F.delay(
             rdd
               .map(a => jsonEncoder(codec.idConversion(a)).noSpaces)
-              .saveAsTextFile(params.outPath, params.compression.ccg.klass)))
+              .saveAsTextFile(params.outPath, ccg.klass)))
     }
   }
 }

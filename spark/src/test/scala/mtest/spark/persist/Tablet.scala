@@ -7,6 +7,8 @@ import kantan.csv.RowEncoder
 import kantan.csv.generic._
 import org.apache.spark.rdd.RDD
 
+import scala.util.Random
+
 final case class Tablet(a: Int, b: Long, c: Float)
 
 object Tablet {
@@ -18,11 +20,8 @@ object Tablet {
 
 object TabletData {
 
-  val data = List(
-    Tablet(1, 2, 0.1f),
-    Tablet(2, 3, 0.2f),
-    Tablet(3, 4, 0.3f)
-  )
+  val data: List[Tablet] =
+    List.fill(10000)(Tablet(Random.nextInt(), Random.nextLong(), Random.nextFloat()))
 
   val rdd: RDD[Tablet] = sparkSession.sparkContext.parallelize(data)
 
