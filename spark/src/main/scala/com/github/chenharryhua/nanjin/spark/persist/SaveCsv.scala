@@ -40,7 +40,7 @@ final class SaveCsv[F[_], A](
     ss: SparkSession,
     rowEncoder: RowEncoder[A]): F[Unit] = {
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
-
+    val ccg                   = params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
         val hadoop = new NJHadoop[F](ss.sparkContext.hadoopConfiguration)
@@ -51,7 +51,7 @@ final class SaveCsv[F[_], A](
             .map(ate.avroCodec.idConversion)
             .stream[F]
             .through(pipe.serialize(blocker))
-            .through(params.compression.ccg.pipe)
+            .through(ccg.pipe)
             .through(hadoop.byteSink(params.outPath, blocker))
             .compile
             .drain)
@@ -61,7 +61,7 @@ final class SaveCsv[F[_], A](
             .normalize(rdd)
             .write
             .mode(SaveMode.Overwrite)
-            .option("compression", params.compression.ccg.name)
+            .option("compression", ccg.name)
             .option("sep", csvConfiguration.cellSeparator.toString)
             .option("header", csvConfiguration.hasHeader)
             .option("quote", csvConfiguration.quote.toString)
