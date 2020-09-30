@@ -154,7 +154,7 @@ val json4sLib = Seq(
   "org.json4s" %% "json4s-ast",
   "org.json4s" %% "json4s-core",
   "org.json4s" %% "json4s-jackson",
-  "org.json4s" %% "json4s-navtive",
+  "org.json4s" %% "json4s-native",
   "org.json4s" %% "json4s-scalap"
 ).map(_ % json4s)
 
@@ -250,7 +250,7 @@ val catsLib = Seq(
   "org.typelevel" %% "alleycats-core"
 ).map(_ % catsCore) ++
   Seq(
-    "org.typelevel" %% "cats-mtl"           % catsMtl,
+    "org.typelevel" %% "cats-mtl"            % catsMtl,
     "org.typelevel" %% "kittens"             % kittens,
     "org.typelevel" %% "cats-tagless-macros" % tagless,
     "org.typelevel" %% "algebra"             % algebra
@@ -371,9 +371,8 @@ lazy val spark = (project in file("spark"))
       "io.netty" % "netty"     % "3.10.6.Final",
       "io.netty" % "netty-all" % "4.1.52.Final",
       "com.julianpeeters" %% "avrohugger-core" % "1.0.0-RC21" % Test
-    ) ++ sparkLib ++ serdeLib ++ hadoopLib ++ testLib,
-    excludeDependencies ++= Seq(ExclusionRule(organization = "io.netty")),
-    dependencyOverrides ++= json4sLib
+    ) ++ sparkLib ++ serdeLib ++ hadoopLib ++ json4sLib ++ testLib,
+    excludeDependencies ++= Seq(ExclusionRule(organization = "io.netty"))
   )
 
 lazy val nanjin =
