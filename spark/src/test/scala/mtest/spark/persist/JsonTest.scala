@@ -22,7 +22,7 @@ class JsonTest extends AnyFunSuite {
   test("rdd read/write identity gzip") {
     import RoosterData._
     val path  = "./data/test/spark/persist/json/gzip.json"
-    val saver = new RddFileHoarder[IO, Rooster](rdd, Rooster.avroCodec)
+    val saver = new RddFileHoarder[IO, Rooster](rdd.repartition(1), Rooster.avroCodec)
     saver.json(path).gzip.run(blocker).unsafeRunSync()
     val t: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate)
     assert(expected == t.collect[IO]().unsafeRunSync().toSet)
@@ -34,6 +34,14 @@ class JsonTest extends AnyFunSuite {
     val saver = new RddFileHoarder[IO, Rooster](rdd, Rooster.avroCodec)
     saver.json(path).deflate(1).run(blocker).unsafeRunSync()
     val t: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate)
+    assert(expected == t.collect[IO]().unsafeRunSync().toSet)
+  }
+  test("rdd read/write identity bzip2") {
+    import RoosterData._
+    val path  = "./data/test/spark/persist/json/bzip2.json"
+    val saver = new RddFileHoarder[IO, Rooster](rdd.repartition(1), Rooster.avroCodec)
+    saver.json(path).bzip2.run(blocker).unsafeRunSync()
+    val t: TypedDataset[Rooster] = loaders.json(path, Rooster.ate)
     assert(expected == t.collect[IO]().unsafeRunSync().toSet)
   }
 }
