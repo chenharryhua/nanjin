@@ -1,8 +1,10 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.Sync
+import enumeratum.EnumEntry
 import fs2.Pipe
 import fs2.compression.{deflate, gzip}
+import io.scalaland.enumz
 import org.apache.avro.file.{CodecFactory, DataFileConstants}
 import org.apache.avro.mapred.AvroOutputFormat
 import org.apache.avro.mapreduce.AvroJob
@@ -11,14 +13,15 @@ import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import org.apache.hadoop.io.compress.{CompressionCodec, DeflateCodec, GzipCodec}
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
-import io.scalaland.enumz.Enum
+
+import scala.collection.immutable
 
 final private[persist] case class CompressionCodecGroup[F[_]](
   klass: Class[_ <: CompressionCodec],
   name: String,
   pipe: Pipe[F, Byte, Byte])
 
-private[persist] trait Compression {
+sealed private[persist] trait Compression extends EnumEntry with Serializable {
 
   def avro(conf: Configuration): CodecFactory = this match {
     case Compression.Uncompressed =>
@@ -59,13 +62,15 @@ private[persist] trait Compression {
     case Compression.Gzip =>
       CompressionCodecGroup[F](classOf[GzipCodec], "gzip", gzip[F]())
     case Compression.Deflate(level) =>
-      conf.set("zlib.compress.level", Enum[CompressionLevel].withIndex(level).toString)
+      conf.set("zlib.compress.level", enumz.Enum[CompressionLevel].withIndex(level).toString)
       CompressionCodecGroup[F](classOf[DeflateCodec], "deflate", deflate[F](level))
     case c => throw new Exception(s"not support $c")
   }
 }
 
-private[persist] object Compression {
+private[persist] object Compression extends enumeratum.Enum[Compression] with Serializable {
+  override val values: immutable.IndexedSeq[Compression] = findValues
+
   case object Uncompressed extends Compression
   case object Snappy extends Compression
   case object Bzip2 extends Compression
