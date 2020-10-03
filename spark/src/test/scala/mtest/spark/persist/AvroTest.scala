@@ -3,6 +3,7 @@ package mtest.spark.persist
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddFileHoarder}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
+import org.apache.spark.sql.SaveMode
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -109,6 +110,23 @@ class AvroTest extends AnyFunSuite {
     val path  = "./data/test/spark/persist/avro/rooster/single.xz.avro"
     val saver = new RddFileHoarder[IO, Rooster](rdd, Rooster.avroCodec)
     saver.avro(path).file.xz(5).run(blocker).unsafeRunSync()
+    val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec).collect().toSet
+    val t = loaders.avro[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
+    assert(expected == r)
+    assert(expected == t)
+  }
+
+  test("datetime spark write/nanjin read identity") {
+    import RoosterData._
+    val path = "./data/test/spark/persist/avro/rooster/spark-write.avro"
+    val tds  = Rooster.ate.normalize(rdd)
+    tds
+      .repartition(1)
+      .write
+      .mode(SaveMode.Overwrite)
+      .option("avroSchema", Rooster.schema.toString)
+      .format("avro")
+      .save(path)
     val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec).collect().toSet
     val t = loaders.avro[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
     assert(expected == r)

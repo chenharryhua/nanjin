@@ -3,22 +3,30 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.effect.Sync
 import fs2.Pipe
 import fs2.compression.{deflate, gzip}
+import io.scalaland.enumz
 import org.apache.avro.file.{CodecFactory, DataFileConstants}
 import org.apache.avro.mapred.AvroOutputFormat
 import org.apache.avro.mapreduce.AvroJob
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
-import org.apache.hadoop.io.compress.{CompressionCodec, DeflateCodec, GzipCodec}
+import org.apache.hadoop.io.compress.{
+  BZip2Codec,
+  CompressionCodec,
+  DeflateCodec,
+  GzipCodec,
+  Lz4Codec,
+  SnappyCodec,
+  ZStandardCodec
+}
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
-import io.scalaland.enumz.Enum
 
 final private[persist] case class CompressionCodecGroup[F[_]](
   klass: Class[_ <: CompressionCodec],
   name: String,
   pipe: Pipe[F, Byte, Byte])
 
-private[persist] trait Compression {
+sealed private[persist] trait Compression extends Serializable {
 
   def avro(conf: Configuration): CodecFactory = this match {
     case Compression.Uncompressed =>
@@ -53,28 +61,37 @@ private[persist] trait Compression {
     case c                        => throw new Exception(s"not support $c")
   }
 
-  def ccg[F[_]: Sync](conf: Configuration): CompressionCodecGroup[F] = this match {
-    case Compression.Uncompressed =>
-      CompressionCodecGroup[F](null, "uncompressed", identity)
-    case Compression.Gzip =>
-      CompressionCodecGroup[F](classOf[GzipCodec], "gzip", gzip[F]())
-    case Compression.Deflate(level) =>
-      conf.set("zlib.compress.level", Enum[CompressionLevel].withIndex(level).toString)
-      CompressionCodecGroup[F](classOf[DeflateCodec], "deflate", deflate[F](level))
-    case c => throw new Exception(s"not support $c")
-  }
+  def ccg[F[_]: Sync](conf: Configuration): CompressionCodecGroup[F] =
+    this match {
+      case Compression.Uncompressed =>
+        CompressionCodecGroup[F](null, "uncompressed", identity)
+      case Compression.Gzip =>
+        CompressionCodecGroup[F](classOf[GzipCodec], "gzip", gzip[F]())
+      case Compression.Deflate(level) =>
+        conf.set("zlib.compress.level", enumz.Enum[CompressionLevel].withIndex(level).toString)
+        CompressionCodecGroup[F](classOf[DeflateCodec], "deflate", deflate[F](level))
+      case Compression.Snappy =>
+        CompressionCodecGroup[F](classOf[SnappyCodec], "snappy", identity)
+      case Compression.Bzip2 =>
+        CompressionCodecGroup[F](classOf[BZip2Codec], "bzip2", identity)
+      case Compression.LZ4 =>
+        CompressionCodecGroup[F](classOf[Lz4Codec], "lz4", identity)
+      case Compression.Zstandard(level) =>
+        conf.set("io.compression.codec.zstd.level", level.toString)
+        CompressionCodecGroup[F](classOf[ZStandardCodec], "zstd", identity)
+      case c => throw new Exception(s"not support $c")
+    }
 }
 
 private[persist] object Compression {
+
   case object Uncompressed extends Compression
   case object Snappy extends Compression
   case object Bzip2 extends Compression
   case object Gzip extends Compression
-  case object LZO extends Compression
   case object LZ4 extends Compression
-  case object BROTLI extends Compression
 
   final case class Deflate(level: Int) extends Compression
   final case class Xz(level: Int) extends Compression
-  final case class Zstandard(level: Int, useCheckSum: Boolean) extends Compression
+  final case class Zstandard(level: Int) extends Compression
 }

@@ -52,10 +52,15 @@ final class SaveAvro[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConf
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
-        val hadoop = new NJHadoop[F](ss.sparkContext.hadoopConfiguration)
-          .avroSink(params.outPath, codec.schema, cf, blocker)
-        val pipe = new GenericRecordCodec[F, A]
-        sma.checkAndRun(blocker)(rdd.stream[F].through(pipe.encode).through(hadoop).compile.drain)
+        val hadoop: NJHadoop[F]            = new NJHadoop[F](ss.sparkContext.hadoopConfiguration)
+        val pipe: GenericRecordCodec[F, A] = new GenericRecordCodec[F, A]
+        sma.checkAndRun(blocker)(
+          rdd
+            .stream[F]
+            .through(pipe.encode)
+            .through(hadoop.avroSink(params.outPath, codec.schema, cf, blocker))
+            .compile
+            .drain)
       case FolderOrFile.Folder =>
         val sparkjob = F.delay {
           val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
