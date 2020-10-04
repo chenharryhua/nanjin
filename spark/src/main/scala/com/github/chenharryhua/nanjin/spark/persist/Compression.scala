@@ -8,18 +8,9 @@ import org.apache.avro.file.{CodecFactory, DataFileConstants}
 import org.apache.avro.mapred.AvroOutputFormat
 import org.apache.avro.mapreduce.AvroJob
 import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.io.compress._
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
-import org.apache.hadoop.io.compress.{
-  BZip2Codec,
-  CompressionCodec,
-  DeflateCodec,
-  GzipCodec,
-  Lz4Codec,
-  SnappyCodec,
-  ZStandardCodec
-}
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
-import org.apache.parquet.hadoop.metadata.CompressionCodecName
 
 final private[persist] case class CompressionCodecGroup[F[_]](
   klass: Class[_ <: CompressionCodec],
@@ -52,13 +43,6 @@ sealed private[persist] trait Compression extends Serializable {
       conf.set(AvroOutputFormat.XZ_LEVEL_KEY, v.toString)
       CodecFactory.xzCodec(v)
     case c => throw new Exception(s"not support $c")
-  }
-
-  def parquet: CompressionCodecName = this match {
-    case Compression.Uncompressed => CompressionCodecName.UNCOMPRESSED
-    case Compression.Snappy       => CompressionCodecName.SNAPPY
-    case Compression.Gzip         => CompressionCodecName.GZIP
-    case c                        => throw new Exception(s"not support $c")
   }
 
   def ccg[F[_]: Sync](conf: Configuration): CompressionCodecGroup[F] =
