@@ -43,6 +43,30 @@ private[kafka] trait DatasetExtensions {
       AvroTypedEncoder[OptionalKV[K, V]](avroCodec)
     }
 
+    def kate(implicit
+      keyEncoder: TypedEncoder[K],
+      valEncoder: TypedEncoder[V]): AvroTypedEncoder[CompulsoryK[K, V]] = {
+      implicit val te: TypedEncoder[CompulsoryK[K, V]] = shapeless.cachedImplicit
+      implicit val cd: AvroCodec[CompulsoryK[K, V]]    = shapeless.cachedImplicit
+      AvroTypedEncoder[CompulsoryK[K, V]](cd)
+    }
+
+    def vate(implicit
+      keyEncoder: TypedEncoder[K],
+      valEncoder: TypedEncoder[V]): AvroTypedEncoder[CompulsoryV[K, V]] = {
+      implicit val te: TypedEncoder[CompulsoryV[K, V]] = shapeless.cachedImplicit
+      implicit val cd: AvroCodec[CompulsoryV[K, V]]    = shapeless.cachedImplicit
+      AvroTypedEncoder[CompulsoryV[K, V]](cd)
+    }
+
+    def kvate(implicit
+      keyEncoder: TypedEncoder[K],
+      valEncoder: TypedEncoder[V]): AvroTypedEncoder[CompulsoryKV[K, V]] = {
+      implicit val te: TypedEncoder[CompulsoryKV[K, V]] = shapeless.cachedImplicit
+      implicit val cd: AvroCodec[CompulsoryKV[K, V]]    = shapeless.cachedImplicit
+      AvroTypedEncoder[CompulsoryKV[K, V]](cd)
+    }
+
     object load {
 
       def avro(pathStr: String)(implicit
