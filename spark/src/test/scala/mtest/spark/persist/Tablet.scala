@@ -1,15 +1,19 @@
 package mtest.spark.persist
 
+import java.time.{Instant, LocalDate}
+
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
+import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.TypedEncoder
 import kantan.csv.RowEncoder
+import kantan.csv.java8._
 import kantan.csv.generic._
 import org.apache.spark.rdd.RDD
 
 import scala.util.Random
 
-final case class Tablet(a: Int, b: Long, c: Float)
+final case class Tablet(a: Int, b: Long, c: Float, d: LocalDate, e: Instant)
 
 object Tablet {
   val codec: AvroCodec[Tablet]          = AvroCodec[Tablet]
@@ -21,7 +25,8 @@ object Tablet {
 object TabletData {
 
   val data: List[Tablet] =
-    List.fill(10000)(Tablet(Random.nextInt(), Random.nextLong(), Random.nextFloat()))
+    List.fill(10000)(
+      Tablet(Random.nextInt(), Random.nextLong(), Random.nextFloat(), LocalDate.now, Instant.now))
 
   val rdd: RDD[Tablet] = sparkSession.sparkContext.parallelize(data)
 
