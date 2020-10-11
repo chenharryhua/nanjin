@@ -8,6 +8,7 @@ import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
 import eu.timepit.refined.string.MatchesRegex
 import fs2.Stream
 package object kafka {
+  object show extends ShowKafkaMessage
 
   type TopicName = String Refined MatchesRegex[W.`"^[a-zA-Z0-9_.-]+$"`.T]
 
