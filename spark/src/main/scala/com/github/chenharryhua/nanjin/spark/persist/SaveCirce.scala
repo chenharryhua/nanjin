@@ -45,7 +45,7 @@ final class SaveCirce[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderCon
             .map(codec.idConversion)
             .stream[F]
             .through(pipe.serialize)
-            .through(ccg.pipe)
+            .through(ccg.compressionPipe)
             .through(hadoop.byteSink(params.outPath, blocker))
             .compile
             .drain)

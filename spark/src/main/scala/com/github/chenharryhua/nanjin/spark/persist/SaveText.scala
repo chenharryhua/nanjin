@@ -45,7 +45,7 @@ final class SaveText[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConf
             .stream[F]
             .map(a => show.show(codec.idConversion(a)))
             .through(pipe.serialize)
-            .through(ccg.pipe)
+            .through(ccg.compressionPipe)
             .through(hadoop.byteSink(params.outPath, blocker))
             .compile
             .drain)

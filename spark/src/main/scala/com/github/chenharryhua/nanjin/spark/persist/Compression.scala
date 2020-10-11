@@ -15,7 +15,7 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
 final private[persist] case class CompressionCodecGroup[F[_]](
   klass: Class[_ <: CompressionCodec],
   name: String,
-  pipe: Pipe[F, Byte, Byte])
+  compressionPipe: Pipe[F, Byte, Byte])
 
 sealed private[persist] trait Compression extends Serializable {
 

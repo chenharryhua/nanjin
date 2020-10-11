@@ -4,6 +4,7 @@ import cats.effect.{Blocker, Concurrent, ContextShift}
 import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.pipes.CsvSerialization
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt}
+import kantan.csv.CsvConfiguration.QuotePolicy
 import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SaveMode, SparkSession}
@@ -44,18 +45,29 @@ final class SaveCsv[F[_], A](
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
         val hadoop = new NJHadoop[F](ss.sparkContext.hadoopConfiguration)
-        val pipe   = new CsvSerialization[F, A](csvConfiguration)
+
+        val csvConf =
+          if (csvConfiguration.hasHeader)
+            csvConfiguration.withHeader(ate.sparkEncoder.schema.fieldNames: _*)
+          else csvConfiguration
+
+        val pipe = new CsvSerialization[F, A](csvConf)
 
         sma.checkAndRun(blocker)(
           rdd
             .map(ate.avroCodec.idConversion)
             .stream[F]
             .through(pipe.serialize(blocker))
-            .through(ccg.pipe)
+            .through(ccg.compressionPipe)
             .through(hadoop.byteSink(params.outPath, blocker))
             .compile
             .drain)
+
       case FolderOrFile.Folder =>
+        val quoteAll = csvConfiguration.quotePolicy match {
+          case QuotePolicy.Always     => true
+          case QuotePolicy.WhenNeeded => false
+        }
         val csv = F.delay(
           ate
             .normalize(rdd)
@@ -65,6 +77,7 @@ final class SaveCsv[F[_], A](
             .option("sep", csvConfiguration.cellSeparator.toString)
             .option("header", csvConfiguration.hasHeader)
             .option("quote", csvConfiguration.quote.toString)
+            .option("quoteAll", quoteAll)
             .option("charset", "UTF8")
             .csv(params.outPath))
         sma.checkAndRun(blocker)(csv)
