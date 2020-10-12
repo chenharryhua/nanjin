@@ -35,7 +35,7 @@ val akkaKafka   = "2.0.5"
 val fs2Kafka    = "1.1.0"
 
 // spark
-val spark3   = "3.0.1"
+val spark3    = "3.0.1"
 val frameless = "0.9.0"
 
 // database
@@ -47,7 +47,7 @@ val elastic  = "7.9.1"
 // format
 val circe   = "0.13.0"
 val jackson = "2.11.3"
-val json4s  = "3.7.0-M6"  // for spark
+val json4s  = "3.7.0-M6" // for spark
 val kantan  = "0.6.1"
 val parquet = "1.11.1"
 val avro    = "1.10.0"
@@ -167,8 +167,6 @@ val kantanLib = Seq(
 
 val serdeLib = Seq(
   "org.apache.avro"                           % "avro"                      % avro,
-  "org.apache.avro"                           % "avro-compiler"             % avro,
-  "org.apache.avro"                           % "avro-mapred"               % avro,
   "org.apache.parquet"                        % "parquet-avro"              % parquet,
   "io.confluent"                              % "kafka-streams-avro-serde"  % confluent,
   "io.confluent"                              % "kafka-protobuf-serializer" % confluent,
@@ -209,7 +207,10 @@ val sparkLib = Seq(
   "org.typelevel" %% "frameless-dataset",
   "org.typelevel" %% "frameless-ml",
   "org.typelevel" %% "frameless-cats"
-).map(_ % frameless)
+).map(_ % frameless) ++ Seq(
+  "org.apache.avro" % "avro-compiler",
+  "org.apache.avro" % "avro-mapred"
+).map(_ % avro)
 
 val testLib = Seq(
   "org.typelevel" %% "cats-testkit-scalatest"                 % "2.0.0"   % Test,
@@ -228,8 +229,8 @@ val testLib = Seq(
 val kafkaLib = Seq(
   "org.apache.kafka" % "kafka-clients",
   "org.apache.kafka" % "kafka-streams",
-  "org.apache.kafka" %% "kafka-streams-scala").map(_ % confltKafka) ++
-  Seq(
+  "org.apache.kafka" %% "kafka-streams-scala")
+  .map(_ % confltKafka) ++ Seq(
     "com.typesafe.akka" %% "akka-stream-kafka" % akkaKafka,
     "com.github.fd4s" %% "fs2-kafka"           % fs2Kafka)
 
@@ -368,8 +369,8 @@ lazy val spark = (project in file("spark"))
       "io.getquill" %% "quill-spark"               % quill,
       "com.thesamet.scalapb" %% "sparksql-scalapb" % "0.10.4",
       // override dependency
-      "io.netty" % "netty"     % "3.10.6.Final",
-      "io.netty" % "netty-all" % "4.1.52.Final",
+      "io.netty"                               % "netty"      % "3.10.6.Final",
+      "io.netty"                               % "netty-all"  % "4.1.52.Final",
       "com.julianpeeters" %% "avrohugger-core" % "1.0.0-RC21" % Test
     ) ++ sparkLib ++ serdeLib ++ hadoopLib ++ json4sLib ++ testLib,
     excludeDependencies ++= Seq(ExclusionRule(organization = "io.netty"))
