@@ -370,7 +370,7 @@ lazy val spark = (project in file("spark"))
       "com.thesamet.scalapb" %% "sparksql-scalapb" % "0.10.4",
       // override dependency
       "io.netty"                               % "netty"      % "3.10.6.Final",
-      "io.netty"                               % "netty-all"  % "4.1.52.Final",
+      "io.netty"                               % "netty-all"  % "4.1.53.Final",
       "com.julianpeeters" %% "avrohugger-core" % "1.0.0-RC21" % Test
     ) ++ sparkLib ++ serdeLib ++ hadoopLib ++ json4sLib ++ testLib,
     excludeDependencies ++= Seq(ExclusionRule(organization = "io.netty"))
