@@ -33,6 +33,9 @@ final class SparKafka[F[_], K, V](
   override def withParamUpdate(f: SKConfig => SKConfig): SparKafka[F, K, V] =
     new SparKafka[F, K, V](topic, sparkSession, f(cfg))
 
+  def withTopicName(tn: String): SparKafka[F, K, V] =
+    new SparKafka[F, K, V](topic.withTopicName(tn), sparkSession, cfg)
+
   override val params: SKParams = cfg.evalConfig
 
   def fromKafka(implicit sync: Sync[F]): F[CrRdd[F, K, V]] =
@@ -41,8 +44,7 @@ final class SparKafka[F[_], K, V](
   def fromDisk: CrRdd[F, K, V] =
     crRdd(loaders.rdd.objectFile[OptionalKV[K, V]](params.replayPath))
 
-  /**
-    * shorthand
+  /** shorthand
     */
   def dump(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     Blocker[F].use(blocker =>
@@ -60,21 +62,18 @@ final class SparKafka[F[_], K, V](
     cs: ContextShift[F]): F[Unit] =
     fromKafka.flatMap(_.pipeTo(other))
 
-  /**
-    * rdd and dataset
+  /** rdd and dataset
     */
   def crRdd(rdd: RDD[OptionalKV[K, V]])          = new CrRdd[F, K, V](rdd, cfg)
   def crRdd(tds: TypedDataset[OptionalKV[K, V]]) = new CrRdd[F, K, V](tds.dataset.rdd, cfg)
 
-  /**
-    * direct stream
+  /** direct stream
     */
 
   def dstream(sc: StreamingContext): CrDStream[F, K, V] =
     new CrDStream[F, K, V](sk.kafkaDStream[F, K, V](topic, sc, params.locationStrategy), cfg)
 
-  /**
-    * structured stream
+  /** structured stream
     */
 
   def sstream[A](f: OptionalKV[K, V] => A)(implicit
