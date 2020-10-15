@@ -171,7 +171,7 @@ val serdeLib = Seq(
   "io.confluent"                              % "kafka-streams-avro-serde"  % confluent,
   "io.confluent"                              % "kafka-protobuf-serializer" % confluent,
   "com.sksamuel.avro4s" %% "avro4s-core"      % avro4s,
-  "io.higherkindness" %% "skeuomorph"         % "0.0.26",
+  "io.higherkindness" %% "skeuomorph"         % "0.0.27",
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.10.8",
   "com.google.protobuf"                       % "protobuf-java"             % "3.13.0",
   "com.google.protobuf"                       % "protobuf-java-util"        % "3.13.0"
