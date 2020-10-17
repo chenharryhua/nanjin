@@ -20,7 +20,7 @@ val monocle    = "2.1.0"
 val refined    = "0.9.17"
 val droste     = "0.8.0"
 val enumeratum = "1.6.1"
-val chimney    = "0.5.3"
+val chimney    = "0.6.0"
 
 // runtime
 val zioCats    = "2.2.0.1"
