@@ -113,7 +113,7 @@ val hadoopLib = Seq(
   "org.apache.hadoop" % "hadoop-client",
   "org.apache.hadoop" % "hadoop-hdfs"
 ).map(_               % hadoop) ++
-  Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.881")
+  Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.882")
 
 val neotypesLib = Seq(
   "com.dimafeng" %% "neotypes",
