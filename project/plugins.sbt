@@ -5,7 +5,7 @@ addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.6.1")
 
 addSbtPlugin("com.sksamuel.scapegoat" %% "sbt-scapegoat" % "1.1.0")
 
-addSbtPlugin("com.github.cb372" % "sbt-explicit-dependencies" % "0.2.14")
+addSbtPlugin("com.github.cb372" % "sbt-explicit-dependencies" % "0.2.15")
 
 addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.6.0")
 
