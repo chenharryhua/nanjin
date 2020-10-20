@@ -219,7 +219,7 @@ val testLib = Seq(
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.5"   % Test,
   "org.scalatest" %% "scalatest"                              % scalatest % Test,
   "com.github.julien-truffaut" %% "monocle-law"               % monocle   % Test,
-  "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.3.5"   % Test,
+  "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.4.0"   % Test,
   "org.tpolecat" %% "doobie-postgres"                         % doobie    % Test,
   "com.typesafe.akka" %% "akka-stream-testkit"                % akka26    % Test,
   "org.typelevel" %% "algebra-laws"                           % algebra   % Test,
