@@ -106,6 +106,7 @@ lazy val commonSettings = Seq(
 )
 
 val hadoopLib = Seq(
+  "org.apache.hadoop" % "hadoop-mapreduce-client-core",
   "org.apache.hadoop" % "hadoop-aws",
   "org.apache.hadoop" % "hadoop-auth",
   "org.apache.hadoop" % "hadoop-annotations",
@@ -163,11 +164,13 @@ val kantanLib = Seq(
   "com.nrinaudo" %% "kantan.csv-java8",
   "com.nrinaudo" %% "kantan.csv-generic",
   "com.nrinaudo" %% "kantan.csv-cats"
-).map(_ % kantan)
+).map(_ % kantan) ++ Seq("com.nrinaudo" %% "kantan.codecs" % "0.5.2")
 
 val serdeLib = Seq(
-  "org.apache.avro"                           % "avro"                      % avro,
+  "org.apache.parquet"                        % "parquet-common"            % parquet,
+  "org.apache.parquet"                        % "parquet-hadoop"            % parquet,
   "org.apache.parquet"                        % "parquet-avro"              % parquet,
+  "org.apache.avro"                           % "avro"                      % avro,
   "io.confluent"                              % "kafka-streams-avro-serde"  % confluent,
   "io.confluent"                              % "kafka-protobuf-serializer" % confluent,
   "com.sksamuel.avro4s" %% "avro4s-core"      % avro4s,
@@ -196,6 +199,7 @@ val elastic4sLib = Seq(
 ).map(_ % elastic)
 
 val sparkLib = Seq(
+  "org.apache.spark" %% "spark-catalyst",
   "org.apache.spark" %% "spark-core",
   "org.apache.spark" %% "spark-sql",
   "org.apache.spark" %% "spark-streaming",
@@ -206,7 +210,8 @@ val sparkLib = Seq(
 ).map(_ % spark3) ++ Seq(
   "org.typelevel" %% "frameless-dataset",
   "org.typelevel" %% "frameless-ml",
-  "org.typelevel" %% "frameless-cats"
+  "org.typelevel" %% "frameless-cats",
+  "org.typelevel" %% "frameless-core"
 ).map(_ % frameless) ++ Seq(
   "org.apache.avro" % "avro-compiler",
   "org.apache.avro" % "avro-mapred"
@@ -229,10 +234,12 @@ val testLib = Seq(
 val kafkaLib = Seq(
   "org.apache.kafka" % "kafka-clients",
   "org.apache.kafka" % "kafka-streams",
-  "org.apache.kafka" %% "kafka-streams-scala")
-  .map(_ % confltKafka) ++ Seq(
-    "com.typesafe.akka" %% "akka-stream-kafka" % akkaKafka,
-    "com.github.fd4s" %% "fs2-kafka"           % fs2Kafka)
+  "org.apache.kafka" %% "kafka-streams-scala").map(_ % confltKafka) ++ Seq(
+  "com.typesafe.akka" %% "akka-stream-kafka"         % akkaKafka,
+  "com.github.fd4s" %% "fs2-kafka"                   % fs2Kafka) ++ Seq(
+  "io.confluent" % "kafka-schema-registry-client",
+  "io.confluent" % "kafka-schema-serializer"
+).map(_ % confluent)
 
 val enumLib = Seq(
   "com.beachape" %% "enumeratum-cats",
@@ -246,6 +253,7 @@ val drosteLib = Seq(
 ).map(_ % droste)
 
 val catsLib = Seq(
+  "org.typelevel" %% "cats-kernel",
   "org.typelevel" %% "cats-core",
   "org.typelevel" %% "cats-free",
   "org.typelevel" %% "alleycats-core"
@@ -283,19 +291,35 @@ val akkaLib = Seq(
 
 val effectLib = Seq(
   "org.typelevel" %% "cats-effect" % catsEffect,
+  "dev.zio" %% "zio"               % "1.0.3",
   "dev.zio" %% "zio-interop-cats"  % zioCats,
-  "io.monix" %% "monix"            % monix)
+  "io.monix" %% "monix-eval"       % monix,
+  "io.monix" %% "monix"            % monix
+)
 
 val quillLib = Seq(
   "io.getquill" %% "quill-core",
+  "io.getquill" %% "quill-codegen",
   "io.getquill" %% "quill-codegen-jdbc"
 ).map(_ % quill)
 
 val doobieLib = Seq(
   "org.tpolecat" %% "doobie-core",
   "org.tpolecat" %% "doobie-hikari",
+  "org.tpolecat" %% "doobie-free",
   "org.tpolecat" %% "doobie-quill"
-).map(_ % doobie)
+).map(_ % doobie) ++ Seq("com.zaxxer" % "HikariCP" % "3.4.5")
+
+val logLib = Seq(
+  "org.log4s" %% "log4s" % "1.8.2",
+  "org.slf4j"            % "slf4j-api" % "1.7.30"
+)
+
+val ftpLib = Seq(
+  "commons-net" % "commons-net" % "3.7.2",
+  "com.hierynomus" % "sshj" % "0.30.0",
+  "com.lightbend.akka" %% "akka-stream-alpakka-ftp" % akkaFtp
+)
 
 val dbLib = doobieLib ++ quillLib ++ neotypesLib ++ elastic4sLib
 
@@ -304,10 +328,9 @@ lazy val common = (project in file("common"))
   .settings(name := "nj-common")
   .settings(
     libraryDependencies ++= Seq(
-      "org.log4s" %% "log4s"    % log4s,
       "com.lihaoyi" %% "pprint" % "0.6.0",
       "org.jline"               % "jline" % jline) ++
-      baseLib ++ fs2Lib ++ monocleLib ++ testLib)
+      baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ logLib ++ testLib)
 
 lazy val datetime = (project in file("datetime"))
   .dependsOn(common)
@@ -319,17 +342,16 @@ lazy val messages = (project in file("messages"))
   .settings(commonSettings: _*)
   .settings(name := "nj-messages")
   .settings(libraryDependencies ++= Seq(
-    compilerPlugin(("com.github.ghik" % "silencer-plugin" % silencer).cross(CrossVersion.full)),
-    ("com.github.ghik"                % "silencer-lib"    % silencer % Provided).cross(CrossVersion.full)
+    compilerPlugin(("com.github.ghik"                % "silencer-plugin" % silencer).cross(CrossVersion.full)),
+    ("com.github.ghik"                               % "silencer-lib"    % silencer % Provided).cross(CrossVersion.full),
+    "org.scala-lang.modules" %% "scala-java8-compat" % "0.9.1"
   ) ++ baseLib ++ fs2Lib ++ serdeLib ++ kafkaLib ++ monocleLib ++ testLib)
 
 lazy val devices = (project in file("devices"))
   .settings(commonSettings: _*)
   .settings(name := "nj-devices")
   .settings(
-    libraryDependencies ++=
-      Seq("com.lightbend.akka" %% "akka-stream-alpakka-ftp" % akkaFtp) ++
-        baseLib ++ fs2Lib ++ hadoopLib ++ serdeLib ++ effectLib ++ akkaLib ++ testLib)
+    libraryDependencies ++= ftpLib ++ baseLib ++ fs2Lib ++ hadoopLib ++ serdeLib ++ effectLib ++ akkaLib ++ testLib)
 
 lazy val pipes = (project in file("pipes"))
   .settings(commonSettings: _*)
@@ -341,7 +363,8 @@ lazy val database = (project in file("database"))
   .dependsOn(common)
   .settings(commonSettings: _*)
   .settings(name := "nj-database")
-  .settings(libraryDependencies ++= baseLib ++ dbLib ++ testLib)
+  .settings(
+    libraryDependencies ++= baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ dbLib ++ testLib)
 
 lazy val kafka = (project in file("kafka"))
   .dependsOn(messages)
@@ -351,7 +374,8 @@ lazy val kafka = (project in file("kafka"))
   .settings(commonSettings: _*)
   .settings(name := "nj-kafka")
   .settings(
-    libraryDependencies ++= effectLib ++ kafkaLib ++ akkaLib ++ testLib,
+    libraryDependencies ++= baseLib ++ fs2Lib ++ serdeLib ++ effectLib ++ monocleLib ++
+      kafkaLib ++ akkaLib ++ logLib ++ testLib,
     excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
   )
 
@@ -372,7 +396,8 @@ lazy val spark = (project in file("spark"))
       "io.netty"                               % "netty"      % "3.10.6.Final",
       "io.netty"                               % "netty-all"  % "4.1.53.Final",
       "com.julianpeeters" %% "avrohugger-core" % "1.0.0-RC21" % Test
-    ) ++ sparkLib ++ serdeLib ++ hadoopLib ++ json4sLib ++ testLib,
+    ) ++ baseLib ++ sparkLib ++ serdeLib ++ kantanLib ++ hadoopLib ++ kafkaLib ++ effectLib ++
+      akkaLib ++ json4sLib ++ fs2Lib ++ monocleLib ++ dbLib ++ logLib ++ ftpLib ++ testLib,
     excludeDependencies ++= Seq(ExclusionRule(organization = "io.netty"))
   )
 
