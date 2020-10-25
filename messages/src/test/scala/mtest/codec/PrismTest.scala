@@ -24,7 +24,7 @@ class PrismTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
     Arbitrary(pc)
 
   implicit val eqPrimitiveTypeCombined: Eq[PrimitiveTypeCombined] =
-    cats.derived.semi.eq[PrimitiveTypeCombined]
+    cats.derived.semiauto.eq[PrimitiveTypeCombined]
 
   implicit val arbClassF: Arbitrary[PrimitiveTypeCombined => PrimitiveTypeCombined] =
     Arbitrary((a: PrimitiveTypeCombined) => a)

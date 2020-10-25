@@ -1,6 +1,6 @@
 package mtest.kafka
 
-import cats.Show  
+import cats.Show
 
 case class Payment(
   id: String,
@@ -11,7 +11,7 @@ case class Payment(
   merchantId: Long)
 
 object Payment {
-  implicit val showPayment: Show[Payment] = cats.derived.semi.show[Payment]
+  implicit val showPayment: Show[Payment] = cats.derived.semiauto.show[Payment]
 }
 
 case class lenses_record_key(serial_number: String)
