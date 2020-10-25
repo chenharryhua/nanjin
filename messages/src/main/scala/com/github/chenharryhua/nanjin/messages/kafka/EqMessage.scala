@@ -78,26 +78,26 @@ private[kafka] trait EqMessage {
 
   // akka
   implicit val eqGroupTopicPartitionAkka: Eq[AkkaGroupTopicPartition] =
-    cats.derived.semi.eq[AkkaGroupTopicPartition]
+    cats.derived.semiauto.eq[AkkaGroupTopicPartition]
 
   implicit val eqPartitionOffsetAkka: Eq[AkkaPartitionOffset] =
-    cats.derived.semi.eq[AkkaPartitionOffset]
+    cats.derived.semiauto.eq[AkkaPartitionOffset]
 
   implicit val eqCommittableOffsetAkka: Eq[AkkaCommittableOffset] =
     (x: AkkaCommittableOffset, y: AkkaCommittableOffset) => x.partitionOffset === y.partitionOffset
 
   implicit def eqCommittableMessageAkka[K: Eq, V: Eq]: Eq[AkkaConsumerMessage[K, V]] =
-    cats.derived.semi.eq[AkkaConsumerMessage[K, V]]
+    cats.derived.semiauto.eq[AkkaConsumerMessage[K, V]]
 
   implicit def eqProducerMessageAkka[K: Eq, V: Eq, P: Eq]: Eq[AkkaProducerMessage[K, V, P]] =
-    cats.derived.semi.eq[AkkaProducerMessage[K, V, P]]
+    cats.derived.semiauto.eq[AkkaProducerMessage[K, V, P]]
 
   implicit def eqProducerMultiMessageAkka[K: Eq, V: Eq, P: Eq]: Eq[AkkaMultiMessage[K, V, P]] =
     (x: AkkaMultiMessage[K, V, P], y: AkkaMultiMessage[K, V, P]) =>
       (x.records.toList === y.records.toList) && (x.passThrough === y.passThrough)
 
   implicit def eqTransactionalMessageAkka[K: Eq, V: Eq]: Eq[AkkaTransactionalMessage[K, V]] =
-    cats.derived.semi.eq[AkkaTransactionalMessage[K, V]]
+    cats.derived.semiauto.eq[AkkaTransactionalMessage[K, V]]
 
   // fs2
   implicit def eqCommittableOffsetFs2[F[_]]: Eq[Fs2CommittableOffset[F]] =

@@ -14,7 +14,7 @@ object KJson {
   implicit def showKafkaJson[A: JsonEncoder]: Show[KJson[A]] =
     (t: KJson[A]) => s"""KJson(${Option(t.value).map(_.asJson.noSpaces).getOrElse("null")})"""
 
-  implicit def eqKJson[A: Eq]: Eq[KJson[A]] = cats.derived.semi.eq[KJson[A]]
+  implicit def eqKJson[A: Eq]: Eq[KJson[A]] = cats.derived.semiauto.eq[KJson[A]]
 
   implicit def jsonSerde[A: JsonEncoder: JsonDecoder]: SerdeOf[KJson[A]] =
     new SerdeOf[KJson[A]] {
