@@ -1,6 +1,6 @@
 package com.landoop.transportation.nyc.trip.yellow
 
-import cats.Show 
+import cats.Show
 
 case class trip_record(
   VendorID: Int,
@@ -24,7 +24,7 @@ case class trip_record(
   total_amount: Double)
 
 object trip_record {
-  implicit val showtrip_record: Show[trip_record] = cats.derived.semi.show[trip_record]
+  implicit val showtrip_record: Show[trip_record] = cats.derived.semiauto.show[trip_record]
 
   val schema: String =
     """
