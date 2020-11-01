@@ -28,11 +28,11 @@ final class FtpSink[F[_], C, S <: RemoteFileSettings](
     cs: ContextShift[F]): Pipe[F, A, IOResult] =
     csv[A](pathStr, CsvConfiguration.rfc)
 
-  def json[A: JsonEncoder](pathStr: String)(implicit
+  def json[A: JsonEncoder](pathStr: String, isKeepNull: Boolean = true)(implicit
     cr: ConcurrentEffect[F],
     cs: ContextShift[F]): Pipe[F, A, IOResult] = {
     val pipe = new CirceSerialization[F, A]
-    _.through(pipe.serialize).through(uploader.upload(pathStr))
+    _.through(pipe.serialize(isKeepNull)).through(uploader.upload(pathStr))
   }
 
   def jackson[A: AvroEncoder](pathStr: String)(implicit

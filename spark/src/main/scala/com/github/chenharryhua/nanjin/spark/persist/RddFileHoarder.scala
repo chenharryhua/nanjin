@@ -29,7 +29,7 @@ final class RddFileHoarder[F[_], A](
 
 // 2
   def circe(outPath: String): SaveCirce[F, A] =
-    new SaveCirce[F, A](rdd, codec, cfg.withFormat(Circe).withOutPutPath(outPath))
+    new SaveCirce[F, A](rdd, codec, true, cfg.withFormat(Circe).withOutPutPath(outPath))
 
 // 3
   def text(outPath: String): SaveText[F, A] =
@@ -69,4 +69,3 @@ final class RddFileHoarder[F[_], A](
   def protobuf(outPath: String): SaveProtobuf[F, A] =
     new SaveProtobuf[F, A](rdd, codec, cfg.withFormat(ProtoBuf).withOutPutPath(outPath))
 }
- 
