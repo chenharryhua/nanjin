@@ -5,18 +5,25 @@ import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.pipes.CirceSerialization
 import com.github.chenharryhua.nanjin.spark.RddExt
-import io.circe.{Encoder => JsonEncoder}
+import io.circe.{Json, Encoder => JsonEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
 
-final class SaveCirce[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConfig)
+final class SaveCirce[F[_], A](
+  rdd: RDD[A],
+  codec: AvroCodec[A],
+  isKeepNull: Boolean,
+  cfg: HoarderConfig)
     extends Serializable {
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveCirce[F, A] =
-    new SaveCirce[F, A](rdd, codec, cfg)
+    new SaveCirce[F, A](rdd, codec, isKeepNull, cfg)
+
+  def keepNull: SaveCirce[F, A] = new SaveCirce[F, A](rdd, codec, true, cfg)
+  def dropNull: SaveCirce[F, A] = new SaveCirce[F, A](rdd, codec, false, cfg)
 
   def file: SaveCirce[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveCirce[F, A] = updateConfig(cfg.withFolder)
@@ -44,17 +51,20 @@ final class SaveCirce[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderCon
           rdd
             .map(codec.idConversion)
             .stream[F]
-            .through(pipe.serialize)
+            .through(pipe.serialize(isKeepNull))
             .through(ccg.compressionPipe)
             .through(hadoop.byteSink(params.outPath, blocker))
             .compile
             .drain)
       case FolderOrFile.Folder =>
+        def encode(a: A): Json =
+          if (isKeepNull)
+            jsonEncoder(codec.idConversion(a))
+          else
+            jsonEncoder(codec.idConversion(a)).deepDropNullValues
+
         sma.checkAndRun(blocker)(
-          F.delay(
-            rdd
-              .map(a => jsonEncoder(codec.idConversion(a)).noSpaces)
-              .saveAsTextFile(params.outPath, ccg.klass)))
+          F.delay(rdd.map(encode(_).noSpaces).saveAsTextFile(params.outPath, ccg.klass)))
     }
   }
 }

@@ -68,7 +68,7 @@ class CirceTest extends AnyFunSuite {
     import BeeData._
     val path  = "./data/test/spark/persist/circe/bee/multi.json"
     val saver = new RddFileHoarder[IO, Bee](rdd, Bee.codec).repartition(1)
-    saver.circe(path).folder.run(blocker).unsafeRunSync()
+    saver.circe(path).folder.dropNull.run(blocker).unsafeRunSync()
     val t = loaders.rdd.circe[Bee](path)
     assert(t.collect.map(_.toWasp).toSet === bees.map(_.toWasp).toSet)
   }
@@ -76,7 +76,7 @@ class CirceTest extends AnyFunSuite {
     import BeeData._
     val path  = "./data/test/spark/persist/circe/bee/single.json"
     val saver = new RddFileHoarder[IO, Bee](rdd, Bee.codec).repartition(1)
-    saver.circe(path).file.run(blocker).unsafeRunSync()
+    saver.circe(path).file.dropNull.run(blocker).unsafeRunSync()
     val t = loaders.rdd.circe[Bee](path)
     assert(t.collect.map(_.toWasp).toSet === bees.map(_.toWasp).toSet)
   }
