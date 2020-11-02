@@ -29,7 +29,7 @@ object KafkaOffset {
     refineV[NonNegative](v).map(KafkaOffset(_)).fold(ex => throw new Exception(ex), identity)
 
   implicit val orderKafkaOffset: Order[KafkaOffset] =
-    (x: KafkaOffset, y: KafkaOffset) => (x - y).toInt
+    (x: KafkaOffset, y: KafkaOffset) => x.value.compareTo(y.value)
 }
 
 final case class KafkaPartition(partition: Refined[Int, NonNegative]) {
@@ -135,9 +135,8 @@ object KafkaConsumerGroupInfo {
     groupId: String,
     end: KafkaTopicPartition[Option[KafkaOffset]],
     offsetMeta: Map[TopicPartition, OffsetAndMetadata]): KafkaConsumerGroupInfo = {
-    val gaps: Map[TopicPartition, Option[KafkaOffsetRange]] = offsetMeta.map {
-      case (tp, om) =>
-        end.get(tp).flatten.map(e => tp -> KafkaOffsetRange(KafkaOffset(om.offset()), e))
+    val gaps: Map[TopicPartition, Option[KafkaOffsetRange]] = offsetMeta.map { case (tp, om) =>
+      end.get(tp).flatten.map(e => tp -> KafkaOffsetRange(KafkaOffset(om.offset()), e))
     }.toList.flatten.toMap
     new KafkaConsumerGroupInfo(KafkaGroupId(groupId), KafkaTopicPartition(gaps))
   }
