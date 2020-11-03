@@ -37,15 +37,11 @@ final case class NJTimestamp(milliseconds: Long) extends AnyVal {
 
   def dayResolution(zoneId: ZoneId): LocalDate = atZone(zoneId).toLocalDate
 
-  def hourResolution(zoneId: ZoneId): LocalDateTime = {
-    val dt: LocalDateTime = atZone(zoneId).toLocalDateTime
-    LocalDateTime.of(dt.toLocalDate, LocalTime.of(dt.getHour, 0))
-  }
+  def hourResolution(zoneId: ZoneId): ZonedDateTime =
+    atZone(zoneId).withMinute(0).withSecond(0).withNano(0)
 
-  def minuteResolution(zoneId: ZoneId): LocalDateTime = {
-    val dt: LocalDateTime = atZone(zoneId).toLocalDateTime
-    LocalDateTime.of(dt.toLocalDate, LocalTime.of(dt.getHour, dt.getMinute))
-  }
+  def minuteResolution(zoneId: ZoneId): ZonedDateTime =
+    atZone(zoneId).withSecond(0).withNano(0)
 
   def minus(amount: Long, unit: TemporalUnit): NJTimestamp =
     NJTimestamp(instant.minus(amount, unit))
