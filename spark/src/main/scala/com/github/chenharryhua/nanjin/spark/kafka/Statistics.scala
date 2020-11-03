@@ -13,8 +13,8 @@ import org.apache.spark.sql.Dataset
 final private[kafka] case class MinutelyAggResult(minute: Int, count: Long)
 final private[kafka] case class HourlyAggResult(hour: Int, count: Long)
 final private[kafka] case class DailyAggResult(date: LocalDate, count: Long)
-final private[kafka] case class DailyHourAggResult(date: ZonedDateTime, count: Long)
-final private[kafka] case class DailyMinuteAggResult(date: ZonedDateTime, count: Long)
+final private[kafka] case class DailyHourAggResult(dateTime: ZonedDateTime, count: Long)
+final private[kafka] case class DailyMinuteAggResult(dateTime: ZonedDateTime, count: Long)
 
 final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Serializable {
 
