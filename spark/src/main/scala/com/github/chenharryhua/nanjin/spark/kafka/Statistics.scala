@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import java.time.{LocalDate, LocalDateTime, ZoneId, ZonedDateTime}
+import java.time.{LocalDate, ZonedDateTime}
 
 import cats.effect.Sync
 import com.github.chenharryhua.nanjin.datetime._
@@ -13,18 +13,17 @@ import org.apache.spark.sql.Dataset
 final private[kafka] case class MinutelyAggResult(minute: Int, count: Long)
 final private[kafka] case class HourlyAggResult(hour: Int, count: Long)
 final private[kafka] case class DailyAggResult(date: LocalDate, count: Long)
-final private[kafka] case class DailyHourAggResult(date: LocalDateTime, count: Long)
-final private[kafka] case class DailyMinuteAggResult(date: LocalDateTime, count: Long)
+final private[kafka] case class DailyHourAggResult(date: ZonedDateTime, count: Long)
+final private[kafka] case class DailyMinuteAggResult(date: ZonedDateTime, count: Long)
 
 final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Serializable {
 
   val params: SKParams = cfg.evalConfig
 
-  implicit def localDateTimeInjection: Injection[LocalDateTime, String] =
-    new Injection[LocalDateTime, String] {
-      private val zoneId: ZoneId                    = params.timeRange.zoneId
-      override def apply(a: LocalDateTime): String  = a.atZone(zoneId).toString
-      override def invert(b: String): LocalDateTime = ZonedDateTime.parse(b).toLocalDateTime
+  implicit def localDateTimeInjection: Injection[ZonedDateTime, String] =
+    new Injection[ZonedDateTime, String] {
+      override def apply(a: ZonedDateTime): String  = a.toString
+      override def invert(b: String): ZonedDateTime = ZonedDateTime.parse(b)
     }
 
   @transient private lazy val typedDataset: TypedDataset[CRMetaInfo] =
@@ -54,7 +53,7 @@ final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Ser
   }
 
   def dailyHour(implicit ev: Sync[F]): F[Unit] = {
-    val dayHour: TypedDataset[LocalDateTime] = typedDataset.deserialized.map { m =>
+    val dayHour: TypedDataset[ZonedDateTime] = typedDataset.deserialized.map { m =>
       NJTimestamp(m.timestamp).hourResolution(params.timeRange.zoneId)
     }
     val res = dayHour.groupBy(dayHour.asCol).agg(count(dayHour.asCol)).as[DailyHourAggResult]
@@ -62,7 +61,7 @@ final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Ser
   }
 
   def dailyMinute(implicit ev: Sync[F]): F[Unit] = {
-    val dayMinute: TypedDataset[LocalDateTime] = typedDataset.deserialized.map { m =>
+    val dayMinute: TypedDataset[ZonedDateTime] = typedDataset.deserialized.map { m =>
       NJTimestamp(m.timestamp).minuteResolution(params.timeRange.zoneId)
     }
     val res =

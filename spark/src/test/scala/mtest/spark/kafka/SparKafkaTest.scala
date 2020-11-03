@@ -49,6 +49,9 @@ class SparKafkaTest extends AnyFunSuite {
   test("sparKafka read topic from kafka and show daily-hour aggragation result") {
     topic.sparKafka(range).fromKafka.flatMap(_.stats.dailyHour).unsafeRunSync
   }
+  test("sparKafka read topic from kafka and show daily-minutes aggragation result") {
+    topic.sparKafka(range).fromKafka.flatMap(_.stats.dailyMinute).unsafeRunSync
+  }
   test("sparKafka read topic from kafka and show daily aggragation result") {
     topic.sparKafka(range).fromKafka.flatMap(_.stats.daily).unsafeRunSync
   }
