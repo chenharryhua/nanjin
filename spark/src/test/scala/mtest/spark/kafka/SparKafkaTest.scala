@@ -23,8 +23,8 @@ object SparKafkaTestData {
     HasDuck(0, "a", LocalDate.now, Instant.ofEpochMilli(Instant.now.toEpochMilli), duck)
 
   implicit val hasDuckEncoder: AvroCodec[HasDuck] = AvroCodec[HasDuck]
-  implicit val intCodec                           = AvroCodec[Int]
-  implicit val stringCodec                        = AvroCodec[String]
+  implicit val intCodec: AvroCodec[Int]           = AvroCodec[Int]
+  implicit val stringCodec: AvroCodec[String]     = AvroCodec[String]
 
   println(SchemaFor[HasDuck].schema)
 }
@@ -43,10 +43,15 @@ class SparKafkaTest extends AnyFunSuite {
     assert(rst.toList.map(_.value) === List(data, data))
   }
 
-  test("sparKafka read topic from kafka and show aggragation result") {
+  test("sparKafka read topic from kafka and show minutely aggragation result") {
     topic.sparKafka(range).fromKafka.flatMap(_.stats.minutely).unsafeRunSync
   }
-
+  test("sparKafka read topic from kafka and show daily-hour aggragation result") {
+    topic.sparKafka(range).fromKafka.flatMap(_.stats.dailyHour).unsafeRunSync
+  }
+  test("sparKafka read topic from kafka and show daily aggragation result") {
+    topic.sparKafka(range).fromKafka.flatMap(_.stats.daily).unsafeRunSync
+  }
   test("sparKafka should be able to bimap to other topic") {
     val src: KafkaTopic[IO, Int, Int]          = ctx.topic[Int, Int]("src.topic")
     val tgt: KafkaTopic[IO, String, Int]       = ctx.topic[String, Int]("target.topic")
