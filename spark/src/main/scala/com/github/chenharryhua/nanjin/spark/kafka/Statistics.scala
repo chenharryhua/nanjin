@@ -57,7 +57,7 @@ final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Ser
       NJTimestamp(m.timestamp).hourResolution(params.timeRange.zoneId)
     }
     val res = dayHour.groupBy(dayHour.asCol).agg(count(dayHour.asCol)).as[DailyHourAggResult]
-    res.orderBy(res('date).asc).show[F](params.showDs.rowNum, params.showDs.isTruncate)
+    res.orderBy(res('dateTime).asc).show[F](params.showDs.rowNum, params.showDs.isTruncate)
   }
 
   def dailyMinute(implicit ev: Sync[F]): F[Unit] = {
@@ -66,6 +66,6 @@ final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Ser
     }
     val res =
       dayMinute.groupBy(dayMinute.asCol).agg(count(dayMinute.asCol)).as[DailyMinuteAggResult]
-    res.orderBy(res('date).asc).show[F](params.showDs.rowNum, params.showDs.isTruncate)
+    res.orderBy(res('dateTime).asc).show[F](params.showDs.rowNum, params.showDs.isTruncate)
   }
 }
