@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import java.time.{Instant, LocalDate, LocalDateTime, ZoneId}
+import java.time.{LocalDate, LocalDateTime, ZoneId, ZonedDateTime}
 
 import cats.effect.Sync
 import com.github.chenharryhua.nanjin.datetime._
@@ -20,11 +20,11 @@ final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Ser
 
   val params: SKParams = cfg.evalConfig
 
-  implicit def localDateTimeInjection: Injection[LocalDateTime, Instant] =
-    new Injection[LocalDateTime, Instant] {
-      private val zoneId: ZoneId                     = params.timeRange.zoneId
-      override def apply(a: LocalDateTime): Instant  = a.atZone(zoneId).toInstant
-      override def invert(b: Instant): LocalDateTime = b.atZone(zoneId).toLocalDateTime
+  implicit def localDateTimeInjection: Injection[LocalDateTime, String] =
+    new Injection[LocalDateTime, String] {
+      private val zoneId: ZoneId                    = params.timeRange.zoneId
+      override def apply(a: LocalDateTime): String  = a.atZone(zoneId).toString
+      override def invert(b: String): LocalDateTime = ZonedDateTime.parse(b).toLocalDateTime
     }
 
   @transient private lazy val typedDataset: TypedDataset[CRMetaInfo] =
