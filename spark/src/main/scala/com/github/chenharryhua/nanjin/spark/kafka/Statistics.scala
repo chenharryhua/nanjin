@@ -13,8 +13,8 @@ import org.apache.spark.sql.Dataset
 final private[kafka] case class MinutelyAggResult(minute: Int, count: Long)
 final private[kafka] case class HourlyAggResult(hour: Int, count: Long)
 final private[kafka] case class DailyAggResult(date: LocalDate, count: Long)
-final private[kafka] case class DailyHourAggResult(date: ZonedDateTime, count: Long)
-final private[kafka] case class DailyMinuteAggResult(date: ZonedDateTime, count: Long)
+final private[kafka] case class DailyHourAggResult(dateTime: ZonedDateTime, count: Long)
+final private[kafka] case class DailyMinuteAggResult(dateTime: ZonedDateTime, count: Long)
 
 final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Serializable {
 
@@ -57,7 +57,7 @@ final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Ser
       NJTimestamp(m.timestamp).hourResolution(params.timeRange.zoneId)
     }
     val res = dayHour.groupBy(dayHour.asCol).agg(count(dayHour.asCol)).as[DailyHourAggResult]
-    res.orderBy(res('date).asc).show[F](params.showDs.rowNum, params.showDs.isTruncate)
+    res.orderBy(res('dateTime).asc).show[F](params.showDs.rowNum, params.showDs.isTruncate)
   }
 
   def dailyMinute(implicit ev: Sync[F]): F[Unit] = {
@@ -66,6 +66,6 @@ final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Ser
     }
     val res =
       dayMinute.groupBy(dayMinute.asCol).agg(count(dayMinute.asCol)).as[DailyMinuteAggResult]
-    res.orderBy(res('date).asc).show[F](params.showDs.rowNum, params.showDs.isTruncate)
+    res.orderBy(res('dateTime).asc).show[F](params.showDs.rowNum, params.showDs.isTruncate)
   }
 }
