@@ -20,6 +20,8 @@ final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Ser
 
   val params: SKParams = cfg.evalConfig
 
+  def withShowRows(num: Int): Statistics[F] = new Statistics[F](ds, cfg.withShowRows(num))
+
   implicit def localDateTimeInjection: Injection[ZonedDateTime, String] =
     new Injection[ZonedDateTime, String] {
       override def apply(a: ZonedDateTime): String  = a.toString
