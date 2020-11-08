@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import com.sksamuel.avro4s.{Encoder, ToRecord}
+import com.sksamuel.avro4s.{ToRecord, Encoder => AvroEncoder}
 import org.apache.avro.generic.GenericRecord
 import org.apache.avro.mapred.AvroKey
 import org.apache.hadoop.io.NullWritable
@@ -10,7 +10,7 @@ private[persist] object utils {
 
   def genericRecordPair[A](
     rdd: RDD[A],
-    enc: Encoder[A]): RDD[(AvroKey[GenericRecord], NullWritable)] =
+    enc: AvroEncoder[A]): RDD[(AvroKey[GenericRecord], NullWritable)] =
     rdd.mapPartitions { rcds =>
       val to = ToRecord[A](enc)
       rcds.map(rcd => (new AvroKey[GenericRecord](to.to(rcd)), NullWritable.get()))
