@@ -15,8 +15,7 @@ import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import shapeless.cachedImplicit
 
-/**
-  * compatible with spark kafka streaming
+/** compatible with spark kafka streaming
   * https://spark.apache.org/docs/3.0.1/structured-streaming-kafka-integration.html
   */
 sealed trait NJConsumerRecord[K, V] {
@@ -62,8 +61,8 @@ final case class OptionalKV[K, V](
   @AvroDoc("kafka partition") partition: Int,
   @AvroDoc("kafka offset") offset: Long,
   @AvroDoc("kafka timestamp in millisecond") timestamp: Long,
-  key: Option[K],
-  value: Option[V],
+  @AvroDoc("kafka key") key: Option[K],
+  @AvroDoc("kafka value") value: Option[V],
   @AvroDoc("kafka topic") topic: String,
   @AvroDoc("kafka timestamp type") timestampType: Int)
     extends NJConsumerRecord[Option[K], Option[V]] {
@@ -155,6 +154,7 @@ object OptionalKV {
 }
 
 @AvroDoc("kafka record, optional Key and compulsory Value")
+@Lenses
 final case class CompulsoryV[K, V](
   partition: Int,
   offset: Long,
@@ -211,6 +211,7 @@ object CompulsoryV {
 }
 
 @AvroDoc("kafka record, compulsory Key and optional Value")
+@Lenses
 final case class CompulsoryK[K, V](
   partition: Int,
   offset: Long,
@@ -267,6 +268,7 @@ object CompulsoryK {
 }
 
 @AvroDoc("kafka record, compulsory Key and Value")
+@Lenses
 final case class CompulsoryKV[K, V](
   partition: Int,
   offset: Long,
