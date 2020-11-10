@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.common
 import java.sql.Timestamp
 import java.time.Instant
 
+import cats.arrow.Profunctor
 import io.scalaland.chimney.Transformer
 import io.scalaland.enumz.Enum
 import monocle.Iso
@@ -22,6 +23,12 @@ object transformers extends ReverseTransformers {
     trans: Transformer[A, Instant]): Transformer[A, Timestamp] =
     (src: A) => Timestamp.from(trans.transform(src))
 
+  implicit val transformerProfunctor: Profunctor[Transformer] =
+    new Profunctor[Transformer] {
+
+      override def dimap[A, B, C, D](fab: Transformer[A, B])(f: C => A)(
+        g: B => D): Transformer[C, D] = (src: C) => g(fab.transform(f(src)))
+    }
 }
 
 trait ReverseTransformers {
