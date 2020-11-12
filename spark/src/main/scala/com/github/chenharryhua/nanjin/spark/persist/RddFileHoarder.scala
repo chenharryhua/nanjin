@@ -29,7 +29,11 @@ final class RddFileHoarder[F[_], A](
 
 // 2
   def circe(outPath: String): SaveCirce[F, A] =
-    new SaveCirce[F, A](rdd, codec, true, cfg.withFormat(Circe).withOutPutPath(outPath))
+    new SaveCirce[F, A](
+      rdd,
+      codec,
+      cfg.withFormat(Circe).withOutPutPath(outPath),
+      isKeepNull = true)
 
 // 3
   def text(outPath: String): SaveText[F, A] =
@@ -44,7 +48,11 @@ final class RddFileHoarder[F[_], A](
   // 5
   def json(outPath: String)(implicit te: TypedEncoder[A]): SaveSparkJson[F, A] = {
     val ate: AvroTypedEncoder[A] = AvroTypedEncoder[A](te, codec)
-    new SaveSparkJson[F, A](rdd, ate, cfg.withFormat(SparkJson).withOutPutPath(outPath))
+    new SaveSparkJson[F, A](
+      rdd,
+      ate,
+      cfg.withFormat(SparkJson).withOutPutPath(outPath),
+      isKeepNull = true)
   }
 
   // 11

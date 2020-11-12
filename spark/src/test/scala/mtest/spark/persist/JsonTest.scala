@@ -10,11 +10,20 @@ import org.scalatest.funsuite.AnyFunSuite
 @DoNotDiscover
 class JsonTest extends AnyFunSuite {
 
-  test("rdd read/write identity uncompressed") {
+  test("rdd read/write identity uncompressed - keep null") {
     import RoosterData._
-    val path  = "./data/test/spark/persist/json/uncompressed.json"
+    val path  = "./data/test/spark/persist/json/uncompressed.keepNull.json"
     val saver = new RddFileHoarder[IO, Rooster](rdd, Rooster.avroCodec)
-    saver.json(path).run(blocker).unsafeRunSync()
+    saver.repartition(1).json(path).keepNull.run(blocker).unsafeRunSync()
+    val t: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate)
+    assert(expected == t.collect[IO]().unsafeRunSync().toSet)
+  }
+
+  test("rdd read/write identity uncompressed - drop null") {
+    import RoosterData._
+    val path  = "./data/test/spark/persist/json/uncompressed.dropNull.json"
+    val saver = new RddFileHoarder[IO, Rooster](rdd, Rooster.avroCodec)
+    saver.repartition(1).json(path).dropNull.run(blocker).unsafeRunSync()
     val t: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate)
     assert(expected == t.collect[IO]().unsafeRunSync().toSet)
   }
@@ -44,4 +53,5 @@ class JsonTest extends AnyFunSuite {
     val t: TypedDataset[Rooster] = loaders.json(path, Rooster.ate)
     assert(expected == t.collect[IO]().unsafeRunSync().toSet)
   }
+
 }
