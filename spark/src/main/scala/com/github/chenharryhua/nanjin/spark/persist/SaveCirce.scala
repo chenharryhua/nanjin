@@ -14,16 +14,16 @@ import scala.reflect.ClassTag
 final class SaveCirce[F[_], A](
   rdd: RDD[A],
   codec: AvroCodec[A],
-  isKeepNull: Boolean,
-  cfg: HoarderConfig)
+  cfg: HoarderConfig,
+  isKeepNull: Boolean)
     extends Serializable {
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveCirce[F, A] =
-    new SaveCirce[F, A](rdd, codec, isKeepNull, cfg)
+    new SaveCirce[F, A](rdd, codec, cfg, isKeepNull)
 
-  def keepNull: SaveCirce[F, A] = new SaveCirce[F, A](rdd, codec, true, cfg)
-  def dropNull: SaveCirce[F, A] = new SaveCirce[F, A](rdd, codec, false, cfg)
+  def keepNull: SaveCirce[F, A] = new SaveCirce[F, A](rdd, codec, cfg, true)
+  def dropNull: SaveCirce[F, A] = new SaveCirce[F, A](rdd, codec, cfg, false)
 
   def file: SaveCirce[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveCirce[F, A] = updateConfig(cfg.withFolder)
