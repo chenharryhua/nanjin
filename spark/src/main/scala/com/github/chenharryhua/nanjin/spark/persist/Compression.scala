@@ -48,19 +48,26 @@ sealed private[persist] trait Compression extends Serializable {
   def ccg[F[_]: Sync](conf: Configuration): CompressionCodecGroup[F] =
     this match {
       case Compression.Uncompressed =>
+        conf.set(FileOutputFormat.COMPRESS, "false")
         CompressionCodecGroup[F](null, "uncompressed", identity)
       case Compression.Gzip =>
+        conf.set(FileOutputFormat.COMPRESS, "true")
         CompressionCodecGroup[F](classOf[GzipCodec], "gzip", gzip[F]())
       case Compression.Deflate(level) =>
+        conf.set(FileOutputFormat.COMPRESS, "true")
         conf.set("zlib.compress.level", enumz.Enum[CompressionLevel].withIndex(level).toString)
         CompressionCodecGroup[F](classOf[DeflateCodec], "deflate", deflate[F](level))
       case Compression.Snappy =>
+        conf.set(FileOutputFormat.COMPRESS, "true")
         CompressionCodecGroup[F](classOf[SnappyCodec], "snappy", identity)
       case Compression.Bzip2 =>
+        conf.set(FileOutputFormat.COMPRESS, "true")
         CompressionCodecGroup[F](classOf[BZip2Codec], "bzip2", identity)
       case Compression.LZ4 =>
+        conf.set(FileOutputFormat.COMPRESS, "true")
         CompressionCodecGroup[F](classOf[Lz4Codec], "lz4", identity)
       case Compression.Zstandard(level) =>
+        conf.set(FileOutputFormat.COMPRESS, "true")
         conf.set("io.compression.codec.zstd.level", level.toString)
         CompressionCodecGroup[F](classOf[ZStandardCodec], "zstd", identity)
       case c => throw new Exception(s"not support $c")
