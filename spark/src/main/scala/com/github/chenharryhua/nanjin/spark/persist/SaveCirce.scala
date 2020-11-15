@@ -63,7 +63,7 @@ final class SaveCirce[F[_], A](
             jsonEncoder(codec.idConversion(a))
           else
             jsonEncoder(codec.idConversion(a)).deepDropNullValues
-        ss.sparkContext.hadoopConfiguration.set(NJTextOutputFormat.suffix, ".json")
+        ss.sparkContext.hadoopConfiguration.set(NJTextOutputFormat.suffix, ".circe.json")
         sma.checkAndRun(blocker)(
           F.delay(
             rdd
