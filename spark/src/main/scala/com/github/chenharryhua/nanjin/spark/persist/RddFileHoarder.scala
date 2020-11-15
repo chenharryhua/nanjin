@@ -37,7 +37,7 @@ final class RddFileHoarder[F[_], A](
 
 // 3
   def text(outPath: String): SaveText[F, A] =
-    new SaveText[F, A](rdd, codec, cfg.withFormat(Text).withOutPutPath(outPath))
+    new SaveText[F, A](rdd, codec, cfg.withFormat(Text).withOutPutPath(outPath), ".txt")
 
 // 4
   def csv(outPath: String)(implicit te: TypedEncoder[A]): SaveCsv[F, A] = {
