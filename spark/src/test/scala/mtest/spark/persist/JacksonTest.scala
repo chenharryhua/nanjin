@@ -42,4 +42,42 @@ class JacksonTest extends AnyFunSuite {
     val t = loaders.rdd.jackson[Bee](path, Bee.codec).collect().toList
     assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
+  test("byte-array read/write identity - multi.gzip") {
+    import BeeData._
+    import cats.implicits._
+    val path  = "./data/test/spark/persist/jackson/bee/multi.gzip.json"
+    val saver = new RddFileHoarder[IO, Bee](rdd, Bee.codec).repartition(1)
+    saver.jackson(path).folder.gzip.run(blocker).unsafeRunSync()
+    val t = loaders.rdd.jackson[Bee](path, Bee.codec).collect().toList
+    assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
+  }
+  test("byte-array read/write identity - multi.deflate") {
+    import BeeData._
+    import cats.implicits._
+    val path  = "./data/test/spark/persist/jackson/bee/multi.deflate.json"
+    val saver = new RddFileHoarder[IO, Bee](rdd, Bee.codec).repartition(1)
+    saver.jackson(path).folder.deflate(9).run(blocker).unsafeRunSync()
+    val t = loaders.rdd.jackson[Bee](path, Bee.codec).collect().toList
+    assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
+  }
+
+  test("byte-array read/write identity - single.gzip") {
+    import BeeData._
+    import cats.implicits._
+    val path  = "./data/test/spark/persist/jackson/bee/single.json.gz"
+    val saver = new RddFileHoarder[IO, Bee](rdd, Bee.codec).repartition(1)
+    saver.jackson(path).file.gzip.run(blocker).unsafeRunSync()
+    val t = loaders.rdd.jackson[Bee](path, Bee.codec).collect().toList
+    assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
+  }
+  test("byte-array read/write identity - single.deflate") {
+    import BeeData._
+    import cats.implicits._
+    val path  = "./data/test/spark/persist/jackson/bee/single.json.deflate"
+    val saver = new RddFileHoarder[IO, Bee](rdd, Bee.codec).repartition(1)
+    saver.jackson(path).file.deflate(3).run(blocker).unsafeRunSync()
+    val t = loaders.rdd.jackson[Bee](path, Bee.codec).collect().toList
+    assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
+  }
+
 }

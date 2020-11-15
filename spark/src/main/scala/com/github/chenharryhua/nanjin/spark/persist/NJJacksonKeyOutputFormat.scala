@@ -1,44 +1,45 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import java.io.OutputStream
+import java.io.{DataOutputStream, OutputStream}
 
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericDatumWriter, GenericRecord}
 import org.apache.avro.io.{EncoderFactory, JsonEncoder}
 import org.apache.avro.mapred.AvroKey
 import org.apache.avro.mapreduce.{AvroJob, AvroOutputFormatBase}
-import org.apache.hadoop.fs.Path
-import org.apache.hadoop.fs.s3a.commit.AbstractS3ACommitter
 import org.apache.hadoop.io.NullWritable
-import org.apache.hadoop.mapreduce.lib.output.{FileOutputCommitter, FileOutputFormat}
+import org.apache.hadoop.io.compress.GzipCodec
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat.{
+  getCompressOutput,
+  getOutputCompressorClass
+}
 import org.apache.hadoop.mapreduce.{RecordWriter, TaskAttemptContext}
+import org.apache.hadoop.util.ReflectionUtils
 
 final class NJJacksonKeyOutputFormat
     extends AvroOutputFormatBase[AvroKey[GenericRecord], NullWritable] {
 
-  private def fileOutputStream(context: TaskAttemptContext): OutputStream = {
-    val workPath = getOutputCommitter(context) match {
-      case c: FileOutputCommitter  => c.getWorkPath
-      case s: AbstractS3ACommitter => s.getWorkPath
-      case ex                      => throw new Exception(s"not support: ${ex.toString}")
-    }
-
-    val outPath: Path =
-      new Path(
-        workPath,
-        FileOutputFormat.getUniqueFile(
-          context,
-          s"jackson-${context.getTaskAttemptID.getJobID.toString}",
-          ".json"))
-
-    outPath.getFileSystem(context.getConfiguration).create(outPath)
-  }
-
   override def getRecordWriter(
-    context: TaskAttemptContext): RecordWriter[AvroKey[GenericRecord], NullWritable] = {
-    val schema: Schema    = AvroJob.getOutputKeySchema(context.getConfiguration)
-    val out: OutputStream = fileOutputStream(context)
-    new JacksonKeyRecordWriter(schema, out)
+    job: TaskAttemptContext): RecordWriter[AvroKey[GenericRecord], NullWritable] = {
+    val suffix         = ".json"
+    val schema: Schema = AvroJob.getOutputKeySchema(job.getConfiguration)
+    val conf           = job.getConfiguration
+    val isCompressed   = getCompressOutput(job)
+    if (isCompressed) {
+      val codecClass = getOutputCompressorClass(job, classOf[GzipCodec])
+      val codec      = ReflectionUtils.newInstance(codecClass, conf)
+      val ext        = suffix + codec.getDefaultExtension
+      val file       = getDefaultWorkFile(job, ext)
+      val fs         = file.getFileSystem(conf)
+      val fileOut    = fs.create(file, false)
+      val out        = new DataOutputStream(codec.createOutputStream(fileOut))
+      new JacksonKeyRecordWriter(schema, out)
+    } else {
+      val file = getDefaultWorkFile(job, suffix)
+      val fs   = file.getFileSystem(conf)
+      val out  = fs.create(file, false)
+      new JacksonKeyRecordWriter(schema, out)
+    }
   }
 }
 
