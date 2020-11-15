@@ -14,7 +14,7 @@ class CirceTest extends AnyFunSuite {
   test("rdd read/write identity multi.gzip") {
     import RoosterData._
     val path  = "./data/test/spark/persist/circe/rooster/multi.gzip"
-    val saver = new RddFileHoarder[IO, Rooster](rdd, Rooster.avroCodec)
+    val saver = new RddFileHoarder[IO, Rooster](rdd, Rooster.avroCodec).repartition(1)
     saver.circe(path).folder.gzip.run(blocker).unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path)
     assert(expected == t.collect().toSet)
