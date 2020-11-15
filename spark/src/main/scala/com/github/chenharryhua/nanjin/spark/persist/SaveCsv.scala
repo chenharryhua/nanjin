@@ -24,6 +24,13 @@ final class SaveCsv[F[_], A](
   def updateCsvConfig(f: CsvConfiguration => CsvConfiguration): SaveCsv[F, A] =
     new SaveCsv[F, A](rdd, ate, f(csvConfiguration), cfg)
 
+  def withHeader: SaveCsv[F, A]                    = updateCsvConfig(_.withHeader)
+  def withoutHeader: SaveCsv[F, A]                 = updateCsvConfig(_.withoutHeader)
+  def quoteAll: SaveCsv[F, A]                      = updateCsvConfig(_.quoteAll)
+  def quoteWhenNeeded: SaveCsv[F, A]               = updateCsvConfig(_.quoteWhenNeeded)
+  def withQuote(char: Char): SaveCsv[F, A]         = updateCsvConfig(_.withQuote(char))
+  def withCellSeparator(char: Char): SaveCsv[F, A] = updateCsvConfig(_.withCellSeparator(char))
+
   private def updateConfig(cfg: HoarderConfig): SaveCsv[F, A] =
     new SaveCsv[F, A](rdd, ate, csvConfiguration, cfg)
 
