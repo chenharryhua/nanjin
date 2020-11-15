@@ -9,6 +9,7 @@ import frameless.{TypedDataset, TypedEncoder}
 import io.circe.{Decoder => JsonDecoder}
 import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.spark.sql.SparkSession
+
 import scala.reflect.ClassTag
 
 final case class TableDef[A] private (tableName: TableName, avroTypedEncoder: AvroTypedEncoder[A]) {
@@ -36,7 +37,7 @@ final case class TableDef[A] private (tableName: TableName, avroTypedEncoder: Av
     def csv(pathStr: String, csvConfiguration: CsvConfiguration)(implicit
       ev: RowEncoder[A],
       ss: SparkSession): TypedDataset[A] =
-      loaders.csv[A](pathStr, csvConfiguration, ate)
+      loaders.csv[A](pathStr, ate, csvConfiguration)
 
     def json(pathStr: String)(implicit ss: SparkSession): TypedDataset[A] =
       loaders.json[A](pathStr, ate)

@@ -79,7 +79,7 @@ class CsvTest extends AnyFunSuite {
     val saver = new RddFileHoarder[IO, Tablet](rdd, Tablet.codec)
     val rfc   = CsvConfiguration.rfc.withHeader
     saver.csv(path).file.updateCsvConfig(_ => rfc).run(blocker).unsafeRunSync()
-    val t = loaders.csv(path, rfc, Tablet.ate)
+    val t = loaders.csv(path, Tablet.ate, rfc)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
   test("tablet read/write identity with-header/multi") {
@@ -87,7 +87,7 @@ class CsvTest extends AnyFunSuite {
     val saver = new RddFileHoarder[IO, Tablet](rdd, Tablet.codec)
     val rfc   = CsvConfiguration.rfc.withHeader
     saver.csv(path).folder.updateCsvConfig(_ => rfc).run(blocker).unsafeRunSync()
-    val t = loaders.csv(path, rfc, Tablet.ate)
+    val t = loaders.csv(path, Tablet.ate, rfc)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
 
@@ -96,7 +96,7 @@ class CsvTest extends AnyFunSuite {
     val saver = new RddFileHoarder[IO, Tablet](rdd, Tablet.codec)
     val rfc   = CsvConfiguration.rfc.withHeader.withCellSeparator('|')
     saver.csv(path).file.updateCsvConfig(_ => rfc).run(blocker).unsafeRunSync()
-    val t = loaders.csv(path, rfc, Tablet.ate)
+    val t = loaders.csv(path, Tablet.ate, rfc)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
 
@@ -105,7 +105,7 @@ class CsvTest extends AnyFunSuite {
     val saver = new RddFileHoarder[IO, Tablet](rdd, Tablet.codec)
     val rfc   = CsvConfiguration.rfc.withHeader.withCellSeparator('|')
     saver.csv(path).folder.updateCsvConfig(_ => rfc).run(blocker).unsafeRunSync()
-    val t = loaders.csv(path, rfc, Tablet.ate)
+    val t = loaders.csv(path, Tablet.ate, rfc)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
 
@@ -114,7 +114,7 @@ class CsvTest extends AnyFunSuite {
     val saver = new RddFileHoarder[IO, Tablet](rdd, Tablet.codec)
     val rfc   = CsvConfiguration.rfc.withHeader.withCellSeparator('|').withQuote('*').quoteAll
     saver.csv(path).file.updateCsvConfig(_ => rfc).run(blocker).unsafeRunSync()
-    val t = loaders.csv(path, rfc, Tablet.ate)
+    val t = loaders.csv(path, Tablet.ate, rfc)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
 
@@ -123,7 +123,7 @@ class CsvTest extends AnyFunSuite {
     val saver = new RddFileHoarder[IO, Tablet](rdd, Tablet.codec)
     val rfc   = CsvConfiguration.rfc.withHeader.withCellSeparator('|').withQuote('*').quoteAll
     saver.csv(path).folder.updateCsvConfig(_ => rfc).run(blocker).unsafeRunSync()
-    val t = loaders.csv(path, rfc, Tablet.ate)
+    val t = loaders.csv(path, Tablet.ate, rfc)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
 }

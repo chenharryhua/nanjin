@@ -31,7 +31,7 @@ object loaders {
     ss: SparkSession): TypedDataset[A] =
     ate.normalizeDF(ss.read.parquet(pathStr))
 
-  def csv[A](pathStr: String, csvConfiguration: CsvConfiguration, ate: AvroTypedEncoder[A])(implicit
+  def csv[A](pathStr: String, ate: AvroTypedEncoder[A], csvConfiguration: CsvConfiguration)(implicit
     ss: SparkSession): TypedDataset[A] =
     ate.normalizeDF(
       ss.read
@@ -44,7 +44,7 @@ object loaders {
 
   def csv[A](pathStr: String, ate: AvroTypedEncoder[A])(implicit
     ss: SparkSession): TypedDataset[A] =
-    csv[A](pathStr, CsvConfiguration.rfc, ate)
+    csv[A](pathStr, ate, CsvConfiguration.rfc)
 
   def json[A](pathStr: String, ate: AvroTypedEncoder[A])(implicit
     ss: SparkSession): TypedDataset[A] =
