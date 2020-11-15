@@ -23,6 +23,11 @@ final class SaveJackson[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderC
   def file: SaveJackson[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveJackson[F, A] = updateConfig(cfg.withFolder)
 
+  def gzip: SaveJackson[F, A] = updateConfig(cfg.withCompression(Compression.Gzip))
+
+  def deflate(level: Int): SaveJackson[F, A] =
+    updateConfig(cfg.withCompression(Compression.Deflate(level)))
+
   def run(blocker: Blocker)(implicit
     F: Concurrent[F],
     cs: ContextShift[F],
@@ -30,6 +35,7 @@ final class SaveJackson[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderC
     tag: ClassTag[A]): F[Unit] = {
     implicit val encoder: AvroEncoder[A] = codec.avroEncoder
     val sma: SaveModeAware[F]            = new SaveModeAware[F](params.saveMode, params.outPath, ss)
+    val ccg                              = params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
         val hadoop = new NJHadoop[F](ss.sparkContext.hadoopConfiguration)
@@ -41,6 +47,7 @@ final class SaveJackson[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderC
             .stream[F]
             .through(gr.encode)
             .through(pipe.serialize)
+            .through(ccg.compressionPipe)
             .through(hadoop.byteSink(params.outPath, blocker))
             .compile
             .drain)
