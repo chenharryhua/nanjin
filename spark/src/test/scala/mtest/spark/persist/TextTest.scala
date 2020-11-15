@@ -13,17 +13,17 @@ class TextTest extends AnyFunSuite {
     val saver = new RddFileHoarder[IO, Tablet](rdd, Tablet.codec)
     saver.text(path).folder.run(blocker).unsafeRunSync()
   }
-  test("tablet - with suffix") {
+  test("tablet - with new suffix") {
     val path  = "./data/test/spark/persist/text/tablet/new-suffix"
     val saver = new RddFileHoarder[IO, Tablet](rdd, Tablet.codec)
     saver.text(path).folder.withSuffix(".text").run(blocker).unsafeRunSync()
   }
-  test("tablet gzip") {
+  test("tablet - gzip") {
     val path  = "./data/test/spark/persist/text/tablet/gzip"
     val saver = new RddFileHoarder[IO, Tablet](rdd, Tablet.codec)
     saver.text(path).folder.gzip.run(blocker).unsafeRunSync()
   }
-  test("tablet deflate") {
+  test("tablet - deflate") {
     val path  = "./data/test/spark/persist/text/tablet/deflate"
     val saver = new RddFileHoarder[IO, Tablet](rdd, Tablet.codec)
     saver.text(path).folder.deflate(5).run(blocker).unsafeRunSync()
