@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.pipes.CirceSerialization
 import com.github.chenharryhua.nanjin.spark.RddExt
 import io.circe.{Json, Encoder => JsonEncoder}
+import org.apache.hadoop.io.{NullWritable, Text}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
@@ -62,9 +63,12 @@ final class SaveCirce[F[_], A](
             jsonEncoder(codec.idConversion(a))
           else
             jsonEncoder(codec.idConversion(a)).deepDropNullValues
-
+        ss.sparkContext.hadoopConfiguration.set(NJTextOutputFormat.suffix, ".json")
         sma.checkAndRun(blocker)(
-          F.delay(rdd.map(encode(_).noSpaces).saveAsTextFile(params.outPath, ccg.klass)))
+          F.delay(
+            rdd
+              .map(x => (NullWritable.get(), new Text(encode(x).noSpaces)))
+              .saveAsNewAPIHadoopFile[NJTextOutputFormat](params.outPath)))
     }
   }
 }

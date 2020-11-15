@@ -2,6 +2,7 @@ package mtest.spark.persist
 
 import java.time.{Instant, LocalDate}
 
+import cats.Show
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.injection._
@@ -20,6 +21,7 @@ object Tablet {
   implicit val te: TypedEncoder[Tablet] = shapeless.cachedImplicit
   val ate: AvroTypedEncoder[Tablet]     = AvroTypedEncoder(codec)
   implicit val re: RowEncoder[Tablet]   = shapeless.cachedImplicit
+  implicit val showTablet: Show[Tablet] = _.toString
 }
 
 object TabletData {

@@ -2,12 +2,13 @@ package mtest.spark.persist
 
 import org.scalatest.Sequential
 
-class SequentiallyTests
+class PersistTests
     extends Sequential(
       new AvroTest,
       new ParquetTest,
       new CirceTest,
       new JacksonTest,
       new JsonTest,
-      new CsvTest
+      new CsvTest,
+      new TextTest
     )
