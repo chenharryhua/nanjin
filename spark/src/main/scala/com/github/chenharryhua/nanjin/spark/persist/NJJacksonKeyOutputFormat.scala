@@ -21,7 +21,7 @@ final class NJJacksonKeyOutputFormat
 
   override def getRecordWriter(
     job: TaskAttemptContext): RecordWriter[AvroKey[GenericRecord], NullWritable] = {
-    val suffix         = ".json"
+    val suffix         = ".jackson.json"
     val schema: Schema = AvroJob.getOutputKeySchema(job.getConfiguration)
     val conf           = job.getConfiguration
     val isCompressed   = getCompressOutput(job)
