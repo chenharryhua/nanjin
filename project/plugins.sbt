@@ -17,4 +17,4 @@ addSbtPlugin("ch.epfl.scala" % "sbt-bloop" % "1.4.5")
 
 addSbtPlugin("com.thesamet" % "sbt-protoc" % "0.99.34")
 
-libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.10.8"
+libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.10.9"
