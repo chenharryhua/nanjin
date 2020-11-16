@@ -58,6 +58,9 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
   def filter(f: OptionalKV[K, V] => Boolean): CrRdd[F, K, V] =
     new CrRdd[F, K, V](rdd.filter(f), cfg)
 
+  def take(num: Int): CrRdd[F, K, V] =
+    new CrRdd[F, K, V](sparkSession.sparkContext.parallelize(rdd.take(num)), cfg)
+
   def union(other: RDD[OptionalKV[K, V]]): CrRdd[F, K, V] =
     new CrRdd[F, K, V](rdd.union(other), cfg)
 
