@@ -4,7 +4,10 @@ import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, Resource, Sync, 
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaGenericDecoder
+import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
+
+import scala.util.Try
 
 final class KafkaTopic[F[_], K, V] private[kafka] (
   val topicDef: TopicDef[K, V],
@@ -42,6 +45,12 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
   def decoder[G[_, _]: NJConsumerMessage](
     cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
     new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valCodec)
+
+  def record(partition: Int, offset: Long)(implicit
+    sync: Sync[F]): F[Option[ConsumerRecord[Try[K], Try[V]]]] =
+    shortLiveConsumer.use(
+      _.retrieveRecord(KafkaPartition(partition), KafkaOffset(offset))
+        .map(_.map(decoder(_).tryDecodeKeyValue)))
 
   override def toString: String = {
     import cats.derived.auto.show._
