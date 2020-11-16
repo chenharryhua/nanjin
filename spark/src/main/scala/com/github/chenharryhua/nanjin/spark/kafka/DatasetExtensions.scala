@@ -32,9 +32,12 @@ private[kafka] trait DatasetExtensions {
   }
 
   implicit final class TopicDefExt[K, V](topicDef: TopicDef[K, V]) extends Serializable {
-    implicit private val keyCodec: AvroCodec[K] = topicDef.serdeOfKey.avroCodec
-    implicit private val valCodec: AvroCodec[V] = topicDef.serdeOfVal.avroCodec
-    val avroCodec: AvroCodec[OptionalKV[K, V]]  = shapeless.cachedImplicit
+    implicit private val keyCodec: AvroCodec[K]    = topicDef.serdeOfKey.avroCodec
+    implicit private val valCodec: AvroCodec[V]    = topicDef.serdeOfVal.avroCodec
+    val avroCodec: AvroCodec[OptionalKV[K, V]]     = shapeless.cachedImplicit
+    val avroKCodec: AvroCodec[CompulsoryK[K, V]]   = shapeless.cachedImplicit
+    val avroVCodec: AvroCodec[CompulsoryV[K, V]]   = shapeless.cachedImplicit
+    val avroKVCodec: AvroCodec[CompulsoryKV[K, V]] = shapeless.cachedImplicit
 
     def ate(implicit
       keyEncoder: TypedEncoder[K],
@@ -47,24 +50,21 @@ private[kafka] trait DatasetExtensions {
       keyEncoder: TypedEncoder[K],
       valEncoder: TypedEncoder[V]): AvroTypedEncoder[CompulsoryK[K, V]] = {
       implicit val te: TypedEncoder[CompulsoryK[K, V]] = shapeless.cachedImplicit
-      implicit val cd: AvroCodec[CompulsoryK[K, V]]    = shapeless.cachedImplicit
-      AvroTypedEncoder[CompulsoryK[K, V]](cd)
+      AvroTypedEncoder[CompulsoryK[K, V]](avroKCodec)
     }
 
     def vate(implicit
       keyEncoder: TypedEncoder[K],
       valEncoder: TypedEncoder[V]): AvroTypedEncoder[CompulsoryV[K, V]] = {
       implicit val te: TypedEncoder[CompulsoryV[K, V]] = shapeless.cachedImplicit
-      implicit val cd: AvroCodec[CompulsoryV[K, V]]    = shapeless.cachedImplicit
-      AvroTypedEncoder[CompulsoryV[K, V]](cd)
+      AvroTypedEncoder[CompulsoryV[K, V]](avroVCodec)
     }
 
     def kvate(implicit
       keyEncoder: TypedEncoder[K],
       valEncoder: TypedEncoder[V]): AvroTypedEncoder[CompulsoryKV[K, V]] = {
       implicit val te: TypedEncoder[CompulsoryKV[K, V]] = shapeless.cachedImplicit
-      implicit val cd: AvroCodec[CompulsoryKV[K, V]]    = shapeless.cachedImplicit
-      AvroTypedEncoder[CompulsoryKV[K, V]](cd)
+      AvroTypedEncoder[CompulsoryKV[K, V]](avroKVCodec)
     }
 
     object load {
