@@ -3,6 +3,7 @@ package mtest.spark.persist
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.spark.injection._
 import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddFileHoarder}
+import frameless.TypedDataset
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import io.circe.generic.auto._
 import org.scalatest.DoNotDiscover
@@ -18,6 +19,8 @@ class CirceTest extends AnyFunSuite {
     saver.circe(path).folder.gzip.run(blocker).unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path)
     assert(expected == t.collect().toSet)
+    val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate)
+    assert(expected == t2.collect[IO]().unsafeRunSync().toSet)
   }
 
   test("rdd read/write identity multi.deflate") {
@@ -27,6 +30,8 @@ class CirceTest extends AnyFunSuite {
     saver.circe(path).folder.deflate(3).run(blocker).unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path)
     assert(expected == t.collect().toSet)
+    val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate)
+    assert(expected == t2.collect[IO]().unsafeRunSync().toSet)
   }
 
   test("rdd read/write identity single.uncompressed") {
@@ -36,6 +41,8 @@ class CirceTest extends AnyFunSuite {
     saver.circe(path).file.run(blocker).unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path)
     assert(expected == t.collect().toSet)
+    val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate)
+    assert(expected == t2.collect[IO]().unsafeRunSync().toSet)
   }
 
   test("rdd read/write identity single.gzip") {
@@ -45,6 +52,8 @@ class CirceTest extends AnyFunSuite {
     saver.circe(path).file.gzip.run(blocker).unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path)
     assert(expected == t.collect().toSet)
+    val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate)
+    assert(expected == t2.collect[IO]().unsafeRunSync().toSet)
   }
 
   test("rdd read/write identity single.deflate") {
@@ -54,6 +63,8 @@ class CirceTest extends AnyFunSuite {
     saver.circe(path).file.deflate(3).run(blocker).unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path)
     assert(expected == t.collect().toSet)
+    val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate)
+    assert(expected == t2.collect[IO]().unsafeRunSync().toSet)
   }
   test("byte-array rdd read/write identity multi") {
     import BeeData._
@@ -79,6 +90,8 @@ class CirceTest extends AnyFunSuite {
     saver.repartition(1).circe(path).folder.keepNull.run(blocker).unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path)
     assert(expected == t.collect().toSet)
+    val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate)
+    assert(expected == t2.collect[IO]().unsafeRunSync().toSet)
   }
 
   test("rdd read/write identity multi.uncompressed - drop null") {
@@ -88,6 +101,8 @@ class CirceTest extends AnyFunSuite {
     saver.repartition(1).circe(path).folder.dropNull.run(blocker).unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path)
     assert(expected == t.collect().toSet)
+    val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate)
+    assert(expected == t2.collect[IO]().unsafeRunSync().toSet)
   }
   test("rdd read/write identity single.uncompressed - keep null") {
     import RoosterData._
@@ -96,6 +111,8 @@ class CirceTest extends AnyFunSuite {
     saver.repartition(1).circe(path).file.keepNull.run(blocker).unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path)
     assert(expected == t.collect().toSet)
+    val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate)
+    assert(expected == t2.collect[IO]().unsafeRunSync().toSet)
   }
 
   test("rdd read/write identity single.uncompressed - drop null") {
@@ -105,6 +122,8 @@ class CirceTest extends AnyFunSuite {
     saver.repartition(1).circe(path).file.dropNull.run(blocker).unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path)
     assert(expected == t.collect().toSet)
+    val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate)
+    assert(expected == t2.collect[IO]().unsafeRunSync().toSet)
   }
 
 }

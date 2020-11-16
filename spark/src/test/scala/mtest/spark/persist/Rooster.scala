@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.injection._
 import com.sksamuel.avro4s.{Decoder, Encoder}
 import frameless.TypedEncoder
+import io.circe.Codec
 import kantan.csv.generic._
 import kantan.csv.java8._
 import org.apache.avro.Schema
@@ -80,6 +81,8 @@ object Rooster {
   implicit val roundingMode: BigDecimal.RoundingMode.Value = RoundingMode.HALF_UP
   implicit val avroEncoder: Encoder[Rooster]               = shapeless.cachedImplicit
   implicit val avroDecoder: Decoder[Rooster]               = shapeless.cachedImplicit
+
+  implicit val circeCodec: Codec[Rooster] = io.circe.generic.semiauto.deriveCodec
 
   implicit val typedEncoder: TypedEncoder[Rooster] = shapeless.cachedImplicit
 
