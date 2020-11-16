@@ -17,6 +17,8 @@ class JsonTest extends AnyFunSuite {
     saver.repartition(1).json(path).keepNull.run(blocker).unsafeRunSync()
     val t: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate)
     assert(expected == t.collect[IO]().unsafeRunSync().toSet)
+    val t2: TypedDataset[Rooster] = loaders.circe[Rooster](path, Rooster.ate)
+    assert(expected == t2.collect[IO]().unsafeRunSync().toSet)
   }
 
   test("rdd read/write identity uncompressed - drop null") {
@@ -26,6 +28,8 @@ class JsonTest extends AnyFunSuite {
     saver.repartition(1).json(path).dropNull.run(blocker).unsafeRunSync()
     val t: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate)
     assert(expected == t.collect[IO]().unsafeRunSync().toSet)
+    val t2: TypedDataset[Rooster] = loaders.circe[Rooster](path, Rooster.ate)
+    assert(expected == t2.collect[IO]().unsafeRunSync().toSet)
   }
 
   test("rdd read/write identity gzip") {
@@ -35,6 +39,8 @@ class JsonTest extends AnyFunSuite {
     saver.json(path).gzip.run(blocker).unsafeRunSync()
     val t: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate)
     assert(expected == t.collect[IO]().unsafeRunSync().toSet)
+    val t2: TypedDataset[Rooster] = loaders.circe[Rooster](path, Rooster.ate)
+    assert(expected == t2.collect[IO]().unsafeRunSync().toSet)
   }
 
   test("rdd read/write identity deflate") {
@@ -44,6 +50,8 @@ class JsonTest extends AnyFunSuite {
     saver.json(path).deflate(1).run(blocker).unsafeRunSync()
     val t: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate)
     assert(expected == t.collect[IO]().unsafeRunSync().toSet)
+    val t2: TypedDataset[Rooster] = loaders.circe[Rooster](path, Rooster.ate)
+    assert(expected == t2.collect[IO]().unsafeRunSync().toSet)
   }
   test("rdd read/write identity bzip2") {
     import RoosterData._
@@ -52,6 +60,8 @@ class JsonTest extends AnyFunSuite {
     saver.json(path).bzip2.run(blocker).unsafeRunSync()
     val t: TypedDataset[Rooster] = loaders.json(path, Rooster.ate)
     assert(expected == t.collect[IO]().unsafeRunSync().toSet)
+    val t2: TypedDataset[Rooster] = loaders.circe[Rooster](path, Rooster.ate)
+    assert(expected == t2.collect[IO]().unsafeRunSync().toSet)
   }
 
 }
