@@ -1,15 +1,14 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import java.time.LocalDate
-
 import akka.NotUsed
 import akka.stream.scaladsl.Source
 import cats.Order
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
-import com.github.chenharryhua.nanjin.datetime.{localdateInstances, NJDateTimeRange, NJTimestamp}
+import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt}
 import frameless.cats.implicits.rddOps
 import frameless.{TypedDataset, TypedEncoder}
@@ -18,7 +17,6 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
-import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
 
 final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)(implicit
   val keyCodec: AvroCodec[K],
@@ -56,6 +54,9 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
     ck2: AvroCodec[K2],
     cv2: AvroCodec[V2]): CrRdd[F, K2, V2] =
     new CrRdd[F, K2, V2](rdd.flatMap(f), cfg)
+
+  def filter(f: OptionalKV[K, V] => Boolean): CrRdd[F, K, V] =
+    new CrRdd[F, K, V](rdd.filter(f), cfg)
 
   def union(other: RDD[OptionalKV[K, V]]): CrRdd[F, K, V] =
     new CrRdd[F, K, V](rdd.union(other), cfg)
