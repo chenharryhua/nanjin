@@ -9,6 +9,8 @@ import com.sksamuel.avro4s.{
   Decoder => AvroDecoder,
   Encoder => AvroEncoder
 }
+import io.circe.optics.JsonPath._
+import io.circe.parser
 import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType
 import org.apache.avro.{Schema, SchemaCompatibility}
 
@@ -20,10 +22,22 @@ final case class AvroCodec[A](
   avroEncoder: AvroEncoder[A]) {
   val schema: Schema        = schemaFor.schema
   def idConversion(a: A): A = avroDecoder.decode(avroEncoder.encode(a))
+
+  def withNamespace(ns: String): AvroCodec[A] = {
+    val json = parser
+      .parse(schema.toString)
+      .map(x => root.namespace.string.modify(_ => ns)(x))
+      .map(_.noSpaces) match {
+      case Left(ex)     => throw ex
+      case Right(value) => value
+    }
+    val newSchema: Schema = (new Schema.Parser).parse(json)
+    val sf: SchemaFor[A]  = SchemaFor[A](newSchema)
+    AvroCodec[A](sf, avroDecoder.withSchema(sf), avroEncoder.withSchema(sf))
+  }
 }
 
-/**
-  * left  - error
+/** left  - error
   * right - WithAvroSchema
   * both  - (warnings, WithAvroSchema)
   */
