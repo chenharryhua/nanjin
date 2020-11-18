@@ -73,4 +73,14 @@ class SchemaChangeTest extends AnyFunSuite {
     val en                             = codec.avroEncoder.encode(data)
     assertThrows[Exception](newCodec.avroDecoder.decode(en))
   }
+  test("empty namespace is not allowed") {
+    assertThrows[Exception](codec.withNamespace(""))
+  }
+  test("empty in namespace is not allowed") {
+    assertThrows[Exception](codec.withNamespace("a.b. .c"))
+  }
+  test("hyphen in namespace is not allowed") {
+    assertThrows[Exception](codec.withNamespace("a.b.-.c"))
+  }
+
 }
