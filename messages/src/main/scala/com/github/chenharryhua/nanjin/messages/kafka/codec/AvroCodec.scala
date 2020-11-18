@@ -9,6 +9,8 @@ import com.sksamuel.avro4s.{
   Decoder => AvroDecoder,
   Encoder => AvroEncoder
 }
+import eu.timepit.refined.string.MatchesRegex
+import eu.timepit.refined.{refineV, W}
 import io.circe.optics.JsonPath._
 import io.circe.parser
 import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType
@@ -23,17 +25,32 @@ final case class AvroCodec[A](
   val schema: Schema        = schemaFor.schema
   def idConversion(a: A): A = avroDecoder.decode(avroEncoder.encode(a))
 
-  def withNamespace(ns: String): AvroCodec[A] = {
-    val json = parser
-      .parse(schema.toString)
-      .map(x => root.namespace.string.modify(_ => ns)(x))
-      .map(_.noSpaces) match {
-      case Left(ex)     => throw ex
-      case Right(value) => value
+  /** https://avro.apache.org/docs/current/spec.html
+    * the grammar for a namespace is:
+    *
+    * <empty> | <name>[(<dot><name>)*]
+    *
+    * empty is not allowed
+    */
+
+  def withNamespace(namespace: String): AvroCodec[A] = {
+    type Namespace = MatchesRegex[W.`"^[a-zA-Z0-9_.]+$"`.T]
+    val res = for {
+      ns <- refineV[Namespace](namespace)
+      json <- parser
+        .parse(schema.toString)
+        .map(x => root.namespace.string.modify(_ => ns.value)(x))
+        .map(_.noSpaces)
+        .leftMap(_.getMessage())
+    } yield {
+      val newSchema: Schema = (new Schema.Parser).parse(json)
+      val sf: SchemaFor[A]  = SchemaFor[A](newSchema)
+      AvroCodec[A](sf, avroDecoder.withSchema(sf), avroEncoder.withSchema(sf))
     }
-    val newSchema: Schema = (new Schema.Parser).parse(json)
-    val sf: SchemaFor[A]  = SchemaFor[A](newSchema)
-    AvroCodec[A](sf, avroDecoder.withSchema(sf), avroEncoder.withSchema(sf))
+    res match {
+      case Left(ex)  => throw new Exception(ex)
+      case Right(ac) => ac
+    }
   }
 }
 
