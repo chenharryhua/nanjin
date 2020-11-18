@@ -30,7 +30,7 @@ final case class AvroCodec[A](
     *
     * <empty> | <name>[(<dot><name>)*]
     *
-    * empty is not allowed
+    * empty namespace is not allowed
     */
 
   def withNamespace(namespace: String): AvroCodec[A] = {
@@ -39,7 +39,7 @@ final case class AvroCodec[A](
       ns <- refineV[Namespace](namespace)
       json <- parser
         .parse(schema.toString)
-        .map(x => root.namespace.string.modify(_ => ns.value)(x))
+        .map(x => root.namespace.string.set(ns.value)(x))
         .map(_.noSpaces)
         .leftMap(_.getMessage())
     } yield {
@@ -55,8 +55,8 @@ final case class AvroCodec[A](
 }
 
 /** left  - error
-  * right - WithAvroSchema
-  * both  - (warnings, WithAvroSchema)
+  * right - AvroCodec
+  * both  - (warnings, AvroCodec)
   */
 object AvroCodec {
 

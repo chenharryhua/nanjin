@@ -17,6 +17,9 @@ sealed abstract class DatabaseSettings(username: Username, password: Password)
   def connStr: ConnectionString
   def database: DatabaseName
 
+  def withPassword(psw: String): DatabaseSettings
+  def withUsername(un: String): DatabaseSettings
+
   final def show: String =
     s"""
        |database settings:
@@ -94,6 +97,12 @@ sealed abstract class DatabaseSettings(username: Username, password: Password)
   override val connStr: ConnectionString = ConnectionString(s"$url?$credential")
   override val driver: DriverString      = DriverString("org.postgresql.Driver")
 
+  override def withPassword(psw: String): Postgres =
+    Postgres.password.set(Password.unsafeFrom(psw))(this)
+
+  override def withUsername(un: String): Postgres =
+    Postgres.username.set(Username.unsafeFrom(un))(this)
+
 }
 
 @Lenses final case class Redshift(
@@ -110,6 +119,11 @@ sealed abstract class DatabaseSettings(username: Username, password: Password)
   override val connStr: ConnectionString = ConnectionString(s"$url?$credential&$ssl")
   override val driver: DriverString      = DriverString("com.amazon.redshift.jdbc42.Driver")
 
+  override def withPassword(psw: String): Redshift =
+    Redshift.password.set(Password.unsafeFrom(psw))(this)
+
+  override def withUsername(un: String): Redshift =
+    Redshift.username.set(Username.unsafeFrom(un))(this)
 }
 
 @Lenses final case class SqlServer(
@@ -127,5 +141,11 @@ sealed abstract class DatabaseSettings(username: Username, password: Password)
 
   override val driver: DriverString =
     DriverString("com.microsoft.sqlserver.jdbc.SQLServerDriver")
+
+  override def withPassword(psw: String): SqlServer =
+    SqlServer.password.set(Password.unsafeFrom(psw))(this)
+
+  override def withUsername(un: String): SqlServer =
+    SqlServer.username.set(Username.unsafeFrom(un))(this)
 
 }

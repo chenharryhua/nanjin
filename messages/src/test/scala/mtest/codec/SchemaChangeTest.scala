@@ -76,7 +76,7 @@ class SchemaChangeTest extends AnyFunSuite {
   test("empty namespace is not allowed") {
     assertThrows[Exception](codec.withNamespace(""))
   }
-  test("empty in namespace is not allowed") {
+  test("space in namespace is not allowed") {
     assertThrows[Exception](codec.withNamespace("a.b. .c"))
   }
   test("hyphen in namespace is not allowed") {
