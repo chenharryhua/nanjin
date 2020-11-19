@@ -32,8 +32,10 @@ final class DbUploader[F[_], A](
         .write
         .mode(params.dbSaveMode)
         .format("jdbc")
-        .option("url", dbSettings.connStr.value)
-        .option("driver", dbSettings.driver.value)
+        .option("driver", dbSettings.config.getDriverClassName)
+        .option("url", dbSettings.config.getJdbcUrl)
+        .option("user", dbSettings.config.getUsername)
+        .option("password", dbSettings.config.getPassword)
         .option("dbtable", params.tableName.value)
         .save()
     }

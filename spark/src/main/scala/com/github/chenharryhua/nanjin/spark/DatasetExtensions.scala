@@ -19,8 +19,6 @@ import org.apache.avro.Schema
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
-import scala.reflect.ClassTag
-
 private[spark] trait DatasetExtensions {
 
   implicit final class RddExt[A](rdd: RDD[A]) extends Serializable {
@@ -65,7 +63,7 @@ private[spark] trait DatasetExtensions {
       extends Serializable {
 
     def dataframe(tableName: String): DataFrame =
-      sd.unloadDF(dbSettings.connStr, dbSettings.driver, TableName.unsafeFrom(tableName), None)(ss)
+      sd.unloadDF(dbSettings.config, TableName.unsafeFrom(tableName), None)(ss)
 
     def genCaseClass(tableName: String): String = dataframe(tableName).genCaseClass
     def genSchema(tableName: String): Schema    = dataframe(tableName).genSchema
