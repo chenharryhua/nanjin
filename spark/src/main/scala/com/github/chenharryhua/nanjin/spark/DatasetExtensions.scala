@@ -63,7 +63,7 @@ private[spark] trait DatasetExtensions {
       extends Serializable {
 
     def dataframe(tableName: String): DataFrame =
-      sd.unloadDF(dbSettings.config, TableName.unsafeFrom(tableName), None)(ss)
+      sd.unloadDF(dbSettings.hikariConfig, TableName.unsafeFrom(tableName), None)(ss)
 
     def genCaseClass(tableName: String): String = dataframe(tableName).genCaseClass
     def genSchema(tableName: String): Schema    = dataframe(tableName).genSchema

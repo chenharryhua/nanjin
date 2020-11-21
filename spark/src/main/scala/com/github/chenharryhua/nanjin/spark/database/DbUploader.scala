@@ -32,10 +32,10 @@ final class DbUploader[F[_], A](
         .write
         .mode(params.dbSaveMode)
         .format("jdbc")
-        .option("driver", dbSettings.config.getDriverClassName)
-        .option("url", dbSettings.config.getJdbcUrl)
-        .option("user", dbSettings.config.getUsername)
-        .option("password", dbSettings.config.getPassword)
+        .option("driver", dbSettings.hikariConfig.getDriverClassName)
+        .option("url", dbSettings.hikariConfig.getJdbcUrl)
+        .option("user", dbSettings.hikariConfig.getUsername)
+        .option("password", dbSettings.hikariConfig.getPassword)
         .option("dbtable", params.tableName.value)
         .save()
     }

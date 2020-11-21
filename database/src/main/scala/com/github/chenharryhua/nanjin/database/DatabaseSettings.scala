@@ -15,7 +15,7 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 sealed abstract class DatabaseSettings(username: Username, password: Password)
     extends Serializable {
   def database: DatabaseName
-  def config: HikariConfig
+  def hikariConfig: HikariConfig
 
   def withPassword(psw: String): DatabaseSettings
   def withUsername(un: String): DatabaseSettings
@@ -23,7 +23,7 @@ sealed abstract class DatabaseSettings(username: Username, password: Password)
   final def transactorResource[F[_]: ContextShift: Async](
     blocker: Blocker): Resource[F, HikariTransactor[F]] =
     ExecutionContexts.fixedThreadPool[F](8).flatMap { threadPool =>
-      HikariTransactor.fromHikariConfig[F](config, threadPool, blocker)
+      HikariTransactor.fromHikariConfig[F](hikariConfig, threadPool, blocker)
     }
 
   final def transactorStream[F[_]: ContextShift: Async](
@@ -84,7 +84,7 @@ sealed abstract class DatabaseSettings(username: Username, password: Password)
   override def withUsername(un: String): Postgres =
     Postgres.username.set(Username.unsafeFrom(un))(this)
 
-  override val config: HikariConfig = {
+  override val hikariConfig: HikariConfig = {
     val cfg = new HikariConfig()
     cfg.setDriverClassName("org.postgresql.Driver")
     cfg.setJdbcUrl(Protocols.Postgres.url(host, Some(port)) + s"/${database.value}")
@@ -108,7 +108,7 @@ sealed abstract class DatabaseSettings(username: Username, password: Password)
   override def withUsername(un: String): Redshift =
     Redshift.username.set(Username.unsafeFrom(un))(this)
 
-  override val config: HikariConfig = {
+  override val hikariConfig: HikariConfig = {
     val cfg = new HikariConfig()
     cfg.setDriverClassName("com.amazon.redshift.jdbc42.Driver")
     cfg.setJdbcUrl(Protocols.Redshift.url(host, Some(port)) + s"/${database.value}")
@@ -134,7 +134,7 @@ sealed abstract class DatabaseSettings(username: Username, password: Password)
   override def withUsername(un: String): SqlServer =
     SqlServer.username.set(Username.unsafeFrom(un))(this)
 
-  override val config: HikariConfig = {
+  override val hikariConfig: HikariConfig = {
     val cfg = new HikariConfig()
     cfg.setDriverClassName("com.microsoft.sqlserver.jdbc.SQLServerDriver")
     cfg.setJdbcUrl(Protocols.SqlServer.url(host, Some(port)) + s";databaseName=${database.value}")

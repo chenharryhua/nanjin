@@ -28,7 +28,7 @@ final class SparkTable[F[_], A](
     new SparkTable[F, A](tableDef, dbSettings, cfg.withPathBuilder(f), ss)
 
   def fromDB: TableDataset[F, A] = {
-    val df = sd.unloadDF(dbSettings.config, tableDef.tableName, params.query)
+    val df = sd.unloadDF(dbSettings.hikariConfig, tableDef.tableName, params.query)
     new TableDataset[F, A](ate.normalizeDF(df).dataset, dbSettings, cfg)
   }
 
