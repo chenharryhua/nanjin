@@ -12,7 +12,10 @@ import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
 
-final case class TableDef[A] private (tableName: TableName, avroTypedEncoder: AvroTypedEncoder[A]) {
+final case class TableDef[A] private (
+  tableName: TableName,
+  avroTypedEncoder: AvroTypedEncoder[A],
+  unloadQuery: Option[String]) {
 
   def in[F[_]](dbSettings: DatabaseSettings)(implicit
     sparkSession: SparkSession): SparkTable[F, A] =
@@ -54,8 +57,12 @@ object TableDef {
 
   def apply[A: AvroEncoder: AvroDecoder: SchemaFor: TypedEncoder](
     tableName: TableName): TableDef[A] =
-    new TableDef[A](tableName, AvroTypedEncoder(AvroCodec[A]))
+    new TableDef[A](tableName, AvroTypedEncoder(AvroCodec[A]), None)
 
   def apply[A](tableName: TableName, codec: AvroCodec[A])(implicit typedEncoder: TypedEncoder[A]) =
-    new TableDef[A](tableName, AvroTypedEncoder(codec))
+    new TableDef[A](tableName, AvroTypedEncoder(codec), None)
+
+  def apply[A](tableName: TableName, codec: AvroCodec[A], unloadQuery: String)(implicit
+    typedEncoder: TypedEncoder[A]) =
+    new TableDef[A](tableName, AvroTypedEncoder(codec), Some(unloadQuery))
 }
