@@ -3,9 +3,11 @@ package mtest.spark.database
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.database.TableName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.database.{SparkDBSyntax, SparkTable, TableDef}
+import com.github.chenharryhua.nanjin.spark._
+import com.github.chenharryhua.nanjin.spark.database.{SparkTable, TableDef}
+import frameless.{TypedDataset, TypedEncoder}
+import frameless.cats.implicits._
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.Dataset
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.math.BigDecimal
@@ -17,7 +19,7 @@ object TableUploadTestData {
 
   implicit val roundingMode: BigDecimal.RoundingMode.Value = RoundingMode.HALF_UP
 
-  val schema: AvroCodec[Beaver] = AvroCodec[Beaver](
+  val codec: AvroCodec[Beaver] = AvroCodec[Beaver](
     """
       |{
       |  "type": "record",
@@ -46,21 +48,30 @@ object TableUploadTestData {
       |""".stripMargin
   ).right.get
 
+  implicit val te: TypedEncoder[Beaver] = shapeless.cachedImplicit
+
   val table: SparkTable[IO, Beaver] =
-    TableDef[Beaver](TableName("upload"), schema).in[IO](postgres)
+    TableDef[Beaver](TableName("upload"), codec).in[IO](postgres)
 
   val data: RDD[Beaver] = sparkSession.sparkContext.parallelize(
     List(
       Beaver(BigDecimal("12.3456"), Random.nextFloat(), Random.nextDouble()),
       Beaver(BigDecimal("123456"), Random.nextFloat(), Random.nextDouble()))
   )
-  import sparkSession.implicits._
-  val ds: Dataset[Beaver] = sparkSession.createDataset(data)
+  val tds: TypedDataset[Beaver] = table.tableDef.avroTypedEncoder.normalize(data)
 }
 
 class TableUploadTest extends AnyFunSuite {
   import TableUploadTestData._
+
   test("upload") {
-    ds.upload(table).overwrite.run.unsafeRunSync()
+    tds.dbUpload(table).overwrite.run.unsafeRunSync()
+  }
+
+  test("dump and reload") {
+    table.dump
+      .flatMap(_ => table.fromDisk.typedDataset.except(tds).count[IO]())
+      .map(x => assert(x === 0))
+      .unsafeRunSync()
   }
 }

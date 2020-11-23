@@ -19,7 +19,7 @@ final case class TableDef[A] private (
 
   def in[F[_]](dbSettings: DatabaseSettings)(implicit
     sparkSession: SparkSession): SparkTable[F, A] =
-    new SparkTable[F, A](this, dbSettings, STConfig(dbSettings.database, tableName), sparkSession)
+    new SparkTable[F, A](this, dbSettings, STConfig(dbSettings.database, tableName))
 
   object load {
     private val ate: AvroTypedEncoder[A]  = avroTypedEncoder

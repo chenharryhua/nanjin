@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.database
 
 import cats.derived.auto.functor._
-import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.database.{DatabaseName, TableName}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.macros.deriveFixedPoint
@@ -14,8 +13,8 @@ import org.apache.spark.sql.SaveMode
   tableName: TableName,
   query: Option[String],
   dbSaveMode: SaveMode,
-  pathBuilder: (DatabaseName, TableName, NJFileFormat) => String) {
-  def outPath(fmt: NJFileFormat): String = pathBuilder(databaseName, tableName, fmt)
+  replayPathBuilder: (DatabaseName, TableName) => String) {
+  val replayPath: String = replayPathBuilder(databaseName, tableName)
 }
 
 private[database] object STParams {
@@ -26,10 +25,10 @@ private[database] object STParams {
       tableName = tableName,
       None,
       dbSaveMode = SaveMode.ErrorIfExists,
-      pathBuilder = (dn, tn, fmt) =>
-        s"./data/spark/database/${dn.value}/${tn.value}/${fmt.alias}.${fmt.format}/"
+      replayPathBuilder = (dn, tn) => s"./data/sparkDB/${dn.value}/${tn.value}/replay/"
     )
 }
+
 @deriveFixedPoint sealed private[database] trait STConfigF[_]
 
 private[database] object STConfigF {
@@ -37,20 +36,18 @@ private[database] object STConfigF {
 
   final case class WithDbSaveMode[K](value: SaveMode, cont: K) extends STConfigF[K]
 
-  final case class WithPathBuilder[K](
-    value: (DatabaseName, TableName, NJFileFormat) => String,
-    cont: K)
+  final case class WithReplayPathBuilder[K](value: (DatabaseName, TableName) => String, cont: K)
       extends STConfigF[K]
 
   final case class WithQuery[K](value: String, cont: K) extends STConfigF[K]
   final case class WithTableName[K](value: TableName, count: K) extends STConfigF[K]
 
   private val algebra: Algebra[STConfigF, STParams] = Algebra[STConfigF, STParams] {
-    case DefaultParams(dn, tn) => STParams(dn, tn)
-    case WithDbSaveMode(v, c)  => STParams.dbSaveMode.set(v)(c)
-    case WithPathBuilder(v, c) => STParams.pathBuilder.set(v)(c)
-    case WithQuery(v, c)       => STParams.query.set(Some(v))(c)
-    case WithTableName(v, c)   => STParams.tableName.set(v)(c)
+    case DefaultParams(dn, tn)       => STParams(dn, tn)
+    case WithDbSaveMode(v, c)        => STParams.dbSaveMode.set(v)(c)
+    case WithReplayPathBuilder(v, c) => STParams.replayPathBuilder.set(v)(c)
+    case WithQuery(v, c)             => STParams.query.set(Some(v))(c)
+    case WithTableName(v, c)         => STParams.tableName.set(v)(c)
   }
 
   def evalConfig(cfg: STConfig): STParams = scheme.cata(algebra).apply(cfg.value)
@@ -61,8 +58,8 @@ final private[database] case class STConfig(value: Fix[STConfigF]) extends AnyVa
 
   def withDbSaveMode(sm: SaveMode): STConfig = STConfig(Fix(WithDbSaveMode(sm, value)))
 
-  def withPathBuilder(f: (DatabaseName, TableName, NJFileFormat) => String): STConfig =
-    STConfig(Fix(WithPathBuilder(f, value)))
+  def withReplayPathBuilder(f: (DatabaseName, TableName) => String): STConfig =
+    STConfig(Fix(WithReplayPathBuilder(f, value)))
 
   def withQuery(query: String): STConfig =
     STConfig(Fix(WithQuery(query, value)))

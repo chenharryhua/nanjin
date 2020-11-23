@@ -33,7 +33,7 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
 
   //transformation
 
-  def kafkaPartition(num: Int): CrRdd[F, K, V] =
+  def partitionOf(num: Int): CrRdd[F, K, V] =
     new CrRdd[F, K, V](rdd.filter(_.partition === num), cfg)
 
   def sortBy[A: Order: ClassTag](f: OptionalKV[K, V] => A, ascending: Boolean) =
@@ -49,6 +49,12 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
     ck2: AvroCodec[K2],
     cv2: AvroCodec[V2]): CrRdd[F, K2, V2] =
     new CrRdd[F, K2, V2](rdd.map(_.bimap(k, v)), cfg)
+
+  def mapValues[V2](v: V => V2)(implicit cv2: AvroCodec[V2]): CrRdd[F, K, V2] =
+    bimap[K, V2](identity, v)
+
+  def mapKeys[K2](k: K => K2)(implicit ck2: AvroCodec[K2]): CrRdd[F, K2, V] =
+    bimap(k, identity)
 
   def flatMap[K2, V2](f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]])(implicit
     ck2: AvroCodec[K2],
@@ -77,8 +83,7 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
   def inRange(start: String, end: String): CrRdd[F, K, V] =
     inRange(params.timeRange.withTimeRange(start, end))
 
-  // out of FsmRdd
-
+  // dataset
   def typedDataset(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): TypedDataset[OptionalKV[K, V]] = {
@@ -96,16 +101,16 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
     ate.normalize(rdd.flatMap(_.key)(keyEncoder.classTag))
   }
 
+  def values: RDD[CompulsoryV[K, V]]     = rdd.flatMap(_.toCompulsoryV)
+  def keys: RDD[CompulsoryK[K, V]]       = rdd.flatMap(_.toCompulsoryK)
+  def keyValues: RDD[CompulsoryKV[K, V]] = rdd.flatMap(_.toCompulsoryKV)
+
+  // streams
   def stream(implicit F: Sync[F]): Stream[F, OptionalKV[K, V]] =
     rdd.stream[F]
 
   def source(implicit F: ConcurrentEffect[F]): Source[OptionalKV[K, V], NotUsed] =
     rdd.source[F]
-
-  // rdd
-  def values: RDD[CompulsoryV[K, V]]     = rdd.flatMap(_.toCompulsoryV)
-  def keys: RDD[CompulsoryK[K, V]]       = rdd.flatMap(_.toCompulsoryK)
-  def keyValues: RDD[CompulsoryKV[K, V]] = rdd.flatMap(_.toCompulsoryKV)
 
   def toPrRdd: PrRdd[F, K, V] =
     new PrRdd[F, K, V](rdd.map(_.toNJProducerRecord), cfg)
