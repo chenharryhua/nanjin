@@ -41,6 +41,18 @@ final class SparkTable[F[_], A](
       dbSettings,
       cfg)
 
+  def countDisk: Long = fromDisk.dataset.count()
+
+  def countDB: Long = {
+    import sparkSession.implicits._
+    sd.unloadDF(
+      dbSettings.hikariConfig,
+      tableDef.tableName,
+      Some(s"select count(*) from ${tableDef.tableName.value}"))
+      .as[Long]
+      .head()
+  }
+
   def dump(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     Blocker[F].use(blocker => fromDB.save.overwrite.objectFile(params.replayPath).run(blocker))
 
