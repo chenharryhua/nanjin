@@ -1,8 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.database
 
-import com.github.chenharryhua.nanjin.database.{ConnectionString, DriverString, TableName}
+import com.github.chenharryhua.nanjin.database.TableName
 import com.zaxxer.hikari.HikariConfig
-import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
 private[spark] object sd {
