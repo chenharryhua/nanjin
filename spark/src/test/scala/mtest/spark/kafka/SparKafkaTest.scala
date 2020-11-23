@@ -100,4 +100,9 @@ class SparKafkaTest extends AnyFunSuite {
     val rst = t.values.collect().map(_.value)
     assert(rst === Seq(cr1.value.get))
   }
+
+  test("dump and reload") {
+    topic.sparKafka.dump.unsafeRunSync()
+    println(topic.sparKafka.fromDisk.rdd.count())
+  }
 }

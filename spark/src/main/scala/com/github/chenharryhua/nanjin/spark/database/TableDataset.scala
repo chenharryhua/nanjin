@@ -1,8 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.database
 
 import cats.effect.Sync
-import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.github.chenharryhua.nanjin.database.{DatabaseName, DatabaseSettings, TableName}
+import com.github.chenharryhua.nanjin.database.DatabaseSettings
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist._
@@ -32,9 +31,6 @@ final class TableDataset[F[_], A](
 
   def flatMap[B](f: A => TraversableOnce[B])(implicit ev: AvroTypedEncoder[B]): TableDataset[F, B] =
     new TableDataset[F, B](dataset.flatMap(f)(ev.sparkEncoder), dbSettings, cfg)
-
-  def withPathBuilder(f: (DatabaseName, TableName, NJFileFormat) => String) =
-    new TableDataset[F, A](dataset, dbSettings, cfg.withPathBuilder(f))
 
   def typedDataset: TypedDataset[A] = ate.normalize(dataset)
 

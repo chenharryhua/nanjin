@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.common.transformers._
 import com.github.chenharryhua.nanjin.database.TableName
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark._
+import com.github.chenharryhua.nanjin.spark.TypedDatasetExt
 import com.github.chenharryhua.nanjin.spark.database._
 import com.github.chenharryhua.nanjin.spark.injection._
 import doobie.implicits._
@@ -69,17 +69,10 @@ class SparkTableTest extends AnyFunSuite {
   postgres.runQuery[IO, Int](blocker, DBTable.drop *> DBTable.create).unsafeRunSync()
 
   test("sparkTable upload dataset to table") {
-    val data = TypedDataset.create(List(sample.transformInto[DBTable])).dataset
-
-    sparkSession
-      .alongWith[IO](postgres)
-      .table(table)
-      .tableset(data)
-      .upload
-      .overwrite
-      .run
-      .unsafeRunSync()
+    val data = TypedDataset.create(List(sample.transformInto[DBTable]))
+    table.in[IO](postgres).tableset(data).upload.overwrite.run.unsafeRunSync()
   }
+
   val root = "./data/test/spark/database/postgres/"
 
   val tb: SparkTable[IO, DBTable] = table.in[IO](postgres)

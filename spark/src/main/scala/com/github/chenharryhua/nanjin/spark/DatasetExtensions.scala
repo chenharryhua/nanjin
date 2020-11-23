@@ -8,7 +8,7 @@ import cats.effect.{ConcurrentEffect, Sync}
 import com.github.chenharryhua.nanjin.database.{DatabaseSettings, TableName}
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.database.{sd, STConfig, SparkTable, TableDef}
+import com.github.chenharryhua.nanjin.spark.database.{sd, DbUploader, SparkTable}
 import com.github.chenharryhua.nanjin.spark.kafka.{SKConfig, SparKafka}
 import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
 import frameless.TypedDataset
@@ -34,6 +34,9 @@ private[spark] trait DatasetExtensions {
     def typedDataset(ate: AvroTypedEncoder[A])(implicit ss: SparkSession): TypedDataset[A] =
       ate.normalize(rdd)(ss)
 
+    def dbUpload[F[_]: Sync](db: SparkTable[F, A]): DbUploader[F, A] =
+      db.tableset(rdd).upload
+
     def save[F[_]](codec: AvroCodec[A]): RddFileHoarder[F, A] =
       new RddFileHoarder[F, A](rdd, codec)
   }
@@ -47,6 +50,9 @@ private[spark] trait DatasetExtensions {
 
     def dismissNulls: TypedDataset[A]   = tds.deserialized.filter(_ != null)
     def numOfNulls[F[_]: Sync]: F[Long] = tds.except(dismissNulls).count[F]()
+
+    def dbUpload[F[_]: Sync](db: SparkTable[F, A]): DbUploader[F, A] =
+      db.tableset(tds).upload
 
     def save[F[_]](ate: AvroTypedEncoder[A]): RddFileHoarder[F, A] =
       new RddFileHoarder[F, A](tds.dataset.rdd, ate.avroCodec)
@@ -68,12 +74,6 @@ private[spark] trait DatasetExtensions {
     def genCaseClass(tableName: String): String = dataframe(tableName).genCaseClass
     def genSchema(tableName: String): Schema    = dataframe(tableName).genSchema
 
-    def table[A](tableDef: TableDef[A]): SparkTable[F, A] =
-      new SparkTable[F, A](
-        tableDef,
-        dbSettings,
-        STConfig(dbSettings.database, tableDef.tableName),
-        ss)
   }
 
   final class SparkWithKafkaContext[F[_]](ss: SparkSession, ctx: KafkaContext[F])
