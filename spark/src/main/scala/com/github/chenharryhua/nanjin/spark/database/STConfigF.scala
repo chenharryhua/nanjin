@@ -25,7 +25,8 @@ private[database] object STParams {
       tableName = tableName,
       None,
       dbSaveMode = SaveMode.ErrorIfExists,
-      replayPathBuilder = (dn, tn) => s"./data/sparkDB/${dn.value}/${tn.value}/replay/"
+      replayPathBuilder =
+        (dn, tn) => s"./data/sparkDB/${dn.value}/${tn.value}/replay/".replace(":", "_")
     )
 }
 
