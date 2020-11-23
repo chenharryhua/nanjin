@@ -74,5 +74,6 @@ class ReadTest extends AnyFunSuite {
     val path = "./data/test/spark/kafka/read/json-compulsory"
     data.write.mode(SaveMode.Overwrite).json(path)
     assert(topic.load.json(path).dataset.collect.toSet == dogs.toSet)
+    assert(topic.load.circe(path).dataset.collect.toSet == dogs.toSet)
   }
 }

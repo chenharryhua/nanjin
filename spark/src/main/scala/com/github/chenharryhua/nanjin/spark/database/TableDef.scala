@@ -22,34 +22,33 @@ final case class TableDef[A] private (
     new SparkTable[F, A](this, dbSettings, STConfig(dbSettings.database, tableName))
 
   object load {
-    private val ate: AvroTypedEncoder[A]  = avroTypedEncoder
     implicit private val tag: ClassTag[A] = avroTypedEncoder.classTag
 
     def parquet(pathStr: String)(implicit ss: SparkSession): TypedDataset[A] =
-      loaders.parquet[A](pathStr, ate)
+      loaders.parquet[A](pathStr, avroTypedEncoder)
 
     def avro(pathStr: String)(implicit ss: SparkSession): TypedDataset[A] =
-      loaders.avro[A](pathStr, ate)
+      loaders.avro[A](pathStr, avroTypedEncoder)
 
     def circe(pathStr: String)(implicit ev: JsonDecoder[A], ss: SparkSession): TypedDataset[A] =
-      loaders.circe[A](pathStr, ate)
+      loaders.circe[A](pathStr, avroTypedEncoder)
 
     def csv(pathStr: String)(implicit ev: RowEncoder[A], ss: SparkSession): TypedDataset[A] =
-      loaders.csv[A](pathStr, ate)
+      loaders.csv[A](pathStr, avroTypedEncoder)
 
     def csv(pathStr: String, csvConfiguration: CsvConfiguration)(implicit
       ev: RowEncoder[A],
       ss: SparkSession): TypedDataset[A] =
-      loaders.csv[A](pathStr, ate, csvConfiguration)
+      loaders.csv[A](pathStr, avroTypedEncoder, csvConfiguration)
 
     def json(pathStr: String)(implicit ss: SparkSession): TypedDataset[A] =
-      loaders.json[A](pathStr, ate)
+      loaders.json[A](pathStr, avroTypedEncoder)
 
     def jackson(pathStr: String)(implicit ss: SparkSession): TypedDataset[A] =
-      loaders.jackson[A](pathStr, ate)
+      loaders.jackson[A](pathStr, avroTypedEncoder)
 
     def binAvro(pathStr: String)(implicit ss: SparkSession): TypedDataset[A] =
-      loaders.binAvro[A](pathStr, ate)
+      loaders.binAvro[A](pathStr, avroTypedEncoder)
   }
 }
 
