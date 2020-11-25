@@ -116,7 +116,7 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
     new PrRdd[F, K, V](rdd.map(_.toNJProducerRecord), cfg)
 
   def replicate(num: Int): CrRdd[F, K, V] = {
-    val rep = (0 until num).foldLeft(rdd) { case (r, _) => r.union(rdd) }
+    val rep = (1 until num).foldLeft(rdd) { case (r, _) => r.union(rdd) }
     new CrRdd[F, K, V](rep, cfg)
   }
 
