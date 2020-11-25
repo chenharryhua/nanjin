@@ -120,6 +120,9 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
     new CrRdd[F, K, V](rep, cfg)
   }
 
+  def distinct: CrRdd[F, K, V] =
+    new CrRdd[F, K, V](rdd.distinct(), cfg)
+
   // pipe
   def pipeTo(otherTopic: KafkaTopic[F, K, V])(implicit
     ce: ConcurrentEffect[F],
