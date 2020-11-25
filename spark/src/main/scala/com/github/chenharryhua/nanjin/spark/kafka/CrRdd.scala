@@ -115,6 +115,14 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
   def toPrRdd: PrRdd[F, K, V] =
     new PrRdd[F, K, V](rdd.map(_.toNJProducerRecord), cfg)
 
+  def replicate(num: Int): CrRdd[F, K, V] = {
+    val rep = (1 until num).foldLeft(rdd) { case (r, _) => r.union(rdd) }
+    new CrRdd[F, K, V](rep, cfg)
+  }
+
+  def distinct: CrRdd[F, K, V] =
+    new CrRdd[F, K, V](rdd.distinct(), cfg)
+
   // pipe
   def pipeTo(otherTopic: KafkaTopic[F, K, V])(implicit
     ce: ConcurrentEffect[F],
