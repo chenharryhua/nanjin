@@ -33,7 +33,7 @@ final class PrRdd[F[_], K, V](
     ce: ConcurrentEffect[F],
     timer: Timer[F],
     cs: ContextShift[F]): Stream[F, ProducerResult[K2, V2, Unit]] =
-    rdd.stream[F].map(_.bimap(k, v)).through(sk.uploader(other, params.uploadRate))
+    rdd.stream[F].map(_.bimap(k, v)).through(sk.uploader(other, params.uploadParams))
 
   def upload(other: KafkaTopic[F, K, V])(implicit
     ce: ConcurrentEffect[F],
