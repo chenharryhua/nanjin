@@ -64,9 +64,6 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
   def filter(f: OptionalKV[K, V] => Boolean): CrRdd[F, K, V] =
     new CrRdd[F, K, V](rdd.filter(f), cfg)
 
-  def take(num: Int): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](sparkSession.sparkContext.parallelize(rdd.take(num)), cfg)
-
   def union(other: RDD[OptionalKV[K, V]]): CrRdd[F, K, V] =
     new CrRdd[F, K, V](rdd.union(other), cfg)
 
@@ -130,7 +127,7 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
     cs: ContextShift[F]): F[Unit] =
     stream
       .map(_.toNJProducerRecord.noMeta)
-      .through(sk.uploader(otherTopic, params.uploadRate))
+      .through(sk.uploader(otherTopic, params.uploadParams))
       .map(_ => print("."))
       .compile
       .drain

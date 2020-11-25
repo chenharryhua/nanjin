@@ -102,7 +102,7 @@ private[kafka] object sk {
 
   def uploader[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
     topic: KafkaTopic[F, K, V],
-    uploadRate: NJUploadRate): Pipe[F, NJProducerRecord[K, V], ProducerResult[K, V, Unit]] =
+    uploadParams: NJUploadParams): Pipe[F, NJProducerRecord[K, V], ProducerResult[K, V, Unit]] =
     njPRs =>
       for {
         kb <- Keyboard.signal[F]
@@ -110,14 +110,15 @@ private[kafka] object sk {
           njPRs
             .pauseWhen(kb.map(_.contains(Keyboard.pauSe)))
             .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
-            .chunkN(uploadRate.batchSize)
-            .metered(uploadRate.duration)
+            .interruptAfter(uploadParams.timeLimit)
+            .take(uploadParams.recordsLimit)
+            .chunkN(uploadParams.batchSize)
+            .metered(uploadParams.duration)
             .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName.value))))
             .through(produce(topic.fs2ProducerSettings))
       } yield rst
 
-  /**
-    * streaming
+  /** streaming
     */
   private def startingOffsets(range: KafkaTopicPartition[Option[KafkaOffsetRange]]): String = {
     val start: Map[String, Map[String, Long]] = range
