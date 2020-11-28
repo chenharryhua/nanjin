@@ -23,7 +23,7 @@ final class SaveBinaryAvro[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: Hoard
     implicit val encoder: Encoder[A] = codec.avroEncoder
 
     val sma: SaveModeAware[F]            = new SaveModeAware[F](params.saveMode, params.outPath, ss)
-    val hadoop: NJHadoop[F]              = new NJHadoop[F](ss.sparkContext.hadoopConfiguration)
+    val hadoop: NJHadoop[F]              = NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)
     val gr: GenericRecordCodec[F, A]     = new GenericRecordCodec[F, A]
     val pipe: BinaryAvroSerialization[F] = new BinaryAvroSerialization[F](codec.schema)
 
@@ -32,7 +32,7 @@ final class SaveBinaryAvro[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: Hoard
         .stream[F]
         .through(gr.encode)
         .through(pipe.serialize)
-        .through(hadoop.byteSink(params.outPath, blocker))
+        .through(hadoop.byteSink(params.outPath))
         .compile
         .drain)
   }

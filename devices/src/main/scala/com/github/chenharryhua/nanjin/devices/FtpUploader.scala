@@ -10,8 +10,9 @@ import net.schmizz.sshj.SSHClient
 import org.apache.commons.net.ftp.{FTPClient, FTPSClient}
 import streamz.converter._
 
-sealed class FtpUploader[F[_], C, S <: RemoteFileSettings](ftpApi: FtpApi[C, S], settings: S)(
-  implicit mat: Materializer) {
+sealed abstract class FtpUploader[F[_], C, S <: RemoteFileSettings](
+  ftpApi: FtpApi[C, S],
+  settings: S)(implicit mat: Materializer) {
 
   import mat.executionContext
 
