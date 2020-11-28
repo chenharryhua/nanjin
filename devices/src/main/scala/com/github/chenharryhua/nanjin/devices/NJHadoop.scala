@@ -19,142 +19,145 @@ import org.apache.parquet.hadoop.{ParquetFileWriter, ParquetWriter}
 
 import scala.collection.JavaConverters._
 
-final class NJHadoop[F[_]](config: Configuration) extends Serializable {
+sealed abstract class NJHadoop[F[_]](config: Configuration, blocker: Blocker) extends Serializable {
+  def delete(pathStr: String): F[Boolean]
+  def isExist(pathStr: String): F[Boolean]
+  def byteSink(pathStr: String): Pipe[F, Byte, Unit]
+  def inputStream(pathStr: String): Stream[F, InputStream]
+  def byteStream(pathStr: String): Stream[F, Byte]
 
-  private def fileSystem(pathStr: String, blocker: Blocker)(implicit
-    F: Sync[F],
-    cs: ContextShift[F]): Resource[F, FileSystem] =
-    Resource.fromAutoCloseableBlocking(blocker)(
-      blocker.delay(FileSystem.get(new URI(pathStr), config)))
+  def parquetSink(
+    pathStr: String,
+    schema: Schema,
+    ccn: CompressionCodecName): Pipe[F, GenericRecord, Unit]
 
-  private def fsOutput(pathStr: String, blocker: Blocker)(implicit
-    F: Sync[F],
-    cs: ContextShift[F]): Resource[F, FSDataOutputStream] =
-    for {
-      fs <- fileSystem(pathStr, blocker)
-      rs <- Resource.fromAutoCloseableBlocking(blocker)(blocker.delay(fs.create(new Path(pathStr))))
-    } yield rs
+  def parquetSource(pathStr: String, schema: Schema): Stream[F, GenericRecord]
 
-  private def fsInput(pathStr: String, blocker: Blocker)(implicit
-    F: Sync[F],
-    cs: ContextShift[F]): Resource[F, FSDataInputStream] =
-    for {
-      fs <- fileSystem(pathStr, blocker)
-      rs <- Resource.fromAutoCloseableBlocking(blocker)(blocker.delay(fs.open(new Path(pathStr))))
-    } yield rs
+  def avroSink(pathStr: String, schema: Schema, cf: CodecFactory): Pipe[F, GenericRecord, Unit]
+  def avroSource(pathStr: String, schema: Schema): Stream[F, GenericRecord]
+}
 
-  def delete(pathStr: String, blocker: Blocker)(implicit
-    F: Sync[F],
-    cs: ContextShift[F]): F[Boolean] =
-    fileSystem(pathStr, blocker).use(fs => blocker.delay(fs.delete(new Path(pathStr), true)))
+object NJHadoop {
 
-  def isExist(pathStr: String, blocker: Blocker)(implicit
-    F: Sync[F],
-    cs: ContextShift[F]): F[Boolean] =
-    fileSystem(pathStr, blocker).use(fs => blocker.delay(fs.exists(new Path(pathStr))))
+  def apply[F[_]: ContextShift](config: Configuration, blocker: Blocker)(implicit
+    F: Sync[F]): NJHadoop[F] =
+    new NJHadoop[F](config, blocker) {
 
-  def byteSink(pathStr: String, blocker: Blocker)(implicit
-    F: Sync[F],
-    cs: ContextShift[F]): Pipe[F, Byte, Unit] = { (ss: Stream[F, Byte]) =>
-    for {
-      fs <- Stream.resource(fsOutput(pathStr, blocker))
-      _ <- ss.through(writeOutputStream[F](blocker.delay(fs), blocker))
-    } yield ()
-  }
-
-  def inputStream(pathStr: String, blocker: Blocker)(implicit
-    F: Sync[F],
-    cs: ContextShift[F]): Stream[F, InputStream] =
-    Stream.resource(fsInput(pathStr, blocker).widen)
-
-  def byteStream(pathStr: String, blocker: Blocker)(implicit
-    F: Sync[F],
-    cs: ContextShift[F]): Stream[F, Byte] =
-    for {
-      is <- inputStream(pathStr, blocker)
-      bt <- readInputStream[F](blocker.delay(is), chunkSize, blocker)
-    } yield bt
-
-  /// parquet
-  def parquetSink(pathStr: String, schema: Schema, ccn: CompressionCodecName, blocker: Blocker)(
-    implicit
-    F: Sync[F],
-    cs: ContextShift[F]): Pipe[F, GenericRecord, Unit] = {
-    def go(
-      grs: Stream[F, GenericRecord],
-      writer: ParquetWriter[GenericRecord]): Pull[F, Unit, Unit] =
-      grs.pull.uncons.flatMap {
-        case Some((hl, tl)) =>
-          Pull.eval(hl.traverse(gr => blocker.delay(writer.write(gr)))) >> go(tl, writer)
-        case None =>
-          Pull.eval(blocker.delay(writer.close())) >> Pull.done
-      }
-    (ss: Stream[F, GenericRecord]) =>
-      val outputFile = HadoopOutputFile.fromPath(new Path(pathStr), config)
-      for {
-        writer <- Stream.resource(
-          Resource.fromAutoCloseableBlocking(blocker)(
-            blocker.delay(
-              AvroParquetWriter
-                .builder[GenericRecord](outputFile)
-                .withConf(config)
-                .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)
-                .withCompressionCodec(ccn)
-                .withSchema(schema)
-                .withDataModel(GenericData.get())
-                .build())))
-        _ <- go(ss, writer).stream
-      } yield ()
-  }
-
-  def parquetSource(pathStr: String, schema: Schema, blocker: Blocker)(implicit
-    F: Sync[F],
-    cs: ContextShift[F]): Stream[F, GenericRecord] = {
-    val inputFile = HadoopInputFile.fromPath(new Path(pathStr), config)
-    AvroReadSupport.setAvroReadSchema(config, schema)
-    for {
-      reader <- Stream.resource(
+      private def fileSystem(pathStr: String): Resource[F, FileSystem] =
         Resource.fromAutoCloseableBlocking(blocker)(
-          blocker.delay(
-            AvroParquetReader
-              .builder[GenericRecord](inputFile)
-              .withDataModel(GenericData.get())
-              .withConf(config)
-              .build())))
-      gr <- Stream.repeatEval(blocker.delay(Option(reader.read()))).unNoneTerminate
-    } yield gr
-  }
+          blocker.delay(FileSystem.get(new URI(pathStr), config)))
 
-  // avro data
-  def avroSink(pathStr: String, schema: Schema, cf: CodecFactory, blocker: Blocker)(implicit
-    F: Sync[F],
-    cs: ContextShift[F]): Pipe[F, GenericRecord, Unit] = {
-    def go(
-      grs: Stream[F, GenericRecord],
-      writer: DataFileWriter[GenericRecord]): Pull[F, Unit, Unit] =
-      grs.pull.uncons.flatMap {
-        case Some((hl, tl)) =>
-          Pull.eval(hl.traverse(gr => blocker.delay(writer.append(gr)))) >> go(tl, writer)
-        case None => Pull.eval(blocker.delay(writer.close())) >> Pull.done
+      private def fsOutput(pathStr: String): Resource[F, FSDataOutputStream] =
+        for {
+          fs <- fileSystem(pathStr)
+          rs <- Resource.fromAutoCloseableBlocking[F, FSDataOutputStream](blocker)(
+            blocker.delay(fs.create(new Path(pathStr))))
+        } yield rs
+
+      private def fsInput(pathStr: String): Resource[F, FSDataInputStream] =
+        for {
+          fs <- fileSystem(pathStr)
+          rs <- Resource.fromAutoCloseableBlocking[F, FSDataInputStream](blocker)(
+            blocker.delay(fs.open(new Path(pathStr))))
+        } yield rs
+
+      override def delete(pathStr: String): F[Boolean] =
+        fileSystem(pathStr).use(fs => blocker.delay(fs.delete(new Path(pathStr), true)))
+
+      override def isExist(pathStr: String): F[Boolean] =
+        fileSystem(pathStr).use(fs => blocker.delay(fs.exists(new Path(pathStr))))
+
+      override def byteSink(pathStr: String): Pipe[F, Byte, Unit] = { (ss: Stream[F, Byte]) =>
+        for {
+          fs <- Stream.resource(fsOutput(pathStr))
+          _ <- ss.through(writeOutputStream[F](blocker.delay(fs), blocker))
+        } yield ()
       }
-    (ss: Stream[F, GenericRecord]) =>
-      for {
-        dfw <- Stream.resource(
-          Resource.fromAutoCloseableBlocking[F, DataFileWriter[GenericRecord]](blocker)(
-            blocker.delay(new DataFileWriter(new GenericDatumWriter(schema)).setCodec(cf))))
-        writer <- Stream.resource(fsOutput(pathStr, blocker)).map(os => dfw.create(schema, os))
-        _ <- go(ss, writer).stream
-      } yield ()
-  }
 
-  def avroSource(pathStr: String, schema: Schema, blocker: Blocker)(implicit
-    F: Sync[F],
-    cs: ContextShift[F]): Stream[F, GenericRecord] =
-    for {
-      is <- Stream.resource(fsInput(pathStr, blocker))
-      dfs <- Stream.resource(
-        Resource.fromAutoCloseableBlocking[F, DataFileStream[GenericRecord]](blocker)(
-          blocker.delay(new DataFileStream(is, new GenericDatumReader(schema)))))
-      gr <- Stream.fromIterator(dfs.iterator().asScala)
-    } yield gr
+      override def inputStream(pathStr: String): Stream[F, InputStream] =
+        Stream.resource(fsInput(pathStr).widen)
+
+      override def byteStream(pathStr: String): Stream[F, Byte] =
+        for {
+          is <- inputStream(pathStr)
+          bt <- readInputStream[F](blocker.delay(is), chunkSize, blocker)
+        } yield bt
+
+      override def parquetSink(
+        pathStr: String,
+        schema: Schema,
+        ccn: CompressionCodecName): Pipe[F, GenericRecord, Unit] = {
+        def go(
+          grs: Stream[F, GenericRecord],
+          writer: ParquetWriter[GenericRecord]): Pull[F, Unit, Unit] =
+          grs.pull.uncons.flatMap {
+            case Some((hl, tl)) =>
+              Pull.eval(hl.traverse(gr => blocker.delay(writer.write(gr)))) >> go(tl, writer)
+            case None =>
+              Pull.eval(blocker.delay(writer.close())) >> Pull.done
+          }
+        (ss: Stream[F, GenericRecord]) =>
+          val outputFile = HadoopOutputFile.fromPath(new Path(pathStr), config)
+          for {
+            writer <- Stream.resource(
+              Resource.fromAutoCloseableBlocking(blocker)(
+                blocker.delay(
+                  AvroParquetWriter
+                    .builder[GenericRecord](outputFile)
+                    .withConf(config)
+                    .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)
+                    .withCompressionCodec(ccn)
+                    .withSchema(schema)
+                    .withDataModel(GenericData.get())
+                    .build())))
+            _ <- go(ss, writer).stream
+          } yield ()
+      }
+
+      override def parquetSource(pathStr: String, schema: Schema): Stream[F, GenericRecord] = {
+        val inputFile = HadoopInputFile.fromPath(new Path(pathStr), config)
+        AvroReadSupport.setAvroReadSchema(config, schema)
+        for {
+          reader <- Stream.resource(
+            Resource.fromAutoCloseableBlocking(blocker)(
+              blocker.delay(
+                AvroParquetReader
+                  .builder[GenericRecord](inputFile)
+                  .withDataModel(GenericData.get())
+                  .withConf(config)
+                  .build())))
+          gr <- Stream.repeatEval(blocker.delay(Option(reader.read()))).unNoneTerminate
+        } yield gr
+      }
+
+      override def avroSink(
+        pathStr: String,
+        schema: Schema,
+        cf: CodecFactory): Pipe[F, GenericRecord, Unit] = {
+        def go(
+          grs: Stream[F, GenericRecord],
+          writer: DataFileWriter[GenericRecord]): Pull[F, Unit, Unit] =
+          grs.pull.uncons.flatMap {
+            case Some((hl, tl)) =>
+              Pull.eval(hl.traverse(gr => blocker.delay(writer.append(gr)))) >> go(tl, writer)
+            case None => Pull.eval(blocker.delay(writer.close())) >> Pull.done
+          }
+        (ss: Stream[F, GenericRecord]) =>
+          for {
+            dfw <- Stream.resource(
+              Resource.fromAutoCloseableBlocking[F, DataFileWriter[GenericRecord]](blocker)(
+                blocker.delay(new DataFileWriter(new GenericDatumWriter(schema)).setCodec(cf))))
+            writer <- Stream.resource(fsOutput(pathStr)).map(os => dfw.create(schema, os))
+            _ <- go(ss, writer).stream
+          } yield ()
+      }
+
+      override def avroSource(pathStr: String, schema: Schema): Stream[F, GenericRecord] = for {
+        is <- Stream.resource(fsInput(pathStr))
+        dfs <- Stream.resource(
+          Resource.fromAutoCloseableBlocking[F, DataFileStream[GenericRecord]](blocker)(
+            blocker.delay(new DataFileStream(is, new GenericDatumReader(schema)))))
+        gr <- Stream.fromIterator(dfs.iterator().asScala)
+      } yield gr
+    }
 }

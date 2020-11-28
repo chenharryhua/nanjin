@@ -50,13 +50,13 @@ final class SaveAvro[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConf
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
-        val hadoop: NJHadoop[F]            = new NJHadoop[F](ss.sparkContext.hadoopConfiguration)
+        val hadoop: NJHadoop[F]            = NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)
         val pipe: GenericRecordCodec[F, A] = new GenericRecordCodec[F, A]
         sma.checkAndRun(blocker)(
           rdd
             .stream[F]
             .through(pipe.encode)
-            .through(hadoop.avroSink(params.outPath, codec.schema, cf, blocker))
+            .through(hadoop.avroSink(params.outPath, codec.schema, cf))
             .compile
             .drain)
       case FolderOrFile.Folder =>

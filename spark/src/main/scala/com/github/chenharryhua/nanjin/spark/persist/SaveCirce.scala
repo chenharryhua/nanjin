@@ -46,7 +46,7 @@ final class SaveCirce[F[_], A](
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
-        val hadoop = new NJHadoop[F](ss.sparkContext.hadoopConfiguration)
+        val hadoop = NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)
         val pipe   = new CirceSerialization[F, A]
         sma.checkAndRun(blocker)(
           rdd
@@ -54,7 +54,7 @@ final class SaveCirce[F[_], A](
             .stream[F]
             .through(pipe.serialize(isKeepNull))
             .through(ccg.compressionPipe)
-            .through(hadoop.byteSink(params.outPath, blocker))
+            .through(hadoop.byteSink(params.outPath))
             .compile
             .drain)
       case FolderOrFile.Folder =>

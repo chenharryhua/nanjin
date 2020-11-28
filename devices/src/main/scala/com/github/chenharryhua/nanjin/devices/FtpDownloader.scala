@@ -10,8 +10,9 @@ import net.schmizz.sshj.SSHClient
 import org.apache.commons.net.ftp.{FTPClient, FTPSClient}
 import streamz.converter._
 
-sealed class FtpDownloader[F[_], C, S <: RemoteFileSettings](ftpApi: FtpApi[C, S], settings: S)(
-  implicit mat: Materializer) {
+sealed abstract class FtpDownloader[F[_], C, S <: RemoteFileSettings](
+  ftpApi: FtpApi[C, S],
+  settings: S)(implicit mat: Materializer) {
 
   final def download(
     pathStr: String)(implicit F: Concurrent[F], cs: ContextShift[F]): Stream[F, Byte] = {

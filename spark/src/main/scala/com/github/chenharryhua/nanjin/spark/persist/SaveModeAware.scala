@@ -14,18 +14,18 @@ final private[persist] class SaveModeAware[F[_]](
 
   def checkAndRun(blocker: Blocker)(
     f: F[Unit])(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
-    val hadoop = new NJHadoop[F](sparkSession.sparkContext.hadoopConfiguration)
+    val hadoop = NJHadoop[F](sparkSession.sparkContext.hadoopConfiguration, blocker)
 
     saveMode match {
       case SaveMode.Append    => F.raiseError(new Exception("append mode is not support"))
-      case SaveMode.Overwrite => hadoop.delete(outPath, blocker) >> f
+      case SaveMode.Overwrite => hadoop.delete(outPath) >> f
       case SaveMode.ErrorIfExists =>
-        hadoop.isExist(outPath, blocker).flatMap {
+        hadoop.isExist(outPath).flatMap {
           case true  => F.raiseError(new Exception(s"$outPath already exist"))
           case false => f
         }
       case SaveMode.Ignore =>
-        hadoop.isExist(outPath, blocker).flatMap {
+        hadoop.isExist(outPath).flatMap {
           case true  => F.pure(())
           case false => f
         }
