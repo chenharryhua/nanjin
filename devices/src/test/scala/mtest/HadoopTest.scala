@@ -62,11 +62,7 @@ class HadoopTest extends AnyFunSuite {
 
     val action = hdp.delete(pathStr) >>
       ts.through(hdp.byteSink(pathStr)).compile.drain >>
-      hdp
-        .inputStreamSource(pathStr)
-        .flatMap(is => readInputStream(IO(is), 64, blocker).through(fs2.text.utf8Decode))
-        .compile
-        .toList
+      hdp.byteSource(pathStr).through(fs2.text.utf8Decode).compile.toList
     assert(action.unsafeRunSync.head == testString)
   }
 
