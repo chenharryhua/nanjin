@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.devices
 
-import java.io.InputStream
 import java.net.URI
 
 import cats.effect.{Blocker, ContextShift, Resource, Sync}
@@ -22,9 +21,9 @@ import scala.collection.JavaConverters._
 sealed abstract class NJHadoop[F[_]](config: Configuration, blocker: Blocker) extends Serializable {
   def delete(pathStr: String): F[Boolean]
   def isExist(pathStr: String): F[Boolean]
+
   def byteSink(pathStr: String): Pipe[F, Byte, Unit]
-  def inputStream(pathStr: String): Stream[F, InputStream]
-  def byteStream(pathStr: String): Stream[F, Byte]
+  def byteSource(pathStr: String): Stream[F, Byte]
 
   def parquetSink(
     pathStr: String,
@@ -74,12 +73,9 @@ object NJHadoop {
         } yield ()
       }
 
-      override def inputStream(pathStr: String): Stream[F, InputStream] =
-        Stream.resource(fsInput(pathStr).widen)
-
-      override def byteStream(pathStr: String): Stream[F, Byte] =
+      override def byteSource(pathStr: String): Stream[F, Byte] =
         for {
-          is <- inputStream(pathStr)
+          is <- Stream.resource(fsInput(pathStr))
           bt <- readInputStream[F](blocker.delay(is), chunkSize, blocker)
         } yield bt
 
