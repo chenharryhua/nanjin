@@ -100,7 +100,7 @@ object OptionalKV {
       cr.topic,
       cr.timestampType.id)
 
-  implicit def optionaKVCodec[K, V](implicit
+  def avroCodec[K, V](
     keyCodec: AvroCodec[K],
     valCodec: AvroCodec[V]): AvroCodec[OptionalKV[K, V]] = {
     implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
@@ -113,17 +113,6 @@ object OptionalKV {
     val d: Decoder[OptionalKV[K, V]]        = cachedImplicit
     val e: Encoder[OptionalKV[K, V]]        = cachedImplicit
     AvroCodec[OptionalKV[K, V]](s, d, e)
-  }
-
-  implicit def optionalAvroTypedEncoer[K, V](implicit
-    ek: AvroTypedEncoder[K],
-    ev: AvroTypedEncoder[V]): AvroTypedEncoder[OptionalKV[K, V]] = {
-    implicit val k: TypedEncoder[K]        = ek.typedEncoder
-    implicit val v: TypedEncoder[V]        = ev.typedEncoder
-    implicit val ck: AvroCodec[K]          = ek.avroCodec
-    implicit val cv: AvroCodec[V]          = ev.avroCodec
-    val codec: AvroCodec[OptionalKV[K, V]] = cachedImplicit
-    AvroTypedEncoder[OptionalKV[K, V]](codec)
   }
 
   implicit val bifunctorOptionalKV: Bifunctor[OptionalKV] =
@@ -178,7 +167,7 @@ final case class CompulsoryV[K, V](
 
 object CompulsoryV {
 
-  implicit def compulsoryVCodec[K, V](implicit
+  def avroCodec[K, V](
     keyCodec: AvroCodec[K],
     valCodec: AvroCodec[V]): AvroCodec[CompulsoryV[K, V]] = {
     implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
@@ -191,14 +180,6 @@ object CompulsoryV {
     val d: Decoder[CompulsoryV[K, V]]       = cachedImplicit
     val e: Encoder[CompulsoryV[K, V]]       = cachedImplicit
     AvroCodec[CompulsoryV[K, V]](s, d, e)
-  }
-
-  implicit def compulsoryVAvroTypedEncoer[K, V](implicit
-    ek: TypedEncoder[K],
-    ev: TypedEncoder[V],
-    c: AvroCodec[CompulsoryV[K, V]]): AvroTypedEncoder[CompulsoryV[K, V]] = {
-    implicit val te: TypedEncoder[CompulsoryV[K, V]] = cachedImplicit
-    AvroTypedEncoder[CompulsoryV[K, V]](c)
   }
 
   implicit val bifunctorCompulsoryV: Bifunctor[CompulsoryV] =
@@ -235,7 +216,7 @@ final case class CompulsoryK[K, V](
 
 object CompulsoryK {
 
-  implicit def compulsoryKCodec[K, V](implicit
+  def avroCodec[K, V](
     keyCodec: AvroCodec[K],
     valCodec: AvroCodec[V]): AvroCodec[CompulsoryK[K, V]] = {
     implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
@@ -248,14 +229,6 @@ object CompulsoryK {
     val d: Decoder[CompulsoryK[K, V]]       = cachedImplicit
     val e: Encoder[CompulsoryK[K, V]]       = cachedImplicit
     AvroCodec[CompulsoryK[K, V]](s, d, e)
-  }
-
-  implicit def compulsoryKAvroTypedEncoer[K, V](implicit
-    ek: TypedEncoder[K],
-    ev: TypedEncoder[V],
-    c: AvroCodec[CompulsoryK[K, V]]): AvroTypedEncoder[CompulsoryK[K, V]] = {
-    implicit val te: TypedEncoder[CompulsoryK[K, V]] = cachedImplicit
-    AvroTypedEncoder[CompulsoryK[K, V]](c)
   }
 
   implicit val bifunctorCompulsoryK: Bifunctor[CompulsoryK] =
@@ -293,7 +266,7 @@ final case class CompulsoryKV[K, V](
 
 object CompulsoryKV {
 
-  implicit def compulsoryKVCodec[K, V](implicit
+  def avroCodec[K, V](
     keyCodec: AvroCodec[K],
     valCodec: AvroCodec[V]): AvroCodec[CompulsoryKV[K, V]] = {
     implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
@@ -306,14 +279,6 @@ object CompulsoryKV {
     val d: Decoder[CompulsoryKV[K, V]]      = cachedImplicit
     val e: Encoder[CompulsoryKV[K, V]]      = cachedImplicit
     AvroCodec[CompulsoryKV[K, V]](s, d, e)
-  }
-
-  implicit def compulsoryKVAvroTypedEncoer[K, V](implicit
-    ek: TypedEncoder[K],
-    ev: TypedEncoder[V],
-    c: AvroCodec[CompulsoryKV[K, V]]): AvroTypedEncoder[CompulsoryKV[K, V]] = {
-    implicit val te: TypedEncoder[CompulsoryKV[K, V]] = cachedImplicit
-    AvroTypedEncoder[CompulsoryKV[K, V]](c)
   }
 
   implicit val bifunctorCompulsoryKV: Bitraverse[CompulsoryKV] =

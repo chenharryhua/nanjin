@@ -32,12 +32,12 @@ private[kafka] trait DatasetExtensions {
   }
 
   implicit final class TopicDefExt[K, V](topicDef: TopicDef[K, V]) extends Serializable {
-    implicit private val keyCodec: AvroCodec[K]    = topicDef.serdeOfKey.avroCodec
-    implicit private val valCodec: AvroCodec[V]    = topicDef.serdeOfVal.avroCodec
-    val avroCodec: AvroCodec[OptionalKV[K, V]]     = shapeless.cachedImplicit
-    val avroKCodec: AvroCodec[CompulsoryK[K, V]]   = shapeless.cachedImplicit
-    val avroVCodec: AvroCodec[CompulsoryV[K, V]]   = shapeless.cachedImplicit
-    val avroKVCodec: AvroCodec[CompulsoryKV[K, V]] = shapeless.cachedImplicit
+    private val keyCodec: AvroCodec[K]             = topicDef.serdeOfKey.avroCodec
+    private val valCodec: AvroCodec[V]             = topicDef.serdeOfVal.avroCodec
+    val avroCodec: AvroCodec[OptionalKV[K, V]]     = OptionalKV.avroCodec(keyCodec, valCodec)
+    val avroKCodec: AvroCodec[CompulsoryK[K, V]]   = CompulsoryK.avroCodec(keyCodec, valCodec)
+    val avroVCodec: AvroCodec[CompulsoryV[K, V]]   = CompulsoryV.avroCodec(keyCodec, valCodec)
+    val avroKVCodec: AvroCodec[CompulsoryKV[K, V]] = CompulsoryKV.avroCodec(keyCodec, valCodec)
 
     def ate(implicit
       keyEncoder: TypedEncoder[K],

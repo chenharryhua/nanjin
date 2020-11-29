@@ -24,7 +24,7 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
   val sparkSession: SparkSession)
     extends SparKafkaUpdateParams[CrRdd[F, K, V]] with InvModule[F, K, V] {
 
-  private val codec: AvroCodec[OptionalKV[K, V]] = shapeless.cachedImplicit
+  protected val codec: AvroCodec[OptionalKV[K, V]] = OptionalKV.avroCodec(keyCodec, valCodec)
 
   override def params: SKParams = cfg.evalConfig
 
@@ -84,7 +84,8 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
   def typedDataset(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V]): TypedDataset[OptionalKV[K, V]] = {
-    val ate: AvroTypedEncoder[OptionalKV[K, V]] = AvroTypedEncoder(codec)
+    val te: TypedEncoder[OptionalKV[K, V]]      = shapeless.cachedImplicit
+    val ate: AvroTypedEncoder[OptionalKV[K, V]] = AvroTypedEncoder(te, codec)
     ate.normalize(rdd)
   }
 
