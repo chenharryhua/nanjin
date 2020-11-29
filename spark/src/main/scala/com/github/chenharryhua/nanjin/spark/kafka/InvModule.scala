@@ -32,8 +32,7 @@ trait InvModule[F[_], K, V] { self: CrRdd[F, K, V] =>
     inv.dupRecords(TypedDataset.create(values.map(CRMetaInfo(_))))
 
   def showJackson(rs: Array[OptionalKV[K, V]])(implicit F: Sync[F]): F[Unit] = {
-    val codec: AvroCodec[OptionalKV[K, V]]           = shapeless.cachedImplicit
-    val pipe: JacksonSerialization[F]                = new JacksonSerialization[F](codec.schema)
+    val pipe: JacksonSerialization[F]                = new JacksonSerialization[F](self.codec.schema)
     val gre: GenericRecordCodec[F, OptionalKV[K, V]] = new GenericRecordCodec[F, OptionalKV[K, V]]
 
     Stream

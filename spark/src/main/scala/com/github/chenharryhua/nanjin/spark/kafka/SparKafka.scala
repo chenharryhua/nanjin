@@ -28,8 +28,6 @@ final class SparKafka[F[_], K, V](
 
   implicit private val ss: SparkSession = sparkSession
 
-  val avroCodec: AvroCodec[OptionalKV[K, V]] = shapeless.cachedImplicit
-
   override def withParamUpdate(f: SKConfig => SKConfig): SparKafka[F, K, V] =
     new SparKafka[F, K, V](topic, sparkSession, f(cfg))
 
@@ -87,9 +85,11 @@ final class SparKafka[F[_], K, V](
   def sstream(implicit
     sync: Sync[F],
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): KafkaCrSStream[F, K, V] =
+    valEncoder: TypedEncoder[V]): KafkaCrSStream[F, K, V] = {
+    implicit val te: TypedEncoder[OptionalKV[K, V]] = shapeless.cachedImplicit
     new KafkaCrSStream[F, K, V](
       sk.kafkaSStream[F, K, V, OptionalKV[K, V]](topic)(identity).dataset,
       SStreamConfig(params.timeRange, params.showDs)
         .withCheckpointAppend(s"kafkacr/${topic.topicName.value}"))
+  }
 }
