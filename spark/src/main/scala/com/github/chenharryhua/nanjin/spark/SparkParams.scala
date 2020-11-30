@@ -40,7 +40,10 @@ final private[spark] case class DatePartitionedCR[K, V](
   offset: Long,
   timestamp: Long,
   key: Option[K],
-  value: Option[V])
+  value: Option[V],
+  topic: String,
+  timestampType: Int
+)
 
 private[spark] object DatePartitionedCR {
 
