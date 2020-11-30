@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
 import cats.{Eq, Show}
-import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
+import com.sksamuel.avro4s.{Codec, SchemaFor}
 import io.circe.syntax._
 import io.circe.{parser, Decoder => JsonDecoder, Encoder => JsonEncoder}
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
@@ -16,28 +16,28 @@ object KJson {
 
   implicit def eqKJson[A: Eq]: Eq[KJson[A]] = cats.derived.semiauto.eq[KJson[A]]
 
+  implicit def avroKJsonCodec[A: JsonEncoder: JsonDecoder]: Codec[KJson[A]] = new Codec[KJson[A]] {
+    override def encode(value: KJson[A]): String = value.value.asJson.noSpaces
+
+    override def decode(value: Any): KJson[A] = value match {
+      case str: String =>
+        parser.decode[A](str) match {
+          case Right(r) => KJson(r)
+          case Left(ex) => throw ex
+        }
+      case ex => sys.error(s"${ex.getClass} is not a string: $ex")
+    }
+
+    override def schemaFor: SchemaFor[KJson[A]] = SchemaFor[String].forType[KJson[A]]
+  }
+
   implicit def jsonSerde[A: JsonEncoder: JsonDecoder]: SerdeOf[KJson[A]] =
     new SerdeOf[KJson[A]] {
-      private val jsonSchemaFor: SchemaFor[KJson[A]] = SchemaFor[String].forType[KJson[A]]
 
-      val avroEncoder: AvroEncoder[KJson[A]] = new AvroEncoder[KJson[A]] {
-        override def encode(value: KJson[A]): String = value.value.asJson.noSpaces
-        override val schemaFor: SchemaFor[KJson[A]]  = jsonSchemaFor
-      }
+      private val cacheCodec: Codec[KJson[A]] = avroKJsonCodec
 
-      val avroDecoder: AvroDecoder[KJson[A]] = new AvroDecoder[KJson[A]] {
-
-        override def decode(value: Any): KJson[A] =
-          value match {
-            case str: String =>
-              parser.decode(str) match {
-                case Right(r) => KJson(r)
-                case Left(ex) => throw ex
-              }
-            case ex => sys.error(s"not a string")
-          }
-        override val schemaFor: SchemaFor[KJson[A]] = jsonSchemaFor
-      }
+      override val avroCodec: AvroCodec[KJson[A]] =
+        AvroCodec(cacheCodec.schemaFor, cacheCodec, cacheCodec)
 
       override val serializer: Serializer[KJson[A]] =
         new Serializer[KJson[A]] with Serializable {
@@ -46,7 +46,7 @@ object KJson {
           override def serialize(topic: String, data: KJson[A]): Array[Byte] = {
             val value: String = Option(data).flatMap(v => Option(v.value)) match {
               case None    => null.asInstanceOf[String]
-              case Some(_) => avroEncoder.encode(data).asInstanceOf[String]
+              case Some(_) => avroCodec.avroEncoder.encode(data).asInstanceOf[String]
             }
             Serdes.String.serializer.serialize(topic, value)
           }
@@ -58,12 +58,11 @@ object KJson {
 
           override def deserialize(topic: String, data: Array[Byte]): KJson[A] =
             Option(data) match {
-              case None     => null.asInstanceOf[KJson[A]]
-              case Some(ab) => avroDecoder.decode(Serdes.String.deserializer.deserialize(topic, ab))
+              case None => null.asInstanceOf[KJson[A]]
+              case Some(ab) =>
+                avroCodec.avroDecoder.decode(Serdes.String.deserializer.deserialize(topic, ab))
             }
         }
 
-      override val avroCodec: AvroCodec[KJson[A]] =
-        AvroCodec(jsonSchemaFor, avroDecoder, avroEncoder)
     }
 }
