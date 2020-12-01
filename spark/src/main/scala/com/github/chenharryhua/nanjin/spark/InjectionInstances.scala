@@ -7,7 +7,6 @@ import cats.Order
 import frameless.{Injection, SQLDate, SQLTimestamp}
 import io.circe.Decoder.Result
 import io.circe._
-import io.circe.syntax._
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import shapeless.Witness
 
@@ -55,11 +54,6 @@ private[spark] trait InjectionInstances extends Serializable {
 
   implicit def enumCirceDecoder[E <: Enumeration](implicit w: Witness.Aux[E]): Decoder[E#Value] =
     Decoder.decodeEnumeration(w.value)
-
-  implicit val circeJsonInjection: Injection[Json, String] = new Injection[Json, String] {
-    override def apply(a: Json): String  = a.noSpaces
-    override def invert(b: String): Json = b.asJson
-  }
 
   implicit val timestampCirceCodec: Codec[Timestamp] = new Codec[Timestamp] {
     import io.circe.syntax._

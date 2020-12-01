@@ -5,6 +5,7 @@ import io.circe.Json
 import io.circe.syntax._
 import org.scalacheck.Prop.{forAll, propBoolean}
 import org.scalacheck.{Arbitrary, Gen, Properties}
+import io.circe.generic.auto._
 
 object KJsonTestData {
   final case class Base(a: Int, b: Json)

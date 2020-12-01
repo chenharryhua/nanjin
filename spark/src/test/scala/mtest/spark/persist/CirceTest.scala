@@ -125,5 +125,14 @@ class CirceTest extends AnyFunSuite {
     val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate)
     assert(expected == t2.collect[IO]().unsafeRunSync().toSet)
   }
-
+  test("circe - jacket") {
+    import JacketData._
+    val path  = "./data/test/spark/persist/circe/jacket.json"
+    val saver = new RddFileHoarder[IO, Jacket](rdd, Jacket.avroCodec)
+    saver.circe(path).file.run(blocker).unsafeRunSync()
+    val t = loaders.rdd.circe[Jacket](path).collect().toSet
+    assert(expected.toSet == t)
+   // val t2 = loaders.circe[Jacket](path, Jacket.ate).collect[IO]().unsafeRunSync().toSet
+   // assert(expected.toSet == t2)
+  }
 }
