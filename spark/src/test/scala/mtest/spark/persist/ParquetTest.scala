@@ -2,6 +2,7 @@ package mtest.spark.persist
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddFileHoarder}
+import frameless.TypedDataset
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
@@ -62,7 +63,15 @@ class ParquetTest extends AnyFunSuite {
     assert(emCops.toSet == t)
   }
 
-  /**
-    * frameless/spark does not support coproduct so cocop and cpcop do not compile
+  /** frameless/spark does not support coproduct so cocop and cpcop do not compile
     */
+
+  test("parquet jacket") {
+    import JacketData._
+    val path  = "./data/test/spark/persist/parquet/jacket.parquet"
+    val saver = new RddFileHoarder[IO, Jacket](rdd.repartition(1), Jacket.avroCodec)
+    saver.parquet(path).run(blocker).unsafeRunSync()
+    val t: TypedDataset[Jacket] = loaders.parquet(path, Jacket.ate)
+    assert(expected.toSet == t.collect[IO]().unsafeRunSync().toSet)
+  }
 }

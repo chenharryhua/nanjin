@@ -29,7 +29,7 @@ object KPB {
         override def decode(value: Any): KPB[A] =
           value match {
             case ab: Array[Byte] => KPB(ev.parseFrom(ab))
-            case ex              => sys.error(s"not a Array[Byte] ${ex.toString}")
+            case ex              => sys.error(s"${ex.getClass} is not a Array[Byte] ${ex.toString}")
           }
       }
 

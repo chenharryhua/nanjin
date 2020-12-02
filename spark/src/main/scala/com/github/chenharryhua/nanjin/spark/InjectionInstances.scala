@@ -1,15 +1,17 @@
 package com.github.chenharryhua.nanjin.spark
 
-import java.sql.{Date, Timestamp}
-import java.time.{Instant, LocalDate}
-
 import cats.Order
+import com.github.chenharryhua.nanjin.messages.kafka.codec.KJson
 import frameless.{Injection, SQLDate, SQLTimestamp}
 import io.circe.Decoder.Result
-import io.circe._
+import io.circe.parser.decode
 import io.circe.syntax._
+import io.circe.{Codec, HCursor, Json, Decoder => JsonDecoder, Encoder => JsonEncoder}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import shapeless.Witness
+
+import java.sql.{Date, Timestamp}
+import java.time.{Instant, LocalDate}
 
 private[spark] trait InjectionInstances extends Serializable {
 
@@ -50,23 +52,30 @@ private[spark] trait InjectionInstances extends Serializable {
     w: Witness.Aux[E]): Injection[E#Value, String] =
     Injection(_.toString, x => w.value.withName(x))
 
-  implicit def enumCirceEncoder[E <: Enumeration](implicit w: Witness.Aux[E]): Encoder[E#Value] =
-    Encoder.encodeEnumeration(w.value)
+  implicit def enumCirceEncoder[E <: Enumeration](implicit
+    w: Witness.Aux[E]): JsonEncoder[E#Value] =
+    JsonEncoder.encodeEnumeration(w.value)
 
-  implicit def enumCirceDecoder[E <: Enumeration](implicit w: Witness.Aux[E]): Decoder[E#Value] =
-    Decoder.decodeEnumeration(w.value)
+  implicit def enumCirceDecoder[E <: Enumeration](implicit
+    w: Witness.Aux[E]): JsonDecoder[E#Value] =
+    JsonDecoder.decodeEnumeration(w.value)
 
-  implicit val circeJsonInjection: Injection[Json, String] = new Injection[Json, String] {
-    override def apply(a: Json): String  = a.noSpaces
-    override def invert(b: String): Json = b.asJson
-  }
+  implicit def kjsonInjection[A: JsonEncoder: JsonDecoder]: Injection[KJson[A], String] =
+    new Injection[KJson[A], String] {
+      override def apply(a: KJson[A]): String = a.asJson.noSpaces
+
+      override def invert(b: String): KJson[A] = decode[KJson[A]](b) match {
+        case Right(r) => r
+        case Left(ex) => throw ex
+      }
+    }
 
   implicit val timestampCirceCodec: Codec[Timestamp] = new Codec[Timestamp] {
     import io.circe.syntax._
     override def apply(a: Timestamp): Json = a.toInstant.asJson
 
     override def apply(c: HCursor): Result[Timestamp] =
-      Decoder[Instant].apply(c).map(Timestamp.from)
+      JsonDecoder[Instant].apply(c).map(Timestamp.from)
   }
 
   implicit val dateCirceCodec: Codec[Date] = new Codec[Date] {
@@ -74,7 +83,7 @@ private[spark] trait InjectionInstances extends Serializable {
     override def apply(a: Date): Json = a.toLocalDate.asJson
 
     override def apply(c: HCursor): Result[Date] =
-      Decoder[LocalDate].apply(c).map(Date.valueOf)
+      JsonDecoder[LocalDate].apply(c).map(Date.valueOf)
   }
 
   implicit def orderScalaEnum[E <: Enumeration](implicit

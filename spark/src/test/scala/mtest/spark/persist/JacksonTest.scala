@@ -2,6 +2,7 @@ package mtest.spark.persist
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddFileHoarder}
+import frameless.TypedDataset
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -78,6 +79,14 @@ class JacksonTest extends AnyFunSuite {
     saver.jackson(path).file.deflate(3).run(blocker).unsafeRunSync()
     val t = loaders.rdd.jackson[Bee](path, Bee.codec).collect().toList
     assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
+  }
+  test("jackson jacket") {
+    import JacketData._
+    val path  = "./data/test/spark/persist/jackson/jacket.json"
+    val saver = new RddFileHoarder[IO, Jacket](rdd.repartition(1), Jacket.avroCodec)
+    saver.jackson(path).run(blocker).unsafeRunSync()
+    val t = loaders.rdd.jackson(path, Jacket.avroCodec)
+    assert(expected.toSet == t.collect().toSet)
   }
 
 }

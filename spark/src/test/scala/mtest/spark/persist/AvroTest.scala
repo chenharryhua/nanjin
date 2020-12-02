@@ -155,8 +155,7 @@ class AvroTest extends AnyFunSuite {
     assert(bees.sortBy(_.b).zip(r.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
 
-  /**
-    * the data saved to disk is correct.
+  /** the data saved to disk is correct.
     * loaders.rdd.avro can not rightly read it back.
     * loaders.avro can.
     * avro4s decode:https://github.com/sksamuel/avro4s/blob/release/4.0.x/avro4s-core/src/main/scala/com/sksamuel/avro4s/ByteIterables.scala#L31
@@ -251,5 +250,15 @@ class AvroTest extends AnyFunSuite {
     saver.avro(path).file.run(blocker).unsafeRunSync()
     val t = loaders.rdd.avro[CpCop](path, CpCop.codec).collect().toSet
     assert(cpCops.toSet == t)
+  }
+  test("avro jacket") {
+    import JacketData._
+    val path  = "./data/test/spark/persist/avro/jacket.avro"
+    val saver = new RddFileHoarder[IO, Jacket](rdd, Jacket.avroCodec)
+    saver.avro(path).file.run(blocker).unsafeRunSync()
+    val t = loaders.rdd.avro[Jacket](path, Jacket.avroCodec).collect().toSet
+    assert(expected.toSet == t)
+    val t2 = loaders.avro[Jacket](path, Jacket.ate).collect[IO]().unsafeRunSync.toSet
+    assert(expected.toSet == t2)
   }
 }
