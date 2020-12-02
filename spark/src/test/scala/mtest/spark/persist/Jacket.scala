@@ -8,6 +8,7 @@ import io.circe.Json
 import io.circe.generic.auto._
 import io.circe.syntax._
 import org.apache.spark.rdd.RDD
+import io.circe.parser.parse
 
 import scala.util.Random
 final case class Neck(a: Int, b: Json)
@@ -22,7 +23,7 @@ object Jacket {
 object JacketData {
 
   val expected: List[Jacket] =
-    List.fill(10)(Jacket(Random.nextInt, KJson(Neck(0, """ {"a":"a","b":1} """.asJson))))
+    List.fill(10)(Jacket(Random.nextInt, KJson(Neck(0, parse(""" {"a":"a","b":1} """).right.get))))
   val rdd: RDD[Jacket]         = sparkSession.sparkContext.parallelize(expected)
   val ds: TypedDataset[Jacket] = Jacket.ate.normalize(rdd)
 }
