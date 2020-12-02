@@ -1,34 +1,55 @@
 package mtest.codec
 
 import cats.derived.auto.eq._
+import cats.kernel.laws.discipline.EqTests
 import cats.syntax.all._
+import cats.tests.CatsSuite
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, SerdeOf}
 import io.circe.Json
 import io.circe.generic.auto._
 import io.circe.syntax._
 import org.scalacheck.Prop.{forAll, propBoolean}
-import org.scalacheck.{Arbitrary, Gen, Properties}
+import org.scalacheck.{Arbitrary, Cogen, Gen, Properties}
+import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
 object KJsonTestData {
-  final case class Base(a: Int, b: Json)
+  final case class Base(a: Long, b: Json)
   final case class CompositionType(c: Int, base: Base)
+  import io.circe.generic.auto._
+  val goodJson: SerdeOf[KJson[CompositionType]] = SerdeOf[KJson[CompositionType]]
+
+  val genKJson: Gen[KJson[CompositionType]] = for {
+    a <- Gen.posNum[Long]
+    c <- Gen.posNum[Int]
+  } yield KJson(CompositionType(c, Base(a, s"""{"a":$a,"b":"b"}""".asJson)))
+
+  implicit val arbKJson: Arbitrary[KJson[CompositionType]] = Arbitrary(genKJson)
+
+  val genKJsons: Gen[List[KJson[CompositionType]]] = Gen.listOfN(20, genKJson)
+
+  implicit val arbKJsons: Arbitrary[List[KJson[CompositionType]]] = Arbitrary(genKJsons)
+
+  implicit val cogen: Cogen[KJson[CompositionType]] =
+    Cogen[KJson[CompositionType]]((a: KJson[CompositionType]) => a.value.base.a)
+
 }
 
 class KJsonTest extends Properties("kjson") {
   import KJsonTestData._
-  import io.circe.generic.auto._
-  val goodJson: SerdeOf[KJson[CompositionType]] = SerdeOf[KJson[CompositionType]]
-
-  val genPerson: Gen[KJson[CompositionType]] = for {
-    a <- Gen.posNum[Int]
-    c <- Gen.posNum[Int]
-  } yield KJson(CompositionType(a, Base(c, s"""{"a":$a,"b":"b"}""".asJson)))
-
-  implicit val arbPerson: Arbitrary[KJson[CompositionType]] = Arbitrary(genPerson)
 
   property("encode/decode identity") = forAll { (ct: KJson[CompositionType]) =>
     val en = goodJson.avroCodec.avroEncoder.encode(ct)
     val de = goodJson.avroCodec.avroDecoder.decode(en)
     (ct == de) && (ct === goodJson.avroCodec.idConversion(ct))
   }
+
+  property("encode/decode collection identity") = forAll { (ct: List[KJson[CompositionType]]) =>
+    val id = ct.map(goodJson.avroCodec.idConversion)
+    (ct == id) && (ct === id)
+  }
+}
+
+class KJsonEqTest extends CatsSuite with FunSuiteDiscipline {
+  import KJsonTestData._
+  checkAll("kjson equality", EqTests[KJson[CompositionType]].eqv)
 }
