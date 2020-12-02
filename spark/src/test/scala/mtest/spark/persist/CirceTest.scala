@@ -66,6 +66,7 @@ class CirceTest extends AnyFunSuite {
     val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate)
     assert(expected == t2.collect[IO]().unsafeRunSync().toSet)
   }
+
   test("byte-array rdd read/write identity multi") {
     import BeeData._
     val path  = "./data/test/spark/persist/circe/bee/multi.json"
@@ -74,6 +75,7 @@ class CirceTest extends AnyFunSuite {
     val t = loaders.rdd.circe[Bee](path)
     assert(t.collect.map(_.toWasp).toSet === bees.map(_.toWasp).toSet)
   }
+
   test("byte-array rdd read/write identity single") {
     import BeeData._
     val path  = "./data/test/spark/persist/circe/bee/single.json"
@@ -104,6 +106,7 @@ class CirceTest extends AnyFunSuite {
     val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate)
     assert(expected == t2.collect[IO]().unsafeRunSync().toSet)
   }
+
   test("rdd read/write identity single.uncompressed - keep null") {
     import RoosterData._
     val path  = "./data/test/spark/persist/circe/rooster/single.keepNull.uncompressed.json"
@@ -125,6 +128,7 @@ class CirceTest extends AnyFunSuite {
     val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate)
     assert(expected == t2.collect[IO]().unsafeRunSync().toSet)
   }
+
   test("circe jacket") {
     import JacketData._
     val path  = "./data/test/spark/persist/circe/jacket.json"
@@ -134,5 +138,14 @@ class CirceTest extends AnyFunSuite {
     assert(expected.toSet == t)
     val t2 = loaders.circe[Jacket](path, Jacket.ate).collect[IO]().unsafeRunSync().toSet
     assert(expected.toSet == t2)
+  }
+
+  test("circe fractual") {
+    import FractualData._
+    val path  = "./data/test/spark/persist/circe/fractual.json"
+    val saver = new RddFileHoarder[IO, Fractual](rdd, Fractual.avroCodec)
+    saver.circe(path).file.run(blocker).unsafeRunSync()
+    val t = loaders.rdd.circe[Fractual](path).collect().toSet
+    assert(data.toSet == t)
   }
 }

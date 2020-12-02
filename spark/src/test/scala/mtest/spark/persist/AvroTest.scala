@@ -41,6 +41,7 @@ class AvroTest extends AnyFunSuite {
     assert(expected == r)
     assert(expected == t)
   }
+
   test("datetime read/write identity - multi.xz") {
     import RoosterData._
     val path  = "./data/test/spark/persist/avro/rooster/multi.xz.avro"
@@ -51,6 +52,7 @@ class AvroTest extends AnyFunSuite {
     assert(expected == r)
     assert(expected == t)
   }
+
   test("datetime read/write identity - multi.bzip2") {
     import RoosterData._
     val path  = "./data/test/spark/persist/avro/rooster/multi.bzip2.avro"
@@ -83,6 +85,7 @@ class AvroTest extends AnyFunSuite {
     assert(expected == r)
     assert(expected == t)
   }
+
   test("datetime read/write identity - single.bzip2") {
     import RoosterData._
     val path  = "./data/test/spark/persist/avro/rooster/single.bzip2.avro"
@@ -226,6 +229,7 @@ class AvroTest extends AnyFunSuite {
     intercept[Throwable](loaders.rdd.avro[CoCop](path, CoCop.codec).collect().toSet)
     // assert(coCops.toSet == t)
   }
+
   test("sealed trait read/write identity multi/raw (happy failure)") {
     import CopData._
     val path  = "./data/test/spark/persist/avro/cocop/multi.avro"
@@ -234,6 +238,7 @@ class AvroTest extends AnyFunSuite {
     //  val t = loaders.raw.avro[CoCop](path).collect().toSet
     //  assert(coCops.toSet == t)
   }
+
   test("coproduct read/write identity - multi") {
     import CopData._
     val path  = "./data/test/spark/persist/avro/cpcop/multi.avro"
@@ -251,6 +256,7 @@ class AvroTest extends AnyFunSuite {
     val t = loaders.rdd.avro[CpCop](path, CpCop.codec).collect().toSet
     assert(cpCops.toSet == t)
   }
+
   test("avro jacket") {
     import JacketData._
     val path  = "./data/test/spark/persist/avro/jacket.avro"
@@ -260,5 +266,14 @@ class AvroTest extends AnyFunSuite {
     assert(expected.toSet == t)
     val t2 = loaders.avro[Jacket](path, Jacket.ate).collect[IO]().unsafeRunSync.toSet
     assert(expected.toSet == t2)
+  }
+
+  test("avro fractual") {
+    import FractualData._
+    val path  = "./data/test/spark/persist/avro/fractual.avro"
+    val saver = new RddFileHoarder[IO, Fractual](rdd, Fractual.avroCodec)
+    saver.avro(path).file.run(blocker).unsafeRunSync()
+    val t = loaders.rdd.avro[Fractual](path, Fractual.avroCodec).collect().toSet
+    assert(data.toSet == t)
   }
 }

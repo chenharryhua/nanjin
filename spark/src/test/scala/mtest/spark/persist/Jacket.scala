@@ -6,9 +6,8 @@ import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.{TypedDataset, TypedEncoder}
 import io.circe.Json
 import io.circe.generic.auto._
-import io.circe.syntax._
-import org.apache.spark.rdd.RDD
 import io.circe.parser.parse
+import org.apache.spark.rdd.RDD
 
 import scala.util.Random
 final case class Neck(a: Int, b: Json)
