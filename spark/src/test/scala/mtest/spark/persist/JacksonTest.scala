@@ -16,6 +16,7 @@ class JacksonTest extends AnyFunSuite {
     val r = loaders.rdd.jackson[Rooster](path, Rooster.avroCodec)
     assert(expected == r.collect().toSet)
   }
+
   test("datetime read/write identity - single") {
     import RoosterData._
     val path  = "./data/test/spark/persist/jackson/rooster/single.json"
@@ -34,6 +35,7 @@ class JacksonTest extends AnyFunSuite {
     val t = loaders.rdd.jackson[Bee](path, Bee.codec).collect().toList
     assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
+
   test("byte-array read/write identity - multi") {
     import BeeData._
     import cats.implicits._
@@ -43,6 +45,7 @@ class JacksonTest extends AnyFunSuite {
     val t = loaders.rdd.jackson[Bee](path, Bee.codec).collect().toList
     assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
+
   test("byte-array read/write identity - multi.gzip") {
     import BeeData._
     import cats.implicits._
@@ -52,6 +55,7 @@ class JacksonTest extends AnyFunSuite {
     val t = loaders.rdd.jackson[Bee](path, Bee.codec).collect().toList
     assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
+
   test("byte-array read/write identity - multi.deflate") {
     import BeeData._
     import cats.implicits._
@@ -71,6 +75,7 @@ class JacksonTest extends AnyFunSuite {
     val t = loaders.rdd.jackson[Bee](path, Bee.codec).collect().toList
     assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
+
   test("byte-array read/write identity - single.deflate") {
     import BeeData._
     import cats.implicits._
@@ -80,6 +85,7 @@ class JacksonTest extends AnyFunSuite {
     val t = loaders.rdd.jackson[Bee](path, Bee.codec).collect().toList
     assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
+
   test("jackson jacket") {
     import JacketData._
     val path  = "./data/test/spark/persist/jackson/jacket.json"
@@ -89,4 +95,12 @@ class JacksonTest extends AnyFunSuite {
     assert(expected.toSet == t.collect().toSet)
   }
 
+  test("jackson fractual") {
+    import FractualData._
+    val path  = "./data/test/spark/persist/jackson/fractual.json"
+    val saver = new RddFileHoarder[IO, Fractual](rdd, Fractual.avroCodec)
+    saver.jackson(path).file.run(blocker).unsafeRunSync()
+    val t = loaders.rdd.jackson[Fractual](path, Fractual.avroCodec).collect().toSet
+    assert(data.toSet == t)
+  }
 }

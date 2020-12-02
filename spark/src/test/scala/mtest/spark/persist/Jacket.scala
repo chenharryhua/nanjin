@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.{TypedDataset, TypedEncoder}
 import io.circe.Json
 import io.circe.generic.auto._
-import io.circe.syntax._
+import io.circe.parser.parse
 import org.apache.spark.rdd.RDD
 
 import scala.util.Random
@@ -22,7 +22,7 @@ object Jacket {
 object JacketData {
 
   val expected: List[Jacket] =
-    List.fill(10)(Jacket(Random.nextInt, KJson(Neck(0, """ {"a":"a","b":1} """.asJson))))
+    List.fill(10)(Jacket(Random.nextInt, KJson(Neck(0, parse(""" {"a":"a","b":1} """).right.get))))
   val rdd: RDD[Jacket]         = sparkSession.sparkContext.parallelize(expected)
   val ds: TypedDataset[Jacket] = Jacket.ate.normalize(rdd)
 }
