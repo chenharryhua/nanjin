@@ -251,12 +251,14 @@ class AvroTest extends AnyFunSuite {
     val t = loaders.rdd.avro[CpCop](path, CpCop.codec).collect().toSet
     assert(cpCops.toSet == t)
   }
-  test("jacket") {
+  test("avro jacket") {
     import JacketData._
     val path  = "./data/test/spark/persist/avro/jacket.avro"
     val saver = new RddFileHoarder[IO, Jacket](rdd, Jacket.avroCodec)
     saver.avro(path).file.run(blocker).unsafeRunSync()
     val t = loaders.rdd.avro[Jacket](path, Jacket.avroCodec).collect().toSet
     assert(expected.toSet == t)
+    val t2 = loaders.avro[Jacket](path, Jacket.ate).collect[IO]().unsafeRunSync.toSet
+    assert(expected.toSet == t2)
   }
 }

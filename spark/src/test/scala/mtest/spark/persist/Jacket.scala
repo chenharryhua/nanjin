@@ -2,8 +2,10 @@ package mtest.spark.persist
 
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import frameless.TypedEncoder
+import com.github.chenharryhua.nanjin.spark.injection._
+import frameless.{TypedDataset, TypedEncoder}
 import io.circe.generic.auto._
+import org.apache.spark.rdd.RDD
 
 import scala.util.Random
 final case class Neck(a: Int, b: Int)
@@ -17,19 +19,8 @@ object Jacket {
 
 object JacketData {
 
-  val expected =
+  val expected: List[Jacket] =
     List.fill(10)(Jacket(Random.nextInt, KJson(Neck(0, 1))))
-  val rdd = sparkSession.sparkContext.parallelize(expected)
-  val ds  = Jacket.ate.normalize(rdd)
-}
-
-object test {
-  final class ABC[A](val a: A) extends Serializable
-
-  object ABC {
-    def apply[A](a: A) = new ABC(a)
-  }
-  final class Z(a: Int, b: ABC[Neck])
-  val te: TypedEncoder[Z] = shapeless.cachedImplicit
-
+  val rdd: RDD[Jacket]         = sparkSession.sparkContext.parallelize(expected)
+  val ds: TypedDataset[Jacket] = Jacket.ate.normalize(rdd)
 }

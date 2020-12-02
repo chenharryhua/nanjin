@@ -17,7 +17,7 @@ import org.apache.avro.util.Utf8
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 import org.apache.kafka.streams.scala.Serdes
 
-final class KJson[A](val value: A) extends Serializable {
+final class KJson[A] private (val value: A) extends Serializable {
   def canEqual(a: Any): Boolean = a.isInstanceOf[KJson[A]]
 
   override def equals(that: Any): Boolean =
@@ -58,8 +58,8 @@ object KJson {
           case Right(r) => r
           case Left(ex) => throw ex
         }
-      case str: Utf8 =>
-        parser.decode[KJson[A]](str.toString) match {
+      case utf8: Utf8 =>
+        parser.decode[KJson[A]](utf8.toString) match {
           case Right(r) => r
           case Left(ex) => throw ex
         }
