@@ -26,6 +26,7 @@ final class SaveProtobuf[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: Hoarder
 
     val hadoop = NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)
     val pipe   = new DelimitedProtoBufSerialization[F]
+    val ccg    = params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
 
     sma.checkAndRun(blocker)(
       rdd
