@@ -26,6 +26,8 @@ final class SaveBinaryAvro[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: Hoard
     val hadoop: NJHadoop[F]              = NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)
     val gr: GenericRecordCodec[F, A]     = new GenericRecordCodec[F, A]
     val pipe: BinaryAvroSerialization[F] = new BinaryAvroSerialization[F](codec.schema)
+    val ccg: CompressionCodecGroup[F] =
+      params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
 
     sma.checkAndRun(blocker)(
       rdd
