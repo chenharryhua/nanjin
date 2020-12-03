@@ -50,7 +50,7 @@ val jackson = "2.12.0"
 val json4s  = "3.7.0-M7" // for spark
 val kantan  = "0.6.1"
 val parquet = "1.11.1"
-val avro    = "1.10.0"
+val avro    = "1.10.1"
 val avro4s  = "4.0.3"
 
 // connect
