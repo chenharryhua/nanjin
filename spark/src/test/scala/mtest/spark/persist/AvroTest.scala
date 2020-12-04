@@ -1,6 +1,8 @@
 package mtest.spark.persist
 
 import cats.effect.IO
+import com.github.chenharryhua.nanjin.devices.NJHadoop
+import com.github.chenharryhua.nanjin.pipes.GenericRecordCodec
 import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddFileHoarder}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import org.apache.spark.sql.SaveMode
@@ -9,6 +11,17 @@ import org.scalatest.funsuite.AnyFunSuite
 
 @DoNotDiscover
 class AvroTest extends AnyFunSuite {
+  val hadoop = NJHadoop[IO](sparkSession.sparkContext.hadoopConfiguration, blocker)
+  val gr     = new GenericRecordCodec[IO, Rooster]()
+
+  def singleAvro(path: String): Set[Rooster] = hadoop
+    .avroSource(path, Rooster.avroCodec.schema)
+    .through(gr.decode(Rooster.avroCodec.avroDecoder))
+    .compile
+    .toList
+    .unsafeRunSync()
+    .toSet
+
   test("datetime read/write identity - multi.uncompressed") {
     import RoosterData._
     val path  = "./data/test/spark/persist/avro/rooster/multi.uncompressed.avro"
@@ -73,6 +86,7 @@ class AvroTest extends AnyFunSuite {
     val t = loaders.avro[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
     assert(expected == r)
     assert(expected == t)
+    assert(expected == singleAvro(path))
   }
 
   test("datetime read/write identity - single.snappy") {
@@ -84,6 +98,7 @@ class AvroTest extends AnyFunSuite {
     val t = loaders.avro[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
     assert(expected == r)
     assert(expected == t)
+    assert(expected == singleAvro(path))
   }
 
   test("datetime read/write identity - single.bzip2") {
@@ -95,6 +110,7 @@ class AvroTest extends AnyFunSuite {
     val t = loaders.avro[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
     assert(expected == r)
     assert(expected == t)
+    assert(expected == singleAvro(path))
   }
 
   test("datetime read/write identity - single.deflate") {
@@ -106,6 +122,7 @@ class AvroTest extends AnyFunSuite {
     val t = loaders.avro[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
     assert(expected == r)
     assert(expected == t)
+    assert(expected == singleAvro(path))
   }
 
   test("datetime read/write identity - single.xz") {
@@ -117,6 +134,7 @@ class AvroTest extends AnyFunSuite {
     val t = loaders.avro[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
     assert(expected == r)
     assert(expected == t)
+    assert(expected == singleAvro(path))
   }
 
   test("datetime spark write/nanjin read identity") {

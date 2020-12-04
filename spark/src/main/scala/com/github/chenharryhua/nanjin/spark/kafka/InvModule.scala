@@ -38,7 +38,7 @@ trait InvModule[F[_], K, V] { self: CrRdd[F, K, V] =>
     Stream
       .emits(rs)
       .covary[F]
-      .through(gre.encode(codec.avroEncoder, F))
+      .through(gre.encode(codec.avroEncoder)(F))
       .through(pipe.compactJson)
       .showLinesStdOut
       .compile

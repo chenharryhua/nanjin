@@ -12,6 +12,12 @@ class GenericRecordPipeTest extends AnyFunSuite {
   test("generic-record identity") {
     val data: Stream[IO, Tigger] = Stream.emits(tiggers)
 
-    assert(data.through(ser.encode).through(ser.decode).compile.toList.unsafeRunSync() === tiggers)
+    assert(
+      data
+        .through(ser.encode(Tigger.avroEncoder))
+        .through(ser.decode(Tigger.avroDecoder))
+        .compile
+        .toList
+        .unsafeRunSync() === tiggers)
   }
 }

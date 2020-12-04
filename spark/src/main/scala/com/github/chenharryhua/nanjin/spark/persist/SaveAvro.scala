@@ -43,7 +43,6 @@ final class SaveAvro[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConf
     cs: ContextShift[F],
     ss: SparkSession,
     tag: ClassTag[A]): F[Unit] = {
-    implicit val encoder: AvroEncoder[A] = codec.avroEncoder
 
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
     val cf: CodecFactory      = params.compression.avro(ss.sparkContext.hadoopConfiguration)
@@ -55,7 +54,7 @@ final class SaveAvro[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConf
         sma.checkAndRun(blocker)(
           rdd
             .stream[F]
-            .through(pipe.encode)
+            .through(pipe.encode(codec.avroEncoder))
             .through(hadoop.avroSink(params.outPath, codec.schema, cf))
             .compile
             .drain)

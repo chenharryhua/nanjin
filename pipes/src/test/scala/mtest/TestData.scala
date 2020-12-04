@@ -1,5 +1,6 @@
 package mtest
 
+import com.sksamuel.avro4s.{Decoder, Encoder}
 import kantan.csv.{RowDecoder, RowEncoder}
 import kantan.csv.generic._
 import mtest.pb.test.Lion
@@ -12,6 +13,8 @@ object TestData {
   object Tigger {
     implicit val re: RowEncoder[Tigger] = shapeless.cachedImplicit
     implicit val rd: RowDecoder[Tigger] = shapeless.cachedImplicit
+    val avroEncoder: Encoder[Tigger]    = Encoder[Tigger]
+    val avroDecoder: Decoder[Tigger]    = Decoder[Tigger]
   }
 
   val tiggers: List[Tigger] =
