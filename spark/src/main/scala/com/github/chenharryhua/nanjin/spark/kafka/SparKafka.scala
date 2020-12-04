@@ -23,8 +23,8 @@ final class SparKafka[F[_], K, V](
   val cfg: SKConfig
 ) extends SparKafkaUpdateParams[SparKafka[F, K, V]] {
 
-  implicit private val keyCodec: AvroCodec[K] = topic.codec.keySerde.avroCodec
-  implicit private val valCodec: AvroCodec[V] = topic.codec.valSerde.avroCodec
+  private val keyCodec: AvroCodec[K] = topic.codec.keySerde.avroCodec
+  private val valCodec: AvroCodec[V] = topic.codec.valSerde.avroCodec
 
   implicit private val ss: SparkSession = sparkSession
 
@@ -62,8 +62,11 @@ final class SparKafka[F[_], K, V](
 
   /** rdd and dataset
     */
-  def crRdd(rdd: RDD[OptionalKV[K, V]])          = new CrRdd[F, K, V](rdd, cfg)
-  def crRdd(tds: TypedDataset[OptionalKV[K, V]]) = new CrRdd[F, K, V](tds.dataset.rdd, cfg)
+  def crRdd(rdd: RDD[OptionalKV[K, V]]): CrRdd[F, K, V] =
+    new CrRdd[F, K, V](rdd, cfg, keyCodec, valCodec)
+
+  def crRdd(tds: TypedDataset[OptionalKV[K, V]]): CrRdd[F, K, V] =
+    new CrRdd[F, K, V](tds.dataset.rdd, cfg, keyCodec, valCodec)
 
   /** direct stream
     */

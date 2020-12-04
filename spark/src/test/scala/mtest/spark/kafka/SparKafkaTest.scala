@@ -65,7 +65,13 @@ class SparKafkaTest extends AnyFunSuite {
     val ds: TypedDataset[OptionalKV[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
 
     val birst: Set[CompulsoryV[String, Int]] =
-      src.sparKafka(range).crRdd(ds).bimap(_.toString, _ + 1).values.collect().toSet
+      src
+        .sparKafka(range)
+        .crRdd(ds)
+        .bimap(_.toString, _ + 1)(AvroCodec[String], AvroCodec[Int])
+        .values
+        .collect()
+        .toSet
     assert(birst.map(_.value) == Set(2, 3, 5))
   }
 
@@ -82,7 +88,9 @@ class SparKafkaTest extends AnyFunSuite {
       src
         .sparKafka(range)
         .crRdd(ds)
-        .flatMap(m => m.value.map(x => OptionalKV.value.set(Some(x - 1))(m)))
+        .flatMap(m => m.value.map(x => OptionalKV.value.set(Some(x - 1))(m)))(
+          AvroCodec[Int],
+          AvroCodec[Int])
         .values
         .collect()
         .toSet
