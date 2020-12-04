@@ -72,7 +72,7 @@ object NJProducerRecord {
   def apply[K, V](v: V): NJProducerRecord[K, V] =
     NJProducerRecord(None, None, None, Option(v))
 
-  implicit def producerRecordCodec[K, V](implicit
+  def producerRecordCodec[K, V](
     keyCodec: AvroCodec[K],
     valCodec: AvroCodec[V]): AvroCodec[NJProducerRecord[K, V]] = {
     implicit val schemaForKey: SchemaFor[K]  = keyCodec.schemaFor
@@ -87,11 +87,12 @@ object NJProducerRecord {
     AvroCodec[NJProducerRecord[K, V]](s, d, e)
   }
 
-  implicit def producerRecordKAvroTypedEncoer[K, V](implicit
+  def producerRecordKAvroTypedEncoer[K, V](ac: AvroCodec[NJProducerRecord[K, V]])(implicit
     ek: TypedEncoder[K],
-    ev: TypedEncoder[V],
-    c: AvroCodec[NJProducerRecord[K, V]]): AvroTypedEncoder[NJProducerRecord[K, V]] =
-    AvroTypedEncoder[NJProducerRecord[K, V]](c)
+    ev: TypedEncoder[V]): AvroTypedEncoder[NJProducerRecord[K, V]] = {
+    implicit val te: TypedEncoder[NJProducerRecord[K, V]] = cachedImplicit
+    AvroTypedEncoder[NJProducerRecord[K, V]](ac)
+  }
 
   implicit def emptyNJProducerRecord[K, V]: Empty[NJProducerRecord[K, V]] =
     new Empty[NJProducerRecord[K, V]] {
