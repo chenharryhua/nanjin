@@ -49,7 +49,7 @@ object Rooster {
       |      "name": "b",
       |      "type": {
       |        "type": "long",
-      |        "logicalType": "timestamp-millis"
+      |        "logicalType": "timestamp-micros"
       |      }
       |    },
       |    {
