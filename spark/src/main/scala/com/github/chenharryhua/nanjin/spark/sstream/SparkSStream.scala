@@ -2,7 +2,8 @@ package com.github.chenharryhua.nanjin.spark.sstream
 
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.spark.kafka.NJProducerRecord
+import com.github.chenharryhua.nanjin.spark.DatePartitionedCR
+import com.github.chenharryhua.nanjin.spark.kafka.{NJProducerRecord, OptionalKV}
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset
 
@@ -43,6 +44,21 @@ final class SparkSStream[F[_], A: TypedEncoder](ds: Dataset[A], cfg: SStreamConf
     new NJFileSink[F, A](ds.writeStream, cfg, path)
 
   def kafkaSink[K: TypedEncoder, V: TypedEncoder](kit: KafkaTopic[F, K, V])(implicit
-    ev: A =:= NJProducerRecord[K, V]): NJKafkaSink[F] =
+    ev: A =:= NJProducerRecord[K, V]): NJKafkaSink[F] = {
+    implicit val te: TypedEncoder[NJProducerRecord[K, V]] = shapeless.cachedImplicit
     new KafkaPrSStream[F, K, V](typedDataset.deserialized.map(ev).dataset, cfg).kafkaSink(kit)
+  }
+
+  def datePartitionFileSink[K, V](path: String)(implicit
+    ev: A =:= OptionalKV[K, V],
+    tek: TypedEncoder[K],
+    tev: TypedEncoder[V]): NJFileSink[F, DatePartitionedCR[K, V]] = {
+    implicit val te: TypedEncoder[DatePartitionedCR[K, V]] = shapeless.cachedImplicit
+    new NJFileSink[F, DatePartitionedCR[K, V]](
+      typedDataset.deserialized.map { x =>
+        DatePartitionedCR(params.timeRange.zoneId)(ev(x))
+      }.dataset.writeStream,
+      cfg,
+      path).partitionBy("Year", "Month", "Day")
+  }
 }
