@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.ftp
 
 import akka.stream.IOResult
 import akka.stream.alpakka.ftp.RemoteFileSettings
-import cats.effect.{Blocker, Concurrent, ConcurrentEffect, ContextShift}
+import cats.effect.{Blocker, ConcurrentEffect, ContextShift}
 import com.github.chenharryhua.nanjin.devices.FtpUploader
 import com.github.chenharryhua.nanjin.pipes._
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
@@ -35,12 +35,12 @@ final class FtpSink[F[_], C, S <: RemoteFileSettings](
     _.through(pipe.serialize(isKeepNull)).through(uploader.upload(pathStr))
   }
 
-  def jackson[A: AvroEncoder](pathStr: String)(implicit
+  def jackson[A](pathStr: String, enc: AvroEncoder[A])(implicit
     cs: ContextShift[F],
     ce: ConcurrentEffect[F]): Pipe[F, A, IOResult] = {
-    val pipe = new JacksonSerialization[F](AvroEncoder[A].schema)
+    val pipe = new JacksonSerialization[F](enc.schema)
     val gr   = new GenericRecordCodec[F, A]
-    _.through(gr.encode).through(pipe.serialize).through(uploader.upload(pathStr))
+    _.through(gr.encode(enc)).through(pipe.serialize).through(uploader.upload(pathStr))
   }
 
   def text(pathStr: String)(implicit

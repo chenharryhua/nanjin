@@ -20,7 +20,6 @@ final class SaveBinaryAvro[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: Hoard
     cs: ContextShift[F],
     ss: SparkSession,
     tag: ClassTag[A]): F[Unit] = {
-    implicit val encoder: Encoder[A] = codec.avroEncoder
 
     val sma: SaveModeAware[F]            = new SaveModeAware[F](params.saveMode, params.outPath, ss)
     val hadoop: NJHadoop[F]              = NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)
@@ -32,7 +31,7 @@ final class SaveBinaryAvro[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: Hoard
     sma.checkAndRun(blocker)(
       rdd
         .stream[F]
-        .through(gr.encode)
+        .through(gr.encode(codec.avroEncoder))
         .through(pipe.serialize)
         .through(hadoop.byteSink(params.outPath))
         .compile

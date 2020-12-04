@@ -31,11 +31,12 @@ final class FtpSource[F[_], C, S <: RemoteFileSettings](downloader: FtpDownloade
     downloader.download(pathStr).through(pipe.deserialize)
   }
 
-  def jackson[A: AvroDecoder](
-    pathStr: String)(implicit cs: ContextShift[F], ce: ConcurrentEffect[F]): Stream[F, A] = {
-    val pipe = new JacksonSerialization[F](AvroDecoder[A].schema)
+  def jackson[A](pathStr: String, dec: AvroDecoder[A])(implicit
+    cs: ContextShift[F],
+    ce: ConcurrentEffect[F]): Stream[F, A] = {
+    val pipe = new JacksonSerialization[F](dec.schema)
     val gr   = new GenericRecordCodec[F, A]
-    downloader.download(pathStr).through(pipe.deserialize).through(gr.decode)
+    downloader.download(pathStr).through(pipe.deserialize).through(gr.decode(dec))
   }
 
   def text(
