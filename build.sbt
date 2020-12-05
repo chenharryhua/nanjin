@@ -8,7 +8,7 @@ version in ThisBuild := "0.10.0-SNAPSHOT"
 // generic
 val shapeless  = "2.3.3"
 val contextual = "1.2.1"
-val kittens    = "2.2.0"
+val kittens    = "2.2.1"
 val catsCore   = "2.3.0"
 val algebra    = "2.0.1"
 val fs2Version = "2.4.6"
