@@ -18,10 +18,11 @@ import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
 
-final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)(implicit
+final class CrRdd[F[_], K, V](
+  val rdd: RDD[OptionalKV[K, V]],
+  val cfg: SKConfig,
   val keyCodec: AvroCodec[K],
-  val valCodec: AvroCodec[V],
-  val sparkSession: SparkSession)
+  val valCodec: AvroCodec[V])(implicit val sparkSession: SparkSession)
     extends SparKafkaUpdateParams[CrRdd[F, K, V]] with InvModule[F, K, V] {
 
   protected val codec: AvroCodec[OptionalKV[K, V]] = OptionalKV.avroCodec(keyCodec, valCodec)
@@ -29,51 +30,55 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
   override def params: SKParams = cfg.evalConfig
 
   override def withParamUpdate(f: SKConfig => SKConfig): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd, f(cfg))
+    new CrRdd[F, K, V](rdd, f(cfg), keyCodec, valCodec)
 
   //transformation
 
   def partitionOf(num: Int): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd.filter(_.partition === num), cfg)
+    new CrRdd[F, K, V](rdd.filter(_.partition === num), cfg, keyCodec, valCodec)
 
   def sortBy[A: Order: ClassTag](f: OptionalKV[K, V] => A, ascending: Boolean) =
-    new CrRdd[F, K, V](rdd.sortBy(f, ascending), cfg)
+    new CrRdd[F, K, V](rdd.sortBy(f, ascending), cfg, keyCodec, valCodec)
 
   def ascending: CrRdd[F, K, V]  = sortBy(identity, ascending = true)
   def descending: CrRdd[F, K, V] = sortBy(identity, ascending = false)
 
   def repartition(num: Int): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd.repartition(num), cfg)
+    new CrRdd[F, K, V](rdd.repartition(num), cfg, keyCodec, valCodec)
 
-  def bimap[K2, V2](k: K => K2, v: V => V2)(implicit
+  def bimap[K2, V2](k: K => K2, v: V => V2)(
     ck2: AvroCodec[K2],
     cv2: AvroCodec[V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](rdd.map(_.bimap(k, v)), cfg)
+    new CrRdd[F, K2, V2](rdd.map(_.bimap(k, v)), cfg, ck2, cv2)
 
-  def mapValues[V2](v: V => V2)(implicit cv2: AvroCodec[V2]): CrRdd[F, K, V2] =
-    bimap[K, V2](identity, v)
+  def mapValues[V2](v: V => V2)(cv2: AvroCodec[V2]): CrRdd[F, K, V2] =
+    bimap[K, V2](identity, v)(keyCodec, cv2)
 
-  def mapKeys[K2](k: K => K2)(implicit ck2: AvroCodec[K2]): CrRdd[F, K2, V] =
-    bimap(k, identity)
+  def mapKeys[K2](k: K => K2)(ck2: AvroCodec[K2]): CrRdd[F, K2, V] =
+    bimap(k, identity)(ck2, valCodec)
 
-  def flatMap[K2, V2](f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]])(implicit
+  def flatMap[K2, V2](f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]])(
     ck2: AvroCodec[K2],
     cv2: AvroCodec[V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](rdd.flatMap(f), cfg)
+    new CrRdd[F, K2, V2](rdd.flatMap(f), cfg, ck2, cv2)
 
   def filter(f: OptionalKV[K, V] => Boolean): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd.filter(f), cfg)
+    new CrRdd[F, K, V](rdd.filter(f), cfg, keyCodec, valCodec)
 
   def union(other: RDD[OptionalKV[K, V]]): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd.union(other), cfg)
+    new CrRdd[F, K, V](rdd.union(other), cfg, keyCodec, valCodec)
 
   def union(other: CrRdd[F, K, V]): CrRdd[F, K, V] = union(other.rdd)
 
   def dismissNulls: CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd.dismissNulls, cfg)
+    new CrRdd[F, K, V](rdd.dismissNulls, cfg, keyCodec, valCodec)
 
   def inRange(dr: NJDateTimeRange): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd.filter(m => dr.isInBetween(m.timestamp)), cfg.withTimeRange(dr))
+    new CrRdd[F, K, V](
+      rdd.filter(m => dr.isInBetween(m.timestamp)),
+      cfg.withTimeRange(dr),
+      keyCodec,
+      valCodec)
 
   def inRange: CrRdd[F, K, V] = inRange(params.timeRange)
 
@@ -115,11 +120,11 @@ final class CrRdd[F[_], K, V](val rdd: RDD[OptionalKV[K, V]], val cfg: SKConfig)
 
   def replicate(num: Int): CrRdd[F, K, V] = {
     val rep = (1 until num).foldLeft(rdd) { case (r, _) => r.union(rdd) }
-    new CrRdd[F, K, V](rep, cfg)
+    new CrRdd[F, K, V](rep, cfg, keyCodec, valCodec)
   }
 
   def distinct: CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd.distinct(), cfg)
+    new CrRdd[F, K, V](rdd.distinct(), cfg, keyCodec, valCodec)
 
   // pipe
   def pipeTo(otherTopic: KafkaTopic[F, K, V])(implicit
