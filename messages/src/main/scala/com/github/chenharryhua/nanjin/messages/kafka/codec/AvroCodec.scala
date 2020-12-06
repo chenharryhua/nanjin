@@ -51,16 +51,19 @@ final case class AvroCodec[A](
     }
   }
 
+  def at(jsonPath: JsonPath): Either[String, Json] = for {
+    json <- parser.parse(schema.toString()).leftMap(_.message)
+    jsonObject <- jsonPath.obj.getOption(json).toRight("unable to find child schema")
+  } yield Json.fromJsonObject(jsonObject)
+
   /** @param jsonPath path to the child schema
     * @return
     */
   def child[B](
     jsonPath: JsonPath)(implicit dec: AvroDecoder[B], enc: AvroEncoder[B]): AvroCodec[B] = {
     val oa = for {
-      json <- parser.parse(schema.toString()).leftMap(_.message)
-      jsonObject <- jsonPath.obj.getOption(json).toRight("unable to find child schema")
-      sf = AvroCodec.toSchemaFor[B](Json.fromJsonObject(jsonObject).noSpaces)
-      ac <- AvroCodec.build[B](sf, dec, enc)
+      json <- at(jsonPath)
+      ac <- AvroCodec.build[B](AvroCodec.toSchemaFor[B](json.noSpaces), dec, enc)
     } yield ac
     oa match {
       case Left(ex)  => sys.error(ex)
