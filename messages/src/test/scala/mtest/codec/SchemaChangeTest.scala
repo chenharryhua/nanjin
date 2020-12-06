@@ -6,6 +6,7 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData
 import org.scalatest.funsuite.AnyFunSuite
 import shapeless.{:+:, CNil, Coproduct}
+import io.circe.optics.JsonPath.root
 
 object SchemaChangeTestData {
   final case class Nest(a: Int)
@@ -52,7 +53,7 @@ object SchemaChangeTestData {
 }
         """
 
-  val oldSchema: Schema           = (new Schema.Parser).parse(schema)
+  val oldSchema: Schema           = AvroCodec.toSchema(schema)
   val codec: AvroCodec[UnderTest] = AvroCodec[UnderTest](schema).right.get
 }
 
@@ -83,4 +84,12 @@ class SchemaChangeTest extends AnyFunSuite {
     assertThrows[Exception](codec.withNamespace("a.b.-.c"))
   }
 
+  test("child schema") {
+    val schema = AvroCodec.toSchema(
+      """{"type":"record","name":"Nest2","fields":[{"name":"b","type":"string"}]}""")
+    val child = codec.child[Nest2](root.fields.index(1).`type`.index(1))
+    assert(child.schema == schema)
+    val data = Nest2("abc")
+    assert(child.idConversion(data) == data)
+  }
 }
