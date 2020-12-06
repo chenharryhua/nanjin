@@ -218,7 +218,7 @@ val sparkLib = Seq(
 ).map(_ % avro)
 
 val testLib = Seq(
-  "org.typelevel" %% "cats-testkit-scalatest"                 % "2.0.0"   % Test,
+  "org.typelevel" %% "cats-testkit-scalatest"                 % "2.1.0"   % Test,
   "org.typelevel" %% "discipline-scalatest"                   % "2.1.0"   % Test,
   "org.typelevel" %% "cats-laws"                              % catsCore  % Test,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.5"   % Test,
