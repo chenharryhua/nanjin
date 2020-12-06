@@ -11,8 +11,9 @@ import com.sksamuel.avro4s.{
 }
 import eu.timepit.refined.string.MatchesRegex
 import eu.timepit.refined.{refineV, W}
+import io.circe.optics.JsonPath
 import io.circe.optics.JsonPath._
-import io.circe.parser
+import io.circe.{parser, Json}
 import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType
 import org.apache.avro.{Schema, SchemaCompatibility}
 
@@ -42,13 +43,27 @@ final case class AvroCodec[A](
         .map(x => root.namespace.string.set(ns.value)(x))
         .map(_.noSpaces)
         .leftMap(_.getMessage())
-    } yield {
-      val newSchema: Schema = (new Schema.Parser).parse(json)
-      val sf: SchemaFor[A]  = SchemaFor[A](newSchema)
-      AvroCodec[A](sf, avroDecoder.withSchema(sf), avroEncoder.withSchema(sf))
-    }
+      ac <- AvroCodec.build[A](AvroCodec.toSchemaFor[A](json), avroDecoder, avroEncoder)
+    } yield ac
     res match {
-      case Left(ex)  => throw new Exception(ex)
+      case Left(ex)  => sys.error(s"$ex, input namespace: $namespace")
+      case Right(ac) => ac
+    }
+  }
+
+  /** @param jsonPath path to the child schema
+    * @return
+    */
+  def child[B](
+    jsonPath: JsonPath)(implicit dec: AvroDecoder[B], enc: AvroEncoder[B]): AvroCodec[B] = {
+    val oa = for {
+      json <- parser.parse(schema.toString()).leftMap(_.message)
+      jsonObject <- jsonPath.obj.getOption(json).toRight("unable to find child schema")
+      sf = AvroCodec.toSchemaFor[B](Json.fromJsonObject(jsonObject).noSpaces)
+      ac <- AvroCodec.build[B](sf, dec, enc)
+    } yield ac
+    oa match {
+      case Left(ex)  => sys.error(ex)
       case Right(ac) => ac
     }
   }
@@ -59,6 +74,27 @@ final case class AvroCodec[A](
   * both  - (warnings, AvroCodec)
   */
 object AvroCodec {
+
+  def toSchema(jsonStr: String): Schema =
+    (new Schema.Parser).parse(jsonStr)
+
+  def toSchemaFor[A](jsonStr: String): SchemaFor[A] =
+    SchemaFor[A](toSchema(jsonStr))
+
+  def build[A](
+    schemaFor: SchemaFor[A],
+    decoder: AvroDecoder[A],
+    encoder: AvroEncoder[A]): Either[String, AvroCodec[A]] =
+    for {
+      d <-
+        Either
+          .catchNonFatal(DecoderHelpers.buildWithSchema(decoder, schemaFor))
+          .leftMap(_ => "avro4s decline decode schema change")
+      e <-
+        Either
+          .catchNonFatal(EncoderHelpers.buildWithSchema(encoder, schemaFor))
+          .leftMap(_ => "avro4s decline encode schema change")
+    } yield AvroCodec(schemaFor, d, e)
 
   def apply[A](input: Schema)(implicit
     decoder: AvroDecoder[A],
@@ -79,18 +115,8 @@ object AvroCodec {
           Some("write-read incompatiable.")
         else None
 
-      val compat: Option[String]  = rwCompat |+| wrCompat
-      val schemaFor: SchemaFor[A] = SchemaFor[A](input)
-      val esa: Either[String, AvroCodec[A]] = for {
-        d <-
-          Either
-            .catchNonFatal(DecoderHelpers.buildWithSchema(decoder, schemaFor))
-            .leftMap(_ => "avro4s decline decode schema change")
-        e <-
-          Either
-            .catchNonFatal(EncoderHelpers.buildWithSchema(encoder, schemaFor))
-            .leftMap(_ => "avro4s decline encode schema change")
-      } yield AvroCodec(schemaFor, d, e)
+      val compat: Option[String]            = rwCompat |+| wrCompat
+      val esa: Either[String, AvroCodec[A]] = build(SchemaFor[A](input), decoder, encoder)
       Ior.fromEither(esa).flatMap { w =>
         compat.fold[Ior[String, AvroCodec[A]]](Ior.right(w))(warn => Ior.both(warn, w))
       }
@@ -100,10 +126,7 @@ object AvroCodec {
 
   def apply[A: AvroDecoder: AvroEncoder](schemaText: String): Ior[String, AvroCodec[A]] = {
     val codec: Either[String, Ior[String, AvroCodec[A]]] =
-      Try((new Schema.Parser).parse(schemaText))
-        .flatMap(s => Try(apply(s)))
-        .toEither
-        .leftMap(_.getMessage)
+      Try(toSchema(schemaText)).flatMap(s => Try(apply(s))).toEither.leftMap(_.getMessage)
     Ior.fromEither(codec).flatten
   }
 
