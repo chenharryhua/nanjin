@@ -100,8 +100,8 @@ lazy val commonSettings = Seq(
     "-Ywarn-value-discard",
     "-Xfuture"
   ),
-  Test / classLoaderLayeringStrategy  := ClassLoaderLayeringStrategy.Flat,
-  PB.targets in Test                  := Seq(scalapb.gen() -> (sourceManaged in Test).value),
+  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
+  PB.targets in Test                 := Seq(scalapb.gen() -> (sourceManaged in Test).value)
 )
 
 val hadoopLib = Seq(
@@ -165,7 +165,6 @@ val kantanLib = Seq(
   "com.nrinaudo" %% "kantan.csv-cats"
 ).map(_ % kantan) ++ Seq("com.nrinaudo" %% "kantan.codecs" % "0.5.2")
 
-
 val pbLib = Seq(
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.10.9",
   "io.confluent"                              % "kafka-protobuf-serializer" % confluent,
@@ -174,12 +173,12 @@ val pbLib = Seq(
 )
 
 val serdeLib = Seq(
-  "com.sksamuel.avro4s" %% "avro4s-core"      % avro4s,
-  "org.apache.parquet"                        % "parquet-common"            % parquet,
-  "org.apache.parquet"                        % "parquet-hadoop"            % parquet,
-  "org.apache.parquet"                        % "parquet-avro"              % parquet,
-  "org.apache.avro"                           % "avro"                      % avro,
-  "io.confluent"                              % "kafka-streams-avro-serde"  % confluent
+  "com.sksamuel.avro4s" %% "avro4s-core" % avro4s,
+  "org.apache.parquet"                   % "parquet-common"           % parquet,
+  "org.apache.parquet"                   % "parquet-hadoop"           % parquet,
+  "org.apache.parquet"                   % "parquet-avro"             % parquet,
+  "org.apache.avro"                      % "avro"                     % avro,
+  "io.confluent"                         % "kafka-streams-avro-serde" % confluent
 ) ++ jacksonLib ++ circeLib ++ pbLib
 
 val fs2Lib = Seq(
@@ -318,8 +317,8 @@ val logLib = Seq(
 )
 
 val ftpLib = Seq(
-  "commons-net" % "commons-net" % "3.7.2",
-  "com.hierynomus" % "sshj" % "0.30.0",
+  "commons-net"                                     % "commons-net" % "3.7.2",
+  "com.hierynomus"                                  % "sshj"        % "0.30.0",
   "com.lightbend.akka" %% "akka-stream-alpakka-ftp" % akkaFtp
 )
 
