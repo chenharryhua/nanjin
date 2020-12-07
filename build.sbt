@@ -29,7 +29,7 @@ val catsEffect = "2.3.0"
 val akka26     = "2.6.10"
 
 // kafka
-val confltKafka = "6.0.0-ce"
+val confltKafka = "6.0.1-ce"
 val confluent   = "6.0.1"
 val akkaKafka   = "2.0.5"
 val fs2Kafka    = "1.1.0"
@@ -391,7 +391,7 @@ lazy val spark = (project in file("spark"))
       "com.github.pathikrit" %% "better-files" % betterFiles,
       // for spark
       "io.getquill" %% "quill-spark"               % quill,
-      "com.thesamet.scalapb" %% "sparksql-scalapb" % "0.10.4",
+      "com.thesamet.scalapb" %% "sparksql-scalapb" % "0.11.0-RC1",
       // override dependency
       "io.netty"                               % "netty"      % "3.10.6.Final",
       "io.netty"                               % "netty-all"  % "4.1.54.Final",
