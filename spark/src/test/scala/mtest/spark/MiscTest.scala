@@ -55,7 +55,7 @@ class MiscTest extends AnyFunSuite {
 
   }
 
-  ignore("typed encoder of scalapb generate case class") {
+  test("typed encoder of scalapb generate case class") {
     import scalapb.spark.Implicits._
     val pt: TypedEncoder[Whale] = TypedEncoder[Whale] // should compile
     val whales = List(
@@ -63,7 +63,7 @@ class MiscTest extends AnyFunSuite {
       Whale("bbb", Random.nextInt()),
       Whale("ccc", Random.nextInt())
     )
-    val path = "./data/test/spark/protobuf/whales.json"
+    val path = "./data/test/spark/protobuf/whales.pb"
     TypedDataset.create(whales).write.mode(SaveMode.Overwrite).parquet(path)
     val rst =
       TypedDataset
