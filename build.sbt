@@ -102,7 +102,6 @@ lazy val commonSettings = Seq(
   ),
   Test / classLoaderLayeringStrategy  := ClassLoaderLayeringStrategy.Flat,
   PB.targets in Test                  := Seq(scalapb.gen() -> (sourceManaged in Test).value),
-  bloopExportJarClassifiers in Global := Some(Set("sources"))
 )
 
 val hadoopLib = Seq(
@@ -166,19 +165,22 @@ val kantanLib = Seq(
   "com.nrinaudo" %% "kantan.csv-cats"
 ).map(_ % kantan) ++ Seq("com.nrinaudo" %% "kantan.codecs" % "0.5.2")
 
+
+val pbLib = Seq(
+  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.10.9",
+  "io.confluent"                              % "kafka-protobuf-serializer" % confluent,
+  "com.google.protobuf"                       % "protobuf-java"             % "3.14.0",
+  "com.google.protobuf"                       % "protobuf-java-util"        % "3.14.0"
+)
+
 val serdeLib = Seq(
+  "com.sksamuel.avro4s" %% "avro4s-core"      % avro4s,
   "org.apache.parquet"                        % "parquet-common"            % parquet,
   "org.apache.parquet"                        % "parquet-hadoop"            % parquet,
   "org.apache.parquet"                        % "parquet-avro"              % parquet,
   "org.apache.avro"                           % "avro"                      % avro,
-  "io.confluent"                              % "kafka-streams-avro-serde"  % confluent,
-  "io.confluent"                              % "kafka-protobuf-serializer" % confluent,
-  "com.sksamuel.avro4s" %% "avro4s-core"      % avro4s,
-  "io.higherkindness" %% "skeuomorph"         % "0.0.27",
-  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.10.9",
-  "com.google.protobuf"                       % "protobuf-java"             % "3.14.0",
-  "com.google.protobuf"                       % "protobuf-java-util"        % "3.14.0"
-) ++ jacksonLib ++ circeLib
+  "io.confluent"                              % "kafka-streams-avro-serde"  % confluent
+) ++ jacksonLib ++ circeLib ++ pbLib
 
 val fs2Lib = Seq(
   "co.fs2" %% "fs2-core",
