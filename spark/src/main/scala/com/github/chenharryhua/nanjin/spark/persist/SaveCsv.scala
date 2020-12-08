@@ -48,7 +48,8 @@ final class SaveCsv[F[_], A](
     ss: SparkSession,
     rowEncoder: RowEncoder[A]): F[Unit] = {
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
-    val ccg                   = params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
+    val ccg: CompressionCodecGroup[F] =
+      params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
         val hadoop = NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)

@@ -43,8 +43,8 @@ final class SaveText[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConf
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
-        val hadoop = NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)
-        val pipe   = new TextSerialization[F]
+        val hadoop: NJHadoop[F]        = NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)
+        val pipe: TextSerialization[F] = new TextSerialization[F]
         sma.checkAndRun(blocker)(
           rdd
             .stream[F]

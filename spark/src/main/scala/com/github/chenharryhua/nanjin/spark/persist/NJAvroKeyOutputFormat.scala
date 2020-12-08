@@ -20,12 +20,12 @@ final class NJAvroKeyOutputFormat
     extends AvroOutputFormatBase[AvroKey[GenericRecord], NullWritable] {
 
   private def fileOutputStream(context: TaskAttemptContext): OutputStream = {
-    val workPath = getOutputCommitter(context) match {
+    val workPath: Path = getOutputCommitter(context) match {
       case c: FileOutputCommitter  => c.getWorkPath
       case s: AbstractS3ACommitter => s.getWorkPath
       case ex                      => throw new Exception(s"not support: ${ex.toString}")
     }
-    val compression = getCompressionCodec(context).toString
+    val compression: String = getCompressionCodec(context).toString
     val path: Path =
       new Path(
         workPath,
@@ -39,10 +39,10 @@ final class NJAvroKeyOutputFormat
 
   override def getRecordWriter(
     context: TaskAttemptContext): RecordWriter[AvroKey[GenericRecord], NullWritable] = {
-    val schema: Schema    = AvroJob.getOutputKeySchema(context.getConfiguration)
-    val out: OutputStream = fileOutputStream(context)
-    val compression       = getCompressionCodec(context)
-    val syncInterval      = getSyncInterval(context)
+    val schema: Schema            = AvroJob.getOutputKeySchema(context.getConfiguration)
+    val out: OutputStream         = fileOutputStream(context)
+    val compression: CodecFactory = getCompressionCodec(context)
+    val syncInterval: Int         = getSyncInterval(context)
     new AvroKeyRecordWriter(schema, out, compression, syncInterval)
   }
 }

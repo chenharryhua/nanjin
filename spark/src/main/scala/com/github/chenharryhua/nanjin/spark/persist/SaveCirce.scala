@@ -42,12 +42,13 @@ final class SaveCirce[F[_], A](
     tag: ClassTag[A]): F[Unit] = {
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
 
-    val ccg = params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
+    val ccg: CompressionCodecGroup[F] =
+      params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
-        val hadoop = NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)
-        val pipe   = new CirceSerialization[F, A]
+        val hadoop: NJHadoop[F]            = NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)
+        val pipe: CirceSerialization[F, A] = new CirceSerialization[F, A]
         sma.checkAndRun(blocker)(
           rdd
             .map(codec.idConversion)

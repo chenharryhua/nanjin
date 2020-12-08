@@ -6,8 +6,10 @@ import org.apache.avro.generic.{GenericDatumWriter, GenericRecord}
 import org.apache.avro.io.{EncoderFactory, JsonEncoder}
 import org.apache.avro.mapred.AvroKey
 import org.apache.avro.mapreduce.{AvroJob, AvroOutputFormatBase}
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.{FSDataOutputStream, FileSystem, Path}
 import org.apache.hadoop.io.NullWritable
-import org.apache.hadoop.io.compress.GzipCodec
+import org.apache.hadoop.io.compress.{CompressionCodec, GzipCodec}
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat.{
   getCompressOutput,
   getOutputCompressorClass
@@ -22,23 +24,24 @@ final class NJJacksonKeyOutputFormat
 
   override def getRecordWriter(
     job: TaskAttemptContext): RecordWriter[AvroKey[GenericRecord], NullWritable] = {
-    val suffix         = NJFileFormat.Jackson.suffix
-    val schema: Schema = AvroJob.getOutputKeySchema(job.getConfiguration)
-    val conf           = job.getConfiguration
-    val isCompressed   = getCompressOutput(job)
+    val suffix: String        = NJFileFormat.Jackson.suffix
+    val schema: Schema        = AvroJob.getOutputKeySchema(job.getConfiguration)
+    val conf: Configuration   = job.getConfiguration
+    val isCompressed: Boolean = getCompressOutput(job)
     if (isCompressed) {
-      val codecClass = getOutputCompressorClass(job, classOf[GzipCodec])
-      val codec      = ReflectionUtils.newInstance(codecClass, conf)
-      val ext        = suffix + codec.getDefaultExtension
-      val file       = getDefaultWorkFile(job, ext)
-      val fs         = file.getFileSystem(conf)
-      val fileOut    = fs.create(file, false)
-      val out        = new DataOutputStream(codec.createOutputStream(fileOut))
+      val codecClass: Class[_ <: CompressionCodec] =
+        getOutputCompressorClass(job, classOf[GzipCodec])
+      val codec: CompressionCodec     = ReflectionUtils.newInstance(codecClass, conf)
+      val ext: String                 = suffix + codec.getDefaultExtension
+      val file: Path                  = getDefaultWorkFile(job, ext)
+      val fs: FileSystem              = file.getFileSystem(conf)
+      val fileOut: FSDataOutputStream = fs.create(file, false)
+      val out: DataOutputStream       = new DataOutputStream(codec.createOutputStream(fileOut))
       new JacksonKeyRecordWriter(schema, out)
     } else {
-      val file = getDefaultWorkFile(job, suffix)
-      val fs   = file.getFileSystem(conf)
-      val out  = fs.create(file, false)
+      val file: Path              = getDefaultWorkFile(job, suffix)
+      val fs: FileSystem          = file.getFileSystem(conf)
+      val out: FSDataOutputStream = fs.create(file, false)
       new JacksonKeyRecordWriter(schema, out)
     }
   }

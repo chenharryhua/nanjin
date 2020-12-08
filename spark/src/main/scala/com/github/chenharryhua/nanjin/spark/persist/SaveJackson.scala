@@ -34,7 +34,8 @@ final class SaveJackson[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderC
     ss: SparkSession,
     tag: ClassTag[A]): F[Unit] = {
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
-    val ccg                   = params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
+    val ccg: CompressionCodecGroup[F] =
+      params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
         val hadoop = NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)

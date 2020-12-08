@@ -32,19 +32,20 @@ final class SaveProtobuf[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: Hoarder
     tag: ClassTag[A]): F[Unit] = {
 
     def bytesWritable(a: A): BytesWritable = {
-      val os = new ByteArrayOutputStream()
+      val os: ByteArrayOutputStream = new ByteArrayOutputStream()
       enc(a).writeDelimitedTo(os)
       os.close()
       new BytesWritable(os.toByteArray)
     }
 
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
-    val ccg                   = params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
+    val ccg: CompressionCodecGroup[F] =
+      params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
-        val hadoop = NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)
-        val pipe   = new DelimitedProtoBufSerialization[F]
+        val hadoop: NJHadoop[F]                     = NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)
+        val pipe: DelimitedProtoBufSerialization[F] = new DelimitedProtoBufSerialization[F]
 
         sma.checkAndRun(blocker)(
           rdd

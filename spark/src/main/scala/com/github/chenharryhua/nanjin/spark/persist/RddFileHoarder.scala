@@ -37,8 +37,8 @@ final class RddFileHoarder[F[_], A](
       isKeepNull = true)
 
 // 3
-  def text(outPath: String, suffix: String = NJFileFormat.Text.suffix): SaveText[F, A] =
-    new SaveText[F, A](rdd, codec, cfg.withFormat(Text).withOutPutPath(outPath), suffix)
+  def text(outPath: String): SaveText[F, A] =
+    new SaveText[F, A](rdd, codec, cfg.withFormat(Text).withOutPutPath(outPath), Text.suffix)
 
 // 4
   def csv(outPath: String)(implicit te: TypedEncoder[A]): SaveCsv[F, A] = {
