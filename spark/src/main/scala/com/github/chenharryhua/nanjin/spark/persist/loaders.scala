@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.google.protobuf.CodedInputStream
 import com.sksamuel.avro4s.AvroInputStream
 import frameless.TypedDataset
 import frameless.cats.implicits._
@@ -19,7 +18,9 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
+import java.io.DataInputStream
 import scala.reflect.ClassTag
+import scala.util.Try
 
 object loaders {
 
@@ -90,12 +91,11 @@ object loaders {
       ss.sparkContext
         .binaryFiles(pathStr)
         .mapPartitions(_.flatMap { case (_, pds) =>
-          val is   = pds.open()
-          val cis  = CodedInputStream.newInstance(is)
-          val iter = decoder.parseDelimitedFrom(cis)
+          val dis: DataInputStream = pds.open()
+          val itor: Iterator[A]    = decoder.streamFromDelimitedInput(dis).toIterator
           new Iterator[A] {
-            override def hasNext: Boolean = if (iter.isDefined) true else { is.close(); false }
-            override def next(): A        = iter.get
+            override def hasNext: Boolean = if (itor.hasNext) true else { Try(dis.close()); false }
+            override def next(): A        = itor.next()
           }
         })
 
@@ -120,12 +120,12 @@ object loaders {
       ss.sparkContext
         .binaryFiles(pathStr)
         .mapPartitions(_.flatMap { case (_, pds) => // resource leak ???
-          val is = pds.open()
-          val iter =
-            AvroInputStream.binary[A](codec.avroDecoder).from(is).build(codec.schema).iterator
+          val dis: DataInputStream = pds.open()
+          val itor: Iterator[A] =
+            AvroInputStream.binary[A](codec.avroDecoder).from(dis).build(codec.schema).iterator
           new Iterator[A] {
-            override def hasNext: Boolean = if (iter.hasNext) true else { is.close(); false }
-            override def next(): A        = iter.next()
+            override def hasNext: Boolean = if (itor.hasNext) true else { Try(dis.close()); false }
+            override def next(): A        = itor.next()
           }
         })
 

@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import java.io.{DataOutputStream, OutputStream}
-
+import com.github.chenharryhua.nanjin.common.NJFileFormat
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericDatumWriter, GenericRecord}
 import org.apache.avro.io.{EncoderFactory, JsonEncoder}
@@ -16,12 +15,14 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat.{
 import org.apache.hadoop.mapreduce.{RecordWriter, TaskAttemptContext}
 import org.apache.hadoop.util.ReflectionUtils
 
+import java.io.{DataOutputStream, OutputStream}
+
 final class NJJacksonKeyOutputFormat
     extends AvroOutputFormatBase[AvroKey[GenericRecord], NullWritable] {
 
   override def getRecordWriter(
     job: TaskAttemptContext): RecordWriter[AvroKey[GenericRecord], NullWritable] = {
-    val suffix         = ".jackson.json"
+    val suffix         = NJFileFormat.Jackson.suffix
     val schema: Schema = AvroJob.getOutputKeySchema(job.getConfiguration)
     val conf           = job.getConfiguration
     val isCompressed   = getCompressOutput(job)

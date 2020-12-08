@@ -23,6 +23,5 @@ object JacketData {
 
   val expected: List[Jacket] =
     List.fill(10)(Jacket(Random.nextInt, KJson(Neck(0, parse(""" {"a":"a","b":1} """).right.get))))
-  val rdd: RDD[Jacket]         = sparkSession.sparkContext.parallelize(expected)
-  val ds: TypedDataset[Jacket] = Jacket.ate.normalize(rdd)
+  val rdd: RDD[Jacket] = sparkSession.sparkContext.parallelize(expected)
 }
