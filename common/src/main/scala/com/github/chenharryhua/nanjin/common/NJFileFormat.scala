@@ -1,4 +1,5 @@
 package com.github.chenharryhua.nanjin.common
+
 import enumeratum.values.{CatsOrderValueEnum, IntEnum, IntEnumEntry}
 import monocle.Prism
 import monocle.generic.coproduct.coProductPrism
@@ -9,6 +10,7 @@ import scala.collection.immutable
 sealed abstract class NJFileFormat(val value: Int, val format: String, val alias: String)
     extends IntEnumEntry with Serializable {
   final override def toString: String = format
+  final def suffix: String            = s".${alias}.${format}"
 }
 
 object NJFileFormat extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[NJFileFormat] {

@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
+import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.common.NJFileFormat._
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
@@ -36,8 +37,8 @@ final class RddFileHoarder[F[_], A](
       isKeepNull = true)
 
 // 3
-  def text(outPath: String): SaveText[F, A] =
-    new SaveText[F, A](rdd, codec, cfg.withFormat(Text).withOutPutPath(outPath), ".txt")
+  def text(outPath: String, suffix: String = NJFileFormat.Text.suffix): SaveText[F, A] =
+    new SaveText[F, A](rdd, codec, cfg.withFormat(Text).withOutPutPath(outPath), suffix)
 
 // 4
   def csv(outPath: String)(implicit te: TypedEncoder[A]): SaveCsv[F, A] = {

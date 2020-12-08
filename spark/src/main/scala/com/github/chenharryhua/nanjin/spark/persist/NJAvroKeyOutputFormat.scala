@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import java.io.OutputStream
-
+import com.github.chenharryhua.nanjin.common.NJFileFormat
 import org.apache.avro.Schema
 import org.apache.avro.file.{CodecFactory, DataFileWriter}
 import org.apache.avro.generic.{GenericDatumWriter, GenericRecord}
@@ -13,6 +12,8 @@ import org.apache.hadoop.fs.s3a.commit.AbstractS3ACommitter
 import org.apache.hadoop.io.NullWritable
 import org.apache.hadoop.mapreduce.lib.output.{FileOutputCommitter, FileOutputFormat}
 import org.apache.hadoop.mapreduce.{RecordWriter, TaskAttemptContext}
+
+import java.io.OutputStream
 
 // avro build-in(AvroKeyOutputFormat) does not support s3, yet
 final class NJAvroKeyOutputFormat
@@ -31,7 +32,7 @@ final class NJAvroKeyOutputFormat
         FileOutputFormat.getUniqueFile(
           context,
           s"${context.getTaskAttemptID.getJobID.toString}.$compression",
-          ".avro"))
+          NJFileFormat.Avro.suffix))
 
     path.getFileSystem(context.getConfiguration).create(path)
   }

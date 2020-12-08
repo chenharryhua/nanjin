@@ -56,7 +56,7 @@ final class SaveProtobuf[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: Hoarder
             .drain)
 
       case FolderOrFile.Folder =>
-        ss.sparkContext.hadoopConfiguration.set(NJBinaryOutputFormat.suffix, ".pb")
+        ss.sparkContext.hadoopConfiguration.set(NJBinaryOutputFormat.suffix, params.format.suffix)
         sma.checkAndRun(blocker)(
           F.delay(
             rdd

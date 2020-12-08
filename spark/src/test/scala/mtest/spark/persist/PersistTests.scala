@@ -5,6 +5,7 @@ import org.scalatest.Sequential
 class PersistTests
     extends Sequential(
       new AvroTest,
+      new BinAvroTest,
       new ParquetTest,
       new CirceTest,
       new JacksonTest,
