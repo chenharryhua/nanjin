@@ -22,7 +22,7 @@ class BinAvroTest extends AnyFunSuite {
     import RoosterData._
     val path  = "./data/test/spark/persist/bin_avro/single.bin.avro"
     val saver = new RddFileHoarder[IO, Rooster](rdd, Rooster.avroCodec)
-    saver.repartition(1).binAvro(path).file.run(blocker).unsafeRunSync()
+    saver.repartition(2).binAvro(path).file.run(blocker).unsafeRunSync()
     val r = loaders.rdd.binAvro[Rooster](path, Rooster.avroCodec).collect().toSet
     val t = loaders.binAvro[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
     assert(expected == r)
