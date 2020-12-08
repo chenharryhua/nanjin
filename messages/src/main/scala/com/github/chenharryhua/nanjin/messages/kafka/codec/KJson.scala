@@ -33,7 +33,7 @@ object KJson {
   def apply[A](a: A): KJson[A] = new KJson[A](a)
 
   implicit def showKafkaJson[A: JsonEncoder]: Show[KJson[A]] =
-    (t: KJson[A]) => s"""KJson(${Option(t.value).map(_.asJson.noSpaces).getOrElse("null")})"""
+    (t: KJson[A]) => s"""KJson(value=${Option(t.value).map(_.asJson.noSpaces).getOrElse("null")})"""
 
   implicit def eqKJson[A: Eq]: Eq[KJson[A]] = (x: KJson[A], y: KJson[A]) =>
     Eq[A].eqv(x.value, y.value)

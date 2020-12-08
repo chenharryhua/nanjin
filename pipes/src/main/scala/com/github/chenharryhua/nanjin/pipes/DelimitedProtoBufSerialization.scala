@@ -21,8 +21,7 @@ final class DelimitedProtoBufSerialization[F[_]] extends Serializable {
     ce: ConcurrentEffect[F],
     gmc: GeneratedMessageCompanion[A]): Pipe[F, Byte, A] =
     _.through(toInputStream[F]).flatMap { is =>
-      val cis = CodedInputStream.newInstance(is)
-      Stream.repeatEval(ConcurrentEffect[F].delay(gmc.parseDelimitedFrom(cis))).unNoneTerminate
+      Stream.fromIterator(gmc.streamFromDelimitedInput(is).toIterator)
     }
 }
 

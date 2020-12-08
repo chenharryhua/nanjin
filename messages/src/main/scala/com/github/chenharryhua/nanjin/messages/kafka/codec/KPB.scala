@@ -1,18 +1,31 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
-import com.google.protobuf.{CodedOutputStream, DynamicMessage}
+import cats.Show
+import cats.kernel.Eq
+import com.google.protobuf.{CodedInputStream, CodedOutputStream, Descriptors, DynamicMessage}
 import com.sksamuel.avro4s.{Codec, FieldMapper, SchemaFor}
 import io.confluent.kafka.serializers.protobuf.{KafkaProtobufDeserializer, KafkaProtobufSerializer}
 import org.apache.avro.Schema
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
-import scalapb.descriptors.{FieldDescriptor, PValue}
-import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
+import scalapb.descriptors.{Descriptor, FieldDescriptor, PValue, Reads}
+import scalapb.{GeneratedEnumCompanion, GeneratedMessage, GeneratedMessageCompanion}
 
 import java.util
 
 // kafka protobuf
 final class KPB[A <: GeneratedMessage] private (val value: A)
     extends GeneratedMessage with Serializable {
+  // equality
+  def canEqual(a: Any): Boolean = a.isInstanceOf[KPB[A]]
+
+  override def equals(that: Any): Boolean =
+    that match {
+      case that: KPB[A] => that.canEqual(this) && this.value == that.value
+      case _            => false
+    }
+  override def hashCode: Int = value.hashCode()
+
+  // override GeneratedMessage
   override def writeTo(output: CodedOutputStream): Unit = value.writeTo(output)
   override def getFieldByNumber(fieldNumber: Int): Any  = value.getFieldByNumber(fieldNumber)
   override def getField(field: FieldDescriptor): PValue = value.getField(field)
@@ -24,10 +37,37 @@ final class KPB[A <: GeneratedMessage] private (val value: A)
 object KPB {
   def apply[A <: GeneratedMessage](a: A): KPB[A] = new KPB(a)
 
-  implicit def kpbSchemaFor[A <: GeneratedMessage]: SchemaFor[KPB[A]] = new SchemaFor[KPB[A]] {
-    override def schema: Schema           = SchemaFor[Array[Byte]].schema
-    override def fieldMapper: FieldMapper = SchemaFor[Array[Byte]].fieldMapper
-  }
+  implicit def eqKPB[A <: GeneratedMessage: Eq]: Eq[KPB[A]] = (x: KPB[A], y: KPB[A]) =>
+    Eq[A].eqv(x.value, y.value)
+
+  implicit def showKPB[A <: GeneratedMessage: Show]: Show[KPB[A]] =
+    (t: KPB[A]) => s"KPB(value=${Show[A].show(t.value)})"
+
+  implicit def kbpCompanion[A <: GeneratedMessage](implicit
+    ev: GeneratedMessageCompanion[A]): GeneratedMessageCompanion[KPB[A]] =
+    new GeneratedMessageCompanion[KPB[A]] with Serializable {
+
+      override def merge(a: KPB[A], input: CodedInputStream): KPB[A] = KPB(ev.merge(a.value, input))
+      override def javaDescriptor: Descriptors.Descriptor            = ev.javaDescriptor
+      override def scalaDescriptor: Descriptor                       = ev.scalaDescriptor
+
+      override def nestedMessagesCompanions: Seq[GeneratedMessageCompanion[_ <: GeneratedMessage]] =
+        ev.nestedMessagesCompanions
+      override def messageReads: Reads[KPB[A]] = Reads(pv => KPB(ev.messageReads.read(pv)))
+
+      override def messageCompanionForFieldNumber(field: Int): GeneratedMessageCompanion[_] =
+        ev.messageCompanionForFieldNumber(field)
+
+      override def enumCompanionForFieldNumber(field: Int): GeneratedEnumCompanion[_] =
+        ev.enumCompanionForFieldNumber(field)
+      override def defaultInstance: KPB[A] = KPB(ev.defaultInstance)
+    }
+
+  implicit def kpbSchemaFor[A <: GeneratedMessage]: SchemaFor[KPB[A]] =
+    new SchemaFor[KPB[A]] {
+      override def schema: Schema           = SchemaFor[Array[Byte]].schema
+      override def fieldMapper: FieldMapper = SchemaFor[Array[Byte]].fieldMapper
+    }
 
   implicit def kpbCodec[A <: GeneratedMessage](implicit
     ev: GeneratedMessageCompanion[A]): Codec[KPB[A]] = new Codec[KPB[A]] {

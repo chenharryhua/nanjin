@@ -10,5 +10,6 @@ class PersistTests
       new JacksonTest,
       new JsonTest,
       new CsvTest,
-      new TextTest
+      new TextTest,
+      new ProtobufTest
     )
