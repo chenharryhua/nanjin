@@ -28,7 +28,7 @@ final class SaveBinaryAvro[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: Hoard
     cs: ContextShift[F],
     ss: SparkSession,
     tag: ClassTag[A]): F[Unit] = {
-    def bytesWritable(a: A) = {
+    def bytesWritable(a: A): BytesWritable = {
       val os  = new ByteArrayOutputStream()
       val aos = AvroOutputStream.binary(codec.avroEncoder).to(os).build()
       aos.write(a)
