@@ -8,9 +8,6 @@ import org.apache.spark.sql.Dataset
 
 final class RddFileHoarder[F[_], A] private (rdd: RDD[A], cfg: HoarderConfig) extends Serializable {
 
-  private def updateConfig(cfg: HoarderConfig): RddFileHoarder[F, A] =
-    new RddFileHoarder[F, A](rdd, cfg)
-
 // 1
   def circe: SaveCirce[F, A] =
     new SaveCirce[F, A](rdd, cfg.withFormat(Circe), isKeepNull = true)
@@ -40,9 +37,6 @@ final class AvroFileHoarder[F[_], A] private (
   encoder: AvroEncoder[A])
     extends Serializable {
 
-  private def updateConfig(cfg: HoarderConfig): AvroFileHoarder[F, A] =
-    new AvroFileHoarder[F, A](rdd, cfg, encoder)
-
 // 1
   def jackson: SaveJackson[F, A] =
     new SaveJackson[F, A](rdd, encoder, cfg.withFormat(Jackson))
@@ -65,9 +59,6 @@ object AvroFileHoarder {
 
 final class DatasetFileHoarder[F[_], A] private (ds: Dataset[A], cfg: HoarderConfig)
     extends Serializable {
-
-  private def updateConfig(cfg: HoarderConfig): DatasetFileHoarder[F, A] =
-    new DatasetFileHoarder[F, A](ds, cfg)
 
 // 1
   def csv: SaveCsv[F, A] =

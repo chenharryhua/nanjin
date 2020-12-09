@@ -34,6 +34,9 @@ final class TableDataset[F[_], A](
 
   def typedDataset: TypedDataset[A] = ate.normalize(dataset)
 
+  def normalize: TableDataset[F, A] =
+    new TableDataset[F, A](typedDataset.dataset, dbSettings, cfg, ate)
+
   def count(implicit F: Sync[F]): F[Long] = F.delay(dataset.count())
 
   def upload: DbUploader[F, A] = new DbUploader[F, A](dataset, dbSettings, ate, cfg)
