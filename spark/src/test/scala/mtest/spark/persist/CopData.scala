@@ -26,4 +26,5 @@ object CopData {
   )
 
   val cpRDD: RDD[CpCop] = sparkSession.sparkContext.parallelize(cpCops)
+
 }

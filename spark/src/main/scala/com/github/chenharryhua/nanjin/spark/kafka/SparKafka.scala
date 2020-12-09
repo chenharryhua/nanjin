@@ -12,6 +12,7 @@ import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.StreamingContext
+import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
 
 trait SparKafkaUpdateParams[A] extends UpdateParams[SKConfig, A] with Serializable {
   def params: SKParams
@@ -46,7 +47,7 @@ final class SparKafka[F[_], K, V](
     */
   def dump(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
     Blocker[F].use(blocker =>
-      fromKafka.flatMap(_.save.overwrite.objectFile(params.replayPath).run(blocker)))
+      fromKafka.flatMap(_.save.objectFile(params.replayPath).overwrite.run(blocker)))
 
   def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
     fromDisk.pipeTo(topic)

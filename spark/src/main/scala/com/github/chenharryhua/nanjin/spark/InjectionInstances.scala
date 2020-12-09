@@ -1,14 +1,13 @@
 package com.github.chenharryhua.nanjin.spark
 
 import cats.Order
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, KPB}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.KJson
 import frameless.{Injection, SQLDate, SQLTimestamp}
 import io.circe.Decoder.Result
 import io.circe.parser.decode
 import io.circe.syntax._
 import io.circe.{Codec, HCursor, Json, Decoder => JsonDecoder, Encoder => JsonEncoder}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
-import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 import shapeless.Witness
 
 import java.sql.{Date, Timestamp}
@@ -69,13 +68,6 @@ private[spark] trait InjectionInstances extends Serializable {
         case Right(r) => r
         case Left(ex) => throw ex
       }
-    }
-
-  implicit def kpbInjection[A <: GeneratedMessage](implicit
-    ev: GeneratedMessageCompanion[A]): Injection[KPB[A], Array[Byte]] =
-    new Injection[KPB[A], Array[Byte]] {
-      override def apply(a: KPB[A]): Array[Byte]  = a.value.toByteArray
-      override def invert(b: Array[Byte]): KPB[A] = KPB(ev.parseFrom(b))
     }
 
   implicit val timestampCirceCodec: Codec[Timestamp] = new Codec[Timestamp] {

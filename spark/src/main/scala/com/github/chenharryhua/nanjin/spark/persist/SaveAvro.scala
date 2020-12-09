@@ -15,13 +15,17 @@ import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
 
-final class SaveAvro[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConfig)
+final class SaveAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderConfig)
     extends Serializable {
 
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveAvro[F, A] =
-    new SaveAvro[F, A](rdd, codec, cfg)
+    new SaveAvro[F, A](rdd, encoder, cfg)
+
+  def overwrite: SaveAvro[F, A]      = updateConfig(cfg.withOverwrite)
+  def errorIfExists: SaveAvro[F, A]  = updateConfig(cfg.withError)
+  def ignoreIfExists: SaveAvro[F, A] = updateConfig(cfg.withIgnore)
 
   def file: SaveAvro[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveAvro[F, A] = updateConfig(cfg.withFolder)
@@ -54,17 +58,17 @@ final class SaveAvro[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConf
         sma.checkAndRun(blocker)(
           rdd
             .stream[F]
-            .through(pipe.encode(codec.avroEncoder))
-            .through(hadoop.avroSink(params.outPath, codec.schema, cf))
+            .through(pipe.encode(encoder))
+            .through(hadoop.avroSink(params.outPath, encoder.schema, cf))
             .compile
             .drain)
       case FolderOrFile.Folder =>
         val sparkjob = F.delay {
           val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
-          AvroJob.setOutputKeySchema(job, codec.schema)
+          AvroJob.setOutputKeySchema(job, encoder.schema)
           ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
           utils
-            .genericRecordPair(rdd.map(codec.idConversion), codec.avroEncoder)
+            .genericRecordPair(rdd, encoder)
             .saveAsNewAPIHadoopFile[NJAvroKeyOutputFormat](params.outPath)
         }
         sma.checkAndRun(blocker)(sparkjob)

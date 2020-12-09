@@ -3,26 +3,18 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.effect.{Blocker, Concurrent, ContextShift}
 import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.pipes.CsvSerialization
-import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt}
+import com.github.chenharryhua.nanjin.spark.RddExt
 import kantan.csv.CsvConfiguration.QuotePolicy
 import kantan.csv.{CsvConfiguration, RowEncoder}
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{SaveMode, SparkSession}
+import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
 
-import scala.reflect.ClassTag
-
-final class SaveCsv[F[_], A](
-  rdd: RDD[A],
-  ate: AvroTypedEncoder[A],
-  csvConfiguration: CsvConfiguration,
-  cfg: HoarderConfig)
+final class SaveCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfiguration, cfg: HoarderConfig)
     extends Serializable {
-  implicit private val tag: ClassTag[A] = ate.classTag
 
   val params: HoarderParams = cfg.evalConfig
 
   def updateCsvConfig(f: CsvConfiguration => CsvConfiguration): SaveCsv[F, A] =
-    new SaveCsv[F, A](rdd, ate, f(csvConfiguration), cfg)
+    new SaveCsv[F, A](ds, f(csvConfiguration), cfg)
 
   def withHeader: SaveCsv[F, A]                    = updateCsvConfig(_.withHeader)
   def withoutHeader: SaveCsv[F, A]                 = updateCsvConfig(_.withoutHeader)
@@ -32,7 +24,11 @@ final class SaveCsv[F[_], A](
   def withCellSeparator(char: Char): SaveCsv[F, A] = updateCsvConfig(_.withCellSeparator(char))
 
   private def updateConfig(cfg: HoarderConfig): SaveCsv[F, A] =
-    new SaveCsv[F, A](rdd, ate, csvConfiguration, cfg)
+    new SaveCsv[F, A](ds, csvConfiguration, cfg)
+
+  def overwrite: SaveCsv[F, A]      = updateConfig(cfg.withOverwrite)
+  def errorIfExists: SaveCsv[F, A]  = updateConfig(cfg.withError)
+  def ignoreIfExists: SaveCsv[F, A] = updateConfig(cfg.withIgnore)
 
   def file: SaveCsv[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveCsv[F, A] = updateConfig(cfg.withFolder)
@@ -48,21 +44,21 @@ final class SaveCsv[F[_], A](
     ss: SparkSession,
     rowEncoder: RowEncoder[A]): F[Unit] = {
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
-    val ccg                   = params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
+    val ccg: CompressionCodecGroup[F] =
+      params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
         val hadoop = NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)
 
         val csvConf =
           if (csvConfiguration.hasHeader)
-            csvConfiguration.withHeader(ate.sparkEncoder.schema.fieldNames: _*)
+            csvConfiguration.withHeader(ds.schema.fieldNames: _*)
           else csvConfiguration
 
         val pipe = new CsvSerialization[F, A](csvConf)
 
         sma.checkAndRun(blocker)(
-          rdd
-            .map(ate.avroCodec.idConversion)
+          ds.rdd
             .stream[F]
             .through(pipe.serialize(blocker))
             .through(ccg.compressionPipe)
@@ -76,9 +72,7 @@ final class SaveCsv[F[_], A](
           case QuotePolicy.WhenNeeded => false
         }
         val csv = F.delay(
-          ate
-            .normalize(rdd)
-            .write
+          ds.write
             .mode(SaveMode.Overwrite)
             .option("compression", ccg.name)
             .option("sep", csvConfiguration.cellSeparator.toString)

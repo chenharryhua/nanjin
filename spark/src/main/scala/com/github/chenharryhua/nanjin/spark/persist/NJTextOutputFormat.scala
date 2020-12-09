@@ -1,9 +1,11 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.{FSDataOutputStream, FileSystem, Path}
+
 import java.io.DataOutputStream
 import java.nio.charset.StandardCharsets
-
-import org.apache.hadoop.io.compress.GzipCodec
+import org.apache.hadoop.io.compress.{CompressionCodec, GzipCodec}
 import org.apache.hadoop.io.{NullWritable, Text}
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat.{
@@ -16,21 +18,22 @@ import org.apache.hadoop.util.ReflectionUtils
 final class NJTextOutputFormat extends FileOutputFormat[NullWritable, Text] {
 
   override def getRecordWriter(job: TaskAttemptContext): RecordWriter[NullWritable, Text] = {
-    val conf         = job.getConfiguration
-    val isCompressed = getCompressOutput(job)
-    val suffix       = conf.get(NJTextOutputFormat.suffix, "")
+    val conf: Configuration   = job.getConfiguration
+    val isCompressed: Boolean = getCompressOutput(job)
+    val suffix: String        = conf.get(NJTextOutputFormat.suffix, "")
     if (isCompressed) {
-      val codecClass = getOutputCompressorClass(job, classOf[GzipCodec])
-      val codec      = ReflectionUtils.newInstance(codecClass, conf)
-      val ext        = suffix + codec.getDefaultExtension
-      val file       = getDefaultWorkFile(job, ext)
-      val fs         = file.getFileSystem(conf)
-      val fileOut    = fs.create(file, false)
+      val codecClass: Class[_ <: CompressionCodec] =
+        getOutputCompressorClass(job, classOf[GzipCodec])
+      val codec: CompressionCodec     = ReflectionUtils.newInstance(codecClass, conf)
+      val ext: String                 = suffix + codec.getDefaultExtension
+      val file: Path                  = getDefaultWorkFile(job, ext)
+      val fs: FileSystem              = file.getFileSystem(conf)
+      val fileOut: FSDataOutputStream = fs.create(file, false)
       new NJTextRecordWriter(new DataOutputStream(codec.createOutputStream(fileOut)))
     } else {
-      val file    = getDefaultWorkFile(job, suffix)
-      val fs      = file.getFileSystem(conf)
-      val fileOut = fs.create(file, false)
+      val file: Path                  = getDefaultWorkFile(job, suffix)
+      val fs: FileSystem              = file.getFileSystem(conf)
+      val fileOut: FSDataOutputStream = fs.create(file, false)
       new NJTextRecordWriter(fileOut)
     }
   }

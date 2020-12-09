@@ -14,7 +14,7 @@ final private[persist] class SaveModeAware[F[_]](
 
   def checkAndRun(blocker: Blocker)(
     f: F[Unit])(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
-    val hadoop = NJHadoop[F](sparkSession.sparkContext.hadoopConfiguration, blocker)
+    val hadoop: NJHadoop[F] = NJHadoop[F](sparkSession.sparkContext.hadoopConfiguration, blocker)
 
     saveMode match {
       case SaveMode.Append    => F.raiseError(new Exception("append mode is not support"))

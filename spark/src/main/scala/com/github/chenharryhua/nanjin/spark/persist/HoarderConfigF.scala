@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.derived.auto.functor.kittensMkFunctor
+import cats.derived.auto.functor._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import enumeratum.{Enum, EnumEntry}
 import higherkindness.droste.data.Fix
@@ -29,10 +29,10 @@ private[persist] object FolderOrFile extends Enum[FolderOrFile] {
 
 private[persist] object HoarderParams {
 
-  val default: HoarderParams =
+  def apply(outPath: String): HoarderParams =
     HoarderParams(
       NJFileFormat.Unknown,
-      "",
+      outPath,
       FolderOrFile.Folder,
       SaveMode.Overwrite,
       Compression.Uncompressed)
@@ -41,7 +41,7 @@ private[persist] object HoarderParams {
 @deriveFixedPoint sealed private[persist] trait HoarderConfigF[_]
 
 private[persist] object HoarderConfigF {
-  final case class DefaultParams[K]() extends HoarderConfigF[K]
+  final case class DefaultParams[K](path: String) extends HoarderConfigF[K]
   final case class WithFolderOrFile[K](value: FolderOrFile, cont: K) extends HoarderConfigF[K]
   final case class WithSaveMode[K](value: SaveMode, cont: K) extends HoarderConfigF[K]
   final case class WithOutputPath[K](value: String, cont: K) extends HoarderConfigF[K]
@@ -50,7 +50,7 @@ private[persist] object HoarderConfigF {
 
   private val algebra: Algebra[HoarderConfigF, HoarderParams] =
     Algebra[HoarderConfigF, HoarderParams] {
-      case DefaultParams()        => HoarderParams.default
+      case DefaultParams(v)       => HoarderParams(v)
       case WithFolderOrFile(v, c) => HoarderParams.folderOrFile.set(v)(c)
       case WithSaveMode(v, c)     => HoarderParams.saveMode.set(v)(c)
       case WithOutputPath(v, c)   => HoarderParams.outPath.set(v)(c)
@@ -89,6 +89,6 @@ final private[persist] case class HoarderConfig(value: Fix[HoarderConfigF]) {
 
 private[persist] object HoarderConfig {
 
-  val default: HoarderConfig =
-    HoarderConfig(Fix(HoarderConfigF.DefaultParams[Fix[HoarderConfigF]]()))
+  def apply(outPath: String): HoarderConfig =
+    HoarderConfig(Fix(HoarderConfigF.DefaultParams[Fix[HoarderConfigF]](outPath)))
 }

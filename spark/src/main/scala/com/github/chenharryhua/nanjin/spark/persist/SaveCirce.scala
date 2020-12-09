@@ -12,19 +12,19 @@ import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
 
-final class SaveCirce[F[_], A](
-  rdd: RDD[A],
-  codec: AvroCodec[A],
-  cfg: HoarderConfig,
-  isKeepNull: Boolean)
+final class SaveCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull: Boolean)
     extends Serializable {
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveCirce[F, A] =
-    new SaveCirce[F, A](rdd, codec, cfg, isKeepNull)
+    new SaveCirce[F, A](rdd, cfg, isKeepNull)
 
-  def keepNull: SaveCirce[F, A] = new SaveCirce[F, A](rdd, codec, cfg, true)
-  def dropNull: SaveCirce[F, A] = new SaveCirce[F, A](rdd, codec, cfg, false)
+  def overwrite: SaveCirce[F, A]      = updateConfig(cfg.withOverwrite)
+  def errorIfExists: SaveCirce[F, A]  = updateConfig(cfg.withError)
+  def ignoreIfExists: SaveCirce[F, A] = updateConfig(cfg.withIgnore)
+
+  def keepNull: SaveCirce[F, A] = new SaveCirce[F, A](rdd, cfg, true)
+  def dropNull: SaveCirce[F, A] = new SaveCirce[F, A](rdd, cfg, false)
 
   def file: SaveCirce[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveCirce[F, A] = updateConfig(cfg.withFolder)
@@ -42,15 +42,15 @@ final class SaveCirce[F[_], A](
     tag: ClassTag[A]): F[Unit] = {
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
 
-    val ccg = params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
+    val ccg: CompressionCodecGroup[F] =
+      params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
-        val hadoop = NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)
-        val pipe   = new CirceSerialization[F, A]
+        val hadoop: NJHadoop[F]            = NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)
+        val pipe: CirceSerialization[F, A] = new CirceSerialization[F, A]
         sma.checkAndRun(blocker)(
           rdd
-            .map(codec.idConversion)
             .stream[F]
             .through(pipe.serialize(isKeepNull))
             .through(ccg.compressionPipe)
@@ -59,10 +59,7 @@ final class SaveCirce[F[_], A](
             .drain)
       case FolderOrFile.Folder =>
         def encode(a: A): Json =
-          if (isKeepNull)
-            jsonEncoder(codec.idConversion(a))
-          else
-            jsonEncoder(codec.idConversion(a)).deepDropNullValues
+          if (isKeepNull) jsonEncoder(a) else jsonEncoder(a).deepDropNullValues
         ss.sparkContext.hadoopConfiguration.set(NJTextOutputFormat.suffix, params.format.suffix)
         sma.checkAndRun(blocker)(
           F.delay(
