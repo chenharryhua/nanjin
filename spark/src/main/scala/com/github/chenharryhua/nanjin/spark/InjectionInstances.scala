@@ -71,13 +71,6 @@ private[spark] trait InjectionInstances extends Serializable {
       }
     }
 
-  implicit def kpbInjection[A <: GeneratedMessage](implicit
-    ev: GeneratedMessageCompanion[A]): Injection[KPB[A], Array[Byte]] =
-    new Injection[KPB[A], Array[Byte]] {
-      override def apply(a: KPB[A]): Array[Byte]  = a.value.toByteArray
-      override def invert(b: Array[Byte]): KPB[A] = KPB(ev.parseFrom(b))
-    }
-
   implicit val timestampCirceCodec: Codec[Timestamp] = new Codec[Timestamp] {
     import io.circe.syntax._
     override def apply(a: Timestamp): Json = a.toInstant.asJson
