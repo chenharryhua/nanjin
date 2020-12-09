@@ -23,6 +23,8 @@ final class SaveText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: String)
   def errorIfExists: SaveText[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: SaveText[F, A] = updateConfig(cfg.withIgnore)
 
+  def outPath(path: String): SaveText[F, A] = updateConfig(cfg.withOutPutPath(path))
+
   def withSuffix(suffix: String): SaveText[F, A] =
     new SaveText[F, A](rdd, cfg, suffix)
 

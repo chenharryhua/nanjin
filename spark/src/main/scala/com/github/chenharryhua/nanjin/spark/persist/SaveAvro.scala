@@ -27,6 +27,8 @@ final class SaveAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Hoarder
   def errorIfExists: SaveAvro[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: SaveAvro[F, A] = updateConfig(cfg.withIgnore)
 
+  def outPath(path: String): SaveAvro[F, A] = updateConfig(cfg.withOutPutPath(path))
+
   def file: SaveAvro[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveAvro[F, A] = updateConfig(cfg.withFolder)
 

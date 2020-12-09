@@ -23,6 +23,8 @@ final class SaveBinaryAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: H
   def errorIfExists: SaveBinaryAvro[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: SaveBinaryAvro[F, A] = updateConfig(cfg.withIgnore)
 
+  def outPath(path: String): SaveBinaryAvro[F, A] = updateConfig(cfg.withOutPutPath(path))
+
   def file: SaveBinaryAvro[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveBinaryAvro[F, A] = updateConfig(cfg.withFolder)
 

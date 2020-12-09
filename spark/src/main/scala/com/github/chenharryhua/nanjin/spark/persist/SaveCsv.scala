@@ -30,6 +30,8 @@ final class SaveCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfiguration,
   def errorIfExists: SaveCsv[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: SaveCsv[F, A] = updateConfig(cfg.withIgnore)
 
+  def outPath(path: String): SaveCsv[F, A] = updateConfig(cfg.withOutPutPath(path))
+
   def file: SaveCsv[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveCsv[F, A] = updateConfig(cfg.withFolder)
 
