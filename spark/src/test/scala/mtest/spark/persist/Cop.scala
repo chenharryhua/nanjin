@@ -44,9 +44,9 @@ object CoCop {
 final case class EmCop(index: Int, cop: EnumCoproduct.Value)
 
 object EmCop {
-  implicit val codec: AvroCodec[EmCop]      = AvroCodec[EmCop]
+  implicit val avroCodec: AvroCodec[EmCop]  = AvroCodec[EmCop]
   implicit val te: TypedEncoder[EmCop]      = shapeless.cachedImplicit
-  implicit val ate: AvroTypedEncoder[EmCop] = AvroTypedEncoder(te, codec)
+  implicit val ate: AvroTypedEncoder[EmCop] = AvroTypedEncoder(te, avroCodec)
   implicit val circe: Codec[EmCop]          = deriveCodec[EmCop]
 
   //won't compile
@@ -56,8 +56,8 @@ object EmCop {
 final case class CpCop(index: Int, cop: CoproductCop.Cop)
 
 object CpCop {
-  implicit val codec: AvroCodec[CpCop] = AvroCodec[CpCop]
-  implicit val circe: Codec[CpCop]     = deriveCodec[CpCop]
+  implicit val avroCodec: AvroCodec[CpCop] = AvroCodec[CpCop]
+  implicit val circe: Codec[CpCop]         = deriveCodec[CpCop]
 
   //won't compile
   //implicit val te: TypedEncoder[CpCop] = shapeless.cachedImplicit

@@ -8,7 +8,6 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt}
 import frameless.cats.implicits.rddOps
 import frameless.{TypedDataset, TypedEncoder}
@@ -33,6 +32,8 @@ final class CrRdd[F[_], K, V](
     new CrRdd[F, K, V](rdd, f(cfg), keyCodec, valCodec)
 
   //transformation
+  def idConversion: CrRdd[F, K, V] =
+    new CrRdd[F, K, V](rdd.map(codec.idConversion), cfg, keyCodec, valCodec)
 
   def partitionOf(num: Int): CrRdd[F, K, V] =
     new CrRdd[F, K, V](rdd.filter(_.partition === num), cfg, keyCodec, valCodec)
@@ -138,6 +139,5 @@ final class CrRdd[F[_], K, V](
       .compile
       .drain
 
-  def save: RddFileHoarder[F, OptionalKV[K, V]] =
-    new RddFileHoarder[F, OptionalKV[K, V]](rdd, codec)
+  def save: KafkaSave[F, OptionalKV[K, V]] = new KafkaSave[F, OptionalKV[K, V]](rdd, codec)
 }

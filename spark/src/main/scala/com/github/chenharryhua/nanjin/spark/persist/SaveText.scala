@@ -12,15 +12,19 @@ import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
 
-final class SaveText[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConfig, suffix: String)
+final class SaveText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: String)
     extends Serializable {
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveText[F, A] =
-    new SaveText[F, A](rdd, codec, cfg, suffix)
+    new SaveText[F, A](rdd, cfg, suffix)
+
+  def overwrite: SaveText[F, A]      = updateConfig(cfg.withOverwrite)
+  def errorIfExists: SaveText[F, A]  = updateConfig(cfg.withError)
+  def ignoreIfExists: SaveText[F, A] = updateConfig(cfg.withIgnore)
 
   def withSuffix(suffix: String): SaveText[F, A] =
-    new SaveText[F, A](rdd, codec, cfg, suffix)
+    new SaveText[F, A](rdd, cfg, suffix)
 
   def file: SaveText[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveText[F, A] = updateConfig(cfg.withFolder)
@@ -48,7 +52,7 @@ final class SaveText[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConf
         sma.checkAndRun(blocker)(
           rdd
             .stream[F]
-            .map(a => show.show(codec.idConversion(a)))
+            .map(show.show)
             .through(pipe.serialize)
             .through(ccg.compressionPipe)
             .through(hadoop.byteSink(params.outPath))
@@ -59,7 +63,7 @@ final class SaveText[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConf
         sma.checkAndRun(blocker)(
           F.delay(
             rdd
-              .map(a => (NullWritable.get(), new Text(show.show(codec.idConversion(a)))))
+              .map(a => (NullWritable.get(), new Text(show.show(a))))
               .saveAsNewAPIHadoopFile[NJTextOutputFormat](params.outPath)))
     }
   }

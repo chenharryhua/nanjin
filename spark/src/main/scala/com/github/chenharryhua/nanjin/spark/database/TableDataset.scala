@@ -14,7 +14,8 @@ import scala.reflect.ClassTag
 final class TableDataset[F[_], A](
   val dataset: Dataset[A],
   dbSettings: DatabaseSettings,
-  cfg: STConfig)(implicit ate: AvroTypedEncoder[A])
+  cfg: STConfig,
+  ate: AvroTypedEncoder[A])
     extends Serializable {
 
   implicit private val classTag: ClassTag[A] = ate.classTag
@@ -24,13 +25,13 @@ final class TableDataset[F[_], A](
   val params: STParams = cfg.evalConfig
 
   def repartition(num: Int): TableDataset[F, A] =
-    new TableDataset[F, A](dataset.repartition(num), dbSettings, cfg)
+    new TableDataset[F, A](dataset.repartition(num), dbSettings, cfg, ate)
 
   def map[B](f: A => B)(implicit ev: AvroTypedEncoder[B]): TableDataset[F, B] =
-    new TableDataset[F, B](dataset.map(f)(ev.sparkEncoder), dbSettings, cfg)
+    new TableDataset[F, B](dataset.map(f)(ev.sparkEncoder), dbSettings, cfg, ev)
 
   def flatMap[B](f: A => TraversableOnce[B])(implicit ev: AvroTypedEncoder[B]): TableDataset[F, B] =
-    new TableDataset[F, B](dataset.flatMap(f)(ev.sparkEncoder), dbSettings, cfg)
+    new TableDataset[F, B](dataset.flatMap(f)(ev.sparkEncoder), dbSettings, cfg, ev)
 
   def typedDataset: TypedDataset[A] = ate.normalize(dataset)
 
@@ -38,6 +39,6 @@ final class TableDataset[F[_], A](
 
   def upload: DbUploader[F, A] = new DbUploader[F, A](dataset, dbSettings, ate, cfg)
 
-  def save: RddFileHoarder[F, A] = new RddFileHoarder[F, A](dataset.rdd, ate.avroCodec)
+  def save: DatabaseSave[F, A] = new DatabaseSave[F, A](dataset, ate)
 
 }

@@ -32,6 +32,6 @@ object RoosterData {
 
   val rdd: RDD[Rooster] = sparkSession.sparkContext.parallelize(data)
 
-  val ds: Dataset[Rooster] = TypedDataset.create(rdd).dataset
+  val ds: Dataset[Rooster] = Rooster.ate.normalize(rdd).dataset
 
 }

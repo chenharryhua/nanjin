@@ -1,14 +1,13 @@
 package com.github.chenharryhua.nanjin.spark
 
 import cats.Order
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, KPB}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.KJson
 import frameless.{Injection, SQLDate, SQLTimestamp}
 import io.circe.Decoder.Result
 import io.circe.parser.decode
 import io.circe.syntax._
 import io.circe.{Codec, HCursor, Json, Decoder => JsonDecoder, Encoder => JsonEncoder}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
-import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 import shapeless.Witness
 
 import java.sql.{Date, Timestamp}

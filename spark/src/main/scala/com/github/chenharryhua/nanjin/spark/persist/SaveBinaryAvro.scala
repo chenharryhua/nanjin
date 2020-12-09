@@ -2,10 +2,9 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.{Blocker, Concurrent, ContextShift}
 import com.github.chenharryhua.nanjin.devices.NJHadoop
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.pipes.{BinaryAvroSerialization, GenericRecordCodec}
 import com.github.chenharryhua.nanjin.spark.RddExt
-import com.sksamuel.avro4s.AvroOutputStream
+import com.sksamuel.avro4s.{AvroOutputStream, Encoder => AvroEncoder}
 import org.apache.hadoop.io.{BytesWritable, NullWritable}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
@@ -13,12 +12,16 @@ import org.apache.spark.sql.SparkSession
 import java.io.ByteArrayOutputStream
 import scala.reflect.ClassTag
 
-final class SaveBinaryAvro[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: HoarderConfig)
+final class SaveBinaryAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderConfig)
     extends Serializable {
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveBinaryAvro[F, A] =
-    new SaveBinaryAvro[F, A](rdd, codec, cfg)
+    new SaveBinaryAvro[F, A](rdd, encoder, cfg)
+
+  def overwrite: SaveBinaryAvro[F, A]      = updateConfig(cfg.withOverwrite)
+  def errorIfExists: SaveBinaryAvro[F, A]  = updateConfig(cfg.withError)
+  def ignoreIfExists: SaveBinaryAvro[F, A] = updateConfig(cfg.withIgnore)
 
   def file: SaveBinaryAvro[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveBinaryAvro[F, A] = updateConfig(cfg.withFolder)
@@ -30,7 +33,7 @@ final class SaveBinaryAvro[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: Hoard
     tag: ClassTag[A]): F[Unit] = {
     def bytesWritable(a: A): BytesWritable = {
       val os  = new ByteArrayOutputStream()
-      val aos = AvroOutputStream.binary(codec.avroEncoder).to(os).build()
+      val aos = AvroOutputStream.binary(encoder).to(os).build()
       aos.write(a)
       aos.flush()
       aos.close()
@@ -45,12 +48,12 @@ final class SaveBinaryAvro[F[_], A](rdd: RDD[A], codec: AvroCodec[A], cfg: Hoard
       case FolderOrFile.SingleFile =>
         val hadoop: NJHadoop[F]              = NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)
         val gr: GenericRecordCodec[F, A]     = new GenericRecordCodec[F, A]
-        val pipe: BinaryAvroSerialization[F] = new BinaryAvroSerialization[F](codec.schema)
+        val pipe: BinaryAvroSerialization[F] = new BinaryAvroSerialization[F](encoder.schema)
 
         sma.checkAndRun(blocker)(
           rdd
             .stream[F]
-            .through(gr.encode(codec.avroEncoder))
+            .through(gr.encode(encoder))
             .through(pipe.serialize)
             .through(hadoop.byteSink(params.outPath))
             .compile

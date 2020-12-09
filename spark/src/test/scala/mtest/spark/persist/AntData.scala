@@ -1,6 +1,7 @@
 package mtest.spark.persist
 
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.Dataset
 
 object AntData {
 
@@ -11,5 +12,7 @@ object AntData {
   )
 
   val rdd: RDD[Ant] = sparkSession.sparkContext.parallelize(ants)
+
+  val ds: Dataset[Ant] = Ant.ate.normalize(rdd).dataset
 
 }

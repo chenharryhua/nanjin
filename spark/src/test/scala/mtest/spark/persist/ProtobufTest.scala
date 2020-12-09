@@ -10,6 +10,7 @@ import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
+import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
 
 object ProtobufTestData {
   val data  = List.fill(10)(KPB(Whale("a", Random.nextInt())))
@@ -22,15 +23,17 @@ object ProtobufTestData {
 class ProtobufTest extends AnyFunSuite {
   import ProtobufTestData._
   test("protobuf - single file") {
-    val path = "./data/test/spark/persist/protobuf/single.whale.pb"
-    rdd.save[IO](codec).protobuf(path).file.run(blocker).unsafeRunSync()
+    val path  = "./data/test/spark/persist/protobuf/single.whale.pb"
+    val saver = RddFileHoarder[IO, KPB[Whale]](rdd.repartition(1), path)
+    saver.protobuf.file.run(blocker).unsafeRunSync()
     val res = loaders.rdd.protobuf[KPB[Whale]](path).collect().toSet
     assert(data.toSet == res)
   }
 
   test("protobuf - multi files") {
-    val path = "./data/test/spark/persist/protobuf/multi.whale.pb/"
-    rdd.repartition(2).save[IO](codec).protobuf(path).folder.run(blocker).unsafeRunSync()
+    val path  = "./data/test/spark/persist/protobuf/multi.whale.pb/"
+    val saver = RddFileHoarder[IO, KPB[Whale]](rdd.repartition(2), path)
+    saver.protobuf.folder.run(blocker).unsafeRunSync()
     val res = loaders.rdd.protobuf[Whale](path).collect().toSet
     assert(data.map(_.value).toSet == res)
   }

@@ -3,19 +3,19 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.effect.{Blocker, Concurrent, ContextShift}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{SaveMode, SparkSession}
+import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
 
-final class SaveSparkJson[F[_], A](
-  rdd: RDD[A],
-  ate: AvroTypedEncoder[A],
-  cfg: HoarderConfig,
-  isKeepNull: Boolean)
+final class SaveSparkJson[F[_], A](ds: Dataset[A], cfg: HoarderConfig, isKeepNull: Boolean)
     extends Serializable {
 
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveSparkJson[F, A] =
-    new SaveSparkJson[F, A](rdd, ate, cfg, isKeepNull)
+    new SaveSparkJson[F, A](ds, cfg, isKeepNull)
+
+  def overwrite: SaveSparkJson[F, A]      = updateConfig(cfg.withOverwrite)
+  def errorIfExists: SaveSparkJson[F, A]  = updateConfig(cfg.withError)
+  def ignoreIfExists: SaveSparkJson[F, A] = updateConfig(cfg.withIgnore)
 
   def gzip: SaveSparkJson[F, A] =
     updateConfig(cfg.withCompression(Compression.Gzip))
@@ -26,8 +26,8 @@ final class SaveSparkJson[F[_], A](
   def bzip2: SaveSparkJson[F, A] =
     updateConfig(cfg.withCompression(Compression.Bzip2))
 
-  def keepNull: SaveSparkJson[F, A] = new SaveSparkJson[F, A](rdd, ate, cfg, true)
-  def dropNull: SaveSparkJson[F, A] = new SaveSparkJson[F, A](rdd, ate, cfg, false)
+  def keepNull: SaveSparkJson[F, A] = new SaveSparkJson[F, A](ds, cfg, true)
+  def dropNull: SaveSparkJson[F, A] = new SaveSparkJson[F, A](ds, cfg, false)
 
   def run(
     blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], ss: SparkSession): F[Unit] = {
@@ -39,9 +39,7 @@ final class SaveSparkJson[F[_], A](
 
     sma.checkAndRun(blocker)(
       F.delay(
-        ate
-          .normalize(rdd)
-          .write
+        ds.write
           .mode(SaveMode.Overwrite)
           .option("compression", ccg.name)
           .option("ignoreNullFields", !isKeepNull)

@@ -8,6 +8,13 @@ final class SaveObjectFile[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends Ser
 
   val params: HoarderParams = cfg.evalConfig
 
+  private def updateConfig(cfg: HoarderConfig): SaveObjectFile[F, A] =
+    new SaveObjectFile[F, A](rdd, cfg)
+
+  def overwrite: SaveObjectFile[F, A]      = updateConfig(cfg.withOverwrite)
+  def errorIfExists: SaveObjectFile[F, A]  = updateConfig(cfg.withError)
+  def ignoreIfExists: SaveObjectFile[F, A] = updateConfig(cfg.withIgnore)
+
   def run(
     blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], ss: SparkSession): F[Unit] = {
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)

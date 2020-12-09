@@ -37,8 +37,6 @@ private[spark] trait DatasetExtensions {
     def dbUpload[F[_]: Sync](db: SparkTable[F, A]): DbUploader[F, A] =
       db.tableset(rdd).upload
 
-    def save[F[_]](codec: AvroCodec[A]): RddFileHoarder[F, A] =
-      new RddFileHoarder[F, A](rdd, codec)
   }
 
   implicit final class TypedDatasetExt[A](tds: TypedDataset[A]) extends Serializable {
@@ -54,8 +52,6 @@ private[spark] trait DatasetExtensions {
     def dbUpload[F[_]: Sync](db: SparkTable[F, A]): DbUploader[F, A] =
       db.tableset(tds).upload
 
-    def save[F[_]](ate: AvroTypedEncoder[A]): RddFileHoarder[F, A] =
-      new RddFileHoarder[F, A](tds.dataset.rdd, ate.avroCodec)
   }
 
   implicit final class DataframeExt(df: DataFrame) extends Serializable {
