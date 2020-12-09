@@ -23,6 +23,8 @@ final class SaveJackson[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Hoar
   def errorIfExists: SaveJackson[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: SaveJackson[F, A] = updateConfig(cfg.withIgnore)
 
+  def outPath(path: String): SaveJackson[F, A] = updateConfig(cfg.withOutPutPath(path))
+
   def file: SaveJackson[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveJackson[F, A] = updateConfig(cfg.withFolder)
 

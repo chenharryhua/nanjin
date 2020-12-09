@@ -14,6 +14,8 @@ final class SaveParquet[F[_], A](ds: Dataset[A], cfg: HoarderConfig) extends Ser
   def errorIfExists: SaveParquet[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: SaveParquet[F, A] = updateConfig(cfg.withIgnore)
 
+  def outPath(path: String): SaveParquet[F, A] = updateConfig(cfg.withOutPutPath(path))
+
   def snappy: SaveParquet[F, A] =
     updateConfig(cfg.withCompression(Compression.Snappy))
 

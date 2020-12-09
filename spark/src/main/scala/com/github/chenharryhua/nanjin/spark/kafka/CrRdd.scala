@@ -8,7 +8,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt}
+import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt, SaveAvroRdd}
 import frameless.cats.implicits.rddOps
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
@@ -139,5 +139,6 @@ final class CrRdd[F[_], K, V](
       .compile
       .drain
 
-  def save: KafkaSave[F, OptionalKV[K, V]] = new KafkaSave[F, OptionalKV[K, V]](rdd, codec)
+  def save: SaveAvroRdd[F, OptionalKV[K, V]] =
+    new SaveAvroRdd[F, OptionalKV[K, V]](rdd, codec.avroEncoder)
 }

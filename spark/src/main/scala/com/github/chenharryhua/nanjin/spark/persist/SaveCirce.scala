@@ -23,6 +23,8 @@ final class SaveCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull: Bool
   def errorIfExists: SaveCirce[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: SaveCirce[F, A] = updateConfig(cfg.withIgnore)
 
+  def outPath(path: String): SaveCirce[F, A] = updateConfig(cfg.withOutPutPath(path))
+
   def keepNull: SaveCirce[F, A] = new SaveCirce[F, A](rdd, cfg, true)
   def dropNull: SaveCirce[F, A] = new SaveCirce[F, A](rdd, cfg, false)
 

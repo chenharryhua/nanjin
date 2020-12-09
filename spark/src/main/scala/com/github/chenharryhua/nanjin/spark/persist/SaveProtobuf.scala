@@ -23,6 +23,8 @@ final class SaveProtobuf[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends Seria
   def errorIfExists: SaveProtobuf[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: SaveProtobuf[F, A] = updateConfig(cfg.withIgnore)
 
+  def outPath(path: String): SaveProtobuf[F, A] = updateConfig(cfg.withOutPutPath(path))
+
   def file: SaveProtobuf[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveProtobuf[F, A] = updateConfig(cfg.withFolder)
 

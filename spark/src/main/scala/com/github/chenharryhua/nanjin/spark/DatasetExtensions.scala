@@ -1,16 +1,13 @@
 package com.github.chenharryhua.nanjin.spark
 
-import java.time.ZoneId
-
 import akka.NotUsed
 import akka.stream.scaladsl.Source
 import cats.effect.{ConcurrentEffect, Sync}
 import com.github.chenharryhua.nanjin.database.{DatabaseSettings, TableName}
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicDef}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.database.{sd, DbUploader, SparkTable}
 import com.github.chenharryhua.nanjin.spark.kafka.{SKConfig, SparKafka}
-import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
+import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.TypedDataset
 import frameless.cats.implicits._
 import fs2.Stream
@@ -18,6 +15,8 @@ import fs2.interop.reactivestreams._
 import org.apache.avro.Schema
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}
+
+import java.time.ZoneId
 
 private[spark] trait DatasetExtensions {
 
@@ -37,6 +36,9 @@ private[spark] trait DatasetExtensions {
     def dbUpload[F[_]: Sync](db: SparkTable[F, A]): DbUploader[F, A] =
       db.tableset(rdd).upload
 
+    def save[F[_]]: SaveRdd[F, A]                              = new SaveRdd[F, A](rdd)
+    def save[F[_]](encoder: AvroEncoder[A]): SaveAvroRdd[F, A] = new SaveAvroRdd[F, A](rdd, encoder)
+
   }
 
   implicit final class TypedDatasetExt[A](tds: TypedDataset[A]) extends Serializable {
@@ -52,6 +54,10 @@ private[spark] trait DatasetExtensions {
     def dbUpload[F[_]: Sync](db: SparkTable[F, A]): DbUploader[F, A] =
       db.tableset(tds).upload
 
+    def save[F[_]]: SaveDataset[F, A] = new SaveDataset[F, A](tds.dataset)
+
+    def save[F[_]](encoder: AvroEncoder[A]): SaveAvroDataset[F, A] =
+      new SaveAvroDataset[F, A](tds.dataset, encoder)
   }
 
   implicit final class DataframeExt(df: DataFrame) extends Serializable {
