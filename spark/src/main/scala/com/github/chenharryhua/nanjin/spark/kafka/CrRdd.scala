@@ -8,7 +8,7 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt, SaveAvroRdd}
+import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt, SaveAvroDataset, SaveAvroRdd}
 import frameless.cats.implicits.rddOps
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
@@ -87,10 +87,7 @@ final class CrRdd[F[_], K, V](
     inRange(params.timeRange.withTimeRange(start, end))
 
   // dataset
-  def typedDataset(implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): TypedDataset[OptionalKV[K, V]] = {
-    val te: TypedEncoder[OptionalKV[K, V]]      = shapeless.cachedImplicit
+  def typedDataset(implicit te: TypedEncoder[OptionalKV[K, V]]): TypedDataset[OptionalKV[K, V]] = {
     val ate: AvroTypedEncoder[OptionalKV[K, V]] = AvroTypedEncoder(te, codec)
     ate.normalize(rdd)
   }
@@ -141,4 +138,7 @@ final class CrRdd[F[_], K, V](
 
   def save: SaveAvroRdd[F, OptionalKV[K, V]] =
     new SaveAvroRdd[F, OptionalKV[K, V]](rdd, codec.avroEncoder)
+
+  def saveA(implicit te: TypedEncoder[OptionalKV[K, V]]): SaveAvroDataset[F, OptionalKV[K, V]] =
+    new SaveAvroDataset(typedDataset.dataset, codec.avroEncoder)
 }
