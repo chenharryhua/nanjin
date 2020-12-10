@@ -23,7 +23,15 @@ object Jacket {
 object JacketData {
 
   val expected: List[Jacket] =
-    List.fill(10)(Jacket(Random.nextInt, KJson(Neck(0, parse(""" {"a":"a","b":1} """).right.get))))
+    List.fill(10)(
+      Jacket(
+        Random.nextInt,
+        KJson(
+          Neck(
+            0,
+            parse(
+              s""" {"jsonFloat":"${Random.nextFloat()}","jsonInt":${Random
+                .nextInt()}} """).right.get))))
   val rdd: RDD[Jacket]    = sparkSession.sparkContext.parallelize(expected)
   val ds: Dataset[Jacket] = Jacket.ate.normalize(rdd).dataset
 }
