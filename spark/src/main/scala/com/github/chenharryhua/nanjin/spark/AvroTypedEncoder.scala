@@ -16,7 +16,8 @@ final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], te: TypedE
 
   val classTag: ClassTag[A] = te.classTag
 
-  val originSchema: StructType = TypedExpressionEncoder[A](te).schema
+  val originEncoder: Encoder[A] = TypedExpressionEncoder(te)
+  val originSchema: StructType  = originEncoder.schema
 
   private val avroStructType: StructType =
     SchemaConverters.toSqlType(avroCodec.schema).dataType match {
@@ -43,7 +44,6 @@ final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], te: TypedE
     }
 
   def normalize(rdd: RDD[A])(implicit ss: SparkSession): TypedDataset[A] = {
-    val originEncoder: Encoder[A] = TypedExpressionEncoder(te)
     val ds: Dataset[A] =
       ss.createDataset(rdd)(originEncoder).map(avroCodec.idConversion)(originEncoder)
 

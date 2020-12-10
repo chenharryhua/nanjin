@@ -20,7 +20,16 @@ class CirceTest extends AnyFunSuite {
 
   test("rdd read/write identity multi.gzip") {
     val path = "./data/test/spark/persist/circe/rooster/multi.gzip"
-    rooster.circe(path).folder.gzip.run(blocker).unsafeRunSync()
+    rooster
+      .circe(path)
+      .errorIfExists
+      .ignoreIfExists
+      .overwrite
+      .outPath(path)
+      .folder
+      .gzip
+      .run(blocker)
+      .unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path)
     assert(RoosterData.expected == t.collect().toSet)
     val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate)

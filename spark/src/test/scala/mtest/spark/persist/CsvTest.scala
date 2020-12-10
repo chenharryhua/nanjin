@@ -17,7 +17,15 @@ class CsvTest extends AnyFunSuite {
 
   test("tablet read/write identity multi.uncompressed") {
     val path = "./data/test/spark/persist/csv/tablet/multi.uncompressed"
-    saver.csv(path).folder.run(blocker).unsafeRunSync()
+    saver
+      .csv(path)
+      .errorIfExists
+      .ignoreIfExists
+      .overwrite
+      .outPath(path)
+      .folder
+      .run(blocker)
+      .unsafeRunSync()
     val t = loaders.csv(path, Tablet.ate)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }

@@ -29,7 +29,15 @@ class AvroTest extends AnyFunSuite {
 
   test("datetime read/write identity - multi.uncompressed") {
     val path = "./data/test/spark/persist/avro/rooster/multi.uncompressed.avro"
-    rooster.avro(path).folder.run(blocker).unsafeRunSync()
+    rooster
+      .avro(path)
+      .errorIfExists
+      .ignoreIfExists
+      .overwrite
+      .outPath(path)
+      .folder
+      .run(blocker)
+      .unsafeRunSync()
     val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder).collect().toSet
     val t = loaders.avro[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
     assert(RoosterData.expected == r)
