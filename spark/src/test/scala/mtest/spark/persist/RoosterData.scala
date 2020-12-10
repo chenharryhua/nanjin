@@ -1,11 +1,10 @@
 package mtest.spark.persist
 
-import java.sql.Timestamp
-import java.time.Instant
-
-import frameless.TypedDataset
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Dataset
+
+import java.sql.Timestamp
+import java.time.Instant
 
 object RoosterData {
   val instant: Instant     = Instant.parse("2012-10-26T18:00:00Z")

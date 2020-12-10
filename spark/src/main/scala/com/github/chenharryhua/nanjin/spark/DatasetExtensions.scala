@@ -17,6 +17,12 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import java.time.ZoneId
+import com.github.chenharryhua.nanjin.spark.persist.{
+  DatasetAvroFileHoarder,
+  DatasetFileHoarder,
+  RddAvroFileHoarder,
+  RddFileHoarder
+}
 
 private[spark] trait DatasetExtensions {
 
@@ -36,8 +42,10 @@ private[spark] trait DatasetExtensions {
     def dbUpload[F[_]: Sync](db: SparkTable[F, A]): DbUploader[F, A] =
       db.tableset(rdd).upload
 
-    def save[F[_]]: SaveRdd[F, A]                              = new SaveRdd[F, A](rdd)
-    def save[F[_]](encoder: AvroEncoder[A]): SaveAvroRdd[F, A] = new SaveAvroRdd[F, A](rdd, encoder)
+    def save[F[_]]: RddFileHoarder[F, A] = new RddFileHoarder[F, A](rdd)
+
+    def save[F[_]](encoder: AvroEncoder[A]): RddAvroFileHoarder[F, A] =
+      new RddAvroFileHoarder[F, A](rdd, encoder)
 
   }
 
@@ -54,10 +62,10 @@ private[spark] trait DatasetExtensions {
     def dbUpload[F[_]: Sync](db: SparkTable[F, A]): DbUploader[F, A] =
       db.tableset(tds).upload
 
-    def save[F[_]]: SaveDataset[F, A] = new SaveDataset[F, A](tds.dataset)
+    def save[F[_]]: DatasetFileHoarder[F, A] = new DatasetFileHoarder[F, A](tds.dataset)
 
-    def save[F[_]](encoder: AvroEncoder[A]): SaveAvroDataset[F, A] =
-      new SaveAvroDataset[F, A](tds.dataset, encoder)
+    def save[F[_]](encoder: AvroEncoder[A]): DatasetAvroFileHoarder[F, A] =
+      new DatasetAvroFileHoarder[F, A](tds.dataset, encoder)
   }
 
   implicit final class DataframeExt(df: DataFrame) extends Serializable {

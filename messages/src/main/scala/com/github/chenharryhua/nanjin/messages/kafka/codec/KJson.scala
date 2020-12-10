@@ -27,6 +27,8 @@ final class KJson[A] private (val value: A) extends Serializable {
       case _              => false
     }
   override def hashCode: Int = value.hashCode()
+
+  override def toString: String = s"KJson(value=${value.toString})"
 }
 
 object KJson {

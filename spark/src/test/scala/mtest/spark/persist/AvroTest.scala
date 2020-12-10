@@ -3,12 +3,11 @@ package mtest.spark.persist
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.pipes.GenericRecordCodec
-import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddFileHoarder}
+import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddAvroFileHoarder}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import org.apache.spark.sql.SaveMode
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-import com.github.chenharryhua.nanjin.spark.persist.AvroFileHoarder
 
 @DoNotDiscover
 class AvroTest extends AnyFunSuite {
@@ -23,135 +22,109 @@ class AvroTest extends AnyFunSuite {
     .unsafeRunSync()
     .toSet
 
+  val rooster =
+    new RddAvroFileHoarder[IO, Rooster](
+      RoosterData.ds.rdd.repartition(3),
+      Rooster.avroCodec.avroEncoder)
+
   test("datetime read/write identity - multi.uncompressed") {
-    import RoosterData._
     val path = "./data/test/spark/persist/avro/rooster/multi.uncompressed.avro"
-    val saver =
-      AvroFileHoarder[IO, Rooster](rdd.repartition(1), path, Rooster.avroCodec.avroEncoder)
-    saver.avro.folder.run(blocker).unsafeRunSync()
-    val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec).collect().toSet
+    rooster.avro(path).folder.run(blocker).unsafeRunSync()
+    val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder).collect().toSet
     val t = loaders.avro[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
-    assert(expected == r)
-    assert(expected == t)
+    assert(RoosterData.expected == r)
+    assert(RoosterData.expected == t)
   }
 
   test("datetime read/write identity - multi.snappy") {
-    import RoosterData._
     val path = "./data/test/spark/persist/avro/rooster/multi.snappy.avro"
-    val saver =
-      AvroFileHoarder[IO, Rooster](rdd.repartition(2), path, Rooster.avroCodec.avroEncoder)
-    saver.avro.folder.snappy.run(blocker).unsafeRunSync()
-    val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec).collect().toSet
+    rooster.avro(path).folder.snappy.run(blocker).unsafeRunSync()
+    val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder).collect().toSet
     val t = loaders.avro[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
-    assert(expected == r)
-    assert(expected == t)
+    assert(RoosterData.expected == r)
+    assert(RoosterData.expected == t)
   }
 
   test("datetime read/write identity - multi.deflate") {
-    import RoosterData._
     val path = "./data/test/spark/persist/avro/rooster/multi.deflate.avro"
-    val saver =
-      AvroFileHoarder[IO, Rooster](rdd.repartition(3), path, Rooster.avroCodec.avroEncoder)
-    saver.avro.folder.deflate(3).run(blocker).unsafeRunSync()
-    val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec).collect().toSet
+    rooster.avro(path).folder.deflate(3).run(blocker).unsafeRunSync()
+    val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder).collect().toSet
     val t = loaders.avro[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
-    assert(expected == r)
-    assert(expected == t)
+    assert(RoosterData.expected == r)
+    assert(RoosterData.expected == t)
   }
 
   test("datetime read/write identity - multi.xz") {
-    import RoosterData._
     val path = "./data/test/spark/persist/avro/rooster/multi.xz.avro"
-    val saver =
-      AvroFileHoarder[IO, Rooster](rdd.repartition(4), path, Rooster.avroCodec.avroEncoder)
-    saver.avro.folder.xz(3).run(blocker).unsafeRunSync()
-    val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec).collect().toSet
+    rooster.avro(path).folder.xz(3).run(blocker).unsafeRunSync()
+    val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder).collect().toSet
     val t = loaders.avro[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
-    assert(expected == r)
-    assert(expected == t)
+    assert(RoosterData.expected == r)
+    assert(RoosterData.expected == t)
   }
 
   test("datetime read/write identity - multi.bzip2") {
-    import RoosterData._
     val path = "./data/test/spark/persist/avro/rooster/multi.bzip2.avro"
-    val saver =
-      AvroFileHoarder[IO, Rooster](rdd.repartition(5), path, Rooster.avroCodec.avroEncoder)
-    saver.avro.folder.bzip2.run(blocker).unsafeRunSync()
-    val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec).collect().toSet
+    rooster.avro(path).folder.bzip2.run(blocker).unsafeRunSync()
+    val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder).collect().toSet
     val t = loaders.avro[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
-    assert(expected == r)
-    assert(expected == t)
+    assert(RoosterData.expected == r)
+    assert(RoosterData.expected == t)
   }
 
   test("datetime read/write identity - single.uncompressed") {
-    import RoosterData._
     val path = "./data/test/spark/persist/avro/rooster/single.uncompressed.avro"
-    val saver =
-      AvroFileHoarder[IO, Rooster](rdd.repartition(2), path, Rooster.avroCodec.avroEncoder)
-    saver.avro.file.run(blocker).unsafeRunSync()
-    val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec).collect().toSet
+    rooster.avro(path).file.run(blocker).unsafeRunSync()
+    val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder).collect().toSet
     val t = loaders.avro[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
-    assert(expected == r)
-    assert(expected == t)
-    assert(expected == singleAvro(path))
+    assert(RoosterData.expected == r)
+    assert(RoosterData.expected == t)
+    assert(RoosterData.expected == singleAvro(path))
   }
 
   test("datetime read/write identity - single.snappy") {
-    import RoosterData._
     val path = "./data/test/spark/persist/avro/rooster/single.snappy.avro"
-    val saver =
-      AvroFileHoarder[IO, Rooster](rdd.repartition(2), path, Rooster.avroCodec.avroEncoder)
-    saver.avro.file.snappy.run(blocker).unsafeRunSync()
-    val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec).collect().toSet
+    rooster.avro(path).file.snappy.run(blocker).unsafeRunSync()
+    val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder).collect().toSet
     val t = loaders.avro[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
-    assert(expected == r)
-    assert(expected == t)
-    assert(expected == singleAvro(path))
+    assert(RoosterData.expected == r)
+    assert(RoosterData.expected == t)
+    assert(RoosterData.expected == singleAvro(path))
   }
 
   test("datetime read/write identity - single.bzip2") {
-    import RoosterData._
     val path = "./data/test/spark/persist/avro/rooster/single.bzip2.avro"
-    val saver =
-      AvroFileHoarder[IO, Rooster](rdd.repartition(2), path, Rooster.avroCodec.avroEncoder)
-    saver.avro.file.bzip2.run(blocker).unsafeRunSync()
-    val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec).collect().toSet
+    rooster.avro(path).file.bzip2.run(blocker).unsafeRunSync()
+    val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder).collect().toSet
     val t = loaders.avro[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
-    assert(expected == r)
-    assert(expected == t)
-    assert(expected == singleAvro(path))
+    assert(RoosterData.expected == r)
+    assert(RoosterData.expected == t)
+    assert(RoosterData.expected == singleAvro(path))
   }
 
   test("datetime read/write identity - single.deflate") {
-    import RoosterData._
     val path = "./data/test/spark/persist/avro/rooster/single.deflate.avro"
-    val saver =
-      AvroFileHoarder[IO, Rooster](rdd.repartition(2), path, Rooster.avroCodec.avroEncoder)
-    saver.avro.file.deflate(5).run(blocker).unsafeRunSync()
-    val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec).collect().toSet
+    rooster.avro(path).file.deflate(5).run(blocker).unsafeRunSync()
+    val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder).collect().toSet
     val t = loaders.avro[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
-    assert(expected == r)
-    assert(expected == t)
-    assert(expected == singleAvro(path))
+    assert(RoosterData.expected == r)
+    assert(RoosterData.expected == t)
+    assert(RoosterData.expected == singleAvro(path))
   }
 
   test("datetime read/write identity - single.xz") {
-    import RoosterData._
     val path = "./data/test/spark/persist/avro/rooster/single.xz.avro"
-    val saver =
-      AvroFileHoarder[IO, Rooster](rdd.repartition(2), path, Rooster.avroCodec.avroEncoder)
-    saver.avro.file.xz(5).run(blocker).unsafeRunSync()
-    val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec).collect().toSet
+    rooster.avro(path).file.xz(5).run(blocker).unsafeRunSync()
+    val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder).collect().toSet
     val t = loaders.avro[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
-    assert(expected == r)
-    assert(expected == t)
-    assert(expected == singleAvro(path))
+    assert(RoosterData.expected == r)
+    assert(RoosterData.expected == t)
+    assert(RoosterData.expected == singleAvro(path))
   }
 
   test("datetime spark write/nanjin read identity") {
-    import RoosterData._
     val path = "./data/test/spark/persist/avro/rooster/spark-write.avro"
-    val tds  = Rooster.ate.normalize(rdd)
+    val tds  = Rooster.ate.normalize(RoosterData.rdd)
     tds
       .repartition(1)
       .write
@@ -159,32 +132,29 @@ class AvroTest extends AnyFunSuite {
       .option("avroSchema", Rooster.schema.toString)
       .format("avro")
       .save(path)
-    val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec).collect().toSet
+    val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder).collect().toSet
     val t = loaders.avro[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
-    assert(expected == r)
-    assert(expected == t)
+    assert(RoosterData.expected == r)
+    assert(RoosterData.expected == t)
   }
 
+  val bee = new RddAvroFileHoarder[IO, Bee](BeeData.rdd, Bee.avroCodec.avroEncoder)
   test("byte-array read/write identity - multi") {
-    import BeeData._
     import cats.implicits._
-    val path  = "./data/test/spark/persist/avro/bee/multi.raw"
-    val saver = AvroFileHoarder[IO, Bee](rdd, path, Bee.avroCodec.avroEncoder)
-    saver.avro.folder.run(blocker).unsafeRunSync()
-    val t = loaders.rdd.avro[Bee](path, Bee.avroCodec).collect().toList
+    val path = "./data/test/spark/persist/avro/bee/multi.raw"
+    bee.avro(path).folder.run(blocker).unsafeRunSync()
+    val t = loaders.rdd.avro[Bee](path, Bee.avroCodec.avroDecoder).collect().toList
     val r = loaders.avro[Bee](path, Bee.ate).collect[IO]().unsafeRunSync.toList
-    assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
-    assert(bees.sortBy(_.b).zip(r.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
+    assert(BeeData.bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
+    assert(BeeData.bees.sortBy(_.b).zip(r.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
 
   test("byte-array read/write identity single") {
-    import BeeData._
     import cats.implicits._
-    val path  = "./data/test/spark/persist/avro/bee/single.raw.avro"
-    val saver = AvroFileHoarder[IO, Bee](rdd, path, Bee.avroCodec.avroEncoder)
-    saver.avro.file.run(blocker).unsafeRunSync()
+    val path = "./data/test/spark/persist/avro/bee/single.raw.avro"
+    bee.avro(path).file.run(blocker).unsafeRunSync()
     val r = loaders.avro[Bee](path, Bee.ate).collect[IO]().unsafeRunSync.toList
-    assert(bees.sortBy(_.b).zip(r.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
+    assert(BeeData.bees.sortBy(_.b).zip(r.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
 
   /** the data saved to disk is correct.
@@ -194,23 +164,22 @@ class AvroTest extends AnyFunSuite {
     * should follow spark's implementation:
     * https://github.com/apache/spark/blob/branch-3.0/external/avro/src/main/scala/org/apache/spark/sql/avro/AvroDeserializer.scala#L158
     */
+
   test("byte-array read/write identity single - use customized codec") {
-    import BeeData._
     import cats.implicits._
-    val path  = "./data/test/spark/persist/avro/bee/single2.raw.avro"
-    val saver = AvroFileHoarder[IO, Bee](rdd, path, Bee.avroCodec.avroEncoder)
-    saver.avro.file.run(blocker).unsafeRunSync()
-    val t = loaders.rdd.avro[Bee](path, Bee.avroCodec).collect().toList
-    println(loaders.rdd.avro[Bee](path, Bee.avroCodec).map(_.toWasp).collect().toList)
-    assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
+    val path = "./data/test/spark/persist/avro/bee/single2.raw.avro"
+    bee.avro(path).file.run(blocker).unsafeRunSync()
+    val t = loaders.rdd.avro[Bee](path, Bee.avroCodec.avroDecoder).collect().toList
+    println(loaders.rdd.avro[Bee](path, Bee.avroCodec.avroDecoder).map(_.toWasp).collect().toList)
+    assert(BeeData.bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
 
+  val ant = new RddAvroFileHoarder[IO, Ant](AntData.rdd, Ant.avroCodec.avroEncoder)
   test("collection read/write identity single") {
     import AntData._
-    val path  = "./data/test/spark/persist/avro/ant/single.raw.avro"
-    val saver = AvroFileHoarder[IO, Ant](rdd, path, Ant.avroCodec.avroEncoder)
-    saver.avro.file.run(blocker).unsafeRunSync()
-    val t = loaders.rdd.avro[Ant](path, Ant.avroCodec).collect().toSet
+    val path = "./data/test/spark/persist/avro/ant/single.raw.avro"
+    ant.avro(path).file.run(blocker).unsafeRunSync()
+    val t = loaders.rdd.avro[Ant](path, Ant.avroCodec.avroDecoder).collect().toSet
     val r = loaders.avro[Ant](path, Ant.ate).collect[IO]().unsafeRunSync().toSet
     assert(ants.toSet == t)
     assert(ants.toSet == r)
@@ -218,11 +187,10 @@ class AvroTest extends AnyFunSuite {
 
   test("collection read/write identity multi") {
     import AntData._
-    val path  = "./data/test/spark/persist/avro/ant/multi.avro"
-    val saver = AvroFileHoarder[IO, Ant](rdd, path, Ant.avroCodec.avroEncoder)
-    saver.avro.folder.run(blocker).unsafeRunSync()
+    val path = "./data/test/spark/persist/avro/ant/multi.avro"
+    ant.avro(path).folder.run(blocker).unsafeRunSync()
     val t = loaders.avro[Ant](path, Ant.ate).collect[IO]().unsafeRunSync().toSet
-    val r = loaders.rdd.avro[Ant](path, Ant.avroCodec).collect().toSet
+    val r = loaders.rdd.avro[Ant](path, Ant.avroCodec.avroDecoder).collect().toSet
 
     assert(ants.toSet == t)
     assert(ants.toSet == t)
@@ -231,10 +199,10 @@ class AvroTest extends AnyFunSuite {
   test("enum read/write identity single") {
     import CopData._
     val path  = "./data/test/spark/persist/avro/emcop/single.avro"
-    val saver = AvroFileHoarder[IO, EmCop](emRDD, path, EmCop.avroCodec.avroEncoder)
-    saver.avro.file.run(blocker).unsafeRunSync()
+    val saver = new RddAvroFileHoarder[IO, EmCop](emRDD, EmCop.avroCodec.avroEncoder)
+    saver.avro(path).file.run(blocker).unsafeRunSync()
     val t = loaders.avro[EmCop](path, EmCop.ate).collect[IO]().unsafeRunSync().toSet
-    val r = loaders.rdd.avro[EmCop](path, EmCop.avroCodec).collect().toSet
+    val r = loaders.rdd.avro[EmCop](path, EmCop.avroCodec.avroDecoder).collect().toSet
     assert(emCops.toSet == t)
     assert(emCops.toSet == r)
   }
@@ -242,10 +210,10 @@ class AvroTest extends AnyFunSuite {
   test("enum read/write identity multi") {
     import CopData._
     val path  = "./data/test/spark/persist/avro/emcop/raw"
-    val saver = AvroFileHoarder[IO, EmCop](emRDD, path, EmCop.avroCodec.avroEncoder)
-    saver.avro.folder.run(blocker).unsafeRunSync()
+    val saver = new RddAvroFileHoarder[IO, EmCop](emRDD, EmCop.avroCodec.avroEncoder)
+    saver.avro(path).folder.run(blocker).unsafeRunSync()
     val t = loaders.avro[EmCop](path, EmCop.ate).collect[IO]().unsafeRunSync().toSet
-    val r = loaders.rdd.avro[EmCop](path, EmCop.avroCodec).collect().toSet
+    val r = loaders.rdd.avro[EmCop](path, EmCop.avroCodec.avroDecoder).collect().toSet
     assert(emCops.toSet == t)
     assert(emCops.toSet == r)
   }
@@ -253,17 +221,17 @@ class AvroTest extends AnyFunSuite {
   test("sealed trait read/write identity single/raw (happy failure)") {
     import CopData._
     val path  = "./data/test/spark/persist/avro/cocop/single.avro"
-    val saver = AvroFileHoarder[IO, CoCop](coRDD, path, CoCop.codec.avroEncoder)
-    saver.avro.file.run(blocker).unsafeRunSync()
-    intercept[Throwable](loaders.rdd.avro[CoCop](path, CoCop.codec).collect().toSet)
+    val saver = new RddAvroFileHoarder[IO, CoCop](coRDD, CoCop.codec.avroEncoder)
+    saver.avro(path).file.run(blocker).unsafeRunSync()
+    intercept[Throwable](loaders.rdd.avro[CoCop](path, CoCop.codec.avroDecoder).collect().toSet)
     // assert(coCops.toSet == t)
   }
 
   test("sealed trait read/write identity multi/raw (happy failure)") {
     import CopData._
     val path  = "./data/test/spark/persist/avro/cocop/multi.avro"
-    val saver = AvroFileHoarder[IO, CoCop](coRDD, path, CoCop.codec.avroEncoder)
-    intercept[Throwable](saver.avro.folder.run(blocker).unsafeRunSync())
+    val saver = new RddAvroFileHoarder[IO, CoCop](coRDD, CoCop.codec.avroEncoder)
+    intercept[Throwable](saver.avro(path).folder.run(blocker).unsafeRunSync())
     //  val t = loaders.raw.avro[CoCop](path).collect().toSet
     //  assert(coCops.toSet == t)
   }
@@ -271,27 +239,27 @@ class AvroTest extends AnyFunSuite {
   test("coproduct read/write identity - multi") {
     import CopData._
     val path  = "./data/test/spark/persist/avro/cpcop/multi.avro"
-    val saver = AvroFileHoarder[IO, CpCop](cpRDD, path, CpCop.avroCodec.avroEncoder)
-    saver.avro.folder.run(blocker).unsafeRunSync()
-    val t = loaders.rdd.avro[CpCop](path, CpCop.avroCodec).collect().toSet
+    val saver = new RddAvroFileHoarder[IO, CpCop](cpRDD, CpCop.avroCodec.avroEncoder)
+    saver.avro(path).folder.run(blocker).unsafeRunSync()
+    val t = loaders.rdd.avro[CpCop](path, CpCop.avroCodec.avroDecoder).collect().toSet
     assert(cpCops.toSet == t)
   }
 
   test("coproduct read/write identity - single") {
     import CopData._
     val path  = "./data/test/spark/persist/avro/cpcop/single.avro"
-    val saver = AvroFileHoarder[IO, CpCop](cpRDD, path, CpCop.avroCodec.avroEncoder)
-    saver.avro.file.run(blocker).unsafeRunSync()
-    val t = loaders.rdd.avro[CpCop](path, CpCop.avroCodec).collect().toSet
+    val saver = new RddAvroFileHoarder[IO, CpCop](cpRDD, CpCop.avroCodec.avroEncoder)
+    saver.avro(path).file.run(blocker).unsafeRunSync()
+    val t = loaders.rdd.avro[CpCop](path, CpCop.avroCodec.avroDecoder).collect().toSet
     assert(cpCops.toSet == t)
   }
 
   test("avro jacket") {
     import JacketData._
     val path  = "./data/test/spark/persist/avro/jacket.avro"
-    val saver = AvroFileHoarder[IO, Jacket](rdd, path, Jacket.avroCodec.avroEncoder)
-    saver.avro.file.run(blocker).unsafeRunSync()
-    val t = loaders.rdd.avro[Jacket](path, Jacket.avroCodec).collect().toSet
+    val saver = new RddAvroFileHoarder[IO, Jacket](rdd, Jacket.avroCodec.avroEncoder)
+    saver.avro(path).file.run(blocker).unsafeRunSync()
+    val t = loaders.rdd.avro[Jacket](path, Jacket.avroCodec.avroDecoder).collect().toSet
     assert(expected.toSet == t)
     val t2 = loaders.avro[Jacket](path, Jacket.ate).collect[IO]().unsafeRunSync.toSet
     assert(expected.toSet == t2)
@@ -300,9 +268,9 @@ class AvroTest extends AnyFunSuite {
   test("avro fractual") {
     import FractualData._
     val path  = "./data/test/spark/persist/avro/fractual.avro"
-    val saver = AvroFileHoarder[IO, Fractual](rdd, path, Fractual.avroCodec.avroEncoder)
-    saver.avro.file.run(blocker).unsafeRunSync()
-    val t = loaders.rdd.avro[Fractual](path, Fractual.avroCodec).collect().toSet
+    val saver = new RddAvroFileHoarder[IO, Fractual](rdd, Fractual.avroCodec.avroEncoder)
+    saver.avro(path).file.run(blocker).unsafeRunSync()
+    val t = loaders.rdd.avro[Fractual](path, Fractual.avroCodec.avroDecoder).collect().toSet
     assert(data.toSet == t)
   }
 }

@@ -43,8 +43,7 @@ final class SaveBinaryAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: H
     }
 
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
-    val ccg: CompressionCodecGroup[F] =
-      params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
+    params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>

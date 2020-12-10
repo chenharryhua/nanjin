@@ -51,8 +51,7 @@ final class SparkTable[F[_], A](
   }
 
   def dump(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
-    Blocker[F].use(blocker =>
-      RddFileHoarder[F, A](fromDB.dataset.rdd, params.replayPath).objectFile.run(blocker))
+    Blocker[F].use(blocker => fromDB.save.objectFile(params.replayPath).overwrite.run(blocker))
 
   def tableset(ds: Dataset[A]): TableDataset[F, A] =
     new TableDataset[F, A](ate.normalize(ds).dataset, dbSettings, cfg, ate)

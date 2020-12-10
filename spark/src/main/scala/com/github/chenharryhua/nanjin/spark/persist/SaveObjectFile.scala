@@ -20,8 +20,7 @@ final class SaveObjectFile[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends Ser
   def run(
     blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], ss: SparkSession): F[Unit] = {
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
-    val ccg: CompressionCodecGroup[F] =
-      params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
+    params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
 
     sma.checkAndRun(blocker)(F.delay(rdd.saveAsObjectFile(params.outPath)))
   }

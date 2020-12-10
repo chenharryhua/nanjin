@@ -1,19 +1,18 @@
 package mtest.spark
 
-import java.time.Instant
-
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.injection._
 import com.github.chenharryhua.nanjin.spark.persist.loaders
-import frameless.TypedEncoder
+import frameless.{TypedDataset, TypedEncoder}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{DataFrame, Dataset, SaveMode}
 import org.scalatest.funsuite.AnyFunSuite
 
+import java.time.Instant
 import scala.math.BigDecimal
 import scala.math.BigDecimal.RoundingMode
 
@@ -147,5 +146,33 @@ class AvroTypedEncoderTest extends AnyFunSuite {
     val eds = ate.emptyDataset
     assert(eds.count[IO].unsafeRunSync() == 0)
     assert(eds.schema == expectedSchema)
+  }
+
+  test("primitive type string") {
+    val ate  = AvroTypedEncoder[String](AvroCodec[String])
+    val data = List("a", "b", "c", "d")
+    val rdd  = sparkSession.sparkContext.parallelize(data)
+    assert(ate.normalize(rdd).collect[IO]().unsafeRunSync().toList == data)
+  }
+
+  test("primitive type int") {
+    val ate           = AvroTypedEncoder[Int](AvroCodec[Int])
+    val data          = List(1, 2, 3, 4)
+    val rdd: RDD[Int] = sparkSession.sparkContext.parallelize(data)
+    assert(ate.normalize(rdd).collect[IO]().unsafeRunSync().toList == data)
+  }
+
+  test("primitive type long") {
+    val ate              = AvroTypedEncoder[Long](AvroCodec[Long])
+    val data: List[Long] = List(1L, 2L, 3L, 4L)
+    val rdd: RDD[Long]   = sparkSession.sparkContext.parallelize(data)
+    assert(ate.normalize(rdd).collect[IO]().unsafeRunSync().toList == data)
+  }
+
+  test("primitive type array byte") {
+    val ate                     = AvroTypedEncoder[Array[Byte]](AvroCodec[Array[Byte]])
+    val data: List[Array[Byte]] = List(Array(1), Array(2, 3), Array(4, 5, 6), Array(7, 8, 9, 10))
+    val rdd                     = sparkSession.sparkContext.parallelize(data)
+    assert(ate.normalize(rdd).collect[IO]().unsafeRunSync().toList.flatten == data.flatten)
   }
 }

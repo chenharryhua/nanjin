@@ -115,13 +115,13 @@ private[kafka] trait DatasetExtensions {
       object rdd {
 
         def avro(pathStr: String)(implicit ss: SparkSession): RDD[OptionalKV[K, V]] =
-          loaders.rdd.avro[OptionalKV[K, V]](pathStr, avroCodec)
+          loaders.rdd.avro[OptionalKV[K, V]](pathStr, avroCodec.avroDecoder)
 
         def jackson(pathStr: String)(implicit ss: SparkSession): RDD[OptionalKV[K, V]] =
-          loaders.rdd.jackson[OptionalKV[K, V]](pathStr, avroCodec)
+          loaders.rdd.jackson[OptionalKV[K, V]](pathStr, avroCodec.avroDecoder)
 
         def binAvro(pathStr: String)(implicit ss: SparkSession): RDD[OptionalKV[K, V]] =
-          loaders.rdd.binAvro[OptionalKV[K, V]](pathStr, avroCodec)
+          loaders.rdd.binAvro[OptionalKV[K, V]](pathStr, avroCodec.avroDecoder)
 
         def circe(pathStr: String)(implicit
           ev: JsonDecoder[OptionalKV[K, V]],

@@ -3,9 +3,8 @@ package com.github.chenharryhua.nanjin.messages.kafka.codec
 import cats.Show
 import cats.kernel.Eq
 import com.google.protobuf.{CodedInputStream, CodedOutputStream, Descriptors, DynamicMessage}
-import com.sksamuel.avro4s.{Codec, FieldMapper, SchemaFor}
+import com.sksamuel.avro4s.{Codec, SchemaFor}
 import io.confluent.kafka.serializers.protobuf.{KafkaProtobufDeserializer, KafkaProtobufSerializer}
-import org.apache.avro.Schema
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 import scalapb.descriptors.{Descriptor, FieldDescriptor, PValue, Reads}
 import scalapb.{GeneratedEnumCompanion, GeneratedMessage, GeneratedMessageCompanion}
@@ -63,24 +62,6 @@ object KPB {
       override def defaultInstance: KPB[A] = KPB(ev.defaultInstance)
     }
 
-  implicit def kpbSchemaFor[A <: GeneratedMessage]: SchemaFor[KPB[A]] =
-    new SchemaFor[KPB[A]] {
-      override def schema: Schema           = SchemaFor[Array[Byte]].schema
-      override def fieldMapper: FieldMapper = SchemaFor[Array[Byte]].fieldMapper
-    }
-
-  implicit def kpbCodec[A <: GeneratedMessage](implicit
-    ev: GeneratedMessageCompanion[A]): Codec[KPB[A]] = new Codec[KPB[A]] {
-
-    override def decode(value: Any): KPB[A] = value match {
-      case ab: Array[Byte] => KPB(ev.parseFrom(ab))
-      case ex              => sys.error(s"${ex.getClass} is not a Array[Byte] ${ex.toString}")
-    }
-
-    override def encode(value: KPB[A]): Array[Byte] = value.value.toByteArray
-    override def schemaFor: SchemaFor[KPB[A]]       = kpbSchemaFor[A]
-  }
-
   implicit def kpbSerde[A <: GeneratedMessage](implicit
     ev: GeneratedMessageCompanion[A]): SerdeOf[KPB[A]] =
     new SerdeOf[KPB[A]] {
@@ -125,8 +106,16 @@ object KPB {
             }
         }
 
-      override val avroCodec: AvroCodec[KPB[A]] =
-        AvroCodec[KPB[A]](kpbSchemaFor[A], kpbCodec[A], kpbCodec[A])
-
+      override val avroCodec: AvroCodec[KPB[A]] = {
+        val kpbCodec: Codec[KPB[A]] = new Codec[KPB[A]] {
+          override def decode(value: Any): KPB[A] = value match {
+            case ab: Array[Byte] => KPB(ev.parseFrom(ab))
+            case ex              => sys.error(s"${ex.getClass} is not a Array[Byte] ${ex.toString}")
+          }
+          override def encode(value: KPB[A]): Array[Byte] = value.value.toByteArray
+          override def schemaFor: SchemaFor[KPB[A]]       = SchemaFor[Array[Byte]].forType[KPB[A]]
+        }
+        AvroCodec[KPB[A]](kpbCodec.schemaFor, kpbCodec, kpbCodec)
+      }
     }
 }
