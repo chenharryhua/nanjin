@@ -1,12 +1,12 @@
 package mtest.spark.persist
 
 import cats.effect.IO
+import com.github.chenharryhua.nanjin.messages.kafka.codec.KJson
+import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.{
   loaders,
   DatasetAvroFileHoarder,
-  DatasetFileHoarder,
-  RddAvroFileHoarder,
-  RddFileHoarder
+  DatasetFileHoarder
 }
 import frameless.TypedDataset
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
@@ -75,4 +75,5 @@ class JsonTest extends AnyFunSuite {
     val t: TypedDataset[Jacket] = loaders.json(path, Jacket.ate)
     assert(expected.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
+
 }

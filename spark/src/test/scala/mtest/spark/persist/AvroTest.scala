@@ -4,7 +4,6 @@ import cats.effect.IO
 import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.pipes.GenericRecordCodec
 import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddAvroFileHoarder}
-import com.sksamuel.avro4s.{Decoder, Encoder}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import org.apache.spark.sql.SaveMode
 import org.scalatest.DoNotDiscover

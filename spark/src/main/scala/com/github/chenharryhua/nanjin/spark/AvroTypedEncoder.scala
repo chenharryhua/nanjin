@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark
 
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
 import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql._
@@ -20,14 +21,14 @@ final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], te: TypedE
   private val avroStructType: StructType =
     SchemaConverters.toSqlType(avroCodec.schema).dataType match {
       case st: StructType => st
-      case s: StringType  => TypedExpressionEncoder[String].schema
-      case i: IntegerType => TypedExpressionEncoder[Int].schema
-      case l: LongType    => TypedExpressionEncoder[Long].schema
-      case l: FloatType   => TypedExpressionEncoder[Float].schema
-      case l: DoubleType  => TypedExpressionEncoder[Double].schema
-      case b: ByteType    => TypedExpressionEncoder[Byte].schema
-      case bt: BinaryType => TypedExpressionEncoder[Array[Byte]].schema
-      case d: DecimalType => TypedExpressionEncoder[BigDecimal].schema
+      case _: StringType  => TypedExpressionEncoder[String].schema
+      case _: IntegerType => TypedExpressionEncoder[Int].schema
+      case _: LongType    => TypedExpressionEncoder[Long].schema
+      case _: FloatType   => TypedExpressionEncoder[Float].schema
+      case _: DoubleType  => TypedExpressionEncoder[Double].schema
+      case _: ByteType    => TypedExpressionEncoder[Byte].schema
+      case _: BinaryType  => TypedExpressionEncoder[Array[Byte]].schema
+      case _: DecimalType => TypedExpressionEncoder[BigDecimal].schema
       case ex             => sys.error(s"not support $ex")
     }
 
@@ -69,4 +70,11 @@ object AvroTypedEncoder {
 
   def apply[A](ac: AvroCodec[A])(implicit te: TypedEncoder[A]): AvroTypedEncoder[A] =
     new AvroTypedEncoder[A](ac, te)
+
+  def apply[A](implicit
+    sf: SchemaFor[A],
+    dec: AvroDecoder[A],
+    enc: AvroEncoder[A],
+    te: TypedEncoder[A]): AvroTypedEncoder[A] =
+    new AvroTypedEncoder[A](AvroCodec[A](sf, dec, enc), te)
 }
