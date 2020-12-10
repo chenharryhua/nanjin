@@ -3,7 +3,8 @@ package com.github.chenharryhua.nanjin.spark.database
 import cats.effect.Sync
 import com.github.chenharryhua.nanjin.database.DatabaseSettings
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SaveAvroDataset}
+import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
+import com.github.chenharryhua.nanjin.spark.persist.DatasetAvroFileHoarder
 import frameless.TypedDataset
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import org.apache.spark.sql.{Dataset, SparkSession}
@@ -41,6 +42,7 @@ final class TableDataset[F[_], A](
 
   def upload: DbUploader[F, A] = new DbUploader[F, A](dataset, dbSettings, ate, cfg)
 
-  def save: SaveAvroDataset[F, A] = new SaveAvroDataset[F, A](dataset, ate.avroCodec.avroEncoder)
+  def save: DatasetAvroFileHoarder[F, A] =
+    new DatasetAvroFileHoarder[F, A](dataset, ate.avroCodec.avroEncoder)
 
 }

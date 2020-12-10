@@ -36,7 +36,8 @@ object Rooster {
       |  "fields": [
       |    {
       |      "name": "index",
-      |      "type": "int"
+      |      "type": "int",
+      |      "doc": "the doc should not be discarded by avro codec"
       |    },
       |    {
       |      "name": "a",

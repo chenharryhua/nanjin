@@ -8,7 +8,8 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt, SaveAvroDataset, SaveAvroRdd}
+import com.github.chenharryhua.nanjin.spark.persist.{DatasetAvroFileHoarder, RddAvroFileHoarder}
+import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt}
 import frameless.cats.implicits.rddOps
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
@@ -136,9 +137,11 @@ final class CrRdd[F[_], K, V](
       .compile
       .drain
 
-  def save: SaveAvroRdd[F, OptionalKV[K, V]] =
-    new SaveAvroRdd[F, OptionalKV[K, V]](rdd, codec.avroEncoder)
+  // save
+  def save: RddAvroFileHoarder[F, OptionalKV[K, V]] =
+    new RddAvroFileHoarder[F, OptionalKV[K, V]](rdd, codec.avroEncoder)
 
-  def saveA(implicit te: TypedEncoder[OptionalKV[K, V]]): SaveAvroDataset[F, OptionalKV[K, V]] =
-    new SaveAvroDataset(typedDataset.dataset, codec.avroEncoder)
+  def saveAll(implicit
+    te: TypedEncoder[OptionalKV[K, V]]): DatasetAvroFileHoarder[F, OptionalKV[K, V]] =
+    new DatasetAvroFileHoarder[F, OptionalKV[K, V]](typedDataset.dataset, codec.avroEncoder)
 }

@@ -37,7 +37,7 @@ sealed abstract class NJSerdeConfig[A](
 }
 
 trait SerdeOf[A] extends Serde[A] with Serializable {
-  val avroCodec: AvroCodec[A]
+  def avroCodec: AvroCodec[A]
 
   final def asKey(props: Map[String, String]): NJSerdeConfig[A] =
     new NJSerdeConfig(KeyValueTag.Key, this, props) {}
