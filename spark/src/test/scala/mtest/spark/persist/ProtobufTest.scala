@@ -18,9 +18,9 @@ object ProtobufTestData {
 @DoNotDiscover
 class ProtobufTest extends AnyFunSuite {
   import ProtobufTestData._
+  val saver = new RddFileHoarder[IO, Whale](rdd.map(_.value).repartition(2))
   test("protobuf - single file") {
     val path  = "./data/test/spark/persist/protobuf/single.whale.pb"
-    val saver = new RddFileHoarder[IO, KPB[Whale]](rdd.repartition(1))
     saver.protobuf(path).file.run(blocker).unsafeRunSync()
     val res = loaders.rdd.protobuf[KPB[Whale]](path).collect().toSet
     assert(data.toSet == res)
@@ -28,7 +28,6 @@ class ProtobufTest extends AnyFunSuite {
 
   test("protobuf - multi files") {
     val path  = "./data/test/spark/persist/protobuf/multi.whale.pb/"
-    val saver = new RddFileHoarder[IO, KPB[Whale]](rdd.repartition(2))
     saver.protobuf(path).folder.run(blocker).unsafeRunSync()
     val res = loaders.rdd.protobuf[Whale](path).collect().toSet
     assert(data.map(_.value).toSet == res)
