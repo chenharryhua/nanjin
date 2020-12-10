@@ -1,8 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.sksamuel.avro4s.AvroInputStream
+import com.sksamuel.avro4s.{AvroInputStream, Decoder => AvroDecoder}
 import frameless.TypedDataset
 import frameless.cats.implicits._
 import io.circe.parser.decode
@@ -36,7 +35,7 @@ object loaders {
     ss: SparkSession): TypedDataset[A] =
     ate.normalizeDF(
       ss.read
-        .schema(ate.sparkSchema)
+        .schema(ate.originSchema)
         .option("sep", csvConfiguration.cellSeparator.toString)
         .option("header", csvConfiguration.hasHeader)
         .option("quote", csvConfiguration.quote.toString)
@@ -49,7 +48,7 @@ object loaders {
 
   def json[A](pathStr: String, ate: AvroTypedEncoder[A])(implicit
     ss: SparkSession): TypedDataset[A] =
-    ate.normalizeDF(ss.read.schema(ate.sparkSchema).json(pathStr))
+    ate.normalizeDF(ss.read.schema(ate.originSchema).json(pathStr))
 
   def objectFile[A](pathStr: String, ate: AvroTypedEncoder[A])(implicit
     ss: SparkSession): TypedDataset[A] =
@@ -62,16 +61,11 @@ object loaders {
 
   def jackson[A](pathStr: String, ate: AvroTypedEncoder[A])(implicit
     ss: SparkSession): TypedDataset[A] =
-    ate.normalize(rdd.jackson[A](pathStr, ate.avroCodec)(ate.classTag, ss))
+    ate.normalize(rdd.jackson[A](pathStr, ate.avroCodec.avroDecoder)(ate.classTag, ss))
 
   def binAvro[A](pathStr: String, ate: AvroTypedEncoder[A])(implicit
     ss: SparkSession): TypedDataset[A] =
-    ate.normalize(rdd.binAvro[A](pathStr, ate.avroCodec)(ate.classTag, ss))
-
-  def protobuf[A <: GeneratedMessage](pathStr: String, ate: AvroTypedEncoder[A])(implicit
-    decoder: GeneratedMessageCompanion[A],
-    ss: SparkSession): TypedDataset[A] =
-    ate.normalize(rdd.protobuf[A](pathStr)(ate.classTag, decoder, ss))
+    ate.normalize(rdd.binAvro[A](pathStr, ate.avroCodec.avroDecoder)(ate.classTag, ss))
 
   object rdd {
 
@@ -99,11 +93,11 @@ object loaders {
           }
         })
 
-    def avro[A: ClassTag](pathStr: String, codec: AvroCodec[A])(implicit
+    def avro[A: ClassTag](pathStr: String, decoder: AvroDecoder[A])(implicit
       ss: SparkSession): RDD[A] = {
       val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
       AvroJob.setDataModelClass(job, classOf[GenericData])
-      AvroJob.setInputKeySchema(job, codec.schema)
+      AvroJob.setInputKeySchema(job, decoder.schema)
       ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
 
       ss.sparkContext
@@ -112,31 +106,31 @@ object loaders {
           classOf[AvroKeyInputFormat[GenericRecord]],
           classOf[AvroKey[GenericRecord]],
           classOf[NullWritable])
-        .map { case (gr, _) => codec.avroDecoder.decode(gr.datum()) }
+        .map { case (gr, _) => decoder.decode(gr.datum()) }
     }
 
-    def binAvro[A: ClassTag](pathStr: String, codec: AvroCodec[A])(implicit
+    def binAvro[A: ClassTag](pathStr: String, decoder: AvroDecoder[A])(implicit
       ss: SparkSession): RDD[A] =
       ss.sparkContext
         .binaryFiles(pathStr)
         .mapPartitions(_.flatMap { case (_, pds) => // resource leak ???
           val dis: DataInputStream = pds.open()
           val itor: Iterator[A] =
-            AvroInputStream.binary[A](codec.avroDecoder).from(dis).build(codec.schema).iterator
+            AvroInputStream.binary[A](decoder).from(dis).build(decoder.schema).iterator
           new Iterator[A] {
             override def hasNext: Boolean = if (itor.hasNext) true else { Try(dis.close()); false }
             override def next(): A        = itor.next()
           }
         })
 
-    def jackson[A: ClassTag](pathStr: String, codec: AvroCodec[A])(implicit
+    def jackson[A: ClassTag](pathStr: String, decoder: AvroDecoder[A])(implicit
       ss: SparkSession): RDD[A] = {
-      val schema = codec.schema
+      val schema = decoder.schema
       ss.sparkContext.textFile(pathStr).mapPartitions { strs =>
         val datumReader = new GenericDatumReader[GenericRecord](schema)
         strs.map { str =>
           val jsonDecoder = DecoderFactory.get().jsonDecoder(schema, str)
-          codec.avroDecoder.decode(datumReader.read(null, jsonDecoder))
+          decoder.decode(datumReader.read(null, jsonDecoder))
         }
       }
     }

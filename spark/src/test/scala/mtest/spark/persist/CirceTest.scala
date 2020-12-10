@@ -1,11 +1,14 @@
 package mtest.spark.persist
 
 import cats.effect.IO
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
+import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt}
 import com.github.chenharryhua.nanjin.spark.injection._
 import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddAvroFileHoarder, RddFileHoarder}
 import frameless.TypedDataset
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import io.circe.generic.auto._
+import org.apache.spark.rdd.RDD
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -121,11 +124,44 @@ class CirceTest extends AnyFunSuite {
     assert(JacketData.expected.toSet == t2)
   }
 
+  test("circe jacket neck multi") {
+    val path  = "./data/test/spark/persist/circe/jacket-neck-multi.json"
+    val data  = JacketData.expected.map(_.neck)
+    val rdd   = sparkSession.sparkContext.parallelize(data)
+    val saver = new RddFileHoarder[IO, KJson[Neck]](rdd.repartition(1))
+    saver.circe(path).run(blocker).unsafeRunSync()
+    val t = loaders.rdd.circe[KJson[Neck]](path).collect().toSet
+    assert(data.toSet == t)
+  }
+  test("circe jacket neck single") {
+    val path  = "./data/test/spark/persist/circe/jacket-neck-single.json"
+    val data  = JacketData.expected.map(_.neck)
+    val rdd   = sparkSession.sparkContext.parallelize(data)
+    val saver = new RddFileHoarder[IO, KJson[Neck]](rdd.repartition(1))
+    saver.circe(path).file.run(blocker).unsafeRunSync()
+    val t = loaders.rdd.circe[Neck](path).collect().toSet
+    assert(data.map(_.value).toSet == t)
+  }
   test("circe fractual") {
     val path  = "./data/test/spark/persist/circe/fractual.json"
     val saver = new RddFileHoarder[IO, Fractual](FractualData.rdd)
     saver.circe(path).file.run(blocker).unsafeRunSync()
     val t = loaders.rdd.circe[Fractual](path).collect().toSet
     assert(FractualData.data.toSet == t)
+  }
+
+  test("circe primitive") {
+    val path          = "./data/test/spark/persist/circe/primitive.json"
+    val rdd: RDD[Int] = RoosterData.rdd.map(_.index)
+    val expected      = rdd.collect().toSet
+    rdd.save[IO].circe(path).file.run(blocker).unsafeRunSync()
+    val t =
+      loaders
+        .circe[Int](path, AvroTypedEncoder[Int](AvroCodec[Int]))
+        .collect[IO]()
+        .unsafeRunSync()
+        .toSet
+
+    assert(expected == t)
   }
 }
