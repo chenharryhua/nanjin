@@ -149,28 +149,28 @@ class AvroTypedEncoderTest extends AnyFunSuite {
   }
 
   test("primitive type string") {
-    val ate  = AvroTypedEncoder[String](AvroCodec[String])
+    val ate  = AvroTypedEncoder[String]
     val data = List("a", "b", "c", "d")
     val rdd  = sparkSession.sparkContext.parallelize(data)
     assert(ate.normalize(rdd).collect[IO]().unsafeRunSync().toList == data)
   }
 
   test("primitive type int") {
-    val ate           = AvroTypedEncoder[Int](AvroCodec[Int])
+    val ate           = AvroTypedEncoder[Int]
     val data          = List(1, 2, 3, 4)
     val rdd: RDD[Int] = sparkSession.sparkContext.parallelize(data)
     assert(ate.normalize(rdd).collect[IO]().unsafeRunSync().toList == data)
   }
 
   test("primitive type long") {
-    val ate              = AvroTypedEncoder[Long](AvroCodec[Long])
+    val ate              = AvroTypedEncoder[Long]
     val data: List[Long] = List(1L, 2L, 3L, 4L)
     val rdd: RDD[Long]   = sparkSession.sparkContext.parallelize(data)
     assert(ate.normalize(rdd).collect[IO]().unsafeRunSync().toList == data)
   }
 
   test("primitive type array byte") {
-    val ate                     = AvroTypedEncoder[Array[Byte]](AvroCodec[Array[Byte]])
+    val ate                     = AvroTypedEncoder[Array[Byte]]
     val data: List[Array[Byte]] = List(Array(1), Array(2, 3), Array(4, 5, 6), Array(7, 8, 9, 10))
     val rdd                     = sparkSession.sparkContext.parallelize(data)
     assert(ate.normalize(rdd).collect[IO]().unsafeRunSync().toList.flatten == data.flatten)

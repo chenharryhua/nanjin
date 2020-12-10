@@ -1,8 +1,6 @@
 package mtest.spark.persist
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.messages.kafka.codec.KJson
-import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.{
   loaders,
   DatasetAvroFileHoarder,

@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.spark.injection._
 import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddAvroFileHoarder, RddFileHoarder}
 import frameless.TypedDataset
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
+import io.circe.Json
 import io.circe.generic.auto._
 import org.apache.spark.rdd.RDD
 import org.scalatest.DoNotDiscover
@@ -133,6 +134,7 @@ class CirceTest extends AnyFunSuite {
     val t = loaders.rdd.circe[KJson[Neck]](path).collect().toSet
     assert(data.toSet == t)
   }
+
   test("circe jacket neck single") {
     val path  = "./data/test/spark/persist/circe/jacket-neck-single.json"
     val data  = JacketData.expected.map(_.neck)
@@ -142,6 +144,27 @@ class CirceTest extends AnyFunSuite {
     val t = loaders.rdd.circe[Neck](path).collect().toSet
     assert(data.map(_.value).toSet == t)
   }
+
+  test("circe jacket neck json single") {
+    val path  = "./data/test/spark/persist/circe/jacket-neck-json.json"
+    val data  = JacketData.expected.map(_.neck.value.b)
+    val rdd   = sparkSession.sparkContext.parallelize(data)
+    val saver = new RddFileHoarder[IO, Json](rdd.repartition(1))
+    saver.circe(path).file.run(blocker).unsafeRunSync()
+    val t = loaders.rdd.circe[Json](path).collect().toSet
+    assert(data.toSet == t)
+  }
+
+  test("circe jacket neck json multi") {
+    val path  = "./data/test/spark/persist/circe/jacket-neck-multi.json"
+    val data  = JacketData.expected.map(_.neck.value.b)
+    val rdd   = sparkSession.sparkContext.parallelize(data)
+    val saver = new RddFileHoarder[IO, Json](rdd.repartition(1))
+    saver.circe(path).folder.run(blocker).unsafeRunSync()
+    val t = loaders.rdd.circe[Json](path).collect().toSet
+    assert(data.toSet == t)
+  }
+
   test("circe fractual") {
     val path  = "./data/test/spark/persist/circe/fractual.json"
     val saver = new RddFileHoarder[IO, Fractual](FractualData.rdd)
