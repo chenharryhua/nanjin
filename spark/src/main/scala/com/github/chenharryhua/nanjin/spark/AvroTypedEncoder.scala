@@ -42,6 +42,8 @@ final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], te: TypedE
       override def toCatalyst(path: Expression): Expression   = te.toCatalyst(path)
     }
 
+  val sparkEncoder: Encoder[A] = TypedExpressionEncoder[A](typedEncoder)
+
   def normalize(rdd: RDD[A])(implicit ss: SparkSession): TypedDataset[A] = {
     val ds: Dataset[A] =
       ss.createDataset(rdd)(originEncoder).map(avroCodec.idConversion)(originEncoder)

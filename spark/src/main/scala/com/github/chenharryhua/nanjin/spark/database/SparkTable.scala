@@ -38,7 +38,7 @@ final class SparkTable[F[_], A](
   def fromDisk: TableDataset[F, A] =
     new TableDataset[F, A](loaders.objectFile(params.replayPath, ate).dataset, dbSettings, cfg, ate)
 
-  def countDisk: Long = fromDisk.dataset.count()
+  def countDisk: Long = fromDisk.dataset.count
 
   def countDB: Long = {
     import sparkSession.implicits._
