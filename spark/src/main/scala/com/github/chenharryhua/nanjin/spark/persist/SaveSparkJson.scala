@@ -29,8 +29,8 @@ final class SaveSparkJson[F[_], A](ds: Dataset[A], cfg: HoarderConfig, isKeepNul
   def keepNull: SaveSparkJson[F, A] = new SaveSparkJson[F, A](ds, cfg, true)
   def dropNull: SaveSparkJson[F, A] = new SaveSparkJson[F, A](ds, cfg, false)
 
-  def run(
-    blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], ss: SparkSession): F[Unit] = {
+  def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
+    val ss: SparkSession = ds.sparkSession
     val sma: SaveModeAware[F] =
       new SaveModeAware[F](params.saveMode, params.outPath, ss)
 
