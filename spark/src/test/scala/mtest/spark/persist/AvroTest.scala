@@ -11,8 +11,8 @@ import org.scalatest.funsuite.AnyFunSuite
 
 @DoNotDiscover
 class AvroTest extends AnyFunSuite {
-  val hadoop = NJHadoop[IO](sparkSession.sparkContext.hadoopConfiguration, blocker)
-  val gr     = new GenericRecordCodec[IO, Rooster]()
+  val hadoop: NJHadoop[IO]                = NJHadoop[IO](sparkSession.sparkContext.hadoopConfiguration, blocker)
+  val gr: GenericRecordCodec[IO, Rooster] = new GenericRecordCodec[IO, Rooster]()
 
   def singleAvro(path: String): Set[Rooster] = hadoop
     .avroSource(path, Rooster.avroCodec.schema)

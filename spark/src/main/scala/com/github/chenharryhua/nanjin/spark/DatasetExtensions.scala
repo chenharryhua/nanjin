@@ -5,7 +5,13 @@ import akka.stream.scaladsl.Source
 import cats.effect.{ConcurrentEffect, Sync}
 import com.github.chenharryhua.nanjin.database.{DatabaseSettings, TableName}
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicDef}
-import com.github.chenharryhua.nanjin.spark.database.{sd, DbUploader, SparkTable}
+import com.github.chenharryhua.nanjin.spark.database.{
+  sd,
+  DbUploader,
+  STConfig,
+  SparkTable,
+  TableDef
+}
 import com.github.chenharryhua.nanjin.spark.kafka.{SKConfig, SparKafka}
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.TypedDataset
@@ -23,6 +29,7 @@ import com.github.chenharryhua.nanjin.spark.persist.{
   RddAvroFileHoarder,
   RddFileHoarder
 }
+import org.apache.spark.sql.types.DataType
 
 private[spark] trait DatasetExtensions {
 
@@ -51,16 +58,14 @@ private[spark] trait DatasetExtensions {
 
   implicit final class TypedDatasetExt[A](tds: TypedDataset[A]) extends Serializable {
 
-    def stream[F[_]: Sync]: Stream[F, A] = tds.dataset.rdd.stream[F]
-
-    def source[F[_]: ConcurrentEffect]: Source[A, NotUsed] =
-      Source.fromPublisher[A](stream[F].toUnicastPublisher)
+    def stream[F[_]: Sync]: Stream[F, A]                   = tds.rdd.stream[F]
+    def source[F[_]: ConcurrentEffect]: Source[A, NotUsed] = tds.rdd.source[F]
 
     def dismissNulls: TypedDataset[A]   = tds.deserialized.filter(_ != null)
     def numOfNulls[F[_]: Sync]: F[Long] = tds.except(dismissNulls).count[F]()
 
     def dbUpload[F[_]: Sync](db: SparkTable[F, A]): DbUploader[F, A] =
-      db.tableset(tds).upload
+      tds.rdd.dbUpload(db)
 
     def save[F[_]]: DatasetFileHoarder[F, A] = new DatasetFileHoarder[F, A](tds.dataset)
 
@@ -70,8 +75,9 @@ private[spark] trait DatasetExtensions {
 
   implicit final class DataframeExt(df: DataFrame) extends Serializable {
 
-    def genCaseClass: String = NJDataType(df.schema).toCaseClass
-    def genSchema: Schema    = NJDataType(df.schema).toSchema
+    def genCaseClass: String  = NJDataType(df.schema).toCaseClass
+    def genSchema: Schema     = NJDataType(df.schema).toSchema
+    def genDataType: DataType = NJDataType(df.schema).toSpark
 
   }
 
@@ -81,9 +87,14 @@ private[spark] trait DatasetExtensions {
     def dataframe(tableName: String): DataFrame =
       sd.unloadDF(dbSettings.hikariConfig, TableName.unsafeFrom(tableName), None)(ss)
 
-    def genCaseClass(tableName: String): String = dataframe(tableName).genCaseClass
-    def genSchema(tableName: String): Schema    = dataframe(tableName).genSchema
+    def genCaseClass(tableName: String): String  = dataframe(tableName).genCaseClass
+    def genSchema(tableName: String): Schema     = dataframe(tableName).genSchema
+    def genDatatype(tableName: String): DataType = dataframe(tableName).genDataType
 
+    def table[A](tableDef: TableDef[A]): SparkTable[F, A] = {
+      val cfg = STConfig(dbSettings.database, tableDef.tableName)
+      new SparkTable[F, A](tableDef, dbSettings, cfg)(ss)
+    }
   }
 
   final class SparkWithKafkaContext[F[_]](ss: SparkSession, ctx: KafkaContext[F])

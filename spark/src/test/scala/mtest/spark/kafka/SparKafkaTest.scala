@@ -44,7 +44,7 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("sparKafka read topic from kafka and show minutely aggragation result") {
-    topic.sparKafka(range).fromKafka.flatMap(_.stats.minutely).unsafeRunSync
+    topic.sparKafka(range).fromKafka.flatMap(_.stats.withShowRows(100).minutely).unsafeRunSync
   }
   test("sparKafka read topic from kafka and show daily-hour aggragation result") {
     topic.sparKafka(range).fromKafka.flatMap(_.stats.dailyHour).unsafeRunSync
@@ -53,6 +53,9 @@ class SparKafkaTest extends AnyFunSuite {
     topic.sparKafka(range).fromKafka.flatMap(_.stats.dailyMinute).unsafeRunSync
   }
   test("sparKafka read topic from kafka and show daily aggragation result") {
+    topic.sparKafka(range).fromKafka.flatMap(_.stats.daily).unsafeRunSync
+  }
+  test("sparKafka read topic from kafka and show hourly aggragation result") {
     topic.sparKafka(range).fromKafka.flatMap(_.stats.daily).unsafeRunSync
   }
   test("sparKafka should be able to bimap to other topic") {

@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.common.transformers._
 import com.github.chenharryhua.nanjin.database.TableName
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
+import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, _}
 import com.github.chenharryhua.nanjin.spark.database._
 import com.github.chenharryhua.nanjin.spark.injection._
 import com.github.chenharryhua.nanjin.spark.persist.DatasetAvroFileHoarder
@@ -22,15 +22,16 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import java.sql.Date
 import java.time._
+import scala.util.Random
 
 final case class DomainObject(
   a: LocalDate,
   b: Date,
   c: ZonedDateTime,
   d: OffsetDateTime,
-  e: Instant)
+  e: Option[Instant])
 
-final case class DBTable(a: LocalDate, b: LocalDate, c: Instant, d: Instant, e: Instant)
+final case class DBTable(a: LocalDate, b: LocalDate, c: Instant, d: Instant, e: Option[Instant])
 final case class PartialDBTable(a: LocalDate, b: LocalDate)
 
 object DBTable {
@@ -41,10 +42,10 @@ object DBTable {
   val create: doobie.ConnectionIO[Int] =
     sql"""
          CREATE TABLE sparktest (
-             a  date,
-             b  date,
-             c  timestamp,
-             d  timestamp,
+             a  date NOT NULL,
+             b  date NOT NULL,
+             c  timestamp NOT NULL,
+             d  timestamp NOT NULL,
              e  timestamp
          );""".update.run
 }
@@ -59,13 +60,15 @@ class SparkTableTest extends AnyFunSuite {
 
   val table: TableDef[DBTable] = TableDef[DBTable](TableName("sparktest"), codec)
 
+  val sd: SparkWithDBSettings[IO] = sparkSession.alongWith[IO](postgres)
+
   val sample: DomainObject =
     DomainObject(
       LocalDate.now,
       Date.valueOf(LocalDate.now),
       ZonedDateTime.now(zoneId),
       OffsetDateTime.now(zoneId),
-      Instant.now)
+      if (Random.nextBoolean()) Some(Instant.now) else None)
 
   val dbData: DBTable = sample.transformInto[DBTable]
 
@@ -73,14 +76,14 @@ class SparkTableTest extends AnyFunSuite {
 
   test("sparkTable upload dataset to table") {
     val data = TypedDataset.create(List(sample.transformInto[DBTable]))
-    table.in[IO](postgres).tableset(data).upload.overwrite.run.unsafeRunSync()
+    sd.table(table).tableset(data).upload.overwrite.run.unsafeRunSync()
 
   }
 
   test("dump and count") {
     table.in[IO](postgres).dump.unsafeRunSync()
-    val dbc = table.in[IO](postgres).countDB
-    val dc  = table.in[IO](postgres).countDisk
+    val dbc = sd.table(table).countDB
+    val dc  = sd.table(table).countDisk
 
     val load = table.in[IO](postgres).fromDB.dataset
     val l1   = table.in[IO](postgres).tableset(load).typedDataset
@@ -171,5 +174,13 @@ class SparkTableTest extends AnyFunSuite {
     val json = saver.json(root + "spark.json").run(blocker)
     json.unsafeRunSync()
     assert(table.load.json(root + "spark.json").dataset.collect.head == dbData)
+  }
+  test("show schemas - spark does not respect not null") {
+    println("--- spark ---")
+    println(sd.genCaseClass("sparktest"))
+    println(sd.genSchema("sparktest"))
+    println(sd.genDatatype("sparktest"))
+    println("--- db ---")
+    println(postgres.genCaseClass[IO].unsafeRunSync())
   }
 }
