@@ -22,8 +22,8 @@ final class SaveParquet[F[_], A](ds: Dataset[A], cfg: HoarderConfig) extends Ser
   def gzip: SaveParquet[F, A] =
     updateConfig(cfg.withCompression(Compression.Gzip))
 
-  def run(
-    blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], ss: SparkSession): F[Unit] = {
+  def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
+    val ss: SparkSession = ds.sparkSession
 
     val sma: SaveModeAware[F]         = new SaveModeAware[F](params.saveMode, params.outPath, ss)
     val ccg: CompressionCodecGroup[F] = params.compression.ccg(ss.sparkContext.hadoopConfiguration)

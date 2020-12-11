@@ -16,7 +16,8 @@ final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], te: TypedE
 
   val classTag: ClassTag[A] = te.classTag
 
-  val originSchema: StructType = TypedExpressionEncoder[A](te).schema
+  val originEncoder: Encoder[A] = TypedExpressionEncoder(te)
+  val originSchema: StructType  = originEncoder.schema
 
   private val avroStructType: StructType =
     SchemaConverters.toSqlType(avroCodec.schema).dataType match {
@@ -26,7 +27,6 @@ final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], te: TypedE
       case _: LongType    => TypedExpressionEncoder[Long].schema
       case _: FloatType   => TypedExpressionEncoder[Float].schema
       case _: DoubleType  => TypedExpressionEncoder[Double].schema
-      case _: ByteType    => TypedExpressionEncoder[Byte].schema
       case _: BinaryType  => TypedExpressionEncoder[Array[Byte]].schema
       case _: DecimalType => TypedExpressionEncoder[BigDecimal].schema
       case ex             => sys.error(s"not support $ex")
@@ -42,8 +42,9 @@ final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], te: TypedE
       override def toCatalyst(path: Expression): Expression   = te.toCatalyst(path)
     }
 
+  val sparkEncoder: Encoder[A] = TypedExpressionEncoder[A](typedEncoder)
+
   def normalize(rdd: RDD[A])(implicit ss: SparkSession): TypedDataset[A] = {
-    val originEncoder: Encoder[A] = TypedExpressionEncoder(te)
     val ds: Dataset[A] =
       ss.createDataset(rdd)(originEncoder).map(avroCodec.idConversion)(originEncoder)
 

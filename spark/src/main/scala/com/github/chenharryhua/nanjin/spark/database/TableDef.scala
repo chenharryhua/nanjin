@@ -56,7 +56,7 @@ object TableDef {
 
   def apply[A: AvroEncoder: AvroDecoder: SchemaFor: TypedEncoder](
     tableName: TableName): TableDef[A] =
-    new TableDef[A](tableName, AvroTypedEncoder(AvroCodec[A]), None)
+    new TableDef[A](tableName, AvroTypedEncoder[A], None)
 
   def apply[A](tableName: TableName, codec: AvroCodec[A])(implicit typedEncoder: TypedEncoder[A]) =
     new TableDef[A](tableName, AvroTypedEncoder(codec), None)

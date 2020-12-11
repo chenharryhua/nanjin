@@ -65,7 +65,15 @@ class TableUploadTest extends AnyFunSuite {
   import TableUploadTestData._
 
   test("upload") {
-    tds.dbUpload(table).overwrite.run.unsafeRunSync()
+    tds
+      .dbUpload(table)
+      .append
+      .errorIfExists
+      .ignoreIfExists
+      .overwrite
+      .withTableName("upload")
+      .run
+      .unsafeRunSync()
   }
 
   test("dump and reload") {

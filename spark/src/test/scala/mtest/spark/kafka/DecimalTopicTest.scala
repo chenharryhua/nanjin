@@ -1,16 +1,17 @@
 package mtest.spark.kafka
 
 import java.time.Instant
-
 import cats.effect.IO
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.injection._
 import com.github.chenharryhua.nanjin.spark.kafka._
+import com.github.chenharryhua.nanjin.spark.persist.loaders
 import frameless.cats.implicits._
 import org.scalatest.funsuite.AnyFunSuite
-
+import io.circe.generic.auto._
 import scala.math.BigDecimal
 import scala.math.BigDecimal.RoundingMode
 
@@ -79,9 +80,35 @@ class DecimalTopicTest extends AnyFunSuite {
     topic.schemaRegister >>
     topic.send(1, data) >> topic.send(2, data)).unsafeRunSync()
 
-  test("sparKafka kafka and spark agree on avro") {
-    val path = "./data/test/spark/kafka/decimal.avro"
-    topic.sparKafka.fromKafka.flatMap(_.save.avro(path).file.run(blocker)).unsafeRunSync
-    assert(topicDef.load.avro(path).dataset.collect().head.value.get == expected)
+  val ate = AvroTypedEncoder(topicDef.avroCodec)
+
+  test("sparKafka kafka and spark agree on circe") {
+    val path = "./data/test/spark/kafka/decimal.circe.json"
+    sparkSession
+      .alongWith(ctx)
+      .topic(topicDef)
+      .fromKafka
+      .flatMap(_.save.circe(path).file.run(blocker))
+      .unsafeRunSync
+
+    val rdd = loaders.rdd.circe[OptionalKV[Int, HasDecimal]](path)
+    val ds  = rdd.typedDataset(ate)
+
+    rdd.save[IO].objectFile("./data/test/spark/kafka/decimal.obj").run(blocker).unsafeRunSync()
+    rdd
+      .save[IO](topicDef.avroCodec.avroEncoder)
+      .avro("./data/test/spark/kafka/decimal.avro")
+      .run(blocker)
+      .unsafeRunSync()
+
+    ds.save[IO].parquet("./data/test/spark/kafka/decimal.avro").run(blocker).unsafeRunSync()
+    ds.save[IO](topicDef.avroCodec.avroEncoder)
+      .jackson("./data/test/spark/kafka/decimal.jackson.json")
+      .run(blocker)
+      .unsafeRunSync()
+
+    assert(rdd.collect().head.value.get == expected)
+    assert(ds.collect[IO]().unsafeRunSync().head.value.get == expected)
   }
+
 }

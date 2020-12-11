@@ -1,17 +1,15 @@
 package com.github.chenharryhua.nanjin.spark.database
 
-import cats.effect.Sync
 import com.github.chenharryhua.nanjin.database.DatabaseSettings
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.DatasetAvroFileHoarder
+import frameless.TypedDataset
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
-import frameless.{TypedDataset, TypedExpressionEncoder}
 import org.apache.spark.sql.{Dataset, SparkSession}
 
 import scala.reflect.ClassTag
 
-final class TableDataset[F[_], A](
+final class TableDataset[F[_], A] private[database] (
   val dataset: Dataset[A],
   dbSettings: DatabaseSettings,
   cfg: STConfig,
@@ -27,25 +25,12 @@ final class TableDataset[F[_], A](
     new TableDataset[F, A](dataset.repartition(num), dbSettings, cfg, ate)
 
   def map[B](f: A => B)(ateb: AvroTypedEncoder[B]): TableDataset[F, B] =
-    new TableDataset[F, B](
-      dataset.map(f)(TypedExpressionEncoder(ateb.typedEncoder)),
-      dbSettings,
-      cfg,
-      ateb)
+    new TableDataset[F, B](dataset.map(f)(ateb.sparkEncoder), dbSettings, cfg, ateb)
 
   def flatMap[B](f: A => TraversableOnce[B])(ateb: AvroTypedEncoder[B]): TableDataset[F, B] =
-    new TableDataset[F, B](
-      dataset.flatMap(f)(TypedExpressionEncoder(ateb.typedEncoder)),
-      dbSettings,
-      cfg,
-      ateb)
+    new TableDataset[F, B](dataset.flatMap(f)(ateb.sparkEncoder), dbSettings, cfg, ateb)
 
-  def typedDataset: TypedDataset[A] = ate.normalize(dataset)
-
-  def normalize: TableDataset[F, A] =
-    new TableDataset[F, A](typedDataset.dataset, dbSettings, cfg, ate)
-
-  def count(implicit F: Sync[F]): F[Long] = F.delay(dataset.count())
+  def typedDataset: TypedDataset[A] = TypedDataset.create(dataset)(ate.typedEncoder)
 
   def upload: DbUploader[F, A] = new DbUploader[F, A](dataset, dbSettings, ate, cfg)
 

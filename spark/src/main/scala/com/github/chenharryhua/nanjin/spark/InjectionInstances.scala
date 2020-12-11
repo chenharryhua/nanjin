@@ -4,7 +4,7 @@ import cats.Order
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KJson
 import frameless.{Injection, SQLDate, SQLTimestamp}
 import io.circe.Decoder.Result
-import io.circe.parser.decode
+import io.circe.parser.{decode, parse}
 import io.circe.syntax._
 import io.circe.{Codec, HCursor, Json, Decoder => JsonDecoder, Encoder => JsonEncoder}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
@@ -69,6 +69,15 @@ private[spark] trait InjectionInstances extends Serializable {
         case Left(ex) => throw ex
       }
     }
+
+  implicit val circeJsonInjection: Injection[Json, String] = new Injection[Json, String] {
+    override def apply(a: Json): String = a.noSpaces
+
+    override def invert(b: String): Json = parse(b) match {
+      case Right(r) => r
+      case Left(ex) => throw ex
+    }
+  }
 
   implicit val timestampCirceCodec: Codec[Timestamp] = new Codec[Timestamp] {
     import io.circe.syntax._

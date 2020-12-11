@@ -16,7 +16,15 @@ class BinAvroTest extends AnyFunSuite {
 
   test("binary avro - multi file") {
     val path = "./data/test/spark/persist/bin_avro/multi.bin.avro"
-    saver.binAvro(path).folder.run(blocker).unsafeRunSync()
+    saver
+      .binAvro(path)
+      .errorIfExists
+      .ignoreIfExists
+      .overwrite
+      .outPath(path)
+      .folder
+      .run(blocker)
+      .unsafeRunSync()
     val r = loaders.rdd.binAvro[Rooster](path, Rooster.avroCodec.avroDecoder).collect().toSet
     val t = loaders.binAvro[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
     assert(RoosterData.expected == r)

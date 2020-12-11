@@ -43,9 +43,10 @@ final class SaveCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfiguration,
   def run(blocker: Blocker)(implicit
     F: Concurrent[F],
     cs: ContextShift[F],
-    ss: SparkSession,
     rowEncoder: RowEncoder[A]): F[Unit] = {
-    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
+    val ss: SparkSession = ds.sparkSession
+    val sma: SaveModeAware[F] =
+      new SaveModeAware[F](params.saveMode, params.outPath, ss)
     val ccg: CompressionCodecGroup[F] =
       params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
     params.folderOrFile match {

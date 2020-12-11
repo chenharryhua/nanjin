@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.kafka.{akkaSinks, KafkaTopic, TopicName}
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.kafka._
 import com.landoop.transportation.nyc.trip.yellow.trip_record
-import frameless.TypedDataset
+import frameless.{TypedDataset, TypedEncoder}
 import frameless.cats.implicits._
 import org.apache.spark.rdd.RDD
 import org.scalatest.funsuite.AnyFunSuite
@@ -16,17 +16,21 @@ object SparkExtTestData {
 }
 
 class SparkExtTest extends AnyFunSuite {
+  implicit val te: TypedEncoder[OptionalKV[String, trip_record]] = shapeless.cachedImplicit
 
   val topic: KafkaTopic[IO, String, trip_record] =
     ctx.topic[String, trip_record]("nyc_yellow_taxi_trip_data")
   test("stream") {
-    topic.sparKafka.fromKafka.flatMap(_.ascending.stream.compile.drain).unsafeRunSync
+    topic.sparKafka.fromKafka
+      .flatMap(_.ascending.typedDataset.stream[IO].compile.drain)
+      .unsafeRunSync
   }
   test("source") {
     topic
       .sparKafka(range)
       .fromKafka
-      .flatMap(_.ascending.source.map(println).take(10).runWith(akkaSinks.ignore[IO]))
+      .flatMap(
+        _.ascending.typedDataset.source[IO].map(println).take(10).runWith(akkaSinks.ignore[IO]))
       .unsafeRunSync
   }
 

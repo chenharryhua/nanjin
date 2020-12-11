@@ -17,7 +17,15 @@ class CsvTest extends AnyFunSuite {
 
   test("tablet read/write identity multi.uncompressed") {
     val path = "./data/test/spark/persist/csv/tablet/multi.uncompressed"
-    saver.csv(path).folder.run(blocker).unsafeRunSync()
+    saver
+      .csv(path)
+      .errorIfExists
+      .ignoreIfExists
+      .overwrite
+      .outPath(path)
+      .folder
+      .run(blocker)
+      .unsafeRunSync()
     val t = loaders.csv(path, Tablet.ate)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
@@ -44,7 +52,7 @@ class CsvTest extends AnyFunSuite {
 
   test("tablet read/write identity single.uncompressed") {
     val path = "./data/test/spark/persist/csv/tablet/tablet.csv"
-    saver.csv(path).file.run(blocker).unsafeRunSync()
+    saver.csv(path).withoutHeader.quoteWhenNeeded.file.run(blocker).unsafeRunSync()
     val t = loaders.csv(path, Tablet.ate)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
@@ -72,14 +80,14 @@ class CsvTest extends AnyFunSuite {
   test("tablet read/write identity with-header/single") {
     val path = "./data/test/spark/persist/csv/tablet/tablet_header.csv"
     val rfc  = CsvConfiguration.rfc.withHeader
-    saver.csv(path).file.updateCsvConfig(_ => rfc).run(blocker).unsafeRunSync()
+    saver.csv(path).file.withHeader.run(blocker).unsafeRunSync()
     val t = loaders.csv(path, Tablet.ate, rfc)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
   test("tablet read/write identity with-header/multi") {
     val path = "./data/test/spark/persist/csv/tablet/tablet_header_multi.csv"
     val rfc  = CsvConfiguration.rfc.withHeader
-    saver.csv(path).folder.updateCsvConfig(_ => rfc).run(blocker).unsafeRunSync()
+    saver.csv(path).folder.withHeader.run(blocker).unsafeRunSync()
     val t = loaders.csv(path, Tablet.ate, rfc)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
@@ -87,7 +95,7 @@ class CsvTest extends AnyFunSuite {
   test("tablet read/write identity with-header-delimiter/single") {
     val path = "./data/test/spark/persist/csv/tablet/tablet_header_delimit.csv"
     val rfc  = CsvConfiguration.rfc.withHeader.withCellSeparator('|')
-    saver.csv(path).file.updateCsvConfig(_ => rfc).run(blocker).unsafeRunSync()
+    saver.csv(path).file.withHeader.withCellSeparator('|').run(blocker).unsafeRunSync()
     val t = loaders.csv(path, Tablet.ate, rfc)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
@@ -95,7 +103,7 @@ class CsvTest extends AnyFunSuite {
   test("tablet read/write identity with-header-delimiter/multi") {
     val path = "./data/test/spark/persist/csv/tablet/tablet_header_delimit_multi.csv"
     val rfc  = CsvConfiguration.rfc.withHeader.withCellSeparator('|')
-    saver.csv(path).folder.updateCsvConfig(_ => rfc).run(blocker).unsafeRunSync()
+    saver.csv(path).folder.withHeader.withCellSeparator('|').run(blocker).unsafeRunSync()
     val t = loaders.csv(path, Tablet.ate, rfc)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
@@ -103,7 +111,15 @@ class CsvTest extends AnyFunSuite {
   test("tablet read/write identity with-header-delimiter-quote/single") {
     val path = "./data/test/spark/persist/csv/tablet/tablet_header_delimit_quote.csv"
     val rfc  = CsvConfiguration.rfc.withHeader.withCellSeparator('|').withQuote('*').quoteAll
-    saver.csv(path).file.updateCsvConfig(_ => rfc).run(blocker).unsafeRunSync()
+    saver
+      .csv(path)
+      .file
+      .withHeader
+      .withCellSeparator('|')
+      .withQuote('*')
+      .quoteAll
+      .run(blocker)
+      .unsafeRunSync()
     val t = loaders.csv(path, Tablet.ate, rfc)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
@@ -111,7 +127,15 @@ class CsvTest extends AnyFunSuite {
   test("tablet read/write identity with-header-delimiter-quote/multi") {
     val path = "./data/test/spark/persist/csv/tablet/tablet_header_delimit_quote_multi.csv"
     val rfc  = CsvConfiguration.rfc.withHeader.withCellSeparator('|').withQuote('*').quoteAll
-    saver.csv(path).folder.updateCsvConfig(_ => rfc).run(blocker).unsafeRunSync()
+    saver
+      .csv(path)
+      .folder
+      .withHeader
+      .withCellSeparator('|')
+      .withQuote('*')
+      .quoteAll
+      .run(blocker)
+      .unsafeRunSync()
     val t = loaders.csv(path, Tablet.ate, rfc)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }

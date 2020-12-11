@@ -15,7 +15,14 @@ class ParquetTest extends AnyFunSuite {
   test("datetime read/write identity multi.uncompressed") {
     val path  = "./data/test/spark/persist/parquet/rooster/multi.uncompressed.parquet"
     val saver = new DatasetFileHoarder[IO, Rooster](ds)
-    saver.parquet(path).run(blocker).unsafeRunSync()
+    saver
+      .parquet(path)
+      .errorIfExists
+      .ignoreIfExists
+      .overwrite
+      .outPath(path)
+      .run(blocker)
+      .unsafeRunSync()
     val r = loaders.parquet[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
     assert(expected == r)
   }

@@ -2,6 +2,7 @@ package mtest.spark.persist
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddAvroFileHoarder}
+import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -15,7 +16,15 @@ class JacksonTest extends AnyFunSuite {
 
   test("datetime read/write identity - multi") {
     val path = "./data/test/spark/persist/jackson/rooster/multi.json"
-    rooster.jackson(path).folder.run(blocker).unsafeRunSync()
+    rooster
+      .jackson(path)
+      .errorIfExists
+      .ignoreIfExists
+      .overwrite
+      .outPath(path)
+      .folder
+      .run(blocker)
+      .unsafeRunSync()
     val r = loaders.rdd.jackson[Rooster](path, Rooster.avroCodec.avroDecoder)
     assert(RoosterData.expected == r.collect().toSet)
   }
@@ -23,8 +32,8 @@ class JacksonTest extends AnyFunSuite {
   test("datetime read/write identity - single") {
     val path = "./data/test/spark/persist/jackson/rooster/single.json"
     rooster.jackson(path).file.run(blocker).unsafeRunSync()
-    val r = loaders.rdd.jackson[Rooster](path, Rooster.avroCodec.avroDecoder)
-    assert(RoosterData.expected == r.collect().toSet)
+    val r = loaders.jackson[Rooster](path, Rooster.ate)
+    assert(RoosterData.expected == r.collect[IO]().unsafeRunSync().toSet)
   }
 
   val bee = new RddAvroFileHoarder[IO, Bee](BeeData.rdd.repartition(3), Bee.avroCodec.avroEncoder)

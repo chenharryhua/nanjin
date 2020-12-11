@@ -24,6 +24,7 @@ package object database {
     SparkSettings.default
       .withConfigUpdate(_.setMaster("local[*]").setAppName("test-spark"))
       .withLogLevel(NJLogLevel.ERROR)
+      .withoutUI
       .session
 
   val postgres: Postgres = Postgres(

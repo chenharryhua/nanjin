@@ -25,6 +25,7 @@ package object kafka {
     SparkSettings.default
       .withConfigUpdate(_.setMaster("local[*]").setAppName("test-spark"))
       .withLogLevel(NJLogLevel.ERROR)
+      .withKms("alias/na")
       .session
 
   val range: NJDateTimeRange = NJDateTimeRange(beijingTime)

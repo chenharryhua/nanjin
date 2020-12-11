@@ -12,5 +12,6 @@ class PersistTests
       new JsonTest,
       new CsvTest,
       new TextTest,
-      new ProtobufTest
+      new ProtobufTest,
+      new ObjectFileTest
     )

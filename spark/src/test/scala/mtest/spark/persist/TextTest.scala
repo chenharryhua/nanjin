@@ -11,7 +11,15 @@ class TextTest extends AnyFunSuite {
   test("tablet") {
     val path  = "./data/test/spark/persist/text/tablet/show-case-class"
     val saver = new RddFileHoarder[IO, Tablet](rdd)
-    saver.text(path).folder.run(blocker).unsafeRunSync()
+    saver
+      .text(path)
+      .errorIfExists
+      .ignoreIfExists
+      .overwrite
+      .outPath(path)
+      .folder
+      .run(blocker)
+      .unsafeRunSync()
   }
   test("tablet - with new suffix") {
     val path  = "./data/test/spark/persist/text/tablet/new-suffix"
@@ -19,9 +27,9 @@ class TextTest extends AnyFunSuite {
     saver.text(path).folder.withSuffix(".text").run(blocker).unsafeRunSync()
   }
   test("tablet - gzip") {
-    val path  = "./data/test/spark/persist/text/tablet/gzip"
+    val path  = "./data/test/spark/persist/text/tablet/tablet.txt.gz"
     val saver = new RddFileHoarder[IO, Tablet](rdd)
-    saver.text(path).folder.gzip.run(blocker).unsafeRunSync()
+    saver.text(path).file.gzip.run(blocker).unsafeRunSync()
   }
   test("tablet - deflate") {
     val path  = "./data/test/spark/persist/text/tablet/deflate"
