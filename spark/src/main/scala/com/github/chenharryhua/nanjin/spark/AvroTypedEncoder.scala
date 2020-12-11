@@ -27,7 +27,6 @@ final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], te: TypedE
       case _: LongType    => TypedExpressionEncoder[Long].schema
       case _: FloatType   => TypedExpressionEncoder[Float].schema
       case _: DoubleType  => TypedExpressionEncoder[Double].schema
-      case _: ByteType    => TypedExpressionEncoder[Byte].schema
       case _: BinaryType  => TypedExpressionEncoder[Array[Byte]].schema
       case _: DecimalType => TypedExpressionEncoder[BigDecimal].schema
       case ex             => sys.error(s"not support $ex")

@@ -18,24 +18,13 @@ final class NJBinaryOutputFormat extends FileOutputFormat[NullWritable, BytesWri
 
   override def getRecordWriter(
     job: TaskAttemptContext): RecordWriter[NullWritable, BytesWritable] = {
-    val conf: Configuration   = job.getConfiguration
-    val isCompressed: Boolean = getCompressOutput(job)
-    val suffix: String        = conf.get(NJBinaryOutputFormat.suffix, "")
-    if (isCompressed) {
-      val codecClass: Class[_ <: CompressionCodec] =
-        getOutputCompressorClass(job, classOf[GzipCodec])
-      val codec: CompressionCodec     = ReflectionUtils.newInstance(codecClass, conf)
-      val ext: String                 = suffix + codec.getDefaultExtension
-      val file: Path                  = getDefaultWorkFile(job, ext)
-      val fs: FileSystem              = file.getFileSystem(conf)
-      val fileOut: FSDataOutputStream = fs.create(file, false)
-      new NJBinaryRecordWriter(new DataOutputStream(codec.createOutputStream(fileOut)))
-    } else {
-      val file: Path                  = getDefaultWorkFile(job, suffix)
-      val fs: FileSystem              = file.getFileSystem(conf)
-      val fileOut: FSDataOutputStream = fs.create(file, false)
-      new NJBinaryRecordWriter(fileOut)
-    }
+    val conf: Configuration         = job.getConfiguration
+    val isCompressed: Boolean       = getCompressOutput(job)
+    val suffix: String              = conf.get(NJBinaryOutputFormat.suffix, "")
+    val file: Path                  = getDefaultWorkFile(job, suffix)
+    val fs: FileSystem              = file.getFileSystem(conf)
+    val fileOut: FSDataOutputStream = fs.create(file, false)
+    new NJBinaryRecordWriter(fileOut)
   }
 }
 
