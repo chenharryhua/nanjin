@@ -5,14 +5,14 @@ import akka.stream.scaladsl.Source
 import cats.effect.{ConcurrentEffect, Sync}
 import com.github.chenharryhua.nanjin.database.{DatabaseSettings, TableName}
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicDef}
-import com.github.chenharryhua.nanjin.spark.database.{
-  sd,
-  DbUploader,
-  STConfig,
-  SparkTable,
-  TableDef
-}
+import com.github.chenharryhua.nanjin.spark.database._
 import com.github.chenharryhua.nanjin.spark.kafka.{SKConfig, SparKafka}
+import com.github.chenharryhua.nanjin.spark.persist.{
+  DatasetAvroFileHoarder,
+  DatasetFileHoarder,
+  RddAvroFileHoarder,
+  RddFileHoarder
+}
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.TypedDataset
 import frameless.cats.implicits._
@@ -20,16 +20,10 @@ import fs2.Stream
 import fs2.interop.reactivestreams._
 import org.apache.avro.Schema
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import java.time.ZoneId
-import com.github.chenharryhua.nanjin.spark.persist.{
-  DatasetAvroFileHoarder,
-  DatasetFileHoarder,
-  RddAvroFileHoarder,
-  RddFileHoarder
-}
-import org.apache.spark.sql.types.DataType
 
 private[spark] trait DatasetExtensions {
 

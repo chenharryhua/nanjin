@@ -56,7 +56,7 @@ class SparKafkaTest extends AnyFunSuite {
     topic.sparKafka(range).fromKafka.flatMap(_.stats.daily).unsafeRunSync
   }
   test("sparKafka read topic from kafka and show hourly aggragation result") {
-    topic.sparKafka(range).fromKafka.flatMap(_.stats.daily).unsafeRunSync
+    topic.sparKafka(range).fromKafka.flatMap(_.stats.hourly).unsafeRunSync
   }
   test("sparKafka should be able to bimap to other topic") {
     val src: KafkaTopic[IO, Int, Int]          = ctx.topic[Int, Int]("src.topic")
