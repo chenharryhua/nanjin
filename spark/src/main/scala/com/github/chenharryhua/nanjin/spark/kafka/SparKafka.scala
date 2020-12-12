@@ -40,9 +40,10 @@ final class SparKafka[F[_], K, V](
 
   /** shorthand
     */
-  def dump(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
+  def dump(implicit F: Concurrent[F], cs: ContextShift[F]): F[Long] =
     Blocker[F].use(blocker =>
-      fromKafka.flatMap(_.save.objectFile(params.replayPath).overwrite.run(blocker)))
+      fromKafka.flatMap(cr =>
+        cr.save.objectFile(params.replayPath).overwrite.run(blocker) *> cr.count))
 
   def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
     fromDisk.upload

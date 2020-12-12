@@ -13,8 +13,7 @@ import scala.collection.immutable.Queue
 
 trait InvModule[F[_], K, V] { self: CrRdd[F, K, V] =>
 
-  def count(implicit F: Sync[F]): F[Long] =
-    F.delay(rdd.count())
+  def count(implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
 
   def stats: Statistics[F] =
     new Statistics[F](TypedDataset.create(rdd.map(CRMetaInfo(_))).dataset, cfg)
