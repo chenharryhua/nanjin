@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.Eq
 import cats.effect.Sync
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.pipes.{GenericRecordCodec, JacksonSerialization}
 import frameless.TypedDataset
 import frameless.cats.implicits.rddOps
