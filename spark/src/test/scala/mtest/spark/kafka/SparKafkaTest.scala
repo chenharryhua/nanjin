@@ -67,14 +67,10 @@ class SparKafkaTest extends AnyFunSuite {
     val d4: OptionalKV[Int, Int]               = OptionalKV(0, 4, 0, None, Some(4), "t", 0)
     val ds: TypedDataset[OptionalKV[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
 
+    val t = ctx.topic[String, Int]("tmp")
+
     val birst: Set[CompulsoryV[String, Int]] =
-      src
-        .sparKafka(range)
-        .crRdd(ds)
-        .bimap(_.toString, _ + 1)(AvroCodec[String], AvroCodec[Int])
-        .values
-        .collect()
-        .toSet
+      src.sparKafka(range).crRdd(ds).bimap(_.toString, _ + 1)(t).values.collect().toSet
     assert(birst.map(_.value) == Set(2, 3, 5))
   }
 
@@ -87,13 +83,13 @@ class SparKafkaTest extends AnyFunSuite {
     val d4: OptionalKV[Int, Int]               = OptionalKV(0, 4, 0, None, Some(4), "t", 0)
     val ds: TypedDataset[OptionalKV[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
 
+    val t = ctx.topic[Int, Int]("tmp")
+
     val birst: Set[CompulsoryV[Int, Int]] =
       src
         .sparKafka(range)
         .crRdd(ds)
-        .flatMap(m => m.value.map(x => OptionalKV.value.set(Some(x - 1))(m)))(
-          AvroCodec[Int],
-          AvroCodec[Int])
+        .flatMap(m => m.value.map(x => OptionalKV.value.set(Some(x - 1))(m)))(t)
         .values
         .collect()
         .toSet

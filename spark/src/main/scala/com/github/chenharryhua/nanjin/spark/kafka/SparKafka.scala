@@ -4,15 +4,13 @@ import cats.effect.{Blocker, Concurrent, ConcurrentEffect, ContextShift, Sync, T
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.github.chenharryhua.nanjin.spark.sstream.{KafkaCrSStream, SStreamConfig, SparkSStream}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.streaming.StreamingContext
-import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
 
 trait SparKafkaUpdateParams[A] extends UpdateParams[SKConfig, A] with Serializable {
   def params: SKParams
@@ -23,9 +21,6 @@ final class SparKafka[F[_], K, V](
   val sparkSession: SparkSession,
   val cfg: SKConfig
 ) extends SparKafkaUpdateParams[SparKafka[F, K, V]] {
-
-  private val keyCodec: AvroCodec[K] = topic.codec.keySerde.avroCodec
-  private val valCodec: AvroCodec[V] = topic.codec.valSerde.avroCodec
 
   implicit private val ss: SparkSession = sparkSession
 
@@ -50,7 +45,7 @@ final class SparKafka[F[_], K, V](
       fromKafka.flatMap(_.save.objectFile(params.replayPath).overwrite.run(blocker)))
 
   def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
-    fromDisk.pipeTo(topic)
+    fromDisk.upload
 
   def countKafka(implicit F: Sync[F]): F[Long] = fromKafka.flatMap(_.count)
   def countDisk(implicit F: Sync[F]): F[Long]  = fromDisk.count
@@ -63,11 +58,13 @@ final class SparKafka[F[_], K, V](
 
   /** rdd and dataset
     */
-  def crRdd(rdd: RDD[OptionalKV[K, V]]): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd, cfg, keyCodec, valCodec)
+  def crRdd(rdd: RDD[OptionalKV[K, V]]): CrRdd[F, K, V]          = new CrRdd[F, K, V](topic, rdd, cfg)
+  def crRdd(tds: TypedDataset[OptionalKV[K, V]]): CrRdd[F, K, V] = crRdd(tds.rdd)
+  def crRdd(ds: Dataset[OptionalKV[K, V]]): CrRdd[F, K, V]       = crRdd(ds.rdd)
 
-  def crRdd(tds: TypedDataset[OptionalKV[K, V]]): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](tds.dataset.rdd, cfg, keyCodec, valCodec)
+  def prRdd(rdd: RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V]          = new PrRdd[F, K, V](topic, rdd, cfg)
+  def prRdd(ds: Dataset[NJProducerRecord[K, V]]): PrRdd[F, K, V]       = prRdd(ds.rdd)
+  def prRdd(tds: TypedDataset[NJProducerRecord[K, V]]): PrRdd[F, K, V] = prRdd(tds.rdd)
 
   /** direct stream
     */

@@ -10,7 +10,7 @@ final case class Ant(a: List[Int], b: Vector[Legs])
 
 object Ant {
 
-  val schemaText =
+  val schemaText: String =
     """
       |
       |{
