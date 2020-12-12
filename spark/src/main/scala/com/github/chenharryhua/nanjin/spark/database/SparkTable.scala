@@ -1,9 +1,10 @@
 package com.github.chenharryhua.nanjin.spark.database
 
 import cats.effect.{Blocker, Concurrent, ContextShift}
+import cats.syntax.apply.catsSyntaxApply
 import com.github.chenharryhua.nanjin.database.{DatabaseName, DatabaseSettings, TableName}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddFileHoarder}
+import com.github.chenharryhua.nanjin.spark.persist.loaders
 import frameless.TypedDataset
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
@@ -50,8 +51,11 @@ final class SparkTable[F[_], A](
       .head()
   }
 
-  def dump(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
-    Blocker[F].use(blocker => fromDB.save.objectFile(params.replayPath).overwrite.run(blocker))
+  def dump(implicit F: Concurrent[F], cs: ContextShift[F]): F[Long] =
+    Blocker[F].use { blocker =>
+      val db = fromDB
+      db.save.objectFile(params.replayPath).overwrite.run(blocker) *> F.delay(db.dataset.count())
+    }
 
   def tableset(ds: Dataset[A]): TableDataset[F, A] =
     new TableDataset[F, A](ate.normalize(ds).dataset, dbSettings, cfg, ate)

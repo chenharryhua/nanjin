@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, utcTime, NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.TopicName
+import org.apache.spark.streaming.kafka010.LocationStrategies
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.{LocalDate, LocalDateTime}
@@ -61,6 +62,7 @@ class SKConfigTest extends AnyFunSuite {
   test("misc update") {
     val p = skc
       .withTopicName("config.update")
+      .withLocationStrategy(LocationStrategies.PreferBrokers)
       .withReplayPathBuilder(_.value)
       .withoutTruncate
       .withOverwrite
