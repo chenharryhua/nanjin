@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.Eq
 import cats.effect.Sync
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.pipes.{GenericRecordCodec, JacksonSerialization}
 import frameless.TypedDataset
 import frameless.cats.implicits.rddOps
@@ -14,8 +13,7 @@ import scala.collection.immutable.Queue
 
 trait InvModule[F[_], K, V] { self: CrRdd[F, K, V] =>
 
-  def count(implicit F: Sync[F]): F[Long] =
-    F.delay(rdd.count())
+  def count(implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
 
   def stats: Statistics[F] =
     new Statistics[F](TypedDataset.create(rdd.map(CRMetaInfo(_))).dataset, cfg)

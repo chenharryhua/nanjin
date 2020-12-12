@@ -1,19 +1,17 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import java.time.Instant
-
 import alleycats.Empty
 import cats.implicits.catsSyntaxTuple2Semigroupal
 import cats.kernel.{LowerBounded, PartialOrder}
 import cats.{Applicative, Bifunctor, Bitraverse, Eval, Order, Show}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.sksamuel.avro4s.{AvroDoc, Decoder, Encoder, SchemaFor}
-import frameless.TypedEncoder
 import io.scalaland.chimney.dsl._
 import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import shapeless.cachedImplicit
+
+import java.time.Instant
 
 /** compatible with spark kafka streaming
   * https://spark.apache.org/docs/3.0.1/structured-streaming-kafka-integration.html
@@ -262,6 +260,12 @@ final case class CompulsoryKV[K, V](
       .withFieldConst(_.value, Some(value))
       .transform
 
+  def toCompulsoryK: CompulsoryK[K, V] =
+    this.into[CompulsoryK[K, V]].withFieldConst(_.value, Some(value)).transform
+
+  def toCompulsoryV: CompulsoryV[K, V] =
+    this.into[CompulsoryV[K, V]].withFieldConst(_.key, Some(key)).transform
+
 }
 
 object CompulsoryKV {
@@ -281,7 +285,7 @@ object CompulsoryKV {
     AvroCodec[CompulsoryKV[K, V]](s, d, e)
   }
 
-  implicit val bifunctorCompulsoryKV: Bitraverse[CompulsoryKV] =
+  implicit val bitraverseCompulsoryKV: Bitraverse[CompulsoryKV] =
     new Bitraverse[CompulsoryKV] {
 
       override def bimap[A, B, C, D](

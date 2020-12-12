@@ -44,7 +44,11 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("sparKafka read topic from kafka and show minutely aggragation result") {
-    topic.sparKafka(range).fromKafka.flatMap(_.stats.withShowRows(100).minutely).unsafeRunSync
+    topic
+      .sparKafka(range)
+      .fromKafka
+      .flatMap(_.stats.rows(100).untruncate.truncate.minutely)
+      .unsafeRunSync
   }
   test("sparKafka read topic from kafka and show daily-hour aggragation result") {
     topic.sparKafka(range).fromKafka.flatMap(_.stats.dailyHour).unsafeRunSync
@@ -106,10 +110,11 @@ class SparKafkaTest extends AnyFunSuite {
     val t   = TopicDef[Int, Int](TopicName("some.value")).in(ctx).sparKafka(range).crRdd(ds)
     val rst = t.values.collect().map(_.value)
     assert(rst === Seq(cr1.value.get))
+    println(cr1.show)
   }
 
   test("dump and reload") {
-    topic.sparKafka.dump.unsafeRunSync()
-    println(topic.sparKafka.fromDisk.rdd.count())
+    val number = topic.sparKafka.dump.unsafeRunSync()
+    assert(topic.sparKafka.countDisk.unsafeRunSync() == number)
   }
 }

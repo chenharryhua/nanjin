@@ -1,7 +1,5 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import java.time.{LocalDate, ZonedDateTime}
-
 import cats.effect.Sync
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.spark.injection._
@@ -9,6 +7,8 @@ import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.functions.aggregate.count
 import frameless.{Injection, TypedDataset}
 import org.apache.spark.sql.Dataset
+
+import java.time.{LocalDate, ZonedDateTime}
 
 final private[kafka] case class MinutelyAggResult(minute: Int, count: Long)
 final private[kafka] case class HourlyAggResult(hour: Int, count: Long)
@@ -20,7 +20,12 @@ final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Ser
 
   val params: SKParams = cfg.evalConfig
 
-  def withShowRows(num: Int): Statistics[F] = new Statistics[F](ds, cfg.withShowRows(num))
+  private def update(f: SKConfig => SKConfig): Statistics[F] =
+    new Statistics[F](ds, f(cfg))
+
+  def rows(num: Int): Statistics[F] = update(_.withShowRows(num))
+  def truncate: Statistics[F]       = update(_.withTruncate)
+  def untruncate: Statistics[F]     = update(_.withoutTruncate)
 
   implicit def localDateTimeInjection: Injection[ZonedDateTime, String] =
     new Injection[ZonedDateTime, String] {

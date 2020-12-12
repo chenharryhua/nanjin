@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import alleycats.Empty
 import cats.implicits.toShow
-import cats.{Bifunctor, Show}
+import cats.{Bifunctor, Eq, Show}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.sksamuel.avro4s.{Decoder, Encoder, SchemaFor}
@@ -93,6 +93,9 @@ object NJProducerRecord {
     implicit val te: TypedEncoder[NJProducerRecord[K, V]] = cachedImplicit
     AvroTypedEncoder[NJProducerRecord[K, V]](ac)
   }
+
+  implicit def eqNJProducerRecord[K: Eq, V: Eq]: Eq[NJProducerRecord[K, V]] =
+    cats.derived.semiauto.eq[NJProducerRecord[K, V]]
 
   implicit def emptyNJProducerRecord[K, V]: Empty[NJProducerRecord[K, V]] =
     new Empty[NJProducerRecord[K, V]] {

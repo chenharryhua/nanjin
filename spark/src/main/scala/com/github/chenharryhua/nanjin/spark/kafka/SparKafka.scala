@@ -1,7 +1,9 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.{Blocker, Concurrent, ConcurrentEffect, ContextShift, Sync, Timer}
-import cats.syntax.all._
+import cats.syntax.apply._
+import cats.syntax.flatMap._
+import cats.syntax.functor._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark.persist.loaders
@@ -40,9 +42,10 @@ final class SparKafka[F[_], K, V](
 
   /** shorthand
     */
-  def dump(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
+  def dump(implicit F: Concurrent[F], cs: ContextShift[F]): F[Long] =
     Blocker[F].use(blocker =>
-      fromKafka.flatMap(_.save.objectFile(params.replayPath).overwrite.run(blocker)))
+      fromKafka.flatMap(cr =>
+        cr.save.objectFile(params.replayPath).overwrite.run(blocker) *> cr.count))
 
   def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
     fromDisk.upload
