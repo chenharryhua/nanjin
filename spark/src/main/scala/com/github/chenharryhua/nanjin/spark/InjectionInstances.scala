@@ -15,6 +15,7 @@ import java.time.{Instant, LocalDate}
 
 private[spark] trait InjectionInstances extends Serializable {
 
+  // date-time
   implicit val oderSQLDate: Order[SQLDate] =
     (x: SQLDate, y: SQLDate) => x.days.compareTo(y.days)
 
@@ -48,6 +49,7 @@ private[spark] trait InjectionInstances extends Serializable {
         DateTimeUtils.toJavaTimestamp(b.us)
     }
 
+  // enums
   implicit def enumToStringInjection[E <: Enumeration](implicit
     w: Witness.Aux[E]): Injection[E#Value, String] =
     Injection(_.toString, x => w.value.withName(x))
@@ -60,6 +62,11 @@ private[spark] trait InjectionInstances extends Serializable {
     w: Witness.Aux[E]): JsonDecoder[E#Value] =
     JsonDecoder.decodeEnumeration(w.value)
 
+  implicit def orderScalaEnum[E <: Enumeration](implicit
+    w: shapeless.Witness.Aux[E]): Order[E#Value] =
+    (x: E#Value, y: E#Value) => w.value(x.id).compare(w.value(y.id))
+
+  // circe/json
   implicit def kjsonInjection[A: JsonEncoder: JsonDecoder]: Injection[KJson[A], String] =
     new Injection[KJson[A], String] {
       override def apply(a: KJson[A]): String = a.asJson.noSpaces
@@ -94,8 +101,4 @@ private[spark] trait InjectionInstances extends Serializable {
     override def apply(c: HCursor): Result[Date] =
       JsonDecoder[LocalDate].apply(c).map(Date.valueOf)
   }
-
-  implicit def orderScalaEnum[E <: Enumeration](implicit
-    w: shapeless.Witness.Aux[E]): Order[E#Value] =
-    (x: E#Value, y: E#Value) => w.value(x.id).compare(w.value(y.id))
 }

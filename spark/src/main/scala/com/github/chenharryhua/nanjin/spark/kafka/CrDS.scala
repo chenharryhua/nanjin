@@ -1,0 +1,60 @@
+package com.github.chenharryhua.nanjin.spark.kafka
+
+import cats.syntax.bifunctor._
+import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
+import com.github.chenharryhua.nanjin.spark.persist.DatasetAvroFileHoarder
+import frameless.{TypedDataset, TypedEncoder}
+import org.apache.spark.sql.Dataset
+
+final class CrDS[F[_], K, V](
+  val topic: KafkaTopic[F, K, V],
+  val dataset: Dataset[OptionalKV[K, V]],
+  val ate: AvroTypedEncoder[OptionalKV[K, V]],
+  val cfg: SKConfig)
+    extends Serializable {
+
+  def bimap[K2, V2](k: K => K2, v: V => V2)(other: KafkaTopic[F, K2, V2])(implicit
+    k2: TypedEncoder[K2],
+    v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
+    val te: TypedEncoder[OptionalKV[K2, V2]] = shapeless.cachedImplicit
+    val cd: AvroCodec[OptionalKV[K2, V2]] =
+      OptionalKV.avroCodec(other.codec.keySerde.avroCodec, other.codec.valSerde.avroCodec)
+    val ate: AvroTypedEncoder[OptionalKV[K2, V2]] = AvroTypedEncoder[OptionalKV[K2, V2]](te, cd)
+    new CrDS[F, K2, V2](other, dataset.map(_.bimap(k, v))(ate.sparkEncoder), ate, cfg)
+  }
+
+  def map[K2, V2](f: OptionalKV[K, V] => OptionalKV[K2, V2])(other: KafkaTopic[F, K2, V2])(implicit
+    k2: TypedEncoder[K2],
+    v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
+    val te: TypedEncoder[OptionalKV[K2, V2]] = shapeless.cachedImplicit
+    val cd: AvroCodec[OptionalKV[K2, V2]] =
+      OptionalKV.avroCodec(other.codec.keySerde.avroCodec, other.codec.valSerde.avroCodec)
+    val ate: AvroTypedEncoder[OptionalKV[K2, V2]] = AvroTypedEncoder[OptionalKV[K2, V2]](te, cd)
+    new CrDS[F, K2, V2](other, dataset.map(f)(ate.sparkEncoder), ate, cfg)
+  }
+
+  def flatMap[K2, V2](f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]])(
+    other: KafkaTopic[F, K2, V2])(implicit
+    k2: TypedEncoder[K2],
+    v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
+    val te: TypedEncoder[OptionalKV[K2, V2]] = shapeless.cachedImplicit
+    val cd: AvroCodec[OptionalKV[K2, V2]] =
+      OptionalKV.avroCodec(other.codec.keySerde.avroCodec, other.codec.valSerde.avroCodec)
+    val ate: AvroTypedEncoder[OptionalKV[K2, V2]] = AvroTypedEncoder[OptionalKV[K2, V2]](te, cd)
+    new CrDS[F, K2, V2](other, dataset.flatMap(f)(ate.sparkEncoder), ate, cfg)
+  }
+
+  def filter(f: OptionalKV[K, V] => Boolean): CrDS[F, K, V] =
+    new CrDS[F, K, V](topic, dataset.filter(f), ate, cfg)
+
+  def typedDataset: TypedDataset[OptionalKV[K, V]] = TypedDataset.create(dataset)(ate.typedEncoder)
+
+  def crRdd: CrRdd[F, K, V] = new CrRdd[F, K, V](topic, dataset.rdd, cfg)(dataset.sparkSession)
+  def prRdd: PrRdd[F, K, V] = new PrRdd[F, K, V](topic, dataset.rdd.map(_.toNJProducerRecord), cfg)
+
+  def save: DatasetAvroFileHoarder[F, OptionalKV[K, V]] =
+    new DatasetAvroFileHoarder[F, OptionalKV[K, V]](dataset, ate.avroCodec.avroEncoder)
+
+}

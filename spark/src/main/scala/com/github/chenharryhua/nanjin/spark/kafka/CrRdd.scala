@@ -86,19 +86,9 @@ final class CrRdd[F[_], K, V](
   def distinct: CrRdd[F, K, V] = new CrRdd[F, K, V](topic, rdd.distinct(), cfg)
 
   // dataset
-  def typedDataset(implicit te: TypedEncoder[OptionalKV[K, V]]): TypedDataset[OptionalKV[K, V]] = {
+  def crDS(implicit te: TypedEncoder[OptionalKV[K, V]]): CrDS[F, K, V] = {
     val ate: AvroTypedEncoder[OptionalKV[K, V]] = AvroTypedEncoder(te, codec)
-    ate.normalize(rdd)
-  }
-
-  def valueSet(implicit valEncoder: TypedEncoder[V]): TypedDataset[V] = {
-    val ate: AvroTypedEncoder[V] = AvroTypedEncoder(topic.codec.valSerde.avroCodec)
-    ate.normalize(rdd.flatMap(_.value)(valEncoder.classTag))
-  }
-
-  def keySet(implicit keyEncoder: TypedEncoder[K]): TypedDataset[K] = {
-    val ate: AvroTypedEncoder[K] = AvroTypedEncoder(topic.codec.keySerde.avroCodec)
-    ate.normalize(rdd.flatMap(_.key)(keyEncoder.classTag))
+    new CrDS[F, K, V](topic, ate.normalize(rdd).dataset, ate, cfg)
   }
 
   def values: RDD[CompulsoryV[K, V]]     = rdd.flatMap(_.toCompulsoryV)
@@ -128,7 +118,4 @@ final class CrRdd[F[_], K, V](
   def save: RddAvroFileHoarder[F, OptionalKV[K, V]] =
     new RddAvroFileHoarder[F, OptionalKV[K, V]](rdd, codec.avroEncoder)
 
-  def saveAll(implicit
-    te: TypedEncoder[OptionalKV[K, V]]): DatasetAvroFileHoarder[F, OptionalKV[K, V]] =
-    new DatasetAvroFileHoarder[F, OptionalKV[K, V]](typedDataset.dataset, codec.avroEncoder)
 }

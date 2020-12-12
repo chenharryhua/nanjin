@@ -6,6 +6,7 @@ import cats.syntax.flatMap._
 import cats.syntax.functor._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.github.chenharryhua.nanjin.spark.sstream.{KafkaCrSStream, SStreamConfig, SparkSStream}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
@@ -59,15 +60,17 @@ final class SparKafka[F[_], K, V](
     cs: ContextShift[F]): F[Unit] =
     fromKafka.flatMap(_.pipeTo(other))
 
+  def load: KafkaLoadFile[F, K, V] = new KafkaLoadFile[F, K, V](this)
+
   /** rdd and dataset
     */
-  def crRdd(rdd: RDD[OptionalKV[K, V]]): CrRdd[F, K, V]          = new CrRdd[F, K, V](topic, rdd, cfg)
-  def crRdd(tds: TypedDataset[OptionalKV[K, V]]): CrRdd[F, K, V] = crRdd(tds.rdd)
-  def crRdd(ds: Dataset[OptionalKV[K, V]]): CrRdd[F, K, V]       = crRdd(ds.rdd)
+  def crRdd(rdd: RDD[OptionalKV[K, V]]): CrRdd[F, K, V] = new CrRdd[F, K, V](topic, rdd, cfg)
 
-  def prRdd(rdd: RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V]          = new PrRdd[F, K, V](topic, rdd, cfg)
-  def prRdd(ds: Dataset[NJProducerRecord[K, V]]): PrRdd[F, K, V]       = prRdd(ds.rdd)
-  def prRdd(tds: TypedDataset[NJProducerRecord[K, V]]): PrRdd[F, K, V] = prRdd(tds.rdd)
+  def crDS(
+    tds: TypedDataset[OptionalKV[K, V]],
+    ate: AvroTypedEncoder[OptionalKV[K, V]]): CrDS[F, K, V] = new CrDS(topic, tds.dataset, ate, cfg)
+
+  def prRdd(rdd: RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] = new PrRdd[F, K, V](topic, rdd, cfg)
 
   /** direct stream
     */

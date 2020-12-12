@@ -80,35 +80,31 @@ class DecimalTopicTest extends AnyFunSuite {
     topic.schemaRegister >>
     topic.send(1, data) >> topic.send(2, data)).unsafeRunSync()
 
-  val ate = AvroTypedEncoder(topicDef.avroCodec)
+  val stopic = sparkSession.alongWith(ctx).topic(topicDef)
 
   test("sparKafka kafka and spark agree on circe") {
     val path = "./data/test/spark/kafka/decimal.circe.json"
-    sparkSession
-      .alongWith(ctx)
-      .topic(topicDef)
-      .fromKafka
+     stopic.fromKafka
       .flatMap(_.save.circe(path).file.run(blocker))
       .unsafeRunSync
 
-    val rdd = loaders.rdd.circe[OptionalKV[Int, HasDecimal]](path)
-    val ds  = rdd.typedDataset(ate)
+    val rdd = stopic.load.rdd.circe(path)
+    val ds  = stopic.load.circe(path)
 
-    rdd.save[IO].objectFile("./data/test/spark/kafka/decimal.obj").run(blocker).unsafeRunSync()
+    rdd.save.objectFile("./data/test/spark/kafka/decimal.obj").run(blocker).unsafeRunSync()
     rdd
-      .save[IO](topicDef.avroCodec.avroEncoder)
+      .save
       .avro("./data/test/spark/kafka/decimal.avro")
       .run(blocker)
       .unsafeRunSync()
 
-    ds.save[IO].parquet("./data/test/spark/kafka/decimal.avro").run(blocker).unsafeRunSync()
-    ds.save[IO](topicDef.avroCodec.avroEncoder)
+    ds.save.parquet("./data/test/spark/kafka/decimal.avro").run(blocker).unsafeRunSync()
+    ds.save
       .jackson("./data/test/spark/kafka/decimal.jackson.json")
       .run(blocker)
       .unsafeRunSync()
 
-    assert(rdd.collect().head.value.get == expected)
-    assert(ds.collect[IO]().unsafeRunSync().head.value.get == expected)
+    assert(rdd.rdd.collect().head.value.get == expected)
+    assert(ds.dataset.collect().head.value.get == expected)
   }
-
 }
