@@ -19,73 +19,71 @@ import org.apache.spark.sql.SparkSession
 import scala.reflect.ClassTag
 
 final class CrRdd[F[_], K, V](
+  val topic: KafkaTopic[F, K, V],
   val rdd: RDD[OptionalKV[K, V]],
-  val cfg: SKConfig,
-  val keyCodec: AvroCodec[K],
-  val valCodec: AvroCodec[V])(implicit val sparkSession: SparkSession)
+  val cfg: SKConfig)(implicit val sparkSession: SparkSession)
     extends SparKafkaUpdateParams[CrRdd[F, K, V]] with InvModule[F, K, V] {
 
-  protected val codec: AvroCodec[OptionalKV[K, V]] = OptionalKV.avroCodec(keyCodec, valCodec)
+  protected val codec: AvroCodec[OptionalKV[K, V]] =
+    OptionalKV.avroCodec(topic.codec.keySerde.avroCodec, topic.codec.valSerde.avroCodec)
 
   override def params: SKParams = cfg.evalConfig
 
   override def withParamUpdate(f: SKConfig => SKConfig): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd, f(cfg), keyCodec, valCodec)
+    new CrRdd[F, K, V](topic, rdd, f(cfg))
 
   //transformation
   def idConversion: CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd.map(codec.idConversion), cfg, keyCodec, valCodec)
+    new CrRdd[F, K, V](topic, rdd.map(codec.idConversion), cfg)
 
   def partitionOf(num: Int): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd.filter(_.partition === num), cfg, keyCodec, valCodec)
+    new CrRdd[F, K, V](topic, rdd.filter(_.partition === num), cfg)
 
   def sortBy[A: Order: ClassTag](f: OptionalKV[K, V] => A, ascending: Boolean) =
-    new CrRdd[F, K, V](rdd.sortBy(f, ascending), cfg, keyCodec, valCodec)
+    new CrRdd[F, K, V](topic, rdd.sortBy(f, ascending), cfg)
 
   def ascending: CrRdd[F, K, V]  = sortBy(identity, ascending = true)
   def descending: CrRdd[F, K, V] = sortBy(identity, ascending = false)
 
   def repartition(num: Int): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd.repartition(num), cfg, keyCodec, valCodec)
+    new CrRdd[F, K, V](topic, rdd.repartition(num), cfg)
 
-  def bimap[K2, V2](k: K => K2, v: V => V2)(
-    ck2: AvroCodec[K2],
-    cv2: AvroCodec[V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](rdd.map(_.bimap(k, v)), cfg, ck2, cv2)
+  def bimap[K2, V2](k: K => K2, v: V => V2)(other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
+    new CrRdd[F, K2, V2](other, rdd.map(_.bimap(k, v)), cfg)
 
-  def mapValues[V2](v: V => V2)(cv2: AvroCodec[V2]): CrRdd[F, K, V2] =
-    bimap[K, V2](identity, v)(keyCodec, cv2)
-
-  def mapKeys[K2](k: K => K2)(ck2: AvroCodec[K2]): CrRdd[F, K2, V] =
-    bimap(k, identity)(ck2, valCodec)
+  def map[K2, V2](f: OptionalKV[K, V] => OptionalKV[K2, V2])(
+    other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
+    new CrRdd[F, K2, V2](other, rdd.map(f), cfg)
 
   def flatMap[K2, V2](f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]])(
-    ck2: AvroCodec[K2],
-    cv2: AvroCodec[V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](rdd.flatMap(f), cfg, ck2, cv2)
+    other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
+    new CrRdd[F, K2, V2](other, rdd.flatMap(f), cfg)
 
   def filter(f: OptionalKV[K, V] => Boolean): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd.filter(f), cfg, keyCodec, valCodec)
+    new CrRdd[F, K, V](topic, rdd.filter(f), cfg)
 
   def union(other: RDD[OptionalKV[K, V]]): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd.union(other), cfg, keyCodec, valCodec)
+    new CrRdd[F, K, V](topic, rdd.union(other), cfg)
 
   def union(other: CrRdd[F, K, V]): CrRdd[F, K, V] = union(other.rdd)
 
   def dismissNulls: CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd.dismissNulls, cfg, keyCodec, valCodec)
+    new CrRdd[F, K, V](topic, rdd.dismissNulls, cfg)
 
   def inRange(dr: NJDateTimeRange): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](
-      rdd.filter(m => dr.isInBetween(m.timestamp)),
-      cfg.withTimeRange(dr),
-      keyCodec,
-      valCodec)
+    new CrRdd[F, K, V](topic, rdd.filter(m => dr.isInBetween(m.timestamp)), cfg.withTimeRange(dr))
 
   def inRange: CrRdd[F, K, V] = inRange(params.timeRange)
 
   def inRange(start: String, end: String): CrRdd[F, K, V] =
     inRange(params.timeRange.withTimeRange(start, end))
+
+  def replicate(num: Int): CrRdd[F, K, V] = {
+    val rep = (1 until num).foldLeft(rdd) { case (r, _) => r.union(rdd) }
+    new CrRdd[F, K, V](topic, rep, cfg)
+  }
+
+  def distinct: CrRdd[F, K, V] = new CrRdd[F, K, V](topic, rdd.distinct(), cfg)
 
   // dataset
   def typedDataset(implicit te: TypedEncoder[OptionalKV[K, V]]): TypedDataset[OptionalKV[K, V]] = {
@@ -94,12 +92,12 @@ final class CrRdd[F[_], K, V](
   }
 
   def valueSet(implicit valEncoder: TypedEncoder[V]): TypedDataset[V] = {
-    val ate: AvroTypedEncoder[V] = AvroTypedEncoder(valCodec)
+    val ate: AvroTypedEncoder[V] = AvroTypedEncoder(topic.codec.valSerde.avroCodec)
     ate.normalize(rdd.flatMap(_.value)(valEncoder.classTag))
   }
 
   def keySet(implicit keyEncoder: TypedEncoder[K]): TypedDataset[K] = {
-    val ate: AvroTypedEncoder[K] = AvroTypedEncoder(keyCodec)
+    val ate: AvroTypedEncoder[K] = AvroTypedEncoder(topic.codec.keySerde.avroCodec)
     ate.normalize(rdd.flatMap(_.key)(keyEncoder.classTag))
   }
 
@@ -114,28 +112,17 @@ final class CrRdd[F[_], K, V](
   def source(implicit F: ConcurrentEffect[F]): Source[OptionalKV[K, V], NotUsed] =
     rdd.source[F]
 
-  def toPrRdd: PrRdd[F, K, V] =
-    new PrRdd[F, K, V](rdd.map(_.toNJProducerRecord), cfg)
+  // upload
+  def prRdd: PrRdd[F, K, V] = new PrRdd[F, K, V](topic, rdd.map(_.toNJProducerRecord), cfg)
 
-  def replicate(num: Int): CrRdd[F, K, V] = {
-    val rep = (1 until num).foldLeft(rdd) { case (r, _) => r.union(rdd) }
-    new CrRdd[F, K, V](rep, cfg, keyCodec, valCodec)
-  }
-
-  def distinct: CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd.distinct(), cfg, keyCodec, valCodec)
-
-  // pipe
   def pipeTo(otherTopic: KafkaTopic[F, K, V])(implicit
     ce: ConcurrentEffect[F],
     timer: Timer[F],
     cs: ContextShift[F]): F[Unit] =
-    stream
-      .map(_.toNJProducerRecord.noMeta)
-      .through(sk.uploader(otherTopic, params.uploadParams))
-      .map(_ => print("."))
-      .compile
-      .drain
+    prRdd.noMeta.upload(otherTopic).map(_ => print(".")).compile.drain
+
+  def upload(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
+    pipeTo(topic)
 
   // save
   def save: RddAvroFileHoarder[F, OptionalKV[K, V]] =
