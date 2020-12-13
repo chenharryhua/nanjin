@@ -16,7 +16,9 @@ object SparkExtTestData {
 }
 
 class SparkExtTest extends AnyFunSuite {
-  implicit val te: TypedEncoder[OptionalKV[String, trip_record]] = shapeless.cachedImplicit
+  implicit val te: TypedEncoder[trip_record]                      = shapeless.cachedImplicit
+  implicit val te2: TypedEncoder[OptionalKV[String, trip_record]] = shapeless.cachedImplicit
+  implicit val te3: TypedEncoder[SparkExtTestData.Foo]            = shapeless.cachedImplicit
 
   val topic: KafkaTopic[IO, String, trip_record] =
     ctx.topic[String, trip_record]("nyc_yellow_taxi_trip_data")
@@ -30,7 +32,11 @@ class SparkExtTest extends AnyFunSuite {
       .sparKafka(range)
       .fromKafka
       .flatMap(
-        _.ascending.crDS.typedDataset.source[IO].map(println).take(10).runWith(akkaSinks.ignore[IO]))
+        _.ascending.crDS.typedDataset
+          .source[IO]
+          .map(println)
+          .take(10)
+          .runWith(akkaSinks.ignore[IO]))
       .unsafeRunSync
   }
 
@@ -58,5 +64,17 @@ class SparkExtTest extends AnyFunSuite {
     val tds = TypedDataset.create[Foo](sparkSession.sparkContext.parallelize(list))
     assert(tds.dismissNulls.collect[IO]().unsafeRunSync().toList == List(Foo(1, "a"), Foo(3, "c")))
     assert(tds.numOfNulls[IO].unsafeRunSync() == 1)
+  }
+  test("save syntax") {
+    import SparkExtTestData._
+    val ate = AvroTypedEncoder[Foo]
+    val rdd = sparkSession.sparkContext.parallelize(list.flatMap(Option(_)))
+    val tds = rdd.typedDataset(ate)
+    rdd
+      .save[IO](ate.avroCodec.avroEncoder)
+      .avro("./data/test/spark/sytax/avro")
+      .run(blocker)
+      .unsafeRunSync()
+    tds.save[IO].parquet("./data/test/spark/syntax/parquet").run(blocker).unsafeRunSync()
   }
 }
