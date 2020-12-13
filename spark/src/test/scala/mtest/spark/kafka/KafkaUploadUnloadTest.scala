@@ -58,15 +58,26 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
     } yield {
       val circeds  = topic.load.circe(circe).dataset.collect().flatMap(_.value).toSet
       val circerdd = topic.load.rdd.circe(circe).rdd.flatMap(_.value).collect().toSet
+      val spkJson =
+        topic
+          .crDS(
+            sparkSession.read
+              .schema(OptionalKV.ate(topic.topic.topicDef).sparkEncoder.schema)
+              .json(circe))
+          .dataset
+          .collect()
+          .flatMap(_.value)
+          .toSet
 
       assert(circeds == RoosterData.expected)
       assert(circerdd == RoosterData.expected)
+      assert(spkJson == RoosterData.expected)
 
       val parquetds = topic.load.parquet(parquet).dataset.collect().flatMap(_.value).toSet
-      val spk = // can be consumed by spark
+      val spkParquet = // can be consumed by spark
         topic.crDS(sparkSession.read.parquet(parquet)).dataset.collect().flatMap(_.value).toSet
       assert(parquetds == RoosterData.expected)
-      assert(spk == RoosterData.expected)
+      assert(spkParquet == RoosterData.expected)
 
       val jsonds = topic.load.json(json).dataset.collect().flatMap(_.value).toSet
       assert(jsonds == RoosterData.expected)

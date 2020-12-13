@@ -68,8 +68,8 @@ final case class OptionalKV[K, V](
   @AvroDoc("kafka timestamp type") timestampType: Int)
     extends NJConsumerRecord[Option[K], Option[V]] {
 
-  def replaceKey[K2](key: Option[K2]): OptionalKV[K2, V]   = copy(key = key)
-  def replaceVal[V2](value: Option[V2]): OptionalKV[K, V2] = copy(value = value)
+  def newKey[K2](key: Option[K2]): OptionalKV[K2, V]     = copy(key = key)
+  def newValue[V2](value: Option[V2]): OptionalKV[K, V2] = copy(value = value)
 
   def flatten[K2, V2](implicit
     evK: K <:< Option[K2],

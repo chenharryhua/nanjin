@@ -91,7 +91,7 @@ class CrDSTest extends AnyFunSuite {
 
   test("map") {
     val r = crRdd.idConversion
-      .map(x => x.replaceVal(x.value.map(RoosterLike(_))))(roosterLike)
+      .map(x => x.newValue(x.value.map(RoosterLike(_))))(roosterLike)
       .rdd
       .collect
       .flatMap(_.value)
@@ -104,11 +104,11 @@ class CrDSTest extends AnyFunSuite {
 
   test("flatMap") {
     val r = crRdd.idConversion.flatMap { x =>
-      x.value.flatMap(RoosterLike2(_)).map(y => x.replaceVal(Some(y)).replaceKey(x.key))
+      x.value.flatMap(RoosterLike2(_)).map(y => x.newValue(Some(y)).newKey(x.key))
     }(roosterLike2).rdd.collect().flatMap(_.value).toSet
 
     val d = crDS.flatMap { x =>
-      x.value.flatMap(RoosterLike2(_)).map(y => x.replaceVal(Some(y)))
+      x.value.flatMap(RoosterLike2(_)).map(y => x.newValue(Some(y)))
     }(roosterLike2).dataset.collect.flatMap(_.value).toSet
 
     assert(r == d)
