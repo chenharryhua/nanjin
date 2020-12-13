@@ -229,16 +229,16 @@ class AvroTest extends AnyFunSuite {
   test("sealed trait read/write identity single/raw (happy failure)") {
     import CopData._
     val path  = "./data/test/spark/persist/avro/cocop/single.avro"
-    val saver = new RddAvroFileHoarder[IO, CoCop](coRDD, CoCop.codec.avroEncoder)
+    val saver = new RddAvroFileHoarder[IO, CoCop](coRDD, CoCop.avroCodec.avroEncoder)
     saver.avro(path).file.run(blocker).unsafeRunSync()
-    intercept[Throwable](loaders.rdd.avro[CoCop](path, CoCop.codec.avroDecoder).collect().toSet)
+    intercept[Throwable](loaders.rdd.avro[CoCop](path, CoCop.avroCodec.avroDecoder).collect().toSet)
     // assert(coCops.toSet == t)
   }
 
   test("sealed trait read/write identity multi/raw (happy failure)") {
     import CopData._
     val path  = "./data/test/spark/persist/avro/cocop/multi.avro"
-    val saver = new RddAvroFileHoarder[IO, CoCop](coRDD, CoCop.codec.avroEncoder)
+    val saver = new RddAvroFileHoarder[IO, CoCop](coRDD, CoCop.avroCodec.avroEncoder)
     intercept[Throwable](saver.avro(path).folder.run(blocker).unsafeRunSync())
     //  val t = loaders.raw.avro[CoCop](path).collect().toSet
     //  assert(coCops.toSet == t)

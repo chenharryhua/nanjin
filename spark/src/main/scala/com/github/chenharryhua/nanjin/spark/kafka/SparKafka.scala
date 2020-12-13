@@ -6,7 +6,6 @@ import cats.syntax.flatMap._
 import cats.syntax.functor._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.github.chenharryhua.nanjin.spark.sstream.{KafkaCrSStream, SStreamConfig, SparkSStream}
@@ -26,40 +25,6 @@ final class SparKafka[F[_], K, V](
 ) extends SparKafkaUpdateParams[SparKafka[F, K, V]] {
 
   implicit private val ss: SparkSession = sparkSession
-
-  val avroCodec: AvroCodec[OptionalKV[K, V]] =
-    OptionalKV.avroCodec(topic.codec.keySerde.avroCodec, topic.codec.valSerde.avroCodec)
-
-  def ate(implicit
-    tek: TypedEncoder[K],
-    tev: TypedEncoder[V]): AvroTypedEncoder[OptionalKV[K, V]] = {
-    implicit val teo: TypedEncoder[OptionalKV[K, V]] = shapeless.cachedImplicit
-    AvroTypedEncoder(avroCodec)
-  }
-
-  def kate(implicit
-    tek: TypedEncoder[K],
-    tev: TypedEncoder[V]): AvroTypedEncoder[CompulsoryK[K, V]] = {
-    implicit val teo: TypedEncoder[CompulsoryK[K, V]] = shapeless.cachedImplicit
-    AvroTypedEncoder(
-      CompulsoryK.avroCodec(topic.codec.keySerde.avroCodec, topic.codec.valSerde.avroCodec))
-  }
-
-  def vate(implicit
-    tek: TypedEncoder[K],
-    tev: TypedEncoder[V]): AvroTypedEncoder[CompulsoryV[K, V]] = {
-    implicit val teo: TypedEncoder[CompulsoryV[K, V]] = shapeless.cachedImplicit
-    AvroTypedEncoder(
-      CompulsoryV.avroCodec(topic.codec.keySerde.avroCodec, topic.codec.valSerde.avroCodec))
-  }
-
-  def kvate(implicit
-    tek: TypedEncoder[K],
-    tev: TypedEncoder[V]): AvroTypedEncoder[CompulsoryKV[K, V]] = {
-    implicit val teo: TypedEncoder[CompulsoryKV[K, V]] = shapeless.cachedImplicit
-    AvroTypedEncoder(
-      CompulsoryKV.avroCodec(topic.codec.keySerde.avroCodec, topic.codec.valSerde.avroCodec))
-  }
 
   override def withParamUpdate(f: SKConfig => SKConfig): SparKafka[F, K, V] =
     new SparKafka[F, K, V](topic, sparkSession, f(cfg))
@@ -102,10 +67,15 @@ final class SparKafka[F[_], K, V](
 
   def crDS(tds: TypedDataset[OptionalKV[K, V]])(implicit
     tek: TypedEncoder[K],
-    tev: TypedEncoder[V]): CrDS[F, K, V] = new CrDS(topic, tds.dataset, ate, cfg)
+    tev: TypedEncoder[V]): CrDS[F, K, V] = {
+    val ate: AvroTypedEncoder[OptionalKV[K, V]] = OptionalKV.ate(topic.topicDef)
+    new CrDS(topic, tds.dataset, ate, cfg)
+  }
 
-  def crDS(df: DataFrame)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] =
+  def crDS(df: DataFrame)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
+    val ate: AvroTypedEncoder[OptionalKV[K, V]] = OptionalKV.ate(topic.topicDef)
     new CrDS(topic, ate.normalizeDF(df).dataset, ate, cfg)
+  }
 
   def prRdd(rdd: RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] = new PrRdd[F, K, V](topic, rdd, cfg)
 

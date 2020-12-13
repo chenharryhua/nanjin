@@ -1,15 +1,8 @@
-package mtest.spark.kafka
+package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.kernel.laws.discipline.{LowerBoundedTests, OrderTests}
 import cats.laws.discipline.{BifunctorTests, BitraverseTests}
 import cats.tests.CatsSuite
-import com.github.chenharryhua.nanjin.spark.kafka.{
-  CompulsoryK,
-  CompulsoryKV,
-  CompulsoryV,
-  NJProducerRecord,
-  OptionalKV
-}
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 

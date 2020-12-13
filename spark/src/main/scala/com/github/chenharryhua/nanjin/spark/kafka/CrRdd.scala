@@ -18,7 +18,7 @@ import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
 
-final class CrRdd[F[_], K, V](
+final class CrRdd[F[_], K, V] private[kafka] (
   val topic: KafkaTopic[F, K, V],
   val rdd: RDD[OptionalKV[K, V]],
   val cfg: SKConfig)(implicit val sparkSession: SparkSession)
@@ -49,15 +49,15 @@ final class CrRdd[F[_], K, V](
     new CrRdd[F, K, V](topic, rdd.repartition(num), cfg)
 
   def bimap[K2, V2](k: K => K2, v: V => V2)(other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](other, rdd.map(_.bimap(k, v)), cfg)
+    new CrRdd[F, K2, V2](other, rdd.map(_.bimap(k, v)), cfg).idConversion
 
   def map[K2, V2](f: OptionalKV[K, V] => OptionalKV[K2, V2])(
     other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](other, rdd.map(f), cfg)
+    new CrRdd[F, K2, V2](other, rdd.map(f), cfg).idConversion
 
   def flatMap[K2, V2](f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]])(
     other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](other, rdd.flatMap(f), cfg)
+    new CrRdd[F, K2, V2](other, rdd.flatMap(f), cfg).idConversion
 
   def filter(f: OptionalKV[K, V] => Boolean): CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, rdd.filter(f), cfg)
@@ -86,8 +86,9 @@ final class CrRdd[F[_], K, V](
   def distinct: CrRdd[F, K, V] = new CrRdd[F, K, V](topic, rdd.distinct(), cfg)
 
   // dataset
-  def crDS(implicit te: TypedEncoder[OptionalKV[K, V]]): CrDS[F, K, V] = {
-    val ate: AvroTypedEncoder[OptionalKV[K, V]] = AvroTypedEncoder(te, codec)
+  def crDS(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
+    val ate: AvroTypedEncoder[OptionalKV[K, V]] =
+      OptionalKV.ate(topic.codec.keySerde.avroCodec, topic.codec.valSerde.avroCodec)
     new CrDS[F, K, V](topic, ate.normalize(rdd).dataset, ate, cfg)
   }
 

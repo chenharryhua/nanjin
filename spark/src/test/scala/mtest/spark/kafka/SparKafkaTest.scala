@@ -1,9 +1,8 @@
 package mtest.spark.kafka
 
-import java.time.{Instant, LocalDate}
-
 import cats.effect.IO
 import cats.syntax.all._
+import com.github.chenharryhua.nanjin.datetime.sydneyTime
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.injection._
@@ -12,6 +11,8 @@ import com.sksamuel.avro4s.SchemaFor
 import frameless.TypedDataset
 import frameless.cats.implicits._
 import org.scalatest.funsuite.AnyFunSuite
+
+import java.time.{Instant, LocalDate}
 
 object SparKafkaTestData {
   final case class Duck(f: Int, g: String)
@@ -45,7 +46,7 @@ class SparKafkaTest extends AnyFunSuite {
 
   test("sparKafka read topic from kafka and show minutely aggragation result") {
     topic
-      .sparKafka(range)
+      .sparKafka(sydneyTime)
       .fromKafka
       .flatMap(_.stats.rows(100).untruncate.truncate.minutely)
       .unsafeRunSync

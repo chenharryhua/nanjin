@@ -51,8 +51,8 @@ object Ant {
       |
       |""".stripMargin
 
-  implicit val avroEncoder: Encoder[Ant] = shapeless.cachedImplicit
-  implicit val avroDecoder: Decoder[Ant] = shapeless.cachedImplicit
+  val avroEncoder: Encoder[Ant] = shapeless.cachedImplicit
+  val avroDecoder: Decoder[Ant] = shapeless.cachedImplicit
 
   val avroCodec: AvroCodec[Ant]                = AvroCodec[Ant](schemaText).right.get
   implicit val typedEncoder: TypedEncoder[Ant] = shapeless.cachedImplicit
