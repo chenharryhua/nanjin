@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.spark.sstream
 
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.spark.DatePartitionedCR
 import com.github.chenharryhua.nanjin.spark.kafka.{NJProducerRecord, OptionalKV}
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.sql.Dataset

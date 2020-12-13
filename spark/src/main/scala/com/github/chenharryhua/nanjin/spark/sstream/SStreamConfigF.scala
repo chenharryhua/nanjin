@@ -4,12 +4,24 @@ import java.util.concurrent.TimeUnit
 
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.spark.{NJCheckpoint, NJFailOnDataLoss, NJShowDataset}
+import com.github.chenharryhua.nanjin.spark.NJShowDataset
 import higherkindness.droste.data.Fix
 import higherkindness.droste.macros.deriveTraverse
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
 import org.apache.spark.sql.streaming.{OutputMode, Trigger}
+
+final private[spark] case class NJFailOnDataLoss(value: Boolean) extends AnyVal
+
+final private[spark] case class NJCheckpoint(value: String) {
+  require(!value.contains(" ") && value.nonEmpty, "should not empty or contains empty string")
+
+  def append(sub: String): NJCheckpoint = {
+    val s = if (sub.startsWith("/")) sub.tail else sub
+    val v = if (value.endsWith("/")) value.dropRight(1) else value
+    NJCheckpoint(s"$v/$s")
+  }
+}
 
 @Lenses final private[sstream] case class SStreamParams private (
   timeRange: NJDateTimeRange,

@@ -1,15 +1,14 @@
-package mtest.spark
-
-import java.sql.{Date, Timestamp}
-import java.time._
+package com.github.chenharryhua.nanjin.spark
 
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8._
-import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import com.github.chenharryhua.nanjin.datetime._
+import com.github.chenharryhua.nanjin.datetime.{NJTimestamp, _}
 import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.TypedEncoder
 import org.scalacheck.Prop.{forAll, propBoolean}
 import org.scalacheck.Properties
+
+import java.sql.{Date, Timestamp}
+import java.time._
 
 class TimeInjectionProps extends Properties("date time") {
   // must compile

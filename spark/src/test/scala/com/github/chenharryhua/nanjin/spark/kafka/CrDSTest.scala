@@ -52,10 +52,10 @@ class CrDSTest extends AnyFunSuite {
   val crRdd = sk
     .topic(rooster)
     .crRdd(RoosterData.rdd.zipWithIndex.map { case (r, i) =>
-      OptionalKV(0, i, Instant.now.getEpochSecond, Some(i), Some(r), "rooster", 0)
+      OptionalKV(0, i, Instant.now.getEpochSecond * 1000, Some(i), Some(r), "rooster", 0)
     })
 
-  val schema = StructType(
+  val expectSchema = StructType(
     List(
       StructField("partition", IntegerType, false),
       StructField("offset", LongType, false),
@@ -82,37 +82,33 @@ class CrDSTest extends AnyFunSuite {
       .flatMap(_.value)
       .toSet
 
-    val d =
-      crDS.bimap(identity, RoosterLike(_))(roosterLike).dataset.collect().flatMap(_.value).toSet
+    val ds = crDS.bimap(identity, RoosterLike(_))(roosterLike).dataset
+    val d  = ds.collect().flatMap(_.value).toSet
 
-    assert(crDS.bimap(identity, RoosterLike(_))(roosterLike).dataset.schema == schema)
+    assert(ds.schema == expectSchema)
     assert(r == d)
   }
 
   test("map") {
     val r = crRdd.idConversion
-      .map(x => x.replaceVal(x.value.map(RoosterLike(_))))(roosterLike)
+      .map(x => x.newValue(x.value.map(RoosterLike(_))))(roosterLike)
       .rdd
       .collect
       .flatMap(_.value)
       .toSet
-    val d = crDS
-      .map(_.bimap(identity, RoosterLike(_)))(roosterLike)
-      .dataset
-      .collect
-      .flatMap(_.value)
-      .toSet
-    assert(crDS.bimap(identity, RoosterLike(_))(roosterLike).dataset.schema == schema)
+    val ds = crDS.map(_.bimap(identity, RoosterLike(_)))(roosterLike).dataset
+    val d  = ds.collect.flatMap(_.value).toSet
+    assert(ds.schema == expectSchema)
     assert(r == d)
   }
 
   test("flatMap") {
     val r = crRdd.idConversion.flatMap { x =>
-      x.value.flatMap(RoosterLike2(_)).map(y => x.replaceVal(Some(y)).replaceKey(x.key))
+      x.value.flatMap(RoosterLike2(_)).map(y => x.newValue(Some(y)).newKey(x.key))
     }(roosterLike2).rdd.collect().flatMap(_.value).toSet
 
     val d = crDS.flatMap { x =>
-      x.value.flatMap(RoosterLike2(_)).map(y => x.replaceVal(Some(y)))
+      x.value.flatMap(RoosterLike2(_)).map(y => x.newValue(Some(y)))
     }(roosterLike2).dataset.collect.flatMap(_.value).toSet
 
     assert(r == d)
@@ -121,14 +117,13 @@ class CrDSTest extends AnyFunSuite {
   test("filter") {
     val r =
       crRdd.idConversion.filter(_.key.exists(_ == 0)).rdd.collect().flatMap(_.value).headOption
-    val d = crDS.filter(_.key.exists(_ == 0)).dataset.collect().flatMap(_.value).headOption
-    assert(crDS.bimap(identity, RoosterLike(_))(roosterLike).dataset.schema == schema)
+    val ds = crDS.filter(_.key.exists(_ == 0)).dataset
+    val d  = ds.collect().flatMap(_.value).headOption
     assert(r == d)
   }
   test("union") {
     val r = crRdd.idConversion.union(crRdd)
     val d = crDS.union(crDS)
-    assert(crDS.bimap(identity, RoosterLike(_))(roosterLike).dataset.schema == schema)
     assert(r.count.unsafeRunSync() == d.count.unsafeRunSync())
   }
 
