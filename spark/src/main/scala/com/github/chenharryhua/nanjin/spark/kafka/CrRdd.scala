@@ -8,10 +8,10 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.persist.{DatasetAvroFileHoarder, RddAvroFileHoarder}
+import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt}
+import frameless.TypedEncoder
 import frameless.cats.implicits.rddOps
-import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
@@ -117,5 +117,8 @@ final class CrRdd[F[_], K, V](
   // save
   def save: RddAvroFileHoarder[F, OptionalKV[K, V]] =
     new RddAvroFileHoarder[F, OptionalKV[K, V]](rdd, codec.avroEncoder)
+
+  def first(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] = F.delay(rdd.cminOption)
+  def last(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]]  = F.delay(rdd.cmaxOption)
 
 }

@@ -9,136 +9,68 @@ import io.circe.generic.auto._
 import mtest.spark.persist.{Rooster, RoosterData}
 import org.scalatest.funsuite.AnyFunSuite
 
+import scala.util.Random
+
 class KafkaUploadUnloadTest extends AnyFunSuite {
 
   val sk: SparkWithKafkaContext[IO]                       = sparkSession.alongWith(ctx)
   implicit val te: TypedEncoder[OptionalKV[Int, Rooster]] = shapeless.cachedImplicit
+  val root                                                = "./data/test/spark/kafka/load/rooster/"
 
-  test("circe upload/unload") {
+  test("kafka upload/unload") {
     val rooster =
-      TopicDef[Int, Rooster](TopicName("spark.kafka.load.circe.rooster"), Rooster.avroCodec)
-    val path  = "./data/test/spark/kafka/load/circe/rooster"
+      TopicDef[Int, Rooster](TopicName("spark.kafka.load.rooster"), Rooster.avroCodec)
+    val circe   = root + "circe"
+    val parquet = root + "parquet"
+    val json    = root + "json"
+    val avro    = root + "avro"
+    val jackson = root + "jackson"
+    val avroBin = root + "avroBin"
+    val obj     = root + "objectFile"
+
     val topic = sk.topic(rooster)
-    val pr    = topic.prRdd(RoosterData.rdd.map(x => NJProducerRecord(1, x)))
+    val pr    = topic.prRdd(RoosterData.rdd.map(x => NJProducerRecord(Random.nextInt(), x)))
     val run = for {
       _ <- rooster.in(ctx).admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- pr.upload.compile.drain
-      _ <- topic.fromKafka.flatMap(_.save.circe(path).run(blocker))
+      _ <- topic.fromKafka.flatMap(_.save.circe(circe).run(blocker))
+      _ <- topic.fromKafka.flatMap(_.crDS.save.parquet(parquet).run(blocker))
+      _ <- topic.fromKafka.flatMap(_.crDS.save.json(json).run(blocker))
+      _ <- topic.fromKafka.flatMap(_.save.avro(avro).run(blocker))
+      _ <- topic.fromKafka.flatMap(_.save.jackson(jackson).run(blocker))
+      _ <- topic.fromKafka.flatMap(_.save.binAvro(avroBin).run(blocker))
+      _ <- topic.fromKafka.flatMap(_.save.objectFile(obj).run(blocker))
     } yield {
-      val ds  = topic.load.circe(path).dataset.collect().flatMap(_.value).toSet
-      val rdd = topic.load.rdd.circe(path).rdd.flatMap(_.value).collect().toSet
-      assert(ds == RoosterData.expected)
-      assert(rdd == RoosterData.expected)
-    }
-    run.unsafeRunSync()
-  }
+      val circeds  = topic.load.circe(circe).dataset.collect().flatMap(_.value).toSet
+      val circerdd = topic.load.rdd.circe(circe).rdd.flatMap(_.value).collect().toSet
+      assert(circeds == RoosterData.expected)
+      assert(circerdd == RoosterData.expected)
 
-  test("parquet upload/unload") {
-    val rooster =
-      TopicDef[Int, Rooster](TopicName("spark.kafka.load.parquet.rooster"), Rooster.avroCodec)
-    val path  = "./data/test/spark/kafka/load/parquet/rooster"
-    val topic = sk.topic(rooster)
-    val pr    = topic.prRdd(RoosterData.rdd.map(x => NJProducerRecord(1, x)))
-    val run = for {
-      _ <- rooster.in(ctx).admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
-      _ <- pr.upload.compile.drain
-      _ <- topic.fromKafka.flatMap(_.crDS.save.parquet(path).run(blocker))
-    } yield {
-      val ds = topic.load.parquet(path).dataset.collect().flatMap(_.value).toSet
-      assert(ds == RoosterData.expected)
-    }
-    run.unsafeRunSync()
-  }
+      val parquetds = topic.load.parquet(parquet).dataset.collect().flatMap(_.value).toSet
+      assert(parquetds == RoosterData.expected)
 
-  test("json upload/unload") {
-    val rooster =
-      TopicDef[Int, Rooster](TopicName("spark.kafka.load.json.rooster"), Rooster.avroCodec)
-    val path  = "./data/test/spark/kafka/load/json/rooster"
-    val topic = sk.topic(rooster)
-    val pr    = topic.prRdd(RoosterData.rdd.map(x => NJProducerRecord(1, x)))
-    val run = for {
-      _ <- rooster.in(ctx).admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
-      _ <- pr.upload.compile.drain
-      _ <- topic.fromKafka.flatMap(_.crDS.save.json(path).run(blocker))
-    } yield {
-      val ds = topic.load.json(path).dataset.collect().flatMap(_.value).toSet
-      assert(ds == RoosterData.expected)
-    }
-    run.unsafeRunSync()
-  }
+      val jsonds = topic.load.json(json).dataset.collect().flatMap(_.value).toSet
+      assert(jsonds == RoosterData.expected)
 
-  test("avro upload/unload") {
-    val rooster =
-      TopicDef[Int, Rooster](TopicName("spark.kafka.load.avro.rooster"), Rooster.avroCodec)
-    val path  = "./data/test/spark/kafka/load/avro/rooster"
-    val topic = sk.topic(rooster)
-    val pr    = topic.prRdd(RoosterData.rdd.map(x => NJProducerRecord(1, x)))
-    val run = for {
-      _ <- rooster.in(ctx).admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
-      _ <- pr.upload.compile.drain
-      _ <- topic.fromKafka.flatMap(_.save.avro(path).run(blocker))
-    } yield {
-      val ds  = topic.load.avro(path).dataset.collect().flatMap(_.value).toSet
-      val rdd = topic.load.rdd.avro(path).rdd.flatMap(_.value).collect().toSet
-      assert(ds == RoosterData.expected)
-      assert(rdd == RoosterData.expected)
-    }
-    run.unsafeRunSync()
-  }
+      val avrods  = topic.load.avro(avro).dataset.collect().flatMap(_.value).toSet
+      val avrordd = topic.load.rdd.avro(avro).rdd.flatMap(_.value).collect().toSet
+      assert(avrods == RoosterData.expected)
+      assert(avrordd == RoosterData.expected)
 
-  test("jackson upload/unload") {
-    val rooster =
-      TopicDef[Int, Rooster](TopicName("spark.kafka.load.jackson.rooster"), Rooster.avroCodec)
-    val path  = "./data/test/spark/kafka/load/jackson/rooster"
-    val topic = sk.topic(rooster)
-    val pr    = topic.prRdd(RoosterData.rdd.map(x => NJProducerRecord(1, x)))
-    val run = for {
-      _ <- rooster.in(ctx).admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
-      _ <- pr.upload.compile.drain
-      _ <- topic.fromKafka.flatMap(_.save.jackson(path).run(blocker))
-    } yield {
-      val ds  = topic.load.jackson(path).dataset.collect().flatMap(_.value).toSet
-      val rdd = topic.load.rdd.jackson(path).rdd.flatMap(_.value).collect().toSet
-      assert(ds == RoosterData.expected)
-      assert(rdd == RoosterData.expected)
-    }
-    run.unsafeRunSync()
-  }
+      val jacksonds  = topic.load.jackson(jackson).dataset.collect().flatMap(_.value).toSet
+      val jacksonrdd = topic.load.rdd.jackson(jackson).rdd.flatMap(_.value).collect().toSet
+      assert(jacksonds == RoosterData.expected)
+      assert(jacksonrdd == RoosterData.expected)
 
-  test("binAvro upload/unload") {
-    val rooster =
-      TopicDef[Int, Rooster](TopicName("spark.kafka.load.binavro.rooster"), Rooster.avroCodec)
-    val path  = "./data/test/spark/kafka/load/binavro/rooster"
-    val topic = sk.topic(rooster)
-    val pr    = topic.prRdd(RoosterData.rdd.map(x => NJProducerRecord(1, x)))
-    val run = for {
-      _ <- rooster.in(ctx).admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
-      _ <- pr.upload.compile.drain
-      _ <- topic.fromKafka.flatMap(_.save.binAvro(path).run(blocker))
-    } yield {
-      val ds  = topic.load.binAvro(path).dataset.collect().flatMap(_.value).toSet
-      val rdd = topic.load.rdd.binAvro(path).rdd.flatMap(_.value).collect().toSet
-      assert(ds == RoosterData.expected)
-      assert(rdd == RoosterData.expected)
-    }
-    run.unsafeRunSync()
-  }
+      val binds  = topic.load.binAvro(avroBin).dataset.collect().flatMap(_.value).toSet
+      val binrdd = topic.load.rdd.binAvro(avroBin).rdd.flatMap(_.value).collect().toSet
+      assert(binds == RoosterData.expected)
+      assert(binrdd == RoosterData.expected)
 
-  test("object-file upload/unload") {
-    val rooster =
-      TopicDef[Int, Rooster](TopicName("spark.kafka.load.obj.rooster"), Rooster.avroCodec)
-    val path  = "./data/test/spark/kafka/load/obj/rooster"
-    val topic = sk.topic(rooster)
-    val pr    = topic.prRdd(RoosterData.rdd.map(x => NJProducerRecord(1, x)))
-    val run = for {
-      _ <- rooster.in(ctx).admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
-      _ <- pr.upload.compile.drain
-      _ <- topic.fromKafka.flatMap(_.save.objectFile(path).run(blocker))
-    } yield {
-      val ds  = topic.load.objectFile(path).dataset.collect().flatMap(_.value).toSet
-      val rdd = topic.load.rdd.objectFile(path).rdd.flatMap(_.value).collect().toSet
-      assert(ds == RoosterData.expected)
-      assert(rdd == RoosterData.expected)
+      val objds  = topic.load.objectFile(obj).dataset.collect().flatMap(_.value).toSet
+      val objrdd = topic.load.rdd.objectFile(obj).rdd.flatMap(_.value).collect().toSet
+      assert(objds == RoosterData.expected)
+      assert(objrdd == RoosterData.expected)
     }
     run.unsafeRunSync()
   }
