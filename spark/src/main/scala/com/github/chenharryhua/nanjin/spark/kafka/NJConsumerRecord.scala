@@ -4,8 +4,11 @@ import alleycats.Empty
 import cats.implicits.catsSyntaxTuple2Semigroupal
 import cats.kernel.{LowerBounded, PartialOrder}
 import cats.{Applicative, Bifunctor, Bitraverse, Eval, Order, Show}
+import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.sksamuel.avro4s.{AvroDoc, Decoder, Encoder, SchemaFor}
+import frameless.TypedEncoder
 import io.scalaland.chimney.dsl._
 import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -65,6 +68,9 @@ final case class OptionalKV[K, V](
   @AvroDoc("kafka timestamp type") timestampType: Int)
     extends NJConsumerRecord[Option[K], Option[V]] {
 
+  def replaceKey[K2](key: Option[K2]): OptionalKV[K2, V]   = copy(key = key)
+  def replaceVal[V2](value: Option[V2]): OptionalKV[K, V2] = copy(value = value)
+
   def flatten[K2, V2](implicit
     evK: K <:< Option[K2],
     evV: V <:< Option[V2]
@@ -112,6 +118,21 @@ object OptionalKV {
     val e: Encoder[OptionalKV[K, V]]        = cachedImplicit
     AvroCodec[OptionalKV[K, V]](s, d, e)
   }
+
+  def avroCodec[K, V](topicDef: TopicDef[K, V]): AvroCodec[OptionalKV[K, V]] =
+    avroCodec(topicDef.serdeOfKey.avroCodec, topicDef.serdeOfVal.avroCodec)
+
+  def ate[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V])(implicit
+    tek: TypedEncoder[K],
+    tev: TypedEncoder[V]): AvroTypedEncoder[OptionalKV[K, V]] = {
+    val ote: TypedEncoder[OptionalKV[K, V]] = shapeless.cachedImplicit
+    AvroTypedEncoder[OptionalKV[K, V]](ote, avroCodec(keyCodec, valCodec))
+  }
+
+  def ate[K, V](topicDef: TopicDef[K, V])(implicit
+    tek: TypedEncoder[K],
+    tev: TypedEncoder[V]): AvroTypedEncoder[OptionalKV[K, V]] =
+    ate(topicDef.serdeOfKey.avroCodec, topicDef.serdeOfVal.avroCodec)
 
   implicit val bifunctorOptionalKV: Bifunctor[OptionalKV] =
     new Bifunctor[OptionalKV] {
@@ -180,6 +201,21 @@ object CompulsoryV {
     AvroCodec[CompulsoryV[K, V]](s, d, e)
   }
 
+  def avroCodec[K, V](topicDef: TopicDef[K, V]): AvroCodec[CompulsoryV[K, V]] =
+    avroCodec(topicDef.serdeOfKey.avroCodec, topicDef.serdeOfVal.avroCodec)
+
+  def ate[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V])(implicit
+    tek: TypedEncoder[K],
+    tev: TypedEncoder[V]): AvroTypedEncoder[CompulsoryV[K, V]] = {
+    val ote: TypedEncoder[CompulsoryV[K, V]] = shapeless.cachedImplicit
+    AvroTypedEncoder[CompulsoryV[K, V]](ote, avroCodec(keyCodec, valCodec))
+  }
+
+  def ate[K, V](topicDef: TopicDef[K, V])(implicit
+    tek: TypedEncoder[K],
+    tev: TypedEncoder[V]): AvroTypedEncoder[CompulsoryV[K, V]] =
+    ate(topicDef.serdeOfKey.avroCodec, topicDef.serdeOfVal.avroCodec)
+
   implicit val bifunctorCompulsoryV: Bifunctor[CompulsoryV] =
     new Bifunctor[CompulsoryV] {
 
@@ -228,6 +264,21 @@ object CompulsoryK {
     val e: Encoder[CompulsoryK[K, V]]       = cachedImplicit
     AvroCodec[CompulsoryK[K, V]](s, d, e)
   }
+
+  def avroCodec[K, V](topicDef: TopicDef[K, V]): AvroCodec[CompulsoryK[K, V]] =
+    avroCodec(topicDef.serdeOfKey.avroCodec, topicDef.serdeOfVal.avroCodec)
+
+  def ate[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V])(implicit
+    tek: TypedEncoder[K],
+    tev: TypedEncoder[V]): AvroTypedEncoder[CompulsoryK[K, V]] = {
+    val ote: TypedEncoder[CompulsoryK[K, V]] = shapeless.cachedImplicit
+    AvroTypedEncoder[CompulsoryK[K, V]](ote, avroCodec(keyCodec, valCodec))
+  }
+
+  def ate[K, V](topicDef: TopicDef[K, V])(implicit
+    tek: TypedEncoder[K],
+    tev: TypedEncoder[V]): AvroTypedEncoder[CompulsoryK[K, V]] =
+    ate(topicDef.serdeOfKey.avroCodec, topicDef.serdeOfVal.avroCodec)
 
   implicit val bifunctorCompulsoryK: Bifunctor[CompulsoryK] =
     new Bifunctor[CompulsoryK] {
@@ -284,6 +335,21 @@ object CompulsoryKV {
     val e: Encoder[CompulsoryKV[K, V]]      = cachedImplicit
     AvroCodec[CompulsoryKV[K, V]](s, d, e)
   }
+
+  def avroCodec[K, V](topicDef: TopicDef[K, V]): AvroCodec[CompulsoryKV[K, V]] =
+    avroCodec(topicDef.serdeOfKey.avroCodec, topicDef.serdeOfVal.avroCodec)
+
+  def ate[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V])(implicit
+    tek: TypedEncoder[K],
+    tev: TypedEncoder[V]): AvroTypedEncoder[CompulsoryKV[K, V]] = {
+    val ote: TypedEncoder[CompulsoryKV[K, V]] = shapeless.cachedImplicit
+    AvroTypedEncoder[CompulsoryKV[K, V]](ote, avroCodec(keyCodec, valCodec))
+  }
+
+  def ate[K, V](topicDef: TopicDef[K, V])(implicit
+    tek: TypedEncoder[K],
+    tev: TypedEncoder[V]): AvroTypedEncoder[CompulsoryKV[K, V]] =
+    ate(topicDef.serdeOfKey.avroCodec, topicDef.serdeOfVal.avroCodec)
 
   implicit val bitraverseCompulsoryKV: Bitraverse[CompulsoryKV] =
     new Bitraverse[CompulsoryKV] {

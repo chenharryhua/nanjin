@@ -69,8 +69,8 @@ object Bee {
     override def schemaFor: SchemaFor[Array[Byte]] = SchemaFor[Array[Byte]]
   }
 
-  implicit val avroEncoder: Encoder[Bee] = shapeless.cachedImplicit
-  implicit val avroDecoder: Decoder[Bee] = shapeless.cachedImplicit
+  val avroEncoder: Encoder[Bee] = shapeless.cachedImplicit
+  val avroDecoder: Decoder[Bee] = shapeless.cachedImplicit
 
   val avroCodec: AvroCodec[Bee]                = AvroCodec[Bee](schemaText).right.get
   implicit val typedEncoder: TypedEncoder[Bee] = shapeless.cachedImplicit

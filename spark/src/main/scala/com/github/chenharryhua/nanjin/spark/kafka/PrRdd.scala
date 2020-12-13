@@ -9,7 +9,7 @@ import fs2.Stream
 import fs2.kafka.ProducerResult
 import org.apache.spark.rdd.RDD
 
-final class PrRdd[F[_], K, V](
+final class PrRdd[F[_], K, V] private[kafka] (
   topic: KafkaTopic[F, K, V],
   rdd: RDD[NJProducerRecord[K, V]],
   cfg: SKConfig

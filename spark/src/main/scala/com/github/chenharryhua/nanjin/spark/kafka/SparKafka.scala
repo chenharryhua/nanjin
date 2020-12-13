@@ -6,13 +6,13 @@ import cats.syntax.flatMap._
 import cats.syntax.functor._
 import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.github.chenharryhua.nanjin.spark.sstream.{KafkaCrSStream, SStreamConfig, SparkSStream}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{Dataset, SparkSession}
-import org.apache.spark.streaming.StreamingContext
+import org.apache.spark.sql.{DataFrame, SparkSession}
 
 trait SparKafkaUpdateParams[A] extends UpdateParams[SKConfig, A] with Serializable {
   def params: SKParams
@@ -59,21 +59,25 @@ final class SparKafka[F[_], K, V](
     cs: ContextShift[F]): F[Unit] =
     fromKafka.flatMap(_.pipeTo(other))
 
+  def load: KafkaLoadFile[F, K, V] = new KafkaLoadFile[F, K, V](this)
+
   /** rdd and dataset
     */
-  def crRdd(rdd: RDD[OptionalKV[K, V]]): CrRdd[F, K, V]          = new CrRdd[F, K, V](topic, rdd, cfg)
-  def crRdd(tds: TypedDataset[OptionalKV[K, V]]): CrRdd[F, K, V] = crRdd(tds.rdd)
-  def crRdd(ds: Dataset[OptionalKV[K, V]]): CrRdd[F, K, V]       = crRdd(ds.rdd)
+  def crRdd(rdd: RDD[OptionalKV[K, V]]): CrRdd[F, K, V] = new CrRdd[F, K, V](topic, rdd, cfg)
 
-  def prRdd(rdd: RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V]          = new PrRdd[F, K, V](topic, rdd, cfg)
-  def prRdd(ds: Dataset[NJProducerRecord[K, V]]): PrRdd[F, K, V]       = prRdd(ds.rdd)
-  def prRdd(tds: TypedDataset[NJProducerRecord[K, V]]): PrRdd[F, K, V] = prRdd(tds.rdd)
+  def crDS(tds: TypedDataset[OptionalKV[K, V]])(implicit
+    tek: TypedEncoder[K],
+    tev: TypedEncoder[V]): CrDS[F, K, V] = {
+    val ate: AvroTypedEncoder[OptionalKV[K, V]] = OptionalKV.ate(topic.topicDef)
+    new CrDS(topic, tds.dataset, ate, cfg)
+  }
 
-  /** direct stream
-    */
+  def crDS(df: DataFrame)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
+    val ate: AvroTypedEncoder[OptionalKV[K, V]] = OptionalKV.ate(topic.topicDef)
+    new CrDS(topic, ate.normalizeDF(df).dataset, ate, cfg)
+  }
 
-  def dstream(sc: StreamingContext): CrDStream[F, K, V] =
-    new CrDStream[F, K, V](sk.kafkaDStream[F, K, V](topic, sc, params.locationStrategy), cfg)
+  def prRdd(rdd: RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] = new PrRdd[F, K, V](topic, rdd, cfg)
 
   /** structured stream
     */

@@ -85,10 +85,10 @@ object Rooster {
 
   implicit val typedEncoder: TypedEncoder[Rooster] = shapeless.cachedImplicit
 
-  implicit val avroCodec: AvroCodec[Rooster] =
+  val avroCodec: AvroCodec[Rooster] =
     AvroCodec[Rooster](schema).right.get
 
-  implicit val ate: AvroTypedEncoder[Rooster] =
+  val ate: AvroTypedEncoder[Rooster] =
     AvroTypedEncoder[Rooster](TypedEncoder[Rooster], avroCodec)
 
 }

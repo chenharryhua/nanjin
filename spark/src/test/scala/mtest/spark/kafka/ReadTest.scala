@@ -26,15 +26,13 @@ object ReadTestData {
     .fill(100)(Dog(Random.nextInt(), "dog"))
     .mapWithIndex((d, i) => OptionalKV[Int, Dog](0, i.toLong, 0, None, Some(d), "topic-nokey", 0))
 
-  val topic: TopicDef[Int, Dog] =
-    TopicDef[Int, Dog](TopicName("test.spark.kafka.dogs"))
+  val topic =
+    TopicDef[Int, Dog](TopicName("test.spark.kafka.dogs")).in(ctx).sparKafka
 
 }
 
 class ReadTest extends AnyFunSuite {
   import ReadTestData._
-
-  val tp = sparkSession.alongWith[IO](ctx).topic(topic)
 
   test("sparKafka read parquet") {
     val data = TypedDataset.create(dogs_noKey)
@@ -48,7 +46,7 @@ class ReadTest extends AnyFunSuite {
     val path = "./data/test/spark/kafka/read/avro"
     data.write.mode(SaveMode.Overwrite).format("avro").save(path)
     assert(topic.load.avro(path).dataset.collect.toSet == dogs_noKey.toSet)
-    assert(topic.load.rdd.avro(path).collect.toSet == dogs_noKey.toSet)
+    assert(topic.load.rdd.avro(path).rdd.collect.toSet == dogs_noKey.toSet)
   }
 
   test("sparKafka read parquet - compulsoryK") {
@@ -64,8 +62,8 @@ class ReadTest extends AnyFunSuite {
       TypedDataset.create(dogs.flatMap(_.toCompulsoryV))
     val path = "./data/test/spark/kafka/read/avro-compulsory"
     data.write.mode(SaveMode.Overwrite).format("avro").save(path)
-    assert(topic.load.avro(path).rdd.collect.toSet == dogs.toSet)
-    assert(topic.load.rdd.avro(path).collect.toSet == dogs.toSet)
+    assert(topic.load.avro(path).dataset.collect.toSet == dogs.toSet)
+    assert(topic.load.rdd.avro(path).rdd.collect.toSet == dogs.toSet)
   }
 
   test("sparKafka read json - compulsoryKV") {

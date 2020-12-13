@@ -58,7 +58,7 @@ class KafkaCoproductTest extends AnyFunSuite {
       topicCO.schemaRegister >>
       topicCO.send(data) >>
       sk.fromKafka.flatMap(_.save.avro(path).file.run(blocker)) >>
-      IO(topicCO.topicDef.load.rdd.avro(path).collect().toSet)
+      IO(topicCO.sparKafka.load.rdd.avro(path).rdd.collect().toSet)
     intercept[Exception](run.unsafeRunSync().flatMap(_.value) == Set(co1, co2))
   }
 
@@ -71,7 +71,7 @@ class KafkaCoproductTest extends AnyFunSuite {
       topicEnum.schemaRegister >>
       topicEnum.send(data) >>
       sk.fromKafka.flatMap(_.save.avro(path).file.run(blocker)) >>
-      IO(topicEnum.topicDef.load.rdd.avro(path).take(10).toSet)
+      IO(topicEnum.sparKafka.load.rdd.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 
@@ -84,7 +84,7 @@ class KafkaCoproductTest extends AnyFunSuite {
       topicEnum.schemaRegister >>
       topicEnum.send(data) >>
       sk.fromKafka.flatMap(_.save.avro(path).folder.run(blocker)) >>
-      IO(topicEnum.topicDef.load.rdd.avro(path).take(10).toSet)
+      IO(topicEnum.sparKafka.load.rdd.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 
@@ -97,7 +97,7 @@ class KafkaCoproductTest extends AnyFunSuite {
       topicEnum.schemaRegister >>
       topicEnum.send(data) >>
       sk.fromKafka.flatMap(_.save.avro(path).folder.snappy.run(blocker)) >>
-      IO(topicEnum.topicDef.load.rdd.avro(path).take(10).toSet)
+      IO(topicEnum.sparKafka.load.rdd.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
   test("should be sent to kafka and save to single snappy avro") {
@@ -109,7 +109,7 @@ class KafkaCoproductTest extends AnyFunSuite {
       topicEnum.schemaRegister >>
       topicEnum.send(data) >>
       sk.fromKafka.flatMap(_.save.avro(path).file.snappy.run(blocker)) >>
-      IO(topicEnum.topicDef.load.rdd.avro(path).take(10).toSet)
+      IO(topicEnum.sparKafka.load.rdd.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 }

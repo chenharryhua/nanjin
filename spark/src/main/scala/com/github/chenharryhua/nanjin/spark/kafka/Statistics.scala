@@ -16,7 +16,8 @@ final private[kafka] case class DailyAggResult(date: LocalDate, count: Long)
 final private[kafka] case class DailyHourAggResult(dateTime: ZonedDateTime, count: Long)
 final private[kafka] case class DailyMinuteAggResult(dateTime: ZonedDateTime, count: Long)
 
-final class Statistics[F[_]](ds: Dataset[CRMetaInfo], cfg: SKConfig) extends Serializable {
+final class Statistics[F[_]] private[kafka] (ds: Dataset[CRMetaInfo], cfg: SKConfig)
+    extends Serializable {
 
   val params: SKParams = cfg.evalConfig
 

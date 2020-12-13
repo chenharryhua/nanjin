@@ -1,9 +1,8 @@
 package mtest.spark.kafka
 
-import java.time.{Instant, LocalDate}
-
 import cats.effect.IO
 import cats.syntax.all._
+import com.github.chenharryhua.nanjin.datetime.sydneyTime
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.injection._
@@ -12,6 +11,8 @@ import com.sksamuel.avro4s.SchemaFor
 import frameless.TypedDataset
 import frameless.cats.implicits._
 import org.scalatest.funsuite.AnyFunSuite
+
+import java.time.{Instant, LocalDate}
 
 object SparKafkaTestData {
   final case class Duck(f: Int, g: String)
@@ -45,7 +46,7 @@ class SparKafkaTest extends AnyFunSuite {
 
   test("sparKafka read topic from kafka and show minutely aggragation result") {
     topic
-      .sparKafka(range)
+      .sparKafka(sydneyTime)
       .fromKafka
       .flatMap(_.stats.rows(100).untruncate.truncate.minutely)
       .unsafeRunSync
@@ -74,7 +75,7 @@ class SparKafkaTest extends AnyFunSuite {
     val t = ctx.topic[String, Int]("tmp")
 
     val birst: Set[CompulsoryV[String, Int]] =
-      src.sparKafka(range).crRdd(ds).bimap(_.toString, _ + 1)(t).values.collect().toSet
+      src.sparKafka(range).crRdd(ds.rdd).bimap(_.toString, _ + 1)(t).values.collect().toSet
     assert(birst.map(_.value) == Set(2, 3, 5))
   }
 
@@ -92,7 +93,7 @@ class SparKafkaTest extends AnyFunSuite {
     val birst: Set[CompulsoryV[Int, Int]] =
       src
         .sparKafka(range)
-        .crRdd(ds)
+        .crRdd(ds.rdd)
         .flatMap(m => m.value.map(x => OptionalKV.value.set(Some(x - 1))(m)))(t)
         .values
         .collect()
@@ -107,7 +108,7 @@ class SparKafkaTest extends AnyFunSuite {
     val crs: List[OptionalKV[Int, Int]]        = List(cr1, cr2, cr3)
     val ds: TypedDataset[OptionalKV[Int, Int]] = TypedDataset.create(crs)
 
-    val t   = TopicDef[Int, Int](TopicName("some.value")).in(ctx).sparKafka(range).crRdd(ds)
+    val t   = TopicDef[Int, Int](TopicName("some.value")).in(ctx).sparKafka(range).crRdd(ds.rdd)
     val rst = t.values.collect().map(_.value)
     assert(rst === Seq(cr1.value.get))
     println(cr1.show)

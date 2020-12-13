@@ -60,7 +60,4 @@ trait InvModule[F[_], K, V] { self: CrRdd[F, K, V] =>
 
   def kvDiff(other: CrRdd[F, K, V]): RDD[KvDiffResult[K, V]] = kvDiff(other.rdd)
 
-  def first(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] = F.delay(rdd.cminOption)
-  def last(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]]  = F.delay(rdd.cmaxOption)
-
 }
