@@ -12,6 +12,7 @@ import com.github.chenharryhua.nanjin.spark.kafka.{
 }
 import frameless.TypedDataset
 import frameless.cats.implicits._
+import mtest.spark.{contextShift, sparkSession}
 import org.scalatest.funsuite.AnyFunSuite
 
 object InvestigationTestData {

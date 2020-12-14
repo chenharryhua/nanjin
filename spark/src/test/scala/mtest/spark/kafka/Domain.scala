@@ -1,7 +1,5 @@
 package mtest.spark.kafka
 
-import java.time.{Instant, LocalDate}
-
 import frameless.Injection
 import io.circe.generic.JsonCodec
 

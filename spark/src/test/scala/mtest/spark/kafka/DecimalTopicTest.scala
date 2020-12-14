@@ -1,17 +1,17 @@
 package mtest.spark.kafka
 
-import java.time.Instant
 import cats.effect.IO
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.injection._
-import com.github.chenharryhua.nanjin.spark.kafka._
-import com.github.chenharryhua.nanjin.spark.persist.loaders
 import frameless.cats.implicits._
-import org.scalatest.funsuite.AnyFunSuite
 import io.circe.generic.auto._
+import mtest.spark.{blocker, contextShift, ctx, sparkSession}
+import org.scalatest.funsuite.AnyFunSuite
+
+import java.time.Instant
 import scala.math.BigDecimal
 import scala.math.BigDecimal.RoundingMode
 
@@ -84,25 +84,16 @@ class DecimalTopicTest extends AnyFunSuite {
 
   test("sparKafka kafka and spark agree on circe") {
     val path = "./data/test/spark/kafka/decimal.circe.json"
-     stopic.fromKafka
-      .flatMap(_.save.circe(path).file.run(blocker))
-      .unsafeRunSync
+    stopic.fromKafka.flatMap(_.save.circe(path).file.run(blocker)).unsafeRunSync
 
     val rdd = stopic.load.rdd.circe(path)
     val ds  = stopic.load.circe(path)
 
     rdd.save.objectFile("./data/test/spark/kafka/decimal.obj").run(blocker).unsafeRunSync()
-    rdd
-      .save
-      .avro("./data/test/spark/kafka/decimal.avro")
-      .run(blocker)
-      .unsafeRunSync()
+    rdd.save.avro("./data/test/spark/kafka/decimal.avro").run(blocker).unsafeRunSync()
 
     ds.save.parquet("./data/test/spark/kafka/decimal.avro").run(blocker).unsafeRunSync()
-    ds.save
-      .jackson("./data/test/spark/kafka/decimal.jackson.json")
-      .run(blocker)
-      .unsafeRunSync()
+    ds.save.jackson("./data/test/spark/kafka/decimal.jackson.json").run(blocker).unsafeRunSync()
 
     assert(rdd.rdd.collect().head.value.get == expected)
     assert(ds.dataset.collect().head.value.get == expected)

@@ -6,10 +6,10 @@ import com.github.chenharryhua.nanjin.common.transformers._
 import com.github.chenharryhua.nanjin.database.TableName
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, _}
 import com.github.chenharryhua.nanjin.spark.database._
 import com.github.chenharryhua.nanjin.spark.injection._
 import com.github.chenharryhua.nanjin.spark.persist.DatasetAvroFileHoarder
+import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, _}
 import doobie.implicits._
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
@@ -18,6 +18,7 @@ import io.scalaland.chimney.dsl._
 import kantan.csv.generic._
 import kantan.csv.java8._
 import kantan.csv.{CsvConfiguration, RowEncoder}
+import mtest.spark.{blocker, contextShift, sparkSession}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.sql.Date

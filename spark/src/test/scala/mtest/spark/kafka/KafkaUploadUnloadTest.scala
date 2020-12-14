@@ -15,6 +15,7 @@ import frameless.TypedEncoder
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import io.circe.generic.auto._
 import mtest.spark.persist.{Rooster, RoosterData}
+import mtest.spark.{blocker, contextShift, ctx, sparkSession, timer}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant

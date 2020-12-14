@@ -3,6 +3,7 @@ package mtest.spark.kafka
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.spark.kafka._
 import frameless.cats.implicits._
+import mtest.spark.{contextShift, ctx, sparkSession, timer}
 import org.scalatest.funsuite.AnyFunSuite
 
 object CopyData {

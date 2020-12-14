@@ -10,6 +10,7 @@ import com.github.chenharryhua.nanjin.spark.kafka.{CompulsoryV, _}
 import com.sksamuel.avro4s.SchemaFor
 import frameless.TypedDataset
 import frameless.cats.implicits._
+import mtest.spark.{contextShift, ctx, sparkSession, timer}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.{Instant, LocalDate}
