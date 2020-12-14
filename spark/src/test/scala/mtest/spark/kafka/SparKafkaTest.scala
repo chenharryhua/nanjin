@@ -94,6 +94,7 @@ class SparKafkaTest extends AnyFunSuite {
       src
         .sparKafka(range)
         .crRdd(ds.rdd)
+        .inRange
         .flatMap(m => m.value.map(x => OptionalKV.value.set(Some(x - 1))(m)))(t)
         .values
         .collect()
@@ -108,7 +109,16 @@ class SparKafkaTest extends AnyFunSuite {
     val crs: List[OptionalKV[Int, Int]]        = List(cr1, cr2, cr3)
     val ds: TypedDataset[OptionalKV[Int, Int]] = TypedDataset.create(crs)
 
-    val t   = TopicDef[Int, Int](TopicName("some.value")).in(ctx).sparKafka(range).crRdd(ds.rdd)
+    val t = ctx
+      .topic[Int, Int]("some.value")
+      .sparKafka(range)
+      .crRdd(ds.rdd)
+      .repartition(3)
+      .descending
+      .withParamUpdate(_.withShowRows(3))
+      .dismissNulls
+      .replicate(3)
+      .distinct
     val rst = t.values.collect().map(_.value)
     assert(rst === Seq(cr1.value.get))
     println(cr1.show)
@@ -116,6 +126,8 @@ class SparKafkaTest extends AnyFunSuite {
 
   test("dump and reload") {
     val number = topic.sparKafka.dump.unsafeRunSync()
+    topic.sparKafka.replay.unsafeRunSync()
     assert(topic.sparKafka.countDisk.unsafeRunSync() == number)
+    assert(topic.sparKafka.countKafka.unsafeRunSync() == number * 2)
   }
 }

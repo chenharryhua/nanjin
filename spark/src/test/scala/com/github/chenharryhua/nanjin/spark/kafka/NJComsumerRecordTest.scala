@@ -3,11 +3,10 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.kernel.laws.discipline.{LowerBoundedTests, OrderTests}
 import cats.laws.discipline.{BifunctorTests, BitraverseTests}
 import cats.tests.CatsSuite
-import org.scalacheck.{Arbitrary, Cogen, Gen}
+import org.scalacheck.{Arbitrary, Cogen, Gen, Properties}
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
-class NJComsumerRecordTest extends CatsSuite with FunSuiteDiscipline {
-
+object NJComsumerRecordTestData {
   implicit val ocogen  = Cogen[OptionalKV[Int, Int]]((o: OptionalKV[Int, Int]) => o.offset)
   implicit val kcogen  = Cogen[CompulsoryK[Int, Int]]((o: CompulsoryK[Int, Int]) => o.offset)
   implicit val vcogen  = Cogen[CompulsoryV[Int, Int]]((o: CompulsoryV[Int, Int]) => o.offset)
@@ -28,6 +27,10 @@ class NJComsumerRecordTest extends CatsSuite with FunSuiteDiscipline {
   implicit val arbK  = Arbitrary(kv.map(_.toCompulsoryK))
   implicit val arbV  = Arbitrary(kv.map(_.toCompulsoryV))
   implicit val arbP  = Arbitrary(kv.map(_.toOptionalKV.toNJProducerRecord))
+}
+
+class NJComsumerRecordTest extends CatsSuite with FunSuiteDiscipline {
+  import NJComsumerRecordTestData._
 
   // ordered
   checkAll("OptionalKV", OrderTests[OptionalKV[Int, Int]].order)
@@ -50,4 +53,23 @@ class NJComsumerRecordTest extends CatsSuite with FunSuiteDiscipline {
     "NJProducerRecord",
     BifunctorTests[NJProducerRecord].bifunctor[Int, Int, Int, Int, Int, Int])
 
+}
+
+class NJComsumerRecordProp extends Properties("ConsumerRecord") {
+  import NJComsumerRecordTestData._
+  import org.scalacheck.Prop.forAll
+  property("comsumer record idenitity") = forAll { (op: OptionalKV[Int, Int]) =>
+    val ck   = op.toCompulsoryK
+    val cv   = op.toCompulsoryV
+    val ckkv = ck.flatMap(_.toCompulsoryKV)
+    val cvkv = cv.flatMap(_.toCompulsoryKV)
+    val ckv  = op.toCompulsoryKV
+    (ckv == ckkv) && (ckv == cvkv)
+  }
+  property("producer record idenitity") = forAll { (op: OptionalKV[Int, Int]) =>
+    val ck  = op.toCompulsoryK.map(_.toNJProducerRecord)
+    val cv  = op.toCompulsoryV.map(_.toNJProducerRecord)
+    val ckv = op.toCompulsoryKV.map(_.toNJProducerRecord)
+    (ckv == ck) && (ckv == cv)
+  }
 }

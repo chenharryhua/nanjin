@@ -12,45 +12,66 @@ final class KafkaLoadFile[F[_], K, V] private[kafka] (klf: SparKafka[F, K, V])
   def avro(pathStr: String)(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V],
-    ss: SparkSession): CrDS[F, K, V] =
-    klf.crDS(loaders.avro[OptionalKV[K, V]](pathStr, OptionalKV.ate(klf.topic.topicDef)))
+    ss: SparkSession): CrDS[F, K, V] = {
+    val ate = OptionalKV.ate(klf.topic.topicDef)
+    val tds = loaders.avro[OptionalKV[K, V]](pathStr, ate)
+    new CrDS(klf.topic, tds.dataset, ate, klf.cfg)
+  }
 
   def parquet(pathStr: String)(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V],
-    ss: SparkSession): CrDS[F, K, V] =
-    klf.crDS(loaders.parquet[OptionalKV[K, V]](pathStr, OptionalKV.ate(klf.topic.topicDef)))
+    ss: SparkSession): CrDS[F, K, V] = {
+    val ate = OptionalKV.ate(klf.topic.topicDef)
+    val tds = loaders.parquet[OptionalKV[K, V]](pathStr, ate)
+    new CrDS(klf.topic, tds.dataset, ate, klf.cfg)
+  }
 
   def json(pathStr: String)(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V],
-    ss: SparkSession): CrDS[F, K, V] =
-    klf.crDS(loaders.json[OptionalKV[K, V]](pathStr, OptionalKV.ate(klf.topic.topicDef)))
+    ss: SparkSession): CrDS[F, K, V] = {
+    val ate = OptionalKV.ate(klf.topic.topicDef)
+    val tds = loaders.json[OptionalKV[K, V]](pathStr, ate)
+    new CrDS(klf.topic, tds.dataset, ate, klf.cfg)
+  }
 
   def jackson(pathStr: String)(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V],
-    ss: SparkSession): CrDS[F, K, V] =
-    klf.crDS(loaders.jackson[OptionalKV[K, V]](pathStr, OptionalKV.ate(klf.topic.topicDef)))
+    ss: SparkSession): CrDS[F, K, V] = {
+    val ate = OptionalKV.ate(klf.topic.topicDef)
+    val tds = loaders.jackson[OptionalKV[K, V]](pathStr, ate)
+    new CrDS(klf.topic, tds.dataset, ate, klf.cfg)
+  }
 
   def binAvro(pathStr: String)(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V],
-    ss: SparkSession): CrDS[F, K, V] =
-    klf.crDS(loaders.binAvro[OptionalKV[K, V]](pathStr, OptionalKV.ate(klf.topic.topicDef)))
+    ss: SparkSession): CrDS[F, K, V] = {
+    val ate = OptionalKV.ate(klf.topic.topicDef)
+    val tds = loaders.binAvro[OptionalKV[K, V]](pathStr, ate)
+    new CrDS(klf.topic, tds.dataset, ate, klf.cfg)
+  }
 
   def circe(pathStr: String)(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V],
     ev: JsonDecoder[OptionalKV[K, V]],
-    ss: SparkSession): CrDS[F, K, V] =
-    klf.crDS(loaders.circe[OptionalKV[K, V]](pathStr, OptionalKV.ate(klf.topic.topicDef)))
+    ss: SparkSession): CrDS[F, K, V] = {
+    val ate = OptionalKV.ate(klf.topic.topicDef)
+    val tds = loaders.circe[OptionalKV[K, V]](pathStr, ate)
+    new CrDS(klf.topic, tds.dataset, ate, klf.cfg)
+  }
 
   def objectFile(pathStr: String)(implicit
     keyEncoder: TypedEncoder[K],
     valEncoder: TypedEncoder[V],
-    ss: SparkSession): CrDS[F, K, V] =
-    klf.crDS(loaders.objectFile[OptionalKV[K, V]](pathStr, OptionalKV.ate(klf.topic.topicDef)))
+    ss: SparkSession): CrDS[F, K, V] = {
+    val ate = OptionalKV.ate(klf.topic.topicDef)
+    val tds = loaders.objectFile[OptionalKV[K, V]](pathStr, ate)
+    new CrDS(klf.topic, tds.dataset, ate, klf.cfg)
+  }
 
   object rdd {
 

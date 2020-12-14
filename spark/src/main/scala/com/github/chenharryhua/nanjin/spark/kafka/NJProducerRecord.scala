@@ -72,28 +72,6 @@ object NJProducerRecord {
   def apply[K, V](v: V): NJProducerRecord[K, V] =
     NJProducerRecord(None, None, None, Option(v))
 
-  def producerRecordCodec[K, V](
-    keyCodec: AvroCodec[K],
-    valCodec: AvroCodec[V]): AvroCodec[NJProducerRecord[K, V]] = {
-    implicit val schemaForKey: SchemaFor[K]  = keyCodec.schemaFor
-    implicit val schemaForVal: SchemaFor[V]  = valCodec.schemaFor
-    implicit val keyDecoder: Decoder[K]      = keyCodec.avroDecoder
-    implicit val valDecoder: Decoder[V]      = valCodec.avroDecoder
-    implicit val keyEncoder: Encoder[K]      = keyCodec.avroEncoder
-    implicit val valEncoder: Encoder[V]      = valCodec.avroEncoder
-    val s: SchemaFor[NJProducerRecord[K, V]] = cachedImplicit
-    val d: Decoder[NJProducerRecord[K, V]]   = cachedImplicit
-    val e: Encoder[NJProducerRecord[K, V]]   = cachedImplicit
-    AvroCodec[NJProducerRecord[K, V]](s, d, e)
-  }
-
-  def producerRecordKAvroTypedEncoer[K, V](ac: AvroCodec[NJProducerRecord[K, V]])(implicit
-    ek: TypedEncoder[K],
-    ev: TypedEncoder[V]): AvroTypedEncoder[NJProducerRecord[K, V]] = {
-    implicit val te: TypedEncoder[NJProducerRecord[K, V]] = cachedImplicit
-    AvroTypedEncoder[NJProducerRecord[K, V]](ac)
-  }
-
   implicit def eqNJProducerRecord[K: Eq, V: Eq]: Eq[NJProducerRecord[K, V]] =
     cats.derived.semiauto.eq[NJProducerRecord[K, V]]
 

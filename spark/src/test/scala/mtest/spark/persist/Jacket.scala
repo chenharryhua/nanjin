@@ -1,37 +1,51 @@
 package mtest.spark.persist
 
+import cats.kernel.Order
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.injection._
-import frameless.{TypedDataset, TypedEncoder}
-import io.circe.Json
+import frameless.TypedEncoder
 import io.circe.generic.auto._
 import io.circe.parser.parse
+import io.circe.{Codec, Json}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Dataset
 
+import java.sql.{Date, Timestamp}
+import java.time.{Instant, LocalDate}
 import scala.util.Random
-final case class Neck(a: Int, b: Json)
-final case class Jacket(c: Int, neck: KJson[Neck])
+
+object Pocket extends Enumeration {
+  val R, L = Value
+}
+final case class Neck(d: Date, t: Timestamp, j: Json)
+final case class Jacket(a: Int, p: Pocket.Value, neck: KJson[Neck])
 
 object Jacket {
   implicit val te: TypedEncoder[Jacket] = shapeless.cachedImplicit
   val avroCodec: AvroCodec[Jacket]      = AvroCodec[Jacket]
   val ate: AvroTypedEncoder[Jacket]     = AvroTypedEncoder(avroCodec)
+  val circe: Codec[Jacket]              = io.circe.generic.semiauto.deriveCodec[Jacket]
 }
 
 object JacketData {
+  implicit val porder: Ordering[Pocket.Value] = Order[Pocket.Value].toOrdering
 
   val expected: List[Jacket] =
-    List.fill(10)(
-      Jacket(
-        Random.nextInt,
-        KJson(
-          Neck(
-            0,
-            parse(
+    List
+      .fill(10)(
+        Jacket(
+          a = Random.nextInt,
+          p = if (Random.nextBoolean()) Pocket.L else Pocket.R,
+          neck = KJson(Neck(
+            d = Date.valueOf(LocalDate.now()),
+            t = Timestamp.from(Instant.now),
+            j = parse(
               s""" {"jsonFloat":"${Random.nextFloat()}","jsonInt":${Random
-                .nextInt()}} """).right.get))))
+                .nextInt()}} """).right.get
+          ))
+        ))
+      .sortBy(_.p)
   val rdd: RDD[Jacket]    = sparkSession.sparkContext.parallelize(expected)
   val ds: Dataset[Jacket] = Jacket.ate.normalize(rdd).dataset
 }

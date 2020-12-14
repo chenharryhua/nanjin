@@ -134,46 +134,46 @@ class SparkTableTest extends AnyFunSuite {
     val avro = saver.avro(root + "single.raw.avro").file.run(blocker) >>
       saver.avro(root + "multi.raw.avro").folder.run(blocker)
     avro.unsafeRunSync()
-    assert(table.load.avro(root + "single.raw.avro").dataset.collect.head == dbData)
-    assert(table.load.avro(root + "multi.raw.avro").dataset.collect.head == dbData)
+    assert(tb.load.avro(root + "single.raw.avro").dataset.collect.head == dbData)
+    assert(tb.load.avro(root + "multi.raw.avro").dataset.collect.head == dbData)
   }
 
   test("save bin avro") {
     val avro = saver.binAvro(root + "single.binary.avro").file.run(blocker)
     avro.unsafeRunSync()
-    assert(table.load.binAvro(root + "single.binary.avro").dataset.collect.head == dbData)
+    assert(tb.load.binAvro(root + "single.binary.avro").dataset.collect.head == dbData)
   }
 
   test("save jackson") {
     val avro = saver.jackson(root + "single.jackson.json").file.run(blocker)
     avro.unsafeRunSync()
-    assert(table.load.jackson(root + "single.jackson.json").dataset.collect.head == dbData)
+    assert(tb.load.jackson(root + "single.jackson.json").dataset.collect.head == dbData)
   }
 
   test("save parquet") {
     val parquet = saver.parquet(root + "multi.parquet").run(blocker)
     parquet.unsafeRunSync()
-    assert(table.load.parquet(root + "multi.parquet").dataset.collect.head == dbData)
+    assert(tb.load.parquet(root + "multi.parquet").dataset.collect.head == dbData)
   }
   test("save circe") {
     val circe = saver.circe(root + "multi.circe.json").folder.run(blocker) >>
       saver.circe(root + "single.circe.json").file.run(blocker)
     circe.unsafeRunSync()
-    assert(table.load.circe(root + "multi.circe.json").dataset.collect.head == dbData)
-    assert(table.load.circe(root + "single.circe.json").dataset.collect.head == dbData)
+    assert(tb.load.circe(root + "multi.circe.json").dataset.collect.head == dbData)
+    assert(tb.load.circe(root + "single.circe.json").dataset.collect.head == dbData)
   }
 
   test("save csv") {
     val csv = saver.csv(root + "multi.csv").folder.run(blocker) >>
       saver.csv(root + "single.csv").file.run(blocker)
     csv.unsafeRunSync()
-    assert(table.load.csv(root + "multi.csv").dataset.collect.head == dbData)
-    assert(table.load.csv(root + "single.csv", CsvConfiguration.rfc).dataset.collect.head == dbData)
+    assert(tb.load.csv(root + "multi.csv").dataset.collect.head == dbData)
+    assert(tb.load.csv(root + "single.csv", CsvConfiguration.rfc).dataset.collect.head == dbData)
   }
   test("save spark json") {
     val json = saver.json(root + "spark.json").run(blocker)
     json.unsafeRunSync()
-    assert(table.load.json(root + "spark.json").dataset.collect.head == dbData)
+    assert(tb.load.json(root + "spark.json").dataset.collect.head == dbData)
   }
   test("show schemas - spark does not respect not null") {
     println("--- spark ---")
