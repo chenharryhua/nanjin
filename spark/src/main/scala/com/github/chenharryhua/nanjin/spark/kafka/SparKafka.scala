@@ -65,13 +65,6 @@ final class SparKafka[F[_], K, V](
     */
   def crRdd(rdd: RDD[OptionalKV[K, V]]): CrRdd[F, K, V] = new CrRdd[F, K, V](topic, rdd, cfg)
 
-  def crDS(tds: TypedDataset[OptionalKV[K, V]])(implicit
-    tek: TypedEncoder[K],
-    tev: TypedEncoder[V]): CrDS[F, K, V] = {
-    val ate: AvroTypedEncoder[OptionalKV[K, V]] = OptionalKV.ate(topic.topicDef)
-    new CrDS(topic, tds.dataset, ate, cfg)
-  }
-
   def crDS(df: DataFrame)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
     val ate: AvroTypedEncoder[OptionalKV[K, V]] = OptionalKV.ate(topic.topicDef)
     new CrDS(topic, ate.normalizeDF(df).dataset, ate, cfg)

@@ -10,8 +10,8 @@ import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt}
-import frameless.TypedEncoder
 import frameless.cats.implicits.rddOps
+import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
@@ -22,7 +22,7 @@ final class CrRdd[F[_], K, V] private[kafka] (
   val topic: KafkaTopic[F, K, V],
   val rdd: RDD[OptionalKV[K, V]],
   val cfg: SKConfig)(implicit val sparkSession: SparkSession)
-    extends SparKafkaUpdateParams[CrRdd[F, K, V]] with InvModule[F, K, V] {
+    extends SparKafkaUpdateParams[CrRdd[F, K, V]] {
 
   protected val codec: AvroCodec[OptionalKV[K, V]] =
     OptionalKV.avroCodec(topic.codec.keySerde.avroCodec, topic.codec.valSerde.avroCodec)
@@ -121,5 +121,10 @@ final class CrRdd[F[_], K, V] private[kafka] (
 
   def first(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] = F.delay(rdd.cminOption)
   def last(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]]  = F.delay(rdd.cmaxOption)
+
+  def count(implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
+
+  def stats: Statistics[F] =
+    new Statistics[F](TypedDataset.create(rdd.map(CRMetaInfo(_))).dataset, cfg)
 
 }

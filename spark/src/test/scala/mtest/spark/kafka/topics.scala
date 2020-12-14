@@ -1,6 +1,7 @@
 package mtest.spark.kafka
+
 import com.landoop.transportation.nyc.trip.yellow.trip_record
-import com.github.chenharryhua.nanjin.kafka.TopicName
+import mtest.spark.ctx
 
 object topics {
   val taxi         = ctx.topic[Int, trip_record]("nyc_yellow_taxi_trip_data")

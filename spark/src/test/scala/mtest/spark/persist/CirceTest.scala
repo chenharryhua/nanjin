@@ -156,7 +156,7 @@ class CirceTest extends AnyFunSuite {
 
   test("circe jacket neck json single") {
     val path  = "./data/test/spark/persist/circe/jacket-neck-json.json"
-    val data  = JacketData.expected.map(_.neck.value.b)
+    val data  = JacketData.expected.map(_.neck.value.j)
     val rdd   = sparkSession.sparkContext.parallelize(data)
     val saver = new RddFileHoarder[IO, Json](rdd.repartition(1))
     saver.circe(path).file.run(blocker).unsafeRunSync()
@@ -166,7 +166,7 @@ class CirceTest extends AnyFunSuite {
 
   test("circe jacket neck json multi") {
     val path  = "./data/test/spark/persist/circe/jacket-neck-multi.json"
-    val data  = JacketData.expected.map(_.neck.value.b)
+    val data  = JacketData.expected.map(_.neck.value.j)
     val rdd   = sparkSession.sparkContext.parallelize(data)
     val saver = new RddFileHoarder[IO, Json](rdd.repartition(1))
     saver.circe(path).folder.run(blocker).unsafeRunSync()

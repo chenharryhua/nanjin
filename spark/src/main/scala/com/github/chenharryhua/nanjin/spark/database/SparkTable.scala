@@ -12,7 +12,7 @@ import org.apache.spark.sql.{Dataset, SparkSession}
 final class SparkTable[F[_], A](
   val tableDef: TableDef[A],
   val dbSettings: DatabaseSettings,
-  cfg: STConfig)(implicit sparkSession: SparkSession)
+  val cfg: STConfig)(implicit val sparkSession: SparkSession)
     extends Serializable {
 
   private val ate: AvroTypedEncoder[A] = tableDef.avroTypedEncoder
@@ -65,5 +65,7 @@ final class SparkTable[F[_], A](
 
   def tableset(rdd: RDD[A]): TableDataset[F, A] =
     new TableDataset[F, A](ate.normalize(rdd).dataset, dbSettings, cfg, ate)
+
+  def load: DbLoadFile[F, A] = new DbLoadFile[F, A](this)
 
 }

@@ -107,7 +107,7 @@ final private[sstream] case class SStreamConfig(value: Fix[SStreamConfigF]) exte
   def withContinousTrigger(ms: Long): SStreamConfig =
     withTrigger(Trigger.Continuous(ms, TimeUnit.MILLISECONDS))
 
-  def withJson: SStreamConfig    = SStreamConfig(Fix(WithFormat(NJFileFormat.Jackson, value)))
+  def withJson: SStreamConfig    = SStreamConfig(Fix(WithFormat(NJFileFormat.SparkJson, value)))
   def withParquet: SStreamConfig = SStreamConfig(Fix(WithFormat(NJFileFormat.Parquet, value)))
   def withAvro: SStreamConfig    = SStreamConfig(Fix(WithFormat(NJFileFormat.Avro, value)))
 

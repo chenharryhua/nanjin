@@ -3,9 +3,10 @@ package mtest.spark.kafka
 import cats.effect.IO
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.spark.kafka._
 import com.github.chenharryhua.nanjin.spark.injection._
+import com.github.chenharryhua.nanjin.spark.kafka._
 import frameless.cats.implicits._
+import mtest.spark.{blocker, contextShift, ctx, sparkSession}
 import org.scalatest.funsuite.AnyFunSuite
 import shapeless._
 

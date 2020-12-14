@@ -1,7 +1,9 @@
 package mtest.codec
 
+import cats.Id
 import cats.derived.auto.eq._
 import cats.kernel.laws.discipline.EqTests
+import cats.laws.discipline.DistributiveTests
 import cats.syntax.all._
 import cats.tests.CatsSuite
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, SerdeOf}
@@ -18,16 +20,16 @@ object KJsonTestData {
   import io.circe.generic.auto._
   val goodJson: SerdeOf[KJson[CompositionType]] = SerdeOf[KJson[CompositionType]]
 
-  val genKJson: Gen[KJson[CompositionType]] = for {
+  val genCT: Gen[CompositionType] = for {
     a <- Gen.posNum[Long]
     c <- Gen.posNum[Int]
-  } yield KJson(CompositionType(c, Base(a, s"""{"a":$a,"b":"b"}""".asJson)))
+  } yield CompositionType(c, Base(a, s"""{"a":$a,"b":"b"}""".asJson))
+
+  implicit val arbiCT: Arbitrary[CompositionType] = Arbitrary(genCT)
+
+  val genKJson: Gen[KJson[CompositionType]] = genCT.map(KJson(_))
 
   implicit val arbKJson: Arbitrary[KJson[CompositionType]] = Arbitrary(genKJson)
-
-  val genKJsons: Gen[List[KJson[CompositionType]]] = Gen.listOfN(20, genKJson)
-
-  implicit val arbKJsons: Arbitrary[List[KJson[CompositionType]]] = Arbitrary(genKJsons)
 
   implicit val cogen: Cogen[KJson[CompositionType]] =
     Cogen[KJson[CompositionType]]((a: KJson[CompositionType]) => a.value.base.a)
@@ -36,6 +38,9 @@ object KJsonTestData {
 
 class KJsonTest extends Properties("kjson") {
   import KJsonTestData._
+
+  val genKJsons: Gen[List[KJson[CompositionType]]]                = Gen.listOfN(20, genKJson)
+  implicit val arbKJsons: Arbitrary[List[KJson[CompositionType]]] = Arbitrary(genKJsons)
 
   property("encode/decode identity") = forAll { (ct: KJson[CompositionType]) =>
     val en = goodJson.avroCodec.avroEncoder.encode(ct)
@@ -51,5 +56,13 @@ class KJsonTest extends Properties("kjson") {
 
 class KJsonEqTest extends CatsSuite with FunSuiteDiscipline {
   import KJsonTestData._
-  checkAll("kjson equality", EqTests[KJson[CompositionType]].eqv)
+
+  implicit val cogenCT: Cogen[CompositionType] =
+    Cogen[CompositionType]((a: CompositionType) => a.base.a)
+
+  checkAll("KJson", EqTests[KJson[CompositionType]].eqv)
+  checkAll(
+    "KJson",
+    DistributiveTests[KJson]
+      .distributive[CompositionType, CompositionType, CompositionType, List, Id])
 }

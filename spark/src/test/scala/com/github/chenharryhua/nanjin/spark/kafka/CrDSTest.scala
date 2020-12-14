@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark._
 import frameless.TypedEncoder
 import io.scalaland.chimney.dsl._
-import mtest.spark.kafka.{ctx, sparkSession}
+import mtest.spark.{ctx, sparkSession}
 import mtest.spark.persist.{Rooster, RoosterData}
 import org.apache.spark.sql.types.{
   DecimalType,

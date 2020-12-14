@@ -1,12 +1,13 @@
 package mtest.spark.kafka
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.kafka.{akkaSinks, KafkaTopic, TopicName}
+import com.github.chenharryhua.nanjin.kafka.{akkaSinks, KafkaTopic}
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.kafka._
 import com.landoop.transportation.nyc.trip.yellow.trip_record
-import frameless.{TypedDataset, TypedEncoder}
 import frameless.cats.implicits._
+import frameless.{TypedDataset, TypedEncoder}
+import mtest.spark.{akkaSystem, blocker, contextShift, ctx, sparkSession}
 import org.apache.spark.rdd.RDD
 import org.scalatest.funsuite.AnyFunSuite
 

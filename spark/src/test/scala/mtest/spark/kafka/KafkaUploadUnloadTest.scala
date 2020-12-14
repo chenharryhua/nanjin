@@ -15,6 +15,7 @@ import frameless.TypedEncoder
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import io.circe.generic.auto._
 import mtest.spark.persist.{Rooster, RoosterData}
+import mtest.spark.{blocker, contextShift, ctx, sparkSession, timer}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
@@ -33,6 +34,16 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
     TopicDef[Int, Rooster](TopicName("spark.kafka.load.rooster"), Rooster.avroCodec)
   val topic: SparKafka[IO, Int, Rooster] = sk.topic(rooster)
 
+  val oac  = OptionalKV.avroCodec(rooster)
+  val kaac = CompulsoryK.avroCodec(rooster)
+  val vac  = CompulsoryV.avroCodec(rooster)
+  val kvac = CompulsoryKV.avroCodec(rooster)
+
+  val ate   = OptionalKV.ate(rooster)
+  val kate  = CompulsoryK.ate(rooster)
+  val vate  = CompulsoryV.ate(rooster)
+  val kvate = CompulsoryKV.ate(rooster)
+
   test("kafka upload/unload") {
 
     val circe   = root + "circe"
@@ -43,7 +54,18 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
     val avroBin = root + "avroBin"
     val obj     = root + "objectFile"
 
-    val pr = topic.prRdd(RoosterData.rdd.map(x => NJProducerRecord(Random.nextInt(), x)))
+    val pr = topic.prRdd(RoosterData.rdd.zipWithIndex.map { case (x, i) =>
+      NJProducerRecord(Random.nextInt(), x)
+        .modifyKey(identity)
+        .modifyValue(identity)
+        .newKey(i.toInt)
+        .newValue(x)
+        .newPartition(0)
+        .newTimestamp(Instant.now.getEpochSecond * 1000)
+        .noPartition
+        .noTimestamp
+        .noMeta
+    })
     val run = for {
       _ <- rooster.in(ctx).admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- pr.noPartition.noTimestamp.withParamUpdate(_.withBatchSize(10)).upload.compile.drain

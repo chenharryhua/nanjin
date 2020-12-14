@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
-import cats.{Eq, Show}
+import cats.{Distributive, Eq, Functor, Show}
 import com.sksamuel.avro4s.{Codec, FieldMapper, SchemaFor}
 import io.circe.Decoder.Result
 import io.circe.syntax._
@@ -104,4 +104,15 @@ object KJson {
         }
 
     }
+
+  implicit val distributiveKJson: Distributive[KJson] = new Distributive[KJson] {
+
+    override def distribute[G[_], A, B](ga: G[A])(f: A => KJson[B])(implicit
+      ev: Functor[G]): KJson[G[B]] = {
+      val gb = ev.map(ga)(x => f(x).value)
+      KJson(gb)
+    }
+
+    override def map[A, B](fa: KJson[A])(f: A => B): KJson[B] = KJson(f(fa.value))
+  }
 }
