@@ -24,16 +24,13 @@ private[sstream] object ss {
     timer: Timer[F]): Stream[F, StreamingQueryProgress] =
     for {
       kb <- Keyboard.signal[F]
-      streamQuery <- Stream.eval(F.delay(dsw.start()))
-      rst <-
-        Stream
-          .awakeEvery[F](5.second)
-          .map(_ => streamQuery.exception.toLeft(()))
-          .rethrow
-          .interruptWhen(
-            kb.map(_.filter(_ === Keyboard.Quit).map(_ => streamQuery.stop()).isDefined))
-          .map(_ => streamQuery.lastProgress)
-          .concurrently(Stream.eval(F.delay(streamQuery.awaitTermination())))
+      streamQuery <- Stream.bracket(F.delay(dsw.start()))(q => F.delay(q.stop()))
+      rst <- Stream
+        .awakeEvery[F](5.second)
+        .map(_ => streamQuery.exception.toLeft(()))
+        .rethrow
+        .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
+        .map(_ => streamQuery.lastProgress)
     } yield rst
 
 }

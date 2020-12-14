@@ -39,12 +39,12 @@ class KafkaStreamTest extends AnyFunSuite {
     ss.concurrently(upload).compile.drain.unsafeRunSync()
   }
 
-  ignore("date partition") {
+  test("date partition") {
     val rooster = TopicDef[Int, Rooster](TopicName("sstream.rooster"), Rooster.avroCodec).in(ctx)
     val data    = RoosterData.rdd.map(x => NJProducerRecord(Random.nextInt(), x))
 
     val ss = rooster.sparKafka.sstream
-      .withParamUpdate(_.withProcessingTimeTrigger(1000).withJson)
+      .withParamUpdate(_.withProcessingTimeTrigger(1000).withParquet)
       .datePartitionFileSink(root + "date")
       .queryStream
       .interruptAfter(3.seconds)
