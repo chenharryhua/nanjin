@@ -89,7 +89,9 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def crDS(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
     val ate: AvroTypedEncoder[OptionalKV[K, V]] =
       OptionalKV.ate(topic.codec.keySerde.avroCodec, topic.codec.valSerde.avroCodec)
-    new CrDS[F, K, V](topic, ate.normalize(rdd).dataset, ate, cfg)
+
+    val tds = TypedDataset.create(rdd)(ate.typedEncoder, sparkSession)
+    new CrDS[F, K, V](topic, tds.dataset, ate, cfg)
   }
 
   def values: RDD[CompulsoryV[K, V]]     = rdd.flatMap(_.toCompulsoryV)
