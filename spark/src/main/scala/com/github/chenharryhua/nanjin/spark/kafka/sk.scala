@@ -1,14 +1,13 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import java.util
-
 import cats.data.{Chain, Writer}
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
+import cats.mtl.Tell
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaOffsetRange, KafkaTopic, KafkaTopicPartition}
+import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.utils.Keyboard
-import frameless.{TypedDataset, TypedEncoder}
 import fs2.Pipe
 import fs2.kafka.{produce, ProducerRecords, ProducerResult}
 import io.circe.syntax._
@@ -16,7 +15,7 @@ import monocle.function.At.remove
 import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.kafka010.{
@@ -27,9 +26,13 @@ import org.apache.spark.streaming.kafka010.{
 }
 import org.log4s.Logger
 
+import java.util
 import scala.collection.JavaConverters._
 
 private[kafka] object sk {
+
+  implicit val tell: Tell[Writer[Chain[Throwable], *], Chain[Throwable]] =
+    shapeless.cachedImplicit
 
   private def props(config: Map[String, String]): util.Map[String, Object] =
     (remove(ConsumerConfig.CLIENT_ID_CONFIG)(config) ++ Map(
@@ -149,21 +152,16 @@ private[kafka] object sk {
     }
   }
 
-  def kafkaSStream[F[_]: Sync, K, V, A](topic: KafkaTopic[F, K, V])(
-    f: OptionalKV[K, V] => A)(implicit
-    sparkSession: SparkSession,
-    encoder: TypedEncoder[A]): TypedDataset[A] = {
-
+  def kafkaSStream[F[_]: Sync, K, V, A](topic: KafkaTopic[F, K, V], ate: AvroTypedEncoder[A])(
+    f: OptionalKV[K, V] => A)(implicit sparkSession: SparkSession): Dataset[A] = {
     import sparkSession.implicits._
-    TypedDataset
-      .create(
-        sparkSession.readStream
-          .format("kafka")
-          .options(consumerOptions(topic.context.settings.consumerSettings.config))
-          .option("subscribe", topic.topicDef.topicName.value)
-          .load()
-          .as[OptionalKV[Array[Byte], Array[Byte]]])
-      .deserialized
+
+    sparkSession.readStream
+      .format("kafka")
+      .options(consumerOptions(topic.context.settings.consumerSettings.config))
+      .option("subscribe", topic.topicDef.topicName.value)
+      .load()
+      .as[OptionalKV[Array[Byte], Array[Byte]]]
       .mapPartitions { ms =>
         val decoder = new NJConsumerRecordDecoder[Writer[Chain[Throwable], *], K, V](
           topic.topicName.value,
@@ -174,6 +172,6 @@ private[kafka] object sk {
           errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
           f(OptionalKV.timestamp.modify(_ / 1000)(msg)) // spark use micro-second.
         }
-      }
+      }(ate.sparkEncoder)
   }
 }

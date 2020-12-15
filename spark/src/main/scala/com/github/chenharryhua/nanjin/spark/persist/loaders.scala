@@ -35,7 +35,7 @@ object loaders {
     ss: SparkSession): TypedDataset[A] =
     ate.normalizeDF(
       ss.read
-        .schema(ate.originSchema)
+        .schema(ate.sparkSchema)
         .option("sep", csvConfiguration.cellSeparator.toString)
         .option("header", csvConfiguration.hasHeader)
         .option("quote", csvConfiguration.quote.toString)
@@ -48,7 +48,7 @@ object loaders {
 
   def json[A](pathStr: String, ate: AvroTypedEncoder[A])(implicit
     ss: SparkSession): TypedDataset[A] =
-    ate.normalizeDF(ss.read.schema(ate.originSchema).json(pathStr))
+    ate.normalizeDF(ss.read.schema(ate.sparkSchema).json(pathStr))
 
   def objectFile[A](pathStr: String, ate: AvroTypedEncoder[A])(implicit
     ss: SparkSession): TypedDataset[A] =

@@ -6,16 +6,9 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark._
 import frameless.TypedEncoder
 import io.scalaland.chimney.dsl._
-import mtest.spark.{ctx, sparkSession}
 import mtest.spark.persist.{Rooster, RoosterData}
-import org.apache.spark.sql.types.{
-  DecimalType,
-  IntegerType,
-  LongType,
-  StringType,
-  StructField,
-  StructType
-}
+import mtest.spark.{ctx, sparkSession}
+import org.apache.spark.sql.types._
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
@@ -75,14 +68,14 @@ class CrDSTest extends AnyFunSuite {
   val crDS = crRdd.crDS
 
   test("bimap") {
-    val r = crRdd.idConversion
+    val r = crRdd.normalize
       .bimap(identity, RoosterLike(_))(roosterLike)
       .rdd
       .collect()
       .flatMap(_.value)
       .toSet
 
-    val ds = crDS.bimap(identity, RoosterLike(_))(roosterLike).dataset
+    val ds = crDS.bimap(identity, RoosterLike(_))(roosterLike).normalize.dataset
     val d  = ds.collect().flatMap(_.value).toSet
 
     assert(ds.schema == expectSchema)
@@ -90,39 +83,39 @@ class CrDSTest extends AnyFunSuite {
   }
 
   test("map") {
-    val r = crRdd.idConversion
+    val r = crRdd.normalize
       .map(x => x.newValue(x.value.map(RoosterLike(_))))(roosterLike)
       .rdd
       .collect
       .flatMap(_.value)
       .toSet
-    val ds = crDS.map(_.bimap(identity, RoosterLike(_)))(roosterLike).dataset
+    val ds = crDS.map(_.bimap(identity, RoosterLike(_)))(roosterLike).normalize.dataset
     val d  = ds.collect.flatMap(_.value).toSet
     assert(ds.schema == expectSchema)
     assert(r == d)
   }
 
   test("flatMap") {
-    val r = crRdd.idConversion.flatMap { x =>
+    val r = crRdd.normalize.flatMap { x =>
       x.value.flatMap(RoosterLike2(_)).map(y => x.newValue(Some(y)).newKey(x.key))
     }(roosterLike2).rdd.collect().flatMap(_.value).toSet
 
     val d = crDS.flatMap { x =>
       x.value.flatMap(RoosterLike2(_)).map(y => x.newValue(Some(y)))
-    }(roosterLike2).dataset.collect.flatMap(_.value).toSet
+    }(roosterLike2).normalize.dataset.collect.flatMap(_.value).toSet
 
     assert(r == d)
   }
 
   test("filter") {
     val r =
-      crRdd.idConversion.filter(_.key.exists(_ == 0)).rdd.collect().flatMap(_.value).headOption
+      crRdd.normalize.filter(_.key.exists(_ == 0)).rdd.collect().flatMap(_.value).headOption
     val ds = crDS.filter(_.key.exists(_ == 0)).dataset
     val d  = ds.collect().flatMap(_.value).headOption
     assert(r == d)
   }
   test("union") {
-    val r = crRdd.idConversion.union(crRdd)
+    val r = crRdd.normalize.union(crRdd)
     val d = crDS.union(crDS)
     assert(r.count.unsafeRunSync() == d.count.unsafeRunSync())
   }

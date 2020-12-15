@@ -20,22 +20,18 @@ final class TableDataset[F[_], A] private[database] (
     new TableDataset[F, A](dataset.repartition(num), dbSettings, cfg, ate)
 
   def map[B](f: A => B)(ateb: AvroTypedEncoder[B]): TableDataset[F, B] =
-    new TableDataset[F, B](
-      ateb.normalize(dataset.map(f)(ateb.sparkEncoder)).dataset,
-      dbSettings,
-      cfg,
-      ateb)
+    new TableDataset[F, B](dataset.map(f)(ateb.sparkEncoder), dbSettings, cfg, ateb)
 
   def flatMap[B](f: A => TraversableOnce[B])(ateb: AvroTypedEncoder[B]): TableDataset[F, B] =
-    new TableDataset[F, B](
-      ateb.normalize(dataset.flatMap(f)(ateb.sparkEncoder)).dataset,
-      dbSettings,
-      cfg,
-      ateb)
+    new TableDataset[F, B](dataset.flatMap(f)(ateb.sparkEncoder), dbSettings, cfg, ateb)
+
+  def normalize: TableDataset[F, A] =
+    new TableDataset[F, A](ate.normalize(dataset).dataset, dbSettings, cfg, ate)
 
   def typedDataset: TypedDataset[A] = TypedDataset.create(dataset)(ate.typedEncoder)
 
-  def upload: DbUploader[F, A] = new DbUploader[F, A](dataset, dbSettings, ate, cfg)
+  def upload: DbUploader[F, A] =
+    new DbUploader[F, A](dataset, dbSettings, ate, cfg)
 
   def save: DatasetAvroFileHoarder[F, A] =
     new DatasetAvroFileHoarder[F, A](dataset, ate.avroCodec.avroEncoder)

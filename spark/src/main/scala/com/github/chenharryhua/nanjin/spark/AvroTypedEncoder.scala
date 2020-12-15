@@ -6,18 +6,14 @@ import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql._
 import org.apache.spark.sql.avro.SchemaConverters
-import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.types._
 
 import scala.reflect.ClassTag
 
-final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], te: TypedEncoder[A])
+final class AvroTypedEncoder[A] private (
+  val avroCodec: AvroCodec[A],
+  val typedEncoder: TypedEncoder[A])
     extends Serializable {
-
-  val classTag: ClassTag[A] = te.classTag
-
-  val originEncoder: Encoder[A] = TypedExpressionEncoder(te)
-  val originSchema: StructType  = originEncoder.schema
 
   private val avroStructType: StructType =
     SchemaConverters.toSqlType(avroCodec.schema).dataType match {
@@ -29,24 +25,17 @@ final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], te: TypedE
       case _: DoubleType  => TypedExpressionEncoder[Double].schema
       case _: BinaryType  => TypedExpressionEncoder[Array[Byte]].schema
       case _: DecimalType => TypedExpressionEncoder[BigDecimal].schema
-      case ex             => sys.error(s"not support $ex")
+      case ex             => sys.error(s"not support yet $ex")
     }
 
-  val typedEncoder: TypedEncoder[A] =
-    new TypedEncoder[A]()(classTag) {
-      override val nullable: Boolean      = te.nullable
-      override val jvmRepr: DataType      = te.jvmRepr
-      override val catalystRepr: DataType = avroStructType
+  val classTag: ClassTag[A] = typedEncoder.classTag
 
-      override def fromCatalyst(path: Expression): Expression = te.fromCatalyst(path)
-      override def toCatalyst(path: Expression): Expression   = te.toCatalyst(path)
-    }
-
+  val sparkSchema: StructType  = TypedExpressionEncoder(typedEncoder).schema
   val sparkEncoder: Encoder[A] = TypedExpressionEncoder[A](typedEncoder)
 
   def normalize(rdd: RDD[A])(implicit ss: SparkSession): TypedDataset[A] = {
     val ds: Dataset[A] =
-      ss.createDataset(rdd)(originEncoder).map(avroCodec.idConversion)(originEncoder)
+      ss.createDataset(rdd)(sparkEncoder).map(avroCodec.idConversion)(sparkEncoder)
 
     TypedDataset.createUnsafe[A](ss.createDataFrame(ds.toDF.rdd, avroStructType))(typedEncoder)
   }
@@ -58,10 +47,10 @@ final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], te: TypedE
     normalize(tds.dataset)
 
   def normalizeDF(ds: DataFrame): TypedDataset[A] =
-    normalize(TypedDataset.createUnsafe(ds)(te))
+    normalize(TypedDataset.createUnsafe(ds)(typedEncoder))
 
   def emptyDataset(implicit ss: SparkSession): TypedDataset[A] =
-    normalize(ss.sparkContext.emptyRDD[A](classTag))
+    normalize(ss.sparkContext.emptyRDD[A](typedEncoder.classTag))
 }
 
 object AvroTypedEncoder {
