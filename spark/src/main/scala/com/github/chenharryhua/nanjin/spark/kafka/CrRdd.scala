@@ -33,7 +33,7 @@ final class CrRdd[F[_], K, V] private[kafka] (
     new CrRdd[F, K, V](topic, rdd, f(cfg))
 
   //transformation
-  def idConversion: CrRdd[F, K, V] =
+  def normalize: CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, rdd.map(codec.idConversion), cfg)
 
   def partitionOf(num: Int): CrRdd[F, K, V] =
@@ -49,15 +49,15 @@ final class CrRdd[F[_], K, V] private[kafka] (
     new CrRdd[F, K, V](topic, rdd.repartition(num), cfg)
 
   def bimap[K2, V2](k: K => K2, v: V => V2)(other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](other, rdd.map(_.bimap(k, v)), cfg).idConversion
+    new CrRdd[F, K2, V2](other, rdd.map(_.bimap(k, v)), cfg)
 
   def map[K2, V2](f: OptionalKV[K, V] => OptionalKV[K2, V2])(
     other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](other, rdd.map(f), cfg).idConversion
+    new CrRdd[F, K2, V2](other, rdd.map(f), cfg)
 
   def flatMap[K2, V2](f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]])(
     other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](other, rdd.flatMap(f), cfg).idConversion
+    new CrRdd[F, K2, V2](other, rdd.flatMap(f), cfg)
 
   def filter(f: OptionalKV[K, V] => Boolean): CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, rdd.filter(f), cfg)

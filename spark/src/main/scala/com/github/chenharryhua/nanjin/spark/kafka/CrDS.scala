@@ -22,18 +22,14 @@ final class CrDS[F[_], K, V] private[kafka] (
     k2: TypedEncoder[K2],
     v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
     val ate: AvroTypedEncoder[OptionalKV[K2, V2]] = OptionalKV.ate(other.topicDef)
-    new CrDS[F, K2, V2](
-      other,
-      ate.normalize(dataset.map(_.bimap(k, v))(ate.sparkEncoder)).dataset,
-      ate,
-      cfg)
+    new CrDS[F, K2, V2](other, dataset.map(_.bimap(k, v))(ate.sparkEncoder), ate, cfg)
   }
 
   def map[K2, V2](f: OptionalKV[K, V] => OptionalKV[K2, V2])(other: KafkaTopic[F, K2, V2])(implicit
     k2: TypedEncoder[K2],
     v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
     val ate: AvroTypedEncoder[OptionalKV[K2, V2]] = OptionalKV.ate(other.topicDef)
-    new CrDS[F, K2, V2](other, ate.normalize(dataset.map(f)(ate.sparkEncoder)).dataset, ate, cfg)
+    new CrDS[F, K2, V2](other, dataset.map(f)(ate.sparkEncoder), ate, cfg)
   }
 
   def flatMap[K2, V2](f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]])(
@@ -41,12 +37,10 @@ final class CrDS[F[_], K, V] private[kafka] (
     k2: TypedEncoder[K2],
     v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
     val ate: AvroTypedEncoder[OptionalKV[K2, V2]] = OptionalKV.ate(other.topicDef)
-    new CrDS[F, K2, V2](
-      other,
-      ate.normalize(dataset.flatMap(f)(ate.sparkEncoder)).dataset,
-      ate,
-      cfg)
+    new CrDS[F, K2, V2](other, dataset.flatMap(f)(ate.sparkEncoder), ate, cfg)
   }
+
+  def normalize: CrDS[F, K, V] = new CrDS[F, K, V](topic, ate.normalize(dataset).dataset, ate, cfg)
 
   def filter(f: OptionalKV[K, V] => Boolean): CrDS[F, K, V] =
     new CrDS[F, K, V](topic, dataset.filter(f), ate, cfg)

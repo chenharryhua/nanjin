@@ -1,12 +1,12 @@
-package mtest.spark
+package com.github.chenharryhua.nanjin.spark
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.injection._
 import com.github.chenharryhua.nanjin.spark.persist.loaders
-import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
+import frameless.TypedEncoder
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
+import mtest.spark.sparkSession
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{DataFrame, Dataset, SaveMode}
