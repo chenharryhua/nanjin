@@ -4,7 +4,6 @@ import cats.derived.auto.functor._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import enumeratum.{Enum, EnumEntry}
 import higherkindness.droste.data.Fix
-import higherkindness.droste.macros.deriveFixedPoint
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
@@ -38,7 +37,7 @@ private[persist] object HoarderParams {
       Compression.Uncompressed)
 }
 
-@deriveFixedPoint sealed private[persist] trait HoarderConfigF[_]
+sealed private[persist] trait HoarderConfigF[_]
 
 private[persist] object HoarderConfigF {
   final case class DefaultParams[K](path: String) extends HoarderConfigF[K]

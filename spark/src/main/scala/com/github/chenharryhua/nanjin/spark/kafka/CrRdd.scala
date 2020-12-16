@@ -22,14 +22,14 @@ final class CrRdd[F[_], K, V] private[kafka] (
   val topic: KafkaTopic[F, K, V],
   val rdd: RDD[OptionalKV[K, V]],
   val cfg: SKConfig)(implicit val sparkSession: SparkSession)
-    extends SparKafkaUpdateParams[CrRdd[F, K, V]] {
+    extends Serializable {
 
   protected val codec: AvroCodec[OptionalKV[K, V]] =
     OptionalKV.avroCodec(topic.codec.keySerde.avroCodec, topic.codec.valSerde.avroCodec)
 
-  override def params: SKParams = cfg.evalConfig
+  def params: SKParams = cfg.evalConfig
 
-  override def withParamUpdate(f: SKConfig => SKConfig): CrRdd[F, K, V] =
+  def withParamUpdate(f: SKConfig => SKConfig): CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, rdd, f(cfg))
 
   //transformation
@@ -49,15 +49,15 @@ final class CrRdd[F[_], K, V] private[kafka] (
     new CrRdd[F, K, V](topic, rdd.repartition(num), cfg)
 
   def bimap[K2, V2](k: K => K2, v: V => V2)(other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](other, rdd.map(_.bimap(k, v)), cfg)
+    new CrRdd[F, K2, V2](other, rdd.map(_.bimap(k, v)), cfg).normalize
 
   def map[K2, V2](f: OptionalKV[K, V] => OptionalKV[K2, V2])(
     other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](other, rdd.map(f), cfg)
+    new CrRdd[F, K2, V2](other, rdd.map(f), cfg).normalize
 
   def flatMap[K2, V2](f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]])(
     other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](other, rdd.flatMap(f), cfg)
+    new CrRdd[F, K2, V2](other, rdd.flatMap(f), cfg).normalize
 
   def filter(f: OptionalKV[K, V] => Boolean): CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, rdd.filter(f), cfg)
@@ -97,13 +97,6 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def values: RDD[CompulsoryV[K, V]]     = rdd.flatMap(_.toCompulsoryV)
   def keys: RDD[CompulsoryK[K, V]]       = rdd.flatMap(_.toCompulsoryK)
   def keyValues: RDD[CompulsoryKV[K, V]] = rdd.flatMap(_.toCompulsoryKV)
-
-  // streams
-  def stream(implicit F: Sync[F]): Stream[F, OptionalKV[K, V]] =
-    rdd.stream[F]
-
-  def source(implicit F: ConcurrentEffect[F]): Source[OptionalKV[K, V], NotUsed] =
-    rdd.source[F]
 
   // upload
   def prRdd: PrRdd[F, K, V] = new PrRdd[F, K, V](topic, rdd.map(_.toNJProducerRecord), cfg)

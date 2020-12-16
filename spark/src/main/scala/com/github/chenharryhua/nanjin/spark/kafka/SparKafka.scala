@@ -4,7 +4,6 @@ import cats.effect.{Blocker, Concurrent, ConcurrentEffect, ContextShift, Sync, T
 import cats.syntax.apply._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
-import com.github.chenharryhua.nanjin.common.UpdateParams
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.loaders
@@ -14,25 +13,21 @@ import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
-trait SparKafkaUpdateParams[A] extends UpdateParams[SKConfig, A] with Serializable {
-  def params: SKParams
-}
-
 final class SparKafka[F[_], K, V](
   val topic: KafkaTopic[F, K, V],
   val sparkSession: SparkSession,
   val cfg: SKConfig
-) extends SparKafkaUpdateParams[SparKafka[F, K, V]] {
+) extends Serializable {
 
   implicit private val ss: SparkSession = sparkSession
 
-  override def withParamUpdate(f: SKConfig => SKConfig): SparKafka[F, K, V] =
+  def withParamUpdate(f: SKConfig => SKConfig): SparKafka[F, K, V] =
     new SparKafka[F, K, V](topic, sparkSession, f(cfg))
 
   def withTopicName(tn: String): SparKafka[F, K, V] =
     new SparKafka[F, K, V](topic.withTopicName(tn), sparkSession, cfg)
 
-  override val params: SKParams = cfg.evalConfig
+  val params: SKParams = cfg.evalConfig
 
   def fromKafka(implicit sync: Sync[F]): F[CrRdd[F, K, V]] =
     sk.kafkaBatch(topic, params.timeRange, params.locationStrategy).map(crRdd)
@@ -80,7 +75,7 @@ final class SparKafka[F[_], K, V](
     new SparkSStream[F, A](
       sk.kafkaSStream[F, K, V, A](topic, ate)(f),
       SStreamConfig(params.timeRange, params.showDs)
-        .withCheckpointAppend(s"kafka/${topic.topicName.value}"))(ate.typedEncoder)
+        .withCheckpointAppend(s"kafka/${topic.topicName.value}"))
 
   def sstream(implicit
     sync: Sync[F],

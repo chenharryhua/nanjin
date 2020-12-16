@@ -1,25 +1,23 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import java.time.{LocalDate, LocalDateTime, ZoneId}
-import java.util.concurrent.TimeUnit
-
 import cats.derived.auto.functor._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.spark.NJShowDataset
 import higherkindness.droste.data.Fix
-import higherkindness.droste.macros.deriveFixedPoint
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.streaming.kafka010.{LocationStrategies, LocationStrategy}
 
+import java.time.{LocalDate, LocalDateTime, ZoneId}
+import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
 
 @Lenses final private[kafka] case class NJUploadParams(
   batchSize: Int,
-  duration: FiniteDuration,
+  uploadInterval: FiniteDuration,
   recordsLimit: Long,
   timeLimit: FiniteDuration)
 
@@ -27,7 +25,7 @@ private[kafka] object NJUploadParams {
 
   val default: NJUploadParams = NJUploadParams(
     batchSize = 1000,
-    duration = 1.second,
+    uploadInterval = 1.second,
     Long.MaxValue,
     FiniteDuration(Long.MaxValue, TimeUnit.NANOSECONDS))
 }
@@ -70,7 +68,7 @@ private[kafka] object SKParams {
   }
 }
 
-@deriveFixedPoint sealed private[kafka] trait SKConfigF[_]
+sealed private[kafka] trait SKConfigF[_]
 
 private[kafka] object SKConfigF {
   final case class DefaultParams[K](topicName: TopicName, zoneId: ZoneId) extends SKConfigF[K]
@@ -78,7 +76,7 @@ private[kafka] object SKConfigF {
   final case class WithTopicName[K](value: TopicName, cont: K) extends SKConfigF[K]
 
   final case class WithUploadBatchSize[K](value: Int, cont: K) extends SKConfigF[K]
-  final case class WithUploadDuration[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
+  final case class WithUploadInterval[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
   final case class WithUploadRecordsLimit[K](value: Long, cont: K) extends SKConfigF[K]
   final case class WithUploadTimeLimit[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
 
@@ -115,8 +113,8 @@ private[kafka] object SKConfigF {
     case WithTopicName(v, c) => SKParams.topicName.set(v)(c)
     case WithUploadBatchSize(v, c) =>
       SKParams.uploadParams.composeLens(NJUploadParams.batchSize).set(v)(c)
-    case WithUploadDuration(v, c) =>
-      SKParams.uploadParams.composeLens(NJUploadParams.duration).set(v)(c)
+    case WithUploadInterval(v, c) =>
+      SKParams.uploadParams.composeLens(NJUploadParams.uploadInterval).set(v)(c)
     case WithUploadRecordsLimit(v, c) =>
       SKParams.uploadParams.composeLens(NJUploadParams.recordsLimit).set(v)(c)
     case WithUploadTimeLimit(v, c) =>
@@ -148,13 +146,22 @@ final private[kafka] case class SKConfig private (value: Fix[SKConfigF]) extends
   def withTopicName(tn: String): SKConfig =
     SKConfig(Fix(WithTopicName(TopicName.unsafeFrom(tn), value)))
 
-  def withBatchSize(bs: Int): SKConfig           = SKConfig(Fix(WithUploadBatchSize(bs, value)))
-  def withDuration(fd: FiniteDuration): SKConfig = SKConfig(Fix(WithUploadDuration(fd, value)))
-  def withDuration(ms: Long): SKConfig           = withDuration(FiniteDuration(ms, TimeUnit.MILLISECONDS))
+  def withUploadBatchSize(bs: Int): SKConfig = SKConfig(Fix(WithUploadBatchSize(bs, value)))
 
-  def withRecordsLimit(num: Long): SKConfig = SKConfig(Fix(WithUploadRecordsLimit(num, value)))
+  def withUploadInterval(fd: FiniteDuration): SKConfig = SKConfig(
+    Fix(WithUploadInterval(fd, value)))
 
-  def withTimeLimit(fd: FiniteDuration): SKConfig = SKConfig(Fix(WithUploadTimeLimit(fd, value)))
+  def withUploadInterval(ms: Long): SKConfig = withUploadInterval(
+    FiniteDuration(ms, TimeUnit.MILLISECONDS))
+
+  def withUploadRecordsLimit(num: Long): SKConfig = SKConfig(
+    Fix(WithUploadRecordsLimit(num, value)))
+
+  def withUploadTimeLimit(fd: FiniteDuration): SKConfig = SKConfig(
+    Fix(WithUploadTimeLimit(fd, value)))
+
+  def withUploadTimeLimit(ms: Long): SKConfig = withUploadTimeLimit(
+    FiniteDuration(ms, TimeUnit.MILLISECONDS))
 
   def withStartTime(s: String): SKConfig                  = SKConfig(Fix(WithStartTimeStr(s, value)))
   def withStartTime(s: LocalDateTime): SKConfig           = SKConfig(Fix(WithStartTime(s, value)))

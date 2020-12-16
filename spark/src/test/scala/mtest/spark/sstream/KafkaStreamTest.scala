@@ -18,12 +18,22 @@ class KafkaStreamTest extends AnyFunSuite {
   test("console sink") {
     val rooster =
       TopicDef[Int, Rooster](TopicName("sstream.console.rooster"), Rooster.avroCodec).in(ctx)
-    val ss = rooster.sparKafka.sstream.sstream
-      .withParamUpdate(_.withProcessingTimeTrigger(500).withJson)
+    val ss = rooster.sparKafka.sstream
+      .map(x => x.newValue(x.value.map(_.index + 1)))
+      .flatMap(x => x.value.map(_ => x))
+      .sstream
+      .withParamUpdate(_.withProcessingTimeTrigger(
+        500).withJson.withUpdate.withComplete.withAppend.failOnDataLoss.ignoreDataLoss
+        .withProgressInterval(1000)
+        .withProgressInterval(1.seconds))
+      .map(List(_))
+      .filter(_ => true)
+      .flatMap(identity)
+      .transform(identity)
       .consoleSink
-      .queryStream
-      .interruptAfter(5.seconds)
-    val upload = rooster.sparKafka.prRdd(data).upload.delayBy(1.second)
+      .showProgress
+      .interruptAfter(6.seconds)
+    val upload = rooster.sparKafka.prRdd(data).batch(1).interval(1000).upload.delayBy(1.second)
 
     ss.concurrently(upload).compile.drain.unsafeRunSync()
   }
@@ -34,9 +44,17 @@ class KafkaStreamTest extends AnyFunSuite {
     val ss = rooster.sparKafka.sstream.sstream
       .withParamUpdate(_.withProcessingTimeTrigger(500).withAvro)
       .fileSink(root + "fileSink")
+      .withOptions(identity)
       .queryStream
       .interruptAfter(5.seconds)
-    val upload = rooster.sparKafka.prRdd(data).upload.delayBy(1.second)
+    val upload = rooster.sparKafka
+      .prRdd(data)
+      .interval(1.second)
+      .timeLimit(2000)
+      .timeLimit(2.minute)
+      .recordsLimit(10)
+      .upload
+      .delayBy(1.second)
     ss.concurrently(upload).compile.drain.unsafeRunSync()
   }
 
@@ -47,7 +65,7 @@ class KafkaStreamTest extends AnyFunSuite {
       .withParamUpdate(_.withProcessingTimeTrigger(500).withParquet)
       .datePartitionFileSink(root + "datePartition")
       .queryStream
-      .interruptAfter(5.seconds)
+      .interruptAfter(10.seconds)
     val upload = rooster.sparKafka.prRdd(data).upload.delayBy(1.second)
     ss.concurrently(upload).compile.drain.unsafeRunSync()
   }

@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import cats.effect.IO
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
@@ -42,10 +43,10 @@ class CrDSTest extends AnyFunSuite {
   val roosterLike2 =
     TopicDef[Long, RoosterLike2](TopicName("roosterLike2"), AvroCodec[RoosterLike2]).in(ctx)
 
-  val crRdd = sk
+  val crRdd: CrRdd[IO, Long, Rooster] = sk
     .topic(rooster)
     .crRdd(RoosterData.rdd.zipWithIndex.map { case (r, i) =>
-      OptionalKV(0, i, Instant.now.getEpochSecond * 1000, Some(i), Some(r), "rooster", 0)
+      OptionalKV(0, i, Instant.now.getEpochSecond * 1000 + i, Some(i), Some(r), "rooster", 0)
     })
 
   val expectSchema = StructType(
@@ -65,18 +66,38 @@ class CrDSTest extends AnyFunSuite {
       StructField("timestampType", IntegerType, false)
     ))
 
-  val crDS = crRdd.crDS
+  val crDS: CrDS[IO, Long, Rooster] = crRdd.crDS
+
+  test("misc") {
+    assert(crRdd.keys.collect().size == 4)
+    assert(crRdd.values.collect().size == 4)
+    assert(crRdd.partitionOf(0).rdd.collect.size == 4)
+    assert(
+      crRdd
+        .inRange(Instant.now.minusSeconds(50).toString, Instant.now().toString)
+        .rdd
+        .collect
+        .size == 4)
+  }
+
+  test("first") {
+    assert(crRdd.first.unsafeRunSync().get.value == RoosterData.data.headOption)
+
+  }
+
+  test("last") {
+    assert(crRdd.last.unsafeRunSync().get.value == RoosterData.data.lastOption)
+  }
 
   test("bimap") {
     val r = crRdd.normalize
       .bimap(identity, RoosterLike(_))(roosterLike)
-      .normalize
       .rdd
       .collect()
       .flatMap(_.value)
       .toSet
 
-    val ds = crDS.bimap(identity, RoosterLike(_))(roosterLike).normalize.dataset
+    val ds = crDS.normalize.bimap(identity, RoosterLike(_))(roosterLike).dataset
     val d  = ds.collect().flatMap(_.value).toSet
 
     assert(ds.schema == expectSchema)
@@ -86,12 +107,11 @@ class CrDSTest extends AnyFunSuite {
   test("map") {
     val r = crRdd.normalize
       .map(x => x.newValue(x.value.map(RoosterLike(_))))(roosterLike)
-      .normalize
       .rdd
       .collect
       .flatMap(_.value)
       .toSet
-    val ds = crDS.map(_.bimap(identity, RoosterLike(_)))(roosterLike).normalize.dataset
+    val ds = crDS.normalize.map(_.bimap(identity, RoosterLike(_)))(roosterLike).dataset
     val d  = ds.collect.flatMap(_.value).toSet
     assert(ds.schema == expectSchema)
     assert(r == d)
@@ -100,11 +120,11 @@ class CrDSTest extends AnyFunSuite {
   test("flatMap") {
     val r = crRdd.normalize.flatMap { x =>
       x.value.flatMap(RoosterLike2(_)).map(y => x.newValue(Some(y)).newKey(x.key))
-    }(roosterLike2).normalize.rdd.collect().flatMap(_.value).toSet
+    }(roosterLike2).rdd.collect().flatMap(_.value).toSet
 
-    val d = crDS.flatMap { x =>
+    val d = crDS.normalize.flatMap { x =>
       x.value.flatMap(RoosterLike2(_)).map(y => x.newValue(Some(y)))
-    }(roosterLike2).normalize.dataset.collect.flatMap(_.value).toSet
+    }(roosterLike2).dataset.collect.flatMap(_.value).toSet
 
     assert(r == d)
   }

@@ -1,15 +1,16 @@
 package com.github.chenharryhua.nanjin.spark.sstream
 
-import java.util.concurrent.TimeUnit
-
+import cats.derived.auto.functor._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.spark.NJShowDataset
 import higherkindness.droste.data.Fix
-import higherkindness.droste.macros.deriveTraverse
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
 import org.apache.spark.sql.streaming.{OutputMode, Trigger}
+
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
 
 final private[spark] case class NJFailOnDataLoss(value: Boolean) extends AnyVal
 
@@ -30,7 +31,8 @@ final private[spark] case class NJCheckpoint(value: String) {
   checkpoint: NJCheckpoint,
   dataLoss: NJFailOnDataLoss,
   outputMode: OutputMode,
-  trigger: Trigger)
+  trigger: Trigger,
+  progressInterval: FiniteDuration)
 
 private[sstream] object SStreamParams {
 
@@ -42,11 +44,12 @@ private[sstream] object SStreamParams {
       checkpoint = NJCheckpoint("./data/checkpoint/sstream"),
       dataLoss = NJFailOnDataLoss(true),
       outputMode = OutputMode.Append,
-      trigger = Trigger.ProcessingTime(1, TimeUnit.MINUTES)
+      trigger = Trigger.ProcessingTime(1, TimeUnit.MINUTES),
+      progressInterval = FiniteDuration(5, TimeUnit.SECONDS)
     )
 }
 
-@deriveTraverse sealed private[sstream] trait SStreamConfigF[A]
+sealed private[sstream] trait SStreamConfigF[A]
 
 private[sstream] object SStreamConfigF {
 
@@ -61,6 +64,7 @@ private[sstream] object SStreamConfigF {
   final case class WithTrigger[K](value: Trigger, cont: K) extends SStreamConfigF[K]
 
   final case class WithFormat[K](value: NJFileFormat, cont: K) extends SStreamConfigF[K]
+  final case class WithProgressInterval[K](value: FiniteDuration, cont: K) extends SStreamConfigF[K]
 
   private val algebra: Algebra[SStreamConfigF, SStreamParams] =
     Algebra[SStreamConfigF, SStreamParams] {
@@ -71,6 +75,7 @@ private[sstream] object SStreamConfigF {
       case WithOutputMode(v, c)        => SStreamParams.outputMode.set(v)(c)
       case WithTrigger(v, c)           => SStreamParams.trigger.set(v)(c)
       case WithFormat(v, c)            => SStreamParams.fileFormat.set(v)(c)
+      case WithProgressInterval(v, c)  => SStreamParams.progressInterval.set(v)(c)
     }
 
   def evalConfig(cfg: SStreamConfig): SStreamParams = scheme.cata(algebra).apply(cfg.value)
@@ -110,6 +115,12 @@ final private[sstream] case class SStreamConfig(value: Fix[SStreamConfigF]) exte
   def withJson: SStreamConfig    = SStreamConfig(Fix(WithFormat(NJFileFormat.SparkJson, value)))
   def withParquet: SStreamConfig = SStreamConfig(Fix(WithFormat(NJFileFormat.Parquet, value)))
   def withAvro: SStreamConfig    = SStreamConfig(Fix(WithFormat(NJFileFormat.Avro, value)))
+
+  def withProgressInterval(fd: FiniteDuration): SStreamConfig =
+    SStreamConfig(Fix(WithProgressInterval(fd, value)))
+
+  def withProgressInterval(ms: Long): SStreamConfig =
+    withProgressInterval(FiniteDuration(ms, TimeUnit.MILLISECONDS))
 
   def evalConfig: SStreamParams = SStreamConfigF.evalConfig(this)
 }
