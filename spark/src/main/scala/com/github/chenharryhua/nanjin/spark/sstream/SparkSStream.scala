@@ -42,12 +42,6 @@ final class SparkSStream[F[_], A: TypedEncoder](ds: Dataset[A], cfg: SStreamConf
   def fileSink(path: String): NJFileSink[F, A] =
     new NJFileSink[F, A](ds.writeStream, cfg, path)
 
-  def kafkaSink[K: TypedEncoder, V: TypedEncoder](kit: KafkaTopic[F, K, V])(implicit
-    ev: A =:= NJProducerRecord[K, V]): NJKafkaSink[F] = {
-    implicit val te: TypedEncoder[NJProducerRecord[K, V]] = shapeless.cachedImplicit
-    new KafkaPrSStream[F, K, V](typedDataset.deserialized.map(ev).dataset, cfg).kafkaSink(kit)
-  }
-
   def datePartitionFileSink[K: TypedEncoder, V: TypedEncoder](path: String)(implicit
     ev: A =:= OptionalKV[K, V]): NJFileSink[F, DatePartitionedCR[K, V]] = {
     implicit val te: TypedEncoder[DatePartitionedCR[K, V]] = shapeless.cachedImplicit

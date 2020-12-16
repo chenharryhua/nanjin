@@ -50,6 +50,4 @@ final class KafkaCrSStream[F[_], K: TypedEncoder, V: TypedEncoder](
   def sstream: SparkSStream[F, OptionalKV[K, V]] =
     new SparkSStream[F, OptionalKV[K, V]](ds, cfg)
 
-  def toProducerRecords: KafkaPrSStream[F, K, V] =
-    new KafkaPrSStream[F, K, V](typedDataset.deserialized.map(_.toNJProducerRecord).dataset, cfg)
 }

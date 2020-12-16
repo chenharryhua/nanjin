@@ -133,6 +133,12 @@ object AvroCodec {
     Ior.fromEither(codec).flatten
   }
 
+  def unsafe[A: AvroDecoder: AvroEncoder](schemaText: String): AvroCodec[A] =
+    apply[A](schemaText).toEither match {
+      case Right(r) => r
+      case Left(ex) => sys.error(ex)
+    }
+
   def apply[A: AvroDecoder: AvroEncoder: SchemaFor]: AvroCodec[A] =
     AvroCodec(SchemaFor[A], AvroDecoder[A], AvroEncoder[A])
 }
