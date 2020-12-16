@@ -6,7 +6,6 @@ import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.TopicName
 import com.github.chenharryhua.nanjin.spark.NJShowDataset
 import higherkindness.droste.data.Fix
-import higherkindness.droste.macros.deriveFixedPoint
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
@@ -69,7 +68,7 @@ private[kafka] object SKParams {
   }
 }
 
-@deriveFixedPoint sealed private[kafka] trait SKConfigF[_]
+sealed private[kafka] trait SKConfigF[_]
 
 private[kafka] object SKConfigF {
   final case class DefaultParams[K](topicName: TopicName, zoneId: ZoneId) extends SKConfigF[K]

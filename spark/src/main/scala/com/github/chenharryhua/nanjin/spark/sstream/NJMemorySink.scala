@@ -17,6 +17,7 @@ final class NJMemorySink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig, 
         .format("memory")
         .queryName(queryName)
         .outputMode(params.outputMode)
-        .option("failOnDataLoss", params.dataLoss.value))
+        .option("failOnDataLoss", params.dataLoss.value),
+      params.progressInterval)
 
 }

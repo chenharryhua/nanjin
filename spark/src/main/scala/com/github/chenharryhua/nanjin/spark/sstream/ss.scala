@@ -19,18 +19,17 @@ trait NJStreamSink[F[_]] extends Serializable {
 
 private[sstream] object ss {
 
-  def queryStream[F[_], A](dsw: DataStreamWriter[A])(implicit
+  def queryStream[F[_], A](dsw: DataStreamWriter[A], interval: FiniteDuration)(implicit
     F: Concurrent[F],
     timer: Timer[F]): Stream[F, StreamingQueryProgress] =
     for {
       kb <- Keyboard.signal[F]
       streamQuery <- Stream.bracket(F.delay(dsw.start()))(q => F.delay(q.stop()))
       rst <- Stream
-        .awakeEvery[F](5.second)
+        .awakeEvery[F](interval)
         .map(_ => streamQuery.exception.toLeft(()))
         .rethrow
         .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
         .map(_ => streamQuery.lastProgress)
     } yield rst
-
 }

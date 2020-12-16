@@ -98,13 +98,6 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def keys: RDD[CompulsoryK[K, V]]       = rdd.flatMap(_.toCompulsoryK)
   def keyValues: RDD[CompulsoryKV[K, V]] = rdd.flatMap(_.toCompulsoryKV)
 
-  // streams
-  def stream(implicit F: Sync[F]): Stream[F, OptionalKV[K, V]] =
-    rdd.stream[F]
-
-  def source(implicit F: ConcurrentEffect[F]): Source[OptionalKV[K, V], NotUsed] =
-    rdd.source[F]
-
   // upload
   def prRdd: PrRdd[F, K, V] = new PrRdd[F, K, V](topic, rdd.map(_.toNJProducerRecord), cfg)
 

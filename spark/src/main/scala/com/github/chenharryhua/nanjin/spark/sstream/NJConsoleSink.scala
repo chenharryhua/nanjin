@@ -19,6 +19,8 @@ final class NJConsoleSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig)
         .outputMode(OutputMode.Append)
         .option("truncate", params.showDs.isTruncate.toString)
         .option("numRows", params.showDs.rowNum.toString)
-        .option("failOnDataLoss", params.dataLoss.value))
+        .option("failOnDataLoss", params.dataLoss.value),
+      params.progressInterval
+    )
 
 }
