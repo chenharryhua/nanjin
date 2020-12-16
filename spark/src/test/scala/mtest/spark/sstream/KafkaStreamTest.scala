@@ -47,7 +47,7 @@ class KafkaStreamTest extends AnyFunSuite {
       .withParamUpdate(_.withProcessingTimeTrigger(500).withParquet)
       .datePartitionFileSink(root + "datePartition")
       .queryStream
-      .interruptAfter(5.seconds)
+      .interruptAfter(10.seconds)
     val upload = rooster.sparKafka.prRdd(data).upload.delayBy(1.second)
     ss.concurrently(upload).compile.drain.unsafeRunSync()
   }

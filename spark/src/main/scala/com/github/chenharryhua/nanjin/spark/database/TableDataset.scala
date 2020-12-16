@@ -20,10 +20,10 @@ final class TableDataset[F[_], A] private[database] (
     new TableDataset[F, A](dataset.repartition(num), dbSettings, cfg, ate)
 
   def map[B](f: A => B)(ateb: AvroTypedEncoder[B]): TableDataset[F, B] =
-    new TableDataset[F, B](dataset.map(f)(ateb.sparkEncoder), dbSettings, cfg, ateb)
+    new TableDataset[F, B](dataset.map(f)(ateb.sparkEncoder), dbSettings, cfg, ateb).normalize
 
   def flatMap[B](f: A => TraversableOnce[B])(ateb: AvroTypedEncoder[B]): TableDataset[F, B] =
-    new TableDataset[F, B](dataset.flatMap(f)(ateb.sparkEncoder), dbSettings, cfg, ateb)
+    new TableDataset[F, B](dataset.flatMap(f)(ateb.sparkEncoder), dbSettings, cfg, ateb).normalize
 
   def normalize: TableDataset[F, A] =
     new TableDataset[F, A](ate.normalize(dataset).dataset, dbSettings, cfg, ate)

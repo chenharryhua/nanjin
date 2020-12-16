@@ -49,15 +49,15 @@ final class CrRdd[F[_], K, V] private[kafka] (
     new CrRdd[F, K, V](topic, rdd.repartition(num), cfg)
 
   def bimap[K2, V2](k: K => K2, v: V => V2)(other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](other, rdd.map(_.bimap(k, v)), cfg)
+    new CrRdd[F, K2, V2](other, rdd.map(_.bimap(k, v)), cfg).normalize
 
   def map[K2, V2](f: OptionalKV[K, V] => OptionalKV[K2, V2])(
     other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](other, rdd.map(f), cfg)
+    new CrRdd[F, K2, V2](other, rdd.map(f), cfg).normalize
 
   def flatMap[K2, V2](f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]])(
     other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](other, rdd.flatMap(f), cfg)
+    new CrRdd[F, K2, V2](other, rdd.flatMap(f), cfg).normalize
 
   def filter(f: OptionalKV[K, V] => Boolean): CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, rdd.filter(f), cfg)

@@ -70,13 +70,12 @@ class CrDSTest extends AnyFunSuite {
   test("bimap") {
     val r = crRdd.normalize
       .bimap(identity, RoosterLike(_))(roosterLike)
-      .normalize
       .rdd
       .collect()
       .flatMap(_.value)
       .toSet
 
-    val ds = crDS.bimap(identity, RoosterLike(_))(roosterLike).normalize.dataset
+    val ds = crDS.normalize.bimap(identity, RoosterLike(_))(roosterLike).dataset
     val d  = ds.collect().flatMap(_.value).toSet
 
     assert(ds.schema == expectSchema)
@@ -86,12 +85,11 @@ class CrDSTest extends AnyFunSuite {
   test("map") {
     val r = crRdd.normalize
       .map(x => x.newValue(x.value.map(RoosterLike(_))))(roosterLike)
-      .normalize
       .rdd
       .collect
       .flatMap(_.value)
       .toSet
-    val ds = crDS.map(_.bimap(identity, RoosterLike(_)))(roosterLike).normalize.dataset
+    val ds = crDS.normalize.map(_.bimap(identity, RoosterLike(_)))(roosterLike).dataset
     val d  = ds.collect.flatMap(_.value).toSet
     assert(ds.schema == expectSchema)
     assert(r == d)
@@ -100,11 +98,11 @@ class CrDSTest extends AnyFunSuite {
   test("flatMap") {
     val r = crRdd.normalize.flatMap { x =>
       x.value.flatMap(RoosterLike2(_)).map(y => x.newValue(Some(y)).newKey(x.key))
-    }(roosterLike2).normalize.rdd.collect().flatMap(_.value).toSet
+    }(roosterLike2).rdd.collect().flatMap(_.value).toSet
 
-    val d = crDS.flatMap { x =>
+    val d = crDS.normalize.flatMap { x =>
       x.value.flatMap(RoosterLike2(_)).map(y => x.newValue(Some(y)))
-    }(roosterLike2).normalize.dataset.collect.flatMap(_.value).toSet
+    }(roosterLike2).dataset.collect.flatMap(_.value).toSet
 
     assert(r == d)
   }
