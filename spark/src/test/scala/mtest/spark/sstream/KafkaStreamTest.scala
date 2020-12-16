@@ -22,12 +22,10 @@ class KafkaStreamTest extends AnyFunSuite {
       .map(x => x.newValue(x.value.map(_.index + 1)))
       .flatMap(x => x.value.map(_ => x))
       .sstream
-      .withParamUpdate(
-        _.withProcessingTimeTrigger(
-          500).withJson.withUpdate.withComplete.withAppend.failOnDataLoss.ignoreDataLoss
-          .withCheckpointReplace("./data/test/sstream/checkpoint/")
-          .withProgressInterval(1000)
-          .withProgressInterval(1.seconds))
+      .withParamUpdate(_.withProcessingTimeTrigger(
+        500).withJson.withUpdate.withComplete.withAppend.failOnDataLoss.ignoreDataLoss
+        .withProgressInterval(1000)
+        .withProgressInterval(1.seconds))
       .map(List(_))
       .filter(_ => true)
       .flatMap(identity)
@@ -44,7 +42,7 @@ class KafkaStreamTest extends AnyFunSuite {
     val rooster =
       TopicDef[Int, Rooster](TopicName("sstream.file.rooster"), Rooster.avroCodec).in(ctx)
     val ss = rooster.sparKafka.sstream.sstream
-      .withParamUpdate(_.withProcessingTimeTrigger(500).withAvro.withContinousTrigger(1000))
+      .withParamUpdate(_.withProcessingTimeTrigger(500).withAvro)
       .fileSink(root + "fileSink")
       .withOptions(identity)
       .queryStream

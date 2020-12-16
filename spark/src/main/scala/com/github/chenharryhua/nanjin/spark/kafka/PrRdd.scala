@@ -28,8 +28,8 @@ final class PrRdd[F[_], K, V] private[kafka] (
   def batch(num: Int): PrRdd[F, K, V]         = withParamUpdate(_.withUploadBatchSize(num))
   def recordsLimit(num: Long): PrRdd[F, K, V] = withParamUpdate(_.withUploadRecordsLimit(num))
 
-  def timeLimit(num: Long): PrRdd[F, K, V]           = withParamUpdate(_.withUploadTimeLimit(num))
-  def timeLimit(num: FiniteDuration): PrRdd[F, K, V] = withParamUpdate(_.withUploadTimeLimit(num))
+  def timeLimit(ms: Long): PrRdd[F, K, V]           = withParamUpdate(_.withUploadTimeLimit(ms))
+  def timeLimit(fd: FiniteDuration): PrRdd[F, K, V] = withParamUpdate(_.withUploadTimeLimit(fd))
 
   def noTimestamp: PrRdd[F, K, V] =
     new PrRdd[F, K, V](topic, rdd.map(_.noTimestamp), cfg)

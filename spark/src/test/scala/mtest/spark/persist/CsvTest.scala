@@ -1,13 +1,12 @@
 package mtest.spark.persist
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddFileHoarder}
+import com.github.chenharryhua.nanjin.spark.persist.{loaders, DatasetFileHoarder}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import kantan.csv.CsvConfiguration
 import kantan.csv.generic._
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-import com.github.chenharryhua.nanjin.spark.persist.DatasetFileHoarder
 
 @DoNotDiscover
 class CsvTest extends AnyFunSuite {
