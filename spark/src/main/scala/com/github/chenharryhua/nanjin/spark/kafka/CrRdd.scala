@@ -22,14 +22,14 @@ final class CrRdd[F[_], K, V] private[kafka] (
   val topic: KafkaTopic[F, K, V],
   val rdd: RDD[OptionalKV[K, V]],
   val cfg: SKConfig)(implicit val sparkSession: SparkSession)
-    extends SparKafkaUpdateParams[CrRdd[F, K, V]] {
+    extends Serializable {
 
   protected val codec: AvroCodec[OptionalKV[K, V]] =
     OptionalKV.avroCodec(topic.codec.keySerde.avroCodec, topic.codec.valSerde.avroCodec)
 
-  override def params: SKParams = cfg.evalConfig
+  def params: SKParams = cfg.evalConfig
 
-  override def withParamUpdate(f: SKConfig => SKConfig): CrRdd[F, K, V] =
+  def withParamUpdate(f: SKConfig => SKConfig): CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, rdd, f(cfg))
 
   //transformation

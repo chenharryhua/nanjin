@@ -46,16 +46,16 @@ class SKConfigTest extends AnyFunSuite {
 
   test("upload parameters") {
     val p = skc
-      .withBatchSize(1)
-      .withDuration(100.minute)
-      .withDuration(100)
-      .withRecordsLimit(10)
-      .withTimeLimit(1.minutes)
+      .withUploadBatchSize(1)
+      .withUploadInterval(100.minute)
+      .withUploadInterval(100)
+      .withUploadRecordsLimit(10)
+      .withUploadTimeLimit(1.minutes)
       .evalConfig
       .uploadParams
 
     assert(p.batchSize == 1)
-    assert(p.duration == 100.millisecond)
+    assert(p.uploadInterval == 100.millisecond)
     assert(p.recordsLimit == 10)
     assert(p.timeLimit == 60.second)
   }

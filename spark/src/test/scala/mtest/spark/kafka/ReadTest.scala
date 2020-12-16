@@ -29,7 +29,7 @@ object ReadTestData {
     ctx
       .topic[Int, Dog]("to.be.rename")
       .sparKafka
-      .withParamUpdate(_.withBatchSize(1000))
+      .withParamUpdate(_.withUploadBatchSize(1000))
       .withTopicName("test.spark.kafka.dogs")
 
 }

@@ -116,7 +116,7 @@ private[kafka] object sk {
             .interruptAfter(uploadParams.timeLimit)
             .take(uploadParams.recordsLimit)
             .chunkN(uploadParams.batchSize)
-            .metered(uploadParams.duration)
+            .metered(uploadParams.uploadInterval)
             .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName.value))))
             .through(produce(topic.fs2ProducerSettings))
       } yield rst

@@ -109,7 +109,3 @@ object NJFileFormat extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[N
     coProductPrism[AvroFamily, Avro]
 
 }
-
-trait UpdateParams[A, B] {
-  def withParamUpdate(f: A => A): B
-}

@@ -9,16 +9,27 @@ import fs2.Stream
 import fs2.kafka.ProducerResult
 import org.apache.spark.rdd.RDD
 
+import scala.concurrent.duration.FiniteDuration
+
 final class PrRdd[F[_], K, V] private[kafka] (
   topic: KafkaTopic[F, K, V],
   rdd: RDD[NJProducerRecord[K, V]],
   cfg: SKConfig
-) extends SparKafkaUpdateParams[PrRdd[F, K, V]] {
+) extends Serializable {
 
-  override val params: SKParams = cfg.evalConfig
+  val params: SKParams = cfg.evalConfig
 
-  override def withParamUpdate(f: SKConfig => SKConfig): PrRdd[F, K, V] =
+  def withParamUpdate(f: SKConfig => SKConfig): PrRdd[F, K, V] =
     new PrRdd[F, K, V](topic, rdd, f(cfg))
+
+  def interval(ms: Long): PrRdd[F, K, V]           = withParamUpdate(_.withUploadInterval(ms))
+  def interval(ms: FiniteDuration): PrRdd[F, K, V] = withParamUpdate(_.withUploadInterval(ms))
+
+  def batch(num: Int): PrRdd[F, K, V]         = withParamUpdate(_.withUploadBatchSize(num))
+  def recordsLimit(num: Long): PrRdd[F, K, V] = withParamUpdate(_.withUploadRecordsLimit(num))
+
+  def timeLimit(num: Long): PrRdd[F, K, V]           = withParamUpdate(_.withUploadTimeLimit(num))
+  def timeLimit(num: FiniteDuration): PrRdd[F, K, V] = withParamUpdate(_.withUploadTimeLimit(num))
 
   def noTimestamp: PrRdd[F, K, V] =
     new PrRdd[F, K, V](topic, rdd.map(_.noTimestamp), cfg)

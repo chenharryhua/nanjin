@@ -1,24 +1,16 @@
 package com.github.chenharryhua.nanjin.spark.sstream
 
-import com.github.chenharryhua.nanjin.common.UpdateParams
-import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.spark.kafka.{NJProducerRecord, OptionalKV}
-import frameless.{TypedDataset, TypedEncoder}
+import com.github.chenharryhua.nanjin.spark.kafka.OptionalKV
+import com.github.chenharryhua.nanjin.spark.sstream
+import frameless.{TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.sql.Dataset
 
-trait SparkStreamUpdateParams[A] extends UpdateParams[SStreamConfig, A] with Serializable {
-  def params: SStreamParams
-}
+final class SparkSStream[F[_], A](ds: Dataset[A], cfg: SStreamConfig) extends Serializable {
 
-final class SparkSStream[F[_], A: TypedEncoder](ds: Dataset[A], cfg: SStreamConfig)
-    extends SparkStreamUpdateParams[SparkSStream[F, A]] {
+  val params: SStreamParams = cfg.evalConfig
 
-  override val params: SStreamParams = cfg.evalConfig
-
-  override def withParamUpdate(f: SStreamConfig => SStreamConfig): SparkSStream[F, A] =
+  def withParamUpdate(f: SStreamConfig => SStreamConfig): SparkSStream[F, A] =
     new SparkSStream[F, A](ds, f(cfg))
-
-  @transient lazy val typedDataset: TypedDataset[A] = TypedDataset.create(ds)
 
   // transforms
 
@@ -26,13 +18,13 @@ final class SparkSStream[F[_], A: TypedEncoder](ds: Dataset[A], cfg: SStreamConf
     new SparkSStream[F, A](ds.filter(f), cfg)
 
   def map[B: TypedEncoder](f: A => B): SparkSStream[F, B] =
-    new SparkSStream[F, B](typedDataset.deserialized.map(f).dataset, cfg)
+    new SparkSStream[F, B](ds.map(f)(TypedExpressionEncoder[B]), cfg)
 
   def flatMap[B: TypedEncoder](f: A => TraversableOnce[B]): SparkSStream[F, B] =
-    new SparkSStream[F, B](typedDataset.deserialized.flatMap(f).dataset, cfg)
+    new SparkSStream[F, B](ds.flatMap(f)(TypedExpressionEncoder[B]), cfg)
 
-  def transform[B: TypedEncoder](f: TypedDataset[A] => TypedDataset[B]) =
-    new SparkSStream[F, B](f(typedDataset).dataset, cfg)
+  def transform[B: TypedEncoder](f: Dataset[A] => Dataset[B]) =
+    new SparkSStream[F, B](f(ds), cfg)
 
   // sinks
 
@@ -46,9 +38,9 @@ final class SparkSStream[F[_], A: TypedEncoder](ds: Dataset[A], cfg: SStreamConf
     ev: A =:= OptionalKV[K, V]): NJFileSink[F, DatePartitionedCR[K, V]] = {
     implicit val te: TypedEncoder[DatePartitionedCR[K, V]] = shapeless.cachedImplicit
     new NJFileSink[F, DatePartitionedCR[K, V]](
-      typedDataset.deserialized.map { x =>
-        DatePartitionedCR(params.timeRange.zoneId)(ev(x))
-      }.dataset.writeStream,
+      ds.map(x => DatePartitionedCR(params.timeRange.zoneId)(ev(x)))(
+        TypedExpressionEncoder[sstream.DatePartitionedCR[K, V]])
+        .writeStream,
       cfg,
       path).partitionBy("Year", "Month", "Day")
   }
