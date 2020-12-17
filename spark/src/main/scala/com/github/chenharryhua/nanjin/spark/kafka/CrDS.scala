@@ -18,6 +18,9 @@ final class CrDS[F[_], K, V] private[kafka] (
   def repartition(num: Int): CrDS[F, K, V] =
     new CrDS[F, K, V](topic, dataset.repartition(num), ate, cfg)
 
+  def persist: CrDS[F, K, V]   = new CrDS[F, K, V](topic, dataset.persist(), ate, cfg)
+  def unpersist: CrDS[F, K, V] = new CrDS[F, K, V](topic, dataset.unpersist(), ate, cfg)
+
   def bimap[K2, V2](k: K => K2, v: V => V2)(other: KafkaTopic[F, K2, V2])(implicit
     k2: TypedEncoder[K2],
     v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {

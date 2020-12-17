@@ -6,11 +6,9 @@ import com.github.chenharryhua.nanjin.pipes.{GenericRecordCodec, JacksonSerializ
 import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import org.apache.avro.mapreduce.AvroJob
+import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.SparkSession
-
-import scala.reflect.ClassTag
 
 final class SaveJackson[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderConfig)
     extends Serializable {
@@ -33,17 +31,18 @@ final class SaveJackson[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Hoar
   def deflate(level: Int): SaveJackson[F, A] =
     updateConfig(cfg.withCompression(Compression.Deflate(level)))
 
-  def run(blocker: Blocker)(implicit
-    F: Concurrent[F],
-    cs: ContextShift[F],
-    ss: SparkSession,
-    tag: ClassTag[A]): F[Unit] = {
-    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
-    val ccg: CompressionCodecGroup[F] =
-      params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
+  def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
+
+    val hadoopConfiguration = new Configuration(rdd.sparkContext.hadoopConfiguration)
+
+    val sma: SaveModeAware[F] =
+      new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
+
+    val ccg: CompressionCodecGroup[F] = params.compression.ccg[F](hadoopConfiguration)
+
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
-        val hadoop = NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)
+        val hadoop = NJHadoop[F](hadoopConfiguration, blocker)
         val gr     = new GenericRecordCodec[F, A]
         val pipe   = new JacksonSerialization[F](encoder.schema)
         sma.checkAndRun(blocker)(
@@ -57,9 +56,9 @@ final class SaveJackson[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Hoar
             .drain)
       case FolderOrFile.Folder =>
         val sparkjob = F.delay {
-          val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
+          val job = Job.getInstance(hadoopConfiguration)
           AvroJob.setOutputKeySchema(job, encoder.schema)
-          ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
+          rdd.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
           utils
             .genericRecordPair(rdd, encoder)
             .saveAsNewAPIHadoopFile[NJJacksonKeyOutputFormat](params.outPath)

@@ -1,7 +1,5 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import akka.NotUsed
-import akka.stream.scaladsl.Source
 import cats.Order
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
@@ -12,7 +10,6 @@ import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt}
 import frameless.cats.implicits.rddOps
 import frameless.{TypedDataset, TypedEncoder}
-import fs2.Stream
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
@@ -35,6 +32,9 @@ final class CrRdd[F[_], K, V] private[kafka] (
   //transformation
   def normalize: CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, rdd.map(codec.idConversion), cfg)
+
+  def persist: CrRdd[F, K, V]   = new CrRdd[F, K, V](topic, rdd.persist(), cfg)
+  def unpersist: CrRdd[F, K, V] = new CrRdd[F, K, V](topic, rdd.unpersist(), cfg)
 
   def partitionOf(num: Int): CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, rdd.filter(_.partition === num), cfg)

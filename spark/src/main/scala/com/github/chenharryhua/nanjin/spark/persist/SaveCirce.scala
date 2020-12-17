@@ -5,9 +5,9 @@ import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.pipes.CirceSerialization
 import com.github.chenharryhua.nanjin.spark.RddExt
 import io.circe.{Json, Encoder => JsonEncoder}
+import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.{NullWritable, Text}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
 
@@ -38,17 +38,19 @@ final class SaveCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull: Bool
   def run(blocker: Blocker)(implicit
     F: Concurrent[F],
     cs: ContextShift[F],
-    ss: SparkSession,
     jsonEncoder: JsonEncoder[A],
     tag: ClassTag[A]): F[Unit] = {
-    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
 
-    val ccg: CompressionCodecGroup[F] =
-      params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
+    val hadoopConfiguration = new Configuration(rdd.sparkContext.hadoopConfiguration)
+
+    val sma: SaveModeAware[F] =
+      new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
+
+    val ccg: CompressionCodecGroup[F] = params.compression.ccg[F](hadoopConfiguration)
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
-        val hadoop: NJHadoop[F]            = NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)
+        val hadoop: NJHadoop[F]            = NJHadoop[F](hadoopConfiguration, blocker)
         val pipe: CirceSerialization[F, A] = new CirceSerialization[F, A]
         sma.checkAndRun(blocker)(
           rdd
@@ -61,7 +63,8 @@ final class SaveCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull: Bool
       case FolderOrFile.Folder =>
         def encode(a: A): Json =
           if (isKeepNull) jsonEncoder(a) else jsonEncoder(a).deepDropNullValues
-        ss.sparkContext.hadoopConfiguration.set(NJTextOutputFormat.suffix, params.format.suffix)
+        hadoopConfiguration.set(NJTextOutputFormat.suffix, params.format.suffix)
+        rdd.sparkContext.hadoopConfiguration.addResource(hadoopConfiguration)
         sma.checkAndRun(blocker)(
           F.delay(
             rdd

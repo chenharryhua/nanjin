@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.{Blocker, Concurrent, ContextShift}
+import org.apache.hadoop.conf.Configuration
 import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
 
 final class SaveSparkJson[F[_], A](ds: Dataset[A], cfg: HoarderConfig, isKeepNull: Boolean)
@@ -30,19 +31,21 @@ final class SaveSparkJson[F[_], A](ds: Dataset[A], cfg: HoarderConfig, isKeepNul
   def dropNull: SaveSparkJson[F, A] = new SaveSparkJson[F, A](ds, cfg, false)
 
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
-    val ss: SparkSession = ds.sparkSession
+    val hadoopConfiguration = new Configuration(ds.sparkSession.sparkContext.hadoopConfiguration)
+
     val sma: SaveModeAware[F] =
-      new SaveModeAware[F](params.saveMode, params.outPath, ss)
+      new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
 
     val ccg: CompressionCodecGroup[F] =
-      params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
+      params.compression.ccg[F](hadoopConfiguration)
 
-    sma.checkAndRun(blocker)(
-      F.delay(
-        ds.write
-          .mode(SaveMode.Overwrite)
-          .option("compression", ccg.name)
-          .option("ignoreNullFields", !isKeepNull)
-          .json(params.outPath)))
+    sma.checkAndRun(blocker)(F.delay {
+      ds.sparkSession.sparkContext.hadoopConfiguration.addResource(hadoopConfiguration)
+      ds.write
+        .mode(SaveMode.Overwrite)
+        .option("compression", ccg.name)
+        .option("ignoreNullFields", !isKeepNull)
+        .json(params.outPath)
+    })
   }
 }

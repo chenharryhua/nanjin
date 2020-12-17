@@ -5,11 +5,9 @@ import cats.effect.{Blocker, Concurrent, ContextShift}
 import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.pipes.TextSerialization
 import com.github.chenharryhua.nanjin.spark.RddExt
+import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.{NullWritable, Text}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.SparkSession
-
-import scala.reflect.ClassTag
 
 final class SaveText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: String)
     extends Serializable {
@@ -35,20 +33,19 @@ final class SaveText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: String)
   def deflate(level: Int): SaveText[F, A] =
     updateConfig(cfg.withCompression(Compression.Deflate(level)))
 
-  def run(blocker: Blocker)(implicit
-    F: Concurrent[F],
-    cs: ContextShift[F],
-    ss: SparkSession,
-    show: Show[A],
-    tag: ClassTag[A]): F[Unit] = {
+  def run(
+    blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], show: Show[A]): F[Unit] = {
+    val hadoopConfiguration = new Configuration(rdd.sparkContext.hadoopConfiguration)
 
-    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
+    val sma: SaveModeAware[F] =
+      new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
+
     val ccg: CompressionCodecGroup[F] =
-      params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
+      params.compression.ccg[F](hadoopConfiguration)
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
-        val hadoop: NJHadoop[F]        = NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)
+        val hadoop: NJHadoop[F]        = NJHadoop[F](hadoopConfiguration, blocker)
         val pipe: TextSerialization[F] = new TextSerialization[F]
         sma.checkAndRun(blocker)(
           rdd
@@ -60,7 +57,8 @@ final class SaveText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: String)
             .compile
             .drain)
       case FolderOrFile.Folder =>
-        ss.sparkContext.hadoopConfiguration.set(NJTextOutputFormat.suffix, suffix)
+        hadoopConfiguration.set(NJTextOutputFormat.suffix, suffix)
+        rdd.sparkContext.hadoopConfiguration.addResource(hadoopConfiguration)
         sma.checkAndRun(blocker)(
           F.delay(
             rdd

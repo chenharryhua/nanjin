@@ -6,7 +6,8 @@ import com.github.chenharryhua.nanjin.pipes.CsvSerialization
 import com.github.chenharryhua.nanjin.spark.RddExt
 import kantan.csv.CsvConfiguration.QuotePolicy
 import kantan.csv.{CsvConfiguration, RowEncoder}
-import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
+import org.apache.hadoop.conf.Configuration
+import org.apache.spark.sql.{Dataset, SaveMode}
 
 final class SaveCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfiguration, cfg: HoarderConfig)
     extends Serializable {
@@ -44,15 +45,17 @@ final class SaveCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfiguration,
     F: Concurrent[F],
     cs: ContextShift[F],
     rowEncoder: RowEncoder[A]): F[Unit] = {
-    val ss: SparkSession = ds.sparkSession
+
+    val hadoopConfiguration = new Configuration(ds.sparkSession.sparkContext.hadoopConfiguration)
+
     val sma: SaveModeAware[F] =
-      new SaveModeAware[F](params.saveMode, params.outPath, ss)
-    val ccg: CompressionCodecGroup[F] =
-      params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
+      new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
+
+    val ccg: CompressionCodecGroup[F] = params.compression.ccg[F](hadoopConfiguration)
+
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
-        val hadoop = NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)
-
+        val hadoop = NJHadoop[F](hadoopConfiguration, blocker)
         val csvConf =
           if (csvConfiguration.hasHeader)
             csvConfiguration.withHeader(ds.schema.fieldNames: _*)
@@ -74,6 +77,7 @@ final class SaveCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfiguration,
           case QuotePolicy.Always     => true
           case QuotePolicy.WhenNeeded => false
         }
+        ds.sparkSession.sparkContext.hadoopConfiguration.addResource(hadoopConfiguration)
         val csv = F.delay(
           ds.write
             .mode(SaveMode.Overwrite)
