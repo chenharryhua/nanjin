@@ -3,12 +3,11 @@ package com.github.chenharryhua.nanjin.spark
 import cats.Functor
 import com.github.chenharryhua.nanjin.utils.random4d
 import higherkindness.droste.data.Fix
-import higherkindness.droste.macros.deriveFixedPoint
 import higherkindness.droste.{scheme, Algebra, Coalgebra}
 import org.apache.avro.{LogicalTypes, Schema, SchemaBuilder}
 import org.apache.spark.sql.types._
 
-@deriveFixedPoint sealed private[spark] trait NJDataTypeF[_]
+sealed private[spark] trait NJDataTypeF[A]
 
 private[spark] object NJDataTypeF {
 

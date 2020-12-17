@@ -1,5 +1,6 @@
 package mtest.spark.persist
 
+import frameless.TypedDataset
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Dataset
 
@@ -32,5 +33,10 @@ object RoosterData {
   val rdd: RDD[Rooster] = sparkSession.sparkContext.parallelize(data)
 
   val ds: Dataset[Rooster] = Rooster.ate.normalize(rdd).dataset
+
+  val bigset: TypedDataset[Rooster] =
+    Rooster.ate.normalize(
+      sparkSession.sparkContext.parallelize(
+        List.fill(1000)(Rooster(0, instant, timestamp, BigDecimal("0"), BigDecimal("0"), None))))
 
 }
