@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.{Blocker, Concurrent, ContextShift}
-import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
+import org.apache.hadoop.conf.Configuration
+import org.apache.spark.sql.{Dataset, SaveMode}
 
 final class SaveParquet[F[_], A](ds: Dataset[A], cfg: HoarderConfig) extends Serializable {
 
@@ -23,12 +24,16 @@ final class SaveParquet[F[_], A](ds: Dataset[A], cfg: HoarderConfig) extends Ser
     updateConfig(cfg.withCompression(Compression.Gzip))
 
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
-    val ss: SparkSession = ds.sparkSession
+    val hadoopConfiguration = new Configuration(ds.sparkSession.sparkContext.hadoopConfiguration)
 
-    val sma: SaveModeAware[F]         = new SaveModeAware[F](params.saveMode, params.outPath, ss)
-    val ccg: CompressionCodecGroup[F] = params.compression.ccg(ss.sparkContext.hadoopConfiguration)
-    sma.checkAndRun(blocker)(
-      F.delay(
-        ds.write.option("compression", ccg.name).mode(SaveMode.Overwrite).parquet(params.outPath)))
+    val sma: SaveModeAware[F] =
+      new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
+
+    val ccg: CompressionCodecGroup[F] = params.compression.ccg(hadoopConfiguration)
+
+    sma.checkAndRun(blocker)(F.delay {
+      ds.sparkSession.sparkContext.hadoopConfiguration.addResource(hadoopConfiguration)
+      ds.write.option("compression", ccg.name).mode(SaveMode.Overwrite).parquet(params.outPath)
+    })
   }
 }

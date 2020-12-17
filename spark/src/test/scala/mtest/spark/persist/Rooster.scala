@@ -1,18 +1,18 @@
 package mtest.spark.persist
 
-import java.sql.Timestamp
-import java.time.Instant
-
+import cats.Show
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.injection._
-import com.sksamuel.avro4s.{Decoder, Encoder}
 import frameless.TypedEncoder
 import io.circe.Codec
+import kantan.csv.RowEncoder
 import kantan.csv.generic._
 import kantan.csv.java8._
 import org.apache.avro.Schema
 
+import java.sql.Timestamp
+import java.time.Instant
 import scala.math.BigDecimal
 import scala.math.BigDecimal.RoundingMode
 
@@ -90,5 +90,10 @@ object Rooster {
 
   val ate: AvroTypedEncoder[Rooster] =
     AvroTypedEncoder[Rooster](TypedEncoder[Rooster], avroCodec)
+
+  implicit val showRooster: Show[Rooster] = _.toString
+
+  implicit val rowEncoderRooster: RowEncoder[Rooster] = (d: Rooster) =>
+    List(d.index.toString, d.a.toString, d.b.toString)
 
 }

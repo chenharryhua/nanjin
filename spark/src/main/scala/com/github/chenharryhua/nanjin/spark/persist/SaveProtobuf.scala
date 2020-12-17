@@ -4,13 +4,12 @@ import cats.effect.{Blocker, Concurrent, ContextShift}
 import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.pipes.DelimitedProtoBufSerialization
 import com.github.chenharryhua.nanjin.spark.RddExt
+import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.{BytesWritable, NullWritable}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.SparkSession
 import scalapb.GeneratedMessage
 
 import java.io.ByteArrayOutputStream
-import scala.reflect.ClassTag
 
 final class SaveProtobuf[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends Serializable {
 
@@ -31,9 +30,8 @@ final class SaveProtobuf[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends Seria
   def run(blocker: Blocker)(implicit
     F: Concurrent[F],
     cs: ContextShift[F],
-    ss: SparkSession,
-    enc: A <:< GeneratedMessage,
-    tag: ClassTag[A]): F[Unit] = {
+    enc: A <:< GeneratedMessage): F[Unit] = {
+    val hadoopConfiguration = new Configuration(rdd.sparkContext.hadoopConfiguration)
 
     def bytesWritable(a: A): BytesWritable = {
       val os: ByteArrayOutputStream = new ByteArrayOutputStream()
@@ -42,12 +40,14 @@ final class SaveProtobuf[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends Seria
       new BytesWritable(os.toByteArray)
     }
 
-    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
-    params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
+    val sma: SaveModeAware[F] =
+      new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
+
+    params.compression.ccg[F](hadoopConfiguration)
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
-        val hadoop: NJHadoop[F]                     = NJHadoop[F](ss.sparkContext.hadoopConfiguration, blocker)
+        val hadoop: NJHadoop[F]                     = NJHadoop[F](hadoopConfiguration, blocker)
         val pipe: DelimitedProtoBufSerialization[F] = new DelimitedProtoBufSerialization[F]
 
         sma.checkAndRun(blocker)(
@@ -59,12 +59,13 @@ final class SaveProtobuf[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends Seria
             .drain)
 
       case FolderOrFile.Folder =>
-        ss.sparkContext.hadoopConfiguration.set(NJBinaryOutputFormat.suffix, params.format.suffix)
-        sma.checkAndRun(blocker)(
-          F.delay(
-            rdd
-              .map(x => (NullWritable.get(), bytesWritable(x)))
-              .saveAsNewAPIHadoopFile[NJBinaryOutputFormat](params.outPath)))
+        rdd.sparkContext.hadoopConfiguration.set(NJBinaryOutputFormat.suffix, params.format.suffix)
+        sma.checkAndRun(blocker)(F.delay {
+          rdd.sparkContext.hadoopConfiguration.addResource(hadoopConfiguration)
+          rdd
+            .map(x => (NullWritable.get(), bytesWritable(x)))
+            .saveAsNewAPIHadoopFile[NJBinaryOutputFormat](params.outPath)
+        })
 
     }
   }

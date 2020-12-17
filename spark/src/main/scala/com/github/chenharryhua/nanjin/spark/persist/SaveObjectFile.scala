@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.{Blocker, Concurrent, ContextShift}
+import org.apache.hadoop.conf.Configuration
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.SparkSession
 
 final class SaveObjectFile[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends Serializable {
 
@@ -17,11 +17,17 @@ final class SaveObjectFile[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends Ser
 
   def outPath(path: String): SaveObjectFile[F, A] = updateConfig(cfg.withOutPutPath(path))
 
-  def run(
-    blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], ss: SparkSession): F[Unit] = {
-    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, ss)
-    params.compression.ccg[F](ss.sparkContext.hadoopConfiguration)
+  def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
+    val hadoopConfiguration = new Configuration(rdd.sparkContext.hadoopConfiguration)
 
-    sma.checkAndRun(blocker)(F.delay(rdd.saveAsObjectFile(params.outPath)))
+    val sma: SaveModeAware[F] =
+      new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
+
+    params.compression.ccg[F](hadoopConfiguration)
+
+    sma.checkAndRun(blocker)(F.delay {
+      rdd.sparkContext.hadoopConfiguration.addResource(hadoopConfiguration)
+      rdd.saveAsObjectFile(params.outPath)
+    })
   }
 }
