@@ -10,7 +10,7 @@ class CompressionInterlopeTest extends AnyFunSuite {
 
   val rooster =
     new DatasetAvroFileHoarder[IO, Rooster](
-      RoosterData.bigset.dataset.repartition(2),
+      RoosterData.bigset.dataset.repartition(2).persist(),
       Rooster.avroCodec.avroEncoder)
   test("avro") {
     val root = "./data/test/spark/persist/interlope/avro/rooster/"
