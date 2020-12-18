@@ -402,6 +402,12 @@ lazy val spark = (project in file("spark"))
     excludeDependencies ++= Seq(ExclusionRule(organization = "io.netty"))
   )
 
+lazy val example = (project in file("example"))
+  .dependsOn(spark)
+  .settings(commonSettings: _*)
+  .settings(name := "nj-example")
+  .settings(libraryDependencies ++= testLib)
+
 lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")

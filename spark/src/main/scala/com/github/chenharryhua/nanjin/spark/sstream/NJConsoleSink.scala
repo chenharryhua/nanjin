@@ -9,6 +9,13 @@ final class NJConsoleSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig)
 
   override val params: SStreamParams = cfg.evalConfig
 
+  private def updateConfig(f: SStreamConfig => SStreamConfig): NJConsoleSink[F, A] =
+    new NJConsoleSink[F, A](dsw, f(cfg))
+
+  def rows(num: Int): NJConsoleSink[F, A] = updateConfig(_.withShowRows(num))
+  def truncate: NJConsoleSink[F, A]       = updateConfig(_.withShowTruncate(true))
+  def untruncate: NJConsoleSink[F, A]     = updateConfig(_.withShowTruncate(false))
+
   override def queryStream(implicit
     F: Concurrent[F],
     timer: Timer[F]): Stream[F, StreamingQueryProgress] =

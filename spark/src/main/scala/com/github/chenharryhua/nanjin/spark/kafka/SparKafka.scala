@@ -7,7 +7,7 @@ import cats.syntax.functor._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.loaders
-import com.github.chenharryhua.nanjin.spark.sstream.{KafkaCrSStream, SStreamConfig, SparkSStream}
+import com.github.chenharryhua.nanjin.spark.sstream.{SStreamConfig, SparkSStream}
 import frameless.TypedEncoder
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import org.apache.spark.rdd.RDD
@@ -80,11 +80,8 @@ final class SparKafka[F[_], K, V](
   def sstream(implicit
     sync: Sync[F],
     keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): KafkaCrSStream[F, K, V] = {
+    valEncoder: TypedEncoder[V]): SparkSStream[F, OptionalKV[K, V]] = {
     val ate: AvroTypedEncoder[OptionalKV[K, V]] = OptionalKV.ate(topic.topicDef)
-    new KafkaCrSStream[F, K, V](
-      sk.kafkaSStream[F, K, V, OptionalKV[K, V]](topic, ate)(identity),
-      SStreamConfig(params.timeRange, params.showDs)
-        .withCheckpointAppend(s"kafkacr/${topic.topicName.value}"))
+    sstream(identity, ate)
   }
 }

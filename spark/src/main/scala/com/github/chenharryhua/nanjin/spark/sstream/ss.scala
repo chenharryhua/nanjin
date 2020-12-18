@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.spark.sstream
 
 import cats.effect.{Concurrent, Timer}
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.utils.Keyboard
 import fs2.Stream
 import org.apache.spark.sql.streaming.{DataStreamWriter, StreamingQueryProgress}
 
@@ -23,13 +22,11 @@ private[sstream] object ss {
     F: Concurrent[F],
     timer: Timer[F]): Stream[F, StreamingQueryProgress] =
     for {
-      kb <- Keyboard.signal[F]
       streamQuery <- Stream.bracket(F.delay(dsw.start()))(q => F.delay(q.stop()))
       rst <- Stream
         .awakeEvery[F](interval)
         .map(_ => streamQuery.exception.toLeft(()))
         .rethrow
-        .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
         .map(_ => streamQuery.lastProgress)
     } yield rst
 }

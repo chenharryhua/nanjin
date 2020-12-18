@@ -146,6 +146,14 @@ class AvroTest extends AnyFunSuite {
     assert(RoosterData.expected == t)
   }
 
+  test("datetime spark write without schema/nanjin read identity") {
+    val path = "./data/test/spark/persist/avro/rooster/spark-write-no-schema.avro"
+    val tds  = Rooster.ate.normalize(RoosterData.rdd)
+    tds.repartition(1).write.mode(SaveMode.Overwrite).format("avro").save(path)
+    val t = loaders.avro[Rooster](path, Rooster.ate).collect[IO]().unsafeRunSync().toSet
+    assert(RoosterData.expected == t)
+  }
+
   val bee = new RddAvroFileHoarder[IO, Bee](BeeData.rdd, Bee.avroCodec.avroEncoder)
   test("byte-array read/write identity - multi") {
     import cats.implicits._

@@ -9,7 +9,13 @@ final class NJFileSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig, pa
 
   override val params: SStreamParams = cfg.evalConfig
 
-  // ops
+  private def updateConfig(f: SStreamConfig => SStreamConfig): NJFileSink[F, A] =
+    new NJFileSink[F, A](dsw, f(cfg), path)
+
+  def parquet: NJFileSink[F, A] = updateConfig(_.withParquet)
+  def json: NJFileSink[F, A]    = updateConfig(_.withJson)
+  def avro: NJFileSink[F, A]    = updateConfig(_.withAvro)
+
   def withOptions(f: DataStreamWriter[A] => DataStreamWriter[A]): NJFileSink[F, A] =
     new NJFileSink(f(dsw), cfg, path)
 

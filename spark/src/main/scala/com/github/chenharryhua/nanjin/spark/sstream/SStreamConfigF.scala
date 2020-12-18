@@ -40,7 +40,7 @@ private[sstream] object SStreamParams {
     SStreamParams(
       timeRange = tr,
       showDs = sd,
-      fileFormat = NJFileFormat.Jackson,
+      fileFormat = NJFileFormat.SparkJson,
       checkpoint = NJCheckpoint("./data/checkpoint/sstream"),
       dataLoss = NJFailOnDataLoss(true),
       outputMode = OutputMode.Append,
@@ -66,6 +66,9 @@ private[sstream] object SStreamConfigF {
   final case class WithFormat[K](value: NJFileFormat, cont: K) extends SStreamConfigF[K]
   final case class WithProgressInterval[K](value: FiniteDuration, cont: K) extends SStreamConfigF[K]
 
+  final case class WithShowRows[K](value: Int, cont: K) extends SStreamConfigF[K]
+  final case class WithShowTruncate[K](isTruncate: Boolean, cont: K) extends SStreamConfigF[K]
+
   private val algebra: Algebra[SStreamConfigF, SStreamParams] =
     Algebra[SStreamConfigF, SStreamParams] {
       case DefaultParams(tr, sd)       => SStreamParams(tr, sd)
@@ -76,6 +79,9 @@ private[sstream] object SStreamConfigF {
       case WithTrigger(v, c)           => SStreamParams.trigger.set(v)(c)
       case WithFormat(v, c)            => SStreamParams.fileFormat.set(v)(c)
       case WithProgressInterval(v, c)  => SStreamParams.progressInterval.set(v)(c)
+      case WithShowRows(v, c)          => SStreamParams.showDs.composeLens(NJShowDataset.rowNum).set(v)(c)
+      case WithShowTruncate(v, c) =>
+        SStreamParams.showDs.composeLens(NJShowDataset.isTruncate).set(v)(c)
     }
 
   def evalConfig(cfg: SStreamConfig): SStreamParams = scheme.cata(algebra).apply(cfg.value)
@@ -84,6 +90,10 @@ private[sstream] object SStreamConfigF {
 
 final private[sstream] case class SStreamConfig(value: Fix[SStreamConfigF]) extends AnyVal {
   import SStreamConfigF._
+  def withShowRows(num: Int): SStreamConfig = SStreamConfig(Fix(WithShowRows(num, value)))
+
+  def withShowTruncate(isTruncate: Boolean): SStreamConfig = SStreamConfig(
+    Fix(WithShowTruncate(isTruncate, value)))
 
   def withCheckpointReplace(cp: String): SStreamConfig =
     SStreamConfig(Fix(WithCheckpointReplace(cp, value)))

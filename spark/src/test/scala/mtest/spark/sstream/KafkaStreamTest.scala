@@ -1,11 +1,16 @@
 package mtest.spark.sstream
 
+import better.files._
+import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.spark.kafka.{NJProducerRecord, _}
+import frameless.TypedEncoder
 import mtest.spark.persist.{Rooster, RoosterData}
 import mtest.spark.{contextShift, ctx, sparkSession, timer}
+import org.apache.spark.sql.streaming.Trigger
 import org.scalatest.funsuite.AnyFunSuite
 
+import java.time.Instant
 import scala.concurrent.duration._
 import scala.util.Random
 
@@ -15,35 +20,39 @@ class KafkaStreamTest extends AnyFunSuite {
 
   val data = RoosterData.rdd.map(x => NJProducerRecord(Random.nextInt(), x))
 
+  implicit val te: TypedEncoder[OptionalKV[Int, Int]] = shapeless.cachedImplicit
+
   test("console sink") {
     val rooster =
       TopicDef[Int, Rooster](TopicName("sstream.console.rooster"), Rooster.avroCodec).in(ctx)
     val ss = rooster.sparKafka.sstream
       .map(x => x.newValue(x.value.map(_.index + 1)))
       .flatMap(x => x.value.map(_ => x))
-      .sstream
-      .withParamUpdate(_.withProcessingTimeTrigger(
-        500).withJson.withUpdate.withComplete.withAppend.failOnDataLoss.ignoreDataLoss
-        .withProgressInterval(1000)
-        .withProgressInterval(1.seconds))
-      .map(List(_))
       .filter(_ => true)
-      .flatMap(identity)
-      .transform(identity)
+      .failOnDataLoss
+      .ignoreDataLoss
+      .trigger(Trigger.ProcessingTime(1000))
+      .progressInterval(3000)
       .consoleSink
+      .rows(3)
+      .truncate
+      .untruncate
       .showProgress
-      .interruptAfter(6.seconds)
+
     val upload = rooster.sparKafka.prRdd(data).batch(1).interval(1000).upload.delayBy(1.second)
 
-    ss.concurrently(upload).compile.drain.unsafeRunSync()
+    ss.concurrently(upload).interruptAfter(10.seconds).compile.drain.unsafeRunSync()
   }
 
-  test("file sink") {
+  test("file sink avro - should be read back") {
     val rooster =
       TopicDef[Int, Rooster](TopicName("sstream.file.rooster"), Rooster.avroCodec).in(ctx)
-    val ss = rooster.sparKafka.sstream.sstream
-      .withParamUpdate(_.withProcessingTimeTrigger(500).withAvro)
-      .fileSink(root + "fileSink")
+
+    val path = root + "fileSink"
+    val ss = rooster.sparKafka.sstream
+      .trigger(Trigger.ProcessingTime(500))
+      .fileSink(path)
+      .avro
       .withOptions(identity)
       .queryStream
       .interruptAfter(5.seconds)
@@ -56,17 +65,49 @@ class KafkaStreamTest extends AnyFunSuite {
       .upload
       .delayBy(1.second)
     ss.concurrently(upload).compile.drain.unsafeRunSync()
+    rooster.sparKafka.load.avro(path).dataset.show()
   }
 
-  test("date partition sink") {
+  test("date partition sink parquet - should be read back") {
     val rooster =
       TopicDef[Int, Rooster](TopicName("sstream.datepatition.rooster"), Rooster.avroCodec).in(ctx)
-    val ss = rooster.sparKafka.sstream
-      .withParamUpdate(_.withProcessingTimeTrigger(500).withParquet)
-      .datePartitionFileSink(root + "datePartition")
+
+    val path = root + "date_partition"
+
+    val ss = rooster
+      .sparKafka(sydneyTime)
+      .sstream
+      .trigger(Trigger.ProcessingTime(500))
+      .datePartitionFileSink[Int, Rooster](path)
+      .parquet
       .queryStream
-      .interruptAfter(10.seconds)
+      .interruptAfter(5.seconds)
     val upload = rooster.sparKafka.prRdd(data).upload.delayBy(1.second)
     ss.concurrently(upload).compile.drain.unsafeRunSync()
+    val l         = NJTimestamp(Instant.now()).`Year=yyyy/Month=mm/Day=dd`(sydneyTime)
+    val todayPath = path + "/" + l
+    assert(!File(todayPath).isEmpty)
+    rooster.sparKafka.load.parquet(todayPath).dataset.show()
+  }
+
+  test("memory sink - validate kafka timestamp") {
+    val rooster =
+      TopicDef[Int, Rooster](TopicName("sstream.memory.rooster"), Rooster.avroCodec).in(ctx)
+    val ss = rooster.sparKafka.sstream
+      .trigger(Trigger.ProcessingTime(500))
+      .memorySink("kafka")
+      .append
+      .update
+      .queryStream
+
+    val upload = rooster.sparKafka.prRdd(data).batch(1).interval(1.second).upload.delayBy(1.second)
+    ss.concurrently(upload).interruptAfter(5.seconds).compile.drain.unsafeRunSync()
+    import sparkSession.implicits._
+    val now = Instant.now().getEpochSecond * 1000 //to millisecond
+    sparkSession
+      .sql("select timestamp from kafka")
+      .as[Long]
+      .collect()
+      .foreach(t => assert(Math.abs(now - t) < 5000))
   }
 }
