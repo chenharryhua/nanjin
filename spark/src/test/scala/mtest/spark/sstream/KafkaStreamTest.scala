@@ -44,12 +44,14 @@ class KafkaStreamTest extends AnyFunSuite {
     ss.concurrently(upload).interruptAfter(10.seconds).compile.drain.unsafeRunSync()
   }
 
-  test("file sink") {
+  test("file sink avro - should be read back") {
     val rooster =
       TopicDef[Int, Rooster](TopicName("sstream.file.rooster"), Rooster.avroCodec).in(ctx)
+
+    val path = root + "fileSink"
     val ss = rooster.sparKafka.sstream
       .trigger(Trigger.ProcessingTime(500))
-      .fileSink(root + "fileSink")
+      .fileSink(path)
       .avro
       .withOptions(identity)
       .queryStream
@@ -63,9 +65,10 @@ class KafkaStreamTest extends AnyFunSuite {
       .upload
       .delayBy(1.second)
     ss.concurrently(upload).compile.drain.unsafeRunSync()
+    rooster.sparKafka.load.avro(path).dataset.show()
   }
 
-  test("date partition sink") {
+  test("date partition sink parquet - should be read back") {
     val rooster =
       TopicDef[Int, Rooster](TopicName("sstream.datepatition.rooster"), Rooster.avroCodec).in(ctx)
 
@@ -81,11 +84,13 @@ class KafkaStreamTest extends AnyFunSuite {
       .interruptAfter(5.seconds)
     val upload = rooster.sparKafka.prRdd(data).upload.delayBy(1.second)
     ss.concurrently(upload).compile.drain.unsafeRunSync()
-    val l = NJTimestamp(Instant.now()).`Year=yyyy/Month=mm/Day=dd`(sydneyTime)
-    assert(!File(path + "/" + l).isEmpty)
+    val l         = NJTimestamp(Instant.now()).`Year=yyyy/Month=mm/Day=dd`(sydneyTime)
+    val todayPath = path + "/" + l
+    assert(!File(todayPath).isEmpty)
+    rooster.sparKafka.load.parquet(todayPath).dataset.show()
   }
 
-  test("memory sink - kafka timestamp") {
+  test("memory sink - validate kafka timestamp") {
     val rooster =
       TopicDef[Int, Rooster](TopicName("sstream.memory.rooster"), Rooster.avroCodec).in(ctx)
     val ss = rooster.sparKafka.sstream

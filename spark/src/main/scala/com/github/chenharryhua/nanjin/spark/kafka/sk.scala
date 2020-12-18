@@ -123,20 +123,6 @@ private[kafka] object sk {
 
   /** streaming
     */
-  private def startingOffsets(range: KafkaTopicPartition[Option[KafkaOffsetRange]]): String = {
-    val start: Map[String, Map[String, Long]] = range
-      .flatten[KafkaOffsetRange]
-      .value
-      .map { case (tp, kor) => (tp.topic(), tp.partition(), kor) }
-      .foldLeft(Map.empty[String, Map[String, Long]]) { case (sum, item) =>
-        val rst = Map(item._2.toString -> item._3.from.value)
-        sum.get(item._1) match {
-          case Some(m) => Map(item._1 -> (m ++ rst))
-          case None    => Map(item._1 -> rst)
-        }
-      }
-    start.asJson.noSpaces
-  }
 
   //  https://spark.apache.org/docs/2.4.5/structured-streaming-kafka-integration.html
   private def consumerOptions(m: Map[String, String]): Map[String, String] = {
@@ -170,7 +156,6 @@ private[kafka] object sk {
         ms.map { cr =>
           val (errs, msg) = decoder.decode(cr).run
           errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
-          // TODO: check timestamp
           f(OptionalKV.timestamp.modify(_ * 1000)(msg)) // spark use second.
         }
       }(ate.sparkEncoder)

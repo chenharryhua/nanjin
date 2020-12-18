@@ -40,7 +40,7 @@ private[sstream] object SStreamParams {
     SStreamParams(
       timeRange = tr,
       showDs = sd,
-      fileFormat = NJFileFormat.Jackson,
+      fileFormat = NJFileFormat.SparkJson,
       checkpoint = NJCheckpoint("./data/checkpoint/sstream"),
       dataLoss = NJFailOnDataLoss(true),
       outputMode = OutputMode.Append,
