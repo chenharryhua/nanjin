@@ -1,4 +1,4 @@
-package example.database
+package example.kafka
 
 import cats.derived.auto.show._
 import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaTopicSyntax

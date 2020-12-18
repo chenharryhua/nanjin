@@ -1,6 +1,6 @@
 package example
 
-import example.database.KafkaBasic
+import example.kafka.KafkaBasic
 import org.scalatest.Sequential
 
 class RunAll
