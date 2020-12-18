@@ -170,7 +170,8 @@ private[kafka] object sk {
         ms.map { cr =>
           val (errs, msg) = decoder.decode(cr).run
           errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
-          f(OptionalKV.timestamp.modify(_ / 1000)(msg)) // spark use micro-second.
+          // TODO: check timestamp
+          f(OptionalKV.timestamp.modify(_ * 1000)(msg)) // spark use second.
         }
       }(ate.sparkEncoder)
   }

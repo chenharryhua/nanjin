@@ -65,5 +65,6 @@ object SparkSettings {
           .set("spark.hadoop.fs.s3a.committer.name", "directory")
           .set("spark.hadoop.fs.s3a.committer.staging.unique-filenames", "false")
           .set("spark.streaming.kafka.consumer.poll.ms", "180000")
-          .set("spark.streaming.kafka.allowNonConsecutiveOffsets", "true"))
+          .set("spark.streaming.kafka.allowNonConsecutiveOffsets", "true")
+          .set("spark.sql.streaming.forceDeleteTempCheckpointLocation", "true"))
 }

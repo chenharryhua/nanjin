@@ -34,6 +34,9 @@ final class SparkSStream[F[_], A](ds: Dataset[A], cfg: SStreamConfig) extends Se
   def fileSink(path: String): NJFileSink[F, A] =
     new NJFileSink[F, A](ds.writeStream, cfg, path)
 
+  def memorySink(queryName: String): NJMemorySink[F, A] =
+    new NJMemorySink[F, A](ds.writeStream, cfg, queryName)
+
   def datePartitionFileSink[K: TypedEncoder, V: TypedEncoder](path: String)(implicit
     ev: A =:= OptionalKV[K, V]): NJFileSink[F, DatePartitionedCR[K, V]] = {
     implicit val te: TypedEncoder[DatePartitionedCR[K, V]] = shapeless.cachedImplicit

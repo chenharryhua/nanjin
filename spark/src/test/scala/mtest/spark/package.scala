@@ -17,6 +17,9 @@ package object spark {
 
   val blocker: Blocker = Blocker.liftExecutionContext(global)
 
-  val ctx: IoKafkaContext = KafkaSettings.local.withGroupId("spark.kafka.stream.test").ioContext
-
+  val ctx: IoKafkaContext =
+    KafkaSettings.local
+      .withApplicationId("kafka.stream.test.app")
+      .withGroupId("spark.kafka.stream.test")
+      .ioContext
 }

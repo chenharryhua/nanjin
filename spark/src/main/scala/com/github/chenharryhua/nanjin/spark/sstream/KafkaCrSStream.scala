@@ -32,10 +32,9 @@ final class KafkaCrSStream[F[_], K, V](ds: Dataset[OptionalKV[K, V]], cfg: SStre
     k: TypedEncoder[K],
     v: TypedEncoder[V]): NJFileSink[F, DatePartitionedCR[K, V]] = {
     implicit val te: TypedEncoder[DatePartitionedCR[K, V]] = shapeless.cachedImplicit
+    val enc: Encoder[DatePartitionedCR[K, V]]              = TypedExpressionEncoder(te)
     new NJFileSink[F, DatePartitionedCR[K, V]](
-      ds.map(DatePartitionedCR(params.timeRange.zoneId))(
-        TypedExpressionEncoder[DatePartitionedCR[K, V]])
-        .writeStream,
+      ds.map(DatePartitionedCR(params.timeRange.zoneId))(enc).writeStream,
       cfg,
       path).partitionBy("Year", "Month", "Day")
   }
