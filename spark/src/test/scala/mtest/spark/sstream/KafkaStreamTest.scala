@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.spark.kafka.{NJProducerRecord, _}
 import frameless.TypedEncoder
 import mtest.spark.persist.{Rooster, RoosterData}
 import mtest.spark.{contextShift, ctx, sparkSession, timer}
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.streaming.Trigger
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -19,13 +20,16 @@ class KafkaStreamTest extends AnyFunSuite {
 
   val root = "./data/test/spark/sstream/"
 
-  val data = RoosterData.rdd.map(x => NJProducerRecord(Random.nextInt(), x))
+  val roosterTopic: TopicDef[Int, Rooster] =
+    TopicDef[Int, Rooster](TopicName("sstream.rooster"), Rooster.avroCodec)
+
+  val data: RDD[NJProducerRecord[Int, Rooster]] =
+    RoosterData.rdd.map(x => NJProducerRecord(Random.nextInt(), x))
 
   implicit val te: TypedEncoder[OptionalKV[Int, Int]] = shapeless.cachedImplicit
 
   test("console sink") {
-    val rooster =
-      TopicDef[Int, Rooster](TopicName("sstream.console.rooster"), Rooster.avroCodec).in(ctx)
+    val rooster = roosterTopic.withTopicName("sstream.console.rooster").in(ctx)
     val ss = rooster.sparKafka.sstream
       .map(x => x.newValue(x.value.map(_.index + 1)))
       .flatMap(x => x.value.map(_ => x))
@@ -47,8 +51,7 @@ class KafkaStreamTest extends AnyFunSuite {
   }
 
   test("file sink avro - should be read back") {
-    val rooster =
-      TopicDef[Int, Rooster](TopicName("sstream.file.rooster"), Rooster.avroCodec).in(ctx)
+    val rooster = roosterTopic.withTopicName("sstream.file.rooster").in(ctx)
 
     val path = root + "fileSink"
     val ss = rooster.sparKafka.sstream
@@ -57,7 +60,7 @@ class KafkaStreamTest extends AnyFunSuite {
       .avro
       .withOptions(identity)
       .queryStream
-      .interruptAfter(6.seconds)
+
     val upload = rooster.sparKafka
       .prRdd(data)
       .batch(10)
@@ -67,13 +70,12 @@ class KafkaStreamTest extends AnyFunSuite {
       .upload
       .delayBy(3.second)
 
-    (ss.concurrently(upload).compile.drain >>
+    (ss.concurrently(upload).interruptAfter(6.seconds).compile.drain >>
       rooster.sparKafka.load.avro(path).count.map(println)).unsafeRunSync()
   }
 
   test("date partition sink parquet - should be read back") {
-    val rooster =
-      TopicDef[Int, Rooster](TopicName("sstream.datepatition.rooster"), Rooster.avroCodec).in(ctx)
+    val rooster = roosterTopic.withTopicName("sstream.datepartition.rooster").in(ctx)
 
     val path = root + "date_partition"
 
@@ -84,11 +86,10 @@ class KafkaStreamTest extends AnyFunSuite {
       .datePartitionFileSink[Int, Rooster](path)
       .parquet
       .queryStream
-      .interruptAfter(6.seconds)
 
     val upload =
       rooster.sparKafka.prRdd(data).batch(1).interval(0.5.seconds).upload.delayBy(3.second)
-    ss.concurrently(upload).compile.drain.unsafeRunSync()
+    ss.concurrently(upload).interruptAfter(6.seconds).compile.drain.unsafeRunSync()
     val ts        = NJTimestamp(Instant.now()).`Year=yyyy/Month=mm/Day=dd`(sydneyTime)
     val todayPath = path + "/" + ts
     assert(!File(todayPath).isEmpty, s"$todayPath does not exist")
@@ -96,8 +97,8 @@ class KafkaStreamTest extends AnyFunSuite {
   }
 
   test("memory sink - validate kafka timestamp") {
-    val rooster =
-      TopicDef[Int, Rooster](TopicName("sstream.memory.rooster"), Rooster.avroCodec).in(ctx)
+    val rooster = roosterTopic.withTopicName("sstream.memory.rooster").in(ctx)
+
     val ss = rooster.sparKafka.sstream
       .trigger(Trigger.ProcessingTime(1000))
       .memorySink("kafka")
@@ -114,7 +115,7 @@ class KafkaStreamTest extends AnyFunSuite {
       .as[Long]
       .collect()
       .map(t => assert(Math.abs(now - t) < 5000))
-      .size
+      .length
     assert(size == 4)
   }
 }

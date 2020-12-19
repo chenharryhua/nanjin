@@ -19,7 +19,7 @@ class KafkaBasic extends AnyFunSuite {
     fooTopic.send(1, Foo(1, "a")).unsafeRunSync()
   }
 
-  test("consume message") {
+  test("consume message from kafka") {
     fooTopic.fs2Channel.stream
       .map(x => fooTopic.decoder(x).decode)
       .take(3)
@@ -39,17 +39,18 @@ class KafkaBasic extends AnyFunSuite {
       .drain
       .unsafeRunSync()
   }
-  test("dump messages") {
-    fooTopic.sparKafka.fromKafka
-      .flatMap(_.save.circe("./data/example/dump.json").gzip.run(blocker))
-      .unsafeRunSync()
+
+  val path = "./data/example/foo.json"
+  test("persist messages to local disk") {
+    fooTopic.sparKafka.fromKafka.flatMap(_.save.circe(path).file.run(blocker)).unsafeRunSync()
   }
-  test("populate topic using saved data") {
+
+  test("populate topic using persisted data") {
     fooTopic.sparKafka.load
-      .circe("./data/example/dump.json")
+      .circe(path)
       .prRdd
       .batch(1) // send 1 message
-      .interval(1) // every 1 second
+      .interval(1000) // every 1 second
       .upload
       .compile
       .drain
