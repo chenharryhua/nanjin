@@ -1,6 +1,7 @@
 package mtest.spark.sstream
 
 import better.files._
+import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.spark.kafka.{NJProducerRecord, _}
@@ -39,7 +40,8 @@ class KafkaStreamTest extends AnyFunSuite {
       .untruncate
       .showProgress
 
-    val upload = rooster.sparKafka.prRdd(data).batch(1).interval(1000).upload.delayBy(1.second)
+    val upload =
+      rooster.sparKafka.prRdd(data).batch(1).interval(0.5.seconds).upload.delayBy(2.second)
 
     ss.concurrently(upload).interruptAfter(10.seconds).compile.drain.unsafeRunSync()
   }
@@ -55,17 +57,18 @@ class KafkaStreamTest extends AnyFunSuite {
       .avro
       .withOptions(identity)
       .queryStream
-      .interruptAfter(5.seconds)
+      .interruptAfter(6.seconds)
     val upload = rooster.sparKafka
       .prRdd(data)
-      .interval(1.second)
-      .timeLimit(2000)
+      .batch(10)
+      .interval(0.1.second)
       .timeLimit(2.minute)
       .recordsLimit(10)
       .upload
-      .delayBy(1.second)
-    ss.concurrently(upload).compile.drain.unsafeRunSync()
-    rooster.sparKafka.load.avro(path).dataset.show()
+      .delayBy(3.second)
+
+    (ss.concurrently(upload).compile.drain >>
+      rooster.sparKafka.load.avro(path).count.map(println)).unsafeRunSync()
   }
 
   test("date partition sink parquet - should be read back") {
@@ -77,37 +80,41 @@ class KafkaStreamTest extends AnyFunSuite {
     val ss = rooster
       .sparKafka(sydneyTime)
       .sstream
-      .trigger(Trigger.ProcessingTime(500))
+      .trigger(Trigger.ProcessingTime(1000))
       .datePartitionFileSink[Int, Rooster](path)
       .parquet
       .queryStream
-      .interruptAfter(5.seconds)
-    val upload = rooster.sparKafka.prRdd(data).upload.delayBy(1.second)
+      .interruptAfter(6.seconds)
+
+    val upload =
+      rooster.sparKafka.prRdd(data).batch(1).interval(0.5.seconds).upload.delayBy(3.second)
     ss.concurrently(upload).compile.drain.unsafeRunSync()
-    val l         = NJTimestamp(Instant.now()).`Year=yyyy/Month=mm/Day=dd`(sydneyTime)
-    val todayPath = path + "/" + l
-    assert(!File(todayPath).isEmpty)
-    rooster.sparKafka.load.parquet(todayPath).dataset.show()
+    val ts        = NJTimestamp(Instant.now()).`Year=yyyy/Month=mm/Day=dd`(sydneyTime)
+    val todayPath = path + "/" + ts
+    assert(!File(todayPath).isEmpty, s"$todayPath does not exist")
+    rooster.sparKafka.load.parquet(todayPath).count.map(println).unsafeRunSync()
   }
 
   test("memory sink - validate kafka timestamp") {
     val rooster =
       TopicDef[Int, Rooster](TopicName("sstream.memory.rooster"), Rooster.avroCodec).in(ctx)
     val ss = rooster.sparKafka.sstream
-      .trigger(Trigger.ProcessingTime(500))
+      .trigger(Trigger.ProcessingTime(1000))
       .memorySink("kafka")
       .append
       .update
       .queryStream
 
-    val upload = rooster.sparKafka.prRdd(data).batch(1).interval(1.second).upload.delayBy(1.second)
-    ss.concurrently(upload).interruptAfter(5.seconds).compile.drain.unsafeRunSync()
+    val upload = rooster.sparKafka.prRdd(data).batch(6).interval(1.second).upload.delayBy(3.second)
+    ss.concurrently(upload).interruptAfter(6.seconds).compile.drain.unsafeRunSync()
     import sparkSession.implicits._
     val now = Instant.now().getEpochSecond * 1000 //to millisecond
-    sparkSession
+    val size = sparkSession
       .sql("select timestamp from kafka")
       .as[Long]
       .collect()
-      .foreach(t => assert(Math.abs(now - t) < 5000))
+      .map(t => assert(Math.abs(now - t) < 5000))
+      .size
+    assert(size == 4)
   }
 }

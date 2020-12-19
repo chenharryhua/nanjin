@@ -22,6 +22,7 @@ class KafkaBasic extends AnyFunSuite {
   test("consume message") {
     fooTopic.fs2Channel.stream
       .map(x => fooTopic.decoder(x).decode)
+      .take(3)
       .showLinesStdOut
       .interruptAfter(2.seconds)
       .compile
