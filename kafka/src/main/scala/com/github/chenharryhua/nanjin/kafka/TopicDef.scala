@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.syntax.all._
+import cats.Show
 import cats.kernel.Eq
-import com.github.chenharryhua.nanjin.messages.kafka._
+import cats.syntax.all._
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, SerdeOf}
 import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
 
@@ -29,6 +29,8 @@ final class TopicDef[K, V] private (val topicName: TopicName)(implicit
 }
 
 object TopicDef {
+
+  implicit def showTopicDef[K, V]: Show[TopicDef[K, V]] = _.toString
 
   implicit def eqTopicDef[K, V]: Eq[TopicDef[K, V]] =
     (x: TopicDef[K, V], y: TopicDef[K, V]) =>

@@ -27,7 +27,7 @@ final class KafkaStreamRunner[F[_]](settings: KafkaStreamSettings)(implicit
   final private class Latch(value: Deferred[F, Either[KafkaStreamingException, Unit]])
       extends KafkaStreams.StateListener {
 
-    override def onChange(newState: KafkaStreams.State, oldState: KafkaStreams.State): Unit = {
+    override def onChange(newState: KafkaStreams.State, oldState: KafkaStreams.State): Unit =
       newState match {
         case KafkaStreams.State.RUNNING =>
           F.toIO(value.complete(Right(()))).attempt.void.unsafeRunSync()
@@ -38,7 +38,6 @@ final class KafkaStreamRunner[F[_]](settings: KafkaStreamSettings)(implicit
             .unsafeRunSync()
         case _ => ()
       }
-    }
   }
 
   def stream(topology: Reader[StreamsBuilder, Unit]): Stream[F, KafkaStreams] =

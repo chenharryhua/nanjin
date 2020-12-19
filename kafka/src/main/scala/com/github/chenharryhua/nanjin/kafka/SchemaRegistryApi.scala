@@ -32,17 +32,16 @@ final case class KvSchemaMetadata(key: Option[SchemaMetadata], value: Option[Sch
         |schema:  ${value.map(_.getSchema).getOrElse("none")}
 """.stripMargin
 
-  def show: String =
+  override def toString: String =
     s"""|key and value schema: 
         |$showKey
         |$showValue
        """.stripMargin
 
-  override def toString: String = show
 }
 
 object KvSchemaMetadata {
-  implicit val showKvSchemaMetadata: Show[KvSchemaMetadata] = _.show
+  implicit val showKvSchemaMetadata: Show[KvSchemaMetadata] = _.toString
 }
 
 final case class CompatibilityTestReport(

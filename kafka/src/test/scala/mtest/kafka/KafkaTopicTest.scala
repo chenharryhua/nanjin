@@ -18,5 +18,6 @@ class KafkaTopicTest extends AnyFunSuite {
   }
   test("show topic") {
     println(t1.show)
+    println(t1.topicDef.show)
   }
 }
