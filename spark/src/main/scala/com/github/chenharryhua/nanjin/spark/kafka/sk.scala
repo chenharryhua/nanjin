@@ -7,10 +7,8 @@ import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaOffsetRange, KafkaTopic, KafkaTopicPartition}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.utils.Keyboard
 import fs2.Pipe
 import fs2.kafka.{produce, ProducerRecords, ProducerResult}
-import io.circe.syntax._
 import monocle.function.At.remove
 import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
@@ -106,20 +104,12 @@ private[kafka] object sk {
   def uploader[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
     topic: KafkaTopic[F, K, V],
     uploadParams: NJUploadParams): Pipe[F, NJProducerRecord[K, V], ProducerResult[K, V, Unit]] =
-    njPRs =>
-      for {
-        kb <- Keyboard.signal[F]
-        rst <-
-          njPRs
-            .pauseWhen(kb.map(_.contains(Keyboard.pauSe)))
-            .interruptWhen(kb.map(_.contains(Keyboard.Quit)))
-            .interruptAfter(uploadParams.timeLimit)
-            .take(uploadParams.recordsLimit)
-            .chunkN(uploadParams.batchSize)
-            .metered(uploadParams.uploadInterval)
-            .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName.value))))
-            .through(produce(topic.fs2ProducerSettings))
-      } yield rst
+    _.interruptAfter(uploadParams.timeLimit)
+      .take(uploadParams.recordsLimit)
+      .chunkN(uploadParams.batchSize)
+      .metered(uploadParams.uploadInterval)
+      .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName.value))))
+      .through(produce(topic.fs2ProducerSettings))
 
   /** streaming
     */
