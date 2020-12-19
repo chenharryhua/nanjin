@@ -1,12 +1,9 @@
 package mtest.codec
 
-import org.scalatest.funsuite.AnyFunSuite
 import io.circe.generic.auto._
-
-object NullTestsData {}
+import org.scalatest.funsuite.AnyFunSuite
 
 class NullTests extends AnyFunSuite {
-  import NullTestsData._
 
   test("decode null should return null") {
     assert(intCodec.decode(null) === 0)
