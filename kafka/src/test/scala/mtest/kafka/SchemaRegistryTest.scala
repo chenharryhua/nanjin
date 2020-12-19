@@ -1,6 +1,7 @@
 package mtest.kafka
 
 import cats.effect.IO
+import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import org.scalatest.funsuite.AnyFunSuite
 

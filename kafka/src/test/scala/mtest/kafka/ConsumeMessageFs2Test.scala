@@ -2,7 +2,7 @@ package mtest.kafka
 
 import cats.derived.auto.show._
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.kafka.{TopicName, _}
+import com.github.chenharryhua.nanjin.kafka._
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
 import com.landoop.telecom.telecomitalia.telecommunications.{smsCallInternet, Key}
 import fs2.kafka.AutoOffsetReset
@@ -26,7 +26,7 @@ class ConsumeMessageFs2Test extends AnyFunSuite {
         .stream
         .map(m => topic.decoder(m).tryDecodeKeyValue)
         .take(1)
-        .map(_.toString)
+        .map(_.show)
         .map(println)
         .compile
         .toList
@@ -39,7 +39,7 @@ class ConsumeMessageFs2Test extends AnyFunSuite {
     val ret = topic.fs2Channel.stream
       .map(m => topic.decoder(m).decodeValue)
       .take(1)
-      .map(_.toString)
+      .map(_.show)
       .map(println)
       .compile
       .toList
@@ -54,7 +54,7 @@ class ConsumeMessageFs2Test extends AnyFunSuite {
       .map(_.toEither)
       .rethrow
       .take(1)
-      .map(_.toString)
+      .map(_.show)
       .compile
       .toList
       .unsafeRunSync()

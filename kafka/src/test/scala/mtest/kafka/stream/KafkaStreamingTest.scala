@@ -80,7 +80,7 @@ class KafkaStreamingTest extends AnyFunSuite {
 
     val runStream = for {
       _ <- Stream.eval(prepare)
-      _ <- ctx.runStreams(top) // start kafka stream
+      _ <- ctx.runStreams(top).delayBy(2.seconds) // start kafka stream
       _ <- s1Data.traverse(d =>
         Stream.every[IO](1.second).evalMap(_ => s1Topic.send(d))) // send msg every second
       d <- tgt.fs2Channel.stream.map(x => tgt.decoder(x).decode.record.value) // harvest the result

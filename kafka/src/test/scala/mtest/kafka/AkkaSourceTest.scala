@@ -3,18 +3,15 @@ package mtest.kafka
 import akka.kafka.ConsumerMessage
 import akka.kafka.scaladsl.Consumer
 import akka.stream.scaladsl.Source
-import org.scalatest.funsuite.AnyFunSuite
+import cats.effect.IO
 import cats.syntax.all._
+import com.github.chenharryhua.nanjin.kafka.{akkaSinks, KafkaTopic}
+import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Try
-import cats.effect.IO
-import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.kafka.akkaSinks
-import com.github.chenharryhua.nanjin.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.TopicDef
 
-class CompilationTest extends AnyFunSuite {
-  val topic: KafkaTopic[IO, Int, Int] = TopicDef[Int, Int](TopicName("compilation.test")).in(ctx)
+class AkkaSourceTest extends AnyFunSuite {
+  val topic: KafkaTopic[IO, Int, Int] = ctx.topic[Int, Int]("compilation.test")
   test("should compile") {
     val chn = topic.akkaChannel
     val task =
