@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import cats.Show
 import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, Resource, Sync, Timer}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage
@@ -88,4 +89,8 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
     timer: Timer[F],
     contextShift: ContextShift[F]): KafkaMonitoringApi[F, K, V] = KafkaMonitoringApi[F, K, V](this)
 
+}
+
+object KafkaTopic {
+  implicit def showKafkaTopic[F[_], K, V]: Show[KafkaTopic[F, K, V]] = _.toString
 }

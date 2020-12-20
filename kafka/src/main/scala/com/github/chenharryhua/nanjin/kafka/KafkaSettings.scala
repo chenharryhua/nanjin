@@ -1,7 +1,5 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import java.util.Properties
-
 import com.github.chenharryhua.nanjin.utils
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import monocle.Traversal
@@ -13,6 +11,8 @@ import org.apache.kafka.common.config.SaslConfigs
 import org.apache.kafka.common.security.auth.SecurityProtocol
 import org.apache.kafka.streams.StreamsConfig
 
+import java.util.Properties
+
 final case class KafkaGroupId(value: String) extends AnyVal
 final case class KafkaAppId(value: String) extends AnyVal
 
@@ -20,21 +20,15 @@ final case class KafkaAppId(value: String) extends AnyVal
   def javaProperties: Properties = utils.toProperties(config)
 }
 
-@Lenses final case class KafkaProducerSettings(config: Map[String, String]) {
-  def javaProperties: Properties = utils.toProperties(config)
-}
+@Lenses final case class KafkaProducerSettings(config: Map[String, String])
 
 @Lenses final case class KafkaStreamSettings(config: Map[String, String]) {
   def javaProperties: Properties = utils.toProperties(config)
 }
 
-@Lenses final case class KafkaAdminSettings(config: Map[String, String]) {
-  def javaProperties: Properties = utils.toProperties(config)
-}
+@Lenses final case class KafkaAdminSettings(config: Map[String, String])
 
-@Lenses final case class SchemaRegistrySettings(config: Map[String, String]) {
-  def javaProperties: Properties = utils.toProperties(config)
-}
+@Lenses final case class SchemaRegistrySettings(config: Map[String, String])
 
 @Lenses final case class KafkaSettings private (
   consumerSettings: KafkaConsumerSettings,

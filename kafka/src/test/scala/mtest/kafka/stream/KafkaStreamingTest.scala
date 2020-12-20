@@ -3,12 +3,12 @@ package mtest.kafka.stream
 import cats.Id
 import cats.data.Kleisli
 import cats.effect.IO
-import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import fs2.Stream
-import fs2.kafka.ProducerRecord
+import fs2.kafka.{ProducerRecord, ProducerResult}
 import mtest.kafka._
 import org.apache.kafka.common.serialization.Serde
+import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.scala.ImplicitConversions._
 import org.apache.kafka.streams.scala.Serdes._
 import org.apache.kafka.streams.scala.StreamsBuilder
@@ -26,7 +26,7 @@ object KafkaStreamingData {
 
   val s1Topic: KafkaTopic[IO, Int, StreamOne] = ctx.topic[Int, StreamOne]("stream-one")
   val t2Topic: KafkaTopic[IO, Int, TableTwo]  = ctx.topic[Int, TableTwo]("table-two")
-  val tgt: KafkaTopic[IO, Int, StreamTarget]  = ctx.topic[Int, StreamTarget]("stream-target")
+  val tgt: KafkaTopic[IO, Int, StreamTarget]  = ctx.topic[Int, StreamTarget]("stream-join-target")
 
   val s1Data: List[ProducerRecord[Int, StreamOne]] =
     List(
@@ -78,15 +78,26 @@ class KafkaStreamingTest extends AnyFunSuite {
       println(s"populate t2 topic: $e")
     }
 
+    val populateS1Topic: Stream[IO, ProducerResult[Int, StreamOne, Unit]] = Stream
+      .every[IO](1.seconds)
+      .zipRight(Stream.emits(s1Data))
+      .evalMap(s1Topic.send)
+      .delayBy(1.seconds)
+
+    val streamingService: Stream[IO, KafkaStreams] =
+      ctx.runStreams(top).handleErrorWith(_ => Stream.sleep_(2.seconds) ++ ctx.runStreams(top))
+
+    val harvest: Stream[IO, StreamTarget] =
+      tgt.fs2Channel.stream.map(x => tgt.decoder(x).decode.record.value).interruptAfter(2.seconds)
+
     val runStream = for {
       _ <- Stream.eval(prepare)
-      _ <- ctx.runStreams(top) // start kafka stream
-      _ <- s1Data.traverse(d =>
-        Stream.every[IO](1.second).evalMap(_ => s1Topic.send(d))) // send msg every second
-      d <- tgt.fs2Channel.stream.map(x => tgt.decoder(x).decode.record.value) // harvest the result
+      _ <- streamingService.concurrently(populateS1Topic)
+      d <- harvest
     } yield d
 
-    val rst = runStream.interruptAfter(8.seconds).compile.toList.unsafeRunSync().toSet
+    val rst = runStream.compile.toList.unsafeRunSync().toSet
+
     assert(rst == expected)
   }
 }

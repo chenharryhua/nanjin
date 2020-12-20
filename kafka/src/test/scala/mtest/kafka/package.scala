@@ -16,7 +16,8 @@ package object kafka {
 
   val ctx: IoKafkaContext =
     KafkaSettings.local
-      .withGroupId("kafka.unit.test")
+      .withGroupId("nj-kafka-unit-test-group")
+      .withApplicationId("nj-kafka-unit-test-app")
       .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
       .ioContext
 

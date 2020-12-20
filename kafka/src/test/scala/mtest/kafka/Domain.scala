@@ -93,9 +93,7 @@ sealed trait Colorish
 
 object Colorish {
 
-  implicit val showColorish: Show[Colorish] = new Show[Colorish] {
-    override def show(t: Colorish): String = t.toString
-  }
+  implicit val showColorish: Show[Colorish] = (t: Colorish) => t.toString
   case object Red extends Colorish
   case object Green extends Colorish
   case object Blue extends Colorish

@@ -1,15 +1,15 @@
 package mtest.kafka
 
-import akka.Done
+import akka.NotUsed
 import cats.effect.IO
 import cats.syntax.all._
+import com.github.chenharryhua.nanjin.kafka.akkaSinks
+import fs2.kafka.{ProducerRecords => Fs2ProducerRecords}
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.scalatest.funsuite.AnyFunSuite
-import fs2.kafka.{ProducerRecords => Fs2ProducerRecords, ProducerRecord => Fs2ProducerRecord}
+
 import scala.concurrent.duration._
 import scala.util.Random
-import com.github.chenharryhua.nanjin.kafka.TopicName
-
 
 object ProducerAvros {
 
@@ -30,10 +30,10 @@ class ProducerTest extends AnyFunSuite {
     val produceTask = (0 until 100).toList.traverse { i =>
       srcTopic.send(AvroKey(i.toString), AvroValue(Random.nextString(5), Random.nextInt(100)))
     }
-    val srcChn  = srcTopic.akkaChannel
-    val akkaChn = akkaTopic.akkaChannel
+    val srcChn = srcTopic.akkaChannel
+    val tgtChn = akkaTopic.akkaChannel
 
-    val akkaTask: IO[Done] =
+    val akkaTask: IO[NotUsed] =
       srcChn
         .withConsumerSettings(
           _.withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
@@ -41,10 +41,10 @@ class ProducerTest extends AnyFunSuite {
             .withCommitWarning(10.seconds))
         .source
         .map(m => akkaTopic.decoder(m).decode)
-        .map(m =>
-          akkaTopic.akkaProducerRecords(m.record.key, m.record.value, m.committableOffset))
+        .wireTap { m => akkaTopic.akkaProducerRecords(List((m.record.key, m.record.value()))); () }
+        .map(m => akkaTopic.akkaProducerRecord(m.record.key, m.record.value))
         .take(100)
-        .runWith(akkaChn.committableSink)
+        .runWith(akkaSinks.ignore[IO])
 
     val fs2Task: IO[Unit] = srcTopic.fs2Channel
       .withConsumerSettings(
