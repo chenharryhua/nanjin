@@ -219,17 +219,19 @@ val sparkLib = Seq(
 ).map(_ % avro)
 
 val testLib = Seq(
-  "org.typelevel" %% "cats-testkit-scalatest"                 % "2.1.0"   % Test,
-  "org.typelevel" %% "discipline-scalatest"                   % "2.1.0"   % Test,
-  "org.typelevel" %% "cats-laws"                              % catsCore  % Test,
-  "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.5"   % Test,
-  "org.scalatest" %% "scalatest"                              % scalatest % Test,
-  "com.github.julien-truffaut" %% "monocle-law"               % monocle   % Test,
-  "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.4.0"   % Test,
-  "org.tpolecat" %% "doobie-postgres"                         % doobie    % Test,
-  "com.typesafe.akka" %% "akka-stream-testkit"                % akka26    % Test,
-  "org.typelevel" %% "algebra-laws"                           % algebra   % Test,
-  "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % akkaKafka % Test
+  "org.typelevel" %% "cats-testkit-scalatest"                 % "2.1.0"         % Test,
+  "org.typelevel" %% "discipline-scalatest"                   % "2.1.0"         % Test,
+  "org.typelevel" %% "cats-laws"                              % catsCore        % Test,
+  "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.5"         % Test,
+  "org.scalatest" %% "scalatest"                              % scalatest       % Test,
+  "com.github.julien-truffaut" %% "monocle-law"               % monocle         % Test,
+  "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.4.0"         % Test,
+  "org.tpolecat" %% "doobie-postgres"                         % doobie          % Test,
+  "com.typesafe.akka" %% "akka-stream-testkit"                % akka26          % Test,
+  "org.typelevel" %% "algebra-laws"                           % algebra         % Test,
+  "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % akkaKafka       % Test,
+  "org.slf4j"                                                 % "slf4j-log4j12" % "1.7.30" % Test,
+  "log4j"                                                     % "log4j"         % "1.2.17" % Test
 )
 
 val kafkaLib = Seq(
