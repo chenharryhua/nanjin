@@ -42,7 +42,7 @@ val frameless = "0.9.0"
 val doobie   = "0.9.4"
 val quill    = "3.5.3"
 val neotypes = "0.15.1"
-val elastic  = "7.9.2"
+val elastic  = "7.10.0"
 
 // format
 val circe   = "0.13.0"
