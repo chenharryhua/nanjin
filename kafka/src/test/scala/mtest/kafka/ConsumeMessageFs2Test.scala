@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
 import com.landoop.telecom.telecomitalia.telecommunications.{smsCallInternet, Key}
 import fs2.kafka.AutoOffsetReset
 import io.circe.generic.auto._
+import org.apache.kafka.common.TopicPartition
 import org.scalatest.funsuite.AnyFunSuite
 
 class ConsumeMessageFs2Test extends AnyFunSuite {
@@ -22,6 +23,7 @@ class ConsumeMessageFs2Test extends AnyFunSuite {
     val topic = backblaze_smart.in(ctx)
     val ret =
       topic.fs2Channel
+        .withProducerSettings(_.withBatchSize(1))
         .withConsumerSettings(_.withAutoOffsetReset(AutoOffsetReset.Earliest))
         .stream
         .map(m => topic.decoder(m).tryDecodeKeyValue)
@@ -49,7 +51,8 @@ class ConsumeMessageFs2Test extends AnyFunSuite {
 
   test("should be able to consume telecom_italia_data topic") {
     val topic = sms.in(ctx)
-    val ret = topic.fs2Channel.stream
+    val ret = topic.fs2Channel
+      .assign(Map(new TopicPartition(topic.topicName.value, 0) -> 0))
       .map(m => topic.decoder(m).tryDecode)
       .map(_.toEither)
       .rethrow

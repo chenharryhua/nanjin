@@ -11,5 +11,6 @@ class KafkaSettingsTest extends AnyFunSuite {
     val p = setting.withProducerProperty(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, "producer")
     assert(p.producerSettings.config(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG) === "producer")
     assert(p.consumerSettings.config(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG) === "broker-url")
+    assert(p.adminSettings.config(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG) === "broker-url")
   }
 }

@@ -48,7 +48,7 @@ final class KafkaStreamRunner[F[_]](settings: KafkaStreamSettings)(implicit
       kss <-
         Stream
           .bracket(F.delay {
-            val builder: StreamsBuilder = new StreamsBuilder
+            val builder: StreamsBuilder = new StreamsBuilder()
             topology.run(builder)
             new KafkaStreams(builder.build(), settings.javaProperties)
           })(ks => F.delay { ks.close(); ks.cleanUp() })

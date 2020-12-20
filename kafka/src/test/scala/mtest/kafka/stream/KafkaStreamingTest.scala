@@ -26,7 +26,7 @@ object KafkaStreamingData {
 
   val s1Topic: KafkaTopic[IO, Int, StreamOne] = ctx.topic[Int, StreamOne]("stream-one")
   val t2Topic: KafkaTopic[IO, Int, TableTwo]  = ctx.topic[Int, TableTwo]("table-two")
-  val tgt: KafkaTopic[IO, Int, StreamTarget]  = ctx.topic[Int, StreamTarget]("stream-target")
+  val tgt: KafkaTopic[IO, Int, StreamTarget]  = ctx.topic[Int, StreamTarget]("stream-join-target")
 
   val s1Data: List[ProducerRecord[Int, StreamOne]] =
     List(
@@ -94,7 +94,6 @@ class KafkaStreamingTest extends AnyFunSuite {
       _ <- Stream.eval(prepare)
       _ <- streamingService.concurrently(populateS1Topic)
       d <- harvest
-      _ <- Stream.eval(IO(println("aaaaaa")))
     } yield d
 
     val rst = runStream.compile.toList.unsafeRunSync().toSet
