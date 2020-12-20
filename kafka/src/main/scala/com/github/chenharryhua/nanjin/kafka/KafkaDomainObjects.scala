@@ -17,7 +17,7 @@ import scala.collection.JavaConverters._
 
 final case class KafkaOffset(offset: Refined[Long, NonNegative]) {
   val value: Long                 = offset.value
-  def javaLong: java.lang.Long    = value
+  val javaLong: java.lang.Long    = value
   def asLast: KafkaOffset         = KafkaOffset(value - 1) //represent last message
   def -(other: KafkaOffset): Long = value - other.value
 }
@@ -44,7 +44,7 @@ object KafkaPartition {
     refineV[NonNegative](v).map(KafkaPartition(_)).fold(ex => throw new Exception(ex), identity)
 
   implicit val orderKafkaPartition: Order[KafkaPartition] =
-    (x: KafkaPartition, y: KafkaPartition) => x - y
+    (x: KafkaPartition, y: KafkaPartition) => x.value.compareTo(y.value)
 }
 
 sealed abstract case class KafkaOffsetRange private (from: KafkaOffset, until: KafkaOffset) {
