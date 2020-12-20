@@ -85,5 +85,10 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     val r = NJDateTimeRange(darwinTime)
     topic.shortLiveConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
   }
-
+  test("kafka offset range") {
+    assert(KafkaOffsetRange(KafkaOffset(100), KafkaOffset(99)).isEmpty)
+    val r = KafkaOffsetRange(KafkaOffset(1), KafkaOffset(99)).get
+    r.show
+    assert(r.distance == 98)
+  }
 }

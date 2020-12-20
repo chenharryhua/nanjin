@@ -9,6 +9,8 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.sksamuel.avro4s.{AvroDoc, Decoder, Encoder, SchemaFor}
 import frameless.TypedEncoder
+import io.circe.generic.auto._
+import io.circe.{Json, Encoder => JsonEncoder}
 import io.scalaland.chimney.dsl._
 import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -90,6 +92,9 @@ final case class OptionalKV[K, V](
     (key, value).mapN { case (k, v) =>
       this.into[CompulsoryKV[K, V]].withFieldConst(_.key, k).withFieldConst(_.value, v).transform
     }
+
+  def asJson(implicit k: JsonEncoder[Option[K]], v: JsonEncoder[Option[V]]): Json =
+    JsonEncoder[OptionalKV[K, V]].apply(this)
 }
 
 object OptionalKV {
@@ -182,6 +187,9 @@ final case class CompulsoryV[K, V](
   def toOptionalKV: OptionalKV[K, V] =
     this.into[OptionalKV[K, V]].withFieldConst(_.value, Some(value)).transform
 
+  def asJson(implicit k: JsonEncoder[K], v: JsonEncoder[V]): Json =
+    JsonEncoder[CompulsoryV[K, V]].apply(this)
+
 }
 
 object CompulsoryV {
@@ -245,6 +253,9 @@ final case class CompulsoryK[K, V](
 
   def toOptionalKV: OptionalKV[K, V] =
     this.into[OptionalKV[K, V]].withFieldConst(_.key, Some(key)).transform
+
+  def asJson(implicit k: JsonEncoder[K], v: JsonEncoder[V]): Json =
+    JsonEncoder[CompulsoryK[K, V]].apply(this)
 
 }
 
@@ -316,6 +327,9 @@ final case class CompulsoryKV[K, V](
 
   def toCompulsoryV: CompulsoryV[K, V] =
     this.into[CompulsoryV[K, V]].withFieldConst(_.key, Some(key)).transform
+
+  def asJson(implicit k: JsonEncoder[K], v: JsonEncoder[V]): Json =
+    JsonEncoder[CompulsoryKV[K, V]].apply(this)
 
 }
 

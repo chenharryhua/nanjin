@@ -39,6 +39,7 @@ class ProducerTest extends AnyFunSuite {
           _.withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
             .withGroupId("akka-task")
             .withCommitWarning(10.seconds))
+        .withProducerSettings(_.withCloseTimeout(5.seconds))
         .source
         .map(m => akkaTopic.decoder(m).decode)
         .wireTap { m => akkaTopic.akkaProducerRecords(List((m.record.key, m.record.value()))); () }

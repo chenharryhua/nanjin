@@ -42,12 +42,7 @@ class KafkaOffsetBuildTest extends AnyFunSuite {
     assertThrows[Exception](KafkaOffset(-1))
     assertThrows[Exception](KafkaPartition(-1))
   }
-  test("kafka offset range") {
-    assert(KafkaOffsetRange(KafkaOffset(100), KafkaOffset(99)).isEmpty)
-    val r = KafkaOffsetRange(KafkaOffset(1), KafkaOffset(99)).get
-    r.show
-    assert(r.distance == 98)
-  }
+
   test("partition") {
     val p1 = KafkaPartition(1)
     val p2 = KafkaPartition(2)
