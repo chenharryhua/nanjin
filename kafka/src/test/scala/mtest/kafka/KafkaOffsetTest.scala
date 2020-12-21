@@ -2,11 +2,17 @@ package mtest.kafka
 
 import cats.kernel.laws.discipline.{OrderTests, PartialOrderTests}
 import cats.tests.CatsSuite
-import com.github.chenharryhua.nanjin.kafka.{KafkaOffset, KafkaOffsetRange, KafkaPartition}
+import com.github.chenharryhua.nanjin.kafka.{
+  KafkaOffset,
+  KafkaOffsetRange,
+  KafkaPartition,
+  KafkaTopicPartition
+}
+import org.apache.kafka.clients.consumer.OffsetAndTimestamp
+import org.apache.kafka.common.TopicPartition
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
-import cats.syntax.all._
 
 class KafkaOffsetTest extends CatsSuite with FunSuiteDiscipline {
 
@@ -47,5 +53,30 @@ class KafkaOffsetBuildTest extends AnyFunSuite {
     val p1 = KafkaPartition(1)
     val p2 = KafkaPartition(2)
     assert(p2 - p1 == 1)
+  }
+
+  test("KafkaTopicPartition empty") {
+    val ktp = KafkaTopicPartition[Int](Map.empty)
+    assert(ktp.isEmpty)
+    assert(!ktp.nonEmpty)
+  }
+
+  test("KafkaTopicPartition") {
+    val ktp = KafkaTopicPartition[Option[OffsetAndTimestamp]](
+      Map(
+        new TopicPartition("topic", 0) -> Some(new OffsetAndTimestamp(0, 1000)),
+        new TopicPartition("topic", 1) -> Some(new OffsetAndTimestamp(1, 2000)),
+        new TopicPartition("topic", 2) -> None
+      ))
+    val expected = Map(
+      new TopicPartition("topic", 0) -> Some(1000),
+      new TopicPartition("topic", 1) -> Some(2000),
+      new TopicPartition("topic", 2) -> None
+    )
+    val res = ktp.map((_, v) => v.map(_.timestamp()))
+
+    assert(res.value == expected)
+    assert(ktp.topicPartitions.value.toSet == expected.keySet)
+    assert(ktp.offsets.value.keySet.size == 3)
   }
 }

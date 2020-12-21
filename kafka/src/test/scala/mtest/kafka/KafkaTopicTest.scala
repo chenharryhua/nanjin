@@ -1,6 +1,6 @@
 package mtest.kafka
 
-import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
+import com.github.chenharryhua.nanjin.kafka.{KafkaSettings, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import org.scalatest.funsuite.AnyFunSuite
 import cats.syntax.all._
@@ -19,5 +19,11 @@ class KafkaTopicTest extends AnyFunSuite {
   test("show topic") {
     println(t1.show)
     println(t1.topicDef.show)
+  }
+  test("with clause") {
+    t1.withContext(ctx)
+    t1.withGroupId("cid")
+    t1.withSettings(KafkaSettings.local)
+    t1.withTopicName("new.name")
   }
 }

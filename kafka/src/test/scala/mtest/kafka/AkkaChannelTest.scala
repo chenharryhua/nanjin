@@ -63,7 +63,7 @@ class AkkaChannelTest extends AnyFunSuite {
 
     run.unsafeRunSync()
   }
-  test("akka stream commitSink") {
+  test("akka stream flexiFlow/commitSink") {
     val run = vesselChannel
       .withConsumerSettings(_.withClientId("c-id"))
       .withCommitterSettings(_.withParallelism(10))
