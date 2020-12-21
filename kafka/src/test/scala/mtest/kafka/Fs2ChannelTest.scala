@@ -1,6 +1,5 @@
 package mtest.kafka
 
-import cats.derived.auto.show._
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka._
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
@@ -10,7 +9,7 @@ import io.circe.generic.auto._
 import org.apache.kafka.common.TopicPartition
 import org.scalatest.funsuite.AnyFunSuite
 
-class ConsumeMessageFs2Test extends AnyFunSuite {
+class Fs2ChannelTest extends AnyFunSuite {
   val backblaze_smart = TopicDef[KJson[lenses_record_key], String](TopicName("backblaze_smart"))
   val nyc_taxi_trip   = TopicDef[Array[Byte], trip_record](TopicName("nyc_yellow_taxi_trip_data"))
 

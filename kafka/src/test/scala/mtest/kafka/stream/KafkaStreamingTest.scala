@@ -21,12 +21,15 @@ object KafkaStreamingData {
   case class StreamOne(name: String, size: Int)
 
   case class TableTwo(name: String, color: Int)
+  case class GlobalThree(name: String, weight: Int)
 
-  case class StreamTarget(oneName: String, twoName: String, size: Int, color: Int)
+  case class StreamTarget(name: String, weight: Int, color: Int)
 
-  val s1Topic: KafkaTopic[IO, Int, StreamOne] = ctx.topic[Int, StreamOne]("stream-one")
-  val t2Topic: KafkaTopic[IO, Int, TableTwo]  = ctx.topic[Int, TableTwo]("table-two")
-  val tgt: KafkaTopic[IO, Int, StreamTarget]  = ctx.topic[Int, StreamTarget]("stream-join-target")
+  val s1Topic: KafkaTopic[IO, Int, StreamOne]   = ctx.topic[Int, StreamOne]("stream-one")
+  val t2Topic: KafkaTopic[IO, Int, TableTwo]    = ctx.topic[Int, TableTwo]("table-two")
+  val g3Topic: KafkaTopic[IO, Int, GlobalThree] = ctx.topic[Int, GlobalThree]("global-three")
+
+  val tgt: KafkaTopic[IO, Int, StreamTarget] = ctx.topic[Int, StreamTarget]("stream-join-target")
 
   val s1Data: List[ProducerRecord[Int, StreamOne]] =
     List(
@@ -44,10 +47,19 @@ object KafkaStreamingData {
       ProducerRecord(t2Topic.topicName.value, 3, TableTwo("z", 2))
     )
 
+  val g3Data: List[ProducerRecord[Int, GlobalThree]] =
+    List(
+      ProducerRecord(g3Topic.topicName.value, 4, GlobalThree("gx", 1000)),
+      ProducerRecord(g3Topic.topicName.value, 5, GlobalThree("gy", 2000)),
+      ProducerRecord(g3Topic.topicName.value, 6, GlobalThree("gz", 3000))
+    )
+
   val expected: Set[StreamTarget] = Set(
-    StreamTarget("a", "x", 0, 0),
-    StreamTarget("b", "y", 1, 1),
-    StreamTarget("c", "z", 2, 2)
+    StreamTarget("a", 0, 0),
+    StreamTarget("b", 0, 1),
+    StreamTarget("c", 0, 2),
+    StreamTarget("d", 1000, 0),
+    StreamTarget("e", 2000, 0)
   )
 }
 
@@ -62,20 +74,26 @@ class KafkaStreamingTest extends AnyFunSuite {
     val top: Kleisli[Id, StreamsBuilder, Unit] = for {
       a <- s1Topic.kafkaStream.kstream
       b <- t2Topic.kafkaStream.ktable
-    } yield a.join(b)((v1, v2) => StreamTarget(v1.name, v2.name, v1.size, v2.color)).to(tgt)
+      c <- g3Topic.kafkaStream.gktable
+    } yield {
+      a.join(c)((i, s1) => i, (s1, g3) => StreamTarget(s1.name, g3.weight, 0)).to(tgt) 
+      a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(tgt)
+    }
 
     val prepare: IO[Unit] = for {
       a <- s1Topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       b <- s1Topic.admin.newTopic(1, 1).attempt
       c <- tgt.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       d <- t2Topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
-      e <- t2Topic.send(t2Data) // populate table
+      f <- t2Topic.send(t2Data) // populate table
+      g <- g3Topic.send(g3Data)
     } yield {
       println(s"delete s1 topic:   $a")
       println(s"create s1 topic:   $b")
       println(s"delete tgt topic:  $c")
       println(s"delete t2 topic:   $d")
-      println(s"populate t2 topic: $e")
+      println(s"populate t2 topic: $f")
+      println(s"populate g3 topic: $g")
     }
 
     val populateS1Topic: Stream[IO, ProducerResult[Int, StreamOne, Unit]] = Stream
@@ -96,8 +114,8 @@ class KafkaStreamingTest extends AnyFunSuite {
       d <- harvest
     } yield d
 
-    val rst = runStream.compile.toList.unsafeRunSync().toSet
+    val res = runStream.compile.toList.unsafeRunSync().toSet
 
-    assert(rst == expected)
+    assert(res == expected)
   }
 }

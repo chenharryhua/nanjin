@@ -2,11 +2,41 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.Sync
 import cats.syntax.bifunctor._
+import cats.syntax.functor._
+import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.DatasetAvroFileHoarder
+import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.sql.Dataset
+
+import java.time.ZoneId
+
+final case class KafkaDataSummary(
+  partition: Int,
+  startOffset: Long,
+  endOffset: Long,
+  count: Long,
+  startTs: Long,
+  endTs: Long) {
+  val distance: Long = endOffset - startOffset + 1L
+  val gap: Long      = count - distance
+
+  def showData(zoneId: ZoneId): String =
+    s"""
+       |partition:    $partition
+       |first offset: $startOffset
+       |last offset:  $endOffset
+       |distance:     $distance
+       |count:        $count 
+       |gap:          $gap (should be zero when data is continuous)
+       |first TS:     ${NJTimestamp(startTs)
+      .atZone(zoneId)}($startTs) (not necessarily from the first offset)
+       |last TS:       ${NJTimestamp(endTs)
+      .atZone(zoneId)}($endTs) (not necessarily from the last offset)
+       |""".stripMargin
+}
 
 final class CrDS[F[_], K, V] private[kafka] (
   val topic: KafkaTopic[F, K, V],
@@ -15,8 +45,15 @@ final class CrDS[F[_], K, V] private[kafka] (
   val cfg: SKConfig)
     extends Serializable {
 
+  val params: SKParams = cfg.evalConfig
+
   def repartition(num: Int): CrDS[F, K, V] =
     new CrDS[F, K, V](topic, dataset.repartition(num), ate, cfg)
+
+  def partitionOf(num: Int): CrDS[F, K, V] = {
+    import org.apache.spark.sql.functions.col
+    new CrDS[F, K, V](topic, dataset.filter(col("partition") === num), ate, cfg)
+  }
 
   def persist: CrDS[F, K, V]   = new CrDS[F, K, V](topic, dataset.persist(), ate, cfg)
   def unpersist: CrDS[F, K, V] = new CrDS[F, K, V](topic, dataset.unpersist(), ate, cfg)
@@ -26,7 +63,6 @@ final class CrDS[F[_], K, V] private[kafka] (
     v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
     val ate: AvroTypedEncoder[OptionalKV[K2, V2]] = OptionalKV.ate(other.topicDef)
     new CrDS[F, K2, V2](other, dataset.map(_.bimap(k, v))(ate.sparkEncoder), ate, cfg).normalize
-
   }
 
   def map[K2, V2](f: OptionalKV[K, V] => OptionalKV[K2, V2])(other: KafkaTopic[F, K2, V2])(implicit
@@ -64,6 +100,32 @@ final class CrDS[F[_], K, V] private[kafka] (
   def stats: Statistics[F] = {
     val enc = TypedExpressionEncoder[CRMetaInfo]
     new Statistics[F](dataset.map(CRMetaInfo(_))(enc), cfg)
+  }
+
+  def first(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] = {
+    val tds = typedDataset
+    tds.orderBy(tds('timestamp).asc, tds('offset).asc, tds('partition).asc).headOption[F]
+  }
+
+  def last(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] = {
+    val tds = typedDataset
+    tds.orderBy(tds('timestamp).desc, tds('offset).desc, tds('partition).desc).headOption[F]
+  }
+
+  def summary(implicit F: Sync[F]): F[Unit] = {
+    import frameless.functions.aggregate.{max, min}
+    val tds = typedDataset
+    tds
+      .groupBy(tds('partition))
+      .agg(
+        min(tds('offset)),
+        max(tds('offset)),
+        frameless.functions.aggregate.count(tds.asCol),
+        min(tds('timestamp)),
+        max(tds('timestamp)))
+      .as[KafkaDataSummary]
+      .collect[F]()
+      .map(_.toList.sortBy(_.partition).foreach(x => println(x.showData(params.timeRange.zoneId))))
   }
 
   def crRdd: CrRdd[F, K, V] = new CrRdd[F, K, V](topic, dataset.rdd, cfg)(dataset.sparkSession)
