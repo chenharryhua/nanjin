@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Eq
 import cats.implicits._
-import frameless.cats.implicits._
+import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.functions.aggregate.count
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.rdd.RDD
@@ -27,21 +27,6 @@ final case class DupResult(partition: Int, offset: Long, num: Long)
 
 object inv {
 
-  /**
-    * offset increased exactly 1 in each partition
-    */
-  def missingData(tds: TypedDataset[CRMetaInfo]): TypedDataset[CRMetaInfo] =
-    tds.groupBy(tds('partition)).deserialized.flatMapGroups {
-      case (_, iter) =>
-        iter.sliding(2).flatMap {
-          case List(a, b) => if (a.offset + 1 === b.offset) None else Some(a)
-        }
-    }
-
-  /**
-    * kafka dataset could be saved in different format, avro, parquet,json, etc
-    * are they identical?
-    */
   def diffDataset[K: Eq: TypedEncoder, V: Eq: TypedEncoder](
     left: TypedDataset[OptionalKV[K, V]],
     right: TypedDataset[OptionalKV[K, V]]): TypedDataset[DiffResult[K, V]] =
@@ -49,12 +34,11 @@ object inv {
       .joinLeft(right)(
         (left('partition) === right('partition)) && (left('offset) === right('offset)))
       .deserialized
-      .flatMap {
-        case (m, om) =>
-          if (om.exists(o => (o.key === m.key) && (o.value === m.value)))
-            None
-          else
-            Some(DiffResult(m, om))
+      .flatMap { case (m, om) =>
+        if (om.exists(o => (o.key === m.key) && (o.value === m.value)))
+          None
+        else
+          Some(DiffResult(m, om))
       }
 
   def diffRdd[K: Eq, V: Eq](
@@ -63,17 +47,16 @@ object inv {
 
     val mine  = left.groupBy(okv => (okv.partition, okv.offset))
     val yours = right.groupBy(okv => (okv.partition, okv.offset))
-    mine.leftOuterJoin(yours).flatMap {
-      case ((_, _), (iterL, oIterR)) =>
-        for {
-          l <- iterL
-          r <- oIterR.traverse(_.toList)
-          dr <-
-            if (r.exists(o => (o.key === l.key) && (o.value === l.value)))
-              None
-            else
-              Some(DiffResult(l, r))
-        } yield dr
+    mine.leftOuterJoin(yours).flatMap { case ((_, _), (iterL, oIterR)) =>
+      for {
+        l <- iterL
+        r <- oIterR.traverse(_.toList)
+        dr <-
+          if (r.exists(o => (o.key === l.key) && (o.value === l.value)))
+            None
+          else
+            Some(DiffResult(l, r))
+      } yield dr
     }
   }
 
@@ -95,8 +78,7 @@ object inv {
     mine.subtract(yours)
   }
 
-  /**
-    * (partition, offset) should be unique
+  /** (partition, offset) should be unique
     */
   def dupRecords(tds: TypedDataset[CRMetaInfo]): TypedDataset[DupResult] =
     tds

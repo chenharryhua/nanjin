@@ -132,12 +132,6 @@ class InvestigationTest extends AnyFunSuite {
     assert(rst4 == kv)
   }
 
-  test("sparKafka missing data") {
-    assert(
-      Set(CRMetaInfo("topic", 1, 4, 4)) ==
-        inv.missingData(TypedDataset.create(mouses5)).collect[IO]().unsafeRunSync().toSet)
-
-  }
 
   test("sparKafka duplicate") {
     val rst: Set[DupResult] =

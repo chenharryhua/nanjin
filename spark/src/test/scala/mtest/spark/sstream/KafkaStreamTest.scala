@@ -54,7 +54,7 @@ class KafkaStreamTest extends AnyFunSuite {
     val rooster = roosterTopic.withTopicName("sstream.file.rooster").in(ctx)
 
     val path = root + "fileSink"
-    val ss = rooster.sparKafka.sstream
+    val ss = rooster.sparKafka.sstream.ignoreDataLoss
       .trigger(Trigger.ProcessingTime(500))
       .fileSink(path)
       .avro
@@ -83,6 +83,7 @@ class KafkaStreamTest extends AnyFunSuite {
     val ss = rooster
       .sparKafka(sydneyTime)
       .sstream
+      .ignoreDataLoss
       .trigger(Trigger.ProcessingTime(1000))
       .datePartitionFileSink[Int, Rooster](path)
       .parquet
@@ -102,6 +103,7 @@ class KafkaStreamTest extends AnyFunSuite {
 
     val ss = rooster.sparKafka.sstream
       .trigger(Trigger.ProcessingTime(1000))
+      .ignoreDataLoss
       .memorySink("kafka")
       .append
       .update
