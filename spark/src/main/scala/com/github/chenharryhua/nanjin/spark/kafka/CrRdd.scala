@@ -29,15 +29,19 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def withParamUpdate(f: SKConfig => SKConfig): CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, rdd, f(cfg))
 
+  def partitionOf(num: Int): CrRdd[F, K, V] =
+    new CrRdd[F, K, V](topic, rdd.filter(_.partition === num), cfg)
+
+  // inclusive
+  def offsetRange(start: Long, end: Long): CrRdd[F, K, V] =
+    new CrRdd[F, K, V](topic, rdd.filter(o => o.offset >= start && o.offset <= end), cfg)
+
   //transformation
   def normalize: CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, rdd.map(codec.idConversion), cfg)
 
   def persist: CrRdd[F, K, V]   = new CrRdd[F, K, V](topic, rdd.persist(), cfg)
   def unpersist: CrRdd[F, K, V] = new CrRdd[F, K, V](topic, rdd.unpersist(), cfg)
-
-  def partitionOf(num: Int): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](topic, rdd.filter(_.partition === num), cfg)
 
   def sortBy[A: Order: ClassTag](f: OptionalKV[K, V] => A, ascending: Boolean): CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, rdd.sortBy(f, ascending), cfg)
