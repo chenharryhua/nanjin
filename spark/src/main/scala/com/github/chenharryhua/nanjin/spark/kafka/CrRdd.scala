@@ -39,7 +39,7 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def partitionOf(num: Int): CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, rdd.filter(_.partition === num), cfg)
 
-  def sortBy[A: Order: ClassTag](f: OptionalKV[K, V] => A, ascending: Boolean) =
+  def sortBy[A: Order: ClassTag](f: OptionalKV[K, V] => A, ascending: Boolean): CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, rdd.sortBy(f, ascending), cfg)
 
   def ascending: CrRdd[F, K, V]  = sortBy(identity, ascending = true)

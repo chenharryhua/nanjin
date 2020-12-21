@@ -38,9 +38,9 @@ final private[kafka] case class KafkaDataSummary(
     else if (gap < 0) "probably lost data"
     else "oops how is it possible"})
        |first TS:     ${NJTimestamp(startTs)
-      .atZone(zoneId)}($startTs) (not necessarily from the first offset)
+      .atZone(zoneId)}($startTs) (not necessarily of the first offset)
        |last TS:      ${NJTimestamp(endTs)
-      .atZone(zoneId)}($endTs) (not necessarily from the last offset)
+      .atZone(zoneId)}($endTs) (not necessarily of the last offset)
        |""".stripMargin
 }
 

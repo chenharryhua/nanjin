@@ -68,24 +68,38 @@ final class CrDS[F[_], K, V] private[kafka] (
   def distinct: CrDS[F, K, V] =
     new CrDS[F, K, V](topic, dataset.distinct, ate, cfg)
 
-  def count(implicit F: Sync[F]): F[Long] = F.delay(dataset.count())
-
   def typedDataset: TypedDataset[OptionalKV[K, V]] = TypedDataset.create(dataset)(ate.typedEncoder)
+
+  def ascending: CrDS[F, K, V] = {
+    val tds = typedDataset
+    new CrDS[F, K, V](
+      topic,
+      tds.orderBy(tds('timestamp).asc, tds('offset).asc, tds('partition).asc).dataset,
+      ate,
+      cfg)
+  }
+
+  def descending: CrDS[F, K, V] = {
+    val tds = typedDataset
+    new CrDS[F, K, V](
+      topic,
+      tds.orderBy(tds('timestamp).desc, tds('offset).desc, tds('partition).desc).dataset,
+      ate,
+      cfg)
+  }
+
+  def count(implicit F: Sync[F]): F[Long] = F.delay(dataset.count())
 
   def stats: Statistics[F] = {
     val enc = TypedExpressionEncoder[CRMetaInfo]
     new Statistics[F](dataset.map(CRMetaInfo(_))(enc), cfg)
   }
 
-  def first(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] = {
-    val tds = typedDataset
-    tds.orderBy(tds('timestamp).asc, tds('offset).asc, tds('partition).asc).headOption[F]
-  }
+  def first(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] =
+    ascending.typedDataset.headOption()
 
-  def last(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] = {
-    val tds = typedDataset
-    tds.orderBy(tds('timestamp).desc, tds('offset).desc, tds('partition).desc).headOption[F]
-  }
+  def last(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] =
+    descending.typedDataset.headOption()
 
   def crRdd: CrRdd[F, K, V] = new CrRdd[F, K, V](topic, dataset.rdd, cfg)(dataset.sparkSession)
   def prRdd: PrRdd[F, K, V] = new PrRdd[F, K, V](topic, dataset.rdd.map(_.toNJProducerRecord), cfg)
