@@ -4,6 +4,7 @@ import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark._
+import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import frameless.cats.implicits._
 import fs2.Stream
 import fs2.kafka.ProducerResult
@@ -62,4 +63,9 @@ final class PrRdd[F[_], K, V] private[kafka] (
     upload(topic)
 
   def count(implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
+
+  def save: RddAvroFileHoarder[F, NJProducerRecord[K, V]] = {
+    val ac = NJProducerRecord.avroCodec(topic.topicDef)
+    new RddAvroFileHoarder[F, NJProducerRecord[K, V]](rdd, ac.avroEncoder)
+  }
 }

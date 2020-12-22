@@ -3,10 +3,9 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import alleycats.Empty
 import cats.implicits.toShow
 import cats.{Bifunctor, Eq, Show}
+import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.sksamuel.avro4s.{Decoder, Encoder, SchemaFor}
-import frameless.TypedEncoder
 import fs2.kafka.{ProducerRecord => Fs2ProducerRecord}
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
@@ -71,6 +70,24 @@ object NJProducerRecord {
 
   def apply[K, V](v: V): NJProducerRecord[K, V] =
     NJProducerRecord(None, None, None, Option(v))
+
+  def avroCodec[K, V](
+    keyCodec: AvroCodec[K],
+    valCodec: AvroCodec[V]): AvroCodec[NJProducerRecord[K, V]] = {
+    implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
+    implicit val schemaForVal: SchemaFor[V] = valCodec.schemaFor
+    implicit val keyDecoder: Decoder[K]     = keyCodec.avroDecoder
+    implicit val valDecoder: Decoder[V]     = valCodec.avroDecoder
+    implicit val keyEncoder: Encoder[K]     = keyCodec.avroEncoder
+    implicit val valEncoder: Encoder[V]     = valCodec.avroEncoder
+    val s: SchemaFor[NJProducerRecord[K, V]]      = cachedImplicit
+    val d: Decoder[NJProducerRecord[K, V]]        = cachedImplicit
+    val e: Encoder[NJProducerRecord[K, V]]        = cachedImplicit
+    AvroCodec[NJProducerRecord[K, V]](s, d, e)
+  }
+
+  def avroCodec[K, V](topicDef: TopicDef[K, V]): AvroCodec[NJProducerRecord[K, V]] =
+    avroCodec(topicDef.serdeOfKey.avroCodec, topicDef.serdeOfVal.avroCodec)
 
   implicit def eqNJProducerRecord[K: Eq, V: Eq]: Eq[NJProducerRecord[K, V]] =
     cats.derived.semiauto.eq[NJProducerRecord[K, V]]
