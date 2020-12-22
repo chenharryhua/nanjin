@@ -74,7 +74,7 @@ class CrDSTest extends AnyFunSuite {
     assert(crRdd.partitionOf(0).rdd.collect.size == 4)
     assert(
       crRdd
-        .inRange(Instant.now.minusSeconds(50).toString, Instant.now().toString)
+        .timeRange(Instant.now.minusSeconds(50).toString, Instant.now().toString)
         .rdd
         .collect
         .size == 4)

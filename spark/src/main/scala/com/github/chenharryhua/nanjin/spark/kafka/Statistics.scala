@@ -6,10 +6,11 @@ import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.functions.aggregate.count
-import frameless.{Injection, TypedDataset}
+import frameless.{Injection, TypedDataset, TypedExpressionEncoder}
 import org.apache.spark.sql.Dataset
 
 import java.time.{LocalDate, ZoneId, ZonedDateTime}
+import scala.concurrent.duration.{FiniteDuration, HOURS, MILLISECONDS}
 
 final private[kafka] case class MinutelyAggResult(minute: Int, count: Long)
 final private[kafka] case class HourlyAggResult(hour: Int, count: Long)
@@ -24,23 +25,25 @@ final private[kafka] case class KafkaDataSummary(
   count: Long,
   startTs: Long,
   endTs: Long) {
-  val distance: Long = endOffset - startOffset + 1L
-  val gap: Long      = count - distance
+  val distance: Long               = endOffset - startOffset + 1L
+  val gap: Long                    = count - distance
+  val timeDistance: FiniteDuration = FiniteDuration(endTs - startTs, MILLISECONDS)
 
   def showData(zoneId: ZoneId): String =
     s"""
-       |partition:    $partition
-       |first offset: $startOffset
-       |last offset:  $endOffset
-       |distance:     $distance
-       |count:        $count
-       |gap:          $gap (${if (gap == 0) "perfect"
+       |partition:     $partition
+       |first offset:  $startOffset
+       |last offset:   $endOffset
+       |distance:      $distance
+       |count:         $count
+       |gap:           $gap (${if (gap == 0) "perfect"
     else if (gap < 0) "probably lost data"
     else "oops how is it possible"})
-       |first TS:     ${NJTimestamp(startTs)
-      .atZone(zoneId)}($startTs) (not necessarily of the first offset)
-       |last TS:      ${NJTimestamp(endTs)
-      .atZone(zoneId)}($endTs) (not necessarily of the last offset)
+       |first TS:      $startTs(${NJTimestamp(startTs)
+      .atZone(zoneId)} not necessarily of the first offset)
+       |last TS:       $endTs(${NJTimestamp(endTs)
+      .atZone(zoneId)} not necessarily of the last offset)
+       |time distance: ${timeDistance.toHours} Hours
        |""".stripMargin
 }
 
@@ -123,19 +126,23 @@ final class Statistics[F[_]] private[kafka] (ds: Dataset[CRMetaInfo], cfg: SKCon
         min(tds('timestamp)),
         max(tds('timestamp)))
       .as[KafkaDataSummary]
-    res.orderBy(res('partition).asc)
+    res.orderBy(res('partition).asc) 
   }
 
   def summary(implicit ev: Sync[F]): F[Unit] =
     kafkaSummary.collect[F]().map(_.foreach(x => println(x.showData(params.timeRange.zoneId))))
 
-  def missingOffsets: TypedDataset[MissingOffset] = {
-    val tds = typedDataset
-    val res = tds.groupBy(tds('partition)).deserialized.flatMapGroups { case (p, iter) =>
-      iter.sliding(2).flatMap { case List(a, b) =>
-        if (a.offset + 1 == b.offset) None else Some(MissingOffset(p, a.offset + 1))
-      }
+  def missingOffsets(implicit ev: Sync[F]): TypedDataset[MissingOffset] = {
+    import org.apache.spark.sql.functions.col
+    val enc = TypedExpressionEncoder[Long]
+    val all = kafkaSummary.dataset.collect().map { kds =>
+      val expected = ds.sparkSession.range(kds.startOffset, kds.endOffset + 1L).map(_.toLong)(enc)
+      val exist =
+        ds.filter(col("partition") === kds.partition).map(_.offset)(enc)
+      expected
+        .except(exist)
+        .map(os => MissingOffset(kds.partition, os))(TypedExpressionEncoder[MissingOffset])
     }
-    res.orderBy(res('partition).asc, res('offset).asc)
+    TypedDataset.create(all.reduce(_.union(_)).orderBy(col("partition").asc, col("offset").asc))
   }
 }

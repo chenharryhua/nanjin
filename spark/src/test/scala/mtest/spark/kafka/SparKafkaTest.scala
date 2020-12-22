@@ -101,7 +101,7 @@ class SparKafkaTest extends AnyFunSuite {
       src
         .sparKafka(range)
         .crRdd(ds.rdd)
-        .inRange
+        .timeRange
         .flatMap(m => m.value.map(x => OptionalKV.value.set(Some(x - 1))(m)))(t)
         .values
         .collect()
