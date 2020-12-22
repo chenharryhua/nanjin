@@ -1,9 +1,17 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
+import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync}
+import com.github.chenharryhua.nanjin.devices.NJHadoop
+import com.github.chenharryhua.nanjin.pipes.{
+  CirceSerialization,
+  GenericRecordCodec,
+  JacksonSerialization
+}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.sksamuel.avro4s.{AvroInputStream, Decoder => AvroDecoder}
 import frameless.TypedDataset
 import frameless.cats.implicits._
+import fs2.Stream
 import io.circe.parser.decode
 import io.circe.{Decoder => JsonDecoder}
 import kantan.csv.CsvConfiguration
@@ -11,6 +19,7 @@ import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericRecord}
 import org.apache.avro.io.DecoderFactory
 import org.apache.avro.mapred.AvroKey
 import org.apache.avro.mapreduce.{AvroJob, AvroKeyInputFormat}
+import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.NullWritable
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
@@ -134,5 +143,39 @@ object loaders {
         }
       }
     }
+  }
+
+  object stream {
+
+    def jackson[F[_]: ContextShift: ConcurrentEffect, A](
+      pathStr: String,
+      decoder: AvroDecoder[A],
+      configuration: Configuration,
+      blocker: Blocker): Stream[F, A] = {
+      val hadoop = NJHadoop(configuration, blocker)
+      val jk     = new JacksonSerialization[F](decoder.schema)
+      val gr     = new GenericRecordCodec[F, A]
+      hadoop.byteSource(pathStr).through(jk.deserialize).through(gr.decode(decoder))
+    }
+  }
+
+  def avro[F[_]: ContextShift: Sync, A](
+    pathStr: String,
+    decoder: AvroDecoder[A],
+    configuration: Configuration,
+    blocker: Blocker): Stream[F, A] = {
+    val hadoop = NJHadoop(configuration, blocker)
+    val gr     = new GenericRecordCodec[F, A]
+    hadoop.avroSource(pathStr, decoder.schema).through(gr.decode(decoder))
+  }
+
+  def circe[F[_]: ContextShift: Sync, A: JsonDecoder](
+    pathStr: String,
+    configuration: Configuration,
+    blocker: Blocker): Stream[F, A] = {
+    val hadoop = NJHadoop(configuration, blocker)
+    val cs     = new CirceSerialization[F, A]
+    val gr     = new GenericRecordCodec[F, A]
+    hadoop.byteSource(pathStr).through(cs.deserialize)
   }
 }
