@@ -4,6 +4,7 @@ import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark._
+import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import frameless.cats.implicits._
 import fs2.Stream
 import fs2.kafka.ProducerResult
@@ -12,9 +13,9 @@ import org.apache.spark.rdd.RDD
 import scala.concurrent.duration.FiniteDuration
 
 final class PrRdd[F[_], K, V] private[kafka] (
-  topic: KafkaTopic[F, K, V],
-  rdd: RDD[NJProducerRecord[K, V]],
-  cfg: SKConfig
+  val topic: KafkaTopic[F, K, V],
+  val rdd: RDD[NJProducerRecord[K, V]],
+  val cfg: SKConfig
 ) extends Serializable {
 
   val params: SKParams = cfg.evalConfig
@@ -30,6 +31,8 @@ final class PrRdd[F[_], K, V] private[kafka] (
 
   def timeLimit(ms: Long): PrRdd[F, K, V]           = withParamUpdate(_.withUploadTimeLimit(ms))
   def timeLimit(fd: FiniteDuration): PrRdd[F, K, V] = withParamUpdate(_.withUploadTimeLimit(fd))
+
+  def ascending: PrRdd[F, K, V] = new PrRdd(topic, rdd.sortBy(_.timestamp, ascending = true), cfg)
 
   def noTimestamp: PrRdd[F, K, V] =
     new PrRdd[F, K, V](topic, rdd.map(_.noTimestamp), cfg)
@@ -60,4 +63,9 @@ final class PrRdd[F[_], K, V] private[kafka] (
     upload(topic)
 
   def count(implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
+
+  def save: RddAvroFileHoarder[F, NJProducerRecord[K, V]] = {
+    val ac = NJProducerRecord.avroCodec(topic.topicDef)
+    new RddAvroFileHoarder[F, NJProducerRecord[K, V]](rdd, ac.avroEncoder)
+  }
 }

@@ -101,7 +101,7 @@ class SparKafkaTest extends AnyFunSuite {
       src
         .sparKafka(range)
         .crRdd(ds.rdd)
-        .inRange
+        .timeRange
         .flatMap(m => m.value.map(x => OptionalKV.value.set(Some(x - 1))(m)))(t)
         .values
         .collect()
@@ -121,7 +121,8 @@ class SparKafkaTest extends AnyFunSuite {
       .sparKafka(range)
       .crRdd(ds.rdd)
       .repartition(3)
-      .descending
+      .tsAscending
+      .tsDescending
       .withParamUpdate(_.withShowRows(3))
       .dismissNulls
       .replicate(3)

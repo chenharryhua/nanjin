@@ -25,7 +25,7 @@ class SparkExtTest extends AnyFunSuite {
     ctx.topic[String, trip_record]("nyc_yellow_taxi_trip_data")
   test("stream") {
     topic.sparKafka.fromKafka
-      .flatMap(_.ascending.crDS.typedDataset.stream[IO].compile.drain)
+      .flatMap(_.tsAscending.crDS.typedDataset.stream[IO].compile.drain)
       .unsafeRunSync
   }
   test("source") {
@@ -33,7 +33,7 @@ class SparkExtTest extends AnyFunSuite {
       .sparKafka(range)
       .fromKafka
       .flatMap(
-        _.ascending.crDS.typedDataset
+        _.crDS.tsDescending.tsAscending.typedDataset
           .source[IO]
           .map(println)
           .take(10)

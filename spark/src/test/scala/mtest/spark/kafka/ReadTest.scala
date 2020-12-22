@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.spark.kafka.{CompulsoryKV, _}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.{TypedDataset, TypedEncoder}
 import io.circe.generic.auto._
-import mtest.spark.{ctx, sparkSession}
+import mtest.spark.{blocker, contextShift, ctx, sparkSession}
 import org.apache.spark.sql.SaveMode
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -76,5 +76,16 @@ class ReadTest extends AnyFunSuite {
     data.write.mode(SaveMode.Overwrite).json(path)
     assert(topic.load.json(path).dataset.collect.toSet == dogs.toSet)
     assert(topic.load.circe(path).dataset.collect.toSet == dogs.toSet)
+  }
+  test("sparKafka save producer records") {
+    val path = "./data/test/spark/kafka/pr/json"
+    topic
+      .crRdd(sparkSession.sparkContext.parallelize(dogs))
+      .prRdd
+      .ascending
+      .save
+      .circe(path)
+      .run(blocker)
+      .unsafeRunSync()
   }
 }

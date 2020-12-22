@@ -48,12 +48,6 @@ final class SparKafka[F[_], K, V](
   def countKafka(implicit F: Sync[F]): F[Long] = fromKafka.flatMap(_.count)
   def countDisk(implicit F: Sync[F]): F[Long]  = fromDisk.count
 
-  def pipeTo(other: KafkaTopic[F, K, V])(implicit
-    ce: ConcurrentEffect[F],
-    timer: Timer[F],
-    cs: ContextShift[F]): F[Unit] =
-    fromKafka.flatMap(_.pipeTo(other))
-
   def load: KafkaLoadFile[F, K, V] = new KafkaLoadFile[F, K, V](this)
 
   /** rdd and dataset

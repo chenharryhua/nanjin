@@ -36,18 +36,32 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def offsetRange(start: Long, end: Long): CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, rdd.filter(o => o.offset >= start && o.offset <= end), cfg)
 
+  def offsetAscending: CrRdd[F, K, V]  = sortBy(_.offset, ascending = true)
+  def offsetDescending: CrRdd[F, K, V] = sortBy(_.offset, ascending = false)
+
+  def timeRange(dr: NJDateTimeRange): CrRdd[F, K, V] =
+    new CrRdd[F, K, V](topic, rdd.filter(m => dr.isInBetween(m.timestamp)), cfg.withTimeRange(dr))
+
+  def timeRange: CrRdd[F, K, V] = timeRange(params.timeRange)
+
+  def timeRange(start: String, end: String): CrRdd[F, K, V] =
+    timeRange(params.timeRange.withTimeRange(start, end))
+
+  def sortBy[A: Order: ClassTag](f: OptionalKV[K, V] => A, ascending: Boolean): CrRdd[F, K, V] =
+    new CrRdd[F, K, V](topic, rdd.sortBy(f, ascending), cfg)
+
+  def tsAscending: CrRdd[F, K, V]  = sortBy(identity, ascending = true)
+  def tsDescending: CrRdd[F, K, V] = sortBy(identity, ascending = false)
+
+  def first(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] = F.delay(rdd.cminOption)
+  def last(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]]  = F.delay(rdd.cmaxOption)
+
   //transformation
   def normalize: CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, rdd.map(codec.idConversion), cfg)
 
   def persist: CrRdd[F, K, V]   = new CrRdd[F, K, V](topic, rdd.persist(), cfg)
   def unpersist: CrRdd[F, K, V] = new CrRdd[F, K, V](topic, rdd.unpersist(), cfg)
-
-  def sortBy[A: Order: ClassTag](f: OptionalKV[K, V] => A, ascending: Boolean): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](topic, rdd.sortBy(f, ascending), cfg)
-
-  def ascending: CrRdd[F, K, V]  = sortBy(identity, ascending = true)
-  def descending: CrRdd[F, K, V] = sortBy(identity, ascending = false)
 
   def repartition(num: Int): CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, rdd.repartition(num), cfg)
@@ -74,14 +88,6 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def dismissNulls: CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, rdd.dismissNulls, cfg)
 
-  def inRange(dr: NJDateTimeRange): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](topic, rdd.filter(m => dr.isInBetween(m.timestamp)), cfg.withTimeRange(dr))
-
-  def inRange: CrRdd[F, K, V] = inRange(params.timeRange)
-
-  def inRange(start: String, end: String): CrRdd[F, K, V] =
-    inRange(params.timeRange.withTimeRange(start, end))
-
   def replicate(num: Int): CrRdd[F, K, V] = {
     val rep = (1 until num).foldLeft(rdd) { case (r, _) => r.union(rdd) }
     new CrRdd[F, K, V](topic, rep, cfg)
@@ -105,21 +111,12 @@ final class CrRdd[F[_], K, V] private[kafka] (
   // upload
   def prRdd: PrRdd[F, K, V] = new PrRdd[F, K, V](topic, rdd.map(_.toNJProducerRecord), cfg)
 
-  def pipeTo(otherTopic: KafkaTopic[F, K, V])(implicit
-    ce: ConcurrentEffect[F],
-    timer: Timer[F],
-    cs: ContextShift[F]): F[Unit] =
-    prRdd.noMeta.upload(otherTopic).map(_ => print(".")).compile.drain
-
   def upload(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
-    pipeTo(topic)
+    prRdd.noMeta.upload(topic).map(_ => print(".")).compile.drain
 
   // save
   def save: RddAvroFileHoarder[F, OptionalKV[K, V]] =
     new RddAvroFileHoarder[F, OptionalKV[K, V]](rdd, codec.avroEncoder)
-
-  def first(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] = F.delay(rdd.cminOption)
-  def last(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]]  = F.delay(rdd.cmaxOption)
 
   def count(implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
 

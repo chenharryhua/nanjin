@@ -23,9 +23,31 @@ final class CrDS[F[_], K, V] private[kafka] (
   def partitionOf(num: Int): CrDS[F, K, V] =
     new CrDS[F, K, V](topic, dataset.filter(col("partition") === num), ate, cfg)
 
+  def typedDataset: TypedDataset[OptionalKV[K, V]] = TypedDataset.create(dataset)(ate.typedEncoder)
+
   // inclusive
   def offsetRange(start: Long, end: Long): CrDS[F, K, V] =
     new CrDS[F, K, V](topic, dataset.filter(col("offset").between(start, end)), ate, cfg)
+
+  def offsetAscending: CrDS[F, K, V] =
+    new CrDS[F, K, V](topic, dataset.orderBy(col("offset").asc), ate, cfg)
+
+  def offsetDescending: CrDS[F, K, V] =
+    new CrDS[F, K, V](topic, dataset.orderBy(col("offset").desc), ate, cfg)
+
+  def tsAscending: CrDS[F, K, V] =
+    new CrDS[F, K, V](
+      topic,
+      dataset.orderBy(col("timestamp").asc, col("offset").asc, col("partition").asc),
+      ate,
+      cfg)
+
+  def tsDescending: CrDS[F, K, V] =
+    new CrDS[F, K, V](
+      topic,
+      dataset.orderBy(col("timestamp").desc, col("offset").desc, col("partition").desc),
+      ate,
+      cfg)
 
   def repartition(num: Int): CrDS[F, K, V] =
     new CrDS[F, K, V](topic, dataset.repartition(num), ate, cfg)
@@ -54,7 +76,6 @@ final class CrDS[F[_], K, V] private[kafka] (
     v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
     val ate: AvroTypedEncoder[OptionalKV[K2, V2]] = OptionalKV.ate(other.topicDef)
     new CrDS[F, K2, V2](other, dataset.flatMap(f)(ate.sparkEncoder), ate, cfg).normalize
-
   }
 
   def normalize: CrDS[F, K, V] = new CrDS[F, K, V](topic, ate.normalize(dataset).dataset, ate, cfg)
@@ -71,34 +92,12 @@ final class CrDS[F[_], K, V] private[kafka] (
   def distinct: CrDS[F, K, V] =
     new CrDS[F, K, V](topic, dataset.distinct, ate, cfg)
 
-  def typedDataset: TypedDataset[OptionalKV[K, V]] = TypedDataset.create(dataset)(ate.typedEncoder)
-
-  def ascending: CrDS[F, K, V] =
-    new CrDS[F, K, V](
-      topic,
-      dataset.orderBy(col("timestamp").asc, col("offset").asc, col("partition").asc),
-      ate,
-      cfg)
-
-  def descending: CrDS[F, K, V] =
-    new CrDS[F, K, V](
-      topic,
-      dataset.orderBy(col("timestamp").desc, col("offset").desc, col("partition").desc),
-      ate,
-      cfg)
-
   def count(implicit F: Sync[F]): F[Long] = F.delay(dataset.count())
 
   def stats: Statistics[F] = {
     val enc = TypedExpressionEncoder[CRMetaInfo]
     new Statistics[F](dataset.map(CRMetaInfo(_))(enc), cfg)
   }
-
-  def first(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] =
-    ascending.typedDataset.headOption()
-
-  def last(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] =
-    descending.typedDataset.headOption()
 
   def crRdd: CrRdd[F, K, V] = new CrRdd[F, K, V](topic, dataset.rdd, cfg)(dataset.sparkSession)
   def prRdd: PrRdd[F, K, V] = new PrRdd[F, K, V](topic, dataset.rdd.map(_.toNJProducerRecord), cfg)
