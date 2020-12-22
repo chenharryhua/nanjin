@@ -13,9 +13,9 @@ import org.apache.spark.rdd.RDD
 import scala.concurrent.duration.FiniteDuration
 
 final class PrRdd[F[_], K, V] private[kafka] (
-  topic: KafkaTopic[F, K, V],
-  rdd: RDD[NJProducerRecord[K, V]],
-  cfg: SKConfig
+  val topic: KafkaTopic[F, K, V],
+  val rdd: RDD[NJProducerRecord[K, V]],
+  val cfg: SKConfig
 ) extends Serializable {
 
   val params: SKParams = cfg.evalConfig

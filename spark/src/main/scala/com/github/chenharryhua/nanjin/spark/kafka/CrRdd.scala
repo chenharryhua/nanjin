@@ -36,6 +36,9 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def offsetRange(start: Long, end: Long): CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, rdd.filter(o => o.offset >= start && o.offset <= end), cfg)
 
+  def offsetAscending: CrRdd[F, K, V]  = sortBy(_.offset, ascending = true)
+  def offsetDescending: CrRdd[F, K, V] = sortBy(_.offset, ascending = false)
+
   def timeRange(dr: NJDateTimeRange): CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, rdd.filter(m => dr.isInBetween(m.timestamp)), cfg.withTimeRange(dr))
 
@@ -47,11 +50,8 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def sortBy[A: Order: ClassTag](f: OptionalKV[K, V] => A, ascending: Boolean): CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, rdd.sortBy(f, ascending), cfg)
 
-  def ascending: CrRdd[F, K, V]  = sortBy(identity, ascending = true)
-  def descending: CrRdd[F, K, V] = sortBy(identity, ascending = false)
-
-  def ascendingByOffset: CrRdd[F, K, V]  = sortBy(_.offset, ascending = true)
-  def descendingByOffset: CrRdd[F, K, V] = sortBy(_.offset, ascending = false)
+  def tsAscending: CrRdd[F, K, V]  = sortBy(identity, ascending = true)
+  def tsDescending: CrRdd[F, K, V] = sortBy(identity, ascending = false)
 
   def first(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] = F.delay(rdd.cminOption)
   def last(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]]  = F.delay(rdd.cmaxOption)

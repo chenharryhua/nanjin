@@ -29,31 +29,25 @@ final class CrDS[F[_], K, V] private[kafka] (
   def offsetRange(start: Long, end: Long): CrDS[F, K, V] =
     new CrDS[F, K, V](topic, dataset.filter(col("offset").between(start, end)), ate, cfg)
 
-  def ascending: CrDS[F, K, V] =
+  def offsetAscending: CrDS[F, K, V] =
+    new CrDS[F, K, V](topic, dataset.orderBy(col("offset").asc), ate, cfg)
+
+  def offsetDescending: CrDS[F, K, V] =
+    new CrDS[F, K, V](topic, dataset.orderBy(col("offset").desc), ate, cfg)
+
+  def tsAscending: CrDS[F, K, V] =
     new CrDS[F, K, V](
       topic,
       dataset.orderBy(col("timestamp").asc, col("offset").asc, col("partition").asc),
       ate,
       cfg)
 
-  def descending: CrDS[F, K, V] =
+  def tsDescending: CrDS[F, K, V] =
     new CrDS[F, K, V](
       topic,
       dataset.orderBy(col("timestamp").desc, col("offset").desc, col("partition").desc),
       ate,
       cfg)
-
-  def ascendingByOffset: CrDS[F, K, V] =
-    new CrDS[F, K, V](topic, dataset.orderBy(col("offset").asc), ate, cfg)
-
-  def descendingByOffset: CrDS[F, K, V] =
-    new CrDS[F, K, V](topic, dataset.orderBy(col("offset").desc), ate, cfg)
-
-  def first(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] =
-    ascending.typedDataset.headOption()
-
-  def last(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] =
-    descending.typedDataset.headOption()
 
   def repartition(num: Int): CrDS[F, K, V] =
     new CrDS[F, K, V](topic, dataset.repartition(num), ate, cfg)
