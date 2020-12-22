@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.spark.persist.DatasetAvroFileHoarder
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.functions.col
 
 final class CrDS[F[_], K, V] private[kafka] (
   val topic: KafkaTopic[F, K, V],
@@ -19,13 +20,15 @@ final class CrDS[F[_], K, V] private[kafka] (
 
   val params: SKParams = cfg.evalConfig
 
+  def partitionOf(num: Int): CrDS[F, K, V] =
+    new CrDS[F, K, V](topic, dataset.filter(col("partition") === num), ate, cfg)
+
+  // inclusive
+  def offsetRange(start: Long, end: Long): CrDS[F, K, V] =
+    new CrDS[F, K, V](topic, dataset.filter(col("offset").between(start, end)), ate, cfg)
+
   def repartition(num: Int): CrDS[F, K, V] =
     new CrDS[F, K, V](topic, dataset.repartition(num), ate, cfg)
-
-  def partitionOf(num: Int): CrDS[F, K, V] = {
-    import org.apache.spark.sql.functions.col
-    new CrDS[F, K, V](topic, dataset.filter(col("partition") === num), ate, cfg)
-  }
 
   def persist: CrDS[F, K, V]   = new CrDS[F, K, V](topic, dataset.persist(), ate, cfg)
   def unpersist: CrDS[F, K, V] = new CrDS[F, K, V](topic, dataset.unpersist(), ate, cfg)
@@ -68,24 +71,34 @@ final class CrDS[F[_], K, V] private[kafka] (
   def distinct: CrDS[F, K, V] =
     new CrDS[F, K, V](topic, dataset.distinct, ate, cfg)
 
-  def count(implicit F: Sync[F]): F[Long] = F.delay(dataset.count())
-
   def typedDataset: TypedDataset[OptionalKV[K, V]] = TypedDataset.create(dataset)(ate.typedEncoder)
+
+  def ascending: CrDS[F, K, V] =
+    new CrDS[F, K, V](
+      topic,
+      dataset.orderBy(col("timestamp").asc, col("offset").asc, col("partition").asc),
+      ate,
+      cfg)
+
+  def descending: CrDS[F, K, V] =
+    new CrDS[F, K, V](
+      topic,
+      dataset.orderBy(col("timestamp").desc, col("offset").desc, col("partition").desc),
+      ate,
+      cfg)
+
+  def count(implicit F: Sync[F]): F[Long] = F.delay(dataset.count())
 
   def stats: Statistics[F] = {
     val enc = TypedExpressionEncoder[CRMetaInfo]
     new Statistics[F](dataset.map(CRMetaInfo(_))(enc), cfg)
   }
 
-  def first(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] = {
-    val tds = typedDataset
-    tds.orderBy(tds('timestamp).asc, tds('offset).asc, tds('partition).asc).headOption[F]
-  }
+  def first(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] =
+    ascending.typedDataset.headOption()
 
-  def last(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] = {
-    val tds = typedDataset
-    tds.orderBy(tds('timestamp).desc, tds('offset).desc, tds('partition).desc).headOption[F]
-  }
+  def last(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] =
+    descending.typedDataset.headOption()
 
   def crRdd: CrRdd[F, K, V] = new CrRdd[F, K, V](topic, dataset.rdd, cfg)(dataset.sparkSession)
   def prRdd: PrRdd[F, K, V] = new PrRdd[F, K, V](topic, dataset.rdd.map(_.toNJProducerRecord), cfg)
