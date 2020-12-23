@@ -54,7 +54,14 @@ object MissingOffset {
   implicit val teMissingOffset: TypedEncoder[MissingOffset] = shapeless.cachedImplicit
 }
 
-final case class Disorder(partition: Int, offset: Long, timestamp: Long, ts: ZonedDateTime)
+final case class Disorder(
+  partition: Int,
+  offset: Long,
+  timestamp: Long,
+  ts: ZonedDateTime,
+  nextTS: Long,
+  msGap: Long,
+  tsType: Int)
 
 final class Statistics[F[_]] private[kafka] (ds: Dataset[CRMetaInfo], cfg: SKConfig)
     extends Serializable {
@@ -154,23 +161,27 @@ final class Statistics[F[_]] private[kafka] (ds: Dataset[CRMetaInfo], cfg: SKCon
   }
 
   def disorders: TypedDataset[Disorder] = {
-    val all: Array[RDD[Disorder]] = kafkaSummary.dataset.collect().map { kds =>
-      val rdd: RDD[(Long, CRMetaInfo)] =
-        ds.rdd.filter(_.partition == kds.partition).sortBy(_.offset).zipWithIndex().map(_.swap)
-      val rdd2: RDD[(Long, CRMetaInfo)] =
-        rdd.map { case (index, crm) => (index + 1, crm) }
 
-      rdd.join(rdd2).flatMap { case (_, (c1, c2)) =>
-        if (c1.timestamp >= c2.timestamp) None
-        else
-          Some(
-            Disorder(
-              kds.partition,
-              c1.offset,
-              c1.timestamp,
-              NJTimestamp(c1.timestamp).atZone(params.timeRange.zoneId)))
+    val all: Array[RDD[Disorder]] =
+      ds.map(_.partition)(TypedExpressionEncoder[Int]).distinct().collect().map { partition =>
+        val curr: RDD[(Long, CRMetaInfo)] =
+          ds.rdd.filter(_.partition == partition).map(x => (x.offset, x))
+        val pre: RDD[(Long, CRMetaInfo)] = curr.map { case (index, crm) => (index + 1, crm) }
+
+        curr.join(pre).flatMap { case (_, (c, p)) =>
+          if (c.timestamp >= p.timestamp) None
+          else
+            Some(
+              Disorder(
+                partition,
+                p.offset,
+                p.timestamp,
+                NJTimestamp(p.timestamp).atZone(params.timeRange.zoneId),
+                c.timestamp,
+                p.timestamp - c.timestamp,
+                c.timestampType))
+        }
       }
-    }
     val tds = TypedDataset.create(all.reduce(_.union(_)))(TypedEncoder[Disorder], ds.sparkSession)
     tds.orderBy(tds('partition).asc, tds('offset).asc)
   }
