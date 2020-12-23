@@ -6,11 +6,11 @@ import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.functions.aggregate.count
-import frameless.{Injection, TypedDataset, TypedExpressionEncoder}
+import frameless.{Injection, TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.sql.Dataset
 
 import java.time.{LocalDate, ZoneId, ZonedDateTime}
-import scala.concurrent.duration.{FiniteDuration, HOURS, MILLISECONDS}
+import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
 final private[kafka] case class MinutelyAggResult(minute: Int, count: Long)
 final private[kafka] case class HourlyAggResult(hour: Int, count: Long)
@@ -48,6 +48,10 @@ final private[kafka] case class KafkaDataSummary(
 }
 
 final case class MissingOffset(partition: Int, offset: Long)
+
+object MissingOffset {
+  implicit val teMissingOffset: TypedEncoder[MissingOffset] = shapeless.cachedImplicit
+}
 
 final class Statistics[F[_]] private[kafka] (ds: Dataset[CRMetaInfo], cfg: SKConfig)
     extends Serializable {
@@ -126,7 +130,7 @@ final class Statistics[F[_]] private[kafka] (ds: Dataset[CRMetaInfo], cfg: SKCon
         min(tds('timestamp)),
         max(tds('timestamp)))
       .as[KafkaDataSummary]
-    res.orderBy(res('partition).asc) 
+    res.orderBy(res('partition).asc)
   }
 
   def summary(implicit ev: Sync[F]): F[Unit] =

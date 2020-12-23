@@ -79,7 +79,7 @@ private[spark] trait DatasetExtensions {
       extends Serializable {
 
     def dataframe(tableName: String): DataFrame =
-      sd.unloadDF(dbSettings.hikariConfig, TableName.unsafeFrom(tableName), None)(ss)
+      sd.unloadDF(dbSettings.hikariConfig, TableName.unsafeFrom(tableName), None, ss)
 
     def genCaseClass(tableName: String): String  = dataframe(tableName).genCaseClass
     def genSchema(tableName: String): Schema     = dataframe(tableName).genSchema
@@ -87,7 +87,7 @@ private[spark] trait DatasetExtensions {
 
     def table[A](tableDef: TableDef[A]): SparkTable[F, A] = {
       val cfg = STConfig(dbSettings.database, tableDef.tableName)
-      new SparkTable[F, A](tableDef, dbSettings, cfg)(ss)
+      new SparkTable[F, A](tableDef, dbSettings, cfg, ss)
     }
   }
 
@@ -97,9 +97,8 @@ private[spark] trait DatasetExtensions {
     def topic[K, V](topicDef: TopicDef[K, V]): SparKafka[F, K, V] =
       new SparKafka[F, K, V](
         topicDef.in[F](ctx),
-        ss,
-        SKConfig(topicDef.topicName, ZoneId.systemDefault())
-      )
+        SKConfig(topicDef.topicName, ZoneId.systemDefault()),
+        ss)
   }
 
   implicit final class SparkSessionExt(ss: SparkSession) extends Serializable {

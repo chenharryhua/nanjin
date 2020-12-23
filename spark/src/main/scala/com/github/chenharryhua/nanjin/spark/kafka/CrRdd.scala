@@ -18,7 +18,8 @@ import scala.reflect.ClassTag
 final class CrRdd[F[_], K, V] private[kafka] (
   val topic: KafkaTopic[F, K, V],
   val rdd: RDD[OptionalKV[K, V]],
-  val cfg: SKConfig)(implicit val sparkSession: SparkSession)
+  val cfg: SKConfig,
+  val sparkSession: SparkSession)
     extends Serializable {
 
   protected val codec: AvroCodec[OptionalKV[K, V]] =
@@ -27,20 +28,28 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def params: SKParams = cfg.evalConfig
 
   def withParamUpdate(f: SKConfig => SKConfig): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](topic, rdd, f(cfg))
+    new CrRdd[F, K, V](topic, rdd, f(cfg), sparkSession)
 
   def partitionOf(num: Int): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](topic, rdd.filter(_.partition === num), cfg)
+    new CrRdd[F, K, V](topic, rdd.filter(_.partition === num), cfg, sparkSession)
 
   // inclusive
   def offsetRange(start: Long, end: Long): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](topic, rdd.filter(o => o.offset >= start && o.offset <= end), cfg)
+    new CrRdd[F, K, V](
+      topic,
+      rdd.filter(o => o.offset >= start && o.offset <= end),
+      cfg,
+      sparkSession)
 
   def offsetAscending: CrRdd[F, K, V]  = sortBy(_.offset, ascending = true)
   def offsetDescending: CrRdd[F, K, V] = sortBy(_.offset, ascending = false)
 
   def timeRange(dr: NJDateTimeRange): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](topic, rdd.filter(m => dr.isInBetween(m.timestamp)), cfg.withTimeRange(dr))
+    new CrRdd[F, K, V](
+      topic,
+      rdd.filter(m => dr.isInBetween(m.timestamp)),
+      cfg.withTimeRange(dr),
+      sparkSession)
 
   def timeRange: CrRdd[F, K, V] = timeRange(params.timeRange)
 
@@ -48,7 +57,7 @@ final class CrRdd[F[_], K, V] private[kafka] (
     timeRange(params.timeRange.withTimeRange(start, end))
 
   def sortBy[A: Order: ClassTag](f: OptionalKV[K, V] => A, ascending: Boolean): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](topic, rdd.sortBy(f, ascending), cfg)
+    new CrRdd[F, K, V](topic, rdd.sortBy(f, ascending), cfg, sparkSession)
 
   def timestampAscending: CrRdd[F, K, V]  = sortBy(identity, ascending = true)
   def timestampDescending: CrRdd[F, K, V] = sortBy(identity, ascending = false)
@@ -58,42 +67,42 @@ final class CrRdd[F[_], K, V] private[kafka] (
 
   //transformation
   def normalize: CrRdd[F, K, V] =
-    new CrRdd[F, K, V](topic, rdd.map(codec.idConversion), cfg)
+    new CrRdd[F, K, V](topic, rdd.map(codec.idConversion), cfg, sparkSession)
 
-  def persist: CrRdd[F, K, V]   = new CrRdd[F, K, V](topic, rdd.persist(), cfg)
-  def unpersist: CrRdd[F, K, V] = new CrRdd[F, K, V](topic, rdd.unpersist(), cfg)
+  def persist: CrRdd[F, K, V]   = new CrRdd[F, K, V](topic, rdd.persist(), cfg, sparkSession)
+  def unpersist: CrRdd[F, K, V] = new CrRdd[F, K, V](topic, rdd.unpersist(), cfg, sparkSession)
 
   def repartition(num: Int): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](topic, rdd.repartition(num), cfg)
+    new CrRdd[F, K, V](topic, rdd.repartition(num), cfg, sparkSession)
 
   def bimap[K2, V2](k: K => K2, v: V => V2)(other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](other, rdd.map(_.bimap(k, v)), cfg).normalize
+    new CrRdd[F, K2, V2](other, rdd.map(_.bimap(k, v)), cfg, sparkSession).normalize
 
   def map[K2, V2](f: OptionalKV[K, V] => OptionalKV[K2, V2])(
     other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](other, rdd.map(f), cfg).normalize
+    new CrRdd[F, K2, V2](other, rdd.map(f), cfg, sparkSession).normalize
 
   def flatMap[K2, V2](f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]])(
     other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](other, rdd.flatMap(f), cfg).normalize
+    new CrRdd[F, K2, V2](other, rdd.flatMap(f), cfg, sparkSession).normalize
 
   def filter(f: OptionalKV[K, V] => Boolean): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](topic, rdd.filter(f), cfg)
+    new CrRdd[F, K, V](topic, rdd.filter(f), cfg, sparkSession)
 
   def union(other: RDD[OptionalKV[K, V]]): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](topic, rdd.union(other), cfg)
+    new CrRdd[F, K, V](topic, rdd.union(other), cfg, sparkSession)
 
   def union(other: CrRdd[F, K, V]): CrRdd[F, K, V] = union(other.rdd)
 
   def dismissNulls: CrRdd[F, K, V] =
-    new CrRdd[F, K, V](topic, rdd.dismissNulls, cfg)
+    new CrRdd[F, K, V](topic, rdd.dismissNulls, cfg, sparkSession)
 
   def replicate(num: Int): CrRdd[F, K, V] = {
     val rep = (1 until num).foldLeft(rdd) { case (r, _) => r.union(rdd) }
-    new CrRdd[F, K, V](topic, rep, cfg)
+    new CrRdd[F, K, V](topic, rep, cfg, sparkSession)
   }
 
-  def distinct: CrRdd[F, K, V] = new CrRdd[F, K, V](topic, rdd.distinct(), cfg)
+  def distinct: CrRdd[F, K, V] = new CrRdd[F, K, V](topic, rdd.distinct(), cfg, sparkSession)
 
   // dataset
   def crDS(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
@@ -121,6 +130,7 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def count(implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
 
   def stats: Statistics[F] =
-    new Statistics[F](TypedDataset.create(rdd.map(CRMetaInfo(_))).dataset, cfg)
-
+    new Statistics[F](
+      TypedDataset.create(rdd.map(CRMetaInfo(_)))(TypedEncoder[CRMetaInfo], sparkSession).dataset,
+      cfg)
 }

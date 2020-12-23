@@ -14,7 +14,7 @@ final case class TableDef[A] private (
 
   def in[F[_]](dbSettings: DatabaseSettings)(implicit
     sparkSession: SparkSession): SparkTable[F, A] =
-    new SparkTable[F, A](this, dbSettings, STConfig(dbSettings.database, tableName))
+    new SparkTable[F, A](this, dbSettings, STConfig(dbSettings.database, tableName), sparkSession)
 
 }
 

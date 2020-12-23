@@ -12,7 +12,7 @@ private[kafka] trait DatasetExtensions {
       extends Serializable {
 
     def sparKafka(cfg: SKConfig)(implicit ss: SparkSession): SparKafka[F, K, V] =
-      new SparKafka(topic, ss, cfg)
+      new SparKafka(topic, cfg, ss)
 
     def sparKafka(zoneId: ZoneId)(implicit ss: SparkSession): SparKafka[F, K, V] =
       sparKafka(SKConfig(topic.topicDef.topicName, zoneId))
@@ -24,5 +24,4 @@ private[kafka] trait DatasetExtensions {
       sparKafka(SKConfig(topic.topicDef.topicName, ZoneId.systemDefault()))
 
   }
-
 }

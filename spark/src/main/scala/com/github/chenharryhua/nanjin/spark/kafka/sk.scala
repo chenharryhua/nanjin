@@ -48,7 +48,7 @@ private[kafka] object sk {
   private def kafkaRDD[F[_]: Sync, K, V](
     topic: KafkaTopic[F, K, V],
     timeRange: NJDateTimeRange,
-    locationStrategy: LocationStrategy)(implicit
+    locationStrategy: LocationStrategy,
     sparkSession: SparkSession): F[RDD[ConsumerRecord[Array[Byte], Array[Byte]]]] =
     topic.shortLiveConsumer.use(_.offsetRangeFor(timeRange)).map { gtp =>
       KafkaUtils.createRDD[Array[Byte], Array[Byte]](
@@ -87,9 +87,9 @@ private[kafka] object sk {
   def kafkaBatch[F[_]: Sync, K, V](
     topic: KafkaTopic[F, K, V],
     timeRange: NJDateTimeRange,
-    locationStrategy: LocationStrategy)(implicit
+    locationStrategy: LocationStrategy,
     sparkSession: SparkSession): F[RDD[OptionalKV[K, V]]] =
-    kafkaRDD[F, K, V](topic, timeRange, locationStrategy).map(_.mapPartitions { ms =>
+    kafkaRDD[F, K, V](topic, timeRange, locationStrategy, sparkSession).map(_.mapPartitions { ms =>
       val decoder = new NJConsumerRecordDecoder[Writer[Chain[Throwable], *], K, V](
         topic.topicName.value,
         topic.codec.keyDeserializer,
@@ -128,8 +128,10 @@ private[kafka] object sk {
     }
   }
 
-  def kafkaSStream[F[_]: Sync, K, V, A](topic: KafkaTopic[F, K, V], ate: AvroTypedEncoder[A])(
-    f: OptionalKV[K, V] => A)(implicit sparkSession: SparkSession): Dataset[A] = {
+  def kafkaSStream[F[_]: Sync, K, V, A](
+    topic: KafkaTopic[F, K, V],
+    ate: AvroTypedEncoder[A],
+    sparkSession: SparkSession)(f: OptionalKV[K, V] => A): Dataset[A] = {
     import sparkSession.implicits._
 
     sparkSession.readStream

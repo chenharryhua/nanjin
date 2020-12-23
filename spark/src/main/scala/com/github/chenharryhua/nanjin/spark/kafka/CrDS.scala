@@ -99,7 +99,7 @@ final class CrDS[F[_], K, V] private[kafka] (
     new Statistics[F](dataset.map(CRMetaInfo(_))(enc), cfg)
   }
 
-  def crRdd: CrRdd[F, K, V] = new CrRdd[F, K, V](topic, dataset.rdd, cfg)(dataset.sparkSession)
+  def crRdd: CrRdd[F, K, V] = new CrRdd[F, K, V](topic, dataset.rdd, cfg, dataset.sparkSession)
   def prRdd: PrRdd[F, K, V] = new PrRdd[F, K, V](topic, dataset.rdd.map(_.toNJProducerRecord), cfg)
 
   def save: DatasetAvroFileHoarder[F, OptionalKV[K, V]] =
