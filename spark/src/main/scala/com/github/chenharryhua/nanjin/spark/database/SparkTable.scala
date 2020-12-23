@@ -37,7 +37,11 @@ final class SparkTable[F[_], A](
   }
 
   def fromDisk: TableDataset[F, A] =
-    new TableDataset[F, A](loaders.objectFile(params.replayPath, ate).dataset, dbSettings, cfg, ate)
+    new TableDataset[F, A](
+      loaders.objectFile(params.replayPath, ate, sparkSession).dataset,
+      dbSettings,
+      cfg,
+      ate)
 
   def countDisk: Long = fromDisk.dataset.count
 
@@ -64,7 +68,7 @@ final class SparkTable[F[_], A](
     new TableDataset[F, A](ate.normalize(tds).dataset, dbSettings, cfg, ate)
 
   def tableset(rdd: RDD[A]): TableDataset[F, A] =
-    new TableDataset[F, A](ate.normalize(rdd).dataset, dbSettings, cfg, ate)
+    new TableDataset[F, A](ate.normalize(rdd, sparkSession).dataset, dbSettings, cfg, ate)
 
   def load: DbLoadFile[F, A] = new DbLoadFile[F, A](this)
 

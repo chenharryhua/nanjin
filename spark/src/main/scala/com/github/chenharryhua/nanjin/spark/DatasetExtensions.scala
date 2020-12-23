@@ -38,7 +38,7 @@ private[spark] trait DatasetExtensions {
       Source.fromPublisher[A](stream[F].toUnicastPublisher)
 
     def typedDataset(ate: AvroTypedEncoder[A])(implicit ss: SparkSession): TypedDataset[A] =
-      ate.normalize(rdd)(ss)
+      ate.normalize(rdd, ss)
 
     def dbUpload[F[_]: Sync](db: SparkTable[F, A]): DbUploader[F, A] =
       db.tableset(rdd).upload

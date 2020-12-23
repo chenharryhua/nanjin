@@ -32,15 +32,16 @@ import scala.util.Try
 
 object loaders {
 
-  def avro[A](pathStr: String, ate: AvroTypedEncoder[A])(implicit
-    ss: SparkSession): TypedDataset[A] =
+  def avro[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
     ate.normalizeDF(ss.read.format("avro").load(pathStr))
 
-  def parquet[A](pathStr: String, ate: AvroTypedEncoder[A])(implicit
-    ss: SparkSession): TypedDataset[A] =
+  def parquet[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
     ate.normalizeDF(ss.read.parquet(pathStr))
 
-  def csv[A](pathStr: String, ate: AvroTypedEncoder[A], csvConfiguration: CsvConfiguration)(implicit
+  def csv[A](
+    pathStr: String,
+    ate: AvroTypedEncoder[A],
+    csvConfiguration: CsvConfiguration,
     ss: SparkSession): TypedDataset[A] =
     ate.normalizeDF(
       ss.read
@@ -51,37 +52,31 @@ object loaders {
         .option("charset", "UTF8")
         .csv(pathStr))
 
-  def csv[A](pathStr: String, ate: AvroTypedEncoder[A])(implicit
-    ss: SparkSession): TypedDataset[A] =
-    csv[A](pathStr, ate, CsvConfiguration.rfc)
+  def csv[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
+    csv[A](pathStr, ate, CsvConfiguration.rfc, ss)
 
-  def json[A](pathStr: String, ate: AvroTypedEncoder[A])(implicit
-    ss: SparkSession): TypedDataset[A] =
+  def json[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
     ate.normalizeDF(ss.read.schema(ate.sparkSchema).json(pathStr))
 
-  def objectFile[A](pathStr: String, ate: AvroTypedEncoder[A])(implicit
-    ss: SparkSession): TypedDataset[A] =
-    ate.normalize(rdd.objectFile[A](pathStr)(ate.classTag, ss))
+  def objectFile[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
+    ate.normalize(rdd.objectFile[A](pathStr, ss)(ate.classTag), ss)
 
-  def circe[A](pathStr: String, ate: AvroTypedEncoder[A])(implicit
-    dec: JsonDecoder[A],
-    ss: SparkSession): TypedDataset[A] =
-    ate.normalize(rdd.circe[A](pathStr)(ate.classTag, dec, ss))
+  def circe[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession)(implicit
+    dec: JsonDecoder[A]): TypedDataset[A] =
+    ate.normalize(rdd.circe[A](pathStr, ss)(ate.classTag, dec), ss)
 
-  def jackson[A](pathStr: String, ate: AvroTypedEncoder[A])(implicit
-    ss: SparkSession): TypedDataset[A] =
-    ate.normalize(rdd.jackson[A](pathStr, ate.avroCodec.avroDecoder)(ate.classTag, ss))
+  def jackson[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
+    ate.normalize(rdd.jackson[A](pathStr, ate.avroCodec.avroDecoder, ss)(ate.classTag), ss)
 
-  def binAvro[A](pathStr: String, ate: AvroTypedEncoder[A])(implicit
-    ss: SparkSession): TypedDataset[A] =
-    ate.normalize(rdd.binAvro[A](pathStr, ate.avroCodec.avroDecoder)(ate.classTag, ss))
+  def binAvro[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
+    ate.normalize(rdd.binAvro[A](pathStr, ate.avroCodec.avroDecoder, ss)(ate.classTag), ss)
 
   object rdd {
 
-    def objectFile[A: ClassTag](pathStr: String)(implicit ss: SparkSession): RDD[A] =
+    def objectFile[A: ClassTag](pathStr: String, ss: SparkSession): RDD[A] =
       ss.sparkContext.objectFile[A](pathStr)
 
-    def circe[A: ClassTag: JsonDecoder](pathStr: String)(implicit ss: SparkSession): RDD[A] =
+    def circe[A: ClassTag: JsonDecoder](pathStr: String, ss: SparkSession): RDD[A] =
       ss.sparkContext
         .textFile(pathStr)
         .map(decode[A](_) match {
@@ -89,8 +84,8 @@ object loaders {
           case Right(r) => r
         })
 
-    def protobuf[A <: GeneratedMessage: ClassTag](
-      pathStr: String)(implicit decoder: GeneratedMessageCompanion[A], ss: SparkSession): RDD[A] =
+    def protobuf[A <: GeneratedMessage: ClassTag](pathStr: String, ss: SparkSession)(implicit
+      decoder: GeneratedMessageCompanion[A]): RDD[A] =
       ss.sparkContext
         .binaryFiles(pathStr)
         .mapPartitions(_.flatMap { case (_, pds) =>
@@ -104,8 +99,7 @@ object loaders {
           }
         })
 
-    def avro[A: ClassTag](pathStr: String, decoder: AvroDecoder[A])(implicit
-      ss: SparkSession): RDD[A] = {
+    def avro[A: ClassTag](pathStr: String, decoder: AvroDecoder[A], ss: SparkSession): RDD[A] = {
       val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
       AvroJob.setDataModelClass(job, classOf[GenericData])
       AvroJob.setInputKeySchema(job, decoder.schema)
@@ -120,8 +114,7 @@ object loaders {
         .map { case (gr, _) => decoder.decode(gr.datum()) }
     }
 
-    def binAvro[A: ClassTag](pathStr: String, decoder: AvroDecoder[A])(implicit
-      ss: SparkSession): RDD[A] =
+    def binAvro[A: ClassTag](pathStr: String, decoder: AvroDecoder[A], ss: SparkSession): RDD[A] =
       ss.sparkContext
         .binaryFiles(pathStr)
         .mapPartitions(_.flatMap { case (_, pds) => // resource leak ???
@@ -136,8 +129,7 @@ object loaders {
           }
         })
 
-    def jackson[A: ClassTag](pathStr: String, decoder: AvroDecoder[A])(implicit
-      ss: SparkSession): RDD[A] = {
+    def jackson[A: ClassTag](pathStr: String, decoder: AvroDecoder[A], ss: SparkSession): RDD[A] = {
       val schema = decoder.schema
       ss.sparkContext.textFile(pathStr).mapPartitions { strs =>
         val datumReader = new GenericDatumReader[GenericRecord](schema)
@@ -154,9 +146,9 @@ object loaders {
     def jackson[F[_]: ContextShift: ConcurrentEffect, A](
       pathStr: String,
       decoder: AvroDecoder[A],
-      configuration: Configuration,
-      blocker: Blocker): Stream[F, A] = {
-      val hadoop = NJHadoop(configuration, blocker)
+      blocker: Blocker,
+      cfg: Configuration): Stream[F, A] = {
+      val hadoop = NJHadoop(cfg, blocker)
       val jk     = new JacksonSerialization[F](decoder.schema)
       val gr     = new GenericRecordCodec[F, A]
       hadoop.byteSource(pathStr).through(jk.deserialize).through(gr.decode(decoder))
@@ -165,18 +157,18 @@ object loaders {
     def avro[F[_]: ContextShift: Sync, A](
       pathStr: String,
       decoder: AvroDecoder[A],
-      configuration: Configuration,
-      blocker: Blocker): Stream[F, A] = {
-      val hadoop = NJHadoop(configuration, blocker)
+      blocker: Blocker,
+      cfg: Configuration): Stream[F, A] = {
+      val hadoop = NJHadoop(cfg, blocker)
       val gr     = new GenericRecordCodec[F, A]
       hadoop.avroSource(pathStr, decoder.schema).through(gr.decode(decoder))
     }
 
     def circe[F[_]: ContextShift: Sync, A: JsonDecoder](
       pathStr: String,
-      configuration: Configuration,
-      blocker: Blocker): Stream[F, A] = {
-      val hadoop = NJHadoop(configuration, blocker)
+      blocker: Blocker,
+      cfg: Configuration): Stream[F, A] = {
+      val hadoop = NJHadoop(cfg, blocker)
       val cs     = new CirceSerialization[F, A]
       hadoop.byteSource(pathStr).through(cs.deserialize)
     }

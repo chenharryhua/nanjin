@@ -47,5 +47,5 @@ object JacketData {
         ))
       .sortBy(_.p)
   val rdd: RDD[Jacket]    = sparkSession.sparkContext.parallelize(expected)
-  val ds: Dataset[Jacket] = Jacket.ate.normalize(rdd).dataset
+  val ds: Dataset[Jacket] = Jacket.ate.normalize(rdd, sparkSession).dataset
 }

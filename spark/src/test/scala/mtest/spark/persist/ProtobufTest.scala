@@ -30,14 +30,14 @@ class ProtobufTest extends AnyFunSuite {
       .file
       .run(blocker)
       .unsafeRunSync()
-    val res = loaders.rdd.protobuf[KPB[Whale]](path).collect().toSet
+    val res = loaders.rdd.protobuf[KPB[Whale]](path, sparkSession).collect().toSet
     assert(data.toSet == res)
   }
 
   test("protobuf - multi files") {
     val path = "./data/test/spark/persist/protobuf/multi.whale.pb/"
     saver.protobuf(path).folder.run(blocker).unsafeRunSync()
-    val res = loaders.rdd.protobuf[Whale](path).collect().toSet
+    val res = loaders.rdd.protobuf[Whale](path, sparkSession).collect().toSet
     assert(data.map(_.value).toSet == res)
   }
 }

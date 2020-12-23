@@ -13,6 +13,6 @@ object AntData {
 
   val rdd: RDD[Ant] = sparkSession.sparkContext.parallelize(ants)
 
-  val ds: Dataset[Ant] = Ant.ate.normalize(rdd).dataset
+  val ds: Dataset[Ant] = Ant.ate.normalize(rdd, sparkSession).dataset
 
 }

@@ -31,6 +31,6 @@ object TabletData {
       Tablet(Random.nextInt(), Random.nextLong(), Random.nextFloat(), LocalDate.now, Instant.now))
 
   val rdd: RDD[Tablet]    = sparkSession.sparkContext.parallelize(data)
-  val ds: Dataset[Tablet] = Tablet.ate.normalize(rdd).dataset
+  val ds: Dataset[Tablet] = Tablet.ate.normalize(rdd, sparkSession).dataset
 
 }

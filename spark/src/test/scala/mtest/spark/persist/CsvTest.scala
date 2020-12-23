@@ -25,54 +25,54 @@ class CsvTest extends AnyFunSuite {
       .folder
       .run(blocker)
       .unsafeRunSync()
-    val t = loaders.csv(path, Tablet.ate)
+    val t = loaders.csv(path, Tablet.ate, sparkSession)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
 
   test("tablet read/write identity multi.gzip") {
     val path = "./data/test/spark/persist/csv/tablet/multi.gzip"
     saver.csv(path).folder.gzip.run(blocker).unsafeRunSync()
-    val t = loaders.csv(path, Tablet.ate)
+    val t = loaders.csv(path, Tablet.ate, sparkSession)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
 
   test("tablet read/write identity multi.1.deflate") {
     val path = "./data/test/spark/persist/csv/tablet/multi.1.deflate"
     saver.csv(path).folder.deflate(1).run(blocker).unsafeRunSync()
-    val t = loaders.csv(path, Tablet.ate)
+    val t = loaders.csv(path, Tablet.ate, sparkSession)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
   test("tablet read/write identity multi.9.deflate") {
     val path = "./data/test/spark/persist/csv/tablet/multi.9.deflate"
     saver.csv(path).folder.deflate(9).run(blocker).unsafeRunSync()
-    val t = loaders.csv(path, Tablet.ate)
+    val t = loaders.csv(path, Tablet.ate, sparkSession)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
 
   test("tablet read/write identity single.uncompressed") {
     val path = "./data/test/spark/persist/csv/tablet/tablet.csv"
     saver.csv(path).withoutHeader.quoteWhenNeeded.file.run(blocker).unsafeRunSync()
-    val t = loaders.csv(path, Tablet.ate)
+    val t = loaders.csv(path, Tablet.ate, sparkSession)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
 
   test("tablet read/write identity single.gzip") {
     val path = "./data/test/spark/persist/csv/tablet/tablet.csv.gz"
     saver.csv(path).file.gzip.run(blocker).unsafeRunSync()
-    val t = loaders.csv(path, Tablet.ate)
+    val t = loaders.csv(path, Tablet.ate, sparkSession)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
 
   test("tablet read/write identity single.1.deflate") {
     val path = "./data/test/spark/persist/csv/tablet/tablet.1.csv.deflate"
     saver.csv(path).file.deflate(1).run(blocker).unsafeRunSync()
-    val t = loaders.csv(path, Tablet.ate)
+    val t = loaders.csv(path, Tablet.ate, sparkSession)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
   test("tablet read/write identity single.9.deflate") {
     val path = "./data/test/spark/persist/csv/tablet/tablet.9.csv.deflate"
     saver.csv(path).file.deflate(9).run(blocker).unsafeRunSync()
-    val t = loaders.csv(path, Tablet.ate)
+    val t = loaders.csv(path, Tablet.ate, sparkSession)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
 
@@ -80,14 +80,14 @@ class CsvTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/csv/tablet/tablet_header.csv"
     val rfc  = CsvConfiguration.rfc.withHeader
     saver.csv(path).file.withHeader.run(blocker).unsafeRunSync()
-    val t = loaders.csv(path, Tablet.ate, rfc)
+    val t = loaders.csv(path, Tablet.ate, rfc, sparkSession)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
   test("tablet read/write identity with-header/multi") {
     val path = "./data/test/spark/persist/csv/tablet/tablet_header_multi.csv"
     val rfc  = CsvConfiguration.rfc.withHeader
     saver.csv(path).folder.withHeader.run(blocker).unsafeRunSync()
-    val t = loaders.csv(path, Tablet.ate, rfc)
+    val t = loaders.csv(path, Tablet.ate, rfc, sparkSession)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
 
@@ -95,7 +95,7 @@ class CsvTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/csv/tablet/tablet_header_delimit.csv"
     val rfc  = CsvConfiguration.rfc.withHeader.withCellSeparator('|')
     saver.csv(path).file.withHeader.withCellSeparator('|').run(blocker).unsafeRunSync()
-    val t = loaders.csv(path, Tablet.ate, rfc)
+    val t = loaders.csv(path, Tablet.ate, rfc, sparkSession)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
 
@@ -103,7 +103,7 @@ class CsvTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/csv/tablet/tablet_header_delimit_multi.csv"
     val rfc  = CsvConfiguration.rfc.withHeader.withCellSeparator('|')
     saver.csv(path).folder.withHeader.withCellSeparator('|').run(blocker).unsafeRunSync()
-    val t = loaders.csv(path, Tablet.ate, rfc)
+    val t = loaders.csv(path, Tablet.ate, rfc, sparkSession)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
 
@@ -119,7 +119,7 @@ class CsvTest extends AnyFunSuite {
       .quoteAll
       .run(blocker)
       .unsafeRunSync()
-    val t = loaders.csv(path, Tablet.ate, rfc)
+    val t = loaders.csv(path, Tablet.ate, rfc, sparkSession)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
 
@@ -135,7 +135,7 @@ class CsvTest extends AnyFunSuite {
       .quoteAll
       .run(blocker)
       .unsafeRunSync()
-    val t = loaders.csv(path, Tablet.ate, rfc)
+    val t = loaders.csv(path, Tablet.ate, rfc, sparkSession)
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
 }

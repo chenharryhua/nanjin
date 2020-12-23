@@ -59,7 +59,7 @@ object TableUploadTestData {
       Beaver(BigDecimal("12.3456"), Random.nextFloat(), Random.nextDouble()),
       Beaver(BigDecimal("123456"), Random.nextFloat(), Random.nextDouble()))
   )
-  val tds: TypedDataset[Beaver] = table.tableDef.avroTypedEncoder.normalize(data)
+  val tds: TypedDataset[Beaver] = table.tableDef.avroTypedEncoder.normalize(data, sparkSession)
 }
 
 class TableUploadTest extends AnyFunSuite {

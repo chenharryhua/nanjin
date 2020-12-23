@@ -94,7 +94,7 @@ class AvroTypedEncoderTest extends AnyFunSuite {
   import AvroTypedEncoderTestData._
 
   test("normalize rdd") {
-    val n = ate.normalize(rdd)
+    val n = ate.normalize(rdd, sparkSession)
     assert(n.collect[IO]().unsafeRunSync().toSet == expected.toSet)
     assert(n.schema == expectedSchema)
   }
@@ -116,34 +116,34 @@ class AvroTypedEncoderTest extends AnyFunSuite {
   test("loaded json should be normalized") {
     val path = "./data/test/spark/ate/json"
     ds.write.mode(SaveMode.Overwrite).json(path)
-    val r = loaders.json[Lion](path, ate)
+    val r = loaders.json[Lion](path, ate, sparkSession)
     assert(r.collect[IO]().unsafeRunSync().toSet == expected.toSet)
     assert(r.schema == expectedSchema)
   }
   test("loaded csv should be normalized") {
     val path = "./data/test/spark/ate/csv"
     ds.write.mode(SaveMode.Overwrite).csv(path)
-    val r = loaders.csv[Lion](path, ate)
+    val r = loaders.csv[Lion](path, ate, sparkSession)
     assert(r.collect[IO]().unsafeRunSync().toSet == expected.toSet)
     assert(r.schema == expectedSchema)
   }
   test("loaded avro should be normalized") {
     val path = "./data/test/spark/ate/avro"
     ds.write.format("avro").mode(SaveMode.Overwrite).save(path)
-    val r = loaders.avro[Lion](path, ate)
+    val r = loaders.avro[Lion](path, ate, sparkSession)
     assert(r.collect[IO]().unsafeRunSync().toSet == expected.toSet)
     assert(r.schema == expectedSchema)
   }
   test("loaded parquet should be normalized") {
     val path = "./data/test/spark/ate/parquet"
     ds.write.mode(SaveMode.Overwrite).parquet(path)
-    val r = loaders.parquet[Lion](path, ate)
+    val r = loaders.parquet[Lion](path, ate, sparkSession)
     assert(r.collect[IO]().unsafeRunSync().toSet == expected.toSet)
     assert(r.schema == expectedSchema)
   }
 
   test("empty set") {
-    val eds = ate.emptyDataset
+    val eds = ate.emptyDataset(sparkSession)
     assert(eds.count[IO].unsafeRunSync() == 0)
     assert(eds.schema == expectedSchema)
   }
@@ -152,21 +152,22 @@ class AvroTypedEncoderTest extends AnyFunSuite {
     val ate  = AvroTypedEncoder[String]
     val data = List("a", "b", "c", "d")
     val rdd  = sparkSession.sparkContext.parallelize(data)
-    assert(ate.normalize(rdd).collect[IO]().unsafeRunSync().toList == data)
+    assert(ate.normalize(rdd, sparkSession).collect[IO]().unsafeRunSync().toList == data)
   }
 
   test("primitive type int") {
     val ate           = AvroTypedEncoder[Int]
     val data          = List(1, 2, 3, 4)
     val rdd: RDD[Int] = sparkSession.sparkContext.parallelize(data)
-    assert(ate.normalize(rdd).collect[IO]().unsafeRunSync().toList == data)
+    assert(ate.normalize(rdd, sparkSession).collect[IO]().unsafeRunSync().toList == data)
   }
 
   test("primitive type array byte") {
     val ate                     = AvroTypedEncoder[Array[Byte]]
     val data: List[Array[Byte]] = List(Array(1), Array(2, 3), Array(4, 5, 6), Array(7, 8, 9, 10))
     val rdd                     = sparkSession.sparkContext.parallelize(data)
-    assert(ate.normalize(rdd).collect[IO]().unsafeRunSync().toList.flatten == data.flatten)
+    assert(
+      ate.normalize(rdd, sparkSession).collect[IO]().unsafeRunSync().toList.flatten == data.flatten)
   }
 
   test("not support") {
