@@ -97,8 +97,10 @@ object loaders {
           val dis: DataInputStream = pds.open()
           val itor: Iterator[A]    = decoder.streamFromDelimitedInput(dis).toIterator
           new Iterator[A] {
-            override def hasNext: Boolean = if (itor.hasNext) true else { Try(dis.close()); false }
-            override def next(): A        = itor.next()
+            override def hasNext: Boolean =
+              if (itor.hasNext) true else { Try(dis.close()); false }
+
+            override def next(): A = itor.next()
           }
         })
 
@@ -127,8 +129,10 @@ object loaders {
           val itor: Iterator[A] =
             AvroInputStream.binary[A](decoder).from(dis).build(decoder.schema).iterator
           new Iterator[A] {
-            override def hasNext: Boolean = if (itor.hasNext) true else { Try(dis.close()); false }
-            override def next(): A        = itor.next()
+            override def hasNext: Boolean =
+              if (itor.hasNext) true else { Try(dis.close()); false }
+
+            override def next(): A = itor.next()
           }
         })
 
@@ -157,25 +161,24 @@ object loaders {
       val gr     = new GenericRecordCodec[F, A]
       hadoop.byteSource(pathStr).through(jk.deserialize).through(gr.decode(decoder))
     }
-  }
 
-  def avro[F[_]: ContextShift: Sync, A](
-    pathStr: String,
-    decoder: AvroDecoder[A],
-    configuration: Configuration,
-    blocker: Blocker): Stream[F, A] = {
-    val hadoop = NJHadoop(configuration, blocker)
-    val gr     = new GenericRecordCodec[F, A]
-    hadoop.avroSource(pathStr, decoder.schema).through(gr.decode(decoder))
-  }
+    def avro[F[_]: ContextShift: Sync, A](
+      pathStr: String,
+      decoder: AvroDecoder[A],
+      configuration: Configuration,
+      blocker: Blocker): Stream[F, A] = {
+      val hadoop = NJHadoop(configuration, blocker)
+      val gr     = new GenericRecordCodec[F, A]
+      hadoop.avroSource(pathStr, decoder.schema).through(gr.decode(decoder))
+    }
 
-  def circe[F[_]: ContextShift: Sync, A: JsonDecoder](
-    pathStr: String,
-    configuration: Configuration,
-    blocker: Blocker): Stream[F, A] = {
-    val hadoop = NJHadoop(configuration, blocker)
-    val cs     = new CirceSerialization[F, A]
-    val gr     = new GenericRecordCodec[F, A]
-    hadoop.byteSource(pathStr).through(cs.deserialize)
+    def circe[F[_]: ContextShift: Sync, A: JsonDecoder](
+      pathStr: String,
+      configuration: Configuration,
+      blocker: Blocker): Stream[F, A] = {
+      val hadoop = NJHadoop(configuration, blocker)
+      val cs     = new CirceSerialization[F, A]
+      hadoop.byteSource(pathStr).through(cs.deserialize)
+    }
   }
 }
