@@ -7,7 +7,8 @@ import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.functions.aggregate.count
 import frameless.{Injection, TypedDataset, TypedEncoder, TypedExpressionEncoder}
-import org.apache.spark.sql.Dataset
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.{Dataset, Encoder}
 
 import java.time.{LocalDate, ZoneId, ZonedDateTime}
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
@@ -53,6 +54,8 @@ object MissingOffset {
   implicit val teMissingOffset: TypedEncoder[MissingOffset] = shapeless.cachedImplicit
 }
 
+final case class Disorder(partition: Int, offset: Long, timestamp: Long, ts: ZonedDateTime)
+
 final class Statistics[F[_]] private[kafka] (ds: Dataset[CRMetaInfo], cfg: SKConfig)
     extends Serializable {
 
@@ -65,7 +68,7 @@ final class Statistics[F[_]] private[kafka] (ds: Dataset[CRMetaInfo], cfg: SKCon
   def truncate: Statistics[F]       = update(_.withTruncate)
   def untruncate: Statistics[F]     = update(_.withoutTruncate)
 
-  implicit def localDateTimeInjection: Injection[ZonedDateTime, String] =
+  implicit def zonedDateTimeInjection: Injection[ZonedDateTime, String] =
     new Injection[ZonedDateTime, String] {
       override def apply(a: ZonedDateTime): String  = a.toString
       override def invert(b: String): ZonedDateTime = ZonedDateTime.parse(b)
@@ -138,8 +141,8 @@ final class Statistics[F[_]] private[kafka] (ds: Dataset[CRMetaInfo], cfg: SKCon
 
   def missingOffsets(implicit ev: Sync[F]): TypedDataset[MissingOffset] = {
     import org.apache.spark.sql.functions.col
-    val enc = TypedExpressionEncoder[Long]
-    val all = kafkaSummary.dataset.collect().map { kds =>
+    val enc: Encoder[Long] = TypedExpressionEncoder[Long]
+    val all: Array[Dataset[MissingOffset]] = kafkaSummary.dataset.collect().map { kds =>
       val expected = ds.sparkSession.range(kds.startOffset, kds.endOffset + 1L).map(_.toLong)(enc)
       val exist =
         ds.filter(col("partition") === kds.partition).map(_.offset)(enc)
@@ -148,5 +151,27 @@ final class Statistics[F[_]] private[kafka] (ds: Dataset[CRMetaInfo], cfg: SKCon
         .map(os => MissingOffset(kds.partition, os))(TypedExpressionEncoder[MissingOffset])
     }
     TypedDataset.create(all.reduce(_.union(_)).orderBy(col("partition").asc, col("offset").asc))
+  }
+
+  def disorders: TypedDataset[Disorder] = {
+    val all: Array[RDD[Disorder]] = kafkaSummary.dataset.collect().map { kds =>
+      val rdd: RDD[(Long, CRMetaInfo)] =
+        ds.rdd.filter(_.partition == kds.partition).sortBy(_.offset).zipWithIndex().map(_.swap)
+      val rdd2: RDD[(Long, CRMetaInfo)] =
+        rdd.map { case (index, crm) => (index + 1, crm) }
+
+      rdd.join(rdd2).flatMap { case (_, (c1, c2)) =>
+        if (c1.timestamp >= c2.timestamp) None
+        else
+          Some(
+            Disorder(
+              kds.partition,
+              c1.offset,
+              c1.timestamp,
+              NJTimestamp(c1.timestamp).atZone(params.timeRange.zoneId)))
+      }
+    }
+    val tds = TypedDataset.create(all.reduce(_.union(_)))(TypedEncoder[Disorder], ds.sparkSession)
+    tds.orderBy(tds('partition).asc, tds('offset).asc)
   }
 }
