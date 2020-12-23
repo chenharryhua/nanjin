@@ -15,25 +15,23 @@ import org.apache.spark.sql.{DataFrame, SparkSession}
 
 final class SparKafka[F[_], K, V](
   val topic: KafkaTopic[F, K, V],
-  val sparkSession: SparkSession,
-  val cfg: SKConfig
+  val cfg: SKConfig,
+  val sparkSession: SparkSession
 ) extends Serializable {
 
-  implicit private val ss: SparkSession = sparkSession
-
   def withParamUpdate(f: SKConfig => SKConfig): SparKafka[F, K, V] =
-    new SparKafka[F, K, V](topic, sparkSession, f(cfg))
+    new SparKafka[F, K, V](topic, f(cfg), sparkSession)
 
   def withTopicName(tn: String): SparKafka[F, K, V] =
-    new SparKafka[F, K, V](topic.withTopicName(tn), sparkSession, cfg)
+    new SparKafka[F, K, V](topic.withTopicName(tn), cfg, sparkSession)
 
   val params: SKParams = cfg.evalConfig
 
   def fromKafka(implicit sync: Sync[F]): F[CrRdd[F, K, V]] =
-    sk.kafkaBatch(topic, params.timeRange, params.locationStrategy).map(crRdd)
+    sk.kafkaBatch(topic, params.timeRange, params.locationStrategy, sparkSession).map(crRdd)
 
   def fromDisk: CrRdd[F, K, V] =
-    crRdd(loaders.rdd.objectFile[OptionalKV[K, V]](params.replayPath))
+    crRdd(loaders.rdd.objectFile[OptionalKV[K, V]](params.replayPath, sparkSession))
 
   /** shorthand
     */
@@ -52,7 +50,8 @@ final class SparKafka[F[_], K, V](
 
   /** rdd and dataset
     */
-  def crRdd(rdd: RDD[OptionalKV[K, V]]): CrRdd[F, K, V] = new CrRdd[F, K, V](topic, rdd, cfg)
+  def crRdd(rdd: RDD[OptionalKV[K, V]]): CrRdd[F, K, V] =
+    new CrRdd[F, K, V](topic, rdd, cfg, sparkSession)
 
   def crDS(df: DataFrame)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
     val ate: AvroTypedEncoder[OptionalKV[K, V]] = OptionalKV.ate(topic.topicDef)
@@ -67,7 +66,7 @@ final class SparKafka[F[_], K, V](
   def sstream[A](f: OptionalKV[K, V] => A, ate: AvroTypedEncoder[A])(implicit
     sync: Sync[F]): SparkSStream[F, A] =
     new SparkSStream[F, A](
-      sk.kafkaSStream[F, K, V, A](topic, ate)(f),
+      sk.kafkaSStream[F, K, V, A](topic, ate, sparkSession)(f),
       SStreamConfig(params.timeRange, params.showDs)
         .withCheckpointAppend(s"kafka/${topic.topicName.value}"))
 

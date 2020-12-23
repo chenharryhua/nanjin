@@ -6,11 +6,12 @@ import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.functions.aggregate.count
-import frameless.{Injection, TypedDataset, TypedExpressionEncoder}
-import org.apache.spark.sql.Dataset
+import frameless.{Injection, TypedDataset, TypedEncoder, TypedExpressionEncoder}
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.{Dataset, Encoder}
 
 import java.time.{LocalDate, ZoneId, ZonedDateTime}
-import scala.concurrent.duration.{FiniteDuration, HOURS, MILLISECONDS}
+import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
 final private[kafka] case class MinutelyAggResult(minute: Int, count: Long)
 final private[kafka] case class HourlyAggResult(hour: Int, count: Long)
@@ -49,6 +50,19 @@ final private[kafka] case class KafkaDataSummary(
 
 final case class MissingOffset(partition: Int, offset: Long)
 
+object MissingOffset {
+  implicit val teMissingOffset: TypedEncoder[MissingOffset] = shapeless.cachedImplicit
+}
+
+final case class Disorder(
+  partition: Int,
+  offset: Long,
+  timestamp: Long,
+  ts: ZonedDateTime,
+  nextTS: Long,
+  msGap: Long,
+  tsType: Int)
+
 final class Statistics[F[_]] private[kafka] (ds: Dataset[CRMetaInfo], cfg: SKConfig)
     extends Serializable {
 
@@ -61,7 +75,7 @@ final class Statistics[F[_]] private[kafka] (ds: Dataset[CRMetaInfo], cfg: SKCon
   def truncate: Statistics[F]       = update(_.withTruncate)
   def untruncate: Statistics[F]     = update(_.withoutTruncate)
 
-  implicit def localDateTimeInjection: Injection[ZonedDateTime, String] =
+  implicit def zonedDateTimeInjection: Injection[ZonedDateTime, String] =
     new Injection[ZonedDateTime, String] {
       override def apply(a: ZonedDateTime): String  = a.toString
       override def invert(b: String): ZonedDateTime = ZonedDateTime.parse(b)
@@ -126,7 +140,7 @@ final class Statistics[F[_]] private[kafka] (ds: Dataset[CRMetaInfo], cfg: SKCon
         min(tds('timestamp)),
         max(tds('timestamp)))
       .as[KafkaDataSummary]
-    res.orderBy(res('partition).asc) 
+    res.orderBy(res('partition).asc)
   }
 
   def summary(implicit ev: Sync[F]): F[Unit] =
@@ -134,8 +148,8 @@ final class Statistics[F[_]] private[kafka] (ds: Dataset[CRMetaInfo], cfg: SKCon
 
   def missingOffsets(implicit ev: Sync[F]): TypedDataset[MissingOffset] = {
     import org.apache.spark.sql.functions.col
-    val enc = TypedExpressionEncoder[Long]
-    val all = kafkaSummary.dataset.collect().map { kds =>
+    val enc: Encoder[Long] = TypedExpressionEncoder[Long]
+    val all: Array[Dataset[MissingOffset]] = kafkaSummary.dataset.collect().map { kds =>
       val expected = ds.sparkSession.range(kds.startOffset, kds.endOffset + 1L).map(_.toLong)(enc)
       val exist =
         ds.filter(col("partition") === kds.partition).map(_.offset)(enc)
@@ -144,5 +158,31 @@ final class Statistics[F[_]] private[kafka] (ds: Dataset[CRMetaInfo], cfg: SKCon
         .map(os => MissingOffset(kds.partition, os))(TypedExpressionEncoder[MissingOffset])
     }
     TypedDataset.create(all.reduce(_.union(_)).orderBy(col("partition").asc, col("offset").asc))
+  }
+
+  def disorders: TypedDataset[Disorder] = {
+
+    val all: Array[RDD[Disorder]] =
+      ds.map(_.partition)(TypedExpressionEncoder[Int]).distinct().collect().map { partition =>
+        val curr: RDD[(Long, CRMetaInfo)] =
+          ds.rdd.filter(_.partition == partition).map(x => (x.offset, x))
+        val pre: RDD[(Long, CRMetaInfo)] = curr.map { case (index, crm) => (index + 1, crm) }
+
+        curr.join(pre).flatMap { case (_, (c, p)) =>
+          if (c.timestamp >= p.timestamp) None
+          else
+            Some(
+              Disorder(
+                partition,
+                p.offset,
+                p.timestamp,
+                NJTimestamp(p.timestamp).atZone(params.timeRange.zoneId),
+                c.timestamp,
+                p.timestamp - c.timestamp,
+                c.timestampType))
+        }
+      }
+    val tds = TypedDataset.create(all.reduce(_.union(_)))(TypedEncoder[Disorder], ds.sparkSession)
+    tds.orderBy(tds('partition).asc, tds('offset).asc)
   }
 }

@@ -32,11 +32,11 @@ object RoosterData {
 
   val rdd: RDD[Rooster] = sparkSession.sparkContext.parallelize(data)
 
-  val ds: Dataset[Rooster] = Rooster.ate.normalize(rdd).dataset
+  val ds: Dataset[Rooster] = Rooster.ate.normalize(rdd, sparkSession).dataset
 
   val bigset: TypedDataset[Rooster] =
     Rooster.ate.normalize(
       sparkSession.sparkContext.parallelize(
-        List.fill(1000)(Rooster(0, instant, timestamp, BigDecimal("0"), BigDecimal("0"), None))))
+        List.fill(1000)(Rooster(0, instant, timestamp, BigDecimal("0"), BigDecimal("0"), None))), sparkSession)
 
 }

@@ -54,18 +54,20 @@ object InvestigationTestData {
   )
 
   val mouses5 = List( // missing (1,5)
-    CRMetaInfo("topic", 0, 1, 1),
-    CRMetaInfo("topic", 0, 2, 2),
-    CRMetaInfo("topic", 0, 3, 3),
-    CRMetaInfo("topic", 1, 4, 4),
-    CRMetaInfo("topic", 1, 6, 6))
+    CRMetaInfo("topic", 0, 1, 1, 0),
+    CRMetaInfo("topic", 0, 2, 2, 0),
+    CRMetaInfo("topic", 0, 3, 3, 0),
+    CRMetaInfo("topic", 1, 4, 4, 0),
+    CRMetaInfo("topic", 1, 6, 6, 0)
+  )
 
   val mouses6 = List( // (0,2) duplicate
-    CRMetaInfo("topic", 0, 1, 1),
-    CRMetaInfo("topic", 0, 2, 2),
-    CRMetaInfo("topic", 0, 2, 3),
-    CRMetaInfo("topic", 0, 2, 4),
-    CRMetaInfo("topic", 1, 5, 6))
+    CRMetaInfo("topic", 0, 1, 1, 0),
+    CRMetaInfo("topic", 0, 2, 2, 0),
+    CRMetaInfo("topic", 0, 2, 3, 0),
+    CRMetaInfo("topic", 0, 2, 4, 0),
+    CRMetaInfo("topic", 1, 5, 6, 0)
+  )
 
 }
 
@@ -131,7 +133,6 @@ class InvestigationTest extends AnyFunSuite {
     assert(rst3 == kv)
     assert(rst4 == kv)
   }
-
 
   test("sparKafka duplicate") {
     val rst: Set[DupResult] =

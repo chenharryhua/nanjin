@@ -33,7 +33,7 @@ final class AvroTypedEncoder[A] private (
   val sparkSchema: StructType  = TypedExpressionEncoder(typedEncoder).schema
   val sparkEncoder: Encoder[A] = TypedExpressionEncoder[A](typedEncoder)
 
-  def normalize(rdd: RDD[A])(implicit ss: SparkSession): TypedDataset[A] = {
+  def normalize(rdd: RDD[A], ss: SparkSession): TypedDataset[A] = {
     val ds: Dataset[A] =
       ss.createDataset(rdd)(sparkEncoder).map(avroCodec.idConversion)(sparkEncoder)
 
@@ -41,7 +41,7 @@ final class AvroTypedEncoder[A] private (
   }
 
   def normalize(ds: Dataset[A]): TypedDataset[A] =
-    normalize(ds.rdd)(ds.sparkSession)
+    normalize(ds.rdd, ds.sparkSession)
 
   def normalize(tds: TypedDataset[A]): TypedDataset[A] =
     normalize(tds.dataset)
@@ -49,8 +49,8 @@ final class AvroTypedEncoder[A] private (
   def normalizeDF(ds: DataFrame): TypedDataset[A] =
     normalize(TypedDataset.createUnsafe(ds)(typedEncoder))
 
-  def emptyDataset(implicit ss: SparkSession): TypedDataset[A] =
-    normalize(ss.sparkContext.emptyRDD[A](typedEncoder.classTag))
+  def emptyDataset(ss: SparkSession): TypedDataset[A] =
+    normalize(ss.sparkContext.emptyRDD[A](typedEncoder.classTag), ss)
 }
 
 object AvroTypedEncoder {

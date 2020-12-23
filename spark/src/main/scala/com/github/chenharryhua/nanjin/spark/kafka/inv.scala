@@ -5,9 +5,16 @@ import cats.implicits._
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.functions.aggregate.count
 import frameless.{TypedDataset, TypedEncoder}
+import org.apache.kafka.common.record.TimestampType
 import org.apache.spark.rdd.RDD
+import io.scalaland.enumz.Enum
 
-final case class CRMetaInfo(topic: String, partition: Int, offset: Long, timestamp: Long)
+final case class CRMetaInfo(
+  topic: String,
+  partition: Int,
+  offset: Long,
+  timestamp: Long,
+  timestampType: Int)
 
 object CRMetaInfo {
   implicit val typedEncoder: TypedEncoder[CRMetaInfo] = shapeless.cachedImplicit
@@ -17,8 +24,8 @@ object CRMetaInfo {
       cr.topic,
       cr.partition,
       cr.offset,
-      cr.timestamp
-    )
+      cr.timestamp,
+      cr.timestampType)
 }
 
 final case class KvDiffResult[K, V](key: Option[K], value: Option[V])

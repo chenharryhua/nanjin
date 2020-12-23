@@ -9,8 +9,9 @@ import frameless.cats.implicits._
 import mtest.spark.{blocker, contextShift, ctx, sparkSession}
 import org.scalatest.funsuite.AnyFunSuite
 import shapeless._
+import io.circe.generic.auto._
 
-object KafkaCoproductData {
+object KafkaAvroTestData {
   final case class Child1(a: Int, b: String)
   final case class Child2(a: Int, b: String)
 
@@ -47,8 +48,8 @@ object KafkaCoproductData {
 
 }
 
-class KafkaCoproductTest extends AnyFunSuite {
-  import KafkaCoproductData._
+class KafkaAvroTest extends AnyFunSuite {
+  import KafkaAvroTestData._
 
   test("sparKafka not work with case object -- task serializable issue(avro4s) - happy failure") {
     val data = List(topicCO.fs2PR(0, co1), topicCO.fs2PR(1, co2))
@@ -64,16 +65,46 @@ class KafkaCoproductTest extends AnyFunSuite {
   }
 
   test("sparKafka should be sent to kafka and save to single avro") {
-    val data = List(topicEnum.fs2PR(0, en1), topicEnum.fs2PR(1, en2))
-    val path = "./data/test/spark/kafka/coproduct/scalaenum.avro"
-    val sk   = topicEnum.sparKafka
+    val data        = List(topicEnum.fs2PR(0, en1), topicEnum.fs2PR(1, en2))
+    val avroPath    = "./data/test/spark/kafka/coproduct/scalaenum.avro"
+    val jacksonPath = "./data/test/spark/kafka/coproduct/scalaenum.jackson.json"
+    val circePath   = "./data/test/spark/kafka/coproduct/scalaenum.circe.json"
+    val sk          = topicEnum.sparKafka
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegister >>
       topicEnum.send(data) >>
-      sk.fromKafka.flatMap(_.save.avro(path).file.run(blocker)) >>
-      IO(topicEnum.sparKafka.load.rdd.avro(path).rdd.take(10).toSet)
+      sk.fromKafka.flatMap(d =>
+        d.save.avro(avroPath).file.run(blocker) >>
+          d.save.jackson(jacksonPath).file.run(blocker) >>
+          d.save.circe(circePath).file.run(blocker)) >>
+      IO(topicEnum.sparKafka.load.rdd.avro(avroPath).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
+
+    val avro =
+      sk.load.stream.avro(avroPath, blocker).mapFilter(_.value).compile.toList.unsafeRunSync().toSet
+    assert(avro == Set(en1, en2))
+
+    val jackson =
+      sk.load.stream
+        .jackson(jacksonPath, blocker)
+        .mapFilter(_.value)
+        .compile
+        .toList
+        .unsafeRunSync()
+        .toSet
+    assert(jackson == Set(en1, en2))
+
+    val circe =
+      sk.load.stream
+        .circe(circePath, blocker)
+        .mapFilter(_.value)
+        .compile
+        .toList
+        .unsafeRunSync()
+        .toSet
+    assert(circe == Set(en1, en2))
+
   }
 
   test("sparKafka should be sent to kafka and save to multi avro") {

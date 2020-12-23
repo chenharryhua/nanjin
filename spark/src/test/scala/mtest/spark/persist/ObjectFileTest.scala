@@ -19,7 +19,7 @@ class ObjectFileTest extends AnyFunSuite {
       .outPath(path)
       .run(blocker)
       .unsafeRunSync()
-    val t = loaders.rdd.objectFile[Tablet](path).collect().toSet
+    val t = loaders.rdd.objectFile[Tablet](path, sparkSession).collect().toSet
     assert(data.toSet == t)
   }
 }

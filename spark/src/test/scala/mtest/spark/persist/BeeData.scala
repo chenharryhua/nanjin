@@ -9,5 +9,5 @@ object BeeData {
 
   val rdd: RDD[Bee] = sparkSession.sparkContext.parallelize(bees)
 
-  val ds: Dataset[Bee] = Bee.ate.normalize(rdd).dataset
+  val ds: Dataset[Bee] = Bee.ate.normalize(rdd, sparkSession).dataset
 }

@@ -6,7 +6,10 @@ import org.apache.spark.sql.{DataFrame, SparkSession}
 
 private[spark] object sd {
 
-  def unloadDF(cfg: HikariConfig, tableName: TableName, query: Option[String])(implicit
+  def unloadDF(
+    cfg: HikariConfig,
+    tableName: TableName,
+    query: Option[String],
     sparkSession: SparkSession): DataFrame = {
     val mandatory = Map(
       "url" -> cfg.getJdbcUrl,
