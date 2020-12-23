@@ -35,14 +35,14 @@ final class CrDS[F[_], K, V] private[kafka] (
   def offsetDescending: CrDS[F, K, V] =
     new CrDS[F, K, V](topic, dataset.orderBy(col("offset").desc), ate, cfg)
 
-  def tsAscending: CrDS[F, K, V] =
+  def timestampAscending: CrDS[F, K, V] =
     new CrDS[F, K, V](
       topic,
       dataset.orderBy(col("timestamp").asc, col("offset").asc, col("partition").asc),
       ate,
       cfg)
 
-  def tsDescending: CrDS[F, K, V] =
+  def timestampDescending: CrDS[F, K, V] =
     new CrDS[F, K, V](
       topic,
       dataset.orderBy(col("timestamp").desc, col("offset").desc, col("partition").desc),

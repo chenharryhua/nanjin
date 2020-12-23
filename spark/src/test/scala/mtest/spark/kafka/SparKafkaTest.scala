@@ -121,8 +121,7 @@ class SparKafkaTest extends AnyFunSuite {
       .sparKafka(range)
       .crRdd(ds.rdd)
       .repartition(3)
-      .tsAscending
-      .tsDescending
+      .timestampDescending
       .withParamUpdate(_.withShowRows(3))
       .dismissNulls
       .replicate(3)

@@ -31,13 +31,22 @@ object SortTestData {
 class SortTest extends AnyFunSuite {
   import SortTestData._
   test("rdd timestamp sort") {
-    assert(crRdd.partitionOf(0).tsAscending.rdd.collect().toList.flatMap(_.key) == List(0, 1, 2))
-    assert(crRdd.partitionOf(1).tsDescending.rdd.collect().toList.flatMap(_.key) == List(5, 4, 3))
+    assert(
+      crRdd.partitionOf(0).timestampAscending.rdd.collect().toList.flatMap(_.key) == List(0, 1, 2))
+    assert(
+      crRdd.partitionOf(1).timestampDescending.rdd.collect().toList.flatMap(_.key) == List(5, 4, 3))
   }
   test("ds timestamp sort") {
-    assert(crDs.partitionOf(0).tsAscending.dataset.collect().toList.flatMap(_.key) == List(0, 1, 2))
     assert(
-      crDs.partitionOf(1).tsDescending.dataset.collect().toList.flatMap(_.key) == List(5, 4, 3))
+      crDs.partitionOf(0).timestampAscending.dataset.collect().toList.flatMap(_.key) == List(
+        0,
+        1,
+        2))
+    assert(
+      crDs.partitionOf(1).timestampDescending.dataset.collect().toList.flatMap(_.key) == List(
+        5,
+        4,
+        3))
   }
 
   test("rdd offset sort") {

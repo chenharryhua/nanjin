@@ -1,8 +1,10 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync}
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import frameless.TypedEncoder
+import fs2.Stream
 import io.circe.{Decoder => JsonDecoder}
 import org.apache.spark.sql.SparkSession
 
@@ -97,5 +99,36 @@ final class KafkaLoadFile[F[_], K, V] private[kafka] (klf: SparKafka[F, K, V])
 
     def objectFile(pathStr: String)(implicit ss: SparkSession): CrRdd[F, K, V] =
       klf.crRdd(loaders.rdd.objectFile[OptionalKV[K, V]](pathStr))
+  }
+
+  object stream {
+
+    def circe(pathStr: String, blocker: Blocker)(implicit
+      cs: ContextShift[F],
+      F: Sync[F],
+      ev: JsonDecoder[OptionalKV[K, V]],
+      ss: SparkSession): Stream[F, OptionalKV[K, V]] =
+      loaders.stream
+        .circe[F, OptionalKV[K, V]](pathStr, ss.sparkContext.hadoopConfiguration, blocker)
+
+    def jackson(pathStr: String, blocker: Blocker)(implicit
+      cs: ContextShift[F],
+      F: ConcurrentEffect[F],
+      ss: SparkSession): Stream[F, OptionalKV[K, V]] =
+      loaders.stream.jackson[F, OptionalKV[K, V]](
+        pathStr,
+        OptionalKV.avroCodec(klf.topic.topicDef).avroDecoder,
+        ss.sparkContext.hadoopConfiguration,
+        blocker)
+
+    def avro(pathStr: String, blocker: Blocker)(implicit
+      cs: ContextShift[F],
+      F: Sync[F],
+      ss: SparkSession): Stream[F, OptionalKV[K, V]] =
+      loaders.stream.avro[F, OptionalKV[K, V]](
+        pathStr,
+        OptionalKV.avroCodec(klf.topic.topicDef).avroDecoder,
+        ss.sparkContext.hadoopConfiguration,
+        blocker)
   }
 }
