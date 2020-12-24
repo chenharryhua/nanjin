@@ -82,7 +82,7 @@ class ReadTest extends AnyFunSuite {
     topic
       .crRdd(sparkSession.sparkContext.parallelize(dogs))
       .prRdd
-      .ascending
+      .ascendTimestamp
       .save
       .circe(path)
       .run(blocker)
