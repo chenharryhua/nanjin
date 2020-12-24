@@ -38,13 +38,13 @@ final private[kafka] case class KafkaDataSummary(
        |distance:      $distance
        |count:         $count
        |gap:           $gap (${if (gap == 0) "perfect"
-    else if (gap < 0) "probably lost data"
+    else if (gap < 0) "probably lost data or its a compact topic"
     else "oops how is it possible"})
        |first TS:      $startTs(${NJTimestamp(startTs)
       .atZone(zoneId)} not necessarily of the first offset)
        |last TS:       $endTs(${NJTimestamp(endTs)
       .atZone(zoneId)} not necessarily of the last offset)
-       |time distance: ${timeDistance.toHours} Hours
+       |time distance: ${timeDistance.toHours} Hours roughly
        |""".stripMargin
 }
 

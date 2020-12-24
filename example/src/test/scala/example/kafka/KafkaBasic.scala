@@ -51,6 +51,7 @@ class KafkaBasic extends AnyFunSuite {
       .prRdd
       .batch(1) // send 1 message
       .interval(1000) // every 1 second
+      .timeLimit(5000) // upload last 5 seconds
       .upload
       .compile
       .drain

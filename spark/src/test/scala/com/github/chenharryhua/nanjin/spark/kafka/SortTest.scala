@@ -16,9 +16,9 @@ class SortTest extends AnyFunSuite {
     OptionalKV[Int, Int](1, 0, 40, Some(4), Some(Random.nextInt()), "topic", 0),
     OptionalKV[Int, Int](1, 1, 20, Some(5), Some(Random.nextInt()), "topic", 0),
     OptionalKV[Int, Int](1, 2, 20, Some(6), Some(Random.nextInt()), "topic", 0),
-    OptionalKV[Int, Int](1, 3, 50, Some(7), Some(Random.nextInt()), "topic", 0),
+    OptionalKV[Int, Int](1, 4, 50, Some(7), Some(Random.nextInt()), "topic", 0),
     OptionalKV[Int, Int](2, 100, 100, Some(8), Some(Random.nextInt()), "topic", 0),
-    OptionalKV[Int, Int](2, 101, 100, Some(9), Some(Random.nextInt()), "topic", 0)
+    OptionalKV[Int, Int](2, 100, 100, Some(9), Some(Random.nextInt()), "topic", 0)
   )
   val rdd   = sparkSession.sparkContext.parallelize(data)
   val crRdd = topic.sparKafka.crRdd(rdd)
@@ -34,8 +34,6 @@ class SortTest extends AnyFunSuite {
 
     assert(asRDD == asDS)
     assert(dsRDD == dsDS)
-    assert(asRDD == dsRDD.reverse)
-    assert(asDS == dsDS.reverse)
   }
   test("timestamp") {
     val asRDD = crRdd.ascendTimestamp.rdd.collect.toList
@@ -46,8 +44,6 @@ class SortTest extends AnyFunSuite {
 
     assert(asRDD == asDS)
     assert(dsRDD == dsDS)
-    assert(asRDD == dsRDD.reverse)
-    assert(asDS == dsDS.reverse)
   }
 
   test("produce record") {
@@ -62,5 +58,26 @@ class SortTest extends AnyFunSuite {
         .collect()
         .toList
         .map(_.key))
+    assert(
+      prRdd.descendTimestamp.rdd.collect().toList.map(_.key) == crRdd.descendTimestamp.rdd
+        .collect()
+        .toList
+        .map(_.key))
+
+    assert(
+      prRdd.descendOffset.rdd.collect().toList.map(_.key) == crRdd.descendOffset.rdd
+        .collect()
+        .toList
+        .map(_.key))
+  }
+  test("disorders") {
+    assert(crRdd.stats.disorders.dataset.count() == 4)
+    crRdd.stats.summary.unsafeRunSync()
+  }
+  test("dup") {
+    assert(crRdd.stats.dupRecords.dataset.count == 1)
+  }
+  test("missing offsets") {
+    assert(crRdd.stats.missingOffsets.dataset.count == 1)
   }
 }
