@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.IO
 import cats.syntax.all._
+import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJDateTimeRange}
 import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark._
@@ -69,15 +70,14 @@ class CrDSTest extends AnyFunSuite {
   val crDS: CrDS[IO, Long, Rooster] = crRdd.crDS
 
   test("misc") {
+    val dr = NJDateTimeRange(sydneyTime)
+      .withStartTime(Instant.now.minusSeconds(50))
+      .withEndTime(Instant.now())
+
     assert(crRdd.keys.collect().size == 4)
     assert(crRdd.values.collect().size == 4)
     assert(crRdd.partitionOf(0).rdd.collect.size == 4)
-    assert(
-      crRdd
-        .timeRange(Instant.now.minusSeconds(50).toString, Instant.now().toString)
-        .rdd
-        .collect
-        .size == 4)
+    assert(crRdd.timeRange(dr).rdd.collect.size == 4)
   }
 
   test("first") {
