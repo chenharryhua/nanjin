@@ -33,16 +33,9 @@ final class CrRdd[F[_], K, V] private[kafka] (
 
   def partitionOf(num: Int): CrRdd[F, K, V] = transform(_.filter(_.partition === num))
 
-  def offsetRange(start: Long, end: Long): CrRdd[F, K, V] =
-    transform(_.filter(o => o.offset >= start && o.offset <= end))
-
-  def timeRange(dr: NJDateTimeRange): CrRdd[F, K, V] =
-    transform(_.filter(m => dr.isInBetween(m.timestamp)))
-
-  def timeRange(start: String, end: String): CrRdd[F, K, V] =
-    timeRange(params.timeRange.withTimeRange(start, end))
-
-  def timeRange: CrRdd[F, K, V] = timeRange(params.timeRange)
+  def offsetRange(start: Long, end: Long): CrRdd[F, K, V] = transform(range.cr.offset(start, end))
+  def timeRange(dr: NJDateTimeRange): CrRdd[F, K, V]      = transform(range.cr.timestamp(dr))
+  def timeRange: CrRdd[F, K, V]                           = timeRange(params.timeRange)
 
   def ascendTimestamp: CrRdd[F, K, V]  = transform(sort.ascending.cr.timestamp)
   def descendTimestamp: CrRdd[F, K, V] = transform(sort.descending.cr.timestamp)

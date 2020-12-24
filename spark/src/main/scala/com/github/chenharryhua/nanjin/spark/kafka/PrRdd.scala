@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.syntax.all._
+import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
@@ -34,6 +35,12 @@ final class PrRdd[F[_], K, V] private[kafka] (
 
   def transform(f: RDD[NJProducerRecord[K, V]] => RDD[NJProducerRecord[K, V]]) =
     new PrRdd[F, K, V](topic, f(rdd), cfg)
+
+  def partitionOf(num: Int): PrRdd[F, K, V] = transform(_.filter(_.partition.exists(_ === num)))
+
+  def offsetRange(start: Long, end: Long): PrRdd[F, K, V] = transform(range.pr.offset(start, end))
+  def timeRange(dr: NJDateTimeRange): PrRdd[F, K, V]      = transform(range.pr.timestamp(dr))
+  def timeRange: PrRdd[F, K, V]                           = timeRange(params.timeRange)
 
   def ascendTimestamp: PrRdd[F, K, V]  = transform(sort.ascending.pr.timestamp)
   def descendTimestamp: PrRdd[F, K, V] = transform(sort.descending.pr.timestamp)

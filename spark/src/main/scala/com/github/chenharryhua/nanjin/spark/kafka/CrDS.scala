@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.Sync
 import cats.syntax.bifunctor._
-import com.github.chenharryhua.nanjin.datetime.NJTimestamp
+import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.DatasetAvroFileHoarder
@@ -27,8 +27,9 @@ final class CrDS[F[_], K, V] private[kafka] (
 
   def partitionOf(num: Int): CrDS[F, K, V] = transform(_.filter(col("partition") === num))
 
-  def offsetRange(start: Long, end: Long): CrDS[F, K, V] =
-    transform(_.filter(col("offset").between(start, end)))
+  def offsetRange(start: Long, end: Long): CrDS[F, K, V] = transform(range.offset(start, end))
+  def timeRange(dr: NJDateTimeRange): CrDS[F, K, V]      = transform(range.timestamp(dr))
+  def timeRange: CrDS[F, K, V]                           = timeRange(params.timeRange)
 
   def ascendOffset: CrDS[F, K, V]     = transform(sort.ascending.offset)
   def descendOffset: CrDS[F, K, V]    = transform(sort.descending.offset)
