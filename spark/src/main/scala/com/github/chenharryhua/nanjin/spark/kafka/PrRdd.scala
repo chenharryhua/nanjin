@@ -32,17 +32,17 @@ final class PrRdd[F[_], K, V] private[kafka] (
   def timeLimit(ms: Long): PrRdd[F, K, V]           = withParamUpdate(_.withUploadTimeLimit(ms))
   def timeLimit(fd: FiniteDuration): PrRdd[F, K, V] = withParamUpdate(_.withUploadTimeLimit(fd))
 
-  def ascendTimestamp: PrRdd[F, K, V] =
-    new PrRdd(topic, rdd.sortBy(_.timestamp, ascending = true), cfg)
+  def transform(f: RDD[NJProducerRecord[K, V]] => RDD[NJProducerRecord[K, V]]) =
+    new PrRdd[F, K, V](topic, f(rdd), cfg)
 
-  def noTimestamp: PrRdd[F, K, V] =
-    new PrRdd[F, K, V](topic, rdd.map(_.noTimestamp), cfg)
+  def ascendTimestamp: PrRdd[F, K, V]  = transform(sort.ascending.pr.timestamp)
+  def descendTimestamp: PrRdd[F, K, V] = transform(sort.descending.pr.timestamp)
+  def ascendOffset: PrRdd[F, K, V]     = transform(sort.ascending.pr.offset)
+  def descendOffset: PrRdd[F, K, V]    = transform(sort.descending.pr.offset)
 
-  def noPartition: PrRdd[F, K, V] =
-    new PrRdd[F, K, V](topic, rdd.map(_.noPartition), cfg)
-
-  def noMeta: PrRdd[F, K, V] =
-    new PrRdd[F, K, V](topic, rdd.map(_.noMeta), cfg)
+  def noTimestamp: PrRdd[F, K, V] = transform(_.map(_.noTimestamp))
+  def noPartition: PrRdd[F, K, V] = transform(_.map(_.noPartition))
+  def noMeta: PrRdd[F, K, V]      = transform(_.map(_.noMeta))
 
   // actions
   def pipeTo[K2, V2](other: KafkaTopic[F, K2, V2])(k: K => K2, v: V => V2)(implicit

@@ -20,49 +20,35 @@ final class CrDS[F[_], K, V] private[kafka] (
 
   val params: SKParams = cfg.evalConfig
 
-  def partitionOf(num: Int): CrDS[F, K, V] =
-    new CrDS[F, K, V](topic, dataset.filter(col("partition") === num), ate, cfg)
-
   def typedDataset: TypedDataset[OptionalKV[K, V]] = TypedDataset.create(dataset)(ate.typedEncoder)
 
-  // inclusive
+  def transform(f: Dataset[OptionalKV[K, V]] => Dataset[OptionalKV[K, V]]) =
+    new CrDS[F, K, V](topic, f(dataset), ate, cfg)
+
+  def partitionOf(num: Int): CrDS[F, K, V] = transform(_.filter(col("partition") === num))
+
   def offsetRange(start: Long, end: Long): CrDS[F, K, V] =
-    new CrDS[F, K, V](topic, dataset.filter(col("offset").between(start, end)), ate, cfg)
+    transform(_.filter(col("offset").between(start, end)))
 
-  def ascendOffset: CrDS[F, K, V] =
-    new CrDS[F, K, V](
-      topic,
-      dataset.orderBy(col("offset").asc, col("timestamp").asc, col("partition").asc),
-      ate,
-      cfg)
+  def ascendOffset: CrDS[F, K, V]     = transform(sort.ascending.offset)
+  def descendOffset: CrDS[F, K, V]    = transform(sort.descending.offset)
+  def ascendTimestamp: CrDS[F, K, V]  = transform(sort.ascending.timestamp)
+  def descendTimestamp: CrDS[F, K, V] = transform(sort.descending.timestamp)
 
-  def descendOffset: CrDS[F, K, V] =
-    new CrDS[F, K, V](
-      topic,
-      dataset.orderBy(col("offset").desc, col("timestamp").desc, col("partition").desc),
-      ate,
-      cfg)
+  def repartition(num: Int): CrDS[F, K, V] = transform(_.repartition(num))
 
-  def ascendTimestamp: CrDS[F, K, V] =
-    new CrDS[F, K, V](
-      topic,
-      dataset.orderBy(col("timestamp").asc, col("offset").asc, col("partition").asc),
-      ate,
-      cfg)
+  def persist: CrDS[F, K, V]   = transform(_.persist())
+  def unpersist: CrDS[F, K, V] = transform(_.unpersist())
 
-  def descendTimestamp: CrDS[F, K, V] =
-    new CrDS[F, K, V](
-      topic,
-      dataset.orderBy(col("timestamp").desc, col("offset").desc, col("partition").desc),
-      ate,
-      cfg)
+  def filter(f: OptionalKV[K, V] => Boolean): CrDS[F, K, V] = transform(_.filter(f))
 
-  def repartition(num: Int): CrDS[F, K, V] =
-    new CrDS[F, K, V](topic, dataset.repartition(num), ate, cfg)
+  def union(other: Dataset[OptionalKV[K, V]]): CrDS[F, K, V] = transform(_.union(other))
+  def union(other: CrDS[F, K, V]): CrDS[F, K, V]             = union(other.dataset)
 
-  def persist: CrDS[F, K, V]   = new CrDS[F, K, V](topic, dataset.persist(), ate, cfg)
-  def unpersist: CrDS[F, K, V] = new CrDS[F, K, V](topic, dataset.unpersist(), ate, cfg)
+  def distinct: CrDS[F, K, V]  = transform(_.distinct())
+  def normalize: CrDS[F, K, V] = transform(ate.normalize(_).dataset)
 
+  // maps
   def bimap[K2, V2](k: K => K2, v: V => V2)(other: KafkaTopic[F, K2, V2])(implicit
     k2: TypedEncoder[K2],
     v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
@@ -86,22 +72,6 @@ final class CrDS[F[_], K, V] private[kafka] (
     new CrDS[F, K2, V2](other, dataset.flatMap(f)(ate.sparkEncoder), ate, cfg).normalize
   }
 
-  def normalize: CrDS[F, K, V] = new CrDS[F, K, V](topic, ate.normalize(dataset).dataset, ate, cfg)
-
-  def filter(f: OptionalKV[K, V] => Boolean): CrDS[F, K, V] =
-    new CrDS[F, K, V](topic, dataset.filter(f), ate, cfg)
-
-  def union(other: Dataset[OptionalKV[K, V]]): CrDS[F, K, V] =
-    new CrDS[F, K, V](topic, dataset.union(other), ate, cfg)
-
-  def union(other: CrDS[F, K, V]): CrDS[F, K, V] =
-    union(other.dataset)
-
-  def distinct: CrDS[F, K, V] =
-    new CrDS[F, K, V](topic, dataset.distinct, ate, cfg)
-
-  def count(implicit F: Sync[F]): F[Long] = F.delay(dataset.count())
-
   def stats: Statistics[F] = {
     val enc = TypedExpressionEncoder[CRMetaInfo]
     new Statistics[F](dataset.map(CRMetaInfo(_))(enc), cfg)
@@ -113,4 +83,5 @@ final class CrDS[F[_], K, V] private[kafka] (
   def save: DatasetAvroFileHoarder[F, OptionalKV[K, V]] =
     new DatasetAvroFileHoarder[F, OptionalKV[K, V]](dataset, ate.avroCodec.avroEncoder)
 
+  def count(implicit F: Sync[F]): F[Long] = F.delay(dataset.count())
 }

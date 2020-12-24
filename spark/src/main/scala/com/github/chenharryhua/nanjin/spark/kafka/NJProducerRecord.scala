@@ -15,6 +15,7 @@ import shapeless.cachedImplicit
 
 @Lenses final case class NJProducerRecord[K, V](
   partition: Option[Int],
+  offset: Option[Long], // for sort
   timestamp: Option[Long],
   key: Option[K],
   value: Option[V]) {
@@ -63,26 +64,26 @@ import shapeless.cachedImplicit
 object NJProducerRecord {
 
   def apply[K, V](pr: ProducerRecord[Option[K], Option[V]]): NJProducerRecord[K, V] =
-    NJProducerRecord(Option(pr.partition), Option(pr.timestamp), pr.key, pr.value)
+    NJProducerRecord(Option(pr.partition), None, Option(pr.timestamp), pr.key, pr.value)
 
   def apply[K, V](k: K, v: V): NJProducerRecord[K, V] =
-    NJProducerRecord(None, None, Option(k), Option(v))
+    NJProducerRecord(None, None, None, Option(k), Option(v))
 
   def apply[K, V](v: V): NJProducerRecord[K, V] =
-    NJProducerRecord(None, None, None, Option(v))
+    NJProducerRecord(None, None, None, None, Option(v))
 
   def avroCodec[K, V](
     keyCodec: AvroCodec[K],
     valCodec: AvroCodec[V]): AvroCodec[NJProducerRecord[K, V]] = {
-    implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
-    implicit val schemaForVal: SchemaFor[V] = valCodec.schemaFor
-    implicit val keyDecoder: Decoder[K]     = keyCodec.avroDecoder
-    implicit val valDecoder: Decoder[V]     = valCodec.avroDecoder
-    implicit val keyEncoder: Encoder[K]     = keyCodec.avroEncoder
-    implicit val valEncoder: Encoder[V]     = valCodec.avroEncoder
-    val s: SchemaFor[NJProducerRecord[K, V]]      = cachedImplicit
-    val d: Decoder[NJProducerRecord[K, V]]        = cachedImplicit
-    val e: Encoder[NJProducerRecord[K, V]]        = cachedImplicit
+    implicit val schemaForKey: SchemaFor[K]  = keyCodec.schemaFor
+    implicit val schemaForVal: SchemaFor[V]  = valCodec.schemaFor
+    implicit val keyDecoder: Decoder[K]      = keyCodec.avroDecoder
+    implicit val valDecoder: Decoder[V]      = valCodec.avroDecoder
+    implicit val keyEncoder: Encoder[K]      = keyCodec.avroEncoder
+    implicit val valEncoder: Encoder[V]      = valCodec.avroEncoder
+    val s: SchemaFor[NJProducerRecord[K, V]] = cachedImplicit
+    val d: Decoder[NJProducerRecord[K, V]]   = cachedImplicit
+    val e: Encoder[NJProducerRecord[K, V]]   = cachedImplicit
     AvroCodec[NJProducerRecord[K, V]](s, d, e)
   }
 
@@ -94,7 +95,7 @@ object NJProducerRecord {
 
   implicit def emptyNJProducerRecord[K, V]: Empty[NJProducerRecord[K, V]] =
     new Empty[NJProducerRecord[K, V]] {
-      override val empty: NJProducerRecord[K, V] = NJProducerRecord(None, None, None, None)
+      override val empty: NJProducerRecord[K, V] = NJProducerRecord(None, None, None, None, None)
     }
 
   implicit def jsonEncoderNJProducerRecord[K: JsonEncoder, V: JsonEncoder]
