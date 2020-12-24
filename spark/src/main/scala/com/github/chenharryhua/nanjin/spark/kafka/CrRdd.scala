@@ -41,9 +41,6 @@ final class CrRdd[F[_], K, V] private[kafka] (
       cfg,
       sparkSession)
 
-  def offsetAscending: CrRdd[F, K, V]  = sortBy(_.offset, ascending = true)
-  def offsetDescending: CrRdd[F, K, V] = sortBy(_.offset, ascending = false)
-
   def timeRange(dr: NJDateTimeRange): CrRdd[F, K, V] =
     new CrRdd[F, K, V](
       topic,
@@ -59,8 +56,17 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def sortBy[A: Order: ClassTag](f: OptionalKV[K, V] => A, ascending: Boolean): CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, rdd.sortBy(f, ascending), cfg, sparkSession)
 
-  def timestampAscending: CrRdd[F, K, V]  = sortBy(identity, ascending = true)
-  def timestampDescending: CrRdd[F, K, V] = sortBy(identity, ascending = false)
+  def ascendTimestamp: CrRdd[F, K, V] =
+    sortBy(x => (x.timestamp, x.offset, x.partition), ascending = true)
+
+  def descendTimestamp: CrRdd[F, K, V] =
+    sortBy(x => (x.timestamp, x.offset, x.partition), ascending = false)
+
+  def ascendOffset: CrRdd[F, K, V] =
+    sortBy(x => (x.offset, x.timestamp, x.partition), ascending = true)
+
+  def descendOffset: CrRdd[F, K, V] =
+    sortBy(x => (x.offset, x.timestamp, x.partition), ascending = false)
 
   def first(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] = F.delay(rdd.cminOption)
   def last(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]]  = F.delay(rdd.cmaxOption)

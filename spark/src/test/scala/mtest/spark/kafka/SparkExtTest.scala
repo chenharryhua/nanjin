@@ -24,16 +24,14 @@ class SparkExtTest extends AnyFunSuite {
   val topic: KafkaTopic[IO, String, trip_record] =
     ctx.topic[String, trip_record]("nyc_yellow_taxi_trip_data")
   test("stream") {
-    topic.sparKafka.fromKafka
-      .flatMap(_.crDS.typedDataset.stream[IO].compile.drain)
-      .unsafeRunSync
+    topic.sparKafka.fromKafka.flatMap(_.crDS.typedDataset.stream[IO].compile.drain).unsafeRunSync
   }
   test("source") {
     topic
       .sparKafka(range)
       .fromKafka
       .flatMap(
-        _.crDS.timestampAscending.typedDataset
+        _.crDS.ascendTimestamp.typedDataset
           .source[IO]
           .map(println)
           .take(10)

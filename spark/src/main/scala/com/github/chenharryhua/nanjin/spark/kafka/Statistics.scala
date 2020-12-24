@@ -63,6 +63,8 @@ final case class Disorder(
   msGap: Long,
   tsType: Int)
 
+final case class DuplicateRecord(partition: Int, offset: Long, num: Long)
+
 final class Statistics[F[_]] private[kafka] (ds: Dataset[CRMetaInfo], cfg: SKConfig)
     extends Serializable {
 
@@ -155,7 +157,8 @@ final class Statistics[F[_]] private[kafka] (ds: Dataset[CRMetaInfo], cfg: SKCon
         ds.filter(col("partition") === kds.partition).map(_.offset)(enc)
       expected
         .except(exist)
-        .map(os => MissingOffset(kds.partition, os))(TypedExpressionEncoder[MissingOffset])
+        .map(os => MissingOffset(partition = kds.partition, offset = os))(
+          TypedExpressionEncoder[MissingOffset])
     }
     TypedDataset.create(all.reduce(_.union(_)).orderBy(col("partition").asc, col("offset").asc))
   }
@@ -171,18 +174,28 @@ final class Statistics[F[_]] private[kafka] (ds: Dataset[CRMetaInfo], cfg: SKCon
         curr.join(pre).flatMap { case (_, (c, p)) =>
           if (c.timestamp >= p.timestamp) None
           else
-            Some(
-              Disorder(
-                partition,
-                p.offset,
-                p.timestamp,
-                NJTimestamp(p.timestamp).atZone(params.timeRange.zoneId),
-                c.timestamp,
-                p.timestamp - c.timestamp,
-                c.timestampType))
+            Some(Disorder(
+              partition = partition,
+              offset = p.offset,
+              timestamp = p.timestamp,
+              ts = NJTimestamp(p.timestamp).atZone(params.timeRange.zoneId),
+              nextTS = c.timestamp,
+              msGap = p.timestamp - c.timestamp,
+              tsType = p.timestampType
+            ))
         }
       }
     val tds = TypedDataset.create(all.reduce(_.union(_)))(TypedEncoder[Disorder], ds.sparkSession)
     tds.orderBy(tds('partition).asc, tds('offset).asc)
+  }
+
+  def dupRecords: TypedDataset[DuplicateRecord] = {
+    val tds = typedDataset
+    tds
+      .groupBy(tds('partition), tds('offset))
+      .agg(count())
+      .deserialized
+      .flatMap(x =>
+        if (x._3 > 1) Some(DuplicateRecord(partition = x._1, offset = x._2, num = x._3)) else None)
   }
 }

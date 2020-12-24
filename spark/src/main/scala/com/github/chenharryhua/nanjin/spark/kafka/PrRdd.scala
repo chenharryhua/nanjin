@@ -32,7 +32,8 @@ final class PrRdd[F[_], K, V] private[kafka] (
   def timeLimit(ms: Long): PrRdd[F, K, V]           = withParamUpdate(_.withUploadTimeLimit(ms))
   def timeLimit(fd: FiniteDuration): PrRdd[F, K, V] = withParamUpdate(_.withUploadTimeLimit(fd))
 
-  def ascending: PrRdd[F, K, V] = new PrRdd(topic, rdd.sortBy(_.timestamp, ascending = true), cfg)
+  def ascendTimestamp: PrRdd[F, K, V] =
+    new PrRdd(topic, rdd.sortBy(_.timestamp, ascending = true), cfg)
 
   def noTimestamp: PrRdd[F, K, V] =
     new PrRdd[F, K, V](topic, rdd.map(_.noTimestamp), cfg)
