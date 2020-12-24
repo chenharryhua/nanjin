@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.Order
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
@@ -12,8 +11,6 @@ import frameless.cats.implicits.rddOps
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
-
-import scala.reflect.ClassTag
 
 final class CrRdd[F[_], K, V] private[kafka] (
   val topic: KafkaTopic[F, K, V],
@@ -30,56 +27,38 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def withParamUpdate(f: SKConfig => SKConfig): CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, rdd, f(cfg), sparkSession)
 
-  def partitionOf(num: Int): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](topic, rdd.filter(_.partition === num), cfg, sparkSession)
+  // transforms
+  def transform(f: RDD[OptionalKV[K, V]] => RDD[OptionalKV[K, V]]) =
+    new CrRdd[F, K, V](topic, f(rdd), cfg, sparkSession)
 
-  // inclusive
-  def offsetRange(start: Long, end: Long): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](
-      topic,
-      rdd.filter(o => o.offset >= start && o.offset <= end),
-      cfg,
-      sparkSession)
+  def partitionOf(num: Int): CrRdd[F, K, V] = transform(_.filter(_.partition === num))
 
-  def timeRange(dr: NJDateTimeRange): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](
-      topic,
-      rdd.filter(m => dr.isInBetween(m.timestamp)),
-      cfg.withTimeRange(dr),
-      sparkSession)
+  def offsetRange(start: Long, end: Long): CrRdd[F, K, V] = transform(range.cr.offset(start, end))
+  def timeRange(dr: NJDateTimeRange): CrRdd[F, K, V]      = transform(range.cr.timestamp(dr))
+  def timeRange: CrRdd[F, K, V]                           = timeRange(params.timeRange)
 
-  def timeRange: CrRdd[F, K, V] = timeRange(params.timeRange)
-
-  def timeRange(start: String, end: String): CrRdd[F, K, V] =
-    timeRange(params.timeRange.withTimeRange(start, end))
-
-  def sortBy[A: Order: ClassTag](f: OptionalKV[K, V] => A, ascending: Boolean): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](topic, rdd.sortBy(f, ascending), cfg, sparkSession)
-
-  def ascendTimestamp: CrRdd[F, K, V] =
-    sortBy(x => (x.timestamp, x.offset, x.partition), ascending = true)
-
-  def descendTimestamp: CrRdd[F, K, V] =
-    sortBy(x => (x.timestamp, x.offset, x.partition), ascending = false)
-
-  def ascendOffset: CrRdd[F, K, V] =
-    sortBy(x => (x.offset, x.timestamp, x.partition), ascending = true)
-
-  def descendOffset: CrRdd[F, K, V] =
-    sortBy(x => (x.offset, x.timestamp, x.partition), ascending = false)
+  def ascendTimestamp: CrRdd[F, K, V]  = transform(sort.ascending.cr.timestamp)
+  def descendTimestamp: CrRdd[F, K, V] = transform(sort.descending.cr.timestamp)
+  def ascendOffset: CrRdd[F, K, V]     = transform(sort.ascending.cr.offset)
+  def descendOffset: CrRdd[F, K, V]    = transform(sort.descending.cr.offset)
 
   def first(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] = F.delay(rdd.cminOption)
   def last(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]]  = F.delay(rdd.cmaxOption)
 
-  //transformation
-  def normalize: CrRdd[F, K, V] =
-    new CrRdd[F, K, V](topic, rdd.map(codec.idConversion), cfg, sparkSession)
+  def persist: CrRdd[F, K, V]   = transform(_.persist())
+  def unpersist: CrRdd[F, K, V] = transform(_.unpersist())
 
-  def persist: CrRdd[F, K, V]   = new CrRdd[F, K, V](topic, rdd.persist(), cfg, sparkSession)
-  def unpersist: CrRdd[F, K, V] = new CrRdd[F, K, V](topic, rdd.unpersist(), cfg, sparkSession)
+  def repartition(num: Int): CrRdd[F, K, V]                  = transform(_.repartition(num))
+  def filter(f: OptionalKV[K, V] => Boolean): CrRdd[F, K, V] = transform(_.filter(f))
 
-  def repartition(num: Int): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](topic, rdd.repartition(num), cfg, sparkSession)
+  def union(other: RDD[OptionalKV[K, V]]): CrRdd[F, K, V] = transform(_.union(other))
+  def union(other: CrRdd[F, K, V]): CrRdd[F, K, V]        = union(other.rdd)
+
+  def distinct: CrRdd[F, K, V] = transform(_.distinct())
+
+  def normalize: CrRdd[F, K, V] = transform(_.map(codec.idConversion))
+
+  // maps
 
   def bimap[K2, V2](k: K => K2, v: V => V2)(other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
     new CrRdd[F, K2, V2](other, rdd.map(_.bimap(k, v)), cfg, sparkSession).normalize
@@ -92,14 +71,6 @@ final class CrRdd[F[_], K, V] private[kafka] (
     other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
     new CrRdd[F, K2, V2](other, rdd.flatMap(f), cfg, sparkSession).normalize
 
-  def filter(f: OptionalKV[K, V] => Boolean): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](topic, rdd.filter(f), cfg, sparkSession)
-
-  def union(other: RDD[OptionalKV[K, V]]): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](topic, rdd.union(other), cfg, sparkSession)
-
-  def union(other: CrRdd[F, K, V]): CrRdd[F, K, V] = union(other.rdd)
-
   def dismissNulls: CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, rdd.dismissNulls, cfg, sparkSession)
 
@@ -107,8 +78,6 @@ final class CrRdd[F[_], K, V] private[kafka] (
     val rep = (1 until num).foldLeft(rdd) { case (r, _) => r.union(rdd) }
     new CrRdd[F, K, V](topic, rep, cfg, sparkSession)
   }
-
-  def distinct: CrRdd[F, K, V] = new CrRdd[F, K, V](topic, rdd.distinct(), cfg, sparkSession)
 
   // dataset
   def crDS(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
