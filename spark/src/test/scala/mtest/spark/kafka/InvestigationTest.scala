@@ -6,7 +6,6 @@ import com.github.chenharryhua.nanjin.spark.kafka.{
   inv,
   CRMetaInfo,
   DiffResult,
-  DupResult,
   KvDiffResult,
   OptionalKV
 }
@@ -134,9 +133,4 @@ class InvestigationTest extends AnyFunSuite {
     assert(rst4 == kv)
   }
 
-  test("sparKafka duplicate") {
-    val rst: Set[DupResult] =
-      inv.dupRecords(TypedDataset.create(mouses6)).collect[IO]().unsafeRunSync().toSet
-    assert(Set(DupResult(0, 2, 3)) == rst)
-  }
 }

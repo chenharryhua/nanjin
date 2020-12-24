@@ -3,11 +3,8 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.Eq
 import cats.implicits._
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
-import frameless.functions.aggregate.count
 import frameless.{TypedDataset, TypedEncoder}
-import org.apache.kafka.common.record.TimestampType
 import org.apache.spark.rdd.RDD
-import io.scalaland.enumz.Enum
 
 final case class CRMetaInfo(
   topic: String,
@@ -20,17 +17,11 @@ object CRMetaInfo {
   implicit val typedEncoder: TypedEncoder[CRMetaInfo] = shapeless.cachedImplicit
 
   def apply[K, V](cr: NJConsumerRecord[K, V]): CRMetaInfo =
-    CRMetaInfo(
-      cr.topic,
-      cr.partition,
-      cr.offset,
-      cr.timestamp,
-      cr.timestampType)
+    CRMetaInfo(cr.topic, cr.partition, cr.offset, cr.timestamp, cr.timestampType)
 }
 
 final case class KvDiffResult[K, V](key: Option[K], value: Option[V])
 final case class DiffResult[K, V](left: OptionalKV[K, V], right: Option[OptionalKV[K, V]])
-final case class DupResult(partition: Int, offset: Long, num: Long)
 
 object inv {
 
@@ -84,14 +75,4 @@ object inv {
     val yours: RDD[KvDiffResult[K, V]] = right.map(x => KvDiffResult(x.key, x.value)).distinct()
     mine.subtract(yours)
   }
-
-  /** (partition, offset) should be unique
-    */
-  def dupRecords(tds: TypedDataset[CRMetaInfo]): TypedDataset[DupResult] =
-    tds
-      .groupBy(tds('partition), tds('offset))
-      .agg(count())
-      .deserialized
-      .flatMap(x => if (x._3 > 1) Some(DupResult(x._1, x._2, x._3)) else None)
-
 }
