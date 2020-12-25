@@ -6,7 +6,7 @@ import cats.mtl.Tell
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaOffsetRange, KafkaTopic, KafkaTopicPartition}
-import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
+import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkDatetimeConversionConstant}
 import fs2.Pipe
 import fs2.kafka.{produce, ProducerRecords, ProducerResult}
 import monocle.function.At.remove
@@ -148,7 +148,7 @@ private[kafka] object sk {
         ms.map { cr =>
           val (errs, msg) = decoder.decode(cr).run
           errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
-          f(OptionalKV.timestamp.modify(_ * 1000)(msg)) // spark use second.
+          f(OptionalKV.timestamp.modify(_ * SparkDatetimeConversionConstant)(msg))
         }
       }(ate.sparkEncoder)
   }

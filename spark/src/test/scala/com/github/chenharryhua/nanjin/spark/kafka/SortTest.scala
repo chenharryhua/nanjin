@@ -7,6 +7,7 @@ import scala.util.Random
 
 class SortTest extends AnyFunSuite {
   val topic = ctx.topic[Int, Int]("topic")
+  val ate   = OptionalKV.ate(topic.topicDef)
 
   val data = List(
     OptionalKV[Int, Int](0, 0, 40, Some(0), Some(Random.nextInt()), "topic", 0),
@@ -22,7 +23,7 @@ class SortTest extends AnyFunSuite {
   )
   val rdd   = sparkSession.sparkContext.parallelize(data)
   val crRdd = topic.sparKafka.crRdd(rdd)
-  val crDS  = crRdd.crDS
+  val crDS  = crRdd.crDS(ate.typedEncoder)
   val prRdd = crRdd.prRdd
 
   test("offset") {
