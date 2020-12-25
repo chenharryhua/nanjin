@@ -32,8 +32,7 @@ class KafkaStreamTest extends AnyFunSuite {
 
   test("console sink") {
     val rooster = roosterTopic.withTopicName("sstream.console.rooster").in(ctx)
-    val ss = rooster.sparKafka
-      .sstream(ate.typedEncoder)
+    val ss = rooster.sparKafka.sstream
       .map(x => x.newValue(x.value.map(_.index + 1)))
       .flatMap(x => x.value.map(_ => x))
       .filter(_ => true)
@@ -57,9 +56,7 @@ class KafkaStreamTest extends AnyFunSuite {
     val rooster = roosterTopic.withTopicName("sstream.file.rooster").in(ctx)
 
     val path = root + "fileSink"
-    val ss = rooster.sparKafka
-      .sstream(ate.typedEncoder)
-      .ignoreDataLoss
+    val ss = rooster.sparKafka.sstream.ignoreDataLoss
       .trigger(Trigger.ProcessingTime(500))
       .fileSink(path)
       .avro
@@ -87,10 +84,10 @@ class KafkaStreamTest extends AnyFunSuite {
 
     val ss = rooster
       .sparKafka(sydneyTime)
-      .sstream(ate.typedEncoder)
+      .sstream
       .ignoreDataLoss
       .trigger(Trigger.ProcessingTime(1000))
-      .datePartitionFileSink[Int, Rooster](path)
+      .datePartitionSink(path)
       .parquet
       .queryStream
 
@@ -106,8 +103,7 @@ class KafkaStreamTest extends AnyFunSuite {
   test("memory sink - validate kafka timestamp") {
     val rooster = roosterTopic.withTopicName("sstream.memory.rooster").in(ctx)
 
-    val ss = rooster.sparKafka
-      .sstream(ate.typedEncoder)
+    val ss = rooster.sparKafka.sstream
       .trigger(Trigger.ProcessingTime(1000))
       .ignoreDataLoss
       .memorySink("kafka")

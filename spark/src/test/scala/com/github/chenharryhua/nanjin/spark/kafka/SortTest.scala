@@ -23,7 +23,7 @@ class SortTest extends AnyFunSuite {
   )
   val rdd   = sparkSession.sparkContext.parallelize(data)
   val crRdd = topic.sparKafka.crRdd(rdd)
-  val crDS  = crRdd.crDS(ate.typedEncoder)
+  val crDS  = crRdd.crDS
   val prRdd = crRdd.prRdd
 
   test("offset") {

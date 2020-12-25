@@ -53,8 +53,8 @@ final class SparKafka[F[_], K, V](
   def crRdd(rdd: RDD[OptionalKV[K, V]]): CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, rdd, cfg, sparkSession)
 
-  def crDS(df: DataFrame, te: TypedEncoder[OptionalKV[K, V]]): CrDS[F, K, V] = {
-    val ate = AvroTypedEncoder(te, OptionalKV.avroCodec(topic.topicDef))
+  def crDS(df: DataFrame)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
+    val ate = OptionalKV.ate(topic.topicDef)
     new CrDS(topic, ate.normalizeDF(df).dataset, ate, cfg)
   }
 
@@ -70,9 +70,11 @@ final class SparKafka[F[_], K, V](
       SStreamConfig(params.timeRange, params.showDs)
         .withCheckpointAppend(s"kafka/${topic.topicName.value}"))
 
-  def sstream(te: TypedEncoder[OptionalKV[K, V]])(implicit
+  def sstream(implicit
+    tek: TypedEncoder[K],
+    tev: TypedEncoder[V],
     F: Sync[F]): SparkSStream[F, OptionalKV[K, V]] = {
-    val ate = AvroTypedEncoder(te, OptionalKV.avroCodec(topic.topicDef))
+    val ate = OptionalKV.ate(topic.topicDef)
     sstream(identity, ate)
   }
 }
