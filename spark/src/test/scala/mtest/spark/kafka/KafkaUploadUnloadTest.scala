@@ -75,8 +75,8 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
         .drain
       _ <- pr.count.map(println)
       _ <- topic.fromKafka.flatMap(_.save.circe(circe).run(blocker))
-      _ <- topic.fromKafka.flatMap(_.crDS(ate.typedEncoder).save.parquet(parquet).run(blocker))
-      _ <- topic.fromKafka.flatMap(_.crDS(ate.typedEncoder).save.json(json).run(blocker))
+      _ <- topic.fromKafka.flatMap(_.crDS.save.parquet(parquet).run(blocker))
+      _ <- topic.fromKafka.flatMap(_.crDS.save.json(json).run(blocker))
       _ <- topic.fromKafka.flatMap(_.save.avro(avro).run(blocker))
       _ <- topic.fromKafka.flatMap(_.save.jackson(jackson).run(blocker))
       _ <- topic.fromKafka.flatMap(_.save.binAvro(avroBin).run(blocker))
@@ -89,8 +89,7 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
           .crDS(
             sparkSession.read
               .schema(OptionalKV.ate(topic.topic.topicDef).sparkEncoder.schema)
-              .json(circe),
-            ate.typedEncoder)
+              .json(circe))
           .dataset
           .collect()
           .flatMap(_.value)
@@ -102,7 +101,7 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
 
       val parquetds = topic.load.parquet(parquet).dataset.collect().flatMap(_.value).toSet
       val spkParquet = // can be consumed by spark
-        topic.crDS(sparkSession.read.parquet(parquet), ate.typedEncoder).dataset.collect().flatMap(_.value).toSet
+        topic.crDS(sparkSession.read.parquet(parquet)).dataset.collect().flatMap(_.value).toSet
       assert(parquetds == RoosterData.expected)
       assert(spkParquet == RoosterData.expected)
 
@@ -148,7 +147,7 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
     val parquet = root + "compulsoryK/parquet"
     val sa = topic
       .crRdd(crs)
-      .crDS(ate.typedEncoder)
+      .crDS
       .typedDataset
       .repartition(1)
       .deserialized
@@ -181,7 +180,7 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
     val parquet = root + "compulsoryV/parquet"
     val sa = topic
       .crRdd(crs)
-      .crDS(ate.typedEncoder)
+      .crDS
       .repartition(1)
       .typedDataset
       .repartition(1)
@@ -216,7 +215,7 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
     val parquet = root + "compulsoryKV/parquet"
     val sa = topic
       .crRdd(crs)
-      .crDS(ate.typedEncoder)
+      .crDS
       .typedDataset
       .repartition(1)
       .deserialized

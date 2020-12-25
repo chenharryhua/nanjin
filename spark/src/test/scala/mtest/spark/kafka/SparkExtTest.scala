@@ -28,7 +28,7 @@ class SparkExtTest extends AnyFunSuite {
 
   test("stream") {
     topic.sparKafka.fromKafka
-      .flatMap(_.crDS(ate.typedEncoder).typedDataset.stream[IO].compile.drain)
+      .flatMap(_.crDS.typedDataset.stream[IO].compile.drain)
       .unsafeRunSync
   }
   test("source") {
@@ -36,7 +36,7 @@ class SparkExtTest extends AnyFunSuite {
       .sparKafka(range)
       .fromKafka
       .flatMap(
-        _.crDS(ate.typedEncoder).ascendTimestamp.typedDataset
+        _.crDS.ascendTimestamp.typedDataset
           .source[IO]
           .map(println)
           .take(10)

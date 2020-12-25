@@ -2,9 +2,8 @@ package com.github.chenharryhua.nanjin.spark.sstream
 
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.spark.SparkDatetimeConversionConstant
-import com.github.chenharryhua.nanjin.spark.kafka.OptionalKV
 import frameless.{TypedEncoder, TypedExpressionEncoder}
-import org.apache.spark.sql.functions.{col, dayofmonth, format_string, month, udf, year}
+import org.apache.spark.sql.functions._
 import org.apache.spark.sql.streaming.Trigger
 import org.apache.spark.sql.types.TimestampType
 import org.apache.spark.sql.{Dataset, Row}
@@ -46,8 +45,7 @@ final class SparkSStream[F[_], A](ds: Dataset[A], cfg: SStreamConfig) extends Se
   def memorySink(queryName: String): NJMemorySink[F, A] =
     new NJMemorySink[F, A](ds.writeStream, cfg, queryName)
 
-  def datePartitionFileSink[K, V](path: String): NJFileSink[F, Row] = {
-
+  def datePartitionSink(path: String): NJFileSink[F, Row] = {
     val ts = (col("timestamp") / SparkDatetimeConversionConstant).cast(TimestampType)
     val ws = ds
       .withColumn("Year", year(ts))

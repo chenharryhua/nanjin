@@ -68,7 +68,7 @@ class CrDSTest extends AnyFunSuite {
       StructField("timestampType", IntegerType, false)
     ))
 
-  val crDS: CrDS[IO, Long, Rooster] = crRdd.crDS(roosterATE.typedEncoder)
+  val crDS: CrDS[IO, Long, Rooster] = crRdd.crDS
 
   test("misc") {
     assert(crRdd.keys.collect().size == 4)
@@ -148,15 +148,15 @@ class CrDSTest extends AnyFunSuite {
       .withEndTime(Instant.now().plusSeconds(10))
     assert(crRdd.timeRange(dr).rdd.collect.size == 4)
     assert(crRdd.prRdd.partitionOf(0).timeRange(dr).rdd.collect.size == 4)
-    assert(crRdd.crDS(roosterATE.typedEncoder).timeRange(dr).dataset.collect.size == 4)
+    assert(crRdd.crDS.timeRange(dr).dataset.collect.size == 4)
     assert(crRdd.timeRange.rdd.collect.size == 4)
     assert(crRdd.prRdd.timeRange.rdd.collect.size == 4)
-    assert(crRdd.crDS(roosterATE.typedEncoder).timeRange.dataset.collect.size == 4)
+    assert(crRdd.crDS.timeRange.dataset.collect.size == 4)
   }
 
   test("offset range") {
     assert(crRdd.offsetRange(0, 2).rdd.collect.size == 3)
     assert(crRdd.prRdd.offsetRange(0, 2).rdd.collect.size == 3)
-    assert(crRdd.crDS(roosterATE.typedEncoder).offsetRange(0, 2).dataset.collect.size == 3)
+    assert(crRdd.crDS.offsetRange(0, 2).dataset.collect.size == 3)
   }
 }

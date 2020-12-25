@@ -5,8 +5,8 @@ import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.spark.RddExt
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
-import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt}
 import frameless.cats.implicits.rddOps
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.rdd.RDD
@@ -80,8 +80,8 @@ final class CrRdd[F[_], K, V] private[kafka] (
   }
 
   // dataset
-  def crDS(te: TypedEncoder[OptionalKV[K, V]]): CrDS[F, K, V] = {
-    val ate = AvroTypedEncoder(te, OptionalKV.avroCodec(topic.topicDef))
+  def crDS(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
+    val ate = OptionalKV.ate(topic.topicDef)
     new CrDS[F, K, V](topic, sparkSession.createDataset(rdd)(ate.sparkEncoder), ate, cfg)
   }
 
