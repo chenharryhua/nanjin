@@ -1,9 +1,13 @@
 package com.github.chenharryhua.nanjin.spark.sstream
 
+import com.github.chenharryhua.nanjin.datetime.NJTimestamp
+import com.github.chenharryhua.nanjin.spark.SparkDatetimeConversionConstant
 import com.github.chenharryhua.nanjin.spark.kafka.OptionalKV
 import frameless.{TypedEncoder, TypedExpressionEncoder}
+import org.apache.spark.sql.functions.{col, dayofmonth, format_string, month, udf, year}
 import org.apache.spark.sql.streaming.Trigger
-import org.apache.spark.sql.{Dataset, Encoder}
+import org.apache.spark.sql.types.TimestampType
+import org.apache.spark.sql.{Dataset, Row}
 
 final class SparkSStream[F[_], A](ds: Dataset[A], cfg: SStreamConfig) extends Serializable {
   val params: SStreamParams = cfg.evalConfig
@@ -42,13 +46,14 @@ final class SparkSStream[F[_], A](ds: Dataset[A], cfg: SStreamConfig) extends Se
   def memorySink(queryName: String): NJMemorySink[F, A] =
     new NJMemorySink[F, A](ds.writeStream, cfg, queryName)
 
-  def datePartitionFileSink[K: TypedEncoder, V: TypedEncoder](path: String)(implicit
-    ev: A =:= OptionalKV[K, V]): NJFileSink[F, DatePartitionedCR[K, V]] = {
-    implicit val te: TypedEncoder[DatePartitionedCR[K, V]] = shapeless.cachedImplicit
-    val enc: Encoder[DatePartitionedCR[K, V]]              = TypedExpressionEncoder(te)
-    new NJFileSink[F, DatePartitionedCR[K, V]](
-      ds.map(x => DatePartitionedCR(params.timeRange.zoneId)(ev(x)))(enc).writeStream,
-      cfg,
-      path).partitionBy("Year", "Month", "Day")
+  def datePartitionFileSink[K, V](path: String): NJFileSink[F, Row] = {
+
+    val ts = (col("timestamp") / SparkDatetimeConversionConstant).cast(TimestampType)
+    val ws = ds
+      .withColumn("Year", year(ts))
+      .withColumn("Month", format_string("%02d", month(ts)))
+      .withColumn("Day", format_string("%02d", dayofmonth(ts)))
+      .writeStream
+    new NJFileSink[F, Row](ws, cfg, path).partitionBy("Year", "Month", "Day")
   }
 }

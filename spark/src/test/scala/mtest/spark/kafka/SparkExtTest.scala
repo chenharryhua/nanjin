@@ -23,15 +23,20 @@ class SparkExtTest extends AnyFunSuite {
 
   val topic: KafkaTopic[IO, String, trip_record] =
     ctx.topic[String, trip_record]("nyc_yellow_taxi_trip_data")
+
+  val ate: AvroTypedEncoder[OptionalKV[String, trip_record]] = OptionalKV.ate(topic.topicDef)
+
   test("stream") {
-    topic.sparKafka.fromKafka.flatMap(_.crDS.typedDataset.stream[IO].compile.drain).unsafeRunSync
+    topic.sparKafka.fromKafka
+      .flatMap(_.crDS(ate.typedEncoder).typedDataset.stream[IO].compile.drain)
+      .unsafeRunSync
   }
   test("source") {
     topic
       .sparKafka(range)
       .fromKafka
       .flatMap(
-        _.crDS.ascendTimestamp.typedDataset
+        _.crDS(ate.typedEncoder).ascendTimestamp.typedDataset
           .source[IO]
           .map(println)
           .take(10)

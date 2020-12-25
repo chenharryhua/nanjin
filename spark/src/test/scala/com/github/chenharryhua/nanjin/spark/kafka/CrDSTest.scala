@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.IO
 import cats.syntax.all._
+import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJDateTimeRange}
 import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark._
@@ -34,8 +35,9 @@ class CrDSTest extends AnyFunSuite {
   implicit val te2: TypedEncoder[RoosterLike]              = shapeless.cachedImplicit
   implicit val te3: TypedEncoder[RoosterLike2]             = shapeless.cachedImplicit
 
-  val sk      = sparkSession.alongWith(ctx)
-  val rooster = TopicDef[Long, Rooster](TopicName("rooster"), Rooster.avroCodec)
+  val sk         = sparkSession.alongWith(ctx)
+  val rooster    = TopicDef[Long, Rooster](TopicName("rooster"), Rooster.avroCodec)
+  val roosterATE = OptionalKV.ate(rooster)
 
   val roosterLike =
     TopicDef[Long, RoosterLike](TopicName("roosterLike"), AvroCodec[RoosterLike]).in(ctx)
@@ -66,18 +68,12 @@ class CrDSTest extends AnyFunSuite {
       StructField("timestampType", IntegerType, false)
     ))
 
-  val crDS: CrDS[IO, Long, Rooster] = crRdd.crDS
+  val crDS: CrDS[IO, Long, Rooster] = crRdd.crDS(roosterATE.typedEncoder)
 
   test("misc") {
     assert(crRdd.keys.collect().size == 4)
     assert(crRdd.values.collect().size == 4)
     assert(crRdd.partitionOf(0).rdd.collect.size == 4)
-    assert(
-      crRdd
-        .timeRange(Instant.now.minusSeconds(50).toString, Instant.now().toString)
-        .rdd
-        .collect
-        .size == 4)
   }
 
   test("first") {
@@ -144,5 +140,23 @@ class CrDSTest extends AnyFunSuite {
   test("stats") {
     crDS.stats.daily.unsafeRunSync()
     crDS.crRdd.stats.daily.unsafeRunSync()
+  }
+
+  test("time range") {
+    val dr = NJDateTimeRange(sydneyTime)
+      .withStartTime(Instant.now.minusSeconds(50))
+      .withEndTime(Instant.now().plusSeconds(10))
+    assert(crRdd.timeRange(dr).rdd.collect.size == 4)
+    assert(crRdd.prRdd.partitionOf(0).timeRange(dr).rdd.collect.size == 4)
+    assert(crRdd.crDS(roosterATE.typedEncoder).timeRange(dr).dataset.collect.size == 4)
+    assert(crRdd.timeRange.rdd.collect.size == 4)
+    assert(crRdd.prRdd.timeRange.rdd.collect.size == 4)
+    assert(crRdd.crDS(roosterATE.typedEncoder).timeRange.dataset.collect.size == 4)
+  }
+
+  test("offset range") {
+    assert(crRdd.offsetRange(0, 2).rdd.collect.size == 3)
+    assert(crRdd.prRdd.offsetRange(0, 2).rdd.collect.size == 3)
+    assert(crRdd.crDS(roosterATE.typedEncoder).offsetRange(0, 2).dataset.collect.size == 3)
   }
 }
