@@ -22,17 +22,16 @@ final class SparkSStream[F[_], A](ds: Dataset[A], cfg: SStreamConfig) extends Se
 
   // transforms
 
-  def filter(f: A => Boolean): SparkSStream[F, A] =
-    new SparkSStream[F, A](ds.filter(f), cfg)
+  def transform[B](f: Dataset[A] => Dataset[B]): SparkSStream[F, B] =
+    new SparkSStream[F, B](ds.transform(f), cfg)
+
+  def filter(f: A => Boolean): SparkSStream[F, A] = transform(_.filter(f))
 
   def map[B: TypedEncoder](f: A => B): SparkSStream[F, B] =
-    new SparkSStream[F, B](ds.map(f)(TypedExpressionEncoder[B]), cfg)
+    transform(_.map(f)(TypedExpressionEncoder[B]))
 
   def flatMap[B: TypedEncoder](f: A => TraversableOnce[B]): SparkSStream[F, B] =
-    new SparkSStream[F, B](ds.flatMap(f)(TypedExpressionEncoder[B]), cfg)
-
-  def transform[B: TypedEncoder](f: Dataset[A] => Dataset[B]) =
-    new SparkSStream[F, B](f(ds), cfg)
+    transform(_.flatMap(f)(TypedExpressionEncoder[B]))
 
   // sinks
 

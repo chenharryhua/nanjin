@@ -33,6 +33,7 @@ class KafkaStreamTest extends AnyFunSuite {
   test("console sink") {
     val rooster = roosterTopic.withTopicName("sstream.console.rooster").in(ctx)
     val ss = rooster.sparKafka.sstream
+      .checkpoint("./data/test/checkpoint")
       .map(x => x.newValue(x.value.map(_.index + 1)))
       .flatMap(x => x.value.map(_ => x))
       .filter(_ => true)
@@ -89,6 +90,8 @@ class KafkaStreamTest extends AnyFunSuite {
       .trigger(Trigger.ProcessingTime(1000))
       .datePartitionSink(path)
       .parquet
+      .avro
+      .json // last one wins
       .queryStream
 
     val upload =
