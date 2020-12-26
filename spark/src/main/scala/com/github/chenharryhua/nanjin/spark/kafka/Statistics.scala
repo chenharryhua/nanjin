@@ -58,10 +58,14 @@ final case class Disorder(
   partition: Int,
   offset: Long,
   timestamp: Long,
-  ts: ZonedDateTime,
+  ts: String,
   nextTS: Long,
   msGap: Long,
   tsType: Int)
+
+object Disorder {
+  implicit val teDisorder: TypedEncoder[Disorder] = shapeless.cachedImplicit
+}
 
 final case class DuplicateRecord(partition: Int, offset: Long, num: Long)
 
@@ -153,18 +157,19 @@ final class Statistics[F[_]] private[kafka] (ds: Dataset[CRMetaInfo], cfg: SKCon
     val enc: Encoder[Long] = TypedExpressionEncoder[Long]
     val all: Array[Dataset[MissingOffset]] = kafkaSummary.dataset.collect().map { kds =>
       val expected = ds.sparkSession.range(kds.startOffset, kds.endOffset + 1L).map(_.toLong)(enc)
-      val exist =
-        ds.filter(col("partition") === kds.partition).map(_.offset)(enc)
+      val exist    = ds.filter(col("partition") === kds.partition).map(_.offset)(enc)
       expected
         .except(exist)
         .map(os => MissingOffset(partition = kds.partition, offset = os))(
           TypedExpressionEncoder[MissingOffset])
     }
-    TypedDataset.create(all.reduce(_.union(_)).orderBy(col("partition").asc, col("offset").asc))
+    val sum: Dataset[MissingOffset] = all
+      .foldLeft(ds.sparkSession.emptyDataset(TypedExpressionEncoder[MissingOffset]))(_.union(_))
+      .orderBy(col("partition").asc, col("offset").asc)
+    TypedDataset.create(sum)
   }
 
   def disorders: TypedDataset[Disorder] = {
-
     val all: Array[RDD[Disorder]] =
       ds.map(_.partition)(TypedExpressionEncoder[Int]).distinct().collect().map { partition =>
         val curr: RDD[(Long, CRMetaInfo)] =
@@ -178,24 +183,26 @@ final class Statistics[F[_]] private[kafka] (ds: Dataset[CRMetaInfo], cfg: SKCon
               partition = partition,
               offset = p.offset,
               timestamp = p.timestamp,
-              ts = NJTimestamp(p.timestamp).atZone(params.timeRange.zoneId),
+              ts = NJTimestamp(p.timestamp).atZone(params.timeRange.zoneId).toString,
               nextTS = c.timestamp,
               msGap = p.timestamp - c.timestamp,
               tsType = p.timestampType
             ))
         }
       }
-    val tds = TypedDataset.create(all.reduce(_.union(_)))(TypedEncoder[Disorder], ds.sparkSession)
+    val sum: RDD[Disorder] =
+      all.foldLeft(ds.sparkSession.sparkContext.emptyRDD[Disorder])(_.union(_))
+    val tds = TypedDataset.create(sum)(TypedEncoder[Disorder], ds.sparkSession)
     tds.orderBy(tds('partition).asc, tds('offset).asc)
   }
 
   def dupRecords: TypedDataset[DuplicateRecord] = {
     val tds = typedDataset
-    tds
-      .groupBy(tds('partition), tds('offset))
-      .agg(count())
-      .deserialized
-      .flatMap(x =>
-        if (x._3 > 1) Some(DuplicateRecord(partition = x._1, offset = x._2, num = x._3)) else None)
+    val res =
+      tds.groupBy(tds('partition), tds('offset)).agg(count(tds.asCol)).deserialized.flatMap {
+        case (p, o, c) =>
+          if (c > 1) Some(DuplicateRecord(p, o, c)) else None
+      }
+    res.orderBy(res('partition).asc, res('offset).asc)
   }
 }

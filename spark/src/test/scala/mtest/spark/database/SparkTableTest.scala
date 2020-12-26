@@ -19,6 +19,7 @@ import kantan.csv.generic._
 import kantan.csv.java8._
 import kantan.csv.{CsvConfiguration, RowEncoder}
 import mtest.spark.{blocker, contextShift, sparkSession}
+import org.apache.spark.storage.StorageLevel
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.sql.Date
@@ -87,11 +88,12 @@ class SparkTableTest extends AnyFunSuite {
     val dc  = sd.table(table).countDisk
 
     val load = table.in[IO](postgres).fromDB.dataset
-    val l1   = table.in[IO](postgres).tableset(load).typedDataset
+    val l1   = table.in[IO](postgres).tableset(load).persist(StorageLevel.MEMORY_ONLY)
     val l2   = table.in[IO](postgres).tableset(load.rdd).typedDataset
 
     assert(dbc == dc)
-    assert(l1.except(l2).count[IO]().unsafeRunSync() == 0)
+    assert(l1.typedDataset.except(l2).count[IO]().unsafeRunSync() == 0)
+    l1.unpersist
   }
 
   test("partial db table") {

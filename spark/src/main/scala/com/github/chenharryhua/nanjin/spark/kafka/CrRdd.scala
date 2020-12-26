@@ -20,8 +20,7 @@ final class CrRdd[F[_], K, V] private[kafka] (
   val sparkSession: SparkSession)
     extends Serializable {
 
-  protected val codec: AvroCodec[OptionalKV[K, V]] =
-    OptionalKV.avroCodec(topic.codec.keySerde.avroCodec, topic.codec.valSerde.avroCodec)
+  protected val codec: AvroCodec[OptionalKV[K, V]] = OptionalKV.avroCodec(topic.topicDef)
 
   def params: SKParams = cfg.evalConfig
 
@@ -29,7 +28,7 @@ final class CrRdd[F[_], K, V] private[kafka] (
     new CrRdd[F, K, V](topic, rdd, f(cfg), sparkSession)
 
   // transforms
-  def transform(f: RDD[OptionalKV[K, V]] => RDD[OptionalKV[K, V]]) =
+  def transform(f: RDD[OptionalKV[K, V]] => RDD[OptionalKV[K, V]]): CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, f(rdd), cfg, sparkSession)
 
   def partitionOf(num: Int): CrRdd[F, K, V] = transform(_.filter(_.partition === num))

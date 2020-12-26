@@ -18,7 +18,7 @@ final case class PolygonCollection[A](as: List[A], get: A => Polygon) {
   def find(point: Point): Option[A] = findContainingPolygon(point, listPairs)
 }
 
-private[geo] trait GeoFunctions extends GeoInjections with Serializable {
+private[geo] trait GeoFunctions extends Serializable {
 
   /** Example:
     * {{{

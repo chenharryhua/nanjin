@@ -4,10 +4,8 @@ import frameless.Injection
 import org.locationtech.jts.geom.{Coordinate, GeometryFactory, Point, Polygon}
 
 final case class NJCoordinate(getX: Double, getY: Double, getZ: Double)
-final case class NJPoint(getX: Double, getY: Double)
-final case class NJPolygon(coordinates: Array[Coordinate])
 
-private[geo] trait GeoInjections {
+object NJCoordinate {
 
   implicit val coordinateInjection: Injection[Coordinate, NJCoordinate] =
     new Injection[Coordinate, NJCoordinate] {
@@ -16,6 +14,11 @@ private[geo] trait GeoInjections {
       override def invert(b: NJCoordinate): Coordinate =
         new Coordinate(b.getX, b.getY, b.getZ)
     }
+}
+
+final case class NJPoint(getX: Double, getY: Double)
+
+object NJPoint {
 
   implicit val pointInjection: Injection[Point, NJPoint] =
     new Injection[Point, NJPoint] {
@@ -26,13 +29,19 @@ private[geo] trait GeoInjections {
         factory.createPoint(new Coordinate(b.getX, b.getY))
       }
     }
+}
 
-  implicit val polygonInjection: Injection[Polygon, NJPolygon] = new Injection[Polygon, NJPolygon] {
-    override def apply(a: Polygon): NJPolygon = NJPolygon(a.getCoordinates)
+final case class NJPolygon(coordinates: Array[Coordinate])
 
-    override def invert(b: NJPolygon): Polygon = {
-      val factory = new GeometryFactory()
-      factory.createPolygon(b.coordinates)
+object NJPolygon {
+
+  implicit val polygonInjection: Injection[Polygon, NJPolygon] =
+    new Injection[Polygon, NJPolygon] {
+      override def apply(a: Polygon): NJPolygon = NJPolygon(a.getCoordinates)
+
+      override def invert(b: NJPolygon): Polygon = {
+        val factory = new GeometryFactory()
+        factory.createPolygon(b.coordinates)
+      }
     }
-  }
 }

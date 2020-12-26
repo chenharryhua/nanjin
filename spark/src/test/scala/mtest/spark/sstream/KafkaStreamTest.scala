@@ -33,6 +33,7 @@ class KafkaStreamTest extends AnyFunSuite {
   test("console sink") {
     val rooster = roosterTopic.withTopicName("sstream.console.rooster").in(ctx)
     val ss = rooster.sparKafka.sstream
+      .checkpoint("./data/test/checkpoint")
       .map(x => x.newValue(x.value.map(_.index + 1)))
       .flatMap(x => x.value.map(_ => x))
       .filter(_ => true)
@@ -77,7 +78,7 @@ class KafkaStreamTest extends AnyFunSuite {
       rooster.sparKafka.load.avro(path).count.map(println)).unsafeRunSync()
   }
 
-  test("date partition sink parquet - should be read back") {
+  test("date partition sink json - should be read back") {
     val rooster = roosterTopic.withTopicName("sstream.datepartition.rooster").in(ctx)
 
     val path = root + "date_partition"
@@ -89,6 +90,8 @@ class KafkaStreamTest extends AnyFunSuite {
       .trigger(Trigger.ProcessingTime(1000))
       .datePartitionSink(path)
       .parquet
+      .avro
+      .json // last one wins
       .queryStream
 
     val upload =
@@ -97,7 +100,7 @@ class KafkaStreamTest extends AnyFunSuite {
     val ts        = NJTimestamp(Instant.now()).`Year=yyyy/Month=mm/Day=dd`(sydneyTime)
     val todayPath = path + "/" + ts
     assert(!File(todayPath).isEmpty, s"$todayPath does not exist")
-    rooster.sparKafka.load.parquet(todayPath).count.map(println).unsafeRunSync()
+    rooster.sparKafka.load.json(todayPath).count.map(println).unsafeRunSync()
   }
 
   test("memory sink - validate kafka timestamp") {
