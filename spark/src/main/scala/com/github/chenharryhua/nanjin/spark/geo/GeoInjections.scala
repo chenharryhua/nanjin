@@ -5,7 +5,11 @@ import org.locationtech.jts.geom.{Coordinate, GeometryFactory, Point, Polygon}
 
 final case class NJCoordinate(getX: Double, getY: Double, getZ: Double)
 
-object NJCoordinate {
+final case class NJPoint(getX: Double, getY: Double)
+
+final case class NJPolygon(coordinates: Array[Coordinate])
+
+private[geo] trait GeoInjections {
 
   implicit val coordinateInjection: Injection[Coordinate, NJCoordinate] =
     new Injection[Coordinate, NJCoordinate] {
@@ -14,11 +18,6 @@ object NJCoordinate {
       override def invert(b: NJCoordinate): Coordinate =
         new Coordinate(b.getX, b.getY, b.getZ)
     }
-}
-
-final case class NJPoint(getX: Double, getY: Double)
-
-object NJPoint {
 
   implicit val pointInjection: Injection[Point, NJPoint] =
     new Injection[Point, NJPoint] {
@@ -29,11 +28,6 @@ object NJPoint {
         factory.createPoint(new Coordinate(b.getX, b.getY))
       }
     }
-}
-
-final case class NJPolygon(coordinates: Array[Coordinate])
-
-object NJPolygon {
 
   implicit val polygonInjection: Injection[Polygon, NJPolygon] =
     new Injection[Polygon, NJPolygon] {
