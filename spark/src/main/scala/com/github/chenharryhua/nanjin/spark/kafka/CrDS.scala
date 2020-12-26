@@ -23,7 +23,7 @@ final class CrDS[F[_], K, V] private[kafka] (
 
   def typedDataset: TypedDataset[OptionalKV[K, V]] = TypedDataset.create(dataset)(ate.typedEncoder)
 
-  def transform(f: Dataset[OptionalKV[K, V]] => Dataset[OptionalKV[K, V]]) =
+  def transform(f: Dataset[OptionalKV[K, V]] => Dataset[OptionalKV[K, V]]): CrDS[F, K, V] =
     new CrDS[F, K, V](topic, f(dataset), ate, cfg)
 
   def partitionOf(num: Int): CrDS[F, K, V] = transform(_.filter(col("partition") === num))
