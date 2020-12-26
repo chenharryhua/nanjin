@@ -10,6 +10,7 @@ import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.functions.col
+import org.apache.spark.storage.StorageLevel
 
 final class CrDS[F[_], K, V] private[kafka] (
   val topic: KafkaTopic[F, K, V],
@@ -38,8 +39,8 @@ final class CrDS[F[_], K, V] private[kafka] (
 
   def repartition(num: Int): CrDS[F, K, V] = transform(_.repartition(num))
 
-  def persist: CrDS[F, K, V]   = transform(_.persist())
-  def unpersist: CrDS[F, K, V] = transform(_.unpersist())
+  def persist(level: StorageLevel): CrDS[F, K, V] = transform(_.persist(level))
+  def unpersist: CrDS[F, K, V]                    = transform(_.unpersist())
 
   def filter(f: OptionalKV[K, V] => Boolean): CrDS[F, K, V] = transform(_.filter(f))
 
