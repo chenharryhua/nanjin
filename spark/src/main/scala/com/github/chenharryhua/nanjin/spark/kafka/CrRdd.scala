@@ -11,6 +11,7 @@ import frameless.cats.implicits.rddOps
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.storage.StorageLevel
 
 final class CrRdd[F[_], K, V] private[kafka] (
   val topic: KafkaTopic[F, K, V],
@@ -45,8 +46,8 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def first(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] = F.delay(rdd.cminOption)
   def last(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]]  = F.delay(rdd.cmaxOption)
 
-  def persist: CrRdd[F, K, V]   = transform(_.persist())
-  def unpersist: CrRdd[F, K, V] = transform(_.unpersist())
+  def persist(level: StorageLevel): CrRdd[F, K, V] = transform(_.persist(level))
+  def unpersist: CrRdd[F, K, V]                    = transform(_.unpersist())
 
   def repartition(num: Int): CrRdd[F, K, V]                  = transform(_.repartition(num))
   def filter(f: OptionalKV[K, V] => Boolean): CrRdd[F, K, V] = transform(_.filter(f))
