@@ -21,19 +21,20 @@ final class PrRdd[F[_], K, V] private[kafka] (
 
   val params: SKParams = cfg.evalConfig
 
-  def withParamUpdate(f: SKConfig => SKConfig): PrRdd[F, K, V] =
+  // config
+  private def withParamUpdate(f: SKConfig => SKConfig): PrRdd[F, K, V] =
     new PrRdd[F, K, V](topic, rdd, f(cfg))
 
-  def interval(ms: Long): PrRdd[F, K, V]           = withParamUpdate(_.withUploadInterval(ms))
-  def interval(ms: FiniteDuration): PrRdd[F, K, V] = withParamUpdate(_.withUploadInterval(ms))
+  def triggerEvery(ms: Long): PrRdd[F, K, V]           = withParamUpdate(_.withUploadInterval(ms))
+  def triggerEvery(ms: FiniteDuration): PrRdd[F, K, V] = withParamUpdate(_.withUploadInterval(ms))
+  def batchSize(num: Int): PrRdd[F, K, V]              = withParamUpdate(_.withUploadBatchSize(num))
 
-  def batch(num: Int): PrRdd[F, K, V]         = withParamUpdate(_.withUploadBatchSize(num))
-  def recordsLimit(num: Long): PrRdd[F, K, V] = withParamUpdate(_.withUploadRecordsLimit(num))
-
+  def recordsLimit(num: Long): PrRdd[F, K, V]       = withParamUpdate(_.withUploadRecordsLimit(num))
   def timeLimit(ms: Long): PrRdd[F, K, V]           = withParamUpdate(_.withUploadTimeLimit(ms))
   def timeLimit(fd: FiniteDuration): PrRdd[F, K, V] = withParamUpdate(_.withUploadTimeLimit(fd))
 
-  def transform(f: RDD[NJProducerRecord[K, V]] => RDD[NJProducerRecord[K, V]]) =
+  // transform
+  def transform(f: RDD[NJProducerRecord[K, V]] => RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
     new PrRdd[F, K, V](topic, f(rdd), cfg)
 
   def partitionOf(num: Int): PrRdd[F, K, V] = transform(_.filter(_.partition.exists(_ === num)))

@@ -12,8 +12,11 @@ final class NJMemorySink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig, 
   private def updateConfig(f: SStreamConfig => SStreamConfig): NJMemorySink[F, A] =
     new NJMemorySink[F, A](dsw, f(cfg), queryName)
 
-  def append: NJMemorySink[F, A] = updateConfig(_.withAppend)
-  def update: NJMemorySink[F, A] = updateConfig(_.withUpdate)
+  // https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html#output-sinks
+  def append: NJMemorySink[F, A]   = updateConfig(_.withAppend)
+  def complete: NJMemorySink[F, A] = updateConfig(_.withComplete)
+
+  def trigger(trigger: Trigger): NJMemorySink[F, A] = updateConfig(_.withTrigger(trigger))
 
   override def queryStream(implicit
     F: Concurrent[F],

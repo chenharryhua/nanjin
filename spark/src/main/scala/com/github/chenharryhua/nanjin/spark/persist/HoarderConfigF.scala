@@ -40,7 +40,7 @@ private[persist] object HoarderParams {
 sealed private[persist] trait HoarderConfigF[_]
 
 private[persist] object HoarderConfigF {
-  final case class DefaultParams[K](path: String) extends HoarderConfigF[K]
+  final case class InitParams[K](path: String) extends HoarderConfigF[K]
   final case class WithFolderOrFile[K](value: FolderOrFile, cont: K) extends HoarderConfigF[K]
   final case class WithSaveMode[K](value: SaveMode, cont: K) extends HoarderConfigF[K]
   final case class WithOutputPath[K](value: String, cont: K) extends HoarderConfigF[K]
@@ -49,7 +49,7 @@ private[persist] object HoarderConfigF {
 
   private val algebra: Algebra[HoarderConfigF, HoarderParams] =
     Algebra[HoarderConfigF, HoarderParams] {
-      case DefaultParams(v)       => HoarderParams(v)
+      case InitParams(v)          => HoarderParams(v)
       case WithFolderOrFile(v, c) => HoarderParams.folderOrFile.set(v)(c)
       case WithSaveMode(v, c)     => HoarderParams.saveMode.set(v)(c)
       case WithOutputPath(v, c)   => HoarderParams.outPath.set(v)(c)
@@ -89,5 +89,5 @@ final private[persist] case class HoarderConfig(value: Fix[HoarderConfigF]) {
 private[persist] object HoarderConfig {
 
   def apply(outPath: String): HoarderConfig =
-    HoarderConfig(Fix(HoarderConfigF.DefaultParams[Fix[HoarderConfigF]](outPath)))
+    HoarderConfig(Fix(HoarderConfigF.InitParams[Fix[HoarderConfigF]](outPath)))
 }

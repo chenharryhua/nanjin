@@ -1,11 +1,8 @@
 package com.github.chenharryhua.nanjin.spark.sstream
 
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import com.github.chenharryhua.nanjin.spark.SparkDatetimeConversionConstant
 import frameless.{TypedEncoder, TypedExpressionEncoder}
-import org.apache.spark.sql.functions._
-import org.apache.spark.sql.streaming.Trigger
-import org.apache.spark.sql.types.TimestampType
+import org.apache.spark.sql.functions.{col, udf}
 import org.apache.spark.sql.{Dataset, Row}
 
 final class SparkSStream[F[_], A](ds: Dataset[A], cfg: SStreamConfig) extends Serializable {
@@ -14,10 +11,10 @@ final class SparkSStream[F[_], A](ds: Dataset[A], cfg: SStreamConfig) extends Se
   private def updateConfig(f: SStreamConfig => SStreamConfig): SparkSStream[F, A] =
     new SparkSStream[F, A](ds, f(cfg))
 
-  def checkpoint(cp: String): SparkSStream[F, A]     = updateConfig(_.withCheckpointReplace(cp))
-  def failOnDataLoss: SparkSStream[F, A]             = updateConfig(_.failOnDataLoss)
-  def ignoreDataLoss: SparkSStream[F, A]             = updateConfig(_.ignoreDataLoss)
-  def trigger(trigger: Trigger): SparkSStream[F, A]  = updateConfig(_.withTrigger(trigger))
+  def checkpoint(cp: String): SparkSStream[F, A] = updateConfig(_.withCheckpointReplace(cp))
+  def failOnDataLoss: SparkSStream[F, A]         = updateConfig(_.failOnDataLoss)
+  def ignoreDataLoss: SparkSStream[F, A]         = updateConfig(_.ignoreDataLoss)
+
   def progressInterval(ms: Long): SparkSStream[F, A] = updateConfig(_.withProgressInterval(ms))
 
   // transforms
@@ -45,11 +42,14 @@ final class SparkSStream[F[_], A](ds: Dataset[A], cfg: SStreamConfig) extends Se
     new NJMemorySink[F, A](ds.writeStream, cfg, queryName)
 
   def datePartitionSink(path: String): NJFileSink[F, Row] = {
-    val ts = (col("timestamp") / SparkDatetimeConversionConstant).cast(TimestampType)
+    val year  = udf((ts: Long) => NJTimestamp(ts).yearStr(params.timeRange.zoneId))
+    val month = udf((ts: Long) => NJTimestamp(ts).monthStr(params.timeRange.zoneId))
+    val day   = udf((ts: Long) => NJTimestamp(ts).dayStr(params.timeRange.zoneId))
+
     val ws = ds
-      .withColumn("Year", year(ts))
-      .withColumn("Month", format_string("%02d", month(ts)))
-      .withColumn("Day", format_string("%02d", dayofmonth(ts)))
+      .withColumn("Year", year(col("timestamp")))
+      .withColumn("Month", month(col("timestamp")))
+      .withColumn("Day", day(col("timestamp")))
       .writeStream
     new NJFileSink[F, Row](ws, cfg, path).partitionBy("Year", "Month", "Day")
   }

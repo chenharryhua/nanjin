@@ -119,7 +119,6 @@ class SparKafkaTest extends AnyFunSuite {
       .crRdd(ds.rdd)
       .repartition(3)
       .descendTimestamp
-      .withParamUpdate(_.withShowRows(3))
       .dismissNulls
       .replicate(3)
       .distinct

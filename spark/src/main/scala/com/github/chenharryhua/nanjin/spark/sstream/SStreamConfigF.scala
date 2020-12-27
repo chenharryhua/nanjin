@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.spark.sstream
 import cats.derived.auto.functor._
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.spark.NJShowDataset
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
@@ -15,7 +14,7 @@ import scala.concurrent.duration.FiniteDuration
 final private[spark] case class NJFailOnDataLoss(value: Boolean) extends AnyVal
 
 final private[spark] case class NJCheckpoint(value: String) {
-  require(!value.contains(" ") && value.nonEmpty, "should not empty or contains empty string")
+  require(!value.contains(" ") && value.nonEmpty, "should not be empty or contain empty string")
 
   def append(sub: String): NJCheckpoint = {
     val s = if (sub.startsWith("/")) sub.tail else sub
@@ -26,7 +25,6 @@ final private[spark] case class NJCheckpoint(value: String) {
 
 @Lenses final private[sstream] case class SStreamParams private (
   timeRange: NJDateTimeRange,
-  showDs: NJShowDataset,
   fileFormat: NJFileFormat,
   checkpoint: NJCheckpoint,
   dataLoss: NJFailOnDataLoss,
@@ -36,10 +34,9 @@ final private[spark] case class NJCheckpoint(value: String) {
 
 private[sstream] object SStreamParams {
 
-  def apply(tr: NJDateTimeRange, sd: NJShowDataset): SStreamParams =
+  def apply(tr: NJDateTimeRange): SStreamParams =
     SStreamParams(
       timeRange = tr,
-      showDs = sd,
       fileFormat = NJFileFormat.SparkJson,
       checkpoint = NJCheckpoint("./data/checkpoint/sstream"),
       dataLoss = NJFailOnDataLoss(true),
@@ -53,8 +50,7 @@ sealed private[sstream] trait SStreamConfigF[A]
 
 private[sstream] object SStreamConfigF {
 
-  final case class DefaultParams[K](tr: NJDateTimeRange, showDs: NJShowDataset)
-      extends SStreamConfigF[K]
+  final case class InitParams[K](tr: NJDateTimeRange) extends SStreamConfigF[K]
 
   final case class WithCheckpointReplace[K](value: String, cont: K) extends SStreamConfigF[K]
   final case class WithCheckpointAppend[K](value: String, cont: K) extends SStreamConfigF[K]
@@ -66,12 +62,9 @@ private[sstream] object SStreamConfigF {
   final case class WithFormat[K](value: NJFileFormat, cont: K) extends SStreamConfigF[K]
   final case class WithProgressInterval[K](value: FiniteDuration, cont: K) extends SStreamConfigF[K]
 
-  final case class WithShowRows[K](value: Int, cont: K) extends SStreamConfigF[K]
-  final case class WithShowTruncate[K](isTruncate: Boolean, cont: K) extends SStreamConfigF[K]
-
   private val algebra: Algebra[SStreamConfigF, SStreamParams] =
     Algebra[SStreamConfigF, SStreamParams] {
-      case DefaultParams(tr, sd)       => SStreamParams(tr, sd)
+      case InitParams(tr)              => SStreamParams(tr)
       case WithCheckpointReplace(v, c) => SStreamParams.checkpoint.set(NJCheckpoint(v))(c)
       case WithCheckpointAppend(v, c)  => SStreamParams.checkpoint.modify(_.append(v))(c)
       case WithFailOnDataLoss(v, c)    => SStreamParams.dataLoss.set(NJFailOnDataLoss(v))(c)
@@ -79,9 +72,6 @@ private[sstream] object SStreamConfigF {
       case WithTrigger(v, c)           => SStreamParams.trigger.set(v)(c)
       case WithFormat(v, c)            => SStreamParams.fileFormat.set(v)(c)
       case WithProgressInterval(v, c)  => SStreamParams.progressInterval.set(v)(c)
-      case WithShowRows(v, c)          => SStreamParams.showDs.composeLens(NJShowDataset.rowNum).set(v)(c)
-      case WithShowTruncate(v, c) =>
-        SStreamParams.showDs.composeLens(NJShowDataset.isTruncate).set(v)(c)
     }
 
   def evalConfig(cfg: SStreamConfig): SStreamParams = scheme.cata(algebra).apply(cfg.value)
@@ -90,10 +80,6 @@ private[sstream] object SStreamConfigF {
 
 final private[sstream] case class SStreamConfig(value: Fix[SStreamConfigF]) extends AnyVal {
   import SStreamConfigF._
-  def withShowRows(num: Int): SStreamConfig = SStreamConfig(Fix(WithShowRows(num, value)))
-
-  def withShowTruncate(isTruncate: Boolean): SStreamConfig = SStreamConfig(
-    Fix(WithShowTruncate(isTruncate, value)))
 
   def withCheckpointReplace(cp: String): SStreamConfig =
     SStreamConfig(Fix(WithCheckpointReplace(cp, value)))
@@ -116,12 +102,6 @@ final private[sstream] case class SStreamConfig(value: Fix[SStreamConfigF]) exte
   def withTrigger(trigger: Trigger): SStreamConfig =
     SStreamConfig(Fix(WithTrigger(trigger, value)))
 
-  def withProcessingTimeTrigger(ms: Long): SStreamConfig =
-    withTrigger(Trigger.ProcessingTime(ms, TimeUnit.MILLISECONDS))
-
-  def withContinousTrigger(ms: Long): SStreamConfig =
-    withTrigger(Trigger.Continuous(ms, TimeUnit.MILLISECONDS))
-
   def withJson: SStreamConfig    = SStreamConfig(Fix(WithFormat(NJFileFormat.SparkJson, value)))
   def withParquet: SStreamConfig = SStreamConfig(Fix(WithFormat(NJFileFormat.Parquet, value)))
   def withAvro: SStreamConfig    = SStreamConfig(Fix(WithFormat(NJFileFormat.Avro, value)))
@@ -137,6 +117,6 @@ final private[sstream] case class SStreamConfig(value: Fix[SStreamConfigF]) exte
 
 private[spark] object SStreamConfig {
 
-  def apply(tr: NJDateTimeRange, sd: NJShowDataset): SStreamConfig =
-    SStreamConfig(Fix(SStreamConfigF.DefaultParams[Fix[SStreamConfigF]](tr, sd)))
+  def apply(tr: NJDateTimeRange): SStreamConfig =
+    SStreamConfig(Fix(SStreamConfigF.InitParams[Fix[SStreamConfigF]](tr)))
 }

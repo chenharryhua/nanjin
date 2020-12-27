@@ -76,7 +76,7 @@ final class CrDS[F[_], K, V] private[kafka] (
 
   def stats: Statistics[F] = {
     val enc = TypedExpressionEncoder[CRMetaInfo]
-    new Statistics[F](dataset.map(CRMetaInfo(_))(enc), cfg)
+    new Statistics[F](dataset.map(CRMetaInfo(_))(enc), params.timeRange.zoneId)
   }
 
   def crRdd: CrRdd[F, K, V] = new CrRdd[F, K, V](topic, dataset.rdd, cfg, dataset.sparkSession)
