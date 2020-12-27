@@ -15,7 +15,7 @@ import scala.concurrent.duration.FiniteDuration
 final private[spark] case class NJFailOnDataLoss(value: Boolean) extends AnyVal
 
 final private[spark] case class NJCheckpoint(value: String) {
-  require(!value.contains(" ") && value.nonEmpty, "should not empty or contains empty string")
+  require(!value.contains(" ") && value.nonEmpty, "should not be empty or contain empty string")
 
   def append(sub: String): NJCheckpoint = {
     val s = if (sub.startsWith("/")) sub.tail else sub

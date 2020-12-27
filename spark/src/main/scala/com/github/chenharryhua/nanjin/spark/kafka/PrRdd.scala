@@ -33,7 +33,7 @@ final class PrRdd[F[_], K, V] private[kafka] (
   def timeLimit(ms: Long): PrRdd[F, K, V]           = withParamUpdate(_.withUploadTimeLimit(ms))
   def timeLimit(fd: FiniteDuration): PrRdd[F, K, V] = withParamUpdate(_.withUploadTimeLimit(fd))
 
-  def transform(f: RDD[NJProducerRecord[K, V]] => RDD[NJProducerRecord[K, V]]) =
+  def transform(f: RDD[NJProducerRecord[K, V]] => RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
     new PrRdd[F, K, V](topic, f(rdd), cfg)
 
   def partitionOf(num: Int): PrRdd[F, K, V] = transform(_.filter(_.partition.exists(_ === num)))

@@ -26,7 +26,7 @@ class KafkaStreamTest extends AnyFunSuite {
   val ate = OptionalKV.ate(roosterTopic)
 
   val data: RDD[NJProducerRecord[Int, Rooster]] =
-    RoosterData.rdd.map(x => NJProducerRecord(Random.nextInt(), x))
+    RoosterData.rdd.map(x => NJProducerRecord(Random.nextInt(), x.copy(a = Instant.now())))
 
   implicit val te: TypedEncoder[OptionalKV[Int, Int]] = shapeless.cachedImplicit
 
