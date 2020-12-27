@@ -28,8 +28,6 @@ final class SparKafka[F[_], K, V](
   def withZoneId(zoneId: ZoneId): SparKafka[F, K, V]         = updateCfg(_.withZoneId(zoneId))
   def withTimeRange(tr: NJDateTimeRange): SparKafka[F, K, V] = updateCfg(_.withTimeRange(tr))
 
-  def withTopicName(tn: String): SparKafka[F, K, V] = new SparKafka[F, K, V](topic.withTopicName(tn), cfg, sparkSession)
-
   val params: SKParams = cfg.evalConfig
 
   def fromKafka(implicit sync: Sync[F]): F[CrRdd[F, K, V]] =

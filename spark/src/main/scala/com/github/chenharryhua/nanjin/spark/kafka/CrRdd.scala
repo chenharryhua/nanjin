@@ -37,10 +37,10 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def timeRange(dr: NJDateTimeRange): CrRdd[F, K, V]      = transform(range.cr.timestamp(dr))
   def timeRange: CrRdd[F, K, V]                           = timeRange(params.timeRange)
 
-  def ascendTimestamp: CrRdd[F, K, V]  = transform(sort.ascend.cr.timestamp).updateCfg(_.withSorted)
-  def descendTimestamp: CrRdd[F, K, V] = transform(sort.descend.cr.timestamp).updateCfg(_.withSorted)
-  def ascendOffset: CrRdd[F, K, V]     = transform(sort.ascend.cr.offset).updateCfg(_.withSorted)
-  def descendOffset: CrRdd[F, K, V]    = transform(sort.descend.cr.offset).updateCfg(_.withSorted)
+  def ascendTimestamp: CrRdd[F, K, V]  = transform(sort.ascend.cr.timestamp)
+  def descendTimestamp: CrRdd[F, K, V] = transform(sort.descend.cr.timestamp)
+  def ascendOffset: CrRdd[F, K, V]     = transform(sort.ascend.cr.offset)
+  def descendOffset: CrRdd[F, K, V]    = transform(sort.descend.cr.offset)
 
   def persist(level: StorageLevel): CrRdd[F, K, V] = transform(_.persist(level))
   def unpersist: CrRdd[F, K, V]                    = transform(_.unpersist())

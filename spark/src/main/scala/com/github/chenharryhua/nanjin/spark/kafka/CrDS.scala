@@ -34,10 +34,10 @@ final class CrDS[F[_], K, V] private[kafka] (
   def timeRange(dr: NJDateTimeRange): CrDS[F, K, V]      = transform(range.timestamp(dr))
   def timeRange: CrDS[F, K, V]                           = timeRange(params.timeRange)
 
-  def ascendOffset: CrDS[F, K, V]     = transform(sort.ascend.offset).updateCfg(_.withSorted)
-  def descendOffset: CrDS[F, K, V]    = transform(sort.descend.offset).updateCfg(_.withSorted)
-  def ascendTimestamp: CrDS[F, K, V]  = transform(sort.ascend.timestamp).updateCfg(_.withSorted)
-  def descendTimestamp: CrDS[F, K, V] = transform(sort.descend.timestamp).updateCfg(_.withSorted)
+  def ascendOffset: CrDS[F, K, V]     = transform(sort.ascend.offset)
+  def descendOffset: CrDS[F, K, V]    = transform(sort.descend.offset)
+  def ascendTimestamp: CrDS[F, K, V]  = transform(sort.ascend.timestamp)
+  def descendTimestamp: CrDS[F, K, V] = transform(sort.descend.timestamp)
 
   def repartition(num: Int): CrDS[F, K, V] = transform(_.repartition(num))
 
