@@ -32,7 +32,7 @@ private[database] object STParams {
 sealed private[database] trait STConfigF[_]
 
 private[database] object STConfigF {
-  final case class DefaultParams[K](dbName: DatabaseName, tableName: TableName) extends STConfigF[K]
+  final case class InitParams[K](dbName: DatabaseName, tableName: TableName) extends STConfigF[K]
 
   final case class WithDbSaveMode[K](value: SaveMode, cont: K) extends STConfigF[K]
 
@@ -43,7 +43,7 @@ private[database] object STConfigF {
   final case class WithTableName[K](value: TableName, count: K) extends STConfigF[K]
 
   private val algebra: Algebra[STConfigF, STParams] = Algebra[STConfigF, STParams] {
-    case DefaultParams(dn, tn)       => STParams(dn, tn)
+    case InitParams(dn, tn)          => STParams(dn, tn)
     case WithDbSaveMode(v, c)        => STParams.dbSaveMode.set(v)(c)
     case WithReplayPathBuilder(v, c) => STParams.replayPathBuilder.set(v)(c)
     case WithQuery(v, c)             => STParams.query.set(Some(v))(c)
@@ -73,5 +73,5 @@ final private[database] case class STConfig(value: Fix[STConfigF]) extends AnyVa
 private[spark] object STConfig {
 
   def apply(dbName: DatabaseName, tableName: TableName): STConfig =
-    STConfig(Fix(STConfigF.DefaultParams[Fix[STConfigF]](dbName, tableName)))
+    STConfig(Fix(STConfigF.InitParams[Fix[STConfigF]](dbName, tableName)))
 }

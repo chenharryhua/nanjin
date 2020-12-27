@@ -36,9 +36,9 @@ object StatisticsTestData {
 
 class StatisticsTest extends AnyFunSuite {
   import StatisticsTestData._
-  val stats = new Statistics[IO](ds, SKConfig(TopicName("topic"), sydneyTime))
+  val stats = new Statistics[IO](ds, sydneyTime)
 
-  val emptyStats = new Statistics[IO](empty, SKConfig(TopicName("topic"), sydneyTime))
+  val emptyStats = new Statistics[IO](empty, sydneyTime)
 
   test("dupRecords") {
     val res = stats.dupRecords.dataset.collect().toSet

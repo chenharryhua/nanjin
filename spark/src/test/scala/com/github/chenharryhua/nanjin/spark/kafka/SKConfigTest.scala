@@ -64,15 +64,9 @@ class SKConfigTest extends AnyFunSuite {
       .withTopicName("config.update")
       .withLocationStrategy(LocationStrategies.PreferBrokers)
       .withReplayPathBuilder(_.value)
-      .withoutTruncate
-      .withOverwrite
-      .withPathBuilder((_, _) => "path.build")
-      .withDatePartitionBuilder((_, _, _) => "date.partition")
       .evalConfig
 
     assert(p.topicName.value == "config.update")
     assert(p.replayPath == "config.update")
-    assert(p.outPath(NJFileFormat.Jackson) == "path.build")
-    assert(p.datePartition(NJFileFormat.Jackson)(LocalDate.now()) == "date.partition")
   }
 }

@@ -9,19 +9,27 @@ import org.apache.spark.sql.streaming.{
   Trigger
 }
 
-final class NJConsoleSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig)
+final class NJConsoleSink[F[_], A](
+  dsw: DataStreamWriter[A],
+  cfg: SStreamConfig,
+  numRows: Int = 20,
+  isTruncate: Boolean = false)
     extends NJStreamSink[F] {
 
   override val params: SStreamParams = cfg.evalConfig
 
-  private def updateConfig(f: SStreamConfig => SStreamConfig): NJConsoleSink[F, A] =
-    new NJConsoleSink[F, A](dsw, f(cfg))
+  def rows(num: Int): NJConsoleSink[F, A] = new NJConsoleSink[F, A](dsw, cfg, num, isTruncate)
+  def truncate: NJConsoleSink[F, A]       = new NJConsoleSink[F, A](dsw, cfg, numRows, true)
+  def untruncate: NJConsoleSink[F, A]     = new NJConsoleSink[F, A](dsw, cfg, numRows, false)
 
-  def rows(num: Int): NJConsoleSink[F, A] = updateConfig(_.withShowRows(num))
-  def truncate: NJConsoleSink[F, A]       = updateConfig(_.withShowTruncate(true))
-  def untruncate: NJConsoleSink[F, A]     = updateConfig(_.withShowTruncate(false))
+  private def updateConfig(f: SStreamConfig => SStreamConfig): NJConsoleSink[F, A] =
+    new NJConsoleSink[F, A](dsw, f(cfg), numRows, isTruncate)
 
   def trigger(trigger: Trigger): NJConsoleSink[F, A] = updateConfig(_.withTrigger(trigger))
+  // https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html#output-sinks
+  def append: NJConsoleSink[F, A]   = updateConfig(_.withAppend)
+  def update: NJConsoleSink[F, A]   = updateConfig(_.withUpdate)
+  def complete: NJConsoleSink[F, A] = updateConfig(_.withComplete)
 
   override def queryStream(implicit
     F: Concurrent[F],
@@ -31,10 +39,9 @@ final class NJConsoleSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig)
         .trigger(params.trigger)
         .format("console")
         .outputMode(OutputMode.Append)
-        .option("truncate", params.showDs.isTruncate.toString)
-        .option("numRows", params.showDs.rowNum.toString)
+        .option("numRows", numRows.toString)
+        .option("truncate", isTruncate.toString)
         .option("failOnDataLoss", params.dataLoss.value),
       params.progressInterval
     )
-
 }

@@ -23,7 +23,7 @@ final class NJFileSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig, pa
   def json: NJFileSink[F, A]    = updateConfig(_.withJson)
   def avro: NJFileSink[F, A]    = updateConfig(_.withAvro)
 
-  def trigger(duration: FiniteDuration): NJFileSink[F, A] =
+  def triggerEvery(duration: FiniteDuration): NJFileSink[F, A] =
     updateConfig(_.withTrigger(Trigger.ProcessingTime(duration)))
 
   def withOptions(f: DataStreamWriter[A] => DataStreamWriter[A]): NJFileSink[F, A] =
@@ -45,5 +45,4 @@ final class NJFileSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig, pa
         .option("failOnDataLoss", params.dataLoss.value),
       params.progressInterval
     )
-
 }

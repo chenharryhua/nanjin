@@ -49,8 +49,8 @@ class KafkaBasic extends AnyFunSuite {
     fooTopic.sparKafka.load
       .circe(path)
       .prRdd
-      .batch(1) // send 1 message
-      .interval(1000) // every 1 second
+      .batchSize(1) // send 1 message
+      .triggerEvery(1000) // every 1 second
       .timeLimit(5000) // upload last 5 seconds
       .upload
       .compile

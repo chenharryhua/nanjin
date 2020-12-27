@@ -4,6 +4,7 @@ import cats.effect.{Blocker, Concurrent, ConcurrentEffect, ContextShift, Sync, T
 import cats.syntax.apply._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
+import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.loaders
@@ -13,14 +14,22 @@ import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
+import java.time.ZoneId
+
 final class SparKafka[F[_], K, V](
   val topic: KafkaTopic[F, K, V],
   val cfg: SKConfig,
   val sparkSession: SparkSession
 ) extends Serializable {
 
-  def withParamUpdate(f: SKConfig => SKConfig): SparKafka[F, K, V] =
+  private def withParamUpdate(f: SKConfig => SKConfig): SparKafka[F, K, V] =
     new SparKafka[F, K, V](topic, f(cfg), sparkSession)
+
+  def withZoneId(zoneId: ZoneId): SparKafka[F, K, V] =
+    withParamUpdate(_.withZoneId(zoneId))
+
+  def withTimeRange(tr: NJDateTimeRange): SparKafka[F, K, V] =
+    withParamUpdate(_.withTimeRange(tr))
 
   def withTopicName(tn: String): SparKafka[F, K, V] =
     new SparKafka[F, K, V](topic.withTopicName(tn), cfg, sparkSession)
@@ -67,7 +76,7 @@ final class SparKafka[F[_], K, V](
     sync: Sync[F]): SparkSStream[F, A] =
     new SparkSStream[F, A](
       sk.kafkaSStream[F, K, V, A](topic, ate, sparkSession)(f),
-      SStreamConfig(params.timeRange, params.showDs)
+      SStreamConfig(params.timeRange)
         .withCheckpointAppend(s"kafka/${topic.topicName.value}"))
 
   def sstream(implicit

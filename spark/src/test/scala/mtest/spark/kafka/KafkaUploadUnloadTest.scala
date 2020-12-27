@@ -68,11 +68,7 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
     })
     val run = for {
       _ <- rooster.in(ctx).admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
-      _ <- pr.noPartition.noTimestamp
-        .withParamUpdate(_.withUploadBatchSize(10))
-        .upload
-        .compile
-        .drain
+      _ <- pr.noPartition.noTimestamp.batchSize(10).upload.compile.drain
       _ <- pr.count.map(println)
       _ <- topic.fromKafka.flatMap(_.save.circe(circe).run(blocker))
       _ <- topic.fromKafka.flatMap(_.crDS.save.parquet(parquet).run(blocker))

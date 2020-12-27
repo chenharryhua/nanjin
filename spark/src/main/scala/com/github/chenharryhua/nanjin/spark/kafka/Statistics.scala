@@ -69,17 +69,16 @@ object Disorder {
 
 final case class DuplicateRecord(partition: Int, offset: Long, num: Long)
 
-final class Statistics[F[_]] private[kafka] (ds: Dataset[CRMetaInfo], cfg: SKConfig)
+final class Statistics[F[_]] private[kafka] (
+  ds: Dataset[CRMetaInfo],
+  zoneId: ZoneId,
+  rowNum: Int = 20,
+  isTruncate: Boolean = false)
     extends Serializable {
 
-  val params: SKParams = cfg.evalConfig
-
-  private def update(f: SKConfig => SKConfig): Statistics[F] =
-    new Statistics[F](ds, f(cfg))
-
-  def rows(num: Int): Statistics[F] = update(_.withShowRows(num))
-  def truncate: Statistics[F]       = update(_.withTruncate)
-  def untruncate: Statistics[F]     = update(_.withoutTruncate)
+  def rows(rowNum: Int): Statistics[F] = new Statistics[F](ds, zoneId, rowNum, isTruncate)
+  def truncate: Statistics[F]          = new Statistics[F](ds, zoneId, rowNum, true)
+  def untruncate: Statistics[F]        = new Statistics[F](ds, zoneId, rowNum, false)
 
   implicit def zonedDateTimeInjection: Injection[ZonedDateTime, String] =
     new Injection[ZonedDateTime, String] {
@@ -92,46 +91,46 @@ final class Statistics[F[_]] private[kafka] (ds: Dataset[CRMetaInfo], cfg: SKCon
   def minutely(implicit ev: Sync[F]): F[Unit] = {
     val tds = typedDataset
     val minute: TypedDataset[Int] = tds.deserialized.map { m =>
-      NJTimestamp(m.timestamp).atZone(params.timeRange.zoneId).getMinute
+      NJTimestamp(m.timestamp).atZone(zoneId).getMinute
     }
     val res = minute.groupBy(minute.asCol).agg(count(minute.asCol)).as[MinutelyAggResult]
-    res.orderBy(res('minute).asc).show[F](params.showDs.rowNum, params.showDs.isTruncate)
+    res.orderBy(res('minute).asc).show[F](rowNum, isTruncate)
   }
 
   def hourly(implicit ev: Sync[F]): F[Unit] = {
     val tds = typedDataset
     val hour =
-      tds.deserialized.map(m => NJTimestamp(m.timestamp).atZone(params.timeRange.zoneId).getHour)
+      tds.deserialized.map(m => NJTimestamp(m.timestamp).atZone(zoneId).getHour)
     val res = hour.groupBy(hour.asCol).agg(count(hour.asCol)).as[HourlyAggResult]
-    res.orderBy(res('hour).asc).show[F](params.showDs.rowNum, params.showDs.isTruncate)
+    res.orderBy(res('hour).asc).show[F](rowNum, isTruncate)
   }
 
   def daily(implicit ev: Sync[F]): F[Unit] = {
     val tds = typedDataset
     val day: TypedDataset[LocalDate] = tds.deserialized.map { m =>
-      NJTimestamp(m.timestamp).dayResolution(params.timeRange.zoneId)
+      NJTimestamp(m.timestamp).dayResolution(zoneId)
     }
     val res = day.groupBy(day.asCol).agg(count(day.asCol)).as[DailyAggResult]
-    res.orderBy(res('date).asc).show[F](params.showDs.rowNum, params.showDs.isTruncate)
+    res.orderBy(res('date).asc).show[F](rowNum, isTruncate)
   }
 
   def dailyHour(implicit ev: Sync[F]): F[Unit] = {
     val tds = typedDataset
     val dayHour: TypedDataset[ZonedDateTime] = tds.deserialized.map { m =>
-      NJTimestamp(m.timestamp).hourResolution(params.timeRange.zoneId)
+      NJTimestamp(m.timestamp).hourResolution(zoneId)
     }
     val res = dayHour.groupBy(dayHour.asCol).agg(count(dayHour.asCol)).as[DailyHourAggResult]
-    res.orderBy(res('dateTime).asc).show[F](params.showDs.rowNum, params.showDs.isTruncate)
+    res.orderBy(res('dateTime).asc).show[F](rowNum, isTruncate)
   }
 
   def dailyMinute(implicit ev: Sync[F]): F[Unit] = {
     val tds = typedDataset
     val dayMinute: TypedDataset[ZonedDateTime] = tds.deserialized.map { m =>
-      NJTimestamp(m.timestamp).minuteResolution(params.timeRange.zoneId)
+      NJTimestamp(m.timestamp).minuteResolution(zoneId)
     }
     val res =
       dayMinute.groupBy(dayMinute.asCol).agg(count(dayMinute.asCol)).as[DailyMinuteAggResult]
-    res.orderBy(res('dateTime).asc).show[F](params.showDs.rowNum, params.showDs.isTruncate)
+    res.orderBy(res('dateTime).asc).show[F](rowNum, isTruncate)
   }
 
   private def kafkaSummary: TypedDataset[KafkaDataSummary] = {
@@ -150,7 +149,7 @@ final class Statistics[F[_]] private[kafka] (ds: Dataset[CRMetaInfo], cfg: SKCon
   }
 
   def summary(implicit ev: Sync[F]): F[Unit] =
-    kafkaSummary.collect[F]().map(_.foreach(x => println(x.showData(params.timeRange.zoneId))))
+    kafkaSummary.collect[F]().map(_.foreach(x => println(x.showData(zoneId))))
 
   def missingOffsets(implicit ev: Sync[F]): TypedDataset[MissingOffset] = {
     import org.apache.spark.sql.functions.col
@@ -183,7 +182,7 @@ final class Statistics[F[_]] private[kafka] (ds: Dataset[CRMetaInfo], cfg: SKCon
               partition = partition,
               offset = p.offset,
               timestamp = p.timestamp,
-              ts = NJTimestamp(p.timestamp).atZone(params.timeRange.zoneId).toString,
+              ts = NJTimestamp(p.timestamp).atZone(zoneId).toString,
               nextTS = c.timestamp,
               msGap = p.timestamp - c.timestamp,
               tsType = p.timestampType

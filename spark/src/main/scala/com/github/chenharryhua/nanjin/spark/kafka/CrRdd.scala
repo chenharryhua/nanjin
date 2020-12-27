@@ -24,9 +24,6 @@ final class CrRdd[F[_], K, V] private[kafka] (
 
   def params: SKParams = cfg.evalConfig
 
-  def withParamUpdate(f: SKConfig => SKConfig): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](topic, rdd, f(cfg), sparkSession)
-
   // transforms
   def transform(f: RDD[OptionalKV[K, V]] => RDD[OptionalKV[K, V]]): CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, f(rdd), cfg, sparkSession)
@@ -104,5 +101,5 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def stats: Statistics[F] =
     new Statistics[F](
       TypedDataset.create(rdd.map(CRMetaInfo(_)))(TypedEncoder[CRMetaInfo], sparkSession).dataset,
-      cfg)
+      params.timeRange.zoneId)
 }
