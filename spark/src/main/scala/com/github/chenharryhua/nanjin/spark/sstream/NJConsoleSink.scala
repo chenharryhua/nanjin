@@ -2,7 +2,12 @@ package com.github.chenharryhua.nanjin.spark.sstream
 
 import cats.effect.{Concurrent, Timer}
 import fs2.Stream
-import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, StreamingQueryProgress}
+import org.apache.spark.sql.streaming.{
+  DataStreamWriter,
+  OutputMode,
+  StreamingQueryProgress,
+  Trigger
+}
 
 final class NJConsoleSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig)
     extends NJStreamSink[F] {
@@ -15,6 +20,8 @@ final class NJConsoleSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig)
   def rows(num: Int): NJConsoleSink[F, A] = updateConfig(_.withShowRows(num))
   def truncate: NJConsoleSink[F, A]       = updateConfig(_.withShowTruncate(true))
   def untruncate: NJConsoleSink[F, A]     = updateConfig(_.withShowTruncate(false))
+
+  def trigger(trigger: Trigger): NJConsoleSink[F, A] = updateConfig(_.withTrigger(trigger))
 
   override def queryStream(implicit
     F: Concurrent[F],

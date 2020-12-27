@@ -39,9 +39,9 @@ class KafkaStreamTest extends AnyFunSuite {
       .filter(_ => true)
       .failOnDataLoss
       .ignoreDataLoss
-      .trigger(Trigger.ProcessingTime(1000))
       .progressInterval(3000)
       .consoleSink
+      .trigger(Trigger.ProcessingTime(1000))
       .rows(3)
       .truncate
       .untruncate
@@ -58,8 +58,8 @@ class KafkaStreamTest extends AnyFunSuite {
 
     val path = root + "fileSink"
     val ss = rooster.sparKafka.sstream.ignoreDataLoss
-      .trigger(Trigger.ProcessingTime(500))
       .fileSink(path)
+      .trigger(500.millisecond)
       .avro
       .withOptions(identity)
       .queryStream
@@ -87,8 +87,8 @@ class KafkaStreamTest extends AnyFunSuite {
       .sparKafka(sydneyTime)
       .sstream
       .ignoreDataLoss
-      .trigger(Trigger.ProcessingTime(1000))
       .datePartitionSink(path)
+      .trigger(1.seconds)
       .parquet
       .avro
       .json // last one wins
@@ -106,10 +106,9 @@ class KafkaStreamTest extends AnyFunSuite {
   test("memory sink - validate kafka timestamp") {
     val rooster = roosterTopic.withTopicName("sstream.memory.rooster").in(ctx)
 
-    val ss = rooster.sparKafka.sstream
-      .trigger(Trigger.ProcessingTime(1000))
-      .ignoreDataLoss
+    val ss = rooster.sparKafka.sstream.ignoreDataLoss
       .memorySink("kafka")
+      .trigger(Trigger.ProcessingTime(1000))
       .append
       .update
       .queryStream

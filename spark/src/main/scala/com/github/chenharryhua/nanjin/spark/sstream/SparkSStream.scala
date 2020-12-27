@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.spark.sstream
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import frameless.{TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.sql.functions.{col, udf}
-import org.apache.spark.sql.streaming.Trigger
 import org.apache.spark.sql.{Dataset, Row}
 
 final class SparkSStream[F[_], A](ds: Dataset[A], cfg: SStreamConfig) extends Serializable {
@@ -12,10 +11,10 @@ final class SparkSStream[F[_], A](ds: Dataset[A], cfg: SStreamConfig) extends Se
   private def updateConfig(f: SStreamConfig => SStreamConfig): SparkSStream[F, A] =
     new SparkSStream[F, A](ds, f(cfg))
 
-  def checkpoint(cp: String): SparkSStream[F, A]     = updateConfig(_.withCheckpointReplace(cp))
-  def failOnDataLoss: SparkSStream[F, A]             = updateConfig(_.failOnDataLoss)
-  def ignoreDataLoss: SparkSStream[F, A]             = updateConfig(_.ignoreDataLoss)
-  def trigger(trigger: Trigger): SparkSStream[F, A]  = updateConfig(_.withTrigger(trigger))
+  def checkpoint(cp: String): SparkSStream[F, A] = updateConfig(_.withCheckpointReplace(cp))
+  def failOnDataLoss: SparkSStream[F, A]         = updateConfig(_.failOnDataLoss)
+  def ignoreDataLoss: SparkSStream[F, A]         = updateConfig(_.ignoreDataLoss)
+
   def progressInterval(ms: Long): SparkSStream[F, A] = updateConfig(_.withProgressInterval(ms))
 
   // transforms
