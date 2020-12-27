@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.database
 
-import cats.derived.auto.functor._
+import cats.derived.auto.functor.kittensMkFunctor
 import com.github.chenharryhua.nanjin.database.{DatabaseName, TableName}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
@@ -24,8 +24,7 @@ private[database] object STParams {
       tableName = tableName,
       None,
       dbSaveMode = SaveMode.ErrorIfExists,
-      replayPathBuilder =
-        (dn, tn) => s"./data/sparkDB/${dn.value}/${tn.value}/replay/".replace(":", "_")
+      replayPathBuilder = (dn, tn) => s"./data/sparkDB/${dn.value}/${tn.value}/replay/".replace(":", "_")
     )
 }
 
@@ -36,8 +35,7 @@ private[database] object STConfigF {
 
   final case class WithDbSaveMode[K](value: SaveMode, cont: K) extends STConfigF[K]
 
-  final case class WithReplayPathBuilder[K](value: (DatabaseName, TableName) => String, cont: K)
-      extends STConfigF[K]
+  final case class WithReplayPathBuilder[K](value: (DatabaseName, TableName) => String, cont: K) extends STConfigF[K]
 
   final case class WithQuery[K](value: String, cont: K) extends STConfigF[K]
   final case class WithTableName[K](value: TableName, count: K) extends STConfigF[K]
@@ -61,11 +59,9 @@ final private[database] case class STConfig(value: Fix[STConfigF]) extends AnyVa
   def withReplayPathBuilder(f: (DatabaseName, TableName) => String): STConfig =
     STConfig(Fix(WithReplayPathBuilder(f, value)))
 
-  def withQuery(query: String): STConfig =
-    STConfig(Fix(WithQuery(query, value)))
+  def withQuery(query: String): STConfig = STConfig(Fix(WithQuery(query, value)))
 
-  def withTableName(tableName: TableName): STConfig =
-    STConfig(Fix(WithTableName(tableName, value)))
+  def withTableName(tableName: TableName): STConfig = STConfig(Fix(WithTableName(tableName, value)))
 
   def evalConfig: STParams = STConfigF.evalConfig(this)
 }

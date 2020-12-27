@@ -2,12 +2,7 @@ package com.github.chenharryhua.nanjin.spark.sstream
 
 import cats.effect.{Concurrent, Timer}
 import fs2.Stream
-import org.apache.spark.sql.streaming.{
-  DataStreamWriter,
-  OutputMode,
-  StreamingQueryProgress,
-  Trigger
-}
+import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, StreamingQueryProgress, Trigger}
 
 final class NJConsoleSink[F[_], A](
   dsw: DataStreamWriter[A],
@@ -22,18 +17,16 @@ final class NJConsoleSink[F[_], A](
   def truncate: NJConsoleSink[F, A]       = new NJConsoleSink[F, A](dsw, cfg, numRows, true)
   def untruncate: NJConsoleSink[F, A]     = new NJConsoleSink[F, A](dsw, cfg, numRows, false)
 
-  private def updateConfig(f: SStreamConfig => SStreamConfig): NJConsoleSink[F, A] =
+  private def updateCfg(f: SStreamConfig => SStreamConfig): NJConsoleSink[F, A] =
     new NJConsoleSink[F, A](dsw, f(cfg), numRows, isTruncate)
 
-  def trigger(trigger: Trigger): NJConsoleSink[F, A] = updateConfig(_.withTrigger(trigger))
+  def trigger(trigger: Trigger): NJConsoleSink[F, A] = updateCfg(_.withTrigger(trigger))
   // https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html#output-sinks
-  def append: NJConsoleSink[F, A]   = updateConfig(_.withAppend)
-  def update: NJConsoleSink[F, A]   = updateConfig(_.withUpdate)
-  def complete: NJConsoleSink[F, A] = updateConfig(_.withComplete)
+  def append: NJConsoleSink[F, A]   = updateCfg(_.withAppend)
+  def update: NJConsoleSink[F, A]   = updateCfg(_.withUpdate)
+  def complete: NJConsoleSink[F, A] = updateCfg(_.withComplete)
 
-  override def queryStream(implicit
-    F: Concurrent[F],
-    timer: Timer[F]): Stream[F, StreamingQueryProgress] =
+  override def queryStream(implicit F: Concurrent[F], timer: Timer[F]): Stream[F, StreamingQueryProgress] =
     ss.queryStream(
       dsw
         .trigger(params.trigger)

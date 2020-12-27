@@ -22,16 +22,16 @@ final class PrRdd[F[_], K, V] private[kafka] (
   val params: SKParams = cfg.evalConfig
 
   // config
-  private def withParamUpdate(f: SKConfig => SKConfig): PrRdd[F, K, V] =
+  private def updateCfg(f: SKConfig => SKConfig): PrRdd[F, K, V] =
     new PrRdd[F, K, V](topic, rdd, f(cfg))
 
-  def triggerEvery(ms: Long): PrRdd[F, K, V]           = withParamUpdate(_.withUploadInterval(ms))
-  def triggerEvery(ms: FiniteDuration): PrRdd[F, K, V] = withParamUpdate(_.withUploadInterval(ms))
-  def batchSize(num: Int): PrRdd[F, K, V]              = withParamUpdate(_.withUploadBatchSize(num))
+  def triggerEvery(ms: Long): PrRdd[F, K, V]           = updateCfg(_.withUploadInterval(ms))
+  def triggerEvery(ms: FiniteDuration): PrRdd[F, K, V] = updateCfg(_.withUploadInterval(ms))
+  def batchSize(num: Int): PrRdd[F, K, V]              = updateCfg(_.withUploadBatchSize(num))
 
-  def recordsLimit(num: Long): PrRdd[F, K, V]       = withParamUpdate(_.withUploadRecordsLimit(num))
-  def timeLimit(ms: Long): PrRdd[F, K, V]           = withParamUpdate(_.withUploadTimeLimit(ms))
-  def timeLimit(fd: FiniteDuration): PrRdd[F, K, V] = withParamUpdate(_.withUploadTimeLimit(fd))
+  def recordsLimit(num: Long): PrRdd[F, K, V]       = updateCfg(_.withUploadRecordsLimit(num))
+  def timeLimit(ms: Long): PrRdd[F, K, V]           = updateCfg(_.withUploadTimeLimit(ms))
+  def timeLimit(fd: FiniteDuration): PrRdd[F, K, V] = updateCfg(_.withUploadTimeLimit(fd))
 
   // transform
   def transform(f: RDD[NJProducerRecord[K, V]] => RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
@@ -43,10 +43,12 @@ final class PrRdd[F[_], K, V] private[kafka] (
   def timeRange(dr: NJDateTimeRange): PrRdd[F, K, V]      = transform(range.pr.timestamp(dr))
   def timeRange: PrRdd[F, K, V]                           = timeRange(params.timeRange)
 
-  def ascendTimestamp: PrRdd[F, K, V]  = transform(sort.ascending.pr.timestamp)
-  def descendTimestamp: PrRdd[F, K, V] = transform(sort.descending.pr.timestamp)
-  def ascendOffset: PrRdd[F, K, V]     = transform(sort.ascending.pr.offset)
-  def descendOffset: PrRdd[F, K, V]    = transform(sort.descending.pr.offset)
+  def ascendTimestamp: PrRdd[F, K, V] = transform(sort.ascend.pr.timestamp).updateCfg(_.withSorted)
+
+  def descendTimestamp: PrRdd[F, K, V] =
+    transform(sort.descend.pr.timestamp).updateCfg(_.withSorted)
+  def ascendOffset: PrRdd[F, K, V]  = transform(sort.ascend.pr.offset).updateCfg(_.withSorted)
+  def descendOffset: PrRdd[F, K, V] = transform(sort.descend.pr.offset).updateCfg(_.withSorted)
 
   def noTimestamp: PrRdd[F, K, V] = transform(_.map(_.noTimestamp))
   def noPartition: PrRdd[F, K, V] = transform(_.map(_.noPartition))
