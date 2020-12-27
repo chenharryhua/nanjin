@@ -43,12 +43,10 @@ final class PrRdd[F[_], K, V] private[kafka] (
   def timeRange(dr: NJDateTimeRange): PrRdd[F, K, V]      = transform(range.pr.timestamp(dr))
   def timeRange: PrRdd[F, K, V]                           = timeRange(params.timeRange)
 
-  def ascendTimestamp: PrRdd[F, K, V] = transform(sort.ascend.pr.timestamp).updateCfg(_.withSorted)
-
-  def descendTimestamp: PrRdd[F, K, V] =
-    transform(sort.descend.pr.timestamp).updateCfg(_.withSorted)
-  def ascendOffset: PrRdd[F, K, V]  = transform(sort.ascend.pr.offset).updateCfg(_.withSorted)
-  def descendOffset: PrRdd[F, K, V] = transform(sort.descend.pr.offset).updateCfg(_.withSorted)
+  def ascendTimestamp: PrRdd[F, K, V]  = transform(sort.ascend.pr.timestamp).updateCfg(_.withSorted)
+  def descendTimestamp: PrRdd[F, K, V] = transform(sort.descend.pr.timestamp).updateCfg(_.withSorted)
+  def ascendOffset: PrRdd[F, K, V]     = transform(sort.ascend.pr.offset).updateCfg(_.withSorted)
+  def descendOffset: PrRdd[F, K, V]    = transform(sort.descend.pr.offset).updateCfg(_.withSorted)
 
   def noTimestamp: PrRdd[F, K, V] = transform(_.map(_.noTimestamp))
   def noPartition: PrRdd[F, K, V] = transform(_.map(_.noPartition))

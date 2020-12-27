@@ -7,44 +7,33 @@ import frameless.TypedEncoder
 import fs2.Stream
 import io.circe.{Decoder => JsonDecoder}
 
-final class KafkaLoadFile[F[_], K, V] private[kafka] (klf: SparKafka[F, K, V])
-    extends Serializable {
+final class LoadTopicFile[F[_], K, V] private[kafka] (klf: SparKafka[F, K, V]) extends Serializable {
 
-  def avro(pathStr: String)(implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): CrDS[F, K, V] = {
+  def avro(pathStr: String)(implicit keyEncoder: TypedEncoder[K], valEncoder: TypedEncoder[V]): CrDS[F, K, V] = {
     val ate = OptionalKV.ate(klf.topic.topicDef)
     val tds = loaders.avro[OptionalKV[K, V]](pathStr, ate, klf.sparkSession)
     new CrDS(klf.topic, tds.dataset, ate, klf.cfg)
   }
 
-  def parquet(pathStr: String)(implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): CrDS[F, K, V] = {
+  def parquet(pathStr: String)(implicit keyEncoder: TypedEncoder[K], valEncoder: TypedEncoder[V]): CrDS[F, K, V] = {
     val ate = OptionalKV.ate(klf.topic.topicDef)
     val tds = loaders.parquet[OptionalKV[K, V]](pathStr, ate, klf.sparkSession)
     new CrDS(klf.topic, tds.dataset, ate, klf.cfg)
   }
 
-  def json(pathStr: String)(implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): CrDS[F, K, V] = {
+  def json(pathStr: String)(implicit keyEncoder: TypedEncoder[K], valEncoder: TypedEncoder[V]): CrDS[F, K, V] = {
     val ate = OptionalKV.ate(klf.topic.topicDef)
     val tds = loaders.json[OptionalKV[K, V]](pathStr, ate, klf.sparkSession)
     new CrDS(klf.topic, tds.dataset, ate, klf.cfg)
   }
 
-  def jackson(pathStr: String)(implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): CrDS[F, K, V] = {
+  def jackson(pathStr: String)(implicit keyEncoder: TypedEncoder[K], valEncoder: TypedEncoder[V]): CrDS[F, K, V] = {
     val ate = OptionalKV.ate(klf.topic.topicDef)
     val tds = loaders.jackson[OptionalKV[K, V]](pathStr, ate, klf.sparkSession)
     new CrDS(klf.topic, tds.dataset, ate, klf.cfg)
   }
 
-  def binAvro(pathStr: String)(implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): CrDS[F, K, V] = {
+  def binAvro(pathStr: String)(implicit keyEncoder: TypedEncoder[K], valEncoder: TypedEncoder[V]): CrDS[F, K, V] = {
     val ate = OptionalKV.ate(klf.topic.topicDef)
     val tds = loaders.binAvro[OptionalKV[K, V]](pathStr, ate, klf.sparkSession)
     new CrDS(klf.topic, tds.dataset, ate, klf.cfg)
@@ -59,9 +48,7 @@ final class KafkaLoadFile[F[_], K, V] private[kafka] (klf: SparKafka[F, K, V])
     new CrDS(klf.topic, tds.dataset, ate, klf.cfg)
   }
 
-  def objectFile(pathStr: String)(implicit
-    keyEncoder: TypedEncoder[K],
-    valEncoder: TypedEncoder[V]): CrDS[F, K, V] = {
+  def objectFile(pathStr: String)(implicit keyEncoder: TypedEncoder[K], valEncoder: TypedEncoder[V]): CrDS[F, K, V] = {
     val ate = OptionalKV.ate(klf.topic.topicDef)
     val tds = loaders.objectFile[OptionalKV[K, V]](pathStr, ate, klf.sparkSession)
     new CrDS(klf.topic, tds.dataset, ate, klf.cfg)
@@ -71,24 +58,18 @@ final class KafkaLoadFile[F[_], K, V] private[kafka] (klf: SparKafka[F, K, V])
 
     def avro(pathStr: String): CrRdd[F, K, V] =
       klf.crRdd(
-        loaders.rdd.avro[OptionalKV[K, V]](
-          pathStr,
-          OptionalKV.avroCodec(klf.topic.topicDef).avroDecoder,
-          klf.sparkSession))
+        loaders.rdd
+          .avro[OptionalKV[K, V]](pathStr, OptionalKV.avroCodec(klf.topic.topicDef).avroDecoder, klf.sparkSession))
 
     def jackson(pathStr: String): CrRdd[F, K, V] =
       klf.crRdd(
-        loaders.rdd.jackson[OptionalKV[K, V]](
-          pathStr,
-          OptionalKV.avroCodec(klf.topic.topicDef).avroDecoder,
-          klf.sparkSession))
+        loaders.rdd
+          .jackson[OptionalKV[K, V]](pathStr, OptionalKV.avroCodec(klf.topic.topicDef).avroDecoder, klf.sparkSession))
 
     def binAvro(pathStr: String): CrRdd[F, K, V] =
       klf.crRdd(
-        loaders.rdd.binAvro[OptionalKV[K, V]](
-          pathStr,
-          OptionalKV.avroCodec(klf.topic.topicDef).avroDecoder,
-          klf.sparkSession))
+        loaders.rdd
+          .binAvro[OptionalKV[K, V]](pathStr, OptionalKV.avroCodec(klf.topic.topicDef).avroDecoder, klf.sparkSession))
 
     def circe(pathStr: String)(implicit ev: JsonDecoder[OptionalKV[K, V]]): CrRdd[F, K, V] =
       klf.crRdd(loaders.rdd.circe[OptionalKV[K, V]](pathStr, klf.sparkSession))
@@ -103,10 +84,7 @@ final class KafkaLoadFile[F[_], K, V] private[kafka] (klf: SparKafka[F, K, V])
       cs: ContextShift[F],
       F: Sync[F],
       ev: JsonDecoder[OptionalKV[K, V]]): Stream[F, OptionalKV[K, V]] =
-      loaders.stream.circe[F, OptionalKV[K, V]](
-        pathStr,
-        blocker,
-        klf.sparkSession.sparkContext.hadoopConfiguration)
+      loaders.stream.circe[F, OptionalKV[K, V]](pathStr, blocker, klf.sparkSession.sparkContext.hadoopConfiguration)
 
     def jackson(pathStr: String, blocker: Blocker)(implicit
       cs: ContextShift[F],
@@ -117,9 +95,7 @@ final class KafkaLoadFile[F[_], K, V] private[kafka] (klf: SparKafka[F, K, V])
         blocker,
         klf.sparkSession.sparkContext.hadoopConfiguration)
 
-    def avro(pathStr: String, blocker: Blocker)(implicit
-      cs: ContextShift[F],
-      F: Sync[F]): Stream[F, OptionalKV[K, V]] =
+    def avro(pathStr: String, blocker: Blocker)(implicit cs: ContextShift[F], F: Sync[F]): Stream[F, OptionalKV[K, V]] =
       loaders.stream.avro[F, OptionalKV[K, V]](
         pathStr,
         OptionalKV.avroCodec(klf.topic.topicDef).avroDecoder,

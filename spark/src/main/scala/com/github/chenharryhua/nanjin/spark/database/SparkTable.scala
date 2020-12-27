@@ -30,20 +30,12 @@ final class SparkTable[F[_], A](
 
   def fromDB: TableDataset[F, A] = {
     val df =
-      sd.unloadDF(
-        dbSettings.hikariConfig,
-        tableDef.tableName,
-        params.query.orElse(tableDef.unloadQuery),
-        sparkSession)
+      sd.unloadDF(dbSettings.hikariConfig, tableDef.tableName, params.query.orElse(tableDef.unloadQuery), sparkSession)
     new TableDataset[F, A](ate.normalizeDF(df).dataset, dbSettings, cfg, ate)
   }
 
   def fromDisk: TableDataset[F, A] =
-    new TableDataset[F, A](
-      loaders.objectFile(params.replayPath, ate, sparkSession).dataset,
-      dbSettings,
-      cfg,
-      ate)
+    new TableDataset[F, A](loaders.objectFile(params.replayPath, ate, sparkSession).dataset, dbSettings, cfg, ate)
 
   def countDisk: Long = fromDisk.dataset.count
 
@@ -71,6 +63,6 @@ final class SparkTable[F[_], A](
   def tableset(rdd: RDD[A]): TableDataset[F, A] =
     new TableDataset[F, A](ate.normalize(rdd, sparkSession).dataset, dbSettings, cfg, ate)
 
-  def load: DbLoadFile[F, A] = new DbLoadFile[F, A](this)
+  def load: LoadTableFile[F, A] = new LoadTableFile[F, A](this)
 
 }
