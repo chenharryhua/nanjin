@@ -60,10 +60,7 @@ class CrDSTest extends AnyFunSuite {
       StructField("key", LongType, true),
       StructField(
         "value",
-        StructType(
-          List(
-            StructField("c", DecimalType(8, 2), false),
-            StructField("d", DecimalType(8, 2), false))),
+        StructType(List(StructField("c", DecimalType(8, 2), false), StructField("d", DecimalType(8, 2), false))),
         true),
       StructField("topic", StringType, false),
       StructField("timestampType", IntegerType, false)
@@ -77,22 +74,8 @@ class CrDSTest extends AnyFunSuite {
     assert(crRdd.partitionOf(0).rdd.collect.size == 4)
   }
 
-  test("first") {
-    assert(crRdd.first.unsafeRunSync().get.value == RoosterData.data.headOption)
-
-  }
-
-  test("last") {
-    assert(crRdd.last.unsafeRunSync().get.value == RoosterData.data.lastOption)
-  }
-
   test("bimap") {
-    val r = crRdd.normalize
-      .bimap(identity, RoosterLike(_))(roosterLike)
-      .rdd
-      .collect()
-      .flatMap(_.value)
-      .toSet
+    val r = crRdd.normalize.bimap(identity, RoosterLike(_))(roosterLike).rdd.collect().flatMap(_.value).toSet
 
     val ds = crDS.normalize.bimap(identity, RoosterLike(_))(roosterLike).dataset
     val d  = ds.collect().flatMap(_.value).toSet
@@ -102,12 +85,8 @@ class CrDSTest extends AnyFunSuite {
   }
 
   test("map") {
-    val r = crRdd.normalize
-      .map(x => x.newValue(x.value.map(RoosterLike(_))))(roosterLike)
-      .rdd
-      .collect
-      .flatMap(_.value)
-      .toSet
+    val r =
+      crRdd.normalize.map(x => x.newValue(x.value.map(RoosterLike(_))))(roosterLike).rdd.collect.flatMap(_.value).toSet
     val ds = crDS.normalize.map(_.bimap(identity, RoosterLike(_)))(roosterLike).dataset
     val d  = ds.collect.flatMap(_.value).toSet
     assert(ds.schema == expectSchema)
@@ -147,9 +126,8 @@ class CrDSTest extends AnyFunSuite {
   }
 
   test("time range") {
-    val dr = NJDateTimeRange(sydneyTime)
-      .withStartTime(Instant.now.minusSeconds(50))
-      .withEndTime(Instant.now().plusSeconds(10))
+    val dr =
+      NJDateTimeRange(sydneyTime).withStartTime(Instant.now.minusSeconds(50)).withEndTime(Instant.now().plusSeconds(10))
     assert(crRdd.timeRange(dr).rdd.collect.size == 4)
     assert(crRdd.prRdd.partitionOf(0).timeRange(dr).rdd.collect.size == 4)
     assert(crRdd.crDS.timeRange(dr).dataset.collect.size == 4)

@@ -50,7 +50,7 @@ final class SparKafka[F[_], K, V](
   def countKafka(implicit F: Sync[F]): F[Long] = fromKafka.flatMap(_.count)
   def countDisk(implicit F: Sync[F]): F[Long]  = fromDisk.count
 
-  def load: KafkaLoadFile[F, K, V] = new KafkaLoadFile[F, K, V](this)
+  def load: LoadTopicFile[F, K, V] = new LoadTopicFile[F, K, V](this)
 
   /** rdd and dataset
     */

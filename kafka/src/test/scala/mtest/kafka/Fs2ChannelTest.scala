@@ -8,6 +8,7 @@ import fs2.kafka.AutoOffsetReset
 import io.circe.generic.auto._
 import org.apache.kafka.common.TopicPartition
 import org.scalatest.funsuite.AnyFunSuite
+import scala.concurrent.duration._
 
 class Fs2ChannelTest extends AnyFunSuite {
   val backblaze_smart = TopicDef[KJson[lenses_record_key], String](TopicName("backblaze_smart"))
@@ -29,6 +30,7 @@ class Fs2ChannelTest extends AnyFunSuite {
         .take(1)
         .map(_.show)
         .map(println)
+        .interruptAfter(2.seconds)
         .compile
         .toList
         .unsafeRunSync()
@@ -42,6 +44,7 @@ class Fs2ChannelTest extends AnyFunSuite {
       .take(1)
       .map(_.show)
       .map(println)
+      .interruptAfter(2.seconds)
       .compile
       .toList
       .unsafeRunSync()
@@ -57,6 +60,7 @@ class Fs2ChannelTest extends AnyFunSuite {
       .rethrow
       .take(1)
       .map(_.show)
+      .interruptAfter(2.seconds)
       .compile
       .toList
       .unsafeRunSync()

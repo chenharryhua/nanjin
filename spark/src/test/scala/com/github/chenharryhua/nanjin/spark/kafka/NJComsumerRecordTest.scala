@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.kernel.laws.discipline.{LowerBoundedTests, OrderTests}
+import cats.derived.auto.eq._
+import cats.kernel.laws.discipline.PartialOrderTests
 import cats.laws.discipline.{BifunctorTests, BitraverseTests}
 import cats.tests.CatsSuite
 import org.scalacheck.{Arbitrary, Cogen, Gen, Properties}
@@ -32,26 +33,17 @@ object NJComsumerRecordTestData {
 class NJComsumerRecordTest extends CatsSuite with FunSuiteDiscipline {
   import NJComsumerRecordTestData._
 
-  // ordered
-  checkAll("OptionalKV", OrderTests[OptionalKV[Int, Int]].order)
-  checkAll("OptionalKV", LowerBoundedTests[OptionalKV[Int, Int]].lowerBounded)
-
-  checkAll("CompulsoryK", OrderTests[CompulsoryK[Int, Int]].order)
-  checkAll("CompulsoryV", OrderTests[CompulsoryV[Int, Int]].order)
-  checkAll("CompulsoryKV", OrderTests[CompulsoryKV[Int, Int]].order)
+  // partial ordered
+  checkAll("OptionalKV", PartialOrderTests[OptionalKV[Int, Int]].partialOrder)
 
   // bitraverse
-  checkAll(
-    "CompulsoryKV",
-    BitraverseTests[CompulsoryKV].bitraverse[Option, Int, Int, Int, Int, Int, Int])
+  checkAll("CompulsoryKV", BitraverseTests[CompulsoryKV].bitraverse[Option, Int, Int, Int, Int, Int, Int])
 
   // bifunctor
   checkAll("CompulsoryK", BifunctorTests[CompulsoryK].bifunctor[Int, Int, Int, Int, Int, Int])
   checkAll("CompulsoryV", BifunctorTests[CompulsoryV].bifunctor[Int, Int, Int, Int, Int, Int])
   checkAll("OptionalKV", BifunctorTests[OptionalKV].bifunctor[Int, Int, Int, Int, Int, Int])
-  checkAll(
-    "NJProducerRecord",
-    BifunctorTests[NJProducerRecord].bifunctor[Int, Int, Int, Int, Int, Int])
+  checkAll("NJProducerRecord", BifunctorTests[NJProducerRecord].bifunctor[Int, Int, Int, Int, Int, Int])
 
 }
 

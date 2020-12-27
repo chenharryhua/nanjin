@@ -42,9 +42,6 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def ascendOffset: CrRdd[F, K, V]     = transform(sort.ascend.cr.offset).updateCfg(_.withSorted)
   def descendOffset: CrRdd[F, K, V]    = transform(sort.descend.cr.offset).updateCfg(_.withSorted)
 
-  def first(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] = F.delay(rdd.cminOption)
-  def last(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]]  = F.delay(rdd.cmaxOption)
-
   def persist(level: StorageLevel): CrRdd[F, K, V] = transform(_.persist(level))
   def unpersist: CrRdd[F, K, V]                    = transform(_.unpersist())
 
