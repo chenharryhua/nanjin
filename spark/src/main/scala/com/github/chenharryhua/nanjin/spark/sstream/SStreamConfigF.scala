@@ -87,30 +87,22 @@ final private[sstream] case class SStreamConfig(value: Fix[SStreamConfigF]) exte
   def withCheckpointAppend(cp: String): SStreamConfig =
     SStreamConfig(Fix(WithCheckpointAppend(cp, value)))
 
-  def failOnDataLoss: SStreamConfig =
-    SStreamConfig(Fix(WithFailOnDataLoss(isFail = true, value)))
+  def failOnDataLoss: SStreamConfig = SStreamConfig(Fix(WithFailOnDataLoss(isFail = true, value)))
+  def ignoreDataLoss: SStreamConfig = SStreamConfig(Fix(WithFailOnDataLoss(isFail = false, value)))
 
-  def ignoreDataLoss: SStreamConfig =
-    SStreamConfig(Fix(WithFailOnDataLoss(isFail = false, value)))
+  private def withOutputMode(f: OutputMode): SStreamConfig = SStreamConfig(Fix(WithOutputMode(f, value)))
+  def withAppend: SStreamConfig                            = withOutputMode(OutputMode.Append())
+  def withComplete: SStreamConfig                          = withOutputMode(OutputMode.Complete())
+  def withUpdate: SStreamConfig                            = withOutputMode(OutputMode.Update())
 
-  private def withOutputMode(f: OutputMode): SStreamConfig =
-    SStreamConfig(Fix(WithOutputMode(f, value)))
-  def withAppend: SStreamConfig   = withOutputMode(OutputMode.Append())
-  def withComplete: SStreamConfig = withOutputMode(OutputMode.Complete())
-  def withUpdate: SStreamConfig   = withOutputMode(OutputMode.Update())
-
-  def withTrigger(trigger: Trigger): SStreamConfig =
-    SStreamConfig(Fix(WithTrigger(trigger, value)))
+  def withTrigger(trigger: Trigger): SStreamConfig = SStreamConfig(Fix(WithTrigger(trigger, value)))
 
   def withJson: SStreamConfig    = SStreamConfig(Fix(WithFormat(NJFileFormat.SparkJson, value)))
   def withParquet: SStreamConfig = SStreamConfig(Fix(WithFormat(NJFileFormat.Parquet, value)))
   def withAvro: SStreamConfig    = SStreamConfig(Fix(WithFormat(NJFileFormat.Avro, value)))
 
-  def withProgressInterval(fd: FiniteDuration): SStreamConfig =
-    SStreamConfig(Fix(WithProgressInterval(fd, value)))
-
-  def withProgressInterval(ms: Long): SStreamConfig =
-    withProgressInterval(FiniteDuration(ms, TimeUnit.MILLISECONDS))
+  def withProgressInterval(fd: FiniteDuration): SStreamConfig = SStreamConfig(Fix(WithProgressInterval(fd, value)))
+  def withProgressInterval(ms: Long): SStreamConfig           = withProgressInterval(FiniteDuration(ms, TimeUnit.MILLISECONDS))
 
   def evalConfig: SStreamParams = SStreamConfigF.evalConfig(this)
 }

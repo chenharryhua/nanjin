@@ -25,14 +25,10 @@ final class SparKafka[F[_], K, V](
   private def withParamUpdate(f: SKConfig => SKConfig): SparKafka[F, K, V] =
     new SparKafka[F, K, V](topic, f(cfg), sparkSession)
 
-  def withZoneId(zoneId: ZoneId): SparKafka[F, K, V] =
-    withParamUpdate(_.withZoneId(zoneId))
+  def withZoneId(zoneId: ZoneId): SparKafka[F, K, V]         = withParamUpdate(_.withZoneId(zoneId))
+  def withTimeRange(tr: NJDateTimeRange): SparKafka[F, K, V] = withParamUpdate(_.withTimeRange(tr))
 
-  def withTimeRange(tr: NJDateTimeRange): SparKafka[F, K, V] =
-    withParamUpdate(_.withTimeRange(tr))
-
-  def withTopicName(tn: String): SparKafka[F, K, V] =
-    new SparKafka[F, K, V](topic.withTopicName(tn), cfg, sparkSession)
+  def withTopicName(tn: String): SparKafka[F, K, V] = new SparKafka[F, K, V](topic.withTopicName(tn), cfg, sparkSession)
 
   val params: SKParams = cfg.evalConfig
 
@@ -46,8 +42,7 @@ final class SparKafka[F[_], K, V](
     */
   def dump(implicit F: Concurrent[F], cs: ContextShift[F]): F[Long] =
     Blocker[F].use(blocker =>
-      fromKafka.flatMap(cr =>
-        cr.save.objectFile(params.replayPath).overwrite.run(blocker) *> cr.count))
+      fromKafka.flatMap(cr => cr.save.objectFile(params.replayPath).overwrite.run(blocker) *> cr.count))
 
   def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
     fromDisk.upload
@@ -72,17 +67,12 @@ final class SparKafka[F[_], K, V](
   /** structured stream
     */
 
-  def sstream[A](f: OptionalKV[K, V] => A, ate: AvroTypedEncoder[A])(implicit
-    sync: Sync[F]): SparkSStream[F, A] =
+  def sstream[A](f: OptionalKV[K, V] => A, ate: AvroTypedEncoder[A])(implicit sync: Sync[F]): SparkSStream[F, A] =
     new SparkSStream[F, A](
       sk.kafkaSStream[F, K, V, A](topic, ate, sparkSession)(f),
-      SStreamConfig(params.timeRange)
-        .withCheckpointAppend(s"kafka/${topic.topicName.value}"))
+      SStreamConfig(params.timeRange).withCheckpointAppend(s"kafka/${topic.topicName.value}"))
 
-  def sstream(implicit
-    tek: TypedEncoder[K],
-    tev: TypedEncoder[V],
-    F: Sync[F]): SparkSStream[F, OptionalKV[K, V]] = {
+  def sstream(implicit tek: TypedEncoder[K], tev: TypedEncoder[V], F: Sync[F]): SparkSStream[F, OptionalKV[K, V]] = {
     val ate = OptionalKV.ate(topic.topicDef)
     sstream(identity, ate)
   }

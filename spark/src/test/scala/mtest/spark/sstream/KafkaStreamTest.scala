@@ -112,8 +112,8 @@ class KafkaStreamTest extends AnyFunSuite {
     val ss = rooster.sparKafka.sstream.ignoreDataLoss
       .memorySink("kafka")
       .trigger(Trigger.ProcessingTime(1000))
-      .append
       .complete
+      .append
       .queryStream
 
     val upload =

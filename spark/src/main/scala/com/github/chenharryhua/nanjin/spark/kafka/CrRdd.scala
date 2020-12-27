@@ -24,6 +24,9 @@ final class CrRdd[F[_], K, V] private[kafka] (
 
   def params: SKParams = cfg.evalConfig
 
+  private def updateCfg(f: SKConfig => SKConfig): CrRdd[F, K, V] =
+    new CrRdd[F, K, V](topic, rdd, f(cfg), sparkSession)
+
   // transforms
   def transform(f: RDD[OptionalKV[K, V]] => RDD[OptionalKV[K, V]]): CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, f(rdd), cfg, sparkSession)
@@ -34,10 +37,10 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def timeRange(dr: NJDateTimeRange): CrRdd[F, K, V]      = transform(range.cr.timestamp(dr))
   def timeRange: CrRdd[F, K, V]                           = timeRange(params.timeRange)
 
-  def ascendTimestamp: CrRdd[F, K, V]  = transform(sort.ascending.cr.timestamp)
-  def descendTimestamp: CrRdd[F, K, V] = transform(sort.descending.cr.timestamp)
-  def ascendOffset: CrRdd[F, K, V]     = transform(sort.ascending.cr.offset)
-  def descendOffset: CrRdd[F, K, V]    = transform(sort.descending.cr.offset)
+  def ascendTimestamp: CrRdd[F, K, V]  = transform(sort.ascend.cr.timestamp).updateCfg(_.withSorted)
+  def descendTimestamp: CrRdd[F, K, V] = transform(sort.descend.cr.timestamp).updateCfg(_.withSorted)
+  def ascendOffset: CrRdd[F, K, V]     = transform(sort.ascend.cr.offset).updateCfg(_.withSorted)
+  def descendOffset: CrRdd[F, K, V]    = transform(sort.descend.cr.offset).updateCfg(_.withSorted)
 
   def first(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]] = F.delay(rdd.cminOption)
   def last(implicit F: Sync[F]): F[Option[OptionalKV[K, V]]]  = F.delay(rdd.cmaxOption)
@@ -60,8 +63,7 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def bimap[K2, V2](k: K => K2, v: V => V2)(other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
     new CrRdd[F, K2, V2](other, rdd.map(_.bimap(k, v)), cfg, sparkSession).normalize
 
-  def map[K2, V2](f: OptionalKV[K, V] => OptionalKV[K2, V2])(
-    other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
+  def map[K2, V2](f: OptionalKV[K, V] => OptionalKV[K2, V2])(other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
     new CrRdd[F, K2, V2](other, rdd.map(f), cfg, sparkSession).normalize
 
   def flatMap[K2, V2](f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]])(

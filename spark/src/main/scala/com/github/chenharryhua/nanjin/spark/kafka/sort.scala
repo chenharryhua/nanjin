@@ -6,7 +6,7 @@ import org.apache.spark.sql.functions.col
 
 private[kafka] object sort {
 
-  object ascending {
+  object ascend {
 
     object cr {
 
@@ -34,7 +34,7 @@ private[kafka] object sort {
 
   }
 
-  object descending {
+  object descend {
 
     object cr {
 
