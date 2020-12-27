@@ -1,6 +1,6 @@
 package mtest.spark.ftp
 
-import akka.stream.alpakka.ftp.{FtpCredentials, FtpSettings}
+import akka.stream.alpakka.ftp.{FtpCredentials, FtpSettings, FtpsSettings, SftpSettings}
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.spark.ftp.{ftpSink, ftpSource}
 import com.github.chenharryhua.nanjin.spark.injection._
@@ -25,14 +25,21 @@ class FtpTest extends AnyFunSuite {
       .withCredentials(cred)
       .withPassiveMode(true)
       .withConfigureConnection { (ftpClient: FTPClient) =>
-        ftpClient.addProtocolCommandListener(
-          new PrintCommandListener(new PrintWriter(System.out), true))
+        ftpClient.addProtocolCommandListener(new PrintCommandListener(new PrintWriter(System.out), true))
         ftpClient.setRemoteVerificationEnabled(false)
       }
   val sink   = ftpSink[IO](ftpSettins, blocker)
   val source = ftpSource[IO](ftpSettins)
 
   val roosterSteam = fs2.Stream.emits(TabletData.data)
+
+  val ftps        = FtpsSettings(InetAddress.getLocalHost)
+  val ftpsSink1   = ftpSink[IO](ftps, blocker)
+  val ftpsSource1 = ftpSource[IO](ftps)
+
+  val sftp        = SftpSettings(InetAddress.getLocalHost)
+  val sftpSink2   = ftpSink[IO](sftp, blocker)
+  val sftpSource2 = ftpSource[IO](sftp)
 
   test("json") {
     val path = "tablet.json"

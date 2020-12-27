@@ -62,27 +62,6 @@ case class trip_record(
   tolls_amount: Double,
   total_amount: Double)
 
-case class PKey(MMSI: Long)
-
-case class aisClassAPositionReport(
-  Type: Int,
-  Repeat: Int,
-  MMSI: Long,
-  Speed: Float,
-  Accuracy: Boolean,
-  Longitude: Double,
-  Latitude: Double,
-  location: String,
-  Course: Float,
-  Heading: Int,
-  Second: Int,
-  RAIM: Boolean,
-  Radio: Long,
-  Status: Int,
-  Turn: Float,
-  Maneuver: Int,
-  Timestamp: Long)
-
 object Materials extends Enumeration {
   type Materials = Value
   val Wood, Steel, Stone         = Value
