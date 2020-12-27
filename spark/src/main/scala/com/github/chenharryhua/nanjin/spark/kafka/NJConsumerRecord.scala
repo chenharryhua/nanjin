@@ -31,14 +31,6 @@ sealed trait NJConsumerRecord[K, V] {
   val topic: String
   val timestampType: Int
 
-  final def compare(other: NJConsumerRecord[K, V]): Int = {
-    val ts = self.timestamp.compareTo(other.timestamp)
-    val os = self.offset.compareTo(other.offset)
-    if (ts != 0) ts
-    else if (os != 0) os
-    else self.partition.compareTo(other.partition)
-  }
-
   final def metaInfo: String =
     s"Meta(topic=$topic,partition=$partition,offset=$offset,ts=${Instant.ofEpochMilli(timestamp)})"
 
@@ -54,9 +46,11 @@ object NJConsumerRecord {
     k: Show[K],
     v: Show[V]): Show[A] = _.display(k, v)
 
-  implicit def orderNJConsumerRecord[A, K, V](implicit
-    ev: A <:< NJConsumerRecord[K, V]
-  ): Order[A] = (x: A, y: A) => x.compare(y)
+  implicit def orderingNJConsumerRecord[A, K, V](implicit ev: A <:< NJConsumerRecord[K, V]): Ordering[A] =
+    Ordering.by[A, Tuple3[Long, Long, Int]](x => Tuple3(x.timestamp, x.offset, x.partition))
+
+  implicit def orderNJConsumerRecord[A, K, V](implicit ev: A <:< NJConsumerRecord[K, V]): Order[A] =
+    Order.fromOrdering[A]
 }
 
 @Lenses @AvroDoc("kafka record, optional Key and Value")
@@ -100,18 +94,9 @@ final case class OptionalKV[K, V](
 object OptionalKV {
 
   def apply[K, V](cr: ConsumerRecord[Option[K], Option[V]]): OptionalKV[K, V] =
-    OptionalKV(
-      cr.partition,
-      cr.offset,
-      cr.timestamp,
-      cr.key,
-      cr.value,
-      cr.topic,
-      cr.timestampType.id)
+    OptionalKV(cr.partition, cr.offset, cr.timestamp, cr.key, cr.value, cr.topic, cr.timestampType.id)
 
-  def avroCodec[K, V](
-    keyCodec: AvroCodec[K],
-    valCodec: AvroCodec[V]): AvroCodec[OptionalKV[K, V]] = {
+  def avroCodec[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V]): AvroCodec[OptionalKV[K, V]] = {
     implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
     implicit val schemaForVal: SchemaFor[V] = valCodec.schemaFor
     implicit val keyDecoder: Decoder[K]     = keyCodec.avroDecoder
@@ -134,16 +119,14 @@ object OptionalKV {
     AvroTypedEncoder[OptionalKV[K, V]](ote, avroCodec(keyCodec, valCodec))
   }
 
-  def ate[K, V](topicDef: TopicDef[K, V])(implicit
-    tek: TypedEncoder[K],
-    tev: TypedEncoder[V]): AvroTypedEncoder[OptionalKV[K, V]] =
+  def ate[K, V](
+    topicDef: TopicDef[K, V])(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): AvroTypedEncoder[OptionalKV[K, V]] =
     ate(topicDef.serdeOfKey.avroCodec, topicDef.serdeOfVal.avroCodec)
 
   implicit val bifunctorOptionalKV: Bifunctor[OptionalKV] =
     new Bifunctor[OptionalKV] {
 
-      override def bimap[A, B, C, D](
-        fab: OptionalKV[A, B])(f: A => C, g: B => D): OptionalKV[C, D] =
+      override def bimap[A, B, C, D](fab: OptionalKV[A, B])(f: A => C, g: B => D): OptionalKV[C, D] =
         fab.copy(key = fab.key.map(f), value = fab.value.map(g))
     }
 
@@ -194,9 +177,7 @@ final case class CompulsoryV[K, V](
 
 object CompulsoryV {
 
-  def avroCodec[K, V](
-    keyCodec: AvroCodec[K],
-    valCodec: AvroCodec[V]): AvroCodec[CompulsoryV[K, V]] = {
+  def avroCodec[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V]): AvroCodec[CompulsoryV[K, V]] = {
     implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
     implicit val schemaForVal: SchemaFor[V] = valCodec.schemaFor
     implicit val keyDecoder: Decoder[K]     = keyCodec.avroDecoder
@@ -227,8 +208,7 @@ object CompulsoryV {
   implicit val bifunctorCompulsoryV: Bifunctor[CompulsoryV] =
     new Bifunctor[CompulsoryV] {
 
-      override def bimap[A, B, C, D](
-        fab: CompulsoryV[A, B])(f: A => C, g: B => D): CompulsoryV[C, D] =
+      override def bimap[A, B, C, D](fab: CompulsoryV[A, B])(f: A => C, g: B => D): CompulsoryV[C, D] =
         fab.copy(key = fab.key.map(f), value = g(fab.value))
     }
 }
@@ -261,9 +241,7 @@ final case class CompulsoryK[K, V](
 
 object CompulsoryK {
 
-  def avroCodec[K, V](
-    keyCodec: AvroCodec[K],
-    valCodec: AvroCodec[V]): AvroCodec[CompulsoryK[K, V]] = {
+  def avroCodec[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V]): AvroCodec[CompulsoryK[K, V]] = {
     implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
     implicit val schemaForVal: SchemaFor[V] = valCodec.schemaFor
     implicit val keyDecoder: Decoder[K]     = keyCodec.avroDecoder
@@ -294,8 +272,7 @@ object CompulsoryK {
   implicit val bifunctorCompulsoryK: Bifunctor[CompulsoryK] =
     new Bifunctor[CompulsoryK] {
 
-      override def bimap[A, B, C, D](
-        fab: CompulsoryK[A, B])(f: A => C, g: B => D): CompulsoryK[C, D] =
+      override def bimap[A, B, C, D](fab: CompulsoryK[A, B])(f: A => C, g: B => D): CompulsoryK[C, D] =
         fab.copy(key = f(fab.key), value = fab.value.map(g))
     }
 }
@@ -316,11 +293,7 @@ final case class CompulsoryKV[K, V](
     NJProducerRecord[K, V](Some(partition), Some(offset), Some(timestamp), Some(key), Some(value))
 
   def toOptionalKV: OptionalKV[K, V] =
-    this
-      .into[OptionalKV[K, V]]
-      .withFieldConst(_.key, Some(key))
-      .withFieldConst(_.value, Some(value))
-      .transform
+    this.into[OptionalKV[K, V]].withFieldConst(_.key, Some(key)).withFieldConst(_.value, Some(value)).transform
 
   def toCompulsoryK: CompulsoryK[K, V] =
     this.into[CompulsoryK[K, V]].withFieldConst(_.value, Some(value)).transform
@@ -335,9 +308,7 @@ final case class CompulsoryKV[K, V](
 
 object CompulsoryKV {
 
-  def avroCodec[K, V](
-    keyCodec: AvroCodec[K],
-    valCodec: AvroCodec[V]): AvroCodec[CompulsoryKV[K, V]] = {
+  def avroCodec[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V]): AvroCodec[CompulsoryKV[K, V]] = {
     implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
     implicit val schemaForVal: SchemaFor[V] = valCodec.schemaFor
     implicit val keyDecoder: Decoder[K]     = keyCodec.avroDecoder
@@ -368,18 +339,15 @@ object CompulsoryKV {
   implicit val bitraverseCompulsoryKV: Bitraverse[CompulsoryKV] =
     new Bitraverse[CompulsoryKV] {
 
-      override def bimap[A, B, C, D](
-        fab: CompulsoryKV[A, B])(f: A => C, g: B => D): CompulsoryKV[C, D] =
+      override def bimap[A, B, C, D](fab: CompulsoryKV[A, B])(f: A => C, g: B => D): CompulsoryKV[C, D] =
         fab.copy(key = f(fab.key), value = g(fab.value))
 
-      override def bitraverse[G[_], A, B, C, D](
-        fab: CompulsoryKV[A, B])(f: A => G[C], g: B => G[D])(implicit
+      override def bitraverse[G[_], A, B, C, D](fab: CompulsoryKV[A, B])(f: A => G[C], g: B => G[D])(implicit
         G: Applicative[G]): G[CompulsoryKV[C, D]] =
         G.map2(f(fab.key), g(fab.value))((k, v) => bimap(fab)(_ => k, _ => v))
 
-      override def bifoldLeft[A, B, C](fab: CompulsoryKV[A, B], c: C)(
-        f: (C, A) => C,
-        g: (C, B) => C): C = g(f(c, fab.key), fab.value)
+      override def bifoldLeft[A, B, C](fab: CompulsoryKV[A, B], c: C)(f: (C, A) => C, g: (C, B) => C): C =
+        g(f(c, fab.key), fab.value)
 
       override def bifoldRight[A, B, C](fab: CompulsoryKV[A, B], c: Eval[C])(
         f: (A, Eval[C]) => Eval[C],
