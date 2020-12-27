@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import alleycats.Empty
 import cats.implicits.catsSyntaxTuple2Semigroupal
-import cats.kernel.{LowerBounded, PartialOrder}
-import cats.{Applicative, Bifunctor, Bitraverse, Eval, Order, Show}
+import cats.kernel.PartialOrder
+import cats.syntax.eq._
+import cats.{Applicative, Bifunctor, Bitraverse, Eval, Show}
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
@@ -45,12 +45,6 @@ object NJConsumerRecord {
     ev: A <:< NJConsumerRecord[K, V],
     k: Show[K],
     v: Show[V]): Show[A] = _.display(k, v)
-
-  implicit def orderingNJConsumerRecord[A, K, V](implicit ev: A <:< NJConsumerRecord[K, V]): Ordering[A] =
-    Ordering.by[A, Tuple3[Long, Long, Int]](x => Tuple3(x.timestamp, x.offset, x.partition))
-
-  implicit def orderNJConsumerRecord[A, K, V](implicit ev: A <:< NJConsumerRecord[K, V]): Order[A] =
-    Order.fromOrdering[A]
 }
 
 @Lenses @AvroDoc("kafka record, optional Key and Value")
@@ -87,7 +81,7 @@ final case class OptionalKV[K, V](
       this.into[CompulsoryKV[K, V]].withFieldConst(_.key, k).withFieldConst(_.value, v).transform
     }
 
-  def asJson(implicit k: JsonEncoder[Option[K]], v: JsonEncoder[Option[V]]): Json =
+  def asJson(implicit k: JsonEncoder[K], v: JsonEncoder[V]): Json =
     JsonEncoder[OptionalKV[K, V]].apply(this)
 }
 
@@ -130,23 +124,11 @@ object OptionalKV {
         fab.copy(key = fab.key.map(f), value = fab.value.map(g))
     }
 
-  implicit def emptyOptionalKV[K, V]: Empty[OptionalKV[K, V]] =
-    new Empty[OptionalKV[K, V]] {
-
-      override val empty: OptionalKV[K, V] =
-        OptionalKV(Int.MinValue, Long.MinValue, Long.MinValue, None, None, "", -1)
-    }
-
-  implicit def lowerBoundedOptionalKV[K, V]: LowerBounded[OptionalKV[K, V]] =
-    new LowerBounded[OptionalKV[K, V]] {
-
-      override def partialOrder: PartialOrder[OptionalKV[K, V]] =
-        Order[OptionalKV[K, V]]
-
-      override def minBound: OptionalKV[K, V] =
-        emptyOptionalKV.empty
-    }
-
+  implicit def partialOrderOptionlKV[K, V]: PartialOrder[OptionalKV[K, V]] =
+    (x: OptionalKV[K, V], y: OptionalKV[K, V]) =>
+      if (x.partition === y.partition) {
+        if (x.offset < y.offset) -1.0 else if (x.offset > y.offset) 1.0 else 0.0
+      } else Double.NaN
 }
 
 @AvroDoc("kafka record, optional Key and compulsory Value")
