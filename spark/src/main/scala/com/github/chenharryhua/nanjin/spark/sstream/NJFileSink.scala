@@ -33,7 +33,7 @@ final class NJFileSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig, pa
         .format(params.fileFormat.format)
         .outputMode(OutputMode.Append)
         .option("path", path)
-        .option("checkpointLocation", params.checkpoint.value)
+        .option("checkpointLocation", params.checkpoint)
         .option("failOnDataLoss", params.dataLoss.value),
       params.progressInterval
     )

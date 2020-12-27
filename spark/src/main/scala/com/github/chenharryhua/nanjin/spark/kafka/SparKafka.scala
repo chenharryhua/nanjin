@@ -68,7 +68,8 @@ final class SparKafka[F[_], K, V](
   def sstream[A](f: OptionalKV[K, V] => A, ate: AvroTypedEncoder[A])(implicit sync: Sync[F]): SparkSStream[F, A] =
     new SparkSStream[F, A](
       sk.kafkaSStream[F, K, V, A](topic, ate, sparkSession)(f),
-      SStreamConfig(params.timeRange).withCheckpointAppend(s"kafka/${topic.topicName.value}"))
+      SStreamConfig(params.timeRange).withCheckpointBuilder(fmt =>
+        s"./data/checkpoint/sstream/kafka/${topic.topicName.value}/${fmt.format}/"))
 
   def sstream(implicit tek: TypedEncoder[K], tev: TypedEncoder[V], F: Sync[F]): SparkSStream[F, OptionalKV[K, V]] = {
     val ate = OptionalKV.ate(topic.topicDef)
