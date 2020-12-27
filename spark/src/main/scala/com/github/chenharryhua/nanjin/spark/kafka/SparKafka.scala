@@ -22,11 +22,11 @@ final class SparKafka[F[_], K, V](
   val sparkSession: SparkSession
 ) extends Serializable {
 
-  private def withParamUpdate(f: SKConfig => SKConfig): SparKafka[F, K, V] =
+  private def updateCfg(f: SKConfig => SKConfig): SparKafka[F, K, V] =
     new SparKafka[F, K, V](topic, f(cfg), sparkSession)
 
-  def withZoneId(zoneId: ZoneId): SparKafka[F, K, V]         = withParamUpdate(_.withZoneId(zoneId))
-  def withTimeRange(tr: NJDateTimeRange): SparKafka[F, K, V] = withParamUpdate(_.withTimeRange(tr))
+  def withZoneId(zoneId: ZoneId): SparKafka[F, K, V]         = updateCfg(_.withZoneId(zoneId))
+  def withTimeRange(tr: NJDateTimeRange): SparKafka[F, K, V] = updateCfg(_.withTimeRange(tr))
 
   def withTopicName(tn: String): SparKafka[F, K, V] = new SparKafka[F, K, V](topic.withTopicName(tn), cfg, sparkSession)
 
