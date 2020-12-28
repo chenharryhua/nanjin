@@ -105,19 +105,10 @@ class CrDSTest extends AnyFunSuite {
     assert(r == d)
   }
 
-  test("filter") {
-    val r =
-      crRdd.partitionOf(0).filter(_.key.exists(_ == 0)).rdd.collect().flatMap(_.value).headOption
-    val ds = crDS.partitionOf(0).filter(_.key.exists(_ == 0)).dataset
-    val d  = ds.collect().flatMap(_.value).headOption
-    assert(r == d)
-  }
   test("union") {
-    val r = crRdd.distinct.normalize.union(crRdd).persist(StorageLevel.MEMORY_ONLY)
-    val d = crDS.distinct.union(crDS).persist(StorageLevel.MEMORY_ONLY)
+    val r = crRdd.normalize.union(crRdd)
+    val d = crDS.union(crDS)
     assert(r.count.unsafeRunSync() == d.count.unsafeRunSync())
-    r.unpersist
-    d.unpersist
   }
 
   test("stats") {

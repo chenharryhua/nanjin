@@ -10,7 +10,6 @@ import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.functions.col
-import org.apache.spark.storage.StorageLevel
 
 final class CrDS[F[_], K, V] private[kafka] (
   val topic: KafkaTopic[F, K, V],
@@ -21,12 +20,10 @@ final class CrDS[F[_], K, V] private[kafka] (
 
   val params: SKParams = cfg.evalConfig
 
-  private def updateCfg(f: SKConfig => SKConfig): CrDS[F, K, V] = new CrDS[F, K, V](topic, dataset, ate, f(cfg))
-
   def typedDataset: TypedDataset[OptionalKV[K, V]] = TypedDataset.create(dataset)(ate.typedEncoder)
 
   def transform(f: Dataset[OptionalKV[K, V]] => Dataset[OptionalKV[K, V]]): CrDS[F, K, V] =
-    new CrDS[F, K, V](topic, f(dataset), ate, cfg)
+    new CrDS[F, K, V](topic, dataset.transform(f), ate, cfg)
 
   def partitionOf(num: Int): CrDS[F, K, V] = transform(_.filter(col("partition") === num))
 
@@ -39,17 +36,9 @@ final class CrDS[F[_], K, V] private[kafka] (
   def ascendTimestamp: CrDS[F, K, V]  = transform(sort.ascend.timestamp)
   def descendTimestamp: CrDS[F, K, V] = transform(sort.descend.timestamp)
 
-  def repartition(num: Int): CrDS[F, K, V] = transform(_.repartition(num))
+  def union(other: CrDS[F, K, V]): CrDS[F, K, V] = transform(_.union(other.dataset))
+  def repartition(num: Int): CrDS[F, K, V]       = transform(_.repartition(num))
 
-  def persist(level: StorageLevel): CrDS[F, K, V] = transform(_.persist(level))
-  def unpersist: CrDS[F, K, V]                    = transform(_.unpersist())
-
-  def filter(f: OptionalKV[K, V] => Boolean): CrDS[F, K, V] = transform(_.filter(f))
-
-  def union(other: Dataset[OptionalKV[K, V]]): CrDS[F, K, V] = transform(_.union(other))
-  def union(other: CrDS[F, K, V]): CrDS[F, K, V]             = union(other.dataset)
-
-  def distinct: CrDS[F, K, V]  = transform(_.distinct())
   def normalize: CrDS[F, K, V] = transform(ate.normalize(_).dataset)
 
   // maps
