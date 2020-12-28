@@ -6,9 +6,8 @@ import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.functions.aggregate.count
-import frameless.{Injection, TypedDataset, TypedEncoder, TypedExpressionEncoder}
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{Dataset, Encoder}
+import frameless.{Injection, TypedDataset, TypedEncoder}
+import org.apache.spark.sql.Dataset
 
 import java.time.{LocalDate, ZoneId, ZonedDateTime}
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
@@ -40,10 +39,8 @@ final private[kafka] case class KafkaDataSummary(
        |gap:           $gap (${if (gap == 0) "perfect"
     else if (gap < 0) "probably lost data or its a compact topic"
     else "oops how is it possible"})
-       |first TS:      $startTs(${NJTimestamp(startTs)
-      .atZone(zoneId)} not necessarily of the first offset)
-       |last TS:       $endTs(${NJTimestamp(endTs)
-      .atZone(zoneId)} not necessarily of the last offset)
+       |first TS:      $startTs(${NJTimestamp(startTs).atZone(zoneId)} not necessarily of the first offset)
+       |last TS:       $endTs(${NJTimestamp(endTs).atZone(zoneId)} not necessarily of the last offset)
        |time distance: ${timeDistance.toHours} Hours roughly
        |""".stripMargin
 }
@@ -138,12 +135,7 @@ final class Statistics[F[_]] private[kafka] (
     val tds = typedDataset.distinct
     val res = tds
       .groupBy(tds('partition))
-      .agg(
-        min(tds('offset)),
-        max(tds('offset)),
-        count(tds.asCol),
-        min(tds('timestamp)),
-        max(tds('timestamp)))
+      .agg(min(tds('offset)), max(tds('offset)), count(tds.asCol), min(tds('timestamp)), max(tds('timestamp)))
       .as[KafkaDataSummary]
     res.orderBy(res('partition).asc)
   }
@@ -152,34 +144,32 @@ final class Statistics[F[_]] private[kafka] (
     kafkaSummary.collect[F]().map(_.foreach(x => println(x.showData(zoneId))))
 
   def missingOffsets(implicit ev: Sync[F]): TypedDataset[MissingOffset] = {
+    import ds.sparkSession.implicits._
     import org.apache.spark.sql.functions.col
-    val enc: Encoder[Long] = TypedExpressionEncoder[Long]
     val all: Array[Dataset[MissingOffset]] = kafkaSummary.dataset.collect().map { kds =>
-      val expected = ds.sparkSession.range(kds.startOffset, kds.endOffset + 1L).map(_.toLong)(enc)
-      val exist    = ds.filter(col("partition") === kds.partition).map(_.offset)(enc)
-      expected
-        .except(exist)
-        .map(os => MissingOffset(partition = kds.partition, offset = os))(
-          TypedExpressionEncoder[MissingOffset])
+      val expect = ds.sparkSession.range(kds.startOffset, kds.endOffset + 1L).map(_.toLong)
+      val exist  = ds.filter(col("partition") === kds.partition).map(_.offset)
+      expect.except(exist).map(os => MissingOffset(partition = kds.partition, offset = os))
     }
     val sum: Dataset[MissingOffset] = all
-      .foldLeft(ds.sparkSession.emptyDataset(TypedExpressionEncoder[MissingOffset]))(_.union(_))
+      .foldLeft(ds.sparkSession.emptyDataset[MissingOffset])(_.union(_))
       .orderBy(col("partition").asc, col("offset").asc)
     TypedDataset.create(sum)
   }
 
   def disorders: TypedDataset[Disorder] = {
-    val all: Array[RDD[Disorder]] =
-      ds.map(_.partition)(TypedExpressionEncoder[Int]).distinct().collect().map { partition =>
-        val curr: RDD[(Long, CRMetaInfo)] =
-          ds.rdd.filter(_.partition == partition).map(x => (x.offset, x))
-        val pre: RDD[(Long, CRMetaInfo)] = curr.map { case (index, crm) => (index + 1, crm) }
+    import ds.sparkSession.implicits._
+    import org.apache.spark.sql.functions.col
+    val all: Array[Dataset[Disorder]] =
+      ds.map(_.partition).distinct().collect().map { pt =>
+        val curr: Dataset[(Long, CRMetaInfo)] = ds.filter(ds("partition") === pt).map(x => (x.offset, x))
+        val pre: Dataset[(Long, CRMetaInfo)]  = curr.map { case (index, crm) => (index + 1, crm) }
 
-        curr.join(pre).flatMap { case (_, (c, p)) =>
+        curr.joinWith(pre, curr("_1") === pre("_1"), "inner").flatMap { case ((_, c), (_, p)) =>
           if (c.timestamp >= p.timestamp) None
           else
             Some(Disorder(
-              partition = partition,
+              partition = pt,
               offset = p.offset,
               timestamp = p.timestamp,
               ts = NJTimestamp(p.timestamp).atZone(zoneId).toString,
@@ -189,18 +179,16 @@ final class Statistics[F[_]] private[kafka] (
             ))
         }
       }
-    val sum: RDD[Disorder] =
-      all.foldLeft(ds.sparkSession.sparkContext.emptyRDD[Disorder])(_.union(_))
-    val tds = TypedDataset.create(sum)(TypedEncoder[Disorder], ds.sparkSession)
-    tds.orderBy(tds('partition).asc, tds('offset).asc)
+    val sum: Dataset[Disorder] =
+      all.foldLeft(ds.sparkSession.emptyDataset[Disorder])(_.union(_)).orderBy(col("partition").asc, col("offset").asc)
+    TypedDataset.create(sum)
   }
 
   def dupRecords: TypedDataset[DuplicateRecord] = {
     val tds = typedDataset
     val res =
-      tds.groupBy(tds('partition), tds('offset)).agg(count(tds.asCol)).deserialized.flatMap {
-        case (p, o, c) =>
-          if (c > 1) Some(DuplicateRecord(p, o, c)) else None
+      tds.groupBy(tds('partition), tds('offset)).agg(count(tds.asCol)).deserialized.flatMap { case (p, o, c) =>
+        if (c > 1) Some(DuplicateRecord(p, o, c)) else None
       }
     res.orderBy(res('partition).asc, res('offset).asc)
   }
