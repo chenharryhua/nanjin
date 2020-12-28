@@ -32,8 +32,7 @@ private[kafka] object NJUploadParams {
   timeRange: NJDateTimeRange,
   locationStrategy: LocationStrategy,
   replayPathBuilder: TopicName => String,
-  uploadParams: NJUploadParams,
-  isSorted: Boolean) {
+  uploadParams: NJUploadParams) {
   val replayPath: String = replayPathBuilder(topicName)
 }
 
@@ -45,8 +44,7 @@ private[kafka] object SKParams {
       timeRange = NJDateTimeRange(zoneId),
       locationStrategy = LocationStrategies.PreferConsistent,
       replayPathBuilder = topicName => s"./data/sparKafka/${topicName.value}/replay/",
-      uploadParams = NJUploadParams.default,
-      isSorted = false
+      uploadParams = NJUploadParams.default
     )
 }
 
@@ -74,10 +72,7 @@ private[kafka] object SKConfigF {
 
   final case class WithLocationStrategy[K](value: LocationStrategy, cont: K) extends SKConfigF[K]
 
-  final case class WithReplayPathBuilder[K](value: TopicName => String, cont: K)
-      extends SKConfigF[K]
-
-  final case class WithSorted[K](value: Boolean, cont: K) extends SKConfigF[K]
+  final case class WithReplayPathBuilder[K](value: TopicName => String, cont: K) extends SKConfigF[K]
 
   private val algebra: Algebra[SKConfigF, SKParams] = Algebra[SKConfigF, SKParams] {
     case InitParams(t, z)    => SKParams(t, z)
@@ -101,7 +96,6 @@ private[kafka] object SKConfigF {
     case WithOneDayStr(v, c)         => SKParams.timeRange.modify(_.withOneDay(v))(c)
     case WithLocationStrategy(v, c)  => SKParams.locationStrategy.set(v)(c)
     case WithReplayPathBuilder(v, c) => SKParams.replayPathBuilder.set(v)(c)
-    case WithSorted(v, c)            => SKParams.isSorted.set(v)(c)
   }
 
   def evalConfig(cfg: SKConfig): SKParams = scheme.cata(algebra).apply(cfg.value)
@@ -110,24 +104,18 @@ private[kafka] object SKConfigF {
 final private[kafka] case class SKConfig private (value: Fix[SKConfigF]) extends AnyVal {
   import SKConfigF._
 
-  def withTopicName(tn: String): SKConfig = SKConfig(
-    Fix(WithTopicName(TopicName.unsafeFrom(tn), value)))
+  def withTopicName(tn: String): SKConfig    = SKConfig(Fix(WithTopicName(TopicName.unsafeFrom(tn), value)))
   def withUploadBatchSize(bs: Int): SKConfig = SKConfig(Fix(WithUploadBatchSize(bs, value)))
 
-  def withUploadInterval(fd: FiniteDuration): SKConfig = SKConfig(
-    Fix(WithUploadInterval(fd, value)))
+  def withUploadInterval(fd: FiniteDuration): SKConfig = SKConfig(Fix(WithUploadInterval(fd, value)))
 
-  def withUploadInterval(ms: Long): SKConfig = withUploadInterval(
-    FiniteDuration(ms, TimeUnit.MILLISECONDS))
+  def withUploadInterval(ms: Long): SKConfig = withUploadInterval(FiniteDuration(ms, TimeUnit.MILLISECONDS))
 
-  def withUploadRecordsLimit(num: Long): SKConfig = SKConfig(
-    Fix(WithUploadRecordsLimit(num, value)))
+  def withUploadRecordsLimit(num: Long): SKConfig = SKConfig(Fix(WithUploadRecordsLimit(num, value)))
 
-  def withUploadTimeLimit(fd: FiniteDuration): SKConfig = SKConfig(
-    Fix(WithUploadTimeLimit(fd, value)))
+  def withUploadTimeLimit(fd: FiniteDuration): SKConfig = SKConfig(Fix(WithUploadTimeLimit(fd, value)))
 
-  def withUploadTimeLimit(ms: Long): SKConfig = withUploadTimeLimit(
-    FiniteDuration(ms, TimeUnit.MILLISECONDS))
+  def withUploadTimeLimit(ms: Long): SKConfig = withUploadTimeLimit(FiniteDuration(ms, TimeUnit.MILLISECONDS))
 
   def withStartTime(s: String): SKConfig                  = SKConfig(Fix(WithStartTimeStr(s, value)))
   def withStartTime(s: LocalDateTime): SKConfig           = SKConfig(Fix(WithStartTime(s, value)))
@@ -142,13 +130,9 @@ final private[kafka] case class SKConfig private (value: Fix[SKConfigF]) extends
   def withToday: SKConfig                                 = withOneDay(LocalDate.now)
   def withYesterday: SKConfig                             = withOneDay(LocalDate.now.minusDays(1))
 
-  def withLocationStrategy(ls: LocationStrategy): SKConfig = SKConfig(
-    Fix(WithLocationStrategy(ls, value)))
+  def withLocationStrategy(ls: LocationStrategy): SKConfig = SKConfig(Fix(WithLocationStrategy(ls, value)))
 
-  def withReplayPathBuilder(f: TopicName => String): SKConfig = SKConfig(
-    Fix(WithReplayPathBuilder(f, value)))
-
-  def withSorted: SKConfig = SKConfig(Fix(WithSorted(value = true, value)))
+  def withReplayPathBuilder(f: TopicName => String): SKConfig = SKConfig(Fix(WithReplayPathBuilder(f, value)))
 
   def evalConfig: SKParams = SKConfigF.evalConfig(this)
 }

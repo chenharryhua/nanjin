@@ -11,7 +11,7 @@ final class SparkSStream[F[_], A](ds: Dataset[A], cfg: SStreamConfig) extends Se
   private def updateConfig(f: SStreamConfig => SStreamConfig): SparkSStream[F, A] =
     new SparkSStream[F, A](ds, f(cfg))
 
-  def checkpoint(cp: String): SparkSStream[F, A] = updateConfig(_.withCheckpointReplace(cp))
+  def checkpoint(cp: String): SparkSStream[F, A] = updateConfig(_.withCheckpoint(cp))
   def failOnDataLoss: SparkSStream[F, A]         = updateConfig(_.failOnDataLoss)
   def ignoreDataLoss: SparkSStream[F, A]         = updateConfig(_.ignoreDataLoss)
 

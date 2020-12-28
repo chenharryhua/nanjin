@@ -26,10 +26,7 @@ object ReadTestData {
     .mapWithIndex((d, i) => OptionalKV[Int, Dog](0, i.toLong, 0, None, Some(d), "topic-nokey", 0))
 
   val topic: SparKafka[IO, Int, Dog] =
-    ctx
-      .topic[Int, Dog]("to.be.rename")
-      .sparKafka
-      .withTopicName("test.spark.kafka.dogs")
+    ctx.topic[Int, Dog]("test.spark.kafka.dogs").sparKafka
 
 }
 

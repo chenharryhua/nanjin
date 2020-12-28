@@ -11,7 +11,6 @@ import frameless.cats.implicits.rddOps
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.storage.StorageLevel
 
 final class CrRdd[F[_], K, V] private[kafka] (
   val topic: KafkaTopic[F, K, V],
@@ -24,9 +23,6 @@ final class CrRdd[F[_], K, V] private[kafka] (
 
   def params: SKParams = cfg.evalConfig
 
-  private def updateCfg(f: SKConfig => SKConfig): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](topic, rdd, f(cfg), sparkSession)
-
   // transforms
   def transform(f: RDD[OptionalKV[K, V]] => RDD[OptionalKV[K, V]]): CrRdd[F, K, V] =
     new CrRdd[F, K, V](topic, f(rdd), cfg, sparkSession)
@@ -37,21 +33,13 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def timeRange(dr: NJDateTimeRange): CrRdd[F, K, V]      = transform(range.cr.timestamp(dr))
   def timeRange: CrRdd[F, K, V]                           = timeRange(params.timeRange)
 
-  def ascendTimestamp: CrRdd[F, K, V]  = transform(sort.ascend.cr.timestamp).updateCfg(_.withSorted)
-  def descendTimestamp: CrRdd[F, K, V] = transform(sort.descend.cr.timestamp).updateCfg(_.withSorted)
-  def ascendOffset: CrRdd[F, K, V]     = transform(sort.ascend.cr.offset).updateCfg(_.withSorted)
-  def descendOffset: CrRdd[F, K, V]    = transform(sort.descend.cr.offset).updateCfg(_.withSorted)
+  def ascendTimestamp: CrRdd[F, K, V]  = transform(sort.ascend.cr.timestamp)
+  def descendTimestamp: CrRdd[F, K, V] = transform(sort.descend.cr.timestamp)
+  def ascendOffset: CrRdd[F, K, V]     = transform(sort.ascend.cr.offset)
+  def descendOffset: CrRdd[F, K, V]    = transform(sort.descend.cr.offset)
 
-  def persist(level: StorageLevel): CrRdd[F, K, V] = transform(_.persist(level))
-  def unpersist: CrRdd[F, K, V]                    = transform(_.unpersist())
-
-  def repartition(num: Int): CrRdd[F, K, V]                  = transform(_.repartition(num))
-  def filter(f: OptionalKV[K, V] => Boolean): CrRdd[F, K, V] = transform(_.filter(f))
-
-  def union(other: RDD[OptionalKV[K, V]]): CrRdd[F, K, V] = transform(_.union(other))
-  def union(other: CrRdd[F, K, V]): CrRdd[F, K, V]        = union(other.rdd)
-
-  def distinct: CrRdd[F, K, V] = transform(_.distinct())
+  def union(other: CrRdd[F, K, V]): CrRdd[F, K, V] = transform(_.union(other.rdd))
+  def repartition(num: Int): CrRdd[F, K, V]        = transform(_.repartition(num))
 
   def normalize: CrRdd[F, K, V] = transform(_.map(codec.idConversion))
 
