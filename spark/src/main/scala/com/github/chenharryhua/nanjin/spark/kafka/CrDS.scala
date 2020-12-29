@@ -79,12 +79,12 @@ final class CrDS[F[_], K, V] private[kafka] (
   /** Notes:
     *  same key should be in same partition.
     */
-  def misplacedKey: TypedDataset[MissplacedKey[K]] = {
+  def misplacedKey: TypedDataset[MisplacedKey[K]] = {
     import frameless.functions.aggregate.countDistinct
     implicit val enc: TypedEncoder[K]       = tek
     val tds: TypedDataset[OptionalKV[K, V]] = typedDataset
-    val res: TypedDataset[MissplacedKey[K]] =
-      tds.groupBy(tds('key)).agg(countDistinct(tds('partition))).as[MissplacedKey[K]]
+    val res: TypedDataset[MisplacedKey[K]] =
+      tds.groupBy(tds('key)).agg(countDistinct(tds('partition))).as[MisplacedKey[K]]
     res.filter(res('count) > 1).orderBy(res('count).asc)
   }
 
@@ -100,7 +100,17 @@ final class CrDS[F[_], K, V] private[kafka] (
         iter.toList.sortBy(_.offset).sliding(2).toList.flatMap {
           case List(c, n) =>
             if (n.timestamp >= c.timestamp) None
-            else Some(MisorderedKey(key, c.partition, c.offset, c.timestamp, n.partition, n.offset, n.timestamp))
+            else
+              Some(
+                MisorderedKey(
+                  key,
+                  c.partition,
+                  c.offset,
+                  c.timestamp,
+                  c.timestamp - n.timestamp,
+                  n.partition,
+                  n.offset,
+                  n.timestamp))
           case _ => None // single item list
         }
       }.flatten
@@ -113,8 +123,9 @@ final case class MisorderedKey[K](
   partition: Int,
   offset: Long,
   ts: Long,
+  msGap: Long,
   nextPartition: Int,
   nextOffset: Long,
   nextTs: Long)
 
-final case class MissplacedKey[K](key: Option[K], count: Long)
+final case class MisplacedKey[K](key: Option[K], count: Long)

@@ -132,4 +132,9 @@ class CrDSTest extends AnyFunSuite {
     assert(crRdd.prRdd.offsetRange(0, 2).rdd.collect.size == 3)
     assert(crRdd.crDS.offsetRange(0, 2).dataset.collect.size == 3)
   }
+
+  test("misorder/misplace") {
+    assert(crDS.misorderedKey.dataset.count == 0)
+    assert(crDS.misplacedKey.dataset.count == 0)
+  }
 }
