@@ -66,7 +66,7 @@ final class CrRdd[F[_], K, V] private[kafka] (
   // dataset
   def crDS(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
     val ate = OptionalKV.ate(topic.topicDef)
-    new CrDS[F, K, V](topic, sparkSession.createDataset(rdd)(ate.sparkEncoder), ate, cfg)
+    new CrDS[F, K, V](topic, sparkSession.createDataset(rdd)(ate.sparkEncoder), cfg, tek, tev)
   }
 
   def values: RDD[CompulsoryV[K, V]]     = rdd.flatMap(_.toCompulsoryV)

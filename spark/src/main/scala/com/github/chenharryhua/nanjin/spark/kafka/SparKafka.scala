@@ -53,7 +53,7 @@ final class SparKafka[F[_], K, V](
 
   def crDS(df: DataFrame)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
     val ate = OptionalKV.ate(topic.topicDef)
-    new CrDS(topic, ate.normalizeDF(df).dataset, ate, cfg)
+    new CrDS(topic, ate.normalizeDF(df).dataset, cfg, tek, tev)
   }
 
   def prRdd(rdd: RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] = new PrRdd[F, K, V](topic, rdd, cfg)
