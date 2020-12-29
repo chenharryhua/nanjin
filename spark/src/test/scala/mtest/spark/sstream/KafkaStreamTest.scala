@@ -89,16 +89,17 @@ class KafkaStreamTest extends AnyFunSuite {
     val ss = rooster.sparKafka
       .withZoneId(sydneyTime)
       .sstream
-      .ignoreDataLoss
+      .progressInterval(1000)
+      .failOnDataLoss
       .datePartitionSink(path)
       .triggerEvery(1.seconds)
       .parquet
       .avro
       .json // last one wins
-      .queryStream
+      .showProgress
 
     val upload =
-      rooster.sparKafka.prRdd(data).batchSize(1).triggerEvery(0.5.seconds).upload.delayBy(3.second)
+      rooster.sparKafka.prRdd(data).replicate(5).batchSize(1).triggerEvery(0.5.seconds).upload.delayBy(1.second).debug()
     ss.concurrently(upload).interruptAfter(6.seconds).compile.drain.unsafeRunSync()
     val ts        = NJTimestamp(Instant.now()).`Year=yyyy/Month=mm/Day=dd`(sydneyTime)
     val todayPath = path + "/" + ts

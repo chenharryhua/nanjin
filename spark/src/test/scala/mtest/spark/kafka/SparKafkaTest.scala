@@ -41,31 +41,27 @@ class SparKafkaTest extends AnyFunSuite {
 
   test("sparKafka read topic from kafka") {
     val rst =
-      topic.sparKafka(range).fromKafka.map(_.values.collect()).unsafeRunSync
+      topic.sparKafka(range).fromKafka.values.collect()
     assert(rst.toList.map(_.value) === List(data, data))
   }
 
   test("sparKafka read topic from kafka and show minutely aggragation result") {
-    topic
-      .sparKafka(sydneyTime)
-      .fromKafka
-      .flatMap(_.stats.rows(100).untruncate.truncate.minutely)
-      .unsafeRunSync
+    topic.sparKafka(sydneyTime).fromKafka.stats.rows(100).untruncate.truncate.minutely.unsafeRunSync
   }
   test("sparKafka read topic from kafka and show daily-hour aggragation result") {
-    topic.sparKafka(range).fromKafka.flatMap(_.stats.dailyHour).unsafeRunSync
+    topic.sparKafka(range).fromKafka.stats.dailyHour.unsafeRunSync
   }
   test("sparKafka read topic from kafka and show daily-minutes aggragation result") {
-    topic.sparKafka(range).fromKafka.flatMap(_.stats.dailyMinute).unsafeRunSync
+    topic.sparKafka(range).fromKafka.stats.dailyMinute.unsafeRunSync
   }
   test("sparKafka read topic from kafka and show daily aggragation result") {
-    topic.sparKafka(range).fromKafka.flatMap(_.stats.daily).unsafeRunSync
+    topic.sparKafka(range).fromKafka.stats.daily.unsafeRunSync
   }
   test("sparKafka read topic from kafka and show hourly aggragation result") {
-    topic.sparKafka(range).fromKafka.flatMap(_.stats.hourly).unsafeRunSync
+    topic.sparKafka(range).fromKafka.stats.hourly.unsafeRunSync
   }
   test("sparKafka read topic from kafka and show summary") {
-    topic.sparKafka(range).fromKafka.flatMap(_.stats.summary).unsafeRunSync
+    topic.sparKafka(range).fromKafka.stats.summary.unsafeRunSync
   }
   test("sparKafka should be able to bimap to other topic") {
     val src: KafkaTopic[IO, Int, Int]          = ctx.topic[Int, Int]("src.topic")
@@ -125,12 +121,5 @@ class SparKafkaTest extends AnyFunSuite {
     val rst = t.values.collect().map(_.value)
     assert(rst === Seq(cr1.value.get))
     println(cr1.show)
-  }
-
-  test("dump and reload") {
-    val number = topic.sparKafka.dump.unsafeRunSync()
-    topic.sparKafka.replay.unsafeRunSync()
-    assert(topic.sparKafka.countDisk.unsafeRunSync() == number)
-    assert(topic.sparKafka.countKafka.unsafeRunSync() == number * 2)
   }
 }

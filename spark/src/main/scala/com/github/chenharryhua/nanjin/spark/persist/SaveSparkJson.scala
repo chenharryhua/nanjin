@@ -1,11 +1,10 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.effect.{Blocker, Concurrent, ContextShift}
+import cats.effect.{Blocker, ContextShift, Sync}
 import org.apache.hadoop.conf.Configuration
-import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
+import org.apache.spark.sql.{Dataset, SaveMode}
 
-final class SaveSparkJson[F[_], A](ds: Dataset[A], cfg: HoarderConfig, isKeepNull: Boolean)
-    extends Serializable {
+final class SaveSparkJson[F[_], A](ds: Dataset[A], cfg: HoarderConfig, isKeepNull: Boolean) extends Serializable {
 
   val params: HoarderParams = cfg.evalConfig
 
@@ -30,7 +29,7 @@ final class SaveSparkJson[F[_], A](ds: Dataset[A], cfg: HoarderConfig, isKeepNul
   def keepNull: SaveSparkJson[F, A] = new SaveSparkJson[F, A](ds, cfg, true)
   def dropNull: SaveSparkJson[F, A] = new SaveSparkJson[F, A](ds, cfg, false)
 
-  def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
+  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
     val hadoopConfiguration = new Configuration(ds.sparkSession.sparkContext.hadoopConfiguration)
 
     val sma: SaveModeAware[F] =

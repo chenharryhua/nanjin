@@ -42,7 +42,7 @@ class KafkaBasic extends AnyFunSuite {
 
   val path = "./data/example/foo.json"
   test("persist messages to local disk") {
-    fooTopic.sparKafka.fromKafka.flatMap(_.save.circe(path).file.run(blocker)).unsafeRunSync()
+    fooTopic.sparKafka.fromKafka.save.circe(path).file.run(blocker).unsafeRunSync()
   }
 
   test("populate topic using persisted data") {

@@ -27,10 +27,7 @@ final class SaveProtobuf[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends Seria
   def file: SaveProtobuf[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveProtobuf[F, A] = updateConfig(cfg.withFolder)
 
-  def run(blocker: Blocker)(implicit
-    F: Concurrent[F],
-    cs: ContextShift[F],
-    enc: A <:< GeneratedMessage): F[Unit] = {
+  def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], enc: A <:< GeneratedMessage): F[Unit] = {
     val hadoopConfiguration = new Configuration(rdd.sparkContext.hadoopConfiguration)
 
     def bytesWritable(a: A): BytesWritable = {
@@ -51,12 +48,7 @@ final class SaveProtobuf[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends Seria
         val pipe: DelimitedProtoBufSerialization[F] = new DelimitedProtoBufSerialization[F]
 
         sma.checkAndRun(blocker)(
-          rdd
-            .stream[F]
-            .through(pipe.serialize(blocker))
-            .through(hadoop.byteSink(params.outPath))
-            .compile
-            .drain)
+          rdd.stream[F].through(pipe.serialize(blocker)).through(hadoop.byteSink(params.outPath)).compile.drain)
 
       case FolderOrFile.Folder =>
         rdd.sparkContext.hadoopConfiguration.set(NJBinaryOutputFormat.suffix, params.format.suffix)

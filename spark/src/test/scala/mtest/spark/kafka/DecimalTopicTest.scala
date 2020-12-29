@@ -84,7 +84,7 @@ class DecimalTopicTest extends AnyFunSuite {
 
   test("sparKafka kafka and spark agree on circe") {
     val path = "./data/test/spark/kafka/decimal.circe.json"
-    stopic.fromKafka.flatMap(_.save.circe(path).file.run(blocker)).unsafeRunSync
+    stopic.fromKafka.save.circe(path).file.run(blocker).unsafeRunSync
 
     val rdd = stopic.load.rdd.circe(path)
     val ds  = stopic.load.circe(path)
