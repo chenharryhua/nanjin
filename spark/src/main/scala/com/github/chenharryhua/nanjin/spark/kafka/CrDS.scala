@@ -14,7 +14,7 @@ import org.apache.spark.sql.functions.col
 final class CrDS[F[_], K, V] private[kafka] (
   val topic: KafkaTopic[F, K, V],
   val dataset: Dataset[OptionalKV[K, V]],
-  val cfg: SKConfig,
+  cfg: SKConfig,
   tek: TypedEncoder[K],
   tev: TypedEncoder[V])
     extends Serializable {
@@ -108,6 +108,7 @@ final class CrDS[F[_], K, V] private[kafka] (
                   c.offset,
                   c.timestamp,
                   c.timestamp - n.timestamp,
+                  n.offset - c.offset,
                   n.partition,
                   n.offset,
                   n.timestamp))
@@ -124,6 +125,7 @@ final case class MisorderedKey[K](
   offset: Long,
   ts: Long,
   msGap: Long,
+  offsetDistance: Long,
   nextPartition: Int,
   nextOffset: Long,
   nextTs: Long)
