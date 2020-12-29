@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Show
-import cats.effect.{Blocker, Concurrent, ContextShift}
+import cats.effect.{Blocker, ContextShift, Sync}
 import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.pipes.TextSerialization
 import com.github.chenharryhua.nanjin.spark.RddExt
@@ -9,8 +9,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.{NullWritable, Text}
 import org.apache.spark.rdd.RDD
 
-final class SaveText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: String)
-    extends Serializable {
+final class SaveText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: String) extends Serializable {
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveText[F, A] =
@@ -33,8 +32,7 @@ final class SaveText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: String)
   def deflate(level: Int): SaveText[F, A] =
     updateConfig(cfg.withCompression(Compression.Deflate(level)))
 
-  def run(
-    blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], show: Show[A]): F[Unit] = {
+  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F], show: Show[A]): F[Unit] = {
     val hadoopConfiguration = new Configuration(rdd.sparkContext.hadoopConfiguration)
 
     val sma: SaveModeAware[F] =

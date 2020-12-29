@@ -1,9 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.effect.{Blocker, Concurrent, ConcurrentEffect, ContextShift, Sync, Timer}
-import cats.syntax.apply._
-import cats.syntax.flatMap._
-import cats.syntax.functor._
+import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Effect, Sync, Timer}
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
@@ -30,23 +27,22 @@ final class SparKafka[F[_], K, V](
 
   val params: SKParams = cfg.evalConfig
 
-  def fromKafka(implicit sync: Sync[F]): F[CrRdd[F, K, V]] =
-    sk.kafkaBatch(topic, params.timeRange, params.locationStrategy, sparkSession).map(crRdd)
+  def fromKafka(implicit F: Effect[F]): CrRdd[F, K, V] =
+    crRdd(sk.kafkaBatch(topic, params.timeRange, params.locationStrategy, sparkSession))
 
   def fromDisk: CrRdd[F, K, V] =
     crRdd(loaders.rdd.objectFile[OptionalKV[K, V]](params.replayPath, sparkSession))
 
   /** shorthand
     */
-  def dump(implicit F: Concurrent[F], cs: ContextShift[F]): F[Long] =
-    Blocker[F].use(blocker =>
-      fromKafka.flatMap(cr => cr.save.objectFile(params.replayPath).overwrite.run(blocker) *> cr.count))
+  def dump(implicit F: Effect[F], cs: ContextShift[F]): F[Unit] =
+    Blocker[F].use(blocker => fromKafka.save.objectFile(params.replayPath).overwrite.run(blocker))
 
   def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
     fromDisk.upload
 
-  def countKafka(implicit F: Sync[F]): F[Long] = fromKafka.flatMap(_.count)
-  def countDisk(implicit F: Sync[F]): F[Long]  = fromDisk.count
+  def countKafka(implicit F: Effect[F]): F[Long] = fromKafka.count
+  def countDisk(implicit F: Sync[F]): F[Long]    = fromDisk.count
 
   def load: LoadTopicFile[F, K, V] = new LoadTopicFile[F, K, V](this)
 

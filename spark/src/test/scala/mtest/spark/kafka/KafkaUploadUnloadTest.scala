@@ -70,22 +70,19 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
       _ <- rooster.in(ctx).admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- pr.noPartition.noTimestamp.batchSize(10).upload.compile.drain
       _ <- pr.count.map(println)
-      _ <- topic.fromKafka.flatMap(_.save.circe(circe).run(blocker))
-      _ <- topic.fromKafka.flatMap(_.crDS.save.parquet(parquet).run(blocker))
-      _ <- topic.fromKafka.flatMap(_.crDS.save.json(json).run(blocker))
-      _ <- topic.fromKafka.flatMap(_.save.avro(avro).run(blocker))
-      _ <- topic.fromKafka.flatMap(_.save.jackson(jackson).run(blocker))
-      _ <- topic.fromKafka.flatMap(_.save.binAvro(avroBin).run(blocker))
-      _ <- topic.fromKafka.flatMap(_.save.objectFile(obj).run(blocker))
+      _ <- topic.fromKafka.save.circe(circe).run(blocker)
+      _ <- topic.fromKafka.crDS.save.parquet(parquet).run(blocker)
+      _ <- topic.fromKafka.crDS.save.json(json).run(blocker)
+      _ <- topic.fromKafka.save.avro(avro).run(blocker)
+      _ <- topic.fromKafka.save.jackson(jackson).run(blocker)
+      _ <- topic.fromKafka.save.binAvro(avroBin).run(blocker)
+      _ <- topic.fromKafka.save.objectFile(obj).run(blocker)
     } yield {
       val circeds  = topic.load.circe(circe).dataset.collect().flatMap(_.value).toSet
       val circerdd = topic.load.rdd.circe(circe).rdd.flatMap(_.value).collect().toSet
       val spkJson =
         topic
-          .crDS(
-            sparkSession.read
-              .schema(OptionalKV.ate(topic.topic.topicDef).sparkEncoder.schema)
-              .json(circe))
+          .crDS(sparkSession.read.schema(OptionalKV.ate(topic.topic.topicDef).sparkEncoder.schema).json(circe))
           .dataset
           .collect()
           .flatMap(_.value)
@@ -129,14 +126,7 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
 
   test("compulsoryK") {
     val crs = RoosterData.rdd.zipWithIndex.map { case (x, i) =>
-      OptionalKV[Int, Rooster](
-        0,
-        i,
-        Instant.now().getEpochSecond,
-        Some(Random.nextInt()),
-        Some(x),
-        "topic",
-        0)
+      OptionalKV[Int, Rooster](0, i, Instant.now().getEpochSecond, Some(Random.nextInt()), Some(x), "topic", 0)
     }
     val json    = root + "compulsoryK/json"
     val avro    = root + "compulsoryK/avro"
@@ -157,19 +147,11 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
     assert(topic.load.avro(avro).dataset.collect().flatMap(_.value).toSet == RoosterData.expected)
 
     sa.parquet(parquet).run(blocker).unsafeRunSync()
-    assert(
-      topic.load.parquet(parquet).dataset.collect().flatMap(_.value).toSet == RoosterData.expected)
+    assert(topic.load.parquet(parquet).dataset.collect().flatMap(_.value).toSet == RoosterData.expected)
   }
   test("compulsoryV") {
     val crs = RoosterData.rdd.zipWithIndex.map { case (x, i) =>
-      OptionalKV[Int, Rooster](
-        0,
-        i,
-        Instant.now().getEpochSecond,
-        Some(Random.nextInt()),
-        Some(x),
-        "topic",
-        0)
+      OptionalKV[Int, Rooster](0, i, Instant.now().getEpochSecond, Some(Random.nextInt()), Some(x), "topic", 0)
     }
     val json    = root + "compulsoryV/json"
     val avro    = root + "compulsoryV/avro"
@@ -191,20 +173,12 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
     assert(topic.load.avro(avro).dataset.collect().flatMap(_.value).toSet == RoosterData.expected)
 
     sa.parquet(parquet).run(blocker).unsafeRunSync()
-    assert(
-      topic.load.parquet(parquet).dataset.collect().flatMap(_.value).toSet == RoosterData.expected)
+    assert(topic.load.parquet(parquet).dataset.collect().flatMap(_.value).toSet == RoosterData.expected)
   }
 
   test("compulsoryKV") {
     val crs = RoosterData.rdd.zipWithIndex.map { case (x, i) =>
-      OptionalKV[Int, Rooster](
-        0,
-        i,
-        Instant.now().getEpochSecond,
-        Some(Random.nextInt()),
-        Some(x),
-        "topic",
-        0)
+      OptionalKV[Int, Rooster](0, i, Instant.now().getEpochSecond, Some(Random.nextInt()), Some(x), "topic", 0)
     }
     val json    = root + "compulsoryKV/json"
     val avro    = root + "compulsoryKV/avro"
@@ -225,7 +199,6 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
     assert(topic.load.avro(avro).dataset.collect().flatMap(_.value).toSet == RoosterData.expected)
 
     sa.parquet(parquet).run(blocker).unsafeRunSync()
-    assert(
-      topic.load.parquet(parquet).dataset.collect().flatMap(_.value).toSet == RoosterData.expected)
+    assert(topic.load.parquet(parquet).dataset.collect().flatMap(_.value).toSet == RoosterData.expected)
   }
 }

@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.sstream
 
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import frameless.{TypedEncoder, TypedExpressionEncoder}
-import org.apache.spark.sql.functions.{col, udf}
+import org.apache.spark.sql.functions.udf
 import org.apache.spark.sql.{Dataset, Row}
 
 final class SparkSStream[F[_], A](ds: Dataset[A], cfg: SStreamConfig) extends Serializable {
@@ -47,9 +47,9 @@ final class SparkSStream[F[_], A](ds: Dataset[A], cfg: SStreamConfig) extends Se
     val day   = udf((ts: Long) => NJTimestamp(ts).dayStr(params.timeRange.zoneId))
 
     val ws = ds
-      .withColumn("Year", year(col("timestamp")))
-      .withColumn("Month", month(col("timestamp")))
-      .withColumn("Day", day(col("timestamp")))
+      .withColumn("Year", year(ds("timestamp")))
+      .withColumn("Month", month(ds("timestamp")))
+      .withColumn("Day", day(ds("timestamp")))
       .writeStream
     new NJFileSink[F, Row](ws, cfg, path).partitionBy("Year", "Month", "Day")
   }

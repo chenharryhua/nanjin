@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.effect.{Blocker, Concurrent, ContextShift}
+import cats.effect.{Blocker, ContextShift, Sync}
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.sql.{Dataset, SaveMode}
 
@@ -23,7 +23,7 @@ final class SaveParquet[F[_], A](ds: Dataset[A], cfg: HoarderConfig) extends Ser
   def gzip: SaveParquet[F, A] =
     updateConfig(cfg.withCompression(Compression.Gzip))
 
-  def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
+  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
     val hadoopConfiguration = new Configuration(ds.sparkSession.sparkContext.hadoopConfiguration)
 
     val sma: SaveModeAware[F] =

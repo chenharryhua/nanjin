@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.effect.{Blocker, Concurrent, ContextShift}
+import cats.effect.{Blocker, ContextShift, Sync}
 import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.pipes.CirceSerialization
 import com.github.chenharryhua.nanjin.spark.RddExt
@@ -11,8 +11,7 @@ import org.apache.spark.rdd.RDD
 
 import scala.reflect.ClassTag
 
-final class SaveCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull: Boolean)
-    extends Serializable {
+final class SaveCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull: Boolean) extends Serializable {
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveCirce[F, A] =
@@ -36,7 +35,7 @@ final class SaveCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull: Bool
     updateConfig(cfg.withCompression(Compression.Deflate(level)))
 
   def run(blocker: Blocker)(implicit
-    F: Concurrent[F],
+    F: Sync[F],
     cs: ContextShift[F],
     jsonEncoder: JsonEncoder[A],
     tag: ClassTag[A]): F[Unit] = {

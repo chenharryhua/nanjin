@@ -27,20 +27,19 @@ class SparkExtTest extends AnyFunSuite {
   val ate: AvroTypedEncoder[OptionalKV[String, trip_record]] = OptionalKV.ate(topic.topicDef)
 
   test("stream") {
-    topic.sparKafka.fromKafka
-      .flatMap(_.crDS.typedDataset.stream[IO].compile.drain)
-      .unsafeRunSync
+    topic.sparKafka.fromKafka.crDS.typedDataset.stream[IO].compile.drain.unsafeRunSync
   }
   test("source") {
     topic
       .sparKafka(range)
       .fromKafka
-      .flatMap(
-        _.crDS.ascendTimestamp.typedDataset
-          .source[IO]
-          .map(println)
-          .take(10)
-          .runWith(akkaSinks.ignore[IO]))
+      .crDS
+      .ascendTimestamp
+      .typedDataset
+      .source[IO]
+      .map(println)
+      .take(10)
+      .runWith(akkaSinks.ignore[IO])
       .unsafeRunSync
   }
 
@@ -74,11 +73,7 @@ class SparkExtTest extends AnyFunSuite {
     val ate = AvroTypedEncoder[Foo]
     val rdd = sparkSession.sparkContext.parallelize(list.flatMap(Option(_)))
     val tds = rdd.typedDataset(ate)
-    rdd
-      .save[IO](ate.avroCodec.avroEncoder)
-      .avro("./data/test/spark/sytax/avro")
-      .run(blocker)
-      .unsafeRunSync()
+    rdd.save[IO](ate.avroCodec.avroEncoder).avro("./data/test/spark/sytax/avro").run(blocker).unsafeRunSync()
     tds.save[IO].parquet("./data/test/spark/syntax/parquet").run(blocker).unsafeRunSync()
   }
 }

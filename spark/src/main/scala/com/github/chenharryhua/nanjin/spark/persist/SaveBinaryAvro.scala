@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.effect.{Blocker, Concurrent, ContextShift}
+import cats.effect.{Blocker, ContextShift, Sync}
 import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.pipes.{BinaryAvroSerialization, GenericRecordCodec}
 import com.github.chenharryhua.nanjin.spark.RddExt
@@ -11,8 +11,7 @@ import org.apache.spark.rdd.RDD
 
 import java.io.ByteArrayOutputStream
 
-final class SaveBinaryAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderConfig)
-    extends Serializable {
+final class SaveBinaryAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderConfig) extends Serializable {
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveBinaryAvro[F, A] =
@@ -27,7 +26,7 @@ final class SaveBinaryAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: H
   def file: SaveBinaryAvro[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveBinaryAvro[F, A] = updateConfig(cfg.withFolder)
 
-  def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
+  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
 
     val hadoopConfiguration = new Configuration(rdd.sparkContext.hadoopConfiguration)
 

@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.effect.{Blocker, Concurrent, ContextShift}
+import cats.effect.{Blocker, ContextShift, Sync}
 import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.pipes.GenericRecordCodec
 import com.github.chenharryhua.nanjin.spark.RddExt
@@ -12,8 +12,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
 
-final class SaveAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderConfig)
-    extends Serializable {
+final class SaveAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderConfig) extends Serializable {
 
   val params: HoarderParams = cfg.evalConfig
 
@@ -41,7 +40,7 @@ final class SaveAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Hoarder
   def bzip2: SaveAvro[F, A] =
     updateConfig(cfg.withCompression(Compression.Bzip2))
 
-  def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] = {
+  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
 
     val hadoopConfiguration = new Configuration(rdd.sparkContext.hadoopConfiguration)
 
@@ -66,9 +65,7 @@ final class SaveAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Hoarder
           val job = Job.getInstance(hadoopConfiguration)
           AvroJob.setOutputKeySchema(job, encoder.schema)
           rdd.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
-          utils
-            .genericRecordPair(rdd, encoder)
-            .saveAsNewAPIHadoopFile[NJAvroKeyOutputFormat](params.outPath)
+          utils.genericRecordPair(rdd, encoder).saveAsNewAPIHadoopFile[NJAvroKeyOutputFormat](params.outPath)
         }
         sma.checkAndRun(blocker)(sparkjob)
     }

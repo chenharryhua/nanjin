@@ -1,9 +1,8 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.data.{Chain, Writer}
-import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
+import cats.effect.{ConcurrentEffect, ContextShift, Effect, Sync, Timer}
 import cats.mtl.Tell
-import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaOffsetRange, KafkaTopic, KafkaTopicPartition}
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkDatetimeConversionConstant}
@@ -16,12 +15,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.dstream.DStream
-import org.apache.spark.streaming.kafka010.{
-  ConsumerStrategies,
-  KafkaUtils,
-  LocationStrategy,
-  OffsetRange
-}
+import org.apache.spark.streaming.kafka010.{ConsumerStrategies, KafkaUtils, LocationStrategy, OffsetRange}
 import org.log4s.Logger
 
 import java.util
@@ -35,28 +29,25 @@ private[kafka] object sk {
   private def props(config: Map[String, String]): util.Map[String, Object] =
     (remove(ConsumerConfig.CLIENT_ID_CONFIG)(config) ++ Map(
       "key.deserializer" -> classOf[ByteArrayDeserializer].getName,
-      "value.deserializer" -> classOf[ByteArrayDeserializer].getName))
-      .mapValues[Object](identity)
-      .asJava
+      "value.deserializer" -> classOf[ByteArrayDeserializer].getName)).mapValues[Object](identity).asJava
 
-  private def offsetRanges(
-    range: KafkaTopicPartition[Option[KafkaOffsetRange]]): Array[OffsetRange] =
+  private def offsetRanges(range: KafkaTopicPartition[Option[KafkaOffsetRange]]): Array[OffsetRange] =
     range.flatten[KafkaOffsetRange].value.toArray.map { case (tp, r) =>
       OffsetRange.create(tp, r.from.value, r.until.value)
     }
 
-  private def kafkaRDD[F[_]: Sync, K, V](
+  private def kafkaRDD[F[_]: Effect, K, V](
     topic: KafkaTopic[F, K, V],
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy,
-    sparkSession: SparkSession): F[RDD[ConsumerRecord[Array[Byte], Array[Byte]]]] =
-    topic.shortLiveConsumer.use(_.offsetRangeFor(timeRange)).map { gtp =>
-      KafkaUtils.createRDD[Array[Byte], Array[Byte]](
-        sparkSession.sparkContext,
-        props(topic.context.settings.consumerSettings.config),
-        offsetRanges(gtp),
-        locationStrategy)
-    }
+    sparkSession: SparkSession): RDD[ConsumerRecord[Array[Byte], Array[Byte]]] = {
+    val gtp = Effect[F].toIO(topic.shortLiveConsumer.use(_.offsetRangeFor(timeRange))).unsafeRunSync()
+    KafkaUtils.createRDD[Array[Byte], Array[Byte]](
+      sparkSession.sparkContext,
+      props(topic.context.settings.consumerSettings.config),
+      offsetRanges(gtp),
+      locationStrategy)
+  }
 
   private val logger: Logger = org.log4s.getLogger("nj.spark.kafka")
 
@@ -69,27 +60,7 @@ private[kafka] object sk {
       ConsumerStrategies.Subscribe[Array[Byte], Array[Byte]](
         List(topic.topicName.value),
         props(topic.context.settings.consumerSettings.config).asScala)
-    KafkaUtils
-      .createDirectStream(streamingContext, locationStrategy, consumerStrategy)
-      .mapPartitions { ms =>
-        val decoder = new NJConsumerRecordDecoder[Writer[Chain[Throwable], *], K, V](
-          topic.topicName.value,
-          topic.codec.keyDeserializer,
-          topic.codec.valDeserializer)
-        ms.map { m =>
-          val (errs, cr) = decoder.decode(m).run
-          errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
-          cr
-        }
-      }
-  }
-
-  def kafkaBatch[F[_]: Sync, K, V](
-    topic: KafkaTopic[F, K, V],
-    timeRange: NJDateTimeRange,
-    locationStrategy: LocationStrategy,
-    sparkSession: SparkSession): F[RDD[OptionalKV[K, V]]] =
-    kafkaRDD[F, K, V](topic, timeRange, locationStrategy, sparkSession).map(_.mapPartitions { ms =>
+    KafkaUtils.createDirectStream(streamingContext, locationStrategy, consumerStrategy).mapPartitions { ms =>
       val decoder = new NJConsumerRecordDecoder[Writer[Chain[Throwable], *], K, V](
         topic.topicName.value,
         topic.codec.keyDeserializer,
@@ -99,7 +70,25 @@ private[kafka] object sk {
         errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
         cr
       }
-    })
+    }
+  }
+
+  def kafkaBatch[F[_]: Effect, K, V](
+    topic: KafkaTopic[F, K, V],
+    timeRange: NJDateTimeRange,
+    locationStrategy: LocationStrategy,
+    sparkSession: SparkSession): RDD[OptionalKV[K, V]] =
+    kafkaRDD[F, K, V](topic, timeRange, locationStrategy, sparkSession).mapPartitions { ms =>
+      val decoder = new NJConsumerRecordDecoder[Writer[Chain[Throwable], *], K, V](
+        topic.topicName.value,
+        topic.codec.keyDeserializer,
+        topic.codec.valDeserializer)
+      ms.map { m =>
+        val (errs, cr) = decoder.decode(m).run
+        errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
+        cr
+      }
+    }
 
   def uploader[F[_]: ConcurrentEffect: ContextShift: Timer, K, V](
     topic: KafkaTopic[F, K, V],
