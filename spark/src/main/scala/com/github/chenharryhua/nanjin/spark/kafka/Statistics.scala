@@ -143,6 +143,9 @@ final class Statistics[F[_]] private[kafka] (
   def summary(implicit ev: Sync[F]): F[Unit] =
     kafkaSummary.collect[F]().map(_.foreach(x => println(x.showData(zoneId))))
 
+  /** Notes:
+    *  offset is supposed to be monotonically increasing in a partition, except compact topic
+    */
   def missingOffsets(implicit ev: Sync[F]): TypedDataset[MissingOffset] = {
     import ds.sparkSession.implicits._
     import org.apache.spark.sql.functions.col
@@ -157,6 +160,10 @@ final class Statistics[F[_]] private[kafka] (
     TypedDataset.create(sum)
   }
 
+  /** Notes:
+    *
+    * Timestamp is supposed to be ordered along with offset
+    */
   def disorders: TypedDataset[Disorder] = {
     import ds.sparkSession.implicits._
     import org.apache.spark.sql.functions.col
@@ -184,6 +191,9 @@ final class Statistics[F[_]] private[kafka] (
     TypedDataset.create(sum)
   }
 
+  /** Notes:
+    * partition + offset supposed to be unique, of a topic
+    */
   def dupRecords: TypedDataset[DuplicateRecord] = {
     val tds = typedDataset
     val res =
