@@ -1,6 +1,8 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import cats.Foldable
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Effect, Sync, Timer}
+import cats.syntax.foldable._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
@@ -54,6 +56,9 @@ final class SparKafka[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKConfig,
   }
 
   def prRdd(rdd: RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] = new PrRdd[F, K, V](topic, rdd, cfg)
+
+  def prRdd[G[_]: Foldable](list: G[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
+    new PrRdd[F, K, V](topic, ss.sparkContext.parallelize(list.toList), cfg)
 
   /** structured stream
     */
