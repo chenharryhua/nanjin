@@ -10,11 +10,9 @@ import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
 import scala.util.Try
 
-final class KafkaTopic[F[_], K, V] private[kafka] (
-  val topicDef: TopicDef[K, V],
-  val context: KafkaContext[F])
-    extends TopicNameExtractor[K, V] with KafkaTopicSettings[F, K, V]
-    with KafkaTopicProducer[F, K, V] with Serializable {
+final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V], val context: KafkaContext[F])
+    extends TopicNameExtractor[K, V] with KafkaTopicSettings[F, K, V] with KafkaTopicProducer[F, K, V]
+    with Serializable {
   import topicDef.{serdeOfKey, serdeOfVal}
 
   val topicName: TopicName = topicDef.topicName
@@ -35,23 +33,16 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
 
   //need to reconstruct codec when working in spark
   @transient lazy val codec: KafkaTopicCodec[K, V] = new KafkaTopicCodec(
-    serdeOfKey
-      .asKey(context.settings.schemaRegistrySettings.config)
-      .codec(topicDef.topicName.value),
-    serdeOfVal
-      .asValue(context.settings.schemaRegistrySettings.config)
-      .codec(topicDef.topicName.value)
+    serdeOfKey.asKey(context.settings.schemaRegistrySettings.config).codec(topicDef.topicName.value),
+    serdeOfVal.asValue(context.settings.schemaRegistrySettings.config).codec(topicDef.topicName.value)
   )
 
-  def decoder[G[_, _]: NJConsumerMessage](
-    cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
+  @inline def decoder[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
     new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valCodec)
 
-  def record(partition: Int, offset: Long)(implicit
-    sync: Sync[F]): F[Option[ConsumerRecord[Try[K], Try[V]]]] =
+  def record(partition: Int, offset: Long)(implicit sync: Sync[F]): F[Option[ConsumerRecord[Try[K], Try[V]]]] =
     shortLiveConsumer.use(
-      _.retrieveRecord(KafkaPartition(partition), KafkaOffset(offset))
-        .map(_.map(decoder(_).tryDecodeKeyValue)))
+      _.retrieveRecord(KafkaPartition(partition), KafkaOffset(offset)).map(_.map(decoder(_).tryDecodeKeyValue)))
 
   override def toString: String = {
     import cats.derived.auto.show._

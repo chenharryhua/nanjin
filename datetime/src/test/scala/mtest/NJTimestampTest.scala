@@ -1,16 +1,20 @@
 package mtest
 
-import java.time.{LocalDateTime, LocalTime, ZoneId}
-
 import cats.syntax.eq._
 import com.github.chenharryhua.nanjin.datetime._
-import org.scalacheck.Prop.forAll
+import org.scalacheck.Prop.{forAll, propBoolean}
 import org.scalacheck.Properties
+
+import java.time.{LocalDateTime, LocalTime, ZoneId}
 
 class NJTimestampTest extends Properties("nj-timestamp properties") {
   import ArbitaryData._
 
   val timezone: ZoneId = utcTime
+
+  property("+ -") =
+    forAll((ts: NJTimestamp, long: Long) => (long < 10000000L && long >= 0) ==> (ts.minus(long).plus(long) === ts))
+
   property("day resolution") = forAll { (ts: NJTimestamp) =>
     ts.dayResolution(timezone) === ts.atZone(timezone).toLocalDate
   }
