@@ -77,11 +77,12 @@ object NJTimestamp {
 
   def apply(str: String, zoneId: ZoneId): NJTimestamp = {
     val parser = DateTimeParser[Instant].map(NJTimestamp(_)) <+>
-      DateTimeParser[ZonedDateTime].map(NJTimestamp(_)) <+>
       DateTimeParser[OffsetDateTime].map(NJTimestamp(_)) <+>
+      DateTimeParser[ZonedDateTime].map(NJTimestamp(_)) <+>
       DateTimeParser[LocalDate].map(NJTimestamp(_, zoneId)) <+>
       DateTimeParser[LocalTime].map(NJTimestamp(_, zoneId)) <+>
       DateTimeParser[LocalDateTime].map(NJTimestamp(_, zoneId))
+
     parser.parse(str) match {
       case Right(r) => r
       case Left(ex) => throw ex.parseException(str)
@@ -91,8 +92,9 @@ object NJTimestamp {
   def apply(str: String): NJTimestamp = {
     val parser: DateTimeParser[NJTimestamp] =
       DateTimeParser[Instant].map(NJTimestamp(_)) <+>
-        DateTimeParser[ZonedDateTime].map(NJTimestamp(_)) <+>
-        DateTimeParser[OffsetDateTime].map(NJTimestamp(_))
+        DateTimeParser[OffsetDateTime].map(NJTimestamp(_)) <+>
+        DateTimeParser[ZonedDateTime].map(NJTimestamp(_))
+
     parser.parse(str) match {
       case Right(r) => r
       case Left(ex) => throw ex.parseException(str)
@@ -102,8 +104,7 @@ object NJTimestamp {
   def now(clock: Clock): NJTimestamp = NJTimestamp(Instant.now(clock))
   def now(): NJTimestamp             = NJTimestamp(Instant.now)
 
-  implicit val njTimestampInstance
-    : Hash[NJTimestamp] with Order[NJTimestamp] with Show[NJTimestamp] =
+  implicit val njTimestampInstance: Hash[NJTimestamp] with Order[NJTimestamp] with Show[NJTimestamp] =
     new Hash[NJTimestamp] with Order[NJTimestamp] with Show[NJTimestamp] {
       override def hash(x: NJTimestamp): Int = x.hashCode
 
