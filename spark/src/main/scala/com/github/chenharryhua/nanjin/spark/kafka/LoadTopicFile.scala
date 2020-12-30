@@ -2,82 +2,95 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync}
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
+import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.sksamuel.avro4s.Decoder
 import frameless.TypedEncoder
 import fs2.Stream
 import io.circe.{Decoder => JsonDecoder}
 import org.apache.hadoop.conf.Configuration
+import org.apache.spark.sql.SparkSession
 
-final class LoadTopicFile[F[_], K, V] private[kafka] (klf: SparKafka[F, K, V]) extends Serializable {
+final class LoadTopicFile[F[_], K, V] private[kafka] (topic: KafkaTopic[F, K, V], cfg: SKConfig, ss: SparkSession)
+    extends Serializable {
 
   def avro(pathStr: String)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
-    val ate = OptionalKV.ate(klf.topic.topicDef)
-    val tds = loaders.avro[OptionalKV[K, V]](pathStr, ate, klf.sparkSession)
-    new CrDS(klf.topic, tds.dataset, klf.cfg, tek, tev)
+    val ate = OptionalKV.ate(topic.topicDef)
+    val tds = loaders.avro[OptionalKV[K, V]](pathStr, ate, ss)
+    new CrDS(topic, tds.dataset, cfg, tek, tev)
   }
 
   def parquet(pathStr: String)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
-    val ate = OptionalKV.ate(klf.topic.topicDef)
-    val tds = loaders.parquet[OptionalKV[K, V]](pathStr, ate, klf.sparkSession)
-    new CrDS(klf.topic, tds.dataset, klf.cfg, tek, tev)
+    val ate = OptionalKV.ate(topic.topicDef)
+    val tds = loaders.parquet[OptionalKV[K, V]](pathStr, ate, ss)
+    new CrDS(topic, tds.dataset, cfg, tek, tev)
   }
 
   def json(pathStr: String)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
-    val ate = OptionalKV.ate(klf.topic.topicDef)
-    val tds = loaders.json[OptionalKV[K, V]](pathStr, ate, klf.sparkSession)
-    new CrDS(klf.topic, tds.dataset, klf.cfg, tek, tev)
+    val ate = OptionalKV.ate(topic.topicDef)
+    val tds = loaders.json[OptionalKV[K, V]](pathStr, ate, ss)
+    new CrDS(topic, tds.dataset, cfg, tek, tev)
   }
 
   def jackson(pathStr: String)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
-    val ate = OptionalKV.ate(klf.topic.topicDef)
-    val tds = loaders.jackson[OptionalKV[K, V]](pathStr, ate, klf.sparkSession)
-    new CrDS(klf.topic, tds.dataset, klf.cfg, tek, tev)
+    val ate = OptionalKV.ate(topic.topicDef)
+    val tds = loaders.jackson[OptionalKV[K, V]](pathStr, ate, ss)
+    new CrDS(topic, tds.dataset, cfg, tek, tev)
   }
 
   def binAvro(pathStr: String)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
-    val ate = OptionalKV.ate(klf.topic.topicDef)
-    val tds = loaders.binAvro[OptionalKV[K, V]](pathStr, ate, klf.sparkSession)
-    new CrDS(klf.topic, tds.dataset, klf.cfg, tek, tev)
+    val ate = OptionalKV.ate(topic.topicDef)
+    val tds = loaders.binAvro[OptionalKV[K, V]](pathStr, ate, ss)
+    new CrDS(topic, tds.dataset, cfg, tek, tev)
   }
 
   def circe(pathStr: String)(implicit
     tek: TypedEncoder[K],
     tev: TypedEncoder[V],
     ev: JsonDecoder[OptionalKV[K, V]]): CrDS[F, K, V] = {
-    val ate = OptionalKV.ate(klf.topic.topicDef)
-    val tds = loaders.circe[OptionalKV[K, V]](pathStr, ate, klf.sparkSession)
-    new CrDS(klf.topic, tds.dataset, klf.cfg, tek, tev)
+    val ate = OptionalKV.ate(topic.topicDef)
+    val tds = loaders.circe[OptionalKV[K, V]](pathStr, ate, ss)
+    new CrDS(topic, tds.dataset, cfg, tek, tev)
   }
 
   def objectFile(pathStr: String)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
-    val ate = OptionalKV.ate(klf.topic.topicDef)
-    val tds = loaders.objectFile[OptionalKV[K, V]](pathStr, ate, klf.sparkSession)
-    new CrDS(klf.topic, tds.dataset, klf.cfg, tek, tev)
+    val ate = OptionalKV.ate(topic.topicDef)
+    val tds = loaders.objectFile[OptionalKV[K, V]](pathStr, ate, ss)
+    new CrDS(topic, tds.dataset, cfg, tek, tev)
   }
 
-  private val decoder: Decoder[OptionalKV[K, V]] = OptionalKV.avroCodec(klf.topic.topicDef).avroDecoder
+  private val decoder: Decoder[OptionalKV[K, V]] = OptionalKV.avroCodec(topic.topicDef).avroDecoder
 
   object rdd {
 
-    def avro(pathStr: String): CrRdd[F, K, V] =
-      klf.crRdd(loaders.rdd.avro[OptionalKV[K, V]](pathStr, decoder, klf.sparkSession))
+    def avro(pathStr: String): CrRdd[F, K, V] = {
+      val rdd = loaders.rdd.avro[OptionalKV[K, V]](pathStr, decoder, ss)
+      new CrRdd[F, K, V](topic, rdd, cfg, ss)
+    }
 
-    def jackson(pathStr: String): CrRdd[F, K, V] =
-      klf.crRdd(loaders.rdd.jackson[OptionalKV[K, V]](pathStr, decoder, klf.sparkSession))
+    def jackson(pathStr: String): CrRdd[F, K, V] = {
+      val rdd = loaders.rdd.jackson[OptionalKV[K, V]](pathStr, decoder, ss)
+      new CrRdd[F, K, V](topic, rdd, cfg, ss)
+    }
 
-    def binAvro(pathStr: String): CrRdd[F, K, V] =
-      klf.crRdd(loaders.rdd.binAvro[OptionalKV[K, V]](pathStr, decoder, klf.sparkSession))
+    def binAvro(pathStr: String): CrRdd[F, K, V] = {
+      val rdd = loaders.rdd.binAvro[OptionalKV[K, V]](pathStr, decoder, ss)
+      new CrRdd[F, K, V](topic, rdd, cfg, ss)
+    }
 
-    def circe(pathStr: String)(implicit ev: JsonDecoder[OptionalKV[K, V]]): CrRdd[F, K, V] =
-      klf.crRdd(loaders.rdd.circe[OptionalKV[K, V]](pathStr, klf.sparkSession))
+    def circe(pathStr: String)(implicit ev: JsonDecoder[OptionalKV[K, V]]): CrRdd[F, K, V] = {
+      val rdd = loaders.rdd.circe[OptionalKV[K, V]](pathStr, ss)
+      new CrRdd[F, K, V](topic, rdd, cfg, ss)
+    }
 
-    def objectFile(pathStr: String): CrRdd[F, K, V] =
-      klf.crRdd(loaders.rdd.objectFile[OptionalKV[K, V]](pathStr, klf.sparkSession))
+    def objectFile(pathStr: String): CrRdd[F, K, V] = {
+      val rdd = loaders.rdd.objectFile[OptionalKV[K, V]](pathStr, ss)
+      new CrRdd[F, K, V](topic, rdd, cfg, ss)
+    }
   }
 
   object stream {
-    private val hadoopConfiguration: Configuration = klf.sparkSession.sparkContext.hadoopConfiguration
+    private val hadoopConfiguration: Configuration = ss.sparkContext.hadoopConfiguration
 
     def circe(pathStr: String, blocker: Blocker)(implicit
       cs: ContextShift[F],

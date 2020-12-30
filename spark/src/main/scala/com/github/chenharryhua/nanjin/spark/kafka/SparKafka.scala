@@ -13,14 +13,11 @@ import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import java.time.ZoneId
 
-final class SparKafka[F[_], K, V](
-  val topic: KafkaTopic[F, K, V],
-  val cfg: SKConfig,
-  val sparkSession: SparkSession
-) extends Serializable {
+final class SparKafka[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKConfig, ss: SparkSession)
+    extends Serializable {
 
   private def updateCfg(f: SKConfig => SKConfig): SparKafka[F, K, V] =
-    new SparKafka[F, K, V](topic, f(cfg), sparkSession)
+    new SparKafka[F, K, V](topic, f(cfg), ss)
 
   def withZoneId(zoneId: ZoneId): SparKafka[F, K, V]         = updateCfg(_.withZoneId(zoneId))
   def withTimeRange(tr: NJDateTimeRange): SparKafka[F, K, V] = updateCfg(_.withTimeRange(tr))
@@ -28,10 +25,10 @@ final class SparKafka[F[_], K, V](
   val params: SKParams = cfg.evalConfig
 
   def fromKafka(implicit F: Effect[F]): CrRdd[F, K, V] =
-    crRdd(sk.kafkaBatch(topic, params.timeRange, params.locationStrategy, sparkSession))
+    crRdd(sk.kafkaBatch(topic, params.timeRange, params.locationStrategy, ss))
 
   def fromDisk: CrRdd[F, K, V] =
-    crRdd(loaders.rdd.objectFile[OptionalKV[K, V]](params.replayPath, sparkSession))
+    crRdd(loaders.rdd.objectFile[OptionalKV[K, V]](params.replayPath, ss))
 
   /** shorthand
     */
@@ -44,12 +41,12 @@ final class SparKafka[F[_], K, V](
   def countKafka(implicit F: Effect[F]): F[Long] = fromKafka.count
   def countDisk(implicit F: Sync[F]): F[Long]    = fromDisk.count
 
-  def load: LoadTopicFile[F, K, V] = new LoadTopicFile[F, K, V](this)
+  def load: LoadTopicFile[F, K, V] = new LoadTopicFile[F, K, V](topic, cfg, ss)
 
   /** rdd and dataset
     */
   def crRdd(rdd: RDD[OptionalKV[K, V]]): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](topic, rdd, cfg, sparkSession)
+    new CrRdd[F, K, V](topic, rdd, cfg, ss)
 
   def crDS(df: DataFrame)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
     val ate = OptionalKV.ate(topic.topicDef)
@@ -63,7 +60,7 @@ final class SparKafka[F[_], K, V](
 
   def sstream[A](f: OptionalKV[K, V] => A, ate: AvroTypedEncoder[A])(implicit sync: Sync[F]): SparkSStream[F, A] =
     new SparkSStream[F, A](
-      sk.kafkaSStream[F, K, V, A](topic, ate, sparkSession)(f),
+      sk.kafkaSStream[F, K, V, A](topic, ate, ss)(f),
       SStreamConfig(params.timeRange).withCheckpointBuilder(fmt =>
         s"./data/checkpoint/sstream/kafka/${topic.topicName.value}/${fmt.format}/"))
 
