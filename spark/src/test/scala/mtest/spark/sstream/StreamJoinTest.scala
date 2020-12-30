@@ -21,7 +21,7 @@ object StreamJoinTestData {
 
   val barDS: Dataset[Bar] = TypedDataset.create(List(Bar(1, 1), Bar(2, 2), Bar(3, 3))).dataset
 
-  val fooTopic: KafkaTopic[IO, Int, Foo] = ctx.topic[Int, Foo]("spark.stream.join.test")
+  val fooTopic: KafkaTopic[IO, Int, Foo] = ctx.topic[Int, Foo]("spark.stream.table.join.test")
 
   val fooData: List[NJProducerRecord[Int, Foo]] = List
     .fill(50)(Foo(0, "a"))
