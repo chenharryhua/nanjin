@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.database.{DatabaseSettings, TableName}
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.SerdeOf
 import com.github.chenharryhua.nanjin.spark.database._
-import com.github.chenharryhua.nanjin.spark.kafka.{SKConfig, SparKafka}
+import com.github.chenharryhua.nanjin.spark.kafka.{SKConfig, SparKafkaTopic}
 import com.github.chenharryhua.nanjin.spark.persist.{
   DatasetAvroFileHoarder,
   DatasetFileHoarder,
@@ -24,8 +24,6 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
-import java.time.ZoneId
-
 private[spark] trait DatasetExtensions {
 
   implicit final class RddExt[A](rdd: RDD[A]) extends Serializable {
@@ -38,10 +36,7 @@ private[spark] trait DatasetExtensions {
     def source[F[_]: ConcurrentEffect]: Source[A, NotUsed] =
       Source.fromPublisher[A](stream[F].toUnicastPublisher)
 
-    def typedDataset(ate: AvroTypedEncoder[A])(implicit ss: SparkSession): TypedDataset[A] =
-      ate.normalize(rdd, ss)
-
-    def dbUpload[F[_]: Sync](db: SparkTable[F, A]): DbUploader[F, A] =
+    def dbUpload[F[_]: Sync](db: SparkDBTable[F, A]): DbUploader[F, A] =
       db.tableset(rdd).upload
 
     def save[F[_]]: RddFileHoarder[F, A] = new RddFileHoarder[F, A](rdd)
@@ -59,7 +54,7 @@ private[spark] trait DatasetExtensions {
     def dismissNulls: TypedDataset[A]   = tds.deserialized.filter(_ != null)
     def numOfNulls[F[_]: Sync]: F[Long] = tds.except(dismissNulls).count[F]()
 
-    def dbUpload[F[_]: Sync](db: SparkTable[F, A]): DbUploader[F, A] = db.tableset(tds).upload
+    def dbUpload[F[_]: Sync](db: SparkDBTable[F, A]): DbUploader[F, A] = db.tableset(tds).upload
 
     def save[F[_]]: DatasetFileHoarder[F, A] = new DatasetFileHoarder[F, A](tds.dataset)
 
@@ -95,24 +90,24 @@ final class SparkDBContext[F[_]](ss: SparkSession, dbSettings: DatabaseSettings)
   def genSchema(tableName: String): Schema     = dataframe(tableName).genSchema
   def genDatatype(tableName: String): DataType = dataframe(tableName).genDataType
 
-  def table[A](tableDef: TableDef[A]): SparkTable[F, A] = {
+  def table[A](tableDef: TableDef[A]): SparkDBTable[F, A] = {
     val cfg = STConfig(dbSettings.database, tableDef.tableName)
-    new SparkTable[F, A](tableDef, dbSettings, cfg, ss)
+    new SparkDBTable[F, A](tableDef, dbSettings, cfg, ss)
   }
 
-  def table[A: AvroEncoder: AvroDecoder: SchemaFor: TypedEncoder](tableName: String): SparkTable[F, A] =
+  def table[A: AvroEncoder: AvroDecoder: SchemaFor: TypedEncoder](tableName: String): SparkDBTable[F, A] =
     table[A](TableDef[A](TableName.unsafeFrom(tableName)))
 
 }
 
 final class SparKafkaContext[F[_]](ss: SparkSession, ctx: KafkaContext[F]) extends Serializable {
 
-  def topic[K, V](topicDef: TopicDef[K, V]): SparKafka[F, K, V] =
-    new SparKafka[F, K, V](topicDef.in[F](ctx), SKConfig(topicDef.topicName, ZoneId.systemDefault()), ss)
+  def topic[K, V](topicDef: TopicDef[K, V]): SparKafkaTopic[F, K, V] =
+    new SparKafkaTopic[F, K, V](topicDef.in[F](ctx), SKConfig(topicDef.topicName), ss)
 
-  def topic[K, V](kt: KafkaTopic[F, K, V]): SparKafka[F, K, V] =
-    new SparKafka[F, K, V](kt.topicDef.in[F](ctx), SKConfig(kt.topicName, ZoneId.systemDefault()), ss)
+  def topic[K, V](kt: KafkaTopic[F, K, V]): SparKafkaTopic[F, K, V] =
+    topic[K, V](kt.topicDef)
 
-  def topic[K: SerdeOf, V: SerdeOf](topicName: String): SparKafka[F, K, V] =
-    topic(TopicDef[K, V](TopicName.unsafeFrom(topicName)))
+  def topic[K: SerdeOf, V: SerdeOf](topicName: String): SparKafkaTopic[F, K, V] =
+    topic[K, V](TopicDef[K, V](TopicName.unsafeFrom(topicName)))
 }

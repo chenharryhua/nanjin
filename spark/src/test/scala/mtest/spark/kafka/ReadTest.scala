@@ -2,17 +2,15 @@ package mtest.spark.kafka
 
 import cats.effect.IO
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.spark.kafka.{CompulsoryKV, _}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.{TypedDataset, TypedEncoder}
 import io.circe.generic.auto._
-import mtest.spark.{blocker, contextShift, ctx, sparKafka, sparkSession}
-import org.apache.spark.sql.SaveMode
+import mtest.spark.{blocker, contextShift, sparKafka, sparkSession}
+import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
-import org.apache.spark.sql.SparkSession
 
 object ReadTestData {
   final case class Dog(a: Int, b: String)
@@ -27,7 +25,7 @@ object ReadTestData {
     .fill(100)(Dog(Random.nextInt(), "dog"))
     .mapWithIndex((d, i) => OptionalKV[Int, Dog](0, i.toLong, 0, None, Some(d), "topic-nokey", 0))
 
-  val topic: SparKafka[IO, Int, Dog] = sparKafka.topic(TopicDef[Int, Dog](TopicName("test.spark.kafka.dogs")))
+  val topic: SparKafkaTopic[IO, Int, Dog] = sparKafka.topic[Int, Dog]("test.spark.kafka.dogs")
 
 }
 

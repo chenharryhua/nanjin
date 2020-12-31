@@ -9,7 +9,7 @@ import frameless.{TypedDataset, TypedExpressionEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
 
-final class SparkTable[F[_], A](
+final class SparkDBTable[F[_], A](
   val tableDef: TableDef[A],
   val dbSettings: DatabaseSettings,
   val cfg: STConfig,
@@ -22,11 +22,11 @@ final class SparkTable[F[_], A](
 
   val tableName: TableName = tableDef.tableName
 
-  def withQuery(query: String): SparkTable[F, A] =
-    new SparkTable[F, A](tableDef, dbSettings, cfg.withQuery(query), sparkSession)
+  def withQuery(query: String): SparkDBTable[F, A] =
+    new SparkDBTable[F, A](tableDef, dbSettings, cfg.withQuery(query), sparkSession)
 
-  def withReplayPathBuilder(f: (DatabaseName, TableName) => String): SparkTable[F, A] =
-    new SparkTable[F, A](tableDef, dbSettings, cfg.withReplayPathBuilder(f), sparkSession)
+  def withReplayPathBuilder(f: (DatabaseName, TableName) => String): SparkDBTable[F, A] =
+    new SparkDBTable[F, A](tableDef, dbSettings, cfg.withReplayPathBuilder(f), sparkSession)
 
   def fromDB: TableDataset[F, A] = {
     val df =

@@ -75,8 +75,6 @@ class SparkExtTest extends AnyFunSuite {
     import SparkExtTestData._
     val ate = AvroTypedEncoder[Foo]
     val rdd = sparkSession.sparkContext.parallelize(list.flatMap(Option(_)))
-    val tds = rdd.typedDataset(ate)
     rdd.save[IO](ate.avroCodec.avroEncoder).avro("./data/test/spark/sytax/avro").run(blocker).unsafeRunSync()
-    tds.save[IO].parquet("./data/test/spark/syntax/parquet").run(blocker).unsafeRunSync()
   }
 }

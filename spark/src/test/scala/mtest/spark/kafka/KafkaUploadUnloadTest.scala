@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.spark.kafka.{
   CompulsoryV,
   NJProducerRecord,
   OptionalKV,
-  SparKafka
+  SparKafkaTopic
 }
 import frameless.TypedEncoder
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
@@ -32,7 +32,7 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
 
   val rooster: TopicDef[Int, Rooster] =
     TopicDef[Int, Rooster](TopicName("spark.kafka.load.rooster"), Rooster.avroCodec)
-  val topic: SparKafka[IO, Int, Rooster] = sk.topic(rooster)
+  val topic: SparKafkaTopic[IO, Int, Rooster] = sk.topic(rooster)
 
   val oac  = OptionalKV.avroCodec(rooster)
   val kaac = CompulsoryK.avroCodec(rooster)
@@ -54,18 +54,19 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
     val avroBin = root + "avroBin"
     val obj     = root + "objectFile"
 
-    val pr = topic.prRdd(RoosterData.rdd.zipWithIndex.map { case (x, i) =>
-      NJProducerRecord(Random.nextInt(), x)
-        .modifyKey(identity)
-        .modifyValue(identity)
-        .newKey(i.toInt)
-        .newValue(x)
-        .newPartition(0)
-        .newTimestamp(Instant.now.getEpochSecond * 1000)
-        .noPartition
-        .noTimestamp
-        .noMeta
-    })
+    val pr = topic
+      .prRdd(RoosterData.data.zipWithIndex.map { case (x, i) =>
+        NJProducerRecord(Random.nextInt(), x)
+          .modifyKey(identity)
+          .modifyValue(identity)
+          .newKey(i.toInt)
+          .newValue(x)
+          .newPartition(0)
+          .newTimestamp(Instant.now.getEpochSecond * 1000)
+          .noPartition
+          .noTimestamp
+      })
+      .noMeta
     val run = for {
       _ <- rooster.in(ctx).admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- pr.noPartition.noTimestamp.batchSize(10).upload.compile.drain

@@ -93,11 +93,9 @@ class SparkTableTest extends AnyFunSuite {
   }
 
   test("partial db table") {
-    val pt: TableDef[PartialDBTable] = TableDef[PartialDBTable](TableName("sparktest"))
+    val pt = sparkDB.table[PartialDBTable]("sparktest")
     val ptd: TypedDataset[PartialDBTable] =
-      sparkDB
-        .table(pt)
-        .withQuery("select a,b from sparktest")
+      pt.withQuery("select a,b from sparktest")
         .withReplayPathBuilder((_, _) => root + "dbdump")
         .fromDB
         .repartition(1)
@@ -118,7 +116,7 @@ class SparkTableTest extends AnyFunSuite {
 
   val root = "./data/test/spark/database/postgres/"
 
-  val tb: SparkTable[IO, DBTable] = sparkDB.table(table)
+  val tb: SparkDBTable[IO, DBTable] = sparkDB.table(table)
 
   val saver: DatasetAvroFileHoarder[IO, DBTable] = tb.fromDB.save
 

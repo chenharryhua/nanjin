@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.spark.persist.loaders
 import io.circe.{Decoder => JsonDecoder}
 import kantan.csv.CsvConfiguration
 
-final class LoadTableFile[F[_], A] private[database] (st: SparkTable[F, A]) {
+final class LoadTableFile[F[_], A] private[database] (st: SparkDBTable[F, A]) {
   private val ate: AvroTypedEncoder[A] = st.tableDef.avroTypedEncoder
 
   def parquet(pathStr: String): TableDataset[F, A] = {

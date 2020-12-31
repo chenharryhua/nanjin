@@ -15,14 +15,14 @@ import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import java.time.ZoneId
 
-final class SparKafka[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKConfig, ss: SparkSession)
+final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKConfig, ss: SparkSession)
     extends Serializable {
 
-  private def updateCfg(f: SKConfig => SKConfig): SparKafka[F, K, V] =
-    new SparKafka[F, K, V](topic, f(cfg), ss)
+  private def updateCfg(f: SKConfig => SKConfig): SparKafkaTopic[F, K, V] =
+    new SparKafkaTopic[F, K, V](topic, f(cfg), ss)
 
-  def withZoneId(zoneId: ZoneId): SparKafka[F, K, V]         = updateCfg(_.withZoneId(zoneId))
-  def withTimeRange(tr: NJDateTimeRange): SparKafka[F, K, V] = updateCfg(_.withTimeRange(tr))
+  def withZoneId(zoneId: ZoneId): SparKafkaTopic[F, K, V]         = updateCfg(_.withZoneId(zoneId))
+  def withTimeRange(tr: NJDateTimeRange): SparKafkaTopic[F, K, V] = updateCfg(_.withTimeRange(tr))
 
   val params: SKParams = cfg.evalConfig
 
