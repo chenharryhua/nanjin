@@ -12,8 +12,8 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
 final class CrRdd[F[_], K, V] private[kafka] (
-  val topic: KafkaTopic[F, K, V],
   val rdd: RDD[OptionalKV[K, V]],
+  topic: KafkaTopic[F, K, V],
   cfg: SKConfig,
   ss: SparkSession)
     extends Serializable {
@@ -24,7 +24,7 @@ final class CrRdd[F[_], K, V] private[kafka] (
 
   // transforms
   def transform(f: RDD[OptionalKV[K, V]] => RDD[OptionalKV[K, V]]): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](topic, f(rdd), cfg, ss)
+    new CrRdd[F, K, V](f(rdd), topic, cfg, ss)
 
   def partitionOf(num: Int): CrRdd[F, K, V] = transform(_.filter(_.partition === num))
 
@@ -42,30 +42,23 @@ final class CrRdd[F[_], K, V] private[kafka] (
 
   def normalize: CrRdd[F, K, V] = transform(_.map(codec.idConversion))
 
-  // maps
+  def dismissNulls: CrRdd[F, K, V] = transform(_.dismissNulls)
 
+  // maps
   def bimap[K2, V2](k: K => K2, v: V => V2)(other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](other, rdd.map(_.bimap(k, v)), cfg, ss).normalize
+    new CrRdd[F, K2, V2](rdd.map(_.bimap(k, v)), other, cfg, ss).normalize
 
   def map[K2, V2](f: OptionalKV[K, V] => OptionalKV[K2, V2])(other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](other, rdd.map(f), cfg, ss).normalize
+    new CrRdd[F, K2, V2](rdd.map(f), other, cfg, ss).normalize
 
   def flatMap[K2, V2](f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]])(
     other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](other, rdd.flatMap(f), cfg, ss).normalize
-
-  def dismissNulls: CrRdd[F, K, V] =
-    new CrRdd[F, K, V](topic, rdd.dismissNulls, cfg, ss)
-
-  def replicate(num: Int): CrRdd[F, K, V] = {
-    val rep = (1 until num).foldLeft(rdd) { case (r, _) => r.union(rdd) }
-    new CrRdd[F, K, V](topic, rep, cfg, ss)
-  }
+    new CrRdd[F, K2, V2](rdd.flatMap(f), other, cfg, ss).normalize
 
   // dataset
   def crDS(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
     val ate = OptionalKV.ate(topic.topicDef)
-    new CrDS[F, K, V](topic, ss.createDataset(rdd)(ate.sparkEncoder), cfg, tek, tev)
+    new CrDS[F, K, V](ss.createDataset(rdd)(ate.sparkEncoder), topic, cfg, tek, tev)
   }
 
   def values: RDD[CompulsoryV[K, V]]     = rdd.flatMap(_.toCompulsoryV)
@@ -73,7 +66,7 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def keyValues: RDD[CompulsoryKV[K, V]] = rdd.flatMap(_.toCompulsoryKV)
 
   // upload
-  def prRdd: PrRdd[F, K, V] = new PrRdd[F, K, V](topic, rdd.map(_.toNJProducerRecord), cfg)
+  def prRdd: PrRdd[F, K, V] = new PrRdd[F, K, V](rdd.map(_.toNJProducerRecord), topic, cfg)
 
   def upload(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
     prRdd.noMeta.upload(topic).map(_ => print(".")).compile.drain

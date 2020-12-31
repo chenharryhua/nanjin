@@ -28,7 +28,7 @@ private[database] object STParams {
     )
 }
 
-sealed private[database] trait STConfigF[_]
+sealed private[database] trait STConfigF[K]
 
 private[database] object STConfigF {
   final case class InitParams[K](dbName: DatabaseName, tableName: TableName) extends STConfigF[K]

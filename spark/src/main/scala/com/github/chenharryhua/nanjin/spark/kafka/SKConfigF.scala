@@ -38,10 +38,10 @@ private[kafka] object NJUploadParams {
 
 private[kafka] object SKParams {
 
-  def apply(topicName: TopicName, zoneId: ZoneId): SKParams =
+  def apply(topicName: TopicName): SKParams =
     SKParams(
       topicName = topicName,
-      timeRange = NJDateTimeRange(zoneId),
+      timeRange = NJDateTimeRange(ZoneId.systemDefault()),
       locationStrategy = LocationStrategies.PreferConsistent,
       replayPathBuilder = topicName => s"./data/sparKafka/${topicName.value}/replay/",
       uploadParams = NJUploadParams.default
@@ -51,7 +51,7 @@ private[kafka] object SKParams {
 sealed private[kafka] trait SKConfigF[A]
 
 private[kafka] object SKConfigF {
-  final case class InitParams[K](topicName: TopicName, zoneId: ZoneId) extends SKConfigF[K]
+  final case class InitParams[K](topicName: TopicName) extends SKConfigF[K]
 
   final case class WithTopicName[K](value: TopicName, cont: K) extends SKConfigF[K]
 
@@ -75,7 +75,7 @@ private[kafka] object SKConfigF {
   final case class WithReplayPathBuilder[K](value: TopicName => String, cont: K) extends SKConfigF[K]
 
   private val algebra: Algebra[SKConfigF, SKParams] = Algebra[SKConfigF, SKParams] {
-    case InitParams(t, z)    => SKParams(t, z)
+    case InitParams(t)       => SKParams(t)
     case WithTopicName(v, c) => SKParams.topicName.set(v)(c)
     case WithUploadBatchSize(v, c) =>
       SKParams.uploadParams.composeLens(NJUploadParams.batchSize).set(v)(c)
@@ -139,9 +139,7 @@ final private[kafka] case class SKConfig private (value: Fix[SKConfigF]) extends
 
 private[spark] object SKConfig {
 
-  def apply(topicName: TopicName, zoneId: ZoneId): SKConfig =
-    SKConfig(Fix(SKConfigF.InitParams[Fix[SKConfigF]](topicName, zoneId)))
+  def apply(topicName: TopicName): SKConfig =
+    SKConfig(Fix(SKConfigF.InitParams[Fix[SKConfigF]](topicName)))
 
-  def apply(topicName: TopicName, dtr: NJDateTimeRange): SKConfig =
-    apply(topicName, dtr.zoneId).withTimeRange(dtr)
 }

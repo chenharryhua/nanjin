@@ -35,6 +35,8 @@ class SparkExtTest extends AnyFunSuite {
   test("source") {
     sparKafka
       .topic(topic)
+      .withStartTime("2012-10-26")
+      .withEndTime("2012-10-28")
       .withTimeRange(range)
       .fromKafka
       .crDS
@@ -75,8 +77,7 @@ class SparkExtTest extends AnyFunSuite {
     import SparkExtTestData._
     val ate = AvroTypedEncoder[Foo]
     val rdd = sparkSession.sparkContext.parallelize(list.flatMap(Option(_)))
-    val tds = rdd.typedDataset(ate)
     rdd.save[IO](ate.avroCodec.avroEncoder).avro("./data/test/spark/sytax/avro").run(blocker).unsafeRunSync()
-    tds.save[IO].parquet("./data/test/spark/syntax/parquet").run(blocker).unsafeRunSync()
+    TypedDataset.create(rdd).save[IO].parquet("./data/test/spark/sytax/parquet").run(blocker).unsafeRunSync()
   }
 }

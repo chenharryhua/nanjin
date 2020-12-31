@@ -84,20 +84,17 @@ class SparkTableTest extends AnyFunSuite {
     val dc  = sparkDB.table(table).countDisk
 
     val load = sparkDB.table(table).fromDB.dataset
-    val l1   = sparkDB.table(table).tableset(load).persist(StorageLevel.MEMORY_ONLY)
+    val l1   = sparkDB.table(table).tableset(load)
     val l2   = sparkDB.table(table).tableset(load.rdd).typedDataset
 
     assert(dbc == dc)
     assert(l1.typedDataset.except(l2).count[IO]().unsafeRunSync() == 0)
-    l1.unpersist
   }
 
   test("partial db table") {
-    val pt: TableDef[PartialDBTable] = TableDef[PartialDBTable](TableName("sparktest"))
+    val pt = sparkDB.table[PartialDBTable]("sparktest")
     val ptd: TypedDataset[PartialDBTable] =
-      sparkDB
-        .table(pt)
-        .withQuery("select a,b from sparktest")
+      pt.withQuery("select a,b from sparktest")
         .withReplayPathBuilder((_, _) => root + "dbdump")
         .fromDB
         .repartition(1)
@@ -107,9 +104,13 @@ class SparkTableTest extends AnyFunSuite {
 
     val ptd2: TypedDataset[PartialDBTable] = sparkDB.table(pt2).fromDB.typedDataset
 
-    val pate = AvroTypedEncoder[PartialDBTable]
     val ptd3: TypedDataset[PartialDBTable] =
-      sparkDB.table(table).fromDB.map(_.transformInto[PartialDBTable])(pate).flatMap(Option(_))(pate).typedDataset
+      sparkDB
+        .table(table)
+        .fromDB
+        .map(_.transformInto[PartialDBTable])(pt.tableDef)
+        .flatMap(Option(_))(pt.tableDef)
+        .typedDataset
 
     assert(ptd.except(ptd2).count[IO]().unsafeRunSync() == 0)
     assert(ptd.except(ptd3).count[IO]().unsafeRunSync() == 0)
@@ -118,7 +119,7 @@ class SparkTableTest extends AnyFunSuite {
 
   val root = "./data/test/spark/database/postgres/"
 
-  val tb: SparkTable[IO, DBTable] = sparkDB.table(table)
+  val tb: SparkDBTable[IO, DBTable] = sparkDB.table(table)
 
   val saver: DatasetAvroFileHoarder[IO, DBTable] = tb.fromDB.save
 

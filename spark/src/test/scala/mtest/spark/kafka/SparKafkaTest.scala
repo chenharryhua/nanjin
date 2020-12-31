@@ -128,7 +128,6 @@ class SparKafkaTest extends AnyFunSuite {
       .repartition(3)
       .descendTimestamp
       .dismissNulls
-      .replicate(3)
       .transform(_.distinct)
     val rst = t.values.collect().map(_.value)
     assert(rst === Seq(cr1.value.get))

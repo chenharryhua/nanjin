@@ -12,8 +12,8 @@ import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.functions.col
 
 final class CrDS[F[_], K, V] private[kafka] (
-  val topic: KafkaTopic[F, K, V],
   val dataset: Dataset[OptionalKV[K, V]],
+  topic: KafkaTopic[F, K, V],
   cfg: SKConfig,
   tek: TypedEncoder[K],
   tev: TypedEncoder[V])
@@ -26,7 +26,7 @@ final class CrDS[F[_], K, V] private[kafka] (
   def typedDataset: TypedDataset[OptionalKV[K, V]] = TypedDataset.create(dataset)(ate.typedEncoder)
 
   def transform(f: Dataset[OptionalKV[K, V]] => Dataset[OptionalKV[K, V]]): CrDS[F, K, V] =
-    new CrDS[F, K, V](topic, dataset.transform(f), cfg, tek, tev)
+    new CrDS[F, K, V](dataset.transform(f), topic, cfg, tek, tev)
 
   def partitionOf(num: Int): CrDS[F, K, V] = transform(_.filter(col("partition") === num))
 
@@ -48,19 +48,19 @@ final class CrDS[F[_], K, V] private[kafka] (
   def bimap[K2, V2](k: K => K2, v: V => V2)(
     other: KafkaTopic[F, K2, V2])(implicit k2: TypedEncoder[K2], v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
     val ate: AvroTypedEncoder[OptionalKV[K2, V2]] = OptionalKV.ate(other.topicDef)
-    new CrDS[F, K2, V2](other, dataset.map(_.bimap(k, v))(ate.sparkEncoder), cfg, k2, v2).normalize
+    new CrDS[F, K2, V2](dataset.map(_.bimap(k, v))(ate.sparkEncoder), other, cfg, k2, v2).normalize
   }
 
   def map[K2, V2](f: OptionalKV[K, V] => OptionalKV[K2, V2])(
     other: KafkaTopic[F, K2, V2])(implicit k2: TypedEncoder[K2], v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
     val ate: AvroTypedEncoder[OptionalKV[K2, V2]] = OptionalKV.ate(other.topicDef)
-    new CrDS[F, K2, V2](other, dataset.map(f)(ate.sparkEncoder), cfg, k2, v2).normalize
+    new CrDS[F, K2, V2](dataset.map(f)(ate.sparkEncoder), other, cfg, k2, v2).normalize
   }
 
   def flatMap[K2, V2](f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]])(
     other: KafkaTopic[F, K2, V2])(implicit k2: TypedEncoder[K2], v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
     val ate: AvroTypedEncoder[OptionalKV[K2, V2]] = OptionalKV.ate(other.topicDef)
-    new CrDS[F, K2, V2](other, dataset.flatMap(f)(ate.sparkEncoder), cfg, k2, v2).normalize
+    new CrDS[F, K2, V2](dataset.flatMap(f)(ate.sparkEncoder), other, cfg, k2, v2).normalize
   }
 
   def stats: Statistics[F] = {
@@ -68,8 +68,8 @@ final class CrDS[F[_], K, V] private[kafka] (
     new Statistics[F](dataset.map(CRMetaInfo(_))(enc), params.timeRange.zoneId)
   }
 
-  def crRdd: CrRdd[F, K, V] = new CrRdd[F, K, V](topic, dataset.rdd, cfg, dataset.sparkSession)
-  def prRdd: PrRdd[F, K, V] = new PrRdd[F, K, V](topic, dataset.rdd.map(_.toNJProducerRecord), cfg)
+  def crRdd: CrRdd[F, K, V] = new CrRdd[F, K, V](dataset.rdd, topic, cfg, dataset.sparkSession)
+  def prRdd: PrRdd[F, K, V] = new PrRdd[F, K, V](dataset.rdd.map(_.toNJProducerRecord), topic, cfg)
 
   def save: DatasetAvroFileHoarder[F, OptionalKV[K, V]] =
     new DatasetAvroFileHoarder[F, OptionalKV[K, V]](dataset, ate.avroCodec.avroEncoder)

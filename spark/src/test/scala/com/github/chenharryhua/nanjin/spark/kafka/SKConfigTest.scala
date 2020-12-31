@@ -9,7 +9,7 @@ import java.time.{LocalDate, LocalDateTime}
 import scala.concurrent.duration._
 
 class SKConfigTest extends AnyFunSuite {
-  val skc = SKConfig(TopicName("config.test"), utcTime)
+  val skc = SKConfig(TopicName("config.test")).withZoneId(utcTime)
   test("date-time parameters") {
     val d1 = NJTimestamp("10:00", sydneyTime)
     val d2 = NJTimestamp("11:00", sydneyTime)

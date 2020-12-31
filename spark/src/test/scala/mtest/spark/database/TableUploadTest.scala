@@ -4,7 +4,7 @@ import cats.effect.IO
 import com.github.chenharryhua.nanjin.database.TableName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark._
-import com.github.chenharryhua.nanjin.spark.database.{SparkTable, TableDef}
+import com.github.chenharryhua.nanjin.spark.database.{SparkDBTable, TableDef}
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import mtest.spark.{contextShift, sparkSession}
@@ -51,7 +51,7 @@ object TableUploadTestData {
 
   implicit val te: TypedEncoder[Beaver] = shapeless.cachedImplicit
 
-  val table: SparkTable[IO, Beaver] =
+  val table: SparkDBTable[IO, Beaver] =
     sparkDB.table(TableDef[Beaver](TableName("upload"), codec))
 
   val data: RDD[Beaver] = sparkSession.sparkContext.parallelize(
@@ -67,6 +67,15 @@ class TableUploadTest extends AnyFunSuite {
 
   test("upload") {
     tds.dbUpload(table).append.errorIfExists.ignoreIfExists.overwrite.withTableName("upload").run.unsafeRunSync()
+    tds.rdd
+      .dbUpload(table)
+      .append
+      .errorIfExists
+      .ignoreIfExists
+      .overwrite
+      .withTableName("upload_rdd")
+      .run
+      .unsafeRunSync()
   }
 
   test("dump and reload") {

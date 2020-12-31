@@ -4,7 +4,7 @@ import cats.Foldable
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Effect, Sync, Timer}
 import cats.syntax.foldable._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicName}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.github.chenharryhua.nanjin.spark.sstream.{SStreamConfig, SparkSStream}
@@ -15,14 +15,18 @@ import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import java.time.ZoneId
 
-final class SparKafka[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKConfig, ss: SparkSession)
+final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKConfig, ss: SparkSession)
     extends Serializable {
 
-  private def updateCfg(f: SKConfig => SKConfig): SparKafka[F, K, V] =
-    new SparKafka[F, K, V](topic, f(cfg), ss)
+  val topicName: TopicName = topic.topicDef.topicName
 
-  def withZoneId(zoneId: ZoneId): SparKafka[F, K, V]         = updateCfg(_.withZoneId(zoneId))
-  def withTimeRange(tr: NJDateTimeRange): SparKafka[F, K, V] = updateCfg(_.withTimeRange(tr))
+  private def updateCfg(f: SKConfig => SKConfig): SparKafkaTopic[F, K, V] =
+    new SparKafkaTopic[F, K, V](topic, f(cfg), ss)
+
+  def withZoneId(zoneId: ZoneId): SparKafkaTopic[F, K, V]         = updateCfg(_.withZoneId(zoneId))
+  def withTimeRange(tr: NJDateTimeRange): SparKafkaTopic[F, K, V] = updateCfg(_.withTimeRange(tr))
+  def withStartTime(str: String): SparKafkaTopic[F, K, V]         = updateCfg(_.withStartTime(str))
+  def withEndTime(str: String): SparKafkaTopic[F, K, V]           = updateCfg(_.withEndTime(str))
 
   val params: SKParams = cfg.evalConfig
 
@@ -48,17 +52,17 @@ final class SparKafka[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKConfig,
   /** rdd and dataset
     */
   def crRdd(rdd: RDD[OptionalKV[K, V]]): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](topic, rdd, cfg, ss)
+    new CrRdd[F, K, V](rdd, topic, cfg, ss)
 
   def crDS(df: DataFrame)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
     val ate = OptionalKV.ate(topic.topicDef)
-    new CrDS(topic, ate.normalizeDF(df).dataset, cfg, tek, tev)
+    new CrDS(ate.normalizeDF(df).dataset, topic, cfg, tek, tev)
   }
 
-  def prRdd(rdd: RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] = new PrRdd[F, K, V](topic, rdd, cfg)
+  def prRdd(rdd: RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] = new PrRdd[F, K, V](rdd, topic, cfg)
 
   def prRdd[G[_]: Foldable](list: G[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
-    new PrRdd[F, K, V](topic, ss.sparkContext.parallelize(list.toList), cfg)
+    new PrRdd[F, K, V](ss.sparkContext.parallelize(list.toList), topic, cfg)
 
   /** structured stream
     */
