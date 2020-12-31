@@ -63,11 +63,12 @@ class CrDSTest extends AnyFunSuite {
       StructField("timestampType", IntegerType, false)
     ))
 
-  val crDS: CrDS[IO, Long, Rooster] = crRdd.crDS
+  val crDS: CrDS[IO, Long, Rooster] = crRdd.crDS.partitionOf(0)
 
   test("misc") {
     assert(crRdd.keys.collect().size == 4)
     assert(crRdd.values.collect().size == 4)
+    assert(crRdd.keyValues.collect().size == 4)
     assert(crRdd.partitionOf(0).rdd.collect.size == 4)
   }
 
@@ -133,10 +134,5 @@ class CrDSTest extends AnyFunSuite {
     assert(crRdd.offsetRange(0, 2).rdd.collect.size == 3)
     assert(crRdd.prRdd.offsetRange(0, 2).rdd.collect.size == 3)
     assert(crRdd.crDS.offsetRange(0, 2).dataset.collect.size == 3)
-  }
-
-  test("misorder/misplace") {
-    assert(crDS.misorderedKey.dataset.count == 0)
-    assert(crDS.misplacedKey.dataset.count == 0)
   }
 }

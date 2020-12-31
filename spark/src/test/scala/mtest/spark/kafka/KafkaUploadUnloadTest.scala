@@ -1,5 +1,6 @@
 package mtest.spark.kafka
 
+import alleycats.Empty
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.spark._
@@ -57,7 +58,7 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
 
     val pr = topic
       .prRdd(RoosterData.data.zipWithIndex.map { case (x, i) =>
-        NJProducerRecord(Random.nextInt(), x)
+        NJProducerRecord[Int, Rooster](x)
           .modifyKey(identity)
           .modifyValue(identity)
           .newKey(i.toInt)
@@ -205,5 +206,13 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
   }
   test("dump and replay") {
     (topic.dump >> topic.replay >> topic.countDisk >> topic.countKafka).unsafeRunSync()
+  }
+  test("empty NJProducerRecord") {
+    val empty = Empty[NJProducerRecord[Int, Int]]
+    assert(empty.empty.partition.isEmpty)
+    assert(empty.empty.offset.isEmpty)
+    assert(empty.empty.key.isEmpty)
+    assert(empty.empty.value.isEmpty)
+    assert(empty.empty.timestamp.isEmpty)
   }
 }

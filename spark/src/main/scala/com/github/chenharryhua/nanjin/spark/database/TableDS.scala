@@ -23,9 +23,6 @@ final class TableDS[F[_], A] private[database] (
 
   def repartition(num: Int): TableDS[F, A] = transform(_.repartition(num))
 
-  def persist(level: StorageLevel): TableDS[F, A] = transform(_.persist(level))
-  def unpersist: TableDS[F, A]                    = transform(_.unpersist())
-
   def map[B](f: A => B)(tdb: TableDef[B]): TableDS[F, B] =
     new TableDS[F, B](dataset.map(f)(tdb.avroTypedEncoder.sparkEncoder), tdb, dbSettings, cfg).normalize
 

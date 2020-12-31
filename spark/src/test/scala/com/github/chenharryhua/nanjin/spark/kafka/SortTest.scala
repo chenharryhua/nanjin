@@ -12,15 +12,15 @@ class SortTest extends AnyFunSuite {
 
   val data = List(
     OptionalKV[Int, Int](0, 0, 40, Some(0), Some(Random.nextInt()), "topic", 0),
-    OptionalKV[Int, Int](0, 1, 30, Some(1), Some(Random.nextInt()), "topic", 0),
-    OptionalKV[Int, Int](0, 2, 20, Some(2), Some(Random.nextInt()), "topic", 0),
-    OptionalKV[Int, Int](0, 3, 10, Some(3), Some(Random.nextInt()), "topic", 0),
-    OptionalKV[Int, Int](1, 0, 40, Some(4), Some(Random.nextInt()), "topic", 0),
-    OptionalKV[Int, Int](1, 1, 20, Some(5), Some(Random.nextInt()), "topic", 0),
-    OptionalKV[Int, Int](1, 2, 20, Some(6), Some(Random.nextInt()), "topic", 0),
-    OptionalKV[Int, Int](1, 4, 50, Some(7), Some(Random.nextInt()), "topic", 0),
-    OptionalKV[Int, Int](2, 100, 100, Some(8), Some(Random.nextInt()), "topic", 0),
-    OptionalKV[Int, Int](2, 100, 100, Some(9), Some(Random.nextInt()), "topic", 0)
+    OptionalKV[Int, Int](0, 1, 30, Some(0), Some(Random.nextInt()), "topic", 0),
+    OptionalKV[Int, Int](0, 2, 20, Some(0), Some(Random.nextInt()), "topic", 0),
+    OptionalKV[Int, Int](0, 3, 10, Some(0), Some(Random.nextInt()), "topic", 0),
+    OptionalKV[Int, Int](1, 0, 40, Some(1), Some(Random.nextInt()), "topic", 0),
+    OptionalKV[Int, Int](1, 1, 20, Some(1), Some(Random.nextInt()), "topic", 0),
+    OptionalKV[Int, Int](1, 2, 20, Some(1), Some(Random.nextInt()), "topic", 0),
+    OptionalKV[Int, Int](1, 4, 50, Some(2), Some(Random.nextInt()), "topic", 0),
+    OptionalKV[Int, Int](2, 100, 100, Some(2), Some(Random.nextInt()), "topic", 0),
+    OptionalKV[Int, Int](2, 100, 100, Some(2), Some(Random.nextInt()), "topic", 0)
   )
   val rdd   = sparkSession.sparkContext.parallelize(data)
   val crRdd = sparKafka.topic(topic).crRdd(rdd)
@@ -67,5 +67,11 @@ class SortTest extends AnyFunSuite {
   }
   test("missing offsets") {
     assert(crRdd.stats.missingOffsets.dataset.count == 1)
+  }
+  test("misorder keys") {
+    assert(crDS.misorderedKey.dataset.count == 4)
+  }
+  test("misplaced keys") {
+    assert(crDS.misplacedKey.dataset.count == 1)
   }
 }

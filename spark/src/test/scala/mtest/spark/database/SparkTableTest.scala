@@ -84,12 +84,11 @@ class SparkTableTest extends AnyFunSuite {
     val dc  = sparkDB.table(table).countDisk
 
     val load = sparkDB.table(table).fromDB.dataset
-    val l1   = sparkDB.table(table).tableset(load).persist(StorageLevel.MEMORY_ONLY)
+    val l1   = sparkDB.table(table).tableset(load)
     val l2   = sparkDB.table(table).tableset(load.rdd).typedDataset
 
     assert(dbc == dc)
     assert(l1.typedDataset.except(l2).count[IO]().unsafeRunSync() == 0)
-    l1.unpersist
   }
 
   test("partial db table") {
