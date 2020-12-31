@@ -4,7 +4,8 @@ import akka.NotUsed
 import akka.stream.scaladsl.Source
 import cats.effect.{ConcurrentEffect, Sync}
 import com.github.chenharryhua.nanjin.database.{DatabaseSettings, TableName}
-import com.github.chenharryhua.nanjin.kafka.{KafkaContext, TopicDef}
+import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic, TopicDef, TopicName}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.SerdeOf
 import com.github.chenharryhua.nanjin.spark.database._
 import com.github.chenharryhua.nanjin.spark.kafka.{SKConfig, SparKafka}
 import com.github.chenharryhua.nanjin.spark.persist.{
@@ -13,9 +14,9 @@ import com.github.chenharryhua.nanjin.spark.persist.{
   RddAvroFileHoarder,
   RddFileHoarder
 }
-import com.sksamuel.avro4s.{Encoder => AvroEncoder}
-import frameless.TypedDataset
+import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
 import frameless.cats.implicits._
+import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import fs2.interop.reactivestreams._
 import org.apache.avro.Schema
@@ -58,8 +59,7 @@ private[spark] trait DatasetExtensions {
     def dismissNulls: TypedDataset[A]   = tds.deserialized.filter(_ != null)
     def numOfNulls[F[_]: Sync]: F[Long] = tds.except(dismissNulls).count[F]()
 
-    def dbUpload[F[_]: Sync](db: SparkTable[F, A]): DbUploader[F, A] =
-      tds.rdd.dbUpload(db)
+    def dbUpload[F[_]: Sync](db: SparkTable[F, A]): DbUploader[F, A] = db.tableset(tds).upload
 
     def save[F[_]]: DatasetFileHoarder[F, A] = new DatasetFileHoarder[F, A](tds.dataset)
 
@@ -75,39 +75,44 @@ private[spark] trait DatasetExtensions {
 
   }
 
-  final class SparkWithDBSettings[F[_]](ss: SparkSession, dbSettings: DatabaseSettings)
-      extends Serializable {
-
-    def dataframe(tableName: String): DataFrame =
-      sd.unloadDF(dbSettings.hikariConfig, TableName.unsafeFrom(tableName), None, ss)
-
-    def genCaseClass(tableName: String): String  = dataframe(tableName).genCaseClass
-    def genSchema(tableName: String): Schema     = dataframe(tableName).genSchema
-    def genDatatype(tableName: String): DataType = dataframe(tableName).genDataType
-
-    def table[A](tableDef: TableDef[A]): SparkTable[F, A] = {
-      val cfg = STConfig(dbSettings.database, tableDef.tableName)
-      new SparkTable[F, A](tableDef, dbSettings, cfg, ss)
-    }
-  }
-
-  final class SparkWithKafkaContext[F[_]](ss: SparkSession, ctx: KafkaContext[F])
-      extends Serializable {
-
-    def topic[K, V](topicDef: TopicDef[K, V]): SparKafka[F, K, V] =
-      new SparKafka[F, K, V](
-        topicDef.in[F](ctx),
-        SKConfig(topicDef.topicName, ZoneId.systemDefault()),
-        ss)
-  }
-
   implicit final class SparkSessionExt(ss: SparkSession) extends Serializable {
 
-    def alongWith[F[_]](dbSettings: DatabaseSettings): SparkWithDBSettings[F] =
-      new SparkWithDBSettings[F](ss, dbSettings)
+    def alongWith[F[_]](dbSettings: DatabaseSettings): SparkDBContext[F] =
+      new SparkDBContext[F](ss, dbSettings)
 
-    def alongWith[F[_]](ctx: KafkaContext[F]): SparkWithKafkaContext[F] =
-      new SparkWithKafkaContext[F](ss, ctx)
+    def alongWith[F[_]](ctx: KafkaContext[F]): SparKafkaContext[F] =
+      new SparKafkaContext[F](ss, ctx)
 
   }
+}
+
+final class SparkDBContext[F[_]](ss: SparkSession, dbSettings: DatabaseSettings) extends Serializable {
+
+  def dataframe(tableName: String): DataFrame =
+    sd.unloadDF(dbSettings.hikariConfig, TableName.unsafeFrom(tableName), None, ss)
+
+  def genCaseClass(tableName: String): String  = dataframe(tableName).genCaseClass
+  def genSchema(tableName: String): Schema     = dataframe(tableName).genSchema
+  def genDatatype(tableName: String): DataType = dataframe(tableName).genDataType
+
+  def table[A](tableDef: TableDef[A]): SparkTable[F, A] = {
+    val cfg = STConfig(dbSettings.database, tableDef.tableName)
+    new SparkTable[F, A](tableDef, dbSettings, cfg, ss)
+  }
+
+  def table[A: AvroEncoder: AvroDecoder: SchemaFor: TypedEncoder](tableName: String): SparkTable[F, A] =
+    table[A](TableDef[A](TableName.unsafeFrom(tableName)))
+
+}
+
+final class SparKafkaContext[F[_]](ss: SparkSession, ctx: KafkaContext[F]) extends Serializable {
+
+  def topic[K, V](topicDef: TopicDef[K, V]): SparKafka[F, K, V] =
+    new SparKafka[F, K, V](topicDef.in[F](ctx), SKConfig(topicDef.topicName, ZoneId.systemDefault()), ss)
+
+  def topic[K, V](kt: KafkaTopic[F, K, V]): SparKafka[F, K, V] =
+    new SparKafka[F, K, V](kt.topicDef.in[F](ctx), SKConfig(kt.topicName, ZoneId.systemDefault()), ss)
+
+  def topic[K: SerdeOf, V: SerdeOf](topicName: String): SparKafka[F, K, V] =
+    topic(TopicDef[K, V](TopicName.unsafeFrom(topicName)))
 }

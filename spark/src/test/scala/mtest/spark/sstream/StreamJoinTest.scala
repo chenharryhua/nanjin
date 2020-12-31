@@ -1,18 +1,18 @@
 package mtest.spark.sstream
 
-import cats.effect.IO
-import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.kafka._
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import frameless.TypedDataset
-import mtest.spark.{contextShift, ctx, sparkSession, timer}
+import mtest.spark.{contextShift, sparKafka, sparkSession, timer}
 import org.apache.spark.sql.Dataset
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
+import org.apache.spark.sql.SparkSession
 
 object StreamJoinTestData {
+  implicit val ss: SparkSession = sparkSession
   final case class Foo(index: Int, name: String)
 
   final case class Bar(index: Int, age: Int)
@@ -21,7 +21,7 @@ object StreamJoinTestData {
 
   val barDS: Dataset[Bar] = TypedDataset.create(List(Bar(1, 1), Bar(2, 2), Bar(3, 3))).dataset
 
-  val fooTopic: KafkaTopic[IO, Int, Foo] = ctx.topic[Int, Foo]("spark.stream.table.join.test")
+  val fooTopic = sparKafka.topic[Int, Foo]("spark.stream.table.join.test")
 
   val fooData: List[NJProducerRecord[Int, Foo]] = List
     .fill(50)(Foo(0, "a"))
@@ -36,13 +36,14 @@ class StreamJoinTest extends AnyFunSuite {
   import sparkSession.implicits._
   test("stream-table join") {
     val path   = "./data/test/spark/sstream/stream-table-join"
-    val sender = fooTopic.sparKafka.prRdd(fooData).triggerEvery(1.seconds).upload
+    val sender = fooTopic.prRdd(fooData).triggerEvery(1.seconds).upload
 
-    val ss = fooTopic.sparKafka.sstream.transform { fooDS =>
-      fooDS.joinWith(barDS, fooDS("value.index") === barDS("index"), "inner").flatMap { case (foo, bar) =>
-        foo.value.map(x => FooBar(bar.index, x.name, bar.age))
-      }
-    }.fileSink(path).triggerEvery(1.seconds).queryStream
+    val ss =
+      fooTopic.sstream.transform { fooDS =>
+        fooDS.joinWith(barDS, fooDS("value.index") === barDS("index"), "inner").flatMap { case (foo, bar) =>
+          foo.value.map(x => FooBar(bar.index, x.name, bar.age))
+        }
+      }.fileSink(path).triggerEvery(1.seconds).queryStream
 
     ss.concurrently(sender).interruptAfter(8.seconds).compile.drain.unsafeRunSync()
 

@@ -25,13 +25,9 @@ import org.scalatest.funsuite.AnyFunSuite
 import java.sql.Date
 import java.time._
 import scala.util.Random
+import org.apache.spark.sql.SparkSession
 
-final case class DomainObject(
-  a: LocalDate,
-  b: Date,
-  c: ZonedDateTime,
-  d: OffsetDateTime,
-  e: Option[Instant])
+final case class DomainObject(a: LocalDate, b: Date, c: ZonedDateTime, d: OffsetDateTime, e: Option[Instant])
 
 final case class DBTable(a: LocalDate, b: LocalDate, c: Instant, d: Instant, e: Option[Instant])
 final case class PartialDBTable(a: LocalDate, b: LocalDate)
@@ -55,14 +51,14 @@ object DBTable {
 class SparkTableTest extends AnyFunSuite {
   implicit val zoneId: ZoneId = beijingTime
 
+  implicit val ss: SparkSession = sparkSession
+
   val codec: AvroCodec[DBTable]                  = AvroCodec[DBTable]
   implicit val te: TypedEncoder[DBTable]         = shapeless.cachedImplicit
   implicit val te2: TypedEncoder[PartialDBTable] = shapeless.cachedImplicit
   implicit val re: RowEncoder[DBTable]           = shapeless.cachedImplicit
 
   val table: TableDef[DBTable] = TableDef[DBTable](TableName("sparktest"), codec)
-
-  val sd: SparkWithDBSettings[IO] = sparkSession.alongWith[IO](postgres)
 
   val sample: DomainObject =
     DomainObject(
@@ -78,18 +74,18 @@ class SparkTableTest extends AnyFunSuite {
 
   test("sparkTable upload dataset to table") {
     val data = TypedDataset.create(List(sample.transformInto[DBTable]))
-    sd.table(table).tableset(data).upload.overwrite.run.unsafeRunSync()
+    sparkDB.table(table).tableset(data).upload.overwrite.run.unsafeRunSync()
 
   }
 
   test("dump and count") {
-    table.in[IO](postgres).dump.unsafeRunSync()
-    val dbc = sd.table(table).countDB
-    val dc  = sd.table(table).countDisk
+    sparkDB.table(table).dump.unsafeRunSync()
+    val dbc = sparkDB.table(table).countDB
+    val dc  = sparkDB.table(table).countDisk
 
-    val load = table.in[IO](postgres).fromDB.dataset
-    val l1   = table.in[IO](postgres).tableset(load).persist(StorageLevel.MEMORY_ONLY)
-    val l2   = table.in[IO](postgres).tableset(load.rdd).typedDataset
+    val load = sparkDB.table(table).fromDB.dataset
+    val l1   = sparkDB.table(table).tableset(load).persist(StorageLevel.MEMORY_ONLY)
+    val l2   = sparkDB.table(table).tableset(load.rdd).typedDataset
 
     assert(dbc == dc)
     assert(l1.typedDataset.except(l2).count[IO]().unsafeRunSync() == 0)
@@ -98,29 +94,22 @@ class SparkTableTest extends AnyFunSuite {
 
   test("partial db table") {
     val pt: TableDef[PartialDBTable] = TableDef[PartialDBTable](TableName("sparktest"))
-    val ptd: TypedDataset[PartialDBTable] = pt
-      .in[IO](postgres)
-      .withQuery("select a,b from sparktest")
-      .withReplayPathBuilder((_, _) => root + "dbdump")
-      .fromDB
-      .repartition(1)
-      .typedDataset
+    val ptd: TypedDataset[PartialDBTable] =
+      sparkDB
+        .table(pt)
+        .withQuery("select a,b from sparktest")
+        .withReplayPathBuilder((_, _) => root + "dbdump")
+        .fromDB
+        .repartition(1)
+        .typedDataset
     val pt2: TableDef[PartialDBTable] =
-      TableDef[PartialDBTable](
-        TableName("sparktest"),
-        AvroCodec[PartialDBTable],
-        "select a,b from sparktest")
+      TableDef[PartialDBTable](TableName("sparktest"), AvroCodec[PartialDBTable], "select a,b from sparktest")
 
-    val ptd2: TypedDataset[PartialDBTable] =
-      pt2.in[IO](postgres).fromDB.typedDataset
+    val ptd2: TypedDataset[PartialDBTable] = sparkDB.table(pt2).fromDB.typedDataset
 
     val pate = AvroTypedEncoder[PartialDBTable]
-    val ptd3: TypedDataset[PartialDBTable] = table
-      .in[IO](postgres)
-      .fromDB
-      .map(_.transformInto[PartialDBTable])(pate)
-      .flatMap(Option(_))(pate)
-      .typedDataset
+    val ptd3: TypedDataset[PartialDBTable] =
+      sparkDB.table(table).fromDB.map(_.transformInto[PartialDBTable])(pate).flatMap(Option(_))(pate).typedDataset
 
     assert(ptd.except(ptd2).count[IO]().unsafeRunSync() == 0)
     assert(ptd.except(ptd3).count[IO]().unsafeRunSync() == 0)
@@ -129,7 +118,7 @@ class SparkTableTest extends AnyFunSuite {
 
   val root = "./data/test/spark/database/postgres/"
 
-  val tb: SparkTable[IO, DBTable] = table.in[IO](postgres)
+  val tb: SparkTable[IO, DBTable] = sparkDB.table(table)
 
   val saver: DatasetAvroFileHoarder[IO, DBTable] = tb.fromDB.save
 
@@ -180,9 +169,9 @@ class SparkTableTest extends AnyFunSuite {
   }
   test("show schemas - spark does not respect not null") {
     println("--- spark ---")
-    println(sd.genCaseClass("sparktest"))
-    println(sd.genSchema("sparktest"))
-    println(sd.genDatatype("sparktest"))
+    println(sparkDB.genCaseClass("sparktest"))
+    println(sparkDB.genSchema("sparktest"))
+    println(sparkDB.genDatatype("sparktest"))
     println("--- db ---")
     println(postgres.genCaseClass[IO].unsafeRunSync())
   }

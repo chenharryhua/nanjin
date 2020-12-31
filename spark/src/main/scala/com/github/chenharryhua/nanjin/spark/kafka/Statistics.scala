@@ -47,10 +47,6 @@ final private[kafka] case class KafkaDataSummary(
 
 final case class MissingOffset(partition: Int, offset: Long)
 
-object MissingOffset {
-  implicit val teMissingOffset: TypedEncoder[MissingOffset] = shapeless.cachedImplicit
-}
-
 final case class Disorder(
   partition: Int,
   offset: Long,
@@ -59,10 +55,6 @@ final case class Disorder(
   nextTS: Long,
   msGap: Long,
   tsType: Int)
-
-object Disorder {
-  implicit val teDisorder: TypedEncoder[Disorder] = shapeless.cachedImplicit
-}
 
 final case class DuplicateRecord(partition: Int, offset: Long, num: Long)
 

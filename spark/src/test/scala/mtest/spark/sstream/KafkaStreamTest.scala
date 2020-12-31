@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.spark.kafka.{NJProducerRecord, _}
 import frameless.TypedEncoder
 import mtest.spark.persist.{Rooster, RoosterData}
-import mtest.spark.{contextShift, ctx, sparkSession, timer}
+import mtest.spark.{contextShift, ctx, sparKafka, sparkSession, timer}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.streaming.Trigger
 import org.scalatest.funsuite.AnyFunSuite
@@ -32,7 +32,9 @@ class KafkaStreamTest extends AnyFunSuite {
 
   test("console sink") {
     val rooster = roosterTopic.withTopicName("sstream.console.rooster").in(ctx)
-    val ss = rooster.sparKafka.sstream
+    val ss = sparKafka
+      .topic(rooster)
+      .sstream
       .checkpoint("./data/test/checkpoint")
       .map(x => x.newValue(x.value.map(_.index + 1)))
       .flatMap(x => x.value.map(_ => x))
@@ -51,7 +53,7 @@ class KafkaStreamTest extends AnyFunSuite {
       .showProgress
 
     val upload =
-      rooster.sparKafka.prRdd(data).batchSize(1).triggerEvery(0.5.seconds).upload.delayBy(2.second)
+      sparKafka.topic(rooster).prRdd(data).batchSize(1).triggerEvery(0.5.seconds).upload.delayBy(2.second)
 
     ss.concurrently(upload).interruptAfter(10.seconds).compile.drain.unsafeRunSync()
   }
@@ -60,14 +62,18 @@ class KafkaStreamTest extends AnyFunSuite {
     val rooster = roosterTopic.withTopicName("sstream.file.rooster").in(ctx)
 
     val path = root + "fileSink"
-    val ss = rooster.sparKafka.sstream.ignoreDataLoss
+    val ss = sparKafka
+      .topic(rooster)
+      .sstream
+      .ignoreDataLoss
       .fileSink(path)
       .triggerEvery(500.millisecond)
       .avro
       .withOptions(identity)
       .queryStream
 
-    val upload = rooster.sparKafka
+    val upload = sparKafka
+      .topic(rooster)
       .prRdd(data)
       .batchSize(10)
       .triggerEvery(0.1.second)
@@ -78,7 +84,7 @@ class KafkaStreamTest extends AnyFunSuite {
       .delayBy(3.second)
 
     (ss.concurrently(upload).interruptAfter(6.seconds).compile.drain >>
-      rooster.sparKafka.load.avro(path).count.map(println)).unsafeRunSync()
+      sparKafka.topic(rooster).load.avro(path).count.map(println)).unsafeRunSync()
   }
 
   test("date partition sink json - should be read back") {
@@ -86,7 +92,8 @@ class KafkaStreamTest extends AnyFunSuite {
 
     val path = root + "date_partition"
 
-    val ss = rooster.sparKafka
+    val ss = sparKafka
+      .topic(rooster)
       .withZoneId(sydneyTime)
       .sstream
       .progressInterval(1000)
@@ -99,18 +106,29 @@ class KafkaStreamTest extends AnyFunSuite {
       .showProgress
 
     val upload =
-      rooster.sparKafka.prRdd(data).replicate(5).batchSize(1).triggerEvery(0.5.seconds).upload.delayBy(1.second).debug()
+      sparKafka
+        .topic(rooster)
+        .prRdd(data)
+        .replicate(5)
+        .batchSize(1)
+        .triggerEvery(0.5.seconds)
+        .upload
+        .delayBy(1.second)
+        .debug()
     ss.concurrently(upload).interruptAfter(6.seconds).compile.drain.unsafeRunSync()
     val ts        = NJTimestamp(Instant.now()).`Year=yyyy/Month=mm/Day=dd`(sydneyTime)
     val todayPath = path + "/" + ts
     assert(!File(todayPath).isEmpty, s"$todayPath does not exist")
-    rooster.sparKafka.load.json(todayPath).count.map(println).unsafeRunSync()
+    sparKafka.topic(rooster).load.json(todayPath).count.map(println).unsafeRunSync()
   }
 
   test("memory sink - validate kafka timestamp") {
     val rooster = roosterTopic.withTopicName("sstream.memory.rooster").in(ctx)
 
-    val ss = rooster.sparKafka.sstream.ignoreDataLoss
+    val ss = sparKafka
+      .topic(rooster)
+      .sstream
+      .ignoreDataLoss
       .memorySink("kafka")
       .trigger(Trigger.ProcessingTime(1000))
       .complete
@@ -118,7 +136,7 @@ class KafkaStreamTest extends AnyFunSuite {
       .queryStream
 
     val upload =
-      rooster.sparKafka.prRdd(data).batchSize(6).triggerEvery(1.second).upload.delayBy(3.second)
+      sparKafka.topic(rooster).prRdd(data).batchSize(6).triggerEvery(1.second).upload.delayBy(3.second)
     ss.concurrently(upload).interruptAfter(6.seconds).compile.drain.unsafeRunSync()
     import sparkSession.implicits._
     val now = Instant.now().getEpochSecond * 1000 //to millisecond

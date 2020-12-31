@@ -26,7 +26,7 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
   implicit val te2: TypedEncoder[CompulsoryV[Int, Rooster]]  = shapeless.cachedImplicit
   implicit val te3: TypedEncoder[CompulsoryKV[Int, Rooster]] = shapeless.cachedImplicit
 
-  val sk: SparkWithKafkaContext[IO]                       = sparkSession.alongWith(ctx)
+  val sk: SparKafkaContext[IO]                            = sparkSession.alongWith(ctx)
   implicit val te: TypedEncoder[OptionalKV[Int, Rooster]] = shapeless.cachedImplicit
   val root: String                                        = "./data/test/spark/kafka/load/rooster/"
 

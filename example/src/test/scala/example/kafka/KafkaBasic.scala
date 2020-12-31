@@ -1,7 +1,6 @@
 package example.kafka
 
 import cats.derived.auto.show._
-import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaTopicSyntax
 import example._
 import example.topics.fooTopic
 import frameless.TypedEncoder
@@ -42,11 +41,13 @@ class KafkaBasic extends AnyFunSuite {
 
   val path = "./data/example/foo.json"
   test("persist messages to local disk") {
-    fooTopic.sparKafka.fromKafka.save.circe(path).file.run(blocker).unsafeRunSync()
+    sparKafka.topic(fooTopic).fromKafka.save.circe(path).file.run(blocker).unsafeRunSync()
   }
 
   test("populate topic using persisted data") {
-    fooTopic.sparKafka.load
+    sparKafka
+      .topic(fooTopic)
+      .load
       .circe(path)
       .prRdd
       .batchSize(1) // send 1 message

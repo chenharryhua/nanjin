@@ -13,6 +13,7 @@ import cats.derived.auto.eq._
 import org.apache.spark.rdd.RDD
 
 import scala.util.Random
+import org.apache.spark.sql.SparkSession
 
 object JoinTestData {
   final case class Brother(id: Int, rel: String)
@@ -46,6 +47,7 @@ object JoinTestData {
 
 class MiscTest extends AnyFunSuite {
   import JoinTestData._
+  implicit val ss: SparkSession = sparkSession
   test("spark left join") {
     val db = TypedDataset.create(brothers)
     val ds = TypedDataset.create(sisters)

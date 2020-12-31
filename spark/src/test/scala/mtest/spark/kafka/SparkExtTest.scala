@@ -7,9 +7,10 @@ import com.github.chenharryhua.nanjin.spark.kafka._
 import com.landoop.transportation.nyc.trip.yellow.trip_record
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
-import mtest.spark.{akkaSystem, blocker, contextShift, ctx, sparkSession}
+import mtest.spark.{akkaSystem, blocker, contextShift, ctx, sparKafka, sparkSession}
 import org.apache.spark.rdd.RDD
 import org.scalatest.funsuite.AnyFunSuite
+import org.apache.spark.sql.SparkSession
 
 object SparkExtTestData {
   final case class Foo(a: Int, b: String)
@@ -21,17 +22,20 @@ class SparkExtTest extends AnyFunSuite {
   implicit val te2: TypedEncoder[OptionalKV[String, trip_record]] = shapeless.cachedImplicit
   implicit val te3: TypedEncoder[SparkExtTestData.Foo]            = shapeless.cachedImplicit
 
+  implicit val ss: SparkSession = sparkSession
+
   val topic: KafkaTopic[IO, String, trip_record] =
     ctx.topic[String, trip_record]("nyc_yellow_taxi_trip_data")
 
   val ate: AvroTypedEncoder[OptionalKV[String, trip_record]] = OptionalKV.ate(topic.topicDef)
 
   test("stream") {
-    topic.sparKafka.fromKafka.crDS.typedDataset.stream[IO].compile.drain.unsafeRunSync
+    sparKafka.topic(topic).fromKafka.crDS.typedDataset.stream[IO].compile.drain.unsafeRunSync
   }
   test("source") {
-    topic
-      .sparKafka(range)
+    sparKafka
+      .topic(topic)
+      .withTimeRange(range)
       .fromKafka
       .crDS
       .ascendTimestamp
@@ -44,8 +48,7 @@ class SparkExtTest extends AnyFunSuite {
   }
 
   test("sparKafka rdd deal with primitive null ") {
-    val rdd: RDD[Int] =
-      sparkSession.sparkContext.parallelize(List(1, null.asInstanceOf[Int], 3))
+    val rdd: RDD[Int] = sparkSession.sparkContext.parallelize(List(1, null.asInstanceOf[Int], 3))
     assert(rdd.dismissNulls.collect().toList == List(1, 0, 3))
     assert(rdd.numOfNulls == 0)
   }

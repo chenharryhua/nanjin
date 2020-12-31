@@ -5,6 +5,7 @@ import frameless.TypedDataset
 import mtest.spark.sparkSession
 import org.locationtech.jts.geom.{Coordinate, GeometryFactory, Point, Polygon}
 import org.scalatest.funsuite.AnyFunSuite
+import org.apache.spark.sql.SparkSession
 
 object GeoTestData {
   val c1 = new Coordinate(0, 0)
@@ -26,6 +27,7 @@ object GeoTestData {
 
 class GeoTest extends AnyFunSuite {
   import GeoTestData._
+  implicit val ss: SparkSession = sparkSession
   test("return polygen if point is inside its boundary") {
     val pc = PolygonCollection[Polygon](List(polygon1), identity)
     assert(pc.find(gf.createPoint(new Coordinate(0.5, 0.5))).isDefined)
