@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.database
 
 import cats.effect.{Blocker, Concurrent, ContextShift}
-import cats.syntax.apply.catsSyntaxApply
 import com.github.chenharryhua.nanjin.database.{DatabaseName, DatabaseSettings, TableName}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.loaders
@@ -28,14 +27,14 @@ final class SparkDBTable[F[_], A](
   def withReplayPathBuilder(f: (DatabaseName, TableName) => String): SparkDBTable[F, A] =
     new SparkDBTable[F, A](tableDef, dbSettings, cfg.withReplayPathBuilder(f), sparkSession)
 
-  def fromDB: TableDataset[F, A] = {
+  def fromDB: TableDS[F, A] = {
     val df =
       sd.unloadDF(dbSettings.hikariConfig, tableDef.tableName, params.query.orElse(tableDef.unloadQuery), sparkSession)
-    new TableDataset[F, A](ate.normalizeDF(df).dataset, dbSettings, cfg, ate)
+    new TableDS[F, A](ate.normalizeDF(df).dataset, tableDef, dbSettings, cfg)
   }
 
-  def fromDisk: TableDataset[F, A] =
-    new TableDataset[F, A](loaders.objectFile(params.replayPath, ate, sparkSession).dataset, dbSettings, cfg, ate)
+  def fromDisk: TableDS[F, A] =
+    new TableDS[F, A](loaders.objectFile(params.replayPath, ate, sparkSession).dataset, tableDef, dbSettings, cfg)
 
   def countDisk: Long = fromDisk.dataset.count
 
@@ -48,20 +47,17 @@ final class SparkDBTable[F[_], A](
       .as[Long](TypedExpressionEncoder[Long])
       .head()
 
-  def dump(implicit F: Concurrent[F], cs: ContextShift[F]): F[Long] =
-    Blocker[F].use { blocker =>
-      val db = fromDB
-      db.save.objectFile(params.replayPath).overwrite.run(blocker) *> F.delay(db.dataset.count())
-    }
+  def dump(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
+    Blocker[F].use(blocker => fromDB.save.objectFile(params.replayPath).overwrite.run(blocker))
 
-  def tableset(ds: Dataset[A]): TableDataset[F, A] =
-    new TableDataset[F, A](ate.normalize(ds).dataset, dbSettings, cfg, ate)
+  def tableset(ds: Dataset[A]): TableDS[F, A] =
+    new TableDS[F, A](ate.normalize(ds).dataset, tableDef, dbSettings, cfg)
 
-  def tableset(tds: TypedDataset[A]): TableDataset[F, A] =
-    new TableDataset[F, A](ate.normalize(tds).dataset, dbSettings, cfg, ate)
+  def tableset(tds: TypedDataset[A]): TableDS[F, A] =
+    new TableDS[F, A](ate.normalize(tds).dataset, tableDef, dbSettings, cfg)
 
-  def tableset(rdd: RDD[A]): TableDataset[F, A] =
-    new TableDataset[F, A](ate.normalize(rdd, sparkSession).dataset, dbSettings, cfg, ate)
+  def tableset(rdd: RDD[A]): TableDS[F, A] =
+    new TableDS[F, A](ate.normalize(rdd, sparkSession).dataset, tableDef, dbSettings, cfg)
 
   def load: LoadTableFile[F, A] = new LoadTableFile[F, A](this)
 

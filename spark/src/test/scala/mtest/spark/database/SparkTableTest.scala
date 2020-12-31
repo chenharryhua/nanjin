@@ -105,9 +105,13 @@ class SparkTableTest extends AnyFunSuite {
 
     val ptd2: TypedDataset[PartialDBTable] = sparkDB.table(pt2).fromDB.typedDataset
 
-    val pate = AvroTypedEncoder[PartialDBTable]
     val ptd3: TypedDataset[PartialDBTable] =
-      sparkDB.table(table).fromDB.map(_.transformInto[PartialDBTable])(pate).flatMap(Option(_))(pate).typedDataset
+      sparkDB
+        .table(table)
+        .fromDB
+        .map(_.transformInto[PartialDBTable])(pt.tableDef)
+        .flatMap(Option(_))(pt.tableDef)
+        .typedDataset
 
     assert(ptd.except(ptd2).count[IO]().unsafeRunSync() == 0)
     assert(ptd.except(ptd3).count[IO]().unsafeRunSync() == 0)

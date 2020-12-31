@@ -14,16 +14,16 @@ import org.apache.spark.rdd.RDD
 import scala.concurrent.duration.FiniteDuration
 
 final class PrRdd[F[_], K, V] private[kafka] (
-  val topic: KafkaTopic[F, K, V],
   val rdd: RDD[NJProducerRecord[K, V]],
-  val cfg: SKConfig
+  topic: KafkaTopic[F, K, V],
+  cfg: SKConfig
 ) extends Serializable {
 
   val params: SKParams = cfg.evalConfig
 
   // config
   private def updateCfg(f: SKConfig => SKConfig): PrRdd[F, K, V] =
-    new PrRdd[F, K, V](topic, rdd, f(cfg))
+    new PrRdd[F, K, V](rdd, topic, f(cfg))
 
   def triggerEvery(ms: Long): PrRdd[F, K, V]           = updateCfg(_.withUploadInterval(ms))
   def triggerEvery(ms: FiniteDuration): PrRdd[F, K, V] = updateCfg(_.withUploadInterval(ms))
@@ -35,7 +35,7 @@ final class PrRdd[F[_], K, V] private[kafka] (
 
   // transform
   def transform(f: RDD[NJProducerRecord[K, V]] => RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
-    new PrRdd[F, K, V](topic, f(rdd), cfg)
+    new PrRdd[F, K, V](f(rdd), topic, cfg)
 
   def partitionOf(num: Int): PrRdd[F, K, V] = transform(_.filter(_.partition.exists(_ === num)))
 
@@ -54,7 +54,7 @@ final class PrRdd[F[_], K, V] private[kafka] (
 
   def replicate(num: Int): PrRdd[F, K, V] = {
     val rep = (1 until num).foldLeft(rdd) { case (r, _) => r.union(rdd) }
-    new PrRdd[F, K, V](topic, rep, cfg)
+    new PrRdd[F, K, V](rep, topic, cfg)
   }
 
   // actions
