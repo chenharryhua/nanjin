@@ -60,7 +60,7 @@ class SortTest extends AnyFunSuite {
   }
   test("disorders") {
     assert(crRdd.stats.disorders.dataset.count() == 4)
-    crRdd.stats.summary.unsafeRunSync()
+    crRdd.stats.showSummary.unsafeRunSync()
   }
   test("dup") {
     assert(crRdd.stats.dupRecords.dataset.count == 1)

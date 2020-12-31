@@ -72,7 +72,7 @@ class SparKafkaTest extends AnyFunSuite {
     sparKafka.topic(topic).withTimeRange(range).fromKafka.stats.hourly.unsafeRunSync
   }
   test("sparKafka read topic from kafka and show summary") {
-    sparKafka.topic(topic).withTimeRange(range).fromKafka.stats.summary.unsafeRunSync
+    sparKafka.topic(topic).withTimeRange(range).fromKafka.stats.showSummary.unsafeRunSync
   }
   test("sparKafka should be able to bimap to other topic") {
     val src: KafkaTopic[IO, Int, Int]          = ctx.topic[Int, Int]("src.topic")
