@@ -1,13 +1,14 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import mtest.spark.{ctx, sparkSession}
+import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
+import mtest.spark.{ctx, sparKafka, sparkSession}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
 
 class SortTest extends AnyFunSuite {
-  val topic = ctx.topic[Int, Int]("topic")
-  val ate   = OptionalKV.ate(topic.topicDef)
+  val topic = TopicDef[Int, Int](TopicName("topic"))
+  val ate   = OptionalKV.ate(topic)
 
   val data = List(
     OptionalKV[Int, Int](0, 0, 40, Some(0), Some(Random.nextInt()), "topic", 0),
@@ -22,7 +23,7 @@ class SortTest extends AnyFunSuite {
     OptionalKV[Int, Int](2, 100, 100, Some(9), Some(Random.nextInt()), "topic", 0)
   )
   val rdd   = sparkSession.sparkContext.parallelize(data)
-  val crRdd = topic.sparKafka.crRdd(rdd)
+  val crRdd = sparKafka.topic(topic).crRdd(rdd)
   val crDS  = crRdd.crDS
   val prRdd = crRdd.prRdd
 
@@ -49,27 +50,13 @@ class SortTest extends AnyFunSuite {
 
   test("produce record") {
     assert(
-      prRdd.ascendTimestamp.rdd.collect().toList.map(_.key) == crRdd.ascendTimestamp.rdd
-        .collect()
-        .toList
-        .map(_.key))
+      prRdd.ascendTimestamp.rdd.collect().toList.map(_.key) == crRdd.ascendTimestamp.rdd.collect().toList.map(_.key))
 
+    assert(prRdd.ascendOffset.rdd.collect().toList.map(_.key) == crRdd.ascendOffset.rdd.collect().toList.map(_.key))
     assert(
-      prRdd.ascendOffset.rdd.collect().toList.map(_.key) == crRdd.ascendOffset.rdd
-        .collect()
-        .toList
-        .map(_.key))
-    assert(
-      prRdd.descendTimestamp.rdd.collect().toList.map(_.key) == crRdd.descendTimestamp.rdd
-        .collect()
-        .toList
-        .map(_.key))
+      prRdd.descendTimestamp.rdd.collect().toList.map(_.key) == crRdd.descendTimestamp.rdd.collect().toList.map(_.key))
 
-    assert(
-      prRdd.descendOffset.rdd.collect().toList.map(_.key) == crRdd.descendOffset.rdd
-        .collect()
-        .toList
-        .map(_.key))
+    assert(prRdd.descendOffset.rdd.collect().toList.map(_.key) == crRdd.descendOffset.rdd.collect().toList.map(_.key))
   }
   test("disorders") {
     assert(crRdd.stats.disorders.dataset.count() == 4)

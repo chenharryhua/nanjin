@@ -4,12 +4,11 @@ import cats.effect.IO
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark.injection._
-import com.github.chenharryhua.nanjin.spark.kafka._
 import frameless.cats.implicits._
-import mtest.spark.{blocker, contextShift, ctx, sparkSession}
+import io.circe.generic.auto._
+import mtest.spark.{blocker, contextShift, ctx, sparKafka}
 import org.scalatest.funsuite.AnyFunSuite
 import shapeless._
-import io.circe.generic.auto._
 
 object KafkaAvroTestData {
   final case class Child1(a: Int, b: String)
@@ -54,13 +53,13 @@ class KafkaAvroTest extends AnyFunSuite {
   test("sparKafka not work with case object -- task serializable issue(avro4s) - happy failure") {
     val data = List(topicCO.fs2PR(0, co1), topicCO.fs2PR(1, co2))
     val path = "./data/test/spark/kafka/coproduct/caseobject.avro"
-    val sk   = topicCO.sparKafka
+    val sk   = sparKafka.topic(topicCO.topicDef)
 
     val run = topicCO.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicCO.schemaRegister >>
       topicCO.send(data) >>
       sk.fromKafka.save.avro(path).file.run(blocker) >>
-      IO(topicCO.sparKafka.load.rdd.avro(path).rdd.collect().toSet)
+      IO(sk.load.rdd.avro(path).rdd.collect().toSet)
     intercept[Exception](run.unsafeRunSync().flatMap(_.value) == Set(co1, co2))
   }
 
@@ -69,7 +68,7 @@ class KafkaAvroTest extends AnyFunSuite {
     val avroPath    = "./data/test/spark/kafka/coproduct/scalaenum.avro"
     val jacksonPath = "./data/test/spark/kafka/coproduct/scalaenum.jackson.json"
     val circePath   = "./data/test/spark/kafka/coproduct/scalaenum.circe.json"
-    val sk          = topicEnum.sparKafka
+    val sk          = sparKafka.topic(topicEnum.topicDef)
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegister >>
@@ -77,7 +76,7 @@ class KafkaAvroTest extends AnyFunSuite {
       sk.fromKafka.save.avro(avroPath).file.run(blocker) >>
       sk.fromKafka.save.jackson(jacksonPath).file.run(blocker) >>
       sk.fromKafka.save.circe(circePath).file.run(blocker) >>
-      IO(topicEnum.sparKafka.load.rdd.avro(avroPath).rdd.take(10).toSet)
+      IO(sk.load.rdd.avro(avroPath).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
 
     val avro =
@@ -97,38 +96,38 @@ class KafkaAvroTest extends AnyFunSuite {
   test("sparKafka should be sent to kafka and save to multi avro") {
     val data = List(topicEnum.fs2PR(0, en1), topicEnum.fs2PR(1, en2))
     val path = "./data/test/spark/kafka/coproduct/multi-scalaenum.avro"
-    val sk   = topicEnum.sparKafka
+    val sk   = sparKafka.topic(topicEnum.topicDef)
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegister >>
       topicEnum.send(data) >>
       sk.fromKafka.save.avro(path).folder.run(blocker) >>
-      IO(topicEnum.sparKafka.load.rdd.avro(path).rdd.take(10).toSet)
+      IO(sk.load.rdd.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 
   test("should be sent to kafka and save to multi snappy avro") {
     val data = List(topicEnum.fs2PR(0, en1), topicEnum.fs2PR(1, en2))
     val path = "./data/test/spark/kafka/coproduct/multi-scalaenum.snappy.avro"
-    val sk   = topicEnum.sparKafka
+    val sk   = sparKafka.topic(topicEnum.topicDef)
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegister >>
       topicEnum.send(data) >>
       sk.fromKafka.save.avro(path).folder.snappy.run(blocker) >>
-      IO(topicEnum.sparKafka.load.rdd.avro(path).rdd.take(10).toSet)
+      IO(sk.load.rdd.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
   test("should be sent to kafka and save to single snappy avro") {
     val data = List(topicEnum.fs2PR(0, en1), topicEnum.fs2PR(1, en2))
     val path = "./data/test/spark/kafka/coproduct/single-scalaenum.snappy.avro"
-    val sk   = topicEnum.sparKafka
+    val sk   = sparKafka.topic(topicEnum.topicDef)
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegister >>
       topicEnum.send(data) >>
       sk.fromKafka.save.avro(path).file.snappy.run(blocker) >>
-      IO(topicEnum.sparKafka.load.rdd.avro(path).rdd.take(10).toSet)
+      IO(sk.load.rdd.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 }

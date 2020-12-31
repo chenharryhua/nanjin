@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.cats.implicits._
 import io.circe.generic.auto._
-import mtest.spark.{blocker, contextShift, ctx, sparkSession}
+import mtest.spark.{blocker, contextShift, ctx, sparKafka, sparkSession}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
@@ -80,7 +80,7 @@ class DecimalTopicTest extends AnyFunSuite {
     topic.schemaRegister >>
     topic.send(1, data) >> topic.send(2, data)).unsafeRunSync()
 
-  val stopic = sparkSession.alongWith(ctx).topic(topicDef)
+  val stopic = sparKafka.topic(topicDef)
 
   test("sparKafka kafka and spark agree on circe") {
     val path = "./data/test/spark/kafka/decimal.circe.json"

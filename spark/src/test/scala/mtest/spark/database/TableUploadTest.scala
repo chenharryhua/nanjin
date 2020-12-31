@@ -52,7 +52,7 @@ object TableUploadTestData {
   implicit val te: TypedEncoder[Beaver] = shapeless.cachedImplicit
 
   val table: SparkTable[IO, Beaver] =
-    TableDef[Beaver](TableName("upload"), codec).in[IO](postgres)
+    sparkDB.table(TableDef[Beaver](TableName("upload"), codec))
 
   val data: RDD[Beaver] = sparkSession.sparkContext.parallelize(
     List(
@@ -66,15 +66,7 @@ class TableUploadTest extends AnyFunSuite {
   import TableUploadTestData._
 
   test("upload") {
-    tds
-      .dbUpload(table)
-      .append
-      .errorIfExists
-      .ignoreIfExists
-      .overwrite
-      .withTableName("upload")
-      .run
-      .unsafeRunSync()
+    tds.dbUpload(table).append.errorIfExists.ignoreIfExists.overwrite.withTableName("upload").run.unsafeRunSync()
   }
 
   test("dump and reload") {

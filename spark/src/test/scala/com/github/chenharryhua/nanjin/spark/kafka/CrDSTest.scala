@@ -5,13 +5,11 @@ import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJDateTimeRange}
 import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark._
 import frameless.TypedEncoder
 import io.scalaland.chimney.dsl._
 import mtest.spark.persist.{Rooster, RoosterData}
-import mtest.spark.{ctx, sparkSession}
+import mtest.spark.{ctx, sparKafka}
 import org.apache.spark.sql.types._
-import org.apache.spark.storage.StorageLevel
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
@@ -36,17 +34,16 @@ class CrDSTest extends AnyFunSuite {
   implicit val te2: TypedEncoder[RoosterLike]              = shapeless.cachedImplicit
   implicit val te3: TypedEncoder[RoosterLike2]             = shapeless.cachedImplicit
 
-  val sk         = sparkSession.alongWith(ctx)
   val rooster    = TopicDef[Long, Rooster](TopicName("rooster"), Rooster.avroCodec)
   val roosterATE = OptionalKV.ate(rooster)
 
   val roosterLike =
-    TopicDef[Long, RoosterLike](TopicName("roosterLike"), AvroCodec[RoosterLike]).in(ctx)
+    TopicDef[Long, RoosterLike](TopicName("roosterLike"), AvroCodec[RoosterLike])
 
   val roosterLike2 =
-    TopicDef[Long, RoosterLike2](TopicName("roosterLike2"), AvroCodec[RoosterLike2]).in(ctx)
+    TopicDef[Long, RoosterLike2](TopicName("roosterLike2"), AvroCodec[RoosterLike2])
 
-  val crRdd: CrRdd[IO, Long, Rooster] = sk
+  val crRdd: CrRdd[IO, Long, Rooster] = sparKafka
     .topic(rooster)
     .crRdd(RoosterData.rdd.zipWithIndex.map { case (r, i) =>
       OptionalKV(0, i, Instant.now.getEpochSecond * 1000 + i, Some(i), Some(r), "rooster", 0)
@@ -75,9 +72,9 @@ class CrDSTest extends AnyFunSuite {
   }
 
   test("bimap") {
-    val r = crRdd.normalize.bimap(identity, RoosterLike(_))(roosterLike).rdd.collect().flatMap(_.value).toSet
+    val r = crRdd.normalize.bimap(identity, RoosterLike(_))(roosterLike.in(ctx)).rdd.collect().flatMap(_.value).toSet
 
-    val ds = crDS.normalize.bimap(identity, RoosterLike(_))(roosterLike).dataset
+    val ds = crDS.normalize.bimap(identity, RoosterLike(_))(roosterLike.in(ctx)).dataset
     val d  = ds.collect().flatMap(_.value).toSet
 
     assert(ds.schema == expectSchema)
@@ -86,8 +83,13 @@ class CrDSTest extends AnyFunSuite {
 
   test("map") {
     val r =
-      crRdd.normalize.map(x => x.newValue(x.value.map(RoosterLike(_))))(roosterLike).rdd.collect.flatMap(_.value).toSet
-    val ds = crDS.normalize.map(_.bimap(identity, RoosterLike(_)))(roosterLike).dataset
+      crRdd.normalize
+        .map(x => x.newValue(x.value.map(RoosterLike(_))))(roosterLike.in(ctx))
+        .rdd
+        .collect
+        .flatMap(_.value)
+        .toSet
+    val ds = crDS.normalize.map(_.bimap(identity, RoosterLike(_)))(roosterLike.in(ctx)).dataset
     val d  = ds.collect.flatMap(_.value).toSet
     assert(ds.schema == expectSchema)
     assert(r == d)
@@ -96,11 +98,11 @@ class CrDSTest extends AnyFunSuite {
   test("flatMap") {
     val r = crRdd.normalize.flatMap { x =>
       x.value.flatMap(RoosterLike2(_)).map(y => x.newValue(Some(y)).newKey(x.key))
-    }(roosterLike2).rdd.collect().flatMap(_.value).toSet
+    }(roosterLike2.in(ctx)).rdd.collect().flatMap(_.value).toSet
 
     val d = crDS.normalize.flatMap { x =>
       x.value.flatMap(RoosterLike2(_)).map(y => x.newValue(Some(y)))
-    }(roosterLike2).dataset.collect.flatMap(_.value).toSet
+    }(roosterLike2.in(ctx)).dataset.collect.flatMap(_.value).toSet
 
     assert(r == d)
   }

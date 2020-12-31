@@ -13,6 +13,7 @@ import frameless.TypedDataset
 import frameless.cats.implicits._
 import mtest.spark.{contextShift, sparkSession}
 import org.scalatest.funsuite.AnyFunSuite
+import org.apache.spark.sql.SparkSession
 
 object InvestigationTestData {
   final case class Mouse(size: Int, weight: Float)
@@ -72,6 +73,7 @@ object InvestigationTestData {
 
 class InvestigationTest extends AnyFunSuite {
   import InvestigationTestData._
+  implicit val ss: SparkSession = sparkSession
 
   test("sparKafka identical") {
     val m1 = TypedDataset.create(mouses1)
