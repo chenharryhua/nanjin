@@ -52,10 +52,8 @@ final class PrRdd[F[_], K, V] private[kafka] (
   def noPartition: PrRdd[F, K, V] = transform(_.map(_.noPartition))
   def noMeta: PrRdd[F, K, V]      = transform(_.map(_.noMeta))
 
-  def replicate(num: Int): PrRdd[F, K, V] = {
-    val rep = (1 until num).foldLeft(rdd) { case (r, _) => r.union(rdd) }
-    new PrRdd[F, K, V](rep, topic, cfg)
-  }
+  def replicate(num: Int): PrRdd[F, K, V] =
+    transform(rdd => (1 until num).foldLeft(rdd) { case (r, _) => r.union(rdd) })
 
   // actions
   def pipeTo[K2, V2](other: KafkaTopic[F, K2, V2])(k: K => K2, v: V => V2)(implicit

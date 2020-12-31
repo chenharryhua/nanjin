@@ -42,8 +42,9 @@ final class CrRdd[F[_], K, V] private[kafka] (
 
   def normalize: CrRdd[F, K, V] = transform(_.map(codec.idConversion))
 
-  // maps
+  def dismissNulls: CrRdd[F, K, V] = transform(_.dismissNulls)
 
+  // maps
   def bimap[K2, V2](k: K => K2, v: V => V2)(other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
     new CrRdd[F, K2, V2](rdd.map(_.bimap(k, v)), other, cfg, ss).normalize
 
@@ -53,13 +54,6 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def flatMap[K2, V2](f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]])(
     other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
     new CrRdd[F, K2, V2](rdd.flatMap(f), other, cfg, ss).normalize
-
-  def dismissNulls: CrRdd[F, K, V] = transform(_.dismissNulls)
-
-  def replicate(num: Int): CrRdd[F, K, V] = {
-    val rep = (1 until num).foldLeft(rdd) { case (r, _) => r.union(rdd) }
-    new CrRdd[F, K, V](rep, topic, cfg, ss)
-  }
 
   // dataset
   def crDS(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {

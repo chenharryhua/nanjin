@@ -20,6 +20,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
 import scala.util.Random
+import cats.syntax.all._
 
 class KafkaUploadUnloadTest extends AnyFunSuite {
   implicit val te1: TypedEncoder[CompulsoryK[Int, Rooster]]  = shapeless.cachedImplicit
@@ -201,5 +202,8 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
 
     sa.parquet(parquet).run(blocker).unsafeRunSync()
     assert(topic.load.parquet(parquet).dataset.collect().flatMap(_.value).toSet == RoosterData.expected)
+  }
+  test("dump and replay") {
+    (topic.dump >> topic.replay >> topic.countDisk >> topic.countKafka).unsafeRunSync()
   }
 }
