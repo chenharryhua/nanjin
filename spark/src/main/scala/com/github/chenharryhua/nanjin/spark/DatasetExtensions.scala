@@ -81,10 +81,11 @@ private[spark] trait DatasetExtensions {
   }
 }
 
-final class SparkDBContext[F[_]](ss: SparkSession, dbSettings: DatabaseSettings) extends Serializable {
+final class SparkDBContext[F[_]](val sparkSession: SparkSession, val dbSettings: DatabaseSettings)
+    extends Serializable {
 
   def dataframe(tableName: String): DataFrame =
-    sd.unloadDF(dbSettings.hikariConfig, TableName.unsafeFrom(tableName), None, ss)
+    sd.unloadDF(dbSettings.hikariConfig, TableName.unsafeFrom(tableName), None, sparkSession)
 
   def genCaseClass(tableName: String): String  = dataframe(tableName).genCaseClass
   def genSchema(tableName: String): Schema     = dataframe(tableName).genSchema
@@ -92,7 +93,7 @@ final class SparkDBContext[F[_]](ss: SparkSession, dbSettings: DatabaseSettings)
 
   def table[A](tableDef: TableDef[A]): SparkDBTable[F, A] = {
     val cfg = STConfig(dbSettings.database, tableDef.tableName)
-    new SparkDBTable[F, A](tableDef, dbSettings, cfg, ss)
+    new SparkDBTable[F, A](tableDef, dbSettings, cfg, sparkSession)
   }
 
   def table[A: AvroEncoder: AvroDecoder: SchemaFor: TypedEncoder](tableName: String): SparkDBTable[F, A] =
@@ -100,10 +101,11 @@ final class SparkDBContext[F[_]](ss: SparkSession, dbSettings: DatabaseSettings)
 
 }
 
-final class SparKafkaContext[F[_]](ss: SparkSession, ctx: KafkaContext[F]) extends Serializable {
+final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaContext: KafkaContext[F])
+    extends Serializable {
 
   def topic[K, V](topicDef: TopicDef[K, V]): SparKafkaTopic[F, K, V] =
-    new SparKafkaTopic[F, K, V](topicDef.in[F](ctx), SKConfig(topicDef.topicName), ss)
+    new SparKafkaTopic[F, K, V](topicDef.in[F](kafkaContext), SKConfig(topicDef.topicName), sparkSession)
 
   def topic[K, V](kt: KafkaTopic[F, K, V]): SparKafkaTopic[F, K, V] =
     topic[K, V](kt.topicDef)

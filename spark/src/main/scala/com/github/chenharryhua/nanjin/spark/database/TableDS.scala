@@ -35,7 +35,7 @@ final class TableDS[F[_], A] private[database] (
   def typedDataset: TypedDataset[A] = TypedDataset.create(dataset)(tableDef.avroTypedEncoder.typedEncoder)
 
   def upload: DbUploader[F, A] =
-    new DbUploader[F, A](dataset, dbSettings, tableDef.avroTypedEncoder, cfg)
+    new DbUploader[F, A](dataset, dbSettings, cfg)
 
   def save: DatasetAvroFileHoarder[F, A] =
     new DatasetAvroFileHoarder[F, A](dataset, tableDef.avroTypedEncoder.avroCodec.avroEncoder)

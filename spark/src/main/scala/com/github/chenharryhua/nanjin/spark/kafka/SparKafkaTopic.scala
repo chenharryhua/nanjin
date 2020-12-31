@@ -4,7 +4,7 @@ import cats.Foldable
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Effect, Sync, Timer}
 import cats.syntax.foldable._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicName}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.github.chenharryhua.nanjin.spark.sstream.{SStreamConfig, SparkSStream}
@@ -18,11 +18,15 @@ import java.time.ZoneId
 final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKConfig, ss: SparkSession)
     extends Serializable {
 
+  val topicName: TopicName = topic.topicDef.topicName
+
   private def updateCfg(f: SKConfig => SKConfig): SparKafkaTopic[F, K, V] =
     new SparKafkaTopic[F, K, V](topic, f(cfg), ss)
 
   def withZoneId(zoneId: ZoneId): SparKafkaTopic[F, K, V]         = updateCfg(_.withZoneId(zoneId))
   def withTimeRange(tr: NJDateTimeRange): SparKafkaTopic[F, K, V] = updateCfg(_.withTimeRange(tr))
+  def withStartTime(str: String): SparKafkaTopic[F, K, V]         = updateCfg(_.withStartTime(str))
+  def withEndTime(str: String): SparKafkaTopic[F, K, V]           = updateCfg(_.withEndTime(str))
 
   val params: SKParams = cfg.evalConfig
 
