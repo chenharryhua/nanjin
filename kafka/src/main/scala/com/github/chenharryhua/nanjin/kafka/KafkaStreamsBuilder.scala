@@ -6,17 +6,16 @@ import cats.effect.concurrent.Deferred
 import cats.syntax.functor._
 import cats.syntax.monadError._
 import fs2.Stream
+import org.apache.kafka.streams.processor.StateStore
 import org.apache.kafka.streams.scala.StreamsBuilder
+import org.apache.kafka.streams.state.StoreBuilder
 import org.apache.kafka.streams.{KafkaStreams, Topology}
 
 final case class UncaughtKafkaStreamingException(thread: Thread, ex: Throwable) extends Exception(ex.getMessage)
 
 final case class KafkaStreamingStartupException() extends Exception("failed to start kafka streaming")
 
-final class KafkaStreamsBuilder[F[_]](
-  builder: StreamsBuilder,
-  settings: KafkaStreamSettings,
-  top: Reader[StreamsBuilder, Unit]) {
+final class KafkaStreamsBuilder[F[_]](settings: KafkaStreamSettings, top: Reader[StreamsBuilder, Unit]) {
 
   final private class StreamErrorHandler(deferred: Deferred[F, UncaughtKafkaStreamingException], F: ConcurrentEffect[F])
       extends Thread.UncaughtExceptionHandler {
@@ -44,8 +43,7 @@ final class KafkaStreamsBuilder[F[_]](
       latch <- Stream.eval(Deferred[F, Either[KafkaStreamingStartupException, Unit]])
       kss <-
         Stream
-          .bracket(F.delay(new KafkaStreams(topology, settings.javaProperties)))(ks =>
-            F.delay { ks.close(); ks.cleanUp() })
+          .bracket(F.delay(new KafkaStreams(topology, settings.javaProperties)))(ks => F.delay(ks.close()))
           .evalMap(ks =>
             F.delay {
               ks.setUncaughtExceptionHandler(new StreamErrorHandler(errorListener, F))
@@ -56,7 +54,11 @@ final class KafkaStreamsBuilder[F[_]](
       _ <- Stream.eval(latch.get.rethrow)
     } yield kss
 
+//  def addStateStore(storeBuilder: StoreBuilder[_ <: StateStore]): KafkaStreamsBuilder[F] =
+//    new KafkaStreamsBuilder[F](new StreamsBuilder(builder.addStateStore(storeBuilder)), settings, top)
+
   def topology: Topology = {
+    val builder: StreamsBuilder = new StreamsBuilder()
     top.run(builder)
     builder.build()
   }
