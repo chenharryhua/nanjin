@@ -87,8 +87,7 @@ final case class CompatibilityTestReport(
     key.flatMap(k => value.map(v => k && v)).fold(_ => false, identity)
 }
 
-final class SchemaRegistryApi[F[_]](srs: SchemaRegistrySettings)(implicit F: Sync[F])
-    extends Serializable {
+final class SchemaRegistryApi[F[_]](srs: SchemaRegistrySettings)(implicit F: Sync[F]) extends Serializable {
 
   private val csrClient: Resource[F, CachedSchemaRegistryClient] =
     Resource.make[F, CachedSchemaRegistryClient](
@@ -112,18 +111,12 @@ final class SchemaRegistryApi[F[_]](srs: SchemaRegistrySettings)(implicit F: Syn
     }
   }
 
-  def genCaseClass(topicName: TopicName): F[String] = kvSchema(topicName).map(_.show)
-
-  def register(
-    topicName: TopicName,
-    keySchema: Schema,
-    valSchema: Schema): F[(Option[Int], Option[Int])] = {
+  def register(topicName: TopicName, keySchema: Schema, valSchema: Schema): F[(Option[Int], Option[Int])] = {
     val loc = SchemaLocation(topicName)
     csrClient.use { client =>
       (
         F.delay(client.register(loc.keyLoc, new AvroSchema(keySchema))).attempt.map(_.toOption),
-        F.delay(client.register(loc.valLoc, new AvroSchema(valSchema))).attempt.map(_.toOption))
-        .mapN((_, _))
+        F.delay(client.register(loc.valLoc, new AvroSchema(valSchema))).attempt.map(_.toOption)).mapN((_, _))
     }
   }
 
@@ -131,19 +124,12 @@ final class SchemaRegistryApi[F[_]](srs: SchemaRegistrySettings)(implicit F: Syn
     val loc = SchemaLocation(topicName)
     csrClient.use { client =>
       (
-        F.delay(client.deleteSubject(loc.keyLoc).asScala.toList)
-          .attempt
-          .map(_.toOption.sequence.flatten),
-        F.delay(client.deleteSubject(loc.valLoc).asScala.toList)
-          .attempt
-          .map(_.toOption.sequence.flatten)).mapN((_, _))
+        F.delay(client.deleteSubject(loc.keyLoc).asScala.toList).attempt.map(_.toOption.sequence.flatten),
+        F.delay(client.deleteSubject(loc.valLoc).asScala.toList).attempt.map(_.toOption.sequence.flatten)).mapN((_, _))
     }
   }
 
-  def testCompatibility(
-    topicName: TopicName,
-    keySchema: Schema,
-    valSchema: Schema): F[CompatibilityTestReport] = {
+  def testCompatibility(topicName: TopicName, keySchema: Schema, valSchema: Schema): F[CompatibilityTestReport] = {
     val loc = SchemaLocation(topicName)
     csrClient.use { client =>
       val ks = new AvroSchema(keySchema)
@@ -151,8 +137,7 @@ final class SchemaRegistryApi[F[_]](srs: SchemaRegistrySettings)(implicit F: Syn
       (
         F.delay(client.testCompatibility(loc.keyLoc, ks)).attempt.map(_.leftMap(_.getMessage)),
         F.delay(client.testCompatibility(loc.valLoc, vs)).attempt.map(_.leftMap(_.getMessage)),
-        kvSchema(topicName)).mapN((k, v, m) =>
-        CompatibilityTestReport(topicName, srs, m, ks, vs, k, v))
+        kvSchema(topicName)).mapN((k, v, m) => CompatibilityTestReport(topicName, srs, m, ks, vs, k, v))
     }
   }
 }
