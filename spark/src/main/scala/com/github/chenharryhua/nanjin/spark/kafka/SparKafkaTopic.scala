@@ -20,6 +20,9 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
 
   val topicName: TopicName = topic.topicDef.topicName
 
+  def ate(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): AvroTypedEncoder[OptionalKV[K, V]] =
+    OptionalKV.ate(topic.topicDef)
+
   private def updateCfg(f: SKConfig => SKConfig): SparKafkaTopic[F, K, V] =
     new SparKafkaTopic[F, K, V](topic, f(cfg), ss)
 
@@ -54,10 +57,8 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   def crRdd(rdd: RDD[OptionalKV[K, V]]): CrRdd[F, K, V] =
     new CrRdd[F, K, V](rdd, topic, cfg, ss)
 
-  def crDS(df: DataFrame)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
-    val ate = OptionalKV.ate(topic.topicDef)
+  def crDS(df: DataFrame)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] =
     new CrDS(ate.normalizeDF(df).dataset, topic, cfg, tek, tev)
-  }
 
   def prRdd(rdd: RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] = new PrRdd[F, K, V](rdd, topic, cfg)
 
@@ -73,8 +74,6 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
       SStreamConfig(params.timeRange).withCheckpointBuilder(fmt =>
         s"./data/checkpoint/sstream/kafka/${topic.topicName.value}/${fmt.format}/"))
 
-  def sstream(implicit tek: TypedEncoder[K], tev: TypedEncoder[V], F: Sync[F]): SparkSStream[F, OptionalKV[K, V]] = {
-    val ate = OptionalKV.ate(topic.topicDef)
+  def sstream(implicit tek: TypedEncoder[K], tev: TypedEncoder[V], F: Sync[F]): SparkSStream[F, OptionalKV[K, V]] =
     sstream(identity, ate)
-  }
 }

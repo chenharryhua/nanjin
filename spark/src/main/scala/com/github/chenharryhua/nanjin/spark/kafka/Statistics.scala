@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.functions.aggregate.count
-import frameless.{Injection, TypedDataset, TypedEncoder}
+import frameless.{Injection, TypedDataset}
 import org.apache.spark.sql.Dataset
 
 import java.time.{LocalDate, ZoneId, ZonedDateTime}
@@ -18,7 +18,7 @@ final private[kafka] case class DailyAggResult(date: LocalDate, count: Long)
 final private[kafka] case class DailyHourAggResult(dateTime: ZonedDateTime, count: Long)
 final private[kafka] case class DailyMinuteAggResult(dateTime: ZonedDateTime, count: Long)
 
-final private[kafka] case class KafkaDataSummary(
+final case class KafkaSummary(
   partition: Int,
   startOffset: Long,
   endOffset: Long,
@@ -122,17 +122,17 @@ final class Statistics[F[_]] private[kafka] (
     res.orderBy(res('dateTime).asc).show[F](rowNum, isTruncate)
   }
 
-  private def kafkaSummary: TypedDataset[KafkaDataSummary] = {
+  def kafkaSummary: TypedDataset[KafkaSummary] = {
     import frameless.functions.aggregate.{max, min}
     val tds = typedDataset.distinct
     val res = tds
       .groupBy(tds('partition))
       .agg(min(tds('offset)), max(tds('offset)), count(tds.asCol), min(tds('timestamp)), max(tds('timestamp)))
-      .as[KafkaDataSummary]
+      .as[KafkaSummary]
     res.orderBy(res('partition).asc)
   }
 
-  def summary(implicit ev: Sync[F]): F[Unit] =
+  def showSummary(implicit ev: Sync[F]): F[Unit] =
     kafkaSummary.collect[F]().map(_.foreach(x => println(x.showData(zoneId))))
 
   /** Notes:
