@@ -30,20 +30,22 @@ object NJComsumerRecordTestData {
     offset <- Gen.posNum[Long]
     timestamp <- Gen.posNum[Long]
     timestampType <- Gen.oneOf(List(0, 1))
-  } yield OptionalKV(
-    partition,
-    offset,
-    timestamp,
-    Some(0),
-    if (Random.nextBoolean()) Some(1) else None,
-    "topic",
-    timestampType)
+    k <- Gen.option(Gen.posNum[Int])
+    v <- Gen.option(Gen.posNum[Int])
+  } yield OptionalKV(partition, offset, timestamp, k, v, "topic", timestampType)
 
+  val genPR: Gen[NJProducerRecord[Int, Int]] = for {
+    partition <- Gen.option(Gen.posNum[Int])
+    timestamp <- Gen.option(Gen.posNum[Long])
+    k <- Gen.option(Gen.posNum[Int])
+    v <- Gen.option(Gen.posNum[Int])
+  } yield NJProducerRecord(partition, None, timestamp, k, v)
+
+  implicit val arbPR = Arbitrary(genPR)
   implicit val arbKV = Arbitrary(kv)
   implicit val arbO  = Arbitrary(okv)
   implicit val arbK  = Arbitrary(kv.map(_.toCompulsoryK))
   implicit val arbV  = Arbitrary(kv.map(_.toCompulsoryV))
-  implicit val arbP  = Arbitrary(okv.map(_.toNJProducerRecord))
 }
 
 class NJComsumerRecordTest extends CatsSuite with FunSuiteDiscipline {
@@ -66,7 +68,7 @@ class NJComsumerRecordTest extends CatsSuite with FunSuiteDiscipline {
 class NJComsumerRecordProp extends Properties("ConsumerRecord") {
   import NJComsumerRecordTestData._
   import org.scalacheck.Prop.forAll
-  property("comsumer record idenitity") = forAll { (op: OptionalKV[Int, Int]) =>
+  property("comsumer.record.conversion") = forAll { (op: OptionalKV[Int, Int]) =>
     val ck   = op.toCompulsoryK
     val cv   = op.toCompulsoryV
     val ckkv = ck.flatMap(_.toCompulsoryKV)
@@ -74,22 +76,9 @@ class NJComsumerRecordProp extends Properties("ConsumerRecord") {
     val ckv  = op.toCompulsoryKV
     (ckv == ckkv) && (ckv == cvkv)
   }
-  property("producer record idenitity") = forAll { (op: OptionalKV[Int, Int]) =>
-    val ck  = op.toCompulsoryK.flatMap(_.toCompulsoryKV).map(_.toNJProducerRecord)
-    val cv  = op.toCompulsoryV.flatMap(_.toCompulsoryKV).map(_.toNJProducerRecord)
-    val ckv = op.toCompulsoryKV.map(_.toNJProducerRecord)
-    (ckv == ck) && (ckv == cv)
-  }
-  property("id conversion") = forAll { (op: OptionalKV[Int, Int]) =>
-    val fpr = op.toNJProducerRecord.toFs2ProducerRecord(op.topic)
-    val re = OptionalKV[Int, Int](
-      fpr.partition.get,
-      op.offset,
-      fpr.timestamp.get,
-      Option(fpr.key),
-      Option(fpr.value),
-      fpr.topic,
-      op.timestampType)
+  property("fs2.producer.record.conversion") = forAll { (op: NJProducerRecord[Int, Int]) =>
+    val fpr = op.toFs2ProducerRecord("topic")
+    val re  = NJProducerRecord[Int, Int](fpr.partition, None, fpr.timestamp, Option(fpr.key), Option(fpr.value))
     re == op
   }
 }
