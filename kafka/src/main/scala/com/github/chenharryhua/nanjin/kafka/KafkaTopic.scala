@@ -44,7 +44,9 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
     shortLiveConsumer.use(
       _.retrieveRecord(KafkaPartition(partition), KafkaOffset(offset)).map(_.map(decoder(_).tryDecodeKeyValue)))
 
-  override def toString: String = {
+  override def toString: String = topicName.value
+
+  def show: String = {
     import cats.derived.auto.show._
     s"""
        |topic: $topicName
@@ -83,5 +85,5 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
 }
 
 object KafkaTopic {
-  implicit def showKafkaTopic[F[_], K, V]: Show[KafkaTopic[F, K, V]] = _.toString
+  implicit def showKafkaTopic[F[_], K, V]: Show[KafkaTopic[F, K, V]] = _.show
 }
