@@ -40,8 +40,12 @@ import shapeless.cachedImplicit
   @SuppressWarnings(Array("AsInstanceOf"))
   def toFs2ProducerRecord(topicName: String): Fs2ProducerRecord[K, V] = {
     val pr = Fs2ProducerRecord(topicName, key.getOrElse(null.asInstanceOf[K]), value.getOrElse(null.asInstanceOf[V]))
-    val pt = partition.fold(pr)(pr.withPartition)
-    timestamp.fold(pt)(pt.withTimestamp)
+    (partition, timestamp) match {
+      case (None, None)       => pr
+      case (Some(p), None)    => pr.withPartition(p)
+      case (None, Some(t))    => pr.withTimestamp(t)
+      case (Some(p), Some(t)) => pr.withPartition(p).withTimestamp(t)
+    }
   }
 }
 
