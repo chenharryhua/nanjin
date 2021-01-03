@@ -138,10 +138,5 @@ object KafkaChannels {
     val gktable: Reader[StreamsBuilder, GlobalKTable[K, V]] =
       Reader(builder => builder.globalTable[K, V](topicName.value)(Consumed.`with`(keySerde, valueSerde)))
 
-//    def ktable(store: KafkaStore.InMemory[K, V]): Reader[StreamsBuilder, KTable[K, V]] =
-//      Reader(builder => builder.table[K, V](topicName.value, store.materialized)(Consumed.`with`(keySerde, valueSerde)))
-//
-//    def ktable(store: KafkaStore.Persistent[K, V]): Reader[StreamsBuilder, KTable[K, V]] =
-//      Reader(builder => builder.table[K, V](topicName.value, store.materialized)(Consumed.`with`(keySerde, valueSerde)))
   }
 }

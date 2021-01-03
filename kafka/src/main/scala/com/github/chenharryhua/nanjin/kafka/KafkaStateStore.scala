@@ -11,14 +11,11 @@ import org.apache.kafka.streams.scala.{
   ByteArrayWindowStore,
   StreamsBuilder
 }
-import org.apache.kafka.streams.state.{
-  KeyValueBytesStoreSupplier,
-  KeyValueStore,
-  SessionBytesStoreSupplier,
-  WindowBytesStoreSupplier
-}
+import org.apache.kafka.streams.state._
 
-final class KafkaStateStore[K, V](storeName: StoreName)(implicit keySerde: SerdeOf[K], valSerde: SerdeOf[V]) {
+import java.time.Duration
+
+final class KafkaStateStore[K, V] private[kafka] (storeName: StoreName, keySerde: SerdeOf[K], valSerde: SerdeOf[V]) {
 
   def materialized[S <: StateStore]: Materialized[K, V, S] =
     Materialized.as[K, V, S](storeName.value)(keySerde, valSerde)
@@ -45,4 +42,34 @@ final class KafkaStateStore[K, V](storeName: StoreName)(implicit keySerde: Serde
   def gtable(supplier: KeyValueBytesStoreSupplier): Reader[StreamsBuilder, GlobalKTable[K, V]] =
     Reader[StreamsBuilder, GlobalKTable[K, V]](
       _.globalTable(storeName.value, materialized(supplier))(Consumed.`with`(keySerde, valSerde)))
+
+  def inMemoryKeyValue: StoreBuilder[KeyValueStore[K, V]] =
+    Stores.keyValueStoreBuilder(Stores.inMemoryKeyValueStore(storeName.value), keySerde, valSerde)
+
+  def persistKeyValue: StoreBuilder[KeyValueStore[K, V]] =
+    Stores.keyValueStoreBuilder(Stores.persistentKeyValueStore(storeName.value), keySerde, valSerde)
+
+  def inMemoryWindow(
+    retentionPeriod: Duration,
+    windowSize: Duration,
+    retainDuplicates: Boolean): StoreBuilder[WindowStore[K, V]] =
+    Stores.windowStoreBuilder(
+      Stores.inMemoryWindowStore(storeName.value, retentionPeriod, windowSize, retainDuplicates),
+      keySerde,
+      valSerde)
+
+  def persistWindow(
+    retentionPeriod: Duration,
+    windowSize: Duration,
+    retainDuplicates: Boolean): StoreBuilder[WindowStore[K, V]] =
+    Stores.windowStoreBuilder(
+      Stores.persistentWindowStore(storeName.value, retentionPeriod, windowSize, retainDuplicates),
+      keySerde,
+      valSerde)
+}
+
+object KafkaStateStore {
+
+  def apply[K: SerdeOf, V: SerdeOf](storeName: StoreName): KafkaStateStore[K, V] =
+    new KafkaStateStore[K, V](storeName, SerdeOf[K], SerdeOf[V])
 }
