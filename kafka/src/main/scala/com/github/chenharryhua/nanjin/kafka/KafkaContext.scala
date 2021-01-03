@@ -28,7 +28,7 @@ sealed abstract class KafkaContext[F[_]](val settings: KafkaSettings) extends Se
     topic[K, V](TopicDef[K, V](TopicName.unsafeFrom(topicName)))
 
   final def buildStreams(topology: Reader[StreamsBuilder, Unit]): KafkaStreamsBuilder[F] =
-    new KafkaStreamsBuilder[F](new StreamsBuilder(), settings.streamSettings, topology)
+    new KafkaStreamsBuilder[F](settings.streamSettings, topology, Nil, Nil)
 
   final def schema(topicName: String)(implicit F: Sync[F]): F[String] =
     new SchemaRegistryApi[F](settings.schemaRegistrySettings).kvSchema(TopicName.unsafeFrom(topicName)).map(_.show)
