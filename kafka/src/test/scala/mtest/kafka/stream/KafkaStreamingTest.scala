@@ -12,6 +12,7 @@ import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.scala.ImplicitConversions._
 import org.apache.kafka.streams.scala.Serdes._
 import org.apache.kafka.streams.scala.StreamsBuilder
+import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration._
@@ -25,11 +26,11 @@ object KafkaStreamingData {
 
   case class StreamTarget(name: String, weight: Int, color: Int)
 
-  val s1Topic: KafkaTopic[IO, Int, StreamOne]   = ctx.topic[Int, StreamOne]("stream-one")
-  val t2Topic: KafkaTopic[IO, Int, TableTwo]    = ctx.topic[Int, TableTwo]("table-two")
-  val g3Topic: KafkaTopic[IO, Int, GlobalThree] = ctx.topic[Int, GlobalThree]("global-three")
+  val s1Topic: KafkaTopic[IO, Int, StreamOne]   = ctx.topic[Int, StreamOne]("stream.test.stream.one")
+  val t2Topic: KafkaTopic[IO, Int, TableTwo]    = ctx.topic[Int, TableTwo]("stream..testtable.two")
+  val g3Topic: KafkaTopic[IO, Int, GlobalThree] = ctx.topic[Int, GlobalThree]("stream.test.global.three")
 
-  val tgt: KafkaTopic[IO, Int, StreamTarget] = ctx.topic[Int, StreamTarget]("stream-join-target")
+  val tgt: KafkaTopic[IO, Int, StreamTarget] = ctx.topic[Int, StreamTarget]("stream.test.join.target")
 
   val s1Data: List[ProducerRecord[Int, StreamOne]] =
     List(
@@ -63,6 +64,7 @@ object KafkaStreamingData {
   )
 }
 
+@DoNotDiscover
 class KafkaStreamingTest extends AnyFunSuite {
   import KafkaStreamingData._
 
@@ -97,7 +99,7 @@ class KafkaStreamingTest extends AnyFunSuite {
     }
 
     val populateS1Topic: Stream[IO, ProducerResult[Int, StreamOne, Unit]] =
-      Stream.every[IO](1.seconds).zipRight(Stream.emits(s1Data)).evalMap(s1Topic.send).delayBy(1.seconds)
+      Stream.every[IO](1.seconds).zipRight(Stream.emits(s1Data)).evalMap(s1Topic.send).debug().delayBy(1.seconds)
 
     val streamingService: Stream[IO, KafkaStreams] =
       ctx.buildStreams(top).run.handleErrorWith(_ => Stream.sleep_(2.seconds) ++ ctx.buildStreams(top).run)

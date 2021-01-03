@@ -17,7 +17,7 @@ sealed trait KafkaMonitoringApi[F[_], K, V] {
   def watch: F[Unit]
   def watchFromEarliest: F[Unit]
   def watchFrom(njt: NJTimestamp): F[Unit]
-  def watchFrom(njt: String)(implicit zoneId: ZoneId): F[Unit]
+  def watchFrom(njt: String): F[Unit]
 
   def filter(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit]
   def filterFromEarliest(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit]
@@ -36,8 +36,8 @@ object KafkaMonitoringApi {
     topic: KafkaTopic[F, K, V]): KafkaMonitoringApi[F, K, V] =
     new KafkaTopicMonitoring[F, K, V](topic)
 
-  final private class KafkaTopicMonitoring[F[_]: ContextShift: Timer, K, V](
-    topic: KafkaTopic[F, K, V])(implicit F: ConcurrentEffect[F])
+  final private class KafkaTopicMonitoring[F[_]: ContextShift: Timer, K, V](topic: KafkaTopic[F, K, V])(implicit
+    F: ConcurrentEffect[F])
       extends KafkaMonitoringApi[F, K, V] with ShowKafkaMessage {
 
     private val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
@@ -56,16 +56,13 @@ object KafkaMonitoringApi {
         }.compile.drain
       }
 
-    private def filterWatch(
-      predict: ConsumerRecord[Try[K], Try[V]] => Boolean,
-      aor: AutoOffsetReset): F[Unit] =
+    private def filterWatch(predict: ConsumerRecord[Try[K], Try[V]] => Boolean, aor: AutoOffsetReset): F[Unit] =
       Blocker[F].use { blocker =>
         Keyboard.signal.flatMap { signal =>
           fs2Channel
             .withConsumerSettings(_.withAutoOffsetReset(aor))
             .stream
-            .filter(m =>
-              predict(isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record)))
+            .filter(m => predict(isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record)))
             .map(m => topic.decoder(m).tryDecodeKeyValue.show)
             .showLinesStdOut
             .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
@@ -93,8 +90,7 @@ object KafkaMonitoringApi {
       run.compile.drain
     }
 
-    override def watchFrom(njt: String)(implicit zoneId: ZoneId): F[Unit] =
-      watchFrom(NJTimestamp(njt, zoneId))
+    override def watchFrom(njt: String): F[Unit] = watchFrom(NJTimestamp(njt))
 
     override def watch: F[Unit]             = watch(AutoOffsetReset.Latest)
     override def watchFromEarliest: F[Unit] = watch(AutoOffsetReset.Earliest)
@@ -135,11 +131,9 @@ object KafkaMonitoringApi {
         signal <- Keyboard.signal
         _ <- fs2Channel.stream.map { m =>
           val cr = other.decoder(m).nullableDecode.record
-          val ts = cr.timestamp.createTime.orElse(
-            cr.timestamp.logAppendTime.orElse(cr.timestamp.unknownTime))
-          val pr = ProducerRecord(other.topicName.value, cr.key, cr.value)
-            .withHeaders(cr.headers)
-            .withPartition(cr.partition)
+          val ts = cr.timestamp.createTime.orElse(cr.timestamp.logAppendTime.orElse(cr.timestamp.unknownTime))
+          val pr =
+            ProducerRecord(other.topicName.value, cr.key, cr.value).withHeaders(cr.headers).withPartition(cr.partition)
           ProducerRecords.one(ts.fold(pr)(pr.withTimestamp))
         }.through(produce[F, K, V, Unit](other.fs2Channel.producerSettings))
           .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))

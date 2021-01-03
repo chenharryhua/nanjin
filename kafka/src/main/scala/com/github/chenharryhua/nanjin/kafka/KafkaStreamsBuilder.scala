@@ -12,7 +12,7 @@ import org.apache.kafka.streams.processor.{ProcessorSupplier, StateStore}
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.scala.kstream.Consumed
 import org.apache.kafka.streams.state.StoreBuilder
-import org.apache.kafka.streams.{KafkaStreams, Topology}
+import org.apache.kafka.streams.{KafkaStreams, StoreQueryParameters, Topology}
 
 final case class UncaughtKafkaStreamingException(thread: Thread, ex: Throwable) extends Exception(ex.getMessage)
 
@@ -22,8 +22,7 @@ final class KafkaStreamsBuilder[F[_]](
   settings: KafkaStreamSettings,
   top: Reader[StreamsBuilder, Unit],
   localStateStores: List[Reader[StreamsBuilder, StreamsBuilder]],
-  globalStateStores: List[Reader[StreamsBuilder, StreamsBuilder]])
-    extends Serializable {
+  globalStateStores: List[Reader[StreamsBuilder, StreamsBuilder]]) {
 
   final private class StreamErrorHandler(deferred: Deferred[F, UncaughtKafkaStreamingException], F: ConcurrentEffect[F])
       extends Thread.UncaughtExceptionHandler {
@@ -55,7 +54,7 @@ final class KafkaStreamsBuilder[F[_]](
             reason match {
               case ExitCase.Canceled  => F.delay(ks.close())
               case ExitCase.Completed => F.delay(ks.close())
-              case ExitCase.Error(ex) => F.delay(ks.close()) >> F.delay(ks.cleanUp())
+              case ExitCase.Error(_)  => F.delay(ks.close()) >> F.delay(ks.cleanUp())
             }
           }
           .evalMap(ks =>
@@ -67,6 +66,9 @@ final class KafkaStreamsBuilder[F[_]](
           .concurrently(Stream.eval(errorListener.get).flatMap(Stream.raiseError[F]))
       _ <- Stream.eval(latch.get.rethrow)
     } yield kss
+
+  def runStore[A](sqp: StoreQueryParameters[A])(implicit F: ConcurrentEffect[F]): Stream[F, A] =
+    run.map(_.store(sqp))
 
   def withProperty(key: String, value: String): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
@@ -97,9 +99,9 @@ final class KafkaStreamsBuilder[F[_]](
 
   def topology: Topology = {
     val builder: StreamsBuilder = new StreamsBuilder()
-    val lss: StreamsBuilder     = localStateStores.foldLeft(builder)((s, i) => i(s))
-    val gss: StreamsBuilder     = globalStateStores.foldLeft(lss)((s, i) => i(s))
-    top.run(gss)
+    val lsb: StreamsBuilder     = localStateStores.foldLeft(builder)((bd, rd) => rd.run(bd))
+    val gsb: StreamsBuilder     = globalStateStores.foldLeft(lsb)((bd, rd) => rd.run(bd))
+    top.run(gsb)
     builder.build()
   }
 }
