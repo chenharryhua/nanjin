@@ -1,12 +1,12 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.data.Reader
-import cats.effect.{ConcurrentEffect, IO, Sync}
+import cats.effect.{IO, Sync}
+import cats.syntax.functor._
+import cats.syntax.show._
 import com.github.chenharryhua.nanjin.messages.kafka.codec.SerdeOf
-import fs2.Stream
 import monix.eval.{Task => MTask}
 import org.apache.kafka.common.serialization.Serde
-import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.scala.StreamsBuilder
 import zio.{Task => ZTask}
 
@@ -27,12 +27,11 @@ sealed abstract class KafkaContext[F[_]](val settings: KafkaSettings) extends Se
   final def topic[K: SerdeOf, V: SerdeOf](topicName: String): KafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](TopicName.unsafeFrom(topicName)))
 
-  final def runStreams(topology: Reader[StreamsBuilder, Unit])(implicit
-    ce: ConcurrentEffect[F]): Stream[F, KafkaStreams] =
-    new KafkaStreamRunner[F](settings.streamSettings).stream(topology)
+  final def buildStreams(topology: Reader[StreamsBuilder, Unit]): KafkaStreamsBuilder[F] =
+    new KafkaStreamsBuilder[F](settings.streamSettings, topology, Nil, Nil)
 
-  final def genCaseClass(topicName: TopicName)(implicit F: Sync[F]): F[String] =
-    new SchemaRegistryApi[F](settings.schemaRegistrySettings).genCaseClass(topicName)
+  final def schema(topicName: String)(implicit F: Sync[F]): F[String] =
+    new SchemaRegistryApi[F](settings.schemaRegistrySettings).kvSchema(TopicName.unsafeFrom(topicName)).map(_.show)
 }
 
 final class IoKafkaContext(settings: KafkaSettings) extends KafkaContext[IO](settings)

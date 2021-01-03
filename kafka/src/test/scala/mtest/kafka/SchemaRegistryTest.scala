@@ -1,13 +1,7 @@
 package mtest.kafka
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.kafka.{
-  KafkaSettings,
-  KafkaTopic,
-  SchemaRegistrySettings,
-  TopicDef,
-  TopicName
-}
+import com.github.chenharryhua.nanjin.kafka.{KafkaSettings, KafkaTopic, SchemaRegistrySettings, TopicDef, TopicName}
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import monocle.function.At.at
 import org.scalatest.funsuite.AnyFunSuite
@@ -54,7 +48,7 @@ class SchemaRegistryTest extends AnyFunSuite {
   test("register schema") {
     topic.schemaRegister.unsafeRunSync()
   }
-  test("gen case class") {
-    println(ctx.genCaseClass(topic.topicName).unsafeRunSync)
+  test("retrieve schema") {
+    println(ctx.schema(topic.topicName.value).unsafeRunSync)
   }
 }

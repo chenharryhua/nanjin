@@ -76,7 +76,7 @@ class KafkaStreamingTest extends AnyFunSuite {
       b <- t2Topic.kafkaStream.ktable
       c <- g3Topic.kafkaStream.gktable
     } yield {
-      a.join(c)((i, s1) => i, (s1, g3) => StreamTarget(s1.name, g3.weight, 0)).to(tgt) 
+      a.join(c)((i, s1) => i, (s1, g3) => StreamTarget(s1.name, g3.weight, 0)).to(tgt)
       a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(tgt)
     }
 
@@ -96,14 +96,11 @@ class KafkaStreamingTest extends AnyFunSuite {
       println(s"populate g3 topic: $g")
     }
 
-    val populateS1Topic: Stream[IO, ProducerResult[Int, StreamOne, Unit]] = Stream
-      .every[IO](1.seconds)
-      .zipRight(Stream.emits(s1Data))
-      .evalMap(s1Topic.send)
-      .delayBy(1.seconds)
+    val populateS1Topic: Stream[IO, ProducerResult[Int, StreamOne, Unit]] =
+      Stream.every[IO](1.seconds).zipRight(Stream.emits(s1Data)).evalMap(s1Topic.send).delayBy(1.seconds)
 
     val streamingService: Stream[IO, KafkaStreams] =
-      ctx.runStreams(top).handleErrorWith(_ => Stream.sleep_(2.seconds) ++ ctx.runStreams(top))
+      ctx.buildStreams(top).run.handleErrorWith(_ => Stream.sleep_(2.seconds) ++ ctx.buildStreams(top).run)
 
     val harvest: Stream[IO, StreamTarget] =
       tgt.fs2Channel.stream.map(x => tgt.decoder(x).decode.record.value).interruptAfter(2.seconds)

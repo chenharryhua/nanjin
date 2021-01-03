@@ -1,8 +1,10 @@
 package mtest
 
+import cats.Eq
 import cats.kernel.laws.discipline.PartialOrderTests
+import cats.laws.discipline.AlternativeTests
 import cats.syntax.all._
-import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8.genZonedDateTimeWithZone
+import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8._
 import com.github.chenharryhua.nanjin.datetime._
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 import org.scalatest.funsuite.AnyFunSuite
@@ -24,8 +26,29 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
   implicit val cogen: Cogen[NJDateTimeRange] =
     Cogen(m => m.startTimestamp.map(_.milliseconds).getOrElse(0))
 
+  implicit val arbParser    = Arbitrary(Gen.const(DateTimeParser.instantParser))
+  implicit val cogenInstant = Cogen((i: Instant) => i.getEpochSecond)
+
+  implicit val eqInstant = new Eq[DateTimeParser[Instant]] {
+    //TODO: how to compare two parsers?
+    override def eqv(x: DateTimeParser[Instant], y: DateTimeParser[Instant]): Boolean = true
+  }
+
+  implicit val eqInstant3 = new Eq[DateTimeParser[(Instant, Instant, Instant)]] {
+
+    override def eqv(
+      x: DateTimeParser[(Instant, Instant, Instant)],
+      y: DateTimeParser[(Instant, Instant, Instant)]): Boolean = true
+  }
+
+  implicit val arbFunction = Arbitrary(
+    Gen
+      .function1[Instant, Instant](genZonedDateTime.map(_.toInstant))
+      .map(f => DateTimeParser.alternativeDateTimeParser.pure(f)))
+
   checkAll("NJDateTimeRange-UpperBounded", PartialOrderTests[NJDateTimeRange].partialOrder)
   checkAll("NJDateTimeRange-PartialOrder", PartialOrderTests[NJDateTimeRange].partialOrder)
+  checkAll("NJTimestamp", AlternativeTests[DateTimeParser].alternative[Instant, Instant, Instant])
 
   test("order of applying time data does not matter") {
     val zoneId    = ZoneId.of("Asia/Chongqing")

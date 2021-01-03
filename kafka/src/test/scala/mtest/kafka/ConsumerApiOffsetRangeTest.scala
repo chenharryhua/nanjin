@@ -88,7 +88,6 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
   test("kafka offset range") {
     assert(KafkaOffsetRange(KafkaOffset(100), KafkaOffset(99)).isEmpty)
     val r = KafkaOffsetRange(KafkaOffset(1), KafkaOffset(99)).get
-    r.show
     assert(r.distance == 98)
   }
 }

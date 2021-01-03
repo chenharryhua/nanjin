@@ -18,7 +18,8 @@ final class NJCodec[A](val topicName: String, val cfg: NJSerdeConfig[A]) extends
   def decode(ab: Array[Byte]): A = cfg.serde.deserializer.deserialize(topicName, ab)
 
   def tryDecode(ab: Array[Byte]): Try[A] =
-    Option(ab).fold[Try[A]](Failure(new NullPointerException))(x => Try(decode(x)))
+    Option(ab).fold[Try[A]](Failure(new NullPointerException("NJCodec.tryDecode a null Array[Byte]")))(x =>
+      Try(decode(x)))
 
   val prism: Prism[Array[Byte], A] =
     Prism[Array[Byte], A](x => Try(decode(x)).toOption)(encode)
