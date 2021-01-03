@@ -16,7 +16,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration._
 
 @DoNotDiscover
-class KafkaStateStoreTest extends AnyFunSuite {
+class KafkaStreamsBuildTest extends AnyFunSuite {
 
   test("stream builder") {
     val store  = Stores.keyValueStoreBuilder(Stores.inMemoryKeyValueStore("store"), ctx.asKey[Int], ctx.asValue[Int])

@@ -99,7 +99,7 @@ class KafkaStreamingTest extends AnyFunSuite {
     }
 
     val populateS1Topic: Stream[IO, ProducerResult[Int, StreamOne, Unit]] =
-      Stream.every[IO](1.seconds).zipRight(Stream.emits(s1Data)).evalMap(s1Topic.send).delayBy(1.seconds)
+      Stream.every[IO](1.seconds).zipRight(Stream.emits(s1Data)).evalMap(s1Topic.send).debug().delayBy(1.seconds)
 
     val streamingService: Stream[IO, KafkaStreams] =
       ctx.buildStreams(top).run.handleErrorWith(_ => Stream.sleep_(2.seconds) ++ ctx.buildStreams(top).run)
