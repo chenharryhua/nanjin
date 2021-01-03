@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import cats.data.Reader
 import com.github.chenharryhua.nanjin.messages.kafka.codec.SerdeOf
-import com.twitter.algebird.monad.Reader
 import org.apache.kafka.streams.kstream.GlobalKTable
 import org.apache.kafka.streams.processor.StateStore
 import org.apache.kafka.streams.scala.kstream.{Consumed, KTable, Materialized}
@@ -11,7 +11,12 @@ import org.apache.kafka.streams.scala.{
   ByteArrayWindowStore,
   StreamsBuilder
 }
-import org.apache.kafka.streams.state.{KeyValueBytesStoreSupplier, SessionBytesStoreSupplier, WindowBytesStoreSupplier}
+import org.apache.kafka.streams.state.{
+  KeyValueBytesStoreSupplier,
+  KeyValueStore,
+  SessionBytesStoreSupplier,
+  WindowBytesStoreSupplier
+}
 
 final class KafkaStateStore[K, V](storeName: StoreName)(implicit keySerde: SerdeOf[K], valSerde: SerdeOf[V]) {
 
@@ -27,9 +32,8 @@ final class KafkaStateStore[K, V](storeName: StoreName)(implicit keySerde: Serde
   def materialized(supplier: KeyValueBytesStoreSupplier): Materialized[K, V, ByteArrayKeyValueStore] =
     Materialized.as[K, V](supplier)(keySerde, valSerde)
 
-  def table[S <: StateStore]: Reader[StreamsBuilder, KTable[K, V]] =
-    Reader[StreamsBuilder, KTable[K, V]](
-      _.table[K, V](storeName.value, materialized)(Consumed.`with`(keySerde, valSerde)))
+  def table: Reader[StreamsBuilder, KTable[K, V]] =
+    Reader[StreamsBuilder, KTable[K, V]](_.table[K, V](storeName.value)(Consumed.`with`(keySerde, valSerde)))
 
   def table(supplier: KeyValueBytesStoreSupplier): Reader[StreamsBuilder, KTable[K, V]] =
     Reader[StreamsBuilder, KTable[K, V]](
