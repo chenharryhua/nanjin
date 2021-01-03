@@ -9,12 +9,11 @@ import org.apache.kafka.streams.scala.Serdes._
 import org.apache.kafka.streams.state.KeyValueStore
 
 class KafkaStateStoreTest extends AnyFunSuite {
-  val table1 = new KafkaStateStore[Int, String](StoreName("state.store.test.table.one"))
-  val table2 = new KafkaStateStore[Int, String](StoreName("state.store.test.table.two"))
+  val table1 = KafkaStateStore[Int, String](StoreName("state.store.test.table.one"))
+  val table2 = KafkaStateStore[Int, String](StoreName("state.store.test.table.two"))
 
   val stream1 = ctx.topic[Int, String]("state.store.test.stream")
-
-  val target = ctx.topic[Int, String]("table.test.target")
+  val target  = ctx.topic[Int, String]("table.test.target")
 
   test("tables") {
     val top = for {
@@ -25,6 +24,5 @@ class KafkaStateStoreTest extends AnyFunSuite {
 
     val describe = ctx.buildStreams(top).topology.describe()
     println(describe)
-
   }
 }
