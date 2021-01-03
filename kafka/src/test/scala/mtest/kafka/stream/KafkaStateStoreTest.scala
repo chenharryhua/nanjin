@@ -23,10 +23,6 @@ class KafkaStateStoreTest extends AnyFunSuite {
     val top2 = for {
       s <- topic.kafkaStream.kstream
     } yield s.to(topic)
-    ctx
-      .buildStreams(top)
-      .addStateStore(
-        Stores.keyValueStoreBuilder(Stores.inMemoryKeyValueStore("abc"), topic.codec.keySerde, topic.codec.valSerde))
-      .topology 
+    ctx.buildStreams(top)
   }
 }
