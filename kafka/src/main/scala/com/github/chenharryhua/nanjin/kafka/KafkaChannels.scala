@@ -29,15 +29,12 @@ object KafkaChannels {
 
     import fs2.kafka.{consumerStream, CommittableConsumerRecord, KafkaProducer}
 
-    def withProducerSettings(
-      f: Fs2ProducerSettings[F, K, V] => Fs2ProducerSettings[F, K, V]): Fs2Channel[F, K, V] =
+    def withProducerSettings(f: Fs2ProducerSettings[F, K, V] => Fs2ProducerSettings[F, K, V]): Fs2Channel[F, K, V] =
       new Fs2Channel(topicName, f(producerSettings), consumerSettings)
 
     def withConsumerSettings(
-      f: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]] => Fs2ConsumerSettings[
-        F,
-        Array[Byte],
-        Array[Byte]]): Fs2Channel[F, K, V] =
+      f: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]] => Fs2ConsumerSettings[F, Array[Byte], Array[Byte]])
+      : Fs2Channel[F, K, V] =
       new Fs2Channel(topicName, producerSettings, f(consumerSettings))
 
     val producerStream: Stream[F, KafkaProducer[F, K, V]] =
@@ -48,11 +45,10 @@ object KafkaChannels {
         .evalTap(_.subscribe(NonEmptyList.of(topicName.value)))
         .flatMap(_.stream)
 
-    def assign(tps: Map[TopicPartition, Long])
-      : Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
+    def assign(tps: Map[TopicPartition, Long]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
       consumerStream[F, Array[Byte], Array[Byte]](consumerSettings).evalTap { c =>
-        c.assign(topicName.value) *> tps.toList.traverse {
-          case (tp, offset) => c.seek(tp, offset)
+        c.assign(topicName.value) *> tps.toList.traverse { case (tp, offset) =>
+          c.seek(tp, offset)
         }
       }.flatMap(_.stream)
   }
@@ -69,18 +65,15 @@ object KafkaChannels {
     import akka.stream.scaladsl.{Flow, Sink, Source}
     import akka.{Done, NotUsed}
 
-    def withProducerSettings(
-      f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): AkkaChannel[F, K, V] =
+    def withProducerSettings(f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): AkkaChannel[F, K, V] =
       new AkkaChannel(topicName, f(producerSettings), consumerSettings, committerSettings)
 
     def withConsumerSettings(
-      f: AkkaConsumerSettings[Array[Byte], Array[Byte]] => AkkaConsumerSettings[
-        Array[Byte],
-        Array[Byte]]): AkkaChannel[F, K, V] =
+      f: AkkaConsumerSettings[Array[Byte], Array[Byte]] => AkkaConsumerSettings[Array[Byte], Array[Byte]])
+      : AkkaChannel[F, K, V] =
       new AkkaChannel(topicName, producerSettings, f(consumerSettings), committerSettings)
 
-    def withCommitterSettings(
-      f: AkkaCommitterSettings => AkkaCommitterSettings): AkkaChannel[F, K, V] =
+    def withCommitterSettings(f: AkkaCommitterSettings => AkkaCommitterSettings): AkkaChannel[F, K, V] =
       new AkkaChannel(topicName, producerSettings, consumerSettings, f(committerSettings))
 
     def flexiFlow[P]: Flow[Envelope[K, V, P], ProducerMessage.Results[K, V, P], NotUsed] =
@@ -97,15 +90,13 @@ object KafkaChannels {
     val commitSink: Sink[ConsumerMessage.Committable, F[Done]] =
       Committer.sink(committerSettings).mapMaterializedValue(f => Async.fromFuture(F.pure(f)))
 
-    def assign(tps: Map[TopicPartition, Long])
-      : Source[ConsumerRecord[Array[Byte], Array[Byte]], Consumer.Control] =
+    def assign(tps: Map[TopicPartition, Long]): Source[ConsumerRecord[Array[Byte], Array[Byte]], Consumer.Control] =
       Consumer.plainSource(consumerSettings, Subscriptions.assignmentWithOffset(tps))
 
     val source: Source[CommittableMessage[Array[Byte], Array[Byte]], Consumer.Control] =
       Consumer.committableSource(consumerSettings, Subscriptions.topics(topicName.value))
 
-    def stream(implicit
-      mat: Materializer): Stream[F, CommittableMessage[Array[Byte], Array[Byte]]] =
+    def stream(implicit mat: Materializer): Stream[F, CommittableMessage[Array[Byte], Array[Byte]]] =
       source.runWith(Sink.asPublisher(fanout = false)).toStream[F]
 
     def offsetRanged(offsetRange: KafkaTopicPartition[KafkaOffsetRange])(implicit
@@ -139,24 +130,18 @@ object KafkaChannels {
     import org.apache.kafka.streams.scala.kstream.{Consumed, KStream, KTable}
 
     val kstream: Reader[StreamsBuilder, KStream[K, V]] =
-      Reader(builder =>
-        builder.stream[K, V](topicName.value)(Consumed.`with`(keySerde, valueSerde)))
+      Reader(builder => builder.stream[K, V](topicName.value)(Consumed.`with`(keySerde, valueSerde)))
 
     val ktable: Reader[StreamsBuilder, KTable[K, V]] =
       Reader(builder => builder.table[K, V](topicName.value)(Consumed.`with`(keySerde, valueSerde)))
 
     val gktable: Reader[StreamsBuilder, GlobalKTable[K, V]] =
-      Reader(builder =>
-        builder.globalTable[K, V](topicName.value)(Consumed.`with`(keySerde, valueSerde)))
+      Reader(builder => builder.globalTable[K, V](topicName.value)(Consumed.`with`(keySerde, valueSerde)))
 
-    def ktable(store: KafkaStore.InMemory[K, V]): Reader[StreamsBuilder, KTable[K, V]] =
-      Reader(builder =>
-        builder.table[K, V](topicName.value, store.materialized)(
-          Consumed.`with`(keySerde, valueSerde)))
-
-    def ktable(store: KafkaStore.Persistent[K, V]): Reader[StreamsBuilder, KTable[K, V]] =
-      Reader(builder =>
-        builder.table[K, V](topicName.value, store.materialized)(
-          Consumed.`with`(keySerde, valueSerde)))
+//    def ktable(store: KafkaStore.InMemory[K, V]): Reader[StreamsBuilder, KTable[K, V]] =
+//      Reader(builder => builder.table[K, V](topicName.value, store.materialized)(Consumed.`with`(keySerde, valueSerde)))
+//
+//    def ktable(store: KafkaStore.Persistent[K, V]): Reader[StreamsBuilder, KTable[K, V]] =
+//      Reader(builder => builder.table[K, V](topicName.value, store.materialized)(Consumed.`with`(keySerde, valueSerde)))
   }
 }

@@ -43,7 +43,7 @@ class KafkaStreamsBuildTest extends AnyFunSuite {
       t2 <- topic2.kafkaStream.ktable
     } yield s1.transform(transformer, "store").join(t2)(_ + _).to(tgt)
 
-    val kafkaStreamService = ctx.buildStreams(top).addStateStore(store)
+    val kafkaStreamService = ctx.buildStreams(top).addStateStore(store).withProperty("unknown-feature", "unused")
     println(kafkaStreamService.topology.describe())
 
     val prepare = for {
