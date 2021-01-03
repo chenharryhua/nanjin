@@ -1,6 +1,8 @@
 package mtest.kafka.stream
 
 import cats.effect.IO
+import cats.syntax.all._
+import fs2.Stream
 import mtest.kafka._
 import org.apache.kafka.streams.KeyValue
 import org.apache.kafka.streams.kstream.{Transformer, TransformerSupplier}
@@ -8,11 +10,12 @@ import org.apache.kafka.streams.processor.ProcessorContext
 import org.apache.kafka.streams.scala.ImplicitConversions._
 import org.apache.kafka.streams.scala.Serdes._
 import org.apache.kafka.streams.state.Stores
+import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-import fs2.Stream
-import scala.concurrent.duration._
-import cats.syntax.all._
 
+import scala.concurrent.duration._
+
+@DoNotDiscover
 class KafkaStateStoreTest extends AnyFunSuite {
 
   test("stream builder") {

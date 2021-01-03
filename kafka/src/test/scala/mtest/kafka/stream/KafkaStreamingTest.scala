@@ -12,6 +12,7 @@ import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.scala.ImplicitConversions._
 import org.apache.kafka.streams.scala.Serdes._
 import org.apache.kafka.streams.scala.StreamsBuilder
+import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration._
@@ -63,6 +64,7 @@ object KafkaStreamingData {
   )
 }
 
+@DoNotDiscover
 class KafkaStreamingTest extends AnyFunSuite {
   import KafkaStreamingData._
 
