@@ -1,6 +1,9 @@
 package mtest.kafka
 
 import cats.effect.IO
+import com.github.chenharryhua.nanjin.kafka.{KafkaConsumerGroupInfo, KafkaOffset, KafkaTopicPartition}
+import org.apache.kafka.clients.consumer.OffsetAndMetadata
+import org.apache.kafka.common.TopicPartition
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
@@ -33,5 +36,20 @@ class AdminApiTest extends AnyFunSuite {
 
   test("groups") {
     topic.admin.groups.unsafeRunSync()
+  }
+  test("KafkaConsumerGroupInfo") {
+    val end: KafkaTopicPartition[Option[KafkaOffset]] = KafkaTopicPartition[Option[KafkaOffset]](
+      Map(
+        new TopicPartition("t", 0) -> Some(KafkaOffset(100)),
+        new TopicPartition("t", 1) -> Some(KafkaOffset(100)),
+        new TopicPartition("t", 2) -> None)
+    )
+    val offsetMeta: Map[TopicPartition, OffsetAndMetadata] = Map(
+      new TopicPartition("t", 0) -> new OffsetAndMetadata(0),
+      new TopicPartition("t", 1) -> new OffsetAndMetadata(10),
+      new TopicPartition("t", 2) -> new OffsetAndMetadata(20)
+    )
+    val cgi = KafkaConsumerGroupInfo("gid", end, offsetMeta)
+    assert(cgi.lag.value.values.toList.flatten.map(_.distance).toSet == Set(100, 90))
   }
 }

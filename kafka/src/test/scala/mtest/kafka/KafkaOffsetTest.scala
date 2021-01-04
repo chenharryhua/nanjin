@@ -2,12 +2,7 @@ package mtest.kafka
 
 import cats.kernel.laws.discipline.{OrderTests, PartialOrderTests}
 import cats.tests.CatsSuite
-import com.github.chenharryhua.nanjin.kafka.{
-  KafkaOffset,
-  KafkaOffsetRange,
-  KafkaPartition,
-  KafkaTopicPartition
-}
+import com.github.chenharryhua.nanjin.kafka.{KafkaOffset, KafkaOffsetRange, KafkaPartition, KafkaTopicPartition}
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp
 import org.apache.kafka.common.TopicPartition
 import org.scalacheck.{Arbitrary, Cogen, Gen}
@@ -16,8 +11,7 @@ import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
 class KafkaOffsetTest extends CatsSuite with FunSuiteDiscipline {
 
-  implicit val arbOffset: Arbitrary[KafkaOffset] = Arbitrary(
-    Gen.choose[Long](0, Long.MaxValue).map(KafkaOffset(_)))
+  implicit val arbOffset: Arbitrary[KafkaOffset] = Arbitrary(Gen.choose[Long](0, Long.MaxValue).map(KafkaOffset(_)))
 
   implicit val cogen: Cogen[KafkaOffset] =
     Cogen[KafkaOffset]((o: KafkaOffset) => o.value)
@@ -62,7 +56,7 @@ class KafkaOffsetBuildTest extends AnyFunSuite {
   }
 
   test("KafkaTopicPartition") {
-    val ktp = KafkaTopicPartition[Option[OffsetAndTimestamp]](
+    val ktp: KafkaTopicPartition[Option[OffsetAndTimestamp]] = KafkaTopicPartition[Option[OffsetAndTimestamp]](
       Map(
         new TopicPartition("topic", 0) -> Some(new OffsetAndTimestamp(0, 1000)),
         new TopicPartition("topic", 1) -> Some(new OffsetAndTimestamp(1, 2000)),
@@ -77,6 +71,7 @@ class KafkaOffsetBuildTest extends AnyFunSuite {
 
     assert(res.value == expected)
     assert(ktp.topicPartitions.value.toSet == expected.keySet)
-    assert(ktp.offsets.value.keySet.size == 3)
+    assert(ktp.offsets.value.values.size == 3)
+    assert(ktp.offsets.value.values.toList.flatten.map(_.offset.value).toSet == Set(0, 1))
   }
 }

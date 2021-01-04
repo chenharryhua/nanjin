@@ -64,27 +64,30 @@ class KafkaStreamsBuildTest extends AnyFunSuite {
       _ <- topic1.admin.newTopic(1, 1).attempt
       _ <- topic2.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- topic2.admin.newTopic(1, 1).attempt
+      _ <- topic2.send(List(topic2.fs2PR(0, "t0"), topic2.fs2PR(1, "t1"), topic2.fs2PR(2, "t2")))
       _ <- tgt.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- tgt.admin.newTopic(1, 1).attempt
     } yield ()
 
-    val sender = for {
-      _ <- Stream.eval(topic2.send(List(topic2.fs2PR(0, "t0"), topic2.fs2PR(1, "t1"), topic2.fs2PR(2, "t2"))))
-      resp <- Stream.awakeEvery[IO](1.seconds).zipWithIndex.evalMap { case (_, index) =>
+    val sender = Stream
+      .awakeEvery[IO](1.seconds)
+      .zipWithIndex
+      .evalMap { case (_, index) =>
         topic1.send(index.toInt, s"stream$index")
       }
-    } yield println(resp)
+      .debug()
 
     val havest = tgt.fs2Channel.stream.map(tgt.decoder(_).decode)
 
+    val runStream = kafkaStreamService.run.handleErrorWith(_ => Stream.sleep(2.seconds) ++ ctx.buildStreams(top).run)
     val res =
-      (prepare >> IO.sleep(1.second) >> kafkaStreamService.run
+      (prepare >> IO.sleep(1.second) >> runStream
         .flatMap(_ => havest)
         .concurrently(sender)
-        .interruptAfter(8.seconds)
+        .interruptAfter(10.seconds)
         .compile
         .toList).unsafeRunSync()
     println(res)
     assert(res.map(_.record.key).toSet == Set(0, 1, 2))
   }
-} 
+}

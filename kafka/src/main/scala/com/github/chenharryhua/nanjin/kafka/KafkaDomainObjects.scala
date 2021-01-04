@@ -48,7 +48,7 @@ object KafkaPartition {
 }
 
 sealed abstract case class KafkaOffsetRange private (from: KafkaOffset, until: KafkaOffset) {
-  require(from < until, s"from should be strictly less than until. from = $from, until=$until")
+  //require(from < until, s"from should be strictly less than until. from = $from, until=$until")
 
   val distance: Long = until - from
 
@@ -63,8 +63,6 @@ object KafkaOffsetRange {
       Some(new KafkaOffsetRange(from, until) {})
     else
       None
-
-  implicit val showKafkaOffsetRange: Show[KafkaOffsetRange] = _.toString
 
   implicit val poKafkaOffsetRange: PartialOrder[KafkaOffsetRange] =
     (x: KafkaOffsetRange, y: KafkaOffsetRange) =>
@@ -114,8 +112,7 @@ final case class KafkaTopicPartition[V](value: Map[TopicPartition, V]) extends A
 
   def topicPartitions: ListOfTopicPartitions = ListOfTopicPartitions(value.keys.toList)
 
-  def offsets(implicit
-    ev: V =:= Option[OffsetAndTimestamp]): KafkaTopicPartition[Option[KafkaOffset]] =
+  def offsets(implicit ev: V =:= Option[OffsetAndTimestamp]): KafkaTopicPartition[Option[KafkaOffset]] =
     copy(value = value.mapValues(_.map(x => KafkaOffset(x.offset))))
 }
 
@@ -125,9 +122,7 @@ object KafkaTopicPartition {
     GenIso[KafkaTopicPartition[V], Map[TopicPartition, V]]
 }
 
-final case class KafkaConsumerGroupInfo(
-  groupId: KafkaGroupId,
-  lag: KafkaTopicPartition[Option[KafkaOffsetRange]])
+final case class KafkaConsumerGroupInfo(groupId: KafkaGroupId, lag: KafkaTopicPartition[Option[KafkaOffsetRange]])
 
 object KafkaConsumerGroupInfo {
 
