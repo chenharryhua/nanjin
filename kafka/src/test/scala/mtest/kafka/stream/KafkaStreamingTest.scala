@@ -38,7 +38,10 @@ object KafkaStreamingData {
       ProducerRecord(s1Topic.topicName.value, 2, StreamOne("b", 1)),
       ProducerRecord(s1Topic.topicName.value, 3, StreamOne("c", 2)),
       ProducerRecord(s1Topic.topicName.value, 4, StreamOne("d", 3)),
-      ProducerRecord(s1Topic.topicName.value, 5, StreamOne("e", 4))
+      ProducerRecord(s1Topic.topicName.value, 5, StreamOne("e", 4)),
+      ProducerRecord(s1Topic.topicName.value, 101, StreamOne("na", -1)),
+      ProducerRecord(s1Topic.topicName.value, 102, StreamOne("na", -1)),
+      ProducerRecord(s1Topic.topicName.value, 103, StreamOne("na", -1))
     )
 
   val t2Data: List[ProducerRecord[Int, TableTwo]] =
@@ -84,33 +87,33 @@ class KafkaStreamingTest extends AnyFunSuite {
 
     val prepare: IO[Unit] = for {
       a <- s1Topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
-      b <- s1Topic.admin.newTopic(1, 1).attempt
+      b <- s1Topic.send(1, StreamOne("a", 0))
       c <- tgt.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       d <- t2Topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
-      f <- t2Topic.send(t2Data) // populate table
-      g <- g3Topic.send(g3Data)
+      e <- t2Topic.send(t2Data) // populate table
+      f <- g3Topic.send(g3Data)
     } yield {
       println(s"delete s1 topic:   $a")
-      println(s"create s1 topic:   $b")
+      println(s"send s1 topic:     $b")
       println(s"delete tgt topic:  $c")
       println(s"delete t2 topic:   $d")
-      println(s"populate t2 topic: $f")
-      println(s"populate g3 topic: $g")
+      println(s"populate t2 topic: $e")
+      println(s"populate g3 topic: $f")
     }
 
     val populateS1Topic: Stream[IO, ProducerResult[Int, StreamOne, Unit]] =
-      Stream.every[IO](1.seconds).zipRight(Stream.emits(s1Data)).evalMap(s1Topic.send).debug().delayBy(1.seconds)
+      Stream.emits(s1Data).zipLeft(Stream.awakeEvery[IO](1.seconds)).evalMap(s1Topic.send).debug()
 
     val streamingService: Stream[IO, KafkaStreams] =
       ctx.buildStreams(top).run.handleErrorWith(_ => Stream.sleep_(2.seconds) ++ ctx.buildStreams(top).run)
 
     val harvest: Stream[IO, StreamTarget] =
-      tgt.fs2Channel.stream.map(x => tgt.decoder(x).decode.record.value).interruptAfter(2.seconds)
+      tgt.fs2Channel.stream.map(x => tgt.decoder(x).decode.record.value)
 
     val runStream = for {
       _ <- Stream.eval(prepare)
-      _ <- streamingService.concurrently(populateS1Topic)
-      d <- harvest
+      _ <- streamingService
+      d <- harvest.concurrently(populateS1Topic).interruptAfter(10.seconds)
     } yield d
 
     val res = runStream.compile.toList.unsafeRunSync().toSet
