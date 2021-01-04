@@ -67,7 +67,7 @@ final class KafkaStreamsBuilder[F[_]](
       _ <- Stream.eval(latch.get.rethrow)
     } yield kss
 
-  def runStore[A](sqp: StoreQueryParameters[A])(implicit F: ConcurrentEffect[F]): Stream[F, A] =
+  def runStoreQuery[A](sqp: StoreQueryParameters[A])(implicit F: ConcurrentEffect[F]): Stream[F, A] =
     run.map(_.store(sqp))
 
   def withProperty(key: String, value: String): KafkaStreamsBuilder[F] =

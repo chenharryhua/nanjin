@@ -19,6 +19,8 @@ import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.kstream.GlobalKTable
+import org.apache.kafka.streams.scala.ByteArrayKeyValueStore
+import org.apache.kafka.streams.scala.kstream.Materialized
 
 object KafkaChannels {
 
@@ -135,8 +137,13 @@ object KafkaChannels {
     val ktable: Reader[StreamsBuilder, KTable[K, V]] =
       Reader(builder => builder.table[K, V](topicName.value)(Consumed.`with`(keySerde, valueSerde)))
 
+    def ktable(mat: Materialized[K, V, ByteArrayKeyValueStore]): Reader[StreamsBuilder, KTable[K, V]] =
+      Reader(builder => builder.table[K, V](topicName.value, mat)(Consumed.`with`(keySerde, valueSerde)))
+
     val gktable: Reader[StreamsBuilder, GlobalKTable[K, V]] =
       Reader(builder => builder.globalTable[K, V](topicName.value)(Consumed.`with`(keySerde, valueSerde)))
 
+    def gktable(mat: Materialized[K, V, ByteArrayKeyValueStore]): Reader[StreamsBuilder, GlobalKTable[K, V]] =
+      Reader(builder => builder.globalTable[K, V](topicName.value, mat)(Consumed.`with`(keySerde, valueSerde)))
   }
 }

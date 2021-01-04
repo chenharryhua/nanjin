@@ -2,16 +2,18 @@ package mtest.kafka
 
 import cats.effect.IO
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.datetime.{darwinTime, NJDateTimeRange}
+import com.github.chenharryhua.nanjin.datetime.{darwinTime, NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.{
   KafkaOffset,
   KafkaOffsetRange,
+  KafkaPartition,
   KafkaTopic,
   KafkaTopicPartition,
   TopicDef,
   TopicName
 }
 import fs2.kafka.ProducerRecord
+import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -90,4 +92,32 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     val r = KafkaOffsetRange(KafkaOffset(1), KafkaOffset(99)).get
     assert(r.distance == 98)
   }
+  test("reset") {
+    topic.shortLiveConsumer
+      .use(sc => sc.resetOffsetsForTimes(NJTimestamp(100)) >> sc.resetOffsetsToBegin >> sc.resetOffsetsToEnd)
+      .unsafeRunSync()
+  }
+  test("retrieveRecord") {
+    val r = topic.shortLiveConsumer.use(_.retrieveRecord(KafkaPartition(0), KafkaOffset(0))).unsafeRunSync().get
+    assert(r.offset() == 0 && r.partition() == 0)
+  }
+  test("numOfRecordsSince") {
+    val r = topic.shortLiveConsumer.use(_.numOfRecordsSince(NJTimestamp(100))).unsafeRunSync()
+    val v = r.flatten[KafkaOffsetRange]
+    assert(v.nonEmpty)
+  }
+  test("partitionsFor") {
+    val r = topic.shortLiveConsumer.use(_.partitionsFor).unsafeRunSync()
+    assert(r.value.nonEmpty)
+  }
+  test("retrieveRecordsForTimes") {
+    val r = topic.shortLiveConsumer.use(_.retrieveRecordsForTimes(NJTimestamp(100))).unsafeRunSync()
+    assert(r.nonEmpty)
+  }
+  test("commitSync") {
+    topic.shortLiveConsumer
+      .use(_.commitSync(Map(new TopicPartition("range.test", 0) -> new OffsetAndMetadata(0))))
+      .unsafeRunSync()
+  }
+
 }
