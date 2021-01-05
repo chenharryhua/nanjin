@@ -10,11 +10,11 @@ import com.github.chenharryhua.nanjin.spark.kafka.{CompulsoryV, _}
 import com.sksamuel.avro4s.SchemaFor
 import frameless.TypedDataset
 import frameless.cats.implicits._
-import mtest.spark.{contextShift, ctx, sparKafka, sparkSession, timer}
+import mtest.spark.{contextShift, ctx, sparKafka, sparkSession}
+import org.apache.spark.sql.SparkSession
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.{Instant, LocalDate}
-import org.apache.spark.sql.SparkSession
 
 object SparKafkaTestData {
   final case class Duck(f: Int, g: String)
@@ -38,7 +38,7 @@ class SparKafkaTest extends AnyFunSuite {
 
   val topic: KafkaTopic[IO, Int, HasDuck] = TopicDef[Int, HasDuck](TopicName("duck.test")).in(ctx)
 
-  (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >> topic.schemaRegister >>
+  (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >> topic.schemaRegistry.register >>
     topic.send(List(topic.fs2PR(0, data), topic.fs2PR(1, data)))).unsafeRunSync()
 
   test("sparKafka read topic from kafka") {

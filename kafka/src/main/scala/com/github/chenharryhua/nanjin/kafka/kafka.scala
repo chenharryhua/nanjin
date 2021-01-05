@@ -16,12 +16,4 @@ package object kafka extends ShowKafkaMessage {
   type StoreName = String Refined MatchesRegex[W.`"^[a-zA-Z0-9_.-]+$"`.T]
 
   object StoreName extends RefinedTypeOps[StoreName, String] with CatsRefinedTypeOpsSyntax
-
-  def akkaResource[F[_]: ContextShift](implicit F: Async[F]): Resource[F, ActorSystem] =
-    Resource.make(F.delay(ActorSystem("nj-akka")))(a =>
-      Async.fromFuture(F.delay(a.terminate().map(_ => ())(a.dispatcher))))
-
-  def akkaStream[F[_]: ContextShift: Async]: Stream[F, ActorSystem] =
-    Stream.resource(akkaResource[F])
-
 }

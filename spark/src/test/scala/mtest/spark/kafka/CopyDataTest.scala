@@ -21,8 +21,12 @@ class CopyDataTest extends AnyFunSuite {
   val d5 = src.fs2PR(4, null.asInstanceOf[MyTestData]).withTimestamp(50)
 
   val prepareData =
-    src.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >> src.schemaDelete >> src.schemaRegister >>
-      tgt.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >> tgt.schemaDelete >> tgt.schemaRegister >>
+    src.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
+      src.schemaRegistry.delete >>
+      src.schemaRegistry.register >>
+      tgt.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
+      tgt.schemaRegistry.delete >>
+      tgt.schemaRegistry.register >>
       src.send(d1) >> src.send(d2) >> src.send(d3) >> src.send(d4) >> src.send(d5)
 
   test("sparKafka pipeTo should copy data from source to target") {

@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import akka.actor.ActorSystem
 import akka.kafka.{
   CommitterSettings => AkkaCommitterSettings,
   ConsumerSettings => AkkaConsumerSettings,
@@ -66,8 +65,7 @@ object KafkaChannels {
     val topicName: TopicName,
     val producerSettings: AkkaProducerSettings[K, V],
     val consumerSettings: AkkaConsumerSettings[Array[Byte], Array[Byte]],
-    val committerSettings: AkkaCommitterSettings,
-    akkaSystem: ActorSystem) {
+    val committerSettings: AkkaCommitterSettings) {
     import akka.kafka.ConsumerMessage.CommittableMessage
     import akka.kafka.ProducerMessage.Envelope
     import akka.kafka.scaladsl.{Committer, Consumer, Producer}
@@ -76,15 +74,15 @@ object KafkaChannels {
     import akka.{Done, NotUsed}
 
     def withProducerSettings(f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): AkkaChannel[F, K, V] =
-      new AkkaChannel(topicName, f(producerSettings), consumerSettings, committerSettings, akkaSystem)
+      new AkkaChannel(topicName, f(producerSettings), consumerSettings, committerSettings)
 
     def withConsumerSettings(
       f: AkkaConsumerSettings[Array[Byte], Array[Byte]] => AkkaConsumerSettings[Array[Byte], Array[Byte]])
       : AkkaChannel[F, K, V] =
-      new AkkaChannel(topicName, producerSettings, f(consumerSettings), committerSettings, akkaSystem)
+      new AkkaChannel(topicName, producerSettings, f(consumerSettings), committerSettings)
 
     def withCommitterSettings(f: AkkaCommitterSettings => AkkaCommitterSettings): AkkaChannel[F, K, V] =
-      new AkkaChannel(topicName, producerSettings, consumerSettings, f(committerSettings), akkaSystem)
+      new AkkaChannel(topicName, producerSettings, consumerSettings, f(committerSettings))
 
     def flexiFlow[P]: Flow[Envelope[K, V, P], ProducerMessage.Results[K, V, P], NotUsed] =
       Producer.flexiFlow[K, V, P](producerSettings)
@@ -108,13 +106,14 @@ object KafkaChannels {
     val source: Source[CommittableMessage[Array[Byte], Array[Byte]], Consumer.Control] =
       Consumer.committableSource(consumerSettings, Subscriptions.topics(topicName.value))
 
-    implicit private val mat: Materializer = Materializer(akkaSystem)
-
-    def stream(implicit F: ConcurrentEffect[F]): Stream[F, CommittableMessage[Array[Byte], Array[Byte]]] =
+    def stream(implicit
+      F: ConcurrentEffect[F],
+      mat: Materializer): Stream[F, CommittableMessage[Array[Byte], Array[Byte]]] =
       source.runWith(Sink.asPublisher(fanout = false)).toStream[F]
 
     def offsetRanged(offsetRange: KafkaTopicPartition[KafkaOffsetRange])(implicit
-      F: ConcurrentEffect[F]): Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]] = {
+      F: ConcurrentEffect[F],
+      mat: Materializer): Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]] = {
       val totalSize   = offsetRange.mapValues(_.distance).value.values.sum
       val endPosition = offsetRange.mapValues(_.until.value)
       assign(offsetRange.value.mapValues(_.from.value))
@@ -127,7 +126,8 @@ object KafkaChannels {
     }
 
     def timeRanged(dateTimeRange: NJDateTimeRange)(implicit
-      F: ConcurrentEffect[F]): Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]] = {
+      F: ConcurrentEffect[F],
+      mat: Materializer): Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]] = {
       val exec: F[Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]]] =
         ShortLiveConsumer[F](topicName, utils.toProperties(consumerSettings.properties))
           .use(_.offsetRangeFor(dateTimeRange).map(_.flatten[KafkaOffsetRange]))

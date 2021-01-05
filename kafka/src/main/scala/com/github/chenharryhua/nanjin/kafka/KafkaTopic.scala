@@ -1,17 +1,18 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import akka.actor.ActorSystem
 import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, Resource, Sync, Timer}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaGenericDecoder
 import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
 import scala.util.Try
 
 final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V], val context: KafkaContext[F])
-    extends TopicNameExtractor[K, V] with KafkaTopicSettings[F, K, V] with KafkaTopicProducer[F, K, V]
-    with Serializable {
+    extends TopicNameExtractor[K, V] with KafkaTopicProducer[F, K, V] with Serializable {
   import topicDef.{serdeOfKey, serdeOfVal}
 
   val topicName: TopicName = topicDef.topicName
@@ -80,4 +81,46 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
     concurrentEffect: ConcurrentEffect[F],
     timer: Timer[F],
     contextShift: ContextShift[F]): KafkaMonitoringApi[F, K, V] = KafkaMonitoringApi[F, K, V](this)
+
+  val schemaRegistry: NJSchemaRegistry[F, K, V] = new NJSchemaRegistry[F, K, V](this)
+
+  // channels
+  def kafkaStream: KafkaChannels.StreamingChannel[K, V] =
+    new KafkaChannels.StreamingChannel[K, V](topicDef.topicName, codec.keySerde, codec.valSerde)
+
+  def fs2Channel(implicit F: Sync[F]): KafkaChannels.Fs2Channel[F, K, V] = {
+    import fs2.kafka.{ConsumerSettings, Deserializer, ProducerSettings, Serializer}
+    new KafkaChannels.Fs2Channel[F, K, V](
+      topicDef.topicName,
+      ProducerSettings[F, K, V](Serializer.delegate(codec.keySerializer), Serializer.delegate(codec.valSerializer))
+        .withProperties(context.settings.producerSettings.config),
+      ConsumerSettings[F, Array[Byte], Array[Byte]](Deserializer[F, Array[Byte]], Deserializer[F, Array[Byte]])
+        .withProperties(context.settings.consumerSettings.config))
+  }
+
+  def akkaChannel(akkaSystem: ActorSystem): KafkaChannels.AkkaChannel[F, K, V] = {
+    import akka.kafka.{CommitterSettings, ConsumerSettings, ProducerSettings}
+    new KafkaChannels.AkkaChannel[F, K, V](
+      topicName,
+      ProducerSettings[K, V](akkaSystem, codec.keySerializer, codec.valSerializer)
+        .withProperties(context.settings.producerSettings.config),
+      ConsumerSettings[Array[Byte], Array[Byte]](akkaSystem, new ByteArrayDeserializer, new ByteArrayDeserializer)
+        .withProperties(context.settings.consumerSettings.config),
+      CommitterSettings(akkaSystem))
+  }
+}
+
+final class NJSchemaRegistry[F[_], K, V](kt: KafkaTopic[F, K, V]) extends Serializable {
+
+  def register(implicit F: Sync[F]): F[(Option[Int], Option[Int])] =
+    new SchemaRegistryApi[F](kt.context.settings.schemaRegistrySettings)
+      .register(kt.topicName, kt.topicDef.schemaForKey.schema, kt.topicDef.schemaForVal.schema)
+
+  def delete(implicit F: Sync[F]): F[(List[Integer], List[Integer])] =
+    new SchemaRegistryApi[F](kt.context.settings.schemaRegistrySettings).delete(kt.topicName)
+
+  def testCompatibility(implicit F: Sync[F]): F[CompatibilityTestReport] =
+    new SchemaRegistryApi[F](kt.context.settings.schemaRegistrySettings)
+      .testCompatibility(kt.topicName, kt.topicDef.schemaForKey.schema, kt.topicDef.schemaForVal.schema)
+
 }

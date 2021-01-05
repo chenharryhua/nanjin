@@ -52,13 +52,10 @@ class MessageDateTimeTest extends AnyFunSuite {
   test("supported java date-time type") {
     import DatetimeCase.AllJavaDateTime
     val topic = TopicDef[Int, AllJavaDateTime](TopicName("message.datetime.test")).in(ctx)
-    val m = AllJavaDateTime(
-      LocalDateTime.now,
-      LocalDate.now,
-      Instant.ofEpochMilli(Instant.now.toEpochMilli))
+    val m     = AllJavaDateTime(LocalDateTime.now, LocalDate.now, Instant.ofEpochMilli(Instant.now.toEpochMilli))
     val rst = for {
       _ <- topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
-      _ <- topic.schemaDelete
+      _ <- topic.schemaRegistry.delete
       _ <- topic.send(0, m)
       r <- topic.shortLiveConsumer.use(_.retrieveLastRecords)
     } yield assert(topic.decoder(r.head).decodeValue.value() === m)

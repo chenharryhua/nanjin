@@ -63,10 +63,8 @@ final class CrDS[F[_], K, V] private[kafka] (
     new CrDS[F, K2, V2](dataset.flatMap(f)(ate.sparkEncoder), other, cfg, k2, v2).normalize
   }
 
-  def stats: Statistics[F] = {
-    val enc = TypedExpressionEncoder[CRMetaInfo]
-    new Statistics[F](dataset.map(CRMetaInfo(_))(enc), params.timeRange.zoneId)
-  }
+  def stats: Statistics[F] =
+    new Statistics[F](dataset.map(CRMetaInfo(_))(TypedExpressionEncoder[CRMetaInfo]), params.timeRange.zoneId)
 
   def crRdd: CrRdd[F, K, V] = new CrRdd[F, K, V](dataset.rdd, topic, cfg, dataset.sparkSession)
   def prRdd: PrRdd[F, K, V] = new PrRdd[F, K, V](dataset.rdd.map(_.toNJProducerRecord), topic, cfg)
@@ -75,6 +73,9 @@ final class CrDS[F[_], K, V] private[kafka] (
     new DatasetAvroFileHoarder[F, OptionalKV[K, V]](dataset, ate.avroCodec.avroEncoder)
 
   def count(implicit F: Sync[F]): F[Long] = F.delay(dataset.count())
+
+  def cherrypick(partition: Int, offset: Long): Option[OptionalKV[K, V]] =
+    partitionOf(partition).offsetRange(offset, offset).dataset.collect().headOption
 
   /** Notes:
     *  same key should be in same partition.
