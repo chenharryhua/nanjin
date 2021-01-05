@@ -76,6 +76,16 @@ class AkkaChannelTest extends AnyFunSuite {
       .runWith(akkaChannel.plainSink)
     run.unsafeRunSync()
   }
+  test("akka source error") {
+    val run = akkaChannel
+      .withConsumerSettings(_.withClientId("c-id"))
+      .withCommitterSettings(_.withParallelism(10))
+      .source
+      .map(m => topic.decoder(m).nullableDecode)
+      .map(m => throw new Exception("oops"))
+      .runWith(akkaSinks.ignore[IO])
+    assertThrows[Exception](run.unsafeRunSync())
+  }
 
   test("fs2 stream") {
     akkaChannel.stream

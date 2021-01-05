@@ -42,7 +42,7 @@ class Fs2ChannelTest extends AnyFunSuite {
     val ret = topic.fs2Channel.stream
       .map(m => topic.decoder(m).decodeValue)
       .take(1)
-      .map(_.show)
+      .map(_.toString)
       .map(println)
       .interruptAfter(2.seconds)
       .compile
@@ -59,7 +59,7 @@ class Fs2ChannelTest extends AnyFunSuite {
       .map(_.toEither)
       .rethrow
       .take(1)
-      .map(_.show)
+      .map(_.toString)
       .interruptAfter(2.seconds)
       .compile
       .toList
