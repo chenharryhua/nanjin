@@ -77,7 +77,7 @@ class DecimalTopicTest extends AnyFunSuite {
   val topic: KafkaTopic[IO, Int, HasDecimal] = topicDef.in(ctx)
 
   (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
-    topic.schemaRegister >>
+    topic.schemaRegistry.register >>
     topic.send(1, data) >> topic.send(2, data)).unsafeRunSync()
 
   val stopic = sparKafka.topic(topicDef)

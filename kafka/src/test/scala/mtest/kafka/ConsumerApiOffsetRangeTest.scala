@@ -98,8 +98,11 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
       .unsafeRunSync()
   }
   test("retrieveRecord") {
-    val r = topic.shortLiveConsumer.use(_.retrieveRecord(KafkaPartition(0), KafkaOffset(0))).unsafeRunSync().get
-    assert(r.offset() == 0 && r.partition() == 0)
+    val r  = topic.shortLiveConsumer.use(_.retrieveRecord(KafkaPartition(0), KafkaOffset(0))).unsafeRunSync().get
+    val r2 = topic.record(0, 0).unsafeRunSync().get
+    assert(r.partition() == r2.partition())
+    assert(r.offset() == r2.offset())
+
   }
   test("numOfRecordsSince") {
     val r = topic.shortLiveConsumer.use(_.numOfRecordsSince(NJTimestamp(100))).unsafeRunSync()

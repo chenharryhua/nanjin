@@ -22,7 +22,7 @@ private[kafka] trait KafkaTopicProducer[F[_], K, V] {
   private def fs2ProducerResource(implicit
     concurrentEffect: ConcurrentEffect[F],
     contextShift: ContextShift[F]): Resource[F, Fs2KafkaProducer[F, K, V]] =
-    producerResource[F].using(topic.fs2ProducerSettings)
+    producerResource[F].using(topic.fs2Channel.producerSettings)
 
   def send(k: K, v: V)(implicit
     concurrentEffect: ConcurrentEffect[F],

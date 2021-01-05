@@ -135,4 +135,7 @@ class CrDSTest extends AnyFunSuite {
     assert(crRdd.prRdd.offsetRange(0, 2).rdd.collect.size == 3)
     assert(crRdd.crDS.offsetRange(0, 2).dataset.collect.size == 3)
   }
+  test("cherry-pick") {
+    assert(crRdd.cherrypick(0, 0) == crDS.cherrypick(0, 0))
+  }
 }

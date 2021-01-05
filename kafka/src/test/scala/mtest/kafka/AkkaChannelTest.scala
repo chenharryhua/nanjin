@@ -2,8 +2,9 @@ package mtest.kafka
 
 import cats.effect.IO
 import cats.syntax.all._
+import com.github.chenharryhua.nanjin.utils.random4d
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJDateTimeRange}
-import com.github.chenharryhua.nanjin.kafka.{akkaSinks, KafkaOffset}
+import com.github.chenharryhua.nanjin.kafka.{akkaSinks, KafkaChannels, KafkaOffset, KafkaTopic}
 import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerResult}
 import org.scalatest.funsuite.AnyFunSuite
@@ -12,7 +13,7 @@ import java.time.LocalDateTime
 import scala.concurrent.duration.DurationInt
 
 class AkkaChannelTest extends AnyFunSuite {
-  val topic = ctx.topic[Int, String]("akka.consumer.test")
+  val topic: KafkaTopic[IO, Int, String] = ctx.topic[Int, String]("akka.consumer.test")
 
   val data: List[ProducerRecord[Int, String]] =
     List(topic.fs2PR(1, "a"), topic.fs2PR(2, "b"), topic.fs2PR(3, "c"), topic.fs2PR(4, "d"), topic.fs2PR(5, "e"))
@@ -20,9 +21,9 @@ class AkkaChannelTest extends AnyFunSuite {
   val sender: Stream[IO, List[ProducerResult[Int, String, Unit]]] =
     Stream.awakeEvery[IO](1.second).zipRight(Stream.eval(data.traverse(x => topic.send(x))))
 
+  val akkaChannel: KafkaChannels.AkkaChannel[IO, Int, String] = topic.akkaChannel(akkaSystem)
   test("time-ranged") {
-    val akkaChannel = topic.akkaChannel
-    val range       = NJDateTimeRange(sydneyTime)
+    val range = NJDateTimeRange(sydneyTime)
     (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >> IO.sleep(1.seconds)).unsafeRunSync()
     val res = akkaChannel
       .timeRanged(range)
@@ -37,11 +38,9 @@ class AkkaChannelTest extends AnyFunSuite {
     assert(res == data)
   }
 
-  val akkaChannel = topic.akkaChannel
-
   test("akka stream committableSink") {
     val run = akkaChannel
-      .withConsumerSettings(_.withClientId("c-id"))
+      .withConsumerSettings(_.withClientId(s"c-id-${random4d.value}"))
       .withCommitterSettings(_.withParallelism(10))
       .source
       .map(m => topic.decoder(m).nullableDecode)
@@ -53,7 +52,7 @@ class AkkaChannelTest extends AnyFunSuite {
   }
   test("akka stream flexiFlow/commitSink") {
     val run = akkaChannel
-      .withConsumerSettings(_.withClientId("c-id"))
+      .withConsumerSettings(_.withClientId(s"c-id-${random4d.value}"))
       .withCommitterSettings(_.withParallelism(10))
       .source
       .map(m => topic.decoder(m).nullableDecode)
@@ -68,7 +67,7 @@ class AkkaChannelTest extends AnyFunSuite {
 
   test("akka stream plainSink") {
     val run = akkaChannel
-      .withConsumerSettings(_.withClientId("c-id"))
+      .withConsumerSettings(_.withClientId(s"c-id-${random4d.value}"))
       .withCommitterSettings(_.withParallelism(10))
       .source
       .map(m => topic.decoder(m).nullableDecode)
@@ -77,6 +76,16 @@ class AkkaChannelTest extends AnyFunSuite {
       .take(2)
       .runWith(akkaChannel.plainSink)
     run.unsafeRunSync()
+  }
+  test("akka source error") {
+    val run = akkaChannel
+      .withConsumerSettings(_.withClientId(s"c-id-${random4d.value}"))
+      .withCommitterSettings(_.withParallelism(10))
+      .source
+      .map(m => topic.decoder(m).nullableDecode)
+      .map(m => throw new Exception("oops"))
+      .runWith(akkaSinks.ignore[IO])
+    assertThrows[Exception](run.unsafeRunSync())
   }
 
   test("fs2 stream") {

@@ -56,7 +56,7 @@ class KafkaAvroTest extends AnyFunSuite {
     val sk   = sparKafka.topic(topicCO.topicDef)
 
     val run = topicCO.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
-      topicCO.schemaRegister >>
+      topicCO.schemaRegistry.register >>
       topicCO.send(data) >>
       sk.fromKafka.save.avro(path).file.run(blocker) >>
       IO(sk.load.rdd.avro(path).rdd.collect().toSet)
@@ -71,7 +71,7 @@ class KafkaAvroTest extends AnyFunSuite {
     val sk          = sparKafka.topic(topicEnum.topicDef)
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
-      topicEnum.schemaRegister >>
+      topicEnum.schemaRegistry.register >>
       topicEnum.send(data) >>
       sk.fromKafka.save.avro(avroPath).file.run(blocker) >>
       sk.fromKafka.save.jackson(jacksonPath).file.run(blocker) >>
@@ -99,7 +99,7 @@ class KafkaAvroTest extends AnyFunSuite {
     val sk   = sparKafka.topic(topicEnum.topicDef)
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
-      topicEnum.schemaRegister >>
+      topicEnum.schemaRegistry.register >>
       topicEnum.send(data) >>
       sk.fromKafka.save.avro(path).folder.run(blocker) >>
       IO(sk.load.rdd.avro(path).rdd.take(10).toSet)
@@ -112,7 +112,7 @@ class KafkaAvroTest extends AnyFunSuite {
     val sk   = sparKafka.topic(topicEnum.topicDef)
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
-      topicEnum.schemaRegister >>
+      topicEnum.schemaRegistry.register >>
       topicEnum.send(data) >>
       sk.fromKafka.save.avro(path).folder.snappy.run(blocker) >>
       IO(sk.load.rdd.avro(path).rdd.take(10).toSet)
@@ -124,7 +124,7 @@ class KafkaAvroTest extends AnyFunSuite {
     val sk   = sparKafka.topic(topicEnum.topicDef)
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
-      topicEnum.schemaRegister >>
+      topicEnum.schemaRegistry.register >>
       topicEnum.send(data) >>
       sk.fromKafka.save.avro(path).file.snappy.run(blocker) >>
       IO(sk.load.rdd.avro(path).rdd.take(10).toSet)

@@ -98,7 +98,7 @@ private[kafka] object sk {
       .chunkN(uploadParams.batchSize)
       .metered(uploadParams.uploadInterval)
       .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName.value))))
-      .through(produce(topic.fs2ProducerSettings))
+      .through(produce(topic.fs2Channel.producerSettings))
 
   /** streaming
     */

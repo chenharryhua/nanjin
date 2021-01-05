@@ -91,28 +91,28 @@ class KafkaStreamingTest extends AnyFunSuite {
       c <- tgt.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       d <- t2Topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       e <- t2Topic.send(t2Data) // populate table
-      f <- g3Topic.send(g3Data)
+      f <- g3Topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
+      g <- g3Topic.send(g3Data)
     } yield {
       println(s"delete s1 topic:   $a")
       println(s"send s1 topic:     $b")
       println(s"delete tgt topic:  $c")
       println(s"delete t2 topic:   $d")
       println(s"populate t2 topic: $e")
-      println(s"populate g3 topic: $f")
+      println(s"delete g3 topic:   $f")
+      println(s"populate g3 topic: $g")
     }
 
     val populateS1Topic: Stream[IO, ProducerResult[Int, StreamOne, Unit]] =
       Stream.emits(s1Data).zipLeft(Stream.awakeEvery[IO](1.seconds)).evalMap(s1Topic.send).debug()
-
-    val streamingService: Stream[IO, KafkaStreams] =
-      ctx.buildStreams(top).run.handleErrorWith(_ => Stream.sleep_(2.seconds) ++ ctx.buildStreams(top).run)
 
     val harvest: Stream[IO, StreamTarget] =
       tgt.fs2Channel.stream.map(x => tgt.decoder(x).decode.record.value)
 
     val runStream = for {
       _ <- Stream.eval(prepare)
-      _ <- streamingService
+      _ <- ctx.buildStreams(top).run.handleErrorWith(_ => Stream.sleep(2.seconds) ++ ctx.buildStreams(top).run)
+      _ <- Stream.eval(IO(println("streaming started")))
       d <- harvest.concurrently(populateS1Topic).interruptAfter(10.seconds)
     } yield d
 

@@ -21,17 +21,21 @@ class CopyDataTest extends AnyFunSuite {
   val d5 = src.fs2PR(4, null.asInstanceOf[MyTestData]).withTimestamp(50)
 
   val prepareData =
-    src.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >> src.schemaDelete >> src.schemaRegister >>
-      tgt.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >> tgt.schemaDelete >> tgt.schemaRegister >>
+    src.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
+      src.schemaRegistry.delete >>
+      src.schemaRegistry.register >>
+      tgt.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
+      tgt.schemaRegistry.delete >>
+      tgt.schemaRegistry.register >>
       src.send(d1) >> src.send(d2) >> src.send(d3) >> src.send(d4) >> src.send(d5)
 
   test("sparKafka pipeTo should copy data from source to target") {
     val rst = for {
       _ <- prepareData
-      _ <- sparKafka.topic(src.topicDef).withTimeRange(range).fromKafka.prRdd.upload(tgt).compile.drain
+      _ <- sparKafka.topic(src.topicDef).fromKafka.prRdd.upload(tgt).compile.drain
     } yield {
-      val srcData = sparKafka.topic(src.topicDef).withTimeRange(range).fromKafka.rdd.collect
-      val tgtData = sparKafka.topic(tgt.topicDef).withTimeRange(range).fromKafka.rdd.collect
+      val srcData = sparKafka.topic(src.topicDef).fromKafka.rdd.collect
+      val tgtData = sparKafka.topic(tgt.topicDef).fromKafka.rdd.collect
       assert(srcData.size == 5)
       assert(tgtData.size == 5)
       assert(srcData.map(_.value).toSet === tgtData.map(_.value).toSet)

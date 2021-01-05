@@ -1,7 +1,5 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import java.time.ZoneId
-
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Timer}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
@@ -38,7 +36,7 @@ object KafkaMonitoringApi {
 
   final private class KafkaTopicMonitoring[F[_]: ContextShift: Timer, K, V](topic: KafkaTopic[F, K, V])(implicit
     F: ConcurrentEffect[F])
-      extends KafkaMonitoringApi[F, K, V] with ShowKafkaMessage {
+      extends KafkaMonitoringApi[F, K, V] {
 
     private val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
       topic.fs2Channel.withConsumerSettings(_.withEnableAutoCommit(false))
@@ -49,7 +47,7 @@ object KafkaMonitoringApi {
           fs2Channel
             .withConsumerSettings(_.withAutoOffsetReset(aor))
             .stream
-            .map(m => topic.decoder(m).tryDecodeKeyValue.show)
+            .map(m => topic.decoder(m).tryDecodeKeyValue.toString)
             .showLinesStdOut
             .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
             .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
@@ -63,7 +61,7 @@ object KafkaMonitoringApi {
             .withConsumerSettings(_.withAutoOffsetReset(aor))
             .stream
             .filter(m => predict(isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record)))
-            .map(m => topic.decoder(m).tryDecodeKeyValue.show)
+            .map(m => topic.decoder(m).tryDecodeKeyValue.toString)
             .showLinesStdOut
             .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
             .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
@@ -82,7 +80,7 @@ object KafkaMonitoringApi {
         _ <-
           fs2Channel
             .assign(gtp.flatten[KafkaOffset].mapValues(_.value).value)
-            .map(m => topic.decoder(m).tryDecodeKeyValue.show)
+            .map(m => topic.decoder(m).tryDecodeKeyValue.toString)
             .showLinesStdOut
             .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
             .interruptWhen(signal.map(_.contains(Keyboard.Quit)))

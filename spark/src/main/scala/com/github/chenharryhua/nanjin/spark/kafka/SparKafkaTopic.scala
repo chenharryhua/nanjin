@@ -13,7 +13,7 @@ import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
-import java.time.ZoneId
+import java.time.LocalDate
 
 final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKConfig, ss: SparkSession)
     extends Serializable {
@@ -26,10 +26,10 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   private def updateCfg(f: SKConfig => SKConfig): SparKafkaTopic[F, K, V] =
     new SparKafkaTopic[F, K, V](topic, f(cfg), ss)
 
-  def withZoneId(zoneId: ZoneId): SparKafkaTopic[F, K, V]         = updateCfg(_.withZoneId(zoneId))
-  def withTimeRange(tr: NJDateTimeRange): SparKafkaTopic[F, K, V] = updateCfg(_.withTimeRange(tr))
-  def withStartTime(str: String): SparKafkaTopic[F, K, V]         = updateCfg(_.withStartTime(str))
-  def withEndTime(str: String): SparKafkaTopic[F, K, V]           = updateCfg(_.withEndTime(str))
+  def withStartTime(str: String): SparKafkaTopic[F, K, V] = updateCfg(_.withStartTime(str))
+  def withEndTime(str: String): SparKafkaTopic[F, K, V]   = updateCfg(_.withEndTime(str))
+
+  def withOneDay(ld: LocalDate): SparKafkaTopic[F, K, V] = updateCfg(_.withOneDay(ld))
 
   val params: SKParams = cfg.evalConfig
 

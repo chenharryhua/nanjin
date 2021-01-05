@@ -65,6 +65,9 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def keys: RDD[CompulsoryK[K, V]]       = rdd.flatMap(_.toCompulsoryK)
   def keyValues: RDD[CompulsoryKV[K, V]] = rdd.flatMap(_.toCompulsoryKV)
 
+  def cherrypick(partition: Int, offset: Long): Option[OptionalKV[K, V]] =
+    partitionOf(partition).offsetRange(offset, offset).rdd.collect().headOption
+
   // upload
   def prRdd: PrRdd[F, K, V] = new PrRdd[F, K, V](rdd.map(_.toNJProducerRecord), topic, cfg)
 
