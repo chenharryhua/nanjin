@@ -2,6 +2,7 @@ package mtest.kafka
 
 import cats.effect.IO
 import cats.syntax.all._
+import com.github.chenharryhua.nanjin.utils.random4d
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJDateTimeRange}
 import com.github.chenharryhua.nanjin.kafka.{akkaSinks, KafkaChannels, KafkaOffset, KafkaTopic}
 import fs2.Stream
@@ -39,7 +40,7 @@ class AkkaChannelTest extends AnyFunSuite {
 
   test("akka stream committableSink") {
     val run = akkaChannel
-      .withConsumerSettings(_.withClientId("c-id"))
+      .withConsumerSettings(_.withClientId(s"c-id-${random4d.value}"))
       .withCommitterSettings(_.withParallelism(10))
       .source
       .map(m => topic.decoder(m).nullableDecode)
@@ -51,7 +52,7 @@ class AkkaChannelTest extends AnyFunSuite {
   }
   test("akka stream flexiFlow/commitSink") {
     val run = akkaChannel
-      .withConsumerSettings(_.withClientId("c-id"))
+      .withConsumerSettings(_.withClientId(s"c-id-${random4d.value}"))
       .withCommitterSettings(_.withParallelism(10))
       .source
       .map(m => topic.decoder(m).nullableDecode)
@@ -66,7 +67,7 @@ class AkkaChannelTest extends AnyFunSuite {
 
   test("akka stream plainSink") {
     val run = akkaChannel
-      .withConsumerSettings(_.withClientId("c-id"))
+      .withConsumerSettings(_.withClientId(s"c-id-${random4d.value}"))
       .withCommitterSettings(_.withParallelism(10))
       .source
       .map(m => topic.decoder(m).nullableDecode)
@@ -78,7 +79,7 @@ class AkkaChannelTest extends AnyFunSuite {
   }
   test("akka source error") {
     val run = akkaChannel
-      .withConsumerSettings(_.withClientId("c-id"))
+      .withConsumerSettings(_.withClientId(s"c-id-${random4d.value}"))
       .withCommitterSettings(_.withParallelism(10))
       .source
       .map(m => topic.decoder(m).nullableDecode)
