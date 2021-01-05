@@ -37,7 +37,6 @@ class SparkExtTest extends AnyFunSuite {
       .topic(topic)
       .withStartTime("2012-10-26")
       .withEndTime("2012-10-28")
-      .withTimeRange(range)
       .fromKafka
       .crDS
       .ascendTimestamp

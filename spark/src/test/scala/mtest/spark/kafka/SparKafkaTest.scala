@@ -43,36 +43,27 @@ class SparKafkaTest extends AnyFunSuite {
 
   test("sparKafka read topic from kafka") {
     val rst =
-      sparKafka.topic(topic.topicDef).withTimeRange(range).fromKafka.values.collect()
+      sparKafka.topic(topic.topicDef).fromKafka.values.collect()
     assert(rst.toList.map(_.value) === List(data, data))
   }
 
   test("sparKafka read topic from kafka and show minutely aggragation result") {
-    sparKafka
-      .topic(topic.topicDef)
-      .withZoneId(sydneyTime)
-      .fromKafka
-      .stats
-      .rows(100)
-      .untruncate
-      .truncate
-      .minutely
-      .unsafeRunSync
+    sparKafka.topic(topic.topicDef).withOneDay(LocalDate.now()).fromKafka.stats.rows(100).untruncate.truncate.minutely.unsafeRunSync
   }
   test("sparKafka read topic from kafka and show daily-hour aggragation result") {
-    sparKafka.topic(topic).withTimeRange(range).fromKafka.stats.dailyHour.unsafeRunSync
+    sparKafka.topic(topic).fromKafka.stats.dailyHour.unsafeRunSync
   }
   test("sparKafka read topic from kafka and show daily-minutes aggragation result") {
-    sparKafka.topic(topic).withTimeRange(range).fromKafka.stats.dailyMinute.unsafeRunSync
+    sparKafka.topic(topic).fromKafka.stats.dailyMinute.unsafeRunSync
   }
   test("sparKafka read topic from kafka and show daily aggragation result") {
-    sparKafka.topic(topic).withTimeRange(range).fromKafka.stats.daily.unsafeRunSync
+    sparKafka.topic(topic).fromKafka.stats.daily.unsafeRunSync
   }
   test("sparKafka read topic from kafka and show hourly aggragation result") {
-    sparKafka.topic(topic).withTimeRange(range).fromKafka.stats.hourly.unsafeRunSync
+    sparKafka.topic(topic).fromKafka.stats.hourly.unsafeRunSync
   }
   test("sparKafka read topic from kafka and show summary") {
-    sparKafka.topic(topic).withTimeRange(range).fromKafka.stats.showSummary.unsafeRunSync
+    sparKafka.topic(topic).fromKafka.stats.showSummary.unsafeRunSync
   }
   test("sparKafka should be able to bimap to other topic") {
     val src: KafkaTopic[IO, Int, Int]          = ctx.topic[Int, Int]("src.topic")
@@ -86,7 +77,7 @@ class SparKafkaTest extends AnyFunSuite {
     val t = ctx.topic[String, Int]("tmp")
 
     val birst: Set[CompulsoryV[String, Int]] =
-      sparKafka.topic(src).withTimeRange(range).crRdd(ds.rdd).bimap(_.toString, _ + 1)(t).values.collect().toSet
+      sparKafka.topic(src).crRdd(ds.rdd).bimap(_.toString, _ + 1)(t).values.collect().toSet
     assert(birst.map(_.value) == Set(2, 3, 5))
   }
 
@@ -104,7 +95,6 @@ class SparKafkaTest extends AnyFunSuite {
     val birst: Set[CompulsoryV[Int, Int]] =
       sparKafka
         .topic(src)
-        .withTimeRange(range)
         .crRdd(ds.rdd)
         .timeRange
         .flatMap(m => m.value.map(x => OptionalKV.value.set(Some(x - 1))(m)))(t)
@@ -123,7 +113,6 @@ class SparKafkaTest extends AnyFunSuite {
 
     val t = sparKafka
       .topic[Int, Int]("some.value")
-      .withTimeRange(range)
       .crRdd(ds.rdd)
       .repartition(3)
       .descendTimestamp

@@ -94,7 +94,6 @@ class KafkaStreamTest extends AnyFunSuite {
 
     val ss = sparKafka
       .topic(rooster)
-      .withZoneId(sydneyTime)
       .sstream
       .progressInterval(1000)
       .failOnDataLoss

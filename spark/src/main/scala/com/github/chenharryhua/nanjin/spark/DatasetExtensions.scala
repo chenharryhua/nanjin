@@ -24,6 +24,8 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
+import java.time.ZoneId
+
 private[spark] trait DatasetExtensions {
 
   implicit final class RddExt[A](rdd: RDD[A]) extends Serializable {
@@ -104,8 +106,10 @@ final class SparkDBContext[F[_]](val sparkSession: SparkSession, val dbSettings:
 final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaContext: KafkaContext[F])
     extends Serializable {
 
-  def topic[K, V](topicDef: TopicDef[K, V]): SparKafkaTopic[F, K, V] =
-    new SparKafkaTopic[F, K, V](topicDef.in[F](kafkaContext), SKConfig(topicDef.topicName), sparkSession)
+  def topic[K, V](topicDef: TopicDef[K, V]): SparKafkaTopic[F, K, V] = {
+    val zoneId = ZoneId.of(sparkSession.conf.get("spark.sql.session.timeZone"))
+    new SparKafkaTopic[F, K, V](topicDef.in[F](kafkaContext), SKConfig(topicDef.topicName, zoneId), sparkSession)
+  }
 
   def topic[K, V](kt: KafkaTopic[F, K, V]): SparKafkaTopic[F, K, V] =
     topic[K, V](kt.topicDef)
