@@ -10,7 +10,8 @@ import monocle.function.Plated
 import monocle.generic.all.coProductPrism
 import org.apache.spark.rdd.RDD
 import shapeless.{:+:, CNil, Coproduct}
-
+import mtest.spark._
+ 
 final case class Fractual(value: Option[Fractual.FType])
 
 object Fractual {

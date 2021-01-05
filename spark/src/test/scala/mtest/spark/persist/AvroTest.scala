@@ -8,6 +8,7 @@ import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import org.apache.spark.sql.SaveMode
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
+import mtest.spark._
 
 @DoNotDiscover
 class AvroTest extends AnyFunSuite {

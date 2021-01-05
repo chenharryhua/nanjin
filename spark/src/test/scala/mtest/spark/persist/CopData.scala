@@ -4,9 +4,11 @@ import frameless.TypedDataset
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Dataset
 import shapeless.Coproduct
+import mtest.spark._
 
 object CopData {
 
+  private implicit val ss = sparkSession
   val emCops = List(
     EmCop(1, EnumCoproduct.Domestic),
     EmCop(2, EnumCoproduct.International)

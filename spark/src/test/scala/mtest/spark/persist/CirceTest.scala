@@ -12,6 +12,7 @@ import io.circe.generic.auto._
 import org.apache.spark.rdd.RDD
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
+import mtest.spark._
 
 @DoNotDiscover
 class CirceTest extends AnyFunSuite {
@@ -20,16 +21,7 @@ class CirceTest extends AnyFunSuite {
 
   test("rdd read/write identity multi.gzip") {
     val path = "./data/test/spark/persist/circe/rooster/multi.gzip"
-    rooster
-      .circe(path)
-      .errorIfExists
-      .ignoreIfExists
-      .overwrite
-      .outPath(path)
-      .folder
-      .gzip
-      .run(blocker)
-      .unsafeRunSync()
+    rooster.circe(path).errorIfExists.ignoreIfExists.overwrite.outPath(path).folder.gzip.run(blocker).unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path, sparkSession)
     assert(RoosterData.expected == t.collect().toSet)
     val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate, sparkSession)
@@ -196,11 +188,7 @@ class CirceTest extends AnyFunSuite {
     val expected      = rdd.collect().toSet
     rdd.save[IO].circe(path).file.run(blocker).unsafeRunSync()
     val t =
-      loaders
-        .circe[Int](path, AvroTypedEncoder[Int](AvroCodec[Int]), sparkSession)
-        .collect[IO]()
-        .unsafeRunSync()
-        .toSet
+      loaders.circe[Int](path, AvroTypedEncoder[Int](AvroCodec[Int]), sparkSession).collect[IO]().unsafeRunSync().toSet
 
     assert(expected == t)
   }

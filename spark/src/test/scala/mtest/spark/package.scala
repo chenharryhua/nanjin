@@ -2,10 +2,12 @@ package mtest
 
 import akka.actor.ActorSystem
 import cats.effect.{Blocker, ContextShift, IO, Timer}
+import com.github.chenharryhua.nanjin.datetime.sydneyTime
 import com.github.chenharryhua.nanjin.kafka.{IoKafkaContext, KafkaSettings}
 import com.github.chenharryhua.nanjin.spark.SparkSettings
 import org.apache.spark.sql.SparkSession
 import com.github.chenharryhua.nanjin.spark._
+
 import scala.concurrent.ExecutionContext.Implicits.global
 
 package object spark {
@@ -18,7 +20,13 @@ package object spark {
 
   val ctx: IoKafkaContext =
     KafkaSettings.local.withApplicationId("kafka.stream.test.app").withGroupId("spark.kafka.stream.test").ioContext
-  val sparkSession: SparkSession = SparkSettings.default.withAppName("nj.spark.test").withUI.withoutUI.session
+
+  val sparkSession: SparkSession = SparkSettings.default
+    .withAppName("nj.spark.test")
+    .withUI
+    .withoutUI
+    .withConfigUpdate(_.set("spark.sql.session.timeZone", sydneyTime.toString))
+    .session
 
   val sparKafka: SparKafkaContext[IO] = sparkSession.alongWith(ctx)
 

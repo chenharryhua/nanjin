@@ -1,13 +1,10 @@
 package mtest.spark.persist
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.spark.persist.{
-  loaders,
-  DatasetAvroFileHoarder,
-  DatasetFileHoarder
-}
+import com.github.chenharryhua.nanjin.spark.persist.{loaders, DatasetAvroFileHoarder, DatasetFileHoarder}
 import frameless.TypedDataset
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
+import mtest.spark._
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -20,19 +17,9 @@ class JsonTest extends AnyFunSuite {
   test("rdd read/write identity uncompressed - keep null") {
     import RoosterData._
     val path = "./data/test/spark/persist/json/uncompressed.keepNull.json"
-    rooster
-      .json(path)
-      .errorIfExists
-      .ignoreIfExists
-      .overwrite
-      .outPath(path)
-      .keepNull
-      .run(blocker)
-      .unsafeRunSync()
+    rooster.json(path).errorIfExists.ignoreIfExists.overwrite.outPath(path).keepNull.run(blocker).unsafeRunSync()
     val t: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate, sparkSession)
     assert(expected == t.collect[IO]().unsafeRunSync().toSet)
-    val t2: TypedDataset[Rooster] = loaders.circe[Rooster](path, Rooster.ate, sparkSession)
-    assert(expected == t2.collect[IO]().unsafeRunSync().toSet)
   }
 
   test("rdd read/write identity uncompressed - drop null") {
@@ -41,8 +28,6 @@ class JsonTest extends AnyFunSuite {
     rooster.json(path).dropNull.run(blocker).unsafeRunSync()
     val t: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate, sparkSession)
     assert(expected == t.collect[IO]().unsafeRunSync().toSet)
-    val t2: TypedDataset[Rooster] = loaders.circe[Rooster](path, Rooster.ate, sparkSession)
-    assert(expected == t2.collect[IO]().unsafeRunSync().toSet)
   }
 
   test("rdd read/write identity gzip") {
@@ -51,8 +36,6 @@ class JsonTest extends AnyFunSuite {
     rooster.json(path).gzip.run(blocker).unsafeRunSync()
     val t: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate, sparkSession)
     assert(expected == t.collect[IO]().unsafeRunSync().toSet)
-    val t2: TypedDataset[Rooster] = loaders.circe[Rooster](path, Rooster.ate, sparkSession)
-    assert(expected == t2.collect[IO]().unsafeRunSync().toSet)
   }
 
   test("rdd read/write identity deflate") {
@@ -61,8 +44,6 @@ class JsonTest extends AnyFunSuite {
     rooster.json(path).deflate(1).run(blocker).unsafeRunSync()
     val t: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate, sparkSession)
     assert(expected == t.collect[IO]().unsafeRunSync().toSet)
-    val t2: TypedDataset[Rooster] = loaders.circe[Rooster](path, Rooster.ate, sparkSession)
-    assert(expected == t2.collect[IO]().unsafeRunSync().toSet)
   }
   test("rdd read/write identity bzip2") {
     import RoosterData._
@@ -70,8 +51,6 @@ class JsonTest extends AnyFunSuite {
     rooster.json(path).bzip2.run(blocker).unsafeRunSync()
     val t: TypedDataset[Rooster] = loaders.json(path, Rooster.ate, sparkSession)
     assert(expected == t.collect[IO]().unsafeRunSync().toSet)
-    val t2: TypedDataset[Rooster] = loaders.circe[Rooster](path, Rooster.ate, sparkSession)
-    assert(expected == t2.collect[IO]().unsafeRunSync().toSet)
   }
   test("json jacket") {
     import JacketData._
