@@ -5,26 +5,17 @@ import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddAvroFileHoarder
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
+import mtest.spark._
 
 @DoNotDiscover
 class JacksonTest extends AnyFunSuite {
 
   val rooster =
-    new RddAvroFileHoarder[IO, Rooster](
-      RoosterData.rdd.repartition(3),
-      Rooster.avroCodec.avroEncoder)
+    new RddAvroFileHoarder[IO, Rooster](RoosterData.rdd.repartition(3), Rooster.avroCodec.avroEncoder)
 
   test("datetime read/write identity - multi") {
     val path = "./data/test/spark/persist/jackson/rooster/multi.json"
-    rooster
-      .jackson(path)
-      .errorIfExists
-      .ignoreIfExists
-      .overwrite
-      .outPath(path)
-      .folder
-      .run(blocker)
-      .unsafeRunSync()
+    rooster.jackson(path).errorIfExists.ignoreIfExists.overwrite.outPath(path).folder.run(blocker).unsafeRunSync()
     val r = loaders.rdd.jackson[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession)
     assert(RoosterData.expected == r.collect().toSet)
   }
@@ -35,11 +26,7 @@ class JacksonTest extends AnyFunSuite {
     val r = loaders.jackson[Rooster](path, Rooster.ate, sparkSession)
     assert(RoosterData.expected == r.collect[IO]().unsafeRunSync().toSet)
     val t3 = loaders.stream
-      .jackson[IO, Rooster](
-        path,
-        Rooster.avroCodec.avroDecoder,
-        blocker,
-        sparkSession.sparkContext.hadoopConfiguration)
+      .jackson[IO, Rooster](path, Rooster.avroCodec.avroDecoder, blocker, sparkSession.sparkContext.hadoopConfiguration)
       .compile
       .toList
       .unsafeRunSync()
@@ -99,10 +86,8 @@ class JacksonTest extends AnyFunSuite {
   }
 
   test("jackson jacket") {
-    val path = "./data/test/spark/persist/jackson/jacket.json"
-    val saver = new RddAvroFileHoarder[IO, Jacket](
-      JacketData.rdd.repartition(3),
-      Jacket.avroCodec.avroEncoder)
+    val path  = "./data/test/spark/persist/jackson/jacket.json"
+    val saver = new RddAvroFileHoarder[IO, Jacket](JacketData.rdd.repartition(3), Jacket.avroCodec.avroEncoder)
     saver.jackson(path).run(blocker).unsafeRunSync()
     val t = loaders.rdd.jackson(path, Jacket.avroCodec.avroDecoder, sparkSession)
     assert(JacketData.expected.toSet == t.collect().toSet)
@@ -111,14 +96,9 @@ class JacksonTest extends AnyFunSuite {
   test("jackson fractual") {
     val path = "./data/test/spark/persist/jackson/fractual.json"
     val saver =
-      new RddAvroFileHoarder[IO, Fractual](
-        FractualData.rdd.repartition(3),
-        Fractual.avroCodec.avroEncoder)
+      new RddAvroFileHoarder[IO, Fractual](FractualData.rdd.repartition(3), Fractual.avroCodec.avroEncoder)
     saver.jackson(path).file.run(blocker).unsafeRunSync()
-    val t = loaders.rdd
-      .jackson[Fractual](path, Fractual.avroCodec.avroDecoder, sparkSession)
-      .collect()
-      .toSet
+    val t = loaders.rdd.jackson[Fractual](path, Fractual.avroCodec.avroDecoder, sparkSession).collect().toSet
     assert(FractualData.data.toSet == t)
   }
 }

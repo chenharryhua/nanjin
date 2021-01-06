@@ -4,6 +4,7 @@ import cats.effect.IO
 import com.github.chenharryhua.nanjin.spark.persist.DatasetAvroFileHoarder
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
+import mtest.spark._
 
 @DoNotDiscover
 class CompressionInterlopeTest extends AnyFunSuite {
@@ -98,7 +99,7 @@ class CompressionInterlopeTest extends AnyFunSuite {
     val run = for {
       a <- rooster.avro(root + "avro1").bzip2.run(blocker).start
       b <- rooster.avro(root + "avro2").deflate(1).run(blocker).start
-      c <- rooster.avro(root + "avro3").snappy.run(blocker).start
+      c <- rooster.avro(root + "avro3").snappy.run(blocker).attempt.start
       d <- rooster.avro(root + "avro4").xz(2).run(blocker).start
 
       e <- rooster.jackson(root + "jackson1").gzip.run(blocker).start
@@ -106,7 +107,7 @@ class CompressionInterlopeTest extends AnyFunSuite {
 
       g <- rooster.binAvro(root + "binAvro").run(blocker).start
 
-      h <- rooster.parquet(root + "parquet1").snappy.run(blocker).start
+      h <- rooster.parquet(root + "parquet1").snappy.run(blocker).attempt.start
       i <- rooster.parquet(root + "parquet2").gzip.run(blocker).start
 
       j <- rooster.circe(root + "circe1").deflate(5).run(blocker).start

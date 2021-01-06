@@ -6,6 +6,7 @@ import org.apache.spark.sql.Dataset
 
 import java.sql.Timestamp
 import java.time.Instant
+import mtest.spark._
 
 object RoosterData {
   val instant: Instant     = Instant.parse("2012-10-26T18:00:00Z")
@@ -37,6 +38,7 @@ object RoosterData {
   val bigset: TypedDataset[Rooster] =
     Rooster.ate.normalize(
       sparkSession.sparkContext.parallelize(
-        List.fill(1000)(Rooster(0, instant, timestamp, BigDecimal("0"), BigDecimal("0"), None))), sparkSession)
+        List.fill(1000)(Rooster(0, instant, timestamp, BigDecimal("0"), BigDecimal("0"), None))),
+      sparkSession)
 
 }

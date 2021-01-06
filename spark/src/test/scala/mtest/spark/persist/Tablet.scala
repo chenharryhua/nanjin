@@ -11,6 +11,7 @@ import kantan.csv.java8._
 import kantan.csv.generic._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Dataset
+import mtest.spark._
 
 import scala.util.Random
 
