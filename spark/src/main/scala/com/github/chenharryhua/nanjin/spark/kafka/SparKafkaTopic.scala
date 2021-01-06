@@ -63,7 +63,7 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   def prRdd(rdd: RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] = new PrRdd[F, K, V](rdd, topic, cfg)
 
   def prRdd[G[_]: Foldable](list: G[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
-    new PrRdd[F, K, V](ss.sparkContext.parallelize(list.toList), topic, cfg)
+    prRdd(ss.sparkContext.parallelize(list.toList))
 
   /** structured stream
     */
