@@ -47,6 +47,16 @@ import shapeless.cachedImplicit
       case (Some(p), Some(t)) => pr.withPartition(p).withTimestamp(t)
     }
   }
+
+  @SuppressWarnings(Array("AsInstanceOf"))
+  def toProducerRecord(topicName: String): ProducerRecord[K, V] = {
+    val p = partition.map(x => new java.lang.Integer(x)).orNull
+    val t = timestamp.map(x => new java.lang.Long(x)).orNull
+    val k = key.getOrElse(null.asInstanceOf[K])
+    val v = value.getOrElse(null.asInstanceOf[V])
+
+    new ProducerRecord[K, V](topicName, p, t, k, v)
+  }
 }
 
 object NJProducerRecord {
