@@ -1,5 +1,8 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import akka.Done
+import akka.actor.ActorSystem
+import akka.stream.Materializer
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
@@ -73,6 +76,17 @@ final class PrRdd[F[_], K, V] private[kafka] (
     timer: Timer[F],
     cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
     upload(topic)
+
+  def bestEffort(akkaSystem: ActorSystem)(implicit F: ConcurrentEffect[F], cs: ContextShift[F]): F[Done] =
+    F.defer {
+      implicit val mat: Materializer = Materializer(akkaSystem)
+      rdd
+        .source[F]
+        .map(_.toProducerRecord(topic.topicName.value))
+        .take(params.uploadParams.recordsLimit)
+        .takeWithin(params.uploadParams.timeLimit)
+        .runWith(topic.akkaChannel(akkaSystem).plainSink)
+    }
 
   def count(implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
 

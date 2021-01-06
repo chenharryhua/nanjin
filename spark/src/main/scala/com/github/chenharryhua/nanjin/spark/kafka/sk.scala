@@ -96,8 +96,9 @@ private[kafka] object sk {
     _.interruptAfter(uploadParams.timeLimit)
       .take(uploadParams.recordsLimit)
       .chunkN(uploadParams.batchSize)
-      .metered(uploadParams.uploadInterval)
       .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName.value))))
+      .buffer(5)
+      .metered(uploadParams.uploadInterval)
       .through(produce(topic.fs2Channel.producerSettings))
 
   /** streaming
