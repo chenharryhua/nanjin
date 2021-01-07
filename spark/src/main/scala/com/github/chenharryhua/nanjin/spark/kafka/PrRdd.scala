@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import frameless.cats.implicits._
 import fs2.Stream
-import fs2.kafka.ProducerResult
+import fs2.kafka.{produce, ProducerRecords, ProducerResult}
 import org.apache.spark.rdd.RDD
 
 import scala.concurrent.duration.FiniteDuration
@@ -63,7 +63,16 @@ final class PrRdd[F[_], K, V] private[kafka] (
     ce: ConcurrentEffect[F],
     timer: Timer[F],
     cs: ContextShift[F]): Stream[F, ProducerResult[K2, V2, Unit]] =
-    rdd.stream[F].map(_.bimap(k, v)).through(sk.uploader(other, params.uploadParams))
+    rdd
+      .stream[F]
+      .map(_.bimap(k, v))
+      .interruptAfter(params.uploadParams.timeLimit)
+      .take(params.uploadParams.recordsLimit)
+      .chunkN(params.uploadParams.batchSize)
+      .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(other.topicName.value))))
+      .buffer(5)
+      .metered(params.uploadParams.uploadInterval)
+      .through(produce(other.fs2Channel.producerSettings))
 
   def upload(other: KafkaTopic[F, K, V])(implicit
     ce: ConcurrentEffect[F],
