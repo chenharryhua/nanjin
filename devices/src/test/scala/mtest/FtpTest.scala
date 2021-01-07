@@ -1,5 +1,6 @@
 package mtest
 
+import akka.stream.Materializer
 import cats.effect.IO
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.devices.{AkkaFtpDownloader, AkkaFtpUploader}
@@ -17,6 +18,8 @@ class FtpTest extends AnyFunSuite {
   val testString = s"send a string to ftp and read it back ${Random.nextInt()}"
 
   val ts: Stream[IO, Byte] = Stream(testString).through(fs2.text.utf8Encode)
+
+  implicit val mat = Materializer(akkaSystem)
 
   test("ftp should overwrite target file") {
     val action = ts.through(uploader.upload(pathStr)).compile.drain >>

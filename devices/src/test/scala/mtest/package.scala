@@ -12,9 +12,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 package object mtest {
 
-  implicit val cs: ContextShift[IO]    = IO.contextShift(global)
-  implicit val timer: Timer[IO]        = IO.timer(global)
-  implicit val akkaSystem: ActorSystem = ActorSystem("nj-devices")
+  implicit val cs: ContextShift[IO] = IO.contextShift(global)
+  implicit val timer: Timer[IO]     = IO.timer(global)
+  val akkaSystem: ActorSystem       = ActorSystem("nj-devices")
 
   val blocker: Blocker = Blocker.liftExecutionContext(global)
 
@@ -26,8 +26,7 @@ package object mtest {
       .withCredentials(cred)
       .withPassiveMode(true)
       .withConfigureConnection { (ftpClient: FTPClient) =>
-        ftpClient.addProtocolCommandListener(
-          new PrintCommandListener(new PrintWriter(System.out), true))
+        ftpClient.addProtocolCommandListener(new PrintCommandListener(new PrintWriter(System.out), true))
         ftpClient.setRemoteVerificationEnabled(false)
       }
 }

@@ -7,10 +7,10 @@ import com.github.chenharryhua.nanjin.spark.kafka._
 import com.landoop.transportation.nyc.trip.yellow.trip_record
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
-import mtest.spark.{akkaSystem, blocker, contextShift, ctx, sparKafka, sparkSession}
+import mtest.spark.{blocker, contextShift, ctx, mat, sparKafka, sparkSession}
 import org.apache.spark.rdd.RDD
-import org.scalatest.funsuite.AnyFunSuite
 import org.apache.spark.sql.SparkSession
+import org.scalatest.funsuite.AnyFunSuite
 
 object SparkExtTestData {
   final case class Foo(a: Int, b: String)

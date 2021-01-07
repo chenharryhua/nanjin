@@ -10,12 +10,10 @@ import net.schmizz.sshj.SSHClient
 import org.apache.commons.net.ftp.{FTPClient, FTPSClient}
 import streamz.converter._
 
-sealed abstract class FtpDownloader[F[_], C, S <: RemoteFileSettings](
-  ftpApi: FtpApi[C, S],
-  settings: S)(implicit mat: Materializer) {
+sealed abstract class FtpDownloader[F[_], C, S <: RemoteFileSettings](ftpApi: FtpApi[C, S], settings: S) {
 
   final def download(
-    pathStr: String)(implicit F: Concurrent[F], cs: ContextShift[F]): Stream[F, Byte] = {
+    pathStr: String)(implicit F: Concurrent[F], cs: ContextShift[F], mat: Materializer): Stream[F, Byte] = {
     val run = ftpApi.fromPath(pathStr, settings).toStreamMat[F].map { case (s, f) =>
       s.concurrently(Stream.eval(Async.fromFuture(Async[F].pure(f))))
     }
@@ -23,11 +21,11 @@ sealed abstract class FtpDownloader[F[_], C, S <: RemoteFileSettings](
   }
 }
 
-final class AkkaFtpDownloader[F[_]](settings: FtpSettings)(implicit mat: Materializer)
+final class AkkaFtpDownloader[F[_]](settings: FtpSettings)
     extends FtpDownloader[F, FTPClient, FtpSettings](Ftp, settings)
 
-final class AkkaSftpDownloader[F[_]](settings: SftpSettings)(implicit mat: Materializer)
+final class AkkaSftpDownloader[F[_]](settings: SftpSettings)
     extends FtpDownloader[F, SSHClient, SftpSettings](Sftp, settings)
 
-final class AkkaFtpsDownloader[F[_]](settings: FtpsSettings)(implicit mat: Materializer)
+final class AkkaFtpsDownloader[F[_]](settings: FtpsSettings)
     extends FtpDownloader[F, FTPSClient, FtpsSettings](Ftps, settings)
