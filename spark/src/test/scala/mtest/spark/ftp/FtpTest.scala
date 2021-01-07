@@ -1,5 +1,6 @@
 package mtest.spark.ftp
 
+import akka.stream.Materializer
 import akka.stream.alpakka.ftp.{FtpCredentials, FtpSettings, FtpsSettings, SftpSettings}
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.spark.ftp.{ftpSink, ftpSource}
@@ -40,6 +41,8 @@ class FtpTest extends AnyFunSuite {
   val sftp        = SftpSettings(InetAddress.getLocalHost)
   val sftpSink2   = ftpSink[IO](sftp, blocker)
   val sftpSource2 = ftpSource[IO](sftp)
+
+  implicit val mat: Materializer = Materializer(akkaSystem)
 
   test("json") {
     val path = "tablet.json"

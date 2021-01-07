@@ -5,11 +5,11 @@ import com.github.chenharryhua.nanjin.spark.kafka._
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import frameless.TypedDataset
 import mtest.spark.{contextShift, sparKafka, sparkSession, timer}
-import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.{Dataset, SparkSession}
+import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
-import org.apache.spark.sql.SparkSession
 
 object StreamJoinTestData {
   implicit val ss: SparkSession = sparkSession
@@ -30,6 +30,7 @@ object StreamJoinTestData {
     .map(x => NJProducerRecord[Int, Foo](x))
 }
 
+@DoNotDiscover
 class StreamJoinTest extends AnyFunSuite {
 
   import StreamJoinTestData._

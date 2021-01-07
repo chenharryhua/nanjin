@@ -1,4 +1,4 @@
-package mtest.spark.kafka
+package mtest.spark
 
 import cats.effect.IO
 import cats.syntax.all._
@@ -6,7 +6,6 @@ import com.github.chenharryhua.nanjin.spark.kafka.{CompulsoryKV, _}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.{TypedDataset, TypedEncoder}
 import io.circe.generic.auto._
-import mtest.spark.{blocker, contextShift, sparKafka, sparkSession}
 import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.scalatest.funsuite.AnyFunSuite
 

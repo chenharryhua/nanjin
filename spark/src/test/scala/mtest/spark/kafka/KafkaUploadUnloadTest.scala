@@ -22,6 +22,9 @@ import org.scalatest.funsuite.AnyFunSuite
 import java.time.Instant
 import scala.util.Random
 import cats.syntax.all._
+import mtest.spark
+
+import scala.concurrent.duration._
 
 class KafkaUploadUnloadTest extends AnyFunSuite {
   implicit val te1: TypedEncoder[CompulsoryK[Int, Rooster]]  = shapeless.cachedImplicit
@@ -69,9 +72,12 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
           .noTimestamp
       })
       .noMeta
+      .batchSize(10)
+      .recordsLimit(1000)
+      .timeLimit(2.minutes)
     val run = for {
       _ <- rooster.in(ctx).admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
-      _ <- pr.noPartition.noTimestamp.batchSize(10).upload.compile.drain
+      _ <- pr.bestEffort(spark.akkaSystem)
       _ <- pr.count.map(println)
       _ <- topic.fromKafka.save.circe(circe).run(blocker)
       _ <- topic.fromKafka.crDS.save.parquet(parquet).run(blocker)

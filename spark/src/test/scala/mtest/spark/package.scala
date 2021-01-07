@@ -1,6 +1,7 @@
 package mtest
 
 import akka.actor.ActorSystem
+import akka.stream.Materializer
 import cats.effect.{Blocker, ContextShift, IO, Timer}
 import com.github.chenharryhua.nanjin.datetime.sydneyTime
 import com.github.chenharryhua.nanjin.kafka.{IoKafkaContext, KafkaSettings}
@@ -11,7 +12,8 @@ import com.github.chenharryhua.nanjin.spark._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 package object spark {
-  implicit val akkaSystem: ActorSystem = ActorSystem("nj-spark")
+  val akkaSystem: ActorSystem    = ActorSystem("nj-spark")
+  implicit val mat: Materializer = Materializer(akkaSystem)
 
   implicit val contextShift: ContextShift[IO] = IO.contextShift(global)
   implicit val timer: Timer[IO]               = IO.timer(global)

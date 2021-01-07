@@ -122,7 +122,7 @@ final class Statistics[F[_]] private[kafka] (
     res.orderBy(res('dateTime).asc).show[F](rowNum, isTruncate)
   }
 
-  def kafkaSummary: TypedDataset[KafkaSummary] = {
+  def summaryDS: TypedDataset[KafkaSummary] = {
     import frameless.functions.aggregate.{max, min}
     val tds = typedDataset.distinct
     val res = tds
@@ -132,8 +132,8 @@ final class Statistics[F[_]] private[kafka] (
     res.orderBy(res('partition).asc)
   }
 
-  def showSummary(implicit ev: Sync[F]): F[Unit] =
-    kafkaSummary.collect[F]().map(_.foreach(x => println(x.showData(zoneId))))
+  def summary(implicit ev: Sync[F]): F[Unit] =
+    summaryDS.collect[F]().map(_.foreach(x => println(x.showData(zoneId))))
 
   /** Notes:
     *  offset is supposed to be monotonically increasing in a partition, except compact topic
@@ -141,7 +141,7 @@ final class Statistics[F[_]] private[kafka] (
   def missingOffsets(implicit ev: Sync[F]): TypedDataset[MissingOffset] = {
     import ds.sparkSession.implicits._
     import org.apache.spark.sql.functions.col
-    val all: Array[Dataset[MissingOffset]] = kafkaSummary.dataset.collect().map { kds =>
+    val all: Array[Dataset[MissingOffset]] = summaryDS.dataset.collect().map { kds =>
       val expect = ds.sparkSession.range(kds.startOffset, kds.endOffset + 1L).map(_.toLong)
       val exist  = ds.filter(col("partition") === kds.partition).map(_.offset)
       expect.except(exist).map(os => MissingOffset(partition = kds.partition, offset = os))

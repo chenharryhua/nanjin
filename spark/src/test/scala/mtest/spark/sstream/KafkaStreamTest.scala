@@ -10,12 +10,14 @@ import mtest.spark.persist.{Rooster, RoosterData}
 import mtest.spark.{contextShift, ctx, sparKafka, sparkSession, timer}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.streaming.Trigger
+import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
 import scala.concurrent.duration._
 import scala.util.Random
 
+@DoNotDiscover
 class KafkaStreamTest extends AnyFunSuite {
 
   val root = "./data/test/spark/sstream/"
