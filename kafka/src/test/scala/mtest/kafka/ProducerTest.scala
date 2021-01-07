@@ -1,6 +1,6 @@
 package mtest.kafka
 
-import akka.NotUsed
+import akka.Done
 import cats.effect.IO
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.akkaSinks
@@ -33,7 +33,7 @@ class ProducerTest extends AnyFunSuite {
     val srcChn = srcTopic.akkaChannel(akkaSystem)
     val tgtChn = akkaTopic.akkaChannel(akkaSystem)
 
-    val akkaTask: IO[NotUsed] =
+    val akkaTask: IO[Done] =
       srcChn
         .withConsumerSettings(
           _.withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")

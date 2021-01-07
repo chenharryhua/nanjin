@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import akka.NotUsed
+import akka.Done
 import akka.stream.scaladsl.Sink
 import akka.stream.stage.{GraphStageLogic, GraphStageWithMaterializedValue, InHandler}
 import akka.stream.{Attributes, Inlet, SinkShape}
@@ -11,14 +11,13 @@ import cats.syntax.all._
 object akkaSinks {
 
   final private class IgnoreSink[F[_]](implicit F: ConcurrentEffect[F])
-      extends GraphStageWithMaterializedValue[SinkShape[Any], F[NotUsed]] {
+      extends GraphStageWithMaterializedValue[SinkShape[Any], F[Done]] {
 
     val in: Inlet[Any]        = Inlet[Any]("Ignore.in")
     val shape: SinkShape[Any] = SinkShape(in)
 
-    override def createLogicAndMaterializedValue(
-      inheritedAttributes: Attributes): (GraphStageLogic, F[NotUsed]) = {
-      val promise = Deferred.unsafe[F, Either[Throwable, NotUsed]]
+    override def createLogicAndMaterializedValue(inheritedAttributes: Attributes): (GraphStageLogic, F[Done]) = {
+      val promise = Deferred.unsafe[F, Either[Throwable, Done]]
       val logic = new GraphStageLogic(shape) with InHandler {
 
         override def preStart(): Unit = pull(in)
@@ -26,7 +25,7 @@ object akkaSinks {
 
         override def onUpstreamFinish(): Unit = {
           super.onUpstreamFinish()
-          F.toIO(promise.complete(Right(NotUsed))).unsafeRunSync()
+          F.toIO(promise.complete(Right(Done))).unsafeRunSync()
         }
 
         override def onUpstreamFailure(ex: Throwable): Unit = {
@@ -39,5 +38,5 @@ object akkaSinks {
       (logic, promise.get.rethrow)
     }
   }
-  def ignore[F[_]: ConcurrentEffect]: Sink[Any, F[NotUsed]] = Sink.fromGraph(new IgnoreSink[F])
+  def ignore[F[_]: ConcurrentEffect]: Sink[Any, F[Done]] = Sink.fromGraph(new IgnoreSink[F])
 }

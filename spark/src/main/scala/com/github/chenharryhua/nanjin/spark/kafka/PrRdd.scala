@@ -2,11 +2,12 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import akka.Done
 import akka.actor.ActorSystem
+import akka.kafka.ProducerMessage
 import akka.stream.Materializer
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.kafka.{akkaSinks, KafkaTopic}
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import frameless.cats.implicits._
@@ -91,10 +92,12 @@ final class PrRdd[F[_], K, V] private[kafka] (
       implicit val mat: Materializer = Materializer(akkaSystem)
       rdd
         .source[F]
-        .map(_.toProducerRecord(topic.topicName.value))
         .take(params.uploadParams.recordsLimit)
         .takeWithin(params.uploadParams.timeLimit)
-        .runWith(topic.akkaChannel(akkaSystem).plainSink)
+        .grouped(params.uploadParams.batchSize)
+        .map(ms => ProducerMessage.multi(ms.map(_.toProducerRecord(topic.topicName.value))))
+        .via(topic.akkaChannel(akkaSystem).flexiFlow)
+        .runWith(akkaSinks.ignore[F])
     }
 
   def count(implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
