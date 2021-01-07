@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import akka.Done
+import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.kafka.ProducerMessage
 import akka.stream.Materializer
@@ -87,7 +87,7 @@ final class PrRdd[F[_], K, V] private[kafka] (
     cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
     upload(topic)
 
-  def bestEffort(akkaSystem: ActorSystem)(implicit F: ConcurrentEffect[F], cs: ContextShift[F]): F[Done] =
+  def bestEffort(akkaSystem: ActorSystem)(implicit F: ConcurrentEffect[F], cs: ContextShift[F]): F[NotUsed] =
     F.defer {
       implicit val mat: Materializer = Materializer(akkaSystem)
       rdd
