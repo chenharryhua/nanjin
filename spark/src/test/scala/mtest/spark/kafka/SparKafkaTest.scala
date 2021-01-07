@@ -48,7 +48,16 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("sparKafka read topic from kafka and show minutely aggragation result") {
-    sparKafka.topic(topic.topicDef).withOneDay(LocalDate.now()).fromKafka.stats.rows(100).untruncate.truncate.minutely.unsafeRunSync
+    sparKafka
+      .topic(topic.topicDef)
+      .withOneDay(LocalDate.now())
+      .fromKafka
+      .stats
+      .rows(100)
+      .untruncate
+      .truncate
+      .minutely
+      .unsafeRunSync
   }
   test("sparKafka read topic from kafka and show daily-hour aggragation result") {
     sparKafka.topic(topic).fromKafka.stats.dailyHour.unsafeRunSync
@@ -63,7 +72,7 @@ class SparKafkaTest extends AnyFunSuite {
     sparKafka.topic(topic).fromKafka.stats.hourly.unsafeRunSync
   }
   test("sparKafka read topic from kafka and show summary") {
-    sparKafka.topic(topic).fromKafka.stats.showSummary.unsafeRunSync
+    sparKafka.topic(topic).fromKafka.stats.summary.unsafeRunSync
   }
   test("sparKafka should be able to bimap to other topic") {
     val src: KafkaTopic[IO, Int, Int]          = ctx.topic[Int, Int]("src.topic")
