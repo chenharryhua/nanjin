@@ -17,14 +17,17 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
 
   val topicName: TopicName = topicDef.topicName
 
-  def withGroupId(gid: String): KafkaTopic[F, K, V] =
-    new KafkaTopic[F, K, V](topicDef, context.updateSettings(_.withGroupId(gid)))
-
   def withTopicName(tn: String): KafkaTopic[F, K, V] =
     new KafkaTopic[F, K, V](topicDef.withTopicName(tn), context)
 
-  def withSettings(ks: KafkaSettings): KafkaTopic[F, K, V] =
-    new KafkaTopic[F, K, V](topicDef, context.updateSettings(_ => ks))
+  def updateSettings(f: KafkaSettings => KafkaSettings): KafkaTopic[F, K, V] =
+    new KafkaTopic[F, K, V](topicDef, context.updateSettings(f))
+
+  def withSettings(kafkaSettings: KafkaSettings): KafkaTopic[F, K, V] =
+    updateSettings(_ => kafkaSettings)
+
+  def withGroupId(groupId: String): KafkaTopic[F, K, V] =
+    updateSettings(_.withGroupId(groupId))
 
   def withContext[G[_]](ct: KafkaContext[G]): KafkaTopic[G, K, V] =
     ct.topic(topicDef)
