@@ -24,7 +24,9 @@ private[kafka] object NJUploadParams {
     batchSize = 1000,
     uploadInterval = 1.second,
     recordsLimit = Long.MaxValue,
-    timeLimit = FiniteDuration(Long.MaxValue, TimeUnit.NANOSECONDS))
+    //akka.actor.LightArrayRevolverScheduler.checkMaxDelay
+    timeLimit = FiniteDuration(21474835, TimeUnit.SECONDS)
+  )
 }
 
 @Lenses final private[kafka] case class SKParams private (
