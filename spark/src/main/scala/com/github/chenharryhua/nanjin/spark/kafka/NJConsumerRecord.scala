@@ -4,20 +4,24 @@ import cats.Bifunctor
 import cats.implicits.catsSyntaxTuple2Semigroupal
 import cats.kernel.PartialOrder
 import cats.syntax.eq._
+import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.sksamuel.avro4s.{AvroDoc, Decoder, Encoder, SchemaFor}
+import com.sksamuel.avro4s._
 import frameless.TypedEncoder
 import io.circe.generic.auto._
 import io.circe.{Json, Encoder => JsonEncoder}
+import io.scalaland.enumz.Enum
 import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.kafka.common.record.TimestampType
 import shapeless.cachedImplicit
 
-import java.time.Instant
-
-@Lenses @AvroDoc("kafka record, optional Key and Value")
+@Lenses
+@AvroDoc("kafka record, optional Key and Value")
+@AvroNamespace("nj.spark.kafka")
+@AvroName("NJConsumerRecord")
 final case class NJConsumerRecord[K, V](
   @AvroDoc("kafka partition") partition: Int,
   @AvroDoc("kafka offset") offset: Long,
@@ -43,7 +47,7 @@ final case class NJConsumerRecord[K, V](
     JsonEncoder[NJConsumerRecord[K, V]].apply(this)
 
   def metaInfo: String =
-    s"Meta(topic=$topic,partition=$partition,offset=$offset,ts=${Instant.ofEpochMilli(timestamp)})"
+    s"Meta(topic=$topic,partition=$partition,offset=$offset,ts=${NJTimestamp(timestamp).utc},tt=${Enum[TimestampType].withIndex(timestampType)})"
 
   override def toString: String =
     s"CR($metaInfo,key=${key.toString},value=${value.toString})"

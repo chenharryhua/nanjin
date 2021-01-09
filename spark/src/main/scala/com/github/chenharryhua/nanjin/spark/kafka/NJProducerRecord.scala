@@ -5,7 +5,7 @@ import cats.implicits.toShow
 import cats.{Bifunctor, Eq, Show}
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.sksamuel.avro4s.{Decoder, Encoder, SchemaFor}
+import com.sksamuel.avro4s._
 import fs2.kafka.{ProducerRecord => Fs2ProducerRecord}
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
@@ -13,7 +13,10 @@ import monocle.macros.Lenses
 import org.apache.kafka.clients.producer.ProducerRecord
 import shapeless.cachedImplicit
 
-@Lenses final case class NJProducerRecord[K, V](
+@AvroNamespace("nj.spark.kafka")
+@AvroName("NJProducerRecord")
+@Lenses
+final case class NJProducerRecord[K, V](
   partition: Option[Int],
   offset: Option[Long], // for sort
   timestamp: Option[Long],
