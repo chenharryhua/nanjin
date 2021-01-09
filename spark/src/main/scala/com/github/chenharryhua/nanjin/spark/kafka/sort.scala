@@ -10,10 +10,10 @@ private[kafka] object sort {
 
     object cr {
 
-      def timestamp[K, V](rdd: RDD[OptionalKV[K, V]]): RDD[OptionalKV[K, V]] =
+      def timestamp[K, V](rdd: RDD[NJConsumerRecord[K, V]]): RDD[NJConsumerRecord[K, V]] =
         rdd.sortBy(x => (x.timestamp, x.offset, x.partition), ascending = true)
 
-      def offset[K, V](rdd: RDD[OptionalKV[K, V]]): RDD[OptionalKV[K, V]] =
+      def offset[K, V](rdd: RDD[NJConsumerRecord[K, V]]): RDD[NJConsumerRecord[K, V]] =
         rdd.sortBy(x => (x.offset, x.timestamp, x.partition), ascending = true)
     }
 
@@ -26,10 +26,10 @@ private[kafka] object sort {
         rdd.sortBy(x => (x.offset, x.timestamp, x.partition), ascending = true)
     }
 
-    def timestamp[K, V](ds: Dataset[OptionalKV[K, V]]): Dataset[OptionalKV[K, V]] =
+    def timestamp[K, V](ds: Dataset[NJConsumerRecord[K, V]]): Dataset[NJConsumerRecord[K, V]] =
       ds.orderBy(col("timestamp").asc, col("offset").asc, col("partition").asc)
 
-    def offset[K, V](ds: Dataset[OptionalKV[K, V]]): Dataset[OptionalKV[K, V]] =
+    def offset[K, V](ds: Dataset[NJConsumerRecord[K, V]]): Dataset[NJConsumerRecord[K, V]] =
       ds.orderBy(col("offset").asc, col("timestamp").asc, col("partition").asc)
 
   }
@@ -38,10 +38,10 @@ private[kafka] object sort {
 
     object cr {
 
-      def timestamp[K, V](rdd: RDD[OptionalKV[K, V]]): RDD[OptionalKV[K, V]] =
+      def timestamp[K, V](rdd: RDD[NJConsumerRecord[K, V]]): RDD[NJConsumerRecord[K, V]] =
         rdd.sortBy(x => (x.timestamp, x.offset, x.partition), ascending = false)
 
-      def offset[K, V](rdd: RDD[OptionalKV[K, V]]): RDD[OptionalKV[K, V]] =
+      def offset[K, V](rdd: RDD[NJConsumerRecord[K, V]]): RDD[NJConsumerRecord[K, V]] =
         rdd.sortBy(x => (x.offset, x.timestamp, x.partition), ascending = false)
     }
 
@@ -54,10 +54,10 @@ private[kafka] object sort {
         rdd.sortBy(x => (x.offset, x.timestamp, x.partition), ascending = false)
     }
 
-    def timestamp[K, V](ds: Dataset[OptionalKV[K, V]]): Dataset[OptionalKV[K, V]] =
+    def timestamp[K, V](ds: Dataset[NJConsumerRecord[K, V]]): Dataset[NJConsumerRecord[K, V]] =
       ds.orderBy(col("timestamp").desc, col("offset").desc, col("partition").desc)
 
-    def offset[K, V](ds: Dataset[OptionalKV[K, V]]): Dataset[OptionalKV[K, V]] =
+    def offset[K, V](ds: Dataset[NJConsumerRecord[K, V]]): Dataset[NJConsumerRecord[K, V]] =
       ds.orderBy(col("offset").desc, col("timestamp").desc, col("partition").desc)
 
   }

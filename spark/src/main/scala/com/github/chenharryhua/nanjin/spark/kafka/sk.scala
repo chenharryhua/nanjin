@@ -52,7 +52,7 @@ private[kafka] object sk {
   def kafkaDStream[F[_], K, V](
     topic: KafkaTopic[F, K, V],
     streamingContext: StreamingContext,
-    locationStrategy: LocationStrategy): DStream[OptionalKV[K, V]] = {
+    locationStrategy: LocationStrategy): DStream[NJConsumerRecord[K, V]] = {
 
     val consumerStrategy =
       ConsumerStrategies.Subscribe[Array[Byte], Array[Byte]](
@@ -75,7 +75,7 @@ private[kafka] object sk {
     topic: KafkaTopic[F, K, V],
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy,
-    sparkSession: SparkSession): RDD[OptionalKV[K, V]] =
+    sparkSession: SparkSession): RDD[NJConsumerRecord[K, V]] =
     kafkaRDD[F, K, V](topic, timeRange, locationStrategy, sparkSession).mapPartitions { ms =>
       val decoder = new NJConsumerRecordDecoder[Writer[Chain[Throwable], *], K, V](
         topic.topicName.value,
@@ -108,7 +108,7 @@ private[kafka] object sk {
   def kafkaSStream[F[_]: Sync, K, V, A](
     topic: KafkaTopic[F, K, V],
     ate: AvroTypedEncoder[A],
-    sparkSession: SparkSession)(f: OptionalKV[K, V] => A): Dataset[A] = {
+    sparkSession: SparkSession)(f: NJConsumerRecord[K, V] => A): Dataset[A] = {
     import sparkSession.implicits._
 
     sparkSession.readStream
@@ -116,7 +116,7 @@ private[kafka] object sk {
       .options(consumerOptions(topic.context.settings.consumerSettings.config))
       .option("subscribe", topic.topicDef.topicName.value)
       .load()
-      .as[OptionalKV[Array[Byte], Array[Byte]]]
+      .as[NJConsumerRecord[Array[Byte], Array[Byte]]]
       .mapPartitions { ms =>
         val decoder = new NJConsumerRecordDecoder[Writer[Chain[Throwable], *], K, V](
           topic.topicName.value,
@@ -125,7 +125,7 @@ private[kafka] object sk {
         ms.map { cr =>
           val (errs, msg) = decoder.decode(cr).run
           errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
-          f(OptionalKV.timestamp.modify(_ * SparkDatetimeConversionConstant)(msg))
+          f(NJConsumerRecord.timestamp.modify(_ * SparkDatetimeConversionConstant)(msg))
         }
       }(ate.sparkEncoder)
   }

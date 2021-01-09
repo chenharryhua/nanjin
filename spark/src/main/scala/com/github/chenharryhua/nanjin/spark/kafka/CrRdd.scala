@@ -12,18 +12,18 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
 final class CrRdd[F[_], K, V] private[kafka] (
-  val rdd: RDD[OptionalKV[K, V]],
+  val rdd: RDD[NJConsumerRecord[K, V]],
   topic: KafkaTopic[F, K, V],
   cfg: SKConfig,
   ss: SparkSession)
     extends Serializable {
 
-  protected val codec: AvroCodec[OptionalKV[K, V]] = OptionalKV.avroCodec(topic.topicDef)
+  protected val codec: AvroCodec[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(topic.topicDef)
 
   def params: SKParams = cfg.evalConfig
 
   // transforms
-  def transform(f: RDD[OptionalKV[K, V]] => RDD[OptionalKV[K, V]]): CrRdd[F, K, V] =
+  def transform(f: RDD[NJConsumerRecord[K, V]] => RDD[NJConsumerRecord[K, V]]): CrRdd[F, K, V] =
     new CrRdd[F, K, V](f(rdd), topic, cfg, ss)
 
   def partitionOf(num: Int): CrRdd[F, K, V] = transform(_.filter(_.partition === num))
@@ -48,24 +48,21 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def bimap[K2, V2](k: K => K2, v: V => V2)(other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
     new CrRdd[F, K2, V2](rdd.map(_.bimap(k, v)), other, cfg, ss).normalize
 
-  def map[K2, V2](f: OptionalKV[K, V] => OptionalKV[K2, V2])(other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
+  def map[K2, V2](f: NJConsumerRecord[K, V] => NJConsumerRecord[K2, V2])(
+    other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
     new CrRdd[F, K2, V2](rdd.map(f), other, cfg, ss).normalize
 
-  def flatMap[K2, V2](f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]])(
+  def flatMap[K2, V2](f: NJConsumerRecord[K, V] => TraversableOnce[NJConsumerRecord[K2, V2]])(
     other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
     new CrRdd[F, K2, V2](rdd.flatMap(f), other, cfg, ss).normalize
 
   // dataset
   def crDS(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
-    val ate = OptionalKV.ate(topic.topicDef)
+    val ate = NJConsumerRecord.ate(topic.topicDef)
     new CrDS[F, K, V](ss.createDataset(rdd)(ate.sparkEncoder), topic, cfg, tek, tev)
   }
 
-  def values: RDD[CompulsoryV[K, V]]     = rdd.flatMap(_.toCompulsoryV)
-  def keys: RDD[CompulsoryK[K, V]]       = rdd.flatMap(_.toCompulsoryK)
-  def keyValues: RDD[CompulsoryKV[K, V]] = rdd.flatMap(_.toCompulsoryKV)
-
-  def cherrypick(partition: Int, offset: Long): Option[OptionalKV[K, V]] =
+  def cherrypick(partition: Int, offset: Long): Option[NJConsumerRecord[K, V]] =
     partitionOf(partition).offsetRange(offset, offset).rdd.collect().headOption
 
   // upload
@@ -75,8 +72,8 @@ final class CrRdd[F[_], K, V] private[kafka] (
     prRdd.noMeta.upload(topic).map(_ => print(".")).compile.drain
 
   // save
-  def save: RddAvroFileHoarder[F, OptionalKV[K, V]] =
-    new RddAvroFileHoarder[F, OptionalKV[K, V]](rdd, codec.avroEncoder)
+  def save: RddAvroFileHoarder[F, NJConsumerRecord[K, V]] =
+    new RddAvroFileHoarder[F, NJConsumerRecord[K, V]](rdd, codec.avroEncoder)
 
   def count(implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
 
