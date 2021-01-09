@@ -83,7 +83,7 @@ object NJProducerRecord {
     val s: SchemaFor[NJProducerRecord[K, V]] = cachedImplicit
     val d: Decoder[NJProducerRecord[K, V]]   = cachedImplicit
     val e: Encoder[NJProducerRecord[K, V]]   = cachedImplicit
-    AvroCodec[NJProducerRecord[K, V]](s, d, e)
+    AvroCodec[NJProducerRecord[K, V]](s, d.withSchema(s), e.withSchema(s))
   }
 
   def avroCodec[K, V](topicDef: TopicDef[K, V]): AvroCodec[NJProducerRecord[K, V]] =
