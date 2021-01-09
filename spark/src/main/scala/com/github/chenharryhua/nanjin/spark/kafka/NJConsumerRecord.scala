@@ -12,7 +12,6 @@ import com.sksamuel.avro4s._
 import frameless.TypedEncoder
 import io.circe.generic.auto._
 import io.circe.{Json, Encoder => JsonEncoder}
-import io.scalaland.enumz.Enum
 import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.record.TimestampType
@@ -46,8 +45,15 @@ final case class NJConsumerRecord[K, V](
   def asJson(implicit k: JsonEncoder[K], v: JsonEncoder[V]): Json =
     JsonEncoder[NJConsumerRecord[K, V]].apply(this)
 
+  private def tst: TimestampType = timestampType match {
+    case 0  => TimestampType.CREATE_TIME
+    case 1  => TimestampType.LOG_APPEND_TIME
+    case -1 => TimestampType.NO_TIMESTAMP_TYPE
+    case _  => sys.error("timestamp type should be -1, 0 or 1")
+  }
+
   def metaInfo: String =
-    s"Meta(topic=$topic,partition=$partition,offset=$offset,ts=${NJTimestamp(timestamp).utc},tt=${Enum[TimestampType].withIndex(timestampType)})"
+    s"Meta(topic=$topic,partition=$partition,offset=$offset,ts=${NJTimestamp(timestamp).utc},tt=${tst.toString})"
 
   override def toString: String =
     s"CR($metaInfo,key=${key.toString},value=${value.toString})"
@@ -68,7 +74,7 @@ object NJConsumerRecord {
     val s: SchemaFor[NJConsumerRecord[K, V]] = cachedImplicit
     val d: Decoder[NJConsumerRecord[K, V]]   = cachedImplicit
     val e: Encoder[NJConsumerRecord[K, V]]   = cachedImplicit
-    AvroCodec[NJConsumerRecord[K, V]](s, d, e)
+    AvroCodec[NJConsumerRecord[K, V]](s, d.withSchema(s), e.withSchema(s))
   }
 
   def avroCodec[K, V](topicDef: TopicDef[K, V]): AvroCodec[NJConsumerRecord[K, V]] =
