@@ -12,20 +12,20 @@ import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.functions.col
 
 final class CrDS[F[_], K, V] private[kafka] (
-  val dataset: Dataset[OptionalKV[K, V]],
+  val dataset: Dataset[NJConsumerRecord[K, V]],
   topic: KafkaTopic[F, K, V],
   cfg: SKConfig,
   tek: TypedEncoder[K],
   tev: TypedEncoder[V])
     extends Serializable {
 
-  val ate: AvroTypedEncoder[OptionalKV[K, V]] = OptionalKV.ate(topic.topicDef)(tek, tev)
+  val ate: AvroTypedEncoder[NJConsumerRecord[K, V]] = NJConsumerRecord.ate(topic.topicDef)(tek, tev)
 
   val params: SKParams = cfg.evalConfig
 
-  def typedDataset: TypedDataset[OptionalKV[K, V]] = TypedDataset.create(dataset)(ate.typedEncoder)
+  def typedDataset: TypedDataset[NJConsumerRecord[K, V]] = TypedDataset.create(dataset)(ate.typedEncoder)
 
-  def transform(f: Dataset[OptionalKV[K, V]] => Dataset[OptionalKV[K, V]]): CrDS[F, K, V] =
+  def transform(f: Dataset[NJConsumerRecord[K, V]] => Dataset[NJConsumerRecord[K, V]]): CrDS[F, K, V] =
     new CrDS[F, K, V](dataset.transform(f), topic, cfg, tek, tev)
 
   def partitionOf(num: Int): CrDS[F, K, V] = transform(_.filter(col("partition") === num))
@@ -47,19 +47,19 @@ final class CrDS[F[_], K, V] private[kafka] (
   // maps
   def bimap[K2, V2](k: K => K2, v: V => V2)(
     other: KafkaTopic[F, K2, V2])(implicit k2: TypedEncoder[K2], v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
-    val ate: AvroTypedEncoder[OptionalKV[K2, V2]] = OptionalKV.ate(other.topicDef)
+    val ate: AvroTypedEncoder[NJConsumerRecord[K2, V2]] = NJConsumerRecord.ate(other.topicDef)
     new CrDS[F, K2, V2](dataset.map(_.bimap(k, v))(ate.sparkEncoder), other, cfg, k2, v2).normalize
   }
 
-  def map[K2, V2](f: OptionalKV[K, V] => OptionalKV[K2, V2])(
+  def map[K2, V2](f: NJConsumerRecord[K, V] => NJConsumerRecord[K2, V2])(
     other: KafkaTopic[F, K2, V2])(implicit k2: TypedEncoder[K2], v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
-    val ate: AvroTypedEncoder[OptionalKV[K2, V2]] = OptionalKV.ate(other.topicDef)
+    val ate: AvroTypedEncoder[NJConsumerRecord[K2, V2]] = NJConsumerRecord.ate(other.topicDef)
     new CrDS[F, K2, V2](dataset.map(f)(ate.sparkEncoder), other, cfg, k2, v2).normalize
   }
 
-  def flatMap[K2, V2](f: OptionalKV[K, V] => TraversableOnce[OptionalKV[K2, V2]])(
+  def flatMap[K2, V2](f: NJConsumerRecord[K, V] => TraversableOnce[NJConsumerRecord[K2, V2]])(
     other: KafkaTopic[F, K2, V2])(implicit k2: TypedEncoder[K2], v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
-    val ate: AvroTypedEncoder[OptionalKV[K2, V2]] = OptionalKV.ate(other.topicDef)
+    val ate: AvroTypedEncoder[NJConsumerRecord[K2, V2]] = NJConsumerRecord.ate(other.topicDef)
     new CrDS[F, K2, V2](dataset.flatMap(f)(ate.sparkEncoder), other, cfg, k2, v2).normalize
   }
 
@@ -69,12 +69,12 @@ final class CrDS[F[_], K, V] private[kafka] (
   def crRdd: CrRdd[F, K, V] = new CrRdd[F, K, V](dataset.rdd, topic, cfg, dataset.sparkSession)
   def prRdd: PrRdd[F, K, V] = new PrRdd[F, K, V](dataset.rdd.map(_.toNJProducerRecord), topic, cfg)
 
-  def save: DatasetAvroFileHoarder[F, OptionalKV[K, V]] =
-    new DatasetAvroFileHoarder[F, OptionalKV[K, V]](dataset, ate.avroCodec.avroEncoder)
+  def save: DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]] =
+    new DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]](dataset, ate.avroCodec.avroEncoder)
 
   def count(implicit F: Sync[F]): F[Long] = F.delay(dataset.count())
 
-  def cherrypick(partition: Int, offset: Long): Option[OptionalKV[K, V]] =
+  def cherrypick(partition: Int, offset: Long): Option[NJConsumerRecord[K, V]] =
     partitionOf(partition).offsetRange(offset, offset).dataset.collect().headOption
 
   /** Notes:
@@ -82,8 +82,8 @@ final class CrDS[F[_], K, V] private[kafka] (
     */
   def misplacedKey: TypedDataset[MisplacedKey[K]] = {
     import frameless.functions.aggregate.countDistinct
-    implicit val enc: TypedEncoder[K]       = tek
-    val tds: TypedDataset[OptionalKV[K, V]] = typedDataset
+    implicit val enc: TypedEncoder[K]             = tek
+    val tds: TypedDataset[NJConsumerRecord[K, V]] = typedDataset
     val res: TypedDataset[MisplacedKey[K]] =
       tds.groupBy(tds('key)).agg(countDistinct(tds('partition))).as[MisplacedKey[K]]
     res.filter(res('count) > 1).orderBy(res('count).asc)
@@ -94,8 +94,8 @@ final class CrDS[F[_], K, V] private[kafka] (
     * the larger the offset is the larger of timestamp should be, of the same key
     */
   def misorderedKey: TypedDataset[MisorderedKey[K]] = {
-    implicit val enc: TypedEncoder[K]       = tek
-    val tds: TypedDataset[OptionalKV[K, V]] = typedDataset
+    implicit val enc: TypedEncoder[K]             = tek
+    val tds: TypedDataset[NJConsumerRecord[K, V]] = typedDataset
     tds.groupBy(tds('key)).deserialized.flatMapGroups { case (key, iter) =>
       key.traverse { key =>
         iter.toList.sortBy(_.offset).sliding(2).toList.flatMap {

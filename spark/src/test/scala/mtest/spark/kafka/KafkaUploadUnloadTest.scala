@@ -4,14 +4,7 @@ import alleycats.Empty
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.spark._
-import com.github.chenharryhua.nanjin.spark.kafka.{
-  CompulsoryK,
-  CompulsoryKV,
-  CompulsoryV,
-  NJProducerRecord,
-  OptionalKV,
-  SparKafkaTopic
-}
+import com.github.chenharryhua.nanjin.spark.kafka.{NJConsumerRecord, NJProducerRecord, SparKafkaTopic}
 import frameless.TypedEncoder
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import io.circe.generic.auto._
@@ -27,27 +20,18 @@ import mtest.spark
 import scala.concurrent.duration._
 
 class KafkaUploadUnloadTest extends AnyFunSuite {
-  implicit val te1: TypedEncoder[CompulsoryK[Int, Rooster]]  = shapeless.cachedImplicit
-  implicit val te2: TypedEncoder[CompulsoryV[Int, Rooster]]  = shapeless.cachedImplicit
-  implicit val te3: TypedEncoder[CompulsoryKV[Int, Rooster]] = shapeless.cachedImplicit
 
-  val sk: SparKafkaContext[IO]                            = sparkSession.alongWith(ctx)
-  implicit val te: TypedEncoder[OptionalKV[Int, Rooster]] = shapeless.cachedImplicit
-  val root: String                                        = "./data/test/spark/kafka/load/rooster/"
+  val sk: SparKafkaContext[IO]                                  = sparkSession.alongWith(ctx)
+  implicit val te: TypedEncoder[NJConsumerRecord[Int, Rooster]] = shapeless.cachedImplicit
+  val root: String                                              = "./data/test/spark/kafka/load/rooster/"
 
   val rooster: TopicDef[Int, Rooster] =
     TopicDef[Int, Rooster](TopicName("spark.kafka.load.rooster"), Rooster.avroCodec)
   val topic: SparKafkaTopic[IO, Int, Rooster] = sk.topic(rooster)
 
-  val oac  = OptionalKV.avroCodec(rooster)
-  val kaac = CompulsoryK.avroCodec(rooster)
-  val vac  = CompulsoryV.avroCodec(rooster)
-  val kvac = CompulsoryKV.avroCodec(rooster)
+  val oac = NJConsumerRecord.avroCodec(rooster)
 
-  val ate   = OptionalKV.ate(rooster)
-  val kate  = CompulsoryK.ate(rooster)
-  val vate  = CompulsoryV.ate(rooster)
-  val kvate = CompulsoryKV.ate(rooster)
+  val ate = NJConsumerRecord.ate(rooster)
 
   test("kafka upload/unload") {
 
@@ -91,7 +75,7 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
       val circerdd = topic.load.rdd.circe(circe).rdd.flatMap(_.value).collect().toSet
       val spkJson =
         topic
-          .crDS(sparkSession.read.schema(OptionalKV.ate(topic.topic.topicDef).sparkEncoder.schema).json(circe))
+          .crDS(sparkSession.read.schema(NJConsumerRecord.ate(topic.topic.topicDef).sparkEncoder.schema).json(circe))
           .dataset
           .collect()
           .flatMap(_.value)
@@ -133,83 +117,6 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
     run.unsafeRunSync()
   }
 
-  test("compulsoryK") {
-    val crs = RoosterData.rdd.zipWithIndex.map { case (x, i) =>
-      OptionalKV[Int, Rooster](0, i, Instant.now().getEpochSecond, Some(Random.nextInt()), Some(x), "topic", 0)
-    }
-    val json    = root + "compulsoryK/json"
-    val avro    = root + "compulsoryK/avro"
-    val parquet = root + "compulsoryK/parquet"
-    val sa = topic
-      .crRdd(crs)
-      .crDS
-      .typedDataset
-      .repartition(1)
-      .deserialized
-      .flatMap(_.toCompulsoryK)
-      .save[IO](CompulsoryK.ate(topic.topic.topicDef).avroCodec.avroEncoder)
-
-    sa.json(json).run(blocker).unsafeRunSync()
-    assert(topic.load.json(json).dataset.collect().flatMap(_.value).toSet == RoosterData.expected)
-
-    sa.avro(avro).run(blocker).unsafeRunSync()
-    assert(topic.load.avro(avro).dataset.collect().flatMap(_.value).toSet == RoosterData.expected)
-
-    sa.parquet(parquet).run(blocker).unsafeRunSync()
-    assert(topic.load.parquet(parquet).dataset.collect().flatMap(_.value).toSet == RoosterData.expected)
-  }
-  test("compulsoryV") {
-    val crs = RoosterData.rdd.zipWithIndex.map { case (x, i) =>
-      OptionalKV[Int, Rooster](0, i, Instant.now().getEpochSecond, Some(Random.nextInt()), Some(x), "topic", 0)
-    }
-    val json    = root + "compulsoryV/json"
-    val avro    = root + "compulsoryV/avro"
-    val parquet = root + "compulsoryV/parquet"
-    val sa = topic
-      .crRdd(crs)
-      .crDS
-      .repartition(1)
-      .typedDataset
-      .repartition(1)
-      .deserialized
-      .flatMap(_.toCompulsoryV)
-      .save[IO](CompulsoryV.ate(topic.topic.topicDef).avroCodec.avroEncoder)
-
-    sa.json(json).run(blocker).unsafeRunSync()
-    assert(topic.load.json(json).dataset.collect().flatMap(_.value).toSet == RoosterData.expected)
-
-    sa.avro(avro).run(blocker).unsafeRunSync()
-    assert(topic.load.avro(avro).dataset.collect().flatMap(_.value).toSet == RoosterData.expected)
-
-    sa.parquet(parquet).run(blocker).unsafeRunSync()
-    assert(topic.load.parquet(parquet).dataset.collect().flatMap(_.value).toSet == RoosterData.expected)
-  }
-
-  test("compulsoryKV") {
-    val crs = RoosterData.rdd.zipWithIndex.map { case (x, i) =>
-      OptionalKV[Int, Rooster](0, i, Instant.now().getEpochSecond, Some(Random.nextInt()), Some(x), "topic", 0)
-    }
-    val json    = root + "compulsoryKV/json"
-    val avro    = root + "compulsoryKV/avro"
-    val parquet = root + "compulsoryKV/parquet"
-    val sa = topic
-      .crRdd(crs)
-      .crDS
-      .typedDataset
-      .repartition(1)
-      .deserialized
-      .flatMap(_.toCompulsoryKV)
-      .save[IO](CompulsoryKV.ate(topic.topic.topicDef).avroCodec.avroEncoder)
-
-    sa.json(json).run(blocker).unsafeRunSync()
-    assert(topic.load.json(json).dataset.collect().flatMap(_.value).toSet == RoosterData.expected)
-
-    sa.avro(avro).run(blocker).unsafeRunSync()
-    assert(topic.load.avro(avro).dataset.collect().flatMap(_.value).toSet == RoosterData.expected)
-
-    sa.parquet(parquet).run(blocker).unsafeRunSync()
-    assert(topic.load.parquet(parquet).dataset.collect().flatMap(_.value).toSet == RoosterData.expected)
-  }
   test("dump and replay") {
     (topic.dump >> topic.replay >> topic.countDisk >> topic.countKafka).unsafeRunSync()
   }

@@ -16,11 +16,11 @@ final class NJConsumerRecordDecoder[F[_], K, V](
 
   def decode[G[_, _]](gaa: G[Array[Byte], Array[Byte]])(implicit
     cm: NJConsumerMessage[G],
-    tell: Tell[F, Chain[Throwable]]): F[OptionalKV[K, V]] = {
+    tell: Tell[F, Chain[Throwable]]): F[NJConsumerRecord[K, V]] = {
     val cr = cm.lens.get(gaa)
     val k  = Option(cr.key).traverse(dk => Try(keyDeserializer.deserialize(topicName, dk)))
     val v  = Option(cr.value).traverse(dv => Try(valDeserializer.deserialize(topicName, dv)))
-    val nj = OptionalKV(cr.bimap(_ => k.toOption.flatten, _ => v.toOption.flatten))
+    val nj = NJConsumerRecord(cr.bimap(_ => k.toOption.flatten, _ => v.toOption.flatten))
     val log = (k, v) match {
       case (Success(kv), Success(vv)) => Chain.empty
       case (Failure(ex), Success(_))  => Chain.one(ex)
@@ -30,8 +30,8 @@ final class NJConsumerRecordDecoder[F[_], K, V](
     tell.writer(nj, log)
   }
 
-  def decode(cr: OptionalKV[Array[Byte], Array[Byte]])(implicit
-    tell: Tell[F, Chain[Throwable]]): F[OptionalKV[K, V]] = {
+  def decode(cr: NJConsumerRecord[Array[Byte], Array[Byte]])(implicit
+    tell: Tell[F, Chain[Throwable]]): F[NJConsumerRecord[K, V]] = {
     val k  = cr.key.traverse(k => Try(keyDeserializer.deserialize(topicName, k)))
     val v  = cr.value.traverse(v => Try(valDeserializer.deserialize(topicName, v)))
     val nj = cr.bimap(_ => k.toOption.flatten, _ => v.toOption.flatten).flatten[K, V]

@@ -18,16 +18,16 @@ object SparkExtTestData {
 }
 
 class SparkExtTest extends AnyFunSuite {
-  implicit val te: TypedEncoder[trip_record]                      = shapeless.cachedImplicit
-  implicit val te2: TypedEncoder[OptionalKV[String, trip_record]] = shapeless.cachedImplicit
-  implicit val te3: TypedEncoder[SparkExtTestData.Foo]            = shapeless.cachedImplicit
+  implicit val te: TypedEncoder[trip_record]                            = shapeless.cachedImplicit
+  implicit val te2: TypedEncoder[NJConsumerRecord[String, trip_record]] = shapeless.cachedImplicit
+  implicit val te3: TypedEncoder[SparkExtTestData.Foo]                  = shapeless.cachedImplicit
 
   implicit val ss: SparkSession = sparkSession
 
   val topic: KafkaTopic[IO, String, trip_record] =
     ctx.topic[String, trip_record]("nyc_yellow_taxi_trip_data")
 
-  val ate: AvroTypedEncoder[OptionalKV[String, trip_record]] = OptionalKV.ate(topic.topicDef)
+  val ate: AvroTypedEncoder[NJConsumerRecord[String, trip_record]] = NJConsumerRecord.ate(topic.topicDef)
 
   test("stream") {
     sparKafka.topic(topic).fromKafka.crDS.typedDataset.stream[IO].compile.drain.unsafeRunSync

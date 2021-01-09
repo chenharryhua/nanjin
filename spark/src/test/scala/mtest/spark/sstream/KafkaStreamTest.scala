@@ -25,12 +25,12 @@ class KafkaStreamTest extends AnyFunSuite {
   val roosterTopic: TopicDef[Int, Rooster] =
     TopicDef[Int, Rooster](TopicName("sstream.rooster"), Rooster.avroCodec)
 
-  val ate = OptionalKV.ate(roosterTopic)
+  val ate = NJConsumerRecord.ate(roosterTopic)
 
   val data: RDD[NJProducerRecord[Int, Rooster]] =
     RoosterData.rdd.map(x => NJProducerRecord(Random.nextInt(), x.copy(a = Instant.now())))
 
-  implicit val te: TypedEncoder[OptionalKV[Int, Int]] = shapeless.cachedImplicit
+  implicit val te: TypedEncoder[NJConsumerRecord[Int, Int]] = shapeless.cachedImplicit
 
   test("console sink") {
     val rooster = roosterTopic.withTopicName("sstream.console.rooster").in(ctx)

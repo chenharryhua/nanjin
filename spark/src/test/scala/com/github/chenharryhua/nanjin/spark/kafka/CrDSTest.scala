@@ -35,7 +35,7 @@ class CrDSTest extends AnyFunSuite {
   implicit val te3: TypedEncoder[RoosterLike2]             = shapeless.cachedImplicit
 
   val rooster    = TopicDef[Long, Rooster](TopicName("rooster"), Rooster.avroCodec)
-  val roosterATE = OptionalKV.ate(rooster)
+  val roosterATE = NJConsumerRecord.ate(rooster)
 
   val roosterLike =
     TopicDef[Long, RoosterLike](TopicName("roosterLike"), AvroCodec[RoosterLike])
@@ -46,7 +46,7 @@ class CrDSTest extends AnyFunSuite {
   val crRdd: CrRdd[IO, Long, Rooster] = sparKafka
     .topic(rooster)
     .crRdd(RoosterData.rdd.zipWithIndex.map { case (r, i) =>
-      OptionalKV(0, i, Instant.now.getEpochSecond * 1000 + i, Some(i), Some(r), "rooster", 0)
+      NJConsumerRecord(0, i, Instant.now.getEpochSecond * 1000 + i, Some(i), Some(r), "rooster", 0)
     })
 
   val expectSchema = StructType(
@@ -64,13 +64,6 @@ class CrDSTest extends AnyFunSuite {
     ))
 
   val crDS: CrDS[IO, Long, Rooster] = crRdd.crDS.partitionOf(0)
-
-  test("misc") {
-    assert(crRdd.keys.collect().size == 4)
-    assert(crRdd.values.collect().size == 4)
-    assert(crRdd.keyValues.collect().size == 4)
-    assert(crRdd.partitionOf(0).rdd.collect.size == 4)
-  }
 
   test("bimap") {
     val r = crRdd.normalize.bimap(identity, RoosterLike(_))(roosterLike.in(ctx)).rdd.collect().flatMap(_.value).toSet

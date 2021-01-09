@@ -20,8 +20,8 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
 
   val topicName: TopicName = topic.topicDef.topicName
 
-  def ate(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): AvroTypedEncoder[OptionalKV[K, V]] =
-    OptionalKV.ate(topic.topicDef)
+  def ate(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): AvroTypedEncoder[NJConsumerRecord[K, V]] =
+    NJConsumerRecord.ate(topic.topicDef)
 
   private def updateCfg(f: SKConfig => SKConfig): SparKafkaTopic[F, K, V] =
     new SparKafkaTopic[F, K, V](topic, f(cfg), ss)
@@ -37,7 +37,7 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
     crRdd(sk.kafkaBatch(topic, params.timeRange, params.locationStrategy, ss))
 
   def fromDisk: CrRdd[F, K, V] =
-    crRdd(loaders.rdd.objectFile[OptionalKV[K, V]](params.replayPath, ss))
+    crRdd(loaders.rdd.objectFile[NJConsumerRecord[K, V]](params.replayPath, ss))
 
   /** shorthand
     */
@@ -54,7 +54,7 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
 
   /** rdd and dataset
     */
-  def crRdd(rdd: RDD[OptionalKV[K, V]]): CrRdd[F, K, V] =
+  def crRdd(rdd: RDD[NJConsumerRecord[K, V]]): CrRdd[F, K, V] =
     new CrRdd[F, K, V](rdd, topic, cfg, ss)
 
   def crDS(df: DataFrame)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] =
@@ -68,12 +68,15 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   /** structured stream
     */
 
-  def sstream[A](f: OptionalKV[K, V] => A, ate: AvroTypedEncoder[A])(implicit sync: Sync[F]): SparkSStream[F, A] =
+  def sstream[A](f: NJConsumerRecord[K, V] => A, ate: AvroTypedEncoder[A])(implicit sync: Sync[F]): SparkSStream[F, A] =
     new SparkSStream[F, A](
       sk.kafkaSStream[F, K, V, A](topic, ate, ss)(f),
       SStreamConfig(params.timeRange).withCheckpointBuilder(fmt =>
         s"./data/checkpoint/sstream/kafka/${topic.topicName.value}/${fmt.format}/"))
 
-  def sstream(implicit tek: TypedEncoder[K], tev: TypedEncoder[V], F: Sync[F]): SparkSStream[F, OptionalKV[K, V]] =
+  def sstream(implicit
+    tek: TypedEncoder[K],
+    tev: TypedEncoder[V],
+    F: Sync[F]): SparkSStream[F, NJConsumerRecord[K, V]] =
     sstream(identity, ate)
 }

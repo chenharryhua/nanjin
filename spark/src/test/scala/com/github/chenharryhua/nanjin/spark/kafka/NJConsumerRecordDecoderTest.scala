@@ -12,17 +12,17 @@ class NJConsumerRecordDecoderOptionalKVTest extends AnyFunSuite {
     SerdeOf[Int].asKey(Map.empty).serde.deserializer(),
     SerdeOf[Int].asValue(Map.empty).serde.deserializer())
 
-  val goodData: OptionalKV[Array[Byte], Array[Byte]] =
-    OptionalKV(0, 0, 0, Some(Array[Byte](0, 0, 0, 1)), Some(Array[Byte](0, 0, 0, 2)), "test", 0)
+  val goodData: NJConsumerRecord[Array[Byte], Array[Byte]] =
+    NJConsumerRecord(0, 0, 0, Some(Array[Byte](0, 0, 0, 1)), Some(Array[Byte](0, 0, 0, 2)), "test", 0)
 
-  val badKey: OptionalKV[Array[Byte], Array[Byte]] =
-    OptionalKV(0, 0, 0, Some(Array[Byte](0)), Some(Array[Byte](0, 0, 0, 2)), "test", 0)
+  val badKey: NJConsumerRecord[Array[Byte], Array[Byte]] =
+    NJConsumerRecord(0, 0, 0, Some(Array[Byte](0)), Some(Array[Byte](0, 0, 0, 2)), "test", 0)
 
-  val badVal: OptionalKV[Array[Byte], Array[Byte]] =
-    OptionalKV(0, 0, 0, Some(Array[Byte](0, 0, 0, 1)), Some(Array[Byte](0)), "test", 0)
+  val badVal: NJConsumerRecord[Array[Byte], Array[Byte]] =
+    NJConsumerRecord(0, 0, 0, Some(Array[Byte](0, 0, 0, 1)), Some(Array[Byte](0)), "test", 0)
 
-  val badKV: OptionalKV[Array[Byte], Array[Byte]] =
-    OptionalKV(0, 0, 0, Some(Array[Byte](0)), Some(Array[Byte](0)), "test", 0)
+  val badKV: NJConsumerRecord[Array[Byte], Array[Byte]] =
+    NJConsumerRecord(0, 0, 0, Some(Array[Byte](0)), Some(Array[Byte](0)), "test", 0)
 
   test("decode good key value") {
     val (err, data) = decoder.decode(goodData).run

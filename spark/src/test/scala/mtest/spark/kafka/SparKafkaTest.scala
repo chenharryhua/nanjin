@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.datetime.sydneyTime
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.injection._
-import com.github.chenharryhua.nanjin.spark.kafka.{CompulsoryV, _}
+import com.github.chenharryhua.nanjin.spark.kafka._
 import com.sksamuel.avro4s.SchemaFor
 import frameless.TypedDataset
 import frameless.cats.implicits._
@@ -42,9 +42,8 @@ class SparKafkaTest extends AnyFunSuite {
     topic.send(List(topic.fs2PR(0, data), topic.fs2PR(1, data)))).unsafeRunSync()
 
   test("sparKafka read topic from kafka") {
-    val rst =
-      sparKafka.topic(topic.topicDef).fromKafka.values.collect()
-    assert(rst.toList.map(_.value) === List(data, data))
+    val rst = sparKafka.topic(topic.topicDef).fromKafka.rdd.collect()
+    assert(rst.toList.flatMap(_.value) === List(data, data))
   }
 
   test("sparKafka read topic from kafka and show minutely aggragation result") {
@@ -75,50 +74,50 @@ class SparKafkaTest extends AnyFunSuite {
     sparKafka.topic(topic).fromKafka.stats.summary.unsafeRunSync
   }
   test("sparKafka should be able to bimap to other topic") {
-    val src: KafkaTopic[IO, Int, Int]          = ctx.topic[Int, Int]("src.topic")
-    val tgt: KafkaTopic[IO, String, Int]       = ctx.topic[String, Int]("target.topic")
-    val d1: OptionalKV[Int, Int]               = OptionalKV(0, 1, 0, None, Some(1), "t", 0)
-    val d2: OptionalKV[Int, Int]               = OptionalKV(0, 2, 0, None, Some(2), "t", 0)
-    val d3: OptionalKV[Int, Int]               = OptionalKV(0, 3, 0, None, None, "t", 0)
-    val d4: OptionalKV[Int, Int]               = OptionalKV(0, 4, 0, None, Some(4), "t", 0)
-    val ds: TypedDataset[OptionalKV[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
+    val src: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int]("src.topic")
+    val tgt: KafkaTopic[IO, String, Int]             = ctx.topic[String, Int]("target.topic")
+    val d1: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0)
+    val d2: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 2, 0, None, Some(2), "t", 0)
+    val d3: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 3, 0, None, None, "t", 0)
+    val d4: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 4, 0, None, Some(4), "t", 0)
+    val ds: TypedDataset[NJConsumerRecord[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
 
     val t = ctx.topic[String, Int]("tmp")
 
-    val birst: Set[CompulsoryV[String, Int]] =
-      sparKafka.topic(src).crRdd(ds.rdd).bimap(_.toString, _ + 1)(t).values.collect().toSet
-    assert(birst.map(_.value) == Set(2, 3, 5))
+    val birst =
+      sparKafka.topic(src).crRdd(ds.rdd).bimap(_.toString, _ + 1)(t).rdd.collect().toSet
+    assert(birst.flatMap(_.value) == Set(2, 3, 5))
   }
 
   test("sparKafka should be able to flatmap to other topic") {
-    val src: KafkaTopic[IO, Int, Int]          = ctx.topic[Int, Int]("src.topic")
-    val tgt: KafkaTopic[IO, Int, Int]          = ctx.topic[Int, Int]("target.topic")
-    val d1: OptionalKV[Int, Int]               = OptionalKV(0, 1, 0, None, Some(1), "t", 0)
-    val d2: OptionalKV[Int, Int]               = OptionalKV(0, 2, 0, None, Some(2), "t", 0)
-    val d3: OptionalKV[Int, Int]               = OptionalKV(0, 3, 0, None, None, "t", 0)
-    val d4: OptionalKV[Int, Int]               = OptionalKV(0, 4, 0, None, Some(4), "t", 0)
-    val ds: TypedDataset[OptionalKV[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
+    val src: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int]("src.topic")
+    val tgt: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int]("target.topic")
+    val d1: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0)
+    val d2: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 2, 0, None, Some(2), "t", 0)
+    val d3: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 3, 0, None, None, "t", 0)
+    val d4: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 4, 0, None, Some(4), "t", 0)
+    val ds: TypedDataset[NJConsumerRecord[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
 
     val t = ctx.topic[Int, Int]("tmp")
 
-    val birst: Set[CompulsoryV[Int, Int]] =
+    val birst =
       sparKafka
         .topic(src)
         .crRdd(ds.rdd)
         .timeRange
-        .flatMap(m => m.value.map(x => OptionalKV.value.set(Some(x - 1))(m)))(t)
-        .values
+        .flatMap(m => m.value.map(x => NJConsumerRecord.value.set(Some(x - 1))(m)))(t)
+        .rdd
         .collect()
         .toSet
-    assert(birst.map(_.value) == Set(0, 1, 3))
+    assert(birst.flatMap(_.value) == Set(0, 1, 3))
   }
 
   test("sparKafka someValue should filter out none values") {
-    val cr1: OptionalKV[Int, Int]              = OptionalKV(0, 1, 0, None, Some(1), "t", 0)
-    val cr2: OptionalKV[Int, Int]              = OptionalKV(0, 2, 0, Some(2), None, "t", 0)
-    val cr3: OptionalKV[Int, Int]              = OptionalKV(0, 3, 0, Some(3), None, "t", 0)
-    val crs: List[OptionalKV[Int, Int]]        = List(cr1, cr2, cr3)
-    val ds: TypedDataset[OptionalKV[Int, Int]] = TypedDataset.create(crs)
+    val cr1: NJConsumerRecord[Int, Int]              = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0)
+    val cr2: NJConsumerRecord[Int, Int]              = NJConsumerRecord(0, 2, 0, Some(2), None, "t", 0)
+    val cr3: NJConsumerRecord[Int, Int]              = NJConsumerRecord(0, 3, 0, Some(3), None, "t", 0)
+    val crs: List[NJConsumerRecord[Int, Int]]        = List(cr1, cr2, cr3)
+    val ds: TypedDataset[NJConsumerRecord[Int, Int]] = TypedDataset.create(crs)
 
     val t = sparKafka
       .topic[Int, Int]("some.value")
@@ -127,8 +126,8 @@ class SparKafkaTest extends AnyFunSuite {
       .descendTimestamp
       .dismissNulls
       .transform(_.distinct)
-    val rst = t.values.collect().map(_.value)
+    val rst = t.rdd.collect().flatMap(_.value)
     assert(rst === Seq(cr1.value.get))
-    println(cr1.show)
+    println(cr1.toString)
   }
 }

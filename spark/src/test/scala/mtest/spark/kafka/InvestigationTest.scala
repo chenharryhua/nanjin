@@ -2,13 +2,7 @@ package mtest.spark.kafka
 
 import cats.derived.auto.eq.kittensMkEq
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.spark.kafka.{
-  inv,
-  CRMetaInfo,
-  DiffResult,
-  KvDiffResult,
-  OptionalKV
-}
+import com.github.chenharryhua.nanjin.spark.kafka.{inv, CRMetaInfo, DiffResult, KvDiffResult, NJConsumerRecord}
 import frameless.TypedDataset
 import frameless.cats.implicits._
 import mtest.spark.{contextShift, sparkSession}
@@ -18,39 +12,39 @@ import org.apache.spark.sql.SparkSession
 object InvestigationTestData {
   final case class Mouse(size: Int, weight: Float)
 
-  val mouses1: List[OptionalKV[String, Mouse]] = List(
-    OptionalKV(0, 1, 10, Some("mike1"), Some(Mouse(1, 0.1f)), "topic", 0),
-    OptionalKV(0, 2, 20, Some("mike2"), Some(Mouse(2, 0.2f)), "topic", 0),
-    OptionalKV(0, 3, 30, Some("mike3"), Some(Mouse(3, 0.3f)), "topic", 0),
-    OptionalKV(1, 4, 40, Some("mike4"), Some(Mouse(4, 0.4f)), "topic", 0),
-    OptionalKV(1, 5, 50, Some("mike5"), Some(Mouse(5, 0.5f)), "topic", 0),
-    OptionalKV(1, 6, 60, Some("mike6"), Some(Mouse(6, 0.6f)), "topic", 0)
+  val mouses1: List[NJConsumerRecord[String, Mouse]] = List(
+    NJConsumerRecord(0, 1, 10, Some("mike1"), Some(Mouse(1, 0.1f)), "topic", 0),
+    NJConsumerRecord(0, 2, 20, Some("mike2"), Some(Mouse(2, 0.2f)), "topic", 0),
+    NJConsumerRecord(0, 3, 30, Some("mike3"), Some(Mouse(3, 0.3f)), "topic", 0),
+    NJConsumerRecord(1, 4, 40, Some("mike4"), Some(Mouse(4, 0.4f)), "topic", 0),
+    NJConsumerRecord(1, 5, 50, Some("mike5"), Some(Mouse(5, 0.5f)), "topic", 0),
+    NJConsumerRecord(1, 6, 60, Some("mike6"), Some(Mouse(6, 0.6f)), "topic", 0)
   )
 
-  val mouses2: List[OptionalKV[String, Mouse]] = List( // identical to mouse1
-    OptionalKV(0, 1, 10, Some("mike1"), Some(Mouse(1, 0.1f)), "topic", 0),
-    OptionalKV(0, 2, 20, Some("mike2"), Some(Mouse(2, 0.2f)), "topic", 0),
-    OptionalKV(0, 3, 30, Some("mike3"), Some(Mouse(3, 0.3f)), "topic", 0),
-    OptionalKV(1, 4, 40, Some("mike4"), Some(Mouse(4, 0.4f)), "topic", 0),
-    OptionalKV(1, 5, 50, Some("mike5"), Some(Mouse(5, 0.5f)), "topic", 0),
-    OptionalKV(1, 6, 60, Some("mike6"), Some(Mouse(6, 0.6f)), "topic", 0)
+  val mouses2: List[NJConsumerRecord[String, Mouse]] = List( // identical to mouse1
+    NJConsumerRecord(0, 1, 10, Some("mike1"), Some(Mouse(1, 0.1f)), "topic", 0),
+    NJConsumerRecord(0, 2, 20, Some("mike2"), Some(Mouse(2, 0.2f)), "topic", 0),
+    NJConsumerRecord(0, 3, 30, Some("mike3"), Some(Mouse(3, 0.3f)), "topic", 0),
+    NJConsumerRecord(1, 4, 40, Some("mike4"), Some(Mouse(4, 0.4f)), "topic", 0),
+    NJConsumerRecord(1, 5, 50, Some("mike5"), Some(Mouse(5, 0.5f)), "topic", 0),
+    NJConsumerRecord(1, 6, 60, Some("mike6"), Some(Mouse(6, 0.6f)), "topic", 0)
   )
 
-  val mouses3: List[OptionalKV[String, Mouse]] = List( // data diff (1,6) from mouse1
-    OptionalKV(0, 1, 10, Some("mike1"), Some(Mouse(1, 0.1f)), "topic", 0),
-    OptionalKV(0, 2, 20, Some("mike2"), Some(Mouse(2, 0.2f)), "topic", 0),
-    OptionalKV(0, 3, 30, Some("mike3"), Some(Mouse(3, 0.3f)), "topic", 0),
-    OptionalKV(1, 4, 40, Some("mike4"), Some(Mouse(4, 0.4f)), "topic", 0),
-    OptionalKV(1, 5, 50, Some("mike5"), Some(Mouse(5, 0.5f)), "topic", 0),
-    OptionalKV(1, 6, 60, Some("mike6"), Some(Mouse(6, 2.0f)), "topic", 0)
+  val mouses3: List[NJConsumerRecord[String, Mouse]] = List( // data diff (1,6) from mouse1
+    NJConsumerRecord(0, 1, 10, Some("mike1"), Some(Mouse(1, 0.1f)), "topic", 0),
+    NJConsumerRecord(0, 2, 20, Some("mike2"), Some(Mouse(2, 0.2f)), "topic", 0),
+    NJConsumerRecord(0, 3, 30, Some("mike3"), Some(Mouse(3, 0.3f)), "topic", 0),
+    NJConsumerRecord(1, 4, 40, Some("mike4"), Some(Mouse(4, 0.4f)), "topic", 0),
+    NJConsumerRecord(1, 5, 50, Some("mike5"), Some(Mouse(5, 0.5f)), "topic", 0),
+    NJConsumerRecord(1, 6, 60, Some("mike6"), Some(Mouse(6, 2.0f)), "topic", 0)
   )
 
-  val mouses4: List[OptionalKV[String, Mouse]] = List( // missing (1,5) from mouse1
-    OptionalKV(0, 1, 10, Some("mike1"), Some(Mouse(1, 0.1f)), "topic", 0),
-    OptionalKV(0, 2, 20, Some("mike2"), Some(Mouse(2, 0.2f)), "topic", 0),
-    OptionalKV(0, 3, 30, Some("mike3"), Some(Mouse(3, 0.3f)), "topic", 0),
-    OptionalKV(1, 4, 40, Some("mike4"), Some(Mouse(4, 0.4f)), "topic", 0),
-    OptionalKV(1, 6, 60, Some("mike6"), Some(Mouse(6, 0.6f)), "topic", 0)
+  val mouses4: List[NJConsumerRecord[String, Mouse]] = List( // missing (1,5) from mouse1
+    NJConsumerRecord(0, 1, 10, Some("mike1"), Some(Mouse(1, 0.1f)), "topic", 0),
+    NJConsumerRecord(0, 2, 20, Some("mike2"), Some(Mouse(2, 0.2f)), "topic", 0),
+    NJConsumerRecord(0, 3, 30, Some("mike3"), Some(Mouse(3, 0.3f)), "topic", 0),
+    NJConsumerRecord(1, 4, 40, Some("mike4"), Some(Mouse(4, 0.4f)), "topic", 0),
+    NJConsumerRecord(1, 6, 60, Some("mike6"), Some(Mouse(6, 0.6f)), "topic", 0)
   )
 
   val mouses5 = List( // missing (1,5)
@@ -86,8 +80,8 @@ class InvestigationTest extends AnyFunSuite {
   }
 
   test("sparKafka one mismatch") {
-    val m1 = TypedDataset.create[OptionalKV[String, Mouse]](mouses1)
-    val m3 = TypedDataset.create[OptionalKV[String, Mouse]](mouses3)
+    val m1 = TypedDataset.create[NJConsumerRecord[String, Mouse]](mouses1)
+    val m3 = TypedDataset.create[NJConsumerRecord[String, Mouse]](mouses3)
 
     val rst: Set[DiffResult[String, Mouse]] =
       inv.diffDataset(m1, m3).collect[IO]().unsafeRunSync().toSet
@@ -96,8 +90,8 @@ class InvestigationTest extends AnyFunSuite {
       inv.diffRdd(m1.dataset.rdd, m3.dataset.rdd).collect().toSet
 
     val tup: DiffResult[String, Mouse] = DiffResult(
-      OptionalKV(1, 6, 60, Some("mike6"), Some(Mouse(6, 0.6f)), "topic", 0),
-      Some(OptionalKV(1, 6, 60, Some("mike6"), Some(Mouse(6, 2.0f)), "topic", 0)))
+      NJConsumerRecord(1, 6, 60, Some("mike6"), Some(Mouse(6, 0.6f)), "topic", 0),
+      Some(NJConsumerRecord(1, 6, 60, Some("mike6"), Some(Mouse(6, 2.0f)), "topic", 0)))
 
     assert(Set(tup) == rst)
     assert(Set(tup) == rst2)
@@ -114,15 +108,15 @@ class InvestigationTest extends AnyFunSuite {
   }
 
   test("sparKafka one lost") {
-    val m1 = TypedDataset.create[OptionalKV[String, Mouse]](mouses1)
-    val m4 = TypedDataset.create[OptionalKV[String, Mouse]](mouses4)
+    val m1 = TypedDataset.create[NJConsumerRecord[String, Mouse]](mouses1)
+    val m4 = TypedDataset.create[NJConsumerRecord[String, Mouse]](mouses4)
 
     val rst: Set[DiffResult[String, Mouse]] =
       inv.diffDataset(m1, m4).collect[IO]().unsafeRunSync().toSet
     val rst2: Set[DiffResult[String, Mouse]] =
       inv.diffRdd(m1.dataset.rdd, m4.dataset.rdd).collect().toSet
     val tup =
-      DiffResult(OptionalKV(1, 5, 50, Some("mike5"), Some(Mouse(5, 0.5f)), "topic", 0), None)
+      DiffResult(NJConsumerRecord(1, 5, 50, Some("mike5"), Some(Mouse(5, 0.5f)), "topic", 0), None)
     assert(Set(tup) == rst)
     assert(Set(tup) == rst2)
 
