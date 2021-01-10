@@ -20,7 +20,7 @@ class Fs2ChannelTest extends AnyFunSuite {
     AvroCodec[smsCallInternet](smsCallInternet.schema).right.get)
 
   test("should be able to consume json topic") {
-    val topic = backblaze_smart.in(ctx)
+    val topic = backblaze_smart.in(ctx).withGroupId("fs2")
     val ret =
       topic.fs2Channel
         .withProducerSettings(_.withBatchSize(1))
@@ -39,7 +39,10 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("should be able to consume avro topic") {
     val topic = ctx.topic(nyc_taxi_trip)
-    val ret = topic.fs2Channel.stream
+    val ret = topic
+      .withGroupId("fs2")
+      .fs2Channel
+      .stream
       .map(m => topic.decoder(m).decodeValue)
       .take(1)
       .map(_.toString)
@@ -52,7 +55,7 @@ class Fs2ChannelTest extends AnyFunSuite {
   }
 
   test("should be able to consume telecom_italia_data topic") {
-    val topic = sms.in(ctx)
+    val topic = sms.in(ctx).withGroupId("fs2")
     val ret = topic.fs2Channel
       .assign(Map(new TopicPartition(topic.topicName.value, 0) -> 0))
       .map(m => topic.decoder(m).tryDecode)
