@@ -2,4 +2,4 @@ package mtest.spark.sstream
 
 import org.scalatest.Sequential
 
-class SparkStreamTest extends Sequential(new KafkaStreamTest, new StreamJoinTest)
+class SparkStreamTest extends Sequential(new SparkKafkaStreamTest, new SparkStreamJoinTest)

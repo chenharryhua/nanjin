@@ -18,7 +18,7 @@ import scala.concurrent.duration._
 import scala.util.Random
 
 @DoNotDiscover
-class KafkaStreamTest extends AnyFunSuite {
+class SparkKafkaStreamTest extends AnyFunSuite {
 
   val root = "./data/test/spark/sstream/"
 
@@ -70,6 +70,8 @@ class KafkaStreamTest extends AnyFunSuite {
       .ignoreDataLoss
       .fileSink(path)
       .triggerEvery(500.millisecond)
+      .json
+      .parquet
       .avro
       .withOptions(identity)
       .queryStream
@@ -96,13 +98,11 @@ class KafkaStreamTest extends AnyFunSuite {
 
     val ss = sparKafka
       .topic(rooster)
-      .sstream
+      .jsonStream
       .progressInterval(1000)
       .failOnDataLoss
       .datePartitionSink(path)
       .triggerEvery(1.seconds)
-      .parquet
-      .avro
       .json // last one wins
       .showProgress
 

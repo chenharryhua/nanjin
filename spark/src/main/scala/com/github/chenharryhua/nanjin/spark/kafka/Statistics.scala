@@ -69,7 +69,7 @@ final class Statistics[F[_]] private[kafka] (
   def truncate: Statistics[F]          = new Statistics[F](ds, zoneId, rowNum, true)
   def untruncate: Statistics[F]        = new Statistics[F](ds, zoneId, rowNum, false)
 
-  implicit def zonedDateTimeInjection: Injection[ZonedDateTime, String] =
+  implicit val zonedDateTimeInjection: Injection[ZonedDateTime, String] =
     new Injection[ZonedDateTime, String] {
       override def apply(a: ZonedDateTime): String  = a.toString
       override def invert(b: String): ZonedDateTime = ZonedDateTime.parse(b)

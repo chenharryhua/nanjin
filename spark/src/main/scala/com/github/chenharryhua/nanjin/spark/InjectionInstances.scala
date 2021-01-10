@@ -50,20 +50,16 @@ private[spark] trait InjectionInstances extends Serializable {
     }
 
   // enums
-  implicit def enumToStringInjection[E <: Enumeration](implicit
-    w: Witness.Aux[E]): Injection[E#Value, String] =
+  implicit def enumToStringInjection[E <: Enumeration](implicit w: Witness.Aux[E]): Injection[E#Value, String] =
     Injection(_.toString, x => w.value.withName(x))
 
-  implicit def enumCirceEncoder[E <: Enumeration](implicit
-    w: Witness.Aux[E]): JsonEncoder[E#Value] =
+  implicit def enumCirceEncoder[E <: Enumeration](implicit w: Witness.Aux[E]): JsonEncoder[E#Value] =
     JsonEncoder.encodeEnumeration(w.value)
 
-  implicit def enumCirceDecoder[E <: Enumeration](implicit
-    w: Witness.Aux[E]): JsonDecoder[E#Value] =
+  implicit def enumCirceDecoder[E <: Enumeration](implicit w: Witness.Aux[E]): JsonDecoder[E#Value] =
     JsonDecoder.decodeEnumeration(w.value)
 
-  implicit def orderScalaEnum[E <: Enumeration](implicit
-    w: shapeless.Witness.Aux[E]): Order[E#Value] =
+  implicit def orderScalaEnum[E <: Enumeration](implicit w: shapeless.Witness.Aux[E]): Order[E#Value] =
     (x: E#Value, y: E#Value) => w.value(x.id).compare(w.value(y.id))
 
   // circe/json

@@ -1,14 +1,12 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import alleycats.Empty
+import cats.Bifunctor
 import cats.implicits.toShow
-import cats.{Bifunctor, Eq, Show}
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.sksamuel.avro4s._
 import fs2.kafka.{ProducerRecord => Fs2ProducerRecord}
-import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
-import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import monocle.macros.Lenses
 import org.apache.kafka.clients.producer.ProducerRecord
 import shapeless.cachedImplicit
@@ -83,25 +81,16 @@ object NJProducerRecord {
     val s: SchemaFor[NJProducerRecord[K, V]] = cachedImplicit
     val d: Decoder[NJProducerRecord[K, V]]   = cachedImplicit
     val e: Encoder[NJProducerRecord[K, V]]   = cachedImplicit
-    AvroCodec[NJProducerRecord[K, V]](s, d, e)
+    AvroCodec[NJProducerRecord[K, V]](s, d.withSchema(s), e.withSchema(s))
   }
 
   def avroCodec[K, V](topicDef: TopicDef[K, V]): AvroCodec[NJProducerRecord[K, V]] =
     avroCodec(topicDef.serdeOfKey.avroCodec, topicDef.serdeOfVal.avroCodec)
 
-  implicit def eqNJProducerRecord[K: Eq, V: Eq]: Eq[NJProducerRecord[K, V]] =
-    cats.derived.semiauto.eq[NJProducerRecord[K, V]]
-
   implicit def emptyNJProducerRecord[K, V]: Empty[NJProducerRecord[K, V]] =
     new Empty[NJProducerRecord[K, V]] {
       override val empty: NJProducerRecord[K, V] = NJProducerRecord(None, None, None, None, None)
     }
-
-  implicit def jsonEncoderNJProducerRecord[K: JsonEncoder, V: JsonEncoder]: JsonEncoder[NJProducerRecord[K, V]] =
-    deriveEncoder[NJProducerRecord[K, V]]
-
-  implicit def jsonDecoderNJProducerRecord[K: JsonDecoder, V: JsonDecoder]: JsonDecoder[NJProducerRecord[K, V]] =
-    deriveDecoder[NJProducerRecord[K, V]]
 
   implicit val bifunctorNJProducerRecord: Bifunctor[NJProducerRecord] =
     new Bifunctor[NJProducerRecord] {
@@ -109,7 +98,4 @@ object NJProducerRecord {
       override def bimap[A, B, C, D](fab: NJProducerRecord[A, B])(f: A => C, g: B => D): NJProducerRecord[C, D] =
         fab.copy(key = fab.key.map(f), value = fab.value.map(g))
     }
-
-  implicit def showNJProducerRecord[K: Show, V: Show]: Show[NJProducerRecord[K, V]] =
-    nj => s"PR(k=${nj.key.show},v=${nj.value.show})"
 }

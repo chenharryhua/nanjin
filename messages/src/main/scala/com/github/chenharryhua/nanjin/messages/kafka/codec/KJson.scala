@@ -4,14 +4,8 @@ import cats.{Distributive, Eq, Functor, Show}
 import com.sksamuel.avro4s.{Codec, FieldMapper, SchemaFor}
 import io.circe.Decoder.Result
 import io.circe.syntax._
-import io.circe.{
-  HCursor,
-  Json,
-  parser,
-  Codec => JsonCodec,
-  Decoder => JsonDecoder,
-  Encoder => JsonEncoder
-}
+import io.circe.{HCursor, Json, parser, Codec => JsonCodec, Decoder => JsonDecoder, Encoder => JsonEncoder}
+import monocle.Iso
 import org.apache.avro.Schema
 import org.apache.avro.util.Utf8
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
@@ -37,8 +31,7 @@ object KJson {
   implicit def showKafkaJson[A: JsonEncoder]: Show[KJson[A]] =
     (t: KJson[A]) => s"""KJson(value=${Option(t.value).map(_.asJson.noSpaces).getOrElse("null")})"""
 
-  implicit def eqKJson[A: Eq]: Eq[KJson[A]] = (x: KJson[A], y: KJson[A]) =>
-    Eq[A].eqv(x.value, y.value)
+  implicit def eqKJson[A: Eq]: Eq[KJson[A]] = (x: KJson[A], y: KJson[A]) => Eq[A].eqv(x.value, y.value)
 
   implicit def kjsonJsonCodec[A: JsonEncoder: JsonDecoder]: JsonCodec[KJson[A]] =
     new JsonCodec[KJson[A]] {
@@ -107,12 +100,13 @@ object KJson {
 
   implicit val distributiveKJson: Distributive[KJson] = new Distributive[KJson] {
 
-    override def distribute[G[_], A, B](ga: G[A])(f: A => KJson[B])(implicit
-      ev: Functor[G]): KJson[G[B]] = {
+    override def distribute[G[_], A, B](ga: G[A])(f: A => KJson[B])(implicit ev: Functor[G]): KJson[G[B]] = {
       val gb = ev.map(ga)(x => f(x).value)
       KJson(gb)
     }
 
     override def map[A, B](fa: KJson[A])(f: A => B): KJson[B] = KJson(f(fa.value))
   }
+
+  implicit def isoKJson[A]: Iso[KJson[A], A] = Iso[KJson[A], A](_.value)(KJson(_))
 }
