@@ -2,14 +2,17 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Foldable
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Effect, Sync, Timer}
+import cats.syntax.bifunctor._
 import cats.syntax.foldable._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicName}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.github.chenharryhua.nanjin.spark.sstream.{SStreamConfig, SparkSStream}
 import frameless.TypedEncoder
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
+import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
@@ -79,4 +82,19 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
     tev: TypedEncoder[V],
     F: Sync[F]): SparkSStream[F, NJConsumerRecord[K, V]] =
     sstream(identity, ate)
+
+  def jsonStream(implicit
+    jek: JsonEncoder[K],
+    jev: JsonEncoder[V],
+    jdk: JsonDecoder[K],
+    jdv: JsonDecoder[V],
+    F: Sync[F]): SparkSStream[F, NJConsumerRecord[KJson[K], KJson[V]]] = {
+    import com.github.chenharryhua.nanjin.spark.injection.kjsonInjection
+    val kac: AvroCodec[KJson[K]]                                    = AvroCodec[KJson[K]]
+    val vac: AvroCodec[KJson[V]]                                    = AvroCodec[KJson[V]]
+    implicit val kte: TypedEncoder[KJson[K]]                        = shapeless.cachedImplicit
+    implicit val vte: TypedEncoder[KJson[V]]                        = shapeless.cachedImplicit
+    val ate: AvroTypedEncoder[NJConsumerRecord[KJson[K], KJson[V]]] = NJConsumerRecord.ate[KJson[K], KJson[V]](kac, vac)
+    sstream[NJConsumerRecord[KJson[K], KJson[V]]](_.bimap(KJson(_), KJson(_)), ate)
+  }
 }
