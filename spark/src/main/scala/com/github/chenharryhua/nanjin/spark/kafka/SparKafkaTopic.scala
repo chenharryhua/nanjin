@@ -90,11 +90,13 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
     jdv: JsonDecoder[V],
     F: Sync[F]): SparkSStream[F, NJConsumerRecord[KJson[K], KJson[V]]] = {
     import com.github.chenharryhua.nanjin.spark.injection.kjsonInjection
-    val kac: AvroCodec[KJson[K]]                                    = AvroCodec[KJson[K]]
-    val vac: AvroCodec[KJson[V]]                                    = AvroCodec[KJson[V]]
-    implicit val kte: TypedEncoder[KJson[K]]                        = shapeless.cachedImplicit
-    implicit val vte: TypedEncoder[KJson[V]]                        = shapeless.cachedImplicit
-    val ate: AvroTypedEncoder[NJConsumerRecord[KJson[K], KJson[V]]] = NJConsumerRecord.ate[KJson[K], KJson[V]](kac, vac)
+    val ack: AvroCodec[KJson[K]]             = AvroCodec[KJson[K]]
+    val acv: AvroCodec[KJson[V]]             = AvroCodec[KJson[V]]
+    implicit val kte: TypedEncoder[KJson[K]] = shapeless.cachedImplicit
+    implicit val vte: TypedEncoder[KJson[V]] = shapeless.cachedImplicit
+
+    val ate: AvroTypedEncoder[NJConsumerRecord[KJson[K], KJson[V]]] = NJConsumerRecord.ate[KJson[K], KJson[V]](ack, acv)
+
     sstream[NJConsumerRecord[KJson[K], KJson[V]]](_.bimap(KJson(_), KJson(_)), ate)
   }
 }
