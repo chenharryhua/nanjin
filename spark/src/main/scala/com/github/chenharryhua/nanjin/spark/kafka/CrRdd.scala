@@ -44,6 +44,9 @@ final class CrRdd[F[_], K, V] private[kafka] (
 
   def dismissNulls: CrRdd[F, K, V] = transform(_.dismissNulls)
 
+  def replicate(num: Int): CrRdd[F, K, V] =
+    transform(rdd => (1 until num).foldLeft(rdd) { case (r, _) => r.union(rdd) })
+
   // maps
   def bimap[K2, V2](k: K => K2, v: V => V2)(other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
     new CrRdd[F, K2, V2](rdd.map(_.bimap(k, v)), other, cfg, ss).normalize

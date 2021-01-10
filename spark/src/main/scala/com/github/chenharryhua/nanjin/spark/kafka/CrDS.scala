@@ -44,6 +44,9 @@ final class CrDS[F[_], K, V] private[kafka] (
 
   def normalize: CrDS[F, K, V] = transform(ate.normalize(_).dataset)
 
+  def replicate(num: Int): CrDS[F, K, V] =
+    transform(ds => (1 until num).foldLeft(ds) { case (r, _) => r.union(ds) })
+
   // maps
   def bimap[K2, V2](k: K => K2, v: V => V2)(
     other: KafkaTopic[F, K2, V2])(implicit k2: TypedEncoder[K2], v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
