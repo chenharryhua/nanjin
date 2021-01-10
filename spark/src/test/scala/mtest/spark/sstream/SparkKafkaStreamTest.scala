@@ -18,7 +18,7 @@ import scala.concurrent.duration._
 import scala.util.Random
 
 @DoNotDiscover
-class KafkaStreamTest extends AnyFunSuite {
+class SparkKafkaStreamTest extends AnyFunSuite {
 
   val root = "./data/test/spark/sstream/"
 

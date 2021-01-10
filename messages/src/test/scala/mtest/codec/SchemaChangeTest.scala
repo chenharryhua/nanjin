@@ -85,11 +85,11 @@ class SchemaChangeTest extends AnyFunSuite {
   }
 
   test("child schema") {
-    val schema = AvroCodec.toSchema(
-      """{"type":"record","name":"Nest2","fields":[{"name":"b","type":"string"}]}""")
-    val child = codec.child[Nest2](root.fields.index(1).`type`.index(1))
+    val schema = AvroCodec.toSchema("""{"type":"record","name":"Nest2","fields":[{"name":"b","type":"string"}]}""")
+    val child  = codec.child[Nest2](root.fields.index(1).`type`.index(1))
     assert(child.schema == schema)
     val data = Nest2("abc")
     assert(child.idConversion(data) == data)
+    assertThrows[Exception](codec.child[Nest2](root.fields.index(1).`type`.index(2)))
   }
 }

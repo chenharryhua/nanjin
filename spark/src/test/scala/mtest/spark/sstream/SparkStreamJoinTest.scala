@@ -1,15 +1,17 @@
 package mtest.spark.sstream
 
+import cats.effect.IO
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.kafka._
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import frameless.TypedDataset
 import mtest.spark.{contextShift, sparKafka, sparkSession, timer}
+import org.apache.spark.sql.streaming.StreamingQueryProgress
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration._
 
 object StreamJoinTestData {
   implicit val ss: SparkSession = sparkSession
@@ -31,15 +33,15 @@ object StreamJoinTestData {
 }
 
 @DoNotDiscover
-class StreamJoinTest extends AnyFunSuite {
+class SparkStreamJoinTest extends AnyFunSuite {
 
   import StreamJoinTestData._
   import sparkSession.implicits._
-  test("stream-table join") {
+  test("spark kafka stream-table join") {
     val path   = "./data/test/spark/sstream/stream-table-join"
-    val sender = fooTopic.prRdd(fooData).triggerEvery(1.seconds).upload
+    val sender = fooTopic.prRdd(fooData).triggerEvery(0.5.seconds).upload
 
-    val ss =
+    val ss: fs2.Stream[IO, StreamingQueryProgress] =
       fooTopic.sstream.transform { fooDS =>
         fooDS.joinWith(barDS, fooDS("value.index") === barDS("index"), "inner").flatMap { case (foo, bar) =>
           foo.value.map(x => FooBar(bar.index, x.name, bar.age))
