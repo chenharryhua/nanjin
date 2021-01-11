@@ -11,9 +11,14 @@ import cats.effect._
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.utils
-import fs2.Stream
 import fs2.interop.reactivestreams._
-import fs2.kafka.{ConsumerSettings => Fs2ConsumerSettings, ProducerSettings => Fs2ProducerSettings}
+import fs2.kafka.{
+  ProducerRecords,
+  ProducerResult,
+  ConsumerSettings => Fs2ConsumerSettings,
+  ProducerSettings => Fs2ProducerSettings
+}
+import fs2.{Pipe, Stream}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
@@ -29,7 +34,7 @@ object KafkaChannels {
     val producerSettings: Fs2ProducerSettings[F, K, V],
     val consumerSettings: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]]) {
 
-    import fs2.kafka.{consumerStream, CommittableConsumerRecord, KafkaProducer}
+    import fs2.kafka.{consumerStream, CommittableConsumerRecord}
 
     def withProducerSettings(f: Fs2ProducerSettings[F, K, V] => Fs2ProducerSettings[F, K, V]): Fs2Channel[F, K, V] =
       new Fs2Channel(topicName, f(producerSettings), consumerSettings)
@@ -39,8 +44,10 @@ object KafkaChannels {
       : Fs2Channel[F, K, V] =
       new Fs2Channel(topicName, producerSettings, f(consumerSettings))
 
-    def producerStream(implicit F: ConcurrentEffect[F], cs: ContextShift[F]): Stream[F, KafkaProducer[F, K, V]] =
-      fs2.kafka.producerStream[F, K, V](producerSettings)
+    def producer[P](implicit
+      cs: ContextShift[F],
+      F: ConcurrentEffect[F]): Pipe[F, ProducerRecords[K, V, P], ProducerResult[K, V, P]] =
+      fs2.kafka.produce(producerSettings)
 
     def stream(implicit
       cs: ContextShift[F],

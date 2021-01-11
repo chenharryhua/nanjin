@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.kafka.{KafkaOffsetRange, KafkaTopic, Kafka
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkDatetimeConversionConstant}
 import monocle.function.At.remove
 import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
+import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
@@ -91,17 +92,21 @@ private[kafka] object sk {
   /** streaming
     */
 
-  //  https://spark.apache.org/docs/2.4.5/structured-streaming-kafka-integration.html
+  //  https://spark.apache.org/docs/3.0.1/structured-streaming-kafka-integration.html
   private def consumerOptions(m: Map[String, String]): Map[String, String] = {
     val rm1 = remove(ConsumerConfig.GROUP_ID_CONFIG)(_: Map[String, String])
     val rm2 = remove(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG)(_: Map[String, String])
-    val rm3 = remove(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)(_: Map[String, String])
-    val rm4 = remove(ConsumerConfig.INTERCEPTOR_CLASSES_CONFIG)(_: Map[String, String])
-    val rm5 = remove(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG)(_: Map[String, String])
-    val rm6 = remove(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG)(_: Map[String, String])
 
-    rm1.andThen(rm2).andThen(rm3).andThen(rm4).andThen(rm5).andThen(rm6)(m).map { case (k, v) =>
-      s"kafka.$k" -> v
+    val rm3 = remove(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG)(_: Map[String, String])
+    val rm4 = remove(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG)(_: Map[String, String])
+
+    val rm5 = remove(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG)(_: Map[String, String])
+    val rm6 = remove(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG)(_: Map[String, String])
+
+    val rm7 = remove(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG)(_: Map[String, String])
+    val rm8 = remove(ConsumerConfig.INTERCEPTOR_CLASSES_CONFIG)(_: Map[String, String])
+    rm1.andThen(rm2).andThen(rm3).andThen(rm4).andThen(rm5).andThen(rm6).andThen(rm7).andThen(rm8)(m).map {
+      case (k, v) => s"kafka.$k" -> v
     }
   }
 
@@ -114,7 +119,7 @@ private[kafka] object sk {
     sparkSession.readStream
       .format("kafka")
       .options(consumerOptions(topic.context.settings.consumerSettings.config))
-      .option("subscribe", topic.topicDef.topicName.value)
+      .option("subscribe", topic.topicName.value)
       .load()
       .as[NJConsumerRecord[Array[Byte], Array[Byte]]]
       .mapPartitions { ms =>
