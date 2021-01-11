@@ -28,7 +28,7 @@ object RoosterLike2 {
   def apply(r: Rooster): Option[RoosterLike2] = r.e.map(x => RoosterLike2(r.c, r.d, x))
 }
 
-class CrDSTest extends AnyFunSuite {
+class CrPrTest extends AnyFunSuite {
   implicit val roundingMode: BigDecimal.RoundingMode.Value = RoundingMode.HALF_UP
   implicit val te1: TypedEncoder[Rooster]                  = shapeless.cachedImplicit
   implicit val te2: TypedEncoder[RoosterLike]              = shapeless.cachedImplicit
@@ -48,6 +48,7 @@ class CrDSTest extends AnyFunSuite {
     .crRdd(RoosterData.rdd.zipWithIndex.map { case (r, i) =>
       NJConsumerRecord(0, i, Instant.now.getEpochSecond * 1000 + i, Some(i), Some(r), "rooster", 0)
     })
+    .normalize
 
   val expectSchema = StructType(
     List(
@@ -63,53 +64,74 @@ class CrDSTest extends AnyFunSuite {
       StructField("timestampType", IntegerType, false)
     ))
 
-  val crDS: CrDS[IO, Long, Rooster] = crRdd.crDS.partitionOf(0)
+  val crDS: CrDS[IO, Long, Rooster]   = crRdd.crDS.partitionOf(0)
+  val prRdd: PrRdd[IO, Long, Rooster] = crRdd.prRdd.partitionOf(0)
 
   test("bimap") {
-    val r = crRdd.normalize.bimap(identity, RoosterLike(_))(roosterLike.in(ctx)).rdd.collect().flatMap(_.value).toSet
+    val cr = crDS
+      .repartition(1)
+      .crRdd
+      .bimap(identity, RoosterLike(_))(roosterLike.in(ctx))
+      .rdd
+      .collect()
+      .flatMap(_.value)
+      .toSet
+    val pr = prRdd.bimap(identity, RoosterLike(_))(roosterLike.in(ctx)).rdd.collect().flatMap(_.value).toSet
 
-    val ds = crDS.normalize.bimap(identity, RoosterLike(_))(roosterLike.in(ctx)).dataset
+    val ds = crDS.bimap(identity, RoosterLike(_))(roosterLike.in(ctx)).dataset
     val d  = ds.collect().flatMap(_.value).toSet
 
+    crRdd.rdd.take(3).foreach(println)
     assert(ds.schema == expectSchema)
-    assert(r == d)
+    assert(cr == d)
+    assert(pr == d)
+
   }
 
   test("map") {
-    val r =
-      crRdd.normalize
-        .map(x => x.newValue(x.value.map(RoosterLike(_))))(roosterLike.in(ctx))
-        .rdd
-        .collect
-        .flatMap(_.value)
-        .toSet
-    val ds = crDS.normalize.map(_.bimap(identity, RoosterLike(_)))(roosterLike.in(ctx)).dataset
+    val cr =
+      crRdd.map(x => x.newValue(x.value.map(RoosterLike(_))))(roosterLike.in(ctx)).rdd.collect.flatMap(_.value).toSet
+
+    val pr = prRdd
+      .map(x => x.copy(value = x.value.map(RoosterLike(_))))(roosterLike.in(ctx))
+      .rdd
+      .collect
+      .flatMap(_.value)
+      .toSet
+
+    val ds = crDS.map(_.bimap(identity, RoosterLike(_)))(roosterLike.in(ctx)).dataset
     val d  = ds.collect.flatMap(_.value).toSet
     assert(ds.schema == expectSchema)
-    assert(r == d)
+    assert(cr == d)
+    assert(pr == d)
   }
 
   test("flatMap") {
-    val r = crRdd.normalize.flatMap { x =>
+    val cr = crRdd.flatMap { x =>
       x.value.flatMap(RoosterLike2(_)).map(y => x.newValue(Some(y)).newKey(x.key))
     }(roosterLike2.in(ctx)).rdd.collect().flatMap(_.value).toSet
 
-    val d = crDS.normalize.flatMap { x =>
+    val pr = prRdd.flatMap { x =>
+      x.value.map(r => x.copy(value = RoosterLike2(r)))
+    }(roosterLike2.in(ctx)).rdd.collect().flatMap(_.value).toSet
+
+    val d = crDS.flatMap { x =>
       x.value.flatMap(RoosterLike2(_)).map(y => x.newValue(Some(y)))
     }(roosterLike2.in(ctx)).dataset.collect.flatMap(_.value).toSet
 
-    assert(r == d)
+    assert(cr == d)
+    assert(pr == d)
   }
 
   test("union") {
-    val r = crRdd.normalize.union(crRdd)
+    val r = crRdd.union(crRdd)
     val d = crDS.union(crDS)
     assert(r.count.unsafeRunSync() == d.count.unsafeRunSync())
   }
 
   test("stats") {
     crDS.stats.daily.unsafeRunSync()
-    crDS.crRdd.stats.daily.unsafeRunSync()
+    crRdd.stats.daily.unsafeRunSync()
   }
 
   test("time range") {
@@ -129,9 +151,11 @@ class CrDSTest extends AnyFunSuite {
     assert(crRdd.crDS.offsetRange(0, 2).dataset.collect.size == 3)
   }
   test("cherry-pick") {
-    assert(crRdd.normalize.cherrypick(0, 0) == crDS.normalize.cherrypick(0, 0))
+    assert(crRdd.normalize.cherrypick(0, 0).map(_.value) == crDS.normalize.cherrypick(0, 0).map(_.value))
   }
   test("replicate") {
-    assert(crRdd.replicate(3).rdd.collect().toSet == crDS.repartition(3).dataset.collect().toSet)
+    assert(crRdd.replicate(3).rdd.count == 12)
+    assert(prRdd.replicate(3).rdd.count() == 12)
+    assert(crDS.replicate(3).dataset.count() == 12)
   }
 }

@@ -71,8 +71,6 @@ final class CrRdd[F[_], K, V] private[kafka] (
   // upload
   def prRdd: PrRdd[F, K, V] = new PrRdd[F, K, V](rdd.map(_.toNJProducerRecord), topic, cfg)
 
-  def upload(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
-    prRdd.noMeta.upload(topic).map(_ => print(".")).compile.drain
 
   // save
   def save: RddAvroFileHoarder[F, NJConsumerRecord[K, V]] =

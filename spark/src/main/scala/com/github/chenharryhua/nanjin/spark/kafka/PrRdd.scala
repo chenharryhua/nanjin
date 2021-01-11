@@ -12,7 +12,7 @@ import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import frameless.cats.implicits._
 import fs2.Stream
-import fs2.kafka.{produce, ProducerRecords, ProducerResult}
+import fs2.kafka.{ProducerRecords, ProducerResult}
 import org.apache.spark.rdd.RDD
 
 import scala.concurrent.duration.FiniteDuration
@@ -59,33 +59,34 @@ final class PrRdd[F[_], K, V] private[kafka] (
   def replicate(num: Int): PrRdd[F, K, V] =
     transform(rdd => (1 until num).foldLeft(rdd) { case (r, _) => r.union(rdd) })
 
+  def normalize: PrRdd[F, K, V] = transform(_.map(NJProducerRecord.avroCodec(topic.topicDef).idConversion))
+
+  // maps
+  def bimap[K2, V2](k: K => K2, v: V => V2)(other: KafkaTopic[F, K2, V2]): PrRdd[F, K2, V2] =
+    new PrRdd[F, K2, V2](rdd.map(_.bimap(k, v)), other, cfg).normalize
+
+  def map[K2, V2](f: NJProducerRecord[K, V] => NJProducerRecord[K2, V2])(
+    other: KafkaTopic[F, K2, V2]): PrRdd[F, K2, V2] =
+    new PrRdd[F, K2, V2](rdd.map(f), other, cfg).normalize
+
+  def flatMap[K2, V2](f: NJProducerRecord[K, V] => TraversableOnce[NJProducerRecord[K2, V2]])(
+    other: KafkaTopic[F, K2, V2]): PrRdd[F, K2, V2] =
+    new PrRdd[F, K2, V2](rdd.flatMap(f), other, cfg).normalize
+
   // actions
-  def pipeTo[K2, V2](other: KafkaTopic[F, K2, V2])(k: K => K2, v: V => V2)(implicit
-    ce: ConcurrentEffect[F],
-    timer: Timer[F],
-    cs: ContextShift[F]): Stream[F, ProducerResult[K2, V2, Unit]] =
-    rdd
-      .stream[F]
-      .map(_.bimap(k, v))
-      .interruptAfter(params.uploadParams.timeLimit)
-      .take(params.uploadParams.recordsLimit)
-      .chunkN(params.uploadParams.batchSize)
-      .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(other.topicName.value))))
-      .buffer(5)
-      .metered(params.uploadParams.uploadInterval)
-      .through(produce(other.fs2Channel.producerSettings))
-
-  def upload(other: KafkaTopic[F, K, V])(implicit
-    ce: ConcurrentEffect[F],
-    timer: Timer[F],
-    cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
-    pipeTo(other)(identity, identity)
-
   def upload(implicit
     ce: ConcurrentEffect[F],
     timer: Timer[F],
     cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
-    upload(topic)
+    rdd
+      .stream[F]
+      .interruptAfter(params.uploadParams.timeLimit)
+      .take(params.uploadParams.recordsLimit)
+      .chunkN(params.uploadParams.batchSize)
+      .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName.value))))
+      .buffer(5)
+      .metered(params.uploadParams.uploadInterval)
+      .through(topic.fs2Channel.producer)
 
   def bestEffort(akkaSystem: ActorSystem)(implicit F: ConcurrentEffect[F], cs: ContextShift[F]): F[Done] =
     F.defer {

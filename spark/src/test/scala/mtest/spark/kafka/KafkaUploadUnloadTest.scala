@@ -55,6 +55,8 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
           .noPartition
           .noTimestamp
       })
+      .noTimestamp
+      .noPartition
       .noMeta
       .batchSize(10)
       .recordsLimit(1000)
