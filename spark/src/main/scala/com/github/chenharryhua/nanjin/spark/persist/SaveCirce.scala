@@ -4,6 +4,7 @@ import cats.effect.{Blocker, ContextShift, Sync}
 import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.pipes.CirceSerialization
 import com.github.chenharryhua.nanjin.spark.RddExt
+import fs2.Pipe
 import io.circe.{Json, Encoder => JsonEncoder}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.{NullWritable, Text}
@@ -49,16 +50,11 @@ final class SaveCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull: Bool
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
-        val hadoop: NJHadoop[F]            = NJHadoop[F](hadoopConfiguration, blocker)
-        val pipe: CirceSerialization[F, A] = new CirceSerialization[F, A]
-        sma.checkAndRun(blocker)(
-          rdd
-            .stream[F]
-            .through(pipe.serialize(isKeepNull))
-            .through(ccg.compressionPipe)
-            .through(hadoop.byteSink(params.outPath))
-            .compile
-            .drain)
+        val hadoop: NJHadoop[F]       = NJHadoop[F](hadoopConfiguration, blocker)
+        val pipe: Pipe[F, A, Byte]    = new CirceSerialization[F, A].serialize(isKeepNull)
+        val sink: Pipe[F, Byte, Unit] = hadoop.byteSink(params.outPath)
+        sma.checkAndRun(blocker)(rdd.stream[F].through(pipe).through(ccg.compressionPipe).through(sink).compile.drain)
+
       case FolderOrFile.Folder =>
         def encode(a: A): Json =
           if (isKeepNull) jsonEncoder(a) else jsonEncoder(a).deepDropNullValues

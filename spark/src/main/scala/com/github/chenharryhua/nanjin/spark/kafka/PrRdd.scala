@@ -1,9 +1,10 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import akka.Done
+import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import akka.kafka.ProducerMessage
 import akka.stream.Materializer
+import akka.stream.scaladsl.{Flow, Sink}
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
@@ -11,8 +12,8 @@ import com.github.chenharryhua.nanjin.kafka.{akkaSinks, KafkaTopic}
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import frameless.cats.implicits._
-import fs2.Stream
 import fs2.kafka.{ProducerRecords, ProducerResult}
+import fs2.{Pipe, Stream}
 import org.apache.spark.rdd.RDD
 
 import scala.concurrent.duration.FiniteDuration
@@ -77,7 +78,9 @@ final class PrRdd[F[_], K, V] private[kafka] (
   def upload(implicit
     ce: ConcurrentEffect[F],
     timer: Timer[F],
-    cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
+    cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] = {
+    val producer: Pipe[F, ProducerRecords[K, V, Unit], ProducerResult[K, V, Unit]] =
+      topic.fs2Channel(ce).producer[Unit]
     rdd
       .stream[F]
       .interruptAfter(params.uploadParams.timeLimit)
@@ -86,19 +89,23 @@ final class PrRdd[F[_], K, V] private[kafka] (
       .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName.value))))
       .buffer(5)
       .metered(params.uploadParams.uploadInterval)
-      .through(topic.fs2Channel.producer)
+      .through(producer)
+  }
 
   def bestEffort(akkaSystem: ActorSystem)(implicit F: ConcurrentEffect[F], cs: ContextShift[F]): F[Done] =
     F.defer {
       implicit val mat: Materializer = Materializer(akkaSystem)
+      val flexiFlow: Flow[ProducerMessage.Envelope[K, V, NotUsed], ProducerMessage.Results[K, V, NotUsed], NotUsed] =
+        topic.akkaChannel(akkaSystem).flexiFlow[NotUsed]
+      val sink: Sink[Any, F[Done]] = akkaSinks.ignore[F]
       rdd
         .source[F]
         .take(params.uploadParams.recordsLimit)
         .takeWithin(params.uploadParams.timeLimit)
         .grouped(params.uploadParams.batchSize)
         .map(ms => ProducerMessage.multi(ms.map(_.toProducerRecord(topic.topicName.value))))
-        .via(topic.akkaChannel(akkaSystem).flexiFlow)
-        .runWith(akkaSinks.ignore[F])
+        .via(flexiFlow)
+        .runWith(sink)
     }
 
   def count(implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
