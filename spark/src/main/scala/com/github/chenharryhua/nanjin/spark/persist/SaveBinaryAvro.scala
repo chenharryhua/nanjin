@@ -5,6 +5,8 @@ import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.pipes.{BinaryAvroSerialization, GenericRecordCodec}
 import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.{AvroOutputStream, Encoder => AvroEncoder}
+import fs2.Pipe
+import org.apache.avro.generic.GenericRecord
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.{BytesWritable, NullWritable}
 import org.apache.spark.rdd.RDD
@@ -45,18 +47,11 @@ final class SaveBinaryAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: H
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
-        val hadoop: NJHadoop[F]              = NJHadoop[F](hadoopConfiguration, blocker)
-        val gr: GenericRecordCodec[F, A]     = new GenericRecordCodec[F, A]
-        val pipe: BinaryAvroSerialization[F] = new BinaryAvroSerialization[F](encoder.schema)
-
-        sma.checkAndRun(blocker)(
-          rdd
-            .stream[F]
-            .through(gr.encode(encoder))
-            .through(pipe.serialize)
-            .through(hadoop.byteSink(params.outPath))
-            .compile
-            .drain)
+        val hadoop: NJHadoop[F]                = NJHadoop[F](hadoopConfiguration, blocker)
+        val gr: Pipe[F, A, GenericRecord]      = new GenericRecordCodec[F, A].encode(encoder)
+        val pipe: Pipe[F, GenericRecord, Byte] = new BinaryAvroSerialization[F](encoder.schema).serialize
+        val sink: Pipe[F, Byte, Unit]          = hadoop.byteSink(params.outPath)
+        sma.checkAndRun(blocker)(rdd.stream[F].through(gr).through(pipe).through(sink).compile.drain)
 
       case FolderOrFile.Folder =>
         hadoopConfiguration.set(NJBinaryOutputFormat.suffix, params.format.suffix)

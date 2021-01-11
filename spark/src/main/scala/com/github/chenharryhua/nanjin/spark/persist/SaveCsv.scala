@@ -4,6 +4,7 @@ import cats.effect.{Blocker, Concurrent, ContextShift}
 import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.pipes.CsvSerialization
 import com.github.chenharryhua.nanjin.spark.RddExt
+import fs2.Pipe
 import kantan.csv.CsvConfiguration.QuotePolicy
 import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.hadoop.conf.Configuration
@@ -41,10 +42,7 @@ final class SaveCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfiguration,
   def deflate(level: Int): SaveCsv[F, A] =
     updateConfig(cfg.withCompression(Compression.Deflate(level)))
 
-  def run(blocker: Blocker)(implicit
-    F: Concurrent[F],
-    cs: ContextShift[F],
-    rowEncoder: RowEncoder[A]): F[Unit] = {
+  def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], rowEncoder: RowEncoder[A]): F[Unit] = {
 
     val hadoopConfiguration = new Configuration(ds.sparkSession.sparkContext.hadoopConfiguration)
 
@@ -61,16 +59,10 @@ final class SaveCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfiguration,
             csvConfiguration.withHeader(ds.schema.fieldNames: _*)
           else csvConfiguration
 
-        val pipe = new CsvSerialization[F, A](csvConf)
-
+        val pipe: Pipe[F, A, Byte]    = new CsvSerialization[F, A](csvConf).serialize(blocker)
+        val sink: Pipe[F, Byte, Unit] = hadoop.byteSink(params.outPath)
         sma.checkAndRun(blocker)(
-          ds.rdd
-            .stream[F]
-            .through(pipe.serialize(blocker))
-            .through(ccg.compressionPipe)
-            .through(hadoop.byteSink(params.outPath))
-            .compile
-            .drain)
+          ds.rdd.stream[F].through(pipe).through(ccg.compressionPipe).through(sink).compile.drain)
 
       case FolderOrFile.Folder =>
         val quoteAll = csvConfiguration.quotePolicy match {
