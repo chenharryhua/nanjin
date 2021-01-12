@@ -61,7 +61,7 @@ final case class DuplicateRecord(partition: Int, offset: Long, num: Long)
 final class Statistics[F[_]] private[kafka] (
   ds: Dataset[CRMetaInfo],
   zoneId: ZoneId,
-  rowNum: Int = 20,
+  rowNum: Int = 500,
   isTruncate: Boolean = false)
     extends Serializable {
 
