@@ -1,10 +1,10 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import akka.kafka.ProducerMessage
-import akka.stream.{Materializer, OverflowStrategy}
 import akka.stream.scaladsl.{Flow, Sink}
+import akka.stream.{Materializer, OverflowStrategy}
+import akka.{Done, NotUsed}
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
@@ -33,6 +33,7 @@ final class PrRdd[F[_], K, V] private[kafka] (
   def triggerEvery(ms: Long): PrRdd[F, K, V]           = updateCfg(_.withUploadInterval(ms))
   def triggerEvery(ms: FiniteDuration): PrRdd[F, K, V] = updateCfg(_.withUploadInterval(ms))
   def batchSize(num: Int): PrRdd[F, K, V]              = updateCfg(_.withUploadBatchSize(num))
+  def bufferSize(num: Int): PrRdd[F, K, V]             = updateCfg(_.withUploadBufferSize(num))
 
   def recordsLimit(num: Long): PrRdd[F, K, V]       = updateCfg(_.withUploadRecordsLimit(num))
   def timeLimit(ms: Long): PrRdd[F, K, V]           = updateCfg(_.withUploadTimeLimit(ms))
@@ -87,7 +88,7 @@ final class PrRdd[F[_], K, V] private[kafka] (
       .take(params.uploadParams.recordsLimit)
       .chunkN(params.uploadParams.batchSize)
       .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName.value))))
-      .buffer(5)
+      .buffer(params.uploadParams.bufferSize)
       .metered(params.uploadParams.uploadInterval)
       .through(producer)
   }
@@ -104,7 +105,7 @@ final class PrRdd[F[_], K, V] private[kafka] (
         .takeWithin(params.uploadParams.timeLimit)
         .grouped(params.uploadParams.batchSize)
         .map(ms => ProducerMessage.multi(ms.map(_.toProducerRecord(topic.topicName.value))))
-        .buffer(20, OverflowStrategy.backpressure)
+        .buffer(params.uploadParams.bufferSize, OverflowStrategy.backpressure)
         .via(flexiFlow)
         .runWith(sink)
     }

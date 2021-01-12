@@ -59,6 +59,7 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
       .noPartition
       .noMeta
       .batchSize(10)
+      .bufferSize(1)
       .recordsLimit(1000)
       .timeLimit(2.minutes)
     val run = for {
