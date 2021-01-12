@@ -16,7 +16,8 @@ import scala.concurrent.duration._
   batchSize: Int,
   uploadInterval: FiniteDuration,
   recordsLimit: Long,
-  timeLimit: FiniteDuration)
+  timeLimit: FiniteDuration,
+  bufferSize: Int)
 
 private[kafka] object NJUploadParams {
 
@@ -25,7 +26,8 @@ private[kafka] object NJUploadParams {
     uploadInterval = 1.second,
     recordsLimit = Long.MaxValue,
     //akka.actor.LightArrayRevolverScheduler.checkMaxDelay
-    timeLimit = FiniteDuration(21474835, TimeUnit.SECONDS)
+    timeLimit = FiniteDuration(21474835, TimeUnit.SECONDS),
+    bufferSize = 5
   )
 }
 
@@ -61,6 +63,7 @@ private[kafka] object SKConfigF {
   final case class WithUploadInterval[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
   final case class WithUploadRecordsLimit[K](value: Long, cont: K) extends SKConfigF[K]
   final case class WithUploadTimeLimit[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
+  final case class WithUploadBufferSize[K](value: Int, cont: K) extends SKConfigF[K]
 
   final case class WithStartTimeStr[K](value: String, cont: K) extends SKConfigF[K]
   final case class WithStartTime[K](value: LocalDateTime, cont: K) extends SKConfigF[K]
@@ -87,6 +90,8 @@ private[kafka] object SKConfigF {
       SKParams.uploadParams.composeLens(NJUploadParams.recordsLimit).set(v)(c)
     case WithUploadTimeLimit(v, c) =>
       SKParams.uploadParams.composeLens(NJUploadParams.timeLimit).set(v)(c)
+    case WithUploadBufferSize(v, c) =>
+      SKParams.uploadParams.composeLens(NJUploadParams.bufferSize).set(v)(c)
     case WithStartTimeStr(v, c)      => SKParams.timeRange.modify(_.withStartTime(v))(c)
     case WithEndTimeStr(v, c)        => SKParams.timeRange.modify(_.withEndTime(v))(c)
     case WithStartTime(v, c)         => SKParams.timeRange.modify(_.withStartTime(v))(c)
@@ -106,18 +111,15 @@ private[kafka] object SKConfigF {
 final private[kafka] case class SKConfig private (value: Fix[SKConfigF]) extends AnyVal {
   import SKConfigF._
 
-  def withTopicName(tn: String): SKConfig    = SKConfig(Fix(WithTopicName(TopicName.unsafeFrom(tn), value)))
-  def withUploadBatchSize(bs: Int): SKConfig = SKConfig(Fix(WithUploadBatchSize(bs, value)))
+  def withTopicName(tn: String): SKConfig = SKConfig(Fix(WithTopicName(TopicName.unsafeFrom(tn), value)))
 
-  def withUploadInterval(fd: FiniteDuration): SKConfig = SKConfig(Fix(WithUploadInterval(fd, value)))
-
-  def withUploadInterval(ms: Long): SKConfig = withUploadInterval(FiniteDuration(ms, TimeUnit.MILLISECONDS))
-
-  def withUploadRecordsLimit(num: Long): SKConfig = SKConfig(Fix(WithUploadRecordsLimit(num, value)))
-
+  def withUploadBatchSize(bs: Int): SKConfig            = SKConfig(Fix(WithUploadBatchSize(bs, value)))
+  def withUploadInterval(fd: FiniteDuration): SKConfig  = SKConfig(Fix(WithUploadInterval(fd, value)))
+  def withUploadInterval(ms: Long): SKConfig            = withUploadInterval(FiniteDuration(ms, TimeUnit.MILLISECONDS))
+  def withUploadRecordsLimit(num: Long): SKConfig       = SKConfig(Fix(WithUploadRecordsLimit(num, value)))
   def withUploadTimeLimit(fd: FiniteDuration): SKConfig = SKConfig(Fix(WithUploadTimeLimit(fd, value)))
-
-  def withUploadTimeLimit(ms: Long): SKConfig = withUploadTimeLimit(FiniteDuration(ms, TimeUnit.MILLISECONDS))
+  def withUploadTimeLimit(ms: Long): SKConfig           = withUploadTimeLimit(FiniteDuration(ms, TimeUnit.MILLISECONDS))
+  def withUploadBufferSize(num: Int): SKConfig          = SKConfig(Fix(WithUploadBufferSize(num, value)))
 
   def withStartTime(s: String): SKConfig                  = SKConfig(Fix(WithStartTimeStr(s, value)))
   def withStartTime(s: LocalDateTime): SKConfig           = SKConfig(Fix(WithStartTime(s, value)))
