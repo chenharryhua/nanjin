@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import akka.kafka.ProducerMessage
-import akka.stream.Materializer
+import akka.stream.{Materializer, OverflowStrategy}
 import akka.stream.scaladsl.{Flow, Sink}
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.syntax.all._
@@ -104,6 +104,7 @@ final class PrRdd[F[_], K, V] private[kafka] (
         .takeWithin(params.uploadParams.timeLimit)
         .grouped(params.uploadParams.batchSize)
         .map(ms => ProducerMessage.multi(ms.map(_.toProducerRecord(topic.topicName.value))))
+        .buffer(20, OverflowStrategy.backpressure)
         .via(flexiFlow)
         .runWith(sink)
     }
