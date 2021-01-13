@@ -21,11 +21,9 @@ class AkkaChannelTest extends AnyFunSuite {
   val sender: Stream[IO, List[ProducerResult[Int, String, Unit]]] =
     Stream.awakeEvery[IO](1.second).zipRight(Stream.eval(data.traverse(x => topic.send(x))))
 
-  val akkaChannel: KafkaChannels.AkkaChannel[IO, Int, String] = topic.update.akka
-    .consumerSettings(_.withClientId(s"c-id-${random4d.value}"))
-    .update
-    .akka
-    .committerSettings(_.withParallelism(10).withParallelism(10))
+  val akkaChannel: KafkaChannels.AkkaChannel[IO, Int, String] = topic
+    .updateAkkaConsumerSettings(_.withClientId(s"c-id-${random4d.value}"))
+    .updateAkkaCommitterSettings(_.withParallelism(10).withParallelism(10))
     .akkaChannel(akkaSystem)
 
   test("time-ranged") {

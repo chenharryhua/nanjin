@@ -42,34 +42,24 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
   def withContext[G[_]](ct: KafkaContext[G]): KafkaTopic[G, K, V] =
     ct.topic(topicDef)
 
-  object update {
+  def updateAkkaConsumerSettings(
+    f: AkkaConsumerSettings[Array[Byte], Array[Byte]] => AkkaConsumerSettings[Array[Byte], Array[Byte]])
+    : KafkaTopic[F, K, V] =
+    new KafkaTopic[F, K, V](topicDef, context, akkaUpdater.updateConsumer(f), fs2Updater)
 
-    object akka {
+  def updateAkkaProducerSettings(f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): KafkaTopic[F, K, V] =
+    new KafkaTopic[F, K, V](topicDef, context, akkaUpdater.updateProducer(f), fs2Updater)
 
-      def consumerSettings(
-        f: AkkaConsumerSettings[Array[Byte], Array[Byte]] => AkkaConsumerSettings[Array[Byte], Array[Byte]])
-        : KafkaTopic[F, K, V] =
-        new KafkaTopic[F, K, V](topicDef, context, akkaUpdater.updateConsumer(f), fs2Updater)
+  def updateAkkaCommitterSettings(f: CommitterSettings => CommitterSettings): KafkaTopic[F, K, V] =
+    new KafkaTopic[F, K, V](topicDef, context, akkaUpdater.updateCommitter(f), fs2Updater)
 
-      def producerSettings(f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): KafkaTopic[F, K, V] =
-        new KafkaTopic[F, K, V](topicDef, context, akkaUpdater.updateProducer(f), fs2Updater)
+  def updateFs2ConsumerSettings(
+    f: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]] => Fs2ConsumerSettings[F, Array[Byte], Array[Byte]])
+    : KafkaTopic[F, K, V] =
+    new KafkaTopic[F, K, V](topicDef, context, akkaUpdater, fs2Updater.updateConsumer(f))
 
-      def committerSettings(f: CommitterSettings => CommitterSettings): KafkaTopic[F, K, V] =
-        new KafkaTopic[F, K, V](topicDef, context, akkaUpdater.updateCommitter(f), fs2Updater)
-    }
-
-    object fs2 {
-
-      def consumerSettings(
-        f: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]] => Fs2ConsumerSettings[F, Array[Byte], Array[Byte]])
-        : KafkaTopic[F, K, V] =
-        new KafkaTopic[F, K, V](topicDef, context, akkaUpdater, fs2Updater.updateConsumer(f))
-
-      def producerSettings(f: ProducerSettings[F, K, V] => ProducerSettings[F, K, V]): KafkaTopic[F, K, V] =
-        new KafkaTopic[F, K, V](topicDef, context, akkaUpdater, fs2Updater.updateProducer(f))
-
-    }
-  }
+  def updateFs2ProducerSettings(f: ProducerSettings[F, K, V] => ProducerSettings[F, K, V]): KafkaTopic[F, K, V] =
+    new KafkaTopic[F, K, V](topicDef, context, akkaUpdater, fs2Updater.updateProducer(f))
 
   override def extract(key: K, value: V, rc: RecordContext): String = topicName.value
 

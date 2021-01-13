@@ -23,12 +23,8 @@ class Fs2ChannelTest extends AnyFunSuite {
     val topic = backblaze_smart
       .in(ctx)
       .withGroupId("fs2")
-      .update
-      .fs2
-      .producerSettings(_.withBatchSize(1))
-      .update
-      .fs2
-      .consumerSettings(_.withAutoOffsetReset(AutoOffsetReset.Earliest))
+      .updateFs2ProducerSettings(_.withBatchSize(1))
+      .updateFs2ConsumerSettings(_.withAutoOffsetReset(AutoOffsetReset.Earliest))
     val ret =
       topic.fs2Channel.stream
         .map(m => topic.decoder(m).tryDecodeKeyValue)
