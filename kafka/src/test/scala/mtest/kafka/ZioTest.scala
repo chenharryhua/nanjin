@@ -39,8 +39,9 @@ class ZioTest extends AnyFunSuite {
   }
 
   test("zio should work for akka.") {
-    val task = topic.akkaChannel(akkaSystem)
-      .withConsumerSettings(_.withClientId("akka-test"))
+    val task = topic.update.akka
+      .consumerSettings(_.withClientId("akka-test"))
+      .akkaChannel(akkaSystem)
       .source
       .map(x => topic.decoder(x).decodeValue)
       .take(1)

@@ -36,14 +36,6 @@ object KafkaChannels {
 
     import fs2.kafka.{consumerStream, CommittableConsumerRecord}
 
-    def withProducerSettings(f: Fs2ProducerSettings[F, K, V] => Fs2ProducerSettings[F, K, V]): Fs2Channel[F, K, V] =
-      new Fs2Channel(topicName, f(producerSettings), consumerSettings)
-
-    def withConsumerSettings(
-      f: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]] => Fs2ConsumerSettings[F, Array[Byte], Array[Byte]])
-      : Fs2Channel[F, K, V] =
-      new Fs2Channel(topicName, producerSettings, f(consumerSettings))
-
     def producer[P](implicit
       cs: ContextShift[F],
       F: ConcurrentEffect[F]): Pipe[F, ProducerRecords[K, V, P], ProducerResult[K, V, P]] =
@@ -79,17 +71,6 @@ object KafkaChannels {
     import akka.kafka.{ConsumerMessage, ProducerMessage, Subscriptions}
     import akka.stream.scaladsl.{Flow, Sink, Source}
     import akka.{Done, NotUsed}
-
-    def withProducerSettings(f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): AkkaChannel[F, K, V] =
-      new AkkaChannel(topicName, f(producerSettings), consumerSettings, committerSettings)
-
-    def withConsumerSettings(
-      f: AkkaConsumerSettings[Array[Byte], Array[Byte]] => AkkaConsumerSettings[Array[Byte], Array[Byte]])
-      : AkkaChannel[F, K, V] =
-      new AkkaChannel(topicName, producerSettings, f(consumerSettings), committerSettings)
-
-    def withCommitterSettings(f: AkkaCommitterSettings => AkkaCommitterSettings): AkkaChannel[F, K, V] =
-      new AkkaChannel(topicName, producerSettings, consumerSettings, f(committerSettings))
 
     def flexiFlow[P]: Flow[Envelope[K, V, P], ProducerMessage.Results[K, V, P], NotUsed] =
       Producer.flexiFlow[K, V, P](producerSettings)
