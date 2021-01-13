@@ -30,16 +30,19 @@ class ProducerTest extends AnyFunSuite {
     val produceTask = (0 until 100).toList.traverse { i =>
       srcTopic.send(AvroKey(i.toString), AvroValue(Random.nextString(5), Random.nextInt(100)))
     }
-    val srcChn = srcTopic.akkaChannel(akkaSystem)
+    val srcChn = srcTopic.update.akka
+      .consumerSettings(
+        _.withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+          .withGroupId("akka-task")
+          .withCommitWarning(10.seconds))
+      .update.akka.producerSettings(_.withCloseTimeout(5.seconds))
+      .update.fs2.consumerSettings(_.withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest").withGroupId("fs2-task"))
+      
     val tgtChn = akkaTopic.akkaChannel(akkaSystem)
 
     val akkaTask: IO[Done] =
       srcChn
-        .withConsumerSettings(
-          _.withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
-            .withGroupId("akka-task")
-            .withCommitWarning(10.seconds))
-        .withProducerSettings(_.withCloseTimeout(5.seconds))
+        .akkaChannel(akkaSystem)
         .source
         .map(m => akkaTopic.decoder(m).decode)
         .wireTap { m => akkaTopic.akkaProducerRecords(List((m.record.key, m.record.value()))); () }
@@ -47,10 +50,7 @@ class ProducerTest extends AnyFunSuite {
         .take(100)
         .runWith(akkaSinks.ignore[IO])
 
-    val fs2Task: IO[Unit] = srcTopic.fs2Channel
-      .withConsumerSettings(
-        _.withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest").withGroupId("fs2-task"))
-      .stream
+    val fs2Task: IO[Unit] = srcTopic.fs2Channel.stream
       .map(m => srcTopic.decoder(m).decode)
       .map(m => Fs2ProducerRecords.one(fs2Topic.fs2PR(m.record.key, m.record.value), m.offset))
       .take(100)

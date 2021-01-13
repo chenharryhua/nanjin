@@ -1,27 +1,37 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import akka.actor.ActorSystem
+import akka.kafka.{
+  CommitterSettings,
+  ConsumerSettings => AkkaConsumerSettings,
+  ProducerSettings => AkkaProducerSettings
+}
 import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, Resource, Sync, Timer}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaGenericDecoder
+import fs2.kafka.{ProducerSettings, ConsumerSettings => Fs2ConsumerSettings}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
 import scala.util.Try
 
-final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V], val context: KafkaContext[F])
+final class KafkaTopic[F[_], K, V] private[kafka] (
+  val topicDef: TopicDef[K, V],
+  val context: KafkaContext[F],
+  akkaUpdater: AkkaUpdater[K, V],
+  fs2Updater: Fs2Updater[F, K, V])
     extends TopicNameExtractor[K, V] with KafkaTopicProducer[F, K, V] with Serializable {
   import topicDef.{serdeOfKey, serdeOfVal}
 
   val topicName: TopicName = topicDef.topicName
 
   def withTopicName(tn: String): KafkaTopic[F, K, V] =
-    new KafkaTopic[F, K, V](topicDef.withTopicName(tn), context)
+    new KafkaTopic[F, K, V](topicDef.withTopicName(tn), context, akkaUpdater, fs2Updater)
 
   def updateSettings(f: KafkaSettings => KafkaSettings): KafkaTopic[F, K, V] =
-    new KafkaTopic[F, K, V](topicDef, context.updateSettings(f))
+    new KafkaTopic[F, K, V](topicDef, context.updateSettings(f), akkaUpdater, fs2Updater)
 
   def withSettings(kafkaSettings: KafkaSettings): KafkaTopic[F, K, V] =
     updateSettings(_ => kafkaSettings)
@@ -31,6 +41,35 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
 
   def withContext[G[_]](ct: KafkaContext[G]): KafkaTopic[G, K, V] =
     ct.topic(topicDef)
+
+  object update {
+
+    object akka {
+
+      def consumerSettings(
+        f: AkkaConsumerSettings[Array[Byte], Array[Byte]] => AkkaConsumerSettings[Array[Byte], Array[Byte]])
+        : KafkaTopic[F, K, V] =
+        new KafkaTopic[F, K, V](topicDef, context, akkaUpdater.updateConsumer(f), fs2Updater)
+
+      def producerSettings(f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): KafkaTopic[F, K, V] =
+        new KafkaTopic[F, K, V](topicDef, context, akkaUpdater.updateProducer(f), fs2Updater)
+
+      def committerSettings(f: CommitterSettings => CommitterSettings): KafkaTopic[F, K, V] =
+        new KafkaTopic[F, K, V](topicDef, context, akkaUpdater.updateCommitter(f), fs2Updater)
+    }
+
+    object fs2 {
+
+      def consumerSettings(
+        f: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]] => Fs2ConsumerSettings[F, Array[Byte], Array[Byte]])
+        : KafkaTopic[F, K, V] =
+        new KafkaTopic[F, K, V](topicDef, context, akkaUpdater, fs2Updater.updateConsumer(f))
+
+      def producerSettings(f: ProducerSettings[F, K, V] => ProducerSettings[F, K, V]): KafkaTopic[F, K, V] =
+        new KafkaTopic[F, K, V](topicDef, context, akkaUpdater, fs2Updater.updateProducer(f))
+
+    }
+  }
 
   override def extract(key: K, value: V, rc: RecordContext): String = topicName.value
 
@@ -95,21 +134,25 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
     import fs2.kafka.{ConsumerSettings, Deserializer, ProducerSettings, Serializer}
     new KafkaChannels.Fs2Channel[F, K, V](
       topicDef.topicName,
-      ProducerSettings[F, K, V](Serializer.delegate(codec.keySerializer), Serializer.delegate(codec.valSerializer))
-        .withProperties(context.settings.producerSettings.config),
-      ConsumerSettings[F, Array[Byte], Array[Byte]](Deserializer[F, Array[Byte]], Deserializer[F, Array[Byte]])
-        .withProperties(context.settings.consumerSettings.config))
+      fs2Updater.producer.run(
+        ProducerSettings[F, K, V](Serializer.delegate(codec.keySerializer), Serializer.delegate(codec.valSerializer))
+          .withProperties(context.settings.producerSettings.config)),
+      fs2Updater.consumer.run(
+        ConsumerSettings[F, Array[Byte], Array[Byte]](Deserializer[F, Array[Byte]], Deserializer[F, Array[Byte]])
+          .withProperties(context.settings.consumerSettings.config)))
   }
 
   def akkaChannel(akkaSystem: ActorSystem): KafkaChannels.AkkaChannel[F, K, V] = {
     import akka.kafka.{CommitterSettings, ConsumerSettings, ProducerSettings}
     new KafkaChannels.AkkaChannel[F, K, V](
       topicName,
-      ProducerSettings[K, V](akkaSystem, codec.keySerializer, codec.valSerializer)
-        .withProperties(context.settings.producerSettings.config),
-      ConsumerSettings[Array[Byte], Array[Byte]](akkaSystem, new ByteArrayDeserializer, new ByteArrayDeserializer)
-        .withProperties(context.settings.consumerSettings.config),
-      CommitterSettings(akkaSystem))
+      akkaUpdater.producer.run(
+        ProducerSettings[K, V](akkaSystem, codec.keySerializer, codec.valSerializer)
+          .withProperties(context.settings.producerSettings.config)),
+      akkaUpdater.consumer.run(
+        ConsumerSettings[Array[Byte], Array[Byte]](akkaSystem, new ByteArrayDeserializer, new ByteArrayDeserializer)
+          .withProperties(context.settings.consumerSettings.config)),
+      akkaUpdater.committer.run(CommitterSettings(akkaSystem)))
   }
 }
 

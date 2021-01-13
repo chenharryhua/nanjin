@@ -38,14 +38,12 @@ object KafkaMonitoringApi {
     F: ConcurrentEffect[F])
       extends KafkaMonitoringApi[F, K, V] {
 
-    private val fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
-      topic.fs2Channel.withConsumerSettings(_.withEnableAutoCommit(false))
-
     private def watch(aor: AutoOffsetReset): F[Unit] =
       Blocker[F].use { blocker =>
         Keyboard.signal.flatMap { signal =>
-          fs2Channel
-            .withConsumerSettings(_.withAutoOffsetReset(aor))
+          topic.update.fs2
+            .consumerSettings(_.withAutoOffsetReset(aor))
+            .fs2Channel
             .stream
             .map(m => topic.decoder(m).tryDecodeKeyValue.toString)
             .showLinesStdOut
@@ -57,8 +55,9 @@ object KafkaMonitoringApi {
     private def filterWatch(predict: ConsumerRecord[Try[K], Try[V]] => Boolean, aor: AutoOffsetReset): F[Unit] =
       Blocker[F].use { blocker =>
         Keyboard.signal.flatMap { signal =>
-          fs2Channel
-            .withConsumerSettings(_.withAutoOffsetReset(aor))
+          topic.update.fs2
+            .consumerSettings(_.withAutoOffsetReset(aor))
+            .fs2Channel
             .stream
             .filter(m => predict(isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record)))
             .map(m => topic.decoder(m).tryDecodeKeyValue.toString)
@@ -77,13 +76,12 @@ object KafkaMonitoringApi {
           e <- kcs.endOffsets
         } yield os.combineWith(e)(_.orElse(_)))
         signal <- Keyboard.signal
-        _ <-
-          fs2Channel
-            .assign(gtp.flatten[KafkaOffset].mapValues(_.value).value)
-            .map(m => topic.decoder(m).tryDecodeKeyValue.toString)
-            .showLinesStdOut
-            .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
-            .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
+        _ <- topic.fs2Channel
+          .assign(gtp.flatten[KafkaOffset].mapValues(_.value).value)
+          .map(m => topic.decoder(m).tryDecodeKeyValue.toString)
+          .showLinesStdOut
+          .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
+          .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
       } yield ()
       run.compile.drain
     }
@@ -127,7 +125,7 @@ object KafkaMonitoringApi {
     override def carbonCopyTo(other: KafkaTopic[F, K, V]): F[Unit] = {
       val run = for {
         signal <- Keyboard.signal
-        _ <- fs2Channel.stream.map { m =>
+        _ <- topic.fs2Channel.stream.map { m =>
           val cr = other.decoder(m).nullableDecode.record
           val ts = cr.timestamp.createTime.orElse(cr.timestamp.logAppendTime.orElse(cr.timestamp.unknownTime))
           val pr =

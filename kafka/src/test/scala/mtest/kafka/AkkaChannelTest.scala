@@ -21,7 +21,13 @@ class AkkaChannelTest extends AnyFunSuite {
   val sender: Stream[IO, List[ProducerResult[Int, String, Unit]]] =
     Stream.awakeEvery[IO](1.second).zipRight(Stream.eval(data.traverse(x => topic.send(x))))
 
-  val akkaChannel: KafkaChannels.AkkaChannel[IO, Int, String] = topic.akkaChannel(akkaSystem)
+  val akkaChannel: KafkaChannels.AkkaChannel[IO, Int, String] = topic.update.akka
+    .consumerSettings(_.withClientId(s"c-id-${random4d.value}"))
+    .update
+    .akka
+    .committerSettings(_.withParallelism(10).withParallelism(10))
+    .akkaChannel(akkaSystem)
+
   test("time-ranged") {
     val range = NJDateTimeRange(sydneyTime)
     (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >> IO.sleep(1.seconds)).unsafeRunSync()
@@ -39,10 +45,7 @@ class AkkaChannelTest extends AnyFunSuite {
   }
 
   test("akka stream committableSink") {
-    val run = akkaChannel
-      .withConsumerSettings(_.withClientId(s"c-id-${random4d.value}"))
-      .withCommitterSettings(_.withParallelism(10))
-      .source
+    val run = akkaChannel.source
       .map(m => topic.decoder(m).nullableDecode)
       .map(m => topic.akkaProducerRecord(m.record.key(), m.record.value(), m.committableOffset))
       .take(2)
@@ -51,10 +54,7 @@ class AkkaChannelTest extends AnyFunSuite {
     run.unsafeRunSync()
   }
   test("akka stream flexiFlow/commitSink") {
-    val run = akkaChannel
-      .withConsumerSettings(_.withClientId(s"c-id-${random4d.value}"))
-      .withCommitterSettings(_.withParallelism(10))
-      .source
+    val run = akkaChannel.source
       .map(m => topic.decoder(m).nullableDecode)
       .map(m => topic.akkaProducerRecord(m.record.key(), m.record.value(), m.committableOffset))
       .via(akkaChannel.flexiFlow)
@@ -66,10 +66,7 @@ class AkkaChannelTest extends AnyFunSuite {
   }
 
   test("akka stream plainSink") {
-    val run = akkaChannel
-      .withConsumerSettings(_.withClientId(s"c-id-${random4d.value}"))
-      .withCommitterSettings(_.withParallelism(10))
-      .source
+    val run = akkaChannel.source
       .map(m => topic.decoder(m).nullableDecode)
       .map(m =>
         new org.apache.kafka.clients.producer.ProducerRecord(topic.topicName.value, m.record.key(), m.record.value()))
@@ -78,10 +75,7 @@ class AkkaChannelTest extends AnyFunSuite {
     run.unsafeRunSync()
   }
   test("akka source error") {
-    val run = akkaChannel
-      .withConsumerSettings(_.withClientId(s"c-id-${random4d.value}"))
-      .withCommitterSettings(_.withParallelism(10))
-      .source
+    val run = akkaChannel.source
       .map(m => topic.decoder(m).nullableDecode)
       .map(m => throw new Exception("oops"))
       .runWith(akkaSinks.ignore[IO])
