@@ -94,7 +94,6 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
   }
   test("reset") {
     topic
-      .withGroupId("rs")
       .shortLiveConsumer
       .use(sc => sc.resetOffsetsForTimes(NJTimestamp(100)) >> sc.resetOffsetsToBegin >> sc.resetOffsetsToEnd)
       .unsafeRunSync()
@@ -121,7 +120,6 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
   }
   test("commitSync") {
     topic
-      .withGroupId("rs")
       .shortLiveConsumer
       .use(_.commitSync(Map(new TopicPartition("range.test", 0) -> new OffsetAndMetadata(0))))
       .unsafeRunSync()

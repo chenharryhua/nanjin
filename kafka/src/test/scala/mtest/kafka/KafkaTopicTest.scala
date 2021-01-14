@@ -21,9 +21,6 @@ class KafkaTopicTest extends AnyFunSuite {
     println(t1.topicDef.show)
   }
   test("with clause") {
-    t1.withContext(ctx)
-    t1.withGroupId("cid")
-    t1.withSettings(KafkaSettings.local)
     t1.withTopicName("new.name")
   }
 }

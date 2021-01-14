@@ -27,13 +27,13 @@ class MonitorApiTest extends AnyFunSuite {
   val sender = Stream.awakeEvery[IO](1.seconds).zipRight(Stream.emits(data)).evalMap(st.send)
 
   test("realtime filter and watch") {
-    val e   = Stream.eval(topic.withGroupId("g1").monitor.filterFromEarliest(_.key().toOption.exists(_ == 2)))
-    val n   = Stream.eval(topic.withGroupId("g2").monitor.filter(_.key().toOption.exists(_ < 2)))
-    val w   = Stream.eval(topic.withGroupId("g3").monitor.watch)
-    val wn  = Stream.eval(topic.withGroupId("g4").monitor.watchFromEarliest)
-    val wf  = Stream.eval(topic.withGroupId("g5").monitor.watchFrom(s"${Instant.now.toString}"))
-    val bw  = Stream.eval(topic.withGroupId("g6").monitor.badRecords)
-    val bwf = Stream.eval(topic.withGroupId("g7").monitor.badRecordsFromEarliest)
+    val e   = Stream.eval(topic.updateFs2ConsumerSettings(_.withGroupId("g1")).monitor.filterFromEarliest(_.key().toOption.exists(_ == 2)))
+    val n   = Stream.eval(topic.updateFs2ConsumerSettings(_.withGroupId("g2")).monitor.filter(_.key().toOption.exists(_ < 2)))
+    val w   = Stream.eval(topic.updateFs2ConsumerSettings(_.withGroupId("g3")).monitor.watch)
+    val wn  = Stream.eval(topic.updateFs2ConsumerSettings(_.withGroupId("g4")).monitor.watchFromEarliest)
+    val wf  = Stream.eval(topic.updateFs2ConsumerSettings(_.withGroupId("g5")).monitor.watchFrom(s"${Instant.now.toString}"))
+    val bw  = Stream.eval(topic.updateFs2ConsumerSettings(_.withGroupId("g6")).monitor.badRecords)
+    val bwf = Stream.eval(topic.updateFs2ConsumerSettings(_.withGroupId("g7")).monitor.badRecordsFromEarliest)
 
     sender
       .concurrently(bw)
