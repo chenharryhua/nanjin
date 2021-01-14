@@ -22,7 +22,6 @@ class AkkaChannelTest extends AnyFunSuite {
     Stream.awakeEvery[IO](1.second).zipRight(Stream.eval(data.traverse(x => topic.send(x))))
 
   val akkaChannel: KafkaChannels.AkkaChannel[IO, Int, String] = topic
-    .updateAkkaConsumerSettings(_.withClientId(s"c-id-${random4d.value}"))
     .updateAkkaCommitterSettings(_.withParallelism(10).withParallelism(10))
     .akkaChannel(akkaSystem)
 

@@ -3,22 +3,23 @@ package com.github.chenharryhua.nanjin.devices
 import akka.stream.Materializer
 import akka.stream.alpakka.ftp.scaladsl.{Ftp, FtpApi, Ftps, Sftp}
 import akka.stream.alpakka.ftp.{FtpSettings, FtpsSettings, RemoteFileSettings, SftpSettings}
-import cats.effect.{Async, Concurrent, ContextShift}
-import cats.syntax.all._
-import fs2.{Chunk, Stream}
+import akka.stream.scaladsl.Sink
+import cats.effect.{ConcurrentEffect, ContextShift}
+import fs2.Stream
+import fs2.interop.reactivestreams._
 import net.schmizz.sshj.SSHClient
 import org.apache.commons.net.ftp.{FTPClient, FTPSClient}
-import streamz.converter._
 
 sealed abstract class FtpDownloader[F[_], C, S <: RemoteFileSettings](ftpApi: FtpApi[C, S], settings: S) {
 
   final def download(
-    pathStr: String)(implicit F: Concurrent[F], cs: ContextShift[F], mat: Materializer): Stream[F, Byte] = {
-    val run = ftpApi.fromPath(pathStr, settings).toStreamMat[F].map { case (s, f) =>
-      s.concurrently(Stream.eval(Async.fromFuture(Async[F].pure(f))))
+    pathStr: String)(implicit F: ConcurrentEffect[F], cs: ContextShift[F], mat: Materializer): Stream[F, Byte] =
+    Stream.suspend {
+      for {
+        bs <- ftpApi.fromPath(pathStr, settings).runWith(Sink.asPublisher(fanout = false)).toStream
+        byte <- Stream.emits(bs)
+      } yield byte
     }
-    Stream.force(run).flatMap(bs => Stream.chunk(Chunk.bytes(bs.toArray)))
-  }
 }
 
 final class AkkaFtpDownloader[F[_]](settings: FtpSettings)
