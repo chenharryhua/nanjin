@@ -195,10 +195,6 @@ val monocleLib = Seq(
   "com.github.julien-truffaut" %% "monocle-unsafe"
 ).map(_ % monocle)
 
-val elastic4sLib = Seq(
-  "com.sksamuel.elastic4s" %% "elastic4s-core"
-).map(_ % elastic)
-
 val sparkLib = Seq(
   "org.apache.spark" %% "spark-catalyst",
   "org.apache.spark" %% "spark-core",
@@ -274,7 +270,6 @@ val refinedLib = Seq(
 ).map(_ % refined)
 
 val baseLib = Seq(
-  "com.github.krasserm" %% "streamz-converter" % streamz,
   "io.scalaland" %% "chimney"                  % chimney,
   "io.scalaland" %% "enumz"                    % "1.0.0",
   "com.twitter" %% "algebird-core"             % "0.13.7",
@@ -324,7 +319,7 @@ val ftpLib = Seq(
   "com.lightbend.akka" %% "akka-stream-alpakka-ftp" % akkaFtp
 )
 
-val dbLib = doobieLib ++ quillLib ++ neotypesLib ++ elastic4sLib
+val dbLib = doobieLib ++ quillLib ++ neotypesLib
 
 lazy val common = (project in file("common"))
   .settings(commonSettings: _*)
