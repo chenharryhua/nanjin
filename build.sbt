@@ -70,7 +70,6 @@ lazy val commonSettings = Seq(
   organization := "com.github.chenharryhua",
   scalaVersion := scalaVersion.value,
   resolvers ++= Seq(
-    Resolver.bintrayRepo("streamz", "maven"),
     Resolver.sonatypeRepo("public"),
     Resolver.sonatypeRepo("releases"),
     "Confluent Maven Repo".at("https://packages.confluent.io/maven/")
