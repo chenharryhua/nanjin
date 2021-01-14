@@ -1,17 +1,18 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.kafka.ProducerMessage
-import akka.stream.scaladsl.{Flow, Sink}
+import akka.stream.scaladsl.Sink
 import akka.stream.{Materializer, OverflowStrategy}
-import akka.{Done, NotUsed}
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.kafka.{akkaSinks, KafkaTopic}
+import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import frameless.cats.implicits._
+import fs2.interop.reactivestreams._
 import fs2.kafka.{ProducerRecords, ProducerResult}
 import fs2.{Pipe, Stream}
 import org.apache.spark.rdd.RDD
@@ -93,22 +94,23 @@ final class PrRdd[F[_], K, V] private[kafka] (
       .through(producer)
   }
 
-  def bestEffort(akkaSystem: ActorSystem)(implicit F: ConcurrentEffect[F], cs: ContextShift[F]): F[Done] =
-    F.defer {
-      implicit val mat: Materializer = Materializer(akkaSystem)
-      val flexiFlow: Flow[ProducerMessage.Envelope[K, V, NotUsed], ProducerMessage.Results[K, V, NotUsed], NotUsed] =
-        topic.akkaChannel(akkaSystem).flexiFlow[NotUsed]
-      val sink: Sink[Any, F[Done]] = akkaSinks.ignore[F]
-      rdd
-        .source[F]
-        .take(params.uploadParams.recordsLimit)
-        .takeWithin(params.uploadParams.timeLimit)
-        .grouped(params.uploadParams.batchSize)
-        .map(ms => ProducerMessage.multi(ms.map(_.toProducerRecord(topic.topicName.value))))
-        .buffer(params.uploadParams.bufferSize, OverflowStrategy.backpressure)
-        .via(flexiFlow)
-        .runWith(sink)
-    }
+  def bestEffort(akkaSystem: ActorSystem)(implicit
+    F: ConcurrentEffect[F],
+    cs: ContextShift[F]): Stream[F, ProducerMessage.Results[K, V, NotUsed]] = Stream.suspend {
+    implicit val mat: Materializer = Materializer(akkaSystem)
+
+    val flexiFlow = topic.akkaChannel(akkaSystem).flexiFlow[NotUsed]
+    rdd
+      .source[F]
+      .take(params.uploadParams.recordsLimit)
+      .takeWithin(params.uploadParams.timeLimit)
+      .grouped(params.uploadParams.batchSize)
+      .map(ms => ProducerMessage.multi(ms.map(_.toProducerRecord(topic.topicName.value))))
+      .buffer(params.uploadParams.bufferSize, OverflowStrategy.backpressure)
+      .via(flexiFlow)
+      .runWith(Sink.asPublisher(fanout = false))
+      .toStream
+  }
 
   def count(implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
 

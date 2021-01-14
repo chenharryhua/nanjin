@@ -2,13 +2,14 @@ package com.github.chenharryhua.nanjin.devices
 
 import akka.stream.alpakka.ftp.scaladsl.{Ftp, FtpApi, Ftps, Sftp}
 import akka.stream.alpakka.ftp.{FtpSettings, FtpsSettings, RemoteFileSettings, SftpSettings}
+import akka.stream.scaladsl.Source
 import akka.stream.{IOResult, Materializer}
 import akka.util.ByteString
-import cats.effect.{ConcurrentEffect, ContextShift}
+import cats.effect.{Async, ConcurrentEffect, ContextShift}
+import fs2.interop.reactivestreams._
 import fs2.{Pipe, Stream}
 import net.schmizz.sshj.SSHClient
 import org.apache.commons.net.ftp.{FTPClient, FTPSClient}
-import streamz.converter._
 
 sealed abstract class FtpUploader[F[_], C, S <: RemoteFileSettings](ftpApi: FtpApi[C, S], settings: S) {
 
@@ -16,9 +17,9 @@ sealed abstract class FtpUploader[F[_], C, S <: RemoteFileSettings](ftpApi: FtpA
     F: ConcurrentEffect[F],
     cs: ContextShift[F],
     mat: Materializer): Pipe[F, Byte, IOResult] = { (ss: Stream[F, Byte]) =>
-    Stream
-      .eval(ftpApi.toPath(pathStr, settings).toPipeMatWithResult[F](F, cs, mat.executionContext, mat))
-      .flatMap(p => ss.chunks.through(p.compose(_.map(bs => ByteString(bs.toArray)))).rethrow)
+    val sink   = ftpApi.toPath(pathStr, settings)
+    val source = Source.fromPublisher(ss.toUnicastPublisher).map(ByteString(_))
+    Stream.eval(Async.fromFuture(F.delay(source.runWith(sink))))
   }
 }
 
