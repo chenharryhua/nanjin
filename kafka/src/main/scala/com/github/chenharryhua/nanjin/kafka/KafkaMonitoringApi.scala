@@ -131,7 +131,7 @@ object KafkaMonitoringApi {
           val pr =
             ProducerRecord(other.topicName.value, cr.key, cr.value).withHeaders(cr.headers).withPartition(cr.partition)
           ProducerRecords.one(ts.fold(pr)(pr.withTimestamp))
-        }.through(produce[F, K, V, Unit](other.fs2Channel.producerSettings))
+        }.through(other.fs2Channel.producerPipe)
           .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
           .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
       } yield ()

@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.{Concurrent, ContextShift, Resource}
 import cats.syntax.all._
-import fs2.kafka.{adminClientResource, AdminClientSettings, KafkaAdminClient}
+import fs2.kafka.{AdminClientSettings, KafkaAdminClient}
 import org.apache.kafka.clients.admin.{NewTopic, TopicDescription}
 
 // delegate to https://ovotech.github.io/fs2-kafka/
@@ -23,21 +23,17 @@ object KafkaAdminApi {
   def apply[F[_]: Concurrent: ContextShift, K, V](topic: KafkaTopic[F, K, V]): KafkaAdminApi[F] =
     new KafkaTopicAdminApiImpl(topic)
 
-  final private class KafkaTopicAdminApiImpl[F[_]: Concurrent: ContextShift, K, V](
-    topic: KafkaTopic[F, K, V])
+  final private class KafkaTopicAdminApiImpl[F[_]: Concurrent: ContextShift, K, V](topic: KafkaTopic[F, K, V])
       extends KafkaAdminApi[F] {
 
     override val adminResource: Resource[F, KafkaAdminClient[F]] =
-      adminClientResource[F](
-        AdminClientSettings[F].withProperties(topic.context.settings.adminSettings.config))
+      KafkaAdminClient.resource[F](AdminClientSettings[F].withProperties(topic.context.settings.adminSettings.config)) 
 
-    override def idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
-      : F[Either[Throwable, Unit]] =
+    override def idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence: F[Either[Throwable, Unit]] =
       adminResource.use(_.deleteTopic(topic.topicName.value).attempt)
 
     override def newTopic(numPartition: Int, numReplica: Short): F[Unit] =
-      adminResource.use(
-        _.createTopic(new NewTopic(topic.topicName.value, numPartition, numReplica)))
+      adminResource.use(_.createTopic(new NewTopic(topic.topicName.value, numPartition, numReplica)))
 
     override def mirrorTo(other: TopicName, numReplica: Short): F[Unit] =
       adminResource.use { c =>

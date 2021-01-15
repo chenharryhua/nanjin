@@ -15,6 +15,9 @@ sealed abstract class KafkaContext[F[_]](val settings: KafkaSettings) extends Se
   final def updateSettings(f: KafkaSettings => KafkaSettings): KafkaContext[F] =
     new KafkaContext[F](f(settings)) {}
 
+  final def withGroupId(groupId: String): KafkaContext[F]     = updateSettings(_.withGroupId(groupId))
+  final def withApplicationId(appId: String): KafkaContext[F] = updateSettings(_.withApplicationId(appId))
+
   final def asKey[K: SerdeOf]: Serde[K] =
     SerdeOf[K].asKey(settings.schemaRegistrySettings.config).serde
 

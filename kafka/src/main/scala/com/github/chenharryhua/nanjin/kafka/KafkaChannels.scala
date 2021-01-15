@@ -13,6 +13,8 @@ import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.utils
 import fs2.interop.reactivestreams._
 import fs2.kafka.{
+  KafkaConsumer,
+  KafkaProducer,
   ProducerRecords,
   ProducerResult,
   ConsumerSettings => Fs2ConsumerSettings,
@@ -34,18 +36,19 @@ object KafkaChannels {
     val producerSettings: Fs2ProducerSettings[F, K, V],
     val consumerSettings: Fs2ConsumerSettings[F, Array[Byte], Array[Byte]]) {
 
-    import fs2.kafka.{consumerStream, CommittableConsumerRecord}
+    import fs2.kafka.CommittableConsumerRecord
 
-    def producer[P](implicit
+    def producerPipe[P](implicit
       cs: ContextShift[F],
       F: ConcurrentEffect[F]): Pipe[F, ProducerRecords[K, V, P], ProducerResult[K, V, P]] =
-      fs2.kafka.produce(producerSettings)
+      KafkaProducer.pipe(producerSettings)
 
     def stream(implicit
       cs: ContextShift[F],
       timer: Timer[F],
       F: ConcurrentEffect[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
-      consumerStream[F, Array[Byte], Array[Byte]](consumerSettings)
+      KafkaConsumer
+        .stream[F, Array[Byte], Array[Byte]](consumerSettings)
         .evalTap(_.subscribe(NonEmptyList.of(topicName.value)))
         .flatMap(_.stream)
 
@@ -53,11 +56,14 @@ object KafkaChannels {
       cs: ContextShift[F],
       timer: Timer[F],
       F: ConcurrentEffect[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
-      consumerStream[F, Array[Byte], Array[Byte]](consumerSettings).evalTap { c =>
-        c.assign(topicName.value) *> tps.toList.traverse { case (tp, offset) =>
-          c.seek(tp, offset)
+      KafkaConsumer
+        .stream[F, Array[Byte], Array[Byte]](consumerSettings)
+        .evalTap { c =>
+          c.assign(topicName.value) *> tps.toList.traverse { case (tp, offset) =>
+            c.seek(tp, offset)
+          }
         }
-      }.flatMap(_.stream)
+        .flatMap(_.stream)
   }
 
   final class AkkaChannel[F[_], K, V] private[kafka] (
@@ -97,11 +103,11 @@ object KafkaChannels {
     def stream(implicit
       F: ConcurrentEffect[F],
       mat: Materializer): Stream[F, CommittableMessage[Array[Byte], Array[Byte]]] =
-      source.runWith(Sink.asPublisher(fanout = false)).toStream[F]
+      Stream.suspend(source.runWith(Sink.asPublisher(fanout = false)).toStream[F])
 
     def offsetRanged(offsetRange: KafkaTopicPartition[KafkaOffsetRange])(implicit
       F: ConcurrentEffect[F],
-      mat: Materializer): Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]] = {
+      mat: Materializer): Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]] = Stream.suspend {
       val totalSize   = offsetRange.mapValues(_.distance).value.values.sum
       val endPosition = offsetRange.mapValues(_.until.value)
       assign(offsetRange.value.mapValues(_.from.value))
