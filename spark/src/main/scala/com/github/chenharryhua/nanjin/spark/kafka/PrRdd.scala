@@ -9,12 +9,13 @@ import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import frameless.cats.implicits._
+import fs2.Stream
 import fs2.interop.reactivestreams._
 import fs2.kafka.{ProducerRecords, ProducerResult}
-import fs2.{Pipe, Stream}
 import org.apache.spark.rdd.RDD
 
 import scala.concurrent.duration.FiniteDuration
@@ -26,6 +27,8 @@ final class PrRdd[F[_], K, V] private[kafka] (
 ) extends Serializable {
 
   val params: SKParams = cfg.evalConfig
+
+  val codec: AvroCodec[NJProducerRecord[K, V]] = NJProducerRecord.avroCodec(topic.topicDef)
 
   // config
   private def updateCfg(f: SKConfig => SKConfig): PrRdd[F, K, V] =
@@ -80,9 +83,7 @@ final class PrRdd[F[_], K, V] private[kafka] (
   def upload(implicit
     ce: ConcurrentEffect[F],
     timer: Timer[F],
-    cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] = {
-    val producer: Pipe[F, ProducerRecords[K, V, Unit], ProducerResult[K, V, Unit]] =
-      topic.fs2Channel(ce).producer[Unit]
+    cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
     rdd
       .stream[F]
       .interruptAfter(params.uploadParams.timeLimit)
@@ -91,31 +92,27 @@ final class PrRdd[F[_], K, V] private[kafka] (
       .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName.value))))
       .buffer(params.uploadParams.bufferSize)
       .metered(params.uploadParams.uploadInterval)
-      .through(producer)
-  }
+      .through(topic.fs2Channel(ce).producerPipe)
 
   def bestEffort(akkaSystem: ActorSystem)(implicit
     F: ConcurrentEffect[F],
-    cs: ContextShift[F]): Stream[F, ProducerMessage.Results[K, V, NotUsed]] = Stream.suspend {
-    implicit val mat: Materializer = Materializer(akkaSystem)
-
-    val flexiFlow = topic.akkaChannel(akkaSystem).flexiFlow[NotUsed]
-    rdd
-      .source[F]
-      .take(params.uploadParams.recordsLimit)
-      .takeWithin(params.uploadParams.timeLimit)
-      .grouped(params.uploadParams.batchSize)
-      .map(ms => ProducerMessage.multi(ms.map(_.toProducerRecord(topic.topicName.value))))
-      .buffer(params.uploadParams.bufferSize, OverflowStrategy.backpressure)
-      .via(flexiFlow)
-      .runWith(Sink.asPublisher(fanout = false))
-      .toStream
-  }
+    cs: ContextShift[F]): Stream[F, ProducerMessage.Results[K, V, NotUsed]] =
+    Stream.suspend {
+      implicit val mat: Materializer = Materializer(akkaSystem)
+      rdd
+        .source[F]
+        .take(params.uploadParams.recordsLimit)
+        .takeWithin(params.uploadParams.timeLimit)
+        .grouped(params.uploadParams.batchSize)
+        .map(ms => ProducerMessage.multi(ms.map(_.toProducerRecord(topic.topicName.value))))
+        .buffer(params.uploadParams.bufferSize, OverflowStrategy.backpressure)
+        .via(topic.akkaChannel(akkaSystem).flexiFlow)
+        .runWith(Sink.asPublisher(fanout = false))
+        .toStream
+    }
 
   def count(implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
 
-  def save: RddAvroFileHoarder[F, NJProducerRecord[K, V]] = {
-    val ac = NJProducerRecord.avroCodec(topic.topicDef)
-    new RddAvroFileHoarder[F, NJProducerRecord[K, V]](rdd, ac.avroEncoder)
-  }
+  def save: RddAvroFileHoarder[F, NJProducerRecord[K, V]] =
+    new RddAvroFileHoarder[F, NJProducerRecord[K, V]](rdd, codec.avroEncoder)
 }

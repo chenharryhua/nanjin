@@ -30,18 +30,6 @@ final class KafkaTopic[F[_], K, V] private[kafka] (
   def withTopicName(tn: String): KafkaTopic[F, K, V] =
     new KafkaTopic[F, K, V](topicDef.withTopicName(tn), context, akkaUpdater, fs2Updater)
 
-  def updateSettings(f: KafkaSettings => KafkaSettings): KafkaTopic[F, K, V] =
-    new KafkaTopic[F, K, V](topicDef, context.updateSettings(f), akkaUpdater, fs2Updater)
-
-  def withSettings(kafkaSettings: KafkaSettings): KafkaTopic[F, K, V] =
-    updateSettings(_ => kafkaSettings)
-
-  def withGroupId(groupId: String): KafkaTopic[F, K, V] =
-    updateSettings(_.withGroupId(groupId))
-
-  def withContext[G[_]](ct: KafkaContext[G]): KafkaTopic[G, K, V] =
-    ct.topic(topicDef)
-
   def updateAkkaConsumerSettings(
     f: AkkaConsumerSettings[Array[Byte], Array[Byte]] => AkkaConsumerSettings[Array[Byte], Array[Byte]])
     : KafkaTopic[F, K, V] =

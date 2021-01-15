@@ -15,6 +15,9 @@ sealed abstract class KafkaContext[F[_]](val settings: KafkaSettings) extends Se
   final def updateSettings(f: KafkaSettings => KafkaSettings): KafkaContext[F] =
     new KafkaContext[F](f(settings)) {}
 
+  final def withGroupId(groupId: String): KafkaContext[F]     = updateSettings(_.withGroupId(groupId))
+  final def withApplicationId(appId: String): KafkaContext[F] = updateSettings(_.withApplicationId(appId))
+
   final def asKey[K: SerdeOf]: Serde[K] =
     SerdeOf[K].asKey(settings.schemaRegistrySettings.config).serde
 
@@ -34,6 +37,8 @@ sealed abstract class KafkaContext[F[_]](val settings: KafkaSettings) extends Se
     new SchemaRegistryApi[F](settings.schemaRegistrySettings).kvSchema(TopicName.unsafeFrom(topicName)).map(_.show)
 }
 
-final class IoKafkaContext(settings: KafkaSettings) extends KafkaContext[IO](settings)
-final class ZioKafkaContext(settings: KafkaSettings) extends KafkaContext[ZTask](settings)
-final class MonixKafkaContext(settings: KafkaSettings) extends KafkaContext[MTask](settings)
+private[kafka] object KafkaContext {
+  def ioContext(settings: KafkaSettings): KafkaContext[IO]       = new KafkaContext[IO](settings) {}
+  def zioContext(settings: KafkaSettings): KafkaContext[ZTask]   = new KafkaContext[ZTask](settings) {}
+  def monixContext(settings: KafkaSettings): KafkaContext[MTask] = new KafkaContext[MTask](settings) {}
+}

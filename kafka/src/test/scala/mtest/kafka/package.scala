@@ -1,7 +1,7 @@
 package mtest
 
 import cats.effect.{Blocker, ContextShift, IO, Timer}
-import com.github.chenharryhua.nanjin.kafka.{IoKafkaContext, KafkaSettings, KafkaTopic}
+import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings, KafkaTopic}
 import org.apache.kafka.clients.consumer.ConsumerConfig
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -14,12 +14,12 @@ package object kafka {
 
   val blocker: Blocker = Blocker.liftExecutionContext(global)
 
-  val ctx: IoKafkaContext =
+  val ctx: KafkaContext[IO] =
     KafkaSettings.local
-      .withGroupId("nj-kafka-unit-test-group")
-      .withApplicationId("nj-kafka-unit-test-app")
       .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
       .ioContext
+      .withGroupId("nj-kafka-unit-test-group")
+      .withApplicationId("nj-kafka-unit-test-app")
 
   val taxi: KafkaTopic[IO, Int, trip_record] =
     ctx.topic[Int, trip_record]("nyc_yellow_taxi_trip_data")

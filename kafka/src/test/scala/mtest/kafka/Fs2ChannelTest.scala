@@ -22,7 +22,7 @@ class Fs2ChannelTest extends AnyFunSuite {
   test("should be able to consume json topic") {
     val topic = backblaze_smart
       .in(ctx)
-      .withGroupId("fs2")
+      .updateFs2ConsumerSettings(_.withGroupId("fs2"))
       .updateFs2ProducerSettings(_.withBatchSize(1))
       .updateFs2ConsumerSettings(_.withAutoOffsetReset(AutoOffsetReset.Earliest))
     val ret =
@@ -41,7 +41,7 @@ class Fs2ChannelTest extends AnyFunSuite {
   test("should be able to consume avro topic") {
     val topic = ctx.topic(nyc_taxi_trip)
     val ret = topic
-      .withGroupId("fs2")
+      .updateFs2ConsumerSettings(_.withGroupId("g1"))
       .fs2Channel
       .stream
       .map(m => topic.decoder(m).decodeValue)
@@ -56,7 +56,7 @@ class Fs2ChannelTest extends AnyFunSuite {
   }
 
   test("should be able to consume telecom_italia_data topic") {
-    val topic = sms.in(ctx).withGroupId("fs2")
+    val topic = sms.in(ctx).updateFs2ConsumerSettings(_.withGroupId("g1"))
     val ret = topic.fs2Channel
       .assign(Map(new TopicPartition(topic.topicName.value, 0) -> 0))
       .map(m => topic.decoder(m).tryDecode)
