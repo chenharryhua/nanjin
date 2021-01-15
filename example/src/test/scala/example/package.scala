@@ -1,10 +1,9 @@
 import akka.actor.ActorSystem
 import cats.effect.{Blocker, ContextShift, IO, Timer}
 import com.github.chenharryhua.nanjin.common.NJLogLevel
-import com.github.chenharryhua.nanjin.kafka.{IoKafkaContext, KafkaSettings}
+import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
 import com.github.chenharryhua.nanjin.spark._
 import org.apache.spark.sql.SparkSession
-
 import scala.concurrent.ExecutionContext.Implicits.global
 
 package object example {
@@ -18,7 +17,7 @@ package object example {
 
   val blocker: Blocker = Blocker.liftExecutionContext(global)
 
-  val ctx: IoKafkaContext =
+  val ctx: KafkaContext[IO] =
     KafkaSettings.local.withApplicationId("nj-example-app").withGroupId("nj-example-group").ioContext
 
   val sparKafka: SparKafkaContext[IO] = sparkSession.alongWith(ctx)

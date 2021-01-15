@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.stream.Materializer
 import cats.effect.{Blocker, ContextShift, IO, Timer}
 import com.github.chenharryhua.nanjin.datetime.sydneyTime
-import com.github.chenharryhua.nanjin.kafka.{IoKafkaContext, KafkaSettings}
+import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
 import com.github.chenharryhua.nanjin.spark.SparkSettings
 import org.apache.spark.sql.SparkSession
 import com.github.chenharryhua.nanjin.spark._
@@ -20,7 +20,7 @@ package object spark {
 
   val blocker: Blocker = Blocker.liftExecutionContext(global)
 
-  val ctx: IoKafkaContext =
+  val ctx: KafkaContext[IO] =
     KafkaSettings.local.withApplicationId("kafka.stream.test.app").withGroupId("spark.kafka.stream.test").ioContext
 
   val sparkSession: SparkSession = SparkSettings.default

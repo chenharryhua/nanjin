@@ -19,7 +19,7 @@ class ZioTest extends AnyFunSuite {
 
   implicit val runtime: Runtime[zio.ZEnv] = Runtime.default
 
-  val ctx: ZioKafkaContext = KafkaSettings.local.zioContext
+  val ctx: KafkaContext[Task] = KafkaSettings.local.zioContext
 
   val topic: KafkaTopic[Task, Array[Byte], trip_record] =
     TopicDef[Array[Byte], trip_record](TopicName("nyc_yellow_taxi_trip_data")).in(ctx)

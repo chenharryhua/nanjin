@@ -37,6 +37,8 @@ sealed abstract class KafkaContext[F[_]](val settings: KafkaSettings) extends Se
     new SchemaRegistryApi[F](settings.schemaRegistrySettings).kvSchema(TopicName.unsafeFrom(topicName)).map(_.show)
 }
 
-final class IoKafkaContext(settings: KafkaSettings) extends KafkaContext[IO](settings)
-final class ZioKafkaContext(settings: KafkaSettings) extends KafkaContext[ZTask](settings)
-final class MonixKafkaContext(settings: KafkaSettings) extends KafkaContext[MTask](settings)
+private[kafka] object KafkaContext {
+  def ioContext(settings: KafkaSettings): KafkaContext[IO]       = new KafkaContext[IO](settings) {}
+  def zioContext(settings: KafkaSettings): KafkaContext[ZTask]   = new KafkaContext[ZTask](settings) {}
+  def monixContext(settings: KafkaSettings): KafkaContext[MTask] = new KafkaContext[MTask](settings) {}
+}

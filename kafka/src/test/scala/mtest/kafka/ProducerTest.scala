@@ -55,7 +55,7 @@ class ProducerTest extends AnyFunSuite {
       .map(m => srcTopic.decoder(m).decode)
       .map(m => Fs2ProducerRecords.one(fs2Topic.fs2PR(m.record.key, m.record.value), m.offset))
       .take(100)
-      .through(fs2Topic.fs2Channel.pipe)
+      .through(fs2Topic.fs2Channel.producerPipe)
       .compile
       .drain
 
