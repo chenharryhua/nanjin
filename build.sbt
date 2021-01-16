@@ -1,4 +1,4 @@
-scalaVersion in ThisBuild      := "2.12.12"
+scalaVersion in ThisBuild      := "2.12.13"
 scapegoatVersion in ThisBuild  := "1.3.11"
 parallelExecution in ThisBuild := false
 cancelable in Global           := true
