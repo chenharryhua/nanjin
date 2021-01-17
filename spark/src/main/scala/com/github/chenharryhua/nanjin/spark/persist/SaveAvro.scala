@@ -1,14 +1,10 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.{Blocker, ContextShift, Sync}
-import com.github.chenharryhua.nanjin.devices.NJHadoop
-import com.github.chenharryhua.nanjin.pipes.GenericRecordCodec
 import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.cats.implicits._
-import fs2.Pipe
 import org.apache.avro.file.CodecFactory
-import org.apache.avro.generic.GenericRecord
 import org.apache.avro.mapreduce.AvroJob
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.mapreduce.Job
@@ -53,10 +49,8 @@ final class SaveAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Hoarder
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
-        val hadoop: NJHadoop[F]                = NJHadoop[F](hadoopConfiguration, blocker)
-        val pipe: Pipe[F, A, GenericRecord]    = new GenericRecordCodec[F, A].encode(encoder)
-        val sink: Pipe[F, GenericRecord, Unit] = hadoop.avroSink(params.outPath, encoder.schema, cf)
-        sma.checkAndRun(blocker)(rdd.stream[F].through(pipe).through(sink).compile.drain)
+        sma.checkAndRun(blocker)(
+          rdd.stream[F].through(sinks.avro(params.outPath, hadoopConfiguration, encoder, cf, blocker)).compile.drain)
       case FolderOrFile.Folder =>
         val sparkjob = F.delay {
           val job = Job.getInstance(hadoopConfiguration)

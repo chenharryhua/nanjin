@@ -1,12 +1,8 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.{Blocker, ContextShift, Sync}
-import com.github.chenharryhua.nanjin.devices.NJHadoop
-import com.github.chenharryhua.nanjin.pipes.{GenericRecordCodec, JacksonSerialization}
 import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
-import fs2.Pipe
-import org.apache.avro.generic.GenericRecord
 import org.apache.avro.mapreduce.AvroJob
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.mapreduce.Job
@@ -43,12 +39,12 @@ final class SaveJackson[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Hoar
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
-        val hadoop: NJHadoop[F]                = NJHadoop[F](hadoopConfiguration, blocker)
-        val gr: Pipe[F, A, GenericRecord]      = new GenericRecordCodec[F, A].encode(encoder)
-        val pipe: Pipe[F, GenericRecord, Byte] = new JacksonSerialization[F](encoder.schema).serialize
-        val sink: Pipe[F, Byte, Unit]          = hadoop.byteSink(params.outPath)
         sma.checkAndRun(blocker)(
-          rdd.stream[F].through(gr).through(pipe).through(ccg.compressionPipe).through(sink).compile.drain)
+          rdd
+            .stream[F]
+            .through(sinks.jackson(params.outPath, hadoopConfiguration, encoder, ccg.compressionPipe, blocker))
+            .compile
+            .drain)
 
       case FolderOrFile.Folder =>
         val sparkjob = F.delay {

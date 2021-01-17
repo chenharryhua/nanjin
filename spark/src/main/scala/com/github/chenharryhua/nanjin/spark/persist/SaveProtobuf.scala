@@ -1,10 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.{Blocker, Concurrent, ContextShift}
-import com.github.chenharryhua.nanjin.devices.NJHadoop
-import com.github.chenharryhua.nanjin.pipes.DelimitedProtoBufSerialization
 import com.github.chenharryhua.nanjin.spark.RddExt
-import fs2.Pipe
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.{BytesWritable, NullWritable}
 import org.apache.spark.rdd.RDD
@@ -45,10 +42,8 @@ final class SaveProtobuf[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends Seria
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
-        val hadoop: NJHadoop[F]       = NJHadoop[F](hadoopConfiguration, blocker)
-        val pipe: Pipe[F, A, Byte]    = new DelimitedProtoBufSerialization[F].serialize(blocker)
-        val sink: Pipe[F, Byte, Unit] = hadoop.byteSink(params.outPath)
-        sma.checkAndRun(blocker)(rdd.stream[F].through(pipe).through(sink).compile.drain)
+        sma.checkAndRun(blocker)(
+          rdd.stream[F].through(sinks.protobuf(params.outPath, hadoopConfiguration, blocker)).compile.drain)
 
       case FolderOrFile.Folder =>
         rdd.sparkContext.hadoopConfiguration.set(NJBinaryOutputFormat.suffix, params.format.suffix)

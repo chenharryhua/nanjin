@@ -2,10 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Show
 import cats.effect.{Blocker, ContextShift, Sync}
-import com.github.chenharryhua.nanjin.devices.NJHadoop
-import com.github.chenharryhua.nanjin.pipes.TextSerialization
 import com.github.chenharryhua.nanjin.spark.RddExt
-import fs2.Pipe
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.{NullWritable, Text}
 import org.apache.spark.rdd.RDD
@@ -44,11 +41,12 @@ final class SaveText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: String) e
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
-        val hadoop: NJHadoop[F]         = NJHadoop[F](hadoopConfiguration, blocker)
-        val pipe: Pipe[F, String, Byte] = new TextSerialization[F].serialize
-        val sink: Pipe[F, Byte, Unit]   = hadoop.byteSink(params.outPath)
         sma.checkAndRun(blocker)(
-          rdd.stream[F].map(show.show).through(pipe).through(ccg.compressionPipe).through(sink).compile.drain)
+          rdd
+            .stream[F]
+            .through(sinks.text(params.outPath, hadoopConfiguration, ccg.compressionPipe, blocker))
+            .compile
+            .drain)
 
       case FolderOrFile.Folder =>
         hadoopConfiguration.set(NJTextOutputFormat.suffix, suffix)
