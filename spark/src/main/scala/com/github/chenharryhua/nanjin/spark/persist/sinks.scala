@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.pipes._
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import fs2.{Pipe, Stream}
 import io.circe.{Encoder => JsonEncoder}
+import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.avro.file.CodecFactory
 import org.apache.avro.generic.GenericRecord
 import org.apache.hadoop.conf.Configuration
@@ -87,5 +88,16 @@ object sinks {
     val pipe: Pipe[F, A, Byte]    = new DelimitedProtoBufSerialization[F].serialize(blocker)
     val sink: Pipe[F, Byte, Unit] = NJHadoop[F](cfg, blocker).byteSink(path)
     ss.through(pipe).through(sink)
+  }
+
+  def csv[F[_]: ContextShift: Concurrent, A: RowEncoder](
+    path: String,
+    cfg: Configuration,
+    csvConf: CsvConfiguration,
+    compression: Pipe[F, Byte, Byte],
+    blocker: Blocker): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
+    val pipe: Pipe[F, A, Byte]    = new CsvSerialization[F, A](csvConf).serialize(blocker)
+    val sink: Pipe[F, Byte, Unit] = NJHadoop[F](cfg, blocker).byteSink(path)
+    ss.through(pipe).through(compression).through(sink)
   }
 }

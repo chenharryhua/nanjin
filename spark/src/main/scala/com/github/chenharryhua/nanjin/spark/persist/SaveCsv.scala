@@ -2,9 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.{Blocker, Concurrent, ContextShift}
 import com.github.chenharryhua.nanjin.devices.NJHadoop
-import com.github.chenharryhua.nanjin.pipes.CsvSerialization
 import com.github.chenharryhua.nanjin.spark.RddExt
-import fs2.Pipe
 import kantan.csv.CsvConfiguration.QuotePolicy
 import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.hadoop.conf.Configuration
@@ -59,10 +57,12 @@ final class SaveCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfiguration,
             csvConfiguration.withHeader(ds.schema.fieldNames: _*)
           else csvConfiguration
 
-        val pipe: Pipe[F, A, Byte]    = new CsvSerialization[F, A](csvConf).serialize(blocker)
-        val sink: Pipe[F, Byte, Unit] = hadoop.byteSink(params.outPath)
         sma.checkAndRun(blocker)(
-          ds.rdd.stream[F].through(pipe).through(ccg.compressionPipe).through(sink).compile.drain)
+          ds.rdd
+            .stream[F]
+            .through(sinks.csv(params.outPath, hadoopConfiguration, csvConf, ccg.compressionPipe, blocker))
+            .compile
+            .drain)
 
       case FolderOrFile.Folder =>
         val quoteAll = csvConfiguration.quotePolicy match {
