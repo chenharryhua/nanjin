@@ -19,6 +19,11 @@ final class KafkaGenericDecoder[F[_, _], K, V](
   @inline def tryDecodeValue: Try[F[Array[Byte], V]] = data.bitraverse(Success(_), valCodec.tryDecode)
   @inline def tryDecodeKey: Try[F[K, Array[Byte]]]   = data.bitraverse(keyCodec.tryDecode, Success(_))
 
+  @inline def optionalKeyValue: F[Option[K], Option[V]] = data.bimap(keyCodec.prism.getOption, valCodec.prism.getOption)
+  @inline def optionalDecode: Option[F[K, V]]           = data.bitraverse(keyCodec.prism.getOption, valCodec.prism.getOption)
+  @inline def optionalValue: Option[F[Array[Byte], V]]  = data.bitraverse(Option(_), valCodec.prism.getOption)
+  @inline def optionalKey: Option[F[K, Array[Byte]]]    = data.bitraverse(keyCodec.prism.getOption, Option(_))
+
   @SuppressWarnings(Array("AsInstanceOf"))
   @inline def nullableDecode: F[K, V] =
     data.bimap(
