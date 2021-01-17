@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import akka.actor.ActorSystem
 import akka.kafka.{
   CommitterSettings => AkkaCommitterSettings,
   ConsumerSettings => AkkaConsumerSettings,
@@ -70,7 +71,8 @@ object KafkaChannels {
     val topicName: TopicName,
     val producerSettings: AkkaProducerSettings[K, V],
     val consumerSettings: AkkaConsumerSettings[Array[Byte], Array[Byte]],
-    val committerSettings: AkkaCommitterSettings) {
+    val committerSettings: AkkaCommitterSettings,
+    val akkaSystem: ActorSystem) {
     import akka.kafka.ConsumerMessage.CommittableMessage
     import akka.kafka.ProducerMessage.Envelope
     import akka.kafka.scaladsl.{Committer, Consumer, Producer}
@@ -100,28 +102,25 @@ object KafkaChannels {
     val source: Source[CommittableMessage[Array[Byte], Array[Byte]], Consumer.Control] =
       Consumer.committableSource(consumerSettings, Subscriptions.topics(topicName.value))
 
-    def stream(implicit
-      F: ConcurrentEffect[F],
-      mat: Materializer): Stream[F, CommittableMessage[Array[Byte], Array[Byte]]] =
-      Stream.suspend(source.runWith(Sink.asPublisher(fanout = false)).toStream[F])
+    def stream(implicit F: ConcurrentEffect[F]): Stream[F, CommittableMessage[Array[Byte], Array[Byte]]] =
+      Stream.suspend(source.runWith(Sink.asPublisher(fanout = false))(Materializer(akkaSystem)).toStream[F])
 
     def offsetRanged(offsetRange: KafkaTopicPartition[KafkaOffsetRange])(implicit
-      F: ConcurrentEffect[F],
-      mat: Materializer): Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]] = Stream.suspend {
-      val totalSize   = offsetRange.mapValues(_.distance).value.values.sum
-      val endPosition = offsetRange.mapValues(_.until.value)
-      assign(offsetRange.value.mapValues(_.from.value))
-        .groupBy(maxSubstreams = 8, _.partition)
-        .takeWhile(m => endPosition.get(m.topic, m.partition).exists(m.offset < _))
-        .mergeSubstreams
-        .take(totalSize)
-        .runWith(Sink.asPublisher(fanout = false))
-        .toStream[F]
-    }
+      F: ConcurrentEffect[F]): Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]] =
+      Stream.suspend {
+        val totalSize   = offsetRange.mapValues(_.distance).value.values.sum
+        val endPosition = offsetRange.mapValues(_.until.value)
+        assign(offsetRange.value.mapValues(_.from.value))
+          .groupBy(maxSubstreams = 16, _.partition)
+          .takeWhile(m => endPosition.get(m.topic, m.partition).exists(m.offset < _))
+          .mergeSubstreams
+          .take(totalSize)
+          .runWith(Sink.asPublisher(fanout = false))(Materializer(akkaSystem))
+          .toStream[F]
+      }
 
     def timeRanged(dateTimeRange: NJDateTimeRange)(implicit
-      F: ConcurrentEffect[F],
-      mat: Materializer): Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]] = {
+      F: ConcurrentEffect[F]): Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]] = {
       val exec: F[Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]]] =
         ShortLiveConsumer[F](topicName, utils.toProperties(consumerSettings.properties))
           .use(_.offsetRangeFor(dateTimeRange).map(_.flatten[KafkaOffsetRange]))
