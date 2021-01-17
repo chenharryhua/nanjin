@@ -3,19 +3,23 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.Bifunctor
 import cats.implicits.catsSyntaxTuple2Semigroupal
 import cats.kernel.PartialOrder
-import cats.syntax.eq._
+import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.TopicDef
+import com.github.chenharryhua.nanjin.messages.kafka._
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.sksamuel.avro4s._
 import frameless.TypedEncoder
+import fs2.kafka.{ConsumerRecord => Fs2ConsumerRecord}
 import io.circe.generic.auto._
 import io.circe.{Json, Encoder => JsonEncoder}
 import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.record.TimestampType
 import shapeless.cachedImplicit
+
+import scala.util.Try
 
 @Lenses
 @AvroDoc("kafka record, optional Key and Value")
@@ -63,6 +67,9 @@ object NJConsumerRecord {
 
   def apply[K, V](cr: ConsumerRecord[Option[K], Option[V]]): NJConsumerRecord[K, V] =
     NJConsumerRecord(cr.partition, cr.offset, cr.timestamp, cr.key, cr.value, cr.topic, cr.timestampType.id)
+
+  def apply[K, V](cr: Fs2ConsumerRecord[Try[K], Try[V]]): NJConsumerRecord[K, V] =
+    apply(toConsumerRecord.transform(cr).bimap(_.toOption, _.toOption))
 
   def avroCodec[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V]): AvroCodec[NJConsumerRecord[K, V]] = {
     implicit val schemaForKey: SchemaFor[K]  = keyCodec.schemaFor
