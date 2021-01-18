@@ -407,3 +407,11 @@ lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
     .aggregate(common, messages, datetime, devices, pipes, kafka, database, spark, example)
+  .settings(
+    skip in publish := true,
+    credentials in ThisBuild += Credentials(Path.userHome / ".sbt" / ".credentials"),
+    publishTo in ThisBuild := Some(
+      "tabcorp-maven" at "https://artifacts.tabdigital.com.au/artifactory/tabcorp-maven"),
+    publishConfiguration in ThisBuild      := publishConfiguration.value.withOverwrite(true),
+    publishLocalConfiguration in ThisBuild := publishLocalConfiguration.value.withOverwrite(true)
+  )
