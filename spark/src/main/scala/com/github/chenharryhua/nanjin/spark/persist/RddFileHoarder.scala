@@ -25,8 +25,7 @@ sealed class RddFileHoarder[F[_], A](rdd: RDD[A]) extends Serializable {
     new SaveProtobuf[F, A](rdd, HoarderConfig(path).withFormat(ProtoBuf))
 }
 
-sealed class RddAvroFileHoarder[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A])
-    extends RddFileHoarder[F, A](rdd) {
+sealed class RddAvroFileHoarder[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A]) extends RddFileHoarder[F, A](rdd) {
 
 // 1
   final def jackson(path: String): SaveJackson[F, A] =
@@ -52,10 +51,6 @@ final class DatasetFileHoarder[F[_], A](ds: Dataset[A]) extends RddFileHoarder[F
   def json(path: String): SaveSparkJson[F, A] =
     new SaveSparkJson[F, A](ds, HoarderConfig(path).withFormat(SparkJson), isKeepNull = true)
 
-// 3
-  def parquet(path: String): SaveParquet[F, A] =
-    new SaveParquet[F, A](ds, HoarderConfig(path).withFormat(Parquet))
-
 }
 
 final class DatasetAvroFileHoarder[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A])
@@ -71,6 +66,6 @@ final class DatasetAvroFileHoarder[F[_], A](ds: Dataset[A], encoder: AvroEncoder
 
   // 3
   def parquet(path: String): SaveParquet[F, A] =
-    new SaveParquet[F, A](ds, HoarderConfig(path).withFormat(Parquet))
+    new SaveParquet[F, A](ds, encoder, HoarderConfig(path).withFormat(Parquet))
 
 }

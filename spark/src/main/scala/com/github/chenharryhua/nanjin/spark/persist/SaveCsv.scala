@@ -35,10 +35,9 @@ final class SaveCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfiguration,
   def file: SaveCsv[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveCsv[F, A] = updateConfig(cfg.withFolder)
 
-  def gzip: SaveCsv[F, A] = updateConfig(cfg.withCompression(Compression.Gzip))
-
-  def deflate(level: Int): SaveCsv[F, A] =
-    updateConfig(cfg.withCompression(Compression.Deflate(level)))
+  def gzip: SaveCsv[F, A]                = updateConfig(cfg.withCompression(Compression.Gzip))
+  def deflate(level: Int): SaveCsv[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(level)))
+  def uncompress: SaveCsv[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], rowEncoder: RowEncoder[A]): F[Unit] = {
 

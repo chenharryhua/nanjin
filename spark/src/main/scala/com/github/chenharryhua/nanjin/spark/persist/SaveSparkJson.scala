@@ -17,14 +17,10 @@ final class SaveSparkJson[F[_], A](ds: Dataset[A], cfg: HoarderConfig, isKeepNul
 
   def outPath(path: String): SaveSparkJson[F, A] = updateConfig(cfg.withOutPutPath(path))
 
-  def gzip: SaveSparkJson[F, A] =
-    updateConfig(cfg.withCompression(Compression.Gzip))
-
-  def deflate(level: Int): SaveSparkJson[F, A] =
-    updateConfig(cfg.withCompression(Compression.Deflate(level)))
-
-  def bzip2: SaveSparkJson[F, A] =
-    updateConfig(cfg.withCompression(Compression.Bzip2))
+  def gzip: SaveSparkJson[F, A]                = updateConfig(cfg.withCompression(Compression.Gzip))
+  def deflate(level: Int): SaveSparkJson[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(level)))
+  def bzip2: SaveSparkJson[F, A]               = updateConfig(cfg.withCompression(Compression.Bzip2))
+  def uncompress: SaveSparkJson[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
   def keepNull: SaveSparkJson[F, A] = new SaveSparkJson[F, A](ds, cfg, true)
   def dropNull: SaveSparkJson[F, A] = new SaveSparkJson[F, A](ds, cfg, false)

@@ -27,10 +27,9 @@ final class SaveCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull: Bool
   def file: SaveCirce[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveCirce[F, A] = updateConfig(cfg.withFolder)
 
-  def gzip: SaveCirce[F, A] = updateConfig(cfg.withCompression(Compression.Gzip))
-
-  def deflate(level: Int): SaveCirce[F, A] =
-    updateConfig(cfg.withCompression(Compression.Deflate(level)))
+  def gzip: SaveCirce[F, A]                = updateConfig(cfg.withCompression(Compression.Gzip))
+  def deflate(level: Int): SaveCirce[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(level)))
+  def uncompress: SaveCirce[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
   def run(blocker: Blocker)(implicit
     F: Sync[F],

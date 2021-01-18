@@ -23,10 +23,9 @@ final class SaveJackson[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Hoar
   def file: SaveJackson[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveJackson[F, A] = updateConfig(cfg.withFolder)
 
-  def gzip: SaveJackson[F, A] = updateConfig(cfg.withCompression(Compression.Gzip))
-
-  def deflate(level: Int): SaveJackson[F, A] =
-    updateConfig(cfg.withCompression(Compression.Deflate(level)))
+  def gzip: SaveJackson[F, A]                = updateConfig(cfg.withCompression(Compression.Gzip))
+  def deflate(level: Int): SaveJackson[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(level)))
+  def uncompress: SaveJackson[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
   def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
 
