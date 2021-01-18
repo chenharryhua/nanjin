@@ -15,7 +15,16 @@ class JacksonTest extends AnyFunSuite {
 
   test("datetime read/write identity - multi") {
     val path = "./data/test/spark/persist/jackson/rooster/multi.json"
-    rooster.jackson(path).errorIfExists.ignoreIfExists.overwrite.outPath(path).folder.run(blocker).unsafeRunSync()
+    rooster
+      .jackson(path)
+      .errorIfExists
+      .ignoreIfExists
+      .overwrite
+      .outPath(path)
+      .folder
+      .uncompress
+      .run(blocker)
+      .unsafeRunSync()
     val r = loaders.rdd.jackson[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession)
     assert(RoosterData.expected == r.collect().toSet)
   }

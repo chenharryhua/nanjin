@@ -26,17 +26,11 @@ final class SaveAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Hoarder
   def file: SaveAvro[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveAvro[F, A] = updateConfig(cfg.withFolder)
 
-  def deflate(level: Int): SaveAvro[F, A] =
-    updateConfig(cfg.withCompression(Compression.Deflate(level)))
-
-  def xz(level: Int): SaveAvro[F, A] =
-    updateConfig(cfg.withCompression(Compression.Xz(level)))
-
-  def snappy: SaveAvro[F, A] =
-    updateConfig(cfg.withCompression(Compression.Snappy))
-
-  def bzip2: SaveAvro[F, A] =
-    updateConfig(cfg.withCompression(Compression.Bzip2))
+  def deflate(level: Int): SaveAvro[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(level)))
+  def xz(level: Int): SaveAvro[F, A]      = updateConfig(cfg.withCompression(Compression.Xz(level)))
+  def snappy: SaveAvro[F, A]              = updateConfig(cfg.withCompression(Compression.Snappy))
+  def bzip2: SaveAvro[F, A]               = updateConfig(cfg.withCompression(Compression.Bzip2))
+  def uncompress: SaveAvro[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
   def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
 

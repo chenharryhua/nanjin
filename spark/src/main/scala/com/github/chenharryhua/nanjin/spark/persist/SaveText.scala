@@ -25,10 +25,9 @@ final class SaveText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: String) e
   def file: SaveText[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveText[F, A] = updateConfig(cfg.withFolder)
 
-  def gzip: SaveText[F, A] = updateConfig(cfg.withCompression(Compression.Gzip))
-
-  def deflate(level: Int): SaveText[F, A] =
-    updateConfig(cfg.withCompression(Compression.Deflate(level)))
+  def gzip: SaveText[F, A]                = updateConfig(cfg.withCompression(Compression.Gzip))
+  def deflate(level: Int): SaveText[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(level)))
+  def uncompress: SaveText[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
   def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F], show: Show[A]): F[Unit] = {
     val hadoopConfiguration = new Configuration(rdd.sparkContext.hadoopConfiguration)

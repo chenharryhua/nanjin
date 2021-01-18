@@ -2,11 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync}
 import com.github.chenharryhua.nanjin.devices.NJHadoop
-import com.github.chenharryhua.nanjin.pipes.{
-  CirceSerialization,
-  GenericRecordCodec,
-  JacksonSerialization
-}
+import com.github.chenharryhua.nanjin.pipes.{CirceSerialization, GenericRecordCodec, JacksonSerialization}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.sksamuel.avro4s.{AvroInputStream, Decoder => AvroDecoder}
 import frameless.TypedDataset

@@ -68,15 +68,18 @@ class CompressionInterlopeTest extends AnyFunSuite {
 
       g <- rooster.binAvro(root + "binAvro.avro").file.run(blocker).start
 
-      j <- rooster.circe(root + "circe1.json.deflate").file.deflate(5).run(blocker).start
-      k <- rooster.circe(root + "circe2.json.gz").file.gzip.run(blocker).start
+      h <- rooster.circe(root + "circe1.json.deflate").file.deflate(5).run(blocker).start
+      i <- rooster.circe(root + "circe2.json.gz").file.gzip.run(blocker).start
 
-      o <- rooster.text(root + "text1.txt.deflate").file.deflate(5).run(blocker).start
-      p <- rooster.text(root + "text2.txt.gz").file.gzip.run(blocker).start
+      j <- rooster.text(root + "text1.txt.deflate").file.deflate(5).run(blocker).start
+      k <- rooster.text(root + "text2.txt.gz").file.gzip.run(blocker).start
 
-      r <- rooster.csv(root + "csv1.csv.deflate").file.deflate(5).run(blocker).start
-      s <- rooster.csv(root + "csv2.csv.gz").file.gzip.run(blocker).start
+      l <- rooster.csv(root + "csv1.csv.deflate").file.deflate(5).run(blocker).start
+      m <- rooster.csv(root + "csv2.csv.gz").file.gzip.run(blocker).start
 
+      n <- rooster.parquet(root + "parquet1.snappy.parquet").file.snappy.run(blocker).start
+      o <- rooster.parquet(root + "parquet2.gz.parquet").file.gzip.run(blocker).start
+      p <- rooster.parquet(root + "parquet3.uncompress.parquet").file.uncompress.run(blocker).start
       _ <- a.join
       _ <- b.join
       _ <- c.join
@@ -84,13 +87,15 @@ class CompressionInterlopeTest extends AnyFunSuite {
       _ <- e.join
       _ <- f.join
       _ <- g.join
+      _ <- h.join
+      _ <- i.join
       _ <- j.join
       _ <- k.join
+      _ <- l.join
+      _ <- m.join
+      _ <- n.join
       _ <- o.join
       _ <- p.join
-      _ <- r.join
-      _ <- s.join
-
     } yield ()
     run.unsafeRunSync()
   }
