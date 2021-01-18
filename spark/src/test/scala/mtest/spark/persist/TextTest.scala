@@ -17,7 +17,7 @@ class TextTest extends AnyFunSuite {
   test("tablet - with new suffix") {
     val path  = "./data/test/spark/persist/text/tablet/new-suffix"
     val saver = new RddFileHoarder[IO, Tablet](rdd)
-    saver.text(path).folder.withSuffix(".text").run(blocker).unsafeRunSync()
+    saver.text(path).folder.uncompress.withSuffix(".text").run(blocker).unsafeRunSync()
   }
   test("tablet - gzip") {
     val path  = "./data/test/spark/persist/text/tablet/tablet.txt.gz"

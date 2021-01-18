@@ -17,7 +17,16 @@ class JsonTest extends AnyFunSuite {
   test("rdd read/write identity uncompressed - keep null") {
     import RoosterData._
     val path = "./data/test/spark/persist/json/uncompressed.keepNull.json"
-    rooster.json(path).errorIfExists.ignoreIfExists.overwrite.outPath(path).keepNull.run(blocker).unsafeRunSync()
+    rooster
+      .json(path)
+      .errorIfExists
+      .ignoreIfExists
+      .overwrite
+      .outPath(path)
+      .keepNull
+      .uncompress
+      .run(blocker)
+      .unsafeRunSync()
     val t: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate, sparkSession)
     assert(expected == t.collect[IO]().unsafeRunSync().toSet)
   }
