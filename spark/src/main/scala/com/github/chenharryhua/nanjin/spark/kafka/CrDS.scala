@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import cats.Eq
 import cats.effect.Sync
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
@@ -25,6 +26,7 @@ final class CrDS[F[_], K, V] private[kafka] (
 
   def typedDataset: TypedDataset[NJConsumerRecord[K, V]] = TypedDataset.create(dataset)(ate.typedEncoder)
 
+  // transforms
   def transform(f: Dataset[NJConsumerRecord[K, V]] => Dataset[NJConsumerRecord[K, V]]): CrDS[F, K, V] =
     new CrDS[F, K, V](dataset.transform(f), topic, cfg, tek, tev)
 
@@ -66,19 +68,33 @@ final class CrDS[F[_], K, V] private[kafka] (
     new CrDS[F, K2, V2](dataset.flatMap(f)(ate.sparkEncoder), other, cfg, k2, v2).normalize
   }
 
-  def stats: Statistics[F] =
-    new Statistics[F](dataset.map(CRMetaInfo(_))(TypedExpressionEncoder[CRMetaInfo]), params.timeRange.zoneId)
+  // transition
+  def save: DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]] =
+    new DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]](dataset, ate.avroCodec.avroEncoder)
 
   def crRdd: CrRdd[F, K, V] = new CrRdd[F, K, V](dataset.rdd, topic, cfg, dataset.sparkSession)
   def prRdd: PrRdd[F, K, V] = new PrRdd[F, K, V](dataset.rdd.map(_.toNJProducerRecord), topic, cfg)
 
-  def save: DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]] =
-    new DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]](dataset, ate.avroCodec.avroEncoder)
+  // statistics
+  def stats: Statistics[F] =
+    new Statistics[F](dataset.map(CRMetaInfo(_))(TypedExpressionEncoder[CRMetaInfo]), params.timeRange.zoneId)
 
   def count(implicit F: Sync[F]): F[Long] = F.delay(dataset.count())
 
   def cherrypick(partition: Int, offset: Long): Option[NJConsumerRecord[K, V]] =
     partitionOf(partition).offsetRange(offset, offset).dataset.collect().headOption
+
+  def diff(
+    other: TypedDataset[NJConsumerRecord[K, V]])(implicit eqK: Eq[K], eqV: Eq[V]): TypedDataset[DiffResult[K, V]] =
+    inv.diffDataset(typedDataset, other)(eqK, tek, eqV, tev)
+
+  def diff(other: CrDS[F, K, V])(implicit eqK: Eq[K], eqV: Eq[V]): TypedDataset[DiffResult[K, V]] =
+    diff(other.typedDataset)
+
+  def diffKV(other: TypedDataset[NJConsumerRecord[K, V]]): TypedDataset[KvDiffResult[K, V]] =
+    inv.kvDiffDataset(typedDataset, other)(tek, tev)
+
+  def diffKV(other: CrDS[F, K, V]): TypedDataset[KvDiffResult[K, V]] = diffKV(other.typedDataset)
 
   /** Notes:
     *  same key should be in same partition.

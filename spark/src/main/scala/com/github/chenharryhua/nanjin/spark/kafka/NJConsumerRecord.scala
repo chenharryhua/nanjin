@@ -19,8 +19,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.record.TimestampType
 import shapeless.cachedImplicit
 
-import scala.util.Try
-
 @Lenses
 @AvroDoc("kafka record, optional Key and Value")
 @AvroNamespace("nj.spark.kafka")
@@ -68,8 +66,8 @@ object NJConsumerRecord {
   def apply[K, V](cr: ConsumerRecord[Option[K], Option[V]]): NJConsumerRecord[K, V] =
     NJConsumerRecord(cr.partition, cr.offset, cr.timestamp, cr.key, cr.value, cr.topic, cr.timestampType.id)
 
-  def apply[K, V](cr: Fs2ConsumerRecord[Try[K], Try[V]]): NJConsumerRecord[K, V] =
-    apply(toConsumerRecord.transform(cr).bimap(_.toOption, _.toOption))
+  def apply[K, V](cr: Fs2ConsumerRecord[Option[K], Option[V]]): NJConsumerRecord[K, V] =
+    apply(toConsumerRecord.transform(cr))
 
   def avroCodec[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V]): AvroCodec[NJConsumerRecord[K, V]] = {
     implicit val schemaForKey: SchemaFor[K]  = keyCodec.schemaFor
