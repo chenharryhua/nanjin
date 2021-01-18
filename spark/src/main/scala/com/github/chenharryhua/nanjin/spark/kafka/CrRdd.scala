@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
+import cats.Eq
+import cats.effect.Sync
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
@@ -59,27 +60,37 @@ final class CrRdd[F[_], K, V] private[kafka] (
     other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
     new CrRdd[F, K2, V2](rdd.flatMap(f), other, cfg, ss).normalize
 
-  // dataset
+  // transition
   def crDS(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
     val ate = NJConsumerRecord.ate(topic.topicDef)
     new CrDS[F, K, V](ss.createDataset(rdd)(ate.sparkEncoder), topic, cfg, tek, tev)
   }
 
-  def cherrypick(partition: Int, offset: Long): Option[NJConsumerRecord[K, V]] =
-    partitionOf(partition).offsetRange(offset, offset).rdd.collect().headOption
-
-  // upload
   def prRdd: PrRdd[F, K, V] = new PrRdd[F, K, V](rdd.map(_.toNJProducerRecord), topic, cfg)
 
-
-  // save
   def save: RddAvroFileHoarder[F, NJConsumerRecord[K, V]] =
     new RddAvroFileHoarder[F, NJConsumerRecord[K, V]](rdd, codec.avroEncoder)
 
-  def count(implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
-
+  // statistics
   def stats: Statistics[F] =
     new Statistics[F](
       TypedDataset.create(rdd.map(CRMetaInfo(_)))(TypedEncoder[CRMetaInfo], ss).dataset,
       params.timeRange.zoneId)
+
+  def count(implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
+
+  def cherrypick(partition: Int, offset: Long): Option[NJConsumerRecord[K, V]] =
+    partitionOf(partition).offsetRange(offset, offset).rdd.collect().headOption
+
+  def diff(other: RDD[NJConsumerRecord[K, V]])(implicit eqK: Eq[K], eqV: Eq[V]): RDD[DiffResult[K, V]] =
+    inv.diffRdd(rdd, other)
+
+  def diff(other: CrRdd[F, K, V])(implicit eqK: Eq[K], eqV: Eq[V]): RDD[DiffResult[K, V]] =
+    diff(other.rdd)
+
+  def diffKV(other: RDD[NJConsumerRecord[K, V]])(implicit eqK: Eq[K], eqV: Eq[V]): RDD[KvDiffResult[K, V]] =
+    inv.kvDiffRdd(rdd, other)
+
+  def diffKV(other: CrRdd[F, K, V])(implicit eqK: Eq[K], eqV: Eq[V]): RDD[KvDiffResult[K, V]] =
+    diffKV(other.rdd)
 }
