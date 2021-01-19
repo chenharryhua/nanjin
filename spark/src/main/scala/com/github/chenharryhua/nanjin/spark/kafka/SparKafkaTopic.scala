@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
+import com.github.chenharryhua.nanjin.spark.dstream.SparkDStream
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.github.chenharryhua.nanjin.spark.sstream.{SStreamConfig, SparkSStream}
 import frameless.TypedEncoder
@@ -15,6 +16,8 @@ import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.streaming.StreamingContext
+import org.apache.spark.streaming.kafka010.LocationStrategy
 
 import java.time.LocalDate
 
@@ -29,10 +32,10 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   private def updateCfg(f: SKConfig => SKConfig): SparKafkaTopic[F, K, V] =
     new SparKafkaTopic[F, K, V](topic, f(cfg), ss)
 
-  def withStartTime(str: String): SparKafkaTopic[F, K, V] = updateCfg(_.withStartTime(str))
-  def withEndTime(str: String): SparKafkaTopic[F, K, V]   = updateCfg(_.withEndTime(str))
-
-  def withOneDay(ld: LocalDate): SparKafkaTopic[F, K, V] = updateCfg(_.withOneDay(ld))
+  def withStartTime(str: String): SparKafkaTopic[F, K, V]                 = updateCfg(_.withStartTime(str))
+  def withEndTime(str: String): SparKafkaTopic[F, K, V]                   = updateCfg(_.withEndTime(str))
+  def withOneDay(ld: LocalDate): SparKafkaTopic[F, K, V]                  = updateCfg(_.withOneDay(ld))
+  def withLocationStrategy(ls: LocationStrategy): SparKafkaTopic[F, K, V] = updateCfg(_.withLocationStrategy(ls))
 
   val params: SKParams = cfg.evalConfig
 
@@ -67,6 +70,11 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
 
   def prRdd[G[_]: Foldable](list: G[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
     prRdd(ss.sparkContext.parallelize(list.toList))
+
+  /** DStream
+    */
+  def dstream(sc: StreamingContext): SparkDStream[F, NJConsumerRecord[K, V]] =
+    new SparkDStream(sk.kafkaDStream(topic, sc, params.locationStrategy))
 
   /** structured stream
     */
