@@ -22,16 +22,17 @@ final class NJAvroKeyOutputFormat extends AvroOutputFormatBase[AvroKey[GenericRe
     val conf: Configuration   = job.getConfiguration
     val isCompressed: Boolean = getCompressOutput(job)
     val syncInterval: Int     = getSyncInterval(job)
+
     if (isCompressed) {
       val cf: CodecFactory            = getCompressionCodec(job)
-      val suffix: String              = s".${cf.toString.toLowerCase}.data.avro"
+      val suffix: String              = s"-${utils.uuidStr(job)}.${cf.toString.toLowerCase}.data.avro"
       val file: Path                  = getDefaultWorkFile(job, suffix)
       val fs: FileSystem              = file.getFileSystem(conf)
       val fileOut: FSDataOutputStream = fs.create(file, false)
       val out: DataOutputStream       = new DataOutputStream(fileOut)
       new AvroKeyRecordWriter(schema, out, cf, syncInterval)
     } else {
-      val suffix: String          = ".data.avro"
+      val suffix: String          = s"-${utils.uuidStr(job)}.data.avro"
       val file: Path              = getDefaultWorkFile(job, suffix)
       val fs: FileSystem          = file.getFileSystem(conf)
       val out: FSDataOutputStream = fs.create(file, false)
