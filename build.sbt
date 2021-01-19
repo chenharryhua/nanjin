@@ -58,7 +58,7 @@ val akkaFtp = "2.0.2"
 
 // misc
 val silencer    = "1.7.1"
-val jline       = "3.18.0"
+val jline       = "3.19.0"
 val log4s       = "1.8.2"
 val betterFiles = "3.9.1"
 
