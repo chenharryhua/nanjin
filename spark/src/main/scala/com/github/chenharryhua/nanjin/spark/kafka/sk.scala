@@ -14,7 +14,13 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.dstream.DStream
-import org.apache.spark.streaming.kafka010.{ConsumerStrategies, KafkaUtils, LocationStrategy, OffsetRange}
+import org.apache.spark.streaming.kafka010.{
+  ConsumerStrategies,
+  ConsumerStrategy,
+  KafkaUtils,
+  LocationStrategy,
+  OffsetRange
+}
 import org.log4s.Logger
 
 import java.util
@@ -40,7 +46,8 @@ private[kafka] object sk {
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy,
     sparkSession: SparkSession): RDD[ConsumerRecord[Array[Byte], Array[Byte]]] = {
-    val gtp = Effect[F].toIO(topic.shortLiveConsumer.use(_.offsetRangeFor(timeRange))).unsafeRunSync()
+    val gtp: KafkaTopicPartition[Option[KafkaOffsetRange]] =
+      Effect[F].toIO(topic.shortLiveConsumer.use(_.offsetRangeFor(timeRange))).unsafeRunSync()
     KafkaUtils.createRDD[Array[Byte], Array[Byte]](
       sparkSession.sparkContext,
       props(topic.context.settings.consumerSettings.config),
@@ -55,7 +62,7 @@ private[kafka] object sk {
     streamingContext: StreamingContext,
     locationStrategy: LocationStrategy): DStream[NJConsumerRecord[K, V]] = {
 
-    val consumerStrategy =
+    val consumerStrategy: ConsumerStrategy[Array[Byte], Array[Byte]] =
       ConsumerStrategies.Subscribe[Array[Byte], Array[Byte]](
         List(topic.topicName.value),
         props(topic.context.settings.consumerSettings.config).asScala)
