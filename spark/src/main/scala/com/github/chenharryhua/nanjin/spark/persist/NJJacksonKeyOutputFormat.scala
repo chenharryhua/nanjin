@@ -10,21 +10,16 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataOutputStream, FileSystem, Path}
 import org.apache.hadoop.io.NullWritable
 import org.apache.hadoop.io.compress.{CompressionCodec, GzipCodec}
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat.{
-  getCompressOutput,
-  getOutputCompressorClass
-}
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat.{getCompressOutput, getOutputCompressorClass}
 import org.apache.hadoop.mapreduce.{RecordWriter, TaskAttemptContext}
 import org.apache.hadoop.util.ReflectionUtils
 
 import java.io.{DataOutputStream, OutputStream}
 
-final class NJJacksonKeyOutputFormat
-    extends AvroOutputFormatBase[AvroKey[GenericRecord], NullWritable] {
+final class NJJacksonKeyOutputFormat extends AvroOutputFormatBase[AvroKey[GenericRecord], NullWritable] {
 
-  override def getRecordWriter(
-    job: TaskAttemptContext): RecordWriter[AvroKey[GenericRecord], NullWritable] = {
-    val suffix: String        = NJFileFormat.Jackson.suffix
+  override def getRecordWriter(job: TaskAttemptContext): RecordWriter[AvroKey[GenericRecord], NullWritable] = {
+    val suffix: String        = s"-${utils.uuidStr(job)}.${NJFileFormat.Jackson.suffix}"
     val schema: Schema        = AvroJob.getOutputKeySchema(job.getConfiguration)
     val conf: Configuration   = job.getConfiguration
     val isCompressed: Boolean = getCompressOutput(job)
@@ -32,8 +27,7 @@ final class NJJacksonKeyOutputFormat
       val codecClass: Class[_ <: CompressionCodec] =
         getOutputCompressorClass(job, classOf[GzipCodec])
       val codec: CompressionCodec     = ReflectionUtils.newInstance(codecClass, conf)
-      val ext: String                 = suffix + codec.getDefaultExtension
-      val file: Path                  = getDefaultWorkFile(job, ext)
+      val file: Path                  = getDefaultWorkFile(job, suffix + codec.getDefaultExtension)
       val fs: FileSystem              = file.getFileSystem(conf)
       val fileOut: FSDataOutputStream = fs.create(file, false)
       val out: DataOutputStream       = new DataOutputStream(codec.createOutputStream(fileOut))

@@ -28,11 +28,8 @@ final class SaveParquet[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A], cfg: H
   def folder: SaveParquet[F, A] = updateConfig(cfg.withFolder)
 
   def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
-    val hadoopConfiguration = new Configuration(ds.sparkSession.sparkContext.hadoopConfiguration)
-
-    val sma: SaveModeAware[F] =
-      new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
-
+    val hadoopConfiguration       = new Configuration(ds.sparkSession.sparkContext.hadoopConfiguration)
+    val sma: SaveModeAware[F]     = new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
     val ccn: CompressionCodecName = params.compression.parquet
 
     params.folderOrFile match {
