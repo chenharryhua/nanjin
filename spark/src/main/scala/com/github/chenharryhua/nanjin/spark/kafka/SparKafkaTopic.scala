@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.spark.dstream.CrDStream
+import com.github.chenharryhua.nanjin.spark.dstream.SparkDStream
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.github.chenharryhua.nanjin.spark.sstream.{SStreamConfig, SparkSStream}
 import frameless.TypedEncoder
@@ -73,8 +73,8 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
 
   /** DStream
     */
-  def dstream(sc: StreamingContext): CrDStream[K, V] =
-    new CrDStream[K, V](sk.kafkaDStream(topic, sc, params.locationStrategy))
+  def dstream(sc: StreamingContext): SparkDStream[F, NJConsumerRecord[K, V]] =
+    new SparkDStream(sk.kafkaDStream(topic, sc, params.locationStrategy))
 
   /** structured stream
     */
