@@ -12,7 +12,7 @@ final class NJBinaryOutputFormat extends FileOutputFormat[NullWritable, BytesWri
 
   override def getRecordWriter(job: TaskAttemptContext): RecordWriter[NullWritable, BytesWritable] = {
     val conf: Configuration         = job.getConfiguration
-    val suffix: String              = s"-${utils.uuidStr(job)}.${conf.get(NJBinaryOutputFormat.suffix, "")}"
+    val suffix: String              = s"-${utils.uuidStr(job)}${conf.get(NJBinaryOutputFormat.suffix, "")}"
     val file: Path                  = getDefaultWorkFile(job, suffix)
     val fs: FileSystem              = file.getFileSystem(conf)
     val fileOut: FSDataOutputStream = fs.create(file, false)
