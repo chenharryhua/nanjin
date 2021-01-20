@@ -104,7 +104,6 @@ object KafkaSettings {
     empty
       .withBrokers(brokers)
       .withSchemaRegistryProperty(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistry)
-      .withConsumerProperty(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "100")
       .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
       .withGroupId(s"nanjin.group.id-${utils.random4d.value}")
       .withApplicationId(s"nanjin.app.id-${utils.random4d.value}")

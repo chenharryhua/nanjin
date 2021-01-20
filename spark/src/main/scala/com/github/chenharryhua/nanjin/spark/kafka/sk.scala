@@ -14,13 +14,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.dstream.DStream
-import org.apache.spark.streaming.kafka010.{
-  ConsumerStrategies,
-  ConsumerStrategy,
-  KafkaUtils,
-  LocationStrategy,
-  OffsetRange
-}
+import org.apache.spark.streaming.kafka010._
 import org.log4s.Logger
 
 import java.util
@@ -28,13 +22,15 @@ import scala.collection.JavaConverters._
 
 private[kafka] object sk {
 
-  implicit val tell: Tell[Writer[Chain[Throwable], *], Chain[Throwable]] =
-    shapeless.cachedImplicit
+  implicit val tell: Tell[Writer[Chain[Throwable], *], Chain[Throwable]] = shapeless.cachedImplicit
 
+  // https://spark.apache.org/docs/3.0.1/streaming-kafka-0-10-integration.html
   private def props(config: Map[String, String]): util.Map[String, Object] =
-    (remove(ConsumerConfig.CLIENT_ID_CONFIG)(config) ++ Map(
-      "key.deserializer" -> classOf[ByteArrayDeserializer].getName,
-      "value.deserializer" -> classOf[ByteArrayDeserializer].getName)).mapValues[Object](identity).asJava
+    (remove(ConsumerConfig.CLIENT_ID_CONFIG)(config) ++
+      Map(
+        ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG -> classOf[ByteArrayDeserializer].getName,
+        ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG -> classOf[ByteArrayDeserializer].getName
+      )).mapValues[Object](identity).asJava
 
   private def offsetRanges(range: KafkaTopicPartition[Option[KafkaOffsetRange]]): Array[OffsetRange] =
     range.flatten[KafkaOffsetRange].value.toArray.map { case (tp, r) =>
