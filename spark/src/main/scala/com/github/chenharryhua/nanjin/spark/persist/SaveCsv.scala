@@ -26,6 +26,7 @@ final class SaveCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfiguration,
   private def updateConfig(cfg: HoarderConfig): SaveCsv[F, A] =
     new SaveCsv[F, A](ds, csvConfiguration, cfg)
 
+  def append: SaveCsv[F, A]         = updateConfig(cfg.withAppend)
   def overwrite: SaveCsv[F, A]      = updateConfig(cfg.withOverwrite)
   def errorIfExists: SaveCsv[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: SaveCsv[F, A] = updateConfig(cfg.withIgnore)
@@ -71,7 +72,7 @@ final class SaveCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfiguration,
         ds.sparkSession.sparkContext.hadoopConfiguration.addResource(hadoopConfiguration)
         val csv = F.delay(
           ds.write
-            .mode(SaveMode.Overwrite)
+            .mode(params.saveMode)
             .option("compression", ccg.name)
             .option("sep", csvConfiguration.cellSeparator.toString)
             .option("header", csvConfiguration.hasHeader)

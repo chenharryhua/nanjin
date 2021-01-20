@@ -11,6 +11,7 @@ final class SaveSparkJson[F[_], A](ds: Dataset[A], cfg: HoarderConfig, isKeepNul
   private def updateConfig(cfg: HoarderConfig): SaveSparkJson[F, A] =
     new SaveSparkJson[F, A](ds, cfg, isKeepNull)
 
+  def append: SaveSparkJson[F, A]         = updateConfig(cfg.withAppend)
   def overwrite: SaveSparkJson[F, A]      = updateConfig(cfg.withOverwrite)
   def errorIfExists: SaveSparkJson[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: SaveSparkJson[F, A] = updateConfig(cfg.withIgnore)
@@ -37,7 +38,7 @@ final class SaveSparkJson[F[_], A](ds: Dataset[A], cfg: HoarderConfig, isKeepNul
     sma.checkAndRun(blocker)(F.delay {
       ds.sparkSession.sparkContext.hadoopConfiguration.addResource(hadoopConfiguration)
       ds.write
-        .mode(SaveMode.Overwrite)
+        .mode(params.saveMode)
         .option("compression", ccg.name)
         .option("ignoreNullFields", !isKeepNull)
         .json(params.outPath)

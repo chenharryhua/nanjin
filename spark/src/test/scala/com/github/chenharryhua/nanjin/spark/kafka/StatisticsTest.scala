@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJTimestamp}
-import com.github.chenharryhua.nanjin.kafka.TopicName
 import mtest.spark.sparkSession
 import org.apache.spark.sql.Dataset
 import org.scalatest.funsuite.AnyFunSuite
@@ -50,14 +49,7 @@ class StatisticsTest extends AnyFunSuite {
     val res = stats.disorders.dataset.collect().toSet
     assert(
       res == Set(
-        Disorder(
-          0,
-          3,
-          1351620000000L,
-          "2012-10-31T05:00+11:00[Australia/Sydney]",
-          1351360800000L,
-          259200000L,
-          0)))
+        Disorder(0, 3, 1351620000000L, "2012-10-31T05:00+11:00[Australia/Sydney]", 1351360800000L, 259200000L, 0)))
 
     assert(emptyStats.disorders.dataset.count() == 0)
   }

@@ -7,7 +7,8 @@ import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.spark.kafka.{NJProducerRecord, _}
 import frameless.TypedEncoder
 import mtest.spark.persist.{Rooster, RoosterData}
-import mtest.spark.{contextShift, ctx, sparKafka, sparkSession, timer}
+import mtest.spark.{contextShift, sparkSession, timer}
+import mtest.spark.kafka.{ctx, sparKafka}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.streaming.Trigger
 import org.scalatest.DoNotDiscover

@@ -10,7 +10,7 @@ import com.github.chenharryhua.nanjin.spark.kafka._
 import com.sksamuel.avro4s.SchemaFor
 import frameless.TypedDataset
 import frameless.cats.implicits._
-import mtest.spark.{contextShift, ctx, sparKafka, sparkSession}
+import mtest.spark.{contextShift, sparkSession}
 import org.apache.spark.sql.SparkSession
 import org.scalatest.funsuite.AnyFunSuite
 

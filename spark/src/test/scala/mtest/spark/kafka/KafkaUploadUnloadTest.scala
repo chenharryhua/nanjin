@@ -2,32 +2,28 @@ package mtest.spark.kafka
 
 import alleycats.Empty
 import cats.effect.IO
+import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
-import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.kafka.{NJConsumerRecord, NJProducerRecord, SparKafkaTopic}
 import frameless.TypedEncoder
 import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import io.circe.generic.auto._
+import mtest.spark
 import mtest.spark.persist.{Rooster, RoosterData}
-import mtest.spark.{blocker, contextShift, ctx, sparkSession, timer}
+import mtest.spark.{blocker, contextShift, sparkSession, timer}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
-import scala.util.Random
-import cats.syntax.all._
-import mtest.spark
-
 import scala.concurrent.duration._
 
 class KafkaUploadUnloadTest extends AnyFunSuite {
 
-  val sk: SparKafkaContext[IO]                                  = sparkSession.alongWith(ctx)
   implicit val te: TypedEncoder[NJConsumerRecord[Int, Rooster]] = shapeless.cachedImplicit
   val root: String                                              = "./data/test/spark/kafka/load/rooster/"
 
   val rooster: TopicDef[Int, Rooster] =
     TopicDef[Int, Rooster](TopicName("spark.kafka.load.rooster"), Rooster.avroCodec)
-  val topic: SparKafkaTopic[IO, Int, Rooster] = sk.topic(rooster)
+  val topic: SparKafkaTopic[IO, Int, Rooster] = sparKafka.topic(rooster)
 
   val oac = NJConsumerRecord.avroCodec(rooster)
 

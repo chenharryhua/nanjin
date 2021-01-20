@@ -6,7 +6,7 @@ import cats.mtl.Tell
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaOffsetRange, KafkaTopic, KafkaTopicPartition}
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkDatetimeConversionConstant}
-import monocle.function.At.remove
+import monocle.function.At.{atMap, remove}
 import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
@@ -14,27 +14,24 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.dstream.DStream
-import org.apache.spark.streaming.kafka010.{
-  ConsumerStrategies,
-  ConsumerStrategy,
-  KafkaUtils,
-  LocationStrategy,
-  OffsetRange
-}
+import org.apache.spark.streaming.kafka010._
 import org.log4s.Logger
 
 import java.util
 import scala.collection.JavaConverters._
 
 private[kafka] object sk {
+  private val logger: Logger = org.log4s.getLogger("nj.spark.kafka")
 
-  implicit val tell: Tell[Writer[Chain[Throwable], *], Chain[Throwable]] =
-    shapeless.cachedImplicit
+  implicit val tell: Tell[Writer[Chain[Throwable], *], Chain[Throwable]] = shapeless.cachedImplicit
 
+  // https://spark.apache.org/docs/3.0.1/streaming-kafka-0-10-integration.html
   private def props(config: Map[String, String]): util.Map[String, Object] =
-    (remove(ConsumerConfig.CLIENT_ID_CONFIG)(config) ++ Map(
-      "key.deserializer" -> classOf[ByteArrayDeserializer].getName,
-      "value.deserializer" -> classOf[ByteArrayDeserializer].getName)).mapValues[Object](identity).asJava
+    (config ++ // override deserializers if any
+      Map(
+        ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG -> classOf[ByteArrayDeserializer].getName,
+        ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG -> classOf[ByteArrayDeserializer].getName
+      )).mapValues[Object](identity).asJava
 
   private def offsetRanges(range: KafkaTopicPartition[Option[KafkaOffsetRange]]): Array[OffsetRange] =
     range.flatten[KafkaOffsetRange].value.toArray.map { case (tp, r) =>
@@ -54,8 +51,6 @@ private[kafka] object sk {
       offsetRanges(gtp),
       locationStrategy)
   }
-
-  private val logger: Logger = org.log4s.getLogger("nj.spark.kafka")
 
   def kafkaDStream[F[_], K, V](
     topic: KafkaTopic[F, K, V],

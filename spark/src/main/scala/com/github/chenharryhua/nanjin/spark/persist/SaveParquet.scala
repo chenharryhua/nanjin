@@ -14,6 +14,7 @@ final class SaveParquet[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A], cfg: H
   private def updateConfig(cfg: HoarderConfig): SaveParquet[F, A] =
     new SaveParquet[F, A](ds, encoder, cfg)
 
+  def append: SaveParquet[F, A]         = updateConfig(cfg.withAppend)
   def overwrite: SaveParquet[F, A]      = updateConfig(cfg.withOverwrite)
   def errorIfExists: SaveParquet[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: SaveParquet[F, A] = updateConfig(cfg.withIgnore)
@@ -43,7 +44,7 @@ final class SaveParquet[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A], cfg: H
       case FolderOrFile.Folder =>
         sma.checkAndRun(blocker)(F.delay {
           ds.sparkSession.sparkContext.hadoopConfiguration.addResource(hadoopConfiguration)
-          ds.write.option("compression", ccn.name()).mode(SaveMode.Overwrite).parquet(params.outPath)
+          ds.write.option("compression", ccn.name()).mode(params.saveMode).parquet(params.outPath)
         })
     }
   }

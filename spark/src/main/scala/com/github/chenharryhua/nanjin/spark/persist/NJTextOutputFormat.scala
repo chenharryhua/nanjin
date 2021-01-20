@@ -17,7 +17,7 @@ final class NJTextOutputFormat extends FileOutputFormat[NullWritable, Text] {
   override def getRecordWriter(job: TaskAttemptContext): RecordWriter[NullWritable, Text] = {
     val conf: Configuration   = job.getConfiguration
     val isCompressed: Boolean = getCompressOutput(job)
-    val suffix: String        = s"-${utils.uuidStr(job)}.${conf.get(NJTextOutputFormat.suffix, "")}"
+    val suffix: String        = s"-${utils.uuidStr(job)}${conf.get(NJTextOutputFormat.suffix, "")}"
     if (isCompressed) {
       val codecClass: Class[_ <: CompressionCodec] =
         getOutputCompressorClass(job, classOf[GzipCodec])

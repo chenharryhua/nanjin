@@ -19,6 +19,7 @@ final class SaveBinaryAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: H
   private def updateConfig(cfg: HoarderConfig): SaveBinaryAvro[F, A] =
     new SaveBinaryAvro[F, A](rdd, encoder, cfg)
 
+  def append: SaveBinaryAvro[F, A]         = updateConfig(cfg.withAppend)
   def overwrite: SaveBinaryAvro[F, A]      = updateConfig(cfg.withOverwrite)
   def errorIfExists: SaveBinaryAvro[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: SaveBinaryAvro[F, A] = updateConfig(cfg.withIgnore)

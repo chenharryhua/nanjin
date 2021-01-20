@@ -7,7 +7,6 @@ import com.github.chenharryhua.nanjin.datetime.sydneyTime
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
 import com.github.chenharryhua.nanjin.spark.SparkSettings
 import org.apache.spark.sql.SparkSession
-import com.github.chenharryhua.nanjin.spark._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -20,16 +19,11 @@ package object spark {
 
   val blocker: Blocker = Blocker.liftExecutionContext(global)
 
-  val ctx: KafkaContext[IO] =
-    KafkaSettings.local.withApplicationId("kafka.stream.test.app").withGroupId("spark.kafka.stream.test").ioContext
-
   val sparkSession: SparkSession = SparkSettings.default
     .withAppName("nj.spark.test")
     .withUI
     .withoutUI
     .withConfigUpdate(_.set("spark.sql.session.timeZone", sydneyTime.toString))
     .session
-
-  val sparKafka: SparKafkaContext[IO] = sparkSession.alongWith(ctx)
 
 }

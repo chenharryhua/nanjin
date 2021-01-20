@@ -14,6 +14,7 @@ final class SaveJackson[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Hoar
   private def updateConfig(cfg: HoarderConfig): SaveJackson[F, A] =
     new SaveJackson[F, A](rdd, encoder, cfg)
 
+  def append: SaveJackson[F, A]         = updateConfig(cfg.withAppend)
   def overwrite: SaveJackson[F, A]      = updateConfig(cfg.withOverwrite)
   def errorIfExists: SaveJackson[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: SaveJackson[F, A] = updateConfig(cfg.withIgnore)

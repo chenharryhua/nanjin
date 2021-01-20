@@ -15,6 +15,7 @@ final class SaveCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull: Bool
   private def updateConfig(cfg: HoarderConfig): SaveCirce[F, A] =
     new SaveCirce[F, A](rdd, cfg, isKeepNull)
 
+  def append: SaveCirce[F, A]         = updateConfig(cfg.withAppend)
   def overwrite: SaveCirce[F, A]      = updateConfig(cfg.withOverwrite)
   def errorIfExists: SaveCirce[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: SaveCirce[F, A] = updateConfig(cfg.withIgnore)

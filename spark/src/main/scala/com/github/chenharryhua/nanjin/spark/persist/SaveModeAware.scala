@@ -12,12 +12,11 @@ final private[persist] class SaveModeAware[F[_]](
   hadoopConfiguration: Configuration)
     extends Serializable {
 
-  def checkAndRun(blocker: Blocker)(
-    f: F[Unit])(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
+  def checkAndRun(blocker: Blocker)(f: F[Unit])(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
     val hadoop: NJHadoop[F] = NJHadoop[F](hadoopConfiguration, blocker)
 
     saveMode match {
-      case SaveMode.Append    => F.raiseError(new Exception("append mode is not support"))
+      case SaveMode.Append    => f
       case SaveMode.Overwrite => hadoop.delete(outPath) >> f
       case SaveMode.ErrorIfExists =>
         hadoop.isExist(outPath).flatMap {

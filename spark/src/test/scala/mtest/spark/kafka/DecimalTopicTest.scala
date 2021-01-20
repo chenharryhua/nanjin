@@ -4,11 +4,10 @@ import cats.effect.IO
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.cats.implicits._
 import io.circe.generic.auto._
-import mtest.spark.{blocker, contextShift, ctx, sparKafka, sparkSession}
+import mtest.spark.{blocker, contextShift}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant

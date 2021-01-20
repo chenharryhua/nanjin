@@ -13,6 +13,7 @@ final class SaveText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: String) e
   private def updateConfig(cfg: HoarderConfig): SaveText[F, A] =
     new SaveText[F, A](rdd, cfg, suffix)
 
+  def append: SaveText[F, A]         = updateConfig(cfg.withAppend)
   def overwrite: SaveText[F, A]      = updateConfig(cfg.withOverwrite)
   def errorIfExists: SaveText[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: SaveText[F, A] = updateConfig(cfg.withIgnore)

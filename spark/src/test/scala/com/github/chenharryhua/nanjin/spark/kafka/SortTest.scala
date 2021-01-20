@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
-import mtest.spark.{ctx, sparKafka, sparkSession}
+import mtest.spark.kafka.{ctx, sparKafka}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
@@ -22,7 +22,7 @@ class SortTest extends AnyFunSuite {
     NJConsumerRecord[Int, Int](2, 100, 100, Some(2), Some(Random.nextInt()), "topic", 0),
     NJConsumerRecord[Int, Int](2, 100, 100, Some(2), Some(Random.nextInt()), "topic", 0)
   )
-  val rdd   = sparkSession.sparkContext.parallelize(data)
+  val rdd   = sparKafka.sparkSession.sparkContext.parallelize(data)
   val crRdd = sparKafka.topic(topic).crRdd(rdd)
   val crDS  = crRdd.crDS
   val prRdd = crRdd.prRdd

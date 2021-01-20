@@ -16,6 +16,7 @@ final class SaveProtobuf[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends Seria
   private def updateConfig(cfg: HoarderConfig): SaveProtobuf[F, A] =
     new SaveProtobuf[F, A](rdd, cfg)
 
+  def append: SaveProtobuf[F, A]         = updateConfig(cfg.withAppend)
   def overwrite: SaveProtobuf[F, A]      = updateConfig(cfg.withOverwrite)
   def errorIfExists: SaveProtobuf[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: SaveProtobuf[F, A] = updateConfig(cfg.withIgnore)

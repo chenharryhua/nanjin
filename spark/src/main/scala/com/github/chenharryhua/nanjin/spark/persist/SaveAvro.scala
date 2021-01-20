@@ -17,6 +17,7 @@ final class SaveAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Hoarder
   private def updateConfig(cfg: HoarderConfig): SaveAvro[F, A] =
     new SaveAvro[F, A](rdd, encoder, cfg)
 
+  def append: SaveAvro[F, A]         = updateConfig(cfg.withAppend)
   def overwrite: SaveAvro[F, A]      = updateConfig(cfg.withOverwrite)
   def errorIfExists: SaveAvro[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: SaveAvro[F, A] = updateConfig(cfg.withIgnore)
