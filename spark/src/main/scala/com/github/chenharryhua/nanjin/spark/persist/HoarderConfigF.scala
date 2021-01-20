@@ -29,12 +29,7 @@ private[persist] object FolderOrFile extends Enum[FolderOrFile] {
 private[persist] object HoarderParams {
 
   def apply(outPath: String): HoarderParams =
-    HoarderParams(
-      NJFileFormat.Unknown,
-      outPath,
-      FolderOrFile.Folder,
-      SaveMode.Overwrite,
-      Compression.Uncompressed)
+    HoarderParams(NJFileFormat.Unknown, outPath, FolderOrFile.Folder, SaveMode.Overwrite, Compression.Uncompressed)
 }
 
 sealed private[persist] trait HoarderConfigF[_]
@@ -74,6 +69,7 @@ final private[persist] case class HoarderConfig(value: Fix[HoarderConfigF]) {
   def withError: HoarderConfig     = withSaveMode(SaveMode.ErrorIfExists)
   def withIgnore: HoarderConfig    = withSaveMode(SaveMode.Ignore)
   def withOverwrite: HoarderConfig = withSaveMode(SaveMode.Overwrite)
+  def withAppend: HoarderConfig    = withSaveMode(SaveMode.Append)
 
   def withOutPutPath(outPath: String): HoarderConfig =
     HoarderConfig(Fix(WithOutputPath(outPath, value)))
