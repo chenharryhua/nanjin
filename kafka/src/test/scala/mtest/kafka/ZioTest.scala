@@ -1,9 +1,7 @@
 package mtest.kafka
 
-import cats.derived.auto.show._
-import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka._
-import org.scalatest.Ignore
+import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.scalatest.funsuite.AnyFunSuite
 import zio.blocking.Blocking
 import zio.clock.Clock
@@ -14,12 +12,15 @@ import zio.random.Random
 import zio.system.System
 import zio.{Runtime, Task}
 
+import scala.concurrent.duration._
+
 class ZioTest extends AnyFunSuite {
   type Environment = Clock with Console with System with Random with Blocking
 
   implicit val runtime: Runtime[zio.ZEnv] = Runtime.default
 
-  val ctx: KafkaContext[Task] = KafkaSettings.local.zioContext
+  val ctx: KafkaContext[Task] =
+    KafkaSettings.local.withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest").zioContext
 
   val topic: KafkaTopic[Task, Array[Byte], trip_record] =
     TopicDef[Array[Byte], trip_record](TopicName("nyc_yellow_taxi_trip_data")).in(ctx)
@@ -32,6 +33,7 @@ class ZioTest extends AnyFunSuite {
       .take(1)
       .map(_.toString)
       .map(println)
+      .interruptAfter(5.seconds)
       .compile
       .drain
       .run

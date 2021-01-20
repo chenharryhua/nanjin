@@ -55,11 +55,9 @@ final case class KafkaAppId(value: String) extends AnyVal
       .composeLens(at(key))
       .set(Some(value))(this)
 
-  def withBrokers(brokers: String): KafkaSettings =
-    updateAll(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, brokers)
-
-  def withSaslJaas(sasl: String): KafkaSettings =
-    updateAll(SaslConfigs.SASL_JAAS_CONFIG, sasl)
+  def withBrokers(brokers: String): KafkaSettings   = updateAll(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, brokers)
+  def withSaslJaas(sasl: String): KafkaSettings     = updateAll(SaslConfigs.SASL_JAAS_CONFIG, sasl)
+  def withClientID(clientID: String): KafkaSettings = updateAll(CommonClientConfigs.CLIENT_ID_CONFIG, clientID)
 
   def withSecurityProtocol(sp: SecurityProtocol): KafkaSettings =
     updateAll(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, sp.name)
@@ -100,14 +98,15 @@ object KafkaSettings {
     SchemaRegistrySettings(Map.empty)
   )
 
-  def apply(brokers: String, schemaRegistry: String): KafkaSettings =
+  def apply(brokers: String, schemaRegistry: String): KafkaSettings = {
+    val rand: String = utils.random4d.value.toString
     empty
       .withBrokers(brokers)
       .withSchemaRegistryProperty(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistry)
-      .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
-      .withGroupId(s"nanjin.group.id-${utils.random4d.value}")
-      .withApplicationId(s"nanjin.app.id-${utils.random4d.value}")
       .withSecurityProtocol(SecurityProtocol.PLAINTEXT)
+      .withGroupId(s"nanjin.group.id-$rand")
+      .withApplicationId(s"nanjin.app.id-$rand")
+  }
 
   val local: KafkaSettings = apply("localhost:9092", "http://localhost:8081")
 }
