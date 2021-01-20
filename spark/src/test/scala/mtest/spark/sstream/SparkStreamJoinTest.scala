@@ -5,11 +5,12 @@ import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.kafka._
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import frameless.TypedDataset
-import mtest.spark.{contextShift, sparKafka, sparkSession, timer}
+import mtest.spark.{contextShift, sparkSession, timer}
 import org.apache.spark.sql.streaming.StreamingQueryProgress
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
+import mtest.spark.kafka.{ctx, sparKafka}
 
 import scala.concurrent.duration._
 

@@ -2,7 +2,7 @@ package mtest.spark.kafka
 
 import cats.syntax.all._
 import frameless.cats.implicits._
-import mtest.spark.{contextShift, ctx, sparKafka, timer}
+import mtest.spark.{contextShift, timer}
 import org.scalatest.funsuite.AnyFunSuite
 
 object CopyData {

@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import frameless.TypedEncoder
 import io.scalaland.chimney.dsl._
 import mtest.spark.persist.{Rooster, RoosterData}
-import mtest.spark.{ctx, sparKafka}
+import mtest.spark.kafka.{ctx, sparKafka}
 import org.apache.spark.sql.types._
 import org.scalatest.funsuite.AnyFunSuite
 
