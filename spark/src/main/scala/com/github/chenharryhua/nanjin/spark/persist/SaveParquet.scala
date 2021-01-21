@@ -5,47 +5,64 @@ import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import org.apache.hadoop.conf.Configuration
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
-import org.apache.spark.sql.{Dataset, SaveMode}
+import org.apache.spark.sql.Dataset
 
 final class SaveParquet[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A], cfg: HoarderConfig) extends Serializable {
+  def file: SaveSingleParquet[F, A]  = new SaveSingleParquet[F, A](ds, encoder, cfg)
+  def folder: SaveMultiParquet[F, A] = new SaveMultiParquet[F, A](ds, encoder, cfg)
+}
+
+final class SaveSingleParquet[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A], cfg: HoarderConfig)
+    extends Serializable {
 
   val params: HoarderParams = cfg.evalConfig
 
-  private def updateConfig(cfg: HoarderConfig): SaveParquet[F, A] =
-    new SaveParquet[F, A](ds, encoder, cfg)
+  private def updateConfig(cfg: HoarderConfig): SaveSingleParquet[F, A] =
+    new SaveSingleParquet[F, A](ds, encoder, cfg)
 
-  def append: SaveParquet[F, A]         = updateConfig(cfg.withAppend)
-  def overwrite: SaveParquet[F, A]      = updateConfig(cfg.withOverwrite)
-  def errorIfExists: SaveParquet[F, A]  = updateConfig(cfg.withError)
-  def ignoreIfExists: SaveParquet[F, A] = updateConfig(cfg.withIgnore)
+  def overwrite: SaveSingleParquet[F, A]      = updateConfig(cfg.withOverwrite)
+  def errorIfExists: SaveSingleParquet[F, A]  = updateConfig(cfg.withError)
+  def ignoreIfExists: SaveSingleParquet[F, A] = updateConfig(cfg.withIgnore)
 
-  def outPath(path: String): SaveParquet[F, A] = updateConfig(cfg.withOutPutPath(path))
-
-  def snappy: SaveParquet[F, A]     = updateConfig(cfg.withCompression(Compression.Snappy))
-  def gzip: SaveParquet[F, A]       = updateConfig(cfg.withCompression(Compression.Gzip))
-  def uncompress: SaveParquet[F, A] = updateConfig(cfg.withCompression(Compression.Uncompressed))
-
-  def file: SaveParquet[F, A]   = updateConfig(cfg.withSingleFile)
-  def folder: SaveParquet[F, A] = updateConfig(cfg.withFolder)
+//  def brotli: SaveSingleParquet[F, A]     = updateConfig(cfg.withCompression(Compression.Brotli))
+//  def lzo: SaveSingleParquet[F, A]        = updateConfig(cfg.withCompression(Compression.Lzo))
+//  def lz4: SaveSingleParquet[F, A]        = updateConfig(cfg.withCompression(Compression.Lz4))
+  def snappy: SaveSingleParquet[F, A]     = updateConfig(cfg.withCompression(Compression.Snappy))
+  def gzip: SaveSingleParquet[F, A]       = updateConfig(cfg.withCompression(Compression.Gzip))
+  def uncompress: SaveSingleParquet[F, A] = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
   def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
     val hadoopConfiguration       = new Configuration(ds.sparkSession.sparkContext.hadoopConfiguration)
     val sma: SaveModeAware[F]     = new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
     val ccn: CompressionCodecName = params.compression.parquet
+    sma.checkAndRun(blocker)(
+      ds.rdd.stream[F].through(sinks.parquet(params.outPath, hadoopConfiguration, encoder, ccn, blocker)).compile.drain)
+  }
+}
 
-    params.folderOrFile match {
-      case FolderOrFile.SingleFile =>
-        sma.checkAndRun(blocker)(
-          ds.rdd
-            .stream[F]
-            .through(sinks.parquet(params.outPath, hadoopConfiguration, encoder, ccn, blocker))
-            .compile
-            .drain)
-      case FolderOrFile.Folder =>
-        sma.checkAndRun(blocker)(F.delay {
-          ds.sparkSession.sparkContext.hadoopConfiguration.addResource(hadoopConfiguration)
-          ds.write.option("compression", ccn.name()).mode(params.saveMode).parquet(params.outPath)
-        })
-    }
+final class SaveMultiParquet[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A], cfg: HoarderConfig)
+    extends Serializable {
+
+  val params: HoarderParams = cfg.evalConfig
+
+  private def updateConfig(cfg: HoarderConfig): SaveMultiParquet[F, A] =
+    new SaveMultiParquet[F, A](ds, encoder, cfg)
+
+  def append: SaveMultiParquet[F, A]         = updateConfig(cfg.withAppend)
+  def overwrite: SaveMultiParquet[F, A]      = updateConfig(cfg.withOverwrite)
+  def errorIfExists: SaveMultiParquet[F, A]  = updateConfig(cfg.withError)
+  def ignoreIfExists: SaveMultiParquet[F, A] = updateConfig(cfg.withIgnore)
+
+  def snappy: SaveMultiParquet[F, A]     = updateConfig(cfg.withCompression(Compression.Snappy))
+  def gzip: SaveMultiParquet[F, A]       = updateConfig(cfg.withCompression(Compression.Gzip))
+  def uncompress: SaveMultiParquet[F, A] = updateConfig(cfg.withCompression(Compression.Uncompressed))
+
+  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
+    val hadoopConfiguration   = new Configuration(ds.sparkSession.sparkContext.hadoopConfiguration)
+    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
+
+    sma.checkAndRun(blocker)(F.delay {
+      ds.write.option("compression", params.compression.name).mode(params.saveMode).parquet(params.outPath)
+    })
   }
 }

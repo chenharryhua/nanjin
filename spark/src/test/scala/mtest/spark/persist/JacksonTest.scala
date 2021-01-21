@@ -15,16 +15,7 @@ class JacksonTest extends AnyFunSuite {
 
   test("datetime read/write identity - multi") {
     val path = "./data/test/spark/persist/jackson/rooster/multi.json"
-    rooster
-      .jackson(path)
-      .errorIfExists
-      .ignoreIfExists
-      .overwrite
-      .outPath(path)
-      .folder
-      .uncompress
-      .run(blocker)
-      .unsafeRunSync()
+    rooster.jackson(path).folder.errorIfExists.ignoreIfExists.overwrite.uncompress.run(blocker).unsafeRunSync()
     val r = loaders.rdd.jackson[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession)
     assert(RoosterData.expected == r.collect().toSet)
   }
@@ -70,6 +61,14 @@ class JacksonTest extends AnyFunSuite {
     assert(BeeData.bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
 
+  test("byte-array read/write identity - multi.bzip2") {
+    import cats.implicits._
+    val path = "./data/test/spark/persist/jackson/bee/multi.bzip2.json"
+    bee.jackson(path).folder.bzip2.run(blocker).unsafeRunSync()
+    val t = loaders.rdd.jackson[Bee](path, Bee.avroCodec.avroDecoder, sparkSession).collect().toList
+    assert(BeeData.bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
+  }
+
   test("byte-array read/write identity - multi.deflate") {
     import cats.implicits._
     val path = "./data/test/spark/persist/jackson/bee/multi.deflate.json"
@@ -97,7 +96,7 @@ class JacksonTest extends AnyFunSuite {
   test("jackson jacket") {
     val path  = "./data/test/spark/persist/jackson/jacket.json"
     val saver = new RddAvroFileHoarder[IO, Jacket](JacketData.rdd.repartition(3), Jacket.avroCodec.avroEncoder)
-    saver.jackson(path).run(blocker).unsafeRunSync()
+    saver.jackson(path).folder.run(blocker).unsafeRunSync()
     val t = loaders.rdd.jackson(path, Jacket.avroCodec.avroDecoder, sparkSession)
     assert(JacketData.expected.toSet == t.collect().toSet)
   }

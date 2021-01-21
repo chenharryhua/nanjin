@@ -62,12 +62,12 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
       _ <- rooster.in(ctx).admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- pr.bestEffort(spark.akkaSystem).compile.drain
       _ <- pr.count.map(println)
-      _ <- topic.fromKafka.save.circe(circe).run(blocker)
-      _ <- topic.fromKafka.crDS.save.parquet(parquet).run(blocker)
+      _ <- topic.fromKafka.save.circe(circe).folder.run(blocker)
+      _ <- topic.fromKafka.crDS.save.parquet(parquet).folder.run(blocker)
       _ <- topic.fromKafka.crDS.save.json(json).run(blocker)
-      _ <- topic.fromKafka.save.avro(avro).run(blocker)
-      _ <- topic.fromKafka.save.jackson(jackson).run(blocker)
-      _ <- topic.fromKafka.save.binAvro(avroBin).run(blocker)
+      _ <- topic.fromKafka.save.avro(avro).folder.run(blocker)
+      _ <- topic.fromKafka.save.jackson(jackson).folder.run(blocker)
+      _ <- topic.fromKafka.save.binAvro(avroBin).folder.run(blocker)
       _ <- topic.fromKafka.save.objectFile(obj).run(blocker)
     } yield {
       val circeds  = topic.load.circe(circe).dataset.collect().flatMap(_.value).toSet

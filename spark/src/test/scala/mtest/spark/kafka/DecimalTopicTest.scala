@@ -89,10 +89,10 @@ class DecimalTopicTest extends AnyFunSuite {
     val ds  = stopic.load.circe(path)
 
     rdd.save.objectFile("./data/test/spark/kafka/decimal.obj").run(blocker).unsafeRunSync()
-    rdd.save.avro("./data/test/spark/kafka/decimal.avro").run(blocker).unsafeRunSync()
+    rdd.save.avro("./data/test/spark/kafka/decimal.avro").folder.run(blocker).unsafeRunSync()
 
-    ds.save.parquet("./data/test/spark/kafka/decimal.avro").run(blocker).unsafeRunSync()
-    ds.save.jackson("./data/test/spark/kafka/decimal.jackson.json").run(blocker).unsafeRunSync()
+    ds.save.parquet("./data/test/spark/kafka/decimal.avro").folder.run(blocker).unsafeRunSync()
+    ds.save.jackson("./data/test/spark/kafka/decimal.jackson.json").folder.run(blocker).unsafeRunSync()
 
     assert(rdd.rdd.collect().head.value.get == expected)
     assert(ds.dataset.collect().head.value.get == expected)
