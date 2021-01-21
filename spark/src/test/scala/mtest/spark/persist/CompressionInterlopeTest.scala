@@ -107,8 +107,8 @@ class CompressionInterlopeTest extends AnyFunSuite {
       c <- rooster.avro(root + "avro3").snappy.folder.run(blocker).attempt.start
       d <- rooster.avro(root + "avro4").xz(2).folder.run(blocker).start
 
-      e <- rooster.jackson(root + "jackson1").gzip.run(blocker).start
-      f <- rooster.jackson(root + "jackson2").deflate(4).run(blocker).start
+      e <- rooster.jackson(root + "jackson1").folder.gzip.run(blocker).start
+      f <- rooster.jackson(root + "jackson2").folder.deflate(4).run(blocker).start
 
       g <- rooster.binAvro(root + "binAvro").folder.run(blocker).start
 
@@ -125,8 +125,8 @@ class CompressionInterlopeTest extends AnyFunSuite {
       o <- rooster.text(root + "text1").folder.deflate(5).run(blocker).start
       p <- rooster.text(root + "text2").folder.gzip.run(blocker).start
 
-      r <- rooster.csv(root + "csv1").deflate(5).run(blocker).start
-      s <- rooster.csv(root + "csv2").gzip.run(blocker).start
+      r <- rooster.csv(root + "csv1").folder.deflate(5).run(blocker).start
+      s <- rooster.csv(root + "csv2").folder.gzip.run(blocker).start
 
       _ <- a.join
       _ <- b.join

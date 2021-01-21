@@ -15,16 +15,7 @@ class JacksonTest extends AnyFunSuite {
 
   test("datetime read/write identity - multi") {
     val path = "./data/test/spark/persist/jackson/rooster/multi.json"
-    rooster
-      .jackson(path)
-      .errorIfExists
-      .ignoreIfExists
-      .overwrite
-      .outPath(path)
-      .folder
-      .uncompress
-      .run(blocker)
-      .unsafeRunSync()
+    rooster.jackson(path).folder.errorIfExists.ignoreIfExists.overwrite.uncompress.run(blocker).unsafeRunSync()
     val r = loaders.rdd.jackson[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession)
     assert(RoosterData.expected == r.collect().toSet)
   }
@@ -97,7 +88,7 @@ class JacksonTest extends AnyFunSuite {
   test("jackson jacket") {
     val path  = "./data/test/spark/persist/jackson/jacket.json"
     val saver = new RddAvroFileHoarder[IO, Jacket](JacketData.rdd.repartition(3), Jacket.avroCodec.avroEncoder)
-    saver.jackson(path).run(blocker).unsafeRunSync()
+    saver.jackson(path).folder.run(blocker).unsafeRunSync()
     val t = loaders.rdd.jackson(path, Jacket.avroCodec.avroDecoder, sparkSession)
     assert(JacketData.expected.toSet == t.collect().toSet)
   }

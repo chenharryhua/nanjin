@@ -11,8 +11,6 @@ import org.apache.spark.sql.{Dataset, SaveMode}
 final class SaveCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfiguration, cfg: HoarderConfig)
     extends Serializable {
 
-  val params: HoarderParams = cfg.evalConfig
-
   def updateCsvConfig(f: CsvConfiguration => CsvConfiguration): SaveCsv[F, A] =
     new SaveCsv[F, A](ds, f(csvConfiguration), cfg)
 
@@ -23,59 +21,77 @@ final class SaveCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfiguration,
   def withQuote(char: Char): SaveCsv[F, A]         = updateCsvConfig(_.withQuote(char))
   def withCellSeparator(char: Char): SaveCsv[F, A] = updateCsvConfig(_.withCellSeparator(char))
 
-  private def updateConfig(cfg: HoarderConfig): SaveCsv[F, A] =
-    new SaveCsv[F, A](ds, csvConfiguration, cfg)
+  def file: SaveSingleCsv[F, A]  = new SaveSingleCsv[F, A](ds, csvConfiguration, cfg)
+  def folder: SaveMultiCsv[F, A] = new SaveMultiCsv[F, A](ds, csvConfiguration, cfg)
+}
 
-  def append: SaveCsv[F, A]         = updateConfig(cfg.withAppend)
-  def overwrite: SaveCsv[F, A]      = updateConfig(cfg.withOverwrite)
-  def errorIfExists: SaveCsv[F, A]  = updateConfig(cfg.withError)
-  def ignoreIfExists: SaveCsv[F, A] = updateConfig(cfg.withIgnore)
+final class SaveSingleCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfiguration, cfg: HoarderConfig)
+    extends Serializable {
+  val params: HoarderParams = cfg.evalConfig
 
-  def outPath(path: String): SaveCsv[F, A] = updateConfig(cfg.withOutPutPath(path))
+  private def updateConfig(cfg: HoarderConfig): SaveSingleCsv[F, A] =
+    new SaveSingleCsv[F, A](ds, csvConfiguration, cfg)
 
-  def file: SaveCsv[F, A]   = updateConfig(cfg.withSingleFile)
-  def folder: SaveCsv[F, A] = updateConfig(cfg.withFolder)
+  def overwrite: SaveSingleCsv[F, A]      = updateConfig(cfg.withOverwrite)
+  def errorIfExists: SaveSingleCsv[F, A]  = updateConfig(cfg.withError)
+  def ignoreIfExists: SaveSingleCsv[F, A] = updateConfig(cfg.withIgnore)
 
-  def gzip: SaveCsv[F, A]                = updateConfig(cfg.withCompression(Compression.Gzip))
-  def deflate(level: Int): SaveCsv[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(level)))
-  def uncompress: SaveCsv[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
+  def gzip: SaveSingleCsv[F, A]                = updateConfig(cfg.withCompression(Compression.Gzip))
+  def deflate(level: Int): SaveSingleCsv[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(level)))
+  def uncompress: SaveSingleCsv[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], rowEncoder: RowEncoder[A]): F[Unit] = {
     val hadoopConfiguration   = new Configuration(ds.sparkSession.sparkContext.hadoopConfiguration)
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
+    val csvConf =
+      if (csvConfiguration.hasHeader)
+        csvConfiguration.withHeader(ds.schema.fieldNames: _*)
+      else csvConfiguration
 
-    params.folderOrFile match {
-      case FolderOrFile.SingleFile =>
-        val hadoop = NJHadoop[F](hadoopConfiguration, blocker)
-        val csvConf =
-          if (csvConfiguration.hasHeader)
-            csvConfiguration.withHeader(ds.schema.fieldNames: _*)
-          else csvConfiguration
+    sma.checkAndRun(blocker)(
+      ds.rdd
+        .stream[F]
+        .through(sinks.csv(params.outPath, hadoopConfiguration, csvConf, params.compression.fs2Compression, blocker))
+        .compile
+        .drain)
+  }
 
-        sma.checkAndRun(blocker)(
-          ds.rdd
-            .stream[F]
-            .through(
-              sinks.csv(params.outPath, hadoopConfiguration, csvConf, params.compression.fs2Compression, blocker))
-            .compile
-            .drain)
+}
 
-      case FolderOrFile.Folder =>
-        val quoteAll = csvConfiguration.quotePolicy match {
-          case QuotePolicy.Always     => true
-          case QuotePolicy.WhenNeeded => false
-        }
-        val csv = F.delay(
-          ds.write
-            .mode(params.saveMode)
-            .option("compression", params.compression.name)
-            .option("sep", csvConfiguration.cellSeparator.toString)
-            .option("header", csvConfiguration.hasHeader)
-            .option("quote", csvConfiguration.quote.toString)
-            .option("quoteAll", quoteAll)
-            .option("charset", "UTF8")
-            .csv(params.outPath))
-        sma.checkAndRun(blocker)(csv)
+final class SaveMultiCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfiguration, cfg: HoarderConfig)
+    extends Serializable {
+  val params: HoarderParams = cfg.evalConfig
+
+  private def updateConfig(cfg: HoarderConfig): SaveMultiCsv[F, A] =
+    new SaveMultiCsv[F, A](ds, csvConfiguration, cfg)
+
+  def append: SaveMultiCsv[F, A]         = updateConfig(cfg.withAppend)
+  def overwrite: SaveMultiCsv[F, A]      = updateConfig(cfg.withOverwrite)
+  def errorIfExists: SaveMultiCsv[F, A]  = updateConfig(cfg.withError)
+  def ignoreIfExists: SaveMultiCsv[F, A] = updateConfig(cfg.withIgnore)
+
+  def gzip: SaveMultiCsv[F, A]                = updateConfig(cfg.withCompression(Compression.Gzip))
+  def deflate(level: Int): SaveMultiCsv[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(level)))
+  def uncompress: SaveMultiCsv[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
+
+  def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], rowEncoder: RowEncoder[A]): F[Unit] = {
+    val hadoopConfiguration   = new Configuration(ds.sparkSession.sparkContext.hadoopConfiguration)
+    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
+    val quoteAll = csvConfiguration.quotePolicy match {
+      case QuotePolicy.Always     => true
+      case QuotePolicy.WhenNeeded => false
+    }
+    sma.checkAndRun(blocker) {
+      F.delay(
+        ds.write
+          .mode(params.saveMode)
+          .option("compression", params.compression.name)
+          .option("sep", csvConfiguration.cellSeparator.toString)
+          .option("header", csvConfiguration.hasHeader)
+          .option("quote", csvConfiguration.quote.toString)
+          .option("quoteAll", quoteAll)
+          .option("charset", "UTF8")
+          .csv(params.outPath))
     }
   }
 }
