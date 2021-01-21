@@ -53,6 +53,7 @@ final class SaveMultiJackson[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg:
   def errorIfExists: SaveMultiJackson[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: SaveMultiJackson[F, A] = updateConfig(cfg.withIgnore)
 
+  def bzip2: SaveMultiJackson[F, A]               = updateConfig(cfg.withCompression(Compression.Bzip2))
   def gzip: SaveMultiJackson[F, A]                = updateConfig(cfg.withCompression(Compression.Gzip))
   def deflate(level: Int): SaveMultiJackson[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(level)))
   def uncompress: SaveMultiJackson[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))

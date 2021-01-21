@@ -70,6 +70,7 @@ final class SaveMultiCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfigura
   def errorIfExists: SaveMultiCsv[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: SaveMultiCsv[F, A] = updateConfig(cfg.withIgnore)
 
+  def bzip2: SaveMultiCsv[F, A]               = updateConfig(cfg.withCompression(Compression.Bzip2))
   def gzip: SaveMultiCsv[F, A]                = updateConfig(cfg.withCompression(Compression.Gzip))
   def deflate(level: Int): SaveMultiCsv[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(level)))
   def uncompress: SaveMultiCsv[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))

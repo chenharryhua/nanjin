@@ -42,6 +42,13 @@ class CsvTest extends AnyFunSuite {
     assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
   }
 
+  test("tablet read/write identity multi.bzip2") {
+    val path = "./data/test/spark/persist/csv/tablet/bzip2.deflate"
+    saver.csv(path).folder.bzip2.run(blocker).unsafeRunSync()
+    val t = loaders.csv(path, Tablet.ate, sparkSession)
+    assert(data.toSet == t.collect[IO]().unsafeRunSync().toSet)
+  }
+
   test("tablet read/write identity single.uncompressed") {
     val path = "./data/test/spark/persist/csv/tablet/tablet.csv"
     saver.csv(path).withoutHeader.quoteWhenNeeded.file.run(blocker).unsafeRunSync()
