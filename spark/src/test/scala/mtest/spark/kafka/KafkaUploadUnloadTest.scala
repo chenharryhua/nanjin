@@ -67,7 +67,7 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
       _ <- topic.fromKafka.crDS.save.json(json).run(blocker)
       _ <- topic.fromKafka.save.avro(avro).folder.run(blocker)
       _ <- topic.fromKafka.save.jackson(jackson).run(blocker)
-      _ <- topic.fromKafka.save.binAvro(avroBin).run(blocker)
+      _ <- topic.fromKafka.save.binAvro(avroBin).folder.run(blocker)
       _ <- topic.fromKafka.save.objectFile(obj).run(blocker)
     } yield {
       val circeds  = topic.load.circe(circe).dataset.collect().flatMap(_.value).toSet
