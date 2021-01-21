@@ -122,8 +122,8 @@ class CompressionInterlopeTest extends AnyFunSuite {
       m <- rooster.json(root + "json2").deflate(3).run(blocker).start
       n <- rooster.json(root + "json3").bzip2.run(blocker).start
 
-      o <- rooster.text(root + "text1").deflate(5).run(blocker).start
-      p <- rooster.text(root + "text2").gzip.run(blocker).start
+      o <- rooster.text(root + "text1").folder.deflate(5).run(blocker).start
+      p <- rooster.text(root + "text2").folder.gzip.run(blocker).start
 
       r <- rooster.csv(root + "csv1").deflate(5).run(blocker).start
       s <- rooster.csv(root + "csv2").gzip.run(blocker).start

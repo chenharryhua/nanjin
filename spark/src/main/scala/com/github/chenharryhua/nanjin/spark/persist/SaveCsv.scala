@@ -41,13 +41,8 @@ final class SaveCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfiguration,
   def uncompress: SaveCsv[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], rowEncoder: RowEncoder[A]): F[Unit] = {
-
-    val hadoopConfiguration = new Configuration(ds.sparkSession.sparkContext.hadoopConfiguration)
-
-    val sma: SaveModeAware[F] =
-      new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
-
-    val ccg: CompressionCodecGroup[F] = params.compression.ccg[F](hadoopConfiguration)
+    val hadoopConfiguration   = new Configuration(ds.sparkSession.sparkContext.hadoopConfiguration)
+    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
@@ -60,7 +55,8 @@ final class SaveCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfiguration,
         sma.checkAndRun(blocker)(
           ds.rdd
             .stream[F]
-            .through(sinks.csv(params.outPath, hadoopConfiguration, csvConf, ccg.compressionPipe, blocker))
+            .through(
+              sinks.csv(params.outPath, hadoopConfiguration, csvConf, params.compression.fs2Compression, blocker))
             .compile
             .drain)
 
@@ -69,11 +65,10 @@ final class SaveCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfiguration,
           case QuotePolicy.Always     => true
           case QuotePolicy.WhenNeeded => false
         }
-        ds.sparkSession.sparkContext.hadoopConfiguration.addResource(hadoopConfiguration)
         val csv = F.delay(
           ds.write
             .mode(params.saveMode)
-            .option("compression", ccg.name)
+            .option("compression", params.compression.name)
             .option("sep", csvConfiguration.cellSeparator.toString)
             .option("header", csvConfiguration.hasHeader)
             .option("quote", csvConfiguration.quote.toString)

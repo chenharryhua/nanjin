@@ -14,7 +14,7 @@ import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 import mtest.spark._
 
-//@DoNotDiscover
+@DoNotDiscover
 class CirceTest extends AnyFunSuite {
 
   val rooster = new RddFileHoarder[IO, Rooster](RoosterData.ds.rdd)

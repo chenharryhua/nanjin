@@ -10,6 +10,7 @@ import org.apache.avro.generic.GenericRecord
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.{BytesWritable, NullWritable}
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.util.CompressionCodecs
 
 import java.io.ByteArrayOutputStream
 
@@ -29,22 +30,22 @@ final class SaveBinaryAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: H
   def file: SaveBinaryAvro[F, A]   = updateConfig(cfg.withSingleFile)
   def folder: SaveBinaryAvro[F, A] = updateConfig(cfg.withFolder)
 
+  private def bytesWritable(a: A): BytesWritable = {
+    val os  = new ByteArrayOutputStream()
+    val aos = AvroOutputStream.binary(encoder).to(os).build()
+    aos.write(a)
+    aos.flush()
+    aos.close()
+    new BytesWritable(os.toByteArray)
+  }
+
   def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
+    val hadoopConfiguration   = new Configuration(rdd.sparkContext.hadoopConfiguration)
+    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
 
-    val hadoopConfiguration = new Configuration(rdd.sparkContext.hadoopConfiguration)
-
-    def bytesWritable(a: A): BytesWritable = {
-      val os  = new ByteArrayOutputStream()
-      val aos = AvroOutputStream.binary(encoder).to(os).build()
-      aos.write(a)
-      aos.flush()
-      aos.close()
-      new BytesWritable(os.toByteArray)
-    }
-
-    val sma: SaveModeAware[F] =
-      new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
-    params.compression.ccg[F](hadoopConfiguration)
+    CompressionCodecs.setCodecConfiguration(
+      hadoopConfiguration,
+      CompressionCodecs.getCodecClassName(params.compression.name))
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>

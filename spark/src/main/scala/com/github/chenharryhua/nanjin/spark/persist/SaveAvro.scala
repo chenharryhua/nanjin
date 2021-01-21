@@ -35,12 +35,9 @@ final class SaveAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Hoarder
 
   def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
 
-    val hadoopConfiguration = new Configuration(rdd.sparkContext.hadoopConfiguration)
-
-    val sma: SaveModeAware[F] =
-      new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
-
-    val cf: CodecFactory = params.compression.avro(hadoopConfiguration)
+    val hadoopConfiguration   = new Configuration(rdd.sparkContext.hadoopConfiguration)
+    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
+    val cf: CodecFactory      = params.compression.avro(hadoopConfiguration)
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>

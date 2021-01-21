@@ -7,6 +7,7 @@ import org.apache.avro.mapreduce.AvroJob
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.util.CompressionCodecs
 
 final class SaveJackson[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderConfig) extends Serializable {
   val params: HoarderParams = cfg.evalConfig
@@ -29,25 +30,24 @@ final class SaveJackson[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Hoar
   def uncompress: SaveJackson[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
   def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
-
-    val hadoopConfiguration = new Configuration(rdd.sparkContext.hadoopConfiguration)
-
-    val sma: SaveModeAware[F] =
-      new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
-
-    val ccg: CompressionCodecGroup[F] = params.compression.ccg[F](hadoopConfiguration)
+    val hadoopConfiguration   = new Configuration(rdd.sparkContext.hadoopConfiguration)
+    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
         sma.checkAndRun(blocker)(
           rdd
             .stream[F]
-            .through(sinks.jackson(params.outPath, hadoopConfiguration, encoder, ccg.compressionPipe, blocker))
+            .through(
+              sinks.jackson(params.outPath, hadoopConfiguration, encoder, params.compression.fs2Compression, blocker))
             .compile
             .drain)
 
       case FolderOrFile.Folder =>
         val sparkjob = F.delay {
+          CompressionCodecs.setCodecConfiguration(
+            hadoopConfiguration,
+            CompressionCodecs.getCodecClassName(params.compression.name))
           val job = Job.getInstance(hadoopConfiguration)
           AvroJob.setOutputKeySchema(job, encoder.schema)
           rdd.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)

@@ -5,6 +5,7 @@ import com.github.chenharryhua.nanjin.spark.RddExt
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.{BytesWritable, NullWritable}
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.util.CompressionCodecs
 import scalapb.GeneratedMessage
 
 import java.io.ByteArrayOutputStream
@@ -27,7 +28,6 @@ final class SaveProtobuf[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends Seria
   def folder: SaveProtobuf[F, A] = updateConfig(cfg.withFolder)
 
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], enc: A <:< GeneratedMessage): F[Unit] = {
-    val hadoopConfiguration = new Configuration(rdd.sparkContext.hadoopConfiguration)
 
     def bytesWritable(a: A): BytesWritable = {
       val os: ByteArrayOutputStream = new ByteArrayOutputStream()
@@ -36,10 +36,12 @@ final class SaveProtobuf[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends Seria
       new BytesWritable(os.toByteArray)
     }
 
-    val sma: SaveModeAware[F] =
-      new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
+    val hadoopConfiguration   = new Configuration(rdd.sparkContext.hadoopConfiguration)
+    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
 
-    params.compression.ccg[F](hadoopConfiguration)
+    CompressionCodecs.setCodecConfiguration(
+      hadoopConfiguration,
+      CompressionCodecs.getCodecClassName(params.compression.name))
 
     params.folderOrFile match {
       case FolderOrFile.SingleFile =>
