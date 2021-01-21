@@ -24,6 +24,9 @@ final class SaveSingleParquet[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A], 
   def errorIfExists: SaveSingleParquet[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: SaveSingleParquet[F, A] = updateConfig(cfg.withIgnore)
 
+//  def brotli: SaveSingleParquet[F, A]     = updateConfig(cfg.withCompression(Compression.Brotli))
+//  def lzo: SaveSingleParquet[F, A]        = updateConfig(cfg.withCompression(Compression.Lzo))
+//  def lz4: SaveSingleParquet[F, A]        = updateConfig(cfg.withCompression(Compression.Lz4))
   def snappy: SaveSingleParquet[F, A]     = updateConfig(cfg.withCompression(Compression.Snappy))
   def gzip: SaveSingleParquet[F, A]       = updateConfig(cfg.withCompression(Compression.Gzip))
   def uncompress: SaveSingleParquet[F, A] = updateConfig(cfg.withCompression(Compression.Uncompressed))
@@ -55,12 +58,11 @@ final class SaveMultiParquet[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A], c
   def uncompress: SaveMultiParquet[F, A] = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
   def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
-    val hadoopConfiguration       = new Configuration(ds.sparkSession.sparkContext.hadoopConfiguration)
-    val sma: SaveModeAware[F]     = new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
-    val ccn: CompressionCodecName = params.compression.parquet
+    val hadoopConfiguration   = new Configuration(ds.sparkSession.sparkContext.hadoopConfiguration)
+    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
 
     sma.checkAndRun(blocker)(F.delay {
-      ds.write.option("compression", ccn.name()).mode(params.saveMode).parquet(params.outPath)
+      ds.write.option("compression", params.compression.name).mode(params.saveMode).parquet(params.outPath)
     })
   }
 }

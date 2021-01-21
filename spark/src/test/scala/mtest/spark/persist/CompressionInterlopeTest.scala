@@ -16,11 +16,11 @@ class CompressionInterlopeTest extends AnyFunSuite {
   test("avro") {
     val root = "./data/test/spark/persist/interlope/avro/rooster/"
     val run = for {
-      a <- rooster.avro(root + "bzip2").bzip2.run(blocker).start
-      b <- rooster.avro(root + "deflate").deflate(1).run(blocker).start
-      c <- rooster.avro(root + "snappy").snappy.run(blocker).start
-      d <- rooster.avro(root + "xz").xz(1).run(blocker).start
-      e <- rooster.avro(root + "uncompress").run(blocker).start
+      a <- rooster.avro(root + "bzip2").bzip2.folder.run(blocker).start
+      b <- rooster.avro(root + "deflate").deflate(1).folder.run(blocker).start
+      c <- rooster.avro(root + "snappy").snappy.folder.run(blocker).start
+      d <- rooster.avro(root + "xz").xz(1).folder.run(blocker).start
+      e <- rooster.avro(root + "uncompress").folder.run(blocker).start
       _ <- a.join
       _ <- b.join
       _ <- c.join
@@ -58,10 +58,10 @@ class CompressionInterlopeTest extends AnyFunSuite {
   test("mix single") {
     val root = "./data/test/spark/persist/interlope/mix-single/"
     val run = for {
-      a <- rooster.avro(root + "avro1.gzip2.avro").file.bzip2.run(blocker).start
-      b <- rooster.avro(root + "avro2.deflate.avro").file.deflate(1).run(blocker).start
-      c <- rooster.avro(root + "avro3.snapp.avro").file.snappy.run(blocker).start
-      d <- rooster.avro(root + "avro4.xz.avro").file.xz(2).run(blocker).start
+      a <- rooster.avro(root + "avro1.gzip2.avro").bzip2.file.run(blocker).start
+      b <- rooster.avro(root + "avro2.deflate.avro").deflate(1).file.run(blocker).start
+      c <- rooster.avro(root + "avro3.snapp.avro").snappy.file.run(blocker).start
+      d <- rooster.avro(root + "avro4.xz.avro").xz(2).file.run(blocker).start
 
       e <- rooster.jackson(root + "jackson1.json.gz").file.gzip.run(blocker).start
       f <- rooster.jackson(root + "jackson2.json.deflate").file.deflate(4).run(blocker).start
@@ -102,10 +102,10 @@ class CompressionInterlopeTest extends AnyFunSuite {
   test("mix multi") {
     val root = "./data/test/spark/persist/interlope/mix-multi/"
     val run = for {
-      a <- rooster.avro(root + "avro1").bzip2.run(blocker).start
-      b <- rooster.avro(root + "avro2").deflate(1).run(blocker).start
-      c <- rooster.avro(root + "avro3").snappy.run(blocker).attempt.start
-      d <- rooster.avro(root + "avro4").xz(2).run(blocker).start
+      a <- rooster.avro(root + "avro1").bzip2.folder.run(blocker).start
+      b <- rooster.avro(root + "avro2").deflate(1).folder.run(blocker).start
+      c <- rooster.avro(root + "avro3").snappy.folder.run(blocker).attempt.start
+      d <- rooster.avro(root + "avro4").xz(2).folder.run(blocker).start
 
       e <- rooster.jackson(root + "jackson1").gzip.run(blocker).start
       f <- rooster.jackson(root + "jackson2").deflate(4).run(blocker).start

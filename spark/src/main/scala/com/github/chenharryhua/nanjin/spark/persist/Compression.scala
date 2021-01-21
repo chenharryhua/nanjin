@@ -43,6 +43,10 @@ sealed private[persist] trait Compression extends Serializable {
     case Compression.Uncompressed => CompressionCodecName.UNCOMPRESSED
     case Compression.Snappy       => CompressionCodecName.SNAPPY
     case Compression.Gzip         => CompressionCodecName.GZIP
+    case Compression.Lz4          => CompressionCodecName.LZ4
+    case Compression.Lzo          => CompressionCodecName.LZO
+    case Compression.Brotli       => CompressionCodecName.BROTLI
+    case Compression.Zstandard(_) => CompressionCodecName.ZSTD
     case c                        => throw new Exception(s"not support $c in parquet")
   }
 
@@ -74,6 +78,14 @@ private[persist] object Compression {
 
   case object Lz4 extends Compression {
     override val name: String = "lz4"
+  }
+
+  case object Lzo extends Compression {
+    override val name: String = "lzo"
+  }
+
+  case object Brotli extends Compression {
+    override val name: String = "brotli"
   }
 
   final case class Deflate(level: Int) extends Compression {

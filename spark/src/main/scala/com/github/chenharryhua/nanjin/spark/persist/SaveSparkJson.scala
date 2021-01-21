@@ -16,8 +16,6 @@ final class SaveSparkJson[F[_], A](ds: Dataset[A], cfg: HoarderConfig, isKeepNul
   def errorIfExists: SaveSparkJson[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: SaveSparkJson[F, A] = updateConfig(cfg.withIgnore)
 
-  def outPath(path: String): SaveSparkJson[F, A] = updateConfig(cfg.withOutPutPath(path))
-
   def gzip: SaveSparkJson[F, A]                = updateConfig(cfg.withCompression(Compression.Gzip))
   def deflate(level: Int): SaveSparkJson[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(level)))
   def bzip2: SaveSparkJson[F, A]               = updateConfig(cfg.withCompression(Compression.Bzip2))
