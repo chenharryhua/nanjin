@@ -19,8 +19,9 @@ final private[persist] case class CompressionCodecGroup[F[_]](
   compressionPipe: Pipe[F, Byte, Byte])
 
 sealed private[persist] trait Compression extends Serializable {
+  def name: String
 
-  def avro(conf: Configuration): CodecFactory = this match {
+  final def avro(conf: Configuration): CodecFactory = this match {
     case Compression.Uncompressed =>
       conf.set(FileOutputFormat.COMPRESS, "false")
       conf.set(AvroJob.CONF_OUTPUT_CODEC, DataFileConstants.NULL_CODEC)
@@ -46,11 +47,18 @@ sealed private[persist] trait Compression extends Serializable {
     case c => throw new Exception(s"not support $c in avro")
   }
 
-  def parquet: CompressionCodecName = this match {
+  final def parquet: CompressionCodecName = this match {
     case Compression.Uncompressed => CompressionCodecName.UNCOMPRESSED
     case Compression.Snappy       => CompressionCodecName.SNAPPY
     case Compression.Gzip         => CompressionCodecName.GZIP
     case c                        => throw new Exception(s"not support $c in parquet")
+  }
+
+  final def fs2Compression[F[_]: Sync]: Pipe[F, Byte, Byte] = this match {
+    case Compression.Uncompressed   => identity
+    case Compression.Gzip           => gzip[F]()
+    case Compression.Deflate(level) => deflate[F](level)
+    case c                          => throw new Exception(s"fs2 Stream does not support codec: $c")
   }
 
   def ccg[F[_]: Sync](conf: Configuration): CompressionCodecGroup[F] =
@@ -75,23 +83,51 @@ sealed private[persist] trait Compression extends Serializable {
         conf.set(FileOutputFormat.COMPRESS, "true")
         conf.set(FileOutputFormat.COMPRESS_CODEC, classOf[BZip2Codec].getName)
         CompressionCodecGroup[F](classOf[BZip2Codec], "bzip2", identity)
+      case Compression.Lz4 =>
+        conf.set(FileOutputFormat.COMPRESS, "true")
+        conf.set(FileOutputFormat.COMPRESS_CODEC, classOf[Lz4Codec].getName)
+        CompressionCodecGroup[F](classOf[Lz4Codec], "lz4", identity)
       case Compression.Zstandard(level) =>
         conf.set(FileOutputFormat.COMPRESS, "true")
         conf.set(FileOutputFormat.COMPRESS_CODEC, classOf[ZStandardCodec].getName)
         conf.set("io.compression.codec.zstd.level", level.toString)
         CompressionCodecGroup[F](classOf[ZStandardCodec], "zstd", identity)
+
       case c => throw new Exception(s"not support $c")
     }
 }
 
 private[persist] object Compression {
 
-  case object Uncompressed extends Compression
-  case object Snappy extends Compression
-  case object Bzip2 extends Compression
-  case object Gzip extends Compression
+  case object Uncompressed extends Compression {
+    override val name = "uncompressed"
+  }
 
-  final case class Deflate(level: Int) extends Compression
-  final case class Xz(level: Int) extends Compression
-  final case class Zstandard(level: Int) extends Compression
+  case object Snappy extends Compression {
+    override val name: String = "snappy"
+  }
+
+  case object Bzip2 extends Compression {
+    override val name: String = "bzip2"
+  }
+
+  case object Gzip extends Compression {
+    override val name: String = "gzip"
+  }
+
+  case object Lz4 extends Compression {
+    override val name: String = "lz4"
+  }
+
+  final case class Deflate(level: Int) extends Compression {
+    override val name: String = "deflate"
+  }
+
+  final case class Xz(level: Int) extends Compression {
+    override val name: String = "xz"
+  }
+
+  final case class Zstandard(level: Int) extends Compression {
+    override val name: String = "zstd"
+  }
 }

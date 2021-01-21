@@ -62,7 +62,7 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
       _ <- rooster.in(ctx).admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- pr.bestEffort(spark.akkaSystem).compile.drain
       _ <- pr.count.map(println)
-      _ <- topic.fromKafka.save.circe(circe).run(blocker)
+      _ <- topic.fromKafka.save.circe(circe).folder.run(blocker)
       _ <- topic.fromKafka.crDS.save.parquet(parquet).run(blocker)
       _ <- topic.fromKafka.crDS.save.json(json).run(blocker)
       _ <- topic.fromKafka.save.avro(avro).run(blocker)

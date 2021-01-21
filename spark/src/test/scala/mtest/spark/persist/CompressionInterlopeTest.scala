@@ -46,9 +46,9 @@ class CompressionInterlopeTest extends AnyFunSuite {
   test("circe") {
     val root = "./data/test/spark/persist/interlope/circe/rooster/"
     val run = for {
-      b <- rooster.circe(root + "deflate").deflate(1).run(blocker).start
-      c <- rooster.circe(root + "gzip").gzip.run(blocker).start
-      a <- rooster.circe(root + "uncompress").run(blocker).start
+      b <- rooster.circe(root + "deflate").folder.deflate(1).run(blocker).start
+      c <- rooster.circe(root + "gzip").folder.gzip.run(blocker).start
+      a <- rooster.circe(root + "uncompress").folder.run(blocker).start
       _ <- a.join
       _ <- b.join
       _ <- c.join
@@ -115,8 +115,8 @@ class CompressionInterlopeTest extends AnyFunSuite {
       h <- rooster.parquet(root + "parquet1").snappy.run(blocker).attempt.start
       i <- rooster.parquet(root + "parquet2").gzip.run(blocker).start
 
-      j <- rooster.circe(root + "circe1").deflate(5).run(blocker).start
-      k <- rooster.circe(root + "circe2").gzip.run(blocker).start
+      j <- rooster.circe(root + "circe1").folder.deflate(5).run(blocker).start
+      k <- rooster.circe(root + "circe2").folder.gzip.run(blocker).start
 
       l <- rooster.json(root + "json1").gzip.run(blocker).start
       m <- rooster.json(root + "json2").deflate(3).run(blocker).start

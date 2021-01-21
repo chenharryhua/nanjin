@@ -9,10 +9,6 @@ import org.scalatest.funsuite.AnyFunSuite
 class SaveModeAwareTest extends AnyFunSuite {
   import mtest.spark._
   val hadoopConfig: Configuration = sparkSession.sparkContext.hadoopConfiguration
-  test("not support append") {
-    val sma = new SaveModeAware[IO](SaveMode.Append, "./data", hadoopConfig)
-    assertThrows[Exception](sma.checkAndRun(blocker)(IO(())).unsafeRunSync())
-  }
 
   test("error if exists") {
     val sma = new SaveModeAware[IO](SaveMode.ErrorIfExists, "./data", hadoopConfig)
