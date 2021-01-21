@@ -144,7 +144,7 @@ class SparkTableTest extends AnyFunSuite {
   }
 
   test("save parquet") {
-    val parquet = saver.parquet(root + "multi.parquet").run(blocker)
+    val parquet = saver.parquet(root + "multi.parquet").folder.run(blocker)
     parquet.unsafeRunSync()
     assert(tb.load.parquet(root + "multi.parquet").dataset.collect.head == dbData)
   }

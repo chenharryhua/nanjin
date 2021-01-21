@@ -112,8 +112,8 @@ class CompressionInterlopeTest extends AnyFunSuite {
 
       g <- rooster.binAvro(root + "binAvro").run(blocker).start
 
-      h <- rooster.parquet(root + "parquet1").snappy.run(blocker).attempt.start
-      i <- rooster.parquet(root + "parquet2").gzip.run(blocker).start
+      h <- rooster.parquet(root + "parquet1").folder.snappy.run(blocker).attempt.start
+      i <- rooster.parquet(root + "parquet2").folder.gzip.run(blocker).start
 
       j <- rooster.circe(root + "circe1").folder.deflate(5).run(blocker).start
       k <- rooster.circe(root + "circe2").folder.gzip.run(blocker).start

@@ -15,16 +15,7 @@ class ParquetTest extends AnyFunSuite {
   test("datetime read/write identity multi.uncompressed") {
     val path  = "./data/test/spark/persist/parquet/rooster/multi.uncompressed.parquet"
     val saver = new DatasetAvroFileHoarder[IO, Rooster](ds, Rooster.avroCodec.avroEncoder)
-    saver
-      .parquet(path)
-      .errorIfExists
-      .ignoreIfExists
-      .overwrite
-      .outPath(path)
-      .folder
-      .uncompress
-      .run(blocker)
-      .unsafeRunSync()
+    saver.parquet(path).folder.errorIfExists.ignoreIfExists.overwrite.uncompress.run(blocker).unsafeRunSync()
     val r = loaders.parquet[Rooster](path, Rooster.ate, sparkSession).dataset.collect.toSet
     assert(expected == r)
   }
@@ -32,7 +23,7 @@ class ParquetTest extends AnyFunSuite {
   test("datetime read/write identity single.uncompressed - happy failure") {
     val path  = "./data/test/spark/persist/parquet/rooster/single/uncompressed.parquet"
     val saver = new DatasetAvroFileHoarder[IO, Rooster](ds, Rooster.avroCodec.avroEncoder)
-    saver.parquet(path).file.uncompress.outPath(path).run(blocker).unsafeRunSync()
+    saver.parquet(path).file.uncompress.run(blocker).unsafeRunSync()
     assertThrows[Exception](loaders.parquet[Rooster](path, Rooster.ate, sparkSession).dataset.collect.toSet)
     // assert(expected == r)
   }
@@ -40,7 +31,7 @@ class ParquetTest extends AnyFunSuite {
   test("datetime read/write identity multi.snappy") {
     val path  = "./data/test/spark/persist/parquet/rooster/multi.snappy.parquet"
     val saver = new DatasetAvroFileHoarder[IO, Rooster](ds, Rooster.avroCodec.avroEncoder)
-    saver.parquet(path).snappy.folder.run(blocker).unsafeRunSync()
+    saver.parquet(path).folder.snappy.run(blocker).unsafeRunSync()
     val r =
       loaders.parquet[Rooster](path, Rooster.ate, sparkSession).dataset.collect.toSet
     assert(expected == r)
@@ -49,7 +40,7 @@ class ParquetTest extends AnyFunSuite {
   test("datetime read/write identity multi.gzip") {
     val path  = "./data/test/spark/persist/parquet/rooster/multi.gzip.parquet"
     val saver = new DatasetAvroFileHoarder[IO, Rooster](ds, Rooster.avroCodec.avroEncoder)
-    saver.parquet(path).gzip.folder.run(blocker).unsafeRunSync()
+    saver.parquet(path).folder.gzip.run(blocker).unsafeRunSync()
     val r =
       loaders.parquet[Rooster](path, Rooster.ate, sparkSession).dataset.collect.toSet
     assert(expected == r)

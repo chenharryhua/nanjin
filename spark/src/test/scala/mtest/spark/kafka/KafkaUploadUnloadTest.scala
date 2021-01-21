@@ -63,7 +63,7 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
       _ <- pr.bestEffort(spark.akkaSystem).compile.drain
       _ <- pr.count.map(println)
       _ <- topic.fromKafka.save.circe(circe).folder.run(blocker)
-      _ <- topic.fromKafka.crDS.save.parquet(parquet).run(blocker)
+      _ <- topic.fromKafka.crDS.save.parquet(parquet).folder.run(blocker)
       _ <- topic.fromKafka.crDS.save.json(json).run(blocker)
       _ <- topic.fromKafka.save.avro(avro).run(blocker)
       _ <- topic.fromKafka.save.jackson(jackson).run(blocker)

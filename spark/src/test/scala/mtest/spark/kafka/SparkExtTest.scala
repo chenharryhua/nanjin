@@ -80,7 +80,11 @@ class SparkExtTest extends AnyFunSuite {
     rdd.save[IO](ate.avroCodec.avroEncoder).avro("./data/test/spark/sytax/rdd/avro").run(blocker).unsafeRunSync()
     rdd.save[IO].circe("./data/test/spark/sytax/rdd/circe").folder.run(blocker).unsafeRunSync()
     val ds = TypedDataset.create(rdd)
-    ds.save[IO](ate.avroCodec.avroEncoder).parquet("./data/test/spark/sytax/ds/parquet").run(blocker).unsafeRunSync()
+    ds.save[IO](ate.avroCodec.avroEncoder)
+      .parquet("./data/test/spark/sytax/ds/parquet")
+      .folder
+      .run(blocker)
+      .unsafeRunSync()
     ds.save[IO].json("./data/test/spark/sytax/ds/json").run(blocker).unsafeRunSync()
   }
 }
