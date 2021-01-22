@@ -24,6 +24,7 @@ final class NJAvroKeyOutputFormat extends AvroOutputFormatBase[AvroKey[GenericRe
     val outDir = FileOutputFormat.getOutputPath(job)
     if (outDir == null) throw new InvalidJobConfException("Output directory not set.")
     TokenCache.obtainTokensForNamenodes(job.getCredentials, Array[Path](outDir), job.getConfiguration)
+    if (AvroJob.getOutputKeySchema(job.getConfiguration) == null) throw new InvalidJobConfException("schema not set")
   }
 
   override def getRecordWriter(job: TaskAttemptContext): RecordWriter[AvroKey[GenericRecord], NullWritable] = {
@@ -31,7 +32,6 @@ final class NJAvroKeyOutputFormat extends AvroOutputFormatBase[AvroKey[GenericRe
     val conf: Configuration   = job.getConfiguration
     val isCompressed: Boolean = getCompressOutput(job)
     val syncInterval: Int     = getSyncInterval(job)
-
     if (isCompressed) {
       val cf: CodecFactory            = getCompressionCodec(job)
       val suffix: String              = s"-${utils.uuidStr(job)}.${cf.toString.toLowerCase}.data.avro"

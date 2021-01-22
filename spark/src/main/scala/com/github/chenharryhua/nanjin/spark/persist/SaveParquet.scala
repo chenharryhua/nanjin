@@ -32,11 +32,11 @@ final class SaveSingleParquet[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A], 
   def uncompress: SaveSingleParquet[F, A] = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
   def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
-    val hadoopConfiguration       = new Configuration(ds.sparkSession.sparkContext.hadoopConfiguration)
-    val sma: SaveModeAware[F]     = new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
+    val hc: Configuration         = ds.sparkSession.sparkContext.hadoopConfiguration
+    val sma: SaveModeAware[F]     = new SaveModeAware[F](params.saveMode, params.outPath, hc)
     val ccn: CompressionCodecName = params.compression.parquet
     sma.checkAndRun(blocker)(
-      ds.rdd.stream[F].through(sinks.parquet(params.outPath, hadoopConfiguration, encoder, ccn, blocker)).compile.drain)
+      ds.rdd.stream[F].through(sinks.parquet(params.outPath, hc, encoder, ccn, blocker)).compile.drain)
   }
 }
 
@@ -58,8 +58,8 @@ final class SaveMultiParquet[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A], c
   def uncompress: SaveMultiParquet[F, A] = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
   def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
-    val hadoopConfiguration   = new Configuration(ds.sparkSession.sparkContext.hadoopConfiguration)
-    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
+    val sma: SaveModeAware[F] =
+      new SaveModeAware[F](params.saveMode, params.outPath, ds.sparkSession.sparkContext.hadoopConfiguration)
 
     sma.checkAndRun(blocker)(F.delay {
       ds.write.option("compression", params.compression.name).mode(params.saveMode).parquet(params.outPath)

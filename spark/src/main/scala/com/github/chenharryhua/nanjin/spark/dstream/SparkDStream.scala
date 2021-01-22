@@ -17,11 +17,10 @@ final class SparkDStream[F[_], A](val dstream: DStream[A], encoder: AvroEncoder[
   val sc = new StreamingContext(sparkSession.sparkContext, Duration(120000))
   sc.checkpoint("./data/cp")
 
-  def jackson(
-    blocker: Blocker)(implicit F: ConcurrentEffect[F], cs: ContextShift[F], en: Encoder[A], tag: ClassTag[A]) =
+  def circe(blocker: Blocker)(implicit F: ConcurrentEffect[F], cs: ContextShift[F], en: Encoder[A], tag: ClassTag[A]) =
     dstream.foreachRDD { (rdd, time) =>
       val nj = NJTimestamp(time.milliseconds).`Year=yyyy/Month=mm/Day=dd`(sydneyTime)
-      F.toIO(new RddAvroFileHoarder(rdd.coalesce(1), encoder).circe(s"./data/dstream/$nj").folder.append.run(blocker))
+      F.toIO(new RddAvroFileHoarder[F, A](rdd, encoder).circe(s"./data/dstream/$nj").folder.append.run(blocker))
         .unsafeRunSync()
     }
 }

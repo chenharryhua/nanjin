@@ -5,8 +5,11 @@ import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.cats.implicits._
 import org.apache.avro.file.CodecFactory
+import org.apache.avro.generic.GenericRecord
+import org.apache.avro.mapred.AvroKey
 import org.apache.avro.mapreduce.AvroJob
 import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.io.NullWritable
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
 
@@ -36,11 +39,10 @@ final class SaveSingleAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: H
   def ignoreIfExists: SaveSingleAvro[F, A] = updateConfig(cfg.withIgnore)
 
   def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
-    val hadoopConfiguration   = new Configuration(rdd.sparkContext.hadoopConfiguration)
-    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
-    val cf: CodecFactory      = params.compression.avro(hadoopConfiguration)
-    sma.checkAndRun(blocker)(
-      rdd.stream[F].through(sinks.avro(params.outPath, hadoopConfiguration, encoder, cf, blocker)).compile.drain)
+    val hc: Configuration     = rdd.sparkContext.hadoopConfiguration
+    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hc)
+    val cf: CodecFactory      = params.compression.avro(hc)
+    sma.checkAndRun(blocker)(rdd.stream[F].through(sinks.avro(params.outPath, hc, encoder, cf, blocker)).compile.drain)
   }
 }
 
@@ -56,15 +58,21 @@ final class SaveMultiAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Ho
   def ignoreIfExists: SaveMultiAvro[F, A] = updateConfig(cfg.withIgnore)
 
   def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
-    val hadoopConfiguration   = new Configuration(rdd.sparkContext.hadoopConfiguration)
-    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
+    val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
+    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, config)
 
     sma.checkAndRun(blocker)(F.delay {
-      params.compression.avro(hadoopConfiguration)
-      val job = Job.getInstance(hadoopConfiguration)
+      params.compression.avro(config)
+      val job = Job.getInstance(config)
       AvroJob.setOutputKeySchema(job, encoder.schema)
-      rdd.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
-      utils.genericRecordPair(rdd, encoder).saveAsNewAPIHadoopFile[NJAvroKeyOutputFormat](params.outPath)
+      utils
+        .genericRecordPair(rdd, encoder)
+        .saveAsNewAPIHadoopFile(
+          params.outPath,
+          classOf[AvroKey[GenericRecord]],
+          classOf[NullWritable],
+          classOf[NJAvroKeyOutputFormat],
+          job.getConfiguration)
     })
   }
 }

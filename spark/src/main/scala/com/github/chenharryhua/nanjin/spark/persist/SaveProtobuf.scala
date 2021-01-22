@@ -27,10 +27,9 @@ final class SaveSingleProtobuf[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends
   def ignoreIfExists: SaveSingleProtobuf[F, A] = updateConfig(cfg.withIgnore)
 
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], enc: A <:< GeneratedMessage): F[Unit] = {
-    val hadoopConfiguration   = new Configuration(rdd.sparkContext.hadoopConfiguration)
-    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
-    sma.checkAndRun(blocker)(
-      rdd.stream[F].through(sinks.protobuf(params.outPath, hadoopConfiguration, blocker)).compile.drain)
+    val hc: Configuration     = rdd.sparkContext.hadoopConfiguration
+    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hc)
+    sma.checkAndRun(blocker)(rdd.stream[F].through(sinks.protobuf(params.outPath, hc, blocker)).compile.drain)
   }
 }
 
@@ -55,15 +54,20 @@ final class SaveMultiProtobuf[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends 
       new BytesWritable(os.toByteArray)
     }
 
-    val hadoopConfiguration   = new Configuration(rdd.sparkContext.hadoopConfiguration)
-    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
+    val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
+    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, config)
 
-    rdd.sparkContext.hadoopConfiguration.set(NJBinaryOutputFormat.suffix, params.format.suffix)
     sma.checkAndRun(blocker)(F.delay {
-      CompressionCodecs
-        .setCodecConfiguration(hadoopConfiguration, CompressionCodecs.getCodecClassName(params.compression.name))
-      rdd.sparkContext.hadoopConfiguration.addResource(hadoopConfiguration)
-      rdd.map(x => (NullWritable.get(), bytesWritable(x))).saveAsNewAPIHadoopFile[NJBinaryOutputFormat](params.outPath)
+      config.set(NJBinaryOutputFormat.suffix, params.format.suffix)
+      CompressionCodecs.setCodecConfiguration(config, CompressionCodecs.getCodecClassName(params.compression.name))
+      rdd
+        .map(x => (NullWritable.get(), bytesWritable(x)))
+        .saveAsNewAPIHadoopFile(
+          params.outPath,
+          classOf[NullWritable],
+          classOf[BytesWritable],
+          classOf[NJBinaryOutputFormat],
+          config)
     })
   }
 }

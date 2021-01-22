@@ -1,12 +1,11 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.{Blocker, Concurrent, ContextShift}
-import com.github.chenharryhua.nanjin.devices.NJHadoop
 import com.github.chenharryhua.nanjin.spark.RddExt
 import kantan.csv.CsvConfiguration.QuotePolicy
 import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.hadoop.conf.Configuration
-import org.apache.spark.sql.{Dataset, SaveMode}
+import org.apache.spark.sql.Dataset
 
 final class SaveCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfiguration, cfg: HoarderConfig)
     extends Serializable {
@@ -41,9 +40,9 @@ final class SaveSingleCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfigur
   def uncompress: SaveSingleCsv[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], rowEncoder: RowEncoder[A]): F[Unit] = {
-    val hadoopConfiguration   = new Configuration(ds.sparkSession.sparkContext.hadoopConfiguration)
-    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
-    val csvConf =
+    val hc: Configuration     = ds.sparkSession.sparkContext.hadoopConfiguration
+    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hc)
+    val csvConf: CsvConfiguration =
       if (csvConfiguration.hasHeader)
         csvConfiguration.withHeader(ds.schema.fieldNames: _*)
       else csvConfiguration
@@ -51,7 +50,7 @@ final class SaveSingleCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfigur
     sma.checkAndRun(blocker)(
       ds.rdd
         .stream[F]
-        .through(sinks.csv(params.outPath, hadoopConfiguration, csvConf, params.compression.fs2Compression, blocker))
+        .through(sinks.csv(params.outPath, hc, csvConf, params.compression.fs2Compression, blocker))
         .compile
         .drain)
   }
@@ -76,23 +75,23 @@ final class SaveMultiCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfigura
   def uncompress: SaveMultiCsv[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
   def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], rowEncoder: RowEncoder[A]): F[Unit] = {
-    val hadoopConfiguration   = new Configuration(ds.sparkSession.sparkContext.hadoopConfiguration)
-    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
-    val quoteAll = csvConfiguration.quotePolicy match {
-      case QuotePolicy.Always     => true
-      case QuotePolicy.WhenNeeded => false
-    }
-    sma.checkAndRun(blocker) {
-      F.delay(
-        ds.write
-          .mode(params.saveMode)
-          .option("compression", params.compression.name)
-          .option("sep", csvConfiguration.cellSeparator.toString)
-          .option("header", csvConfiguration.hasHeader)
-          .option("quote", csvConfiguration.quote.toString)
-          .option("quoteAll", quoteAll)
-          .option("charset", "UTF8")
-          .csv(params.outPath))
-    }
+    val sma: SaveModeAware[F] =
+      new SaveModeAware[F](params.saveMode, params.outPath, ds.sparkSession.sparkContext.hadoopConfiguration)
+
+    sma.checkAndRun(blocker)(F.delay {
+      val quoteAll: Boolean = csvConfiguration.quotePolicy match {
+        case QuotePolicy.Always     => true
+        case QuotePolicy.WhenNeeded => false
+      }
+      ds.write
+        .mode(params.saveMode)
+        .option("compression", params.compression.name)
+        .option("sep", csvConfiguration.cellSeparator.toString)
+        .option("header", csvConfiguration.hasHeader)
+        .option("quote", csvConfiguration.quote.toString)
+        .option("quoteAll", quoteAll)
+        .option("charset", "UTF8")
+        .csv(params.outPath)
+    })
   }
 }

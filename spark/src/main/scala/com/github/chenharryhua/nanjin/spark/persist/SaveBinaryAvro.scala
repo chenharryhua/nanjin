@@ -27,10 +27,9 @@ final class SaveSingleBinaryAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], 
   def ignoreIfExists: SaveBinaryAvro[F, A] = updateConfig(cfg.withIgnore)
 
   def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
-    val hadoopConfiguration   = new Configuration(rdd.sparkContext.hadoopConfiguration)
-    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
-    sma.checkAndRun(blocker)(
-      rdd.stream[F].through(sinks.binAvro(params.outPath, hadoopConfiguration, encoder, blocker)).compile.drain)
+    val hc: Configuration     = rdd.sparkContext.hadoopConfiguration
+    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hc)
+    sma.checkAndRun(blocker)(rdd.stream[F].through(sinks.binAvro(params.outPath, hc, encoder, blocker)).compile.drain)
   }
 }
 
@@ -56,14 +55,19 @@ final class SaveMultiBinaryAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], c
   }
 
   def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
-    val hadoopConfiguration   = new Configuration(rdd.sparkContext.hadoopConfiguration)
-    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
+    val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
+    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, config)
     sma.checkAndRun(blocker)(F.delay {
-      CompressionCodecs
-        .setCodecConfiguration(hadoopConfiguration, CompressionCodecs.getCodecClassName(params.compression.name))
-      hadoopConfiguration.set(NJBinaryOutputFormat.suffix, params.format.suffix)
-      rdd.sparkContext.hadoopConfiguration.addResource(hadoopConfiguration)
-      rdd.map(x => (NullWritable.get(), bytesWritable(x))).saveAsNewAPIHadoopFile[NJBinaryOutputFormat](params.outPath)
+      CompressionCodecs.setCodecConfiguration(config, CompressionCodecs.getCodecClassName(params.compression.name))
+      config.set(NJBinaryOutputFormat.suffix, params.format.suffix)
+      rdd
+        .map(x => (NullWritable.get(), bytesWritable(x)))
+        .saveAsNewAPIHadoopFile(
+          params.outPath,
+          classOf[NullWritable],
+          classOf[BytesWritable],
+          classOf[NJBinaryOutputFormat],
+          config)
     })
   }
 }

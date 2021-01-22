@@ -56,19 +56,20 @@ final class SaveMultiText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: Stri
   def uncompress: SaveMultiText[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
   def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F], show: Show[A]): F[Unit] = {
-    val hadoopConfiguration   = new Configuration(rdd.sparkContext.hadoopConfiguration)
-    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
+    val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
+    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, config)
 
-    hadoopConfiguration.set(NJTextOutputFormat.suffix, suffix)
-    CompressionCodecs.setCodecConfiguration(
-      hadoopConfiguration,
-      CompressionCodecs.getCodecClassName(params.compression.name))
-    rdd.sparkContext.hadoopConfiguration.addResource(hadoopConfiguration)
-
-    sma.checkAndRun(blocker)(
-      F.delay(
-        rdd
-          .map(a => (NullWritable.get(), new Text(show.show(a))))
-          .saveAsNewAPIHadoopFile[NJTextOutputFormat](params.outPath)))
+    sma.checkAndRun(blocker)(F.delay {
+      config.set(NJTextOutputFormat.suffix, suffix)
+      CompressionCodecs.setCodecConfiguration(config, CompressionCodecs.getCodecClassName(params.compression.name))
+      rdd
+        .map(a => (NullWritable.get(), new Text(show.show(a))))
+        .saveAsNewAPIHadoopFile(
+          params.outPath,
+          classOf[NullWritable],
+          classOf[Text],
+          classOf[NJTextOutputFormat],
+          config)
+    })
   }
 }

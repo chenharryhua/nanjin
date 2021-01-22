@@ -68,21 +68,22 @@ final class SaveMultiCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull:
     cs: ContextShift[F],
     jsonEncoder: JsonEncoder[A],
     tag: ClassTag[A]): F[Unit] = {
-    def encode(a: A): Json = if (isKeepNull) jsonEncoder(a) else jsonEncoder(a).deepDropNullValues
 
-    val hadoopConfiguration   = new Configuration(rdd.sparkContext.hadoopConfiguration)
-    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
+    val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
+    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, config)
 
-    hadoopConfiguration.set(NJTextOutputFormat.suffix, params.format.suffix)
-    CompressionCodecs.setCodecConfiguration(
-      hadoopConfiguration,
-      CompressionCodecs.getCodecClassName(params.compression.name))
-
-    rdd.sparkContext.hadoopConfiguration.addResource(hadoopConfiguration)
-    sma.checkAndRun(blocker)(
-      F.delay(
-        rdd
-          .map(x => (NullWritable.get(), new Text(encode(x).noSpaces)))
-          .saveAsNewAPIHadoopFile[NJTextOutputFormat](params.outPath)))
+    sma.checkAndRun(blocker)(F.delay {
+      val encode: A => Json = a => if (isKeepNull) jsonEncoder(a) else jsonEncoder(a).deepDropNullValues
+      config.set(NJTextOutputFormat.suffix, params.format.suffix)
+      CompressionCodecs.setCodecConfiguration(config, CompressionCodecs.getCodecClassName(params.compression.name))
+      rdd
+        .map(x => (NullWritable.get(), new Text(encode(x).noSpaces)))
+        .saveAsNewAPIHadoopFile(
+          params.outPath,
+          classOf[NullWritable],
+          classOf[Text],
+          classOf[NJTextOutputFormat],
+          config)
+    })
   }
 }
