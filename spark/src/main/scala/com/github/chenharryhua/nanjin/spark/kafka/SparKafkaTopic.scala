@@ -74,7 +74,7 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
 
   /** DStream
     */
-  def dstream: Reader[StreamingContext, SparkAvroDStream[F, NJConsumerRecord[K, V]]] =
+  def dstream: Reader[StreamingContext, SparkAvroDStream[NJConsumerRecord[K, V]]] =
     Reader((sc: StreamingContext) =>
       new SparkAvroDStream(
         sk.kafkaDStream(topic, sc, params.locationStrategy),

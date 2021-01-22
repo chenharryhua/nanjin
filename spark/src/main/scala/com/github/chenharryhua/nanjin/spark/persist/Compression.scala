@@ -10,7 +10,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 
-sealed private[persist] trait Compression extends Serializable {
+sealed trait Compression extends Serializable {
   def name: String
 
   final def avro(conf: Configuration): CodecFactory = this match {
@@ -58,7 +58,7 @@ sealed private[persist] trait Compression extends Serializable {
   }
 }
 
-private[persist] object Compression {
+object Compression {
 
   case object Uncompressed extends Compression {
     override val name = "uncompressed"

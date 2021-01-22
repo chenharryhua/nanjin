@@ -4,19 +4,20 @@ import cats.data.Reader
 import cats.effect.{Blocker, Sync}
 import org.apache.spark.streaming.StreamingContext
 
-final class DStreamRunner private (sc: StreamingContext, streamings: List[Reader[Blocker, Unit]]) extends Serializable {
+final class DStreamRunner[F[_]] private (sc: StreamingContext) extends Serializable {
 
-  def register[A](rd: Reader[StreamingContext, A])(f: A => Reader[Blocker, Unit]) =
-    new DStreamRunner(sc, f(rd.run(sc)) :: streamings)
+  def register[A](rd: Reader[StreamingContext, A])(f: A => Unit): this.type = {
+    f(rd.run(sc))
+    this
+  }
 
-  def run[F[_]: Sync](blocker: Blocker): F[Unit] =
-    Sync[F].delay {
-      streamings.foreach(_(blocker))
+  def run(blocker: Blocker)(implicit F: Sync[F]): F[Unit] =
+    F.delay {
       sc.start()
       sc.awaitTermination()
     }
 }
 
 object DStreamRunner {
-  def apply(sc: StreamingContext) = new DStreamRunner(sc, Nil)
+  def apply[F[_]](sc: StreamingContext) = new DStreamRunner[F](sc)
 }

@@ -5,12 +5,7 @@ import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.cats.implicits._
 import org.apache.avro.file.CodecFactory
-import org.apache.avro.generic.GenericRecord
-import org.apache.avro.mapred.AvroKey
-import org.apache.avro.mapreduce.AvroJob
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.io.NullWritable
-import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
 
 final class SaveAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderConfig) extends Serializable {
@@ -61,18 +56,6 @@ final class SaveMultiAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Ho
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, config)
 
-    sma.checkAndRun(blocker)(F.delay {
-      params.compression.avro(config)
-      val job = Job.getInstance(config)
-      AvroJob.setOutputKeySchema(job, encoder.schema)
-      utils
-        .genericRecordPair(rdd, encoder)
-        .saveAsNewAPIHadoopFile(
-          params.outPath,
-          classOf[AvroKey[GenericRecord]],
-          classOf[NullWritable],
-          classOf[NJAvroKeyOutputFormat],
-          job.getConfiguration)
-    })
+    sma.checkAndRun(blocker)(F.delay(saveRDD.avro(rdd, params.outPath, encoder, params.compression)))
   }
 }

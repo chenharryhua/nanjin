@@ -14,9 +14,7 @@ final class SaveObjectFile[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends Ser
   def errorIfExists: SaveObjectFile[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: SaveObjectFile[F, A] = updateConfig(cfg.withIgnore)
 
-  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
-    val sma: SaveModeAware[F] =
-      new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-    sma.checkAndRun(blocker)(F.delay(rdd.saveAsObjectFile(params.outPath)))
-  }
+  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
+    new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
+      .checkAndRun(blocker)(F.delay(rdd.saveAsObjectFile(params.outPath)))
 }

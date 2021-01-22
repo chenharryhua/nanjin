@@ -4,9 +4,7 @@ import cats.Show
 import cats.effect.{Blocker, ContextShift, Sync}
 import com.github.chenharryhua.nanjin.spark.RddExt
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.io.{NullWritable, Text}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.util.CompressionCodecs
 
 final class SaveText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: String) extends Serializable {
 
@@ -55,21 +53,7 @@ final class SaveMultiText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: Stri
   def deflate(level: Int): SaveMultiText[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(level)))
   def uncompress: SaveMultiText[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
-  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F], show: Show[A]): F[Unit] = {
-    val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
-    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, config)
-
-    sma.checkAndRun(blocker)(F.delay {
-      config.set(NJTextOutputFormat.suffix, suffix)
-      CompressionCodecs.setCodecConfiguration(config, CompressionCodecs.getCodecClassName(params.compression.name))
-      rdd
-        .map(a => (NullWritable.get(), new Text(show.show(a))))
-        .saveAsNewAPIHadoopFile(
-          params.outPath,
-          classOf[NullWritable],
-          classOf[Text],
-          classOf[NJTextOutputFormat],
-          config)
-    })
-  }
+  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F], show: Show[A]): F[Unit] =
+    new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
+      .checkAndRun(blocker)(F.delay(saveRDD.text(rdd, params.outPath, params.compression, suffix)))
 }

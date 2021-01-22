@@ -23,16 +23,13 @@ final class SaveSparkJson[F[_], A](ds: Dataset[A], cfg: HoarderConfig, isKeepNul
   def keepNull: SaveSparkJson[F, A] = new SaveSparkJson[F, A](ds, cfg, true)
   def dropNull: SaveSparkJson[F, A] = new SaveSparkJson[F, A](ds, cfg, false)
 
-  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
-    val sma: SaveModeAware[F] =
-      new SaveModeAware[F](params.saveMode, params.outPath, ds.sparkSession.sparkContext.hadoopConfiguration)
-
-    sma.checkAndRun(blocker)(F.delay {
-      ds.write
-        .mode(params.saveMode)
-        .option("compression", params.compression.name)
-        .option("ignoreNullFields", !isKeepNull)
-        .json(params.outPath)
-    })
-  }
+  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
+    new SaveModeAware[F](params.saveMode, params.outPath, ds.sparkSession.sparkContext.hadoopConfiguration)
+      .checkAndRun(blocker)(F.delay {
+        ds.write
+          .mode(params.saveMode)
+          .option("compression", params.compression.name)
+          .option("ignoreNullFields", !isKeepNull)
+          .json(params.outPath)
+      })
 }
