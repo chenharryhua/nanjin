@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Foldable
+import cats.data.Reader
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Effect, Sync, Timer}
 import cats.syntax.bifunctor._
 import cats.syntax.foldable._
@@ -8,7 +9,7 @@ import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.spark.dstream.SparkDStream
+import com.github.chenharryhua.nanjin.spark.dstream.SparkAvroDStream
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.github.chenharryhua.nanjin.spark.sstream.{SStreamConfig, SparkSStream}
 import frameless.TypedEncoder
@@ -73,10 +74,11 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
 
   /** DStream
     */
-  def dstream(sc: StreamingContext): SparkDStream[F, NJConsumerRecord[K, V]] =
-    new SparkDStream(
-      sk.kafkaDStream(topic, sc, params.locationStrategy),
-      NJConsumerRecord.avroCodec(topic.topicDef).avroEncoder)
+  def dstream: Reader[StreamingContext, SparkAvroDStream[NJConsumerRecord[K, V]]] =
+    Reader((sc: StreamingContext) =>
+      new SparkAvroDStream(
+        sk.kafkaDStream(topic, sc, params.locationStrategy),
+        NJConsumerRecord.avroCodec(topic.topicDef).avroEncoder))
 
   /** structured stream
     */

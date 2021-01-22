@@ -19,21 +19,36 @@ class TextTest extends AnyFunSuite {
     val saver = new RddFileHoarder[IO, Tablet](rdd)
     saver.text(path).withSuffix(".text").folder.uncompress.run(blocker).unsafeRunSync()
   }
-  test("tablet - gzip") {
+  test("tablet - single gzip") {
     val path  = "./data/test/spark/persist/text/tablet/tablet.txt.gz"
     val saver = new RddFileHoarder[IO, Tablet](rdd)
     saver.text(path).file.gzip.run(blocker).unsafeRunSync()
   }
-  test("tablet - deflate") {
+
+  test("tablet - single deflate") {
+    val path  = "./data/test/spark/persist/text/tablet/tablet.txt.deflate"
+    val saver = new RddFileHoarder[IO, Tablet](rdd)
+    saver.text(path).file.deflate(1).run(blocker).unsafeRunSync()
+  }
+
+  test("tablet - deflate, compress-1") {
     val path  = "./data/test/spark/persist/text/tablet/deflate"
     val saver = new RddFileHoarder[IO, Tablet](rdd)
     saver.text(path).folder.deflate(5).run(blocker).unsafeRunSync()
   }
-  test("tablet - bzip2") {
+
+  test("tablet - gzip, compress-2") {
+    val path  = "./data/test/spark/persist/text/tablet/gzip"
+    val saver = new RddFileHoarder[IO, Tablet](rdd)
+    saver.text(path).folder.gzip.run(blocker).unsafeRunSync()
+  }
+
+  test("tablet - bzip2, compress-3") {
     val path  = "./data/test/spark/persist/text/tablet/bzip2"
     val saver = new RddFileHoarder[IO, Tablet](rdd)
     saver.text(path).folder.bzip2.run(blocker).unsafeRunSync()
   }
+
   test("tablet - append") {
     val path = "./data/test/spark/persist/text/tablet/append"
     val t1 =

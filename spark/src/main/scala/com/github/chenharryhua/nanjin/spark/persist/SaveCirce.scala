@@ -2,13 +2,9 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.{Blocker, ContextShift, Sync}
 import com.github.chenharryhua.nanjin.spark.RddExt
-import io.circe.{Json, Encoder => JsonEncoder}
+import io.circe.{Encoder => JsonEncoder}
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.io.{NullWritable, Text}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.util.CompressionCodecs
-
-import scala.reflect.ClassTag
 
 final class SaveCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull: Boolean) extends Serializable {
   def keepNull: SaveCirce[F, A] = new SaveCirce[F, A](rdd, cfg, true)
@@ -63,26 +59,7 @@ final class SaveMultiCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull:
   def deflate(level: Int): SaveMultiCirce[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(level)))
   def uncompress: SaveMultiCirce[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
-  def run(blocker: Blocker)(implicit
-    F: Sync[F],
-    cs: ContextShift[F],
-    jsonEncoder: JsonEncoder[A],
-    tag: ClassTag[A]): F[Unit] = {
-    def encode(a: A): Json = if (isKeepNull) jsonEncoder(a) else jsonEncoder(a).deepDropNullValues
-
-    val hadoopConfiguration   = new Configuration(rdd.sparkContext.hadoopConfiguration)
-    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hadoopConfiguration)
-
-    hadoopConfiguration.set(NJTextOutputFormat.suffix, params.format.suffix)
-    CompressionCodecs.setCodecConfiguration(
-      hadoopConfiguration,
-      CompressionCodecs.getCodecClassName(params.compression.name))
-
-    rdd.sparkContext.hadoopConfiguration.addResource(hadoopConfiguration)
-    sma.checkAndRun(blocker)(
-      F.delay(
-        rdd
-          .map(x => (NullWritable.get(), new Text(encode(x).noSpaces)))
-          .saveAsNewAPIHadoopFile[NJTextOutputFormat](params.outPath)))
-  }
+  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F], je: JsonEncoder[A]): F[Unit] =
+    new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
+      .checkAndRun(blocker)(F.delay(saveRDD.circe(rdd, params.outPath, params.compression, isKeepNull)))
 }
