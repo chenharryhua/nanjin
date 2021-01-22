@@ -8,8 +8,6 @@ import org.apache.hadoop.io.{NullWritable, Text}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.util.CompressionCodecs
 
-import scala.reflect.ClassTag
-
 final class SaveCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull: Boolean) extends Serializable {
   def keepNull: SaveCirce[F, A] = new SaveCirce[F, A](rdd, cfg, true)
   def dropNull: SaveCirce[F, A] = new SaveCirce[F, A](rdd, cfg, false)
@@ -63,11 +61,7 @@ final class SaveMultiCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull:
   def deflate(level: Int): SaveMultiCirce[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(level)))
   def uncompress: SaveMultiCirce[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
-  def run(blocker: Blocker)(implicit
-    F: Sync[F],
-    cs: ContextShift[F],
-    jsonEncoder: JsonEncoder[A],
-    tag: ClassTag[A]): F[Unit] = {
+  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F], jsonEncoder: JsonEncoder[A]): F[Unit] = {
 
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, config)

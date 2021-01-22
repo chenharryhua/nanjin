@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.data.{Chain, Writer}
+import cats.effect.syntax.all._
 import cats.effect.{Effect, Sync}
 import cats.mtl.Tell
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
@@ -44,7 +45,7 @@ private[kafka] object sk {
     locationStrategy: LocationStrategy,
     sparkSession: SparkSession): RDD[ConsumerRecord[Array[Byte], Array[Byte]]] = {
     val gtp: KafkaTopicPartition[Option[KafkaOffsetRange]] =
-      Effect[F].toIO(topic.shortLiveConsumer.use(_.offsetRangeFor(timeRange))).unsafeRunSync()
+      topic.shortLiveConsumer.use(_.offsetRangeFor(timeRange)).toIO.unsafeRunSync()
     KafkaUtils.createRDD[Array[Byte], Array[Byte]](
       sparkSession.sparkContext,
       props(topic.context.settings.consumerSettings.config),
