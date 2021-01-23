@@ -8,7 +8,7 @@ import org.apache.spark.streaming.dstream.DStream
 
 private[dstream] object persist {
 
-  def circe[A: JsonEncoder](ds: DStream[A])(pathBuilder: NJTimestamp => String): Unit =
+  def circe[A: JsonEncoder](ds: DStream[A])(pathBuilder: NJTimestamp => String): EndMark = {
     ds.foreachRDD { (rdd, time) =>
       if (rdd.isEmpty()) ()
       else {
@@ -16,8 +16,10 @@ private[dstream] object persist {
         saveRDD.circe(rdd, path, Compression.Uncompressed, isKeepNull = true)
       }
     }
+    EndMark()
+  }
 
-  def jackson[A](ds: DStream[A], encoder: AvroEncoder[A])(pathBuilder: NJTimestamp => String): Unit =
+  def jackson[A](ds: DStream[A], encoder: AvroEncoder[A])(pathBuilder: NJTimestamp => String): EndMark = {
     ds.foreachRDD { (rdd, time) =>
       if (rdd.isEmpty()) ()
       else {
@@ -25,8 +27,10 @@ private[dstream] object persist {
         saveRDD.jackson(rdd, path, encoder, Compression.Uncompressed)
       }
     }
+    EndMark()
+  }
 
-  def avro[A](ds: DStream[A], encoder: AvroEncoder[A])(pathBuilder: NJTimestamp => String): Unit =
+  def avro[A](ds: DStream[A], encoder: AvroEncoder[A])(pathBuilder: NJTimestamp => String): EndMark = {
     ds.foreachRDD { (rdd, time) =>
       if (rdd.isEmpty()) ()
       else {
@@ -34,4 +38,6 @@ private[dstream] object persist {
         saveRDD.avro(rdd, path, encoder, Compression.Snappy)
       }
     }
+    EndMark()
+  }
 }

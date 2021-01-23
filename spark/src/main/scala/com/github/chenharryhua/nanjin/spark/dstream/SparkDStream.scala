@@ -12,7 +12,7 @@ sealed class SparkDStream[A](ds: DStream[A]) extends Serializable {
 
   def transform[B: ClassTag](f: RDD[A] => RDD[B]): SparkDStream[B] = new SparkDStream[B](ds.transform(f))
 
-  def circe(path: String)(implicit enc: Encoder[A]): Unit = persist.circe[A](ds)(pathBuilder(path))
+  def circe(path: String)(implicit enc: Encoder[A]): EndMark = persist.circe[A](ds)(pathBuilder(path))
 }
 
 final class SparkAvroDStream[A](ds: DStream[A], encoder: AvroEncoder[A]) extends Serializable {
@@ -23,7 +23,7 @@ final class SparkAvroDStream[A](ds: DStream[A], encoder: AvroEncoder[A]) extends
   def transform(f: RDD[A] => RDD[A])(implicit ev: ClassTag[A]): SparkAvroDStream[A] =
     new SparkAvroDStream[A](ds.transform(f), encoder)
 
-  def circe(path: String)(implicit enc: Encoder[A]): Unit = persist.circe[A](ds)(pathBuilder(path))
-  def avro(path: String): Unit                            = persist.avro(ds, encoder)(pathBuilder(path))
-  def jackson(path: String): Unit                         = persist.jackson(ds, encoder)(pathBuilder(path))
+  def circe(path: String)(implicit enc: Encoder[A]): EndMark = persist.circe[A](ds)(pathBuilder(path))
+  def avro(path: String): EndMark                            = persist.avro(ds, encoder)(pathBuilder(path))
+  def jackson(path: String): EndMark                         = persist.jackson(ds, encoder)(pathBuilder(path))
 }

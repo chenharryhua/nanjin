@@ -4,9 +4,11 @@ import cats.data.Reader
 import cats.effect.{Blocker, Sync}
 import org.apache.spark.streaming.StreamingContext
 
+final case class EndMark private[dstream] ()
+
 final class DStreamRunner[F[_]] private (sc: StreamingContext) extends Serializable {
 
-  def register[A](rd: Reader[StreamingContext, A])(f: A => Unit): this.type = {
+  def register[A](rd: Reader[StreamingContext, A])(f: A => EndMark): this.type = {
     f(rd.run(sc))
     this
   }
