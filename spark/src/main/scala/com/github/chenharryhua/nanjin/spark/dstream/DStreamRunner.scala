@@ -16,7 +16,7 @@ private[dstream] object EndMark {
   val mark: EndMark = new EndMark
 }
 
-final class DStreamRunner[F[_]] private (sc: StreamingContext) extends Serializable {
+final class DStreamRunner[F[_]] private (sc: StreamingContext, checkpoint: String) extends Serializable {
 
   def signup[A](rd: Reader[StreamingContext, A])(f: A => EndMark): this.type = {
     f(rd.run(sc))
@@ -28,17 +28,18 @@ final class DStreamRunner[F[_]] private (sc: StreamingContext) extends Serializa
 
   def run(implicit F: Sync[F]): Stream[F, Unit] =
     Stream.bracket(F.delay {
+      sc.checkpoint(checkpoint)
       sc.start()
       sc.awaitTermination()
     })(_ => F.delay(sc.stop(stopSparkContext = false, stopGracefully = true)))
 }
 
 object DStreamRunner {
-  def apply[F[_]](sc: StreamingContext) = new DStreamRunner[F](sc)
 
   def apply[F[_]](sparkContext: SparkContext, checkpoint: String, batchDuration: FiniteDuration): DStreamRunner[F] = {
-    val sc = new StreamingContext(sparkContext, Seconds(batchDuration.toSeconds))
-    sc.checkpoint(checkpoint)
-    apply[F](sc)
+    val sc = StreamingContext.getOrCreate(
+      checkpoint,
+      () => new StreamingContext(sparkContext, Seconds(batchDuration.toSeconds)))
+    new DStreamRunner[F](sc, checkpoint)
   }
 }
