@@ -8,22 +8,24 @@ import org.apache.spark.streaming.dstream.DStream
 
 import scala.reflect.ClassTag
 
-sealed class SparkDStream[A](ds: DStream[A]) extends Serializable {
+final class SparkDStream[A](ds: DStream[A], cfg: SDConfig) extends Serializable {
+  val params: SDParams = cfg.evalConfig
 
-  def transform[B: ClassTag](f: RDD[A] => RDD[B]): SparkDStream[B] = new SparkDStream[B](ds.transform(f))
+  def transform[B: ClassTag](f: RDD[A] => RDD[B]): SparkDStream[B] = new SparkDStream[B](ds.transform(f), cfg)
 
-  def circe(path: String)(implicit enc: Encoder[A]): EndMark = persist.circe[A](ds)(pathBuilder(path))
+  def circe(path: String)(implicit enc: Encoder[A]): EndMark = persist.circe[A](ds)(params.pathBuilder(path))
 }
 
-final class SparkAvroDStream[A](ds: DStream[A], encoder: AvroEncoder[A]) extends Serializable {
+final class SparkAvroDStream[A](ds: DStream[A], encoder: AvroEncoder[A], cfg: SDConfig) extends Serializable {
+  val params: SDParams = cfg.evalConfig
 
   def transform[B: ClassTag](f: RDD[A] => RDD[B], encoder: AvroEncoder[B]): SparkAvroDStream[B] =
-    new SparkAvroDStream[B](ds.transform(f), encoder)
+    new SparkAvroDStream[B](ds.transform(f), encoder, cfg)
 
   def transform(f: RDD[A] => RDD[A])(implicit ev: ClassTag[A]): SparkAvroDStream[A] =
-    new SparkAvroDStream[A](ds.transform(f), encoder)
+    new SparkAvroDStream[A](ds.transform(f), encoder, cfg)
 
-  def circe(path: String)(implicit enc: Encoder[A]): EndMark = persist.circe[A](ds)(pathBuilder(path))
-  def avro(path: String): EndMark                            = persist.avro(ds, encoder)(pathBuilder(path))
-  def jackson(path: String): EndMark                         = persist.jackson(ds, encoder)(pathBuilder(path))
+  def circe(path: String)(implicit enc: Encoder[A]): EndMark = persist.circe[A](ds)(params.pathBuilder(path))
+  def avro(path: String): EndMark                            = persist.avro(ds, encoder)(params.pathBuilder(path))
+  def jackson(path: String): EndMark                         = persist.jackson(ds, encoder)(params.pathBuilder(path))
 }

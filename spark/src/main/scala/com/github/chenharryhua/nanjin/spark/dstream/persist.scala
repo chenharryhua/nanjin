@@ -16,7 +16,7 @@ private[dstream] object persist {
         saveRDD.circe(rdd, path, Compression.Uncompressed, isKeepNull = true)
       }
     }
-    EndMark()
+    EndMark.mark
   }
 
   def jackson[A](ds: DStream[A], encoder: AvroEncoder[A])(pathBuilder: NJTimestamp => String): EndMark = {
@@ -27,7 +27,7 @@ private[dstream] object persist {
         saveRDD.jackson(rdd, path, encoder, Compression.Uncompressed)
       }
     }
-    EndMark()
+    EndMark.mark
   }
 
   def avro[A](ds: DStream[A], encoder: AvroEncoder[A])(pathBuilder: NJTimestamp => String): EndMark = {
@@ -38,6 +38,6 @@ private[dstream] object persist {
         saveRDD.avro(rdd, path, encoder, Compression.Snappy)
       }
     }
-    EndMark()
+    EndMark.mark
   }
 }
