@@ -8,7 +8,6 @@ import monocle.macros.Lenses
 import org.apache.spark.streaming.{Duration, Seconds}
 
 import java.time.ZoneId
-import scala.concurrent.duration.FiniteDuration
 
 @Lenses final private[dstream] case class SDParams private (
   pathBuilder: String => NJTimestamp => String,
@@ -24,7 +23,7 @@ object SDParams {
       s"$path/${ts.`Year=yyyy/Month=mm/Day=dd`(zoneId)}"
 
   def apply(zoneId: ZoneId): SDParams =
-    SDParams(pathBuilder = pathBuilder(zoneId), checkpointDuration = Seconds(60))
+    SDParams(pathBuilder = pathBuilder(zoneId), checkpointDuration = Seconds(60 * 5))
 }
 
 sealed private[dstream] trait SDConfigF[A]
@@ -49,8 +48,8 @@ final private[spark] case class SDConfig private (value: Fix[SDConfigF]) {
   def withPathBuilder(f: String => NJTimestamp => String): SDConfig =
     SDConfig(Fix(WithPathBuilder(f, value)))
 
-  def withCheckpointDuration(fd: FiniteDuration): SDConfig =
-    SDConfig(Fix(WithCheckpointDuration(Seconds(fd.toSeconds), value)))
+  def withCheckpointDuration(dur: Duration): SDConfig =
+    SDConfig(Fix(WithCheckpointDuration(dur, value)))
 
 }
 
