@@ -22,7 +22,7 @@ final class DStreamRunner[F[_]] private (
     extends Serializable {
 
   def signup[A](rd: Reader[StreamingContext, A])(f: A => EndMark): DStreamRunner[F] =
-    new DStreamRunner[F](sparkContext, checkpoint, batchDuration, rd.map(f) :: streamings)
+    new DStreamRunner[F](sparkContext, checkpoint, batchDuration, streamings :+ rd.map(f))
 
   private def createContext(): StreamingContext = {
     val ssc = new StreamingContext(sparkContext, batchDuration)
