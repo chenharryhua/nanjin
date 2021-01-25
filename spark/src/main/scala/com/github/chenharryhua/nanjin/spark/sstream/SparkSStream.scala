@@ -30,6 +30,8 @@ final class SparkSStream[F[_], A](val dataset: Dataset[A], cfg: SStreamConfig) e
   def flatMap[B: TypedEncoder](f: A => TraversableOnce[B]): SparkSStream[F, B] =
     transform(_.flatMap(f)(TypedExpressionEncoder[B]))
 
+  def coalesce: SparkSStream[F, A] = transform(_.coalesce(1))
+
   // sinks
 
   def consoleSink: NJConsoleSink[F, A] =
