@@ -3,14 +3,11 @@ package com.github.chenharryhua.nanjin.spark.dstream
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import io.circe.{Encoder => JsonEncoder}
-import monocle.{Getter, Setter}
-import org.apache.spark.streaming.Seconds
 import org.apache.spark.streaming.dstream.DStream
 
-import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.FiniteDuration
+import scala.reflect.ClassTag
 
-final class SparkDStream[A](val dstream: DStream[A], cfg: SDConfig) extends Serializable {
+final class SparkDStream[A](dstream: DStream[A], cfg: SDConfig) extends Serializable {
   val params: SDParams = cfg.evalConfig
 
   private def updateConfig(f: SDConfig => SDConfig): SparkDStream[A] =
@@ -18,15 +15,15 @@ final class SparkDStream[A](val dstream: DStream[A], cfg: SDConfig) extends Seri
 
   def pathBuilder(f: String => NJTimestamp => String): SparkDStream[A] = updateConfig(_.withPathBuilder(f))
 
+  def transform[B](f: DStream[A] => DStream[B]): SparkDStream[B] = new SparkDStream(f(dstream), cfg)
+
+  def coalesce(implicit tag: ClassTag[A]): SparkDStream[A] = transform(_.transform(_.coalesce(1)))
+
+  def circe(path: String)(implicit enc: JsonEncoder[A]): EndMark = persist.circe[A](dstream)(params.pathBuilder(path))
+
 }
 
-object SparkDStream {
-
-  implicit def getterSparkDStream[A]: Getter[SparkDStream[A], DStream[A]] =
-    (s: SparkDStream[A]) => s.dstream
-}
-
-final class SparkAvroDStream[A](val dstream: DStream[A], encoder: AvroEncoder[A], cfg: SDConfig) extends Serializable {
+final class SparkAvroDStream[A](dstream: DStream[A], encoder: AvroEncoder[A], cfg: SDConfig) extends Serializable {
   val params: SDParams = cfg.evalConfig
 
   private def updateConfig(f: SDConfig => SDConfig): SparkAvroDStream[A] =
@@ -34,31 +31,12 @@ final class SparkAvroDStream[A](val dstream: DStream[A], encoder: AvroEncoder[A]
 
   def pathBuilder(f: String => NJTimestamp => String): SparkAvroDStream[A] = updateConfig(_.withPathBuilder(f))
 
-  private def checkpoint(fd: FiniteDuration): SparkAvroDStream[A] =
-    updateConfig(_.withCheckpointDuration(Seconds(fd.toSeconds)))
+  def transform[B](f: DStream[A] => DStream[B], encoder: AvroEncoder[B]): SparkAvroDStream[B] =
+    new SparkAvroDStream(f(dstream), encoder, cfg)
 
-  def circe(path: String)(implicit enc: JsonEncoder[A]): EndMark =
-    persist.circe[A](dstream)(params.pathBuilder(path))
+  def coalesce(implicit tag: ClassTag[A]): SparkAvroDStream[A] = transform(_.transform(_.coalesce(1)), encoder)
 
-  def avro(path: String): EndMark =
-    persist.avro(dstream, encoder)(params.pathBuilder(path))
-
-  def jackson(path: String): EndMark =
-    persist.jackson(dstream.checkpoint(params.checkpointDuration), encoder)(params.pathBuilder(path))
-}
-
-object SparkAvroDStream {
-
-  implicit def setterSparkAvroDStream[A]: Setter[SparkAvroDStream[A], FiniteDuration] =
-    new Setter[SparkAvroDStream[A], FiniteDuration] {
-
-      override def set(b: FiniteDuration): SparkAvroDStream[A] => SparkAvroDStream[A] = _.checkpoint(b)
-
-      override def modify(f: FiniteDuration => FiniteDuration): SparkAvroDStream[A] => SparkAvroDStream[A] =
-        (sa: SparkAvroDStream[A]) =>
-          sa.checkpoint(f(FiniteDuration.apply(sa.params.checkpointDuration.milliseconds, TimeUnit.MILLISECONDS)))
-    }
-
-  implicit def getterSparkAvroDStream[A]: Getter[SparkAvroDStream[A], DStream[A]] =
-    (s: SparkAvroDStream[A]) => s.dstream
+  def circe(path: String)(implicit enc: JsonEncoder[A]): EndMark = persist.circe[A](dstream)(params.pathBuilder(path))
+  def avro(path: String): EndMark                                = persist.avro[A](dstream, encoder)(params.pathBuilder(path))
+  def jackson(path: String): EndMark                             = persist.jackson[A](dstream, encoder)(params.pathBuilder(path))
 }
