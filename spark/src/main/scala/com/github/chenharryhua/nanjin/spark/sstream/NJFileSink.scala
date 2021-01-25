@@ -23,6 +23,8 @@ final class NJFileSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig, pa
   def withOptions(f: DataStreamWriter[A] => DataStreamWriter[A]): NJFileSink[F, A] =
     new NJFileSink(f(dsw), cfg, path)
 
+  def queryName(name: String): NJFileSink[F, A] = updateCfg(_.withQueryName(name))
+
   def partitionBy(colNames: String*): NJFileSink[F, A] =
     new NJFileSink[F, A](dsw.partitionBy(colNames: _*), cfg, path)
 
@@ -31,6 +33,7 @@ final class NJFileSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig, pa
       dsw
         .trigger(params.trigger)
         .format(params.fileFormat.format)
+        .queryName(params.queryName.getOrElse(path))
         .outputMode(OutputMode.Append)
         .option("path", path)
         .option("checkpointLocation", params.checkpoint)

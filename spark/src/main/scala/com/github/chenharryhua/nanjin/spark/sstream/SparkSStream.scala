@@ -30,6 +30,8 @@ final class SparkSStream[F[_], A](val dataset: Dataset[A], cfg: SStreamConfig) e
   def flatMap[B: TypedEncoder](f: A => TraversableOnce[B]): SparkSStream[F, B] =
     transform(_.flatMap(f)(TypedExpressionEncoder[B]))
 
+  def coalesce: SparkSStream[F, A] = transform(_.coalesce(1))
+
   // sinks
 
   def consoleSink: NJConsoleSink[F, A] =
@@ -39,7 +41,7 @@ final class SparkSStream[F[_], A](val dataset: Dataset[A], cfg: SStreamConfig) e
     new NJFileSink[F, A](dataset.writeStream, cfg, path)
 
   def memorySink(queryName: String): NJMemorySink[F, A] =
-    new NJMemorySink[F, A](dataset.writeStream, cfg, queryName)
+    new NJMemorySink[F, A](dataset.writeStream, cfg.withQueryName(queryName))
 
   def datePartitionSink(path: String): NJFileSink[F, Row] = {
     val year  = udf((ts: Long) => NJTimestamp(ts).yearStr(params.timeRange.zoneId))

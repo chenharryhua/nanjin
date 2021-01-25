@@ -20,7 +20,8 @@ final private[spark] case class NJFailOnDataLoss(value: Boolean) extends AnyVal
   dataLoss: NJFailOnDataLoss,
   outputMode: OutputMode,
   trigger: Trigger,
-  progressInterval: FiniteDuration) {
+  progressInterval: FiniteDuration,
+  queryName: Option[String]) {
   val checkpoint: String = checkpointBuilder(fileFormat)
 }
 
@@ -34,7 +35,8 @@ private[sstream] object SStreamParams {
       dataLoss = NJFailOnDataLoss(true),
       outputMode = OutputMode.Append,
       trigger = Trigger.ProcessingTime(1, TimeUnit.MINUTES),
-      progressInterval = FiniteDuration(5, TimeUnit.SECONDS)
+      progressInterval = FiniteDuration(5, TimeUnit.SECONDS),
+      queryName = None
     )
 }
 
@@ -53,6 +55,8 @@ private[sstream] object SStreamConfigF {
   final case class WithFormat[K](value: NJFileFormat, cont: K) extends SStreamConfigF[K]
   final case class WithProgressInterval[K](value: FiniteDuration, cont: K) extends SStreamConfigF[K]
 
+  final case class WithQueryName[K](value: String, cont: K) extends SStreamConfigF[K]
+
   private val algebra: Algebra[SStreamConfigF, SStreamParams] =
     Algebra[SStreamConfigF, SStreamParams] {
       case InitParams(tr)              => SStreamParams(tr)
@@ -62,6 +66,7 @@ private[sstream] object SStreamConfigF {
       case WithTrigger(v, c)           => SStreamParams.trigger.set(v)(c)
       case WithFormat(v, c)            => SStreamParams.fileFormat.set(v)(c)
       case WithProgressInterval(v, c)  => SStreamParams.progressInterval.set(v)(c)
+      case WithQueryName(v, c)         => SStreamParams.queryName.set(Some(v))(c)
     }
 
   def evalConfig(cfg: SStreamConfig): SStreamParams = scheme.cata(algebra).apply(cfg.value)
@@ -91,6 +96,8 @@ final private[sstream] case class SStreamConfig(value: Fix[SStreamConfigF]) exte
 
   def withProgressInterval(fd: FiniteDuration): SStreamConfig = SStreamConfig(Fix(WithProgressInterval(fd, value)))
   def withProgressInterval(ms: Long): SStreamConfig           = withProgressInterval(FiniteDuration(ms, TimeUnit.MILLISECONDS))
+
+  def withQueryName(name: String): SStreamConfig = SStreamConfig(Fix(WithQueryName(name, value)))
 
   def evalConfig: SStreamParams = SStreamConfigF.evalConfig(this)
 }

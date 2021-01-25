@@ -5,11 +5,11 @@ import cats.data.Reader
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Effect, Sync, Timer}
 import cats.syntax.bifunctor._
 import cats.syntax.foldable._
-import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
+import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.spark.dstream.{SDConfig, SparkAvroDStream}
+import com.github.chenharryhua.nanjin.spark.dstream.{AvroDStreamSink, SDConfig}
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.github.chenharryhua.nanjin.spark.sstream.{SStreamConfig, SparkSStream}
 import frameless.TypedEncoder
@@ -74,9 +74,9 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
 
   /** DStream
     */
-  def dstream: Reader[StreamingContext, SparkAvroDStream[NJConsumerRecord[K, V]]] =
+  def dstream(implicit F: Effect[F]): Reader[StreamingContext, AvroDStreamSink[NJConsumerRecord[K, V]]] =
     Reader((sc: StreamingContext) =>
-      new SparkAvroDStream(
+      new AvroDStreamSink(
         sk.kafkaDStream(topic, sc, params.locationStrategy),
         NJConsumerRecord.avroCodec(topic.topicDef).avroEncoder,
         SDConfig(params.timeRange.zoneId)

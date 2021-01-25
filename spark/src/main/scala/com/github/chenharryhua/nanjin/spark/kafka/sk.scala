@@ -4,7 +4,7 @@ import cats.data.{Chain, Writer}
 import cats.effect.syntax.all._
 import cats.effect.{Effect, Sync}
 import cats.mtl.Tell
-import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
+import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.{KafkaOffsetRange, KafkaTopic, KafkaTopicPartition}
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkDatetimeConversionConstant}
 import monocle.function.At.{atMap, remove}
@@ -53,14 +53,14 @@ private[kafka] object sk {
       locationStrategy)
   }
 
-  def kafkaDStream[F[_], K, V](
+  def kafkaDStream[F[_]: Effect, K, V](
     topic: KafkaTopic[F, K, V],
     streamingContext: StreamingContext,
     locationStrategy: LocationStrategy): DStream[NJConsumerRecord[K, V]] = {
-
+    val topicPartitions = topic.shortLiveConsumer.use(_.partitionsFor).toIO.unsafeRunSync().value
     val consumerStrategy: ConsumerStrategy[Array[Byte], Array[Byte]] =
-      ConsumerStrategies.Subscribe[Array[Byte], Array[Byte]](
-        List(topic.topicName.value),
+      ConsumerStrategies.Assign[Array[Byte], Array[Byte]](
+        topicPartitions,
         props(topic.context.settings.consumerSettings.config).asScala)
     KafkaUtils.createDirectStream(streamingContext, locationStrategy, consumerStrategy).mapPartitions { ms =>
       val decoder = new NJConsumerRecordDecoder[Writer[Chain[Throwable], *], K, V](
