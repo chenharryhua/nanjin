@@ -74,24 +74,21 @@ final class SaveMultiCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfigura
   def deflate(level: Int): SaveMultiCsv[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(level)))
   def uncompress: SaveMultiCsv[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
-  def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], rowEncoder: RowEncoder[A]): F[Unit] = {
-    val sma: SaveModeAware[F] =
-      new SaveModeAware[F](params.saveMode, params.outPath, ds.sparkSession.sparkContext.hadoopConfiguration)
-
-    sma.checkAndRun(blocker)(F.delay {
-      val quoteAll: Boolean = csvConfiguration.quotePolicy match {
-        case QuotePolicy.Always     => true
-        case QuotePolicy.WhenNeeded => false
-      }
-      ds.write
-        .mode(params.saveMode)
-        .option("compression", params.compression.name)
-        .option("sep", csvConfiguration.cellSeparator.toString)
-        .option("header", csvConfiguration.hasHeader)
-        .option("quote", csvConfiguration.quote.toString)
-        .option("quoteAll", quoteAll)
-        .option("charset", "UTF8")
-        .csv(params.outPath)
-    })
-  }
+  def run(blocker: Blocker)(implicit F: Concurrent[F], cs: ContextShift[F], rowEncoder: RowEncoder[A]): F[Unit] =
+    new SaveModeAware[F](params.saveMode, params.outPath, ds.sparkSession.sparkContext.hadoopConfiguration)
+      .checkAndRun(blocker)(F.delay {
+        val quoteAll: Boolean = csvConfiguration.quotePolicy match {
+          case QuotePolicy.Always     => true
+          case QuotePolicy.WhenNeeded => false
+        }
+        ds.write
+          .mode(params.saveMode)
+          .option("compression", params.compression.name)
+          .option("sep", csvConfiguration.cellSeparator.toString)
+          .option("header", csvConfiguration.hasHeader)
+          .option("quote", csvConfiguration.quote.toString)
+          .option("quoteAll", quoteAll)
+          .option("charset", "UTF8")
+          .csv(params.outPath)
+      })
 }

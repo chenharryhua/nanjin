@@ -52,10 +52,7 @@ final class SaveMultiAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Ho
   def errorIfExists: SaveMultiAvro[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: SaveMultiAvro[F, A] = updateConfig(cfg.withIgnore)
 
-  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
-    val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
-    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, config)
-
-    sma.checkAndRun(blocker)(F.delay(saveRDD.avro(rdd, params.outPath, encoder, params.compression)))
-  }
+  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
+    new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
+      .checkAndRun(blocker)(F.delay(saveRDD.avro(rdd, params.outPath, encoder, params.compression)))
 }

@@ -57,12 +57,9 @@ final class SaveMultiParquet[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A], c
   def gzip: SaveMultiParquet[F, A]       = updateConfig(cfg.withCompression(Compression.Gzip))
   def uncompress: SaveMultiParquet[F, A] = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
-  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
-    val sma: SaveModeAware[F] =
-      new SaveModeAware[F](params.saveMode, params.outPath, ds.sparkSession.sparkContext.hadoopConfiguration)
-
-    sma.checkAndRun(blocker)(F.delay {
-      ds.write.option("compression", params.compression.name).mode(params.saveMode).parquet(params.outPath)
-    })
-  }
+  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
+    new SaveModeAware[F](params.saveMode, params.outPath, ds.sparkSession.sparkContext.hadoopConfiguration)
+      .checkAndRun(blocker)(F.delay {
+        ds.write.option("compression", params.compression.name).mode(params.saveMode).parquet(params.outPath)
+      })
 }

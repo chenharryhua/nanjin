@@ -1,7 +1,5 @@
 package com.github.chenharryhua.nanjin.devices
 
-import java.net.URI
-
 import cats.effect.{Blocker, ContextShift, Resource, Sync}
 import cats.syntax.all._
 import fs2.io.{readInputStream, writeOutputStream}
@@ -16,19 +14,18 @@ import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
 import org.apache.parquet.hadoop.{ParquetFileWriter, ParquetWriter}
 
+import java.net.URI
 import scala.collection.JavaConverters._
 
-sealed abstract class NJHadoop[F[_]](config: Configuration, blocker: Blocker) extends Serializable {
+sealed trait NJHadoop[F[_]] {
+
   def delete(pathStr: String): F[Boolean]
   def isExist(pathStr: String): F[Boolean]
 
   def byteSink(pathStr: String): Pipe[F, Byte, Unit]
   def byteSource(pathStr: String): Stream[F, Byte]
 
-  def parquetSink(
-    pathStr: String,
-    schema: Schema,
-    ccn: CompressionCodecName): Pipe[F, GenericRecord, Unit]
+  def parquetSink(pathStr: String, schema: Schema, ccn: CompressionCodecName): Pipe[F, GenericRecord, Unit]
 
   def parquetSource(pathStr: String, schema: Schema): Stream[F, GenericRecord]
 
@@ -38,13 +35,13 @@ sealed abstract class NJHadoop[F[_]](config: Configuration, blocker: Blocker) ex
 
 object NJHadoop {
 
-  def apply[F[_]: ContextShift](config: Configuration, blocker: Blocker)(implicit
-    F: Sync[F]): NJHadoop[F] =
-    new NJHadoop[F](config, blocker) {
+  def apply[F[_]: ContextShift](config: Configuration, blocker: Blocker)(implicit F: Sync[F]): NJHadoop[F] =
+    new NJHadoop[F] with Serializable {
 
+      /** Notes: do not close file-system.
+        */
       private def fileSystem(pathStr: String): Resource[F, FileSystem] =
-        Resource.fromAutoCloseableBlocking(blocker)(
-          blocker.delay(FileSystem.get(new URI(pathStr), config)))
+        Resource.make(blocker.delay(FileSystem.get(new URI(pathStr), config)))(_ => blocker.delay(()))
 
       private def fsOutput(pathStr: String): Resource[F, FSDataOutputStream] =
         for {
@@ -83,9 +80,7 @@ object NJHadoop {
         pathStr: String,
         schema: Schema,
         ccn: CompressionCodecName): Pipe[F, GenericRecord, Unit] = {
-        def go(
-          grs: Stream[F, GenericRecord],
-          writer: ParquetWriter[GenericRecord]): Pull[F, Unit, Unit] =
+        def go(grs: Stream[F, GenericRecord], writer: ParquetWriter[GenericRecord]): Pull[F, Unit, Unit] =
           grs.pull.uncons.flatMap {
             case Some((hl, tl)) =>
               Pull.eval(hl.traverse(gr => blocker.delay(writer.write(gr)))) >> go(tl, writer)
@@ -126,13 +121,8 @@ object NJHadoop {
         } yield gr
       }
 
-      override def avroSink(
-        pathStr: String,
-        schema: Schema,
-        cf: CodecFactory): Pipe[F, GenericRecord, Unit] = {
-        def go(
-          grs: Stream[F, GenericRecord],
-          writer: DataFileWriter[GenericRecord]): Pull[F, Unit, Unit] =
+      override def avroSink(pathStr: String, schema: Schema, cf: CodecFactory): Pipe[F, GenericRecord, Unit] = {
+        def go(grs: Stream[F, GenericRecord], writer: DataFileWriter[GenericRecord]): Pull[F, Unit, Unit] =
           grs.pull.uncons.flatMap {
             case Some((hl, tl)) =>
               Pull.eval(hl.traverse(gr => blocker.delay(writer.append(gr)))) >> go(tl, writer)
