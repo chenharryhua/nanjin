@@ -22,15 +22,17 @@ final class NJConsoleSink[F[_], A](
 
   def trigger(trigger: Trigger): NJConsoleSink[F, A] = updateCfg(_.withTrigger(trigger))
   // https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html#output-sinks
-  def append: NJConsoleSink[F, A]   = updateCfg(_.withAppend)
-  def update: NJConsoleSink[F, A]   = updateCfg(_.withUpdate)
-  def complete: NJConsoleSink[F, A] = updateCfg(_.withComplete)
+  def append: NJConsoleSink[F, A]                  = updateCfg(_.withAppend)
+  def update: NJConsoleSink[F, A]                  = updateCfg(_.withUpdate)
+  def complete: NJConsoleSink[F, A]                = updateCfg(_.withComplete)
+  def queryName(name: String): NJConsoleSink[F, A] = updateCfg(_.withQueryName(name))
 
   override def queryStream(implicit F: Concurrent[F], timer: Timer[F]): Stream[F, StreamingQueryProgress] =
     ss.queryStream(
       dsw
         .trigger(params.trigger)
         .format("console")
+        .queryName(params.queryName.getOrElse("console"))
         .outputMode(OutputMode.Append)
         .option("numRows", numRows.toString)
         .option("truncate", isTruncate.toString)
