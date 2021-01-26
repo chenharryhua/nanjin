@@ -116,4 +116,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
 
   def topic[K: SerdeOf, V: SerdeOf](topicName: String): SparKafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](TopicName.unsafeFrom(topicName)))
+
+  def byteTopic(topicName: String): SparKafkaTopic[F, Array[Byte], Array[Byte]] =
+    topic[Array[Byte], Array[Byte]](topicName)
 }
