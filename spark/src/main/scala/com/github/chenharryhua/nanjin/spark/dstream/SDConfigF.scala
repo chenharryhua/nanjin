@@ -9,6 +9,7 @@ import monocle.macros.Lenses
 import java.time.ZoneId
 
 @Lenses final private[dstream] case class SDParams private (
+  zoneId: ZoneId,
   pathBuilder: String => NJTimestamp => String
 )
 
@@ -21,7 +22,7 @@ object SDParams {
       s"$path/${ts.`Year=yyyy/Month=mm/Day=dd`(zoneId)}"
 
   def apply(zoneId: ZoneId): SDParams =
-    SDParams(pathBuilder = pathBuilder(zoneId))
+    SDParams(zoneId = zoneId, pathBuilder = pathBuilder(zoneId))
 }
 
 sealed private[dstream] trait SDConfigF[A]
