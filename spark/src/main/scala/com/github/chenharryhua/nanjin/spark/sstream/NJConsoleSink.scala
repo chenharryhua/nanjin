@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.sstream
 
 import cats.effect.{Concurrent, Timer}
+import com.github.chenharryhua.nanjin.utils.random4d
 import fs2.Stream
 import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, StreamingQueryProgress, Trigger}
 
@@ -32,7 +33,7 @@ final class NJConsoleSink[F[_], A](
       dsw
         .trigger(params.trigger)
         .format("console")
-        .queryName(params.queryName.getOrElse("console"))
+        .queryName(params.queryName.getOrElse(s"console-${random4d.value}"))
         .outputMode(OutputMode.Append)
         .option("numRows", numRows.toString)
         .option("truncate", isTruncate.toString)

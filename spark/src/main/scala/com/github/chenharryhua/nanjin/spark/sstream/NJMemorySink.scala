@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.sstream
 
 import cats.effect.{Concurrent, Timer}
+import com.github.chenharryhua.nanjin.utils.random4d
 import fs2.Stream
 import org.apache.spark.sql.streaming.{DataStreamWriter, StreamingQueryProgress, Trigger}
 
@@ -22,7 +23,7 @@ final class NJMemorySink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig) 
       dsw
         .trigger(params.trigger)
         .format("memory")
-        .queryName(params.queryName.getOrElse("memory"))
+        .queryName(params.queryName.getOrElse(s"memory-${random4d.value}"))
         .outputMode(params.outputMode)
         .option("failOnDataLoss", params.dataLoss.value),
       params.progressInterval
