@@ -5,7 +5,7 @@ import akka.stream.scaladsl.Source
 import cats.effect.{ConcurrentEffect, Sync}
 import com.github.chenharryhua.nanjin.database.{DatabaseSettings, TableName}
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic, TopicDef, TopicName}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.SerdeOf
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, SerdeOf}
 import com.github.chenharryhua.nanjin.spark.database._
 import com.github.chenharryhua.nanjin.spark.kafka.{SKConfig, SparKafkaTopic}
 import com.github.chenharryhua.nanjin.spark.persist.{
@@ -19,6 +19,7 @@ import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import fs2.interop.reactivestreams._
+import io.circe.Json
 import org.apache.avro.Schema
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types.DataType
@@ -119,4 +120,10 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
 
   def byteTopic(topicName: String): SparKafkaTopic[F, Array[Byte], Array[Byte]] =
     topic[Array[Byte], Array[Byte]](topicName)
+
+  def stringTopic(topicName: String): SparKafkaTopic[F, String, String] =
+    topic[String, String](topicName)
+
+  def jsonTopic(topicName: String): SparKafkaTopic[F, KJson[Json], KJson[Json]] =
+    topic[KJson[Json], KJson[Json]](topicName)
 }
