@@ -324,7 +324,7 @@ lazy val common = (project in file("common"))
   .settings(name := "nj-common")
   .settings(
     libraryDependencies ++= Seq(
-      "com.lihaoyi" %% "pprint" % "0.6.0",
+      "com.lihaoyi" %% "pprint" % "0.6.1",
       "org.jline"               % "jline" % jline) ++
       baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ logLib ++ testLib)
 
