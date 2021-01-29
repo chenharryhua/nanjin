@@ -108,13 +108,11 @@ object KafkaChannels {
     def offsetRanged(offsetRange: KafkaTopicPartition[KafkaOffsetRange])(implicit
       F: ConcurrentEffect[F]): Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]] =
       Stream.suspend {
-        val totalSize   = offsetRange.mapValues(_.distance).value.values.sum
         val endPosition = offsetRange.mapValues(_.until.value)
         assign(offsetRange.value.mapValues(_.from.value))
-          .groupBy(maxSubstreams = 16, _.partition)
+          .groupBy(maxSubstreams = 32, _.partition)
           .takeWhile(m => endPosition.get(m.topic, m.partition).exists(m.offset < _))
           .mergeSubstreams
-          .take(totalSize)
           .runWith(Sink.asPublisher(fanout = false))(Materializer(akkaSystem))
           .toStream[F]
       }
