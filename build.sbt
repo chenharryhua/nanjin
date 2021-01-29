@@ -35,7 +35,7 @@ val fs2Kafka    = "1.3.1"
 
 // spark
 val spark3    = "3.1.0"
-val frameless = "0.9.0"
+val frameless = "0.10.1"
 
 // database
 val doobie   = "0.10.0"
@@ -324,7 +324,6 @@ lazy val common = (project in file("common"))
   .settings(name := "nj-common")
   .settings(
     libraryDependencies ++= Seq(
-      "com.lihaoyi" %% "pprint" % "0.6.1",
       "org.jline"               % "jline" % jline) ++
       baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ logLib ++ testLib)
 
