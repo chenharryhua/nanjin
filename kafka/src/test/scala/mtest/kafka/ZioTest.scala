@@ -49,7 +49,7 @@ class ZioTest extends AnyFunSuite {
       .take(1)
       .map(_.toString)
       .map(println)
-      .runWith(akkaSinks.ignore)
+      .runWith(stages.ignore)
     runtime.unsafeRun(task)
   }
 }

@@ -14,6 +14,7 @@ import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.utils
 import fs2.interop.reactivestreams._
 import fs2.kafka.{
+  KafkaByteConsumerRecord,
   KafkaConsumer,
   KafkaProducer,
   ProducerRecords,
@@ -96,7 +97,7 @@ object KafkaChannels {
     def commitSink(implicit cs: ContextShift[F], F: Async[F]): Sink[ConsumerMessage.Committable, F[Done]] =
       Committer.sink(committerSettings).mapMaterializedValue(f => Async.fromFuture(F.pure(f)))
 
-    def assign(tps: Map[TopicPartition, Long]): Source[ConsumerRecord[Array[Byte], Array[Byte]], Consumer.Control] =
+    def assign(tps: Map[TopicPartition, Long]): Source[KafkaByteConsumerRecord, Consumer.Control] =
       Consumer.plainSource(consumerSettings, Subscriptions.assignmentWithOffset(tps))
 
     val source: Source[CommittableMessage[Array[Byte], Array[Byte]], Consumer.Control] =
@@ -106,19 +107,16 @@ object KafkaChannels {
       Stream.suspend(source.runWith(Sink.asPublisher(fanout = false))(Materializer(akkaSystem)).toStream[F])
 
     def offsetRanged(offsetRange: KafkaTopicPartition[KafkaOffsetRange])(implicit
-      F: ConcurrentEffect[F]): Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]] =
+      F: ConcurrentEffect[F]): Stream[F, KafkaByteConsumerRecord] =
       Stream.suspend {
-        val endPosition = offsetRange.mapValues(_.until.value)
         assign(offsetRange.value.mapValues(_.from.value))
-          .groupBy(maxSubstreams = 32, _.partition)
-          .takeWhile(m => endPosition.get(m.topic, m.partition).exists(m.offset < _))
-          .mergeSubstreams
+          .via(stages.takeUntilEnd(offsetRange.mapValues(kor => kor.until.value - 1)))
           .runWith(Sink.asPublisher(fanout = false))(Materializer(akkaSystem))
           .toStream[F]
       }
 
     def timeRanged(dateTimeRange: NJDateTimeRange)(implicit
-      F: ConcurrentEffect[F]): Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]] = {
+      F: ConcurrentEffect[F]): Stream[F, KafkaByteConsumerRecord] = {
       val exec: F[Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]]] =
         ShortLiveConsumer[F](topicName, utils.toProperties(consumerSettings.properties))
           .use(_.offsetRangeFor(dateTimeRange).map(_.flatten[KafkaOffsetRange]))

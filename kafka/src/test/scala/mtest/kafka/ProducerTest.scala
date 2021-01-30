@@ -3,7 +3,7 @@ package mtest.kafka
 import akka.Done
 import cats.effect.IO
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.kafka.akkaSinks
+import com.github.chenharryhua.nanjin.kafka.stages
 import fs2.kafka.{ProducerRecords => Fs2ProducerRecords}
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.scalatest.funsuite.AnyFunSuite
@@ -49,7 +49,7 @@ class ProducerTest extends AnyFunSuite {
         .wireTap { m => akkaTopic.akkaProducerRecords(List((m.record.key, m.record.value()))); () }
         .map(m => akkaTopic.akkaProducerRecord(m.record.key, m.record.value))
         .take(100)
-        .runWith(akkaSinks.ignore[IO])
+        .runWith(stages.ignore[IO])
 
     val fs2Task: IO[Unit] = srcTopic.fs2Channel.stream
       .map(m => srcTopic.decoder(m).decode)
