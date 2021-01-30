@@ -14,7 +14,7 @@ import scala.concurrent.duration._
 
 @Lenses final private[kafka] case class NJUploadParams(
   batchSize: Int,
-  uploadInterval: FiniteDuration,
+  interval: FiniteDuration,
   recordsLimit: Long,
   timeLimit: FiniteDuration,
   bufferSize: Int)
@@ -23,11 +23,11 @@ private[kafka] object NJUploadParams {
 
   val default: NJUploadParams = NJUploadParams(
     batchSize = 1000,
-    uploadInterval = 1.second,
+    interval = 1.second,
     recordsLimit = Long.MaxValue,
     //akka.actor.LightArrayRevolverScheduler.checkMaxDelay
     timeLimit = FiniteDuration(21474835, TimeUnit.SECONDS),
-    bufferSize = 5
+    bufferSize = 15
   )
 }
 
@@ -85,7 +85,7 @@ private[kafka] object SKConfigF {
     case WithUploadBatchSize(v, c) =>
       SKParams.uploadParams.composeLens(NJUploadParams.batchSize).set(v)(c)
     case WithUploadInterval(v, c) =>
-      SKParams.uploadParams.composeLens(NJUploadParams.uploadInterval).set(v)(c)
+      SKParams.uploadParams.composeLens(NJUploadParams.interval).set(v)(c)
     case WithUploadRecordsLimit(v, c) =>
       SKParams.uploadParams.composeLens(NJUploadParams.recordsLimit).set(v)(c)
     case WithUploadTimeLimit(v, c) =>

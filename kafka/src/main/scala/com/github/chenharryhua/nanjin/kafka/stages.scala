@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import akka.stream.ActorAttributes.SupervisionStrategy
+import akka.stream.Supervision.Decider
 import akka.stream._
 import akka.stream.scaladsl.{Flow, Sink}
 import akka.stream.stage._
@@ -9,6 +11,8 @@ import cats.effect.concurrent.Deferred
 import cats.syntax.all._
 import fs2.kafka.KafkaByteConsumerRecord
 import org.apache.kafka.common.TopicPartition
+
+import scala.util.control.NonFatal
 
 object stages {
 
@@ -53,7 +57,9 @@ object stages {
 
       private var topicStates: Map[TopicPartition, Boolean] = endOffsets.value.mapValues(_ => false)
 
-      private def isAllTopicCompleted: Boolean = topicStates.forall(_._2)
+      private def isPartitionsCompleted(ts: Map[TopicPartition, Boolean]): Boolean = ts.forall(_._2)
+
+      private def decider: Decider = inheritedAttributes.mandatoryAttribute[SupervisionStrategy].decider
 
       setHandlers(
         in,
@@ -64,24 +70,30 @@ object stages {
             val cr: KafkaByteConsumerRecord = grab(in)
             val tp: TopicPartition          = new TopicPartition(cr.topic(), cr.partition())
             val offset: Option[Long]        = endOffsets.get(tp)
-            if (offset.exists(cr.offset() < _)) {
+            try if (offset.exists(cr.offset() < _)) {
               push(out, cr)
             } else if (offset.contains(cr.offset())) {
               push(out, cr)
               topicStates += tp -> true
-              if (isAllTopicCompleted) completeStage()
+              if (isPartitionsCompleted(topicStates)) completeStage()
             } else {
               topicStates += tp -> true
-              if (isAllTopicCompleted) completeStage()
+              if (isPartitionsCompleted(topicStates)) completeStage() else pull(in)
+            } catch {
+              case NonFatal(ex) =>
+                decider(ex) match {
+                  case Supervision.Stop => failStage(ex)
+                  case _                => pull(in)
+                }
             }
           }
-          override def onPull(): Unit = if (isAllTopicCompleted) completeStage() else pull(in)
+          override def onPull(): Unit = pull(in)
         }
       )
     }
   }
 
-  def takeUntilEnd(
+  private[kafka] def takeUntilEnd(
     endOffsets: KafkaTopicPartition[Long]): Flow[KafkaByteConsumerRecord, KafkaByteConsumerRecord, NotUsed] =
     Flow.fromGraph(new KafkaTakeUntilEnd(endOffsets))
 

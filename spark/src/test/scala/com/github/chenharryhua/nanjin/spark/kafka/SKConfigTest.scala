@@ -54,7 +54,7 @@ class SKConfigTest extends AnyFunSuite {
       .uploadParams
 
     assert(p.batchSize == 1)
-    assert(p.uploadInterval == 100.millisecond)
+    assert(p.interval == 100.millisecond)
     assert(p.recordsLimit == 10)
     assert(p.timeLimit == 60.second)
   }

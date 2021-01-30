@@ -110,7 +110,7 @@ object KafkaChannels {
       F: ConcurrentEffect[F]): Stream[F, KafkaByteConsumerRecord] =
       Stream.suspend {
         assign(offsetRange.value.mapValues(_.from.value))
-          .via(stages.takeUntilEnd(offsetRange.mapValues(kor => kor.until.value - 1)))
+          .via(stages.takeUntilEnd(offsetRange.mapValues(os => os.until.offset.value - 1)))
           .runWith(Sink.asPublisher(fanout = false))(Materializer(akkaSystem))
           .toStream[F]
       }

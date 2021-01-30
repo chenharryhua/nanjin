@@ -91,7 +91,7 @@ final class PrRdd[F[_], K, V] private[kafka] (
       .chunkN(params.uploadParams.batchSize)
       .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName.value))))
       .buffer(params.uploadParams.bufferSize)
-      .metered(params.uploadParams.uploadInterval)
+      .metered(params.uploadParams.interval)
       .through(topic.fs2Channel(ce).producerPipe)
 
   def bestEffort(akkaSystem: ActorSystem)(implicit
