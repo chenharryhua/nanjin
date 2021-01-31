@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import akka.actor.ActorSystem
 import cats.Foldable
 import cats.data.Reader
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Effect, Sync, Timer}
@@ -36,6 +37,7 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   def withStartTime(str: String): SparKafkaTopic[F, K, V]                 = updateCfg(_.withStartTime(str))
   def withEndTime(str: String): SparKafkaTopic[F, K, V]                   = updateCfg(_.withEndTime(str))
   def withOneDay(ld: LocalDate): SparKafkaTopic[F, K, V]                  = updateCfg(_.withOneDay(ld))
+  def withTimeRange(tr: NJDateTimeRange): SparKafkaTopic[F, K, V]         = updateCfg(_.withTimeRange(tr))
   def withLocationStrategy(ls: LocationStrategy): SparKafkaTopic[F, K, V] = updateCfg(_.withLocationStrategy(ls))
 
   val params: SKParams = cfg.evalConfig
@@ -58,6 +60,9 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   def countDisk(implicit F: Sync[F]): F[Long]    = fromDisk.count
 
   def load: LoadTopicFile[F, K, V] = new LoadTopicFile[F, K, V](topic, cfg, ss)
+
+  def download(akkaSystem: ActorSystem): KafkaDownloader[F, K, V] =
+    new KafkaDownloader[F, K, V](akkaSystem, topic, ss.sparkContext.hadoopConfiguration, cfg)
 
   /** rdd and dataset
     */

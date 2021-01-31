@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.kafka
 
 import java.time.Duration
 import java.util.Properties
-
 import cats.Monad
 import cats.data.Kleisli
 import cats.effect.{Resource, Sync}
@@ -10,7 +9,7 @@ import cats.implicits._
 import cats.mtl.Ask
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import fs2.kafka.KafkaByteConsumer
-import org.apache.kafka.clients.consumer.{ConsumerRecord, KafkaConsumer, OffsetAndMetadata}
+import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord, KafkaConsumer, OffsetAndMetadata}
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 
@@ -107,6 +106,7 @@ object ShortLiveConsumer {
     Resource
       .make(Sync[F].delay {
         val byteArrayDeserializer = new ByteArrayDeserializer
+        props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_uncommitted")
         new KafkaConsumer[Array[Byte], Array[Byte]](props, byteArrayDeserializer, byteArrayDeserializer)
       })(a => Sync[F].delay(a.close()))
       .map(new KafkaConsumerApiImpl(topicName, _))

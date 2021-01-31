@@ -16,6 +16,7 @@ import frameless.cats.implicits._
 import fs2.Stream
 import fs2.interop.reactivestreams._
 import fs2.kafka.{ProducerRecords, ProducerResult}
+import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.spark.rdd.RDD
 
 import scala.concurrent.duration.FiniteDuration
@@ -34,14 +35,15 @@ final class PrRdd[F[_], K, V] private[kafka] (
   private def updateCfg(f: SKConfig => SKConfig): PrRdd[F, K, V] =
     new PrRdd[F, K, V](rdd, topic, f(cfg))
 
-  def triggerEvery(ms: Long): PrRdd[F, K, V]           = updateCfg(_.withUploadInterval(ms))
-  def triggerEvery(ms: FiniteDuration): PrRdd[F, K, V] = updateCfg(_.withUploadInterval(ms))
+  def triggerEvery(ms: Long): PrRdd[F, K, V]           = updateCfg(_.withLoadInterval(ms))
+  def triggerEvery(ms: FiniteDuration): PrRdd[F, K, V] = updateCfg(_.withLoadInterval(ms))
+  def bulkSize(num: Int): PrRdd[F, K, V]               = updateCfg(_.withLoadBulkSize(num))
   def batchSize(num: Int): PrRdd[F, K, V]              = updateCfg(_.withUploadBatchSize(num))
-  def bufferSize(num: Int): PrRdd[F, K, V]             = updateCfg(_.withUploadBufferSize(num))
+  def bufferSize(num: Int): PrRdd[F, K, V]             = updateCfg(_.withLoadBufferSize(num))
 
-  def recordsLimit(num: Long): PrRdd[F, K, V]       = updateCfg(_.withUploadRecordsLimit(num))
-  def timeLimit(ms: Long): PrRdd[F, K, V]           = updateCfg(_.withUploadTimeLimit(ms))
-  def timeLimit(fd: FiniteDuration): PrRdd[F, K, V] = updateCfg(_.withUploadTimeLimit(fd))
+  def recordsLimit(num: Long): PrRdd[F, K, V]       = updateCfg(_.withLoadRecordsLimit(num))
+  def timeLimit(ms: Long): PrRdd[F, K, V]           = updateCfg(_.withLoadTimeLimit(ms))
+  def timeLimit(fd: FiniteDuration): PrRdd[F, K, V] = updateCfg(_.withLoadTimeLimit(fd))
 
   // transform
   def transform(f: RDD[NJProducerRecord[K, V]] => RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
@@ -86,27 +88,40 @@ final class PrRdd[F[_], K, V] private[kafka] (
     cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
     rdd
       .stream[F]
-      .interruptAfter(params.uploadParams.timeLimit)
-      .take(params.uploadParams.recordsLimit)
-      .chunkN(params.uploadParams.batchSize)
+      .interruptAfter(params.loadParams.timeLimit)
+      .take(params.loadParams.recordsLimit)
+      .chunkN(params.loadParams.uploadBatchSize)
       .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName.value))))
-      .buffer(params.uploadParams.bufferSize)
-      .metered(params.uploadParams.uploadInterval)
+      .buffer(params.loadParams.bufferSize)
+      .metered(params.loadParams.interval)
       .through(topic.fs2Channel(ce).producerPipe)
 
-  def bestEffort(akkaSystem: ActorSystem)(implicit
+  def upload(akkaSystem: ActorSystem)(implicit
     F: ConcurrentEffect[F],
     cs: ContextShift[F]): Stream[F, ProducerMessage.Results[K, V, NotUsed]] =
     Stream.suspend {
       implicit val mat: Materializer = Materializer(akkaSystem)
       rdd
         .source[F]
-        .take(params.uploadParams.recordsLimit)
-        .takeWithin(params.uploadParams.timeLimit)
-        .grouped(params.uploadParams.batchSize)
-        .map(ms => ProducerMessage.multi(ms.map(_.toProducerRecord(topic.topicName.value))))
-        .buffer(params.uploadParams.bufferSize, OverflowStrategy.backpressure)
+        .take(params.loadParams.recordsLimit)
+        .takeWithin(params.loadParams.timeLimit)
+        .map(m => ProducerMessage.single(m.toProducerRecord(topic.topicName.value)))
+        .buffer(params.loadParams.bufferSize, OverflowStrategy.backpressure)
         .via(topic.akkaChannel(akkaSystem).flexiFlow)
+        .throttle(
+          params.loadParams.bulkSize,
+          params.loadParams.interval,
+          rst =>
+            rst match {
+              case ProducerMessage.Result(meta, _) => meta.serializedKeySize() + meta.serializedValueSize()
+              case ProducerMessage.MultiResult(parts, _) =>
+                parts.foldLeft(0) { case (sum, item) =>
+                  val meta: RecordMetadata = item.metadata
+                  sum + meta.serializedKeySize() + meta.serializedKeySize()
+                }
+              case ProducerMessage.PassThroughResult(_) => 1000
+            }
+        )
         .runWith(Sink.asPublisher(fanout = false))
         .toStream
     }

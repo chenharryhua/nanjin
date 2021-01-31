@@ -37,14 +37,21 @@ import scala.concurrent.duration.FiniteDuration
   val zonedStartTime: Option[ZonedDateTime] = startTimestamp.map(_.atZone(zoneId))
   val zonedEndTime: Option[ZonedDateTime]   = endTimestamp.map(_.atZone(zoneId))
 
-  /**
-    * @return list of local-date from start date(inclusive) to end date(exclusive)
+  /** @return list of local-date from start date(inclusive) to end date(exclusive)
     *         empty if start date === end date
     *         empty if infinite
     */
   def days: List[LocalDate] =
     (zonedStartTime, zonedEndTime).traverseN { (s, e) =>
       s.toLocalDate.toEpochDay.until(e.toLocalDate.toEpochDay).map(LocalDate.ofEpochDay).toList
+    }.flatten
+
+  def subranges(interval: FiniteDuration): List[NJDateTimeRange] =
+    (startTimestamp, endTimestamp).traverseN { (s, e) =>
+      s.milliseconds
+        .until(e.milliseconds, interval.toMillis)
+        .toList
+        .map(a => NJDateTimeRange(zoneId).withStartTime(a).withEndTime(a + interval.toMillis))
     }.flatten
 
   def period: Option[Period] =
@@ -68,12 +75,10 @@ import scala.concurrent.duration.FiniteDuration
   implicit private val stringDatetimePrism: Prism[NJDateTimeRange.TimeTypes, String] =
     coProductPrism[NJDateTimeRange.TimeTypes, String]
 
-  private def setStart[A](a: A)(implicit
-    prism: Prism[NJDateTimeRange.TimeTypes, A]): NJDateTimeRange =
+  private def setStart[A](a: A)(implicit prism: Prism[NJDateTimeRange.TimeTypes, A]): NJDateTimeRange =
     NJDateTimeRange.start.set(Some(prism.reverseGet(a)))(this)
 
-  private def setEnd[A](a: A)(implicit
-    prism: Prism[NJDateTimeRange.TimeTypes, A]): NJDateTimeRange =
+  private def setEnd[A](a: A)(implicit prism: Prism[NJDateTimeRange.TimeTypes, A]): NJDateTimeRange =
     NJDateTimeRange.end.set(Some(prism.reverseGet(a)))(this)
 
   //start
@@ -142,8 +147,7 @@ object NJDateTimeRange {
       String :+: // date-time in string, like "03:12"
       CNil
 
-  implicit val partialOrderNJDateTimeRange
-    : PartialOrder[NJDateTimeRange] with Show[NJDateTimeRange] =
+  implicit val partialOrderNJDateTimeRange: PartialOrder[NJDateTimeRange] with Show[NJDateTimeRange] =
     new PartialOrder[NJDateTimeRange] with Show[NJDateTimeRange] {
 
       private def lessStart(a: Option[NJTimestamp], b: Option[NJTimestamp]): Boolean =
@@ -162,18 +166,11 @@ object NJDateTimeRange {
 
       override def partialCompare(x: NJDateTimeRange, y: NJDateTimeRange): Double =
         (x, y) match {
-          case (a, b)
-              if a.endTimestamp === b.endTimestamp && a.startTimestamp === b.startTimestamp =>
+          case (a, b) if a.endTimestamp === b.endTimestamp && a.startTimestamp === b.startTimestamp =>
             0.0
-          case (a, b)
-              if lessStart(a.startTimestamp, b.startTimestamp) && biggerEnd(
-                a.endTimestamp,
-                b.endTimestamp) =>
+          case (a, b) if lessStart(a.startTimestamp, b.startTimestamp) && biggerEnd(a.endTimestamp, b.endTimestamp) =>
             1.0
-          case (a, b)
-              if lessStart(b.startTimestamp, a.startTimestamp) && biggerEnd(
-                b.endTimestamp,
-                a.endTimestamp) =>
+          case (a, b) if lessStart(b.startTimestamp, a.startTimestamp) && biggerEnd(b.endTimestamp, a.endTimestamp) =>
             -1.0
           case _ => Double.NaN
         }

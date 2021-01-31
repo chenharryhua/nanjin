@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.utils.random4d
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJDateTimeRange}
-import com.github.chenharryhua.nanjin.kafka.{akkaSinks, KafkaChannels, KafkaOffset, KafkaTopic}
+import com.github.chenharryhua.nanjin.kafka.{stages, KafkaChannels, KafkaOffset, KafkaTopic}
 import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerResult}
 import org.scalatest.funsuite.AnyFunSuite
@@ -21,9 +21,8 @@ class AkkaChannelTest extends AnyFunSuite {
   val sender: Stream[IO, List[ProducerResult[Int, String, Unit]]] =
     Stream.awakeEvery[IO](1.second).zipRight(Stream.eval(data.traverse(x => topic.send(x))))
 
-  val akkaChannel: KafkaChannels.AkkaChannel[IO, Int, String] = topic
-    .updateAkkaCommitterSettings(_.withParallelism(10).withParallelism(10))
-    .akkaChannel(akkaSystem)
+  val akkaChannel: KafkaChannels.AkkaChannel[IO, Int, String] =
+    topic.updateAkkaCommitterSettings(_.withParallelism(10).withParallelism(10)).akkaChannel(akkaSystem)
 
   test("time-ranged") {
     val range = NJDateTimeRange(sydneyTime)
@@ -33,7 +32,6 @@ class AkkaChannelTest extends AnyFunSuite {
       .delayBy(2.seconds)
       .map(x => topic.decoder(x).decode)
       .concurrently(sender)
-      .interruptAfter(18.seconds)
       .compile
       .toList
       .unsafeRunSync()
@@ -75,7 +73,7 @@ class AkkaChannelTest extends AnyFunSuite {
     val run = akkaChannel.source
       .map(m => topic.decoder(m).nullableDecode)
       .map(m => throw new Exception("oops"))
-      .runWith(akkaSinks.ignore[IO])
+      .runWith(stages.ignore[IO])
     assertThrows[Exception](run.unsafeRunSync())
   }
 
@@ -94,7 +92,7 @@ class AkkaChannelTest extends AnyFunSuite {
       start <- topic.shortLiveConsumer.use(_.beginningOffsets)
       offsets = start.flatten[KafkaOffset].value.mapValues(_.value)
       _ <-
-        akkaChannel.assign(offsets).map(m => topic.decoder(m).decode).take(1).runWith(akkaSinks.ignore[IO])
+        akkaChannel.assign(offsets).map(m => topic.decoder(m).decode).take(1).runWith(stages.ignore[IO])
     } yield ()
     ret.unsafeRunSync
   }
