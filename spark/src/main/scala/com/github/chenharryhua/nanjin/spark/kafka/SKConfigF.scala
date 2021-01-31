@@ -12,17 +12,17 @@ import java.time.{LocalDate, LocalDateTime, ZoneId}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
 
-@Lenses final private[kafka] case class NJUploadParams(
-  batchSize: Int,
+@Lenses final private[kafka] case class NJLoadParams(
+  bulkSize: Int,
   interval: FiniteDuration,
   recordsLimit: Long,
   timeLimit: FiniteDuration,
   bufferSize: Int)
 
-private[kafka] object NJUploadParams {
+private[kafka] object NJLoadParams {
 
-  val default: NJUploadParams = NJUploadParams(
-    batchSize = 1000,
+  val default: NJLoadParams = NJLoadParams(
+    bulkSize = 1024 * 1024,
     interval = 1.second,
     recordsLimit = Long.MaxValue,
     //akka.actor.LightArrayRevolverScheduler.checkMaxDelay
@@ -36,7 +36,7 @@ private[kafka] object NJUploadParams {
   timeRange: NJDateTimeRange,
   locationStrategy: LocationStrategy,
   replayPathBuilder: TopicName => String,
-  uploadParams: NJUploadParams) {
+  loadParams: NJLoadParams) {
   val replayPath: String = replayPathBuilder(topicName)
 }
 
@@ -48,7 +48,7 @@ private[kafka] object SKParams {
       timeRange = NJDateTimeRange(zoneId),
       locationStrategy = LocationStrategies.PreferConsistent,
       replayPathBuilder = topicName => s"./data/sparKafka/${topicName.value}/replay/",
-      uploadParams = NJUploadParams.default
+      loadParams = NJLoadParams.default
     )
 }
 
@@ -59,11 +59,11 @@ private[kafka] object SKConfigF {
 
   final case class WithTopicName[K](value: TopicName, cont: K) extends SKConfigF[K]
 
-  final case class WithUploadBatchSize[K](value: Int, cont: K) extends SKConfigF[K]
-  final case class WithUploadInterval[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
-  final case class WithUploadRecordsLimit[K](value: Long, cont: K) extends SKConfigF[K]
-  final case class WithUploadTimeLimit[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
-  final case class WithUploadBufferSize[K](value: Int, cont: K) extends SKConfigF[K]
+  final case class WithLoadBulkSize[K](value: Int, cont: K) extends SKConfigF[K]
+  final case class WithLoadInterval[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
+  final case class WithLoadRecordsLimit[K](value: Long, cont: K) extends SKConfigF[K]
+  final case class WithLoadTimeLimit[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
+  final case class WithLoadBufferSize[K](value: Int, cont: K) extends SKConfigF[K]
 
   final case class WithStartTimeStr[K](value: String, cont: K) extends SKConfigF[K]
   final case class WithStartTime[K](value: LocalDateTime, cont: K) extends SKConfigF[K]
@@ -82,25 +82,23 @@ private[kafka] object SKConfigF {
   private val algebra: Algebra[SKConfigF, SKParams] = Algebra[SKConfigF, SKParams] {
     case InitParams(t, z)    => SKParams(t, z)
     case WithTopicName(v, c) => SKParams.topicName.set(v)(c)
-    case WithUploadBatchSize(v, c) =>
-      SKParams.uploadParams.composeLens(NJUploadParams.batchSize).set(v)(c)
-    case WithUploadInterval(v, c) =>
-      SKParams.uploadParams.composeLens(NJUploadParams.interval).set(v)(c)
-    case WithUploadRecordsLimit(v, c) =>
-      SKParams.uploadParams.composeLens(NJUploadParams.recordsLimit).set(v)(c)
-    case WithUploadTimeLimit(v, c) =>
-      SKParams.uploadParams.composeLens(NJUploadParams.timeLimit).set(v)(c)
-    case WithUploadBufferSize(v, c) =>
-      SKParams.uploadParams.composeLens(NJUploadParams.bufferSize).set(v)(c)
-    case WithStartTimeStr(v, c)      => SKParams.timeRange.modify(_.withStartTime(v))(c)
-    case WithEndTimeStr(v, c)        => SKParams.timeRange.modify(_.withEndTime(v))(c)
-    case WithStartTime(v, c)         => SKParams.timeRange.modify(_.withStartTime(v))(c)
-    case WithEndTime(v, c)           => SKParams.timeRange.modify(_.withEndTime(v))(c)
-    case WithZoneId(v, c)            => SKParams.timeRange.modify(_.withZoneId(v))(c)
-    case WithTimeRange(v, c)         => SKParams.timeRange.set(v)(c)
-    case WithNSeconds(v, c)          => SKParams.timeRange.modify(_.withNSeconds(v))(c)
-    case WithOneDay(v, c)            => SKParams.timeRange.modify(_.withOneDay(v))(c)
-    case WithOneDayStr(v, c)         => SKParams.timeRange.modify(_.withOneDay(v))(c)
+
+    case WithLoadBulkSize(v, c)     => SKParams.loadParams.composeLens(NJLoadParams.bulkSize).set(v)(c)
+    case WithLoadInterval(v, c)     => SKParams.loadParams.composeLens(NJLoadParams.interval).set(v)(c)
+    case WithLoadRecordsLimit(v, c) => SKParams.loadParams.composeLens(NJLoadParams.recordsLimit).set(v)(c)
+    case WithLoadTimeLimit(v, c)    => SKParams.loadParams.composeLens(NJLoadParams.timeLimit).set(v)(c)
+    case WithLoadBufferSize(v, c)   => SKParams.loadParams.composeLens(NJLoadParams.bufferSize).set(v)(c)
+
+    case WithStartTimeStr(v, c) => SKParams.timeRange.modify(_.withStartTime(v))(c)
+    case WithEndTimeStr(v, c)   => SKParams.timeRange.modify(_.withEndTime(v))(c)
+    case WithStartTime(v, c)    => SKParams.timeRange.modify(_.withStartTime(v))(c)
+    case WithEndTime(v, c)      => SKParams.timeRange.modify(_.withEndTime(v))(c)
+    case WithZoneId(v, c)       => SKParams.timeRange.modify(_.withZoneId(v))(c)
+    case WithTimeRange(v, c)    => SKParams.timeRange.set(v)(c)
+    case WithNSeconds(v, c)     => SKParams.timeRange.modify(_.withNSeconds(v))(c)
+    case WithOneDay(v, c)       => SKParams.timeRange.modify(_.withOneDay(v))(c)
+    case WithOneDayStr(v, c)    => SKParams.timeRange.modify(_.withOneDay(v))(c)
+
     case WithLocationStrategy(v, c)  => SKParams.locationStrategy.set(v)(c)
     case WithReplayPathBuilder(v, c) => SKParams.replayPathBuilder.set(v)(c)
   }
@@ -113,13 +111,13 @@ final private[kafka] case class SKConfig private (value: Fix[SKConfigF]) extends
 
   def withTopicName(tn: String): SKConfig = SKConfig(Fix(WithTopicName(TopicName.unsafeFrom(tn), value)))
 
-  def withUploadBatchSize(bs: Int): SKConfig            = SKConfig(Fix(WithUploadBatchSize(bs, value)))
-  def withUploadInterval(fd: FiniteDuration): SKConfig  = SKConfig(Fix(WithUploadInterval(fd, value)))
-  def withUploadInterval(ms: Long): SKConfig            = withUploadInterval(FiniteDuration(ms, TimeUnit.MILLISECONDS))
-  def withUploadRecordsLimit(num: Long): SKConfig       = SKConfig(Fix(WithUploadRecordsLimit(num, value)))
-  def withUploadTimeLimit(fd: FiniteDuration): SKConfig = SKConfig(Fix(WithUploadTimeLimit(fd, value)))
-  def withUploadTimeLimit(ms: Long): SKConfig           = withUploadTimeLimit(FiniteDuration(ms, TimeUnit.MILLISECONDS))
-  def withUploadBufferSize(num: Int): SKConfig          = SKConfig(Fix(WithUploadBufferSize(num, value)))
+  def withLoadBulkSize(bs: Int): SKConfig             = SKConfig(Fix(WithLoadBulkSize(bs, value)))
+  def withLoadInterval(fd: FiniteDuration): SKConfig  = SKConfig(Fix(WithLoadInterval(fd, value)))
+  def withLoadInterval(ms: Long): SKConfig            = withLoadInterval(FiniteDuration(ms, TimeUnit.MILLISECONDS))
+  def withLoadRecordsLimit(num: Long): SKConfig       = SKConfig(Fix(WithLoadRecordsLimit(num, value)))
+  def withLoadTimeLimit(fd: FiniteDuration): SKConfig = SKConfig(Fix(WithLoadTimeLimit(fd, value)))
+  def withLoadTimeLimit(ms: Long): SKConfig           = withLoadTimeLimit(FiniteDuration(ms, TimeUnit.MILLISECONDS))
+  def withLoadBufferSize(num: Int): SKConfig          = SKConfig(Fix(WithLoadBufferSize(num, value)))
 
   def withStartTime(s: String): SKConfig                  = SKConfig(Fix(WithStartTimeStr(s, value)))
   def withStartTime(s: LocalDateTime): SKConfig           = SKConfig(Fix(WithStartTime(s, value)))

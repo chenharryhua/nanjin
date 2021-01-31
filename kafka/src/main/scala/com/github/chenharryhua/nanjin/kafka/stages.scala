@@ -93,7 +93,7 @@ object stages {
     }
   }
 
-  private[kafka] def takeUntilEnd(
+  def takeUntilEnd(
     endOffsets: KafkaTopicPartition[Long]): Flow[KafkaByteConsumerRecord, KafkaByteConsumerRecord, NotUsed] =
     Flow.fromGraph(new KafkaTakeUntilEnd(endOffsets))
 
