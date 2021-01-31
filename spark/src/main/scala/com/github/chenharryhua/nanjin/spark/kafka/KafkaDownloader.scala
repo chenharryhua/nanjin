@@ -16,7 +16,7 @@ import org.apache.hadoop.conf.Configuration
 
 import scala.concurrent.duration.FiniteDuration
 
-sealed class AkkaDownloader[F[_], K, V](
+sealed class KafkaDownloader[F[_], K, V](
   akkaSystem: ActorSystem,
   topic: KafkaTopic[F, K, V],
   hadoop: Configuration,
@@ -24,16 +24,16 @@ sealed class AkkaDownloader[F[_], K, V](
   val params: SKParams = cfg.evalConfig
 
   // config
-  private def updateCfg(f: SKConfig => SKConfig): AkkaDownloader[F, K, V] =
-    new AkkaDownloader[F, K, V](akkaSystem, topic, hadoop, f(cfg))
+  private def updateCfg(f: SKConfig => SKConfig): KafkaDownloader[F, K, V] =
+    new KafkaDownloader[F, K, V](akkaSystem, topic, hadoop, f(cfg))
 
-  def triggerEvery(ms: Long): AkkaDownloader[F, K, V]           = updateCfg(_.withLoadInterval(ms))
-  def triggerEvery(ms: FiniteDuration): AkkaDownloader[F, K, V] = updateCfg(_.withLoadInterval(ms))
-  def bulkSize(num: Int): AkkaDownloader[F, K, V]               = updateCfg(_.withLoadBulkSize(num))
+  def triggerEvery(ms: Long): KafkaDownloader[F, K, V]           = updateCfg(_.withLoadInterval(ms))
+  def triggerEvery(ms: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.withLoadInterval(ms))
+  def bulkSize(num: Int): KafkaDownloader[F, K, V]               = updateCfg(_.withLoadBulkSize(num))
 
-  def recordsLimit(num: Long): AkkaDownloader[F, K, V]       = updateCfg(_.withLoadRecordsLimit(num))
-  def timeLimit(ms: Long): AkkaDownloader[F, K, V]           = updateCfg(_.withLoadTimeLimit(ms))
-  def timeLimit(fd: FiniteDuration): AkkaDownloader[F, K, V] = updateCfg(_.withLoadTimeLimit(fd))
+  def recordsLimit(num: Long): KafkaDownloader[F, K, V]       = updateCfg(_.withLoadRecordsLimit(num))
+  def timeLimit(ms: Long): KafkaDownloader[F, K, V]           = updateCfg(_.withLoadTimeLimit(ms))
+  def timeLimit(fd: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.withLoadTimeLimit(fd))
 
   private def stream(implicit F: ConcurrentEffect[F], timer: Timer[F]): Stream[F, NJConsumerRecord[K, V]] = {
     val fstream: F[Stream[F, NJConsumerRecord[K, V]]] =
@@ -45,11 +45,11 @@ sealed class AkkaDownloader[F[_], K, V](
             topic
               .akkaChannel(akkaSystem)
               .assign(kor.value.mapValues(_.from.offset.value))
-              .via(stages.takeUntilEnd(kor.mapValues(os => os.until.offset.value - 1)))
               .throttle(
                 params.loadParams.bulkSize,
                 params.loadParams.interval,
                 cr => cr.serializedKeySize() + cr.serializedValueSize())
+              .via(stages.takeUntilEnd(kor.mapValues(os => os.until.offset.value - 1)))
               .map(cr => NJConsumerRecord(topic.decoder(cr).optionalKeyValue))
 
         src
