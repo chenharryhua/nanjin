@@ -29,7 +29,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
   (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
     topic.send(pr1) >> topic.send(pr2) >> topic.send(pr3)).unsafeRunSync()
 
-  test("start and end are both in range - both valid") {
+  test("start and end are both in range") {
     val expect: KafkaTopicPartition[Option[KafkaOffsetRange]] =
       KafkaTopicPartition(
         Map(new TopicPartition("range.test", 0) ->
@@ -40,7 +40,29 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     topic.shortLiveConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
   }
 
-  test("start after beginning and end after ending - invalid end") {
+  test("start is equal to beginning and end is equal to ending") {
+    val expect: KafkaTopicPartition[Option[KafkaOffsetRange]] =
+      KafkaTopicPartition(
+        Map(new TopicPartition("range.test", 0) ->
+          KafkaOffsetRange(KafkaOffset(0), KafkaOffset(2))))
+
+    val r = NJDateTimeRange(darwinTime).withStartTime(100).withEndTime(300)
+
+    topic.shortLiveConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
+  }
+
+  test("start is equal to beginning and end is after ending") {
+    val expect: KafkaTopicPartition[Option[KafkaOffsetRange]] =
+      KafkaTopicPartition(
+        Map(new TopicPartition("range.test", 0) ->
+          KafkaOffsetRange(KafkaOffset(0), KafkaOffset(3))))
+
+    val r = NJDateTimeRange(darwinTime).withStartTime(100).withEndTime(310)
+
+    topic.shortLiveConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
+  }
+
+  test("start after beginning and end after ending") {
     val expect =
       KafkaTopicPartition(
         Map(new TopicPartition("range.test", 0) ->
@@ -51,7 +73,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     topic.shortLiveConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
   }
 
-  test("start before beginning and end before ending - invalid start") {
+  test("start before beginning and end before ending") {
     val expect =
       KafkaTopicPartition(
         Map(new TopicPartition("range.test", 0) ->
@@ -62,7 +84,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     topic.shortLiveConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
   }
 
-  test("both start and end are before beginning - invalid both") {
+  test("both start and end are before beginning") {
     val expect =
       KafkaTopicPartition(Map(new TopicPartition("range.test", 0) -> None))
 
@@ -71,11 +93,20 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     topic.shortLiveConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
   }
 
-  test("both start and end are after ending - invalid both") {
+  test("both start and end are after ending") {
     val expect =
       KafkaTopicPartition(Map(new TopicPartition("range.test", 0) -> None))
 
     val r = NJDateTimeRange(darwinTime).withStartTime(500).withEndTime(600)
+
+    topic.shortLiveConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
+  }
+
+  test("when there is no data in the range") {
+    val expect =
+      KafkaTopicPartition(Map(new TopicPartition("range.test", 0) -> None))
+
+    val r = NJDateTimeRange(darwinTime).withStartTime(110).withEndTime(120)
 
     topic.shortLiveConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
   }
