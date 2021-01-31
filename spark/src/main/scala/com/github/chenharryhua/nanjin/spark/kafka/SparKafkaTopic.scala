@@ -37,6 +37,7 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   def withStartTime(str: String): SparKafkaTopic[F, K, V]                 = updateCfg(_.withStartTime(str))
   def withEndTime(str: String): SparKafkaTopic[F, K, V]                   = updateCfg(_.withEndTime(str))
   def withOneDay(ld: LocalDate): SparKafkaTopic[F, K, V]                  = updateCfg(_.withOneDay(ld))
+  def withTimeRange(tr: NJDateTimeRange): SparKafkaTopic[F, K, V]         = updateCfg(_.withTimeRange(tr))
   def withLocationStrategy(ls: LocationStrategy): SparKafkaTopic[F, K, V] = updateCfg(_.withLocationStrategy(ls))
 
   val params: SKParams = cfg.evalConfig

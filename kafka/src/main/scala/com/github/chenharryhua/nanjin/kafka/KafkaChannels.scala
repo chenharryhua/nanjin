@@ -58,14 +58,17 @@ object KafkaChannels {
       cs: ContextShift[F],
       timer: Timer[F],
       F: ConcurrentEffect[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
-      KafkaConsumer
-        .stream[F, Array[Byte], Array[Byte]](consumerSettings)
-        .evalTap { c =>
-          c.assign(topicName.value) *> tps.toList.traverse { case (tp, offset) =>
-            c.seek(tp, offset)
+      if (tps.isEmpty)
+        Stream.empty
+      else
+        KafkaConsumer
+          .stream[F, Array[Byte], Array[Byte]](consumerSettings)
+          .evalTap { c =>
+            c.assign(topicName.value) *> tps.toList.traverse { case (tp, offset) =>
+              c.seek(tp, offset)
+            }
           }
-        }
-        .flatMap(_.stream)
+          .flatMap(_.stream)
   }
 
   final class AkkaChannel[F[_], K, V] private[kafka] (
@@ -109,10 +112,13 @@ object KafkaChannels {
     def offsetRanged(offsetRange: KafkaTopicPartition[KafkaOffsetRange])(implicit
       F: ConcurrentEffect[F]): Stream[F, KafkaByteConsumerRecord] =
       Stream.suspend {
-        assign(offsetRange.value.mapValues(_.from.value))
-          .via(stages.takeUntilEnd(offsetRange.mapValues(os => os.until.offset.value - 1)))
-          .runWith(Sink.asPublisher(fanout = false))(Materializer(akkaSystem))
-          .toStream[F]
+        if (offsetRange.isEmpty)
+          Stream.empty
+        else
+          assign(offsetRange.value.mapValues(_.from.value))
+            .via(stages.takeUntilEnd(offsetRange.mapValues(os => os.until.offset.value - 1)))
+            .runWith(Sink.asPublisher(fanout = false))(Materializer(akkaSystem))
+            .toStream[F]
       }
 
     def timeRanged(dateTimeRange: NJDateTimeRange)(implicit
