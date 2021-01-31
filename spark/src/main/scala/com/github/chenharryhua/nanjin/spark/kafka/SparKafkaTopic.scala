@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import akka.actor.ActorSystem
 import cats.Foldable
 import cats.data.Reader
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Effect, Sync, Timer}
@@ -58,6 +59,9 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   def countDisk(implicit F: Sync[F]): F[Long]    = fromDisk.count
 
   def load: LoadTopicFile[F, K, V] = new LoadTopicFile[F, K, V](topic, cfg, ss)
+
+  def download(akkaSystem: ActorSystem): AkkaDownloader[F, K, V] =
+    new AkkaDownloader[F, K, V](akkaSystem, topic, cfg, ss.sparkContext.hadoopConfiguration)
 
   /** rdd and dataset
     */

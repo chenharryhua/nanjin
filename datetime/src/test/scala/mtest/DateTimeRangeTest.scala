@@ -13,6 +13,8 @@ import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
 import java.sql.Timestamp
 import java.time._
+import scala.concurrent.duration._
+import scala.util.Random
 
 class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
 
@@ -164,5 +166,22 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
 
     assertThrows[Exception](NJTimestamp("abc"))
     assertThrows[Exception](NJTimestamp("abc", sydneyTime))
+  }
+
+  test("subranges") {
+    val dr = NJDateTimeRange(sydneyTime).withStartTime("2021-01-01").withEndTime("2021-02-01")
+    val sr = dr.subranges(24.hours)
+    assert(sr.size == 31)
+    assert(sr == dr.subranges(1.day))
+    val rd = Random.nextInt(30)
+    assert(sr(rd).endTimestamp == sr(rd + 1).startTimestamp)
+  }
+  test("subranges - irregular") {
+    val dr = NJDateTimeRange(sydneyTime).withStartTime("2021-01-01").withEndTime("2021-02-01T08:00")
+    val sr = dr.subranges(12.hours)
+    assert(sr.size == 63)
+    sr.sliding(2).toList.map { case List(a, b) =>
+      assert(a.endTimestamp == b.startTimestamp)
+    }
   }
 }
