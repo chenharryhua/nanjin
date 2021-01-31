@@ -38,6 +38,7 @@ final class PrRdd[F[_], K, V] private[kafka] (
   def triggerEvery(ms: Long): PrRdd[F, K, V]           = updateCfg(_.withLoadInterval(ms))
   def triggerEvery(ms: FiniteDuration): PrRdd[F, K, V] = updateCfg(_.withLoadInterval(ms))
   def bulkSize(num: Int): PrRdd[F, K, V]               = updateCfg(_.withLoadBulkSize(num))
+  def batchSize(num: Int): PrRdd[F, K, V]              = updateCfg(_.withUploadBatchSize(num))
   def bufferSize(num: Int): PrRdd[F, K, V]             = updateCfg(_.withLoadBufferSize(num))
 
   def recordsLimit(num: Long): PrRdd[F, K, V]       = updateCfg(_.withLoadRecordsLimit(num))
@@ -81,7 +82,7 @@ final class PrRdd[F[_], K, V] private[kafka] (
     new PrRdd[F, K2, V2](rdd.flatMap(f), other, cfg).normalize
 
   // actions
-  private[spark] def upload(implicit
+  def upload(implicit
     ce: ConcurrentEffect[F],
     timer: Timer[F],
     cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
@@ -89,7 +90,7 @@ final class PrRdd[F[_], K, V] private[kafka] (
       .stream[F]
       .interruptAfter(params.loadParams.timeLimit)
       .take(params.loadParams.recordsLimit)
-      .chunkN(1000)
+      .chunkN(params.loadParams.uploadBatchSize)
       .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName.value))))
       .buffer(params.loadParams.bufferSize)
       .metered(params.loadParams.interval)

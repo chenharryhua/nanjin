@@ -14,6 +14,7 @@ import scala.concurrent.duration._
 
 @Lenses final private[kafka] case class NJLoadParams(
   bulkSize: Int,
+  uploadBatchSize: Int,
   interval: FiniteDuration,
   recordsLimit: Long,
   timeLimit: FiniteDuration,
@@ -23,6 +24,7 @@ private[kafka] object NJLoadParams {
 
   val default: NJLoadParams = NJLoadParams(
     bulkSize = 1024 * 1024,
+    uploadBatchSize = 1000,
     interval = 1.second,
     recordsLimit = Long.MaxValue,
     //akka.actor.LightArrayRevolverScheduler.checkMaxDelay
@@ -60,6 +62,7 @@ private[kafka] object SKConfigF {
   final case class WithTopicName[K](value: TopicName, cont: K) extends SKConfigF[K]
 
   final case class WithLoadBulkSize[K](value: Int, cont: K) extends SKConfigF[K]
+  final case class WithUploadLoadBatchSize[K](value: Int, cont: K) extends SKConfigF[K]
   final case class WithLoadInterval[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
   final case class WithLoadRecordsLimit[K](value: Long, cont: K) extends SKConfigF[K]
   final case class WithLoadTimeLimit[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
@@ -88,6 +91,8 @@ private[kafka] object SKConfigF {
     case WithLoadRecordsLimit(v, c) => SKParams.loadParams.composeLens(NJLoadParams.recordsLimit).set(v)(c)
     case WithLoadTimeLimit(v, c)    => SKParams.loadParams.composeLens(NJLoadParams.timeLimit).set(v)(c)
     case WithLoadBufferSize(v, c)   => SKParams.loadParams.composeLens(NJLoadParams.bufferSize).set(v)(c)
+
+    case WithUploadLoadBatchSize(v, c) => SKParams.loadParams.composeLens(NJLoadParams.uploadBatchSize).set(v)(c)
 
     case WithStartTimeStr(v, c) => SKParams.timeRange.modify(_.withStartTime(v))(c)
     case WithEndTimeStr(v, c)   => SKParams.timeRange.modify(_.withEndTime(v))(c)
@@ -118,6 +123,8 @@ final private[kafka] case class SKConfig private (value: Fix[SKConfigF]) extends
   def withLoadTimeLimit(fd: FiniteDuration): SKConfig = SKConfig(Fix(WithLoadTimeLimit(fd, value)))
   def withLoadTimeLimit(ms: Long): SKConfig           = withLoadTimeLimit(FiniteDuration(ms, TimeUnit.MILLISECONDS))
   def withLoadBufferSize(num: Int): SKConfig          = SKConfig(Fix(WithLoadBufferSize(num, value)))
+
+  def withUploadBatchSize(num: Int): SKConfig = SKConfig(Fix(WithUploadLoadBatchSize(num, value)))
 
   def withStartTime(s: String): SKConfig                  = SKConfig(Fix(WithStartTimeStr(s, value)))
   def withStartTime(s: LocalDateTime): SKConfig           = SKConfig(Fix(WithStartTime(s, value)))
