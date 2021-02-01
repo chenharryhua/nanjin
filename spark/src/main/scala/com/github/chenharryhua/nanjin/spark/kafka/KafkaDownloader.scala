@@ -66,8 +66,13 @@ sealed class KafkaDownloader[F[_], K, V](
     new AvroDownloader(stream, encoder, hadoop, path, Compression.Uncompressed)
   }
 
+  def jackson(path: String)(implicit F: ConcurrentEffect[F], timer: Timer[F]): JacksonDownloader[F, K, V] = {
+    val encoder: AvroEncoder[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(topic.topicDef).avroEncoder
+    new JacksonDownloader(stream, encoder, hadoop, path, Compression.Uncompressed)
+  }
+
   def circe(path: String)(implicit F: ConcurrentEffect[F], timer: Timer[F]): CirceDownloader[F, K, V] =
-    new CirceDownloader[F, K, V](stream, hadoop, true, path, Compression.Uncompressed)
+    new CirceDownloader[F, K, V](stream, hadoop, path, true, Compression.Uncompressed)
 }
 
 final class AvroDownloader[F[_], K, V](
@@ -90,22 +95,40 @@ final class AvroDownloader[F[_], K, V](
     stream.through(sinks.avro(path, hadoop, encoder, compression.avro(hadoop), blocker))
 }
 
-final class CirceDownloader[F[_], K, V](
+final class JacksonDownloader[F[_], K, V](
   stream: Stream[F, NJConsumerRecord[K, V]],
+  encoder: AvroEncoder[NJConsumerRecord[K, V]],
   hadoop: Configuration,
-  isKeepNull: Boolean,
   path: String,
   compression: Compression) {
 
+  private def updateCompression(compression: Compression): JacksonDownloader[F, K, V] =
+    new JacksonDownloader[F, K, V](stream, encoder, hadoop, path, compression)
+
+  def deflate(level: Int): JacksonDownloader[F, K, V] = updateCompression(Compression.Deflate(level))
+  def gzip: JacksonDownloader[F, K, V]                = updateCompression(Compression.Gzip)
+  def uncompress: JacksonDownloader[F, K, V]          = updateCompression(Compression.Uncompressed)
+
+  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): Stream[F, Unit] =
+    stream.through(sinks.jackson(path, hadoop, encoder, compression.fs2Compression, blocker))
+}
+
+final class CirceDownloader[F[_], K, V](
+  stream: Stream[F, NJConsumerRecord[K, V]],
+  hadoop: Configuration,
+  path: String,
+  isKeepNull: Boolean,
+  compression: Compression) {
+
   private def updateCompression(compression: Compression): CirceDownloader[F, K, V] =
-    new CirceDownloader[F, K, V](stream, hadoop, isKeepNull, path, compression)
+    new CirceDownloader[F, K, V](stream, hadoop, path, isKeepNull, compression)
 
   def deflate(level: Int): CirceDownloader[F, K, V] = updateCompression(Compression.Deflate(level))
   def gzip: CirceDownloader[F, K, V]                = updateCompression(Compression.Gzip)
   def uncompress: CirceDownloader[F, K, V]          = updateCompression(Compression.Uncompressed)
 
-  def keepNull: CirceDownloader[F, K, V] = new CirceDownloader[F, K, V](stream, hadoop, true, path, compression)
-  def dropNull: CirceDownloader[F, K, V] = new CirceDownloader[F, K, V](stream, hadoop, false, path, compression)
+  def keepNull: CirceDownloader[F, K, V] = new CirceDownloader[F, K, V](stream, hadoop, path, true, compression)
+  def dropNull: CirceDownloader[F, K, V] = new CirceDownloader[F, K, V](stream, hadoop, path, false, compression)
 
   def run(blocker: Blocker)(implicit
     F: Sync[F],
