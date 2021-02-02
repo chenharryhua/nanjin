@@ -106,7 +106,6 @@ object ShortLiveConsumer {
     Resource
       .make(Sync[F].delay {
         val byteArrayDeserializer = new ByteArrayDeserializer
-        props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_uncommitted")
         new KafkaConsumer[Array[Byte], Array[Byte]](props, byteArrayDeserializer, byteArrayDeserializer)
       })(a => Sync[F].delay(a.close()))
       .map(new KafkaConsumerApiImpl(topicName, _))
