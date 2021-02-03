@@ -17,9 +17,10 @@ import scala.util.control.NonFatal
 object stages {
 
   /** Notes:
+    *
     * similar to akka.stream.scaladsl.Sink.ignore:
     * A Sink that will consume the stream and discard the elements.
-    * it's materialized to F[Done] instead of Future[Done]
+    * it's materialized to '''F[Done]'''instead of '''Future[Done]'''
     */
   final private class IgnoreSink[F[_]](implicit F: ConcurrentEffect[F])
       extends GraphStageWithMaterializedValue[SinkShape[Any], F[Done]] {
@@ -52,11 +53,14 @@ object stages {
   def ignore[F[_]: ConcurrentEffect]: Sink[Any, F[Done]] = Sink.fromGraph(new IgnoreSink[F])
 
   /** Notes:
-    *  @param endOffsets: end offsets of all partitions
     *
-    * Emits when offset of the record is less than or equal to the end offset
-    * Completes when all partitions reach their end offsets
-    * Cancels when downstream cancels
+    *  @param endOffsets end offsets of all partitions
+    *
+    * '''Emits'''  when offset of the record is less than or equal to the end offset
+    *
+    * '''Completes''' when all partitions reach their end offsets
+    *
+    * '''Cancels''' when downstream cancels
     */
   final private class KafkaTakeUntilEnd(endOffsets: KafkaTopicPartition[Long])
       extends GraphStage[FlowShape[KafkaByteConsumerRecord, KafkaByteConsumerRecord]] {
@@ -68,14 +72,18 @@ object stages {
     override def createLogic(inheritedAttributes: Attributes): GraphStageLogic = new GraphStageLogic(shape) {
 
       /** Notes:
-        * false - end offset is not reached yet
-        * true - end offset is reached
+        *
+        * '''false''' end offset is not reached yet
+        *
+        * '''true''' end offset has been reached
         */
       private var topicStates: Map[TopicPartition, Boolean] = endOffsets.value.mapValues(_ => false)
 
       /** Notes:
-        * true - all partitions reach end offset
-        *  false - not all partition reach end offset
+        *
+        * '''true'''   all partitions reach end offset
+        *
+        * '''false'''  not all partition reach end offset
         */
       private def isPartitionsCompleted(ts: Map[TopicPartition, Boolean]): Boolean = ts.forall(_._2)
 

@@ -11,7 +11,6 @@ import cats.data.{NonEmptyList, Reader}
 import cats.effect._
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.utils
 import fs2.interop.reactivestreams._
 import fs2.kafka.{
   KafkaByteConsumerRecord,
@@ -23,7 +22,6 @@ import fs2.kafka.{
   ProducerSettings => Fs2ProducerSettings
 }
 import fs2.{Pipe, Stream}
-import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.Serde
@@ -109,26 +107,6 @@ object KafkaChannels {
     def stream(implicit F: ConcurrentEffect[F]): Stream[F, CommittableMessage[Array[Byte], Array[Byte]]] =
       Stream.suspend(source.runWith(Sink.asPublisher(fanout = false))(Materializer(akkaSystem)).toStream[F])
 
-    def offsetRanged(offsetRange: KafkaTopicPartition[KafkaOffsetRange])(implicit
-      F: ConcurrentEffect[F]): Stream[F, KafkaByteConsumerRecord] =
-      Stream.suspend {
-        if (offsetRange.isEmpty)
-          Stream.empty
-        else
-          assign(offsetRange.value.mapValues(_.from.value))
-            .via(stages.takeUntilEnd(offsetRange.mapValues(os => os.until.offset.value - 1)))
-            .runWith(Sink.asPublisher(fanout = false))(Materializer(akkaSystem))
-            .toStream[F]
-      }
-
-    def timeRanged(dateTimeRange: NJDateTimeRange)(implicit
-      F: ConcurrentEffect[F]): Stream[F, KafkaByteConsumerRecord] = {
-      val exec: F[Stream[F, ConsumerRecord[Array[Byte], Array[Byte]]]] =
-        ShortLiveConsumer[F](topicName, utils.toProperties(consumerSettings.properties))
-          .use(_.offsetRangeFor(dateTimeRange).map(_.flatten[KafkaOffsetRange]))
-          .map(offsetRanged)
-      Stream.force(exec)
-    }
   }
 
   final class StreamingChannel[K, V] private[kafka] (

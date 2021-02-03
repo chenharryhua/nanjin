@@ -18,7 +18,8 @@ import scala.concurrent.duration._
   interval: FiniteDuration,
   recordsLimit: Long,
   timeLimit: FiniteDuration,
-  bufferSize: Int)
+  bufferSize: Int,
+  idleTimeout: FiniteDuration)
 
 private[kafka] object NJLoadParams {
 
@@ -29,7 +30,8 @@ private[kafka] object NJLoadParams {
     recordsLimit = Long.MaxValue,
     //akka.actor.LightArrayRevolverScheduler.checkMaxDelay
     timeLimit = FiniteDuration(21474835, TimeUnit.SECONDS),
-    bufferSize = 15
+    bufferSize = 15,
+    idleTimeout = FiniteDuration(120, TimeUnit.SECONDS)
   )
 }
 
@@ -67,6 +69,7 @@ private[kafka] object SKConfigF {
   final case class WithLoadRecordsLimit[K](value: Long, cont: K) extends SKConfigF[K]
   final case class WithLoadTimeLimit[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
   final case class WithLoadBufferSize[K](value: Int, cont: K) extends SKConfigF[K]
+  final case class WithIdleTimeout[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
 
   final case class WithStartTimeStr[K](value: String, cont: K) extends SKConfigF[K]
   final case class WithStartTime[K](value: LocalDateTime, cont: K) extends SKConfigF[K]
@@ -91,6 +94,7 @@ private[kafka] object SKConfigF {
     case WithLoadRecordsLimit(v, c) => SKParams.loadParams.composeLens(NJLoadParams.recordsLimit).set(v)(c)
     case WithLoadTimeLimit(v, c)    => SKParams.loadParams.composeLens(NJLoadParams.timeLimit).set(v)(c)
     case WithLoadBufferSize(v, c)   => SKParams.loadParams.composeLens(NJLoadParams.bufferSize).set(v)(c)
+    case WithIdleTimeout(v, c)      => SKParams.loadParams.composeLens(NJLoadParams.idleTimeout).set(v)(c)
 
     case WithUploadLoadBatchSize(v, c) => SKParams.loadParams.composeLens(NJLoadParams.uploadBatchSize).set(v)(c)
 
@@ -116,13 +120,14 @@ final private[kafka] case class SKConfig private (value: Fix[SKConfigF]) extends
 
   def withTopicName(tn: String): SKConfig = SKConfig(Fix(WithTopicName(TopicName.unsafeFrom(tn), value)))
 
-  def withLoadBulkSize(bs: Int): SKConfig             = SKConfig(Fix(WithLoadBulkSize(bs, value)))
-  def withLoadInterval(fd: FiniteDuration): SKConfig  = SKConfig(Fix(WithLoadInterval(fd, value)))
-  def withLoadInterval(ms: Long): SKConfig            = withLoadInterval(FiniteDuration(ms, TimeUnit.MILLISECONDS))
-  def withLoadRecordsLimit(num: Long): SKConfig       = SKConfig(Fix(WithLoadRecordsLimit(num, value)))
-  def withLoadTimeLimit(fd: FiniteDuration): SKConfig = SKConfig(Fix(WithLoadTimeLimit(fd, value)))
-  def withLoadTimeLimit(ms: Long): SKConfig           = withLoadTimeLimit(FiniteDuration(ms, TimeUnit.MILLISECONDS))
-  def withLoadBufferSize(num: Int): SKConfig          = SKConfig(Fix(WithLoadBufferSize(num, value)))
+  def withLoadBulkSize(bs: Int): SKConfig               = SKConfig(Fix(WithLoadBulkSize(bs, value)))
+  def withLoadInterval(fd: FiniteDuration): SKConfig    = SKConfig(Fix(WithLoadInterval(fd, value)))
+  def withLoadInterval(ms: Long): SKConfig              = withLoadInterval(FiniteDuration(ms, TimeUnit.MILLISECONDS))
+  def withLoadRecordsLimit(num: Long): SKConfig         = SKConfig(Fix(WithLoadRecordsLimit(num, value)))
+  def withLoadTimeLimit(fd: FiniteDuration): SKConfig   = SKConfig(Fix(WithLoadTimeLimit(fd, value)))
+  def withLoadTimeLimit(ms: Long): SKConfig             = withLoadTimeLimit(FiniteDuration(ms, TimeUnit.MILLISECONDS))
+  def withLoadBufferSize(num: Int): SKConfig            = SKConfig(Fix(WithLoadBufferSize(num, value)))
+  def withLoadIdleTimeout(fd: FiniteDuration): SKConfig = SKConfig(Fix(WithIdleTimeout(fd, value)))
 
   def withUploadBatchSize(num: Int): SKConfig = SKConfig(Fix(WithUploadLoadBatchSize(num, value)))
 
