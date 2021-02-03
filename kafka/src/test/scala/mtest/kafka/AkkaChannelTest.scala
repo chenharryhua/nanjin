@@ -24,21 +24,6 @@ class AkkaChannelTest extends AnyFunSuite {
   val akkaChannel: KafkaChannels.AkkaChannel[IO, Int, String] =
     topic.updateAkkaCommitterSettings(_.withParallelism(10).withParallelism(10)).akkaChannel(akkaSystem)
 
-  test("time-ranged") {
-    val range = NJDateTimeRange(sydneyTime)
-    (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >> IO.sleep(1.seconds)).unsafeRunSync()
-    val res = akkaChannel
-      .timeRanged(range)
-      .delayBy(2.seconds)
-      .map(x => topic.decoder(x).decode)
-      .concurrently(sender)
-      .compile
-      .toList
-      .unsafeRunSync()
-      .map(x => ProducerRecord(x.topic, x.key(), x.value()))
-    assert(res == data)
-  }
-
   test("akka stream committableSink") {
     val run = akkaChannel.source
       .map(m => topic.decoder(m).nullableDecode)

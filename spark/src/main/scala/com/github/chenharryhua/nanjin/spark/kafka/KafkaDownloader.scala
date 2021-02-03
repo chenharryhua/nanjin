@@ -16,7 +16,7 @@ import org.apache.hadoop.conf.Configuration
 
 import scala.concurrent.duration.FiniteDuration
 
-sealed class KafkaDownloader[F[_], K, V](
+final class KafkaDownloader[F[_], K, V](
   akkaSystem: ActorSystem,
   topic: KafkaTopic[F, K, V],
   hadoop: Configuration,
@@ -35,6 +35,8 @@ sealed class KafkaDownloader[F[_], K, V](
   def timeLimit(ms: Long): KafkaDownloader[F, K, V]           = updateCfg(_.withLoadTimeLimit(ms))
   def timeLimit(fd: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.withLoadTimeLimit(fd))
 
+  def idleTimeout(fd: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.withLoadIdleTimeout(fd))
+
   private def stream(implicit F: ConcurrentEffect[F], timer: Timer[F]): Stream[F, NJConsumerRecord[K, V]] = {
     val fstream: F[Stream[F, NJConsumerRecord[K, V]]] =
       topic.shortLiveConsumer.use(_.offsetRangeFor(params.timeRange).map(_.flatten[KafkaOffsetRange])).map { kor =>
@@ -51,6 +53,7 @@ sealed class KafkaDownloader[F[_], K, V](
                 cr => cr.serializedKeySize() + cr.serializedValueSize())
               .via(stages.takeUntilEnd(kor.mapValues(os => os.until.offset.value - 1)))
               .map(cr => NJConsumerRecord(topic.decoder(cr).optionalKeyValue))
+              .idleTimeout(params.loadParams.idleTimeout)
 
         src
           .runWith(Sink.asPublisher(fanout = false))(Materializer(akkaSystem))
