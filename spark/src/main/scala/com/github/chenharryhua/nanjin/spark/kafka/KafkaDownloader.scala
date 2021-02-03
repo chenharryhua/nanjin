@@ -16,6 +16,14 @@ import org.apache.hadoop.conf.Configuration
 
 import scala.concurrent.duration.FiniteDuration
 
+/** Notes
+  *
+  * the downloader is able to control download rate from Kafka
+  *
+  * the maximum rate is about [[bulkSize]] per [[triggerEvery]]
+  *
+  * [[circe]] is not isomorphic when key or value of ConsumerRecord is a coproduct
+  */
 final class KafkaDownloader[F[_], K, V](
   akkaSystem: ActorSystem,
   topic: KafkaTopic[F, K, V],
