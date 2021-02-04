@@ -1,4 +1,4 @@
-package mtest.codec
+package mtest.msg.codec
 
 import io.circe.generic.auto._
 import io.circe.parser.decode

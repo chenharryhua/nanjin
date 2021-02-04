@@ -1,4 +1,4 @@
-package mtest.kafka
+package mtest.msg.kafka
 
 import akka.kafka.ProducerMessage.{MultiMessage => AkkaMultiMessage}
 import cats.effect.IO
@@ -16,24 +16,19 @@ import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 class TraversalTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
   checkAll(
     "akka.producer.MultiMessage",
-    TraversalTests(
-      BitraverseMessages[AkkaMultiMessage[*, *, String]].traversal[Int, Int, Int, Int]))
+    TraversalTests(BitraverseMessages[AkkaMultiMessage[*, *, String]].traversal[Int, Int, Int, Int]))
 
   checkAll(
     "fs2.producer.ProducerRecords",
-    TraversalTests(
-      BitraverseMessages[Fs2ProducerRecords[*, *, String]].traversal[Int, Int, Int, Int]))
+    TraversalTests(BitraverseMessages[Fs2ProducerRecords[*, *, String]].traversal[Int, Int, Int, Int]))
 
   checkAll(
     "fs2.producer.CommittableProducerRecords",
-    TraversalTests(
-      BitraverseMessages[Fs2CommittableProducerRecords[IO, *, *]].traversal[Int, Int, Int, Int])
+    TraversalTests(BitraverseMessages[Fs2CommittableProducerRecords[IO, *, *]].traversal[Int, Int, Int, Int])
   )
 
   checkAll(
     "fs2.producer.TransactionalProducerRecords",
-    TraversalTests(
-      BitraverseMessages[Fs2TransactionalProducerRecords[IO, *, *, String]]
-        .traversal[Int, Int, Int, Int])
+    TraversalTests(BitraverseMessages[Fs2TransactionalProducerRecords[IO, *, *, String]].traversal[Int, Int, Int, Int])
   )
 }

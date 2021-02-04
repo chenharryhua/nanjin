@@ -1,4 +1,4 @@
-package mtest
+package mtest.msg
 
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, NJCodec, SerdeOf}
 import io.circe.generic.auto._

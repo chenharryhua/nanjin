@@ -1,4 +1,4 @@
-package mtest.kafka
+package mtest.msg.kafka
 
 import java.util.Optional
 import cats.kernel.laws.discipline.EqTests

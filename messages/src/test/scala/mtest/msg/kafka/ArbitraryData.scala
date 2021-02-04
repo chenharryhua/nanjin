@@ -1,4 +1,4 @@
-package mtest.kafka
+package mtest.msg.kafka
 
 import akka.kafka.ConsumerMessage.{
   CommittableMessage => AkkaConsumerMessage,
@@ -44,8 +44,7 @@ trait ArbitraryData extends genMessage.GenFs2Message with genMessage.GenAkkaMess
     Cogen(m => m.key.toLong + m.timestamp())
 
   implicit val abKafkaProducerRecords: Arbitrary[Chunk[ProducerRecord[Int, Int]]] =
-    Arbitrary(
-      Gen.containerOfN[List, ProducerRecord[Int, Int]](10, genProducerRecord).map(Chunk.seq))
+    Arbitrary(Gen.containerOfN[List, ProducerRecord[Int, Int]](10, genProducerRecord).map(Chunk.seq))
 
   implicit val cogenKafkaProducerRecords: Cogen[Chunk[ProducerRecord[Int, Int]]] =
     Cogen(_.size.toLong)
@@ -72,12 +71,10 @@ trait ArbitraryData extends genMessage.GenFs2Message with genMessage.GenAkkaMess
   implicit val abFs2ProducerRecords: Arbitrary[Fs2ProducerRecords[Int, Int, String]] =
     Arbitrary(genFs2ProducerRecords)
 
-  implicit val abFs2CommittableProducerRecords
-    : Arbitrary[Fs2CommittableProducerRecords[IO, Int, Int]] =
+  implicit val abFs2CommittableProducerRecords: Arbitrary[Fs2CommittableProducerRecords[IO, Int, Int]] =
     Arbitrary(genFs2CommittableProducerRecords)
 
-  implicit val abFs2TransactionalProducerRecords
-    : Arbitrary[Fs2TransactionalProducerRecords[IO, Int, Int, String]] =
+  implicit val abFs2TransactionalProducerRecords: Arbitrary[Fs2TransactionalProducerRecords[IO, Int, Int, String]] =
     Arbitrary(genFs2TransactionalProducerRecords)
 
   //akka

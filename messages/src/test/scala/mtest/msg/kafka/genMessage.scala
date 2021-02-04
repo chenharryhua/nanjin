@@ -1,4 +1,4 @@
-package mtest.codec
+package mtest.msg.kafka
 
 import java.util.Optional
 
@@ -29,7 +29,7 @@ import org.scalacheck.Gen
 
 import scala.compat.java8.OptionConverters._
 
-object genMessages {
+object genMessage {
 
   trait GenKafkaMessage { self =>
 
@@ -52,10 +52,7 @@ object genMessages {
       offset <- Gen.posNum[Long]
       timestamp <- Gen.posNum[Long]
       timestampType <- Gen.oneOf(
-        List(
-          TimestampType.CREATE_TIME,
-          TimestampType.LOG_APPEND_TIME,
-          TimestampType.NO_TIMESTAMP_TYPE))
+        List(TimestampType.CREATE_TIME, TimestampType.LOG_APPEND_TIME, TimestampType.NO_TIMESTAMP_TYPE))
       checksum <- arbitrary[Long]
       sizeKey <- arbitrary[Int]
       sizeValue <- arbitrary[Int]
@@ -86,7 +83,6 @@ object genMessages {
       value <- arbitrary[Int]
       headers <- genHeaders
     } yield new ProducerRecord(topic, partition, timestamp, key, value, headers)
-
   }
 
   trait GenFs2Message extends GenKafkaMessage { self =>
@@ -128,8 +124,7 @@ object genMessages {
       os <- genFs2CommittableOffset
     } yield Fs2CommittableProducerRecords(prs, os)
 
-    val genFs2TransactionalProducerRecords
-      : Gen[Fs2TransactionalProducerRecords[IO, Int, Int, String]] = for {
+    val genFs2TransactionalProducerRecords: Gen[Fs2TransactionalProducerRecords[IO, Int, Int, String]] = for {
       cpr <- genFs2CommittableProducerRecords
       cprs <-
         Gen.containerOfN[List, Fs2CommittableProducerRecords[IO, Int, Int]](10, cpr).map(Chunk.seq)

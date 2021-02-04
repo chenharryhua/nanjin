@@ -1,4 +1,4 @@
-package mtest.kafka
+package mtest.msg.kafka
 
 import akka.kafka.{ConsumerMessage => AkkaConsumerMessage, ProducerMessage => AkkaProducerMessage}
 import cats.Id
@@ -31,8 +31,7 @@ class BitraverseTest extends AnyFunSuite with FunSuiteDiscipline with Configurat
 
   checkAll(
     "fs2.consumer.CommittableConsumerRecord",
-    BitraverseTests[Fs2CommittableConsumerRecord[IO, *, *]]
-      .bitraverse[Id, Int, Int, Int, Int, Int, Int])
+    BitraverseTests[Fs2CommittableConsumerRecord[IO, *, *]].bitraverse[Id, Int, Int, Int, Int, Int, Int])
 
   checkAll(
     "fs2.consumer.ConsumerRecord",
@@ -44,18 +43,15 @@ class BitraverseTest extends AnyFunSuite with FunSuiteDiscipline with Configurat
 
   checkAll(
     "fs2.producer.ProducerRecords",
-    BitraverseTests[Fs2ProducerRecords[*, *, String]]
-      .bitraverse[List, Int, Int, Int, Int, Int, Int])
+    BitraverseTests[Fs2ProducerRecords[*, *, String]].bitraverse[List, Int, Int, Int, Int, Int, Int])
 
   checkAll(
     "fs2.producer.CommittableProducerRecords",
-    BitraverseTests[Fs2CommittableProducerRecords[IO, *, *]]
-      .bitraverse[Option, Int, Int, Int, Int, Int, Int])
+    BitraverseTests[Fs2CommittableProducerRecords[IO, *, *]].bitraverse[Option, Int, Int, Int, Int, Int, Int])
 
   checkAll(
     "fs2.producer.TransactionalProducerRecords",
-    BitraverseTests[Fs2TransactionalProducerRecords[IO, *, *, String]]
-      .bitraverse[Option, Int, Int, Int, Int, Int, Int]
+    BitraverseTests[Fs2TransactionalProducerRecords[IO, *, *, String]].bitraverse[Option, Int, Int, Int, Int, Int, Int]
   )
 
   checkAll(
@@ -65,13 +61,11 @@ class BitraverseTest extends AnyFunSuite with FunSuiteDiscipline with Configurat
 
   checkAll(
     "akka.consumer.CommittableMessage",
-    BitraverseTests[AkkaConsumerMessage.CommittableMessage]
-      .bitraverse[Either[Long, *], Int, Int, Int, Int, Int, Int])
+    BitraverseTests[AkkaConsumerMessage.CommittableMessage].bitraverse[Either[Long, *], Int, Int, Int, Int, Int, Int])
 
   checkAll(
     "akka.consumer.TransactionalMessage",
-    BitraverseTests[AkkaConsumerMessage.TransactionalMessage]
-      .bitraverse[Either[Long, *], Int, Int, Int, Int, Int, Int])
+    BitraverseTests[AkkaConsumerMessage.TransactionalMessage].bitraverse[Either[Long, *], Int, Int, Int, Int, Int, Int])
 
   checkAll(
     "akka.producer.MultiMessage",
