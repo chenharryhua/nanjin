@@ -82,7 +82,6 @@ class SparkKafkaStreamTest extends AnyFunSuite {
       .prRdd(data)
       .batchSize(10)
       .triggerEvery(0.1.second)
-      .timeLimit(1000)
       .timeLimit(2.minute)
       .recordsLimit(10)
       .upload

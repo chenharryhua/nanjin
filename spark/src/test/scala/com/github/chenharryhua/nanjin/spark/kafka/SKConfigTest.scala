@@ -46,8 +46,7 @@ class SKConfigTest extends AnyFunSuite {
   test("upload parameters") {
     val p = skc
       .withLoadBulkSize(1)
-      .withLoadInterval(100.minute)
-      .withLoadInterval(100)
+      .withLoadInterval(0.1.second)
       .withLoadRecordsLimit(10)
       .withLoadTimeLimit(1.minutes)
       .evalConfig

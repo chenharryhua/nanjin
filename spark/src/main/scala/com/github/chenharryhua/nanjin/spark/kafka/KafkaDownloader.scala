@@ -35,12 +35,10 @@ final class KafkaDownloader[F[_], K, V](
   private def updateCfg(f: SKConfig => SKConfig): KafkaDownloader[F, K, V] =
     new KafkaDownloader[F, K, V](akkaSystem, topic, hadoop, f(cfg))
 
-  def triggerEvery(ms: Long): KafkaDownloader[F, K, V]           = updateCfg(_.withLoadInterval(ms))
-  def triggerEvery(ms: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.withLoadInterval(ms))
+  def triggerEvery(fd: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.withLoadInterval(fd))
   def bulkSize(num: Int): KafkaDownloader[F, K, V]               = updateCfg(_.withLoadBulkSize(num))
 
   def recordsLimit(num: Long): KafkaDownloader[F, K, V]       = updateCfg(_.withLoadRecordsLimit(num))
-  def timeLimit(ms: Long): KafkaDownloader[F, K, V]           = updateCfg(_.withLoadTimeLimit(ms))
   def timeLimit(fd: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.withLoadTimeLimit(fd))
 
   def idleTimeout(fd: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.withLoadIdleTimeout(fd))

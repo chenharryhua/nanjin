@@ -18,8 +18,7 @@ class AkkaChannelTest extends AnyFunSuite {
   val data: List[ProducerRecord[Int, String]] =
     List(topic.fs2PR(1, "a"), topic.fs2PR(2, "b"), topic.fs2PR(3, "c"), topic.fs2PR(4, "d"), topic.fs2PR(5, "e"))
 
-  val sender: Stream[IO, List[ProducerResult[Int, String, Unit]]] =
-    Stream.awakeEvery[IO](1.second).zipRight(Stream.eval(data.traverse(x => topic.send(x))))
+  topic.send(data).unsafeRunSync()
 
   val akkaChannel: KafkaChannels.AkkaChannel[IO, Int, String] =
     topic.updateAkkaCommitterSettings(_.withParallelism(10).withParallelism(10)).akkaChannel(akkaSystem)
