@@ -122,10 +122,8 @@ final private[kafka] case class SKConfig private (value: Fix[SKConfigF]) extends
 
   def withLoadBulkSize(bs: Int): SKConfig               = SKConfig(Fix(WithLoadBulkSize(bs, value)))
   def withLoadInterval(fd: FiniteDuration): SKConfig    = SKConfig(Fix(WithLoadInterval(fd, value)))
-  def withLoadInterval(ms: Long): SKConfig              = withLoadInterval(FiniteDuration(ms, TimeUnit.MILLISECONDS))
   def withLoadRecordsLimit(num: Long): SKConfig         = SKConfig(Fix(WithLoadRecordsLimit(num, value)))
   def withLoadTimeLimit(fd: FiniteDuration): SKConfig   = SKConfig(Fix(WithLoadTimeLimit(fd, value)))
-  def withLoadTimeLimit(ms: Long): SKConfig             = withLoadTimeLimit(FiniteDuration(ms, TimeUnit.MILLISECONDS))
   def withLoadBufferSize(num: Int): SKConfig            = SKConfig(Fix(WithLoadBufferSize(num, value)))
   def withLoadIdleTimeout(fd: FiniteDuration): SKConfig = SKConfig(Fix(WithIdleTimeout(fd, value)))
 
