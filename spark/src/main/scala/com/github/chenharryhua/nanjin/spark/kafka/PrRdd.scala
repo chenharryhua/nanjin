@@ -109,16 +109,15 @@ final class PrRdd[F[_], K, V] private[kafka] (
         .throttle(
           params.loadParams.bulkSize,
           params.loadParams.interval,
-          rst =>
-            rst match {
-              case ProducerMessage.Result(meta, _) => meta.serializedKeySize() + meta.serializedValueSize()
-              case ProducerMessage.MultiResult(parts, _) =>
-                parts.foldLeft(0) { case (sum, item) =>
-                  val meta: RecordMetadata = item.metadata
-                  sum + meta.serializedKeySize() + meta.serializedKeySize()
-                }
-              case ProducerMessage.PassThroughResult(_) => 1000
-            }
+          {
+            case ProducerMessage.Result(meta, _) => meta.serializedKeySize() + meta.serializedValueSize()
+            case ProducerMessage.MultiResult(parts, _) =>
+              parts.foldLeft(0) { case (sum, item) =>
+                val meta: RecordMetadata = item.metadata
+                sum + meta.serializedKeySize() + meta.serializedKeySize()
+              }
+            case ProducerMessage.PassThroughResult(_) => 1000
+          }
         )
         .runWith(Sink.asPublisher(fanout = false))
         .toStream

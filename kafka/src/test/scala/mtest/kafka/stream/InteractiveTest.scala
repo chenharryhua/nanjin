@@ -14,10 +14,11 @@ import mtest.kafka._
 import scala.concurrent.duration._
 import scala.util.Random
 import scala.collection.JavaConverters._
+
 @DoNotDiscover
 class InteractiveTest extends AnyFunSuite {
   val topic      = ctx.topic[Int, String]("stream.test.interactive.2")
-  val storeName  = "stream.test.interactive.store.2"
+  val storeName  = "stream.test.interactive.local.store.2"
   val gstoreName = "stream.test.interactive.store.global.2"
 
   val mat  = Materialized.as[Int, String](Stores.inMemoryKeyValueStore(storeName))
