@@ -1,4 +1,4 @@
-package mtest.kafka
+package mtest.msg.kafka
 
 import com.github.chenharryhua.nanjin.messages.kafka._
 import fs2.kafka.{ConsumerRecord => Fs2ConsumerRecord, ProducerRecord => Fs2ProducerRecord}
@@ -16,8 +16,7 @@ class IsoTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
     IsoTests[Fs2ProducerRecord[Int, Int], ProducerRecord[Int, Int]](isoFs2ProducerRecord[Int, Int]))
   checkAll(
     "kafka.ProducerRecord",
-    IsoTests[ProducerRecord[Int, Int], ProducerRecord[Int, Int]](
-      isoIdentityProducerRecord[Int, Int]))
+    IsoTests[ProducerRecord[Int, Int], ProducerRecord[Int, Int]](isoIdentityProducerRecord[Int, Int]))
 
   checkAll(
     "fs2.ConsumerRecord",
@@ -25,7 +24,6 @@ class IsoTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
 
   checkAll(
     "kafka.ConsumerRecord",
-    IsoTests[ConsumerRecord[Int, Int], ConsumerRecord[Int, Int]](
-      isoIdentityConsumerRecord[Int, Int]))
+    IsoTests[ConsumerRecord[Int, Int], ConsumerRecord[Int, Int]](isoIdentityConsumerRecord[Int, Int]))
 
 }

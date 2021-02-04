@@ -1,4 +1,4 @@
-package mtest.codec
+package mtest.msg.codec
 
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KPB, SerdeOf}
 import mtest.pb.test.Person
@@ -15,10 +15,7 @@ class ProtoBufTest extends Properties("protobuf") {
     age <- Gen.posNum[Int]
     unknows <- Gen.choose[Int](5, 10)
     along <- Gen.nonEmptyListOf[Long](Gen.posNum[Long])
-  } yield Person(
-    name,
-    age,
-    UnknownFieldSet.empty.withField(unknows, UnknownFieldSet.Field(fixed64 = along.toVector)))
+  } yield Person(name, age, UnknownFieldSet.empty.withField(unknows, UnknownFieldSet.Field(fixed64 = along.toVector)))
 
   implicit val arbPerson: Arbitrary[Person] = Arbitrary(genPerson)
 

@@ -1,4 +1,4 @@
-package mtest.codec
+package mtest.msg.codec
 
 import cats.data.Ior
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec

@@ -1,12 +1,10 @@
-package mtest.codec
+package mtest.msg.codec
 
-import cats.data.Ior
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import io.circe.optics.JsonPath.root
 import org.apache.avro.Schema
-import org.apache.avro.generic.GenericData
 import org.scalatest.funsuite.AnyFunSuite
 import shapeless.{:+:, CNil, Coproduct}
-import io.circe.optics.JsonPath.root
 
 object SchemaChangeTestData {
   final case class Nest(a: Int)

@@ -1,4 +1,4 @@
-package mtest.codec
+package mtest.msg.codec
 
 import cats.Id
 import cats.derived.auto.eq._
@@ -61,8 +61,5 @@ class KJsonEqTest extends CatsSuite with FunSuiteDiscipline {
     Cogen[CompositionType]((a: CompositionType) => a.base.a)
 
   checkAll("KJson", EqTests[KJson[CompositionType]].eqv)
-  checkAll(
-    "KJson",
-    DistributiveTests[KJson]
-      .distributive[CompositionType, CompositionType, CompositionType, List, Id])
+  checkAll("KJson", DistributiveTests[KJson].distributive[CompositionType, CompositionType, CompositionType, List, Id])
 }

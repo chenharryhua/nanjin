@@ -1,4 +1,4 @@
-package mtest.codec
+package mtest.msg.codec
 
 import cats.Eq
 import com.github.chenharryhua.nanjin.messages.kafka._
