@@ -1,4 +1,4 @@
-package mtest
+package mtest.pipes
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.pipes.CsvSerialization
@@ -12,12 +12,6 @@ class CsvPipeTest extends AnyFunSuite {
 
   test("csv identity") {
     val data: Stream[IO, Tigger] = Stream.emits(tiggers)
-    assert(
-      data
-        .through(ser.serialize(blocker))
-        .through(ser.deserialize)
-        .compile
-        .toList
-        .unsafeRunSync() === tiggers)
+    assert(data.through(ser.serialize(blocker)).through(ser.deserialize).compile.toList.unsafeRunSync() === tiggers)
   }
 }

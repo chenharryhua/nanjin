@@ -1,4 +1,4 @@
-package mtest
+package mtest.pipes
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.pipes.CirceSerialization

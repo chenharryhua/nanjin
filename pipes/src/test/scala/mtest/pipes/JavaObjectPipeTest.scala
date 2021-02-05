@@ -1,4 +1,4 @@
-package mtest
+package mtest.pipes
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.pipes.JavaObjectSerialization
@@ -12,12 +12,6 @@ class JavaObjectPipeTest extends AnyFunSuite {
   test("java object identity") {
     val data: Stream[IO, Tigger] = Stream.emits(tiggers)
 
-    assert(
-      data
-        .through(ser.serialize)
-        .through(ser.deserialize)
-        .compile
-        .toList
-        .unsafeRunSync() === tiggers)
+    assert(data.through(ser.serialize).through(ser.deserialize).compile.toList.unsafeRunSync() === tiggers)
   }
 }
