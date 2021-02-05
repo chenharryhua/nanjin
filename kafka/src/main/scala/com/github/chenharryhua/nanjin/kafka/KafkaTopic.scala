@@ -36,29 +36,6 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
 
   override def toString: String = topicName.value
 
-  def show: String = {
-    import cats.derived.auto.show._
-    s"""
-       |topic: $topicName
-       |consumer-group-id: ${context.settings.groupId}
-       |stream-app-id:     ${context.settings.appId}
-       |settings:
-       |  ${context.settings.consumerSettings.show}
-       |  ${context.settings.producerSettings.show}
-       |  ${context.settings.schemaRegistrySettings.show}
-       |  ${context.settings.adminSettings.show}
-       |  ${context.settings.streamSettings.show}
-       |
-       |  ${codec.keyCodec.cfg.tag}:
-       |  ${codec.keyCodec.cfg.configProps}
-       |  ${codec.keySchemaFor.schema.toString(true)}
-       |
-       |  ${codec.valCodec.cfg.tag}:
-       |  ${codec.valCodec.cfg.configProps}
-       |  ${codec.valSchemaFor.schema.toString(true)}
-   """.stripMargin
-  }
-
   // APIs
 
   def admin(implicit concurrent: Concurrent[F], contextShift: ContextShift[F]): KafkaAdminApi[F] =

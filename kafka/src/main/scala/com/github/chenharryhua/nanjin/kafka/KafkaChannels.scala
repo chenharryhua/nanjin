@@ -13,7 +13,7 @@ import fs2.kafka.KafkaByteConsumerRecord
 import fs2.{Pipe, Stream}
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
-import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Serde, Serializer}
+import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Serde}
 import org.apache.kafka.streams.Topology.AutoOffsetReset
 import org.apache.kafka.streams.kstream.GlobalKTable
 import org.apache.kafka.streams.processor.TimestampExtractor
@@ -27,8 +27,7 @@ object KafkaChannels {
     codec: KafkaTopicCodec[K, V],
     kps: KafkaProducerSettings,
     kcs: KafkaConsumerSettings,
-    updater: Fs2SettingsUpdater[F, K, V]
-  ) extends Serializable {
+    updater: Fs2SettingsUpdater[F, K, V]) {
     import fs2.kafka.{
       CommittableConsumerRecord,
       ConsumerSettings,
@@ -91,6 +90,7 @@ object KafkaChannels {
             }
           }
           .flatMap(_.stream)
+
   }
 
   final class AkkaChannel[F[_], K, V] private[kafka] (
@@ -99,11 +99,17 @@ object KafkaChannels {
     codec: KafkaTopicCodec[K, V],
     kps: KafkaProducerSettings,
     kcs: KafkaConsumerSettings,
-    updater: AkkaSettingsUpdater[K, V])
-      extends Serializable {
+    updater: AkkaSettingsUpdater[K, V]) {
     import akka.kafka.ConsumerMessage.CommittableMessage
     import akka.kafka.ProducerMessage.Envelope
-    import akka.kafka._
+    import akka.kafka.{
+      CommitterSettings,
+      ConsumerMessage,
+      ConsumerSettings,
+      ProducerMessage,
+      ProducerSettings,
+      Subscriptions
+    }
     import akka.kafka.scaladsl.{Committer, Consumer, Producer}
     import akka.stream.scaladsl.{Flow, Sink, Source}
     import akka.{Done, NotUsed}
@@ -165,25 +171,24 @@ object KafkaChannels {
     val topicName: TopicName,
     keySerde: Serde[K],
     valueSerde: Serde[V],
-    processName: Option[String],
+    processorName: Option[String],
     timestampExtractor: Option[TimestampExtractor],
-    resetPolicy: Option[AutoOffsetReset]
-  ) extends Serializable {
+    resetPolicy: Option[AutoOffsetReset]) {
     import org.apache.kafka.streams.scala.StreamsBuilder
     import org.apache.kafka.streams.scala.kstream.{Consumed, KStream, KTable}
 
-    def withProcessName(pn: String): StreamingChannel[K, V] =
+    def withProcessorName(pn: String): StreamingChannel[K, V] =
       new StreamingChannel[K, V](topicName, keySerde, valueSerde, Some(pn), timestampExtractor, resetPolicy)
 
     def withTimestampExtractor(te: TimestampExtractor): StreamingChannel[K, V] =
-      new StreamingChannel[K, V](topicName, keySerde, valueSerde, processName, Some(te), resetPolicy)
+      new StreamingChannel[K, V](topicName, keySerde, valueSerde, processorName, Some(te), resetPolicy)
 
     def withResetPololicy(rp: AutoOffsetReset): StreamingChannel[K, V] =
-      new StreamingChannel[K, V](topicName, keySerde, valueSerde, processName, timestampExtractor, Some(rp))
+      new StreamingChannel[K, V](topicName, keySerde, valueSerde, processorName, timestampExtractor, Some(rp))
 
-    private def consumed: Consumed[K, V] = {
+    def consumed: Consumed[K, V] = {
       val base = Consumed.`with`(keySerde, valueSerde)
-      val pn   = processName.fold(base)(pn => base.withName(pn))
+      val pn   = processorName.fold(base)(pn => base.withName(pn))
       val te   = timestampExtractor.fold(pn)(te => pn.withTimestampExtractor(te))
       resetPolicy.fold(te)(rp => te.withOffsetResetPolicy(rp))
     }
