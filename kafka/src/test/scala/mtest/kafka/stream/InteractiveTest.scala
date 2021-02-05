@@ -35,10 +35,15 @@ class InteractiveTest extends AnyFunSuite {
       for {
         _ <- Stream.eval(topic.send(Random.nextInt(3), s"a${Random.nextInt(1000)}"))
         _ <- Stream.sleep(1.seconds)
-        q <- ctx.buildStreams(top).runStoreQuery(sq)
-        g <- ctx.buildStreams(gtop).runStoreQuery(gsq)
+        kss1 <- ctx.buildStreams(top).run
+        kss2 <- ctx.buildStreams(gtop).run
         _ <- Stream.sleep(1.seconds)
-      } yield q.all().asScala.toList ++ g.all.asScala.toList
+      } yield {
+        val g = kss1.store(sq).all().asScala.toList.sortBy(_.key)
+        val q = kss2.store(gsq).all().asScala.toList.sortBy(_.key)
+        assert(q == g)
+        q
+      }
     println(ctx.buildStreams(top).topology.describe())
     println(res.compile.toList.unsafeRunSync().flatten)
   }

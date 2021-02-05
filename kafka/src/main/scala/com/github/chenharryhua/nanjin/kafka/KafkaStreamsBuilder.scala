@@ -12,7 +12,7 @@ import org.apache.kafka.streams.processor.{ProcessorSupplier, StateStore}
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.scala.kstream.Consumed
 import org.apache.kafka.streams.state.StoreBuilder
-import org.apache.kafka.streams.{KafkaStreams, StoreQueryParameters, Topology}
+import org.apache.kafka.streams.{KafkaStreams, Topology}
 
 final case class UncaughtKafkaStreamingException(thread: Thread, ex: Throwable) extends Exception(ex.getMessage)
 
@@ -66,9 +66,6 @@ final class KafkaStreamsBuilder[F[_]](
           .concurrently(Stream.eval(errorListener.get).flatMap(Stream.raiseError[F]))
       _ <- Stream.eval(latch.get.rethrow)
     } yield kss
-
-  def runStoreQuery[A](sqp: StoreQueryParameters[A])(implicit F: ConcurrentEffect[F]): Stream[F, A] =
-    run.map(_.store(sqp))
 
   def withProperty(key: String, value: String): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](

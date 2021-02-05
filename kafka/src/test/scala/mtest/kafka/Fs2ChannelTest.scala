@@ -31,7 +31,7 @@ class Fs2ChannelTest extends AnyFunSuite {
         .take(1)
         .map(_.show)
         .map(println)
-        .interruptAfter(2.seconds)
+        .interruptAfter(5.seconds)
         .compile
         .toList
         .unsafeRunSync()
@@ -48,7 +48,7 @@ class Fs2ChannelTest extends AnyFunSuite {
       .take(1)
       .map(_.toString)
       .map(println)
-      .interruptAfter(2.seconds)
+      .interruptAfter(5.seconds)
       .compile
       .toList
       .unsafeRunSync()
@@ -64,7 +64,7 @@ class Fs2ChannelTest extends AnyFunSuite {
       .rethrow
       .take(1)
       .map(_.toString)
-      .interruptAfter(2.seconds)
+      .interruptAfter(5.seconds)
       .compile
       .toList
       .unsafeRunSync()
