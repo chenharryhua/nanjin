@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.ftp
 import akka.stream.Materializer
 import akka.stream.alpakka.ftp.RemoteFileSettings
 import cats.effect.{ConcurrentEffect, ContextShift}
-import com.github.chenharryhua.nanjin.devices.FtpDownloader
+import com.github.chenharryhua.nanjin.terminals.FtpDownloader
 import com.github.chenharryhua.nanjin.pipes._
 import com.sksamuel.avro4s.{Decoder => AvroDecoder}
 import fs2.Stream

@@ -340,17 +340,11 @@ lazy val messages = (project in file("messages"))
     "org.scala-lang.modules" %% "scala-java8-compat" % "0.9.1"
   ) ++ baseLib ++ fs2Lib ++ serdeLib ++ kafkaLib ++ monocleLib ++ testLib)
 
-lazy val devices = (project in file("devices"))
-  .settings(commonSettings: _*)
-  .settings(name := "nj-devices")
-  .settings(
-    libraryDependencies ++= ftpLib ++ baseLib ++ fs2Lib ++ hadoopLib ++ serdeLib ++ effectLib ++ akkaLib ++ testLib)
-
 lazy val pipes = (project in file("pipes"))
   .settings(commonSettings: _*)
   .settings(name := "nj-pipes")
   .settings(libraryDependencies ++=
-    baseLib ++ fs2Lib ++ effectLib ++ kantanLib ++ serdeLib ++ testLib)
+    baseLib ++ fs2Lib ++ effectLib ++ kantanLib ++ ftpLib ++ akkaLib ++ hadoopLib ++ serdeLib ++ testLib)
 
 lazy val database = (project in file("database"))
   .dependsOn(common)
@@ -374,7 +368,6 @@ lazy val spark = (project in file("spark"))
   .dependsOn(kafka)
   .dependsOn(pipes)
   .dependsOn(database)
-  .dependsOn(devices)
   .settings(commonSettings: _*)
   .settings(name := "nj-spark")
   .settings(
@@ -402,4 +395,4 @@ lazy val example = (project in file("example"))
 lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
-    .aggregate(common, messages, datetime, devices, pipes, kafka, database, spark, example)
+    .aggregate(common, messages, datetime, pipes, kafka, database, spark, example)

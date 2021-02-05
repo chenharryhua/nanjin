@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.devices
+package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.{Blocker, ContextShift, Resource, Sync}
 import cats.syntax.all._

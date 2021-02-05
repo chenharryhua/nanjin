@@ -1,7 +1,7 @@
 package mtest.spark.persist
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.devices.NJHadoop
+import com.github.chenharryhua.nanjin.terminals.NJHadoop
 import com.github.chenharryhua.nanjin.pipes.GenericRecordCodec
 import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddAvroFileHoarder}
 import frameless.cats.implicits.framelessCatsSparkDelayForSync

@@ -1,8 +1,8 @@
-package mtest
+package mtest.terminals
 
 import cats.effect.IO
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.devices.NJHadoop
+import com.github.chenharryhua.nanjin.terminals.NJHadoop
 import fs2.Stream
 import fs2.io.readInputStream
 import org.apache.avro.Schema
@@ -71,9 +71,7 @@ class HadoopTest extends AnyFunSuite {
     val pathStr = "./data/test/devices/panda.snappy.parquet"
     val ts      = Stream.emits(pandas).covary[IO]
     val action = hdp.delete(pathStr) >>
-      ts.through(hdp.parquetSink(pathStr, pandaSchema, CompressionCodecName.SNAPPY))
-        .compile
-        .drain >>
+      ts.through(hdp.parquetSink(pathStr, pandaSchema, CompressionCodecName.SNAPPY)).compile.drain >>
       hdp.parquetSource(pathStr, pandaSchema).compile.toList
     assert(action.unsafeRunSync == pandas)
   }
@@ -92,9 +90,7 @@ class HadoopTest extends AnyFunSuite {
     val pathStr = "./data/test/devices/panda.uncompressed.parquet"
     val ts      = Stream.emits(pandas).covary[IO]
     val action = hdp.delete(pathStr) >>
-      ts.through(hdp.parquetSink(pathStr, pandaSchema, CompressionCodecName.UNCOMPRESSED))
-        .compile
-        .drain >>
+      ts.through(hdp.parquetSink(pathStr, pandaSchema, CompressionCodecName.UNCOMPRESSED)).compile.drain >>
       hdp.parquetSource(pathStr, pandaSchema).compile.toList
     assert(action.unsafeRunSync == pandas)
   }

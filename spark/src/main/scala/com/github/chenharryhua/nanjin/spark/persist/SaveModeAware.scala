@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.{Blocker, ContextShift, Sync}
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.devices.NJHadoop
+import com.github.chenharryhua.nanjin.terminals.NJHadoop
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.sql.SaveMode
 
