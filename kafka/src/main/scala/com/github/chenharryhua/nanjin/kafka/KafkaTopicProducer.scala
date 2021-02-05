@@ -21,7 +21,7 @@ private[kafka] trait KafkaTopicProducer[F[_], K, V] {
   private def fs2ProducerResource(implicit
     F: ConcurrentEffect[F],
     cs: ContextShift[F]): Resource[F, Fs2KafkaProducer[F, K, V]] =
-    Fs2KafkaProducer.resource[F].using(topic.fs2Channel(F).producerSettings)
+    Fs2KafkaProducer.resource[F].using(topic.fs2Channel.producerSettings)
 
   def send(k: K, v: V)(implicit F: ConcurrentEffect[F], cs: ContextShift[F]): F[Fs2ProducerResult[K, V, Unit]] =
     fs2ProducerResource.use(_.produce(Fs2ProducerRecords.one(fs2PR(k, v))).flatten)

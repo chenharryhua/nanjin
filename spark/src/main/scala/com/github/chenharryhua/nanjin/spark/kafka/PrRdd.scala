@@ -92,7 +92,7 @@ final class PrRdd[F[_], K, V] private[kafka] (
       .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName.value))))
       .buffer(params.loadParams.bufferSize)
       .metered(params.loadParams.interval)
-      .through(topic.fs2Channel(ce).producerPipe)
+      .through(topic.fs2Channel.producerPipe)
 
   def upload(akkaSystem: ActorSystem)(implicit
     F: ConcurrentEffect[F],

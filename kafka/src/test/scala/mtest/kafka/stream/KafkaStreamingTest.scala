@@ -27,7 +27,7 @@ object KafkaStreamingData {
   case class StreamTarget(name: String, weight: Int, color: Int)
 
   val s1Topic: KafkaTopic[IO, Int, StreamOne]   = ctx.topic[Int, StreamOne]("stream.test.stream.one")
-  val t2Topic: KafkaTopic[IO, Int, TableTwo]    = ctx.topic[Int, TableTwo]("stream..testtable.two")
+  val t2Topic: KafkaTopic[IO, Int, TableTwo]    = ctx.topic[Int, TableTwo]("stream.test.table.two")
   val g3Topic: KafkaTopic[IO, Int, GlobalThree] = ctx.topic[Int, GlobalThree]("stream.test.global.three")
 
   val tgt: KafkaTopic[IO, Int, StreamTarget] = ctx.topic[Int, StreamTarget]("stream.test.join.target")

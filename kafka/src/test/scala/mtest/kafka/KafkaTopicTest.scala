@@ -17,7 +17,6 @@ class KafkaTopicTest extends AnyFunSuite {
     assert(!t1.topicDef.eqv(t1.topicDef.withTopicName("abc")))
   }
   test("show topic") {
-    println(t1.show)
     println(t1.topicDef.show)
   }
   test("with clause") {

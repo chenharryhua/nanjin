@@ -25,7 +25,7 @@ sealed abstract class KafkaContext[F[_]](val settings: KafkaSettings) extends Se
     SerdeOf[V].asValue(settings.schemaRegistrySettings.config).serde
 
   final def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] =
-    new KafkaTopic[F, K, V](topicDef, this, AkkaSettingsUpdater.noUpdate[K, V], Fs2SettingsUpdater.noUpdate[F, K, V])
+    new KafkaTopic[F, K, V](topicDef, this)
 
   final def topic[K: SerdeOf, V: SerdeOf](topicName: String): KafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](TopicName.unsafeFrom(topicName)))
