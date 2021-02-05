@@ -21,7 +21,7 @@ class AkkaChannelTest extends AnyFunSuite {
   topic.send(data).unsafeRunSync()
 
   val akkaChannel: KafkaChannels.AkkaChannel[IO, Int, String] =
-    topic.updateAkkaCommitterSettings(_.withParallelism(10).withParallelism(10)).akkaChannel(akkaSystem)
+    topic.akkaChannel(akkaSystem).updateCommitterSettings(_.withParallelism(10).withParallelism(10))
 
   test("akka stream committableSink") {
     val run = akkaChannel.source

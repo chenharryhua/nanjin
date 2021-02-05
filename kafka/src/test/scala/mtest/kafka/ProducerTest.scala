@@ -31,20 +31,19 @@ class ProducerTest extends AnyFunSuite {
       srcTopic.send(AvroKey(i.toString), AvroValue(Random.nextString(5), Random.nextInt(100)))
     }
     val srcChn = srcTopic
-      .updateAkkaConsumerSettings(
+      .akkaChannel(akkaSystem)
+      .updateConsumerSettings(
         _.withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
           .withGroupId("akka-task")
           .withCommitWarning(10.seconds))
-      .updateAkkaProducerSettings(_.withCloseTimeout(5.seconds))
-      .updateFs2ConsumerSettings(
+      .updateProducerSettings(_.withCloseTimeout(5.seconds))
+      .updateConsumerSettings(
         _.withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest").withGroupId("fs2-task"))
 
     val tgtChn = akkaTopic.akkaChannel(akkaSystem)
 
     val akkaTask: IO[Done] =
-      srcChn
-        .akkaChannel(akkaSystem)
-        .source
+      srcChn.source
         .map(m => akkaTopic.decoder(m).decode)
         .wireTap { m => akkaTopic.akkaProducerRecords(List((m.record.key, m.record.value()))); () }
         .map(m => akkaTopic.akkaProducerRecord(m.record.key, m.record.value))
