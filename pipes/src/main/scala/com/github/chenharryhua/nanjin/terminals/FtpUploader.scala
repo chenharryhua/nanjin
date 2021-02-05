@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.devices
+package com.github.chenharryhua.nanjin.terminals
 
 import akka.stream.alpakka.ftp.scaladsl.{Ftp, FtpApi, Ftps, Sftp}
 import akka.stream.alpakka.ftp.{FtpSettings, FtpsSettings, RemoteFileSettings, SftpSettings}

@@ -1,4 +1,4 @@
-package mtest
+package mtest.pipes
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.pipes.{GenericRecordCodec, JacksonSerialization}
@@ -28,25 +28,13 @@ class JsonAvroPipeTest extends AnyFunSuite {
     val data: Stream[IO, Tigger] = Stream.emits(tiggers)
 
     assert(
-      data
-        .through(gser.encode(Tigger.avroEncoder))
-        .through(ser.compactJson)
-        .compile
-        .toList
-        .unsafeRunSync()
-        .size == 10)
+      data.through(gser.encode(Tigger.avroEncoder)).through(ser.compactJson).compile.toList.unsafeRunSync().size == 10)
   }
   test("jackson-pretty-string size") {
     val data: Stream[IO, Tigger] = Stream.emits(tiggers)
 
     assert(
-      data
-        .through(gser.encode(Tigger.avroEncoder))
-        .through(ser.prettyJson)
-        .compile
-        .toList
-        .unsafeRunSync()
-        .size == 10)
+      data.through(gser.encode(Tigger.avroEncoder)).through(ser.prettyJson).compile.toList.unsafeRunSync().size == 10)
   }
 
 }

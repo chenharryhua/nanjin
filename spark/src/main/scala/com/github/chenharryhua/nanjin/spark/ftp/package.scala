@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark
 
 import akka.stream.alpakka.ftp.{FtpSettings, FtpsSettings, SftpSettings}
 import cats.effect.Blocker
-import com.github.chenharryhua.nanjin.devices._
+import com.github.chenharryhua.nanjin.terminals._
 import net.schmizz.sshj.SSHClient
 import org.apache.commons.net.ftp.{FTPClient, FTPSClient}
 

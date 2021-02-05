@@ -1,3 +1,5 @@
+package mtest
+
 import java.io.PrintWriter
 import java.net.InetAddress
 
@@ -10,7 +12,7 @@ import org.apache.commons.net.ftp.FTPClient
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-package object mtest {
+package object terminals {
 
   implicit val cs: ContextShift[IO] = IO.contextShift(global)
   implicit val timer: Timer[IO]     = IO.timer(global)

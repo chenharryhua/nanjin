@@ -268,12 +268,12 @@ val refinedLib = Seq(
 ).map(_ % refined)
 
 val baseLib = Seq(
-  "io.scalaland" %% "chimney"                  % chimney,
-  "io.scalaland" %% "enumz"                    % "1.0.0",
-  "com.twitter" %% "algebird-core"             % "0.13.7",
-  "io.chrisdavenport" %% "cats-time"           % catsTime,
-  "com.propensive" %% "contextual"             % contextual,
-  "com.chuusai" %% "shapeless"                 % shapeless
+  "io.scalaland" %% "chimney"        % chimney,
+  "io.scalaland" %% "enumz"          % "1.0.0",
+  "com.twitter" %% "algebird-core"   % "0.13.7",
+  "io.chrisdavenport" %% "cats-time" % catsTime,
+  "com.propensive" %% "contextual"   % contextual,
+  "com.chuusai" %% "shapeless"       % shapeless
 ) ++ enumLib ++ drosteLib ++ catsLib ++ refinedLib
 
 val akkaLib = Seq(
@@ -322,10 +322,8 @@ val dbLib = doobieLib ++ quillLib ++ neotypesLib
 lazy val common = (project in file("common"))
   .settings(commonSettings: _*)
   .settings(name := "nj-common")
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.jline"               % "jline" % jline) ++
-      baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ logLib ++ testLib)
+  .settings(libraryDependencies ++= Seq("org.jline" % "jline" % jline) ++
+    baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ logLib ++ testLib)
 
 lazy val datetime = (project in file("datetime"))
   .dependsOn(common)
@@ -342,28 +340,20 @@ lazy val messages = (project in file("messages"))
     "org.scala-lang.modules" %% "scala-java8-compat" % "0.9.1"
   ) ++ baseLib ++ fs2Lib ++ serdeLib ++ kafkaLib ++ monocleLib ++ testLib)
 
-lazy val devices = (project in file("devices"))
-  .settings(commonSettings: _*)
-  .settings(name := "nj-devices")
-  .settings(
-    libraryDependencies ++= ftpLib ++ baseLib ++ fs2Lib ++ hadoopLib ++ serdeLib ++ effectLib ++ akkaLib ++ testLib)
-
 lazy val pipes = (project in file("pipes"))
   .settings(commonSettings: _*)
   .settings(name := "nj-pipes")
   .settings(libraryDependencies ++=
-    baseLib ++ fs2Lib ++ effectLib ++ kantanLib ++ serdeLib ++ testLib)
+    baseLib ++ fs2Lib ++ effectLib ++ kantanLib ++ ftpLib ++ akkaLib ++ hadoopLib ++ serdeLib ++ testLib)
 
 lazy val database = (project in file("database"))
   .dependsOn(common)
   .settings(commonSettings: _*)
   .settings(name := "nj-database")
-  .settings(
-    libraryDependencies ++= baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ dbLib ++ testLib)
+  .settings(libraryDependencies ++= baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ dbLib ++ testLib)
 
 lazy val kafka = (project in file("kafka"))
   .dependsOn(messages)
-  .dependsOn(pipes)
   .dependsOn(datetime)
   .dependsOn(common)
   .settings(commonSettings: _*)
@@ -376,8 +366,8 @@ lazy val kafka = (project in file("kafka"))
 
 lazy val spark = (project in file("spark"))
   .dependsOn(kafka)
+  .dependsOn(pipes)
   .dependsOn(database)
-  .dependsOn(devices)
   .settings(commonSettings: _*)
   .settings(name := "nj-spark")
   .settings(
@@ -405,4 +395,4 @@ lazy val example = (project in file("example"))
 lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
-    .aggregate(common, messages, datetime, devices, pipes, kafka, database, spark, example)
+    .aggregate(common, messages, datetime, pipes, kafka, database, spark, example)

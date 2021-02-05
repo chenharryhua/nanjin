@@ -1,4 +1,4 @@
-package mtest
+package mtest.pipes
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.pipes.{DelimitedProtoBufSerialization, ProtoBufSerialization}
@@ -13,13 +13,7 @@ class ProtobufPipeTest extends AnyFunSuite {
     val data: Stream[IO, Lion] = Stream.emits(lions)
     val ser                    = new DelimitedProtoBufSerialization[IO]
 
-    assert(
-      data
-        .through(ser.serialize(blocker))
-        .through(ser.deserialize[Lion])
-        .compile
-        .toList
-        .unsafeRunSync() === lions)
+    assert(data.through(ser.serialize(blocker)).through(ser.deserialize[Lion]).compile.toList.unsafeRunSync() === lions)
   }
 
   test("protobuf identity") {
@@ -27,8 +21,7 @@ class ProtobufPipeTest extends AnyFunSuite {
 
     val ser = new ProtoBufSerialization[IO]
 
-    assert(
-      data.through(ser.serialize).through(ser.deserialize[Lion]).compile.toList.unsafeRunSync() === lions)
+    assert(data.through(ser.serialize).through(ser.deserialize[Lion]).compile.toList.unsafeRunSync() === lions)
   }
 
 }

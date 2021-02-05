@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.ftp
 import akka.stream.alpakka.ftp.RemoteFileSettings
 import akka.stream.{IOResult, Materializer}
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift}
-import com.github.chenharryhua.nanjin.devices.FtpUploader
+import com.github.chenharryhua.nanjin.terminals.FtpUploader
 import com.github.chenharryhua.nanjin.pipes._
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import fs2.Pipe

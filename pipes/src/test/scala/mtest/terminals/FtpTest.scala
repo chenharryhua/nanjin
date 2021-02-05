@@ -1,9 +1,9 @@
-package mtest
+package mtest.terminals
 
 import akka.stream.Materializer
 import cats.effect.IO
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.devices.{AkkaFtpDownloader, AkkaFtpUploader}
+import com.github.chenharryhua.nanjin.terminals.{AkkaFtpDownloader, AkkaFtpUploader}
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 
