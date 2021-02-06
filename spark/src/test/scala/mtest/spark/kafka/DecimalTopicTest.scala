@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.cats.implicits._
+import fs2.kafka.{ProducerRecord, ProducerRecords}
 import io.circe.generic.auto._
 import mtest.spark.{blocker, contextShift}
 import org.scalatest.funsuite.AnyFunSuite
@@ -75,9 +76,19 @@ class DecimalTopicTest extends AnyFunSuite {
 
   val topic: KafkaTopic[IO, Int, HasDecimal] = topicDef.in(ctx)
 
+  val loadData =
+    fs2
+      .Stream(
+        ProducerRecords(
+          List(ProducerRecord(topic.topicName.value, 1, data), ProducerRecord(topic.topicName.value, 2, data))))
+      .covary
+      .through(topic.fs2Channel.producerPipe)
+      .compile
+      .drain
+
   (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
     topic.schemaRegistry.register >>
-    topic.send(1, data) >> topic.send(2, data)).unsafeRunSync()
+    loadData).unsafeRunSync() 
 
   val stopic = sparKafka.topic(topicDef)
 
