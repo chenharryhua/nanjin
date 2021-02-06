@@ -45,7 +45,7 @@ final class KafkaDownloader[F[_], K, V](
 
   private def stream(implicit F: ConcurrentEffect[F], timer: Timer[F]): Stream[F, NJConsumerRecord[K, V]] = {
     val fstream: F[Stream[F, NJConsumerRecord[K, V]]] =
-      topic.shortLiveConsumer.use(_.offsetRangeFor(params.timeRange).map(_.flatten[KafkaOffsetRange])).map { kor =>
+      topic.shortLiveConsumer.use(_.offsetRangeFor(params.timeRange).map(_.flatten)).map { kor =>
         val src: Source[NJConsumerRecord[K, V], Consumer.Control] =
           if (kor.isEmpty)
             Source.empty.mapMaterializedValue(_ => Consumer.NoopControl)

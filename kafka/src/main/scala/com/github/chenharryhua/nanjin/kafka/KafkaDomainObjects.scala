@@ -107,7 +107,7 @@ final case class KafkaTopicPartition[V](value: Map[TopicPartition, V]) extends A
     KafkaTopicPartition(res.toMap)
   }
 
-  def flatten[W](implicit ev: V =:= Option[W]): KafkaTopicPartition[W] =
+  def flatten[W](implicit ev: V <:< Option[W]): KafkaTopicPartition[W] =
     copy(value = value.mapValues(ev).mapFilter(identity))
 
   def topicPartitions: ListOfTopicPartitions = ListOfTopicPartitions(value.keys.toList)

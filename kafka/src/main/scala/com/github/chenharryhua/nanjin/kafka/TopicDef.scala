@@ -38,10 +38,7 @@ object TopicDef {
         x.schemaForKey.schema == y.schemaForKey.schema &&
         x.schemaForVal.schema == y.schemaForVal.schema
 
-  def apply[K, V](
-    topicName: TopicName,
-    keySchema: AvroCodec[K],
-    valueSchema: AvroCodec[V]): TopicDef[K, V] =
+  def apply[K, V](topicName: TopicName, keySchema: AvroCodec[K], valueSchema: AvroCodec[V]): TopicDef[K, V] =
     new TopicDef(topicName)(SerdeOf(keySchema), SerdeOf(valueSchema))
 
   def apply[K: SerdeOf, V: SerdeOf](topicName: TopicName): TopicDef[K, V] =
@@ -49,4 +46,5 @@ object TopicDef {
 
   def apply[K: SerdeOf, V](topicName: TopicName, valueSchema: AvroCodec[V]): TopicDef[K, V] =
     new TopicDef(topicName)(SerdeOf[K], SerdeOf(valueSchema))
+
 }
