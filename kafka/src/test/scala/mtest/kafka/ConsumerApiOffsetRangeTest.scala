@@ -12,10 +12,11 @@ import com.github.chenharryhua.nanjin.kafka.{
   TopicDef,
   TopicName
 }
-import fs2.kafka.ProducerRecord
+import fs2.kafka.{ProducerRecord, ProducerRecords}
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
 import org.scalatest.funsuite.AnyFunSuite
+import fs2.Stream
 
 class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
@@ -30,15 +31,16 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     *                    start          end
     */
 
-  val topic: KafkaTopic[IO, Int, Int] =
-    TopicDef[Int, Int](TopicName("range.test")).in(ctx.withGroupId("consumer-api-test"))
+  val topic: KafkaTopic[IO, Int, Int] = ctx.withGroupId("consumer-api-test").topic[Int, Int]("range.test")
 
-  val pr1: ProducerRecord[Int, Int] = topic.fs2PR(1, 1).withTimestamp(100)
-  val pr2: ProducerRecord[Int, Int] = topic.fs2PR(2, 2).withTimestamp(200)
-  val pr3: ProducerRecord[Int, Int] = topic.fs2PR(3, 3).withTimestamp(300)
+  val pr1: ProducerRecord[Int, Int] = ProducerRecord(topic.topicName.value, 1, 1).withTimestamp(100)
+  val pr2: ProducerRecord[Int, Int] = ProducerRecord(topic.topicName.value, 2, 2).withTimestamp(200)
+  val pr3: ProducerRecord[Int, Int] = ProducerRecord(topic.topicName.value, 3, 3).withTimestamp(300)
+
+  val topicData = Stream(ProducerRecords(List(pr1, pr2, pr3))).covary[IO].through(topic.fs2Channel.producerPipe)
 
   (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
-    topic.send(pr1) >> topic.send(pr2) >> topic.send(pr3)).unsafeRunSync()
+    topicData.compile.drain).unsafeRunSync()
 
   test("start and end are both in range") {
     val expect: KafkaTopicPartition[Option[KafkaOffsetRange]] =

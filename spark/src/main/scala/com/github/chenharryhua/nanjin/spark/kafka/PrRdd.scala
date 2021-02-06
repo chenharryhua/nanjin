@@ -35,13 +35,13 @@ final class PrRdd[F[_], K, V] private[kafka] (
   private def updateCfg(f: SKConfig => SKConfig): PrRdd[F, K, V] =
     new PrRdd[F, K, V](rdd, topic, f(cfg))
 
-  def triggerEvery(ms: FiniteDuration): PrRdd[F, K, V] = updateCfg(_.withLoadInterval(ms))
-  def bulkSize(num: Int): PrRdd[F, K, V]               = updateCfg(_.withLoadBulkSize(num))
-  def batchSize(num: Int): PrRdd[F, K, V]              = updateCfg(_.withUploadBatchSize(num))
-  def bufferSize(num: Int): PrRdd[F, K, V]             = updateCfg(_.withLoadBufferSize(num))
+  def withInterval(ms: FiniteDuration): PrRdd[F, K, V] = updateCfg(_.withLoadInterval(ms))
+  def withBulkSize(num: Int): PrRdd[F, K, V]           = updateCfg(_.withLoadBulkSize(num))
+  def withBatchSize(num: Int): PrRdd[F, K, V]          = updateCfg(_.withUploadBatchSize(num))
+  def withBufferSize(num: Int): PrRdd[F, K, V]         = updateCfg(_.withLoadBufferSize(num))
 
-  def recordsLimit(num: Long): PrRdd[F, K, V]       = updateCfg(_.withLoadRecordsLimit(num))
-  def timeLimit(fd: FiniteDuration): PrRdd[F, K, V] = updateCfg(_.withLoadTimeLimit(fd))
+  def withRecordsLimit(num: Long): PrRdd[F, K, V]       = updateCfg(_.withLoadRecordsLimit(num))
+  def withTimeLimit(fd: FiniteDuration): PrRdd[F, K, V] = updateCfg(_.withLoadTimeLimit(fd))
 
   // transform
   def transform(f: RDD[NJProducerRecord[K, V]] => RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] =

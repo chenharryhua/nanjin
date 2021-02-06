@@ -6,6 +6,7 @@ import cats.effect.IO
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.StoreName
 import fs2.Stream
+import fs2.kafka.{ProducerRecord, ProducerRecords}
 import mtest.kafka._
 import org.apache.kafka.streams.KeyValue
 import org.apache.kafka.streams.kstream.{Transformer, TransformerSupplier}
@@ -19,11 +20,11 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration._
 
-@DoNotDiscover
+//@DoNotDiscover
 class KafkaStreamsBuildTest extends AnyFunSuite {
 
   test("stream builder") {
-    val storeName = StoreName("stream.test.store")
+    val storeName = StoreName("stream.builder.test.store")
     val store: StoreBuilder[KeyValueStore[Int, String]] =
       Stores.keyValueStoreBuilder(Stores.inMemoryKeyValueStore(storeName.value), ctx.asKey[Int], ctx.asValue[String])
 
@@ -59,23 +60,31 @@ class KafkaStreamsBuildTest extends AnyFunSuite {
     val kafkaStreamService = ctx.buildStreams(top).addStateStore(store).withProperty("unknown-feature", "unused")
     println(kafkaStreamService.topology.describe())
 
+    val t2Data = Stream(
+      ProducerRecords(
+        List(
+          ProducerRecord(topic2.topicName.value, 0, "t0"),
+          ProducerRecord(topic2.topicName.value, 1, "t1"),
+          ProducerRecord(topic2.topicName.value, 2, "t2")))).covary[IO].through(topic2.fs2Channel.producerPipe)
+
     val prepare = for {
       _ <- topic1.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- topic1.admin.newTopic(1, 1).attempt
       _ <- topic2.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- topic2.admin.newTopic(1, 1).attempt
-      _ <- topic2.send(List(topic2.fs2PR(0, "t0"), topic2.fs2PR(1, "t1"), topic2.fs2PR(2, "t2")))
+      _ <- t2Data.compile.drain
       _ <- tgt.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- tgt.admin.newTopic(1, 1).attempt
     } yield ()
 
-    val sender = Stream
-      .awakeEvery[IO](1.seconds)
-      .zipWithIndex
-      .evalMap { case (_, index) =>
-        topic1.send(index.toInt, s"stream$index")
-      }
-      .debug()
+    val t1Data =
+      Stream
+        .awakeEvery[IO](1.seconds)
+        .zipWithIndex
+        .map { case (_, index) =>
+          ProducerRecords.one(ProducerRecord(topic1.topicName.value, index.toInt, s"stream$index"))
+        }
+        .through(topic1.fs2Channel.producerPipe)
 
     val havest = tgt.fs2Channel.stream.map(tgt.decoder(_).decode)
 
@@ -83,7 +92,7 @@ class KafkaStreamsBuildTest extends AnyFunSuite {
     val res =
       (prepare >> IO.sleep(1.second) >> runStream
         .flatMap(_ => havest)
-        .concurrently(sender)
+        .concurrently(t1Data)
         .interruptAfter(10.seconds)
         .compile
         .toList).unsafeRunSync()

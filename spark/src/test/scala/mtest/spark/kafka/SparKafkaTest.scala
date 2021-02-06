@@ -39,7 +39,7 @@ class SparKafkaTest extends AnyFunSuite {
   val topic: KafkaTopic[IO, Int, HasDuck] = TopicDef[Int, HasDuck](TopicName("duck.test")).in(ctx)
 
   (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >> topic.schemaRegistry.register >>
-    topic.send(List(topic.fs2PR(0, data), topic.fs2PR(1, data)))).unsafeRunSync()
+    topic.send(List(topic.producerRecord(0, data), topic.producerRecord(1, data)))).unsafeRunSync()
 
   test("sparKafka read topic from kafka") {
     val rst = sparKafka.topic(topic.topicDef).fromKafka.rdd.collect()

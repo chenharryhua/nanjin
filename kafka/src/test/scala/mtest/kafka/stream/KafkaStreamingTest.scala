@@ -5,7 +5,7 @@ import cats.data.Kleisli
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import fs2.Stream
-import fs2.kafka.{ProducerRecord, ProducerResult}
+import fs2.kafka.{ProducerRecord, ProducerRecords, ProducerResult}
 import mtest.kafka._
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.KafkaStreams
@@ -32,31 +32,36 @@ object KafkaStreamingData {
 
   val tgt: KafkaTopic[IO, Int, StreamTarget] = ctx.topic[Int, StreamTarget]("stream.test.join.target")
 
-  val s1Data: List[ProducerRecord[Int, StreamOne]] =
-    List(
-      ProducerRecord(s1Topic.topicName.value, 1, StreamOne("a", 0)),
-      ProducerRecord(s1Topic.topicName.value, 2, StreamOne("b", 1)),
-      ProducerRecord(s1Topic.topicName.value, 3, StreamOne("c", 2)),
-      ProducerRecord(s1Topic.topicName.value, 4, StreamOne("d", 3)),
-      ProducerRecord(s1Topic.topicName.value, 5, StreamOne("e", 4)),
-      ProducerRecord(s1Topic.topicName.value, 101, StreamOne("na", -1)),
-      ProducerRecord(s1Topic.topicName.value, 102, StreamOne("na", -1)),
-      ProducerRecord(s1Topic.topicName.value, 103, StreamOne("na", -1))
-    )
+  val s1Data: Stream[IO, ProducerRecords[Int, StreamOne, Unit]] =
+    Stream
+      .emits(
+        List(
+          ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 1, StreamOne("a", 0)),
+          ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 2, StreamOne("b", 1)),
+          ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 3, StreamOne("c", 2)),
+          ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 4, StreamOne("d", 3)),
+          ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 5, StreamOne("e", 4)),
+          ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 101, StreamOne("na", -1)),
+          ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 102, StreamOne("na", -1)),
+          ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 103, StreamOne("na", -1))
+        ).map(ProducerRecords.one(_)))
+      .covary[IO]
 
-  val t2Data: List[ProducerRecord[Int, TableTwo]] =
-    List(
-      ProducerRecord(t2Topic.topicName.value, 1, TableTwo("x", 0)),
-      ProducerRecord(t2Topic.topicName.value, 2, TableTwo("y", 1)),
-      ProducerRecord(t2Topic.topicName.value, 3, TableTwo("z", 2))
-    )
+  val t2Data =
+    Stream(
+      ProducerRecords(List(
+        ProducerRecord(t2Topic.topicName.value, 1, TableTwo("x", 0)),
+        ProducerRecord(t2Topic.topicName.value, 2, TableTwo("y", 1)),
+        ProducerRecord(t2Topic.topicName.value, 3, TableTwo("z", 2))
+      ))).covary[IO].through(t2Topic.fs2Channel.producerPipe)
 
-  val g3Data: List[ProducerRecord[Int, GlobalThree]] =
-    List(
-      ProducerRecord(g3Topic.topicName.value, 4, GlobalThree("gx", 1000)),
-      ProducerRecord(g3Topic.topicName.value, 5, GlobalThree("gy", 2000)),
-      ProducerRecord(g3Topic.topicName.value, 6, GlobalThree("gz", 3000))
-    )
+  val g3Data =
+    Stream(
+      ProducerRecords(List(
+        ProducerRecord(g3Topic.topicName.value, 4, GlobalThree("gx", 1000)),
+        ProducerRecord(g3Topic.topicName.value, 5, GlobalThree("gy", 2000)),
+        ProducerRecord(g3Topic.topicName.value, 6, GlobalThree("gz", 3000))
+      ))).covary[IO].through(g3Topic.fs2Channel.producerPipe)
 
   val expected: Set[StreamTarget] = Set(
     StreamTarget("a", 0, 0),
@@ -87,24 +92,20 @@ class KafkaStreamingTest extends AnyFunSuite {
 
     val prepare: IO[Unit] = for {
       a <- s1Topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
-      b <- s1Topic.send(1, StreamOne("a", 0))
-      c <- tgt.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       d <- t2Topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
-      e <- t2Topic.send(t2Data) // populate table
       f <- g3Topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
-      g <- g3Topic.send(g3Data)
+      c <- tgt.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
+      _ <- t2Data.compile.drain
+      _ <- g3Data.compile.drain
     } yield {
       println(s"delete s1 topic:   $a")
-      println(s"send s1 topic:     $b")
       println(s"delete tgt topic:  $c")
       println(s"delete t2 topic:   $d")
-      println(s"populate t2 topic: $e")
       println(s"delete g3 topic:   $f")
-      println(s"populate g3 topic: $g")
     }
 
     val populateS1Topic: Stream[IO, ProducerResult[Int, StreamOne, Unit]] =
-      Stream.emits(s1Data).zipLeft(Stream.awakeEvery[IO](1.seconds)).evalMap(s1Topic.send).debug()
+      s1Data.through(s1Topic.fs2Channel.producerPipe)
 
     val harvest: Stream[IO, StreamTarget] =
       tgt.fs2Channel.stream.map(x => tgt.decoder(x).decode.record.value)

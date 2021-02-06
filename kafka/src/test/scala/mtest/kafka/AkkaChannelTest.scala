@@ -1,12 +1,11 @@
 package mtest.kafka
 
+import akka.kafka.ProducerMessage
 import cats.effect.IO
-import cats.syntax.all._
-import com.github.chenharryhua.nanjin.utils.random4d
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJDateTimeRange}
 import com.github.chenharryhua.nanjin.kafka.{stages, KafkaChannels, KafkaOffset, KafkaTopic}
 import fs2.Stream
-import fs2.kafka.{ProducerRecord, ProducerResult}
+import fs2.kafka.{ProducerRecord, ProducerRecords, ProducerResult}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.LocalDateTime
@@ -15,27 +14,41 @@ import scala.concurrent.duration.DurationInt
 class AkkaChannelTest extends AnyFunSuite {
   val topic: KafkaTopic[IO, Int, String] = ctx.topic[Int, String]("akka.consumer.test")
 
-  val data: List[ProducerRecord[Int, String]] =
-    List(topic.fs2PR(1, "a"), topic.fs2PR(2, "b"), topic.fs2PR(3, "c"), topic.fs2PR(4, "d"), topic.fs2PR(5, "e"))
+  val data: Stream[IO, ProducerResult[Int, String, Unit]] =
+    Stream(
+      ProducerRecords(List(
+        ProducerRecord(topic.topicName.value, 1, "a"),
+        ProducerRecord(topic.topicName.value, 2, "b"),
+        ProducerRecord(topic.topicName.value, 3, "c"),
+        ProducerRecord(topic.topicName.value, 4, "d"),
+        ProducerRecord(topic.topicName.value, 5, "e")
+      ))).covary[IO].through(topic.fs2Channel.producerPipe)
 
-  topic.send(data).unsafeRunSync()
+  data.compile.drain.unsafeRunSync()
 
   val akkaChannel: KafkaChannels.AkkaChannel[IO, Int, String] =
     topic.akkaChannel(akkaSystem).updateCommitterSettings(_.withParallelism(10).withParallelism(10))
 
   test("akka stream committableSink") {
+    import org.apache.kafka.clients.producer.ProducerRecord
     val run = akkaChannel.source
       .map(m => topic.decoder(m).nullableDecode)
-      .map(m => topic.akkaProducerRecord(m.record.key(), m.record.value(), m.committableOffset))
+      .map(m =>
+        ProducerMessage
+          .single(new ProducerRecord(topic.topicName.value, m.record.key(), m.record.value()), m.committableOffset))
       .take(2)
       .runWith(akkaChannel.committableSink)
 
     run.unsafeRunSync()
   }
   test("akka stream flexiFlow/commitSink") {
+    import org.apache.kafka.clients.producer.ProducerRecord
     val run = akkaChannel.source
       .map(m => topic.decoder(m).nullableDecode)
-      .map(m => topic.akkaProducerRecord(m.record.key(), m.record.value(), m.committableOffset))
+      .map(m =>
+        ProducerMessage.single(
+          new ProducerRecord(topic.topicName.value, m.record.key(), m.record.value()),
+          m.committableOffset))
       .via(akkaChannel.flexiFlow)
       .map(_.passThrough)
       .take(2)

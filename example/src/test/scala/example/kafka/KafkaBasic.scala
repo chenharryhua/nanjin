@@ -50,9 +50,9 @@ class KafkaBasic extends AnyFunSuite {
       .load
       .circe(path)
       .prRdd
-      .batchSize(2)
-      .triggerEvery(1.second) // send 2 messages every 1 second
-      .timeLimit(5.second) // upload last for 5 seconds
+      .withBatchSize(2)
+      .withInterval(1.second) // send 2 messages every 1 second
+      .withTimeLimit(5.second) // upload last for 5 seconds
       .upload(akkaSystem)
       .compile
       .drain

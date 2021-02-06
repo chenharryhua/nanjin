@@ -13,11 +13,5 @@ class ProtobufTest extends AnyFunSuite {
 
   val topic: KafkaTopic[IO, String, KPB[Person]] =
     ctx.topic[String, KPB[Person]]("producer.test.protobuf")
-  ignore("producer protobuf messsages") {
-
-    val produceTask = (0 until 100).toList.traverse { i =>
-      topic.send(i.toString, KPB(Person(s"$i", Random.nextInt(100))))
-    }
-    produceTask.unsafeRunSync
-  }
+  ignore("producer protobuf messsages") {}
 }

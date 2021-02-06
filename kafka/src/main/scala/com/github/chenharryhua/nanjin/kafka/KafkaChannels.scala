@@ -62,9 +62,9 @@ object KafkaChannels {
       new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valCodec)
 
     def producerPipe[P](implicit
-      cs: ContextShift[F],
-      F: ConcurrentEffect[F]): Pipe[F, ProducerRecords[K, V, P], ProducerResult[K, V, P]] =
-      KafkaProducer.pipe(producerSettings)
+      F: ConcurrentEffect[F],
+      cs: ContextShift[F]): Pipe[F, ProducerRecords[K, V, P], ProducerResult[K, V, P]] =
+      KafkaProducer.pipe[F, K, V, P](producerSettings)
 
     def stream(implicit
       cs: ContextShift[F],

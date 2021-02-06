@@ -6,7 +6,7 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, Source}
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.kafka.{stages, KafkaOffsetRange, KafkaTopic}
+import com.github.chenharryhua.nanjin.kafka.{stages, KafkaTopic}
 import com.github.chenharryhua.nanjin.spark.persist.{sinks, Compression}
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import fs2.Stream
@@ -20,7 +20,7 @@ import scala.concurrent.duration.FiniteDuration
   *
   * the downloader is able to control download rate from Kafka
   *
-  * the maximum rate is about [[bulkSize]] per [[triggerEvery]]
+  * the maximum rate is about <b>BulkSize</b> per <b>Interval</b>
   *
   * [[circe]] is not isomorphic when key or value of ConsumerRecord is a coproduct
   */
@@ -35,13 +35,13 @@ final class KafkaDownloader[F[_], K, V](
   private def updateCfg(f: SKConfig => SKConfig): KafkaDownloader[F, K, V] =
     new KafkaDownloader[F, K, V](akkaSystem, topic, hadoop, f(cfg))
 
-  def triggerEvery(fd: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.withLoadInterval(fd))
-  def bulkSize(num: Int): KafkaDownloader[F, K, V]               = updateCfg(_.withLoadBulkSize(num))
+  def withInterval(fd: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.withLoadInterval(fd))
+  def withBulkSize(num: Int): KafkaDownloader[F, K, V]           = updateCfg(_.withLoadBulkSize(num))
 
-  def recordsLimit(num: Long): KafkaDownloader[F, K, V]       = updateCfg(_.withLoadRecordsLimit(num))
-  def timeLimit(fd: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.withLoadTimeLimit(fd))
+  def withRecordsLimit(num: Long): KafkaDownloader[F, K, V]       = updateCfg(_.withLoadRecordsLimit(num))
+  def withTimeLimit(fd: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.withLoadTimeLimit(fd))
 
-  def idleTimeout(fd: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.withLoadIdleTimeout(fd))
+  def withIdleTimeout(fd: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.withLoadIdleTimeout(fd))
 
   private def stream(implicit F: ConcurrentEffect[F], timer: Timer[F]): Stream[F, NJConsumerRecord[K, V]] = {
     val fstream: F[Stream[F, NJConsumerRecord[K, V]]] =

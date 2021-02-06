@@ -14,11 +14,11 @@ class CopyDataTest extends AnyFunSuite {
   val src = ctx.topic[Int, MyTestData]("copy.src")
   val tgt = ctx.topic[Int, MyTestData]("copy.target")
 
-  val d1 = src.fs2PR(0, MyTestData(1, "a")).withTimestamp(10)
-  val d2 = src.fs2PR(1, MyTestData(2, "b")).withTimestamp(20)
-  val d3 = src.fs2PR(2, MyTestData(3, "c")).withTimestamp(30)
-  val d4 = src.fs2PR(null.asInstanceOf[Int], MyTestData(4, "d")).withTimestamp(40)
-  val d5 = src.fs2PR(4, null.asInstanceOf[MyTestData]).withTimestamp(50)
+  val d1 = src.producerRecord(0, MyTestData(1, "a")).withTimestamp(10)
+  val d2 = src.producerRecord(1, MyTestData(2, "b")).withTimestamp(20)
+  val d3 = src.producerRecord(2, MyTestData(3, "c")).withTimestamp(30)
+  val d4 = src.producerRecord(null.asInstanceOf[Int], MyTestData(4, "d")).withTimestamp(40)
+  val d5 = src.producerRecord(4, null.asInstanceOf[MyTestData]).withTimestamp(50)
 
   val prepareData =
     src.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>

@@ -40,7 +40,7 @@ class SparkStreamJoinTest extends AnyFunSuite {
   import sparkSession.implicits._
   test("spark kafka stream-table join") {
     val path   = "./data/test/spark/sstream/stream-table-join"
-    val sender = fooTopic.prRdd(fooData).triggerEvery(0.5.seconds).upload
+    val sender = fooTopic.prRdd(fooData).withInterval(0.5.seconds).upload
 
     val ss: fs2.Stream[IO, StreamingQueryProgress] =
       fooTopic.sstream.transform { fooDS =>

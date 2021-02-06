@@ -1,8 +1,10 @@
 package mtest.kafka.stream
 
 import cats.data.Reader
+import cats.effect.IO
 import cats.syntax.all._
 import fs2.Stream
+import fs2.kafka.{ProducerRecord, ProducerRecords}
 import org.apache.kafka.streams.StoreQueryParameters
 import org.apache.kafka.streams.scala.Serdes._
 import org.apache.kafka.streams.scala.StreamsBuilder
@@ -11,6 +13,7 @@ import org.apache.kafka.streams.state.{QueryableStoreTypes, Stores}
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 import mtest.kafka._
+
 import scala.concurrent.duration._
 import scala.util.Random
 import scala.collection.JavaConverters._
@@ -31,9 +34,15 @@ class InteractiveTest extends AnyFunSuite {
 
     val sq  = StoreQueryParameters.fromNameAndType(storeName, QueryableStoreTypes.keyValueStore[Int, String]())
     val gsq = StoreQueryParameters.fromNameAndType(gstoreName, QueryableStoreTypes.keyValueStore[Int, String]())
+
+    val data =
+      Stream(ProducerRecords.one(ProducerRecord(topic.topicName.value, Random.nextInt(3), s"a${Random.nextInt(1000)}")))
+        .covary[IO]
+        .through(topic.fs2Channel.producerPipe)
+
     val res =
       for {
-        _ <- Stream.eval(topic.send(Random.nextInt(3), s"a${Random.nextInt(1000)}"))
+        _ <- data
         _ <- Stream.sleep(1.seconds)
         kss1 <- ctx.buildStreams(top).run
         kss2 <- ctx.buildStreams(gtop).run
