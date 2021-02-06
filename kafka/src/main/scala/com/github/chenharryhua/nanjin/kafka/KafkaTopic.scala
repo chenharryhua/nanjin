@@ -11,7 +11,7 @@ import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 import scala.util.Try
 
 final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V], val context: KafkaContext[F])
-    extends TopicNameExtractor[K, V] with KafkaTopicProducer[F, K, V] with Serializable {
+    extends TopicNameExtractor[K, V] with Serializable {
   import topicDef.{serdeOfKey, serdeOfVal}
 
   val topicName: TopicName = topicDef.topicName

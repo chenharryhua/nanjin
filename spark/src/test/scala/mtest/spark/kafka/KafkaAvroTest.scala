@@ -9,8 +9,10 @@ import io.circe.generic.auto._
 import mtest.spark.{blocker, contextShift}
 import org.scalatest.funsuite.AnyFunSuite
 import shapeless._
+import fs2.kafka.ProducerRecord
+import fs2.kafka.ProducerRecords
 
-object KafkaAvroTestData {
+object KafkaAvroTestData { 
   final case class Child1(a: Int, b: String)
   final case class Child2(a: Int, b: String)
 
@@ -51,20 +53,30 @@ class KafkaAvroTest extends AnyFunSuite {
   import KafkaAvroTestData._
 
   test("sparKafka not work with case object -- task serializable issue(avro4s) - happy failure") {
-    val data = List(topicCO.fs2PR(0, co1), topicCO.fs2PR(1, co2))
+    val data = fs2
+      .Stream(
+        ProducerRecords(
+          List(ProducerRecord(topicCO.topicName.value, 0, co1), ProducerRecord(topicCO.topicName.value, 1, co2))))
+      .covary[IO]
+      .through(topicCO.fs2Channel.producerPipe)
     val path = "./data/test/spark/kafka/coproduct/caseobject.avro"
     val sk   = sparKafka.topic(topicCO.topicDef)
 
     val run = topicCO.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicCO.schemaRegistry.register >>
-      topicCO.send(data) >>
+      data.compile.drain >>
       sk.fromKafka.save.avro(path).file.run(blocker) >>
       IO(sk.load.rdd.avro(path).rdd.collect().toSet)
     intercept[Exception](run.unsafeRunSync().flatMap(_.value) == Set(co1, co2))
   }
 
   test("sparKafka should be sent to kafka and save to single avro") {
-    val data        = List(topicEnum.fs2PR(0, en1), topicEnum.fs2PR(1, en2))
+    val data = fs2
+      .Stream(
+        ProducerRecords(
+          List(ProducerRecord(topicEnum.topicName.value, 0, en1), ProducerRecord(topicEnum.topicName.value, 1, en2))))
+      .covary[IO]
+      .through(topicEnum.fs2Channel.producerPipe)
     val avroPath    = "./data/test/spark/kafka/coproduct/scalaenum.avro"
     val jacksonPath = "./data/test/spark/kafka/coproduct/scalaenum.jackson.json"
     val circePath   = "./data/test/spark/kafka/coproduct/scalaenum.circe.json"
@@ -72,7 +84,7 @@ class KafkaAvroTest extends AnyFunSuite {
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegistry.register >>
-      topicEnum.send(data) >>
+      data.compile.drain >>
       sk.fromKafka.save.avro(avroPath).file.run(blocker) >>
       sk.fromKafka.save.jackson(jacksonPath).file.run(blocker) >>
       sk.fromKafka.save.circe(circePath).file.run(blocker) >>
@@ -94,38 +106,55 @@ class KafkaAvroTest extends AnyFunSuite {
   }
 
   test("sparKafka should be sent to kafka and save to multi avro") {
-    val data = List(topicEnum.fs2PR(0, en1), topicEnum.fs2PR(1, en2))
+    val data = fs2
+      .Stream(
+        ProducerRecords(
+          List(ProducerRecord(topicEnum.topicName.value, 0, en1), ProducerRecord(topicEnum.topicName.value, 1, en2))))
+      .covary[IO]
+      .through(topicEnum.fs2Channel.producerPipe)
+
     val path = "./data/test/spark/kafka/coproduct/multi-scalaenum.avro"
     val sk   = sparKafka.topic(topicEnum.topicDef)
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegistry.register >>
-      topicEnum.send(data) >>
+      data.compile.drain >>
       sk.fromKafka.save.avro(path).folder.run(blocker) >>
       IO(sk.load.rdd.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 
   test("should be sent to kafka and save to multi snappy avro") {
-    val data = List(topicEnum.fs2PR(0, en1), topicEnum.fs2PR(1, en2))
+    val data = fs2
+      .Stream(
+        ProducerRecords(
+          List(ProducerRecord(topicEnum.topicName.value, 0, en1), ProducerRecord(topicEnum.topicName.value, 1, en2))))
+      .covary[IO]
+      .through(topicEnum.fs2Channel.producerPipe)
+
     val path = "./data/test/spark/kafka/coproduct/multi-scalaenum.snappy.avro"
     val sk   = sparKafka.topic(topicEnum.topicDef)
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegistry.register >>
-      topicEnum.send(data) >>
+      data.compile.drain >>
       sk.fromKafka.save.avro(path).snappy.folder.run(blocker) >>
       IO(sk.load.rdd.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
   test("should be sent to kafka and save to single snappy avro") {
-    val data = List(topicEnum.fs2PR(0, en1), topicEnum.fs2PR(1, en2))
+    val data = fs2
+      .Stream(
+        ProducerRecords(
+          List(ProducerRecord(topicEnum.topicName.value, 0, en1), ProducerRecord(topicEnum.topicName.value, 1, en2))))
+      .covary[IO]
+      .through(topicEnum.fs2Channel.producerPipe)
     val path = "./data/test/spark/kafka/coproduct/single-scalaenum.snappy.avro"
     val sk   = sparKafka.topic(topicEnum.topicDef)
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegistry.register >>
-      topicEnum.send(data) >>
+      data.compile.drain >>
       sk.fromKafka.save.avro(path).snappy.file.run(blocker) >>
       IO(sk.load.rdd.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))

@@ -10,6 +10,7 @@ import com.github.chenharryhua.nanjin.spark.kafka._
 import com.sksamuel.avro4s.SchemaFor
 import frameless.TypedDataset
 import frameless.cats.implicits._
+import fs2.kafka.{ProducerRecord, ProducerRecords}
 import mtest.spark.{contextShift, sparkSession}
 import org.apache.spark.sql.SparkSession
 import org.scalatest.funsuite.AnyFunSuite
@@ -38,8 +39,18 @@ class SparKafkaTest extends AnyFunSuite {
 
   val topic: KafkaTopic[IO, Int, HasDuck] = TopicDef[Int, HasDuck](TopicName("duck.test")).in(ctx)
 
-  (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >> topic.schemaRegistry.register >>
-    topic.send(List(topic.fs2PR(0, data), topic.fs2PR(1, data)))).unsafeRunSync()
+  val loadData =
+    fs2
+      .Stream(
+        ProducerRecords(
+          List(ProducerRecord(topic.topicName.value, 1, data), ProducerRecord(topic.topicName.value, 1, data))))
+      .covary
+      .through(topic.fs2Channel.producerPipe)
+      .compile
+      .drain
+
+  (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >> topic.schemaRegistry.register >> loadData)
+    .unsafeRunSync()
 
   test("sparKafka read topic from kafka") {
     val rst = sparKafka.topic(topic.topicDef).fromKafka.rdd.collect()

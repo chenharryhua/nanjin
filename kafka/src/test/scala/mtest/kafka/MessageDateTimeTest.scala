@@ -2,9 +2,9 @@ package mtest.kafka
 
 import java.sql.{Date, Timestamp}
 import java.time._
-
 import com.github.chenharryhua.nanjin.kafka._
 import com.sksamuel.avro4s.Encoder
+import fs2.kafka.{ProducerRecord, ProducerRecords}
 import io.circe.generic.JsonCodec
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -53,10 +53,13 @@ class MessageDateTimeTest extends AnyFunSuite {
     import DatetimeCase.AllJavaDateTime
     val topic = TopicDef[Int, AllJavaDateTime](TopicName("message.datetime.test")).in(ctx)
     val m     = AllJavaDateTime(LocalDateTime.now, LocalDate.now, Instant.ofEpochMilli(Instant.now.toEpochMilli))
+    val data = fs2
+      .Stream(ProducerRecords.one(ProducerRecord(topic.topicName.value, 0, m)))
+      .through(topic.fs2Channel.producerPipe)
     val rst = for {
       _ <- topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- topic.schemaRegistry.delete
-      _ <- topic.send(0, m)
+      _ <- data.compile.drain
       r <- topic.shortLiveConsumer.use(_.retrieveLastRecords)
     } yield assert(topic.decoder(r.head).decodeValue.value() === m)
     rst.unsafeRunSync()

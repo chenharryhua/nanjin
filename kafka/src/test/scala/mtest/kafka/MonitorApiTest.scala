@@ -2,6 +2,7 @@ package mtest.kafka
 
 import cats.effect.IO
 import fs2.Stream
+import fs2.kafka.{ProducerRecord, ProducerRecords}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
@@ -14,17 +15,19 @@ class MonitorApiTest extends AnyFunSuite {
 
   val st = ctx.topic[Int, Array[Byte]]("monitor.test")
 
-  val data = List(
-    st.fs2PR(0, Array(0, 0, 0, 1)),
-    st.fs2PR(1, Array(0, 0, 0, 2)),
-    st.fs2PR(2, Array(0, 0)),
-    st.fs2PR(3, Array(0, 0, 0, 4)),
-    st.fs2PR(4, Array(0, 0, 0, 5)),
-    st.fs2PR(5, Array(0, 0, 0, 6)),
-    st.fs2PR(6, Array(0, 0, 0, 7))
-  )
-
-  val sender = Stream.awakeEvery[IO](1.seconds).zipRight(Stream.emits(data)).evalMap(st.send)
+  val sender = Stream
+    .emits(
+      List(
+        ProducerRecord[Int, Array[Byte]](st.topicName.value, 0, Array(0, 0, 0, 1)),
+        ProducerRecord[Int, Array[Byte]](st.topicName.value, 1, Array(0, 0, 0, 2)),
+        ProducerRecord[Int, Array[Byte]](st.topicName.value, 2, Array(0, 0)),
+        ProducerRecord[Int, Array[Byte]](st.topicName.value, 3, Array(0, 0, 0, 4)),
+        ProducerRecord[Int, Array[Byte]](st.topicName.value, 4, Array(0, 0, 0, 5)),
+        ProducerRecord[Int, Array[Byte]](st.topicName.value, 5, Array(0, 0, 0, 6)),
+        ProducerRecord[Int, Array[Byte]](st.topicName.value, 6, Array(0, 0, 0, 7))
+      ).map(ProducerRecords.one(_)))
+    .covary[IO]
+    .through(st.fs2Channel.producerPipe)
 
   test("realtime filter and watch") {
     val e   = Stream.eval(topic.monitor.filterFromEarliest(_.key().toOption.exists(_ == 2)))

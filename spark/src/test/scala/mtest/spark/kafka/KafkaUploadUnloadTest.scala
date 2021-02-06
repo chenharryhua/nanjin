@@ -54,10 +54,10 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
       .noTimestamp
       .noPartition
       .noMeta
-      .batchSize(10)
-      .bufferSize(1)
-      .recordsLimit(1000)
-      .timeLimit(2.minutes)
+      .withBatchSize(10)
+      .withBufferSize(1)
+      .withRecordsLimit(1000)
+      .withTimeLimit(2.minutes)
     val run = for {
       _ <- rooster.in(ctx).admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- pr.upload(spark.akkaSystem).compile.drain

@@ -19,5 +19,4 @@ class SparkDStreamTest extends AnyFunSuite {
 
   val topic: SparKafkaTopic[IO, Int, String] = sparKafka.topic[Int, String]("dstream.test")
 
-  val data: List[ProducerRecord[Int, String]] = List.fill(100)(topic.topic.fs2PR(Random.nextInt(1000), "a"))
 }

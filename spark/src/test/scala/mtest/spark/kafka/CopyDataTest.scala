@@ -2,6 +2,7 @@ package mtest.spark.kafka
 
 import cats.syntax.all._
 import frameless.cats.implicits._
+import fs2.kafka.{ProducerRecord, ProducerRecords}
 import mtest.spark.{contextShift, timer}
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -14,11 +15,14 @@ class CopyDataTest extends AnyFunSuite {
   val src = ctx.topic[Int, MyTestData]("copy.src")
   val tgt = ctx.topic[Int, MyTestData]("copy.target")
 
-  val d1 = src.fs2PR(0, MyTestData(1, "a")).withTimestamp(10)
-  val d2 = src.fs2PR(1, MyTestData(2, "b")).withTimestamp(20)
-  val d3 = src.fs2PR(2, MyTestData(3, "c")).withTimestamp(30)
-  val d4 = src.fs2PR(null.asInstanceOf[Int], MyTestData(4, "d")).withTimestamp(40)
-  val d5 = src.fs2PR(4, null.asInstanceOf[MyTestData]).withTimestamp(50)
+  val d1 = ProducerRecord(src.topicName.value, 0, MyTestData(1, "a")).withTimestamp(10)
+  val d2 = ProducerRecord(src.topicName.value, 1, MyTestData(2, "b")).withTimestamp(20)
+  val d3 = ProducerRecord(src.topicName.value, 2, MyTestData(3, "c")).withTimestamp(30)
+  val d4 = ProducerRecord(src.topicName.value, null.asInstanceOf[Int], MyTestData(4, "d")).withTimestamp(40)
+  val d5 = ProducerRecord(src.topicName.value, 4, null.asInstanceOf[MyTestData]).withTimestamp(50)
+
+  val loadData =
+    fs2.Stream(ProducerRecords(List(d1, d2, d3, d4, d5))).covary.through(src.fs2Channel.producerPipe).compile.drain
 
   val prepareData =
     src.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
@@ -27,7 +31,7 @@ class CopyDataTest extends AnyFunSuite {
       tgt.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       tgt.schemaRegistry.delete >>
       tgt.schemaRegistry.register >>
-      src.send(d1) >> src.send(d2) >> src.send(d3) >> src.send(d4) >> src.send(d5)
+      loadData
 
   test("sparKafka pipeTo should copy data from source to target") {
     val rst = for {

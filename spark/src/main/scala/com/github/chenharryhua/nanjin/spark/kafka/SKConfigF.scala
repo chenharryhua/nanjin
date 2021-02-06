@@ -2,14 +2,13 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.derived.auto.functor.kittensMkFunctor
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
-import com.github.chenharryhua.nanjin.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.{defaultLoadParams, TopicName}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
 import org.apache.spark.streaming.kafka010.{LocationStrategies, LocationStrategy}
 
 import java.time.{LocalDate, LocalDateTime, ZoneId}
-import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
 
 @Lenses final private[kafka] case class NJLoadParams(
@@ -24,14 +23,13 @@ import scala.concurrent.duration._
 private[kafka] object NJLoadParams {
 
   val default: NJLoadParams = NJLoadParams(
-    bulkSize = 1024 * 1024,
-    uploadBatchSize = 1000,
-    interval = 1.second,
-    recordsLimit = Long.MaxValue,
-    //akka.actor.LightArrayRevolverScheduler.checkMaxDelay
-    timeLimit = FiniteDuration(21474835, TimeUnit.SECONDS),
-    bufferSize = 15,
-    idleTimeout = FiniteDuration(120, TimeUnit.SECONDS)
+    bulkSize = defaultLoadParams.BulkSize,
+    uploadBatchSize = defaultLoadParams.BatchSize,
+    interval = defaultLoadParams.Interval,
+    recordsLimit = defaultLoadParams.RecordsLimit,
+    timeLimit = defaultLoadParams.TimeLimit,
+    bufferSize = defaultLoadParams.BufferSize,
+    idleTimeout = defaultLoadParams.IdleTimeout
   )
 }
 
