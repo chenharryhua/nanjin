@@ -16,8 +16,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
 
   val topicName: TopicName = topicDef.topicName
 
-  def withTopicName(tn: String): KafkaTopic[F, K, V] =
-    new KafkaTopic[F, K, V](topicDef.withTopicName(tn), context)
+  def withTopicName(tn: String): KafkaTopic[F, K, V] = new KafkaTopic[F, K, V](topicDef.withTopicName(tn), context)
 
   override def extract(key: K, value: V, rc: RecordContext): String = topicName.value
 

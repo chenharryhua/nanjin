@@ -1,15 +1,13 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
-import java.util
-
 import com.github.chenharryhua.nanjin.messages.kafka.KeyValueTag
 import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
 import io.confluent.kafka.streams.serdes.avro.{GenericAvroDeserializer, GenericAvroSerializer}
-import monocle.Prism
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import org.apache.kafka.streams.scala.Serdes
 
+import java.util
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Try}
 
@@ -20,9 +18,6 @@ final class NJCodec[A](val topicName: String, val cfg: NJSerdeConfig[A]) extends
   def tryDecode(ab: Array[Byte]): Try[A] =
     Option(ab).fold[Try[A]](Failure(new NullPointerException("NJCodec.tryDecode a null Array[Byte]")))(x =>
       Try(decode(x)))
-
-  val prism: Prism[Array[Byte], A] =
-    Prism[Array[Byte], A](x => Try(decode(x)).toOption)(encode)
 }
 
 sealed abstract class NJSerdeConfig[A](

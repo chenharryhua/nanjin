@@ -27,17 +27,6 @@ class NullTests extends AnyFunSuite {
     assert(jsonPrimCodec.tryDecode(null).isFailure)
   }
 
-  test("prism getOption of null should return Some(null)") {
-    assert(intCodec.prism.getOption(null) === Some(0))
-    assert(longCodec.prism.getOption(null) === Some(0))
-    assert(doubleCodec.prism.getOption(null) === Some(0))
-    assert(floatCodec.prism.getOption(null) === Some(0))
-    assert(strCodec.prism.getOption(null) === Some(null))
-    assert(byteArrayCodec.prism.getOption(null) === Some(null))
-    assert(primitiviesCodec.prism.getOption(null) === Some(null))
-    assert(jsonPrimCodec.prism.getOption(null) === Some(null))
-  }
-
   test("encode null should return null") {
     // assert(intCodec.encode(null) === null)
     // assert(longCodec.encode(null) === null)
