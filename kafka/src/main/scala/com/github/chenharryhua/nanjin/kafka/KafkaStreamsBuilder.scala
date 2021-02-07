@@ -74,15 +74,15 @@ final class KafkaStreamsBuilder[F[_]](
       localStateStores,
       globalStateStores)
 
-  def addStateStore(storeBuilder: StoreBuilder[_ <: StateStore]): KafkaStreamsBuilder[F] =
+  def addStateStore[S <: StateStore](storeBuilder: StoreBuilder[S]): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
       settings,
       top,
       Reader((sb: StreamsBuilder) => new StreamsBuilder(sb.addStateStore(storeBuilder))) :: localStateStores,
       globalStateStores)
 
-  def addGlobalStore[K, V](
-    storeBuilder: StoreBuilder[_ <: StateStore],
+  def addGlobalStore[K, V, S <: StateStore](
+    storeBuilder: StoreBuilder[S],
     topic: String,
     consumed: Consumed[K, V],
     stateUpdateSupplier: ProcessorSupplier[K, V]): KafkaStreamsBuilder[F] =
