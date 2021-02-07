@@ -24,6 +24,6 @@ final class KafkaGenericDecoder[F[_, _], K, V](
   @SuppressWarnings(Array("AsInstanceOf"))
   @inline def nullableDecode: F[K, V] =
     data.bimap(
-      k => keyCodec.prism.getOption(k).getOrElse(null.asInstanceOf[K]),
-      v => valCodec.prism.getOption(v).getOrElse(null.asInstanceOf[V]))
+      k => keyCodec.tryDecode(k).getOrElse(null.asInstanceOf[K]),
+      v => valCodec.tryDecode(v).getOrElse(null.asInstanceOf[V]))
 }

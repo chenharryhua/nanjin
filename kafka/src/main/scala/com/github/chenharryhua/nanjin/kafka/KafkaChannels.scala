@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import akka.actor.ActorSystem
 import akka.stream.Materializer
+import akka.{Done, NotUsed}
 import cats.data.{NonEmptyList, Reader}
 import cats.effect._
 import cats.syntax.all._
@@ -40,6 +41,8 @@ object KafkaChannels {
       Serializer
     }
 
+    // settings
+
     def updateConsumerSettings(
       f: ConsumerSettings[F, Array[Byte], Array[Byte]] => ConsumerSettings[F, Array[Byte], Array[Byte]])
       : Fs2Channel[F, K, V] =
@@ -61,11 +64,13 @@ object KafkaChannels {
     @inline def decoder[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
       new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valCodec)
 
+    // pipe
     def producerPipe[P](implicit
       F: ConcurrentEffect[F],
       cs: ContextShift[F]): Pipe[F, ProducerRecords[K, V, P], ProducerResult[K, V, P]] =
       KafkaProducer.pipe[F, K, V, P](producerSettings)
 
+    // sources
     def stream(implicit
       cs: ContextShift[F],
       timer: Timer[F],
@@ -102,18 +107,11 @@ object KafkaChannels {
     updater: AkkaSettingsUpdater[K, V]) {
     import akka.kafka.ConsumerMessage.CommittableMessage
     import akka.kafka.ProducerMessage.Envelope
-    import akka.kafka.{
-      CommitterSettings,
-      ConsumerMessage,
-      ConsumerSettings,
-      ProducerMessage,
-      ProducerSettings,
-      Subscriptions
-    }
-    import akka.kafka.scaladsl.{Committer, Consumer, Producer}
+    import akka.kafka._
+    import akka.kafka.scaladsl.{Committer, Consumer, Producer, Transactional}
     import akka.stream.scaladsl.{Flow, Sink, Source}
-    import akka.{Done, NotUsed}
 
+    // settings
     def updateConsumerSettings(
       f: ConsumerSettings[Array[Byte], Array[Byte]] => ConsumerSettings[Array[Byte], Array[Byte]])
       : AkkaChannel[F, K, V] =
@@ -140,6 +138,7 @@ object KafkaChannels {
     @inline def decoder[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
       new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valCodec)
 
+    // sinks
     def flexiFlow[P]: Flow[Envelope[K, V, P], ProducerMessage.Results[K, V, P], NotUsed] =
       Producer.flexiFlow[K, V, P](producerSettings)
 
@@ -156,6 +155,8 @@ object KafkaChannels {
     def commitSink(implicit cs: ContextShift[F], F: Async[F]): Sink[ConsumerMessage.Committable, F[Done]] =
       Committer.sink(committerSettings).mapMaterializedValue(f => Async.fromFuture(F.pure(f)))
 
+    // sources
+
     def assign(tps: Map[TopicPartition, Long]): Source[KafkaByteConsumerRecord, Consumer.Control] =
       Consumer.plainSource(consumerSettings, Subscriptions.assignmentWithOffset(tps))
 
@@ -164,6 +165,9 @@ object KafkaChannels {
 
     def stream(implicit F: ConcurrentEffect[F]): Stream[F, CommittableMessage[Array[Byte], Array[Byte]]] =
       Stream.suspend(source.runWith(Sink.asPublisher(fanout = false))(Materializer(akkaSystem)).toStream[F])
+
+    val transactionalSource: Source[ConsumerMessage.TransactionalMessage[K, V], Consumer.Control] =
+      Transactional.source(consumerSettings, Subscriptions.topics(topicName.value)).map(decoder(_).decode)
 
   }
 
