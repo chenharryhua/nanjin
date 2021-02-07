@@ -48,10 +48,9 @@ final case class NJConsumerRecord[K, V](
     JsonEncoder[NJConsumerRecord[K, V]].apply(this)
 
   private def tst: TimestampType = timestampType match {
-    case 0  => TimestampType.CREATE_TIME
-    case 1  => TimestampType.LOG_APPEND_TIME
-    case -1 => TimestampType.NO_TIMESTAMP_TYPE
-    case _  => sys.error("timestamp type should be -1, 0 or 1")
+    case 0 => TimestampType.CREATE_TIME
+    case 1 => TimestampType.LOG_APPEND_TIME
+    case _ => TimestampType.NO_TIMESTAMP_TYPE
   }
 
   def metaInfo: String =

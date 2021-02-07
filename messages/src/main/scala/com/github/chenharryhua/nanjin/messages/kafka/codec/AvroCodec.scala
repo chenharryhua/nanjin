@@ -2,27 +2,18 @@ package com.github.chenharryhua.nanjin.messages.kafka.codec
 
 import cats.data.Ior
 import cats.syntax.all._
-import com.sksamuel.avro4s.{
-  DecoderHelpers,
-  EncoderHelpers,
-  SchemaFor,
-  Decoder => AvroDecoder,
-  Encoder => AvroEncoder
-}
+import com.sksamuel.avro4s.{DecoderHelpers, EncoderHelpers, SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
 import eu.timepit.refined.string.MatchesRegex
 import eu.timepit.refined.{refineV, W}
 import io.circe.optics.JsonPath
 import io.circe.optics.JsonPath._
 import io.circe.{parser, Json}
 import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType
-import org.apache.avro.{Schema, SchemaCompatibility}
+import org.apache.avro.{Schema, SchemaCompatibility, SchemaParseException}
 
 import scala.util.Try
 
-final case class AvroCodec[A](
-  schemaFor: SchemaFor[A],
-  avroDecoder: AvroDecoder[A],
-  avroEncoder: AvroEncoder[A]) {
+final case class AvroCodec[A](schemaFor: SchemaFor[A], avroDecoder: AvroDecoder[A], avroEncoder: AvroEncoder[A]) {
   val schema: Schema        = schemaFor.schema
   def idConversion(a: A): A = avroDecoder.decode(avroEncoder.encode(a))
 
@@ -33,7 +24,7 @@ final case class AvroCodec[A](
     *
     * empty namespace is not allowed
     */
-
+  @throws[Exception]
   def withNamespace(namespace: String): AvroCodec[A] = {
     type Namespace = MatchesRegex[W.`"^[a-zA-Z0-9_.]+$"`.T]
     val res = for {
@@ -59,8 +50,8 @@ final case class AvroCodec[A](
   /** @param jsonPath path to the child schema
     * @return
     */
-  def child[B](
-    jsonPath: JsonPath)(implicit dec: AvroDecoder[B], enc: AvroEncoder[B]): AvroCodec[B] = {
+  @throws[Exception]
+  def child[B](jsonPath: JsonPath)(implicit dec: AvroDecoder[B], enc: AvroEncoder[B]): AvroCodec[B] = {
     val oa = for {
       json <- at(jsonPath)
       ac <- AvroCodec.build[B](AvroCodec.toSchemaFor[B](json.noSpaces), dec, enc)
@@ -78,13 +69,7 @@ final case class AvroCodec[A](
   */
 object AvroCodec {
 
-  def toSchema(jsonStr: String): Schema =
-    (new Schema.Parser).parse(jsonStr)
-
-  def toSchemaFor[A](jsonStr: String): SchemaFor[A] =
-    SchemaFor[A](toSchema(jsonStr))
-
-  def build[A](
+  private def build[A](
     schemaFor: SchemaFor[A],
     decoder: AvroDecoder[A],
     encoder: AvroEncoder[A]): Either[String, AvroCodec[A]] =
@@ -99,9 +84,13 @@ object AvroCodec {
           .leftMap(_ => "avro4s decline encode schema change")
     } yield AvroCodec(schemaFor, d, e)
 
-  def apply[A](input: Schema)(implicit
-    decoder: AvroDecoder[A],
-    encoder: AvroEncoder[A]): Ior[String, AvroCodec[A]] = {
+  @throws[SchemaParseException]
+  private def toSchemaFor[A](jsonStr: String): SchemaFor[A] = SchemaFor[A](toSchema(jsonStr))
+
+  @throws[SchemaParseException]
+  def toSchema(jsonStr: String): Schema = (new Schema.Parser).parse(jsonStr)
+
+  def apply[A](input: Schema)(implicit decoder: AvroDecoder[A], encoder: AvroEncoder[A]): Ior[String, AvroCodec[A]] = {
     val inferred: Schema = encoder.schema
 
     if (SchemaCompatibility.schemaNameEquals(inferred, input)) {
@@ -133,6 +122,7 @@ object AvroCodec {
     Ior.fromEither(codec).flatten
   }
 
+  @throws[Exception]
   def unsafe[A: AvroDecoder: AvroEncoder](schemaText: String): AvroCodec[A] =
     apply[A](schemaText).toEither match {
       case Right(r) => r
