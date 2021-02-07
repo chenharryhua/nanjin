@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.dstream
 
 import cats.data.Reader
-import cats.effect.Sync
+import cats.effect.{Async, Sync}
 import fs2.Stream
 import org.apache.spark.SparkContext
 import org.apache.spark.streaming.{Duration, Seconds, StreamingContext}
@@ -31,14 +31,16 @@ final class DStreamRunner[F[_]] private (
     ssc
   }
 
-  def run(implicit F: Sync[F]): Stream[F, Unit] =
-    Stream
-      .bracket(F.delay {
-        val sc: StreamingContext = StreamingContext.getOrCreate(checkpoint, createContext)
-        sc.start()
-        sc
-      })(sc => F.delay(sc.stop(stopSparkContext = false, stopGracefully = true)))
-      .evalMap(sc => F.delay(sc.awaitTermination()))
+  def run(implicit F: Async[F]): Stream[F, Unit] =
+    Stream.bracket(F.delay {
+      val sc: StreamingContext = StreamingContext.getOrCreate(checkpoint, createContext)
+      sc.start()
+      sc
+    })(sc =>
+      F.delay {
+        sc.awaitTerminationOrTimeout(2 * batchDuration.milliseconds / 1000)
+        sc.stop(stopSparkContext = false, stopGracefully = false)
+      }) >> Stream.never[F]
 }
 
 object DStreamRunner {

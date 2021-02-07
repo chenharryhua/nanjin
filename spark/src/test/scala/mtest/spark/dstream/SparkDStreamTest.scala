@@ -25,7 +25,7 @@ class SparkDStreamTest extends AnyFunSuite {
     .map { case (_, idx) => ProducerRecords.one(ProducerRecord(topic.topicName.value, idx.toInt, "a")) }
     .through(topic.topic.fs2Channel.producerPipe)
 
-  ignore("dstream") {
+  test("dstream") {
     val jackson    = root + "jackson/"
     val circe      = root + "circe/"
     val avro       = root + "avro/"
@@ -35,47 +35,24 @@ class SparkDStreamTest extends AnyFunSuite {
     sender
       .concurrently(
         runner
-          .signup(topic.dstream)(_.jackson(jackson))
+          .signup(topic.dstream)(_.coalesce.jackson(jackson))
           .signup(topic.dstream)(_.circe(circe))
           .signup(topic.dstream)(_.avro(avro))
-          .run)
+          .run
+          .delayBy(4.seconds))
       .interruptAfter(10.seconds)
       .compile
       .drain
       .unsafeRunSync()
 
-    val count = (
-      topic.load.jackson(jackson + NJTimestamp.now().`Year=yyyy/Month=mm/Day=dd`(sydneyTime)).count,
-      topic.load.avro(avro + NJTimestamp.now().`Year=yyyy/Month=mm/Day=dd`(sydneyTime)).count,
-      topic.load.circe(circe + NJTimestamp.now().`Year=yyyy/Month=mm/Day=dd`(sydneyTime)).count).mapN((_, _, _))
-    println(count.unsafeRunSync())
-  }
+    val now = NJTimestamp.now().`Year=yyyy/Month=mm/Day=dd`(sydneyTime)
+    val j   = topic.load.jackson(jackson + now).transform(_.distinct())
+    val a   = topic.load.avro(avro + now).transform(_.distinct())
+    val c   = topic.load.circe(circe + now).transform(_.distinct())
 
-  ignore("dstream - 2") {
-    val jackson    = root + "jackson2/"
-    val circe      = root + "circe2/"
-    val avro       = root + "avro2/"
-    val checkpoint = root + "checkpont2/"
-
-    val runner: DStreamRunner[IO] = DStreamRunner[IO](sparkSession.sparkContext, checkpoint, 3.second)
-    sender
-      .concurrently(
-        runner
-          .signup(topic.dstream) { ds =>
-            ds.coalesce.jackson(jackson)
-            ds.coalesce.avro(avro)
-            ds.coalesce.circe(circe)
-          }
-          .run)
-      .interruptAfter(10.seconds)
-      .compile
-      .drain
-      .unsafeRunSync()
-
-    val count = (
-      topic.load.jackson(jackson + NJTimestamp.now().`Year=yyyy/Month=mm/Day=dd`(sydneyTime)).count,
-      topic.load.avro(avro + NJTimestamp.now().`Year=yyyy/Month=mm/Day=dd`(sydneyTime)).count,
-      topic.load.circe(circe + NJTimestamp.now().`Year=yyyy/Month=mm/Day=dd`(sydneyTime)).count).mapN((_, _, _))
-    println(count.unsafeRunSync())
+    j.diff(a).dataset.show(truncate = false)
+    j.diff(c).dataset.show(truncate = false)
+    a.diff(c).dataset.show(truncate = false)
+    (j.count, a.count, c.count).mapN((a, b, c) => println((a, b, c))).unsafeRunSync()
   }
 }
