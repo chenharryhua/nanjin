@@ -3,10 +3,9 @@ package mtest.kafka.stream
 import cats.Id
 import cats.data.Kleisli
 import cats.effect.IO
-import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.StoreName
 import fs2.Stream
-import fs2.kafka.{ProducerRecord, ProducerRecords}
+import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords}
 import mtest.kafka._
 import org.apache.kafka.streams.KeyValue
 import org.apache.kafka.streams.kstream.{Transformer, TransformerSupplier}
@@ -20,10 +19,10 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration._
 
-//@DoNotDiscover
+@DoNotDiscover
 class KafkaStreamsBuildTest extends AnyFunSuite {
 
-  test("stream builder") {
+  test("stream transformer") {
     val storeName = StoreName("stream.builder.test.store")
     val store: StoreBuilder[KeyValueStore[Int, String]] =
       Stores.keyValueStoreBuilder(Stores.inMemoryKeyValueStore(storeName.value), ctx.asKey[Int], ctx.asValue[String])
@@ -67,17 +66,7 @@ class KafkaStreamsBuildTest extends AnyFunSuite {
           ProducerRecord(topic2.topicName.value, 1, "t1"),
           ProducerRecord(topic2.topicName.value, 2, "t2")))).covary[IO].through(topic2.fs2Channel.producerPipe)
 
-    val prepare = for {
-      _ <- topic1.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
-      _ <- topic1.admin.newTopic(1, 1).attempt
-      _ <- topic2.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
-      _ <- topic2.admin.newTopic(1, 1).attempt
-      _ <- t2Data.compile.drain
-      _ <- tgt.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
-      _ <- tgt.admin.newTopic(1, 1).attempt
-    } yield ()
-
-    val t1Data =
+    val s1Data =
       Stream
         .awakeEvery[IO](1.seconds)
         .zipWithIndex
@@ -86,17 +75,20 @@ class KafkaStreamsBuildTest extends AnyFunSuite {
         }
         .through(topic1.fs2Channel.producerPipe)
 
-    val havest = tgt.fs2Channel.stream.map(tgt.decoder(_).decode)
+    val havest = tgt.fs2Channel.stream
+      .map(tgt.decoder(_).decode)
+      .observe(_.map(_.offset).through(commitBatchWithin(10, 2.seconds)))
 
     val runStream = kafkaStreamService.run.handleErrorWith(_ => Stream.sleep(2.seconds) ++ ctx.buildStreams(top).run)
     val res =
-      (prepare >> IO.sleep(1.second) >> runStream
+      (runStream
         .flatMap(_ => havest)
-        .concurrently(t1Data)
-        .interruptAfter(10.seconds)
+        .concurrently(t2Data)
+        .concurrently(s1Data)
+        .interruptAfter(15.seconds)
         .compile
-        .toList).unsafeRunSync()
-    println(res)
+        .toList)
+        .unsafeRunSync()
     assert(res.map(_.record.key).toSet == Set(0, 1, 2))
   }
 }

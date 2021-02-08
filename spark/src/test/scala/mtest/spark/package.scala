@@ -3,8 +3,8 @@ package mtest
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import cats.effect.{Blocker, ContextShift, IO, Timer}
+import com.github.chenharryhua.nanjin.common.NJLogLevel
 import com.github.chenharryhua.nanjin.datetime.sydneyTime
-import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
 import com.github.chenharryhua.nanjin.spark.SparkSettings
 import org.apache.spark.sql.SparkSession
 
@@ -21,6 +21,7 @@ package object spark {
 
   val sparkSession: SparkSession = SparkSettings.default
     .withAppName("nj.spark.test")
+    .withLogLevel(NJLogLevel.WARN)
     .withUI
     .withoutUI
     .withConfigUpdate(_.set("spark.sql.session.timeZone", sydneyTime.toString))
