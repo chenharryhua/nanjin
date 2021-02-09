@@ -10,7 +10,7 @@ import mtest.kafka._
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.scala.ImplicitConversions._
-import org.apache.kafka.streams.scala.Serdes._
+import org.apache.kafka.streams.scala.serialization.Serdes._
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite

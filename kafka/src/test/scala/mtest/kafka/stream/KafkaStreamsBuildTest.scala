@@ -11,7 +11,7 @@ import org.apache.kafka.streams.KeyValue
 import org.apache.kafka.streams.kstream.{Transformer, TransformerSupplier}
 import org.apache.kafka.streams.processor.ProcessorContext
 import org.apache.kafka.streams.scala.ImplicitConversions._
-import org.apache.kafka.streams.scala.Serdes._
+import org.apache.kafka.streams.scala.serialization.Serdes._
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.state.{KeyValueStore, StoreBuilder, Stores}
 import org.scalatest.DoNotDiscover
@@ -37,7 +37,7 @@ class KafkaStreamsBuildTest extends AnyFunSuite {
           var kvStore: KeyValueStore[Int, String] = _
 
           override def init(processorContext: ProcessorContext): Unit = {
-            kvStore = processorContext.getStateStore(storeName.value).asInstanceOf[KeyValueStore[Int, String]]
+            kvStore = processorContext.getStateStore[KeyValueStore[Int, String]](storeName.value)
             println("transformer initialized")
           }
 

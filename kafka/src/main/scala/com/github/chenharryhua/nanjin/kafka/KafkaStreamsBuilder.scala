@@ -8,7 +8,8 @@ import cats.syntax.functor._
 import cats.syntax.monadError._
 import fs2.Stream
 import monocle.function.At.at
-import org.apache.kafka.streams.processor.{ProcessorSupplier, StateStore}
+import org.apache.kafka.streams.processor.StateStore
+import org.apache.kafka.streams.processor.api.ProcessorSupplier
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.scala.kstream.Consumed
 import org.apache.kafka.streams.state.StoreBuilder
@@ -52,8 +53,8 @@ final class KafkaStreamsBuilder[F[_]](
         Stream
           .bracketCase(F.delay(new KafkaStreams(topology, settings.javaProperties))) { case (ks, reason) =>
             reason match {
-              case ExitCase.Canceled  => F.delay(ks.close())
               case ExitCase.Completed => F.delay(ks.close())
+              case ExitCase.Canceled  => F.delay(ks.close()) >> F.delay(ks.cleanUp())
               case ExitCase.Error(_)  => F.delay(ks.close()) >> F.delay(ks.cleanUp())
             }
           }
@@ -85,7 +86,7 @@ final class KafkaStreamsBuilder[F[_]](
     storeBuilder: StoreBuilder[S],
     topic: String,
     consumed: Consumed[K, V],
-    stateUpdateSupplier: ProcessorSupplier[K, V]): KafkaStreamsBuilder[F] =
+    stateUpdateSupplier: ProcessorSupplier[K, V, Void, Void]): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
       settings,
       top,

@@ -28,8 +28,6 @@ val catsEffect = "2.3.1"
 val akka26     = "2.6.12"
 
 // kafka
-val confltKafka = "6.0.1-ce"
-val confluent   = "6.1.0"
 val akkaKafka   = "2.0.7"
 val fs2Kafka    = "1.3.1"
 
@@ -165,7 +163,7 @@ val kantanLib = Seq(
 
 val pbLib = Seq(
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.10.11",
-  "io.confluent"                              % "kafka-protobuf-serializer" % confluent,
+  "io.confluent"                              % "kafka-protobuf-serializer" % "6.1.0",
   "com.google.protobuf"                       % "protobuf-java"             % "3.14.0",
   "com.google.protobuf"                       % "protobuf-java-util"        % "3.14.0"
 )
@@ -176,7 +174,7 @@ val serdeLib = Seq(
   "org.apache.parquet"                   % "parquet-hadoop"           % parquet,
   "org.apache.parquet"                   % "parquet-avro"             % parquet,
   "org.apache.avro"                      % "avro"                     % avro,
-  "io.confluent"                         % "kafka-streams-avro-serde" % confluent
+  "io.confluent"                         % "kafka-streams-avro-serde" % "6.1.0"
 ) ++ jacksonLib ++ circeLib ++ pbLib
 
 val fs2Lib = Seq(
@@ -231,12 +229,13 @@ val testLib = Seq(
 val kafkaLib = Seq(
   "org.apache.kafka" % "kafka-clients",
   "org.apache.kafka" % "kafka-streams",
-  "org.apache.kafka" %% "kafka-streams-scala").map(_ % confltKafka) ++ Seq(
-  "com.typesafe.akka" %% "akka-stream-kafka"         % akkaKafka,
-  "com.github.fd4s" %% "fs2-kafka"                   % fs2Kafka) ++ Seq(
+  "org.apache.kafka" %% "kafka-streams-scala").map(_ % "2.7.0") ++
+  Seq(
+  "com.typesafe.akka" %% "akka-stream-kafka" % akkaKafka,
+  "com.github.fd4s" %% "fs2-kafka"           % fs2Kafka) ++
+  Seq(
   "io.confluent" % "kafka-schema-registry-client",
-  "io.confluent" % "kafka-schema-serializer"
-).map(_ % confluent)
+  "io.confluent" % "kafka-schema-serializer").map(_ % "6.1.0")
 
 val enumLib = Seq(
   "com.beachape" %% "enumeratum-cats",

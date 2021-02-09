@@ -6,7 +6,7 @@ import cats.syntax.all._
 import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import org.apache.kafka.streams.StoreQueryParameters
-import org.apache.kafka.streams.scala.Serdes._
+import org.apache.kafka.streams.scala.serialization.Serdes._
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.scala.kstream.Materialized
 import org.apache.kafka.streams.state.{QueryableStoreTypes, Stores}
