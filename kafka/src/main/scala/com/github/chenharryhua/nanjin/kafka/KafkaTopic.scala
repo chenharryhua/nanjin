@@ -60,7 +60,8 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
       codec,
       context.settings.producerSettings,
       context.settings.consumerSettings,
-      Fs2SettingsUpdater.noUpdate)
+      fs2Updater.noUpdateConsumer[F],
+      fs2Updater.noUpdateProducer[F, K, V])
 
   def akkaChannel(akkaSystem: ActorSystem): KafkaChannels.AkkaChannel[F, K, V] =
     new KafkaChannels.AkkaChannel[F, K, V](
@@ -69,7 +70,9 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
       codec,
       context.settings.producerSettings,
       context.settings.consumerSettings,
-      AkkaSettingsUpdater.noUpdate)
+      akkaUpdater.noUpdateConsumer,
+      akkaUpdater.noUpdateProducer[K, V],
+      akkaUpdater.noUpdateCommiter)
 }
 
 final class NJSchemaRegistry[F[_], K, V](kt: KafkaTopic[F, K, V]) extends Serializable {

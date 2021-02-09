@@ -2,20 +2,20 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.kafka.ProducerMessage
+import akka.kafka.{ProducerMessage, ProducerSettings => AkkaProducerSettings}
 import akka.stream.scaladsl.Sink
 import akka.stream.{Materializer, OverflowStrategy}
 import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, fs2Updater, KafkaTopic}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import frameless.cats.implicits._
 import fs2.Stream
 import fs2.interop.reactivestreams._
-import fs2.kafka.{ProducerRecords, ProducerResult}
+import fs2.kafka.{ProducerRecords, ProducerResult, ProducerSettings => Fs2ProducerSettings}
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.spark.rdd.RDD
 
@@ -24,7 +24,9 @@ import scala.concurrent.duration.FiniteDuration
 final class PrRdd[F[_], K, V] private[kafka] (
   val rdd: RDD[NJProducerRecord[K, V]],
   topic: KafkaTopic[F, K, V],
-  cfg: SKConfig
+  cfg: SKConfig,
+  fs2Producer: fs2Updater.Producer[F, K, V],
+  akkaProducer: akkaUpdater.Producer[K, V]
 ) extends Serializable {
 
   val params: SKParams = cfg.evalConfig
@@ -33,7 +35,7 @@ final class PrRdd[F[_], K, V] private[kafka] (
 
   // config
   private def updateCfg(f: SKConfig => SKConfig): PrRdd[F, K, V] =
-    new PrRdd[F, K, V](rdd, topic, f(cfg))
+    new PrRdd[F, K, V](rdd, topic, f(cfg), fs2Producer, akkaProducer)
 
   def withInterval(ms: FiniteDuration): PrRdd[F, K, V] = updateCfg(_.withLoadInterval(ms))
   def withBulkSize(num: Int): PrRdd[F, K, V]           = updateCfg(_.withLoadBulkSize(num))
@@ -43,9 +45,18 @@ final class PrRdd[F[_], K, V] private[kafka] (
   def withRecordsLimit(num: Long): PrRdd[F, K, V]       = updateCfg(_.withLoadRecordsLimit(num))
   def withTimeLimit(fd: FiniteDuration): PrRdd[F, K, V] = updateCfg(_.withLoadTimeLimit(fd))
 
+  def updateFs2Producer(f: Fs2ProducerSettings[F, K, V] => Fs2ProducerSettings[F, K, V]): PrRdd[F, K, V] =
+    new PrRdd[F, K, V](rdd, topic, cfg, fs2Producer.update(f), akkaProducer)
+
+  def updateAkkaProducer(f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): PrRdd[F, K, V] =
+    new PrRdd[F, K, V](rdd, topic, cfg, fs2Producer, akkaProducer.update(f))
+
+  def withTopic(topic: KafkaTopic[F, K, V]): PrRdd[F, K, V] =
+    new PrRdd[F, K, V](rdd, topic, cfg, fs2Producer, akkaProducer)
+
   // transform
   def transform(f: RDD[NJProducerRecord[K, V]] => RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
-    new PrRdd[F, K, V](f(rdd), topic, cfg)
+    new PrRdd[F, K, V](f(rdd), topic, cfg, fs2Producer, akkaProducer)
 
   def partitionOf(num: Int): PrRdd[F, K, V] = transform(_.filter(_.partition.exists(_ === num)))
 
@@ -67,18 +78,6 @@ final class PrRdd[F[_], K, V] private[kafka] (
 
   def normalize: PrRdd[F, K, V] = transform(_.map(NJProducerRecord.avroCodec(topic.topicDef).idConversion))
 
-  // maps
-  def bimap[K2, V2](k: K => K2, v: V => V2)(other: KafkaTopic[F, K2, V2]): PrRdd[F, K2, V2] =
-    new PrRdd[F, K2, V2](rdd.map(_.bimap(k, v)), other, cfg).normalize
-
-  def map[K2, V2](f: NJProducerRecord[K, V] => NJProducerRecord[K2, V2])(
-    other: KafkaTopic[F, K2, V2]): PrRdd[F, K2, V2] =
-    new PrRdd[F, K2, V2](rdd.map(f), other, cfg).normalize
-
-  def flatMap[K2, V2](f: NJProducerRecord[K, V] => TraversableOnce[NJProducerRecord[K2, V2]])(
-    other: KafkaTopic[F, K2, V2]): PrRdd[F, K2, V2] =
-    new PrRdd[F, K2, V2](rdd.flatMap(f), other, cfg).normalize
-
   // actions
   def upload(implicit
     ce: ConcurrentEffect[F],
@@ -92,7 +91,7 @@ final class PrRdd[F[_], K, V] private[kafka] (
       .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName.value))))
       .buffer(params.loadParams.bufferSize)
       .metered(params.loadParams.interval)
-      .through(topic.fs2Channel.producerPipe)
+      .through(topic.fs2Channel.updateProducerSettings(fs2Producer.settings.run).producerPipe)
 
   def upload(akkaSystem: ActorSystem)(implicit
     F: ConcurrentEffect[F],
@@ -105,7 +104,7 @@ final class PrRdd[F[_], K, V] private[kafka] (
         .takeWithin(params.loadParams.timeLimit)
         .map(m => ProducerMessage.single(m.toProducerRecord(topic.topicName.value)))
         .buffer(params.loadParams.bufferSize, OverflowStrategy.backpressure)
-        .via(topic.akkaChannel(akkaSystem).flexiFlow)
+        .via(topic.akkaChannel(akkaSystem).updateProducerSettings(akkaProducer.settings.run).flexiFlow)
         .throttle(
           params.loadParams.bulkSize,
           params.loadParams.interval,

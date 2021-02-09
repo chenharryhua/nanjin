@@ -28,7 +28,8 @@ object KafkaChannels {
     codec: KafkaTopicCodec[K, V],
     kps: KafkaProducerSettings,
     kcs: KafkaConsumerSettings,
-    updater: Fs2SettingsUpdater[F, K, V]) {
+    csUpdater: fs2Updater.Consumer[F],
+    psUpdater: fs2Updater.Producer[F, K, V]) {
     import fs2.kafka.{
       CommittableConsumerRecord,
       ConsumerSettings,
@@ -46,18 +47,18 @@ object KafkaChannels {
     def updateConsumerSettings(
       f: ConsumerSettings[F, Array[Byte], Array[Byte]] => ConsumerSettings[F, Array[Byte], Array[Byte]])
       : Fs2Channel[F, K, V] =
-      new Fs2Channel[F, K, V](topicName, codec, kps, kcs, updater.updateConsumer(f))
+      new Fs2Channel[F, K, V](topicName, codec, kps, kcs, csUpdater.update(f), psUpdater)
 
     def updateProducerSettings(f: ProducerSettings[F, K, V] => ProducerSettings[F, K, V]): Fs2Channel[F, K, V] =
-      new Fs2Channel[F, K, V](topicName, codec, kps, kcs, updater.updateProducer(f))
+      new Fs2Channel[F, K, V](topicName, codec, kps, kcs, csUpdater, psUpdater.update(f))
 
     def producerSettings(implicit F: Sync[F]): ProducerSettings[F, K, V] =
-      updater.producer.run(
+      psUpdater.settings.run(
         ProducerSettings[F, K, V](Serializer.delegate(codec.keySerializer), Serializer.delegate(codec.valSerializer))
           .withProperties(kps.config))
 
     def consumerSettings(implicit F: Sync[F]): ConsumerSettings[F, Array[Byte], Array[Byte]] =
-      updater.consumer.run(
+      csUpdater.settings.run(
         ConsumerSettings[F, Array[Byte], Array[Byte]](Deserializer[F, Array[Byte]], Deserializer[F, Array[Byte]])
           .withProperties(kcs.config))
 
@@ -104,7 +105,9 @@ object KafkaChannels {
     codec: KafkaTopicCodec[K, V],
     kps: KafkaProducerSettings,
     kcs: KafkaConsumerSettings,
-    updater: AkkaSettingsUpdater[K, V]) {
+    csUpdater: akkaUpdater.Consumer,
+    psUpdater: akkaUpdater.Producer[K, V],
+    ctUpdater: akkaUpdater.Committer) {
     import akka.kafka.ConsumerMessage.CommittableMessage
     import akka.kafka.ProducerMessage.Envelope
     import akka.kafka._
@@ -115,25 +118,25 @@ object KafkaChannels {
     def updateConsumerSettings(
       f: ConsumerSettings[Array[Byte], Array[Byte]] => ConsumerSettings[Array[Byte], Array[Byte]])
       : AkkaChannel[F, K, V] =
-      new AkkaChannel[F, K, V](topicName, akkaSystem, codec, kps, kcs, updater.updateConsumer(f))
+      new AkkaChannel[F, K, V](topicName, akkaSystem, codec, kps, kcs, csUpdater.update(f), psUpdater, ctUpdater)
 
     def updateProducerSettings(f: ProducerSettings[K, V] => ProducerSettings[K, V]): AkkaChannel[F, K, V] =
-      new AkkaChannel[F, K, V](topicName, akkaSystem, codec, kps, kcs, updater.updateProducer(f))
+      new AkkaChannel[F, K, V](topicName, akkaSystem, codec, kps, kcs, csUpdater, psUpdater.update(f), ctUpdater)
 
     def updateCommitterSettings(f: CommitterSettings => CommitterSettings): AkkaChannel[F, K, V] =
-      new AkkaChannel[F, K, V](topicName, akkaSystem, codec, kps, kcs, updater.updateCommitter(f))
+      new AkkaChannel[F, K, V](topicName, akkaSystem, codec, kps, kcs, csUpdater, psUpdater, ctUpdater.update(f))
 
     def producerSettings: ProducerSettings[K, V] =
-      updater.producer.run(
+      psUpdater.settings.run(
         ProducerSettings[K, V](akkaSystem, codec.keySerializer, codec.valSerializer).withProperties(kps.config))
 
     def consumerSettings: ConsumerSettings[Array[Byte], Array[Byte]] =
-      updater.consumer.run(
+      csUpdater.settings.run(
         ConsumerSettings[Array[Byte], Array[Byte]](akkaSystem, new ByteArrayDeserializer, new ByteArrayDeserializer)
           .withProperties(kcs.config))
 
     def committerSettings: CommitterSettings =
-      updater.committer.run(CommitterSettings(akkaSystem))
+      ctUpdater.settings.run(CommitterSettings(akkaSystem))
 
     @inline def decoder[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
       new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valCodec)

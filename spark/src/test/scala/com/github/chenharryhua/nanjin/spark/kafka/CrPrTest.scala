@@ -76,7 +76,6 @@ class CrPrTest extends AnyFunSuite {
       .collect()
       .flatMap(_.value)
       .toSet
-    val pr = prRdd.bimap(identity, RoosterLike(_))(roosterLike.in(ctx)).rdd.collect().flatMap(_.value).toSet
 
     val ds = crDS.bimap(identity, RoosterLike(_))(roosterLike.in(ctx)).dataset
     val d  = ds.collect().flatMap(_.value).toSet
@@ -84,7 +83,6 @@ class CrPrTest extends AnyFunSuite {
     crRdd.rdd.take(3).foreach(println)
     assert(ds.schema == expectSchema)
     assert(cr == d)
-    assert(pr == d)
 
   }
 
@@ -92,18 +90,10 @@ class CrPrTest extends AnyFunSuite {
     val cr =
       crRdd.map(x => x.newValue(x.value.map(RoosterLike(_))))(roosterLike.in(ctx)).rdd.collect.flatMap(_.value).toSet
 
-    val pr = prRdd
-      .map(x => x.copy(value = x.value.map(RoosterLike(_))))(roosterLike.in(ctx))
-      .rdd
-      .collect
-      .flatMap(_.value)
-      .toSet
-
     val ds = crDS.map(_.bimap(identity, RoosterLike(_)))(roosterLike.in(ctx)).dataset
     val d  = ds.collect.flatMap(_.value).toSet
     assert(ds.schema == expectSchema)
     assert(cr == d)
-    assert(pr == d)
   }
 
   test("flatMap") {
@@ -111,16 +101,11 @@ class CrPrTest extends AnyFunSuite {
       x.value.flatMap(RoosterLike2(_)).map(y => x.newValue(Some(y)).newKey(x.key))
     }(roosterLike2.in(ctx)).rdd.collect().flatMap(_.value).toSet
 
-    val pr = prRdd.flatMap { x =>
-      x.value.map(r => x.copy(value = RoosterLike2(r)))
-    }(roosterLike2.in(ctx)).rdd.collect().flatMap(_.value).toSet
-
     val d = crDS.flatMap { x =>
       x.value.flatMap(RoosterLike2(_)).map(y => x.newValue(Some(y)))
     }(roosterLike2.in(ctx)).dataset.collect.flatMap(_.value).toSet
 
     assert(cr == d)
-    assert(pr == d)
   }
 
   test("union") {
