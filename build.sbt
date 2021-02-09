@@ -28,8 +28,8 @@ val catsEffect = "2.3.1"
 val akka26     = "2.6.12"
 
 // kafka
-val confltKafka = "6.1.0-ce"
-val confluent   = "6.0.1"
+val confltKafka = "6.0.1-ce"
+val confluent   = "6.1.0"
 val akkaKafka   = "2.0.7"
 val fs2Kafka    = "1.3.1"
 
