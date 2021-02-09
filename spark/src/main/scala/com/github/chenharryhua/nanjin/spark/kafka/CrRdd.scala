@@ -4,7 +4,7 @@ import cats.Eq
 import cats.effect.Sync
 import cats.implicits._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, fs2Updater, KafkaTopic}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import frameless.cats.implicits.rddOps
@@ -66,7 +66,12 @@ final class CrRdd[F[_], K, V] private[kafka] (
     new CrDS[F, K, V](ss.createDataset(rdd)(ate.sparkEncoder), topic, cfg, tek, tev)
   }
 
-  def prRdd: PrRdd[F, K, V] = new PrRdd[F, K, V](rdd.map(_.toNJProducerRecord), topic, cfg)
+  def prRdd: PrRdd[F, K, V] = new PrRdd[F, K, V](
+    rdd.map(_.toNJProducerRecord),
+    topic,
+    cfg,
+    fs2Updater.noUpdateProducer[F, K, V],
+    akkaUpdater.noUpdateProducer[K, V])
 
   def save: RddAvroFileHoarder[F, NJConsumerRecord[K, V]] =
     new RddAvroFileHoarder[F, NJConsumerRecord[K, V]](rdd, codec.avroEncoder)

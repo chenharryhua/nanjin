@@ -7,7 +7,7 @@ import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Effect, Sync, Timer
 import cats.syntax.bifunctor._
 import cats.syntax.foldable._
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
-import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicName}
+import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, fs2Updater, KafkaTopic, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.dstream.{AvroDStreamSink, SDConfig}
@@ -72,7 +72,8 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   def crDS(df: DataFrame)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] =
     new CrDS(ate.normalizeDF(df).dataset, topic, cfg, tek, tev)
 
-  def prRdd(rdd: RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] = new PrRdd[F, K, V](rdd, topic, cfg)
+  def prRdd(rdd: RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
+    new PrRdd[F, K, V](rdd, topic, cfg, fs2Updater.noUpdateProducer[F, K, V], akkaUpdater.noUpdateProducer[K, V])
 
   def prRdd[G[_]: Foldable](list: G[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
     prRdd(ss.sparkContext.parallelize(list.toList))
