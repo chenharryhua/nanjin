@@ -5,6 +5,7 @@ import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.kafka._
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import frameless.{TypedDataset, TypedEncoder}
+import fs2.Stream
 import mtest.spark.kafka.sparKafka
 import mtest.spark.{contextShift, sparkSession, timer}
 import org.apache.spark.sql.streaming.StreamingQueryProgress
@@ -50,7 +51,7 @@ class SparkStreamJoinTest extends AnyFunSuite {
     val path   = "./data/test/spark/sstream/stream-table-join"
     val sender = fooTopic.prRdd(fooData).withInterval(0.5.seconds).upload
 
-    val ss: fs2.Stream[IO, StreamingQueryProgress] =
+    val ss: Stream[IO, StreamingQueryProgress] =
       fooTopic.sstream.transform { fooDS =>
         fooDS.joinWith(barDS, fooDS("value.index") === barDS("index"), "inner").flatMap { case (foo, bar) =>
           foo.value.map(x => FooBar(bar.index, x.name, bar.age))

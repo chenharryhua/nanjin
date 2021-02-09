@@ -9,7 +9,7 @@ import monocle.Iso
 import org.apache.avro.Schema
 import org.apache.avro.util.Utf8
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
-import org.apache.kafka.streams.scala.Serdes
+import org.apache.kafka.streams.scala.serialization.Serdes
 
 final class KJson[A] private (val value: A) extends Serializable {
   def canEqual(a: Any): Boolean = a.isInstanceOf[KJson[A]]
@@ -80,7 +80,7 @@ object KJson {
               case None    => null.asInstanceOf[String]
               case Some(_) => avroCodec.avroEncoder.encode(data).asInstanceOf[String]
             }
-            Serdes.String.serializer.serialize(topic, value)
+            Serdes.stringSerde.serializer.serialize(topic, value)
           }
         }
 
@@ -92,7 +92,7 @@ object KJson {
             Option(data) match {
               case None => null.asInstanceOf[KJson[A]]
               case Some(ab) =>
-                avroCodec.avroDecoder.decode(Serdes.String.deserializer.deserialize(topic, ab))
+                avroCodec.avroDecoder.decode(Serdes.stringSerde.deserializer.deserialize(topic, ab))
             }
         }
 

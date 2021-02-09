@@ -5,7 +5,7 @@ import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEn
 import io.confluent.kafka.streams.serdes.avro.{GenericAvroDeserializer, GenericAvroSerializer}
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
-import org.apache.kafka.streams.scala.Serdes
+import org.apache.kafka.streams.scala.serialization.Serdes
 
 import java.util
 import scala.collection.JavaConverters._
@@ -104,7 +104,7 @@ object SerdeOf extends LowerPriority {
         override def close(): Unit = ()
 
         override def serialize(topic: String, data: Int): Array[Byte] =
-          Serdes.Integer.serializer.serialize(topic, data)
+          Serdes.intSerde.serializer.serialize(topic, data)
       }
 
     override val deserializer: Deserializer[Int] =
@@ -112,7 +112,7 @@ object SerdeOf extends LowerPriority {
         override def close(): Unit = ()
 
         override def deserialize(topic: String, data: Array[Byte]): Int =
-          Serdes.Integer.deserializer.deserialize(topic, data)
+          Serdes.intSerde.deserializer.deserialize(topic, data)
       }
   }
 
@@ -125,7 +125,7 @@ object SerdeOf extends LowerPriority {
         override def close(): Unit = ()
 
         override def serialize(topic: String, data: Long): Array[Byte] =
-          Serdes.Long.serializer.serialize(topic, data)
+          Serdes.longSerde.serializer.serialize(topic, data)
       }
 
     override val deserializer: Deserializer[Long] =
@@ -133,7 +133,7 @@ object SerdeOf extends LowerPriority {
         override def close(): Unit = ()
 
         override def deserialize(topic: String, data: Array[Byte]): Long =
-          Serdes.Long.deserializer.deserialize(topic, data)
+          Serdes.longSerde.deserializer.deserialize(topic, data)
       }
   }
 
@@ -146,7 +146,7 @@ object SerdeOf extends LowerPriority {
         override def close(): Unit = ()
 
         override def serialize(topic: String, data: String): Array[Byte] =
-          Serdes.String.serializer.serialize(topic, data)
+          Serdes.stringSerde.serializer.serialize(topic, data)
       }
 
     override val deserializer: Deserializer[String] =
@@ -154,7 +154,7 @@ object SerdeOf extends LowerPriority {
         override def close(): Unit = ()
 
         override def deserialize(topic: String, data: Array[Byte]): String =
-          Serdes.String.deserializer.deserialize(topic, data)
+          Serdes.stringSerde.deserializer.deserialize(topic, data)
       }
   }
 
@@ -167,7 +167,7 @@ object SerdeOf extends LowerPriority {
         override def close(): Unit = ()
 
         override def serialize(topic: String, data: Double): Array[Byte] =
-          Serdes.Double.serializer.serialize(topic, data)
+          Serdes.doubleSerde.serializer.serialize(topic, data)
       }
 
     override val deserializer: Deserializer[Double] =
@@ -175,7 +175,7 @@ object SerdeOf extends LowerPriority {
         override def close(): Unit = ()
 
         override def deserialize(topic: String, data: Array[Byte]): Double =
-          Serdes.Double.deserializer.deserialize(topic, data)
+          Serdes.doubleSerde.deserializer.deserialize(topic, data)
       }
   }
 
@@ -188,7 +188,7 @@ object SerdeOf extends LowerPriority {
         override def close(): Unit = ()
 
         override def serialize(topic: String, data: Float): Array[Byte] =
-          Serdes.Float.serializer.serialize(topic, data)
+          Serdes.floatSerde.serializer.serialize(topic, data)
       }
 
     override val deserializer: Deserializer[Float] =
@@ -196,7 +196,7 @@ object SerdeOf extends LowerPriority {
         override def close(): Unit = ()
 
         override def deserialize(topic: String, data: Array[Byte]): Float =
-          Serdes.Float.deserializer.deserialize(topic, data)
+          Serdes.floatSerde.deserializer.deserialize(topic, data)
       }
   }
 
@@ -209,7 +209,7 @@ object SerdeOf extends LowerPriority {
         override def close(): Unit = ()
 
         override def serialize(topic: String, data: Array[Byte]): Array[Byte] =
-          Serdes.ByteArray.serializer.serialize(topic, data)
+          Serdes.byteArraySerde.serializer.serialize(topic, data)
       }
 
     override val deserializer: Deserializer[Array[Byte]] =
@@ -217,7 +217,7 @@ object SerdeOf extends LowerPriority {
         override def close(): Unit = ()
 
         override def deserialize(topic: String, data: Array[Byte]): Array[Byte] =
-          Serdes.ByteArray.deserializer.deserialize(topic, data)
+          Serdes.byteArraySerde.deserializer.deserialize(topic, data)
       }
   }
 }
