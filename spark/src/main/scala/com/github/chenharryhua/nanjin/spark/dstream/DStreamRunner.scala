@@ -37,7 +37,7 @@ final class DStreamRunner[F[_]] private (
         val ssc: StreamingContext = StreamingContext.getOrCreate(checkpoint, createContext)
         ssc.start()
         ssc
-      })(ssc => F.delay(ssc.stop(stopSparkContext = false, stopGracefully = true)))
+      })(ssc => F.delay(ssc.stop(stopSparkContext = false, stopGracefully = false)))
       .evalMap(ssc => F.delay(ssc.awaitTermination()))
 }
 
