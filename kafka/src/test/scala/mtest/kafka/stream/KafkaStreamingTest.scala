@@ -12,7 +12,7 @@ import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.scala.ImplicitConversions._
 import org.apache.kafka.streams.scala.serialization.Serdes._
 import org.apache.kafka.streams.scala.StreamsBuilder
-import org.scalatest.DoNotDiscover
+import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration._
@@ -32,7 +32,7 @@ object KafkaStreamingData {
 
   val tgt: KafkaTopic[IO, Int, StreamTarget] = ctx.topic[Int, StreamTarget]("stream.test.join.target")
 
-  val s1Data = Stream
+  val sendS1Data: Stream[IO, ProducerResult[Int, StreamOne, Unit]] = Stream
     .fixedRate(1.seconds)
     .zipRight(
       Stream
@@ -47,10 +47,10 @@ object KafkaStreamingData {
           ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 103, StreamOne("na", -1))
         ).map(ProducerRecords.one(_)))
         .covary[IO]
-        .through(s1Topic.fs2Channel.producerPipe))
-    .debug()
+        .through(s1Topic.fs2Channel.producerPipe)
+        .debug())
 
-  val t2Data =
+  val sendT2Data: Stream[IO, ProducerResult[Int, TableTwo, Unit]] =
     Stream(
       ProducerRecords(List(
         ProducerRecord(t2Topic.topicName.value, 1, TableTwo("x", 0)),
@@ -58,7 +58,7 @@ object KafkaStreamingData {
         ProducerRecord(t2Topic.topicName.value, 3, TableTwo("z", 2))
       ))).covary[IO].through(t2Topic.fs2Channel.producerPipe)
 
-  val g3Data =
+  val sendG3Data: Stream[IO, ProducerResult[Int, GlobalThree, Unit]] =
     Stream(
       ProducerRecords(List(
         ProducerRecord(g3Topic.topicName.value, 4, GlobalThree("gx", 1000)),
@@ -76,14 +76,17 @@ object KafkaStreamingData {
 }
 
 @DoNotDiscover
-class KafkaStreamingTest extends AnyFunSuite {
+class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
   import KafkaStreamingData._
 
   implicit val oneValue: Serde[StreamOne]    = s1Topic.codec.valSerde
   implicit val twoValue: Serde[TableTwo]     = t2Topic.codec.valSerde
   implicit val tgtValue: Serde[StreamTarget] = tgt.codec.valSerde
 
+  before(sendT2Data.concurrently(sendG3Data).compile.drain.unsafeRunSync())
+
   test("stream-table join") {
+
     val top: Kleisli[Id, StreamsBuilder, Unit] = for {
       a <- s1Topic.kafkaStream.kstream
       b <- t2Topic.kafkaStream.ktable
@@ -96,16 +99,18 @@ class KafkaStreamingTest extends AnyFunSuite {
     val harvest: Stream[IO, StreamTarget] =
       tgt.fs2Channel.stream
         .map(x => tgt.decoder(x).decode)
-        .observe(_.map(_.offset).through(commitBatchWithin(10, 2.seconds)))
+        .observe(_.map(_.offset).through(commitBatchWithin(3, 1.seconds)))
         .map(_.record.value)
 
-    val runStream = for {
-      _ <- ctx.buildStreams(top).run.handleErrorWith(_ => Stream.sleep(2.seconds) >> ctx.buildStreams(top).run)
-      _ <- Stream.eval(IO(println("streaming started")))
-      d <- harvest.concurrently(s1Data).concurrently(t2Data).concurrently(g3Data).interruptAfter(15.seconds)
-    } yield d
+    val runStream: Stream[IO, StreamTarget] =
+      harvest
+        .concurrently(sendS1Data)
+        .concurrently(
+          ctx.buildStreams(top).run.handleErrorWith(_ => Stream.sleep(2.seconds) >> ctx.buildStreams(top).run) >>
+            Stream.never[IO])
+        .interruptAfter(15.seconds)
 
-    val res = runStream.compile.toList.unsafeRunSync().toSet
+    val res: Set[StreamTarget] = runStream.compile.toList.unsafeRunSync().toSet
     println(res)
     assert(res == expected)
   }
