@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.spark.kafka.{NJProducerRecord, _}
 import frameless.TypedEncoder
 import mtest.spark.persist.{Rooster, RoosterData}
-import mtest.spark.{contextShift, sparkSession, timer}
+import mtest.spark.{akkaSystem, contextShift, sparkSession, timer}
 import mtest.spark.kafka.{ctx, sparKafka}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.streaming.Trigger
@@ -56,7 +56,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
       .showProgress
 
     val upload =
-      sparKafka.topic(rooster).prRdd(data).withBatchSize(1).withInterval(0.5.seconds).upload.delayBy(2.second)
+      sparKafka.topic(rooster).prRdd(data).withInterval(0.5.seconds).byBatch.withBatchSize(1).upload.delayBy(2.second)
 
     ss.concurrently(upload).interruptAfter(10.seconds).compile.drain.unsafeRunSync()
   }
@@ -80,10 +80,11 @@ class SparkKafkaStreamTest extends AnyFunSuite {
     val upload = sparKafka
       .topic(rooster)
       .prRdd(data)
-      .withBatchSize(10)
       .withInterval(0.1.second)
       .withTimeLimit(2.minute)
       .withRecordsLimit(10)
+      .byBatch
+      .withBatchSize(10)
       .upload
       .delayBy(3.second)
 
@@ -111,9 +112,10 @@ class SparkKafkaStreamTest extends AnyFunSuite {
         .topic(rooster)
         .prRdd(data)
         .replicate(5)
-        .withBatchSize(1)
         .withInterval(0.5.seconds)
-        .upload
+        .byBulk
+        .withBulkSize(1024 * 10)
+        .upload(akkaSystem) 
         .delayBy(1.second)
         .debug()
     ss.concurrently(upload).interruptAfter(6.seconds).compile.drain.unsafeRunSync()
@@ -137,7 +139,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
       .queryStream
 
     val upload =
-      sparKafka.topic(rooster).prRdd(data).withBatchSize(6).withInterval(1.second).upload.delayBy(3.second)
+      sparKafka.topic(rooster).prRdd(data).withInterval(1.second).byBatch.withBatchSize(6).upload.delayBy(3.second)
     ss.concurrently(upload).interruptAfter(6.seconds).compile.drain.unsafeRunSync()
     import sparkSession.implicits._
     val now = Instant.now().getEpochSecond * 1000 //to millisecond

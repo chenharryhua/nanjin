@@ -126,7 +126,7 @@ class CrPrTest extends AnyFunSuite {
     assert(crRdd.prRdd.partitionOf(0).timeRange(dr).rdd.collect.size == 4)
     assert(crRdd.crDS.timeRange(dr).dataset.collect.size == 4)
     assert(crRdd.timeRange.rdd.collect.size == 4)
-    assert(crRdd.prRdd.timeRange.rdd.collect.size == 4)
+    assert(crRdd.prRdd.timeRange(dr).rdd.collect.size == 4)
     assert(crRdd.crDS.timeRange.dataset.collect.size == 4)
   }
 

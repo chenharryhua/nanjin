@@ -9,7 +9,6 @@ import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, fs2Updater, KafkaTopic}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import frameless.cats.implicits._
@@ -24,45 +23,26 @@ import scala.concurrent.duration.FiniteDuration
 final class PrRdd[F[_], K, V] private[kafka] (
   val rdd: RDD[NJProducerRecord[K, V]],
   topic: KafkaTopic[F, K, V],
-  cfg: SKConfig,
-  fs2Producer: fs2Updater.Producer[F, K, V],
-  akkaProducer: akkaUpdater.Producer[K, V]
+  cfg: SKConfig
 ) extends Serializable {
-
-  val params: SKParams = cfg.evalConfig
-
-  val codec: AvroCodec[NJProducerRecord[K, V]] = NJProducerRecord.avroCodec(topic.topicDef)
 
   // config
   private def updateCfg(f: SKConfig => SKConfig): PrRdd[F, K, V] =
-    new PrRdd[F, K, V](rdd, topic, f(cfg), fs2Producer, akkaProducer)
+    new PrRdd[F, K, V](rdd, topic, f(cfg))
 
-  def withInterval(ms: FiniteDuration): PrRdd[F, K, V] = updateCfg(_.withLoadInterval(ms))
-  def withBulkSize(num: Int): PrRdd[F, K, V]           = updateCfg(_.withLoadBulkSize(num))
-  def withBatchSize(num: Int): PrRdd[F, K, V]          = updateCfg(_.withUploadBatchSize(num))
-  def withBufferSize(num: Int): PrRdd[F, K, V]         = updateCfg(_.withLoadBufferSize(num))
-
+  def withInterval(ms: FiniteDuration): PrRdd[F, K, V]  = updateCfg(_.withLoadInterval(ms))
+  def withBufferSize(num: Int): PrRdd[F, K, V]          = updateCfg(_.withLoadBufferSize(num))
   def withRecordsLimit(num: Long): PrRdd[F, K, V]       = updateCfg(_.withLoadRecordsLimit(num))
   def withTimeLimit(fd: FiniteDuration): PrRdd[F, K, V] = updateCfg(_.withLoadTimeLimit(fd))
 
-  def updateFs2Producer(f: Fs2ProducerSettings[F, K, V] => Fs2ProducerSettings[F, K, V]): PrRdd[F, K, V] =
-    new PrRdd[F, K, V](rdd, topic, cfg, fs2Producer.update(f), akkaProducer)
-
-  def updateAkkaProducer(f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): PrRdd[F, K, V] =
-    new PrRdd[F, K, V](rdd, topic, cfg, fs2Producer, akkaProducer.update(f))
-
-  def withTopic(topic: KafkaTopic[F, K, V]): PrRdd[F, K, V] =
-    new PrRdd[F, K, V](rdd, topic, cfg, fs2Producer, akkaProducer)
-
   // transform
   def transform(f: RDD[NJProducerRecord[K, V]] => RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
-    new PrRdd[F, K, V](f(rdd), topic, cfg, fs2Producer, akkaProducer)
+    new PrRdd[F, K, V](f(rdd), topic, cfg)
 
   def partitionOf(num: Int): PrRdd[F, K, V] = transform(_.filter(_.partition.exists(_ === num)))
 
   def offsetRange(start: Long, end: Long): PrRdd[F, K, V] = transform(range.pr.offset(start, end))
   def timeRange(dr: NJDateTimeRange): PrRdd[F, K, V]      = transform(range.pr.timestamp(dr))
-  def timeRange: PrRdd[F, K, V]                           = timeRange(params.timeRange)
 
   def ascendTimestamp: PrRdd[F, K, V]  = transform(sort.ascend.pr.timestamp)
   def descendTimestamp: PrRdd[F, K, V] = transform(sort.descend.pr.timestamp)
@@ -79,6 +59,37 @@ final class PrRdd[F[_], K, V] private[kafka] (
   def normalize: PrRdd[F, K, V] = transform(_.map(NJProducerRecord.avroCodec(topic.topicDef).idConversion))
 
   // actions
+
+  def count(implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
+
+  def save: RddAvroFileHoarder[F, NJProducerRecord[K, V]] =
+    new RddAvroFileHoarder[F, NJProducerRecord[K, V]](rdd, NJProducerRecord.avroCodec(topic.topicDef).avroEncoder)
+
+  def byBatch: UploadThrottleByBatchSize[F, K, V] =
+    new UploadThrottleByBatchSize[F, K, V](rdd, topic, cfg, fs2Updater.noUpdateProducer[F, K, V])
+
+  def byBulk: UploadThrottleByBulkSize[F, K, V] =
+    new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg, akkaUpdater.noUpdateProducer[K, V])
+}
+
+final class UploadThrottleByBatchSize[F[_], K, V] private[kafka] (
+  rdd: RDD[NJProducerRecord[K, V]],
+  topic: KafkaTopic[F, K, V],
+  cfg: SKConfig,
+  fs2Producer: fs2Updater.Producer[F, K, V]
+) extends Serializable {
+  val params: SKParams = cfg.evalConfig
+
+  def updateProducer(
+    f: Fs2ProducerSettings[F, K, V] => Fs2ProducerSettings[F, K, V]): UploadThrottleByBatchSize[F, K, V] =
+    new UploadThrottleByBatchSize[F, K, V](rdd, topic, cfg, fs2Producer.update(f))
+
+  def toTopic(topic: KafkaTopic[F, K, V]): UploadThrottleByBatchSize[F, K, V] =
+    new UploadThrottleByBatchSize[F, K, V](rdd, topic, cfg, fs2Producer)
+
+  def withBatchSize(num: Int): UploadThrottleByBatchSize[F, K, V] =
+    new UploadThrottleByBatchSize[F, K, V](rdd, topic, cfg.withUploadBatchSize(num), fs2Producer)
+
   def upload(implicit
     ce: ConcurrentEffect[F],
     timer: Timer[F],
@@ -92,6 +103,24 @@ final class PrRdd[F[_], K, V] private[kafka] (
       .buffer(params.loadParams.bufferSize)
       .metered(params.loadParams.interval)
       .through(topic.fs2Channel.updateProducerSettings(fs2Producer.settings.run).producerPipe)
+}
+
+final class UploadThrottleByBulkSize[F[_], K, V] private[kafka] (
+  rdd: RDD[NJProducerRecord[K, V]],
+  topic: KafkaTopic[F, K, V],
+  cfg: SKConfig,
+  akkaProducer: akkaUpdater.Producer[K, V]
+) extends Serializable {
+  val params: SKParams = cfg.evalConfig
+
+  def updateProducer(f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): UploadThrottleByBulkSize[F, K, V] =
+    new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg, akkaProducer.update(f))
+
+  def toTopic(topic: KafkaTopic[F, K, V]): UploadThrottleByBulkSize[F, K, V] =
+    new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg, akkaProducer)
+
+  def withBulkSize(num: Int): UploadThrottleByBulkSize[F, K, V] =
+    new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg.withLoadBulkSize(num), akkaProducer)
 
   def upload(akkaSystem: ActorSystem)(implicit
     F: ConcurrentEffect[F],
@@ -121,9 +150,4 @@ final class PrRdd[F[_], K, V] private[kafka] (
         .runWith(Sink.asPublisher(fanout = false))
         .toStream
     }
-
-  def count(implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
-
-  def save: RddAvroFileHoarder[F, NJProducerRecord[K, V]] =
-    new RddAvroFileHoarder[F, NJProducerRecord[K, V]](rdd, codec.avroEncoder)
 }

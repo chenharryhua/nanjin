@@ -7,7 +7,7 @@ import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Effect, Sync, Timer
 import cats.syntax.bifunctor._
 import cats.syntax.foldable._
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
-import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, fs2Updater, KafkaTopic, TopicName}
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.dstream.{AvroDStreamSink, SDConfig}
@@ -54,7 +54,7 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
     Blocker[F].use(blocker => fromKafka.save.objectFile(params.replayPath).overwrite.run(blocker))
 
   def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
-    fromDisk.prRdd.noMeta.upload.map(_ => print(".")).compile.drain
+    fromDisk.prRdd.noMeta.byBatch.upload.map(_ => print(".")).compile.drain
 
   def countKafka(implicit F: Effect[F]): F[Long] = fromKafka.count
   def countDisk(implicit F: Sync[F]): F[Long]    = fromDisk.count
@@ -73,7 +73,7 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
     new CrDS(ate.normalizeDF(df).dataset, topic, cfg, tek, tev)
 
   def prRdd(rdd: RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
-    new PrRdd[F, K, V](rdd, topic, cfg, fs2Updater.noUpdateProducer[F, K, V], akkaUpdater.noUpdateProducer[K, V])
+    new PrRdd[F, K, V](rdd, topic, cfg)
 
   def prRdd[G[_]: Foldable](list: G[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
     prRdd(ss.sparkContext.parallelize(list.toList))
