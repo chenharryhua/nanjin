@@ -1,10 +1,9 @@
 package com.github.chenharryhua.nanjin.database
 
-import cats.effect.{Concurrent, Resource}
-import fs2.Stream
+import cats.effect.Async
 import monocle.macros.Lenses
 import neotypes.cats.effect.implicits._
-import neotypes.{GraphDatabase, Session, Transaction}
+import neotypes.{GraphDatabase, Transaction}
 import org.neo4j.driver.Config.ConfigBuilder
 import org.neo4j.driver.{AuthToken, AuthTokens, Config}
 
@@ -22,18 +21,7 @@ import org.neo4j.driver.{AuthToken, AuthTokens, Config}
   private val connStr: ConnectionString = ConnectionString(Protocols.Neo4j.url(host, Some(port)))
   private val auth: AuthToken           = AuthTokens.basic(username.value, password.value)
 
-  def sessionResource[F[_]: Concurrent]: Resource[F, Session[F]] =
-    for {
-      driver <- GraphDatabase.driver[F](connStr.value, auth, configBuilder.build())
-      session <- driver.session
-    } yield session
+  def transaction[F[_]: Async]: F[Transaction[F]] =
+    GraphDatabase.driver[F](connStr.value, auth, configBuilder.build()).use(_.transaction)
 
-  def transactionResource[F[_]: Concurrent]: Resource[F, Transaction[F]] =
-    sessionResource.evalMap(_.transaction)
-
-  def sessionStream[F[_]: Concurrent]: Stream[F, Session[F]] =
-    Stream.resource(sessionResource)
-
-  def transactionStream[F[_]: Concurrent]: Stream[F, Transaction[F]] =
-    Stream.resource(transactionResource)
 }
