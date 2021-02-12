@@ -2,4 +2,4 @@ package mtest.kafka.stream
 
 import org.scalatest.Sequential
 
-class StreamTest extends Sequential(new KafkaStreamsBuildTest, new KafkaStreamingTest, new InteractiveTest)
+class StreamTest extends Sequential(new TransformerTest, new KafkaStreamingTest, new InteractiveTest)

@@ -20,7 +20,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration._
 
 @DoNotDiscover
-class KafkaStreamsBuildTest extends AnyFunSuite {
+class TransformerTest extends AnyFunSuite {
 
   test("stream transformer") {
     val storeName = StoreName("stream.builder.test.store")
