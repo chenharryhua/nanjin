@@ -58,7 +58,7 @@ class SparkStreamJoinTest extends AnyFunSuite {
         }
       }.fileSink(path).triggerEvery(1.seconds).queryStream
 
-    ss.concurrently(sender).interruptAfter(8.seconds).compile.drain.unsafeRunSync()
+    ss.concurrently(sender.delayBy(3.seconds)).interruptAfter(10.seconds).compile.drain.unsafeRunSync()
 
     val ate = AvroTypedEncoder[FooBar]
     val res = loaders.json(path, ate, sparkSession).dataset.map(_.age).distinct().collect().toSet

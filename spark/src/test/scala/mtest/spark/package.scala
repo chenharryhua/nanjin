@@ -22,8 +22,8 @@ package object spark {
   val sparkSession: SparkSession = SparkSettings.default
     .withAppName("nj.spark.test")
     .withLogLevel(NJLogLevel.WARN)
-    .withUI
     .withoutUI
+    .withUI
     .withConfigUpdate(_.set("spark.sql.session.timeZone", sydneyTime.toString))
     .session
 
