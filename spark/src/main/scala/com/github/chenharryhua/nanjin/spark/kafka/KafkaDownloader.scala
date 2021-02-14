@@ -2,9 +2,8 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import akka.actor.ActorSystem
 import akka.kafka.ConsumerSettings
-import akka.kafka.scaladsl.Consumer
 import akka.stream.Materializer
-import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.scaladsl.Sink
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, stages, KafkaTopic}

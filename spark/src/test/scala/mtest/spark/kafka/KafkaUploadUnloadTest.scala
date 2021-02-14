@@ -44,10 +44,10 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
         NJProducerRecord[Int, Rooster](x)
           .modifyKey(identity)
           .modifyValue(identity)
-          .newKey(i.toInt)
-          .newValue(x)
-          .newPartition(0)
-          .newTimestamp(Instant.now.getEpochSecond * 1000)
+          .withKey(i.toInt)
+          .withValue(x)
+          .withPartition(0)
+          .withTimestamp(Instant.now.getEpochSecond * 1000)
           .noPartition
           .noTimestamp
       })
@@ -57,7 +57,6 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
       .withBufferSize(1)
       .withRecordsLimit(1000)
       .withTimeLimit(2.minutes)
-    
 
     val run = for {
       _ <- rooster.in(ctx).admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence

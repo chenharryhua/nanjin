@@ -21,10 +21,10 @@ final case class NJProducerRecord[K, V](
   key: Option[K],
   value: Option[V]) {
 
-  def newPartition(pt: Int): NJProducerRecord[K, V]  = NJProducerRecord.partition.set(Some(pt))(this)
-  def newTimestamp(ts: Long): NJProducerRecord[K, V] = NJProducerRecord.timestamp.set(Some(ts))(this)
-  def newKey(k: K): NJProducerRecord[K, V]           = NJProducerRecord.key.set(Some(k))(this)
-  def newValue(v: V): NJProducerRecord[K, V]         = NJProducerRecord.value.set(Some(v))(this)
+  def withPartition(pt: Int): NJProducerRecord[K, V]  = NJProducerRecord.partition.set(Some(pt))(this)
+  def withTimestamp(ts: Long): NJProducerRecord[K, V] = NJProducerRecord.timestamp.set(Some(ts))(this)
+  def withKey(k: K): NJProducerRecord[K, V]           = NJProducerRecord.key.set(Some(k))(this)
+  def withValue(v: V): NJProducerRecord[K, V]         = NJProducerRecord.value.set(Some(v))(this)
 
   def noPartition: NJProducerRecord[K, V] = NJProducerRecord.partition.set(None)(this)
   def noTimestamp: NJProducerRecord[K, V] = NJProducerRecord.timestamp.set(None)(this)
