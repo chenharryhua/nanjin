@@ -56,7 +56,7 @@ object stages {
     *
     *  @param endOffsets end offsets of all partitions
     *
-    * '''Emits'''  when offset of the record is less than or equal to the end offset
+    * '''Emits'''  when offset of the record is less than the end offset
     *
     * '''Completes''' when all partitions reach their end offsets
     *
