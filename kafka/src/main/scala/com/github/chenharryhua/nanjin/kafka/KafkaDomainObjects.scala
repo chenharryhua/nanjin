@@ -116,7 +116,7 @@ final case class KafkaTopicPartition[V](value: Map[TopicPartition, V]) {
 object KafkaTopicPartition {
 
   def empty[V]: KafkaTopicPartition[V]              = KafkaTopicPartition(Map.empty[TopicPartition, V])
-  def emptyOffset: KafkaTopicPartition[KafkaOffset] = empty[KafkaOffset]
+  val emptyOffset: KafkaTopicPartition[KafkaOffset] = empty[KafkaOffset]
 }
 
 final case class KafkaConsumerGroupInfo(groupId: KafkaGroupId, lag: KafkaTopicPartition[Option[KafkaOffsetRange]])
