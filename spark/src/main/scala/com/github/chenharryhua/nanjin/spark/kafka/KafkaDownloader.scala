@@ -32,7 +32,8 @@ final class KafkaDownloader[F[_], K, V](
   akkaConsumer: akkaUpdater.Consumer) {
   val params: SKParams = cfg.evalConfig
 
-  def updateConsumer(f: ConsumerSettings[Array[Byte], Array[Byte]] => ConsumerSettings[Array[Byte], Array[Byte]]) =
+  def updateConsumer(f: ConsumerSettings[Array[Byte], Array[Byte]] => ConsumerSettings[Array[Byte], Array[Byte]])
+    : KafkaDownloader[F, K, V] =
     new KafkaDownloader[F, K, V](akkaSystem, topic, hadoop, cfg, akkaConsumer.update(f))
 
   // config
@@ -81,6 +82,11 @@ final class KafkaDownloader[F[_], K, V](
 
   def circe(path: String)(implicit F: ConcurrentEffect[F], timer: Timer[F]): CirceDownloader[F, K, V] =
     new CirceDownloader[F, K, V](stream, hadoop, path, true, Compression.Uncompressed)
+
+  def parquet(path: String)(implicit F: ConcurrentEffect[F], timer: Timer[F]): ParquetDownloader[F, K, V] = {
+    val encoder: AvroEncoder[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(topic.topicDef).avroEncoder
+    new ParquetDownloader(stream, encoder, hadoop, path, Compression.Uncompressed)
+  }
 }
 
 final class AvroDownloader[F[_], K, V](
@@ -143,4 +149,22 @@ final class CirceDownloader[F[_], K, V](
     cs: ContextShift[F],
     enc: JsonEncoder[NJConsumerRecord[K, V]]): Stream[F, Unit] =
     stream.through(sinks.circe(path, hadoop, isKeepNull, compression.fs2Compression, blocker))
+}
+
+final class ParquetDownloader[F[_], K, V](
+  stream: Stream[F, NJConsumerRecord[K, V]],
+  encoder: AvroEncoder[NJConsumerRecord[K, V]],
+  hadoop: Configuration,
+  path: String,
+  compression: Compression) {
+
+  private def updateCompression(compression: Compression): ParquetDownloader[F, K, V] =
+    new ParquetDownloader[F, K, V](stream, encoder, hadoop, path, compression)
+
+  def snappy: ParquetDownloader[F, K, V]     = updateCompression(Compression.Snappy)
+  def gzip: ParquetDownloader[F, K, V]       = updateCompression(Compression.Gzip)
+  def uncompress: ParquetDownloader[F, K, V] = updateCompression(Compression.Uncompressed)
+
+  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): Stream[F, Unit] =
+    stream.through(sinks.parquet(path, hadoop, encoder, compression.parquet, blocker))
 }

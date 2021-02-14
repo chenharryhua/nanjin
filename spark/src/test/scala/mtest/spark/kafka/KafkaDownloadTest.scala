@@ -36,48 +36,48 @@ class KafkaDownloadTest extends AnyFunSuite {
   }
 
   test("download - from #1 to #5") {
-    val path = root + "15.avro"
+    val path = root + "15.jackson.json"
     val dr   = NJDateTimeRange(sydneyTime).withStartTime(now).withEndTime(now + 5000)
-    topic.withTimeRange(dr).download(akkaSystem).avro(path).run(blocker).compile.drain.unsafeRunSync()
+    topic.withTimeRange(dr).download(akkaSystem).jackson(path).run(blocker).compile.drain.unsafeRunSync()
 
-    val res      = topic.load.avro(path).dataset.collect().map(_.value.get).toSet
+    val res      = topic.load.jackson(path).dataset.collect().map(_.value.get).toSet
     val expected = Set(rand + 1, rand + 2, rand + 3, rand + 4)
     assert(res == expected)
   }
 
   test("download - from #0 to less #2") {
-    val path = root + "0less2.avro"
+    val path = root + "0less2.snappy.parquet"
     val dr   = NJDateTimeRange(sydneyTime).withStartTime(now).withEndTime(now + 1200)
-    topic.withTimeRange(dr).download(akkaSystem).avro(path).run(blocker).compile.drain.unsafeRunSync()
+    topic.withTimeRange(dr).download(akkaSystem).parquet(path).snappy.run(blocker).compile.drain.unsafeRunSync()
 
-    val res      = topic.load.avro(path).dataset.collect().map(_.value.get).toSet
+    val res      = topic.load.parquet(path).dataset.collect().map(_.value.get).toSet
     val expected = Set(rand + 1)
     assert(res == expected)
   }
   test("download - from #0 to #2") {
-    val path = root + "02.avro"
+    val path = root + "02.bzip2.avro"
     val dr   = NJDateTimeRange(sydneyTime).withStartTime(now).withEndTime(now + 2000)
-    topic.withTimeRange(dr).download(akkaSystem).avro(path).run(blocker).compile.drain.unsafeRunSync()
+    topic.withTimeRange(dr).download(akkaSystem).avro(path).bzip2.run(blocker).compile.drain.unsafeRunSync()
 
     val res      = topic.load.avro(path).dataset.collect().map(_.value.get).toSet
     val expected = Set(rand + 1)
     assert(res == expected)
   }
   test("download - from #3 to #6") {
-    val path = root + "36.json"
+    val path = root + "36.circe.json.gz"
     val dr   = NJDateTimeRange(sydneyTime).withStartTime(now + 3000)
-    topic.withTimeRange(dr).download(akkaSystem).circe(path).run(blocker).compile.drain.unsafeRunSync()
+    topic.withTimeRange(dr).download(akkaSystem).circe(path).gzip.run(blocker).compile.drain.unsafeRunSync()
 
     val res      = topic.load.circe(path).dataset.collect().map(_.value.get).toSet
     val expected = Set(rand + 3, rand + 4, rand + 5)
     assert(res == expected)
   }
   test("download - from #2.5 to #3.5") {
-    val path = root + "between2535.json"
+    val path = root + "between2535.parquet"
     val dr   = NJDateTimeRange(sydneyTime).withStartTime(now + 2500).withEndTime(now + 3500)
-    topic.withTimeRange(dr).download(akkaSystem).circe(path).run(blocker).compile.drain.unsafeRunSync()
+    topic.withTimeRange(dr).download(akkaSystem).parquet(path).uncompress.run(blocker).compile.drain.unsafeRunSync()
 
-    val res      = topic.load.circe(path).dataset.collect().map(_.value.get).toSet
+    val res      = topic.load.parquet(path).dataset.collect().map(_.value.get).toSet
     val expected = Set(rand + 3)
     assert(res == expected)
   }
