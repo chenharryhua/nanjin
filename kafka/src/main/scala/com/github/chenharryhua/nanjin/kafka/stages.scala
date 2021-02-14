@@ -62,7 +62,7 @@ object stages {
     *
     * '''Cancels''' when downstream cancels
     */
-  final private class KafkaTakeUntilEnd(endOffsets: KafkaTopicPartition[Long])
+  final private class KafkaTakeUntilEnd(endOffsets: KafkaTopicPartition[KafkaOffset])
       extends GraphStage[FlowShape[KafkaByteConsumerRecord, KafkaByteConsumerRecord]] {
     val in: Inlet[KafkaByteConsumerRecord]   = Inlet[KafkaByteConsumerRecord]("kafka.take.until.end")
     val out: Outlet[KafkaByteConsumerRecord] = Outlet[KafkaByteConsumerRecord]("kafka.take.until.end")
@@ -97,7 +97,7 @@ object stages {
           override def onPush(): Unit = {
             val cr: KafkaByteConsumerRecord = grab(in)
             val tp: TopicPartition          = new TopicPartition(cr.topic(), cr.partition())
-            val offset: Option[Long]        = endOffsets.get(tp)
+            val offset: Option[Long]        = endOffsets.get(tp).map(_.offset.value - 1)
             try if (offset.exists(cr.offset() < _)) {
               push(out, cr)
             } else if (offset.contains(cr.offset())) {
@@ -122,7 +122,7 @@ object stages {
   }
 
   def takeUntilEnd(
-    endOffsets: KafkaTopicPartition[Long]): Flow[KafkaByteConsumerRecord, KafkaByteConsumerRecord, NotUsed] =
+    endOffsets: KafkaTopicPartition[KafkaOffset]): Flow[KafkaByteConsumerRecord, KafkaByteConsumerRecord, NotUsed] =
     Flow.fromGraph(new KafkaTakeUntilEnd(endOffsets))
 
 }

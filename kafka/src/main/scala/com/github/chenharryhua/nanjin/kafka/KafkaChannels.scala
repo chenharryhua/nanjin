@@ -13,7 +13,6 @@ import fs2.interop.reactivestreams._
 import fs2.kafka.KafkaByteConsumerRecord
 import fs2.{Pipe, Stream}
 import org.apache.kafka.clients.producer.ProducerRecord
-import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Serde}
 import org.apache.kafka.streams.Topology.AutoOffsetReset
 import org.apache.kafka.streams.kstream.GlobalKTable
@@ -81,7 +80,7 @@ object KafkaChannels {
         .evalTap(_.subscribe(NonEmptyList.of(topicName.value)))
         .flatMap(_.stream)
 
-    def assign(tps: Map[TopicPartition, Long])(implicit
+    def assign(tps: KafkaTopicPartition[KafkaOffset])(implicit
       cs: ContextShift[F],
       timer: Timer[F],
       F: ConcurrentEffect[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
@@ -91,8 +90,8 @@ object KafkaChannels {
         KafkaConsumer
           .stream[F, Array[Byte], Array[Byte]](consumerSettings)
           .evalTap { c =>
-            c.assign(topicName.value) *> tps.toList.traverse { case (tp, offset) =>
-              c.seek(tp, offset)
+            c.assign(topicName.value) *> tps.value.toList.traverse { case (tp, offset) =>
+              c.seek(tp, offset.offset.value)
             }
           }
           .flatMap(_.stream)
@@ -160,8 +159,11 @@ object KafkaChannels {
 
     // sources
 
-    def assign(tps: Map[TopicPartition, Long]): Source[KafkaByteConsumerRecord, Consumer.Control] =
-      Consumer.plainSource(consumerSettings, Subscriptions.assignmentWithOffset(tps))
+    def assign(tps: KafkaTopicPartition[KafkaOffset]): Source[KafkaByteConsumerRecord, Consumer.Control] =
+      if (tps.isEmpty)
+        Source.empty.mapMaterializedValue(_ => Consumer.NoopControl)
+      else
+        Consumer.plainSource(consumerSettings, Subscriptions.assignmentWithOffset(tps.value.mapValues(_.offset.value)))
 
     val source: Source[CommittableMessage[Array[Byte], Array[Byte]], Consumer.Control] =
       Consumer.committableSource(consumerSettings, Subscriptions.topics(topicName.value))

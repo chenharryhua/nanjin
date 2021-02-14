@@ -3,12 +3,13 @@ package mtest.kafka
 import akka.kafka.ProducerMessage
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJDateTimeRange}
-import com.github.chenharryhua.nanjin.kafka.{stages, KafkaChannels, KafkaOffset, KafkaTopic}
+import com.github.chenharryhua.nanjin.kafka.{stages, KafkaChannels, KafkaTopic, KafkaTopicPartition}
 import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords, ProducerResult}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.LocalDateTime
+import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 
 class AkkaChannelTest extends AnyFunSuite {
@@ -84,13 +85,31 @@ class AkkaChannelTest extends AnyFunSuite {
   }
 
   test("assignment") {
-    val datetime = LocalDateTime.now
+    implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
+    val datetime                                       = LocalDateTime.now
     val ret = for {
-      start <- topic.shortLiveConsumer.use(_.beginningOffsets)
-      offsets = start.flatten[KafkaOffset].value.mapValues(_.value)
-      _ <-
-        akkaChannel.assign(offsets).map(m => topic.decoder(m).decode).take(1).runWith(stages.ignore[IO])
-    } yield ()
-    ret.unsafeRunSync
+      range <- topic.shortLiveConsumer.use(_.offsetRangeFor(NJDateTimeRange(sydneyTime)))
+    } yield {
+      println(range)
+      val start    = range.flatten.mapValues(_.from)
+      val end      = range.flatten.mapValues(_.until)
+      val distance = range.flatten.value.foldLeft(0L) { case (s, (_, r)) => s + r.distance }
+      akkaChannel
+        .assign(start)
+        .via(stages.takeUntilEnd(end))
+        .map(m => topic.decoder(m).decode)
+        .runFold(0L)((sum, _) => sum + 1)
+        .map(n => assert(n == distance))
+    }
+    IO.fromFuture(ret).unsafeRunSync
+  }
+
+  test("assignment - empty") {
+    val ret =
+      akkaChannel
+        .assign(KafkaTopicPartition.emptyOffset)
+        .map(m => topic.decoder(m).decode)
+        .runFold(0)((sum, _) => sum + 1)
+    assert(Await.result(ret, 10.seconds) == 0)
   }
 }

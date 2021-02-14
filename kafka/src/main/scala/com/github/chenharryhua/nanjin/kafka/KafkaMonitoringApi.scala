@@ -75,7 +75,7 @@ object KafkaMonitoringApi {
         } yield os.combineWith(e)(_.orElse(_)))
         signal <- Keyboard.signal
         _ <- topic.fs2Channel
-          .assign(gtp.flatten[KafkaOffset].mapValues(_.value).value)
+          .assign(gtp.mapValues(_.getOrElse(KafkaOffset(0))))
           .map(m => topic.decoder(m).tryDecodeKeyValue.toString)
           .showLinesStdOut
           .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))

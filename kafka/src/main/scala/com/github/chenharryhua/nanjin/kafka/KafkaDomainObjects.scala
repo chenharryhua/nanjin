@@ -1,18 +1,15 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import java.{lang, util}
-
 import cats.syntax.all._
-import cats.{Order, PartialOrder, Show}
+import cats.{Order, PartialOrder}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.NonNegative
 import eu.timepit.refined.refineV
-import monocle.Iso
-import monocle.macros.GenIso
 import org.apache.kafka.clients.consumer.{OffsetAndMetadata, OffsetAndTimestamp}
 import org.apache.kafka.common.TopicPartition
 
+import java.{lang, util}
 import scala.collection.JavaConverters._
 
 final case class KafkaOffset(offset: Refined[Long, NonNegative]) {
@@ -77,7 +74,7 @@ object KafkaOffsetRange {
       }
 }
 
-final case class ListOfTopicPartitions(value: List[TopicPartition]) extends AnyVal {
+final case class ListOfTopicPartitions(value: List[TopicPartition]) {
 
   def javaTimed(ldt: NJTimestamp): util.Map[TopicPartition, lang.Long] =
     value.map(tp => tp -> ldt.javaLong).toMap.asJava
@@ -85,7 +82,7 @@ final case class ListOfTopicPartitions(value: List[TopicPartition]) extends AnyV
   def asJava: util.List[TopicPartition] = value.asJava
 }
 
-final case class KafkaTopicPartition[V](value: Map[TopicPartition, V]) extends AnyVal {
+final case class KafkaTopicPartition[V](value: Map[TopicPartition, V]) {
   def nonEmpty: Boolean = value.nonEmpty
   def isEmpty: Boolean  = value.isEmpty
 
@@ -118,8 +115,8 @@ final case class KafkaTopicPartition[V](value: Map[TopicPartition, V]) extends A
 
 object KafkaTopicPartition {
 
-  implicit def isoGenericTopicPartition[V]: Iso[KafkaTopicPartition[V], Map[TopicPartition, V]] =
-    GenIso[KafkaTopicPartition[V], Map[TopicPartition, V]]
+  def empty[V]: KafkaTopicPartition[V]              = KafkaTopicPartition(Map.empty[TopicPartition, V])
+  def emptyOffset: KafkaTopicPartition[KafkaOffset] = empty[KafkaOffset]
 }
 
 final case class KafkaConsumerGroupInfo(groupId: KafkaGroupId, lag: KafkaTopicPartition[Option[KafkaOffsetRange]])

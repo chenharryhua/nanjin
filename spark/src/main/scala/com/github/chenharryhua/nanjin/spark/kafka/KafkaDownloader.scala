@@ -52,12 +52,12 @@ final class KafkaDownloader[F[_], K, V](
           else
             topic
               .akkaChannel(akkaSystem)
-              .assign(kor.value.mapValues(_.from.offset.value))
+              .assign(kor.mapValues(_.from))
               .throttle(
                 params.loadParams.bulkSize,
                 params.loadParams.interval,
                 cr => cr.serializedKeySize() + cr.serializedValueSize())
-              .via(stages.takeUntilEnd(kor.mapValues(os => os.until.offset.value - 1)))
+              .via(stages.takeUntilEnd(kor.mapValues(_.until)))
               .map(cr => NJConsumerRecord(topic.decoder(cr).optionalKeyValue))
               .idleTimeout(params.loadParams.idleTimeout)
 

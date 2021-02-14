@@ -58,7 +58,7 @@ class Fs2ChannelTest extends AnyFunSuite {
   test("should be able to consume telecom_italia_data topic") {
     val topic = sms.in(ctx).fs2Channel.updateConsumerSettings(_.withGroupId("g1"))
     val ret = topic
-      .assign(Map(new TopicPartition(topic.topicName.value, 0) -> 0))
+      .assign(KafkaTopicPartition(Map(new TopicPartition(topic.topicName.value, 0) -> KafkaOffset(0))))
       .map(m => topic.decoder(m).tryDecode)
       .map(_.toEither)
       .rethrow
@@ -69,5 +69,20 @@ class Fs2ChannelTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
     assert(ret.size == 1)
+  }
+
+  test("should return empty when topic-partition is empty") {
+    val topic = sms.in(ctx).fs2Channel.updateConsumerSettings(_.withGroupId("g1"))
+    val ret = topic
+      .assign(KafkaTopicPartition.emptyOffset)
+      .map(m => topic.decoder(m).tryDecode)
+      .map(_.toEither)
+      .rethrow
+      .interruptAfter(5.seconds)
+      .compile
+      .toList
+      .unsafeRunSync()
+    assert(ret.isEmpty)
+
   }
 }
