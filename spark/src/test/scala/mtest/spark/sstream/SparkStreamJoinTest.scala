@@ -14,6 +14,7 @@ import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration._
+import scala.util.Random
 
 object StreamJoinTestData {
   implicit val ss: SparkSession = sparkSession
@@ -25,20 +26,25 @@ object StreamJoinTestData {
 
   final case class Bar(index: Int, age: Int)
 
+  object Bar {
+    implicit val teBar: TypedEncoder[Bar] = shapeless.cachedImplicit
+  }
   final case class FooBar(index: Int, name: String, age: Int)
 
   object FooBar {
     implicit val teFooBar: TypedEncoder[FooBar] = shapeless.cachedImplicit
   }
 
-  val barDS: Dataset[Bar] = TypedDataset.create(List(Bar(1, 1), Bar(2, 2), Bar(3, 3))).dataset
+  val rand = Random.nextInt()
+
+  val barDS: Dataset[Bar] = TypedDataset.create(List(Bar(rand + 1, 1), Bar(rand + 2, 2), Bar(rand + 3, 3))).dataset
 
   val fooTopic = sparKafka.topic[Int, Foo]("spark.stream.table.join.test")
 
   val fooData: List[NJProducerRecord[Int, Foo]] = List
     .fill(50)(Foo(0, "a"))
     .zipWithIndex
-    .map { case (foo, idx) => foo.copy(index = idx) }
+    .map { case (foo, idx) => foo.copy(index = rand + idx) }
     .map(x => NJProducerRecord[Int, Foo](x))
 }
 
@@ -61,7 +67,9 @@ class SparkStreamJoinTest extends AnyFunSuite {
     ss.concurrently(sender.delayBy(3.seconds)).interruptAfter(10.seconds).compile.drain.unsafeRunSync()
 
     val ate = AvroTypedEncoder[FooBar]
-    val res = loaders.json(path, ate, sparkSession).dataset.map(_.age).distinct().collect().toSet
-    assert(res == Set(1, 2, 3))
+    val res = loaders.json(path, ate, sparkSession).dataset.map(_.index).distinct().collect().toSet
+    assert(res.contains(rand + 1))
+    assert(res.contains(rand + 2))
+    assert(res.contains(rand + 3))
   }
 }

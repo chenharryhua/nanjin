@@ -27,7 +27,7 @@ object akkaUpdater {
 
   val noUpdateConsumer: Consumer             = new Consumer(Reader(identity))
   def noUpdateProducer[K, V]: Producer[K, V] = new Producer[K, V](Reader(identity))
-  val noUpdateCommiter: Committer            = new Committer(Reader(identity))
+  val noUpdateCommitter: Committer           = new Committer(Reader(identity))
 
 }
 

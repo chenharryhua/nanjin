@@ -5,10 +5,11 @@ import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.injection._
+import com.github.chenharryhua.nanjin.spark.kafka.{NJProducerRecord, SparKafkaTopic}
+import frameless.TypedEncoder
 import frameless.cats.implicits._
-import fs2.kafka.{ProducerRecord, ProducerRecords}
 import io.circe.generic.auto._
-import mtest.spark.{blocker, contextShift}
+import mtest.spark.{blocker, contextShift, timer}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
@@ -55,6 +56,11 @@ object DecimalTopicTestCase {
       |""".stripMargin
 
   final case class HasDecimal(a: BigDecimal, b: BigDecimal, c: Instant)
+
+  object HasDecimal {
+
+    implicit val teHasDecimal: TypedEncoder[HasDecimal] = shapeless.cachedImplicit
+  }
   implicit val roundingMode: BigDecimal.RoundingMode.Value = RoundingMode.HALF_UP
 
   val codec: AvroCodec[HasDecimal] =
@@ -74,23 +80,14 @@ object DecimalTopicTestCase {
 class DecimalTopicTest extends AnyFunSuite {
   import DecimalTopicTestCase._
 
-  val topic: KafkaTopic[IO, Int, HasDecimal] = topicDef.in(ctx)
+  val topic: KafkaTopic[IO, Int, HasDecimal]      = topicDef.in(ctx)
+  val stopic: SparKafkaTopic[IO, Int, HasDecimal] = sparKafka.topic(topicDef)
 
-  val loadData =
-    fs2
-      .Stream(
-        ProducerRecords(
-          List(ProducerRecord(topic.topicName.value, 1, data), ProducerRecord(topic.topicName.value, 2, data))))
-      .covary
-      .through(topic.fs2Channel.producerPipe)
-      .compile
-      .drain
+  val loadData = stopic.prRdd(List(NJProducerRecord(1, data), NJProducerRecord(2, data))).byBatch.upload.compile.drain
 
   (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
     topic.schemaRegistry.register >>
-    loadData).unsafeRunSync() 
-
-  val stopic = sparKafka.topic(topicDef)
+    loadData).unsafeRunSync()
 
   test("sparKafka kafka and spark agree on circe") {
     val path = "./data/test/spark/kafka/decimal.circe.json"
@@ -98,12 +95,6 @@ class DecimalTopicTest extends AnyFunSuite {
 
     val rdd = stopic.load.rdd.circe(path)
     val ds  = stopic.load.circe(path)
-
-    rdd.save.objectFile("./data/test/spark/kafka/decimal.obj").run(blocker).unsafeRunSync()
-    rdd.save.avro("./data/test/spark/kafka/decimal.avro").folder.run(blocker).unsafeRunSync()
-
-    ds.save.parquet("./data/test/spark/kafka/decimal.avro").folder.run(blocker).unsafeRunSync()
-    ds.save.jackson("./data/test/spark/kafka/decimal.jackson.json").folder.run(blocker).unsafeRunSync()
 
     assert(rdd.rdd.collect().head.value.get == expected)
     assert(ds.dataset.collect().head.value.get == expected)

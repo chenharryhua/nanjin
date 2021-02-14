@@ -1,12 +1,12 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import akka.actor.ActorSystem
-import akka.kafka.scaladsl.Consumer
+import akka.kafka.ConsumerSettings
 import akka.stream.Materializer
-import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.scaladsl.Sink
 import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.kafka.{stages, KafkaTopic}
+import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, stages, KafkaTopic}
 import com.github.chenharryhua.nanjin.spark.persist.{sinks, Compression}
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import fs2.Stream
@@ -28,12 +28,16 @@ final class KafkaDownloader[F[_], K, V](
   akkaSystem: ActorSystem,
   topic: KafkaTopic[F, K, V],
   hadoop: Configuration,
-  cfg: SKConfig) {
+  cfg: SKConfig,
+  akkaConsumer: akkaUpdater.Consumer) {
   val params: SKParams = cfg.evalConfig
+
+  def updateConsumer(f: ConsumerSettings[Array[Byte], Array[Byte]] => ConsumerSettings[Array[Byte], Array[Byte]]) =
+    new KafkaDownloader[F, K, V](akkaSystem, topic, hadoop, cfg, akkaConsumer.update(f))
 
   // config
   private def updateCfg(f: SKConfig => SKConfig): KafkaDownloader[F, K, V] =
-    new KafkaDownloader[F, K, V](akkaSystem, topic, hadoop, f(cfg))
+    new KafkaDownloader[F, K, V](akkaSystem, topic, hadoop, f(cfg), akkaConsumer)
 
   def withInterval(fd: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.withLoadInterval(fd))
   def withBulkSize(num: Int): KafkaDownloader[F, K, V]           = updateCfg(_.withLoadBulkSize(num))
@@ -46,22 +50,17 @@ final class KafkaDownloader[F[_], K, V](
   private def stream(implicit F: ConcurrentEffect[F], timer: Timer[F]): Stream[F, NJConsumerRecord[K, V]] = {
     val fstream: F[Stream[F, NJConsumerRecord[K, V]]] =
       topic.shortLiveConsumer.use(_.offsetRangeFor(params.timeRange).map(_.flatten)).map { kor =>
-        val src: Source[NJConsumerRecord[K, V], Consumer.Control] =
-          if (kor.isEmpty)
-            Source.empty.mapMaterializedValue(_ => Consumer.NoopControl)
-          else
-            topic
-              .akkaChannel(akkaSystem)
-              .assign(kor.value.mapValues(_.from.offset.value))
-              .throttle(
-                params.loadParams.bulkSize,
-                params.loadParams.interval,
-                cr => cr.serializedKeySize() + cr.serializedValueSize())
-              .via(stages.takeUntilEnd(kor.mapValues(os => os.until.offset.value - 1)))
-              .map(cr => NJConsumerRecord(topic.decoder(cr).optionalKeyValue))
-              .idleTimeout(params.loadParams.idleTimeout)
-
-        src
+        topic
+          .akkaChannel(akkaSystem)
+          .updateConsumer(akkaConsumer.settings.run)
+          .assign(kor.mapValues(_.from))
+          .throttle(
+            params.loadParams.bulkSize,
+            params.loadParams.interval,
+            cr => cr.serializedKeySize() + cr.serializedValueSize())
+          .via(stages.takeUntilEnd(kor.mapValues(_.until)))
+          .map(cr => NJConsumerRecord(topic.decoder(cr).optionalKeyValue))
+          .idleTimeout(params.loadParams.idleTimeout)
           .runWith(Sink.asPublisher(fanout = false))(Materializer(akkaSystem))
           .toStream
           .interruptAfter(params.loadParams.timeLimit)

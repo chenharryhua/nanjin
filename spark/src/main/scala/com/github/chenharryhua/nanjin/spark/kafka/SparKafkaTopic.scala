@@ -7,7 +7,7 @@ import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Effect, Sync, Timer
 import cats.syntax.bifunctor._
 import cats.syntax.foldable._
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
-import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicName}
+import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, KafkaTopic, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.dstream.{AvroDStreamSink, SDConfig}
@@ -62,7 +62,12 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   def load: LoadTopicFile[F, K, V] = new LoadTopicFile[F, K, V](topic, cfg, ss)
 
   def download(akkaSystem: ActorSystem): KafkaDownloader[F, K, V] =
-    new KafkaDownloader[F, K, V](akkaSystem, topic, ss.sparkContext.hadoopConfiguration, cfg)
+    new KafkaDownloader[F, K, V](
+      akkaSystem,
+      topic,
+      ss.sparkContext.hadoopConfiguration,
+      cfg,
+      akkaUpdater.noUpdateConsumer)
 
   /** rdd and dataset
     */

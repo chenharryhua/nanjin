@@ -35,7 +35,7 @@ class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
       ProducerRecords.one(ProducerRecord(topic.topicName.value, idx.toInt, "a"))
     }
     .debug()
-    .through(topic.topic.fs2Channel.updateProducerSettings(_.withClientId("dstream.test")).producerPipe)
+    .through(topic.topic.fs2Channel.updateProducer(_.withClientId("dstream.test")).producerPipe)
 
   test("dstream") {
     val jackson    = root + "jackson/"
