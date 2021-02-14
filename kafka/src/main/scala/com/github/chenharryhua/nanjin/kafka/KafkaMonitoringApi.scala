@@ -42,7 +42,7 @@ object KafkaMonitoringApi {
       Blocker[F].use { blocker =>
         Keyboard.signal.flatMap { signal =>
           topic.fs2Channel
-            .updateConsumerSettings(_.withAutoOffsetReset(aor))
+            .updateConsumer(_.withAutoOffsetReset(aor))
             .stream
             .map(m => topic.decoder(m).tryDecodeKeyValue.toString)
             .showLinesStdOut
@@ -55,7 +55,7 @@ object KafkaMonitoringApi {
       Blocker[F].use { blocker =>
         Keyboard.signal.flatMap { signal =>
           topic.fs2Channel
-            .updateConsumerSettings(_.withAutoOffsetReset(aor))
+            .updateConsumer(_.withAutoOffsetReset(aor))
             .stream
             .filter(m => predict(isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record)))
             .map(m => topic.decoder(m).tryDecodeKeyValue.toString)

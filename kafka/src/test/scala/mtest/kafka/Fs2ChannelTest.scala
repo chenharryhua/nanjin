@@ -23,9 +23,9 @@ class Fs2ChannelTest extends AnyFunSuite {
     val topic = backblaze_smart
       .in(ctx)
       .fs2Channel
-      .updateConsumerSettings(_.withGroupId("fs2"))
-      .updateProducerSettings(_.withBatchSize(1))
-      .updateConsumerSettings(_.withAutoOffsetReset(AutoOffsetReset.Earliest))
+      .updateConsumer(_.withGroupId("fs2"))
+      .updateProducer(_.withBatchSize(1))
+      .updateConsumer(_.withAutoOffsetReset(AutoOffsetReset.Earliest))
     val ret =
       topic.stream
         .map(m => topic.decoder(m).tryDecodeKeyValue)
@@ -42,7 +42,7 @@ class Fs2ChannelTest extends AnyFunSuite {
   test("should be able to consume avro topic") {
     val topic = ctx.topic(nyc_taxi_trip).fs2Channel
     val ret = topic
-      .updateConsumerSettings(_.withGroupId("g1"))
+      .updateConsumer(_.withGroupId("g1"))
       .stream
       .map(m => topic.decoder(m).decodeValue)
       .take(1)
@@ -56,7 +56,7 @@ class Fs2ChannelTest extends AnyFunSuite {
   }
 
   test("should be able to consume telecom_italia_data topic") {
-    val topic = sms.in(ctx).fs2Channel.updateConsumerSettings(_.withGroupId("g1"))
+    val topic = sms.in(ctx).fs2Channel.updateConsumer(_.withGroupId("g1"))
     val ret = topic
       .assign(KafkaTopicPartition(Map(new TopicPartition(topic.topicName.value, 0) -> KafkaOffset(0))))
       .map(m => topic.decoder(m).tryDecode)
@@ -72,7 +72,7 @@ class Fs2ChannelTest extends AnyFunSuite {
   }
 
   test("should return empty when topic-partition is empty") {
-    val topic = sms.in(ctx).fs2Channel.updateConsumerSettings(_.withGroupId("g1"))
+    val topic = sms.in(ctx).fs2Channel.updateConsumer(_.withGroupId("g1"))
     val ret = topic
       .assign(KafkaTopicPartition.emptyOffset)
       .map(m => topic.decoder(m).tryDecode)

@@ -43,12 +43,12 @@ object KafkaChannels {
 
     // settings
 
-    def updateConsumerSettings(
+    def updateConsumer(
       f: ConsumerSettings[F, Array[Byte], Array[Byte]] => ConsumerSettings[F, Array[Byte], Array[Byte]])
       : Fs2Channel[F, K, V] =
       new Fs2Channel[F, K, V](topicName, codec, kps, kcs, csUpdater.update(f), psUpdater)
 
-    def updateProducerSettings(f: ProducerSettings[F, K, V] => ProducerSettings[F, K, V]): Fs2Channel[F, K, V] =
+    def updateProducer(f: ProducerSettings[F, K, V] => ProducerSettings[F, K, V]): Fs2Channel[F, K, V] =
       new Fs2Channel[F, K, V](topicName, codec, kps, kcs, csUpdater, psUpdater.update(f))
 
     def producerSettings(implicit F: Sync[F]): ProducerSettings[F, K, V] =
@@ -85,7 +85,7 @@ object KafkaChannels {
       timer: Timer[F],
       F: ConcurrentEffect[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
       if (tps.isEmpty)
-        Stream.empty
+        Stream.empty.covaryAll[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]]
       else
         KafkaConsumer
           .stream[F, Array[Byte], Array[Byte]](consumerSettings)
@@ -114,15 +114,14 @@ object KafkaChannels {
     import akka.stream.scaladsl.{Flow, Sink, Source}
 
     // settings
-    def updateConsumerSettings(
-      f: ConsumerSettings[Array[Byte], Array[Byte]] => ConsumerSettings[Array[Byte], Array[Byte]])
+    def updateConsumer(f: ConsumerSettings[Array[Byte], Array[Byte]] => ConsumerSettings[Array[Byte], Array[Byte]])
       : AkkaChannel[F, K, V] =
       new AkkaChannel[F, K, V](topicName, akkaSystem, codec, kps, kcs, csUpdater.update(f), psUpdater, ctUpdater)
 
-    def updateProducerSettings(f: ProducerSettings[K, V] => ProducerSettings[K, V]): AkkaChannel[F, K, V] =
+    def updateProducer(f: ProducerSettings[K, V] => ProducerSettings[K, V]): AkkaChannel[F, K, V] =
       new AkkaChannel[F, K, V](topicName, akkaSystem, codec, kps, kcs, csUpdater, psUpdater.update(f), ctUpdater)
 
-    def updateCommitterSettings(f: CommitterSettings => CommitterSettings): AkkaChannel[F, K, V] =
+    def updateCommitter(f: CommitterSettings => CommitterSettings): AkkaChannel[F, K, V] =
       new AkkaChannel[F, K, V](topicName, akkaSystem, codec, kps, kcs, csUpdater, psUpdater, ctUpdater.update(f))
 
     def producerSettings: ProducerSettings[K, V] =
