@@ -29,7 +29,6 @@ class MessageEqualityTest extends AnyFunSuite with FunSuiteDiscipline with Confi
   implicit val arbitraryHeadersF: Arbitrary[Headers => Headers] =
     Arbitrary((a: Headers) => a.add(new RecordHeader("a", Array(1, 2, 3): Array[Byte])))
 
-  checkAll("Array[Byte]", EqTests[Array[Byte]].eqv)
   checkAll("Header", EqTests[Header].eqv)
   checkAll("Headers", EqTests[Headers].eqv)
   checkAll("Optional[Integer]", EqTests[Optional[Integer]].eqv)

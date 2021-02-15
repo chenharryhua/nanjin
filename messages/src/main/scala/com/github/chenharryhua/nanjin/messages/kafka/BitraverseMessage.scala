@@ -12,6 +12,7 @@ import fs2.kafka.{
   ConsumerRecord => Fs2ConsumerRecord,
   ProducerRecord => Fs2ProducerRecord
 }
+import io.scalaland.chimney.dsl._
 import monocle.PLens
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
@@ -47,33 +48,19 @@ object NJConsumerMessage {
   implicit val icrbi1: Aux[ConsumerRecord] =
     new NJConsumerMessage[ConsumerRecord] {
 
-      override def lens[K1, V1, K2, V2]: PLens[
-        ConsumerRecord[K1, V1],
-        ConsumerRecord[K2, V2],
-        ConsumerRecord[K1, V1],
-        ConsumerRecord[K2, V2]] =
-        PLens[
-          ConsumerRecord[K1, V1],
-          ConsumerRecord[K2, V2],
-          ConsumerRecord[K1, V1],
-          ConsumerRecord[K2, V2]](s => s)(b => _ => b)
+      override def lens[K1, V1, K2, V2]
+        : PLens[ConsumerRecord[K1, V1], ConsumerRecord[K2, V2], ConsumerRecord[K1, V1], ConsumerRecord[K2, V2]] =
+        PLens[ConsumerRecord[K1, V1], ConsumerRecord[K2, V2], ConsumerRecord[K1, V1], ConsumerRecord[K2, V2]](s => s)(
+          b => _ => b)
     }
 
   implicit val icrbi2: Aux[Fs2ConsumerRecord] =
     new NJConsumerMessage[Fs2ConsumerRecord] {
 
-      override def lens[K1, V1, K2, V2]: PLens[
-        Fs2ConsumerRecord[K1, V1],
-        Fs2ConsumerRecord[K2, V2],
-        ConsumerRecord[K1, V1],
-        ConsumerRecord[K2, V2]] =
-        PLens[
-          Fs2ConsumerRecord[K1, V1],
-          Fs2ConsumerRecord[K2, V2],
-          ConsumerRecord[K1, V1],
-          ConsumerRecord[K2, V2]](isoFs2ComsumerRecord.get) { b => _ =>
-          isoFs2ComsumerRecord.reverseGet(b)
-        }
+      override def lens[K1, V1, K2, V2]
+        : PLens[Fs2ConsumerRecord[K1, V1], Fs2ConsumerRecord[K2, V2], ConsumerRecord[K1, V1], ConsumerRecord[K2, V2]] =
+        PLens[Fs2ConsumerRecord[K1, V1], Fs2ConsumerRecord[K2, V2], ConsumerRecord[K1, V1], ConsumerRecord[K2, V2]](
+          _.transformInto)(b => _ => b.transformInto)
 
     }
 
@@ -121,8 +108,8 @@ object NJConsumerMessage {
           Fs2CommittableConsumerRecord[F, K1, V1],
           Fs2CommittableConsumerRecord[F, K2, V2],
           ConsumerRecord[K1, V1],
-          ConsumerRecord[K2, V2]](cm => isoFs2ComsumerRecord.get(cm.record)) { b => s =>
-          Fs2CommittableConsumerRecord(isoFs2ComsumerRecord.reverseGet(b), s.offset)
+          ConsumerRecord[K2, V2]](_.record.transformInto) { b => s =>
+          Fs2CommittableConsumerRecord(b.transformInto, s.offset)
         }
     }
 }
@@ -140,33 +127,19 @@ object NJProducerMessage {
   implicit val iprbi1: Aux[ProducerRecord] =
     new NJProducerMessage[ProducerRecord] {
 
-      override def lens[K1, V1, K2, V2]: PLens[
-        ProducerRecord[K1, V1],
-        ProducerRecord[K2, V2],
-        ProducerRecord[K1, V1],
-        ProducerRecord[K2, V2]] =
-        PLens[
-          ProducerRecord[K1, V1],
-          ProducerRecord[K2, V2],
-          ProducerRecord[K1, V1],
-          ProducerRecord[K2, V2]](s => s)(b => _ => b)
+      override def lens[K1, V1, K2, V2]
+        : PLens[ProducerRecord[K1, V1], ProducerRecord[K2, V2], ProducerRecord[K1, V1], ProducerRecord[K2, V2]] =
+        PLens[ProducerRecord[K1, V1], ProducerRecord[K2, V2], ProducerRecord[K1, V1], ProducerRecord[K2, V2]](s => s)(
+          b => _ => b)
     }
 
   implicit val iprbi2: Aux[Fs2ProducerRecord] =
     new NJProducerMessage[Fs2ProducerRecord] {
 
-      override def lens[K1, V1, K2, V2]: PLens[
-        Fs2ProducerRecord[K1, V1],
-        Fs2ProducerRecord[K2, V2],
-        ProducerRecord[K1, V1],
-        ProducerRecord[K2, V2]] =
-        PLens[
-          Fs2ProducerRecord[K1, V1],
-          Fs2ProducerRecord[K2, V2],
-          ProducerRecord[K1, V1],
-          ProducerRecord[K2, V2]](isoFs2ProducerRecord[K1, V1].get) { b => _ =>
-          isoFs2ProducerRecord[K2, V2].reverseGet(b)
-        }
+      override def lens[K1, V1, K2, V2]
+        : PLens[Fs2ProducerRecord[K1, V1], Fs2ProducerRecord[K2, V2], ProducerRecord[K1, V1], ProducerRecord[K2, V2]] =
+        PLens[Fs2ProducerRecord[K1, V1], Fs2ProducerRecord[K2, V2], ProducerRecord[K1, V1], ProducerRecord[K2, V2]](
+          _.transformInto)(b => _ => b.transformInto)
     }
 
   implicit def iprbi3[P]: Aux[AkkaProducerMessage[*, *, P]] =
