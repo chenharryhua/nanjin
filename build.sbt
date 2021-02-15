@@ -379,7 +379,7 @@ lazy val spark = (project in file("spark"))
       // override dependency
       "io.netty"                               % "netty"      % "3.10.6.Final",
       "io.netty"                               % "netty-all"  % "4.1.59.Final",
-      "com.julianpeeters" %% "avrohugger-core" % "1.0.0-RC23" % Test
+      "com.julianpeeters" %% "avrohugger-core" % "1.0.0-RC24" % Test
     ) ++ baseLib ++ sparkLib ++ serdeLib ++ kantanLib ++ hadoopLib ++ kafkaLib ++ effectLib ++
       akkaLib ++ json4sLib ++ fs2Lib ++ monocleLib ++ dbLib ++ logLib ++ ftpLib ++ testLib,
     excludeDependencies ++= Seq(ExclusionRule(organization = "io.netty"))
