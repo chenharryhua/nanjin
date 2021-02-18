@@ -18,7 +18,7 @@ sealed abstract class FtpUploader[F[_], C, S <: RemoteFileSettings](ftpApi: FtpA
     cs: ContextShift[F],
     mat: Materializer): Pipe[F, Byte, IOResult] = { (ss: Stream[F, Byte]) =>
     val sink   = ftpApi.toPath(pathStr, settings)
-    val source = Source.fromPublisher(ss.chunkN(8192).toUnicastPublisher).map(x => ByteString.apply(x.toArray))
+    val source = Source.fromPublisher(ss.chunkN(chunkSize).toUnicastPublisher).map(x => ByteString.apply(x.toArray))
     Stream.eval(Async.fromFuture(F.delay(source.runWith(sink))))
   }
 }

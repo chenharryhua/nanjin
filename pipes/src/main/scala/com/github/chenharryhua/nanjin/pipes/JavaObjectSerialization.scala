@@ -19,11 +19,9 @@ final class JavaObjectSerialization[F[_], A] extends Serializable {
     }
   }
 
-  /**
-    * rely on EOFException.. not sure it is the right way
+  /** rely on EOFException.. not sure it is the right way
     */
-  private def pullAll(ois: ObjectInputStream)(implicit
-    F: Sync[F]): Pull[F, A, Option[ObjectInputStream]] =
+  private def pullAll(ois: ObjectInputStream)(implicit F: Sync[F]): Pull[F, A, Option[ObjectInputStream]] =
     Pull
       .functionKInstance(
         F.delay(try Some(ois.readObject().asInstanceOf[A])
@@ -39,8 +37,7 @@ final class JavaObjectSerialization[F[_], A] extends Serializable {
       a <- Pull.loop(pullAll)(ois).void.stream
     } yield a
 
-  def deserialize(implicit cs: ContextShift[F], ce: ConcurrentEffect[F]): Pipe[F, Byte, A] = {
-    (ss: Stream[F, Byte]) =>
-      ss.through(toInputStream).flatMap(readInputStream)
+  def deserialize(implicit cs: ContextShift[F], ce: ConcurrentEffect[F]): Pipe[F, Byte, A] = { (ss: Stream[F, Byte]) =>
+    ss.through(toInputStream).flatMap(readInputStream)
   }
 }
