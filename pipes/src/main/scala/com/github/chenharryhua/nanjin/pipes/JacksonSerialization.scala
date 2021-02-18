@@ -51,20 +51,19 @@ final class JacksonSerialization[F[_]](schema: Schema) extends Serializable {
     }.intersperse(splitter).flatMap(ba => Stream.chunk(Chunk.bytes(ba)))
   }
 
-  def deserialize(implicit F: ConcurrentEffect[F]): Pipe[F, Byte, GenericRecord] = {
-    (ss: Stream[F, Byte]) =>
-      ss.through(toInputStream).flatMap { is =>
-        val jsonDecoder = DecoderFactory.get().jsonDecoder(schema, is)
-        val datumReader = new GenericDatumReader[GenericRecord](schema)
-        def pullAll(is: InputStream): Pull[F, GenericRecord, Option[InputStream]] =
-          Pull
-            .functionKInstance(F.delay(try Some(datumReader.read(null, jsonDecoder))
-            catch { case _: EOFException => None }))
-            .flatMap {
-              case Some(a) => Pull.output1(a) >> Pull.pure(Some(is))
-              case None    => Pull.eval(F.delay(is.close())) >> Pull.pure(None)
-            }
-        Pull.loop(pullAll)(is).void.stream
-      }
+  def deserialize(implicit F: ConcurrentEffect[F]): Pipe[F, Byte, GenericRecord] = { (ss: Stream[F, Byte]) =>
+    ss.through(toInputStream).flatMap { is =>
+      val jsonDecoder = DecoderFactory.get().jsonDecoder(schema, is)
+      val datumReader = new GenericDatumReader[GenericRecord](schema)
+      def pullAll(is: InputStream): Pull[F, GenericRecord, Option[InputStream]] =
+        Pull
+          .functionKInstance(F.delay(try Some(datumReader.read(null, jsonDecoder))
+          catch { case _: EOFException => None }))
+          .flatMap {
+            case Some(a) => Pull.output1(a) >> Pull.pure(Some(is))
+            case None    => Pull.eval(F.delay(is.close())) >> Pull.pure(None)
+          }
+      Pull.loop(pullAll)(is).void.stream
+    }
   }
 }
