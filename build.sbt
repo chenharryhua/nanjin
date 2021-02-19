@@ -311,7 +311,7 @@ val logLib = Seq(
 )
 
 val ftpLib = Seq(
-  "commons-net"                                     % "commons-net" % "3.7.2",
+  "commons-net"                                     % "commons-net" % "3.8.0",
   "com.hierynomus"                                  % "sshj"        % "0.31.0",
   "com.lightbend.akka" %% "akka-stream-alpakka-ftp" % akkaFtp
 )
