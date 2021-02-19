@@ -65,10 +65,10 @@ final class PrRdd[F[_], K, V] private[kafka] (
   def save: RddAvroFileHoarder[F, NJProducerRecord[K, V]] =
     new RddAvroFileHoarder[F, NJProducerRecord[K, V]](rdd, NJProducerRecord.avroCodec(topic.topicDef).avroEncoder)
 
-  def byBatch: UploadThrottleByBatchSize[F, K, V] =
+  def uploadByBatch: UploadThrottleByBatchSize[F, K, V] =
     new UploadThrottleByBatchSize[F, K, V](rdd, topic, cfg, fs2Updater.noUpdateProducer[F, K, V])
 
-  def byBulk: UploadThrottleByBulkSize[F, K, V] =
+  def uploadByBulk: UploadThrottleByBulkSize[F, K, V] =
     new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg, akkaUpdater.noUpdateProducer[K, V])
 }
 
@@ -90,7 +90,7 @@ final class UploadThrottleByBatchSize[F[_], K, V] private[kafka] (
   def withBatchSize(num: Int): UploadThrottleByBatchSize[F, K, V] =
     new UploadThrottleByBatchSize[F, K, V](rdd, topic, cfg.withUploadBatchSize(num), fs2Producer)
 
-  def upload(implicit
+  def run(implicit
     ce: ConcurrentEffect[F],
     timer: Timer[F],
     cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
@@ -122,7 +122,7 @@ final class UploadThrottleByBulkSize[F[_], K, V] private[kafka] (
   def withBulkSize(num: Int): UploadThrottleByBulkSize[F, K, V] =
     new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg.withLoadBulkSize(num), akkaProducer)
 
-  def upload(akkaSystem: ActorSystem)(implicit
+  def run(akkaSystem: ActorSystem)(implicit
     F: ConcurrentEffect[F],
     cs: ContextShift[F]): Stream[F, ProducerMessage.Results[K, V, NotUsed]] =
     Stream.suspend {
