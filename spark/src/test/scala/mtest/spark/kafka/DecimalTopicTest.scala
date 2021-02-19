@@ -83,7 +83,8 @@ class DecimalTopicTest extends AnyFunSuite {
   val topic: KafkaTopic[IO, Int, HasDecimal]      = topicDef.in(ctx)
   val stopic: SparKafkaTopic[IO, Int, HasDecimal] = sparKafka.topic(topicDef)
 
-  val loadData = stopic.prRdd(List(NJProducerRecord(1, data), NJProducerRecord(2, data))).byBatch.upload.compile.drain
+  val loadData =
+    stopic.prRdd(List(NJProducerRecord(1, data), NJProducerRecord(2, data))).uploadByBatch.run.compile.drain
 
   (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
     topic.schemaRegistry.register >>

@@ -24,7 +24,7 @@ class KafkaDownloadTest extends AnyFunSuite {
     )                                                          // #6
   // format: on
 
-  topic.prRdd(data).byBatch.upload.compile.drain.unsafeRunSync()
+  topic.prRdd(data).uploadByBatch.run.compile.drain.unsafeRunSync()
 
   val root = "./data/test/spark/kafka/kafka_download/"
 

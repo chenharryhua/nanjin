@@ -54,7 +54,7 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
     Blocker[F].use(blocker => fromKafka.save.objectFile(params.replayPath).overwrite.run(blocker))
 
   def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
-    fromDisk.prRdd.noMeta.byBatch.upload.map(_ => print(".")).compile.drain
+    fromDisk.prRdd.noMeta.uploadByBatch.run.map(_ => print(".")).compile.drain
 
   def countKafka(implicit F: Effect[F]): F[Long] = fromKafka.count
   def countDisk(implicit F: Sync[F]): F[Long]    = fromDisk.count
