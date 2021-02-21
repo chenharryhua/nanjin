@@ -9,9 +9,7 @@ import cats.syntax.monadError._
 import fs2.Stream
 import monocle.function.At.at
 import org.apache.kafka.streams.processor.StateStore
-import org.apache.kafka.streams.processor.api.ProcessorSupplier
 import org.apache.kafka.streams.scala.StreamsBuilder
-import org.apache.kafka.streams.scala.kstream.Consumed
 import org.apache.kafka.streams.state.StoreBuilder
 import org.apache.kafka.streams.{KafkaStreams, Topology}
 
@@ -22,8 +20,7 @@ final case class KafkaStreamingStartupException() extends Exception("failed to s
 final class KafkaStreamsBuilder[F[_]](
   settings: KafkaStreamSettings,
   top: Reader[StreamsBuilder, Unit],
-  localStateStores: List[Reader[StreamsBuilder, StreamsBuilder]],
-  globalStateStores: List[Reader[StreamsBuilder, StreamsBuilder]]) {
+  localStateStores: List[Reader[StreamsBuilder, StreamsBuilder]]) {
 
   final private class StreamErrorHandler(deferred: Deferred[F, UncaughtKafkaStreamingException], F: ConcurrentEffect[F])
       extends Thread.UncaughtExceptionHandler {
@@ -72,34 +69,18 @@ final class KafkaStreamsBuilder[F[_]](
     new KafkaStreamsBuilder[F](
       KafkaStreamSettings.config.composeLens(at(key)).set(Some(value))(settings),
       top,
-      localStateStores,
-      globalStateStores)
+      localStateStores)
 
   def addStateStore[S <: StateStore](storeBuilder: StoreBuilder[S]): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
       settings,
       top,
-      Reader((sb: StreamsBuilder) => new StreamsBuilder(sb.addStateStore(storeBuilder))) :: localStateStores,
-      globalStateStores)
-
-  def addGlobalStore[K, V, S <: StateStore](
-    storeBuilder: StoreBuilder[S],
-    topic: String,
-    consumed: Consumed[K, V],
-    stateUpdateSupplier: ProcessorSupplier[K, V, Void, Void]): KafkaStreamsBuilder[F] =
-    new KafkaStreamsBuilder[F](
-      settings,
-      top,
-      localStateStores,
-      Reader((sb: StreamsBuilder) =>
-        new StreamsBuilder(sb.addGlobalStore(storeBuilder, topic, consumed, stateUpdateSupplier)))
-        :: globalStateStores)
+      Reader((sb: StreamsBuilder) => new StreamsBuilder(sb.addStateStore(storeBuilder))) :: localStateStores)
 
   def topology: Topology = {
     val builder: StreamsBuilder = new StreamsBuilder()
-    val lsb: StreamsBuilder     = localStateStores.foldLeft(builder)((bd, rd) => rd.run(bd))
-    val gsb: StreamsBuilder     = globalStateStores.foldLeft(lsb)((bd, rd) => rd.run(bd))
-    top.run(gsb)
+    val lss: StreamsBuilder     = localStateStores.foldLeft(builder)((bd, rd) => rd.run(bd))
+    top.run(lss)
     builder.build()
   }
 }
