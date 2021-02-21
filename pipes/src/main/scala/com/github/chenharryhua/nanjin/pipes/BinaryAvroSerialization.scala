@@ -26,16 +26,16 @@ final class BinaryAvroSerialization[F[_]](schema: Schema) extends Serializable {
   def deserialize(implicit F: Async[F]): Pipe[F, Byte, GenericRecord] = { (ss: Stream[F, Byte]) =>
     ss.through(toInputStream).flatMap { is =>
       val avroDecoder = DecoderFactory.get().binaryDecoder(is, null)
-      val datumReader = new GenericDatumReader[GenericRecord](schema)
-      def pullAll(is: InputStream): Pull[F, GenericRecord, Option[InputStream]] =
+      def pullAll(
+        reader: GenericDatumReader[GenericRecord]): Pull[F, GenericRecord, Option[GenericDatumReader[GenericRecord]]] =
         Pull
-          .functionKInstance(F.delay(try Some(datumReader.read(null, avroDecoder))
+          .functionKInstance(F.blocking(try Some(reader.read(null, avroDecoder))
           catch { case ex: EOFException => None }))
           .flatMap {
-            case Some(a) => Pull.output1(a) >> Pull.pure(Some(is))
-            case None    => Pull.eval(F.delay(is.close())) >> Pull.pure(None)
+            case Some(a) => Pull.output1(a) >> Pull.pure(Some(reader))
+            case None    => Pull.eval(F.blocking(is.close())) >> Pull.pure(None)
           }
-      Pull.loop(pullAll)(is).void.stream
+      Pull.loop(pullAll)(new GenericDatumReader[GenericRecord](schema)).void.stream
     }
   }
 }

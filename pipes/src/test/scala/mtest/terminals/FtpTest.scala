@@ -2,14 +2,15 @@ package mtest.terminals
 
 import akka.stream.Materializer
 import cats.effect.IO
-import cats.syntax.all._
+import cats.effect.testing.scalatest.AsyncIOSpec
 import com.github.chenharryhua.nanjin.terminals.{AkkaFtpDownloader, AkkaFtpUploader}
 import fs2.Stream
-import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.freespec.AsyncFreeSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.util.Random
 
-class FtpTest extends AnyFunSuite {
+class FtpTest extends AsyncFreeSpec with AsyncIOSpec with Matchers {
 
   val uploader   = new AkkaFtpUploader[IO](ftpSettins)
   val downloader = new AkkaFtpDownloader[IO](ftpSettins)
@@ -19,12 +20,14 @@ class FtpTest extends AnyFunSuite {
 
   val ts: Stream[IO, Byte] = Stream(testString).through(fs2.text.utf8Encode)
 
-  implicit val mat = Materializer(akkaSystem)
+  implicit val mat: Materializer = Materializer(akkaSystem)
 
-  test("ftp should overwrite target file") {
-    val action = ts.through(uploader.upload(pathStr)).compile.drain >>
-      downloader.download(pathStr).through(fs2.text.utf8Decode).compile.string
-    val readback = action.unsafeRunSync()
-    assert(readback == testString)
+  "FTP" - {
+    "ftp should overwrite target file" in {
+      val action = ts.through(uploader.upload(pathStr)).compile.drain >>
+        downloader.download(pathStr).through(fs2.text.utf8Decode).compile.string
+
+      action.asserting(_ shouldBe testString)
+    }
   }
 }

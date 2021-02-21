@@ -1,27 +1,29 @@
 package mtest.pipes
 
 import cats.effect.IO
+import cats.effect.testing.scalatest.AsyncIOSpec
 import com.github.chenharryhua.nanjin.pipes.{DelimitedProtoBufSerialization, ProtoBufSerialization}
 import fs2.Stream
 import mtest.pb.test.Lion
-import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.freespec.AsyncFreeSpec
+import org.scalatest.matchers.should.Matchers
 
-class ProtobufPipeTest extends AnyFunSuite {
+class ProtobufPipeTest extends AsyncFreeSpec with AsyncIOSpec with Matchers {
   import TestData._
+  val data: Stream[IO, Lion] = Stream.emits(lions)
+  "Protobuf" - {
 
-  test("delimited protobuf identity") {
-    val data: Stream[IO, Lion] = Stream.emits(lions)
-    val ser                    = new DelimitedProtoBufSerialization[IO]
+    "delimited protobuf identity" in {
+      val ser = new DelimitedProtoBufSerialization[IO]
+      val run = data.through(ser.serialize).through(ser.deserialize[Lion]).compile.toList
+      run.asserting(_ shouldBe lions)
+    }
 
-    assert(data.through(ser.serialize(blocker)).through(ser.deserialize[Lion]).compile.toList.unsafeRunSync() === lions)
+    "protobuf identity" in {
+      val ser = new ProtoBufSerialization[IO]
+      val run =
+        data.through(ser.serialize).through(ser.deserialize[Lion]).compile.toList
+      run.asserting(_ shouldBe lions)
+    }
   }
-
-  test("protobuf identity") {
-    val data: Stream[IO, Lion] = Stream.emits(lions)
-
-    val ser = new ProtoBufSerialization[IO]
-
-    assert(data.through(ser.serialize).through(ser.deserialize[Lion]).compile.toList.unsafeRunSync() === lions)
-  }
-
 }

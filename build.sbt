@@ -24,7 +24,7 @@ val chimney    = "0.6.1"
 // runtime
 val zioCats    = "2.3.1.0"
 val monix      = "3.3.0"
-val catsEffect = "3.0.0-RC1"
+val catsEffect = "3.0.0-RC2"
 val akka26     = "2.6.12"
 
 // kafka
@@ -211,6 +211,7 @@ val sparkLib = Seq(
 ).map(_ % avro)
 
 val testLib = Seq(
+  "com.codecommit" %% "cats-effect-testing-scalatest"         % "1.0.0-M1"      % Test,
   "org.typelevel" %% "cats-testkit-scalatest"                 % "2.1.2"         % Test,
   "org.typelevel" %% "discipline-scalatest"                   % "2.1.2"         % Test,
   "org.typelevel" %% "cats-laws"                              % catsCore        % Test,
