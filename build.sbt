@@ -11,7 +11,7 @@ val contextual = "1.2.1"
 val kittens    = "2.2.1"
 val catsCore   = "2.4.2"
 val algebra    = "2.2.1"
-val fs2Version = "2.5.3"
+val fs2Version = "3.0.0-M9"
 val catsMtl    = "1.1.2"
 val catsTime   = "0.3.4"
 val tagless    = "0.12"
@@ -24,12 +24,12 @@ val chimney    = "0.6.1"
 // runtime
 val zioCats    = "2.3.1.0"
 val monix      = "3.3.0"
-val catsEffect = "2.3.3"
+val catsEffect = "3.0.0-RC1"
 val akka26     = "2.6.12"
 
 // kafka
 val akkaKafka   = "2.0.7"
-val fs2Kafka    = "1.4.1"
+val fs2Kafka    = "3.0.0-M2"
 
 // spark
 val spark3    = "3.1.0"
@@ -113,14 +113,14 @@ val hadoopLib = Seq(
 
 val neotypesLib = Seq(
   "com.dimafeng" %% "neotypes",
-  "com.dimafeng" %% "neotypes-cats-effect",
-  "com.dimafeng" %% "neotypes-monix",
-  "com.dimafeng" %% "neotypes-zio",
-  "com.dimafeng" %% "neotypes-akka-stream",
-  "com.dimafeng" %% "neotypes-fs2-stream",
-  "com.dimafeng" %% "neotypes-monix-stream",
-  "com.dimafeng" %% "neotypes-zio-stream",
-  "com.dimafeng" %% "neotypes-refined",
+//  "com.dimafeng" %% "neotypes-cats-effect",
+//  "com.dimafeng" %% "neotypes-monix",
+//  "com.dimafeng" %% "neotypes-zio",
+//  "com.dimafeng" %% "neotypes-akka-stream",
+//  "com.dimafeng" %% "neotypes-fs2-stream",
+//  "com.dimafeng" %% "neotypes-monix-stream",
+//  "com.dimafeng" %% "neotypes-zio-stream",
+//  "com.dimafeng" %% "neotypes-refined",
   "com.dimafeng" %% "neotypes-cats-data"
 ).map(_ % neotypes) ++ Seq("org.neo4j.driver" % "neo4j-java-driver" % "4.2.1")
 

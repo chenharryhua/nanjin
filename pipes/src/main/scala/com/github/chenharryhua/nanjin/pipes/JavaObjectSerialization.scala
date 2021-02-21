@@ -1,10 +1,11 @@
 package com.github.chenharryhua.nanjin.pipes
 
-import java.io._
-
-import cats.effect.{ConcurrentEffect, ContextShift, Resource, Sync}
+import cats.effect.kernel.Async
+import cats.effect.{Resource, Sync}
 import fs2.io.toInputStream
 import fs2.{Pipe, Pull, Stream}
+
+import java.io._
 
 final class JavaObjectSerialization[F[_], A] extends Serializable {
 
@@ -37,7 +38,7 @@ final class JavaObjectSerialization[F[_], A] extends Serializable {
       a <- Pull.loop(pullAll)(ois).void.stream
     } yield a
 
-  def deserialize(implicit cs: ContextShift[F], ce: ConcurrentEffect[F]): Pipe[F, Byte, A] = { (ss: Stream[F, Byte]) =>
+  def deserialize(implicit ce: Async[F]): Pipe[F, Byte, A] = { (ss: Stream[F, Byte]) =>
     ss.through(toInputStream).flatMap(readInputStream)
   }
 }

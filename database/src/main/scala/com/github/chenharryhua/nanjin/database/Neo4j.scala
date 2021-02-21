@@ -1,9 +1,7 @@
 package com.github.chenharryhua.nanjin.database
 
-import cats.effect.Async
 import monocle.macros.Lenses
-import neotypes.cats.effect.implicits._
-import neotypes.{GraphDatabase, Transaction}
+import neotypes.{Async, Driver, GraphDatabase}
 import org.neo4j.driver.Config.ConfigBuilder
 import org.neo4j.driver.{AuthToken, AuthTokens, Config}
 
@@ -21,7 +19,7 @@ import org.neo4j.driver.{AuthToken, AuthTokens, Config}
   private val connStr: ConnectionString = ConnectionString(Protocols.Neo4j.url(host, Some(port)))
   private val auth: AuthToken           = AuthTokens.basic(username.value, password.value)
 
-  def transaction[F[_]: Async]: F[Transaction[F]] =
-    GraphDatabase.driver[F](connStr.value, auth, configBuilder.build()).use(_.transaction)
+  def driver[F[_]](implicit F: Async.Aux[F, F]): F[Driver[F]] =
+    GraphDatabase.driver[F](connStr.value, auth, configBuilder.build())
 
 }

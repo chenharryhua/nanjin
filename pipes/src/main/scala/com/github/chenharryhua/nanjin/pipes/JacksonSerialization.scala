@@ -1,8 +1,7 @@
 package com.github.chenharryhua.nanjin.pipes
 
 import java.io.{ByteArrayOutputStream, EOFException, InputStream}
-
-import cats.effect.ConcurrentEffect
+import cats.effect.kernel.Async
 import com.fasterxml.jackson.databind.ObjectMapper
 import fs2.io.toInputStream
 import fs2.{Chunk, Pipe, Pull, Stream}
@@ -48,10 +47,10 @@ final class JacksonSerialization[F[_]](schema: Schema) extends Serializable {
       encoder.flush()
       baos.close()
       baos.toByteArray
-    }.intersperse(splitter).flatMap(ba => Stream.chunk(Chunk.bytes(ba)))
+    }.intersperse(splitter).flatMap(ba => Stream.chunk(Chunk.array(ba)))
   }
 
-  def deserialize(implicit F: ConcurrentEffect[F]): Pipe[F, Byte, GenericRecord] = { (ss: Stream[F, Byte]) =>
+  def deserialize(implicit F: Async[F]): Pipe[F, Byte, GenericRecord] = { (ss: Stream[F, Byte]) =>
     ss.through(toInputStream).flatMap { is =>
       val jsonDecoder = DecoderFactory.get().jsonDecoder(schema, is)
       val datumReader = new GenericDatumReader[GenericRecord](schema)
