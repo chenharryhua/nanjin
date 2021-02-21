@@ -33,17 +33,17 @@ sealed trait BitraverseMessages[F[_, _]] extends Bitraverse[F] with BitraverseKa
 object BitraverseMessages {
   def apply[F[_, _]](implicit ev: BitraverseMessages[F]): BitraverseMessages[F] = ev
 
-  implicit def imsbi1[P]: BitraverseMessages[Fs2ProducerRecords[*, *, P]] =
-    new BitraverseMessages[Fs2ProducerRecords[*, *, P]] {
+  implicit def imsbi1[P]: BitraverseMessages[Fs2ProducerRecords[P, *, *]] =
+    new BitraverseMessages[Fs2ProducerRecords[P, *, *]] {
 
       override def traversal[K1, V1, K2, V2]: PTraversal[
-        Fs2ProducerRecords[K1, V1, P],
-        Fs2ProducerRecords[K2, V2, P],
+        Fs2ProducerRecords[P, K1, V1],
+        Fs2ProducerRecords[P, K2, V2],
         ProducerRecord[K1, V1],
         ProducerRecord[K2, V2]] =
         PLens[
-          Fs2ProducerRecords[K1, V1, P],
-          Fs2ProducerRecords[K2, V2, P],
+          Fs2ProducerRecords[P, K1, V1],
+          Fs2ProducerRecords[P, K2, V2],
           Chunk[ProducerRecord[K1, V1]],
           Chunk[ProducerRecord[K2, V2]]](prs => prs.records.map(_.transformInto)) { cpr => s =>
           Fs2ProducerRecords(cpr.map(_.transformInto), s.passthrough)
@@ -67,17 +67,17 @@ object BitraverseMessages {
         }.composeTraversal(PTraversal.fromTraverse[Chunk, ProducerRecord[K1, V1], ProducerRecord[K2, V2]])
     }
 
-  implicit def imsbi3[F[_], P]: BitraverseMessages[Fs2TransactionalProducerRecords[F, *, *, P]] =
-    new BitraverseMessages[Fs2TransactionalProducerRecords[F, *, *, P]] {
+  implicit def imsbi3[F[_], P]: BitraverseMessages[Fs2TransactionalProducerRecords[F, P, *, *]] =
+    new BitraverseMessages[Fs2TransactionalProducerRecords[F, P, *, *]] {
 
       override def traversal[K1, V1, K2, V2]: PTraversal[
-        Fs2TransactionalProducerRecords[F, K1, V1, P],
-        Fs2TransactionalProducerRecords[F, K2, V2, P],
+        Fs2TransactionalProducerRecords[F, P, K1, V1],
+        Fs2TransactionalProducerRecords[F, P, K2, V2],
         ProducerRecord[K1, V1],
         ProducerRecord[K2, V2]] =
         PLens[
-          Fs2TransactionalProducerRecords[F, K1, V1, P],
-          Fs2TransactionalProducerRecords[F, K2, V2, P],
+          Fs2TransactionalProducerRecords[F, P, K1, V1],
+          Fs2TransactionalProducerRecords[F, P, K2, V2],
           Chunk[Fs2CommittableProducerRecords[F, K1, V1]],
           Chunk[Fs2CommittableProducerRecords[F, K2, V2]]](_.records)(b =>
           s => Fs2TransactionalProducerRecords(b, s.passthrough))
