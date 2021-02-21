@@ -6,9 +6,7 @@ import akka.stream._
 import akka.stream.scaladsl.{Flow, Sink}
 import akka.stream.stage._
 import akka.{Done, NotUsed}
-import cats.effect.ConcurrentEffect
-import cats.effect.concurrent.Deferred
-import cats.syntax.all._
+import cats.effect.kernel.Async
 import fs2.kafka.KafkaByteConsumerRecord
 import org.apache.kafka.common.TopicPartition
 
@@ -16,41 +14,8 @@ import scala.util.control.NonFatal
 
 object stages {
 
-  /** Notes:
-    *
-    * similar to akka.stream.scaladsl.Sink.ignore:
-    * A Sink that will consume the stream and discard the elements.
-    * it's materialized to '''F[Done]'''instead of '''Future[Done]'''
-    */
-  final private class IgnoreSink[F[_]](implicit F: ConcurrentEffect[F])
-      extends GraphStageWithMaterializedValue[SinkShape[Any], F[Done]] {
-
-    val in: Inlet[Any]        = Inlet[Any]("Ignore.in")
-    val shape: SinkShape[Any] = SinkShape(in)
-
-    override def createLogicAndMaterializedValue(inheritedAttributes: Attributes): (GraphStageLogic, F[Done]) = {
-      val promise = Deferred.unsafe[F, Either[Throwable, Done]]
-      val logic = new GraphStageLogic(shape) with InHandler {
-
-        override def preStart(): Unit = pull(in)
-        override def onPush(): Unit   = pull(in)
-
-        override def onUpstreamFinish(): Unit = {
-          super.onUpstreamFinish()
-          F.toIO(promise.complete(Right(Done))).unsafeRunSync()
-        }
-
-        override def onUpstreamFailure(ex: Throwable): Unit = {
-          super.onUpstreamFailure(ex)
-          F.toIO(promise.complete(Left(ex))).unsafeRunSync()
-        }
-        setHandler(in, this)
-      }
-
-      (logic, promise.get.rethrow)
-    }
-  }
-  def ignore[F[_]: ConcurrentEffect]: Sink[Any, F[Done]] = Sink.fromGraph(new IgnoreSink[F])
+  def ignore[F[_]](implicit F: Async[F]): Sink[Any, F[Done]] =
+    Sink.ignore.mapMaterializedValue(f => F.fromFuture(F.delay(f)))
 
   /** Notes:
     *

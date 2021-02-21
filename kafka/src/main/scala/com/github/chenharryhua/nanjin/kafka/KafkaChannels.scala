@@ -65,25 +65,18 @@ object KafkaChannels {
       new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valCodec)
 
     // pipe
-    def producerPipe[P](implicit
-      F: ConcurrentEffect[F],
-      cs: ContextShift[F]): Pipe[F, ProducerRecords[K, V, P], ProducerResult[K, V, P]] =
+    def producerPipe[P](implicit F: Async[F]): Pipe[F, ProducerRecords[P, K, V], ProducerResult[P, K, V]] =
       KafkaProducer.pipe[F, K, V, P](producerSettings)
 
     // sources
-    def stream(implicit
-      cs: ContextShift[F],
-      timer: Timer[F],
-      F: ConcurrentEffect[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
+    def stream(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
       KafkaConsumer
         .stream[F, Array[Byte], Array[Byte]](consumerSettings)
         .evalTap(_.subscribe(NonEmptyList.of(topicName.value)))
         .flatMap(_.stream)
 
     def assign(tps: KafkaTopicPartition[KafkaOffset])(implicit
-      cs: ContextShift[F],
-      timer: Timer[F],
-      F: ConcurrentEffect[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
+      F: Async[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
       if (tps.isEmpty)
         Stream.empty.covaryAll[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]]
       else
@@ -143,18 +136,14 @@ object KafkaChannels {
     def flexiFlow[P]: Flow[Envelope[K, V, P], ProducerMessage.Results[K, V, P], NotUsed] =
       Producer.flexiFlow[K, V, P](producerSettings)
 
-    def committableSink(implicit
-      cs: ContextShift[F],
-      F: Async[F]): Sink[Envelope[K, V, ConsumerMessage.Committable], F[Done]] =
-      Producer
-        .committableSink(producerSettings, committerSettings)
-        .mapMaterializedValue(f => Async.fromFuture(F.pure(f)))
+    def committableSink(implicit F: Async[F]): Sink[Envelope[K, V, ConsumerMessage.Committable], F[Done]] =
+      Producer.committableSink(producerSettings, committerSettings).mapMaterializedValue(f => F.fromFuture(F.pure(f)))
 
-    def plainSink(implicit cs: ContextShift[F], F: Async[F]): Sink[ProducerRecord[K, V], F[Done]] =
-      Producer.plainSink(producerSettings).mapMaterializedValue(f => Async.fromFuture(F.pure(f)))
+    def plainSink(implicit F: Async[F]): Sink[ProducerRecord[K, V], F[Done]] =
+      Producer.plainSink(producerSettings).mapMaterializedValue(f => F.fromFuture(F.pure(f)))
 
-    def commitSink(implicit cs: ContextShift[F], F: Async[F]): Sink[ConsumerMessage.Committable, F[Done]] =
-      Committer.sink(committerSettings).mapMaterializedValue(f => Async.fromFuture(F.pure(f)))
+    def commitSink(implicit F: Async[F]): Sink[ConsumerMessage.Committable, F[Done]] =
+      Committer.sink(committerSettings).mapMaterializedValue(f => F.fromFuture(F.pure(f)))
 
     // sources
 
@@ -167,7 +156,7 @@ object KafkaChannels {
     val source: Source[CommittableMessage[Array[Byte], Array[Byte]], Consumer.Control] =
       Consumer.committableSource(consumerSettings, Subscriptions.topics(topicName.value))
 
-    def stream(implicit F: ConcurrentEffect[F]): Stream[F, CommittableMessage[Array[Byte], Array[Byte]]] =
+    def stream(implicit F: Async[F]): Stream[F, CommittableMessage[Array[Byte], Array[Byte]]] =
       Stream.suspend(source.runWith(Sink.asPublisher(fanout = false))(Materializer(akkaSystem)).toStream[F])
 
     val transactionalSource: Source[ConsumerMessage.TransactionalMessage[K, V], Consumer.Control] =

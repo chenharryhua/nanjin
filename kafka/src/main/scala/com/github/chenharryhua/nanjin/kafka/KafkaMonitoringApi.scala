@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Timer}
+import cats.effect.kernel.Async
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.messages.kafka._
@@ -30,44 +30,37 @@ sealed trait KafkaMonitoringApi[F[_], K, V] {
 
 object KafkaMonitoringApi {
 
-  def apply[F[_]: ConcurrentEffect: Timer: ContextShift, K, V](
-    topic: KafkaTopic[F, K, V]): KafkaMonitoringApi[F, K, V] =
+  def apply[F[_]: Async, K, V](topic: KafkaTopic[F, K, V]): KafkaMonitoringApi[F, K, V] =
     new KafkaTopicMonitoring[F, K, V](topic)
 
-  final private class KafkaTopicMonitoring[F[_]: ContextShift: Timer, K, V](topic: KafkaTopic[F, K, V])(implicit
-    F: ConcurrentEffect[F])
+  final private class KafkaTopicMonitoring[F[_], K, V](topic: KafkaTopic[F, K, V])(implicit F: Async[F])
       extends KafkaMonitoringApi[F, K, V] {
 
     private def watch(aor: AutoOffsetReset): F[Unit] =
-      Blocker[F].use { blocker =>
-        Keyboard.signal.flatMap { signal =>
-          topic.fs2Channel
-            .updateConsumer(_.withAutoOffsetReset(aor))
-            .stream
-            .map(m => topic.decoder(m).tryDecodeKeyValue.toString)
-            .showLinesStdOut
-            .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
-            .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
-        }.compile.drain
-      }
+      Keyboard.signal.flatMap { signal =>
+        topic.fs2Channel
+          .updateConsumer(_.withAutoOffsetReset(aor))
+          .stream
+          .map(m => topic.decoder(m).tryDecodeKeyValue.toString)
+          .showLinesStdOut
+          .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
+          .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
+      }.compile.drain
 
     private def filterWatch(predict: ConsumerRecord[Try[K], Try[V]] => Boolean, aor: AutoOffsetReset): F[Unit] =
-      Blocker[F].use { blocker =>
-        Keyboard.signal.flatMap { signal =>
-          topic.fs2Channel
-            .updateConsumer(_.withAutoOffsetReset(aor))
-            .stream
-            .filter(m => predict(isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record)))
-            .map(m => topic.decoder(m).tryDecodeKeyValue.toString)
-            .showLinesStdOut
-            .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
-            .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
-        }.compile.drain
-      }
+      Keyboard.signal.flatMap { signal =>
+        topic.fs2Channel
+          .updateConsumer(_.withAutoOffsetReset(aor))
+          .stream
+          .filter(m => predict(isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record)))
+          .map(m => topic.decoder(m).tryDecodeKeyValue.toString)
+          .showLinesStdOut
+          .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
+          .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
+      }.compile.drain
 
     override def watchFrom(njt: NJTimestamp): F[Unit] = {
       val run: Stream[F, Unit] = for {
-        blocker <- Stream.resource(Blocker[F])
         kcs <- Stream.resource(topic.shortLiveConsumer)
         gtp <- Stream.eval(for {
           os <- kcs.offsetsForTimes(njt)
@@ -77,7 +70,7 @@ object KafkaMonitoringApi {
         _ <- topic.fs2Channel
           .assign(gtp.mapValues(_.getOrElse(KafkaOffset(0))))
           .map(m => topic.decoder(m).tryDecodeKeyValue.toString)
-          .showLinesStdOut
+          .debug() 
           .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
           .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
       } yield ()
