@@ -1,28 +1,20 @@
 package mtest.kafka
 
 import cats.effect.IO
-import cats.syntax.all._
+import cats.effect.testing.scalatest.AsyncIOSpec
 import com.github.chenharryhua.nanjin.datetime.{darwinTime, NJDateTimeRange, NJTimestamp}
-import com.github.chenharryhua.nanjin.kafka.{
-  KafkaOffset,
-  KafkaOffsetRange,
-  KafkaPartition,
-  KafkaTopic,
-  KafkaTopicPartition,
-  TopicDef,
-  TopicName
-}
-import fs2.kafka.{ProducerRecord, ProducerRecords}
-import org.apache.kafka.clients.consumer.OffsetAndMetadata
-import org.apache.kafka.common.TopicPartition
-import org.scalatest.funsuite.AnyFunSuite
+import com.github.chenharryhua.nanjin.kafka._
 import fs2.Stream
+import fs2.kafka.{ProducerRecord, ProducerRecords, ProducerResult}
+import org.apache.kafka.common.TopicPartition
+import org.scalatest.freespec.AsyncFreeSpec
+import org.scalatest.matchers.should.Matchers
 
-class ConsumerApiOffsetRangeTest extends AnyFunSuite {
+class ConsumerApiOffsetRangeTest extends AsyncFreeSpec with AsyncIOSpec with Matchers {
 
   /** * Notes:
-    *
-    * ---------------100-------200-------300-------> Time
+    * -----------offset(0)--offset(1)--offset(2)
+    * ---------------100-------200-------300-------> Time(millisecond)
     * ----------------|                     |------
     * before beginning                       after ending
     *
@@ -37,141 +29,151 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
   val pr2: ProducerRecord[Int, Int] = ProducerRecord(topic.topicName.value, 2, 2).withTimestamp(200)
   val pr3: ProducerRecord[Int, Int] = ProducerRecord(topic.topicName.value, 3, 3).withTimestamp(300)
 
-  val topicData = Stream(ProducerRecords(List(pr1, pr2, pr3))).covary[IO].through(topic.fs2Channel.producerPipe)
+  val topicData: Stream[IO, ProducerResult[Unit, Int, Int]] =
+    Stream(ProducerRecords(List(pr1, pr2, pr3))).covary[IO].through(topic.fs2Channel.producerPipe)
 
-  (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
-    topicData.compile.drain).unsafeRunSync()
+  "Offset Range" - {
+    "data ingestion" in {
+      (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
+        topicData.compile.drain).assertNoException
+    }
 
-  test("start and end are both in range") {
-    val expect: KafkaTopicPartition[Option[KafkaOffsetRange]] =
-      KafkaTopicPartition(
-        Map(new TopicPartition("range.test", 0) ->
-          KafkaOffsetRange(KafkaOffset(1), KafkaOffset(2))))
+    "start and end are both in range" in {
+      val expect: KafkaTopicPartition[Option[KafkaOffsetRange]] =
+        KafkaTopicPartition(
+          Map(new TopicPartition("range.test", 0) ->
+            KafkaOffsetRange(KafkaOffset(1), KafkaOffset(2))))
 
-    val r = NJDateTimeRange(darwinTime).withStartTime(110).withEndTime(250)
+      val r = NJDateTimeRange(darwinTime).withStartTime(110).withEndTime(250)
 
-    topic.shortLiveConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
-  }
+      topic.shortLiveConsumer.use(_.offsetRangeFor(r)).asserting(_ shouldBe expect)
+    }
 
-  test("start is equal to beginning and end is equal to ending") {
-    val expect: KafkaTopicPartition[Option[KafkaOffsetRange]] =
-      KafkaTopicPartition(
-        Map(new TopicPartition("range.test", 0) ->
-          KafkaOffsetRange(KafkaOffset(0), KafkaOffset(2))))
+    "start is equal to beginning and end is equal to ending" in {
+      val expect: KafkaTopicPartition[Option[KafkaOffsetRange]] =
+        KafkaTopicPartition(
+          Map(new TopicPartition("range.test", 0) ->
+            KafkaOffsetRange(KafkaOffset(0), KafkaOffset(2))))
 
-    val r = NJDateTimeRange(darwinTime).withStartTime(100).withEndTime(300)
+      val r = NJDateTimeRange(darwinTime).withStartTime(100).withEndTime(300)
 
-    topic.shortLiveConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
-  }
+      topic.shortLiveConsumer.use(_.offsetRangeFor(r)).asserting(_ shouldBe expect)
+    }
 
-  test("start is equal to beginning and end is after ending") {
-    val expect: KafkaTopicPartition[Option[KafkaOffsetRange]] =
-      KafkaTopicPartition(
-        Map(new TopicPartition("range.test", 0) ->
-          KafkaOffsetRange(KafkaOffset(0), KafkaOffset(3))))
+    "start is equal to beginning and end is after ending" in {
+      val expect: KafkaTopicPartition[Option[KafkaOffsetRange]] =
+        KafkaTopicPartition(
+          Map(new TopicPartition("range.test", 0) ->
+            KafkaOffsetRange(KafkaOffset(0), KafkaOffset(3))))
 
-    val r = NJDateTimeRange(darwinTime).withStartTime(100).withEndTime(310)
+      val r = NJDateTimeRange(darwinTime).withStartTime(100).withEndTime(310)
 
-    topic.shortLiveConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
-  }
+      topic.shortLiveConsumer.use(_.offsetRangeFor(r)).asserting(_ shouldBe expect)
+    }
 
-  test("start after beginning and end after ending") {
-    val expect =
-      KafkaTopicPartition(
-        Map(new TopicPartition("range.test", 0) ->
-          KafkaOffsetRange(KafkaOffset(1), KafkaOffset(3))))
+    "start after beginning and end after ending" in {
+      val expect =
+        KafkaTopicPartition(
+          Map(new TopicPartition("range.test", 0) ->
+            KafkaOffsetRange(KafkaOffset(1), KafkaOffset(3))))
 
-    val r = NJDateTimeRange(darwinTime).withStartTime(110).withEndTime(500)
+      val r = NJDateTimeRange(darwinTime).withStartTime(110).withEndTime(500)
 
-    topic.shortLiveConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
-  }
+      topic.shortLiveConsumer.use(_.offsetRangeFor(r)).asserting(_ shouldBe expect)
+    }
 
-  test("start before beginning and end before ending") {
-    val expect =
-      KafkaTopicPartition(
-        Map(new TopicPartition("range.test", 0) ->
-          KafkaOffsetRange(KafkaOffset(0), KafkaOffset(1))))
+    "start before beginning and end before ending" in {
+      val expect =
+        KafkaTopicPartition(
+          Map(new TopicPartition("range.test", 0) ->
+            KafkaOffsetRange(KafkaOffset(0), KafkaOffset(1))))
 
-    val r = NJDateTimeRange(darwinTime).withStartTime(10).withEndTime(110)
+      val r = NJDateTimeRange(darwinTime).withStartTime(10).withEndTime(110)
 
-    topic.shortLiveConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
-  }
+      topic.shortLiveConsumer.use(_.offsetRangeFor(r)).asserting(_ shouldBe expect)
+    }
 
-  test("both start and end are before beginning") {
-    val expect =
-      KafkaTopicPartition(Map(new TopicPartition("range.test", 0) -> None))
+    "both start and end are before beginning" in {
+      val expect =
+        KafkaTopicPartition(Map(new TopicPartition("range.test", 0) -> None))
 
-    val r = NJDateTimeRange(darwinTime).withStartTime(10).withEndTime(30)
+      val r = NJDateTimeRange(darwinTime).withStartTime(10).withEndTime(30)
 
-    topic.shortLiveConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
-  }
+      topic.shortLiveConsumer.use(_.offsetRangeFor(r)).asserting(_ shouldBe expect)
+    }
 
-  test("both start and end are after ending") {
-    val expect =
-      KafkaTopicPartition(Map(new TopicPartition("range.test", 0) -> None))
+    "both start and end are after ending" in {
+      val expect =
+        KafkaTopicPartition(Map(new TopicPartition("range.test", 0) -> None))
 
-    val r = NJDateTimeRange(darwinTime).withStartTime(500).withEndTime(600)
+      val r = NJDateTimeRange(darwinTime).withStartTime(500).withEndTime(600)
 
-    topic.shortLiveConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
-  }
+      topic.shortLiveConsumer.use(_.offsetRangeFor(r)).asserting(_ shouldBe expect)
+    }
 
-  test("when there is no data in the range") {
-    val expect =
-      KafkaTopicPartition(Map(new TopicPartition("range.test", 0) -> None))
+    "when there is no data in the range" in {
+      val expect =
+        KafkaTopicPartition(Map(new TopicPartition("range.test", 0) -> None))
 
-    val r = NJDateTimeRange(darwinTime).withStartTime(110).withEndTime(120)
+      val r = NJDateTimeRange(darwinTime).withStartTime(110).withEndTime(120)
 
-    topic.shortLiveConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
-  }
+      topic.shortLiveConsumer.use(_.offsetRangeFor(r)).asserting(_ shouldBe expect)
+    }
 
-  test("time range is infinite") {
-    val expect: KafkaTopicPartition[Option[KafkaOffsetRange]] =
-      KafkaTopicPartition(
-        Map(new TopicPartition("range.test", 0) ->
-          KafkaOffsetRange(KafkaOffset(0), KafkaOffset(3))))
+    "infinite time range" in {
+      val expect: KafkaTopicPartition[Option[KafkaOffsetRange]] =
+        KafkaTopicPartition(
+          Map(new TopicPartition("range.test", 0) ->
+            KafkaOffsetRange(KafkaOffset(0), KafkaOffset(3))))
 
-    val r = NJDateTimeRange(darwinTime)
-    topic.shortLiveConsumer.use(_.offsetRangeFor(r)).map(x => assert(x === expect)).unsafeRunSync()
-  }
+      val r = NJDateTimeRange(darwinTime)
+      topic.shortLiveConsumer.use(_.offsetRangeFor(r)).asserting(_ shouldBe expect)
+    }
 
-  test("kafka offset range") {
-    assert(KafkaOffsetRange(KafkaOffset(100), KafkaOffset(99)).isEmpty)
-    val r = KafkaOffsetRange(KafkaOffset(1), KafkaOffset(99)).get
-    assert(r.distance == 98)
-  }
+    "kafka offset range" in {
+      assert(KafkaOffsetRange(KafkaOffset(100), KafkaOffset(99)).isEmpty)
+      val r = KafkaOffsetRange(KafkaOffset(1), KafkaOffset(99)).get
+      assert(r.distance == 98)
+    }
+    // >> sc.resetOffsetsToBegin >> sc.resetOffsetsToEnd)
+    "reset to begin" in {
+      val run = topic.shortLiveConsumer.use(sc => sc.resetOffsetsToBegin) >> topic.admin.groups
+      run.asserting(_.head.lag.flatten.get(topic.topicName.value, 0).get.distance shouldBe 3)
+    }
 
-  test("reset") {
-    topic.shortLiveConsumer
-      .use(sc => sc.resetOffsetsForTimes(NJTimestamp(100)) >> sc.resetOffsetsToBegin >> sc.resetOffsetsToEnd)
-      .unsafeRunSync()
-  }
+    "reset to end" in {
+      val run = topic.shortLiveConsumer.use(sc => sc.resetOffsetsToEnd) >> topic.admin.groups
+      run.asserting(_.head.lag.flatten.get(topic.topicName.value, 0) shouldBe None)
+    }
 
-  test("retrieveRecord") {
-    val r  = topic.shortLiveConsumer.use(_.retrieveRecord(KafkaPartition(0), KafkaOffset(0))).unsafeRunSync().get
-    val r2 = topic.record(0, 0).unsafeRunSync().get
-    assert(r.partition() == r2.partition())
-    assert(r.offset() == r2.offset())
-  }
+    "reset to timestamp" in {
+      val run = topic.shortLiveConsumer.use(sc => sc.resetOffsetsForTimes(NJTimestamp(150))) >> topic.admin.groups
+      run.asserting(_.head.lag.flatten.get(topic.topicName.value, 0).get.from.offset.value shouldBe 1)
+    }
 
-  test("numOfRecordsSince") {
-    val r = topic.shortLiveConsumer.use(_.numOfRecordsSince(NJTimestamp(100))).unsafeRunSync()
-    val v = r.flatten[KafkaOffsetRange]
-    assert(v.nonEmpty)
-  }
+    "retrieveRecord" in {
+      for {
+        r <- topic.shortLiveConsumer.use(_.retrieveRecord(KafkaPartition(0), KafkaOffset(0)))
+        r2 <- topic.record(0, 0)
+      } yield {
+        assert(r.get.partition() == r2.get.partition())
+        assert(r.get.offset() == r2.get.offset())
+      }
+    }
 
-  test("partitionsFor") {
-    val r = topic.shortLiveConsumer.use(_.partitionsFor).unsafeRunSync()
-    assert(r.value.nonEmpty)
-  }
+    "numOfRecordsSince" in {
+      val r = topic.shortLiveConsumer.use(_.numOfRecordsSince(NJTimestamp(100))).map(_.flatten)
+      r.asserting(_.nonEmpty shouldBe true)
+    }
 
-  test("retrieveRecordsForTimes") {
-    val r = topic.shortLiveConsumer.use(_.retrieveRecordsForTimes(NJTimestamp(100))).unsafeRunSync()
-    assert(r.nonEmpty)
-  }
+    "partitionsFor" in {
+      val r = topic.shortLiveConsumer.use(_.partitionsFor)
+      r.asserting(_.value.nonEmpty shouldBe true)
+    }
 
-  test("commitSync") {
-    topic.shortLiveConsumer
-      .use(_.commitSync(Map(new TopicPartition("range.test", 0) -> new OffsetAndMetadata(0))))
-      .unsafeRunSync()
+    "retrieveRecordsForTimes" in {
+      val r = topic.shortLiveConsumer.use(_.retrieveRecordsForTimes(NJTimestamp(100)))
+      r.asserting(_.nonEmpty shouldBe true)
+    }
   }
 }

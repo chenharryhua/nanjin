@@ -1,15 +1,18 @@
 package mtest.kafka
 
 import cats.effect.IO
+import cats.effect.testing.scalatest.AsyncIOSpec
 import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords}
+import org.scalatest.freespec.AsyncFreeSpec
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
 import java.time.Instant
 import scala.concurrent.duration._
 import scala.util.Random
 
-class MonitorApiTest extends AnyFunSuite {
+class MonitorApiTest extends AsyncFreeSpec with AsyncIOSpec with Matchers {
   val topic = ctx.topic[Int, Int]("monitor.test")
   val tgt   = ctx.topic[Int, Int]("monitor.carbon.copy.test")
 
@@ -29,34 +32,37 @@ class MonitorApiTest extends AnyFunSuite {
     .covary[IO]
     .through(st.fs2Channel.producerPipe)
 
-  test("realtime filter and watch") {
-    val e   = Stream.eval(topic.monitor.filterFromEarliest(_.key().toOption.exists(_ == 2)))
-    val n   = Stream.eval(topic.monitor.filter(_.key().toOption.exists(_ < 2)))
-    val w   = Stream.eval(topic.monitor.watch)
-    val wn  = Stream.eval(topic.monitor.watchFromEarliest)
-    val wf  = Stream.eval(topic.monitor.watchFrom(s"${Instant.now.toString}"))
-    val bw  = Stream.eval(topic.monitor.badRecords)
-    val bwf = Stream.eval(topic.monitor.badRecordsFromEarliest)
+  "Monitor" - {
+    "realtime filter and watch" in {
+      val e   = Stream.eval(topic.monitor.filterFromEarliest(_.key().toOption.exists(_ == 2)))
+      val n   = Stream.eval(topic.monitor.filter(_.key().toOption.exists(_ < 2)))
+      val w   = Stream.eval(topic.monitor.watch)
+      val wn  = Stream.eval(topic.monitor.watchFromEarliest)
+      val wf  = Stream.eval(topic.monitor.watchFrom(s"${Instant.now.toString}"))
+      val bw  = Stream.eval(topic.monitor.badRecords)
+      val bwf = Stream.eval(topic.monitor.badRecordsFromEarliest)
 
-    sender
-      .concurrently(bw)
-      .concurrently(bwf)
-      .concurrently(e)
-      .concurrently(n)
-      .concurrently(w)
-      .concurrently(wn)
-      .concurrently(wf)
-      .interruptAfter(9.seconds)
-      .compile
-      .drain
-      .unsafeRunSync()
-  }
-  test("carbon copy") {
-    topic.monitor.carbonCopyTo(tgt).unsafeRunTimed(3.seconds)
-  }
+      sender
+        .concurrently(bw)
+        .concurrently(bwf)
+        .concurrently(e)
+        .concurrently(n)
+        .concurrently(w)
+        .concurrently(wn)
+        .concurrently(wf)
+        .interruptAfter(9.seconds)
+        .compile
+        .drain
+        .assertNoException
+    }
 
-  test("summary") {
-    topic.monitor.summaries.unsafeRunSync()
-    tgt.monitor.summaries.unsafeRunSync()
+//    "carbon copy" in {
+//      topic.monitor.carbonCopyTo(tgt).unsafeRunTimed(3.seconds)
+//    }
+
+    "summary" in {
+      topic.monitor.summaries.assertNoException
+      tgt.monitor.summaries.assertNoException
+    }
   }
 }
