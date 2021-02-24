@@ -7,7 +7,7 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericDatumReader, GenericDatumWriter, GenericRecord}
 import org.apache.avro.io.{BinaryEncoder, DecoderFactory, EncoderFactory}
 
-import java.io.{ByteArrayOutputStream, EOFException, InputStream}
+import java.io.{ByteArrayOutputStream, EOFException}
 
 final class BinaryAvroSerialization[F[_]](schema: Schema) extends Serializable {
 

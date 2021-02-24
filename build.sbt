@@ -121,7 +121,7 @@ val neotypesLib = Seq(
 //  "com.dimafeng" %% "neotypes-monix-stream",
 //  "com.dimafeng" %% "neotypes-zio-stream",
 //  "com.dimafeng" %% "neotypes-refined",
-  "com.dimafeng" %% "neotypes-cats-data"
+//  "com.dimafeng" %% "neotypes-cats-data"
 ).map(_ % neotypes) ++ Seq("org.neo4j.driver" % "neo4j-java-driver" % "4.2.1")
 
 val circeLib = Seq(
