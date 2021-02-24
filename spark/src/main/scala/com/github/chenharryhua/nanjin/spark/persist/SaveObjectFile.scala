@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.effect.{Blocker, ContextShift, Sync}
+import cats.effect.kernel.Sync
 import org.apache.spark.rdd.RDD
 
 final class SaveObjectFile[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends Serializable {
@@ -14,7 +14,7 @@ final class SaveObjectFile[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends Ser
   def errorIfExists: SaveObjectFile[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: SaveObjectFile[F, A] = updateConfig(cfg.withIgnore)
 
-  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
+  def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-      .checkAndRun(blocker)(F.delay(rdd.saveAsObjectFile(params.outPath)))
+      .checkAndRun(F.blocking(rdd.saveAsObjectFile(params.outPath)))
 }

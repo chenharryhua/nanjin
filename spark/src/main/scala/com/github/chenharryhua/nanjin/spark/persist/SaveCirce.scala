@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.effect.{Blocker, ContextShift, Sync}
+import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.spark.RddExt
 import io.circe.{Encoder => JsonEncoder}
 import org.apache.hadoop.conf.Configuration
@@ -29,13 +29,13 @@ final class SaveSingleCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull
   def deflate(level: Int): SaveSingleCirce[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(level)))
   def uncompress: SaveSingleCirce[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
-  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F], jsonEncoder: JsonEncoder[A]): F[Unit] = {
+  def run(implicit F: Sync[F], jsonEncoder: JsonEncoder[A]): F[Unit] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hc)
-    sma.checkAndRun(blocker)(
+    sma.checkAndRun(
       rdd
         .stream[F]
-        .through(sinks.circe(params.outPath, hc, isKeepNull, params.compression.fs2Compression, blocker))
+        .through(sinks.circe(params.outPath, hc, isKeepNull, params.compression.fs2Compression))
         .compile
         .drain)
   }
@@ -59,7 +59,7 @@ final class SaveMultiCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull:
   def deflate(level: Int): SaveMultiCirce[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(level)))
   def uncompress: SaveMultiCirce[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
-  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F], je: JsonEncoder[A]): F[Unit] =
+  def run(implicit F: Sync[F], je: JsonEncoder[A]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-      .checkAndRun(blocker)(F.delay(saveRDD.circe(rdd, params.outPath, params.compression, isKeepNull)))
+      .checkAndRun(F.delay(saveRDD.circe(rdd, params.outPath, params.compression, isKeepNull)))
 }

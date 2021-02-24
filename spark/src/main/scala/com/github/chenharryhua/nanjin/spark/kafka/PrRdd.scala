@@ -5,7 +5,7 @@ import akka.actor.ActorSystem
 import akka.kafka.{ProducerMessage, ProducerSettings => AkkaProducerSettings}
 import akka.stream.scaladsl.Sink
 import akka.stream.{Materializer, OverflowStrategy}
-import cats.effect.{ConcurrentEffect, ContextShift, Sync, Timer}
+import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, fs2Updater, KafkaTopic}
@@ -90,10 +90,7 @@ final class UploadThrottleByBatchSize[F[_], K, V] private[kafka] (
   def withBatchSize(num: Int): UploadThrottleByBatchSize[F, K, V] =
     new UploadThrottleByBatchSize[F, K, V](rdd, topic, cfg.withUploadBatchSize(num), fs2Producer)
 
-  def run(implicit
-    ce: ConcurrentEffect[F],
-    timer: Timer[F],
-    cs: ContextShift[F]): Stream[F, ProducerResult[K, V, Unit]] =
+  def run(implicit F: Async[F]): Stream[F, ProducerResult[Unit, K, V]] =
     rdd
       .stream[F]
       .interruptAfter(params.loadParams.timeLimit)
@@ -122,32 +119,31 @@ final class UploadThrottleByBulkSize[F[_], K, V] private[kafka] (
   def withBulkSize(num: Int): UploadThrottleByBulkSize[F, K, V] =
     new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg.withLoadBulkSize(num), akkaProducer)
 
-  def run(akkaSystem: ActorSystem)(implicit
-    F: ConcurrentEffect[F],
-    cs: ContextShift[F]): Stream[F, ProducerMessage.Results[K, V, NotUsed]] =
+  def run(akkaSystem: ActorSystem)(implicit F: Async[F]): Stream[F, ProducerMessage.Results[K, V, NotUsed]] =
     Stream.suspend {
       implicit val mat: Materializer = Materializer(akkaSystem)
-      rdd
-        .source[F]
-        .take(params.loadParams.recordsLimit)
-        .takeWithin(params.loadParams.timeLimit)
-        .map(m => ProducerMessage.single(m.toProducerRecord(topic.topicName.value)))
-        .buffer(params.loadParams.bufferSize, OverflowStrategy.backpressure)
-        .via(topic.akkaChannel(akkaSystem).updateProducer(akkaProducer.settings.run).flexiFlow)
-        .throttle(
-          params.loadParams.bulkSize,
-          params.loadParams.interval,
-          {
-            case ProducerMessage.Result(meta, _) => meta.serializedKeySize() + meta.serializedValueSize()
-            case ProducerMessage.MultiResult(parts, _) =>
-              parts.foldLeft(0) { case (sum, item) =>
-                val meta: RecordMetadata = item.metadata
-                sum + meta.serializedKeySize() + meta.serializedKeySize()
+      Stream
+        .resource(rdd.source[F]) 
+        .flatMap(
+          _.take(params.loadParams.recordsLimit)
+            .takeWithin(params.loadParams.timeLimit)
+            .map(m => ProducerMessage.single(m.toProducerRecord(topic.topicName.value)))
+            .buffer(params.loadParams.bufferSize, OverflowStrategy.backpressure)
+            .via(topic.akkaChannel(akkaSystem).updateProducer(akkaProducer.settings.run).flexiFlow)
+            .throttle(
+              params.loadParams.bulkSize,
+              params.loadParams.interval,
+              {
+                case ProducerMessage.Result(meta, _) => meta.serializedKeySize() + meta.serializedValueSize()
+                case ProducerMessage.MultiResult(parts, _) =>
+                  parts.foldLeft(0) { case (sum, item) =>
+                    val meta: RecordMetadata = item.metadata
+                    sum + meta.serializedKeySize() + meta.serializedKeySize()
+                  }
+                case ProducerMessage.PassThroughResult(_) => 1000
               }
-            case ProducerMessage.PassThroughResult(_) => 1000
-          }
-        )
-        .runWith(Sink.asPublisher(fanout = false))
-        .toStream
+            )
+            .runWith(Sink.asPublisher(fanout = false))
+            .toStream)
     }
 }

@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.Sync
 import fs2.Pipe
-import fs2.compression.{deflate, gzip}
+import fs2.compression.{deflate, gzip, DeflateParams}
 import org.apache.avro.file.{CodecFactory, DataFileConstants}
 import org.apache.avro.mapred.AvroOutputFormat
 import org.apache.avro.mapreduce.AvroJob
@@ -53,7 +53,7 @@ sealed trait Compression extends Serializable {
   final def fs2Compression[F[_]: Sync]: Pipe[F, Byte, Byte] = this match {
     case Compression.Uncompressed   => identity
     case Compression.Gzip           => gzip[F]()
-    case Compression.Deflate(level) => deflate[F](level)
+    case Compression.Deflate(level) => deflate[F](DeflateParams.BEST_COMPRESSION) // Todo: fix level
     case c                          => throw new Exception(s"fs2 Stream does not support codec: $c")
   }
 }

@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import akka.actor.ActorSystem
 import cats.Foldable
 import cats.data.Reader
-import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Effect, Sync, Timer}
+import cats.effect.kernel.{Async, Sync}
 import cats.syntax.bifunctor._
 import cats.syntax.foldable._
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
@@ -42,7 +42,7 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
 
   val params: SKParams = cfg.evalConfig
 
-  def fromKafka(implicit F: Effect[F]): CrRdd[F, K, V] =
+  def fromKafka(implicit F: Async[F]): CrRdd[F, K, V] =
     crRdd(sk.kafkaBatch(topic, params.timeRange, params.locationStrategy, ss))
 
   def fromDisk: CrRdd[F, K, V] =
@@ -50,14 +50,14 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
 
   /** shorthand
     */
-  def dump(implicit F: Effect[F], cs: ContextShift[F]): F[Unit] =
-    Blocker[F].use(blocker => fromKafka.save.objectFile(params.replayPath).overwrite.run(blocker))
+  def dump(implicit F: Async[F]): F[Unit] =
+    fromKafka.save.objectFile(params.replayPath).overwrite.run
 
-  def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
-    fromDisk.prRdd.noMeta.uploadByBatch.run.map(_ => print(".")).compile.drain
+  def replay(implicit ce: Async[F]): F[Unit] =
+    fromDisk.prRdd.noMeta.uploadByBatch.run.map(_ => print(".")).compile.drain 
 
-  def countKafka(implicit F: Effect[F]): F[Long] = fromKafka.count
-  def countDisk(implicit F: Sync[F]): F[Long]    = fromDisk.count
+  def countKafka(implicit F: Async[F]): F[Long] = fromKafka.count
+  def countDisk(implicit F: Sync[F]): F[Long]   = fromDisk.count
 
   def load: LoadTopicFile[F, K, V] = new LoadTopicFile[F, K, V](topic, cfg, ss)
 
@@ -85,7 +85,7 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
 
   /** DStream
     */
-  def dstream(implicit F: Effect[F]): Reader[StreamingContext, AvroDStreamSink[NJConsumerRecord[K, V]]] =
+  def dstream(implicit F: Async[F]): Reader[StreamingContext, AvroDStreamSink[NJConsumerRecord[K, V]]] =
     Reader((sc: StreamingContext) =>
       new AvroDStreamSink(
         sk.kafkaDStream(topic, sc, params.locationStrategy),

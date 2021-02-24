@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
-import cats.effect.{ConcurrentEffect, Sync}
+import cats.effect.kernel.{Async, Resource, Sync}
 import com.github.chenharryhua.nanjin.database.{DatabaseSettings, TableName}
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, SerdeOf}
@@ -34,10 +34,10 @@ private[spark] trait DatasetExtensions {
     def dismissNulls: RDD[A] = rdd.filter(_ != null)
     def numOfNulls: Long     = rdd.subtract(dismissNulls).count()
 
-    def stream[F[_]: Sync]: Stream[F, A] = Stream.fromIterator(rdd.toLocalIterator)
+    def stream[F[_]: Sync]: Stream[F, A] = Stream.fromIterator(rdd.toLocalIterator, chunkSize)
 
-    def source[F[_]: ConcurrentEffect]: Source[A, NotUsed] =
-      Source.fromPublisher[A](stream[F].toUnicastPublisher)
+    def source[F[_]: Async]: Resource[F, Source[A, NotUsed]] =
+      stream[F].toUnicastPublisher.map(Source.fromPublisher)
 
     def dbUpload[F[_]: Sync](db: SparkDBTable[F, A]): DbUploader[F, A] =
       db.tableset(rdd).upload
@@ -46,13 +46,12 @@ private[spark] trait DatasetExtensions {
 
     def save[F[_]](encoder: AvroEncoder[A]): RddAvroFileHoarder[F, A] =
       new RddAvroFileHoarder[F, A](rdd, encoder)
-
   }
 
   implicit final class TypedDatasetExt[A](tds: TypedDataset[A]) extends Serializable {
 
-    def stream[F[_]: Sync]: Stream[F, A]                   = tds.rdd.stream[F]
-    def source[F[_]: ConcurrentEffect]: Source[A, NotUsed] = tds.rdd.source[F]
+    def stream[F[_]: Sync]: Stream[F, A]                     = tds.rdd.stream[F]
+    def source[F[_]: Async]: Resource[F, Source[A, NotUsed]] = tds.rdd.source[F]
 
     def dismissNulls: TypedDataset[A]   = tds.deserialized.filter(_ != null)
     def numOfNulls[F[_]: Sync]: F[Long] = tds.except(dismissNulls).count[F]()

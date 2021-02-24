@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.database
 
-import cats.effect.{Blocker, Concurrent, ContextShift}
+import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.database.{DatabaseName, DatabaseSettings, TableName}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.loaders
@@ -39,8 +39,8 @@ final class SparkDBTable[F[_], A](val tableDef: TableDef[A], dbs: DatabaseSettin
       .as[Long](TypedExpressionEncoder[Long])
       .head()
 
-  def dump(implicit F: Concurrent[F], cs: ContextShift[F]): F[Unit] =
-    Blocker[F].use(blocker => fromDB.save.objectFile(params.replayPath).overwrite.run(blocker))
+  def dump(implicit F: Sync[F]): F[Unit] =
+    fromDB.save.objectFile(params.replayPath).overwrite.run
 
   def tableset(ds: Dataset[A]): TableDS[F, A] =
     new TableDS[F, A](ate.normalize(ds).dataset, tableDef, dbs, cfg)

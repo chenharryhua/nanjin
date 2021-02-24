@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.sstream
 
-import cats.effect.{Concurrent, Timer}
+import cats.effect.kernel.Async
 import com.github.chenharryhua.nanjin.utils.random4d
 import fs2.Stream
 import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, StreamingQueryProgress, Trigger}
@@ -28,8 +28,8 @@ final class NJConsoleSink[F[_], A](
   def complete: NJConsoleSink[F, A]                = updateCfg(_.withComplete)
   def queryName(name: String): NJConsoleSink[F, A] = updateCfg(_.withQueryName(name))
 
-  override def queryStream(implicit F: Concurrent[F], timer: Timer[F]): Stream[F, StreamingQueryProgress] =
-    ss.queryStream(
+  override def queryStream(implicit F: Async[F]): Stream[F, StreamingQueryProgress] =
+    ss.queryStream[F, A](
       dsw
         .trigger(params.trigger)
         .format("console")

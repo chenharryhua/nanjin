@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync}
+import cats.effect.kernel.{Async, Sync}
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark.persist.loaders
@@ -92,20 +92,15 @@ final class LoadTopicFile[F[_], K, V] private[kafka] (topic: KafkaTopic[F, K, V]
   object stream {
     private val hadoopConfiguration: Configuration = ss.sparkContext.hadoopConfiguration
 
-    def circe(pathStr: String, blocker: Blocker)(implicit
-      cs: ContextShift[F],
+    def circe(pathStr: String)(implicit
       F: Sync[F],
       ev: JsonDecoder[NJConsumerRecord[K, V]]): Stream[F, NJConsumerRecord[K, V]] =
-      loaders.stream.circe[F, NJConsumerRecord[K, V]](pathStr, blocker, hadoopConfiguration)
+      loaders.stream.circe[F, NJConsumerRecord[K, V]](pathStr, hadoopConfiguration)
 
-    def jackson(pathStr: String, blocker: Blocker)(implicit
-      cs: ContextShift[F],
-      F: ConcurrentEffect[F]): Stream[F, NJConsumerRecord[K, V]] =
-      loaders.stream.jackson[F, NJConsumerRecord[K, V]](pathStr, decoder, blocker, hadoopConfiguration)
+    def jackson(pathStr: String)(implicit F: Async[F]): Stream[F, NJConsumerRecord[K, V]] =
+      loaders.stream.jackson[F, NJConsumerRecord[K, V]](pathStr, decoder, hadoopConfiguration)
 
-    def avro(pathStr: String, blocker: Blocker)(implicit
-      cs: ContextShift[F],
-      F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
-      loaders.stream.avro[F, NJConsumerRecord[K, V]](pathStr, decoder, blocker, hadoopConfiguration)
+    def avro(pathStr: String)(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
+      loaders.stream.avro[F, NJConsumerRecord[K, V]](pathStr, decoder, hadoopConfiguration)
   }
 }

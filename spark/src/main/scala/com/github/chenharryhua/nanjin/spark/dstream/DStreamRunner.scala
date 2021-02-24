@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.dstream
 
 import cats.data.Reader
-import cats.effect.Async
+import cats.effect.kernel.Async
 import fs2.Stream
 import org.apache.spark.SparkContext
 import org.apache.spark.streaming.{Duration, Seconds, StreamingContext}

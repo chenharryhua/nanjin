@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.data.{Chain, Writer}
-import cats.effect.syntax.all._
-import cats.effect.{Effect, Sync}
+import cats.effect.kernel.Sync
 import cats.mtl.Tell
+import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.{KafkaOffsetRange, KafkaTopic, KafkaTopicPartition}
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkDatetimeConversionConstant}
@@ -39,52 +39,51 @@ private[kafka] object sk {
       OffsetRange.create(tp, r.from.value, r.until.value)
     }
 
-  private def kafkaRDD[F[_]: Effect, K, V](
+  private def kafkaRDD[F[_]: Sync, K, V](
     topic: KafkaTopic[F, K, V],
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy,
-    sparkSession: SparkSession): RDD[ConsumerRecord[Array[Byte], Array[Byte]]] = {
-    val gtp: KafkaTopicPartition[Option[KafkaOffsetRange]] =
-      topic.shortLiveConsumer.use(_.offsetRangeFor(timeRange)).toIO.unsafeRunSync()
-    KafkaUtils.createRDD[Array[Byte], Array[Byte]](
-      sparkSession.sparkContext,
-      props(topic.context.settings.consumerSettings.config),
-      offsetRanges(gtp),
-      locationStrategy)
-  }
-
-  def kafkaDStream[F[_]: Effect, K, V](
+    sparkSession: SparkSession): F[RDD[ConsumerRecord[Array[Byte], Array[Byte]]]] =
+    topic.shortLiveConsumer.use(_.offsetRangeFor(timeRange)).map { gtp =>
+      KafkaUtils.createRDD[Array[Byte], Array[Byte]](
+        sparkSession.sparkContext,
+        props(topic.context.settings.consumerSettings.config),
+        offsetRanges(gtp),
+        locationStrategy)
+    }
+ 
+  def kafkaDStream[F[_]: Sync, K, V](
     topic: KafkaTopic[F, K, V],
     streamingContext: StreamingContext,
-    locationStrategy: LocationStrategy): DStream[NJConsumerRecord[K, V]] = {
-    val topicPartitions = topic.shortLiveConsumer.use(_.partitionsFor).toIO.unsafeRunSync().value
-    val consumerStrategy: ConsumerStrategy[Array[Byte], Array[Byte]] =
-      ConsumerStrategies.Assign[Array[Byte], Array[Byte]](
-        topicPartitions,
-        props(topic.context.settings.consumerSettings.config).asScala)
-    KafkaUtils.createDirectStream(streamingContext, locationStrategy, consumerStrategy).mapPartitions { ms =>
-      val decoder = new NJDecoder[Writer[Chain[Throwable], *], K, V](topic.codec.keyCodec, topic.codec.valCodec)
-      ms.map { m =>
-        val (errs, cr) = decoder.decode(m).run
-        errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
-        cr
+    locationStrategy: LocationStrategy): F[DStream[NJConsumerRecord[K, V]]] =
+    topic.shortLiveConsumer.use(_.partitionsFor).map { topicPartitions =>
+      val consumerStrategy: ConsumerStrategy[Array[Byte], Array[Byte]] =
+        ConsumerStrategies.Assign[Array[Byte], Array[Byte]](
+          topicPartitions.value,
+          props(topic.context.settings.consumerSettings.config).asScala)
+      KafkaUtils.createDirectStream(streamingContext, locationStrategy, consumerStrategy).mapPartitions { ms =>
+        val decoder = new NJDecoder[Writer[Chain[Throwable], *], K, V](topic.codec.keyCodec, topic.codec.valCodec)
+        ms.map { m =>
+          val (errs, cr) = decoder.decode(m).run
+          errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
+          cr
+        }
       }
     }
-  }
 
-  def kafkaBatch[F[_]: Effect, K, V](
+  def kafkaBatch[F[_]: Sync, K, V](
     topic: KafkaTopic[F, K, V],
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy,
-    sparkSession: SparkSession): RDD[NJConsumerRecord[K, V]] =
-    kafkaRDD[F, K, V](topic, timeRange, locationStrategy, sparkSession).mapPartitions { ms =>
+    sparkSession: SparkSession): F[RDD[NJConsumerRecord[K, V]]] =
+    kafkaRDD[F, K, V](topic, timeRange, locationStrategy, sparkSession).map(_.mapPartitions { ms =>
       val decoder = new NJDecoder[Writer[Chain[Throwable], *], K, V](topic.codec.keyCodec, topic.codec.valCodec)
       ms.map { m =>
         val (errs, cr) = decoder.decode(m).run
         errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
         cr
       }
-    }
+    })
 
   /** streaming
     */

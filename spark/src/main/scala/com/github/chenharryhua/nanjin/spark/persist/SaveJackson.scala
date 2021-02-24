@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.effect.{Blocker, ContextShift, Sync}
+import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import org.apache.hadoop.conf.Configuration
@@ -25,14 +25,14 @@ final class SaveSingleJackson[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg
   def deflate(level: Int): SaveSingleJackson[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(level)))
   def uncompress: SaveSingleJackson[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
-  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
+  def run(implicit F: Sync[F]): F[Unit] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hc)
 
-    sma.checkAndRun(blocker)(
+    sma.checkAndRun(
       rdd
         .stream[F]
-        .through(sinks.jackson(params.outPath, hc, encoder, params.compression.fs2Compression, blocker))
+        .through(sinks.jackson(params.outPath, hc, encoder, params.compression.fs2Compression))
         .compile
         .drain)
   }
@@ -54,7 +54,7 @@ final class SaveMultiJackson[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg:
   def deflate(level: Int): SaveMultiJackson[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(level)))
   def uncompress: SaveMultiJackson[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
-  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
+  def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-      .checkAndRun(blocker)(F.delay(saveRDD.jackson(rdd, params.outPath, encoder, params.compression)))
+      .checkAndRun(F.delay(saveRDD.jackson(rdd, params.outPath, encoder, params.compression)))
 }

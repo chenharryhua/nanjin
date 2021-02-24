@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.effect.{Blocker, ContextShift, Sync}
+import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import org.apache.hadoop.conf.Configuration
@@ -31,12 +31,11 @@ final class SaveSingleParquet[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A], 
   def gzip: SaveSingleParquet[F, A]       = updateConfig(cfg.withCompression(Compression.Gzip))
   def uncompress: SaveSingleParquet[F, A] = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
-  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
+  def run(implicit F: Sync[F]): F[Unit] = {
     val hc: Configuration         = ds.sparkSession.sparkContext.hadoopConfiguration
     val sma: SaveModeAware[F]     = new SaveModeAware[F](params.saveMode, params.outPath, hc)
     val ccn: CompressionCodecName = params.compression.parquet
-    sma.checkAndRun(blocker)(
-      ds.rdd.stream[F].through(sinks.parquet(params.outPath, hc, encoder, ccn, blocker)).compile.drain)
+    sma.checkAndRun(ds.rdd.stream[F].through(sinks.parquet(params.outPath, hc, encoder, ccn)).compile.drain)
   }
 }
 
@@ -57,9 +56,9 @@ final class SaveMultiParquet[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A], c
   def gzip: SaveMultiParquet[F, A]       = updateConfig(cfg.withCompression(Compression.Gzip))
   def uncompress: SaveMultiParquet[F, A] = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
-  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
+  def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, ds.sparkSession.sparkContext.hadoopConfiguration)
-      .checkAndRun(blocker)(F.delay {
+      .checkAndRun(F.delay {
         ds.write.option("compression", params.compression.name).mode(params.saveMode).parquet(params.outPath)
       })
 }

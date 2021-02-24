@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.effect.{Blocker, ContextShift, Sync}
+import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import org.apache.hadoop.conf.Configuration
@@ -22,10 +22,10 @@ final class SaveSingleBinaryAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], 
   def errorIfExists: SaveBinaryAvro[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: SaveBinaryAvro[F, A] = updateConfig(cfg.withIgnore)
 
-  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
+  def run(implicit F: Sync[F]): F[Unit] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hc)
-    sma.checkAndRun(blocker)(rdd.stream[F].through(sinks.binAvro(params.outPath, hc, encoder, blocker)).compile.drain)
+    sma.checkAndRun(rdd.stream[F].through(sinks.binAvro(params.outPath, hc, encoder)).compile.drain)
   }
 }
 
@@ -41,7 +41,7 @@ final class SaveMultiBinaryAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], c
   def errorIfExists: SaveMultiBinaryAvro[F, A]  = updateConfig(cfg.withError)
   def ignoreIfExists: SaveMultiBinaryAvro[F, A] = updateConfig(cfg.withIgnore)
 
-  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
+  def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-      .checkAndRun(blocker)(F.delay(saveRDD.binAvro(rdd, params.outPath, encoder)))
+      .checkAndRun(F.delay(saveRDD.binAvro(rdd, params.outPath, encoder)))
 }
