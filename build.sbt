@@ -371,7 +371,7 @@ lazy val spark = (project in file("spark"))
   .settings(name := "nj-spark")
   .settings(
     libraryDependencies ++= Seq(
-      "org.locationtech.jts"                   % "jts-core" % "1.18.0",
+      "org.locationtech.jts"                   % "jts-core" % "1.18.1",
       "com.github.pathikrit" %% "better-files" % betterFiles,
       // for spark
       "io.getquill" %% "quill-spark"               % quill,
