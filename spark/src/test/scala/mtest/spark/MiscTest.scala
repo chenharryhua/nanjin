@@ -4,14 +4,13 @@ import cats.effect.IO
 import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.injection._
-import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import mtest.spark.pb.test.Whale
 import org.apache.spark.sql.{DataFrame, Dataset, SaveMode}
 import org.scalatest.funsuite.AnyFunSuite
 import cats.derived.auto.eq._
 import org.apache.spark.rdd.RDD
-
+ import cats.effect.unsafe.implicits.global
 import scala.util.Random
 import org.apache.spark.sql.SparkSession
 
@@ -53,7 +52,7 @@ class MiscTest extends AnyFunSuite {
     val ds = TypedDataset.create(sisters)
 
     val res = db.joinLeft(ds)(db('id) === ds('id))
-    res.show[IO](truncate = false).unsafeRunSync()
+    res.dataset.show(truncate = false)
 
   }
 
@@ -70,8 +69,7 @@ class MiscTest extends AnyFunSuite {
     val rst =
       TypedDataset
         .createUnsafe[Whale](sparkSession.read.parquet(path))
-        .collect[IO]
-        .unsafeRunSync()
+        .dataset.collect
         .toSet
     assert(rst == whales.toSet)
   }

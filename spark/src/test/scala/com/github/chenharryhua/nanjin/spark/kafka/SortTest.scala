@@ -5,6 +5,7 @@ import mtest.spark.kafka.{ctx, sparKafka}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
+import cats.effect.unsafe.implicits.global
 
 class SortTest extends AnyFunSuite {
   val topic = TopicDef[Int, Int](TopicName("topic"))
@@ -60,7 +61,7 @@ class SortTest extends AnyFunSuite {
   }
   test("disorders") {
     assert(crRdd.stats.disorders.dataset.count() == 4)
-    crRdd.stats.summary.unsafeRunSync()
+    crRdd.stats.summary
   }
   test("dup") {
     assert(crRdd.stats.dupRecords.dataset.count == 1)

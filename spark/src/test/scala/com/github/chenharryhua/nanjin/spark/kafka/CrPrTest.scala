@@ -1,21 +1,21 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJDateTimeRange}
 import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import frameless.TypedEncoder
 import io.scalaland.chimney.dsl._
-import mtest.spark.persist.{Rooster, RoosterData}
 import mtest.spark.kafka.{ctx, sparKafka}
+import mtest.spark.persist.{Rooster, RoosterData}
 import org.apache.spark.sql.types._
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
 import scala.math.BigDecimal
 import scala.math.BigDecimal.RoundingMode
-
 final case class RoosterLike(c: BigDecimal, d: BigDecimal)
 
 object RoosterLike {
@@ -83,7 +83,6 @@ class CrPrTest extends AnyFunSuite {
     crRdd.rdd.take(3).foreach(println)
     assert(ds.schema == expectSchema)
     assert(cr == d)
-
   }
 
   test("map") {
@@ -115,8 +114,8 @@ class CrPrTest extends AnyFunSuite {
   }
 
   test("stats") {
-    crDS.stats.daily.unsafeRunSync()
-    crRdd.stats.daily.unsafeRunSync()
+    crDS.stats.daily
+    crRdd.stats.daily
   }
 
   test("time range") {
@@ -135,9 +134,11 @@ class CrPrTest extends AnyFunSuite {
     assert(crRdd.prRdd.offsetRange(0, 2).rdd.collect.size == 3)
     assert(crRdd.crDS.offsetRange(0, 2).dataset.collect.size == 3)
   }
+
   test("cherry-pick") {
     assert(crRdd.normalize.cherrypick(0, 0).map(_.value) == crDS.normalize.cherrypick(0, 0).map(_.value))
   }
+
   test("replicate") {
     assert(crRdd.replicate(3).rdd.count == 12)
     assert(prRdd.replicate(3).rdd.count() == 12)

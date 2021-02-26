@@ -11,7 +11,6 @@ import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, fs2Updater, KafkaTopic}
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
-import frameless.cats.implicits._
 import fs2.Stream
 import fs2.interop.reactivestreams._
 import fs2.kafka.{ProducerRecords, ProducerResult, ProducerSettings => Fs2ProducerSettings}

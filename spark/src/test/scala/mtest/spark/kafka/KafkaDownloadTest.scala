@@ -3,9 +3,9 @@ package mtest.spark.kafka
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.spark.kafka.NJProducerRecord
 import io.circe.generic.auto._
-import mtest.spark.{akkaSystem, blocker, contextShift, timer}
+import mtest.spark.{akkaSystem}
 import org.scalatest.funsuite.AnyFunSuite
-
+import cats.effect.unsafe.implicits.global
 import scala.util.Random
 
 class KafkaDownloadTest extends AnyFunSuite {
@@ -31,14 +31,14 @@ class KafkaDownloadTest extends AnyFunSuite {
   test("download - whole topic") {
     val path = root + "whole_topic/download.avro"
     val dr   = NJDateTimeRange(sydneyTime)
-    topic.withTimeRange(dr).download(akkaSystem).avro(path).run(blocker).compile.drain.unsafeRunSync()
+    topic.withTimeRange(dr).download(akkaSystem).avro(path).run.compile.drain.unsafeRunSync()
     assert(topic.load.avro(path).dataset.count() >= 5)
   }
 
   test("download - from #1 to #5") {
     val path = root + "15.jackson.json"
     val dr   = NJDateTimeRange(sydneyTime).withStartTime(now).withEndTime(now + 5000)
-    topic.withTimeRange(dr).download(akkaSystem).jackson(path).run(blocker).compile.drain.unsafeRunSync()
+    topic.withTimeRange(dr).download(akkaSystem).jackson(path).run.compile.drain.unsafeRunSync()
 
     val res      = topic.load.jackson(path).dataset.collect().map(_.value.get).toSet
     val expected = Set(rand + 1, rand + 2, rand + 3, rand + 4)
@@ -48,7 +48,7 @@ class KafkaDownloadTest extends AnyFunSuite {
   test("download - from #0 to less #2") {
     val path = root + "0less2.snappy.parquet"
     val dr   = NJDateTimeRange(sydneyTime).withStartTime(now).withEndTime(now + 1200)
-    topic.withTimeRange(dr).download(akkaSystem).parquet(path).snappy.run(blocker).compile.drain.unsafeRunSync()
+    topic.withTimeRange(dr).download(akkaSystem).parquet(path).snappy.run.compile.drain.unsafeRunSync()
 
     val res      = topic.load.parquet(path).dataset.collect().map(_.value.get).toSet
     val expected = Set(rand + 1)
@@ -57,7 +57,7 @@ class KafkaDownloadTest extends AnyFunSuite {
   test("download - from #0 to #2") {
     val path = root + "02.bzip2.avro"
     val dr   = NJDateTimeRange(sydneyTime).withStartTime(now).withEndTime(now + 2000)
-    topic.withTimeRange(dr).download(akkaSystem).avro(path).bzip2.run(blocker).compile.drain.unsafeRunSync()
+    topic.withTimeRange(dr).download(akkaSystem).avro(path).bzip2.run.compile.drain.unsafeRunSync()
 
     val res      = topic.load.avro(path).dataset.collect().map(_.value.get).toSet
     val expected = Set(rand + 1)
@@ -66,7 +66,7 @@ class KafkaDownloadTest extends AnyFunSuite {
   test("download - from #3 to #6") {
     val path = root + "36.circe.json.gz"
     val dr   = NJDateTimeRange(sydneyTime).withStartTime(now + 3000)
-    topic.withTimeRange(dr).download(akkaSystem).circe(path).gzip.run(blocker).compile.drain.unsafeRunSync()
+    topic.withTimeRange(dr).download(akkaSystem).circe(path).gzip.run.compile.drain.unsafeRunSync()
 
     val res      = topic.load.circe(path).dataset.collect().map(_.value.get).toSet
     val expected = Set(rand + 3, rand + 4, rand + 5)
@@ -75,7 +75,7 @@ class KafkaDownloadTest extends AnyFunSuite {
   test("download - from #2.5 to #3.5") {
     val path = root + "between2535.parquet"
     val dr   = NJDateTimeRange(sydneyTime).withStartTime(now + 2500).withEndTime(now + 3500)
-    topic.withTimeRange(dr).download(akkaSystem).parquet(path).uncompress.run(blocker).compile.drain.unsafeRunSync()
+    topic.withTimeRange(dr).download(akkaSystem).parquet(path).uncompress.run.compile.drain.unsafeRunSync()
 
     val res      = topic.load.parquet(path).dataset.collect().map(_.value.get).toSet
     val expected = Set(rand + 3)

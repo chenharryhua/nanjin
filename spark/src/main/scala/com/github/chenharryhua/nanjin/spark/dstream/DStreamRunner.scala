@@ -1,10 +1,13 @@
 package com.github.chenharryhua.nanjin.spark.dstream
 
+import cats.Monad
 import cats.data.Reader
 import cats.effect.kernel.Async
+import cats.effect.std.Dispatcher
 import fs2.Stream
 import org.apache.spark.SparkContext
 import org.apache.spark.streaming.{Duration, Seconds, StreamingContext}
+import cats.syntax.all._
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -18,27 +21,30 @@ final class DStreamRunner[F[_]] private (
   sparkContext: SparkContext,
   checkpoint: String,
   batchDuration: Duration,
-  streamings: List[Reader[StreamingContext, EndMark]])
+  streamings: List[Reader[StreamingContext, F[EndMark]]])
     extends Serializable {
 
-  def signup[A](rd: Reader[StreamingContext, A])(f: A => EndMark): DStreamRunner[F] =
-    new DStreamRunner[F](sparkContext, checkpoint, batchDuration, streamings :+ rd.map(f))
+  def signup[A](rd: Reader[StreamingContext, F[A]])(f: A => EndMark)(implicit F: Monad[F]): DStreamRunner[F] =
+    new DStreamRunner[F](sparkContext, checkpoint, batchDuration, streamings :+ rd.map(_.map(f)))
 
-  private def createContext(): StreamingContext = {
+  private def createContext(dispatcher: Dispatcher[F])(): StreamingContext = {
     val ssc = new StreamingContext(sparkContext, batchDuration)
-    streamings.foreach(_(ssc))
+    streamings.foreach(f => dispatcher.unsafeRunSync(f(ssc)))
     ssc.checkpoint(checkpoint)
     ssc
   }
 
   def run(implicit F: Async[F]): Stream[F, Unit] =
-    Stream
-      .bracket(F.delay {
-        val ssc: StreamingContext = StreamingContext.getOrCreate(checkpoint, createContext)
-        ssc.start()
-        ssc
-      })(ssc => F.delay(ssc.stop(stopSparkContext = false, stopGracefully = false)))
-      .evalMap(ssc => F.delay(ssc.awaitTermination()))
+    for {
+      dispatcher <- Stream.resource(Dispatcher[F])
+      _ <- Stream
+        .bracket(F.delay {
+          val ssc: StreamingContext = StreamingContext.getOrCreate(checkpoint, createContext(dispatcher))
+          ssc.start()
+          ssc
+        })(ssc => F.delay(ssc.stop(stopSparkContext = false, stopGracefully = false)))
+        .evalMap(ssc => F.delay(ssc.awaitTermination()))
+    } yield ()
 }
 
 object DStreamRunner {

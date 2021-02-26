@@ -7,7 +7,6 @@ import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
-import frameless.cats.implicits.rddOps
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession

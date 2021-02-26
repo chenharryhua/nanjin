@@ -6,7 +6,6 @@ import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.terminals.NJHadoop
 import com.sksamuel.avro4s.{AvroInputStream, Decoder => AvroDecoder}
 import frameless.TypedDataset
-import frameless.cats.implicits._
 import fs2.Stream
 import io.circe.parser.decode
 import io.circe.{Decoder => JsonDecoder}

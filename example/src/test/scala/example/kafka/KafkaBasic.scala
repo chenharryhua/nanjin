@@ -9,6 +9,7 @@ import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration._
+import cats.effect.unsafe.implicits.global
 
 @DoNotDiscover
 class KafkaBasic extends AnyFunSuite {
@@ -27,7 +28,7 @@ class KafkaBasic extends AnyFunSuite {
 
   val path = "./data/example/foo.json"
   test("persist messages to local disk") {
-    sparKafka.topic(fooTopic).fromKafka.save.circe(path).file.run(blocker).unsafeRunSync()
+    sparKafka.topic(fooTopic).fromKafka.flatMap(_.save.circe(path).file.run).unsafeRunSync()
   }
 
   test("populate topic using persisted data") {

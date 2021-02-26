@@ -1,6 +1,7 @@
 package mtest.spark.sstream
 
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.common.NJLogLevel
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJTimestamp}
@@ -10,9 +11,8 @@ import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import io.circe.generic.auto._
 import mtest.spark.kafka.sparKafka
-import mtest.spark.{contextShift, timer}
-import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 
 import scala.concurrent.duration._
 

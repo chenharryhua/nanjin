@@ -9,13 +9,14 @@ import io.circe.generic.auto._
 import kantan.csv.generic._
 import kantan.csv.java8._
 import mtest.spark.persist.{Tablet, TabletData}
-import mtest.spark.{akkaSystem, blocker, contextShift}
+import mtest.spark.{akkaSystem}
 import org.apache.commons.net.PrintCommandListener
 import org.apache.commons.net.ftp.FTPClient
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.io.PrintWriter
 import java.net.InetAddress
+import cats.effect.unsafe.implicits.global
 
 class FtpTest extends AnyFunSuite {
   val cred = FtpCredentials.create("chenh", "test")
@@ -29,17 +30,17 @@ class FtpTest extends AnyFunSuite {
         ftpClient.addProtocolCommandListener(new PrintCommandListener(new PrintWriter(System.out), true))
         ftpClient.setRemoteVerificationEnabled(false)
       }
-  val sink   = ftpSink[IO](ftpSettins, blocker)
+  val sink   = ftpSink[IO](ftpSettins)
   val source = ftpSource[IO](ftpSettins)
 
   val roosterSteam = fs2.Stream.emits(TabletData.data)
 
   val ftps        = FtpsSettings(InetAddress.getLocalHost)
-  val ftpsSink1   = ftpSink[IO](ftps, blocker)
+  val ftpsSink1   = ftpSink[IO](ftps)
   val ftpsSource1 = ftpSource[IO](ftps)
 
   val sftp        = SftpSettings(InetAddress.getLocalHost)
-  val sftpSink2   = ftpSink[IO](sftp, blocker)
+  val sftpSink2   = ftpSink[IO](sftp)
   val sftpSource2 = ftpSource[IO](sftp)
 
   implicit val mat: Materializer = Materializer(akkaSystem)
