@@ -135,7 +135,7 @@ class ConsumerApiOffsetRangeTest extends AsyncFreeSpec with AsyncIOSpec with Mat
       val r = KafkaOffsetRange(KafkaOffset(1), KafkaOffset(99)).get
       assert(r.distance == 98)
     }
-    // >> sc.resetOffsetsToBegin >> sc.resetOffsetsToEnd)
+
     "reset to begin" in {
       val run = topic.shortLiveConsumer.use(sc => sc.resetOffsetsToBegin) >> topic.admin.groups
       run.asserting(_.head.lag.flatten.get(topic.topicName.value, 0).get.distance shouldBe 3)

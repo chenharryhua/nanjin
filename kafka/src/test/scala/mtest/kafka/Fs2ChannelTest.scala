@@ -28,7 +28,7 @@ class Fs2ChannelTest extends AnyFunSuite {
       .updateProducer(_.withBatchSize(1))
       .updateConsumer(_.withAutoOffsetReset(AutoOffsetReset.Earliest))
     val ret =
-      topic.stream.map(m => topic.decoder(m).tryDecodeKeyValue).debug().take(1).interruptAfter(5.seconds).compile.toList
+      topic.stream.map(m => topic.decoder(m).tryDecodeKeyValue).take(1).interruptAfter(5.seconds).compile.toList
     assert(ret.unsafeRunSync().size == 1)
   }
 
@@ -38,7 +38,6 @@ class Fs2ChannelTest extends AnyFunSuite {
       .updateConsumer(_.withGroupId("g1"))
       .stream
       .map(m => topic.decoder(m).decodeValue)
-      .debug()
       .take(1)
       .interruptAfter(5.seconds)
       .compile

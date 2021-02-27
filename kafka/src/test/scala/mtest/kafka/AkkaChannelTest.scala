@@ -104,7 +104,7 @@ class AkkaChannelTest extends AsyncFreeSpec with AsyncIOSpec with Matchers {
           .runFold(0L)((sum, _) => sum + 1)
           .map(n => assert(n == distance))
       }
-      IO.fromFuture(ret)
+      IO.fromFuture(ret).assertNoException
     }
 
     "assignment - empty" in {
