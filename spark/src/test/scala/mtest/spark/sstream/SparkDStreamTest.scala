@@ -15,6 +15,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 
 import scala.concurrent.duration._
+import scala.util.Random
 
 @DoNotDiscover
 class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
@@ -24,9 +25,7 @@ class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
 
   val root: String = "./data/test/spark/dstream/"
 
-  better.files.File(root).delete(true)
-
-  val logger = org.log4s.getLogger("SparkDStreamTest")
+  if (Random.nextInt(10) == 0) better.files.File(root).delete(true)
 
   val topic: SparKafkaTopic[IO, Int, String] = sparKafka.topic[Int, String]("dstream.test")
 
@@ -36,7 +35,6 @@ class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
     .map { case (_, idx) =>
       ProducerRecords.one(ProducerRecord(topic.topicName.value, idx.toInt, "a"))
     }
-    .debug()
     .through(topic.topic.fs2Channel.updateProducer(_.withClientId("dstream.test")).producerPipe)
 
   test("dstream") {
@@ -49,12 +47,12 @@ class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
     sender
       .concurrently(
         runner
-          .signup(topic.dstream)(_.avro(avro))
-          .signup(topic.dstream)(_.coalesce.jackson(jackson))
-          .signup(topic.dstream)(_.coalesce.circe(circe))
-          .run
-          .delayBy(2.seconds))
+          .probe(topic.dstream)(_.avro(avro))
+          .probe(topic.dstream)(_.coalesce.jackson(jackson))
+          .probe(topic.dstream)(_.coalesce.circe(circe))
+          .run)
       .interruptAfter(10.seconds)
+      .debug()
       .compile
       .drain
       .map(_ => println("dstream complete"))
