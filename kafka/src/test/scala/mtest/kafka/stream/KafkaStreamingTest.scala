@@ -3,19 +3,17 @@ package mtest.kafka.stream
 import cats.Id
 import cats.data.Kleisli
 import cats.effect.IO
-import cats.effect.testing.scalatest.AsyncIOSpec
+import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import fs2.{INothing, Stream}
+import fs2.Stream
 import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords}
 import mtest.kafka.ctx
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.ImplicitConversions._
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.scala.serialization.Serdes._
-import org.scalatest.freespec.AsyncFreeSpec
-import org.scalatest.matchers.should.Matchers
+import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.{BeforeAndAfter, DoNotDiscover}
-import cats.syntax.all._
 
 import scala.concurrent.duration._
 
@@ -48,8 +46,7 @@ object KafkaStreamingData {
           ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 102, StreamOne("na", -1)),
           ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 103, StreamOne("na", -1))
         ).map(ProducerRecords.one(_)))
-        .through(s1Topic.fs2Channel.producerPipe)
-        .debug())
+        .through(s1Topic.fs2Channel.producerPipe))
 
   val sendT2Data =
     Stream(
@@ -77,42 +74,40 @@ object KafkaStreamingData {
 }
 
 @DoNotDiscover
-class KafkaStreamingTest extends AsyncFreeSpec with AsyncIOSpec with Matchers with BeforeAndAfter {
+class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
   import KafkaStreamingData._
 
   implicit val oneValue: Serde[StreamOne]    = s1Topic.codec.valSerde
   implicit val twoValue: Serde[TableTwo]     = t2Topic.codec.valSerde
   implicit val tgtValue: Serde[StreamTarget] = tgt.codec.valSerde
   before(sendT2Data.concurrently(sendG3Data).compile.drain.unsafeRunSync())
-  "Kafka Streaming" - {
-    "stream-table join" in {
+  test("stream-table join") {
 
-      val top: Kleisli[Id, StreamsBuilder, Unit] = for {
-        a <- s1Topic.kafkaStream.kstream
-        b <- t2Topic.kafkaStream.ktable
-        c <- g3Topic.kafkaStream.gktable
-      } yield {
-        a.join(c)((i, s1) => i, (s1, g3) => StreamTarget(s1.name, g3.weight, 0)).to(tgt)
-        a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(tgt)
-      }
-
-      val harvest =
-        tgt.fs2Channel.stream
-          .map(x => tgt.decoder(x).decode)
-          .observe(_.map(_.offset).through(commitBatchWithin[IO](3, 1.seconds).andThen(_ => Stream.never[IO]))) 
-          .map(_.record.value)
-
-      val runStream: Stream[IO, StreamTarget] =
-        harvest
-          .concurrently(sendS1Data)
-          .concurrently(
-            ctx.buildStreams(top).run.handleErrorWith(_ => Stream.sleep[IO](2.seconds) >> ctx.buildStreams(top).run) >>
-              Stream.never[IO])
-          .interruptAfter(15.seconds)
-
-      val res: Set[StreamTarget] = runStream.compile.toList.unsafeRunSync().toSet
-      println(res)
-      assert(res == expected)
+    val top: Kleisli[Id, StreamsBuilder, Unit] = for {
+      a <- s1Topic.kafkaStream.kstream
+      b <- t2Topic.kafkaStream.ktable
+      c <- g3Topic.kafkaStream.gktable
+    } yield {
+      a.join(c)((i, s1) => i, (s1, g3) => StreamTarget(s1.name, g3.weight, 0)).to(tgt)
+      a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(tgt)
     }
+
+    val harvest =
+      tgt.fs2Channel.stream
+        .map(x => tgt.decoder(x).decode)
+        .observe(_.map(_.offset).through(commitBatchWithin[IO](3, 1.seconds)) >> Stream.empty)
+        .map(_.record.value)
+
+    val runStream: Stream[IO, StreamTarget] =
+      harvest
+        .concurrently(sendS1Data)
+        .concurrently(
+          ctx.buildStreams(top).run.handleErrorWith(_ => Stream.sleep[IO](2.seconds) >> ctx.buildStreams(top).run) >>
+            Stream.never[IO])
+        .interruptAfter(15.seconds)
+
+    val res: Set[StreamTarget] = runStream.compile.toList.unsafeRunSync().toSet
+    println(res)
+    assert(res == expected)
   }
 }
