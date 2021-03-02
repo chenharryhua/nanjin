@@ -32,7 +32,7 @@ val akkaKafka   = "2.0.7"
 val fs2Kafka    = "1.4.1"
 
 // spark
-val spark3    = "3.1.0"
+val spark3    = "3.1.1"
 val frameless = "0.10.1"
 
 // database
