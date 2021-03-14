@@ -11,6 +11,6 @@ addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.6.0")
 
 addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.10.0-RC1")
 
-addSbtPlugin("com.thesamet" % "sbt-protoc" % "1.0.1")
+addSbtPlugin("com.thesamet" % "sbt-protoc" % "1.0.2")
 
 libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.10.11"
