@@ -46,7 +46,7 @@ class InteractiveTest extends AnyFunSuite {
         _ <- Stream.sleep(1.seconds)
         kss1 <- ctx.buildStreams(top).run
         kss2 <- ctx.buildStreams(gtop).run
-        _ <- Stream.sleep(1.seconds)
+        _ <- Stream.sleep(2.seconds)
       } yield {
         val g = kss1.store(sq).all().asScala.toList.sortBy(_.key)
         val q = kss2.store(gsq).all().asScala.toList.sortBy(_.key)
