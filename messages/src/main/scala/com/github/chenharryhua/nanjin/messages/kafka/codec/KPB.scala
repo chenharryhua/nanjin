@@ -12,8 +12,7 @@ import scalapb.{GeneratedEnumCompanion, GeneratedMessage, GeneratedMessageCompan
 import java.util
 
 // kafka protobuf
-final class KPB[A <: GeneratedMessage] private (val value: A)
-    extends GeneratedMessage with Serializable {
+final class KPB[A <: GeneratedMessage] private (val value: A) extends GeneratedMessage with Serializable {
   // equality
   def canEqual(a: Any): Boolean = a.isInstanceOf[KPB[A]]
 
@@ -31,13 +30,14 @@ final class KPB[A <: GeneratedMessage] private (val value: A)
   override def companion: GeneratedMessageCompanion[_]  = value.companion
   override def serializedSize: Int                      = value.serializedSize
   override def toProtoString: String                    = value.toProtoString
+  override def productElement(n: Int): Any              = value.productElement(n)
+  override def productArity: Int                        = value.productArity
 }
 
 object KPB {
   def apply[A <: GeneratedMessage](a: A): KPB[A] = new KPB(a)
 
-  implicit def eqKPB[A <: GeneratedMessage: Eq]: Eq[KPB[A]] = (x: KPB[A], y: KPB[A]) =>
-    Eq[A].eqv(x.value, y.value)
+  implicit def eqKPB[A <: GeneratedMessage: Eq]: Eq[KPB[A]] = (x: KPB[A], y: KPB[A]) => Eq[A].eqv(x.value, y.value)
 
   implicit def showKPB[A <: GeneratedMessage: Show]: Show[KPB[A]] =
     (t: KPB[A]) => s"KPB(value=${Show[A].show(t.value)})"
@@ -60,10 +60,11 @@ object KPB {
       override def enumCompanionForFieldNumber(field: Int): GeneratedEnumCompanion[_] =
         ev.enumCompanionForFieldNumber(field)
       override def defaultInstance: KPB[A] = KPB(ev.defaultInstance)
+
+      override def parseFrom(input: CodedInputStream): KPB[A] = KPB(ev.parseFrom(input))
     }
 
-  implicit def kpbSerde[A <: GeneratedMessage](implicit
-    ev: GeneratedMessageCompanion[A]): SerdeOf[KPB[A]] =
+  implicit def kpbSerde[A <: GeneratedMessage](implicit ev: GeneratedMessageCompanion[A]): SerdeOf[KPB[A]] =
     new SerdeOf[KPB[A]] {
 
       override val serializer: Serializer[KPB[A]] =
