@@ -44,7 +44,7 @@ val elastic  = "7.10.0"
 // format
 val circe   = "0.13.0"
 val jackson = "2.12.2"
-val json4s  = "3.7.0-M7" // for spark
+val json4s  = "3.7.0-M12" // for spark
 val kantan  = "0.6.1"
 val parquet = "1.12.0"
 val avro    = "1.10.2"
