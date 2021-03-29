@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Timer}
+import cats.effect.ConcurrentEffect
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.messages.kafka._
@@ -10,6 +10,7 @@ import fs2.kafka.{AutoOffsetReset, ProducerRecord, ProducerRecords}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
 import scala.util.Try
+import cats.effect.{ Resource, Temporal }
 
 sealed trait KafkaMonitoringApi[F[_], K, V] {
   def watch: F[Unit]
@@ -30,16 +31,16 @@ sealed trait KafkaMonitoringApi[F[_], K, V] {
 
 object KafkaMonitoringApi {
 
-  def apply[F[_]: ConcurrentEffect: Timer: ContextShift, K, V](
+  def apply[F[_]: ConcurrentEffect: Temporal: ContextShift, K, V](
     topic: KafkaTopic[F, K, V]): KafkaMonitoringApi[F, K, V] =
     new KafkaTopicMonitoring[F, K, V](topic)
 
-  final private class KafkaTopicMonitoring[F[_]: ContextShift: Timer, K, V](topic: KafkaTopic[F, K, V])(implicit
+  final private class KafkaTopicMonitoring[F[_]: ContextShift: Temporal, K, V](topic: KafkaTopic[F, K, V])(implicit
     F: ConcurrentEffect[F])
       extends KafkaMonitoringApi[F, K, V] {
 
     private def watch(aor: AutoOffsetReset): F[Unit] =
-      Blocker[F].use { blocker =>
+      Resource.unit[F].use { blocker =>
         Keyboard.signal.flatMap { signal =>
           topic.fs2Channel
             .updateConsumer(_.withAutoOffsetReset(aor))
@@ -52,7 +53,7 @@ object KafkaMonitoringApi {
       }
 
     private def filterWatch(predict: ConsumerRecord[Try[K], Try[V]] => Boolean, aor: AutoOffsetReset): F[Unit] =
-      Blocker[F].use { blocker =>
+      Resource.unit[F].use { blocker =>
         Keyboard.signal.flatMap { signal =>
           topic.fs2Channel
             .updateConsumer(_.withAutoOffsetReset(aor))
@@ -67,7 +68,7 @@ object KafkaMonitoringApi {
 
     override def watchFrom(njt: NJTimestamp): F[Unit] = {
       val run: Stream[F, Unit] = for {
-        blocker <- Stream.resource(Blocker[F])
+        blocker <- Stream.resource(Resource.unit[F])
         kcs <- Stream.resource(topic.shortLiveConsumer)
         gtp <- Stream.eval(for {
           os <- kcs.offsetsForTimes(njt)

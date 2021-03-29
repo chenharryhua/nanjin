@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.data.Reader
-import cats.effect.concurrent.Deferred
 import cats.effect.{ConcurrentEffect, ExitCase}
 import cats.syntax.flatMap._
 import cats.syntax.functor._
@@ -12,6 +11,7 @@ import org.apache.kafka.streams.processor.StateStore
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.state.StoreBuilder
 import org.apache.kafka.streams.{KafkaStreams, Topology}
+import cats.effect.Deferred
 
 final case class UncaughtKafkaStreamingException(thread: Thread, ex: Throwable) extends Exception(ex.getMessage)
 

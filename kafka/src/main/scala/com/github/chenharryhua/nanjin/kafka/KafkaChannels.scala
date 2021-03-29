@@ -19,6 +19,7 @@ import org.apache.kafka.streams.kstream.GlobalKTable
 import org.apache.kafka.streams.processor.TimestampExtractor
 import org.apache.kafka.streams.scala.ByteArrayKeyValueStore
 import org.apache.kafka.streams.scala.kstream.Materialized
+import cats.effect.Temporal
 
 object KafkaChannels {
 
@@ -66,14 +67,12 @@ object KafkaChannels {
 
     // pipe
     def producerPipe[P](implicit
-      F: ConcurrentEffect[F],
-      cs: ContextShift[F]): Pipe[F, ProducerRecords[K, V, P], ProducerResult[K, V, P]] =
+      F: ConcurrentEffect[F]): Pipe[F, ProducerRecords[K, V, P], ProducerResult[K, V, P]] =
       KafkaProducer.pipe[F, K, V, P](producerSettings)
 
     // sources
     def stream(implicit
-      cs: ContextShift[F],
-      timer: Timer[F],
+      timer: Temporal[F],
       F: ConcurrentEffect[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
       KafkaConsumer
         .stream[F, Array[Byte], Array[Byte]](consumerSettings)
@@ -81,8 +80,7 @@ object KafkaChannels {
         .flatMap(_.stream)
 
     def assign(tps: KafkaTopicPartition[KafkaOffset])(implicit
-      cs: ContextShift[F],
-      timer: Timer[F],
+      timer: Temporal[F],
       F: ConcurrentEffect[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
       if (tps.isEmpty)
         Stream.empty.covaryAll[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]]
@@ -144,16 +142,15 @@ object KafkaChannels {
       Producer.flexiFlow[K, V, P](producerSettings)
 
     def committableSink(implicit
-      cs: ContextShift[F],
       F: Async[F]): Sink[Envelope[K, V, ConsumerMessage.Committable], F[Done]] =
       Producer
         .committableSink(producerSettings, committerSettings)
         .mapMaterializedValue(f => Async.fromFuture(F.pure(f)))
 
-    def plainSink(implicit cs: ContextShift[F], F: Async[F]): Sink[ProducerRecord[K, V], F[Done]] =
+    def plainSink(implicit F: Async[F]): Sink[ProducerRecord[K, V], F[Done]] =
       Producer.plainSink(producerSettings).mapMaterializedValue(f => Async.fromFuture(F.pure(f)))
 
-    def commitSink(implicit cs: ContextShift[F], F: Async[F]): Sink[ConsumerMessage.Committable, F[Done]] =
+    def commitSink(implicit F: Async[F]): Sink[ConsumerMessage.Committable, F[Done]] =
       Committer.sink(committerSettings).mapMaterializedValue(f => Async.fromFuture(F.pure(f)))
 
     // sources

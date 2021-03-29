@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.pipes
 
-import cats.effect.{Blocker, Concurrent, ConcurrentEffect, ContextShift}
+import cats.effect.{Concurrent, ConcurrentEffect}
 import fs2.io.{readOutputStream, toInputStream}
 import fs2.{Pipe, Pull, Stream}
 import kantan.csv.{CsvConfiguration, CsvWriter, RowDecoder, RowEncoder}
@@ -8,8 +8,7 @@ import kantan.csv.{CsvConfiguration, CsvWriter, RowDecoder, RowEncoder}
 final class CsvSerialization[F[_], A](conf: CsvConfiguration) extends Serializable {
   import kantan.csv.ops._
 
-  def serialize(
-    blocker: Blocker)(implicit enc: RowEncoder[A], cc: Concurrent[F], cs: ContextShift[F]): Pipe[F, A, Byte] = {
+  def serialize(implicit enc: RowEncoder[A], cc: Concurrent[F]): Pipe[F, A, Byte] = {
     (ss: Stream[F, A]) =>
       readOutputStream[F](blocker, chunkSize) { os =>
         def go(as: Stream[F, A], cw: CsvWriter[A]): Pull[F, Unit, Unit] =
