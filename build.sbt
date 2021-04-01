@@ -10,8 +10,8 @@ val shapeless  = "2.3.3"
 val contextual = "1.2.1"
 val kittens    = "2.2.1"
 val catsCore   = "2.5.0"
-val algebra    = "2.2.1"
-val fs2Version = "2.5.4"
+val algebra    = "2.2.2"
+val fs2Version = "2.5.3"
 val catsMtl    = "1.1.3"
 val catsTime   = "0.3.4"
 val tagless    = "0.12"
@@ -61,7 +61,7 @@ val log4s       = "1.8.2"
 val betterFiles = "3.9.1"
 
 // test
-val scalatest = "3.2.6"
+val scalatest = "3.2.7"
 
 lazy val commonSettings = Seq(
   organization := "com.github.chenharryhua",
@@ -211,8 +211,8 @@ val sparkLib = Seq(
 ).map(_ % avro)
 
 val testLib = Seq(
-  "org.typelevel" %% "cats-testkit-scalatest"                 % "2.1.2"         % Test,
-  "org.typelevel" %% "discipline-scalatest"                   % "2.1.2"         % Test,
+  "org.typelevel" %% "cats-testkit-scalatest"                 % "2.1.3"         % Test,
+  "org.typelevel" %% "discipline-scalatest"                   % "2.1.3"         % Test,
   "org.typelevel" %% "cats-laws"                              % catsCore        % Test,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.5"         % Test,
   "org.scalatest" %% "scalatest"                              % scalatest       % Test,
