@@ -375,7 +375,7 @@ lazy val spark = (project in file("spark"))
       "com.github.pathikrit" %% "better-files" % betterFiles,
       // for spark
       "io.getquill" %% "quill-spark"               % quill,
-      "com.thesamet.scalapb" %% "sparksql-scalapb" % "0.11.0-RC1",
+      "com.thesamet.scalapb" %% "sparksql-scalapb" % "0.11.0",
       // override dependency
       "io.netty"                               % "netty"      % "3.10.6.Final",
       "io.netty"                               % "netty-all"  % "4.1.63.Final",
