@@ -36,7 +36,7 @@ val spark3    = "3.1.1"
 val frameless = "0.10.1"
 
 // database
-val doobie   = "0.12.1"
+val doobie   = "0.13.0"
 val quill    = "3.7.0"
 val neotypes = "0.17.0"
 val elastic  = "7.10.0"
