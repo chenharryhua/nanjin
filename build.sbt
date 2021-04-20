@@ -6,49 +6,49 @@ cancelable in Global           := true
 version in ThisBuild := "0.11.0-SNAPSHOT"
 
 // generic
-val shapeless  = "2.3.3"
+val shapeless  = "2.3.4"
 val contextual = "1.2.1"
-val kittens    = "2.2.1"
-val catsCore   = "2.5.0"
+val kittens    = "2.2.2"
+val catsCore   = "2.6.0"
 val algebra    = "2.2.2"
-val fs2Version = "3.0.1"
-val catsMtl    = "1.1.3"
+val fs2Version = "2.5.4"
+val catsMtl    = "1.2.0"
 val catsTime   = "0.3.4"
-val tagless    = "0.12"
+val tagless    = "0.13.0"
 val monocle    = "2.1.0"
-val refined    = "0.9.22"
+val refined    = "0.9.23"
 val droste     = "0.8.0"
 val enumeratum = "1.6.1"
 val chimney    = "0.6.1"
 
 // runtime
-val zioCats    = "2.3.1.0"
+val zioCats    = "2.4.0.0"
 val monix      = "3.3.0"
 val catsEffect = "2.4.0"
-val akka26     = "2.6.13"
+val akka26     = "2.6.14"
 
 // kafka
 val akkaKafka   = "2.0.7"
-val fs2Kafka    = "1.4.2"
+val fs2Kafka    = "1.5.0"
 
 // spark
 val spark3    = "3.1.1"
 val frameless = "0.10.1"
 
 // database
-val doobie   = "0.12.1"
+val doobie   = "0.13.0"
 val quill    = "3.7.0"
-val neotypes = "0.16.0"
+val neotypes = "0.17.0"
 val elastic  = "7.10.0"
 
 // format
 val circe   = "0.13.0"
-val jackson = "2.12.2"
+val jackson = "2.12.3"
 val json4s  = "3.7.0-M7" // for spark
 val kantan  = "0.6.1"
 val parquet = "1.12.0"
 val avro    = "1.10.2"
-val avro4s  = "4.0.5"
+val avro4s  = "4.0.7"
 
 // connect
 val hadoop  = "3.3.0"
@@ -109,7 +109,7 @@ val hadoopLib = Seq(
   "org.apache.hadoop" % "hadoop-client",
   "org.apache.hadoop" % "hadoop-hdfs"
 ).map(_               % hadoop) ++
-  Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.888")
+  Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.999")
 
 val neotypesLib = Seq(
   "com.dimafeng" %% "neotypes",
@@ -162,10 +162,10 @@ val kantanLib = Seq(
 ).map(_ % kantan) ++ Seq("com.nrinaudo" %% "kantan.codecs" % "0.5.2")
 
 val pbLib = Seq(
-  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.0",
+  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.1",
   "io.confluent"                              % "kafka-protobuf-serializer" % "6.1.1",
-  "com.google.protobuf"                       % "protobuf-java"             % "3.15.6",
-  "com.google.protobuf"                       % "protobuf-java-util"        % "3.15.6"
+  "com.google.protobuf"                       % "protobuf-java"             % "3.15.8",
+  "com.google.protobuf"                       % "protobuf-java-util"        % "3.15.8"
 )
 
 val serdeLib = Seq(
@@ -286,7 +286,7 @@ val akkaLib = Seq(
 
 val effectLib = Seq(
   "org.typelevel" %% "cats-effect" % catsEffect,
-  "dev.zio" %% "zio"               % "1.0.5",
+  "dev.zio" %% "zio"               % "1.0.6",
   "dev.zio" %% "zio-interop-cats"  % zioCats,
   "io.monix" %% "monix-eval"       % monix,
   "io.monix" %% "monix"            % monix
@@ -375,7 +375,7 @@ lazy val spark = (project in file("spark"))
       "com.github.pathikrit" %% "better-files" % betterFiles,
       // for spark
       "io.getquill" %% "quill-spark"               % quill,
-      "com.thesamet.scalapb" %% "sparksql-scalapb" % "0.11.0-RC1",
+      "com.thesamet.scalapb" %% "sparksql-scalapb" % "0.11.0",
       // override dependency
       "io.netty"                               % "netty"      % "3.10.6.Final",
       "io.netty"                               % "netty-all"  % "4.1.63.Final",
