@@ -1,14 +1,13 @@
 package com.github.chenharryhua.nanjin.pipes
 
-import cats.effect.{Blocker, Concurrent, ConcurrentEffect, ContextShift}
+import cats.effect.{Concurrent, ConcurrentEffect}
 import fs2.io.{readOutputStream, toInputStream}
 import fs2.{Pipe, Stream}
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
 final class DelimitedProtoBufSerialization[F[_]] extends Serializable {
 
-  def serialize[A](
-    blocker: Blocker)(implicit cc: Concurrent[F], cs: ContextShift[F], ev: A <:< GeneratedMessage): Pipe[F, A, Byte] = {
+  def serialize[A](implicit cc: Concurrent[F], ev: A <:< GeneratedMessage): Pipe[F, A, Byte] = {
     (ss: Stream[F, A]) =>
       readOutputStream[F](blocker, chunkSize) { os =>
         ss.map(_.writeDelimitedTo(os)).compile.drain

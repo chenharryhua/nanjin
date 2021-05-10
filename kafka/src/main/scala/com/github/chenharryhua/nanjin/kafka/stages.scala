@@ -7,12 +7,12 @@ import akka.stream.scaladsl.{Flow, Sink}
 import akka.stream.stage._
 import akka.{Done, NotUsed}
 import cats.effect.ConcurrentEffect
-import cats.effect.concurrent.Deferred
 import cats.syntax.all._
 import fs2.kafka.KafkaByteConsumerRecord
 import org.apache.kafka.common.TopicPartition
 
 import scala.util.control.NonFatal
+import cats.effect.Deferred
 
 object stages {
 

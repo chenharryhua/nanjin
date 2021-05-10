@@ -1,15 +1,16 @@
 package mtest
 
-import cats.effect.{Blocker, ContextShift, IO, Timer}
+import cats.effect.IO
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings, KafkaTopic}
 import org.apache.kafka.clients.consumer.ConsumerConfig
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import cats.effect.Temporal
 
 package object kafka {
   import akka.actor.ActorSystem
   implicit val cs: ContextShift[IO]    = IO.contextShift(global)
-  implicit val timer: Timer[IO]        = IO.timer(global)
+  implicit val timer: Temporal[IO]        = IO.timer(global)
   implicit val akkaSystem: ActorSystem = ActorSystem("nj-test")
 
   val blocker: Blocker = Blocker.liftExecutionContext(global)
