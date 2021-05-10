@@ -29,7 +29,7 @@ val akka26     = "2.6.14"
 
 // kafka
 val akkaKafka   = "2.0.7"
-val fs2Kafka    = "1.6.1"
+val fs2Kafka    = "2.0.0"
 
 // spark
 val spark3    = "3.1.1"
