@@ -1,7 +1,9 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.data.Reader
-import cats.effect.{ConcurrentEffect, ExitCase}
+import cats.effect.kernel.Resource.ExitCase
+import cats.effect.std.Dispatcher
+import cats.effect.{Async, Deferred}
 import cats.syntax.flatMap._
 import cats.syntax.functor._
 import cats.syntax.monadError._
@@ -11,7 +13,6 @@ import org.apache.kafka.streams.processor.StateStore
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.state.StoreBuilder
 import org.apache.kafka.streams.{KafkaStreams, Topology}
-import cats.effect.Deferred
 
 final case class UncaughtKafkaStreamingException(thread: Thread, ex: Throwable) extends Exception(ex.getMessage)
 
@@ -22,43 +23,44 @@ final class KafkaStreamsBuilder[F[_]](
   top: Reader[StreamsBuilder, Unit],
   localStateStores: List[Reader[StreamsBuilder, StreamsBuilder]]) {
 
-  final private class StreamErrorHandler(deferred: Deferred[F, UncaughtKafkaStreamingException], F: ConcurrentEffect[F])
+  final private class StreamErrorHandler(deferred: Deferred[F, UncaughtKafkaStreamingException], F: Dispatcher[F])
       extends Thread.UncaughtExceptionHandler {
 
     override def uncaughtException(t: Thread, e: Throwable): Unit =
-      F.toIO(deferred.complete(UncaughtKafkaStreamingException(t, e))).void.unsafeRunSync()
+      F.unsafeRunAndForget(deferred.complete(UncaughtKafkaStreamingException(t, e)))
   }
 
-  final private class Latch(value: Deferred[F, Either[KafkaStreamingStartupException, Unit]], F: ConcurrentEffect[F])
+  final private class Latch(value: Deferred[F, Either[KafkaStreamingStartupException, Unit]], F: Dispatcher[F])
       extends KafkaStreams.StateListener {
 
     override def onChange(newState: KafkaStreams.State, oldState: KafkaStreams.State): Unit =
       newState match {
         case KafkaStreams.State.RUNNING =>
-          F.toIO(value.complete(Right(()))).attempt.void.unsafeRunSync()
+          F.unsafeRunAndForget(value.complete(Right(())))
         case KafkaStreams.State.ERROR =>
-          F.toIO(value.complete(Left(KafkaStreamingStartupException()))).attempt.void.unsafeRunSync()
+          F.unsafeRunAndForget(value.complete(Left(KafkaStreamingStartupException())))
         case _ => ()
       }
   }
 
-  def run(implicit F: ConcurrentEffect[F]): Stream[F, KafkaStreams] =
+  def run(implicit F: Async[F]): Stream[F, KafkaStreams] =
     for {
+      dispatcher <- Stream.resource(Dispatcher[F])
       errorListener <- Stream.eval(Deferred[F, UncaughtKafkaStreamingException])
       latch <- Stream.eval(Deferred[F, Either[KafkaStreamingStartupException, Unit]])
       kss <-
         Stream
           .bracketCase(F.delay(new KafkaStreams(topology, settings.javaProperties))) { case (ks, reason) =>
             reason match {
-              case ExitCase.Completed => F.delay(ks.close())
-              case ExitCase.Canceled  => F.delay(ks.close()) >> F.delay(ks.cleanUp())
-              case ExitCase.Error(_)  => F.delay(ks.close()) >> F.delay(ks.cleanUp())
+              case ExitCase.Succeeded  => F.delay(ks.close())
+              case ExitCase.Canceled   => F.delay(ks.close()) >> F.delay(ks.cleanUp())
+              case ExitCase.Errored(_) => F.delay(ks.close()) >> F.delay(ks.cleanUp())
             }
           }
           .evalMap(ks =>
             F.delay {
-              ks.setUncaughtExceptionHandler(new StreamErrorHandler(errorListener, F))
-              ks.setStateListener(new Latch(latch, F))
+              ks.setUncaughtExceptionHandler(new StreamErrorHandler(errorListener, dispatcher))
+              ks.setStateListener(new Latch(latch, dispatcher))
               ks.start()
             }.as(ks))
           .concurrently(Stream.eval(errorListener.get).flatMap(Stream.raiseError[F]))

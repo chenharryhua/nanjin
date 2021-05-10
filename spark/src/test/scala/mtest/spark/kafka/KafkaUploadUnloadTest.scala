@@ -10,11 +10,12 @@ import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import io.circe.generic.auto._
 import mtest.spark
 import mtest.spark.persist.{Rooster, RoosterData}
-import mtest.spark.{blocker, contextShift, sparkSession, timer}
+import mtest.spark.{sparkSession}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
 import scala.concurrent.duration._
+import cats.effect.unsafe.implicits.global
 
 class KafkaUploadUnloadTest extends AnyFunSuite {
 
@@ -62,13 +63,13 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
       _ <- rooster.in(ctx).admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- pr.uploadByBulk.withBulkSize(1024).run(spark.akkaSystem).compile.drain
       _ <- pr.count.map(println)
-      _ <- topic.fromKafka.save.circe(circe).folder.run(blocker)
-      _ <- topic.fromKafka.crDS.save.parquet(parquet).folder.run(blocker)
-      _ <- topic.fromKafka.crDS.save.json(json).run(blocker)
-      _ <- topic.fromKafka.save.avro(avro).folder.run(blocker)
-      _ <- topic.fromKafka.save.jackson(jackson).folder.run(blocker)
-      _ <- topic.fromKafka.save.binAvro(avroBin).folder.run(blocker)
-      _ <- topic.fromKafka.save.objectFile(obj).run(blocker)
+      _ <- topic.fromKafka.flatMap(_.save.circe(circe).folder.run)
+      _ <- topic.fromKafka.flatMap(_.crDS.save.parquet(parquet).folder.run)
+      _ <- topic.fromKafka.flatMap(_.crDS.save.json(json).run)
+      _ <- topic.fromKafka.flatMap(_.save.avro(avro).folder.run)
+      _ <- topic.fromKafka.flatMap(_.save.jackson(jackson).folder.run)
+      _ <- topic.fromKafka.flatMap(_.save.binAvro(avroBin).folder.run)
+      _ <- topic.fromKafka.flatMap(_.save.objectFile(obj).run)
     } yield {
       val circeds  = topic.load.circe(circe).dataset.collect().flatMap(_.value).toSet
       val circerdd = topic.load.rdd.circe(circe).rdd.flatMap(_.value).collect().toSet

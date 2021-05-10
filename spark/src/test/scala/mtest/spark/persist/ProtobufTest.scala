@@ -10,6 +10,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
 import mtest.spark._
+import cats.effect.unsafe.implicits.global
 
 object ProtobufTestData {
   val data = List.fill(10)(KPB(Whale("a", Random.nextInt())))
@@ -22,14 +23,14 @@ class ProtobufTest extends AnyFunSuite {
   val saver = new RddFileHoarder[IO, Whale](rdd.map(_.value).repartition(2))
   test("protobuf - single file") {
     val path = "./data/test/spark/persist/protobuf/single.whale.pb"
-    saver.protobuf(path).file.errorIfExists.ignoreIfExists.overwrite.run(blocker).unsafeRunSync()
+    saver.protobuf(path).file.errorIfExists.ignoreIfExists.overwrite.run.unsafeRunSync()
     val res = loaders.rdd.protobuf[KPB[Whale]](path, sparkSession).collect().toSet
     assert(data.toSet == res)
   }
 
   test("protobuf - multi files") {
     val path = "./data/test/spark/persist/protobuf/multi.whale.pb/"
-    saver.protobuf(path).folder.run(blocker).unsafeRunSync()
+    saver.protobuf(path).folder.run.unsafeRunSync()
     val res = loaders.rdd.protobuf[Whale](path, sparkSession).collect().toSet
     assert(data.map(_.value).toSet == res)
   }

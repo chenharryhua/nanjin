@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.spark.persist.DatasetAvroFileHoarder
 import mtest.spark._
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
+import cats.effect.unsafe.implicits.global
 
 @DoNotDiscover
 class ConcurrencyTest extends AnyFunSuite {
@@ -17,11 +18,11 @@ class ConcurrencyTest extends AnyFunSuite {
   test("avro") {
     val root = "./data/test/spark/persist/interlope/avro/rooster/"
     val run = for {
-      a <- rooster.avro(root + "bzip2").bzip2.folder.run(blocker).start
-      b <- rooster.avro(root + "deflate").deflate(1).folder.run(blocker).start
-      c <- rooster.avro(root + "snappy").snappy.folder.run(blocker).start
-      d <- rooster.avro(root + "xz").xz(1).folder.run(blocker).start
-      e <- rooster.avro(root + "uncompress").folder.run(blocker).start
+      a <- rooster.avro(root + "bzip2").bzip2.folder.run.start
+      b <- rooster.avro(root + "deflate").deflate(1).folder.run.start
+      c <- rooster.avro(root + "snappy").snappy.folder.run.start
+      d <- rooster.avro(root + "xz").xz(1).folder.run.start
+      e <- rooster.avro(root + "uncompress").folder.run.start
       _ <- a.join
       _ <- b.join
       _ <- c.join
@@ -59,10 +60,10 @@ class ConcurrencyTest extends AnyFunSuite {
   test("spark json") {
     val root = "./data/test/spark/persist/interlope/json/rooster/"
     val run = for {
-      a <- rooster.json(root + "bzip2").bzip2.run(blocker).start
-      b <- rooster.json(root + "deflate").deflate(1).run(blocker).start
-      c <- rooster.json(root + "gzip").gzip.run(blocker).start
-      d <- rooster.json(root + "uncompress").run(blocker).start
+      a <- rooster.json(root + "bzip2").bzip2.run.start
+      b <- rooster.json(root + "deflate").deflate(1).run.start
+      c <- rooster.json(root + "gzip").gzip.run.start
+      d <- rooster.json(root + "uncompress").run.start
       _ <- a.join
       _ <- b.join
       _ <- d.join
@@ -79,10 +80,10 @@ class ConcurrencyTest extends AnyFunSuite {
   test("circe") {
     val root = "./data/test/spark/persist/interlope/circe/rooster/"
     val run = for {
-      d <- rooster.circe(root + "bzip2").folder.bzip2.run(blocker).start
-      b <- rooster.circe(root + "deflate").folder.deflate(1).run(blocker).start
-      c <- rooster.circe(root + "gzip").folder.gzip.run(blocker).start
-      a <- rooster.circe(root + "uncompress").folder.run(blocker).start
+      d <- rooster.circe(root + "bzip2").folder.bzip2.run.start
+      b <- rooster.circe(root + "deflate").folder.deflate(1).run.start
+      c <- rooster.circe(root + "gzip").folder.gzip.run.start
+      a <- rooster.circe(root + "uncompress").folder.run.start
       _ <- a.join
       _ <- b.join
       _ <- c.join
@@ -99,10 +100,10 @@ class ConcurrencyTest extends AnyFunSuite {
   test("jackson") {
     val root = "./data/test/spark/persist/interlope/jackson/rooster/"
     val run = for {
-      d <- rooster.jackson(root + "bzip2").folder.bzip2.run(blocker).start
-      b <- rooster.jackson(root + "deflate").folder.deflate(1).run(blocker).start
-      c <- rooster.jackson(root + "gzip").folder.gzip.run(blocker).start
-      a <- rooster.jackson(root + "uncompress").folder.run(blocker).start
+      d <- rooster.jackson(root + "bzip2").folder.bzip2.run.start
+      b <- rooster.jackson(root + "deflate").folder.deflate(1).run.start
+      c <- rooster.jackson(root + "gzip").folder.gzip.run.start
+      a <- rooster.jackson(root + "uncompress").folder.run.start
       _ <- a.join
       _ <- b.join
       _ <- c.join
@@ -119,10 +120,10 @@ class ConcurrencyTest extends AnyFunSuite {
   test("csv") {
     val root = "./data/test/spark/persist/interlope/csv/rooster/"
     val run = for {
-      d <- rooster.csv(root + "bzip2").folder.bzip2.run(blocker).start
-      b <- rooster.csv(root + "deflate").folder.deflate(1).run(blocker).start
-      c <- rooster.csv(root + "gzip").folder.gzip.run(blocker).start
-      a <- rooster.csv(root + "uncompress").folder.run(blocker).start
+      d <- rooster.csv(root + "bzip2").folder.bzip2.run.start
+      b <- rooster.csv(root + "deflate").folder.deflate(1).run.start
+      c <- rooster.csv(root + "gzip").folder.gzip.run.start
+      a <- rooster.csv(root + "uncompress").folder.run.start
       _ <- a.join
       _ <- b.join
       _ <- c.join
@@ -139,10 +140,10 @@ class ConcurrencyTest extends AnyFunSuite {
   test("text") {
     val root = "./data/test/spark/persist/interlope/text/rooster/"
     val run = for {
-      d <- rooster.text(root + "bzip2").folder.bzip2.run(blocker).start
-      b <- rooster.text(root + "deflate").folder.deflate(1).run(blocker).start
-      c <- rooster.text(root + "gzip").folder.gzip.run(blocker).start
-      a <- rooster.text(root + "uncompress").folder.run(blocker).start
+      d <- rooster.text(root + "bzip2").folder.bzip2.run.start
+      b <- rooster.text(root + "deflate").folder.deflate(1).run.start
+      c <- rooster.text(root + "gzip").folder.gzip.run.start
+      a <- rooster.text(root + "uncompress").folder.run.start
       _ <- a.join
       _ <- b.join
       _ <- c.join
@@ -159,9 +160,9 @@ class ConcurrencyTest extends AnyFunSuite {
   test("parquet") {
     val root = "./data/test/spark/persist/interlope/parquet/rooster/"
     val run = for {
-      d <- rooster.parquet(root + "snappy").folder.snappy.run(blocker).start
-      c <- rooster.parquet(root + "gzip").folder.gzip.run(blocker).start
-      a <- rooster.parquet(root + "uncompress").folder.run(blocker).start
+      d <- rooster.parquet(root + "snappy").folder.snappy.run.start
+      c <- rooster.parquet(root + "gzip").folder.gzip.run.start
+      a <- rooster.parquet(root + "uncompress").folder.run.start
       _ <- a.join
       _ <- c.join
       _ <- d.join
@@ -185,28 +186,28 @@ class ConcurrencyTest extends AnyFunSuite {
   test("mix single") {
     val root = "./data/test/spark/persist/interlope/mix-single/"
     val run = for {
-      a <- rooster.avro(root + "avro1.gzip2.avro").bzip2.file.run(blocker).start
-      b <- rooster.avro(root + "avro2.deflate.avro").deflate(1).file.run(blocker).start
-      c <- rooster.avro(root + "avro3.snapp.avro").snappy.file.run(blocker).start
-      d <- rooster.avro(root + "avro4.xz.avro").xz(2).file.run(blocker).start
+      a <- rooster.avro(root + "avro1.gzip2.avro").bzip2.file.run.start
+      b <- rooster.avro(root + "avro2.deflate.avro").deflate(1).file.run.start
+      c <- rooster.avro(root + "avro3.snapp.avro").snappy.file.run.start
+      d <- rooster.avro(root + "avro4.xz.avro").xz(2).file.run.start
 
-      e <- rooster.jackson(root + "jackson1.json.gz").file.gzip.run(blocker).start
-      f <- rooster.jackson(root + "jackson2.json.deflate").file.deflate(4).run(blocker).start
+      e <- rooster.jackson(root + "jackson1.json.gz").file.gzip.run.start
+      f <- rooster.jackson(root + "jackson2.json.deflate").file.deflate(4).run.start
 
-      g <- rooster.binAvro(root + "binAvro.avro").file.run(blocker).start
+      g <- rooster.binAvro(root + "binAvro.avro").file.run.start
 
-      h <- rooster.circe(root + "circe1.json.deflate").file.deflate(5).run(blocker).start
-      i <- rooster.circe(root + "circe2.json.gz").file.gzip.run(blocker).start
+      h <- rooster.circe(root + "circe1.json.deflate").file.deflate(5).run.start
+      i <- rooster.circe(root + "circe2.json.gz").file.gzip.run.start
 
-      j <- rooster.text(root + "text1.txt.deflate").file.deflate(5).run(blocker).start
-      k <- rooster.text(root + "text2.txt.gz").file.gzip.run(blocker).start
+      j <- rooster.text(root + "text1.txt.deflate").file.deflate(5).run.start
+      k <- rooster.text(root + "text2.txt.gz").file.gzip.run.start
 
-      l <- rooster.csv(root + "csv1.csv.deflate").file.deflate(5).run(blocker).start
-      m <- rooster.csv(root + "csv2.csv.gz").file.gzip.run(blocker).start
+      l <- rooster.csv(root + "csv1.csv.deflate").file.deflate(5).run.start
+      m <- rooster.csv(root + "csv2.csv.gz").file.gzip.run.start
 
-      n <- rooster.parquet(root + "parquet1.snappy.parquet").file.snappy.run(blocker).start
-      o <- rooster.parquet(root + "parquet2.gz.parquet").file.gzip.run(blocker).start
-      p <- rooster.parquet(root + "parquet3.uncompress.parquet").file.uncompress.run(blocker).start
+      n <- rooster.parquet(root + "parquet1.snappy.parquet").file.snappy.run.start
+      o <- rooster.parquet(root + "parquet2.gz.parquet").file.gzip.run.start
+      p <- rooster.parquet(root + "parquet3.uncompress.parquet").file.uncompress.run.start
       _ <- a.join
       _ <- b.join
       _ <- c.join
@@ -229,36 +230,36 @@ class ConcurrencyTest extends AnyFunSuite {
   test("mix multi") {
     val root = "./data/test/spark/persist/interlope/mix-multi/"
     val run = for {
-      a <- rooster.avro(root + "avro1").bzip2.folder.run(blocker).start
-      b <- rooster.avro(root + "avro2").deflate(1).folder.run(blocker).start
-      c <- rooster.avro(root + "avro3").snappy.folder.run(blocker).attempt.start
-      d <- rooster.avro(root + "avro4").xz(2).folder.run(blocker).start
+      a <- rooster.avro(root + "avro1").bzip2.folder.run.start
+      b <- rooster.avro(root + "avro2").deflate(1).folder.run.start
+      c <- rooster.avro(root + "avro3").snappy.folder.run.attempt.start
+      d <- rooster.avro(root + "avro4").xz(2).folder.run.start
 
-      e <- rooster.jackson(root + "jackson1").folder.gzip.run(blocker).start
-      f <- rooster.jackson(root + "jackson2").folder.deflate(4).run(blocker).start
-      g <- rooster.jackson(root + "jackson3").folder.bzip2.run(blocker).start
+      e <- rooster.jackson(root + "jackson1").folder.gzip.run.start
+      f <- rooster.jackson(root + "jackson2").folder.deflate(4).run.start
+      g <- rooster.jackson(root + "jackson3").folder.bzip2.run.start
 
-      h <- rooster.binAvro(root + "binAvro").folder.run(blocker).start
-      i <- rooster.objectFile(root + "obj").run(blocker).start
+      h <- rooster.binAvro(root + "binAvro").folder.run.start
+      i <- rooster.objectFile(root + "obj").run.start
 
-      j <- rooster.parquet(root + "parquet1").folder.snappy.run(blocker).attempt.start
-      k <- rooster.parquet(root + "parquet2").folder.gzip.run(blocker).start
+      j <- rooster.parquet(root + "parquet1").folder.snappy.run.attempt.start
+      k <- rooster.parquet(root + "parquet2").folder.gzip.run.start
 
-      l <- rooster.circe(root + "circe1").folder.deflate(5).run(blocker).start
-      m <- rooster.circe(root + "circe2").folder.gzip.run(blocker).start
-      n <- rooster.circe(root + "circe3").folder.bzip2.run(blocker).start
+      l <- rooster.circe(root + "circe1").folder.deflate(5).run.start
+      m <- rooster.circe(root + "circe2").folder.gzip.run.start
+      n <- rooster.circe(root + "circe3").folder.bzip2.run.start
 
-      o <- rooster.json(root + "json1").deflate(3).run(blocker).start
-      p <- rooster.json(root + "json2").bzip2.run(blocker).start
-      q <- rooster.json(root + "json3").gzip.run(blocker).start
+      o <- rooster.json(root + "json1").deflate(3).run.start
+      p <- rooster.json(root + "json2").bzip2.run.start
+      q <- rooster.json(root + "json3").gzip.run.start
 
-      r <- rooster.text(root + "text1").folder.deflate(5).run(blocker).start
-      s <- rooster.text(root + "text2").folder.gzip.run(blocker).start
-      t <- rooster.text(root + "text3").folder.bzip2.run(blocker).start
+      r <- rooster.text(root + "text1").folder.deflate(5).run.start
+      s <- rooster.text(root + "text2").folder.gzip.run.start
+      t <- rooster.text(root + "text3").folder.bzip2.run.start
 
-      u <- rooster.csv(root + "csv1").folder.deflate(5).run(blocker).start
-      v <- rooster.csv(root + "csv2").folder.gzip.run(blocker).start
-      w <- rooster.csv(root + "csv3").folder.bzip2.run(blocker).start
+      u <- rooster.csv(root + "csv1").folder.deflate(5).run.start
+      v <- rooster.csv(root + "csv2").folder.gzip.run.start
+      w <- rooster.csv(root + "csv3").folder.bzip2.run.start
 
       _ <- a.join
       _ <- b.join

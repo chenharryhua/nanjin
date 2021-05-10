@@ -3,7 +3,7 @@ scapegoatVersion in ThisBuild  := "1.3.11"
 parallelExecution in ThisBuild := false
 cancelable in Global           := true
 
-version in ThisBuild := "0.11.0-SNAPSHOT"
+version in ThisBuild := "0.12.0-SNAPSHOT"
 
 // generic
 val shapeless  = "2.3.3"
@@ -22,21 +22,21 @@ val enumeratum = "1.6.1"
 val chimney    = "0.6.1"
 
 // runtime
-val zioCats    = "2.4.1.0"
+val zioCats    = "3.0.2.0"
 val monix      = "3.3.0"
-val catsEffect = "3.0.0"
+val catsEffect = "3.1.0"
 val akka26     = "2.6.14"
 
 // kafka
-val akkaKafka   = "2.0.7"
-val fs2Kafka    = "2.0.0"
+val akkaKafka = "2.0.7"
+val fs2Kafka  = "2.0.0"
 
 // spark
 val spark3    = "3.1.1"
 val frameless = "0.10.1"
 
 // database
-val doobie   = "0.13.2"
+val doobie   = "1.0.0-M2"
 val quill    = "3.7.1"
 val neotypes = "0.17.0"
 val elastic  = "7.10.0"
@@ -211,6 +211,8 @@ val sparkLib = Seq(
 ).map(_ % avro)
 
 val testLib = Seq(
+  "org.typelevel" %% "cats-effect"                            % catsEffect      % Test,
+  "org.typelevel" %% "cats-effect-testkit"                    % catsEffect      % Test,
   "org.typelevel" %% "cats-testkit-scalatest"                 % "2.1.4"         % Test,
   "org.typelevel" %% "discipline-scalatest"                   % "2.1.4"         % Test,
   "org.typelevel" %% "cats-laws"                              % catsCore        % Test,
@@ -230,12 +232,8 @@ val kafkaLib = Seq(
   "org.apache.kafka" % "kafka-clients",
   "org.apache.kafka" % "kafka-streams",
   "org.apache.kafka" %% "kafka-streams-scala").map(_ % "6.1.1-ce") ++
-  Seq(
-  "com.typesafe.akka" %% "akka-stream-kafka" % akkaKafka,
-  "com.github.fd4s" %% "fs2-kafka"           % fs2Kafka) ++
-  Seq(
-  "io.confluent" % "kafka-schema-registry-client",
-  "io.confluent" % "kafka-schema-serializer").map(_ % "6.1.1")
+  Seq("com.typesafe.akka" %% "akka-stream-kafka"     % akkaKafka, "com.github.fd4s" %% "fs2-kafka" % fs2Kafka) ++
+  Seq("io.confluent" % "kafka-schema-registry-client", "io.confluent" % "kafka-schema-serializer").map(_ % "6.1.1")
 
 val enumLib = Seq(
   "com.beachape" %% "enumeratum-cats",
@@ -285,11 +283,11 @@ val akkaLib = Seq(
 ).map(_ % akka26)
 
 val effectLib = Seq(
-  "org.typelevel" %% "cats-effect" % catsEffect,
-  "dev.zio" %% "zio"               % "1.0.7",
-  "dev.zio" %% "zio-interop-cats"  % zioCats,
-  "io.monix" %% "monix-eval"       % monix,
-  "io.monix" %% "monix"            % monix
+  "org.typelevel" %% "cats-effect-std"    % catsEffect,
+  "dev.zio" %% "zio"                      % "1.0.7",
+  "dev.zio" %% "zio-interop-cats"         % zioCats,
+  "io.monix" %% "monix-eval"              % monix,
+  "io.monix" %% "monix"                   % monix
 )
 
 val quillLib = Seq(

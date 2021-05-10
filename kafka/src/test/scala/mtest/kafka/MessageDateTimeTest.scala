@@ -7,6 +7,7 @@ import com.sksamuel.avro4s.Encoder
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import io.circe.generic.JsonCodec
 import org.scalatest.funsuite.AnyFunSuite
+import cats.effect.unsafe.implicits.global
 
 object DatetimeCase {
 

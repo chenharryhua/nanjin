@@ -4,6 +4,7 @@ import cats.effect.IO
 import com.github.chenharryhua.nanjin.pipes.TextSerialization
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
+import cats.effect.unsafe.implicits.global
 
 class TextTest extends AnyFunSuite {
   import TestData._

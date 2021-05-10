@@ -3,8 +3,8 @@ package mtest.spark.kafka
 import cats.syntax.all._
 import frameless.cats.implicits._
 import fs2.kafka.{ProducerRecord, ProducerRecords}
-import mtest.spark.{contextShift, timer}
 import org.scalatest.funsuite.AnyFunSuite
+import cats.effect.unsafe.implicits.global
 
 object CopyData {
   final case class MyTestData(a: Int, b: String)
@@ -36,10 +36,11 @@ class CopyDataTest extends AnyFunSuite {
   test("sparKafka pipeTo should copy data from source to target") {
     val rst = for {
       _ <- prepareData
-      _ <- sparKafka.topic(src.topicDef).fromKafka.prRdd.uploadByBatch.toTopic(tgt).run.compile.drain
+      _ <- sparKafka.topic(src.topicDef).fromKafka.flatMap(_.prRdd.uploadByBatch.toTopic(tgt).run.compile.drain)
+      srcData <- sparKafka.topic(src.topicDef).fromKafka.map(_.rdd.collect)
+      tgtData <- sparKafka.topic(tgt.topicDef).fromKafka.map(_.rdd.collect)
     } yield {
-      val srcData = sparKafka.topic(src.topicDef).fromKafka.rdd.collect
-      val tgtData = sparKafka.topic(tgt.topicDef).fromKafka.rdd.collect
+
       assert(srcData.size == 5)
       assert(tgtData.size == 5)
       assert(srcData.map(_.value).toSet === tgtData.map(_.value).toSet)

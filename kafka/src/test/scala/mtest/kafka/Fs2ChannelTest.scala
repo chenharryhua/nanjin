@@ -9,6 +9,7 @@ import io.circe.generic.auto._
 import org.apache.kafka.common.TopicPartition
 import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration._
+import cats.effect.unsafe.implicits.global
 
 class Fs2ChannelTest extends AnyFunSuite {
   val backblaze_smart = TopicDef[KJson[lenses_record_key], String](TopicName("backblaze_smart"))

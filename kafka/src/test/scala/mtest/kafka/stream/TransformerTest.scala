@@ -18,6 +18,7 @@ import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration._
+import cats.effect.unsafe.implicits.global
 
 @DoNotDiscover
 class TransformerTest extends AnyFunSuite {
@@ -74,12 +75,12 @@ class TransformerTest extends AnyFunSuite {
           ProducerRecords.one(ProducerRecord(topic1.topicName.value, index.toInt, s"stream$index"))
         }
         .through(topic1.fs2Channel.producerPipe)
-
     val havest = tgt.fs2Channel.stream
       .map(tgt.decoder(_).decode)
-      .observe(_.map(_.offset).through(commitBatchWithin(10, 2.seconds)))
+      .observe(_.map(_.offset).through(commitBatchWithin(10, 2.seconds)).printlns)
 
-    val runStream = kafkaStreamService.run.handleErrorWith(_ => Stream.sleep(2.seconds) ++ ctx.buildStreams(top).run)
+    val runStream =
+      kafkaStreamService.run.handleErrorWith(_ => Stream.sleep[IO](2.seconds) ++ ctx.buildStreams(top).run)
     val res =
       (runStream
         .flatMap(_ => havest)

@@ -5,9 +5,10 @@ import cats.effect.IO
 import com.github.chenharryhua.nanjin.spark.kafka.{inv, CRMetaInfo, DiffResult, KvDiffResult, NJConsumerRecord}
 import frameless.TypedDataset
 import frameless.cats.implicits._
-import mtest.spark.{contextShift, sparkSession}
+import mtest.spark.{sparkSession}
 import org.scalatest.funsuite.AnyFunSuite
 import org.apache.spark.sql.SparkSession
+import cats.effect.unsafe.implicits.global
 
 object InvestigationTestData {
   final case class Mouse(size: Int, weight: Float)

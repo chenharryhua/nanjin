@@ -15,6 +15,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import java.time.Instant
 import scala.math.BigDecimal
 import scala.math.BigDecimal.RoundingMode
+import cats.effect.unsafe.implicits.global
 
 object AvroTypedEncoderTestData {
 
@@ -166,8 +167,7 @@ class AvroTypedEncoderTest extends AnyFunSuite {
     val ate                     = AvroTypedEncoder[Array[Byte]]
     val data: List[Array[Byte]] = List(Array(1), Array(2, 3), Array(4, 5, 6), Array(7, 8, 9, 10))
     val rdd                     = sparkSession.sparkContext.parallelize(data)
-    assert(
-      ate.normalize(rdd, sparkSession).collect[IO]().unsafeRunSync().toList.flatten == data.flatten)
+    assert(ate.normalize(rdd, sparkSession).collect[IO]().unsafeRunSync().toList.flatten == data.flatten)
   }
 
   test("not support") {

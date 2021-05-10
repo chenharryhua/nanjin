@@ -1,10 +1,10 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Show
-import cats.effect.{Blocker, Concurrent, ContextShift, Sync}
+import cats.effect.{Async, Sync}
 import cats.syntax.show._
-import com.github.chenharryhua.nanjin.terminals.NJHadoop
 import com.github.chenharryhua.nanjin.pipes._
+import com.github.chenharryhua.nanjin.terminals.NJHadoop
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import fs2.{Pipe, Stream}
 import io.circe.{Encoder => JsonEncoder}
@@ -17,87 +17,78 @@ import scalapb.GeneratedMessage
 
 object sinks {
 
-  def avro[F[_]: ContextShift: Sync, A](
+  def avro[F[_]: Sync, A](
     path: String,
     cfg: Configuration,
     encoder: AvroEncoder[A],
-    cf: CodecFactory,
-    blocker: Blocker): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
+    cf: CodecFactory): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
     val grc: Pipe[F, A, GenericRecord]     = new GenericRecordCodec[F, A].encode(encoder)
-    val sink: Pipe[F, GenericRecord, Unit] = NJHadoop[F](cfg, blocker).avroSink(path, encoder.schema, cf)
+    val sink: Pipe[F, GenericRecord, Unit] = NJHadoop[F](cfg).avroSink(path, encoder.schema, cf)
     ss.through(grc).through(sink)
   }
 
-  def binAvro[F[_]: ContextShift: Sync, A](
-    path: String,
-    cfg: Configuration,
-    encoder: AvroEncoder[A],
-    blocker: Blocker): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
-    val grc: Pipe[F, A, GenericRecord]     = new GenericRecordCodec[F, A].encode(encoder)
-    val pipe: Pipe[F, GenericRecord, Byte] = new BinaryAvroSerialization[F](encoder.schema).serialize
-    val sink: Pipe[F, Byte, Unit]          = NJHadoop[F](cfg, blocker).byteSink(path)
-    ss.through(grc).through(pipe).through(sink)
+  def binAvro[F[_]: Sync, A](path: String, cfg: Configuration, encoder: AvroEncoder[A]): Pipe[F, A, Unit] = {
+    (ss: Stream[F, A]) =>
+      val grc: Pipe[F, A, GenericRecord]     = new GenericRecordCodec[F, A].encode(encoder)
+      val pipe: Pipe[F, GenericRecord, Byte] = new BinaryAvroSerialization[F](encoder.schema).serialize
+      val sink: Pipe[F, Byte, Unit]          = NJHadoop[F](cfg).byteSink(path)
+      ss.through(grc).through(pipe).through(sink)
   }
 
-  def jackson[F[_]: ContextShift: Sync, A](
+  def jackson[F[_]: Sync, A](
     path: String,
     cfg: Configuration,
     encoder: AvroEncoder[A],
-    compression: Pipe[F, Byte, Byte],
-    blocker: Blocker): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
+    compression: Pipe[F, Byte, Byte]): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
     val grc: Pipe[F, A, GenericRecord]     = new GenericRecordCodec[F, A].encode(encoder)
     val pipe: Pipe[F, GenericRecord, Byte] = new JacksonSerialization[F](encoder.schema).serialize
-    val sink: Pipe[F, Byte, Unit]          = NJHadoop[F](cfg, blocker).byteSink(path)
+    val sink: Pipe[F, Byte, Unit]          = NJHadoop[F](cfg).byteSink(path)
     ss.through(grc).through(pipe).through(compression).through(sink)
   }
 
-  def parquet[F[_]: ContextShift: Sync, A](
+  def parquet[F[_]: Sync, A](
     path: String,
     cfg: Configuration,
     encoder: AvroEncoder[A],
-    ccn: CompressionCodecName,
-    blocker: Blocker): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
+    ccn: CompressionCodecName): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
     val grc: Pipe[F, A, GenericRecord]     = new GenericRecordCodec[F, A].encode(encoder)
-    val sink: Pipe[F, GenericRecord, Unit] = NJHadoop[F](cfg, blocker).parquetSink(path, encoder.schema, ccn)
+    val sink: Pipe[F, GenericRecord, Unit] = NJHadoop[F](cfg).parquetSink(path, encoder.schema, ccn)
     ss.through(grc).through(sink)
   }
 
-  def circe[F[_]: ContextShift: Sync, A: JsonEncoder](
+  def circe[F[_]: Sync, A: JsonEncoder](
     path: String,
     cfg: Configuration,
     isKeepNull: Boolean,
-    compression: Pipe[F, Byte, Byte],
-    blocker: Blocker): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
+    compression: Pipe[F, Byte, Byte]): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
     val pipe: Pipe[F, A, Byte]    = new CirceSerialization[F, A].serialize(isKeepNull)
-    val sink: Pipe[F, Byte, Unit] = NJHadoop[F](cfg, blocker).byteSink(path)
+    val sink: Pipe[F, Byte, Unit] = NJHadoop[F](cfg).byteSink(path)
     ss.through(pipe).through(compression).through(sink)
   }
 
-  def text[F[_]: ContextShift: Sync, A: Show](
+  def text[F[_]: Sync, A: Show](
     path: String,
     cfg: Configuration,
-    compression: Pipe[F, Byte, Byte],
-    blocker: Blocker): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
+    compression: Pipe[F, Byte, Byte]): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
     val pipe: Pipe[F, String, Byte] = new TextSerialization[F].serialize
-    val sink: Pipe[F, Byte, Unit]   = NJHadoop[F](cfg, blocker).byteSink(path)
+    val sink: Pipe[F, Byte, Unit]   = NJHadoop[F](cfg).byteSink(path)
     ss.map(_.show).through(pipe).through(compression).through(sink)
   }
 
-  def protobuf[F[_]: ContextShift: Concurrent, A](path: String, cfg: Configuration, blocker: Blocker)(implicit
+  def protobuf[F[_]: Async, A](path: String, cfg: Configuration)(implicit 
     enc: A <:< GeneratedMessage): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
-    val pipe: Pipe[F, A, Byte]    = new DelimitedProtoBufSerialization[F].serialize(blocker)
-    val sink: Pipe[F, Byte, Unit] = NJHadoop[F](cfg, blocker).byteSink(path)
+    val pipe: Pipe[F, A, Byte]    = new DelimitedProtoBufSerialization[F].serialize
+    val sink: Pipe[F, Byte, Unit] = NJHadoop[F](cfg).byteSink(path)
     ss.through(pipe).through(sink)
   }
 
-  def csv[F[_]: ContextShift: Concurrent, A: RowEncoder](
+  def csv[F[_]: Async, A: RowEncoder](
     path: String,
     cfg: Configuration,
     csvConf: CsvConfiguration,
-    compression: Pipe[F, Byte, Byte],
-    blocker: Blocker): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
-    val pipe: Pipe[F, A, Byte]    = new CsvSerialization[F, A](csvConf).serialize(blocker)
-    val sink: Pipe[F, Byte, Unit] = NJHadoop[F](cfg, blocker).byteSink(path)
+    compression: Pipe[F, Byte, Byte]): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
+    val pipe: Pipe[F, A, Byte]    = new CsvSerialization[F, A](csvConf).serialize
+    val sink: Pipe[F, Byte, Unit] = NJHadoop[F](cfg).byteSink(path)
     ss.through(pipe).through(compression).through(sink)
   }
 }

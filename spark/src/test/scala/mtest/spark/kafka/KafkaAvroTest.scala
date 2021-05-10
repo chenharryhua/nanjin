@@ -6,13 +6,13 @@ import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.cats.implicits._
 import io.circe.generic.auto._
-import mtest.spark.{blocker, contextShift}
 import org.scalatest.funsuite.AnyFunSuite
 import shapeless._
 import fs2.kafka.ProducerRecord
 import fs2.kafka.ProducerRecords
+import cats.effect.unsafe.implicits.global
 
-object KafkaAvroTestData { 
+object KafkaAvroTestData {
   final case class Child1(a: Int, b: String)
   final case class Child2(a: Int, b: String)
 
@@ -65,7 +65,7 @@ class KafkaAvroTest extends AnyFunSuite {
     val run = topicCO.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicCO.schemaRegistry.register >>
       data.compile.drain >>
-      sk.fromKafka.save.avro(path).file.run(blocker) >>
+      sk.fromKafka.flatMap(_.save.avro(path).file.run) >>
       IO(sk.load.rdd.avro(path).rdd.collect().toSet)
     intercept[Exception](run.unsafeRunSync().flatMap(_.value) == Set(co1, co2))
   }
@@ -85,22 +85,22 @@ class KafkaAvroTest extends AnyFunSuite {
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegistry.register >>
       data.compile.drain >>
-      sk.fromKafka.save.avro(avroPath).file.run(blocker) >>
-      sk.fromKafka.save.jackson(jacksonPath).file.run(blocker) >>
-      sk.fromKafka.save.circe(circePath).file.run(blocker) >>
+      sk.fromKafka.flatMap(_.save.avro(avroPath).file.run) >>
+      sk.fromKafka.flatMap(_.save.jackson(jacksonPath).file.run) >>
+      sk.fromKafka.flatMap(_.save.circe(circePath).file.run) >>
       IO(sk.load.rdd.avro(avroPath).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
 
     val avro =
-      sk.load.stream.avro(avroPath, blocker).mapFilter(_.value).compile.toList.unsafeRunSync().toSet
+      sk.load.stream.avro(avroPath).mapFilter(_.value).compile.toList.unsafeRunSync().toSet
     assert(avro == Set(en1, en2))
 
     val jackson =
-      sk.load.stream.jackson(jacksonPath, blocker).mapFilter(_.value).compile.toList.unsafeRunSync().toSet
+      sk.load.stream.jackson(jacksonPath).mapFilter(_.value).compile.toList.unsafeRunSync().toSet
     assert(jackson == Set(en1, en2))
 
     val circe =
-      sk.load.stream.circe(circePath, blocker).mapFilter(_.value).compile.toList.unsafeRunSync().toSet
+      sk.load.stream.circe(circePath).mapFilter(_.value).compile.toList.unsafeRunSync().toSet
     assert(circe == Set(en1, en2))
 
   }
@@ -119,7 +119,7 @@ class KafkaAvroTest extends AnyFunSuite {
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegistry.register >>
       data.compile.drain >>
-      sk.fromKafka.save.avro(path).folder.run(blocker) >>
+      sk.fromKafka.flatMap(_.save.avro(path).folder.run) >>
       IO(sk.load.rdd.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
@@ -138,7 +138,7 @@ class KafkaAvroTest extends AnyFunSuite {
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegistry.register >>
       data.compile.drain >>
-      sk.fromKafka.save.avro(path).snappy.folder.run(blocker) >>
+      sk.fromKafka.flatMap(_.save.avro(path).snappy.folder.run) >>
       IO(sk.load.rdd.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
@@ -155,7 +155,7 @@ class KafkaAvroTest extends AnyFunSuite {
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegistry.register >>
       data.compile.drain >>
-      sk.fromKafka.save.avro(path).snappy.file.run(blocker) >>
+      sk.fromKafka.flatMap(_.save.avro(path).snappy.file.run) >>
       IO(sk.load.rdd.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }

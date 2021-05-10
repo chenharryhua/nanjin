@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Show
-import cats.effect.{Blocker, ContextShift, Sync}
+import cats.effect.Sync
 import com.github.chenharryhua.nanjin.spark.RddExt
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.rdd.RDD
@@ -29,11 +29,11 @@ final class SaveSingleText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: Str
   def deflate(level: Int): SaveSingleText[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(level)))
   def uncompress: SaveSingleText[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
-  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F], show: Show[A]): F[Unit] = {
+  def run(implicit F: Sync[F], show: Show[A]): F[Unit] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hc)
-    sma.checkAndRun(blocker)(
-      rdd.stream[F].through(sinks.text(params.outPath, hc, params.compression.fs2Compression, blocker)).compile.drain)
+    sma.checkAndRun(
+      rdd.stream[F].through(sinks.text(params.outPath, hc, params.compression.fs2Compression)).compile.drain)
   }
 }
 
@@ -53,7 +53,7 @@ final class SaveMultiText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: Stri
   def deflate(level: Int): SaveMultiText[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(level)))
   def uncompress: SaveMultiText[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
-  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F], show: Show[A]): F[Unit] =
+  def run(implicit F: Sync[F], show: Show[A]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-      .checkAndRun(blocker)(F.delay(saveRDD.text(rdd, params.outPath, params.compression, suffix)))
+      .checkAndRun(F.delay(saveRDD.text(rdd, params.outPath, params.compression, suffix)))
 }

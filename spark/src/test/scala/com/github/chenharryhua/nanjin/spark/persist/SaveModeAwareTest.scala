@@ -5,6 +5,7 @@ import cats.effect.IO
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.sql.SaveMode
 import org.scalatest.funsuite.AnyFunSuite
+import cats.effect.unsafe.implicits.global
 
 class SaveModeAwareTest extends AnyFunSuite {
   import mtest.spark._
@@ -12,12 +13,12 @@ class SaveModeAwareTest extends AnyFunSuite {
 
   test("error if exists") {
     val sma = new SaveModeAware[IO](SaveMode.ErrorIfExists, "./data", hadoopConfig)
-    assertThrows[Exception](sma.checkAndRun(blocker)(IO(())).unsafeRunSync())
+    assertThrows[Exception](sma.checkAndRun(IO(())).unsafeRunSync())
   }
 
   test("ignore if exists") {
     val sma = new SaveModeAware[IO](SaveMode.Ignore, "./data", hadoopConfig)
-    sma.checkAndRun(blocker)(IO(())).unsafeRunSync()
+    sma.checkAndRun(IO(())).unsafeRunSync() 
   }
 
   test("overwrite if exists") {
@@ -25,7 +26,7 @@ class SaveModeAwareTest extends AnyFunSuite {
     val file = File(path)
     file.createFileIfNotExists(true).overwrite("hello")
     val sma = new SaveModeAware[IO](SaveMode.Overwrite, path, hadoopConfig)
-    sma.checkAndRun(blocker)(IO(file.overwrite("world")).void).unsafeRunSync()
+    sma.checkAndRun(IO(file.overwrite("world")).void).unsafeRunSync()
     assert(file.contentAsString == "world")
   }
 }

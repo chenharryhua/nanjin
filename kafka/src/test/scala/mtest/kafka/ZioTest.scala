@@ -1,5 +1,7 @@
 package mtest.kafka
 
+import akka.stream.scaladsl.Sink
+import cats.effect.IO
 import com.github.chenharryhua.nanjin.kafka._
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.scalatest.funsuite.AnyFunSuite
@@ -7,11 +9,11 @@ import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.console.Console
 import zio.interop.catz._
-import zio.interop.catz.implicits.ioTimer
 import zio.random.Random
 import zio.system.System
 import zio.{Runtime, Task}
 
+import scala.concurrent.Await
 import scala.concurrent.duration._
 
 class ZioTest extends AnyFunSuite {
@@ -49,7 +51,7 @@ class ZioTest extends AnyFunSuite {
       .take(1)
       .map(_.toString)
       .map(println)
-      .runWith(stages.ignore)
-    runtime.unsafeRun(task)
+      .runWith(Sink.ignore)
+    Await.result(task, 10.seconds)
   }
 }

@@ -15,7 +15,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import java.time.Instant
 import scala.math.BigDecimal
 import scala.math.BigDecimal.RoundingMode
-
+import cats.effect.unsafe.implicits.global
 final case class RoosterLike(c: BigDecimal, d: BigDecimal)
 
 object RoosterLike {

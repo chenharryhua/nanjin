@@ -6,6 +6,7 @@ import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 import mtest.spark._
+import cats.effect.unsafe.implicits.global
 
 @DoNotDiscover
 class JacksonTest extends AnyFunSuite {
@@ -15,18 +16,18 @@ class JacksonTest extends AnyFunSuite {
 
   test("datetime read/write identity - multi") {
     val path = "./data/test/spark/persist/jackson/rooster/multi.json"
-    rooster.jackson(path).folder.errorIfExists.ignoreIfExists.overwrite.uncompress.run(blocker).unsafeRunSync()
+    rooster.jackson(path).folder.errorIfExists.ignoreIfExists.overwrite.uncompress.run.unsafeRunSync()
     val r = loaders.rdd.jackson[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession)
     assert(RoosterData.expected == r.collect().toSet)
   }
 
   test("datetime read/write identity - single") {
     val path = "./data/test/spark/persist/jackson/rooster/single.json"
-    rooster.jackson(path).file.run(blocker).unsafeRunSync()
+    rooster.jackson(path).file.run.unsafeRunSync()
     val r = loaders.jackson[Rooster](path, Rooster.ate, sparkSession)
     assert(RoosterData.expected == r.collect[IO]().unsafeRunSync().toSet)
     val t3 = loaders.stream
-      .jackson[IO, Rooster](path, Rooster.avroCodec.avroDecoder, blocker, sparkSession.sparkContext.hadoopConfiguration)
+      .jackson[IO, Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession.sparkContext.hadoopConfiguration)
       .compile
       .toList
       .unsafeRunSync()
@@ -40,7 +41,7 @@ class JacksonTest extends AnyFunSuite {
   test("byte-array read/write identity - single") {
     import cats.implicits._
     val path = "./data/test/spark/persist/jackson/bee/single.json"
-    bee.jackson(path).file.run(blocker).unsafeRunSync()
+    bee.jackson(path).file.run.unsafeRunSync()
     val t = loaders.rdd.jackson[Bee](path, Bee.avroCodec.avroDecoder, sparkSession).collect().toList
     assert(BeeData.bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
@@ -48,7 +49,7 @@ class JacksonTest extends AnyFunSuite {
   test("byte-array read/write identity - multi") {
     import cats.implicits._
     val path = "./data/test/spark/persist/jackson/bee/multi.json"
-    bee.jackson(path).folder.run(blocker).unsafeRunSync()
+    bee.jackson(path).folder.run.unsafeRunSync()
     val t = loaders.rdd.jackson[Bee](path, Bee.avroCodec.avroDecoder, sparkSession).collect().toList
     assert(BeeData.bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
@@ -56,7 +57,7 @@ class JacksonTest extends AnyFunSuite {
   test("byte-array read/write identity - multi.gzip") {
     import cats.implicits._
     val path = "./data/test/spark/persist/jackson/bee/multi.gzip.json"
-    bee.jackson(path).folder.gzip.run(blocker).unsafeRunSync()
+    bee.jackson(path).folder.gzip.run.unsafeRunSync()
     val t = loaders.rdd.jackson[Bee](path, Bee.avroCodec.avroDecoder, sparkSession).collect().toList
     assert(BeeData.bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
@@ -64,7 +65,7 @@ class JacksonTest extends AnyFunSuite {
   test("byte-array read/write identity - multi.bzip2") {
     import cats.implicits._
     val path = "./data/test/spark/persist/jackson/bee/multi.bzip2.json"
-    bee.jackson(path).folder.bzip2.run(blocker).unsafeRunSync()
+    bee.jackson(path).folder.bzip2.run.unsafeRunSync()
     val t = loaders.rdd.jackson[Bee](path, Bee.avroCodec.avroDecoder, sparkSession).collect().toList
     assert(BeeData.bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
@@ -72,7 +73,7 @@ class JacksonTest extends AnyFunSuite {
   test("byte-array read/write identity - multi.deflate") {
     import cats.implicits._
     val path = "./data/test/spark/persist/jackson/bee/multi.deflate.json"
-    bee.jackson(path).folder.deflate(9).run(blocker).unsafeRunSync()
+    bee.jackson(path).folder.deflate(9).run.unsafeRunSync()
     val t = loaders.rdd.jackson[Bee](path, Bee.avroCodec.avroDecoder, sparkSession).collect().toList
     assert(BeeData.bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
@@ -80,7 +81,7 @@ class JacksonTest extends AnyFunSuite {
   test("byte-array read/write identity - single.gzip") {
     import cats.implicits._
     val path = "./data/test/spark/persist/jackson/bee/single.json.gz"
-    bee.jackson(path).file.gzip.run(blocker).unsafeRunSync()
+    bee.jackson(path).file.gzip.run.unsafeRunSync()
     val t = loaders.rdd.jackson[Bee](path, Bee.avroCodec.avroDecoder, sparkSession).collect().toList
     assert(BeeData.bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
@@ -88,7 +89,7 @@ class JacksonTest extends AnyFunSuite {
   test("byte-array read/write identity - single.deflate") {
     import cats.implicits._
     val path = "./data/test/spark/persist/jackson/bee/single.json.deflate"
-    bee.jackson(path).file.deflate(3).run(blocker).unsafeRunSync()
+    bee.jackson(path).file.deflate(3).run.unsafeRunSync()
     val t = loaders.rdd.jackson[Bee](path, Bee.avroCodec.avroDecoder, sparkSession).collect().toList
     assert(BeeData.bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
@@ -96,7 +97,7 @@ class JacksonTest extends AnyFunSuite {
   test("jackson jacket") {
     val path  = "./data/test/spark/persist/jackson/jacket.json"
     val saver = new RddAvroFileHoarder[IO, Jacket](JacketData.rdd.repartition(3), Jacket.avroCodec.avroEncoder)
-    saver.jackson(path).folder.run(blocker).unsafeRunSync()
+    saver.jackson(path).folder.run.unsafeRunSync()
     val t = loaders.rdd.jackson(path, Jacket.avroCodec.avroDecoder, sparkSession)
     assert(JacketData.expected.toSet == t.collect().toSet)
   }
@@ -105,7 +106,7 @@ class JacksonTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/jackson/fractual.json"
     val saver =
       new RddAvroFileHoarder[IO, Fractual](FractualData.rdd.repartition(3), Fractual.avroCodec.avroEncoder)
-    saver.jackson(path).file.run(blocker).unsafeRunSync()
+    saver.jackson(path).file.run.unsafeRunSync()
     val t = loaders.rdd.jackson[Fractual](path, Fractual.avroCodec.avroDecoder, sparkSession).collect().toSet
     assert(FractualData.data.toSet == t)
   }

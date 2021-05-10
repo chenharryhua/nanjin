@@ -8,6 +8,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import java.time.Instant
 import scala.concurrent.duration._
 import scala.util.Random
+import cats.effect.unsafe.implicits.global
 
 class MonitorApiTest extends AnyFunSuite {
   val topic = ctx.topic[Int, Int]("monitor.test")

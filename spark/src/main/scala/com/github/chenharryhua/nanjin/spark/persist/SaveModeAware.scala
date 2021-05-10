@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.effect.{Blocker, ContextShift, Sync}
+import cats.effect.Sync
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.terminals.NJHadoop
 import org.apache.hadoop.conf.Configuration
@@ -12,8 +12,8 @@ final private[persist] class SaveModeAware[F[_]](
   hadoopConfiguration: Configuration)
     extends Serializable {
 
-  def checkAndRun(blocker: Blocker)(f: F[Unit])(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
-    val hadoop: NJHadoop[F] = NJHadoop[F](hadoopConfiguration, blocker)
+  def checkAndRun(f: F[Unit])(implicit F: Sync[F]): F[Unit] = {
+    val hadoop: NJHadoop[F] = NJHadoop[F](hadoopConfiguration)
 
     saveMode match {
       case SaveMode.Append    => f

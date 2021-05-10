@@ -5,6 +5,7 @@ import com.github.chenharryhua.nanjin.pipes.{BinaryAvroSerialization, GenericRec
 import com.sksamuel.avro4s.AvroSchema
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
+import cats.effect.unsafe.implicits.global
 
 class BinaryAvroPipeTest extends AnyFunSuite {
   import TestData._

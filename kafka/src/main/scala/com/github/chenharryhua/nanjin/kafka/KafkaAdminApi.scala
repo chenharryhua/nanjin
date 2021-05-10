@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.effect.{Concurrent, Resource}
+import cats.effect.{Async, Concurrent, Resource}
 import cats.syntax.all._
 import fs2.kafka.{AdminClientSettings, KafkaAdminClient}
 import org.apache.kafka.clients.admin.{NewTopic, TopicDescription}
@@ -20,14 +20,13 @@ sealed trait KafkaAdminApi[F[_]] {
 
 object KafkaAdminApi {
 
-  def apply[F[_]: Concurrent: ContextShift, K, V](topic: KafkaTopic[F, K, V]): KafkaAdminApi[F] =
+  def apply[F[_]: Async, K, V](topic: KafkaTopic[F, K, V]): KafkaAdminApi[F] =
     new KafkaTopicAdminApiImpl(topic)
 
-  final private class KafkaTopicAdminApiImpl[F[_]: Concurrent: ContextShift, K, V](topic: KafkaTopic[F, K, V])
-      extends KafkaAdminApi[F] {
+  final private class KafkaTopicAdminApiImpl[F[_]: Async, K, V](topic: KafkaTopic[F, K, V]) extends KafkaAdminApi[F] {
 
     override val adminResource: Resource[F, KafkaAdminClient[F]] =
-      KafkaAdminClient.resource[F](AdminClientSettings[F].withProperties(topic.context.settings.adminSettings.config)) 
+      KafkaAdminClient.resource[F](AdminClientSettings("").withProperties(topic.context.settings.adminSettings.config))
 
     override def idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence: F[Either[Throwable, Unit]] =
       adminResource.use(_.deleteTopic(topic.topicName.value).attempt)

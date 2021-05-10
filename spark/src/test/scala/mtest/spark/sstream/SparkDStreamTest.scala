@@ -10,11 +10,11 @@ import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import io.circe.generic.auto._
 import mtest.spark.kafka.sparKafka
-import mtest.spark.{contextShift, timer}
 import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration._
+import cats.effect.unsafe.implicits.global
 
 @DoNotDiscover
 class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {

@@ -1,13 +1,14 @@
 package mtest.spark.database
 
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.database.TableName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.database.{SparkDBTable, TableDef}
 import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
-import mtest.spark.{contextShift, sparkSession}
+import mtest.spark.sparkSession
 import org.apache.spark.rdd.RDD
 import org.scalatest.funsuite.AnyFunSuite
 

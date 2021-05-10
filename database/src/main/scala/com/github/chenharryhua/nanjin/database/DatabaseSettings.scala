@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.database
 
 import cats.effect.{Async, Concurrent, Resource}
-import cats.syntax.all._
+import cats.syntax.functor._
 import com.zaxxer.hikari.HikariConfig
-import doobie.free.connection.{AsyncConnectionIO, ConnectionIO}
+import doobie.free.connection.ConnectionIO
 import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
 import fs2.{Chunk, Pipe, Stream}
@@ -11,27 +11,25 @@ import io.getquill.codegen.jdbc.SimpleJdbcCodegen
 import monocle.macros.Lenses
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
-import cats.effect.Temporal
 
-sealed abstract class DatabaseSettings(username: Username, password: Password)
-    extends Serializable {
+sealed abstract class DatabaseSettings(username: Username, password: Password) extends Serializable {
   def database: DatabaseName
   def hikariConfig: HikariConfig
 
   def withPassword(psw: String): DatabaseSettings
   def withUsername(un: String): DatabaseSettings
 
-  final def transactorResource[F[_]: ContextShift: Async]: Resource[F, HikariTransactor[F]] =
+  final def transactorResource[F[_]: Async]: Resource[F, HikariTransactor[F]] =
     ExecutionContexts.fixedThreadPool[F](8).flatMap { threadPool =>
-      HikariTransactor.fromHikariConfig[F](hikariConfig, threadPool, blocker)
+      HikariTransactor.fromHikariConfig[F](hikariConfig, threadPool)
     }
 
-  final def transactorStream[F[_]: ContextShift: Async]: Stream[F, HikariTransactor[F]] =
-    Stream.resource(transactorResource(blocker))
+  final def transactorStream[F[_]: Async]: Stream[F, HikariTransactor[F]] =
+    Stream.resource(transactorResource)
 
-  final def genCaseClass[F[_]: ContextShift: Async]: F[String] =
+  final def genCaseClass[F[_]: Async]: F[String] =
     Resource.unit[F].use { blocker =>
-      transactorResource[F](blocker).use {
+      transactorResource[F].use {
         _.configure { hikari =>
           Async[F]
             .delay(new SimpleJdbcCodegen(() => hikari.getConnection, ""))
@@ -40,25 +38,25 @@ sealed abstract class DatabaseSettings(username: Username, password: Password)
       }
     }
 
-  final def runQuery[F[_]: ContextShift: Async, A](action: ConnectionIO[A]): F[A] =
-    transactorResource[F](blocker).use(_.trans.apply(action))
+  final def runQuery[F[_]: Async, A](action: ConnectionIO[A]): F[A] =
+    transactorResource[F].use(_.trans.apply(action))
 
-  final def runStream[F[_]: ContextShift: Async, A](script: Stream[ConnectionIO, A]): Stream[F, A] =
-    transactorStream[F](blocker).flatMap(_.transP.apply(script))
+  final def runStream[F[_]: Async, A](script: Stream[ConnectionIO, A]): Stream[F, A] =
+    transactorStream[F].flatMap(_.transP.apply(script))
 
-  final def runBatch[F[_]: ContextShift: Concurrent: Temporal, A, B](f: A => ConnectionIO[B],
+  final def runBatch[F[_]: Async, A, B](
+    f: A => ConnectionIO[B],
     batchSize: Int,
-    duration: FiniteDuration
-  ): Pipe[F, A, Chunk[B]] =
+    duration: FiniteDuration): Pipe[F, A, Chunk[B]] =
     (src: Stream[F, A]) =>
       for {
-        xa <- transactorStream[F](blocker)
+        xa <- transactorStream[F]
         data <- src.groupWithin(batchSize, duration)
-        rst <- Stream.eval(xa.trans.apply(data.traverse(f)(AsyncConnectionIO)))
+        rst <- Stream.eval(xa.trans.apply(data.traverse(f)(doobie.free.connection.WeakAsyncConnectionIO)))
       } yield rst
 
-  final def runBatch[F[_]: ContextShift: Concurrent: Temporal, A, B](f: A => ConnectionIO[B]): Pipe[F, A, Chunk[B]] =
-    runBatch[F, A, B](blocker, f, batchSize = 1000, duration = 5.seconds)
+  final def runBatch[F[_]: Concurrent: Async, A, B](f: A => ConnectionIO[B]): Pipe[F, A, Chunk[B]] =
+    runBatch[F, A, B](f, batchSize = 1000, duration = 5.seconds)
 }
 
 @Lenses final case class Postgres(

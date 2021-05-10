@@ -5,6 +5,7 @@ import com.github.chenharryhua.nanjin.pipes.{GenericRecordCodec, JacksonSerializ
 import com.sksamuel.avro4s.AvroSchema
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
+import cats.effect.unsafe.implicits.global
 
 class JsonAvroPipeTest extends AnyFunSuite {
   import TestData._

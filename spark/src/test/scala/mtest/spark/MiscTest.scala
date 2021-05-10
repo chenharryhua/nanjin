@@ -14,6 +14,7 @@ import org.apache.spark.rdd.RDD
 
 import scala.util.Random
 import org.apache.spark.sql.SparkSession
+import cats.effect.unsafe.implicits.global
 
 object JoinTestData {
   final case class Brother(id: Int, rel: String)
@@ -68,11 +69,7 @@ class MiscTest extends AnyFunSuite {
     val path = "./data/test/spark/protobuf/whales.pb"
     TypedDataset.create(whales).write.mode(SaveMode.Overwrite).parquet(path)
     val rst =
-      TypedDataset
-        .createUnsafe[Whale](sparkSession.read.parquet(path))
-        .collect[IO]
-        .unsafeRunSync()
-        .toSet
+      TypedDataset.createUnsafe[Whale](sparkSession.read.parquet(path)).collect[IO].unsafeRunSync().toSet
     assert(rst == whales.toSet)
   }
 

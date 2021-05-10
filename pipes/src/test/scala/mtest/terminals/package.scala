@@ -15,11 +15,7 @@ import cats.effect.Temporal
 
 package object terminals {
 
-  implicit val cs: ContextShift[IO] = IO.contextShift(global)
-  implicit val timer: Temporal[IO]     = IO.timer(global)
-  val akkaSystem: ActorSystem       = ActorSystem("nj-devices")
-
-  val blocker: Blocker = Blocker.liftExecutionContext(global)
+  val akkaSystem: ActorSystem = ActorSystem("nj-devices")
 
   val cred = FtpCredentials.create("chenh", "test")
 

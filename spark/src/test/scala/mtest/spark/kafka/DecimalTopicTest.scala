@@ -9,12 +9,12 @@ import com.github.chenharryhua.nanjin.spark.kafka.{NJProducerRecord, SparKafkaTo
 import frameless.TypedEncoder
 import frameless.cats.implicits._
 import io.circe.generic.auto._
-import mtest.spark.{blocker, contextShift, timer}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
 import scala.math.BigDecimal
 import scala.math.BigDecimal.RoundingMode
+import cats.effect.unsafe.implicits.global
 
 object DecimalTopicTestCase {
 
@@ -92,7 +92,7 @@ class DecimalTopicTest extends AnyFunSuite {
 
   test("sparKafka kafka and spark agree on circe") {
     val path = "./data/test/spark/kafka/decimal.circe.json"
-    stopic.fromKafka.save.circe(path).file.run(blocker).unsafeRunSync
+    stopic.fromKafka.flatMap(_.save.circe(path).file.run).unsafeRunSync
 
     val rdd = stopic.load.rdd.circe(path)
     val ds  = stopic.load.circe(path)

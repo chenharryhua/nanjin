@@ -16,6 +16,7 @@ import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration._
+import cats.effect.unsafe.implicits.global
 
 object KafkaStreamingData {
 
@@ -32,8 +33,8 @@ object KafkaStreamingData {
 
   val tgt: KafkaTopic[IO, Int, StreamTarget] = ctx.topic[Int, StreamTarget]("stream.test.join.target")
 
-  val sendS1Data: Stream[IO, ProducerResult[Int, StreamOne, Unit]] = Stream
-    .fixedRate(1.seconds)
+  val sendS1Data: Stream[IO, ProducerResult[Unit, Int, StreamOne]] = Stream
+    .fixedRate[IO](1.seconds)
     .zipRight(
       Stream
         .emits(List(
@@ -50,7 +51,7 @@ object KafkaStreamingData {
         .through(s1Topic.fs2Channel.producerPipe)
         .debug())
 
-  val sendT2Data: Stream[IO, ProducerResult[Int, TableTwo, Unit]] =
+  val sendT2Data: Stream[IO, ProducerResult[Unit, Int, TableTwo]] =
     Stream(
       ProducerRecords(List(
         ProducerRecord(t2Topic.topicName.value, 1, TableTwo("x", 0)),
@@ -58,7 +59,7 @@ object KafkaStreamingData {
         ProducerRecord(t2Topic.topicName.value, 3, TableTwo("z", 2))
       ))).covary[IO].through(t2Topic.fs2Channel.producerPipe)
 
-  val sendG3Data: Stream[IO, ProducerResult[Int, GlobalThree, Unit]] =
+  val sendG3Data: Stream[IO, ProducerResult[Unit, Int, GlobalThree]] =
     Stream(
       ProducerRecords(List(
         ProducerRecord(g3Topic.topicName.value, 4, GlobalThree("gx", 1000)),
@@ -99,18 +100,18 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
     val harvest: Stream[IO, StreamTarget] =
       tgt.fs2Channel.stream
         .map(x => tgt.decoder(x).decode)
-        .observe(_.map(_.offset).through(commitBatchWithin(3, 1.seconds)))
+        .observe(_.map(_.offset).through(commitBatchWithin[IO](3, 1.seconds)).printlns)
         .map(_.record.value)
 
     val runStream: Stream[IO, StreamTarget] =
       harvest
         .concurrently(sendS1Data)
         .concurrently(
-          ctx.buildStreams(top).run.handleErrorWith(_ => Stream.sleep(2.seconds) >> ctx.buildStreams(top).run) >>
+          ctx.buildStreams(top).run.handleErrorWith(_ => Stream.sleep[IO](2.seconds) >> ctx.buildStreams(top).run) >>
             Stream.never[IO])
         .interruptAfter(15.seconds)
 
-    val res: Set[StreamTarget] = runStream.compile.toList.unsafeRunSync().toSet
+    val res: Set[StreamTarget] = runStream.compile.toList.unsafeRunSync().toSet 
     println(res)
     assert(res == expected)
   }

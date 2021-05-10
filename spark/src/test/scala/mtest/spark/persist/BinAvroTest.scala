@@ -6,6 +6,7 @@ import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 import mtest.spark._
+import cats.effect.unsafe.implicits.global
 
 @DoNotDiscover
 class BinAvroTest extends AnyFunSuite {
@@ -15,7 +16,7 @@ class BinAvroTest extends AnyFunSuite {
 
   test("binary avro - multi file") {
     val path = "./data/test/spark/persist/bin_avro/multi.bin.avro"
-    saver.binAvro(path).folder.append.errorIfExists.ignoreIfExists.overwrite.run(blocker).unsafeRunSync()
+    saver.binAvro(path).folder.append.errorIfExists.ignoreIfExists.overwrite.run.unsafeRunSync()
     val r = loaders.rdd.binAvro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
     val t = loaders.binAvro[Rooster](path, Rooster.ate, sparkSession).collect[IO]().unsafeRunSync().toSet
     assert(RoosterData.expected == r)
@@ -25,7 +26,7 @@ class BinAvroTest extends AnyFunSuite {
   test("binary avro - single file") {
     val path = "./data/test/spark/persist/bin_avro/single.bin.avro"
 
-    saver.binAvro(path).file.run(blocker).unsafeRunSync()
+    saver.binAvro(path).file.run.unsafeRunSync()
     val r = loaders.rdd.binAvro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
     val t = loaders.binAvro[Rooster](path, Rooster.ate, sparkSession).collect[IO]().unsafeRunSync().toSet
     assert(RoosterData.expected == r)

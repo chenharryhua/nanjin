@@ -17,6 +17,7 @@ import mtest.kafka._
 import scala.concurrent.duration._
 import scala.util.Random
 import scala.collection.JavaConverters._
+import cats.effect.unsafe.implicits.global
 
 @DoNotDiscover
 class InteractiveTest extends AnyFunSuite {
@@ -43,10 +44,10 @@ class InteractiveTest extends AnyFunSuite {
     val res =
       for {
         _ <- data
-        _ <- Stream.sleep(1.seconds)
+        _ <- Stream.sleep[IO](1.seconds)
         kss1 <- ctx.buildStreams(top).run
         kss2 <- ctx.buildStreams(gtop).run
-        _ <- Stream.sleep(2.seconds)
+        _ <- Stream.sleep[IO](2.seconds)
       } yield {
         val g = kss1.store(sq).all().asScala.toList.sortBy(_.key)
         val q = kss2.store(gsq).all().asScala.toList.sortBy(_.key)
