@@ -48,7 +48,7 @@ private[spark] object NJDataTypeF {
     private val dt: String = dataType.toCaseClass
 
     val fieldStr: String =
-      s"""  $colName:${if (nullable) s"Option[$dt]" else dt}"""
+      s"""  $colName\t\t\t\t\t\t\t:${if (nullable) s"Option[$dt]" else dt}"""
   }
 
   val algebra: Algebra[NJDataTypeF, DataType] = Algebra[NJDataTypeF, DataType] {
