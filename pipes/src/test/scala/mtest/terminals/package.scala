@@ -6,16 +6,17 @@ import java.net.InetAddress
 import akka.actor.ActorSystem
 import akka.stream.alpakka.ftp.FtpCredentials.NonAnonFtpCredentials
 import akka.stream.alpakka.ftp.{FtpCredentials, FtpSettings}
-import cats.effect.{Blocker, ContextShift, IO, Timer}
+import cats.effect.IO
 import org.apache.commons.net.PrintCommandListener
 import org.apache.commons.net.ftp.FTPClient
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import cats.effect.Temporal
 
 package object terminals {
 
   implicit val cs: ContextShift[IO] = IO.contextShift(global)
-  implicit val timer: Timer[IO]     = IO.timer(global)
+  implicit val timer: Temporal[IO]     = IO.timer(global)
   val akkaSystem: ActorSystem       = ActorSystem("nj-devices")
 
   val blocker: Blocker = Blocker.liftExecutionContext(global)

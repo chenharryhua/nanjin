@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.terminals
 
-import cats.effect.{Blocker, ContextShift, Resource, Sync}
+import cats.effect.{Resource, Sync}
 import cats.syntax.all._
 import fs2.io.{readInputStream, writeOutputStream}
 import fs2.{Pipe, Pull, Stream}
@@ -35,7 +35,7 @@ sealed trait NJHadoop[F[_]] {
 
 object NJHadoop {
 
-  def apply[F[_]: ContextShift](config: Configuration, blocker: Blocker)(implicit F: Sync[F]): NJHadoop[F] =
+  def apply[F[_]: ContextShift](config: Configuration)(implicit F: Sync[F]): NJHadoop[F] =
     new NJHadoop[F] with Serializable {
 
       /** Notes: do not close file-system.

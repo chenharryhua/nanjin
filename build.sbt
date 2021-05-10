@@ -6,15 +6,15 @@ cancelable in Global           := true
 version in ThisBuild := "0.11.0-SNAPSHOT"
 
 // generic
-val shapeless  = "2.3.4"
+val shapeless  = "2.3.3"
 val contextual = "1.2.1"
-val kittens    = "2.2.2"
+val kittens    = "2.3.0"
 val catsCore   = "2.6.0"
 val algebra    = "2.2.2"
 val fs2Version = "3.0.2"
 val catsMtl    = "1.2.0"
 val catsTime   = "0.3.4"
-val tagless    = "0.13.0"
+val tagless    = "0.14.0"
 val monocle    = "2.1.0"
 val refined    = "0.9.24"
 val droste     = "0.8.0"
@@ -24,20 +24,20 @@ val chimney    = "0.6.1"
 // runtime
 val zioCats    = "2.4.1.0"
 val monix      = "3.3.0"
-val catsEffect = "2.4.0"
+val catsEffect = "3.0.0"
 val akka26     = "2.6.14"
 
 // kafka
 val akkaKafka   = "2.0.7"
-val fs2Kafka    = "1.5.0"
+val fs2Kafka    = "1.6.1"
 
 // spark
 val spark3    = "3.1.1"
 val frameless = "0.10.1"
 
 // database
-val doobie   = "0.13.0"
-val quill    = "3.7.0"
+val doobie   = "0.13.2"
+val quill    = "3.7.1"
 val neotypes = "0.17.0"
 val elastic  = "7.10.0"
 
@@ -56,7 +56,7 @@ val akkaFtp = "2.0.2"
 
 // misc
 val silencer    = "1.7.3"
-val jline       = "3.19.0"
+val jline       = "3.20.0"
 val log4s       = "1.8.2"
 val betterFiles = "3.9.1"
 
@@ -162,10 +162,10 @@ val kantanLib = Seq(
 ).map(_ % kantan) ++ Seq("com.nrinaudo" %% "kantan.codecs" % "0.5.2")
 
 val pbLib = Seq(
-  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.1",
+  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.2",
   "io.confluent"                              % "kafka-protobuf-serializer" % "6.1.1",
-  "com.google.protobuf"                       % "protobuf-java"             % "3.15.8",
-  "com.google.protobuf"                       % "protobuf-java-util"        % "3.15.8"
+  "com.google.protobuf"                       % "protobuf-java"             % "3.16.0",
+  "com.google.protobuf"                       % "protobuf-java-util"        % "3.16.0"
 )
 
 val serdeLib = Seq(
@@ -211,8 +211,8 @@ val sparkLib = Seq(
 ).map(_ % avro)
 
 val testLib = Seq(
-  "org.typelevel" %% "cats-testkit-scalatest"                 % "2.1.3"         % Test,
-  "org.typelevel" %% "discipline-scalatest"                   % "2.1.3"         % Test,
+  "org.typelevel" %% "cats-testkit-scalatest"                 % "2.1.4"         % Test,
+  "org.typelevel" %% "discipline-scalatest"                   % "2.1.4"         % Test,
   "org.typelevel" %% "cats-laws"                              % catsCore        % Test,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.5"         % Test,
   "org.scalatest" %% "scalatest"                              % scalatest       % Test,
