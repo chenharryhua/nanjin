@@ -6,7 +6,7 @@ cancelable in Global           := true
 version in ThisBuild := "0.11.0-SNAPSHOT"
 
 // generic
-val shapeless  = "2.3.6"
+val shapeless  = "2.3.3"
 val contextual = "1.2.1"
 val kittens    = "2.3.0"
 val catsCore   = "2.6.0"
@@ -24,7 +24,7 @@ val chimney    = "0.6.1"
 // runtime
 val zioCats    = "2.4.1.0"
 val monix      = "3.3.0"
-val catsEffect = "2.4.0"
+val catsEffect = "2.5.0"
 val akka26     = "2.6.14"
 
 // kafka
