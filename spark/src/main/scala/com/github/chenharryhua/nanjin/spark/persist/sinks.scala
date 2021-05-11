@@ -75,7 +75,7 @@ object sinks {
     ss.map(_.show).through(pipe).through(compression).through(sink)
   }
 
-  def protobuf[F[_]: Async, A](path: String, cfg: Configuration)(implicit 
+  def protobuf[F[_]: Async, A](path: String, cfg: Configuration)(implicit
     enc: A <:< GeneratedMessage): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
     val pipe: Pipe[F, A, Byte]    = new DelimitedProtoBufSerialization[F].serialize
     val sink: Pipe[F, Byte, Unit] = NJHadoop[F](cfg).byteSink(path)

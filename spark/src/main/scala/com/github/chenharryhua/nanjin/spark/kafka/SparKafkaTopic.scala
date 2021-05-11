@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import akka.actor.ActorSystem
 import cats.Foldable
-import cats.data.Reader
+import cats.data.Kleisli
 import cats.effect.{Async, Sync}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
@@ -83,13 +83,14 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
 
   /** DStream
     */
-  def dstream(implicit F: Async[F]): Reader[StreamingContext, AvroDStreamSink[NJConsumerRecord[K, V]]] =
-    Reader((sc: StreamingContext) =>
-      new AvroDStreamSink(
-        sk.kafkaDStream(topic, sc, params.locationStrategy),
-        NJConsumerRecord.avroCodec(topic.topicDef).avroEncoder,
-        SDConfig(params.timeRange.zoneId)
-      ))
+  def dstream(implicit F: Async[F]): Kleisli[F, StreamingContext, AvroDStreamSink[NJConsumerRecord[K, V]]] =
+    Kleisli((sc: StreamingContext) =>
+      sk.kafkaDStream(topic, sc, params.locationStrategy)
+        .map(ds =>
+          new AvroDStreamSink(
+            ds,
+            NJConsumerRecord.avroCodec(topic.topicDef).avroEncoder,
+            SDConfig(params.timeRange.zoneId))))
 
   /** structured stream
     */

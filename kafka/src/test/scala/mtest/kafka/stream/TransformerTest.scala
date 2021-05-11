@@ -77,7 +77,7 @@ class TransformerTest extends AnyFunSuite {
         .through(topic1.fs2Channel.producerPipe)
     val havest = tgt.fs2Channel.stream
       .map(tgt.decoder(_).decode)
-      .observe(_.map(_.offset).through(commitBatchWithin(10, 2.seconds)).printlns)
+      .observe(_.map(_.offset).through(commitBatchWithin(10, 2.seconds)).drain)
 
     val runStream =
       kafkaStreamService.run.handleErrorWith(_ => Stream.sleep[IO](2.seconds) ++ ctx.buildStreams(top).run)

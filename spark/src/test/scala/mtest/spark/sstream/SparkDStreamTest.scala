@@ -1,6 +1,7 @@
 package mtest.spark.sstream
 
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.common.NJLogLevel
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJTimestamp}
@@ -10,13 +11,12 @@ import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import io.circe.generic.auto._
 import mtest.spark.kafka.sparKafka
-import org.scalatest.{BeforeAndAfter, DoNotDiscover}
+import org.scalatest.BeforeAndAfter
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration._
-import cats.effect.unsafe.implicits.global
 
-@DoNotDiscover
+//@DoNotDiscover
 class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
 
   before(sparKafka.sparkSession.sparkContext.setLogLevel(NJLogLevel.ERROR.entryName))
@@ -46,19 +46,15 @@ class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
     val checkpoint = root + "checkpont/"
 
     val runner: DStreamRunner[IO] = DStreamRunner[IO](sparKafka.sparkSession.sparkContext, checkpoint, 3.second)
-    sender
-      .concurrently(
-        runner
-          .signup(topic.dstream)(_.avro(avro))
-          .signup(topic.dstream)(_.coalesce.jackson(jackson))
-          .signup(topic.dstream)(_.coalesce.circe(circe))
-          .run
-          .delayBy(2.seconds))
-      .interruptAfter(10.seconds)
-      .compile
-      .drain
-      .map(_ => println("dstream complete"))
-      .unsafeRunSync()
+
+    Stream(
+      sender,
+      runner
+        .signup(topic.dstream)(_.avro(avro))
+        .signup(topic.dstream)(_.coalesce.jackson(jackson))
+        .signup(topic.dstream)(_.coalesce.circe(circe))
+        .run
+    ).parJoin(2).interruptAfter(10.seconds).compile.drain.map(_ => println("dstream complete")).unsafeRunSync()
 
     val now = NJTimestamp.now().`Year=yyyy/Month=mm/Day=dd`(sydneyTime)
     val j   = topic.load.jackson(jackson + now).transform(_.distinct())

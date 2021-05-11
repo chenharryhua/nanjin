@@ -100,7 +100,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
     val harvest: Stream[IO, StreamTarget] =
       tgt.fs2Channel.stream
         .map(x => tgt.decoder(x).decode)
-        .observe(_.map(_.offset).through(commitBatchWithin[IO](3, 1.seconds)).printlns)
+        .observe(_.map(_.offset).through(commitBatchWithin[IO](3, 1.seconds)).drain)
         .map(_.record.value)
 
     val runStream: Stream[IO, StreamTarget] =
@@ -111,7 +111,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
             Stream.never[IO])
         .interruptAfter(15.seconds)
 
-    val res: Set[StreamTarget] = runStream.compile.toList.unsafeRunSync().toSet 
+    val res: Set[StreamTarget] = runStream.compile.toList.unsafeRunSync().toSet
     println(res)
     assert(res == expected)
   }

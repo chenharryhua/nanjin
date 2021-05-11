@@ -4,6 +4,7 @@ import cats.effect.Sync
 import com.github.chenharryhua.nanjin.database.{DatabaseSettings, TableName}
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, SerdeOf}
+import com.github.chenharryhua.nanjin.pipes
 import com.github.chenharryhua.nanjin.spark.database._
 import com.github.chenharryhua.nanjin.spark.kafka.{SKConfig, SparKafkaTopic}
 import com.github.chenharryhua.nanjin.spark.persist.{
@@ -30,7 +31,7 @@ private[spark] trait DatasetExtensions {
     def dismissNulls: RDD[A] = rdd.filter(_ != null)
     def numOfNulls: Long     = rdd.subtract(dismissNulls).count()
 
-    def stream[F[_]: Sync]: Stream[F, A] = Stream.fromIterator(rdd.toLocalIterator, 4096)
+    def stream[F[_]: Sync]: Stream[F, A] = Stream.fromIterator(rdd.toLocalIterator, pipes.chunkSize)
 
     def dbUpload[F[_]: Sync](db: SparkDBTable[F, A]): DbUploader[F, A] =
       db.tableset(rdd).upload
