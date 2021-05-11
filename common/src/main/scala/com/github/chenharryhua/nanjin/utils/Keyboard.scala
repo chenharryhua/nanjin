@@ -1,19 +1,18 @@
 package com.github.chenharryhua.nanjin.utils
 
-import cats.effect.{Concurrent, Sync}
+import cats.effect.Async
 import fs2.Stream
 import fs2.concurrent.Signal
 import org.jline.terminal.{Terminal, TerminalBuilder}
-import cats.syntax.all._
 
 object Keyboard {
   val pauSe: Char    = 's'
   val Quit: Char     = 'q'
   val Continue: Char = 'c'
 
-  def signal[F[_]: Concurrent]: Stream[F, Signal[F, Option[Char]]] =
+  def signal[F[_]](implicit F: Async[F]): Stream[F, Signal[F, Option[Char]]] =
     Stream
-      .bracket(Sync[F].delay {
+      .bracket(F.delay {
         val terminal: Terminal = TerminalBuilder
           .builder()
           .nativeSignals(true)
@@ -23,11 +22,8 @@ object Keyboard {
           .build()
         terminal.enterRawMode
         (terminal, terminal.reader)
-      }) {
-        case (terminal, reader) =>
-          Sync[F].delay(reader.close()) >> Sync[F].delay(terminal.close())
-      }
-      .flatMap { case (_, r) => Stream.repeatEval(Sync[F].delay(r.read().toChar)) }
+      }) { case (terminal, reader) => F.delay { reader.close(); terminal.close() } }
+      .flatMap { case (_, r) => Stream.repeatEval(F.delay(r.read().toChar)) }
       .noneTerminate
       .hold(None)
 }

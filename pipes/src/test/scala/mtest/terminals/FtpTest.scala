@@ -8,6 +8,7 @@ import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
+import cats.effect.unsafe.implicits.global
 
 class FtpTest extends AnyFunSuite {
 

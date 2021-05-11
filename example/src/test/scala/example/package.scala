@@ -1,11 +1,10 @@
 import akka.actor.ActorSystem
-import cats.effect.{Blocker, ContextShift, IO, Timer}
 import com.github.chenharryhua.nanjin.common.NJLogLevel
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
 import com.github.chenharryhua.nanjin.spark._
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.spark.sql.SparkSession
-
+import cats.effect.IO
 import scala.concurrent.ExecutionContext.Implicits.global
 
 package object example {
@@ -13,11 +12,6 @@ package object example {
 
   val sparkSession: SparkSession =
     SparkSettings.default.withLogLevel(NJLogLevel.ERROR).session
-
-  implicit val contextShift: ContextShift[IO] = IO.contextShift(global)
-  implicit val timer: Timer[IO]               = IO.timer(global)
-
-  val blocker: Blocker = Blocker.liftExecutionContext(global)
 
   val ctx: KafkaContext[IO] =
     KafkaSettings.local

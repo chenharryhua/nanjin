@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync}
-import com.github.chenharryhua.nanjin.terminals.NJHadoop
+import cats.effect.{Async, Sync}
 import com.github.chenharryhua.nanjin.pipes.{CirceSerialization, GenericRecordCodec, JacksonSerialization}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
+import com.github.chenharryhua.nanjin.terminals.NJHadoop
 import com.sksamuel.avro4s.{AvroInputStream, Decoder => AvroDecoder}
 import frameless.TypedDataset
 import frameless.cats.implicits._
@@ -139,32 +139,21 @@ object loaders {
 
   object stream {
 
-    def jackson[F[_]: ContextShift: ConcurrentEffect, A](
-      pathStr: String,
-      decoder: AvroDecoder[A],
-      blocker: Blocker,
-      cfg: Configuration): Stream[F, A] = {
-      val hadoop = NJHadoop(cfg, blocker)
+    def jackson[F[_]: Async, A](pathStr: String, decoder: AvroDecoder[A], cfg: Configuration): Stream[F, A] = {
+      val hadoop = NJHadoop(cfg)
       val jk     = new JacksonSerialization[F](decoder.schema)
       val gr     = new GenericRecordCodec[F, A]
       hadoop.byteSource(pathStr).through(jk.deserialize).through(gr.decode(decoder))
     }
 
-    def avro[F[_]: ContextShift: Sync, A](
-      pathStr: String,
-      decoder: AvroDecoder[A],
-      blocker: Blocker,
-      cfg: Configuration): Stream[F, A] = {
-      val hadoop = NJHadoop(cfg, blocker)
+    def avro[F[_]: Sync, A](pathStr: String, decoder: AvroDecoder[A], cfg: Configuration): Stream[F, A] = {
+      val hadoop = NJHadoop(cfg)
       val gr     = new GenericRecordCodec[F, A]
       hadoop.avroSource(pathStr, decoder.schema).through(gr.decode(decoder))
     }
 
-    def circe[F[_]: ContextShift: Sync, A: JsonDecoder](
-      pathStr: String,
-      blocker: Blocker,
-      cfg: Configuration): Stream[F, A] = {
-      val hadoop = NJHadoop(cfg, blocker)
+    def circe[F[_]: Sync, A: JsonDecoder](pathStr: String, cfg: Configuration): Stream[F, A] = {
+      val hadoop = NJHadoop(cfg)
       val cs     = new CirceSerialization[F, A]
       hadoop.byteSource(pathStr).through(cs.deserialize)
     }

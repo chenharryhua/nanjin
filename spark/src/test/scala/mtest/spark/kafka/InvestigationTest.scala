@@ -1,13 +1,11 @@
 package mtest.spark.kafka
 
 import cats.derived.auto.eq.kittensMkEq
-import cats.effect.IO
-import com.github.chenharryhua.nanjin.spark.kafka.{inv, CRMetaInfo, DiffResult, KvDiffResult, NJConsumerRecord}
+import com.github.chenharryhua.nanjin.spark.kafka._
 import frameless.TypedDataset
-import frameless.cats.implicits._
-import mtest.spark.{contextShift, sparkSession}
-import org.scalatest.funsuite.AnyFunSuite
+import mtest.spark.sparkSession
 import org.apache.spark.sql.SparkSession
+import org.scalatest.funsuite.AnyFunSuite
 
 object InvestigationTestData {
   final case class Mouse(size: Int, weight: Float)
@@ -72,10 +70,10 @@ class InvestigationTest extends AnyFunSuite {
   test("sparKafka identical") {
     val m1 = TypedDataset.create(mouses1)
     val m2 = TypedDataset.create(mouses2)
-    assert(0 === inv.diffDataset(m1, m2).count[IO]().unsafeRunSync())
+    assert(0 === inv.diffDataset(m1, m2).dataset.count())
     assert(0 === inv.diffRdd(m1.dataset.rdd, m2.dataset.rdd).count())
 
-    assert(0 === inv.kvDiffDataset(m1, m2).count[IO]().unsafeRunSync())
+    assert(0 === inv.kvDiffDataset(m1, m2).dataset.count())
     assert(0 === inv.kvDiffRdd(m1.dataset.rdd, m2.dataset.rdd).count())
   }
 
@@ -84,7 +82,7 @@ class InvestigationTest extends AnyFunSuite {
     val m3 = TypedDataset.create[NJConsumerRecord[String, Mouse]](mouses3)
 
     val rst: Set[DiffResult[String, Mouse]] =
-      inv.diffDataset(m1, m3).collect[IO]().unsafeRunSync().toSet
+      inv.diffDataset(m1, m3).dataset.collect().toSet
 
     val rst2: Set[DiffResult[String, Mouse]] =
       inv.diffRdd(m1.dataset.rdd, m3.dataset.rdd).collect().toSet
@@ -99,7 +97,7 @@ class InvestigationTest extends AnyFunSuite {
     val kv: Set[KvDiffResult[String, Mouse]] =
       Set(KvDiffResult(Some("mike6"), Some(Mouse(6, 0.6f))))
     val rst3: Set[KvDiffResult[String, Mouse]] =
-      inv.kvDiffDataset(m1, m3).collect[IO]().unsafeRunSync().toSet
+      inv.kvDiffDataset(m1, m3).dataset.collect().toSet
 
     val rst4: Set[KvDiffResult[String, Mouse]] =
       inv.kvDiffRdd(m1.dataset.rdd, m3.dataset.rdd).collect().toSet
@@ -112,7 +110,7 @@ class InvestigationTest extends AnyFunSuite {
     val m4 = TypedDataset.create[NJConsumerRecord[String, Mouse]](mouses4)
 
     val rst: Set[DiffResult[String, Mouse]] =
-      inv.diffDataset(m1, m4).collect[IO]().unsafeRunSync().toSet
+      inv.diffDataset(m1, m4).dataset.collect().toSet
     val rst2: Set[DiffResult[String, Mouse]] =
       inv.diffRdd(m1.dataset.rdd, m4.dataset.rdd).collect().toSet
     val tup =
@@ -121,7 +119,7 @@ class InvestigationTest extends AnyFunSuite {
     assert(Set(tup) == rst2)
 
     val rst3: Set[KvDiffResult[String, Mouse]] =
-      inv.kvDiffDataset(m1, m4).collect[IO]().unsafeRunSync().toSet
+      inv.kvDiffDataset(m1, m4).dataset.collect().toSet
     val rst4: Set[KvDiffResult[String, Mouse]] =
       inv.kvDiffRdd(m1.dataset.rdd, m4.dataset.rdd).collect().toSet
     val kv = Set(KvDiffResult(Some("mike5"), Some(Mouse(5, 0.5f))))

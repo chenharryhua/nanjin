@@ -17,6 +17,7 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
 import org.scalatest.funsuite.AnyFunSuite
 import fs2.Stream
+import cats.effect.unsafe.implicits.global
 
 class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 

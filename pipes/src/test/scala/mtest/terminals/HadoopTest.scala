@@ -13,6 +13,7 @@ import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
+import cats.effect.unsafe.implicits.global
 
 object HadoopTestData {
 
@@ -52,7 +53,7 @@ object HadoopTestData {
 }
 
 class HadoopTest extends AnyFunSuite {
-  val hdp = NJHadoop[IO](new Configuration(), blocker)
+  val hdp = NJHadoop[IO](new Configuration())
 
   test("hadoop text write/read identity") {
     val pathStr    = "./data/test/devices/greeting.txt"

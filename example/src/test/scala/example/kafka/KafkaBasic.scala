@@ -7,7 +7,7 @@ import frameless.TypedEncoder
 import io.circe.generic.auto._
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-
+import cats.effect.unsafe.implicits.global
 import scala.concurrent.duration._
 
 @DoNotDiscover
@@ -18,7 +18,7 @@ class KafkaBasic extends AnyFunSuite {
     fooTopic.fs2Channel.stream
       .map(x => fooTopic.decoder(x).decode)
       .take(3)
-      .showLinesStdOut
+      .debug()
       .interruptAfter(2.seconds)
       .compile
       .drain
@@ -27,7 +27,7 @@ class KafkaBasic extends AnyFunSuite {
 
   val path = "./data/example/foo.json"
   test("persist messages to local disk") {
-    sparKafka.topic(fooTopic).fromKafka.save.circe(path).file.run(blocker).unsafeRunSync()
+    sparKafka.topic(fooTopic).fromKafka.flatMap(_.save.circe(path).file.run).unsafeRunSync()
   }
 
   test("populate topic using persisted data") {

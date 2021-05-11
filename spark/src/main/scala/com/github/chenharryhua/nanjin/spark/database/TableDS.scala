@@ -3,9 +3,7 @@ package com.github.chenharryhua.nanjin.spark.database
 import com.github.chenharryhua.nanjin.database.DatabaseSettings
 import com.github.chenharryhua.nanjin.spark.persist.DatasetAvroFileHoarder
 import frameless.TypedDataset
-import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import org.apache.spark.sql.Dataset
-import org.apache.spark.storage.StorageLevel
 
 final class TableDS[F[_], A] private[database] (
   val dataset: Dataset[A],

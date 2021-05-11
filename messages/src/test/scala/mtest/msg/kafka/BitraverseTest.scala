@@ -43,7 +43,7 @@ class BitraverseTest extends AnyFunSuite with FunSuiteDiscipline with Configurat
 
   checkAll(
     "fs2.producer.ProducerRecords",
-    BitraverseTests[Fs2ProducerRecords[*, *, String]].bitraverse[List, Int, Int, Int, Int, Int, Int])
+    BitraverseTests[Fs2ProducerRecords[String, *, *]].bitraverse[List, Int, Int, Int, Int, Int, Int])
 
   checkAll(
     "fs2.producer.CommittableProducerRecords",
@@ -51,7 +51,7 @@ class BitraverseTest extends AnyFunSuite with FunSuiteDiscipline with Configurat
 
   checkAll(
     "fs2.producer.TransactionalProducerRecords",
-    BitraverseTests[Fs2TransactionalProducerRecords[IO, *, *, String]].bitraverse[Option, Int, Int, Int, Int, Int, Int]
+    BitraverseTests[Fs2TransactionalProducerRecords[IO, String, *, *]].bitraverse[Option, Int, Int, Int, Int, Int, Int]
   )
 
   checkAll(

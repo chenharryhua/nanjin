@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.kafka.ConsumerSettings
 import akka.stream.Materializer
 import akka.stream.scaladsl.Sink
-import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Sync, Timer}
+import cats.effect.{Async, Sync}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, stages, KafkaTopic}
 import com.github.chenharryhua.nanjin.spark.persist.{sinks, Compression}
@@ -48,7 +48,7 @@ final class KafkaDownloader[F[_], K, V](
 
   def withIdleTimeout(fd: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.withLoadIdleTimeout(fd))
 
-  private def stream(implicit F: ConcurrentEffect[F], timer: Timer[F]): Stream[F, NJConsumerRecord[K, V]] = {
+  private def stream(implicit F: Async[F]): Stream[F, NJConsumerRecord[K, V]] = {
     val fstream: F[Stream[F, NJConsumerRecord[K, V]]] =
       topic.shortLiveConsumer.use(_.offsetRangeFor(params.timeRange).map(_.flatten)).map { kor =>
         topic
@@ -70,20 +70,20 @@ final class KafkaDownloader[F[_], K, V](
     Stream.force(fstream)
   }
 
-  def avro(path: String)(implicit F: ConcurrentEffect[F], timer: Timer[F]): AvroDownloader[F, K, V] = {
+  def avro(path: String)(implicit F: Async[F]): AvroDownloader[F, K, V] = {
     val encoder: AvroEncoder[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(topic.topicDef).avroEncoder
     new AvroDownloader(stream, encoder, hadoop, path, Compression.Uncompressed)
   }
 
-  def jackson(path: String)(implicit F: ConcurrentEffect[F], timer: Timer[F]): JacksonDownloader[F, K, V] = {
+  def jackson(path: String)(implicit F: Async[F]): JacksonDownloader[F, K, V] = {
     val encoder: AvroEncoder[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(topic.topicDef).avroEncoder
     new JacksonDownloader(stream, encoder, hadoop, path, Compression.Uncompressed)
   }
 
-  def circe(path: String)(implicit F: ConcurrentEffect[F], timer: Timer[F]): CirceDownloader[F, K, V] =
+  def circe(path: String)(implicit F: Async[F]): CirceDownloader[F, K, V] =
     new CirceDownloader[F, K, V](stream, hadoop, path, true, Compression.Uncompressed)
 
-  def parquet(path: String)(implicit F: ConcurrentEffect[F], timer: Timer[F]): ParquetDownloader[F, K, V] = {
+  def parquet(path: String)(implicit F: Async[F]): ParquetDownloader[F, K, V] = {
     val encoder: AvroEncoder[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(topic.topicDef).avroEncoder
     new ParquetDownloader(stream, encoder, hadoop, path, Compression.Uncompressed)
   }
@@ -105,8 +105,8 @@ final class AvroDownloader[F[_], K, V](
   def bzip2: AvroDownloader[F, K, V]               = updateCompression(Compression.Bzip2)
   def uncompress: AvroDownloader[F, K, V]          = updateCompression(Compression.Uncompressed)
 
-  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): Stream[F, Unit] =
-    stream.through(sinks.avro(path, hadoop, encoder, compression.avro(hadoop), blocker))
+  def run(implicit F: Sync[F]): Stream[F, Unit] =
+    stream.through(sinks.avro(path, hadoop, encoder, compression.avro(hadoop)))
 }
 
 final class JacksonDownloader[F[_], K, V](
@@ -123,8 +123,8 @@ final class JacksonDownloader[F[_], K, V](
   def gzip: JacksonDownloader[F, K, V]                = updateCompression(Compression.Gzip)
   def uncompress: JacksonDownloader[F, K, V]          = updateCompression(Compression.Uncompressed)
 
-  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): Stream[F, Unit] =
-    stream.through(sinks.jackson(path, hadoop, encoder, compression.fs2Compression, blocker))
+  def run(implicit F: Sync[F]): Stream[F, Unit] =
+    stream.through(sinks.jackson(path, hadoop, encoder, compression.fs2Compression))
 }
 
 final class CirceDownloader[F[_], K, V](
@@ -144,11 +144,8 @@ final class CirceDownloader[F[_], K, V](
   def keepNull: CirceDownloader[F, K, V] = new CirceDownloader[F, K, V](stream, hadoop, path, true, compression)
   def dropNull: CirceDownloader[F, K, V] = new CirceDownloader[F, K, V](stream, hadoop, path, false, compression)
 
-  def run(blocker: Blocker)(implicit
-    F: Sync[F],
-    cs: ContextShift[F],
-    enc: JsonEncoder[NJConsumerRecord[K, V]]): Stream[F, Unit] =
-    stream.through(sinks.circe(path, hadoop, isKeepNull, compression.fs2Compression, blocker))
+  def run(implicit F: Sync[F], enc: JsonEncoder[NJConsumerRecord[K, V]]): Stream[F, Unit] =
+    stream.through(sinks.circe(path, hadoop, isKeepNull, compression.fs2Compression))
 }
 
 final class ParquetDownloader[F[_], K, V](
@@ -165,6 +162,6 @@ final class ParquetDownloader[F[_], K, V](
   def gzip: ParquetDownloader[F, K, V]       = updateCompression(Compression.Gzip)
   def uncompress: ParquetDownloader[F, K, V] = updateCompression(Compression.Uncompressed)
 
-  def run(blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): Stream[F, Unit] =
-    stream.through(sinks.parquet(path, hadoop, encoder, compression.parquet, blocker))
+  def run(implicit F: Sync[F]): Stream[F, Unit] =
+    stream.through(sinks.parquet(path, hadoop, encoder, compression.parquet))
 }

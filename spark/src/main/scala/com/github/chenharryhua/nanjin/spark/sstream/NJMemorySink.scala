@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.sstream
 
-import cats.effect.{Concurrent, Timer}
+import cats.effect.Async
 import com.github.chenharryhua.nanjin.utils.random4d
 import fs2.Stream
 import org.apache.spark.sql.streaming.{DataStreamWriter, StreamingQueryProgress, Trigger}
@@ -18,7 +18,7 @@ final class NJMemorySink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig) 
 
   def trigger(trigger: Trigger): NJMemorySink[F, A] = updateCfg(_.withTrigger(trigger))
 
-  override def queryStream(implicit F: Concurrent[F], timer: Timer[F]): Stream[F, StreamingQueryProgress] =
+  override def queryStream(implicit F: Async[F]): Stream[F, StreamingQueryProgress] =
     ss.queryStream(
       dsw
         .trigger(params.trigger)

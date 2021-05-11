@@ -5,6 +5,7 @@ import mtest.spark.kafka.{ctx, sparKafka}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
+import cats.effect.unsafe.implicits.global
 
 class SortTest extends AnyFunSuite {
   val topic = TopicDef[Int, Int](TopicName("topic"))

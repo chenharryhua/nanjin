@@ -3,9 +3,8 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import akka.actor.ActorSystem
 import cats.Foldable
 import cats.data.Reader
-import cats.effect.{Blocker, ConcurrentEffect, ContextShift, Effect, Sync, Timer}
-import cats.syntax.bifunctor._
-import cats.syntax.foldable._
+import cats.effect.{Async, Sync}
+import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, KafkaTopic, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
@@ -14,7 +13,6 @@ import com.github.chenharryhua.nanjin.spark.dstream.{AvroDStreamSink, SDConfig}
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.github.chenharryhua.nanjin.spark.sstream.{SStreamConfig, SparkSStream}
 import frameless.TypedEncoder
-import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -42,22 +40,22 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
 
   val params: SKParams = cfg.evalConfig
 
-  def fromKafka(implicit F: Effect[F]): CrRdd[F, K, V] =
-    crRdd(sk.kafkaBatch(topic, params.timeRange, params.locationStrategy, ss))
+  def fromKafka(implicit F: Sync[F]): F[CrRdd[F, K, V]] =
+    sk.kafkaBatch(topic, params.timeRange, params.locationStrategy, ss).map(crRdd)
 
   def fromDisk: CrRdd[F, K, V] =
     crRdd(loaders.rdd.objectFile[NJConsumerRecord[K, V]](params.replayPath, ss))
 
   /** shorthand
     */
-  def dump(implicit F: Effect[F], cs: ContextShift[F]): F[Unit] =
-    Blocker[F].use(blocker => fromKafka.save.objectFile(params.replayPath).overwrite.run(blocker))
+  def dump(implicit F: Sync[F]): F[Unit] =
+    fromKafka.flatMap(_.save.objectFile(params.replayPath).overwrite.run)
 
-  def replay(implicit ce: ConcurrentEffect[F], timer: Timer[F], cs: ContextShift[F]): F[Unit] =
+  def replay(implicit ce: Async[F]): F[Unit] =
     fromDisk.prRdd.noMeta.uploadByBatch.run.map(_ => print(".")).compile.drain
 
-  def countKafka(implicit F: Effect[F]): F[Long] = fromKafka.count
-  def countDisk(implicit F: Sync[F]): F[Long]    = fromDisk.count
+  def countKafka(implicit F: Sync[F]): F[Long] = fromKafka.flatMap(_.count)
+  def countDisk(implicit F: Sync[F]): F[Long]  = fromDisk.count
 
   def load: LoadTopicFile[F, K, V] = new LoadTopicFile[F, K, V](topic, cfg, ss)
 
@@ -85,7 +83,7 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
 
   /** DStream
     */
-  def dstream(implicit F: Effect[F]): Reader[StreamingContext, AvroDStreamSink[NJConsumerRecord[K, V]]] =
+  def dstream(implicit F: Async[F]): Reader[StreamingContext, AvroDStreamSink[NJConsumerRecord[K, V]]] =
     Reader((sc: StreamingContext) =>
       new AvroDStreamSink(
         sk.kafkaDStream(topic, sc, params.locationStrategy),

@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.sksamuel.avro4s._
 import fs2.kafka.{ProducerRecord => Fs2ProducerRecord}
+import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import monocle.macros.Lenses
 import org.apache.kafka.clients.producer.ProducerRecord
 import shapeless.cachedImplicit
@@ -86,6 +87,16 @@ object NJProducerRecord {
 
   def avroCodec[K, V](topicDef: TopicDef[K, V]): AvroCodec[NJProducerRecord[K, V]] =
     avroCodec(topicDef.serdeOfKey.avroCodec, topicDef.serdeOfVal.avroCodec)
+
+  implicit def jsonEncoder[K, V](implicit
+    jck: JsonEncoder[K],
+    jcv: JsonEncoder[V]): JsonEncoder[NJProducerRecord[K, V]] =
+    io.circe.generic.semiauto.deriveEncoder[NJProducerRecord[K, V]]
+
+  implicit def jsonDecoder[K, V](implicit
+    jck: JsonDecoder[K],
+    jcv: JsonDecoder[V]): JsonDecoder[NJProducerRecord[K, V]] =
+    io.circe.generic.semiauto.deriveDecoder[NJProducerRecord[K, V]]
 
   implicit def emptyNJProducerRecord[K, V]: Empty[NJProducerRecord[K, V]] =
     new Empty[NJProducerRecord[K, V]] {

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import akka.actor.ActorSystem
-import cats.effect.{Concurrent, ConcurrentEffect, Resource, Sync}
+import cats.effect.{Async, Resource, Sync}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaGenericDecoder
@@ -9,7 +9,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
 
 import scala.util.Try
-import cats.effect.Temporal
 
 final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V], val context: KafkaContext[F])
     extends TopicNameExtractor[K, V] with Serializable {
@@ -38,15 +37,14 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
 
   // APIs
 
-  def admin(implicit concurrent: Concurrent[F]): KafkaAdminApi[F] =
+  def admin(implicit F: Async[F]): KafkaAdminApi[F] =
     KafkaAdminApi[F, K, V](this)
 
   def shortLiveConsumer(implicit sync: Sync[F]): Resource[F, ShortLiveConsumer[F]] =
     ShortLiveConsumer(topicName, context.settings.consumerSettings.javaProperties)
 
-  def monitor(implicit
-    concurrentEffect: ConcurrentEffect[F],
-    timer: Temporal[F]): KafkaMonitoringApi[F, K, V] = KafkaMonitoringApi[F, K, V](this)
+  def monitor(implicit F: Async[F]): KafkaMonitoringApi[F, K, V] =
+    KafkaMonitoringApi[F, K, V](this)
 
   val schemaRegistry: NJSchemaRegistry[F, K, V] = new NJSchemaRegistry[F, K, V](this)
 

@@ -9,11 +9,7 @@ import cats.effect.Temporal
 
 package object kafka {
   import akka.actor.ActorSystem
-  implicit val cs: ContextShift[IO]    = IO.contextShift(global)
-  implicit val timer: Temporal[IO]        = IO.timer(global)
   implicit val akkaSystem: ActorSystem = ActorSystem("nj-test")
-
-  val blocker: Blocker = Blocker.liftExecutionContext(global)
 
   val ctx: KafkaContext[IO] =
     KafkaSettings.local

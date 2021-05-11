@@ -1,7 +1,9 @@
 package mtest.kafka
 
 import akka.kafka.ProducerMessage
+import akka.stream.scaladsl.Sink
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJDateTimeRange}
 import com.github.chenharryhua.nanjin.kafka.{stages, KafkaChannels, KafkaTopic, KafkaTopicPartition}
 import fs2.Stream
@@ -15,7 +17,7 @@ import scala.concurrent.duration.DurationInt
 class AkkaChannelTest extends AnyFunSuite {
   val topic: KafkaTopic[IO, Int, String] = ctx.topic[Int, String]("akka.consumer.test")
 
-  val data: Stream[IO, ProducerResult[Int, String, Unit]] =
+  val data: Stream[IO, ProducerResult[Unit, Int, String]] =
     Stream(
       ProducerRecords(List(
         ProducerRecord(topic.topicName.value, 1, "a"),
@@ -68,11 +70,13 @@ class AkkaChannelTest extends AnyFunSuite {
     run.unsafeRunSync()
   }
   test("akka source error") {
-    val run = akkaChannel.source
-      .map(m => topic.decoder(m).nullableDecode)
-      .map(m => throw new Exception("oops"))
-      .runWith(stages.ignore[IO])
-    assertThrows[Exception](run.unsafeRunSync())
+    val run =
+      akkaChannel.source
+        .map(m => topic.decoder(m).nullableDecode)
+        .map(m => throw new Exception("oops"))
+        .runWith(Sink.ignore)
+
+    assertThrows[Exception](Await.result(run, 10.seconds))
   }
 
   test("fs2 stream") {

@@ -4,7 +4,6 @@ import cats.effect.Sync
 import cats.syntax.functor._
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.spark.injection._
-import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.functions.aggregate.count
 import frameless.{Injection, TypedDataset}
 import org.apache.spark.sql.Dataset
@@ -77,49 +76,49 @@ final class Statistics[F[_]] private[kafka] (
 
   def typedDataset: TypedDataset[CRMetaInfo] = TypedDataset.create(ds)
 
-  def minutely(implicit ev: Sync[F]): F[Unit] = {
+  def minutely(implicit F: Sync[F]): F[Unit] = {
     val tds = typedDataset
     val minute: TypedDataset[Int] = tds.deserialized.map { m =>
       NJTimestamp(m.timestamp).atZone(zoneId).getMinute
     }
     val res = minute.groupBy(minute.asCol).agg(count(minute.asCol)).as[MinutelyAggResult]
-    res.orderBy(res('minute).asc).show[F](rowNum, isTruncate)
+    F.delay(res.orderBy(res('minute).asc).dataset.show(rowNum, isTruncate))
   }
 
-  def hourly(implicit ev: Sync[F]): F[Unit] = {
+  def hourly(implicit F: Sync[F]): F[Unit] = {
     val tds = typedDataset
     val hour =
       tds.deserialized.map(m => NJTimestamp(m.timestamp).atZone(zoneId).getHour)
     val res = hour.groupBy(hour.asCol).agg(count(hour.asCol)).as[HourlyAggResult]
-    res.orderBy(res('hour).asc).show[F](rowNum, isTruncate)
+    F.delay(res.orderBy(res('hour).asc).dataset.show(rowNum, isTruncate))
   }
 
-  def daily(implicit ev: Sync[F]): F[Unit] = {
+  def daily(implicit F: Sync[F]): F[Unit] = {
     val tds = typedDataset
     val day: TypedDataset[LocalDate] = tds.deserialized.map { m =>
       NJTimestamp(m.timestamp).dayResolution(zoneId)
     }
     val res = day.groupBy(day.asCol).agg(count(day.asCol)).as[DailyAggResult]
-    res.orderBy(res('date).asc).show[F](rowNum, isTruncate)
+    F.delay(res.orderBy(res('date).asc).dataset.show(rowNum, isTruncate))
   }
 
-  def dailyHour(implicit ev: Sync[F]): F[Unit] = {
+  def dailyHour(implicit F: Sync[F]): F[Unit] = {
     val tds = typedDataset
     val dayHour: TypedDataset[ZonedDateTime] = tds.deserialized.map { m =>
       NJTimestamp(m.timestamp).hourResolution(zoneId)
     }
     val res = dayHour.groupBy(dayHour.asCol).agg(count(dayHour.asCol)).as[DailyHourAggResult]
-    res.orderBy(res('dateTime).asc).show[F](rowNum, isTruncate)
+    F.delay(res.orderBy(res('dateTime).asc).dataset.show(rowNum, isTruncate))
   }
 
-  def dailyMinute(implicit ev: Sync[F]): F[Unit] = {
+  def dailyMinute(implicit F: Sync[F]): F[Unit] = {
     val tds = typedDataset
     val dayMinute: TypedDataset[ZonedDateTime] = tds.deserialized.map { m =>
       NJTimestamp(m.timestamp).minuteResolution(zoneId)
     }
     val res =
       dayMinute.groupBy(dayMinute.asCol).agg(count(dayMinute.asCol)).as[DailyMinuteAggResult]
-    res.orderBy(res('dateTime).asc).show[F](rowNum, isTruncate)
+    F.delay(res.orderBy(res('dateTime).asc).dataset.show(rowNum, isTruncate))
   }
 
   def summaryDS: TypedDataset[KafkaSummary] = {
@@ -132,8 +131,8 @@ final class Statistics[F[_]] private[kafka] (
     res.orderBy(res('partition).asc)
   }
 
-  def summary(implicit ev: Sync[F]): F[Unit] =
-    summaryDS.collect[F]().map(_.foreach(x => println(x.showData(zoneId))))
+  def summary(implicit F: Sync[F]): F[Unit] =
+    F.delay(summaryDS.dataset.collect().foreach(x => println(x.showData(zoneId))))
 
   /** Notes:
     *  offset is supposed to be monotonically increasing in a partition, except compact topic

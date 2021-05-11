@@ -8,6 +8,7 @@ import org.scalacheck.{Arbitrary, Cogen, Gen, Properties}
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
 import scala.util.Random
+import cats.effect.unsafe.implicits.global
 
 object NJComsumerRecordTestData {
   implicit val ocogen = Cogen[NJConsumerRecord[Int, Int]]((o: NJConsumerRecord[Int, Int]) => o.offset)

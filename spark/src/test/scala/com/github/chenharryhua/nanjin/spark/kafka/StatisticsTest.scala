@@ -5,6 +5,7 @@ import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJTimestamp}
 import mtest.spark.sparkSession
 import org.apache.spark.sql.Dataset
 import org.scalatest.funsuite.AnyFunSuite
+import cats.effect.unsafe.implicits.global
 
 object StatisticsTestData {
 

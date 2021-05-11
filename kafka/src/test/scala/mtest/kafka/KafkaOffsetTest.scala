@@ -8,6 +8,7 @@ import org.apache.kafka.common.TopicPartition
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
+import cats.effect.unsafe.implicits.global
 
 class KafkaOffsetTest extends CatsSuite with FunSuiteDiscipline {
 

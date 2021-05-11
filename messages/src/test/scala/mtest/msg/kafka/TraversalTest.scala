@@ -20,7 +20,7 @@ class TraversalTest extends AnyFunSuite with FunSuiteDiscipline with Configurati
 
   checkAll(
     "fs2.producer.ProducerRecords",
-    TraversalTests(BitraverseMessages[Fs2ProducerRecords[*, *, String]].traversal[Int, Int, Int, Int]))
+    TraversalTests(BitraverseMessages[Fs2ProducerRecords[String, *, *]].traversal[Int, Int, Int, Int]))
 
   checkAll(
     "fs2.producer.CommittableProducerRecords",
@@ -29,6 +29,6 @@ class TraversalTest extends AnyFunSuite with FunSuiteDiscipline with Configurati
 
   checkAll(
     "fs2.producer.TransactionalProducerRecords",
-    TraversalTests(BitraverseMessages[Fs2TransactionalProducerRecords[IO, *, *, String]].traversal[Int, Int, Int, Int])
+    TraversalTests(BitraverseMessages[Fs2TransactionalProducerRecords[IO, String, *, *]].traversal[Int, Int, Int, Int])
   )
 }

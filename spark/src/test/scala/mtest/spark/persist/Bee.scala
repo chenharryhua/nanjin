@@ -1,13 +1,13 @@
 package mtest.spark.persist
 
 import java.nio.ByteBuffer
-
 import cats.Eq
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.sksamuel.avro4s.{Avro4sDecodingException, Decoder, Encoder, SchemaFor}
 import frameless.TypedEncoder
 import cats.syntax.all._
+import io.circe.Codec
 import io.scalaland.chimney.dsl._
 import org.apache.avro.generic.GenericFixed
 
@@ -17,6 +17,7 @@ final case class Bee(a: Array[Byte], b: Int) {
     s"Bee(a=Array(${a.mkString(",")}),b=${b.toString})"
 
   def toWasp: Wasp = this.transformInto[Wasp]
+
 }
 
 final case class Wasp(a: List[Byte], b: Int)
@@ -60,10 +61,7 @@ object Bee {
         case array: Array[Byte]  => array
         case fixed: GenericFixed => fixed.bytes
         case _ =>
-          throw new Avro4sDecodingException(
-            s"Byte array decoder cannot decode '$value'",
-            value,
-            this)
+          throw new Avro4sDecodingException(s"Byte array decoder cannot decode '$value'", value, this)
       }
 
     override def schemaFor: SchemaFor[Array[Byte]] = SchemaFor[Array[Byte]]
@@ -74,7 +72,7 @@ object Bee {
 
   val avroCodec: AvroCodec[Bee]                = AvroCodec[Bee](schemaText).right.get
   implicit val typedEncoder: TypedEncoder[Bee] = shapeless.cachedImplicit
-
-  val ate: AvroTypedEncoder[Bee] = AvroTypedEncoder[Bee](avroCodec)
+  implicit val jsonCodec: Codec[Bee]           = io.circe.generic.semiauto.deriveCodec[Bee]
+  val ate: AvroTypedEncoder[Bee]               = AvroTypedEncoder[Bee](avroCodec)
 
 }

@@ -13,7 +13,7 @@ import com.sksamuel.avro4s._
 import frameless.TypedEncoder
 import fs2.kafka.{ConsumerRecord => Fs2ConsumerRecord}
 import io.circe.generic.auto._
-import io.circe.{Json, Encoder => JsonEncoder}
+import io.circe.{Json, Decoder => JsonDecoder, Encoder => JsonEncoder}
 import monocle.macros.Lenses
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.record.TimestampType
@@ -95,6 +95,16 @@ object NJConsumerRecord {
     tek: TypedEncoder[K],
     tev: TypedEncoder[V]): AvroTypedEncoder[NJConsumerRecord[K, V]] =
     ate(topicDef.serdeOfKey.avroCodec, topicDef.serdeOfVal.avroCodec)
+
+  implicit def jsonEncoder[K, V](implicit
+    jck: JsonEncoder[K],
+    jcv: JsonEncoder[V]): JsonEncoder[NJConsumerRecord[K, V]] =
+    io.circe.generic.semiauto.deriveEncoder[NJConsumerRecord[K, V]]
+
+  implicit def jsonDecoder[K, V](implicit
+    jck: JsonDecoder[K],
+    jcv: JsonDecoder[V]): JsonDecoder[NJConsumerRecord[K, V]] =
+    io.circe.generic.semiauto.deriveDecoder[NJConsumerRecord[K, V]]
 
   implicit val bifunctorOptionalKV: Bifunctor[NJConsumerRecord] =
     new Bifunctor[NJConsumerRecord] {

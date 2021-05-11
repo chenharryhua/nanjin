@@ -5,6 +5,7 @@ import com.github.chenharryhua.nanjin.pipes.CirceSerialization
 import fs2.Stream
 import io.circe.generic.auto._
 import org.scalatest.funsuite.AnyFunSuite
+import cats.effect.unsafe.implicits.global
 
 class CircePipeTest extends AnyFunSuite {
   import TestData._

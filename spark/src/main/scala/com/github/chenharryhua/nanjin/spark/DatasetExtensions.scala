@@ -1,8 +1,6 @@
 package com.github.chenharryhua.nanjin.spark
 
-import akka.NotUsed
-import akka.stream.scaladsl.Source
-import cats.effect.{ConcurrentEffect, Sync}
+import cats.effect.Sync
 import com.github.chenharryhua.nanjin.database.{DatabaseSettings, TableName}
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, SerdeOf}
@@ -15,10 +13,8 @@ import com.github.chenharryhua.nanjin.spark.persist.{
   RddFileHoarder
 }
 import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
-import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
-import fs2.interop.reactivestreams._
 import io.circe.Json
 import org.apache.avro.Schema
 import org.apache.spark.rdd.RDD
@@ -34,10 +30,7 @@ private[spark] trait DatasetExtensions {
     def dismissNulls: RDD[A] = rdd.filter(_ != null)
     def numOfNulls: Long     = rdd.subtract(dismissNulls).count()
 
-    def stream[F[_]: Sync]: Stream[F, A] = Stream.fromIterator(rdd.toLocalIterator)
-
-    def source[F[_]: ConcurrentEffect]: Source[A, NotUsed] =
-      Source.fromPublisher[A](stream[F].toUnicastPublisher)
+    def stream[F[_]: Sync]: Stream[F, A] = Stream.fromIterator(rdd.toLocalIterator, 4096)
 
     def dbUpload[F[_]: Sync](db: SparkDBTable[F, A]): DbUploader[F, A] =
       db.tableset(rdd).upload
@@ -51,11 +44,10 @@ private[spark] trait DatasetExtensions {
 
   implicit final class TypedDatasetExt[A](tds: TypedDataset[A]) extends Serializable {
 
-    def stream[F[_]: Sync]: Stream[F, A]                   = tds.rdd.stream[F]
-    def source[F[_]: ConcurrentEffect]: Source[A, NotUsed] = tds.rdd.source[F]
+    def stream[F[_]: Sync]: Stream[F, A] = tds.rdd.stream[F]
 
-    def dismissNulls: TypedDataset[A]   = tds.deserialized.filter(_ != null)
-    def numOfNulls[F[_]: Sync]: F[Long] = tds.except(dismissNulls).count[F]()
+    def dismissNulls: TypedDataset[A] = tds.deserialized.filter(_ != null)
+    def numOfNulls: Long              = tds.except(dismissNulls).dataset.count()
 
     def dbUpload[F[_]: Sync](db: SparkDBTable[F, A]): DbUploader[F, A] = db.tableset(tds).upload
 

@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.spark.kafka.{NJProducerRecord, _}
 import frameless.TypedEncoder
 import mtest.spark.persist.{Rooster, RoosterData}
-import mtest.spark.{akkaSystem, contextShift, sparkSession, timer}
+import mtest.spark.{akkaSystem, sparkSession}
 import mtest.spark.kafka.{ctx, sparKafka}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.streaming.Trigger
@@ -17,6 +17,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import java.time.Instant
 import scala.concurrent.duration._
 import scala.util.Random
+import cats.effect.unsafe.implicits.global
 
 @DoNotDiscover
 class SparkKafkaStreamTest extends AnyFunSuite {
