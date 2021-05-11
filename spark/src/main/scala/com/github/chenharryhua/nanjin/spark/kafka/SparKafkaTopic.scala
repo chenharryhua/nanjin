@@ -13,7 +13,6 @@ import com.github.chenharryhua.nanjin.spark.dstream.{AvroDStreamSink, SDConfig}
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.github.chenharryhua.nanjin.spark.sstream.{SStreamConfig, SparkSStream}
 import frameless.TypedEncoder
-import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}

@@ -65,14 +65,14 @@ class SparkExtTest extends AnyFunSuite {
   test("sparKafka typed dataset deal with primitive null ") {
     val tds = TypedDataset.create[Int](List(1, null.asInstanceOf[Int], 3))
     assert(tds.dismissNulls.dataset.collect().toList == List(1, 0, 3))
-    assert(tds.numOfNulls[IO].unsafeRunSync() == 0)
+    assert(tds.numOfNulls == 0)
   }
 
   test("sparKafka typed dataset remove null object") {
     import SparkExtTestData._
     val tds = TypedDataset.create[Foo](sparkSession.sparkContext.parallelize(list))
     assert(tds.dismissNulls.dataset.collect().toList == List(Foo(1, "a"), Foo(3, "c")))
-    assert(tds.numOfNulls[IO].unsafeRunSync() == 1)
+    assert(tds.numOfNulls == 1)
   }
   test("save syntax") {
     import SparkExtTestData._

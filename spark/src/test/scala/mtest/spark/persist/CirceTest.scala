@@ -6,7 +6,6 @@ import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt}
 import com.github.chenharryhua.nanjin.spark.injection._
 import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddAvroFileHoarder, RddFileHoarder}
 import frameless.TypedDataset
-import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import io.circe.Json
 import io.circe.generic.auto._
 import org.apache.spark.rdd.RDD
@@ -26,7 +25,7 @@ class CirceTest extends AnyFunSuite {
     val t = loaders.rdd.circe[Rooster](path, sparkSession)
     assert(RoosterData.expected == t.collect().toSet)
     val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate, sparkSession)
-    assert(RoosterData.expected == t2.collect[IO]().unsafeRunSync().toSet)
+    assert(RoosterData.expected == t2.dataset.collect().toSet)
   }
 
   test("rdd read/write identity multi.deflate") {
@@ -35,7 +34,7 @@ class CirceTest extends AnyFunSuite {
     val t = loaders.rdd.circe[Rooster](path, sparkSession)
     assert(RoosterData.expected == t.collect().toSet)
     val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate, sparkSession)
-    assert(RoosterData.expected == t2.collect[IO]().unsafeRunSync().toSet)
+    assert(RoosterData.expected == t2.dataset.collect().toSet)
   }
 
   test("rdd read/write identity single.uncompressed") {
@@ -44,7 +43,7 @@ class CirceTest extends AnyFunSuite {
     val t = loaders.rdd.circe[Rooster](path, sparkSession)
     assert(RoosterData.expected == t.collect().toSet)
     val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate, sparkSession)
-    assert(RoosterData.expected == t2.collect[IO]().unsafeRunSync().toSet)
+    assert(RoosterData.expected == t2.dataset.collect().toSet)
     val t3 = loaders.stream
       .circe[IO, Rooster](path, sparkSession.sparkContext.hadoopConfiguration)
       .compile
@@ -60,7 +59,7 @@ class CirceTest extends AnyFunSuite {
     val t = loaders.rdd.circe[Rooster](path, sparkSession)
     assert(RoosterData.expected == t.collect().toSet)
     val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate, sparkSession)
-    assert(RoosterData.expected == t2.collect[IO]().unsafeRunSync().toSet)
+    assert(RoosterData.expected == t2.dataset.collect().toSet)
   }
 
   test("rdd read/write identity single.deflate") {
@@ -69,7 +68,7 @@ class CirceTest extends AnyFunSuite {
     val t = loaders.rdd.circe[Rooster](path, sparkSession)
     assert(RoosterData.expected == t.collect().toSet)
     val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate, sparkSession)
-    assert(RoosterData.expected == t2.collect[IO]().unsafeRunSync().toSet)
+    assert(RoosterData.expected == t2.dataset.collect().toSet)
   }
 
   val bee = new RddAvroFileHoarder[IO, Bee](BeeData.rdd, Bee.avroCodec.avroEncoder)
@@ -94,7 +93,7 @@ class CirceTest extends AnyFunSuite {
     val t = loaders.rdd.circe[Rooster](path, sparkSession)
     assert(RoosterData.expected == t.collect().toSet)
     val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate, sparkSession)
-    assert(RoosterData.expected == t2.collect[IO]().unsafeRunSync().toSet)
+    assert(RoosterData.expected == t2.dataset.collect().toSet)
   }
 
   test("rdd read/write identity single.uncompressed - keep null") {
@@ -103,7 +102,7 @@ class CirceTest extends AnyFunSuite {
     val t = loaders.rdd.circe[Rooster](path, sparkSession)
     assert(RoosterData.expected == t.collect().toSet)
     val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate, sparkSession)
-    assert(RoosterData.expected == t2.collect[IO]().unsafeRunSync().toSet)
+    assert(RoosterData.expected == t2.dataset.collect().toSet)
   }
 
   test("rdd read/write identity single.uncompressed - drop null") {
@@ -112,7 +111,7 @@ class CirceTest extends AnyFunSuite {
     val t = loaders.rdd.circe[Rooster](path, sparkSession)
     assert(RoosterData.expected == t.collect().toSet)
     val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate, sparkSession)
-    assert(RoosterData.expected == t2.collect[IO]().unsafeRunSync().toSet)
+    assert(RoosterData.expected == t2.dataset.collect().toSet)
   }
 
   test("circe jacket") {

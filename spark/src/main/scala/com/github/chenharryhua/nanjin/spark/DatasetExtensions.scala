@@ -13,7 +13,6 @@ import com.github.chenharryhua.nanjin.spark.persist.{
   RddFileHoarder
 }
 import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
-import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import io.circe.Json
@@ -47,8 +46,8 @@ private[spark] trait DatasetExtensions {
 
     def stream[F[_]: Sync]: Stream[F, A] = tds.rdd.stream[F]
 
-    def dismissNulls: TypedDataset[A]   = tds.deserialized.filter(_ != null)
-    def numOfNulls[F[_]: Sync]: F[Long] = tds.except(dismissNulls).count[F]()
+    def dismissNulls: TypedDataset[A] = tds.deserialized.filter(_ != null)
+    def numOfNulls: Long              = tds.except(dismissNulls).dataset.count()
 
     def dbUpload[F[_]: Sync](db: SparkDBTable[F, A]): DbUploader[F, A] = db.tableset(tds).upload
 

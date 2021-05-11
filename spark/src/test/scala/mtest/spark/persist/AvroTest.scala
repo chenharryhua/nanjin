@@ -4,7 +4,6 @@ import cats.effect.IO
 import com.github.chenharryhua.nanjin.terminals.NJHadoop
 import com.github.chenharryhua.nanjin.pipes.GenericRecordCodec
 import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddAvroFileHoarder}
-import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import org.apache.spark.sql.SaveMode
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
@@ -161,7 +160,7 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/bee/multi.raw"
     bee.avro(path).folder.run.unsafeRunSync()
     val t = loaders.rdd.avro[Bee](path, Bee.avroCodec.avroDecoder, sparkSession).collect().toList
-    val r = loaders.avro[Bee](path, Bee.ate, sparkSession).collect[IO]().unsafeRunSync.toList
+    val r = loaders.avro[Bee](path, Bee.ate, sparkSession).dataset.collect.toList
     assert(BeeData.bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
     assert(BeeData.bees.sortBy(_.b).zip(r.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
@@ -170,7 +169,7 @@ class AvroTest extends AnyFunSuite {
     import cats.implicits._
     val path = "./data/test/spark/persist/avro/bee/single.raw.avro"
     bee.avro(path).file.run.unsafeRunSync()
-    val r = loaders.avro[Bee](path, Bee.ate, sparkSession).collect[IO]().unsafeRunSync.toList
+    val r = loaders.avro[Bee](path, Bee.ate, sparkSession).dataset.collect.toList
     assert(BeeData.bees.sortBy(_.b).zip(r.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
 
