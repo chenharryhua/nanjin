@@ -8,7 +8,7 @@ version in ThisBuild := "0.12.0-SNAPSHOT"
 // generic
 val shapeless  = "2.3.3"
 val contextual = "1.2.1"
-val kittens    = "2.3.1"
+val kittens    = "2.3.0"
 val catsCore   = "2.6.0"
 val algebra    = "2.2.2"
 val fs2Version = "3.0.2"
@@ -48,7 +48,7 @@ val json4s  = "3.7.0-M7" // for spark
 val kantan  = "0.6.1"
 val parquet = "1.12.0"
 val avro    = "1.10.2"
-val avro4s  = "4.0.8"
+val avro4s  = "4.0.7"
 
 // connect
 val hadoop  = "3.3.0"

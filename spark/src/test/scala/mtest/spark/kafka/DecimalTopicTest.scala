@@ -7,7 +7,8 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.injection._
 import com.github.chenharryhua.nanjin.spark.kafka.{NJProducerRecord, SparKafkaTopic}
 import frameless.TypedEncoder
-import frameless.cats.implicits._
+import io.circe.Codec
+//import frameless.cats.implicits._
 import io.circe.generic.auto._
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -60,6 +61,7 @@ object DecimalTopicTestCase {
   object HasDecimal {
 
     implicit val teHasDecimal: TypedEncoder[HasDecimal] = shapeless.cachedImplicit
+    implicit val json: Codec[HasDecimal]                = io.circe.generic.semiauto.deriveCodec
   }
   implicit val roundingMode: BigDecimal.RoundingMode.Value = RoundingMode.HALF_UP
 

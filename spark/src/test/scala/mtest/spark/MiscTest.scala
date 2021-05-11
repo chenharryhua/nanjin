@@ -1,20 +1,15 @@
 package mtest.spark
 
-import cats.effect.IO
+import cats.derived.auto.eq._
 import cats.kernel.Eq
-import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.injection._
-import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import mtest.spark.pb.test.Whale
-import org.apache.spark.sql.{DataFrame, Dataset, SaveMode}
-import org.scalatest.funsuite.AnyFunSuite
-import cats.derived.auto.eq._
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
+import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
-import org.apache.spark.sql.SparkSession
-import cats.effect.unsafe.implicits.global
 
 object JoinTestData {
   final case class Brother(id: Int, rel: String)
@@ -54,7 +49,7 @@ class MiscTest extends AnyFunSuite {
     val ds = TypedDataset.create(sisters)
 
     val res = db.joinLeft(ds)(db('id) === ds('id))
-    res.show[IO](truncate = false).unsafeRunSync()
+    res.dataset.show(truncate = false)
 
   }
 
@@ -69,7 +64,7 @@ class MiscTest extends AnyFunSuite {
     val path = "./data/test/spark/protobuf/whales.pb"
     TypedDataset.create(whales).write.mode(SaveMode.Overwrite).parquet(path)
     val rst =
-      TypedDataset.createUnsafe[Whale](sparkSession.read.parquet(path)).collect[IO].unsafeRunSync().toSet
+      TypedDataset.createUnsafe[Whale](sparkSession.read.parquet(path)).dataset.collect().toSet
     assert(rst == whales.toSet)
   }
 
@@ -80,9 +75,8 @@ class MiscTest extends AnyFunSuite {
 
   test("gen schema") {
     import sparkSession.implicits._
-    val s = TypedExpressionEncoder.targetStructType(se)
-    val df: DataFrame =
-      sparkSession.createDataFrame(rdd.toDF().rdd, s)
+    val s             = TypedExpressionEncoder.targetStructType(se)
+    val df: DataFrame = sparkSession.createDataFrame(rdd.toDF().rdd, s)
     println(s)
 
     val tds: TypedDataset[Sister] = TypedDataset.create(rdd)

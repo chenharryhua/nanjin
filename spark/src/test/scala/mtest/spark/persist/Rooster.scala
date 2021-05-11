@@ -16,13 +16,7 @@ import java.time.Instant
 import scala.math.BigDecimal
 import scala.math.BigDecimal.RoundingMode
 
-final case class Rooster(
-  index: Int,
-  a: Instant,
-  b: Timestamp,
-  c: BigDecimal,
-  d: BigDecimal,
-  e: Option[Int])
+final case class Rooster(index: Int, a: Instant, b: Timestamp, c: BigDecimal, d: BigDecimal, e: Option[Int])
 
 object Rooster {
 

@@ -2,7 +2,6 @@ package mtest.spark.persist
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddAvroFileHoarder}
-import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 import mtest.spark._
@@ -24,8 +23,8 @@ class JacksonTest extends AnyFunSuite {
   test("datetime read/write identity - single") {
     val path = "./data/test/spark/persist/jackson/rooster/single.json"
     rooster.jackson(path).file.run.unsafeRunSync()
-    val r = loaders.jackson[Rooster](path, Rooster.ate, sparkSession)
-    assert(RoosterData.expected == r.collect[IO]().unsafeRunSync().toSet)
+    val r = loaders.jackson[Rooster](path, Rooster.ate, sparkSession).dataset
+    assert(RoosterData.expected == r.collect().toSet)
     val t3 = loaders.stream
       .jackson[IO, Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession.sparkContext.hadoopConfiguration)
       .compile

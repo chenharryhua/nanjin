@@ -2,11 +2,10 @@ package mtest.spark.persist
 
 import better.files._
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.spark.persist.DatasetAvroFileHoarder
-import mtest.spark._
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-import cats.effect.unsafe.implicits.global
 
 @DoNotDiscover
 class ConcurrencyTest extends AnyFunSuite {

@@ -2,20 +2,17 @@ package mtest.spark.kafka
 
 import alleycats.Empty
 import cats.effect.IO
-import cats.syntax.all._
+import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.spark.kafka.{NJConsumerRecord, NJProducerRecord, SparKafkaTopic}
 import frameless.TypedEncoder
-import frameless.cats.implicits.framelessCatsSparkDelayForSync
-import io.circe.generic.auto._
 import mtest.spark
 import mtest.spark.persist.{Rooster, RoosterData}
-import mtest.spark.{sparkSession}
+import mtest.spark.sparkSession
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
 import scala.concurrent.duration._
-import cats.effect.unsafe.implicits.global
 
 class KafkaUploadUnloadTest extends AnyFunSuite {
 

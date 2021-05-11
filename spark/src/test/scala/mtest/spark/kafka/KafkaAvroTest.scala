@@ -11,6 +11,7 @@ import shapeless._
 import fs2.kafka.ProducerRecord
 import fs2.kafka.ProducerRecords
 import cats.effect.unsafe.implicits.global
+import io.circe.Codec
 
 object KafkaAvroTestData {
   final case class Child1(a: Int, b: String)
@@ -31,6 +32,10 @@ object KafkaAvroTestData {
   val co2: PersonCaseObject = PersonCaseObject("ff", Addr2)
 
   final case class PersonEnum(name: String, phoneType: PhoneType.Value)
+
+  object PersonEnum {
+    implicit val codec: Codec[PersonEnum] = io.circe.generic.semiauto.deriveCodec[PersonEnum]
+  }
   val en1: PersonEnum = PersonEnum("cc", PhoneType.F)
   val en2: PersonEnum = PersonEnum("ww", PhoneType.Z)
 

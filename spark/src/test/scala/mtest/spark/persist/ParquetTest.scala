@@ -3,7 +3,6 @@ package mtest.spark.persist
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.spark.persist.{loaders, DatasetAvroFileHoarder}
 import frameless.TypedDataset
-import frameless.cats.implicits.framelessCatsSparkDelayForSync
 import mtest.spark._
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
@@ -53,7 +52,7 @@ class ParquetTest extends AnyFunSuite {
     val path  = "./data/test/spark/persist/parquet/bee/multi.parquet"
     val saver = new DatasetAvroFileHoarder[IO, Bee](ds, Bee.avroEncoder)
     saver.parquet(path).folder.uncompress.run.unsafeRunSync()
-    val t = loaders.parquet[Bee](path, Bee.ate, sparkSession).collect[IO].unsafeRunSync().toList
+    val t = loaders.parquet[Bee](path, Bee.ate, sparkSession).dataset.collect().toList
     assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
 
@@ -63,7 +62,7 @@ class ParquetTest extends AnyFunSuite {
     val path  = "./data/test/spark/persist/parquet/bee/single.gz.parquet"
     val saver = new DatasetAvroFileHoarder[IO, Bee](ds, Bee.avroEncoder)
     saver.parquet(path).file.gzip.run.unsafeRunSync()
-    val t = loaders.parquet[Bee](path, Bee.ate, sparkSession).collect[IO].unsafeRunSync().toList
+    val t = loaders.parquet[Bee](path, Bee.ate, sparkSession).dataset.collect().toList
     assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
 
@@ -103,7 +102,7 @@ class ParquetTest extends AnyFunSuite {
     val saver = new DatasetAvroFileHoarder[IO, Jacket](ds, Jacket.avroCodec.avroEncoder)
     saver.parquet(path).folder.uncompress.run.unsafeRunSync()
     val t: TypedDataset[Jacket] = loaders.parquet(path, Jacket.ate, sparkSession)
-    assert(expected.toSet == t.collect[IO]().unsafeRunSync().toSet)
+    assert(expected.toSet == t.dataset.collect().toSet)
   }
 
   test("parquet jacket single uncompressed") {
@@ -112,7 +111,7 @@ class ParquetTest extends AnyFunSuite {
     val saver = new DatasetAvroFileHoarder[IO, Jacket](ds, Jacket.avroCodec.avroEncoder)
     saver.parquet(path).file.uncompress.run.unsafeRunSync()
     val t: TypedDataset[Jacket] = loaders.parquet(path, Jacket.ate, sparkSession)
-    assert(expected.toSet == t.collect[IO]().unsafeRunSync().toSet)
+    assert(expected.toSet == t.dataset.collect().toSet)
   }
 
   test("parquet jacket single snappy") {
@@ -121,7 +120,7 @@ class ParquetTest extends AnyFunSuite {
     val saver = new DatasetAvroFileHoarder[IO, Jacket](ds, Jacket.avroCodec.avroEncoder)
     saver.parquet(path).file.snappy.run.unsafeRunSync()
     val t: TypedDataset[Jacket] = loaders.parquet(path, Jacket.ate, sparkSession)
-    assert(expected.toSet == t.collect[IO]().unsafeRunSync().toSet)
+    assert(expected.toSet == t.dataset.collect().toSet)
   }
 
   test("parquet jacket single gzip") {
@@ -130,6 +129,6 @@ class ParquetTest extends AnyFunSuite {
     val saver = new DatasetAvroFileHoarder[IO, Jacket](ds, Jacket.avroCodec.avroEncoder)
     saver.parquet(path).file.gzip.run.unsafeRunSync()
     val t: TypedDataset[Jacket] = loaders.parquet(path, Jacket.ate, sparkSession)
-    assert(expected.toSet == t.collect[IO]().unsafeRunSync().toSet)
+    assert(expected.toSet == t.dataset.collect().toSet)
   }
 }

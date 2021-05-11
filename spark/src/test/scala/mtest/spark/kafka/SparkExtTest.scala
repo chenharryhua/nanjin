@@ -1,18 +1,17 @@
 package mtest.spark.kafka
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.kafka.{stages, KafkaTopic}
+import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.kafka._
 import com.landoop.transportation.nyc.trip.yellow.trip_record
-import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
-import mtest.spark.{mat, sparkSession}
+import io.circe.generic.auto._
+import mtest.spark.sparkSession
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.scalatest.funsuite.AnyFunSuite
-import io.circe.generic.auto._
-import cats.effect.unsafe.implicits.global
 
 object SparkExtTestData {
   final case class Foo(a: Int, b: String)
@@ -65,14 +64,14 @@ class SparkExtTest extends AnyFunSuite {
   }
   test("sparKafka typed dataset deal with primitive null ") {
     val tds = TypedDataset.create[Int](List(1, null.asInstanceOf[Int], 3))
-    assert(tds.dismissNulls.collect[IO]().unsafeRunSync().toList == List(1, 0, 3))
+    assert(tds.dismissNulls.dataset.collect().toList == List(1, 0, 3))
     assert(tds.numOfNulls[IO].unsafeRunSync() == 0)
   }
 
   test("sparKafka typed dataset remove null object") {
     import SparkExtTestData._
     val tds = TypedDataset.create[Foo](sparkSession.sparkContext.parallelize(list))
-    assert(tds.dismissNulls.collect[IO]().unsafeRunSync().toList == List(Foo(1, "a"), Foo(3, "c")))
+    assert(tds.dismissNulls.dataset.collect().toList == List(Foo(1, "a"), Foo(3, "c")))
     assert(tds.numOfNulls[IO].unsafeRunSync() == 1)
   }
   test("save syntax") {

@@ -1,6 +1,7 @@
 package mtest.spark.database
 
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.common.transformers._
 import com.github.chenharryhua.nanjin.database.TableName
@@ -9,24 +10,20 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.database._
 import com.github.chenharryhua.nanjin.spark.injection._
 import com.github.chenharryhua.nanjin.spark.persist.DatasetAvroFileHoarder
-import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, _}
 import doobie.implicits._
-import frameless.cats.implicits._
 import frameless.{TypedDataset, TypedEncoder}
 import io.circe.generic.auto._
 import io.scalaland.chimney.dsl._
 import kantan.csv.generic._
 import kantan.csv.java8._
 import kantan.csv.{CsvConfiguration, RowEncoder}
-import mtest.spark.{sparkSession}
-import org.apache.spark.storage.StorageLevel
+import mtest.spark.sparkSession
+import org.apache.spark.sql.SparkSession
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.sql.Date
 import java.time._
 import scala.util.Random
-import org.apache.spark.sql.SparkSession
-import cats.effect.unsafe.implicits.global
 final case class DomainObject(a: LocalDate, b: Date, c: ZonedDateTime, d: OffsetDateTime, e: Option[Instant])
 
 final case class DBTable(a: LocalDate, b: LocalDate, c: Instant, d: Instant, e: Option[Instant])
@@ -88,7 +85,7 @@ class SparkTableTest extends AnyFunSuite {
     val l2   = sparkDB.table(table).tableset(load.rdd).typedDataset
 
     assert(dbc == dc)
-    assert(l1.typedDataset.except(l2).count[IO]().unsafeRunSync() == 0)
+    assert(l1.typedDataset.except(l2).dataset.count() == 0)
   }
 
   test("partial db table") {
@@ -112,8 +109,8 @@ class SparkTableTest extends AnyFunSuite {
         .flatMap(Option(_))(pt.tableDef)
         .typedDataset
 
-    assert(ptd.except(ptd2).count[IO]().unsafeRunSync() == 0)
-    assert(ptd.except(ptd3).count[IO]().unsafeRunSync() == 0)
+    assert(ptd.except(ptd2).dataset.count() == 0)
+    assert(ptd.except(ptd3).dataset.count() == 0)
 
   }
 

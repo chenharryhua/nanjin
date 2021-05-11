@@ -1,7 +1,7 @@
 package mtest.spark.kafka
 
 import cats.effect.IO
-import cats.syntax.all._
+import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.datetime.sydneyTime
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
@@ -9,14 +9,12 @@ import com.github.chenharryhua.nanjin.spark.injection._
 import com.github.chenharryhua.nanjin.spark.kafka._
 import com.sksamuel.avro4s.SchemaFor
 import frameless.TypedDataset
-import frameless.cats.implicits._
 import fs2.kafka.{ProducerRecord, ProducerRecords}
-import mtest.spark.{sparkSession}
+import mtest.spark.sparkSession
 import org.apache.spark.sql.SparkSession
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.{Instant, LocalDate}
-import cats.effect.unsafe.implicits.global
 
 object SparKafkaTestData {
   final case class Duck(f: Int, g: String)
