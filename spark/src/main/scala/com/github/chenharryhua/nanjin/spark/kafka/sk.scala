@@ -55,20 +55,21 @@ private[kafka] object sk {
   def kafkaDStream[F[_]: Sync, K, V](
     topic: KafkaTopic[F, K, V],
     streamingContext: StreamingContext,
-    locationStrategy: LocationStrategy): DStream[NJConsumerRecord[K, V]] = {
-    val consumerStrategy: ConsumerStrategy[Array[Byte], Array[Byte]] =
-      ConsumerStrategies.Subscribe[Array[Byte], Array[Byte]](
-        List(topic.topicName.value),
-        props(topic.context.settings.consumerSettings.config).asScala)
-    KafkaUtils.createDirectStream(streamingContext, locationStrategy, consumerStrategy).mapPartitions { ms =>
-      val decoder = new NJDecoder[Writer[Chain[Throwable], *], K, V](topic.codec.keyCodec, topic.codec.valCodec)
-      ms.map { m =>
-        val (errs, cr) = decoder.decode(m).run
-        errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
-        cr
+    locationStrategy: LocationStrategy): F[DStream[NJConsumerRecord[K, V]]] =
+    topic.shortLiveConsumer.use(_.partitionsFor).map { topicPartitions =>
+      val consumerStrategy: ConsumerStrategy[Array[Byte], Array[Byte]] =
+        ConsumerStrategies.Assign[Array[Byte], Array[Byte]](
+          topicPartitions.value,
+          props(topic.context.settings.consumerSettings.config).asScala)
+      KafkaUtils.createDirectStream(streamingContext, locationStrategy, consumerStrategy).mapPartitions { ms =>
+        val decoder = new NJDecoder[Writer[Chain[Throwable], *], K, V](topic.codec.keyCodec, topic.codec.valCodec)
+        ms.map { m =>
+          val (errs, cr) = decoder.decode(m).run
+          errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
+          cr
+        }
       }
     }
-  }
 
   def kafkaBatch[F[_]: Sync, K, V](
     topic: KafkaTopic[F, K, V],

@@ -71,7 +71,7 @@ class CirceTest extends AnyFunSuite {
     assert(RoosterData.expected == t2.dataset.collect().toSet)
   }
 
-  val bee = new RddAvroFileHoarder[IO, Bee](BeeData.rdd, Bee.avroCodec.avroEncoder)
+  val bee = new RddAvroFileHoarder[IO, Bee](BeeData.rdd.repartition(1), Bee.avroCodec.avroEncoder)
   test("circe bee byte-array rdd read/write identity multi bzip2") {
     val path = "./data/test/spark/persist/circe/bee/multi.bzip2.json"
     bee.circe(path).dropNull.folder.bzip2.run.unsafeRunSync()

@@ -13,7 +13,6 @@ final class CirceSerialization[F[_], A] extends Serializable {
   }
 
   def deserialize(implicit ev: RaiseThrowable[F], dec: JsonDecoder[A]): Pipe[F, Byte, A] =
-    (ss: Stream[F, Byte]) =>
-      ss.through(utf8Decode).through(lines).filter(_.trim.nonEmpty).map(decode[A]).rethrow
+    (ss: Stream[F, Byte]) => ss.through(utf8Decode).through(lines).filter(_.trim.nonEmpty).map(decode[A]).rethrow
 
 }
