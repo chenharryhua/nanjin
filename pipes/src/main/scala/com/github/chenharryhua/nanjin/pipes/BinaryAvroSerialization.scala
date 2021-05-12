@@ -29,11 +29,11 @@ final class BinaryAvroSerialization[F[_]](schema: Schema) extends Serializable {
       val datumReader = new GenericDatumReader[GenericRecord](schema)
       def pullAll(is: InputStream): Pull[F, GenericRecord, Option[InputStream]] =
         Pull
-          .functionKInstance(F.delay(try Some(datumReader.read(null, avroDecoder))
+          .functionKInstance(F.blocking(try Some(datumReader.read(null, avroDecoder))
           catch { case ex: EOFException => None }))
           .flatMap {
             case Some(a) => Pull.output1(a) >> Pull.pure(Some(is))
-            case None    => Pull.eval(F.delay(is.close())) >> Pull.pure(None)
+            case None    => Pull.eval(F.blocking(is.close())) >> Pull.pure(None)
           }
       Pull.loop(pullAll)(is).void.stream
     }
