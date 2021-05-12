@@ -24,16 +24,16 @@ final class JavaObjectSerialization[F[_], A] extends Serializable {
   private def pullAll(ois: ObjectInputStream)(implicit F: Sync[F]): Pull[F, A, Option[ObjectInputStream]] =
     Pull
       .functionKInstance(
-        F.delay(try Some(ois.readObject().asInstanceOf[A])
+        F.blocking(try Some(ois.readObject().asInstanceOf[A])
         catch { case ex: EOFException => None }))
       .flatMap {
         case Some(a) => Pull.output1(a) >> Pull.pure(Some(ois))
-        case None    => Pull.eval(F.delay(ois.close())) >> Pull.pure(None)
+        case None    => Pull.eval(F.blocking(ois.close())) >> Pull.pure(None)
       }
 
   private def readInputStream(is: InputStream)(implicit F: Sync[F]): Stream[F, A] =
     for {
-      ois <- Stream.resource(Resource.fromAutoCloseable(F.delay(new ObjectInputStream(is))))
+      ois <- Stream.resource(Resource.fromAutoCloseable(F.blocking(new ObjectInputStream(is))))
       a <- Pull.loop(pullAll)(ois).void.stream
     } yield a
 

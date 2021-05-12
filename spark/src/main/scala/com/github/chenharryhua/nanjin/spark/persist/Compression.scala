@@ -57,7 +57,7 @@ sealed trait Compression extends Serializable {
       case Compression.Uncompressed => identity
       case Compression.Gzip         => cps.gzip()
       case Compression.Deflate(level) =>
-        val l = level match {
+        val lvl = level match {
           case 0 => Level.ZERO
           case 1 => Level.ONE
           case 2 => Level.TWO
@@ -69,7 +69,7 @@ sealed trait Compression extends Serializable {
           case 8 => Level.EIGHT
           case 9 => Level.NINE
         }
-        cps.deflate(DeflateParams(level = l))
+        cps.deflate(DeflateParams(level = lvl))
       case c => throw new Exception(s"fs2 Stream does not support codec: $c")
     }
   }

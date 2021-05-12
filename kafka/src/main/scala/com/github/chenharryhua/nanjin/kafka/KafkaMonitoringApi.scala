@@ -4,7 +4,6 @@ import cats.effect.Async
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.messages.kafka._
-import com.github.chenharryhua.nanjin.utils.Keyboard
 import fs2.Stream
 import fs2.kafka.{AutoOffsetReset, ProducerRecord, ProducerRecords}
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -37,27 +36,23 @@ object KafkaMonitoringApi {
       extends KafkaMonitoringApi[F, K, V] {
 
     private def watch(aor: AutoOffsetReset): F[Unit] =
-      Keyboard.signal.flatMap { signal =>
-        topic.fs2Channel
-          .updateConsumer(_.withAutoOffsetReset(aor))
-          .stream
-          .map(m => topic.decoder(m).tryDecodeKeyValue.toString)
-          .debug()
-          .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
-          .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
-      }.compile.drain
+      topic.fs2Channel
+        .updateConsumer(_.withAutoOffsetReset(aor))
+        .stream
+        .map(m => topic.decoder(m).tryDecodeKeyValue.toString)
+        .debug()
+        .compile
+        .drain
 
     private def filterWatch(predict: ConsumerRecord[Try[K], Try[V]] => Boolean, aor: AutoOffsetReset): F[Unit] =
-      Keyboard.signal.flatMap { signal =>
-        topic.fs2Channel
-          .updateConsumer(_.withAutoOffsetReset(aor))
-          .stream
-          .filter(m => predict(isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record)))
-          .map(m => topic.decoder(m).tryDecodeKeyValue.toString)
-          .debug()
-          .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
-          .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
-      }.compile.drain
+      topic.fs2Channel
+        .updateConsumer(_.withAutoOffsetReset(aor))
+        .stream
+        .filter(m => predict(isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record)))
+        .map(m => topic.decoder(m).tryDecodeKeyValue.toString)
+        .debug()
+        .compile
+        .drain
 
     override def watchFrom(njt: NJTimestamp): F[Unit] = {
       val run: Stream[F, Unit] = for {
@@ -66,13 +61,10 @@ object KafkaMonitoringApi {
           os <- kcs.offsetsForTimes(njt)
           e <- kcs.endOffsets
         } yield os.combineWith(e)(_.orElse(_)))
-        signal <- Keyboard.signal
         _ <- topic.fs2Channel
           .assign(gtp.mapValues(_.getOrElse(KafkaOffset(0))))
           .map(m => topic.decoder(m).tryDecodeKeyValue.toString)
           .debug()
-          .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
-          .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
       } yield ()
       run.compile.drain
     }
@@ -115,7 +107,6 @@ object KafkaMonitoringApi {
 
     override def carbonCopyTo(other: KafkaTopic[F, K, V]): F[Unit] = {
       val run = for {
-        signal <- Keyboard.signal
         _ <- topic.fs2Channel.stream.map { m =>
           val cr = other.decoder(m).nullableDecode.record
           val ts = cr.timestamp.createTime.orElse(cr.timestamp.logAppendTime.orElse(cr.timestamp.unknownTime))
@@ -123,8 +114,6 @@ object KafkaMonitoringApi {
             ProducerRecord(other.topicName.value, cr.key, cr.value).withHeaders(cr.headers).withPartition(cr.partition)
           ProducerRecords.one(ts.fold(pr)(pr.withTimestamp))
         }.through(other.fs2Channel.producerPipe)
-          .pauseWhen(signal.map(_.contains(Keyboard.pauSe)))
-          .interruptWhen(signal.map(_.contains(Keyboard.Quit)))
       } yield ()
       run.chunkN(10000).map(_ => print(".")).compile.drain
     }

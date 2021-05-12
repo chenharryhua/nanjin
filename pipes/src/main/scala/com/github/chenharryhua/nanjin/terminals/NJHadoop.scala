@@ -41,37 +41,37 @@ object NJHadoop {
       /** Notes: do not close file-system.
         */
       private def fileSystem(pathStr: String): Resource[F, FileSystem] =
-        Resource.make(F.delay(FileSystem.get(new URI(pathStr), config)))(_ => F.delay(()))
+        Resource.fromAutoCloseable(F.blocking(FileSystem.get(new URI(pathStr), config)))
 
       private def fsOutput(pathStr: String): Resource[F, FSDataOutputStream] =
         for {
           fs <- fileSystem(pathStr)
-          rs <- Resource.fromAutoCloseable[F, FSDataOutputStream](F.delay(fs.create(new Path(pathStr))))
+          rs <- Resource.fromAutoCloseable[F, FSDataOutputStream](F.blocking(fs.create(new Path(pathStr))))
         } yield rs
 
       private def fsInput(pathStr: String): Resource[F, FSDataInputStream] =
         for {
           fs <- fileSystem(pathStr)
-          rs <- Resource.fromAutoCloseable[F, FSDataInputStream](F.delay(fs.open(new Path(pathStr))))
+          rs <- Resource.fromAutoCloseable[F, FSDataInputStream](F.blocking(fs.open(new Path(pathStr))))
         } yield rs
 
       override def delete(pathStr: String): F[Boolean] =
-        fileSystem(pathStr).use(fs => F.delay(fs.delete(new Path(pathStr), true)))
+        fileSystem(pathStr).use(fs => F.blocking(fs.delete(new Path(pathStr), true)))
 
       override def isExist(pathStr: String): F[Boolean] =
-        fileSystem(pathStr).use(fs => F.delay(fs.exists(new Path(pathStr))))
+        fileSystem(pathStr).use(fs => F.blocking(fs.exists(new Path(pathStr))))
 
       override def byteSink(pathStr: String): Pipe[F, Byte, Unit] = { (ss: Stream[F, Byte]) =>
         for {
           fs <- Stream.resource(fsOutput(pathStr))
-          res <- ss.through(writeOutputStream[F](F.delay(fs)))
+          res <- ss.through(writeOutputStream[F](F.blocking(fs)))
         } yield res
       }
 
       override def byteSource(pathStr: String): Stream[F, Byte] =
         for {
           is <- Stream.resource(fsInput(pathStr))
-          bt <- readInputStream[F](F.delay(is), pipes.chunkSize)
+          bt <- readInputStream[F](F.blocking(is), pipes.chunkSize)
         } yield bt
 
       override def parquetSink(
@@ -81,16 +81,16 @@ object NJHadoop {
         def go(grs: Stream[F, GenericRecord], writer: ParquetWriter[GenericRecord]): Pull[F, Unit, Unit] =
           grs.pull.uncons.flatMap {
             case Some((hl, tl)) =>
-              Pull.eval(hl.traverse(gr => F.delay(writer.write(gr)))) >> go(tl, writer)
+              Pull.eval(hl.traverse(gr => F.blocking(writer.write(gr)))) >> go(tl, writer)
             case None =>
-              Pull.eval(F.delay(writer.close())) >> Pull.done
+              Pull.eval(F.blocking(writer.close())) >> Pull.done
           }
         (ss: Stream[F, GenericRecord]) =>
           val outputFile = HadoopOutputFile.fromPath(new Path(pathStr), config)
           for {
             writer <- Stream.resource(
               Resource.fromAutoCloseable(
-                F.delay(
+                F.blocking(
                   AvroParquetWriter
                     .builder[GenericRecord](outputFile)
                     .withConf(config)
@@ -109,13 +109,13 @@ object NJHadoop {
         for {
           reader <- Stream.resource(
             Resource.fromAutoCloseable(
-              F.delay(
+              F.blocking(
                 AvroParquetReader
                   .builder[GenericRecord](inputFile)
                   .withDataModel(GenericData.get())
                   .withConf(config)
                   .build())))
-          gr <- Stream.repeatEval(F.delay(Option(reader.read()))).unNoneTerminate
+          gr <- Stream.repeatEval(F.blocking(Option(reader.read()))).unNoneTerminate
         } yield gr
       }
 
@@ -123,14 +123,14 @@ object NJHadoop {
         def go(grs: Stream[F, GenericRecord], writer: DataFileWriter[GenericRecord]): Pull[F, Unit, Unit] =
           grs.pull.uncons.flatMap {
             case Some((hl, tl)) =>
-              Pull.eval(hl.traverse(gr => F.delay(writer.append(gr)))) >> go(tl, writer)
-            case None => Pull.eval(F.delay(writer.close())) >> Pull.done
+              Pull.eval(hl.traverse(gr => F.blocking(writer.append(gr)))) >> go(tl, writer)
+            case None => Pull.eval(F.blocking(writer.close())) >> Pull.done
           }
         (ss: Stream[F, GenericRecord]) =>
           for {
             dfw <- Stream.resource(
               Resource.fromAutoCloseable[F, DataFileWriter[GenericRecord]](
-                F.delay(new DataFileWriter(new GenericDatumWriter(schema)).setCodec(cf))))
+                F.blocking(new DataFileWriter(new GenericDatumWriter(schema)).setCodec(cf))))
             writer <- Stream.resource(fsOutput(pathStr)).map(os => dfw.create(schema, os))
             _ <- go(ss, writer).stream
           } yield ()
@@ -140,7 +140,7 @@ object NJHadoop {
         is <- Stream.resource(fsInput(pathStr))
         dfs <- Stream.resource(
           Resource.fromAutoCloseable[F, DataFileStream[GenericRecord]](
-            F.delay(new DataFileStream(is, new GenericDatumReader(schema)))))
+            F.blocking(new DataFileStream(is, new GenericDatumReader(schema)))))
         gr <- Stream.fromIterator(dfs.iterator().asScala, pipes.chunkSize)
       } yield gr
     }

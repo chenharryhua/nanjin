@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.spark.dstream
 
-import cats.Applicative
 import cats.data.Kleisli
 import cats.effect.Async
 import cats.effect.std.Dispatcher
@@ -11,20 +10,14 @@ import org.apache.spark.streaming.{Duration, Seconds, StreamingContext}
 
 import scala.concurrent.duration.FiniteDuration
 
-final class EndMark private {}
-
-private[dstream] object EndMark {
-  val mark: EndMark = new EndMark
-}
-
-final class DStreamRunner[F[_]: Applicative] private (
+final class DStreamRunner[F[_]] private (
   sparkContext: SparkContext,
   checkpoint: String,
   batchDuration: Duration,
-  streamings: List[Kleisli[F, StreamingContext, EndMark]])
+  streamings: List[Kleisli[F, StreamingContext, DStreamRunner.Mark]])(implicit F: Async[F])
     extends Serializable {
 
-  def signup[A](rd: Kleisli[F, StreamingContext, A])(f: A => EndMark): DStreamRunner[F] =
+  def signup[A](rd: Kleisli[F, StreamingContext, A])(f: A => DStreamRunner.Mark): DStreamRunner[F] =
     new DStreamRunner[F](sparkContext, checkpoint, batchDuration, streamings :+ rd.map(f))
 
   private def createContext(dispatcher: Dispatcher[F])(): StreamingContext = {
@@ -35,10 +28,10 @@ final class DStreamRunner[F[_]: Applicative] private (
     ssc
   }
 
-  def run(implicit F: Async[F]): Stream[F, Unit] = {
+  def run: Stream[F, Unit] = {
     val start = for {
       dispatcher <- Stream.resource(Dispatcher[F])
-      ssc <- Stream.bracket(F.delay {
+      _ <- Stream.bracket(F.delay {
         val ssc: StreamingContext = StreamingContext.getOrCreate(checkpoint, createContext(dispatcher))
         ssc.start()
         ssc
@@ -49,8 +42,10 @@ final class DStreamRunner[F[_]: Applicative] private (
 }
 
 object DStreamRunner {
+  private[dstream] object Mark
+  type Mark = Mark.type
 
-  def apply[F[_]: Applicative](
+  def apply[F[_]: Async](
     sparkContext: SparkContext,
     checkpoint: String,
     batchDuration: FiniteDuration): DStreamRunner[F] =

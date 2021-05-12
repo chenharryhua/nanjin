@@ -19,7 +19,8 @@ final class DStreamSink[A](dstream: DStream[A], cfg: SDConfig) extends Serializa
 
   def coalesce(implicit tag: ClassTag[A]): DStreamSink[A] = transform(_.transform(_.coalesce(1)))
 
-  def circe(path: String)(implicit enc: JsonEncoder[A]): EndMark = persist.circe[A](dstream)(params.pathBuilder(path))
+  def circe(path: String)(implicit enc: JsonEncoder[A]): DStreamRunner.Mark =
+    persist.circe[A](dstream)(params.pathBuilder(path))
 
 }
 
@@ -36,7 +37,12 @@ final class AvroDStreamSink[A](dstream: DStream[A], encoder: AvroEncoder[A], cfg
 
   def coalesce(implicit tag: ClassTag[A]): AvroDStreamSink[A] = transform(_.transform(_.coalesce(1)), encoder)
 
-  def circe(path: String)(implicit enc: JsonEncoder[A]): EndMark = persist.circe[A](dstream)(params.pathBuilder(path))
-  def avro(path: String): EndMark                                = persist.avro[A](dstream, encoder)(params.pathBuilder(path))
-  def jackson(path: String): EndMark                             = persist.jackson[A](dstream, encoder)(params.pathBuilder(path))
+  def circe(path: String)(implicit enc: JsonEncoder[A]): DStreamRunner.Mark =
+    persist.circe[A](dstream)(params.pathBuilder(path))
+
+  def avro(path: String): DStreamRunner.Mark =
+    persist.avro[A](dstream, encoder)(params.pathBuilder(path))
+
+  def jackson(path: String): DStreamRunner.Mark =
+    persist.jackson[A](dstream, encoder)(params.pathBuilder(path))
 }

@@ -1,14 +1,13 @@
 package mtest.kafka
 
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
 import scala.concurrent.duration._
-import scala.util.Random
-import cats.effect.unsafe.implicits.global
 
 class MonitorApiTest extends AnyFunSuite {
   val topic = ctx.topic[Int, Int]("monitor.test")
@@ -47,7 +46,7 @@ class MonitorApiTest extends AnyFunSuite {
       .concurrently(w)
       .concurrently(wn)
       .concurrently(wf)
-      .interruptAfter(9.seconds)
+      .interruptAfter(10.seconds)
       .compile
       .drain
       .unsafeRunSync()
