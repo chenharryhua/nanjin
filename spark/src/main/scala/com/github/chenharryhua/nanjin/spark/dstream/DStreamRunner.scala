@@ -29,16 +29,14 @@ final class DStreamRunner[F[_]] private (
   def run: Stream[F, Unit] = {
     val start = for {
       dispatcher <- Stream.resource(Dispatcher[F])
-      fiber <- Stream
+      _ <- Stream
         .bracket(F.blocking {
           val ssc: StreamingContext = StreamingContext.getOrCreate(checkpoint, createContext(dispatcher))
           ssc.start()
+          dispatcher.unsafeRunAndForget(F.blocking(ssc.awaitTermination()))
           ssc
         })(ssc => F.blocking(ssc.stop(stopSparkContext = false, stopGracefully = true)))
-        .evalMap(ssc =>
-          // Must call awaitTermination, otherwise 'BatchedWriteAheadLog Writer queue interrupted' occurs
-          // start a fiber in order not to block the main thread.
-          F.start(F.blocking(ssc.awaitTermination())))
+        .evalMap(ssc => F.interruptible(many = false)(ssc.awaitTermination()))
     } yield ()
     start ++ Stream.never[F]
   }
