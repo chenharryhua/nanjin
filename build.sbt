@@ -70,7 +70,7 @@ lazy val commonSettings = Seq(
     Resolver.sonatypeRepo("releases"),
     "Confluent Maven Repo".at("https://packages.confluent.io/maven/")
   ),
-  addCompilerPlugin(("org.typelevel" %% "kind-projector" % "0.11.3").cross(CrossVersion.full)),
+  addCompilerPlugin(("org.typelevel" %% "kind-projector" % "0.12.0").cross(CrossVersion.full)),
   addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
   addCompilerPlugin(("org.scalamacros" %% "paradise" % "2.1.1").cross(CrossVersion.full)),
   libraryDependencies ++= Seq(
@@ -155,8 +155,8 @@ val kantanLib = Seq(
 val pbLib = Seq(
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.2",
   "io.confluent"                              % "kafka-protobuf-serializer" % "6.1.1",
-  "com.google.protobuf"                       % "protobuf-java"             % "3.16.0",
-  "com.google.protobuf"                       % "protobuf-java-util"        % "3.16.0"
+  "com.google.protobuf"                       % "protobuf-java"             % "3.17.0",
+  "com.google.protobuf"                       % "protobuf-java-util"        % "3.17.0"
 )
 
 val serdeLib = Seq(
