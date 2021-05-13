@@ -1,20 +1,22 @@
 package example.kafka
 
-import cats.derived.auto.show._
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.spark.dstream.DStreamRunner
 import example._
 import example.topics.fooTopic
 import frameless.TypedEncoder
 import io.circe.generic.auto._
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-import cats.effect.unsafe.implicits.global
+
 import scala.concurrent.duration._
 
 @DoNotDiscover
 class KafkaBasic extends AnyFunSuite {
   implicit val foo: TypedEncoder[Foo] = shapeless.cachedImplicit
 
-  test("consume message from kafka") {
+  test("consume messages from kafka using https://fd4s.github.io/fs2-kafka/") {
     fooTopic.fs2Channel.stream
       .map(x => fooTopic.decoder(x).decode)
       .take(3)
@@ -25,13 +27,10 @@ class KafkaBasic extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  val path = "./data/example/foo.json"
-  test("persist messages to local disk") {
-    sparKafka.topic(fooTopic).fromKafka.flatMap(_.save.circe(path).file.run).unsafeRunSync()
-  }
-
-  test("populate topic using persisted data") {
-    sparKafka
+  test("persist messages to local disk and load the data into kafka") {
+    val path = "./data/example/foo.json"
+    val save = sparKafka.topic(fooTopic).fromKafka.flatMap(_.save.circe(path).file.run)
+    val load = sparKafka
       .topic(fooTopic)
       .load
       .circe(path)
@@ -43,6 +42,20 @@ class KafkaBasic extends AnyFunSuite {
       .run
       .compile
       .drain
+
+    (save >> load).unsafeRunSync()
+  }
+
+  test("persist messages using dstream") {
+    val path   = "./data/example/foo/dstream"
+    val runner = DStreamRunner[IO](sparKafka.sparkSession.sparkContext, "./data/example/foo/checkpoint", 2.seconds)
+    runner
+      .signup(sparKafka.topic(fooTopic).dstream)(_.coalesce.circe(path))
+      .run
+      .interruptAfter(10.seconds)
+      .compile
+      .drain
       .unsafeRunSync()
   }
+
 }
