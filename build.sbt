@@ -56,7 +56,6 @@ val akkaFtp = "2.0.2"
 
 // misc
 val silencer    = "1.7.3"
-val jline       = "3.20.0"
 val log4s       = "1.8.2"
 val betterFiles = "3.9.1"
 
@@ -113,15 +112,7 @@ val hadoopLib = Seq(
 
 val neotypesLib = Seq(
   "com.dimafeng" %% "neotypes",
-  "com.dimafeng" %% "neotypes-cats-effect",
-  "com.dimafeng" %% "neotypes-monix",
-  "com.dimafeng" %% "neotypes-zio",
-  "com.dimafeng" %% "neotypes-akka-stream",
-  "com.dimafeng" %% "neotypes-fs2-stream",
-  "com.dimafeng" %% "neotypes-monix-stream",
-  "com.dimafeng" %% "neotypes-zio-stream",
-  "com.dimafeng" %% "neotypes-refined",
-  "com.dimafeng" %% "neotypes-cats-data"
+  "com.dimafeng" %% "neotypes-cats-effect"
 ).map(_ % neotypes) ++ Seq("org.neo4j.driver" % "neo4j-java-driver" % "4.2.5")
 
 val circeLib = Seq(
@@ -283,11 +274,11 @@ val akkaLib = Seq(
 ).map(_ % akka26)
 
 val effectLib = Seq(
-  "org.typelevel" %% "cats-effect-std"    % catsEffect,
-  "dev.zio" %% "zio"                      % "1.0.7",
-  "dev.zio" %% "zio-interop-cats"         % zioCats,
-  "io.monix" %% "monix-eval"              % monix,
-  "io.monix" %% "monix"                   % monix
+  "org.typelevel" %% "cats-effect" % catsEffect,
+  "dev.zio" %% "zio"               % "1.0.7" % Provided,
+  "dev.zio" %% "zio-interop-cats"  % zioCats % Provided,
+  "io.monix" %% "monix-eval"       % monix   % Provided,
+  "io.monix" %% "monix"            % monix   % Provided
 )
 
 val quillLib = Seq(
@@ -319,7 +310,7 @@ val dbLib = doobieLib ++ quillLib ++ neotypesLib
 lazy val common = (project in file("common"))
   .settings(commonSettings: _*)
   .settings(name := "nj-common")
-  .settings(libraryDependencies ++= Seq("org.jline" % "jline" % jline) ++
+  .settings(libraryDependencies ++=
     baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ logLib ++ testLib)
 
 lazy val datetime = (project in file("datetime"))

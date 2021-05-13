@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.spark.dstream
 import cats.data.Kleisli
 import cats.effect.Async
 import cats.effect.std.Dispatcher
-import cats.syntax.traverse._
 import fs2.Stream
 import org.apache.spark.SparkContext
 import org.apache.spark.streaming.{Duration, Seconds, StreamingContext}
@@ -21,9 +20,8 @@ final class DStreamRunner[F[_]] private (
     new DStreamRunner[F](sparkContext, checkpoint, batchDuration, streamings :+ rd.map(f))
 
   private def createContext(dispatcher: Dispatcher[F])(): StreamingContext = {
-    val ssc      = new StreamingContext(sparkContext, batchDuration)
-    val register = streamings.traverse(_(ssc))
-    dispatcher.unsafeRunSync(register)
+    val ssc = new StreamingContext(sparkContext, batchDuration)
+    streamings.foreach(ksd => dispatcher.unsafeRunSync(ksd.run(ssc)))
     ssc.checkpoint(checkpoint)
     ssc
   }
@@ -31,11 +29,11 @@ final class DStreamRunner[F[_]] private (
   def run: Stream[F, Unit] = {
     val start = for {
       dispatcher <- Stream.resource(Dispatcher[F])
-      _ <- Stream.bracket(F.delay {
+      _ <- Stream.bracket(F.blocking {
         val ssc: StreamingContext = StreamingContext.getOrCreate(checkpoint, createContext(dispatcher))
         ssc.start()
         ssc
-      })(ssc => F.delay(ssc.stop(stopSparkContext = false, stopGracefully = true)))
+      })(ssc => F.blocking(ssc.stop(stopSparkContext = false, stopGracefully = true)))
     } yield ()
     start ++ Stream.never[F]
   }
