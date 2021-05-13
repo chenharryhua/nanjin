@@ -11,12 +11,13 @@ import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import io.circe.generic.auto._
 import mtest.spark.kafka.sparKafka
-import org.scalatest.BeforeAndAfter
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 
 import scala.concurrent.duration._
+import scala.util.Random
 
-//@DoNotDiscover
+@DoNotDiscover
 class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
 
   before(sparKafka.sparkSession.sparkContext.setLogLevel(NJLogLevel.ERROR.entryName))
@@ -24,7 +25,7 @@ class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
 
   val root: String = "./data/test/spark/dstream/"
 
-  better.files.File(root).delete(true)
+  if (Random.nextBoolean()) better.files.File(root).delete(true)
 
   val logger = org.log4s.getLogger("SparkDStreamTest")
 

@@ -29,11 +29,15 @@ final class DStreamRunner[F[_]] private (
   def run: Stream[F, Unit] = {
     val start = for {
       dispatcher <- Stream.resource(Dispatcher[F])
-      _ <- Stream.bracket(F.blocking {
-        val ssc: StreamingContext = StreamingContext.getOrCreate(checkpoint, createContext(dispatcher))
-        ssc.start()
-        ssc
-      })(ssc => F.blocking(ssc.stop(stopSparkContext = false, stopGracefully = true)))
+      _ <- Stream
+        .bracket(F.blocking {
+          val ssc: StreamingContext = StreamingContext.getOrCreate(checkpoint, createContext(dispatcher))
+          ssc.start()
+          ssc
+        })(ssc => F.blocking(ssc.stop(stopSparkContext = false, stopGracefully = true)))
+        .evalMap(ssc =>
+          // Must call awaitTermination, otherwise 'BatchedWriteAheadLog Writer queue interrupted' occurs
+          F.blocking(ssc.awaitTermination()))
     } yield ()
     start ++ Stream.never[F]
   }
