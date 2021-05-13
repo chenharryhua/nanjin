@@ -33,11 +33,10 @@ final class DStreamRunner[F[_]] private (
         .bracket(F.blocking {
           val ssc: StreamingContext = StreamingContext.getOrCreate(checkpoint, createContext(dispatcher))
           ssc.start()
+          dispatcher.unsafeRunAndForget(F.blocking(ssc.awaitTermination()))
           ssc
         })(ssc => F.blocking(ssc.stop(stopSparkContext = false, stopGracefully = true)))
-        .evalMap(ssc =>
-          // Must call awaitTermination, otherwise 'BatchedWriteAheadLog Writer queue interrupted' occurs
-          F.blocking(ssc.awaitTermination()))
+        .evalMap(ssc => F.interruptible(many = false)(ssc.awaitTermination()))
     } yield ()
     start ++ Stream.never[F]
   }
