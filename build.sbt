@@ -24,7 +24,7 @@ val chimney    = "0.6.1"
 // runtime
 val zioCats    = "3.0.2.0"
 val monix      = "3.3.0"
-val catsEffect = "3.1.0"
+val catsEffect = "3.1.1"
 val akka26     = "2.6.14"
 
 // kafka
