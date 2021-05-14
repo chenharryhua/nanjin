@@ -325,7 +325,7 @@ lazy val messages = (project in file("messages"))
   .settings(libraryDependencies ++= Seq(
     compilerPlugin(("com.github.ghik"                % "silencer-plugin" % silencer).cross(CrossVersion.full)),
     ("com.github.ghik"                               % "silencer-lib"    % silencer % Provided).cross(CrossVersion.full),
-    "org.scala-lang.modules" %% "scala-java8-compat" % "0.9.1"
+    "org.scala-lang.modules" %% "scala-java8-compat" % "1.0.0"
   ) ++ baseLib ++ effectLib ++ fs2Lib ++ serdeLib ++ kafkaLib ++ monocleLib ++ testLib)
 
 lazy val pipes = (project in file("pipes"))
