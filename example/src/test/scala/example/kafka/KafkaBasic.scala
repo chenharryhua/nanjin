@@ -1,8 +1,6 @@
 package example.kafka
 
-import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.spark.dstream.DStreamRunner
 import example._
 import example.topics.fooTopic
 import frameless.TypedEncoder
@@ -21,7 +19,7 @@ class KafkaBasic extends AnyFunSuite {
       .map(x => fooTopic.decoder(x).decode)
       .take(3)
       .debug()
-      .interruptAfter(2.seconds)
+      .interruptAfter(3.seconds)
       .compile
       .drain
       .unsafeRunSync()
@@ -45,17 +43,4 @@ class KafkaBasic extends AnyFunSuite {
 
     (save >> load).unsafeRunSync()
   }
-
-  test("persist messages using dstream") {
-    val path   = "./data/example/foo/dstream"
-    val runner = DStreamRunner[IO](sparKafka.sparkSession.sparkContext, "./data/example/foo/checkpoint", 2.seconds)
-    runner
-      .signup(sparKafka.topic(fooTopic).dstream)(_.coalesce.circe(path))
-      .run
-      .interruptAfter(10.seconds)
-      .compile
-      .drain
-      .unsafeRunSync()
-  }
-
 }
