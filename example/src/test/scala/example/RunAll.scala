@@ -1,11 +1,16 @@
 package example
 
 import example.database.DatabaseExample
-import example.kafka.KafkaBasic
+import example.kafka.{KafkaBasic, KafkaKStream}
+import example.spark.{KafakDump, KafkaDirectStream, KafkaStructuredStream}
 import org.scalatest.Sequential
 
 class RunAll
     extends Sequential(
       new KafkaBasic,
-      new DatabaseExample
+      new KafkaKStream,
+      new DatabaseExample,
+      new KafkaDirectStream,
+      new KafkaStructuredStream,
+      new KafakDump
     )
