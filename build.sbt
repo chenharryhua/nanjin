@@ -202,7 +202,6 @@ val sparkLib = Seq(
 ).map(_ % avro)
 
 val testLib = Seq(
-  "org.typelevel" %% "cats-effect"                            % catsEffect      % Test,
   "org.typelevel" %% "cats-effect-testkit"                    % catsEffect      % Test,
   "org.typelevel" %% "cats-testkit-scalatest"                 % "2.1.4"         % Test,
   "org.typelevel" %% "discipline-scalatest"                   % "2.1.4"         % Test,
@@ -384,3 +383,4 @@ lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
     .aggregate(common, messages, datetime, pipes, kafka, database, spark, example)
+

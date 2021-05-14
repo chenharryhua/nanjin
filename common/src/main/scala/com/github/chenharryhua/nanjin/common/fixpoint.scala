@@ -6,13 +6,14 @@ import higherkindness.droste.data.{Attr, Coattr, Fix}
 import monocle.Traversal
 import monocle.function.Plated
 
+/** relate Monocle to Droste
+  */
 object fixpoint {
 
   implicit def platedFix[G[_]: Traverse]: Plated[Fix[G]] =
     Plated[Fix[G]](new Traversal[Fix[G], Fix[G]] {
 
-      override def modifyF[F[_]](f: Fix[G] => F[Fix[G]])(s: Fix[G])(implicit
-        ev: Applicative[F]): F[Fix[G]] =
+      override def modifyF[F[_]](f: Fix[G] => F[Fix[G]])(s: Fix[G])(implicit ev: Applicative[F]): F[Fix[G]] =
         Fix.un(s).traverse(f).map(ga => Fix(ga))
     })
 

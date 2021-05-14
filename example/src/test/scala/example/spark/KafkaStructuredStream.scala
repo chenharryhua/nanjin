@@ -13,8 +13,7 @@ import scala.concurrent.duration._
 @DoNotDiscover
 class KafkaStructuredStream extends AnyFunSuite {
   test("persist messages using structured streaming") {
-    implicit val foo: TypedEncoder[Foo] = shapeless.cachedImplicit
-    val path: String                    = "./data/example/foo/sstream"
+    val path: String = "./data/example/foo/sstream"
     sparKafka
       .topic(fooTopic)
       .sstream

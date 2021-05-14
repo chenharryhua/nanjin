@@ -155,7 +155,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
       .sql("select timestamp from kafka")
       .as[Long]
       .collect()
-      .map(t => assert(Math.abs(now - t) < 5000))
+      .map(t => assert(Math.abs(now - t) < 10000))
       .length
     assert(size == 4)
   }
