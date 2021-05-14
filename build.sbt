@@ -312,6 +312,15 @@ lazy val common = (project in file("common"))
   .settings(libraryDependencies ++=
     baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ logLib ++ testLib)
 
+lazy val guard = (project in file("guard"))
+  .dependsOn(common)
+  .settings(commonSettings: _*)
+  .settings(name := "nj-guard")
+  .settings(
+    libraryDependencies ++=
+      Seq("com.github.cb372" %% "cats-retry" % "3.0.0") ++
+        baseLib ++ monocleLib ++ testLib)
+
 lazy val datetime = (project in file("datetime"))
   .dependsOn(common)
   .settings(commonSettings: _*)
@@ -382,5 +391,5 @@ lazy val example = (project in file("example"))
 lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
-    .aggregate(common, messages, datetime, pipes, kafka, database, spark, example)
+    .aggregate(common, guard, messages, datetime, pipes, kafka, database, spark, example)
 
