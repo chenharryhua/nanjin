@@ -21,11 +21,15 @@ sealed abstract class FtpDownloader[F[_], C, S <: RemoteFileSettings](ftpApi: Ft
     }
 }
 
-final class AkkaFtpDownloader[F[_]](settings: FtpSettings)
-    extends FtpDownloader[F, FTPClient, FtpSettings](Ftp, settings)
+object FtpDownloader {
 
-final class AkkaSftpDownloader[F[_]](settings: SftpSettings)
-    extends FtpDownloader[F, SSHClient, SftpSettings](Sftp, settings)
+  def apply[F[_]](settings: FtpSettings): FtpDownloader[F, FTPClient, FtpSettings] =
+    new FtpDownloader[F, FTPClient, FtpSettings](Ftp, settings) {}
 
-final class AkkaFtpsDownloader[F[_]](settings: FtpsSettings)
-    extends FtpDownloader[F, FTPSClient, FtpsSettings](Ftps, settings)
+  def apply[F[_]](settings: SftpSettings): FtpDownloader[F, SSHClient, SftpSettings] =
+    new FtpDownloader[F, SSHClient, SftpSettings](Sftp, settings) {}
+
+  def apply[F[_]](settings: FtpsSettings): FtpDownloader[F, FTPSClient, FtpsSettings] =
+    new FtpDownloader[F, FTPSClient, FtpsSettings](Ftps, settings) {}
+
+}

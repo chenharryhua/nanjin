@@ -2,18 +2,17 @@ package mtest.terminals
 
 import akka.stream.Materializer
 import cats.effect.IO
-import cats.syntax.all._
-import com.github.chenharryhua.nanjin.terminals.{AkkaFtpDownloader, AkkaFtpUploader}
+import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.terminals.{FtpDownloader, FtpUploader}
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
-import cats.effect.unsafe.implicits.global
 
 class FtpTest extends AnyFunSuite {
 
-  val uploader   = new AkkaFtpUploader[IO](ftpSettins)
-  val downloader = new AkkaFtpDownloader[IO](ftpSettins)
+  val uploader   = FtpUploader[IO](ftpSettins)
+  val downloader = FtpDownloader[IO](ftpSettins)
 
   val pathStr    = "ftp-test.txt"
   val testString = s"send a string to ftp and read it back ${Random.nextInt()}"
