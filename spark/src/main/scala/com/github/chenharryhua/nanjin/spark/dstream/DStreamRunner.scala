@@ -34,7 +34,7 @@ final class DStreamRunner[F[_]] private (
           val ssc: StreamingContext = StreamingContext.getOrCreate(checkpoint, createContext(dispatcher))
           ssc.start()
           ssc
-        })(ssc => F.blocking(ssc.stop(stopSparkContext = false, stopGracefully = true)))
+        })(ssc => F.blocking(ssc.stop(stopSparkContext = false, stopGracefully = false)))
         .evalMap(ssc => F.interruptible(many = false)(ssc.awaitTermination()))
     } yield ()
     start ++ Stream.never[F]

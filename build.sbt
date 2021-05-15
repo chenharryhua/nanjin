@@ -16,7 +16,7 @@ val catsMtl    = "1.2.1"
 val catsTime   = "0.3.4"
 val tagless    = "0.14.0"
 val monocle    = "2.1.0"
-val refined    = "0.9.25"
+val refined    = "0.9.24"
 val droste     = "0.8.0"
 val enumeratum = "1.6.1"
 val chimney    = "0.6.1"
@@ -202,7 +202,6 @@ val sparkLib = Seq(
 ).map(_ % avro)
 
 val testLib = Seq(
-  "org.typelevel" %% "cats-effect"                            % catsEffect      % Test,
   "org.typelevel" %% "cats-effect-testkit"                    % catsEffect      % Test,
   "org.typelevel" %% "cats-testkit-scalatest"                 % "2.1.4"         % Test,
   "org.typelevel" %% "discipline-scalatest"                   % "2.1.5"         % Test,
@@ -313,6 +312,15 @@ lazy val common = (project in file("common"))
   .settings(libraryDependencies ++=
     baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ logLib ++ testLib)
 
+lazy val guard = (project in file("guard"))
+  .dependsOn(common)
+  .settings(commonSettings: _*)
+  .settings(name := "nj-guard")
+  .settings(
+    libraryDependencies ++=
+      Seq("com.github.cb372" %% "cats-retry" % "3.0.0") ++
+        baseLib ++ monocleLib ++ testLib)
+
 lazy val datetime = (project in file("datetime"))
   .dependsOn(common)
   .settings(commonSettings: _*)
@@ -383,4 +391,5 @@ lazy val example = (project in file("example"))
 lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
-    .aggregate(common, messages, datetime, pipes, kafka, database, spark, example)
+    .aggregate(common, guard, messages, datetime, pipes, kafka, database, spark, example)
+

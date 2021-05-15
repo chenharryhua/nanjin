@@ -21,7 +21,7 @@ private[sstream] object ss {
   def queryStream[F[_], A](dsw: DataStreamWriter[A], interval: FiniteDuration)(implicit
     F: Async[F]): Stream[F, StreamingQueryProgress] =
     for {
-      streamQuery <- Stream.bracket(F.delay(dsw.start()))(q => F.delay(q.stop()))
+      streamQuery <- Stream.bracket(F.blocking(dsw.start()))(q => F.blocking(q.stop()))
       rst <- Stream
         .awakeEvery[F](interval)
         .map(_ => streamQuery.exception.toLeft(()))
