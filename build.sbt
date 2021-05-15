@@ -153,7 +153,7 @@ val kantanLib = Seq(
 ).map(_ % kantan) ++ Seq("com.nrinaudo" %% "kantan.codecs" % "0.5.2")
 
 val pbLib = Seq(
-  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.2",
+  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.3",
   "io.confluent"                              % "kafka-protobuf-serializer" % "6.1.1",
   "com.google.protobuf"                       % "protobuf-java"             % "3.17.0",
   "com.google.protobuf"                       % "protobuf-java-util"        % "3.17.0"
