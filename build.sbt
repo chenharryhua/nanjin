@@ -99,6 +99,8 @@ lazy val commonSettings = Seq(
   PB.targets in Test                 := Seq(scalapb.gen() -> (sourceManaged in Test).value)
 )
 
+val awsLib = Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.999")
+
 val hadoopLib = Seq(
   "org.apache.hadoop" % "hadoop-mapreduce-client-core",
   "org.apache.hadoop" % "hadoop-aws",
@@ -107,8 +109,7 @@ val hadoopLib = Seq(
   "org.apache.hadoop" % "hadoop-common",
   "org.apache.hadoop" % "hadoop-client",
   "org.apache.hadoop" % "hadoop-hdfs"
-).map(_               % hadoop) ++
-  Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.999")
+).map(_ % hadoop) ++ awsLib
 
 val neotypesLib = Seq(
   "com.dimafeng" %% "neotypes",
@@ -325,7 +326,8 @@ lazy val datetime = (project in file("datetime"))
   .dependsOn(common)
   .settings(commonSettings: _*)
   .settings(name := "nj-datetime")
-  .settings(libraryDependencies ++= baseLib ++ monocleLib ++ testLib)
+  .settings(libraryDependencies ++= Seq("com.lihaoyi" %% "fastparse" % "2.3.2") ++
+    baseLib ++ monocleLib ++ testLib)
 
 lazy val messages = (project in file("messages"))
   .settings(commonSettings: _*)
@@ -392,4 +394,3 @@ lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
     .aggregate(common, guard, messages, datetime, pipes, kafka, database, spark, example)
-

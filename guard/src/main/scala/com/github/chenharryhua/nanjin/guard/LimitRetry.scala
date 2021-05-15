@@ -9,32 +9,23 @@ import retry.{RetryDetails, RetryPolicies, Sleep}
 import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
 
-final private case class LimitedRetryParams(totalRetries: Int, totalDelay: FiniteDuration, err: Throwable)
+final private case class LimitedRetryState(totalRetries: Int, totalDelay: FiniteDuration, err: Throwable)
 
-final private class LimitRetry[F[_]](times: MaximumRetries, interval: RetryInterval)(implicit
-  F: Sync[F],
-  sleep: Sleep[F]) {
+final private class LimitRetry[F[_]](times: MaximumRetries, interval: RetryInterval) {
 
-  private def isWorthRetry(err: Throwable): F[Boolean] = F.delay {
-    err match {
-      case NonFatal(_) => true
-      case _           => false
-    }
-  }
-
-  def limitRetry[A](action: F[A]): Kleisli[F, LimitedRetryParams => F[Unit], A] =
+  def limitRetry[A](action: F[A])(implicit F: Sync[F], sleep: Sleep[F]): Kleisli[F, LimitedRetryState => F[Unit], A] =
     Kleisli { handle =>
       def onError(err: Throwable, details: RetryDetails): F[Unit] =
         details match {
           case WillDelayAndRetry(_, _, _) => F.unit
           case GivingUp(totalRetries, totalDelay) =>
-            handle(LimitedRetryParams(totalRetries, totalDelay, err))
+            handle(LimitedRetryState(totalRetries, totalDelay, err))
         }
       val retryPolicy =
         RetryPolicies.limitRetriesByCumulativeDelay[F](
           interval.value.mul(times.value),
           RetryPolicies.constantDelay[F](interval.value)
         )
-      retry.retryingOnSomeErrors[A](retryPolicy, isWorthRetry, onError)(action)
+      retry.retryingOnSomeErrors[A](retryPolicy, (e: Throwable) => F.delay(NonFatal(e)), onError)(action)
     }
 }
