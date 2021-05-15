@@ -52,7 +52,7 @@ val avro4s  = "4.0.7"
 
 // connect
 val hadoop  = "3.3.0"
-val akkaFtp = "2.0.2"
+val akkaFtp = "3.0.0"
 
 // misc
 val silencer    = "1.7.3"
