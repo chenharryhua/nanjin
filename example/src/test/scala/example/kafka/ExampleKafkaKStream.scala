@@ -16,7 +16,7 @@ import scala.concurrent.duration._
 import scala.util.Random
 
 @DoNotDiscover
-class KafkaKStream extends AnyFunSuite {
+class ExampleKafkaKStream extends AnyFunSuite {
   test("kafka streaming") {
     implicit val keySerde: Serde[Bar]   = barTopic.codec.valSerde
     implicit val valSerde: SerdeOf[Int] = barTopic.codec.keySerde

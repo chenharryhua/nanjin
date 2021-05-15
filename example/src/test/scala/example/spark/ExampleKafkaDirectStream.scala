@@ -12,7 +12,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration._
 
 @DoNotDiscover
-class KafkaDirectStream extends AnyFunSuite {
+class ExampleKafkaDirectStream extends AnyFunSuite {
   test("persist messages using direct streaming") {
     val path   = "./data/example/foo/dstream"
     val runner = DStreamRunner[IO](sparKafka.sparkSession.sparkContext, "./data/example/foo/checkpoint", 2.seconds)

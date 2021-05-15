@@ -11,7 +11,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration._
 
 @DoNotDiscover
-class KafkaStructuredStream extends AnyFunSuite {
+class ExampleKafkaStructuredStream extends AnyFunSuite {
   test("persist messages using structured streaming") {
     val path: String = "./data/example/foo/sstream"
     sparKafka

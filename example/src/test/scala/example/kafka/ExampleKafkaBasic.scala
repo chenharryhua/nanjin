@@ -11,7 +11,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration._
 
 @DoNotDiscover
-class KafkaBasic extends AnyFunSuite {
+class ExampleKafkaBasic extends AnyFunSuite {
   test("populate topic") {
     val producerRecords: List[NJProducerRecord[Int, Foo]] =
       List(
