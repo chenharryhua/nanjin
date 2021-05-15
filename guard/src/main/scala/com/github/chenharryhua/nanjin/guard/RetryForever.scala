@@ -12,7 +12,7 @@ import scala.util.control.{ControlThrowable, NonFatal}
 
 private case object StreamMustBeInfiniteError extends ControlThrowable
 
-final private case class RetryForeverState(
+final case class RetryForeverState(
   alertEveryNRetry: AlertEveryNRetries,
   nextRetryIn: FiniteDuration,
   numOfRetries: Int,

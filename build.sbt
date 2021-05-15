@@ -320,7 +320,7 @@ lazy val guard = (project in file("guard"))
   .settings(
     libraryDependencies ++=
       Seq("com.github.cb372" %% "cats-retry" % "3.0.0") ++
-        baseLib ++ monocleLib ++ testLib)
+        logLib ++ baseLib ++ monocleLib ++ testLib)
 
 lazy val datetime = (project in file("datetime"))
   .dependsOn(common)
