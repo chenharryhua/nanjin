@@ -16,7 +16,7 @@ import scala.concurrent.duration.FiniteDuration
   def withAlertEveryNRetries(v: Int): TaskGuard[F] =
     TaskGuard.alterEveryNRetries.modify(_.copy(value = v))(this)
 
-  def withMaximumRetries(v: Int): TaskGuard[F] =
+  def withMaximumRetries(v: Long): TaskGuard[F] =
     TaskGuard.maximumRetries.modify(_.copy(value = v))(this)
 
   def withRetryInterval(dur: FiniteDuration): TaskGuard[F] =
