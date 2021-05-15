@@ -205,7 +205,7 @@ val testLib = Seq(
   "org.typelevel" %% "cats-effect"                            % catsEffect      % Test,
   "org.typelevel" %% "cats-effect-testkit"                    % catsEffect      % Test,
   "org.typelevel" %% "cats-testkit-scalatest"                 % "2.1.4"         % Test,
-  "org.typelevel" %% "discipline-scalatest"                   % "2.1.4"         % Test,
+  "org.typelevel" %% "discipline-scalatest"                   % "2.1.5"         % Test,
   "org.typelevel" %% "cats-laws"                              % catsCore        % Test,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.5"         % Test,
   "org.scalatest" %% "scalatest"                              % scalatest       % Test,
