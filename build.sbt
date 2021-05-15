@@ -11,7 +11,7 @@ val contextual = "1.2.1"
 val kittens    = "2.3.0"
 val catsCore   = "2.6.1"
 val algebra    = "2.2.2"
-val fs2Version = "3.0.2"
+val fs2Version = "3.0.3"
 val catsMtl    = "1.2.1"
 val catsTime   = "0.3.4"
 val tagless    = "0.14.0"
@@ -60,7 +60,7 @@ val log4s       = "1.8.2"
 val betterFiles = "3.9.1"
 
 // test
-val scalatest = "3.2.8"
+val scalatest = "3.2.9"
 
 lazy val commonSettings = Seq(
   organization := "com.github.chenharryhua",
@@ -153,7 +153,7 @@ val kantanLib = Seq(
 ).map(_ % kantan) ++ Seq("com.nrinaudo" %% "kantan.codecs" % "0.5.2")
 
 val pbLib = Seq(
-  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.2",
+  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.3",
   "io.confluent"                              % "kafka-protobuf-serializer" % "6.1.1",
   "com.google.protobuf"                       % "protobuf-java"             % "3.17.0",
   "com.google.protobuf"                       % "protobuf-java-util"        % "3.17.0"
