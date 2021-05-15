@@ -7,7 +7,7 @@ import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
 @DoNotDiscover
-class KafakDump extends AnyFunSuite {
+class ExampleKafakDump extends AnyFunSuite {
   test("dump kafka data in json") {
     val path = "./data/example/foo/batch/circe.json"
     sparKafka.topic(fooTopic).fromKafka.flatMap(_.save.circe(path).file.run).unsafeRunSync()
