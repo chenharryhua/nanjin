@@ -9,7 +9,7 @@ import retry.{RetryDetails, RetryPolicies, Sleep}
 import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
 
-final private case class LimitedRetryState(totalRetries: Int, totalDelay: FiniteDuration, err: Throwable)
+final case class LimitedRetryState(totalRetries: Int, totalDelay: FiniteDuration, err: Throwable)
 
 final private class LimitRetry[F[_]](times: MaximumRetries, interval: RetryInterval) {
 
