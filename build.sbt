@@ -28,7 +28,7 @@ val catsEffect = "3.1.1"
 val akka26     = "2.6.14"
 
 // kafka
-val akkaKafka = "2.0.7"
+val akkaKafka = "2.1.0"
 val fs2Kafka  = "2.0.0"
 
 // spark
@@ -204,7 +204,7 @@ val sparkLib = Seq(
 val testLib = Seq(
   "org.typelevel" %% "cats-effect-testkit"                    % catsEffect      % Test,
   "org.typelevel" %% "cats-testkit-scalatest"                 % "2.1.4"         % Test,
-  "org.typelevel" %% "discipline-scalatest"                   % "2.1.4"         % Test,
+  "org.typelevel" %% "discipline-scalatest"                   % "2.1.5"         % Test,
   "org.typelevel" %% "cats-laws"                              % catsCore        % Test,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.5"         % Test,
   "org.scalatest" %% "scalatest"                              % scalatest       % Test,
