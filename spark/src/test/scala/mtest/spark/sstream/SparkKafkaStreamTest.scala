@@ -1,14 +1,14 @@
 package mtest.spark.sstream
 
 import better.files._
-import cats.syntax.all._
+import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
 import com.github.chenharryhua.nanjin.spark.kafka.{NJProducerRecord, _}
 import frameless.TypedEncoder
-import mtest.spark.persist.{Rooster, RoosterData}
-import mtest.spark.{akkaSystem, sparkSession}
 import mtest.spark.kafka.{ctx, sparKafka}
+import mtest.spark.persist.{Rooster, RoosterData}
+import mtest.spark.sparkSession
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.streaming.Trigger
 import org.scalatest.DoNotDiscover
@@ -17,7 +17,6 @@ import org.scalatest.funsuite.AnyFunSuite
 import java.time.Instant
 import scala.concurrent.duration._
 import scala.util.Random
-import cats.effect.unsafe.implicits.global
 
 @DoNotDiscover
 class SparkKafkaStreamTest extends AnyFunSuite {
@@ -121,9 +120,9 @@ class SparkKafkaStreamTest extends AnyFunSuite {
         .prRdd(data)
         .replicate(5)
         .withInterval(0.5.seconds)
-        .uploadByBulk
-        .withBulkSize(1024 * 10)
-        .run(akkaSystem)
+        .uploadByBatch
+        .updateProducer(_.withClientId("spark.kafka.streaming.test"))
+        .run
         .delayBy(1.second)
         .debug()
     ss.concurrently(upload).interruptAfter(6.seconds).compile.drain.unsafeRunSync()

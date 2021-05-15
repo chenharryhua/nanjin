@@ -43,7 +43,7 @@ class KafkaBasic extends AnyFunSuite {
       .withInterval(1.second) // interval of sending messages
       .withTimeLimit(5.second) // upload last for 5 seconds
       .uploadByBatch
-      .withBatchSize(2)
+      .withBatchSize(2) // upload 2 message every interval
       .run
       .compile
       .drain

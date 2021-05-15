@@ -26,8 +26,8 @@ final class DStreamRunner[F[_]] private (
     ssc
   }
 
-  def run: Stream[F, Unit] = {
-    val start = for {
+  def run: Stream[F, Unit] =
+    for {
       dispatcher <- Stream.resource(Dispatcher[F])
       _ <- Stream
         .bracket(F.blocking {
@@ -37,8 +37,6 @@ final class DStreamRunner[F[_]] private (
         })(ssc => F.blocking(ssc.stop(stopSparkContext = false, stopGracefully = false)))
         .evalMap(ssc => F.interruptible(many = false)(ssc.awaitTermination()))
     } yield ()
-    start ++ Stream.never[F]
-  }
 }
 
 object DStreamRunner {
