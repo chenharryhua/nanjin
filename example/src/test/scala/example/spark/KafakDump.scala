@@ -12,8 +12,8 @@ class KafakDump extends AnyFunSuite {
     val path = "./data/example/foo/batch/circe.json"
     sparKafka.topic(fooTopic).fromKafka.flatMap(_.save.circe(path).file.run).unsafeRunSync()
   }
-  test("dump kafka data in avro") {
+  test("dump kafka data in avro compressed by snappy") {
     val path = "./data/example/foo/batch/avro"
-    sparKafka.topic(fooTopic).fromKafka.flatMap(_.save.avro(path).folder.run).unsafeRunSync()
+    sparKafka.topic(fooTopic).fromKafka.flatMap(_.save.avro(path).snappy.folder.run).unsafeRunSync()
   }
 }
