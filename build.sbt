@@ -6,9 +6,9 @@ cancelable in Global           := true
 version in ThisBuild := "0.12.0-SNAPSHOT"
 
 // generic
-val shapeless  = "2.3.3"
+val shapeless  = "2.3.7"
 val contextual = "1.2.1"
-val kittens    = "2.3.0"
+val kittens    = "2.3.1"
 val catsCore   = "2.6.1"
 val algebra    = "2.2.2"
 val fs2Version = "3.0.3"
@@ -16,7 +16,7 @@ val catsMtl    = "1.2.1"
 val catsTime   = "0.3.4"
 val tagless    = "0.14.0"
 val monocle    = "2.1.0"
-val refined    = "0.9.24"
+val refined    = "0.9.25"
 val droste     = "0.8.0"
 val enumeratum = "1.6.1"
 val chimney    = "0.6.1"
@@ -48,7 +48,7 @@ val json4s  = "3.7.0-M7" // for spark
 val kantan  = "0.6.1"
 val parquet = "1.12.0"
 val avro    = "1.10.2"
-val avro4s  = "4.0.7"
+val avro4s  = "4.0.8"
 
 // connect
 val hadoop  = "3.3.0"
