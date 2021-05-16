@@ -8,6 +8,8 @@ import akka.stream.scaladsl.Sink
 import cats.effect.Async
 import cats.syntax.all._
 import com.github.matsluni.akkahttpspi.AkkaHttpClient
+import fs2.Stream
+import fs2.interop.reactivestreams._
 import io.circe.Error
 import io.circe.optics.JsonPath._
 import io.circe.parser._
@@ -15,11 +17,14 @@ import software.amazon.awssdk.services.sqs.SqsAsyncClient
 
 import scala.concurrent.duration.DurationInt
 
-final case class S3Path(bucket: String, key: String)
+final case class S3Path(bucket: String, key: String) {
+  val s3: String  = s"s3://$bucket/$key"
+  val s3a: String = s"s3a://$bucket/$key"
+}
 
 sealed trait SimpleQueueService[F[_]] {
-  def fetchRecords(sqs: String)(implicit F: Async[F]): F[List[SqsAckResult]]
-  def fetchS3(sqs: String)(implicit F: Async[F]): F[List[S3Path]]
+  def fetchRecords(sqs: String)(implicit F: Async[F]): Stream[F, SqsAckResult]
+  def fetchS3(sqs: String)(implicit F: Async[F]): Stream[F, S3Path]
 }
 
 object SimpleQueueService {
@@ -32,18 +37,18 @@ object SimpleQueueService {
 
     private val settings: SqsSourceSettings = SqsSourceSettings().withCloseOnEmptyReceive(true).withWaitTime(10.millis)
 
-    override def fetchRecords(sqs: String)(implicit F: Async[F]): F[List[SqsAckResult]] =
-      F.fromFuture(
-        F.blocking(SqsSource(sqs, settings).map(MessageAction.Delete(_)).via(SqsAckFlow(sqs)).runWith(Sink.seq)))
-        .map(_.toList)
+    override def fetchRecords(sqs: String)(implicit F: Async[F]): Stream[F, SqsAckResult] =
+      Stream.suspend(
+        SqsSource(sqs, settings)
+          .map(MessageAction.Delete(_))
+          .via(SqsAckFlow(sqs))
+          .runWith(Sink.asPublisher(fanout = false))
+          .toStream)
 
-    override def fetchS3(sqs: String)(implicit F: Async[F]): F[List[S3Path]] =
-      fetchRecords(sqs).flatMap(_.flatTraverse { sar =>
-        sqs_s3_parser(sar.messageAction.message.body()) match {
-          case Left(ex) => F.raiseError[List[S3Path]](ex)
-          case Right(r) => F.pure(r)
-        }
-      })
+    override def fetchS3(sqs: String)(implicit F: Async[F]): Stream[F, S3Path] =
+      fetchRecords(sqs).flatMap { sar =>
+        Stream.fromEither(sqs_s3_parser(sar.messageAction.message.body())).flatMap(Stream.emits)
+      }
   }
 }
 

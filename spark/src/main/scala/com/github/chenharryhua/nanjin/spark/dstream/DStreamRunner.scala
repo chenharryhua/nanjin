@@ -9,7 +9,7 @@ import org.apache.spark.streaming.{Duration, Seconds, StreamingContext}
 
 import scala.concurrent.duration.FiniteDuration
 
-final class DStreamRunner[F[_]] private (
+sealed abstract class DStreamRunner[F[_]] private (
   sparkContext: SparkContext,
   checkpoint: String,
   batchDuration: Duration,
@@ -17,7 +17,7 @@ final class DStreamRunner[F[_]] private (
     extends Serializable {
 
   def signup[A](rd: Kleisli[F, StreamingContext, A])(f: A => DStreamRunner.Mark): DStreamRunner[F] =
-    new DStreamRunner[F](sparkContext, checkpoint, batchDuration, streamings :+ rd.map(f))
+    new DStreamRunner[F](sparkContext, checkpoint, batchDuration, streamings :+ rd.map(f)) {}
 
   private def createContext(dispatcher: Dispatcher[F])(): StreamingContext = {
     val ssc = new StreamingContext(sparkContext, batchDuration)
@@ -47,5 +47,5 @@ object DStreamRunner {
     sparkContext: SparkContext,
     checkpoint: String,
     batchDuration: FiniteDuration): DStreamRunner[F] =
-    new DStreamRunner[F](sparkContext, checkpoint, Seconds(batchDuration.toSeconds), Nil)
+    new DStreamRunner[F](sparkContext, checkpoint, Seconds(batchDuration.toSeconds), Nil) {}
 }
