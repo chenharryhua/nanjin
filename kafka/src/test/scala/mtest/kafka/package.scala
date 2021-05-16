@@ -14,6 +14,7 @@ package object kafka {
   val ctx: KafkaContext[IO] =
     KafkaSettings.local
       .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+      .withStreamingProperty("state.dir", "./data/kafka_states")
       .ioContext
       .withGroupId("nj-kafka-unit-test-group")
       .withApplicationId("nj-kafka-unit-test-app")

@@ -41,7 +41,7 @@ object NJHadoop {
       /** Notes: do not close file-system.
         */
       private def fileSystem(pathStr: String): Resource[F, FileSystem] =
-        Resource.make(F.blocking(FileSystem.get(new URI(pathStr), config)))(_ => F.delay(()))
+        Resource.make(F.blocking(FileSystem.get(new URI(pathStr), config)))(_ => F.pure(()))
 
       private def fsOutput(pathStr: String): Resource[F, FSDataOutputStream] =
         for {
