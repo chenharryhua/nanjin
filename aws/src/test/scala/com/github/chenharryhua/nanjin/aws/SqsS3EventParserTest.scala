@@ -53,9 +53,4 @@ class SqsS3EventParserTest extends AnyFunSuite {
     assert(s3.bucket == "mybucket")
     assert(s3.key == "HappyFace.jpg")
   }
-  test("sqs url") {
-    SqsUrl("https://github.com")
-    SqsUrl("http://github.com")
-    shapeless.test.illTyped("""SqsUrl("abc")""") 
-  }
 }
