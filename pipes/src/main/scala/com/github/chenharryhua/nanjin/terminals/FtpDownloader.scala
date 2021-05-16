@@ -6,7 +6,7 @@ import akka.stream.alpakka.ftp.{FtpSettings, FtpsSettings, RemoteFileSettings, S
 import akka.stream.scaladsl.Sink
 import cats.effect.Async
 import fs2.Stream
-import fs2.interop.reactivestreams._
+import fs2.interop.reactivestreams.PublisherOps
 import net.schmizz.sshj.SSHClient
 import org.apache.commons.net.ftp.{FTPClient, FTPSClient}
 
