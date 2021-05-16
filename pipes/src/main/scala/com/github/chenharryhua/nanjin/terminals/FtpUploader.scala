@@ -7,7 +7,7 @@ import akka.stream.{IOResult, Materializer}
 import akka.util.ByteString
 import cats.effect.Async
 import com.github.chenharryhua.nanjin.pipes
-import fs2.interop.reactivestreams._
+import fs2.interop.reactivestreams.StreamOps
 import fs2.{Pipe, Stream}
 import net.schmizz.sshj.SSHClient
 import org.apache.commons.net.ftp.{FTPClient, FTPSClient}
