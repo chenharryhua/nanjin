@@ -23,8 +23,8 @@ final case class S3Path(bucket: String, key: String) {
 }
 
 sealed trait SimpleQueueService[F[_]] {
-  def fetchRecords(sqs: String)(implicit F: Async[F]): Stream[F, SqsAckResult]
-  def fetchS3(sqs: String)(implicit F: Async[F]): Stream[F, S3Path]
+  def fetchRecords(sqs: SqsUrl)(implicit F: Async[F]): Stream[F, SqsAckResult]
+  def fetchS3(sqs: SqsUrl)(implicit F: Async[F]): Stream[F, S3Path]
 }
 
 object SimpleQueueService {
@@ -37,15 +37,15 @@ object SimpleQueueService {
 
     private val settings: SqsSourceSettings = SqsSourceSettings().withCloseOnEmptyReceive(true).withWaitTime(10.millis)
 
-    override def fetchRecords(sqs: String)(implicit F: Async[F]): Stream[F, SqsAckResult] =
+    override def fetchRecords(sqs: SqsUrl)(implicit F: Async[F]): Stream[F, SqsAckResult] =
       Stream.suspend(
-        SqsSource(sqs, settings)
+        SqsSource(sqs.value, settings)
           .map(MessageAction.Delete(_))
-          .via(SqsAckFlow(sqs))
+          .via(SqsAckFlow(sqs.value))
           .runWith(Sink.asPublisher(fanout = false))
           .toStream)
 
-    override def fetchS3(sqs: String)(implicit F: Async[F]): Stream[F, S3Path] =
+    override def fetchS3(sqs: SqsUrl)(implicit F: Async[F]): Stream[F, S3Path] =
       fetchRecords(sqs).flatMap { sar =>
         Stream.fromEither(sqs_s3_parser(sar.messageAction.message.body())).flatMap(Stream.emits)
       }
