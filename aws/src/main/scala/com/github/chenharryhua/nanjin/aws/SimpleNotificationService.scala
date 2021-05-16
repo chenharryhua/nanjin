@@ -1,3 +1,6 @@
 package com.github.chenharryhua.nanjin.aws
 
-class SimpleNotificationService {}
+import akka.actor.ActorSystem
+import cats.effect.Async
+
+class SimpleNotificationService[F[_]](akkaSystem: ActorSystem)(implicit F: Async[F]) {}

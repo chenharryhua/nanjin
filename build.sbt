@@ -332,7 +332,7 @@ lazy val aws = (project in file("aws"))
         "com.typesafe.akka" %% "akka-http"                % "10.2.4",
         "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % "3.0.0",
         "com.lightbend.akka" %% "akka-stream-alpakka-sns" % "3.0.0"
-      ) ++ awsLib.map(_                                   % Provided) ++ akkaLib ++ baseLib ++ monocleLib ++ testLib)
+      ) ++ akkaLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ awsLib.map(_ % Provided))
 
 lazy val datetime = (project in file("datetime"))
   .dependsOn(common)

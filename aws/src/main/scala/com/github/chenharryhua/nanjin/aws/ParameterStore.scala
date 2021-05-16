@@ -9,6 +9,7 @@ import com.amazonaws.services.simplesystemsmanagement.{
 }
 
 import java.util.Base64
+
 final case class ParameterStorePath(value: String, isSecure: Boolean = true)
 
 final case class ParameterStoreContent(value: String) {
