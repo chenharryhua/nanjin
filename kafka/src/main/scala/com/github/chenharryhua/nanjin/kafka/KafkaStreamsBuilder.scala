@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.data.Reader
-import cats.effect.kernel.Resource.ExitCase
 import cats.effect.std.Dispatcher
 import cats.effect.{Async, Deferred}
 import cats.syntax.flatMap._
@@ -50,15 +49,10 @@ final class KafkaStreamsBuilder[F[_]](
       latch <- Stream.eval(Deferred[F, Either[KafkaStreamingStartupException, Unit]])
       kss <-
         Stream
-          .bracketCase(F.delay(new KafkaStreams(topology, settings.javaProperties))) { case (ks, reason) =>
-            reason match {
-              case ExitCase.Succeeded  => F.delay(ks.close())
-              case ExitCase.Canceled   => F.delay(ks.close()) >> F.delay(ks.cleanUp())
-              case ExitCase.Errored(_) => F.delay(ks.close()) >> F.delay(ks.cleanUp())
-            }
-          }
+          .bracket(F.blocking(new KafkaStreams(topology, settings.javaProperties)))(ks =>
+            F.blocking(ks.close()) >> F.blocking(ks.cleanUp()))
           .evalMap(ks =>
-            F.delay {
+            F.blocking {
               ks.setUncaughtExceptionHandler(new StreamErrorHandler(errorListener, dispatcher))
               ks.setStateListener(new Latch(latch, dispatcher))
               ks.start()
