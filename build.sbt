@@ -322,6 +322,18 @@ lazy val guard = (project in file("guard"))
       Seq("com.github.cb372" %% "cats-retry" % "3.0.0") ++
         logLib ++ baseLib ++ monocleLib ++ testLib)
 
+lazy val aws = (project in file("aws"))
+  .dependsOn(common)
+  .settings(commonSettings: _*)
+  .settings(name := "nj-aws")
+  .settings(
+    libraryDependencies ++=
+      Seq(
+        "com.typesafe.akka" %% "akka-http"                % "10.2.4",
+        "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % "3.0.0",
+        "com.lightbend.akka" %% "akka-stream-alpakka-sns" % "3.0.0"
+      ) ++ awsLib.map(_                                   % Provided) ++ akkaLib ++ baseLib ++ monocleLib ++ testLib)
+
 lazy val datetime = (project in file("datetime"))
   .dependsOn(common)
   .settings(commonSettings: _*)
@@ -393,4 +405,4 @@ lazy val example = (project in file("example"))
 lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
-    .aggregate(common, guard, messages, datetime, pipes, kafka, database, spark, example)
+    .aggregate(common, guard, aws, messages, datetime, pipes, kafka, database, spark, example)

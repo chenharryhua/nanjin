@@ -1,13 +1,13 @@
 package com.github.chenharryhua.nanjin.pipes
 
-import cats.effect.{Async, Concurrent}
-
-import java.io.{ByteArrayOutputStream, EOFException, InputStream}
+import cats.effect.Async
 import fs2.io.toInputStream
 import fs2.{Pipe, Pull, Stream}
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericDatumReader, GenericDatumWriter, GenericRecord}
 import org.apache.avro.io.{BinaryEncoder, DecoderFactory, EncoderFactory}
+
+import java.io.{ByteArrayOutputStream, EOFException, InputStream}
 
 final class BinaryAvroSerialization[F[_]](schema: Schema) extends Serializable {
 

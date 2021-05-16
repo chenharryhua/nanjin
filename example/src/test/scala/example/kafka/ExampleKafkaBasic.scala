@@ -34,8 +34,8 @@ class ExampleKafkaBasic extends AnyFunSuite {
 
   test("persist messages to local disk and then load data back into kafka") {
     val path = "./data/example/foo.json"
-    val save = sparKafka.topic(fooTopic).fromKafka.flatMap(_.save.circe(path).file.run)
-    val load = sparKafka
+    sparKafka.topic(fooTopic).fromKafka.flatMap(_.save.circe(path).folder.run).unsafeRunSync()
+    sparKafka
       .topic(fooTopic)
       .load
       .circe(path)
@@ -47,7 +47,6 @@ class ExampleKafkaBasic extends AnyFunSuite {
       .run
       .compile
       .drain
-
-    (save >> load).unsafeRunSync()
+      .unsafeRunSync()
   }
 }
