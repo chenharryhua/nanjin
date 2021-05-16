@@ -14,28 +14,37 @@ import io.circe.parser._
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 
 import scala.concurrent.duration.DurationInt
+
 final case class S3Path(bucket: String, key: String)
 
-class SimpleQueueService[F[_]](akkaSystem: ActorSystem)(implicit F: Async[F]) {
+sealed trait SimpleQueueService[F[_]] {
+  def fetchRecords(sqs: String)(implicit F: Async[F]): F[List[SqsAckResult]]
+  def fetchS3(sqs: String)(implicit F: Async[F]): F[List[S3Path]]
+}
 
-  implicit private val client: SqsAsyncClient =
-    SqsAsyncClient.builder().httpClient(AkkaHttpClient.builder().withActorSystem(akkaSystem).build()).build()
-  implicit private val mat: Materializer = Materializer(akkaSystem)
+object SimpleQueueService {
 
-  private val settings: SqsSourceSettings = SqsSourceSettings().withCloseOnEmptyReceive(true).withWaitTime(10.millis)
+  def apply[F[_]](akkaSystem: ActorSystem): SimpleQueueService[F] = new SimpleQueueService[F] {
 
-  def fetchRecords(sqs: String): F[List[SqsAckResult]] =
-    F.fromFuture(
-      F.blocking(SqsSource(sqs, settings).map(MessageAction.Delete(_)).via(SqsAckFlow(sqs)).runWith(Sink.seq)))
-      .map(_.toList)
+    implicit private val client: SqsAsyncClient =
+      SqsAsyncClient.builder().httpClient(AkkaHttpClient.builder().withActorSystem(akkaSystem).build()).build()
+    implicit private val mat: Materializer = Materializer(akkaSystem)
 
-  def s3Path(sqs: String): F[List[S3Path]] =
-    fetchRecords(sqs).flatMap(_.flatTraverse { sar =>
-      sqs_s3_parser(sar.messageAction.message.body()) match {
-        case Left(ex) => F.raiseError[List[S3Path]](ex)
-        case Right(r) => F.pure(r)
-      }
-    })
+    private val settings: SqsSourceSettings = SqsSourceSettings().withCloseOnEmptyReceive(true).withWaitTime(10.millis)
+
+    override def fetchRecords(sqs: String)(implicit F: Async[F]): F[List[SqsAckResult]] =
+      F.fromFuture(
+        F.blocking(SqsSource(sqs, settings).map(MessageAction.Delete(_)).via(SqsAckFlow(sqs)).runWith(Sink.seq)))
+        .map(_.toList)
+
+    override def fetchS3(sqs: String)(implicit F: Async[F]): F[List[S3Path]] =
+      fetchRecords(sqs).flatMap(_.flatTraverse { sar =>
+        sqs_s3_parser(sar.messageAction.message.body()) match {
+          case Left(ex) => F.raiseError[List[S3Path]](ex)
+          case Right(r) => F.pure(r)
+        }
+      })
+  }
 }
 
 private[aws] object sqs_s3_parser {

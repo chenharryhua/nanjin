@@ -17,18 +17,18 @@ final case class ParameterStoreContent(value: String) {
 }
 
 trait ParameterStore[F[_]] {
-  def fetch(path: ParameterStorePath): F[ParameterStoreContent]
+  def fetch(path: ParameterStorePath)(implicit F: Sync[F]): F[ParameterStoreContent]
 }
 
 object ParameterStore {
 
-  def apply[F[_]](regions: Regions = Regions.AP_SOUTHEAST_2)(implicit F: Sync[F]): ParameterStore[F] =
+  def apply[F[_]](regions: Regions = Regions.AP_SOUTHEAST_2): ParameterStore[F] =
     new ParameterStore[F] {
 
       private lazy val ssmClient: AWSSimpleSystemsManagement =
         AWSSimpleSystemsManagementClientBuilder.standard.withRegion(regions).build
 
-      override def fetch(path: ParameterStorePath): F[ParameterStoreContent] = {
+      override def fetch(path: ParameterStorePath)(implicit F: Sync[F]): F[ParameterStoreContent] = {
         val req =
           new GetParametersRequest().withNames(path.value).withWithDecryption(path.isSecure)
         F.blocking(ParameterStoreContent(ssmClient.getParameters(req).getParameters.get(0).getValue))
