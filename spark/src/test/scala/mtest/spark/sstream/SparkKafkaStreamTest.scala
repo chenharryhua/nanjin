@@ -2,8 +2,9 @@ package mtest.spark.sstream
 
 import better.files._
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJTimestamp}
-import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
+import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.spark.kafka.{NJProducerRecord, _}
 import frameless.TypedEncoder
 import mtest.spark.kafka.{ctx, sparKafka}

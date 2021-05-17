@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, utcTime, NJDateTimeRange, NJTimestamp}
-import com.github.chenharryhua.nanjin.kafka.TopicName
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import org.apache.spark.streaming.kafka010.LocationStrategies
 import org.scalatest.funsuite.AnyFunSuite
 

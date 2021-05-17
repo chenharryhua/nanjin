@@ -3,20 +3,19 @@ package mtest.kafka.stream
 import cats.Id
 import cats.data.Kleisli
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import fs2.Stream
 import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords, ProducerResult}
 import mtest.kafka._
 import org.apache.kafka.common.serialization.Serde
-import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.scala.ImplicitConversions._
-import org.apache.kafka.streams.scala.serialization.Serdes._
 import org.apache.kafka.streams.scala.StreamsBuilder
-import org.scalatest.{BeforeAndAfter, DoNotDiscover}
+import org.apache.kafka.streams.scala.serialization.Serdes._
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 
 import scala.concurrent.duration._
-import cats.effect.unsafe.implicits.global
 
 object KafkaStreamingData {
 

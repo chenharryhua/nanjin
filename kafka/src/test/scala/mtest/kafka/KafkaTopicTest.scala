@@ -1,9 +1,10 @@
 package mtest.kafka
 
-import com.github.chenharryhua.nanjin.kafka.{KafkaSettings, TopicDef, TopicName}
+import cats.syntax.all._
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import org.scalatest.funsuite.AnyFunSuite
-import cats.syntax.all._
 
 class KafkaTopicTest extends AnyFunSuite {
   val t1 = ctx.topic[Int, Int]("topic")

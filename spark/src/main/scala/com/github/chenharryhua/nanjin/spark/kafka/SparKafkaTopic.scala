@@ -5,8 +5,9 @@ import cats.Foldable
 import cats.data.Kleisli
 import cats.effect.{Async, Sync}
 import cats.syntax.all._
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
-import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, KafkaTopic, TopicName}
+import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, KafkaTopic}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.dstream.{AvroDStreamSink, SDConfig}

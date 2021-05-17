@@ -1,7 +1,7 @@
 package mtest.kafka
 
 import akka.stream.scaladsl.Sink
-import cats.effect.IO
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka._
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.scalatest.funsuite.AnyFunSuite

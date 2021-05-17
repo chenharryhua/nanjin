@@ -1,8 +1,9 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.derived.auto.functor.kittensMkFunctor
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
-import com.github.chenharryhua.nanjin.kafka.{defaultLoadParams, TopicName}
+import com.github.chenharryhua.nanjin.kafka.defaultLoadParams
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses

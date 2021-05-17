@@ -1,13 +1,13 @@
 package mtest.kafka
 
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.kafka.{KafkaConsumerGroupInfo, KafkaOffset, KafkaTopicPartition}
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
-import cats.effect.unsafe.implicits.global
 
 class AdminApiTest extends AnyFunSuite {
   val topic  = ctx.topic[Int, Int]("admin")

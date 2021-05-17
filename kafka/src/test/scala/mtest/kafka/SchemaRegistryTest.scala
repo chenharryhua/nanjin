@@ -1,11 +1,12 @@
 package mtest.kafka
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.kafka.{KafkaSettings, KafkaTopic, SchemaRegistrySettings, TopicDef, TopicName}
+import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.{KafkaSettings, KafkaTopic, SchemaRegistrySettings, TopicDef}
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import monocle.function.At.at
 import org.scalatest.funsuite.AnyFunSuite
-import cats.effect.unsafe.implicits.global
 
 class SchemaRegistryTest extends AnyFunSuite {
   val topicName: TopicName = TopicName("nyc_yellow_taxi_trip_data")
