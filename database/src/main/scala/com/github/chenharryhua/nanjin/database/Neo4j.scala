@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.database
 
 import cats.effect.Async
+import com.github.chenharryhua.nanjin.common.database._
 import monocle.macros.Lenses
 import neotypes.cats.effect.implicits._
 import neotypes.{GraphDatabase, Transaction}

@@ -1,11 +1,11 @@
-package com.github.chenharryhua.nanjin
+package com.github.chenharryhua.nanjin.common
 
 import eu.timepit.refined.W
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
 import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
 import eu.timepit.refined.string.{MatchesRegex, Url}
 
-package object aws {
+object aws {
   type SqsUrl = String Refined Url
   object SqsUrl extends RefinedTypeOps[SqsUrl, String] with CatsRefinedTypeOpsSyntax
 

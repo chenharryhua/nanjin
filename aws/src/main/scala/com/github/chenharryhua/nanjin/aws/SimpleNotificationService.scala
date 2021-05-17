@@ -7,6 +7,7 @@ import akka.stream.scaladsl.Source
 import cats.Applicative
 import cats.effect.Async
 import cats.syntax.all._
+import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.matsluni.akkahttpspi.AkkaHttpClient
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sns.SnsAsyncClient

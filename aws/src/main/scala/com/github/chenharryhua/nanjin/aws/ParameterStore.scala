@@ -23,11 +23,12 @@ trait ParameterStore[F[_]] {
 
 object ParameterStore {
 
-  def fake[F[_]: Applicative](content: String): ParameterStore[F] = new ParameterStore[F] {
+  def fake[F[_]: Applicative](content: String): ParameterStore[F] =
+    new ParameterStore[F] {
 
-    override def fetch(path: ParameterStorePath)(implicit F: Sync[F]): F[ParameterStoreContent] =
-      F.pure(ParameterStoreContent(content))
-  }
+      override def fetch(path: ParameterStorePath)(implicit F: Sync[F]): F[ParameterStoreContent] =
+        F.pure(ParameterStoreContent(content))
+    }
 
   def apply[F[_]](regions: Regions = Regions.AP_SOUTHEAST_2): ParameterStore[F] =
     new ParameterStore[F] {

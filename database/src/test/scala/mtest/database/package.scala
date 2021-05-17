@@ -1,6 +1,7 @@
 package mtest
 
-import com.github.chenharryhua.nanjin.database._
+import com.github.chenharryhua.nanjin.common.database._
+import com.github.chenharryhua.nanjin.database.Postgres
 
 package object database {
 

@@ -7,6 +7,7 @@ import akka.stream.alpakka.sqs.{MessageAction, SqsAckResult, SqsSourceSettings}
 import akka.stream.scaladsl.Sink
 import cats.effect.Async
 import cats.syntax.all._
+import com.github.chenharryhua.nanjin.common.aws.SqsUrl
 import com.github.matsluni.akkahttpspi.AkkaHttpClient
 import fs2.Stream
 import fs2.interop.reactivestreams._
@@ -52,7 +53,7 @@ object SimpleQueueService {
   }
 }
 
-private[aws] object sqs_s3_parser {
+private object sqs_s3_parser {
 
   // https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html
   def apply(body: String): Either[Error, List[S3Path]] =

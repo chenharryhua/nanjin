@@ -1,5 +1,6 @@
-package com.github.chenharryhua.nanjin.aws
+package mtest.common
 
+import com.github.chenharryhua.nanjin.common.aws.{IamArn, SnsArn, SqsUrl}
 import org.scalatest.funsuite.AnyFunSuite
 
 class AwsArnTest extends AnyFunSuite {
