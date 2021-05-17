@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.database
 
-import com.github.chenharryhua.nanjin.database.TableName
+import com.github.chenharryhua.nanjin.common.database.TableName
 import com.zaxxer.hikari.HikariConfig
 import org.apache.spark.sql.{DataFrame, SparkSession}
 

@@ -3,7 +3,8 @@ package mtest.kafka.stream
 import cats.Id
 import cats.data.Kleisli
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.kafka.StoreName
+import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.kafka.StoreName
 import fs2.Stream
 import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords}
 import mtest.kafka._
@@ -11,14 +12,13 @@ import org.apache.kafka.streams.KeyValue
 import org.apache.kafka.streams.kstream.{Transformer, TransformerSupplier}
 import org.apache.kafka.streams.processor.ProcessorContext
 import org.apache.kafka.streams.scala.ImplicitConversions._
-import org.apache.kafka.streams.scala.serialization.Serdes._
 import org.apache.kafka.streams.scala.StreamsBuilder
+import org.apache.kafka.streams.scala.serialization.Serdes._
 import org.apache.kafka.streams.state.{KeyValueStore, StoreBuilder, Stores}
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration._
-import cats.effect.unsafe.implicits.global
 
 @DoNotDiscover
 class TransformerTest extends AnyFunSuite {

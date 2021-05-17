@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin
+package com.github.chenharryhua.nanjin.common
 
 import eu.timepit.refined.W
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
@@ -8,7 +8,7 @@ import eu.timepit.refined.collection.{MaxSize, NonEmpty}
 import eu.timepit.refined.string.{Trimmed, Uri}
 import eu.timepit.refined.types.net
 
-package object database {
+object database {
   type Username = String Refined And[NonEmpty, Trimmed]
   object Username extends RefinedTypeOps[Username, String] with CatsRefinedTypeOpsSyntax
 

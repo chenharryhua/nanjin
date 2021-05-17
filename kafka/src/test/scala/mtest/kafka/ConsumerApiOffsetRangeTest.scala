@@ -1,23 +1,14 @@
 package mtest.kafka
 
 import cats.effect.IO
-import cats.syntax.all._
+import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.datetime.{darwinTime, NJDateTimeRange, NJTimestamp}
-import com.github.chenharryhua.nanjin.kafka.{
-  KafkaOffset,
-  KafkaOffsetRange,
-  KafkaPartition,
-  KafkaTopic,
-  KafkaTopicPartition,
-  TopicDef,
-  TopicName
-}
+import com.github.chenharryhua.nanjin.kafka._
+import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
 import org.scalatest.funsuite.AnyFunSuite
-import fs2.Stream
-import cats.effect.unsafe.implicits.global
 
 class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 

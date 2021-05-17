@@ -1,18 +1,19 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import java.time.Duration
-import java.util.Properties
 import cats.Monad
 import cats.data.Kleisli
 import cats.effect.{Resource, Sync}
 import cats.implicits._
 import cats.mtl.Ask
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import fs2.kafka.KafkaByteConsumer
-import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord, KafkaConsumer, OffsetAndMetadata}
+import org.apache.kafka.clients.consumer.{ConsumerRecord, KafkaConsumer, OffsetAndMetadata}
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 
+import java.time.Duration
+import java.util.Properties
 import scala.collection.JavaConverters._
 
 sealed trait KafkaPrimitiveConsumerApi[F[_]] {

@@ -1,48 +1,59 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.effect.Sync
-import cats.syntax.all._
+import cats.effect.Async
 import fs2.Stream
-import monocle.macros.Lenses
-import retry.Sleep
 
 import scala.concurrent.duration._
 
-@Lenses final case class TaskGuard[F[_]](
-  loggers: List[LogService[F]],
+final case class ApplicationName(value: String) extends AnyVal
+final case class ServiceName(value: String) extends AnyVal
+
+final case class AlertEveryNRetries(value: Int) extends AnyVal
+final case class MaximumRetries(value: Long) extends AnyVal
+final case class RetryInterval(value: FiniteDuration) extends AnyVal
+final case class HealthCheckInterval(value: FiniteDuration) extends AnyVal
+
+final case class RetryForeverState(
+  alertEveryNRetry: AlertEveryNRetries,
+  nextRetryIn: FiniteDuration,
+  numOfRetries: Int,
+  totalDelay: FiniteDuration,
+  err: Throwable
+)
+
+final class TaskGuard[F[_]] private (
+  alert: AlertService[F],
+  appName: ApplicationName,
+  serviceName: ServiceName,
   alterEveryNRetries: AlertEveryNRetries,
   maximumRetries: MaximumRetries,
-  retryInterval: RetryInterval) {
+  retryInterval: RetryInterval,
+  healthCheckInterval: HealthCheckInterval
+) {
 
-  def withLogService(noti: LogService[F]): TaskGuard[F] =
-    TaskGuard.loggers.modify((ns: List[LogService[F]]) => noti :: ns)(this)
+  def foreverAction[A](action: F[A])(implicit F: Async[F]): F[Unit] =
+    new RetryForever[F](alert, appName, serviceName, retryInterval, alterEveryNRetries, healthCheckInterval)
+      .foreverAction(action)
 
-  def withAlertEveryNRetries(v: Int): TaskGuard[F] =
-    TaskGuard.alterEveryNRetries.modify(_.copy(value = v))(this)
-
-  def withMaximumRetries(v: Long): TaskGuard[F] =
-    TaskGuard.maximumRetries.modify(_.copy(value = v))(this)
-
-  def withRetryInterval(dur: FiniteDuration): TaskGuard[F] =
-    TaskGuard.retryInterval.modify(_.copy(value = dur))(this)
-
-  def info(msg: String)(implicit F: Sync[F]): F[Unit]                 = loggers.traverse(_.info(msg)).void
-  def warn(msg: String, ex: Throwable)(implicit F: Sync[F]): F[Unit]  = loggers.traverse(_.warn(msg, ex)).void
-  def error(msg: String, ex: Throwable)(implicit F: Sync[F]): F[Unit] = loggers.traverse(_.error(msg, ex)).void
-
-  def forever[A](action: F[A])(implicit F: Sync[F], sleep: Sleep[F]): F[A] =
-    new RetryForever[F](retryInterval, alterEveryNRetries).forever(action).run { rfs =>
-      loggers.traverse(_.retryForeverError(rfs)).void
-    }
-
-  def infiniteStream[A](stream: Stream[F, A])(implicit F: Sync[F], sleep: Sleep[F]): F[Unit] =
-    new RetryForever[F](retryInterval, alterEveryNRetries)
+  def infiniteStream[A](stream: Stream[F, A])(implicit F: Async[F]): F[Unit] =
+    new RetryForever[F](alert, appName, serviceName, retryInterval, alterEveryNRetries, healthCheckInterval)
       .infiniteStream(stream)
-      .run(rfs => loggers.traverse(_.retryForeverError(rfs)).void)
+
+  def limitRetry[A](action: F[A])(implicit F: Async[F]): F[A] =
+    new LimitRetry[F](alert, appName, serviceName, maximumRetries, retryInterval).limitRetry(action)
+
 }
 
 object TaskGuard {
 
-  def apply[F[_]]: TaskGuard[F] =
-    TaskGuard[F](List.empty, AlertEveryNRetries(10), MaximumRetries(10), RetryInterval(10.seconds))
+  def apply[F[_]](applicationName: String, serviceName: String, alertService: AlertService[F]): TaskGuard[F] =
+    new TaskGuard[F](
+      alertService,
+      ApplicationName(applicationName),
+      ServiceName(serviceName),
+      AlertEveryNRetries(30),
+      MaximumRetries(3),
+      RetryInterval(10.seconds),
+      HealthCheckInterval(20.seconds)
+    )
 }

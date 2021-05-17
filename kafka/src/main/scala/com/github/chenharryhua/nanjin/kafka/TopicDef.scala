@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.Show
 import cats.kernel.Eq
 import cats.syntax.all._
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, SerdeOf}
 import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
 

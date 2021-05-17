@@ -1,11 +1,11 @@
 package com.github.chenharryhua.nanjin.database
 
+import com.github.chenharryhua.nanjin.common.database._
 import enumeratum.{CatsEnum, Enum, EnumEntry}
 
 import scala.collection.immutable
 
-sealed abstract private[database] class Protocols(val value: String)
-    extends EnumEntry with Serializable {
+sealed abstract private[database] class Protocols(val value: String) extends EnumEntry with Serializable {
 
   final def url(host: Host, port: Option[Port]): String =
     port match {

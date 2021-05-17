@@ -313,15 +313,6 @@ lazy val common = (project in file("common"))
   .settings(libraryDependencies ++=
     baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ logLib ++ testLib)
 
-lazy val guard = (project in file("guard"))
-  .dependsOn(common)
-  .settings(commonSettings: _*)
-  .settings(name := "nj-guard")
-  .settings(
-    libraryDependencies ++=
-      Seq("com.github.cb372" %% "cats-retry" % "3.0.0") ++
-        logLib ++ baseLib ++ monocleLib ++ testLib)
-
 lazy val aws = (project in file("aws"))
   .dependsOn(common)
   .settings(commonSettings: _*)
@@ -330,9 +321,17 @@ lazy val aws = (project in file("aws"))
     libraryDependencies ++=
       Seq(
         "com.typesafe.akka" %% "akka-http"                % "10.2.4",
-        "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % "3.0.0",
-        "com.lightbend.akka" %% "akka-stream-alpakka-sns" % "3.0.0"
+        "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % "3.0.0"
       ) ++ akkaLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ awsLib.map(_ % Provided))
+
+lazy val guard = (project in file("guard"))
+  .dependsOn(aws)
+  .settings(commonSettings: _*)
+  .settings(name := "nj-guard")
+  .settings(
+    libraryDependencies ++=
+      Seq("com.github.cb372" %% "cats-retry" % "3.0.0", "org.apache.commons" % "commons-lang3" % "3.12.0") ++
+        logLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ awsLib.map(_ % Provided))
 
 lazy val datetime = (project in file("datetime"))
   .dependsOn(common)

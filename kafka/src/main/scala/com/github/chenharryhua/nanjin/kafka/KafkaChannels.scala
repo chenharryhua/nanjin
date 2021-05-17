@@ -6,6 +6,7 @@ import akka.{Done, NotUsed}
 import cats.data.{NonEmptyList, Reader}
 import cats.effect._
 import cats.syntax.all._
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaGenericDecoder

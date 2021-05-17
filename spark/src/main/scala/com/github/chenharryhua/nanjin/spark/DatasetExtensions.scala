@@ -1,8 +1,10 @@
 package com.github.chenharryhua.nanjin.spark
 
 import cats.effect.Sync
-import com.github.chenharryhua.nanjin.database.{DatabaseSettings, TableName}
-import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic, TopicDef, TopicName}
+import com.github.chenharryhua.nanjin.common.database.TableName
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.database.DatabaseSettings
+import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, SerdeOf}
 import com.github.chenharryhua.nanjin.pipes
 import com.github.chenharryhua.nanjin.spark.database._

@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.effect.IO
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJDateTimeRange}
-import com.github.chenharryhua.nanjin.kafka.{TopicDef, TopicName}
+import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import frameless.TypedEncoder
 import io.scalaland.chimney.dsl._
@@ -16,6 +16,7 @@ import java.time.Instant
 import scala.math.BigDecimal
 import scala.math.BigDecimal.RoundingMode
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 final case class RoosterLike(c: BigDecimal, d: BigDecimal)
 
 object RoosterLike {

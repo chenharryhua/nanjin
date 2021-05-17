@@ -1,18 +1,19 @@
 package mtest.spark.sstream
 
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.kafka._
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import mtest.spark.kafka.sparKafka
-import mtest.spark.{sparkSession}
+import mtest.spark.sparkSession
 import org.apache.spark.sql.streaming.StreamingQueryProgress
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-import cats.effect.unsafe.implicits.global
+
 import scala.concurrent.duration._
 import scala.util.Random
 

@@ -1,6 +1,7 @@
 package mtest.spark
 
 import cats.effect.IO
+import com.github.chenharryhua.nanjin.common.database._
 import com.github.chenharryhua.nanjin.database._
 import com.github.chenharryhua.nanjin.spark._
 package object database {

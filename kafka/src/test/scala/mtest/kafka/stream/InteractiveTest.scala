@@ -2,22 +2,22 @@ package mtest.kafka.stream
 
 import cats.data.Reader
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import cats.syntax.all._
 import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords}
+import mtest.kafka._
 import org.apache.kafka.streams.StoreQueryParameters
-import org.apache.kafka.streams.scala.serialization.Serdes._
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.scala.kstream.Materialized
+import org.apache.kafka.streams.scala.serialization.Serdes._
 import org.apache.kafka.streams.state.{QueryableStoreTypes, Stores}
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-import mtest.kafka._
 
+import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.util.Random
-import scala.collection.JavaConverters._
-import cats.effect.unsafe.implicits.global
 
 @DoNotDiscover
 class InteractiveTest extends AnyFunSuite {

@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.effect.{Async, Concurrent, Resource}
+import cats.effect.{Async, Resource}
 import cats.syntax.all._
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import fs2.kafka.{AdminClientSettings, KafkaAdminClient}
 import org.apache.kafka.clients.admin.{NewTopic, TopicDescription}
 

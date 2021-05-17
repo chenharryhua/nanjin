@@ -4,6 +4,7 @@ import cats.data.Reader
 import cats.effect.{IO, Sync}
 import cats.syntax.functor._
 import cats.syntax.show._
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.SerdeOf
 import monix.eval.{Task => MTask}
 import org.apache.kafka.common.serialization.Serde

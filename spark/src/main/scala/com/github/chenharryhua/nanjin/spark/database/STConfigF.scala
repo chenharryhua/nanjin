@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.database
 
 import cats.derived.auto.functor.kittensMkFunctor
-import com.github.chenharryhua.nanjin.database.{DatabaseName, TableName}
+import com.github.chenharryhua.nanjin.common.database.{DatabaseName, TableName}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses

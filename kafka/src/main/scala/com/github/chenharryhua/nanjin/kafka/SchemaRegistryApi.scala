@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.Show
 import cats.effect.{Resource, Sync}
 import cats.syntax.all._
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaMetadata}
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
