@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard
 
 import cats.effect.Async
+import fs2.Stream
 
 import scala.concurrent.duration._
 
@@ -30,9 +31,16 @@ final class TaskGuard[F[_]] private (
   healthCheckInterval: HealthCheckInterval
 ) {
 
-  def forever[A](action: F[A])(implicit F: Async[F]) =
+  def foreverAction[A](action: F[A])(implicit F: Async[F]): F[Unit] =
     new RetryForever[F](alert, appName, serviceName, retryInterval, alterEveryNRetries, healthCheckInterval)
-      .forever(action)
+      .foreverAction(action)
+
+  def infiniteStream[A](stream: Stream[F, A])(implicit F: Async[F]): F[Unit] =
+    new RetryForever[F](alert, appName, serviceName, retryInterval, alterEveryNRetries, healthCheckInterval)
+      .infiniteStream(stream)
+
+  def limitRetry[A](action: F[A])(implicit F: Async[F]): F[A] =
+    new LimitRetry[F](alert, appName, serviceName, maximumRetries, retryInterval).limitRetry(action)
 
 }
 

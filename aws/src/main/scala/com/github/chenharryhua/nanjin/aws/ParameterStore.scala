@@ -30,7 +30,7 @@ object ParameterStore {
         F.pure(ParameterStoreContent(content))
     }
 
-  def apply[F[_]](regions: Regions = Regions.AP_SOUTHEAST_2): ParameterStore[F] =
+  def apply[F[_]](regions: Regions): ParameterStore[F] =
     new ParameterStore[F] {
 
       private lazy val ssmClient: AWSSimpleSystemsManagement =

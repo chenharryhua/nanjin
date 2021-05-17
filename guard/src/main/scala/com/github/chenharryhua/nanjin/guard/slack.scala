@@ -5,6 +5,10 @@ import io.circe.generic.auto._
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.time.LocalDateTime
+
+/** Notes: slack messages
+  * [[https://api.slack.com/docs/messages/builder]]
+  */
 final case class SlackField(title: String, value: String, short: Boolean)
 final case class Attachment(color: String, title: String, fields: List[SlackField])
 
@@ -40,7 +44,7 @@ object slack {
           List(
             SlackField("Service Name", serviceName.value, short = true),
             SlackField("Status", "Stopped", short = true),
-            SlackField("The service was unexpectedly stopped", "", short = true)
+            SlackField("The service was unexpectedly stopped", "please contact deverloper", short = true)
           )
         ))
     )
@@ -64,7 +68,10 @@ object slack {
         ))
     )
 
-  def alert(applicationName: ApplicationName, serviceName: ServiceName, rfs: RetryForeverState): SlackNotification = {
+  def foreverAlert(
+    applicationName: ApplicationName,
+    serviceName: ServiceName,
+    rfs: RetryForeverState): SlackNotification = {
     val nextAlert = (rfs.nextRetryIn * rfs.alertEveryNRetry.value.toLong).toMinutes
     val msg =
       s"""```${ExceptionUtils.getRootCauseStackTrace(rfs.err).take(8).mkString("\n")}```"""
@@ -86,6 +93,30 @@ object slack {
                   |the service is not recovered from failure automatically.""".stripMargin,
               short = false
             )
+          )
+        ))
+    )
+  }
+
+  def limitAlert(
+    applicationName: ApplicationName,
+    serviceName: ServiceName,
+    lrs: LimitedRetryState): SlackNotification = {
+    val msg =
+      s"""```${ExceptionUtils.getRootCauseStackTrace(lrs.err).take(8).mkString("\n")}```"""
+    SlackNotification(
+      applicationName.value,
+      msg,
+      List(
+        Attachment(
+          "danger",
+          "",
+          List(
+            SlackField("Service Panic at", s"${LocalDateTime.now()}", short = true),
+            SlackField("Service Name", serviceName.value, short = true),
+            SlackField("Number of retries", lrs.totalRetries.toString, short = true),
+            SlackField("Retries took", s"${lrs.totalDelay.toSeconds} seconds", short = true),
+            SlackField("No retry will happen thereafter. The action was failed", "", short = false)
           )
         ))
     )
