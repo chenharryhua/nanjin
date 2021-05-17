@@ -295,7 +295,7 @@ val doobieLib = Seq(
 ).map(_ % doobie) ++ Seq("com.zaxxer" % "HikariCP" % "4.0.3")
 
 val logLib = Seq(
-  "org.log4s" %% "log4s" % "1.9.0",
+  "org.log4s" %% "log4s" % "1.10.0",
   "org.slf4j"            % "slf4j-api" % "1.7.30"
 )
 
