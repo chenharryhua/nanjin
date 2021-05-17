@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.aws
 
 import cats.Applicative
 import cats.effect.Sync
+import cats.syntax.all._
 import com.amazonaws.regions.Regions
 import com.amazonaws.services.simplesystemsmanagement.model.GetParametersRequest
 import com.amazonaws.services.simplesystemsmanagement.{
@@ -11,14 +12,16 @@ import com.amazonaws.services.simplesystemsmanagement.{
 
 import java.util.Base64
 
+//https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html
 final case class ParameterStorePath(value: String, isSecure: Boolean = true)
 
-final case class ParameterStoreContent(value: String) {
-  def base64: Array[Byte] = Base64.getDecoder.decode(value.getBytes)
-}
+final case class ParameterStoreContent(value: String)
 
 trait ParameterStore[F[_]] {
   def fetch(path: ParameterStorePath)(implicit F: Sync[F]): F[ParameterStoreContent]
+
+  final def base64(path: ParameterStorePath)(implicit F: Sync[F]): F[Array[Byte]] =
+    fetch(path).map(c => Base64.getDecoder.decode(c.value.getBytes))
 }
 
 object ParameterStore {
@@ -28,6 +31,7 @@ object ParameterStore {
 
       override def fetch(path: ParameterStorePath)(implicit F: Sync[F]): F[ParameterStoreContent] =
         F.pure(ParameterStoreContent(content))
+
     }
 
   def apply[F[_]](regions: Regions): ParameterStore[F] =
