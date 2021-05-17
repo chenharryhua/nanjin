@@ -26,5 +26,5 @@ object AlertService {
     }
 
   def sns[F[_]](topic: SnsArn, region: Regions): AlertService[F] =
-    sns[F](SimpleNotificationService(topic, region))
+    sns[F](SimpleNotificationService[F](topic, region))
 }
