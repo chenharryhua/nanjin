@@ -76,6 +76,9 @@ final class TaskGuard[F[_]] private (
 
   // actions
 
+  def alert(msg: SlackNotification)(implicit F: Async[F]): F[Unit] =
+    alertService.alert(msg)
+
   def foreverAction[A](action: F[A])(implicit F: Async[F]): F[Unit] =
     new RetryForever[F](
       alertService,

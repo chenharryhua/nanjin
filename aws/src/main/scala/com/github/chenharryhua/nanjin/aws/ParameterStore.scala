@@ -14,7 +14,7 @@ import java.util.Base64
 final case class ParameterStorePath(value: String, isSecure: Boolean = true)
 
 final case class ParameterStoreContent(value: String) {
-  val base64: Array[Byte] = Base64.getDecoder.decode(value.getBytes)
+  def base64: Array[Byte] = Base64.getDecoder.decode(value.getBytes)
 }
 
 trait ParameterStore[F[_]] {
