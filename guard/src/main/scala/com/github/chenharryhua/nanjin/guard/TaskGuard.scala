@@ -7,6 +7,7 @@ import monocle.macros.Lenses
 import retry.Sleep
 
 import scala.concurrent.duration._
+import cats.effect.kernel.Async
 
 @Lenses final case class TaskGuard[F[_]](
   loggers: List[LogService[F]],
@@ -35,7 +36,7 @@ import scala.concurrent.duration._
       loggers.traverse(_.retryForeverError(rfs)).void
     }
 
-  def infiniteStream[A](stream: Stream[F, A])(implicit F: Sync[F], sleep: Sleep[F]): F[Unit] =
+  def infiniteStream[A](stream: Stream[F, A])(implicit F: Async[F], sleep: Sleep[F]): F[Unit] =
     new RetryForever[F](retryInterval, alterEveryNRetries)
       .infiniteStream(stream)
       .run(rfs => loggers.traverse(_.retryForeverError(rfs)).void)

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard
 
 import cats.data.Kleisli
-import cats.effect.Sync
+import cats.effect.{Async, Sync}
 import cats.syntax.all._
 import fs2.Stream
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
@@ -39,7 +39,7 @@ final private class RetryForever[F[_]](interval: RetryInterval, alertEveryNRetry
     }
 
   def infiniteStream[A](
-    stream: Stream[F, A])(implicit F: Sync[F], sleep: Sleep[F]): Kleisli[F, RetryForeverState => F[Unit], Unit] =
+    stream: Stream[F, A])(implicit F: Async[F], sleep: Sleep[F]): Kleisli[F, RetryForeverState => F[Unit], Unit] =
     Kleisli { (handle: RetryForeverState => F[Unit]) =>
       def onError(err: Throwable, details: RetryDetails): F[Unit] =
         details match {
@@ -51,6 +51,6 @@ final private class RetryForever[F[_]](interval: RetryInterval, alertEveryNRetry
       retry.retryingOnSomeErrors(
         RetryPolicies.constantDelay[F](interval.value),
         (e: Throwable) => F.delay(NonFatal(e)),
-        onError)(stream.compile.drain >> F.raiseError[Unit](StreamMustBeInfiniteError))
+        onError)((stream ++ Stream.never[F]).compile.drain)
     }
 }

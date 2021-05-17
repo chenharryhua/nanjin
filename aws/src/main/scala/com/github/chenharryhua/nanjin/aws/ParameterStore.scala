@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.aws
 
+import cats.Applicative
 import cats.effect.Sync
 import com.amazonaws.regions.Regions
 import com.amazonaws.services.simplesystemsmanagement.model.GetParametersRequest
@@ -21,6 +22,12 @@ trait ParameterStore[F[_]] {
 }
 
 object ParameterStore {
+
+  def fake[F[_]: Applicative](content: String): ParameterStore[F] = new ParameterStore[F] {
+
+    override def fetch(path: ParameterStorePath)(implicit F: Sync[F]): F[ParameterStoreContent] =
+      F.pure(ParameterStoreContent(content))
+  }
 
   def apply[F[_]](regions: Regions = Regions.AP_SOUTHEAST_2): ParameterStore[F] =
     new ParameterStore[F] {
