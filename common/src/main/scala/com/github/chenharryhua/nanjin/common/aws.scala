@@ -12,6 +12,6 @@ object aws {
   type IamArn = String Refined MatchesRegex[W.`"^arn:aws:iam::\\\\d{12}:role/[A-Za-z0-9]+$"`.T]
   object IamArn extends RefinedTypeOps[IamArn, String] with CatsRefinedTypeOpsSyntax
 
-  type SnsArn = String Refined MatchesRegex[W.`"^arn:aws:sns::\\\\d{12}:role/[A-Za-z0-9]+$"`.T]
+  type SnsArn = String Refined MatchesRegex[W.`"^arn:aws:sns:[A-Za-z0-9_-]+:\\\\d{12}:[A-Za-z0-9_-]+$"`.T]
   object SnsArn extends RefinedTypeOps[SnsArn, String] with CatsRefinedTypeOpsSyntax
 }

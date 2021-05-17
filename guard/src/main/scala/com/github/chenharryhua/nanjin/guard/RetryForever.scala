@@ -1,56 +1,58 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.data.Kleisli
-import cats.effect.{Async, Sync}
+import cats.effect.Async
+import cats.effect.syntax.all._
 import cats.syntax.all._
 import fs2.Stream
+import org.log4s.Logger
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 import retry.{RetryDetails, RetryPolicies, Sleep}
 
-import scala.concurrent.duration.FiniteDuration
-import scala.util.control.{ControlThrowable, NonFatal}
+import scala.util.control.NonFatal
 
-private case object StreamMustBeInfiniteError extends ControlThrowable
-
-final case class RetryForeverState(
+final private class RetryForever[F[_]](
+  alertService: AlertService[F],
+  applicationName: ApplicationName,
+  serviceName: ServiceName,
+  retryInterval: RetryInterval,
   alertEveryNRetry: AlertEveryNRetries,
-  nextRetryIn: FiniteDuration,
-  numOfRetries: Int,
-  totalDelay: FiniteDuration,
-  err: Throwable
-)
+  healthCheckInterval: HealthCheckInterval) {
+  private val logger: Logger = org.log4s.getLogger
 
-final private class RetryForever[F[_]](interval: RetryInterval, alertEveryNRetry: AlertEveryNRetries) {
+  def forever[A](action: F[A])(implicit F: Async[F], sleep: Sleep[F]) = {
 
-  def forever[A](action: F[A])(implicit F: Sync[F], sleep: Sleep[F]): Kleisli[F, RetryForeverState => F[Unit], A] =
-    Kleisli { handle =>
-      def onError(err: Throwable, details: RetryDetails): F[Unit] =
-        details match {
-          case WillDelayAndRetry(next, num, cumulative) =>
-            handle(RetryForeverState(alertEveryNRetry, next, num, cumulative, err))
-              .whenA(num % alertEveryNRetry.value == 0)
-          case GivingUp(_, _) => F.unit
-        }
+    def onError(err: Throwable, details: RetryDetails): F[Unit] =
+      details match {
+        case WillDelayAndRetry(next, num, cumulative) =>
+          (alertService
+            .alert(slack
+              .alert(applicationName, serviceName, RetryForeverState(alertEveryNRetry, next, num, cumulative, err)))
+            .whenA(num % alertEveryNRetry.value == 0)) >>
+            F.blocking(logger.error(err)(s"fatal error in service: ${applicationName.value}/${serviceName.value}"))
+        case GivingUp(_, _) => F.unit
+      }
 
-      retry.retryingOnSomeErrors(
-        RetryPolicies.constantDelay[F](interval.value),
-        (e: Throwable) => F.delay(NonFatal(e)),
-        onError)(action)
-    }
+    val healthChecking =
+      alertService
+        .alert(slack.healthCheck(applicationName, serviceName, healthCheckInterval))
+        .delayBy(healthCheckInterval.value)
+        .foreverM
 
-  def infiniteStream[A](
-    stream: Stream[F, A])(implicit F: Async[F], sleep: Sleep[F]): Kleisli[F, RetryForeverState => F[Unit], Unit] =
-    Kleisli { (handle: RetryForeverState => F[Unit]) =>
-      def onError(err: Throwable, details: RetryDetails): F[Unit] =
-        details match {
-          case WillDelayAndRetry(next, num, cumulative) =>
-            handle(RetryForeverState(alertEveryNRetry, next, num, cumulative, err))
-              .whenA(num % alertEveryNRetry.value == 0)
-          case GivingUp(_, _) => F.unit
-        }
-      retry.retryingOnSomeErrors(
-        RetryPolicies.constantDelay[F](interval.value),
-        (e: Throwable) => F.delay(NonFatal(e)),
-        onError)((stream ++ Stream.never[F]).compile.drain)
-    }
+    val startNotify = alertService.alert(slack.start(applicationName, serviceName)).delayBy(retryInterval.value)
+
+    val enrich = for {
+      fiber <- (startNotify <* healthChecking).start
+      a <- action.onCancel(fiber.cancel).onError { case _ => fiber.cancel }
+      _ <- alertService.alert(slack.shouldNotStop(applicationName, serviceName))
+    } yield a
+
+    retry.retryingOnSomeErrors(
+      RetryPolicies.constantDelay[F](retryInterval.value),
+      (e: Throwable) => F.delay(NonFatal(e)),
+      onError)(enrich)
+  }
+
+  def infiniteStream[A](stream: Stream[F, A])(implicit F: Async[F], sleep: Sleep[F]) =
+    forever((stream ++ Stream.never[F]).compile.drain)
+
 }

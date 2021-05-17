@@ -1,44 +1,30 @@
 package com.github.chenharryhua.nanjin.aws
 
-import akka.actor.ActorSystem
-import akka.stream.Materializer
-import akka.stream.alpakka.sns.scaladsl.SnsPublisher
-import akka.stream.scaladsl.Source
-import cats.Applicative
 import cats.effect.Async
 import cats.syntax.all._
+import com.amazonaws.regions.Regions
+import com.amazonaws.services.sns.model.PublishRequest
+import com.amazonaws.services.sns.{AmazonSNS, AmazonSNSClientBuilder}
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
-import com.github.matsluni.akkahttpspi.AkkaHttpClient
-import software.amazon.awssdk.regions.Region
-import software.amazon.awssdk.services.sns.SnsAsyncClient
-import software.amazon.awssdk.services.sns.model.PublishRequest
 
 trait SimpleNotificationService[F[_]] {
-  def publish(msg: String): F[Unit]
+  def publish(msg: String)(implicit F: Async[F]): F[Unit]
 }
 
 object SimpleNotificationService {
 
-  def fake[F[_]: Applicative]: SimpleNotificationService[F] = (msg: String) => Applicative[F].unit
+  def fake[F[_]]: SimpleNotificationService[F] = new SimpleNotificationService[F] {
+    override def publish(msg: String)(implicit F: Async[F]): F[Unit] = F.unit
+  }
 
-  def apply[F[_]](topic: SnsArn, akkaSystem: ActorSystem, region: Region = Region.AP_SOUTHEAST_2)(implicit
-    F: Async[F]): SimpleNotificationService[F] =
+  def apply[F[_]](topic: SnsArn, region: Regions): SimpleNotificationService[F] =
     new SimpleNotificationService[F] {
 
-      implicit private val client: SnsAsyncClient =
-        SnsAsyncClient
-          .builder()
-          .region(region)
-          .httpClient(AkkaHttpClient.builder().withActorSystem(akkaSystem).build())
-          .build()
+      private lazy val snsClient: AmazonSNS =
+        AmazonSNSClientBuilder.standard().withRegion(region).build()
 
-      implicit private val mat: Materializer = Materializer(akkaSystem)
-
-      // don't care if fail
-      def publish(msg: String): F[Unit] =
-        F.fromFuture(F.blocking(
-          Source.single(PublishRequest.builder().message(msg).build()).runWith(SnsPublisher.publishSink(topic.value))))
-          .attempt
-          .void
+      // ignore failure
+      def publish(msg: String)(implicit F: Async[F]): F[Unit] =
+        F.blocking(snsClient.publish(new PublishRequest(topic.value, msg))).attempt.void
     }
 }

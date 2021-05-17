@@ -8,7 +8,7 @@ class AwsArnTest extends AnyFunSuite {
     IamArn("arn:aws:iam::123456789012:role/abc")
   }
   test("sns") {
-    SnsArn("arn:aws:sns::123456789012:role/efg")
+    SnsArn("arn:aws:sns:ap-southeast-2:123456789012:abc-123_xyz")
   }
   test("sqs") {
     SqsUrl("https://github.com")
