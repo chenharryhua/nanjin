@@ -8,7 +8,16 @@ import org.log4s.Logger
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 import retry.{RetryDetails, RetryPolicies, Sleep}
 
+import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
+
+final case class RetryForeverState(
+  alertEveryNRetry: AlertEveryNRetries,
+  nextRetryIn: FiniteDuration,
+  numOfRetries: Int,
+  totalDelay: FiniteDuration,
+  err: Throwable
+)
 
 final private class RetryForever[F[_]](
   alertService: AlertService[F],
