@@ -22,13 +22,17 @@ import scala.concurrent.duration.DurationInt
 sealed trait SimpleQueueService[F[_]] {
   def fetchRecords(sqs: SqsUrl)(implicit F: Async[F]): Stream[F, SqsAckResult]
 
-  def fetchS3(sqs: SqsUrl)(implicit F: Async[F]): Stream[F, S3Path] =
+  final def fetchS3(sqs: SqsUrl)(implicit F: Async[F]): Stream[F, S3Path] =
     fetchRecords(sqs).flatMap { sar =>
       Stream.fromEither(sqs_s3_parser(sar.messageAction.message.body())).flatMap(Stream.emits)
     }
 }
 
 object SimpleQueueService {
+
+  def fake[F[_]](stream: Stream[F, SqsAckResult]): SimpleQueueService[F] = new SimpleQueueService[F] {
+    override def fetchRecords(sqs: SqsUrl)(implicit F: Async[F]): Stream[F, SqsAckResult] = stream
+  }
 
   def apply[F[_]](akkaSystem: ActorSystem): SimpleQueueService[F] = new SimpleQueueService[F] {
 
