@@ -5,10 +5,10 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class AwsArnTest extends AnyFunSuite {
   test("iam") {
-    IamArn("arn:aws:iam::123456789012:role/abc")
+    IamArn("arn:aws:iam::123456789012:role/ab-c")
   }
   test("sns") {
-    SnsArn("arn:aws:sns:ap-southeast-2:123456789012:abc-123_xyz")
+    SnsArn("arn:aws:sns:ap-southeast-2:123456789012:abc-123xyz")
   }
   test("sqs") {
     SqsUrl("https://github.com")

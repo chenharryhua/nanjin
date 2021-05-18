@@ -38,6 +38,8 @@ final private class LimitRetry[F[_]](
         interval.value.mul(times.value),
         RetryPolicies.constantDelay[F](interval.value)
       )
-    retry.retryingOnSomeErrors[B](retryPolicy, (e: Throwable) => F.delay(NonFatal(e)), onError)(f(a))
+    retry
+      .retryingOnSomeErrors[B](retryPolicy, (e: Throwable) => F.delay(NonFatal(e)), onError)(f(a))
+      .flatTap(_ => F.blocking(logger.info(s"${slack.name} successfully processed input: ${a.show}")))
   }
 }
