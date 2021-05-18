@@ -2,13 +2,14 @@ package com.github.chenharryhua.nanjin.guard
 
 import cats.effect.Async
 import cats.implicits._
+import org.log4s.Logger
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 import retry.{RetryDetails, RetryPolicies, RetryPolicy, Sleep}
 
 import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
 
-final case class LimitedRetryState(totalRetries: Int, totalDelay: FiniteDuration, err: Throwable)
+final private case class LimitedRetryState(totalRetries: Int, totalDelay: FiniteDuration, err: Throwable)
 
 final private class LimitRetry[F[_]](
   alertService: AlertService[F],
@@ -16,14 +17,21 @@ final private class LimitRetry[F[_]](
   serviceName: ServiceName,
   times: MaximumRetries,
   interval: RetryInterval) {
+  private val logger: Logger = org.log4s.getLogger
 
   def limitRetry[A](action: F[A])(implicit F: Async[F], sleep: Sleep[F]): F[A] = {
     def onError(err: Throwable, details: RetryDetails): F[Unit] =
       details match {
-        case WillDelayAndRetry(_, _, _) => F.unit
+        case WillDelayAndRetry(_, sofar, _) =>
+          val msg =
+            s"error in service: ${applicationName.value}/${serviceName.value}, retries so far: $sofar/${times.value}"
+          F.blocking(logger.error(err)(msg))
         case GivingUp(totalRetries, totalDelay) =>
-          alertService.alert(
-            slack.limitAlert(applicationName, serviceName, LimitedRetryState(totalRetries, totalDelay, err)))
+          val msg =
+            s"error in service: ${applicationName.value}/${serviceName.value}, give up after retry $totalRetries times"
+          F.blocking(logger.error(err)(msg)) *>
+            alertService.alert(
+              slack.limitAlert(applicationName, serviceName, LimitedRetryState(totalRetries, totalDelay, err)))
       }
 
     val retryPolicy: RetryPolicy[F] =

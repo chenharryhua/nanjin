@@ -8,15 +8,15 @@ import scala.concurrent.duration._
 final case class ApplicationName(value: String) extends AnyVal
 final case class ServiceName(value: String) extends AnyVal
 
-final case class AlertEveryNRetries(value: Int) extends AnyVal
-final case class MaximumRetries(value: Long) extends AnyVal
-final case class RetryInterval(value: FiniteDuration) extends AnyVal
-final case class HealthCheckInterval(value: FiniteDuration) extends AnyVal
+final private case class AlertEveryNRetries(value: Int) extends AnyVal
+final private case class MaximumRetries(value: Long) extends AnyVal
+final private case class RetryInterval(value: FiniteDuration) extends AnyVal
+final private case class HealthCheckInterval(value: FiniteDuration) extends AnyVal
 
 final class TaskGuard[F[_]] private (
+  val applicationName: ApplicationName,
+  val serviceName: ServiceName,
   alertService: AlertService[F],
-  applicationName: ApplicationName,
-  serviceName: ServiceName,
   alertEveryNRetries: AlertEveryNRetries,
   maximumRetries: MaximumRetries,
   retryInterval: RetryInterval,
@@ -26,9 +26,9 @@ final class TaskGuard[F[_]] private (
   // config
   def withAlertService(value: AlertService[F]): TaskGuard[F] =
     new TaskGuard[F](
-      value,
       applicationName,
       serviceName,
+      value,
       alertEveryNRetries,
       maximumRetries,
       retryInterval,
@@ -36,9 +36,9 @@ final class TaskGuard[F[_]] private (
 
   def withAlertEveryNRetries(value: Int): TaskGuard[F] =
     new TaskGuard[F](
-      alertService,
       applicationName,
       serviceName,
+      alertService,
       AlertEveryNRetries(value),
       maximumRetries,
       retryInterval,
@@ -46,9 +46,9 @@ final class TaskGuard[F[_]] private (
 
   def withMaximumRetries(value: Long): TaskGuard[F] =
     new TaskGuard[F](
-      alertService,
       applicationName,
       serviceName,
+      alertService,
       alertEveryNRetries,
       MaximumRetries(value),
       retryInterval,
@@ -56,9 +56,9 @@ final class TaskGuard[F[_]] private (
 
   def withRetryInterval(value: FiniteDuration): TaskGuard[F] =
     new TaskGuard[F](
-      alertService,
       applicationName,
       serviceName,
+      alertService,
       alertEveryNRetries,
       maximumRetries,
       RetryInterval(value),
@@ -66,9 +66,9 @@ final class TaskGuard[F[_]] private (
 
   def withHealthCheckInterval(value: FiniteDuration): TaskGuard[F] =
     new TaskGuard[F](
-      alertService,
       applicationName,
       serviceName,
+      alertService,
       alertEveryNRetries,
       maximumRetries,
       retryInterval,
@@ -88,7 +88,7 @@ final class TaskGuard[F[_]] private (
       alertEveryNRetries,
       healthCheckInterval).foreverAction(action)
 
-  def infiniteStream[A](stream: Stream[F, A])(implicit F: Async[F]): F[Unit] =
+  def infiniteStream[A](stream: Stream[F, A])(implicit F: Async[F]): Stream[F, Unit] =
     new RetryForever[F](
       alertService,
       applicationName,
@@ -106,9 +106,9 @@ object TaskGuard {
 
   def apply[F[_]](applicationName: String, serviceName: String, alertService: AlertService[F]): TaskGuard[F] =
     new TaskGuard[F](
-      alertService,
       ApplicationName(applicationName),
       ServiceName(serviceName),
+      alertService,
       AlertEveryNRetries(30), // 15 minutes raise an alert
       MaximumRetries(3),
       RetryInterval(30.seconds),

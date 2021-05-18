@@ -11,7 +11,7 @@ import retry.{RetryDetails, RetryPolicies, Sleep}
 import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
 
-final case class RetryForeverState(
+final private case class RetryForeverState(
   alertEveryNRetry: AlertEveryNRetries,
   nextRetryIn: FiniteDuration,
   numOfRetries: Int,
@@ -65,7 +65,7 @@ final private class RetryForever[F[_]](
       onError)(enrich)
   }
 
-  def infiniteStream[A](stream: Stream[F, A])(implicit F: Async[F], sleep: Sleep[F]): F[Unit] =
-    foreverAction((stream ++ Stream.never[F]).compile.drain)
+  def infiniteStream[A](stream: Stream[F, A])(implicit F: Async[F], sleep: Sleep[F]): Stream[F, Unit] =
+    Stream.eval(foreverAction((stream ++ Stream.never[F]).compile.drain))
 
 }

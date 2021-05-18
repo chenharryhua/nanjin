@@ -18,7 +18,7 @@ object SlackNotification {
   implicit val codec: Codec[SlackNotification] = io.circe.generic.semiauto.deriveCodec[SlackNotification]
 }
 
-object slack {
+private object slack {
 
   def start(applicationName: ApplicationName, serviceName: ServiceName): SlackNotification =
     SlackNotification(
@@ -116,7 +116,7 @@ object slack {
             SlackField("Service Name", serviceName.value, short = true),
             SlackField("Number of retries", lrs.totalRetries.toString, short = true),
             SlackField("Retries took", s"${lrs.totalDelay.toSeconds} seconds", short = true),
-            SlackField("No retry will happen thereafter. The action was failed", "", short = false)
+            SlackField("The action was failed", "", short = false)
           )
         ))
     )
