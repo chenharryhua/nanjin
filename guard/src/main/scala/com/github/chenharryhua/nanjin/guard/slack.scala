@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.guard
 
+import com.github.chenharryhua.nanjin.utils
 import io.circe.Codec
 import io.circe.generic.auto._
-import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.time.LocalDateTime
 
@@ -18,9 +18,10 @@ object SlackNotification {
   implicit val codec: Codec[SlackNotification] = io.circe.generic.semiauto.deriveCodec[SlackNotification]
 }
 
-private object slack {
+final private class Slack(applicationName: ApplicationName, serviceName: ServiceName) {
+  val name: String = s"${applicationName.value}/${serviceName.value}"
 
-  def start(applicationName: ApplicationName, serviceName: ServiceName): SlackNotification =
+  val start: SlackNotification =
     SlackNotification(
       applicationName.value,
       ":rocket:",
@@ -33,7 +34,7 @@ private object slack {
             SlackField("Status", "(Re)Started", short = true))))
     )
 
-  def shouldNotStop(applicationName: ApplicationName, serviceName: ServiceName): SlackNotification =
+  val shouldNotStop: SlackNotification =
     SlackNotification(
       applicationName.value,
       ":open_mouth:",
@@ -49,10 +50,7 @@ private object slack {
         ))
     )
 
-  def healthCheck(
-    applicationName: ApplicationName,
-    serviceName: ServiceName,
-    interval: HealthCheckInterval): SlackNotification =
+  def healthCheck(interval: HealthCheckInterval): SlackNotification =
     SlackNotification(
       applicationName.value,
       ":gottarun:",
@@ -68,16 +66,11 @@ private object slack {
         ))
     )
 
-  def foreverAlert(
-    applicationName: ApplicationName,
-    serviceName: ServiceName,
-    rfs: RetryForeverState): SlackNotification = {
+  def foreverAlert(rfs: RetryForeverState): SlackNotification = {
     val nextAlert = (rfs.nextRetryIn * rfs.alertEveryNRetry.value.toLong).toMinutes
-    val msg =
-      s"""```${ExceptionUtils.getRootCauseStackTrace(rfs.err).take(8).mkString("\n")}```"""
     SlackNotification(
       applicationName.value,
-      msg,
+      s"""```${utils.mkString(rfs.err)}```""",
       List(
         Attachment(
           "danger",
@@ -98,15 +91,10 @@ private object slack {
     )
   }
 
-  def limitAlert(
-    applicationName: ApplicationName,
-    serviceName: ServiceName,
-    lrs: LimitedRetryState): SlackNotification = {
-    val msg =
-      s"""```${ExceptionUtils.getRootCauseStackTrace(lrs.err).take(8).mkString("\n")}```"""
+  def limitAlert(lrs: LimitedRetryState): SlackNotification =
     SlackNotification(
       applicationName.value,
-      msg,
+      s"""```${utils.mkString(lrs.err)}```""",
       List(
         Attachment(
           "danger",
@@ -120,5 +108,4 @@ private object slack {
           )
         ))
     )
-  }
 }

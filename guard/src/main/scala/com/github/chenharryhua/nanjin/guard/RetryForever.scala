@@ -21,8 +21,7 @@ final private case class RetryForeverState(
 
 final private class RetryForever[F[_]](
   alertService: AlertService[F],
-  applicationName: ApplicationName,
-  serviceName: ServiceName,
+  slack: Slack,
   retryInterval: RetryInterval,
   alertEveryNRetry: AlertEveryNRetries,
   healthCheckInterval: HealthCheckInterval) {
@@ -34,29 +33,22 @@ final private class RetryForever[F[_]](
       details match {
         case WillDelayAndRetry(next, num, cumulative) =>
           alertService
-            .alert(
-              slack.foreverAlert(
-                applicationName,
-                serviceName,
-                RetryForeverState(alertEveryNRetry, next, num, cumulative, err)))
+            .alert(slack.foreverAlert(RetryForeverState(alertEveryNRetry, next, num, cumulative, err)))
             .whenA(num % alertEveryNRetry.value == 0) >>
-            F.blocking(logger.error(err)(s"fatal error in service: ${applicationName.value}/${serviceName.value}"))
+            F.blocking(logger.error(err)(s"fatal error in service: ${slack.name}"))
         case GivingUp(_, _) => F.unit
       }
 
     val healthChecking: F[Nothing] =
-      alertService
-        .alert(slack.healthCheck(applicationName, serviceName, healthCheckInterval))
-        .delayBy(healthCheckInterval.value)
-        .foreverM
+      alertService.alert(slack.healthCheck(healthCheckInterval)).delayBy(healthCheckInterval.value).foreverM
 
     val startNotify: F[Unit] =
-      alertService.alert(slack.start(applicationName, serviceName)).delayBy(retryInterval.value)
+      alertService.alert(slack.start).delayBy(retryInterval.value)
 
     val enrich: F[Unit] = for {
       fiber <- (startNotify <* healthChecking).start
       _ <- action.onCancel(fiber.cancel).onError { case _ => fiber.cancel }
-      _ <- alertService.alert(slack.shouldNotStop(applicationName, serviceName))
+      _ <- alertService.alert(slack.shouldNotStop)
     } yield ()
 
     retry.retryingOnSomeErrors(

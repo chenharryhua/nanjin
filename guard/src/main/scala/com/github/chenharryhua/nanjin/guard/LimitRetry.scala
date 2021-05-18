@@ -13,8 +13,7 @@ final private case class LimitedRetryState(totalRetries: Int, totalDelay: Finite
 
 final private class LimitRetry[F[_]](
   alertService: AlertService[F],
-  applicationName: ApplicationName,
-  serviceName: ServiceName,
+  slack: Slack,
   times: MaximumRetries,
   interval: RetryInterval) {
   private val logger: Logger = org.log4s.getLogger
@@ -24,14 +23,13 @@ final private class LimitRetry[F[_]](
       details match {
         case WillDelayAndRetry(_, sofar, _) =>
           val msg =
-            s"error in service: ${applicationName.value}/${serviceName.value}, retries so far: $sofar/${times.value}"
+            s"error in service: ${slack.name}, retries so far: $sofar/${times.value}"
           F.blocking(logger.error(err)(msg))
         case GivingUp(totalRetries, totalDelay) =>
           val msg =
-            s"error in service: ${applicationName.value}/${serviceName.value}, give up after retry $totalRetries times"
+            s"error in service: ${slack.name}, give up after retry $totalRetries times"
           F.blocking(logger.error(err)(msg)) *>
-            alertService.alert(
-              slack.limitAlert(applicationName, serviceName, LimitedRetryState(totalRetries, totalDelay, err)))
+            alertService.alert(slack.limitAlert(LimitedRetryState(totalRetries, totalDelay, err)))
       }
 
     val retryPolicy: RetryPolicy[F] =

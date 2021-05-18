@@ -79,26 +79,18 @@ final class TaskGuard[F[_]] private (
   def alert(msg: SlackNotification)(implicit F: Async[F]): F[Unit] =
     alertService.alert(msg)
 
+  private val slack: Slack = new Slack(applicationName, serviceName)
+
   def foreverAction[A](action: F[A])(implicit F: Async[F]): F[Unit] =
-    new RetryForever[F](
-      alertService,
-      applicationName,
-      serviceName,
-      retryInterval,
-      alertEveryNRetries,
-      healthCheckInterval).foreverAction(action)
+    new RetryForever[F](alertService, slack, retryInterval, alertEveryNRetries, healthCheckInterval)
+      .foreverAction(action)
 
   def infiniteStream[A](stream: Stream[F, A])(implicit F: Async[F]): Stream[F, Unit] =
-    new RetryForever[F](
-      alertService,
-      applicationName,
-      serviceName,
-      retryInterval,
-      alertEveryNRetries,
-      healthCheckInterval).infiniteStream(stream)
+    new RetryForever[F](alertService, slack, retryInterval, alertEveryNRetries, healthCheckInterval)
+      .infiniteStream(stream)
 
   def limitRetry[A](action: F[A])(implicit F: Async[F]): F[A] =
-    new LimitRetry[F](alertService, applicationName, serviceName, maximumRetries, retryInterval).limitRetry(action)
+    new LimitRetry[F](alertService, slack, maximumRetries, retryInterval).limitRetry(action)
 
 }
 
