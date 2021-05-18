@@ -7,7 +7,7 @@ import akka.stream.alpakka.sqs.{MessageAction, SqsAckResult, SqsSourceSettings}
 import akka.stream.scaladsl.Sink
 import cats.effect.Async
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.common.aws.SqsUrl
+import com.github.chenharryhua.nanjin.common.aws.{S3Path, SqsUrl}
 import com.github.matsluni.akkahttpspi.AkkaHttpClient
 import fs2.Stream
 import fs2.interop.reactivestreams._
@@ -17,11 +17,6 @@ import io.circe.parser._
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 
 import scala.concurrent.duration.DurationInt
-
-final case class S3Path(bucket: String, key: String) {
-  val s3: String  = s"s3://$bucket/$key"
-  val s3a: String = s"s3a://$bucket/$key"
-}
 
 sealed trait SimpleQueueService[F[_]] {
   def fetchRecords(sqs: SqsUrl)(implicit F: Async[F]): Stream[F, SqsAckResult]
@@ -61,7 +56,7 @@ private object sqs_s3_parser {
       root.Records.each.s3.json.getAll(json).traverse { js =>
         val bucket = js.hcursor.downField("bucket").get[String]("name")
         val key    = js.hcursor.downField("object").get[String]("key")
-        (bucket, key).mapN(S3Path)
+        (bucket, key).mapN(S3Path(_, _))
       }
     }
 }

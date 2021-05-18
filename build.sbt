@@ -310,7 +310,7 @@ val dbLib = doobieLib ++ quillLib ++ neotypesLib
 lazy val common = (project in file("common"))
   .settings(commonSettings: _*)
   .settings(name := "nj-common")
-  .settings(libraryDependencies ++=
+  .settings(libraryDependencies ++= Seq("org.apache.commons" % "commons-lang3" % "3.12.0") ++
     baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ logLib ++ testLib)
 
 lazy val aws = (project in file("aws"))
@@ -330,7 +330,7 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++=
-      Seq("com.github.cb372" %% "cats-retry" % "3.0.0", "org.apache.commons" % "commons-lang3" % "3.12.0") ++
+      Seq("com.github.cb372" %% "cats-retry" % "3.0.0") ++
         logLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ awsLib.map(_ % Provided))
 
 lazy val datetime = (project in file("datetime"))
