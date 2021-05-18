@@ -56,7 +56,7 @@ private object sqs_s3_parser {
       root.Records.each.s3.json.getAll(json).traverse { js =>
         val bucket = js.hcursor.downField("bucket").get[String]("name")
         val key    = js.hcursor.downField("object").get[String]("key")
-        (bucket, key).mapN(S3Path)
+        (bucket, key).mapN(S3Path(_, _))
       }
     }
 }

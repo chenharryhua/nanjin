@@ -9,8 +9,8 @@ sealed abstract class HttpProtocols(val value: String) extends EnumEntry with Se
 object HttpProtocols extends Enum[HttpProtocols] with CatsEnum[HttpProtocols] {
   override val values: immutable.IndexedSeq[HttpProtocols] = findValues
 
-  case object HTTP extends HttpProtocols("HTTP")
-  case object HTTPS extends HttpProtocols("HTTPS")
+  case object HTTP extends HttpProtocols("http")
+  case object HTTPS extends HttpProtocols("https")
 
   type HTTP  = HTTP.type
   type HTTPS = HTTPS.type
@@ -21,8 +21,8 @@ sealed abstract class S3Protocols(val value: String) extends EnumEntry with Seri
 object S3Protocols extends Enum[S3Protocols] with CatsEnum[S3Protocols] {
   override val values: immutable.IndexedSeq[S3Protocols] = findValues
 
-  case object S3 extends S3Protocols("S3")
-  case object S3A extends S3Protocols("S3A")
+  case object S3 extends S3Protocols("s3")
+  case object S3A extends S3Protocols("s3a")
 
   type S3  = S3.type
   type S3A = S3A.type

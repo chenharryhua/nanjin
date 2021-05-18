@@ -1,9 +1,12 @@
 package com.github.chenharryhua.nanjin.guard
 
+import cats.Show
 import cats.effect.Async
 import fs2.Stream
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.util.Try
 
 final case class ApplicationName(value: String) extends AnyVal
 final case class ServiceName(value: String) extends AnyVal
@@ -74,13 +77,13 @@ final class TaskGuard[F[_]] private (
       retryInterval,
       HealthCheckInterval(value))
 
-  // actions
-
+  // alert only
   def alert(msg: SlackNotification)(implicit F: Async[F]): F[Unit] =
     alertService.alert(msg)
 
   private val slack: Slack = new Slack(applicationName, serviceName)
 
+  // non-stop action
   def foreverAction[A](action: F[A])(implicit F: Async[F]): F[Unit] =
     new RetryForever[F](alertService, slack, retryInterval, alertEveryNRetries, healthCheckInterval)
       .foreverAction(action)
@@ -89,8 +92,18 @@ final class TaskGuard[F[_]] private (
     new RetryForever[F](alertService, slack, retryInterval, alertEveryNRetries, healthCheckInterval)
       .infiniteStream(stream)
 
-  def limitRetry[A](action: F[A])(implicit F: Async[F]): F[A] =
-    new LimitRetry[F](alertService, slack, maximumRetries, retryInterval).limitRetry(action)
+  // retry eval
+  def retryEval[A: Show, B](a: A)(f: A => F[B])(implicit F: Async[F]): F[B] =
+    new LimitRetry[F](alertService, slack, maximumRetries, retryInterval).retryEval(a)(f)
+
+  def retryEvalTry[A: Show, B](a: A)(f: A => Try[B])(implicit F: Async[F]): F[B] =
+    retryEval[A, B](a)((a: A) => F.fromTry(f(a)))
+
+  def retryEvalEither[A: Show, B](a: A)(f: A => Either[Throwable, B])(implicit F: Async[F]): F[B] =
+    retryEval[A, B](a)((a: A) => F.fromEither(f(a)))
+
+  def retryEvalFuture[A: Show, B](a: A)(f: A => Future[B])(implicit F: Async[F]): F[B] =
+    retryEval[A, B](a)((a: A) => F.fromFuture(F.blocking(f(a))))
 
 }
 

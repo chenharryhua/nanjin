@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.common
 
+import cats.Show
 import eu.timepit.refined.W
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
 import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
@@ -18,6 +19,10 @@ object aws {
   final case class S3Path(bucket: String, key: String) {
     val s3: String  = s"${S3Protocols.S3.value}://$bucket/$key"
     val s3a: String = s"${S3Protocols.S3A.value}://$bucket/$key"
+  }
+
+  object S3Path {
+    implicit val showS3Path: Show[S3Path] = cats.derived.semiauto.show[S3Path]
   }
 
   //https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html
