@@ -55,7 +55,7 @@ val hadoop  = "3.3.0"
 val akkaFtp = "3.0.0"
 
 // misc
-val silencer    = "1.7.3"
+val silencer    = "1.7.4"
 val log4s       = "1.8.2"
 val betterFiles = "3.9.1"
 
