@@ -14,4 +14,14 @@ object aws {
 
   type SnsArn = String Refined MatchesRegex[W.`"^arn:aws:sns:[A-Za-z0-9_-]+:\\\\d{12}:[A-Za-z0-9_-]+$"`.T]
   object SnsArn extends RefinedTypeOps[SnsArn, String] with CatsRefinedTypeOpsSyntax
+
+  final case class S3Path(bucket: String, key: String) {
+    val s3: String  = s"${S3Protocols.S3.value}://$bucket/$key"
+    val s3a: String = s"${S3Protocols.S3A.value}://$bucket/$key"
+  }
+
+  //https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html
+  final case class ParameterStorePath(value: String, isSecure: Boolean = true)
+
+  final case class ParameterStoreContent(value: String)
 }

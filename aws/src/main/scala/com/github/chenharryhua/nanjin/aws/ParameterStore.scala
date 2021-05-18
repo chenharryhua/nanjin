@@ -9,13 +9,9 @@ import com.amazonaws.services.simplesystemsmanagement.{
   AWSSimpleSystemsManagement,
   AWSSimpleSystemsManagementClientBuilder
 }
+import com.github.chenharryhua.nanjin.common.aws.{ParameterStoreContent, ParameterStorePath}
 
 import java.util.Base64
-
-//https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html
-final case class ParameterStorePath(value: String, isSecure: Boolean = true)
-
-final case class ParameterStoreContent(value: String)
 
 trait ParameterStore[F[_]] {
   def fetch(path: ParameterStorePath)(implicit F: Sync[F]): F[ParameterStoreContent]
