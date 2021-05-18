@@ -102,10 +102,10 @@ final private class Slack(applicationName: ApplicationName, serviceName: Service
           List(
             SlackField("Service Panic at", s"${LocalDateTime.now()}", short = true),
             SlackField("Service Name", serviceName.value, short = true),
-            SlackField("with Input", s"```${lrs.input}```", short = true),
             SlackField("Number of retries", lrs.totalRetries.toString, short = true),
             SlackField("Retries took", s"${lrs.totalDelay.toSeconds} seconds", short = true),
-            SlackField("The action was failed", "", short = false)
+            SlackField("The action was failed", "", short = true),
+            SlackField("with Input", s"```${lrs.input}```", short = false)
           )
         ))
     )
