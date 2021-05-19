@@ -98,7 +98,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
       )
       service.publish(msg.asJson.noSpaces).attempt.void
     case ActionRetrying(_, _, _, _, _, _, _) => F.unit
-    case ActionFailed(applicationName, serviceName, actionID, actionInput, error, givingUp, alertLevel) =>
+    case ActionFailed(applicationName, serviceName, actionID, actionInput, alertLevel, error, givingUp) =>
       val msg = SlackNotification(
         applicationName.value,
         s"""```${utils.mkString(error)}```""",
@@ -111,8 +111,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
               SlackField("Service Name", serviceName.value, short = true),
               SlackField("Number of retries", givingUp.totalRetries.toString, short = true),
               SlackField("Retries took", s"${givingUp.totalDelay.toSeconds} seconds", short = true),
-              SlackField("The action was failed", "", short = true),
-              SlackField("with Input", s"```${actionInput.value}```", short = false),
+              SlackField("The action was failed with input", s"```${actionInput.value}```", short = false),
               SlackField("Action ID", actionID.value.toString, short = false)
             )
           ))
@@ -122,7 +121,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
     case ActionSucced(applicationName, serviceName, actionID, actionInput, alertLevel) =>
       val msg = SlackNotification(
         applicationName.value,
-        "",
+        ":ok_hand:",
         List(
           Attachment(
             "good",

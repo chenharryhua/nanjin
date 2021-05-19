@@ -25,7 +25,7 @@ final private case class ServiceRestarting(
   applicationName: ApplicationName,
   serviceName: ServiceName,
   willDelayAndRetry: WillDelayAndRetry,
-  alertEveryNRetry: AlertEveryNRetries,
+  serviceAlertEveryNRetries: ServiceAlertEveryNRetries,
   error: Throwable
 ) extends ServiceStatus
 
@@ -52,19 +52,19 @@ final private case class ActionRetrying(
   serviceName: ServiceName,
   actionID: ActionID,
   actionInput: ActionInput,
+  alertLevel: AlertLevel,
   error: Throwable,
-  willDelayAndRetry: WillDelayAndRetry,
-  alertLevel: AlertLevel)
-    extends ActionStatus
+  willDelayAndRetry: WillDelayAndRetry
+) extends ActionStatus
 
 final private case class ActionFailed(
   applicationName: ApplicationName,
   serviceName: ServiceName,
   actionID: ActionID,
   actionInput: ActionInput,
+  alertLevel: AlertLevel,
   error: Throwable,
-  givingUp: GivingUp,
-  alertLevel: AlertLevel)
+  givingUp: GivingUp)
     extends ActionStatus
 
 final private case class ActionSucced(

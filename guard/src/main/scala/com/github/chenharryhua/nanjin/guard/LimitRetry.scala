@@ -12,8 +12,8 @@ final private class LimitRetry[F[_]](
   alertServices: List[AlertService[F]],
   applicationName: ApplicationName,
   serviceName: ServiceName,
-  times: MaximumRetries,
-  interval: RetryInterval,
+  actionMaximumRetries: ActionMaximumRetries,
+  actionRetryInterval: ActionRetryInterval,
   actionID: ActionID,
   alertLevel: AlertLevel) {
 
@@ -51,8 +51,8 @@ final private class LimitRetry[F[_]](
 
     val retryPolicy: RetryPolicy[F] =
       RetryPolicies.limitRetriesByCumulativeDelay[F](
-        interval.value.mul(times.value),
-        RetryPolicies.constantDelay[F](interval.value)
+        actionRetryInterval.value.mul(actionMaximumRetries.value),
+        RetryPolicies.constantDelay[F](actionRetryInterval.value)
       )
 
     retry
