@@ -109,11 +109,11 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
             List(
               SlackField("Service Panic at", s"${LocalDateTime.now()}", short = true),
               SlackField("Service Name", serviceName.value, short = true),
-              SlackField("Action ID", actionID.value.toString, short = true),
               SlackField("Number of retries", givingUp.totalRetries.toString, short = true),
               SlackField("Retries took", s"${givingUp.totalDelay.toSeconds} seconds", short = true),
               SlackField("The action was failed", "", short = true),
-              SlackField("with Input", s"```${actionInput.value}```", short = false)
+              SlackField("with Input", s"```${actionInput.value}```", short = false),
+              SlackField("Action ID", actionID.value.toString, short = false)
             )
           ))
       )
@@ -130,8 +130,8 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
             List(
               SlackField("Service Name", serviceName.value, short = true),
               SlackField("Status", "Success", short = true),
-              SlackField("Action ID", actionID.value.toString, short = true),
-              SlackField("Input", actionInput.value, short = false)
+              SlackField("Input", s"```${actionInput.value}```", short = false),
+              SlackField("Action ID", actionID.value.toString, short = false)
             )
           ))
       )

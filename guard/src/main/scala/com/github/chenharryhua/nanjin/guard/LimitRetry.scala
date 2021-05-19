@@ -58,14 +58,15 @@ final private class LimitRetry[F[_]](
     retry
       .retryingOnSomeErrors[B](retryPolicy, (e: Throwable) => F.delay(NonFatal(e)), onError)(f(a))
       .flatTap(_ =>
-        F.blocking(
-          alertServices.traverse(
+        alertServices
+          .traverse(
             _.alert(
               ActionSucced(
                 applicationName = applicationName,
                 serviceName = serviceName,
                 actionID = actionID,
                 actionInput = ActionInput(a.show),
-                alertLevel = alertLevel)))))
+                alertLevel = alertLevel)))
+          .void)
   }
 }
