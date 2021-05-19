@@ -13,8 +13,8 @@ final private class RunForever[F[_]](
   alertServices: List[AlertService[F]],
   applicationName: ApplicationName,
   serviceName: ServiceName,
-  retryInterval: RetryInterval,
-  alertEveryNRetry: AlertEveryNRetries,
+  serviceRestartInterval: ServiceRestartInterval,
+  serviceAlertEveryNRetries: ServiceAlertEveryNRetries,
   healthCheckInterval: HealthCheckInterval) {
 
   def nonStopAction[A](action: F[A])(implicit F: Async[F], sleep: Sleep[F]): F[Unit] = {
@@ -29,7 +29,7 @@ final private class RunForever[F[_]](
                   applicationName = applicationName,
                   serviceName = serviceName,
                   willDelayAndRetry = wd,
-                  alertEveryNRetry = alertEveryNRetry,
+                  serviceAlertEveryNRetries = serviceAlertEveryNRetries,
                   error = err)))
             .void
         case GivingUp(_, _) =>
@@ -55,7 +55,7 @@ final private class RunForever[F[_]](
       alertServices
         .traverse(_.alert(ServiceStarted(applicationName = applicationName, serviceName = serviceName)))
         .void
-        .delayBy(retryInterval.value)
+        .delayBy(serviceRestartInterval.value)
 
     val enrich: F[Unit] = for {
       fiber <- (startService <* healthChecking).start
@@ -71,12 +71,12 @@ final private class RunForever[F[_]](
     } yield ()
 
     retry.retryingOnSomeErrors(
-      RetryPolicies.constantDelay[F](retryInterval.value),
+      RetryPolicies.constantDelay[F](serviceRestartInterval.value),
       (e: Throwable) => F.delay(NonFatal(e)),
       onError)(enrich)
   }
 
   def infiniteStream[A](stream: Stream[F, A])(implicit F: Async[F], sleep: Sleep[F]): Stream[F, Unit] =
-    Stream.eval(nonStopAction((stream ++ Stream.never[F]).compile.drain))
+    Stream.eval(nonStopAction(stream.compile.drain))
 
 }
