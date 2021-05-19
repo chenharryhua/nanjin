@@ -8,18 +8,6 @@ import java.util.UUID
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-final private case class ServiceAlertEveryNRetries(value: Int) extends AnyVal
-final private case class ServiceRestartInterval(value: FiniteDuration) extends AnyVal
-final private case class HealthCheckInterval(value: FiniteDuration) extends AnyVal
-
-final private case class ActionMaximumRetries(value: Long) extends AnyVal
-final private case class ActionRetryInterval(value: FiniteDuration) extends AnyVal
-
-sealed private trait AlertLevel
-private case object AlertFailOnly extends AlertLevel
-private case object AlertSuccOnly extends AlertLevel
-private case object AlertBoth extends AlertLevel
-
 final class TaskGuard[F[_]] private (
   applicationName: ApplicationName,
   serviceName: ServiceName,
