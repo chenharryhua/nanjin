@@ -56,22 +56,22 @@ private object ActionConfigF {
 
 }
 
-final case class ActionConfig private (value: Fix[ActionConfigF]) {
+final class ActionConfig private (value: Fix[ActionConfigF]) {
   import ActionConfigF._
 
-  def withApplicationName(an: String): ActionConfig = ActionConfig(Fix(WithApplicationName(an, value)))
-  def withServiceName(sn: String): ActionConfig     = ActionConfig(Fix(WithServiceName(sn, value)))
-  def withActionName(an: String): ActionConfig      = ActionConfig(Fix(WithActionName(an, value)))
+  def withApplicationName(an: String): ActionConfig = new ActionConfig(Fix(WithApplicationName(an, value)))
+  def withServiceName(sn: String): ActionConfig     = new ActionConfig(Fix(WithServiceName(sn, value)))
+  def withActionName(an: String): ActionConfig      = new ActionConfig(Fix(WithActionName(an, value)))
 
-  def withMaxRetries(n: Long): ActionConfig              = ActionConfig(Fix(WithMaxRetries(n, value)))
-  def withRetryInterval(d: FiniteDuration): ActionConfig = ActionConfig(Fix(WithRetryInterval(d, value)))
+  def withMaxRetries(n: Long): ActionConfig              = new ActionConfig(Fix(WithMaxRetries(n, value)))
+  def withRetryInterval(d: FiniteDuration): ActionConfig = new ActionConfig(Fix(WithRetryInterval(d, value)))
 
-  def offSucc: ActionConfig = ActionConfig(Fix(WithAlertMaskSucc(value = false, value)))
-  def offFail: ActionConfig = ActionConfig(Fix(WithAlertMaskFail(value = false, value)))
+  def offSucc: ActionConfig = new ActionConfig(Fix(WithAlertMaskSucc(value = false, value)))
+  def offFail: ActionConfig = new ActionConfig(Fix(WithAlertMaskFail(value = false, value)))
 
-  def evalConfig: ActionParams = scheme.cata(algebra).apply(value)
+  private[guard] def evalConfig: ActionParams = scheme.cata(algebra).apply(value)
 }
 
 private object ActionConfig {
-  val default: ActionConfig = ActionConfig(Fix(ActionConfigF.InitParam[Fix[ActionConfigF]]()))
+  val default: ActionConfig = new ActionConfig(Fix(ActionConfigF.InitParam[Fix[ActionConfigF]]()))
 }
