@@ -17,7 +17,7 @@ final private class LogService[F[_]] extends AlertService[F] {
     status match {
       case ss @ ServiceStarted(_, _) =>
         F.blocking(logger.info(ss.asJson.noSpaces))
-      case ss @ ServiceRestarting(_, _, _, _, _) =>
+      case ss @ ServiceRestarting(_, _, _, _) =>
         F.blocking(logger.info(ss.asJson.noSpaces))
       case ss @ ServiceAbnormalStop(_, _, error) =>
         F.blocking(logger.error(error)(ss.asJson.noSpaces))

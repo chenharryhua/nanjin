@@ -4,73 +4,68 @@ import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
 import java.util.UUID
 
-final private case class ApplicationName(value: String) extends AnyVal
-final private case class ServiceName(value: String) extends AnyVal
+final case class ActionID(value: UUID) extends AnyVal
 
-final private case class ActionID(value: UUID) extends AnyVal
+final case class ActionInput(value: String) extends AnyVal
 
-final private case class ActionInput(value: String) extends AnyVal
-
-sealed private trait Status {
+sealed trait Status {
   def applicationName: ApplicationName
   def serviceName: ServiceName
 }
 
-sealed private trait ServiceStatus extends Status
+sealed trait ServiceStatus extends Status
 
-final private case class ServiceStarted(applicationName: ApplicationName, serviceName: ServiceName)
-    extends ServiceStatus
+final case class ServiceStarted(applicationName: ApplicationName, serviceName: ServiceName) extends ServiceStatus
 
-final private case class ServiceRestarting(
+final case class ServiceRestarting(
   applicationName: ApplicationName,
   serviceName: ServiceName,
   willDelayAndRetry: WillDelayAndRetry,
-  serviceAlertEveryNRetries: ServiceAlertEveryNRetries,
   error: Throwable
 ) extends ServiceStatus
 
-final private case class ServiceAbnormalStop(
+final case class ServiceAbnormalStop(
   applicationName: ApplicationName,
   serviceName: ServiceName,
   error: Throwable
 ) extends ServiceStatus
 
-final private case class ServiceHealthCheck(
+final case class ServiceHealthCheck(
   applicationName: ApplicationName,
   serviceName: ServiceName,
   healthCheckInterval: HealthCheckInterval)
     extends ServiceStatus
 
-sealed private trait ActionStatus extends Status {
+sealed trait ActionStatus extends Status {
   def actionID: ActionID
   def actionInput: ActionInput
-  def alertLevel: AlertLevel
+  def alertMask: AlertMask
 }
 
-final private case class ActionRetrying(
+final case class ActionRetrying(
   applicationName: ApplicationName,
   serviceName: ServiceName,
   actionID: ActionID,
   actionInput: ActionInput,
-  alertLevel: AlertLevel,
+  alertMask: AlertMask,
   error: Throwable,
   willDelayAndRetry: WillDelayAndRetry
 ) extends ActionStatus
 
-final private case class ActionFailed(
+final case class ActionFailed(
   applicationName: ApplicationName,
   serviceName: ServiceName,
   actionID: ActionID,
   actionInput: ActionInput,
-  alertLevel: AlertLevel,
+  alertMask: AlertMask,
   error: Throwable,
   givingUp: GivingUp)
     extends ActionStatus
 
-final private case class ActionSucced(
+final case class ActionSucced(
   applicationName: ApplicationName,
   serviceName: ServiceName,
   actionID: ActionID,
   actionInput: ActionInput,
-  alertLevel: AlertLevel)
+  alertMask: AlertMask)
     extends ActionStatus

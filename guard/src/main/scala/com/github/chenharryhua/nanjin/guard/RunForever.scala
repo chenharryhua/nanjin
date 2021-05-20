@@ -9,15 +9,10 @@ import retry.{RetryDetails, RetryPolicies, Sleep}
 
 import scala.util.control.NonFatal
 
-final private class RunForever[F[_]](
-  alertServices: List[AlertService[F]],
-  applicationName: ApplicationName,
-  serviceName: ServiceName,
-  serviceRestartInterval: ServiceRestartInterval,
-  serviceAlertEveryNRetries: ServiceAlertEveryNRetries,
-  healthCheckInterval: HealthCheckInterval) {
+final private class RunForever[F[_]](alertServices: List[AlertService[F]], config: ServiceConfig) {
+  private val params: ServiceParams = config.evalConfig
 
-  def nonStopAction[A](action: F[A])(implicit F: Async[F], sleep: Sleep[F]): F[Unit] = {
+  def nonStop[A](action: F[A])(implicit F: Async[F], sleep: Sleep[F]): F[Unit] = {
 
     def onError(err: Throwable, details: RetryDetails): F[Unit] =
       details match {
@@ -26,16 +21,19 @@ final private class RunForever[F[_]](
             .traverse(
               _.alert(
                 ServiceRestarting(
-                  applicationName = applicationName,
-                  serviceName = serviceName,
+                  applicationName = params.applicationName,
+                  serviceName = params.serviceName,
                   willDelayAndRetry = wd,
-                  serviceAlertEveryNRetries = serviceAlertEveryNRetries,
                   error = err)))
             .void
         case GivingUp(_, _) =>
           alertServices
             .traverse(
-              _.alert(ServiceAbnormalStop(applicationName = applicationName, serviceName = serviceName, error = err)))
+              _.alert(
+                ServiceAbnormalStop(
+                  applicationName = params.applicationName,
+                  serviceName = params.serviceName,
+                  error = err)))
             .void
       }
 
@@ -44,39 +42,39 @@ final private class RunForever[F[_]](
         .traverse(
           _.alert(
             ServiceHealthCheck(
-              applicationName = applicationName,
-              serviceName = serviceName,
-              healthCheckInterval = healthCheckInterval)))
+              applicationName = params.applicationName,
+              serviceName = params.serviceName,
+              healthCheckInterval = params.healthCheckInterval)))
         .void
-        .delayBy(healthCheckInterval.value)
+        .delayBy(params.healthCheckInterval.value)
         .foreverM
 
     val startService: F[Unit] =
       alertServices
-        .traverse(_.alert(ServiceStarted(applicationName = applicationName, serviceName = serviceName)))
+        .traverse(_.alert(ServiceStarted(applicationName = params.applicationName, serviceName = params.serviceName)))
         .void
-        .delayBy(serviceRestartInterval.value)
+        .delayBy(params.restartInterval.value)
 
     val enrich: F[Unit] = for {
       fiber <- (startService <* healthChecking).start
       _ <- action.onCancel(fiber.cancel).onError { case _ => fiber.cancel }
       _ <- alertServices
         .traverse(
-          _.alert(
-            ServiceAbnormalStop(
-              applicationName = applicationName,
-              serviceName = serviceName,
-              error = new Exception(s"service(${serviceName.value}) was abnormally stopped."))))
+          _.alert(ServiceAbnormalStop(
+            applicationName = params.applicationName,
+            serviceName = params.serviceName,
+            error = new Exception(s"service(${params.serviceName.value}) was abnormally stopped.")
+          )))
         .void
     } yield ()
 
     retry.retryingOnSomeErrors(
-      RetryPolicies.constantDelay[F](serviceRestartInterval.value),
+      RetryPolicies.constantDelay[F](params.restartInterval.value),
       (e: Throwable) => F.delay(NonFatal(e)),
       onError)(enrich)
   }
 
   def infiniteStream[A](stream: Stream[F, A])(implicit F: Async[F], sleep: Sleep[F]): Stream[F, Unit] =
-    Stream.eval(nonStopAction(stream.compile.drain))
+    Stream.eval(nonStop(stream.compile.drain))
 
 }
