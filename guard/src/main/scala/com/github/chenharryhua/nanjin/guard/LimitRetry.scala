@@ -10,12 +10,10 @@ import scala.util.control.NonFatal
 
 final private class LimitRetry[F[_]](
   alertServices: List[AlertService[F]],
-  applicationName: ApplicationName,
-  serviceName: ServiceName,
-  actionMaximumRetries: ActionMaximumRetries,
-  actionRetryInterval: ActionRetryInterval,
-  actionID: ActionID,
-  alertLevel: AlertLevel) {
+  config: ActionConfig,
+  actionID: ActionID
+) {
+  private val params: ActionParams = config.evalConfig
 
   def retryEval[A: Show, B](a: A, f: A => F[B])(implicit F: Async[F], sleep: Sleep[F]): F[B] = {
     def onError(err: Throwable, details: RetryDetails): F[Unit] =
@@ -24,35 +22,34 @@ final private class LimitRetry[F[_]](
           alertServices
             .traverse(
               _.alert(ActionRetrying(
-                applicationName = applicationName,
-                serviceName = serviceName,
+                applicationName = params.applicationName,
+                serviceName = params.serviceName,
                 actionID = actionID,
                 actionInput = ActionInput(a.show),
                 error = err,
                 willDelayAndRetry = wd,
-                alertLevel = alertLevel
+                alertMask = params.alertMask
               )))
             .void
         case gu @ GivingUp(_, _) =>
           alertServices
             .traverse(
-              _.alert(
-                ActionFailed(
-                  applicationName = applicationName,
-                  serviceName = serviceName,
-                  actionID = actionID,
-                  actionInput = ActionInput(a.show),
-                  error = err,
-                  givingUp = gu,
-                  alertLevel = alertLevel
-                )))
+              _.alert(ActionFailed(
+                applicationName = params.applicationName,
+                serviceName = params.serviceName,
+                actionID = actionID,
+                actionInput = ActionInput(a.show),
+                error = err,
+                givingUp = gu,
+                alertMask = params.alertMask
+              )))
             .void
       }
 
     val retryPolicy: RetryPolicy[F] =
       RetryPolicies.limitRetriesByCumulativeDelay[F](
-        actionRetryInterval.value.mul(actionMaximumRetries.value),
-        RetryPolicies.constantDelay[F](actionRetryInterval.value)
+        params.actionRetryInterval.value.mul(params.actionMaxRetries.value),
+        RetryPolicies.constantDelay[F](params.actionRetryInterval.value)
       )
 
     retry
@@ -62,11 +59,11 @@ final private class LimitRetry[F[_]](
           .traverse(
             _.alert(
               ActionSucced(
-                applicationName = applicationName,
-                serviceName = serviceName,
+                applicationName = params.applicationName,
+                serviceName = params.serviceName,
                 actionID = actionID,
                 actionInput = ActionInput(a.show),
-                alertLevel = alertLevel)))
+                alertMask = params.alertMask)))
           .void)
   }
 }
