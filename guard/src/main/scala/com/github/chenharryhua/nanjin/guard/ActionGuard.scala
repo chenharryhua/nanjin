@@ -4,10 +4,9 @@ import cats.Show
 import cats.effect.Async
 import cats.implicits._
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
-import retry.{RetryDetails, RetryPolicies, RetryPolicy, Sleep}
+import retry.{RetryDetails, RetryPolicies, RetryPolicy}
 
 import java.util.UUID
-import scala.util.control.NonFatal
 
 final class ActionGuard[F[_]](alertServices: List[AlertService[F]], config: ActionConfig) {
   private val params: ActionParams = config.evalConfig
@@ -15,7 +14,7 @@ final class ActionGuard[F[_]](alertServices: List[AlertService[F]], config: Acti
   def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
     new ActionGuard[F](alertServices, f(config))
 
-  def run[A: Show, B](a: A)(f: A => F[B])(implicit F: Async[F], sleep: Sleep[F]): F[B] = {
+  def run[A: Show, B](a: A)(f: A => F[B])(implicit F: Async[F]): F[B] = {
     val action = RetriedAction(params.actionName, a.show, UUID.randomUUID())
     def onError(err: Throwable, details: RetryDetails): F[Unit] =
       details match {
@@ -54,7 +53,7 @@ final class ActionGuard[F[_]](alertServices: List[AlertService[F]], config: Acti
       )
 
     retry
-      .retryingOnSomeErrors[B](retryPolicy, (e: Throwable) => F.delay(NonFatal(e)), onError)(f(a))
+      .retryingOnAllErrors[B](retryPolicy, onError)(f(a))
       .flatTap(_ =>
         alertServices
           .traverse(

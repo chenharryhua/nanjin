@@ -4,10 +4,8 @@ import cats.effect.Async
 import cats.effect.syntax.all._
 import cats.syntax.all._
 import fs2.Stream
+import retry.RetryDetails
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
-import retry.{RetryDetails, Sleep}
-
-import scala.util.control.NonFatal
 
 final class ServiceGuard[F[_]](alertServices: List[AlertService[F]], config: ServiceConfig) {
   private val params: ServiceParams = config.evalConfig
@@ -15,7 +13,7 @@ final class ServiceGuard[F[_]](alertServices: List[AlertService[F]], config: Ser
   def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
     new ServiceGuard[F](alertServices, f(config))
 
-  def run[A](action: F[A])(implicit F: Async[F], sleep: Sleep[F]): F[Unit] = {
+  def run[A](action: F[A])(implicit F: Async[F]): F[Unit] = {
 
     def onError(err: Throwable, details: RetryDetails): F[Unit] =
       details match {
@@ -56,7 +54,7 @@ final class ServiceGuard[F[_]](alertServices: List[AlertService[F]], config: Ser
       alertServices
         .traverse(_.alert(ServiceStarted(applicationName = params.applicationName, serviceName = params.serviceName)))
         .void
-        .delayBy(params.serviceRetryPolicy.value)
+        .delayBy(params.retryPolicy.value)
 
     val enrich: F[Unit] = for {
       fiber <- (startService <* healthChecking).start
@@ -72,11 +70,10 @@ final class ServiceGuard[F[_]](alertServices: List[AlertService[F]], config: Ser
         .void
     } yield ()
 
-    retry.retryingOnSomeErrors(params.serviceRetryPolicy.policy[F], (e: Throwable) => F.delay(NonFatal(e)), onError)(
-      enrich)
+    retry.retryingOnAllErrors(params.retryPolicy.policy[F], onError)(enrich)
   }
 
-  def run[A](stream: Stream[F, A])(implicit F: Async[F], sleep: Sleep[F]): Stream[F, Unit] =
+  def run[A](stream: Stream[F, A])(implicit F: Async[F]): Stream[F, Unit] =
     Stream.eval(run(stream.compile.drain))
 
 }
