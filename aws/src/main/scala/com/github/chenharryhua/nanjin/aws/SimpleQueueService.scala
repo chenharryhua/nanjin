@@ -55,13 +55,15 @@ object SimpleQueueService {
 
 private object sqs_s3_parser {
 
-  // https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html
+  /** [[https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html]]
+    * ignore messages which does not have s3 structure
+    */
   def apply(body: String): Either[Error, List[S3Path]] =
-    parse(body).flatMap { json =>
-      root.Records.each.s3.json.getAll(json).traverse { js =>
+    parse(body).map { json =>
+      root.Records.each.s3.json.getAll(json).flatMap { js =>
         val bucket = js.hcursor.downField("bucket").get[String]("name")
         val key    = js.hcursor.downField("object").get[String]("key")
-        (bucket, key).mapN((b, k) => S3Path(b, URLDecoder.decode(k, "UTF-8")))
+        (bucket, key).mapN((b, k) => S3Path(b, URLDecoder.decode(k, "UTF-8"))).toOption
       }
     }
 }
