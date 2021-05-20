@@ -9,18 +9,14 @@ import com.github.chenharryhua.nanjin.utils
 import io.circe.generic.auto._
 import io.circe.syntax._
 
-import java.time.LocalDateTime
+import java.time.Instant
 
 /** Notes: slack messages
   * [[https://api.slack.com/docs/messages/builder]]
   */
 final case class SlackField(title: String, value: String, short: Boolean)
 
-final case class Attachment(
-  color: String,
-  title: String,
-  fields: List[SlackField],
-  ts: Int = LocalDateTime.now().getSecond)
+final case class Attachment(color: String, fields: List[SlackField], ts: Long = Instant.now().getEpochSecond)
 final case class SlackNotification(username: String, text: String, attachments: List[Attachment])
 
 final class SlackService[F[_]] private (service: SimpleNotificationService[F]) extends AlertService[F] {
@@ -28,14 +24,13 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
   override def alert(status: Status)(implicit F: Async[F]): F[Unit] = status match {
     case ServiceStarted(applicationName, serviceName) =>
       val msg = SlackNotification(
-        applicationName.value,
+        applicationName,
         ":rocket:",
         List(
           Attachment(
             "good",
-            "Service Start",
             List(
-              SlackField("Service Name", serviceName.value, short = true),
+              SlackField("Service Name", serviceName, short = true),
               SlackField("Status", "(Re)Started", short = true))
           ))
       )
@@ -43,21 +38,20 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
 
     case ServiceRestarting(applicationName, serviceName, willDelayAndRetry, error) =>
       val msg = SlackNotification(
-        applicationName.value,
-        s""":waiting:```${utils.mkString(error)}```""",
+        applicationName,
+        s""":system_restore:```${utils.mkString(error)}```""",
         List(
           Attachment(
             "danger",
-            "Service Panic",
             List(
-              SlackField("Service Name", serviceName.value, short = true),
+              SlackField("Service Name", serviceName, short = true),
               SlackField("Status", "Restarting", short = true),
               SlackField("Retries so far", willDelayAndRetry.retriesSoFar.toString, short = true),
               SlackField("Cumulative Delay", s"${willDelayAndRetry.cumulativeDelay.toMinutes} minutes", short = true),
               SlackField(
                 "The service will keep retrying until recovered",
-                s"""|Next attempt will happen in ${willDelayAndRetry.nextDelay.toSeconds} seconds. 
-                    |if the service is not recovered automatically.""".stripMargin,
+                s"""|Next attempt will happen in ${willDelayAndRetry.nextDelay.toSeconds} seconds 
+                    |in case the service is not recovered automatically.""".stripMargin,
                 short = false
               )
             )
@@ -67,14 +61,13 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
 
     case ServiceAbnormalStop(applicationName, serviceName, error) =>
       val msg = SlackNotification(
-        applicationName.value,
+        applicationName,
         s":open_mouth: ${error.getMessage}",
         List(
           Attachment(
             "danger",
-            "Service Abnormal Stop",
             List(
-              SlackField("Service Name", serviceName.value, short = true),
+              SlackField("Service Name", serviceName, short = true),
               SlackField("Status", "Stopped", short = true),
               SlackField("The service was unexpectedly stopped", "fatal error. restart does not help", short = true)
             )
@@ -84,54 +77,53 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
 
     case ServiceHealthCheck(applicationName, serviceName, interval) =>
       val msg = SlackNotification(
-        applicationName.value,
+        applicationName,
         ":gottarun:",
         List(
           Attachment(
             "good",
-            "Health Check",
             List(
-              SlackField("Service Name", serviceName.value, short = true),
-              SlackField("Status", "Good", short = true),
-              SlackField("Next check will happen in", s"${interval.value.toHours} hours", short = true)
+              SlackField("Service Name", serviceName, short = true),
+              SlackField("HealthCheck Status", "Good", short = true),
+              SlackField("Next check will happen in", s"${interval.toHours} hours", short = true)
             )
           ))
       )
       service.publish(msg.asJson.noSpaces).attempt.void
-    case ActionRetrying(_, _, _, _, _, _, _) => F.unit
-    case ActionFailed(applicationName, serviceName, actionID, actionInput, alertMask, error, givingUp) =>
+    case ActionRetrying(_, _, _, _, _, _) => F.unit
+    case ActionFailed(applicationName, serviceName, RetriedAction(name, input, id), alertMask, givingUp, error) =>
       val msg = SlackNotification(
-        applicationName.value,
+        applicationName,
         s""":oops:```${utils.mkString(error)}```""",
         List(
           Attachment(
             "danger",
-            "Perform Action",
             List(
-              SlackField("Service Name", serviceName.value, short = true),
+              SlackField("Service Name", serviceName, short = true),
               SlackField("Status", "Failed", short = true),
               SlackField("Number of retries", givingUp.totalRetries.toString, short = true),
               SlackField("Retries took", s"${givingUp.totalDelay.toSeconds} seconds", short = true),
-              SlackField("Action Input", s"```${actionInput.value}```", short = false),
-              SlackField("Action ID", actionID.value.toString, short = false)
+              SlackField("Action Name", name, short = true),
+              SlackField("Action Input", s"```$input```", short = false),
+              SlackField("Action ID", id.toString, short = false)
             )
           ))
       )
       service.publish(msg.asJson.noSpaces).whenA(alertMask.alertFail).attempt.void
 
-    case ActionSucced(applicationName, serviceName, actionID, actionInput, alertMask) =>
+    case ActionSucced(applicationName, serviceName, RetriedAction(name, input, id), alertMask) =>
       val msg = SlackNotification(
-        applicationName.value,
+        applicationName,
         ":ok_hand:",
         List(
           Attachment(
             "good",
-            "Perform Action",
             List(
-              SlackField("Service Name", serviceName.value, short = true),
+              SlackField("Service Name", serviceName, short = true),
               SlackField("Status", "Success", short = true),
-              SlackField("Action Input", s"```${actionInput.value}```", short = false),
-              SlackField("Action ID", actionID.value.toString, short = false)
+              SlackField("Action Name", name, short = true),
+              SlackField("Action Input", s"```$input```", short = false),
+              SlackField("Action ID", id.toString, short = false)
             )
           ))
       )

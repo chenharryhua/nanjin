@@ -3,69 +3,57 @@ package com.github.chenharryhua.nanjin.guard
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
 import java.util.UUID
+import scala.concurrent.duration.FiniteDuration
 
-final case class ActionID(value: UUID) extends AnyVal
-
-final case class ActionInput(value: String) extends AnyVal
+final case class RetriedAction(name: String, input: String, id: UUID)
 
 sealed trait Status {
-  def applicationName: ApplicationName
-  def serviceName: ServiceName
+  def applicationName: String
+  def serviceName: String
 }
 
 sealed trait ServiceStatus extends Status
 
-final case class ServiceStarted(applicationName: ApplicationName, serviceName: ServiceName) extends ServiceStatus
+final case class ServiceStarted(applicationName: String, serviceName: String) extends ServiceStatus
 
 final case class ServiceRestarting(
-  applicationName: ApplicationName,
-  serviceName: ServiceName,
+  applicationName: String,
+  serviceName: String,
   willDelayAndRetry: WillDelayAndRetry,
   error: Throwable
 ) extends ServiceStatus
 
 final case class ServiceAbnormalStop(
-  applicationName: ApplicationName,
-  serviceName: ServiceName,
+  applicationName: String,
+  serviceName: String,
   error: Throwable
 ) extends ServiceStatus
 
-final case class ServiceHealthCheck(
-  applicationName: ApplicationName,
-  serviceName: ServiceName,
-  healthCheckInterval: HealthCheckInterval)
+final case class ServiceHealthCheck(applicationName: String, serviceName: String, healthCheckInterval: FiniteDuration)
     extends ServiceStatus
 
 sealed trait ActionStatus extends Status {
-  def actionID: ActionID
-  def actionInput: ActionInput
+  def action: RetriedAction
   def alertMask: AlertMask
 }
 
 final case class ActionRetrying(
-  applicationName: ApplicationName,
-  serviceName: ServiceName,
-  actionID: ActionID,
-  actionInput: ActionInput,
+  applicationName: String,
+  serviceName: String,
+  action: RetriedAction,
   alertMask: AlertMask,
-  error: Throwable,
-  willDelayAndRetry: WillDelayAndRetry
+  willDelayAndRetry: WillDelayAndRetry,
+  error: Throwable
 ) extends ActionStatus
 
 final case class ActionFailed(
-  applicationName: ApplicationName,
-  serviceName: ServiceName,
-  actionID: ActionID,
-  actionInput: ActionInput,
+  applicationName: String,
+  serviceName: String,
+  action: RetriedAction,
   alertMask: AlertMask,
-  error: Throwable,
-  givingUp: GivingUp)
-    extends ActionStatus
+  givingUp: GivingUp,
+  error: Throwable
+) extends ActionStatus
 
-final case class ActionSucced(
-  applicationName: ApplicationName,
-  serviceName: ServiceName,
-  actionID: ActionID,
-  actionInput: ActionInput,
-  alertMask: AlertMask)
+final case class ActionSucced(applicationName: String, serviceName: String, action: RetriedAction, alertMask: AlertMask)
     extends ActionStatus

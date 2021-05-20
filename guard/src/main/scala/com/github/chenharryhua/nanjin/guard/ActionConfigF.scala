@@ -7,58 +7,64 @@ import monocle.macros.Lenses
 
 import scala.concurrent.duration._
 
-final case class ActionMaxRetries(value: Long) extends AnyVal
-final case class ActionRetryInterval(value: FiniteDuration) extends AnyVal
-
 @Lenses final case class AlertMask(alertSucc: Boolean, alertFail: Boolean)
 
-@Lenses final case class ActionParams(
-  applicationName: ApplicationName,
-  serviceName: ServiceName,
-  actionMaxRetries: ActionMaxRetries,
-  actionRetryInterval: ActionRetryInterval,
+@Lenses final case class ActionParams private (
+  applicationName: String,
+  serviceName: String,
+  actionName: String,
+  maxRetries: Long,
+  retryInterval: FiniteDuration,
   alertMask: AlertMask
 )
 
-object ActionParams {
+private object ActionParams {
 
-  def apply(applicationName: String): ActionParams = ActionParams(
-    ApplicationName(applicationName),
-    ServiceName("unknown"),
-    ActionMaxRetries(3),
-    ActionRetryInterval(10.seconds),
-    AlertMask(alertSucc = true, alertFail = true)
+  def apply(): ActionParams = ActionParams(
+    applicationName = "unknown",
+    serviceName = "unknown",
+    actionName = "unknown",
+    maxRetries = 3,
+    retryInterval = 10.seconds,
+    alertMask = AlertMask(alertSucc = true, alertFail = true)
   )
 }
 
 sealed trait ActionConfigF[F]
 
-object ActionConfigF {
-  final case class InitParams[K](value: String) extends ActionConfigF[K]
+private object ActionConfigF {
+  final case class InitParam[K]() extends ActionConfigF[K]
+  final case class WithApplicationName[K](value: String, cont: K) extends ActionConfigF[K]
   final case class WithServiceName[K](value: String, cont: K) extends ActionConfigF[K]
-  final case class WithActionMaxRetries[K](value: Long, cont: K) extends ActionConfigF[K]
-  final case class WithActionRetryInterval[K](value: FiniteDuration, cont: K) extends ActionConfigF[K]
+  final case class WithActionName[K](value: String, cont: K) extends ActionConfigF[K]
+  final case class WithMaxRetries[K](value: Long, cont: K) extends ActionConfigF[K]
+  final case class WithRetryInterval[K](value: FiniteDuration, cont: K) extends ActionConfigF[K]
   final case class WithAlertMaskSucc[K](value: Boolean, cont: K) extends ActionConfigF[K]
   final case class WithAlertMaskFail[K](value: Boolean, cont: K) extends ActionConfigF[K]
 
   val algebra: Algebra[ActionConfigF, ActionParams] =
     Algebra[ActionConfigF, ActionParams] {
-      case InitParams(v)                 => ActionParams(v)
-      case WithServiceName(v, c)         => ActionParams.serviceName.set(ServiceName(v))(c)
-      case WithActionMaxRetries(v, c)    => ActionParams.actionMaxRetries.set(ActionMaxRetries(v))(c)
-      case WithActionRetryInterval(v, c) => ActionParams.actionRetryInterval.set(ActionRetryInterval(v))(c)
-      case WithAlertMaskSucc(v, c)       => ActionParams.alertMask.composeLens(AlertMask.alertSucc).set(v)(c)
-      case WithAlertMaskFail(v, c)       => ActionParams.alertMask.composeLens(AlertMask.alertFail).set(v)(c)
+      case InitParam()               => ActionParams()
+      case WithApplicationName(v, c) => ActionParams.applicationName.set(v)(c)
+      case WithServiceName(v, c)     => ActionParams.serviceName.set(v)(c)
+      case WithActionName(v, c)      => ActionParams.actionName.set(v)(c)
+      case WithMaxRetries(v, c)      => ActionParams.maxRetries.set(v)(c)
+      case WithRetryInterval(v, c)   => ActionParams.retryInterval.set(v)(c)
+      case WithAlertMaskSucc(v, c)   => ActionParams.alertMask.composeLens(AlertMask.alertSucc).set(v)(c)
+      case WithAlertMaskFail(v, c)   => ActionParams.alertMask.composeLens(AlertMask.alertFail).set(v)(c)
     }
 
 }
 
-final case class ActionConfig(value: Fix[ActionConfigF]) {
+final case class ActionConfig private (value: Fix[ActionConfigF]) {
   import ActionConfigF._
 
-  def withServiceName(sn: String): ActionConfig                = ActionConfig(Fix(WithServiceName(sn, value)))
-  def withActionMaxRetries(n: Long): ActionConfig              = ActionConfig(Fix(WithActionMaxRetries(n, value)))
-  def withActionRetryInterval(d: FiniteDuration): ActionConfig = ActionConfig(Fix(WithActionRetryInterval(d, value)))
+  def withApplicationName(an: String): ActionConfig = ActionConfig(Fix(WithApplicationName(an, value)))
+  def withServiceName(sn: String): ActionConfig     = ActionConfig(Fix(WithServiceName(sn, value)))
+  def withActionName(an: String): ActionConfig      = ActionConfig(Fix(WithActionName(an, value)))
+
+  def withMaxRetries(n: Long): ActionConfig              = ActionConfig(Fix(WithMaxRetries(n, value)))
+  def withRetryInterval(d: FiniteDuration): ActionConfig = ActionConfig(Fix(WithRetryInterval(d, value)))
 
   def offSucc: ActionConfig = ActionConfig(Fix(WithAlertMaskSucc(value = false, value)))
   def offFail: ActionConfig = ActionConfig(Fix(WithAlertMaskFail(value = false, value)))
@@ -66,8 +72,6 @@ final case class ActionConfig(value: Fix[ActionConfigF]) {
   def evalConfig: ActionParams = scheme.cata(algebra).apply(value)
 }
 
-object ActionConfig {
-
-  def apply(applicationName: String): ActionConfig =
-    ActionConfig(Fix(ActionConfigF.InitParams[Fix[ActionConfigF]](applicationName)))
+private object ActionConfig {
+  def apply(): ActionConfig = ActionConfig(Fix(ActionConfigF.InitParam[Fix[ActionConfigF]]()))
 }
