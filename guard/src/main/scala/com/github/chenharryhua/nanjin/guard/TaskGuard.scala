@@ -22,5 +22,5 @@ final class TaskGuard[F[_]] private (
 object TaskGuard {
 
   def apply[F[_]]: TaskGuard[F] =
-    new TaskGuard[F](List(new LogService[F]), ServiceConfig(), ActionConfig())
+    new TaskGuard[F](List(new LogService[F]), ServiceConfig.default, ActionConfig.default)
 }

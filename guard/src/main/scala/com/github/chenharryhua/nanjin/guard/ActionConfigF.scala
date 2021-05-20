@@ -73,5 +73,5 @@ final case class ActionConfig private (value: Fix[ActionConfigF]) {
 }
 
 private object ActionConfig {
-  def apply(): ActionConfig = ActionConfig(Fix(ActionConfigF.InitParam[Fix[ActionConfigF]]()))
+  val default: ActionConfig = ActionConfig(Fix(ActionConfigF.InitParam[Fix[ActionConfigF]]()))
 }

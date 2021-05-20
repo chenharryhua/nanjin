@@ -1,21 +1,40 @@
 package com.github.chenharryhua.nanjin.guard
 
+import cats.Applicative
 import cats.derived.auto.functor._
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
+import retry.RetryPolicy
 
 import scala.concurrent.duration._
+import retry.RetryPolicies
+
+sealed trait ServiceRetryPolicy {
+
+  final def policy[F[_]](implicit F: Applicative[F]): RetryPolicy[F] = this match {
+    case ConstantDelay(value)      => RetryPolicies.constantDelay(value)
+    case ExponentialBackoff(value) => RetryPolicies.exponentialBackoff(value)
+    case FibonacciBackoff(value)   => RetryPolicies.fibonacciBackoff(value)
+    case FullJitter(value)         => RetryPolicies.fullJitter(value)
+  }
+  def value: FiniteDuration
+}
+
+final case class ConstantDelay(value: FiniteDuration) extends ServiceRetryPolicy
+final case class ExponentialBackoff(value: FiniteDuration) extends ServiceRetryPolicy
+final case class FibonacciBackoff(value: FiniteDuration) extends ServiceRetryPolicy
+final case class FullJitter(value: FiniteDuration) extends ServiceRetryPolicy
 
 @Lenses final case class ServiceParams private (
   applicationName: String,
   serviceName: String,
-  restartInterval: FiniteDuration,
-  healthCheckInterval: FiniteDuration
+  healthCheckInterval: FiniteDuration,
+  serviceRetryPolicy: ServiceRetryPolicy
 )
 
 private object ServiceParams {
-  def apply(): ServiceParams = ServiceParams("unknown", "unknown", 30.seconds, 6.hours)
+  def apply(): ServiceParams = ServiceParams("unknown", "unknown", 6.hours, ConstantDelay(30.seconds))
 }
 
 sealed trait ServiceConfigF[F]
@@ -25,30 +44,42 @@ private object ServiceConfigF {
   final case class InitParams[K]() extends ServiceConfigF[K]
   final case class WithApplicationName[K](value: String, cont: K) extends ServiceConfigF[K]
   final case class WithServiceName[K](value: String, cont: K) extends ServiceConfigF[K]
-  final case class WithRestartInterval[K](value: FiniteDuration, cont: K) extends ServiceConfigF[K]
   final case class WithHealthCheckInterval[K](value: FiniteDuration, cont: K) extends ServiceConfigF[K]
+  final case class WithServiceDelayPolicy[K](value: ServiceRetryPolicy, cont: K) extends ServiceConfigF[K]
 
   val algebra: Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams()                  => ServiceParams()
       case WithApplicationName(v, c)     => ServiceParams.applicationName.set(v)(c)
       case WithServiceName(v, c)         => ServiceParams.serviceName.set(v)(c)
-      case WithRestartInterval(v, c)     => ServiceParams.restartInterval.set(v)(c)
       case WithHealthCheckInterval(v, c) => ServiceParams.healthCheckInterval.set(v)(c)
+      case WithServiceDelayPolicy(v, c)  => ServiceParams.serviceRetryPolicy.set(v)(c)
     }
 }
 
 final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   import ServiceConfigF._
 
-  def withApplicationName(an: String): ServiceConfig            = ServiceConfig(Fix(WithApplicationName(an, value)))
-  def withServiceName(sn: String): ServiceConfig                = ServiceConfig(Fix(WithServiceName(sn, value)))
-  def withRestartInterval(d: FiniteDuration): ServiceConfig     = ServiceConfig(Fix(WithRestartInterval(d, value)))
+  def withApplicationName(appName: String): ServiceConfig       = ServiceConfig(Fix(WithApplicationName(appName, value)))
+  def withServiceName(serviceName: String): ServiceConfig       = ServiceConfig(Fix(WithServiceName(serviceName, value)))
   def withHealthCheckInterval(d: FiniteDuration): ServiceConfig = ServiceConfig(Fix(WithHealthCheckInterval(d, value)))
-  def evalConfig: ServiceParams                                 = scheme.cata(algebra).apply(value)
+
+  def constantDelay(v: FiniteDuration): ServiceConfig =
+    ServiceConfig(Fix(WithServiceDelayPolicy(ConstantDelay(v), value)))
+
+  def exponentialBackoff(v: FiniteDuration): ServiceConfig =
+    ServiceConfig(Fix(WithServiceDelayPolicy(ExponentialBackoff(v), value)))
+
+  def fibonacciBackoff(v: FiniteDuration): ServiceConfig =
+    ServiceConfig(Fix(WithServiceDelayPolicy(FibonacciBackoff(v), value)))
+
+  def fullJitter(v: FiniteDuration): ServiceConfig =
+    ServiceConfig(Fix(WithServiceDelayPolicy(FullJitter(v), value)))
+
+  def evalConfig: ServiceParams = scheme.cata(algebra).apply(value)
 }
 
 private object ServiceConfig {
 
-  def apply(): ServiceConfig = ServiceConfig(Fix(ServiceConfigF.InitParams[Fix[ServiceConfigF]]()))
+  def default: ServiceConfig = ServiceConfig(Fix(ServiceConfigF.InitParams[Fix[ServiceConfigF]]()))
 }
