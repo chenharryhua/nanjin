@@ -7,23 +7,13 @@ import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 import retry.{RetryDetails, RetryPolicies, RetryPolicy, Sleep}
 
 import java.util.UUID
-import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
 
-final class ActionGuard[F[_]](
-  alertServices: List[AlertService[F]],
-  config: ActionConfig
-) {
+final class ActionGuard[F[_]](alertServices: List[AlertService[F]], config: ActionConfig) {
   private val params: ActionParams = config.evalConfig
 
-  private def update(f: ActionConfig => ActionConfig): ActionGuard[F] =
+  def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
     new ActionGuard[F](alertServices, f(config))
-
-  def withActionName(value: String): ActionGuard[F]            = update(_.withActionName(value))
-  def withMaxRetries(value: Long): ActionGuard[F]              = update(_.withMaxRetries(value))
-  def withRetryInterval(value: FiniteDuration): ActionGuard[F] = update(_.withRetryInterval(value))
-  def offAlertSucc: ActionGuard[F]                             = update(_.offSucc)
-  def offAlertFail: ActionGuard[F]                             = update(_.offFail)
 
   def run[A: Show, B](a: A)(f: A => F[B])(implicit F: Async[F], sleep: Sleep[F]): F[B] = {
     val action = RetriedAction(params.actionName, a.show, UUID.randomUUID())

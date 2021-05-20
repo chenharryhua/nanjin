@@ -5,21 +5,17 @@ import cats.effect.syntax.all._
 import cats.syntax.all._
 import fs2.Stream
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
-import retry.{RetryDetails, RetryPolicies, Sleep}
+import retry.{RetryDetails, Sleep}
 
-import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
 
 final class ServiceGuard[F[_]](alertServices: List[AlertService[F]], config: ServiceConfig) {
   private val params: ServiceParams = config.evalConfig
 
-  private def update(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
+  def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
     new ServiceGuard[F](alertServices, f(config))
 
-  def withRestartInterval(value: FiniteDuration): ServiceGuard[F]     = update(_.withRestartInterval(value))
-  def withHealthCheckInterval(value: FiniteDuration): ServiceGuard[F] = update(_.withHealthCheckInterval(value))
-
-  def guard[A](action: F[A])(implicit F: Async[F], sleep: Sleep[F]): F[Unit] = {
+  def run[A](action: F[A])(implicit F: Async[F], sleep: Sleep[F]): F[Unit] = {
 
     def onError(err: Throwable, details: RetryDetails): F[Unit] =
       details match {
@@ -60,7 +56,7 @@ final class ServiceGuard[F[_]](alertServices: List[AlertService[F]], config: Ser
       alertServices
         .traverse(_.alert(ServiceStarted(applicationName = params.applicationName, serviceName = params.serviceName)))
         .void
-        .delayBy(params.restartInterval)
+        .delayBy(params.serviceRetryPolicy.value)
 
     val enrich: F[Unit] = for {
       fiber <- (startService <* healthChecking).start
@@ -76,13 +72,11 @@ final class ServiceGuard[F[_]](alertServices: List[AlertService[F]], config: Ser
         .void
     } yield ()
 
-    retry.retryingOnSomeErrors(
-      RetryPolicies.constantDelay[F](params.restartInterval),
-      (e: Throwable) => F.delay(NonFatal(e)),
-      onError)(enrich)
+    retry.retryingOnSomeErrors(params.serviceRetryPolicy.policy[F], (e: Throwable) => F.delay(NonFatal(e)), onError)(
+      enrich)
   }
 
   def run[A](stream: Stream[F, A])(implicit F: Async[F], sleep: Sleep[F]): Stream[F, Unit] =
-    Stream.eval(guard(stream.compile.drain))
+    Stream.eval(run(stream.compile.drain))
 
 }
