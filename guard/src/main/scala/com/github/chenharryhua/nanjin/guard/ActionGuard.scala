@@ -26,7 +26,7 @@ final class ActionGuard[F[_]](
   def offAlertFail: ActionGuard[F]                             = update(_.offFail)
 
   def run[A: Show, B](a: A)(f: A => F[B])(implicit F: Async[F], sleep: Sleep[F]): F[B] = {
-    val action = ProtectedAction(params.actionName, a.show, UUID.randomUUID())
+    val action = RetriedAction(params.actionName, a.show, UUID.randomUUID())
     def onError(err: Throwable, details: RetryDetails): F[Unit] =
       details match {
         case wd @ WillDelayAndRetry(_, _, _) =>

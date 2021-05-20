@@ -15,8 +15,8 @@ final class TaskGuard[F[_]] private (
   def addAlertService(value: AlertService[F]): TaskGuard[F] =
     new TaskGuard[F](value :: alertServices, serviceConfig, actionConfig)
 
-  val service = new ServiceGuard[F](alertServices, serviceConfig)
-  val action  = new ActionGuard[F](alertServices, actionConfig)
+  val service: ServiceGuard[F] = new ServiceGuard[F](alertServices, serviceConfig)
+  val action: ActionGuard[F]   = new ActionGuard[F](alertServices, actionConfig)
 }
 
 object TaskGuard {

@@ -91,7 +91,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
       )
       service.publish(msg.asJson.noSpaces).attempt.void
     case ActionRetrying(_, _, _, _, _, _) => F.unit
-    case ActionFailed(applicationName, serviceName, ProtectedAction(name, input, id), alertMask, givingUp, error) =>
+    case ActionFailed(applicationName, serviceName, RetriedAction(name, input, id), alertMask, givingUp, error) =>
       val msg = SlackNotification(
         applicationName,
         s""":oops:```${utils.mkString(error)}```""",
@@ -111,7 +111,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
       )
       service.publish(msg.asJson.noSpaces).whenA(alertMask.alertFail).attempt.void
 
-    case ActionSucced(applicationName, serviceName, ProtectedAction(name, input, id), alertMask) =>
+    case ActionSucced(applicationName, serviceName, RetriedAction(name, input, id), alertMask) =>
       val msg = SlackNotification(
         applicationName,
         ":ok_hand:",

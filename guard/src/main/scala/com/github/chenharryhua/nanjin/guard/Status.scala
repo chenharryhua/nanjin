@@ -5,7 +5,7 @@ import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
-final case class ProtectedAction(name: String, input: String, id: UUID)
+final case class RetriedAction(name: String, input: String, id: UUID)
 
 sealed trait Status {
   def applicationName: String
@@ -33,14 +33,14 @@ final case class ServiceHealthCheck(applicationName: String, serviceName: String
     extends ServiceStatus
 
 sealed trait ActionStatus extends Status {
-  def action: ProtectedAction
+  def action: RetriedAction
   def alertMask: AlertMask
 }
 
 final case class ActionRetrying(
   applicationName: String,
   serviceName: String,
-  action: ProtectedAction,
+  action: RetriedAction,
   alertMask: AlertMask,
   willDelayAndRetry: WillDelayAndRetry,
   error: Throwable
@@ -49,15 +49,11 @@ final case class ActionRetrying(
 final case class ActionFailed(
   applicationName: String,
   serviceName: String,
-  action: ProtectedAction,
+  action: RetriedAction,
   alertMask: AlertMask,
   givingUp: GivingUp,
   error: Throwable
 ) extends ActionStatus
 
-final case class ActionSucced(
-  applicationName: String,
-  serviceName: String,
-  action: ProtectedAction,
-  alertMask: AlertMask)
+final case class ActionSucced(applicationName: String, serviceName: String, action: RetriedAction, alertMask: AlertMask)
     extends ActionStatus
