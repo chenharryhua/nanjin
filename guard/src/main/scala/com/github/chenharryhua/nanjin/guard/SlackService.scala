@@ -9,18 +9,14 @@ import com.github.chenharryhua.nanjin.utils
 import io.circe.generic.auto._
 import io.circe.syntax._
 
-import java.time.LocalDateTime
+import java.time.Instant
 
 /** Notes: slack messages
   * [[https://api.slack.com/docs/messages/builder]]
   */
 final case class SlackField(title: String, value: String, short: Boolean)
 
-final case class Attachment(
-  color: String,
-  title: String,
-  fields: List[SlackField],
-  ts: Int = LocalDateTime.now().getSecond)
+final case class Attachment(color: String, fields: List[SlackField], ts: Long = Instant.now().getEpochSecond)
 final case class SlackNotification(username: String, text: String, attachments: List[Attachment])
 
 final class SlackService[F[_]] private (service: SimpleNotificationService[F]) extends AlertService[F] {
@@ -33,7 +29,6 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
         List(
           Attachment(
             "good",
-            "Service Start",
             List(
               SlackField("Service Name", serviceName.value, short = true),
               SlackField("Status", "(Re)Started", short = true))
@@ -44,11 +39,10 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
     case ServiceRestarting(applicationName, serviceName, willDelayAndRetry, error) =>
       val msg = SlackNotification(
         applicationName.value,
-        s""":waiting:```${utils.mkString(error)}```""",
+        s""":system_restore:```${utils.mkString(error)}```""",
         List(
           Attachment(
             "danger",
-            "Service Panic",
             List(
               SlackField("Service Name", serviceName.value, short = true),
               SlackField("Status", "Restarting", short = true),
@@ -56,8 +50,8 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
               SlackField("Cumulative Delay", s"${willDelayAndRetry.cumulativeDelay.toMinutes} minutes", short = true),
               SlackField(
                 "The service will keep retrying until recovered",
-                s"""|Next attempt will happen in ${willDelayAndRetry.nextDelay.toSeconds} seconds. 
-                    |if the service is not recovered automatically.""".stripMargin,
+                s"""|Next attempt will happen in ${willDelayAndRetry.nextDelay.toSeconds} seconds 
+                    |in case the service is not recovered automatically.""".stripMargin,
                 short = false
               )
             )
@@ -72,7 +66,6 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
         List(
           Attachment(
             "danger",
-            "Service Abnormal Stop",
             List(
               SlackField("Service Name", serviceName.value, short = true),
               SlackField("Status", "Stopped", short = true),
@@ -89,10 +82,9 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
         List(
           Attachment(
             "good",
-            "Health Check",
             List(
               SlackField("Service Name", serviceName.value, short = true),
-              SlackField("Status", "Good", short = true),
+              SlackField("HealthCheck Status", "Good", short = true),
               SlackField("Next check will happen in", s"${interval.value.toHours} hours", short = true)
             )
           ))
@@ -106,7 +98,6 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
         List(
           Attachment(
             "danger",
-            "Perform Action",
             List(
               SlackField("Service Name", serviceName.value, short = true),
               SlackField("Status", "Failed", short = true),
@@ -126,7 +117,6 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
         List(
           Attachment(
             "good",
-            "Perform Action",
             List(
               SlackField("Service Name", serviceName.value, short = true),
               SlackField("Status", "Success", short = true),
