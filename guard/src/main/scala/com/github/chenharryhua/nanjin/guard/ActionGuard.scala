@@ -10,7 +10,7 @@ import java.time.Instant
 import java.util.UUID
 
 final class ActionGuard[F[_]](alertServices: List[AlertService[F]], config: ActionConfig) {
-  private val params: ActionParams = config.evalConfig
+  val params: ActionParams = config.evalConfig
 
   def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
     new ActionGuard[F](alertServices, f(config))

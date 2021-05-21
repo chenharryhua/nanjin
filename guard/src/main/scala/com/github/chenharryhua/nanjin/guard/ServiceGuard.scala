@@ -8,7 +8,7 @@ import retry.RetryDetails
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
 final class ServiceGuard[F[_]](alertServices: List[AlertService[F]], config: ServiceConfig) {
-  private val params: ServiceParams = config.evalConfig
+  val params: ServiceParams = config.evalConfig
 
   def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
     new ServiceGuard[F](alertServices, f(config))

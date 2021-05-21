@@ -2,9 +2,11 @@ package com.github.chenharryhua.nanjin.common
 
 import cats.Eval
 import org.apache.commons.lang3.exception.ExceptionUtils
+import org.apache.commons.lang3.time.DurationFormatUtils
 
-import java.time.LocalDateTime
+import java.time.{Instant, LocalDateTime}
 import java.util.Properties
+import scala.concurrent.duration.Duration
 import scala.util.Random
 
 object utils {
@@ -23,5 +25,14 @@ object utils {
 
   def mkString(err: Throwable, lines: Int = 8): String =
     ExceptionUtils.getRootCauseStackTrace(err).take(lines).mkString("\n")
+
+  def mkDurationString(millis: Long): String =
+    DurationFormatUtils.formatDurationWords(millis, true, true)
+
+  def mkDurationString(dur: Duration): String =
+    mkDurationString(dur.toMillis)
+
+  def mkDurationString(start: Instant, end: Instant): String =
+    mkDurationString(end.toEpochMilli - start.toEpochMilli)
 
 }

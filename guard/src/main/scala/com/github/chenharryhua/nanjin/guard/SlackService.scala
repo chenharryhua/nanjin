@@ -86,14 +86,13 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
             List(
               SlackField("Service Name", serviceName, short = true),
               SlackField("HealthCheck Status", "Good", short = true),
-              SlackField("Next check will happen in", s"${interval.toHours} hours", short = true)
+              SlackField("Next check will happen in", utils.mkDurationString(interval), short = true)
             )
           ))
       )
       service.publish(msg.asJson.noSpaces).attempt.void
     case ActionRetrying(_, _, _, _, _, _) => F.unit
     case ActionFailed(an, sn, RetriedAction(name, input, id, st, tz), alertMask, givingUp, error) =>
-      val took = NJDateTimeRange(tz).withStartTime(st).withEndTime(Instant.now)
       val msg = SlackNotification(
         an,
         s""":oops:```${utils.mkString(error)}```""",
@@ -104,7 +103,8 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
               SlackField("Service Name", sn, short = true),
               SlackField("Status", "Failed", short = true),
               SlackField("Number of retries", givingUp.totalRetries.toString, short = true),
-              SlackField("took", s"${took.toString}", short = true),
+              SlackField("took", s"${utils.mkDurationString(st, Instant.now())}", short = true),
+              SlackField("Time Zone", tz.toString, short = true),
               SlackField("Action Name", name, short = true),
               SlackField("Action Input", s"```$input```", short = false),
               SlackField("Action ID", id.toString, short = false)
@@ -114,7 +114,6 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
       service.publish(msg.asJson.noSpaces).whenA(alertMask.alertFail).attempt.void
 
     case ActionSucced(an, sn, RetriedAction(name, input, id, st, tz), alertMask) =>
-      val took = NJDateTimeRange(tz).withStartTime(st).withEndTime(Instant.now)
       val msg = SlackNotification(
         an,
         ":ok_hand:",
@@ -123,8 +122,8 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
             "good",
             List(
               SlackField("Service Name", sn, short = true),
-              SlackField("Status", "Success", short = true),
-              SlackField("took", s"${took.toString}", short = true),
+              SlackField("took", s"${utils.mkDurationString(st, Instant.now())}", short = true),
+              SlackField("Time Zone", tz.toString, short = true),
               SlackField("Action Name", name, short = true),
               SlackField("Action Input", s"```$input```", short = false),
               SlackField("Action ID", id.toString, short = false)
