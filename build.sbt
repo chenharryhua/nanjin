@@ -39,7 +39,6 @@ val frameless = "0.10.1"
 val doobie   = "1.0.0-M2"
 val quill    = "3.7.1"
 val neotypes = "0.17.0"
-val elastic  = "7.10.0"
 
 // format
 val circe   = "0.13.0"
@@ -333,7 +332,6 @@ lazy val datetime = (project in file("datetime"))
 
 lazy val guard = (project in file("guard"))
   .dependsOn(aws)
-  .dependsOn(datetime)
   .settings(commonSettings: _*)
   .settings(name := "nj-guard")
   .settings(libraryDependencies ++=
