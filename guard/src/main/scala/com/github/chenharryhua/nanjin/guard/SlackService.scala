@@ -40,7 +40,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
       val msg = SlackNotification(
         applicationName,
         s""":system_restore: The service experienced a *panic*
-           |```${utils.mkString(error, 8)}```
+           |```${utils.mkExceptionString(error, 8)}```
            |and started to *recover* itself
            |the next attempt will happen in *${utils
           .mkDurationString(willDelayAndRetry.nextDelay)}* meanwhile the service is disfunctional.
@@ -65,7 +65,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
       val msg = SlackNotification(
         applicationName,
         s""":open_mouth: The service received a *fatal error*
-           |${utils.mkString(error)}""".stripMargin,
+           |${utils.mkExceptionString(error)}""".stripMargin,
         List(
           Attachment(
             "danger",
@@ -94,10 +94,10 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
     case ActionFailed(an, sn, notes, RetriedAction(input, id, st, tz), alertMask, givingUp, error) =>
       val msg = SlackNotification(
         an,
-        s""":oops:Unfortunately, the *input*
-           |```$input```
-           |triggers an *exception*:
-           |```${utils.mkString(error)}```
+        s""":oops: Unfortunately, an *exception* was triggered:
+           |```input: $input
+           |
+           |${utils.mkExceptionString(error)}```
            |*Developer's suggestion:*
            |$notes""".stripMargin,
         List(
@@ -118,7 +118,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
     case ActionSucced(an, sn, notes, RetriedAction(input, id, st, tz), alertMask) =>
       val msg = SlackNotification(
         an,
-        s""":ok_hand:*Successfully performed the action with input*
+        s""":ok_hand: *Successfully performed the action with input*
            |```$input```
            |*about*
            |$notes""".stripMargin,

@@ -23,7 +23,7 @@ object utils {
   val random4d: Eval[Int]          = Eval.always(1000 + Random.nextInt(9000))
   val defaultLocalParallelism: Int = Runtime.getRuntime.availableProcessors()
 
-  def mkString(err: Throwable, lines: Int = 2): String =
+  def mkExceptionString(err: Throwable, lines: Int = 2): String =
     ExceptionUtils.getRootCauseStackTrace(err).take(lines).mkString("\n")
 
   def mkDurationString(millis: Long): String =
