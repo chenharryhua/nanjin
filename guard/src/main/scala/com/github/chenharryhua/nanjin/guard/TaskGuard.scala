@@ -1,5 +1,9 @@
 package com.github.chenharryhua.nanjin.guard
 
+import java.time.ZoneId
+
+/** rely on [[https://github.com/cb372/cats-retry]]
+  */
 final class TaskGuard[F[_]] private (
   alertServices: List[AlertService[F]],
   serviceConfig: ServiceConfig,
@@ -11,6 +15,9 @@ final class TaskGuard[F[_]] private (
 
   def withServiceName(value: String): TaskGuard[F] =
     new TaskGuard[F](alertServices, serviceConfig.withServiceName(value), actionConfig.withServiceName(value))
+
+  def withZoneId(tz: ZoneId): TaskGuard[F] =
+    new TaskGuard[F](alertServices, serviceConfig.withZoneId(tz), actionConfig.withZoneId(tz))
 
   def updateServiceConfig(f: ServiceConfig => ServiceConfig): TaskGuard[F] =
     new TaskGuard[F](alertServices, f(serviceConfig), actionConfig)

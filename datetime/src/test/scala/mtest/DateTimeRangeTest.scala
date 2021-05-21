@@ -109,6 +109,7 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
       println(s.`yyyy-mm-dd`(sydneyTime))
       e - s
     }.get.toDays == 8)
+    println(dr.toString)
     assert(dr.days.length == 9)
   }
 
