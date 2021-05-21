@@ -25,7 +25,7 @@ class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
 
   val root: String = "./data/test/spark/dstream/"
 
-  if (Random.nextBoolean()) better.files.File(root).delete(true)
+  better.files.File(root).delete(true)
 
   val logger = org.log4s.getLogger("SparkDStreamTest")
 

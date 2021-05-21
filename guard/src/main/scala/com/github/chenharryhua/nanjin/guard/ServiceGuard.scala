@@ -46,8 +46,8 @@ final class ServiceGuard[F[_]](alertServices: List[AlertService[F]], config: Ser
               applicationName = params.applicationName,
               serviceName = params.serviceName,
               healthCheckInterval = params.healthCheckInterval)))
-        .void
         .delayBy(params.healthCheckInterval)
+        .void
         .foreverM
 
     val startService: F[Unit] =
