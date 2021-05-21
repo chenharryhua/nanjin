@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.utils
+import com.github.chenharryhua.nanjin.common.utils
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import monocle.Traversal
 import monocle.function.At.at

@@ -5,8 +5,8 @@ import cats.syntax.all._
 import com.amazonaws.regions.Regions
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
+import com.github.chenharryhua.nanjin.common.utils
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.utils
 import io.circe.generic.auto._
 import io.circe.syntax._
 

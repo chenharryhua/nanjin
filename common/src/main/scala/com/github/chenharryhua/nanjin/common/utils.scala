@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin
+package com.github.chenharryhua.nanjin.common
 
 import cats.Eval
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -7,7 +7,7 @@ import java.time.LocalDateTime
 import java.util.Properties
 import scala.util.Random
 
-package object utils {
+object utils {
   val zzffEpoch: LocalDateTime = LocalDateTime.of(2012, 10, 26, 18, 0, 0)
 
   //kafka was graduated from apache incubator
