@@ -91,10 +91,16 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
       )
       service.publish(msg.asJson.noSpaces).attempt.void
     case ActionRetrying(_, _, _, _, _, _) => F.unit
-    case ActionFailed(an, sn, RetriedAction(name, input, id, st, tz), alertMask, givingUp, error) =>
+    case ActionFailed(an, sn, notes, RetriedAction(input, id, st, tz), alertMask, givingUp, error) =>
       val msg = SlackNotification(
         an,
-        s""":oops:```${utils.mkString(error)}```""",
+        s""":oops:Unfortunately, the *input*
+           |```$input```
+           |triggers an *exception*:
+           |```${utils.mkString(error)}```
+           |*Developer's suggestion:*
+           |$notes
+           |""".stripMargin,
         List(
           Attachment(
             "danger",
@@ -104,18 +110,21 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
               SlackField("Number of retries", givingUp.totalRetries.toString, short = true),
               SlackField("took", s"${utils.mkDurationString(st, Instant.now())}", short = true),
               SlackField("Time Zone", tz.toString, short = true),
-              SlackField("Action Name", name, short = true),
-              SlackField("Action Input", s"```$input```", short = false),
               SlackField("Action ID", id.toString, short = false)
             )
           ))
       )
       service.publish(msg.asJson.noSpaces).whenA(alertMask.alertFail).attempt.void
 
-    case ActionSucced(an, sn, RetriedAction(name, input, id, st, tz), alertMask) =>
+    case ActionSucced(an, sn, notes, RetriedAction(input, id, st, tz), alertMask) =>
       val msg = SlackNotification(
         an,
-        ":ok_hand:",
+        s"""
+           |:ok_hand:*Successfully perform the action with input*
+           |```$input```
+           |*about*
+           |$notes
+           |""".stripMargin,
         List(
           Attachment(
             "good",
@@ -123,8 +132,6 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
               SlackField("Service Name", sn, short = true),
               SlackField("took", s"${utils.mkDurationString(st, Instant.now())}", short = true),
               SlackField("Time Zone", tz.toString, short = true),
-              SlackField("Action Name", name, short = true),
-              SlackField("Action Input", s"```$input```", short = false),
               SlackField("Action ID", id.toString, short = false)
             )
           ))
