@@ -10,7 +10,9 @@ import retry.RetryPolicy
 import scala.concurrent.duration._
 import retry.RetryPolicies
 
-sealed trait ServiceRetryPolicy {
+import java.time.ZoneId
+
+sealed trait NJRetryPolicy {
 
   final def policy[F[_]](implicit F: Applicative[F]): RetryPolicy[F] = this match {
     case ConstantDelay(value)      => RetryPolicies.constantDelay(value)
@@ -21,20 +23,28 @@ sealed trait ServiceRetryPolicy {
   def value: FiniteDuration
 }
 
-final case class ConstantDelay(value: FiniteDuration) extends ServiceRetryPolicy
-final case class ExponentialBackoff(value: FiniteDuration) extends ServiceRetryPolicy
-final case class FibonacciBackoff(value: FiniteDuration) extends ServiceRetryPolicy
-final case class FullJitter(value: FiniteDuration) extends ServiceRetryPolicy
+final private case class ConstantDelay(value: FiniteDuration) extends NJRetryPolicy
+final private case class ExponentialBackoff(value: FiniteDuration) extends NJRetryPolicy
+final private case class FibonacciBackoff(value: FiniteDuration) extends NJRetryPolicy
+final private case class FullJitter(value: FiniteDuration) extends NJRetryPolicy
 
 @Lenses final case class ServiceParams private (
   applicationName: String,
   serviceName: String,
   healthCheckInterval: FiniteDuration,
-  retryPolicy: ServiceRetryPolicy
+  retryPolicy: NJRetryPolicy,
+  zoneId: ZoneId
 )
 
 private object ServiceParams {
-  def apply(): ServiceParams = ServiceParams("unknown", "unknown", 6.hours, ConstantDelay(30.seconds))
+
+  def apply(): ServiceParams =
+    ServiceParams(
+      applicationName = "unknown",
+      serviceName = "unknown",
+      healthCheckInterval = 6.hours,
+      retryPolicy = ConstantDelay(30.seconds),
+      zoneId = ZoneId.systemDefault())
 }
 
 sealed trait ServiceConfigF[F]
@@ -45,7 +55,8 @@ private object ServiceConfigF {
   final case class WithApplicationName[K](value: String, cont: K) extends ServiceConfigF[K]
   final case class WithServiceName[K](value: String, cont: K) extends ServiceConfigF[K]
   final case class WithHealthCheckInterval[K](value: FiniteDuration, cont: K) extends ServiceConfigF[K]
-  final case class WithServiceDelayPolicy[K](value: ServiceRetryPolicy, cont: K) extends ServiceConfigF[K]
+  final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends ServiceConfigF[K]
+  final case class WithZoneId[K](value: ZoneId, cont: K) extends ServiceConfigF[K]
 
   val algebra: Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
@@ -53,32 +64,33 @@ private object ServiceConfigF {
       case WithApplicationName(v, c)     => ServiceParams.applicationName.set(v)(c)
       case WithServiceName(v, c)         => ServiceParams.serviceName.set(v)(c)
       case WithHealthCheckInterval(v, c) => ServiceParams.healthCheckInterval.set(v)(c)
-      case WithServiceDelayPolicy(v, c)  => ServiceParams.retryPolicy.set(v)(c)
+      case WithRetryPolicy(v, c)         => ServiceParams.retryPolicy.set(v)(c)
+      case WithZoneId(v, c)              => ServiceParams.zoneId.set(v)(c)
     }
 }
 
-final class ServiceConfig private (value: Fix[ServiceConfigF]) {
+final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   import ServiceConfigF._
 
-  def withApplicationName(appName: String): ServiceConfig = new ServiceConfig(Fix(WithApplicationName(appName, value)))
-  def withServiceName(serviceName: String): ServiceConfig = new ServiceConfig(Fix(WithServiceName(serviceName, value)))
+  def withApplicationName(appName: String): ServiceConfig = ServiceConfig(Fix(WithApplicationName(appName, value)))
+  def withServiceName(serviceName: String): ServiceConfig = ServiceConfig(Fix(WithServiceName(serviceName, value)))
+  def withZoneId(tz: ZoneId): ServiceConfig               = ServiceConfig(Fix(WithZoneId(tz, value)))
 
-  def withHealthCheckInterval(d: FiniteDuration): ServiceConfig = new ServiceConfig(
-    Fix(WithHealthCheckInterval(d, value)))
+  def withHealthCheckInterval(d: FiniteDuration): ServiceConfig = ServiceConfig(Fix(WithHealthCheckInterval(d, value)))
 
   def constantDelay(v: FiniteDuration): ServiceConfig =
-    new ServiceConfig(Fix(WithServiceDelayPolicy(ConstantDelay(v), value)))
+    ServiceConfig(Fix(WithRetryPolicy(ConstantDelay(v), value)))
 
   def exponentialBackoff(v: FiniteDuration): ServiceConfig =
-    new ServiceConfig(Fix(WithServiceDelayPolicy(ExponentialBackoff(v), value)))
+    ServiceConfig(Fix(WithRetryPolicy(ExponentialBackoff(v), value)))
 
   def fibonacciBackoff(v: FiniteDuration): ServiceConfig =
-    new ServiceConfig(Fix(WithServiceDelayPolicy(FibonacciBackoff(v), value)))
+    ServiceConfig(Fix(WithRetryPolicy(FibonacciBackoff(v), value)))
 
   def fullJitter(v: FiniteDuration): ServiceConfig =
-    new ServiceConfig(Fix(WithServiceDelayPolicy(FullJitter(v), value)))
+    ServiceConfig(Fix(WithRetryPolicy(FullJitter(v), value)))
 
-  private[guard] def evalConfig: ServiceParams = scheme.cata(algebra).apply(value)
+  def evalConfig: ServiceParams = scheme.cata(algebra).apply(value)
 }
 
 private object ServiceConfig {

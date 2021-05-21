@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark
 
 import cats.Functor
-import com.github.chenharryhua.nanjin.utils.random4d
+import com.github.chenharryhua.nanjin.common.utils.random4d
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra, Coalgebra}
 import org.apache.avro.{LogicalTypes, Schema, SchemaBuilder}
@@ -29,22 +29,14 @@ private[spark] object NJDataTypeF {
 
   final case class NJArrayType[K](containsNull: Boolean, cont: K) extends NJDataTypeF[K]
 
-  final case class NJMapType[K](key: NJDataType, value: NJDataType, containsNull: Boolean)
-      extends NJDataTypeF[K]
+  final case class NJMapType[K](key: NJDataType, value: NJDataType, containsNull: Boolean) extends NJDataTypeF[K]
 
   final case class NJNullType[K]() extends NJDataTypeF[K]
 
-  final case class NJStructType[K](
-    className: String,
-    namespace: String,
-    fields: List[NJStructField])
+  final case class NJStructType[K](className: String, namespace: String, fields: List[NJStructField])
       extends NJDataTypeF[K]
 
-  final case class NJStructField(
-    index: Int,
-    colName: String,
-    dataType: NJDataType,
-    nullable: Boolean) {
+  final case class NJStructField(index: Int, colName: String, dataType: NJDataType, nullable: Boolean) {
     private val dt: String = dataType.toCaseClass
 
     val fieldStr: String =

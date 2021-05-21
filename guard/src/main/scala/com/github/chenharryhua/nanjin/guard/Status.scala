@@ -2,10 +2,11 @@ package com.github.chenharryhua.nanjin.guard
 
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
+import java.time.{Instant, ZoneId}
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
-final case class RetriedAction(name: String, input: String, id: UUID)
+final case class RetriedAction(name: String, input: String, id: UUID, startTime: Instant, zoneId: ZoneId)
 
 sealed trait Status {
   def applicationName: String

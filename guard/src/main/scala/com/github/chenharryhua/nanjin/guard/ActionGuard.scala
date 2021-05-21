@@ -6,16 +6,17 @@ import cats.implicits._
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 import retry.{RetryDetails, RetryPolicies, RetryPolicy}
 
+import java.time.Instant
 import java.util.UUID
 
 final class ActionGuard[F[_]](alertServices: List[AlertService[F]], config: ActionConfig) {
-  private val params: ActionParams = config.evalConfig
+  val params: ActionParams = config.evalConfig
 
   def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
     new ActionGuard[F](alertServices, f(config))
 
   def run[A: Show, B](a: A)(f: A => F[B])(implicit F: Async[F]): F[B] = {
-    val action = RetriedAction(params.actionName, a.show, UUID.randomUUID())
+    val action = RetriedAction(params.actionName, a.show, UUID.randomUUID(), Instant.now, params.zoneId)
     def onError(err: Throwable, details: RetryDetails): F[Unit] =
       details match {
         case wd @ WillDelayAndRetry(_, _, _) =>
@@ -47,10 +48,7 @@ final class ActionGuard[F[_]](alertServices: List[AlertService[F]], config: Acti
       }
 
     val retryPolicy: RetryPolicy[F] =
-      RetryPolicies.limitRetriesByCumulativeDelay[F](
-        params.retryInterval.mul(params.maxRetries),
-        RetryPolicies.constantDelay[F](params.retryInterval)
-      )
+      params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries))
 
     retry
       .retryingOnAllErrors[B](retryPolicy, onError)(f(a))

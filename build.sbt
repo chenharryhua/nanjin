@@ -11,7 +11,7 @@ val contextual = "1.2.1"
 val kittens    = "2.3.1"
 val catsCore   = "2.6.1"
 val algebra    = "2.2.2"
-val fs2Version = "3.0.3"
+val fs2Version = "3.0.4"
 val catsMtl    = "1.2.1"
 val catsTime   = "0.3.4"
 val tagless    = "0.14.0"
@@ -39,7 +39,6 @@ val frameless = "0.10.1"
 val doobie   = "1.0.0-M2"
 val quill    = "3.7.1"
 val neotypes = "0.17.0"
-val elastic  = "7.10.0"
 
 // format
 val circe   = "0.13.0"
@@ -324,21 +323,20 @@ lazy val aws = (project in file("aws"))
         "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % "3.0.0"
       ) ++ akkaLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ awsLib.map(_ % Provided))
 
-lazy val guard = (project in file("guard"))
-  .dependsOn(aws)
-  .settings(commonSettings: _*)
-  .settings(name := "nj-guard")
-  .settings(
-    libraryDependencies ++=
-      Seq("com.github.cb372" %% "cats-retry" % "3.0.0") ++
-        logLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ awsLib.map(_ % Provided))
-
 lazy val datetime = (project in file("datetime"))
   .dependsOn(common)
   .settings(commonSettings: _*)
   .settings(name := "nj-datetime")
   .settings(libraryDependencies ++= Seq("com.lihaoyi" %% "fastparse" % "2.3.2") ++
     baseLib ++ monocleLib ++ testLib)
+
+lazy val guard = (project in file("guard"))
+  .dependsOn(aws)
+  .settings(commonSettings: _*)
+  .settings(name := "nj-guard")
+  .settings(libraryDependencies ++=
+    Seq("com.github.cb372" %% "cats-retry" % "3.0.0") ++
+      logLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ awsLib.map(_ % Provided))
 
 lazy val messages = (project in file("messages"))
   .settings(commonSettings: _*)
@@ -397,6 +395,7 @@ lazy val spark = (project in file("spark"))
 
 lazy val example = (project in file("example"))
   .dependsOn(spark)
+  .dependsOn(guard)
   .settings(commonSettings: _*)
   .settings(name := "nj-example")
   .settings(libraryDependencies ++= testLib)
@@ -404,4 +403,4 @@ lazy val example = (project in file("example"))
 lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
-    .aggregate(common, guard, aws, messages, datetime, pipes, kafka, database, spark, example)
+    .aggregate(common, datetime, aws, guard, messages, pipes, kafka, database, spark, example)

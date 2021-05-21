@@ -14,7 +14,8 @@ import scala.concurrent.duration._
 @DoNotDiscover
 class ExampleKafkaDirectStream extends AnyFunSuite {
   test("persist messages using direct streaming") {
-    val path   = "./data/example/foo/dstream"
+    val path = "./data/example/foo/dstream"
+    better.files.File(path).delete(true)
     val runner = DStreamRunner[IO](sparKafka.sparkSession.sparkContext, "./data/example/foo/checkpoint", 2.seconds)
     runner
       .signup(sparKafka.topic(fooTopic).dstream)(_.coalesce.circe(path))

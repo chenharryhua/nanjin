@@ -56,11 +56,11 @@ private object sqs_s3_parser {
     * ignore messages which does not have s3 structure
     */
   def apply(body: String): List[S3Path] =
-    parse(body).toOption.map { json =>
+    parse(body).toOption.traverse { json =>
       root.Records.each.s3.json.getAll(json).flatMap { js =>
         val bucket = js.hcursor.downField("bucket").get[String]("name")
         val key    = js.hcursor.downField("object").get[String]("key")
         (bucket, key).mapN((b, k) => S3Path(b, URLDecoder.decode(k, "UTF-8"))).toOption
       }
-    }.sequence.flatten
+    }.flatten
 }

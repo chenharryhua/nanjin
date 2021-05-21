@@ -1,16 +1,16 @@
 package com.github.chenharryhua.nanjin.datetime
 
-import java.sql.Timestamp
-import java.time._
-
 import cats.implicits.catsSyntaxTuple2Semigroupal
 import cats.syntax.all._
 import cats.{PartialOrder, Show}
 import monocle.Prism
 import monocle.generic.coproduct.coProductPrism
 import monocle.macros.Lenses
+import org.apache.commons.lang3.time.DurationFormatUtils
 import shapeless.{:+:, CNil, Poly1}
 
+import java.sql.Timestamp
+import java.time._
 import scala.concurrent.duration.FiniteDuration
 
 // lazy range
@@ -135,7 +135,9 @@ import scala.concurrent.duration.FiniteDuration
     (startTimestamp, endTimestamp).mapN((s, e) => e.minus(s))
 
   override def toString: String =
-    s"NJDateTimeRange(startTime=${zonedStartTime.toString}, endTime=${zonedEndTime.toString})"
+    (startTimestamp, endTimestamp)
+      .mapN((s, e) => DurationFormatUtils.formatDurationWords(e.milliseconds - s.milliseconds, true, true))
+      .getOrElse("infinite")
 
 }
 
