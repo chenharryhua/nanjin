@@ -16,7 +16,7 @@ final class ActionGuard[F[_]](alertServices: List[AlertService[F]], config: Acti
     new ActionGuard[F](alertServices, f(config))
 
   def run[A: Show, B](a: A)(f: A => F[B])(implicit F: Async[F]): F[B] = {
-    val action = RetriedAction(params.actionName, a.show, UUID.randomUUID(), Instant.now, params.zoneId)
+    val action = RetriedAction(a.show, UUID.randomUUID(), Instant.now, params.zoneId)
     def onError(err: Throwable, details: RetryDetails): F[Unit] =
       details match {
         case wd @ WillDelayAndRetry(_, _, _) =>
@@ -35,15 +35,15 @@ final class ActionGuard[F[_]](alertServices: List[AlertService[F]], config: Acti
         case gu @ GivingUp(_, _) =>
           alertServices
             .traverse(
-              _.alert(
-                ActionFailed(
-                  applicationName = params.applicationName,
-                  serviceName = params.serviceName,
-                  action = action,
-                  error = err,
-                  givingUp = gu,
-                  alertMask = params.alertMask
-                )))
+              _.alert(ActionFailed(
+                applicationName = params.applicationName,
+                serviceName = params.serviceName,
+                notes = params.actionNotes.failNotes,
+                action = action,
+                error = err,
+                givingUp = gu,
+                alertMask = params.alertMask
+              )))
             .void
       }
 
@@ -59,6 +59,7 @@ final class ActionGuard[F[_]](alertServices: List[AlertService[F]], config: Acti
               ActionSucced(
                 applicationName = params.applicationName,
                 serviceName = params.serviceName,
+                notes = params.actionNotes.succNotes,
                 action = action,
                 alertMask = params.alertMask)))
           .void)

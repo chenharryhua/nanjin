@@ -39,7 +39,12 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
     case ServiceRestarting(applicationName, serviceName, willDelayAndRetry, error) =>
       val msg = SlackNotification(
         applicationName,
-        s""":system_restore:```${utils.mkString(error)}```""",
+        s""":system_restore: The service experienced a *panic*
+           |```${utils.mkString(error, 8)}```
+           |and started to *recover* itself
+           |the next attempt will happen in *${utils
+          .mkDurationString(willDelayAndRetry.nextDelay)}* meanwhile the service is disfunctional.
+           |*full exception can be found in log file*""".stripMargin,
         List(
           Attachment(
             "danger",
@@ -47,13 +52,10 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
               SlackField("Service Name", serviceName, short = true),
               SlackField("Status", "Restarting", short = true),
               SlackField("Retries so far", willDelayAndRetry.retriesSoFar.toString, short = true),
-              SlackField("Cumulative Delay", s"${willDelayAndRetry.cumulativeDelay.toMinutes} minutes", short = true),
               SlackField(
-                "The service will keep retrying until recovered",
-                s"""|Next attempt will happen in ${willDelayAndRetry.nextDelay.toSeconds} seconds 
-                    |in case the service is not recovered automatically.""".stripMargin,
-                short = false
-              )
+                "Cumulative Delay",
+                s"${utils.mkDurationString(willDelayAndRetry.cumulativeDelay)}",
+                short = true)
             )
           ))
       )
@@ -62,16 +64,14 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
     case ServiceAbnormalStop(applicationName, serviceName, error) =>
       val msg = SlackNotification(
         applicationName,
-        s":open_mouth: ${error.getMessage}",
+        s""":open_mouth: The service received a *fatal error*
+           |${utils.mkString(error)}""".stripMargin,
         List(
           Attachment(
             "danger",
             List(
               SlackField("Service Name", serviceName, short = true),
-              SlackField("Status", "Stopped", short = true),
-              SlackField("The service was unexpectedly stopped", "fatal error. restart does not help", short = true)
-            )
-          ))
+              SlackField("Status", "Stopped abnormally", short = true))))
       )
       service.publish(msg.asJson.noSpaces).attempt.void
 
@@ -91,10 +91,15 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
       )
       service.publish(msg.asJson.noSpaces).attempt.void
     case ActionRetrying(_, _, _, _, _, _) => F.unit
-    case ActionFailed(an, sn, RetriedAction(name, input, id, st, tz), alertMask, givingUp, error) =>
+    case ActionFailed(an, sn, notes, RetriedAction(input, id, st, tz), alertMask, givingUp, error) =>
       val msg = SlackNotification(
         an,
-        s""":oops:```${utils.mkString(error)}```""",
+        s""":oops:Unfortunately, the *input*
+           |```$input```
+           |triggers an *exception*:
+           |```${utils.mkString(error)}```
+           |*Developer's suggestion:*
+           |$notes""".stripMargin,
         List(
           Attachment(
             "danger",
@@ -104,18 +109,19 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
               SlackField("Number of retries", givingUp.totalRetries.toString, short = true),
               SlackField("took", s"${utils.mkDurationString(st, Instant.now())}", short = true),
               SlackField("Time Zone", tz.toString, short = true),
-              SlackField("Action Name", name, short = true),
-              SlackField("Action Input", s"```$input```", short = false),
               SlackField("Action ID", id.toString, short = false)
             )
           ))
       )
       service.publish(msg.asJson.noSpaces).whenA(alertMask.alertFail).attempt.void
 
-    case ActionSucced(an, sn, RetriedAction(name, input, id, st, tz), alertMask) =>
+    case ActionSucced(an, sn, notes, RetriedAction(input, id, st, tz), alertMask) =>
       val msg = SlackNotification(
         an,
-        ":ok_hand:",
+        s""":ok_hand:*Successfully performed the action with input*
+           |```$input```
+           |*about*
+           |$notes""".stripMargin,
         List(
           Attachment(
             "good",
@@ -123,8 +129,6 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
               SlackField("Service Name", sn, short = true),
               SlackField("took", s"${utils.mkDurationString(st, Instant.now())}", short = true),
               SlackField("Time Zone", tz.toString, short = true),
-              SlackField("Action Name", name, short = true),
-              SlackField("Action Input", s"```$input```", short = false),
               SlackField("Action ID", id.toString, short = false)
             )
           ))

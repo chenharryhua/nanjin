@@ -3,10 +3,10 @@ package com.github.chenharryhua.nanjin.datetime
 import cats.implicits.catsSyntaxTuple2Semigroupal
 import cats.syntax.all._
 import cats.{PartialOrder, Show}
+import com.github.chenharryhua.nanjin.common.utils
 import monocle.Prism
 import monocle.generic.coproduct.coProductPrism
 import monocle.macros.Lenses
-import org.apache.commons.lang3.time.DurationFormatUtils
 import shapeless.{:+:, CNil, Poly1}
 
 import java.sql.Timestamp
@@ -136,7 +136,7 @@ import scala.concurrent.duration.FiniteDuration
 
   override def toString: String =
     (startTimestamp, endTimestamp)
-      .mapN((s, e) => DurationFormatUtils.formatDurationWords(e.milliseconds - s.milliseconds, true, true))
+      .mapN((s, e) => utils.mkDurationString(e.milliseconds - s.milliseconds))
       .getOrElse("infinite")
 
 }
