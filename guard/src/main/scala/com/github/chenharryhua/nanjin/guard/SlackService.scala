@@ -39,11 +39,12 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
     case ServiceRestarting(applicationName, serviceName, willDelayAndRetry, error) =>
       val msg = SlackNotification(
         applicationName,
-        s""":system_restore: The service raised an *exception*
-           |```${utils.mkString(error)}```
-           |and start to *recover* itself
-           |the nex attempt will happen in ${utils.mkDurationString(willDelayAndRetry.nextDelay)}
-           |in case recovery was failed""".stripMargin,
+        s""":system_restore: The service experienced a *panic*
+           |```${utils.mkString(error, 8)}```
+           |and started to *recover* itself
+           |the next attempt will happen in *${utils
+          .mkDurationString(willDelayAndRetry.nextDelay)}* meanwhile the service is disfunctional.
+           |*full exception can be found in log file*""".stripMargin,
         List(
           Attachment(
             "danger",
