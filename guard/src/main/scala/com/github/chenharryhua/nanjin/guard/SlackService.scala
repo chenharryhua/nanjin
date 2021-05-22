@@ -91,21 +91,15 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
       )
       service.publish(msg.asJson.noSpaces).attempt.void
     case ActionRetrying(_, _, _, _, _, _) => F.unit
-    case ActionFailed(an, sn, notes, RetriedAction(input, id, st, tz), alertMask, givingUp, error) =>
+    case ActionFailed(applicationName, sn, notes, RetriedAction(id, st, tz), alertMask, givingUp, _) =>
       val msg = SlackNotification(
-        an,
-        s""":oops: Unfortunately, an *exception* was triggered:
-           |```input: $input
-           |
-           |${utils.mkExceptionString(error)}```
-           |*Developer's suggestion:*
-           |$notes""".stripMargin,
+        applicationName,
+        s"$notes",
         List(
           Attachment(
             "danger",
             List(
               SlackField("Service Name", sn, short = true),
-              SlackField("Status", "Failed", short = true),
               SlackField("Number of retries", givingUp.totalRetries.toString, short = true),
               SlackField("took", s"${utils.mkDurationString(st, Instant.now())}", short = true),
               SlackField("Time Zone", tz.toString, short = true),
@@ -115,20 +109,16 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
       )
       service.publish(msg.asJson.noSpaces).whenA(alertMask.alertFail).attempt.void
 
-    case ActionSucced(an, sn, notes, RetriedAction(input, id, st, tz), alertMask) =>
+    case ActionSucced(applicationName, sn, notes, RetriedAction(id, st, _), alertMask) =>
       val msg = SlackNotification(
-        an,
-        s""":ok_hand: *Successfully performed the action with input*
-           |```$input```
-           |*about*
-           |$notes""".stripMargin,
+        applicationName,
+        s"$notes",
         List(
           Attachment(
             "good",
             List(
               SlackField("Service Name", sn, short = true),
               SlackField("took", s"${utils.mkDurationString(st, Instant.now())}", short = true),
-              SlackField("Time Zone", tz.toString, short = true),
               SlackField("Action ID", id.toString, short = false)
             )
           ))

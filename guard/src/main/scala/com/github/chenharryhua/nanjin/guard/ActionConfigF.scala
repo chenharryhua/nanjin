@@ -10,12 +10,9 @@ import scala.concurrent.duration._
 
 @Lenses final case class AlertMask(alertSucc: Boolean, alertFail: Boolean)
 
-@Lenses final case class ActionNotes(succNotes: String, failNotes: String)
-
 @Lenses final case class ActionParams private (
   applicationName: String,
   serviceName: String,
-  actionNotes: ActionNotes,
   alertMask: AlertMask,
   maxRetries: Int,
   retryPolicy: NJRetryPolicy,
@@ -23,12 +20,10 @@ import scala.concurrent.duration._
 )
 
 private object ActionParams {
-  private val notes: String = "the developer is too lazy to provide a notes"
 
   def apply(): ActionParams = ActionParams(
     applicationName = "unknown",
     serviceName = "unknown",
-    actionNotes = ActionNotes(notes, notes),
     alertMask = AlertMask(alertSucc = true, alertFail = true),
     maxRetries = 3,
     retryPolicy = ConstantDelay(10.seconds),
@@ -47,8 +42,6 @@ private object ActionConfigF {
   final case class WithAlertMaskFail[K](value: Boolean, cont: K) extends ActionConfigF[K]
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends ActionConfigF[K]
   final case class WithZoneId[K](value: ZoneId, cont: K) extends ActionConfigF[K]
-  final case class WithSuccNotes[K](value: String, cont: K) extends ActionConfigF[K]
-  final case class WithFailNotes[K](value: String, cont: K) extends ActionConfigF[K]
 
   val algebra: Algebra[ActionConfigF, ActionParams] =
     Algebra[ActionConfigF, ActionParams] {
@@ -60,8 +53,6 @@ private object ActionConfigF {
       case WithAlertMaskFail(v, c)   => ActionParams.alertMask.composeLens(AlertMask.alertFail).set(v)(c)
       case WithRetryPolicy(v, c)     => ActionParams.retryPolicy.set(v)(c)
       case WithZoneId(v, c)          => ActionParams.zoneId.set(v)(c)
-      case WithSuccNotes(v, c)       => ActionParams.actionNotes.composeLens(ActionNotes.succNotes).set(v)(c)
-      case WithFailNotes(v, c)       => ActionParams.actionNotes.composeLens(ActionNotes.failNotes).set(v)(c)
     }
 }
 
@@ -70,8 +61,6 @@ final case class ActionConfig private (value: Fix[ActionConfigF]) {
 
   def withApplicationName(an: String): ActionConfig = ActionConfig(Fix(WithApplicationName(an, value)))
   def withServiceName(sn: String): ActionConfig     = ActionConfig(Fix(WithServiceName(sn, value)))
-  def withSuccNotes(sn: String): ActionConfig       = ActionConfig(Fix(WithSuccNotes(sn, value)))
-  def withFailNotes(fn: String): ActionConfig       = ActionConfig(Fix(WithFailNotes(fn, value)))
 
   def withZoneId(tz: ZoneId): ActionConfig = ActionConfig(Fix(WithZoneId(tz, value)))
 

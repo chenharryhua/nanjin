@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard
 
 import cats.effect.Async
+import com.github.chenharryhua.nanjin.common.utils
 import io.circe.Encoder
 import io.circe.generic.auto._
 import io.circe.syntax._
@@ -9,9 +10,9 @@ import org.log4s.Logger
 import scala.concurrent.duration.FiniteDuration
 
 final private class LogService[F[_]] extends AlertService[F] {
-  private val logger: Logger                                    = org.log4s.getLogger
-  implicit private val errorEncoder: Encoder[Throwable]         = Encoder.encodeString.contramap(_.getMessage)
-  implicit private val durationEncoder: Encoder[FiniteDuration] = Encoder.encodeString.contramap(_.toString())
+  private val logger: Logger                               = org.log4s.getLogger
+  implicit private val errorEncoder: Encoder[Throwable]    = Encoder.encodeString.contramap(_.getMessage)
+  implicit private val durEncoder: Encoder[FiniteDuration] = Encoder.encodeString.contramap(utils.mkDurationString)
 
   override def alert(status: Status)(implicit F: Async[F]): F[Unit] =
     status match {
