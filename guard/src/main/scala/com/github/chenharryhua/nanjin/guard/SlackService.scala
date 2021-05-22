@@ -14,10 +14,10 @@ import java.time.Instant
 /** Notes: slack messages
   * [[https://api.slack.com/docs/messages/builder]]
   */
-final case class SlackField(title: String, value: String, short: Boolean)
+final private case class SlackField(title: String, value: String, short: Boolean)
 
-final case class Attachment(color: String, fields: List[SlackField], ts: Long = Instant.now().getEpochSecond)
-final case class SlackNotification(username: String, text: String, attachments: List[Attachment])
+final private case class Attachment(color: String, fields: List[SlackField], ts: Long = Instant.now().getEpochSecond)
+final private case class SlackNotification(username: String, text: String, attachments: List[Attachment])
 
 final class SlackService[F[_]] private (service: SimpleNotificationService[F]) extends AlertService[F] {
 
@@ -90,11 +90,11 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
           ))
       )
       service.publish(msg.asJson.noSpaces).attempt.void
-    case ActionRetrying(_, _, _, _, _, _) => F.unit
-    case ActionFailed(applicationName, sn, notes, RetriedAction(id, st, tz), alertMask, givingUp, _) =>
+    case ActionRetrying(_, _, _, _, _) => F.unit
+    case ActionFailed(applicationName, sn, RetriedAction(id, st, tz), alertMask, givingUp, notes, _) =>
       val msg = SlackNotification(
         applicationName,
-        s"$notes",
+        notes,
         List(
           Attachment(
             "danger",
@@ -109,10 +109,10 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
       )
       service.publish(msg.asJson.noSpaces).whenA(alertMask.alertFail).attempt.void
 
-    case ActionSucced(applicationName, sn, notes, RetriedAction(id, st, _), alertMask) =>
+    case ActionSucced(applicationName, sn, RetriedAction(id, st, _), alertMask, notes) =>
       val msg = SlackNotification(
         applicationName,
-        s"$notes",
+        notes,
         List(
           Attachment(
             "good",

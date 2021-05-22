@@ -34,15 +34,15 @@ final case class ServiceHealthCheck(applicationName: String, serviceName: String
     extends ServiceStatus
 
 sealed trait ActionStatus extends Status {
+  def applicationName: String
+  def serviceName: String
   def action: RetriedAction
-  def alertMask: AlertMask
 }
 
 final case class ActionRetrying(
   applicationName: String,
   serviceName: String,
   action: RetriedAction,
-  alertMask: AlertMask,
   willDelayAndRetry: WillDelayAndRetry,
   error: Throwable
 ) extends ActionStatus
@@ -50,17 +50,17 @@ final case class ActionRetrying(
 final case class ActionFailed(
   applicationName: String,
   serviceName: String,
-  notes: String,
   action: RetriedAction,
   alertMask: AlertMask,
   givingUp: GivingUp,
+  notes: String,
   error: Throwable
 ) extends ActionStatus
 
 final case class ActionSucced(
   applicationName: String,
   serviceName: String,
-  notes: String,
   action: RetriedAction,
-  alertMask: AlertMask)
+  alertMask: AlertMask,
+  notes: String)
     extends ActionStatus

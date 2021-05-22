@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard
 
 import java.time.ZoneId
 
-/** rely on [[https://github.com/cb372/cats-retry]]
+/** credit to the excellent retry lib [[https://github.com/cb372/cats-retry]]
   */
 final class TaskGuard[F[_]] private (
   alertServices: List[AlertService[F]],

@@ -28,9 +28,7 @@ final class ActionGuard[F[_]](alertServices: List[AlertService[F]], config: Acti
                   serviceName = params.serviceName,
                   action = action,
                   error = err,
-                  willDelayAndRetry = wd,
-                  alertMask = params.alertMask
-                )))
+                  willDelayAndRetry = wd)))
             .void
         case gu @ GivingUp(_, _) =>
           alertServices
