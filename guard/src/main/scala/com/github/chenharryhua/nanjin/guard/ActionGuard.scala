@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.effect.Async
+import cats.effect.{Async, Ref}
 import cats.implicits._
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 import retry.{RetryDetails, RetryPolicies, RetryPolicy}
@@ -8,14 +8,16 @@ import retry.{RetryDetails, RetryPolicies, RetryPolicy}
 import java.time.Instant
 import java.util.UUID
 
-final class ActionGuard[F[_]](alertServices: List[AlertService[F]], config: ActionConfig) {
-  val params: ActionParams = config.evalConfig
+final private class ExecutableAction[F[_]: Async, A, B](
+  alertServices: List[AlertService[F]],
+  params: ActionParams,
+  input: A,
+  exec: A => F[B],
+  succ: (A, B) => String,
+  fail: (A, Throwable) => String,
+  ref: Ref[F, Int]) {
 
-  def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
-    new ActionGuard[F](alertServices, f(config))
-
-  def run[A, B](a: A)(f: A => F[B])(succ: (A, B) => String)(fail: (A, Throwable) => String)(implicit
-    F: Async[F]): F[B] = {
+  def run: F[B] = {
     val action = RetriedAction(UUID.randomUUID(), Instant.now, params.zoneId)
     def onError(err: Throwable, details: RetryDetails): F[Unit] =
       details match {
@@ -28,17 +30,15 @@ final class ActionGuard[F[_]](alertServices: List[AlertService[F]], config: Acti
                   serviceName = params.serviceName,
                   action = action,
                   error = err,
-                  willDelayAndRetry = wd,
-                  alertMask = params.alertMask
-                )))
-            .void
+                  willDelayAndRetry = wd)))
+            .void *> ref.update(_ + 1)
         case gu @ GivingUp(_, _) =>
           alertServices
             .traverse(
               _.alert(ActionFailed(
                 applicationName = params.applicationName,
                 serviceName = params.serviceName,
-                notes = fail(a, err),
+                notes = fail(input, err),
                 action = action,
                 error = err,
                 givingUp = gu,
@@ -51,17 +51,30 @@ final class ActionGuard[F[_]](alertServices: List[AlertService[F]], config: Acti
       params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries))
 
     retry
-      .retryingOnAllErrors[B](retryPolicy, onError)(f(a))
+      .retryingOnAllErrors[B](retryPolicy, onError)(exec(input))
       .flatTap(b =>
-        alertServices
-          .traverse(
-            _.alert(
-              ActionSucced(
-                applicationName = params.applicationName,
-                serviceName = params.serviceName,
-                notes = succ(a, b),
-                action = action,
-                alertMask = params.alertMask)))
-          .void)
+        ref.get.flatMap(count =>
+          alertServices
+            .traverse(
+              _.alert(
+                ActionSucced(
+                  applicationName = params.applicationName,
+                  serviceName = params.serviceName,
+                  notes = succ(input, b),
+                  action = action,
+                  alertMask = params.alertMask,
+                  retries = count)))
+            .void))
   }
+}
+
+final class ActionGuard[F[_]](alertServices: List[AlertService[F]], config: ActionConfig) {
+  val params: ActionParams = config.evalConfig
+
+  def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
+    new ActionGuard[F](alertServices, f(config))
+
+  def run[A, B](a: A)(f: A => F[B])(succ: (A, B) => String)(fail: (A, Throwable) => String)(implicit
+    F: Async[F]): F[B] =
+    Ref.of(0).flatMap(ref => new ExecutableAction[F, A, B](alertServices, params, a, f, succ, fail, ref).run)
 }
