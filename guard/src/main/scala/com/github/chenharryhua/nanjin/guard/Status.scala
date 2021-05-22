@@ -62,5 +62,6 @@ final case class ActionSucced(
   serviceName: String,
   action: RetriedAction,
   alertMask: AlertMask,
-  notes: String)
+  notes: String,
+  retries: Int)
     extends ActionStatus

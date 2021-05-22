@@ -100,7 +100,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
             "danger",
             List(
               SlackField("Service Name", sn, short = true),
-              SlackField("Number of retries", givingUp.totalRetries.toString, short = true),
+              SlackField("Retries", givingUp.totalRetries.toString, short = true),
               SlackField("took", s"${utils.mkDurationString(st, Instant.now())}", short = true),
               SlackField("Time Zone", tz.toString, short = true),
               SlackField("Action ID", id.toString, short = false)
@@ -109,7 +109,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
       )
       service.publish(msg.asJson.noSpaces).whenA(alertMask.alertFail).attempt.void
 
-    case ActionSucced(applicationName, sn, RetriedAction(id, st, _), alertMask, notes) =>
+    case ActionSucced(applicationName, sn, RetriedAction(id, st, tz), alertMask, notes, retries) =>
       val msg = SlackNotification(
         applicationName,
         notes,
@@ -119,6 +119,8 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
             List(
               SlackField("Service Name", sn, short = true),
               SlackField("took", s"${utils.mkDurationString(st, Instant.now())}", short = true),
+              SlackField("Retries", retries.toString, short = true),
+              SlackField("Time Zone", tz.toString, short = true),
               SlackField("Action ID", id.toString, short = false)
             )
           ))

@@ -28,7 +28,7 @@ final private class LogService[F[_]] extends AlertService[F] {
         F.blocking(logger.warn(error)(ss.asJson.noSpaces))
       case ss @ ActionFailed(_, _, _, _, _, _, error) =>
         F.blocking(logger.error(error)(ss.asJson.noSpaces))
-      case ss @ ActionSucced(_, _, _, _, _) =>
+      case ss @ ActionSucced(_, _, _, _, _, _) =>
         F.blocking(logger.info(ss.asJson.noSpaces))
     }
 }
