@@ -100,8 +100,8 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
             "danger",
             List(
               SlackField("Service Name", sn, short = true),
-              SlackField("Retries", givingUp.totalRetries.toString, short = true),
               SlackField("Took", s"${utils.mkDurationString(st, Instant.now())}", short = true),
+              SlackField("Retries", givingUp.totalRetries.toString, short = true),
               SlackField("Time Zone", tz.toString, short = true),
               SlackField("Action ID", id.toString, short = false)
             )
