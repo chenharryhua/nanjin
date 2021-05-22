@@ -53,7 +53,7 @@ final case class ActionFailed(
   action: RetriedAction,
   alertMask: AlertMask,
   givingUp: GivingUp,
-  notes: String,
+  notes: String, // description of the action
   error: Throwable
 ) extends ActionStatus
 
@@ -62,6 +62,6 @@ final case class ActionSucced(
   serviceName: String,
   action: RetriedAction,
   alertMask: AlertMask,
-  notes: String,
-  retries: Int)
-    extends ActionStatus
+  notes: String, // description of the action
+  retries: Int // how many retries before success
+) extends ActionStatus
