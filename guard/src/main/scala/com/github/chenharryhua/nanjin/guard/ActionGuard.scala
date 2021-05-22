@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.Show
 import cats.effect.Async
 import cats.implicits._
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
@@ -15,8 +14,9 @@ final class ActionGuard[F[_]](alertServices: List[AlertService[F]], config: Acti
   def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
     new ActionGuard[F](alertServices, f(config))
 
-  def run[A: Show, B](a: A)(f: A => F[B])(implicit F: Async[F]): F[B] = {
-    val action = RetriedAction(a.show, UUID.randomUUID(), Instant.now, params.zoneId)
+  def run[A, B](a: A)(f: A => F[B])(succ: (A, B) => String)(fail: (A, Throwable) => String)(implicit
+    F: Async[F]): F[B] = {
+    val action = RetriedAction(UUID.randomUUID(), Instant.now, params.zoneId)
     def onError(err: Throwable, details: RetryDetails): F[Unit] =
       details match {
         case wd @ WillDelayAndRetry(_, _, _) =>
@@ -38,7 +38,7 @@ final class ActionGuard[F[_]](alertServices: List[AlertService[F]], config: Acti
               _.alert(ActionFailed(
                 applicationName = params.applicationName,
                 serviceName = params.serviceName,
-                notes = params.actionNotes.failNotes,
+                notes = fail(a, err),
                 action = action,
                 error = err,
                 givingUp = gu,
@@ -52,14 +52,14 @@ final class ActionGuard[F[_]](alertServices: List[AlertService[F]], config: Acti
 
     retry
       .retryingOnAllErrors[B](retryPolicy, onError)(f(a))
-      .flatTap(_ =>
+      .flatTap(b =>
         alertServices
           .traverse(
             _.alert(
               ActionSucced(
                 applicationName = params.applicationName,
                 serviceName = params.serviceName,
-                notes = params.actionNotes.succNotes,
+                notes = succ(a, b),
                 action = action,
                 alertMask = params.alertMask)))
           .void)

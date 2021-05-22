@@ -6,7 +6,7 @@ import java.time.{Instant, ZoneId}
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
-final case class RetriedAction(input: String, id: UUID, startTime: Instant, zoneId: ZoneId)
+final case class RetriedAction(id: UUID, startTime: Instant, zoneId: ZoneId)
 
 sealed trait Status {
   def applicationName: String
