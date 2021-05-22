@@ -24,7 +24,7 @@ private object ActionParams {
   def apply(): ActionParams = ActionParams(
     applicationName = "unknown",
     serviceName = "unknown",
-    alertMask = AlertMask(alertSucc = true, alertFail = true),
+    alertMask = AlertMask(alertSucc = false, alertFail = false),
     maxRetries = 3,
     retryPolicy = ConstantDelay(10.seconds),
     zoneId = ZoneId.systemDefault()
@@ -37,11 +37,14 @@ private object ActionConfigF {
   final case class InitParam[K]() extends ActionConfigF[K]
   final case class WithApplicationName[K](value: String, cont: K) extends ActionConfigF[K]
   final case class WithServiceName[K](value: String, cont: K) extends ActionConfigF[K]
-  final case class WithAlertMaskSucc[K](value: Boolean, cont: K) extends ActionConfigF[K]
-  final case class WithMaxRetries[K](value: Int, cont: K) extends ActionConfigF[K]
-  final case class WithAlertMaskFail[K](value: Boolean, cont: K) extends ActionConfigF[K]
-  final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends ActionConfigF[K]
+
   final case class WithZoneId[K](value: ZoneId, cont: K) extends ActionConfigF[K]
+
+  final case class WithMaxRetries[K](value: Int, cont: K) extends ActionConfigF[K]
+  final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends ActionConfigF[K]
+
+  final case class WithAlertMaskSucc[K](value: Boolean, cont: K) extends ActionConfigF[K]
+  final case class WithAlertMaskFail[K](value: Boolean, cont: K) extends ActionConfigF[K]
 
   val algebra: Algebra[ActionConfigF, ActionParams] =
     Algebra[ActionConfigF, ActionParams] {
@@ -64,8 +67,8 @@ final case class ActionConfig private (value: Fix[ActionConfigF]) {
 
   def withZoneId(tz: ZoneId): ActionConfig = ActionConfig(Fix(WithZoneId(tz, value)))
 
-  def offSucc: ActionConfig = ActionConfig(Fix(WithAlertMaskSucc(value = false, value)))
-  def offFail: ActionConfig = ActionConfig(Fix(WithAlertMaskFail(value = false, value)))
+  def succOn: ActionConfig = ActionConfig(Fix(WithAlertMaskSucc(value = true, value)))
+  def failOn: ActionConfig = ActionConfig(Fix(WithAlertMaskFail(value = true, value)))
 
   def withMaxRetries(n: Int): ActionConfig =
     ActionConfig(Fix(WithMaxRetries(n, value)))
