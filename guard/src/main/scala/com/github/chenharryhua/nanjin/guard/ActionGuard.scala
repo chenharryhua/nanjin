@@ -31,18 +31,15 @@ final class RetriableAction[F[_], A, B](
     def onError(err: Throwable, details: RetryDetails): F[Unit] =
       details match {
         case wd @ WillDelayAndRetry(_, _, _) =>
-          alertServices
-            .traverse(
-              _.alert(
-                ActionRetrying(
-                  applicationName = params.applicationName,
-                  serviceName = params.serviceName,
-                  action = action,
-                  alertMask = params.alertMask,
-                  error = err,
-                  willDelayAndRetry = wd)))
-            .attempt
-            .void *> ref.update(_ + 1)
+          alertServices.traverse(
+            _.alert(
+              ActionRetrying(
+                applicationName = params.applicationName,
+                serviceName = params.serviceName,
+                action = action,
+                alertMask = params.alertMask,
+                error = err,
+                willDelayAndRetry = wd)).attempt) *> ref.update(_ + 1)
         case gu @ GivingUp(_, _) =>
           alertServices
             .traverse(
@@ -54,8 +51,7 @@ final class RetriableAction[F[_], A, B](
                 error = err,
                 givingUp = gu,
                 alertMask = params.alertMask
-              )))
-            .attempt
+              )).attempt)
             .void
       }
 
@@ -75,8 +71,7 @@ final class RetriableAction[F[_], A, B](
                   notes = succ(input, b),
                   action = action,
                   alertMask = params.alertMask,
-                  retries = count)))
-            .attempt
+                  retries = count)).attempt)
             .void))
   }
 }
