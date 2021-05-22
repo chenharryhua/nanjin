@@ -20,16 +20,15 @@ final class ServiceGuard[F[_]](alertServices: List[AlertService[F]], config: Ser
           ServiceHealthCheck(
             applicationName = params.applicationName,
             serviceName = params.serviceName,
-            healthCheckInterval = params.healthCheckInterval)))
+            healthCheckInterval = params.healthCheckInterval)).attempt)
       .delayBy(params.healthCheckInterval)
-      .attempt
       .void
       .foreverM[Unit]
 
   private def start(implicit F: Async[F]): F[Unit] =
     alertServices
-      .traverse(_.alert(ServiceStarted(applicationName = params.applicationName, serviceName = params.serviceName)))
-      .attempt
+      .traverse(
+        _.alert(ServiceStarted(applicationName = params.applicationName, serviceName = params.serviceName)).attempt)
       .void
       .delayBy(params.retryPolicy.value)
 
@@ -41,9 +40,8 @@ final class ServiceGuard[F[_]](alertServices: List[AlertService[F]], config: Ser
             applicationName = params.applicationName,
             serviceName = params.serviceName,
             error = new Exception(s"service(${params.serviceName}) was abnormally stopped.")
-          )))
+          )).attempt)
       .delayBy(params.retryPolicy.value)
-      .attempt
       .void
       .foreverM[Unit]
 
@@ -59,8 +57,7 @@ final class ServiceGuard[F[_]](alertServices: List[AlertService[F]], config: Ser
                   applicationName = params.applicationName,
                   serviceName = params.serviceName,
                   willDelayAndRetry = wd,
-                  error = err)))
-            .attempt
+                  error = err)).attempt)
             .void
         case GivingUp(_, _) =>
           alertServices
@@ -69,8 +66,7 @@ final class ServiceGuard[F[_]](alertServices: List[AlertService[F]], config: Ser
                 ServiceAbnormalStop(
                   applicationName = params.applicationName,
                   serviceName = params.serviceName,
-                  error = err)))
-            .attempt
+                  error = err)).attempt)
             .void
       }
 
