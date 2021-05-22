@@ -90,7 +90,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
           ))
       )
       service.publish(msg.asJson.noSpaces).attempt.void
-    case ActionRetrying(_, _, _, _, _) => F.unit
+    case ActionRetrying(_, _, _, _, _, _) => F.unit
     case ActionFailed(applicationName, sn, RetriedAction(id, st, tz), alertMask, givingUp, notes, _) =>
       val msg = SlackNotification(
         applicationName,

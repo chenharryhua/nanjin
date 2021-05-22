@@ -37,12 +37,14 @@ sealed trait ActionStatus extends Status {
   def applicationName: String
   def serviceName: String
   def action: RetriedAction
+  def alertMask: AlertMask
 }
 
 final case class ActionRetrying(
   applicationName: String,
   serviceName: String,
   action: RetriedAction,
+  alertMask: AlertMask,
   willDelayAndRetry: WillDelayAndRetry,
   error: Throwable
 ) extends ActionStatus
