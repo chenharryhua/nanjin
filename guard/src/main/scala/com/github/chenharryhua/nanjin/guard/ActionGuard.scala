@@ -29,6 +29,7 @@ final private class ExecutableAction[F[_]: Async, A, B](
                   applicationName = params.applicationName,
                   serviceName = params.serviceName,
                   action = action,
+                  alertMask = params.alertMask,
                   error = err,
                   willDelayAndRetry = wd)))
             .void *> ref.update(_ + 1)

@@ -48,7 +48,7 @@ final class ServiceGuard[F[_]](alertServices: List[AlertService[F]], config: Ser
               healthCheckInterval = params.healthCheckInterval)))
         .delayBy(params.healthCheckInterval)
         .void
-        .foreverM
+        .foreverM[Nothing]
 
     val startService: F[Unit] =
       alertServices
@@ -59,6 +59,7 @@ final class ServiceGuard[F[_]](alertServices: List[AlertService[F]], config: Ser
     val enrich: F[Unit] = for {
       fiber <- (startService <* healthChecking).start
       _ <- action.onCancel(fiber.cancel).onError { case _ => fiber.cancel }
+      _ <- fiber.cancel
       _ <- alertServices
         .traverse(
           _.alert(
@@ -67,7 +68,9 @@ final class ServiceGuard[F[_]](alertServices: List[AlertService[F]], config: Ser
               serviceName = params.serviceName,
               error = new Exception(s"service(${params.serviceName}) was abnormally stopped.")
             )))
+        .delayBy(params.retryPolicy.value)
         .void
+        .foreverM[Unit]
     } yield ()
 
     retry.retryingOnAllErrors(params.retryPolicy.policy[F], onError)(enrich)
