@@ -8,16 +8,25 @@ import retry.{RetryDetails, RetryPolicies, RetryPolicy}
 import java.time.Instant
 import java.util.UUID
 
-final private class ExecutableAction[F[_]: Async, A, B](
+final class RetriableAction[F[_], A, B](
   alertServices: List[AlertService[F]],
-  params: ActionParams,
+  config: ActionConfig,
   input: A,
   exec: A => F[B],
   succ: (A, B) => String,
-  fail: (A, Throwable) => String,
-  ref: Ref[F, Int]) {
+  fail: (A, Throwable) => String
+) {
+  val params: ActionParams = config.evalConfig
 
-  def run: F[B] = {
+  def withSucc(succ: (A, B) => String): RetriableAction[F, A, B] =
+    new RetriableAction[F, A, B](alertServices, config.succOn, input, exec, succ, fail)
+
+  def withFail(fail: (A, Throwable) => String): RetriableAction[F, A, B] =
+    new RetriableAction[F, A, B](alertServices, config.failOn, input, exec, succ, fail)
+
+  def run(implicit F: Async[F]): F[B] = Ref.of[F, Int](0).flatMap(ref => internalRun(ref))
+
+  private def internalRun(ref: Ref[F, Int])(implicit F: Async[F]): F[B] = {
     val action = RetriedAction(UUID.randomUUID(), Instant.now, params.zoneId)
     def onError(err: Throwable, details: RetryDetails): F[Unit] =
       details match {
@@ -70,12 +79,12 @@ final private class ExecutableAction[F[_]: Async, A, B](
 }
 
 final class ActionGuard[F[_]](alertServices: List[AlertService[F]], config: ActionConfig) {
-  val params: ActionParams = config.evalConfig
 
   def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
     new ActionGuard[F](alertServices, f(config))
 
-  def run[A, B](a: A)(f: A => F[B])(succ: (A, B) => String)(fail: (A, Throwable) => String)(implicit
-    F: Async[F]): F[B] =
-    Ref.of(0).flatMap(ref => new ExecutableAction[F, A, B](alertServices, params, a, f, succ, fail, ref).run)
+  def retry[A, B](a: A)(f: A => F[B]): RetriableAction[F, A, B] =
+    new RetriableAction[F, A, B](alertServices, config, a, f, (_, _) => "", (_, _) => "")
+
+  def retry[B](f: F[B]): RetriableAction[F, Unit, B] = retry[Unit, B](())(Unit => f)
 }
