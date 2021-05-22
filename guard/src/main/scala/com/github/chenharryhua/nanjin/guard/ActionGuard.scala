@@ -41,6 +41,7 @@ final class RetriableAction[F[_], A, B](
                   alertMask = params.alertMask,
                   error = err,
                   willDelayAndRetry = wd)))
+            .attempt
             .void *> ref.update(_ + 1)
         case gu @ GivingUp(_, _) =>
           alertServices
@@ -54,6 +55,7 @@ final class RetriableAction[F[_], A, B](
                 givingUp = gu,
                 alertMask = params.alertMask
               )))
+            .attempt
             .void
       }
 
@@ -74,6 +76,7 @@ final class RetriableAction[F[_], A, B](
                   action = action,
                   alertMask = params.alertMask,
                   retries = count)))
+            .attempt
             .void))
   }
 }

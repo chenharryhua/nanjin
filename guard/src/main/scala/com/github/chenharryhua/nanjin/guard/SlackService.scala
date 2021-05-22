@@ -34,7 +34,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
               SlackField("Status", "(Re)Started", short = true))
           ))
       )
-      service.publish(msg.asJson.noSpaces).attempt.void
+      service.publish(msg.asJson.noSpaces).void
 
     case ServiceRestarting(applicationName, serviceName, willDelayAndRetry, error) =>
       val msg = SlackNotification(
@@ -59,7 +59,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
             )
           ))
       )
-      service.publish(msg.asJson.noSpaces).attempt.void
+      service.publish(msg.asJson.noSpaces).void
 
     case ServiceAbnormalStop(applicationName, serviceName, error) =>
       val msg = SlackNotification(
@@ -89,7 +89,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
             )
           ))
       )
-      service.publish(msg.asJson.noSpaces).attempt.void
+      service.publish(msg.asJson.noSpaces).void
     case ActionRetrying(_, _, _, _, _, _) => F.unit
     case ActionFailed(applicationName, sn, RetriedAction(id, st, tz), alertMask, givingUp, notes, _) =>
       val msg = SlackNotification(
@@ -107,7 +107,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
             )
           ))
       )
-      service.publish(msg.asJson.noSpaces).whenA(alertMask.alertFail).attempt.void
+      service.publish(msg.asJson.noSpaces).whenA(alertMask.alertFail).void
 
     case ActionSucced(applicationName, sn, RetriedAction(id, st, tz), alertMask, notes, retries) =>
       val msg = SlackNotification(
@@ -125,7 +125,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
             )
           ))
       )
-      service.publish(msg.asJson.noSpaces).whenA(alertMask.alertSucc).attempt.void
+      service.publish(msg.asJson.noSpaces).whenA(alertMask.alertSucc).void
   }
 }
 
