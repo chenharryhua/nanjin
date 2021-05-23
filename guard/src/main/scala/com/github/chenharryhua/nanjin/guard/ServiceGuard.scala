@@ -15,6 +15,16 @@ final class ServiceGuard[F[_]](alertServices: List[AlertService[F]], config: Ser
   def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
     new ServiceGuard[F](alertServices, f(config))
 
+  def run[A](action: F[A])(implicit F: Async[F]): F[Unit] = {
+    val launchTime: Instant = Instant.now
+    retry.retryingOnAllErrors(params.retryPolicy.policy[F], onError(launchTime))(
+      F.bracket((start(launchTime) *> healthCheck(launchTime)).start)(_ => action)(_.cancel)
+        .flatMap(_ => abnormalStop(launchTime)))
+  }
+
+  def run[A](stream: Stream[F, A])(implicit F: Async[F]): Stream[F, Unit] =
+    Stream.eval(run(stream.compile.drain))
+
   private def healthCheck(launchTime: Instant)(implicit F: Async[F]): F[Unit] =
     alertServices
       .traverse(
@@ -52,40 +62,29 @@ final class ServiceGuard[F[_]](alertServices: List[AlertService[F]], config: Ser
       .void
       .foreverM[Unit]
 
-  def run[A](action: F[A])(implicit F: Async[F]): F[Unit] = {
-
-    def onError(launchTime: Instant)(err: Throwable, details: RetryDetails): F[Unit] =
-      details match {
-        case wd @ WillDelayAndRetry(_, _, _) =>
-          alertServices
-            .traverse(
-              _.alert(ServiceRestarting(
+  private def onError(launchTime: Instant)(err: Throwable, details: RetryDetails)(implicit F: Async[F]): F[Unit] =
+    details match {
+      case wd @ WillDelayAndRetry(_, _, _) =>
+        alertServices
+          .traverse(
+            _.alert(ServiceRestarting(
+              applicationName = params.applicationName,
+              serviceName = params.serviceName,
+              launchTime = launchTime,
+              willDelayAndRetry = wd,
+              retryPolicy = params.retryPolicy.policy[F].show,
+              error = err
+            )).attempt)
+          .void
+      case GivingUp(_, _) =>
+        alertServices
+          .traverse(
+            _.alert(
+              ServiceAbnormalStop(
                 applicationName = params.applicationName,
                 serviceName = params.serviceName,
                 launchTime = launchTime,
-                willDelayAndRetry = wd,
-                retryPolicy = params.retryPolicy.policy[F].show,
-                error = err
-              )).attempt)
-            .void
-        case GivingUp(_, _) =>
-          alertServices
-            .traverse(
-              _.alert(
-                ServiceAbnormalStop(
-                  applicationName = params.applicationName,
-                  serviceName = params.serviceName,
-                  launchTime = launchTime,
-                  error = err)).attempt)
-            .void
-      }
-    F.realTimeInstant.flatMap(launchTime =>
-      retry.retryingOnAllErrors(params.retryPolicy.policy[F], onError(launchTime))(
-        F.bracket((start(launchTime) *> healthCheck(launchTime)).start)(_ => action)(_.cancel)
-          .flatMap(_ => abnormalStop(launchTime))))
-  }
-
-  def run[A](stream: Stream[F, A])(implicit F: Async[F]): Stream[F, Unit] =
-    Stream.eval(run(stream.compile.drain))
-
+                error = err)).attempt)
+          .void
+    }
 }
