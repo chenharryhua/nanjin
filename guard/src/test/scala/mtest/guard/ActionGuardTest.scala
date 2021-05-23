@@ -33,9 +33,9 @@ class ActionGuardTest extends AnyFunSuite {
       .updateConfig(
         _.withMaxRetries(3)
           .constantDelay(1.second)
+          .exponentialBackoff(1.second)
           .fullJitter(1.second)
           .fibonacciBackoff(1.second)
-          .exponentialBackoff(1.second)
           .failOn
           .succOn)
     val res = action.retry(IO(1)).withSucc((_, _) => "ok").withFail((_, _) => "oops").run.unsafeRunSync()
@@ -56,7 +56,7 @@ class ActionGuardTest extends AnyFunSuite {
   }
   test("should fail if can not success in MaxRetries") {
     val other  = new CountService(0)
-    val action = guard.addAlertService(other).action.updateConfig(_.withMaxRetries(3).constantDelay(1.second))
+    val action = guard.addAlertService(other).action.updateConfig(_.withMaxRetries(3).constantDelay(1.second).failOn)
 
     var i = 0
     val op: IO[Int] = IO(
