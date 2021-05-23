@@ -1,18 +1,18 @@
 package mtest.guard
 
 import cats.effect.unsafe.implicits.global
-import cats.effect.{Async, IO}
+import cats.effect.{IO, Sync}
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.guard._
+import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration._
 import scala.util.Random
-import fs2.Stream
 
 final class AbnormalAlertService(var count: Int) extends AlertService[IO] {
 
-  override def alert(status: Status)(implicit F: Async[IO]): IO[Unit] = status match {
+  override def alert(status: Status)(implicit F: Sync[IO]): IO[Unit] = status match {
     case _: ServiceAbnormalStop => IO(count += 1)
     case _                      => IO.unit
   }
@@ -20,7 +20,7 @@ final class AbnormalAlertService(var count: Int) extends AlertService[IO] {
 
 final class PanicAlertService(var count: Int) extends AlertService[IO] {
 
-  override def alert(status: Status)(implicit F: Async[IO]): IO[Unit] = status match {
+  override def alert(status: Status)(implicit F: Sync[IO]): IO[Unit] = status match {
     case _: ServicePanic => IO(count += 1)
     case _               => IO.unit
   }

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.effect.Async
 import cats.effect.syntax.all._
+import cats.effect.{Async, Sync}
 import cats.syntax.all._
 import fs2.Stream
 import retry.RetryDetails
@@ -62,7 +62,7 @@ final class ServiceGuard[F[_]](alertServices: List[AlertService[F]], config: Ser
       .void
       .foreverM[Unit]
 
-  private def onError(launchTime: Instant)(err: Throwable, details: RetryDetails)(implicit F: Async[F]): F[Unit] =
+  private def onError(launchTime: Instant)(err: Throwable, details: RetryDetails)(implicit F: Sync[F]): F[Unit] =
     details match {
       case wd @ WillDelayAndRetry(_, _, _) =>
         alertServices
