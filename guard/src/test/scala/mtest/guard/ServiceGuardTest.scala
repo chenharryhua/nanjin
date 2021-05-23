@@ -8,6 +8,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration._
 import scala.util.Random
+import fs2.Stream
 
 final class AbnormalAlertService(var count: Int) extends AlertService[IO] {
 
@@ -40,14 +41,19 @@ class ServiceGuardTest extends AnyFunSuite {
       .addAlertService(count)
       .service
       .updateConfig(
-        _.fullJitter(1.second).fibonacciBackoff(1.second).exponentialBackoff(1.second).constantDelay(1.second))
-    service.run(IO(1).delayBy(1.second)).unsafeRunTimed(5.seconds)
+        _.fibonacciBackoff(1.second)
+          .exponentialBackoff(1.second)
+          .constantDelay(1.second)
+          .fullJitter(1.second)
+          .withHealthCheckInterval(1.second))
+    service.run(Stream(1).covary[IO]).compile.drain.unsafeRunTimed(5.seconds)
     assert(count.count > 2)
   }
 
   test("service should recover its self") {
-    val count   = new PanicAlertService(0)
-    val service = guard.addAlertService(count).service.updateConfig(_.constantDelay(1.second))
+    val count = new PanicAlertService(0)
+    val service =
+      guard.addAlertService(count).service.updateConfig(_.constantDelay(1.second))
     service
       .run(IO(if (Random.nextBoolean()) throw new Exception else 1).delayBy(0.5.second).foreverM)
       .unsafeRunTimed(6.seconds)
