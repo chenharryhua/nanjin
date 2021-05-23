@@ -23,7 +23,6 @@ class ActionGuardTest extends AnyFunSuite {
       .addAlertService(SlackService(SimpleNotificationService.fake[IO]))
       .addAlertService(new ExceptionService)
       .withApplicationName("ActionTest")
-      .withServiceName("ActionSuite")
 
   test("should not crash when evaluate") {
     val other = new CountService(0)
@@ -43,8 +42,11 @@ class ActionGuardTest extends AnyFunSuite {
     assert(res == 1)
   }
   test("should able to retry many times when operation fail") {
-    val other  = new CountService(0)
-    val action = guard.addAlertService(other).action.updateConfig(_.withMaxRetries(3).constantDelay(1.second))
+    val other = new CountService(0)
+    val action = guard
+      .addAlertService(other)
+      .action
+      .updateConfig(_.withMaxRetries(3).exponentialBackoff(1.second).withActionName("retry test"))
 
     var i = 0
     val op: IO[Int] = IO(
@@ -55,8 +57,11 @@ class ActionGuardTest extends AnyFunSuite {
     assert(res == 1)
   }
   test("should fail if can not success in MaxRetries") {
-    val other  = new CountService(0)
-    val action = guard.addAlertService(other).action.updateConfig(_.withMaxRetries(3).constantDelay(1.second).failOn)
+    val other = new CountService(0)
+    val action = guard
+      .addAlertService(other)
+      .action
+      .updateConfig(_.withMaxRetries(3).fullJitter(1.second).failOn.withActionName("fail retry "))
 
     var i = 0
     val op: IO[Int] = IO(

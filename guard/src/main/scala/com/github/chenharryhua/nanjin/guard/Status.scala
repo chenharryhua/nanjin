@@ -6,17 +6,17 @@ import java.time.Instant
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
-final case class RetriedAction(id: UUID, startTime: Instant)
+final case class RetriedAction(id: UUID, actionName: String, alertMask: AlertMask, startTime: Instant)
 final case class Notes(value: String) extends AnyVal
 final case class RetryPolicyText(value: String) extends AnyVal
 final case class NumberOfRetries(value: Int) extends AnyVal
 
 sealed trait Status {
   def applicationName: String
-  def serviceName: String
 }
 
 sealed trait ServiceStatus extends Status {
+  def serviceName: String
   def launchTime: Instant
 }
 
@@ -47,16 +47,12 @@ final case class ServiceHealthCheck(
 
 sealed trait ActionStatus extends Status {
   def applicationName: String
-  def serviceName: String
   def action: RetriedAction
-  def alertMask: AlertMask
 }
 
 final case class ActionRetrying(
   applicationName: String,
-  serviceName: String,
   action: RetriedAction,
-  alertMask: AlertMask,
   willDelayAndRetry: WillDelayAndRetry,
   retryPolicy: RetryPolicyText,
   error: Throwable
@@ -64,9 +60,7 @@ final case class ActionRetrying(
 
 final case class ActionFailed(
   applicationName: String,
-  serviceName: String,
   action: RetriedAction,
-  alertMask: AlertMask,
   givingUp: GivingUp,
   retryPolicy: RetryPolicyText,
   notes: Notes, // description of the action
@@ -75,9 +69,7 @@ final case class ActionFailed(
 
 final case class ActionSucced(
   applicationName: String,
-  serviceName: String,
   action: RetriedAction,
-  alertMask: AlertMask,
   notes: Notes, // description of the action
   retries: NumberOfRetries // how many retries before success
 ) extends ActionStatus

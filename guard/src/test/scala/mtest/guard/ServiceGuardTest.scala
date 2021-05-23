@@ -33,7 +33,6 @@ class ServiceGuardTest extends AnyFunSuite {
       .addAlertService(SlackService(SimpleNotificationService.fake[IO]))
       .addAlertService(new ExceptionService)
       .withApplicationName("ServiceTest")
-      .withServiceName("ServiceSuite")
 
   test("should raise abnormal stop signal when service is not designed for long-run") {
     val count = new AbnormalAlertService(0)
@@ -45,7 +44,7 @@ class ServiceGuardTest extends AnyFunSuite {
           .exponentialBackoff(1.second)
           .constantDelay(1.second)
           .fullJitter(1.second)
-          .withHealthCheckInterval(1.second))
+          .withServiceName("abnormal test"))
     service.run(Stream(1).covary[IO]).compile.drain.unsafeRunTimed(5.seconds)
     assert(count.count > 2)
   }
@@ -53,10 +52,13 @@ class ServiceGuardTest extends AnyFunSuite {
   test("service should recover its self") {
     val count = new PanicAlertService(0)
     val service =
-      guard.addAlertService(count).service.updateConfig(_.constantDelay(1.second))
+      guard
+        .addAlertService(count)
+        .service
+        .updateConfig(_.constantDelay(0.5.second).withHealthCheckInterval(1.second).withServiceName("recovery test"))
     service
       .run(IO(if (Random.nextBoolean()) throw new Exception else 1).delayBy(0.5.second).foreverM)
-      .unsafeRunTimed(6.seconds)
+      .unsafeRunTimed(5.seconds)
     assert((count.count > 2))
   }
 }

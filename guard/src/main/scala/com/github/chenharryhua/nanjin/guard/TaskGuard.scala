@@ -11,9 +11,6 @@ final class TaskGuard[F[_]] private (
   def withApplicationName(value: String): TaskGuard[F] =
     new TaskGuard[F](alertServices, serviceConfig.withApplicationName(value), actionConfig.withApplicationName(value))
 
-  def withServiceName(value: String): TaskGuard[F] =
-    new TaskGuard[F](alertServices, serviceConfig.withServiceName(value), actionConfig.withServiceName(value))
-
   def addAlertService(value: AlertService[F]): TaskGuard[F] =
     new TaskGuard[F](value :: alertServices, serviceConfig, actionConfig)
 
