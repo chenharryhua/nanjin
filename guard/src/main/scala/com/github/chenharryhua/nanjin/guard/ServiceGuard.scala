@@ -67,12 +67,12 @@ final class ServiceGuard[F[_]](alertServices: List[AlertService[F]], config: Ser
       case wd @ WillDelayAndRetry(_, _, _) =>
         alertServices
           .traverse(
-            _.alert(ServiceRestarting(
+            _.alert(ServicePanic(
               applicationName = params.applicationName,
               serviceName = params.serviceName,
               launchTime = launchTime,
               willDelayAndRetry = wd,
-              retryPolicy = params.retryPolicy.policy[F].show,
+              retryPolicy = RetryPolicyText(params.retryPolicy.policy[F].show),
               error = err
             )).attempt)
           .void

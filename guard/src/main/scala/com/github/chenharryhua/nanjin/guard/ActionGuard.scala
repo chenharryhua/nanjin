@@ -38,7 +38,7 @@ final class RetriableAction[F[_], A, B](
               action = action,
               alertMask = params.alertMask,
               willDelayAndRetry = wd,
-              retryPolicy = params.retryPolicy.policy[F].show,
+              retryPolicy = RetryPolicyText(params.retryPolicy.policy[F].show),
               error = err
             )).attempt) *> ref.update(_ + 1)
         case gu @ GivingUp(_, _) =>
@@ -50,8 +50,8 @@ final class RetriableAction[F[_], A, B](
                 action = action,
                 alertMask = params.alertMask,
                 givingUp = gu,
-                retryPolicy = params.retryPolicy.policy[F].show,
-                notes = fail(input, err),
+                retryPolicy = RetryPolicyText(params.retryPolicy.policy[F].show),
+                notes = Notes(fail(input, err)),
                 error = err
               )).attempt)
             .void
@@ -65,15 +65,14 @@ final class RetriableAction[F[_], A, B](
       .flatTap(b =>
         ref.get.flatMap(count =>
           alertServices
-            .traverse(
-              _.alert(
-                ActionSucced(
-                  applicationName = params.applicationName,
-                  serviceName = params.serviceName,
-                  action = action,
-                  alertMask = params.alertMask,
-                  notes = succ(input, b),
-                  retries = count)).attempt)
+            .traverse(_.alert(ActionSucced(
+              applicationName = params.applicationName,
+              serviceName = params.serviceName,
+              action = action,
+              alertMask = params.alertMask,
+              notes = Notes(succ(input, b)),
+              retries = NumberOfRetries(count)
+            )).attempt)
             .void))
   }
 }
@@ -86,5 +85,5 @@ final class ActionGuard[F[_]](alertServices: List[AlertService[F]], config: Acti
   def retry[A, B](a: A)(f: A => F[B]): RetriableAction[F, A, B] =
     new RetriableAction[F, A, B](alertServices, config, a, f, (_, _) => "", (_, _) => "")
 
-  def retry[B](f: => F[B]): RetriableAction[F, Unit, B] = retry[Unit, B](())(_ => f)
+  def retry[B](f: F[B]): RetriableAction[F, Unit, B] = retry[Unit, B](())(_ => f)
 }
