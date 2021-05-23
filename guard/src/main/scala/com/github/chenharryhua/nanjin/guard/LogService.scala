@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard
 
 import cats.Show
 import cats.derived.auto.show._
-import cats.effect.Async
+import cats.effect.Sync
 import cats.syntax.show._
 import org.log4s.Logger
 
@@ -14,7 +14,7 @@ final private class LogService[F[_]] extends AlertService[F] {
   implicit private val showInstant: Show[Instant]     = _.toString()
   implicit private val showThrowable: Show[Throwable] = _.getMessage
 
-  override def alert(status: Status)(implicit F: Async[F]): F[Unit] =
+  override def alert(status: Status)(implicit F: Sync[F]): F[Unit] =
     status match {
       case ss: ServiceStarted     => F.blocking(logger.info(ss.show))
       case ss: ServiceHealthCheck => F.blocking(logger.info(ss.show))

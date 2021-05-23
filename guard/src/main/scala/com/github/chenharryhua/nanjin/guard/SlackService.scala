@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.effect.Async
+import cats.effect.Sync
 import cats.syntax.all._
 import com.amazonaws.regions.Regions
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
@@ -19,7 +19,7 @@ final private case class SlackNotification(username: String, text: String, attac
 
 final class SlackService[F[_]] private (service: SimpleNotificationService[F]) extends AlertService[F] {
 
-  override def alert(status: Status)(implicit F: Async[F]): F[Unit] = status match {
+  override def alert(status: Status)(implicit F: Sync[F]): F[Unit] = status match {
     case ServiceStarted(applicationName, serviceName, _) =>
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
