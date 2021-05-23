@@ -47,12 +47,12 @@ final case class ServiceHealthCheck(
 
 sealed trait ActionStatus extends Status {
   def applicationName: String
-  def action: RetriedAction
+  def retriedAction: RetriedAction
 }
 
 final case class ActionRetrying(
   applicationName: String,
-  action: RetriedAction,
+  retriedAction: RetriedAction,
   willDelayAndRetry: WillDelayAndRetry,
   retryPolicy: RetryPolicyText,
   error: Throwable
@@ -60,7 +60,7 @@ final case class ActionRetrying(
 
 final case class ActionFailed(
   applicationName: String,
-  action: RetriedAction,
+  retriedAction: RetriedAction,
   givingUp: GivingUp,
   retryPolicy: RetryPolicyText,
   notes: Notes, // description of the action
@@ -69,7 +69,7 @@ final case class ActionFailed(
 
 final case class ActionSucced(
   applicationName: String,
-  action: RetriedAction,
+  retriedAction: RetriedAction,
   notes: Notes, // description of the action
-  retries: NumberOfRetries // how many retries before success
+  numRetries: NumberOfRetries // how many retries before success
 ) extends ActionStatus
