@@ -32,25 +32,27 @@ final class RetriableAction[F[_], A, B](
       details match {
         case wd @ WillDelayAndRetry(_, _, _) =>
           alertServices.traverse(
-            _.alert(
-              ActionRetrying(
-                applicationName = params.applicationName,
-                serviceName = params.serviceName,
-                action = action,
-                alertMask = params.alertMask,
-                error = err,
-                willDelayAndRetry = wd)).attempt) *> ref.update(_ + 1)
+            _.alert(ActionRetrying(
+              applicationName = params.applicationName,
+              serviceName = params.serviceName,
+              action = action,
+              alertMask = params.alertMask,
+              willDelayAndRetry = wd,
+              retryPolicy = params.retryPolicy.policy[F].show,
+              error = err
+            )).attempt) *> ref.update(_ + 1)
         case gu @ GivingUp(_, _) =>
           alertServices
             .traverse(
               _.alert(ActionFailed(
                 applicationName = params.applicationName,
                 serviceName = params.serviceName,
-                notes = fail(input, err),
                 action = action,
-                error = err,
+                alertMask = params.alertMask,
                 givingUp = gu,
-                alertMask = params.alertMask
+                retryPolicy = params.retryPolicy.policy[F].show,
+                notes = fail(input, err),
+                error = err
               )).attempt)
             .void
       }
@@ -68,9 +70,9 @@ final class RetriableAction[F[_], A, B](
                 ActionSucced(
                   applicationName = params.applicationName,
                   serviceName = params.serviceName,
-                  notes = succ(input, b),
                   action = action,
                   alertMask = params.alertMask,
+                  notes = succ(input, b),
                   retries = count)).attempt)
             .void))
   }
@@ -84,5 +86,5 @@ final class ActionGuard[F[_]](alertServices: List[AlertService[F]], config: Acti
   def retry[A, B](a: A)(f: A => F[B]): RetriableAction[F, A, B] =
     new RetriableAction[F, A, B](alertServices, config, a, f, (_, _) => "", (_, _) => "")
 
-  def retry[B](f: F[B]): RetriableAction[F, Unit, B] = retry[Unit, B](())(Unit => f)
+  def retry[B](f: => F[B]): RetriableAction[F, Unit, B] = retry[Unit, B](())(_ => f)
 }

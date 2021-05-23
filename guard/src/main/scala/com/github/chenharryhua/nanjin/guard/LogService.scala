@@ -16,19 +16,14 @@ final private class LogService[F[_]] extends AlertService[F] {
 
   override def alert(status: Status)(implicit F: Async[F]): F[Unit] =
     status match {
-      case ss @ ServiceStarted(_, _) =>
-        F.blocking(logger.info(ss.asJson.noSpaces))
-      case ss @ ServiceRestarting(_, _, _, error) =>
-        F.blocking(logger.warn(error)(ss.asJson.noSpaces))
-      case ss @ ServiceAbnormalStop(_, _, error) =>
-        F.blocking(logger.error(error)(ss.asJson.noSpaces))
-      case ss @ ServiceHealthCheck(_, _, _) =>
-        F.blocking(logger.info(ss.asJson.noSpaces))
-      case ss @ ActionRetrying(_, _, _, _, _, error) =>
-        F.blocking(logger.warn(error)(ss.asJson.noSpaces))
-      case ss @ ActionFailed(_, _, _, _, _, _, error) =>
-        F.blocking(logger.error(error)(ss.asJson.noSpaces))
-      case ss @ ActionSucced(_, _, _, _, _, _) =>
-        F.blocking(logger.info(ss.asJson.noSpaces))
+      case ss: ServiceStarted     => F.blocking(logger.info(ss.asJson.noSpaces))
+      case ss: ServiceHealthCheck => F.blocking(logger.info(ss.asJson.noSpaces))
+      case ss: ActionSucced       => F.blocking(logger.info(ss.asJson.noSpaces))
+
+      case ss @ ServiceRestarting(_, _, _, _, _, error) => F.blocking(logger.warn(error)(ss.asJson.noSpaces))
+      case ss @ ActionRetrying(_, _, _, _, _, _, error) => F.blocking(logger.warn(error)(ss.asJson.noSpaces))
+
+      case ss @ ServiceAbnormalStop(_, _, _, error)      => F.blocking(logger.error(error)(ss.asJson.noSpaces))
+      case ss @ ActionFailed(_, _, _, _, _, _, _, error) => F.blocking(logger.error(error)(ss.asJson.noSpaces))
     }
 }
