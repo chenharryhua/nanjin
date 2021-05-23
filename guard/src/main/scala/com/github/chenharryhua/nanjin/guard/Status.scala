@@ -2,35 +2,44 @@ package com.github.chenharryhua.nanjin.guard
 
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
-import java.time.{Instant, ZoneId}
+import java.time.Instant
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
-final case class RetriedAction(id: UUID, startTime: Instant, zoneId: ZoneId)
+final case class RetriedAction(id: UUID, startTime: Instant)
 
 sealed trait Status {
   def applicationName: String
   def serviceName: String
 }
 
-sealed trait ServiceStatus extends Status
+sealed trait ServiceStatus extends Status {
+  def launchTime: Instant
+}
 
-final case class ServiceStarted(applicationName: String, serviceName: String) extends ServiceStatus
+final case class ServiceStarted(applicationName: String, serviceName: String, launchTime: Instant) extends ServiceStatus
 
 final case class ServiceRestarting(
   applicationName: String,
   serviceName: String,
+  launchTime: Instant,
   willDelayAndRetry: WillDelayAndRetry,
+  retryPolicy: String,
   error: Throwable
 ) extends ServiceStatus
 
 final case class ServiceAbnormalStop(
   applicationName: String,
   serviceName: String,
+  launchTime: Instant,
   error: Throwable
 ) extends ServiceStatus
 
-final case class ServiceHealthCheck(applicationName: String, serviceName: String, healthCheckInterval: FiniteDuration)
+final case class ServiceHealthCheck(
+  applicationName: String,
+  serviceName: String,
+  launchTime: Instant,
+  healthCheckInterval: FiniteDuration)
     extends ServiceStatus
 
 sealed trait ActionStatus extends Status {
@@ -46,6 +55,7 @@ final case class ActionRetrying(
   action: RetriedAction,
   alertMask: AlertMask,
   willDelayAndRetry: WillDelayAndRetry,
+  retryPolicy: String,
   error: Throwable
 ) extends ActionStatus
 
@@ -55,6 +65,7 @@ final case class ActionFailed(
   action: RetriedAction,
   alertMask: AlertMask,
   givingUp: GivingUp,
+  retryPolicy: String,
   notes: String, // description of the action
   error: Throwable
 ) extends ActionStatus
