@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard
 
 import cats.effect.{Async, Ref}
-import cats.implicits._
+import cats.syntax.all._
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 import retry.{RetryDetails, RetryPolicies, RetryPolicy}
 
@@ -27,25 +27,24 @@ final class RetriableAction[F[_], A, B](
   def run(implicit F: Async[F]): F[B] = Ref.of[F, Int](0).flatMap(ref => internalRun(ref))
 
   private def internalRun(ref: Ref[F, Int])(implicit F: Async[F]): F[B] = {
-    val action = RetriedAction(UUID.randomUUID(), params.actionName, params.alertMask, Instant.now)
+    val retriedAction = RetriedAction(UUID.randomUUID(), params.actionName, params.alertMask, Instant.now)
     def onError(err: Throwable, details: RetryDetails): F[Unit] =
       details match {
         case wd @ WillDelayAndRetry(_, _, _) =>
           alertServices.traverse(
-            _.alert(
-              ActionRetrying(
-                applicationName = params.applicationName,
-                action = action,
-                willDelayAndRetry = wd,
-                retryPolicy = RetryPolicyText(params.retryPolicy.policy[F].show),
-                error = err
-              )).attempt) *> ref.update(_ + 1)
+            _.alert(ActionRetrying(
+              applicationName = params.applicationName,
+              retriedAction = retriedAction,
+              willDelayAndRetry = wd,
+              retryPolicy = RetryPolicyText(params.retryPolicy.policy[F].show),
+              error = err
+            )).attempt) *> ref.update(_ + 1)
         case gu @ GivingUp(_, _) =>
           alertServices
             .traverse(
               _.alert(ActionFailed(
                 applicationName = params.applicationName,
-                action = action,
+                retriedAction = retriedAction,
                 givingUp = gu,
                 retryPolicy = RetryPolicyText(params.retryPolicy.policy[F].show),
                 notes = Notes(fail(input, err)),
@@ -66,9 +65,9 @@ final class RetriableAction[F[_], A, B](
               _.alert(
                 ActionSucced(
                   applicationName = params.applicationName,
-                  action = action,
+                  retriedAction = retriedAction,
                   notes = Notes(succ(input, b)),
-                  retries = NumberOfRetries(count)
+                  numRetries = NumberOfRetries(count)
                 )).attempt)
             .void))
   }
@@ -82,5 +81,5 @@ final class ActionGuard[F[_]](alertServices: List[AlertService[F]], config: Acti
   def retry[A, B](a: A)(f: A => F[B]): RetriableAction[F, A, B] =
     new RetriableAction[F, A, B](alertServices, config, a, f, (_, _) => "", (_, _) => "")
 
-  def retry[B](f: F[B]): RetriableAction[F, Unit, B] = retry[Unit, B](())(_ => f)
+  def retry[B](f: F[B]): RetriableAction[F, Unit, B] = retry[Unit, B](())(Unit => f)
 }
