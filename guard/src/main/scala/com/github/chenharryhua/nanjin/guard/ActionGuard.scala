@@ -27,28 +27,25 @@ final class RetriableAction[F[_], A, B](
   def run(implicit F: Async[F]): F[B] = Ref.of[F, Int](0).flatMap(ref => internalRun(ref))
 
   private def internalRun(ref: Ref[F, Int])(implicit F: Async[F]): F[B] = {
-    val action = RetriedAction(UUID.randomUUID(), Instant.now)
+    val action = RetriedAction(UUID.randomUUID(), params.actionName, params.alertMask, Instant.now)
     def onError(err: Throwable, details: RetryDetails): F[Unit] =
       details match {
         case wd @ WillDelayAndRetry(_, _, _) =>
           alertServices.traverse(
-            _.alert(ActionRetrying(
-              applicationName = params.applicationName,
-              serviceName = params.serviceName,
-              action = action,
-              alertMask = params.alertMask,
-              willDelayAndRetry = wd,
-              retryPolicy = RetryPolicyText(params.retryPolicy.policy[F].show),
-              error = err
-            )).attempt) *> ref.update(_ + 1)
+            _.alert(
+              ActionRetrying(
+                applicationName = params.applicationName,
+                action = action,
+                willDelayAndRetry = wd,
+                retryPolicy = RetryPolicyText(params.retryPolicy.policy[F].show),
+                error = err
+              )).attempt) *> ref.update(_ + 1)
         case gu @ GivingUp(_, _) =>
           alertServices
             .traverse(
               _.alert(ActionFailed(
                 applicationName = params.applicationName,
-                serviceName = params.serviceName,
                 action = action,
-                alertMask = params.alertMask,
                 givingUp = gu,
                 retryPolicy = RetryPolicyText(params.retryPolicy.policy[F].show),
                 notes = Notes(fail(input, err)),
@@ -65,14 +62,14 @@ final class RetriableAction[F[_], A, B](
       .flatTap(b =>
         ref.get.flatMap(count =>
           alertServices
-            .traverse(_.alert(ActionSucced(
-              applicationName = params.applicationName,
-              serviceName = params.serviceName,
-              action = action,
-              alertMask = params.alertMask,
-              notes = Notes(succ(input, b)),
-              retries = NumberOfRetries(count)
-            )).attempt)
+            .traverse(
+              _.alert(
+                ActionSucced(
+                  applicationName = params.applicationName,
+                  action = action,
+                  notes = Notes(succ(input, b)),
+                  retries = NumberOfRetries(count)
+                )).attempt)
             .void))
   }
 }
