@@ -27,7 +27,7 @@ final class RetriableAction[F[_], A, B](
   def run(implicit F: Async[F]): F[B] = Ref.of[F, Int](0).flatMap(ref => internalRun(ref))
 
   private def internalRun(ref: Ref[F, Int])(implicit F: Async[F]): F[B] = {
-    val action = RetriedAction(UUID.randomUUID(), Instant.now, params.zoneId)
+    val action = RetriedAction(UUID.randomUUID(), Instant.now)
     def onError(err: Throwable, details: RetryDetails): F[Unit] =
       details match {
         case wd @ WillDelayAndRetry(_, _, _) =>

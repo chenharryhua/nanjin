@@ -1,29 +1,29 @@
 package com.github.chenharryhua.nanjin.guard
 
+import cats.Show
+import cats.derived.auto.show._
 import cats.effect.Async
-import com.github.chenharryhua.nanjin.common.utils
-import io.circe.Encoder
-import io.circe.generic.auto._
-import io.circe.syntax._
+import cats.syntax.show._
 import org.log4s.Logger
 
-import scala.concurrent.duration.FiniteDuration
+import java.time.Instant
 
 final private class LogService[F[_]] extends AlertService[F] {
-  private val logger: Logger                               = org.log4s.getLogger
-  implicit private val errorEncoder: Encoder[Throwable]    = Encoder.encodeString.contramap(_.getMessage)
-  implicit private val durEncoder: Encoder[FiniteDuration] = Encoder.encodeString.contramap(utils.mkDurationString)
+  private val logger: Logger = org.log4s.getLogger
+
+  implicit private val showInstant: Show[Instant]     = _.toString()
+  implicit private val showThrowable: Show[Throwable] = _.getMessage
 
   override def alert(status: Status)(implicit F: Async[F]): F[Unit] =
     status match {
-      case ss: ServiceStarted     => F.blocking(logger.info(ss.asJson.noSpaces))
-      case ss: ServiceHealthCheck => F.blocking(logger.info(ss.asJson.noSpaces))
-      case ss: ActionSucced       => F.blocking(logger.info(ss.asJson.noSpaces))
+      case ss: ServiceStarted     => F.blocking(logger.info(ss.show))
+      case ss: ServiceHealthCheck => F.blocking(logger.info(ss.show))
+      case ss: ActionSucced       => F.blocking(logger.info(ss.show))
 
-      case ss @ ServiceRestarting(_, _, _, _, _, error) => F.blocking(logger.warn(error)(ss.asJson.noSpaces))
-      case ss @ ActionRetrying(_, _, _, _, _, _, error) => F.blocking(logger.warn(error)(ss.asJson.noSpaces))
+      case ss @ ServiceRestarting(_, _, _, _, _, error) => F.blocking(logger.warn(error)(ss.show))
+      case ss @ ActionRetrying(_, _, _, _, _, _, error) => F.blocking(logger.warn(error)(ss.show))
 
-      case ss @ ServiceAbnormalStop(_, _, _, error)      => F.blocking(logger.error(error)(ss.asJson.noSpaces))
-      case ss @ ActionFailed(_, _, _, _, _, _, _, error) => F.blocking(logger.error(error)(ss.asJson.noSpaces))
+      case ss @ ServiceAbnormalStop(_, _, _, error)      => F.blocking(logger.error(error)(ss.show))
+      case ss @ ActionFailed(_, _, _, _, _, _, _, error) => F.blocking(logger.error(error)(ss.show))
     }
 }

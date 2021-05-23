@@ -5,12 +5,9 @@ import cats.derived.auto.functor._
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
-import retry.RetryPolicy
+import retry.{RetryPolicies, RetryPolicy}
 
 import scala.concurrent.duration._
-import retry.RetryPolicies
-
-import java.time.ZoneId
 
 sealed trait NJRetryPolicy {
 
@@ -32,8 +29,7 @@ final private case class FullJitter(value: FiniteDuration) extends NJRetryPolicy
   applicationName: String,
   serviceName: String,
   healthCheckInterval: FiniteDuration,
-  retryPolicy: NJRetryPolicy,
-  zoneId: ZoneId
+  retryPolicy: NJRetryPolicy
 )
 
 private object ServiceParams {
@@ -43,8 +39,7 @@ private object ServiceParams {
       applicationName = "unknown",
       serviceName = "unknown",
       healthCheckInterval = 6.hours,
-      retryPolicy = ConstantDelay(30.seconds),
-      zoneId = ZoneId.systemDefault())
+      retryPolicy = ConstantDelay(30.seconds))
 }
 
 sealed trait ServiceConfigF[F]
@@ -56,7 +51,6 @@ private object ServiceConfigF {
   final case class WithServiceName[K](value: String, cont: K) extends ServiceConfigF[K]
   final case class WithHealthCheckInterval[K](value: FiniteDuration, cont: K) extends ServiceConfigF[K]
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends ServiceConfigF[K]
-  final case class WithZoneId[K](value: ZoneId, cont: K) extends ServiceConfigF[K]
 
   val algebra: Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
@@ -65,7 +59,6 @@ private object ServiceConfigF {
       case WithServiceName(v, c)         => ServiceParams.serviceName.set(v)(c)
       case WithHealthCheckInterval(v, c) => ServiceParams.healthCheckInterval.set(v)(c)
       case WithRetryPolicy(v, c)         => ServiceParams.retryPolicy.set(v)(c)
-      case WithZoneId(v, c)              => ServiceParams.zoneId.set(v)(c)
     }
 }
 
@@ -74,7 +67,6 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
 
   def withApplicationName(appName: String): ServiceConfig = ServiceConfig(Fix(WithApplicationName(appName, value)))
   def withServiceName(serviceName: String): ServiceConfig = ServiceConfig(Fix(WithServiceName(serviceName, value)))
-  def withZoneId(tz: ZoneId): ServiceConfig               = ServiceConfig(Fix(WithZoneId(tz, value)))
 
   def withHealthCheckInterval(d: FiniteDuration): ServiceConfig = ServiceConfig(Fix(WithHealthCheckInterval(d, value)))
 

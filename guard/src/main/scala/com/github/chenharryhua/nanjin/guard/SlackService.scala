@@ -108,7 +108,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
         ).asJson.noSpaces)
       msg.flatMap(service.publish).void
     case ActionRetrying(_, _, _, _, _, _, _) => F.unit
-    case ActionFailed(applicationName, sn, RetriedAction(id, st, tz), alertMask, givingUp, notes, retryPolicy, _) =>
+    case ActionFailed(applicationName, sn, RetriedAction(id, st), alertMask, givingUp, notes, retryPolicy, _) =>
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
           applicationName,
@@ -122,14 +122,13 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
                 SlackField("Took", s"${utils.mkDurationString(st, Instant.now())}", short = true),
                 SlackField("Retries", givingUp.totalRetries.toString, short = true),
                 SlackField("Retry Policy", retryPolicy, short = true),
-                SlackField("Time Zone", tz.toString, short = true),
                 SlackField("Action ID", id.toString, short = false)
               )
             ))
         ).asJson.noSpaces)
       msg.flatMap(service.publish).whenA(alertMask.alertFail).void
 
-    case ActionSucced(applicationName, sn, RetriedAction(id, st, tz), alertMask, notes, retries) =>
+    case ActionSucced(applicationName, sn, RetriedAction(id, st), alertMask, notes, retries) =>
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
           applicationName,
@@ -142,7 +141,6 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
                 SlackField("Service Name", sn, short = true),
                 SlackField("Took", s"${utils.mkDurationString(st, Instant.now())}", short = true),
                 SlackField("Retries", retries.toString, short = true),
-                SlackField("Time Zone", tz.toString, short = true),
                 SlackField("Action ID", id.toString, short = false)
               )
             ))
