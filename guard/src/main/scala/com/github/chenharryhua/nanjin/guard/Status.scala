@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard
 
+import retry.RetryDetails
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
 import java.time.Instant
@@ -7,7 +8,7 @@ import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
 final case class ServiceInfo(name: String, healthCheck: FiniteDuration, retryPolicy: String, launchTime: Instant)
-final case class ActionInfo(name: String, alertMask: AlertMask, retryPolicy: String, actionID: UUID, startTime: Instant)
+final case class ActionInfo(name: String, alertMask: AlertMask, retryPolicy: String, id: UUID, startTime: Instant)
 
 sealed trait Status {
   def applicationName: String
@@ -22,14 +23,13 @@ final case class ServiceStarted(applicationName: String, serviceInfo: ServiceInf
 final case class ServicePanic(
   applicationName: String,
   serviceInfo: ServiceInfo,
-  willDelayAndRetry: WillDelayAndRetry,
+  retryDetails: RetryDetails,
   error: Throwable
 ) extends ServiceStatus
 
 final case class ServiceAbnormalStop(
   applicationName: String,
-  serviceInfo: ServiceInfo,
-  error: Throwable
+  serviceInfo: ServiceInfo
 ) extends ServiceStatus
 
 final case class ServiceHealthCheck(

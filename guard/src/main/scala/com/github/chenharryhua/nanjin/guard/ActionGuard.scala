@@ -6,7 +6,6 @@ import cats.syntax.all._
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 import retry.{RetryDetails, RetryPolicies}
 
-import java.time.Instant
 import java.util.UUID
 
 final class RetryAction[F[_], A, B](
@@ -29,19 +28,19 @@ final class RetryAction[F[_], A, B](
 
   def run(implicit F: Async[F]): F[B] = Ref.of[F, Int](0).flatMap(ref => internalRun(ref))
 
-  private def internalRun(ref: Ref[F, Int])(implicit F: Async[F]): F[B] = {
+  private def internalRun(ref: Ref[F, Int])(implicit F: Async[F]): F[B] = F.realTimeInstant.flatMap { ts =>
     val actionInfo: ActionInfo =
-      ActionInfo(actionName, params.alertMask, params.retryPolicy.policy[F].show, UUID.randomUUID(), Instant.now)
-    def onError(err: Throwable, details: RetryDetails): F[Unit] =
+      ActionInfo(actionName, params.alertMask, params.retryPolicy.policy[F].show, UUID.randomUUID(), ts)
+    def onError(error: Throwable, details: RetryDetails): F[Unit] =
       details match {
-        case wd @ WillDelayAndRetry(_, _, _) =>
+        case wdr @ WillDelayAndRetry(_, _, _) =>
           alertServices.traverse(
             _.alert(
               ActionRetrying(
                 applicationName = applicationName,
                 actionInfo = actionInfo,
-                willDelayAndRetry = wd,
-                error = err
+                willDelayAndRetry = wdr,
+                error = error
               )).attempt) *> ref.update(_ + 1)
         case gu @ GivingUp(_, _) =>
           alertServices
@@ -51,8 +50,8 @@ final class RetryAction[F[_], A, B](
                   applicationName = applicationName,
                   actionInfo = actionInfo,
                   givingUp = gu,
-                  notes = fail(input, err),
-                  error = err
+                  notes = fail(input, error),
+                  error = error
                 )).attempt)
             .void
       }
