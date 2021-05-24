@@ -72,7 +72,7 @@ final class ServiceGuard[F[_]](alertServices: List[AlertService[F]], config: Ser
               serviceName = params.serviceName,
               launchTime = launchTime,
               willDelayAndRetry = wd,
-              retryPolicy = RetryPolicyText(params.retryPolicy.policy[F].show),
+              retryPolicy = params.retryPolicy.policy[F].show,
               error = err
             )).attempt)
           .void

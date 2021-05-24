@@ -19,37 +19,42 @@ final class RetriableAction[F[_], A, B](
   val params: ActionParams = config.evalConfig
 
   def withSucc(succ: (A, B) => String): RetriableAction[F, A, B] =
-    new RetriableAction[F, A, B](alertServices, config.succOn, input, exec, succ, fail)
+    new RetriableAction[F, A, B](alertServices, config.withSuccOn, input, exec, succ, fail)
 
   def withFail(fail: (A, Throwable) => String): RetriableAction[F, A, B] =
-    new RetriableAction[F, A, B](alertServices, config.failOn, input, exec, succ, fail)
+    new RetriableAction[F, A, B](alertServices, config.withFailOn, input, exec, succ, fail)
 
   def run(implicit F: Async[F]): F[B] = Ref.of[F, Int](0).flatMap(ref => internalRun(ref))
 
   private def internalRun(ref: Ref[F, Int])(implicit F: Async[F]): F[B] = {
-    val retriedAction = RetriedAction(UUID.randomUUID(), params.actionName, params.alertMask, Instant.now)
+    val retriedAction = RetriedAction(
+      params.actionName,
+      params.alertMask,
+      params.retryPolicy.policy[F].show,
+      UUID.randomUUID(),
+      Instant.now)
     def onError(err: Throwable, details: RetryDetails): F[Unit] =
       details match {
         case wd @ WillDelayAndRetry(_, _, _) =>
           alertServices.traverse(
-            _.alert(ActionRetrying(
-              applicationName = params.applicationName,
-              retriedAction = retriedAction,
-              willDelayAndRetry = wd,
-              retryPolicy = RetryPolicyText(params.retryPolicy.policy[F].show),
-              error = err
-            )).attempt) *> ref.update(_ + 1)
+            _.alert(
+              ActionRetrying(
+                applicationName = params.applicationName,
+                retriedAction = retriedAction,
+                willDelayAndRetry = wd,
+                error = err
+              )).attempt) *> ref.update(_ + 1)
         case gu @ GivingUp(_, _) =>
           alertServices
             .traverse(
-              _.alert(ActionFailed(
-                applicationName = params.applicationName,
-                retriedAction = retriedAction,
-                givingUp = gu,
-                retryPolicy = RetryPolicyText(params.retryPolicy.policy[F].show),
-                notes = Notes(fail(input, err)),
-                error = err
-              )).attempt)
+              _.alert(
+                ActionFailed(
+                  applicationName = params.applicationName,
+                  retriedAction = retriedAction,
+                  givingUp = gu,
+                  notes = fail(input, err),
+                  error = err
+                )).attempt)
             .void
       }
 
@@ -66,8 +71,8 @@ final class RetriableAction[F[_], A, B](
                 ActionSucced(
                   applicationName = params.applicationName,
                   retriedAction = retriedAction,
-                  notes = Notes(succ(input, b)),
-                  numRetries = NumberOfRetries(count)
+                  notes = succ(input, b),
+                  numRetries = count
                 )).attempt)
             .void))
   }
