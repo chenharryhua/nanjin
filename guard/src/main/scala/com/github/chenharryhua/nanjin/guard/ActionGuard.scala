@@ -19,10 +19,10 @@ final class RetriableAction[F[_], A, B](
   val params: ActionParams = config.evalConfig
 
   def withSucc(succ: (A, B) => String): RetriableAction[F, A, B] =
-    new RetriableAction[F, A, B](alertServices, config.succOn, input, exec, succ, fail)
+    new RetriableAction[F, A, B](alertServices, config.withSuccOn, input, exec, succ, fail)
 
   def withFail(fail: (A, Throwable) => String): RetriableAction[F, A, B] =
-    new RetriableAction[F, A, B](alertServices, config.failOn, input, exec, succ, fail)
+    new RetriableAction[F, A, B](alertServices, config.withFailOn, input, exec, succ, fail)
 
   def run(implicit F: Async[F]): F[B] = Ref.of[F, Int](0).flatMap(ref => internalRun(ref))
 

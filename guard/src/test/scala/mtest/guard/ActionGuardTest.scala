@@ -31,12 +31,12 @@ class ActionGuardTest extends AnyFunSuite {
       .action
       .updateConfig(
         _.withMaxRetries(3)
-          .constantDelay(1.second)
-          .exponentialBackoff(1.second)
-          .fullJitter(1.second)
-          .fibonacciBackoff(1.second)
-          .failOn
-          .succOn)
+          .withConstantDelay(1.second)
+          .withExponentialBackoff(1.second)
+          .withFullJitter(1.second)
+          .withFibonacciBackoff(1.second)
+          .withFailOn
+          .withSuccOn)
     val res = action.retry(IO(1)).withSucc((_, _) => "ok").withFail((_, _) => "oops").run.unsafeRunSync()
     assert(other.count == 1)
     assert(res == 1)
@@ -46,7 +46,7 @@ class ActionGuardTest extends AnyFunSuite {
     val action = guard
       .addAlertService(other)
       .action
-      .updateConfig(_.withMaxRetries(3).exponentialBackoff(1.second).withActionName("retry test"))
+      .updateConfig(_.withMaxRetries(3).withExponentialBackoff(1.second).withActionName("retry test"))
 
     var i = 0
     val op: IO[Int] = IO(
@@ -61,7 +61,7 @@ class ActionGuardTest extends AnyFunSuite {
     val action = guard
       .addAlertService(other)
       .action
-      .updateConfig(_.withMaxRetries(3).fullJitter(1.second).failOn.withActionName("fail retry "))
+      .updateConfig(_.withMaxRetries(3).withFullJitter(1.second).withFailOn.withActionName("fail retry "))
 
     var i = 0
     val op: IO[Int] = IO(

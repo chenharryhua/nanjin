@@ -40,10 +40,10 @@ class ServiceGuardTest extends AnyFunSuite {
       .addAlertService(count)
       .service
       .updateConfig(
-        _.fibonacciBackoff(1.second)
-          .exponentialBackoff(1.second)
-          .constantDelay(1.second)
-          .fullJitter(1.second)
+        _.withFibonacciBackoff(1.second)
+          .withExponentialBackoff(1.second)
+          .withConstantDelay(1.second)
+          .withFullJitter(1.second)
           .withServiceName("abnormal test"))
     service.run(Stream(1).covary[IO]).compile.drain.unsafeRunTimed(5.seconds)
     assert(count.count > 2)
@@ -55,9 +55,10 @@ class ServiceGuardTest extends AnyFunSuite {
       guard
         .addAlertService(count)
         .service
-        .updateConfig(_.constantDelay(0.5.second).withHealthCheckInterval(1.second).withServiceName("recovery test"))
+        .updateConfig(
+          _.withConstantDelay(0.5.second).withHealthCheckInterval(1.second).withServiceName("recovery test"))
     service
-      .run(IO(if (Random.nextBoolean()) throw new Exception else 1).delayBy(0.5.second).foreverM)
+      .run(IO(if (Random.nextBoolean()) throw new Exception else 1).delayBy(0.5.second).void.foreverM)
       .unsafeRunTimed(5.seconds)
     assert((count.count > 2))
   }

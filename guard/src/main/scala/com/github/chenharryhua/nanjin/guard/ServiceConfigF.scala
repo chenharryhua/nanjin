@@ -70,16 +70,16 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
 
   def withHealthCheckInterval(d: FiniteDuration): ServiceConfig = ServiceConfig(Fix(WithHealthCheckInterval(d, value)))
 
-  def constantDelay(v: FiniteDuration): ServiceConfig =
+  def withConstantDelay(v: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(ConstantDelay(v), value)))
 
-  def exponentialBackoff(v: FiniteDuration): ServiceConfig =
+  def withExponentialBackoff(v: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(ExponentialBackoff(v), value)))
 
-  def fibonacciBackoff(v: FiniteDuration): ServiceConfig =
+  def withFibonacciBackoff(v: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(FibonacciBackoff(v), value)))
 
-  def fullJitter(v: FiniteDuration): ServiceConfig =
+  def withFullJitter(v: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(FullJitter(v), value)))
 
   def evalConfig: ServiceParams = scheme.cata(algebra).apply(value)
