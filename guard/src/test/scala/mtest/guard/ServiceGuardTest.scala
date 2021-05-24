@@ -76,7 +76,7 @@ class ServiceGuardTest extends AnyFunSuite {
       _ <- IO.sleep(5.seconds)
       _ <- fib.cancel
     } yield ()
-    run.unsafeRunTimed(6.seconds)
+    run.unsafeRunTimed(7.seconds)
     assert((count.count > 2))
   }
 }

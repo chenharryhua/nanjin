@@ -19,7 +19,7 @@ final class ServiceGuard[F[_]](
 
   def run[A](action: F[A])(implicit F: Async[F]): F[Unit] = F.realTimeInstant.flatMap { ts =>
     val serviceInfo: ServiceInfo =
-      ServiceInfo(serviceName, params.healthCheckInterval, params.retryPolicy.policy[F].show, ts)
+      ServiceInfo(serviceName, params.retryPolicy.policy[F].show, ts, params.healthCheckInterval)
 
     val healthCheck: F[Unit] =
       alertServices
