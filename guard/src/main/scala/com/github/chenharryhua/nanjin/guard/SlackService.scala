@@ -36,15 +36,18 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
         ).asJson.noSpaces)
       msg.flatMap(service.publish).void
 
-    case ServicePanic(applicationName, info, willDelayAndRetry, error) =>
+    case ServicePanic(applicationName, info, details, error) =>
+      val upcomingDelay: String = details.upcomingDelay.map(utils.mkDurationString) match {
+        case None     => "The service was unexpectedly stopped. It is a *FATAL* error" // never happen
+        case Some(ts) => s"next retry will happen in *$ts* meanwhile the service is dysfunctional."
+      }
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
           applicationName,
           s""":system_restore: The service experienced a *panic*
              |```${utils.mkExceptionString(error, 8)}```
              |and started to *recover* itself
-             |the next attempt will happen in *${utils
-            .mkDurationString(willDelayAndRetry.nextDelay)}* meanwhile the service is disfunctional.
+             |$upcomingDelay 
              |*full exception can be found in log file*""".stripMargin,
           List(
             Attachment(
@@ -56,8 +59,8 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
                 SlackField("Launch Time", info.launchTime.toString, short = true),
                 SlackField("Up Time", utils.mkDurationString(info.launchTime, ts), short = true),
                 SlackField("Retry Policy", info.retryPolicy, short = true),
-                SlackField("Retries so far", willDelayAndRetry.retriesSoFar.toString, short = true),
-                SlackField("Cumulative Delay", utils.mkDurationString(willDelayAndRetry.cumulativeDelay), short = true)
+                SlackField("Retries so far", details.retriesSoFar.toString, short = true),
+                SlackField("Cumulative Delay", utils.mkDurationString(details.cumulativeDelay), short = true)
               )
             ))
         ).asJson.noSpaces)

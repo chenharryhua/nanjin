@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard
 
+import retry.RetryDetails
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
 import java.time.Instant
@@ -22,7 +23,7 @@ final case class ServiceStarted(applicationName: String, serviceInfo: ServiceInf
 final case class ServicePanic(
   applicationName: String,
   serviceInfo: ServiceInfo,
-  willDelayAndRetry: WillDelayAndRetry,
+  retryDetails: RetryDetails,
   error: Throwable
 ) extends ServiceStatus
 
