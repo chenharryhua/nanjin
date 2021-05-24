@@ -23,9 +23,10 @@ final class ServiceGuard[F[_]](
   def run[A](action: F[A])(implicit F: Async[F]): F[Unit] = {
     val serviceInfo: ServiceInfo =
       ServiceInfo(serviceName, params.healthCheckInterval, params.retryPolicy.policy[F].show, Instant.now())
-    retry.retryingOnAllErrors(params.retryPolicy.policy[F], onError(serviceInfo))(
-      F.bracket((start(serviceInfo) *> healthCheck(serviceInfo)).start)(_ => action)(_.cancel)
-        .flatMap(_ => abnormalStop(serviceInfo)))
+    retry.retryingOnAllErrors(params.retryPolicy.policy[F], onError(serviceInfo)) {
+      val register: F[Unit] = startUp(serviceInfo) >> healthCheck(serviceInfo)
+      register.start.bracket(_ => action)(_.cancel) >> abnormalStop(serviceInfo)
+    }
   }
 
   def run[A](stream: Stream[F, A])(implicit F: Async[F]): Stream[F, Unit] =
@@ -36,26 +37,18 @@ final class ServiceGuard[F[_]](
       .traverse(_.alert(ServiceHealthCheck(applicationName = applicationName, serviceInfo = serviceInfo)).attempt)
       .delayBy(params.healthCheckInterval)
       .void
-      .foreverM[Unit]
+      .foreverM
 
-  private def start(serviceInfo: ServiceInfo)(implicit F: Async[F]): F[Unit] =
+  private def startUp(serviceInfo: ServiceInfo)(implicit F: Async[F]): F[Unit] =
     alertServices
       .traverse(_.alert(ServiceStarted(applicationName = applicationName, serviceInfo = serviceInfo)).attempt)
-      .void
       .delayBy(params.retryPolicy.value)
+      .void
 
   private def abnormalStop(serviceInfo: ServiceInfo)(implicit F: Async[F]): F[Unit] =
     alertServices
-      .traverse(
-        _.alert(
-          ServiceAbnormalStop(
-            applicationName = applicationName,
-            serviceInfo = serviceInfo,
-            error = new Exception(s"service($serviceName) was abnormally stopped.it is a FATAL error")
-          )).attempt)
-      .delayBy(params.retryPolicy.value)
+      .traverse(_.alert(ServiceAbnormalStop(applicationName = applicationName, serviceInfo = serviceInfo)).attempt)
       .void
-      .foreverM[Unit]
 
   private def onError(serviceInfo: ServiceInfo)(err: Throwable, details: RetryDetails)(implicit F: Sync[F]): F[Unit] =
     details match {
@@ -70,11 +63,6 @@ final class ServiceGuard[F[_]](
                 error = err
               )).attempt)
           .void
-      case GivingUp(_, _) =>
-        alertServices
-          .traverse(
-            _.alert(
-              ServiceAbnormalStop(applicationName = applicationName, serviceInfo = serviceInfo, error = err)).attempt)
-          .void
+      case GivingUp(_, _) => F.unit // never happen
     }
 }

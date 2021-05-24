@@ -10,10 +10,11 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration._
 import scala.util.Random
 
-final class AbnormalAlertService(var count: Int) extends AlertService[IO] {
+final class AbnormalAlertService(var abnormal: Int, var healthCheck: Int) extends AlertService[IO] {
 
   override def alert(status: Status)(implicit F: Sync[IO]): IO[Unit] = status match {
-    case _: ServiceAbnormalStop => IO(count += 1)
+    case a: ServiceAbnormalStop => IO.println(a) >> IO(abnormal += 1)
+    case h: ServiceHealthCheck  => IO.println(h) >> IO(healthCheck += 1)
     case _                      => IO.unit
   }
 }
@@ -21,7 +22,7 @@ final class AbnormalAlertService(var count: Int) extends AlertService[IO] {
 final class PanicAlertService(var count: Int) extends AlertService[IO] {
 
   override def alert(status: Status)(implicit F: Sync[IO]): IO[Unit] = status match {
-    case _: ServicePanic => IO(count += 1)
+    case p: ServicePanic => IO.println(p) >> IO(count += 1)
     case _               => IO.unit
   }
 }
@@ -34,7 +35,7 @@ class ServiceGuardTest extends AnyFunSuite {
       .addAlertService(new ExceptionService)
 
   test("should raise abnormal stop signal when service is not designed for long-run") {
-    val count = new AbnormalAlertService(0)
+    val count = new AbnormalAlertService(0, 0)
     val service = guard
       .addAlertService(count)
       .service("abnormal test")
@@ -42,9 +43,22 @@ class ServiceGuardTest extends AnyFunSuite {
         _.withFibonacciBackoff(1.second)
           .withExponentialBackoff(1.second)
           .withConstantDelay(1.second)
-          .withFullJitter(1.second))
+          .withFullJitter(1.second)
+          .withHealthCheckInterval(1.second))
     service.run(Stream(1).covary[IO]).compile.drain.unsafeRunTimed(5.seconds)
-    assert(count.count > 2)
+    assert(count.abnormal == 1)
+    assert(count.healthCheck == 0)
+  }
+
+  test("should raise abnormal stop signal when service is not designed for long-run. health-check was kicked off") {
+    val count = new AbnormalAlertService(0, 0)
+    val service = guard
+      .addAlertService(count)
+      .service("abnormal test")
+      .updateConfig(_.withConstantDelay(1.second).withHealthCheckInterval(1.second))
+    service.run(IO(1).delayBy(3.seconds)).unsafeRunTimed(5.seconds)
+    assert(count.abnormal == 1)
+    assert(count.healthCheck >= 1)
   }
 
   test("service should recover its self - may fail occasionally because of the randomness.") {
@@ -54,9 +68,15 @@ class ServiceGuardTest extends AnyFunSuite {
         .addAlertService(count)
         .service("recovery test")
         .updateConfig(_.withConstantDelay(0.5.second).withHealthCheckInterval(1.second))
-    service
-      .run(IO(if (Random.nextBoolean()) throw new Exception else 1).delayBy(0.5.second).void.foreverM)
-      .unsafeRunTimed(5.seconds)
+
+    val run = for {
+      fib <- service
+        .run(IO(if (Random.nextBoolean()) throw new Exception else 1).delayBy(0.5.second).void.foreverM)
+        .start
+      _ <- IO.sleep(5.seconds)
+      _ <- fib.cancel
+    } yield ()
+    run.unsafeRunTimed(6.seconds)
     assert((count.count > 2))
   }
 }

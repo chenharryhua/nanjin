@@ -24,7 +24,7 @@ final private class LogService[F[_]] extends AlertService[F] {
       case ss @ ServicePanic(_, _, _, error)   => F.blocking(logger.warn(error)(ss.show))
       case ss @ ActionRetrying(_, _, _, error) => F.blocking(logger.warn(error)(ss.show))
 
-      case ss @ ServiceAbnormalStop(_, _, error) => F.blocking(logger.error(error)(ss.show))
-      case ss @ ActionFailed(_, _, _, _, error)  => F.blocking(logger.error(error)(ss.show))
+      case ss: ServiceAbnormalStop              => F.blocking(logger.error(ss.show))
+      case ss @ ActionFailed(_, _, _, _, error) => F.blocking(logger.error(error)(ss.show))
     }
 }

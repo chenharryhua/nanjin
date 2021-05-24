@@ -28,8 +28,7 @@ final case class ServicePanic(
 
 final case class ServiceAbnormalStop(
   applicationName: String,
-  serviceInfo: ServiceInfo,
-  error: Throwable
+  serviceInfo: ServiceInfo
 ) extends ServiceStatus
 
 final case class ServiceHealthCheck(

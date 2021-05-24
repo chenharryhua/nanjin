@@ -63,12 +63,11 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
         ).asJson.noSpaces)
       msg.flatMap(service.publish).void
 
-    case ServiceAbnormalStop(applicationName, info, error) =>
+    case ServiceAbnormalStop(applicationName, info) =>
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
           applicationName,
-          s""":open_mouth: The service received a *fatal error*
-             |${utils.mkExceptionString(error)}""".stripMargin,
+          s":open_mouth: The service was unexpectedly stopped. It is a *FATAL* error",
           List(
             Attachment(
               "danger",
