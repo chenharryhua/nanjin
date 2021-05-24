@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard
 
+import cats.data.NonEmptyList
 import cats.effect.syntax.all._
 import cats.effect.{Async, Sync}
 import cats.syntax.all._
@@ -9,82 +10,71 @@ import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
 import java.time.Instant
 
-final class ServiceGuard[F[_]](alertServices: List[AlertService[F]], config: ServiceConfig) {
+final class ServiceGuard[F[_]](
+  applicationName: String,
+  serviceName: String,
+  alertServices: NonEmptyList[AlertService[F]],
+  config: ServiceConfig) {
   val params: ServiceParams = config.evalConfig
 
   def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
-    new ServiceGuard[F](alertServices, f(config))
+    new ServiceGuard[F](applicationName, serviceName, alertServices, f(config))
 
   def run[A](action: F[A])(implicit F: Async[F]): F[Unit] = {
-    val launchTime: Instant = Instant.now
-    retry.retryingOnAllErrors(params.retryPolicy.policy[F], onError(launchTime))(
-      F.bracket((start(launchTime) *> healthCheck(launchTime)).start)(_ => action)(_.cancel)
-        .flatMap(_ => abnormalStop(launchTime)))
+    val serviceInfo: ServiceInfo =
+      ServiceInfo(serviceName, params.healthCheckInterval, params.retryPolicy.policy[F].show, Instant.now())
+    retry.retryingOnAllErrors(params.retryPolicy.policy[F], onError(serviceInfo))(
+      F.bracket((start(serviceInfo) *> healthCheck(serviceInfo)).start)(_ => action)(_.cancel)
+        .flatMap(_ => abnormalStop(serviceInfo)))
   }
 
   def run[A](stream: Stream[F, A])(implicit F: Async[F]): Stream[F, Unit] =
     Stream.eval(run(stream.compile.drain))
 
-  private def healthCheck(launchTime: Instant)(implicit F: Async[F]): F[Unit] =
+  private def healthCheck(serviceInfo: ServiceInfo)(implicit F: Async[F]): F[Unit] =
     alertServices
-      .traverse(
-        _.alert(
-          ServiceHealthCheck(
-            applicationName = params.applicationName,
-            serviceName = params.serviceName,
-            launchTime = launchTime,
-            healthCheckInterval = params.healthCheckInterval)).attempt)
+      .traverse(_.alert(ServiceHealthCheck(applicationName = applicationName, serviceInfo = serviceInfo)).attempt)
       .delayBy(params.healthCheckInterval)
       .void
       .foreverM[Unit]
 
-  private def start(launchTime: Instant)(implicit F: Async[F]): F[Unit] =
+  private def start(serviceInfo: ServiceInfo)(implicit F: Async[F]): F[Unit] =
     alertServices
-      .traverse(
-        _.alert(
-          ServiceStarted(
-            applicationName = params.applicationName,
-            serviceName = params.serviceName,
-            launchTime = launchTime)).attempt)
+      .traverse(_.alert(ServiceStarted(applicationName = applicationName, serviceInfo = serviceInfo)).attempt)
       .void
       .delayBy(params.retryPolicy.value)
 
-  private def abnormalStop(launchTime: Instant)(implicit F: Async[F]): F[Unit] =
+  private def abnormalStop(serviceInfo: ServiceInfo)(implicit F: Async[F]): F[Unit] =
     alertServices
       .traverse(
-        _.alert(ServiceAbnormalStop(
-          applicationName = params.applicationName,
-          serviceName = params.serviceName,
-          launchTime = launchTime,
-          error = new Exception(s"service(${params.serviceName}) was abnormally stopped.")
-        )).attempt)
+        _.alert(
+          ServiceAbnormalStop(
+            applicationName = applicationName,
+            serviceInfo = serviceInfo,
+            error = new Exception(s"service($serviceName) was abnormally stopped.it is a FATAL error")
+          )).attempt)
       .delayBy(params.retryPolicy.value)
       .void
       .foreverM[Unit]
 
-  private def onError(launchTime: Instant)(err: Throwable, details: RetryDetails)(implicit F: Sync[F]): F[Unit] =
+  private def onError(serviceInfo: ServiceInfo)(err: Throwable, details: RetryDetails)(implicit F: Sync[F]): F[Unit] =
     details match {
       case wd @ WillDelayAndRetry(_, _, _) =>
         alertServices
           .traverse(
-            _.alert(ServicePanic(
-              applicationName = params.applicationName,
-              serviceName = params.serviceName,
-              launchTime = launchTime,
-              willDelayAndRetry = wd,
-              retryPolicy = params.retryPolicy.policy[F].show,
-              error = err
-            )).attempt)
+            _.alert(
+              ServicePanic(
+                applicationName = applicationName,
+                serviceInfo = serviceInfo,
+                willDelayAndRetry = wd,
+                error = err
+              )).attempt)
           .void
       case GivingUp(_, _) =>
         alertServices
           .traverse(
             _.alert(
-              ServiceAbnormalStop(
-                applicationName = params.applicationName,
-                serviceName = params.serviceName,
-                launchTime = launchTime,
-                error = err)).attempt)
+              ServiceAbnormalStop(applicationName = applicationName, serviceInfo = serviceInfo, error = err)).attempt)
           .void
     }
 }
