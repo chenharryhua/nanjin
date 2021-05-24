@@ -26,8 +26,6 @@ final private case class FibonacciBackoff(value: FiniteDuration) extends NJRetry
 final private case class FullJitter(value: FiniteDuration) extends NJRetryPolicy
 
 @Lenses final case class ServiceParams private (
-  applicationName: String,
-  serviceName: String,
   healthCheckInterval: FiniteDuration,
   retryPolicy: NJRetryPolicy
 )
@@ -35,11 +33,7 @@ final private case class FullJitter(value: FiniteDuration) extends NJRetryPolicy
 private object ServiceParams {
 
   def apply(): ServiceParams =
-    ServiceParams(
-      applicationName = "unknown",
-      serviceName = "unknown",
-      healthCheckInterval = 6.hours,
-      retryPolicy = ConstantDelay(30.seconds))
+    ServiceParams(healthCheckInterval = 6.hours, retryPolicy = ConstantDelay(30.seconds))
 }
 
 sealed trait ServiceConfigF[F]
@@ -47,16 +41,12 @@ sealed trait ServiceConfigF[F]
 private object ServiceConfigF {
 
   final case class InitParams[K]() extends ServiceConfigF[K]
-  final case class WithApplicationName[K](value: String, cont: K) extends ServiceConfigF[K]
-  final case class WithServiceName[K](value: String, cont: K) extends ServiceConfigF[K]
   final case class WithHealthCheckInterval[K](value: FiniteDuration, cont: K) extends ServiceConfigF[K]
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends ServiceConfigF[K]
 
   val algebra: Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams()                  => ServiceParams()
-      case WithApplicationName(v, c)     => ServiceParams.applicationName.set(v)(c)
-      case WithServiceName(v, c)         => ServiceParams.serviceName.set(v)(c)
       case WithHealthCheckInterval(v, c) => ServiceParams.healthCheckInterval.set(v)(c)
       case WithRetryPolicy(v, c)         => ServiceParams.retryPolicy.set(v)(c)
     }
@@ -64,9 +54,6 @@ private object ServiceConfigF {
 
 final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   import ServiceConfigF._
-
-  def withApplicationName(appName: String): ServiceConfig = ServiceConfig(Fix(WithApplicationName(appName, value)))
-  def withServiceName(serviceName: String): ServiceConfig = ServiceConfig(Fix(WithServiceName(serviceName, value)))
 
   def withHealthCheckInterval(d: FiniteDuration): ServiceConfig = ServiceConfig(Fix(WithHealthCheckInterval(d, value)))
 

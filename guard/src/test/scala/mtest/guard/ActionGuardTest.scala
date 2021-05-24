@@ -19,25 +19,26 @@ final class CountService(var count: Int) extends AlertService[IO] {
 class ActionGuardTest extends AnyFunSuite {
 
   val guard: TaskGuard[IO] =
-    TaskGuard[IO]
+    TaskGuard[IO]("ActionTest")
       .addAlertService(SlackService(SimpleNotificationService.fake[IO]))
       .addAlertService(new ExceptionService)
-      .withApplicationName("ActionTest")
 
   test("should not crash when evaluate") {
     val other = new CountService(0)
     val action = guard
       .addAlertService(other)
-      .action
+      .action("crash test")
       .updateConfig(
         _.withMaxRetries(3)
           .withConstantDelay(1.second)
           .withExponentialBackoff(1.second)
           .withFullJitter(1.second)
           .withFibonacciBackoff(1.second)
-          .withFailOn
-          .withSuccOn)
-    val res = action.retry(IO(1)).withSucc((_, _) => "ok").withFail((_, _) => "oops").run.unsafeRunSync()
+          .failOn
+          .succOn)
+    val res =
+      (guard.fyi("start") >> action.retry(IO(1)).whenSuccInfo((_, _) => "ok").whenFailInfo((_, _) => "oops").run)
+        .unsafeRunSync()
     assert(other.count == 1)
     assert(res == 1)
   }
@@ -45,8 +46,8 @@ class ActionGuardTest extends AnyFunSuite {
     val other = new CountService(0)
     val action = guard
       .addAlertService(other)
-      .action
-      .updateConfig(_.withMaxRetries(3).withExponentialBackoff(1.second).withActionName("retry test"))
+      .action("retry test")
+      .updateConfig(_.withMaxRetries(3).withExponentialBackoff(1.second))
 
     var i = 0
     val op: IO[Int] = IO(
@@ -60,8 +61,8 @@ class ActionGuardTest extends AnyFunSuite {
     val other = new CountService(0)
     val action = guard
       .addAlertService(other)
-      .action
-      .updateConfig(_.withMaxRetries(3).withFullJitter(1.second).withFailOn.withActionName("fail retry "))
+      .action("fail retry")
+      .updateConfig(_.withMaxRetries(3).withFullJitter(1.second).failOn)
 
     var i = 0
     val op: IO[Int] = IO(

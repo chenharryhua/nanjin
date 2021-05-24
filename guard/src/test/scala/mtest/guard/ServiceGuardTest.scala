@@ -29,22 +29,20 @@ final class PanicAlertService(var count: Int) extends AlertService[IO] {
 class ServiceGuardTest extends AnyFunSuite {
 
   val guard: TaskGuard[IO] =
-    TaskGuard[IO]
+    TaskGuard[IO]("ServiceTest")
       .addAlertService(SlackService(SimpleNotificationService.fake[IO]))
       .addAlertService(new ExceptionService)
-      .withApplicationName("ServiceTest")
 
   test("should raise abnormal stop signal when service is not designed for long-run") {
     val count = new AbnormalAlertService(0)
     val service = guard
       .addAlertService(count)
-      .service
+      .service("abnormal test")
       .updateConfig(
         _.withFibonacciBackoff(1.second)
           .withExponentialBackoff(1.second)
           .withConstantDelay(1.second)
-          .withFullJitter(1.second)
-          .withServiceName("abnormal test"))
+          .withFullJitter(1.second))
     service.run(Stream(1).covary[IO]).compile.drain.unsafeRunTimed(5.seconds)
     assert(count.count > 2)
   }
@@ -54,9 +52,8 @@ class ServiceGuardTest extends AnyFunSuite {
     val service =
       guard
         .addAlertService(count)
-        .service
-        .updateConfig(
-          _.withConstantDelay(0.5.second).withHealthCheckInterval(1.second).withServiceName("recovery test"))
+        .service("recovery test")
+        .updateConfig(_.withConstantDelay(0.5.second).withHealthCheckInterval(1.second))
     service
       .run(IO(if (Random.nextBoolean()) throw new Exception else 1).delayBy(0.5.second).void.foreverM)
       .unsafeRunTimed(5.seconds)

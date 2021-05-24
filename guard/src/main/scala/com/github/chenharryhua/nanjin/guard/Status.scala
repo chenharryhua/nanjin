@@ -6,62 +6,51 @@ import java.time.Instant
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
-final case class RetriedAction(
-  actionName: String,
-  alertMask: AlertMask,
-  retryPolicy: String,
-  actionID: UUID,
-  startTime: Instant)
+final case class ServiceInfo(name: String, healthCheck: FiniteDuration, retryPolicy: String, launchTime: Instant)
+final case class ActionInfo(name: String, alertMask: AlertMask, retryPolicy: String, actionID: UUID, startTime: Instant)
 
 sealed trait Status {
   def applicationName: String
 }
 
 sealed trait ServiceStatus extends Status {
-  def serviceName: String
-  def launchTime: Instant
+  def serviceInfo: ServiceInfo
 }
 
-final case class ServiceStarted(applicationName: String, serviceName: String, launchTime: Instant) extends ServiceStatus
+final case class ServiceStarted(applicationName: String, serviceInfo: ServiceInfo) extends ServiceStatus
 
 final case class ServicePanic(
   applicationName: String,
-  serviceName: String,
-  retryPolicy: String,
-  launchTime: Instant,
+  serviceInfo: ServiceInfo,
   willDelayAndRetry: WillDelayAndRetry,
   error: Throwable
 ) extends ServiceStatus
 
 final case class ServiceAbnormalStop(
   applicationName: String,
-  serviceName: String,
-  launchTime: Instant,
+  serviceInfo: ServiceInfo,
   error: Throwable
 ) extends ServiceStatus
 
 final case class ServiceHealthCheck(
   applicationName: String,
-  serviceName: String,
-  healthCheckInterval: FiniteDuration,
-  launchTime: Instant
+  serviceInfo: ServiceInfo
 ) extends ServiceStatus
 
 sealed trait ActionStatus extends Status {
-  def applicationName: String
-  def retriedAction: RetriedAction
+  def actionInfo: ActionInfo
 }
 
 final case class ActionRetrying(
   applicationName: String,
-  retriedAction: RetriedAction,
+  actionInfo: ActionInfo,
   willDelayAndRetry: WillDelayAndRetry,
   error: Throwable
 ) extends ActionStatus
 
 final case class ActionFailed(
   applicationName: String,
-  retriedAction: RetriedAction,
+  actionInfo: ActionInfo,
   givingUp: GivingUp,
   notes: String, // description of the action
   error: Throwable
@@ -69,7 +58,9 @@ final case class ActionFailed(
 
 final case class ActionSucced(
   applicationName: String,
-  retriedAction: RetriedAction,
+  actionInfo: ActionInfo,
   notes: String, // description of the action
   numRetries: Int // how many retries before success
 ) extends ActionStatus
+
+final case class ForYouInformation(applicationName: String, message: String) extends Status
