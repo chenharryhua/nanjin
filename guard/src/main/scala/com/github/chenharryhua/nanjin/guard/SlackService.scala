@@ -39,7 +39,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
     case ServicePanic(applicationName, info, details, error) =>
       val upcomingDelay: String = details.upcomingDelay.map(utils.mkDurationString) match {
         case None     => "The service was unexpectedly stopped. It is a *FATAL* error" // never happen
-        case Some(ts) => s"next retry will happen in *$ts* meanwhile the service is dysfunctional."
+        case Some(ts) => s"next attempt will happen in *$ts* meanwhile the service is `dysfunctional`."
       }
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
@@ -48,7 +48,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
              |```${utils.mkExceptionString(error, 8)}```
              |and started to *recover* itself
              |$upcomingDelay 
-             |*full exception can be found in log file*""".stripMargin,
+             |full exception can be found in log file""".stripMargin,
           List(
             Attachment(
               "danger",
@@ -117,7 +117,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
               ts.toEpochMilli,
               List(
                 SlackField("Action Name", action.name, short = true),
-                SlackField("Took", utils.mkDurationString(action.startTime, ts), short = true),
+                SlackField("Took", utils.mkDurationString(action.launchTime, ts), short = true),
                 SlackField("Retries", givingUp.totalRetries.toString, short = true),
                 SlackField("Retry Policy", action.retryPolicy, short = true),
                 SlackField("Action ID", action.id.toString, short = false)
@@ -137,7 +137,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
               ts.toEpochMilli,
               List(
                 SlackField("Action Name", action.name, short = true),
-                SlackField("Took", utils.mkDurationString(action.startTime, ts), short = true),
+                SlackField("Took", utils.mkDurationString(action.launchTime, ts), short = true),
                 SlackField("Retries", retries.toString, short = true),
                 SlackField("Action ID", action.id.toString, short = false)
               )

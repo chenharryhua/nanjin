@@ -30,7 +30,7 @@ final class RetryAction[F[_], A, B](
 
   private def internalRun(ref: Ref[F, Int])(implicit F: Async[F]): F[B] = F.realTimeInstant.flatMap { ts =>
     val actionInfo: ActionInfo =
-      ActionInfo(actionName, params.alertMask, params.retryPolicy.policy[F].show, UUID.randomUUID(), ts)
+      ActionInfo(actionName, params.retryPolicy.policy[F].show, ts, params.alertMask, UUID.randomUUID())
     def onError(error: Throwable, details: RetryDetails): F[Unit] =
       details match {
         case wdr @ WillDelayAndRetry(_, _, _) =>
