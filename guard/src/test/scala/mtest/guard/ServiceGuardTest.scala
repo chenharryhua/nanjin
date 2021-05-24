@@ -49,7 +49,7 @@ class ServiceGuardTest extends AnyFunSuite {
     assert(count.count > 2)
   }
 
-  test("service should recover its self") {
+  test("service should recover its self - may fail occasionally because of the randomness.") {
     val count = new PanicAlertService(0)
     val service =
       guard
