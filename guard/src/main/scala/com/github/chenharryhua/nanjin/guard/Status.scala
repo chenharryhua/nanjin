@@ -7,7 +7,7 @@ import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
 final case class ServiceInfo(name: String, healthCheck: FiniteDuration, retryPolicy: String, launchTime: Instant)
-final case class ActionInfo(name: String, alertMask: AlertMask, retryPolicy: String, actionID: UUID, startTime: Instant)
+final case class ActionInfo(name: String, alertMask: AlertMask, retryPolicy: String, id: UUID, startTime: Instant)
 
 sealed trait Status {
   def applicationName: String

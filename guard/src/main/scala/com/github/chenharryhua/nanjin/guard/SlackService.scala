@@ -118,7 +118,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
                 SlackField("Took", utils.mkDurationString(action.startTime, ts), short = true),
                 SlackField("Retries", givingUp.totalRetries.toString, short = true),
                 SlackField("Retry Policy", action.retryPolicy, short = true),
-                SlackField("Action ID", action.actionID.toString, short = false)
+                SlackField("Action ID", action.id.toString, short = false)
               )
             ))
         ).asJson.noSpaces)
@@ -137,7 +137,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
                 SlackField("Action Name", action.name, short = true),
                 SlackField("Took", utils.mkDurationString(action.startTime, ts), short = true),
                 SlackField("Retries", retries.toString, short = true),
-                SlackField("Action ID", action.actionID.toString, short = false)
+                SlackField("Action ID", action.id.toString, short = false)
               )
             ))
         ).asJson.noSpaces)
