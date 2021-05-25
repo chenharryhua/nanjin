@@ -40,7 +40,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F])(i
     case ServicePanic(applicationName, info, details, error) =>
       val upcomingDelay: String = details.upcomingDelay.map(utils.mkDurationString) match {
         case None     => "The service was unexpectedly stopped. It is a *FATAL* error" // never happen
-        case Some(ts) => s"next attempt will happen in *$ts* meanwhile the service is `dysfunctional`."
+        case Some(ts) => s"next attempt will happen in *$ts* meanwhile the service is *dysfunctional*."
       }
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(

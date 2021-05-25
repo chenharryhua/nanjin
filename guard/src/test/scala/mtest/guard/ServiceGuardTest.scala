@@ -1,14 +1,13 @@
 package mtest.guard
 
+import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.effect.{IO, Sync}
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.guard._
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration._
-import scala.util.Random
 
 final class AbnormalAlertService(var abnormal: Int, var healthCheck: Int) extends AlertService[IO] {
 
@@ -19,11 +18,12 @@ final class AbnormalAlertService(var abnormal: Int, var healthCheck: Int) extend
   }
 }
 
-final class PanicAlertService(var count: Int) extends AlertService[IO] {
+final class PanicAlertService(var panic: Int, var started: Int) extends AlertService[IO] {
 
   override def alert(status: Status): IO[Unit] = status match {
-    case p: ServicePanic => IO.println(p) >> IO(count += 1)
-    case _               => IO.unit
+    case p: ServicePanic   => IO.println(p) >> IO(panic += 1)
+    case h: ServiceStarted => IO.println(h) >> IO(started += 1)
+    case _                 => IO.unit
   }
 }
 
@@ -61,22 +61,26 @@ class ServiceGuardTest extends AnyFunSuite {
     assert(count.healthCheck >= 1)
   }
 
-  test("service should recover its self - may fail occasionally because of the randomness.") {
-    val count = new PanicAlertService(0)
+  test("service should recover its self.") {
+    val count = new PanicAlertService(0, 0)
     val service =
       guard
         .addAlertService(count)
         .service("recovery test")
-        .updateConfig(_.withConstantDelay(0.5.second).withHealthCheckInterval(1.second))
+        .updateConfig(_.withConstantDelay(1.second).withHealthCheckInterval(1.second))
 
+    var i = 0
     val run = for {
       fib <- service
-        .run(IO(if (Random.nextBoolean()) throw new Exception else 1).delayBy(0.5.second).void.foreverM)
+        .run(
+          IO(if (i < 2) { i += 1; throw new Exception }
+          else 1).delayBy(0.5.second).void.foreverM)
         .start
       _ <- IO.sleep(5.seconds)
       _ <- fib.cancel
     } yield ()
-    run.unsafeRunTimed(7.seconds)
-    assert((count.count > 2))
+    run.unsafeRunSync()
+    assert(count.panic == 2)
+    assert(count.started == 1)
   }
 }
