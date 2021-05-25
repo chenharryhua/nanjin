@@ -28,6 +28,6 @@ final class TaskGuard[F[_]] private (
 
 object TaskGuard {
 
-  def apply[F[_]](applicationName: String): TaskGuard[F] =
+  def apply[F[_]: Sync](applicationName: String): TaskGuard[F] =
     new TaskGuard[F](applicationName, NonEmptyList.one(new LogService[F]), ServiceConfig.default, ActionConfig.default)
 }

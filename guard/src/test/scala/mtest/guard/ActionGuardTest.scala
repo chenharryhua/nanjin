@@ -37,7 +37,7 @@ class ActionGuardTest extends AnyFunSuite {
           .failOn
           .succOn)
     val res =
-      (guard.fyi("start") >> action.retry(IO(1)).whenSuccInfo((_, _) => "ok").whenFailInfo((_, _) => "oops").run)
+      (guard.fyi("start") >> action.retry(IO(1)).withSuccInfo((_, _) => "ok").withFailInfo((_, _) => "oops").run)
         .unsafeRunSync()
     assert(other.count == 1)
     assert(res == 1)

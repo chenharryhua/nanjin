@@ -20,10 +20,10 @@ final class RetryAction[F[_], A, B](
 ) {
   val params: ActionParams = config.evalConfig
 
-  def whenSuccInfo(succ: (A, B) => String): RetryAction[F, A, B] =
+  def withSuccInfo(succ: (A, B) => String): RetryAction[F, A, B] =
     new RetryAction[F, A, B](applicationName, actionName, alertServices, config.succOn, input, exec, succ, fail)
 
-  def whenFailInfo(fail: (A, Throwable) => String): RetryAction[F, A, B] =
+  def withFailInfo(fail: (A, Throwable) => String): RetryAction[F, A, B] =
     new RetryAction[F, A, B](applicationName, actionName, alertServices, config.failOn, input, exec, succ, fail)
 
   def run(implicit F: Async[F]): F[B] = Ref.of[F, Int](0).flatMap(ref => internalRun(ref))

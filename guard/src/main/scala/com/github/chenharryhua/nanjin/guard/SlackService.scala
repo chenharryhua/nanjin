@@ -17,9 +17,10 @@ final private case class SlackField(title: String, value: String, short: Boolean
 final private case class Attachment(color: String, ts: Long, fields: List[SlackField])
 final private case class SlackNotification(username: String, text: String, attachments: List[Attachment])
 
-final class SlackService[F[_]] private (service: SimpleNotificationService[F]) extends AlertService[F] {
+final class SlackService[F[_]] private (service: SimpleNotificationService[F])(implicit F: Sync[F])
+    extends AlertService[F] {
 
-  override def alert(status: Status)(implicit F: Sync[F]): F[Unit] = status match {
+  override def alert(status: Status): F[Unit] = status match {
     case ServiceStarted(applicationName, info) =>
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
@@ -152,13 +153,13 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F]) e
 
 object SlackService {
 
-  def apply[F[_]](topic: SnsArn, region: Regions): SlackService[F] =
+  def apply[F[_]: Sync](topic: SnsArn, region: Regions): SlackService[F] =
     new SlackService[F](SimpleNotificationService(topic, region))
 
-  def apply[F[_]](topic: SnsArn): SlackService[F] =
+  def apply[F[_]: Sync](topic: SnsArn): SlackService[F] =
     apply[F](topic, Regions.AP_SOUTHEAST_2)
 
-  def apply[F[_]](service: SimpleNotificationService[F]): SlackService[F] =
+  def apply[F[_]: Sync](service: SimpleNotificationService[F]): SlackService[F] =
     new SlackService[F](service)
 
 }

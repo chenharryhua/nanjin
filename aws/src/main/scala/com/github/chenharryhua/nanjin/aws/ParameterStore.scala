@@ -13,11 +13,10 @@ import com.github.chenharryhua.nanjin.common.aws.{ParameterStoreContent, Paramet
 
 import java.util.Base64
 
-trait ParameterStore[F[_]] {
-  def fetch(path: ParameterStorePath)(implicit F: Sync[F]): F[ParameterStoreContent]
+sealed trait ParameterStore[F[_]] {
+  def fetch(path: ParameterStorePath): F[ParameterStoreContent]
 
-  final def base64(path: ParameterStorePath)(implicit F: Sync[F]): F[Array[Byte]] =
-    fetch(path).map(c => Base64.getDecoder.decode(c.value.getBytes))
+  def base64(path: ParameterStorePath): F[Array[Byte]]
 }
 
 object ParameterStore {
@@ -25,21 +24,27 @@ object ParameterStore {
   def fake[F[_]: Applicative](content: String): ParameterStore[F] =
     new ParameterStore[F] {
 
-      override def fetch(path: ParameterStorePath)(implicit F: Sync[F]): F[ParameterStoreContent] =
-        F.pure(ParameterStoreContent(content))
+      override def fetch(path: ParameterStorePath): F[ParameterStoreContent] =
+        ParameterStoreContent(content).pure
+
+      override def base64(path: ParameterStorePath): F[Array[Byte]] =
+        fetch(path).map(c => Base64.getDecoder.decode(c.value.getBytes))
 
     }
 
-  def apply[F[_]](regions: Regions): ParameterStore[F] =
+  def apply[F[_]](regions: Regions)(implicit F: Sync[F]): ParameterStore[F] =
     new ParameterStore[F] {
 
       private lazy val ssmClient: AWSSimpleSystemsManagement =
         AWSSimpleSystemsManagementClientBuilder.standard.withRegion(regions).build
 
-      override def fetch(path: ParameterStorePath)(implicit F: Sync[F]): F[ParameterStoreContent] = {
+      override def fetch(path: ParameterStorePath): F[ParameterStoreContent] = {
         val req =
           new GetParametersRequest().withNames(path.value).withWithDecryption(path.isSecure)
         F.blocking(ParameterStoreContent(ssmClient.getParameters(req).getParameters.get(0).getValue))
       }
+
+      override def base64(path: ParameterStorePath): F[Array[Byte]] =
+        fetch(path).map(c => Base64.getDecoder.decode(c.value.getBytes))
     }
 }

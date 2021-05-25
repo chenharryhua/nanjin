@@ -7,8 +7,17 @@ import java.time.Instant
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
+sealed trait TaskInfo {
+  def name: String
+  def retryPolicy: String
+  def launchTime: Instant
+}
+
 final case class ServiceInfo(name: String, retryPolicy: String, launchTime: Instant, healthCheck: FiniteDuration)
+    extends TaskInfo
+
 final case class ActionInfo(name: String, retryPolicy: String, launchTime: Instant, alertMask: AlertMask, id: UUID)
+    extends TaskInfo
 
 sealed trait Status {
   def applicationName: String
@@ -52,14 +61,14 @@ final case class ActionFailed(
   applicationName: String,
   actionInfo: ActionInfo,
   givingUp: GivingUp,
-  notes: String, // description of the action
+  notes: String, // failure notes
   error: Throwable
 ) extends ActionStatus
 
 final case class ActionSucced(
   applicationName: String,
   actionInfo: ActionInfo,
-  notes: String, // description of the action
+  notes: String, // success notes
   numRetries: Int // how many retries before success
 ) extends ActionStatus
 
