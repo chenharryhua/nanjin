@@ -25,15 +25,17 @@ final private case class ExponentialBackoff(value: FiniteDuration) extends NJRet
 final private case class FibonacciBackoff(value: FiniteDuration) extends NJRetryPolicy
 final private case class FullJitter(value: FiniteDuration) extends NJRetryPolicy
 
+@Lenses final case class HealthCheck(interval: FiniteDuration, isEnabled: Boolean)
+
 @Lenses final case class ServiceParams private (
-  healthCheckInterval: FiniteDuration,
+  healthCheck: HealthCheck,
   retryPolicy: NJRetryPolicy
 )
 
 private object ServiceParams {
 
   def apply(): ServiceParams =
-    ServiceParams(healthCheckInterval = 6.hours, retryPolicy = ConstantDelay(30.seconds))
+    ServiceParams(healthCheck = HealthCheck(6.hours, isEnabled = true), retryPolicy = ConstantDelay(30.seconds))
 }
 
 sealed trait ServiceConfigF[F]
@@ -42,12 +44,14 @@ private object ServiceConfigF {
 
   final case class InitParams[K]() extends ServiceConfigF[K]
   final case class WithHealthCheckInterval[K](value: FiniteDuration, cont: K) extends ServiceConfigF[K]
+  final case class WithHealthCheckFlag[K](value: Boolean, cont: K) extends ServiceConfigF[K]
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends ServiceConfigF[K]
 
   val algebra: Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams()                  => ServiceParams()
-      case WithHealthCheckInterval(v, c) => ServiceParams.healthCheckInterval.set(v)(c)
+      case WithHealthCheckInterval(v, c) => ServiceParams.healthCheck.composeLens(HealthCheck.interval).set(v)(c)
+      case WithHealthCheckFlag(v, c)     => ServiceParams.healthCheck.composeLens(HealthCheck.isEnabled).set(v)(c)
       case WithRetryPolicy(v, c)         => ServiceParams.retryPolicy.set(v)(c)
     }
 }
@@ -56,6 +60,7 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   import ServiceConfigF._
 
   def withHealthCheckInterval(d: FiniteDuration): ServiceConfig = ServiceConfig(Fix(WithHealthCheckInterval(d, value)))
+  def withHealthCheckDisabled: ServiceConfig                    = ServiceConfig(Fix(WithHealthCheckFlag(value = false, value)))
 
   def withConstantDelay(v: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(ConstantDelay(v), value)))

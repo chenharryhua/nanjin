@@ -99,11 +99,11 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F])(i
                 SlackField("Service Name", info.name, short = true),
                 SlackField("HealthCheck Status", "Good", short = true),
                 SlackField("Up Time", utils.mkDurationString(info.launchTime, ts), short = true),
-                SlackField("Next check will happen in", utils.mkDurationString(info.healthCheck), short = true)
+                SlackField("Next check will happen in", utils.mkDurationString(info.healthCheck.interval), short = true)
               )
             ))
         ).asJson.noSpaces)
-      msg.flatMap(service.publish).void
+      msg.flatMap(service.publish).whenA(info.healthCheck.isEnabled)
 
     case ActionRetrying(_, _, _, _) => F.unit
 
