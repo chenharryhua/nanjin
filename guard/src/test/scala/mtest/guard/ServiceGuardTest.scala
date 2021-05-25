@@ -12,7 +12,7 @@ import scala.util.Random
 
 final class AbnormalAlertService(var abnormal: Int, var healthCheck: Int) extends AlertService[IO] {
 
-  override def alert(status: Status)(implicit F: Sync[IO]): IO[Unit] = status match {
+  override def alert(status: Status): IO[Unit] = status match {
     case a: ServiceAbnormalStop => IO.println(a) >> IO(abnormal += 1)
     case h: ServiceHealthCheck  => IO.println(h) >> IO(healthCheck += 1)
     case _                      => IO.unit
@@ -21,7 +21,7 @@ final class AbnormalAlertService(var abnormal: Int, var healthCheck: Int) extend
 
 final class PanicAlertService(var count: Int) extends AlertService[IO] {
 
-  override def alert(status: Status)(implicit F: Sync[IO]): IO[Unit] = status match {
+  override def alert(status: Status): IO[Unit] = status match {
     case p: ServicePanic => IO.println(p) >> IO(count += 1)
     case _               => IO.unit
   }
