@@ -19,27 +19,29 @@ import java.net.URLDecoder
 import scala.concurrent.duration.DurationInt
 
 sealed trait SimpleQueueService[F[_]] {
-  def fetchRecords(sqs: SqsUrl)(implicit F: Async[F]): Stream[F, SqsAckResult]
+  def fetchRecords(sqs: SqsUrl): Stream[F, SqsAckResult]
 
-  final def fetchS3(sqs: SqsUrl)(implicit F: Async[F]): Stream[F, S3Path] =
+  final def fetchS3(sqs: SqsUrl): Stream[F, S3Path] =
     fetchRecords(sqs).flatMap(sar => Stream.emits(sqs_s3_parser(sar.messageAction.message.body())))
 }
 
 object SimpleQueueService {
 
-  def fake[F[_]](stream: Stream[F, SqsAckResult]): SimpleQueueService[F] = new SimpleQueueService[F] {
-    override def fetchRecords(sqs: SqsUrl)(implicit F: Async[F]): Stream[F, SqsAckResult] = stream
-  }
+  def fake[F[_]](stream: Stream[F, SqsAckResult]): SimpleQueueService[F] =
+    new SimpleQueueService[F] {
+      override def fetchRecords(sqs: SqsUrl): Stream[F, SqsAckResult] = stream
+    }
 
-  def apply[F[_]](akkaSystem: ActorSystem): SimpleQueueService[F] = new SimpleQueueService[F] {
+  def apply[F[_]](akkaSystem: ActorSystem)(implicit F: Async[F]): SimpleQueueService[F] = new SimpleQueueService[F] {
 
     implicit private val client: SqsAsyncClient =
       SqsAsyncClient.builder().httpClient(AkkaHttpClient.builder().withActorSystem(akkaSystem).build()).build()
     implicit private val mat: Materializer = Materializer(akkaSystem)
 
-    private val settings: SqsSourceSettings = SqsSourceSettings().withCloseOnEmptyReceive(true).withWaitTime(10.millis)
+    private val settings: SqsSourceSettings =
+      SqsSourceSettings().withCloseOnEmptyReceive(true).withWaitTime(10.millis)
 
-    override def fetchRecords(sqs: SqsUrl)(implicit F: Async[F]): Stream[F, SqsAckResult] =
+    override def fetchRecords(sqs: SqsUrl): Stream[F, SqsAckResult] =
       Stream.suspend(
         SqsSource(sqs.value, settings)
           .map(MessageAction.Delete(_))
