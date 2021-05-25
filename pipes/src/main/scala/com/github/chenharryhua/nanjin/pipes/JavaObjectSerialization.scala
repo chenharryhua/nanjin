@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.pipes
 
 import cats.effect.{Async, Resource, Sync}
+import cats.syntax.all._
 import fs2.io.toInputStream
 import fs2.{Pipe, Pull, Stream}
 
@@ -33,7 +34,8 @@ final class JavaObjectSerialization[F[_], A] extends Serializable {
 
   private def readInputStream(is: InputStream)(implicit F: Sync[F]): Stream[F, A] =
     for {
-      ois <- Stream.resource(Resource.fromAutoCloseable(F.blocking(new ObjectInputStream(is))))
+      ois <- Stream.resource(
+        Resource.make(F.blocking(new ObjectInputStream(is)))(r => F.blocking(r.close()).attempt.void))
       a <- Pull.loop(pullAll)(ois).void.stream
     } yield a
 
