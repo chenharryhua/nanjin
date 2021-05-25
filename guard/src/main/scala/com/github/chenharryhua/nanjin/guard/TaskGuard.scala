@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard
 
+import cats.ApplicativeError
 import cats.data.NonEmptyList
 import cats.effect.Sync
 import cats.syntax.all._
@@ -16,7 +17,7 @@ final class TaskGuard[F[_]] private (
   def addAlertService(value: AlertService[F]): TaskGuard[F] =
     new TaskGuard[F](applicationName, value :: alertServices, serviceConfig, actionConfig)
 
-  def fyi(msg: String)(implicit F: Sync[F]): F[Unit] =
+  def fyi(msg: String)(implicit F: ApplicativeError[F, Throwable]): F[Unit] =
     alertServices.traverse(_.alert(ForYouInformation(applicationName, msg)).attempt).void
 
   def service(serviceName: String): ServiceGuard[F] =

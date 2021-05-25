@@ -403,4 +403,4 @@ lazy val example = (project in file("example"))
 lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
-    .aggregate(common, datetime, aws, guard, messages, pipes, kafka, database, spark, example)
+    .aggregate(common, datetime, aws, guard, messages, pipes, kafka, database, spark)

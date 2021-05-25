@@ -52,7 +52,7 @@ final class ServiceGuard[F[_]](
         .void
 
     retry.retryingOnAllErrors(params.retryPolicy.policy[F], onError) {
-      (startUp >> healthCheck).start.bracket(_ => action)(_.cancel) >> abnormalStop
+      (startUp >> healthCheck).background.use(_ => action) >> abnormalStop
     }
   }
 

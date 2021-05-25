@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.{Resource, Sync}
+import cats.syntax.all._
 import com.github.chenharryhua.nanjin.pipes
 import fs2.io.{readInputStream, writeOutputStream}
 import fs2.{Pipe, Pull, Stream}
@@ -46,13 +47,15 @@ object NJHadoop {
       private def fsOutput(pathStr: String): Resource[F, FSDataOutputStream] =
         for {
           fs <- fileSystem(pathStr)
-          rs <- Resource.fromAutoCloseable[F, FSDataOutputStream](F.blocking(fs.create(new Path(pathStr))))
+          rs <- Resource.make[F, FSDataOutputStream](F.blocking(fs.create(new Path(pathStr))))(r =>
+            F.blocking(r.close()).attempt.void)
         } yield rs
 
       private def fsInput(pathStr: String): Resource[F, FSDataInputStream] =
         for {
           fs <- fileSystem(pathStr)
-          rs <- Resource.fromAutoCloseable[F, FSDataInputStream](F.blocking(fs.open(new Path(pathStr))))
+          rs <- Resource.make[F, FSDataInputStream](F.blocking(fs.open(new Path(pathStr))))(r =>
+            F.blocking(r.close()).attempt.void)
         } yield rs
 
       override def delete(pathStr: String): F[Boolean] =
@@ -89,7 +92,7 @@ object NJHadoop {
           val outputFile = HadoopOutputFile.fromPath(new Path(pathStr), config)
           for {
             writer <- Stream.resource(
-              Resource.fromAutoCloseable(
+              Resource.make(
                 F.blocking(
                   AvroParquetWriter
                     .builder[GenericRecord](outputFile)
@@ -98,7 +101,7 @@ object NJHadoop {
                     .withCompressionCodec(ccn)
                     .withSchema(schema)
                     .withDataModel(GenericData.get())
-                    .build())))
+                    .build()))(r => F.blocking(r.close()).attempt.void))
             _ <- go(ss, writer).stream
           } yield ()
       }
@@ -108,13 +111,13 @@ object NJHadoop {
         AvroReadSupport.setAvroReadSchema(config, schema)
         for {
           reader <- Stream.resource(
-            Resource.fromAutoCloseable(
+            Resource.make(
               F.blocking(
                 AvroParquetReader
                   .builder[GenericRecord](inputFile)
                   .withDataModel(GenericData.get())
                   .withConf(config)
-                  .build())))
+                  .build()))(r => F.blocking(r.close()).attempt.void))
           gr <- Stream.repeatEval(F.blocking(Option(reader.read()))).unNoneTerminate
         } yield gr
       }
@@ -129,8 +132,9 @@ object NJHadoop {
         (ss: Stream[F, GenericRecord]) =>
           for {
             dfw <- Stream.resource(
-              Resource.fromAutoCloseable[F, DataFileWriter[GenericRecord]](
-                F.blocking(new DataFileWriter(new GenericDatumWriter(schema)).setCodec(cf))))
+              Resource.make[F, DataFileWriter[GenericRecord]](
+                F.blocking(new DataFileWriter(new GenericDatumWriter(schema)).setCodec(cf)))(r =>
+                F.blocking(r.close()).attempt.void))
             writer <- Stream.resource(fsOutput(pathStr)).map(os => dfw.create(schema, os))
             _ <- go(ss, writer).stream
           } yield ()
@@ -139,8 +143,9 @@ object NJHadoop {
       override def avroSource(pathStr: String, schema: Schema): Stream[F, GenericRecord] = for {
         is <- Stream.resource(fsInput(pathStr))
         dfs <- Stream.resource(
-          Resource.fromAutoCloseable[F, DataFileStream[GenericRecord]](
-            F.blocking(new DataFileStream(is, new GenericDatumReader(schema)))))
+          Resource.make[F, DataFileStream[GenericRecord]](
+            F.blocking(new DataFileStream(is, new GenericDatumReader(schema))))(r =>
+            F.blocking(r.close()).attempt.void))
         gr <- Stream.fromIterator(dfs.iterator().asScala, pipes.chunkSize)
       } yield gr
     }

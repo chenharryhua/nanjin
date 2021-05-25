@@ -9,7 +9,7 @@ import retry.{RetryPolicies, RetryPolicy}
 
 import scala.concurrent.duration._
 
-sealed trait NJRetryPolicy {
+sealed abstract class NJRetryPolicy {
 
   final def policy[F[_]](implicit F: Applicative[F]): RetryPolicy[F] = this match {
     case ConstantDelay(value)      => RetryPolicies.constantDelay(value)

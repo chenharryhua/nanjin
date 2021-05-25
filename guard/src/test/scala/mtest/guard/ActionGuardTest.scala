@@ -9,11 +9,11 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration._
 
 final class ExceptionService extends AlertService[IO] {
-  override def alert(status: Status)(implicit F: Sync[IO]): IO[Unit] = IO(throw new Exception("oops"))
+  override def alert(status: Status): IO[Unit] = IO(throw new Exception("oops"))
 }
 
 final class CountService(var count: Int) extends AlertService[IO] {
-  override def alert(status: Status)(implicit F: Sync[IO]): IO[Unit] = IO(count += 1)
+  override def alert(status: Status): IO[Unit] = IO(count += 1)
 }
 
 class ActionGuardTest extends AnyFunSuite {
