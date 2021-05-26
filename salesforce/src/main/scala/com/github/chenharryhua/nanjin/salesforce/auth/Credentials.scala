@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.salesforce.auth
 
 import org.http4s.Uri
-
-final case class MarketingCloudCred(client_id: String, client_secret: String, authUri: Uri)
+//https://developer.salesforce.com/docs/atlas.en-us.mc-app-development.meta/mc-app-development/authorization-code.htm
+final case class MarketingCloudLogin(client_id: String, client_secret: String, authUri: Uri)
 
 final case class MarketingCloudToken(
   access_token: String,
@@ -12,14 +12,10 @@ final case class MarketingCloudToken(
   soap_instance_url: String,
   rest_instance_url: String)
 
-final case class SalesforceCred(
-  client_id: String,
-  client_secret: String,
-  username: String,
-  password: String,
-  authUri: Uri)
+//https://developer.salesforce.com/docs/atlas.en-us.api_iot.meta/api_iot/qs_auth_access_token.htm
+final case class IotLogin(client_id: String, client_secret: String, username: String, password: String, authUri: Uri)
 
-final case class SalesforceToken(
+final case class IotToken(
   access_token: String,
   instance_url: String,
   id: String,
