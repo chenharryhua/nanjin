@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.data.NonEmptyList
+import cats.data.{Kleisli, NonEmptyList, Reader}
 import cats.effect.{Async, Ref}
 import cats.syntax.all._
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
@@ -14,17 +14,33 @@ final class RetryAction[F[_], A, B](
   alertServices: NonEmptyList[AlertService[F]],
   config: ActionConfig,
   input: A,
-  exec: A => F[B],
-  succ: (A, B) => String,
-  fail: (A, Throwable) => String
+  kleisli: Kleisli[F, A, B],
+  succ: Reader[(A, B), String],
+  fail: Reader[(A, Throwable), String]
 ) {
   val params: ActionParams = config.evalConfig
 
   def withSuccInfo(succ: (A, B) => String): RetryAction[F, A, B] =
-    new RetryAction[F, A, B](applicationName, actionName, alertServices, config.succOn, input, exec, succ, fail)
+    new RetryAction[F, A, B](
+      applicationName,
+      actionName,
+      alertServices,
+      config.succOn,
+      input,
+      kleisli,
+      Reader(succ.tupled),
+      fail)
 
   def withFailInfo(fail: (A, Throwable) => String): RetryAction[F, A, B] =
-    new RetryAction[F, A, B](applicationName, actionName, alertServices, config.failOn, input, exec, succ, fail)
+    new RetryAction[F, A, B](
+      applicationName,
+      actionName,
+      alertServices,
+      config.failOn,
+      input,
+      kleisli,
+      succ,
+      Reader(fail.tupled))
 
   def run(implicit F: Async[F]): F[B] = Ref.of[F, Int](0).flatMap(ref => internalRun(ref))
 
@@ -50,7 +66,7 @@ final class RetryAction[F[_], A, B](
                   applicationName = applicationName,
                   actionInfo = actionInfo,
                   givingUp = gu,
-                  notes = fail(input, error),
+                  notes = fail.run((input, error)),
                   error = error
                 )).attempt)
             .void
@@ -59,7 +75,7 @@ final class RetryAction[F[_], A, B](
     retry
       .retryingOnAllErrors[B](
         params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
-        onError)(exec(input))
+        onError)(kleisli.run(input))
       .flatTap(b =>
         ref.get.flatMap(count =>
           alertServices
@@ -68,7 +84,7 @@ final class RetryAction[F[_], A, B](
                 ActionSucced(
                   applicationName = applicationName,
                   actionInfo = actionInfo,
-                  notes = succ(input, b),
+                  notes = succ.run((input, b)),
                   numRetries = count
                 )).attempt)
             .void))
@@ -85,7 +101,15 @@ final class ActionGuard[F[_]](
     new ActionGuard[F](applicationName, actionName, alertServices, f(config))
 
   def retry[A, B](a: A)(f: A => F[B]): RetryAction[F, A, B] =
-    new RetryAction[F, A, B](applicationName, actionName, alertServices, config, a, f, (_, _) => "", (_, _) => "")
+    new RetryAction[F, A, B](
+      applicationName,
+      actionName,
+      alertServices,
+      config,
+      a,
+      Kleisli(f),
+      Reader(_ => ""),
+      Reader(_ => ""))
 
   def retry[B](f: F[B]): RetryAction[F, Unit, B] = retry[Unit, B](())(_ => f)
 }
