@@ -5,9 +5,8 @@ import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
 import java.time.Instant
 import java.util.UUID
-import scala.concurrent.duration.FiniteDuration
 
-final case class ServiceInfo(name: String, retryPolicy: String, launchTime: Instant, healthCheck: FiniteDuration)
+final case class ServiceInfo(name: String, retryPolicy: String, launchTime: Instant, healthCheck: HealthCheck)
 final case class ActionInfo(name: String, retryPolicy: String, launchTime: Instant, alertMask: AlertMask, id: UUID)
 
 sealed trait Status {

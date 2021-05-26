@@ -39,12 +39,7 @@ class ServiceGuardTest extends AnyFunSuite {
     val service = guard
       .addAlertService(count)
       .service("abnormal test")
-      .updateConfig(
-        _.withFibonacciBackoff(1.second)
-          .withExponentialBackoff(1.second)
-          .withConstantDelay(1.second)
-          .withFullJitter(1.second)
-          .withHealthCheckInterval(1.second))
+      .updateConfig(_.withConstantDelay(1.second).withHealthCheckInterval(1.second).withHealthCheckDisabled)
     service.run(Stream(1).covary[IO]).compile.drain.unsafeRunTimed(5.seconds)
     assert(count.abnormal == 1)
     assert(count.healthCheck == 0)

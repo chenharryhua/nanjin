@@ -47,4 +47,6 @@ object ParameterStore {
       override def base64(path: ParameterStorePath): F[Array[Byte]] =
         fetch(path).map(c => Base64.getDecoder.decode(c.value.getBytes))
     }
+
+  def apply[F[_]: Sync]: ParameterStore[F] = apply[F](defaultRegion)
 }

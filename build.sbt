@@ -52,6 +52,7 @@ val avro4s  = "4.0.9"
 // connect
 val hadoop  = "3.3.0"
 val akkaFtp = "3.0.0"
+val http4s  = "1.0.0-M22"
 
 // misc
 val silencer    = "1.7.4"
@@ -304,6 +305,13 @@ val ftpLib = Seq(
   "com.lightbend.akka" %% "akka-stream-alpakka-ftp" % akkaFtp
 )
 
+val http4sLib = Seq(
+  "org.http4s" %% "http4s-blaze-server",
+  "org.http4s" %% "http4s-blaze-client",
+  "org.http4s" %% "http4s-circe",
+  "org.http4s" %% "http4s-dsl"
+).map(_ % http4s)
+
 val dbLib = doobieLib ++ quillLib ++ neotypesLib
 
 lazy val common = (project in file("common"))
@@ -311,6 +319,15 @@ lazy val common = (project in file("common"))
   .settings(name := "nj-common")
   .settings(libraryDependencies ++= Seq("org.apache.commons" % "commons-lang3" % "3.12.0") ++
     baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ logLib ++ testLib)
+
+lazy val salesforce = (project in file("salesforce"))
+  .dependsOn(common)
+  .settings(commonSettings: _*)
+  .settings(name := "nj-salesforce")
+  .settings(
+    libraryDependencies ++=
+      Seq("org.cometd.java" % "cometd-java-client" % "7.0.2") ++
+        http4sLib ++ fs2Lib ++ effectLib ++ logLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib)
 
 lazy val aws = (project in file("aws"))
   .dependsOn(common)
@@ -334,9 +351,8 @@ lazy val guard = (project in file("guard"))
   .dependsOn(aws)
   .settings(commonSettings: _*)
   .settings(name := "nj-guard")
-  .settings(libraryDependencies ++=
-    Seq("com.github.cb372" %% "cats-retry" % "3.0.0") ++
-      logLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ awsLib.map(_ % Provided))
+  .settings(libraryDependencies ++= Seq("com.github.cb372" %% "cats-retry" % "3.0.0") ++
+    logLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ awsLib.map(_ % Provided))
 
 lazy val messages = (project in file("messages"))
   .settings(commonSettings: _*)
