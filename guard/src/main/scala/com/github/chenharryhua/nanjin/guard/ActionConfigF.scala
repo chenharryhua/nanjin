@@ -1,11 +1,29 @@
 package com.github.chenharryhua.nanjin.guard
 
+import cats.Applicative
 import cats.derived.auto.functor._
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
+import retry.{RetryPolicies, RetryPolicy}
 
 import scala.concurrent.duration._
+
+sealed abstract class NJRetryPolicy {
+
+  final def policy[F[_]](implicit F: Applicative[F]): RetryPolicy[F] = this match {
+    case ConstantDelay(value)      => RetryPolicies.constantDelay(value)
+    case ExponentialBackoff(value) => RetryPolicies.exponentialBackoff(value)
+    case FibonacciBackoff(value)   => RetryPolicies.fibonacciBackoff(value)
+    case FullJitter(value)         => RetryPolicies.fullJitter(value)
+  }
+  def value: FiniteDuration
+}
+
+final private case class ConstantDelay(value: FiniteDuration) extends NJRetryPolicy
+final private case class ExponentialBackoff(value: FiniteDuration) extends NJRetryPolicy
+final private case class FibonacciBackoff(value: FiniteDuration) extends NJRetryPolicy
+final private case class FullJitter(value: FiniteDuration) extends NJRetryPolicy
 
 @Lenses final case class AlertMask private (alertSucc: Boolean, alertFail: Boolean)
 

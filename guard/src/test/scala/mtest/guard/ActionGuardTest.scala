@@ -80,9 +80,21 @@ class ActionGuardTest extends AnyFunSuite {
     assert(other.numRetries == 0)
     assert(other.failed == 1)
   }
-  test("eval fib") {
-    val action = guard.action("fib").updateConfig(_.withMaxRetries(3).withFibonacciBackoff(1.second).failOn)
-    val res    = action.retry(IO(1)).withSuccInfo((_, _) => "succ").withFailInfo((_, _) => "fail").run.unsafeRunSync()
-    assert(res == 1)
+
+  test("always give up") {
+    val other = new CountService(0, 0, 0)
+    val action = guard
+      .addAlertService(other)
+      .action("give up")
+      .updateConfig(_.withMaxRetries(0).withFibonacciBackoff(1.second).failOn)
+
+    var i = 0
+    val op: IO[Int] = IO(
+      if (i < 1) { i += 1; throw new Exception }
+      else 1)
+    assertThrows[Exception](action.retry(op).run.unsafeRunSync())
+    assert(other.countRetries == 0)
+    assert(other.numRetries == 0)
+    assert(other.failed == 1)
   }
 }
