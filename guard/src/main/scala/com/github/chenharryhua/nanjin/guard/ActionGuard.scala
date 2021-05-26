@@ -42,9 +42,9 @@ final class RetryAction[F[_], A, B](
       succ,
       Reader(fail.tupled))
 
-  def run(implicit F: Async[F]): F[B] = Ref.of[F, Int](0).flatMap(ref => internalRun(input, ref))
+  def run(implicit F: Async[F]): F[B] = Ref.of[F, Int](0).flatMap(ref => internalRun(ref))
 
-  private def internalRun(input: A, ref: Ref[F, Int])(implicit F: Async[F]): F[B] = F.realTimeInstant.flatMap { ts =>
+  private def internalRun(ref: Ref[F, Int])(implicit F: Async[F]): F[B] = F.realTimeInstant.flatMap { ts =>
     val actionInfo: ActionInfo =
       ActionInfo(actionName, params.retryPolicy.policy[F].show, ts, params.alertMask, UUID.randomUUID())
     def onError(error: Throwable, details: RetryDetails): F[Unit] =
