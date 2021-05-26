@@ -29,4 +29,6 @@ object SimpleNotificationService {
       def publish(msg: String): F[PublishResult] =
         F.blocking(snsClient.publish(new PublishRequest(topic.value, msg)))
     }
+
+  def apply[F[_]: Sync](topic: SnsArn): SimpleNotificationService[F] = apply[F](topic, defaultRegion)
 }
