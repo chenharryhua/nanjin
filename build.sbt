@@ -256,12 +256,13 @@ val refinedLib = Seq(
 ).map(_ % refined)
 
 val baseLib = Seq(
-  "io.scalaland" %% "chimney"        % chimney,
-  "io.scalaland" %% "enumz"          % "1.0.0",
-  "com.twitter" %% "algebird-core"   % "0.13.8",
-  "io.chrisdavenport" %% "cats-time" % catsTime,
-  "com.propensive" %% "contextual"   % contextual,
-  "com.chuusai" %% "shapeless"       % shapeless
+  "org.typelevel" %% "case-insensitive" % "1.1.4",
+  "io.scalaland" %% "chimney"           % chimney,
+  "io.scalaland" %% "enumz"             % "1.0.0",
+  "com.twitter" %% "algebird-core"      % "0.13.8",
+  "io.chrisdavenport" %% "cats-time"    % catsTime,
+  "com.propensive" %% "contextual"      % contextual,
+  "com.chuusai" %% "shapeless"          % shapeless
 ) ++ enumLib ++ drosteLib ++ catsLib ++ refinedLib
 
 val akkaLib = Seq(
