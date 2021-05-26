@@ -13,7 +13,6 @@ final class RetryAction[F[_], A, B](
   actionName: String,
   alertServices: NonEmptyList[AlertService[F]],
   config: ActionConfig,
-  input: A,
   kleisli: Kleisli[F, A, B],
   succ: Reader[(A, B), String],
   fail: Reader[(A, Throwable), String]
@@ -26,7 +25,6 @@ final class RetryAction[F[_], A, B](
       actionName,
       alertServices,
       config.succOn,
-      input,
       kleisli,
       Reader(succ.tupled),
       fail)
@@ -37,14 +35,14 @@ final class RetryAction[F[_], A, B](
       actionName,
       alertServices,
       config.failOn,
-      input,
       kleisli,
       succ,
       Reader(fail.tupled))
 
-  def run(implicit F: Async[F]): F[B] = Ref.of[F, Int](0).flatMap(ref => internalRun(ref))
+  def run(input: A)(implicit F: Async[F]): F[B]       = Ref.of[F, Int](0).flatMap(ref => internalRun(input, ref))
+  def run(implicit F: Async[F], ev: Unit =:= A): F[B] = Ref.of[F, Int](0).flatMap(ref => internalRun((), ref))
 
-  private def internalRun(ref: Ref[F, Int])(implicit F: Async[F]): F[B] = F.realTimeInstant.flatMap { ts =>
+  private def internalRun(input: A, ref: Ref[F, Int])(implicit F: Async[F]): F[B] = F.realTimeInstant.flatMap { ts =>
     val actionInfo: ActionInfo =
       ActionInfo(actionName, params.retryPolicy.policy[F].show, ts, params.alertMask, UUID.randomUUID())
     def onError(error: Throwable, details: RetryDetails): F[Unit] =
@@ -100,16 +98,15 @@ final class ActionGuard[F[_]](
   def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
     new ActionGuard[F](applicationName, actionName, alertServices, f(config))
 
-  def retry[A, B](a: A)(f: A => F[B]): RetryAction[F, A, B] =
+  def retry[A, B](f: A => F[B]): RetryAction[F, A, B] =
     new RetryAction[F, A, B](
       applicationName,
       actionName,
       alertServices,
       config,
-      a,
       Kleisli(f),
       Reader(_ => ""),
       Reader(_ => ""))
 
-  def retry[B](f: F[B]): RetryAction[F, Unit, B] = retry[Unit, B](())(_ => f)
+  def retry[B](f: F[B]): RetryAction[F, Unit, B] = retry[Unit, B](_ => f)
 }
