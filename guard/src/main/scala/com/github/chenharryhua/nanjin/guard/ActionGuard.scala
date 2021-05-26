@@ -100,13 +100,14 @@ final class ActionGuard[F[_]](
   def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
     new ActionGuard[F](applicationName, actionName, alertServices, f(config))
 
-  def retry[A, B](a: A)(f: A => F[B]): RetryAction[F, A, B] =
+  // better type inference
+  def retry[A, B](input: A)(f: A => F[B]): RetryAction[F, A, B] =
     new RetryAction[F, A, B](
       applicationName,
       actionName,
       alertServices,
       config,
-      a,
+      input,
       Kleisli(f),
       Reader(_ => ""),
       Reader(_ => ""))
