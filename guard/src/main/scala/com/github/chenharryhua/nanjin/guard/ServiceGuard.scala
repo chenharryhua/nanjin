@@ -17,7 +17,7 @@ final class ServiceGuard[F[_]](
   def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
     new ServiceGuard[F](applicationName, serviceName, alertServices, f(config))
 
-  def run[A](action: F[A])(implicit F: Async[F]): F[Unit] = F.realTimeInstant.flatMap { ts =>
+  def run[A](serviceUp: F[A])(implicit F: Async[F]): F[Unit] = F.realTimeInstant.flatMap { ts =>
     val serviceInfo: ServiceInfo =
       ServiceInfo(serviceName, params.retryPolicy.policy[F].show, ts, params.healthCheck)
 
@@ -52,11 +52,11 @@ final class ServiceGuard[F[_]](
         .void
 
     retry.retryingOnAllErrors(params.retryPolicy.policy[F], onError) {
-      (startUp >> healthCheck).background.use(_ => action) >> abnormalStop
+      (startUp >> healthCheck).background.use(_ => serviceUp) >> abnormalStop
     }
   }
 
-  def run[A](stream: Stream[F, A])(implicit F: Async[F]): Stream[F, Unit] =
-    Stream.eval(run(stream.compile.drain))
+  def run[A](streamUp: Stream[F, A])(implicit F: Async[F]): Stream[F, Unit] =
+    Stream.eval(run(streamUp.compile.drain))
 
 }

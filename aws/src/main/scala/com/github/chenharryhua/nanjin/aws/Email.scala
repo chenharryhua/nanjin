@@ -30,7 +30,7 @@ object Email {
             .withBody(new Body().withHtml(new Content().withCharset("UTF-8").withData(content.body)))
             .withSubject(new Content().withCharset("UTF-8").withData(content.subject)))
         .withSource(content.from)
-      F.delay(sesClient.sendEmail(request))
+      F.blocking(sesClient.sendEmail(request))
     }
   }
 }
