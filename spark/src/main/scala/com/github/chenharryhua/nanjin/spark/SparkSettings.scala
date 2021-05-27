@@ -44,7 +44,7 @@ import org.apache.spark.sql.SparkSession
   }
 
   def sessionResource[F[_]: Sync]: Resource[F, SparkSession] =
-    Resource.make(Sync[F].delay(session))(spk => Sync[F].delay(spk.close()))
+    Resource.make(Sync[F].blocking(session))(spk => Sync[F].blocking(spk.close()))
 
   def sessionStream[F[_]: Sync]: Stream[F, SparkSession] =
     Stream.resource(sessionResource)

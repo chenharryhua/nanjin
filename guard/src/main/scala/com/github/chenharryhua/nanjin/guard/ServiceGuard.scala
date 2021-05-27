@@ -16,14 +16,14 @@ final class ServiceGuard[F[_]](
   def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
     new ServiceGuard[F](applicationName, serviceName, f(serviceConfig), actionConfig)
 
-  def run[A](serviceUp: (String => ActionGuard[F]) => F[A])(implicit F: Async[F]): Stream[F, Event] = {
+  def eventStream[A](watch: (String => ActionGuard[F]) => F[A])(implicit F: Async[F]): Stream[F, Event] = {
     val log = new LogService[F]()
     for {
       ts <- Stream.eval(F.realTimeInstant)
       serviceInfo: ServiceInfo =
         ServiceInfo(applicationName, serviceName, params.retryPolicy.policy[F].show, ts, params.healthCheck)
-      shc = ServiceHealthCheck(serviceInfo)
       ssd = ServiceStarted(serviceInfo)
+      shc = ServiceHealthCheck(serviceInfo)
       sos = ServiceAbnormalStop(serviceInfo)
       event <- Stream
         .eval(Topic[F, Event])
@@ -34,7 +34,7 @@ final class ServiceGuard[F[_]](
               (e: Throwable, r) => topic.publish1(ServicePanic(serviceInfo, r, e)).void) {
               (topic.publish1(ssd).delayBy(params.retryPolicy.value).void <*
                 topic.publish1(shc).delayBy(params.healthCheck.interval).foreverM).background.use(_ =>
-                serviceUp(actionName => new ActionGuard[F](topic, serviceInfo, actionName, actionConfig))) >>
+                watch(actionName => new ActionGuard[F](topic, serviceInfo, actionName, actionConfig))) >>
                 topic.publish1(sos)
             })
           val consumer = topic.subscribe(10)
