@@ -11,13 +11,14 @@ import scala.concurrent.duration._
 
 @Lenses final case class ServiceParams private (
   healthCheck: HealthCheck,
-  retryPolicy: NJRetryPolicy
+  retryPolicy: NJRetryPolicy,
+  topicMaxQueued: Int // for fs2 topic
 )
 
 private object ServiceParams {
 
   def apply(): ServiceParams =
-    ServiceParams(healthCheck = HealthCheck(6.hours, isEnabled = true), retryPolicy = ConstantDelay(30.seconds))
+    ServiceParams(healthCheck = HealthCheck(6.hours, isEnabled = true), retryPolicy = ConstantDelay(30.seconds), 10)
 }
 
 sealed trait ServiceConfigF[F]
@@ -29,12 +30,15 @@ private object ServiceConfigF {
   final case class WithHealthCheckFlag[K](value: Boolean, cont: K) extends ServiceConfigF[K]
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends ServiceConfigF[K]
 
+  final case class WithTopicMaxQueued[K](value: Int, cont: K) extends ServiceConfigF[K]
+
   val algebra: Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams()                  => ServiceParams()
       case WithHealthCheckInterval(v, c) => ServiceParams.healthCheck.composeLens(HealthCheck.interval).set(v)(c)
       case WithHealthCheckFlag(v, c)     => ServiceParams.healthCheck.composeLens(HealthCheck.isEnabled).set(v)(c)
       case WithRetryPolicy(v, c)         => ServiceParams.retryPolicy.set(v)(c)
+      case WithTopicMaxQueued(v, c)      => ServiceParams.topicMaxQueued.set(v)(c)
     }
 }
 
@@ -43,6 +47,8 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
 
   def withHealthCheckInterval(d: FiniteDuration): ServiceConfig = ServiceConfig(Fix(WithHealthCheckInterval(d, value)))
   def withHealthCheckDisabled: ServiceConfig                    = ServiceConfig(Fix(WithHealthCheckFlag(value = false, value)))
+
+  def withTopicMaxQueued(num: Int): ServiceConfig = ServiceConfig(Fix(WithTopicMaxQueued(num, value)))
 
   def withConstantDelay(v: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(ConstantDelay(v), value)))

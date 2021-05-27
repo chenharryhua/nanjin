@@ -84,7 +84,7 @@ class TaskGuardTest extends AnyFunSuite {
 
   test("escalate to up level if retry failed") {
     val Vector(a, b, c, d, e, f) = guard
-      .updateConfig(_.withConstantDelay(1.hour)) // don't want to see start event
+      .updateConfig(_.withConstantDelay(1.hour).withTopicMaxQueued(20)) // don't want to see start event
       .eventStream { gd =>
         gd("fyi").fyi("hello") >>
           gd("3 time")

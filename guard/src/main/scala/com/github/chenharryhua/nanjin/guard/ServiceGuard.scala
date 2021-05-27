@@ -37,7 +37,7 @@ final class ServiceGuard[F[_]](
                 watch(actionName => new ActionGuard[F](topic, serviceInfo, actionName, actionConfig))) >>
                 topic.publish1(sos)
             })
-          val consumer = topic.subscribe(10)
+          val consumer = topic.subscribe(params.topicMaxQueued)
           consumer.concurrently(publisher)
         }
         .evalTap(log.alert)
