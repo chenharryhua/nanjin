@@ -6,60 +6,65 @@ import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 import java.time.Instant
 import java.util.UUID
 
-final case class ServiceInfo(name: String, retryPolicy: String, launchTime: Instant, healthCheck: HealthCheck)
-final case class ActionInfo(name: String, retryPolicy: String, launchTime: Instant, alertMask: AlertMask, id: UUID)
+final case class ServiceInfo(
+  applicationName: String,
+  serviceName: String,
+  retryPolicy: String,
+  launchTime: Instant,
+  healthCheck: HealthCheck)
 
-sealed trait Status {
-  def applicationName: String
-}
+final case class ActionInfo(
+  applicationName: String,
+  serviceName: String,
+  actionName: String,
+  retryPolicy: String,
+  launchTime: Instant,
+  alertMask: AlertMask,
+  id: UUID)
 
-sealed trait ServiceStatus extends Status {
+sealed trait Event
+
+sealed trait ServiceEvent extends Event {
   def serviceInfo: ServiceInfo
 }
 
-final case class ServiceStarted(applicationName: String, serviceInfo: ServiceInfo) extends ServiceStatus
+final case class ServiceStarted(serviceInfo: ServiceInfo) extends ServiceEvent
 
 final case class ServicePanic(
-  applicationName: String,
   serviceInfo: ServiceInfo,
   retryDetails: RetryDetails,
   error: Throwable
-) extends ServiceStatus
+) extends ServiceEvent
 
 final case class ServiceAbnormalStop(
-  applicationName: String,
   serviceInfo: ServiceInfo
-) extends ServiceStatus
+) extends ServiceEvent
 
 final case class ServiceHealthCheck(
-  applicationName: String,
   serviceInfo: ServiceInfo
-) extends ServiceStatus
+) extends ServiceEvent
 
-sealed trait ActionStatus extends Status {
+sealed trait ActionEvent extends Event {
   def actionInfo: ActionInfo
 }
 
 final case class ActionRetrying(
-  applicationName: String,
   actionInfo: ActionInfo,
   willDelayAndRetry: WillDelayAndRetry,
   error: Throwable
-) extends ActionStatus
+) extends ActionEvent
 
 final case class ActionFailed(
-  applicationName: String,
   actionInfo: ActionInfo,
   givingUp: GivingUp,
   notes: String, // failure notes
   error: Throwable
-) extends ActionStatus
+) extends ActionEvent
 
 final case class ActionSucced(
-  applicationName: String,
   actionInfo: ActionInfo,
   notes: String, // success notes
   numRetries: Int // how many retries before success
-) extends ActionStatus
+) extends ActionEvent
 
-final case class ForYouInformation(applicationName: String, message: String) extends Status
+final case class ForYouInformation(applicationName: String, message: String) extends Event

@@ -260,7 +260,6 @@ val baseLib = Seq(
   "io.scalaland" %% "chimney"           % chimney,
   "io.scalaland" %% "enumz"             % "1.0.0",
   "com.twitter" %% "algebird-core"      % "0.13.8",
-  "io.chrisdavenport" %% "cats-time"    % catsTime,
   "com.propensive" %% "contextual"      % contextual,
   "com.chuusai" %% "shapeless"          % shapeless
 ) ++ enumLib ++ drosteLib ++ catsLib ++ refinedLib
@@ -345,8 +344,11 @@ lazy val datetime = (project in file("datetime"))
   .dependsOn(common)
   .settings(commonSettings: _*)
   .settings(name := "nj-datetime")
-  .settings(libraryDependencies ++= Seq("com.lihaoyi" %% "fastparse" % "2.3.2") ++
-    baseLib ++ monocleLib ++ testLib)
+  .settings(
+    libraryDependencies ++= Seq(
+      "com.lihaoyi" %% "fastparse"       % "2.3.2",
+      "io.chrisdavenport" %% "cats-time" % catsTime) ++
+      baseLib ++ monocleLib ++ testLib)
 
 lazy val guard = (project in file("guard"))
   .dependsOn(aws)

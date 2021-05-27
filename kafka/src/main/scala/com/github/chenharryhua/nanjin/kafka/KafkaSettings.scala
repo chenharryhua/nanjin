@@ -14,6 +14,9 @@ import org.apache.kafka.streams.StreamsConfig
 
 import java.util.Properties
 
+/** [[https://kafka.apache.org/]]
+  */
+
 final case class KafkaGroupId(value: String) extends AnyVal
 final case class KafkaAppId(value: String) extends AnyVal
 

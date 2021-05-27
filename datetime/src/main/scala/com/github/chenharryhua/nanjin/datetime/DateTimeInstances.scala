@@ -7,6 +7,8 @@ import cats.{Hash, Order, Show}
 import io.chrisdavenport.cats.time.instances.all
 import monocle.Iso
 
+/** [[https://typelevel.org/cats-time/]]
+  */
 private[datetime] trait DateTimeInstances extends all {
 
   implicit final val timestampInstance: Hash[Timestamp] with Order[Timestamp] with Show[Timestamp] =
@@ -33,8 +35,7 @@ private[datetime] trait Isos {
     Iso[LocalDate, Date](a => Date.valueOf(a))(b => b.toLocalDate)
 
   implicit def isoLocalDateTime(implicit zoneId: ZoneId): Iso[LocalDateTime, Instant] =
-    Iso[LocalDateTime, Instant](a => a.atZone(zoneId).toInstant)(b =>
-      LocalDateTime.ofInstant(b, zoneId))
+    Iso[LocalDateTime, Instant](a => a.atZone(zoneId).toInstant)(b => LocalDateTime.ofInstant(b, zoneId))
 
   implicit def isoOffsetDatatime(implicit zoneId: ZoneId): Iso[OffsetDateTime, Instant] =
     Iso[OffsetDateTime, Instant](_.toInstant)(_.atZone(zoneId).toOffsetDateTime)

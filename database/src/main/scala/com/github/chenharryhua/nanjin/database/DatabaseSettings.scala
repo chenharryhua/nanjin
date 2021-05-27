@@ -13,6 +13,8 @@ import monocle.macros.Lenses
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
+/** [[https://tpolecat.github.io/doobie/]]
+  */
 sealed abstract class DatabaseSettings(username: Username, password: Password) extends Serializable {
   def database: DatabaseName
   def hikariConfig: HikariConfig
