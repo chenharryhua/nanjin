@@ -21,23 +21,14 @@ final class ServiceGuard[F[_]](
     val serviceInfo: ServiceInfo =
       ServiceInfo(serviceName, params.retryPolicy.policy[F].show, ts, params.healthCheck)
 
+    val shc = ServiceHealthCheck(applicationName = applicationName, serviceInfo = serviceInfo)
+    val ssd = ServiceStarted(applicationName = applicationName, serviceInfo = serviceInfo)
+    val sos = ServiceAbnormalStop(applicationName = applicationName, serviceInfo = serviceInfo)
+
+    val startUp: F[Unit]      = alertServices.traverse(_.alert(ssd).attempt).delayBy(params.retryPolicy.value).void
+    val abnormalStop: F[Unit] = alertServices.traverse(_.alert(sos).attempt).void
     val healthCheck: F[Unit] =
-      alertServices
-        .traverse(_.alert(ServiceHealthCheck(applicationName = applicationName, serviceInfo = serviceInfo)).attempt)
-        .delayBy(params.healthCheck.interval)
-        .void
-        .foreverM
-
-    val startUp: F[Unit] =
-      alertServices
-        .traverse(_.alert(ServiceStarted(applicationName = applicationName, serviceInfo = serviceInfo)).attempt)
-        .delayBy(params.retryPolicy.value)
-        .void
-
-    val abnormalStop: F[Unit] =
-      alertServices
-        .traverse(_.alert(ServiceAbnormalStop(applicationName = applicationName, serviceInfo = serviceInfo)).attempt)
-        .void
+      alertServices.traverse(_.alert(shc).attempt).delayBy(params.healthCheck.interval).void.foreverM
 
     def onError(error: Throwable, retryDetails: RetryDetails): F[Unit] =
       alertServices

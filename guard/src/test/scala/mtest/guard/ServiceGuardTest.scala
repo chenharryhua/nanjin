@@ -14,7 +14,7 @@ final class AbnormalAlertService(var abnormal: Int, var healthCheck: Int) extend
   override def alert(status: Status): IO[Unit] = status match {
     case a: ServiceAbnormalStop => IO.println(a) >> IO(abnormal += 1)
     case h: ServiceHealthCheck  => IO.println(h) >> IO(healthCheck += 1)
-    case _                      => IO.unit
+    case x                      => IO.println(x)
   }
 }
 
@@ -23,7 +23,7 @@ final class PanicAlertService(var panic: Int, var started: Int) extends AlertSer
   override def alert(status: Status): IO[Unit] = status match {
     case p: ServicePanic   => IO.println(p) >> IO(panic += 1)
     case h: ServiceStarted => IO.println(h) >> IO(started += 1)
-    case _                 => IO.unit
+    case x                 => IO.println(x)
   }
 }
 
