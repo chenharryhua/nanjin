@@ -7,6 +7,9 @@ import monocle.macros.Lenses
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 
+/** [[http://spark.apache.org/]]
+  */
+
 @Lenses final case class SparkSettings(conf: SparkConf, logLevel: NJLogLevel) {
 
   def withAppName(appName: String): SparkSettings =
@@ -57,9 +60,7 @@ object SparkSettings {
       .withConfigUpdate(
         _.set("spark.network.timeout", "800")
           .set("spark.debug.maxToStringFields", "1000")
-          .set(
-            "spark.hadoop.fs.s3a.aws.credentials.provider",
-            "com.amazonaws.auth.DefaultAWSCredentialsProviderChain")
+          .set("spark.hadoop.fs.s3a.aws.credentials.provider", "com.amazonaws.auth.DefaultAWSCredentialsProviderChain")
           .set("spark.hadoop.fs.s3a.connection.maximum", "100")
           .set("spark.hadoop.fs.s3a.experimental.input.fadvise", "sequential")
           .set("spark.hadoop.fs.s3a.committer.name", "directory")

@@ -23,6 +23,8 @@ import org.apache.kafka.streams.scala.kstream.Materialized
 
 object KafkaChannels {
 
+  /** Best Fs2 Kafka Lib [[https://fd4s.github.io/fs2-kafka/]]
+    */
   final class Fs2Channel[F[_], K, V] private[kafka] (
     val topicName: TopicName,
     codec: KafkaTopicCodec[K, V],
@@ -92,6 +94,8 @@ object KafkaChannels {
 
   }
 
+  /** [[https://doc.akka.io/docs/alpakka-kafka/current/home.html]]
+    */
   final class AkkaChannel[F[_], K, V] private[kafka] (
     val topicName: TopicName,
     akkaSystem: ActorSystem,
