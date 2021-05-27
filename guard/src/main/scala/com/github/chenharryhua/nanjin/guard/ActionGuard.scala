@@ -1,9 +1,11 @@
 package com.github.chenharryhua.nanjin.guard
 
+import cats.Functor
 import cats.data.{Kleisli, Reader}
 import cats.effect.{Async, Ref}
 import cats.syntax.all._
 import fs2.concurrent.Topic
+import fs2.concurrent.Topic.Closed
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 import retry.{RetryDetails, RetryPolicies}
 
@@ -100,4 +102,8 @@ final class ActionGuard[F[_]](
       Reader(_ => ""))
 
   def retry[B](f: F[B]): RetryAction[F, Unit, B] = retry[Unit, B](())(_ => f)
+
+  def fyi(msg: String)(implicit F: Functor[F]): F[Unit] =
+    topic.publish1(ForYouInformation(serviceInfo.applicationName, msg)).void
+
 }
