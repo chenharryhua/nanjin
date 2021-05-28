@@ -32,7 +32,7 @@ val akkaKafka = "2.1.0"
 val fs2Kafka  = "2.1.0"
 
 // spark
-val spark3    = "3.1.1"
+val spark3    = "3.1.2"
 val frameless = "0.10.1"
 
 // database
@@ -117,15 +117,15 @@ val neotypesLib = Seq(
 ).map(_ % neotypes) ++ Seq("org.neo4j.driver" % "neo4j-java-driver" % "4.3.0")
 
 val circeLib = Seq(
-  "io.circe" %% "circe-core",
-  "io.circe" %% "circe-generic",
-  "io.circe" %% "circe-parser",
-  "io.circe" %% "circe-shapes",
-  "io.circe" %% "circe-jawn",
-  "io.circe" %% "circe-optics",
-  "io.circe" %% "circe-jackson210",
-  "io.circe" %% "circe-generic-extras"
-).map(_ % circe)
+  "io.circe" %% "circe-core"           % "0.14.1",
+  "io.circe" %% "circe-generic"        % "0.14.1",
+  "io.circe" %% "circe-parser"         % "0.14.1",
+  "io.circe" %% "circe-shapes"         % "0.14.1",
+  "io.circe" %% "circe-jawn"           % "0.14.1",
+  "io.circe" %% "circe-optics"         % "0.14.1",
+  "io.circe" %% "circe-jackson210"     % "0.14.0",
+  "io.circe" %% "circe-generic-extras" % "0.14.1"
+)
 
 val jacksonLib = Seq(
   "com.fasterxml.jackson.core"     % "jackson-annotations",
@@ -423,3 +423,4 @@ lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
     .aggregate(common, datetime, aws, guard, messages, pipes, kafka, database, spark)
+

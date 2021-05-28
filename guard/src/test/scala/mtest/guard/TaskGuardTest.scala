@@ -95,7 +95,7 @@ class TaskGuardTest extends AnyFunSuite {
             .run
       }
       .observe(_.evalMap(slack.alert).drain)
-      .interruptAfter(4.seconds)
+      .interruptAfter(6.seconds)
       .compile
       .toVector
       .unsafeRunSync()
