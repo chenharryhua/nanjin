@@ -11,20 +11,22 @@ final case class ServiceInfo(
   serviceName: String,
   retryPolicy: String,
   launchTime: Instant,
-  healthCheck: HealthCheck)
+  healthCheck: HealthCheck,
+  isNormalStop: Boolean)
 
 final case class ActionInfo(
   applicationName: String,
   serviceName: String,
   actionName: String,
   retryPolicy: String,
+  maxRetries: Int,
   launchTime: Instant,
   alertMask: AlertMask,
   id: UUID)
 
-sealed trait Event
+sealed trait NJEvent
 
-sealed trait ServiceEvent extends Event {
+sealed trait ServiceEvent extends NJEvent {
   def serviceInfo: ServiceInfo
 }
 
@@ -36,7 +38,7 @@ final case class ServicePanic(
   error: Throwable
 ) extends ServiceEvent
 
-final case class ServiceAbnormalStop(
+final case class ServiceStopped(
   serviceInfo: ServiceInfo
 ) extends ServiceEvent
 
@@ -44,7 +46,7 @@ final case class ServiceHealthCheck(
   serviceInfo: ServiceInfo
 ) extends ServiceEvent
 
-sealed trait ActionEvent extends Event {
+sealed trait ActionEvent extends NJEvent {
   def actionInfo: ActionInfo
 }
 
@@ -67,4 +69,4 @@ final case class ActionSucced(
   numRetries: Int // how many retries before success
 ) extends ActionEvent
 
-final case class ForYouInformation(applicationName: String, message: String) extends Event
+final case class ForYouInformation(applicationName: String, message: String) extends NJEvent

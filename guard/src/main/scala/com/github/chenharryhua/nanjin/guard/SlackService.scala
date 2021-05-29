@@ -20,7 +20,7 @@ final private case class SlackNotification(username: String, text: String, attac
 final class SlackService[F[_]] private (service: SimpleNotificationService[F])(implicit F: Sync[F])
     extends AlertService[F] {
 
-  override def alert(event: Event): F[Unit] = event match {
+  override def alert(event: NJEvent): F[Unit] = event match {
     case ServiceStarted(info) =>
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
@@ -67,23 +67,41 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F])(i
         ).asJson.noSpaces)
       msg.flatMap(service.publish).void
 
-    case ServiceAbnormalStop(info) =>
+    case ServiceStopped(info) =>
       val msg = F.realTimeInstant.map(ts =>
-        SlackNotification(
-          info.applicationName,
-          s":open_mouth: The service was unexpectedly stopped. It is a *FATAL* error",
-          List(
-            Attachment(
-              "danger",
-              ts.toEpochMilli,
-              List(
-                SlackField("Service Name", info.serviceName, short = true),
-                SlackField("Launch Time", info.launchTime.toString, short = true),
-                SlackField("Up Time", utils.mkDurationString(info.launchTime, ts), short = true),
-                SlackField("Status", "Stopped abnormally", short = true)
-              )
-            ))
-        ).asJson.noSpaces)
+        if (info.isNormalStop) {
+          SlackNotification(
+            info.applicationName,
+            s"The Service was stopped.",
+            List(
+              Attachment(
+                "good",
+                ts.toEpochMilli,
+                List(
+                  SlackField("Service Name", info.serviceName, short = true),
+                  SlackField("Launch Time", info.launchTime.toString, short = true),
+                  SlackField("Up Time", utils.mkDurationString(info.launchTime, ts), short = true),
+                  SlackField("Status", "Stopped", short = true)
+                )
+              ))
+          ).asJson.noSpaces
+        } else {
+          SlackNotification(
+            info.applicationName,
+            s":open_mouth: The service was unexpectedly stopped. It is a *FATAL* error",
+            List(
+              Attachment(
+                "danger",
+                ts.toEpochMilli,
+                List(
+                  SlackField("Service Name", info.serviceName, short = true),
+                  SlackField("Launch Time", info.launchTime.toString, short = true),
+                  SlackField("Up Time", utils.mkDurationString(info.launchTime, ts), short = true),
+                  SlackField("Status", "Stopped abnormally", short = true)
+                )
+              ))
+          ).asJson.noSpaces
+        })
       msg.flatMap(service.publish).void
 
     case ServiceHealthCheck(info) =>
