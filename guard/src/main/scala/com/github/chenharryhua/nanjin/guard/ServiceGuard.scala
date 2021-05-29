@@ -6,6 +6,18 @@ import cats.syntax.all._
 import fs2.Stream
 import fs2.concurrent.Topic
 
+import java.util.UUID
+
+/** @example
+  * {{{
+  *   val guard = TaskGuard[IO]("appName").service("service-name")
+  *   val es: Stream[IO,NJEvent] = guard.eventStream{ gd =>
+  *     gd("action-1").retry(IO(1)).run >>
+  *     gd("action-2").retry(Io(2)).run
+  *   }
+  * }}}
+  */
+
 final class ServiceGuard[F[_]](
   applicationName: String,
   serviceName: String,
@@ -16,7 +28,7 @@ final class ServiceGuard[F[_]](
   def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
     new ServiceGuard[F](applicationName, serviceName, f(serviceConfig), actionConfig)
 
-  def eventStream[A](watch: (String => ActionGuard[F]) => F[A])(implicit F: Async[F]): Stream[F, NJEvent] = {
+  def eventStream[A](actionGuard: (String => ActionGuard[F]) => F[A])(implicit F: Async[F]): Stream[F, NJEvent] = {
     val log = new LogService[F]()
     for {
       ts <- Stream.eval(F.realTimeInstant)
@@ -27,7 +39,6 @@ final class ServiceGuard[F[_]](
           params = params,
           launchTime = ts
         )
-
       ssd = ServiceStarted(serviceInfo)
       shc = ServiceHealthCheck(serviceInfo)
       sos = ServiceStopped(serviceInfo)
@@ -37,10 +48,10 @@ final class ServiceGuard[F[_]](
           val publisher = Stream.eval(
             retry.retryingOnAllErrors(
               params.retryPolicy.policy[F],
-              (e: Throwable, r) => topic.publish1(ServicePanic(serviceInfo, r, e)).void) {
+              (e: Throwable, r) => topic.publish1(ServicePanic(serviceInfo, r, UUID.randomUUID(), e)).void) {
               (topic.publish1(ssd).delayBy(params.retryPolicy.value).void <*
                 topic.publish1(shc).delayBy(params.healthCheck.interval).foreverM).background.use(_ =>
-                watch(actionName => new ActionGuard[F](topic, serviceInfo, actionName, actionConfig))) >>
+                actionGuard(actionName => new ActionGuard[F](topic, serviceInfo, actionName, actionConfig))) >>
                 topic.publish1(sos).guarantee(topic.close.void)
             })
           val consumer = topic.subscribe(params.topicMaxQueued)

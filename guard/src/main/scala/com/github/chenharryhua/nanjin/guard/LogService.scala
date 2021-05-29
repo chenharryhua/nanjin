@@ -21,8 +21,8 @@ final private class LogService[F[_]](implicit F: Sync[F]) extends AlertService[F
       case ss: ActionSucced       => F.blocking(logger.info(ss.show))
       case ss: ForYouInformation  => F.blocking(logger.info(ss.show))
 
-      case ss @ ServicePanic(_, _, error)   => F.blocking(logger.warn(error)(ss.show))
-      case ss @ ActionRetrying(_, _, error) => F.blocking(logger.warn(error)(ss.show))
+      case ss @ ServicePanic(_, _, _, error) => F.blocking(logger.warn(error)(ss.show))
+      case ss @ ActionRetrying(_, _, error)  => F.blocking(logger.warn(error)(ss.show))
 
       case ss @ ServiceStopped(info) =>
         if (info.params.isNormalStop) F.blocking(logger.info(ss.show))

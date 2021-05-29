@@ -37,7 +37,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F])(i
         ).asJson.noSpaces)
       msg.flatMap(service.publish).void
 
-    case ServicePanic(info, details, error) =>
+    case ServicePanic(info, details, errorID, error) =>
       val upcomingDelay: String = details.upcomingDelay.map(utils.mkDurationString) match {
         case None     => "The service was unexpectedly stopped. It is a *FATAL* error" // never happen
         case Some(ts) => s"next attempt will happen in *$ts* meanwhile the service is *dysfunctional*."
@@ -45,11 +45,9 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F])(i
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
           info.applicationName,
-          s""":system_restore: The service experienced a *panic*
-             |```${utils.mkExceptionString(error, 8)}```
-             |and started to *recover* itself
+          s""":system_restore: The service experienced a panic *${error.getMessage}* and started to *recover* itself
              |$upcomingDelay 
-             |full exception can be found in log file""".stripMargin,
+             |full exception can be found in log file by *Error ID*""".stripMargin,
           List(
             Attachment(
               "danger",
@@ -61,7 +59,8 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F])(i
                 SlackField("Up Time", utils.mkDurationString(info.launchTime, ts), short = true),
                 SlackField("Retry Policy", info.params.retryPolicy.policy[F].show, short = true),
                 SlackField("Retries so far", details.retriesSoFar.toString, short = true),
-                SlackField("Cumulative Delay", utils.mkDurationString(details.cumulativeDelay), short = true)
+                SlackField("Cumulative Delay", utils.mkDurationString(details.cumulativeDelay), short = true),
+                SlackField("Error ID", errorID.toString, short = false)
               )
             ))
         ).asJson.noSpaces)

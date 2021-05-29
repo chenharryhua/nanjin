@@ -27,6 +27,7 @@ final case class ServiceStarted(serviceInfo: ServiceInfo) extends ServiceEvent
 final case class ServicePanic(
   serviceInfo: ServiceInfo,
   retryDetails: RetryDetails,
+  errorID: UUID,
   error: Throwable
 ) extends ServiceEvent
 

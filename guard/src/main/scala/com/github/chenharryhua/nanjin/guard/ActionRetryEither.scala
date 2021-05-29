@@ -95,6 +95,6 @@ final class ActionRetryEither[F[_], A, B](
       }
     }
     res.rethrow.flatTap(b =>
-      ref.get.flatMap(count => topic.publish1(ActionSucced(actionInfo, count, succ((input, b)))).void))
+      ref.get.flatMap(count => topic.publish1(ActionSucced(actionInfo, count, succ.run((input, b)))).void))
   }
 }
