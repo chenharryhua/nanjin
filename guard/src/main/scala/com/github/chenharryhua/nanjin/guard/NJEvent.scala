@@ -13,8 +13,8 @@ final case class ActionInfo(
   serviceName: String,
   actionName: String,
   params: ActionParams,
-  launchTime: Instant,
-  id: UUID)
+  id: UUID,
+  launchTime: Instant)
 
 sealed trait NJEvent
 
@@ -57,8 +57,8 @@ final case class ActionFailed(
 
 final case class ActionSucced(
   actionInfo: ActionInfo,
-  notes: String, // success notes
-  numRetries: Int // how many retries before success
+  numRetries: Int, // how many retries before success
+  notes: String // success notes
 ) extends ActionEvent
 
 final case class ForYouInformation(applicationName: String, message: String) extends NJEvent

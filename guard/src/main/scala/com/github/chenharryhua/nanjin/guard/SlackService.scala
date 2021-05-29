@@ -149,7 +149,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F])(i
         ).asJson.noSpaces)
       msg.flatMap(service.publish).whenA(action.params.alertMask.alertFail)
 
-    case ActionSucced(action, notes, numRetries) =>
+    case ActionSucced(action, numRetries, notes) =>
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
           action.applicationName,
