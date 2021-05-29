@@ -38,8 +38,8 @@ final class RetryAction[F[_], A, B](
         actionName = actionName,
         retryPolicy = params.retryPolicy.policy[F].show,
         maxRetries = params.maxRetries,
-        launchTime = ts,
         alertMask = params.alertMask,
+        launchTime = ts,
         id = UUID.randomUUID()
       )
     def onError(error: Throwable, details: RetryDetails): F[Unit] =

@@ -25,9 +25,9 @@ final class ServiceGuard[F[_]](
           applicationName = applicationName,
           serviceName = serviceName,
           retryPolicy = params.retryPolicy.policy[F].show,
-          launchTime = ts,
           healthCheck = params.healthCheck,
-          isNormalStop = params.isNormalStop
+          isNormalStop = params.isNormalStop,
+          launchTime = ts
         )
 
       ssd = ServiceStarted(serviceInfo)

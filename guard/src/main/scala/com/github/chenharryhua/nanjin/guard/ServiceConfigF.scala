@@ -13,7 +13,7 @@ import scala.concurrent.duration._
   healthCheck: HealthCheck,
   retryPolicy: NJRetryPolicy,
   topicMaxQueued: Int, // for fs2 topic
-  isNormalStop: Boolean
+  isNormalStop: Boolean // treat service stop as normal stop(true) or abnormal stop(false)
 )
 
 private object ServiceParams {
@@ -57,7 +57,7 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
 
   def withTopicMaxQueued(num: Int): ServiceConfig = ServiceConfig(Fix(WithTopicMaxQueued(num, value)))
 
-  def withNoramlStop: ServiceConfig   = ServiceConfig(Fix(WithNoramlStop(value = true, value)))
+  def withNoramlStop: ServiceConfig = ServiceConfig(Fix(WithNoramlStop(value = true, value)))
 
   def withConstantDelay(v: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(ConstantDelay(v), value)))

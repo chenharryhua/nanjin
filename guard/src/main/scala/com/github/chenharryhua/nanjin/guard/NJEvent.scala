@@ -10,9 +10,9 @@ final case class ServiceInfo(
   applicationName: String,
   serviceName: String,
   retryPolicy: String,
-  launchTime: Instant,
   healthCheck: HealthCheck,
-  isNormalStop: Boolean)
+  isNormalStop: Boolean,
+  launchTime: Instant)
 
 final case class ActionInfo(
   applicationName: String,
@@ -20,8 +20,8 @@ final case class ActionInfo(
   actionName: String,
   retryPolicy: String,
   maxRetries: Int,
-  launchTime: Instant,
   alertMask: AlertMask,
+  launchTime: Instant,
   id: UUID)
 
 sealed trait NJEvent
