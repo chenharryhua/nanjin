@@ -108,7 +108,7 @@ class TaskGuardTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(2.hours))
       .eventStream(gd => gd("fyi").fyi("hello, world") >> IO.never)
       .observe(_.evalMap(slack.alert).drain)
-      .interruptAfter(2.seconds)
+      .interruptAfter(5.seconds)
       .compile
       .toVector
       .unsafeRunSync()
@@ -126,5 +126,58 @@ class TaskGuardTest extends AnyFunSuite {
     assert(a.isInstanceOf[ActionSucced])
     assert(b.isInstanceOf[ActionSucced])
     assert(c.isInstanceOf[ServiceStopped])
+  }
+
+  test("retry either should give up immediately when outer action fails") {
+    val Vector(a) = guard
+      .updateConfig(_.withConstantDelay(2.hours).withTopicMaxQueued(3))
+      .eventStream(gd => gd("retry either").retryEither(5)(_ => IO.raiseError(new Exception("oops"))).run)
+      .interruptAfter(5.seconds)
+      .compile
+      .toVector
+      .unsafeRunSync()
+    assert(a.isInstanceOf[ServicePanic])
+  }
+
+  test("retry either should retry 2 times to success") {
+    var i = 0
+    val Vector(a, b, c, d) = guard
+      .updateConfig(_.withConstantDelay(2.hours))
+      .eventStream(gd =>
+        gd("retry either")
+          .updateConfig(_.withConstantDelay(1.second).withMaxRetries(3))
+          .retryEither("does not matter")(_ =>
+            IO(if (i < 2) { i += 1; Left(new Exception) }
+            else Right(1)))
+          .run)
+      .interruptAfter(5.seconds)
+      .compile
+      .toVector
+      .unsafeRunSync()
+    assert(a.isInstanceOf[ActionRetrying])
+    assert(b.isInstanceOf[ActionRetrying])
+    assert(c.isInstanceOf[ActionSucced])
+    assert(d.isInstanceOf[ServiceStopped])
+  }
+  test("retry either should escalate if all attempts fail") {
+    var i = 0
+    val Vector(a, b, c, d, e) = guard
+      .updateConfig(_.withConstantDelay(2.hours))
+      .eventStream(gd =>
+        gd("retry either")
+          .updateConfig(_.withConstantDelay(1.second).withMaxRetries(3))
+          .retryEither(IO(if (i < 200) { i += 1; Left(new Exception) }
+          else Right(1)))
+          .run)
+      .debug()
+      .interruptAfter(5.seconds)
+      .compile
+      .toVector
+      .unsafeRunSync()
+    assert(a.isInstanceOf[ActionRetrying])
+    assert(b.isInstanceOf[ActionRetrying])
+    assert(c.isInstanceOf[ActionRetrying])
+    assert(d.isInstanceOf[ActionFailed])
+    assert(e.isInstanceOf[ServicePanic])
   }
 }

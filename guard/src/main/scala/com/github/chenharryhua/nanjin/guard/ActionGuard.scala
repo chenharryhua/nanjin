@@ -2,85 +2,8 @@ package com.github.chenharryhua.nanjin.guard
 
 import cats.Functor
 import cats.data.{Kleisli, Reader}
-import cats.effect.{Async, Ref}
 import cats.syntax.all._
 import fs2.concurrent.Topic
-import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
-import retry.{RetryDetails, RetryPolicies}
-
-import java.util.UUID
-
-final class RetryAction[F[_], A, B](
-  topic: Topic[F, NJEvent],
-  serviceInfo: ServiceInfo,
-  actionName: String,
-  config: ActionConfig,
-  input: A,
-  kleisli: Kleisli[F, A, B],
-  succ: Reader[(A, B), String],
-  fail: Reader[(A, Throwable), String]
-) {
-  val params: ActionParams = config.evalConfig
-
-  def withSuccInfo(succ: (A, B) => String): RetryAction[F, A, B] =
-    new RetryAction[F, A, B](topic, serviceInfo, actionName, config.succOn, input, kleisli, Reader(succ.tupled), fail)
-
-  def withFailInfo(fail: (A, Throwable) => String): RetryAction[F, A, B] =
-    new RetryAction[F, A, B](topic, serviceInfo, actionName, config.failOn, input, kleisli, succ, Reader(fail.tupled))
-
-  def run(implicit F: Async[F]): F[B] = Ref.of[F, Int](0).flatMap(ref => internalRun(ref))
-
-  private def internalRun(ref: Ref[F, Int])(implicit F: Async[F]): F[B] = F.realTimeInstant.flatMap { ts =>
-    val actionInfo: ActionInfo =
-      ActionInfo(
-        applicationName = serviceInfo.applicationName,
-        serviceName = serviceInfo.serviceName,
-        actionName = actionName,
-        retryPolicy = params.retryPolicy.policy[F].show,
-        maxRetries = params.maxRetries,
-        launchTime = ts,
-        alertMask = params.alertMask,
-        id = UUID.randomUUID()
-      )
-    def onError(error: Throwable, details: RetryDetails): F[Unit] =
-      details match {
-        case wdr @ WillDelayAndRetry(_, _, _) =>
-          topic
-            .publish1(
-              ActionRetrying(
-                actionInfo = actionInfo,
-                willDelayAndRetry = wdr,
-                error = error
-              ))
-            .void <* ref.update(_ + 1)
-        case gu @ GivingUp(_, _) =>
-          topic
-            .publish1(
-              ActionFailed(
-                actionInfo = actionInfo,
-                givingUp = gu,
-                notes = fail.run((input, error)),
-                error = error
-              ))
-            .void
-      }
-
-    retry
-      .retryingOnAllErrors[B](
-        params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
-        onError)(kleisli.run(input))
-      .flatTap(b =>
-        ref.get.flatMap(count =>
-          topic
-            .publish1(
-              ActionSucced(
-                actionInfo = actionInfo,
-                notes = succ.run((input, b)),
-                numRetries = count
-              ))
-            .void))
-  }
-}
 
 final class ActionGuard[F[_]](
   topic: Topic[F, NJEvent],
@@ -91,8 +14,8 @@ final class ActionGuard[F[_]](
   def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
     new ActionGuard[F](topic, serviceInfo, actionName, f(config))
 
-  def retry[A, B](input: A)(f: A => F[B]): RetryAction[F, A, B] =
-    new RetryAction[F, A, B](
+  def retry[A, B](input: A)(f: A => F[B]): ActionRetry[F, A, B] =
+    new ActionRetry[F, A, B](
       topic,
       serviceInfo,
       actionName,
@@ -102,9 +25,23 @@ final class ActionGuard[F[_]](
       Reader(_ => ""),
       Reader(_ => ""))
 
-  def retry[B](f: F[B]): RetryAction[F, Unit, B] = retry[Unit, B](())(_ => f)
+  def retry[B](f: F[B]): ActionRetry[F, Unit, B] = retry[Unit, B](())(_ => f)
 
   def fyi(msg: String)(implicit F: Functor[F]): F[Unit] =
     topic.publish1(ForYouInformation(serviceInfo.applicationName, msg)).void
 
+  def retryEither[A, B](input: A)(f: A => F[Either[Throwable, B]]): ActionRetryEither[F, A, B] =
+    new ActionRetryEither[F, A, B](
+      topic,
+      serviceInfo,
+      actionName,
+      config,
+      input,
+      Kleisli(f),
+      Reader(_ => ""),
+      Reader(_ => "")
+    )
+
+  def retryEither[B](f: F[Either[Throwable, B]]): ActionRetryEither[F, Unit, B] =
+    retryEither[Unit, B](())(_ => f)
 }

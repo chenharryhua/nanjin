@@ -4,6 +4,7 @@ import cats.effect.{Async, Ref, Sync}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.salesforce.auth.{CredLoginRequest, TokenHasInstanceUrl, TokenProperties}
 import fs2.Stream
+import io.circe.generic.auto._
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder}
 import org.http4s._
@@ -50,7 +51,17 @@ final case class SalesforceResponse(
   responseHeaders: Headers,
   responseBody: String)
 
-final case class SalesforceException(response: SalesforceResponse, description: String) extends Exception
+object SalesforceResponse {
+  implicit private val encoderUri: Encoder[Uri]      = Encoder[String].contramap(_.renderString)
+  implicit private val encoerMethod: Encoder[Method] = Encoder[String].contramap(_.renderString)
+  implicit private val encoerHeaders: Encoder[Headers] =  Encoder[String].contramap(_ => "headers")
+
+  implicit val encoderSalesforceResponse: Encoder[SalesforceResponse] =
+    io.circe.generic.semiauto.deriveEncoder[SalesforceResponse]
+}
+
+final case class SalesforceException(response: SalesforceResponse, description: String)
+    extends Exception(response.asJson.noSpaces)
 
 object SalesforceClient {
 

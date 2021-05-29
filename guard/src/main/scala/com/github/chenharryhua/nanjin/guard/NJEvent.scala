@@ -6,23 +6,15 @@ import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 import java.time.Instant
 import java.util.UUID
 
-final case class ServiceInfo(
-  applicationName: String,
-  serviceName: String,
-  retryPolicy: String,
-  launchTime: Instant,
-  healthCheck: HealthCheck,
-  isNormalStop: Boolean)
+final case class ServiceInfo(applicationName: String, serviceName: String, params: ServiceParams, launchTime: Instant)
 
 final case class ActionInfo(
   applicationName: String,
   serviceName: String,
   actionName: String,
-  retryPolicy: String,
-  maxRetries: Int,
-  launchTime: Instant,
-  alertMask: AlertMask,
-  id: UUID)
+  params: ActionParams,
+  id: UUID,
+  launchTime: Instant)
 
 sealed trait NJEvent
 
@@ -65,8 +57,8 @@ final case class ActionFailed(
 
 final case class ActionSucced(
   actionInfo: ActionInfo,
-  notes: String, // success notes
-  numRetries: Int // how many retries before success
+  numRetries: Int, // how many retries before success
+  notes: String // success notes
 ) extends ActionEvent
 
 final case class ForYouInformation(applicationName: String, message: String) extends NJEvent

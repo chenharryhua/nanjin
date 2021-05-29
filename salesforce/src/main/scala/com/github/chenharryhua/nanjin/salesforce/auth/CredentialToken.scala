@@ -55,7 +55,7 @@ object iot {
 
     implicit val salesforceTokenProperties: TokenProperties[Token] =
       new TokenProperties[Token] {
-        override def ttl(a: Token): FiniteDuration = 2.hours //token refresh every two hours
+        override def ttl(a: Token): FiniteDuration = 1.hours //token refresh every 1 hour
         override def authStr(a: Token): String     = a.authStr
       }
 
