@@ -20,7 +20,7 @@ final private case class SlackNotification(username: String, text: String, attac
 final class SlackService[F[_]] private (service: SimpleNotificationService[F])(implicit F: Sync[F])
     extends AlertService[F] {
 
-  override def alert(event: Event): F[Unit] = event match {
+  override def alert(event: NJEvent): F[Unit] = event match {
     case ServiceStarted(info) =>
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(

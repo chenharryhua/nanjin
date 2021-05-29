@@ -16,7 +16,7 @@ final class ServiceGuard[F[_]](
   def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
     new ServiceGuard[F](applicationName, serviceName, f(serviceConfig), actionConfig)
 
-  def eventStream[A](watch: (String => ActionGuard[F]) => F[A])(implicit F: Async[F]): Stream[F, Event] = {
+  def eventStream[A](watch: (String => ActionGuard[F]) => F[A])(implicit F: Async[F]): Stream[F, NJEvent] = {
     val log = new LogService[F]()
     for {
       ts <- Stream.eval(F.realTimeInstant)
@@ -34,7 +34,7 @@ final class ServiceGuard[F[_]](
       shc = ServiceHealthCheck(serviceInfo)
       sos = ServiceStopped(serviceInfo)
       event <- Stream
-        .eval(Topic[F, Event])
+        .eval(Topic[F, NJEvent])
         .flatMap { topic =>
           val publisher = Stream.eval(
             retry.retryingOnAllErrors(
@@ -43,7 +43,7 @@ final class ServiceGuard[F[_]](
               (topic.publish1(ssd).delayBy(params.retryPolicy.value).void <*
                 topic.publish1(shc).delayBy(params.healthCheck.interval).foreverM).background.use(_ =>
                 watch(actionName => new ActionGuard[F](topic, serviceInfo, actionName, actionConfig))) >>
-                topic.publish1(sos) >> topic.close
+                topic.publish1(sos).guarantee(topic.close.void)
             })
           val consumer = topic.subscribe(params.topicMaxQueued)
           consumer.concurrently(publisher)
