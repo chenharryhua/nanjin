@@ -21,10 +21,18 @@ final class ServiceGuard[F[_]](
     for {
       ts <- Stream.eval(F.realTimeInstant)
       serviceInfo: ServiceInfo =
-        ServiceInfo(applicationName, serviceName, params.retryPolicy.policy[F].show, ts, params.healthCheck)
+        ServiceInfo(
+          applicationName = applicationName,
+          serviceName = serviceName,
+          retryPolicy = params.retryPolicy.policy[F].show,
+          launchTime = ts,
+          healthCheck = params.healthCheck,
+          isNormalStop = params.isNormalStop
+        )
+
       ssd = ServiceStarted(serviceInfo)
       shc = ServiceHealthCheck(serviceInfo)
-      sos = ServiceAbnormalStop(serviceInfo)
+      sos = ServiceStopped(serviceInfo)
       event <- Stream
         .eval(Topic[F, Event])
         .flatMap { topic =>
@@ -35,7 +43,7 @@ final class ServiceGuard[F[_]](
               (topic.publish1(ssd).delayBy(params.retryPolicy.value).void <*
                 topic.publish1(shc).delayBy(params.healthCheck.interval).foreverM).background.use(_ =>
                 watch(actionName => new ActionGuard[F](topic, serviceInfo, actionName, actionConfig))) >>
-                topic.publish1(sos)
+                topic.publish1(sos) >> topic.close
             })
           val consumer = topic.subscribe(params.topicMaxQueued)
           consumer.concurrently(publisher)

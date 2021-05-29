@@ -18,7 +18,7 @@ class TaskGuardTest extends AnyFunSuite {
 
   val slack = SlackService(SimpleNotificationService.fake[IO])
 
-  test("should receive abnormal stop if the operation is not long run") {
+  test("should stopped if the operation is not long run") {
     val Vector(a, b, c) = guard
       .updateConfig(_.withHealthCheckDisabled)
       .eventStream(gd =>
@@ -34,13 +34,12 @@ class TaskGuardTest extends AnyFunSuite {
           .run
           .delayBy(1.second))
       .observe(_.evalMap(slack.alert).drain)
-      .interruptAfter(4.seconds)
       .compile
       .toVector
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStarted])
     assert(b.isInstanceOf[ActionSucced])
-    assert(c.isInstanceOf[ServiceAbnormalStop])
+    assert(c.isInstanceOf[ServiceStopped])
   }
 
   test("should retry 2 times when operation fail") {
@@ -56,15 +55,13 @@ class TaskGuardTest extends AnyFunSuite {
           .run
       }
       .observe(_.evalMap(slack.alert).drain)
-      .interruptAfter(4.seconds)
       .compile
       .toVector
       .unsafeRunSync()
     assert(a.isInstanceOf[ActionRetrying])
     assert(b.isInstanceOf[ActionRetrying])
-    assert(c.isInstanceOf[ActionSucced])
-    assert(d.isInstanceOf[ServiceAbnormalStop])
     assert(c.asInstanceOf[ActionSucced].numRetries == 2)
+    assert(d.isInstanceOf[ServiceStopped])
   }
 
   test("should receive 3 health check event") {
@@ -83,16 +80,15 @@ class TaskGuardTest extends AnyFunSuite {
   }
 
   test("escalate to up level if retry failed") {
-    val Vector(a, b, c, d, e, f) = guard
+    val Vector(a, b, c, d, e) = guard
       .updateConfig(_.withConstantDelay(1.hour).withTopicMaxQueued(20)) // don't want to see start event
       .eventStream { gd =>
-        gd("fyi").fyi("hello") >>
-          gd("3 time")
-            .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
-            .retry(IO.raiseError(new Exception("oops")))
-            .withSuccInfo((_, _: Int) => "")
-            .withFailInfo((_, _) => "")
-            .run
+        gd("3 time")
+          .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
+          .retry(IO.raiseError(new Exception("oops")))
+          .withSuccInfo((_, _: Int) => "")
+          .withFailInfo((_, _) => "")
+          .run
       }
       .observe(_.evalMap(slack.alert).drain)
       .interruptAfter(6.seconds)
@@ -100,11 +96,35 @@ class TaskGuardTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
 
-    assert(a.isInstanceOf[ForYouInformation])
+    assert(a.isInstanceOf[ActionRetrying])
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.isInstanceOf[ActionRetrying])
-    assert(d.isInstanceOf[ActionRetrying])
-    assert(e.isInstanceOf[ActionFailed])
-    assert(f.isInstanceOf[ServicePanic])
+    assert(d.isInstanceOf[ActionFailed])
+    assert(e.isInstanceOf[ServicePanic])
+  }
+
+  test("for your information") {
+    val Vector(a) = guard
+      .updateConfig(_.withConstantDelay(2.hours))
+      .eventStream(gd => gd("a").fyi("hello, world") >> IO.never)
+      .observe(_.evalMap(slack.alert).drain)
+      .interruptAfter(2.seconds)
+      .compile
+      .toVector
+      .unsafeRunSync()
+    assert(a.isInstanceOf[ForYouInformation])
+  }
+
+  test("normal service stop") {
+    val Vector(a, b, c) = guard
+      .updateConfig(_.withNoramlStop)
+      .eventStream(gd => gd("a").retry(IO(1)).run >> gd("b").retry(IO(2)).run)
+      .observe(_.evalMap(slack.alert).drain)
+      .compile
+      .toVector
+      .unsafeRunSync()
+    assert(a.isInstanceOf[ActionSucced])
+    assert(b.isInstanceOf[ActionSucced])
+    assert(c.isInstanceOf[ServiceStopped])
   }
 }

@@ -11,7 +11,8 @@ final case class ServiceInfo(
   serviceName: String,
   retryPolicy: String,
   launchTime: Instant,
-  healthCheck: HealthCheck)
+  healthCheck: HealthCheck,
+  isNormalStop: Boolean)
 
 final case class ActionInfo(
   applicationName: String,
@@ -36,7 +37,7 @@ final case class ServicePanic(
   error: Throwable
 ) extends ServiceEvent
 
-final case class ServiceAbnormalStop(
+final case class ServiceStopped(
   serviceInfo: ServiceInfo
 ) extends ServiceEvent
 
