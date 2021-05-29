@@ -326,7 +326,7 @@ lazy val salesforce = (project in file("salesforce"))
   .settings(name := "nj-salesforce")
   .settings(
     libraryDependencies ++=
-      Seq("org.cometd.java" % "cometd-java-client" % "7.0.2") ++
+      Seq("org.cometd.java" % "cometd-java-client" % "7.0.2", "com.github.cb372" %% "cats-retry" % "3.0.0") ++
         http4sLib ++ fs2Lib ++ effectLib ++ logLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib)
 
 lazy val aws = (project in file("aws"))
@@ -423,3 +423,4 @@ lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
     .aggregate(common, datetime, salesforce, aws, guard, messages, pipes, kafka, database, spark)
+

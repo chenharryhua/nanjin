@@ -14,6 +14,7 @@ import org.http4s.circe.jsonOf
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
 import org.http4s.dsl.io.{PATCH, POST}
+import retry.RetryPolicies
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -52,9 +53,9 @@ final case class SalesforceResponse(
   responseBody: String)
 
 object SalesforceResponse {
-  implicit private val encoderUri: Encoder[Uri]      = Encoder[String].contramap(_.renderString)
-  implicit private val encoerMethod: Encoder[Method] = Encoder[String].contramap(_.renderString)
-  implicit private val encoerHeaders: Encoder[Headers] =  Encoder[String].contramap(_ => "headers")
+  implicit private val encoderUri: Encoder[Uri]        = Encoder[String].contramap(_.renderString)
+  implicit private val encoerMethod: Encoder[Method]   = Encoder[String].contramap(_.renderString)
+  implicit private val encoerHeaders: Encoder[Headers] = Encoder[String].contramap(_ => "headers")
 
   implicit val encoderSalesforceResponse: Encoder[SalesforceResponse] =
     io.circe.generic.semiauto.deriveEncoder[SalesforceResponse]
@@ -70,7 +71,7 @@ object SalesforceClient {
     login: CredLoginRequest[F, Cred],
     tokenProps: TokenProperties[Token]): Stream[F, SalesforceClient[F, Token]] =
     for {
-      client <- BlazeClientBuilder[F](ec).withResponseHeaderTimeout(50.second).stream
+      client <- BlazeClientBuilder[F](ec).withResponseHeaderTimeout(30.second).stream
       token <- Stream.eval(client.expect(login.loginRequest(cred))(jsonOf[F, Token]).flatMap(Ref.of[F, Token]))
     } yield new SalesforceClientImpl[F, Cred, Token](cred, client, token, login, tokenProps)
 
@@ -87,7 +88,11 @@ object SalesforceClient {
     override val refreshToken: Stream[F, Unit] =
       Stream.eval(token.get).flatMap { pt =>
         Stream.awakeEvery[F](tokenProps.ttl(pt)).evalMap { _ =>
-          client.expect(login.loginRequest(cred))(jsonOf[F, Token]).flatMap(token.set)
+          retry
+            .retryingOnAllErrors[Token](
+              RetryPolicies.limitRetries[F](10).join(RetryPolicies.constantDelay[F](5.seconds)),
+              retry.noop[F, Throwable])(client.expect(login.loginRequest(cred))(jsonOf[F, Token]))
+            .flatMap(token.set)
         }
       }
 

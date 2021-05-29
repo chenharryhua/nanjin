@@ -66,6 +66,7 @@ final class ActionRetry[F[_], A, B](
       .retryingOnAllErrors[B](
         params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
         onError)(kleisli.run(input))
-      .flatTap(b => ref.get.flatMap(count => topic.publish1(ActionSucced(actionInfo, count, succ((input, b)))).void))
+      .flatTap(b =>
+        ref.get.flatMap(count => topic.publish1(ActionSucced(actionInfo, count, succ.run((input, b)))).void))
   }
 }
