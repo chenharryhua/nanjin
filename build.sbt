@@ -55,7 +55,7 @@ val akkaFtp = "3.0.0"
 val http4s  = "1.0.0-M23"
 
 // misc
-val silencer    = "1.7.4"
+val silencer    = "1.7.5"
 val log4s       = "1.8.2"
 val betterFiles = "3.9.1"
 
