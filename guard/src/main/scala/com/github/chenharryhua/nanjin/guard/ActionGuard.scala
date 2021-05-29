@@ -5,14 +5,13 @@ import cats.data.{Kleisli, Reader}
 import cats.effect.{Async, Ref}
 import cats.syntax.all._
 import fs2.concurrent.Topic
-import fs2.concurrent.Topic.Closed
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 import retry.{RetryDetails, RetryPolicies}
 
 import java.util.UUID
 
 final class RetryAction[F[_], A, B](
-  topic: Topic[F, Event],
+  topic: Topic[F, NJEvent],
   serviceInfo: ServiceInfo,
   actionName: String,
   config: ActionConfig,
@@ -34,13 +33,15 @@ final class RetryAction[F[_], A, B](
   private def internalRun(ref: Ref[F, Int])(implicit F: Async[F]): F[B] = F.realTimeInstant.flatMap { ts =>
     val actionInfo: ActionInfo =
       ActionInfo(
-        serviceInfo.applicationName,
-        serviceInfo.serviceName,
-        actionName,
-        params.retryPolicy.policy[F].show,
-        ts,
-        params.alertMask,
-        UUID.randomUUID())
+        applicationName = serviceInfo.applicationName,
+        serviceName = serviceInfo.serviceName,
+        actionName = actionName,
+        retryPolicy = params.retryPolicy.policy[F].show,
+        maxRetries = params.maxRetries,
+        launchTime = ts,
+        alertMask = params.alertMask,
+        id = UUID.randomUUID()
+      )
     def onError(error: Throwable, details: RetryDetails): F[Unit] =
       details match {
         case wdr @ WillDelayAndRetry(_, _, _) =>
@@ -82,7 +83,7 @@ final class RetryAction[F[_], A, B](
 }
 
 final class ActionGuard[F[_]](
-  topic: Topic[F, Event],
+  topic: Topic[F, NJEvent],
   serviceInfo: ServiceInfo,
   actionName: String,
   config: ActionConfig) {

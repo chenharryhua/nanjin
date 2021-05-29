@@ -18,7 +18,7 @@ class TaskGuardTest extends AnyFunSuite {
 
   val slack = SlackService(SimpleNotificationService.fake[IO])
 
-  test("should stopped if the operation is not long run") {
+  test("should stopped if the operation normally exits") {
     val Vector(a, b, c) = guard
       .updateConfig(_.withHealthCheckDisabled)
       .eventStream(gd =>
@@ -47,7 +47,7 @@ class TaskGuardTest extends AnyFunSuite {
     val Vector(a, b, c, d) = guard
       .updateConfig(_.withConstantDelay(1.hour)) // don't want to see start event
       .eventStream { gd =>
-        gd("3 time")
+        gd("2 time")
           .updateConfig(_.withMaxRetries(3).withFullJitter(1.second))
           .retry(IO(if (i < 2) {
             i += 1; throw new Exception
@@ -91,7 +91,7 @@ class TaskGuardTest extends AnyFunSuite {
           .run
       }
       .observe(_.evalMap(slack.alert).drain)
-      .interruptAfter(6.seconds)
+      .interruptAfter(5.seconds)
       .compile
       .toVector
       .unsafeRunSync()
@@ -106,7 +106,7 @@ class TaskGuardTest extends AnyFunSuite {
   test("for your information") {
     val Vector(a) = guard
       .updateConfig(_.withConstantDelay(2.hours))
-      .eventStream(gd => gd("a").fyi("hello, world") >> IO.never)
+      .eventStream(gd => gd("fyi").fyi("hello, world") >> IO.never)
       .observe(_.evalMap(slack.alert).drain)
       .interruptAfter(2.seconds)
       .compile
