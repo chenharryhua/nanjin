@@ -36,9 +36,7 @@ final class RetryAction[F[_], A, B](
         applicationName = serviceInfo.applicationName,
         serviceName = serviceInfo.serviceName,
         actionName = actionName,
-        retryPolicy = params.retryPolicy.policy[F].show,
-        maxRetries = params.maxRetries,
-        alertMask = params.alertMask,
+        params = params,
         launchTime = ts,
         id = UUID.randomUUID()
       )

@@ -6,21 +6,13 @@ import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 import java.time.Instant
 import java.util.UUID
 
-final case class ServiceInfo(
-  applicationName: String,
-  serviceName: String,
-  retryPolicy: String,
-  healthCheck: HealthCheck,
-  isNormalStop: Boolean,
-  launchTime: Instant)
+final case class ServiceInfo(applicationName: String, serviceName: String, params: ServiceParams, launchTime: Instant)
 
 final case class ActionInfo(
   applicationName: String,
   serviceName: String,
   actionName: String,
-  retryPolicy: String,
-  maxRetries: Int,
-  alertMask: AlertMask,
+  params: ActionParams,
   launchTime: Instant,
   id: UUID)
 
