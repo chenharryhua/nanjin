@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.common.utils
 import io.circe.generic.auto._
 import io.circe.syntax._
+import org.apache.commons.lang3.exception.ExceptionUtils
 
 /** Notes: slack messages
   * [[https://api.slack.com/docs/messages/builder]]
@@ -31,7 +32,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F])(i
               "good",
               ts.toEpochMilli,
               List(
-                SlackField("Service Name", info.serviceName, short = true),
+                SlackField("Service", info.serviceName, short = true),
                 SlackField("Status", "(Re)Started", short = true))
             ))
         ).asJson.noSpaces)
@@ -42,10 +43,11 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F])(i
         case None     => "The service was unexpectedly stopped. It is a *FATAL* error" // never happen
         case Some(ts) => s"next attempt will happen in *$ts* meanwhile the service is *dysfunctional*."
       }
+      val cause = ExceptionUtils.getMessage(error)
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
           info.applicationName,
-          s""":system_restore: The service experienced a panic *${error.getMessage}* and started to *recover* itself
+          s""":system_restore: The service experienced a panic caused by $cause and started to *recover* itself
              |$upcomingDelay 
              |full exception can be found in log file by *Error ID*""".stripMargin,
           List(
@@ -53,7 +55,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F])(i
               "danger",
               ts.toEpochMilli,
               List(
-                SlackField("Service Name", info.serviceName, short = true),
+                SlackField("Service", info.serviceName, short = true),
                 SlackField("Status", "Restarting", short = true),
                 SlackField("Launch Time", info.launchTime.toString, short = true),
                 SlackField("Up Time", utils.mkDurationString(info.launchTime, ts), short = true),
@@ -77,7 +79,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F])(i
                 "good",
                 ts.toEpochMilli,
                 List(
-                  SlackField("Service Name", info.serviceName, short = true),
+                  SlackField("Service", info.serviceName, short = true),
                   SlackField("Launch Time", info.launchTime.toString, short = true),
                   SlackField("Up Time", utils.mkDurationString(info.launchTime, ts), short = true),
                   SlackField("Status", "Stopped", short = true)
@@ -93,7 +95,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F])(i
                 "danger",
                 ts.toEpochMilli,
                 List(
-                  SlackField("Service Name", info.serviceName, short = true),
+                  SlackField("Service", info.serviceName, short = true),
                   SlackField("Launch Time", info.launchTime.toString, short = true),
                   SlackField("Up Time", utils.mkDurationString(info.launchTime, ts), short = true),
                   SlackField("Status", "Stopped abnormally", short = true)
@@ -113,7 +115,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F])(i
               "good",
               ts.toEpochMilli,
               List(
-                SlackField("Service Name", info.serviceName, short = true),
+                SlackField("Service", info.serviceName, short = true),
                 SlackField("HealthCheck Status", "Good", short = true),
                 SlackField("Up Time", utils.mkDurationString(info.launchTime, ts), short = true),
                 SlackField(
@@ -137,8 +139,8 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F])(i
               "danger",
               ts.toEpochMilli,
               List(
-                SlackField("Service Name", action.serviceName, short = true),
-                SlackField("Action Name", action.actionName, short = true),
+                SlackField("Service", action.serviceName, short = true),
+                SlackField("Action", action.actionName, short = true),
                 SlackField("Took", utils.mkDurationString(action.launchTime, ts), short = true),
                 SlackField("Retries", givingUp.totalRetries.toString, short = true),
                 SlackField("Retry Policy", action.params.retryPolicy.policy[F].show, short = true),
@@ -158,8 +160,8 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F])(i
               "good",
               ts.toEpochMilli,
               List(
-                SlackField("Service Name", action.serviceName, short = true),
-                SlackField("Action Name", action.actionName, short = true),
+                SlackField("Service", action.serviceName, short = true),
+                SlackField("Action", action.actionName, short = true),
                 SlackField("Took", utils.mkDurationString(action.launchTime, ts), short = true),
                 SlackField("Retries", s"$numRetries/${action.params.maxRetries}", short = true),
                 SlackField("Action ID", action.id.toString, short = false)

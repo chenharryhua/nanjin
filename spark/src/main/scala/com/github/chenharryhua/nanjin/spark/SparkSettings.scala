@@ -13,28 +13,28 @@ import org.apache.spark.sql.SparkSession
 @Lenses final case class SparkSettings(conf: SparkConf, logLevel: NJLogLevel) {
 
   def withAppName(appName: String): SparkSettings =
-    withConfigUpdate(_.set("spark.app.name", appName))
+    updateConfig(_.set("spark.app.name", appName))
 
   def withKms(kmsKey: String): SparkSettings = {
     val kms = if (kmsKey.startsWith("alias/")) kmsKey else s"alias/$kmsKey"
-    withConfigUpdate(
+    updateConfig(
       _.set("spark.hadoop.fs.s3a.server-side-encryption-algorithm", "SSE-KMS")
         .set("spark.hadoop.fs.s3a.server-side-encryption.key", kms))
   }
 
   def withMaster(master: String): SparkSettings =
-    withConfigUpdate(_.set("spark.master", master))
+    updateConfig(_.set("spark.master", master))
 
   def withLogLevel(logLevel: NJLogLevel): SparkSettings =
     SparkSettings.logLevel.set(logLevel)(this)
 
   def withUI: SparkSettings =
-    withConfigUpdate(_.set("spark.ui.enabled", "true"))
+    updateConfig(_.set("spark.ui.enabled", "true"))
 
   def withoutUI: SparkSettings =
-    withConfigUpdate(_.set("spark.ui.enabled", "false"))
+    updateConfig(_.set("spark.ui.enabled", "false"))
 
-  def withConfigUpdate(f: SparkConf => SparkConf): SparkSettings =
+  def updateConfig(f: SparkConf => SparkConf): SparkSettings =
     SparkSettings.conf.modify(f)(this)
 
   def session: SparkSession = {
@@ -57,7 +57,7 @@ object SparkSettings {
       .withAppName("nj-spark")
       .withMaster("local[*]")
       .withUI
-      .withConfigUpdate(
+      .updateConfig(
         _.set("spark.network.timeout", "800")
           .set("spark.debug.maxToStringFields", "1000")
           .set("spark.hadoop.fs.s3a.aws.credentials.provider", "com.amazonaws.auth.DefaultAWSCredentialsProviderChain")
