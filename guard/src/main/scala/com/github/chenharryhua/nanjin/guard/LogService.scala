@@ -4,6 +4,7 @@ import cats.Show
 import cats.derived.auto.show._
 import cats.effect.Sync
 import cats.syntax.show._
+import com.github.chenharryhua.nanjin.common.utils
 import org.log4s.Logger
 
 import java.time.{Duration, Instant}
@@ -13,7 +14,7 @@ final private class LogService[F[_]](implicit F: Sync[F]) extends AlertService[F
 
   implicit private val showInstant: Show[Instant]     = _.toString()
   implicit private val showThrowable: Show[Throwable] = _.getMessage
-  implicit private val showDuration: Show[Duration]   = _.toString
+  implicit private val showDuration: Show[Duration]   = utils.mkDurationString
 
   override def alert(event: NJEvent): F[Unit] =
     event match {

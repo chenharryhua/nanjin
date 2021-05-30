@@ -4,7 +4,7 @@ import cats.Eval
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.commons.lang3.time.DurationFormatUtils
 
-import java.time.{Instant, LocalDateTime}
+import java.time.{Instant, LocalDateTime, Duration => JavaDuration}
 import java.util.Properties
 import scala.concurrent.duration.Duration
 import scala.util.Random
@@ -31,6 +31,9 @@ object utils {
 
   def mkDurationString(dur: Duration): String =
     mkDurationString(dur.toMillis)
+
+  def mkDurationString(dur: JavaDuration): String =
+    dur.toString
 
   def mkDurationString(start: Instant, end: Instant): String =
     mkDurationString(end.toEpochMilli - start.toEpochMilli)
