@@ -6,13 +6,14 @@ import cats.effect.Sync
 import cats.syntax.show._
 import org.log4s.Logger
 
-import java.time.Instant
+import java.time.{Duration, Instant}
 
 final private class LogService[F[_]](implicit F: Sync[F]) extends AlertService[F] {
   private val logger: Logger = org.log4s.getLogger
 
   implicit private val showInstant: Show[Instant]     = _.toString()
   implicit private val showThrowable: Show[Throwable] = _.getMessage
+  implicit private val showDuration: Show[Duration]   = _.toString
 
   override def alert(event: NJEvent): F[Unit] =
     event match {
@@ -28,6 +29,6 @@ final private class LogService[F[_]](implicit F: Sync[F]) extends AlertService[F
         if (info.params.isNormalStop) F.blocking(logger.info(ss.show))
         else F.blocking(logger.error(new Exception("service was abnormally stopped"))(ss.show))
 
-      case ss @ ActionFailed(_, _, _, error) => F.blocking(logger.error(error)(ss.show))
+      case ss @ ActionFailed(_, _, _, _, error) => F.blocking(logger.error(error)(ss.show))
     }
 }
