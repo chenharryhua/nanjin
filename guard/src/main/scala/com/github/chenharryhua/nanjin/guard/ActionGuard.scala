@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard
 
 import cats.Functor
-import cats.data.{Kleisli, Reader}
+import cats.data.{EitherT, Kleisli, Reader}
 import cats.syntax.all._
 import fs2.concurrent.Topic
 
@@ -37,7 +37,7 @@ final class ActionGuard[F[_]](
       actionName,
       config,
       input,
-      Kleisli(f),
+      EitherT(Kleisli(f)),
       Reader(_ => ""),
       Reader(_ => "")
     )
