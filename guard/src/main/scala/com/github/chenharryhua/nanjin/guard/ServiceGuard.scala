@@ -5,6 +5,7 @@ import cats.effect.syntax.all._
 import cats.syntax.all._
 import fs2.Stream
 import fs2.concurrent.Topic
+import fs2.concurrent.Topic.Closed
 
 import java.util.UUID
 
@@ -13,7 +14,7 @@ import java.util.UUID
   *   val guard = TaskGuard[IO]("appName").service("service-name")
   *   val es: Stream[IO,NJEvent] = guard.eventStream{ gd =>
   *     gd("action-1").retry(IO(1)).run >>
-  *     gd("action-2").retry(Io(2)).run
+  *     gd("action-2").retry(IO(2)).run
   *   }
   * }}}
   */
@@ -45,7 +46,7 @@ final class ServiceGuard[F[_]](
       event <- Stream
         .eval(Topic[F, NJEvent])
         .flatMap { topic =>
-          val publisher = Stream.eval(
+          val publisher: Stream[F, Either[Closed, Unit]] = Stream.eval(
             retry.retryingOnAllErrors(
               params.retryPolicy.policy[F],
               (e: Throwable, r) => topic.publish1(ServicePanic(serviceInfo, r, UUID.randomUUID(), e)).void) {
@@ -54,7 +55,7 @@ final class ServiceGuard[F[_]](
                 actionGuard(actionName => new ActionGuard[F](topic, serviceInfo, actionName, actionConfig))) >>
                 topic.publish1(sos).guarantee(topic.close.void)
             })
-          val consumer = topic.subscribe(params.topicMaxQueued)
+          val consumer: Stream[F, NJEvent] = topic.subscribe(params.topicMaxQueued)
           consumer.concurrently(publisher)
         }
         .evalTap(log.alert)

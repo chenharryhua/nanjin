@@ -169,7 +169,6 @@ class TaskGuardTest extends AnyFunSuite {
           .retryEither(IO(if (i < 200) { i += 1; Left(new Exception) }
           else Right(1)))
           .run)
-      .debug()
       .interruptAfter(5.seconds)
       .compile
       .toVector
@@ -179,5 +178,18 @@ class TaskGuardTest extends AnyFunSuite {
     assert(c.isInstanceOf[ActionRetrying])
     assert(d.isInstanceOf[ActionFailed])
     assert(e.isInstanceOf[ServicePanic])
+  }
+
+  test("combine two event streams") {
+    val guard = TaskGuard[IO]("two service").updateServiceConfig(_.withConstantDelay(2.hours))
+    val s1    = guard.service("s1")
+    val s2    = guard.service("s2")
+
+    val ss1 = s1.eventStream(gd => gd("s1-a1").retry(IO(1)).run >> gd("s1-a2").retry(IO(2)).run)
+    val ss2 = s2.eventStream(gd => gd("s2-a1").retry(IO(1)).run >> gd("s2-a2").retry(IO(2)).run)
+
+    val vector = ss1.merge(ss2).compile.toVector.unsafeRunSync()
+    assert(vector.count(_.isInstanceOf[ActionSucced]) == 4)
+    assert(vector.count(_.isInstanceOf[ServiceStopped]) == 2)
   }
 }
