@@ -7,6 +7,7 @@ import fs2.concurrent.Topic
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 import retry.{RetryDetails, RetryPolicies}
 
+import java.time.Duration
 import java.util.UUID
 
 final class ActionRetry[F[_], A, B](
@@ -39,6 +40,7 @@ final class ActionRetry[F[_], A, B](
         id = UUID.randomUUID(),
         launchTime = ts
       )
+
     def onError(error: Throwable, details: RetryDetails): F[Unit] =
       details match {
         case wdr @ WillDelayAndRetry(_, _, _) =>
@@ -51,15 +53,17 @@ final class ActionRetry[F[_], A, B](
               ))
             .void <* ref.update(_ + 1)
         case gu @ GivingUp(_, _) =>
-          topic
-            .publish1(
+          for {
+            now <- F.realTimeInstant
+            _ <- topic.publish1(
               ActionFailed(
                 actionInfo = actionInfo,
                 givingUp = gu,
+                duration = Duration.between(ts, now),
                 notes = fail.run((input, error)),
                 error = error
               ))
-            .void
+          } yield ()
       }
 
     retry
@@ -67,6 +71,10 @@ final class ActionRetry[F[_], A, B](
         params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
         onError)(kleisli.run(input))
       .flatTap(b =>
-        ref.get.flatMap(count => topic.publish1(ActionSucced(actionInfo, count, succ.run((input, b)))).void))
+        for {
+          count <- ref.get
+          now <- F.realTimeInstant
+          _ <- topic.publish1(ActionSucced(actionInfo, Duration.between(ts, now), count, succ.run((input, b))))
+        } yield ())
   }
 }

@@ -7,6 +7,7 @@ import fs2.concurrent.Topic
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 import retry.{RetryDetails, RetryPolicies}
 
+import java.time.Duration
 import java.util.UUID
 
 /** When outer F[_] fails, return immedidately
@@ -71,15 +72,17 @@ final class ActionRetryEither[F[_], A, B](
               ))
             .void <* ref.update(_ + 1)
         case gu @ GivingUp(_, _) =>
-          topic
-            .publish1(
+          for {
+            now <- F.realTimeInstant
+            _ <- topic.publish1(
               ActionFailed(
                 actionInfo = actionInfo,
                 givingUp = gu,
+                duration = Duration.between(ts, now),
                 notes = fail.run((input, error)),
                 error = error
               ))
-            .void
+          } yield ()
       }
 
     val res: F[Either[Throwable, B]] = retry.retryingOnAllErrors[Either[Throwable, B]](
@@ -95,6 +98,10 @@ final class ActionRetryEither[F[_], A, B](
       }
     }
     res.rethrow.flatTap(b =>
-      ref.get.flatMap(count => topic.publish1(ActionSucced(actionInfo, count, succ.run((input, b)))).void))
+      for {
+        count <- ref.get
+        now <- F.realTimeInstant
+        _ <- topic.publish1(ActionSucced(actionInfo, Duration.between(ts, now), count, succ.run((input, b))))
+      } yield ())
   }
 }
