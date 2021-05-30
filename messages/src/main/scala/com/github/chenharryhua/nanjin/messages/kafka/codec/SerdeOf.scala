@@ -11,6 +11,9 @@ import java.util
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Try}
 
+/** [[https://github.com/sksamuel/avro4s]]
+  */
+
 final class NJCodec[A](val topicName: String, val cfg: NJSerdeConfig[A]) extends Serializable {
   def encode(a: A): Array[Byte]  = cfg.serde.serializer.serialize(topicName, a)
   def decode(ab: Array[Byte]): A = cfg.serde.deserializer.deserialize(topicName, ab)

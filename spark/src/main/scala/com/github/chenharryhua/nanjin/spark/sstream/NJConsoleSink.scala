@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.sstream
 
 import cats.effect.Async
-import com.github.chenharryhua.nanjin.utils.random4d
+import com.github.chenharryhua.nanjin.common.utils.random4d
 import fs2.Stream
 import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, StreamingQueryProgress, Trigger}
 

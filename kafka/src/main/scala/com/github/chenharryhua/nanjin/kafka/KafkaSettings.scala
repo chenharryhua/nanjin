@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.utils
+import com.github.chenharryhua.nanjin.common.utils
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import monocle.Traversal
 import monocle.function.At.at
@@ -13,6 +13,9 @@ import org.apache.kafka.common.security.auth.SecurityProtocol
 import org.apache.kafka.streams.StreamsConfig
 
 import java.util.Properties
+
+/** [[https://kafka.apache.org/]]
+  */
 
 final case class KafkaGroupId(value: String) extends AnyVal
 final case class KafkaAppId(value: String) extends AnyVal

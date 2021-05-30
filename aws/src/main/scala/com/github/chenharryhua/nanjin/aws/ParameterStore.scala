@@ -2,23 +2,21 @@ package com.github.chenharryhua.nanjin.aws
 
 import cats.Applicative
 import cats.effect.Sync
+import cats.syntax.all._
 import com.amazonaws.regions.Regions
 import com.amazonaws.services.simplesystemsmanagement.model.GetParametersRequest
 import com.amazonaws.services.simplesystemsmanagement.{
   AWSSimpleSystemsManagement,
   AWSSimpleSystemsManagementClientBuilder
 }
+import com.github.chenharryhua.nanjin.common.aws.{ParameterStoreContent, ParameterStorePath}
 
 import java.util.Base64
 
-final case class ParameterStorePath(value: String, isSecure: Boolean = true)
+sealed trait ParameterStore[F[_]] {
+  def fetch(path: ParameterStorePath): F[ParameterStoreContent]
 
-final case class ParameterStoreContent(value: String) {
-  def base64: Array[Byte] = Base64.getDecoder.decode(value.getBytes)
-}
-
-trait ParameterStore[F[_]] {
-  def fetch(path: ParameterStorePath)(implicit F: Sync[F]): F[ParameterStoreContent]
+  def base64(path: ParameterStorePath): F[Array[Byte]]
 }
 
 object ParameterStore {
@@ -26,20 +24,29 @@ object ParameterStore {
   def fake[F[_]: Applicative](content: String): ParameterStore[F] =
     new ParameterStore[F] {
 
-      override def fetch(path: ParameterStorePath)(implicit F: Sync[F]): F[ParameterStoreContent] =
-        F.pure(ParameterStoreContent(content))
+      override def fetch(path: ParameterStorePath): F[ParameterStoreContent] =
+        ParameterStoreContent(content).pure
+
+      override def base64(path: ParameterStorePath): F[Array[Byte]] =
+        fetch(path).map(c => Base64.getDecoder.decode(c.value.getBytes))
+
     }
 
-  def apply[F[_]](regions: Regions): ParameterStore[F] =
+  def apply[F[_]](regions: Regions)(implicit F: Sync[F]): ParameterStore[F] =
     new ParameterStore[F] {
 
       private lazy val ssmClient: AWSSimpleSystemsManagement =
         AWSSimpleSystemsManagementClientBuilder.standard.withRegion(regions).build
 
-      override def fetch(path: ParameterStorePath)(implicit F: Sync[F]): F[ParameterStoreContent] = {
+      override def fetch(path: ParameterStorePath): F[ParameterStoreContent] = {
         val req =
           new GetParametersRequest().withNames(path.value).withWithDecryption(path.isSecure)
         F.blocking(ParameterStoreContent(ssmClient.getParameters(req).getParameters.get(0).getValue))
       }
+
+      override def base64(path: ParameterStorePath): F[Array[Byte]] =
+        fetch(path).map(c => Base64.getDecoder.decode(c.value.getBytes))
     }
+
+  def apply[F[_]: Sync]: ParameterStore[F] = apply[F](defaultRegion)
 }
