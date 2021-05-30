@@ -47,7 +47,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F])(i
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
           info.applicationName,
-          s""":system_restore: The service experienced a panic caused by $cause and started to *recover* itself
+          s""":system_restore: The service experienced a panic caused by *$cause* and started to *recover* itself
              |$upcomingDelay 
              |full exception can be found in log file by *Error ID*""".stripMargin,
           List(

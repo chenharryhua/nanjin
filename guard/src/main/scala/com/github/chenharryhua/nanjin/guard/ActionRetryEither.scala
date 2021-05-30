@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.data.{Kleisli, Reader}
+import cats.data.{EitherT, Kleisli, Reader}
 import cats.effect.{Async, Ref}
 import cats.syntax.all._
 import fs2.concurrent.Topic
@@ -18,7 +18,7 @@ final class ActionRetryEither[F[_], A, B](
   actionName: String,
   config: ActionConfig,
   input: A,
-  kleisli: Kleisli[F, A, Either[Throwable, B]],
+  eitherT: EitherT[Kleisli[F, A, *], Throwable, B],
   succ: Reader[(A, B), String],
   fail: Reader[(A, Throwable), String]
 ) {
@@ -33,7 +33,7 @@ final class ActionRetryEither[F[_], A, B](
       actionName,
       config.succOn,
       input,
-      kleisli,
+      eitherT,
       Reader(succ.tupled),
       fail)
 
@@ -44,7 +44,7 @@ final class ActionRetryEither[F[_], A, B](
       actionName,
       config.failOn,
       input,
-      kleisli,
+      eitherT,
       succ,
       Reader(fail.tupled))
 
@@ -85,7 +85,7 @@ final class ActionRetryEither[F[_], A, B](
     val res: F[Either[Throwable, B]] = retry.retryingOnAllErrors[Either[Throwable, B]](
       params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
       onError) {
-      kleisli.run(input).attempt.flatMap {
+      eitherT.value.run(input).attempt.flatMap {
         case Left(ex) => F.pure(Left(ex))
         case Right(outerRight) =>
           outerRight match {
