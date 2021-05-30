@@ -16,7 +16,7 @@ package object spark {
     .withLogLevel(NJLogLevel.WARN)
     .withoutUI
     .withUI
-    .withConfigUpdate(_.set("spark.sql.session.timeZone", sydneyTime.toString))
+    .updateConfig(_.set("spark.sql.session.timeZone", sydneyTime.toString))
     .session
 
 }
