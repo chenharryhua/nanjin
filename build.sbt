@@ -96,7 +96,7 @@ lazy val commonSettings = Seq(
     "-Xfuture"
   ),
   Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
-  PB.targets in Test                 := Seq(scalapb.gen() -> (sourceManaged in Test).value)
+  Test / PB.targets                  := Seq(scalapb.gen() -> (Test / sourceManaged).value)
 )
 
 val awsLib = Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.999")
@@ -326,7 +326,7 @@ lazy val salesforce = (project in file("salesforce"))
   .settings(name := "nj-salesforce")
   .settings(
     libraryDependencies ++=
-      Seq("org.cometd.java" % "cometd-java-client" % "7.0.2", "com.github.cb372" %% "cats-retry" % "3.0.0") ++
+      Seq("com.github.cb372" %% "cats-retry" % "3.0.0") ++
         http4sLib ++ fs2Lib ++ effectLib ++ logLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib)
 
 lazy val aws = (project in file("aws"))
@@ -423,4 +423,3 @@ lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
     .aggregate(common, datetime, salesforce, aws, guard, messages, pipes, kafka, database, spark)
-
