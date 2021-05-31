@@ -36,6 +36,6 @@ object utils {
     else DurationFormatUtils.formatDurationWords(dur.toMillis, true, true)
 
   def mkDurationString(start: Instant, end: Instant): String =
-    mkDurationString(FiniteDuration(JavaDuration.between(start, end).toNanos, TimeUnit.NANOSECONDS))
+    mkDurationString(FiniteDuration(Math.abs(JavaDuration.between(start, end).toNanos), TimeUnit.NANOSECONDS))
 
 }

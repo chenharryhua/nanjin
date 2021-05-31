@@ -3,6 +3,7 @@ package mtest.common
 import com.github.chenharryhua.nanjin.common.utils
 import org.scalatest.funsuite.AnyFunSuite
 
+import java.time.Instant
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.Duration
 
@@ -22,5 +23,11 @@ class UtilsTest extends AnyFunSuite {
     assert(utils.mkDurationString(lowest) == "1 second")
     val arbi = Duration(123456789, TimeUnit.MILLISECONDS)
     assert(utils.mkDurationString(arbi) == "1 day 10 hours 17 minutes 36 seconds")
+  }
+  test("duration always positive") {
+    val now   = Instant.now()
+    val after = now.plusSeconds(100)
+
+    assert(utils.mkDurationString(now, after) == utils.mkDurationString(after, now))
   }
 }
