@@ -71,19 +71,19 @@ final case class ActionConfig private (value: Fix[ActionConfigF]) {
   def failOn: ActionConfig  = ActionConfig(Fix(WithAlertMaskFail(value = true, value)))
   def failOff: ActionConfig = ActionConfig(Fix(WithAlertMaskFail(value = false, value)))
 
-  def withMaxRetries(n: Int): ActionConfig = ActionConfig(Fix(WithMaxRetries(n, value)))
+  def withMaxRetries(num: Int): ActionConfig = ActionConfig(Fix(WithMaxRetries(num, value)))
 
-  def withConstantDelay(v: FiniteDuration): ActionConfig =
-    ActionConfig(Fix(WithRetryPolicy(ConstantDelay(v), value)))
+  def withConstantDelay(delay: FiniteDuration): ActionConfig =
+    ActionConfig(Fix(WithRetryPolicy(ConstantDelay(delay), value)))
 
-  def withExponentialBackoff(v: FiniteDuration): ActionConfig = ActionConfig(
-    Fix(WithRetryPolicy(ExponentialBackoff(v), value)))
+  def withExponentialBackoff(delay: FiniteDuration): ActionConfig = ActionConfig(
+    Fix(WithRetryPolicy(ExponentialBackoff(delay), value)))
 
-  def withFibonacciBackoff(v: FiniteDuration): ActionConfig = ActionConfig(
-    Fix(WithRetryPolicy(FibonacciBackoff(v), value)))
+  def withFibonacciBackoff(delay: FiniteDuration): ActionConfig = ActionConfig(
+    Fix(WithRetryPolicy(FibonacciBackoff(delay), value)))
 
-  def withFullJitter(v: FiniteDuration): ActionConfig =
-    ActionConfig(Fix(WithRetryPolicy(FullJitter(v), value)))
+  def withFullJitter(delay: FiniteDuration): ActionConfig =
+    ActionConfig(Fix(WithRetryPolicy(FullJitter(delay), value)))
 
   def evalConfig: ActionParams = scheme.cata(algebra).apply(value)
 }

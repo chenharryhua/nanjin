@@ -22,8 +22,8 @@ final class ActionGuard[F[_]](
       config,
       input,
       Kleisli(f),
-      Reader(_ => ""),
-      Reader(_ => ""))
+      Reader(tuple2 => ""),
+      Reader(tuple2 => ""))
 
   def retry[B](f: F[B]): ActionRetry[F, Unit, B] = retry[Unit, B](())(_ => f)
 
@@ -38,9 +38,8 @@ final class ActionGuard[F[_]](
       config,
       input,
       EitherT(Kleisli(f)),
-      Reader(_ => ""),
-      Reader(_ => "")
-    )
+      Reader(tuple2 => ""),
+      Reader(tuple2 => ""))
 
   def retryEither[B](f: F[Either[Throwable, B]]): ActionRetryEither[F, Unit, B] =
     retryEither[Unit, B](())(_ => f)

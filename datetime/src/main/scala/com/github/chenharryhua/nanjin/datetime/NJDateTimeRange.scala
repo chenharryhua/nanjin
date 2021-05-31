@@ -131,12 +131,8 @@ import scala.concurrent.duration.FiniteDuration
       case (None, None)       => true
     }
 
-  def duration: Option[FiniteDuration] =
-    (startTimestamp, endTimestamp).mapN((s, e) => e.minus(s))
-
-  override def toString: String =
-    (startTimestamp, endTimestamp).mapN((s, e) => utils.mkDurationString(e.instant, s.instant)).getOrElse("infinite")
-
+  def duration: Option[FiniteDuration] = (startTimestamp, endTimestamp).mapN((s, e) => e.minus(s))
+  override def toString: String        = duration.map(utils.mkDurationString).getOrElse("infinite")
 }
 
 object NJDateTimeRange {

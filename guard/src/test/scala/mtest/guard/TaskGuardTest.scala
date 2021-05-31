@@ -20,7 +20,7 @@ class TaskGuardTest extends AnyFunSuite {
 
   test("should stopped if the operation normally exits") {
     val Vector(a, b, c) = guard
-      .updateConfig(_.withHealthCheckDisabled)
+      .updateConfig(_.withHealthCheckDisabled.withStartUpDelay(1.second))
       .eventStream(gd =>
         gd("success action")
           .updateConfig(
@@ -45,10 +45,10 @@ class TaskGuardTest extends AnyFunSuite {
   test("should retry 2 times when operation fail") {
     var i = 0
     val Vector(a, b, c, d) = guard
-      .updateConfig(_.withConstantDelay(1.hour)) // don't want to see start event
+      .updateConfig(_.withStartUpDelay(1.hour)) // don't want to see start event
       .eventStream { gd =>
         gd("2 time")
-          .updateConfig(_.withMaxRetries(3).withFullJitter(1.second))
+          .updateConfig(_.withMaxRetries(3).withFullJitter(1.second).succOff.failOff)
           .retry(IO(if (i < 2) {
             i += 1; throw new Exception
           } else i))
@@ -66,7 +66,7 @@ class TaskGuardTest extends AnyFunSuite {
 
   test("should receive 3 health check event") {
     val Vector(a, b, c, d) = guard
-      .updateConfig(_.withHealthCheckInterval(1.second).withConstantDelay(1.second))
+      .updateConfig(_.withHealthCheckInterval(1.second).withStartUpDelay(1.second))
       .eventStream(_ => IO.never)
       .observe(_.evalMap(slack.alert).drain)
       .interruptAfter(5.second)
@@ -81,7 +81,9 @@ class TaskGuardTest extends AnyFunSuite {
 
   test("escalate to up level if retry failed") {
     val Vector(a, b, c, d, e) = guard
-      .updateConfig(_.withConstantDelay(1.hour).withTopicMaxQueued(20)) // don't want to see start event
+      .updateConfig(
+        _.withStartUpDelay(1.hour).withTopicMaxQueued(20).withConstantDelay(1.hour)
+      ) // don't want to see start event
       .eventStream { gd =>
         gd("3 time")
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
@@ -105,7 +107,7 @@ class TaskGuardTest extends AnyFunSuite {
 
   test("for your information") {
     val Vector(a) = guard
-      .updateConfig(_.withConstantDelay(2.hours))
+      .updateConfig(_.withStartUpDelay(2.hours))
       .eventStream(gd => gd("fyi").fyi("hello, world") >> IO.never)
       .observe(_.evalMap(slack.alert).drain)
       .interruptAfter(5.seconds)
@@ -130,8 +132,14 @@ class TaskGuardTest extends AnyFunSuite {
 
   test("retry either should give up immediately when outer action fails") {
     val Vector(a) = guard
-      .updateConfig(_.withConstantDelay(2.hours).withTopicMaxQueued(3))
-      .eventStream(gd => gd("retry either").retryEither(5)(_ => IO.raiseError(new Exception("oops"))).run)
+      .updateConfig(_.withStartUpDelay(2.hours).withTopicMaxQueued(3).withConstantDelay(1.hour))
+      .eventStream(gd =>
+        gd("retry either")
+          .retryEither(5)(_ => IO.raiseError(new Exception))
+          .withSuccInfo((_, _: Unit) => "succ")
+          .withFailInfo((_, e) => e.getMessage)
+          .run)
+      .observe(_.evalMap(slack.alert).drain)
       .interruptAfter(5.seconds)
       .compile
       .toVector
@@ -142,7 +150,7 @@ class TaskGuardTest extends AnyFunSuite {
   test("retry either should retry 2 times to success") {
     var i = 0
     val Vector(a, b, c, d) = guard
-      .updateConfig(_.withConstantDelay(2.hours))
+      .updateConfig(_.withStartUpDelay(2.hours).withConstantDelay(1.hour))
       .eventStream(gd =>
         gd("retry either")
           .updateConfig(_.withConstantDelay(1.second).withMaxRetries(3))
@@ -150,6 +158,7 @@ class TaskGuardTest extends AnyFunSuite {
             IO(if (i < 2) { i += 1; Left(new Exception) }
             else Right(1)))
           .run)
+      .observe(_.evalMap(slack.alert).drain)
       .interruptAfter(5.seconds)
       .compile
       .toVector
@@ -162,13 +171,14 @@ class TaskGuardTest extends AnyFunSuite {
   test("retry either should escalate if all attempts fail") {
     var i = 0
     val Vector(a, b, c, d, e) = guard
-      .updateConfig(_.withConstantDelay(2.hours))
+      .updateConfig(_.withStartUpDelay(2.hours).withConstantDelay(1.hour))
       .eventStream(gd =>
         gd("retry either")
           .updateConfig(_.withConstantDelay(1.second).withMaxRetries(3))
           .retryEither(IO(if (i < 200) { i += 1; Left(new Exception) }
           else Right(1)))
           .run)
+      .observe(_.evalMap(slack.alert).drain)
       .interruptAfter(5.seconds)
       .compile
       .toVector
@@ -188,7 +198,7 @@ class TaskGuardTest extends AnyFunSuite {
     val ss1 = s1.eventStream(gd => gd("s1-a1").retry(IO(1)).run >> gd("s1-a2").retry(IO(2)).run)
     val ss2 = s2.eventStream(gd => gd("s2-a1").retry(IO(1)).run >> gd("s2-a2").retry(IO(2)).run)
 
-    val vector = ss1.merge(ss2).compile.toVector.unsafeRunSync()
+    val vector = ss1.merge(ss2).observe(_.evalMap(slack.alert).drain).compile.toVector.unsafeRunSync()
     assert(vector.count(_.isInstanceOf[ActionSucced]) == 4)
     assert(vector.count(_.isInstanceOf[ServiceStopped]) == 2)
   }
