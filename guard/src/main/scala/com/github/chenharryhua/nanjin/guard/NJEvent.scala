@@ -3,8 +3,9 @@ package com.github.chenharryhua.nanjin.guard
 import retry.RetryDetails
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
-import java.time.{Duration, Instant}
+import java.time.Instant
 import java.util.UUID
+import scala.concurrent.duration.FiniteDuration
 
 final case class ServiceInfo(applicationName: String, serviceName: String, params: ServiceParams, launchTime: Instant)
 
@@ -52,14 +53,14 @@ final case class ActionRetrying(
 final case class ActionFailed(
   actionInfo: ActionInfo,
   givingUp: GivingUp,
-  duration: Duration,
+  endAt: Instant,
   notes: String, // failure notes
   error: Throwable
 ) extends ActionEvent
 
 final case class ActionSucced(
   actionInfo: ActionInfo,
-  duration: Duration,
+  endAt: Instant,
   numRetries: Int, // how many retries before success
   notes: String // success notes
 ) extends ActionEvent

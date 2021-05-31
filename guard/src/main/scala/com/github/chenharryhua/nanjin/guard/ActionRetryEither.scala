@@ -7,7 +7,6 @@ import fs2.concurrent.Topic
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 import retry.{RetryDetails, RetryPolicies}
 
-import java.time.Duration
 import java.util.UUID
 
 /** When outer F[_] fails, return immedidately
@@ -78,7 +77,7 @@ final class ActionRetryEither[F[_], A, B](
               ActionFailed(
                 actionInfo = actionInfo,
                 givingUp = gu,
-                duration = Duration.between(ts, now),
+                endAt = now,
                 notes = fail.run((input, error)),
                 error = error
               ))
@@ -101,7 +100,8 @@ final class ActionRetryEither[F[_], A, B](
       for {
         count <- ref.get
         now <- F.realTimeInstant
-        _ <- topic.publish1(ActionSucced(actionInfo, Duration.between(ts, now), count, succ.run((input, b))))
+        _ <- topic.publish1(
+          ActionSucced(actionInfo = actionInfo, endAt = now, numRetries = count, notes = succ.run((input, b))))
       } yield ())
   }
 }
