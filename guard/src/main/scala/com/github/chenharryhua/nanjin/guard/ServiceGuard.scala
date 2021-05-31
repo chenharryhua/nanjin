@@ -50,7 +50,7 @@ final class ServiceGuard[F[_]](
             retry.retryingOnAllErrors(
               params.retryPolicy.policy[F],
               (e: Throwable, r) => topic.publish1(ServicePanic(serviceInfo, r, UUID.randomUUID(), e)).void) {
-              (topic.publish1(ssd).delayBy(params.retryPolicy.value).void <*
+              (topic.publish1(ssd).delayBy(params.startUpDelay).void <*
                 topic.publish1(shc).delayBy(params.healthCheck.interval).foreverM).background.use(_ =>
                 actionGuard(actionName => new ActionGuard[F](topic, serviceInfo, actionName, actionConfig))) >>
                 topic.publish1(sos).guarantee(topic.close.void)

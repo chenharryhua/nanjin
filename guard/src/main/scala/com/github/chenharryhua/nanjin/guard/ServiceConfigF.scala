@@ -13,7 +13,8 @@ import scala.concurrent.duration._
   healthCheck: HealthCheck,
   retryPolicy: NJRetryPolicy,
   topicMaxQueued: Int, // for fs2 topic
-  isNormalStop: Boolean // treat service stop as normal stop(true) or abnormal stop(false)
+  isNormalStop: Boolean, // treat service stop as normal stop(true) or abnormal stop(false)
+  startUpDelay: FiniteDuration // delay to sent out ServiceStarted event
 )
 
 private object ServiceParams {
@@ -23,7 +24,8 @@ private object ServiceParams {
       healthCheck = HealthCheck(6.hours, isEnabled = true),
       retryPolicy = ConstantDelay(30.seconds),
       topicMaxQueued = 10,
-      isNormalStop = false)
+      isNormalStop = false,
+      startUpDelay = 15.seconds)
 }
 
 sealed trait ServiceConfigF[F]
@@ -38,6 +40,8 @@ private object ServiceConfigF {
   final case class WithTopicMaxQueued[K](value: Int, cont: K) extends ServiceConfigF[K]
   final case class WithNoramlStop[K](value: Boolean, cont: K) extends ServiceConfigF[K]
 
+  final case class WithStartUpDelay[K](value: FiniteDuration, cont: K) extends ServiceConfigF[K]
+
   val algebra: Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams()                  => ServiceParams()
@@ -46,21 +50,25 @@ private object ServiceConfigF {
       case WithRetryPolicy(v, c)         => ServiceParams.retryPolicy.set(v)(c)
       case WithTopicMaxQueued(v, c)      => ServiceParams.topicMaxQueued.set(v)(c)
       case WithNoramlStop(v, c)          => ServiceParams.isNormalStop.set(v)(c)
+      case WithStartUpDelay(v, c)        => ServiceParams.startUpDelay.set(v)(c)
     }
 }
 
 final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   import ServiceConfigF._
 
-  def withHealthCheckInterval(d: FiniteDuration): ServiceConfig = ServiceConfig(Fix(WithHealthCheckInterval(d, value)))
-  def withHealthCheckDisabled: ServiceConfig                    = ServiceConfig(Fix(WithHealthCheckFlag(value = false, value)))
+  def withHealthCheckInterval(interval: FiniteDuration): ServiceConfig = ServiceConfig(
+    Fix(WithHealthCheckInterval(interval, value)))
+  def withHealthCheckDisabled: ServiceConfig = ServiceConfig(Fix(WithHealthCheckFlag(value = false, value)))
 
   def withTopicMaxQueued(num: Int): ServiceConfig = ServiceConfig(Fix(WithTopicMaxQueued(num, value)))
 
   def withNoramlStop: ServiceConfig = ServiceConfig(Fix(WithNoramlStop(value = true, value)))
 
-  def withConstantDelay(v: FiniteDuration): ServiceConfig =
-    ServiceConfig(Fix(WithRetryPolicy(ConstantDelay(v), value)))
+  def withStartUpDelay(delay: FiniteDuration): ServiceConfig = ServiceConfig(Fix(WithStartUpDelay(delay, value)))
+
+  def withConstantDelay(delay: FiniteDuration): ServiceConfig =
+    ServiceConfig(Fix(WithRetryPolicy(ConstantDelay(delay), value)))
 
   def evalConfig: ServiceParams = scheme.cata(algebra).apply(value)
 }
