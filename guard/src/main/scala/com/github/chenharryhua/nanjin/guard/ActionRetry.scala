@@ -7,8 +7,10 @@ import fs2.concurrent.Topic
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 import retry.{RetryDetails, RetryPolicies}
 
-import java.time.Duration
+import java.time.{Duration => JavaDuration}
 import java.util.UUID
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
 
 final class ActionRetry[F[_], A, B](
   topic: Topic[F, NJEvent],
@@ -59,7 +61,7 @@ final class ActionRetry[F[_], A, B](
               ActionFailed(
                 actionInfo = actionInfo,
                 givingUp = gu,
-                duration = Duration.between(ts, now),
+                duration = FiniteDuration(JavaDuration.between(ts, now).toNanos, TimeUnit.NANOSECONDS),
                 notes = fail.run((input, error)),
                 error = error
               ))
@@ -74,7 +76,12 @@ final class ActionRetry[F[_], A, B](
         for {
           count <- ref.get
           now <- F.realTimeInstant
-          _ <- topic.publish1(ActionSucced(actionInfo, Duration.between(ts, now), count, succ.run((input, b))))
+          _ <- topic.publish1(
+            ActionSucced(
+              actionInfo = actionInfo,
+              duration = FiniteDuration(JavaDuration.between(ts, now).toNanos, TimeUnit.NANOSECONDS),
+              numRetries = count,
+              notes = succ.run((input, b))))
         } yield ())
   }
 }

@@ -6,7 +6,8 @@ import org.apache.commons.lang3.time.DurationFormatUtils
 
 import java.time.{Instant, LocalDateTime, Duration => JavaDuration}
 import java.util.Properties
-import scala.concurrent.duration.Duration
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.Random
 
 object utils {
@@ -26,16 +27,15 @@ object utils {
   def mkExceptionString(err: Throwable, lines: Int = 2): String =
     ExceptionUtils.getRootCauseStackTrace(err).take(lines).mkString("\n")
 
-  def mkDurationString(millis: Long): String =
-    DurationFormatUtils.formatDurationWords(millis, true, true)
+  final val oneSecond: FiniteDuration   = Duration(1, TimeUnit.SECONDS)
+  final val oneMilliSec: FiniteDuration = Duration(1, TimeUnit.MILLISECONDS)
 
   def mkDurationString(dur: Duration): String =
-    mkDurationString(dur.toMillis)
-
-  def mkDurationString(dur: JavaDuration): String =
-    dur.toString
+    if (dur < oneMilliSec) s"${dur.toNanos} nanoseconds"
+    else if (dur < oneSecond) s"${dur.toMillis} milliseconds"
+    else DurationFormatUtils.formatDurationWords(dur.toMillis / 1000000L, true, true)
 
   def mkDurationString(start: Instant, end: Instant): String =
-    mkDurationString(end.toEpochMilli - start.toEpochMilli)
+    mkDurationString(FiniteDuration(JavaDuration.between(start, end).toNanos, TimeUnit.NANOSECONDS))
 
 }
