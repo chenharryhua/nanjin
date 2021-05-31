@@ -8,9 +8,6 @@ import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 import retry.{RetryDetails, RetryPolicies}
 
 import java.util.UUID
-import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.FiniteDuration
-import java.time.{Duration => JavaDuration}
 
 /** When outer F[_] fails, return immedidately
   * only retry when the inner Either is on the left branch
@@ -80,7 +77,7 @@ final class ActionRetryEither[F[_], A, B](
               ActionFailed(
                 actionInfo = actionInfo,
                 givingUp = gu,
-                duration = FiniteDuration(JavaDuration.between(ts, now).toNanos, TimeUnit.NANOSECONDS),
+                endAt = now,
                 notes = fail.run((input, error)),
                 error = error
               ))
@@ -104,11 +101,7 @@ final class ActionRetryEither[F[_], A, B](
         count <- ref.get
         now <- F.realTimeInstant
         _ <- topic.publish1(
-          ActionSucced(
-            actionInfo = actionInfo,
-            duration = FiniteDuration(JavaDuration.between(ts, now).toNanos, TimeUnit.NANOSECONDS),
-            numRetries = count,
-            notes = succ.run((input, b))))
+          ActionSucced(actionInfo = actionInfo, endAt = now, numRetries = count, notes = succ.run((input, b))))
       } yield ())
   }
 }

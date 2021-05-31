@@ -129,7 +129,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F])(i
 
     case ActionRetrying(_, _, _) => F.unit
 
-    case ActionFailed(action, givingUp, duration, notes, _) =>
+    case ActionFailed(action, givingUp, endAt, notes, _) =>
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
           action.applicationName,
@@ -141,7 +141,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F])(i
               List(
                 SlackField("Service", action.serviceName, short = true),
                 SlackField("Action", action.actionName, short = true),
-                SlackField("Took", utils.mkDurationString(duration), short = true),
+                SlackField("Took", utils.mkDurationString(action.launchTime, endAt), short = true),
                 SlackField("Retries", givingUp.totalRetries.toString, short = true),
                 SlackField("Retry Policy", action.params.retryPolicy.policy[F].show, short = true),
                 SlackField("Action ID", action.id.toString, short = false)
@@ -150,7 +150,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F])(i
         ).asJson.noSpaces)
       msg.flatMap(service.publish).whenA(action.params.alertMask.alertFail)
 
-    case ActionSucced(action, duration, numRetries, notes) =>
+    case ActionSucced(action, endAt, numRetries, notes) =>
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
           action.applicationName,
@@ -162,7 +162,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F])(i
               List(
                 SlackField("Service", action.serviceName, short = true),
                 SlackField("Action", action.actionName, short = true),
-                SlackField("Took", utils.mkDurationString(duration), short = true),
+                SlackField("Took", utils.mkDurationString(action.launchTime, endAt), short = true),
                 SlackField("Retries", s"$numRetries/${action.params.maxRetries}", short = true),
                 SlackField("Action ID", action.id.toString, short = false)
               )

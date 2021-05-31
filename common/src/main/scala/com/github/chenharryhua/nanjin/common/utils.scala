@@ -33,7 +33,7 @@ object utils {
   def mkDurationString(dur: Duration): String =
     if (dur < oneMilliSec) s"${dur.toNanos} nanoseconds"
     else if (dur < oneSecond) s"${dur.toMillis} milliseconds"
-    else DurationFormatUtils.formatDurationWords(dur.toMillis / 1000000L, true, true)
+    else DurationFormatUtils.formatDurationWords(dur.toMillis, true, true)
 
   def mkDurationString(start: Instant, end: Instant): String =
     mkDurationString(FiniteDuration(JavaDuration.between(start, end).toNanos, TimeUnit.NANOSECONDS))

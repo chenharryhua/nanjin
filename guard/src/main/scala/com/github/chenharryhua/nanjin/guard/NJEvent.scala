@@ -53,14 +53,14 @@ final case class ActionRetrying(
 final case class ActionFailed(
   actionInfo: ActionInfo,
   givingUp: GivingUp,
-  duration: FiniteDuration,
+  endAt: Instant,
   notes: String, // failure notes
   error: Throwable
 ) extends ActionEvent
 
 final case class ActionSucced(
   actionInfo: ActionInfo,
-  duration: FiniteDuration,
+  endAt: Instant,
   numRetries: Int, // how many retries before success
   notes: String // success notes
 ) extends ActionEvent
