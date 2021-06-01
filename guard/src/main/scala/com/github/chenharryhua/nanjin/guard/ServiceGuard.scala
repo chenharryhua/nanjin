@@ -53,7 +53,7 @@ final class ServiceGuard[F[_]](
           val consumer: Stream[F, NJEvent] = topic.subscribe(params.topicMaxQueued)
           consumer.concurrently(publisher)
         }
-        .evalTap(log.alert)
+        .evalTap(evt => log.alert(evt).whenA(params.isLogging))
     } yield event
   }
 }
