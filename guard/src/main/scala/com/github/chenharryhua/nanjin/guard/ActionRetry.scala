@@ -17,17 +17,16 @@ final class ActionRetry[F[_], A, B](
   input: A,
   kleisli: Kleisli[F, A, B],
   succ: Reader[(A, B), String],
-  fail: Reader[(A, Throwable), String]
-) {
+  fail: Reader[(A, Throwable), String]) {
   val params: ActionParams = config.evalConfig
 
   def withSuccInfo(succ: (A, B) => String): ActionRetry[F, A, B] =
-    new ActionRetry[F, A, B](topic, serviceInfo, actionName, config.succOn, input, kleisli, Reader(succ.tupled), fail)
+    new ActionRetry[F, A, B](topic, serviceInfo, actionName, config, input, kleisli, Reader(succ.tupled), fail)
 
   def withFailInfo(fail: (A, Throwable) => String): ActionRetry[F, A, B] =
-    new ActionRetry[F, A, B](topic, serviceInfo, actionName, config.failOn, input, kleisli, succ, Reader(fail.tupled))
+    new ActionRetry[F, A, B](topic, serviceInfo, actionName, config, input, kleisli, succ, Reader(fail.tupled))
 
-  def run(implicit F: Async[F]): F[B] = Ref.of[F, Int](0).flatMap(ref => internalRun(ref))
+  def run(implicit F: Async[F]): F[B] = Ref.of[F, Int](0).flatMap(internalRun)
 
   private def internalRun(ref: Ref[F, Int])(implicit F: Async[F]): F[B] = F.realTimeInstant.flatMap { ts =>
     val actionInfo: ActionInfo =
@@ -43,14 +42,7 @@ final class ActionRetry[F[_], A, B](
     def onError(error: Throwable, details: RetryDetails): F[Unit] =
       details match {
         case wdr @ WillDelayAndRetry(_, _, _) =>
-          topic
-            .publish1(
-              ActionRetrying(
-                actionInfo = actionInfo,
-                willDelayAndRetry = wdr,
-                error = error
-              ))
-            .void <* ref.update(_ + 1)
+          topic.publish1(ActionRetrying(actionInfo, wdr, error)) *> ref.update(_ + 1)
         case gu @ GivingUp(_, _) =>
           for {
             now <- F.realTimeInstant
@@ -73,8 +65,7 @@ final class ActionRetry[F[_], A, B](
         for {
           count <- ref.get
           now <- F.realTimeInstant
-          _ <- topic.publish1(
-            ActionSucced(actionInfo = actionInfo, endAt = now, numRetries = count, notes = succ.run((input, b))))
+          _ <- topic.publish1(ActionSucced(actionInfo, now, count, succ.run((input, b))))
         } yield ())
   }
 }

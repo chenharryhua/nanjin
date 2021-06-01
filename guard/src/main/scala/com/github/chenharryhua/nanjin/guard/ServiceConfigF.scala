@@ -14,7 +14,7 @@ import scala.concurrent.duration._
   retryPolicy: NJRetryPolicy,
   topicMaxQueued: Int, // for fs2 topic
   isNormalStop: Boolean, // treat service stop as normal stop(true) or abnormal stop(false)
-  startUpDelay: FiniteDuration // delay to sent out ServiceStarted event
+  startUpEventDelay: FiniteDuration // delay to sent out ServiceStarted event
 )
 
 private object ServiceParams {
@@ -25,7 +25,8 @@ private object ServiceParams {
       retryPolicy = ConstantDelay(30.seconds),
       topicMaxQueued = 10,
       isNormalStop = false,
-      startUpDelay = 15.seconds)
+      startUpEventDelay = 15.seconds
+    )
 }
 
 sealed trait ServiceConfigF[F]
@@ -50,7 +51,7 @@ private object ServiceConfigF {
       case WithRetryPolicy(v, c)         => ServiceParams.retryPolicy.set(v)(c)
       case WithTopicMaxQueued(v, c)      => ServiceParams.topicMaxQueued.set(v)(c)
       case WithNoramlStop(v, c)          => ServiceParams.isNormalStop.set(v)(c)
-      case WithStartUpDelay(v, c)        => ServiceParams.startUpDelay.set(v)(c)
+      case WithStartUpDelay(v, c)        => ServiceParams.startUpEventDelay.set(v)(c)
     }
 }
 
