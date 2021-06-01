@@ -29,7 +29,8 @@ class TaskGuardTest extends AnyFunSuite {
               .withConstantDelay(1.second)
               .withFibonacciBackoff(1.second)
               .withFullJitter(1.second)
-              .withExponentialBackoff(1.second))
+              .withExponentialBackoff(1.second)
+          )
           .retry(IO(1))
           .run
           .delayBy(1.second))
@@ -131,7 +132,7 @@ class TaskGuardTest extends AnyFunSuite {
   }
 
   test("retry either should give up immediately when outer action fails") {
-    val Vector(a) = guard
+    val Vector(a, b) = guard
       .updateConfig(_.withStartUpDelay(2.hours).withTopicMaxQueued(3).withConstantDelay(1.hour))
       .eventStream(gd =>
         gd("retry either")
@@ -144,7 +145,8 @@ class TaskGuardTest extends AnyFunSuite {
       .compile
       .toVector
       .unsafeRunSync()
-    assert(a.isInstanceOf[ServicePanic])
+    assert(a.isInstanceOf[ActionFailed])
+    assert(b.isInstanceOf[ServicePanic])
   }
 
   test("retry either should retry 2 times to success") {
@@ -155,7 +157,7 @@ class TaskGuardTest extends AnyFunSuite {
         gd("retry either")
           .updateConfig(_.withConstantDelay(1.second).withMaxRetries(3))
           .retryEither("does not matter")(_ =>
-            IO(if (i < 2) { i += 1; Left(new Exception) }
+            IO(if (i < 2) { i += 1; Left(new Exception("oops")) }
             else Right(1)))
           .run)
       .observe(_.evalMap(slack.alert).drain)

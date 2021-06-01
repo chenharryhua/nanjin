@@ -10,8 +10,7 @@ import io.circe.generic.auto._
 import io.circe.syntax._
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-/** Notes: slack messages
-  * [[https://api.slack.com/docs/messages/builder]]
+/** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
   */
 final private case class SlackField(title: String, value: String, short: Boolean)
 
@@ -133,7 +132,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F])(i
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
           action.applicationName,
-          notes,
+          Option(notes).getOrElse(""), // precaution
           List(
             Attachment(
               "danger",
@@ -154,7 +153,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F])(i
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
           action.applicationName,
-          notes,
+          Option(notes).getOrElse(""),
           List(
             Attachment(
               "good",

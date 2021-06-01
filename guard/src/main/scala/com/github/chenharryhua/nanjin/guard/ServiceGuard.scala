@@ -10,13 +10,8 @@ import fs2.concurrent.Topic.Closed
 import java.util.UUID
 
 /** @example
-  * {{{
-  *   val guard = TaskGuard[IO]("appName").service("service-name")
-  *   val es: Stream[IO,NJEvent] = guard.eventStream{ gd =>
-  *     gd("action-1").retry(IO(1)).run >>
-  *     gd("action-2").retry(IO(2)).run
-  *   }
-  * }}}
+  *   {{{ val guard = TaskGuard[IO]("appName").service("service-name") val es: Stream[IO,NJEvent] = guard.eventStream{
+  *   gd => gd("action-1").retry(IO(1)).run >> IO("other computation") >> gd("action-2").retry(IO(2)).run } }}}
   */
 
 final class ServiceGuard[F[_]](
@@ -50,7 +45,7 @@ final class ServiceGuard[F[_]](
             retry.retryingOnAllErrors(
               params.retryPolicy.policy[F],
               (e: Throwable, r) => topic.publish1(ServicePanic(serviceInfo, r, UUID.randomUUID(), e)).void) {
-              (topic.publish1(ssd).delayBy(params.startUpDelay).void <*
+              (topic.publish1(ssd).delayBy(params.startUpEventDelay).void <*
                 topic.publish1(shc).delayBy(params.healthCheck.interval).foreverM).background.use(_ =>
                 actionGuard(actionName => new ActionGuard[F](topic, serviceInfo, actionName, actionConfig))) >>
                 topic.publish1(sos).guarantee(topic.close.void)

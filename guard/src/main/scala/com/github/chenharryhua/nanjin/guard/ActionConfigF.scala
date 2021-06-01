@@ -36,7 +36,7 @@ final private case class FullJitter(value: FiniteDuration) extends NJRetryPolicy
 private object ActionParams {
 
   def apply(): ActionParams = ActionParams(
-    alertMask = AlertMask(alertSucc = false, alertFail = false),
+    alertMask = AlertMask(alertSucc = false, alertFail = true),
     maxRetries = 3,
     retryPolicy = ConstantDelay(10.seconds)
   )
