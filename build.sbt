@@ -255,12 +255,13 @@ val refinedLib = Seq(
 ).map(_ % refined)
 
 val baseLib = Seq(
-  "org.typelevel" %% "case-insensitive" % "1.1.4",
-  "io.scalaland" %% "chimney"           % chimney,
-  "io.scalaland" %% "enumz"             % "1.0.0",
-  "com.twitter" %% "algebird-core"      % "0.13.8",
-  "com.propensive" %% "contextual"      % contextual,
-  "com.chuusai" %% "shapeless"          % shapeless
+  "org.scala-lang.modules" %% "scala-java8-compat" % "1.0.0",
+  "org.typelevel" %% "case-insensitive"            % "1.1.4",
+  "io.scalaland" %% "chimney"                      % chimney,
+  "io.scalaland" %% "enumz"                        % "1.0.0",
+  "com.twitter" %% "algebird-core"                 % "0.13.8",
+  "com.propensive" %% "contextual"                 % contextual,
+  "com.chuusai" %% "shapeless"                     % shapeless
 ) ++ enumLib ++ drosteLib ++ catsLib ++ refinedLib
 
 val akkaLib = Seq(
@@ -364,8 +365,7 @@ lazy val messages = (project in file("messages"))
   .settings(name := "nj-messages")
   .settings(libraryDependencies ++= Seq(
     compilerPlugin(("com.github.ghik" % "silencer-plugin" % silencer).cross(CrossVersion.full)),
-    ("com.github.ghik"                % "silencer-lib"    % silencer % Provided).cross(CrossVersion.full),
-    "org.scala-lang.modules" %% "scala-java8-compat" % "1.0.0"
+    ("com.github.ghik"                % "silencer-lib"    % silencer % Provided).cross(CrossVersion.full)
   ) ++ baseLib ++ effectLib ++ fs2Lib ++ serdeLib ++ kafkaLib ++ monocleLib ++ testLib)
 
 lazy val pipes = (project in file("pipes"))
@@ -425,4 +425,4 @@ lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
     .aggregate(common, datetime, salesforce, aws, guard, messages, pipes, kafka, database, spark)
-    
+

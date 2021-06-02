@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.guard
 
+import cats.Show
+import org.apache.commons.lang3.exception.ExceptionUtils
 import retry.RetryDetails
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
@@ -7,7 +9,7 @@ import java.time.Instant
 import java.util.UUID
 
 final case class ServiceInfo(applicationName: String, serviceName: String, params: ServiceParams, launchTime: Instant) {
-  def metricsKey: String = s"$applicationName.$serviceName"
+  def metricsKey: String = s"service.$applicationName.$serviceName"
 }
 
 final case class ActionInfo(
@@ -17,10 +19,16 @@ final case class ActionInfo(
   params: ActionParams,
   id: UUID,
   launchTime: Instant) {
-  def metricsKey: String = s"$applicationName.$serviceName.$actionName"
+  def metricsKey: String = s"action.$applicationName.$serviceName.$actionName"
 }
 
 sealed trait NJEvent
+
+object NJEvent {
+  implicit private val showInstant: Show[Instant]     = _.toString()
+  implicit private val showThrowable: Show[Throwable] = ex => ExceptionUtils.getMessage(ex)
+  implicit val showNJEvent: Show[NJEvent]             = cats.derived.semiauto.show[NJEvent]
+}
 
 sealed trait ServiceEvent extends NJEvent {
   def serviceInfo: ServiceInfo

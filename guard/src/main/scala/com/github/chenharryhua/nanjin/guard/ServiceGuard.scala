@@ -50,13 +50,13 @@ final class ServiceGuard[F[_]](
               (e: Throwable, r) => topic.publish1(ServicePanic(serviceInfo, r, UUID.randomUUID(), e)).void) {
               (topic.publish1(ssd).delayBy(params.startUpEventDelay).void <*
                 topic.publish1(shc).delayBy(params.healthCheck.interval).foreverM).background.use(_ =>
-                actionGuard(actionName => new ActionGuard[F](topic, serviceInfo, actionName, actionConfig))) >>
+                actionGuard(actionName => new ActionGuard[F](topic, serviceInfo, actionName, actionConfig))) *>
                 topic.publish1(sos).guarantee(topic.close.void)
             })
           val consumer: Stream[F, NJEvent] = topic.subscribe(params.topicMaxQueued)
           consumer.concurrently(publisher)
         }
-        .evalTap(evt => log.alert(evt).whenA(params.isLogging))
+        .evalTap(event => log.alert(event).whenA(params.isLogging))
     } yield event
   }
 }
