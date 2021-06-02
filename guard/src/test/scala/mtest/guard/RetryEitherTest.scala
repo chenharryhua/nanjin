@@ -27,7 +27,7 @@ class RetryEitherTest extends AnyFunSuite {
         gd("retry-either-give-up")
           .retryEither(5)(_ => IO.raiseError(new Exception))
           .withSuccInfo((_, _: Unit) => "succ")
-          .withFailInfo((_, e) => e.getMessage)
+          .withFailInfo((_, e) => e.toString)
           .run)
       .observe(_.evalMap(m => slack.alert(m) >> metrics.alert(m)).drain)
       .interruptAfter(5.seconds)

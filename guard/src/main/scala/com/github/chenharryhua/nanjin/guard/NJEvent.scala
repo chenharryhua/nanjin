@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard
 
 import cats.Show
+import org.apache.commons.lang3.exception.ExceptionUtils
 import retry.RetryDetails
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
@@ -25,7 +26,7 @@ sealed trait NJEvent
 
 object NJEvent {
   implicit private val showInstant: Show[Instant]     = _.toString()
-  implicit private val showThrowable: Show[Throwable] = _.getMessage
+  implicit private val showThrowable: Show[Throwable] = ex => ExceptionUtils.getMessage(ex)
   implicit val showNJEvent: Show[NJEvent]             = cats.derived.semiauto.show[NJEvent]
 }
 
