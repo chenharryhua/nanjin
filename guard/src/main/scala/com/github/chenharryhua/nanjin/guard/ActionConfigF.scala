@@ -66,10 +66,10 @@ private object ActionConfigF {
 final case class ActionConfig private (value: Fix[ActionConfigF]) {
   import ActionConfigF._
 
-  def succOn: ActionConfig  = ActionConfig(Fix(WithAlertMaskSucc(value = true, value)))
-  def succOff: ActionConfig = ActionConfig(Fix(WithAlertMaskSucc(value = false, value)))
-  def failOn: ActionConfig  = ActionConfig(Fix(WithAlertMaskFail(value = true, value)))
-  def failOff: ActionConfig = ActionConfig(Fix(WithAlertMaskFail(value = false, value)))
+  def withSuccAlertOn: ActionConfig  = ActionConfig(Fix(WithAlertMaskSucc(value = true, value)))
+  def withSuccAlertOff: ActionConfig = ActionConfig(Fix(WithAlertMaskSucc(value = false, value)))
+  def withFailAlertOn: ActionConfig  = ActionConfig(Fix(WithAlertMaskFail(value = true, value)))
+  def withFailAlertOff: ActionConfig = ActionConfig(Fix(WithAlertMaskFail(value = false, value)))
 
   def withMaxRetries(num: Int): ActionConfig = ActionConfig(Fix(WithMaxRetries(num, value)))
 

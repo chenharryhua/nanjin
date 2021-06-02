@@ -6,7 +6,9 @@ import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 import java.time.Instant
 import java.util.UUID
 
-final case class ServiceInfo(applicationName: String, serviceName: String, params: ServiceParams, launchTime: Instant)
+final case class ServiceInfo(applicationName: String, serviceName: String, params: ServiceParams, launchTime: Instant) {
+  def metricsKey: String = s"$applicationName.$serviceName"
+}
 
 final case class ActionInfo(
   applicationName: String,
@@ -14,7 +16,9 @@ final case class ActionInfo(
   actionName: String,
   params: ActionParams,
   id: UUID,
-  launchTime: Instant)
+  launchTime: Instant) {
+  def metricsKey: String = s"$applicationName.$serviceName.$actionName"
+}
 
 sealed trait NJEvent
 

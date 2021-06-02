@@ -21,8 +21,11 @@ final class ServiceGuard[F[_]](
   actionConfig: ActionConfig) {
   val params: ServiceParams = serviceConfig.evalConfig
 
-  def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
+  def updateServiceConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
     new ServiceGuard[F](applicationName, serviceName, f(serviceConfig), actionConfig)
+
+  def updateActionConfig(f: ActionConfig => ActionConfig): ServiceGuard[F] =
+    new ServiceGuard[F](applicationName, serviceName, serviceConfig, f(actionConfig))
 
   def eventStream[A](actionGuard: (String => ActionGuard[F]) => F[A])(implicit F: Async[F]): Stream[F, NJEvent] = {
     val log = new LogService[F]()
@@ -53,7 +56,7 @@ final class ServiceGuard[F[_]](
           val consumer: Stream[F, NJEvent] = topic.subscribe(params.topicMaxQueued)
           consumer.concurrently(publisher)
         }
-        .evalTap(log.alert)
+        .evalTap(evt => log.alert(evt).whenA(params.isLogging))
     } yield event
   }
 }

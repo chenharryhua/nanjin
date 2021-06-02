@@ -14,7 +14,8 @@ import scala.concurrent.duration._
   retryPolicy: NJRetryPolicy,
   topicMaxQueued: Int, // for fs2 topic
   isNormalStop: Boolean, // treat service stop as normal stop(true) or abnormal stop(false)
-  startUpEventDelay: FiniteDuration // delay to sent out ServiceStarted event
+  startUpEventDelay: FiniteDuration, // delay to sent out ServiceStarted event
+  isLogging: Boolean // enable logging
 )
 
 private object ServiceParams {
@@ -25,7 +26,8 @@ private object ServiceParams {
       retryPolicy = ConstantDelay(30.seconds),
       topicMaxQueued = 10,
       isNormalStop = false,
-      startUpEventDelay = 15.seconds
+      startUpEventDelay = 15.seconds,
+      isLogging = true
     )
 }
 
@@ -43,6 +45,8 @@ private object ServiceConfigF {
 
   final case class WithStartUpDelay[K](value: FiniteDuration, cont: K) extends ServiceConfigF[K]
 
+  final case class WithLoggingEnabled[K](value: Boolean, cont: K) extends ServiceConfigF[K]
+
   val algebra: Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams()                  => ServiceParams()
@@ -52,6 +56,7 @@ private object ServiceConfigF {
       case WithTopicMaxQueued(v, c)      => ServiceParams.topicMaxQueued.set(v)(c)
       case WithNoramlStop(v, c)          => ServiceParams.isNormalStop.set(v)(c)
       case WithStartUpDelay(v, c)        => ServiceParams.startUpEventDelay.set(v)(c)
+      case WithLoggingEnabled(v, c)      => ServiceParams.isLogging.set(v)(c)
     }
 }
 
@@ -67,6 +72,8 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withNoramlStop: ServiceConfig = ServiceConfig(Fix(WithNoramlStop(value = true, value)))
 
   def withStartUpDelay(delay: FiniteDuration): ServiceConfig = ServiceConfig(Fix(WithStartUpDelay(delay, value)))
+
+  def withLoggingDisabled: ServiceConfig = ServiceConfig(Fix(WithLoggingEnabled(value = false, value)))
 
   def withConstantDelay(delay: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(ConstantDelay(delay), value)))
