@@ -7,7 +7,7 @@ import java.time.Instant
 import java.util.UUID
 
 final case class ServiceInfo(applicationName: String, serviceName: String, params: ServiceParams, launchTime: Instant) {
-  def metricsKey: String = s"$applicationName.$serviceName"
+  def metricsKey: String = s"service.$applicationName.$serviceName"
 }
 
 final case class ActionInfo(
@@ -17,7 +17,7 @@ final case class ActionInfo(
   params: ActionParams,
   id: UUID,
   launchTime: Instant) {
-  def metricsKey: String = s"$applicationName.$serviceName.$actionName"
+  def metricsKey: String = s"action.$applicationName.$serviceName.$actionName"
 }
 
 sealed trait NJEvent
