@@ -15,7 +15,7 @@ class RetryTest extends AnyFunSuite {
     .updateServiceConfig(_.withConstantDelay(1.second))
     .updateActionConfig(_.withConstantDelay(1.second).withFailAlertOn.withSuccAlertOn)
     .service("retry-test")
-    .updateConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds))
+    .updateServiceConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds))
 
   val slack   = SlackService(SimpleNotificationService.fake[IO])
   val metrics = MetricsService[IO](new MetricRegistry())
@@ -23,10 +23,10 @@ class RetryTest extends AnyFunSuite {
   test("should retry 2 times when operation fail") {
     var i = 0
     val Vector(a, b, c, d) = guard
-      .updateConfig(_.withStartUpDelay(1.hour)) // don't want to see start event
+      .updateServiceConfig(_.withStartUpDelay(1.hour)) // don't want to see start event
       .eventStream { gd =>
         gd("2-time-succ")
-          .updateConfig(_.withMaxRetries(3).withFullJitter(1.second).withSuccAlertOff.withFailAlertOff)
+          .updateActionConfig(_.withMaxRetries(3).withFullJitter(1.second).withSuccAlertOff.withFailAlertOff)
           .retry(IO(if (i < 2) {
             i += 1; throw new Exception
           } else i))
@@ -44,12 +44,12 @@ class RetryTest extends AnyFunSuite {
 
   test("should escalate to up level if retry failed") {
     val Vector(a, b, c, d, e) = guard
-      .updateConfig(
+      .updateServiceConfig(
         _.withStartUpDelay(1.hour).withTopicMaxQueued(20).withConstantDelay(1.hour)
       ) // don't want to see start event
       .eventStream { gd =>
         gd("escalate-after-3-time")
-          .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
+          .updateActionConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .retry(IO.raiseError(new Exception("oops")))
           .withSuccInfo((_, _: Int) => "")
           .withFailInfo((_, _) => "")

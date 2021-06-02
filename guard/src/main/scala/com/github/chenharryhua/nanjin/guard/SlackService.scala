@@ -72,7 +72,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F])(i
         if (info.params.isNormalStop) {
           SlackNotification(
             info.applicationName,
-            s"The Service was stopped.",
+            s":octagonal_sign:The Service was stopped normally.",
             List(
               Attachment(
                 "good",

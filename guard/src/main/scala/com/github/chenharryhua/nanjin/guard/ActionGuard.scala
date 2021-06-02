@@ -11,7 +11,7 @@ final class ActionGuard[F[_]](
   actionName: String,
   config: ActionConfig) {
 
-  def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
+  def updateActionConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
     new ActionGuard[F](topic, serviceInfo, actionName, f(config))
 
   def retry[A, B](input: A)(f: A => F[B]): ActionRetry[F, A, B] =
