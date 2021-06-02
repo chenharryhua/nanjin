@@ -98,7 +98,7 @@ lazy val commonSettings = Seq(
   Test / PB.targets                  := Seq(scalapb.gen() -> (Test / sourceManaged).value)
 )
 
-val awsLib = Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.999")
+val awsLib = Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.1032")
 
 val hadoopLib = Seq(
   "org.apache.hadoop" % "hadoop-mapreduce-client-core",
