@@ -73,7 +73,7 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
 
   def withStartUpDelay(delay: FiniteDuration): ServiceConfig = ServiceConfig(Fix(WithStartUpDelay(delay, value)))
 
-  def disableLogging: ServiceConfig = ServiceConfig(Fix(WithLoggingEnabled(value = false, value)))
+  def withLoggingDisabled: ServiceConfig = ServiceConfig(Fix(WithLoggingEnabled(value = false, value)))
 
   def withConstantDelay(delay: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(ConstantDelay(delay), value)))

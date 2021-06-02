@@ -41,7 +41,6 @@ val quill    = "3.7.1"
 val neotypes = "0.17.0"
 
 // format
-val circe   = "0.13.0"
 val jackson = "2.12.3"
 val json4s  = "3.7.0-M7" // for spark
 val kantan  = "0.6.1"
@@ -354,15 +353,18 @@ lazy val guard = (project in file("guard"))
   .dependsOn(aws)
   .settings(commonSettings: _*)
   .settings(name := "nj-guard")
-  .settings(libraryDependencies ++= Seq("com.github.cb372" %% "cats-retry" % "3.0.0") ++
-    logLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ awsLib.map(_ % Provided))
+  .settings(
+    libraryDependencies ++= Seq(
+      "com.github.cb372" %% "cats-retry" % "3.0.0",
+      "io.dropwizard.metrics"            % "metrics-core" % "4.2.0") ++
+      logLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ awsLib.map(_ % Provided))
 
 lazy val messages = (project in file("messages"))
   .settings(commonSettings: _*)
   .settings(name := "nj-messages")
   .settings(libraryDependencies ++= Seq(
-    compilerPlugin(("com.github.ghik"                % "silencer-plugin" % silencer).cross(CrossVersion.full)),
-    ("com.github.ghik"                               % "silencer-lib"    % silencer % Provided).cross(CrossVersion.full),
+    compilerPlugin(("com.github.ghik" % "silencer-plugin" % silencer).cross(CrossVersion.full)),
+    ("com.github.ghik"                % "silencer-lib"    % silencer % Provided).cross(CrossVersion.full),
     "org.scala-lang.modules" %% "scala-java8-compat" % "1.0.0"
   ) ++ baseLib ++ effectLib ++ fs2Lib ++ serdeLib ++ kafkaLib ++ monocleLib ++ testLib)
 
@@ -423,3 +425,4 @@ lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
     .aggregate(common, datetime, salesforce, aws, guard, messages, pipes, kafka, database, spark)
+    
