@@ -4,8 +4,7 @@ import cats.data.{Kleisli, Reader}
 import cats.effect.{Async, Ref}
 import cats.syntax.all._
 import fs2.concurrent.Topic
-import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
-import retry.{RetryDetails, RetryPolicies}
+import retry.RetryPolicies
 
 import java.util.UUID
 
@@ -39,33 +38,17 @@ final class ActionRetry[F[_], A, B](
         launchTime = ts
       )
 
-    def onError(error: Throwable, details: RetryDetails): F[Unit] =
-      details match {
-        case wdr @ WillDelayAndRetry(_, _, _) =>
-          topic.publish1(ActionRetrying(actionInfo, wdr, error)) *> ref.update(_ + 1)
-        case gu @ GivingUp(_, _) =>
-          for {
-            now <- F.realTimeInstant
-            _ <- topic.publish1(
-              ActionFailed(
-                actionInfo = actionInfo,
-                givingUp = gu,
-                endAt = now,
-                notes = fail.run((input, error)),
-                error = error
-              ))
-          } yield ()
-      }
+    val base = new ActionRetryBase[F, A, B](input, succ, fail)
 
     retry
       .retryingOnAllErrors[B](
         params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
-        onError)(kleisli.run(input))
+        base.onError(actionInfo, topic, ref))(kleisli.run(input))
       .flatTap(b =>
         for {
           count <- ref.get
           now <- F.realTimeInstant
-          _ <- topic.publish1(ActionSucced(actionInfo, now, count, succ.run((input, b))))
+          _ <- topic.publish1(ActionSucced(actionInfo, now, count, base.succNotes(b)))
         } yield ())
   }
 }

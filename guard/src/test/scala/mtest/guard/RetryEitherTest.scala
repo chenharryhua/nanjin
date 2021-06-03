@@ -6,7 +6,7 @@ import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.guard._
 import org.scalatest.funsuite.AnyFunSuite
-
+import cats.syntax.show._
 import scala.concurrent.duration._
 
 class RetryEitherTest extends AnyFunSuite {
@@ -23,13 +23,14 @@ class RetryEitherTest extends AnyFunSuite {
   test("retry either should give up immediately when outer action fails") {
     val Vector(a, b) = guard
       .updateServiceConfig(_.withStartUpDelay(2.hours).withTopicMaxQueued(3).withConstantDelay(1.hour))
+      .updateActionConfig(_.withSuccAlertOn)
       .eventStream(gd =>
         gd("retry-either-give-up")
           .retryEither(5)(_ => IO.raiseError(new Exception))
-          .withSuccInfo((_, _: Unit) => "succ")
-          .withFailInfo((_, e) => e.toString)
+          .withSuccInfo((_, _: Unit) => null)
+          .withFailInfo((_, e) => null)
           .run)
-      .observe(_.evalMap(m => slack.alert(m) >> metrics.alert(m)).drain)
+      .observe(_.evalMap(m => slack.alert(m) >> metrics.alert(m) >> IO.println(m.show)).drain)
       .interruptAfter(5.seconds)
       .compile
       .toVector

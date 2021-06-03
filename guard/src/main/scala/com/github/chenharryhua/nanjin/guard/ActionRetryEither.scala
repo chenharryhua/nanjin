@@ -4,8 +4,8 @@ import cats.data.{EitherT, Kleisli, Reader}
 import cats.effect.{Async, Ref}
 import cats.syntax.all._
 import fs2.concurrent.Topic
-import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
-import retry.{RetryDetails, RetryPolicies}
+import retry.RetryDetails.GivingUp
+import retry.RetryPolicies
 
 import java.util.UUID
 import scala.concurrent.duration.Duration
@@ -42,27 +42,12 @@ final class ActionRetryEither[F[_], A, B](
         launchTime = ts
       )
 
-    def onError(error: Throwable, details: RetryDetails): F[Unit] =
-      details match {
-        case wdr @ WillDelayAndRetry(_, _, _) =>
-          topic.publish1(ActionRetrying(actionInfo, wdr, error)) *> ref.update(_ + 1)
-        case gu @ GivingUp(_, _) =>
-          for {
-            now <- F.realTimeInstant
-            _ <- topic.publish1(
-              ActionFailed(
-                actionInfo = actionInfo,
-                givingUp = gu,
-                endAt = now,
-                notes = fail.run((input, error)),
-                error = error))
-          } yield ()
-      }
+    val base = new ActionRetryBase[F, A, B](input, succ, fail)
 
     retry
       .retryingOnAllErrors[Either[Throwable, B]](
         params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
-        onError) {
+        base.onError(actionInfo, topic, ref)) {
         eitherT.value.run(input).attempt.flatMap {
           case Left(error) =>
             for {
@@ -72,7 +57,7 @@ final class ActionRetryEither[F[_], A, B](
                   actionInfo = actionInfo,
                   givingUp = GivingUp(0, Duration.Zero),
                   endAt = now,
-                  notes = fail.run((input, error)),
+                  notes = base.failNotes(error),
                   error = error))
             } yield Left(error)
           case Right(outerRight) =>
@@ -87,7 +72,7 @@ final class ActionRetryEither[F[_], A, B](
         for {
           count <- ref.get
           now <- F.realTimeInstant
-          _ <- topic.publish1(ActionSucced(actionInfo, now, count, succ.run((input, b))))
+          _ <- topic.publish1(ActionSucced(actionInfo, now, count, base.succNotes(b)))
         } yield ())
   }
 }
