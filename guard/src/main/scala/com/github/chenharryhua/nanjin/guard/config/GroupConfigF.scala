@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.config
 
-import cats.{Functor, Show}
+import cats.Functor
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
@@ -10,9 +10,8 @@ import scala.concurrent.duration._
 @Lenses final case class GroupParams(maxRetries: Int, retryPolicy: NJRetryPolicy, topicMaxQueued: Int)
 
 object GroupParams {
-  implicit val showGroupParams: Show[GroupParams] = cats.derived.semiauto.show[GroupParams]
 
-  def apply(): GroupParams = GroupParams(
+  def default: GroupParams = GroupParams(
     maxRetries = 3,
     retryPolicy = ConstantDelay(10.seconds),
     topicMaxQueued = 10
@@ -32,7 +31,7 @@ private object GroupConfigF {
 
   val algebra: Algebra[GroupConfigF, GroupParams] =
     Algebra[GroupConfigF, GroupParams] {
-      case InitParams()             => GroupParams()
+      case InitParams()             => GroupParams.default
       case WithRetryPolicy(v, c)    => GroupParams.retryPolicy.set(v)(c)
       case WithMaxRetries(v, c)     => GroupParams.maxRetries.set(v)(c)
       case WithTopicMaxQueued(v, c) => GroupParams.topicMaxQueued.set(v)(c)

@@ -25,11 +25,10 @@ final case class ActionInfo(
 
 sealed trait NJEvent
 
-object NJEvent {
+object NJEvent { 
   implicit private val showInstant: Show[Instant]     = _.toString()
   implicit private val showThrowable: Show[Throwable] = ex => ExceptionUtils.getMessage(ex)
- 
-  implicit val showNJEvent: Show[NJEvent] = _ => "NJEvent"
+  implicit val showNJEvent: Show[NJEvent]             = cats.derived.semiauto.show[NJEvent]
 }
 
 sealed trait ServiceEvent extends NJEvent {

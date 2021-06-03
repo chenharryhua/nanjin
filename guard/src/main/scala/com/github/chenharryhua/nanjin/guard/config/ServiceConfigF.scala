@@ -16,10 +16,9 @@ import scala.concurrent.duration._
   startUpEventDelay: FiniteDuration // delay to sent out ServiceStarted event
 )
 
-private object ServiceParams {
-  implicit val showServiceParams: Show[ServiceParams] = cats.derived.semiauto.show[ServiceParams]
+object ServiceParams {
 
-  def apply(): ServiceParams =
+  def default: ServiceParams =
     ServiceParams(
       healthCheck = NJHealthCheck(6.hours, isEnabled = true),
       retryPolicy = ConstantDelay(30.seconds),
@@ -44,7 +43,7 @@ private object ServiceConfigF {
 
   val algebra: Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
-      case InitParams()                  => ServiceParams()
+      case InitParams()                  => ServiceParams.default
       case WithHealthCheckInterval(v, c) => ServiceParams.healthCheck.composeLens(NJHealthCheck.interval).set(v)(c)
       case WithHealthCheckFlag(v, c)     => ServiceParams.healthCheck.composeLens(NJHealthCheck.isEnabled).set(v)(c)
       case WithRetryPolicy(v, c)         => ServiceParams.retryPolicy.set(v)(c)

@@ -36,10 +36,9 @@ final private case class FullJitter(value: FiniteDuration) extends NJRetryPolicy
   retryPolicy: NJRetryPolicy
 )
 
-private object ActionParams {
-  implicit val showActionParams: Show[ActionParams] = cats.derived.semiauto.show[ActionParams]
+object ActionParams {
 
-  def apply(): ActionParams = ActionParams(
+  def default: ActionParams = ActionParams(
     alertMask = AlertMask(alertSucc = false, alertFail = true),
     maxRetries = 3,
     retryPolicy = ConstantDelay(10.seconds)
@@ -61,7 +60,7 @@ private object ActionConfigF {
 
   val algebra: Algebra[ActionConfigF, ActionParams] =
     Algebra[ActionConfigF, ActionParams] {
-      case InitParam()             => ActionParams()
+      case InitParam()             => ActionParams.default
       case WithRetryPolicy(v, c)   => ActionParams.retryPolicy.set(v)(c)
       case WithMaxRetries(v, c)    => ActionParams.maxRetries.set(v)(c)
       case WithAlertMaskSucc(v, c) => ActionParams.alertMask.composeLens(AlertMask.alertSucc).set(v)(c)
