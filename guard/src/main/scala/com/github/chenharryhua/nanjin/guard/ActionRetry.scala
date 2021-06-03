@@ -19,10 +19,10 @@ final class ActionRetry[F[_], A, B](
   fail: Reader[(A, Throwable), String]) {
   val params: ActionParams = config.evalConfig
 
-  def withSuccInfo(succ: (A, B) => String): ActionRetry[F, A, B] =
+  def withSuccNotes(succ: (A, B) => String): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](topic, serviceInfo, actionName, config, input, kleisli, Reader(succ.tupled), fail)
 
-  def withFailInfo(fail: (A, Throwable) => String): ActionRetry[F, A, B] =
+  def withFailNotes(fail: (A, Throwable) => String): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](topic, serviceInfo, actionName, config, input, kleisli, succ, Reader(fail.tupled))
 
   def run(implicit F: Async[F]): F[B] = Ref.of[F, Int](0).flatMap(internalRun)

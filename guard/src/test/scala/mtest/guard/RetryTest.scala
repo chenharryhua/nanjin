@@ -51,8 +51,8 @@ class RetryTest extends AnyFunSuite {
         gd("escalate-after-3-time")
           .updateActionConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .retry(IO.raiseError(new Exception("oops")))
-          .withSuccInfo((_, _: Int) => "")
-          .withFailInfo((_, _) => "")
+          .withSuccNotes((_, _: Int) => "")
+          .withFailNotes((_, _) => "")
           .run
       }
       .observe(_.evalMap(m => slack.alert(m) >> metrics.alert(m)).drain)

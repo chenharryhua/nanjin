@@ -25,10 +25,10 @@ final class ActionRetryEither[F[_], A, B](
 
   def run(implicit F: Async[F]): F[B] = Ref.of[F, Int](0).flatMap(internalRun)
 
-  def withSuccInfo(succ: (A, B) => String): ActionRetryEither[F, A, B] =
+  def withSuccNotes(succ: (A, B) => String): ActionRetryEither[F, A, B] =
     new ActionRetryEither[F, A, B](topic, serviceInfo, actionName, config, input, eitherT, Reader(succ.tupled), fail)
 
-  def withFailInfo(fail: (A, Throwable) => String): ActionRetryEither[F, A, B] =
+  def withFailNotes(fail: (A, Throwable) => String): ActionRetryEither[F, A, B] =
     new ActionRetryEither[F, A, B](topic, serviceInfo, actionName, config, input, eitherT, succ, Reader(fail.tupled))
 
   private def internalRun(ref: Ref[F, Int])(implicit F: Async[F]): F[B] = F.realTimeInstant.flatMap { ts =>
