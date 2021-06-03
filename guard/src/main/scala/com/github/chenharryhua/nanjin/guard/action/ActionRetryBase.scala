@@ -4,7 +4,7 @@ import cats.data.Reader
 import cats.effect.{Async, Ref}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.guard.alert.{ActionFailed, ActionInfo, ActionRetrying, NJEvent}
-import fs2.concurrent.Topic
+import fs2.concurrent.Channel
 import retry.RetryDetails
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
@@ -17,16 +17,16 @@ private class ActionRetryBase[F[_], A, B](input: A, succ: Reader[(A, B), String]
   def succNotes(b: B): String =
     Option(succ.run((input, b))).getOrElse("null in sucess notes")
 
-  def onError(actionInfo: ActionInfo, topic: Topic[F, NJEvent], ref: Ref[F, Int])(
+  def onError(actionInfo: ActionInfo, channel: Channel[F, NJEvent], ref: Ref[F, Int])(
     error: Throwable,
     details: RetryDetails): F[Unit] =
     details match {
       case wdr @ WillDelayAndRetry(_, _, _) =>
-        topic.publish1(ActionRetrying(actionInfo, wdr, error)) *> ref.update(_ + 1)
+        channel.send(ActionRetrying(actionInfo, wdr, error)) *> ref.update(_ + 1)
       case gu @ GivingUp(_, _) =>
         for {
           now <- F.realTimeInstant
-          _ <- topic.publish1(
+          _ <- channel.send(
             ActionFailed(
               actionInfo = actionInfo,
               givingUp = gu,

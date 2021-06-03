@@ -5,13 +5,13 @@ import cats.effect.{Async, Ref}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.guard.alert.{ActionInfo, ActionSucced, NJEvent}
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams}
-import fs2.concurrent.Topic
+import fs2.concurrent.Channel
 import retry.RetryPolicies
 
 import java.util.UUID
 
 final class ActionRetry[F[_], A, B](
-  topic: Topic[F, NJEvent],
+  channel: Channel[F, NJEvent],
   applicationName: String,
   parentName: String,
   actionName: String,
@@ -24,7 +24,7 @@ final class ActionRetry[F[_], A, B](
 
   def withSuccNotes(succ: (A, B) => String): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
-      topic,
+      channel,
       applicationName,
       parentName,
       actionName,
@@ -36,7 +36,7 @@ final class ActionRetry[F[_], A, B](
 
   def withFailNotes(fail: (A, Throwable) => String): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
-      topic,
+      channel,
       applicationName,
       parentName,
       actionName,
@@ -64,12 +64,12 @@ final class ActionRetry[F[_], A, B](
     retry
       .retryingOnAllErrors[B](
         params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
-        base.onError(actionInfo, topic, ref))(kleisli.run(input))
+        base.onError(actionInfo, channel, ref))(kleisli.run(input))
       .flatTap(b =>
         for {
           count <- ref.get
           now <- F.realTimeInstant
-          _ <- topic.publish1(ActionSucced(actionInfo, now, count, base.succNotes(b)))
+          _ <- channel.send(ActionSucced(actionInfo, now, count, base.succNotes(b)))
         } yield ())
   }
 }

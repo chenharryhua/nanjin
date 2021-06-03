@@ -7,11 +7,9 @@ import com.github.chenharryhua.nanjin.guard.action.ActionGuard
 import com.github.chenharryhua.nanjin.guard.alert._
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams}
 import fs2.Stream
-import fs2.concurrent.Topic
-import fs2.concurrent.Topic.Closed
+import fs2.concurrent.Channel
 
 import java.util.UUID
-import scala.concurrent.duration._
 
 /** Service never stop
   * @example
@@ -45,22 +43,21 @@ final class ServiceGuard[F[_]](
       ssd = ServiceStarted(serviceInfo)
       shc = ServiceHealthCheck(serviceInfo)
       sos = ServiceStoppedAbnormally(serviceInfo)
-      event <- Stream.eval(Topic[F, NJEvent]).flatMap { topic =>
-        val subscriber = topic.subscribe(params.topicMaxQueued)
-        val publisher: Stream[F, Either[Closed, Unit]] = Stream.eval {
+      event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { chann =>
+        val publisher = Stream.eval {
           val ret = retry.retryingOnAllErrors(
             params.retryPolicy.policy[F],
-            (e: Throwable, r) => topic.publish1(ServicePanic(serviceInfo, r, UUID.randomUUID(), e)).void) {
-            (topic.publish1(ssd).delayBy(params.startUpEventDelay).void <*
-              topic.publish1(shc).delayBy(params.healthCheck.interval).foreverM).background.use(_ =>
+            (e: Throwable, r) => chann.send(ServicePanic(serviceInfo, r, UUID.randomUUID(), e)).void) {
+            (chann.send(ssd).delayBy(params.startUpEventDelay).void <*
+              chann.send(shc).delayBy(params.healthCheck.interval).foreverM).background.use(_ =>
               actionGuard(actionName =>
-                new ActionGuard[F](topic, applicationName, serviceName, actionName, actionConfig))) *>
-              topic.publish1(sos)
+                new ActionGuard[F](chann, applicationName, serviceName, actionName, actionConfig))) *>
+              chann.send(sos)
           }
           // should never return, but if it did, close the topic so that the whole stream will be stopped
-          ret.guarantee(topic.close.void)
+          ret.guarantee(chann.close.void)
         }
-        subscriber.concurrently(publisher.delayBy(10.milliseconds))
+        chann.stream.concurrently(publisher)
       }
     } yield event
 }

@@ -7,9 +7,8 @@ import com.github.chenharryhua.nanjin.guard.action.ActionGuard
 import com.github.chenharryhua.nanjin.guard.alert.NJEvent
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, GroupConfig, GroupParams}
 import fs2.Stream
-import fs2.concurrent.Topic
+import fs2.concurrent.Channel
 import retry.RetryPolicies
-import scala.concurrent.duration._
 
 final class GroupGuard[F[_]](
   applicationName: String,
@@ -25,17 +24,16 @@ final class GroupGuard[F[_]](
     new GroupGuard[F](applicationName, groupName, groupConfig, f(actionConfig))
 
   def eventStream[A](actionGuard: (String => ActionGuard[F]) => F[A])(implicit F: Async[F]): Stream[F, NJEvent] =
-    Stream.eval(Topic[F, NJEvent]).flatMap { topic =>
-      val subscriber = topic.subscribe(params.topicMaxQueued)
+    Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { chann =>
       val publisher = Stream.eval {
         val ret = retry.retryingOnAllErrors[A](
           params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
           retry.noop[F, Throwable]
         ) {
-          actionGuard(actionName => new ActionGuard[F](topic, applicationName, groupName, actionName, actionConfig))
+          actionGuard(actionName => new ActionGuard[F](chann, applicationName, groupName, actionName, actionConfig))
         }
-        ret.guarantee(topic.close.void)
+        ret.guarantee(chann.close.void)
       }
-      subscriber.concurrently(publisher.delayBy(10.milliseconds))
+      chann.stream.concurrently(publisher)
     }
 }

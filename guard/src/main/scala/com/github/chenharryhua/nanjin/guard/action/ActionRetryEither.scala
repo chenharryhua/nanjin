@@ -5,7 +5,7 @@ import cats.effect.{Async, Ref}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.guard.alert.{ActionFailed, ActionInfo, ActionSucced, NJEvent}
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams}
-import fs2.concurrent.Topic
+import fs2.concurrent.Channel
 import retry.RetryDetails.GivingUp
 import retry.RetryPolicies
 
@@ -15,7 +15,7 @@ import scala.concurrent.duration.Duration
 /** When outer F[_] fails, return immedidately only retry when the inner Either is on the left branch
   */
 final class ActionRetryEither[F[_], A, B](
-  topic: Topic[F, NJEvent],
+  channel: Channel[F, NJEvent],
   applicationName: String,
   parentName: String,
   actionName: String,
@@ -28,7 +28,7 @@ final class ActionRetryEither[F[_], A, B](
 
   def withSuccNotes(succ: (A, B) => String): ActionRetryEither[F, A, B] =
     new ActionRetryEither[F, A, B](
-      topic,
+      channel,
       applicationName,
       parentName,
       actionName,
@@ -40,7 +40,7 @@ final class ActionRetryEither[F[_], A, B](
 
   def withFailNotes(fail: (A, Throwable) => String): ActionRetryEither[F, A, B] =
     new ActionRetryEither[F, A, B](
-      topic,
+      channel,
       applicationName,
       parentName,
       actionName,
@@ -68,12 +68,12 @@ final class ActionRetryEither[F[_], A, B](
     retry
       .retryingOnAllErrors[Either[Throwable, B]](
         params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
-        base.onError(actionInfo, topic, ref)) {
+        base.onError(actionInfo, channel, ref)) {
         eitherT.value.run(input).attempt.flatMap {
           case Left(error) =>
             for {
               now <- F.realTimeInstant
-              _ <- topic.publish1(
+              _ <- channel.send(
                 ActionFailed(
                   actionInfo = actionInfo,
                   givingUp = GivingUp(0, Duration.Zero),
@@ -93,7 +93,7 @@ final class ActionRetryEither[F[_], A, B](
         for {
           count <- ref.get
           now <- F.realTimeInstant
-          _ <- topic.publish1(ActionSucced(actionInfo, now, count, base.succNotes(b)))
+          _ <- channel.send(ActionSucced(actionInfo, now, count, base.succNotes(b)))
         } yield ())
   }
 }
