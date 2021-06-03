@@ -15,7 +15,7 @@ private class ActionRetryBase[F[_], A, B](input: A, succ: Reader[(A, B), String]
     Option(fail.run((input, error))).getOrElse("null in failure notes")
 
   def succNotes(b: B): String =
-    Option(succ.run((input, b))).getOrElse("null in sucess notes")
+    Option(succ.run((input, b))).getOrElse("null in success notes")
 
   def onError(actionInfo: ActionInfo, channel: Channel[F, NJEvent], ref: Ref[F, Int])(
     error: Throwable,

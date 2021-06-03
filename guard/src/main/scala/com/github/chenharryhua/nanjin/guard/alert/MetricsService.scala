@@ -6,8 +6,7 @@ import com.codahale.metrics.MetricRegistry
 
 import java.time.{Duration => JavaDuration}
 
-final private class MetricsService[F[_]] private (val metrics: MetricRegistry)(implicit F: Sync[F])
-    extends AlertService[F] {
+final private class MetricsService[F[_]](metrics: MetricRegistry)(implicit F: Sync[F]) extends AlertService[F] {
 
   override def alert(event: NJEvent): F[Unit] = event match {
     case ServiceStarted(serviceInfo) =>

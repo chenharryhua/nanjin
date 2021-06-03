@@ -17,7 +17,7 @@ final private case class SlackField(title: String, value: String, short: Boolean
 final private case class Attachment(color: String, ts: Long, fields: List[SlackField])
 final private case class SlackNotification(username: String, text: String, attachments: List[Attachment])
 
-final private class SlackService[F[_]] private (service: SimpleNotificationService[F])(implicit F: Sync[F])
+final private class SlackService[F[_]](service: SimpleNotificationService[F])(implicit F: Sync[F])
     extends AlertService[F] {
 
   override def alert(event: NJEvent): F[Unit] = event match {
@@ -114,7 +114,7 @@ final private class SlackService[F[_]] private (service: SimpleNotificationServi
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
           action.applicationName,
-          Option(notes).getOrElse(""), // precaution
+          notes,
           List(
             Attachment(
               "danger",
@@ -135,7 +135,7 @@ final private class SlackService[F[_]] private (service: SimpleNotificationServi
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
           action.applicationName,
-          Option(notes).getOrElse(""),
+          notes,
           List(
             Attachment(
               "good",
