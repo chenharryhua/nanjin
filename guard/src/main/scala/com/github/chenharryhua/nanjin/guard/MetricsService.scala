@@ -13,7 +13,7 @@ final class MetricsService[F[_]] private (val metrics: MetricRegistry)(implicit 
       F.blocking(metrics.counter(s"${serviceInfo.metricsKey}.counter.start").inc())
     case ServicePanic(serviceInfo, _, _, _) =>
       F.blocking(metrics.counter(s"${serviceInfo.metricsKey}.counter.panic").inc())
-    case ServiceStopped(serviceInfo) =>
+    case ServiceStoppedAbnormally(serviceInfo) =>
       F.blocking(metrics.counter(s"${serviceInfo.metricsKey}.counter.stop").inc())
     case ServiceHealthCheck(serviceInfo) =>
       F.blocking(metrics.counter(s"${serviceInfo.metricsKey}.counter.health-check").inc())

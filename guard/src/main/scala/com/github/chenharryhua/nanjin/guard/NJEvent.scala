@@ -14,12 +14,12 @@ final case class ServiceInfo(applicationName: String, serviceName: String, param
 
 final case class ActionInfo(
   applicationName: String,
-  serviceName: String,
+  parentName: String,
   actionName: String,
   params: ActionParams,
   id: UUID,
   launchTime: Instant) {
-  def metricsKey: String = s"action.$applicationName.$serviceName.$actionName"
+  def metricsKey: String = s"action.$applicationName.$parentName.$actionName"
 }
 
 sealed trait NJEvent
@@ -43,7 +43,7 @@ final case class ServicePanic(
   error: Throwable
 ) extends ServiceEvent
 
-final case class ServiceStopped(
+final case class ServiceStoppedAbnormally(
   serviceInfo: ServiceInfo
 ) extends ServiceEvent
 

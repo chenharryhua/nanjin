@@ -10,7 +10,7 @@ import cats.syntax.all._
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
-class ServiceLevelTest extends AnyFunSuite {
+class ServiceTest extends AnyFunSuite {
 
   val guard = TaskGuard[IO]("service-level-guard")
     .updateServiceConfig(_.withConstantDelay(1.second))
@@ -36,7 +36,7 @@ class ServiceLevelTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStarted])
     assert(b.isInstanceOf[ActionSucced])
-    assert(c.isInstanceOf[ServiceStopped])
+    assert(c.isInstanceOf[ServiceStoppedAbnormally])
   }
 
   test("should receive 3 health check event") {
@@ -94,7 +94,6 @@ class ServiceLevelTest extends AnyFunSuite {
 
   test("normal service stop after two operations") {
     val Vector(a, b, c) = guard
-      .updateServiceConfig(_.withNoramlStop)
       .eventStream(gd => gd("a").retry(IO(1)).run >> gd("b").retry(IO(2)).run)
       .observe(_.evalMap(m => slack.alert(m) >> metrics.alert(m)).drain)
       .compile
@@ -102,7 +101,7 @@ class ServiceLevelTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(a.isInstanceOf[ActionSucced])
     assert(b.isInstanceOf[ActionSucced])
-    assert(c.isInstanceOf[ServiceStopped])
+    assert(c.isInstanceOf[ServiceStoppedAbnormally])
   }
 
   test("combine two event streams") {
@@ -116,7 +115,7 @@ class ServiceLevelTest extends AnyFunSuite {
     val vector =
       ss1.merge(ss2).observe(_.evalMap(m => slack.alert(m) >> metrics.alert(m)).drain).compile.toVector.unsafeRunSync()
     assert(vector.count(_.isInstanceOf[ActionSucced]) == 4)
-    assert(vector.count(_.isInstanceOf[ServiceStopped]) == 2)
+    assert(vector.count(_.isInstanceOf[ServiceStoppedAbnormally]) == 2)
   }
 
   test("metrics success count") {

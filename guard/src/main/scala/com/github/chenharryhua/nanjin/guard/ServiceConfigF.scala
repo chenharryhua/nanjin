@@ -13,7 +13,6 @@ import scala.concurrent.duration._
   healthCheck: HealthCheck,
   retryPolicy: NJRetryPolicy,
   topicMaxQueued: Int, // for fs2 topic
-  isNormalStop: Boolean, // treat service stop as normal stop(true) or abnormal stop(false)
   startUpEventDelay: FiniteDuration, // delay to sent out ServiceStarted event
   isLogging: Boolean // enable logging
 )
@@ -25,7 +24,6 @@ private object ServiceParams {
       healthCheck = HealthCheck(6.hours, isEnabled = true),
       retryPolicy = ConstantDelay(30.seconds),
       topicMaxQueued = 10,
-      isNormalStop = false,
       startUpEventDelay = 15.seconds,
       isLogging = true
     )
@@ -41,7 +39,6 @@ private object ServiceConfigF {
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends ServiceConfigF[K]
 
   final case class WithTopicMaxQueued[K](value: Int, cont: K) extends ServiceConfigF[K]
-  final case class WithNoramlStop[K](value: Boolean, cont: K) extends ServiceConfigF[K]
 
   final case class WithStartUpDelay[K](value: FiniteDuration, cont: K) extends ServiceConfigF[K]
 
@@ -54,7 +51,6 @@ private object ServiceConfigF {
       case WithHealthCheckFlag(v, c)     => ServiceParams.healthCheck.composeLens(HealthCheck.isEnabled).set(v)(c)
       case WithRetryPolicy(v, c)         => ServiceParams.retryPolicy.set(v)(c)
       case WithTopicMaxQueued(v, c)      => ServiceParams.topicMaxQueued.set(v)(c)
-      case WithNoramlStop(v, c)          => ServiceParams.isNormalStop.set(v)(c)
       case WithStartUpDelay(v, c)        => ServiceParams.startUpEventDelay.set(v)(c)
       case WithLoggingEnabled(v, c)      => ServiceParams.isLogging.set(v)(c)
     }
@@ -68,8 +64,6 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withHealthCheckDisabled: ServiceConfig = ServiceConfig(Fix(WithHealthCheckFlag(value = false, value)))
 
   def withTopicMaxQueued(num: Int): ServiceConfig = ServiceConfig(Fix(WithTopicMaxQueued(num, value)))
-
-  def withNoramlStop: ServiceConfig = ServiceConfig(Fix(WithNoramlStop(value = true, value)))
 
   def withStartUpDelay(delay: FiniteDuration): ServiceConfig = ServiceConfig(Fix(WithStartUpDelay(delay, value)))
 

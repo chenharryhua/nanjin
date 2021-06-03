@@ -58,7 +58,7 @@ class RetryEitherTest extends AnyFunSuite {
     assert(a.isInstanceOf[ActionRetrying])
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.isInstanceOf[ActionSucced])
-    assert(d.isInstanceOf[ServiceStopped])
+    assert(d.isInstanceOf[ServiceStoppedAbnormally])
   }
   test("retry either should escalate if all attempts fail") {
     var i = 0

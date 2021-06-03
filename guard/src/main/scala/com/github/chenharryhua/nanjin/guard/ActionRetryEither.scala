@@ -14,7 +14,8 @@ import scala.concurrent.duration.Duration
   */
 final class ActionRetryEither[F[_], A, B](
   topic: Topic[F, NJEvent],
-  serviceInfo: ServiceInfo,
+  applicationName: String,
+  parentName: String,
   actionName: String,
   config: ActionConfig,
   input: A,
@@ -26,16 +27,34 @@ final class ActionRetryEither[F[_], A, B](
   def run(implicit F: Async[F]): F[B] = Ref.of[F, Int](0).flatMap(internalRun)
 
   def withSuccNotes(succ: (A, B) => String): ActionRetryEither[F, A, B] =
-    new ActionRetryEither[F, A, B](topic, serviceInfo, actionName, config, input, eitherT, Reader(succ.tupled), fail)
+    new ActionRetryEither[F, A, B](
+      topic,
+      applicationName,
+      parentName,
+      actionName,
+      config,
+      input,
+      eitherT,
+      Reader(succ.tupled),
+      fail)
 
   def withFailNotes(fail: (A, Throwable) => String): ActionRetryEither[F, A, B] =
-    new ActionRetryEither[F, A, B](topic, serviceInfo, actionName, config, input, eitherT, succ, Reader(fail.tupled))
+    new ActionRetryEither[F, A, B](
+      topic,
+      applicationName,
+      parentName,
+      actionName,
+      config,
+      input,
+      eitherT,
+      succ,
+      Reader(fail.tupled))
 
   private def internalRun(ref: Ref[F, Int])(implicit F: Async[F]): F[B] = F.realTimeInstant.flatMap { ts =>
     val actionInfo: ActionInfo =
       ActionInfo(
-        applicationName = serviceInfo.applicationName,
-        serviceName = serviceInfo.serviceName,
+        applicationName = applicationName,
+        parentName = parentName,
         actionName = actionName,
         params = params,
         id = UUID.randomUUID(),

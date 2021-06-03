@@ -67,41 +67,23 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F])(i
         ).asJson.noSpaces)
       msg.flatMap(service.publish).void
 
-    case ServiceStopped(info) =>
+    case ServiceStoppedAbnormally(info) =>
       val msg = F.realTimeInstant.map(ts =>
-        if (info.params.isNormalStop) {
-          SlackNotification(
-            info.applicationName,
-            s":octagonal_sign: The Service was stopped normally.",
-            List(
-              Attachment(
-                "good",
-                ts.toEpochMilli,
-                List(
-                  SlackField("Service", info.serviceName, short = true),
-                  SlackField("Launch Time", info.launchTime.toString, short = true),
-                  SlackField("Up Time", utils.mkDurationString(info.launchTime, ts), short = true),
-                  SlackField("Status", "Stopped", short = true)
-                )
-              ))
-          ).asJson.noSpaces
-        } else {
-          SlackNotification(
-            info.applicationName,
-            s":open_mouth: The service was unexpectedly stopped. It is a *FATAL* error",
-            List(
-              Attachment(
-                "danger",
-                ts.toEpochMilli,
-                List(
-                  SlackField("Service", info.serviceName, short = true),
-                  SlackField("Launch Time", info.launchTime.toString, short = true),
-                  SlackField("Up Time", utils.mkDurationString(info.launchTime, ts), short = true),
-                  SlackField("Status", "Stopped abnormally", short = true)
-                )
-              ))
-          ).asJson.noSpaces
-        })
+        SlackNotification(
+          info.applicationName,
+          s":octagonal_sign: The service was unexpectedly stopped. It is a *FATAL* error",
+          List(
+            Attachment(
+              "danger",
+              ts.toEpochMilli,
+              List(
+                SlackField("Service", info.serviceName, short = true),
+                SlackField("Launch Time", info.launchTime.toString, short = true),
+                SlackField("Up Time", utils.mkDurationString(info.launchTime, ts), short = true),
+                SlackField("Status", "Stopped abnormally", short = true)
+              )
+            ))
+        ).asJson.noSpaces)
       msg.flatMap(service.publish).void
 
     case ServiceHealthCheck(info) =>
@@ -138,7 +120,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F])(i
               "danger",
               ts.toEpochMilli,
               List(
-                SlackField("Service", action.serviceName, short = true),
+                SlackField("Service", action.parentName, short = true),
                 SlackField("Action", action.actionName, short = true),
                 SlackField("Took", utils.mkDurationString(action.launchTime, endAt), short = true),
                 SlackField("Retries", givingUp.totalRetries.toString, short = true),
@@ -159,7 +141,7 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F])(i
               "good",
               ts.toEpochMilli,
               List(
-                SlackField("Service", action.serviceName, short = true),
+                SlackField("Service", action.parentName, short = true),
                 SlackField("Action", action.actionName, short = true),
                 SlackField("Took", utils.mkDurationString(action.launchTime, endAt), short = true),
                 SlackField("Retries", s"$numRetries/${action.params.maxRetries}", short = true),

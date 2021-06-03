@@ -10,7 +10,8 @@ import java.util.UUID
 
 final class ActionRetry[F[_], A, B](
   topic: Topic[F, NJEvent],
-  serviceInfo: ServiceInfo,
+  applicationName: String,
+  parentName: String,
   actionName: String,
   config: ActionConfig,
   input: A,
@@ -20,18 +21,36 @@ final class ActionRetry[F[_], A, B](
   val params: ActionParams = config.evalConfig
 
   def withSuccNotes(succ: (A, B) => String): ActionRetry[F, A, B] =
-    new ActionRetry[F, A, B](topic, serviceInfo, actionName, config, input, kleisli, Reader(succ.tupled), fail)
+    new ActionRetry[F, A, B](
+      topic,
+      applicationName,
+      parentName,
+      actionName,
+      config,
+      input,
+      kleisli,
+      Reader(succ.tupled),
+      fail)
 
   def withFailNotes(fail: (A, Throwable) => String): ActionRetry[F, A, B] =
-    new ActionRetry[F, A, B](topic, serviceInfo, actionName, config, input, kleisli, succ, Reader(fail.tupled))
+    new ActionRetry[F, A, B](
+      topic,
+      applicationName,
+      parentName,
+      actionName,
+      config,
+      input,
+      kleisli,
+      succ,
+      Reader(fail.tupled))
 
   def run(implicit F: Async[F]): F[B] = Ref.of[F, Int](0).flatMap(internalRun)
 
   private def internalRun(ref: Ref[F, Int])(implicit F: Async[F]): F[B] = F.realTimeInstant.flatMap { ts =>
     val actionInfo: ActionInfo =
       ActionInfo(
-        applicationName = serviceInfo.applicationName,
-        serviceName = serviceInfo.serviceName,
+        applicationName = applicationName,
+        parentName = parentName,
         actionName = actionName,
         params = params,
         id = UUID.randomUUID(),
