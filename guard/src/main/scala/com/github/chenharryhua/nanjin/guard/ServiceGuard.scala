@@ -11,6 +11,7 @@ import fs2.concurrent.Topic
 import fs2.concurrent.Topic.Closed
 
 import java.util.UUID
+import scala.concurrent.duration._
 
 /** Service never stop
   * @example
@@ -45,6 +46,7 @@ final class ServiceGuard[F[_]](
       shc = ServiceHealthCheck(serviceInfo)
       sos = ServiceStoppedAbnormally(serviceInfo)
       event <- Stream.eval(Topic[F, NJEvent]).flatMap { topic =>
+        val subscriber = topic.subscribe(params.topicMaxQueued)
         val publisher: Stream[F, Either[Closed, Unit]] = Stream.eval {
           val ret = retry.retryingOnAllErrors(
             params.retryPolicy.policy[F],
@@ -58,8 +60,7 @@ final class ServiceGuard[F[_]](
           // should never return, but if it did, close the topic so that the whole stream will be stopped
           ret.guarantee(topic.close.void)
         }
-        val consumer: Stream[F, NJEvent] = topic.subscribe(params.topicMaxQueued)
-        consumer.concurrently(publisher)
+        subscriber.concurrently(publisher.delayBy(10.milliseconds))
       }
     } yield event
 }

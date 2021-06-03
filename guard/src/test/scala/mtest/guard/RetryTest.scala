@@ -9,12 +9,13 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ActionFailed,
   ActionRetrying,
   ActionSucced,
+  MetricsService,
   ServicePanic,
   ServiceStoppedAbnormally,
   SlackService
 }
 import org.scalatest.funsuite.AnyFunSuite
-
+import cats.syntax.all._
 import scala.concurrent.duration._
 
 class RetryTest extends AnyFunSuite {
@@ -25,8 +26,7 @@ class RetryTest extends AnyFunSuite {
     .service("retry-test")
     .updateServiceConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds))
 
-  val slack   = SlackService(SimpleNotificationService.fake[IO])
-  val metrics = MetricsService[IO](new MetricRegistry())
+  val logging = SlackService(SimpleNotificationService.fake[IO]) |+| MetricsService[IO](new MetricRegistry())
 
   test("should retry 2 times when operation fail") {
     var i = 0
@@ -40,7 +40,7 @@ class RetryTest extends AnyFunSuite {
           } else i))
           .run
       }
-      .observe(_.evalMap(m => slack.alert(m) >> metrics.alert(m)).drain)
+      .observe(_.evalMap(logging.alert).drain)
       .compile
       .toVector
       .unsafeRunSync()
@@ -63,7 +63,7 @@ class RetryTest extends AnyFunSuite {
           .withFailNotes((_, _) => "")
           .run
       }
-      .observe(_.evalMap(m => slack.alert(m) >> metrics.alert(m)).drain)
+      .observe(_.evalMap(logging.alert).drain)
       .interruptAfter(5.seconds)
       .compile
       .toVector

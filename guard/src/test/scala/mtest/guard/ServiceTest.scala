@@ -12,6 +12,7 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ActionRetrying,
   ActionSucced,
   ForYouInformation,
+  MetricsService,
   ServiceHealthCheck,
   ServicePanic,
   ServiceStarted,
@@ -30,8 +31,8 @@ class ServiceTest extends AnyFunSuite {
     .service("service")
     .updateServiceConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds))
 
-  val slack   = SlackService(SimpleNotificationService.fake[IO])
-  val metrics = MetricsService[IO](new MetricRegistry())
+  val metrics = new MetricRegistry
+  val logging = SlackService(SimpleNotificationService.fake[IO]) |+| MetricsService[IO](metrics)
 
   test("should stopped if the operation normally exits") {
     val Vector(a, b, c) = guard
@@ -42,7 +43,7 @@ class ServiceTest extends AnyFunSuite {
           .retry(IO(1))
           .run
           .delayBy(1.second))
-      .observe(_.evalMap(m => slack.alert(m) >> metrics.alert(m)).drain)
+      .observe(_.evalMap(m => logging.alert(m)).drain)
       .compile
       .toVector
       .unsafeRunSync()
@@ -55,7 +56,7 @@ class ServiceTest extends AnyFunSuite {
     val Vector(a, b, c, d) = guard
       .updateServiceConfig(_.withHealthCheckInterval(1.second).withStartUpDelay(1.second))
       .eventStream(_ => IO.never)
-      .observe(_.evalMap(m => slack.alert(m) >> metrics.alert(m)).drain)
+      .observe(_.evalMap(m => logging.alert(m)).drain)
       .interruptAfter(5.second)
       .compile
       .toVector
@@ -79,7 +80,7 @@ class ServiceTest extends AnyFunSuite {
           .withFailNotes((_, _) => null)
           .run
       }
-      .observe(_.evalMap(m => slack.alert(m) >> metrics.alert(m) >> IO.println(m.show)).drain)
+      .observe(_.evalMap(m => logging.alert(m) >> IO.println(m.show)).drain)
       .interruptAfter(5.seconds)
       .compile
       .toVector
@@ -96,7 +97,7 @@ class ServiceTest extends AnyFunSuite {
     val Vector(a) = guard
       .updateServiceConfig(_.withStartUpDelay(2.hours))
       .eventStream(gd => gd("fyi").fyi("hello, world") >> IO.never)
-      .observe(_.evalMap(m => slack.alert(m) >> metrics.alert(m)).drain)
+      .observe(_.evalMap(m => logging.alert(m)).drain)
       .interruptAfter(5.seconds)
       .compile
       .toVector
@@ -107,7 +108,7 @@ class ServiceTest extends AnyFunSuite {
   test("normal service stop after two operations") {
     val Vector(a, b, c) = guard
       .eventStream(gd => gd("a").retry(IO(1)).run >> gd("b").retry(IO(2)).run)
-      .observe(_.evalMap(m => slack.alert(m) >> metrics.alert(m)).drain)
+      .observe(_.evalMap(m => logging.alert(m)).drain)
       .compile
       .toVector
       .unsafeRunSync()
@@ -125,7 +126,7 @@ class ServiceTest extends AnyFunSuite {
     val ss2 = s2.eventStream(gd => gd("s2-a1").retry(IO(1)).run >> gd("s2-a2").retry(IO(2)).run)
 
     val vector =
-      ss1.merge(ss2).observe(_.evalMap(m => slack.alert(m) >> metrics.alert(m)).drain).compile.toVector.unsafeRunSync()
+      ss1.merge(ss2).observe(_.evalMap(m => logging.alert(m)).drain).compile.toVector.unsafeRunSync()
     assert(vector.count(_.isInstanceOf[ActionSucced]) == 4)
     assert(vector.count(_.isInstanceOf[ServiceStoppedAbnormally]) == 2)
   }
@@ -135,9 +136,9 @@ class ServiceTest extends AnyFunSuite {
     val s     = guard.service("metrics-service")
     s.eventStream { gd =>
       (gd("metrics-action-succ").retry(IO(1) >> IO.sleep(10.milliseconds)).run).replicateA(20)
-    }.observe(_.evalMap(m => slack.alert(m) >> metrics.alert(m)).drain).compile.drain.unsafeRunSync()
+    }.observe(_.evalMap(m => logging.alert(m)).drain).compile.drain.unsafeRunSync()
 
-    metrics.metrics.getMetrics.asScala.filter(_._1.contains("metrics-action-succ")).map { case (n, m) =>
+    metrics.getMetrics.asScala.filter(_._1.contains("metrics-action-succ")).map { case (n, m) =>
       m match {
         case t: Timer   => assert(t.getCount() == 20)
         case c: Counter => assert(c.getCount() == 20)
@@ -154,13 +155,9 @@ class ServiceTest extends AnyFunSuite {
         .retry(IO.raiseError(new Exception))
         .run)
         .replicateA(20)
-    }.observe(_.evalMap(m => slack.alert(m) >> metrics.alert(m)).drain)
-      .interruptAfter(5.seconds)
-      .compile
-      .drain
-      .unsafeRunSync()
+    }.observe(_.evalMap(m => logging.alert(m)).drain).interruptAfter(5.seconds).compile.drain.unsafeRunSync()
 
-    metrics.metrics.getMetrics.asScala.filter(_._1.contains("metrics-action-fail.counter.retry")).map { case (n, m) =>
+    metrics.getMetrics.asScala.filter(_._1.contains("metrics-action-fail.counter.retry")).map { case (n, m) =>
       m match {
         case c: Counter => assert(c.getCount() == 3)
       }

@@ -26,8 +26,6 @@ final class ActionRetryEither[F[_], A, B](
   fail: Reader[(A, Throwable), String]) {
   val params: ActionParams = config.evalConfig
 
-  def run(implicit F: Async[F]): F[B] = Ref.of[F, Int](0).flatMap(internalRun)
-
   def withSuccNotes(succ: (A, B) => String): ActionRetryEither[F, A, B] =
     new ActionRetryEither[F, A, B](
       topic,
@@ -51,6 +49,8 @@ final class ActionRetryEither[F[_], A, B](
       eitherT,
       succ,
       Reader(fail.tupled))
+
+  def run(implicit F: Async[F]): F[B] = Ref.of[F, Int](0).flatMap(internalRun)
 
   private def internalRun(ref: Ref[F, Int])(implicit F: Async[F]): F[B] = F.realTimeInstant.flatMap { ts =>
     val actionInfo: ActionInfo =

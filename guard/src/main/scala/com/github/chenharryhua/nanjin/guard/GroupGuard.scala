@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, GroupConfig, G
 import fs2.Stream
 import fs2.concurrent.Topic
 import retry.RetryPolicies
+import scala.concurrent.duration._
 
 final class GroupGuard[F[_]](
   applicationName: String,
@@ -25,6 +26,7 @@ final class GroupGuard[F[_]](
 
   def eventStream[A](actionGuard: (String => ActionGuard[F]) => F[A])(implicit F: Async[F]): Stream[F, NJEvent] =
     Stream.eval(Topic[F, NJEvent]).flatMap { topic =>
+      val subscriber = topic.subscribe(params.topicMaxQueued)
       val publisher = Stream.eval {
         val ret = retry.retryingOnAllErrors[A](
           params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
@@ -34,7 +36,6 @@ final class GroupGuard[F[_]](
         }
         ret.guarantee(topic.close.void)
       }
-      val consumer: Stream[F, NJEvent] = topic.subscribe(params.topicMaxQueued)
-      consumer.concurrently(publisher)
+      subscriber.concurrently(publisher.delayBy(10.milliseconds))
     }
 }
