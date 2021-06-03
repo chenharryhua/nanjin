@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard
+package com.github.chenharryhua.nanjin.guard.alert
 
 import cats.effect.Sync
 import cats.syntax.all._
@@ -6,14 +6,15 @@ import com.codahale.metrics.MetricRegistry
 
 import java.time.{Duration => JavaDuration}
 
-final class MetricsService[F[_]] private (val metrics: MetricRegistry)(implicit F: Sync[F]) extends AlertService[F] {
+final private class MetricsService[F[_]] private (val metrics: MetricRegistry)(implicit F: Sync[F])
+    extends AlertService[F] {
 
   override def alert(event: NJEvent): F[Unit] = event match {
     case ServiceStarted(serviceInfo) =>
       F.blocking(metrics.counter(s"${serviceInfo.metricsKey}.counter.start").inc())
     case ServicePanic(serviceInfo, _, _, _) =>
       F.blocking(metrics.counter(s"${serviceInfo.metricsKey}.counter.panic").inc())
-    case ServiceStopped(serviceInfo) =>
+    case ServiceStoppedAbnormally(serviceInfo) =>
       F.blocking(metrics.counter(s"${serviceInfo.metricsKey}.counter.stop").inc())
     case ServiceHealthCheck(serviceInfo) =>
       F.blocking(metrics.counter(s"${serviceInfo.metricsKey}.counter.health-check").inc())
@@ -36,5 +37,5 @@ final class MetricsService[F[_]] private (val metrics: MetricRegistry)(implicit 
 }
 
 object MetricsService {
-  def apply[F[_]: Sync](metrics: MetricRegistry): MetricsService[F] = new MetricsService[F](metrics)
+  def apply[F[_]: Sync](metrics: MetricRegistry): AlertService[F] = new MetricsService[F](metrics)
 }

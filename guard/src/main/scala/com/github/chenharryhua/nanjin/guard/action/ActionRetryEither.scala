@@ -1,11 +1,13 @@
-package com.github.chenharryhua.nanjin.guard
+package com.github.chenharryhua.nanjin.guard.action
 
 import cats.data.{EitherT, Kleisli, Reader}
 import cats.effect.{Async, Ref}
 import cats.syntax.all._
-import fs2.concurrent.Topic
-import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
-import retry.{RetryDetails, RetryPolicies}
+import com.github.chenharryhua.nanjin.guard.alert.{ActionFailed, ActionInfo, ActionSucced, NJEvent}
+import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams}
+import fs2.concurrent.Channel
+import retry.RetryDetails.GivingUp
+import retry.RetryPolicies
 
 import java.util.UUID
 import scala.concurrent.duration.Duration
@@ -13,8 +15,9 @@ import scala.concurrent.duration.Duration
 /** When outer F[_] fails, return immedidately only retry when the inner Either is on the left branch
   */
 final class ActionRetryEither[F[_], A, B](
-  topic: Topic[F, NJEvent],
-  serviceInfo: ServiceInfo,
+  channel: Channel[F, NJEvent],
+  applicationName: String,
+  parentName: String,
   actionName: String,
   config: ActionConfig,
   input: A,
@@ -23,56 +26,59 @@ final class ActionRetryEither[F[_], A, B](
   fail: Reader[(A, Throwable), String]) {
   val params: ActionParams = config.evalConfig
 
+  def withSuccNotes(succ: (A, B) => String): ActionRetryEither[F, A, B] =
+    new ActionRetryEither[F, A, B](
+      channel,
+      applicationName,
+      parentName,
+      actionName,
+      config,
+      input,
+      eitherT,
+      Reader(succ.tupled),
+      fail)
+
+  def withFailNotes(fail: (A, Throwable) => String): ActionRetryEither[F, A, B] =
+    new ActionRetryEither[F, A, B](
+      channel,
+      applicationName,
+      parentName,
+      actionName,
+      config,
+      input,
+      eitherT,
+      succ,
+      Reader(fail.tupled))
+
   def run(implicit F: Async[F]): F[B] = Ref.of[F, Int](0).flatMap(internalRun)
-
-  def withSuccInfo(succ: (A, B) => String): ActionRetryEither[F, A, B] =
-    new ActionRetryEither[F, A, B](topic, serviceInfo, actionName, config, input, eitherT, Reader(succ.tupled), fail)
-
-  def withFailInfo(fail: (A, Throwable) => String): ActionRetryEither[F, A, B] =
-    new ActionRetryEither[F, A, B](topic, serviceInfo, actionName, config, input, eitherT, succ, Reader(fail.tupled))
 
   private def internalRun(ref: Ref[F, Int])(implicit F: Async[F]): F[B] = F.realTimeInstant.flatMap { ts =>
     val actionInfo: ActionInfo =
       ActionInfo(
-        applicationName = serviceInfo.applicationName,
-        serviceName = serviceInfo.serviceName,
+        applicationName = applicationName,
+        parentName = parentName,
         actionName = actionName,
         params = params,
         id = UUID.randomUUID(),
         launchTime = ts
       )
 
-    def onError(error: Throwable, details: RetryDetails): F[Unit] =
-      details match {
-        case wdr @ WillDelayAndRetry(_, _, _) =>
-          topic.publish1(ActionRetrying(actionInfo, wdr, error)) *> ref.update(_ + 1)
-        case gu @ GivingUp(_, _) =>
-          for {
-            now <- F.realTimeInstant
-            _ <- topic.publish1(
-              ActionFailed(
-                actionInfo = actionInfo,
-                givingUp = gu,
-                endAt = now,
-                notes = fail.run((input, error)),
-                error = error))
-          } yield ()
-      }
+    val base = new ActionRetryBase[F, A, B](input, succ, fail)
 
     retry
       .retryingOnAllErrors[Either[Throwable, B]](
         params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
-        onError) {
+        base.onError(actionInfo, channel, ref)) {
         eitherT.value.run(input).attempt.flatMap {
           case Left(error) =>
             for {
               now <- F.realTimeInstant
-              _ <- topic.publish1(
+              _ <- channel.send(
                 ActionFailed(
                   actionInfo = actionInfo,
                   givingUp = GivingUp(0, Duration.Zero),
                   endAt = now,
-                  notes = fail.run((input, error)),
+                  notes = base.failNotes(error),
                   error = error))
             } yield Left(error)
           case Right(outerRight) =>
@@ -87,7 +93,7 @@ final class ActionRetryEither[F[_], A, B](
         for {
           count <- ref.get
           now <- F.realTimeInstant
-          _ <- topic.publish1(ActionSucced(actionInfo, now, count, succ.run((input, b))))
+          _ <- channel.send(ActionSucced(actionInfo, now, count, base.succNotes(b)))
         } yield ())
   }
 }

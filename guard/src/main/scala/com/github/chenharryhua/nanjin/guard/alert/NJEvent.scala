@@ -1,6 +1,7 @@
-package com.github.chenharryhua.nanjin.guard
+package com.github.chenharryhua.nanjin.guard.alert
 
 import cats.Show
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ServiceParams}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import retry.RetryDetails
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
@@ -14,17 +15,17 @@ final case class ServiceInfo(applicationName: String, serviceName: String, param
 
 final case class ActionInfo(
   applicationName: String,
-  serviceName: String,
+  parentName: String,
   actionName: String,
   params: ActionParams,
   id: UUID,
   launchTime: Instant) {
-  def metricsKey: String = s"action.$applicationName.$serviceName.$actionName"
+  def metricsKey: String = s"action.$applicationName.$parentName.$actionName"
 }
 
 sealed trait NJEvent
 
-object NJEvent {
+object NJEvent { 
   implicit private val showInstant: Show[Instant]     = _.toString()
   implicit private val showThrowable: Show[Throwable] = ex => ExceptionUtils.getMessage(ex)
   implicit val showNJEvent: Show[NJEvent]             = cats.derived.semiauto.show[NJEvent]
@@ -43,7 +44,7 @@ final case class ServicePanic(
   error: Throwable
 ) extends ServiceEvent
 
-final case class ServiceStopped(
+final case class ServiceStoppedAbnormally(
   serviceInfo: ServiceInfo
 ) extends ServiceEvent
 
