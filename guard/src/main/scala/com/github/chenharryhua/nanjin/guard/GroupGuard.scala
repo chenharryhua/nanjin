@@ -24,16 +24,17 @@ final class GroupGuard[F[_]](
     new GroupGuard[F](applicationName, groupName, groupConfig, f(actionConfig))
 
   def eventStream[A](actionGuard: (String => ActionGuard[F]) => F[A])(implicit F: Async[F]): Stream[F, NJEvent] =
-    Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { chann =>
+    Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
       val publisher = Stream.eval {
-        val ret = retry.retryingOnAllErrors[A](
-          params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
-          retry.noop[F, Throwable]
-        ) {
-          actionGuard(actionName => new ActionGuard[F](chann, applicationName, groupName, actionName, actionConfig))
-        }
-        ret.guarantee(chann.close.void)
+        retry
+          .retryingOnAllErrors[A](
+            params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
+            retry.noop[F, Throwable]
+          ) {
+            actionGuard(actionName => new ActionGuard[F](channel, applicationName, groupName, actionName, actionConfig))
+          }
+          .guarantee(channel.close.void)
       }
-      chann.stream.concurrently(publisher)
+      channel.stream.concurrently(publisher)
     }
 }
