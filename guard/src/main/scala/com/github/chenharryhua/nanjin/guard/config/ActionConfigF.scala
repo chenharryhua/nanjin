@@ -1,7 +1,6 @@
-package com.github.chenharryhua.nanjin.guard
+package com.github.chenharryhua.nanjin.guard.config
 
-import cats.Applicative
-import cats.derived.auto.functor._
+import cats.{Applicative, Functor, Show}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
@@ -20,6 +19,10 @@ sealed abstract class NJRetryPolicy {
   def value: FiniteDuration
 }
 
+object NJRetryPolicy {
+  implicit val showNJRetryPolicy: Show[NJRetryPolicy] = cats.derived.semiauto.show[NJRetryPolicy]
+}
+
 final private case class ConstantDelay(value: FiniteDuration) extends NJRetryPolicy
 final private case class ExponentialBackoff(value: FiniteDuration) extends NJRetryPolicy
 final private case class FibonacciBackoff(value: FiniteDuration) extends NJRetryPolicy
@@ -34,6 +37,7 @@ final private case class FullJitter(value: FiniteDuration) extends NJRetryPolicy
 )
 
 private object ActionParams {
+  implicit val showActionParams: Show[ActionParams] = cats.derived.semiauto.show[ActionParams]
 
   def apply(): ActionParams = ActionParams(
     alertMask = AlertMask(alertSucc = false, alertFail = true),
@@ -45,6 +49,8 @@ private object ActionParams {
 sealed trait ActionConfigF[F]
 
 private object ActionConfigF {
+  implicit val functorActionConfigF: Functor[ActionConfigF] = cats.derived.semiauto.functor[ActionConfigF]
+
   final case class InitParam[K]() extends ActionConfigF[K]
 
   final case class WithMaxRetries[K](value: Int, cont: K) extends ActionConfigF[K]
@@ -88,6 +94,6 @@ final case class ActionConfig private (value: Fix[ActionConfigF]) {
   def evalConfig: ActionParams = scheme.cata(algebra).apply(value)
 }
 
-private object ActionConfig {
+private[guard] object ActionConfig {
   val default: ActionConfig = new ActionConfig(Fix(ActionConfigF.InitParam[Fix[ActionConfigF]]()))
 }

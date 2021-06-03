@@ -7,6 +7,18 @@ import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.guard._
 import org.scalatest.funsuite.AnyFunSuite
 import cats.syntax.all._
+import com.github.chenharryhua.nanjin.guard.alert.{
+  ActionFailed,
+  ActionRetrying,
+  ActionSucced,
+  ForYouInformation,
+  ServiceHealthCheck,
+  ServicePanic,
+  ServiceStarted,
+  ServiceStoppedAbnormally,
+  SlackService
+}
+
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
@@ -23,7 +35,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("should stopped if the operation normally exits") {
     val Vector(a, b, c) = guard
-      .updateServiceConfig(_.withHealthCheckDisabled.withStartUpDelay(1.second).withLoggingDisabled)
+      .updateServiceConfig(_.withHealthCheckDisabled.withStartUpDelay(1.second))
       .eventStream(gd =>
         gd("normal-exit-action")
           .updateActionConfig(_.withFailAlertOn.withSuccAlertOn.withMaxRetries(3).withExponentialBackoff(1.second))

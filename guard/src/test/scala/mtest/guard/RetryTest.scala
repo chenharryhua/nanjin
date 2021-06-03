@@ -5,6 +5,14 @@ import cats.effect.unsafe.implicits.global
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.guard._
+import com.github.chenharryhua.nanjin.guard.alert.{
+  ActionFailed,
+  ActionRetrying,
+  ActionSucced,
+  ServicePanic,
+  ServiceStoppedAbnormally,
+  SlackService
+}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration._

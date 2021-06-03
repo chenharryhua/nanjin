@@ -1,8 +1,10 @@
-package com.github.chenharryhua.nanjin.guard
+package com.github.chenharryhua.nanjin.guard.action
 
 import cats.Functor
 import cats.data.{EitherT, Kleisli, Reader}
 import cats.syntax.all._
+import com.github.chenharryhua.nanjin.guard.alert.{ForYouInformation, NJEvent}
+import com.github.chenharryhua.nanjin.guard.config.ActionConfig
 import fs2.concurrent.Topic
 
 final class ActionGuard[F[_]](

@@ -6,7 +6,17 @@ import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.guard._
 import org.scalatest.funsuite.AnyFunSuite
-import cats.syntax.show._
+import cats.syntax.all._
+import com.github.chenharryhua.nanjin.guard.alert.{
+  ActionFailed,
+  ActionRetrying,
+  ActionSucced,
+  AlertService,
+  ServicePanic,
+  ServiceStoppedAbnormally,
+  SlackService
+}
+
 import scala.concurrent.duration._
 
 class RetryEitherTest extends AnyFunSuite {
@@ -17,8 +27,11 @@ class RetryEitherTest extends AnyFunSuite {
     .service("retry-either-test")
     .updateServiceConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds))
 
-  val slack   = SlackService(SimpleNotificationService.fake[IO])
-  val metrics = MetricsService[IO](new MetricRegistry())
+  val logging: AlertService[IO] =
+    SlackService(SimpleNotificationService.fake[IO]) |+|
+      LogService[IO] |+|
+      MetricsService[IO](new MetricRegistry()) |+|
+      ConsoleService[IO]
 
   test("retry either should give up immediately when outer action fails") {
     val Vector(a, b) = guard
@@ -30,7 +43,7 @@ class RetryEitherTest extends AnyFunSuite {
           .withSuccNotes((_, _: Unit) => null)
           .withFailNotes((_, e) => null)
           .run)
-      .observe(_.evalMap(m => slack.alert(m) >> metrics.alert(m) >> IO.println(m.show)).drain)
+      .observe(_.evalMap(logging.alert).drain)
       .interruptAfter(5.seconds)
       .compile
       .toVector
@@ -50,7 +63,7 @@ class RetryEitherTest extends AnyFunSuite {
             IO(if (i < 2) { i += 1; Left(new Exception("oops")) }
             else Right(1)))
           .run)
-      .observe(_.evalMap(m => slack.alert(m) >> metrics.alert(m)).drain)
+      .observe(_.evalMap(logging.alert).drain)
       .interruptAfter(5.seconds)
       .compile
       .toVector
@@ -70,7 +83,7 @@ class RetryEitherTest extends AnyFunSuite {
           .retryEither(IO(if (i < 200) { i += 1; Left(new Exception) }
           else Right(1)))
           .run)
-      .observe(_.evalMap(m => slack.alert(m) >> metrics.alert(m)).drain)
+      .observe(_.evalMap(logging.alert).drain)
       .interruptAfter(5.seconds)
       .compile
       .toVector

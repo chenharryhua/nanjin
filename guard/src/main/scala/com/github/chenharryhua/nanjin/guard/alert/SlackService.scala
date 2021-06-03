@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard
+package com.github.chenharryhua.nanjin.guard.alert
 
 import cats.effect.Sync
 import cats.syntax.all._
@@ -17,7 +17,7 @@ final private case class SlackField(title: String, value: String, short: Boolean
 final private case class Attachment(color: String, ts: Long, fields: List[SlackField])
 final private case class SlackNotification(username: String, text: String, attachments: List[Attachment])
 
-final class SlackService[F[_]] private (service: SimpleNotificationService[F])(implicit F: Sync[F])
+final private class SlackService[F[_]] private (service: SimpleNotificationService[F])(implicit F: Sync[F])
     extends AlertService[F] {
 
   override def alert(event: NJEvent): F[Unit] = event match {
@@ -158,13 +158,13 @@ final class SlackService[F[_]] private (service: SimpleNotificationService[F])(i
 
 object SlackService {
 
-  def apply[F[_]: Sync](topic: SnsArn, region: Regions): SlackService[F] =
+  def apply[F[_]: Sync](topic: SnsArn, region: Regions): AlertService[F] =
     new SlackService[F](SimpleNotificationService(topic, region))
 
-  def apply[F[_]: Sync](topic: SnsArn): SlackService[F] =
+  def apply[F[_]: Sync](topic: SnsArn): AlertService[F] =
     apply[F](topic, Regions.AP_SOUTHEAST_2)
 
-  def apply[F[_]: Sync](service: SimpleNotificationService[F]): SlackService[F] =
+  def apply[F[_]: Sync](service: SimpleNotificationService[F]): AlertService[F] =
     new SlackService[F](service)
 
 }

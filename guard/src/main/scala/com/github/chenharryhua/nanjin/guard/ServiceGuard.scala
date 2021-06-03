@@ -3,6 +3,9 @@ package com.github.chenharryhua.nanjin.guard
 import cats.effect.Async
 import cats.effect.syntax.all._
 import cats.syntax.all._
+import com.github.chenharryhua.nanjin.guard.action.ActionGuard
+import com.github.chenharryhua.nanjin.guard.alert._
+import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams}
 import fs2.Stream
 import fs2.concurrent.Topic
 import fs2.concurrent.Topic.Closed
@@ -28,8 +31,7 @@ final class ServiceGuard[F[_]](
   def updateActionConfig(f: ActionConfig => ActionConfig): ServiceGuard[F] =
     new ServiceGuard[F](applicationName, serviceName, serviceConfig, f(actionConfig))
 
-  def eventStream[A](actionGuard: (String => ActionGuard[F]) => F[A])(implicit F: Async[F]): Stream[F, NJEvent] = {
-    val log = new LogService[F]()
+  def eventStream[A](actionGuard: (String => ActionGuard[F]) => F[A])(implicit F: Async[F]): Stream[F, NJEvent] =
     for {
       ts <- Stream.eval(F.realTimeInstant)
       serviceInfo: ServiceInfo =
@@ -42,23 +44,22 @@ final class ServiceGuard[F[_]](
       ssd = ServiceStarted(serviceInfo)
       shc = ServiceHealthCheck(serviceInfo)
       sos = ServiceStoppedAbnormally(serviceInfo)
-      event <- Stream
-        .bracket(Topic[F, NJEvent])(_.close.void)
-        .flatMap { topic =>
-          val publisher: Stream[F, Either[Closed, Unit]] = Stream.eval(
-            retry.retryingOnAllErrors(
-              params.retryPolicy.policy[F],
-              (e: Throwable, r) => topic.publish1(ServicePanic(serviceInfo, r, UUID.randomUUID(), e)).void) {
-              (topic.publish1(ssd).delayBy(params.startUpEventDelay).void <*
-                topic.publish1(shc).delayBy(params.healthCheck.interval).foreverM).background.use(_ =>
-                actionGuard(actionName =>
-                  new ActionGuard[F](topic, applicationName, serviceName, actionName, actionConfig))) *>
-                topic.publish1(sos)
-            })
-          val consumer: Stream[F, NJEvent] = topic.subscribe(params.topicMaxQueued)
-          consumer.concurrently(publisher)
+      event <- Stream.eval(Topic[F, NJEvent]).flatMap { topic =>
+        val publisher: Stream[F, Either[Closed, Unit]] = Stream.eval {
+          val ret = retry.retryingOnAllErrors(
+            params.retryPolicy.policy[F],
+            (e: Throwable, r) => topic.publish1(ServicePanic(serviceInfo, r, UUID.randomUUID(), e)).void) {
+            (topic.publish1(ssd).delayBy(params.startUpEventDelay).void <*
+              topic.publish1(shc).delayBy(params.healthCheck.interval).foreverM).background.use(_ =>
+              actionGuard(actionName =>
+                new ActionGuard[F](topic, applicationName, serviceName, actionName, actionConfig))) *>
+              topic.publish1(sos)
+          }
+          // should never return, but if it did, close the topic so that the whole stream will be stopped
+          ret.guarantee(topic.close.void)
         }
-        .evalTap(event => log.alert(event).whenA(params.isLogging))
+        val consumer: Stream[F, NJEvent] = topic.subscribe(params.topicMaxQueued)
+        consumer.concurrently(publisher)
+      }
     } yield event
-  }
 }

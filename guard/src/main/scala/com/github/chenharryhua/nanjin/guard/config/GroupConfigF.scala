@@ -1,37 +1,34 @@
-package com.github.chenharryhua.nanjin.guard
+package com.github.chenharryhua.nanjin.guard.config
 
-import cats.derived.auto.functor._
+import cats.{Functor, Show}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
 
 import scala.concurrent.duration._
 
-@Lenses final case class GroupParams(
-  maxRetries: Int,
-  retryPolicy: NJRetryPolicy,
-  topicMaxQueued: Int,
-  isLogging: Boolean)
+@Lenses final case class GroupParams(maxRetries: Int, retryPolicy: NJRetryPolicy, topicMaxQueued: Int)
 
 object GroupParams {
+  implicit val showGroupParams: Show[GroupParams] = cats.derived.semiauto.show[GroupParams]
 
   def apply(): GroupParams = GroupParams(
     maxRetries = 3,
     retryPolicy = ConstantDelay(10.seconds),
-    topicMaxQueued = 10,
-    isLogging = true
+    topicMaxQueued = 10
   )
 }
 
 sealed trait GroupConfigF[A]
 
 private object GroupConfigF {
+  implicit val functorGroupConfigF: Functor[GroupConfigF] = cats.derived.semiauto.functor[GroupConfigF]
+
   final case class InitParams[K]() extends GroupConfigF[K]
 
   final case class WithMaxRetries[K](value: Int, cont: K) extends GroupConfigF[K]
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends GroupConfigF[K]
   final case class WithTopicMaxQueued[K](value: Int, cont: K) extends GroupConfigF[K]
-  final case class WithLoggingEnabled[K](value: Boolean, cont: K) extends GroupConfigF[K]
 
   val algebra: Algebra[GroupConfigF, GroupParams] =
     Algebra[GroupConfigF, GroupParams] {
@@ -39,7 +36,6 @@ private object GroupConfigF {
       case WithRetryPolicy(v, c)    => GroupParams.retryPolicy.set(v)(c)
       case WithMaxRetries(v, c)     => GroupParams.maxRetries.set(v)(c)
       case WithTopicMaxQueued(v, c) => GroupParams.topicMaxQueued.set(v)(c)
-      case WithLoggingEnabled(v, c) => GroupParams.isLogging.set(v)(c)
     }
 }
 
@@ -62,10 +58,8 @@ final case class GroupConfig private (value: Fix[GroupConfigF]) {
 
   def withTopicMaxQueued(num: Int): GroupConfig = GroupConfig(Fix(WithTopicMaxQueued(num, value)))
 
-  def withLoggingDisabled: GroupConfig = GroupConfig(Fix(WithLoggingEnabled(value = false, value)))
-
 }
 
-object GroupConfig {
+private[guard] object GroupConfig {
   val default: GroupConfig = new GroupConfig(Fix(GroupConfigF.InitParams[Fix[GroupConfigF]]()))
 }
