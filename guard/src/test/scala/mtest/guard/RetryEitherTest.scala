@@ -2,23 +2,11 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
-import com.github.chenharryhua.nanjin.guard._
-import org.scalatest.funsuite.AnyFunSuite
+import cats.kernel.Monoid
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.guard.alert.{
-  ActionFailed,
-  ActionRetrying,
-  ActionSucced,
-  AlertService,
-  ConsoleService,
-  LogService,
-  MetricsService,
-  ServicePanic,
-  ServiceStoppedAbnormally,
-  SlackService
-}
+import com.github.chenharryhua.nanjin.guard._
+import com.github.chenharryhua.nanjin.guard.alert._
+import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration._
 
@@ -30,15 +18,11 @@ class RetryEitherTest extends AnyFunSuite {
     .service("retry-either-test")
     .updateServiceConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds))
 
-  val logging: AlertService[IO] =
-    SlackService(SimpleNotificationService.fake[IO]) |+|
-      LogService[IO] |+|
-      MetricsService[IO](new MetricRegistry()) |+|
-      ConsoleService[IO]
+  val logging: AlertService[IO] = Monoid[AlertService[IO]].empty |+| ConsoleService[IO] |+| LogService[IO]
 
   test("retry either should give up immediately when outer action fails") {
     val Vector(a, b) = guard
-      .updateServiceConfig(_.withStartUpDelay(2.hours).withTopicMaxQueued(3).withConstantDelay(1.hour))
+      .updateServiceConfig(_.withStartUpDelay(2.hours).withConstantDelay(1.hour))
       .updateActionConfig(_.withSuccAlertOn)
       .eventStream(gd =>
         gd("retry-either-give-up")

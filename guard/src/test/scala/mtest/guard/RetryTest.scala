@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ActionFailed,
   ActionRetrying,
   ActionSucced,
+  LogService,
   MetricsService,
   ServicePanic,
   ServiceStoppedAbnormally,
@@ -16,6 +17,7 @@ import com.github.chenharryhua.nanjin.guard.alert.{
 }
 import org.scalatest.funsuite.AnyFunSuite
 import cats.syntax.all._
+
 import scala.concurrent.duration._
 
 class RetryTest extends AnyFunSuite {
@@ -26,7 +28,8 @@ class RetryTest extends AnyFunSuite {
     .service("retry-test")
     .updateServiceConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds))
 
-  val logging = SlackService(SimpleNotificationService.fake[IO]) |+| MetricsService[IO](new MetricRegistry())
+  val logging =
+    SlackService(SimpleNotificationService.fake[IO]) |+| MetricsService[IO](new MetricRegistry()) |+| LogService[IO]
 
   test("should retry 2 times when operation fail") {
     var i = 0
@@ -53,7 +56,7 @@ class RetryTest extends AnyFunSuite {
   test("should escalate to up level if retry failed") {
     val Vector(a, b, c, d, e) = guard
       .updateServiceConfig(
-        _.withStartUpDelay(1.hour).withTopicMaxQueued(20).withConstantDelay(1.hour)
+        _.withStartUpDelay(1.hour).withConstantDelay(1.hour)
       ) // don't want to see start event
       .eventStream { gd =>
         gd("escalate-after-3-time")

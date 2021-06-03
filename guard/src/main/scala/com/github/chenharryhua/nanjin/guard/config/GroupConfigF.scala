@@ -7,14 +7,13 @@ import monocle.macros.Lenses
 
 import scala.concurrent.duration._
 
-@Lenses final case class GroupParams(maxRetries: Int, retryPolicy: NJRetryPolicy, topicMaxQueued: Int)
+@Lenses final case class GroupParams(maxRetries: Int, retryPolicy: NJRetryPolicy)
 
 object GroupParams {
 
   def default: GroupParams = GroupParams(
     maxRetries = 3,
-    retryPolicy = ConstantDelay(10.seconds),
-    topicMaxQueued = 10
+    retryPolicy = ConstantDelay(10.seconds)
   )
 }
 
@@ -27,14 +26,12 @@ private object GroupConfigF {
 
   final case class WithMaxRetries[K](value: Int, cont: K) extends GroupConfigF[K]
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends GroupConfigF[K]
-  final case class WithTopicMaxQueued[K](value: Int, cont: K) extends GroupConfigF[K]
 
   val algebra: Algebra[GroupConfigF, GroupParams] =
     Algebra[GroupConfigF, GroupParams] {
-      case InitParams()             => GroupParams.default
-      case WithRetryPolicy(v, c)    => GroupParams.retryPolicy.set(v)(c)
-      case WithMaxRetries(v, c)     => GroupParams.maxRetries.set(v)(c)
-      case WithTopicMaxQueued(v, c) => GroupParams.topicMaxQueued.set(v)(c)
+      case InitParams()          => GroupParams.default
+      case WithRetryPolicy(v, c) => GroupParams.retryPolicy.set(v)(c)
+      case WithMaxRetries(v, c)  => GroupParams.maxRetries.set(v)(c)
     }
 }
 
@@ -54,8 +51,6 @@ final case class GroupConfig private (value: Fix[GroupConfigF]) {
 
   def withFullJitter(delay: FiniteDuration): GroupConfig =
     GroupConfig(Fix(WithRetryPolicy(FullJitter(delay), value)))
-
-  def withTopicMaxQueued(num: Int): GroupConfig = GroupConfig(Fix(WithTopicMaxQueued(num, value)))
 
 }
 

@@ -12,6 +12,7 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ActionRetrying,
   ActionSucced,
   ForYouInformation,
+  LogService,
   MetricsService,
   ServiceHealthCheck,
   ServicePanic,
@@ -32,7 +33,7 @@ class ServiceTest extends AnyFunSuite {
     .updateServiceConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds))
 
   val metrics = new MetricRegistry
-  val logging = SlackService(SimpleNotificationService.fake[IO]) |+| MetricsService[IO](metrics)
+  val logging = SlackService(SimpleNotificationService.fake[IO]) |+| MetricsService[IO](metrics) |+| LogService[IO]
 
   test("should stopped if the operation normally exits") {
     val Vector(a, b, c) = guard
@@ -70,7 +71,7 @@ class ServiceTest extends AnyFunSuite {
   test("escalate to up level if retry failed") {
     val Vector(a, b, c, d, e) = guard
       .updateServiceConfig(
-        _.withStartUpDelay(1.hour).withTopicMaxQueued(20).withConstantDelay(1.hour)
+        _.withStartUpDelay(1.hour).withConstantDelay(1.hour)
       ) // don't want to see start event
       .eventStream { gd =>
         gd("escalate-after-3-time")
