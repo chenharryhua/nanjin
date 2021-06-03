@@ -70,9 +70,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("escalate to up level if retry failed") {
     val Vector(a, b, c, d, e) = guard
-      .updateServiceConfig(
-        _.withStartUpDelay(1.hour).withConstantDelay(1.hour)
-      ) // don't want to see start event
+      .updateServiceConfig(_.withStartUpDelay(1.hour).withConstantDelay(1.hour))
       .eventStream { gd =>
         gd("escalate-after-3-time")
           .updateActionConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))

@@ -43,21 +43,21 @@ final class ServiceGuard[F[_]](
       ssd = ServiceStarted(serviceInfo)
       shc = ServiceHealthCheck(serviceInfo)
       sos = ServiceStoppedAbnormally(serviceInfo)
-      event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { chann =>
+      event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
         val publisher = Stream.eval {
           val ret = retry.retryingOnAllErrors(
             params.retryPolicy.policy[F],
-            (e: Throwable, r) => chann.send(ServicePanic(serviceInfo, r, UUID.randomUUID(), e)).void) {
-            (chann.send(ssd).delayBy(params.startUpEventDelay).void <*
-              chann.send(shc).delayBy(params.healthCheck.interval).foreverM).background.use(_ =>
+            (e: Throwable, r) => channel.send(ServicePanic(serviceInfo, r, UUID.randomUUID(), e)).void) {
+            (channel.send(ssd).delayBy(params.startUpEventDelay).void <*
+              channel.send(shc).delayBy(params.healthCheck.interval).foreverM).background.use(_ =>
               actionGuard(actionName =>
-                new ActionGuard[F](chann, applicationName, serviceName, actionName, actionConfig))) *>
-              chann.send(sos)
+                new ActionGuard[F](channel, applicationName, serviceName, actionName, actionConfig))) *>
+              channel.send(sos)
           }
           // should never return, but if it did, close the topic so that the whole stream will be stopped
-          ret.guarantee(chann.close.void)
+          ret.guarantee(channel.close.void)
         }
-        chann.stream.concurrently(publisher)
+        channel.stream.concurrently(publisher)
       }
     } yield event
 }
