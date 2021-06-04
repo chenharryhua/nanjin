@@ -16,52 +16,51 @@ import scala.concurrent.duration.Duration
   */
 final class ActionRetryEither[F[_], A, B](
   channel: Channel[F, NJEvent],
-  applicationName: String,
-  parentName: String,
   actionName: String,
-  config: ActionConfig,
+  serviceName: String,
+  appName: String,
+  actionConfig: ActionConfig,
   input: A,
   eitherT: EitherT[Kleisli[F, A, *], Throwable, B],
   succ: Reader[(A, B), String],
   fail: Reader[(A, Throwable), String]) {
-  val params: ActionParams = config.evalConfig
+  val params: ActionParams = actionConfig.evalConfig
 
   def withSuccNotes(succ: (A, B) => String): ActionRetryEither[F, A, B] =
     new ActionRetryEither[F, A, B](
-      channel,
-      applicationName,
-      parentName,
-      actionName,
-      config,
-      input,
-      eitherT,
-      Reader(succ.tupled),
-      fail)
+      channel = channel,
+      actionName = actionName,
+      serviceName = serviceName,
+      appName = appName,
+      actionConfig = actionConfig,
+      input = input,
+      eitherT = eitherT,
+      succ = Reader(succ.tupled),
+      fail = fail)
 
   def withFailNotes(fail: (A, Throwable) => String): ActionRetryEither[F, A, B] =
     new ActionRetryEither[F, A, B](
-      channel,
-      applicationName,
-      parentName,
-      actionName,
-      config,
-      input,
-      eitherT,
-      succ,
-      Reader(fail.tupled))
+      channel = channel,
+      actionName = actionName,
+      serviceName = serviceName,
+      appName = appName,
+      actionConfig = actionConfig,
+      input = input,
+      eitherT = eitherT,
+      succ = succ,
+      fail = Reader(fail.tupled))
 
   def run(implicit F: Async[F]): F[B] = Ref.of[F, Int](0).flatMap(internalRun)
 
   private def internalRun(ref: Ref[F, Int])(implicit F: Async[F]): F[B] = F.realTimeInstant.flatMap { ts =>
     val actionInfo: ActionInfo =
       ActionInfo(
-        applicationName = applicationName,
-        parentName = parentName,
         actionName = actionName,
+        serviceName = serviceName,
+        appName = appName,
         params = params,
         id = UUID.randomUUID(),
-        launchTime = ts
-      )
+        launchTime = ts)
 
     val base = new ActionRetryBase[F, A, B](input, succ, fail)
 

@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.action
 import cats.data.Reader
 import cats.effect.{Async, Ref}
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.guard.alert.{ActionFailed, ActionInfo, ActionRetrying, NJEvent}
+import com.github.chenharryhua.nanjin.guard.alert._
 import fs2.concurrent.Channel
 import retry.RetryDetails
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
@@ -11,11 +11,8 @@ import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 private class ActionRetryBase[F[_], A, B](input: A, succ: Reader[(A, B), String], fail: Reader[(A, Throwable), String])(
   implicit F: Async[F]) {
 
-  def failNotes(error: Throwable): String =
-    Option(fail.run((input, error))).getOrElse("null in failure notes")
-
-  def succNotes(b: B): String =
-    Option(succ.run((input, b))).getOrElse("null in success notes")
+  def failNotes(error: Throwable): Notes = Notes(fail.run((input, error)))
+  def succNotes(b: B): Notes             = Notes(succ.run((input, b)))
 
   def onError(actionInfo: ActionInfo, channel: Channel[F, NJEvent], ref: Ref[F, Int])(
     error: Throwable,

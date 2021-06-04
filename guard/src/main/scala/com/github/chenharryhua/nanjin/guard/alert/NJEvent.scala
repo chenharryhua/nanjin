@@ -9,23 +9,29 @@ import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 import java.time.Instant
 import java.util.UUID
 
-final case class ServiceInfo(applicationName: String, serviceName: String, params: ServiceParams, launchTime: Instant) {
-  def metricsKey: String = s"service.$applicationName.$serviceName"
+final case class ServiceInfo(serviceName: String, appName: String, params: ServiceParams, launchTime: Instant) {
+  def metricsKey: String = s"service.$serviceName.$appName"
 }
 
 final case class ActionInfo(
-  applicationName: String,
-  parentName: String,
   actionName: String,
+  serviceName: String,
+  appName: String,
   params: ActionParams,
   id: UUID,
   launchTime: Instant) {
-  def metricsKey: String = s"action.$applicationName.$parentName.$actionName"
+  def metricsKey: String = s"action.$actionName.$serviceName.$appName"
+}
+
+final case class Notes private (value: String)
+
+object Notes {
+  def apply(str: String): Notes = new Notes(Option(str).getOrElse("null in notes"))
 }
 
 sealed trait NJEvent
 
-object NJEvent { 
+object NJEvent {
   implicit private val showInstant: Show[Instant]     = _.toString()
   implicit private val showThrowable: Show[Throwable] = ex => ExceptionUtils.getMessage(ex)
   implicit val showNJEvent: Show[NJEvent]             = cats.derived.semiauto.show[NJEvent]
@@ -66,7 +72,7 @@ final case class ActionFailed(
   actionInfo: ActionInfo,
   givingUp: GivingUp,
   endAt: Instant, // computation finished
-  notes: String, // failure notes
+  notes: Notes, // failure notes
   error: Throwable
 ) extends ActionEvent
 
@@ -74,7 +80,7 @@ final case class ActionSucced(
   actionInfo: ActionInfo,
   endAt: Instant, // computation finished
   numRetries: Int, // how many retries before success
-  notes: String // success notes
+  notes: Notes // success notes
 ) extends ActionEvent
 
-final case class ForYouInformation(applicationName: String, message: String) extends NJEvent
+final case class ForYouInformation(message: String) extends NJEvent
