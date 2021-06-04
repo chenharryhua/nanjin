@@ -10,18 +10,18 @@ import fs2.concurrent.Channel
 final class ActionGuard[F[_]](
   channel: Channel[F, NJEvent],
   applicationName: String,
-  parentName: String,
+  serviceName: String,
   actionName: String,
   config: ActionConfig) {
 
   def updateActionConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
-    new ActionGuard[F](channel, applicationName, parentName, actionName, f(config))
+    new ActionGuard[F](channel, applicationName, serviceName, actionName, f(config))
 
   def retry[A, B](input: A)(f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
       channel,
       applicationName,
-      parentName,
+      serviceName,
       actionName,
       config,
       input,
@@ -38,7 +38,7 @@ final class ActionGuard[F[_]](
     new ActionRetryEither[F, A, B](
       channel,
       applicationName,
-      parentName,
+      serviceName,
       actionName,
       config,
       input,

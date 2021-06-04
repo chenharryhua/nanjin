@@ -15,17 +15,17 @@ final case class ServiceInfo(applicationName: String, serviceName: String, param
 
 final case class ActionInfo(
   applicationName: String,
-  parentName: String,
+  serviceName: String,
   actionName: String,
   params: ActionParams,
   id: UUID,
   launchTime: Instant) {
-  def metricsKey: String = s"action.$applicationName.$parentName.$actionName"
+  def metricsKey: String = s"action.$applicationName.$serviceName.$actionName"
 }
 
 sealed trait NJEvent
 
-object NJEvent { 
+object NJEvent {
   implicit private val showInstant: Show[Instant]     = _.toString()
   implicit private val showThrowable: Show[Throwable] = ex => ExceptionUtils.getMessage(ex)
   implicit val showNJEvent: Show[NJEvent]             = cats.derived.semiauto.show[NJEvent]

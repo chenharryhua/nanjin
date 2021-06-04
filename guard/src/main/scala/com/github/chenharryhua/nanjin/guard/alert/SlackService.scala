@@ -120,7 +120,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
               "danger",
               ts.toEpochMilli,
               List(
-                SlackField("Service", action.parentName, short = true),
+                SlackField("Service", action.serviceName, short = true),
                 SlackField("Action", action.actionName, short = true),
                 SlackField("Took", utils.mkDurationString(action.launchTime, endAt), short = true),
                 SlackField("Retries", givingUp.totalRetries.toString, short = true),
@@ -141,7 +141,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
               "good",
               ts.toEpochMilli,
               List(
-                SlackField("Service", action.parentName, short = true),
+                SlackField("Service", action.serviceName, short = true),
                 SlackField("Action", action.actionName, short = true),
                 SlackField("Took", utils.mkDurationString(action.launchTime, endAt), short = true),
                 SlackField("Retries", s"$numRetries/${action.params.maxRetries}", short = true),

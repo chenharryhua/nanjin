@@ -13,7 +13,7 @@ import java.util.UUID
 final class ActionRetry[F[_], A, B](
   channel: Channel[F, NJEvent],
   applicationName: String,
-  parentName: String,
+  serviceName: String,
   actionName: String,
   config: ActionConfig,
   input: A,
@@ -26,7 +26,7 @@ final class ActionRetry[F[_], A, B](
     new ActionRetry[F, A, B](
       channel,
       applicationName,
-      parentName,
+      serviceName,
       actionName,
       config,
       input,
@@ -38,7 +38,7 @@ final class ActionRetry[F[_], A, B](
     new ActionRetry[F, A, B](
       channel,
       applicationName,
-      parentName,
+      serviceName,
       actionName,
       config,
       input,
@@ -46,30 +46,29 @@ final class ActionRetry[F[_], A, B](
       succ,
       Reader(fail.tupled))
 
-  def run(implicit F: Async[F]): F[B] = Ref.of[F, Int](0).flatMap(internalRun)
-
-  private def internalRun(ref: Ref[F, Int])(implicit F: Async[F]): F[B] = F.realTimeInstant.flatMap { ts =>
-    val actionInfo: ActionInfo =
-      ActionInfo(
-        applicationName = applicationName,
-        parentName = parentName,
-        actionName = actionName,
-        params = params,
-        id = UUID.randomUUID(),
-        launchTime = ts
-      )
-
-    val base = new ActionRetryBase[F, A, B](input, succ, fail)
-
-    retry
-      .retryingOnAllErrors[B](
-        params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
-        base.onError(actionInfo, channel, ref))(kleisli.run(input))
-      .flatTap(b =>
-        for {
-          count <- ref.get
-          now <- F.realTimeInstant
-          _ <- channel.send(ActionSucced(actionInfo, now, count, base.succNotes(b)))
-        } yield ())
-  }
+  def run(implicit F: Async[F]): F[B] =
+    for {
+      ref <- Ref.of[F, Int](0)
+      ts <- F.realTimeInstant
+      actionInfo: ActionInfo =
+        ActionInfo(
+          applicationName = applicationName,
+          serviceName = serviceName,
+          actionName = actionName,
+          params = params,
+          id = UUID.randomUUID(),
+          launchTime = ts
+        )
+      base = new ActionRetryBase[F, A, B](input, succ, fail)
+      res <- retry
+        .retryingOnAllErrors[B](
+          params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
+          base.onError(actionInfo, channel, ref))(kleisli.run(input))
+        .flatTap(b =>
+          for {
+            count <- ref.get
+            now <- F.realTimeInstant
+            _ <- channel.send(ActionSucced(actionInfo, now, count, base.succNotes(b)))
+          } yield ())
+    } yield res
 }

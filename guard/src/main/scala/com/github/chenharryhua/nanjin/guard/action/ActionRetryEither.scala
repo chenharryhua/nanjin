@@ -17,7 +17,7 @@ import scala.concurrent.duration.Duration
 final class ActionRetryEither[F[_], A, B](
   channel: Channel[F, NJEvent],
   applicationName: String,
-  parentName: String,
+  serviceName: String,
   actionName: String,
   config: ActionConfig,
   input: A,
@@ -30,7 +30,7 @@ final class ActionRetryEither[F[_], A, B](
     new ActionRetryEither[F, A, B](
       channel,
       applicationName,
-      parentName,
+      serviceName,
       actionName,
       config,
       input,
@@ -42,7 +42,7 @@ final class ActionRetryEither[F[_], A, B](
     new ActionRetryEither[F, A, B](
       channel,
       applicationName,
-      parentName,
+      serviceName,
       actionName,
       config,
       input,
@@ -56,7 +56,7 @@ final class ActionRetryEither[F[_], A, B](
     val actionInfo: ActionInfo =
       ActionInfo(
         applicationName = applicationName,
-        parentName = parentName,
+        serviceName = serviceName,
         actionName = actionName,
         params = params,
         id = UUID.randomUUID(),
