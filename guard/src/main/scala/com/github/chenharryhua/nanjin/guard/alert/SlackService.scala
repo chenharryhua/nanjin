@@ -114,7 +114,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
           action.applicationName,
-          notes,
+          notes.value,
           List(
             Attachment(
               "danger",
@@ -135,7 +135,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
           action.applicationName,
-          notes,
+          notes.value,
           List(
             Attachment(
               "good",

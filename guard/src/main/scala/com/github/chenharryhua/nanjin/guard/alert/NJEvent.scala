@@ -23,6 +23,12 @@ final case class ActionInfo(
   def metricsKey: String = s"action.$applicationName.$serviceName.$actionName"
 }
 
+final case class Notes private (value: String)
+
+object Notes {
+  def apply(str: String): Notes = new Notes(Option(str).getOrElse("null in notes"))
+}
+
 sealed trait NJEvent
 
 object NJEvent {
@@ -66,7 +72,7 @@ final case class ActionFailed(
   actionInfo: ActionInfo,
   givingUp: GivingUp,
   endAt: Instant, // computation finished
-  notes: String, // failure notes
+  notes: Notes, // failure notes
   error: Throwable
 ) extends ActionEvent
 
@@ -74,7 +80,7 @@ final case class ActionSucced(
   actionInfo: ActionInfo,
   endAt: Instant, // computation finished
   numRetries: Int, // how many retries before success
-  notes: String // success notes
+  notes: Notes // success notes
 ) extends ActionEvent
 
 final case class ForYouInformation(applicationName: String, message: String) extends NJEvent
