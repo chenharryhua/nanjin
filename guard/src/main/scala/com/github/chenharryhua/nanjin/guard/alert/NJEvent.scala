@@ -9,18 +9,18 @@ import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 import java.time.Instant
 import java.util.UUID
 
-final case class ServiceInfo(applicationName: String, serviceName: String, params: ServiceParams, launchTime: Instant) {
-  def metricsKey: String = s"service.$applicationName.$serviceName"
+final case class ServiceInfo(serviceName: String, applicationName: String, params: ServiceParams, launchTime: Instant) {
+  def metricsKey: String = s"service.$serviceName.$applicationName"
 }
 
 final case class ActionInfo(
-  applicationName: String,
-  serviceName: String,
   actionName: String,
+  serviceName: String,
+  applicationName: String,
   params: ActionParams,
   id: UUID,
   launchTime: Instant) {
-  def metricsKey: String = s"action.$applicationName.$serviceName.$actionName"
+  def metricsKey: String = s"action.$actionName.$serviceName.$applicationName"
 }
 
 final case class Notes private (value: String)

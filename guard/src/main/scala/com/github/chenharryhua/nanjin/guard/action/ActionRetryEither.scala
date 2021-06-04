@@ -16,9 +16,9 @@ import scala.concurrent.duration.Duration
   */
 final class ActionRetryEither[F[_], A, B](
   channel: Channel[F, NJEvent],
-  applicationName: String,
-  serviceName: String,
   actionName: String,
+  serviceName: String,
+  applicationName: String,
   config: ActionConfig,
   input: A,
   eitherT: EitherT[Kleisli[F, A, *], Throwable, B],
@@ -29,9 +29,9 @@ final class ActionRetryEither[F[_], A, B](
   def withSuccNotes(succ: (A, B) => String): ActionRetryEither[F, A, B] =
     new ActionRetryEither[F, A, B](
       channel,
-      applicationName,
-      serviceName,
       actionName,
+      serviceName,
+      applicationName,
       config,
       input,
       eitherT,
@@ -41,9 +41,9 @@ final class ActionRetryEither[F[_], A, B](
   def withFailNotes(fail: (A, Throwable) => String): ActionRetryEither[F, A, B] =
     new ActionRetryEither[F, A, B](
       channel,
-      applicationName,
-      serviceName,
       actionName,
+      serviceName,
+      applicationName,
       config,
       input,
       eitherT,
@@ -55,13 +55,12 @@ final class ActionRetryEither[F[_], A, B](
   private def internalRun(ref: Ref[F, Int])(implicit F: Async[F]): F[B] = F.realTimeInstant.flatMap { ts =>
     val actionInfo: ActionInfo =
       ActionInfo(
-        applicationName = applicationName,
-        serviceName = serviceName,
         actionName = actionName,
+        serviceName = serviceName,
+        applicationName = applicationName,
         params = params,
         id = UUID.randomUUID(),
-        launchTime = ts
-      )
+        launchTime = ts)
 
     val base = new ActionRetryBase[F, A, B](input, succ, fail)
 

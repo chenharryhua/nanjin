@@ -12,9 +12,9 @@ import java.util.UUID
 
 final class ActionRetry[F[_], A, B](
   channel: Channel[F, NJEvent],
-  applicationName: String,
-  serviceName: String,
   actionName: String,
+  serviceName: String,
+  applicationName: String,
   config: ActionConfig,
   input: A,
   kleisli: Kleisli[F, A, B],
@@ -25,9 +25,9 @@ final class ActionRetry[F[_], A, B](
   def withSuccNotes(succ: (A, B) => String): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
       channel,
-      applicationName,
-      serviceName,
       actionName,
+      serviceName,
+      applicationName,
       config,
       input,
       kleisli,
@@ -37,9 +37,9 @@ final class ActionRetry[F[_], A, B](
   def withFailNotes(fail: (A, Throwable) => String): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
       channel,
-      applicationName,
-      serviceName,
       actionName,
+      serviceName,
+      applicationName,
       config,
       input,
       kleisli,
@@ -52,13 +52,12 @@ final class ActionRetry[F[_], A, B](
       ts <- F.realTimeInstant
       actionInfo: ActionInfo =
         ActionInfo(
-          applicationName = applicationName,
-          serviceName = serviceName,
           actionName = actionName,
+          serviceName = serviceName,
+          applicationName = applicationName,
           params = params,
           id = UUID.randomUUID(),
-          launchTime = ts
-        )
+          launchTime = ts)
       base = new ActionRetryBase[F, A, B](input, succ, fail)
       res <- retry
         .retryingOnAllErrors[B](

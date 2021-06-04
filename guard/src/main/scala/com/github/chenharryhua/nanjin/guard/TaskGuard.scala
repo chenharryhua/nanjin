@@ -18,7 +18,7 @@ final class TaskGuard[F[_]] private (
     new TaskGuard[F](applicationName, serviceConfig, f(actionConfig))
 
   def service(serviceName: String): ServiceGuard[F] =
-    new ServiceGuard[F](applicationName, serviceName, serviceConfig, actionConfig)
+    new ServiceGuard[F](serviceName, applicationName, serviceConfig, actionConfig)
 }
 
 object TaskGuard {

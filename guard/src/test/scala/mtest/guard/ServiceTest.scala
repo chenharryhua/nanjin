@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.guard._
 import org.scalatest.funsuite.AnyFunSuite
 import cats.syntax.all._
+import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.guard.alert.{
   ActionFailed,
   ActionRetrying,
@@ -25,6 +26,7 @@ import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
 class ServiceTest extends AnyFunSuite {
+  val slack = SlackService[IO](SnsArn("arn:aws:sns:ap-southeast-2:123456789012:abc-123xyz"))
 
   val guard = TaskGuard[IO]("service-level-guard")
     .updateServiceConfig(_.withConstantDelay(1.second))

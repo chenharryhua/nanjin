@@ -18,25 +18,25 @@ import java.util.UUID
   */
 
 final class ServiceGuard[F[_]](
-  applicationName: String,
   serviceName: String,
+  applicationName: String,
   serviceConfig: ServiceConfig,
   actionConfig: ActionConfig) {
   val params: ServiceParams = serviceConfig.evalConfig
 
   def updateServiceConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
-    new ServiceGuard[F](applicationName, serviceName, f(serviceConfig), actionConfig)
+    new ServiceGuard[F](serviceName, applicationName, f(serviceConfig), actionConfig)
 
   def updateActionConfig(f: ActionConfig => ActionConfig): ServiceGuard[F] =
-    new ServiceGuard[F](applicationName, serviceName, serviceConfig, f(actionConfig))
+    new ServiceGuard[F](serviceName, applicationName, serviceConfig, f(actionConfig))
 
   def eventStream[A](actionGuard: (String => ActionGuard[F]) => F[A])(implicit F: Async[F]): Stream[F, NJEvent] =
     for {
       ts <- Stream.eval(F.realTimeInstant)
       serviceInfo: ServiceInfo =
         ServiceInfo(
-          applicationName = applicationName,
           serviceName = serviceName,
+          applicationName = applicationName,
           params = params,
           launchTime = ts
         )
@@ -51,7 +51,7 @@ final class ServiceGuard[F[_]](
             (channel.send(ssd).delayBy(params.startUpEventDelay).void <*
               channel.send(shc).delayBy(params.healthCheck.interval).foreverM).background.use(_ =>
               actionGuard(actionName =>
-                new ActionGuard[F](channel, applicationName, serviceName, actionName, actionConfig))) *>
+                new ActionGuard[F](channel, actionName, serviceName, applicationName, actionConfig))) *>
               channel.send(sos)
           }
           // should never return, but if it did, close the topic so that the whole stream will be stopped
