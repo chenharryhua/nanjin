@@ -36,7 +36,7 @@ class RetryTest extends AnyFunSuite {
     val Vector(a, b, c, d) = guard
       .updateServiceConfig(_.withStartUpDelay(1.hour)) // don't want to see start event
       .eventStream { gd =>
-        gd("2-time-succ")
+        gd("1-time-succ")("2-time-succ") // funny syntax
           .updateActionConfig(_.withMaxRetries(3).withFullJitter(1.second).withSuccAlertOff.withFailAlertOff)
           .retry(IO(if (i < 2) {
             i += 1; throw new Exception

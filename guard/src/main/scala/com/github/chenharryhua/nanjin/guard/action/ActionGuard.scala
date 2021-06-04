@@ -14,6 +14,9 @@ final class ActionGuard[F[_]](
   actionName: String,
   actionConfig: ActionConfig) {
 
+  def apply(actionName: String): ActionGuard[F] =
+    new ActionGuard[F](channel, applicationName, serviceName, actionName, actionConfig)
+
   def updateActionConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
     new ActionGuard[F](channel, applicationName, serviceName, actionName, f(actionConfig))
 
