@@ -31,8 +31,7 @@ final class ActionGuard[F[_]](
 
   def retry[B](f: F[B]): ActionRetry[F, Unit, B] = retry[Unit, B](())(_ => f)
 
-  def fyi(msg: String)(implicit F: Functor[F]): F[Unit] =
-    channel.send(ForYouInformation(applicationName, msg)).void
+  def fyi(msg: String)(implicit F: Functor[F]): F[Unit] = channel.send(ForYouInformation(msg)).void
 
   def retryEither[A, B](input: A)(f: A => F[Either[Throwable, B]]): ActionRetryEither[F, A, B] =
     new ActionRetryEither[F, A, B](

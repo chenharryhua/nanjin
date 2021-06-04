@@ -83,4 +83,4 @@ final case class ActionSucced(
   notes: Notes // success notes
 ) extends ActionEvent
 
-final case class ForYouInformation(applicationName: String, message: String) extends NJEvent
+final case class ForYouInformation(message: String) extends NJEvent

@@ -31,7 +31,7 @@ final private class MetricsService[F[_]](metrics: MetricRegistry)(implicit F: Sy
           metrics
             .timer(s"${actionInfo.metricsKey}.timer.succ")
             .update(JavaDuration.between(actionInfo.launchTime, endAt)))
-    case ForYouInformation(_, _) => F.unit
+    case _: ForYouInformation => F.unit
   }
 }
 

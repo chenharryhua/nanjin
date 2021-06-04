@@ -151,8 +151,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
         ).asJson.noSpaces)
       msg.flatMap(service.publish).whenA(action.params.alertMask.alertSucc)
 
-    case ForYouInformation(applicationName, message) =>
-      service.publish(SlackNotification(applicationName, message, List.empty).asJson.noSpaces).void
+    case ForYouInformation(message) => service.publish(message).void
   }
 }
 
