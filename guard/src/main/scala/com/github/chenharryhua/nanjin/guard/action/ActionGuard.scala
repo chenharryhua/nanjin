@@ -12,10 +12,10 @@ final class ActionGuard[F[_]](
   applicationName: String,
   serviceName: String,
   actionName: String,
-  config: ActionConfig) {
+  actionConfig: ActionConfig) {
 
   def updateActionConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
-    new ActionGuard[F](channel, applicationName, serviceName, actionName, f(config))
+    new ActionGuard[F](channel, applicationName, serviceName, actionName, f(actionConfig))
 
   def retry[A, B](input: A)(f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
@@ -23,7 +23,7 @@ final class ActionGuard[F[_]](
       applicationName,
       serviceName,
       actionName,
-      config,
+      actionConfig,
       input,
       Kleisli(f),
       Reader(tuple2 => ""),
@@ -39,7 +39,7 @@ final class ActionGuard[F[_]](
       applicationName,
       serviceName,
       actionName,
-      config,
+      actionConfig,
       input,
       EitherT(Kleisli(f)),
       Reader(tuple2 => ""),
@@ -47,4 +47,5 @@ final class ActionGuard[F[_]](
 
   def retryEither[B](f: F[Either[Throwable, B]]): ActionRetryEither[F, Unit, B] =
     retryEither[Unit, B](())(_ => f)
+
 }
