@@ -14,37 +14,37 @@ final class ActionRetry[F[_], A, B](
   channel: Channel[F, NJEvent],
   actionName: String,
   serviceName: String,
-  applicationName: String,
-  config: ActionConfig,
+  appName: String,
+  actionConfig: ActionConfig,
   input: A,
   kleisli: Kleisli[F, A, B],
   succ: Reader[(A, B), String],
   fail: Reader[(A, Throwable), String]) {
-  val params: ActionParams = config.evalConfig
+  val params: ActionParams = actionConfig.evalConfig
 
   def withSuccNotes(succ: (A, B) => String): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
-      channel,
-      actionName,
-      serviceName,
-      applicationName,
-      config,
-      input,
-      kleisli,
-      Reader(succ.tupled),
-      fail)
+      channel = channel,
+      actionName = actionName,
+      serviceName = serviceName,
+      appName = appName,
+      actionConfig = actionConfig,
+      input = input,
+      kleisli = kleisli,
+      succ = Reader(succ.tupled),
+      fail = fail)
 
   def withFailNotes(fail: (A, Throwable) => String): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
-      channel,
-      actionName,
-      serviceName,
-      applicationName,
-      config,
-      input,
-      kleisli,
-      succ,
-      Reader(fail.tupled))
+      channel = channel,
+      actionName = actionName,
+      serviceName = serviceName,
+      appName = appName,
+      actionConfig = actionConfig,
+      input = input,
+      kleisli = kleisli,
+      succ = succ,
+      fail = Reader(fail.tupled))
 
   def run(implicit F: Async[F]): F[B] =
     for {
@@ -54,7 +54,7 @@ final class ActionRetry[F[_], A, B](
         ActionInfo(
           actionName = actionName,
           serviceName = serviceName,
-          applicationName = applicationName,
+          appName = appName,
           params = params,
           id = UUID.randomUUID(),
           launchTime = ts)
@@ -67,7 +67,8 @@ final class ActionRetry[F[_], A, B](
           for {
             count <- ref.get
             now <- F.realTimeInstant
-            _ <- channel.send(ActionSucced(actionInfo, now, count, base.succNotes(b)))
+            _ <- channel.send(
+              ActionSucced(actionInfo = actionInfo, endAt = now, numRetries = count, notes = base.succNotes(b)))
           } yield ())
     } yield res
 }

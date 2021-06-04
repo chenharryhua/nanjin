@@ -24,7 +24,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
     case ServiceStarted(info) =>
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
-          info.applicationName,
+          info.appName,
           ":rocket:",
           List(
             Attachment(
@@ -45,7 +45,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
       val cause = ExceptionUtils.getMessage(error)
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
-          info.applicationName,
+          info.appName,
           s""":system_restore: The service experienced a panic caused by *$cause* and started to *recover* itself
              |$upcomingDelay 
              |full exception can be found in log file by *Error ID*""".stripMargin,
@@ -70,7 +70,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
     case ServiceStoppedAbnormally(info) =>
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
-          info.applicationName,
+          info.appName,
           s":octagonal_sign: The service was unexpectedly stopped. It is a *FATAL* error",
           List(
             Attachment(
@@ -89,7 +89,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
     case ServiceHealthCheck(info) =>
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
-          info.applicationName,
+          info.appName,
           ":gottarun:",
           List(
             Attachment(
@@ -113,7 +113,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
     case ActionFailed(action, givingUp, endAt, notes, _) =>
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
-          action.applicationName,
+          action.appName,
           notes.value,
           List(
             Attachment(
@@ -134,7 +134,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
     case ActionSucced(action, endAt, numRetries, notes) =>
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
-          action.applicationName,
+          action.appName,
           notes.value,
           List(
             Attachment(

@@ -11,26 +11,26 @@ final class ActionGuard[F[_]](
   channel: Channel[F, NJEvent],
   actionName: String,
   serviceName: String,
-  applicationName: String,
+  appName: String,
   actionConfig: ActionConfig) {
 
   def apply(actionName: String): ActionGuard[F] =
-    new ActionGuard[F](channel, actionName, serviceName, applicationName, actionConfig)
+    new ActionGuard[F](channel, actionName, serviceName, appName, actionConfig)
 
   def updateActionConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
-    new ActionGuard[F](channel, actionName, serviceName, applicationName, f(actionConfig))
+    new ActionGuard[F](channel, actionName, serviceName, appName, f(actionConfig))
 
   def retry[A, B](input: A)(f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
-      channel,
-      actionName,
-      serviceName,
-      applicationName,
-      actionConfig,
-      input,
-      Kleisli(f),
-      Reader(tuple2 => ""),
-      Reader(tuple2 => ""))
+      channel = channel,
+      actionName = actionName,
+      serviceName = serviceName,
+      appName = appName,
+      actionConfig = actionConfig,
+      input = input,
+      kleisli = Kleisli(f),
+      succ = Reader(_ => ""),
+      fail = Reader(_ => ""))
 
   def retry[B](f: F[B]): ActionRetry[F, Unit, B] = retry[Unit, B](())(_ => f)
 
@@ -38,15 +38,15 @@ final class ActionGuard[F[_]](
 
   def retryEither[A, B](input: A)(f: A => F[Either[Throwable, B]]): ActionRetryEither[F, A, B] =
     new ActionRetryEither[F, A, B](
-      channel,
-      actionName,
-      serviceName,
-      applicationName,
-      actionConfig,
-      input,
-      EitherT(Kleisli(f)),
-      Reader(tuple2 => ""),
-      Reader(tuple2 => ""))
+      channel = channel,
+      actionName = actionName,
+      serviceName = serviceName,
+      appName = appName,
+      actionConfig = actionConfig,
+      input = input,
+      eitherT = EitherT(Kleisli(f)),
+      succ = Reader(_ => ""),
+      fail = Reader(_ => ""))
 
   def retryEither[B](f: F[Either[Throwable, B]]): ActionRetryEither[F, Unit, B] =
     retryEither[Unit, B](())(_ => f)
