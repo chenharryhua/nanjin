@@ -45,7 +45,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
           info.appName,
-          s""":system_restore: The service experienced a panic caused by *${error.message}* and started to *recover* itself
+          s""":system_restore: The service experienced a panic and started to *recover* itself
              |$upcomingDelay 
              |full exception can be found in log file by *Error ID*""".stripMargin,
           List(
@@ -55,6 +55,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
               List(
                 SlackField("Service", info.serviceName, short = true),
                 SlackField("Status", "Restarting", short = true),
+                SlackField("Cause", error.message, short = true),
                 SlackField("Launch Time", info.launchTime.toString, short = true),
                 SlackField("Up Time", utils.mkDurationString(info.launchTime, ts), short = true),
                 SlackField("Retry Policy", info.params.retryPolicy.policy[F].show, short = true),
