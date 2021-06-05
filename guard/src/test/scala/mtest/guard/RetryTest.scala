@@ -11,6 +11,7 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ActionSucced,
   LogService,
   MetricsService,
+  NJEvent,
   ServicePanic,
   ServiceStoppedAbnormally,
   SlackService

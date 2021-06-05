@@ -23,10 +23,10 @@ object NJRetryPolicy {
   implicit val showNJRetryPolicy: Show[NJRetryPolicy] = cats.derived.semiauto.show[NJRetryPolicy]
 }
 
-final private case class ConstantDelay(value: FiniteDuration) extends NJRetryPolicy
-final private case class ExponentialBackoff(value: FiniteDuration) extends NJRetryPolicy
-final private case class FibonacciBackoff(value: FiniteDuration) extends NJRetryPolicy
-final private case class FullJitter(value: FiniteDuration) extends NJRetryPolicy
+final case class ConstantDelay(value: FiniteDuration) extends NJRetryPolicy
+final case class ExponentialBackoff(value: FiniteDuration) extends NJRetryPolicy
+final case class FibonacciBackoff(value: FiniteDuration) extends NJRetryPolicy
+final case class FullJitter(value: FiniteDuration) extends NJRetryPolicy
 
 @Lenses final case class AlertMask private (alertSucc: Boolean, alertFail: Boolean)
 

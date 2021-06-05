@@ -2,6 +2,9 @@ package com.github.chenharryhua.nanjin.guard.alert
 
 import cats.Show
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ServiceParams}
+import io.circe.generic.auto._
+import io.circe.shapes._
+import io.circe.{Decoder, Encoder, HCursor, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import retry.RetryDetails
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
@@ -29,12 +32,33 @@ object Notes {
   def apply(str: String): Notes = new Notes(Option(str).getOrElse("null in notes"))
 }
 
+final case class NJError private (message: String, stackTrace: String, throwable: Throwable)
+
+object NJError {
+  implicit val showNJError: Show[NJError] = _.message
+
+  implicit val encodeNJError: Encoder[NJError] = (a: NJError) =>
+    Json.obj(
+      ("message", Json.fromString(a.message)),
+      ("stackTrace", Json.fromString(a.stackTrace))
+    )
+
+  implicit val decodeNJError: Decoder[NJError] = (c: HCursor) =>
+    for {
+      m <- c.downField("message").as[String]
+      sf <- c.downField("stackTrace").as[String]
+    } yield NJError(m, sf, new Throwable("fake Throwable"))
+
+  def apply(ex: Throwable): NJError =
+    NJError(ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), ex)
+}
+
 sealed trait NJEvent
 
 object NJEvent {
-  implicit private val showInstant: Show[Instant]     = _.toString()
-  implicit private val showThrowable: Show[Throwable] = ex => ExceptionUtils.getMessage(ex)
-  implicit val showNJEvent: Show[NJEvent]             = cats.derived.semiauto.show[NJEvent]
+  implicit val showNJEvent: Show[NJEvent]       = cats.derived.semiauto.show[NJEvent]
+  implicit val encoderNJEvent: Encoder[NJEvent] = io.circe.generic.semiauto.deriveEncoder[NJEvent]
+  implicit val decoderNJEvent: Decoder[NJEvent] = io.circe.generic.semiauto.deriveDecoder[NJEvent]
 }
 
 sealed trait ServiceEvent extends NJEvent {
@@ -47,7 +71,7 @@ final case class ServicePanic(
   serviceInfo: ServiceInfo,
   retryDetails: RetryDetails,
   errorID: UUID,
-  error: Throwable
+  error: NJError
 ) extends ServiceEvent
 
 final case class ServiceStoppedAbnormally(
@@ -65,7 +89,7 @@ sealed trait ActionEvent extends NJEvent {
 final case class ActionRetrying(
   actionInfo: ActionInfo,
   willDelayAndRetry: WillDelayAndRetry,
-  error: Throwable
+  error: NJError
 ) extends ActionEvent
 
 final case class ActionFailed(
@@ -73,7 +97,7 @@ final case class ActionFailed(
   givingUp: GivingUp,
   endAt: Instant, // computation finished
   notes: Notes, // failure notes
-  error: Throwable
+  error: NJError
 ) extends ActionEvent
 
 final case class ActionSucced(

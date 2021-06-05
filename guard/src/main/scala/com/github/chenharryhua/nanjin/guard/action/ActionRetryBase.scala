@@ -19,7 +19,7 @@ private class ActionRetryBase[F[_], A, B](input: A, succ: Reader[(A, B), String]
     details: RetryDetails): F[Unit] =
     details match {
       case wdr @ WillDelayAndRetry(_, _, _) =>
-        channel.send(ActionRetrying(actionInfo, wdr, error)) *> ref.update(_ + 1)
+        channel.send(ActionRetrying(actionInfo, wdr, NJError(error))) *> ref.update(_ + 1)
       case gu @ GivingUp(_, _) =>
         for {
           now <- F.realTimeInstant
@@ -29,7 +29,7 @@ private class ActionRetryBase[F[_], A, B](input: A, succ: Reader[(A, B), String]
               givingUp = gu,
               endAt = now,
               notes = failNotes(error),
-              error = error
+              error = NJError(error)
             ))
         } yield ()
     }
