@@ -47,7 +47,7 @@ object NJError {
     for {
       msg <- c.downField("message").as[String]
       st <- c.downField("stackTrace").as[String]
-    } yield NJError(msg, st, new Throwable("fake Throwable"))
+    } yield NJError(msg, st, new Throwable("fake Throwable")) // can not recover throwables.
 
   def apply(ex: Throwable): NJError =
     NJError(ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), ex)

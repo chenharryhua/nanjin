@@ -48,8 +48,8 @@ final class ActionRetry[F[_], A, B](
 
   def run(implicit F: Async[F]): F[B] =
     for {
-      ref <- Ref.of[F, Int](0)
-      ts <- F.realTimeInstant
+      ref <- Ref.of[F, Int](0) // hold number of retries
+      ts <- F.realTimeInstant // timestamp when the action start
       actionInfo: ActionInfo =
         ActionInfo(
           actionName = actionName,
@@ -65,10 +65,9 @@ final class ActionRetry[F[_], A, B](
           base.onError(actionInfo, channel, ref))(kleisli.run(input))
         .flatTap(b =>
           for {
-            count <- ref.get
-            now <- F.realTimeInstant
-            _ <- channel.send(
-              ActionSucced(actionInfo = actionInfo, endAt = now, numRetries = count, notes = base.succNotes(b)))
+            count <- ref.get // number of retries before success
+            now <- F.realTimeInstant // timestamp when the action successed
+            _ <- channel.send(ActionSucced(actionInfo, now, count, base.succNotes(b)))
           } yield ())
     } yield res
 }

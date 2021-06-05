@@ -31,7 +31,7 @@ final case class FullJitter(value: FiniteDuration) extends NJRetryPolicy
 @Lenses final case class AlertMask private (alertSucc: Boolean, alertFail: Boolean)
 
 @Lenses final case class ActionParams private (
-  alertMask: AlertMask,
+  alertMask: AlertMask, // whether display succNotes and failNotes
   maxRetries: Int,
   retryPolicy: NJRetryPolicy
 )

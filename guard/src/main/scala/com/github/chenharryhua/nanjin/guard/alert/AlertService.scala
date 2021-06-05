@@ -9,6 +9,7 @@ trait AlertService[F[_]] {
 
 object AlertService {
 
+  // monoid law trivially hold.
   implicit def monoidAlertService[F[_]](implicit F: Applicative[F]): Monoid[AlertService[F]] =
     new Monoid[AlertService[F]] {
 
