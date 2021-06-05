@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.salesforce.client
 
+import cats.Functor
 import higherkindness.droste.Algebra
 import higherkindness.droste.data.Fix
 import monocle.macros.Lenses
@@ -10,12 +11,14 @@ import scala.concurrent.duration._
 @Lenses final case class SalesforceParams(auth: Authentication)
 
 object SalesforceParams {
-  def apply() :SalesforceParams = SalesforceParams(Authentication(10, 5.seconds))
+  def apply(): SalesforceParams = SalesforceParams(Authentication(10, 5.seconds))
 }
 
-sealed trait SalesforceConfigF[A]
+sealed private[salesforce] trait SalesforceConfigF[A]
 
 object SalesforceConfigF {
+  implicit val functorSalesforceConfigF: Functor[SalesforceConfigF] = cats.derived.semiauto.functor[SalesforceConfigF]
+
   final case class WithAuthenticationMaxRetries[K](value: Int, cont: K) extends SalesforceConfigF[K]
   final case class WithAuthenticationInterval[K](value: FiniteDuration, cont: K) extends SalesforceConfigF[K]
 

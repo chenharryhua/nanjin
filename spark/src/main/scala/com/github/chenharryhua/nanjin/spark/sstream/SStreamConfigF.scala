@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.sstream
 
-import cats.derived.auto.functor.kittensMkFunctor
+import cats.Functor
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import higherkindness.droste.data.Fix
@@ -42,7 +42,8 @@ private[sstream] object SStreamParams {
 
 sealed private[sstream] trait SStreamConfigF[A]
 
-private[sstream] object SStreamConfigF {
+private object SStreamConfigF {
+  implicit val functorSStreamConfigF: Functor[SStreamConfigF] = cats.derived.semiauto.functor[SStreamConfigF]
 
   final case class InitParams[K](tr: NJDateTimeRange) extends SStreamConfigF[K]
 
@@ -95,7 +96,7 @@ final private[sstream] case class SStreamConfig(value: Fix[SStreamConfigF]) exte
   def withAvro: SStreamConfig    = SStreamConfig(Fix(WithFormat(NJFileFormat.Avro, value)))
 
   def withProgressInterval(fd: FiniteDuration): SStreamConfig = SStreamConfig(Fix(WithProgressInterval(fd, value)))
-  def withProgressInterval(ms: Long): SStreamConfig           = withProgressInterval(FiniteDuration(ms, TimeUnit.MILLISECONDS))
+  def withProgressInterval(ms: Long): SStreamConfig = withProgressInterval(FiniteDuration(ms, TimeUnit.MILLISECONDS))
 
   def withQueryName(name: String): SStreamConfig = SStreamConfig(Fix(WithQueryName(name, value)))
 

@@ -45,9 +45,9 @@ object NJError {
 
   implicit val decodeNJError: Decoder[NJError] = (c: HCursor) =>
     for {
-      m <- c.downField("message").as[String]
-      sf <- c.downField("stackTrace").as[String]
-    } yield NJError(m, sf, new Throwable("fake Throwable"))
+      msg <- c.downField("message").as[String]
+      st <- c.downField("stackTrace").as[String]
+    } yield NJError(msg, st, new Throwable("fake Throwable"))
 
   def apply(ex: Throwable): NJError =
     NJError(ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), ex)

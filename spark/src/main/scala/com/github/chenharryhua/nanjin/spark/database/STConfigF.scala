@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.database
 
-import cats.derived.auto.functor.kittensMkFunctor
+import cats.Functor
 import com.github.chenharryhua.nanjin.common.database.{DatabaseName, TableName}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
@@ -30,7 +30,9 @@ private[database] object STParams {
 
 sealed private[database] trait STConfigF[K]
 
-private[database] object STConfigF {
+private object STConfigF {
+  implicit val functorSTConfigF: Functor[STConfigF] = cats.derived.semiauto.functor[STConfigF]
+
   final case class InitParams[K](dbName: DatabaseName, tableName: TableName) extends STConfigF[K]
 
   final case class WithDbSaveMode[K](value: SaveMode, cont: K) extends STConfigF[K]

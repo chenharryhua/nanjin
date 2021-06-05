@@ -45,7 +45,7 @@ object ActionParams {
   )
 }
 
-sealed trait ActionConfigF[F]
+sealed private[guard] trait ActionConfigF[F]
 
 private object ActionConfigF {
   implicit val functorActionConfigF: Functor[ActionConfigF] = cats.derived.semiauto.functor[ActionConfigF]
