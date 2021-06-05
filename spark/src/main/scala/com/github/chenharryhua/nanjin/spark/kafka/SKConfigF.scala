@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.derived.auto.functor.kittensMkFunctor
+import cats.Functor
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.defaultLoadParams
@@ -57,7 +57,9 @@ private[kafka] object SKParams {
 
 sealed private[kafka] trait SKConfigF[A]
 
-private[kafka] object SKConfigF {
+private object SKConfigF {
+  implicit val functorSKConfigF: Functor[SKConfigF] = cats.derived.semiauto.functor[SKConfigF]
+
   final case class InitParams[K](topicName: TopicName, zoneId: ZoneId) extends SKConfigF[K]
 
   final case class WithTopicName[K](value: TopicName, cont: K) extends SKConfigF[K]

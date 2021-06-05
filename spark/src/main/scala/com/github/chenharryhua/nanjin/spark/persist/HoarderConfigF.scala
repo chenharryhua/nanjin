@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.derived.auto.functor._
+import cats.Functor
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
@@ -21,7 +21,9 @@ private[persist] object HoarderParams {
 
 sealed private[persist] trait HoarderConfigF[_]
 
-private[persist] object HoarderConfigF {
+private object HoarderConfigF {
+  implicit val functorHoarderConfigF: Functor[HoarderConfigF] = cats.derived.semiauto.functor[HoarderConfigF]
+
   final case class InitParams[K](path: String) extends HoarderConfigF[K]
   final case class WithSaveMode[K](value: SaveMode, cont: K) extends HoarderConfigF[K]
   final case class WithOutputPath[K](value: String, cont: K) extends HoarderConfigF[K]

@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.config
 
-import cats.{Functor, Show}
+import cats.Functor
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
@@ -25,7 +25,7 @@ object ServiceParams {
     )
 }
 
-sealed trait ServiceConfigF[F]
+sealed private[guard] trait ServiceConfigF[F]
 
 private object ServiceConfigF {
   implicit val functorServiceConfigF: Functor[ServiceConfigF] = cats.derived.semiauto.functor[ServiceConfigF]
