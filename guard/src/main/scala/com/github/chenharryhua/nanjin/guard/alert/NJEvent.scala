@@ -13,7 +13,7 @@ import java.time.Instant
 import java.util.UUID
 
 final case class ServiceInfo(serviceName: String, appName: String, params: ServiceParams, launchTime: Instant) {
-  def metricsKey: String = s"service.$serviceName.$appName"
+  def metricsKey: String = s"$serviceName.$appName"
 }
 
 final case class ActionInfo(
@@ -23,7 +23,7 @@ final case class ActionInfo(
   params: ActionParams,
   id: UUID,
   launchTime: Instant) {
-  def metricsKey: String = s"action.$actionName.$serviceName.$appName"
+  def metricsKey: String = s"$actionName.$serviceName.$appName"
 }
 
 final case class Notes private (value: String)
@@ -47,7 +47,7 @@ object NJError {
     for {
       msg <- c.downField("message").as[String]
       st <- c.downField("stackTrace").as[String]
-    } yield NJError(msg, st, new Throwable("fake Throwable"))
+    } yield NJError(msg, st, new Throwable("fake Throwable")) // can not recover throwables.
 
   def apply(ex: Throwable): NJError =
     NJError(ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), ex)
