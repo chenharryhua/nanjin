@@ -42,11 +42,10 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
         case None     => "should never see this" // never happen
         case Some(ts) => s"next attempt will happen in *$ts* meanwhile the service is *dysfunctional*."
       }
-      val cause = ExceptionUtils.getMessage(error)
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
           info.appName,
-          s""":system_restore: The service experienced a panic caused by *$cause* and started to *recover* itself
+          s""":system_restore: The service experienced a panic caused by *${error.message}* and started to *recover* itself
              |$upcomingDelay 
              |full exception can be found in log file by *Error ID*""".stripMargin,
           List(
@@ -110,7 +109,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
 
     case ActionRetrying(_, _, _) => F.unit
 
-    case ActionFailed(action, givingUp, endAt, notes, _) =>
+    case ActionFailed(action, givingUp, endAt, notes, error) =>
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
           action.appName,
@@ -123,6 +122,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
                 SlackField("Service", action.serviceName, short = true),
                 SlackField("Action", action.actionName, short = true),
                 SlackField("Took", utils.mkDurationString(action.launchTime, endAt), short = true),
+                SlackField("Cause", error.message, short = true),
                 SlackField("Retries", givingUp.totalRetries.toString, short = true),
                 SlackField("Retry Policy", action.params.retryPolicy.policy[F].show, short = true),
                 SlackField("Action ID", action.id.toString, short = false)

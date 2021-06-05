@@ -15,6 +15,7 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ForYouInformation,
   LogService,
   MetricsService,
+  NJEvent,
   ServiceHealthCheck,
   ServicePanic,
   ServiceStarted,
@@ -24,6 +25,8 @@ import com.github.chenharryhua.nanjin.guard.alert.{
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
+import io.circe.syntax._
+import io.circe.parser.decode
 
 class ServiceTest extends AnyFunSuite {
   val slack = SlackService[IO](SnsArn("arn:aws:sns:ap-southeast-2:123456789012:abc-123xyz"))
@@ -46,6 +49,8 @@ class ServiceTest extends AnyFunSuite {
           .retry(IO(1))
           .run
           .delayBy(1.second))
+      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
+      .unNone
       .observe(_.evalMap(m => logging.alert(m)).drain)
       .compile
       .toVector
@@ -81,6 +86,8 @@ class ServiceTest extends AnyFunSuite {
           .withFailNotes((_, _) => null)
           .run
       }
+      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
+      .unNone
       .observe(_.evalMap(m => logging.alert(m) >> IO.println(m.show)).drain)
       .interruptAfter(5.seconds)
       .compile
@@ -98,6 +105,8 @@ class ServiceTest extends AnyFunSuite {
     val Vector(a) = guard
       .updateServiceConfig(_.withStartUpDelay(2.hours))
       .eventStream(gd => gd("fyi").fyi("hello, world") >> IO.never)
+      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
+      .unNone
       .observe(_.evalMap(m => logging.alert(m)).drain)
       .interruptAfter(5.seconds)
       .compile
@@ -109,6 +118,8 @@ class ServiceTest extends AnyFunSuite {
   test("normal service stop after two operations") {
     val Vector(a, b, c) = guard
       .eventStream(gd => gd("a").retry(IO(1)).run >> gd("b").retry(IO(2)).run)
+      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
+      .unNone
       .observe(_.evalMap(m => logging.alert(m)).drain)
       .compile
       .toVector

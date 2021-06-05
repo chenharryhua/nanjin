@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.action
 import cats.data.{EitherT, Kleisli, Reader}
 import cats.effect.{Async, Ref}
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.guard.alert.{ActionFailed, ActionInfo, ActionSucced, NJEvent}
+import com.github.chenharryhua.nanjin.guard.alert.{ActionFailed, ActionInfo, ActionSucced, NJError, NJEvent}
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams}
 import fs2.concurrent.Channel
 import retry.RetryDetails.GivingUp
@@ -78,7 +78,7 @@ final class ActionRetryEither[F[_], A, B](
                   givingUp = GivingUp(0, Duration.Zero),
                   endAt = now,
                   notes = base.failNotes(error),
-                  error = error))
+                  error = NJError(error)))
             } yield Left(error)
           case Right(outerRight) =>
             outerRight match {

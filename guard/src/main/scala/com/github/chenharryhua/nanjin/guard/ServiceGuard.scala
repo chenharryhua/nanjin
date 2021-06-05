@@ -47,7 +47,7 @@ final class ServiceGuard[F[_]](
         val publisher = Stream.eval {
           val ret = retry.retryingOnAllErrors(
             params.retryPolicy.policy[F],
-            (e: Throwable, r) => channel.send(ServicePanic(serviceInfo, r, UUID.randomUUID(), e)).void) {
+            (e: Throwable, r) => channel.send(ServicePanic(serviceInfo, r, UUID.randomUUID(), NJError(e))).void) {
             (channel.send(ssd).delayBy(params.startUpEventDelay).void <*
               channel.send(shc).delayBy(params.healthCheck.interval).foreverM).background.use(_ =>
               actionGuard(actionName =>
