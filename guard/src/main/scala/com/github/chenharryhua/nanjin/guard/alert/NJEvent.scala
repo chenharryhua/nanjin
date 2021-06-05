@@ -13,7 +13,7 @@ import java.time.Instant
 import java.util.UUID
 
 final case class ServiceInfo(serviceName: String, appName: String, params: ServiceParams, launchTime: Instant) {
-  def metricsKey: String = s"service.$serviceName.$appName"
+  def metricsKey: String = s"$serviceName.$appName"
 }
 
 final case class ActionInfo(
@@ -23,7 +23,7 @@ final case class ActionInfo(
   params: ActionParams,
   id: UUID,
   launchTime: Instant) {
-  def metricsKey: String = s"action.$actionName.$serviceName.$appName"
+  def metricsKey: String = s"$actionName.$serviceName.$appName"
 }
 
 final case class Notes private (value: String)
