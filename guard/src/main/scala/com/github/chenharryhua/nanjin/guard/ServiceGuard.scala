@@ -30,7 +30,7 @@ final class ServiceGuard[F[_]](
   def updateActionConfig(f: ActionConfig => ActionConfig): ServiceGuard[F] =
     new ServiceGuard[F](serviceName, appName, serviceConfig, f(actionConfig))
 
-  def eventStream[A](actionGuard: (String => ActionGuard[F]) => F[A])(implicit F: Async[F]): Stream[F, NJEvent] =
+  def eventStream[A](actionGuard: ActionGuard[F] => F[A])(implicit F: Async[F]): Stream[F, NJEvent] =
     for {
       ts <- Stream.eval(F.realTimeInstant)
       serviceInfo: ServiceInfo =
@@ -50,10 +50,10 @@ final class ServiceGuard[F[_]](
             (e: Throwable, r) => channel.send(ServicePanic(serviceInfo, r, UUID.randomUUID(), NJError(e))).void) {
             (channel.send(ssd).delayBy(params.startUpEventDelay).void <*
               channel.send(shc).delayBy(params.healthCheck.interval).foreverM).background.use(_ =>
-              actionGuard(actionName =>
+              actionGuard(
                 new ActionGuard[F](
                   channel = channel,
-                  actionName = actionName,
+                  actionName = "anonymous",
                   serviceName = serviceName,
                   appName = appName,
                   actionConfig = actionConfig))) *>
