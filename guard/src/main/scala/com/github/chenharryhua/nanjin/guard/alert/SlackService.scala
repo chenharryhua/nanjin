@@ -162,7 +162,7 @@ object SlackService {
     new SlackService[F](SimpleNotificationService(topic, region))
 
   def apply[F[_]: Sync](topic: SnsArn): AlertService[F] =
-    apply[F](topic, Regions.AP_SOUTHEAST_2)
+    new SlackService[F](SimpleNotificationService(topic))
 
   def apply[F[_]: Sync](service: SimpleNotificationService[F]): AlertService[F] =
     new SlackService[F](service)
