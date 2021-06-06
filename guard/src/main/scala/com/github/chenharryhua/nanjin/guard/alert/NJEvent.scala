@@ -74,7 +74,7 @@ final case class ServicePanic(
   error: NJError
 ) extends ServiceEvent
 
-final case class ServiceStoppedAbnormally(
+final case class ServiceStopped(
   serviceInfo: ServiceInfo
 ) extends ServiceEvent
 

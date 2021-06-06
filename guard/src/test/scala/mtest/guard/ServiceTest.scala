@@ -20,7 +20,7 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ServiceHealthCheck,
   ServicePanic,
   ServiceStarted,
-  ServiceStoppedAbnormally,
+  ServiceStopped,
   SlackService
 }
 
@@ -44,7 +44,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("should stopped if the operation normally exits") {
     val Vector(a, b, c) = guard
-      .updateServiceConfig(_.withHealthCheckDisabled.withStartUpDelay(1.second))
+      .updateServiceConfig(_.withHealthCheckDisabled.withStartUpDelay(1.second).withNormalStop)
       .eventStream(gd =>
         gd("normal-exit-action")
           .updateActionConfig(_.withFailAlertOn.withSuccAlertOff.withMaxRetries(3).withExponentialBackoff(1.second))
@@ -59,7 +59,7 @@ class ServiceTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStarted])
     assert(b.isInstanceOf[ActionSucced])
-    assert(c.isInstanceOf[ServiceStoppedAbnormally])
+    assert(c.isInstanceOf[ServiceStopped])
   }
 
   test("should receive 3 health check event") {
@@ -128,7 +128,7 @@ class ServiceTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(a.isInstanceOf[ActionSucced])
     assert(b.isInstanceOf[ActionSucced])
-    assert(c.isInstanceOf[ServiceStoppedAbnormally])
+    assert(c.isInstanceOf[ServiceStopped])
   }
 
   test("combine two event streams") {
@@ -142,7 +142,7 @@ class ServiceTest extends AnyFunSuite {
     val vector =
       ss1.merge(ss2).observe(_.evalMap(m => logging.alert(m)).drain).compile.toVector.unsafeRunSync()
     assert(vector.count(_.isInstanceOf[ActionSucced]) == 4)
-    assert(vector.count(_.isInstanceOf[ServiceStoppedAbnormally]) == 2)
+    assert(vector.count(_.isInstanceOf[ServiceStopped]) == 2)
   }
 
   test("metrics success count") {

@@ -13,7 +13,7 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   MetricsService,
   NJEvent,
   ServicePanic,
-  ServiceStoppedAbnormally,
+  ServiceStopped,
   SlackService
 }
 import org.scalatest.funsuite.AnyFunSuite
@@ -52,7 +52,7 @@ class RetryTest extends AnyFunSuite {
     assert(a.isInstanceOf[ActionRetrying])
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.asInstanceOf[ActionSucced].numRetries == 2)
-    assert(d.isInstanceOf[ServiceStoppedAbnormally])
+    assert(d.isInstanceOf[ServiceStopped])
   }
 
   test("should escalate to up level if retry failed") {

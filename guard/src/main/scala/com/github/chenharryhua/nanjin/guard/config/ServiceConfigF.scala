@@ -12,7 +12,8 @@ import scala.concurrent.duration._
 @Lenses final case class ServiceParams private (
   healthCheck: NJHealthCheck,
   retryPolicy: NJRetryPolicy,
-  startUpEventDelay: FiniteDuration // delay to sent out ServiceStarted event
+  startUpEventDelay: FiniteDuration, // delay to sent out ServiceStarted event
+  isNormalStop: Boolean // treat stop event as normal stop or abnormal stop
 )
 
 object ServiceParams {
@@ -21,7 +22,8 @@ object ServiceParams {
     ServiceParams(
       healthCheck = NJHealthCheck(6.hours, isEnabled = true),
       retryPolicy = ConstantDelay(30.seconds),
-      startUpEventDelay = 15.seconds
+      startUpEventDelay = 15.seconds,
+      isNormalStop = false
     )
 }
 
@@ -37,6 +39,8 @@ private object ServiceConfigF {
 
   final case class WithStartUpDelay[K](value: FiniteDuration, cont: K) extends ServiceConfigF[K]
 
+  final case class WithNormalStop[K](value: Boolean, cont: K) extends ServiceConfigF[K]
+
   val algebra: Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams()                  => ServiceParams.default
@@ -44,6 +48,7 @@ private object ServiceConfigF {
       case WithHealthCheckFlag(v, c)     => ServiceParams.healthCheck.composeLens(NJHealthCheck.isEnabled).set(v)(c)
       case WithRetryPolicy(v, c)         => ServiceParams.retryPolicy.set(v)(c)
       case WithStartUpDelay(v, c)        => ServiceParams.startUpEventDelay.set(v)(c)
+      case WithNormalStop(v, c)          => ServiceParams.isNormalStop.set(v)(c)
     }
 }
 
@@ -58,6 +63,8 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
 
   def withConstantDelay(delay: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(ConstantDelay(delay), value)))
+
+  def withNormalStop: ServiceConfig = ServiceConfig(Fix(WithNormalStop(value = true, value)))
 
   def evalConfig: ServiceParams = scheme.cata(algebra).apply(value)
 }

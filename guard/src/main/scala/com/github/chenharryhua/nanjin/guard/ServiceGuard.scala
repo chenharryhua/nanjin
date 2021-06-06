@@ -11,8 +11,7 @@ import fs2.concurrent.Channel
 
 import java.util.UUID
 
-/** Service never stop
-  * @example
+/** @example
   *   {{{ val guard = TaskGuard[IO]("appName").service("service-name") val es: Stream[IO,NJEvent] = guard.eventStream{
   *   gd => gd("action-1").retry(IO(1)).run >> IO("other computation") >> gd("action-2").retry(IO(2)).run } }}}
   */
@@ -42,7 +41,7 @@ final class ServiceGuard[F[_]](
         )
       ssd = ServiceStarted(serviceInfo)
       shc = ServiceHealthCheck(serviceInfo)
-      sos = ServiceStoppedAbnormally(serviceInfo)
+      sos = ServiceStopped(serviceInfo)
       event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
         val publisher = Stream.eval {
           val ret = retry.retryingOnAllErrors(
@@ -59,7 +58,6 @@ final class ServiceGuard[F[_]](
                   actionConfig = actionConfig))) *>
               channel.send(sos)
           }
-          // should never return, but if it did, close the topic so that the whole stream will be stopped
           ret.guarantee(channel.close.void)
         }
         channel.stream.concurrently(publisher)
