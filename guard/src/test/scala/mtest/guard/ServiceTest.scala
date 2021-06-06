@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.guard._
 import org.scalatest.funsuite.AnyFunSuite
 import cats.syntax.all._
+import com.amazonaws.regions.Regions
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.guard.alert.{
   ActionFailed,
@@ -29,7 +30,8 @@ import io.circe.syntax._
 import io.circe.parser.decode
 
 class ServiceTest extends AnyFunSuite {
-  val slack = SlackService[IO](SnsArn("arn:aws:sns:ap-southeast-2:123456789012:abc-123xyz"))
+  val slack  = SlackService[IO](SnsArn("arn:aws:sns:ap-southeast-2:123456789012:abc-123xyz"))
+  val slack2 = SlackService[IO](SnsArn("arn:aws:sns:ap-southeast-2:123456789012:abc-123xyz"), Regions.AP_SOUTHEAST_2)
 
   val guard = TaskGuard[IO]("service-level-guard")
     .updateServiceConfig(_.withConstantDelay(1.second))
@@ -45,7 +47,7 @@ class ServiceTest extends AnyFunSuite {
       .updateServiceConfig(_.withHealthCheckDisabled.withStartUpDelay(1.second))
       .eventStream(gd =>
         gd("normal-exit-action")
-          .updateActionConfig(_.withFailAlertOn.withSuccAlertOn.withMaxRetries(3).withExponentialBackoff(1.second))
+          .updateActionConfig(_.withFailAlertOn.withSuccAlertOff.withMaxRetries(3).withExponentialBackoff(1.second))
           .retry(IO(1))
           .run
           .delayBy(1.second))
@@ -104,7 +106,7 @@ class ServiceTest extends AnyFunSuite {
   test("for your information") {
     val Vector(a) = guard
       .updateServiceConfig(_.withStartUpDelay(2.hours))
-      .eventStream(gd => gd("fyi").fyi("hello, world") >> IO.never)
+      .eventStream(_.fyi("hello, world") >> IO.never)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .observe(_.evalMap(m => logging.alert(m)).drain)
