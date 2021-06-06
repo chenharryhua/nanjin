@@ -48,7 +48,7 @@ class ServiceTest extends AnyFunSuite {
       .eventStream(gd =>
         gd("normal-exit-action")
           .updateActionConfig(_.withFailAlertOn.withSuccAlertOff.withMaxRetries(3).withExponentialBackoff(1.second))
-          .retry(IO(1))
+          .monitor(IO(1))
           .run
           .delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
