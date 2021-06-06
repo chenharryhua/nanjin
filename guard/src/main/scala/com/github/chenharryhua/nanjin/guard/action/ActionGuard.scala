@@ -20,6 +20,8 @@ final class ActionGuard[F[_]](
   def updateActionConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
     new ActionGuard[F](channel, actionName, serviceName, appName, f(actionConfig))
 
+  def toggle: ActionGuard[F] = updateActionConfig(_.withSuccAlertOn.withFailAlertOff)
+
   def retry[A, B](input: A)(f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
       channel = channel,
