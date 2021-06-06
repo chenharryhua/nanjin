@@ -3,7 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.alert.{ActionSucced, ServiceStoppedAbnormally}
+import com.github.chenharryhua.nanjin.guard.alert.{ActionSucced, ServiceStopped}
 import org.scalatest.funsuite.AnyFunSuite
 
 class NameTest extends AnyFunSuite {
@@ -25,6 +25,6 @@ class NameTest extends AnyFunSuite {
     assert(b.appName == "task.name")
     assert(b.serviceName == "service.name")
     assert(b.actionName == "action.retry.either")
-    assert(c.isInstanceOf[ServiceStoppedAbnormally])
+    assert(c.isInstanceOf[ServiceStopped])
   }
 }

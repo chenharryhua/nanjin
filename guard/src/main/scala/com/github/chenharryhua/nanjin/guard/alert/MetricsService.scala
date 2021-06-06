@@ -13,7 +13,7 @@ final private class MetricsService[F[_]](metrics: MetricRegistry)(implicit F: Sy
       F.blocking(metrics.counter(s"${serviceInfo.metricsKey}.start").inc())
     case ServicePanic(serviceInfo, _, _, _) =>
       F.blocking(metrics.counter(s"${serviceInfo.metricsKey}.panic").inc())
-    case ServiceStoppedAbnormally(serviceInfo) =>
+    case ServiceStopped(serviceInfo) =>
       F.blocking(metrics.counter(s"${serviceInfo.metricsKey}.stop").inc())
     case ServiceHealthCheck(serviceInfo) =>
       F.blocking(metrics.counter(s"${serviceInfo.metricsKey}.health-check").inc())
