@@ -53,14 +53,13 @@ final class ActionRetry[F[_], A, B](
     for {
       ref <- Ref.of[F, Int](0) // hold number of retries
       ts <- F.realTimeInstant // timestamp when the action start
-      actionInfo: ActionInfo =
-        ActionInfo(
-          actionName = actionName,
-          serviceName = serviceName,
-          appName = appName,
-          params = params,
-          id = UUID.randomUUID(),
-          launchTime = ts)
+      actionInfo = ActionInfo(
+        actionName = actionName,
+        serviceName = serviceName,
+        appName = appName,
+        params = params,
+        id = UUID.randomUUID(),
+        launchTime = ts)
       base = new ActionRetryBase[F, A, B](input, succ, fail)
       res <- retry
         .retryingOnAllErrors[B](

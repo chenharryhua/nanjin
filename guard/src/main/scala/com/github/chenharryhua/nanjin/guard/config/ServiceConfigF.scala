@@ -20,7 +20,7 @@ import scala.concurrent.duration._
   startUpEventDelay: FiniteDuration, // delay to sent out ServiceStarted event
   isNormalStop: Boolean, // treat stop event as normal stop or abnormal stop
   zoneId: ZoneId,
-  dailySummaryReset: Int // 0 - 23: 0 - midnight
+  dailySummaryReset: Int // 0 - 23
 )
 
 object ServiceParams {
@@ -32,7 +32,7 @@ object ServiceParams {
       startUpEventDelay = 15.seconds,
       isNormalStop = false,
       zoneId = ZoneId.systemDefault(),
-      dailySummaryReset = 0
+      dailySummaryReset = 0 // midnight
     )
 }
 
