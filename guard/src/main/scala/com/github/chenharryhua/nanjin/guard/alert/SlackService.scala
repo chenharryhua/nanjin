@@ -8,7 +8,6 @@ import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.common.utils
 import io.circe.generic.auto._
 import io.circe.syntax._
-import org.apache.commons.lang3.exception.ExceptionUtils
 
 /** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
   */
@@ -106,7 +105,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
       }
       msg.flatMap(service.publish).void
 
-    case ServiceHealthCheck(info) =>
+    case ServiceHealthCheck(info, dailySummaries) =>
       val msg = F.realTimeInstant.map(ts =>
         SlackNotification(
           info.appName,
@@ -119,6 +118,10 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
                 SlackField("Service", info.serviceName, short = true),
                 SlackField("HealthCheck Status", "Good", short = true),
                 SlackField("Up Time", utils.mkDurationString(info.launchTime, ts), short = true),
+                SlackField("Service Panic", dailySummaries.servicePanic.toString, short = true),
+                SlackField("Action Failed", dailySummaries.actionFail.toString, short = true),
+                SlackField("Action Retried", dailySummaries.actionRetries.toString, short = true),
+                SlackField("Action Successed", dailySummaries.actionSucc.toString, short = true),
                 SlackField(
                   "Next check will happen in",
                   utils.mkDurationString(info.params.healthCheck.interval),

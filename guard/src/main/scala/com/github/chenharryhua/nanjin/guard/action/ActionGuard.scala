@@ -2,13 +2,14 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.Functor
 import cats.data.{EitherT, Kleisli, Reader}
-import cats.effect.Async
+import cats.effect.{Async, Ref}
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.guard.alert.{ForYouInformation, NJEvent}
+import com.github.chenharryhua.nanjin.guard.alert.{DailySummaries, ForYouInformation, NJEvent}
 import com.github.chenharryhua.nanjin.guard.config.ActionConfig
 import fs2.concurrent.Channel
 
 final class ActionGuard[F[_]](
+  dailySummaries: Ref[F, DailySummaries],
   channel: Channel[F, NJEvent],
   actionName: String,
   serviceName: String,
@@ -16,13 +17,14 @@ final class ActionGuard[F[_]](
   actionConfig: ActionConfig) {
 
   def apply(actionName: String): ActionGuard[F] =
-    new ActionGuard[F](channel, actionName, serviceName, appName, actionConfig)
+    new ActionGuard[F](dailySummaries, channel, actionName, serviceName, appName, actionConfig)
 
   def updateActionConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
-    new ActionGuard[F](channel, actionName, serviceName, appName, f(actionConfig))
+    new ActionGuard[F](dailySummaries, channel, actionName, serviceName, appName, f(actionConfig))
 
   def retry[A, B](input: A)(f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
+      dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
       serviceName = serviceName,
@@ -39,6 +41,7 @@ final class ActionGuard[F[_]](
 
   def retryEither[A, B](input: A)(f: A => F[Either[Throwable, B]]): ActionRetryEither[F, A, B] =
     new ActionRetryEither[F, A, B](
+      dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
       serviceName = serviceName,

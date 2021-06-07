@@ -15,7 +15,7 @@ final private class MetricsService[F[_]](metrics: MetricRegistry)(implicit F: Sy
       F.blocking(metrics.counter(s"${serviceInfo.metricsKey}.panic").inc())
     case ServiceStopped(serviceInfo) =>
       F.blocking(metrics.counter(s"${serviceInfo.metricsKey}.stop").inc())
-    case ServiceHealthCheck(serviceInfo) =>
+    case ServiceHealthCheck(serviceInfo, _) =>
       F.blocking(metrics.counter(s"${serviceInfo.metricsKey}.health-check").inc())
     case ActionRetrying(actionInfo, _, _) =>
       F.blocking(metrics.counter(s"${actionInfo.metricsKey}.retry").inc())

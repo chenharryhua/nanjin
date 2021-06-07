@@ -14,12 +14,18 @@ private class ActionRetryBase[F[_], A, B](input: A, succ: Reader[(A, B), String]
   def failNotes(error: Throwable): Notes = Notes(fail.run((input, error)))
   def succNotes(b: B): Notes             = Notes(succ.run((input, b)))
 
-  def onError(actionInfo: ActionInfo, channel: Channel[F, NJEvent], ref: Ref[F, Int])(
-    error: Throwable,
-    details: RetryDetails): F[Unit] =
+  def onError(
+    actionInfo: ActionInfo,
+    channel: Channel[F, NJEvent],
+    ref: Ref[F, Int],
+    dailySummaries: Ref[F, DailySummaries])(error: Throwable, details: RetryDetails): F[Unit] =
     details match {
       case wdr @ WillDelayAndRetry(_, _, _) =>
-        channel.send(ActionRetrying(actionInfo, wdr, NJError(error))) *> ref.update(_ + 1)
+        for {
+          _ <- channel.send(ActionRetrying(actionInfo, wdr, NJError(error)))
+          _ <- ref.update(_ + 1)
+          _ <- dailySummaries.update(_.incActionRetries)
+        } yield ()
       case gu @ GivingUp(_, _) =>
         for {
           now <- F.realTimeInstant
@@ -31,6 +37,7 @@ private class ActionRetryBase[F[_], A, B](input: A, succ: Reader[(A, B), String]
               notes = failNotes(error),
               error = NJError(error)
             ))
+          _ <- dailySummaries.update(_.incActionFail)
         } yield ()
     }
 }

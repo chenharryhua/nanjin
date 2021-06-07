@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.effect.Async
 import cats.effect.syntax.all._
+import cats.effect.{Async, Ref}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.guard.action.ActionGuard
 import com.github.chenharryhua.nanjin.guard.alert._
@@ -39,18 +39,29 @@ final class ServiceGuard[F[_]](
           params = params,
           launchTime = ts
         )
+      dailySummaries <- Stream.eval(Ref.of(DailySummaries.zero))
       ssd = ServiceStarted(serviceInfo)
-      shc = ServiceHealthCheck(serviceInfo)
       sos = ServiceStopped(serviceInfo)
       event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
         val publisher = Stream.eval {
           val ret = retry.retryingOnAllErrors(
             params.retryPolicy.policy[F],
-            (e: Throwable, r) => channel.send(ServicePanic(serviceInfo, r, UUID.randomUUID(), NJError(e))).void) {
-            (channel.send(ssd).delayBy(params.startUpEventDelay).void <*
-              channel.send(shc).delayBy(params.healthCheck.interval).foreverM).background.use(_ =>
+            (e: Throwable, r) =>
+              for {
+                _ <- channel.send(ServicePanic(serviceInfo, r, UUID.randomUUID(), NJError(e)))
+                _ <- dailySummaries.update(_.incServicePanic)
+              } yield ()
+          ) {
+            (for {
+              _ <- channel.send(ssd).delayBy(params.startUpEventDelay).void
+              _ <- dailySummaries.get
+                .flatMap(ds => channel.send(ServiceHealthCheck(serviceInfo, ds)))
+                .delayBy(params.healthCheck.interval)
+                .foreverM[Unit]
+            } yield ()).background.use(_ =>
               actionGuard(
                 new ActionGuard[F](
+                  dailySummaries = dailySummaries,
                   channel = channel,
                   actionName = "anonymous",
                   serviceName = serviceName,

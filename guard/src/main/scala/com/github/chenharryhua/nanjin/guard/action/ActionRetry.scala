@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.action
 import cats.data.{Kleisli, Reader}
 import cats.effect.{Async, Ref}
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.guard.alert.{ActionInfo, ActionSucced, NJEvent}
+import com.github.chenharryhua.nanjin.guard.alert.{ActionInfo, ActionSucced, DailySummaries, NJEvent}
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams}
 import fs2.concurrent.Channel
 import retry.RetryPolicies
@@ -11,6 +11,7 @@ import retry.RetryPolicies
 import java.util.UUID
 
 final class ActionRetry[F[_], A, B](
+  dailySummaries: Ref[F, DailySummaries],
   channel: Channel[F, NJEvent],
   actionName: String,
   serviceName: String,
@@ -24,6 +25,7 @@ final class ActionRetry[F[_], A, B](
 
   def withSuccNotes(succ: (A, B) => String): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
+      dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
       serviceName = serviceName,
@@ -36,6 +38,7 @@ final class ActionRetry[F[_], A, B](
 
   def withFailNotes(fail: (A, Throwable) => String): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
+      dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
       serviceName = serviceName,
@@ -62,12 +65,13 @@ final class ActionRetry[F[_], A, B](
       res <- retry
         .retryingOnAllErrors[B](
           params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
-          base.onError(actionInfo, channel, ref))(kleisli.run(input))
+          base.onError(actionInfo, channel, ref, dailySummaries))(kleisli.run(input))
         .flatTap(b =>
           for {
             count <- ref.get // number of retries before success
             now <- F.realTimeInstant // timestamp when the action successed
             _ <- channel.send(ActionSucced(actionInfo, now, count, base.succNotes(b)))
+            _ <- dailySummaries.update(_.incActionSucc)
           } yield ())
     } yield res
 }

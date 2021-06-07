@@ -53,6 +53,17 @@ object NJError {
     NJError(ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), ex)
 }
 
+final case class DailySummaries(actionSucc: Int, actionFail: Int, actionRetries: Int, servicePanic: Int) {
+  def incServicePanic: DailySummaries  = copy(servicePanic = servicePanic + 1)
+  def incActionSucc: DailySummaries    = copy(actionSucc = actionSucc + 1)
+  def incActionFail: DailySummaries    = copy(actionFail = actionFail + 1)
+  def incActionRetries: DailySummaries = copy(actionRetries = actionRetries + 1)
+}
+
+object DailySummaries {
+  val zero: DailySummaries = DailySummaries(0, 0, 0, 0)
+}
+
 sealed trait NJEvent
 
 object NJEvent {
@@ -79,7 +90,8 @@ final case class ServiceStopped(
 ) extends ServiceEvent
 
 final case class ServiceHealthCheck(
-  serviceInfo: ServiceInfo
+  serviceInfo: ServiceInfo,
+  dailySummaries: DailySummaries
 ) extends ServiceEvent
 
 sealed trait ActionEvent extends NJEvent {
