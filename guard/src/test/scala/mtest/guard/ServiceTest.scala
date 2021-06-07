@@ -45,12 +45,7 @@ class ServiceTest extends AnyFunSuite {
   test("should stopped if the operation normally exits") {
     val Vector(a, b, c) = guard
       .updateServiceConfig(_.withHealthCheckDisabled.withStartUpDelay(1.second).withNormalStop)
-      .eventStream(gd =>
-        gd("normal-exit-action")
-          .updateActionConfig(_.withFailAlertOn.withSuccAlertOff.withMaxRetries(3).withExponentialBackoff(1.second))
-          .monitor(IO(1))
-          .run
-          .delayBy(1.second))
+      .eventStream(gd => gd("normal-exit-action").max(10).magpie(IO(1))(_ => null).delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .observe(_.evalMap(m => logging.alert(m)).drain)
@@ -65,7 +60,7 @@ class ServiceTest extends AnyFunSuite {
   test("should receive 3 health check event") {
     val Vector(a, b, c, d) = guard
       .updateServiceConfig(_.withHealthCheckInterval(1.second).withStartUpDelay(1.second))
-      .eventStream(_ => IO.never)
+      .eventStream(gd => gd.retry(IO.never).run)
       .observe(_.evalMap(m => logging.alert(m)).drain)
       .interruptAfter(5.second)
       .compile
@@ -83,10 +78,7 @@ class ServiceTest extends AnyFunSuite {
       .eventStream { gd =>
         gd("escalate-after-3-time")
           .updateActionConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
-          .retry(IO.raiseError(new Exception("oops")))
-          .withSuccNotes((_, _: Int) => null)
-          .withFailNotes((_, _) => null)
-          .run
+          .croak(IO.raiseError(new Exception("oops")))(_ => null)
       }
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone

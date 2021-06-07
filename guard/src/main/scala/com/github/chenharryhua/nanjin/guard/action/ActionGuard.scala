@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.Functor
 import cats.data.{EitherT, Kleisli, Reader}
+import cats.effect.Async
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.guard.alert.{ForYouInformation, NJEvent}
 import com.github.chenharryhua.nanjin.guard.config.ActionConfig
@@ -32,7 +33,7 @@ final class ActionGuard[F[_]](
       succ = Reader(_ => ""),
       fail = Reader(_ => ""))
 
-  def retry[B](f: F[B]): ActionRetry[F, Unit, B] = retry[Unit, B](())(_ => f)
+  def retry[B](fb: F[B]): ActionRetry[F, Unit, B] = retry[Unit, B](())(_ => fb)
 
   def fyi(msg: String)(implicit F: Functor[F]): F[Unit] = channel.send(ForYouInformation(msg)).void
 
@@ -48,10 +49,18 @@ final class ActionGuard[F[_]](
       succ = Reader(_ => ""),
       fail = Reader(_ => ""))
 
-  def retryEither[B](f: F[Either[Throwable, B]]): ActionRetryEither[F, Unit, B] =
-    retryEither[Unit, B](())(_ => f)
+  def retryEither[B](feb: F[Either[Throwable, B]]): ActionRetryEither[F, Unit, B] =
+    retryEither[Unit, B](())(_ => feb)
 
-  def monitor[B](f: F[B]): ActionRetry[F, Unit, B] =
-    updateActionConfig(_.withSuccAlertOn.withFailAlertOff.withMaxRetries(0)).retry(f)
+  // maximum retries
+  def max(retries: Int): ActionGuard[F] = updateActionConfig(_.withMaxRetries(retries))
+
+  // post good news
+  def magpie[B](fb: F[B])(f: B => String)(implicit F: Async[F]): F[B] =
+    updateActionConfig(_.withSuccAlertOn.withFailAlertOff).retry(fb).withSuccNotes((_, b) => f(b)).run
+
+  // post bad news
+  def croak[B](fb: F[B])(f: Throwable => String)(implicit F: Async[F]): F[B] =
+    updateActionConfig(_.withSuccAlertOff.withFailAlertOn).retry(fb).withFailNotes((_, ex) => f(ex)).run
 
 }
