@@ -20,7 +20,7 @@ object ServiceParams {
 
   def default: ServiceParams =
     ServiceParams(
-      healthCheck = NJHealthCheck(6.hours, isEnabled = true),
+      healthCheck = NJHealthCheck(8.hours, isEnabled = true),
       retryPolicy = ConstantDelay(30.seconds),
       startUpEventDelay = 15.seconds,
       isNormalStop = false
@@ -55,16 +55,20 @@ private object ServiceConfigF {
 final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   import ServiceConfigF._
 
-  def withHealthCheckInterval(interval: FiniteDuration): ServiceConfig = ServiceConfig(
-    Fix(WithHealthCheckInterval(interval, value)))
-  def withHealthCheckDisabled: ServiceConfig = ServiceConfig(Fix(WithHealthCheckFlag(value = false, value)))
+  def withHealthCheckInterval(interval: FiniteDuration): ServiceConfig =
+    ServiceConfig(Fix(WithHealthCheckInterval(interval, value)))
 
-  def withStartUpDelay(delay: FiniteDuration): ServiceConfig = ServiceConfig(Fix(WithStartUpDelay(delay, value)))
+  def withHealthCheckDisabled: ServiceConfig =
+    ServiceConfig(Fix(WithHealthCheckFlag(value = false, value)))
+
+  def withStartUpDelay(delay: FiniteDuration): ServiceConfig =
+    ServiceConfig(Fix(WithStartUpDelay(delay, value)))
 
   def withConstantDelay(delay: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(ConstantDelay(delay), value)))
 
-  def withNormalStop: ServiceConfig = ServiceConfig(Fix(WithNormalStop(value = true, value)))
+  def withNormalStop: ServiceConfig =
+    ServiceConfig(Fix(WithNormalStop(value = true, value)))
 
   def evalConfig: ServiceParams = scheme.cata(algebra).apply(value)
 }
