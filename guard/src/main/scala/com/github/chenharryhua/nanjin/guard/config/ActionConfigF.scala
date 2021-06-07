@@ -81,11 +81,11 @@ final case class ActionConfig private (value: Fix[ActionConfigF]) {
   def withConstantDelay(delay: FiniteDuration): ActionConfig =
     ActionConfig(Fix(WithRetryPolicy(ConstantDelay(delay), value)))
 
-  def withExponentialBackoff(delay: FiniteDuration): ActionConfig = ActionConfig(
-    Fix(WithRetryPolicy(ExponentialBackoff(delay), value)))
+  def withExponentialBackoff(delay: FiniteDuration): ActionConfig =
+    ActionConfig(Fix(WithRetryPolicy(ExponentialBackoff(delay), value)))
 
-  def withFibonacciBackoff(delay: FiniteDuration): ActionConfig = ActionConfig(
-    Fix(WithRetryPolicy(FibonacciBackoff(delay), value)))
+  def withFibonacciBackoff(delay: FiniteDuration): ActionConfig =
+    ActionConfig(Fix(WithRetryPolicy(FibonacciBackoff(delay), value)))
 
   def withFullJitter(delay: FiniteDuration): ActionConfig =
     ActionConfig(Fix(WithRetryPolicy(FullJitter(delay), value)))

@@ -23,7 +23,7 @@ class RetryEitherTest extends AnyFunSuite {
   test("retry either should give up immediately when outer action fails") {
     val Vector(a, b) = guard
       .updateServiceConfig(_.withStartUpDelay(2.hours).withConstantDelay(1.hour))
-      .updateActionConfig(_.withSuccAlertOn)
+      .updateActionConfig(_.withSuccAlertOn.withExponentialBackoff(1.second))
       .eventStream(gd =>
         gd("retry-either-give-up")
           .retryEither(5)(_ => IO.raiseError(new Exception))
