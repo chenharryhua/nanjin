@@ -10,8 +10,6 @@ import io.circe.generic.auto._
 import io.circe.syntax._
 
 import java.time.LocalTime
-import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.FiniteDuration
 
 /** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
   */
@@ -111,14 +109,17 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
 
     case ServiceHealthCheck(info, dailySummaries) =>
       val msg = F.realTimeInstant.map { ts =>
-        val diff = ts.atZone(info.params.zoneId).toLocalTime.toSecondOfDay.toLong -
-          LocalTime.of(info.params.dailySummaryReset, 0).toSecondOfDay
-        val dur = if (diff >= 0) diff else diff + 24 * 3600
+        val now  = ts.atZone(info.params.zoneId).toLocalTime
+        val base = LocalTime.of(info.params.dailySummaryReset, 0)
+        val dur  = utils.localTimeDiff(base, now)
+        val s1   = s":gottarun: In past ${utils.mkDurationString(dur)}, "
+        val s2   = s"the service experienced *${dailySummaries.servicePanic}* panic, "
+        val s3   = s"failed *${dailySummaries.actionFail}* actions, "
+        val s4   = s"retried *${dailySummaries.actionRetries}*, "
+        val s5   = s"succed *${dailySummaries.actionSucc}*"
         SlackNotification(
           info.appName,
-          s""":gottarun: In past ${utils.mkDurationString(FiniteDuration(dur, TimeUnit.SECONDS))}
-             |>The service experienced *${dailySummaries.servicePanic}* panic, failed *${dailySummaries.actionFail}* actions, retried *${dailySummaries.actionRetries}*, succed *${dailySummaries.actionSucc}*     
-             |""".stripMargin,
+          s1 + s2 + s3 + s4 + s5,
           List(
             Attachment(
               "good",

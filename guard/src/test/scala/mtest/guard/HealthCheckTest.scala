@@ -19,7 +19,7 @@ class HealthCheckTest extends AnyFunSuite {
         _.withHealthCheckInterval(1.second)
           .withStartUpDelay(1.second)
           .withZoneId(ZoneId.of("Australia/Sydney"))
-          .withDailySummaryReset(23))
+          .withDailySummaryReset(1))
       .eventStream(gd => gd.run(IO.never))
       .interruptAfter(5.second)
       .compile
@@ -52,7 +52,11 @@ class HealthCheckTest extends AnyFunSuite {
   test("retry") {
     val Vector(_, a, b, c, ServiceHealthCheck(_, ds)) = guard
       .service("failure-test")
-      .updateServiceConfig(_.withHealthCheckInterval(1.second).withStartUpDelay(1.second).withConstantDelay(1.hour))
+      .updateServiceConfig(
+        _.withHealthCheckInterval(1.second)
+          .withStartUpDelay(1.second)
+          .withConstantDelay(1.hour)
+          .withDailySummaryReset(23))
       .eventStream(gd =>
         gd.updateActionConfig(_.withMaxRetries(1)).run(IO.raiseError(new Exception)) >> gd.run(IO.never))
       .interruptAfter(5.second)
