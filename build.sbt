@@ -357,7 +357,7 @@ lazy val guard = (project in file("guard"))
   .settings(
     libraryDependencies ++= Seq(
       "com.github.cb372" %% "cats-retry" % "3.0.0",
-      "eu.timepit" %% "fs2-cron-cron4s"  % "0.7.0",
+      "eu.timepit" %% "fs2-cron-cron4s"  % "0.7.1",
       "io.dropwizard.metrics"            % "metrics-core" % "4.2.0") ++
       logLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ awsLib.map(_ % Provided))
 
