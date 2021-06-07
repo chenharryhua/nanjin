@@ -4,7 +4,7 @@ import cats.Eval
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.commons.lang3.time.DurationFormatUtils
 
-import java.time.{Instant, LocalDateTime, Duration => JavaDuration}
+import java.time.{Instant, LocalDateTime, LocalTime, Duration => JavaDuration}
 import java.util.Properties
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.{Duration, FiniteDuration}
@@ -42,4 +42,10 @@ object utils {
   def mkDurationString(start: Instant, end: Instant): String =
     mkDurationString(FiniteDuration(JavaDuration.between(start, end).toNanos, TimeUnit.NANOSECONDS))
 
+  /** if localTime > base, then return the diff else diff + 24 hours
+    */
+  def localTimeDiff(base: LocalTime, localTime: LocalTime): FiniteDuration = {
+    val diff: Long = localTime.toSecondOfDay.toLong - base.toSecondOfDay
+    FiniteDuration(if (diff >= 0) diff else diff + 24 * 3600, TimeUnit.SECONDS)
+  }
 }

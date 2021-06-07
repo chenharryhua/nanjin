@@ -52,19 +52,20 @@ final class ServiceGuard[F[_]](
         val publisher = Stream.eval {
           val ret = retry.retryingOnAllErrors(
             params.retryPolicy.policy[F],
-            (e: Throwable, r) =>
+            (ex: Throwable, rd) =>
               for {
-                _ <- channel.send(ServicePanic(serviceInfo, r, UUID.randomUUID(), NJError(e)))
+                _ <- channel.send(ServicePanic(serviceInfo, rd, UUID.randomUUID(), NJError(ex)))
                 _ <- dailySummaries.update(_.incServicePanic)
               } yield ()
           ) {
-            (for {
-              _ <- channel.send(ssd).delayBy(params.startUpEventDelay).void
+            val start_health = for {
+              _ <- channel.send(ssd).delayBy(params.startUpEventDelay)
               _ <- dailySummaries.get
                 .flatMap(ds => channel.send(ServiceHealthCheck(serviceInfo, ds)))
                 .delayBy(params.healthCheck.interval)
                 .foreverM[Unit]
-            } yield ()).background.use(_ =>
+            } yield ()
+            start_health.background.use(_ =>
               actionGuard(
                 new ActionGuard[F](
                   dailySummaries = dailySummaries,
