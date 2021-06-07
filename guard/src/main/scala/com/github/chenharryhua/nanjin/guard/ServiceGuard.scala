@@ -35,7 +35,7 @@ final class ServiceGuard[F[_]](
 
   def eventStream[A](actionGuard: ActionGuard[F] => F[A])(implicit F: Async[F]): Stream[F, NJEvent] = {
     val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.zoneId))
-    val cron: CronExpr                    = Cron.unsafeParse(s"* ${params.dailySummaryReset} * ? * *")
+    val cron: CronExpr                    = Cron.unsafeParse(s"0 0 ${params.dailySummaryReset} ? * *")
     for {
       ts <- Stream.eval(F.realTimeInstant)
       serviceInfo: ServiceInfo =
