@@ -117,10 +117,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
         SlackNotification(
           info.appName,
           s""":gottarun: In past ${utils.mkDurationString(FiniteDuration(dur, TimeUnit.SECONDS))}
-             |>Service Panic : ${dailySummaries.servicePanic}
-             |>Action Failed : ${dailySummaries.actionFail}
-             |>Action Retried: ${dailySummaries.actionRetries}
-             |>Action Succed : ${dailySummaries.actionSucc}
+             |>The service experienced *${dailySummaries.servicePanic}* panic, failed *${dailySummaries.actionFail}* actions, retried *${dailySummaries.actionRetries}*, succed *${dailySummaries.actionSucc}*     
              |""".stripMargin,
           List(
             Attachment(
