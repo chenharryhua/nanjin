@@ -6,6 +6,10 @@ import cats.syntax.all._
 import com.github.chenharryhua.nanjin.guard.action.ActionGuard
 import com.github.chenharryhua.nanjin.guard.alert._
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams}
+import cron4s.Cron
+import cron4s.expr.CronExpr
+import eu.timepit.fs2cron.Scheduler
+import eu.timepit.fs2cron.cron4s.Cron4sScheduler
 import fs2.Stream
 import fs2.concurrent.Channel
 
@@ -29,7 +33,9 @@ final class ServiceGuard[F[_]](
   def updateActionConfig(f: ActionConfig => ActionConfig): ServiceGuard[F] =
     new ServiceGuard[F](serviceName, appName, serviceConfig, f(actionConfig))
 
-  def eventStream[A](actionGuard: ActionGuard[F] => F[A])(implicit F: Async[F]): Stream[F, NJEvent] =
+  def eventStream[A](actionGuard: ActionGuard[F] => F[A])(implicit F: Async[F]): Stream[F, NJEvent] = {
+    val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.zoneId))
+    val cron: CronExpr                    = Cron.unsafeParse(s"* ${params.dailySummaryReset} * ? * *")
     for {
       ts <- Stream.eval(F.realTimeInstant)
       serviceInfo: ServiceInfo =
@@ -71,7 +77,10 @@ final class ServiceGuard[F[_]](
           }
           ret.guarantee(channel.close.void)
         }
-        channel.stream.concurrently(publisher)
+        channel.stream
+          .concurrently(publisher)
+          .concurrently(scheduler.awakeEvery(cron).evalMap(_ => dailySummaries.update(_.reset)))
       }
     } yield event
+  }
 }

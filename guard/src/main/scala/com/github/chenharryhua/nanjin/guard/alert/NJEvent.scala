@@ -58,6 +58,7 @@ final case class DailySummaries(actionSucc: Int, actionFail: Int, actionRetries:
   def incActionSucc: DailySummaries    = copy(actionSucc = actionSucc + 1)
   def incActionFail: DailySummaries    = copy(actionFail = actionFail + 1)
   def incActionRetries: DailySummaries = copy(actionRetries = actionRetries + 1)
+  def reset: DailySummaries            = DailySummaries.zero
 }
 
 object DailySummaries {

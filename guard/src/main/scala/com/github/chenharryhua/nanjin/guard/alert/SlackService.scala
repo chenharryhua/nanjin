@@ -9,6 +9,10 @@ import com.github.chenharryhua.nanjin.common.utils
 import io.circe.generic.auto._
 import io.circe.syntax._
 
+import java.time.LocalTime
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
+
 /** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
   */
 final private case class SlackField(title: String, value: String, short: Boolean)
@@ -106,10 +110,18 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
       msg.flatMap(service.publish).void
 
     case ServiceHealthCheck(info, dailySummaries) =>
-      val msg = F.realTimeInstant.map(ts =>
+      val msg = F.realTimeInstant.map { ts =>
+        val diff = ts.atZone(info.params.zoneId).toLocalTime.toSecondOfDay.toLong -
+          LocalTime.of(info.params.dailySummaryReset, 0).toSecondOfDay
+        val dur = if (diff >= 0) diff else diff + 24 * 3600
         SlackNotification(
           info.appName,
-          ":gottarun:",
+          s""":gottarun: In past ${utils.mkDurationString(FiniteDuration(dur, TimeUnit.SECONDS))}
+             |>Service Panic : ${dailySummaries.servicePanic}
+             |>Action Failed : ${dailySummaries.actionFail}
+             |>Action Retried: ${dailySummaries.actionRetries}
+             |>Action Succed : ${dailySummaries.actionSucc}
+             |""".stripMargin,
           List(
             Attachment(
               "good",
@@ -118,17 +130,14 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
                 SlackField("Service", info.serviceName, short = true),
                 SlackField("HealthCheck Status", "Good", short = true),
                 SlackField("Up Time", utils.mkDurationString(info.launchTime, ts), short = true),
-                SlackField("Service Panic", dailySummaries.servicePanic.toString, short = true),
-                SlackField("Action Failed", dailySummaries.actionFail.toString, short = true),
-                SlackField("Action Retried", dailySummaries.actionRetries.toString, short = true),
-                SlackField("Action Successed", dailySummaries.actionSucc.toString, short = true),
                 SlackField(
                   "Next check will happen in",
                   utils.mkDurationString(info.params.healthCheck.interval),
                   short = true)
               )
             ))
-        ).asJson.noSpaces)
+        ).asJson.noSpaces
+      }
       msg.flatMap(service.publish).whenA(info.params.healthCheck.isEnabled)
 
     case ActionRetrying(_, _, _) => F.unit

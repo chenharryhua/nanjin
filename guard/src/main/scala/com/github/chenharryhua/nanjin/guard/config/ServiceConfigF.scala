@@ -27,7 +27,7 @@ object ServiceParams {
 
   def default: ServiceParams =
     ServiceParams(
-      healthCheck = NJHealthCheck(8.hours, isEnabled = true),
+      healthCheck = NJHealthCheck(6.hours, isEnabled = true), // at least one health-check will show-up in business hour
       retryPolicy = ConstantDelay(30.seconds),
       startUpEventDelay = 15.seconds,
       isNormalStop = false,
