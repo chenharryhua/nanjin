@@ -2,13 +2,12 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.codahale.metrics.{Counter, MetricRegistry, Timer}
-import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
-import com.github.chenharryhua.nanjin.guard._
-import org.scalatest.funsuite.AnyFunSuite
 import cats.syntax.all._
 import com.amazonaws.regions.Regions
+import com.codahale.metrics.{Counter, MetricRegistry, Timer}
+import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
+import com.github.chenharryhua.nanjin.guard._
 import com.github.chenharryhua.nanjin.guard.alert.{
   ActionFailed,
   ActionRetrying,
@@ -23,11 +22,12 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ServiceStopped,
   SlackService
 }
+import io.circe.parser.decode
+import io.circe.syntax._
+import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
-import io.circe.syntax._
-import io.circe.parser.decode
 
 class ServiceTest extends AnyFunSuite {
   val slack  = SlackService[IO](SnsArn("arn:aws:sns:ap-southeast-2:123456789012:abc-123xyz"))
@@ -57,21 +57,6 @@ class ServiceTest extends AnyFunSuite {
     assert(c.isInstanceOf[ServiceStopped])
   }
 
-  test("should receive 3 health check event") {
-    val Vector(a, b, c, d) = guard
-      .updateServiceConfig(_.withHealthCheckInterval(1.second).withStartUpDelay(1.second))
-      .eventStream(gd => gd.retry(IO.never).run)
-      .observe(_.evalMap(m => logging.alert(m)).drain)
-      .interruptAfter(5.second)
-      .compile
-      .toVector
-      .unsafeRunSync()
-    assert(a.isInstanceOf[ServiceStarted])
-    assert(b.isInstanceOf[ServiceHealthCheck])
-    assert(c.isInstanceOf[ServiceHealthCheck])
-    assert(d.isInstanceOf[ServiceHealthCheck])
-  }
-
   test("escalate to up level if retry failed") {
     val Vector(a, b, c, d, e) = guard
       .updateServiceConfig(_.withStartUpDelay(1.hour).withConstantDelay(1.hour))
@@ -93,6 +78,21 @@ class ServiceTest extends AnyFunSuite {
     assert(c.isInstanceOf[ActionRetrying])
     assert(d.isInstanceOf[ActionFailed])
     assert(e.isInstanceOf[ServicePanic])
+  }
+
+  test("should receive 3 health check event") {
+    val Vector(a, b, c, d) = guard
+      .updateServiceConfig(_.withHealthCheckInterval(1.second).withStartUpDelay(1.second))
+      .eventStream(_.run(IO.never))
+      .observe(_.evalMap(m => logging.alert(m) >> IO.println(m.show)).drain)
+      .interruptAfter(5.second)
+      .compile
+      .toVector
+      .unsafeRunSync()
+    assert(a.isInstanceOf[ServiceStarted])
+    assert(b.isInstanceOf[ServiceHealthCheck])
+    assert(c.isInstanceOf[ServiceHealthCheck])
+    assert(d.isInstanceOf[ServiceHealthCheck])
   }
 
   test("for your information") {

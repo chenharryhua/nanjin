@@ -1,11 +1,15 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.effect.Async
 import cats.effect.syntax.all._
+import cats.effect.{Async, Ref}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.guard.action.ActionGuard
 import com.github.chenharryhua.nanjin.guard.alert._
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams}
+import cron4s.Cron
+import cron4s.expr.CronExpr
+import eu.timepit.fs2cron.Scheduler
+import eu.timepit.fs2cron.cron4s.Cron4sScheduler
 import fs2.Stream
 import fs2.concurrent.Channel
 
@@ -29,7 +33,9 @@ final class ServiceGuard[F[_]](
   def updateActionConfig(f: ActionConfig => ActionConfig): ServiceGuard[F] =
     new ServiceGuard[F](serviceName, appName, serviceConfig, f(actionConfig))
 
-  def eventStream[A](actionGuard: ActionGuard[F] => F[A])(implicit F: Async[F]): Stream[F, NJEvent] =
+  def eventStream[A](actionGuard: ActionGuard[F] => F[A])(implicit F: Async[F]): Stream[F, NJEvent] = {
+    val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.zoneId))
+    val cron: CronExpr                    = Cron.unsafeParse(s"* ${params.dailySummaryReset} * ? * *")
     for {
       ts <- Stream.eval(F.realTimeInstant)
       serviceInfo: ServiceInfo =
@@ -39,18 +45,29 @@ final class ServiceGuard[F[_]](
           params = params,
           launchTime = ts
         )
+      dailySummaries <- Stream.eval(Ref.of(DailySummaries.zero))
       ssd = ServiceStarted(serviceInfo)
-      shc = ServiceHealthCheck(serviceInfo)
       sos = ServiceStopped(serviceInfo)
       event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
         val publisher = Stream.eval {
           val ret = retry.retryingOnAllErrors(
             params.retryPolicy.policy[F],
-            (e: Throwable, r) => channel.send(ServicePanic(serviceInfo, r, UUID.randomUUID(), NJError(e))).void) {
-            (channel.send(ssd).delayBy(params.startUpEventDelay).void <*
-              channel.send(shc).delayBy(params.healthCheck.interval).foreverM).background.use(_ =>
+            (e: Throwable, r) =>
+              for {
+                _ <- channel.send(ServicePanic(serviceInfo, r, UUID.randomUUID(), NJError(e)))
+                _ <- dailySummaries.update(_.incServicePanic)
+              } yield ()
+          ) {
+            (for {
+              _ <- channel.send(ssd).delayBy(params.startUpEventDelay).void
+              _ <- dailySummaries.get
+                .flatMap(ds => channel.send(ServiceHealthCheck(serviceInfo, ds)))
+                .delayBy(params.healthCheck.interval)
+                .foreverM[Unit]
+            } yield ()).background.use(_ =>
               actionGuard(
                 new ActionGuard[F](
+                  dailySummaries = dailySummaries,
                   channel = channel,
                   actionName = "anonymous",
                   serviceName = serviceName,
@@ -60,7 +77,10 @@ final class ServiceGuard[F[_]](
           }
           ret.guarantee(channel.close.void)
         }
-        channel.stream.concurrently(publisher)
+        channel.stream
+          .concurrently(publisher)
+          .concurrently(scheduler.awakeEvery(cron).evalMap(_ => dailySummaries.update(_.reset)))
       }
     } yield event
+  }
 }

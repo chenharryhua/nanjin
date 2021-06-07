@@ -3,7 +3,14 @@ package com.github.chenharryhua.nanjin.guard.action
 import cats.data.{EitherT, Kleisli, Reader}
 import cats.effect.{Async, Ref}
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.guard.alert.{ActionFailed, ActionInfo, ActionSucced, NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.alert.{
+  ActionFailed,
+  ActionInfo,
+  ActionSucced,
+  DailySummaries,
+  NJError,
+  NJEvent
+}
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams}
 import fs2.concurrent.Channel
 import retry.RetryDetails.GivingUp
@@ -15,6 +22,7 @@ import scala.concurrent.duration.Duration
 /** When outer F[_] fails, return immedidately only retry when the inner Either is on the left branch
   */
 final class ActionRetryEither[F[_], A, B](
+  dailySummaries: Ref[F, DailySummaries],
   channel: Channel[F, NJEvent],
   actionName: String,
   serviceName: String,
@@ -28,6 +36,7 @@ final class ActionRetryEither[F[_], A, B](
 
   def withSuccNotes(succ: (A, B) => String): ActionRetryEither[F, A, B] =
     new ActionRetryEither[F, A, B](
+      dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
       serviceName = serviceName,
@@ -40,6 +49,7 @@ final class ActionRetryEither[F[_], A, B](
 
   def withFailNotes(fail: (A, Throwable) => String): ActionRetryEither[F, A, B] =
     new ActionRetryEither[F, A, B](
+      dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
       serviceName = serviceName,
@@ -67,7 +77,7 @@ final class ActionRetryEither[F[_], A, B](
     retry
       .retryingOnAllErrors[Either[Throwable, B]](
         params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
-        base.onError(actionInfo, channel, ref)) {
+        base.onError(actionInfo, channel, ref, dailySummaries)) {
         eitherT.value.run(input).attempt.flatMap {
           case Left(error) =>
             for {
@@ -79,6 +89,7 @@ final class ActionRetryEither[F[_], A, B](
                   endAt = now,
                   notes = base.failNotes(error),
                   error = NJError(error)))
+              _ <- dailySummaries.update(_.incActionFail)
             } yield Left(error)
           case Right(outerRight) =>
             outerRight match {
@@ -93,6 +104,7 @@ final class ActionRetryEither[F[_], A, B](
           count <- ref.get
           now <- F.realTimeInstant
           _ <- channel.send(ActionSucced(actionInfo, now, count, base.succNotes(b)))
+          _ <- dailySummaries.update(_.incActionSucc)
         } yield ())
   }
 }
