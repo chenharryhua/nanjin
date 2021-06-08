@@ -1,8 +1,9 @@
 package com.github.chenharryhua.nanjin.datetime
 
-import java.time.LocalTime
+import java.time.{Instant, LocalTime, ZoneId}
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.FiniteDuration
+import scala.compat.java8.DurationConverters._
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 final case class NJLocalTime(value: LocalTime) {
 
@@ -10,4 +11,22 @@ final case class NJLocalTime(value: LocalTime) {
     val diff: Long = other.toSecondOfDay.toLong - value.toSecondOfDay
     FiniteDuration(if (diff >= 0) diff else diff + 24 * 3600, TimeUnit.SECONDS)
   }
+}
+
+final case class NJLocalTimeRange(start: LocalTime, duration: FiniteDuration, zoneId: ZoneId) {
+
+  // start time inclusive, end time exclusive
+  def isInBetween(instant: Instant): Boolean =
+    if (duration >= FiniteDuration(24, TimeUnit.HOURS)) true
+    else if (duration <= Duration.Zero) false
+    else {
+      val st  = LocalTime.MAX.minus(duration.toJava)
+      val ld  = instant.atZone(zoneId).toLocalTime
+      val end = start.plus(duration.toJava)
+      if (st.isAfter(start)) {
+        (ld.compareTo(start) >= 0) && ld.isBefore(end)
+      } else {
+        (ld.compareTo(start) >= 0) || ld.isBefore(end)
+      }
+    }
 }
