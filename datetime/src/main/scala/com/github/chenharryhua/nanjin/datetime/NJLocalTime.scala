@@ -17,7 +17,7 @@ final case class NJLocalTimeRange(start: LocalTime, duration: FiniteDuration, zo
 
   // start time inclusive, end time exclusive
   def isInBetween(instant: Instant): Boolean =
-    if (duration >= FiniteDuration(24, TimeUnit.HOURS)) true
+    if (duration >= oneDay) true
     else if (duration <= Duration.Zero) false
     else {
       val st  = LocalTime.MAX.minus(duration.toJava)

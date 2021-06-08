@@ -6,7 +6,7 @@ import com.amazonaws.regions.Regions
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime
-import com.github.chenharryhua.nanjin.datetime.NJLocalTime
+import com.github.chenharryhua.nanjin.datetime.{NJLocalTime, NJLocalTimeRange}
 import io.circe.generic.auto._
 import io.circe.syntax._
 
@@ -109,7 +109,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
       msg.flatMap(service.publish).void
 
     case ServiceHealthCheck(info, dailySummaries) =>
-      val msg = F.realTimeInstant.map { ts =>
+      F.realTimeInstant.flatMap { ts =>
         val now  = ts.atZone(info.params.zoneId).toLocalTime
         val base = NJLocalTime(LocalTime.of(info.params.dailySummaryReset, 0))
         val s1   = s":gottarun: In past ${datetime.utils.mkDurationString(base.distance(now))}, "
@@ -117,7 +117,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
         val s3   = s"failed *${dailySummaries.actionFail}* actions, "
         val s4   = s"retried *${dailySummaries.actionRetries}*, "
         val s5   = s"succed *${dailySummaries.actionSucc}*"
-        SlackNotification(
+        val msg = SlackNotification(
           info.appName,
           s1 + s2 + s3 + s4 + s5,
           List(
@@ -135,8 +135,9 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
               )
             ))
         ).asJson.noSpaces
+        val ltr = NJLocalTimeRange(info.params.healthCheck.openTime, info.params.healthCheck.span, info.params.zoneId)
+        service.publish(msg).whenA(ltr.isInBetween(ts))
       }
-      msg.flatMap(service.publish).whenA(info.params.healthCheck.isEnabled)
 
     case ActionRetrying(_, _, _) => F.unit
 

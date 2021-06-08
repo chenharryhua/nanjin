@@ -9,10 +9,19 @@ import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
 
-import java.time.ZoneId
+import java.time.{LocalTime, ZoneId}
+import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
 
-@Lenses final case class NJHealthCheck private (interval: FiniteDuration, isEnabled: Boolean)
+/** allow disable sending out health-check event
+  * @param interval:
+  *   emit health-check event every interval
+  * @param openTime:
+  *   in duration of openTime + span, health-check event is allowed to be sent
+  * @param span:
+  *   event sending window
+  */
+@Lenses final case class NJHealthCheck private (interval: FiniteDuration, openTime: LocalTime, span: FiniteDuration)
 
 @Lenses final case class ServiceParams private (
   healthCheck: NJHealthCheck,
@@ -27,7 +36,11 @@ object ServiceParams {
 
   def default: ServiceParams =
     ServiceParams(
-      healthCheck = NJHealthCheck(6.hours, isEnabled = true), // at least one health-check will show-up in business hour
+      healthCheck = NJHealthCheck(
+        6.hours, // at least one health-check will show-up in business hour
+        LocalTime.of(7, 0), // business open
+        FiniteDuration(24, TimeUnit.HOURS) // working hours
+      ),
       retryPolicy = ConstantDelay(30.seconds),
       startUpEventDelay = 15.seconds,
       isNormalStop = false,
@@ -43,7 +56,9 @@ private object ServiceConfigF {
 
   final case class InitParams[K]() extends ServiceConfigF[K]
   final case class WithHealthCheckInterval[K](value: FiniteDuration, cont: K) extends ServiceConfigF[K]
-  final case class WithHealthCheckFlag[K](value: Boolean, cont: K) extends ServiceConfigF[K]
+  final case class WithHealthCheckOpenTime[K](value: LocalTime, cont: K) extends ServiceConfigF[K]
+  final case class WithHealthCheckSpan[K](value: FiniteDuration, cont: K) extends ServiceConfigF[K]
+
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends ServiceConfigF[K]
 
   final case class WithStartUpDelay[K](value: FiniteDuration, cont: K) extends ServiceConfigF[K]
@@ -57,7 +72,8 @@ private object ServiceConfigF {
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams()                  => ServiceParams.default
       case WithHealthCheckInterval(v, c) => ServiceParams.healthCheck.composeLens(NJHealthCheck.interval).set(v)(c)
-      case WithHealthCheckFlag(v, c)     => ServiceParams.healthCheck.composeLens(NJHealthCheck.isEnabled).set(v)(c)
+      case WithHealthCheckOpenTime(v, c) => ServiceParams.healthCheck.composeLens(NJHealthCheck.openTime).set(v)(c)
+      case WithHealthCheckSpan(v, c)     => ServiceParams.healthCheck.composeLens(NJHealthCheck.span).set(v)(c)
       case WithRetryPolicy(v, c)         => ServiceParams.retryPolicy.set(v)(c)
       case WithStartUpDelay(v, c)        => ServiceParams.startUpEventDelay.set(v)(c)
       case WithNormalStop(v, c)          => ServiceParams.isNormalStop.set(v)(c)
@@ -73,7 +89,13 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
     ServiceConfig(Fix(WithHealthCheckInterval(interval, value)))
 
   def withHealthCheckDisabled: ServiceConfig =
-    ServiceConfig(Fix(WithHealthCheckFlag(value = false, value)))
+    ServiceConfig(Fix(WithHealthCheckSpan(value = Duration.Zero, value)))
+
+  def withHealthCheckOpenTime(openTime: LocalTime): ServiceConfig =
+    ServiceConfig(Fix(WithHealthCheckOpenTime(openTime, value)))
+
+  def withHealthCheckSpan(duration: FiniteDuration): ServiceConfig =
+    ServiceConfig(Fix(WithHealthCheckSpan(duration, value)))
 
   def withStartUpDelay(delay: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithStartUpDelay(delay, value)))
