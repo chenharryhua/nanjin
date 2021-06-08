@@ -11,7 +11,7 @@ object utils {
   /** always positive duration string
     */
   def mkDurationString(duration: Duration): String = {
-    val dur: Duration = if (duration < Duration.Zero) -duration else duration
+    val dur: Duration = if (duration < Duration.Zero) duration.neg() else duration
     if (dur < oneMillisec) s"${dur.toNanos} nanoseconds"
     else if (dur < oneSecond) s"${dur.toMillis} milliseconds"
     else if (dur < oneMinute) {
