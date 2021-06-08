@@ -69,4 +69,7 @@ final class ActionGuard[F[_]](
   // no notes at all
   def run[B](fb: F[B])(implicit F: Async[F]): F[B] = retry[B](fb).run
 
+  def quietRun[B](fb: F[B])(implicit F: Async[F]): F[B] =
+    updateActionConfig(_.withSuccAlertOff.withFailAlertOff).max(0).run(fb)
+
 }
