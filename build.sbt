@@ -221,7 +221,7 @@ val testLib = Seq(
 val kafkaLib = Seq(
   "org.apache.kafka" % "kafka-clients",
   "org.apache.kafka" % "kafka-streams",
-  "org.apache.kafka" %% "kafka-streams-scala").map(_ % "6.1.1-ce") ++
+  "org.apache.kafka" %% "kafka-streams-scala").map(_ % "6.2.0-ce") ++
   Seq("com.typesafe.akka" %% "akka-stream-kafka"     % akkaKafka, "com.github.fd4s" %% "fs2-kafka" % fs2Kafka) ++
   Seq("io.confluent" % "kafka-schema-registry-client", "io.confluent" % "kafka-schema-serializer").map(_ % "6.1.1")
 
