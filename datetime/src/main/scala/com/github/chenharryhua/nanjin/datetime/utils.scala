@@ -14,7 +14,15 @@ object utils {
     val dur: Duration = if (duration < Duration.Zero) -duration else duration
     if (dur < oneMillisec) s"${dur.toNanos} nanoseconds"
     else if (dur < oneSecond) s"${dur.toMillis} milliseconds"
-    else DurationFormatUtils.formatDurationWords(dur.toMillis, true, true)
+    else if (dur < oneMinute) {
+      val sec = DurationFormatUtils.formatDurationWords(dur.toMillis, true, true)
+      s"$sec ${dur.toMillis % 1000} milliseconds"
+    } else if (dur < oneHour)
+      DurationFormatUtils.formatDurationWords(dur.toSeconds * 1000, true, true)
+    else if (dur < oneDay)
+      DurationFormatUtils.formatDurationWords(dur.toMinutes * 60 * 1000, true, true)
+    else
+      DurationFormatUtils.formatDurationWords(dur.toHours * 3600 * 1000, true, true)
   }
 
   def mkDurationString(start: Instant, end: Instant): String =
