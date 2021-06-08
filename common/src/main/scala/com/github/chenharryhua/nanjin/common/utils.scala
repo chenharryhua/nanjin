@@ -2,12 +2,9 @@ package com.github.chenharryhua.nanjin.common
 
 import cats.Eval
 import org.apache.commons.lang3.exception.ExceptionUtils
-import org.apache.commons.lang3.time.DurationFormatUtils
 
-import java.time.{Instant, LocalDateTime, LocalTime, Duration => JavaDuration}
+import java.time.LocalDateTime
 import java.util.Properties
-import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.Random
 
 object utils {
@@ -27,25 +24,4 @@ object utils {
   def mkExceptionString(err: Throwable, lines: Int = 2): String =
     ExceptionUtils.getRootCauseStackTrace(err).take(lines).mkString("\n")
 
-  final val oneSecond: FiniteDuration   = Duration(1, TimeUnit.SECONDS)
-  final val oneMilliSec: FiniteDuration = Duration(1, TimeUnit.MILLISECONDS)
-
-  /** always positive duration string
-    */
-  def mkDurationString(duration: Duration): String = {
-    val dur: Duration = if (duration < Duration.Zero) -duration else duration
-    if (dur < oneMilliSec) s"${dur.toNanos} nanoseconds"
-    else if (dur < oneSecond) s"${dur.toMillis} milliseconds"
-    else DurationFormatUtils.formatDurationWords(dur.toMillis, true, true)
-  }
-
-  def mkDurationString(start: Instant, end: Instant): String =
-    mkDurationString(FiniteDuration(JavaDuration.between(start, end).toNanos, TimeUnit.NANOSECONDS))
-
-  /** if localTime > base, then return the diff else diff + 24 hours
-    */
-  def localTimeDiff(base: LocalTime, localTime: LocalTime): FiniteDuration = {
-    val diff: Long = localTime.toSecondOfDay.toLong - base.toSecondOfDay
-    FiniteDuration(if (diff >= 0) diff else diff + 24 * 3600, TimeUnit.SECONDS)
-  }
 }
