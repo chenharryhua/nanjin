@@ -154,9 +154,9 @@ val kantanLib = Seq(
 
 val pbLib = Seq(
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.3",
-  "io.confluent"                              % "kafka-protobuf-serializer" % "6.1.1",
-  "com.google.protobuf"                       % "protobuf-java"             % "3.17.2",
-  "com.google.protobuf"                       % "protobuf-java-util"        % "3.17.2"
+  "com.google.protobuf"                       % "protobuf-java"             % "3.17.3",
+  "com.google.protobuf"                       % "protobuf-java-util"        % "3.17.3"
+  "io.confluent"                              % "kafka-protobuf-serializer" % "6.2.0",
 )
 
 val serdeLib = Seq(
@@ -165,7 +165,7 @@ val serdeLib = Seq(
   "org.apache.parquet"                   % "parquet-hadoop"           % parquet,
   "org.apache.parquet"                   % "parquet-avro"             % parquet,
   "org.apache.avro"                      % "avro"                     % avro,
-  "io.confluent"                         % "kafka-streams-avro-serde" % "6.1.1"
+  "io.confluent"                         % "kafka-streams-avro-serde" % "6.2.0"
 ) ++ jacksonLib ++ circeLib ++ pbLib
 
 val fs2Lib = Seq(
@@ -221,7 +221,7 @@ val testLib = Seq(
 val kafkaLib = Seq(
   "org.apache.kafka" % "kafka-clients",
   "org.apache.kafka" % "kafka-streams",
-  "org.apache.kafka" %% "kafka-streams-scala").map(_ % "6.1.1-ce") ++
+  "org.apache.kafka" %% "kafka-streams-scala").map(_ % "6.2.0-ce") ++
   Seq("com.typesafe.akka" %% "akka-stream-kafka"     % akkaKafka, "com.github.fd4s" %% "fs2-kafka" % fs2Kafka) ++
   Seq("io.confluent" % "kafka-schema-registry-client", "io.confluent" % "kafka-schema-serializer").map(_ % "6.1.1")
 
