@@ -154,7 +154,7 @@ val kantanLib = Seq(
 
 val pbLib = Seq(
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.3",
-  "io.confluent"                              % "kafka-protobuf-serializer" % "6.1.1",
+  "io.confluent"                              % "kafka-protobuf-serializer" % "6.2.0",
   "com.google.protobuf"                       % "protobuf-java"             % "3.17.2",
   "com.google.protobuf"                       % "protobuf-java-util"        % "3.17.2"
 )
@@ -165,7 +165,7 @@ val serdeLib = Seq(
   "org.apache.parquet"                   % "parquet-hadoop"           % parquet,
   "org.apache.parquet"                   % "parquet-avro"             % parquet,
   "org.apache.avro"                      % "avro"                     % avro,
-  "io.confluent"                         % "kafka-streams-avro-serde" % "6.1.1"
+  "io.confluent"                         % "kafka-streams-avro-serde" % "6.2.0"
 ) ++ jacksonLib ++ circeLib ++ pbLib
 
 val fs2Lib = Seq(
