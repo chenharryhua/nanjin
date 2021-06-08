@@ -5,7 +5,8 @@ import cats.syntax.all._
 import com.amazonaws.regions.Regions
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
-import com.github.chenharryhua.nanjin.common.utils
+import com.github.chenharryhua.nanjin.datetime
+import com.github.chenharryhua.nanjin.datetime.{NJLocalTime, NJLocalTimeRange}
 import io.circe.generic.auto._
 import io.circe.syntax._
 
@@ -39,7 +40,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
       msg.flatMap(service.publish).void
 
     case ServicePanic(info, details, errorID, error) =>
-      val upcomingDelay: String = details.upcomingDelay.map(utils.mkDurationString) match {
+      val upcomingDelay: String = details.upcomingDelay.map(datetime.utils.mkDurationString) match {
         case None     => "should never see this" // never happen
         case Some(ts) => s"next attempt will happen in *$ts* meanwhile the service is *dysfunctional*."
       }
@@ -58,10 +59,10 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
                 SlackField("Status", "Restarting", short = true),
                 SlackField("Cause", error.message, short = true),
                 SlackField("Launch Time", info.launchTime.toString, short = true),
-                SlackField("Up Time", utils.mkDurationString(info.launchTime, ts), short = true),
+                SlackField("Up Time", datetime.utils.mkDurationString(info.launchTime, ts), short = true),
                 SlackField("Retry Policy", info.params.retryPolicy.policy[F].show, short = true),
                 SlackField("Retries so far", details.retriesSoFar.toString, short = true),
-                SlackField("Cumulative Delay", utils.mkDurationString(details.cumulativeDelay), short = true),
+                SlackField("Cumulative Delay", datetime.utils.mkDurationString(details.cumulativeDelay), short = true),
                 SlackField("Error ID", errorID.toString, short = false)
               )
             ))
@@ -82,7 +83,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
                   List(
                     SlackField("Service", info.serviceName, short = true),
                     SlackField("Launch Time", info.launchTime.toString, short = true),
-                    SlackField("Up Time", utils.mkDurationString(info.launchTime, ts), short = true),
+                    SlackField("Up Time", datetime.utils.mkDurationString(info.launchTime, ts), short = true),
                     SlackField("Status", "Stopped", short = true)
                   )
                 ))
@@ -98,7 +99,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
                   List(
                     SlackField("Service", info.serviceName, short = true),
                     SlackField("Launch Time", info.launchTime.toString, short = true),
-                    SlackField("Up Time", utils.mkDurationString(info.launchTime, ts), short = true),
+                    SlackField("Up Time", datetime.utils.mkDurationString(info.launchTime, ts), short = true),
                     SlackField("Status", "Stopped abnormally", short = true)
                   )
                 ))
@@ -108,16 +109,15 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
       msg.flatMap(service.publish).void
 
     case ServiceHealthCheck(info, dailySummaries) =>
-      val msg = F.realTimeInstant.map { ts =>
+      F.realTimeInstant.flatMap { ts =>
         val now  = ts.atZone(info.params.zoneId).toLocalTime
-        val base = LocalTime.of(info.params.dailySummaryReset, 0)
-        val dur  = utils.localTimeDiff(base, now)
-        val s1   = s":gottarun: In past ${utils.mkDurationString(dur)}, "
+        val base = NJLocalTime(LocalTime.of(info.params.dailySummaryReset, 0))
+        val s1   = s":gottarun: In past ${datetime.utils.mkDurationString(base.distance(now))}, "
         val s2   = s"the service experienced *${dailySummaries.servicePanic}* panic, "
         val s3   = s"failed *${dailySummaries.actionFail}* actions, "
         val s4   = s"retried *${dailySummaries.actionRetries}*, "
         val s5   = s"succed *${dailySummaries.actionSucc}*"
-        SlackNotification(
+        val msg = SlackNotification(
           info.appName,
           s1 + s2 + s3 + s4 + s5,
           List(
@@ -127,16 +127,17 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
               List(
                 SlackField("Service", info.serviceName, short = true),
                 SlackField("HealthCheck Status", "Good", short = true),
-                SlackField("Up Time", utils.mkDurationString(info.launchTime, ts), short = true),
+                SlackField("Up Time", datetime.utils.mkDurationString(info.launchTime, ts), short = true),
                 SlackField(
                   "Next check will happen in",
-                  utils.mkDurationString(info.params.healthCheck.interval),
+                  datetime.utils.mkDurationString(info.params.healthCheck.interval),
                   short = true)
               )
             ))
         ).asJson.noSpaces
+        val ltr = NJLocalTimeRange(info.params.healthCheck.openTime, info.params.healthCheck.span, info.params.zoneId)
+        service.publish(msg).whenA(ltr.isInBetween(ts))
       }
-      msg.flatMap(service.publish).whenA(info.params.healthCheck.isEnabled)
 
     case ActionRetrying(_, _, _) => F.unit
 
@@ -152,7 +153,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
               List(
                 SlackField("Service", action.serviceName, short = true),
                 SlackField("Action", action.actionName, short = true),
-                SlackField("Took", utils.mkDurationString(action.launchTime, endAt), short = true),
+                SlackField("Took", datetime.utils.mkDurationString(action.launchTime, endAt), short = true),
                 SlackField("Cause", error.message, short = true),
                 SlackField("Retries", givingUp.totalRetries.toString, short = true),
                 SlackField("Retry Policy", action.params.retryPolicy.policy[F].show, short = true),
@@ -174,7 +175,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
               List(
                 SlackField("Service", action.serviceName, short = true),
                 SlackField("Action", action.actionName, short = true),
-                SlackField("Took", utils.mkDurationString(action.launchTime, endAt), short = true),
+                SlackField("Took", datetime.utils.mkDurationString(action.launchTime, endAt), short = true),
                 SlackField("Retries", s"$numRetries/${action.params.maxRetries}", short = true),
                 SlackField("Action ID", action.id.toString, short = false)
               )

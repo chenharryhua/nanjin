@@ -20,13 +20,13 @@ private class ActionRetryBase[F[_], A, B](input: A, succ: Reader[(A, B), String]
     ref: Ref[F, Int],
     dailySummaries: Ref[F, DailySummaries])(error: Throwable, details: RetryDetails): F[Unit] =
     details match {
-      case wdr @ WillDelayAndRetry(_, _, _) =>
+      case wdr: WillDelayAndRetry =>
         for {
           _ <- channel.send(ActionRetrying(actionInfo, wdr, NJError(error)))
           _ <- ref.update(_ + 1)
           _ <- dailySummaries.update(_.incActionRetries)
         } yield ()
-      case gu @ GivingUp(_, _) =>
+      case gu: GivingUp =>
         for {
           now <- F.realTimeInstant
           _ <- channel.send(

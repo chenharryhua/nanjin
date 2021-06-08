@@ -352,6 +352,7 @@ lazy val datetime = (project in file("datetime"))
 
 lazy val guard = (project in file("guard"))
   .dependsOn(aws)
+  .dependsOn(datetime)
   .settings(commonSettings: _*)
   .settings(name := "nj-guard")
   .settings(

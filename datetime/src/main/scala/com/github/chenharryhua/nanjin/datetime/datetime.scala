@@ -1,6 +1,8 @@
 package com.github.chenharryhua.nanjin
 
 import java.time.{LocalDate, LocalDateTime, LocalTime, ZoneId}
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 package object datetime extends DateTimeInstances with Isos {
 
@@ -17,4 +19,11 @@ package object datetime extends DateTimeInstances with Isos {
   val londonTime: ZoneId    = ZoneId.of("Europe/London")
   val berlinTime: ZoneId    = ZoneId.of("Europe/Berlin")
   val cairoTime: ZoneId     = ZoneId.of("Africa/Cairo")
+
+  final val oneMillisec: FiniteDuration = Duration(1, TimeUnit.MILLISECONDS)
+  final val oneSecond: FiniteDuration   = Duration(1, TimeUnit.SECONDS)
+  final val oneMinute: FiniteDuration   = Duration(1, TimeUnit.MINUTES)
+  final val oneHour: FiniteDuration     = Duration(1, TimeUnit.HOURS)
+  final val oneDay: FiniteDuration      = Duration(1, TimeUnit.DAYS)
+
 }
