@@ -57,8 +57,8 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F])(im
               List(
                 SlackField("Service", info.serviceName, short = true),
                 SlackField("Status", "Restarting", short = true),
-                SlackField("Cause", error.message, short = true),
                 SlackField("Launch Time", info.launchTime.toString, short = true),
+                SlackField("Cause", error.message, short = true),
                 SlackField("Up Time", datetime.utils.mkDurationString(info.launchTime, ts), short = true),
                 SlackField("Retry Policy", info.params.retryPolicy.policy[F].show, short = true),
                 SlackField("Retries so far", details.retriesSoFar.toString, short = true),
