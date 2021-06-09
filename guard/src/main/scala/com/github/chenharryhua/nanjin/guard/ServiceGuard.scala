@@ -15,10 +15,17 @@ import fs2.concurrent.Channel
 
 import java.util.UUID
 
+// format: off
 /** @example
-  *   {{{ val guard = TaskGuard[IO]("appName").service("service-name") val es: Stream[IO,NJEvent] = guard.eventStream{
-  *   gd => gd("action-1").retry(IO(1)).run >> IO("other computation") >> gd("action-2").retry(IO(2)).run } }}}
+  *   {{{ val guard = TaskGuard[IO]("appName").service("service-name") 
+  *       val es: Stream[IO,NJEvent] = guard.eventStream {
+  *           gd => gd("action-1").retry(IO(1)).run >> 
+  *                  IO("other computation") >> 
+  *                  gd("action-2").retry(IO(2)).run 
+  *            }
+  * }}}
   */
+// format: on
 
 final class ServiceGuard[F[_]](
   serviceName: String,
@@ -38,7 +45,11 @@ final class ServiceGuard[F[_]](
     val cron: CronExpr                    = Cron.unsafeParse(s"0 0 ${params.dailySummaryReset} ? * *")
     for {
       ts <- Stream.eval(F.realTimeInstant)
-      serviceInfo = ServiceInfo(serviceName = serviceName, appName = appName, params = params, launchTime = ts)
+      serviceInfo = ServiceInfo(
+        serviceName = serviceName,
+        appName = appName,
+        params = params,
+        launchTime = ts.atZone(params.zoneId))
       dailySummaries <- Stream.eval(Ref.of(DailySummaries.zero))
       ssd = ServiceStarted(serviceInfo)
       sos = ServiceStopped(serviceInfo)
@@ -62,6 +73,7 @@ final class ServiceGuard[F[_]](
             start_health.background.use(_ =>
               actionGuard(
                 new ActionGuard[F](
+                  zoneId = params.zoneId,
                   dailySummaries = dailySummaries,
                   channel = channel,
                   actionName = "anonymous",

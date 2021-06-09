@@ -8,6 +8,8 @@ import fs2.concurrent.Channel
 import retry.RetryDetails
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
+import java.time.ZoneId
+
 private class ActionRetryBase[F[_], A, B](input: A, succ: Reader[(A, B), String], fail: Reader[(A, Throwable), String])(
   implicit F: Async[F]) {
 
@@ -15,6 +17,7 @@ private class ActionRetryBase[F[_], A, B](input: A, succ: Reader[(A, B), String]
   def succNotes(b: B): Notes             = Notes(succ.run((input, b)))
 
   def onError(
+    zoneId: ZoneId,
     actionInfo: ActionInfo,
     channel: Channel[F, NJEvent],
     ref: Ref[F, Int],
@@ -33,7 +36,7 @@ private class ActionRetryBase[F[_], A, B](input: A, succ: Reader[(A, B), String]
             ActionFailed(
               actionInfo = actionInfo,
               givingUp = gu,
-              endAt = now,
+              endAt = now.atZone(zoneId),
               notes = failNotes(error),
               error = NJError(error)
             ))

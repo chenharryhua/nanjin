@@ -59,7 +59,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
                 SlackField("Status", "Restarting", short = true),
                 SlackField("Launch Time", info.launchTime.toString, short = true),
                 SlackField("Cause", error.message, short = true),
-                SlackField("Up Time", fmt.format(info.launchTime, ts), short = true),
+                SlackField("Up Time", fmt.format(info.launchTime.toInstant, ts), short = true),
                 SlackField("Retry Policy", info.params.retryPolicy.policy[F].show, short = true),
                 SlackField("Retries so far", details.retriesSoFar.toString, short = true),
                 SlackField("Cumulative Delay", fmt.format(details.cumulativeDelay), short = true),
@@ -83,7 +83,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
                   List(
                     SlackField("Service", info.serviceName, short = true),
                     SlackField("Launch Time", info.launchTime.toString, short = true),
-                    SlackField("Up Time", fmt.format(info.launchTime, ts), short = true),
+                    SlackField("Up Time", fmt.format(info.launchTime.toInstant, ts), short = true),
                     SlackField("Status", "Stopped", short = true)
                   )
                 ))
@@ -99,7 +99,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
                   List(
                     SlackField("Service", info.serviceName, short = true),
                     SlackField("Launch Time", info.launchTime.toString, short = true),
-                    SlackField("Up Time", fmt.format(info.launchTime, ts), short = true),
+                    SlackField("Up Time", fmt.format(info.launchTime.toInstant, ts), short = true),
                     SlackField("Status", "Stopped abnormally", short = true)
                   )
                 ))
@@ -127,7 +127,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               List(
                 SlackField("Service", info.serviceName, short = true),
                 SlackField("HealthCheck Status", "Good", short = true),
-                SlackField("Up Time", fmt.format(info.launchTime, ts), short = true),
+                SlackField("Up Time", fmt.format(info.launchTime.toInstant, ts), short = true),
                 SlackField("Next check will happen in", fmt.format(info.params.healthCheck.interval), short = true)
               )
             ))

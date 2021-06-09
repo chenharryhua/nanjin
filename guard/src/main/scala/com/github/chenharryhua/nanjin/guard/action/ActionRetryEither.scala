@@ -16,12 +16,14 @@ import fs2.concurrent.Channel
 import retry.RetryDetails.GivingUp
 import retry.RetryPolicies
 
+import java.time.ZoneId
 import java.util.UUID
 import scala.concurrent.duration.Duration
 
 /** When outer F[_] fails, return immedidately only retry when the inner Either is on the left branch
   */
 final class ActionRetryEither[F[_], A, B](
+  zoneId: ZoneId,
   dailySummaries: Ref[F, DailySummaries],
   channel: Channel[F, NJEvent],
   actionName: String,
@@ -36,6 +38,7 @@ final class ActionRetryEither[F[_], A, B](
 
   def withSuccNotes(succ: (A, B) => String): ActionRetryEither[F, A, B] =
     new ActionRetryEither[F, A, B](
+      zoneId = zoneId,
       dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
@@ -49,6 +52,7 @@ final class ActionRetryEither[F[_], A, B](
 
   def withFailNotes(fail: (A, Throwable) => String): ActionRetryEither[F, A, B] =
     new ActionRetryEither[F, A, B](
+      zoneId = zoneId,
       dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
@@ -70,14 +74,14 @@ final class ActionRetryEither[F[_], A, B](
         appName = appName,
         params = params,
         id = UUID.randomUUID(),
-        launchTime = ts)
+        launchTime = ts.atZone(zoneId))
 
     val base = new ActionRetryBase[F, A, B](input, succ, fail)
 
     retry
       .retryingOnAllErrors[Either[Throwable, B]](
         params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
-        base.onError(actionInfo, channel, ref, dailySummaries)) {
+        base.onError(zoneId, actionInfo, channel, ref, dailySummaries)) {
         eitherT.value.run(input).attempt.flatMap {
           case Left(error) =>
             for {
@@ -86,7 +90,7 @@ final class ActionRetryEither[F[_], A, B](
                 ActionFailed(
                   actionInfo = actionInfo,
                   givingUp = GivingUp(0, Duration.Zero),
-                  endAt = now,
+                  endAt = now.atZone(zoneId),
                   notes = base.failNotes(error),
                   error = NJError(error)))
               _ <- dailySummaries.update(_.incActionFail)
@@ -103,7 +107,12 @@ final class ActionRetryEither[F[_], A, B](
         for {
           count <- ref.get
           now <- F.realTimeInstant
-          _ <- channel.send(ActionSucced(actionInfo, now, count, base.succNotes(b)))
+          _ <- channel.send(
+            ActionSucced(
+              actionInfo = actionInfo,
+              endAt = now.atZone(zoneId),
+              numRetries = count,
+              notes = base.succNotes(b)))
           _ <- dailySummaries.update(_.incActionSucc)
         } yield ())
   }

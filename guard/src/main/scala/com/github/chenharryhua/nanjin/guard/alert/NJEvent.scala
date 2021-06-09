@@ -9,10 +9,10 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import retry.RetryDetails
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
-import java.time.Instant
+import java.time.ZonedDateTime
 import java.util.UUID
 
-final case class ServiceInfo(serviceName: String, appName: String, params: ServiceParams, launchTime: Instant) {
+final case class ServiceInfo(serviceName: String, appName: String, params: ServiceParams, launchTime: ZonedDateTime) {
   def metricsKey: String = s"$serviceName.$appName"
 }
 
@@ -22,7 +22,7 @@ final case class ActionInfo(
   appName: String,
   params: ActionParams,
   id: UUID,
-  launchTime: Instant) {
+  launchTime: ZonedDateTime) {
   def metricsKey: String = s"$actionName.$serviceName.$appName"
 }
 
@@ -108,14 +108,14 @@ final case class ActionRetrying(
 final case class ActionFailed(
   actionInfo: ActionInfo,
   givingUp: GivingUp,
-  endAt: Instant, // computation finished
+  endAt: ZonedDateTime, // computation finished
   notes: Notes, // failure notes
   error: NJError
 ) extends ActionEvent
 
 final case class ActionSucced(
   actionInfo: ActionInfo,
-  endAt: Instant, // computation finished
+  endAt: ZonedDateTime, // computation finished
   numRetries: Int, // how many retries before success
   notes: Notes // success notes
 ) extends ActionEvent

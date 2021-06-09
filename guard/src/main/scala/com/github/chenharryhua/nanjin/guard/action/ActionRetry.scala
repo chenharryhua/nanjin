@@ -8,9 +8,11 @@ import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams}
 import fs2.concurrent.Channel
 import retry.RetryPolicies
 
+import java.time.ZoneId
 import java.util.UUID
 
 final class ActionRetry[F[_], A, B](
+  zoneId: ZoneId,
   dailySummaries: Ref[F, DailySummaries],
   channel: Channel[F, NJEvent],
   actionName: String,
@@ -25,6 +27,7 @@ final class ActionRetry[F[_], A, B](
 
   def withSuccNotes(succ: (A, B) => String): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
+      zoneId = zoneId,
       dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
@@ -38,6 +41,7 @@ final class ActionRetry[F[_], A, B](
 
   def withFailNotes(fail: (A, Throwable) => String): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
+      zoneId = zoneId,
       dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
@@ -59,17 +63,22 @@ final class ActionRetry[F[_], A, B](
         appName = appName,
         params = params,
         id = UUID.randomUUID(),
-        launchTime = ts)
+        launchTime = ts.atZone(zoneId))
       base = new ActionRetryBase[F, A, B](input, succ, fail)
       res <- retry
         .retryingOnAllErrors[B](
           params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
-          base.onError(actionInfo, channel, ref, dailySummaries))(kleisli.run(input))
+          base.onError(zoneId, actionInfo, channel, ref, dailySummaries))(kleisli.run(input))
         .flatTap(b =>
           for {
             count <- ref.get // number of retries before success
             now <- F.realTimeInstant // timestamp when the action successed
-            _ <- channel.send(ActionSucced(actionInfo, now, count, base.succNotes(b)))
+            _ <- channel.send(
+              ActionSucced(
+                actionInfo = actionInfo,
+                endAt = now.atZone(zoneId),
+                numRetries = count,
+                notes = base.succNotes(b)))
             _ <- dailySummaries.update(_.incActionSucc)
           } yield ())
     } yield res
