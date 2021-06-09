@@ -9,26 +9,24 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ActionSucced,
   DailySummaries,
   NJError,
-  NJEvent
+  NJEvent,
+  ServiceInfo
 }
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams}
 import fs2.concurrent.Channel
 import retry.RetryDetails.GivingUp
 import retry.RetryPolicies
 
-import java.time.ZoneId
 import java.util.UUID
 import scala.concurrent.duration.Duration
 
 /** When outer F[_] fails, return immedidately only retry when the inner Either is on the left branch
   */
 final class ActionRetryEither[F[_], A, B](
-  zoneId: ZoneId,
   dailySummaries: Ref[F, DailySummaries],
   channel: Channel[F, NJEvent],
   actionName: String,
-  serviceName: String,
-  appName: String,
+  serviceInfo: ServiceInfo,
   actionConfig: ActionConfig,
   input: A,
   eitherT: EitherT[Kleisli[F, A, *], Throwable, B],
@@ -38,12 +36,10 @@ final class ActionRetryEither[F[_], A, B](
 
   def withSuccNotes(succ: (A, B) => String): ActionRetryEither[F, A, B] =
     new ActionRetryEither[F, A, B](
-      zoneId = zoneId,
       dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
-      serviceName = serviceName,
-      appName = appName,
+      serviceInfo = serviceInfo,
       actionConfig = actionConfig,
       input = input,
       eitherT = eitherT,
@@ -52,12 +48,10 @@ final class ActionRetryEither[F[_], A, B](
 
   def withFailNotes(fail: (A, Throwable) => String): ActionRetryEither[F, A, B] =
     new ActionRetryEither[F, A, B](
-      zoneId = zoneId,
       dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
-      serviceName = serviceName,
-      appName = appName,
+      serviceInfo = serviceInfo,
       actionConfig = actionConfig,
       input = input,
       eitherT = eitherT,
@@ -67,12 +61,11 @@ final class ActionRetryEither[F[_], A, B](
   def run(implicit F: Async[F]): F[B] = Ref.of[F, Int](0).flatMap(internalRun)
 
   private def internalRun(ref: Ref[F, Int])(implicit F: Async[F]): F[B] =
-    F.realTimeInstant.map(_.atZone(zoneId)).flatMap { ts =>
+    F.realTimeInstant.map(_.atZone(serviceInfo.params.zoneId)).flatMap { ts =>
       val actionInfo: ActionInfo =
         ActionInfo(
           actionName = actionName,
-          serviceName = serviceName,
-          appName = appName,
+          serviceInfo = serviceInfo,
           params = params,
           id = UUID.randomUUID(),
           launchTime = ts)
@@ -82,11 +75,11 @@ final class ActionRetryEither[F[_], A, B](
       retry
         .retryingOnAllErrors[Either[Throwable, B]](
           params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
-          base.onError(zoneId, actionInfo, channel, ref, dailySummaries)) {
+          base.onError(actionInfo, channel, ref, dailySummaries)) {
           eitherT.value.run(input).attempt.flatMap {
             case Left(error) =>
               for {
-                now <- F.realTimeInstant.map(_.atZone(zoneId))
+                now <- F.realTimeInstant.map(_.atZone(serviceInfo.params.zoneId))
                 _ <- channel.send(
                   ActionFailed(
                     timestamp = now,
@@ -107,7 +100,7 @@ final class ActionRetryEither[F[_], A, B](
         .flatTap(b =>
           for {
             count <- ref.get
-            now <- F.realTimeInstant.map(_.atZone(zoneId))
+            now <- F.realTimeInstant.map(_.atZone(serviceInfo.params.zoneId))
             _ <- channel.send(
               ActionSucced(timestamp = now, actionInfo = actionInfo, numRetries = count, notes = base.succNotes(b)))
             _ <- dailySummaries.update(_.incActionSucc)

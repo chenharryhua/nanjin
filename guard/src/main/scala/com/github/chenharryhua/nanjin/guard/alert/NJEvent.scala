@@ -23,12 +23,11 @@ final case class ServiceInfo(
 
 final case class ActionInfo(
   actionName: String,
-  serviceName: String,
-  appName: String,
+  serviceInfo: ServiceInfo,
   params: ActionParams,
   id: UUID,
   launchTime: ZonedDateTime) {
-  def metricsKey: String = s"$actionName.$serviceName.$appName"
+  def metricsKey: String = s"$actionName.${serviceInfo.metricsKey}"
 }
 
 final case class Notes private (value: String)
