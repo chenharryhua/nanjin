@@ -7,6 +7,7 @@ import com.amazonaws.regions.Regions
 import com.codahale.metrics.{Counter, MetricRegistry, Timer}
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
+import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.guard._
 import com.github.chenharryhua.nanjin.guard.alert.{
   ActionFailed,
@@ -30,8 +31,12 @@ import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
 class ServiceTest extends AnyFunSuite {
-  val slack  = SlackService[IO](SnsArn("arn:aws:sns:ap-southeast-2:123456789012:abc-123xyz"))
-  val slack2 = SlackService[IO](SnsArn("arn:aws:sns:ap-southeast-2:123456789012:abc-123xyz"), Regions.AP_SOUTHEAST_2)
+  val slack = SlackService[IO](SnsArn("arn:aws:sns:ap-southeast-2:123456789012:abc-123xyz"))
+
+  val slack2 = SlackService[IO](
+    SnsArn("arn:aws:sns:ap-southeast-2:123456789012:abc-123xyz"),
+    Regions.AP_SOUTHEAST_2,
+    DurationFormatter.default)
 
   val guard = TaskGuard[IO]("service-level-guard")
     .updateServiceConfig(_.withConstantDelay(1.second))

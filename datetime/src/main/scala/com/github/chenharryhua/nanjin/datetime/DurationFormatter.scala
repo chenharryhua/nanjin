@@ -6,23 +6,33 @@ import java.time.{Instant, Duration => JavaDuration}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
-object utils {
+trait DurationFormatter {
 
-  /** always positive duration string
+  /** Law: format(duration) == format(-duration)
     */
-  def mkDurationString(duration: Duration): String = {
+  def format(duration: Duration): String
+
+  final def format(duration: JavaDuration): String =
+    format(FiniteDuration(duration.toNanos, TimeUnit.NANOSECONDS))
+
+  final def format(start: Instant, end: Instant): String =
+    format(JavaDuration.between(start, end))
+}
+
+object DurationFormatter {
+
+  val default: DurationFormatter = (duration: Duration) => {
     val dur: Duration = if (duration < Duration.Zero) duration.neg() else duration
-    if (dur < oneMillisec) s"${dur.toNanos} nanoseconds"
-    else if (dur < oneSecond) {
+    if (dur < oneMillisec) {
+      val nano = dur.toNanos
+      if (nano == 1) "1 nanosecond" else s"$nano nanoseconds"
+    } else if (dur < oneSecond) {
       val milli = dur.toMillis
-      if (milli == 1) s"1 millisecond"
-      else s"$milli milliseconds"
+      if (milli == 1) "1 millisecond" else s"$milli milliseconds"
     } else if (dur < oneMinute) {
       val sec   = DurationFormatUtils.formatDurationWords(dur.toMillis, true, true)
       val milli = dur.toMillis % 1000
-      if (milli == 0) sec
-      else if (milli == 1) s"$sec 1 millisecond"
-      else s"$sec $milli milliseconds"
+      if (milli == 0) sec else if (milli == 1) s"$sec 1 millisecond" else s"$sec $milli milliseconds"
     } else if (dur < oneHour)
       DurationFormatUtils.formatDurationWords(dur.toSeconds * 1000, true, true)
     else if (dur < oneDay)
@@ -30,8 +40,4 @@ object utils {
     else
       DurationFormatUtils.formatDurationWords(dur.toHours * 3600 * 1000, true, true)
   }
-
-  def mkDurationString(start: Instant, end: Instant): String =
-    mkDurationString(FiniteDuration(JavaDuration.between(start, end).toNanos, TimeUnit.NANOSECONDS))
-
 }

@@ -66,10 +66,11 @@ final class ActionGuard[F[_]](
   def croak[B](fb: F[B])(f: Throwable => String)(implicit F: Async[F]): F[B] =
     updateActionConfig(_.withSuccAlertOff.withFailAlertOn).retry(fb).withFailNotes((_, ex) => f(ex)).run
 
+  // no news
+  def quiet[B](fb: F[B])(implicit F: Async[F]): F[B] =
+    updateActionConfig(_.withSuccAlertOff.withFailAlertOff).run(fb)
+
   // no notes at all
   def run[B](fb: F[B])(implicit F: Async[F]): F[B] = retry[B](fb).run
-
-  def quietRun[B](fb: F[B])(implicit F: Async[F]): F[B] =
-    updateActionConfig(_.withSuccAlertOff.withFailAlertOff).max(0).run(fb)
 
 }
