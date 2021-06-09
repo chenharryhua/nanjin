@@ -20,18 +20,20 @@ class UtilsTest extends AnyFunSuite {
   }
   test("milli") {
     val lowest = Duration(1000000, TimeUnit.NANOSECONDS)
-    assert(utils.mkDurationString(lowest) == "1 milliseconds")
+    assert(utils.mkDurationString(lowest) == "1 millisecond")
     val highest = Duration(999, TimeUnit.MILLISECONDS)
     assert(utils.mkDurationString(highest) == "999 milliseconds")
   }
 
   test("second") {
     val d1 = Duration(1000, TimeUnit.MILLISECONDS)
-    assert(utils.mkDurationString(d1) == "1 second 0 milliseconds")
-    val d2 = Duration(1234, TimeUnit.MILLISECONDS)
-    assert(utils.mkDurationString(d2) == "1 second 234 milliseconds")
+    assert(utils.mkDurationString(d1) == "1 second")
+    val d2 = Duration(1001, TimeUnit.MILLISECONDS)
+    assert(utils.mkDurationString(d2) == "1 second 1 millisecond")
     val d3 = Duration(3234, TimeUnit.MILLISECONDS)
     assert(utils.mkDurationString(d3) == "3 seconds 234 milliseconds")
+    val d4 = Duration(3001, TimeUnit.MILLISECONDS)
+    assert(utils.mkDurationString(d4) == "3 seconds 1 millisecond")
   }
   test("minute") {
     val d1 = Duration(60, TimeUnit.SECONDS)
@@ -71,7 +73,7 @@ class UtilsTest extends AnyFunSuite {
   test("month") {
     val d1 = Duration(30, TimeUnit.DAYS)
     assert(utils.mkDurationString(d1) == "30 days")
-    val d2 = Duration(260, TimeUnit.DAYS).plus(Duration(30, TimeUnit.HOURS))
+    val d2 = Duration(260, TimeUnit.DAYS).plus(Duration(30, TimeUnit.HOURS)).plus(Duration(20, TimeUnit.MINUTES))
     assert(utils.mkDurationString(d2) == "261 days 6 hours")
     val d3 = Duration(450, TimeUnit.DAYS).plus(Duration(30, TimeUnit.HOURS))
     assert(utils.mkDurationString(d3) == "451 days 6 hours")
