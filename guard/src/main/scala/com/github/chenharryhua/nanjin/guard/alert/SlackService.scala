@@ -136,14 +136,14 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
     case ActionFailed(at, action, givingUp, notes, error) =>
       val msg =
         SlackNotification(
-          action.appName,
+          action.serviceInfo.appName,
           notes.value,
           List(
             Attachment(
               "danger",
               at.toInstant.toEpochMilli,
               List(
-                SlackField("Service", action.serviceName, short = true),
+                SlackField("Service", action.serviceInfo.serviceName, short = true),
                 SlackField("Action", action.actionName, short = true),
                 SlackField("Took", fmt.format(action.launchTime, at), short = true),
                 SlackField("Cause", error.message, short = true),
@@ -158,14 +158,14 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
     case ActionSucced(at, action, numRetries, notes) =>
       val msg =
         SlackNotification(
-          action.appName,
+          action.serviceInfo.appName,
           notes.value,
           List(
             Attachment(
               "good",
               at.toInstant.toEpochMilli,
               List(
-                SlackField("Service", action.serviceName, short = true),
+                SlackField("Service", action.serviceInfo.serviceName, short = true),
                 SlackField("Action", action.actionName, short = true),
                 SlackField("Took", fmt.format(action.launchTime, at), short = true),
                 SlackField("Retries", s"$numRetries/${action.params.maxRetries}", short = true),

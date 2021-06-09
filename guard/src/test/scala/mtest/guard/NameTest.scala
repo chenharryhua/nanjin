@@ -19,11 +19,11 @@ class NameTest extends AnyFunSuite {
           .withFailNotes((_, _) => null)
           .run
     }.compile.toVector.unsafeRunSync()
-    assert(a.appName == "task.name")
-    assert(a.serviceName == "service.name")
+    assert(a.serviceInfo.appName == "task.name")
+    assert(a.serviceInfo.serviceName == "service.name")
     assert(a.actionName == "action.retry")
-    assert(b.appName == "task.name")
-    assert(b.serviceName == "service.name")
+    assert(b.serviceInfo.appName == "task.name")
+    assert(b.serviceInfo.serviceName == "service.name")
     assert(b.actionName == "action.retry.either")
     assert(c.isInstanceOf[ServiceStopped])
   }

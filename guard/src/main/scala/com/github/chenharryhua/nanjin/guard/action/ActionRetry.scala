@@ -3,21 +3,18 @@ package com.github.chenharryhua.nanjin.guard.action
 import cats.data.{Kleisli, Reader}
 import cats.effect.{Async, Ref}
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.guard.alert.{ActionInfo, ActionSucced, DailySummaries, NJEvent}
+import com.github.chenharryhua.nanjin.guard.alert.{ActionInfo, ActionSucced, DailySummaries, NJEvent, ServiceInfo}
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams}
 import fs2.concurrent.Channel
 import retry.RetryPolicies
 
-import java.time.ZoneId
 import java.util.UUID
 
 final class ActionRetry[F[_], A, B](
-  zoneId: ZoneId,
   dailySummaries: Ref[F, DailySummaries],
   channel: Channel[F, NJEvent],
   actionName: String,
-  serviceName: String,
-  appName: String,
+  serviceInfo: ServiceInfo,
   actionConfig: ActionConfig,
   input: A,
   kleisli: Kleisli[F, A, B],
@@ -27,12 +24,10 @@ final class ActionRetry[F[_], A, B](
 
   def withSuccNotes(succ: (A, B) => String): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
-      zoneId = zoneId,
       dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
-      serviceName = serviceName,
-      appName = appName,
+      serviceInfo = serviceInfo,
       actionConfig = actionConfig,
       input = input,
       kleisli = kleisli,
@@ -41,12 +36,10 @@ final class ActionRetry[F[_], A, B](
 
   def withFailNotes(fail: (A, Throwable) => String): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
-      zoneId = zoneId,
       dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
-      serviceName = serviceName,
-      appName = appName,
+      serviceInfo = serviceInfo,
       actionConfig = actionConfig,
       input = input,
       kleisli = kleisli,
@@ -56,11 +49,10 @@ final class ActionRetry[F[_], A, B](
   def run(implicit F: Async[F]): F[B] =
     for {
       ref <- Ref.of[F, Int](0) // hold number of retries
-      ts <- F.realTimeInstant.map(_.atZone(zoneId)) // timestamp when the action start
+      ts <- F.realTimeInstant.map(_.atZone(serviceInfo.params.zoneId)) // timestamp when the action start
       actionInfo = ActionInfo(
         actionName = actionName,
-        serviceName = serviceName,
-        appName = appName,
+        serviceInfo = serviceInfo,
         params = params,
         id = UUID.randomUUID(),
         launchTime = ts)
@@ -68,11 +60,11 @@ final class ActionRetry[F[_], A, B](
       res <- retry
         .retryingOnAllErrors[B](
           params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
-          base.onError(zoneId, actionInfo, channel, ref, dailySummaries))(kleisli.run(input))
+          base.onError(actionInfo, channel, ref, dailySummaries))(kleisli.run(input))
         .flatTap(b =>
           for {
             count <- ref.get // number of retries before success
-            now <- F.realTimeInstant.map(_.atZone(zoneId))
+            now <- F.realTimeInstant.map(_.atZone(serviceInfo.params.zoneId))
             _ <- channel.send(
               ActionSucced(timestamp = now, actionInfo = actionInfo, numRetries = count, notes = base.succNotes(b)))
             _ <- dailySummaries.update(_.incActionSucc)

@@ -75,12 +75,10 @@ final class ServiceGuard[F[_]](
             start_health.background.use(_ =>
               actionGuard(
                 new ActionGuard[F](
-                  zoneId = params.zoneId,
                   dailySummaries = dailySummaries,
                   channel = channel,
                   actionName = "anonymous",
-                  serviceName = serviceName,
-                  appName = appName,
+                  serviceInfo = serviceInfo,
                   actionConfig = actionConfig))) *>
               F.realTimeInstant
                 .map(_.atZone(params.zoneId))
