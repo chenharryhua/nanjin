@@ -8,12 +8,13 @@ import cats.syntax.functor._
 import cats.syntax.monadError._
 import fs2.Stream
 import monocle.function.At.at
+import org.apache.kafka.streams.errors.StreamsUncaughtExceptionHandler
 import org.apache.kafka.streams.processor.StateStore
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.state.StoreBuilder
 import org.apache.kafka.streams.{KafkaStreams, Topology}
 
-final case class UncaughtKafkaStreamingException(thread: Thread, ex: Throwable) extends Exception(ex.getMessage)
+final case class UncaughtKafkaStreamingException(ex: Throwable) extends Exception(ex.getMessage)
 
 final case class KafkaStreamingStartupException() extends Exception("failed to start kafka streaming")
 
@@ -23,10 +24,12 @@ final class KafkaStreamsBuilder[F[_]](
   localStateStores: List[Reader[StreamsBuilder, StreamsBuilder]]) {
 
   final private class StreamErrorHandler(deferred: Deferred[F, UncaughtKafkaStreamingException], F: Dispatcher[F])
-      extends Thread.UncaughtExceptionHandler {
+      extends StreamsUncaughtExceptionHandler {
 
-    override def uncaughtException(t: Thread, e: Throwable): Unit =
-      F.unsafeRunAndForget(deferred.complete(UncaughtKafkaStreamingException(t, e)))
+    override def handle(throwable: Throwable): StreamsUncaughtExceptionHandler.StreamThreadExceptionResponse = {
+      F.unsafeRunAndForget(deferred.complete(UncaughtKafkaStreamingException(throwable)))
+      StreamsUncaughtExceptionHandler.StreamThreadExceptionResponse.SHUTDOWN_APPLICATION
+    }
   }
 
   final private class Latch(value: Deferred[F, Either[KafkaStreamingStartupException, Unit]], F: Dispatcher[F])

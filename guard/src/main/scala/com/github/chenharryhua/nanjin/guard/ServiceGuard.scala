@@ -38,13 +38,7 @@ final class ServiceGuard[F[_]](
     val cron: CronExpr                    = Cron.unsafeParse(s"0 0 ${params.dailySummaryReset} ? * *")
     for {
       ts <- Stream.eval(F.realTimeInstant)
-      serviceInfo: ServiceInfo =
-        ServiceInfo(
-          serviceName = serviceName,
-          appName = appName,
-          params = params,
-          launchTime = ts
-        )
+      serviceInfo = ServiceInfo(serviceName = serviceName, appName = appName, params = params, launchTime = ts)
       dailySummaries <- Stream.eval(Ref.of(DailySummaries.zero))
       ssd = ServiceStarted(serviceInfo)
       sos = ServiceStopped(serviceInfo)
