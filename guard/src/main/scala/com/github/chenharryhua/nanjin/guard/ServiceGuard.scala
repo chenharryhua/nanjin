@@ -49,6 +49,7 @@ final class ServiceGuard[F[_]](
         serviceName = serviceName,
         appName = appName,
         params = params,
+        id = UUID.randomUUID(),
         launchTime = ts.atZone(params.zoneId))
       dailySummaries <- Stream.eval(Ref.of(DailySummaries.zero))
       ssd = ServiceStarted(serviceInfo)
