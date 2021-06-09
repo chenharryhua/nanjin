@@ -1,5 +1,6 @@
 package mtest
 
+import com.github.chenharryhua.nanjin.datetime.beijingTime
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
@@ -83,7 +84,7 @@ class DurationFormatterTest extends AnyFunSuite {
     assert(fmt.format(d3) == "451 days 6 hours")
   }
   test("two minutes ago") {
-    val instant = Instant.now()
-    assert(fmt.format(instant, instant.minusSeconds(120)) == "2 minutes")
+    val zdt = Instant.now().atZone(beijingTime)
+    assert(fmt.format(zdt, zdt.minusSeconds(120)) == "2 minutes")
   }
 }

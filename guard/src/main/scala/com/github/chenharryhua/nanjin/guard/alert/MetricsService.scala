@@ -9,26 +9,25 @@ final private class MetricsService[F[_]](metrics: MetricRegistry)(implicit F: Sy
 
   override def alert(event: NJEvent): F[Unit] = event match {
     // counter
-    case ServiceStarted(serviceInfo) =>
+    case ServiceStarted(_, serviceInfo) =>
       F.blocking(metrics.counter(s"${serviceInfo.metricsKey}.start").inc())
-    case ServicePanic(serviceInfo, _, _, _) =>
+    case ServicePanic(_, serviceInfo, _, _, _) =>
       F.blocking(metrics.counter(s"${serviceInfo.metricsKey}.panic").inc())
-    case ServiceStopped(serviceInfo) =>
+    case ServiceStopped(_, serviceInfo) =>
       F.blocking(metrics.counter(s"${serviceInfo.metricsKey}.stop").inc())
-    case ServiceHealthCheck(serviceInfo, _) =>
+    case ServiceHealthCheck(_, serviceInfo, _) =>
       F.blocking(metrics.counter(s"${serviceInfo.metricsKey}.health-check").inc())
-    case ActionRetrying(actionInfo, _, _) =>
+    case ActionRetrying(_, actionInfo, _, _) =>
       F.blocking(metrics.counter(s"${actionInfo.metricsKey}.retry").inc())
     case _: ForYouInformation =>
       F.blocking(metrics.counter("fyi").inc())
     // timer
-    case ActionFailed(actionInfo, _, endAt, _, _) =>
+    case ActionFailed(at, actionInfo, _, _, _) =>
       F.blocking(
-        metrics.timer(s"fail.${actionInfo.metricsKey}").update(JavaDuration.between(actionInfo.launchTime, endAt)))
-    case ActionSucced(actionInfo, endAt, _, _) =>
+        metrics.timer(s"fail.${actionInfo.metricsKey}").update(JavaDuration.between(actionInfo.launchTime, at)))
+    case ActionSucced(at, actionInfo, _, _) =>
       F.blocking(
-        metrics.timer(s"succ.${actionInfo.metricsKey}").update(JavaDuration.between(actionInfo.launchTime, endAt)))
-
+        metrics.timer(s"succ.${actionInfo.metricsKey}").update(JavaDuration.between(actionInfo.launchTime, at)))
   }
 }
 

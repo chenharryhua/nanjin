@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.datetime
 
 import org.apache.commons.lang3.time.DurationFormatUtils
 
-import java.time.{Instant, Duration => JavaDuration}
+import java.time.{Instant, ZonedDateTime, Duration => JavaDuration}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
@@ -17,6 +17,9 @@ trait DurationFormatter {
 
   final def format(start: Instant, end: Instant): String =
     format(JavaDuration.between(start, end))
+
+  final def format(start: ZonedDateTime, end: ZonedDateTime): String =
+    format(start.toInstant, end.toInstant)
 }
 
 object DurationFormatter {
@@ -40,4 +43,7 @@ object DurationFormatter {
     else
       DurationFormatUtils.formatDurationWords(dur.toHours * 3600 * 1000, true, true)
   }
+
+  val words: DurationFormatter = (duration: Duration) =>
+    DurationFormatUtils.formatDurationWords(duration.toMillis, true, true)
 }

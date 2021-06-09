@@ -8,9 +8,11 @@ import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams}
 import fs2.concurrent.Channel
 import retry.RetryPolicies
 
+import java.time.ZoneId
 import java.util.UUID
 
 final class ActionRetry[F[_], A, B](
+  zoneId: ZoneId,
   dailySummaries: Ref[F, DailySummaries],
   channel: Channel[F, NJEvent],
   actionName: String,
@@ -25,6 +27,7 @@ final class ActionRetry[F[_], A, B](
 
   def withSuccNotes(succ: (A, B) => String): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
+      zoneId = zoneId,
       dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
@@ -38,6 +41,7 @@ final class ActionRetry[F[_], A, B](
 
   def withFailNotes(fail: (A, Throwable) => String): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
+      zoneId = zoneId,
       dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
@@ -52,7 +56,7 @@ final class ActionRetry[F[_], A, B](
   def run(implicit F: Async[F]): F[B] =
     for {
       ref <- Ref.of[F, Int](0) // hold number of retries
-      ts <- F.realTimeInstant // timestamp when the action start
+      ts <- F.realTimeInstant.map(_.atZone(zoneId)) // timestamp when the action start
       actionInfo = ActionInfo(
         actionName = actionName,
         serviceName = serviceName,
@@ -64,12 +68,13 @@ final class ActionRetry[F[_], A, B](
       res <- retry
         .retryingOnAllErrors[B](
           params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
-          base.onError(actionInfo, channel, ref, dailySummaries))(kleisli.run(input))
+          base.onError(zoneId, actionInfo, channel, ref, dailySummaries))(kleisli.run(input))
         .flatTap(b =>
           for {
             count <- ref.get // number of retries before success
-            now <- F.realTimeInstant // timestamp when the action successed
-            _ <- channel.send(ActionSucced(actionInfo, now, count, base.succNotes(b)))
+            now <- F.realTimeInstant.map(_.atZone(zoneId))
+            _ <- channel.send(
+              ActionSucced(timestamp = now, actionInfo = actionInfo, numRetries = count, notes = base.succNotes(b)))
             _ <- dailySummaries.update(_.incActionSucc)
           } yield ())
     } yield res

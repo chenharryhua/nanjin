@@ -1,14 +1,17 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.Functor
 import cats.data.{EitherT, Kleisli, Reader}
+import cats.effect.kernel.Temporal
 import cats.effect.{Async, Ref}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.guard.alert.{DailySummaries, ForYouInformation, NJEvent}
 import com.github.chenharryhua.nanjin.guard.config.ActionConfig
 import fs2.concurrent.Channel
 
+import java.time.ZoneId
+
 final class ActionGuard[F[_]](
+  zoneId: ZoneId,
   dailySummaries: Ref[F, DailySummaries],
   channel: Channel[F, NJEvent],
   actionName: String,
@@ -17,13 +20,14 @@ final class ActionGuard[F[_]](
   actionConfig: ActionConfig) {
 
   def apply(actionName: String): ActionGuard[F] =
-    new ActionGuard[F](dailySummaries, channel, actionName, serviceName, appName, actionConfig)
+    new ActionGuard[F](zoneId, dailySummaries, channel, actionName, serviceName, appName, actionConfig)
 
   def updateActionConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
-    new ActionGuard[F](dailySummaries, channel, actionName, serviceName, appName, f(actionConfig))
+    new ActionGuard[F](zoneId, dailySummaries, channel, actionName, serviceName, appName, f(actionConfig))
 
   def retry[A, B](input: A)(f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
+      zoneId = zoneId,
       dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
@@ -37,10 +41,12 @@ final class ActionGuard[F[_]](
 
   def retry[B](fb: F[B]): ActionRetry[F, Unit, B] = retry[Unit, B](())(_ => fb)
 
-  def fyi(msg: String)(implicit F: Functor[F]): F[Unit] = channel.send(ForYouInformation(msg)).void
+  def fyi(msg: String)(implicit F: Temporal[F]): F[Unit] =
+    F.realTimeInstant.flatMap(ts => channel.send(ForYouInformation(ts.atZone(zoneId), msg))).void
 
   def retryEither[A, B](input: A)(f: A => F[Either[Throwable, B]]): ActionRetryEither[F, A, B] =
     new ActionRetryEither[F, A, B](
+      zoneId = zoneId,
       dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,

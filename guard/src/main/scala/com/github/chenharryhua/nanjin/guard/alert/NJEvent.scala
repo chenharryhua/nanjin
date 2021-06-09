@@ -9,10 +9,15 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import retry.RetryDetails
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
-import java.time.Instant
+import java.time.ZonedDateTime
 import java.util.UUID
 
-final case class ServiceInfo(serviceName: String, appName: String, params: ServiceParams, launchTime: Instant) {
+final case class ServiceInfo(
+  serviceName: String,
+  appName: String,
+  params: ServiceParams,
+  id: UUID,
+  launchTime: ZonedDateTime) {
   def metricsKey: String = s"$serviceName.$appName"
 }
 
@@ -22,7 +27,7 @@ final case class ActionInfo(
   appName: String,
   params: ActionParams,
   id: UUID,
-  launchTime: Instant) {
+  launchTime: ZonedDateTime) {
   def metricsKey: String = s"$actionName.$serviceName.$appName"
 }
 
@@ -65,7 +70,9 @@ object DailySummaries {
   val zero: DailySummaries = DailySummaries(0, 0, 0, 0)
 }
 
-sealed trait NJEvent
+sealed trait NJEvent {
+  def timestamp: ZonedDateTime // event timestamp - when the event occurs
+}
 
 object NJEvent {
   implicit val showNJEvent: Show[NJEvent]       = cats.derived.semiauto.show[NJEvent]
@@ -77,9 +84,10 @@ sealed trait ServiceEvent extends NJEvent {
   def serviceInfo: ServiceInfo
 }
 
-final case class ServiceStarted(serviceInfo: ServiceInfo) extends ServiceEvent
+final case class ServiceStarted(timestamp: ZonedDateTime, serviceInfo: ServiceInfo) extends ServiceEvent
 
 final case class ServicePanic(
+  timestamp: ZonedDateTime,
   serviceInfo: ServiceInfo,
   retryDetails: RetryDetails,
   errorID: UUID,
@@ -87,10 +95,12 @@ final case class ServicePanic(
 ) extends ServiceEvent
 
 final case class ServiceStopped(
+  timestamp: ZonedDateTime,
   serviceInfo: ServiceInfo
 ) extends ServiceEvent
 
 final case class ServiceHealthCheck(
+  timestamp: ZonedDateTime,
   serviceInfo: ServiceInfo,
   dailySummaries: DailySummaries
 ) extends ServiceEvent
@@ -100,24 +110,25 @@ sealed trait ActionEvent extends NJEvent {
 }
 
 final case class ActionRetrying(
+  timestamp: ZonedDateTime,
   actionInfo: ActionInfo,
   willDelayAndRetry: WillDelayAndRetry,
   error: NJError
 ) extends ActionEvent
 
 final case class ActionFailed(
+  timestamp: ZonedDateTime,
   actionInfo: ActionInfo,
   givingUp: GivingUp,
-  endAt: Instant, // computation finished
   notes: Notes, // failure notes
   error: NJError
 ) extends ActionEvent
 
 final case class ActionSucced(
+  timestamp: ZonedDateTime,
   actionInfo: ActionInfo,
-  endAt: Instant, // computation finished
   numRetries: Int, // how many retries before success
   notes: Notes // success notes
 ) extends ActionEvent
 
-final case class ForYouInformation(message: String) extends NJEvent
+final case class ForYouInformation(timestamp: ZonedDateTime, message: String) extends NJEvent
