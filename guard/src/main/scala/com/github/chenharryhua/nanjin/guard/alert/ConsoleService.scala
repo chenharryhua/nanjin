@@ -1,13 +1,13 @@
 package com.github.chenharryhua.nanjin.guard.alert
 
-import cats.effect.Sync
+import cats.effect.std.Console
 import io.circe.syntax._
 
-final private class ConsoleService[F[_]]()(implicit F: Sync[F]) extends AlertService[F] {
-  override def alert(event: NJEvent): F[Unit] = F.blocking(println(event.asJson))
+final private class ConsoleService[F[_]](implicit C: Console[F]) extends AlertService[F] {
+  override def alert(event: NJEvent): F[Unit] = C.println(event.asJson)
 }
 
 object ConsoleService {
 
-  def apply[F[_]: Sync]: AlertService[F] = new ConsoleService[F]()
+  def apply[F[_]: Console]: AlertService[F] = new ConsoleService[F]
 }
