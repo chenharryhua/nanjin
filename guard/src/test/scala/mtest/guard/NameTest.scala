@@ -11,7 +11,7 @@ class NameTest extends AnyFunSuite {
     val taskGuard: TaskGuard[IO] =
       TaskGuard[IO]("task.name").updateServiceConfig(_.withHealthCheckDisabled).updateActionConfig(_.withSuccAlertOn)
     val serviceGuard = taskGuard.service("service.name").updateServiceConfig(_.withHealthCheckDisabled)
-    val Vector(ActionSucced(a, _, _, _), ActionSucced(b, _, _, _), c) = serviceGuard.eventStream { ag =>
+    val Vector(ActionSucced(_, a, _, _), ActionSucced(_, b, _, _), c) = serviceGuard.eventStream { ag =>
       ag("action.retry").updateActionConfig(_.withSuccAlertOn).retry(IO(1)).withSuccNotes((_, _) => "").run >>
         ag("action.retry.either")
           .updateActionConfig(_.withFailAlertOn)

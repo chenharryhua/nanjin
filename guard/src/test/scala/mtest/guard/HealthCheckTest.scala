@@ -32,7 +32,7 @@ class HealthCheckTest extends AnyFunSuite {
   }
 
   test("success") {
-    val Vector(_, a, b, c, ServiceHealthCheck(_, ds)) = guard
+    val Vector(_, a, b, c, ServiceHealthCheck(_, _, ds)) = guard
       .service("success-test")
       .updateServiceConfig(_.withHealthCheckInterval(1.second).withStartUpDelay(1.second))
       .eventStream(gd => gd.run(IO(1)) >> gd.run(IO.never))
@@ -50,7 +50,7 @@ class HealthCheckTest extends AnyFunSuite {
   }
 
   test("retry") {
-    val Vector(_, a, b, c, ServiceHealthCheck(_, ds)) = guard
+    val Vector(_, a, b, c, ServiceHealthCheck(_, _, ds)) = guard
       .service("failure-test")
       .updateServiceConfig(
         _.withHealthCheckInterval(1.second)

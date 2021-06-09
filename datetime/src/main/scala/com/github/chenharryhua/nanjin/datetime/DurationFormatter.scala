@@ -43,4 +43,7 @@ object DurationFormatter {
     else
       DurationFormatUtils.formatDurationWords(dur.toHours * 3600 * 1000, true, true)
   }
+
+  val words: DurationFormatter = (duration: Duration) =>
+    DurationFormatUtils.formatDurationWords(duration.toMillis, true, true)
 }

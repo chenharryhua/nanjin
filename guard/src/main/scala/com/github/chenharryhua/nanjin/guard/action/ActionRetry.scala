@@ -56,14 +56,14 @@ final class ActionRetry[F[_], A, B](
   def run(implicit F: Async[F]): F[B] =
     for {
       ref <- Ref.of[F, Int](0) // hold number of retries
-      ts <- F.realTimeInstant // timestamp when the action start
+      ts <- F.realTimeInstant.map(_.atZone(zoneId)) // timestamp when the action start
       actionInfo = ActionInfo(
         actionName = actionName,
         serviceName = serviceName,
         appName = appName,
         params = params,
         id = UUID.randomUUID(),
-        launchTime = ts.atZone(zoneId))
+        launchTime = ts)
       base = new ActionRetryBase[F, A, B](input, succ, fail)
       res <- retry
         .retryingOnAllErrors[B](
@@ -72,13 +72,9 @@ final class ActionRetry[F[_], A, B](
         .flatTap(b =>
           for {
             count <- ref.get // number of retries before success
-            now <- F.realTimeInstant // timestamp when the action successed
+            now <- F.realTimeInstant.map(_.atZone(zoneId))
             _ <- channel.send(
-              ActionSucced(
-                actionInfo = actionInfo,
-                endAt = now.atZone(zoneId),
-                numRetries = count,
-                notes = base.succNotes(b)))
+              ActionSucced(timestamp = now, actionInfo = actionInfo, numRetries = count, notes = base.succNotes(b)))
             _ <- dailySummaries.update(_.incActionSucc)
           } yield ())
     } yield res

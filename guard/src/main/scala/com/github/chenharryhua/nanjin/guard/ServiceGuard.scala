@@ -44,32 +44,33 @@ final class ServiceGuard[F[_]](
     val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.zoneId))
     val cron: CronExpr                    = Cron.unsafeParse(s"0 0 ${params.dailySummaryReset} ? * *")
     for {
-      ts <- Stream.eval(F.realTimeInstant)
+      ts <- Stream.eval(F.realTimeInstant.map(_.atZone(params.zoneId)))
       serviceInfo = ServiceInfo(
         serviceName = serviceName,
         appName = appName,
         params = params,
         id = UUID.randomUUID(),
-        launchTime = ts.atZone(params.zoneId))
+        launchTime = ts)
       dailySummaries <- Stream.eval(Ref.of(DailySummaries.zero))
-      ssd = ServiceStarted(serviceInfo)
-      sos = ServiceStopped(serviceInfo)
+      ssd = ServiceStarted(ts, serviceInfo)
       event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
         val publisher = Stream.eval {
           val ret = retry.retryingOnAllErrors(
             params.retryPolicy.policy[F],
             (ex: Throwable, rd) =>
               for {
-                _ <- channel.send(ServicePanic(serviceInfo, rd, UUID.randomUUID(), NJError(ex)))
+                ts <- F.realTimeInstant.map(_.atZone(params.zoneId))
+                _ <- channel.send(ServicePanic(ts, serviceInfo, rd, UUID.randomUUID(), NJError(ex)))
                 _ <- dailySummaries.update(_.incServicePanic)
               } yield ()
           ) {
             val start_health = for {
               _ <- channel.send(ssd).delayBy(params.startUpEventDelay)
-              _ <- dailySummaries.get
-                .flatMap(ds => channel.send(ServiceHealthCheck(serviceInfo, ds)))
-                .delayBy(params.healthCheck.interval)
-                .foreverM[Unit]
+              _ <- dailySummaries.get.flatMap { ds =>
+                F.realTimeInstant.map(_.atZone(params.zoneId)).flatMap { ts =>
+                  channel.send(ServiceHealthCheck(ts, serviceInfo, ds))
+                }
+              }.delayBy(params.healthCheck.interval).foreverM[Unit]
             } yield ()
             start_health.background.use(_ =>
               actionGuard(
@@ -81,7 +82,9 @@ final class ServiceGuard[F[_]](
                   serviceName = serviceName,
                   appName = appName,
                   actionConfig = actionConfig))) *>
-              channel.send(sos)
+              F.realTimeInstant
+                .map(_.atZone(params.zoneId))
+                .flatMap(ts => channel.send(ServiceStopped(ts, serviceInfo)))
           }
           ret.guarantee(channel.close.void)
         }

@@ -66,54 +66,51 @@ final class ActionRetryEither[F[_], A, B](
 
   def run(implicit F: Async[F]): F[B] = Ref.of[F, Int](0).flatMap(internalRun)
 
-  private def internalRun(ref: Ref[F, Int])(implicit F: Async[F]): F[B] = F.realTimeInstant.flatMap { ts =>
-    val actionInfo: ActionInfo =
-      ActionInfo(
-        actionName = actionName,
-        serviceName = serviceName,
-        appName = appName,
-        params = params,
-        id = UUID.randomUUID(),
-        launchTime = ts.atZone(zoneId))
+  private def internalRun(ref: Ref[F, Int])(implicit F: Async[F]): F[B] =
+    F.realTimeInstant.map(_.atZone(zoneId)).flatMap { ts =>
+      val actionInfo: ActionInfo =
+        ActionInfo(
+          actionName = actionName,
+          serviceName = serviceName,
+          appName = appName,
+          params = params,
+          id = UUID.randomUUID(),
+          launchTime = ts)
 
-    val base = new ActionRetryBase[F, A, B](input, succ, fail)
+      val base = new ActionRetryBase[F, A, B](input, succ, fail)
 
-    retry
-      .retryingOnAllErrors[Either[Throwable, B]](
-        params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
-        base.onError(zoneId, actionInfo, channel, ref, dailySummaries)) {
-        eitherT.value.run(input).attempt.flatMap {
-          case Left(error) =>
-            for {
-              now <- F.realTimeInstant
-              _ <- channel.send(
-                ActionFailed(
-                  actionInfo = actionInfo,
-                  givingUp = GivingUp(0, Duration.Zero),
-                  endAt = now.atZone(zoneId),
-                  notes = base.failNotes(error),
-                  error = NJError(error)))
-              _ <- dailySummaries.update(_.incActionFail)
-            } yield Left(error)
-          case Right(outerRight) =>
-            outerRight match {
-              case Left(ex)     => F.raiseError(ex)
-              case r @ Right(_) => F.pure(r)
-            }
+      retry
+        .retryingOnAllErrors[Either[Throwable, B]](
+          params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
+          base.onError(zoneId, actionInfo, channel, ref, dailySummaries)) {
+          eitherT.value.run(input).attempt.flatMap {
+            case Left(error) =>
+              for {
+                now <- F.realTimeInstant.map(_.atZone(zoneId))
+                _ <- channel.send(
+                  ActionFailed(
+                    timestamp = now,
+                    actionInfo = actionInfo,
+                    givingUp = GivingUp(0, Duration.Zero),
+                    notes = base.failNotes(error),
+                    error = NJError(error)))
+                _ <- dailySummaries.update(_.incActionFail)
+              } yield Left(error)
+            case Right(outerRight) =>
+              outerRight match {
+                case Left(ex)     => F.raiseError(ex)
+                case r @ Right(_) => F.pure(r)
+              }
+          }
         }
-      }
-      .rethrow
-      .flatTap(b =>
-        for {
-          count <- ref.get
-          now <- F.realTimeInstant
-          _ <- channel.send(
-            ActionSucced(
-              actionInfo = actionInfo,
-              endAt = now.atZone(zoneId),
-              numRetries = count,
-              notes = base.succNotes(b)))
-          _ <- dailySummaries.update(_.incActionSucc)
-        } yield ())
-  }
+        .rethrow
+        .flatTap(b =>
+          for {
+            count <- ref.get
+            now <- F.realTimeInstant.map(_.atZone(zoneId))
+            _ <- channel.send(
+              ActionSucced(timestamp = now, actionInfo = actionInfo, numRetries = count, notes = base.succNotes(b)))
+            _ <- dailySummaries.update(_.incActionSucc)
+          } yield ())
+    }
 }

@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.datetime
 
-import java.time.{Instant, LocalTime, ZoneId}
+import java.time.{Instant, LocalTime, ZoneId, ZonedDateTime}
 import java.util.concurrent.TimeUnit
 import scala.compat.java8.DurationConverters._
 import scala.concurrent.duration.{Duration, FiniteDuration}
@@ -29,4 +29,7 @@ final case class NJLocalTimeRange(start: LocalTime, duration: FiniteDuration, zo
         (ld.compareTo(start) >= 0) || ld.isBefore(end)
       }
     }
+
+  def isInBetween(zonedDateTime: ZonedDateTime): Boolean =
+    isInBetween(zonedDateTime.toInstant)
 }

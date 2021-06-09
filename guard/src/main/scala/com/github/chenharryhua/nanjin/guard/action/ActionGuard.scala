@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.Functor
 import cats.data.{EitherT, Kleisli, Reader}
+import cats.effect.kernel.Temporal
 import cats.effect.{Async, Ref}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.guard.alert.{DailySummaries, ForYouInformation, NJEvent}
@@ -41,7 +41,8 @@ final class ActionGuard[F[_]](
 
   def retry[B](fb: F[B]): ActionRetry[F, Unit, B] = retry[Unit, B](())(_ => fb)
 
-  def fyi(msg: String)(implicit F: Functor[F]): F[Unit] = channel.send(ForYouInformation(msg)).void
+  def fyi(msg: String)(implicit F: Temporal[F]): F[Unit] =
+    F.realTimeInstant.flatMap(ts => channel.send(ForYouInformation(ts.atZone(zoneId), msg))).void
 
   def retryEither[A, B](input: A)(f: A => F[Either[Throwable, B]]): ActionRetryEither[F, A, B] =
     new ActionRetryEither[F, A, B](
