@@ -186,6 +186,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       service.publish(msg).whenA(params.alertMask.alertSucc)
 
     case ForYouInformation(_, message) => service.publish(message).void
+    case PassThrough(_, _)             => F.unit
   }
 }
 

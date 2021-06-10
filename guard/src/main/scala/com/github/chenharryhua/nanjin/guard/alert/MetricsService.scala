@@ -26,6 +26,8 @@ final private class MetricsService[F[_]](metrics: MetricRegistry)(implicit F: Sy
       F.blocking(metrics.counter(s"${actionKey(info, params)}.retry").inc())
     case _: ForYouInformation =>
       F.blocking(metrics.counter("fyi").inc())
+    case PassThrough(_, _) =>
+      F.blocking(metrics.counter("pass-through").inc())
     // timer
     case ActionFailed(at, info, params, _, _, _) =>
       F.blocking(metrics.timer(s"fail.${actionKey(info, params)}").update(JavaDuration.between(info.launchTime, at)))
