@@ -24,7 +24,7 @@ import scala.concurrent.duration._
 class RetryTest extends AnyFunSuite {
 
   val guard = TaskGuard[IO]("retry-guard")
-    .updateServiceConfig(_.withConstantDelay(1.second))
+    .updateConfig(_.withConstantDelay(1.second))
     .updateActionConfig(_.withConstantDelay(1.second).withFailAlertOn.withSuccAlertOn)
     .service("retry-test")
     .updateServiceConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds))

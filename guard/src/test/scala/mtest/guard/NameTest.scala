@@ -9,7 +9,7 @@ import org.scalatest.funsuite.AnyFunSuite
 class NameTest extends AnyFunSuite {
   test("should not change the names when update config") {
     val taskGuard: TaskGuard[IO] =
-      TaskGuard[IO]("task.name").updateServiceConfig(_.withHealthCheckDisabled).updateActionConfig(_.withSuccAlertOn)
+      TaskGuard[IO]("task.name").updateConfig(_.withHealthCheckDisabled).updateActionConfig(_.withSuccAlertOn)
     val serviceGuard = taskGuard.service("service.name").updateServiceConfig(_.withHealthCheckDisabled)
     val Vector(ActionSucced(_, a, _, _), ActionSucced(_, b, _, _), c) = serviceGuard.eventStream { ag =>
       ag("action.retry").updateActionConfig(_.withSuccAlertOn).retry(IO(1)).withSuccNotes((_, _) => "").run >>
@@ -19,10 +19,10 @@ class NameTest extends AnyFunSuite {
           .withFailNotes((_, _) => null)
           .run
     }.compile.toVector.unsafeRunSync()
-    assert(a.serviceInfo.appName == "task.name")
+    assert(a.serviceInfo.params.applicationName == "task.name")
     assert(a.serviceInfo.serviceName == "service.name")
     assert(a.actionName == "action.retry")
-    assert(b.serviceInfo.appName == "task.name")
+    assert(b.serviceInfo.params.applicationName == "task.name")
     assert(b.serviceInfo.serviceName == "service.name")
     assert(b.actionName == "action.retry.either")
     assert(c.isInstanceOf[ServiceStopped])

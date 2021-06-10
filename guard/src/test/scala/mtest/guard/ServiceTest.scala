@@ -39,7 +39,7 @@ class ServiceTest extends AnyFunSuite {
     DurationFormatter.default)
 
   val guard = TaskGuard[IO]("service-level-guard")
-    .updateServiceConfig(_.withConstantDelay(1.second))
+    .updateConfig(_.withConstantDelay(1.second))
     .updateActionConfig(_.withConstantDelay(1.second).withFailAlertOn.withSuccAlertOn)
     .service("service")
     .updateServiceConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds))
@@ -129,7 +129,7 @@ class ServiceTest extends AnyFunSuite {
   }
 
   test("combine two event streams") {
-    val guard = TaskGuard[IO]("two service").updateServiceConfig(_.withConstantDelay(2.hours))
+    val guard = TaskGuard[IO]("two service").updateConfig(_.withConstantDelay(2.hours))
     val s1    = guard.service("s1")
     val s2    = guard.service("s2")
 

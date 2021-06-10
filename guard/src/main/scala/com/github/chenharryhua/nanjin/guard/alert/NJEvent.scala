@@ -14,12 +14,11 @@ import java.util.UUID
 
 final case class ServiceInfo(
   serviceName: String,
-  appName: String,
   hostName: String,
   params: ServiceParams,
   id: UUID,
   launchTime: ZonedDateTime) {
-  def metricsKey: String = s"$serviceName.$appName"
+  def metricsKey: String = s"$serviceName.${params.applicationName}"
 }
 
 final case class ActionInfo(

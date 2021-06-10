@@ -24,6 +24,7 @@ import scala.concurrent.duration._
 @Lenses final case class NJHealthCheck private (interval: FiniteDuration, openTime: LocalTime, span: FiniteDuration)
 
 @Lenses final case class ServiceParams private (
+  applicationName: String,
   healthCheck: NJHealthCheck,
   retryPolicy: NJRetryPolicy,
   startUpEventDelay: FiniteDuration, // delay to sent out ServiceStarted event
@@ -34,8 +35,9 @@ import scala.concurrent.duration._
 
 object ServiceParams {
 
-  def default: ServiceParams =
+  def apply(applicationName: String): ServiceParams =
     ServiceParams(
+      applicationName = applicationName,
       healthCheck = NJHealthCheck(
         6.hours, // at least one health-check will show-up in business hour
         LocalTime.of(7, 0), // business open
@@ -54,7 +56,7 @@ sealed private[guard] trait ServiceConfigF[F]
 private object ServiceConfigF {
   implicit val functorServiceConfigF: Functor[ServiceConfigF] = cats.derived.semiauto.functor[ServiceConfigF]
 
-  final case class InitParams[K]() extends ServiceConfigF[K]
+  final case class InitParams[K](applicationName: String) extends ServiceConfigF[K]
   final case class WithHealthCheckInterval[K](value: FiniteDuration, cont: K) extends ServiceConfigF[K]
   final case class WithHealthCheckOpenTime[K](value: LocalTime, cont: K) extends ServiceConfigF[K]
   final case class WithHealthCheckSpan[K](value: FiniteDuration, cont: K) extends ServiceConfigF[K]
@@ -70,7 +72,7 @@ private object ServiceConfigF {
 
   val algebra: Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
-      case InitParams()                  => ServiceParams.default
+      case InitParams(appName)           => ServiceParams(appName)
       case WithHealthCheckInterval(v, c) => ServiceParams.healthCheck.composeLens(NJHealthCheck.interval).set(v)(c)
       case WithHealthCheckOpenTime(v, c) => ServiceParams.healthCheck.composeLens(NJHealthCheck.openTime).set(v)(c)
       case WithHealthCheckSpan(v, c)     => ServiceParams.healthCheck.composeLens(NJHealthCheck.span).set(v)(c)
@@ -117,5 +119,6 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
 
 private[guard] object ServiceConfig {
 
-  def default: ServiceConfig = new ServiceConfig(Fix(ServiceConfigF.InitParams[Fix[ServiceConfigF]]()))
+  def apply(applicationName: String): ServiceConfig = new ServiceConfig(
+    Fix(ServiceConfigF.InitParams[Fix[ServiceConfigF]](applicationName)))
 }

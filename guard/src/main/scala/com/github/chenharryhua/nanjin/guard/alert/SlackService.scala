@@ -26,7 +26,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
 
     case ServiceStarted(at, info) =>
       val msg = SlackNotification(
-        info.appName,
+        info.params.applicationName,
         ":rocket:",
         List(
           Attachment(
@@ -49,7 +49,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       }
       val msg =
         SlackNotification(
-          info.appName,
+          info.params.applicationName,
           s""":system_restore: The service experienced a panic and started to *recover* itself
              |$upcomingDelay 
              |full exception can be found in log file by *Error ID*""".stripMargin,
@@ -77,7 +77,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       val msg =
         if (info.params.isNormalStop)
           SlackNotification(
-            info.appName,
+            info.params.applicationName,
             s":octagonal_sign: The service was stopped.",
             List(
               Attachment(
@@ -94,7 +94,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
           )
         else
           SlackNotification(
-            info.appName,
+            info.params.applicationName,
             s":octagonal_sign: The service was unexpectedly stopped. It is a *FATAL* error",
             List(
               Attachment(
@@ -120,7 +120,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       val s4   = s"retried *${dailySummaries.actionRetries}*, "
       val s5   = s"succed *${dailySummaries.actionSucc}*"
       val msg = SlackNotification(
-        info.appName,
+        info.params.applicationName,
         s1 + s2 + s3 + s4 + s5,
         List(
           Attachment(
@@ -144,7 +144,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
     case ActionFailed(at, action, givingUp, notes, error) =>
       val msg =
         SlackNotification(
-          action.serviceInfo.appName,
+          action.serviceInfo.params.applicationName,
           notes.value,
           List(
             Attachment(
@@ -167,7 +167,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
     case ActionSucced(at, action, numRetries, notes) =>
       val msg =
         SlackNotification(
-          action.serviceInfo.appName,
+          action.serviceInfo.params.applicationName,
           notes.value,
           List(
             Attachment(

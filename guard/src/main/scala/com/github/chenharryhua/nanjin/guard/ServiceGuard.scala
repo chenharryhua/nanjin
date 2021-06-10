@@ -28,18 +28,14 @@ import java.util.UUID
   */
 // format: on
 
-final class ServiceGuard[F[_]](
-  serviceName: String,
-  appName: String,
-  serviceConfig: ServiceConfig,
-  actionConfig: ActionConfig) {
+final class ServiceGuard[F[_]](serviceName: String, serviceConfig: ServiceConfig, actionConfig: ActionConfig) {
   val params: ServiceParams = serviceConfig.evalConfig
 
   def updateServiceConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
-    new ServiceGuard[F](serviceName, appName, f(serviceConfig), actionConfig)
+    new ServiceGuard[F](serviceName, f(serviceConfig), actionConfig)
 
   def updateActionConfig(f: ActionConfig => ActionConfig): ServiceGuard[F] =
-    new ServiceGuard[F](serviceName, appName, serviceConfig, f(actionConfig))
+    new ServiceGuard[F](serviceName, serviceConfig, f(actionConfig))
 
   def eventStream[A](actionGuard: ActionGuard[F] => F[A])(implicit F: Async[F]): Stream[F, NJEvent] = {
     val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.zoneId))
@@ -48,7 +44,6 @@ final class ServiceGuard[F[_]](
       ts <- Stream.eval(F.realTimeInstant.map(_.atZone(params.zoneId)))
       serviceInfo = ServiceInfo(
         serviceName = serviceName,
-        appName = appName,
         hostName = InetAddress.getLocalHost.getHostName,
         params = params,
         id = UUID.randomUUID(),

@@ -13,7 +13,7 @@ import scala.concurrent.duration._
 class RetryEitherTest extends AnyFunSuite {
 
   val guard = TaskGuard[IO]("retry-either-guard-test")
-    .updateServiceConfig(_.withConstantDelay(1.second))
+    .updateConfig(_.withConstantDelay(1.second))
     .updateActionConfig(_.withConstantDelay(1.second).withFailAlertOn.withSuccAlertOn)
     .service("retry-either-test")
     .updateServiceConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds))
