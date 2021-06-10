@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.guard
 import cats.effect.syntax.all._
 import cats.effect.{Async, Ref}
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.guard.action.ActionGuard
 import com.github.chenharryhua.nanjin.guard.alert._
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams}
 import cron4s.Cron

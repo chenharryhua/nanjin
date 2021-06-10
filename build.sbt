@@ -3,7 +3,7 @@ scapegoatVersion in ThisBuild  := "1.3.11"
 parallelExecution in ThisBuild := false
 cancelable in Global           := true
 
-version in ThisBuild := "0.12.11-SNAPSHOT"
+version in ThisBuild := "0.12.12-SNAPSHOT"
 
 // generic
 val shapeless  = "2.3.7"

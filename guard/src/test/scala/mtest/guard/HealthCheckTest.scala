@@ -19,7 +19,7 @@ import scala.concurrent.duration._
 class HealthCheckTest extends AnyFunSuite {
   val guard = TaskGuard[IO]("health-check")
   test("should receive 3 health check event") {
-    val a :: b :: c :: d :: rest = guard
+    val a :: b :: c :: rest = guard
       .updateConfig(_.withZoneId(ZoneId.of("Australia/Sydney")))
       .service("normal")
       .updateConfig(
@@ -37,7 +37,6 @@ class HealthCheckTest extends AnyFunSuite {
     assert(a.isInstanceOf[ServiceStarted])
     assert(b.isInstanceOf[ServiceHealthCheck])
     assert(c.isInstanceOf[ServiceHealthCheck])
-    assert(d.isInstanceOf[ServiceHealthCheck])
   }
 
   test("success") {
