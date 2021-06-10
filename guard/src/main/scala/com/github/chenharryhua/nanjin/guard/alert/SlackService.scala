@@ -113,7 +113,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       service.publish(msg.asJson.noSpaces).void
 
     case ServiceHealthCheck(at, info, params, dailySummaries) =>
-      val base = NJLocalTime(LocalTime.of(params.dailySummaryReset, 0))
+      val base = NJLocalTime(LocalTime.of(params.taskParams.dailySummaryReset, 0))
       val s1   = s":gottarun: In past ${fmt.format(base.distance(at.toLocalTime))}, "
       val s2   = s"the service experienced *${dailySummaries.servicePanic}* panic, "
       val s3   = s"failed *${dailySummaries.actionFail}* actions, "
