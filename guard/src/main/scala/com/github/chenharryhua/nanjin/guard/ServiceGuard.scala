@@ -13,6 +13,7 @@ import eu.timepit.fs2cron.cron4s.Cron4sScheduler
 import fs2.Stream
 import fs2.concurrent.Channel
 
+import java.net.InetAddress
 import java.util.UUID
 
 // format: off
@@ -27,62 +28,53 @@ import java.util.UUID
   */
 // format: on
 
-final class ServiceGuard[F[_]](
-  serviceName: String,
-  appName: String,
-  serviceConfig: ServiceConfig,
-  actionConfig: ActionConfig) {
+final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) {
   val params: ServiceParams = serviceConfig.evalConfig
 
-  def updateServiceConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
-    new ServiceGuard[F](serviceName, appName, f(serviceConfig), actionConfig)
-
-  def updateActionConfig(f: ActionConfig => ActionConfig): ServiceGuard[F] =
-    new ServiceGuard[F](serviceName, appName, serviceConfig, f(actionConfig))
+  def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
+    new ServiceGuard[F](f(serviceConfig))
 
   def eventStream[A](actionGuard: ActionGuard[F] => F[A])(implicit F: Async[F]): Stream[F, NJEvent] = {
-    val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.zoneId))
+    val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))
     val cron: CronExpr                    = Cron.unsafeParse(s"0 0 ${params.dailySummaryReset} ? * *")
     for {
-      ts <- Stream.eval(F.realTimeInstant.map(_.atZone(params.zoneId)))
+      ts <- Stream.eval(F.realTimeInstant.map(_.atZone(params.taskParams.zoneId)))
       serviceInfo = ServiceInfo(
-        serviceName = serviceName,
-        appName = appName,
-        params = params,
+        hostName = InetAddress.getLocalHost.getHostName,
         id = UUID.randomUUID(),
         launchTime = ts)
       dailySummaries <- Stream.eval(Ref.of(DailySummaries.zero))
-      ssd = ServiceStarted(ts, serviceInfo)
+      ssd = ServiceStarted(ts, serviceInfo, params)
       event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
         val publisher = Stream.eval {
           val ret = retry.retryingOnAllErrors(
             params.retryPolicy.policy[F],
             (ex: Throwable, rd) =>
               for {
-                ts <- F.realTimeInstant.map(_.atZone(params.zoneId))
-                _ <- channel.send(ServicePanic(ts, serviceInfo, rd, UUID.randomUUID(), NJError(ex)))
+                ts <- F.realTimeInstant.map(_.atZone(params.taskParams.zoneId))
+                _ <- channel.send(ServicePanic(ts, serviceInfo, params, rd, UUID.randomUUID(), NJError(ex)))
                 _ <- dailySummaries.update(_.incServicePanic)
               } yield ()
           ) {
             val start_health = for {
               _ <- channel.send(ssd).delayBy(params.startUpEventDelay)
               _ <- dailySummaries.get.flatMap { ds =>
-                F.realTimeInstant.map(_.atZone(params.zoneId)).flatMap { ts =>
-                  channel.send(ServiceHealthCheck(ts, serviceInfo, ds))
+                F.realTimeInstant.map(_.atZone(params.taskParams.zoneId)).flatMap { ts =>
+                  channel.send(ServiceHealthCheck(ts, serviceInfo, params, ds))
                 }
               }.delayBy(params.healthCheck.interval).foreverM[Unit]
             } yield ()
             start_health.background.use(_ =>
               actionGuard(
                 new ActionGuard[F](
+                  serviceInfo = serviceInfo,
                   dailySummaries = dailySummaries,
                   channel = channel,
                   actionName = "anonymous",
-                  serviceInfo = serviceInfo,
-                  actionConfig = actionConfig))) *>
+                  actionConfig = ActionConfig(params)))) *>
               F.realTimeInstant
-                .map(_.atZone(params.zoneId))
-                .flatMap(ts => channel.send(ServiceStopped(ts, serviceInfo)))
+                .map(_.atZone(params.taskParams.zoneId))
+                .flatMap(ts => channel.send(ServiceStopped(ts, serviceInfo, params)))
           }
           ret.guarantee(channel.close.void)
         }

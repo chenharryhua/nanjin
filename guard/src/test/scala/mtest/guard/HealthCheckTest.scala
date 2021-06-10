@@ -3,27 +3,36 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.alert.{DailySummaries, ServiceHealthCheck, ServiceStarted}
+import com.github.chenharryhua.nanjin.guard.alert.{
+  ActionRetrying,
+  ActionSucced,
+  DailySummaries,
+  ServiceHealthCheck,
+  ServiceStarted
+}
 import org.scalatest.funsuite.AnyFunSuite
 import eu.timepit.refined.auto._
 
-import java.time.ZoneId
+import java.time.{LocalTime, ZoneId}
 import scala.concurrent.duration._
 
 class HealthCheckTest extends AnyFunSuite {
   val guard = TaskGuard[IO]("health-check")
   test("should receive 3 health check event") {
-    val Vector(a, b, c, d) = guard
+    val a :: b :: c :: d :: rest = guard
+      .updateConfig(_.withZoneId(ZoneId.of("Australia/Sydney")))
       .service("normal")
-      .updateServiceConfig(
+      .updateConfig(
         _.withHealthCheckInterval(1.second)
           .withStartUpDelay(1.second)
-          .withZoneId(ZoneId.of("Australia/Sydney"))
-          .withDailySummaryReset(1))
-      .eventStream(gd => gd.run(IO.never))
+          .withDailySummaryReset(1)
+          .withHealthCheckOpenTime(LocalTime.of(7, 0))
+          .withHealthCheckSpan(10.hour)
+          .withNormalStop)
+      .eventStream(gd => gd.updateConfig(_.withExponentialBackoff(1.second)).quietly(IO.never))
       .interruptAfter(5.second)
       .compile
-      .toVector
+      .toList
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStarted])
     assert(b.isInstanceOf[ServiceHealthCheck])
@@ -32,16 +41,16 @@ class HealthCheckTest extends AnyFunSuite {
   }
 
   test("success") {
-    val Vector(_, a, b, c, ServiceHealthCheck(_, _, ds)) = guard
+    val a :: b :: c :: ServiceHealthCheck(_, _, _, ds) :: rest = guard
       .service("success-test")
-      .updateServiceConfig(_.withHealthCheckInterval(1.second).withStartUpDelay(1.second))
-      .eventStream(gd => gd.run(IO(1)) >> gd.run(IO.never))
+      .updateConfig(_.withHealthCheckInterval(1.second).withStartUpDelay(1.second))
+      .eventStream(gd => gd.run(IO(1)) >> gd.loudly(IO.never))
       .interruptAfter(5.second)
       .compile
-      .toVector
+      .toList
       .unsafeRunSync()
-    assert(a.isInstanceOf[ServiceStarted])
-    assert(b.isInstanceOf[ServiceHealthCheck])
+    assert(a.isInstanceOf[ActionSucced])
+    assert(b.isInstanceOf[ServiceStarted])
     assert(c.isInstanceOf[ServiceHealthCheck])
     assert(ds.actionSucc == 1)
     assert(ds.actionRetries == 0)
@@ -50,21 +59,20 @@ class HealthCheckTest extends AnyFunSuite {
   }
 
   test("retry") {
-    val Vector(_, a, b, c, ServiceHealthCheck(_, _, ds)) = guard
+    val a :: b :: c :: ServiceHealthCheck(_, _, _, ds) :: rest = guard
       .service("failure-test")
-      .updateServiceConfig(
+      .updateConfig(
         _.withHealthCheckInterval(1.second)
           .withStartUpDelay(1.second)
           .withConstantDelay(1.hour)
           .withDailySummaryReset(23))
-      .eventStream(gd =>
-        gd.updateActionConfig(_.withMaxRetries(1)).run(IO.raiseError(new Exception)) >> gd.run(IO.never))
+      .eventStream(gd => gd.updateConfig(_.withMaxRetries(1)).run(IO.raiseError(new Exception)) >> gd.run(IO.never))
       .interruptAfter(5.second)
       .compile
-      .toVector
+      .toList
       .unsafeRunSync()
-    assert(a.isInstanceOf[ServiceStarted])
-    assert(b.isInstanceOf[ServiceHealthCheck])
+    assert(a.isInstanceOf[ActionRetrying])
+    assert(b.isInstanceOf[ServiceStarted])
     assert(c.isInstanceOf[ServiceHealthCheck])
     assert(ds.actionSucc == 0)
     assert(ds.actionRetries == 1)

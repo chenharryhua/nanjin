@@ -24,29 +24,32 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
 
   override def alert(event: NJEvent): F[Unit] = event match {
 
-    case ServiceStarted(at, info) =>
+    case ServiceStarted(at, info, params) =>
       val msg = SlackNotification(
-        info.appName,
+        params.taskParams.appName,
         ":rocket:",
         List(
           Attachment(
             "good",
             at.toInstant.toEpochMilli,
             List(
-              SlackField("Service", info.serviceName, short = true),
-              SlackField("Status", "(Re)Started", short = true))
+              SlackField("Service", params.serviceName, short = true),
+              SlackField("Host", info.hostName, short = true),
+              SlackField("Status", "(Re)Started", short = true),
+              SlackField("Time Zone", params.taskParams.zoneId.toString, short = true)
+            )
           ))
       ).asJson.noSpaces
       service.publish(msg).void
 
-    case ServicePanic(at, info, details, errorID, error) =>
+    case ServicePanic(at, info, params, details, errorID, error) =>
       val upcomingDelay: String = details.upcomingDelay.map(fmt.format) match {
         case None     => "should never see this" // never happen
         case Some(ts) => s"next attempt will happen in *$ts* meanwhile the service is *dysfunctional*."
       }
       val msg =
         SlackNotification(
-          info.appName,
+          params.taskParams.appName,
           s""":system_restore: The service experienced a panic and started to *recover* itself
              |$upcomingDelay 
              |full exception can be found in log file by *Error ID*""".stripMargin,
@@ -55,12 +58,13 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               "danger",
               at.toInstant.toEpochMilli,
               List(
-                SlackField("Service", info.serviceName, short = true),
+                SlackField("Service", params.serviceName, short = true),
+                SlackField("Host", info.hostName, short = true),
                 SlackField("Status", "Restarting", short = true),
                 SlackField("Launch Time", info.launchTime.toString, short = true),
                 SlackField("Cause", error.message, short = true),
                 SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
-                SlackField("Retry Policy", info.params.retryPolicy.policy[F].show, short = true),
+                SlackField("Retry Policy", params.retryPolicy.policy[F].show, short = true),
                 SlackField("Retries so far", details.retriesSoFar.toString, short = true),
                 SlackField("Cumulative Delay", fmt.format(details.cumulativeDelay), short = true),
                 SlackField("Error ID", errorID.toString, short = false)
@@ -69,18 +73,19 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
         ).asJson.noSpaces
       service.publish(msg).void
 
-    case ServiceStopped(at, info) =>
+    case ServiceStopped(at, info, params) =>
       val msg =
-        if (info.params.isNormalStop)
+        if (params.isNormalStop)
           SlackNotification(
-            info.appName,
+            params.taskParams.appName,
             s":octagonal_sign: The service was stopped.",
             List(
               Attachment(
                 "good",
                 at.toInstant.toEpochMilli,
                 List(
-                  SlackField("Service", info.serviceName, short = true),
+                  SlackField("Service", params.serviceName, short = true),
+                  SlackField("Host", info.hostName, short = true),
                   SlackField("Launch Time", info.launchTime.toString, short = true),
                   SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
                   SlackField("Status", "Stopped", short = true)
@@ -89,14 +94,15 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
           )
         else
           SlackNotification(
-            info.appName,
+            params.taskParams.appName,
             s":octagonal_sign: The service was unexpectedly stopped. It is a *FATAL* error",
             List(
               Attachment(
                 "danger",
                 at.toInstant.toEpochMilli,
                 List(
-                  SlackField("Service", info.serviceName, short = true),
+                  SlackField("Service", params.serviceName, short = true),
+                  SlackField("Host", info.hostName, short = true),
                   SlackField("Launch Time", info.launchTime.toString, short = true),
                   SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
                   SlackField("Status", "Stopped abnormally", short = true)
@@ -106,74 +112,78 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
 
       service.publish(msg.asJson.noSpaces).void
 
-    case ServiceHealthCheck(at, info, dailySummaries) =>
-      val base = NJLocalTime(LocalTime.of(info.params.dailySummaryReset, 0))
+    case ServiceHealthCheck(at, info, params, dailySummaries) =>
+      val base = NJLocalTime(LocalTime.of(params.dailySummaryReset, 0))
       val s1   = s":gottarun: In past ${fmt.format(base.distance(at.toLocalTime))}, "
       val s2   = s"the service experienced *${dailySummaries.servicePanic}* panic, "
       val s3   = s"failed *${dailySummaries.actionFail}* actions, "
       val s4   = s"retried *${dailySummaries.actionRetries}*, "
       val s5   = s"succed *${dailySummaries.actionSucc}*"
       val msg = SlackNotification(
-        info.appName,
+        params.taskParams.appName,
         s1 + s2 + s3 + s4 + s5,
         List(
           Attachment(
             "good",
             at.toInstant.toEpochMilli,
             List(
-              SlackField("Service", info.serviceName, short = true),
+              SlackField("Service", params.serviceName, short = true),
+              SlackField("Host", info.hostName, short = true),
               SlackField("HealthCheck Status", "Good", short = true),
               SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
-              SlackField("Next check will happen in", fmt.format(info.params.healthCheck.interval), short = true)
+              SlackField("Time Zone", params.taskParams.zoneId.toString, short = true),
+              SlackField("Next check will happen in", fmt.format(params.healthCheck.interval), short = true)
             )
           ))
       ).asJson.noSpaces
-      val ltr = NJLocalTimeRange(info.params.healthCheck.openTime, info.params.healthCheck.span, info.params.zoneId)
+      val ltr = NJLocalTimeRange(params.healthCheck.openTime, params.healthCheck.span, params.taskParams.zoneId)
       service.publish(msg).whenA(ltr.isInBetween(at))
 
-    case ActionRetrying(_, _, _, _) => F.unit
+    case ActionRetrying(_, _, _, _, _) => F.unit
 
-    case ActionFailed(at, action, givingUp, notes, error) =>
+    case ActionFailed(at, action, params, givingUp, notes, error) =>
       val msg =
         SlackNotification(
-          action.serviceInfo.appName,
+          params.serviceParams.taskParams.appName,
           notes.value,
           List(
             Attachment(
               "danger",
               at.toInstant.toEpochMilli,
               List(
-                SlackField("Service", action.serviceInfo.serviceName, short = true),
+                SlackField("Service", params.serviceParams.serviceName, short = true),
+                SlackField("Host", action.serviceInfo.hostName, short = true),
                 SlackField("Action", action.actionName, short = true),
                 SlackField("Took", fmt.format(action.launchTime, at), short = true),
                 SlackField("Cause", error.message, short = true),
                 SlackField("Retries", givingUp.totalRetries.toString, short = true),
-                SlackField("Retry Policy", action.params.retryPolicy.policy[F].show, short = true),
+                SlackField("Retry Policy", params.retryPolicy.policy[F].show, short = true),
                 SlackField("Action ID", action.id.toString, short = false)
               )
             ))
         ).asJson.noSpaces
-      service.publish(msg).whenA(action.params.alertMask.alertFail)
+      service.publish(msg).whenA(params.alertMask.alertFail)
 
-    case ActionSucced(at, action, numRetries, notes) =>
+    case ActionSucced(at, action, params, numRetries, notes) =>
       val msg =
         SlackNotification(
-          action.serviceInfo.appName,
+          params.serviceParams.taskParams.appName,
           notes.value,
           List(
             Attachment(
               "good",
               at.toInstant.toEpochMilli,
               List(
-                SlackField("Service", action.serviceInfo.serviceName, short = true),
+                SlackField("Service", params.serviceParams.serviceName, short = true),
+                SlackField("Host", action.serviceInfo.hostName, short = true),
                 SlackField("Action", action.actionName, short = true),
                 SlackField("Took", fmt.format(action.launchTime, at), short = true),
-                SlackField("Retries", s"$numRetries/${action.params.maxRetries}", short = true),
+                SlackField("Retries", s"$numRetries/${params.maxRetries}", short = true),
                 SlackField("Action ID", action.id.toString, short = false)
               )
             ))
         ).asJson.noSpaces
-      service.publish(msg).whenA(action.params.alertMask.alertSucc)
+      service.publish(msg).whenA(params.alertMask.alertSucc)
 
     case ForYouInformation(_, message) => service.publish(message).void
   }
