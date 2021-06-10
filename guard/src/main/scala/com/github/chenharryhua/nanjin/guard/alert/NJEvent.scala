@@ -15,6 +15,7 @@ import java.util.UUID
 final case class ServiceInfo(
   serviceName: String,
   appName: String,
+  hostName: String,
   params: ServiceParams,
   id: UUID,
   launchTime: ZonedDateTime) {

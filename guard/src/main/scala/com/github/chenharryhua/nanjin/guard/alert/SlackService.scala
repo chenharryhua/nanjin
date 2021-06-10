@@ -34,7 +34,10 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
             at.toInstant.toEpochMilli,
             List(
               SlackField("Service", info.serviceName, short = true),
-              SlackField("Status", "(Re)Started", short = true))
+              SlackField("Host", info.hostName, short = true),
+              SlackField("Status", "(Re)Started", short = true),
+              SlackField("Time Zone", info.params.zoneId.toString, short = true)
+            )
           ))
       ).asJson.noSpaces
       service.publish(msg).void
@@ -56,6 +59,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               at.toInstant.toEpochMilli,
               List(
                 SlackField("Service", info.serviceName, short = true),
+                SlackField("Host", info.hostName, short = true),
                 SlackField("Status", "Restarting", short = true),
                 SlackField("Launch Time", info.launchTime.toString, short = true),
                 SlackField("Cause", error.message, short = true),
@@ -81,6 +85,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
                 at.toInstant.toEpochMilli,
                 List(
                   SlackField("Service", info.serviceName, short = true),
+                  SlackField("Host", info.hostName, short = true),
                   SlackField("Launch Time", info.launchTime.toString, short = true),
                   SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
                   SlackField("Status", "Stopped", short = true)
@@ -97,6 +102,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
                 at.toInstant.toEpochMilli,
                 List(
                   SlackField("Service", info.serviceName, short = true),
+                  SlackField("Host", info.hostName, short = true),
                   SlackField("Launch Time", info.launchTime.toString, short = true),
                   SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
                   SlackField("Status", "Stopped abnormally", short = true)
@@ -122,8 +128,10 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
             at.toInstant.toEpochMilli,
             List(
               SlackField("Service", info.serviceName, short = true),
+              SlackField("Host", info.hostName, short = true),
               SlackField("HealthCheck Status", "Good", short = true),
               SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
+              SlackField("Time Zone", info.params.zoneId.toString, short = true),
               SlackField("Next check will happen in", fmt.format(info.params.healthCheck.interval), short = true)
             )
           ))
@@ -144,6 +152,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               at.toInstant.toEpochMilli,
               List(
                 SlackField("Service", action.serviceInfo.serviceName, short = true),
+                SlackField("Host", action.serviceInfo.hostName, short = true),
                 SlackField("Action", action.actionName, short = true),
                 SlackField("Took", fmt.format(action.launchTime, at), short = true),
                 SlackField("Cause", error.message, short = true),
@@ -166,6 +175,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               at.toInstant.toEpochMilli,
               List(
                 SlackField("Service", action.serviceInfo.serviceName, short = true),
+                SlackField("Host", action.serviceInfo.hostName, short = true),
                 SlackField("Action", action.actionName, short = true),
                 SlackField("Took", fmt.format(action.launchTime, at), short = true),
                 SlackField("Retries", s"$numRetries/${action.params.maxRetries}", short = true),

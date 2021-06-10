@@ -13,6 +13,7 @@ import eu.timepit.fs2cron.cron4s.Cron4sScheduler
 import fs2.Stream
 import fs2.concurrent.Channel
 
+import java.net.InetAddress
 import java.util.UUID
 
 // format: off
@@ -48,6 +49,7 @@ final class ServiceGuard[F[_]](
       serviceInfo = ServiceInfo(
         serviceName = serviceName,
         appName = appName,
+        hostName = InetAddress.getLocalHost.getHostName,
         params = params,
         id = UUID.randomUUID(),
         launchTime = ts)
