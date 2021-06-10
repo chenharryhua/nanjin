@@ -23,22 +23,20 @@ import scala.concurrent.duration._
 
 class RetryTest extends AnyFunSuite {
 
-  val guard = TaskGuard[IO]("retry-guard")
-    .updateConfig(_.withConstantDelay(1.second))
-    .updateActionConfig(_.withConstantDelay(1.second).withFailAlertOn.withSuccAlertOn)
+  val serviceGuard = TaskGuard[IO]("retry-guard")
     .service("retry-test")
-    .updateServiceConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds))
+    .updateConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds))
 
   val logging =
     SlackService(SimpleNotificationService.fake[IO]) |+| MetricsService[IO](new MetricRegistry()) |+| LogService[IO]
 
   test("should retry 2 times when operation fail") {
     var i = 0
-    val Vector(a, b, c, d) = guard
-      .updateServiceConfig(_.withStartUpDelay(1.hour)) // don't want to see start event
+    val Vector(a, b, c, d) = serviceGuard
+      .updateConfig(_.withNormalStop)
       .eventStream { gd =>
         gd("1-time-succ")("2-time-succ") // funny syntax
-          .updateActionConfig(_.withMaxRetries(3).withFullJitter(1.second))
+          .updateConfig(_.withMaxRetries(3).withFullJitter(1.second))
           .run(IO(if (i < 2) {
             i += 1; throw new Exception
           } else i))
@@ -54,13 +52,11 @@ class RetryTest extends AnyFunSuite {
   }
 
   test("should escalate to up level if retry failed") {
-    val Vector(a, b, c, d, e) = guard
-      .updateServiceConfig(
-        _.withStartUpDelay(1.hour).withConstantDelay(1.hour)
-      ) // don't want to see start event
+    val Vector(a, b, c, d, e) = serviceGuard
+      .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
         gd("escalate-after-3-time")
-          .updateActionConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
+          .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .retry(IO.raiseError(new Exception("oops")))
           .withSuccNotes((_, _: Int) => "")
           .withFailNotes((_, _) => "")

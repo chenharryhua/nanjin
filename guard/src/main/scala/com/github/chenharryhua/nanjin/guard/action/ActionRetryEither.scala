@@ -12,7 +12,7 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   NJEvent,
   ServiceInfo
 }
-import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams}
+import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import fs2.concurrent.Channel
 import retry.RetryDetails.GivingUp
 import retry.RetryPolicies
@@ -23,24 +23,23 @@ import scala.concurrent.duration.Duration
 /** When outer F[_] fails, return immedidately only retry when the inner Either is on the left branch
   */
 final class ActionRetryEither[F[_], A, B](
+  serviceInfo: ServiceInfo,
   dailySummaries: Ref[F, DailySummaries],
   channel: Channel[F, NJEvent],
   actionName: String,
-  serviceInfo: ServiceInfo,
-  actionConfig: ActionConfig,
+  params: ActionParams,
   input: A,
   eitherT: EitherT[Kleisli[F, A, *], Throwable, B],
   succ: Reader[(A, B), String],
   fail: Reader[(A, Throwable), String]) {
-  val params: ActionParams = actionConfig.evalConfig
 
   def withSuccNotes(succ: (A, B) => String): ActionRetryEither[F, A, B] =
     new ActionRetryEither[F, A, B](
+      serviceInfo = serviceInfo,
       dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
-      serviceInfo = serviceInfo,
-      actionConfig = actionConfig,
+      params = params,
       input = input,
       eitherT = eitherT,
       succ = Reader(succ.tupled),
@@ -48,11 +47,11 @@ final class ActionRetryEither[F[_], A, B](
 
   def withFailNotes(fail: (A, Throwable) => String): ActionRetryEither[F, A, B] =
     new ActionRetryEither[F, A, B](
+      serviceInfo = serviceInfo,
       dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
-      serviceInfo = serviceInfo,
-      actionConfig = actionConfig,
+      params = params,
       input = input,
       eitherT = eitherT,
       succ = succ,
@@ -61,29 +60,25 @@ final class ActionRetryEither[F[_], A, B](
   def run(implicit F: Async[F]): F[B] = Ref.of[F, Int](0).flatMap(internalRun)
 
   private def internalRun(ref: Ref[F, Int])(implicit F: Async[F]): F[B] =
-    F.realTimeInstant.map(_.atZone(serviceInfo.params.zoneId)).flatMap { ts =>
+    F.realTimeInstant.map(_.atZone(params.serviceParams.taskParams.zoneId)).flatMap { ts =>
       val actionInfo: ActionInfo =
-        ActionInfo(
-          actionName = actionName,
-          serviceInfo = serviceInfo,
-          params = params,
-          id = UUID.randomUUID(),
-          launchTime = ts)
+        ActionInfo(actionName = actionName, serviceInfo = serviceInfo, id = UUID.randomUUID(), launchTime = ts)
 
       val base = new ActionRetryBase[F, A, B](input, succ, fail)
 
       retry
         .retryingOnAllErrors[Either[Throwable, B]](
           params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
-          base.onError(actionInfo, channel, ref, dailySummaries)) {
+          base.onError(actionInfo, params, channel, ref, dailySummaries)) {
           eitherT.value.run(input).attempt.flatMap {
             case Left(error) =>
               for {
-                now <- F.realTimeInstant.map(_.atZone(serviceInfo.params.zoneId))
+                now <- F.realTimeInstant.map(_.atZone(params.serviceParams.taskParams.zoneId))
                 _ <- channel.send(
                   ActionFailed(
                     timestamp = now,
                     actionInfo = actionInfo,
+                    params = params,
                     givingUp = GivingUp(0, Duration.Zero),
                     notes = base.failNotes(error),
                     error = NJError(error)))
@@ -100,9 +95,14 @@ final class ActionRetryEither[F[_], A, B](
         .flatTap(b =>
           for {
             count <- ref.get
-            now <- F.realTimeInstant.map(_.atZone(serviceInfo.params.zoneId))
+            now <- F.realTimeInstant.map(_.atZone(params.serviceParams.taskParams.zoneId))
             _ <- channel.send(
-              ActionSucced(timestamp = now, actionInfo = actionInfo, numRetries = count, notes = base.succNotes(b)))
+              ActionSucced(
+                timestamp = now,
+                actionInfo = actionInfo,
+                params = params,
+                numRetries = count,
+                notes = base.succNotes(b)))
             _ <- dailySummaries.update(_.incActionSucc)
           } yield ())
     }

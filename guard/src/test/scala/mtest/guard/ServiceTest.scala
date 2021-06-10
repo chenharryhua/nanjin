@@ -39,17 +39,15 @@ class ServiceTest extends AnyFunSuite {
     DurationFormatter.default)
 
   val guard = TaskGuard[IO]("service-level-guard")
-    .updateConfig(_.withConstantDelay(1.second))
-    .updateActionConfig(_.withConstantDelay(1.second).withFailAlertOn.withSuccAlertOn)
     .service("service")
-    .updateServiceConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds))
+    .updateConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds))
 
   val metrics = new MetricRegistry
   val logging = SlackService(SimpleNotificationService.fake[IO]) |+| MetricsService[IO](metrics) |+| LogService[IO]
 
   test("should stopped if the operation normally exits") {
     val Vector(a, b, c) = guard
-      .updateServiceConfig(_.withHealthCheckDisabled.withStartUpDelay(1.second).withNormalStop)
+      .updateConfig(_.withStartUpDelay(0.second))
       .eventStream(gd => gd("normal-exit-action").max(10).magpie(IO(1))(_ => null).delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
@@ -64,10 +62,10 @@ class ServiceTest extends AnyFunSuite {
 
   test("escalate to up level if retry failed") {
     val Vector(a, b, c, d, e) = guard
-      .updateServiceConfig(_.withStartUpDelay(1.hour).withConstantDelay(1.hour))
+      .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
         gd("escalate-after-3-time")
-          .updateActionConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
+          .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .croak(IO.raiseError(new Exception("oops")))(_ => null)
       }
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
@@ -86,13 +84,13 @@ class ServiceTest extends AnyFunSuite {
   }
 
   test("should receive 3 health check event") {
-    val Vector(a, b, c, d) = guard
-      .updateServiceConfig(_.withHealthCheckInterval(1.second).withStartUpDelay(1.second))
+    val a :: b :: c :: d :: rest = guard
+      .updateConfig(_.withHealthCheckInterval(1.second).withStartUpDelay(0.1.second))
       .eventStream(_.run(IO.never))
       .observe(_.evalMap(m => logging.alert(m) >> IO.println(m.show)).drain)
       .interruptAfter(5.second)
       .compile
-      .toVector
+      .toList
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStarted])
     assert(b.isInstanceOf[ServiceHealthCheck])
@@ -102,7 +100,6 @@ class ServiceTest extends AnyFunSuite {
 
   test("for your information") {
     val Vector(a) = guard
-      .updateServiceConfig(_.withStartUpDelay(2.hours))
       .eventStream(_.fyi("hello, world") >> IO.never)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
@@ -129,7 +126,7 @@ class ServiceTest extends AnyFunSuite {
   }
 
   test("combine two event streams") {
-    val guard = TaskGuard[IO]("two service").updateConfig(_.withConstantDelay(2.hours))
+    val guard = TaskGuard[IO]("two service")
     val s1    = guard.service("s1")
     val s2    = guard.service("s2")
 
@@ -162,7 +159,7 @@ class ServiceTest extends AnyFunSuite {
     val s     = guard.service("metrics-service")
     s.eventStream { gd =>
       (gd("metrics-action-fail")
-        .updateActionConfig(_.withConstantDelay(10.milliseconds))
+        .updateConfig(_.withConstantDelay(10.milliseconds))
         .retry(IO.raiseError(new Exception))
         .run)
         .replicateA(20)

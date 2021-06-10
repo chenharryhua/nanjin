@@ -9,7 +9,7 @@ import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
 
-import java.time.{LocalTime, ZoneId}
+import java.time.LocalTime
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
 
@@ -24,20 +24,21 @@ import scala.concurrent.duration._
 @Lenses final case class NJHealthCheck private (interval: FiniteDuration, openTime: LocalTime, span: FiniteDuration)
 
 @Lenses final case class ServiceParams private (
-  applicationName: String,
+  serviceName: String,
+  taskParams: TaskParams,
   healthCheck: NJHealthCheck,
   retryPolicy: NJRetryPolicy,
   startUpEventDelay: FiniteDuration, // delay to sent out ServiceStarted event
   isNormalStop: Boolean, // treat stop event as normal stop or abnormal stop
-  zoneId: ZoneId,
   dailySummaryReset: Int // 0 - 23
 )
 
 object ServiceParams {
 
-  def apply(applicationName: String): ServiceParams =
+  def apply(serviceName: String, taskParams: TaskParams): ServiceParams =
     ServiceParams(
-      applicationName = applicationName,
+      serviceName = serviceName,
+      taskParams = taskParams,
       healthCheck = NJHealthCheck(
         6.hours, // at least one health-check will show-up in business hour
         LocalTime.of(7, 0), // business open
@@ -46,7 +47,6 @@ object ServiceParams {
       retryPolicy = ConstantDelay(30.seconds),
       startUpEventDelay = 15.seconds,
       isNormalStop = false,
-      zoneId = ZoneId.systemDefault(),
       dailySummaryReset = 0 // midnight
     )
 }
@@ -56,7 +56,7 @@ sealed private[guard] trait ServiceConfigF[F]
 private object ServiceConfigF {
   implicit val functorServiceConfigF: Functor[ServiceConfigF] = cats.derived.semiauto.functor[ServiceConfigF]
 
-  final case class InitParams[K](applicationName: String) extends ServiceConfigF[K]
+  final case class InitParams[K](serviceName: String, taskParams: TaskParams) extends ServiceConfigF[K]
   final case class WithHealthCheckInterval[K](value: FiniteDuration, cont: K) extends ServiceConfigF[K]
   final case class WithHealthCheckOpenTime[K](value: LocalTime, cont: K) extends ServiceConfigF[K]
   final case class WithHealthCheckSpan[K](value: FiniteDuration, cont: K) extends ServiceConfigF[K]
@@ -67,19 +67,17 @@ private object ServiceConfigF {
 
   final case class WithNormalStop[K](value: Boolean, cont: K) extends ServiceConfigF[K]
 
-  final case class WithZoneId[K](value: ZoneId, cont: K) extends ServiceConfigF[K]
   final case class WithDailySummaryReset[K](value: Int, cont: K) extends ServiceConfigF[K]
 
   val algebra: Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
-      case InitParams(appName)           => ServiceParams(appName)
+      case InitParams(s, t)              => ServiceParams(s, t)
       case WithHealthCheckInterval(v, c) => ServiceParams.healthCheck.composeLens(NJHealthCheck.interval).set(v)(c)
       case WithHealthCheckOpenTime(v, c) => ServiceParams.healthCheck.composeLens(NJHealthCheck.openTime).set(v)(c)
       case WithHealthCheckSpan(v, c)     => ServiceParams.healthCheck.composeLens(NJHealthCheck.span).set(v)(c)
       case WithRetryPolicy(v, c)         => ServiceParams.retryPolicy.set(v)(c)
       case WithStartUpDelay(v, c)        => ServiceParams.startUpEventDelay.set(v)(c)
       case WithNormalStop(v, c)          => ServiceParams.isNormalStop.set(v)(c)
-      case WithZoneId(v, c)              => ServiceParams.zoneId.set(v)(c)
       case WithDailySummaryReset(v, c)   => ServiceParams.dailySummaryReset.set(v)(c)
     }
 }
@@ -108,9 +106,6 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withNormalStop: ServiceConfig =
     ServiceConfig(Fix(WithNormalStop(value = true, value)))
 
-  def withZoneId(zoneId: ZoneId): ServiceConfig =
-    ServiceConfig(Fix(WithZoneId(zoneId, value)))
-
   def withDailySummaryReset(hour: Refined[Int, And[GreaterEqual[W.`0`.T], LessEqual[W.`23`.T]]]): ServiceConfig =
     ServiceConfig(Fix(WithDailySummaryReset(hour.value, value)))
 
@@ -119,6 +114,6 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
 
 private[guard] object ServiceConfig {
 
-  def apply(applicationName: String): ServiceConfig = new ServiceConfig(
-    Fix(ServiceConfigF.InitParams[Fix[ServiceConfigF]](applicationName)))
+  def apply(serviceName: String, taskParams: TaskParams): ServiceConfig = new ServiceConfig(
+    Fix(ServiceConfigF.InitParams[Fix[ServiceConfigF]](serviceName, taskParams)))
 }

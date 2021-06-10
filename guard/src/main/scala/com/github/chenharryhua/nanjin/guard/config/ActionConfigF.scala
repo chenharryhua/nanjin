@@ -31,6 +31,7 @@ final case class FullJitter(value: FiniteDuration) extends NJRetryPolicy
 @Lenses final case class AlertMask private (alertSucc: Boolean, alertFail: Boolean)
 
 @Lenses final case class ActionParams private (
+  serviceParams: ServiceParams,
   alertMask: AlertMask, // whether display succNotes and failNotes
   maxRetries: Int,
   retryPolicy: NJRetryPolicy
@@ -38,7 +39,8 @@ final case class FullJitter(value: FiniteDuration) extends NJRetryPolicy
 
 object ActionParams {
 
-  def default: ActionParams = ActionParams(
+  def apply(serviceParams: ServiceParams): ActionParams = ActionParams(
+    serviceParams = serviceParams,
     alertMask = AlertMask(alertSucc = false, alertFail = true),
     maxRetries = 3,
     retryPolicy = ConstantDelay(10.seconds)
@@ -50,7 +52,7 @@ sealed private[guard] trait ActionConfigF[F]
 private object ActionConfigF {
   implicit val functorActionConfigF: Functor[ActionConfigF] = cats.derived.semiauto.functor[ActionConfigF]
 
-  final case class InitParam[K]() extends ActionConfigF[K]
+  final case class InitParam[K](serviceParams: ServiceParams) extends ActionConfigF[K]
 
   final case class WithMaxRetries[K](value: Int, cont: K) extends ActionConfigF[K]
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends ActionConfigF[K]
@@ -60,7 +62,7 @@ private object ActionConfigF {
 
   val algebra: Algebra[ActionConfigF, ActionParams] =
     Algebra[ActionConfigF, ActionParams] {
-      case InitParam()             => ActionParams.default
+      case InitParam(v)            => ActionParams(v)
       case WithRetryPolicy(v, c)   => ActionParams.retryPolicy.set(v)(c)
       case WithMaxRetries(v, c)    => ActionParams.maxRetries.set(v)(c)
       case WithAlertMaskSucc(v, c) => ActionParams.alertMask.composeLens(AlertMask.alertSucc).set(v)(c)
@@ -96,5 +98,7 @@ final case class ActionConfig private (value: Fix[ActionConfigF]) {
 }
 
 private[guard] object ActionConfig {
-  val default: ActionConfig = new ActionConfig(Fix(ActionConfigF.InitParam[Fix[ActionConfigF]]()))
+
+  def apply(serviceParams: ServiceParams): ActionConfig = new ActionConfig(
+    Fix(ActionConfigF.InitParam[Fix[ActionConfigF]](serviceParams)))
 }
