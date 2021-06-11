@@ -7,7 +7,7 @@ import io.circe.shapes._
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import retry.RetryDetails
-import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
+import retry.RetryDetails.WillDelayAndRetry
 
 import java.time.ZonedDateTime
 import java.util.UUID
@@ -92,7 +92,9 @@ final case class ServiceHealthCheck(
   timestamp: ZonedDateTime,
   serviceInfo: ServiceInfo,
   params: ServiceParams,
-  dailySummaries: DailySummaries
+  dailySummaries: DailySummaries,
+  totalMemory: Long,
+  freeMemory: Long
 ) extends ServiceEvent
 
 sealed trait ActionEvent extends NJEvent {

@@ -22,6 +22,8 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
   F: Sync[F])
     extends AlertService[F] {
 
+  private val OneMB: Long = 1024L * 1024L
+
   override def alert(event: NJEvent): F[Unit] = event match {
 
     case ServiceStarted(at, info, params) =>
@@ -112,7 +114,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
 
       service.publish(msg.asJson.noSpaces).void
 
-    case ServiceHealthCheck(at, info, params, dailySummaries) =>
+    case ServiceHealthCheck(at, info, params, dailySummaries, totalMemory, freeMemory) =>
       val base = NJLocalTime(LocalTime.of(params.taskParams.dailySummaryReset, 0))
       val s1   = s":gottarun: In past ${fmt.format(base.distance(at.toLocalTime))}, "
       val s2   = s"the service experienced *${dailySummaries.servicePanic}* panic, "
@@ -129,6 +131,8 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
             List(
               SlackField("Service", params.serviceName, short = true),
               SlackField("Host", info.hostName, short = true),
+              SlackField("Total Memory", s"${totalMemory / OneMB} MB", short = true),
+              SlackField("Free Memory", s"${freeMemory / OneMB} MB", short = true),
               SlackField("HealthCheck Status", "Good", short = true),
               SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
               SlackField("Time Zone", params.taskParams.zoneId.toString, short = true),
