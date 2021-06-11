@@ -43,7 +43,7 @@ object NJError {
     NJError(ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), ex)
 }
 
-final case class DailySummaries(actionSucc: Int, actionFail: Int, actionRetries: Int, servicePanic: Int) {
+final case class DailySummaries private (actionSucc: Int, actionFail: Int, actionRetries: Int, servicePanic: Int) {
   def incServicePanic: DailySummaries  = copy(servicePanic = servicePanic + 1)
   def incActionSucc: DailySummaries    = copy(actionSucc = actionSucc + 1)
   def incActionFail: DailySummaries    = copy(actionFail = actionFail + 1)

@@ -29,7 +29,7 @@ object TaskParams {
 sealed private[guard] trait TaskConfigF[F]
 
 private object TaskConfigF {
-  implicit val functorServiceConfigF: Functor[TaskConfigF] = cats.derived.semiauto.functor[TaskConfigF]
+  implicit val functorTaskConfigF: Functor[TaskConfigF] = cats.derived.semiauto.functor[TaskConfigF]
 
   final case class InitParams[K](applicationName: String) extends TaskConfigF[K]
 
