@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
 import io.circe.generic.auto._
 import io.circe.syntax._
+import squants.information.{Bytes, Gigabytes, Megabytes}
 
 import java.time.LocalTime
 
@@ -21,8 +22,6 @@ final private case class SlackNotification(username: String, text: String, attac
 final private class SlackService[F[_]](service: SimpleNotificationService[F], fmt: DurationFormatter)(implicit
   F: Sync[F])
     extends AlertService[F] {
-
-  private val OneMB: Long = 1024L * 1024L
 
   override def alert(event: NJEvent): F[Unit] = event match {
 
@@ -131,8 +130,8 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
             List(
               SlackField("Service", params.serviceName, short = true),
               SlackField("Host", info.hostName, short = true),
-              SlackField("Total Memory", s"${totalMemory / OneMB} MB", short = true),
-              SlackField("Free Memory", s"${freeMemory / OneMB} MB", short = true),
+              SlackField("Total Memory", Megabytes(totalMemory / (1024 * 1024)).toString(Gigabytes), short = true),
+              SlackField("Free Memory", Megabytes(freeMemory / (1024 * 1024)).toString(Gigabytes), short = true),
               SlackField("HealthCheck Status", "Good", short = true),
               SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
               SlackField("Time Zone", params.taskParams.zoneId.toString, short = true),

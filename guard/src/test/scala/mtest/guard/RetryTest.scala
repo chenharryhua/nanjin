@@ -74,4 +74,17 @@ class RetryTest extends AnyFunSuite {
     assert(d.isInstanceOf[ActionFailed])
     assert(e.isInstanceOf[ServicePanic])
   }
+  test("cancellation") {
+    val Vector(a, b) = serviceGuard
+      .updateConfig(_.withConstantDelay(1.hour))
+      .eventStream(_("cancel").quietly(IO.never).timeout(2.seconds))
+      .observe(_.evalMap(logging.alert).drain)
+      .interruptAfter(5.seconds)
+      .compile
+      .toVector
+      .unsafeRunSync()
+
+    assert(a.asInstanceOf[ActionFailed].error.message == "Exception: the action was cancelled")
+    assert(b.isInstanceOf[ServicePanic])
+  }
 }
