@@ -70,12 +70,14 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) {
                   dailySummaries = dailySummaries,
                   channel = channel,
                   actionName = "anonymous",
-                  actionConfig = ActionConfig(params)))) *>
+                  actionConfig = ActionConfig(params))))
+          }
+
+          ret.guarantee(
+            F.uncancelable(_ =>
               F.realTimeInstant
                 .map(_.atZone(params.taskParams.zoneId))
-                .flatMap(ts => channel.send(ServiceStopped(ts, serviceInfo, params)))
-          }
-          ret.guarantee(channel.close.void)
+                .flatMap(ts => channel.send(ServiceStopped(ts, serviceInfo, params))) *> channel.close.void))
         }
         channel.stream
           .concurrently(publisher)

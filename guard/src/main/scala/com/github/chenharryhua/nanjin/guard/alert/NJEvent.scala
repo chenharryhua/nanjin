@@ -112,7 +112,7 @@ final case class ActionFailed(
   timestamp: ZonedDateTime,
   actionInfo: ActionInfo,
   params: ActionParams,
-  givingUp: GivingUp,
+  numRetries: Int, // number of retries before giving up
   notes: Notes, // failure notes
   error: NJError
 ) extends ActionEvent

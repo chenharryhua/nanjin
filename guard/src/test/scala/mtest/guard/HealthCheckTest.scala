@@ -28,7 +28,7 @@ class HealthCheckTest extends AnyFunSuite {
           .withHealthCheckOpenTime(LocalTime.of(7, 0))
           .withHealthCheckSpan(10.hour)
           .withNormalStop)
-      .eventStream(gd => gd.updateConfig(_.withExponentialBackoff(1.second)).quietly(IO.never))
+      .eventStream(gd => gd.updateConfig(_.withExponentialBackoff(1.second)).quietly(IO.never[Int]))
       .interruptAfter(5.second)
       .compile
       .toList
