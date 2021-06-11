@@ -9,6 +9,8 @@ import fs2.concurrent.Channel
 import retry.RetryDetails
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
+import java.time.ZonedDateTime
+
 private class ActionRetryBase[F[_], A, B](
   actionInfo: ActionInfo,
   ref: Ref[F, Int],
@@ -22,11 +24,14 @@ private class ActionRetryBase[F[_], A, B](
   def failNotes(error: Throwable): Notes = Notes(fail.run((input, error)))
   def succNotes(b: B): Notes             = Notes(succ.run((input, b)))
 
+  private val realZonedDateTime: F[ZonedDateTime] =
+    F.realTimeInstant.map(_.atZone(params.serviceParams.taskParams.zoneId))
+
   def onError(error: Throwable, details: RetryDetails): F[Unit] =
     details match {
       case wdr: WillDelayAndRetry =>
         for {
-          now <- F.realTimeInstant.map(_.atZone(params.serviceParams.taskParams.zoneId))
+          now <- realZonedDateTime
           _ <- channel.send(ActionRetrying(now, actionInfo, params, wdr, NJError(error)))
           _ <- ref.update(_ + 1)
           _ <- dailySummaries.update(_.incActionRetries)
@@ -39,7 +44,7 @@ private class ActionRetryBase[F[_], A, B](
       val error = new Exception("the action was cancelled")
       for {
         count <- ref.get
-        now <- F.realTimeInstant.map(_.atZone(params.serviceParams.taskParams.zoneId))
+        now <- realZonedDateTime
         _ <- dailySummaries.update(_.incActionFail)
         _ <- channel.send(
           ActionFailed(
@@ -54,7 +59,7 @@ private class ActionRetryBase[F[_], A, B](
     case Outcome.Errored(error) =>
       for {
         count <- ref.get
-        now <- F.realTimeInstant.map(_.atZone(params.serviceParams.taskParams.zoneId))
+        now <- realZonedDateTime
         _ <- dailySummaries.update(_.incActionFail)
         _ <- channel.send(
           ActionFailed(
@@ -69,7 +74,7 @@ private class ActionRetryBase[F[_], A, B](
     case Outcome.Succeeded(fb) =>
       for {
         count <- ref.get // number of retries before success
-        now <- F.realTimeInstant.map(_.atZone(params.serviceParams.taskParams.zoneId))
+        now <- realZonedDateTime
         b <- fb
         _ <- dailySummaries.update(_.incActionSucc)
         _ <- channel.send(
