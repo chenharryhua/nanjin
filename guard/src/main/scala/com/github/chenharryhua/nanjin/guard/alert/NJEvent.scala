@@ -7,7 +7,7 @@ import io.circe.shapes._
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import retry.RetryDetails
-import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
+import retry.RetryDetails.WillDelayAndRetry
 
 import java.time.ZonedDateTime
 import java.util.UUID
@@ -43,7 +43,7 @@ object NJError {
     NJError(ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), ex)
 }
 
-final case class DailySummaries(actionSucc: Int, actionFail: Int, actionRetries: Int, servicePanic: Int) {
+final case class DailySummaries private (actionSucc: Int, actionFail: Int, actionRetries: Int, servicePanic: Int) {
   def incServicePanic: DailySummaries  = copy(servicePanic = servicePanic + 1)
   def incActionSucc: DailySummaries    = copy(actionSucc = actionSucc + 1)
   def incActionFail: DailySummaries    = copy(actionFail = actionFail + 1)
@@ -92,7 +92,9 @@ final case class ServiceHealthCheck(
   timestamp: ZonedDateTime,
   serviceInfo: ServiceInfo,
   params: ServiceParams,
-  dailySummaries: DailySummaries
+  dailySummaries: DailySummaries,
+  totalMemory: Long,
+  freeMemory: Long
 ) extends ServiceEvent
 
 sealed trait ActionEvent extends NJEvent {
@@ -112,7 +114,7 @@ final case class ActionFailed(
   timestamp: ZonedDateTime,
   actionInfo: ActionInfo,
   params: ActionParams,
-  givingUp: GivingUp,
+  numRetries: Int, // number of retries before giving up
   notes: Notes, // failure notes
   error: NJError
 ) extends ActionEvent

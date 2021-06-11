@@ -45,8 +45,8 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) {
       dailySummaries <- Stream.eval(Ref.of(DailySummaries.zero))
       ssd = ServiceStarted(ts, serviceInfo, params)
       event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
-        val publisher = Stream.eval {
-          val ret = retry.retryingOnAllErrors(
+        val publisher: Stream[F, A] = Stream.eval {
+          val service: F[A] = retry.retryingOnAllErrors(
             params.retryPolicy.policy[F],
             (ex: Throwable, rd) =>
               for {
@@ -55,11 +55,19 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) {
                 _ <- dailySummaries.update(_.incServicePanic)
               } yield ()
           ) {
+
             val start_health = for {
               _ <- channel.send(ssd).delayBy(params.startUpEventDelay)
               _ <- dailySummaries.get.flatMap { ds =>
                 F.realTimeInstant.map(_.atZone(params.taskParams.zoneId)).flatMap { ts =>
-                  channel.send(ServiceHealthCheck(ts, serviceInfo, params, ds))
+                  channel.send(ServiceHealthCheck(
+                    timestamp = ts,
+                    serviceInfo = serviceInfo,
+                    params = params,
+                    dailySummaries = ds,
+                    totalMemory = Runtime.getRuntime.totalMemory,
+                    freeMemory = Runtime.getRuntime.freeMemory
+                  ))
                 }
               }.delayBy(params.healthCheck.interval).foreverM[Unit]
             } yield ()
@@ -70,12 +78,15 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) {
                   dailySummaries = dailySummaries,
                   channel = channel,
                   actionName = "anonymous",
-                  actionConfig = ActionConfig(params)))) *>
+                  actionConfig = ActionConfig(params))))
+          }
+
+          service.guarantee(
+            F.uncancelable(_ =>
               F.realTimeInstant
                 .map(_.atZone(params.taskParams.zoneId))
-                .flatMap(ts => channel.send(ServiceStopped(ts, serviceInfo, params)))
-          }
-          ret.guarantee(channel.close.void)
+                .flatMap(ts => channel.send(ServiceStopped(ts, serviceInfo, params))) *> channel.close)
+              .void)
         }
         channel.stream
           .concurrently(publisher)

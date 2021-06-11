@@ -87,7 +87,7 @@ class ServiceTest extends AnyFunSuite {
     val a :: b :: c :: d :: rest = guard
       .updateConfig(_.withHealthCheckInterval(1.second).withStartUpDelay(0.1.second))
       .eventStream(_.run(IO.never))
-      .observe(_.evalMap(m => logging.alert(m) >> IO.println(m.show)).drain)
+      .observe(_.evalMap(m => logging.alert(m)).drain)
       .interruptAfter(5.second)
       .compile
       .toList
