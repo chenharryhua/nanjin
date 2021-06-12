@@ -94,6 +94,9 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withConstantDelay(delay: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(ConstantDelay(delay), value)))
 
+  def withJitter(maxDelay: FiniteDuration): ServiceConfig =
+    ServiceConfig(Fix(WithRetryPolicy(Jitter(maxDelay), value)))
+
   def withNormalStop: ServiceConfig =
     ServiceConfig(Fix(WithNormalStop(value = true, value)))
 

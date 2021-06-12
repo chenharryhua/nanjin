@@ -47,7 +47,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("should stopped if the operation normally exits") {
     val Vector(a, b, c) = guard
-      .updateConfig(_.withStartUpDelay(0.second))
+      .updateConfig(_.withStartUpDelay(0.second).withJitter(3.second))
       .eventStream(gd => gd("normal-exit-action").max(10).magpie(IO(1))(_ => null).delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone

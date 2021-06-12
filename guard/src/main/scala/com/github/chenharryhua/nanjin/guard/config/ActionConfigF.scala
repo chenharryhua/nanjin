@@ -1,20 +1,34 @@
 package com.github.chenharryhua.nanjin.guard.config
 
+import cats.syntax.show._
 import cats.{Applicative, Functor, Show}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
+import retry.PolicyDecision.DelayAndRetry
 import retry.{RetryPolicies, RetryPolicy}
 
+import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
+import scala.util.Random
 
 sealed abstract class NJRetryPolicy {
+  private def jitter[F[_]: Applicative](maxDelay: FiniteDuration): RetryPolicy[F] =
+    RetryPolicy.liftWithShow(
+      { _ =>
+        val delay = Random.nextInt(maxDelay.toMillis.toInt).toLong
+        DelayAndRetry(new FiniteDuration(delay, TimeUnit.MILLISECONDS))
+      },
+      show"Jitter(maxDelay=$maxDelay)"
+    )
 
   final def policy[F[_]](implicit F: Applicative[F]): RetryPolicy[F] = this match {
     case ConstantDelay(value)      => RetryPolicies.constantDelay(value)
     case ExponentialBackoff(value) => RetryPolicies.exponentialBackoff(value)
     case FibonacciBackoff(value)   => RetryPolicies.fibonacciBackoff(value)
     case FullJitter(value)         => RetryPolicies.fullJitter(value)
+    // https://cb372.github.io/cats-retry/docs/policies.html#writing-your-own-policy
+    case Jitter(value) => jitter[F](value)
   }
   def value: FiniteDuration
 }
@@ -27,6 +41,7 @@ final case class ConstantDelay(value: FiniteDuration) extends NJRetryPolicy
 final case class ExponentialBackoff(value: FiniteDuration) extends NJRetryPolicy
 final case class FibonacciBackoff(value: FiniteDuration) extends NJRetryPolicy
 final case class FullJitter(value: FiniteDuration) extends NJRetryPolicy
+final case class Jitter(value: FiniteDuration) extends NJRetryPolicy
 
 @Lenses final case class AlertMask private (alertSucc: Boolean, alertFail: Boolean)
 
@@ -93,6 +108,9 @@ final case class ActionConfig private (value: Fix[ActionConfigF]) {
 
   def withFullJitter(delay: FiniteDuration): ActionConfig =
     ActionConfig(Fix(WithRetryPolicy(FullJitter(delay), value)))
+
+  def withJitter(maxDelay: FiniteDuration): ActionConfig =
+    ActionConfig(Fix(WithRetryPolicy(Jitter(maxDelay), value)))
 
   def evalConfig: ActionParams = scheme.cata(algebra).apply(value)
 }
