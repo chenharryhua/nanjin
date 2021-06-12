@@ -428,4 +428,3 @@ lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
     .aggregate(common, datetime, salesforce, aws, guard, messages, pipes, kafka, database, spark)
-
