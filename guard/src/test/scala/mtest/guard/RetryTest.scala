@@ -87,4 +87,23 @@ class RetryTest extends AnyFunSuite {
     assert(a.asInstanceOf[ActionFailed].error.message == "Exception: the action was cancelled")
     assert(b.isInstanceOf[ServicePanic])
   }
+
+  test("Null point exception") {
+    val a :: b :: c :: d :: rest = serviceGuard
+      .updateConfig(_.withConstantDelay(1.hour))
+      .eventStream(ag =>
+        ag("null exception")
+          .updateConfig(_.withConstantDelay(1.second).withMaxRetries(2))
+          .loudly(IO.raiseError(new NullPointerException)))
+      .observe(_.evalMap(logging.alert).drain)
+      .interruptAfter(5.seconds)
+      .compile
+      .toList
+      .unsafeRunSync()
+
+    assert(a.isInstanceOf[ActionRetrying])
+    assert(b.isInstanceOf[ActionRetrying])
+    assert(c.asInstanceOf[ActionFailed].numRetries == 2)
+    assert(d.isInstanceOf[ServicePanic])
+  }
 }

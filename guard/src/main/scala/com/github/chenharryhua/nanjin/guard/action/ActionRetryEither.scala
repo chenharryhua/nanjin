@@ -4,12 +4,10 @@ import cats.data.{EitherT, Kleisli, Reader}
 import cats.effect.syntax.all._
 import cats.effect.{Async, Ref}
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.guard.alert.{ActionInfo, DailySummaries, NJEvent, ServiceInfo}
+import com.github.chenharryhua.nanjin.guard.alert.{DailySummaries, NJEvent, ServiceInfo}
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import fs2.concurrent.Channel
 import retry.RetryPolicies
-
-import java.util.UUID
 
 /** When outer F[_] fails, return immedidately only retry when the inner Either is on the left branch
   */
@@ -51,14 +49,21 @@ final class ActionRetryEither[F[_], A, B](
   def run(implicit F: Async[F]): F[B] =
     for {
       ref <- Ref.of[F, Int](0)
-      ts <- F.realTimeInstant.map(_.atZone(params.serviceParams.taskParams.zoneId))
-      actionInfo =
-        ActionInfo(actionName = actionName, serviceInfo = serviceInfo, id = UUID.randomUUID(), launchTime = ts)
-      base = new ActionRetryBase[F, A, B](actionInfo, ref, channel, dailySummaries, params, input, succ, fail)
+      base = new ActionRetryBase[F, A, B](
+        actionName = actionName,
+        serviceInfo = serviceInfo,
+        ref = ref,
+        channel = channel,
+        dailySummaries = dailySummaries,
+        params = params,
+        input = input,
+        succ = succ,
+        fail = fail)
+      actionInfo <- base.actionInfo
       b <- retry
         .retryingOnAllErrors[Either[Throwable, B]](
           params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
-          base.onError) {
+          base.onError(actionInfo)) {
           eitherT.value.run(input).attempt.flatMap {
             case Left(ex) => F.pure(Left(ex))
             case Right(outerRight) =>
@@ -69,6 +74,6 @@ final class ActionRetryEither[F[_], A, B](
           }
         }
         .rethrow
-        .guaranteeCase(base.guaranteeCase)
+        .guaranteeCase(base.guaranteeCase(actionInfo))
     } yield b
 }
