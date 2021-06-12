@@ -62,7 +62,7 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) {
                 _ <- dailySummaries.update(_.incServicePanic)
               } yield ()
           ) {
-            val start_health = for { // fire service startup event and then health-check events
+            val start_health = for { // fire service startup event and then health-check events 
               ts <- realZonedDateTime
               _ <- channel
                 .send(ServiceStarted(timestamp = ts, serviceInfo = si, params = params))
