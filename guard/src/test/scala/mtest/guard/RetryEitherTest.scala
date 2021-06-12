@@ -43,7 +43,7 @@ class RetryEitherTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.second))
       .eventStream(gd =>
         gd("retry-either-2-times")
-          .updateConfig(_.withConstantDelay(1.second).withMaxRetries(3))
+          .updateConfig(_.withFullJitter(1.second).withMaxRetries(3))
           .retryEither("does not matter")(_ =>
             IO(if (i < 2) { i += 1; Left(new Exception("oops")) }
             else Right(1)))

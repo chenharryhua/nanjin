@@ -15,15 +15,15 @@ final private class MetricsService[F[_]](metrics: MetricRegistry)(implicit F: Sy
   override def alert(event: NJEvent): F[Unit] = event match {
     // counter
     case ServiceStarted(_, _, params) =>
-      F.blocking(metrics.counter(serviceKey(params)).inc())
+      F.blocking(metrics.counter(s"start.${serviceKey(params)}").inc())
     case ServicePanic(_, _, params, _, _, _) =>
-      F.blocking(metrics.counter(serviceKey(params)).inc())
+      F.blocking(metrics.counter(s"panic.${serviceKey(params)}").inc())
     case ServiceStopped(_, _, params) =>
-      F.blocking(metrics.counter(s"${serviceKey(params)}.stop").inc())
+      F.blocking(metrics.counter(s"stop.${serviceKey(params)}").inc())
     case ServiceHealthCheck(_, _, params, _, _, _) =>
-      F.blocking(metrics.counter(s"${serviceKey(params)}.health-check").inc())
+      F.blocking(metrics.counter(s"health-check.${serviceKey(params)}").inc())
     case ActionRetrying(_, info, params, _, _) =>
-      F.blocking(metrics.counter(s"${actionKey(info, params)}.retry").inc())
+      F.blocking(metrics.counter(s"retry.${actionKey(info, params)}").inc())
     case _: ForYouInformation =>
       F.blocking(metrics.counter("fyi").inc())
     case PassThrough(_, _) =>

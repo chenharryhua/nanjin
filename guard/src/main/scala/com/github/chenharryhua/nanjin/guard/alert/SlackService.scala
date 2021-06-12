@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
 import io.circe.generic.auto._
 import io.circe.syntax._
-import squants.information.{Bytes, Gigabytes, Megabytes}
+import squants.information.{Gigabytes, Megabytes}
 
 import java.time.LocalTime
 
@@ -63,11 +63,11 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
                 SlackField("Host", info.hostName, short = true),
                 SlackField("Status", "Restarting", short = true),
                 SlackField("Launch Time", info.launchTime.toString, short = true),
-                SlackField("Cause", error.message, short = true),
                 SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
                 SlackField("Retry Policy", params.retryPolicy.policy[F].show, short = true),
                 SlackField("Retries so far", details.retriesSoFar.toString, short = true),
                 SlackField("Cumulative Delay", fmt.format(details.cumulativeDelay), short = true),
+                SlackField("Cause", error.message, short = false),
                 SlackField("Error ID", errorID.toString, short = false)
               )
             ))
@@ -158,9 +158,9 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
                 SlackField("Host", action.serviceInfo.hostName, short = true),
                 SlackField("Action", action.actionName, short = true),
                 SlackField("Took", fmt.format(action.launchTime, at), short = true),
-                SlackField("Cause", error.message, short = true),
                 SlackField("Retries", numRetries.toString, short = true),
                 SlackField("Retry Policy", params.retryPolicy.policy[F].show, short = true),
+                SlackField("Cause", error.message, short = false),
                 SlackField("Action ID", action.id.toString, short = false)
               )
             ))
