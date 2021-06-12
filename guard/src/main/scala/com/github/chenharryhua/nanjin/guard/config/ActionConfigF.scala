@@ -109,9 +109,6 @@ final case class ActionConfig private (value: Fix[ActionConfigF]) {
   def withFullJitter(delay: FiniteDuration): ActionConfig =
     ActionConfig(Fix(WithRetryPolicy(FullJitter(delay), value)))
 
-  def withJitter(maxDelay: FiniteDuration): ActionConfig =
-    ActionConfig(Fix(WithRetryPolicy(Jitter(maxDelay), value)))
-
   def evalConfig: ActionParams = scheme.cata(algebra).apply(value)
 }
 
