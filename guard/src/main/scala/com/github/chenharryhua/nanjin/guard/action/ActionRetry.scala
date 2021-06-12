@@ -46,11 +46,11 @@ final class ActionRetry[F[_], A, B](
 
   def run(implicit F: Async[F]): F[B] =
     for {
-      ref <- Ref.of[F, Int](0) // hold number of retries
+      retryCount <- F.ref(0) // hold number of retries
       base = new ActionRetryBase[F, A, B](
         actionName = actionName,
         serviceInfo = serviceInfo,
-        ref = ref,
+        retryCount = retryCount,
         channel = channel,
         dailySummaries = dailySummaries,
         params = params,

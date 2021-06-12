@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard
 
+import cats.effect.Async
 import cats.effect.syntax.all._
-import cats.effect.{Async, Ref}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.guard.alert._
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams}
@@ -43,7 +43,7 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) {
 
     for {
       si <- Stream.eval(serviceInfo)
-      dailySummaries <- Stream.eval(Ref.of(DailySummaries.zero))
+      dailySummaries <- Stream.eval(F.ref(DailySummaries.zero))
       event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
         val service: F[A] = retry
           .retryingOnAllErrors(
