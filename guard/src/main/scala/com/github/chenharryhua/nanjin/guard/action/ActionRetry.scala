@@ -4,12 +4,10 @@ import cats.data.{Kleisli, Reader}
 import cats.effect.syntax.all._
 import cats.effect.{Async, Ref}
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.guard.alert.{ActionInfo, DailySummaries, NJEvent, ServiceInfo}
+import com.github.chenharryhua.nanjin.guard.alert.{DailySummaries, NJEvent, ServiceInfo}
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import fs2.concurrent.Channel
 import retry.RetryPolicies
-
-import java.util.UUID
 
 final class ActionRetry[F[_], A, B](
   serviceInfo: ServiceInfo,
@@ -49,17 +47,21 @@ final class ActionRetry[F[_], A, B](
   def run(implicit F: Async[F]): F[B] =
     for {
       ref <- Ref.of[F, Int](0) // hold number of retries
-      ts <- F.realTimeInstant.map(_.atZone(params.serviceParams.taskParams.zoneId)) // timestamp when the action start
-      actionInfo = ActionInfo(
+      base = new ActionRetryBase[F, A, B](
         actionName = actionName,
         serviceInfo = serviceInfo,
-        id = UUID.randomUUID(),
-        launchTime = ts)
-      base = new ActionRetryBase[F, A, B](actionInfo, ref, channel, dailySummaries, params, input, succ, fail)
+        ref = ref,
+        channel = channel,
+        dailySummaries = dailySummaries,
+        params = params,
+        input = input,
+        succ = succ,
+        fail = fail)
+      actionInfo <- base.actionInfo
       ret <- retry
         .retryingOnAllErrors[B](
           params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
-          base.onError)(kleisli.run(input))
-        .guaranteeCase(base.guaranteeCase)
+          base.onError(actionInfo))(kleisli.run(input))
+        .guaranteeCase(base.guaranteeCase(actionInfo))
     } yield ret
 }

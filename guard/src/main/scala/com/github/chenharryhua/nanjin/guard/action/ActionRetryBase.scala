@@ -10,9 +10,11 @@ import retry.RetryDetails
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
 import java.time.ZonedDateTime
+import java.util.UUID
 
 private class ActionRetryBase[F[_], A, B](
-  actionInfo: ActionInfo,
+  actionName: String,
+  serviceInfo: ServiceInfo,
   ref: Ref[F, Int],
   channel: Channel[F, NJEvent],
   dailySummaries: Ref[F, DailySummaries],
@@ -27,19 +29,28 @@ private class ActionRetryBase[F[_], A, B](
   private val realZonedDateTime: F[ZonedDateTime] =
     F.realTimeInstant.map(_.atZone(params.serviceParams.taskParams.zoneId))
 
-  def onError(error: Throwable, details: RetryDetails): F[Unit] =
+  val actionInfo: F[ActionInfo] = realZonedDateTime.map(ts =>
+    ActionInfo(actionName = actionName, serviceInfo = serviceInfo, id = UUID.randomUUID(), launchTime = ts))
+
+  def onError(actionInfo: ActionInfo)(error: Throwable, details: RetryDetails): F[Unit] =
     details match {
       case wdr: WillDelayAndRetry =>
         for {
           now <- realZonedDateTime
-          _ <- channel.send(ActionRetrying(now, actionInfo, params, wdr, NJError(error)))
+          _ <- channel.send(
+            ActionRetrying(
+              timestamp = now,
+              actionInfo = actionInfo,
+              params = params,
+              willDelayAndRetry = wdr,
+              error = NJError(error)))
           _ <- ref.update(_ + 1)
           _ <- dailySummaries.update(_.incActionRetries)
         } yield ()
       case _: GivingUp => F.unit
     }
 
-  def guaranteeCase(outcome: Outcome[F, Throwable, B]): F[Unit] = outcome match {
+  def guaranteeCase(actionInfo: ActionInfo)(outcome: Outcome[F, Throwable, B]): F[Unit] = outcome match {
     case Outcome.Canceled() =>
       val error = new Exception("the action was cancelled")
       for {
