@@ -15,7 +15,7 @@ import java.util.UUID
 private class ActionRetryBase[F[_], A, B](
   actionName: String,
   serviceInfo: ServiceInfo,
-  ref: Ref[F, Int],
+  retryCount: Ref[F, Int],
   channel: Channel[F, NJEvent],
   dailySummaries: Ref[F, DailySummaries],
   params: ActionParams,
@@ -44,7 +44,7 @@ private class ActionRetryBase[F[_], A, B](
               params = params,
               willDelayAndRetry = wdr,
               error = NJError(error)))
-          _ <- ref.update(_ + 1)
+          _ <- retryCount.update(_ + 1)
           _ <- dailySummaries.update(_.incActionRetries)
         } yield ()
       case _: GivingUp => F.unit
@@ -54,7 +54,7 @@ private class ActionRetryBase[F[_], A, B](
     case Outcome.Canceled() =>
       val error = new Exception("the action was cancelled")
       for {
-        count <- ref.get
+        count <- retryCount.get
         now <- realZonedDateTime
         _ <- dailySummaries.update(_.incActionFail)
         _ <- channel.send(
@@ -69,7 +69,7 @@ private class ActionRetryBase[F[_], A, B](
       } yield ()
     case Outcome.Errored(error) =>
       for {
-        count <- ref.get
+        count <- retryCount.get
         now <- realZonedDateTime
         _ <- dailySummaries.update(_.incActionFail)
         _ <- channel.send(
@@ -84,7 +84,7 @@ private class ActionRetryBase[F[_], A, B](
       } yield ()
     case Outcome.Succeeded(fb) =>
       for {
-        count <- ref.get // number of retries before success
+        count <- retryCount.get // number of retries before success
         now <- realZonedDateTime
         b <- fb
         _ <- dailySummaries.update(_.incActionSucc)
