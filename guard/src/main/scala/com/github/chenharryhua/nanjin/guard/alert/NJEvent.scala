@@ -22,25 +22,27 @@ object Notes {
   def apply(str: String): Notes = new Notes(Option(str).getOrElse("null in notes"))
 }
 
-final case class NJError private (message: String, stackTrace: String, throwable: Throwable)
+final case class NJError private (id: UUID, message: String, stackTrace: String, throwable: Throwable)
 
 object NJError {
   implicit val showNJError: Show[NJError] = _.message
 
   implicit val encodeNJError: Encoder[NJError] = (a: NJError) =>
     Json.obj(
+      ("id", Json.fromString(a.id.toString)),
       ("message", Json.fromString(a.message)),
       ("stackTrace", Json.fromString(a.stackTrace))
     )
 
   implicit val decodeNJError: Decoder[NJError] = (c: HCursor) =>
     for {
+      id <- c.downField("id").as[UUID]
       msg <- c.downField("message").as[String]
       st <- c.downField("stackTrace").as[String]
-    } yield NJError(msg, st, new Throwable("fake Throwable")) // can not recover throwables.
+    } yield NJError(id, msg, st, new Throwable("fake Throwable")) // can not recover throwables.
 
   def apply(ex: Throwable): NJError =
-    NJError(ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), ex)
+    NJError(UUID.randomUUID(), ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), ex)
 }
 
 final case class DailySummaries private (actionSucc: Int, actionFail: Int, actionRetries: Int, servicePanic: Int) {
@@ -78,7 +80,6 @@ final case class ServicePanic(
   serviceInfo: ServiceInfo,
   params: ServiceParams,
   retryDetails: RetryDetails,
-  errorID: UUID,
   error: NJError
 ) extends ServiceEvent
 

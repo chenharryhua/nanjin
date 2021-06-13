@@ -25,7 +25,8 @@ import scala.concurrent.duration._
   healthCheck: NJHealthCheck,
   retryPolicy: NJRetryPolicy,
   startUpEventDelay: FiniteDuration, // delay to sent out ServiceStarted event
-  isNormalStop: Boolean // treat stop event as normal stop or abnormal stop
+  isNormalStop: Boolean, // treat stop event as normal stop or abnormal stop
+  maxCauseSize: Int // for slack display cause
 )
 
 object ServiceParams {
@@ -41,7 +42,8 @@ object ServiceParams {
       ),
       retryPolicy = ConstantDelay(30.seconds),
       startUpEventDelay = 15.seconds,
-      isNormalStop = false
+      isNormalStop = false,
+      maxCauseSize = 1000
     )
 }
 
@@ -60,6 +62,7 @@ private object ServiceConfigF {
   final case class WithStartUpDelay[K](value: FiniteDuration, cont: K) extends ServiceConfigF[K]
 
   final case class WithNormalStop[K](value: Boolean, cont: K) extends ServiceConfigF[K]
+  final case class WithMaxCauseSize[K](value: Int, cont: K) extends ServiceConfigF[K]
 
   val algebra: Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
@@ -70,6 +73,7 @@ private object ServiceConfigF {
       case WithRetryPolicy(v, c)         => ServiceParams.retryPolicy.set(v)(c)
       case WithStartUpDelay(v, c)        => ServiceParams.startUpEventDelay.set(v)(c)
       case WithNormalStop(v, c)          => ServiceParams.isNormalStop.set(v)(c)
+      case WithMaxCauseSize(v, c)        => ServiceParams.maxCauseSize.set(v)(c)
     }
 }
 
@@ -99,6 +103,9 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
 
   def withNormalStop: ServiceConfig =
     ServiceConfig(Fix(WithNormalStop(value = true, value)))
+
+  def withMaxCauseSize(size: Int): ServiceConfig =
+    ServiceConfig(Fix(WithMaxCauseSize(size, value)))
 
   def evalConfig: ServiceParams = scheme.cata(algebra).apply(value)
 }

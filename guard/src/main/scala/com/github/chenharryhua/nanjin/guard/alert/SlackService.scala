@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
 import io.circe.generic.auto._
 import io.circe.syntax._
+import org.apache.commons.lang3.StringUtils
 import squants.information.{Gigabytes, Megabytes}
 
 import java.time.LocalTime
@@ -43,7 +44,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       ).asJson.noSpaces
       service.publish(msg).void
 
-    case ServicePanic(at, info, params, details, errorID, error) =>
+    case ServicePanic(at, info, params, details, error) =>
       val upcomingDelay: String = details.upcomingDelay.map(fmt.format) match {
         case None     => "should never see this" // never happen
         case Some(ts) => s"next attempt will happen in *$ts* meanwhile the service is *dysfunctional*."
@@ -67,8 +68,8 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
                 SlackField("Retry Policy", params.retryPolicy.policy[F].show, short = true),
                 SlackField("Retries so far", details.retriesSoFar.toString, short = true),
                 SlackField("Cumulative Delay", fmt.format(details.cumulativeDelay), short = true),
-                SlackField("Cause", error.message, short = false),
-                SlackField("Error ID", errorID.toString, short = false)
+                SlackField("Error ID", error.id.toString, short = false),
+                SlackField("Cause", StringUtils.abbreviate(error.message, params.maxCauseSize), short = false)
               )
             ))
         ).asJson.noSpaces
@@ -160,8 +161,11 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
                 SlackField("Took", fmt.format(action.launchTime, at), short = true),
                 SlackField("Retries", numRetries.toString, short = true),
                 SlackField("Retry Policy", params.retryPolicy.policy[F].show, short = true),
-                SlackField("Cause", error.message, short = false),
-                SlackField("Action ID", action.id.toString, short = false)
+                SlackField("Action ID", action.id.toString, short = false),
+                SlackField(
+                  "Cause",
+                  StringUtils.abbreviate(error.message, params.serviceParams.maxCauseSize),
+                  short = false)
               )
             ))
         ).asJson.noSpaces
