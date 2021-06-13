@@ -5,7 +5,13 @@ import cats.effect.kernel.Temporal
 import cats.effect.{Async, Ref}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.guard.action.{ActionRetry, ActionRetryEither}
-import com.github.chenharryhua.nanjin.guard.alert.{DailySummaries, ForYouInformation, NJEvent, PassThrough, ServiceInfo}
+import com.github.chenharryhua.nanjin.guard.alert.{
+  DailySummaries,
+  ForYourInformation,
+  NJEvent,
+  PassThrough,
+  ServiceInfo
+}
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams}
 import fs2.concurrent.Channel
 import io.circe.Encoder
@@ -41,7 +47,7 @@ final class ActionGuard[F[_]](
 
   def fyi(msg: String)(implicit F: Temporal[F]): F[Unit] =
     F.realTimeInstant
-      .flatMap(ts => channel.send(ForYouInformation(ts.atZone(params.serviceParams.taskParams.zoneId), msg)))
+      .flatMap(ts => channel.send(ForYourInformation(ts.atZone(params.serviceParams.taskParams.zoneId), msg)))
       .void
 
   def passThrough[A: Encoder](a: A)(implicit F: Temporal[F]): F[Unit] =

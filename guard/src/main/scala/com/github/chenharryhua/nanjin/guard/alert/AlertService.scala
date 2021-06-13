@@ -13,7 +13,7 @@ object AlertService {
   implicit def monoidAlertService[F[_]](implicit F: Applicative[F]): Monoid[AlertService[F]] =
     new Monoid[AlertService[F]] {
 
-      override def empty: AlertService[F] = (event: NJEvent) => F.unit
+      override val empty: AlertService[F] = (event: NJEvent) => F.unit
 
       override def combine(x: AlertService[F], y: AlertService[F]): AlertService[F] =
         (event: NJEvent) => F.product(x.alert(event), y.alert(event)).void
