@@ -26,7 +26,7 @@ import scala.concurrent.duration._
   retryPolicy: NJRetryPolicy,
   startUpEventDelay: FiniteDuration, // delay to sent out ServiceStarted event
   isNormalStop: Boolean, // treat stop event as normal stop or abnormal stop
-  maxCauseSize: Int
+  maxCauseSize: Int // for slack display cause
 )
 
 object ServiceParams {
