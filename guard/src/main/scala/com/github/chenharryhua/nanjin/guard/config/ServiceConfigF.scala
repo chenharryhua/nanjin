@@ -43,7 +43,7 @@ object ServiceParams {
       retryPolicy = ConstantDelay(30.seconds),
       startUpEventDelay = 15.seconds,
       isNormalStop = false,
-      maxCauseSize = 1000
+      maxCauseSize = 600
     )
 }
 
