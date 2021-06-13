@@ -117,15 +117,15 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(a1.isInstanceOf[ActionRetrying]) // a2
-    assert(a2.isInstanceOf[ActionSucced]) // a1
-    assert(a3.isInstanceOf[ActionRetrying]) // a2
+    assert(a2.isInstanceOf[ActionSucced] || a2.isInstanceOf[ActionRetrying]) // a1
+    assert(a3.isInstanceOf[ActionRetrying] || a3.isInstanceOf[ActionSucced]) // a2
     assert(a4.isInstanceOf[ActionRetrying]) // a2
     assert(a5.isInstanceOf[ActionFailed]) // a2 failed
     assert(a6.isInstanceOf[ActionFailed]) // a3 cancelled
     //
     assert(a7.isInstanceOf[ActionRetrying]) // supervisor
-    assert(a8.isInstanceOf[ActionRetrying]) // a2
-    assert(a9.isInstanceOf[ActionSucced]) // a1
+    assert(a8.isInstanceOf[ActionRetrying] || a8.isInstanceOf[ActionSucced]) // a2
+    assert(a9.isInstanceOf[ActionSucced] || a9.isInstanceOf[ActionRetrying]) // a1
     assert(a10.isInstanceOf[ActionRetrying]) // a2
     assert(a11.isInstanceOf[ActionRetrying]) // a2
     assert(a12.isInstanceOf[ActionFailed]) // a2 failed

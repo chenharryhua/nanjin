@@ -13,7 +13,7 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ActionFailed,
   ActionRetrying,
   ActionSucced,
-  ForYouInformation,
+  ForYourInformation,
   LogService,
   MetricsService,
   NJEvent,
@@ -108,7 +108,7 @@ class ServiceTest extends AnyFunSuite {
       .compile
       .toVector
       .unsafeRunSync()
-    assert(a.isInstanceOf[ForYouInformation])
+    assert(a.isInstanceOf[ForYourInformation])
   }
 
   test("normal service stop after two operations") {

@@ -128,5 +128,5 @@ final case class ActionSucced(
   notes: Notes // success notes
 ) extends ActionEvent
 
-final case class ForYouInformation(timestamp: ZonedDateTime, message: String) extends NJEvent
+final case class ForYourInformation(timestamp: ZonedDateTime, message: String) extends NJEvent
 final case class PassThrough(timestamp: ZonedDateTime, value: Json) extends NJEvent
