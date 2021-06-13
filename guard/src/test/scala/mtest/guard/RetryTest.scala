@@ -124,9 +124,9 @@ class RetryTest extends AnyFunSuite {
     assert(a6.isInstanceOf[ActionFailed]) // a3 cancelled
     //
     assert(a7.isInstanceOf[ActionRetrying]) // supervisor
-    assert(a8.isInstanceOf[ActionRetrying] || a8.isInstanceOf[ActionSucced]) // a2
-    assert(a9.isInstanceOf[ActionSucced] || a9.isInstanceOf[ActionRetrying]) // a1
-    assert(a10.isInstanceOf[ActionRetrying]) // a2
+    assert(a8.isInstanceOf[ActionRetrying] || a8.isInstanceOf[ActionSucced]) // a1 or a2
+    assert(a9.isInstanceOf[ActionSucced] || a9.isInstanceOf[ActionRetrying]) // a1 or a2
+    assert(a10.isInstanceOf[ActionRetrying] || a10.isInstanceOf[ActionSucced]) // a1 or a2
     assert(a11.isInstanceOf[ActionRetrying]) // a2
     assert(a12.isInstanceOf[ActionFailed]) // a2 failed
     assert(a13.isInstanceOf[ActionFailed]) // a3 cancelled
