@@ -40,7 +40,7 @@ class ServiceTest extends AnyFunSuite {
 
   val guard = TaskGuard[IO]("service-level-guard")
     .service("service")
-    .updateConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds))
+    .updateConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds).withMaxCauseSize(100))
 
   val metrics = new MetricRegistry
   val logging = SlackService(SimpleNotificationService.fake[IO]) |+| MetricsService[IO](metrics) |+| LogService[IO]

@@ -57,7 +57,6 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) {
                     serviceInfo = si,
                     params = params,
                     retryDetails = rd,
-                    errorID = UUID.randomUUID(),
                     error = NJError(ex)))
                 _ <- dailySummaries.update(_.incServicePanic)
               } yield ()
