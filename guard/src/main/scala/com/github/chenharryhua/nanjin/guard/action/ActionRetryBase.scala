@@ -50,51 +50,52 @@ private class ActionRetryBase[F[_], A, B](
       case _: GivingUp => F.unit
     }
 
-  def guaranteeCase(actionInfo: ActionInfo)(outcome: Outcome[F, Throwable, B]): F[Unit] = outcome match {
-    case Outcome.Canceled() =>
-      val error = new Exception("the action was cancelled")
-      for {
-        count <- retryCount.get
-        now <- realZonedDateTime
-        _ <- dailySummaries.update(_.incActionFail)
-        _ <- channel.send(
-          ActionFailed(
-            timestamp = now,
-            actionInfo = actionInfo,
-            params = params,
-            numRetries = count,
-            notes = failNotes(error),
-            error = NJError(error)
-          ))
-      } yield ()
-    case Outcome.Errored(error) =>
-      for {
-        count <- retryCount.get
-        now <- realZonedDateTime
-        _ <- dailySummaries.update(_.incActionFail)
-        _ <- channel.send(
-          ActionFailed(
-            timestamp = now,
-            actionInfo = actionInfo,
-            params = params,
-            numRetries = count,
-            notes = failNotes(error),
-            error = NJError(error)
-          ))
-      } yield ()
-    case Outcome.Succeeded(fb) =>
-      for {
-        count <- retryCount.get // number of retries before success
-        now <- realZonedDateTime
-        b <- fb
-        _ <- dailySummaries.update(_.incActionSucc)
-        _ <- channel.send(
-          ActionSucced(
-            timestamp = now,
-            actionInfo = actionInfo,
-            params = params,
-            numRetries = count,
-            notes = succNotes(b)))
-      } yield ()
-  }
+  def guaranteeCase(actionInfo: ActionInfo)(outcome: Outcome[F, Throwable, B]): F[Unit] =
+    outcome match {
+      case Outcome.Canceled() =>
+        val error = new Exception("the action was cancelled by external exception")
+        for {
+          count <- retryCount.get
+          now <- realZonedDateTime
+          _ <- dailySummaries.update(_.incActionFail)
+          _ <- channel.send(
+            ActionFailed(
+              timestamp = now,
+              actionInfo = actionInfo,
+              params = params,
+              numRetries = count,
+              notes = failNotes(error),
+              error = NJError(error)
+            ))
+        } yield ()
+      case Outcome.Errored(error) =>
+        for {
+          count <- retryCount.get
+          now <- realZonedDateTime
+          _ <- dailySummaries.update(_.incActionFail)
+          _ <- channel.send(
+            ActionFailed(
+              timestamp = now,
+              actionInfo = actionInfo,
+              params = params,
+              numRetries = count,
+              notes = failNotes(error),
+              error = NJError(error)
+            ))
+        } yield ()
+      case Outcome.Succeeded(fb) =>
+        for {
+          count <- retryCount.get // number of retries before success
+          now <- realZonedDateTime
+          b <- fb
+          _ <- dailySummaries.update(_.incActionSucc)
+          _ <- channel.send(
+            ActionSucced(
+              timestamp = now,
+              actionInfo = actionInfo,
+              params = params,
+              numRetries = count,
+              notes = succNotes(b)))
+        } yield ()
+    }
 }

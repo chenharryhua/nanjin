@@ -1,10 +1,10 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.data.{EitherT, Kleisli, Reader}
+import cats.data.{Kleisli, Reader}
 import cats.effect.kernel.Temporal
 import cats.effect.{Async, Ref}
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.guard.action.{ActionRetry, ActionRetryEither}
+import com.github.chenharryhua.nanjin.guard.action.ActionRetry
 import com.github.chenharryhua.nanjin.guard.alert.{
   DailySummaries,
   ForYourInformation,
@@ -54,21 +54,6 @@ final class ActionGuard[F[_]](
     F.realTimeInstant
       .flatMap(ts => channel.send(PassThrough(ts.atZone(params.serviceParams.taskParams.zoneId), a.asJson)))
       .void
-
-  def retryEither[A, B](input: A)(f: A => F[Either[Throwable, B]]): ActionRetryEither[F, A, B] =
-    new ActionRetryEither[F, A, B](
-      serviceInfo = serviceInfo,
-      dailySummaries = dailySummaries,
-      channel = channel,
-      actionName = actionName,
-      params = params,
-      input = input,
-      eitherT = EitherT(Kleisli(f)),
-      succ = Reader(_ => ""),
-      fail = Reader(_ => ""))
-
-  def retryEither[B](feb: F[Either[Throwable, B]]): ActionRetryEither[F, Unit, B] =
-    retryEither[Unit, B](())(_ => feb)
 
   // maximum retries
   def max(retries: Int): ActionGuard[F] = updateConfig(_.withMaxRetries(retries))
