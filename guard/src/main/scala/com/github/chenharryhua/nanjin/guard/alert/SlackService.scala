@@ -47,14 +47,14 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
     case ServicePanic(at, info, params, details, error) =>
       val upcomingDelay: String = details.upcomingDelay.map(fmt.format) match {
         case None     => "should never see this" // never happen
-        case Some(ts) => s"next attempt will happen in *$ts* meanwhile the service is *dysfunctional*."
+        case Some(ts) => s"Next attempt will take place in *$ts* meanwhile the service is *dysfunctional*."
       }
       val msg =
         SlackNotification(
           params.taskParams.appName,
-          s""":system_restore: The service experienced a panic and started to *recover* itself
+          s""":system_restore: The service experienced a panic and started to recover itself.
              |$upcomingDelay 
-             |full exception can be found in log file by *Error ID*""".stripMargin,
+             |Full exception can be found in log file by *${error.id}*""".stripMargin,
           List(
             Attachment(
               "danger",
@@ -63,12 +63,10 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
                 SlackField("Service", params.serviceName, short = true),
                 SlackField("Host", info.hostName, short = true),
                 SlackField("Status", "Restarting", short = true),
-                SlackField("Launch Time", info.launchTime.toString, short = true),
                 SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
+                SlackField("Restart so far", details.retriesSoFar.toString, short = true),
                 SlackField("Retry Policy", params.retryPolicy.policy[F].show, short = true),
-                SlackField("Retries so far", details.retriesSoFar.toString, short = true),
                 SlackField("Cumulative Delay", fmt.format(details.cumulativeDelay), short = true),
-                SlackField("Error ID", error.id.toString, short = false),
                 SlackField("Cause", StringUtils.abbreviate(error.message, params.maxCauseSize), short = false)
               )
             ))
@@ -88,7 +86,6 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
                 List(
                   SlackField("Service", params.serviceName, short = true),
                   SlackField("Host", info.hostName, short = true),
-                  SlackField("Launch Time", info.launchTime.toString, short = true),
                   SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
                   SlackField("Status", "Stopped", short = true)
                 )
@@ -105,7 +102,6 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
                 List(
                   SlackField("Service", params.serviceName, short = true),
                   SlackField("Host", info.hostName, short = true),
-                  SlackField("Launch Time", info.launchTime.toString, short = true),
                   SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
                   SlackField("Status", "Stopped abnormally", short = true)
                 )
