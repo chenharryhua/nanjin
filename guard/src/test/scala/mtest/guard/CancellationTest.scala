@@ -32,7 +32,7 @@ class CancellationTest extends AnyFunSuite {
     assert(a.isInstanceOf[ActionRetrying])
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.isInstanceOf[ActionRetrying])
-    assert(d.isInstanceOf[ActionFailed])
+    assert(d.asInstanceOf[ActionFailed].error.message == "Exception: the action was cancelled")
     assert(e.isInstanceOf[ServicePanic])
   }
 
@@ -47,8 +47,26 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
 
-    assert(a.isInstanceOf[ActionFailed])
+    assert(
+      a.asInstanceOf[ActionFailed].error.message == "Exception: the action was cancelled by asynchronous exception")
     assert(b.isInstanceOf[ServiceStopped])
+  }
+
+  test("compare to exception") {
+    val Vector(a, b) = serviceGuard
+      .updateConfig(_.withConstantDelay(1.hour).withStartUpDelay(1.hour))
+      .eventStream { action =>
+        val a1 = action("never").run(IO.never[Int])
+        IO.parSequenceN(2)(List(IO.sleep(1.second) >> IO.raiseError(new Exception), a1))
+      }
+      .interruptAfter(3.seconds)
+      .compile
+      .toVector
+      .unsafeRunSync()
+
+    assert(
+      a.asInstanceOf[ActionFailed].error.message == "Exception: the action was cancelled by asynchronous exception")
+    assert(b.isInstanceOf[ServicePanic])
   }
 
   test("cancellation - can be protected from external cancel") {
@@ -65,9 +83,14 @@ class CancellationTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(a.asInstanceOf[ActionFailed].actionInfo.actionName == "never")
+    assert(
+      a.asInstanceOf[ActionFailed].error.message == "Exception: the action was cancelled by asynchronous exception")
     assert(b.asInstanceOf[ActionRetrying].actionInfo.actionName == "supervisor")
     assert(c.asInstanceOf[ActionFailed].actionInfo.actionName == "never")
+    assert(
+      c.asInstanceOf[ActionFailed].error.message == "Exception: the action was cancelled by asynchronous exception")
     assert(d.asInstanceOf[ActionFailed].actionInfo.actionName == "supervisor")
+    assert(d.asInstanceOf[ActionFailed].error.message == "Exception: the action was cancelled")
     assert(e.isInstanceOf[ServicePanic])
   }
 
@@ -108,6 +131,7 @@ class CancellationTest extends AnyFunSuite {
     assert(a.asInstanceOf[ActionSucced].actionInfo.actionName == "a1")
     assert(b.asInstanceOf[ActionRetrying].actionInfo.actionName == "a2")
     assert(c.asInstanceOf[ActionFailed].actionInfo.actionName == "a2")
+    assert(c.asInstanceOf[ActionFailed].error.message == "Exception: ")
     assert(d.isInstanceOf[ServicePanic])
   }
 
@@ -122,6 +146,7 @@ class CancellationTest extends AnyFunSuite {
           .updateConfig(_.withMaxRetries(1).withConstantDelay(1.second))
           .run(IO.parSequenceN(5)(List(a1, a2, a3)))
       }
+      .debug()
       .interruptAfter(10.second)
       .compile
       .toVector
