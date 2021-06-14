@@ -62,6 +62,7 @@ final class ActionRetry[F[_], A, B](
         .retryingOnAllErrors[B](
           params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
           base.onError(actionInfo)) {
+          // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
           F.uncancelable(poll =>
             for {
               waiter <- F.deferred[Outcome[F, Throwable, B]]

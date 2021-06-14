@@ -47,7 +47,8 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
 
-    assert(a.asInstanceOf[ActionFailed].error.message == "Exception: the action was cancelled by external exception")
+    assert(
+      a.asInstanceOf[ActionFailed].error.message == "Exception: the action was cancelled by asynchronous exception")
     assert(b.isInstanceOf[ServiceStopped])
   }
 
@@ -63,7 +64,8 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
 
-    assert(a.asInstanceOf[ActionFailed].error.message == "Exception: the action was cancelled by external exception")
+    assert(
+      a.asInstanceOf[ActionFailed].error.message == "Exception: the action was cancelled by asynchronous exception")
     assert(b.isInstanceOf[ServicePanic])
   }
 
@@ -81,10 +83,12 @@ class CancellationTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(a.asInstanceOf[ActionFailed].actionInfo.actionName == "never")
-    assert(a.asInstanceOf[ActionFailed].error.message == "Exception: the action was cancelled by external exception")
+    assert(
+      a.asInstanceOf[ActionFailed].error.message == "Exception: the action was cancelled by asynchronous exception")
     assert(b.asInstanceOf[ActionRetrying].actionInfo.actionName == "supervisor")
     assert(c.asInstanceOf[ActionFailed].actionInfo.actionName == "never")
-    assert(c.asInstanceOf[ActionFailed].error.message == "Exception: the action was cancelled by external exception")
+    assert(
+      c.asInstanceOf[ActionFailed].error.message == "Exception: the action was cancelled by asynchronous exception")
     assert(d.asInstanceOf[ActionFailed].actionInfo.actionName == "supervisor")
     assert(d.asInstanceOf[ActionFailed].error.message == "Exception: the action was cancelled")
     assert(e.isInstanceOf[ServicePanic])
@@ -142,6 +146,7 @@ class CancellationTest extends AnyFunSuite {
           .updateConfig(_.withMaxRetries(1).withConstantDelay(1.second))
           .run(IO.parSequenceN(5)(List(a1, a2, a3)))
       }
+      .debug()
       .interruptAfter(10.second)
       .compile
       .toVector

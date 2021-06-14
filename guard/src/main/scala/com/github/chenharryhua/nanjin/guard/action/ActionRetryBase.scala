@@ -50,7 +50,7 @@ final private class ActionRetryBase[F[_], A, B](
   def handleOutcome(actionInfo: ActionInfo)(outcome: Outcome[F, Throwable, B]): F[Unit] =
     outcome match {
       case Outcome.Canceled() =>
-        val error = new Exception("the action was cancelled by external exception")
+        val error = new Exception("the action was cancelled by asynchronous exception")
         for {
           count <- retryCount.get
           now <- realZonedDateTime(params.serviceParams)
