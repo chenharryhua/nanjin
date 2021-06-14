@@ -60,7 +60,8 @@ class HealthCheckTest extends AnyFunSuite {
     val a :: b :: c :: ServiceHealthCheck(_, _, _, ds, _, _) :: rest = guard
       .service("failure-test")
       .updateConfig(_.withHealthCheckInterval(1.second).withStartUpDelay(1.second).withConstantDelay(1.hour))
-      .eventStream(gd => gd.updateConfig(_.withMaxRetries(1)).run(IO.raiseError(new Exception)) >> gd.run(IO.never))
+      .eventStream(gd => gd("always-failure").max(1).run(IO.raiseError(new Exception)) >> gd.run(IO.never))
+      .debug()
       .interruptAfter(5.second)
       .compile
       .toList

@@ -2,6 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.kernel.Monoid
 import cats.syntax.all._
 import com.amazonaws.regions.Regions
 import com.codahale.metrics.{Counter, MetricRegistry, Timer}
@@ -13,6 +14,8 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ActionFailed,
   ActionRetrying,
   ActionSucced,
+  AlertService,
+  ConsoleService,
   ForYourInformation,
   LogService,
   MetricsService,
@@ -43,7 +46,11 @@ class ServiceTest extends AnyFunSuite {
     .updateConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds).withMaxCauseSize(100))
 
   val metrics = new MetricRegistry
-  val logging = SlackService(SimpleNotificationService.fake[IO]) |+| MetricsService[IO](metrics) |+| LogService[IO]
+  val logging = Monoid[AlertService[IO]].empty |+|
+    SlackService(SimpleNotificationService.fake[IO]) |+|
+    MetricsService[IO](metrics) |+|
+    LogService[IO] |+|
+    ConsoleService[IO]
 
   test("should stopped if the operation normally exits") {
     val Vector(a, b, c) = guard

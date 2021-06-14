@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.data.{Kleisli, Reader}
 import cats.effect.syntax.all._
-import cats.effect.{Async, Ref}
+import cats.effect.{Async, Outcome, Ref}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.guard.alert.{DailySummaries, NJEvent, ServiceInfo}
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
@@ -61,7 +61,19 @@ final class ActionRetry[F[_], A, B](
       ret <- retry
         .retryingOnAllErrors[B](
           params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
-          base.onError(actionInfo))(kleisli.run(input))
+          base.onError(actionInfo)) {
+          F.uncancelable(poll =>
+            for {
+              waiter <- F.deferred[Outcome[F, Throwable, B]]
+              fiber <- F.start(kleisli.run(input).guaranteeCase(waiter.complete(_).void))
+              oc <- F.onCancel(poll(waiter.get), fiber.cancel)
+            } yield oc)
+            .flatMap[B] {
+              case Outcome.Canceled()    => F.raiseError[B](new Exception("the action was cancelled"))
+              case Outcome.Errored(ex)   => F.raiseError[B](ex)
+              case Outcome.Succeeded(fb) => fb
+            }
+        }
         .guaranteeCase(base.guaranteeCase(actionInfo))
     } yield ret
 }
