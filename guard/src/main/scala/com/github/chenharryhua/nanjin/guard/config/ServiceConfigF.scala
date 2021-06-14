@@ -83,9 +83,6 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withHealthCheckInterval(interval: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithHealthCheckInterval(interval, value)))
 
-  def withHealthCheckDisabled: ServiceConfig =
-    ServiceConfig(Fix(WithHealthCheckSpan(value = Duration.Zero, value)))
-
   def withHealthCheckOpenTime(openTime: LocalTime): ServiceConfig =
     ServiceConfig(Fix(WithHealthCheckOpenTime(openTime, value)))
 

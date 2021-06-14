@@ -59,7 +59,6 @@ class CancellationTest extends AnyFunSuite {
         val a1     = action("never").run(IO.never[Int])
         action("supervisor").run(IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1)))
       }
-      .debug()
       .interruptAfter(10.second)
       .compile
       .toVector
@@ -72,7 +71,48 @@ class CancellationTest extends AnyFunSuite {
     assert(e.isInstanceOf[ServicePanic])
   }
 
-  test("parallel") {
+  test("cancellation - sequentially") {
+    val Vector(a, b, c) = serviceGuard
+      .updateConfig(_.withConstantDelay(1.hour).withStartUpDelay(1.hour))
+      .eventStream { action =>
+        action("a1").run(IO(1)) >>
+          action("a2").run(IO(1)) >>
+          IO.canceled >>
+          action("a3").run(IO(1))
+      }
+      .compile
+      .toVector
+      .unsafeRunSync()
+
+    assert(a.asInstanceOf[ActionSucced].actionInfo.actionName == "a1")
+    assert(b.asInstanceOf[ActionSucced].actionInfo.actionName == "a2")
+    assert(c.isInstanceOf[ServiceStopped])
+  }
+
+  test("cancellation - sequentially - retry") {
+    val Vector(a, b, c, d) = serviceGuard
+      .updateConfig(_.withConstantDelay(1.hour).withStartUpDelay(1.hour))
+      .eventStream { action =>
+        action("a1").run(IO(1)) >>
+          action("a2")
+            .updateConfig(_.withConstantDelay(1.second).withMaxRetries(1))
+            .run(IO.raiseError(new Exception)) >>
+          IO.canceled >> // no chance to cancel since a2 never success
+          action("a3").run(IO(1))
+      }
+      .debug()
+      .interruptAfter(5.second)
+      .compile
+      .toVector
+      .unsafeRunSync()
+
+    assert(a.asInstanceOf[ActionSucced].actionInfo.actionName == "a1")
+    assert(b.asInstanceOf[ActionRetrying].actionInfo.actionName == "a2")
+    assert(c.asInstanceOf[ActionFailed].actionInfo.actionName == "a2")
+    assert(d.isInstanceOf[ServicePanic])
+  }
+
+  test("cancellation - parallel") {
     val Vector(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { action =>
@@ -104,6 +144,5 @@ class CancellationTest extends AnyFunSuite {
     assert(a13.isInstanceOf[ActionFailed]) // a3 cancelled
     assert(a14.isInstanceOf[ActionFailed]) // supervisor
     assert(a15.isInstanceOf[ServicePanic])
-
   }
 }
