@@ -64,7 +64,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
                 SlackField("Host", info.hostName, short = true),
                 SlackField("Status", "Restarting", short = true),
                 SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
-                SlackField("Restart so far", details.retriesSoFar.toString, short = true),
+                SlackField("Restarted so far", details.retriesSoFar.toString, short = true),
                 SlackField("Retry Policy", params.retryPolicy.policy[F].show, short = true),
                 SlackField("Cumulative Delay", fmt.format(details.cumulativeDelay), short = true),
                 SlackField("Cause", StringUtils.abbreviate(error.message, params.maxCauseSize), short = false)
