@@ -69,11 +69,7 @@ final class ActionRetry[F[_], A, B](
               fiber <- F.start(kleisli.run(input).guaranteeCase(waiter.complete(_).void))
               oc <- F.onCancel(poll(waiter.get), fiber.cancel)
             } yield oc)
-            .flatMap[B] {
-              case Outcome.Canceled()    => F.raiseError[B](new Exception("the action was cancelled"))
-              case Outcome.Errored(ex)   => F.raiseError[B](ex)
-              case Outcome.Succeeded(fb) => fb
-            }
+            .flatMap[B](_.embed(F.raiseError[B](new Exception("the action was cancelled"))))
         }
         .guaranteeCase(base.handleOutcome(actionInfo))
     } yield ret
