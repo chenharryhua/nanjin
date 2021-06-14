@@ -74,6 +74,6 @@ final class ActionRetry[F[_], A, B](
               case Outcome.Succeeded(fb) => fb
             }
         }
-        .guaranteeCase(base.guaranteeCase(actionInfo))
+        .guaranteeCase(base.handleOutcome(actionInfo))
     } yield ret
 }

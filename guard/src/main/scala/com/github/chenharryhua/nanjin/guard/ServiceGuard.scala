@@ -13,7 +13,6 @@ import fs2.Stream
 import fs2.concurrent.Channel
 
 import java.net.InetAddress
-import java.time.ZonedDateTime
 import java.util.UUID
 
 // format: off
@@ -35,10 +34,9 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) {
     new ServiceGuard[F](f(serviceConfig))
 
   def eventStream[A](actionGuard: ActionGuard[F] => F[A])(implicit F: Async[F]): Stream[F, NJEvent] = {
-    val scheduler: Scheduler[F, CronExpr]   = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))
-    val cron: CronExpr                      = Cron.unsafeParse(s"0 0 ${params.taskParams.dailySummaryReset} ? * *")
-    val realZonedDateTime: F[ZonedDateTime] = F.realTimeInstant.map(_.atZone(params.taskParams.zoneId))
-    val serviceInfo: F[ServiceInfo] = realZonedDateTime.map(ts =>
+    val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))
+    val cron: CronExpr                    = Cron.unsafeParse(s"0 0 ${params.taskParams.dailySummaryReset} ? * *")
+    val serviceInfo: F[ServiceInfo] = realZonedDateTime(params).map(ts =>
       ServiceInfo(hostName = InetAddress.getLocalHost.getHostName, id = UUID.randomUUID(), launchTime = ts))
 
     for {
@@ -50,7 +48,7 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) {
             params.retryPolicy.policy[F],
             (ex: Throwable, rd) =>
               for {
-                ts <- realZonedDateTime
+                ts <- realZonedDateTime(params)
                 _ <- channel.send(
                   ServicePanic(
                     timestamp = ts,
@@ -62,12 +60,12 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) {
               } yield ()
           ) {
             val start_health: F[Unit] = for { // fire service startup event and then health-check events
-              ts <- realZonedDateTime
+              ts <- realZonedDateTime(params)
               _ <- channel
                 .send(ServiceStarted(timestamp = ts, serviceInfo = si, params = params))
                 .delayBy(params.startUpEventDelay)
               _ <- dailySummaries.get.flatMap { ds =>
-                realZonedDateTime.flatMap { ts =>
+                realZonedDateTime(params).flatMap { ts =>
                   channel.send(
                     ServiceHealthCheck(
                       timestamp = ts,
@@ -90,7 +88,7 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) {
                   actionName = "anonymous",
                   actionConfig = ActionConfig(params))))
           }
-          .guarantee(realZonedDateTime.flatMap(ts =>
+          .guarantee(realZonedDateTime(params).flatMap(ts =>
             channel.send(ServiceStopped(timestamp = ts, serviceInfo = si, params = params))) *> channel.close.void)
 
         channel.stream

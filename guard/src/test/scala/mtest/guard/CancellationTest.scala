@@ -100,7 +100,6 @@ class CancellationTest extends AnyFunSuite {
           IO.canceled >> // no chance to cancel since a2 never success
           action("a3").run(IO(1))
       }
-      .debug()
       .interruptAfter(5.second)
       .compile
       .toVector
