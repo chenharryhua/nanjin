@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import fs2.concurrent.Channel
 import retry.RetryPolicies
 
+// https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
 final class ActionRetry[F[_], A, B](
   serviceInfo: ServiceInfo,
   dailySummaries: Ref[F, DailySummaries],
@@ -58,19 +59,19 @@ final class ActionRetry[F[_], A, B](
         succ = succ,
         fail = fail)
       actionInfo <- base.actionInfo
-      ret <- retry
-        .retryingOnAllErrors[B](
-          params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
-          base.onError(actionInfo)) {
-          // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
-          F.uncancelable(poll =>
+      res <- F.uncancelable(poll =>
+        retry
+          .retryingOnAllErrors[B](
+            params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
+            base.onError(actionInfo)) {
             for {
               waiter <- F.deferred[Outcome[F, Throwable, B]]
               fiber <- F.start(kleisli.run(input).guaranteeCase(waiter.complete(_).void))
-              oc <- F.onCancel(poll(waiter.get), fiber.cancel)
-            } yield oc)
-            .flatMap[B](_.embed(F.raiseError[B](new Exception("the action was cancelled"))))
-        }
-        .guaranteeCase(base.handleOutcome(actionInfo))
-    } yield ret
+              oc <- F.onCancel(
+                poll(waiter.get).flatMap(_.embed(F.raiseError[B](new Exception("the action was cancelled")))),
+                fiber.cancel)
+            } yield oc
+          }
+          .guaranteeCase(base.handleOutcome(actionInfo)))
+    } yield res
 }
