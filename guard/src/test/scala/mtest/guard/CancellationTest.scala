@@ -94,7 +94,7 @@ class CancellationTest extends AnyFunSuite {
     assert(e.isInstanceOf[ServicePanic])
   }
 
-  test("cancellation - sequentially") {
+  test("cancellation - sequentially - cancel after two succ") {
     val Vector(a, b, c) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour).withStartUpDelay(1.hour))
       .eventStream { action =>
@@ -112,7 +112,7 @@ class CancellationTest extends AnyFunSuite {
     assert(c.isInstanceOf[ServiceStopped])
   }
 
-  test("cancellation - sequentially - retry") {
+  test("cancellation - sequentially - no chance to cancel") {
     val Vector(a, b, c, d) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour).withStartUpDelay(1.hour))
       .eventStream { action =>
@@ -168,5 +168,25 @@ class CancellationTest extends AnyFunSuite {
     assert(a13.isInstanceOf[ActionFailed]) // a3 cancelled
     assert(a14.isInstanceOf[ActionFailed]) // supervisor
     assert(a15.isInstanceOf[ServicePanic])
+  }
+
+  test("cancellation - cancel in middle of retrying") {
+    val Vector(a, b, c, d) = serviceGuard
+      .updateConfig(_.withConstantDelay(1.hour).withStartUpDelay(1.hour))
+      .eventStream { action =>
+        val a1 = action("exception")
+          .updateConfig(_.withConstantDelay(2.second).withMaxRetries(100))
+          .run(IO.raiseError[Int](new Exception))
+        IO.parSequenceN(2)(List(IO.sleep(3.second) >> IO.canceled, a1))
+      }
+      .compile
+      .toVector
+      .unsafeRunSync()
+
+    assert(a.isInstanceOf[ActionRetrying])
+    assert(b.isInstanceOf[ActionRetrying])
+    assert(
+      c.asInstanceOf[ActionFailed].error.message == "Exception: the action was cancelled by asynchronous exception")
+    assert(d.isInstanceOf[ServiceStopped])
   }
 }
