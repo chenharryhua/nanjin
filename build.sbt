@@ -49,7 +49,7 @@ val avro    = "1.10.2"
 val avro4s  = "4.0.9"
 
 // connect
-val hadoop  = "3.3.0"
+val hadoop  = "3.3.1"
 val akkaFtp = "3.0.0"
 val http4s  = "1.0.0-M23"
 
