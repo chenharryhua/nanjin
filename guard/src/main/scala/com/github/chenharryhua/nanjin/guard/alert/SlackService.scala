@@ -140,13 +140,12 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       service.publish(msg).whenA(ltr.isInBetween(at))
 
     case ActionRetrying(at, action, params, wdr, error) =>
-      val s0 = "The action was failed and started to retry. "
-      val s1 = s"This is the ${toWords(wdr.retriesSoFar + 1)} time failure of the action. "
+      val s1 = s"This is the ${toOrdinalWords(wdr.retriesSoFar + 1)} failure of the action. "
       val s2 = s"The next attempt will take place in *${fmt.format(wdr.nextDelay)}*."
       val msg =
         SlackNotification(
           params.serviceParams.taskParams.appName,
-          s0 + s1 + s2,
+          s1 + s2,
           List(
             Attachment(
               "#f2c744",
@@ -154,6 +153,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               List(
                 SlackField("Service", params.serviceParams.serviceName, short = true),
                 SlackField("Host", action.serviceInfo.hostName, short = true),
+                SlackField("Status", "Retrying", short = true),
                 SlackField("Action", action.actionName, short = true),
                 SlackField("Took", fmt.format(action.launchTime, at), short = true),
                 SlackField("Retry Policy", params.retryPolicy.policy[F].show, short = true),
@@ -179,6 +179,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               List(
                 SlackField("Service", params.serviceParams.serviceName, short = true),
                 SlackField("Host", action.serviceInfo.hostName, short = true),
+                SlackField("Status", "Failed", short = true),
                 SlackField("Action", action.actionName, short = true),
                 SlackField("Took", fmt.format(action.launchTime, at), short = true),
                 SlackField("Retries", numRetries.toString, short = true),
@@ -205,6 +206,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               List(
                 SlackField("Service", params.serviceParams.serviceName, short = true),
                 SlackField("Host", action.serviceInfo.hostName, short = true),
+                SlackField("Status", "Successed", short = true),
                 SlackField("Action", action.actionName, short = true),
                 SlackField("Took", fmt.format(action.launchTime, at), short = true),
                 SlackField("Retries", s"$numRetries/${params.maxRetries}", short = true),

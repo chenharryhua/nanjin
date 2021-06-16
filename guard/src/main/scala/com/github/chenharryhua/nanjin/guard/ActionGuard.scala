@@ -17,6 +17,8 @@ import fs2.concurrent.Channel
 import io.circe.Encoder
 import io.circe.syntax._
 
+import java.time.ZoneId
+
 final class ActionGuard[F[_]](
   serviceInfo: ServiceInfo,
   dailySummaries: Ref[F, DailySummaries],
@@ -69,5 +71,7 @@ final class ActionGuard[F[_]](
     updateConfig(_.withSuccAlertOn.withFailAlertOn).run(fb)
 
   def run[B](fb: F[B])(implicit F: Async[F]): F[B] = retry[B](fb).run
+
+  def zoneId: ZoneId = params.serviceParams.taskParams.zoneId
 
 }

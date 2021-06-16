@@ -7,7 +7,7 @@ import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.guard._
 import com.github.chenharryhua.nanjin.guard.alert.{
-  toWords,
+  toOrdinalWords,
   ActionFailed,
   ActionRetrying,
   ActionSucced,
@@ -93,8 +93,8 @@ class RetryTest extends AnyFunSuite {
     assert(d.isInstanceOf[ServicePanic])
   }
   test("toWords") {
-    assert(toWords(1) == "1st")
-    assert(toWords(2) == "2nd")
-    assert(toWords(10) == "10th")
+    assert(toOrdinalWords(1) == "1st")
+    assert(toOrdinalWords(2) == "2nd")
+    assert(toOrdinalWords(10) == "10th")
   }
 }

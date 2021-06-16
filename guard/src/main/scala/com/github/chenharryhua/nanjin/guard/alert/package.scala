@@ -15,7 +15,7 @@ package object alert {
   implicit private[alert] val showZoneId: Show[ZoneId]               = _.toString
   implicit private[alert] val showLocalTime: Show[LocalTime]         = _.toString
 
-  def toWords(n: Int): String = n + {
+  def toOrdinalWords(n: Int): String = n + {
     if (n % 100 / 10 == 1) "th" else (("thstndrd" + "th" * 6).sliding(2, 2).toSeq(n % 10))
   }
 
