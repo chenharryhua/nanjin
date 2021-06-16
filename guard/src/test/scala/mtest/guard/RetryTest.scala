@@ -7,6 +7,7 @@ import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.guard._
 import com.github.chenharryhua.nanjin.guard.alert.{
+  toWords,
   ActionFailed,
   ActionRetrying,
   ActionSucced,
@@ -34,7 +35,7 @@ class RetryTest extends AnyFunSuite {
       .updateConfig(_.withNormalStop)
       .eventStream { gd =>
         gd("1-time-succ")("2-time-succ") // funny syntax
-          .updateConfig(_.withMaxRetries(3).withFullJitter(1.second))
+          .updateConfig(_.withMaxRetries(3).withFullJitter(1.second).withShowRetryEvent)
           .run(IO(if (i < 2) {
             i += 1; throw new Exception
           } else i))
@@ -90,5 +91,10 @@ class RetryTest extends AnyFunSuite {
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.asInstanceOf[ActionFailed].numRetries == 2)
     assert(d.isInstanceOf[ServicePanic])
+  }
+  test("toWords") {
+    assert(toWords(1) == "1st")
+    assert(toWords(2) == "2nd")
+    assert(toWords(10) == "10th")
   }
 }
