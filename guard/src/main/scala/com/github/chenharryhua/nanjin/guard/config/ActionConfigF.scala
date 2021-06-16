@@ -49,7 +49,8 @@ final case class Jitter(value: FiniteDuration) extends NJRetryPolicy
   serviceParams: ServiceParams,
   alertMask: AlertMask, // whether display succNotes and failNotes
   maxRetries: Int,
-  retryPolicy: NJRetryPolicy
+  retryPolicy: NJRetryPolicy,
+  isShowRetryEvent: Boolean // allow slack show retry message
 )
 
 object ActionParams {
@@ -58,7 +59,8 @@ object ActionParams {
     serviceParams = serviceParams,
     alertMask = AlertMask(alertSucc = false, alertFail = true),
     maxRetries = 3,
-    retryPolicy = ConstantDelay(10.seconds)
+    retryPolicy = ConstantDelay(10.seconds),
+    isShowRetryEvent = false
   )
 }
 
@@ -75,13 +77,16 @@ private object ActionConfigF {
   final case class WithAlertMaskSucc[K](value: Boolean, cont: K) extends ActionConfigF[K]
   final case class WithAlertMaskFail[K](value: Boolean, cont: K) extends ActionConfigF[K]
 
+  final case class WithShowRetryEvent[K](value: Boolean, cont: K) extends ActionConfigF[K]
+
   val algebra: Algebra[ActionConfigF, ActionParams] =
     Algebra[ActionConfigF, ActionParams] {
-      case InitParams(v)           => ActionParams(v)
-      case WithRetryPolicy(v, c)   => ActionParams.retryPolicy.set(v)(c)
-      case WithMaxRetries(v, c)    => ActionParams.maxRetries.set(v)(c)
-      case WithAlertMaskSucc(v, c) => ActionParams.alertMask.composeLens(AlertMask.alertSucc).set(v)(c)
-      case WithAlertMaskFail(v, c) => ActionParams.alertMask.composeLens(AlertMask.alertFail).set(v)(c)
+      case InitParams(v)            => ActionParams(v)
+      case WithRetryPolicy(v, c)    => ActionParams.retryPolicy.set(v)(c)
+      case WithMaxRetries(v, c)     => ActionParams.maxRetries.set(v)(c)
+      case WithAlertMaskSucc(v, c)  => ActionParams.alertMask.composeLens(AlertMask.alertSucc).set(v)(c)
+      case WithAlertMaskFail(v, c)  => ActionParams.alertMask.composeLens(AlertMask.alertFail).set(v)(c)
+      case WithShowRetryEvent(v, c) => ActionParams.isShowRetryEvent.set(v)(c)
     }
 }
 
@@ -108,6 +113,9 @@ final case class ActionConfig private (value: Fix[ActionConfigF]) {
 
   def withFullJitter(delay: FiniteDuration): ActionConfig =
     ActionConfig(Fix(WithRetryPolicy(FullJitter(delay), value)))
+
+  def withShowRetryEvent: ActionConfig =
+    ActionConfig(Fix(WithShowRetryEvent(value = true, value)))
 
   def evalConfig: ActionParams = scheme.cata(algebra).apply(value)
 }

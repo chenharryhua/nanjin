@@ -52,7 +52,7 @@ final private class ActionRetryBase[F[_], A, B](
       case Outcome.Canceled() =>
         val error = new Exception("the action was cancelled by asynchronous exception")
         for {
-          count <- retryCount.get
+          count <- retryCount.get // number of retries
           now <- realZonedDateTime(params.serviceParams)
           _ <- dailySummaries.update(_.incActionFail)
           _ <- channel.send(
@@ -67,7 +67,7 @@ final private class ActionRetryBase[F[_], A, B](
         } yield ()
       case Outcome.Errored(error) =>
         for {
-          count <- retryCount.get
+          count <- retryCount.get // number of retries
           now <- realZonedDateTime(params.serviceParams)
           _ <- dailySummaries.update(_.incActionFail)
           _ <- channel.send(

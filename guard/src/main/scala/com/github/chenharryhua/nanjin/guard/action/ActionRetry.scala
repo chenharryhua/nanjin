@@ -65,10 +65,10 @@ final class ActionRetry[F[_], A, B](
             params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
             base.onError(actionInfo)) {
             for {
-              waiter <- F.deferred[Outcome[F, Throwable, B]]
-              fiber <- F.start(kleisli.run(input).guaranteeCase(waiter.complete(_).void))
+              gate <- F.deferred[Outcome[F, Throwable, B]]
+              fiber <- F.start(kleisli.run(input).guaranteeCase(gate.complete(_).void))
               oc <- F.onCancel(
-                poll(waiter.get).flatMap(_.embed(F.raiseError[B](new Exception("the action was cancelled")))),
+                poll(gate.get).flatMap(_.embed(F.raiseError[B](new Exception("the action was cancelled")))),
                 fiber.cancel)
             } yield oc
           }

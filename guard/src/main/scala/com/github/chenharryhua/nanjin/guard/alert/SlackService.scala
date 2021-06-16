@@ -139,7 +139,33 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       val ltr = NJLocalTimeRange(params.healthCheck.openTime, params.healthCheck.span, params.taskParams.zoneId)
       service.publish(msg).whenA(ltr.isInBetween(at))
 
-    case ActionRetrying(_, _, _, _, _) => F.unit
+    case ActionRetrying(at, action, params, wdr, error) =>
+      val s0 = "The action was failed and started to retry. "
+      val s1 = s"This is the ${toWords(wdr.retriesSoFar + 1)} time failure of the action. "
+      val s2 = s"The next attempt will take place in *${fmt.format(wdr.nextDelay)}*."
+      val msg =
+        SlackNotification(
+          params.serviceParams.taskParams.appName,
+          s0 + s1 + s2,
+          List(
+            Attachment(
+              "#f2c744",
+              at.toInstant.toEpochMilli,
+              List(
+                SlackField("Service", params.serviceParams.serviceName, short = true),
+                SlackField("Host", action.serviceInfo.hostName, short = true),
+                SlackField("Action", action.actionName, short = true),
+                SlackField("Took", fmt.format(action.launchTime, at), short = true),
+                SlackField("Retry Policy", params.retryPolicy.policy[F].show, short = true),
+                SlackField("Action ID", action.id.toString, short = false),
+                SlackField(
+                  "Cause",
+                  StringUtils.abbreviate(error.message, params.serviceParams.maxCauseSize),
+                  short = false)
+              )
+            ))
+        ).asJson.noSpaces
+      service.publish(msg).whenA(params.isShowRetryEvent)
 
     case ActionFailed(at, action, params, numRetries, notes, error) =>
       val msg =
