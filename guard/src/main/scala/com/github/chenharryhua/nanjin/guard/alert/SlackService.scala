@@ -45,16 +45,17 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       service.publish(msg).void
 
     case ServicePanic(at, info, params, details, error) =>
-      val upcomingDelay: String = details.upcomingDelay.map(fmt.format) match {
+      val s1 = ":system_restore: The service experienced a panic, "
+      val s2: String = details.upcomingDelay.map(fmt.format) match {
         case None     => "should never see this" // never happen
-        case Some(ts) => s"Next attempt will take place in *$ts* meanwhile the service is *dysfunctional*."
+        case Some(ts) => s"restart of which takes place in *$ts* meanwhile the service is *dysfunctional*. "
       }
+      val s3 = s"Search *${error.id}* in log file to find full exception."
+
       val msg =
         SlackNotification(
           params.taskParams.appName,
-          s""":system_restore: The service experienced a panic and started to recover itself.
-             |$upcomingDelay 
-             |Full exception can be found in log file by *${error.id}*""".stripMargin,
+          s1 + s2 + s3,
           List(
             Attachment(
               "danger",
@@ -140,12 +141,13 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       service.publish(msg).whenA(ltr.isInBetween(at))
 
     case ActionRetrying(at, action, params, wdr, error) =>
-      val s1 = s"This is the ${toOrdinalWords(wdr.retriesSoFar + 1)} failure of the action. "
-      val s2 = s"The next attempt will take place in *${fmt.format(wdr.nextDelay)}*."
+      val s1 = s"This is the ${toOrdinalWords(wdr.retriesSoFar + 1)} failure of the action, "
+      val s2 = s"retry of which takes place in *${fmt.format(wdr.nextDelay)}*, "
+      val s3 = s"up to maximum *${params.maxRetries}* retries"
       val msg =
         SlackNotification(
           params.serviceParams.taskParams.appName,
-          s1 + s2,
+          s1 + s2 + s3,
           List(
             Attachment(
               "#f2c744",
@@ -153,8 +155,8 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               List(
                 SlackField("Service", params.serviceParams.serviceName, short = true),
                 SlackField("Host", action.serviceInfo.hostName, short = true),
-                SlackField("Status", "Retrying", short = true),
                 SlackField("Action", action.actionName, short = true),
+                SlackField("Status", "Retrying", short = true),
                 SlackField("Took", fmt.format(action.launchTime, at), short = true),
                 SlackField("Retry Policy", params.retryPolicy.policy[F].show, short = true),
                 SlackField("Action ID", action.id.toString, short = false),
@@ -179,8 +181,8 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               List(
                 SlackField("Service", params.serviceParams.serviceName, short = true),
                 SlackField("Host", action.serviceInfo.hostName, short = true),
-                SlackField("Status", "Failed", short = true),
                 SlackField("Action", action.actionName, short = true),
+                SlackField("Status", "Failed", short = true),
                 SlackField("Took", fmt.format(action.launchTime, at), short = true),
                 SlackField("Retries", numRetries.toString, short = true),
                 SlackField("Retry Policy", params.retryPolicy.policy[F].show, short = true),
@@ -206,8 +208,8 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               List(
                 SlackField("Service", params.serviceParams.serviceName, short = true),
                 SlackField("Host", action.serviceInfo.hostName, short = true),
-                SlackField("Status", "Successed", short = true),
                 SlackField("Action", action.actionName, short = true),
+                SlackField("Status", "Completed", short = true),
                 SlackField("Took", fmt.format(action.launchTime, at), short = true),
                 SlackField("Retries", s"$numRetries/${params.maxRetries}", short = true),
                 SlackField("Action ID", action.id.toString, short = false)
