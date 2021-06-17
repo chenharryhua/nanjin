@@ -189,4 +189,24 @@ class CancellationTest extends AnyFunSuite {
       c.asInstanceOf[ActionFailed].error.message == "Exception: the action was cancelled by asynchronous exception")
     assert(d.isInstanceOf[ServiceStopped])
   }
+  test("cancellation - wrapped within uncancelable") {
+    val Vector(a, b, c, d, e) = serviceGuard
+      .updateConfig(_.withConstantDelay(1.hour).withStartUpDelay(1.hour))
+      .eventStream { action =>
+        val a1 = action("exception")
+          .updateConfig(_.withConstantDelay(1.second).withMaxRetries(3))
+          .run(IO.raiseError[Int](new Exception))
+        IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, IO.uncancelable(_ => a1)))
+      }
+      .debug()
+      .compile
+      .toVector
+      .unsafeRunSync()
+
+    assert(a.isInstanceOf[ActionRetrying])
+    assert(b.isInstanceOf[ActionRetrying])
+    assert(c.isInstanceOf[ActionRetrying])
+    assert(d.isInstanceOf[ActionFailed])
+    assert(e.isInstanceOf[ServiceStopped])
+  }
 }

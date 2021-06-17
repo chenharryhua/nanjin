@@ -59,6 +59,15 @@ final class ActionRetry[F[_], A, B](
         succ = succ,
         fail = fail)
       actionInfo <- base.actionInfo
+// alternatively:
+//      res <- retry
+//        .retryingOnAllErrors[B](
+//          params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
+//          base.onError(actionInfo)) {
+//          F.background(kleisli.run(input))
+//            .use(_.flatMap(_.embed(F.raiseError(new Exception("the action was cancelled")))))
+//        }
+//        .guaranteeCase(base.handleOutcome(actionInfo))
       res <- F.uncancelable(poll =>
         retry
           .retryingOnAllErrors[B](

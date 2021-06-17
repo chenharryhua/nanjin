@@ -45,17 +45,15 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       service.publish(msg).void
 
     case ServicePanic(at, info, params, details, error) =>
-      val s1 = ":system_restore: The service experienced a panic, "
-      val s2: String = details.upcomingDelay.map(fmt.format) match {
+      val upcoming: String = details.upcomingDelay.map(fmt.format) match {
         case None     => "should never see this" // never happen
-        case Some(ts) => s"restart of which takes place in *$ts* meanwhile the service is *dysfunctional*. "
+        case Some(ts) => s"restart of which takes place in *$ts* meanwhile the service is dysfunctional."
       }
-      val s3 = s"Search *${error.id}* in log file to find full exception."
-
       val msg =
         SlackNotification(
           params.taskParams.appName,
-          s1 + s2 + s3,
+          s""":system_restore: The service experienced a panic, $upcoming
+             |Search *${error.id}* in log file to find full exception.""".stripMargin,
           List(
             Attachment(
               "danger",
