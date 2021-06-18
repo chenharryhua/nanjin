@@ -214,7 +214,7 @@ val testLib = Seq(
   "com.typesafe.akka" %% "akka-stream-testkit"                % akka26          % Test,
   "org.typelevel" %% "algebra-laws"                           % algebra         % Test,
   "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % akkaKafka       % Test,
-  "org.slf4j"                                                 % "slf4j-log4j12" % "1.7.30" % Test,
+  "org.slf4j"                                                 % "slf4j-log4j12" % "1.7.31" % Test,
   "log4j"                                                     % "log4j"         % "1.2.17" % Test
 )
 
@@ -297,7 +297,7 @@ val doobieLib = Seq(
 
 val logLib = Seq(
   "org.log4s" %% "log4s" % "1.10.0",
-  "org.slf4j"            % "slf4j-api" % "1.7.30"
+  "org.slf4j"            % "slf4j-api" % "1.7.31"
 )
 
 val ftpLib = Seq(
