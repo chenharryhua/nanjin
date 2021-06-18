@@ -19,7 +19,8 @@ final class ActionRetry[F[_], A, B](
   input: A,
   kleisli: Kleisli[F, A, B],
   succ: Reader[(A, B), String],
-  fail: Reader[(A, Throwable), String]) {
+  fail: Reader[(A, Throwable), String],
+  isWorthRetry: Kleisli[F, Throwable, Boolean]) {
 
   def withSuccNotes(succ: (A, B) => String): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
@@ -31,7 +32,8 @@ final class ActionRetry[F[_], A, B](
       input = input,
       kleisli = kleisli,
       succ = Reader(succ.tupled),
-      fail = fail)
+      fail = fail,
+      isWorthRetry = isWorthRetry)
 
   def withFailNotes(fail: (A, Throwable) => String): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
@@ -43,7 +45,21 @@ final class ActionRetry[F[_], A, B](
       input = input,
       kleisli = kleisli,
       succ = succ,
-      fail = Reader(fail.tupled))
+      fail = Reader(fail.tupled),
+      isWorthRetry = isWorthRetry)
+
+  def withPredicate(worthRetry: Throwable => F[Boolean]): ActionRetry[F, A, B] =
+    new ActionRetry[F, A, B](
+      serviceInfo = serviceInfo,
+      dailySummaries = dailySummaries,
+      channel = channel,
+      actionName = actionName,
+      params = params,
+      input = input,
+      kleisli = kleisli,
+      succ = succ,
+      fail = fail,
+      isWorthRetry = Kleisli(worthRetry))
 
   def run(implicit F: Async[F]): F[B] =
     for {
@@ -70,14 +86,15 @@ final class ActionRetry[F[_], A, B](
 //        .guaranteeCase(base.handleOutcome(actionInfo))
       res <- F.uncancelable(poll =>
         retry.mtl
-          .retryingOnAllErrors[B](
+          .retryingOnSomeErrors[B](
             params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
+            isWorthRetry.run,
             base.onError(actionInfo)) {
             for {
               gate <- F.deferred[Outcome[F, Throwable, B]]
               fiber <- F.start(kleisli.run(input).guaranteeCase(gate.complete(_).void))
               oc <- F.onCancel(
-                poll(gate.get).flatMap(_.embed(F.raiseError[B](new Exception("the action was cancelled")))),
+                poll(gate.get).flatMap(_.embed(F.raiseError[B](new Exception("the action was canceled")))),
                 fiber.cancel)
             } yield oc
           }

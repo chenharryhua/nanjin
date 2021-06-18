@@ -20,6 +20,9 @@ import com.github.chenharryhua.nanjin.guard.alert.{
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration._
+
+final case class MyException() extends Exception("my exception")
+
 class RetryTest extends AnyFunSuite {
 
   val serviceGuard = TaskGuard[IO]("retry-guard")
@@ -92,9 +95,47 @@ class RetryTest extends AnyFunSuite {
     assert(c.asInstanceOf[ActionFailed].numRetries == 2)
     assert(d.isInstanceOf[ServicePanic])
   }
-  test("toWords") {
-    assert(toOrdinalWords(1) == "1st")
-    assert(toOrdinalWords(2) == "2nd")
-    assert(toOrdinalWords(10) == "10th")
+
+  test("predicate - should retry") {
+    val Vector(a, b, c, d, e) = serviceGuard
+      .updateConfig(_.withConstantDelay(1.hour))
+      .eventStream { gd =>
+        gd("predicate")
+          .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
+          .retry(IO.raiseError(MyException()))
+          .withPredicate(ex => IO(ex.isInstanceOf[MyException]))
+          .run
+      }
+      .observe(_.evalMap(logging.alert).drain)
+      .interruptAfter(5.seconds)
+      .compile
+      .toVector
+      .unsafeRunSync()
+
+    assert(a.isInstanceOf[ActionRetrying])
+    assert(b.isInstanceOf[ActionRetrying])
+    assert(c.isInstanceOf[ActionRetrying])
+    assert(d.isInstanceOf[ActionFailed])
+    assert(e.isInstanceOf[ServicePanic])
+  }
+
+  test("predicate - should not retry") {
+    val Vector(a, b) = serviceGuard
+      .updateConfig(_.withConstantDelay(1.hour))
+      .eventStream { gd =>
+        gd("predicate")
+          .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
+          .retry(IO.raiseError(new Exception()))
+          .withPredicate(ex => IO(ex.isInstanceOf[MyException]))
+          .run
+      }
+      .observe(_.evalMap(logging.alert).drain)
+      .interruptAfter(5.seconds)
+      .compile
+      .toVector
+      .unsafeRunSync()
+
+    assert(a.asInstanceOf[ActionFailed].numRetries == 0)
+    assert(b.isInstanceOf[ServicePanic])
   }
 }
