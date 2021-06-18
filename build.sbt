@@ -358,9 +358,9 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= Seq(
-      "com.github.cb372" %% "cats-retry" % "3.0.0",
-      "eu.timepit" %% "fs2-cron-cron4s"  % "0.7.1",
-      "io.dropwizard.metrics"            % "metrics-core" % "4.2.1") ++
+      "com.github.cb372" %% "cats-retry-mtl" % "3.0.0",
+      "eu.timepit" %% "fs2-cron-cron4s"      % "0.7.1",
+      "io.dropwizard.metrics"                % "metrics-core" % "4.2.1") ++
       logLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ awsLib.map(_ % Provided))
 
 lazy val messages = (project in file("messages"))
@@ -428,3 +428,4 @@ lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
     .aggregate(common, datetime, salesforce, aws, guard, messages, pipes, kafka, database, spark)
+
