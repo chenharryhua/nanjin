@@ -43,7 +43,7 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) {
       si <- Stream.eval(serviceInfo)
       dailySummaries <- Stream.eval(F.ref(DailySummaries.zero))
       event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
-        val service: F[A] = retry
+        val service: F[A] = retry.mtl
           .retryingOnAllErrors(
             params.retryPolicy.policy[F],
             (ex: Throwable, rd) =>

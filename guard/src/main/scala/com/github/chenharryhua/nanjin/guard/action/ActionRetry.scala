@@ -69,7 +69,7 @@ final class ActionRetry[F[_], A, B](
 //        }
 //        .guaranteeCase(base.handleOutcome(actionInfo))
       res <- F.uncancelable(poll =>
-        retry
+        retry.mtl
           .retryingOnAllErrors[B](
             params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
             base.onError(actionInfo)) {
