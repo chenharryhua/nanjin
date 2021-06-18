@@ -17,7 +17,7 @@ final class ActionRetry[F[_], A, B](
   actionName: String,
   params: ActionParams,
   input: A,
-  kleisli: Kleisli[F, A, B],
+  fab: Kleisli[F, A, B],
   succ: Reader[(A, B), String],
   fail: Reader[(A, Throwable), String],
   isWorthRetry: Kleisli[F, Throwable, Boolean]) {
@@ -30,7 +30,7 @@ final class ActionRetry[F[_], A, B](
       actionName = actionName,
       params = params,
       input = input,
-      kleisli = kleisli,
+      fab = fab,
       succ = Reader(succ.tupled),
       fail = fail,
       isWorthRetry = isWorthRetry)
@@ -43,7 +43,7 @@ final class ActionRetry[F[_], A, B](
       actionName = actionName,
       params = params,
       input = input,
-      kleisli = kleisli,
+      fab = fab,
       succ = succ,
       fail = Reader(fail.tupled),
       isWorthRetry = isWorthRetry)
@@ -56,7 +56,7 @@ final class ActionRetry[F[_], A, B](
       actionName = actionName,
       params = params,
       input = input,
-      kleisli = kleisli,
+      fab = fab,
       succ = succ,
       fail = fail,
       isWorthRetry = Kleisli(worthRetry))
@@ -92,7 +92,7 @@ final class ActionRetry[F[_], A, B](
             base.onError(actionInfo)) {
             for {
               gate <- F.deferred[Outcome[F, Throwable, B]]
-              fiber <- F.start(kleisli.run(input).guaranteeCase(gate.complete(_).void))
+              fiber <- F.start(fab.run(input).guaranteeCase(gate.complete(_).void))
               oc <- F.onCancel(
                 poll(gate.get).flatMap(_.embed(F.raiseError[B](new Exception("the action was canceled")))),
                 fiber.cancel)
