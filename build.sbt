@@ -37,7 +37,7 @@ val frameless = "0.10.1"
 
 // database
 val doobie   = "1.0.0-M5"
-val quill    = "3.7.1"
+val quill    = "3.7.2"
 val neotypes = "0.17.0"
 
 // format
