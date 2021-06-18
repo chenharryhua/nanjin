@@ -42,7 +42,7 @@ final class ActionGuard[F[_]](
       actionName = actionName,
       params = params,
       input = input,
-      kleisli = Kleisli(f),
+      fab = Kleisli(f),
       succ = Reader(_ => ""),
       fail = Reader(_ => ""),
       isWorthRetry = Kleisli(_ => F.pure(true)))
