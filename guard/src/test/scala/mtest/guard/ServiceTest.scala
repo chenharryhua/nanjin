@@ -11,6 +11,7 @@ import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.guard._
 import com.github.chenharryhua.nanjin.guard.alert.{
+  toOrdinalWords,
   ActionFailed,
   ActionRetrying,
   ActionSucced,
@@ -177,5 +178,19 @@ class ServiceTest extends AnyFunSuite {
         case c: Counter => assert(c.getCount() == 3)
       }
     }
+  }
+
+  test("toWords") {
+    assert(toOrdinalWords(1) == "1st")
+    assert(toOrdinalWords(2) == "2nd")
+    assert(toOrdinalWords(10) == "10th")
+  }
+
+  test("zoneId ") {
+    guard
+      .eventStream(ag => IO(assert(ag.zoneId == ag.params.serviceParams.taskParams.zoneId)))
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 }

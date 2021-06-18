@@ -32,11 +32,11 @@ class CancellationTest extends AnyFunSuite {
     assert(a.isInstanceOf[ActionRetrying])
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.isInstanceOf[ActionRetrying])
-    assert(d.asInstanceOf[ActionFailed].error.message == "Exception: the action was cancelled")
+    assert(d.asInstanceOf[ActionFailed].error.message == "Exception: the action was canceled")
     assert(e.isInstanceOf[ServicePanic])
   }
 
-  test("cancellation - can be cancelled externally") {
+  test("cancellation - can be canceled externally") {
     val Vector(a, b) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour).withStartUpDelay(1.hour))
       .eventStream { action =>
@@ -47,8 +47,7 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
 
-    assert(
-      a.asInstanceOf[ActionFailed].error.message == "Exception: the action was cancelled by asynchronous exception")
+    assert(a.asInstanceOf[ActionFailed].error.message == "Exception: the action was canceled by asynchronous exception")
     assert(b.isInstanceOf[ServiceStopped])
   }
 
@@ -64,8 +63,7 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
 
-    assert(
-      a.asInstanceOf[ActionFailed].error.message == "Exception: the action was cancelled by asynchronous exception")
+    assert(a.asInstanceOf[ActionFailed].error.message == "Exception: the action was canceled by asynchronous exception")
     assert(b.isInstanceOf[ServicePanic])
   }
 
@@ -83,14 +81,12 @@ class CancellationTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(a.asInstanceOf[ActionFailed].actionInfo.actionName == "never")
-    assert(
-      a.asInstanceOf[ActionFailed].error.message == "Exception: the action was cancelled by asynchronous exception")
+    assert(a.asInstanceOf[ActionFailed].error.message == "Exception: the action was canceled by asynchronous exception")
     assert(b.asInstanceOf[ActionRetrying].actionInfo.actionName == "supervisor")
     assert(c.asInstanceOf[ActionFailed].actionInfo.actionName == "never")
-    assert(
-      c.asInstanceOf[ActionFailed].error.message == "Exception: the action was cancelled by asynchronous exception")
+    assert(c.asInstanceOf[ActionFailed].error.message == "Exception: the action was canceled by asynchronous exception")
     assert(d.asInstanceOf[ActionFailed].actionInfo.actionName == "supervisor")
-    assert(d.asInstanceOf[ActionFailed].error.message == "Exception: the action was cancelled")
+    assert(d.asInstanceOf[ActionFailed].error.message == "Exception: the action was canceled")
     assert(e.isInstanceOf[ServicePanic])
   }
 
@@ -185,8 +181,7 @@ class CancellationTest extends AnyFunSuite {
 
     assert(a.isInstanceOf[ActionRetrying])
     assert(b.isInstanceOf[ActionRetrying])
-    assert(
-      c.asInstanceOf[ActionFailed].error.message == "Exception: the action was cancelled by asynchronous exception")
+    assert(c.asInstanceOf[ActionFailed].error.message == "Exception: the action was canceled by asynchronous exception")
     assert(d.isInstanceOf[ServiceStopped])
   }
   test("cancellation - wrapped within uncancelable") {

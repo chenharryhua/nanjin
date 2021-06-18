@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard
 
+import cats.Applicative
 import cats.data.{Kleisli, Reader}
 import cats.effect.kernel.Temporal
 import cats.effect.{Async, Ref}
@@ -33,7 +34,7 @@ final class ActionGuard[F[_]](
   def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
     new ActionGuard[F](serviceInfo, dailySummaries, channel, actionName, f(actionConfig))
 
-  def retry[A, B](input: A)(f: A => F[B]): ActionRetry[F, A, B] =
+  def retry[A, B](input: A)(f: A => F[B])(implicit F: Applicative[F]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
       serviceInfo = serviceInfo,
       dailySummaries = dailySummaries,
@@ -43,9 +44,10 @@ final class ActionGuard[F[_]](
       input = input,
       kleisli = Kleisli(f),
       succ = Reader(_ => ""),
-      fail = Reader(_ => ""))
+      fail = Reader(_ => ""),
+      isWorthRetry = Kleisli(_ => F.pure(true)))
 
-  def retry[B](fb: F[B]): ActionRetry[F, Unit, B] = retry[Unit, B](())(_ => fb)
+  def retry[B](fb: F[B])(implicit F: Applicative[F]): ActionRetry[F, Unit, B] = retry[Unit, B](())(_ => fb)
 
   def fyi(msg: String)(implicit F: Temporal[F]): F[Unit] =
     realZonedDateTime(params.serviceParams).flatMap(ts => channel.send(ForYourInformation(ts, msg))).void
