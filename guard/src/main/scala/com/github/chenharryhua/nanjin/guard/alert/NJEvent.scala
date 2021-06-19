@@ -128,5 +128,13 @@ final case class ActionSucced(
   notes: Notes // success notes
 ) extends ActionEvent
 
+final case class ActionQuasiSucced(
+  timestamp: ZonedDateTime,
+  actionInfo: ActionInfo,
+  params: ActionParams,
+  numSucc: Long,
+  errors: List[NJError]
+) extends ActionEvent
+
 final case class ForYourInformation(timestamp: ZonedDateTime, message: String) extends NJEvent
 final case class PassThrough(timestamp: ZonedDateTime, value: Json) extends NJEvent

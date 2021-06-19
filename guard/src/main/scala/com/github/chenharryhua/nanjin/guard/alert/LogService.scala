@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.alert
 
 import cats.effect.Sync
-import cats.syntax.show._
+import cats.syntax.all._
 import org.log4s.Logger
 
 final private class LogService[F[_]]()(implicit F: Sync[F]) extends AlertService[F] {
@@ -24,6 +24,12 @@ final private class LogService[F[_]]()(implicit F: Sync[F]) extends AlertService
         else
           F.blocking(logger.error(new Exception("service was abnormally stopped"))(event.show))
       case ActionFailed(_, _, _, _, _, error) => F.blocking(logger.error(error.throwable)(event.show))
+
+      case ActionQuasiSucced(_, _, _, _, errors) =>
+        if (errors.nonEmpty)
+          F.blocking(logger.error(new Exception("qusai succ"))(event.show))
+        else
+          F.blocking(logger.info(event.show))
     }
 }
 
