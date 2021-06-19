@@ -216,6 +216,29 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
         ).asJson.noSpaces
       service.publish(msg).whenA(params.alertMask.alertSucc)
 
+    case ActionQuasiSucced(at, action, params, numSucc, errors) =>
+      val msg =
+        SlackNotification(
+          params.serviceParams.taskParams.appName,
+          "Quasi Success Action",
+          List(
+            Attachment(
+              if (errors.nonEmpty) "danger" else "good",
+              at.toInstant.toEpochMilli,
+              List(
+                SlackField("Service", params.serviceParams.serviceName, short = true),
+                SlackField("Host", action.serviceInfo.hostName, short = true),
+                SlackField("Action", action.actionName, short = true),
+                SlackField("Status", "Completed", short = true),
+                SlackField("Took", fmt.format(action.launchTime, at), short = true),
+                SlackField("Succed", numSucc.toString, short = true),
+                SlackField("Failed", errors.size.toString, short = true),
+                SlackField("Action ID", action.id.toString, short = false)
+              )
+            ))
+        ).asJson.noSpaces
+      service.publish(msg).whenA(params.alertMask.alertSucc)
+
     case ForYourInformation(_, message) => service.publish(message).void
     case PassThrough(_, _)              => F.unit
   }

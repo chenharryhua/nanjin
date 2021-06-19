@@ -1,14 +1,17 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.Applicative
 import cats.data.{Kleisli, Reader}
 import cats.effect.kernel.Temporal
 import cats.effect.{Async, Ref}
 import cats.syntax.all._
+import cats.{Alternative, Applicative, Traverse}
 import com.github.chenharryhua.nanjin.guard.action.ActionRetry
 import com.github.chenharryhua.nanjin.guard.alert.{
+  ActionInfo,
+  ActionQuasiSucced,
   DailySummaries,
   ForYourInformation,
+  NJError,
   NJEvent,
   PassThrough,
   ServiceInfo
@@ -19,6 +22,7 @@ import io.circe.Encoder
 import io.circe.syntax._
 
 import java.time.ZoneId
+import java.util.UUID
 
 final class ActionGuard[F[_]](
   serviceInfo: ServiceInfo,
@@ -76,4 +80,31 @@ final class ActionGuard[F[_]](
 
   def zoneId: ZoneId = params.serviceParams.taskParams.zoneId
 
+  def quasi[T[_]: Traverse: Alternative, B](ftb: F[T[Either[Throwable, B]]])(implicit F: Async[F]): F[T[B]] =
+    for {
+      now <- realZonedDateTime(params.serviceParams)
+      actionInfo = ActionInfo(
+        actionName = actionName,
+        serviceInfo = serviceInfo,
+        id = UUID.randomUUID(),
+        launchTime = now)
+      res <- ftb.flatMap { r =>
+        val (ex, rs) = r.partitionEither(identity)
+        realZonedDateTime(params.serviceParams).flatMap { ts =>
+          channel
+            .send(
+              ActionQuasiSucced(
+                timestamp = ts,
+                actionInfo = actionInfo,
+                params: ActionParams,
+                numSucc = rs.size,
+                errors = ex.toList.map(NJError(_))
+              ))
+            .as(rs)
+        }
+      }
+    } yield res
+
+  def quasi[T[_]: Traverse: Alternative, A, B](ta: T[A])(f: A => F[B])(implicit F: Async[F]): F[T[B]] =
+    quasi(ta.traverse(a => f(a).attempt))
 }
