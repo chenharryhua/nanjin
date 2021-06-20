@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.Applicative
+import cats.{Applicative, Traverse}
 import cats.data.{Kleisli, Reader}
 import cats.effect.kernel.Temporal
 import cats.effect.{Async, Ref}
@@ -87,4 +87,7 @@ final class ActionGuard[F[_]](
       fab = Kleisli(f),
       succ = Reader(_ => ""),
       fail = Reader(_ => ""))
+
+  def quasi[T[_]](tfu: T[F[Unit]]): QuasiSucc[F, T, F[Unit], Unit] =
+    quasi[T, F[Unit], Unit](tfu)(identity) 
 }
