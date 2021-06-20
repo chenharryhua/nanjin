@@ -78,13 +78,13 @@ final class ActionGuard[F[_]](
 
   def quasi[T[_], A, B](ta: T[A])(f: A => F[B]): QuasiSucc[F, T, A, B] =
     new QuasiSucc[F, T, A, B](
-      serviceInfo,
-      dailySummaries,
-      channel,
-      actionName,
-      params,
-      ta,
-      Kleisli(f),
-      Reader(_ => ""),
-      Reader(_ => ""))
+      serviceInfo = serviceInfo,
+      dailySummaries = dailySummaries,
+      channel = channel,
+      actionName = actionName,
+      params = params,
+      input = ta,
+      fab = Kleisli(f),
+      succ = Reader(_ => ""),
+      fail = Reader(_ => ""))
 }
