@@ -39,7 +39,12 @@ class QuasiSuccTest extends AnyFunSuite {
   test("all fail") {
     val ls: Chunk[Int] = Chunk(0, 0, 0)
     val Vector(a, b) = guard
-      .eventStream(action => action("all-fail").quasi(ls)(f).withFailNotes(_ => "failure").run)
+      .eventStream(action =>
+        action("all-fail")
+          .updateConfig(_.withSuccAlertOn.withFailAlertOff)
+          .quasi(ls)(f)
+          .withFailNotes(_ => "failure")
+          .run)
       .observe(_.evalMap(logging.alert).drain)
       .compile
       .toVector
