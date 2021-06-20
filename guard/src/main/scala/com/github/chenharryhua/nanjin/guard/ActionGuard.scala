@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.{Applicative, Traverse}
+import cats.Applicative
 import cats.data.{Kleisli, Reader}
 import cats.effect.kernel.Temporal
 import cats.effect.{Async, Ref}
