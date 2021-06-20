@@ -87,4 +87,7 @@ final class ActionGuard[F[_]](
       fab = Kleisli(f),
       succ = Reader(_ => ""),
       fail = Reader(_ => ""))
+
+  def quasi[T[_], B](tfu: T[F[B]]): QuasiSucc[F, T, F[B], B] =
+    quasi[T, F[B], B](tfu)(identity)
 }
