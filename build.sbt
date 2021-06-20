@@ -18,7 +18,7 @@ val tagless    = "0.14.0"
 val monocle    = "2.1.0"
 val refined    = "0.9.26"
 val droste     = "0.8.0"
-val enumeratum = "1.6.1"
+val enumeratum = "1.7.0"
 val chimney    = "0.6.1"
 
 // runtime
