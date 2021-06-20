@@ -54,7 +54,8 @@ final class QuasiSucc[F[_], T[_], A, B](
       succ = succ,
       fail = Reader(fail))
 
-  def seqRun(implicit F: Async[F], T: Traverse[T], L: Alternative[T]): F[T[B]] =
+  private def internal(
+    eval: F[T[Either[(A, Throwable), (A, B)]]])(implicit F: Async[F], T: Traverse[T], L: Alternative[T]): F[T[B]] =
     for {
       now <- realZonedDateTime(params.serviceParams)
       actionInfo = ActionInfo(
@@ -62,55 +63,33 @@ final class QuasiSucc[F[_], T[_], A, B](
         serviceInfo = serviceInfo,
         id = UUID.randomUUID(),
         launchTime = now)
-      res <- input.traverse(a => fab.run(a).attempt.map(_.bimap((a, _), (a, _)))).flatMap { r =>
-        val (ex, rs)                   = r.partitionEither(identity)
+      res <- eval.flatMap { fte =>
+        val (ex, rs)                   = fte.partitionEither(identity)
         val errors: List[(A, NJError)] = ex.toList.map(e => (e._1, NJError(e._2)))
         for {
           ts <- realZonedDateTime(params.serviceParams)
           rs <- channel
-            .send(ActionQuasiSucced(
-              timestamp = ts,
-              actionInfo = actionInfo,
-              params = params,
-              numSucc = rs.size,
-              succNotes = Notes(succ(rs.toList)),
-              failNotes = Notes(fail(errors)),
-              errors = errors.map(_._2)
-            ))
+            .send(
+              ActionQuasiSucced(
+                timestamp = ts,
+                actionInfo = actionInfo,
+                params = params,
+                numSucc = rs.size,
+                succNotes = Notes(succ(rs.toList)),
+                failNotes = Notes(fail(errors)),
+                errors = errors.map(_._2)
+              ))
             .as(rs)
           _ <- dailySummaries.update(d =>
-            d.copy(actionSucc = d.actionSucc + rs.size, actionFail = d.actionFail + ex.size))
+            d.copy(actionSucc = d.actionSucc + rs.size, actionFail = d.actionFail + errors.size))
         } yield rs
       }
     } yield T.map(res)(_._2)
 
+  def seqRun(implicit F: Async[F], T: Traverse[T], L: Alternative[T]): F[T[B]] =
+    internal(input.traverse(a => fab.run(a).attempt.map(_.bimap((a, _), (a, _)))))
+
   def parRun(implicit F: Async[F], T: Traverse[T], L: Alternative[T], P: Parallel[F]): F[T[B]] =
-    for {
-      now <- realZonedDateTime(params.serviceParams)
-      actionInfo = ActionInfo(
-        actionName = actionName,
-        serviceInfo = serviceInfo,
-        id = UUID.randomUUID(),
-        launchTime = now)
-      res <- input.parTraverse(a => fab.run(a).attempt.map(_.bimap((a, _), (a, _)))).flatMap { r =>
-        val (ex, rs)                   = r.partitionEither(identity)
-        val errors: List[(A, NJError)] = ex.toList.map(e => (e._1, NJError(e._2)))
-        for {
-          ts <- realZonedDateTime(params.serviceParams)
-          rs <- channel
-            .send(ActionQuasiSucced(
-              timestamp = ts,
-              actionInfo = actionInfo,
-              params = params,
-              numSucc = rs.size,
-              succNotes = Notes(succ(rs.toList)),
-              failNotes = Notes(fail(errors)),
-              errors = errors.map(_._2)
-            ))
-            .as(rs)
-          _ <- dailySummaries.update(d =>
-            d.copy(actionSucc = d.actionSucc + rs.size, actionFail = d.actionFail + ex.size))
-        } yield rs
-      }
-    } yield T.map(res)(_._2)
+    internal(input.parTraverse(a => fab.run(a).attempt.map(_.bimap((a, _), (a, _)))))
+
 }

@@ -75,19 +75,22 @@ class QuasiSuccTest extends AnyFunSuite {
   }
 
   test("partial succ - vector") {
+    def f(a: Int): IO[Int] = IO.sleep(1.second) >> IO(100 / a)
     val Vector(a, b) =
       guard
         .eventStream(action =>
           action("partial-good")
-            .quasi(Vector(0, 0, 1))(f)
+            .quasi(Vector(0, 0, 1, 1))(f)
             .withFailNotes(_.map(n => s"${n._1} --> ${n._2.id}").mkString("\n"))
             .seqRun)
         .observe(_.evalMap(logging.alert).drain)
         .compile
         .toVector
         .unsafeRunSync()
-    assert(a.asInstanceOf[ActionQuasiSucced].numSucc == 1)
-    assert(a.asInstanceOf[ActionQuasiSucced].errors.size == 2)
+    val succ = a.asInstanceOf[ActionQuasiSucced]
+    assert(succ.numSucc == 2)
+    assert(succ.errors.size == 2)
+    assert(JavaDuration.between(succ.actionInfo.launchTime, succ.timestamp).abs.getSeconds > 3)
     assert(b.isInstanceOf[ServiceStopped])
   }
 
@@ -103,7 +106,7 @@ class QuasiSuccTest extends AnyFunSuite {
     val succ = a.asInstanceOf[ActionQuasiSucced]
     assert(succ.numSucc == 3)
     assert(succ.errors.size == 3)
-    assert(JavaDuration.between(succ.timestamp, succ.actionInfo.launchTime).getSeconds < 2)
+    assert(JavaDuration.between(succ.actionInfo.launchTime, succ.timestamp).abs.getSeconds < 2)
     assert(b.isInstanceOf[ServiceStopped])
   }
 
@@ -119,7 +122,7 @@ class QuasiSuccTest extends AnyFunSuite {
     val succ = a.asInstanceOf[ActionQuasiSucced]
     assert(succ.numSucc == 3)
     assert(succ.errors.size == 3)
-    assert(JavaDuration.between(succ.timestamp, succ.actionInfo.launchTime).getSeconds < 2)
+    assert(JavaDuration.between(succ.actionInfo.launchTime, succ.timestamp).abs.getSeconds < 2)
     assert(b.isInstanceOf[ServiceStopped])
   }
 }
