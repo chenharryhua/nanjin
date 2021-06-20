@@ -216,11 +216,11 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
         ).asJson.noSpaces
       service.publish(msg).whenA(params.alertMask.alertSucc)
 
-    case ActionQuasiSucced(at, action, params, numSucc, errors) =>
+    case ActionQuasiSucced(at, action, params, numSucc, notes, errors) =>
       val msg =
         SlackNotification(
           params.serviceParams.taskParams.appName,
-          "Quasi Success Action",
+          notes.value,
           List(
             Attachment(
               if (errors.nonEmpty) "danger" else "good",

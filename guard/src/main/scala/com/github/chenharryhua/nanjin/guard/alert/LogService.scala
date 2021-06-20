@@ -25,7 +25,7 @@ final private class LogService[F[_]]()(implicit F: Sync[F]) extends AlertService
           F.blocking(logger.error(new Exception("service was abnormally stopped"))(event.show))
       case ActionFailed(_, _, _, _, _, error) => F.blocking(logger.error(error.throwable)(event.show))
 
-      case ActionQuasiSucced(_, _, _, _, errors) =>
+      case ActionQuasiSucced(_, _, _, _, _, errors) =>
         if (errors.nonEmpty)
           F.blocking(logger.error(new Exception("qusai succ"))(event.show))
         else
