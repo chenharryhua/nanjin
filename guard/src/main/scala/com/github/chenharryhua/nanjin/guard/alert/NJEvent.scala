@@ -45,7 +45,7 @@ object NJError {
     NJError(UUID.randomUUID(), ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), ex)
 }
 
-final case class DailySummaries private (actionSucc: Int, actionFail: Int, actionRetries: Int, servicePanic: Int) {
+final case class DailySummaries private (actionSucc: Long, actionFail: Long, actionRetries: Long, servicePanic: Long) {
   def incServicePanic: DailySummaries  = copy(servicePanic = servicePanic + 1)
   def incActionSucc: DailySummaries    = copy(actionSucc = actionSucc + 1)
   def incActionFail: DailySummaries    = copy(actionFail = actionFail + 1)
@@ -54,7 +54,7 @@ final case class DailySummaries private (actionSucc: Int, actionFail: Int, actio
 }
 
 object DailySummaries {
-  val zero: DailySummaries = DailySummaries(0, 0, 0, 0)
+  val zero: DailySummaries = DailySummaries(0L, 0L, 0L, 0L)
 }
 
 sealed trait NJEvent {
@@ -133,6 +133,7 @@ final case class ActionQuasiSucced(
   actionInfo: ActionInfo,
   params: ActionParams,
   numSucc: Long,
+  notes: Notes,
   errors: List[NJError]
 ) extends ActionEvent
 
