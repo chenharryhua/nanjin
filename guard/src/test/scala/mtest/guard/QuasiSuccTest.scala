@@ -45,7 +45,7 @@ class QuasiSuccTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
     assert(a.asInstanceOf[ActionQuasiSucced].numSucc == 0)
-    assert(a.asInstanceOf[ActionQuasiSucced].errors.size == 2)
+    assert(a.asInstanceOf[ActionQuasiSucced].errors.size == 3)
     assert(b.isInstanceOf[ServiceStopped])
   }
   test("partial succ") {
