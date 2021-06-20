@@ -133,7 +133,8 @@ final case class ActionQuasiSucced(
   actionInfo: ActionInfo,
   params: ActionParams,
   numSucc: Long,
-  notes: Notes,
+  succNotes: Notes,
+  failNotes: Notes,
   errors: List[NJError]
 ) extends ActionEvent
 
