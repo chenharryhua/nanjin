@@ -1,10 +1,12 @@
 package com.github.chenharryhua.nanjin.guard.action
 
 import cats.data.{Kleisli, Reader}
-import cats.effect.{Async, Ref}
+import cats.effect.syntax.all._
+import cats.effect.{Async, Outcome, Ref}
 import cats.syntax.all._
 import cats.{Alternative, Parallel, Traverse}
 import com.github.chenharryhua.nanjin.guard.alert.{
+  ActionFailed,
   ActionInfo,
   ActionQuasiSucced,
   DailySummaries,
@@ -16,6 +18,7 @@ import com.github.chenharryhua.nanjin.guard.alert.{
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.realZonedDateTime
 import fs2.concurrent.Channel
+import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.util.UUID
 
@@ -63,28 +66,62 @@ final class QuasiSucc[F[_], T[_], A, B](
         serviceInfo = serviceInfo,
         id = UUID.randomUUID(),
         launchTime = now)
-      res <- eval.flatMap { fte =>
-        val (ex, rs)                   = fte.partitionEither(identity)
-        val errors: List[(A, NJError)] = ex.toList.map(e => (e._1, NJError(e._2)))
-        for {
-          ts <- realZonedDateTime(params.serviceParams)
-          rs <- channel
-            .send(
-              ActionQuasiSucced(
-                timestamp = ts,
-                actionInfo = actionInfo,
-                params = params,
-                numSucc = rs.size,
-                succNotes = Notes(succ(rs.toList)),
-                failNotes = Notes(fail(errors)),
-                errors = errors.map(_._2)
-              ))
-            .as(rs)
-          _ <- dailySummaries.update(d =>
-            d.copy(actionSucc = d.actionSucc + rs.size, actionFail = d.actionFail + errors.size))
-        } yield rs
-      }
-    } yield T.map(res)(_._2)
+      res <- F
+        .background(eval.map { fte =>
+          val (ex, rs)                   = fte.partitionEither(identity)
+          val errors: List[(A, NJError)] = ex.toList.map(e => (e._1, NJError(e._2)))
+          (errors, rs) // error on the left, result on the right
+        })
+        .use(_.flatMap(_.embed(F.raiseError(ActionCanceledInternally(actionName)))))
+        .guaranteeCase {
+          case Outcome.Canceled() =>
+            val error = ActionCanceledExternally(actionName)
+            for {
+              now <- realZonedDateTime(params.serviceParams)
+              _ <- dailySummaries.update(_.incActionFail)
+              _ <- channel.send(
+                ActionFailed(
+                  timestamp = now,
+                  actionInfo = actionInfo,
+                  params = params,
+                  numRetries = 0,
+                  notes = Notes(ExceptionUtils.getMessage(error)),
+                  error = NJError(error)
+                ))
+            } yield ()
+          case Outcome.Errored(error) =>
+            for {
+              now <- realZonedDateTime(params.serviceParams)
+              _ <- dailySummaries.update(_.incActionFail)
+              _ <- channel.send(
+                ActionFailed(
+                  timestamp = now,
+                  actionInfo = actionInfo,
+                  params = params,
+                  numRetries = 0,
+                  notes = Notes(ExceptionUtils.getMessage(error)),
+                  error = NJError(error)
+                ))
+            } yield ()
+          case Outcome.Succeeded(fb) =>
+            for {
+              now <- realZonedDateTime(params.serviceParams)
+              b <- fb
+              _ <- dailySummaries.update(d =>
+                d.copy(actionSucc = d.actionSucc + b._2.size, actionFail = d.actionFail + b._1.size))
+              _ <- channel.send(
+                ActionQuasiSucced(
+                  timestamp = now,
+                  actionInfo = actionInfo,
+                  params = params,
+                  numSucc = b._2.size,
+                  succNotes = Notes(succ(b._2.toList)),
+                  failNotes = Notes(fail(b._1)),
+                  errors = b._1.map(_._2)
+                ))
+            } yield ()
+        }
+    } yield T.map(res._2)(_._2)
 
   def seqRun(implicit F: Async[F], T: Traverse[T], L: Alternative[T]): F[T[B]] =
     internal(input.traverse(a => fab.run(a).attempt.map(_.bimap((a, _), (a, _)))))

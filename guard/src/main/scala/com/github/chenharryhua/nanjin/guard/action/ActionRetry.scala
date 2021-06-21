@@ -85,7 +85,7 @@ final class ActionRetry[F[_], A, B](
               gate <- F.deferred[Outcome[F, Throwable, B]]
               fiber <- F.start(fab.run(input).guaranteeCase(gate.complete(_).void))
               oc <- F.onCancel(
-                poll(gate.get).flatMap(_.embed(F.raiseError[B](new Exception("the action was canceled")))),
+                poll(gate.get).flatMap(_.embed(F.raiseError[B](ActionCanceledInternally(actionName)))),
                 fiber.cancel)
             } yield oc
           }
