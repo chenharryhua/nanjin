@@ -244,7 +244,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
             failNotes.value,
             List(
               Attachment(
-                params.serviceParams.taskParams.color.fail,
+                params.serviceParams.taskParams.color.warn,
                 at.toInstant.toEpochMilli,
                 List(
                   SlackField("Service", params.serviceParams.serviceName, short = true),

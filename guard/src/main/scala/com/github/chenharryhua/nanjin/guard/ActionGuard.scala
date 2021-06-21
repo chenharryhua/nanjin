@@ -88,6 +88,6 @@ final class ActionGuard[F[_]](
       succ = Reader(_ => ""),
       fail = Reader(_ => ""))
 
-  def quasi[T[_], B](tfu: T[F[B]]): QuasiSucc[F, T, F[B], B] =
-    quasi[T, F[B], B](tfu)(identity)
+  def quasi[T[_], B](tfb: T[F[B]]): QuasiSucc[F, T, F[B], B] =
+    quasi[T, F[B], B](tfb)(identity)
 }
