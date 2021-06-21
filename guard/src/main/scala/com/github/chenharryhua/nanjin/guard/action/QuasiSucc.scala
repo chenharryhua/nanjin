@@ -63,6 +63,8 @@ final class QuasiSucc[F[_], T[_], A, B](
         serviceInfo = serviceInfo,
         id = UUID.randomUUID(),
         launchTime = now)
+
+      // _ <- F.background(eval).use(_.map(_.embed(F.raiseError(ActionCanceledInternally))))
       res <- eval.flatMap { fte =>
         val (ex, rs)                   = fte.partitionEither(identity)
         val errors: List[(A, NJError)] = ex.toList.map(e => (e._1, NJError(e._2)))

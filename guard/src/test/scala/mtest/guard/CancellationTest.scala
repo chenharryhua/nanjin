@@ -32,7 +32,7 @@ class CancellationTest extends AnyFunSuite {
     assert(a.isInstanceOf[ActionRetrying])
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.isInstanceOf[ActionRetrying])
-    assert(d.asInstanceOf[ActionFailed].error.message == "Exception: the action was canceled")
+    assert(d.asInstanceOf[ActionFailed].error.message == "ActionCanceledInternally: canceled")
     assert(e.isInstanceOf[ServicePanic])
   }
 
@@ -47,7 +47,7 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
 
-    assert(a.asInstanceOf[ActionFailed].error.message == "Exception: the action was canceled by asynchronous exception")
+    assert(a.asInstanceOf[ActionFailed].error.message == "ActionCanceledExternally: never")
     assert(b.isInstanceOf[ServiceStopped])
   }
 
@@ -63,7 +63,7 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
 
-    assert(a.asInstanceOf[ActionFailed].error.message == "Exception: the action was canceled by asynchronous exception")
+    assert(a.asInstanceOf[ActionFailed].error.message == "ActionCanceledExternally: never")
     assert(b.isInstanceOf[ServicePanic])
   }
 
@@ -81,12 +81,12 @@ class CancellationTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(a.asInstanceOf[ActionFailed].actionInfo.actionName == "never")
-    assert(a.asInstanceOf[ActionFailed].error.message == "Exception: the action was canceled by asynchronous exception")
+    assert(a.asInstanceOf[ActionFailed].error.message == "ActionCanceledExternally: never")
     assert(b.asInstanceOf[ActionRetrying].actionInfo.actionName == "supervisor")
     assert(c.asInstanceOf[ActionFailed].actionInfo.actionName == "never")
-    assert(c.asInstanceOf[ActionFailed].error.message == "Exception: the action was canceled by asynchronous exception")
+    assert(c.asInstanceOf[ActionFailed].error.message == "ActionCanceledExternally: never")
     assert(d.asInstanceOf[ActionFailed].actionInfo.actionName == "supervisor")
-    assert(d.asInstanceOf[ActionFailed].error.message == "Exception: the action was canceled")
+    assert(d.asInstanceOf[ActionFailed].error.message == "ActionCanceledInternally: supervisor")
     assert(e.isInstanceOf[ServicePanic])
   }
 
@@ -181,7 +181,7 @@ class CancellationTest extends AnyFunSuite {
 
     assert(a.isInstanceOf[ActionRetrying])
     assert(b.isInstanceOf[ActionRetrying])
-    assert(c.asInstanceOf[ActionFailed].error.message == "Exception: the action was canceled by asynchronous exception")
+    assert(c.asInstanceOf[ActionFailed].error.message == "ActionCanceledExternally: exception")
     assert(d.isInstanceOf[ServiceStopped])
   }
   test("cancellation - wrapped within uncancelable") {
