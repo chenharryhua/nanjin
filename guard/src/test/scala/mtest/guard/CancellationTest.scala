@@ -24,7 +24,7 @@ class CancellationTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream(action =>
         action("canceled").updateConfig(_.withConstantDelay(1.second).withMaxRetries(3)).run(IO(1) >> IO.canceled))
-      .interruptAfter(5.seconds)
+      .interruptAfter(7.seconds)
       .compile
       .toVector
       .unsafeRunSync()

@@ -43,6 +43,7 @@ class ServiceTest extends AnyFunSuite {
     DurationFormatter.default)
 
   val guard = TaskGuard[IO]("service-level-guard")
+    .updateConfig(_.withSlackWarnColor("danger").withSlackFailColor("danger").withSlackSuccColor("good"))
     .service("service")
     .updateConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds).withMaxCauseSize(100))
 

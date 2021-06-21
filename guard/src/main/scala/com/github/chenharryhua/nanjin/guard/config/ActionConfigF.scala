@@ -43,11 +43,11 @@ final case class FibonacciBackoff(value: FiniteDuration) extends NJRetryPolicy
 final case class FullJitter(value: FiniteDuration) extends NJRetryPolicy
 final case class Jitter(value: FiniteDuration) extends NJRetryPolicy
 
-@Lenses final case class AlertMask private (alertSucc: Boolean, alertFail: Boolean)
+@Lenses final case class SlackAlertMask private (alertSucc: Boolean, alertFail: Boolean)
 
 @Lenses final case class ActionParams private (
   serviceParams: ServiceParams,
-  alertMask: AlertMask, // whether display succNotes and failNotes
+  alertMask: SlackAlertMask, // whether display succNotes and failNotes
   maxRetries: Int,
   retryPolicy: NJRetryPolicy,
   isShowRetryEvent: Boolean // allow slack show retry message
@@ -57,7 +57,7 @@ object ActionParams {
 
   def apply(serviceParams: ServiceParams): ActionParams = ActionParams(
     serviceParams = serviceParams,
-    alertMask = AlertMask(alertSucc = false, alertFail = true),
+    alertMask = SlackAlertMask(alertSucc = false, alertFail = true),
     maxRetries = 3,
     retryPolicy = ConstantDelay(10.seconds),
     isShowRetryEvent = false
@@ -84,8 +84,8 @@ private object ActionConfigF {
       case InitParams(v)            => ActionParams(v)
       case WithRetryPolicy(v, c)    => ActionParams.retryPolicy.set(v)(c)
       case WithMaxRetries(v, c)     => ActionParams.maxRetries.set(v)(c)
-      case WithAlertMaskSucc(v, c)  => ActionParams.alertMask.composeLens(AlertMask.alertSucc).set(v)(c)
-      case WithAlertMaskFail(v, c)  => ActionParams.alertMask.composeLens(AlertMask.alertFail).set(v)(c)
+      case WithAlertMaskSucc(v, c)  => ActionParams.alertMask.composeLens(SlackAlertMask.alertSucc).set(v)(c)
+      case WithAlertMaskFail(v, c)  => ActionParams.alertMask.composeLens(SlackAlertMask.alertFail).set(v)(c)
       case WithShowRetryEvent(v, c) => ActionParams.isShowRetryEvent.set(v)(c)
     }
 }

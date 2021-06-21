@@ -32,7 +32,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
         ":rocket:",
         List(
           Attachment(
-            "good",
+            params.taskParams.color.succ,
             at.toInstant.toEpochMilli,
             List(
               SlackField("Service", params.serviceName, short = true),
@@ -56,7 +56,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
              |Search *${error.id}* in log file to find full exception.""".stripMargin,
           List(
             Attachment(
-              "danger",
+              params.taskParams.color.fail,
               at.toInstant.toEpochMilli,
               List(
                 SlackField("Service", params.serviceName, short = true),
@@ -80,7 +80,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
             s":octagonal_sign: The service was stopped.",
             List(
               Attachment(
-                "good",
+                params.taskParams.color.succ,
                 at.toInstant.toEpochMilli,
                 List(
                   SlackField("Service", params.serviceName, short = true),
@@ -96,7 +96,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
             s":octagonal_sign: The service was unexpectedly stopped. It is a *FATAL* error",
             List(
               Attachment(
-                "danger",
+                params.taskParams.color.fail,
                 at.toInstant.toEpochMilli,
                 List(
                   SlackField("Service", params.serviceName, short = true),
@@ -121,7 +121,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
         s1 + s2 + s3 + s4 + s5,
         List(
           Attachment(
-            "good",
+            params.taskParams.color.succ,
             at.toInstant.toEpochMilli,
             List(
               SlackField("Service", params.serviceName, short = true),
@@ -148,7 +148,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
           s1 + s2 + s3,
           List(
             Attachment(
-              "#f2c744",
+              params.serviceParams.taskParams.color.warn,
               at.toInstant.toEpochMilli,
               List(
                 SlackField("Service", params.serviceParams.serviceName, short = true),
@@ -174,7 +174,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
           notes.value,
           List(
             Attachment(
-              "danger",
+              params.serviceParams.taskParams.color.fail,
               at.toInstant.toEpochMilli,
               List(
                 SlackField("Service", params.serviceParams.serviceName, short = true),
@@ -201,7 +201,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
           notes.value,
           List(
             Attachment(
-              "good",
+              params.serviceParams.taskParams.color.succ,
               at.toInstant.toEpochMilli,
               List(
                 SlackField("Service", params.serviceParams.serviceName, short = true),
@@ -217,28 +217,50 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       service.publish(msg).whenA(params.alertMask.alertSucc)
 
     case ActionQuasiSucced(at, action, params, numSucc, succNotes, failNotes, errors) =>
-      val msg =
-        SlackNotification(
-          params.serviceParams.taskParams.appName,
-          if (errors.nonEmpty) failNotes.value else succNotes.value,
-          List(
-            Attachment(
-              if (errors.nonEmpty) "danger" else "good",
-              at.toInstant.toEpochMilli,
-              List(
-                SlackField("Service", params.serviceParams.serviceName, short = true),
-                SlackField("Host", action.serviceInfo.hostName, short = true),
-                SlackField("Action", action.actionName, short = true),
-                SlackField("Status", if (errors.nonEmpty) "Quasi Success" else "Completed", short = true),
-                SlackField("Took", fmt.format(action.launchTime, at), short = true),
-                SlackField("Succed", numSucc.toString, short = true),
-                SlackField("Failed", errors.size.toString, short = true),
-                SlackField("Action ID", action.id.toString, short = false)
-              )
-            ))
-        ).asJson.noSpaces
+      val msg: SlackNotification = {
+        if (errors.isEmpty)
+          SlackNotification(
+            params.serviceParams.taskParams.appName,
+            succNotes.value,
+            List(
+              Attachment(
+                params.serviceParams.taskParams.color.succ,
+                at.toInstant.toEpochMilli,
+                List(
+                  SlackField("Service", params.serviceParams.serviceName, short = true),
+                  SlackField("Host", action.serviceInfo.hostName, short = true),
+                  SlackField("Action", action.actionName, short = true),
+                  SlackField("Status", "Completed", short = true),
+                  SlackField("Succed", numSucc.toString, short = true),
+                  SlackField("Failed", errors.size.toString, short = true),
+                  SlackField("Took", fmt.format(action.launchTime, at), short = true),
+                  SlackField("Action ID", action.id.toString, short = false)
+                )
+              ))
+          )
+        else
+          SlackNotification(
+            params.serviceParams.taskParams.appName,
+            failNotes.value,
+            List(
+              Attachment(
+                params.serviceParams.taskParams.color.fail,
+                at.toInstant.toEpochMilli,
+                List(
+                  SlackField("Service", params.serviceParams.serviceName, short = true),
+                  SlackField("Host", action.serviceInfo.hostName, short = true),
+                  SlackField("Action", action.actionName, short = true),
+                  SlackField("Status", "Quasi Success", short = true),
+                  SlackField("Succed", numSucc.toString, short = true),
+                  SlackField("Failed", errors.size.toString, short = true),
+                  SlackField("Took", fmt.format(action.launchTime, at), short = true),
+                  SlackField("Action ID", action.id.toString, short = false)
+                )
+              ))
+          )
+      }
       service
-        .publish(msg)
+        .publish(msg.asJson.noSpaces)
         .whenA((params.alertMask.alertSucc && errors.isEmpty) || (params.alertMask.alertFail && errors.nonEmpty))
 
     case ForYourInformation(_, message) => service.publish(message).void

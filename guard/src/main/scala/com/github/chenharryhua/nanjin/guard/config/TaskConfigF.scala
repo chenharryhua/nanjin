@@ -11,10 +11,13 @@ import monocle.macros.Lenses
 
 import java.time.ZoneId
 
+@Lenses final case class SlackColor(succ: String, fail: String, warn: String)
+
 @Lenses final case class TaskParams private (
   appName: String,
   zoneId: ZoneId,
-  dailySummaryReset: Int // 0 - 23
+  dailySummaryReset: Int, // 0 - 23,
+  color: SlackColor
 )
 
 object TaskParams {
@@ -22,7 +25,8 @@ object TaskParams {
   def apply(appName: String): TaskParams = TaskParams(
     appName = appName,
     zoneId = ZoneId.systemDefault(),
-    dailySummaryReset = 0 // midnight
+    dailySummaryReset = 0, // midnight
+    color = SlackColor(succ = "good", fail = "danger", warn = "#f2c744")
   )
 }
 
@@ -36,11 +40,18 @@ private object TaskConfigF {
   final case class WithZoneId[K](value: ZoneId, cont: K) extends TaskConfigF[K]
   final case class WithDailySummaryReset[K](value: Int, cont: K) extends TaskConfigF[K]
 
+  final case class WithSlackSuccColor[K](value: String, cont: K) extends TaskConfigF[K]
+  final case class WithSlackFailColor[K](value: String, cont: K) extends TaskConfigF[K]
+  final case class WithSlackWarnColor[K](value: String, cont: K) extends TaskConfigF[K]
+
   val algebra: Algebra[TaskConfigF, TaskParams] =
     Algebra[TaskConfigF, TaskParams] {
       case InitParams(appName)         => TaskParams(appName)
       case WithZoneId(v, c)            => TaskParams.zoneId.set(v)(c)
       case WithDailySummaryReset(v, c) => TaskParams.dailySummaryReset.set(v)(c)
+      case WithSlackSuccColor(v, c)    => TaskParams.color.composeLens(SlackColor.succ).set(v)(c)
+      case WithSlackFailColor(v, c)    => TaskParams.color.composeLens(SlackColor.fail).set(v)(c)
+      case WithSlackWarnColor(v, c)    => TaskParams.color.composeLens(SlackColor.warn).set(v)(c)
     }
 }
 
@@ -52,6 +63,10 @@ final case class TaskConfig private (value: Fix[TaskConfigF]) {
 
   def withDailySummaryReset(hour: Refined[Int, And[GreaterEqual[W.`0`.T], LessEqual[W.`23`.T]]]): TaskConfig =
     TaskConfig(Fix(WithDailySummaryReset(hour.value, value)))
+
+  def withSlackSuccColor(v: String): TaskConfig = TaskConfig(Fix(WithSlackSuccColor(v, value)))
+  def withSlackFailColor(v: String): TaskConfig = TaskConfig(Fix(WithSlackFailColor(v, value)))
+  def withSlackWarnColor(v: String): TaskConfig = TaskConfig(Fix(WithSlackWarnColor(v, value)))
 
   def evalConfig: TaskParams = scheme.cata(algebra).apply(value)
 }
