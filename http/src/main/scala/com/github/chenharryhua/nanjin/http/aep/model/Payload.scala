@@ -20,3 +20,12 @@ object Payload {
   implicit val payloadShow: Show[Payload]   = _.asJson.noSpaces
   implicit val payLoadCodec: Codec[Payload] = deriveCodec[Payload]
 }
+
+final case class AepMessage[A](header: AepHeader, body: AepBody[A])
+
+final case class AepHeader(schemaRef: SchemaRef, imsOrgId: String, datasetId: String)
+
+final case class SchemaRef(id: String, contentType: String)
+
+final case class AepBody[A](xdmMeta: XdmMeta, xdmEntity: A)
+final case class XdmMeta(schemaRef: SchemaRef)
