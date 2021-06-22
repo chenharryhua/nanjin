@@ -321,10 +321,10 @@ lazy val common = (project in file("common"))
   .settings(libraryDependencies ++= Seq("org.apache.commons" % "commons-lang3" % "3.12.0") ++
     baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ logLib ++ testLib)
 
-lazy val salesforce = (project in file("salesforce"))
+lazy val http = (project in file("http"))
   .dependsOn(common)
   .settings(commonSettings: _*)
-  .settings(name := "nj-salesforce")
+  .settings(name := "nj-http")
   .settings(
     libraryDependencies ++=
       Seq("com.github.cb372" %% "cats-retry" % "3.0.0") ++
@@ -427,5 +427,5 @@ lazy val example = (project in file("example"))
 lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
-    .aggregate(common, datetime, salesforce, aws, guard, messages, pipes, kafka, database, spark)
+    .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
 

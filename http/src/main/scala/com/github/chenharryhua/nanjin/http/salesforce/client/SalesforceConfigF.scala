@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.salesforce.client
+package com.github.chenharryhua.nanjin.http.salesforce.client
 
 import cats.Functor
 import higherkindness.droste.Algebra
