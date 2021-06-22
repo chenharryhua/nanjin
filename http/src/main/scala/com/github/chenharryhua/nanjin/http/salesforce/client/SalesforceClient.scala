@@ -1,8 +1,8 @@
-package com.github.chenharryhua.nanjin.salesforce.client
+package com.github.chenharryhua.nanjin.http.salesforce.client
 
 import cats.effect.{Async, Ref, Sync}
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.salesforce.auth.{CredLoginRequest, TokenHasInstanceUrl, TokenProperties}
+import com.github.chenharryhua.nanjin.http.salesforce.auth.{CredLoginRequest, TokenHasInstanceUrl, TokenProperties}
 import fs2.Stream
 import io.circe.generic.auto._
 import io.circe.syntax._

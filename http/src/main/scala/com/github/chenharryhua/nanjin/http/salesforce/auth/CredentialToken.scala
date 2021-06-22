@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.salesforce.auth
+package com.github.chenharryhua.nanjin.http.salesforce.auth
 
 import cats.{Applicative, MonadError, Show}
 import io.circe.Decoder
