@@ -12,7 +12,6 @@ import eu.timepit.fs2cron.cron4s.Cron4sScheduler
 import fs2.Stream
 import fs2.concurrent.Channel
 
-import java.net.InetAddress
 import java.util.UUID
 
 // format: off
@@ -36,8 +35,8 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) {
   def eventStream[A](actionGuard: ActionGuard[F] => F[A])(implicit F: Async[F]): Stream[F, NJEvent] = {
     val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))
     val cron: CronExpr                    = Cron.unsafeParse(s"0 0 ${params.taskParams.dailySummaryReset} ? * *")
-    val serviceInfo: F[ServiceInfo] = realZonedDateTime(params).map(ts =>
-      ServiceInfo(hostName = InetAddress.getLocalHost.getHostName, id = UUID.randomUUID(), launchTime = ts))
+    val serviceInfo: F[ServiceInfo] =
+      realZonedDateTime(params).map(ts => ServiceInfo(id = UUID.randomUUID(), launchTime = ts))
 
     for {
       si <- Stream.eval(serviceInfo)

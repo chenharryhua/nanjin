@@ -12,7 +12,7 @@ import retry.RetryDetails.WillDelayAndRetry
 import java.time.ZonedDateTime
 import java.util.UUID
 
-final case class ServiceInfo(hostName: String, id: UUID, launchTime: ZonedDateTime)
+final case class ServiceInfo(id: UUID, launchTime: ZonedDateTime)
 
 final case class ActionInfo(actionName: String, serviceInfo: ServiceInfo, id: UUID, launchTime: ZonedDateTime)
 
