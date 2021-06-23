@@ -36,7 +36,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
             at.toInstant.toEpochMilli,
             List(
               SlackField("Service", params.serviceName, short = true),
-              SlackField("Host", info.hostName, short = true),
+              SlackField("Host", params.taskParams.hostName, short = true),
               SlackField("Status", "(Re)Started", short = true),
               SlackField("Time Zone", params.taskParams.zoneId.toString, short = true)
             )
@@ -60,7 +60,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               at.toInstant.toEpochMilli,
               List(
                 SlackField("Service", params.serviceName, short = true),
-                SlackField("Host", info.hostName, short = true),
+                SlackField("Host", params.taskParams.hostName, short = true),
                 SlackField("Status", "Restarting", short = true),
                 SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
                 SlackField("Restarted so far", details.retriesSoFar.toString, short = true),
@@ -84,7 +84,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
                 at.toInstant.toEpochMilli,
                 List(
                   SlackField("Service", params.serviceName, short = true),
-                  SlackField("Host", info.hostName, short = true),
+                  SlackField("Host", params.taskParams.hostName, short = true),
                   SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
                   SlackField("Status", "Stopped", short = true)
                 )
@@ -100,7 +100,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
                 at.toInstant.toEpochMilli,
                 List(
                   SlackField("Service", params.serviceName, short = true),
-                  SlackField("Host", info.hostName, short = true),
+                  SlackField("Host", params.taskParams.hostName, short = true),
                   SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
                   SlackField("Status", "Stopped abnormally", short = true)
                 )
@@ -125,7 +125,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
             at.toInstant.toEpochMilli,
             List(
               SlackField("Service", params.serviceName, short = true),
-              SlackField("Host", info.hostName, short = true),
+              SlackField("Host", params.taskParams.hostName, short = true),
               SlackField("Total Memory", Megabytes(totalMemory / (1024 * 1024)).toString(Gigabytes), short = true),
               SlackField("Free Memory", Megabytes(freeMemory / (1024 * 1024)).toString(Gigabytes), short = true),
               SlackField("HealthCheck Status", "Good", short = true),
@@ -152,7 +152,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               at.toInstant.toEpochMilli,
               List(
                 SlackField("Service", params.serviceParams.serviceName, short = true),
-                SlackField("Host", action.serviceInfo.hostName, short = true),
+                SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
                 SlackField("Action", action.actionName, short = true),
                 SlackField("Status", "Retrying", short = true),
                 SlackField("Took", fmt.format(action.launchTime, at), short = true),
@@ -178,7 +178,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               at.toInstant.toEpochMilli,
               List(
                 SlackField("Service", params.serviceParams.serviceName, short = true),
-                SlackField("Host", action.serviceInfo.hostName, short = true),
+                SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
                 SlackField("Action", action.actionName, short = true),
                 SlackField("Status", "Failed", short = true),
                 SlackField("Took", fmt.format(action.launchTime, at), short = true),
@@ -205,7 +205,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               at.toInstant.toEpochMilli,
               List(
                 SlackField("Service", params.serviceParams.serviceName, short = true),
-                SlackField("Host", action.serviceInfo.hostName, short = true),
+                SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
                 SlackField("Action", action.actionName, short = true),
                 SlackField("Status", "Completed", short = true),
                 SlackField("Took", fmt.format(action.launchTime, at), short = true),
@@ -228,7 +228,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
                 at.toInstant.toEpochMilli,
                 List(
                   SlackField("Service", params.serviceParams.serviceName, short = true),
-                  SlackField("Host", action.serviceInfo.hostName, short = true),
+                  SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
                   SlackField("Action", action.actionName, short = true),
                   SlackField("Status", "Completed", short = true),
                   SlackField("Succed", numSucc.toString, short = true),
@@ -248,7 +248,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
                 at.toInstant.toEpochMilli,
                 List(
                   SlackField("Service", params.serviceParams.serviceName, short = true),
-                  SlackField("Host", action.serviceInfo.hostName, short = true),
+                  SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
                   SlackField("Action", action.actionName, short = true),
                   SlackField("Status", "Quasi Success", short = true),
                   SlackField("Succed", numSucc.toString, short = true),

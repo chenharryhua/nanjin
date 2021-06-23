@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import cats.Functor
+import com.github.chenharryhua.nanjin.common.HostName
 import eu.timepit.refined.W
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.boolean.And
@@ -17,16 +18,18 @@ import java.time.ZoneId
   appName: String,
   zoneId: ZoneId,
   dailySummaryReset: Int, // 0 - 23,
-  color: SlackColor
+  color: SlackColor,
+  hostName: String
 )
 
 object TaskParams {
 
-  def apply(appName: String): TaskParams = TaskParams(
+  def apply(appName: String, hostName: HostName): TaskParams = TaskParams(
     appName = appName,
     zoneId = ZoneId.systemDefault(),
     dailySummaryReset = 0, // midnight
-    color = SlackColor(succ = "good", fail = "danger", warn = "#f2c744")
+    color = SlackColor(succ = "good", fail = "danger", warn = "#f2c744"),
+    hostName = hostName.name
   )
 }
 
@@ -35,7 +38,7 @@ sealed private[guard] trait TaskConfigF[F]
 private object TaskConfigF {
   implicit val functorTaskConfigF: Functor[TaskConfigF] = cats.derived.semiauto.functor[TaskConfigF]
 
-  final case class InitParams[K](applicationName: String) extends TaskConfigF[K]
+  final case class InitParams[K](applicationName: String, hostName: HostName) extends TaskConfigF[K]
 
   final case class WithZoneId[K](value: ZoneId, cont: K) extends TaskConfigF[K]
   final case class WithDailySummaryReset[K](value: Int, cont: K) extends TaskConfigF[K]
@@ -44,22 +47,24 @@ private object TaskConfigF {
   final case class WithSlackFailColor[K](value: String, cont: K) extends TaskConfigF[K]
   final case class WithSlackWarnColor[K](value: String, cont: K) extends TaskConfigF[K]
 
+  final case class WithHostName[K](value: HostName, cont: K) extends TaskConfigF[K]
+
   val algebra: Algebra[TaskConfigF, TaskParams] =
     Algebra[TaskConfigF, TaskParams] {
-      case InitParams(appName)         => TaskParams(appName)
-      case WithZoneId(v, c)            => TaskParams.zoneId.set(v)(c)
-      case WithDailySummaryReset(v, c) => TaskParams.dailySummaryReset.set(v)(c)
-      case WithSlackSuccColor(v, c)    => TaskParams.color.composeLens(SlackColor.succ).set(v)(c)
-      case WithSlackFailColor(v, c)    => TaskParams.color.composeLens(SlackColor.fail).set(v)(c)
-      case WithSlackWarnColor(v, c)    => TaskParams.color.composeLens(SlackColor.warn).set(v)(c)
+      case InitParams(appName, hostName) => TaskParams(appName, hostName)
+      case WithZoneId(v, c)              => TaskParams.zoneId.set(v)(c)
+      case WithDailySummaryReset(v, c)   => TaskParams.dailySummaryReset.set(v)(c)
+      case WithSlackSuccColor(v, c)      => TaskParams.color.composeLens(SlackColor.succ).set(v)(c)
+      case WithSlackFailColor(v, c)      => TaskParams.color.composeLens(SlackColor.fail).set(v)(c)
+      case WithSlackWarnColor(v, c)      => TaskParams.color.composeLens(SlackColor.warn).set(v)(c)
+      case WithHostName(v, c)            => TaskParams.hostName.set(v.name)(c)
     }
 }
 
 final case class TaskConfig private (value: Fix[TaskConfigF]) {
   import TaskConfigF._
 
-  def withZoneId(zoneId: ZoneId): TaskConfig =
-    TaskConfig(Fix(WithZoneId(zoneId, value)))
+  def withZoneId(zoneId: ZoneId): TaskConfig = TaskConfig(Fix(WithZoneId(zoneId, value)))
 
   def withDailySummaryReset(hour: Refined[Int, And[GreaterEqual[W.`0`.T], LessEqual[W.`23`.T]]]): TaskConfig =
     TaskConfig(Fix(WithDailySummaryReset(hour.value, value)))
@@ -68,10 +73,13 @@ final case class TaskConfig private (value: Fix[TaskConfigF]) {
   def withSlackFailColor(v: String): TaskConfig = TaskConfig(Fix(WithSlackFailColor(v, value)))
   def withSlackWarnColor(v: String): TaskConfig = TaskConfig(Fix(WithSlackWarnColor(v, value)))
 
+  def withHostName(hostName: HostName): TaskConfig = TaskConfig(Fix(WithHostName(hostName, value)))
+
   def evalConfig: TaskParams = scheme.cata(algebra).apply(value)
 }
 
 private[guard] object TaskConfig {
 
-  def apply(appName: String): TaskConfig = new TaskConfig(Fix(TaskConfigF.InitParams[Fix[TaskConfigF]](appName)))
+  def apply(appName: String, hostName: HostName): TaskConfig = new TaskConfig(
+    Fix(TaskConfigF.InitParams[Fix[TaskConfigF]](appName, hostName)))
 }
