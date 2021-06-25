@@ -52,7 +52,7 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) {
                   ServicePanic(
                     timestamp = ts,
                     serviceInfo = si,
-                    params = params,
+                    serviceParams = params,
                     retryDetails = rd,
                     error = NJError(ex)))
                 _ <- dailySummaries.update(_.incServicePanic)
@@ -61,20 +61,19 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) {
             val start_health: F[Unit] = for { // fire service startup event and then health-check events
               ts <- realZonedDateTime(params)
               _ <- channel
-                .send(ServiceStarted(timestamp = ts, serviceInfo = si, params = params))
+                .send(ServiceStarted(timestamp = ts, serviceInfo = si, serviceParams = params))
                 .delayBy(params.startUpEventDelay)
               _ <- dailySummaries.get.flatMap { ds =>
                 for {
                   ts <- realZonedDateTime(params)
-                  _ <- channel.send(
-                    ServiceHealthCheck(
-                      timestamp = ts,
-                      serviceInfo = si,
-                      params = params,
-                      dailySummaries = ds,
-                      totalMemory = Runtime.getRuntime.totalMemory,
-                      freeMemory = Runtime.getRuntime.freeMemory
-                    ))
+                  _ <- channel.send(ServiceHealthCheck(
+                    timestamp = ts,
+                    serviceInfo = si,
+                    serviceParams = params,
+                    dailySummaries = ds,
+                    totalMemory = Runtime.getRuntime.totalMemory,
+                    freeMemory = Runtime.getRuntime.freeMemory
+                  ))
                 } yield ()
               }.delayBy(params.healthCheck.interval).foreverM[Unit]
             } yield ()
@@ -89,7 +88,8 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) {
                   actionConfig = ActionConfig(params))))
           }
           .guarantee(realZonedDateTime(params).flatMap(ts =>
-            channel.send(ServiceStopped(timestamp = ts, serviceInfo = si, params = params))) *> channel.close.void)
+            channel.send(
+              ServiceStopped(timestamp = ts, serviceInfo = si, serviceParams = params))) *> channel.close.void)
 
         channel.stream
           .concurrently(Stream.eval(service))
@@ -104,7 +104,7 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) {
                     ServiceDailySummariesReset(
                       timestamp = ts,
                       serviceInfo = si,
-                      params = params,
+                      serviceParams = params,
                       dailySummaries = ds
                     ))
                 } yield ()))

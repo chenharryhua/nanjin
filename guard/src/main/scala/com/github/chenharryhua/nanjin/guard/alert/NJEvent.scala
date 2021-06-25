@@ -69,16 +69,16 @@ object NJEvent {
 
 sealed trait ServiceEvent extends NJEvent {
   def serviceInfo: ServiceInfo
-  def params: ServiceParams
+  def serviceParams: ServiceParams
 }
 
-final case class ServiceStarted(timestamp: ZonedDateTime, serviceInfo: ServiceInfo, params: ServiceParams)
+final case class ServiceStarted(timestamp: ZonedDateTime, serviceInfo: ServiceInfo, serviceParams: ServiceParams)
     extends ServiceEvent
 
 final case class ServicePanic(
   timestamp: ZonedDateTime,
   serviceInfo: ServiceInfo,
-  params: ServiceParams,
+  serviceParams: ServiceParams,
   retryDetails: RetryDetails,
   error: NJError
 ) extends ServiceEvent
@@ -86,13 +86,13 @@ final case class ServicePanic(
 final case class ServiceStopped(
   timestamp: ZonedDateTime,
   serviceInfo: ServiceInfo,
-  params: ServiceParams
+  serviceParams: ServiceParams
 ) extends ServiceEvent
 
 final case class ServiceHealthCheck(
   timestamp: ZonedDateTime,
   serviceInfo: ServiceInfo,
-  params: ServiceParams,
+  serviceParams: ServiceParams,
   dailySummaries: DailySummaries,
   totalMemory: Long,
   freeMemory: Long
@@ -101,19 +101,19 @@ final case class ServiceHealthCheck(
 final case class ServiceDailySummariesReset(
   timestamp: ZonedDateTime,
   serviceInfo: ServiceInfo,
-  params: ServiceParams,
+  serviceParams: ServiceParams,
   dailySummaries: DailySummaries)
     extends ServiceEvent
 
 sealed trait ActionEvent extends NJEvent {
   def actionInfo: ActionInfo
-  def params: ActionParams
+  def actionParams: ActionParams
 }
 
 final case class ActionRetrying(
   timestamp: ZonedDateTime,
   actionInfo: ActionInfo,
-  params: ActionParams,
+  actionParams: ActionParams,
   willDelayAndRetry: WillDelayAndRetry,
   error: NJError
 ) extends ActionEvent
@@ -121,7 +121,7 @@ final case class ActionRetrying(
 final case class ActionFailed(
   timestamp: ZonedDateTime,
   actionInfo: ActionInfo,
-  params: ActionParams,
+  actionParams: ActionParams,
   numRetries: Int, // number of retries before giving up
   notes: Notes, // failure notes
   error: NJError
@@ -130,7 +130,7 @@ final case class ActionFailed(
 final case class ActionSucced(
   timestamp: ZonedDateTime,
   actionInfo: ActionInfo,
-  params: ActionParams,
+  actionParams: ActionParams,
   numRetries: Int, // how many retries before success
   notes: Notes // success notes
 ) extends ActionEvent
@@ -138,7 +138,7 @@ final case class ActionSucced(
 final case class ActionQuasiSucced(
   timestamp: ZonedDateTime,
   actionInfo: ActionInfo,
-  params: ActionParams,
+  actionParams: ActionParams,
   numSucc: Long,
   succNotes: Notes,
   failNotes: Notes,

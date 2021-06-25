@@ -38,7 +38,7 @@ final private class ActionRetryBase[F[_], A, B](
             ActionRetrying(
               timestamp = now,
               actionInfo = actionInfo,
-              params = params,
+              actionParams = params,
               willDelayAndRetry = wdr,
               error = NJError(error)))
           _ <- retryCount.update(_ + 1)
@@ -59,7 +59,7 @@ final private class ActionRetryBase[F[_], A, B](
             ActionFailed(
               timestamp = now,
               actionInfo = actionInfo,
-              params = params,
+              actionParams = params,
               numRetries = count,
               notes = failNotes(error),
               error = NJError(error)
@@ -74,7 +74,7 @@ final private class ActionRetryBase[F[_], A, B](
             ActionFailed(
               timestamp = now,
               actionInfo = actionInfo,
-              params = params,
+              actionParams = params,
               numRetries = count,
               notes = failNotes(error),
               error = NJError(error)
@@ -90,7 +90,7 @@ final private class ActionRetryBase[F[_], A, B](
             ActionSucced(
               timestamp = now,
               actionInfo = actionInfo,
-              params = params,
+              actionParams = params,
               numRetries = count,
               notes = succNotes(b)))
         } yield ()

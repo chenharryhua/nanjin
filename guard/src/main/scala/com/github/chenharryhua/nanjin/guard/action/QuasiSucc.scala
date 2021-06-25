@@ -83,7 +83,7 @@ final class QuasiSucc[F[_], T[_], A, B](
                 ActionFailed(
                   timestamp = now,
                   actionInfo = actionInfo,
-                  params = params,
+                  actionParams = params,
                   numRetries = 0,
                   notes = Notes(ExceptionUtils.getMessage(error)),
                   error = NJError(error)
@@ -97,7 +97,7 @@ final class QuasiSucc[F[_], T[_], A, B](
                 ActionFailed(
                   timestamp = now,
                   actionInfo = actionInfo,
-                  params = params,
+                  actionParams = params,
                   numRetries = 0,
                   notes = Notes(ExceptionUtils.getMessage(error)),
                   error = NJError(error)
@@ -113,7 +113,7 @@ final class QuasiSucc[F[_], T[_], A, B](
                 ActionQuasiSucced(
                   timestamp = now,
                   actionInfo = actionInfo,
-                  params = params,
+                  actionParams = params,
                   numSucc = b._2.size,
                   succNotes = Notes(succ(b._2.toList)),
                   failNotes = Notes(fail(b._1)),
