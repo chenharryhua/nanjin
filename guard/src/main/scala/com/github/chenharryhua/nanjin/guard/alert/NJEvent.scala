@@ -98,6 +98,13 @@ final case class ServiceHealthCheck(
   freeMemory: Long
 ) extends ServiceEvent
 
+final case class ServiceDailySummariesReset(
+  timestamp: ZonedDateTime,
+  serviceInfo: ServiceInfo,
+  params: ServiceParams,
+  dailySummaries: DailySummaries)
+    extends ServiceEvent
+
 sealed trait ActionEvent extends NJEvent {
   def actionInfo: ActionInfo
   def params: ActionParams

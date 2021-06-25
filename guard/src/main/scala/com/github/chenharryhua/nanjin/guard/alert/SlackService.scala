@@ -264,7 +264,10 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
         .whenA((params.alertMask.alertSucc && errors.isEmpty) || (params.alertMask.alertFail && errors.nonEmpty))
 
     case ForYourInformation(_, message) => service.publish(message).void
-    case PassThrough(_, _)              => F.unit
+
+    // no op
+    case _: PassThrough                => F.unit
+    case _: ServiceDailySummariesReset => F.unit
   }
 }
 

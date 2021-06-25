@@ -92,7 +92,21 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) {
 
         channel.stream
           .concurrently(Stream.eval(service))
-          .concurrently(scheduler.awakeEvery(cron).evalMap(_ => dailySummaries.update(_.reset)))
+          .concurrently(
+            scheduler
+              .awakeEvery(cron)
+              .evalMap(_ =>
+                for {
+                  ts <- realZonedDateTime(params)
+                  ds <- dailySummaries.getAndUpdate(_.reset)
+                  _ <- channel.send(
+                    ServiceDailySummariesReset(
+                      timestamp = ts,
+                      serviceInfo = si,
+                      params = params,
+                      dailySummaries = ds
+                    ))
+                } yield ()))
       }
     } yield event
   }

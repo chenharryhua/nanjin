@@ -12,9 +12,6 @@ final class TaskGuard[F[_]] private (taskConfig: TaskConfig) {
   def updateConfig(f: TaskConfig => TaskConfig) =
     new TaskGuard[F](f(taskConfig))
 
-  def withHostName(hostName: HostName): TaskGuard[F] =
-    updateConfig(_.withHostName(hostName))
-
   def service(serviceName: String): ServiceGuard[F] =
     new ServiceGuard[F](ServiceConfig(serviceName, params))
 }
