@@ -50,7 +50,7 @@ class ServiceTest extends AnyFunSuite {
         .withSlackSuccColor("good")
         .withHostName(HostName.local_host))
     .service("service")
-    .updateConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds).withMaxCauseSize(100))
+    .updateConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds).withMaxCauseSize(100).withNotes("ok"))
 
   val metrics = new MetricRegistry
   val logging = Monoid[AlertService[IO]].empty |+|

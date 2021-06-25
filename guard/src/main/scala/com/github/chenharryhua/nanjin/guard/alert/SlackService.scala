@@ -11,8 +11,6 @@ import io.circe.syntax._
 import org.apache.commons.lang3.StringUtils
 import squants.information.{Gigabytes, Megabytes}
 
-import java.time.LocalTime
-
 /** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
   */
 final private case class SlackField(title: String, value: String, short: Boolean)
@@ -26,10 +24,10 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
 
   override def alert(event: NJEvent): F[Unit] = event match {
 
-    case ServiceStarted(at, info, params) =>
+    case ServiceStarted(at, _, params) =>
       val msg = SlackNotification(
         params.taskParams.appName,
-        ":rocket:",
+        s":rocket: ${params.notes}",
         List(
           Attachment(
             params.taskParams.color.succ,
@@ -110,15 +108,9 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       service.publish(msg.asJson.noSpaces).void
 
     case ServiceHealthCheck(at, info, params, dailySummaries, totalMemory, freeMemory) =>
-      val base = NJLocalTime(LocalTime.of(params.taskParams.dailySummaryReset, 0))
-      val s1   = s":gottarun: In past ${fmt.format(base.distance(at.toLocalTime))}, "
-      val s2   = s"the service experienced *${dailySummaries.servicePanic}* panic, "
-      val s3   = s"failed *${dailySummaries.actionFail}* actions, "
-      val s4   = s"retried *${dailySummaries.actionRetries}*, "
-      val s5   = s"succed *${dailySummaries.actionSucc}*"
       val msg = SlackNotification(
         params.taskParams.appName,
-        s1 + s2 + s3 + s4 + s5,
+        s":gottarun: ${params.notes}",
         List(
           Attachment(
             params.taskParams.color.succ,
@@ -132,7 +124,20 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
               SlackField("Time Zone", params.taskParams.zoneId.toString, short = true),
               SlackField("Next check will happen in", fmt.format(params.healthCheck.interval), short = true)
-            )
+            ) ++ List(
+              if (dailySummaries.servicePanic > 0)
+                Some(SlackField("Service Panics Today", dailySummaries.servicePanic.toString, short = true))
+              else None,
+              if (dailySummaries.actionSucc > 0)
+                Some(SlackField("Succed Actions Today", dailySummaries.actionSucc.toString, short = true))
+              else None,
+              if (dailySummaries.actionFail > 0)
+                Some(SlackField("Failed Actions Today", dailySummaries.actionFail.toString, short = true))
+              else None,
+              if (dailySummaries.actionRetries > 0)
+                Some(SlackField("Retried Actions Today", dailySummaries.actionRetries.toString, short = true))
+              else None
+            ).flatten
           ))
       ).asJson.noSpaces
       val ltr = NJLocalTimeRange(params.healthCheck.openTime, params.healthCheck.span, params.taskParams.zoneId)

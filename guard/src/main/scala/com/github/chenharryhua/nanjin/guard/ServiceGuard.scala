@@ -64,8 +64,9 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) {
                 .send(ServiceStarted(timestamp = ts, serviceInfo = si, params = params))
                 .delayBy(params.startUpEventDelay)
               _ <- dailySummaries.get.flatMap { ds =>
-                realZonedDateTime(params).flatMap { ts =>
-                  channel.send(
+                for {
+                  ts <- realZonedDateTime(params)
+                  _ <- channel.send(
                     ServiceHealthCheck(
                       timestamp = ts,
                       serviceInfo = si,
@@ -74,7 +75,7 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) {
                       totalMemory = Runtime.getRuntime.totalMemory,
                       freeMemory = Runtime.getRuntime.freeMemory
                     ))
-                }
+                } yield ()
               }.delayBy(params.healthCheck.interval).foreverM[Unit]
             } yield ()
 
