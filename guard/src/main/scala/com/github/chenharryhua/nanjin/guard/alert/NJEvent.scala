@@ -14,7 +14,7 @@ import java.util.UUID
 
 final case class ServiceInfo(id: UUID, launchTime: ZonedDateTime)
 
-final case class ActionInfo(actionName: String, serviceInfo: ServiceInfo, id: UUID, launchTime: ZonedDateTime)
+final case class ActionInfo(id: UUID, launchTime: ZonedDateTime, actionName: String, serviceInfo: ServiceInfo)
 
 final case class Notes private (value: String)
 

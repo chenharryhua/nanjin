@@ -27,7 +27,7 @@ final private class ActionRetryBase[F[_], A, B](
   private def succNotes(b: B): Notes             = Notes(succ.run((input, b)))
 
   val actionInfo: F[ActionInfo] = realZonedDateTime(params.serviceParams).map(ts =>
-    ActionInfo(actionName = actionName, serviceInfo = serviceInfo, id = UUID.randomUUID(), launchTime = ts))
+    ActionInfo(id = UUID.randomUUID(), launchTime = ts, actionName = actionName, serviceInfo = serviceInfo))
 
   def onError(actionInfo: ActionInfo)(error: Throwable, details: RetryDetails): F[Unit] =
     details match {
