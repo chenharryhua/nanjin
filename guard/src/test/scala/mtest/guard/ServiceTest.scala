@@ -7,6 +7,7 @@ import cats.syntax.all._
 import com.amazonaws.regions.Regions
 import com.codahale.metrics.{Counter, MetricRegistry, Timer}
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
+import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.guard._
@@ -43,9 +44,13 @@ class ServiceTest extends AnyFunSuite {
     DurationFormatter.default)
 
   val guard = TaskGuard[IO]("service-level-guard")
-    .updateConfig(_.withSlackWarnColor("danger").withSlackFailColor("danger").withSlackSuccColor("good"))
+    .updateConfig(
+      _.withSlackWarnColor("danger")
+        .withSlackFailColor("danger")
+        .withSlackSuccColor("good")
+        .withHostName(HostName.local_host))
     .service("service")
-    .updateConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds).withMaxCauseSize(100))
+    .updateConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds).withMaxCauseSize(100).withNotes("ok"))
 
   val metrics = new MetricRegistry
   val logging = Monoid[AlertService[IO]].empty |+|
@@ -157,8 +162,8 @@ class ServiceTest extends AnyFunSuite {
 
     metrics.getMetrics.asScala.filter(_._1.contains("metrics-action-succ")).map { case (n, m) =>
       m match {
-        case t: Timer   => assert(t.getCount() == 20)
-        case c: Counter => assert(c.getCount() == 20)
+        case t: Timer   => assert(t.getCount == 20)
+        case c: Counter => assert(c.getCount == 20)
       }
     }
   }
@@ -176,7 +181,7 @@ class ServiceTest extends AnyFunSuite {
 
     metrics.getMetrics.asScala.filter(_._1.contains("metrics-action-fail.counter.retry")).map { case (n, m) =>
       m match {
-        case c: Counter => assert(c.getCount() == 3)
+        case c: Counter => assert(c.getCount == 3)
       }
     }
   }

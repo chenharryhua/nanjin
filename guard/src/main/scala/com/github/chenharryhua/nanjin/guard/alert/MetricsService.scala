@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.alert
 
 import cats.effect.Sync
-import com.codahale.metrics.MetricRegistry
+import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ServiceParams}
 
 import java.time.{Duration => JavaDuration}
@@ -35,6 +35,8 @@ final private class MetricsService[F[_]](metrics: MetricRegistry)(implicit F: Sy
       F.blocking(metrics.timer(s"succ.${actionKey(info, params)}").update(JavaDuration.between(info.launchTime, at)))
     case ActionQuasiSucced(at, info, params, _, _, _, _) =>
       F.blocking(metrics.timer(s"quasi.${actionKey(info, params)}").update(JavaDuration.between(info.launchTime, at)))
+
+    case _: ServiceDailySummariesReset => F.blocking(metrics.removeMatching(MetricFilter.ALL))
   }
 }
 

@@ -64,8 +64,9 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) {
                 .send(ServiceStarted(timestamp = ts, serviceInfo = si, params = params))
                 .delayBy(params.startUpEventDelay)
               _ <- dailySummaries.get.flatMap { ds =>
-                realZonedDateTime(params).flatMap { ts =>
-                  channel.send(
+                for {
+                  ts <- realZonedDateTime(params)
+                  _ <- channel.send(
                     ServiceHealthCheck(
                       timestamp = ts,
                       serviceInfo = si,
@@ -74,7 +75,7 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) {
                       totalMemory = Runtime.getRuntime.totalMemory,
                       freeMemory = Runtime.getRuntime.freeMemory
                     ))
-                }
+                } yield ()
               }.delayBy(params.healthCheck.interval).foreverM[Unit]
             } yield ()
 
@@ -92,7 +93,21 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) {
 
         channel.stream
           .concurrently(Stream.eval(service))
-          .concurrently(scheduler.awakeEvery(cron).evalMap(_ => dailySummaries.update(_.reset)))
+          .concurrently(
+            scheduler
+              .awakeEvery(cron)
+              .evalMap(_ =>
+                for {
+                  ts <- realZonedDateTime(params)
+                  ds <- dailySummaries.getAndUpdate(_.reset)
+                  _ <- channel.send(
+                    ServiceDailySummariesReset(
+                      timestamp = ts,
+                      serviceInfo = si,
+                      params = params,
+                      dailySummaries = ds
+                    ))
+                } yield ()))
       }
     } yield event
   }
