@@ -108,6 +108,8 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       service.publish(msg.asJson.noSpaces).void
 
     case ServiceHealthCheck(at, info, params, dailySummaries, totalMemory, freeMemory) =>
+      val tm = Megabytes(totalMemory / (1024 * 1024)).toString(Gigabytes)
+      val fm = Megabytes(freeMemory / (1024 * 1024)).toString(Gigabytes)
       val msg = SlackNotification(
         params.taskParams.appName,
         s":gottarun: ${params.notes}",
@@ -118,10 +120,10 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
             List(
               SlackField("Service", params.serviceName, short = true),
               SlackField("Host", params.taskParams.hostName, short = true),
-              SlackField("Total Memory", Megabytes(totalMemory / (1024 * 1024)).toString(Gigabytes), short = true),
-              SlackField("Free Memory", Megabytes(freeMemory / (1024 * 1024)).toString(Gigabytes), short = true),
-              SlackField("HealthCheck Status", "Good", short = true),
+              SlackField("Free/Total Memory", s"$fm/$tm", short = true),
               SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
+              SlackField("HealthCheck Status", "Good", short = true),
+              SlackField("Panics", dailySummaries.servicePanic.toString, short = true),
               SlackField("Time Zone", params.taskParams.zoneId.toString, short = true),
               SlackField("Next check in", fmt.format(params.healthCheck.interval), short = true)
             )

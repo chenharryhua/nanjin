@@ -5,6 +5,7 @@ import cats.data.{Kleisli, Reader}
 import cats.effect.kernel.Temporal
 import cats.effect.{Async, Ref}
 import cats.syntax.all._
+import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.action.{ActionRetry, QuasiSucc}
 import com.github.chenharryhua.nanjin.guard.alert.{
   DailySummaries,
@@ -25,13 +26,14 @@ final class ActionGuard[F[_]](
   dailySummaries: Ref[F, DailySummaries],
   channel: Channel[F, NJEvent],
   actionName: String,
-  actionConfig: ActionConfig) {
+  actionConfig: ActionConfig)
+    extends UpdateConfig[ActionConfig, ActionGuard[F]] {
   val params: ActionParams = actionConfig.evalConfig
 
   def apply(actionName: String): ActionGuard[F] =
     new ActionGuard[F](serviceInfo, dailySummaries, channel, actionName, actionConfig)
 
-  def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
+  override def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
     new ActionGuard[F](serviceInfo, dailySummaries, channel, actionName, f(actionConfig))
 
   def retry[A, B](input: A)(f: A => F[B])(implicit F: Applicative[F]): ActionRetry[F, A, B] =

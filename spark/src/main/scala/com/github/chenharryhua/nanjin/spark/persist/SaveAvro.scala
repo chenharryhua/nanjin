@@ -4,7 +4,6 @@ import cats.effect.Sync
 import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import frameless.cats.implicits._
-import fs2.compression.DeflateParams.Level
 import org.apache.avro.file.CodecFactory
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.rdd.RDD

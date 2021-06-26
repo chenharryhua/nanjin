@@ -34,7 +34,7 @@ final class KafkaDownloader[F[_], K, V](
 
   def updateConsumer(f: ConsumerSettings[Array[Byte], Array[Byte]] => ConsumerSettings[Array[Byte], Array[Byte]])
     : KafkaDownloader[F, K, V] =
-    new KafkaDownloader[F, K, V](akkaSystem, topic, hadoop, cfg, akkaConsumer.update(f))
+    new KafkaDownloader[F, K, V](akkaSystem, topic, hadoop, cfg, akkaConsumer.updateConfig(f))
 
   // config
   private def updateCfg(f: SKConfig => SKConfig): KafkaDownloader[F, K, V] =

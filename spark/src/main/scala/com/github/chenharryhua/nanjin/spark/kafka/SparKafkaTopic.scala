@@ -5,6 +5,7 @@ import cats.Foldable
 import cats.data.Kleisli
 import cats.effect.{Async, Sync}
 import cats.syntax.all._
+import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, KafkaTopic}
@@ -23,21 +24,21 @@ import org.apache.spark.streaming.kafka010.LocationStrategy
 import java.time.LocalDate
 
 final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKConfig, ss: SparkSession)
-    extends Serializable {
+    extends UpdateConfig[SKConfig, SparKafkaTopic[F, K, V]] with Serializable {
 
   val topicName: TopicName = topic.topicDef.topicName
 
   def ate(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): AvroTypedEncoder[NJConsumerRecord[K, V]] =
     NJConsumerRecord.ate(topic.topicDef)
 
-  private def updateCfg(f: SKConfig => SKConfig): SparKafkaTopic[F, K, V] =
+  override def updateConfig(f: SKConfig => SKConfig): SparKafkaTopic[F, K, V] =
     new SparKafkaTopic[F, K, V](topic, f(cfg), ss)
 
-  def withStartTime(str: String): SparKafkaTopic[F, K, V]                 = updateCfg(_.withStartTime(str))
-  def withEndTime(str: String): SparKafkaTopic[F, K, V]                   = updateCfg(_.withEndTime(str))
-  def withOneDay(ld: LocalDate): SparKafkaTopic[F, K, V]                  = updateCfg(_.withOneDay(ld))
-  def withTimeRange(tr: NJDateTimeRange): SparKafkaTopic[F, K, V]         = updateCfg(_.withTimeRange(tr))
-  def withLocationStrategy(ls: LocationStrategy): SparKafkaTopic[F, K, V] = updateCfg(_.withLocationStrategy(ls))
+  def withStartTime(str: String): SparKafkaTopic[F, K, V]                 = updateConfig(_.withStartTime(str))
+  def withEndTime(str: String): SparKafkaTopic[F, K, V]                   = updateConfig(_.withEndTime(str))
+  def withOneDay(ld: LocalDate): SparKafkaTopic[F, K, V]                  = updateConfig(_.withOneDay(ld))
+  def withTimeRange(tr: NJDateTimeRange): SparKafkaTopic[F, K, V]         = updateConfig(_.withTimeRange(tr))
+  def withLocationStrategy(ls: LocationStrategy): SparKafkaTopic[F, K, V] = updateConfig(_.withLocationStrategy(ls))
 
   val params: SKParams = cfg.evalConfig
 

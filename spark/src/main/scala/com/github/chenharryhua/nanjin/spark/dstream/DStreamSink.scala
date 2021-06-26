@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.dstream
 
+import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
 import io.circe.{Encoder => JsonEncoder}
@@ -7,10 +8,11 @@ import org.apache.spark.streaming.dstream.DStream
 
 import scala.reflect.ClassTag
 
-final class DStreamSink[A](dstream: DStream[A], cfg: SDConfig) extends Serializable {
+final class DStreamSink[A](dstream: DStream[A], cfg: SDConfig)
+    extends UpdateConfig[SDConfig, DStreamSink[A]] with Serializable {
   val params: SDParams = cfg.evalConfig
 
-  private def updateConfig(f: SDConfig => SDConfig): DStreamSink[A] =
+  override def updateConfig(f: SDConfig => SDConfig): DStreamSink[A] =
     new DStreamSink[A](dstream, f(cfg))
 
   def pathBuilder(f: String => NJTimestamp => String): DStreamSink[A] = updateConfig(_.withPathBuilder(f))
