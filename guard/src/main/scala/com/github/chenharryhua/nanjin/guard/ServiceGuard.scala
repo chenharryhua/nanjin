@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard
 import cats.effect.Async
 import cats.effect.syntax.all._
 import cats.syntax.all._
+import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.alert._
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams}
 import cron4s.Cron
@@ -26,10 +27,10 @@ import java.util.UUID
   */
 // format: on
 
-final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) {
+final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) extends UpdateConfig[ServiceConfig, ServiceGuard[F]] {
   val params: ServiceParams = serviceConfig.evalConfig
 
-  def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
+  override def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
     new ServiceGuard[F](f(serviceConfig))
 
   def eventStream[A](actionGuard: ActionGuard[F] => F[A])(implicit F: Async[F]): Stream[F, NJEvent] = {

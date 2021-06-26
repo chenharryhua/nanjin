@@ -82,7 +82,7 @@ final class UploadThrottleByBatchSize[F[_], K, V] private[kafka] (
 
   def updateProducer(
     f: Fs2ProducerSettings[F, K, V] => Fs2ProducerSettings[F, K, V]): UploadThrottleByBatchSize[F, K, V] =
-    new UploadThrottleByBatchSize[F, K, V](rdd, topic, cfg, fs2Producer.update(f))
+    new UploadThrottleByBatchSize[F, K, V](rdd, topic, cfg, fs2Producer.updateConfig(f))
 
   def toTopic(topic: KafkaTopic[F, K, V]): UploadThrottleByBatchSize[F, K, V] =
     new UploadThrottleByBatchSize[F, K, V](rdd, topic, cfg, fs2Producer)
@@ -111,7 +111,7 @@ final class UploadThrottleByBulkSize[F[_], K, V] private[kafka] (
   val params: SKParams = cfg.evalConfig
 
   def updateProducer(f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): UploadThrottleByBulkSize[F, K, V] =
-    new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg, akkaProducer.update(f))
+    new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg, akkaProducer.updateConfig(f))
 
   def toTopic(topic: KafkaTopic[F, K, V]): UploadThrottleByBulkSize[F, K, V] =
     new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg, akkaProducer)
