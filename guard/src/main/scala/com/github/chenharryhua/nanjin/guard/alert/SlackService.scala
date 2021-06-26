@@ -123,21 +123,8 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               SlackField("HealthCheck Status", "Good", short = true),
               SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
               SlackField("Time Zone", params.taskParams.zoneId.toString, short = true),
-              SlackField("Next check will happen in", fmt.format(params.healthCheck.interval), short = true)
-            ) ++ List(
-              if (dailySummaries.servicePanic > 0)
-                Some(SlackField("Service Panics Today", dailySummaries.servicePanic.toString, short = true))
-              else None,
-              if (dailySummaries.actionSucc > 0)
-                Some(SlackField("Succed Actions Today", dailySummaries.actionSucc.toString, short = true))
-              else None,
-              if (dailySummaries.actionFail > 0)
-                Some(SlackField("Failed Actions Today", dailySummaries.actionFail.toString, short = true))
-              else None,
-              if (dailySummaries.actionRetries > 0)
-                Some(SlackField("Retried Actions Today", dailySummaries.actionRetries.toString, short = true))
-              else None
-            ).flatten
+              SlackField("Next check in", fmt.format(params.healthCheck.interval), short = true)
+            )
           ))
       ).asJson.noSpaces
       val ltr = NJLocalTimeRange(params.healthCheck.openTime, params.healthCheck.span, params.taskParams.zoneId)
@@ -272,7 +259,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
 
     // no op
     case _: PassThrough                => F.unit
-    case _: ServiceDailySummariesReset => F.unit
+    case _: ServiceDailySummariesReset => F.unit //TODO
   }
 }
 
