@@ -35,7 +35,7 @@ private[kafka] object sk {
       )).mapValues[Object](identity).asJava
 
   private def offsetRanges(range: KafkaTopicPartition[Option[KafkaOffsetRange]]): Array[OffsetRange] =
-    range.flatten[KafkaOffsetRange].value.toArray.map { case (tp, r) =>
+    range.flatten.value.toArray.map { case (tp, r) =>
       OffsetRange.create(tp, r.from.value, r.until.value)
     }
 
