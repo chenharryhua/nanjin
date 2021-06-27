@@ -10,6 +10,8 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.alert.{
   ActionFailed,
   ActionQuasiSucced,
+  ActionRetrying,
+  ActionSucced,
   ConsoleService,
   LogService,
   MetricsService,
@@ -157,5 +159,24 @@ class QuasiSuccTest extends AnyFunSuite {
         .unsafeRunSync()
     assert(a.asInstanceOf[ActionFailed].error.message == "ActionCanceledExternally: external-cancel")
     assert(b.isInstanceOf[ServiceStopped])
+  }
+
+  test("multi-layers") {
+    val Vector(a, b, c, d, e, f, g, h) =
+      guard.eventStream { action =>
+        val a1 = action("compute1").run(IO(1))
+        val a2 = action("exception").updateConfig(_.withConstantDelay(1.second)).run(IO.raiseError[Int](new Exception))
+        val a3 = action("compute2").run(IO(2))
+        action("quasi").quasi(a1, a2, a3).seqRun
+      }.observe(_.evalMap(logging.alert).drain).compile.toVector.unsafeRunSync()
+
+    assert(a.asInstanceOf[ActionSucced].actionInfo.actionName == "compute1")
+    assert(b.isInstanceOf[ActionRetrying])
+    assert(c.isInstanceOf[ActionRetrying])
+    assert(d.isInstanceOf[ActionRetrying])
+    assert(e.isInstanceOf[ActionFailed])
+    assert(f.asInstanceOf[ActionSucced].actionInfo.actionName == "compute2")
+    assert(g.isInstanceOf[ActionQuasiSucced])
+    assert(h.isInstanceOf[ServiceStopped])
   }
 }

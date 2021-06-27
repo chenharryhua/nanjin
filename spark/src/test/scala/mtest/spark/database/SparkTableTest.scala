@@ -3,8 +3,8 @@ package mtest.spark.database
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.common.transformers._
 import com.github.chenharryhua.nanjin.common.database.TableName
+import com.github.chenharryhua.nanjin.common.transformers._
 import com.github.chenharryhua.nanjin.datetime._
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.database._
@@ -77,10 +77,10 @@ class SparkTableTest extends AnyFunSuite {
 
   test("dump and count") {
     sparkDB.table(table).dump.unsafeRunSync()
-    val dbc = sparkDB.table(table).countDB
-    val dc  = sparkDB.table(table).countDisk
+    val dbc = sparkDB.table(table).countDB.unsafeRunSync()
+    val dc  = sparkDB.table(table).countDisk.unsafeRunSync()
 
-    val load = sparkDB.table(table).fromDB.dataset
+    val load = sparkDB.table(table).fromDB.map(_.dataset).unsafeRunSync()
     val l1   = sparkDB.table(table).tableset(load)
     val l2   = sparkDB.table(table).tableset(load.rdd).typedDataset
 
@@ -94,20 +94,19 @@ class SparkTableTest extends AnyFunSuite {
       pt.withQuery("select a,b from sparktest")
         .withReplayPathBuilder((_, _) => root + "dbdump")
         .fromDB
-        .repartition(1)
-        .typedDataset
+        .map(_.repartition(1).typedDataset)
+        .unsafeRunSync()
     val pt2: TableDef[PartialDBTable] =
       TableDef[PartialDBTable](TableName("sparktest"), AvroCodec[PartialDBTable], "select a,b from sparktest")
 
-    val ptd2: TypedDataset[PartialDBTable] = sparkDB.table(pt2).fromDB.typedDataset
+    val ptd2: TypedDataset[PartialDBTable] = sparkDB.table(pt2).fromDB.map(_.typedDataset).unsafeRunSync()
 
     val ptd3: TypedDataset[PartialDBTable] =
       sparkDB
         .table(table)
         .fromDB
-        .map(_.transformInto[PartialDBTable])(pt.tableDef)
-        .flatMap(Option(_))(pt.tableDef)
-        .typedDataset
+        .map(_.map(_.transformInto[PartialDBTable])(pt.tableDef).flatMap(Option(_))(pt.tableDef).typedDataset)
+        .unsafeRunSync()
 
     assert(ptd.except(ptd2).dataset.count() == 0)
     assert(ptd.except(ptd3).dataset.count() == 0)
@@ -118,52 +117,62 @@ class SparkTableTest extends AnyFunSuite {
 
   val tb: SparkDBTable[IO, DBTable] = sparkDB.table(table)
 
-  val saver: DatasetAvroFileHoarder[IO, DBTable] = tb.fromDB.save
+  val saver: DatasetAvroFileHoarder[IO, DBTable] = tb.fromDB.map(_.save).unsafeRunSync()
 
   test("save avro") {
     val avro = saver.avro(root + "single.raw.avro").file.run >>
       saver.avro(root + "multi.raw.avro").folder.run
     avro.unsafeRunSync()
-    assert(tb.load.avro(root + "single.raw.avro").dataset.collect.head == dbData)
-    assert(tb.load.avro(root + "multi.raw.avro").dataset.collect.head == dbData)
+    val shead = tb.load.avro(root + "single.raw.avro").map(_.dataset.collect.head).unsafeRunSync()
+    assert(shead == dbData)
+    val mhead = tb.load.avro(root + "multi.raw.avro").map(_.dataset.collect.head).unsafeRunSync()
+    assert(mhead == dbData)
   }
 
   test("save bin avro") {
     val avro = saver.binAvro(root + "single.binary.avro").file.run
     avro.unsafeRunSync()
-    assert(tb.load.binAvro(root + "single.binary.avro").dataset.collect.head == dbData)
+    val head = tb.load.binAvro(root + "single.binary.avro").map(_.dataset.collect.head)
+    assert(head.unsafeRunSync() == dbData)
   }
 
   test("save jackson") {
     val avro = saver.jackson(root + "single.jackson.json").file.run
     avro.unsafeRunSync()
-    assert(tb.load.jackson(root + "single.jackson.json").dataset.collect.head == dbData)
+    val head = tb.load.jackson(root + "single.jackson.json").map(_.dataset.collect.head)
+    assert(head.unsafeRunSync() == dbData)
   }
 
   test("save parquet") {
     val parquet = saver.parquet(root + "multi.parquet").folder.run
     parquet.unsafeRunSync()
-    assert(tb.load.parquet(root + "multi.parquet").dataset.collect.head == dbData)
+    val head = tb.load.parquet(root + "multi.parquet").map(_.dataset.collect.head)
+    assert(head.unsafeRunSync() == dbData)
   }
   test("save circe") {
     val circe = saver.circe(root + "multi.circe.json").folder.run >>
       saver.circe(root + "single.circe.json").file.run
     circe.unsafeRunSync()
-    assert(tb.load.circe(root + "multi.circe.json").dataset.collect.head == dbData)
-    assert(tb.load.circe(root + "single.circe.json").dataset.collect.head == dbData)
+    val mhead = tb.load.circe(root + "multi.circe.json").map(_.dataset.collect.head)
+    assert(mhead.unsafeRunSync() == dbData)
+    val shead = tb.load.circe(root + "single.circe.json").map(_.dataset.collect.head)
+    assert(shead.unsafeRunSync() == dbData)
   }
 
   test("save csv") {
     val csv = saver.csv(root + "multi.csv").folder.run >>
       saver.csv(root + "single.csv").file.run
     csv.unsafeRunSync()
-    assert(tb.load.csv(root + "multi.csv").dataset.collect.head == dbData)
-    assert(tb.load.csv(root + "single.csv", CsvConfiguration.rfc).dataset.collect.head == dbData)
+    val mhead = tb.load.csv(root + "multi.csv").map(_.dataset.collect.head)
+    assert(mhead.unsafeRunSync() == dbData)
+    val shead = tb.load.csv(root + "single.csv", CsvConfiguration.rfc).map(_.dataset.collect.head)
+    assert(shead.unsafeRunSync() == dbData)
   }
   test("save spark json") {
     val json = saver.json(root + "spark.json").run
     json.unsafeRunSync()
-    assert(tb.load.json(root + "spark.json").dataset.collect.head == dbData)
+    val head = tb.load.json(root + "spark.json").map(_.dataset.collect.head)
+    assert(head.unsafeRunSync() == dbData)
   }
   test("show schemas - spark does not respect not null") {
     println("--- spark ---")

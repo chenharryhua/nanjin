@@ -97,7 +97,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
       .delayBy(3.second)
 
     (ss.concurrently(upload).interruptAfter(6.seconds).compile.drain >>
-      sparKafka.topic(rooster).load.avro(path).count.map(println)).unsafeRunSync()
+      sparKafka.topic(rooster).load.avro(path).flatMap(_.count).map(println)).unsafeRunSync()
   }
 
   test("date partition sink json - should be read back") {
@@ -130,7 +130,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
     val ts        = NJTimestamp(Instant.now()).`Year=yyyy/Month=mm/Day=dd`(sydneyTime)
     val todayPath = path + "/" + ts
     assert(!File(todayPath).isEmpty, s"$todayPath does not exist")
-    sparKafka.topic(rooster).load.json(todayPath).count.map(println).unsafeRunSync()
+    sparKafka.topic(rooster).load.json(todayPath).flatMap(_.count.map(println)).unsafeRunSync()
   }
 
   test("memory sink - validate kafka timestamp") {

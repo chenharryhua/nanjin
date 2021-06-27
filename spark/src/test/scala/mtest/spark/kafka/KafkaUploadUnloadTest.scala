@@ -68,9 +68,19 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
       _ <- topic.fromKafka.flatMap(_.save.jackson(jackson).folder.run)
       _ <- topic.fromKafka.flatMap(_.save.binAvro(avroBin).folder.run)
       _ <- topic.fromKafka.flatMap(_.save.objectFile(obj).run)
+      circeds <- topic.load.circe(circe).map(_.dataset.collect().flatMap(_.value).toSet)
+      circerdd <- topic.load.rdd.circe(circe).map(_.rdd.flatMap(_.value).collect().toSet)
+      parquetds <- topic.load.parquet(parquet).map(_.dataset.collect().flatMap(_.value).toSet)
+      jsonds <- topic.load.json(json).map(_.dataset.collect().flatMap(_.value).toSet)
+      avrods <- topic.load.avro(avro).map(_.dataset.collect().flatMap(_.value).toSet)
+      avrordd <- topic.load.rdd.avro(avro).map(_.rdd.flatMap(_.value).collect().toSet)
+      jacksonds <- topic.load.jackson(jackson).map(_.dataset.collect().flatMap(_.value).toSet)
+      jacksonrdd <- topic.load.rdd.jackson(jackson).map(_.rdd.flatMap(_.value).collect().toSet)
+      binds <- topic.load.binAvro(avroBin).map(_.dataset.collect().flatMap(_.value).toSet)
+      binrdd <- topic.load.rdd.binAvro(avroBin).map(_.rdd.flatMap(_.value).collect().toSet)
+      objds <- topic.load.objectFile(obj).map(_.dataset.collect().flatMap(_.value).toSet)
+      objrdd <- topic.load.rdd.objectFile(obj).map(_.rdd.flatMap(_.value).collect().toSet)
     } yield {
-      val circeds  = topic.load.circe(circe).dataset.collect().flatMap(_.value).toSet
-      val circerdd = topic.load.rdd.circe(circe).rdd.flatMap(_.value).collect().toSet
       val spkJson =
         topic
           .crDS(sparkSession.read.schema(NJConsumerRecord.ate(topic.topic.topicDef).sparkEncoder.schema).json(circe))
@@ -83,32 +93,22 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
       assert(circerdd == RoosterData.expected)
       assert(spkJson == RoosterData.expected)
 
-      val parquetds = topic.load.parquet(parquet).dataset.collect().flatMap(_.value).toSet
       val spkParquet = // can be consumed by spark
         topic.crDS(sparkSession.read.parquet(parquet)).dataset.collect().flatMap(_.value).toSet
       assert(parquetds == RoosterData.expected)
       assert(spkParquet == RoosterData.expected)
 
-      val jsonds = topic.load.json(json).dataset.collect().flatMap(_.value).toSet
       assert(jsonds == RoosterData.expected)
 
-      val avrods  = topic.load.avro(avro).dataset.collect().flatMap(_.value).toSet
-      val avrordd = topic.load.rdd.avro(avro).rdd.flatMap(_.value).collect().toSet
       assert(avrods == RoosterData.expected)
       assert(avrordd == RoosterData.expected)
 
-      val jacksonds  = topic.load.jackson(jackson).dataset.collect().flatMap(_.value).toSet
-      val jacksonrdd = topic.load.rdd.jackson(jackson).rdd.flatMap(_.value).collect().toSet
       assert(jacksonds == RoosterData.expected)
       assert(jacksonrdd == RoosterData.expected)
 
-      val binds  = topic.load.binAvro(avroBin).dataset.collect().flatMap(_.value).toSet
-      val binrdd = topic.load.rdd.binAvro(avroBin).rdd.flatMap(_.value).collect().toSet
       assert(binds == RoosterData.expected)
       assert(binrdd == RoosterData.expected)
 
-      val objds  = topic.load.objectFile(obj).dataset.collect().flatMap(_.value).toSet
-      val objrdd = topic.load.rdd.objectFile(obj).rdd.flatMap(_.value).collect().toSet
       assert(objds == RoosterData.expected)
       assert(objrdd == RoosterData.expected)
     }
