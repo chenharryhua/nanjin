@@ -1,7 +1,6 @@
 package mtest.spark.kafka
 
 import cats.effect.IO
-import cats.syntax.all._
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
@@ -10,13 +9,13 @@ import com.github.chenharryhua.nanjin.spark.kafka.{NJProducerRecord, SparKafkaTo
 import frameless.TypedEncoder
 import io.circe.Codec
 //import frameless.cats.implicits._
+import cats.effect.unsafe.implicits.global
 import io.circe.generic.auto._
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
 import scala.math.BigDecimal
 import scala.math.BigDecimal.RoundingMode
-import cats.effect.unsafe.implicits.global
 
 object DecimalTopicTestCase {
 
@@ -97,10 +96,13 @@ class DecimalTopicTest extends AnyFunSuite {
     val path = "./data/test/spark/kafka/decimal.circe.json"
     stopic.fromKafka.flatMap(_.save.circe(path).file.run).unsafeRunSync
 
-    val rdd = stopic.load.rdd.circe(path)
-    val ds  = stopic.load.circe(path)
-
-    assert(rdd.rdd.collect().head.value.get == expected)
-    assert(ds.dataset.collect().head.value.get == expected)
+    val run = for {
+      rdd <- stopic.load.rdd.circe(path)
+      ds <- stopic.load.circe(path)
+    } yield {
+      assert(rdd.rdd.collect().head.value.get == expected)
+      assert(ds.dataset.collect().head.value.get == expected)
+    }
+    run.unsafeRunSync()
   }
 }

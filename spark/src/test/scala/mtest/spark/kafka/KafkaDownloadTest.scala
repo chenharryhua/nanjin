@@ -3,7 +3,7 @@ package mtest.spark.kafka
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.spark.kafka.NJProducerRecord
 import io.circe.generic.auto._
-import mtest.spark.{akkaSystem}
+import mtest.spark.akkaSystem
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
@@ -48,7 +48,7 @@ class KafkaDownloadTest extends AnyFunSuite {
     val dr   = NJDateTimeRange(sydneyTime).withStartTime(now).withEndTime(now + 5000)
     topic.withTimeRange(dr).download(akkaSystem).jackson(path).run.compile.drain.unsafeRunSync()
 
-    val res      = topic.load.jackson(path).dataset.collect().map(_.value.get).toSet
+    val res      = topic.load.jackson(path).map(_.dataset.collect().map(_.value.get).toSet).unsafeRunSync()
     val expected = Set(rand + 1, rand + 2, rand + 3, rand + 4)
     assert(res == expected)
   }
@@ -58,7 +58,7 @@ class KafkaDownloadTest extends AnyFunSuite {
     val dr   = NJDateTimeRange(sydneyTime).withStartTime(now).withEndTime(now + 1200)
     topic.withTimeRange(dr).download(akkaSystem).parquet(path).snappy.run.compile.drain.unsafeRunSync()
 
-    val res      = topic.load.parquet(path).dataset.collect().map(_.value.get).toSet
+    val res      = topic.load.parquet(path).map(_.dataset.collect().map(_.value.get).toSet).unsafeRunSync()
     val expected = Set(rand + 1)
     assert(res == expected)
   }
@@ -76,7 +76,7 @@ class KafkaDownloadTest extends AnyFunSuite {
     val dr   = NJDateTimeRange(sydneyTime).withStartTime(now + 3000)
     topic.withTimeRange(dr).download(akkaSystem).circe(path).gzip.run.compile.drain.unsafeRunSync()
 
-    val res      = topic.load.circe(path).dataset.collect().map(_.value.get).toSet
+    val res      = topic.load.circe(path).unsafeRunSync().dataset.collect().map(_.value.get).toSet
     val expected = Set(rand + 3, rand + 4, rand + 5)
     assert(res == expected)
   }
@@ -85,7 +85,7 @@ class KafkaDownloadTest extends AnyFunSuite {
     val dr   = NJDateTimeRange(sydneyTime).withStartTime(now + 2500).withEndTime(now + 3500)
     topic.withTimeRange(dr).download(akkaSystem).parquet(path).uncompress.run.compile.drain.unsafeRunSync()
 
-    val res      = topic.load.parquet(path).dataset.collect().map(_.value.get).toSet
+    val res      = topic.load.parquet(path).map(_.dataset.collect().map(_.value.get).toSet).unsafeRunSync()
     val expected = Set(rand + 3)
     assert(res == expected)
   }
