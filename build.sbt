@@ -92,7 +92,7 @@ lazy val commonSettings = Seq(
     "-Ywarn-dead-code",
     "-Ywarn-numeric-widen",
     "-Ywarn-value-discard",
-    "-Xfuture"
+    "-Xsource:3"
   ),
   Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
   Test / PB.targets                  := Seq(scalapb.gen() -> (Test / sourceManaged).value)
