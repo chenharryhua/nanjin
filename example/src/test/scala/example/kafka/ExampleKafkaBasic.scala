@@ -39,14 +39,15 @@ class ExampleKafkaBasic extends AnyFunSuite {
       .topic(fooTopic)
       .load
       .circe(path)
-      .prRdd
-      .withInterval(1.second) // interval of sending messages
-      .withTimeLimit(5.second) // upload last for 5 seconds
-      .uploadByBatch
-      .withBatchSize(2) // upload 2 message every interval
-      .run
-      .compile
-      .drain
+      .flatMap(
+        _.prRdd
+          .withInterval(1.second) // interval of sending messages
+          .withTimeLimit(5.second) // upload last for 5 seconds
+          .uploadByBatch
+          .withBatchSize(2) // upload 2 message every interval
+          .run
+          .compile
+          .drain)
       .unsafeRunSync()
   }
 }

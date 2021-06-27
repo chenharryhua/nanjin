@@ -197,7 +197,7 @@ object ShortLiveConsumer {
       execute(kpc.commitSync(offsets))
 
     private def offsetsOf(offsets: KafkaTopicPartition[Option[KafkaOffset]]): Map[TopicPartition, OffsetAndMetadata] =
-      offsets.flatten[KafkaOffset].value.mapValues(x => new OffsetAndMetadata(x.value))
+      offsets.flatten.value.mapValues(x => new OffsetAndMetadata(x.value))
 
     override def resetOffsetsToBegin: F[Unit] =
       execute(kpc.beginningOffsets.flatMap(x => kpc.commitSync(offsetsOf(x))))
