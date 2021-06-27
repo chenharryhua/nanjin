@@ -14,11 +14,12 @@ import org.apache.spark.sql.SparkSession
 final class LoadTopicFile[F[_], K, V] private[kafka] (topic: KafkaTopic[F, K, V], cfg: SKConfig, ss: SparkSession)
     extends Serializable {
 
-  def avro(pathStr: String)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
-    val ate = NJConsumerRecord.ate(topic.topicDef)
-    val tds = loaders.avro[NJConsumerRecord[K, V]](pathStr, ate, ss)
-    new CrDS(tds.dataset, topic, cfg, tek, tev)
-  }
+  def avro(pathStr: String)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V], F: Sync[F]): F[CrDS[F, K, V]] =
+    F.blocking {
+      val ate = NJConsumerRecord.ate(topic.topicDef)
+      val tds = loaders.avro[NJConsumerRecord[K, V]](pathStr, ate, ss)
+      new CrDS(tds.dataset, topic, cfg, tek, tev)
+    }
 
   def parquet(pathStr: String)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
     val ate = NJConsumerRecord.ate(topic.topicDef)
@@ -63,10 +64,11 @@ final class LoadTopicFile[F[_], K, V] private[kafka] (topic: KafkaTopic[F, K, V]
 
   object rdd {
 
-    def avro(pathStr: String): CrRdd[F, K, V] = {
-      val rdd = loaders.rdd.avro[NJConsumerRecord[K, V]](pathStr, decoder, ss)
-      new CrRdd[F, K, V](rdd, topic, cfg, ss)
-    }
+    def avro(pathStr: String)(implicit F: Sync[F]): F[CrRdd[F, K, V]] =
+      F.blocking {
+        val rdd = loaders.rdd.avro[NJConsumerRecord[K, V]](pathStr, decoder, ss)
+        new CrRdd[F, K, V](rdd, topic, cfg, ss)
+      }
 
     def jackson(pathStr: String): CrRdd[F, K, V] = {
       val rdd = loaders.rdd.jackson[NJConsumerRecord[K, V]](pathStr, decoder, ss)

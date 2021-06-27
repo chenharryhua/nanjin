@@ -45,8 +45,8 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   def fromKafka(implicit F: Sync[F]): F[CrRdd[F, K, V]] =
     sk.kafkaBatch(topic, params.timeRange, params.locationStrategy, ss).map(crRdd)
 
-  def fromDisk: CrRdd[F, K, V] =
-    crRdd(loaders.rdd.objectFile[NJConsumerRecord[K, V]](params.replayPath, ss))
+  def fromDisk(implicit F: Sync[F]): F[CrRdd[F, K, V]] =
+    F.blocking(crRdd(loaders.rdd.objectFile[NJConsumerRecord[K, V]](params.replayPath, ss)))
 
   /** shorthand
     */
@@ -54,10 +54,10 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
     fromKafka.flatMap(_.save.objectFile(params.replayPath).overwrite.run)
 
   def replay(implicit ce: Async[F]): F[Unit] =
-    fromDisk.prRdd.noMeta.uploadByBatch.run.map(_ => print(".")).compile.drain
+    fromDisk.flatMap(_.prRdd.noMeta.uploadByBatch.run.map(_ => print(".")).compile.drain)
 
   def countKafka(implicit F: Sync[F]): F[Long] = fromKafka.flatMap(_.count)
-  def countDisk(implicit F: Sync[F]): F[Long]  = fromDisk.count
+  def countDisk(implicit F: Sync[F]): F[Long]  = fromDisk.flatMap(_.count)
 
   def load: LoadTopicFile[F, K, V] = new LoadTopicFile[F, K, V](topic, cfg, ss)
 

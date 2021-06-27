@@ -40,7 +40,7 @@ class KafkaDownloadTest extends AnyFunSuite {
     val path = root + "whole_topic/download.avro"
     val dr   = NJDateTimeRange(sydneyTime)
     topic.withTimeRange(dr).download(akkaSystem).avro(path).run.compile.drain.unsafeRunSync()
-    assert(topic.load.avro(path).dataset.count() >= 5)
+    assert(topic.load.avro(path).map(_.dataset.count()).unsafeRunSync >= 5)
   }
 
   test("download - from #1 to #5") {
@@ -67,7 +67,7 @@ class KafkaDownloadTest extends AnyFunSuite {
     val dr   = NJDateTimeRange(sydneyTime).withStartTime(now).withEndTime(now + 2000)
     topic.withTimeRange(dr).download(akkaSystem).avro(path).bzip2.run.compile.drain.unsafeRunSync()
 
-    val res      = topic.load.avro(path).dataset.collect().map(_.value.get).toSet
+    val res      = topic.load.avro(path).map(_.dataset.collect().map(_.value.get).toSet).unsafeRunSync()
     val expected = Set(rand + 1)
     assert(res == expected)
   }

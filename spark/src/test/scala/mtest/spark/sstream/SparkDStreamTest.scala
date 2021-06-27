@@ -59,7 +59,7 @@ class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
 
     val now = NJTimestamp.now().`Year=yyyy/Month=mm/Day=dd`(sydneyTime)
     val j   = topic.load.jackson(jackson + now).transform(_.distinct())
-    val a   = topic.load.avro(avro + now).transform(_.distinct())
+    val a   = topic.load.avro(avro + now).map(_.transform(_.distinct())).unsafeRunSync()
     val c   = topic.load.circe(circe + now).transform(_.distinct())
 
     j.diff(a).dataset.show(truncate = false)

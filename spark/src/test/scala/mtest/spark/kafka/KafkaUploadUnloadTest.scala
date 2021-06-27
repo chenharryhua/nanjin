@@ -92,8 +92,8 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
       val jsonds = topic.load.json(json).dataset.collect().flatMap(_.value).toSet
       assert(jsonds == RoosterData.expected)
 
-      val avrods  = topic.load.avro(avro).dataset.collect().flatMap(_.value).toSet
-      val avrordd = topic.load.rdd.avro(avro).rdd.flatMap(_.value).collect().toSet
+      val avrods  = topic.load.avro(avro).map(_.dataset.collect().flatMap(_.value).toSet).unsafeRunSync()
+      val avrordd = topic.load.rdd.avro(avro).map(_.rdd.flatMap(_.value).collect().toSet).unsafeRunSync()
       assert(avrods == RoosterData.expected)
       assert(avrordd == RoosterData.expected)
 
