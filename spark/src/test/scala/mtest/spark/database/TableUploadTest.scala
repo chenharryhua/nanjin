@@ -80,7 +80,7 @@ class TableUploadTest extends AnyFunSuite {
 
   test("dump and reload") {
     table.dump
-      .map(_ => table.fromDisk.typedDataset.except(tds).dataset.count())
+      .flatMap(_ => table.fromDisk.map(_.typedDataset.except(tds).dataset.count()))
       .map(x => assert(x === 0))
       .unsafeRunSync()
   }

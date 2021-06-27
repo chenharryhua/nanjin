@@ -133,7 +133,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       service.publish(msg).whenA(ltr.isInBetween(at))
 
     case ActionRetrying(at, action, params, wdr, error) =>
-      val s1 = s"This is the ${toOrdinalWords(wdr.retriesSoFar + 1)} failure of the action, "
+      val s1 = s"This is the *${toOrdinalWords(wdr.retriesSoFar + 1)}* failure of the action, "
       val s2 = s"retry of which takes place in *${fmt.format(wdr.nextDelay)}*, "
       val s3 = s"up to maximum *${params.maxRetries}* retries"
       val msg =
