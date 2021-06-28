@@ -52,7 +52,7 @@ final class ActionGuard[F[_]](
   def retry[B](fb: F[B])(implicit F: Applicative[F]): ActionRetry[F, Unit, B] = retry[Unit, B](())(_ => fb)
 
   def fyi(msg: String)(implicit F: Temporal[F]): F[Unit] =
-    realZonedDateTime(params.serviceParams).flatMap(ts => channel.send(ForYourInformation(ts, msg))).void
+    realZonedDateTime(params.serviceParams).flatMap(ts => channel.send(ForYourInformation(ts, params, msg))).void
 
   def passThrough[A: Encoder](a: A)(implicit F: Temporal[F]): F[Unit] =
     realZonedDateTime(params.serviceParams).flatMap(ts => channel.send(PassThrough(ts, a.asJson))).void

@@ -145,5 +145,7 @@ final case class ActionQuasiSucced(
   errors: List[NJError]
 ) extends ActionEvent
 
-final case class ForYourInformation(timestamp: ZonedDateTime, message: String) extends NJEvent
+final case class ForYourInformation(timestamp: ZonedDateTime, actionParams: ActionParams, message: String)
+    extends NJEvent
+
 final case class PassThrough(timestamp: ZonedDateTime, value: Json) extends NJEvent
