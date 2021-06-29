@@ -7,7 +7,6 @@ import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.guard._
 import com.github.chenharryhua.nanjin.guard.alert.{
-  toOrdinalWords,
   ActionFailed,
   ActionRetrying,
   ActionSucced,
@@ -32,17 +31,40 @@ class RetryTest extends AnyFunSuite {
   val logging =
     SlackService(SimpleNotificationService.fake[IO]) |+| MetricsService[IO](new MetricRegistry()) |+| LogService[IO]
 
+  test("success") {
+    var i = 0
+    val Vector(a, b) = serviceGuard
+      .updateConfig(_.withNormalStop)
+      .eventStream { gd =>
+        gd("succ")
+          .updateConfig(
+            _.withMaxRetries(3).withFullJitter(1.second).withRetryAlertOn.withFYIAlertOff.withFirstFailAlertOn)
+          .retry(1)(x => IO(x + 1))
+          .withSuccNotes((a, b) => s"$a -> $b")
+          .withFailNotes((a, e) => "")
+          .withPredicate(_ => IO(true))
+          .run
+      }
+      .observe(_.evalMap(logging.alert).drain)
+      .compile
+      .toVector
+      .unsafeRunSync()
+    assert(a.isInstanceOf[ActionSucced])
+    assert(b.isInstanceOf[ServiceStopped])
+  }
+
   test("should retry 2 times when operation fail") {
     var i = 0
     val Vector(a, b, c, d) = serviceGuard
       .updateConfig(_.withNormalStop)
       .eventStream { gd =>
         gd("1-time-succ")("2-time-succ") // funny syntax
-          .updateConfig(
-            _.withMaxRetries(3).withFullJitter(1.second).withRetryAlertOn.withFYIAlertOff.withFirstFailAlertOn)
-          .run(IO(if (i < 2) {
-            i += 1; throw new Exception
-          } else i))
+          .updateConfig(_.withMaxRetries(3).withFullJitter(1.second))
+          .retry(1)(x =>
+            IO(if (i < 2) {
+              i += 1; throw new Exception
+            } else i))
+          .run
       }
       .observe(_.evalMap(logging.alert).drain)
       .compile
