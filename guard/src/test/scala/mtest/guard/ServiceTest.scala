@@ -18,7 +18,6 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ActionSucced,
   AlertService,
   ConsoleService,
-  ForYourInformation,
   LogService,
   MetricsService,
   NJEvent,
@@ -110,19 +109,6 @@ class ServiceTest extends AnyFunSuite {
     assert(b.isInstanceOf[ServiceHealthCheck])
     assert(c.isInstanceOf[ServiceHealthCheck])
     assert(d.isInstanceOf[ServiceHealthCheck])
-  }
-
-  test("for your information") {
-    val Vector(a) = guard
-      .eventStream(_.fyi("hello, world") >> IO.never)
-      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
-      .unNone
-      .observe(_.evalMap(m => logging.alert(m)).drain)
-      .interruptAfter(5.seconds)
-      .compile
-      .toVector
-      .unsafeRunSync()
-    assert(a.isInstanceOf[ForYourInformation])
   }
 
   test("normal service stop after two operations") {

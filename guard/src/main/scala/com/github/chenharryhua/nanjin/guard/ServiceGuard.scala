@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard
 
 import cats.effect.Async
+import cats.effect.std.Dispatcher
 import cats.effect.syntax.all._
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.common.UpdateConfig
@@ -79,10 +80,11 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) extends UpdateConfi
               }.delayBy(params.healthCheck.interval).foreverM[Unit]
             } yield ()
 
-            start_health.background.use(_ =>
+            (start_health.background, Dispatcher[F]).tupled.use(tp =>
               actionGuard(
                 new ActionGuard[F](
                   serviceInfo = si,
+                  dispatcher = tp._2,
                   dailySummaries = dailySummaries,
                   channel = channel,
                   actionName = "anonymous",
