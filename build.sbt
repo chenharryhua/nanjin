@@ -46,7 +46,7 @@ val json4s  = "3.7.0-M7" // for spark
 val kantan  = "0.6.1"
 val parquet = "1.12.0"
 val avro    = "1.10.2"
-val avro4s  = "4.0.9"
+val avro4s  = "4.0.10"
 
 // connect
 val hadoop  = "3.3.1"
