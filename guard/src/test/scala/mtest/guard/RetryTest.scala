@@ -82,9 +82,7 @@ class RetryTest extends AnyFunSuite {
       .eventStream { gd =>
         gd("escalate-after-3-time")
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
-          .retry(IO.raiseError[Int](new Exception("oops")))
-          .withSuccNotes(_ => "")
-          .withFailNotes(_ => "")
+          .retry(1)(x => IO.raiseError[Int](new Exception("oops")))
           .run
       }
       .observe(_.evalMap(logging.alert).drain)
