@@ -107,8 +107,7 @@ final class QuasiSucc[F[_], T[_], A, B](
             for {
               now <- realZonedDateTime(params.serviceParams)
               b <- fb
-              _ <- dailySummaries.update(d =>
-                d.copy(actionSucc = d.actionSucc + b._2.size, actionFail = d.actionFail + b._1.size))
+              _ <- dailySummaries.update(_.incActionSucc)
               _ <- channel.send(
                 ActionQuasiSucced(
                   timestamp = now,
