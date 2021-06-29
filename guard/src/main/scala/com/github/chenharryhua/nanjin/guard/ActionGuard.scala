@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard
 import cats.Applicative
 import cats.data.{Kleisli, Reader}
 import cats.effect.kernel.Temporal
+import cats.effect.std.Dispatcher
 import cats.effect.{Async, Ref}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.common.UpdateConfig
@@ -23,6 +24,7 @@ import java.time.ZoneId
 
 final class ActionGuard[F[_]](
   serviceInfo: ServiceInfo,
+  dispatcher: Dispatcher[F],
   dailySummaries: Ref[F, DailySummaries],
   channel: Channel[F, NJEvent],
   actionName: String,
@@ -31,10 +33,10 @@ final class ActionGuard[F[_]](
   val params: ActionParams = actionConfig.evalConfig
 
   def apply(actionName: String): ActionGuard[F] =
-    new ActionGuard[F](serviceInfo, dailySummaries, channel, actionName, actionConfig)
+    new ActionGuard[F](serviceInfo, dispatcher, dailySummaries, channel, actionName, actionConfig)
 
   override def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
-    new ActionGuard[F](serviceInfo, dailySummaries, channel, actionName, f(actionConfig))
+    new ActionGuard[F](serviceInfo, dispatcher, dailySummaries, channel, actionName, f(actionConfig))
 
   def retry[A, B](input: A)(f: A => F[B])(implicit F: Applicative[F]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
@@ -64,8 +66,14 @@ final class ActionGuard[F[_]](
   def fyi(msg: String)(implicit F: Temporal[F]): F[Unit] =
     realZonedDateTime(params.serviceParams).flatMap(ts => channel.send(ForYourInformation(ts, params, msg))).void
 
+  def unsafeFYI(msg: String)(implicit F: Temporal[F]): Unit =
+    dispatcher.unsafeRunSync(fyi(msg))
+
   def passThrough[A: Encoder](a: A)(implicit F: Temporal[F]): F[Unit] =
     realZonedDateTime(params.serviceParams).flatMap(ts => channel.send(PassThrough(ts, a.asJson))).void
+
+  def unsafePassThrough[A: Encoder](a: A)(implicit F: Temporal[F]): Unit =
+    dispatcher.unsafeRunSync(passThrough(a))
 
   // maximum retries
   def max(retries: Int): ActionGuard[F] = updateConfig(_.withMaxRetries(retries))
