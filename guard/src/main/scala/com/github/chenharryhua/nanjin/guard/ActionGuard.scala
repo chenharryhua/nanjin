@@ -6,7 +6,7 @@ import cats.effect.kernel.Temporal
 import cats.effect.{Async, Ref}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.guard.action.{ActionRetry, QuasiSucc}
+import com.github.chenharryhua.nanjin.guard.action.{ActionRetry, ActionRetryUnit, QuasiSucc, QuasiSuccUnit}
 import com.github.chenharryhua.nanjin.guard.alert.{
   DailySummaries,
   ForYourInformation,
@@ -44,12 +44,22 @@ final class ActionGuard[F[_]](
       actionName = actionName,
       params = params,
       input = input,
-      fab = Kleisli(f),
+      kfab = Kleisli(f),
       succ = Reader(_ => ""),
       fail = Reader(_ => ""),
       isWorthRetry = Kleisli(_ => F.pure(true)))
 
-  def retry[B](fb: F[B])(implicit F: Applicative[F]): ActionRetry[F, Unit, B] = retry[Unit, B](())(_ => fb)
+  def retry[B](fb: F[B])(implicit F: Applicative[F]): ActionRetryUnit[F, B] =
+    new ActionRetryUnit[F, B](
+      serviceInfo = serviceInfo,
+      dailySummaries = dailySummaries,
+      channel = channel,
+      actionName = actionName,
+      params = params,
+      fb = fb,
+      succ = Reader(_ => ""),
+      fail = Reader(_ => ""),
+      isWorthRetry = Kleisli(_ => F.pure(true)))
 
   def fyi(msg: String)(implicit F: Temporal[F]): F[Unit] =
     realZonedDateTime(params.serviceParams).flatMap(ts => channel.send(ForYourInformation(ts, params, msg))).void
@@ -62,11 +72,11 @@ final class ActionGuard[F[_]](
 
   // post good news
   def magpie[B](fb: F[B])(f: B => String)(implicit F: Async[F]): F[B] =
-    updateConfig(_.withSuccAlertOn.withFailAlertOff).retry(fb).withSuccNotes((_, b) => f(b)).run
+    updateConfig(_.withSuccAlertOn.withFailAlertOff).retry(fb).withSuccNotes(f).run
 
   // post bad news
   def croak[B](fb: F[B])(f: Throwable => String)(implicit F: Async[F]): F[B] =
-    updateConfig(_.withSuccAlertOff.withFailAlertOn).retry(fb).withFailNotes((_, ex) => f(ex)).run
+    updateConfig(_.withSuccAlertOff.withFailAlertOn).retry(fb).withFailNotes(f).run
 
   def quietly[B](fb: F[B])(implicit F: Async[F]): F[B] =
     updateConfig(_.withSuccAlertOff.withFailAlertOff).run(fb)
@@ -86,10 +96,19 @@ final class ActionGuard[F[_]](
       actionName = actionName,
       params = params,
       input = ta,
-      fab = Kleisli(f),
+      kfab = Kleisli(f),
       succ = Reader(_ => ""),
       fail = Reader(_ => ""))
 
-  def quasi[T[_], B](tfb: T[F[B]]): QuasiSucc[F, T, F[B], B] = quasi[T, F[B], B](tfb)(identity)
-  def quasi[B](bs: F[B]*): QuasiSucc[F, List, F[B], B]       = quasi(bs.toList)
+  def quasi[T[_], B](tfb: T[F[B]]): QuasiSuccUnit[F, T, B] = new QuasiSuccUnit[F, T, B](
+    serviceInfo = serviceInfo,
+    dailySummaries = dailySummaries,
+    channel = channel,
+    actionName = actionName,
+    params = params,
+    tfb = tfb,
+    succ = Reader(_ => ""),
+    fail = Reader(_ => ""))
+
+  def quasi[B](bs: F[B]*): QuasiSuccUnit[F, List, B] = quasi[List, B](bs.toList)
 }

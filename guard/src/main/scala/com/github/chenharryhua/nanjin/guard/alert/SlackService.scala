@@ -159,7 +159,9 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               )
             ))
         ).asJson.noSpaces
-      service.publish(msg).whenA(params.alertMask.alertRetry)
+      service
+        .publish(msg)
+        .whenA(params.alertMask.alertRetry || (params.alertMask.alertFirstRetry && wdr.retriesSoFar == 0))
 
     case ActionFailed(at, action, params, numRetries, notes, error) =>
       val msg =

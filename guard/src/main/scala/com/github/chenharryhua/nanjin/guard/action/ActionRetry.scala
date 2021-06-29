@@ -17,7 +17,7 @@ final class ActionRetry[F[_], A, B](
   actionName: String,
   params: ActionParams,
   input: A,
-  fab: Kleisli[F, A, B],
+  kfab: Kleisli[F, A, B],
   succ: Reader[(A, B), String],
   fail: Reader[(A, Throwable), String],
   isWorthRetry: Kleisli[F, Throwable, Boolean]) {
@@ -30,7 +30,7 @@ final class ActionRetry[F[_], A, B](
       actionName = actionName,
       params = params,
       input = input,
-      fab = fab,
+      kfab = kfab,
       succ = Reader(succ.tupled),
       fail = fail,
       isWorthRetry = isWorthRetry)
@@ -43,7 +43,7 @@ final class ActionRetry[F[_], A, B](
       actionName = actionName,
       params = params,
       input = input,
-      fab = fab,
+      kfab = kfab,
       succ = succ,
       fail = Reader(fail.tupled),
       isWorthRetry = isWorthRetry)
@@ -56,7 +56,7 @@ final class ActionRetry[F[_], A, B](
       actionName = actionName,
       params = params,
       input = input,
-      fab = fab,
+      kfab = kfab,
       succ = succ,
       fail = fail,
       isWorthRetry = Kleisli(worthRetry))
@@ -83,7 +83,7 @@ final class ActionRetry[F[_], A, B](
             base.onError(actionInfo)) {
             for {
               gate <- F.deferred[Outcome[F, Throwable, B]]
-              fiber <- F.start(fab.run(input).guaranteeCase(gate.complete(_).void))
+              fiber <- F.start(kfab.run(input).guaranteeCase(gate.complete(_).void))
               oc <- F.onCancel(
                 poll(gate.get).flatMap(_.embed(F.raiseError[B](ActionCanceledInternally(actionName)))),
                 fiber.cancel)
@@ -91,4 +91,66 @@ final class ActionRetry[F[_], A, B](
           }
           .guaranteeCase(base.handleOutcome(actionInfo)))
     } yield res
+}
+
+final class ActionRetryUnit[F[_], B](
+  serviceInfo: ServiceInfo,
+  dailySummaries: Ref[F, DailySummaries],
+  channel: Channel[F, NJEvent],
+  actionName: String,
+  params: ActionParams,
+  fb: F[B],
+  succ: Reader[B, String],
+  fail: Reader[Throwable, String],
+  isWorthRetry: Kleisli[F, Throwable, Boolean]) {
+
+  def withSuccNotes(succ: B => String): ActionRetryUnit[F, B] =
+    new ActionRetryUnit[F, B](
+      serviceInfo = serviceInfo,
+      dailySummaries = dailySummaries,
+      channel = channel,
+      actionName = actionName,
+      params = params,
+      fb = fb,
+      succ = Reader(succ),
+      fail = fail,
+      isWorthRetry = isWorthRetry)
+
+  def withFailNotes(fail: Throwable => String): ActionRetryUnit[F, B] =
+    new ActionRetryUnit[F, B](
+      serviceInfo = serviceInfo,
+      dailySummaries = dailySummaries,
+      channel = channel,
+      actionName = actionName,
+      params = params,
+      fb = fb,
+      succ = succ,
+      fail = Reader(fail),
+      isWorthRetry = isWorthRetry)
+
+  def withPredicate(worthRetry: Throwable => F[Boolean]): ActionRetryUnit[F, B] =
+    new ActionRetryUnit[F, B](
+      serviceInfo = serviceInfo,
+      dailySummaries = dailySummaries,
+      channel = channel,
+      actionName = actionName,
+      params = params,
+      fb = fb,
+      succ = succ,
+      fail = fail,
+      isWorthRetry = Kleisli(worthRetry))
+
+  def run(implicit F: Async[F]): F[B] =
+    new ActionRetry[F, Unit, B](
+      serviceInfo,
+      dailySummaries,
+      channel,
+      actionName,
+      params,
+      (),
+      Kleisli(_ => fb),
+      succ.local((b: Tuple2[Unit, B]) => b._2),
+      fail.local((e: Tuple2[Unit, Throwable]) => e._2),
+      isWorthRetry
+    ).run
 }

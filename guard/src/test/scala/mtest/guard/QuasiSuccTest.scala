@@ -167,7 +167,11 @@ class QuasiSuccTest extends AnyFunSuite {
         val a1 = action("compute1").run(IO(1))
         val a2 = action("exception").updateConfig(_.withConstantDelay(1.second)).run(IO.raiseError[Int](new Exception))
         val a3 = action("compute2").run(IO(2))
-        action("quasi").quasi(a1, a2, a3).seqRun
+        action("quasi")
+          .quasi(a1, a2, a3)
+          .withSuccNotes(_.map(_.toString).mkString)
+          .withFailNotes(_.map(_.message).mkString)
+          .seqRun
       }.observe(_.evalMap(logging.alert).drain).compile.toVector.unsafeRunSync()
 
     assert(a.asInstanceOf[ActionSucced].actionInfo.actionName == "compute1")
