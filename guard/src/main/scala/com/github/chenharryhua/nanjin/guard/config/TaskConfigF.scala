@@ -12,7 +12,7 @@ import monocle.macros.Lenses
 
 import java.time.ZoneId
 
-@Lenses final case class SlackColor(succ: String, fail: String, warn: String)
+@Lenses final case class SlackColor(succ: String, fail: String, warn: String, info: String)
 
 @Lenses final case class TaskParams private (
   appName: String,
@@ -28,7 +28,7 @@ object TaskParams {
     appName = appName,
     zoneId = ZoneId.systemDefault(),
     dailySummaryReset = 0, // midnight
-    color = SlackColor(succ = "good", fail = "danger", warn = "#f2c744"),
+    color = SlackColor(succ = "good", fail = "danger", warn = "#f2c744", info = "#0066ff"),
     hostName = hostName.name
   )
 }
@@ -46,6 +46,7 @@ private object TaskConfigF {
   final case class WithSlackSuccColor[K](value: String, cont: K) extends TaskConfigF[K]
   final case class WithSlackFailColor[K](value: String, cont: K) extends TaskConfigF[K]
   final case class WithSlackWarnColor[K](value: String, cont: K) extends TaskConfigF[K]
+  final case class WithSlackInfoColor[K](value: String, cont: K) extends TaskConfigF[K]
 
   final case class WithHostName[K](value: HostName, cont: K) extends TaskConfigF[K]
 
@@ -57,6 +58,7 @@ private object TaskConfigF {
       case WithSlackSuccColor(v, c)      => TaskParams.color.composeLens(SlackColor.succ).set(v)(c)
       case WithSlackFailColor(v, c)      => TaskParams.color.composeLens(SlackColor.fail).set(v)(c)
       case WithSlackWarnColor(v, c)      => TaskParams.color.composeLens(SlackColor.warn).set(v)(c)
+      case WithSlackInfoColor(v, c)      => TaskParams.color.composeLens(SlackColor.info).set(v)(c)
       case WithHostName(v, c)            => TaskParams.hostName.set(v.name)(c)
     }
 }
@@ -72,6 +74,7 @@ final case class TaskConfig private (value: Fix[TaskConfigF]) {
   def withSlackSuccColor(v: String): TaskConfig = TaskConfig(Fix(WithSlackSuccColor(v, value)))
   def withSlackFailColor(v: String): TaskConfig = TaskConfig(Fix(WithSlackFailColor(v, value)))
   def withSlackWarnColor(v: String): TaskConfig = TaskConfig(Fix(WithSlackWarnColor(v, value)))
+  def withSlackInfoColor(v: String): TaskConfig = TaskConfig(Fix(WithSlackInfoColor(v, value)))
 
   def withHostName(hostName: HostName): TaskConfig = TaskConfig(Fix(WithHostName(hostName, value)))
 
