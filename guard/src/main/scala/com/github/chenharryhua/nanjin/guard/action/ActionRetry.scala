@@ -4,7 +4,7 @@ import cats.data.{Kleisli, Reader}
 import cats.effect.syntax.all._
 import cats.effect.{Async, Outcome, Ref}
 import cats.syntax.all._
-import com.github.chenharryhua.nanjin.guard.alert.{DailySummaries, NJEvent, ServiceInfo}
+import com.github.chenharryhua.nanjin.guard.alert.{ActionStart, DailySummaries, NJEvent, ServiceInfo}
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import fs2.concurrent.Channel
 import retry.RetryPolicies
@@ -75,6 +75,7 @@ final class ActionRetry[F[_], A, B](
         succ = succ,
         fail = fail)
       actionInfo <- base.actionInfo
+      _ <- channel.send(ActionStart(actionInfo.launchTime, actionInfo, params))
       res <- F.uncancelable(poll =>
         retry.mtl
           .retryingOnSomeErrors[B](
@@ -149,8 +150,8 @@ final class ActionRetryUnit[F[_], B](
       params,
       (),
       Kleisli(_ => fb),
-      succ.local((b: Tuple2[Unit, B]) => b._2),
-      fail.local((e: Tuple2[Unit, Throwable]) => e._2),
+      succ.local(_._2),
+      fail.local(_._2),
       isWorthRetry
     ).run
 }

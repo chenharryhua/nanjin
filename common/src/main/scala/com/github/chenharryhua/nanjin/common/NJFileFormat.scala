@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.common
 
-import enumeratum.values.{CatsOrderValueEnum, IntEnum, IntEnumEntry}
+import enumeratum.values.{CatsOrderValueEnum, IntCirceEnum, IntEnum, IntEnumEntry}
 import monocle.Prism
 import monocle.generic.coproduct.coProductPrism
 import shapeless.{:+:, CNil}
@@ -13,7 +13,8 @@ sealed abstract class NJFileFormat(val value: Int, val format: String, val alias
   final def suffix: String            = s".$alias.$format"
 }
 
-object NJFileFormat extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[NJFileFormat] {
+object NJFileFormat
+    extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[NJFileFormat] with IntCirceEnum[NJFileFormat] {
   override val values: immutable.IndexedSeq[NJFileFormat] = findValues
 
   case object Unknown extends NJFileFormat(-1, "unknown", "unknown")

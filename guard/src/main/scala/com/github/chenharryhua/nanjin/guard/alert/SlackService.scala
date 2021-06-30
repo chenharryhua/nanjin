@@ -36,7 +36,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               SlackField("Service", params.serviceName, short = true),
               SlackField("Host", params.taskParams.hostName, short = true),
               SlackField("Status", "(Re)Started", short = true),
-              SlackField("Time Zone", params.taskParams.zoneId.toString, short = true)
+              SlackField("Time Zone", params.taskParams.zoneId.show, short = true)
             )
           ))
       ).asJson.noSpaces
@@ -61,7 +61,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
                 SlackField("Host", params.taskParams.hostName, short = true),
                 SlackField("Status", "Restarting", short = true),
                 SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
-                SlackField("Restarted so far", details.retriesSoFar.toString, short = true),
+                SlackField("Restarted so far", details.retriesSoFar.show, short = true),
                 SlackField("Retry Policy", params.retryPolicy.policy[F].show, short = true),
                 SlackField("Cumulative Delay", fmt.format(details.cumulativeDelay), short = true),
                 SlackField("Cause", StringUtils.abbreviate(error.message, params.maxCauseSize), short = false)
@@ -123,14 +123,34 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               SlackField("Free/Total Memory", s"$fm/$tm", short = true),
               SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
               SlackField("HealthCheck Status", "Good", short = true),
-              SlackField("Panics", dailySummaries.servicePanic.toString, short = true),
-              SlackField("Time Zone", params.taskParams.zoneId.toString, short = true),
+              SlackField("Panics", dailySummaries.servicePanic.show, short = true),
+              SlackField("Time Zone", params.taskParams.zoneId.show, short = true),
               SlackField("Next check in", fmt.format(params.healthCheck.interval), short = true)
             )
           ))
       ).asJson.noSpaces
       val ltr = NJLocalTimeRange(params.healthCheck.openTime, params.healthCheck.span, params.taskParams.zoneId)
       service.publish(msg).whenA(ltr.isInBetween(at))
+
+    case ActionStart(at, action, params) =>
+      val msg =
+        SlackNotification(
+          params.serviceParams.taskParams.appName,
+          "",
+          List(
+            Attachment(
+              params.serviceParams.taskParams.color.succ,
+              at.toInstant.toEpochMilli,
+              List(
+                SlackField("Service", params.serviceParams.serviceName, short = true),
+                SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
+                SlackField("Action", action.actionName, short = true),
+                SlackField("Status", "Start", short = true),
+                SlackField("Action ID", action.id.show, short = false)
+              )
+            ))
+        ).asJson.noSpaces
+      service.publish(msg).whenA(params.alertMask.alertStart)
 
     case ActionRetrying(at, action, params, wdr, error) =>
       val s1 = s"This is the *${toOrdinalWords(wdr.retriesSoFar + 1)}* failure of the action, "
@@ -151,7 +171,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
                 SlackField("Status", "Retrying", short = true),
                 SlackField("Took", fmt.format(action.launchTime, at), short = true),
                 SlackField("Retry Policy", params.retryPolicy.policy[F].show, short = true),
-                SlackField("Action ID", action.id.toString, short = false),
+                SlackField("Action ID", action.id.show, short = false),
                 SlackField(
                   "Cause",
                   StringUtils.abbreviate(error.message, params.serviceParams.maxCauseSize),
@@ -178,9 +198,9 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
                 SlackField("Action", action.actionName, short = true),
                 SlackField("Status", "Failed", short = true),
                 SlackField("Took", fmt.format(action.launchTime, at), short = true),
-                SlackField("Retries", numRetries.toString, short = true),
+                SlackField("Retries", numRetries.show, short = true),
                 SlackField("Retry Policy", params.retryPolicy.policy[F].show, short = true),
-                SlackField("Action ID", action.id.toString, short = false),
+                SlackField("Action ID", action.id.show, short = false),
                 SlackField(
                   "Cause",
                   StringUtils.abbreviate(error.message, params.serviceParams.maxCauseSize),
@@ -206,13 +226,13 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
                 SlackField("Status", "Completed", short = true),
                 SlackField("Took", fmt.format(action.launchTime, at), short = true),
                 SlackField("Retries", s"$numRetries/${params.maxRetries}", short = true),
-                SlackField("Action ID", action.id.toString, short = false)
+                SlackField("Action ID", action.id.show, short = false)
               )
             ))
         ).asJson.noSpaces
       service.publish(msg).whenA(params.alertMask.alertSucc)
 
-    case ActionQuasiSucced(at, action, params, numSucc, succNotes, failNotes, errors) =>
+    case ActionQuasiSucced(at, action, params, runMode, numSucc, succNotes, failNotes, errors) =>
       val msg: SlackNotification = {
         if (errors.isEmpty)
           SlackNotification(
@@ -227,10 +247,11 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
                   SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
                   SlackField("Action", action.actionName, short = true),
                   SlackField("Status", "Completed", short = true),
-                  SlackField("Succed", numSucc.toString, short = true),
-                  SlackField("Failed", errors.size.toString, short = true),
+                  SlackField("Succed", numSucc.show, short = true),
+                  SlackField("Failed", errors.size.show, short = true),
                   SlackField("Took", fmt.format(action.launchTime, at), short = true),
-                  SlackField("Action ID", action.id.toString, short = false)
+                  SlackField("Run Mode", runMode.show, short = true),
+                  SlackField("Action ID", action.id.show, short = false)
                 )
               ))
           )
@@ -247,10 +268,11 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
                   SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
                   SlackField("Action", action.actionName, short = true),
                   SlackField("Status", "Quasi Success", short = true),
-                  SlackField("Succed", numSucc.toString, short = true),
-                  SlackField("Failed", errors.size.toString, short = true),
+                  SlackField("Succed", numSucc.show, short = true),
+                  SlackField("Failed", errors.size.show, short = true),
                   SlackField("Took", fmt.format(action.launchTime, at), short = true),
-                  SlackField("Action ID", action.id.toString, short = false)
+                  SlackField("Run Mode", runMode.show, short = true),
+                  SlackField("Action ID", action.id.show, short = false)
                 )
               ))
           )

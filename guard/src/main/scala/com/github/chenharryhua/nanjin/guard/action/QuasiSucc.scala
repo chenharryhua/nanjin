@@ -9,10 +9,12 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ActionFailed,
   ActionInfo,
   ActionQuasiSucced,
+  ActionStart,
   DailySummaries,
   NJError,
   NJEvent,
   Notes,
+  RunMode,
   ServiceInfo
 }
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
@@ -57,8 +59,10 @@ final class QuasiSucc[F[_], T[_], A, B](
       succ = succ,
       fail = Reader(fail))
 
-  private def internal(
-    eval: F[T[Either[(A, Throwable), (A, B)]]])(implicit F: Async[F], T: Traverse[T], L: Alternative[T]): F[T[B]] =
+  private def internal(eval: F[T[Either[(A, Throwable), (A, B)]]], runMode: RunMode)(implicit
+    F: Async[F],
+    T: Traverse[T],
+    L: Alternative[T]): F[T[B]] =
     for {
       now <- realZonedDateTime(params.serviceParams)
       actionInfo = ActionInfo(
@@ -66,6 +70,7 @@ final class QuasiSucc[F[_], T[_], A, B](
         serviceInfo = serviceInfo,
         id = UUID.randomUUID(),
         launchTime = now)
+      _ <- channel.send(ActionStart(now, actionInfo, params))
       res <- F
         .background(eval.map { fte =>
           val (ex, rs)                   = fte.partitionEither(identity)
@@ -113,6 +118,7 @@ final class QuasiSucc[F[_], T[_], A, B](
                   timestamp = now,
                   actionInfo = actionInfo,
                   actionParams = params,
+                  runMode = runMode,
                   numSucc = b._2.size,
                   succNotes = Notes(succ(b._2.toList)),
                   failNotes = Notes(fail(b._1)),
@@ -123,10 +129,10 @@ final class QuasiSucc[F[_], T[_], A, B](
     } yield T.map(res._2)(_._2)
 
   def seqRun(implicit F: Async[F], T: Traverse[T], L: Alternative[T]): F[T[B]] =
-    internal(input.traverse(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))))
+    internal(input.traverse(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))), RunMode.Sequential)
 
   def parRun(implicit F: Async[F], T: Traverse[T], L: Alternative[T], P: Parallel[F]): F[T[B]] =
-    internal(input.parTraverse(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))))
+    internal(input.parTraverse(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))), RunMode.Parallel)
 
 }
 
@@ -162,7 +168,7 @@ final class QuasiSuccUnit[F[_], T[_], B](
       succ = succ,
       fail = Reader(fail))
 
-  def seqRun(implicit F: Async[F], T: Traverse[T], L: Alternative[T]): F[T[B]] =
+  private def toQuasiSucc: QuasiSucc[F, T, F[B], B] =
     new QuasiSucc[F, T, F[B], B](
       serviceInfo,
       dailySummaries,
@@ -171,18 +177,12 @@ final class QuasiSuccUnit[F[_], T[_], B](
       params,
       tfb,
       Kleisli(identity),
-      succ.local((ls: List[(F[B], B)]) => ls.map(_._2)),
-      fail.local((ls: List[(F[B], NJError)]) => ls.map(_._2))).seqRun
+      succ.local(_.map(_._2)),
+      fail.local(_.map(_._2)))
+
+  def seqRun(implicit F: Async[F], T: Traverse[T], L: Alternative[T]): F[T[B]] =
+    toQuasiSucc.seqRun
 
   def parRun(implicit F: Async[F], T: Traverse[T], L: Alternative[T], P: Parallel[F]): F[T[B]] =
-    new QuasiSucc[F, T, F[B], B](
-      serviceInfo,
-      dailySummaries,
-      channel,
-      actionName,
-      params,
-      tfb,
-      Kleisli(identity),
-      succ.local((ls: List[(F[B], B)]) => ls.map(_._2)),
-      fail.local((ls: List[(F[B], NJError)]) => ls.map(_._2))).parRun
+    toQuasiSucc.parRun
 }
