@@ -125,12 +125,33 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               SlackField("HealthCheck Status", "Good", short = true),
               SlackField("Panics", dailySummaries.servicePanic.show, short = true),
               SlackField("Time Zone", params.taskParams.zoneId.show, short = true),
-              SlackField("Next check in", fmt.format(params.healthCheck.interval), short = true)
+              SlackField("Next Check in", fmt.format(params.healthCheck.interval), short = true)
             )
           ))
       ).asJson.noSpaces
       val ltr = NJLocalTimeRange(params.healthCheck.openTime, params.healthCheck.span, params.taskParams.zoneId)
       service.publish(msg).whenA(ltr.isInBetween(at))
+
+    case ServiceDailySummariesReset(at, info, params, summaries) =>
+      val msg =
+        SlackNotification(
+          params.taskParams.appName,
+          "This is a summary of activities of the service in past 24 hours",
+          List(
+            Attachment(
+              params.taskParams.color.info,
+              at.toInstant.toEpochMilli,
+              List(
+                SlackField("Service", params.serviceName, short = true),
+                SlackField("Host", params.taskParams.hostName, short = true),
+                SlackField("Number of Service Panics", summaries.servicePanic.show, short = true),
+                SlackField("Number of Succed Actions", summaries.actionSucc.show, short = true),
+                SlackField("Number of Failed Actions", summaries.actionFail.show, short = true),
+                SlackField("Number of Retries", summaries.actionRetries.show, short = true)
+              )
+            ))
+        ).asJson.noSpaces
+      service.publish(msg).void
 
     case ActionStart(at, action, params) =>
       val msg =
@@ -284,8 +305,8 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
     case ForYourInformation(_, params, message) => service.publish(message).whenA(params.alertMask.alertFYI)
 
     // no op
-    case _: PassThrough                => F.unit
-    case _: ServiceDailySummariesReset => F.unit //TODO
+    case _: PassThrough => F.unit
+
   }
 }
 
