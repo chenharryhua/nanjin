@@ -5,6 +5,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.alert.{
   ActionRetrying,
+  ActionStart,
   ActionSucced,
   DailySummaries,
   ServiceHealthCheck,
@@ -19,7 +20,7 @@ import scala.concurrent.duration._
 class HealthCheckTest extends AnyFunSuite {
   val guard = TaskGuard[IO]("health-check")
   test("should receive 3 health check event") {
-    val a :: b :: c :: rest = guard
+    val a :: b :: c :: d :: rest = guard
       .updateConfig(_.withZoneId(ZoneId.of("Australia/Sydney")).withDailySummaryReset(1))
       .service("normal")
       .updateConfig(
@@ -33,13 +34,14 @@ class HealthCheckTest extends AnyFunSuite {
       .compile
       .toList
       .unsafeRunSync()
-    assert(a.isInstanceOf[ServiceStarted])
-    assert(b.isInstanceOf[ServiceHealthCheck])
+    assert(a.isInstanceOf[ActionStart])
+    assert(b.isInstanceOf[ServiceStarted])
     assert(c.isInstanceOf[ServiceHealthCheck])
+    assert(d.isInstanceOf[ServiceHealthCheck])
   }
 
   test("success") {
-    val a :: b :: c :: ServiceHealthCheck(_, _, _, ds, _, _) :: rest = guard
+    val a :: b :: c :: d :: e :: ServiceHealthCheck(_, _, _, ds, _, _) :: rest = guard
       .service("success-test")
       .updateConfig(_.withHealthCheckInterval(1.second).withStartUpDelay(1.second))
       .eventStream(gd => gd.run(IO(1)) >> gd.loudly(IO.never))
@@ -47,9 +49,11 @@ class HealthCheckTest extends AnyFunSuite {
       .compile
       .toList
       .unsafeRunSync()
-    assert(a.isInstanceOf[ActionSucced])
-    assert(b.isInstanceOf[ServiceStarted])
-    assert(c.isInstanceOf[ServiceHealthCheck])
+    assert(a.isInstanceOf[ActionStart])
+    assert(b.isInstanceOf[ActionSucced])
+    assert(c.isInstanceOf[ActionStart])
+    assert(d.isInstanceOf[ServiceStarted])
+    assert(e.isInstanceOf[ServiceHealthCheck])
     assert(ds.actionSucc == 1)
     assert(ds.actionRetries == 0)
     assert(ds.actionFail == 0)
@@ -57,7 +61,7 @@ class HealthCheckTest extends AnyFunSuite {
   }
 
   test("retry") {
-    val a :: b :: c :: ServiceHealthCheck(_, _, _, ds, _, _) :: rest = guard
+    val a :: b :: c :: d :: ServiceHealthCheck(_, _, _, ds, _, _) :: rest = guard
       .service("failure-test")
       .updateConfig(_.withHealthCheckInterval(1.second).withStartUpDelay(1.second).withConstantDelay(1.hour))
       .eventStream(gd => gd("always-failure").max(1).run(IO.raiseError(new Exception)) >> gd.run(IO.never))
@@ -66,9 +70,10 @@ class HealthCheckTest extends AnyFunSuite {
       .compile
       .toList
       .unsafeRunSync()
-    assert(a.isInstanceOf[ActionRetrying])
-    assert(b.isInstanceOf[ServiceStarted])
-    assert(c.isInstanceOf[ServiceHealthCheck])
+    assert(a.isInstanceOf[ActionStart])
+    assert(b.isInstanceOf[ActionRetrying])
+    assert(c.isInstanceOf[ServiceStarted])
+    assert(d.isInstanceOf[ServiceHealthCheck])
     assert(ds.actionSucc == 0)
     assert(ds.actionRetries == 1)
     assert(ds.actionFail == 0)

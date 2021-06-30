@@ -80,11 +80,11 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) extends UpdateConfi
               }.delayBy(params.healthCheck.interval).foreverM[Unit]
             } yield ()
 
-            (start_health.background, Dispatcher[F]).tupled.use(tp =>
+            (start_health.background, Dispatcher[F]).tupled.use(dp =>
               actionGuard(
                 new ActionGuard[F](
                   serviceInfo = si,
-                  dispatcher = tp._2,
+                  dispatcher = dp._2,
                   dailySummaries = dailySummaries,
                   channel = channel,
                   actionName = "anonymous",

@@ -15,6 +15,7 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   toOrdinalWords,
   ActionFailed,
   ActionRetrying,
+  ActionStart,
   ActionSucced,
   AlertService,
   ConsoleService,
@@ -59,7 +60,7 @@ class ServiceTest extends AnyFunSuite {
     ConsoleService[IO]
 
   test("should stopped if the operation normally exits") {
-    val Vector(a, b, c) = guard
+    val Vector(a, b, c, d) = guard
       .updateConfig(_.withStartUpDelay(0.second).withJitter(3.second))
       .eventStream(gd => gd("normal-exit-action").max(10).magpie(IO(1))(_ => null).delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
@@ -69,12 +70,13 @@ class ServiceTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStarted])
-    assert(b.isInstanceOf[ActionSucced])
-    assert(c.isInstanceOf[ServiceStopped])
+    assert(b.isInstanceOf[ActionStart])
+    assert(c.isInstanceOf[ActionSucced])
+    assert(d.isInstanceOf[ServiceStopped])
   }
 
   test("escalate to up level if retry failed") {
-    val Vector(a, b, c, d, e) = guard
+    val Vector(a, b, c, d, e, f) = guard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
         gd("escalate-after-3-time")
@@ -89,15 +91,16 @@ class ServiceTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
 
-    assert(a.isInstanceOf[ActionRetrying])
+    assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.isInstanceOf[ActionRetrying])
-    assert(d.isInstanceOf[ActionFailed])
-    assert(e.isInstanceOf[ServicePanic])
+    assert(d.isInstanceOf[ActionRetrying])
+    assert(e.isInstanceOf[ActionFailed])
+    assert(f.isInstanceOf[ServicePanic])
   }
 
   test("should receive 3 health check event") {
-    val a :: b :: c :: d :: rest = guard
+    val a :: b :: c :: d :: e :: rest = guard
       .updateConfig(_.withHealthCheckInterval(1.second).withStartUpDelay(0.1.second))
       .eventStream(_.run(IO.never))
       .observe(_.evalMap(m => logging.alert(m)).drain)
@@ -105,14 +108,15 @@ class ServiceTest extends AnyFunSuite {
       .compile
       .toList
       .unsafeRunSync()
-    assert(a.isInstanceOf[ServiceStarted])
-    assert(b.isInstanceOf[ServiceHealthCheck])
+    assert(a.isInstanceOf[ActionStart])
+    assert(b.isInstanceOf[ServiceStarted])
     assert(c.isInstanceOf[ServiceHealthCheck])
     assert(d.isInstanceOf[ServiceHealthCheck])
+    assert(e.isInstanceOf[ServiceHealthCheck])
   }
 
   test("normal service stop after two operations") {
-    val Vector(a, b, c) = guard
+    val Vector(a, b, c, d, e) = guard
       .eventStream(gd => gd("a").retry(IO(1)).run >> gd("b").retry(IO(2)).run)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
@@ -120,9 +124,11 @@ class ServiceTest extends AnyFunSuite {
       .compile
       .toVector
       .unsafeRunSync()
-    assert(a.isInstanceOf[ActionSucced])
+    assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionSucced])
-    assert(c.isInstanceOf[ServiceStopped])
+    assert(c.isInstanceOf[ActionStart])
+    assert(d.isInstanceOf[ActionSucced])
+    assert(e.isInstanceOf[ServiceStopped])
   }
 
   test("combine two event streams") {

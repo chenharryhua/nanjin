@@ -48,7 +48,8 @@ final case class Jitter(value: FiniteDuration) extends NJRetryPolicy
   alertFail: Boolean,
   alertRetry: Boolean, // alert every retry
   alertFirstRetry: Boolean, // alert when first time failure of the action
-  alertFYI: Boolean)
+  alertFYI: Boolean,
+  alertStart: Boolean)
 
 @Lenses final case class ActionParams private (
   serviceParams: ServiceParams,
@@ -61,8 +62,13 @@ object ActionParams {
 
   def apply(serviceParams: ServiceParams): ActionParams = ActionParams(
     serviceParams = serviceParams,
-    alertMask =
-      SlackAlertMask(alertSucc = false, alertFail = true, alertRetry = false, alertFirstRetry = false, alertFYI = true),
+    alertMask = SlackAlertMask(
+      alertSucc = false,
+      alertFail = true,
+      alertRetry = false,
+      alertFirstRetry = false,
+      alertFYI = true,
+      alertStart = false),
     maxRetries = 3,
     retryPolicy = ConstantDelay(10.seconds)
   )
@@ -83,6 +89,7 @@ private object ActionConfigF {
   final case class WithAlertMaskRetry[K](value: Boolean, cont: K) extends ActionConfigF[K]
   final case class WithAlertMaskFirstRetry[K](value: Boolean, cont: K) extends ActionConfigF[K]
   final case class WithAlertMaskFYI[K](value: Boolean, cont: K) extends ActionConfigF[K]
+  final case class WithAlertMaskStart[K](value: Boolean, cont: K) extends ActionConfigF[K]
 
   val algebra: Algebra[ActionConfigF, ActionParams] =
     Algebra[ActionConfigF, ActionParams] {
@@ -94,6 +101,7 @@ private object ActionConfigF {
       case WithAlertMaskRetry(v, c)      => ActionParams.alertMask.composeLens(SlackAlertMask.alertRetry).set(v)(c)
       case WithAlertMaskFirstRetry(v, c) => ActionParams.alertMask.composeLens(SlackAlertMask.alertFirstRetry).set(v)(c)
       case WithAlertMaskFYI(v, c)        => ActionParams.alertMask.composeLens(SlackAlertMask.alertFYI).set(v)(c)
+      case WithAlertMaskStart(v, c)      => ActionParams.alertMask.composeLens(SlackAlertMask.alertStart).set(v)(c)
     }
 }
 
@@ -109,6 +117,7 @@ final case class ActionConfig private (value: Fix[ActionConfigF]) {
   def withRetryAlertOn: ActionConfig          = ActionConfig(Fix(WithAlertMaskRetry(value = true, value)))
   def withFirstFailAlertOn: ActionConfig      = ActionConfig(Fix(WithAlertMaskFirstRetry(value = true, value)))
   def withFYIAlertOff: ActionConfig           = ActionConfig(Fix(WithAlertMaskFYI(value = false, value)))
+  def withStartAlertOn: ActionConfig          = ActionConfig(Fix(WithAlertMaskStart(value = true, value)))
 
   def withMaxRetries(num: Int): ActionConfig = ActionConfig(Fix(WithMaxRetries(num, value)))
 

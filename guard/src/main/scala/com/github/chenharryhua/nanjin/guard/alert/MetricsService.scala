@@ -36,7 +36,10 @@ final private class MetricsService[F[_]](metrics: MetricRegistry)(implicit F: Sy
     case ActionQuasiSucced(at, info, params, _, _, _, _) =>
       F.blocking(metrics.timer(s"quasi.${actionKey(info, params)}").update(JavaDuration.between(info.launchTime, at)))
 
+    // reset
     case _: ServiceDailySummariesReset => F.blocking(metrics.removeMatching(MetricFilter.ALL))
+    // no op
+    case _: ActionStart => F.unit
   }
 }
 

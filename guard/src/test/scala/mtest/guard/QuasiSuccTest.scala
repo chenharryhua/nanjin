@@ -11,6 +11,7 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ActionFailed,
   ActionQuasiSucced,
   ActionRetrying,
+  ActionStart,
   ActionSucced,
   ConsoleService,
   LogService,
@@ -33,19 +34,20 @@ class QuasiSuccTest extends AnyFunSuite {
   def f(a: Int): IO[Int] = IO(100 / a)
 
   test("all succ - list") {
-    val Vector(a, b) = guard
+    val Vector(a, b, c) = guard
       .eventStream(action => action("all-good").quasi(List(1, 2, 3))(f).seqRun)
       .observe(_.evalMap(logging.alert).drain)
       .compile
       .toVector
       .unsafeRunSync()
-    assert(a.asInstanceOf[ActionQuasiSucced].numSucc == 3)
-    assert(a.asInstanceOf[ActionQuasiSucced].errors.isEmpty)
-    assert(b.isInstanceOf[ServiceStopped])
+    assert(a.isInstanceOf[ActionStart])
+    assert(b.asInstanceOf[ActionQuasiSucced].numSucc == 3)
+    assert(b.asInstanceOf[ActionQuasiSucced].errors.isEmpty)
+    assert(c.isInstanceOf[ServiceStopped])
   }
 
   test("all fail - chunk") {
-    val Vector(a, b) = guard
+    val Vector(a, b, c) = guard
       .eventStream(action =>
         action("all-fail")
           .updateConfig(_.withSuccAlertOn.withFailAlertOff)
@@ -56,13 +58,14 @@ class QuasiSuccTest extends AnyFunSuite {
       .compile
       .toVector
       .unsafeRunSync()
-    assert(a.asInstanceOf[ActionQuasiSucced].numSucc == 0)
-    assert(a.asInstanceOf[ActionQuasiSucced].errors.size == 3)
-    assert(b.isInstanceOf[ServiceStopped])
+    assert(a.isInstanceOf[ActionStart])
+    assert(b.asInstanceOf[ActionQuasiSucced].numSucc == 0)
+    assert(b.asInstanceOf[ActionQuasiSucced].errors.size == 3)
+    assert(c.isInstanceOf[ServiceStopped])
   }
 
   test("partial succ - chain") {
-    val Vector(a, b) =
+    val Vector(a, b, c) =
       guard
         .eventStream(action =>
           action("partial-good")
@@ -74,14 +77,15 @@ class QuasiSuccTest extends AnyFunSuite {
         .compile
         .toVector
         .unsafeRunSync()
-    assert(a.asInstanceOf[ActionQuasiSucced].numSucc == 2)
-    assert(a.asInstanceOf[ActionQuasiSucced].errors.size == 1)
-    assert(b.isInstanceOf[ServiceStopped])
+    assert(a.isInstanceOf[ActionStart])
+    assert(b.asInstanceOf[ActionQuasiSucced].numSucc == 2)
+    assert(b.asInstanceOf[ActionQuasiSucced].errors.size == 1)
+    assert(c.isInstanceOf[ServiceStopped])
   }
 
   test("partial succ - vector") {
     def f(a: Int): IO[Int] = IO.sleep(1.second) >> IO(100 / a)
-    val Vector(a, b) =
+    val Vector(a, b, c) =
       guard
         .eventStream(action =>
           action("partial-good")
@@ -92,48 +96,51 @@ class QuasiSuccTest extends AnyFunSuite {
         .compile
         .toVector
         .unsafeRunSync()
-    val succ = a.asInstanceOf[ActionQuasiSucced]
+    assert(a.isInstanceOf[ActionStart])
+    val succ = b.asInstanceOf[ActionQuasiSucced]
     assert(succ.numSucc == 2)
     assert(succ.errors.size == 2)
     assert(JavaDuration.between(succ.actionInfo.launchTime, succ.timestamp).abs.getSeconds > 3)
-    assert(b.isInstanceOf[ServiceStopped])
+    assert(c.isInstanceOf[ServiceStopped])
   }
 
   test("parallel") {
     def f(a: Int): IO[Int] = IO.sleep(1.second) >> IO(100 / a)
-    val Vector(a, b) =
+    val Vector(a, b, c) =
       guard
         .eventStream(action => action("parallel").quasi(Vector(0, 0, 0, 1, 1, 1))(f).parRun)
         .observe(_.evalMap(logging.alert).drain)
         .compile
         .toVector
         .unsafeRunSync()
-    val succ = a.asInstanceOf[ActionQuasiSucced]
+    assert(a.isInstanceOf[ActionStart])
+    val succ = b.asInstanceOf[ActionQuasiSucced]
     assert(succ.numSucc == 3)
     assert(succ.errors.size == 3)
     assert(JavaDuration.between(succ.actionInfo.launchTime, succ.timestamp).abs.getSeconds < 2)
-    assert(b.isInstanceOf[ServiceStopped])
+    assert(c.isInstanceOf[ServiceStopped])
   }
 
   test("pure actions") {
     def f(a: Int): IO[Unit] = IO.sleep(1.second) <* IO(100 / a)
-    val Vector(a, b) =
+    val Vector(a, b, c) =
       guard
         .eventStream(action => action("pure actions").quasi(f(0), f(0), f(0), f(1), f(1), f(1)).parRun)
         .observe(_.evalMap(logging.alert).drain)
         .compile
         .toVector
         .unsafeRunSync()
-    val succ = a.asInstanceOf[ActionQuasiSucced]
+    assert(a.isInstanceOf[ActionStart])
+    val succ = b.asInstanceOf[ActionQuasiSucced]
     assert(succ.numSucc == 3)
     assert(succ.errors.size == 3)
     assert(JavaDuration.between(succ.actionInfo.launchTime, succ.timestamp).abs.getSeconds < 2)
-    assert(b.isInstanceOf[ServiceStopped])
+    assert(c.isInstanceOf[ServiceStopped])
   }
 
   test("cancallation - internal") {
     def f(a: Int): IO[Unit] = IO.sleep(1.second) <* IO(100 / a)
-    val Vector(a, b) =
+    val Vector(a, b, c) =
       guard
         .eventStream(action =>
           action("internal-cancel").quasi(f(0), IO.sleep(1.second) >> IO.canceled, f(1), f(2)).seqRun)
@@ -142,13 +149,14 @@ class QuasiSuccTest extends AnyFunSuite {
         .compile
         .toVector
         .unsafeRunSync()
-    assert(a.asInstanceOf[ActionFailed].error.message == "ActionCanceledInternally: internal-cancel")
-    assert(b.isInstanceOf[ServicePanic])
+    assert(a.isInstanceOf[ActionStart])
+    assert(b.asInstanceOf[ActionFailed].error.message == "ActionCanceledInternally: internal-cancel")
+    assert(c.isInstanceOf[ServicePanic])
   }
 
   test("cancallation - external") {
     def f(a: Int): IO[Unit] = IO.sleep(1.second) <* IO(100 / a)
-    val Vector(a, b) =
+    val Vector(a, b, c) =
       guard
         .eventStream(action =>
           IO.parSequenceN(2)(
@@ -157,12 +165,13 @@ class QuasiSuccTest extends AnyFunSuite {
         .compile
         .toVector
         .unsafeRunSync()
-    assert(a.asInstanceOf[ActionFailed].error.message == "ActionCanceledExternally: external-cancel")
-    assert(b.isInstanceOf[ServiceStopped])
+    assert(a.isInstanceOf[ActionStart])
+    assert(b.asInstanceOf[ActionFailed].error.message == "ActionCanceledExternally: external-cancel")
+    assert(c.isInstanceOf[ServiceStopped])
   }
 
   test("multi-layers") {
-    val Vector(a, b, c, d, e, f, g, h) =
+    val Vector(a, b, c, d, e, f, g, h, i, j, k, l) =
       guard.eventStream { action =>
         val a1 = action("compute1").run(IO(1))
         val a2 = action("exception").updateConfig(_.withConstantDelay(1.second)).run(IO.raiseError[Int](new Exception))
@@ -174,13 +183,17 @@ class QuasiSuccTest extends AnyFunSuite {
           .seqRun
       }.observe(_.evalMap(logging.alert).drain).compile.toVector.unsafeRunSync()
 
-    assert(a.asInstanceOf[ActionSucced].actionInfo.actionName == "compute1")
-    assert(b.isInstanceOf[ActionRetrying])
-    assert(c.isInstanceOf[ActionRetrying])
-    assert(d.isInstanceOf[ActionRetrying])
-    assert(e.isInstanceOf[ActionFailed])
-    assert(f.asInstanceOf[ActionSucced].actionInfo.actionName == "compute2")
-    assert(g.isInstanceOf[ActionQuasiSucced])
-    assert(h.isInstanceOf[ServiceStopped])
+    assert(a.asInstanceOf[ActionStart].actionInfo.actionName == "quasi")
+    assert(b.asInstanceOf[ActionStart].actionInfo.actionName == "compute1")
+    assert(c.asInstanceOf[ActionSucced].actionInfo.actionName == "compute1")
+    assert(d.isInstanceOf[ActionStart])
+    assert(e.isInstanceOf[ActionRetrying])
+    assert(f.isInstanceOf[ActionRetrying])
+    assert(g.isInstanceOf[ActionRetrying])
+    assert(h.isInstanceOf[ActionFailed])
+    assert(i.isInstanceOf[ActionStart])
+    assert(j.asInstanceOf[ActionSucced].actionInfo.actionName == "compute2")
+    assert(k.isInstanceOf[ActionQuasiSucced])
+    assert(l.isInstanceOf[ServiceStopped])
   }
 }

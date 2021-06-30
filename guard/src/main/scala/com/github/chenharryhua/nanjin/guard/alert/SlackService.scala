@@ -132,6 +132,26 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       val ltr = NJLocalTimeRange(params.healthCheck.openTime, params.healthCheck.span, params.taskParams.zoneId)
       service.publish(msg).whenA(ltr.isInBetween(at))
 
+    case ActionStart(at, action, params) =>
+      val msg =
+        SlackNotification(
+          params.serviceParams.taskParams.appName,
+          "",
+          List(
+            Attachment(
+              params.serviceParams.taskParams.color.succ,
+              at.toInstant.toEpochMilli,
+              List(
+                SlackField("Service", params.serviceParams.serviceName, short = true),
+                SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
+                SlackField("Action", action.actionName, short = true),
+                SlackField("Status", "Start", short = true),
+                SlackField("Action ID", action.id.toString, short = false)
+              )
+            ))
+        ).asJson.noSpaces
+      service.publish(msg).whenA(params.alertMask.alertStart)
+
     case ActionRetrying(at, action, params, wdr, error) =>
       val s1 = s"This is the *${toOrdinalWords(wdr.retriesSoFar + 1)}* failure of the action, "
       val s2 = s"retry of which takes place in *${fmt.format(wdr.nextDelay)}*, "

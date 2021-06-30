@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ActionFailed,
   ActionInfo,
   ActionQuasiSucced,
+  ActionStart,
   DailySummaries,
   NJError,
   NJEvent,
@@ -66,6 +67,7 @@ final class QuasiSucc[F[_], T[_], A, B](
         serviceInfo = serviceInfo,
         id = UUID.randomUUID(),
         launchTime = now)
+      _ <- channel.send(ActionStart(now, actionInfo, params))
       res <- F
         .background(eval.map { fte =>
           val (ex, rs)                   = fte.partitionEither(identity)
@@ -162,7 +164,7 @@ final class QuasiSuccUnit[F[_], T[_], B](
       succ = succ,
       fail = Reader(fail))
 
-  def seqRun(implicit F: Async[F], T: Traverse[T], L: Alternative[T]): F[T[B]] =
+  private def toQuasiSucc: QuasiSucc[F, T, F[B], B] =
     new QuasiSucc[F, T, F[B], B](
       serviceInfo,
       dailySummaries,
@@ -171,18 +173,12 @@ final class QuasiSuccUnit[F[_], T[_], B](
       params,
       tfb,
       Kleisli(identity),
-      succ.local((ls: List[(F[B], B)]) => ls.map(_._2)),
-      fail.local((ls: List[(F[B], NJError)]) => ls.map(_._2))).seqRun
+      succ.local(_.map(_._2)),
+      fail.local(_.map(_._2)))
+
+  def seqRun(implicit F: Async[F], T: Traverse[T], L: Alternative[T]): F[T[B]] =
+    toQuasiSucc.seqRun
 
   def parRun(implicit F: Async[F], T: Traverse[T], L: Alternative[T], P: Parallel[F]): F[T[B]] =
-    new QuasiSucc[F, T, F[B], B](
-      serviceInfo,
-      dailySummaries,
-      channel,
-      actionName,
-      params,
-      tfb,
-      Kleisli(identity),
-      succ.local((ls: List[(F[B], B)]) => ls.map(_._2)),
-      fail.local((ls: List[(F[B], NJError)]) => ls.map(_._2))).parRun
+    toQuasiSucc.parRun
 }

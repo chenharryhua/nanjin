@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.guard._
 import com.github.chenharryhua.nanjin.guard.alert.{
   ActionFailed,
   ActionRetrying,
+  ActionStart,
   ActionSucced,
   LogService,
   MetricsService,
@@ -33,12 +34,17 @@ class RetryTest extends AnyFunSuite {
 
   test("success") {
     var i = 0
-    val Vector(a, b) = serviceGuard
+    val Vector(a, b, c) = serviceGuard
       .updateConfig(_.withNormalStop)
       .eventStream { gd =>
         gd("succ")
           .updateConfig(
-            _.withMaxRetries(3).withFullJitter(1.second).withRetryAlertOn.withFYIAlertOff.withFirstFailAlertOn)
+            _.withMaxRetries(3)
+              .withFullJitter(1.second)
+              .withRetryAlertOn
+              .withFYIAlertOff
+              .withFirstFailAlertOn
+              .withStartAlertOn)
           .retry(1)(x => IO(x + 1))
           .withSuccNotes((a, b) => s"$a -> $b")
           .withFailNotes((a, e) => "")
@@ -49,13 +55,14 @@ class RetryTest extends AnyFunSuite {
       .compile
       .toVector
       .unsafeRunSync()
-    assert(a.isInstanceOf[ActionSucced])
-    assert(b.isInstanceOf[ServiceStopped])
+    assert(a.isInstanceOf[ActionStart])
+    assert(b.isInstanceOf[ActionSucced])
+    assert(c.isInstanceOf[ServiceStopped])
   }
 
   test("should retry 2 times when operation fail") {
     var i = 0
-    val Vector(a, b, c, d) = serviceGuard
+    val Vector(a, b, c, d, e) = serviceGuard
       .updateConfig(_.withNormalStop)
       .eventStream { gd =>
         gd("1-time-succ")("2-time-succ") // funny syntax
@@ -70,14 +77,15 @@ class RetryTest extends AnyFunSuite {
       .compile
       .toVector
       .unsafeRunSync()
-    assert(a.isInstanceOf[ActionRetrying])
+    assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionRetrying])
-    assert(c.asInstanceOf[ActionSucced].numRetries == 2)
-    assert(d.isInstanceOf[ServiceStopped])
+    assert(c.isInstanceOf[ActionRetrying])
+    assert(d.asInstanceOf[ActionSucced].numRetries == 2)
+    assert(e.isInstanceOf[ServiceStopped])
   }
 
   test("should escalate to up level if retry failed") {
-    val Vector(a, b, c, d, e) = serviceGuard
+    val Vector(a, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
         gd("escalate-after-3-time")
@@ -91,15 +99,16 @@ class RetryTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
 
-    assert(a.isInstanceOf[ActionRetrying])
+    assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.isInstanceOf[ActionRetrying])
-    assert(d.isInstanceOf[ActionFailed])
-    assert(e.isInstanceOf[ServicePanic])
+    assert(d.isInstanceOf[ActionRetrying])
+    assert(e.isInstanceOf[ActionFailed])
+    assert(f.isInstanceOf[ServicePanic])
   }
 
   test("Null pointer exception") {
-    val a :: b :: c :: d :: rest = serviceGuard
+    val a :: b :: c :: d :: e :: rest = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream(ag =>
         ag("null exception")
@@ -111,14 +120,15 @@ class RetryTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
 
-    assert(a.isInstanceOf[ActionRetrying])
+    assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionRetrying])
-    assert(c.asInstanceOf[ActionFailed].numRetries == 2)
-    assert(d.isInstanceOf[ServicePanic])
+    assert(c.isInstanceOf[ActionRetrying])
+    assert(d.asInstanceOf[ActionFailed].numRetries == 2)
+    assert(e.isInstanceOf[ServicePanic])
   }
 
   test("predicate - should retry") {
-    val Vector(a, b, c, d, e) = serviceGuard
+    val Vector(a, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
         gd("predicate")
@@ -133,15 +143,16 @@ class RetryTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
 
-    assert(a.isInstanceOf[ActionRetrying])
+    assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.isInstanceOf[ActionRetrying])
-    assert(d.isInstanceOf[ActionFailed])
-    assert(e.isInstanceOf[ServicePanic])
+    assert(d.isInstanceOf[ActionRetrying])
+    assert(e.isInstanceOf[ActionFailed])
+    assert(f.isInstanceOf[ServicePanic])
   }
 
   test("predicate - should not retry") {
-    val Vector(a, b) = serviceGuard
+    val Vector(a, b, c) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
         gd("predicate")
@@ -155,8 +166,8 @@ class RetryTest extends AnyFunSuite {
       .compile
       .toVector
       .unsafeRunSync()
-
-    assert(a.asInstanceOf[ActionFailed].numRetries == 0)
-    assert(b.isInstanceOf[ServicePanic])
+    assert(a.isInstanceOf[ActionStart])
+    assert(b.asInstanceOf[ActionFailed].numRetries == 0)
+    assert(c.isInstanceOf[ServicePanic])
   }
 }

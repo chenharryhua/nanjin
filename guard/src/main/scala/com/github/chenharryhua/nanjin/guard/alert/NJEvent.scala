@@ -68,8 +68,8 @@ object NJEvent {
 }
 
 sealed trait ServiceEvent extends NJEvent {
-  def serviceInfo: ServiceInfo
-  def serviceParams: ServiceParams
+  def serviceInfo: ServiceInfo // service runtime infomation
+  def serviceParams: ServiceParams // service static parameters
 }
 
 final case class ServiceStarted(timestamp: ZonedDateTime, serviceInfo: ServiceInfo, serviceParams: ServiceParams)
@@ -106,9 +106,12 @@ final case class ServiceDailySummariesReset(
     extends ServiceEvent
 
 sealed trait ActionEvent extends NJEvent {
-  def actionInfo: ActionInfo
-  def actionParams: ActionParams
+  def actionInfo: ActionInfo // action runtime information
+  def actionParams: ActionParams // action static parameters
 }
+
+final case class ActionStart(timestamp: ZonedDateTime, actionInfo: ActionInfo, actionParams: ActionParams)
+    extends NJEvent
 
 final case class ActionRetrying(
   timestamp: ZonedDateTime,
