@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.alert
 
 import cats.Show
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ServiceParams}
+import enumeratum._
 import io.circe.generic.auto._
 import io.circe.shapes._
 import io.circe.{Decoder, Encoder, HCursor, Json}
@@ -11,6 +12,7 @@ import retry.RetryDetails.WillDelayAndRetry
 
 import java.time.ZonedDateTime
 import java.util.UUID
+import scala.collection.immutable
 
 final case class ServiceInfo(id: UUID, launchTime: ZonedDateTime)
 
@@ -138,10 +140,18 @@ final case class ActionSucced(
   notes: Notes // success notes
 ) extends ActionEvent
 
+sealed trait RunMode extends EnumEntry
+object RunMode extends Enum[RunMode] with CatsEnum[RunMode] with CirceEnum[RunMode] {
+  override val values: immutable.IndexedSeq[RunMode] = findValues
+  case object Parallel extends RunMode
+  case object Sequential extends RunMode
+}
+
 final case class ActionQuasiSucced(
   timestamp: ZonedDateTime,
   actionInfo: ActionInfo,
   actionParams: ActionParams,
+  runMode: RunMode,
   numSucc: Long,
   succNotes: Notes,
   failNotes: Notes,

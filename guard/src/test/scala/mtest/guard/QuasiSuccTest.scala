@@ -29,7 +29,7 @@ class QuasiSuccTest extends AnyFunSuite {
   val guard = TaskGuard[IO]("qusai succ app").service("quasi")
   val logging =
     SlackService(SimpleNotificationService.fake[IO]) |+| MetricsService[IO](new MetricRegistry()) |+| LogService[
-      IO] |+| ConsoleService[IO]
+      IO] |+| ConsoleService[IO] |+| LogService[IO]
 
   def f(a: Int): IO[Int] = IO(100 / a)
 

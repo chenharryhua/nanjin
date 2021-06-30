@@ -227,7 +227,8 @@ val kafkaLib = Seq(
 
 val enumLib = Seq(
   "com.beachape" %% "enumeratum-cats",
-  "com.beachape" %% "enumeratum"
+  "com.beachape" %% "enumeratum",
+  "com.beachape" %% "enumeratum-circe"
 ).map(_ % enumeratum)
 
 val drosteLib = Seq(

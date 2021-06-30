@@ -14,6 +14,7 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   NJError,
   NJEvent,
   Notes,
+  RunMode,
   ServiceInfo
 }
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
@@ -58,8 +59,10 @@ final class QuasiSucc[F[_], T[_], A, B](
       succ = succ,
       fail = Reader(fail))
 
-  private def internal(
-    eval: F[T[Either[(A, Throwable), (A, B)]]])(implicit F: Async[F], T: Traverse[T], L: Alternative[T]): F[T[B]] =
+  private def internal(eval: F[T[Either[(A, Throwable), (A, B)]]], runMode: RunMode)(implicit
+    F: Async[F],
+    T: Traverse[T],
+    L: Alternative[T]): F[T[B]] =
     for {
       now <- realZonedDateTime(params.serviceParams)
       actionInfo = ActionInfo(
@@ -115,6 +118,7 @@ final class QuasiSucc[F[_], T[_], A, B](
                   timestamp = now,
                   actionInfo = actionInfo,
                   actionParams = params,
+                  runMode = runMode,
                   numSucc = b._2.size,
                   succNotes = Notes(succ(b._2.toList)),
                   failNotes = Notes(fail(b._1)),
@@ -125,10 +129,10 @@ final class QuasiSucc[F[_], T[_], A, B](
     } yield T.map(res._2)(_._2)
 
   def seqRun(implicit F: Async[F], T: Traverse[T], L: Alternative[T]): F[T[B]] =
-    internal(input.traverse(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))))
+    internal(input.traverse(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))), RunMode.Sequential)
 
   def parRun(implicit F: Async[F], T: Traverse[T], L: Alternative[T], P: Parallel[F]): F[T[B]] =
-    internal(input.parTraverse(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))))
+    internal(input.parTraverse(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))), RunMode.Parallel)
 
 }
 
