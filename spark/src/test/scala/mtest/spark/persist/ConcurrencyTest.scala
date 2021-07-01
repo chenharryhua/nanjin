@@ -184,47 +184,46 @@ class ConcurrencyTest extends AnyFunSuite {
 
   test("mix single") {
     val root = "./data/test/spark/persist/interlope/mix-single/"
-    val run = for {
-      a <- rooster.avro(root + "avro1.gzip2.avro").bzip2.file.run.start
-      b <- rooster.avro(root + "avro2.deflate.avro").deflate(1).file.run.start
-      c <- rooster.avro(root + "avro3.snapp.avro").snappy.file.run.start
-      d <- rooster.avro(root + "avro4.xz.avro").xz(2).file.run.start
+    val a    = rooster.avro(root + "avro1.gzip2.avro").bzip2.file.stream
+    val b    = rooster.avro(root + "avro2.deflate.avro").deflate(1).file.stream
+    val c    = rooster.avro(root + "avro3.snapp.avro").snappy.file.stream
+    val d    = rooster.avro(root + "avro4.xz.avro").xz(2).file.stream
 
-      e <- rooster.jackson(root + "jackson1.json.gz").file.gzip.run.start
-      f <- rooster.jackson(root + "jackson2.json.deflate").file.deflate(4).run.start
+    val e = rooster.jackson(root + "jackson1.json.gz").file.gzip.stream
+    val f = rooster.jackson(root + "jackson2.json.deflate").file.deflate(4).stream
 
-      g <- rooster.binAvro(root + "binAvro.avro").file.run.start
+    val g = rooster.binAvro(root + "binAvro.avro").file.stream
 
-      h <- rooster.circe(root + "circe1.json.deflate").file.deflate(5).run.start
-      i <- rooster.circe(root + "circe2.json.gz").file.gzip.run.start
+    val h = rooster.circe(root + "circe1.json.deflate").file.deflate(5).stream
+    val i = rooster.circe(root + "circe2.json.gz").file.gzip.stream
 
-      j <- rooster.text(root + "text1.txt.deflate").file.deflate(5).run.start
-      k <- rooster.text(root + "text2.txt.gz").file.gzip.run.start
+    val j = rooster.text(root + "text1.txt.deflate").file.deflate(5).stream
+    val k = rooster.text(root + "text2.txt.gz").file.gzip.stream
 
-      l <- rooster.csv(root + "csv1.csv.deflate").file.deflate(5).run.start
-      m <- rooster.csv(root + "csv2.csv.gz").file.gzip.run.start
+    val l = rooster.csv(root + "csv1.csv.deflate").file.deflate(5).stream
+    val m = rooster.csv(root + "csv2.csv.gz").file.gzip.stream
 
-      n <- rooster.parquet(root + "parquet1.snappy.parquet").file.snappy.run.start
-      o <- rooster.parquet(root + "parquet2.gz.parquet").file.gzip.run.start
-      p <- rooster.parquet(root + "parquet3.uncompress.parquet").file.uncompress.run.start
-      _ <- a.join
-      _ <- b.join
-      _ <- c.join
-      _ <- d.join
-      _ <- e.join
-      _ <- f.join
-      _ <- g.join
-      _ <- h.join
-      _ <- i.join
-      _ <- j.join
-      _ <- k.join
-      _ <- l.join
-      _ <- m.join
-      _ <- n.join
-      _ <- o.join
-      _ <- p.join
-    } yield ()
-    run.unsafeRunSync()
+    val n = rooster.parquet(root + "parquet1.snappy.parquet").file.snappy.stream
+    val o = rooster.parquet(root + "parquet2.gz.parquet").file.gzip.stream
+    val p = rooster.parquet(root + "parquet3.uncompress.parquet").file.uncompress.stream
+    a.concurrently(b)
+      .concurrently(c)
+      .concurrently(d)
+      .concurrently(e)
+      .concurrently(f)
+      .concurrently(g)
+      .concurrently(h)
+      .concurrently(i)
+      .concurrently(j)
+      .concurrently(k)
+      .concurrently(l)
+      .concurrently(m)
+      .concurrently(n)
+      .concurrently(o)
+      .concurrently(p)
+      .compile
+      .drain
+      .unsafeRunSync()
   }
   test("mix multi") {
     val root = "./data/test/spark/persist/interlope/mix-multi/"
