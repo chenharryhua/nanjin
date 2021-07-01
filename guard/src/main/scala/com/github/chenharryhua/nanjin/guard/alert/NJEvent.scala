@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard.alert
 import cats.Show
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ServiceParams}
 import enumeratum._
+import io.chrisdavenport.cats.time.instances.{localtime, zoneddatetime, zoneid}
 import io.circe.generic.auto._
 import io.circe.shapes._
 import io.circe.{Decoder, Encoder, HCursor, Json}
@@ -63,7 +64,7 @@ sealed trait NJEvent {
   def timestamp: ZonedDateTime // event timestamp - when the event occurs
 }
 
-object NJEvent {
+object NJEvent extends zoneddatetime with localtime with zoneid {
   implicit val showNJEvent: Show[NJEvent]       = cats.derived.semiauto.show[NJEvent]
   implicit val encoderNJEvent: Encoder[NJEvent] = io.circe.generic.semiauto.deriveEncoder[NJEvent]
   implicit val decoderNJEvent: Decoder[NJEvent] = io.circe.generic.semiauto.deriveDecoder[NJEvent]

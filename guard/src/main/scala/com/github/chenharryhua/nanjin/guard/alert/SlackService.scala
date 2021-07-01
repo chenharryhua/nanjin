@@ -6,6 +6,7 @@ import com.amazonaws.regions.Regions
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
+import io.chrisdavenport.cats.time.instances.zoneid
 import io.circe.generic.auto._
 import io.circe.syntax._
 import org.apache.commons.lang3.StringUtils
@@ -20,7 +21,7 @@ final private case class SlackNotification(username: String, text: String, attac
 
 final private class SlackService[F[_]](service: SimpleNotificationService[F], fmt: DurationFormatter)(implicit
   F: Sync[F])
-    extends AlertService[F] {
+    extends AlertService[F] with zoneid {
 
   override def alert(event: NJEvent): F[Unit] = event match {
 
@@ -132,7 +133,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       val ltr = NJLocalTimeRange(params.healthCheck.openTime, params.healthCheck.span, params.taskParams.zoneId)
       service.publish(msg).whenA(ltr.isInBetween(at))
 
-    case ServiceDailySummariesReset(at, info, params, summaries) =>
+    case ServiceDailySummariesReset(at, _, params, summaries) =>
       val msg =
         SlackNotification(
           params.taskParams.appName,
@@ -147,7 +148,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
                 SlackField("Number of Service Panics", summaries.servicePanic.show, short = true),
                 SlackField("Number of Succed Actions", summaries.actionSucc.show, short = true),
                 SlackField("Number of Failed Actions", summaries.actionFail.show, short = true),
-                SlackField("Number of Retries", summaries.actionRetries.show, short = true)
+                SlackField("Number of Action Retries", summaries.actionRetries.show, short = true)
               )
             ))
         ).asJson.noSpaces

@@ -28,7 +28,7 @@ object TaskParams {
     appName = appName,
     zoneId = ZoneId.systemDefault(),
     dailySummaryReset = 0, // midnight
-    color = SlackColor(succ = "good", fail = "danger", warn = "#f2c744", info = "#b3d1ff"),
+    color = SlackColor(succ = "good", fail = "danger", warn = "#ffd699", info = "#b3d1ff"),
     hostName = hostName.name
   )
 }
