@@ -2,11 +2,11 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.Async
 import com.github.chenharryhua.nanjin.spark.RddExt
+import fs2.Stream
 import kantan.csv.CsvConfiguration.QuotePolicy
 import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.sql.Dataset
-
 final class SaveCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfiguration, cfg: HoarderConfig)
     extends Serializable {
 
@@ -39,7 +39,7 @@ final class SaveSingleCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfigur
   def deflate(level: Int): SaveSingleCsv[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(level)))
   def uncompress: SaveSingleCsv[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
-  def run(implicit F: Async[F], rowEncoder: RowEncoder[A]): F[Unit] = {
+  def stream(implicit F: Async[F], rowEncoder: RowEncoder[A]): Stream[F, Unit] = {
     val hc: Configuration     = ds.sparkSession.sparkContext.hadoopConfiguration
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hc)
     val csvConf: CsvConfiguration =
@@ -47,8 +47,7 @@ final class SaveSingleCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfigur
         csvConfiguration.withHeader(ds.schema.fieldNames: _*)
       else csvConfiguration
 
-    sma.checkAndRun(
-      ds.rdd.stream[F].through(sinks.csv(params.outPath, hc, csvConf, params.compression.fs2Compression)).compile.drain)
+    sma.checkAndRun(ds.rdd.stream[F].through(sinks.csv(params.outPath, hc, csvConf, params.compression.fs2Compression)))
   }
 
 }

@@ -5,12 +5,18 @@ import example.sparKafka
 import example.topics.fooTopic
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
+import fs2.Stream
 
 @DoNotDiscover
 class ExampleKafakDump extends AnyFunSuite {
   test("dump kafka data in json") {
     val path = "./data/example/foo/batch/circe.json"
-    sparKafka.topic(fooTopic).fromKafka.flatMap(_.save.circe(path).file.run).unsafeRunSync()
+    Stream
+      .eval(sparKafka.topic(fooTopic).fromKafka)
+      .flatMap(_.save.circe(path).file.stream)
+      .compile
+      .drain
+      .unsafeRunSync()
   }
   test("dump kafka data in avro compressed by snappy") {
     val path = "./data/example/foo/batch/avro"

@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.effect.Sync
 import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.{Encoder => AvroEncoder}
+import fs2.Stream
 import org.apache.hadoop.conf.Configuration
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.spark.sql.Dataset
@@ -31,11 +32,11 @@ final class SaveSingleParquet[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A], 
   def gzip: SaveSingleParquet[F, A]       = updateConfig(cfg.withCompression(Compression.Gzip))
   def uncompress: SaveSingleParquet[F, A] = updateConfig(cfg.withCompression(Compression.Uncompressed))
 
-  def run(implicit F: Sync[F]): F[Unit] = {
+  def stream(implicit F: Sync[F]): Stream[F, Unit] = {
     val hc: Configuration         = ds.sparkSession.sparkContext.hadoopConfiguration
     val sma: SaveModeAware[F]     = new SaveModeAware[F](params.saveMode, params.outPath, hc)
     val ccn: CompressionCodecName = params.compression.parquet
-    sma.checkAndRun(ds.rdd.stream[F].through(sinks.parquet(params.outPath, hc, encoder, ccn)).compile.drain)
+    sma.checkAndRun(ds.rdd.stream[F].through(sinks.parquet(params.outPath, hc, encoder, ccn)))
   }
 }
 
