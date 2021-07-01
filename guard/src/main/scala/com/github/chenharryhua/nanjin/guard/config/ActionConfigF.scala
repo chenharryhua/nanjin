@@ -108,16 +108,28 @@ private object ActionConfigF {
 final case class ActionConfig private (value: Fix[ActionConfigF]) {
   import ActionConfigF._
 
-  def withSuccAlert(v: Boolean): ActionConfig = ActionConfig(Fix(WithAlertMaskSucc(value = v, value)))
-  def withSuccAlertOn: ActionConfig           = withSuccAlert(true)
-  def withSuccAlertOff: ActionConfig          = withSuccAlert(false)
-  def withFailAlert(v: Boolean): ActionConfig = ActionConfig(Fix(WithAlertMaskFail(value = v, value)))
-  def withFailAlertOn: ActionConfig           = withFailAlert(true)
-  def withFailAlertOff: ActionConfig          = withFailAlert(false)
-  def withRetryAlertOn: ActionConfig          = ActionConfig(Fix(WithAlertMaskRetry(value = true, value)))
-  def withFirstFailAlertOn: ActionConfig      = ActionConfig(Fix(WithAlertMaskFirstRetry(value = true, value)))
-  def withFYIAlertOff: ActionConfig           = ActionConfig(Fix(WithAlertMaskFYI(value = false, value)))
-  def withStartAlertOn: ActionConfig          = ActionConfig(Fix(WithAlertMaskStart(value = true, value)))
+  def withSuccAlert(v: Boolean): ActionConfig      = ActionConfig(Fix(WithAlertMaskSucc(value = v, value)))
+  def withSuccAlertOn: ActionConfig                = withSuccAlert(true)
+  def withSuccAlertOff: ActionConfig               = withSuccAlert(false)
+  def withFailAlert(v: Boolean): ActionConfig      = ActionConfig(Fix(WithAlertMaskFail(value = v, value)))
+  def withFailAlertOn: ActionConfig                = withFailAlert(true)
+  def withFailAlertOff: ActionConfig               = withFailAlert(false)
+  def withRetryAlert(v: Boolean): ActionConfig     = ActionConfig(Fix(WithAlertMaskRetry(value = v, value)))
+  def withRetryAlertOn: ActionConfig               = withRetryAlert(true)
+  def withRetryAlertOff: ActionConfig              = withRetryAlert(false)
+  def withFirstFailAlert(v: Boolean): ActionConfig = ActionConfig(Fix(WithAlertMaskFirstRetry(value = v, value)))
+  def withFirstFailAlertOn: ActionConfig           = withFirstFailAlert(true)
+  def withFirstFailAlertOff: ActionConfig          = withFirstFailAlert(false)
+  def withFYIAlert(v: Boolean): ActionConfig       = ActionConfig(Fix(WithAlertMaskFYI(value = v, value)))
+  def withFYIAlertOn: ActionConfig                 = withFYIAlert(true)
+  def withFYIAlertOff: ActionConfig                = withFYIAlert(false)
+  def withStartAlert(v: Boolean): ActionConfig     = ActionConfig(Fix(WithAlertMaskStart(value = v, value)))
+  def withStartAlertOn: ActionConfig               = withStartAlert(true)
+  def withStartAlertOff: ActionConfig              = withStartAlert(false)
+  def withAllAlertOn: ActionConfig =
+    withSuccAlertOn.withFailAlertOn.withRetryAlertOn.withFirstFailAlertOn.withFYIAlertOn.withStartAlertOn
+  def withAllAlertOff: ActionConfig =
+    withSuccAlertOff.withFailAlertOff.withRetryAlertOff.withFirstFailAlertOff.withFYIAlertOff.withStartAlertOff
 
   def withMaxRetries(num: Int): ActionConfig = ActionConfig(Fix(WithMaxRetries(num, value)))
 

@@ -30,7 +30,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
         s":rocket: ${params.notes}",
         List(
           Attachment(
-            params.taskParams.color.succ,
+            params.taskParams.color.info,
             at.toInstant.toEpochMilli,
             List(
               SlackField("Service", params.serviceName, short = true),
@@ -115,7 +115,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
         s":gottarun: ${params.notes}",
         List(
           Attachment(
-            params.taskParams.color.succ,
+            params.taskParams.color.info,
             at.toInstant.toEpochMilli,
             List(
               SlackField("Service", params.serviceName, short = true),
@@ -160,7 +160,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
           "",
           List(
             Attachment(
-              params.serviceParams.taskParams.color.succ,
+              params.serviceParams.taskParams.color.info,
               at.toInstant.toEpochMilli,
               List(
                 SlackField("Service", params.serviceParams.serviceName, short = true),
