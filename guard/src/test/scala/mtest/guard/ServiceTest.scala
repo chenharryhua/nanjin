@@ -192,4 +192,30 @@ class ServiceTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
   }
+  test("all alert on") {
+    guard.eventStream { ag =>
+      val g = ag("").updateConfig(_.withAllAlertOff.withAllAlertOn)
+      g.run(IO {
+        assert(g.params.alertMask.alertStart)
+        assert(g.params.alertMask.alertFYI)
+        assert(g.params.alertMask.alertSucc)
+        assert(g.params.alertMask.alertFail)
+        assert(g.params.alertMask.alertFirstRetry)
+        assert(g.params.alertMask.alertRetry)
+      })
+    }.compile.drain.unsafeRunSync()
+  }
+  test("all alert off") {
+    guard.eventStream { ag =>
+      val g = ag("").updateConfig(_.withAllAlertOn.withAllAlertOff)
+      g.run(IO {
+        assert(!g.params.alertMask.alertStart)
+        assert(!g.params.alertMask.alertFYI)
+        assert(!g.params.alertMask.alertSucc)
+        assert(!g.params.alertMask.alertFail)
+        assert(!g.params.alertMask.alertFirstRetry)
+        assert(!g.params.alertMask.alertRetry)
+      })
+    }.compile.drain.unsafeRunSync()
+  }
 }
