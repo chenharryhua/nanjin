@@ -3,6 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard._
+import com.github.chenharryhua.nanjin.guard.action.ActionException
 import com.github.chenharryhua.nanjin.guard.alert.{
   ActionFailed,
   ActionRetrying,
@@ -34,7 +35,7 @@ class CancellationTest extends AnyFunSuite {
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.isInstanceOf[ActionRetrying])
     assert(d.isInstanceOf[ActionRetrying])
-    assert(e.asInstanceOf[ActionFailed].error.message == "ActionCanceledInternally: canceled")
+    assert(e.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.ActionCanceledInternally])
     assert(f.isInstanceOf[ServicePanic])
   }
 
@@ -50,7 +51,7 @@ class CancellationTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionFailed].error.message == "ActionCanceledExternally: never")
+    assert(b.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.ActionCanceledExternally])
     assert(c.isInstanceOf[ServiceStopped])
   }
 
@@ -66,7 +67,7 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionFailed].error.message == "ActionCanceledExternally: never")
+    assert(b.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.ActionCanceledExternally])
     assert(c.isInstanceOf[ServicePanic])
   }
 
@@ -87,13 +88,13 @@ class CancellationTest extends AnyFunSuite {
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionStart])
     assert(c.asInstanceOf[ActionFailed].actionInfo.actionName == "never")
-    assert(c.asInstanceOf[ActionFailed].error.message == "ActionCanceledExternally: never")
+    assert(c.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.ActionCanceledExternally])
     assert(d.asInstanceOf[ActionRetrying].actionInfo.actionName == "supervisor")
     assert(e.isInstanceOf[ActionStart])
     assert(f.asInstanceOf[ActionFailed].actionInfo.actionName == "never")
-    assert(f.asInstanceOf[ActionFailed].error.message == "ActionCanceledExternally: never")
+    assert(f.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.ActionCanceledExternally])
     assert(g.asInstanceOf[ActionFailed].actionInfo.actionName == "supervisor")
-    assert(g.asInstanceOf[ActionFailed].error.message == "ActionCanceledInternally: supervisor")
+    assert(g.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.ActionCanceledInternally])
     assert(h.isInstanceOf[ServicePanic])
   }
 
@@ -199,7 +200,7 @@ class CancellationTest extends AnyFunSuite {
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.isInstanceOf[ActionRetrying])
-    assert(d.asInstanceOf[ActionFailed].error.message == "ActionCanceledExternally: exception")
+    assert(d.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.ActionCanceledExternally])
     assert(e.isInstanceOf[ServiceStopped])
   }
 

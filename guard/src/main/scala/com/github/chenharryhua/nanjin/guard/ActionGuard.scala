@@ -49,7 +49,8 @@ final class ActionGuard[F[_]](
       kfab = Kleisli(f),
       succ = Reader(_ => ""),
       fail = Reader(_ => ""),
-      isWorthRetry = Kleisli(_ => F.pure(true)))
+      isWorthRetry = Reader(_ => true),
+      postCondition = Reader(_ => true))
 
   def retry[B](fb: F[B])(implicit F: Applicative[F]): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
@@ -61,7 +62,8 @@ final class ActionGuard[F[_]](
       fb = fb,
       succ = Reader(_ => ""),
       fail = Reader(_ => ""),
-      isWorthRetry = Kleisli(_ => F.pure(true)))
+      isWorthRetry = Reader(_ => true),
+      postCondition = Reader(_ => true))
 
   def fyi(msg: String)(implicit F: Temporal[F]): F[Unit] =
     realZonedDateTime(params.serviceParams).flatMap(ts => channel.send(ForYourInformation(ts, params, msg))).void

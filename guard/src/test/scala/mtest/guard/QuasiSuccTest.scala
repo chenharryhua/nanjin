@@ -7,6 +7,7 @@ import cats.syntax.all._
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.action.ActionException
 import com.github.chenharryhua.nanjin.guard.alert.{
   ActionFailed,
   ActionQuasiSucced,
@@ -150,7 +151,7 @@ class QuasiSuccTest extends AnyFunSuite {
         .toVector
         .unsafeRunSync()
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionFailed].error.message == "ActionCanceledInternally: internal-cancel")
+    assert(b.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.ActionCanceledInternally])
     assert(c.isInstanceOf[ServicePanic])
   }
 
@@ -166,7 +167,7 @@ class QuasiSuccTest extends AnyFunSuite {
         .toVector
         .unsafeRunSync()
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionFailed].error.message == "ActionCanceledExternally: external-cancel")
+    assert(b.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.ActionCanceledExternally])
     assert(c.isInstanceOf[ServiceStopped])
   }
 
