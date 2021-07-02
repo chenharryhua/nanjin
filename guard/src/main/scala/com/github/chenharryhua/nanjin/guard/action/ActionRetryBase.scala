@@ -50,7 +50,6 @@ final private class ActionRetryBase[F[_], A, B](
   def handleOutcome(actionInfo: ActionInfo)(outcome: Outcome[F, Throwable, B]): F[Unit] =
     outcome match {
       case Outcome.Canceled() =>
-        val error = ActionCanceledExternally(actionName)
         for {
           count <- retryCount.get // number of retries
           now <- realZonedDateTime(params.serviceParams)
@@ -61,8 +60,8 @@ final private class ActionRetryBase[F[_], A, B](
               actionInfo = actionInfo,
               actionParams = params,
               numRetries = count,
-              notes = failNotes(error),
-              error = NJError(error)
+              notes = failNotes(ActionException.ActionCanceledExternally),
+              error = NJError(ActionException.ActionCanceledExternally)
             ))
         } yield ()
       case Outcome.Errored(error) =>

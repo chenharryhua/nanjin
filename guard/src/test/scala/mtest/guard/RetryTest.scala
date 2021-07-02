@@ -6,6 +6,7 @@ import cats.syntax.all._
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.guard._
+import com.github.chenharryhua.nanjin.guard.action.ActionException
 import com.github.chenharryhua.nanjin.guard.alert.{
   ActionFailed,
   ActionRetrying,
@@ -38,17 +39,11 @@ class RetryTest extends AnyFunSuite {
       .updateConfig(_.withNormalStop)
       .eventStream { gd =>
         gd("succ")
-          .updateConfig(
-            _.withMaxRetries(3)
-              .withFullJitter(1.second)
-              .withRetryAlertOn
-              .withFYIAlertOff
-              .withFirstFailAlertOn
-              .withStartAlertOn)
+          .updateConfig(_.withMaxRetries(3).withFullJitter(1.second))
           .retry(1)(x => IO(x + 1))
           .withSuccNotes((a, b) => s"$a -> $b")
           .withFailNotes((a, e) => "")
-          .withPredicate(_ => IO(true))
+          .withWorthRetry(_ => true)
           .run
       }
       .observe(_.evalMap(logging.alert).drain)
@@ -134,7 +129,7 @@ class RetryTest extends AnyFunSuite {
         gd("predicate")
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .retry(IO.raiseError(MyException()))
-          .withPredicate(ex => IO(ex.isInstanceOf[MyException]))
+          .withWorthRetry(ex => (ex.isInstanceOf[MyException]))
           .run
       }
       .observe(_.evalMap(logging.alert).drain)
@@ -158,7 +153,7 @@ class RetryTest extends AnyFunSuite {
         gd("predicate")
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .retry(IO.raiseError(new Exception()))
-          .withPredicate(ex => IO(ex.isInstanceOf[MyException]))
+          .withWorthRetry(_.isInstanceOf[MyException])
           .run
       }
       .observe(_.evalMap(logging.alert).drain)
@@ -169,5 +164,50 @@ class RetryTest extends AnyFunSuite {
     assert(a.isInstanceOf[ActionStart])
     assert(b.asInstanceOf[ActionFailed].numRetries == 0)
     assert(c.isInstanceOf[ServicePanic])
+  }
+
+  test("should fail the action if post condition is unsatisfied") {
+    val Vector(a, b, c, d, e, f) = serviceGuard
+      .updateConfig(_.withConstantDelay(1.hour))
+      .eventStream { gd =>
+        gd("postCondition")
+          .updateConfig(_.withConstantDelay(1.seconds).withMaxRetries(3))
+          .retry(IO(0))
+          .withPostCondition(_ > 1)
+          .run
+      }
+      .observe(_.evalMap(logging.alert).drain)
+      .interruptAfter(5.seconds)
+      .compile
+      .toVector
+      .unsafeRunSync()
+    assert(a.isInstanceOf[ActionStart])
+    assert(b.isInstanceOf[ActionRetrying])
+    assert(c.isInstanceOf[ActionRetrying])
+    assert(d.isInstanceOf[ActionRetrying])
+    assert(e.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.PostConditionUnsatisfied])
+    assert(f.isInstanceOf[ServicePanic])
+  }
+  test("should fail the action if post condition is unsatisfied - 2") {
+    val Vector(a, b, c, d, e, f) = serviceGuard
+      .updateConfig(_.withConstantDelay(1.hour))
+      .eventStream { gd =>
+        gd("postCondition")
+          .updateConfig(_.withConstantDelay(1.seconds).withMaxRetries(3))
+          .retry(0)(IO(_))
+          .withPostCondition(_ > 1)
+          .run
+      }
+      .observe(_.evalMap(logging.alert).drain)
+      .interruptAfter(5.seconds)
+      .compile
+      .toVector
+      .unsafeRunSync()
+    assert(a.isInstanceOf[ActionStart])
+    assert(b.isInstanceOf[ActionRetrying])
+    assert(c.isInstanceOf[ActionRetrying])
+    assert(d.isInstanceOf[ActionRetrying])
+    assert(e.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.PostConditionUnsatisfied])
+    assert(f.isInstanceOf[ServicePanic])
   }
 }
