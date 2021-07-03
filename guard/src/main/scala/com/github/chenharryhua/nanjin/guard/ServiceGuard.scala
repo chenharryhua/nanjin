@@ -80,15 +80,16 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) extends UpdateConfi
               }.delayBy(params.healthCheck.interval).foreverM[Unit]
             } yield ()
 
-            (start_health.background, Dispatcher[F]).tupled.use(dp =>
+            (start_health.background, Dispatcher[F]).tupled.use { case (_, dispatcher) =>
               actionGuard(
                 new ActionGuard[F](
                   serviceInfo = si,
-                  dispatcher = dp._2,
+                  dispatcher = dispatcher,
                   dailySummaries = dailySummaries,
                   channel = channel,
                   actionName = "anonymous",
-                  actionConfig = ActionConfig(params))))
+                  actionConfig = ActionConfig(params)))
+            }
           }
           .guarantee(realZonedDateTime(params).flatMap(ts =>
             channel.send(
