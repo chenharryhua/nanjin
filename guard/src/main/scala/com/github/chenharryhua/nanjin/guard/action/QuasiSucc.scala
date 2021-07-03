@@ -133,6 +133,9 @@ final class QuasiSucc[F[_], T[_], A, B](
   def parRun(implicit F: Async[F], T: Traverse[T], L: Alternative[T], P: Parallel[F]): F[T[B]] =
     internal(input.parTraverse(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))), RunMode.Parallel)
 
+  def parRunN(n: Int)(implicit F: Async[F], T: Traverse[T], L: Alternative[T], P: Parallel[F]): F[T[B]] =
+    internal(F.parTraverseN(n)(input)(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))), RunMode.Parallel)
+
 }
 
 final class QuasiSuccUnit[F[_], T[_], B](
@@ -184,4 +187,7 @@ final class QuasiSuccUnit[F[_], T[_], B](
 
   def parRun(implicit F: Async[F], T: Traverse[T], L: Alternative[T], P: Parallel[F]): F[T[B]] =
     toQuasiSucc.parRun
+
+  def parRunN(n: Int)(implicit F: Async[F], T: Traverse[T], L: Alternative[T], P: Parallel[F]): F[T[B]] =
+    toQuasiSucc.parRunN(n)
 }

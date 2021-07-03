@@ -105,7 +105,7 @@ class QuasiSuccTest extends AnyFunSuite {
     assert(c.isInstanceOf[ServiceStopped])
   }
 
-  test("parallel") {
+  test("parallel - par") {
     def f(a: Int): IO[Int] = IO.sleep(1.second) >> IO(100 / a)
     val Vector(a, b, c) =
       guard
@@ -119,6 +119,23 @@ class QuasiSuccTest extends AnyFunSuite {
     assert(succ.numSucc == 3)
     assert(succ.errors.size == 3)
     assert(JavaDuration.between(succ.actionInfo.launchTime, succ.timestamp).abs.getSeconds < 2)
+    assert(c.isInstanceOf[ServiceStopped])
+  }
+
+  test("parallel - parN") {
+    def f(a: Int): IO[Int] = IO.sleep(1.second) >> IO(100 / a)
+    val Vector(a, b, c) =
+      guard
+        .eventStream(action => action("parallel").quasi(Vector(0, 0, 0, 1, 1, 1))(f).parRunN(3))
+        .observe(_.evalMap(logging.alert).drain)
+        .compile
+        .toVector
+        .unsafeRunSync()
+    assert(a.isInstanceOf[ActionStart])
+    val succ = b.asInstanceOf[ActionQuasiSucced]
+    assert(succ.numSucc == 3)
+    assert(succ.errors.size == 3)
+    assert(JavaDuration.between(succ.actionInfo.launchTime, succ.timestamp).abs.getSeconds < 3)
     assert(c.isInstanceOf[ServiceStopped])
   }
 
@@ -208,7 +225,7 @@ class QuasiSuccTest extends AnyFunSuite {
           .quasi(a1, a2, a3)
           .withSuccNotes(_.map(_.toString).mkString)
           .withFailNotes(_.map(_.message).mkString)
-          .parRun
+          .parRunN(3)
       }.observe(_.evalMap(logging.alert).drain).compile.toVector.unsafeRunSync()
 
     assert(a.isInstanceOf[ActionStart])

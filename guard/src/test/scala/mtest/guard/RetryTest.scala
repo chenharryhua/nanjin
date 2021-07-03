@@ -61,7 +61,7 @@ class RetryTest extends AnyFunSuite {
       .updateConfig(_.withNormalStop)
       .eventStream { gd =>
         gd("1-time-succ")("2-time-succ") // funny syntax
-          .updateConfig(_.withMaxRetries(3).withFullJitter(1.second))
+          .updateConfig(_.withMaxRetries(3).withFullJitter(1.second).withAllAlertOff.withFirstFailAlertOn)
           .retry(1)(x =>
             IO(if (i < 2) {
               i += 1; throw new Exception
