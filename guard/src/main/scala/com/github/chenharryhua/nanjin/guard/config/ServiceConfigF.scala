@@ -85,32 +85,29 @@ private object ServiceConfigF {
 final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   import ServiceConfigF._
 
-  def withHealthCheckInterval(interval: FiniteDuration): ServiceConfig =
+  def health_check_interval(interval: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithHealthCheckInterval(interval, value)))
 
-  def withHealthCheckOpenTime(openTime: LocalTime): ServiceConfig =
+  def health_check_open_time(openTime: LocalTime): ServiceConfig =
     ServiceConfig(Fix(WithHealthCheckOpenTime(openTime, value)))
 
-  def withHealthCheckSpan(duration: FiniteDuration): ServiceConfig =
+  def health_check_span(duration: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithHealthCheckSpan(duration, value)))
 
-  def withStartUpDelay(delay: FiniteDuration): ServiceConfig =
-    ServiceConfig(Fix(WithStartUpDelay(delay, value)))
+  def startup_delay(delay: FiniteDuration): ServiceConfig = ServiceConfig(Fix(WithStartUpDelay(delay, value)))
+  def startup_notes(notes: String): ServiceConfig         = ServiceConfig(Fix(WithNotes(notes, value)))
 
-  def withConstantDelay(delay: FiniteDuration): ServiceConfig =
+  def constant_delay(delay: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(ConstantDelay(delay), value)))
 
-  def withJitter(maxDelay: FiniteDuration): ServiceConfig =
+  def jitter_delay(maxDelay: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(Jitter(maxDelay), value)))
 
-  def withNormalStop: ServiceConfig =
+  def normal_stop: ServiceConfig =
     ServiceConfig(Fix(WithNormalStop(value = true, value)))
 
-  def withMaxCauseSize(size: Int): ServiceConfig =
+  def maximum_cause_size(size: Int): ServiceConfig =
     ServiceConfig(Fix(WithMaxCauseSize(size, value)))
-
-  def withNotes(notes: String): ServiceConfig =
-    ServiceConfig(Fix(WithNotes(notes, value)))
 
   def evalConfig: ServiceParams = scheme.cata(algebra).apply(value)
 }
