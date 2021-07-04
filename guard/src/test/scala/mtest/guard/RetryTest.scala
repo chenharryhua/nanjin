@@ -218,7 +218,7 @@ class RetryTest extends AnyFunSuite {
     assert(b.asInstanceOf[ActionRetrying].error.throwable.isInstanceOf[ActionException.UnexpectedlyTerminated])
     assert(c.asInstanceOf[ActionRetrying].error.throwable.isInstanceOf[ActionException.UnexpectedlyTerminated])
     assert(d.asInstanceOf[ActionRetrying].error.throwable.isInstanceOf[ActionException.UnexpectedlyTerminated])
-    assert(e.asInstanceOf[ActionRetrying].error.throwable.isInstanceOf[ActionException.UnexpectedlyTerminated])
+    assert(e.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.UnexpectedlyTerminated])
     assert(f.isInstanceOf[ServicePanic])
   }
 }
