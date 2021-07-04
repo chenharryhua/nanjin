@@ -204,7 +204,7 @@ class RetryTest extends AnyFunSuite {
       .updateConfig(_.constant_delay(1.hour))
       .eventStream { gd =>
         gd("nonterminating")
-          .updateConfig(_.max_retries(3).fibonacci_backoff(0.1.second).non_terminating)
+          .updateConfig(_.max_retries(3).fibonacci_backoff(0.1.second).non_termination)
           .retry(IO(1))
           .run
       }
