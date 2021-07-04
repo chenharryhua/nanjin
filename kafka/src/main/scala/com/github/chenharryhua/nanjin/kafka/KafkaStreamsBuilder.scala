@@ -47,11 +47,11 @@ final class KafkaStreamsBuilder[F[_]](
   top: Reader[StreamsBuilder, Unit],
   localStateStores: List[Reader[StreamsBuilder, StreamsBuilder]]) {
 
-  final private class StreamErrorHandler(deferred: Deferred[F, KafkaStreamException], F: Dispatcher[F])
+  final private class StreamErrorHandler(dispatcher: Dispatcher[F], errorListener: Deferred[F, KafkaStreamException])
       extends StreamsUncaughtExceptionHandler {
 
     override def handle(throwable: Throwable): StreamsUncaughtExceptionHandler.StreamThreadExceptionResponse = {
-      F.unsafeRunAndForget(deferred.complete(KafkaStreamException.UncaughtException(throwable)))
+      dispatcher.unsafeRunSync(errorListener.complete(KafkaStreamException.UncaughtException(throwable)))
       StreamsUncaughtExceptionHandler.StreamThreadExceptionResponse.SHUTDOWN_APPLICATION
     }
   }
@@ -83,10 +83,10 @@ final class KafkaStreamsBuilder[F[_]](
             F.blocking(ks.close()) >> F.blocking(ks.cleanUp()))
           .evalMap(ks =>
             F.blocking {
-              ks.setUncaughtExceptionHandler(new StreamErrorHandler(errorListener, dispatcher))
+              ks.setUncaughtExceptionHandler(new StreamErrorHandler(dispatcher, errorListener))
               ks.setStateListener(new StateUpdateEvent(channel, dispatcher, errorListener))
               ks.start()
-            }) ++ Stream.never[F]
+            }) <* Stream.never[F]
         channel.stream
           .concurrently(kafkaStreams)
           .concurrently(Stream.eval(errorListener.get).flatMap(Stream.raiseError[F]))
