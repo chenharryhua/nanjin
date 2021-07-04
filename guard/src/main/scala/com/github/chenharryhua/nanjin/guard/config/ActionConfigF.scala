@@ -13,7 +13,7 @@ import scala.concurrent.duration._
 import scala.util.Random
 
 sealed abstract class NJRetryPolicy {
-  private def jitter[F[_]: Applicative](maxDelay: FiniteDuration): RetryPolicy[F] =
+  private def jitterBackoff[F[_]: Applicative](maxDelay: FiniteDuration): RetryPolicy[F] =
     RetryPolicy.liftWithShow(
       { _ =>
         val delay = Random.nextInt(maxDelay.toMillis.toInt).toLong
@@ -28,7 +28,7 @@ sealed abstract class NJRetryPolicy {
     case FibonacciBackoff(value)   => RetryPolicies.fibonacciBackoff(value)
     case FullJitter(value)         => RetryPolicies.fullJitter(value)
     // https://cb372.github.io/cats-retry/docs/policies.html#writing-your-own-policy
-    case Jitter(value) => jitter[F](value)
+    case JitterBackoff(value) => jitterBackoff[F](value)
   }
   def value: FiniteDuration
 }
@@ -41,7 +41,7 @@ final case class ConstantDelay(value: FiniteDuration) extends NJRetryPolicy
 final case class ExponentialBackoff(value: FiniteDuration) extends NJRetryPolicy
 final case class FibonacciBackoff(value: FiniteDuration) extends NJRetryPolicy
 final case class FullJitter(value: FiniteDuration) extends NJRetryPolicy
-final case class Jitter(value: FiniteDuration) extends NJRetryPolicy
+final case class JitterBackoff(value: FiniteDuration) extends NJRetryPolicy
 
 @Lenses final case class SlackAlertMask private (
   alertSucc: Boolean,

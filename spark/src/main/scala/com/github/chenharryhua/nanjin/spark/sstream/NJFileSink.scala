@@ -18,7 +18,7 @@ final class NJFileSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig, pa
   def avro: NJFileSink[F, A]    = updateCfg(_.avro_format)
 
   def triggerEvery(duration: FiniteDuration): NJFileSink[F, A] =
-    updateCfg(_.trigger(Trigger.ProcessingTime(duration)))
+    updateCfg(_.trigger_mode(Trigger.ProcessingTime(duration)))
 
   def withOptions(f: DataStreamWriter[A] => DataStreamWriter[A]): NJFileSink[F, A] =
     new NJFileSink(f(dsw), cfg, path)

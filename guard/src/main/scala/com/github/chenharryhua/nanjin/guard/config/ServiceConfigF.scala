@@ -100,8 +100,8 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def constant_delay(delay: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(ConstantDelay(delay), value)))
 
-  def jitter_delay(maxDelay: FiniteDuration): ServiceConfig =
-    ServiceConfig(Fix(WithRetryPolicy(Jitter(maxDelay), value)))
+  def jitter_backoff(maxDelay: FiniteDuration): ServiceConfig =
+    ServiceConfig(Fix(WithRetryPolicy(JitterBackoff(maxDelay), value)))
 
   def normal_stop: ServiceConfig =
     ServiceConfig(Fix(WithNormalStop(value = true, value)))

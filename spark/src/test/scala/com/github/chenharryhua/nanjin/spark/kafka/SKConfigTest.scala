@@ -31,7 +31,13 @@ class SKConfigTest extends AnyFunSuite {
 
     val dr = NJDateTimeRange(sydneyTime).withStartTime("10:00").withEndTime("11:00")
 
-    val p3 = skc.n_seconds(1).today.yesterday.one_day(LocalDate.of(2012, 10, 26)).one_day("2012-10-26").time_range(dr)
+    val p3 = skc
+      .time_range_n_seconds(1)
+      .time_range_today
+      .time_range_yesterday
+      .time_range_one_day(LocalDate.of(2012, 10, 26))
+      .time_range_one_day("2012-10-26")
+      .time_range(dr)
     assert(p3.evalConfig.timeRange.startTimestamp.contains(d1))
     assert(p3.evalConfig.timeRange.endTimestamp.contains(d2))
     assert(p3.evalConfig.timeRange.zoneId == sydneyTime)

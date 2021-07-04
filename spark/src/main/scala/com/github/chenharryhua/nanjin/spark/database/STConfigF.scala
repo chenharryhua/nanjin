@@ -61,7 +61,7 @@ final private[database] case class STConfig(value: Fix[STConfigF]) extends AnyVa
   def replay_path_builder(f: (DatabaseName, TableName) => String): STConfig =
     STConfig(Fix(WithReplayPathBuilder(f, value)))
 
-  def query(query: String): STConfig = STConfig(Fix(WithQuery(query, value)))
+  def unload_query(query: String): STConfig = STConfig(Fix(WithQuery(query, value)))
 
   def table_name(tableName: TableName): STConfig = STConfig(Fix(WithTableName(tableName, value)))
 

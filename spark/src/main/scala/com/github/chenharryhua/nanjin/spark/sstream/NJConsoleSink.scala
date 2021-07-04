@@ -22,7 +22,7 @@ final class NJConsoleSink[F[_], A](
   override def updateConfig(f: SStreamConfig => SStreamConfig): NJConsoleSink[F, A] =
     new NJConsoleSink[F, A](dsw, f(cfg), numRows, isTruncate)
 
-  def trigger(trigger: Trigger): NJConsoleSink[F, A] = updateConfig(_.trigger(trigger))
+  def trigger(trigger: Trigger): NJConsoleSink[F, A] = updateConfig(_.trigger_mode(trigger))
   // https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html#output-sinks
   def append: NJConsoleSink[F, A]                  = updateConfig(_.append_mode)
   def update: NJConsoleSink[F, A]                  = updateConfig(_.update_mode)

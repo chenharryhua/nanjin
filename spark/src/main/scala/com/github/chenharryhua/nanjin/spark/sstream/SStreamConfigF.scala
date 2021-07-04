@@ -89,7 +89,7 @@ final private[sstream] case class SStreamConfig(value: Fix[SStreamConfigF]) exte
   def complete_mode: SStreamConfig                         = withOutputMode(OutputMode.Complete())
   def update_mode: SStreamConfig                           = withOutputMode(OutputMode.Update())
 
-  def trigger(trigger: Trigger): SStreamConfig = SStreamConfig(Fix(WithTrigger(trigger, value)))
+  def trigger_mode(trigger: Trigger): SStreamConfig = SStreamConfig(Fix(WithTrigger(trigger, value)))
 
   def json_format: SStreamConfig    = SStreamConfig(Fix(WithFormat(NJFileFormat.SparkJson, value)))
   def parquet_format: SStreamConfig = SStreamConfig(Fix(WithFormat(NJFileFormat.Parquet, value)))

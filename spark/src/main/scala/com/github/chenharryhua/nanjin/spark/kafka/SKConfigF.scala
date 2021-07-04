@@ -137,11 +137,11 @@ final private[kafka] case class SKConfig private (value: Fix[SKConfigF]) extends
   def zone_id(s: ZoneId): SKConfig                     = SKConfig(Fix(WithZoneId(s, value)))
   def time_range(tr: NJDateTimeRange): SKConfig        = SKConfig(Fix(WithTimeRange(tr, value)))
   def time_range(start: String, end: String): SKConfig = start_time(start).end_time(end)
-  def n_seconds(s: Long): SKConfig                     = SKConfig(Fix(WithNSeconds(s, value)))
-  def one_day(s: String): SKConfig                     = SKConfig(Fix(WithOneDayStr(s, value)))
-  def one_day(s: LocalDate): SKConfig                  = SKConfig(Fix(WithOneDay(s, value)))
-  def today: SKConfig                                  = one_day(LocalDate.now)
-  def yesterday: SKConfig                              = one_day(LocalDate.now.minusDays(1))
+  def time_range_n_seconds(s: Long): SKConfig          = SKConfig(Fix(WithNSeconds(s, value)))
+  def time_range_one_day(s: String): SKConfig          = SKConfig(Fix(WithOneDayStr(s, value)))
+  def time_range_one_day(s: LocalDate): SKConfig       = SKConfig(Fix(WithOneDay(s, value)))
+  def time_range_today: SKConfig                       = time_range_one_day(LocalDate.now)
+  def time_range_yesterday: SKConfig                   = time_range_one_day(LocalDate.now.minusDays(1))
 
   def location_strategy(ls: LocationStrategy): SKConfig = SKConfig(Fix(WithLocationStrategy(ls, value)))
 
