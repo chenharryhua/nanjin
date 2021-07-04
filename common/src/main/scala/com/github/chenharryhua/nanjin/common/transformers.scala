@@ -19,8 +19,7 @@ object transformers extends ReverseTransformers {
   implicit def aISOb[A, B](implicit iso: Iso[A, B]): Transformer[A, B] =
     (src: A) => iso.get(src)
 
-  implicit def transformToTimestamp[A](implicit
-    trans: Transformer[A, Instant]): Transformer[A, Timestamp] =
+  implicit def transformToTimestamp[A](implicit trans: Transformer[A, Instant]): Transformer[A, Timestamp] =
     (src: A) => Timestamp.from(trans.transform(src))
 
   implicit val transformerArrow: Arrow[Transformer] =
@@ -49,8 +48,7 @@ trait ReverseTransformers {
   implicit def bISOa[A, B](implicit iso: Iso[A, B]): Transformer[B, A] =
     (src: B) => iso.reverseGet(src)
 
-  implicit def transformFromTimestamp[A](implicit
-    trans: Transformer[Instant, A]): Transformer[Timestamp, A] =
+  implicit def transformFromTimestamp[A](implicit trans: Transformer[Instant, A]): Transformer[Timestamp, A] =
     (src: Timestamp) => trans.transform(src.toInstant)
 
 }

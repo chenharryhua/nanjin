@@ -10,9 +10,7 @@ import org.apache.spark.sql.types._
 
 import scala.reflect.ClassTag
 
-final class AvroTypedEncoder[A] private (
-  val avroCodec: AvroCodec[A],
-  val typedEncoder: TypedEncoder[A])
+final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], val typedEncoder: TypedEncoder[A])
     extends Serializable {
 
   private val avroStructType: StructType =

@@ -50,8 +50,7 @@ object ArbitaryData {
     genZonedDateTime.map(d => NJTimestamp(d.toInstant.getEpochSecond)))
 
   implicit val arbOffsetDateTime: Arbitrary[OffsetDateTime] = Arbitrary(
-    genZonedDateTimeWithZone(Some(zoneId)).map(zd =>
-      OffsetDateTime.of(zd.toLocalDateTime, zd.getOffset))
+    genZonedDateTimeWithZone(Some(zoneId)).map(zd => OffsetDateTime.of(zd.toLocalDateTime, zd.getOffset))
   )
 
   implicit val arbZonedDateTime: Arbitrary[ZonedDateTime] =

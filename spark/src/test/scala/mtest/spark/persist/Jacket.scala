@@ -41,9 +41,7 @@ object JacketData {
           neck = KJson(Neck(
             d = Date.valueOf(LocalDate.now()),
             t = Timestamp.from(Instant.now),
-            j = parse(
-              s""" {"jsonFloat":"${Random.nextFloat()}","jsonInt":${Random
-                .nextInt()}} """).right.get
+            j = parse(s""" {"jsonFloat":"${Random.nextFloat()}","jsonInt":${Random.nextInt()}} """).right.get
           ))
         ))
       .sortBy(_.p)
