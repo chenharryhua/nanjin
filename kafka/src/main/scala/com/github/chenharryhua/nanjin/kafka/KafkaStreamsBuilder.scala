@@ -79,7 +79,7 @@ final class KafkaStreamsBuilder[F[_]](
               ks.setStateListener(new StateUpdateEvent(dispatcher, channel))
               ks.start()
             }) <* Stream.never[F]
-        val error = Stream.eval(errorListener.get.flatMap(F.raiseError[KafkaStreamStateChange]))
+        val error = Stream.eval(errorListener.get.map(_.asLeft[KafkaStreamStateChange])).rethrow
         channel.stream.concurrently(kss).concurrently(error)
       }
     } yield state

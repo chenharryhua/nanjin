@@ -79,6 +79,8 @@ final class ActionRetry[F[_], A, B](
       isWorthRetry = isWorthRetry,
       postCondition = Reader(postCondition))
 
+  def nonTerminating: ActionRetry[F, A, B] = withPostCondition(_ => false)
+
   def run(implicit F: Async[F]): F[B] =
     for {
       retryCount <- F.ref(0) // hold number of retries
@@ -107,8 +109,8 @@ final class ActionRetry[F[_], A, B](
               oc <- F.onCancel(
                 poll(gate.get).flatMap(_.embed(F.raiseError[B](ActionException.ActionCanceledInternally))),
                 fiber.cancel)
-              rst <- if (postCondition(oc)) F.pure(oc) else F.raiseError(ActionException.PostConditionUnsatisfied)
-            } yield rst
+              _ <- F.raiseError(ActionException.PostConditionUnsatisfied).whenA(!postCondition(oc))
+            } yield oc
           }
           .guaranteeCase(base.handleOutcome(actionInfo)))
     } yield res
@@ -177,6 +179,8 @@ final class ActionRetryUnit[F[_], B](
       fail = fail,
       isWorthRetry = isWorthRetry,
       postCondition = Reader(postCondition))
+
+  def nonTerminating: ActionRetryUnit[F, B] = withPostCondition(_ => false)
 
   def run(implicit F: Async[F]): F[B] =
     new ActionRetry[F, Unit, B](

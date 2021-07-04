@@ -27,8 +27,7 @@ class HealthCheckTest extends AnyFunSuite {
         _.health_check_interval(1.second)
           .startup_delay(1.second)
           .health_check_open_time(LocalTime.of(7, 0))
-          .health_check_span(10.hour)
-          .normal_stop)
+          .health_check_span(10.hour))
       .eventStream(gd => gd.updateConfig(_.exponential_backoff(1.second)).quietly(IO.never[Int]))
       .interruptAfter(5.second)
       .compile

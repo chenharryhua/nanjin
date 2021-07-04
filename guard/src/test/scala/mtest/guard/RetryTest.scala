@@ -35,21 +35,15 @@ class RetryTest extends AnyFunSuite {
 
   test("success") {
     var i = 0
-    val Vector(a, b, c) = serviceGuard
-      .updateConfig(_.normal_stop)
-      .eventStream { gd =>
-        gd("succ")
-          .updateConfig(_.max_retries(3).full_jitter_backoff(1.second))
-          .retry(1)(x => IO(x + 1))
-          .withSuccNotes((a, b) => s"$a -> $b")
-          .withFailNotes((a, e) => "")
-          .withWorthRetry(_ => true)
-          .run
-      }
-      .observe(_.evalMap(logging.alert).drain)
-      .compile
-      .toVector
-      .unsafeRunSync()
+    val Vector(a, b, c) = serviceGuard.eventStream { gd =>
+      gd("succ")
+        .updateConfig(_.max_retries(3).full_jitter_backoff(1.second))
+        .retry(1)(x => IO(x + 1))
+        .withSuccNotes((a, b) => s"$a -> $b")
+        .withFailNotes((a, e) => "")
+        .withWorthRetry(_ => true)
+        .run
+    }.observe(_.evalMap(logging.alert).drain).compile.toVector.unsafeRunSync()
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionSucced])
     assert(c.isInstanceOf[ServiceStopped])
@@ -57,21 +51,15 @@ class RetryTest extends AnyFunSuite {
 
   test("should retry 2 times when operation fail") {
     var i = 0
-    val Vector(a, b, c, d, e) = serviceGuard
-      .updateConfig(_.normal_stop)
-      .eventStream { gd =>
-        gd("1-time-succ")("2-time-succ") // funny syntax
-          .updateConfig(_.max_retries(3).full_jitter_backoff(1.second).slack_none.slack_first_fail_on)
-          .retry(1)(x =>
-            IO(if (i < 2) {
-              i += 1; throw new Exception
-            } else i))
-          .run
-      }
-      .observe(_.evalMap(logging.alert).drain)
-      .compile
-      .toVector
-      .unsafeRunSync()
+    val Vector(a, b, c, d, e) = serviceGuard.eventStream { gd =>
+      gd("1-time-succ")("2-time-succ") // funny syntax
+        .updateConfig(_.max_retries(3).full_jitter_backoff(1.second).slack_none.slack_first_fail_on)
+        .retry(1)(x =>
+          IO(if (i < 2) {
+            i += 1; throw new Exception
+          } else i))
+        .run
+    }.observe(_.evalMap(logging.alert).drain).compile.toVector.unsafeRunSync()
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.isInstanceOf[ActionRetrying])
@@ -208,6 +196,53 @@ class RetryTest extends AnyFunSuite {
     assert(c.isInstanceOf[ActionRetrying])
     assert(d.isInstanceOf[ActionRetrying])
     assert(e.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.PostConditionUnsatisfied])
+    assert(f.isInstanceOf[ServicePanic])
+  }
+
+  test("nonterminating - should retry") {
+    val Vector(a, b, c, d, e, f) = serviceGuard
+      .updateConfig(_.constant_delay(1.hour))
+      .eventStream { gd =>
+        gd("nonterminating")
+          .updateConfig(_.max_retries(3).fibonacci_backoff(0.1.second))
+          .retry(IO(1))
+          .nonTerminating
+          .run
+      }
+      .observe(_.evalMap(logging.alert).drain)
+      .interruptAfter(5.seconds)
+      .compile
+      .toVector
+      .unsafeRunSync()
+
+    assert(a.isInstanceOf[ActionStart])
+    assert(b.isInstanceOf[ActionRetrying])
+    assert(c.isInstanceOf[ActionRetrying])
+    assert(d.isInstanceOf[ActionRetrying])
+    assert(e.isInstanceOf[ActionFailed])
+    assert(f.isInstanceOf[ServicePanic])
+  }
+  test("nonterminating - should retry - 2") {
+    val Vector(a, b, c, d, e, f) = serviceGuard
+      .updateConfig(_.constant_delay(1.hour))
+      .eventStream { gd =>
+        gd("nonterminating")
+          .updateConfig(_.max_retries(3).fibonacci_backoff(0.1.second))
+          .retry(1)(IO(_))
+          .nonTerminating
+          .run
+      }
+      .observe(_.evalMap(logging.alert).drain)
+      .interruptAfter(5.seconds)
+      .compile
+      .toVector
+      .unsafeRunSync()
+
+    assert(a.isInstanceOf[ActionStart])
+    assert(b.isInstanceOf[ActionRetrying])
+    assert(c.isInstanceOf[ActionRetrying])
+    assert(d.isInstanceOf[ActionRetrying])
+    assert(e.isInstanceOf[ActionFailed])
     assert(f.isInstanceOf[ServicePanic])
   }
 }
