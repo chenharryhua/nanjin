@@ -204,9 +204,8 @@ class RetryTest extends AnyFunSuite {
       .updateConfig(_.constant_delay(1.hour))
       .eventStream { gd =>
         gd("nonterminating")
-          .updateConfig(_.max_retries(3).fibonacci_backoff(0.1.second))
+          .updateConfig(_.max_retries(3).fibonacci_backoff(0.1.second).non_terminating)
           .retry(IO(1))
-          .nonTerminating
           .run
       }
       .observe(_.evalMap(logging.alert).drain)
@@ -216,33 +215,10 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(a.isInstanceOf[ActionStart])
-    assert(b.isInstanceOf[ActionRetrying])
-    assert(c.isInstanceOf[ActionRetrying])
-    assert(d.isInstanceOf[ActionRetrying])
-    assert(e.isInstanceOf[ActionFailed])
-    assert(f.isInstanceOf[ServicePanic])
-  }
-  test("nonterminating - should retry - 2") {
-    val Vector(a, b, c, d, e, f) = serviceGuard
-      .updateConfig(_.constant_delay(1.hour))
-      .eventStream { gd =>
-        gd("nonterminating")
-          .updateConfig(_.max_retries(3).fibonacci_backoff(0.1.second))
-          .retry(1)(IO(_))
-          .nonTerminating
-          .run
-      }
-      .observe(_.evalMap(logging.alert).drain)
-      .interruptAfter(5.seconds)
-      .compile
-      .toVector
-      .unsafeRunSync()
-
-    assert(a.isInstanceOf[ActionStart])
-    assert(b.isInstanceOf[ActionRetrying])
-    assert(c.isInstanceOf[ActionRetrying])
-    assert(d.isInstanceOf[ActionRetrying])
-    assert(e.isInstanceOf[ActionFailed])
+    assert(b.asInstanceOf[ActionRetrying].error.throwable.isInstanceOf[ActionException.UnexpectedlyTerminated])
+    assert(c.asInstanceOf[ActionRetrying].error.throwable.isInstanceOf[ActionException.UnexpectedlyTerminated])
+    assert(d.asInstanceOf[ActionRetrying].error.throwable.isInstanceOf[ActionException.UnexpectedlyTerminated])
+    assert(e.asInstanceOf[ActionRetrying].error.throwable.isInstanceOf[ActionException.UnexpectedlyTerminated])
     assert(f.isInstanceOf[ServicePanic])
   }
 }
