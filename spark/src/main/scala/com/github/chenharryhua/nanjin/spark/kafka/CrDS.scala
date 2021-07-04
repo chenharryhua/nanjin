@@ -96,8 +96,7 @@ final class CrDS[F[_], K, V] private[kafka] (
 
   def diffKV(other: CrDS[F, K, V]): TypedDataset[KvDiffResult[K, V]] = diffKV(other.typedDataset)
 
-  /** Notes:
-    *  same key should be in same partition.
+  /** Notes: same key should be in same partition.
     */
   def misplacedKey: TypedDataset[MisplacedKey[K]] = {
     import frameless.functions.aggregate.countDistinct
@@ -108,9 +107,8 @@ final class CrDS[F[_], K, V] private[kafka] (
     res.filter(res('count) > 1).orderBy(res('count).asc)
   }
 
-  /** Notes:
-    * timestamp order should follow offset order:
-    * the larger the offset is the larger of timestamp should be, of the same key
+  /** Notes: timestamp order should follow offset order: the larger the offset is the larger of timestamp should be, of
+    * the same key
     */
   def misorderedKey: TypedDataset[MisorderedKey[K]] = {
     implicit val enc: TypedEncoder[K]             = tek

@@ -23,4 +23,4 @@ class MonixTest extends AnyFunSuite {
     task.runSyncUnsafe(10.seconds)
   }
 }
- */ 
+ */

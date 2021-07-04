@@ -54,8 +54,8 @@ object SimpleQueueService {
 
 private object sqs_s3_parser {
 
-  /** [[https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html]]
-    * ignore messages which does not have s3 structure
+  /** [[https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html]] ignore messages
+    * which does not have s3 structure
     */
   def apply(body: String): List[S3Path] =
     parse(body).toOption.traverse { json =>

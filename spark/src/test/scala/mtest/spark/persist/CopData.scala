@@ -8,7 +8,7 @@ import mtest.spark._
 
 object CopData {
 
-  private implicit val ss = sparkSession
+  implicit private val ss = sparkSession
   val emCops = List(
     EmCop(1, EnumCoproduct.Domestic),
     EmCop(2, EnumCoproduct.International)

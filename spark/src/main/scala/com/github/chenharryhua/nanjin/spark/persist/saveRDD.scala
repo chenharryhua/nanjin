@@ -55,7 +55,7 @@ object saveRDD {
   }
 
   def circe[A: JsonEncoder](rdd: RDD[A], path: String, compression: Compression, isKeepNull: Boolean): Unit = {
-    val encode: A => Json     = a => if (isKeepNull) JsonEncoder[A].apply(a) else JsonEncoder[A].apply(a).deepDropNullValues
+    val encode: A => Json = a => if (isKeepNull) JsonEncoder[A].apply(a) else JsonEncoder[A].apply(a).deepDropNullValues
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
     config.set(NJTextOutputFormat.suffix, NJFileFormat.Circe.suffix)
     CompressionCodecs.setCodecConfiguration(config, CompressionCodecs.getCodecClassName(compression.name))

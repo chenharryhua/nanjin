@@ -17,8 +17,7 @@ final case class AvroCodec[A](schemaFor: SchemaFor[A], avroDecoder: AvroDecoder[
   val schema: Schema        = schemaFor.schema
   def idConversion(a: A): A = avroDecoder.decode(avroEncoder.encode(a))
 
-  /** https://avro.apache.org/docs/current/spec.html
-    * the grammar for a namespace is:
+  /** https://avro.apache.org/docs/current/spec.html the grammar for a namespace is:
     *
     * <empty> | <name>[(<dot><name>)*]
     *
@@ -47,7 +46,8 @@ final case class AvroCodec[A](schemaFor: SchemaFor[A], avroDecoder: AvroDecoder[
     jsonObject <- jsonPath.obj.getOption(json).toRight("unable to find child schema")
   } yield Json.fromJsonObject(jsonObject)
 
-  /** @param jsonPath path to the child schema
+  /** @param jsonPath
+    *   path to the child schema
     * @return
     */
   @throws[Exception]
@@ -63,9 +63,7 @@ final case class AvroCodec[A](schemaFor: SchemaFor[A], avroDecoder: AvroDecoder[
   }
 }
 
-/** left  - error
-  * right - AvroCodec
-  * both  - (warnings, AvroCodec)
+/** left - error right - AvroCodec both - (warnings, AvroCodec)
   */
 object AvroCodec {
 
