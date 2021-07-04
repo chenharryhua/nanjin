@@ -19,9 +19,9 @@ final class SaveSingleBinaryAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], 
   private def updateConfig(cfg: HoarderConfig): SaveBinaryAvro[F, A] =
     new SaveBinaryAvro[F, A](rdd, encoder, cfg)
 
-  def overwrite: SaveBinaryAvro[F, A]      = updateConfig(cfg.withOverwrite)
-  def errorIfExists: SaveBinaryAvro[F, A]  = updateConfig(cfg.withError)
-  def ignoreIfExists: SaveBinaryAvro[F, A] = updateConfig(cfg.withIgnore)
+  def overwrite: SaveBinaryAvro[F, A]      = updateConfig(cfg.overwrite_mode)
+  def errorIfExists: SaveBinaryAvro[F, A]  = updateConfig(cfg.error_mode)
+  def ignoreIfExists: SaveBinaryAvro[F, A] = updateConfig(cfg.ignore_mode)
 
   def stream(implicit F: Sync[F]): Stream[F, Unit] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration
@@ -37,10 +37,10 @@ final class SaveMultiBinaryAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], c
   private def updateConfig(cfg: HoarderConfig): SaveMultiBinaryAvro[F, A] =
     new SaveMultiBinaryAvro[F, A](rdd, encoder, cfg)
 
-  def append: SaveMultiBinaryAvro[F, A]         = updateConfig(cfg.withAppend)
-  def overwrite: SaveMultiBinaryAvro[F, A]      = updateConfig(cfg.withOverwrite)
-  def errorIfExists: SaveMultiBinaryAvro[F, A]  = updateConfig(cfg.withError)
-  def ignoreIfExists: SaveMultiBinaryAvro[F, A] = updateConfig(cfg.withIgnore)
+  def append: SaveMultiBinaryAvro[F, A]         = updateConfig(cfg.append_mode)
+  def overwrite: SaveMultiBinaryAvro[F, A]      = updateConfig(cfg.overwrite_mode)
+  def errorIfExists: SaveMultiBinaryAvro[F, A]  = updateConfig(cfg.error_mode)
+  def ignoreIfExists: SaveMultiBinaryAvro[F, A] = updateConfig(cfg.ignore_mode)
 
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
