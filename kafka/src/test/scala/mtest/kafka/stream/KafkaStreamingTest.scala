@@ -33,18 +33,18 @@ object KafkaStreamingData {
   val tgt: KafkaTopic[IO, Int, StreamTarget] = ctx.topic[Int, StreamTarget]("stream.test.join.target")
 
   val sendS1Data: Stream[IO, ProducerResult[Unit, Int, StreamOne]] = Stream
-    .fixedRate[IO](1.seconds)
+    .fixedRate[IO](3.seconds)
     .zipRight(
       Stream
         .emits(List(
+          ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 101, StreamOne("na", -1)),
+          ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 102, StreamOne("na", -1)),
+          ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 103, StreamOne("na", -1)),
           ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 1, StreamOne("a", 0)),
           ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 2, StreamOne("b", 1)),
           ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 3, StreamOne("c", 2)),
           ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 4, StreamOne("d", 3)),
-          ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 5, StreamOne("e", 4)),
-          ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 101, StreamOne("na", -1)),
-          ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 102, StreamOne("na", -1)),
-          ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 103, StreamOne("na", -1))
+          ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 5, StreamOne("e", 4))
         ).map(ProducerRecords.one(_)))
         .covary[IO]
         .through(s1Topic.fs2Channel.producerPipe)
@@ -75,7 +75,7 @@ object KafkaStreamingData {
   )
 }
 
-@DoNotDiscover
+//@DoNotDiscover
 class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
   import KafkaStreamingData._
 
@@ -92,26 +92,28 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       b <- t2Topic.kafkaStream.ktable
       c <- g3Topic.kafkaStream.gktable
     } yield {
-      a.join(c)((i, s1) => i, (s1, g3) => StreamTarget(s1.name, g3.weight, 0)).to(tgt)
-      a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(tgt)
+      a.peek((x, y) => println((x, y))).join(c)((i, s1) => i, (s1, g3) => StreamTarget(s1.name, g3.weight, 0)).to(tgt)
+      a.peek((x, y) => println((x, y))).join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(tgt)
     }
 
     val harvest: Stream[IO, StreamTarget] =
       tgt.fs2Channel.stream
         .map(x => tgt.decoder(x).decode)
-        .observe(_.map(_.offset).through(commitBatchWithin[IO](3, 1.seconds)).drain)
+        .observe(_.map(_.offset).through(commitBatchWithin[IO](1, 1.seconds)).drain)
         .map(_.record.value)
+        .debug()
 
     val runStream: Stream[IO, StreamTarget] =
       harvest
         .concurrently(sendS1Data)
-        .concurrently(
-          ctx.buildStreams(top).run.handleErrorWith(_ => Stream.sleep[IO](2.seconds) >> ctx.buildStreams(top).run) >>
-            Stream.never[IO])
-        .interruptAfter(15.seconds)
+        .concurrently(ctx.buildStreams(top).stateStream.debug().delayBy(10.seconds))
+        .interruptAfter(30.seconds)
 
-    val res: Set[StreamTarget] = runStream.compile.toList.unsafeRunSync().toSet
-    println(res)
+    val res: Set[StreamTarget] =
+      (tgt.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
+        s1Topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
+        IO.sleep(3.seconds) >>
+        runStream.compile.toList).unsafeRunSync().toSet
     assert(res == expected)
   }
 }

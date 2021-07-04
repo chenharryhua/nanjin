@@ -9,35 +9,29 @@ import java.time.{LocalDate, LocalDateTime}
 import scala.concurrent.duration._
 
 class SKConfigTest extends AnyFunSuite {
-  val skc = SKConfig(TopicName("config.test"), sydneyTime).withZoneId(utcTime)
+  val skc = SKConfig(TopicName("config.test"), sydneyTime).zone_id(utcTime)
   test("date-time parameters") {
     val d1 = NJTimestamp("10:00", sydneyTime)
     val d2 = NJTimestamp("11:00", sydneyTime)
 
-    val p1 = skc.withTimeRange("10:00", "11:00").withZoneId(sydneyTime)
+    val p1 = skc.time_range("10:00", "11:00").zone_id(sydneyTime)
     assert(p1.evalConfig.timeRange.startTimestamp.contains(d1))
     assert(p1.evalConfig.timeRange.endTimestamp.contains(d2))
     assert(p1.evalConfig.timeRange.zoneId == sydneyTime)
 
     val p2 = skc
-      .withEndTime(LocalDateTime.now())
-      .withStartTime(LocalDateTime.now)
-      .withStartTime("10:00")
-      .withEndTime("11:00")
-      .withZoneId(sydneyTime)
+      .end_time(LocalDateTime.now())
+      .start_time(LocalDateTime.now)
+      .start_time("10:00")
+      .end_time("11:00")
+      .zone_id(sydneyTime)
     assert(p2.evalConfig.timeRange.startTimestamp.contains(d1))
     assert(p2.evalConfig.timeRange.endTimestamp.contains(d2))
     assert(p2.evalConfig.timeRange.zoneId == sydneyTime)
 
     val dr = NJDateTimeRange(sydneyTime).withStartTime("10:00").withEndTime("11:00")
 
-    val p3 = skc
-      .withNSeconds(1)
-      .withToday
-      .withYesterday
-      .withOneDay(LocalDate.of(2012, 10, 26))
-      .withOneDay("2012-10-26")
-      .withTimeRange(dr)
+    val p3 = skc.n_seconds(1).today.yesterday.one_day(LocalDate.of(2012, 10, 26)).one_day("2012-10-26").time_range(dr)
     assert(p3.evalConfig.timeRange.startTimestamp.contains(d1))
     assert(p3.evalConfig.timeRange.endTimestamp.contains(d2))
     assert(p3.evalConfig.timeRange.zoneId == sydneyTime)
@@ -45,10 +39,10 @@ class SKConfigTest extends AnyFunSuite {
 
   test("upload parameters") {
     val p = skc
-      .withLoadBulkSize(1)
-      .withLoadInterval(0.1.second)
-      .withLoadRecordsLimit(10)
-      .withLoadTimeLimit(1.minutes)
+      .load_bulk_size(1)
+      .load_interval(0.1.second)
+      .load_records_limit(10)
+      .load_time_limit(1.minutes)
       .evalConfig
       .loadParams
 
@@ -59,9 +53,9 @@ class SKConfigTest extends AnyFunSuite {
   }
   test("misc update") {
     val p = skc
-      .withTopicName("config.update")
-      .withLocationStrategy(LocationStrategies.PreferBrokers)
-      .withReplayPathBuilder(_.value)
+      .topic_name("config.update")
+      .location_strategy(LocationStrategies.PreferBrokers)
+      .replay_path_builder(_.value)
       .evalConfig
 
     assert(p.topicName.value == "config.update")

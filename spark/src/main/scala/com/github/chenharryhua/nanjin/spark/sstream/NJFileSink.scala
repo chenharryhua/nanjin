@@ -13,17 +13,17 @@ final class NJFileSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig, pa
   private def updateCfg(f: SStreamConfig => SStreamConfig): NJFileSink[F, A] =
     new NJFileSink[F, A](dsw, f(cfg), path)
 
-  def parquet: NJFileSink[F, A] = updateCfg(_.withParquet)
-  def json: NJFileSink[F, A]    = updateCfg(_.withJson)
-  def avro: NJFileSink[F, A]    = updateCfg(_.withAvro)
+  def parquet: NJFileSink[F, A] = updateCfg(_.parquet_format)
+  def json: NJFileSink[F, A]    = updateCfg(_.json_format)
+  def avro: NJFileSink[F, A]    = updateCfg(_.avro_format)
 
   def triggerEvery(duration: FiniteDuration): NJFileSink[F, A] =
-    updateCfg(_.withTrigger(Trigger.ProcessingTime(duration)))
+    updateCfg(_.trigger(Trigger.ProcessingTime(duration)))
 
   def withOptions(f: DataStreamWriter[A] => DataStreamWriter[A]): NJFileSink[F, A] =
     new NJFileSink(f(dsw), cfg, path)
 
-  def queryName(name: String): NJFileSink[F, A] = updateCfg(_.withQueryName(name))
+  def queryName(name: String): NJFileSink[F, A] = updateCfg(_.query_name(name))
 
   def partitionBy(colNames: String*): NJFileSink[F, A] =
     new NJFileSink[F, A](dsw.partitionBy(colNames: _*), cfg, path)
