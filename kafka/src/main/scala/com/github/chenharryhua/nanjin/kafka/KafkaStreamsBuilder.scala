@@ -4,7 +4,7 @@ import cats.data.Reader
 import cats.effect.std.Dispatcher
 import cats.effect.{Async, Deferred}
 import cats.syntax.all._
-import cats.{Applicative, Show}
+import cats.{Functor, Show}
 import fs2.Stream
 import fs2.concurrent.Channel
 import io.circe.{Decoder, Encoder}
@@ -21,12 +21,12 @@ sealed abstract class KafkaStreamException(msg: String) extends Exception(msg)
 
 object KafkaStreamException {
   final case class UncaughtException(ex: Throwable) extends KafkaStreamException(ex.getMessage)
-  case object TerminateException extends KafkaStreamException("Kafka streaming was terminated")
 }
 
 final case class KafkaStreamStateChange(newState: State, oldState: State)
 
 object KafkaStreamStateChange {
+
   implicit val showKafkaStreamsState: Show[State] = Enum[State].getName
 
   implicit val showKafkaStreamStateUpdate: Show[KafkaStreamStateChange] =
@@ -56,40 +56,31 @@ final class KafkaStreamsBuilder[F[_]](
     }
   }
 
-  final private class StateUpdateEvent(
-    channel: Channel[F, KafkaStreamStateChange],
-    dispatcher: Dispatcher[F],
-    errorListener: Deferred[F, KafkaStreamException])(implicit F: Applicative[F])
+  final private class StateUpdateEvent(dispatcher: Dispatcher[F], channel: Channel[F, KafkaStreamStateChange])(implicit
+    F: Functor[F])
       extends KafkaStreams.StateListener {
 
-    override def onChange(newState: State, oldState: State): Unit = {
-      val update =
-        if (newState == State.NOT_RUNNING)
-          channel.send(KafkaStreamStateChange(newState, oldState)) *>
-            errorListener.complete(KafkaStreamException.TerminateException).void
-        else
-          channel.send(KafkaStreamStateChange(newState, oldState)).void
-      dispatcher.unsafeRunSync(update)
-    }
+    override def onChange(newState: State, oldState: State): Unit =
+      dispatcher.unsafeRunSync(channel.send(KafkaStreamStateChange(newState, oldState)).void)
   }
 
   def stateStream(implicit F: Async[F]): Stream[F, KafkaStreamStateChange] =
     for {
       dispatcher <- Stream.resource(Dispatcher[F])
-      errorListener <- Stream.eval(Deferred[F, KafkaStreamException])
+      errorListener <- Stream.eval(F.deferred[KafkaStreamException])
       state <- Stream.eval(Channel.unbounded[F, KafkaStreamStateChange]).flatMap { channel =>
-        val kafkaStreams = Stream
+        val kss = Stream
           .bracket(F.blocking(new KafkaStreams(topology, settings.javaProperties)))(ks =>
             F.blocking(ks.close()) >> F.blocking(ks.cleanUp()))
           .evalMap(ks =>
             F.blocking {
+              ks.cleanUp()
               ks.setUncaughtExceptionHandler(new StreamErrorHandler(dispatcher, errorListener))
-              ks.setStateListener(new StateUpdateEvent(channel, dispatcher, errorListener))
+              ks.setStateListener(new StateUpdateEvent(dispatcher, channel))
               ks.start()
             }) <* Stream.never[F]
-        channel.stream
-          .concurrently(kafkaStreams)
-          .concurrently(Stream.eval(errorListener.get).flatMap(Stream.raiseError[F]))
+        val error = Stream.eval(errorListener.get.flatMap(F.raiseError[KafkaStreamStateChange]))
+        channel.stream.concurrently(kss).concurrently(error)
       }
     } yield state
 
