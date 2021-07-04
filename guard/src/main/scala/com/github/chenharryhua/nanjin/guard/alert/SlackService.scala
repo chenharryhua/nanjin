@@ -73,38 +73,21 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
 
     case ServiceStopped(at, info, params) =>
       val msg =
-        if (params.isNormalStop)
-          SlackNotification(
-            params.taskParams.appName,
-            s":octagonal_sign: The service was stopped.",
-            List(
-              Attachment(
-                params.taskParams.color.succ,
-                at.toInstant.toEpochMilli,
-                List(
-                  SlackField("Service", params.serviceName, short = true),
-                  SlackField("Host", params.taskParams.hostName, short = true),
-                  SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
-                  SlackField("Status", "Stopped", short = true)
-                )
-              ))
-          )
-        else
-          SlackNotification(
-            params.taskParams.appName,
-            s":octagonal_sign: The service was unexpectedly stopped. It is a *FATAL* error",
-            List(
-              Attachment(
-                params.taskParams.color.fail,
-                at.toInstant.toEpochMilli,
-                List(
-                  SlackField("Service", params.serviceName, short = true),
-                  SlackField("Host", params.taskParams.hostName, short = true),
-                  SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
-                  SlackField("Status", "Stopped abnormally", short = true)
-                )
-              ))
-          )
+        SlackNotification(
+          params.taskParams.appName,
+          s":octagonal_sign: The service was stopped.",
+          List(
+            Attachment(
+              params.taskParams.color.succ,
+              at.toInstant.toEpochMilli,
+              List(
+                SlackField("Service", params.serviceName, short = true),
+                SlackField("Host", params.taskParams.hostName, short = true),
+                SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
+                SlackField("Status", "Stopped", short = true)
+              )
+            ))
+        )
 
       service.publish(msg.asJson.noSpaces).void
 

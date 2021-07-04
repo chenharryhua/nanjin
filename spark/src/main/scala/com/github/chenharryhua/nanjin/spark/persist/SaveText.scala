@@ -22,13 +22,13 @@ final class SaveSingleText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: Str
   private def updateConfig(cfg: HoarderConfig): SaveSingleText[F, A] =
     new SaveSingleText[F, A](rdd, cfg, suffix)
 
-  def overwrite: SaveSingleText[F, A]      = updateConfig(cfg.withOverwrite)
-  def errorIfExists: SaveSingleText[F, A]  = updateConfig(cfg.withError)
-  def ignoreIfExists: SaveSingleText[F, A] = updateConfig(cfg.withIgnore)
+  def overwrite: SaveSingleText[F, A]      = updateConfig(cfg.overwrite_mode)
+  def errorIfExists: SaveSingleText[F, A]  = updateConfig(cfg.error_mode)
+  def ignoreIfExists: SaveSingleText[F, A] = updateConfig(cfg.ignore_mode)
 
-  def gzip: SaveSingleText[F, A]                = updateConfig(cfg.withCompression(Compression.Gzip))
-  def deflate(level: Int): SaveSingleText[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(level)))
-  def uncompress: SaveSingleText[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
+  def gzip: SaveSingleText[F, A]                = updateConfig(cfg.output_compression(Compression.Gzip))
+  def deflate(level: Int): SaveSingleText[F, A] = updateConfig(cfg.output_compression(Compression.Deflate(level)))
+  def uncompress: SaveSingleText[F, A]          = updateConfig(cfg.output_compression(Compression.Uncompressed))
 
   def stream(implicit F: Sync[F], show: Show[A]): Stream[F, Unit] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration
@@ -43,15 +43,15 @@ final class SaveMultiText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: Stri
   private def updateConfig(cfg: HoarderConfig): SaveMultiText[F, A] =
     new SaveMultiText[F, A](rdd, cfg, suffix)
 
-  def append: SaveMultiText[F, A]         = updateConfig(cfg.withAppend)
-  def overwrite: SaveMultiText[F, A]      = updateConfig(cfg.withOverwrite)
-  def errorIfExists: SaveMultiText[F, A]  = updateConfig(cfg.withError)
-  def ignoreIfExists: SaveMultiText[F, A] = updateConfig(cfg.withIgnore)
+  def append: SaveMultiText[F, A]         = updateConfig(cfg.append_mode)
+  def overwrite: SaveMultiText[F, A]      = updateConfig(cfg.overwrite_mode)
+  def errorIfExists: SaveMultiText[F, A]  = updateConfig(cfg.error_mode)
+  def ignoreIfExists: SaveMultiText[F, A] = updateConfig(cfg.ignore_mode)
 
-  def bzip2: SaveMultiText[F, A]               = updateConfig(cfg.withCompression(Compression.Bzip2))
-  def gzip: SaveMultiText[F, A]                = updateConfig(cfg.withCompression(Compression.Gzip))
-  def deflate(level: Int): SaveMultiText[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(level)))
-  def uncompress: SaveMultiText[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
+  def bzip2: SaveMultiText[F, A]               = updateConfig(cfg.output_compression(Compression.Bzip2))
+  def gzip: SaveMultiText[F, A]                = updateConfig(cfg.output_compression(Compression.Gzip))
+  def deflate(level: Int): SaveMultiText[F, A] = updateConfig(cfg.output_compression(Compression.Deflate(level)))
+  def uncompress: SaveMultiText[F, A]          = updateConfig(cfg.output_compression(Compression.Uncompressed))
 
   def run(implicit F: Sync[F], show: Show[A]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)

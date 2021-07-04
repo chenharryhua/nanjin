@@ -4,7 +4,7 @@ import cats.Id
 import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.kafka.{KafkaStreamException, KafkaTopic}
 import fs2.Stream
 import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords, ProducerResult}
 import mtest.kafka._
@@ -12,43 +12,39 @@ import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.ImplicitConversions._
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.scala.serialization.Serdes._
+import org.scalatest.BeforeAndAfter
 import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 
 import scala.concurrent.duration._
 
 object KafkaStreamingData {
 
   case class StreamOne(name: String, size: Int)
-
   case class TableTwo(name: String, color: Int)
-  case class GlobalThree(name: String, weight: Int)
 
   case class StreamTarget(name: String, weight: Int, color: Int)
 
-  val s1Topic: KafkaTopic[IO, Int, StreamOne]   = ctx.topic[Int, StreamOne]("stream.test.stream.one")
-  val t2Topic: KafkaTopic[IO, Int, TableTwo]    = ctx.topic[Int, TableTwo]("stream.test.table.two")
-  val g3Topic: KafkaTopic[IO, Int, GlobalThree] = ctx.topic[Int, GlobalThree]("stream.test.global.three")
+  val s1Topic: KafkaTopic[IO, Int, StreamOne] = ctx.topic[Int, StreamOne]("stream.test.stream.one")
+  val t2Topic: KafkaTopic[IO, Int, TableTwo]  = ctx.topic[Int, TableTwo]("stream.test.table.two")
 
   val tgt: KafkaTopic[IO, Int, StreamTarget] = ctx.topic[Int, StreamTarget]("stream.test.join.target")
 
-  val sendS1Data: Stream[IO, ProducerResult[Unit, Int, StreamOne]] = Stream
-    .fixedRate[IO](1.seconds)
-    .zipRight(
-      Stream
-        .emits(List(
-          ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 1, StreamOne("a", 0)),
-          ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 2, StreamOne("b", 1)),
-          ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 3, StreamOne("c", 2)),
-          ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 4, StreamOne("d", 3)),
-          ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 5, StreamOne("e", 4)),
-          ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 101, StreamOne("na", -1)),
-          ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 102, StreamOne("na", -1)),
-          ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 103, StreamOne("na", -1))
-        ).map(ProducerRecords.one(_)))
-        .covary[IO]
-        .through(s1Topic.fs2Channel.producerPipe)
-        .debug())
+  val s1Data: Stream[IO, ProducerRecords[Unit, Int, StreamOne]] = Stream
+    .emits(
+      List(
+        ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 101, StreamOne("na", -1)),
+        ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 102, StreamOne("na", -1)),
+        ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 103, StreamOne("na", -1)),
+        ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 1, StreamOne("a", 0)),
+        ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 2, StreamOne("b", 1)),
+        ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 3, StreamOne("c", 2)),
+        ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 201, StreamOne("d", 3)),
+        ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 202, StreamOne("e", 4))
+      ).map(ProducerRecords.one(_)))
+    .covary[IO]
+
+  val sendS1Data: Stream[IO, ProducerResult[Unit, Int, StreamOne]] =
+    Stream.fixedRate[IO](1.seconds).zipRight(s1Data).through(s1Topic.fs2Channel.producerPipe).debug()
 
   val sendT2Data: Stream[IO, ProducerResult[Unit, Int, TableTwo]] =
     Stream(
@@ -58,24 +54,10 @@ object KafkaStreamingData {
         ProducerRecord(t2Topic.topicName.value, 3, TableTwo("z", 2))
       ))).covary[IO].through(t2Topic.fs2Channel.producerPipe)
 
-  val sendG3Data: Stream[IO, ProducerResult[Unit, Int, GlobalThree]] =
-    Stream(
-      ProducerRecords(List(
-        ProducerRecord(g3Topic.topicName.value, 4, GlobalThree("gx", 1000)),
-        ProducerRecord(g3Topic.topicName.value, 5, GlobalThree("gy", 2000)),
-        ProducerRecord(g3Topic.topicName.value, 6, GlobalThree("gz", 3000))
-      ))).covary[IO].through(g3Topic.fs2Channel.producerPipe)
-
-  val expected: Set[StreamTarget] = Set(
-    StreamTarget("a", 0, 0),
-    StreamTarget("b", 0, 1),
-    StreamTarget("c", 0, 2),
-    StreamTarget("d", 1000, 0),
-    StreamTarget("e", 2000, 0)
-  )
+  val expected: Set[StreamTarget] = Set(StreamTarget("a", 0, 0), StreamTarget("b", 0, 1), StreamTarget("c", 0, 2))
 }
 
-@DoNotDiscover
+//@DoNotDiscover
 class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
   import KafkaStreamingData._
 
@@ -83,35 +65,86 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
   implicit val twoValue: Serde[TableTwo]     = t2Topic.codec.valSerde
   implicit val tgtValue: Serde[StreamTarget] = tgt.codec.valSerde
 
-  before(sendT2Data.concurrently(sendG3Data).compile.drain.unsafeRunSync())
+  before(sendT2Data.compile.drain.unsafeRunSync())
 
   test("stream-table join") {
-
     val top: Kleisli[Id, StreamsBuilder, Unit] = for {
       a <- s1Topic.kafkaStream.kstream
       b <- t2Topic.kafkaStream.ktable
-      c <- g3Topic.kafkaStream.gktable
-    } yield {
-      a.join(c)((i, s1) => i, (s1, g3) => StreamTarget(s1.name, g3.weight, 0)).to(tgt)
-      a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(tgt)
-    }
+    } yield a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(tgt)
 
     val harvest: Stream[IO, StreamTarget] =
       tgt.fs2Channel.stream
         .map(x => tgt.decoder(x).decode)
-        .observe(_.map(_.offset).through(commitBatchWithin[IO](3, 1.seconds)).drain)
+        .observe(_.map(_.offset).through(commitBatchWithin[IO](1, 1.seconds)).drain)
         .map(_.record.value)
-
-    val runStream: Stream[IO, StreamTarget] =
+        .debug()
+    val res: Set[StreamTarget] =
       harvest
         .concurrently(sendS1Data)
-        .concurrently(
-          ctx.buildStreams(top).run.handleErrorWith(_ => Stream.sleep[IO](2.seconds) >> ctx.buildStreams(top).run) >>
-            Stream.never[IO])
-        .interruptAfter(15.seconds)
-
-    val res: Set[StreamTarget] = runStream.compile.toList.unsafeRunSync().toSet
-    println(res)
+        .concurrently(ctx.buildStreams(top).stateStream.debug().delayBy(2.seconds))
+        .interruptAfter(10.seconds)
+        .compile
+        .toList
+        .unsafeRunSync()
+        .toSet
     assert(res == expected)
   }
+
+  test("kafka stream throw exception") {
+    val s1Topic: KafkaTopic[IO, Int, StreamOne]      = ctx.topic[Int, StreamOne]("stream.test.stream.exception.one")
+    val s1TopicBin: KafkaTopic[IO, Int, Array[Byte]] = ctx.topic[Int, Array[Byte]]("stream.test.stream.exception.one")
+
+    val top: Kleisli[Id, StreamsBuilder, Unit] = for {
+      a <- s1Topic.kafkaStream.kstream
+      b <- t2Topic.kafkaStream.ktable
+    } yield a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(tgt)
+
+    val harvest: Stream[IO, StreamTarget] =
+      tgt.fs2Channel.stream
+        .map(x => tgt.decoder(x).decode)
+        .observe(_.map(_.offset).through(commitBatchWithin[IO](1, 1.seconds)).drain)
+        .map(_.record.value)
+        .debug()
+    val s1Data: Stream[IO, ProducerRecords[Unit, Int, Array[Byte]]] = Stream
+      .emits(
+        List(
+          ProducerRecord[Int, Array[Byte]](
+            s1Topic.topicName.value,
+            101,
+            oneValue.serializer().serialize(s1Topic.topicName.value, StreamOne("na", -1))),
+          ProducerRecord[Int, Array[Byte]](
+            s1Topic.topicName.value,
+            102,
+            oneValue.serializer().serialize(s1Topic.topicName.value, StreamOne("na", -1))),
+          ProducerRecord[Int, Array[Byte]](
+            s1Topic.topicName.value,
+            103,
+            oneValue.serializer().serialize(s1Topic.topicName.value, StreamOne("na", -1))),
+          ProducerRecord[Int, Array[Byte]](
+            s1Topic.topicName.value,
+            104,
+            oneValue.serializer().serialize(s1Topic.topicName.value, StreamOne("na", -1))),
+          ProducerRecord[Int, Array[Byte]](s1Topic.topicName.value, 105, "exception".getBytes),
+          ProducerRecord[Int, Array[Byte]](
+            s1Topic.topicName.value,
+            106,
+            oneValue.serializer().serialize(s1Topic.topicName.value, StreamOne("na", -1)))
+        ).map(ProducerRecords.one(_)))
+      .covary[IO]
+
+    val sendS1Data =
+      Stream.fixedRate[IO](1.seconds).zipRight(s1Data).through(s1TopicBin.fs2Channel.producerPipe).debug()
+
+    val res = s1Topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >> IO.sleep(1.seconds) >>
+      harvest
+        .concurrently(sendS1Data)
+        .concurrently(ctx.buildStreams(top).stateStream.debug().delayBy(1.seconds))
+        .compile
+        .toList
+
+    assertThrows[KafkaStreamException.UncaughtException](res.unsafeRunSync())
+
+  }
+
 }

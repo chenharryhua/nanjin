@@ -13,4 +13,7 @@ object ActionException {
   case object ActionCanceledExternally extends ActionException("action was canceled externally")
   type ActionCanceledExternally = ActionCanceledExternally.type
 
+  case object UnexpectedlyTerminated extends ActionException("action was terminated unexpectedly")
+  type UnexpectedlyTerminated = UnexpectedlyTerminated.type
+
 }

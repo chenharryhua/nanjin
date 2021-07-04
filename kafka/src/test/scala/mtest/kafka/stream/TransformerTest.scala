@@ -80,7 +80,8 @@ class TransformerTest extends AnyFunSuite {
       .observe(_.map(_.offset).through(commitBatchWithin(10, 2.seconds)).drain)
 
     val runStream =
-      kafkaStreamService.run.handleErrorWith(_ => Stream.sleep[IO](2.seconds) ++ ctx.buildStreams(top).run)
+      kafkaStreamService.stateStream.handleErrorWith(_ =>
+        Stream.sleep[IO](2.seconds) ++ ctx.buildStreams(top).stateStream)
     val res =
       (runStream
         .flatMap(_ => havest)

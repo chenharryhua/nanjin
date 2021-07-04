@@ -77,28 +77,28 @@ private object SStreamConfigF {
 final private[sstream] case class SStreamConfig(value: Fix[SStreamConfigF]) extends AnyVal {
   import SStreamConfigF._
 
-  def withCheckpointBuilder(f: NJFileFormat => String): SStreamConfig =
+  def check_point_builder(f: NJFileFormat => String): SStreamConfig =
     SStreamConfig(Fix(WithCheckpointBuilder(f, value)))
-  def withCheckpoint(cp: String): SStreamConfig = withCheckpointBuilder(_ => cp)
+  def check_point(cp: String): SStreamConfig = check_point_builder(_ => cp)
 
-  def failOnDataLoss: SStreamConfig = SStreamConfig(Fix(WithFailOnDataLoss(isFail = true, value)))
-  def ignoreDataLoss: SStreamConfig = SStreamConfig(Fix(WithFailOnDataLoss(isFail = false, value)))
+  def data_loss_failure: SStreamConfig = SStreamConfig(Fix(WithFailOnDataLoss(isFail = true, value)))
+  def data_loss_ignore: SStreamConfig  = SStreamConfig(Fix(WithFailOnDataLoss(isFail = false, value)))
 
   private def withOutputMode(f: OutputMode): SStreamConfig = SStreamConfig(Fix(WithOutputMode(f, value)))
-  def withAppend: SStreamConfig                            = withOutputMode(OutputMode.Append())
-  def withComplete: SStreamConfig                          = withOutputMode(OutputMode.Complete())
-  def withUpdate: SStreamConfig                            = withOutputMode(OutputMode.Update())
+  def append_mode: SStreamConfig                           = withOutputMode(OutputMode.Append())
+  def complete_mode: SStreamConfig                         = withOutputMode(OutputMode.Complete())
+  def update_mode: SStreamConfig                           = withOutputMode(OutputMode.Update())
 
-  def withTrigger(trigger: Trigger): SStreamConfig = SStreamConfig(Fix(WithTrigger(trigger, value)))
+  def trigger_mode(trigger: Trigger): SStreamConfig = SStreamConfig(Fix(WithTrigger(trigger, value)))
 
-  def withJson: SStreamConfig    = SStreamConfig(Fix(WithFormat(NJFileFormat.SparkJson, value)))
-  def withParquet: SStreamConfig = SStreamConfig(Fix(WithFormat(NJFileFormat.Parquet, value)))
-  def withAvro: SStreamConfig    = SStreamConfig(Fix(WithFormat(NJFileFormat.Avro, value)))
+  def json_format: SStreamConfig    = SStreamConfig(Fix(WithFormat(NJFileFormat.SparkJson, value)))
+  def parquet_format: SStreamConfig = SStreamConfig(Fix(WithFormat(NJFileFormat.Parquet, value)))
+  def avro_format: SStreamConfig    = SStreamConfig(Fix(WithFormat(NJFileFormat.Avro, value)))
 
-  def withProgressInterval(fd: FiniteDuration): SStreamConfig = SStreamConfig(Fix(WithProgressInterval(fd, value)))
-  def withProgressInterval(ms: Long): SStreamConfig = withProgressInterval(FiniteDuration(ms, TimeUnit.MILLISECONDS))
+  def progress_interval(fd: FiniteDuration): SStreamConfig = SStreamConfig(Fix(WithProgressInterval(fd, value)))
+  def progress_nterval(ms: Long): SStreamConfig = progress_interval(FiniteDuration(ms, TimeUnit.MILLISECONDS))
 
-  def withQueryName(name: String): SStreamConfig = SStreamConfig(Fix(WithQueryName(name, value)))
+  def query_name(name: String): SStreamConfig = SStreamConfig(Fix(WithQueryName(name, value)))
 
   def evalConfig: SStreamParams = SStreamConfigF.evalConfig(this)
 }

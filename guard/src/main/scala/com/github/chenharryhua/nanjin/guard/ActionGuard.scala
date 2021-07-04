@@ -78,21 +78,21 @@ final class ActionGuard[F[_]](
     dispatcher.unsafeRunSync(passThrough(a))
 
   // maximum retries
-  def max(retries: Int): ActionGuard[F] = updateConfig(_.withMaxRetries(retries))
+  def max(retries: Int): ActionGuard[F] = updateConfig(_.max_retries(retries))
 
   // post good news
   def magpie[B](fb: F[B])(f: B => String)(implicit F: Async[F]): F[B] =
-    updateConfig(_.withSuccAlertOn.withFailAlertOff).retry(fb).withSuccNotes(f).run
+    updateConfig(_.slack_succ_on.slack_fail_off).retry(fb).withSuccNotes(f).run
 
   // post bad news
   def croak[B](fb: F[B])(f: Throwable => String)(implicit F: Async[F]): F[B] =
-    updateConfig(_.withSuccAlertOff.withFailAlertOn).retry(fb).withFailNotes(f).run
+    updateConfig(_.slack_succ_off.slack_fail_on).retry(fb).withFailNotes(f).run
 
   def quietly[B](fb: F[B])(implicit F: Async[F]): F[B] =
-    updateConfig(_.withSuccAlertOff.withFailAlertOff).run(fb)
+    updateConfig(_.slack_succ_off.slack_fail_off).run(fb)
 
   def loudly[B](fb: F[B])(implicit F: Async[F]): F[B] =
-    updateConfig(_.withSuccAlertOn.withFailAlertOn).run(fb)
+    updateConfig(_.slack_succ_on.slack_fail_on).run(fb)
 
   def run[B](fb: F[B])(implicit F: Async[F]): F[B] = retry[B](fb).run
 

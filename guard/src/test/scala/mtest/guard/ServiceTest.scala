@@ -45,13 +45,14 @@ class ServiceTest extends AnyFunSuite {
 
   val guard = TaskGuard[IO]("service-level-guard")
     .updateConfig(
-      _.withSlackWarnColor("danger")
-        .withSlackFailColor("danger")
-        .withSlackSuccColor("good")
-        .withSlackInfoColor("good")
-        .withHostName(HostName.local_host))
+      _.slack_warn_color("danger")
+        .slack_fail_color("danger")
+        .slack_succ_color("good")
+        .slack_info_color("good")
+        .host_name(HostName.local_host))
     .service("service")
-    .updateConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds).withMaxCauseSize(100).withNotes("ok"))
+    .updateConfig(
+      _.health_check_interval(3.hours).constant_delay(1.seconds).maximum_cause_size(100).startup_notes("ok"))
 
   val metrics = new MetricRegistry
   val logging = Monoid[AlertService[IO]].empty |+|
@@ -62,7 +63,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("should stopped if the operation normally exits") {
     val Vector(a, b, c, d) = guard
-      .updateConfig(_.withStartUpDelay(0.second).withJitter(3.second))
+      .updateConfig(_.startup_delay(0.second).jitter_backoff(3.second))
       .eventStream(gd => gd("normal-exit-action").max(10).magpie(IO(1))(_ => null).delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
@@ -78,10 +79,10 @@ class ServiceTest extends AnyFunSuite {
 
   test("escalate to up level if retry failed") {
     val Vector(a, b, c, d, e, f) = guard
-      .updateConfig(_.withConstantDelay(1.hour))
+      .updateConfig(_.constant_delay(1.hour))
       .eventStream { gd =>
         gd("escalate-after-3-time")
-          .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
+          .updateConfig(_.max_retries(3).fibonacci_backoff(0.1.second))
           .croak(IO.raiseError(new Exception("oops")))(_ => null)
       }
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
@@ -102,7 +103,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("should receive 3 health check event") {
     val a :: b :: c :: d :: e :: rest = guard
-      .updateConfig(_.withHealthCheckInterval(1.second).withStartUpDelay(0.1.second))
+      .updateConfig(_.health_check_interval(1.second).startup_delay(0.1.second))
       .eventStream(_.run(IO.never))
       .observe(_.evalMap(m => logging.alert(m)).drain)
       .interruptAfter(5.second)
@@ -166,7 +167,7 @@ class ServiceTest extends AnyFunSuite {
     val s     = guard.service("metrics-service")
     s.eventStream { gd =>
       (gd("metrics-action-fail")
-        .updateConfig(_.withConstantDelay(10.milliseconds))
+        .updateConfig(_.constant_delay(10.milliseconds))
         .retry(IO.raiseError(new Exception))
         .run)
         .replicateA(20)
@@ -194,7 +195,7 @@ class ServiceTest extends AnyFunSuite {
   }
   test("all alert on") {
     guard.eventStream { ag =>
-      val g = ag("").updateConfig(_.withAllAlertOff.withAllAlertOn)
+      val g = ag("").updateConfig(_.slack_none.slack_all)
       g.run(IO {
         assert(g.params.alertMask.alertStart)
         assert(g.params.alertMask.alertFYI)
@@ -207,7 +208,7 @@ class ServiceTest extends AnyFunSuite {
   }
   test("all alert off") {
     guard.eventStream { ag =>
-      val g = ag("").updateConfig(_.withAllAlertOn.withAllAlertOff)
+      val g = ag("").updateConfig(_.slack_all.slack_none)
       g.run(IO {
         assert(!g.params.alertMask.alertStart)
         assert(!g.params.alertMask.alertFYI)

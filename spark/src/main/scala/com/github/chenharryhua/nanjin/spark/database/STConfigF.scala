@@ -56,14 +56,14 @@ private object STConfigF {
 final private[database] case class STConfig(value: Fix[STConfigF]) extends AnyVal {
   import STConfigF._
 
-  def withDbSaveMode(sm: SaveMode): STConfig = STConfig(Fix(WithDbSaveMode(sm, value)))
+  def save_mode(sm: SaveMode): STConfig = STConfig(Fix(WithDbSaveMode(sm, value)))
 
-  def withReplayPathBuilder(f: (DatabaseName, TableName) => String): STConfig =
+  def replay_path_builder(f: (DatabaseName, TableName) => String): STConfig =
     STConfig(Fix(WithReplayPathBuilder(f, value)))
 
-  def withQuery(query: String): STConfig = STConfig(Fix(WithQuery(query, value)))
+  def unload_query(query: String): STConfig = STConfig(Fix(WithQuery(query, value)))
 
-  def withTableName(tableName: TableName): STConfig = STConfig(Fix(WithTableName(tableName, value)))
+  def table_name(tableName: TableName): STConfig = STConfig(Fix(WithTableName(tableName, value)))
 
   def evalConfig: STParams = STConfigF.evalConfig(this)
 }

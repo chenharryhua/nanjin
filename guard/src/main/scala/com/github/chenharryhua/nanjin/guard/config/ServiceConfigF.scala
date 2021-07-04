@@ -25,7 +25,6 @@ import scala.concurrent.duration._
   healthCheck: NJHealthCheck,
   retryPolicy: NJRetryPolicy,
   startUpEventDelay: FiniteDuration, // delay to sent out ServiceStarted event
-  isNormalStop: Boolean, // treat stop event as normal stop or abnormal stop
   maxCauseSize: Int, // number of chars allowed to display in slack
   notes: String
 )
@@ -43,7 +42,6 @@ object ServiceParams {
       ),
       retryPolicy = ConstantDelay(30.seconds),
       startUpEventDelay = 15.seconds,
-      isNormalStop = false,
       maxCauseSize = 500,
       notes = ""
     )
@@ -63,7 +61,6 @@ private object ServiceConfigF {
 
   final case class WithStartUpDelay[K](value: FiniteDuration, cont: K) extends ServiceConfigF[K]
 
-  final case class WithNormalStop[K](value: Boolean, cont: K) extends ServiceConfigF[K]
   final case class WithMaxCauseSize[K](value: Int, cont: K) extends ServiceConfigF[K]
 
   final case class WithNotes[K](value: String, cont: K) extends ServiceConfigF[K]
@@ -76,7 +73,6 @@ private object ServiceConfigF {
       case WithHealthCheckSpan(v, c)     => ServiceParams.healthCheck.composeLens(NJHealthCheck.span).set(v)(c)
       case WithRetryPolicy(v, c)         => ServiceParams.retryPolicy.set(v)(c)
       case WithStartUpDelay(v, c)        => ServiceParams.startUpEventDelay.set(v)(c)
-      case WithNormalStop(v, c)          => ServiceParams.isNormalStop.set(v)(c)
       case WithMaxCauseSize(v, c)        => ServiceParams.maxCauseSize.set(v)(c)
       case WithNotes(v, c)               => ServiceParams.notes.set(v)(c)
     }
@@ -85,32 +81,26 @@ private object ServiceConfigF {
 final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   import ServiceConfigF._
 
-  def withHealthCheckInterval(interval: FiniteDuration): ServiceConfig =
+  def health_check_interval(interval: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithHealthCheckInterval(interval, value)))
 
-  def withHealthCheckOpenTime(openTime: LocalTime): ServiceConfig =
+  def health_check_open_time(openTime: LocalTime): ServiceConfig =
     ServiceConfig(Fix(WithHealthCheckOpenTime(openTime, value)))
 
-  def withHealthCheckSpan(duration: FiniteDuration): ServiceConfig =
+  def health_check_span(duration: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithHealthCheckSpan(duration, value)))
 
-  def withStartUpDelay(delay: FiniteDuration): ServiceConfig =
-    ServiceConfig(Fix(WithStartUpDelay(delay, value)))
+  def startup_delay(delay: FiniteDuration): ServiceConfig = ServiceConfig(Fix(WithStartUpDelay(delay, value)))
+  def startup_notes(notes: String): ServiceConfig         = ServiceConfig(Fix(WithNotes(notes, value)))
 
-  def withConstantDelay(delay: FiniteDuration): ServiceConfig =
+  def constant_delay(delay: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(ConstantDelay(delay), value)))
 
-  def withJitter(maxDelay: FiniteDuration): ServiceConfig =
-    ServiceConfig(Fix(WithRetryPolicy(Jitter(maxDelay), value)))
+  def jitter_backoff(maxDelay: FiniteDuration): ServiceConfig =
+    ServiceConfig(Fix(WithRetryPolicy(JitterBackoff(maxDelay), value)))
 
-  def withNormalStop: ServiceConfig =
-    ServiceConfig(Fix(WithNormalStop(value = true, value)))
-
-  def withMaxCauseSize(size: Int): ServiceConfig =
+  def maximum_cause_size(size: Int): ServiceConfig =
     ServiceConfig(Fix(WithMaxCauseSize(size, value)))
-
-  def withNotes(notes: String): ServiceConfig =
-    ServiceConfig(Fix(WithNotes(notes, value)))
 
   def evalConfig: ServiceParams = scheme.cata(algebra).apply(value)
 }

@@ -34,11 +34,11 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   override def updateConfig(f: SKConfig => SKConfig): SparKafkaTopic[F, K, V] =
     new SparKafkaTopic[F, K, V](topic, f(cfg), ss)
 
-  def withStartTime(str: String): SparKafkaTopic[F, K, V]                 = updateConfig(_.withStartTime(str))
-  def withEndTime(str: String): SparKafkaTopic[F, K, V]                   = updateConfig(_.withEndTime(str))
-  def withOneDay(ld: LocalDate): SparKafkaTopic[F, K, V]                  = updateConfig(_.withOneDay(ld))
-  def withTimeRange(tr: NJDateTimeRange): SparKafkaTopic[F, K, V]         = updateConfig(_.withTimeRange(tr))
-  def withLocationStrategy(ls: LocationStrategy): SparKafkaTopic[F, K, V] = updateConfig(_.withLocationStrategy(ls))
+  def withStartTime(str: String): SparKafkaTopic[F, K, V]                 = updateConfig(_.start_time(str))
+  def withEndTime(str: String): SparKafkaTopic[F, K, V]                   = updateConfig(_.end_time(str))
+  def withOneDay(ld: LocalDate): SparKafkaTopic[F, K, V]                  = updateConfig(_.time_range_one_day(ld))
+  def withTimeRange(tr: NJDateTimeRange): SparKafkaTopic[F, K, V]         = updateConfig(_.time_range(tr))
+  def withLocationStrategy(ls: LocationStrategy): SparKafkaTopic[F, K, V] = updateConfig(_.location_strategy(ls))
 
   val params: SKParams = cfg.evalConfig
 
@@ -100,7 +100,7 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   def sstream[A](f: NJConsumerRecord[K, V] => A, ate: AvroTypedEncoder[A])(implicit sync: Sync[F]): SparkSStream[F, A] =
     new SparkSStream[F, A](
       sk.kafkaSStream[F, K, V, A](topic, ate, ss)(f),
-      SStreamConfig(params.timeRange).withCheckpointBuilder(fmt =>
+      SStreamConfig(params.timeRange).check_point_builder(fmt =>
         s"./data/checkpoint/sstream/kafka/${topic.topicName.value}/${fmt.format}/"))
 
   def sstream(implicit

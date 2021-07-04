@@ -21,15 +21,14 @@ class HealthCheckTest extends AnyFunSuite {
   val guard = TaskGuard[IO]("health-check")
   test("should receive 3 health check event") {
     val a :: b :: c :: d :: rest = guard
-      .updateConfig(_.withZoneId(ZoneId.of("Australia/Sydney")).withDailySummaryReset(1))
+      .updateConfig(_.zone_id(ZoneId.of("Australia/Sydney")).daily_summary_reset(1))
       .service("normal")
       .updateConfig(
-        _.withHealthCheckInterval(1.second)
-          .withStartUpDelay(1.second)
-          .withHealthCheckOpenTime(LocalTime.of(7, 0))
-          .withHealthCheckSpan(10.hour)
-          .withNormalStop)
-      .eventStream(gd => gd.updateConfig(_.withExponentialBackoff(1.second)).quietly(IO.never[Int]))
+        _.health_check_interval(1.second)
+          .startup_delay(1.second)
+          .health_check_open_time(LocalTime.of(7, 0))
+          .health_check_span(10.hour))
+      .eventStream(gd => gd.updateConfig(_.exponential_backoff(1.second)).quietly(IO.never[Int]))
       .interruptAfter(5.second)
       .compile
       .toList
@@ -43,7 +42,7 @@ class HealthCheckTest extends AnyFunSuite {
   test("success") {
     val a :: b :: c :: d :: e :: ServiceHealthCheck(_, _, _, ds, _, _) :: rest = guard
       .service("success-test")
-      .updateConfig(_.withHealthCheckInterval(1.second).withStartUpDelay(1.second))
+      .updateConfig(_.health_check_interval(1.second).startup_delay(1.second))
       .eventStream(gd => gd.run(IO(1)) >> gd.loudly(IO.never))
       .interruptAfter(5.second)
       .compile
@@ -63,7 +62,7 @@ class HealthCheckTest extends AnyFunSuite {
   test("retry") {
     val a :: b :: c :: d :: ServiceHealthCheck(_, _, _, ds, _, _) :: rest = guard
       .service("failure-test")
-      .updateConfig(_.withHealthCheckInterval(1.second).withStartUpDelay(1.second).withConstantDelay(1.hour))
+      .updateConfig(_.health_check_interval(1.second).startup_delay(1.second).constant_delay(1.hour))
       .eventStream(gd => gd("always-failure").max(1).run(IO.raiseError(new Exception)) >> gd.run(IO.never))
       .debug()
       .interruptAfter(5.second)

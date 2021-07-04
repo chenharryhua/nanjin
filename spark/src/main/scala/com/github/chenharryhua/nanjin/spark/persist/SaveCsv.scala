@@ -31,13 +31,13 @@ final class SaveSingleCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfigur
   private def updateConfig(cfg: HoarderConfig): SaveSingleCsv[F, A] =
     new SaveSingleCsv[F, A](ds, csvConfiguration, cfg)
 
-  def overwrite: SaveSingleCsv[F, A]      = updateConfig(cfg.withOverwrite)
-  def errorIfExists: SaveSingleCsv[F, A]  = updateConfig(cfg.withError)
-  def ignoreIfExists: SaveSingleCsv[F, A] = updateConfig(cfg.withIgnore)
+  def overwrite: SaveSingleCsv[F, A]      = updateConfig(cfg.overwrite_mode)
+  def errorIfExists: SaveSingleCsv[F, A]  = updateConfig(cfg.error_mode)
+  def ignoreIfExists: SaveSingleCsv[F, A] = updateConfig(cfg.ignore_mode)
 
-  def gzip: SaveSingleCsv[F, A]                = updateConfig(cfg.withCompression(Compression.Gzip))
-  def deflate(level: Int): SaveSingleCsv[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(level)))
-  def uncompress: SaveSingleCsv[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
+  def gzip: SaveSingleCsv[F, A]                = updateConfig(cfg.output_compression(Compression.Gzip))
+  def deflate(level: Int): SaveSingleCsv[F, A] = updateConfig(cfg.output_compression(Compression.Deflate(level)))
+  def uncompress: SaveSingleCsv[F, A]          = updateConfig(cfg.output_compression(Compression.Uncompressed))
 
   def stream(implicit F: Async[F], rowEncoder: RowEncoder[A]): Stream[F, Unit] = {
     val hc: Configuration     = ds.sparkSession.sparkContext.hadoopConfiguration
@@ -59,15 +59,15 @@ final class SaveMultiCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfigura
   private def updateConfig(cfg: HoarderConfig): SaveMultiCsv[F, A] =
     new SaveMultiCsv[F, A](ds, csvConfiguration, cfg)
 
-  def append: SaveMultiCsv[F, A]         = updateConfig(cfg.withAppend)
-  def overwrite: SaveMultiCsv[F, A]      = updateConfig(cfg.withOverwrite)
-  def errorIfExists: SaveMultiCsv[F, A]  = updateConfig(cfg.withError)
-  def ignoreIfExists: SaveMultiCsv[F, A] = updateConfig(cfg.withIgnore)
+  def append: SaveMultiCsv[F, A]         = updateConfig(cfg.append_mode)
+  def overwrite: SaveMultiCsv[F, A]      = updateConfig(cfg.overwrite_mode)
+  def errorIfExists: SaveMultiCsv[F, A]  = updateConfig(cfg.error_mode)
+  def ignoreIfExists: SaveMultiCsv[F, A] = updateConfig(cfg.ignore_mode)
 
-  def bzip2: SaveMultiCsv[F, A]               = updateConfig(cfg.withCompression(Compression.Bzip2))
-  def gzip: SaveMultiCsv[F, A]                = updateConfig(cfg.withCompression(Compression.Gzip))
-  def deflate(level: Int): SaveMultiCsv[F, A] = updateConfig(cfg.withCompression(Compression.Deflate(level)))
-  def uncompress: SaveMultiCsv[F, A]          = updateConfig(cfg.withCompression(Compression.Uncompressed))
+  def bzip2: SaveMultiCsv[F, A]               = updateConfig(cfg.output_compression(Compression.Bzip2))
+  def gzip: SaveMultiCsv[F, A]                = updateConfig(cfg.output_compression(Compression.Gzip))
+  def deflate(level: Int): SaveMultiCsv[F, A] = updateConfig(cfg.output_compression(Compression.Deflate(level)))
+  def uncompress: SaveMultiCsv[F, A]          = updateConfig(cfg.output_compression(Compression.Uncompressed))
 
   def run(implicit F: Async[F], rowEncoder: RowEncoder[A]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, ds.sparkSession.sparkContext.hadoopConfiguration)

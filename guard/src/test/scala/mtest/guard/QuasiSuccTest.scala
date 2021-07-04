@@ -51,7 +51,7 @@ class QuasiSuccTest extends AnyFunSuite {
     val Vector(a, b, c) = guard
       .eventStream(action =>
         action("all-fail")
-          .updateConfig(_.withSuccAlertOn.withFailAlertOff)
+          .updateConfig(_.slack_succ_on.slack_fail_off)
           .quasi(Chunk(0, 0, 0))(f)
           .withFailNotes(_ => "failure")
           .seqRun)
@@ -105,7 +105,7 @@ class QuasiSuccTest extends AnyFunSuite {
     assert(c.isInstanceOf[ServiceStopped])
   }
 
-  test("parallel") {
+  test("parallel - par") {
     def f(a: Int): IO[Int] = IO.sleep(1.second) >> IO(100 / a)
     val Vector(a, b, c) =
       guard
@@ -119,6 +119,23 @@ class QuasiSuccTest extends AnyFunSuite {
     assert(succ.numSucc == 3)
     assert(succ.errors.size == 3)
     assert(JavaDuration.between(succ.actionInfo.launchTime, succ.timestamp).abs.getSeconds < 2)
+    assert(c.isInstanceOf[ServiceStopped])
+  }
+
+  test("parallel - parN") {
+    def f(a: Int): IO[Int] = IO.sleep(1.second) >> IO(100 / a)
+    val Vector(a, b, c) =
+      guard
+        .eventStream(action => action("parallel").quasi(Vector(0, 0, 0, 1, 1, 1))(f).parRunN(3))
+        .observe(_.evalMap(logging.alert).drain)
+        .compile
+        .toVector
+        .unsafeRunSync()
+    assert(a.isInstanceOf[ActionStart])
+    val succ = b.asInstanceOf[ActionQuasiSucced]
+    assert(succ.numSucc == 3)
+    assert(succ.errors.size == 3)
+    assert(JavaDuration.between(succ.actionInfo.launchTime, succ.timestamp).abs.getSeconds < 3)
     assert(c.isInstanceOf[ServiceStopped])
   }
 
@@ -175,7 +192,7 @@ class QuasiSuccTest extends AnyFunSuite {
     val Vector(a, b, c, d, e, f, g, h, i, j, k, l) =
       guard.eventStream { action =>
         val a1 = action("compute1").run(IO(1))
-        val a2 = action("exception").updateConfig(_.withConstantDelay(1.second)).run(IO.raiseError[Int](new Exception))
+        val a2 = action("exception").updateConfig(_.constant_delay(1.second)).run(IO.raiseError[Int](new Exception))
         val a3 = action("compute2").run(IO(2))
         action("quasi")
           .quasi(a1, a2, a3)
@@ -202,13 +219,13 @@ class QuasiSuccTest extends AnyFunSuite {
     val Vector(a, b, c, d, e, f, g, h, i, j, k, l) =
       guard.eventStream { action =>
         val a1 = action("compute1").run(IO.sleep(5.seconds) >> IO(1))
-        val a2 = action("exception").updateConfig(_.withConstantDelay(1.second)).run(IO.raiseError[Int](new Exception))
+        val a2 = action("exception").updateConfig(_.constant_delay(1.second)).run(IO.raiseError[Int](new Exception))
         val a3 = action("compute2").run(IO.sleep(5.seconds) >> IO(2))
         action("quasi")
           .quasi(a1, a2, a3)
           .withSuccNotes(_.map(_.toString).mkString)
           .withFailNotes(_.map(_.message).mkString)
-          .parRun
+          .parRunN(3)
       }.observe(_.evalMap(logging.alert).drain).compile.toVector.unsafeRunSync()
 
     assert(a.isInstanceOf[ActionStart])

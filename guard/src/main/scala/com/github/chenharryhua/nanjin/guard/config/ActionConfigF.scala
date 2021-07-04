@@ -13,7 +13,7 @@ import scala.concurrent.duration._
 import scala.util.Random
 
 sealed abstract class NJRetryPolicy {
-  private def jitter[F[_]: Applicative](maxDelay: FiniteDuration): RetryPolicy[F] =
+  private def jitterBackoff[F[_]: Applicative](maxDelay: FiniteDuration): RetryPolicy[F] =
     RetryPolicy.liftWithShow(
       { _ =>
         val delay = Random.nextInt(maxDelay.toMillis.toInt).toLong
@@ -28,7 +28,7 @@ sealed abstract class NJRetryPolicy {
     case FibonacciBackoff(value)   => RetryPolicies.fibonacciBackoff(value)
     case FullJitter(value)         => RetryPolicies.fullJitter(value)
     // https://cb372.github.io/cats-retry/docs/policies.html#writing-your-own-policy
-    case Jitter(value) => jitter[F](value)
+    case JitterBackoff(value) => jitterBackoff[F](value)
   }
   def value: FiniteDuration
 }
@@ -41,7 +41,7 @@ final case class ConstantDelay(value: FiniteDuration) extends NJRetryPolicy
 final case class ExponentialBackoff(value: FiniteDuration) extends NJRetryPolicy
 final case class FibonacciBackoff(value: FiniteDuration) extends NJRetryPolicy
 final case class FullJitter(value: FiniteDuration) extends NJRetryPolicy
-final case class Jitter(value: FiniteDuration) extends NJRetryPolicy
+final case class JitterBackoff(value: FiniteDuration) extends NJRetryPolicy
 
 @Lenses final case class SlackAlertMask private (
   alertSucc: Boolean,
@@ -55,7 +55,8 @@ final case class Jitter(value: FiniteDuration) extends NJRetryPolicy
   serviceParams: ServiceParams,
   alertMask: SlackAlertMask, // whether display succNotes and failNotes
   maxRetries: Int,
-  retryPolicy: NJRetryPolicy
+  retryPolicy: NJRetryPolicy,
+  shouldTerminate: Boolean
 )
 
 object ActionParams {
@@ -70,7 +71,8 @@ object ActionParams {
       alertFYI = true,
       alertStart = false),
     maxRetries = 3,
-    retryPolicy = ConstantDelay(10.seconds)
+    retryPolicy = ConstantDelay(10.seconds),
+    shouldTerminate = true
   )
 }
 
@@ -91,6 +93,8 @@ private object ActionConfigF {
   final case class WithAlertMaskFYI[K](value: Boolean, cont: K) extends ActionConfigF[K]
   final case class WithAlertMaskStart[K](value: Boolean, cont: K) extends ActionConfigF[K]
 
+  final case class WithTerminate[K](value: Boolean, cont: K) extends ActionConfigF[K]
+
   val algebra: Algebra[ActionConfigF, ActionParams] =
     Algebra[ActionConfigF, ActionParams] {
       case InitParams(v)                 => ActionParams(v)
@@ -102,48 +106,52 @@ private object ActionConfigF {
       case WithAlertMaskFirstRetry(v, c) => ActionParams.alertMask.composeLens(SlackAlertMask.alertFirstRetry).set(v)(c)
       case WithAlertMaskFYI(v, c)        => ActionParams.alertMask.composeLens(SlackAlertMask.alertFYI).set(v)(c)
       case WithAlertMaskStart(v, c)      => ActionParams.alertMask.composeLens(SlackAlertMask.alertStart).set(v)(c)
+      case WithTerminate(v, c)           => ActionParams.shouldTerminate.set(v)(c)
     }
 }
 
 final case class ActionConfig private (value: Fix[ActionConfigF]) {
   import ActionConfigF._
 
-  def withSuccAlert(v: Boolean): ActionConfig      = ActionConfig(Fix(WithAlertMaskSucc(value = v, value)))
-  def withSuccAlertOn: ActionConfig                = withSuccAlert(true)
-  def withSuccAlertOff: ActionConfig               = withSuccAlert(false)
-  def withFailAlert(v: Boolean): ActionConfig      = ActionConfig(Fix(WithAlertMaskFail(value = v, value)))
-  def withFailAlertOn: ActionConfig                = withFailAlert(true)
-  def withFailAlertOff: ActionConfig               = withFailAlert(false)
-  def withRetryAlert(v: Boolean): ActionConfig     = ActionConfig(Fix(WithAlertMaskRetry(value = v, value)))
-  def withRetryAlertOn: ActionConfig               = withRetryAlert(true)
-  def withRetryAlertOff: ActionConfig              = withRetryAlert(false)
-  def withFirstFailAlert(v: Boolean): ActionConfig = ActionConfig(Fix(WithAlertMaskFirstRetry(value = v, value)))
-  def withFirstFailAlertOn: ActionConfig           = withFirstFailAlert(true)
-  def withFirstFailAlertOff: ActionConfig          = withFirstFailAlert(false)
-  def withFYIAlert(v: Boolean): ActionConfig       = ActionConfig(Fix(WithAlertMaskFYI(value = v, value)))
-  def withFYIAlertOn: ActionConfig                 = withFYIAlert(true)
-  def withFYIAlertOff: ActionConfig                = withFYIAlert(false)
-  def withStartAlert(v: Boolean): ActionConfig     = ActionConfig(Fix(WithAlertMaskStart(value = v, value)))
-  def withStartAlertOn: ActionConfig               = withStartAlert(true)
-  def withStartAlertOff: ActionConfig              = withStartAlert(false)
-  def withAllAlertOn: ActionConfig =
-    withSuccAlertOn.withFailAlertOn.withRetryAlertOn.withFirstFailAlertOn.withFYIAlertOn.withStartAlertOn
-  def withAllAlertOff: ActionConfig =
-    withSuccAlertOff.withFailAlertOff.withRetryAlertOff.withFirstFailAlertOff.withFYIAlertOff.withStartAlertOff
+  def slack_succ(v: Boolean): ActionConfig       = ActionConfig(Fix(WithAlertMaskSucc(value = v, value)))
+  def slack_succ_on: ActionConfig                = slack_succ(true)
+  def slack_succ_off: ActionConfig               = slack_succ(false)
+  def slack_fail(v: Boolean): ActionConfig       = ActionConfig(Fix(WithAlertMaskFail(value = v, value)))
+  def slack_fail_on: ActionConfig                = slack_fail(true)
+  def slack_fail_off: ActionConfig               = slack_fail(false)
+  def slack_retry(v: Boolean): ActionConfig      = ActionConfig(Fix(WithAlertMaskRetry(value = v, value)))
+  def slack_retry_on: ActionConfig               = slack_retry(true)
+  def slack_retry_off: ActionConfig              = slack_retry(false)
+  def slack_first_fail(v: Boolean): ActionConfig = ActionConfig(Fix(WithAlertMaskFirstRetry(value = v, value)))
+  def slack_first_fail_on: ActionConfig          = slack_first_fail(true)
+  def slack_first_fail_off: ActionConfig         = slack_first_fail(false)
+  def slack_fyi(v: Boolean): ActionConfig        = ActionConfig(Fix(WithAlertMaskFYI(value = v, value)))
+  def slack_fyi_on: ActionConfig                 = slack_fyi(true)
+  def slack_fyi_off: ActionConfig                = slack_fyi(false)
+  def slack_start(v: Boolean): ActionConfig      = ActionConfig(Fix(WithAlertMaskStart(value = v, value)))
+  def slack_start_on: ActionConfig               = slack_start(true)
+  def slack_start_off: ActionConfig              = slack_start(false)
+  def slack_all: ActionConfig =
+    slack_succ_on.slack_fail_on.slack_retry_on.slack_first_fail_on.slack_fyi_on.slack_start_on
+  def slack_none: ActionConfig =
+    slack_succ_off.slack_fail_off.slack_retry_off.slack_first_fail_off.slack_fyi_off.slack_start_off
 
-  def withMaxRetries(num: Int): ActionConfig = ActionConfig(Fix(WithMaxRetries(num, value)))
+  def max_retries(num: Int): ActionConfig = ActionConfig(Fix(WithMaxRetries(num, value)))
 
-  def withConstantDelay(delay: FiniteDuration): ActionConfig =
+  def constant_delay(delay: FiniteDuration): ActionConfig =
     ActionConfig(Fix(WithRetryPolicy(ConstantDelay(delay), value)))
 
-  def withExponentialBackoff(delay: FiniteDuration): ActionConfig =
+  def exponential_backoff(delay: FiniteDuration): ActionConfig =
     ActionConfig(Fix(WithRetryPolicy(ExponentialBackoff(delay), value)))
 
-  def withFibonacciBackoff(delay: FiniteDuration): ActionConfig =
+  def fibonacci_backoff(delay: FiniteDuration): ActionConfig =
     ActionConfig(Fix(WithRetryPolicy(FibonacciBackoff(delay), value)))
 
-  def withFullJitter(delay: FiniteDuration): ActionConfig =
+  def full_jitter_backoff(delay: FiniteDuration): ActionConfig =
     ActionConfig(Fix(WithRetryPolicy(FullJitter(delay), value)))
+
+  def non_terminating: ActionConfig =
+    ActionConfig(Fix(WithTerminate(value = false, value)))
 
   def evalConfig: ActionParams = scheme.cata(algebra).apply(value)
 }
