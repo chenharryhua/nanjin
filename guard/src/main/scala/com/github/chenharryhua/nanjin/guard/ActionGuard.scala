@@ -66,10 +66,23 @@ final class ActionGuard[F[_]](
       postCondition = Reader(_ => true))
 
   def fyi(msg: String)(implicit F: Temporal[F]): F[Unit] =
-    realZonedDateTime(params.serviceParams).flatMap(ts => channel.send(ForYourInformation(ts, params, msg))).void
+    realZonedDateTime(params.serviceParams)
+      .flatMap(ts =>
+        channel.send(ForYourInformation(timestamp = ts, actionParams = params, message = msg, isError = false)))
+      .void
 
   def unsafeFYI(msg: String)(implicit F: Temporal[F]): Unit =
     dispatcher.unsafeRunSync(fyi(msg))
+
+  def reportError(msg: String)(implicit F: Temporal[F]): F[Unit] =
+    for {
+      ts <- realZonedDateTime(params.serviceParams)
+      _ <- dailySummaries.update(_.incErrorReport)
+      _ <- channel.send(ForYourInformation(timestamp = ts, actionParams = params, message = msg, isError = true))
+    } yield ()
+
+  def unsafeReportError(msg: String)(implicit F: Temporal[F]): Unit =
+    dispatcher.unsafeRunSync(reportError(msg))
 
   def passThrough[A: Encoder](a: A)(implicit F: Temporal[F]): F[Unit] =
     realZonedDateTime(params.serviceParams).flatMap(ts => channel.send(PassThrough(ts, a.asJson))).void

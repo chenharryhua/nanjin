@@ -80,10 +80,11 @@ class HealthCheckTest extends AnyFunSuite {
   }
 
   test("reset") {
-    val ds = DailySummaries(1, 2, 3, 4).reset
+    val ds = DailySummaries(1, 2, 3, 4, 5).reset
     assert(ds.actionFail == 0)
     assert(ds.actionSucc == 0)
     assert(ds.actionRetries == 0)
     assert(ds.servicePanic == 0)
+    assert(ds.errorReport == 0)
   }
 }
