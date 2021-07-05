@@ -28,13 +28,13 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ServiceStopped,
   SlackService
 }
+import eu.timepit.refined.auto._
 import io.circe.parser.decode
 import io.circe.syntax._
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
-
 class ServiceTest extends AnyFunSuite {
   val slack = SlackService[IO](SnsArn("arn:aws:sns:ap-southeast-2:123456789012:abc-123xyz"))
 
@@ -49,7 +49,9 @@ class ServiceTest extends AnyFunSuite {
         .slack_fail_color("danger")
         .slack_succ_color("good")
         .slack_info_color("good")
-        .host_name(HostName.local_host))
+        .host_name(HostName.local_host)
+        .daily_summary_reset_disabled
+        .daily_summary_reset_hour(1))
     .service("service")
     .updateConfig(
       _.health_check_interval(3.hours).constant_delay(1.seconds).maximum_cause_size(100).startup_notes("ok"))

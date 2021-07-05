@@ -135,7 +135,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               )
             ))
         ).asJson.noSpaces
-      service.publish(msg).void
+      service.publish(msg).whenA(params.taskParams.dailySummaryReset.enabled)
 
     case ActionStart(at, action, params) =>
       val msg =

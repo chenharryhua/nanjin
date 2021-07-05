@@ -13,11 +13,12 @@ import monocle.macros.Lenses
 import java.time.ZoneId
 
 @Lenses final case class SlackColor(succ: String, fail: String, warn: String, info: String)
+@Lenses final case class DailySummaryReset(hour: Int, enabled: Boolean) // 0 - 23,
 
 @Lenses final case class TaskParams private (
   appName: String,
   zoneId: ZoneId,
-  dailySummaryReset: Int, // 0 - 23,
+  dailySummaryReset: DailySummaryReset,
   color: SlackColor,
   hostName: String
 )
@@ -27,7 +28,7 @@ object TaskParams {
   def apply(appName: String, hostName: HostName): TaskParams = TaskParams(
     appName = appName,
     zoneId = ZoneId.systemDefault(),
-    dailySummaryReset = 0, // midnight
+    dailySummaryReset = DailySummaryReset(hour = 0, enabled = true), // midnight
     color = SlackColor(succ = "good", fail = "danger", warn = "#ffd699", info = "#b3d1ff"),
     hostName = hostName.name
   )
@@ -41,7 +42,9 @@ private object TaskConfigF {
   final case class InitParams[K](applicationName: String, hostName: HostName) extends TaskConfigF[K]
 
   final case class WithZoneId[K](value: ZoneId, cont: K) extends TaskConfigF[K]
-  final case class WithDailySummaryReset[K](value: Int, cont: K) extends TaskConfigF[K]
+
+  final case class WithDSRHour[K](value: Int, cont: K) extends TaskConfigF[K]
+  final case class WithDSREnable[K](value: Boolean, cont: K) extends TaskConfigF[K]
 
   final case class WithSlackSuccColor[K](value: String, cont: K) extends TaskConfigF[K]
   final case class WithSlackFailColor[K](value: String, cont: K) extends TaskConfigF[K]
@@ -54,12 +57,13 @@ private object TaskConfigF {
     Algebra[TaskConfigF, TaskParams] {
       case InitParams(appName, hostName) => TaskParams(appName, hostName)
       case WithZoneId(v, c)              => TaskParams.zoneId.set(v)(c)
-      case WithDailySummaryReset(v, c)   => TaskParams.dailySummaryReset.set(v)(c)
-      case WithSlackSuccColor(v, c)      => TaskParams.color.composeLens(SlackColor.succ).set(v)(c)
-      case WithSlackFailColor(v, c)      => TaskParams.color.composeLens(SlackColor.fail).set(v)(c)
-      case WithSlackWarnColor(v, c)      => TaskParams.color.composeLens(SlackColor.warn).set(v)(c)
-      case WithSlackInfoColor(v, c)      => TaskParams.color.composeLens(SlackColor.info).set(v)(c)
-      case WithHostName(v, c)            => TaskParams.hostName.set(v.name)(c)
+      case WithDSRHour(v, c)             => TaskParams.dailySummaryReset.composeLens(DailySummaryReset.hour).set(v)(c)
+      case WithDSREnable(v, c)      => TaskParams.dailySummaryReset.composeLens(DailySummaryReset.enabled).set(v)(c)
+      case WithSlackSuccColor(v, c) => TaskParams.color.composeLens(SlackColor.succ).set(v)(c)
+      case WithSlackFailColor(v, c) => TaskParams.color.composeLens(SlackColor.fail).set(v)(c)
+      case WithSlackWarnColor(v, c) => TaskParams.color.composeLens(SlackColor.warn).set(v)(c)
+      case WithSlackInfoColor(v, c) => TaskParams.color.composeLens(SlackColor.info).set(v)(c)
+      case WithHostName(v, c)       => TaskParams.hostName.set(v.name)(c)
     }
 }
 
@@ -68,8 +72,11 @@ final case class TaskConfig private (value: Fix[TaskConfigF]) {
 
   def zone_id(zoneId: ZoneId): TaskConfig = TaskConfig(Fix(WithZoneId(zoneId, value)))
 
-  def daily_summary_reset(hour: Refined[Int, And[GreaterEqual[W.`0`.T], LessEqual[W.`23`.T]]]): TaskConfig =
-    TaskConfig(Fix(WithDailySummaryReset(hour.value, value)))
+  def daily_summary_reset_hour(hour: Refined[Int, And[GreaterEqual[W.`0`.T], LessEqual[W.`23`.T]]]): TaskConfig =
+    TaskConfig(Fix(WithDSRHour(hour.value, value)))
+
+  def daily_summary_reset_disabled: TaskConfig =
+    TaskConfig(Fix(WithDSREnable(value = false, value)))
 
   def slack_succ_color(v: String): TaskConfig = TaskConfig(Fix(WithSlackSuccColor(v, value)))
   def slack_fail_color(v: String): TaskConfig = TaskConfig(Fix(WithSlackFailColor(v, value)))
