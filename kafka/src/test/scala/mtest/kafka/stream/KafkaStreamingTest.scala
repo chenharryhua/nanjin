@@ -6,7 +6,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.kafka.{KafkaStreamException, KafkaTopic}
 import fs2.Stream
-import fs2.kafka.{ProducerRecord, ProducerRecords, ProducerResult, commitBatchWithin}
+import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords, ProducerResult}
 import mtest.kafka._
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.ImplicitConversions._
@@ -83,7 +83,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       harvest
         .concurrently(sendS1Data)
         .concurrently(ctx.buildStreams(top).stateStream.debug().delayBy(2.seconds))
-        .interruptAfter(10.seconds)
+        .interruptAfter(15.seconds)
         .compile
         .toList
         .unsafeRunSync()

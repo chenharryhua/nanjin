@@ -1,5 +1,5 @@
 syntax = "proto3";
-package mtest.pb;
+package mtest.messages.pb;
 
 message MessagePerson {
   string name = 1;

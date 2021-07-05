@@ -63,9 +63,9 @@ class TransformerTest extends AnyFunSuite {
     val t2Data = Stream(
       ProducerRecords(
         List(
-          ProducerRecord(topic2.topicName.value, 0, "t0"),
-          ProducerRecord(topic2.topicName.value, 1, "t1"),
-          ProducerRecord(topic2.topicName.value, 2, "t2")))).covary[IO].through(topic2.fs2Channel.producerPipe)
+          ProducerRecord(topic2.topicName.value, 2, "t0"),
+          ProducerRecord(topic2.topicName.value, 4, "t1"),
+          ProducerRecord(topic2.topicName.value, 6, "t2")))).covary[IO].through(topic2.fs2Channel.producerPipe)
 
     val s1Data =
       Stream
@@ -77,20 +77,18 @@ class TransformerTest extends AnyFunSuite {
         .through(topic1.fs2Channel.producerPipe)
     val havest = tgt.fs2Channel.stream
       .map(tgt.decoder(_).decode)
+      .debug()
       .observe(_.map(_.offset).through(commitBatchWithin(10, 2.seconds)).drain)
 
-    val runStream =
-      kafkaStreamService.stateStream.handleErrorWith(_ =>
-        Stream.sleep[IO](2.seconds) ++ ctx.buildStreams(top).stateStream)
     val res =
-      (runStream
-        .flatMap(_ => havest)
+      (havest
+        .concurrently(kafkaStreamService.stateStream)
         .concurrently(t2Data)
         .concurrently(s1Data)
         .interruptAfter(15.seconds)
         .compile
         .toList)
         .unsafeRunSync()
-    assert(res.map(_.record.key).toSet == Set(0, 1, 2))
+    assert(res.map(_.record.key).toSet == Set(2, 4, 6))
   }
 }
