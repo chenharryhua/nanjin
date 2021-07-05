@@ -21,7 +21,7 @@ class HealthCheckTest extends AnyFunSuite {
   val guard = TaskGuard[IO]("health-check")
   test("should receive 3 health check event") {
     val a :: b :: c :: d :: rest = guard
-      .updateConfig(_.zone_id(ZoneId.of("Australia/Sydney")).daily_summary_reset(1))
+      .updateConfig(_.zone_id(ZoneId.of("Australia/Sydney")).daily_summary_reset_hour(1))
       .service("normal")
       .updateConfig(
         _.health_check_interval(1.second)
@@ -80,10 +80,11 @@ class HealthCheckTest extends AnyFunSuite {
   }
 
   test("reset") {
-    val ds = DailySummaries(1, 2, 3, 4).reset
+    val ds = DailySummaries(1, 2, 3, 4, 5).reset
     assert(ds.actionFail == 0)
     assert(ds.actionSucc == 0)
     assert(ds.actionRetries == 0)
     assert(ds.servicePanic == 0)
+    assert(ds.errorReport == 0)
   }
 }

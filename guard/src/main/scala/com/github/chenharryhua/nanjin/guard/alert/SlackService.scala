@@ -117,6 +117,24 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       service.publish(msg).whenA(ltr.isInBetween(at))
 
     case ServiceDailySummariesReset(at, _, params, summaries) =>
+      val succ =
+        if (summaries.actionSucc > 0)
+          Some(SlackField("Number of Succed Actions", summaries.actionSucc.show, short = true))
+        else None
+      val fail =
+        if (summaries.actionFail > 0)
+          Some(SlackField("Number of Failed Actions", summaries.actionFail.show, short = true))
+        else None
+      val retries =
+        if (summaries.actionRetries > 0)
+          Some(SlackField("Number of Action Retries", summaries.actionRetries.show, short = true))
+        else None
+
+      val errorReport =
+        if (summaries.errorReport > 0)
+          Some(SlackField("Number of Error Reports", summaries.errorReport.show, short = true))
+        else None
+
       val msg =
         SlackNotification(
           params.taskParams.appName,
@@ -128,14 +146,11 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               List(
                 SlackField("Service", params.serviceName, short = true),
                 SlackField("Host", params.taskParams.hostName, short = true),
-                SlackField("Number of Service Panics", summaries.servicePanic.show, short = true),
-                SlackField("Number of Succed Actions", summaries.actionSucc.show, short = true),
-                SlackField("Number of Failed Actions", summaries.actionFail.show, short = true),
-                SlackField("Number of Action Retries", summaries.actionRetries.show, short = true)
-              )
+                SlackField("Number of Service Panics", summaries.servicePanic.show, short = true)
+              ) ++ List(succ, fail, retries, errorReport).flatten
             ))
         ).asJson.noSpaces
-      service.publish(msg).void
+      service.publish(msg).whenA(params.taskParams.dailySummaryReset.enabled)
 
     case ActionStart(at, action, params) =>
       val msg =
@@ -286,7 +301,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
         .publish(msg.asJson.noSpaces)
         .whenA((params.alertMask.alertSucc && errors.isEmpty) || (params.alertMask.alertFail && errors.nonEmpty))
 
-    case ForYourInformation(_, params, message) => service.publish(message).whenA(params.alertMask.alertFYI)
+    case ForYourInformation(_, params, message, _) => service.publish(message).whenA(params.alertMask.alertFYI)
 
     // no op
     case _: PassThrough => F.unit

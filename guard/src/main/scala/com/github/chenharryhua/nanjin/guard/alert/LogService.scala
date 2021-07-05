@@ -13,16 +13,22 @@ final private class LogService[F[_]]()(implicit F: Sync[F]) extends AlertService
       case _: ServiceHealthCheck         => F.blocking(logger.info(event.show))
       case _: ServiceDailySummariesReset => F.blocking(logger.info(event.show))
       case _: ActionSucced               => F.blocking(logger.info(event.show))
-      case _: ForYourInformation         => F.blocking(logger.info(event.show))
-      case _: PassThrough                => F.blocking(logger.info(event.show))
-      case _: ActionQuasiSucced          => F.blocking(logger.info(event.show))
-      case _: ActionStart                => F.blocking(logger.info(event.show))
-      case _: ServiceStopped             => F.blocking(logger.info(event.show))
+
+      case _: PassThrough       => F.blocking(logger.info(event.show))
+      case _: ActionQuasiSucced => F.blocking(logger.info(event.show))
+      case _: ActionStart       => F.blocking(logger.info(event.show))
+      case _: ServiceStopped    => F.blocking(logger.info(event.show))
 
       case ServicePanic(_, _, _, _, error)   => F.blocking(logger.warn(error.throwable)(event.show))
       case ActionRetrying(_, _, _, _, error) => F.blocking(logger.warn(error.throwable)(event.show))
 
       case ActionFailed(_, _, _, _, _, error) => F.blocking(logger.error(error.throwable)(event.show))
+
+      case ForYourInformation(_, params, _, isError) =>
+        if (isError)
+          F.blocking(logger.error(new Exception(s"${params.serviceParams.serviceName} reports an error"))(event.show))
+        else
+          F.blocking(logger.info(event.show))
     }
 }
 

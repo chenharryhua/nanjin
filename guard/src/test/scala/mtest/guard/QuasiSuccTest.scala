@@ -126,7 +126,7 @@ class QuasiSuccTest extends AnyFunSuite {
     def f(a: Int): IO[Int] = IO.sleep(1.second) >> IO(100 / a)
     val Vector(a, b, c) =
       guard
-        .eventStream(action => action("parallel").quasi(Vector(0, 0, 0, 1, 1, 1))(f).parRunN(3))
+        .eventStream(action => action("parallel").quasi(Vector(0, 0, 0, 1, 1, 1))(f).parRun(3))
         .observe(_.evalMap(logging.alert).drain)
         .compile
         .toVector
@@ -225,7 +225,7 @@ class QuasiSuccTest extends AnyFunSuite {
           .quasi(a1, a2, a3)
           .withSuccNotes(_.map(_.toString).mkString)
           .withFailNotes(_.map(_.message).mkString)
-          .parRunN(3)
+          .parRun(3)
       }.observe(_.evalMap(logging.alert).drain).compile.toVector.unsafeRunSync()
 
     assert(a.isInstanceOf[ActionStart])

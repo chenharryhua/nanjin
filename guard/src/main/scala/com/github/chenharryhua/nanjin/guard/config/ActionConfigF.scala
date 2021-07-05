@@ -93,7 +93,7 @@ private object ActionConfigF {
   final case class WithAlertMaskFYI[K](value: Boolean, cont: K) extends ActionConfigF[K]
   final case class WithAlertMaskStart[K](value: Boolean, cont: K) extends ActionConfigF[K]
 
-  final case class WithTerminate[K](value: Boolean, cont: K) extends ActionConfigF[K]
+  final case class WithTermination[K](value: Boolean, cont: K) extends ActionConfigF[K]
 
   val algebra: Algebra[ActionConfigF, ActionParams] =
     Algebra[ActionConfigF, ActionParams] {
@@ -106,7 +106,7 @@ private object ActionConfigF {
       case WithAlertMaskFirstRetry(v, c) => ActionParams.alertMask.composeLens(SlackAlertMask.alertFirstRetry).set(v)(c)
       case WithAlertMaskFYI(v, c)        => ActionParams.alertMask.composeLens(SlackAlertMask.alertFYI).set(v)(c)
       case WithAlertMaskStart(v, c)      => ActionParams.alertMask.composeLens(SlackAlertMask.alertStart).set(v)(c)
-      case WithTerminate(v, c)           => ActionParams.shouldTerminate.set(v)(c)
+      case WithTermination(v, c)           => ActionParams.shouldTerminate.set(v)(c)
     }
 }
 
@@ -150,8 +150,8 @@ final case class ActionConfig private (value: Fix[ActionConfigF]) {
   def full_jitter_backoff(delay: FiniteDuration): ActionConfig =
     ActionConfig(Fix(WithRetryPolicy(FullJitter(delay), value)))
 
-  def non_terminating: ActionConfig =
-    ActionConfig(Fix(WithTerminate(value = false, value)))
+  def non_termination: ActionConfig =
+    ActionConfig(Fix(WithTermination(value = false, value)))
 
   def evalConfig: ActionParams = scheme.cata(algebra).apply(value)
 }

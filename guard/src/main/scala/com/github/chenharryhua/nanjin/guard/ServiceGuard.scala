@@ -36,7 +36,7 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) extends UpdateConfi
 
   def eventStream[A](actionGuard: ActionGuard[F] => F[A])(implicit F: Async[F]): Stream[F, NJEvent] = {
     val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))
-    val cron: CronExpr                    = Cron.unsafeParse(s"0 0 ${params.taskParams.dailySummaryReset} ? * *")
+    val cron: CronExpr                    = Cron.unsafeParse(s"0 0 ${params.taskParams.dailySummaryReset.hour} ? * *")
     val serviceInfo: F[ServiceInfo] =
       realZonedDateTime(params).map(ts => ServiceInfo(id = UUID.randomUUID(), launchTime = ts))
 

@@ -12,7 +12,7 @@ import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.ImplicitConversions._
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.scala.serialization.Serdes._
-import org.scalatest.BeforeAndAfter
+import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration._
@@ -57,7 +57,7 @@ object KafkaStreamingData {
   val expected: Set[StreamTarget] = Set(StreamTarget("a", 0, 0), StreamTarget("b", 0, 1), StreamTarget("c", 0, 2))
 }
 
-//@DoNotDiscover
+@DoNotDiscover
 class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
   import KafkaStreamingData._
 
@@ -83,7 +83,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       harvest
         .concurrently(sendS1Data)
         .concurrently(ctx.buildStreams(top).stateStream.debug().delayBy(2.seconds))
-        .interruptAfter(10.seconds)
+        .interruptAfter(15.seconds)
         .compile
         .toList
         .unsafeRunSync()
