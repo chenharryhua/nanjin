@@ -4,9 +4,9 @@ import cats.data.Reader
 import cats.effect.std.Dispatcher
 import cats.effect.{Async, Deferred}
 import cats.syntax.all._
-import cats.{Functor, Show}
+import cats.{Applicative, Show}
 import fs2.Stream
-import fs2.concurrent.Channel
+import fs2.concurrent.{Channel, SignallingRef}
 import io.circe.{Decoder, Encoder}
 import io.scalaland.enumz.Enum
 import monocle.function.At.at
@@ -56,18 +56,23 @@ final class KafkaStreamsBuilder[F[_]](
     }
   }
 
-  final private class StateUpdateEvent(dispatcher: Dispatcher[F], channel: Channel[F, KafkaStreamStateChange])(implicit
-    F: Functor[F])
+  final private class StateUpdateEvent(
+    dispatcher: Dispatcher[F],
+    channel: Channel[F, KafkaStreamStateChange],
+    stopSignal: SignallingRef[F, Boolean])(implicit F: Applicative[F])
       extends KafkaStreams.StateListener {
 
     override def onChange(newState: State, oldState: State): Unit =
-      dispatcher.unsafeRunSync(channel.send(KafkaStreamStateChange(newState, oldState)).void)
+      dispatcher.unsafeRunSync(
+        channel.send(KafkaStreamStateChange(newState, oldState)) *>
+          stopSignal.set(true).whenA(newState == State.NOT_RUNNING))
   }
 
   def stateStream(implicit F: Async[F]): Stream[F, KafkaStreamStateChange] =
     for {
       dispatcher <- Stream.resource(Dispatcher[F])
       errorListener <- Stream.eval(F.deferred[KafkaStreamException])
+      stopSignal <- Stream.eval(SignallingRef.of(false))
       state <- Stream.eval(Channel.unbounded[F, KafkaStreamStateChange]).flatMap { channel =>
         val kss = Stream
           .bracket(F.blocking(new KafkaStreams(topology, settings.javaProperties)))(ks =>
@@ -76,11 +81,11 @@ final class KafkaStreamsBuilder[F[_]](
             F.blocking {
               ks.cleanUp()
               ks.setUncaughtExceptionHandler(new StreamErrorHandler(dispatcher, errorListener))
-              ks.setStateListener(new StateUpdateEvent(dispatcher, channel))
+              ks.setStateListener(new StateUpdateEvent(dispatcher, channel, stopSignal))
               ks.start()
             }) <* Stream.never[F]
         val error = Stream.eval(errorListener.get.map(_.asLeft[KafkaStreamStateChange])).rethrow
-        channel.stream.concurrently(kss).concurrently(error)
+        channel.stream.concurrently(kss).concurrently(error).interruptWhen(stopSignal)
       }
     } yield state
 
