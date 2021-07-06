@@ -41,6 +41,17 @@ final case class AvroCodec[A](schemaFor: SchemaFor[A], avroDecoder: AvroDecoder[
     }
   }
 
+  def withoutNamespace: AvroCodec[A] = {
+    val res = for {
+      json <- parser
+        .parse(schema.toString)
+        .toOption
+        .flatMap(_.hcursor.downField("namespace").delete.top.map(_.noSpaces))
+      ac <- AvroCodec.build[A](AvroCodec.toSchemaFor[A](json), avroDecoder, avroEncoder).toOption
+    } yield ac
+    res.getOrElse(this)
+  }
+
   def at(jsonPath: JsonPath): Either[String, Json] = for {
     json <- parser.parse(schema.toString()).leftMap(_.message)
     jsonObject <- jsonPath.obj.getOption(json).toRight("unable to find child schema")
