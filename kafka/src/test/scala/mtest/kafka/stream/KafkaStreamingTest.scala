@@ -12,11 +12,10 @@ import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.ImplicitConversions._
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.scala.serialization.Serdes._
-import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 
 import scala.concurrent.duration._
-
 object KafkaStreamingData {
 
   case class StreamOne(name: String, size: Int)
