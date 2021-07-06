@@ -301,7 +301,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
         .publish(msg.asJson.noSpaces)
         .whenA((params.alertMask.alertSucc && errors.isEmpty) || (params.alertMask.alertFail && errors.nonEmpty))
 
-    case ForYourInformation(_, params, message, _) => service.publish(message).whenA(params.alertMask.alertFYI)
+    case ForYourInformation(_, message, _) => service.publish(message).void
 
     // no op
     case _: PassThrough => F.unit

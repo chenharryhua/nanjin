@@ -67,8 +67,7 @@ final class ActionGuard[F[_]](
 
   def fyi(msg: String)(implicit F: Temporal[F]): F[Unit] =
     realZonedDateTime(params.serviceParams)
-      .flatMap(ts =>
-        channel.send(ForYourInformation(timestamp = ts, actionParams = params, message = msg, isError = false)))
+      .flatMap(ts => channel.send(ForYourInformation(timestamp = ts, message = msg, isError = false)))
       .void
 
   def unsafeFYI(msg: String)(implicit F: Temporal[F]): Unit =
@@ -78,7 +77,7 @@ final class ActionGuard[F[_]](
     for {
       ts <- realZonedDateTime(params.serviceParams)
       _ <- dailySummaries.update(_.incErrorReport)
-      _ <- channel.send(ForYourInformation(timestamp = ts, actionParams = params, message = msg, isError = true))
+      _ <- channel.send(ForYourInformation(timestamp = ts, message = msg, isError = true))
     } yield ()
 
   def unsafeReportError(msg: String)(implicit F: Temporal[F]): Unit =

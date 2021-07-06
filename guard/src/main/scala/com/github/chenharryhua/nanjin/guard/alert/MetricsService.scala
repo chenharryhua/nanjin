@@ -24,11 +24,11 @@ final private class MetricsService[F[_]](metrics: MetricRegistry)(implicit F: Sy
       F.blocking(metrics.counter(s"health-check.${serviceKey(params)}").inc())
     case ActionRetrying(_, info, params, _, _) =>
       F.blocking(metrics.counter(s"retry.${actionKey(info, params)}").inc())
-    case ForYourInformation(_, params, _, isError) =>
+    case ForYourInformation(_, _, isError) =>
       if (isError)
-        F.blocking(metrics.counter(s"report.error.${serviceKey(params.serviceParams)}").inc())
+        F.blocking(metrics.counter("report.error").inc())
       else
-        F.blocking(metrics.counter(s"fyi.${serviceKey(params.serviceParams)}").inc())
+        F.blocking(metrics.counter(s"fyi").inc())
     case PassThrough(_, _) =>
       F.blocking(metrics.counter("pass-through").inc())
     // timer
