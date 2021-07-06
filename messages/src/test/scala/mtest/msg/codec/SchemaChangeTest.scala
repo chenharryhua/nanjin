@@ -106,6 +106,6 @@ class SchemaChangeTest extends AnyFunSuite {
   }
 
   test("remove namespace is idempotent") {
-    assert(codec.withoutNamespace.withoutNamespace.schema == expected)
+    assert(codec.withoutNamespace.withoutNamespace.schema == codec.withoutNamespace.schema)
   }
 }
