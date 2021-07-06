@@ -41,7 +41,7 @@ val quill    = "3.7.2"
 val neotypes = "0.17.0"
 
 // format
-val jackson = "2.12.3"
+val jackson = "2.12.4"
 val json4s  = "3.7.0-M7" // for spark
 val kantan  = "0.6.1"
 val parquet = "1.12.0"
