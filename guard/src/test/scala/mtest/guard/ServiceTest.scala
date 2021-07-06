@@ -200,7 +200,6 @@ class ServiceTest extends AnyFunSuite {
       val g = ag("").updateConfig(_.slack_none.slack_all)
       g.run(IO {
         assert(g.params.alertMask.alertStart)
-        assert(g.params.alertMask.alertFYI)
         assert(g.params.alertMask.alertSucc)
         assert(g.params.alertMask.alertFail)
         assert(g.params.alertMask.alertFirstRetry)
@@ -213,7 +212,6 @@ class ServiceTest extends AnyFunSuite {
       val g = ag("").updateConfig(_.slack_all.slack_none)
       g.run(IO {
         assert(!g.params.alertMask.alertStart)
-        assert(!g.params.alertMask.alertFYI)
         assert(!g.params.alertMask.alertSucc)
         assert(!g.params.alertMask.alertFail)
         assert(!g.params.alertMask.alertFirstRetry)

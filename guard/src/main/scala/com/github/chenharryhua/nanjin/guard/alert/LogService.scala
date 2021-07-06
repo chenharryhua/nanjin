@@ -24,9 +24,9 @@ final private class LogService[F[_]]()(implicit F: Sync[F]) extends AlertService
 
       case ActionFailed(_, _, _, _, _, error) => F.blocking(logger.error(error.throwable)(event.show))
 
-      case ForYourInformation(_, params, _, isError) =>
+      case ForYourInformation(_, _, isError) =>
         if (isError)
-          F.blocking(logger.error(new Exception(s"${params.serviceParams.serviceName} reports an error"))(event.show))
+          F.blocking(logger.error(new Exception("Reported Error"))(event.show))
         else
           F.blocking(logger.info(event.show))
     }
