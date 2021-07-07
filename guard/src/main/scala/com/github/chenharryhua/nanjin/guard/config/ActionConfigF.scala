@@ -68,7 +68,7 @@ object ActionParams {
       alertRetry = false,
       alertFirstRetry = false,
       alertStart = false),
-    maxRetries = 3,
+    maxRetries = 0,
     retryPolicy = ConstantDelay(10.seconds),
     shouldTerminate = true
   )

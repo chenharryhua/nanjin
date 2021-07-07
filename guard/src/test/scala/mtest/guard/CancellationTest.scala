@@ -146,7 +146,9 @@ class CancellationTest extends AnyFunSuite {
         .updateConfig(_.constant_delay(1.hour))
         .eventStream { action =>
           val a1 = action("succ-1").run(IO.sleep(1.second) >> IO(1))
-          val a2 = action("fail-2").updateConfig(_.constant_delay(1.second)).run(IO.raiseError[Int](new Exception))
+          val a2 = action("fail-2")
+            .updateConfig(_.constant_delay(1.second).max_retries(3))
+            .run(IO.raiseError[Int](new Exception))
           val a3 = action("cancel-3").run(IO.never[Int])
           action("supervisor")
             .updateConfig(_.max_retries(1).constant_delay(1.second))
