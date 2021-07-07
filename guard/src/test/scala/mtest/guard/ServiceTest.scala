@@ -221,7 +221,7 @@ class ServiceTest extends AnyFunSuite {
         assert(!g.params.alertMask.alertFirstRetry)
         assert(!g.params.alertMask.alertRetry)
         assert(!g.params.shouldTerminate)
-        assert(g.params.maxRetries == 3)
+        assert(g.params.maxRetries == 0)
         assert(g.params.retryPolicy.isInstanceOf[FibonacciBackoff])
       })
     }.interruptAfter(3.seconds).compile.drain.unsafeRunSync()
