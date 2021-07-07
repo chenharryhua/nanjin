@@ -35,10 +35,10 @@ object KafkaStreamStateChange {
   implicit val encodeState: Encoder[State] = Encoder[String].contramap((s: State) => s.show)
   implicit val decodeState: Decoder[State] = Decoder[String].map(str => Enum[State].withName(str))
 
-  implicit val encodeKafkaStreamStateUpdater: Encoder[KafkaStreamStateChange] =
+  implicit val encodeKafkaStreamStateChange: Encoder[KafkaStreamStateChange] =
     io.circe.generic.semiauto.deriveEncoder[KafkaStreamStateChange]
 
-  implicit val decodeKafkaStreamStateUpdater: Decoder[KafkaStreamStateChange] =
+  implicit val decodeKafkaStreamStateChange: Decoder[KafkaStreamStateChange] =
     io.circe.generic.semiauto.deriveDecoder[KafkaStreamStateChange]
 }
 

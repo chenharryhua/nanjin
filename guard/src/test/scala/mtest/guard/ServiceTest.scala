@@ -28,6 +28,7 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ServiceStopped,
   SlackService
 }
+import com.github.chenharryhua.nanjin.guard.config.{ConstantDelay, FibonacciBackoff}
 import eu.timepit.refined.auto._
 import io.circe.parser.decode
 import io.circe.syntax._
@@ -197,26 +198,32 @@ class ServiceTest extends AnyFunSuite {
   }
   test("all alert on") {
     guard.eventStream { ag =>
-      val g = ag("").updateConfig(_.slack_none.slack_all)
+      val g = ag("").updateConfig(_.slack_none.slack_all.max_retries(5))
       g.run(IO {
         assert(g.params.alertMask.alertStart)
         assert(g.params.alertMask.alertSucc)
         assert(g.params.alertMask.alertFail)
         assert(g.params.alertMask.alertFirstRetry)
         assert(g.params.alertMask.alertRetry)
+        assert(g.params.shouldTerminate)
+        assert(g.params.maxRetries == 5)
+        assert(g.params.retryPolicy.isInstanceOf[ConstantDelay])
       })
     }.compile.drain.unsafeRunSync()
   }
   test("all alert off") {
     guard.eventStream { ag =>
-      val g = ag("").updateConfig(_.slack_all.slack_none)
+      val g = ag("").updateConfig(_.slack_all.slack_none.non_termination.fibonacci_backoff(1.second))
       g.run(IO {
         assert(!g.params.alertMask.alertStart)
         assert(!g.params.alertMask.alertSucc)
         assert(!g.params.alertMask.alertFail)
         assert(!g.params.alertMask.alertFirstRetry)
         assert(!g.params.alertMask.alertRetry)
+        assert(!g.params.shouldTerminate)
+        assert(g.params.maxRetries == 3)
+        assert(g.params.retryPolicy.isInstanceOf[FibonacciBackoff])
       })
-    }.compile.drain.unsafeRunSync()
+    }.interruptAfter(3.seconds).compile.drain.unsafeRunSync()
   }
 }
