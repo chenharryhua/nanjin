@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.Applicative
 import cats.data.{Kleisli, Reader}
 import cats.effect.kernel.Temporal
 import cats.effect.std.Dispatcher
@@ -38,7 +37,7 @@ final class ActionGuard[F[_]](
   override def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
     new ActionGuard[F](serviceInfo, dispatcher, dailySummaries, channel, actionName, f(actionConfig))
 
-  def retry[A, B](input: A)(f: A => F[B])(implicit F: Applicative[F]): ActionRetry[F, A, B] =
+  def retry[A, B](input: A)(f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
       serviceInfo = serviceInfo,
       dailySummaries = dailySummaries,
@@ -52,7 +51,7 @@ final class ActionGuard[F[_]](
       isWorthRetry = Reader(_ => true),
       postCondition = Reader(_ => true))
 
-  def retry[B](fb: F[B])(implicit F: Applicative[F]): ActionRetryUnit[F, B] =
+  def retry[B](fb: F[B]): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
       serviceInfo = serviceInfo,
       dailySummaries = dailySummaries,

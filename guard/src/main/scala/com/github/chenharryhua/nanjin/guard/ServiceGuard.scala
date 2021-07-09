@@ -92,8 +92,8 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) extends UpdateConfi
             }
           }
           .guarantee(realZonedDateTime(params).flatMap(ts =>
-            channel.send(
-              ServiceStopped(timestamp = ts, serviceInfo = si, serviceParams = params))) *> channel.close.void)
+            channel.send(ServiceStopped(timestamp = ts, serviceInfo = si, serviceParams = params))) *> // stop event
+            channel.close.void) // close channel and the stream as well
 
         channel.stream
           .concurrently(Stream.eval(service))
