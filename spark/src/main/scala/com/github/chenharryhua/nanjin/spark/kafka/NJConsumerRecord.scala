@@ -14,7 +14,9 @@ import frameless.TypedEncoder
 import fs2.kafka.{ConsumerRecord => Fs2ConsumerRecord}
 import io.circe.generic.auto._
 import io.circe.{Json, Decoder => JsonDecoder, Encoder => JsonEncoder}
+import monocle.Optional
 import monocle.macros.Lenses
+import monocle.std.option.some
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.record.TimestampType
 import shapeless.cachedImplicit
@@ -61,6 +63,9 @@ final case class NJConsumerRecord[K, V](
 }
 
 object NJConsumerRecord {
+
+  def optionalKey[K, V]: Optional[NJConsumerRecord[K, V], K]   = NJConsumerRecord.key[K, V].composePrism(some)
+  def optionalValue[K, V]: Optional[NJConsumerRecord[K, V], V] = NJConsumerRecord.value[K, V].composePrism(some)
 
   def apply[K, V](cr: ConsumerRecord[Option[K], Option[V]]): NJConsumerRecord[K, V] =
     NJConsumerRecord(cr.partition, cr.offset, cr.timestamp, cr.key, cr.value, cr.topic, cr.timestampType.id)
