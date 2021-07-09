@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard.alert
 import cats.syntax.all._
 import cats.{Applicative, Monoid}
 
+@FunctionalInterface
 trait AlertService[F[_]] {
   def alert(event: NJEvent): F[Unit]
 }
