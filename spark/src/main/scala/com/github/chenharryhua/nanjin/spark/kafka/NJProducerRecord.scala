@@ -8,7 +8,9 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.sksamuel.avro4s._
 import fs2.kafka.{ProducerRecord => Fs2ProducerRecord}
 import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
+import monocle.Optional
 import monocle.macros.Lenses
+import monocle.std.option.some
 import org.apache.kafka.clients.producer.ProducerRecord
 import shapeless.cachedImplicit
 
@@ -62,6 +64,8 @@ final case class NJProducerRecord[K, V](
 }
 
 object NJProducerRecord {
+  def optionalKey[K, V]: Optional[NJProducerRecord[K, V], K]   = NJProducerRecord.key[K, V].composePrism(some)
+  def optionalValue[K, V]: Optional[NJProducerRecord[K, V], V] = NJProducerRecord.value[K, V].composePrism(some)
 
   def apply[K, V](pr: ProducerRecord[Option[K], Option[V]]): NJProducerRecord[K, V] =
     NJProducerRecord(Option(pr.partition), None, Option(pr.timestamp), pr.key, pr.value)
