@@ -1,14 +1,13 @@
 package example.spark
 
 import cats.effect.unsafe.implicits.global
-import example._
+import example.*
 import example.topics.fooTopic
-import frameless.TypedEncoder
-import io.circe.generic.auto._
+import io.circe.generic.auto.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 @DoNotDiscover
 class ExampleKafkaStructuredStream extends AnyFunSuite {
