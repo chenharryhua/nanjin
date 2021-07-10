@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.Monad
 import cats.data.Kleisli
 import cats.effect.{Resource, Sync}
-import cats.implicits._
+import cats.syntax.all.*
 import cats.mtl.Ask
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
@@ -14,7 +14,7 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer
 
 import java.time.Duration
 import java.util.Properties
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.*
 
 sealed trait KafkaPrimitiveConsumerApi[F[_]] {
   def partitionsFor: F[ListOfTopicPartitions]

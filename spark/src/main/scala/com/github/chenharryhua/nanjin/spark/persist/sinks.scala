@@ -5,9 +5,9 @@ import cats.effect.{Async, Sync}
 import cats.syntax.show._
 import com.github.chenharryhua.nanjin.pipes._
 import com.github.chenharryhua.nanjin.terminals.NJHadoop
-import com.sksamuel.avro4s.{Encoder => AvroEncoder}
+import com.sksamuel.avro4s.Encoder as AvroEncoder
 import fs2.{Pipe, Stream}
-import io.circe.{Encoder => JsonEncoder}
+import io.circe.Encoder as JsonEncoder
 import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.avro.file.CodecFactory
 import org.apache.avro.generic.GenericRecord

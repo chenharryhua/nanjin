@@ -1,12 +1,12 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
 import cats.data.Ior
-import cats.syntax.all._
-import com.sksamuel.avro4s.{DecoderHelpers, EncoderHelpers, SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
+import cats.syntax.all.*
+import com.sksamuel.avro4s.{DecoderHelpers, EncoderHelpers, SchemaFor, Decoder as AvroDecoder, Encoder as AvroEncoder}
 import eu.timepit.refined.string.MatchesRegex
 import eu.timepit.refined.{refineV, W}
 import io.circe.optics.JsonPath
-import io.circe.optics.JsonPath._
+import io.circe.optics.JsonPath.*
 import io.circe.{parser, Json}
 import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType
 import org.apache.avro.{Schema, SchemaCompatibility, SchemaParseException}

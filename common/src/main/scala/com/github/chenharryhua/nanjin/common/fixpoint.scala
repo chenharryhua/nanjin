@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.common
 
-import cats.syntax.all._
+import cats.syntax.all.*
 import cats.{Applicative, Traverse}
 import higherkindness.droste.data.{Attr, Coattr, Fix}
 import monocle.Traversal

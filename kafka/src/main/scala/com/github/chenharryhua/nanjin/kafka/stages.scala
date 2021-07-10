@@ -2,13 +2,13 @@ package com.github.chenharryhua.nanjin.kafka
 
 import akka.stream.ActorAttributes.SupervisionStrategy
 import akka.stream.Supervision.Decider
-import akka.stream._
+import akka.stream.*
 import akka.stream.scaladsl.{Flow, Sink}
 import akka.stream.stage._
 import akka.{Done, NotUsed}
 import cats.effect.std.Dispatcher
 import cats.effect.{Async, Deferred}
-import cats.syntax.all._
+import cats.syntax.all.*
 import fs2.kafka.KafkaByteConsumerRecord
 import org.apache.kafka.common.TopicPartition
 

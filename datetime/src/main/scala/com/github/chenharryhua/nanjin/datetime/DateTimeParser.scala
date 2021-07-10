@@ -2,9 +2,9 @@ package com.github.chenharryhua.nanjin.datetime
 
 import cats.Alternative
 import cats.data.NonEmptyList
-import cats.syntax.all._
+import cats.syntax.all.*
 
-import java.time._
+import java.time.*
 import java.time.format.DateTimeParseException
 
 final case class FailedParsers(parsers: NonEmptyList[String]) extends AnyVal {

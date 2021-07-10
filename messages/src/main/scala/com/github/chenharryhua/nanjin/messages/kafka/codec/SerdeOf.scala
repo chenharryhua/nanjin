@@ -1,14 +1,14 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
 import com.github.chenharryhua.nanjin.messages.kafka.KeyValueTag
-import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
+import com.sksamuel.avro4s.{SchemaFor, Decoder as AvroDecoder, Encoder as AvroEncoder}
 import io.confluent.kafka.streams.serdes.avro.{GenericAvroDeserializer, GenericAvroSerializer}
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import org.apache.kafka.streams.scala.serialization.Serdes
 
 import java.util
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.*
 import scala.util.{Failure, Try}
 
 /** [[https://github.com/sksamuel/avro4s]]
@@ -61,7 +61,7 @@ object SerdeOf extends LowerPriority {
         new Serializer[A] with Serializable {
           @transient private[this] lazy val ser: GenericAvroSerializer = new GenericAvroSerializer
 
-          override def configure(configs: util.Map[String, _], isKey: Boolean): Unit =
+          override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
             ser.configure(configs, isKey)
 
           override def close(): Unit = ser.close()
@@ -86,7 +86,7 @@ object SerdeOf extends LowerPriority {
           override def close(): Unit =
             deSer.close()
 
-          override def configure(configs: util.Map[String, _], isKey: Boolean): Unit =
+          override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
             deSer.configure(configs, isKey)
 
           override def deserialize(topic: String, data: Array[Byte]): A =

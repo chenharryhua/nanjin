@@ -10,7 +10,7 @@ import monocle.macros.Lenses
 import org.apache.spark.streaming.kafka010.{LocationStrategies, LocationStrategy}
 
 import java.time.{LocalDate, LocalDateTime, ZoneId}
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 @Lenses final private[kafka] case class NJLoadParams(
   bulkSize: Int,

@@ -1,18 +1,18 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
 import akka.kafka.ConsumerMessage.{
-  CommittableMessage => AkkaConsumerMessage,
-  CommittableOffset => AkkaCommittableOffset,
-  GroupTopicPartition => AkkaGroupTopicPartition,
-  PartitionOffset => AkkaPartitionOffset,
-  TransactionalMessage => AkkaTransactionalMessage
+  CommittableMessage as AkkaConsumerMessage,
+  CommittableOffset as AkkaCommittableOffset,
+  GroupTopicPartition as AkkaGroupTopicPartition,
+  PartitionOffset as AkkaPartitionOffset,
+  TransactionalMessage as AkkaTransactionalMessage
 }
-import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage, MultiMessage => AkkaMultiMessage}
+import akka.kafka.ProducerMessage.{Message as AkkaProducerMessage, MultiMessage as AkkaMultiMessage}
 import cats.Eq
-import cats.syntax.all._
+import cats.syntax.all.*
 import fs2.kafka.{
-  ProducerRecords => Fs2ProducerRecords,
-  TransactionalProducerRecords => Fs2TransactionalProducerRecords
+  ProducerRecords as Fs2ProducerRecords,
+  TransactionalProducerRecords as Fs2TransactionalProducerRecords
 }
 import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
 import org.apache.kafka.clients.producer.ProducerRecord
@@ -20,7 +20,7 @@ import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.header.{Header, Headers}
 
 import java.util.Optional
-import scala.compat.java8.OptionConverters._
+import scala.compat.java8.OptionConverters.*
 
 private[kafka] trait EqMessage {
 

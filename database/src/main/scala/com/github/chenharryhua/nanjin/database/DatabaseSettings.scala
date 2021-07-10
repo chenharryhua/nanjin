@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.database
 
 import cats.effect.{Async, Concurrent, Resource}
-import cats.syntax.functor._
-import com.github.chenharryhua.nanjin.common.database._
+import cats.syntax.functor.*
+import com.github.chenharryhua.nanjin.common.database.*
 import com.zaxxer.hikari.HikariConfig
 import doobie.free.connection.ConnectionIO
 import doobie.hikari.HikariTransactor

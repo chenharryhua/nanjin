@@ -1,20 +1,20 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
 import fs2.kafka.{
-  ConsumerRecord => Fs2ConsumerRecord,
-  Headers => Fs2Headers,
-  ProducerRecord => Fs2ProducerRecord,
-  Timestamp => Fs2Timestamp
+  ConsumerRecord as Fs2ConsumerRecord,
+  Headers as Fs2Headers,
+  ProducerRecord as Fs2ProducerRecord,
+  Timestamp as Fs2Timestamp
 }
 import io.scalaland.chimney.Transformer
-import io.scalaland.chimney.dsl._
+import io.scalaland.chimney.dsl.*
 import monocle.Iso
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.header.internals.RecordHeaders
 import org.apache.kafka.common.record.TimestampType
 
-import scala.compat.java8.OptionConverters._
+import scala.compat.java8.OptionConverters.*
 
 private[kafka] trait Isos {
 

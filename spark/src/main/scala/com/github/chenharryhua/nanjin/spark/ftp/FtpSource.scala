@@ -5,9 +5,9 @@ import akka.stream.alpakka.ftp.RemoteFileSettings
 import cats.effect.Async
 import com.github.chenharryhua.nanjin.pipes._
 import com.github.chenharryhua.nanjin.terminals.FtpDownloader
-import com.sksamuel.avro4s.{Decoder => AvroDecoder}
+import com.sksamuel.avro4s.Decoder as AvroDecoder
 import fs2.Stream
-import io.circe.{Decoder => JsonDecoder}
+import io.circe.Decoder as JsonDecoder
 import kantan.csv.{CsvConfiguration, RowDecoder}
 
 final class FtpSource[F[_], C, S <: RemoteFileSettings](downloader: FtpDownloader[F, C, S]) {

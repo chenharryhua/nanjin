@@ -2,14 +2,14 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.data.Reader
 import cats.effect.{IO, Sync}
-import cats.syntax.functor._
-import cats.syntax.show._
+import cats.syntax.functor.*
+import cats.syntax.show.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.SerdeOf
-import monix.eval.{Task => MTask}
+import monix.eval.Task as MTask
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.StreamsBuilder
-import zio.{Task => ZTask}
+import zio.Task as ZTask
 
 sealed abstract class KafkaContext[F[_]](val settings: KafkaSettings) extends Serializable {
 

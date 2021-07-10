@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.datetime
 
 import org.apache.commons.lang3.time.DurationFormatUtils
 
-import java.time.{Instant, ZonedDateTime, Duration => JavaDuration}
+import java.time.{Instant, ZonedDateTime, Duration as JavaDuration}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.{Duration, FiniteDuration}
 

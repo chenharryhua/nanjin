@@ -1,18 +1,18 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
 import akka.kafka.ConsumerMessage.{
-  CommittableMessage => AkkaCommittableMessage,
-  TransactionalMessage => AkkaTransactionalMessage
+  CommittableMessage as AkkaCommittableMessage,
+  TransactionalMessage as AkkaTransactionalMessage
 }
-import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage}
-import cats.syntax.all._
+import akka.kafka.ProducerMessage.Message as AkkaProducerMessage
+import cats.syntax.all.*
 import cats.{Applicative, Bitraverse, Eval}
 import fs2.kafka.{
-  CommittableConsumerRecord => Fs2CommittableConsumerRecord,
-  ConsumerRecord => Fs2ConsumerRecord,
-  ProducerRecord => Fs2ProducerRecord
+  CommittableConsumerRecord as Fs2CommittableConsumerRecord,
+  ConsumerRecord as Fs2ConsumerRecord,
+  ProducerRecord as Fs2ProducerRecord
 }
-import io.scalaland.chimney.dsl._
+import io.scalaland.chimney.dsl.*
 import monocle.PLens
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord

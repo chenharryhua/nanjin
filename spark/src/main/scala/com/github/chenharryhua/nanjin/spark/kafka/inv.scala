@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Eq
-import cats.implicits._
+import cats.syntax.all.*
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.rdd.RDD
 

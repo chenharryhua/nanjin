@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.data.Reader
 import cats.effect.std.Dispatcher
 import cats.effect.{Async, Deferred}
-import cats.syntax.all._
+import cats.syntax.all.*
 import cats.{Applicative, Show}
 import fs2.Stream
 import fs2.concurrent.{Channel, SignallingRef}

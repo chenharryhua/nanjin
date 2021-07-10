@@ -6,8 +6,8 @@ import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.sksamuel.avro4s._
-import fs2.kafka.{ProducerRecord => Fs2ProducerRecord}
-import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
+import fs2.kafka.ProducerRecord as Fs2ProducerRecord
+import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
 import monocle.Optional
 import monocle.macros.Lenses
 import monocle.std.option.some

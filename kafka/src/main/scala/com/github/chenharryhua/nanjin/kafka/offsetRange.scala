@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.syntax.all._
+import cats.syntax.all.*
 
 object offsetRange {
 

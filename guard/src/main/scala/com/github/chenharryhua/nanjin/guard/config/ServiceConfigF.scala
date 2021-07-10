@@ -7,7 +7,7 @@ import monocle.macros.Lenses
 
 import java.time.LocalTime
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 /** allow disable sending out health-check event
   * @param interval:
