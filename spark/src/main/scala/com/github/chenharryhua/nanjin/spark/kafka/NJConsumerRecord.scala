@@ -9,10 +9,10 @@ import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka._
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.sksamuel.avro4s._
+import com.sksamuel.avro4s.*
 import frameless.TypedEncoder
 import fs2.kafka.ConsumerRecord as Fs2ConsumerRecord
-import io.circe.generic.auto._
+import io.circe.generic.auto.*
 import io.circe.{Json, Decoder as JsonDecoder, Encoder as JsonEncoder}
 import monocle.Optional
 import monocle.macros.Lenses

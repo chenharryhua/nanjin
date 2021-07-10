@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.Sync
 import cats.syntax.functor.*
-import com.github.chenharryhua.nanjin.datetime._
+import com.github.chenharryhua.nanjin.datetime.*
 import com.github.chenharryhua.nanjin.spark.injection.*
 import frameless.functions.aggregate.count
 import frameless.{Injection, TypedDataset}
