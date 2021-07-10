@@ -34,7 +34,7 @@ final class NJJacksonKeyOutputFormat extends AvroOutputFormatBase[AvroKey[Generi
     val conf: Configuration   = job.getConfiguration
     val isCompressed: Boolean = getCompressOutput(job)
     if (isCompressed) {
-      val codecClass: Class[_ <: CompressionCodec] =
+      val codecClass: Class[? <: CompressionCodec] =
         getOutputCompressorClass(job, classOf[GzipCodec])
       val codec: CompressionCodec     = ReflectionUtils.newInstance(codecClass, conf)
       val file: Path                  = getDefaultWorkFile(job, suffix + codec.getDefaultExtension)

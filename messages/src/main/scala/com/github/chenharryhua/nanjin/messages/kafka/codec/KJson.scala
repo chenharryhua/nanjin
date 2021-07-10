@@ -3,8 +3,8 @@ package com.github.chenharryhua.nanjin.messages.kafka.codec
 import cats.{Distributive, Eq, Functor, Show}
 import com.sksamuel.avro4s.{Codec, FieldMapper, SchemaFor}
 import io.circe.Decoder.Result
-import io.circe.syntax._
-import io.circe.{HCursor, Json, parser, Codec => JsonCodec, Decoder => JsonDecoder, Encoder => JsonEncoder}
+import io.circe.syntax.*
+import io.circe.{HCursor, Json, parser, Codec as JsonCodec, Decoder as JsonDecoder, Encoder as JsonEncoder}
 import monocle.Iso
 import org.apache.avro.Schema
 import org.apache.avro.util.Utf8

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import com.github.chenharryhua.nanjin.common.NJFileFormat._
-import com.sksamuel.avro4s.{Encoder => AvroEncoder}
+import com.github.chenharryhua.nanjin.common.NJFileFormat.*
+import com.sksamuel.avro4s.Encoder as AvroEncoder
 import kantan.csv.CsvConfiguration
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Dataset

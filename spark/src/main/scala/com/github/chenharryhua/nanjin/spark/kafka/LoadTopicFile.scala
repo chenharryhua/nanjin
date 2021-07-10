@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.sksamuel.avro4s.Decoder
 import frameless.TypedEncoder
 import fs2.Stream
-import io.circe.{Decoder => JsonDecoder}
+import io.circe.Decoder as JsonDecoder
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.sql.SparkSession
 

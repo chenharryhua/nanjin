@@ -2,8 +2,8 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.data.Chain
 import cats.mtl.Tell
-import cats.syntax.all._
-import com.github.chenharryhua.nanjin.messages.kafka._
+import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.messages.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJCodec
 
 import scala.util.{Failure, Success}

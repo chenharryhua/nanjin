@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark
 
 import akka.stream.alpakka.ftp.{FtpSettings, FtpsSettings, SftpSettings}
-import com.github.chenharryhua.nanjin.terminals._
+import com.github.chenharryhua.nanjin.terminals.*
 import net.schmizz.sshj.SSHClient
 import org.apache.commons.net.ftp.{FTPClient, FTPSClient}
 

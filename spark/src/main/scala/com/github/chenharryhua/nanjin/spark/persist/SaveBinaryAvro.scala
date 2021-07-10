@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.Sync
 import com.github.chenharryhua.nanjin.spark.RddExt
-import com.sksamuel.avro4s.{Encoder => AvroEncoder}
+import com.sksamuel.avro4s.Encoder as AvroEncoder
 import fs2.Stream
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.rdd.RDD

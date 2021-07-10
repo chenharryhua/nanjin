@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.common.utils.random4d
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra, Coalgebra}
 import org.apache.avro.{LogicalTypes, Schema, SchemaBuilder}
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.types.*
 
 sealed private[spark] trait NJDataTypeF[A]
 

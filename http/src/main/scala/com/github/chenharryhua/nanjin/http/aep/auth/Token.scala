@@ -12,11 +12,11 @@ object TokenType {
       extends TokenType("access_token")
   final case class JWT(
     endpoint: String,
-    imsOrgId: String,
-    clientId: String,
-    clientSecret: String,
-    technicalAccountKey: String,
-    keyPath: String)
+    ims_org_id: String,
+    client_id: String,
+    client_secret: String,
+    technical_account_key: String,
+    key_path: String)
       extends TokenType("jwt_token")
 }
 

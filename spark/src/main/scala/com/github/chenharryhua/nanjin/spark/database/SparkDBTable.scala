@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.database
 
 import cats.effect.Sync
-import cats.syntax.all._
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.database.{DatabaseName, TableName}
 import com.github.chenharryhua.nanjin.database.DatabaseSettings
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder

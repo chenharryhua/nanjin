@@ -8,10 +8,10 @@ import cats.effect.{Async, Sync}
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, stages, KafkaTopic}
 import com.github.chenharryhua.nanjin.spark.persist.{sinks, Compression}
-import com.sksamuel.avro4s.{Encoder => AvroEncoder}
+import com.sksamuel.avro4s.Encoder as AvroEncoder
 import fs2.Stream
 import fs2.interop.reactivestreams._
-import io.circe.{Encoder => JsonEncoder}
+import io.circe.Encoder as JsonEncoder
 import org.apache.hadoop.conf.Configuration
 
 import scala.concurrent.duration.FiniteDuration

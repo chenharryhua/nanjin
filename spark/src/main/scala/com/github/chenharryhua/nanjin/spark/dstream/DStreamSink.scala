@@ -2,8 +2,8 @@ package com.github.chenharryhua.nanjin.spark.dstream
 
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import com.sksamuel.avro4s.{Encoder => AvroEncoder}
-import io.circe.{Encoder => JsonEncoder}
+import com.sksamuel.avro4s.Encoder as AvroEncoder
+import io.circe.Encoder as JsonEncoder
 import org.apache.spark.streaming.dstream.DStream
 
 import scala.reflect.ClassTag

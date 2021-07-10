@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.{Resource, Sync}
-import cats.syntax.all._
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.pipes
 import fs2.io.{readInputStream, writeOutputStream}
 import fs2.{Pipe, Pull, Stream}
@@ -16,7 +16,7 @@ import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
 import org.apache.parquet.hadoop.{ParquetFileWriter, ParquetWriter}
 
 import java.net.URI
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.*
 
 sealed trait NJHadoop[F[_]] {
 

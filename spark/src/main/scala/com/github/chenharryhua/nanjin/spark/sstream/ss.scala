@@ -1,11 +1,11 @@
 package com.github.chenharryhua.nanjin.spark.sstream
 
 import cats.effect.Async
-import cats.syntax.all._
+import cats.syntax.all.*
 import fs2.Stream
 import org.apache.spark.sql.streaming.{DataStreamWriter, StreamingQueryProgress}
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 trait NJStreamSink[F[_]] extends Serializable {
   def params: SStreamParams

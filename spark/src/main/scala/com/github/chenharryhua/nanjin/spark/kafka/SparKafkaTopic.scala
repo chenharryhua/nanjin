@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import cats.Foldable
 import cats.data.Kleisli
 import cats.effect.{Async, Sync}
-import cats.syntax.all._
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
@@ -15,7 +15,7 @@ import com.github.chenharryhua.nanjin.spark.dstream.{AvroDStreamSink, SDConfig}
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.github.chenharryhua.nanjin.spark.sstream.{SStreamConfig, SparkSStream}
 import frameless.TypedEncoder
-import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
+import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.streaming.StreamingContext

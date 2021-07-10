@@ -4,7 +4,7 @@ import cats.effect.Sync
 import com.github.chenharryhua.nanjin.database.DatabaseSettings
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.loaders
-import io.circe.{Decoder => JsonDecoder}
+import io.circe.Decoder as JsonDecoder
 import kantan.csv.CsvConfiguration
 import org.apache.spark.sql.SparkSession
 
