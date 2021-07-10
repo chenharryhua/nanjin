@@ -3,13 +3,13 @@ package example.spark
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.spark.dstream.DStreamRunner
-import example._
+import example.*
 import example.topics.fooTopic
-import io.circe.generic.auto._
+import io.circe.generic.auto.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 @DoNotDiscover
 class ExampleKafkaDirectStream extends AnyFunSuite {

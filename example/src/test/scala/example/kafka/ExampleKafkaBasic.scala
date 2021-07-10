@@ -2,13 +2,13 @@ package example.kafka
 
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.spark.kafka.NJProducerRecord
-import example._
+import example.*
 import example.topics.fooTopic
 import io.circe.generic.auto._
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 @DoNotDiscover
 class ExampleKafkaBasic extends AnyFunSuite {
