@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.syntax.all._
+import cats.syntax.all.*
 import cats.{Order, PartialOrder}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import eu.timepit.refined.api.Refined
@@ -10,7 +10,7 @@ import org.apache.kafka.clients.consumer.{OffsetAndMetadata, OffsetAndTimestamp}
 import org.apache.kafka.common.TopicPartition
 
 import java.{lang, util}
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.*
 
 final case class KafkaOffset(offset: Refined[Long, NonNegative]) {
   val value: Long                 = offset.value

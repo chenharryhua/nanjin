@@ -4,13 +4,13 @@ import akka.actor.ActorSystem
 import akka.stream.Materializer
 import akka.{Done, NotUsed}
 import cats.data.{NonEmptyList, Reader}
-import cats.effect._
-import cats.syntax.all._
+import cats.effect.*
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaGenericDecoder
-import fs2.interop.reactivestreams._
+import fs2.interop.reactivestreams.*
 import fs2.kafka.KafkaByteConsumerRecord
 import fs2.{Pipe, Stream}
 import org.apache.kafka.clients.producer.ProducerRecord

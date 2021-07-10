@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.Show
 import cats.effect.{Resource, Sync}
-import cats.syntax.all._
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaMetadata}
@@ -100,7 +100,7 @@ final class SchemaRegistryApi[F[_]](srs: SchemaRegistrySettings)(implicit F: Syn
             .flatMap(n => Try(n.toInt).toOption)
             .getOrElse(AbstractKafkaSchemaSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DEFAULT)
           new CachedSchemaRegistryClient(url, size)
-      }))(cr => F.pure(()))
+      }))(_ => F.pure(()))
 
   def kvSchema(topicName: TopicName): F[KvSchemaMetadata] = {
     val loc = SchemaLocation(topicName)
