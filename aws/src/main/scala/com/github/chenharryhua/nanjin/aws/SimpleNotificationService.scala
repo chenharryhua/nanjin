@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.aws
 
 import cats.effect.Sync
-import cats.syntax.apply._
+import cats.syntax.apply.*
 import com.amazonaws.regions.Regions
 import com.amazonaws.services.sns.model.{PublishRequest, PublishResult}
 import com.amazonaws.services.sns.{AmazonSNS, AmazonSNSClientBuilder}
