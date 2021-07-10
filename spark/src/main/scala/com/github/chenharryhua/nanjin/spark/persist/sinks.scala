@@ -2,8 +2,8 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Show
 import cats.effect.{Async, Sync}
-import cats.syntax.show._
-import com.github.chenharryhua.nanjin.pipes._
+import cats.syntax.show.*
+import com.github.chenharryhua.nanjin.pipes.*
 import com.github.chenharryhua.nanjin.terminals.NJHadoop
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import fs2.{Pipe, Stream}

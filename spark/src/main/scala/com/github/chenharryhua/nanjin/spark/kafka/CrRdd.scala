@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Eq
 import cats.effect.Sync
-import cats.implicits.*
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
