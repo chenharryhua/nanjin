@@ -1,11 +1,11 @@
 package com.github.chenharryhua.nanjin.datetime
 
 import java.sql.Timestamp
-import java.time._
+import java.time.*
 import java.time.temporal.{ChronoUnit, TemporalUnit}
 import java.util.concurrent.TimeUnit
 
-import cats.syntax.all._
+import cats.syntax.all.*
 import cats.{Hash, Order, Show}
 
 import scala.concurrent.duration.{Duration, FiniteDuration}

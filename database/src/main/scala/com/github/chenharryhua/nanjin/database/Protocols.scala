@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.database
 
-import com.github.chenharryhua.nanjin.common.database._
+import com.github.chenharryhua.nanjin.common.database.*
 import enumeratum.{CatsEnum, Enum, EnumEntry}
 
 import scala.collection.immutable

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.datetime
 
 import cats.implicits.catsSyntaxTuple2Semigroupal
-import cats.syntax.all._
+import cats.syntax.all.*
 import cats.{PartialOrder, Show}
 import monocle.Prism
 import monocle.generic.coproduct.coProductPrism
@@ -9,7 +9,7 @@ import monocle.macros.Lenses
 import shapeless.{:+:, CNil, Poly1}
 
 import java.sql.Timestamp
-import java.time._
+import java.time.*
 import scala.concurrent.duration.FiniteDuration
 
 // lazy range
