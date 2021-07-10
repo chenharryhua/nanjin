@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard
 import io.circe.{Decoder, Encoder}
 
 import java.time.Duration
-import scala.compat.java8.DurationConverters._
+import scala.compat.java8.DurationConverters.*
 import scala.concurrent.duration.FiniteDuration
 
 package object alert {

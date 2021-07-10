@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.alert
 
-import cats.syntax.all._
+import cats.syntax.all.*
 import cats.{Applicative, Monoid}
 
 @FunctionalInterface

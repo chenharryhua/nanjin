@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.action
 
 import cats.data.{Kleisli, Reader}
-import cats.effect.syntax.all._
+import cats.effect.syntax.all.*
 import cats.effect.{Async, Outcome, Ref}
-import cats.syntax.all._
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.alert.{ActionStart, DailySummaries, NJEvent, ServiceInfo}
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import fs2.concurrent.Channel

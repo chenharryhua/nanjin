@@ -4,7 +4,7 @@ import cats.data.{Kleisli, Reader}
 import cats.effect.kernel.Temporal
 import cats.effect.std.Dispatcher
 import cats.effect.{Async, Ref}
-import cats.syntax.all._
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.action.{ActionRetry, ActionRetryUnit, QuasiSucc, QuasiSuccUnit}
 import com.github.chenharryhua.nanjin.guard.alert.{
@@ -17,7 +17,7 @@ import com.github.chenharryhua.nanjin.guard.alert.{
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams}
 import fs2.concurrent.Channel
 import io.circe.Encoder
-import io.circe.syntax._
+import io.circe.syntax.*
 
 import java.time.ZoneId
 

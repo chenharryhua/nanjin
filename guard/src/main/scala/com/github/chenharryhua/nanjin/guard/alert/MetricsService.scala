@@ -4,7 +4,7 @@ import cats.effect.Sync
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ServiceParams}
 
-import java.time.{Duration => JavaDuration}
+import java.time.Duration
 
 final private class MetricsService[F[_]](metrics: MetricRegistry)(implicit F: Sync[F]) extends AlertService[F] {
   private def serviceKey(params: ServiceParams): String = s"${params.serviceName}.${params.taskParams.appName}"
@@ -33,11 +33,11 @@ final private class MetricsService[F[_]](metrics: MetricRegistry)(implicit F: Sy
       F.blocking(metrics.counter("pass-through").inc())
     // timer
     case ActionFailed(at, info, params, _, _, _) =>
-      F.blocking(metrics.timer(s"fail.${actionKey(info, params)}").update(JavaDuration.between(info.launchTime, at)))
+      F.blocking(metrics.timer(s"fail.${actionKey(info, params)}").update(Duration.between(info.launchTime, at)))
     case ActionSucced(at, info, params, _, _) =>
-      F.blocking(metrics.timer(s"succ.${actionKey(info, params)}").update(JavaDuration.between(info.launchTime, at)))
+      F.blocking(metrics.timer(s"succ.${actionKey(info, params)}").update(Duration.between(info.launchTime, at)))
     case ActionQuasiSucced(at, info, params, _, _, _, _, _) =>
-      F.blocking(metrics.timer(s"quasi.${actionKey(info, params)}").update(JavaDuration.between(info.launchTime, at)))
+      F.blocking(metrics.timer(s"quasi.${actionKey(info, params)}").update(Duration.between(info.launchTime, at)))
 
     // reset
     case _: ServiceDailySummariesReset => F.blocking(metrics.removeMatching(MetricFilter.ALL))

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin
 
 import cats.effect.kernel.Temporal
-import cats.syntax.functor._
+import cats.syntax.functor.*
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 
 import java.time.ZonedDateTime

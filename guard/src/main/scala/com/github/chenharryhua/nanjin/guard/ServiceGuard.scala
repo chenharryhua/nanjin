@@ -2,10 +2,10 @@ package com.github.chenharryhua.nanjin.guard
 
 import cats.effect.Async
 import cats.effect.std.Dispatcher
-import cats.effect.syntax.all._
-import cats.syntax.all._
+import cats.effect.syntax.all.*
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.guard.alert._
+import com.github.chenharryhua.nanjin.guard.alert.*
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams}
 import cron4s.Cron
 import cron4s.expr.CronExpr

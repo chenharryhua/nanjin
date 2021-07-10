@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.config
 
-import cats.syntax.show._
+import cats.syntax.show.*
 import cats.{Applicative, Functor, Show}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
@@ -9,7 +9,7 @@ import retry.PolicyDecision.DelayAndRetry
 import retry.{RetryPolicies, RetryPolicy}
 
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 import scala.util.Random
 
 sealed abstract class NJRetryPolicy {

@@ -1,14 +1,14 @@
 package com.github.chenharryhua.nanjin.guard.alert
 
 import cats.effect.Sync
-import cats.syntax.all._
+import cats.syntax.all.*
 import com.amazonaws.regions.Regions
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
 import io.chrisdavenport.cats.time.instances.zoneid
-import io.circe.generic.auto._
-import io.circe.syntax._
+import io.circe.generic.auto.*
+import io.circe.syntax.*
 import org.apache.commons.lang3.StringUtils
 import squants.information.{Gigabytes, Megabytes}
 
