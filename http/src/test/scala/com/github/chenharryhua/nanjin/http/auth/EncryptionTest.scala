@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.http.auth
 
 import better.files.Resource
 import org.scalatest.funsuite.AnyFunSuite
-import pdi.jwt.{JwtAlgorithm, JwtUtils}
 import sun.security.util.Pem
 
 import java.io.File
