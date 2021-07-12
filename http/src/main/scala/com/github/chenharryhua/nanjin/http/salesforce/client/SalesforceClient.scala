@@ -1,15 +1,15 @@
 package com.github.chenharryhua.nanjin.http.salesforce.client
 
 import cats.effect.{Async, Ref, Sync}
-import cats.syntax.all._
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.http.salesforce.auth.{CredLoginRequest, TokenHasInstanceUrl, TokenProperties}
 import fs2.Stream
-import io.circe.generic.auto._
-import io.circe.syntax._
+import io.circe.generic.auto.*
+import io.circe.syntax.*
 import io.circe.{Decoder, Encoder}
-import org.http4s._
+import org.http4s.*
 import org.http4s.blaze.client.BlazeClientBuilder
-import org.http4s.circe.CirceEntityEncoder._
+import org.http4s.circe.CirceEntityEncoder.*
 import org.http4s.circe.jsonOf
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
@@ -17,7 +17,7 @@ import org.http4s.dsl.io.{PATCH, POST}
 import retry.RetryPolicies
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 sealed trait SalesforceClient[F[_], Token] {
   def getToken: F[Token]

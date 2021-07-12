@@ -3,11 +3,11 @@ package com.github.chenharryhua.nanjin.http.salesforce.auth
 import cats.{Applicative, MonadError, Show}
 import io.circe.Decoder
 import org.http4s.client.dsl.Http4sClientDsl
-import org.http4s.dsl.io._
+import org.http4s.dsl.io.*
 import org.http4s.{Request, Uri, UrlForm}
 
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 /** Tokens which carry instance-url with it
   */
