@@ -1,48 +1,59 @@
 package com.github.chenharryhua.nanjin.http.aep.auth
 import com.github.chenharryhua.nanjin.http.auth.privateKey
 import io.circe.generic.JsonCodec
+import io.jsonwebtoken.{Jwts, SignatureAlgorithm}
 import org.http4s.Method.*
 import org.http4s.client.dsl.Http4sClientDsl
-import org.http4s.implicits.http4sLiteralsSyntax
-import org.http4s.{Request, UrlForm}
-import pdi.jwt.{JwtAlgorithm, JwtClaim, JwtUtils}
+import org.http4s.{Header, Request, Uri}
+import org.typelevel.ci.CIString
 
 import java.io.File
-import java.time.Clock
-
+import java.lang.Boolean.TRUE
+import java.security.interfaces.RSAPrivateKey
+import scala.collection.JavaConverters.*
 @JsonCodec
-final case class TokenResponse(token_type: String, expires_in: Long, refresh_token: String, access_token: String)
+final case class TokenResponse(token_type: String, expires_in: Long, access_token: String)
 
 sealed abstract class TokenType(name: String)
 
 object TokenType {
+
   final case class IMS(endpoint: String, client_id: String, client_code: String, client_secret: String)
       extends TokenType("access_token")
 
   final case class JWT[F[_]](
-    endpoint: String,
+    auth_endpoint: String,
     ims_org_id: String,
     client_id: String,
     client_secret: String,
     technical_account_key: String,
     key_path: String)
       extends TokenType("jwt_token") with Http4sClientDsl[F] {
-
+    private val JWT_EXPIRY_KEY: String         = "exp"
+    private val JWT_ISS_KEY: String            = "iss"
+    private val JWT_AUD_KEY: String            = "aud"
+    private val JWT_SUB_KEY: String            = "sub"
+    private val JWT_TOKEN_EXPIRATION_THRESHOLD = 86400L // 24 hours
     def login: Request[F] = {
-      val claim = JwtClaim(
-        issuer = Some(ims_org_id),
-        subject = Some(technical_account_key),
-        audience = Some(Set(s"$endpoint/c/$client_id")))
-        .expiresIn(60 * 60)(Clock.systemUTC()) + (s"$endpoint/s/ent_dataservices_sdk", true)
-      val jwt =
-        JwtUtils.stringify(JwtUtils.sign(claim.toJson, privateKey.pkcs8File(new File(key_path)), JwtAlgorithm.RS256))
+      val claims: Map[String, AnyRef] = Map(
+        JWT_ISS_KEY -> ims_org_id,
+        JWT_SUB_KEY -> technical_account_key,
+        JWT_EXPIRY_KEY -> new java.lang.Long(System.currentTimeMillis() / 1000 + JWT_TOKEN_EXPIRATION_THRESHOLD),
+        JWT_AUD_KEY -> s"$auth_endpoint/c/$client_id",
+        s"$auth_endpoint/s/ent_dataservices_sdk" -> TRUE
+      )
+      val pk: RSAPrivateKey = privateKey.pkcs8File(new File(key_path))
+      val jwtToken          = Jwts.builder.setClaims(claims.asJava).signWith(SignatureAlgorithm.RS256, pk).compact
+
+      // https://www.adobe.io/authentication/auth-methods.html#!AdobeDocs/adobeio-auth/master/JWT/JWT.md
       POST(
-        UrlForm(
-          "client_id" -> client_id,
-          "client_secret" -> client_secret,
-          "jwt_token" -> jwt
-        ),
-        uri"https://ims-na1.adobelogin.com/ims/exchange/jwt"
+        Uri
+          .unsafeFromString(s"$auth_endpoint/ims/exchange/jwt")
+          .withQueryParam("client_id", client_id)
+          .withQueryParam("client_secret", client_secret)
+          .withQueryParam("jwt_token", jwtToken)).putHeaders(
+        Header.Raw(CIString("Content-Type"), "application/x-www-form-urlencoded"),
+        Header.Raw(CIString("Cache-Control"), "no-cache")
       )
     }
   }
