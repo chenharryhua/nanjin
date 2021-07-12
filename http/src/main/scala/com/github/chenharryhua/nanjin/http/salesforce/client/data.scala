@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.http.salesforce.client
 
 import io.circe.Encoder
-import io.circe.generic.auto._
-import io.circe.syntax._
-import org.http4s._
+import io.circe.generic.auto.*
+import io.circe.syntax.*
+import org.http4s.*
 
 final case class SalesforceResponse(
   httpVersion: HttpVersion,

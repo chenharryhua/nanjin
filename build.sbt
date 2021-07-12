@@ -50,7 +50,7 @@ val avro4s  = "4.0.10"
 
 // connect
 val hadoop  = "3.3.1"
-val akkaFtp = "3.0.1"
+val akkaFtp = "3.0.2"
 val http4s  = "1.0.0-M23"
 
 // misc
@@ -215,7 +215,8 @@ val testLib = Seq(
   "org.typelevel" %% "algebra-laws"                           % algebra         % Test,
   "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % akkaKafka       % Test,
   "org.slf4j"                                                 % "slf4j-log4j12" % "1.7.31" % Test,
-  "log4j"                                                     % "log4j"         % "1.2.17" % Test
+  "log4j"                                                     % "log4j"         % "1.2.17" % Test,
+  "com.github.pathikrit" %% "better-files"                    % betterFiles     % Test
 )
 
 val kafkaLib = Seq(
@@ -328,7 +329,9 @@ lazy val http = (project in file("http"))
   .settings(name := "nj-http")
   .settings(
     libraryDependencies ++=
-      Seq("com.github.cb372" %% "cats-retry" % "3.0.0") ++
+      Seq(
+        "com.github.cb372" %% "cats-retry"    % "3.0.0",
+        "io.jsonwebtoken"                     % "jjwt" % "0.9.1") ++
         http4sLib ++ fs2Lib ++ effectLib ++ logLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib)
 
 lazy val aws = (project in file("aws"))
@@ -404,8 +407,8 @@ lazy val spark = (project in file("spark"))
   .settings(name := "nj-spark")
   .settings(
     libraryDependencies ++= Seq(
-      "org.locationtech.jts"                   % "jts-core" % "1.18.1",
-      "com.github.pathikrit" %% "better-files" % betterFiles,
+      "org.locationtech.jts" % "jts-core" % "1.18.1",
+
       // for spark
       "io.getquill" %% "quill-spark"               % quill,
       "com.thesamet.scalapb" %% "sparksql-scalapb" % "0.11.0",

@@ -5,7 +5,7 @@ import higherkindness.droste.Algebra
 import higherkindness.droste.data.Fix
 import monocle.macros.Lenses
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 @Lenses final case class Authentication(maxRetries: Int, interval: FiniteDuration)
 @Lenses final case class SalesforceParams(auth: Authentication)
