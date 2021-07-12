@@ -331,8 +331,7 @@ lazy val http = (project in file("http"))
     libraryDependencies ++=
       Seq(
         "com.github.cb372" %% "cats-retry"    % "3.0.0",
-        "com.github.jwt-scala" %% "jwt-core"  % "8.0.2",
-        "com.github.jwt-scala" %% "jwt-circe" % "8.0.2") ++
+        "io.jsonwebtoken"                     % "jjwt" % "0.9.1") ++
         http4sLib ++ fs2Lib ++ effectLib ++ logLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib)
 
 lazy val aws = (project in file("aws"))
