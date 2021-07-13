@@ -11,7 +11,7 @@ private[http] object privateKey {
   def pkcs8(bytes: Array[Byte]): RSAPrivateKey =
     KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(bytes)).asInstanceOf[RSAPrivateKey]
 
-  def pkcs8File(file: File): RSAPrivateKey =
+  def pkcs8(file: File): RSAPrivateKey =
     pkcs8(Files.readAllBytes(file.toPath))
 
 }

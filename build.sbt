@@ -330,9 +330,11 @@ lazy val http = (project in file("http"))
   .settings(
     libraryDependencies ++=
       Seq(
-        "com.github.cb372" %% "cats-retry"    % "3.0.0",
-        "io.jsonwebtoken"                     % "jjwt" % "0.9.1") ++
-        http4sLib ++ fs2Lib ++ effectLib ++ logLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib)
+        "com.github.cb372" %% "cats-retry" % "3.0.0",
+        "io.jsonwebtoken"                  % "jjwt-api"     % "0.11.2",
+        "io.jsonwebtoken"                  % "jjwt-impl"    % "0.11.2",
+        "io.jsonwebtoken"                  % "jjwt-jackson" % "0.11.2"
+      ) ++ http4sLib ++ fs2Lib ++ effectLib ++ logLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib)
 
 lazy val aws = (project in file("aws"))
   .dependsOn(common)
