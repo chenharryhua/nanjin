@@ -295,7 +295,7 @@ val doobieLib = Seq(
   "org.tpolecat" %% "doobie-hikari",
   "org.tpolecat" %% "doobie-free",
   "org.tpolecat" %% "doobie-quill"
-).map(_ % doobie) ++ Seq("com.zaxxer" % "HikariCP" % "4.0.3")
+).map(_ % doobie) ++ Seq("com.zaxxer" % "HikariCP" % "5.0.0")
 
 val logLib = Seq(
   "org.log4s" %% "log4s" % "1.10.0",
