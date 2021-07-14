@@ -12,6 +12,7 @@ import org.http4s.Method.POST
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
+import org.http4s.client.middleware.Retry
 import org.http4s.implicits.http4sLiteralsSyntax
 
 import java.util.concurrent.TimeUnit
@@ -46,15 +47,16 @@ object SalesforceToken {
   ) extends Http4sClientDsl[F] with Login[F] {
 
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
-      val getToken = client.expect[MarketingCloudTokenResponse](
-        POST(
-          UrlForm(
-            "grant_type" -> "client_credentials",
-            "client_id" -> client_id,
-            "client_secret" -> client_secret
-          ),
-          auth_endpoint.withPath(path"/v2/token")
-        ))
+      val getToken: F[MarketingCloudTokenResponse] =
+        Retry(authPolicy[F])(client).expect[MarketingCloudTokenResponse](
+          POST(
+            UrlForm(
+              "grant_type" -> "client_credentials",
+              "client_id" -> client_id,
+              "client_secret" -> client_secret
+            ),
+            auth_endpoint.withPath(path"/v2/token")
+          ))
 
       Stream.resource(for {
         hotswap <- Hotswap.create[F, Response[F]]
@@ -81,7 +83,7 @@ object SalesforceToken {
   ) extends Http4sClientDsl[F] with Login[F] {
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val getToken: F[SalesforceIotTokenResponse] =
-        client.expect[SalesforceIotTokenResponse](
+        Retry(authPolicy[F])(client).expect[SalesforceIotTokenResponse](
           POST(
             UrlForm(
               "grant_type" -> "password",
