@@ -11,8 +11,7 @@ import org.http4s.Method.*
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
-import org.http4s.{Header, Headers, Uri}
-import org.typelevel.ci.CIString
+import org.http4s.{Headers, Request, Uri}
 
 import java.io.File
 import java.lang.Boolean.TRUE
@@ -38,7 +37,7 @@ object AdobeToken {
           .withQueryParam("client_id", client_id)
           .withQueryParam("client_secret", client_secret)
           .withQueryParam("code", client_code)
-      ).withHeaders(Header.Raw(CIString("Content-Type"), "application/x-www-form-urlencoded"))
+      ).withHeaders("Content-Type" -> "application/x-www-form-urlencoded")
       client.expect[AdobeTokenResponse](req)
     }
   }
@@ -52,7 +51,7 @@ object AdobeToken {
     private_key: Either[File, Array[Byte]])
       extends AdobeToken("jwt_token") with Http4sClientDsl[F] with Login[F] {
     // https://www.adobe.io/authentication/auth-methods.html#!AdobeDocs/adobeio-auth/master/JWT/JWT.md
-    def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
+    override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val jwtToken = F.realTimeInstant.map { ts =>
         val pk: RSAPrivateKey = private_key.fold(encryption.pkcs8, encryption.pkcs8)
         Jwts.builder
@@ -70,9 +69,9 @@ object AdobeToken {
               .unsafeFromString(s"$auth_endpoint/ims/exchange/jwt")
               .withQueryParam("client_id", client_id)
               .withQueryParam("client_secret", client_secret)
-              .withQueryParam("jwt_token", jwt)).putHeaders(
-            Header.Raw(CIString("Content-Type"), "application/x-www-form-urlencoded"),
-            Header.Raw(CIString("Cache-Control"), "no-cache"))))
+              .withQueryParam("jwt_token", jwt))
+            .putHeaders("Content-Type" -> "application/x-www-form-urlencoded", "Cache-Control" -> "no-cache")))
+
       Stream.resource(Supervisor[F].flatMap { supervisor =>
         Resource.eval(for {
           ref <- jwtToken.flatMap(F.ref)
@@ -81,14 +80,15 @@ object AdobeToken {
               .flatMap(t => jwtToken.delayBy(FiniteDuration(t.expires_in / 2, TimeUnit.SECONDS)).flatMap(ref.set))
               .foreverM[Unit])
         } yield Client[F] { req =>
-          val auth_req = ref.get.map(t =>
-            req.putHeaders(Headers(
-              Header.Raw(CIString("Authorization"), s"${t.token_type} ${t.access_token}"),
-              Header.Raw(CIString("x-gw-ims-org-id"), ims_org_id),
-              Header.Raw(CIString("x-api-key"), client_id)
-            )))
+          val decorated: F[Request[F]] = ref.get.map(t =>
+            req.putHeaders(
+              Headers(
+                "Authorization" -> s"${t.token_type} ${t.access_token}",
+                "x-gw-ims-org-id" -> ims_org_id,
+                "x-api-key" -> client_id
+              )))
 
-          Resource.eval(auth_req).flatMap(client.run)
+          Resource.eval(decorated).flatMap(client.run)
         })
       })
     }
