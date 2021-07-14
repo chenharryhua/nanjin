@@ -43,10 +43,9 @@ object AdobeToken {
 
       Stream.resource(for {
         hotswap <- Hotswap.create[F, Response[F]]
-        supervisor <- Supervisor[F]
         ref <- Resource.eval(getToken.flatMap(F.ref))
-        _ <- Resource.eval(
-          supervisor.supervise(ref.get.flatMap(t => getToken.delayBy(FiniteDuration(t.expires_in / 2, TimeUnit.SECONDS)).flatMap(ref.set)).foreverM[Unit]))
+        _ <- Supervisor[F].evalMap(
+          _.supervise(ref.get.flatMap(t => getToken.delayBy(FiniteDuration(t.expires_in / 2, TimeUnit.SECONDS)).flatMap(ref.set)).foreverM[Unit]))
       } yield Client[F] { req =>
         Resource.eval(ref.get.flatMap(t =>
           hotswap.swap(client.run(req.putHeaders(Headers(
@@ -88,10 +87,9 @@ object AdobeToken {
 
       Stream.resource(for {
         hotswap <- Hotswap.create[F, Response[F]]
-        supervisor <- Supervisor[F]
         ref <- Resource.eval(getToken.flatMap(F.ref))
-        _ <- Resource.eval(
-          supervisor.supervise(ref.get.flatMap(t => getToken.delayBy(FiniteDuration(t.expires_in / 2, TimeUnit.SECONDS)).flatMap(ref.set)).foreverM[Unit]))
+        _ <- Supervisor[F].evalMap(
+          _.supervise(ref.get.flatMap(t => getToken.delayBy(FiniteDuration(t.expires_in / 2, TimeUnit.SECONDS)).flatMap(ref.set)).foreverM[Unit]))
       } yield Client[F] { req =>
         Resource.eval(ref.get.flatMap(t =>
           hotswap.swap(client.run(req.putHeaders(Headers(

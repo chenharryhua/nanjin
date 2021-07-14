@@ -62,10 +62,9 @@ object SalesforceToken {
 
       Stream.resource(for {
         hotswap <- Hotswap.create[F, Response[F]]
-        supervisor <- Supervisor[F]
         ref <- Resource.eval(getToken.flatMap(F.ref))
-        _ <- Resource.eval(
-          supervisor.supervise(
+        _ <- Supervisor[F].evalMap(
+          _.supervise(
             ref.get
               .flatMap(t => getToken.delayBy(FiniteDuration(t.expires_in / 2, TimeUnit.SECONDS)).flatMap(ref.set))
               .foreverM[Unit]))
@@ -100,9 +99,8 @@ object SalesforceToken {
 
       Stream.resource(for {
         hotswap <- Hotswap.create[F, Response[F]]
-        supervisor <- Supervisor[F]
         ref <- Resource.eval(getToken.flatMap(F.ref))
-        _ <- Resource.eval(supervisor.supervise(getToken.delayBy(2.hours).flatMap(ref.set).foreverM[Unit]))
+        _ <- Supervisor[F].evalMap(_.supervise(getToken.delayBy(2.hours).flatMap(ref.set).foreverM[Unit]))
       } yield Client[F] { req =>
         Resource.eval(ref.get.flatMap(t =>
           hotswap.swap(client.run(req.putHeaders(Headers("Authorization" -> s"${t.token_type} ${t.access_token}"))))))
