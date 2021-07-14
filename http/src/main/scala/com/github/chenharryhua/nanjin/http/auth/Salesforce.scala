@@ -12,6 +12,7 @@ import org.http4s.Method.POST
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
+import org.http4s.implicits.http4sLiteralsSyntax
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.*
@@ -41,7 +42,7 @@ object SalesforceToken {
   final case class MarketingCloud[F[_]](
     client_id: String,
     client_secret: String,
-    authUri: Uri
+    auth_endpoint: Uri
   ) extends Http4sClientDsl[F] with Login[F] {
 
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
@@ -52,7 +53,7 @@ object SalesforceToken {
             "client_id" -> client_id,
             "client_secret" -> client_secret
           ),
-          authUri
+          auth_endpoint.withPath(path"/v2/token")
         ))
 
       Stream.resource(for {
@@ -76,7 +77,7 @@ object SalesforceToken {
     client_secret: String,
     username: String,
     password: String,
-    authUri: Uri
+    auth_endpoint: Uri
   ) extends Http4sClientDsl[F] with Login[F] {
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val getToken: F[SalesforceIotTokenResponse] =
@@ -89,7 +90,8 @@ object SalesforceToken {
               "username" -> username,
               "password" -> password
             ),
-            authUri))
+            auth_endpoint.withPath(path"/services/oauth2/token")
+          ))
 
       Stream.resource(for {
         hotswap <- Hotswap.create[F, Response[F]]

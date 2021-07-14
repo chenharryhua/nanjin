@@ -11,6 +11,7 @@ import org.http4s.Method.*
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
+import org.http4s.implicits.http4sLiteralsSyntax
 import org.http4s.{Headers, Response, Uri}
 
 import java.io.File
@@ -27,12 +28,11 @@ sealed abstract class AdobeToken(val name: String)
 
 object AdobeToken {
 
-  final case class IMS[F[_]](auth_endpoint: String, client_id: String, client_code: String, client_secret: String)
+  final case class IMS[F[_]](auth_endpoint: Uri, client_id: String, client_code: String, client_secret: String)
       extends AdobeToken("access_token") with Http4sClientDsl[F] with Login[F]{
    override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val getToken: F[AdobeTokenResponse] = client.expect[AdobeTokenResponse](POST(
-        Uri
-          .unsafeFromString(s"$auth_endpoint/ims/token/v1")
+         auth_endpoint.withPath(path"/ims/token/v1")
           .withQueryParam("grant_type", "authorization_code")
           .withQueryParam("client_id", client_id)
           .withQueryParam("client_secret", client_secret)
@@ -55,7 +55,7 @@ object AdobeToken {
   }
 
   final case class JWT[F[_]](
-    auth_endpoint: String,
+    auth_endpoint: Uri,
     ims_org_id: String,
     client_id: String,
     client_secret: String,
@@ -77,8 +77,7 @@ object AdobeToken {
       }.flatMap(jwt =>
         client.expect[AdobeTokenResponse](
           POST(
-            Uri
-              .unsafeFromString(s"$auth_endpoint/ims/exchange/jwt")
+             auth_endpoint.withPath(path"/ims/exchange/jwt")
               .withQueryParam("client_id", client_id)
               .withQueryParam("client_secret", client_secret)
               .withQueryParam("jwt_token", jwt))
