@@ -1,8 +1,9 @@
-package com.github.chenharryhua.nanjin.http.aep.auth
+package com.github.chenharryhua.nanjin.http.auth
+
+import cats.effect.std.Supervisor
 import cats.effect.syntax.all.*
 import cats.effect.{Async, Concurrent, Ref, Resource}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.http.auth.privateKey
 import io.circe.generic.JsonCodec
 import io.jsonwebtoken.{Jwts, SignatureAlgorithm}
 import org.http4s.Method.*
@@ -15,19 +16,19 @@ import org.typelevel.ci.CIString
 import java.io.File
 import java.lang.Boolean.TRUE
 import java.security.interfaces.RSAPrivateKey
+import java.util.Date
 import java.util.concurrent.TimeUnit
-import scala.collection.JavaConverters.*
 import scala.concurrent.duration.*
 
 @JsonCodec
 final case class AdobeTokenResponse(token_type: String, expires_in: Long, access_token: String)
 
-sealed abstract class AdobeTokenType(name: String)
+sealed abstract class AdobeToken(name: String)
 
-object AdobeTokenType {
+object AdobeToken {
 
   final case class IMS[F[_]](auth_endpoint: String, client_id: String, client_code: String, client_secret: String)
-      extends AdobeTokenType("access_token") with Http4sClientDsl[F] {
+      extends AdobeToken("access_token") with Http4sClientDsl[F] {
     def login(client: Client[F])(implicit F: Concurrent[F]): F[AdobeTokenResponse] = {
       val req = POST(
         Uri
@@ -48,24 +49,19 @@ object AdobeTokenType {
     client_secret: String,
     technical_account_key: String,
     private_key: Either[File, Array[Byte]])
-      extends AdobeTokenType("jwt_token") with Http4sClientDsl[F] {
-    private val JWT_EXPIRY_KEY: String         = "exp"
-    private val JWT_ISS_KEY: String            = "iss"
-    private val JWT_AUD_KEY: String            = "aud"
-    private val JWT_SUB_KEY: String            = "sub"
-    private val JWT_TOKEN_EXPIRATION_THRESHOLD = 86400L // 24 hours
+      extends AdobeToken("jwt_token") with Http4sClientDsl[F] {
     // https://www.adobe.io/authentication/auth-methods.html#!AdobeDocs/adobeio-auth/master/JWT/JWT.md
     def login(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
       val jwtToken = F.realTimeInstant.map { ts =>
-        val claims: Map[String, AnyRef] = Map(
-          JWT_ISS_KEY -> ims_org_id,
-          JWT_SUB_KEY -> technical_account_key,
-          JWT_EXPIRY_KEY -> new java.lang.Long(ts.getEpochSecond + JWT_TOKEN_EXPIRATION_THRESHOLD),
-          JWT_AUD_KEY -> s"$auth_endpoint/c/$client_id",
-          s"$auth_endpoint/s/ent_dataservices_sdk" -> TRUE
-        )
-        val pk: RSAPrivateKey = private_key.fold(privateKey.pkcs8, privateKey.pkcs8)
-        Jwts.builder.setClaims(claims.asJava).signWith(pk, SignatureAlgorithm.RS256).compact
+        val pk: RSAPrivateKey = private_key.fold(encryption.pkcs8, encryption.pkcs8)
+        Jwts.builder
+          .setSubject(technical_account_key)
+          .setIssuer(ims_org_id)
+          .setAudience(s"$auth_endpoint/c/$client_id")
+          .setExpiration(new Date(ts.plusSeconds(86400).toEpochMilli))
+          .claim(s"$auth_endpoint/s/ent_dataservices_sdk", TRUE)
+          .signWith(pk, SignatureAlgorithm.RS256)
+          .compact
       }.flatMap(jwt =>
         client.expect[AdobeTokenResponse](
           POST(
@@ -77,23 +73,25 @@ object AdobeTokenType {
             Header.Raw(CIString("Content-Type"), "application/x-www-form-urlencoded"),
             Header.Raw(CIString("Cache-Control"), "no-cache"))))
 
-      Resource.eval(for {
-        ref <- jwtToken.flatMap(Ref.of(_))
-        _ <- ref.get
-          .flatMap(t => jwtToken.delayBy(FiniteDuration(t.expires_in / 2, TimeUnit.SECONDS)).flatMap(ref.set))
-          .foreverM[Unit]
-          .start
-      } yield Client[F] { req =>
-        val auth_req = ref.get.map(t =>
-          req.putHeaders(
-            Headers(
-              Header.Raw(CIString("Authorization"), s"${t.token_type} ${t.access_token}"),
-              Header.Raw(CIString("x-gw-ims-org-id"), ims_org_id),
-              Header.Raw(CIString("x-api-key"), client_id)
-            )))
+      Supervisor[F].flatMap { supervisor =>
+        Resource.eval(for {
+          ref <- jwtToken.flatMap(F.ref)
+          _ <- supervisor.supervise(
+            ref.get
+              .flatMap(t => jwtToken.delayBy(FiniteDuration(t.expires_in / 2, TimeUnit.SECONDS)).flatMap(ref.set))
+              .foreverM[Unit])
+        } yield Client[F] { req =>
+          val auth_req = ref.get.map(t =>
+            req.putHeaders(
+              Headers(
+                Header.Raw(CIString("Authorization"), s"${t.token_type} ${t.access_token}"),
+                Header.Raw(CIString("x-gw-ims-org-id"), ims_org_id),
+                Header.Raw(CIString("x-api-key"), client_id)
+              )))
 
-        Resource.eval(auth_req).flatMap(client.run)
-      })
+          Resource.eval(auth_req).flatMap(client.run)
+        })
+      }
     }
   }
 }
