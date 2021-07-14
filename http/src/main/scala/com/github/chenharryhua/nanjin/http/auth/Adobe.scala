@@ -11,6 +11,7 @@ import org.http4s.Method.*
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
+import org.http4s.client.middleware.Retry
 import org.http4s.implicits.http4sLiteralsSyntax
 import org.http4s.{Headers, Response, Uri}
 
@@ -31,7 +32,8 @@ object AdobeToken {
   final case class IMS[F[_]](auth_endpoint: Uri, client_id: String, client_code: String, client_secret: String)
       extends AdobeToken("access_token") with Http4sClientDsl[F] with Login[F]{
    override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
-      val getToken: F[AdobeTokenResponse] = client.expect[AdobeTokenResponse](POST(
+      val getToken: F[AdobeTokenResponse] =
+        Retry(authPolicy[F])(client).expect[AdobeTokenResponse](POST(
          auth_endpoint.withPath(path"/ims/token/v1")
           .withQueryParam("grant_type", "authorization_code")
           .withQueryParam("client_id", client_id)
@@ -64,7 +66,8 @@ object AdobeToken {
       extends AdobeToken("jwt_token") with Http4sClientDsl[F] with Login[F] {
     // https://www.adobe.io/authentication/auth-methods.html#!AdobeDocs/adobeio-auth/master/JWT/JWT.md
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
-      val getToken = F.realTimeInstant.map { ts =>
+      val getToken: F[AdobeTokenResponse] =
+        F.realTimeInstant.map { ts =>
         val pk: RSAPrivateKey = private_key.fold(encryption.pkcs8, encryption.pkcs8)
         Jwts.builder
           .setSubject(technical_account_key)
@@ -75,7 +78,7 @@ object AdobeToken {
           .signWith(pk, SignatureAlgorithm.RS256)
           .compact
       }.flatMap(jwt =>
-        client.expect[AdobeTokenResponse](
+        Retry(authPolicy[F])(client).expect[AdobeTokenResponse](
           POST(
              auth_endpoint.withPath(path"/ims/exchange/jwt")
               .withQueryParam("client_id", client_id)
