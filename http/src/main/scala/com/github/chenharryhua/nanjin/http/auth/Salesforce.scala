@@ -12,6 +12,7 @@ import org.http4s.Method.POST
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
+import org.http4s.implicits.http4sLiteralsSyntax
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.*
@@ -52,7 +53,7 @@ object SalesforceToken {
             "client_id" -> client_id,
             "client_secret" -> client_secret
           ),
-          auth_endpoint
+          auth_endpoint.withPath(path"/v2/token")
         ))
 
       Stream.resource(for {
@@ -89,7 +90,8 @@ object SalesforceToken {
               "username" -> username,
               "password" -> password
             ),
-            auth_endpoint))
+            auth_endpoint.withPath(path"/services/oauth2/token")
+          ))
 
       Stream.resource(for {
         hotswap <- Hotswap.create[F, Response[F]]
