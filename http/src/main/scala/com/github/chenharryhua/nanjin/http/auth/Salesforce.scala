@@ -81,8 +81,7 @@ object SalesforceToken {
           val decorated: F[Request[F]] = ref.get.map { t =>
             req
               .withUri(Uri.unsafeFromString(t.instance_url))
-              .putHeaders(
-                Headers("Authorization" -> s"${t.token_type} ${t.access_token}", "Content-Type" -> "application/json"))
+              .putHeaders(Headers("Authorization" -> s"${t.token_type} ${t.access_token}"))
           }
           Resource.eval(decorated).flatMap(client.run)
         })
