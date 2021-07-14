@@ -40,6 +40,8 @@ final case class MarketingCloudTokenResponse(
 sealed abstract class SalesforceToken(val name: String)
 
 object SalesforceToken {
+
+  //https://developer.salesforce.com/docs/atlas.en-us.mc-app-development.meta/mc-app-development/authorization-code.htm
   final case class MarketingCloud[F[_]](
     client_id: String,
     client_secret: String,
@@ -74,6 +76,7 @@ object SalesforceToken {
     }
   }
 
+  //https://developer.salesforce.com/docs/atlas.en-us.api_iot.meta/api_iot/qs_auth_access_token.htm
   final case class Iot[F[_]](
     client_id: String,
     client_secret: String,
