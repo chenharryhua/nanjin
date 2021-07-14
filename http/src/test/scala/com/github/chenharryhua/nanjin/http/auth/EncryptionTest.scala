@@ -17,12 +17,13 @@ class EncryptionTest extends AnyFunSuite {
   test("supervisor") {
     val run = for {
       _ <- IO(1)
-      fib <- Supervisor[IO].use(s =>
-        s.supervise(IO.sleep(1.second) >> IO.raiseError(new Exception)).guarantee(IO.println("done")))
-      _ <- IO.sleep(2.seconds)
-      _ <- IO.println("get result")
+      fib <- Supervisor[IO]
+        .use(s => s.supervise(IO.sleep(1.second) >> IO.raiseError(new Exception)).guarantee(IO.println("raise error")))
+        .guarantee(IO.println("supervisor done"))
+      _ <- IO.println("compute")
+      _ <- IO.sleep(3.seconds)
       r <- IO(2)
     } yield r
-    assert(2 == run.unsafeRunSync)
+    assert(2 == run.guarantee(IO.println("accomplished")).unsafeRunSync)
   }
 }

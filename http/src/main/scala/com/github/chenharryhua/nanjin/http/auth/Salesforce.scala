@@ -2,9 +2,6 @@ package com.github.chenharryhua.nanjin.http.auth
 
 import cats.effect.Async
 import cats.effect.kernel.Resource
-import cats.effect.std.{Hotswap, Supervisor}
-import cats.effect.syntax.all.*
-import cats.syntax.all.*
 import fs2.Stream
 import io.circe.generic.JsonCodec
 import org.http4s.*
@@ -15,7 +12,6 @@ import org.http4s.client.dsl.Http4sClientDsl
 import org.http4s.client.middleware.Retry
 import org.http4s.implicits.http4sLiteralsSyntax
 
-import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.*
 
 @JsonCodec
@@ -49,29 +45,26 @@ object SalesforceToken {
   ) extends Http4sClientDsl[F] with Login[F] {
 
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
-      val getToken: F[MarketingCloudTokenResponse] =
-        Retry(authPolicy[F])(client).expect[MarketingCloudTokenResponse](
-          POST(
-            UrlForm(
-              "grant_type" -> "client_credentials",
-              "client_id" -> client_id,
-              "client_secret" -> client_secret
-            ),
-            auth_endpoint.withPath(path"/v2/token")
-          ))
+      val getToken =
+        Stream.eval(
+          Retry(authPolicy[F])(client).expect[MarketingCloudTokenResponse](
+            POST(
+              UrlForm(
+                "grant_type" -> "client_credentials",
+                "client_id" -> client_id,
+                "client_secret" -> client_secret
+              ),
+              auth_endpoint.withPath(path"/v2/token")
+            )))
 
-      Stream.resource(for {
-        hotswap <- Hotswap.create[F, Response[F]]
-        ref <- Resource.eval(getToken.flatMap(F.ref))
-        _ <- Supervisor[F].evalMap(
-          _.supervise(
-            ref.get
-              .flatMap(t => getToken.delayBy(FiniteDuration(t.expires_in / 2, TimeUnit.SECONDS)).flatMap(ref.set))
-              .foreverM[Unit]))
-      } yield Client[F] { req =>
-        Resource.eval(ref.get.flatMap(t =>
-          hotswap.swap(client.run(req.putHeaders(Headers("Authorization" -> s"${t.token_type} ${t.access_token}"))))))
-      })
+      getToken.evalMap(F.ref).flatMap { token =>
+        Stream(Client[F] { req =>
+          Resource
+            .eval(token.get)
+            .flatMap(t => client.run(req.putHeaders(Headers("Authorization" -> s"${t.token_type} ${t.access_token}"))))
+        }).concurrently(
+          Stream.eval(token.get).flatMap(t => getToken.delayBy(t.expires_in.seconds).evalMap(token.set)).repeat)
+      }
     }
   }
 
@@ -84,9 +77,9 @@ object SalesforceToken {
     auth_endpoint: Uri
   ) extends Http4sClientDsl[F] with Login[F] {
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
-      val getToken: F[SalesforceIotTokenResponse] =
-        Retry(authPolicy[F])(client).expect[SalesforceIotTokenResponse](
-          POST(
+      val getToken: Stream[F, SalesforceIotTokenResponse] =
+        Stream.eval(
+          Retry(authPolicy[F])(client).expect[SalesforceIotTokenResponse](POST(
             UrlForm(
               "grant_type" -> "password",
               "client_id" -> client_id,
@@ -95,16 +88,15 @@ object SalesforceToken {
               "password" -> password
             ),
             auth_endpoint.withPath(path"/services/oauth2/token")
-          ))
+          )))
 
-      Stream.resource(for {
-        hotswap <- Hotswap.create[F, Response[F]]
-        ref <- Resource.eval(getToken.flatMap(F.ref))
-        _ <- Supervisor[F].evalMap(_.supervise(getToken.delayBy(2.hours).flatMap(ref.set).foreverM[Unit]))
-      } yield Client[F] { req =>
-        Resource.eval(ref.get.flatMap(t =>
-          hotswap.swap(client.run(req.putHeaders(Headers("Authorization" -> s"${t.token_type} ${t.access_token}"))))))
-      })
+      getToken.evalMap(F.ref).flatMap { token =>
+        Stream(Client[F] { req =>
+          Resource
+            .eval(token.get)
+            .flatMap(t => client.run(req.putHeaders(Headers("Authorization" -> s"${t.token_type} ${t.access_token}"))))
+        }).concurrently(getToken.delayBy(2.hours).evalMap(token.set).repeat)
+      }
     }
   }
 }
