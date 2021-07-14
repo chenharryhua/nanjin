@@ -2,8 +2,9 @@ package com.github.chenharryhua.nanjin.http.auth
 
 import cats.effect.std.Supervisor
 import cats.effect.syntax.all.*
-import cats.effect.{Async, Concurrent, Ref, Resource}
+import cats.effect.{Async, Concurrent, Resource}
 import cats.syntax.all.*
+import fs2.Stream
 import io.circe.generic.JsonCodec
 import io.jsonwebtoken.{Jwts, SignatureAlgorithm}
 import org.http4s.Method.*
@@ -49,9 +50,9 @@ object AdobeToken {
     client_secret: String,
     technical_account_key: String,
     private_key: Either[File, Array[Byte]])
-      extends AdobeToken("jwt_token") with Http4sClientDsl[F] {
+      extends AdobeToken("jwt_token") with Http4sClientDsl[F] with Login[F] {
     // https://www.adobe.io/authentication/auth-methods.html#!AdobeDocs/adobeio-auth/master/JWT/JWT.md
-    def login(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
+    def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val jwtToken = F.realTimeInstant.map { ts =>
         val pk: RSAPrivateKey = private_key.fold(encryption.pkcs8, encryption.pkcs8)
         Jwts.builder
@@ -72,8 +73,7 @@ object AdobeToken {
               .withQueryParam("jwt_token", jwt)).putHeaders(
             Header.Raw(CIString("Content-Type"), "application/x-www-form-urlencoded"),
             Header.Raw(CIString("Cache-Control"), "no-cache"))))
-
-      Supervisor[F].flatMap { supervisor =>
+      Stream.resource(Supervisor[F].flatMap { supervisor =>
         Resource.eval(for {
           ref <- jwtToken.flatMap(F.ref)
           _ <- supervisor.supervise(
@@ -82,16 +82,15 @@ object AdobeToken {
               .foreverM[Unit])
         } yield Client[F] { req =>
           val auth_req = ref.get.map(t =>
-            req.putHeaders(
-              Headers(
-                Header.Raw(CIString("Authorization"), s"${t.token_type} ${t.access_token}"),
-                Header.Raw(CIString("x-gw-ims-org-id"), ims_org_id),
-                Header.Raw(CIString("x-api-key"), client_id)
-              )))
+            req.putHeaders(Headers(
+              Header.Raw(CIString("Authorization"), s"${t.token_type} ${t.access_token}"),
+              Header.Raw(CIString("x-gw-ims-org-id"), ims_org_id),
+              Header.Raw(CIString("x-api-key"), client_id)
+            )))
 
           Resource.eval(auth_req).flatMap(client.run)
         })
-      }
+      })
     }
   }
 }

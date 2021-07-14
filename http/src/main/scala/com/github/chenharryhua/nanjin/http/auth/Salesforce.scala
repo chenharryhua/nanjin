@@ -5,6 +5,7 @@ import cats.effect.kernel.Resource
 import cats.effect.std.Supervisor
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
+import fs2.Stream
 import io.circe.generic.JsonCodec
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.client.Client
@@ -33,8 +34,8 @@ object SalesforceToken {
     username: String,
     password: String,
     authUri: Uri
-  ) extends Http4sClientDsl[F] {
-    def login(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
+  ) extends Http4sClientDsl[F] with Login[F] {
+    def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val iotToken =
         client.expect[SalesforceIotTokenResponse](
           POST(
@@ -46,8 +47,7 @@ object SalesforceToken {
               "password" -> password
             ),
             authUri))
-
-      Supervisor[F].flatMap { supervisor =>
+      Stream.resource(Supervisor[F].flatMap { supervisor =>
         Resource.eval(for {
           ref <- iotToken.flatMap(F.ref)
           _ <- supervisor.supervise(ref.get.flatMap(t => iotToken.delayBy(5.seconds).flatMap(ref.set)).foreverM[Unit])
@@ -59,7 +59,7 @@ object SalesforceToken {
           }
           Resource.eval(decorated).flatMap(client.run)
         })
-      }
+      })
     }
   }
 }
