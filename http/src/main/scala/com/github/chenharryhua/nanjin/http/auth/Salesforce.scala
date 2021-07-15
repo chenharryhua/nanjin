@@ -42,10 +42,10 @@ object SalesforceToken {
     client_id: String,
     client_secret: String,
     auth_endpoint: Uri
-  ) extends Http4sClientDsl[F] with Login[F] {
+  ) extends SalesforceToken("salesforce_mc") with Http4sClientDsl[F] with Login[F] {
 
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
-      val getToken =
+      val getToken: Stream[F, MarketingCloudTokenResponse] =
         Stream.eval(
           Retry(authPolicy[F])(client).expect[MarketingCloudTokenResponse](
             POST(
@@ -76,7 +76,8 @@ object SalesforceToken {
     username: String,
     password: String,
     auth_endpoint: Uri
-  ) extends Http4sClientDsl[F] with Login[F] {
+  ) extends SalesforceToken("salesforce_iot") with Http4sClientDsl[F] with Login[F] {
+
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val getToken: Stream[F, SalesforceIotTokenResponse] =
         Stream.eval(
