@@ -14,7 +14,7 @@ import org.http4s.implicits.http4sLiteralsSyntax
 import org.http4s.{Headers, Uri}
 
 import java.lang.Boolean.TRUE
-import java.security.interfaces.RSAPrivateKey
+import java.security.PrivateKey
 import java.util.Date
 import scala.concurrent.duration.*
 
@@ -65,7 +65,7 @@ object AdobeToken {
     client_id: String,
     client_secret: String,
     technical_account_key: String,
-    private_key: RSAPrivateKey)
+    private_key: PrivateKey)
       extends AdobeToken("jwt_token") with Http4sClientDsl[F] with Login[F] {
 
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {

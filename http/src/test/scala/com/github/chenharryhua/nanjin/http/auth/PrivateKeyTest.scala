@@ -9,7 +9,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import java.nio.file.Paths
 import scala.concurrent.duration.*
 
-class RsaPrivateKeyTest extends AnyFunSuite {
+class PrivateKeyTest extends AnyFunSuite {
 
   /*
      pkcs8.key is generated from key.pem by
@@ -18,7 +18,7 @@ class RsaPrivateKeyTest extends AnyFunSuite {
   test("equality") {
     val pkcs8 = Paths.get(Resource.getUrl("pkcs8.key").getPath)
     val pem   = Paths.get(Resource.getUrl("key.pem").getPath)
-    assert(rsaPrivateKeys.pem(pem).get == rsaPrivateKeys.pkcs8(pkcs8).get)
+    assert(privateKeys.pem(pem).get.equals(privateKeys.pkcs8(pkcs8).get))
   }
 
   test("supervisor") {
