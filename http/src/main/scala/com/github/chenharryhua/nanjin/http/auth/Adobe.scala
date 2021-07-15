@@ -20,7 +20,10 @@ import java.util.Date
 import scala.concurrent.duration.*
 
 @JsonCodec
-final case class AdobeTokenResponse(token_type: String, expires_in: Long, access_token: String)
+final case class AdobeTokenResponse(
+  token_type: String,
+  expires_in: Long, // in milliseconds
+  access_token: String)
 
 sealed abstract class AdobeToken(val name: String)
 
@@ -43,18 +46,20 @@ object AdobeToken {
             ).withHeaders("Content-Type" -> "application/x-www-form-urlencoded")))
 
       getToken.evalMap(F.ref).flatMap { token =>
-        Stream(Client[F] { req =>
+        val refresh: Stream[F, Unit] =
+          Stream.eval(token.get).flatMap(t => getToken.delayBy(t.expires_in.millisecond).evalMap(token.set)).repeat
+        Stream[F, Client[F]](Client[F] { req =>
           Resource
             .eval(token.get)
             .flatMap(t =>
               client.run(req.putHeaders(
                 Headers("Authorization" -> s"${t.token_type} ${t.access_token}", "x-api-key" -> client_id))))
-        }).concurrently(
-          Stream.eval(token.get).flatMap(t => getToken.delayBy(t.expires_in.seconds).evalMap(token.set)).repeat)
+        }).concurrently(refresh)
       }
     }
   }
 
+  // https://www.adobe.io/authentication/auth-methods.html#!AdobeDocs/adobeio-auth/master/JWT/JWT.md
   final case class JWT[F[_]](
     auth_endpoint: Uri,
     ims_org_id: String,
@@ -63,7 +68,7 @@ object AdobeToken {
     technical_account_key: String,
     private_key: Either[File, Array[Byte]])
       extends AdobeToken("jwt_token") with Http4sClientDsl[F] with Login[F] {
-    // https://www.adobe.io/authentication/auth-methods.html#!AdobeDocs/adobeio-auth/master/JWT/JWT.md
+
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val getToken: Stream[F, AdobeTokenResponse] =
         Stream.eval(
@@ -88,7 +93,9 @@ object AdobeToken {
                 .putHeaders("Content-Type" -> "application/x-www-form-urlencoded", "Cache-Control" -> "no-cache"))))
 
       getToken.evalMap(F.ref).flatMap { token =>
-        Stream(Client[F] { req =>
+        val refresh: Stream[F, Unit] =
+          Stream.eval(token.get).flatMap(t => getToken.delayBy(t.expires_in.millisecond).evalMap(token.set)).repeat
+        Stream[F, Client[F]](Client[F] { req =>
           Resource
             .eval(token.get)
             .flatMap(t =>
@@ -98,8 +105,7 @@ object AdobeToken {
                     "Authorization" -> s"${t.token_type} ${t.access_token}",
                     "x-gw-ims-org-id" -> ims_org_id,
                     "x-api-key" -> client_id))))
-        }).concurrently(
-          Stream.eval(token.get).flatMap(t => getToken.delayBy(t.expires_in.seconds).evalMap(token.set)).repeat)
+        }).concurrently(refresh)
       }
     }
   }

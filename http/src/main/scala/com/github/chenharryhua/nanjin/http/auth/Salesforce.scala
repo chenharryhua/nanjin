@@ -27,7 +27,7 @@ final case class SalesforceIotTokenResponse(
 final case class MarketingCloudTokenResponse(
   access_token: String,
   token_type: String,
-  expires_in: Long,
+  expires_in: Long, // in seconds
   scope: String,
   soap_instance_url: String,
   rest_instance_url: String
@@ -58,12 +58,13 @@ object SalesforceToken {
             )))
 
       getToken.evalMap(F.ref).flatMap { token =>
-        Stream(Client[F] { req =>
+        val refresh: Stream[F, Unit] =
+          Stream.eval(token.get).flatMap(t => getToken.delayBy(t.expires_in.seconds).evalMap(token.set)).repeat
+        Stream[F, Client[F]](Client[F] { req =>
           Resource
             .eval(token.get)
             .flatMap(t => client.run(req.putHeaders(Headers("Authorization" -> s"${t.token_type} ${t.access_token}"))))
-        }).concurrently(
-          Stream.eval(token.get).flatMap(t => getToken.delayBy(t.expires_in.seconds).evalMap(token.set)).repeat)
+        }).concurrently(refresh)
       }
     }
   }
@@ -91,11 +92,12 @@ object SalesforceToken {
           )))
 
       getToken.evalMap(F.ref).flatMap { token =>
-        Stream(Client[F] { req =>
+        val refresh: Stream[F, Unit] = getToken.delayBy(2.hours).evalMap(token.set).repeat
+        Stream[F, Client[F]](Client[F] { req =>
           Resource
             .eval(token.get)
             .flatMap(t => client.run(req.putHeaders(Headers("Authorization" -> s"${t.token_type} ${t.access_token}"))))
-        }).concurrently(getToken.delayBy(2.hours).evalMap(token.set).repeat)
+        }).concurrently(refresh)
       }
     }
   }

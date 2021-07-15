@@ -24,5 +24,5 @@ project/metals.sbt
 out/*
 .vscode/*
 .bsp/*
-http/src/test/scala/mtest/http/auth/AdobeLogin.scala
-http/src/test/scala/mtest/http/auth/SalesforceLogin.scala
+http/src/test/scala/mtest/http/auth/AdobeLoginTest.scala
+http/src/test/scala/mtest/http/auth/SalesforceLoginTest.scala
