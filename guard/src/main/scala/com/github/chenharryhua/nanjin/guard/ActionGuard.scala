@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard
 
+import cats.collections.Predicate
 import cats.data.{Kleisli, Reader}
 import cats.effect.kernel.Temporal
 import cats.effect.std.Dispatcher
@@ -49,7 +50,7 @@ final class ActionGuard[F[_]](
       succ = Reader(_ => ""),
       fail = Reader(_ => ""),
       isWorthRetry = Reader(_ => true),
-      postCondition = Reader(_ => true))
+      postCondition = Predicate(_ => true))
 
   def retry[B](fb: F[B]): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
@@ -62,7 +63,7 @@ final class ActionGuard[F[_]](
       succ = Reader(_ => ""),
       fail = Reader(_ => ""),
       isWorthRetry = Reader(_ => true),
-      postCondition = Reader(_ => true))
+      postCondition = Predicate(_ => true))
 
   def fyi(msg: String)(implicit F: Temporal[F]): F[Unit] =
     realZonedDateTime(params.serviceParams)

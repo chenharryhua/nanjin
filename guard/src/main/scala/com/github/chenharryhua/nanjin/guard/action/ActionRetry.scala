@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
+import cats.collections.Predicate
 import cats.data.{Kleisli, Reader}
 import cats.effect.syntax.all.*
 import cats.effect.{Async, Outcome, Ref}
@@ -21,7 +22,7 @@ final class ActionRetry[F[_], A, B](
   succ: Reader[(A, B), String],
   fail: Reader[(A, Throwable), String],
   isWorthRetry: Reader[Throwable, Boolean],
-  postCondition: Reader[B, Boolean]) {
+  postCondition: Predicate[B]) {
 
   def withSuccNotes(succ: (A, B) => String): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
@@ -77,7 +78,7 @@ final class ActionRetry[F[_], A, B](
       succ = succ,
       fail = fail,
       isWorthRetry = isWorthRetry,
-      postCondition = Reader(postCondition))
+      postCondition = Predicate(postCondition))
 
   def run(implicit F: Async[F]): F[B] =
     for {
@@ -125,7 +126,7 @@ final class ActionRetryUnit[F[_], B](
   succ: Reader[B, String],
   fail: Reader[Throwable, String],
   isWorthRetry: Reader[Throwable, Boolean],
-  postCondition: Reader[B, Boolean]) {
+  postCondition: Predicate[B]) {
 
   def withSuccNotes(succ: B => String): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
@@ -177,7 +178,7 @@ final class ActionRetryUnit[F[_], B](
       succ = succ,
       fail = fail,
       isWorthRetry = isWorthRetry,
-      postCondition = Reader(postCondition))
+      postCondition = Predicate(postCondition))
 
   def run(implicit F: Async[F]): F[B] =
     new ActionRetry[F, Unit, B](
