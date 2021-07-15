@@ -331,9 +331,10 @@ lazy val http = (project in file("http"))
   .settings(
     libraryDependencies ++=
       Seq(
-        "io.jsonwebtoken" % "jjwt-api"     % "0.11.2",
-        "io.jsonwebtoken" % "jjwt-impl"    % "0.11.2",
-        "io.jsonwebtoken" % "jjwt-jackson" % "0.11.2"
+        "org.bouncycastle" % "bcpkix-jdk15on" % "1.69",
+        "io.jsonwebtoken"  % "jjwt-api"       % "0.11.2",
+        "io.jsonwebtoken"  % "jjwt-impl"      % "0.11.2",
+        "io.jsonwebtoken"  % "jjwt-jackson"   % "0.11.2"
       ) ++ http4sLib ++ fs2Lib ++ effectLib ++ logLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib)
 
 lazy val aws = (project in file("aws"))

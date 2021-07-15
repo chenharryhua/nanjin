@@ -92,7 +92,7 @@ object SalesforceToken {
           )))
 
       getToken.evalMap(F.ref).flatMap { token =>
-        val refresh: Stream[F, Unit] = getToken.delayBy(2.hours).evalMap(token.set).repeat
+        val refresh: Stream[F, Unit] = getToken.delayBy(1.hour).evalMap(token.set).repeat
         Stream[F, Client[F]](Client[F] { req =>
           Resource
             .eval(token.get)
