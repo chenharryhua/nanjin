@@ -245,10 +245,11 @@ val catsLib = Seq(
   "org.typelevel" %% "alleycats-core"
 ).map(_ % catsCore) ++
   Seq(
-    "org.typelevel" %% "cats-mtl"            % catsMtl,
-    "org.typelevel" %% "kittens"             % kittens,
-    "org.typelevel" %% "cats-tagless-macros" % tagless,
-    "org.typelevel" %% "algebra"             % algebra
+    "org.typelevel" %% "cats-mtl"              % catsMtl,
+    "org.typelevel" %% "kittens"               % kittens,
+    "org.typelevel" %% "cats-tagless-macros"   % tagless,
+    "org.typelevel" %% "algebra"               % algebra,
+    "org.typelevel" %% "cats-collections-core" % "0.9.3"
   )
 
 val refinedLib = Seq(
@@ -330,10 +331,9 @@ lazy val http = (project in file("http"))
   .settings(
     libraryDependencies ++=
       Seq(
-        "com.github.cb372" %% "cats-retry" % "3.0.0",
-        "io.jsonwebtoken"                  % "jjwt-api"     % "0.11.2",
-        "io.jsonwebtoken"                  % "jjwt-impl"    % "0.11.2",
-        "io.jsonwebtoken"                  % "jjwt-jackson" % "0.11.2"
+        "io.jsonwebtoken" % "jjwt-api"     % "0.11.2",
+        "io.jsonwebtoken" % "jjwt-impl"    % "0.11.2",
+        "io.jsonwebtoken" % "jjwt-jackson" % "0.11.2"
       ) ++ http4sLib ++ fs2Lib ++ effectLib ++ logLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib)
 
 lazy val aws = (project in file("aws"))
