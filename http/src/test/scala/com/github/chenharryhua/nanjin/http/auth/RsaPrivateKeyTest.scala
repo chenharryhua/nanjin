@@ -6,12 +6,19 @@ import cats.effect.std.Supervisor
 import cats.effect.unsafe.implicits.global
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.io.File
+import java.nio.file.Paths
 import scala.concurrent.duration.*
 
-class EncryptionTest extends AnyFunSuite {
-  test("pkcs8") {
-    assert(encryption.pkcs8(new File(Resource.getUrl("pkcs8.key").getPath)).getAlgorithm == "RSA")
+class RsaPrivateKeyTest extends AnyFunSuite {
+
+  /*
+     pkcs8.key is generated from key.pem by
+     openssl pkcs8 -topk8 -inform PEM -outform DER -nocrypt -in key.pem -out pkcs8.key
+   */
+  test("equality") {
+    val pkcs8 = Paths.get(Resource.getUrl("pkcs8.key").getPath)
+    val pem   = Paths.get(Resource.getUrl("key.pem").getPath)
+    assert(rsaPrivateKeys.pem(pem).get == rsaPrivateKeys.pkcs8(pkcs8).get)
   }
 
   test("supervisor") {

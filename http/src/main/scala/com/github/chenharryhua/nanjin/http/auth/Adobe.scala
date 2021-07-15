@@ -13,7 +13,6 @@ import org.http4s.client.middleware.Retry
 import org.http4s.implicits.http4sLiteralsSyntax
 import org.http4s.{Headers, Uri}
 
-import java.io.File
 import java.lang.Boolean.TRUE
 import java.security.interfaces.RSAPrivateKey
 import java.util.Date
@@ -66,21 +65,20 @@ object AdobeToken {
     client_id: String,
     client_secret: String,
     technical_account_key: String,
-    private_key: Either[File, Array[Byte]])
+    private_key: RSAPrivateKey)
       extends AdobeToken("jwt_token") with Http4sClientDsl[F] with Login[F] {
 
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val getToken: Stream[F, AdobeTokenResponse] =
         Stream.eval(
           F.realTimeInstant.map { ts =>
-            val pk: RSAPrivateKey = private_key.fold(encryption.pkcs8, encryption.pkcs8)
             Jwts.builder
               .setSubject(technical_account_key)
               .setIssuer(ims_org_id)
               .setAudience(s"$auth_endpoint/c/$client_id")
               .setExpiration(new Date(ts.plusSeconds(86400).toEpochMilli))
               .claim(s"$auth_endpoint/s/ent_dataservices_sdk", TRUE)
-              .signWith(pk, SignatureAlgorithm.RS256)
+              .signWith(private_key, SignatureAlgorithm.RS256)
               .compact
           }.flatMap(jwt =>
             Retry(authPolicy[F])(client).expect[AdobeTokenResponse](
