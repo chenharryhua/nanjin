@@ -1,9 +1,9 @@
-scalaVersion in ThisBuild      := "2.12.14"
-scapegoatVersion in ThisBuild  := "1.3.11"
-parallelExecution in ThisBuild := false
-cancelable in Global           := true
+ThisBuild / scalaVersion      := "2.12.14"
+ThisBuild / scapegoatVersion := "1.3.11"
+ThisBuild / parallelExecution := false
+Global / cancelable            := true
 
-version in ThisBuild := "0.12.13-SNAPSHOT"
+ThisBuild / version := "0.12.14-SNAPSHOT"
 
 // generic
 val shapeless  = "2.3.7"

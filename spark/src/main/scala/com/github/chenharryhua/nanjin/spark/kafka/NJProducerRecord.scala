@@ -17,6 +17,7 @@ import shapeless.cachedImplicit
 @AvroNamespace("nj.spark.kafka")
 @AvroName("NJProducerRecord")
 @Lenses
+@SerialVersionUID(-4546372013111197410L)
 final case class NJProducerRecord[K, V](
   partition: Option[Int],
   offset: Option[Long], // for sort
@@ -54,8 +55,8 @@ final case class NJProducerRecord[K, V](
 
   @SuppressWarnings(Array("AsInstanceOf"))
   def toProducerRecord(topicName: String): ProducerRecord[K, V] = {
-    val p = partition.map(x => new java.lang.Integer(x)).orNull
-    val t = timestamp.map(x => new java.lang.Long(x)).orNull
+    val p = partition.map(x => java.lang.Integer.valueOf(x)).orNull
+    val t = timestamp.map(x => java.lang.Long.valueOf(x)).orNull
     val k = key.getOrElse(null.asInstanceOf[K])
     val v = value.getOrElse(null.asInstanceOf[V])
 
