@@ -36,8 +36,8 @@ class GeoTest extends AnyFunSuite {
 
   test("covers") {
     val ds1: TypedDataset[Polygon] = TypedDataset.create(List(polygon1))
-    val ds2: TypedDataset[Point] = TypedDataset.create(
-      List(gf.createPoint(new Coordinate(0.1, 0.1)), gf.createPoint(new Coordinate(1.1, 1.1))))
+    val ds2: TypedDataset[Point] =
+      TypedDataset.create(List(gf.createPoint(new Coordinate(0.1, 0.1)), gf.createPoint(new Coordinate(1.1, 1.1))))
     val joined: TypedDataset[(Polygon, Point)] = ds1.joinCross(ds2)
 
     val rst = joined.filter(covers(joined('_1), joined('_2)))

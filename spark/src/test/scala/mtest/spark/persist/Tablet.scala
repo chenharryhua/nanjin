@@ -28,8 +28,7 @@ object Tablet {
 object TabletData {
 
   val data: List[Tablet] =
-    List.fill(10000)(
-      Tablet(Random.nextInt(), Random.nextLong(), Random.nextFloat(), LocalDate.now, Instant.now))
+    List.fill(10000)(Tablet(Random.nextInt(), Random.nextLong(), Random.nextFloat(), LocalDate.now, Instant.now))
 
   val rdd: RDD[Tablet]    = sparkSession.sparkContext.parallelize(data)
   val ds: Dataset[Tablet] = Tablet.ate.normalize(rdd, sparkSession).dataset

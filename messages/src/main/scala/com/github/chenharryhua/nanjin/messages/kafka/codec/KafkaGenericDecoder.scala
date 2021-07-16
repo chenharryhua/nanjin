@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
-import cats.syntax.all._
-import com.github.chenharryhua.nanjin.messages.kafka._
+import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.messages.kafka.*
 
 import scala.util.{Success, Try}
 

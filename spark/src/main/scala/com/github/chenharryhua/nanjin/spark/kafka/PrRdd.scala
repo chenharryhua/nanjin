@@ -2,19 +2,19 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.kafka.{ProducerMessage, ProducerSettings => AkkaProducerSettings}
+import akka.kafka.{ProducerMessage, ProducerSettings as AkkaProducerSettings}
 import akka.stream.scaladsl.{Sink, Source}
 import akka.stream.{Materializer, OverflowStrategy}
 import cats.effect.{Async, Sync}
-import cats.syntax.all._
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, fs2Updater, KafkaTopic}
 import com.github.chenharryhua.nanjin.spark._
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
-import frameless.cats.implicits._
+import frameless.cats.implicits.*
 import fs2.Stream
-import fs2.interop.reactivestreams._
-import fs2.kafka.{ProducerRecords, ProducerResult, ProducerSettings => Fs2ProducerSettings}
+import fs2.interop.reactivestreams.*
+import fs2.kafka.{ProducerRecords, ProducerResult, ProducerSettings as Fs2ProducerSettings}
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.spark.rdd.RDD
 
@@ -30,10 +30,10 @@ final class PrRdd[F[_], K, V] private[kafka] (
   private def updateCfg(f: SKConfig => SKConfig): PrRdd[F, K, V] =
     new PrRdd[F, K, V](rdd, topic, f(cfg))
 
-  def withInterval(ms: FiniteDuration): PrRdd[F, K, V]  = updateCfg(_.withLoadInterval(ms))
-  def withBufferSize(num: Int): PrRdd[F, K, V]          = updateCfg(_.withLoadBufferSize(num))
-  def withRecordsLimit(num: Long): PrRdd[F, K, V]       = updateCfg(_.withLoadRecordsLimit(num))
-  def withTimeLimit(fd: FiniteDuration): PrRdd[F, K, V] = updateCfg(_.withLoadTimeLimit(fd))
+  def withInterval(ms: FiniteDuration): PrRdd[F, K, V]  = updateCfg(_.load_interval(ms))
+  def withBufferSize(num: Int): PrRdd[F, K, V]          = updateCfg(_.load_buffer_size(num))
+  def withRecordsLimit(num: Long): PrRdd[F, K, V]       = updateCfg(_.load_records_limit(num))
+  def withTimeLimit(fd: FiniteDuration): PrRdd[F, K, V] = updateCfg(_.load_time_limit(fd))
 
   // transform
   def transform(f: RDD[NJProducerRecord[K, V]] => RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
@@ -82,13 +82,13 @@ final class UploadThrottleByBatchSize[F[_], K, V] private[kafka] (
 
   def updateProducer(
     f: Fs2ProducerSettings[F, K, V] => Fs2ProducerSettings[F, K, V]): UploadThrottleByBatchSize[F, K, V] =
-    new UploadThrottleByBatchSize[F, K, V](rdd, topic, cfg, fs2Producer.update(f))
+    new UploadThrottleByBatchSize[F, K, V](rdd, topic, cfg, fs2Producer.updateConfig(f))
 
   def toTopic(topic: KafkaTopic[F, K, V]): UploadThrottleByBatchSize[F, K, V] =
     new UploadThrottleByBatchSize[F, K, V](rdd, topic, cfg, fs2Producer)
 
   def withBatchSize(num: Int): UploadThrottleByBatchSize[F, K, V] =
-    new UploadThrottleByBatchSize[F, K, V](rdd, topic, cfg.withUploadBatchSize(num), fs2Producer)
+    new UploadThrottleByBatchSize[F, K, V](rdd, topic, cfg.upload_batch_size(num), fs2Producer)
 
   def run(implicit ce: Async[F]): Stream[F, ProducerResult[Unit, K, V]] =
     rdd
@@ -111,13 +111,13 @@ final class UploadThrottleByBulkSize[F[_], K, V] private[kafka] (
   val params: SKParams = cfg.evalConfig
 
   def updateProducer(f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): UploadThrottleByBulkSize[F, K, V] =
-    new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg, akkaProducer.update(f))
+    new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg, akkaProducer.updateConfig(f))
 
   def toTopic(topic: KafkaTopic[F, K, V]): UploadThrottleByBulkSize[F, K, V] =
     new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg, akkaProducer)
 
   def withBulkSize(num: Int): UploadThrottleByBulkSize[F, K, V] =
-    new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg.withLoadBulkSize(num), akkaProducer)
+    new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg.load_bulk_size(num), akkaProducer)
 
   def run(akkaSystem: ActorSystem)(implicit F: Async[F]): Stream[F, ProducerMessage.Results[K, V, NotUsed]] =
     Stream.resource {

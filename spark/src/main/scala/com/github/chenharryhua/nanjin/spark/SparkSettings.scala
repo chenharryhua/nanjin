@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark
 
 import cats.effect.{Resource, Sync}
-import com.github.chenharryhua.nanjin.common.NJLogLevel
+import com.github.chenharryhua.nanjin.common.{NJLogLevel, UpdateConfig}
 import fs2.Stream
 import monocle.macros.Lenses
 import org.apache.spark.SparkConf
@@ -10,7 +10,8 @@ import org.apache.spark.sql.SparkSession
 /** [[http://spark.apache.org/]]
   */
 
-@Lenses final case class SparkSettings(conf: SparkConf, logLevel: NJLogLevel) {
+@Lenses final case class SparkSettings(conf: SparkConf, logLevel: NJLogLevel)
+    extends UpdateConfig[SparkConf, SparkSettings] {
 
   def withAppName(appName: String): SparkSettings =
     updateConfig(_.set("spark.app.name", appName))

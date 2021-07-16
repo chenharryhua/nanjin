@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.pipes
 
 import cats.ApplicativeError
-import com.sksamuel.avro4s.{ToRecord, Decoder => AvroDecoder, Encoder => AvroEncoder}
+import com.sksamuel.avro4s.{ToRecord, Decoder as AvroDecoder, Encoder as AvroEncoder}
 import fs2.{Pipe, Stream}
 import org.apache.avro.generic.GenericRecord
 

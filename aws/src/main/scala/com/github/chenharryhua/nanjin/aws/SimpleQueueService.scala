@@ -6,13 +6,13 @@ import akka.stream.alpakka.sqs.scaladsl.{SqsAckFlow, SqsSource}
 import akka.stream.alpakka.sqs.{MessageAction, SqsAckResult, SqsSourceSettings}
 import akka.stream.scaladsl.Sink
 import cats.effect.Async
-import cats.syntax.all._
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.aws.{S3Path, SqsUrl}
 import com.github.matsluni.akkahttpspi.AkkaHttpClient
 import fs2.Stream
-import fs2.interop.reactivestreams._
-import io.circe.optics.JsonPath._
-import io.circe.parser._
+import fs2.interop.reactivestreams.*
+import io.circe.optics.JsonPath.*
+import io.circe.parser.*
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 
 import java.net.URLDecoder
@@ -54,8 +54,8 @@ object SimpleQueueService {
 
 private object sqs_s3_parser {
 
-  /** [[https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html]]
-    * ignore messages which does not have s3 structure
+  /** [[https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html]] ignore messages
+    * which does not have s3 structure
     */
   def apply(body: String): List[S3Path] =
     parse(body).toOption.traverse { json =>

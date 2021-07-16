@@ -2,8 +2,8 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Show
 import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.sksamuel.avro4s.{AvroOutputStream, Encoder => AvroEncoder}
-import io.circe.{Json, Encoder => JsonEncoder}
+import com.sksamuel.avro4s.{AvroOutputStream, Encoder as AvroEncoder}
+import io.circe.{Json, Encoder as JsonEncoder}
 import org.apache.avro.generic.GenericRecord
 import org.apache.avro.mapred.AvroKey
 import org.apache.avro.mapreduce.AvroJob
@@ -13,7 +13,7 @@ import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.util.CompressionCodecs
 import scalapb.GeneratedMessage
-import cats.syntax.show._
+import cats.syntax.show.*
 import java.io.ByteArrayOutputStream
 
 object saveRDD {
@@ -55,7 +55,7 @@ object saveRDD {
   }
 
   def circe[A: JsonEncoder](rdd: RDD[A], path: String, compression: Compression, isKeepNull: Boolean): Unit = {
-    val encode: A => Json     = a => if (isKeepNull) JsonEncoder[A].apply(a) else JsonEncoder[A].apply(a).deepDropNullValues
+    val encode: A => Json = a => if (isKeepNull) JsonEncoder[A].apply(a) else JsonEncoder[A].apply(a).deepDropNullValues
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
     config.set(NJTextOutputFormat.suffix, NJFileFormat.Circe.suffix)
     CompressionCodecs.setCodecConfiguration(config, CompressionCodecs.getCodecClassName(compression.name))

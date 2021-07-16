@@ -1,12 +1,12 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
 import cats.data.Ior
-import cats.syntax.all._
-import com.sksamuel.avro4s.{DecoderHelpers, EncoderHelpers, SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
+import cats.syntax.all.*
+import com.sksamuel.avro4s.{DecoderHelpers, EncoderHelpers, SchemaFor, Decoder as AvroDecoder, Encoder as AvroEncoder}
 import eu.timepit.refined.string.MatchesRegex
 import eu.timepit.refined.{refineV, W}
 import io.circe.optics.JsonPath
-import io.circe.optics.JsonPath._
+import io.circe.optics.JsonPath.*
 import io.circe.{parser, Json}
 import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType
 import org.apache.avro.{Schema, SchemaCompatibility, SchemaParseException}
@@ -17,8 +17,7 @@ final case class AvroCodec[A](schemaFor: SchemaFor[A], avroDecoder: AvroDecoder[
   val schema: Schema        = schemaFor.schema
   def idConversion(a: A): A = avroDecoder.decode(avroEncoder.encode(a))
 
-  /** https://avro.apache.org/docs/current/spec.html
-    * the grammar for a namespace is:
+  /** https://avro.apache.org/docs/current/spec.html the grammar for a namespace is:
     *
     * <empty> | <name>[(<dot><name>)*]
     *
@@ -42,12 +41,24 @@ final case class AvroCodec[A](schemaFor: SchemaFor[A], avroDecoder: AvroDecoder[
     }
   }
 
+  def withoutNamespace: AvroCodec[A] = {
+    val res = for {
+      json <- parser
+        .parse(schema.toString)
+        .toOption
+        .flatMap(_.hcursor.downField("namespace").delete.top.map(_.noSpaces))
+      ac <- AvroCodec.build[A](AvroCodec.toSchemaFor[A](json), avroDecoder, avroEncoder).toOption
+    } yield ac
+    res.getOrElse(this)
+  }
+
   def at(jsonPath: JsonPath): Either[String, Json] = for {
     json <- parser.parse(schema.toString()).leftMap(_.message)
     jsonObject <- jsonPath.obj.getOption(json).toRight("unable to find child schema")
   } yield Json.fromJsonObject(jsonObject)
 
-  /** @param jsonPath path to the child schema
+  /** @param jsonPath
+    *   path to the child schema
     * @return
     */
   @throws[Exception]
@@ -63,9 +74,7 @@ final case class AvroCodec[A](schemaFor: SchemaFor[A], avroDecoder: AvroDecoder[
   }
 }
 
-/** left  - error
-  * right - AvroCodec
-  * both  - (warnings, AvroCodec)
+/** left - error right - AvroCodec both - (warnings, AvroCodec)
   */
 object AvroCodec {
 

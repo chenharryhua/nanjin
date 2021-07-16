@@ -5,16 +5,19 @@ import cats.Bifunctor
 import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.sksamuel.avro4s._
-import fs2.kafka.{ProducerRecord => Fs2ProducerRecord}
-import io.circe.{Decoder => JsonDecoder, Encoder => JsonEncoder}
+import com.sksamuel.avro4s.*
+import fs2.kafka.ProducerRecord as Fs2ProducerRecord
+import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
+import monocle.Optional
 import monocle.macros.Lenses
+import monocle.std.option.some
 import org.apache.kafka.clients.producer.ProducerRecord
 import shapeless.cachedImplicit
 
 @AvroNamespace("nj.spark.kafka")
 @AvroName("NJProducerRecord")
 @Lenses
+@SerialVersionUID(-4546372013111197410L)
 final case class NJProducerRecord[K, V](
   partition: Option[Int],
   offset: Option[Long], // for sort
@@ -52,8 +55,8 @@ final case class NJProducerRecord[K, V](
 
   @SuppressWarnings(Array("AsInstanceOf"))
   def toProducerRecord(topicName: String): ProducerRecord[K, V] = {
-    val p = partition.map(x => new java.lang.Integer(x)).orNull
-    val t = timestamp.map(x => new java.lang.Long(x)).orNull
+    val p = partition.map(x => java.lang.Integer.valueOf(x)).orNull
+    val t = timestamp.map(x => java.lang.Long.valueOf(x)).orNull
     val k = key.getOrElse(null.asInstanceOf[K])
     val v = value.getOrElse(null.asInstanceOf[V])
 
@@ -62,6 +65,8 @@ final case class NJProducerRecord[K, V](
 }
 
 object NJProducerRecord {
+  def optionalKey[K, V]: Optional[NJProducerRecord[K, V], K]   = NJProducerRecord.key[K, V].composePrism(some)
+  def optionalValue[K, V]: Optional[NJProducerRecord[K, V], V] = NJProducerRecord.value[K, V].composePrism(some)
 
   def apply[K, V](pr: ProducerRecord[Option[K], Option[V]]): NJProducerRecord[K, V] =
     NJProducerRecord(Option(pr.partition), None, Option(pr.timestamp), pr.key, pr.value)

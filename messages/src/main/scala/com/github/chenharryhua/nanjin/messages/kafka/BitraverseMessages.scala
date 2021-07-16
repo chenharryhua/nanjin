@@ -1,15 +1,15 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
-import akka.kafka.ProducerMessage.{MultiMessage => AkkaMultiMessage}
-import cats.syntax.all._
+import akka.kafka.ProducerMessage.MultiMessage as AkkaMultiMessage
+import cats.syntax.all.*
 import cats.{Applicative, Bitraverse, Eval}
 import fs2.Chunk
 import fs2.kafka.{
-  CommittableProducerRecords => Fs2CommittableProducerRecords,
-  ProducerRecords => Fs2ProducerRecords,
-  TransactionalProducerRecords => Fs2TransactionalProducerRecords
+  CommittableProducerRecords as Fs2CommittableProducerRecords,
+  ProducerRecords as Fs2ProducerRecords,
+  TransactionalProducerRecords as Fs2TransactionalProducerRecords
 }
-import io.scalaland.chimney.dsl._
+import io.scalaland.chimney.dsl.*
 import monocle.{PLens, PTraversal}
 import org.apache.kafka.clients.producer.ProducerRecord
 

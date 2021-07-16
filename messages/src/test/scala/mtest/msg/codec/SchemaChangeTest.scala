@@ -90,4 +90,22 @@ class SchemaChangeTest extends AnyFunSuite {
     assert(child.idConversion(data) == data)
     assertThrows[Exception](codec.child[Nest2](root.fields.index(1).`type`.index(2)))
   }
+
+  val schemaWithoutNamespace =
+    """{"type":"record","name":"UnderTest","fields":[{"name":"a","type":"int"},{"name":"b","type":[{"type":"record","name":"Nest","fields":[{"name":"a","type":"int"}]},{"type":"record","name":"Nest2","fields":[{"name":"b","type":"string"}]}]}]}"""
+
+  val expected: Schema = AvroCodec.toSchema(schemaWithoutNamespace)
+
+  test("remove namespace from schema") {
+    assert(codec.withoutNamespace.schema == expected)
+  }
+
+  test("remove namespace from non-namespace schema") {
+    val codec: AvroCodec[UnderTest] = AvroCodec[UnderTest](schemaWithoutNamespace).right.get
+    assert(codec.withoutNamespace.schema == expected)
+  }
+
+  test("remove namespace is idempotent") {
+    assert(codec.withoutNamespace.withoutNamespace.schema == codec.withoutNamespace.schema)
+  }
 }

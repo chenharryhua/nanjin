@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.common
 
-import enumeratum.{CatsEnum, Enum, EnumEntry}
+import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 
 import scala.collection.immutable
 
@@ -9,7 +9,7 @@ sealed abstract class NJLogLevel(val value: Int, logLevel: org.log4s.LogLevel)
   final override def compare(that: NJLogLevel): Int = value - that.value
 }
 
-object NJLogLevel extends Enum[NJLogLevel] with CatsEnum[NJLogLevel] {
+object NJLogLevel extends Enum[NJLogLevel] with CatsEnum[NJLogLevel] with CirceEnum[NJLogLevel] {
   override val values: immutable.IndexedSeq[NJLogLevel] = findValues
 
   case object ALL extends NJLogLevel(1, org.log4s.Trace)

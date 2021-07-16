@@ -2,7 +2,6 @@ package mtest.common
 
 import com.github.chenharryhua.nanjin.common.transformers._
 import io.scalaland.chimney.dsl._
-import io.scalaland.enumz.Enum
 import org.scalatest.funsuite.AnyFunSuite
 
 object ScalaEnumStringTest {
@@ -41,14 +40,12 @@ object SumTypeTest {
 class EnumLikeTest extends AnyFunSuite {
   test("enum string transformation") {
     import ScalaEnumStringTest._
-    implicit val en = Enum[Phone.Value]
-    val add         = Address("stream", Phone.Mobile)
-    val add2        = add.transformInto[Address2]
+    val add  = Address("stream", Phone.Mobile)
+    val add2 = add.transformInto[Address2]
     assert(add2 == Address2("stream", "Mobile"))
   }
   test("enum Int transformation") {
     import ScalaEnumIntTest._
-    implicit val en = Enum[Phone.Value]
 
     val add  = Address("stream", Phone.Mobile)
     val add2 = add.transformInto[Address2]
@@ -56,7 +53,6 @@ class EnumLikeTest extends AnyFunSuite {
   }
   test("enum sum transformation") {
     import SumTypeTest._
-    implicit val en = Enum[Phone]
 
     val add  = Address("stream", Mobile)
     val add2 = add.transformInto[Address2]

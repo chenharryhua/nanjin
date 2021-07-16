@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.database
 
 import cats.effect.Async
-import com.github.chenharryhua.nanjin.common.database._
+import com.github.chenharryhua.nanjin.common.database.*
 import monocle.macros.Lenses
-import neotypes.cats.effect.implicits._
+import neotypes.cats.effect.implicits.*
 import neotypes.{GraphDatabase, Transaction}
 import org.neo4j.driver.Config.ConfigBuilder
 import org.neo4j.driver.{AuthToken, AuthTokens, Config}

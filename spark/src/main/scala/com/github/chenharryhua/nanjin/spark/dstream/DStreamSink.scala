@@ -1,19 +1,21 @@
 package com.github.chenharryhua.nanjin.spark.dstream
 
+import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import com.sksamuel.avro4s.{Encoder => AvroEncoder}
-import io.circe.{Encoder => JsonEncoder}
+import com.sksamuel.avro4s.Encoder as AvroEncoder
+import io.circe.Encoder as JsonEncoder
 import org.apache.spark.streaming.dstream.DStream
 
 import scala.reflect.ClassTag
 
-final class DStreamSink[A](dstream: DStream[A], cfg: SDConfig) extends Serializable {
+final class DStreamSink[A](dstream: DStream[A], cfg: SDConfig)
+    extends UpdateConfig[SDConfig, DStreamSink[A]] with Serializable {
   val params: SDParams = cfg.evalConfig
 
-  private def updateConfig(f: SDConfig => SDConfig): DStreamSink[A] =
+  override def updateConfig(f: SDConfig => SDConfig): DStreamSink[A] =
     new DStreamSink[A](dstream, f(cfg))
 
-  def pathBuilder(f: String => NJTimestamp => String): DStreamSink[A] = updateConfig(_.withPathBuilder(f))
+  def pathBuilder(f: String => NJTimestamp => String): DStreamSink[A] = updateConfig(_.path_builder(f))
 
   def transform[B](f: DStream[A] => DStream[B]): DStreamSink[B] = new DStreamSink(f(dstream), cfg)
 
@@ -30,7 +32,7 @@ final class AvroDStreamSink[A](dstream: DStream[A], encoder: AvroEncoder[A], cfg
   private def updateConfig(f: SDConfig => SDConfig): AvroDStreamSink[A] =
     new AvroDStreamSink[A](dstream, encoder, f(cfg))
 
-  def pathBuilder(f: String => NJTimestamp => String): AvroDStreamSink[A] = updateConfig(_.withPathBuilder(f))
+  def pathBuilder(f: String => NJTimestamp => String): AvroDStreamSink[A] = updateConfig(_.path_builder(f))
 
   def transform[B](f: DStream[A] => DStream[B], encoder: AvroEncoder[B]): AvroDStreamSink[B] =
     new AvroDStreamSink(f(dstream), encoder, cfg)

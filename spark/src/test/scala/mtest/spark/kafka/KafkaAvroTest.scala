@@ -70,8 +70,8 @@ class KafkaAvroTest extends AnyFunSuite {
     val run = topicCO.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicCO.schemaRegistry.register >>
       data.compile.drain >>
-      sk.fromKafka.flatMap(_.save.avro(path).file.run) >>
-      IO(sk.load.rdd.avro(path).rdd.collect().toSet)
+      sk.fromKafka.flatMap(_.save.avro(path).file.stream.compile.drain) >>
+      sk.load.rdd.avro(path).map(_.rdd.collect().toSet)
     intercept[Exception](run.unsafeRunSync().flatMap(_.value) == Set(co1, co2))
   }
 
@@ -90,10 +90,10 @@ class KafkaAvroTest extends AnyFunSuite {
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegistry.register >>
       data.compile.drain >>
-      sk.fromKafka.flatMap(_.save.avro(avroPath).file.run) >>
-      sk.fromKafka.flatMap(_.save.jackson(jacksonPath).file.run) >>
-      sk.fromKafka.flatMap(_.save.circe(circePath).file.run) >>
-      IO(sk.load.rdd.avro(avroPath).rdd.take(10).toSet)
+      sk.fromKafka.flatMap(_.save.avro(avroPath).file.stream.compile.drain) >>
+      sk.fromKafka.flatMap(_.save.jackson(jacksonPath).file.stream.compile.drain) >>
+      sk.fromKafka.flatMap(_.save.circe(circePath).file.stream.compile.drain) >>
+      sk.load.rdd.avro(avroPath).map(_.rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
 
     val avro =
@@ -125,7 +125,7 @@ class KafkaAvroTest extends AnyFunSuite {
       topicEnum.schemaRegistry.register >>
       data.compile.drain >>
       sk.fromKafka.flatMap(_.save.avro(path).folder.run) >>
-      IO(sk.load.rdd.avro(path).rdd.take(10).toSet)
+      sk.load.rdd.avro(path).map(_.rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 
@@ -144,7 +144,7 @@ class KafkaAvroTest extends AnyFunSuite {
       topicEnum.schemaRegistry.register >>
       data.compile.drain >>
       sk.fromKafka.flatMap(_.save.avro(path).snappy.folder.run) >>
-      IO(sk.load.rdd.avro(path).rdd.take(10).toSet)
+      sk.load.rdd.avro(path).map(_.rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
   test("should be sent to kafka and save to single snappy avro") {
@@ -160,8 +160,8 @@ class KafkaAvroTest extends AnyFunSuite {
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegistry.register >>
       data.compile.drain >>
-      sk.fromKafka.flatMap(_.save.avro(path).snappy.file.run) >>
-      IO(sk.load.rdd.avro(path).rdd.take(10).toSet)
+      sk.fromKafka.flatMap(_.save.avro(path).snappy.file.stream.compile.drain) >>
+      sk.load.rdd.avro(path).map(_.rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 }

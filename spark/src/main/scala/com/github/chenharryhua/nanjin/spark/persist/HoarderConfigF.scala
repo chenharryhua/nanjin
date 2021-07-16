@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.derived.auto.functor._
+import cats.Functor
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
@@ -21,7 +21,9 @@ private[persist] object HoarderParams {
 
 sealed private[persist] trait HoarderConfigF[_]
 
-private[persist] object HoarderConfigF {
+private object HoarderConfigF {
+  implicit val functorHoarderConfigF: Functor[HoarderConfigF] = cats.derived.semiauto.functor[HoarderConfigF]
+
   final case class InitParams[K](path: String) extends HoarderConfigF[K]
   final case class WithSaveMode[K](value: SaveMode, cont: K) extends HoarderConfigF[K]
   final case class WithOutputPath[K](value: String, cont: K) extends HoarderConfigF[K]
@@ -44,21 +46,21 @@ final private[persist] case class HoarderConfig(value: Fix[HoarderConfigF]) {
   import HoarderConfigF._
   val evalConfig: HoarderParams = HoarderConfigF.evalConfig(this)
 
-  def withSaveMode(saveMode: SaveMode): HoarderConfig =
+  def save_mode(saveMode: SaveMode): HoarderConfig =
     HoarderConfig(Fix(WithSaveMode(saveMode, value)))
 
-  def withError: HoarderConfig     = withSaveMode(SaveMode.ErrorIfExists)
-  def withIgnore: HoarderConfig    = withSaveMode(SaveMode.Ignore)
-  def withOverwrite: HoarderConfig = withSaveMode(SaveMode.Overwrite)
-  def withAppend: HoarderConfig    = withSaveMode(SaveMode.Append)
+  def error_mode: HoarderConfig     = save_mode(SaveMode.ErrorIfExists)
+  def ignore_mode: HoarderConfig    = save_mode(SaveMode.Ignore)
+  def overwrite_mode: HoarderConfig = save_mode(SaveMode.Overwrite)
+  def append_mode: HoarderConfig    = save_mode(SaveMode.Append)
 
-  def withOutPutPath(outPath: String): HoarderConfig =
+  def output_path(outPath: String): HoarderConfig =
     HoarderConfig(Fix(WithOutputPath(outPath, value)))
 
-  def withFormat(fmt: NJFileFormat): HoarderConfig =
+  def output_format(fmt: NJFileFormat): HoarderConfig =
     HoarderConfig(Fix(WithFileFormat(fmt, value)))
 
-  def withCompression(compression: Compression): HoarderConfig =
+  def output_compression(compression: Compression): HoarderConfig =
     HoarderConfig(Fix(WithCompression(compression, value)))
 }
 

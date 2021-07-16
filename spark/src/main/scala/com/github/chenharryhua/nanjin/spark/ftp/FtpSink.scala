@@ -3,11 +3,11 @@ package com.github.chenharryhua.nanjin.spark.ftp
 import akka.stream.alpakka.ftp.RemoteFileSettings
 import akka.stream.{IOResult, Materializer}
 import cats.effect.Async
-import com.github.chenharryhua.nanjin.pipes._
+import com.github.chenharryhua.nanjin.pipes.*
 import com.github.chenharryhua.nanjin.terminals.FtpUploader
-import com.sksamuel.avro4s.{Encoder => AvroEncoder}
+import com.sksamuel.avro4s.Encoder as AvroEncoder
 import fs2.Pipe
-import io.circe.{Encoder => JsonEncoder}
+import io.circe.Encoder as JsonEncoder
 import kantan.csv.{CsvConfiguration, RowEncoder}
 
 final class FtpSink[F[_], C, S <: RemoteFileSettings](uploader: FtpUploader[F, C, S]) {

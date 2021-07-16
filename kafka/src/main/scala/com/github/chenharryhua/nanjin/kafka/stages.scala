@@ -2,13 +2,13 @@ package com.github.chenharryhua.nanjin.kafka
 
 import akka.stream.ActorAttributes.SupervisionStrategy
 import akka.stream.Supervision.Decider
-import akka.stream._
+import akka.stream.*
 import akka.stream.scaladsl.{Flow, Sink}
 import akka.stream.stage._
 import akka.{Done, NotUsed}
 import cats.effect.std.Dispatcher
 import cats.effect.{Async, Deferred}
-import cats.syntax.all._
+import cats.syntax.all.*
 import fs2.kafka.KafkaByteConsumerRecord
 import org.apache.kafka.common.TopicPartition
 
@@ -18,9 +18,8 @@ object stages {
 
   /** Notes:
     *
-    * similar to akka.stream.scaladsl.Sink.ignore:
-    * A Sink that will consume the stream and discard the elements.
-    * it's materialized to '''F[Done]'''instead of '''Future[Done]'''
+    * similar to akka.stream.scaladsl.Sink.ignore: A Sink that will consume the stream and discard the elements. it's
+    * materialized to '''F[Done]'''instead of '''Future[Done]'''
     */
   final private class IgnoreSink[F[_]: Async](dispatcher: Dispatcher[F])
       extends GraphStageWithMaterializedValue[SinkShape[Any], F[Done]] {
@@ -54,9 +53,10 @@ object stages {
 
   /** Notes:
     *
-    *  @param endOffsets end offsets of all partitions
+    * @param endOffsets
+    *   end offsets of all partitions
     *
-    * '''Emits'''  when offset of the record is less than the end offset
+    * '''Emits''' when offset of the record is less than the end offset
     *
     * '''Completes''' when all partitions reach their end offsets
     *
@@ -81,9 +81,9 @@ object stages {
 
       /** Notes:
         *
-        * '''true'''   all partitions reach end offset
+        * '''true''' all partitions reach end offset
         *
-        * '''false'''  not all partition reach end offset
+        * '''false''' not all partition reach end offset
         */
       private def isPartitionsCompleted(ts: Map[TopicPartition, Boolean]): Boolean = ts.forall(_._2)
 

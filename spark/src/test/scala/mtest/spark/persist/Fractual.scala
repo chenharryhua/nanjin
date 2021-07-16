@@ -11,7 +11,7 @@ import monocle.generic.all.coProductPrism
 import org.apache.spark.rdd.RDD
 import shapeless.{:+:, CNil, Coproduct}
 import mtest.spark._
- 
+
 final case class Fractual(value: Option[Fractual.FType])
 
 object Fractual {
@@ -24,8 +24,7 @@ object Fractual {
   implicit val platedFractual: Plated[Fractual] =
     Plated[Fractual](new Traversal[Fractual, Fractual] {
 
-      override def modifyF[F[_]](f: Fractual => F[Fractual])(s: Fractual)(implicit
-        ev: Applicative[F]): F[Fractual] =
+      override def modifyF[F[_]](f: Fractual => F[Fractual])(s: Fractual)(implicit ev: Applicative[F]): F[Fractual] =
         s.value match {
           case None => ev.pure(Fractual(None))
           case Some(pl) =>

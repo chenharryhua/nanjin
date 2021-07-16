@@ -9,12 +9,12 @@ import example.topics.{barTopic, fooTopic}
 import example.{ctx, Bar}
 import fs2.Stream
 import org.apache.kafka.common.serialization.Serde
-import org.apache.kafka.streams.scala.ImplicitConversions._
+import org.apache.kafka.streams.scala.ImplicitConversions.*
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 import scala.util.Random
 
 @DoNotDiscover
@@ -25,6 +25,6 @@ class ExampleKafkaKStream extends AnyFunSuite {
     val top: Kleisli[Id, StreamsBuilder, Unit] =
       fooTopic.kafkaStream.kstream.map(_.mapValues(foo => Bar(Random.nextInt(), foo.a.toLong)).to(barTopic))
 
-    (ctx.buildStreams(top).run >> Stream.never[IO]).interruptAfter(3.seconds).compile.drain.unsafeRunSync()
+    (ctx.buildStreams(top).stateStream >> Stream.never[IO]).interruptAfter(3.seconds).compile.drain.unsafeRunSync()
   }
 }

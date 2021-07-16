@@ -1,11 +1,11 @@
 package com.github.chenharryhua.nanjin.pipes
 
 import cats.effect.{Async, Resource, Sync}
-import cats.syntax.all._
+import cats.syntax.all.*
 import fs2.io.toInputStream
 import fs2.{Pipe, Pull, Stream}
 
-import java.io._
+import java.io.*
 
 final class JavaObjectSerialization[F[_], A] extends Serializable {
 
@@ -26,7 +26,7 @@ final class JavaObjectSerialization[F[_], A] extends Serializable {
     Pull
       .functionKInstance(
         F.blocking(try Some(ois.readObject().asInstanceOf[A])
-        catch { case ex: EOFException => None }))
+        catch { case _: EOFException => None }))
       .flatMap {
         case Some(a) => Pull.output1(a) >> Pull.pure(Some(ois))
         case None    => Pull.eval(F.blocking(ois.close())) >> Pull.pure(None)

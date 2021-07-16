@@ -2,10 +2,10 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.Show
 import cats.kernel.Eq
-import cats.syntax.all._
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, SerdeOf}
-import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
+import com.sksamuel.avro4s.{SchemaFor, Decoder as AvroDecoder, Encoder as AvroEncoder}
 
 final class TopicDef[K, V] private (val topicName: TopicName)(implicit
   val serdeOfKey: SerdeOf[K],

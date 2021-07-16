@@ -5,8 +5,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.functions.{col, udf}
 
-/** Notes:
-  * time range: from start time (inclusive) to end time (exclusive)
+/** Notes: time range: from start time (inclusive) to end time (exclusive)
   *
   * offset range: from start offset (inclusive) to end offset (inclusive)
   */

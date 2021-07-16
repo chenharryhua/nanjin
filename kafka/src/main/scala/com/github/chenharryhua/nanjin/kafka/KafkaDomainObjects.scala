@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.syntax.all._
+import cats.syntax.all.*
 import cats.{Order, PartialOrder}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import eu.timepit.refined.api.Refined
@@ -10,7 +10,7 @@ import org.apache.kafka.clients.consumer.{OffsetAndMetadata, OffsetAndTimestamp}
 import org.apache.kafka.common.TopicPartition
 
 import java.{lang, util}
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.*
 
 final case class KafkaOffset(offset: Refined[Long, NonNegative]) {
   val value: Long                 = offset.value
@@ -104,16 +104,20 @@ final case class KafkaTopicPartition[V](value: Map[TopicPartition, V]) {
     KafkaTopicPartition(res.toMap)
   }
 
-  def flatten[W](implicit ev: V <:< Option[W]): KafkaTopicPartition[W] =
-    copy(value = value.mapValues(ev).mapFilter(identity))
-
   def topicPartitions: ListOfTopicPartitions = ListOfTopicPartitions(value.keys.toList)
-
-  def offsets(implicit ev: V =:= Option[OffsetAndTimestamp]): KafkaTopicPartition[Option[KafkaOffset]] =
-    copy(value = value.mapValues(_.map(x => KafkaOffset(x.offset))))
 }
 
 object KafkaTopicPartition {
+
+  implicit final class KafkaTopicPartitionOps1[V](private val self: KafkaTopicPartition[Option[V]]) extends AnyVal {
+    def flatten: KafkaTopicPartition[V] =
+      self.copy(value = self.value.mapFilter(identity))
+  }
+  implicit final class KafkaTopicPartitionOps2(private val self: KafkaTopicPartition[Option[OffsetAndTimestamp]])
+      extends AnyVal {
+    def offsets: KafkaTopicPartition[Option[KafkaOffset]] =
+      self.copy(value = self.value.mapValues(_.map(x => KafkaOffset(x.offset))))
+  }
 
   def empty[V]: KafkaTopicPartition[V]              = KafkaTopicPartition(Map.empty[TopicPartition, V])
   val emptyOffset: KafkaTopicPartition[KafkaOffset] = empty[KafkaOffset]

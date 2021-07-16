@@ -1,16 +1,15 @@
 package com.github.chenharryhua.nanjin.datetime
 
 import cats.implicits.catsSyntaxTuple2Semigroupal
-import cats.syntax.all._
+import cats.syntax.all.*
 import cats.{PartialOrder, Show}
-import com.github.chenharryhua.nanjin.common.utils
 import monocle.Prism
 import monocle.generic.coproduct.coProductPrism
 import monocle.macros.Lenses
 import shapeless.{:+:, CNil, Poly1}
 
 import java.sql.Timestamp
-import java.time._
+import java.time.*
 import scala.concurrent.duration.FiniteDuration
 
 // lazy range
@@ -37,9 +36,9 @@ import scala.concurrent.duration.FiniteDuration
   val zonedStartTime: Option[ZonedDateTime] = startTimestamp.map(_.atZone(zoneId))
   val zonedEndTime: Option[ZonedDateTime]   = endTimestamp.map(_.atZone(zoneId))
 
-  /** @return list of local-date from start date(inclusive) to end date(exclusive)
-    *         empty if start date === end date
-    *         empty if infinite
+  /** @return
+    *   list of local-date from start date(inclusive) to end date(exclusive) empty if start date === end date empty if
+    *   infinite
     */
   def days: List[LocalDate] =
     (zonedStartTime, zonedEndTime).traverseN { (s, e) =>
@@ -131,14 +130,8 @@ import scala.concurrent.duration.FiniteDuration
       case (None, None)       => true
     }
 
-  def duration: Option[FiniteDuration] =
-    (startTimestamp, endTimestamp).mapN((s, e) => e.minus(s))
-
-  override def toString: String =
-    (startTimestamp, endTimestamp)
-      .mapN((s, e) => utils.mkDurationString(e.milliseconds - s.milliseconds))
-      .getOrElse("infinite")
-
+  def duration: Option[FiniteDuration] = (startTimestamp, endTimestamp).mapN((s, e) => e.minus(s))
+  override def toString: String        = duration.map(DurationFormatter.default.format).getOrElse("infinite")
 }
 
 object NJDateTimeRange {

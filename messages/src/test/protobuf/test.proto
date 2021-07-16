@@ -1,7 +1,7 @@
 syntax = "proto3";
-package mtest.pb;
+package mtest.messages.pb;
 
-message Person {
+message MessagePerson {
   string name = 1;
   int32 age = 2;
 }

@@ -3,18 +3,20 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.Bifunctor
 import cats.implicits.catsSyntaxTuple2Semigroupal
 import cats.kernel.PartialOrder
-import cats.syntax.all._
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.TopicDef
-import com.github.chenharryhua.nanjin.messages.kafka._
+import com.github.chenharryhua.nanjin.messages.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.sksamuel.avro4s._
+import com.sksamuel.avro4s.*
 import frameless.TypedEncoder
-import fs2.kafka.{ConsumerRecord => Fs2ConsumerRecord}
-import io.circe.generic.auto._
-import io.circe.{Json, Decoder => JsonDecoder, Encoder => JsonEncoder}
+import fs2.kafka.ConsumerRecord as Fs2ConsumerRecord
+import io.circe.generic.auto.*
+import io.circe.{Json, Decoder as JsonDecoder, Encoder as JsonEncoder}
+import monocle.Optional
 import monocle.macros.Lenses
+import monocle.std.option.some
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.record.TimestampType
 import shapeless.cachedImplicit
@@ -23,6 +25,7 @@ import shapeless.cachedImplicit
 @AvroDoc("kafka record, optional Key and Value")
 @AvroNamespace("nj.spark.kafka")
 @AvroName("NJConsumerRecord")
+@SerialVersionUID(-1867003775402832701L)
 final case class NJConsumerRecord[K, V](
   @AvroDoc("kafka partition") partition: Int,
   @AvroDoc("kafka offset") offset: Long,
@@ -61,6 +64,9 @@ final case class NJConsumerRecord[K, V](
 }
 
 object NJConsumerRecord {
+
+  def optionalKey[K, V]: Optional[NJConsumerRecord[K, V], K]   = NJConsumerRecord.key[K, V].composePrism(some)
+  def optionalValue[K, V]: Optional[NJConsumerRecord[K, V], V] = NJConsumerRecord.value[K, V].composePrism(some)
 
   def apply[K, V](cr: ConsumerRecord[Option[K], Option[V]]): NJConsumerRecord[K, V] =
     NJConsumerRecord(cr.partition, cr.offset, cr.timestamp, cr.key, cr.value, cr.topic, cr.timestampType.id)

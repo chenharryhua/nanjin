@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import akka.actor.ActorSystem
 import cats.effect.{Async, Resource, Sync}
-import cats.syntax.all._
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaGenericDecoder

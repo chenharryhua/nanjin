@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.Sync
-import cats.syntax.functor._
-import com.github.chenharryhua.nanjin.datetime._
-import com.github.chenharryhua.nanjin.spark.injection._
+import cats.syntax.functor.*
+import com.github.chenharryhua.nanjin.datetime.*
+import com.github.chenharryhua.nanjin.spark.injection.*
 import frameless.functions.aggregate.count
 import frameless.{Injection, TypedDataset}
 import org.apache.spark.sql.Dataset
@@ -134,8 +134,7 @@ final class Statistics[F[_]] private[kafka] (
   def summary(implicit F: Sync[F]): F[Unit] =
     F.delay(summaryDS.dataset.collect().foreach(x => println(x.showData(zoneId))))
 
-  /** Notes:
-    *  offset is supposed to be monotonically increasing in a partition, except compact topic
+  /** Notes: offset is supposed to be monotonically increasing in a partition, except compact topic
     */
   def missingOffsets(implicit ev: Sync[F]): TypedDataset[MissingOffset] = {
     import ds.sparkSession.implicits._
@@ -182,8 +181,7 @@ final class Statistics[F[_]] private[kafka] (
     TypedDataset.create(sum)
   }
 
-  /** Notes:
-    * partition + offset supposed to be unique, of a topic
+  /** Notes: partition + offset supposed to be unique, of a topic
     */
   def dupRecords: TypedDataset[DuplicateRecord] = {
     val tds = typedDataset

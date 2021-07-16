@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.common.utils.random4d
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra, Coalgebra}
 import org.apache.avro.{LogicalTypes, Schema, SchemaBuilder}
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.types.*
 
 sealed private[spark] trait NJDataTypeF[A]
 
@@ -99,8 +99,8 @@ private[spark] object NJDataTypeF {
   private def unionNull(nullable: Boolean, sm: Schema): Schema =
     if (nullable) Schema.createUnion(sm, nullSchema) else sm
 
-  /** [[org.apache.spark.sql.avro.SchemaConverters]] translate decimal to avro fixed type
-    * which was not supported by avro-hugger yet
+  /** [[org.apache.spark.sql.avro.SchemaConverters]] translate decimal to avro fixed type which was not supported by
+    * avro-hugger yet
     */
   def schemaAlgebra(builder: SchemaBuilder.TypeBuilder[Schema]): Algebra[NJDataTypeF, Schema] =
     Algebra[NJDataTypeF, Schema] {

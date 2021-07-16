@@ -22,11 +22,11 @@ private[geo] trait GeoFunctions extends Serializable {
 
   /** Example:
     * {{{
-    *  val ds1: TypedDataset[Polygon] = ???
-    *  val ds2: TypedDataset[Point] = ???
-    *  val joined: TypedDataset[(Polygon, Point)] = ds1.joinCross(ds2)
+    * val ds1: TypedDataset[Polygon] = ???
+    * val ds2: TypedDataset[Point] = ???
+    * val joined: TypedDataset[(Polygon, Point)] = ds1.joinCross(ds2)
     *
-    *  val rst = joined.filter(covers(joined('_1), joined('_2)))
+    * val rst = joined.filter(covers(joined('_1), joined('_2)))
     * }}}
     */
 
@@ -34,7 +34,6 @@ private[geo] trait GeoFunctions extends Serializable {
     udf[T, Polygon, Point, Boolean]((polygon: Polygon, point: Point) => polygon.covers(point))
 
   def intersects[T]: (TypedColumn[T, Polygon], TypedColumn[T, Polygon]) => TypedColumn[T, Boolean] =
-    udf[T, Polygon, Polygon, Boolean]((polygon: Polygon, other: Polygon) =>
-      polygon.intersects(other))
+    udf[T, Polygon, Polygon, Boolean]((polygon: Polygon, other: Polygon) => polygon.intersects(other))
 
 }

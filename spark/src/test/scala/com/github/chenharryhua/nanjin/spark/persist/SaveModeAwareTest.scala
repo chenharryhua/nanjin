@@ -18,7 +18,7 @@ class SaveModeAwareTest extends AnyFunSuite {
 
   test("ignore if exists") {
     val sma = new SaveModeAware[IO](SaveMode.Ignore, "./data", hadoopConfig)
-    sma.checkAndRun(IO(())).unsafeRunSync() 
+    sma.checkAndRun(IO(())).unsafeRunSync()
   }
 
   test("overwrite if exists") {

@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.database
 
-import cats.derived.auto.functor.kittensMkFunctor
+import cats.Functor
 import com.github.chenharryhua.nanjin.common.database.{DatabaseName, TableName}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
@@ -30,7 +30,9 @@ private[database] object STParams {
 
 sealed private[database] trait STConfigF[K]
 
-private[database] object STConfigF {
+private object STConfigF {
+  implicit val functorSTConfigF: Functor[STConfigF] = cats.derived.semiauto.functor[STConfigF]
+
   final case class InitParams[K](dbName: DatabaseName, tableName: TableName) extends STConfigF[K]
 
   final case class WithDbSaveMode[K](value: SaveMode, cont: K) extends STConfigF[K]
@@ -54,14 +56,14 @@ private[database] object STConfigF {
 final private[database] case class STConfig(value: Fix[STConfigF]) extends AnyVal {
   import STConfigF._
 
-  def withDbSaveMode(sm: SaveMode): STConfig = STConfig(Fix(WithDbSaveMode(sm, value)))
+  def save_mode(sm: SaveMode): STConfig = STConfig(Fix(WithDbSaveMode(sm, value)))
 
-  def withReplayPathBuilder(f: (DatabaseName, TableName) => String): STConfig =
+  def replay_path_builder(f: (DatabaseName, TableName) => String): STConfig =
     STConfig(Fix(WithReplayPathBuilder(f, value)))
 
-  def withQuery(query: String): STConfig = STConfig(Fix(WithQuery(query, value)))
+  def unload_query(query: String): STConfig = STConfig(Fix(WithQuery(query, value)))
 
-  def withTableName(tableName: TableName): STConfig = STConfig(Fix(WithTableName(tableName, value)))
+  def table_name(tableName: TableName): STConfig = STConfig(Fix(WithTableName(tableName, value)))
 
   def evalConfig: STParams = STConfigF.evalConfig(this)
 }

@@ -2,13 +2,13 @@ package example.kafka
 
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.spark.kafka.NJProducerRecord
-import example._
+import example.*
 import example.topics.fooTopic
 import io.circe.generic.auto._
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 @DoNotDiscover
 class ExampleKafkaBasic extends AnyFunSuite {
@@ -39,14 +39,15 @@ class ExampleKafkaBasic extends AnyFunSuite {
       .topic(fooTopic)
       .load
       .circe(path)
-      .prRdd
-      .withInterval(1.second) // interval of sending messages
-      .withTimeLimit(5.second) // upload last for 5 seconds
-      .uploadByBatch
-      .withBatchSize(2) // upload 2 message every interval
-      .run
-      .compile
-      .drain
+      .flatMap(
+        _.prRdd
+          .withInterval(1.second) // interval of sending messages
+          .withTimeLimit(5.second) // upload last for 5 seconds
+          .uploadByBatch
+          .withBatchSize(2) // upload 2 message every interval
+          .run
+          .compile
+          .drain)
       .unsafeRunSync()
   }
 }

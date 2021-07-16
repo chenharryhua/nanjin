@@ -26,7 +26,7 @@ final class NJTextOutputFormat extends FileOutputFormat[NullWritable, Text] {
     val isCompressed: Boolean = FileOutputFormat.getCompressOutput(job)
     val suffix: String        = s"-${utils.uuidStr(job)}${conf.get(NJTextOutputFormat.suffix, "")}"
     if (isCompressed) {
-      val codecClass: Class[_ <: CompressionCodec] = FileOutputFormat.getOutputCompressorClass(job, classOf[GzipCodec])
+      val codecClass: Class[? <: CompressionCodec] = FileOutputFormat.getOutputCompressorClass(job, classOf[GzipCodec])
       val codec: CompressionCodec                  = ReflectionUtils.newInstance(codecClass, conf)
       val file: Path                               = getDefaultWorkFile(job, suffix + codec.getDefaultExtension)
       val fs: FileSystem                           = file.getFileSystem(conf)

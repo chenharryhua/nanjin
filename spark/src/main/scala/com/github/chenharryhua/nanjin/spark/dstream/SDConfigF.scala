@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.dstream
 
-import cats.derived.auto.functor.kittensMkFunctor
+import cats.Functor
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJTimestamp}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
@@ -27,7 +27,9 @@ object SDParams {
 
 sealed private[dstream] trait SDConfigF[A]
 
-private[dstream] object SDConfigF {
+private object SDConfigF {
+  implicit val functorSDConfigF: Functor[SDConfigF] = cats.derived.semiauto.functor[SDConfigF]
+
   final case class InitParams[K](zoneId: ZoneId) extends SDConfigF[K]
   final case class WithPathBuilder[K](f: String => NJTimestamp => String, cont: K) extends SDConfigF[K]
 
@@ -42,7 +44,7 @@ final private[spark] case class SDConfig private (value: Fix[SDConfigF]) {
   import SDConfigF._
   def evalConfig: SDParams = SDConfigF.evalConfig(this)
 
-  def withPathBuilder(f: String => NJTimestamp => String): SDConfig =
+  def path_builder(f: String => NJTimestamp => String): SDConfig =
     SDConfig(Fix(WithPathBuilder(f, value)))
 
 }

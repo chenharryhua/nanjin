@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.database
 import com.github.chenharryhua.nanjin.common.database.TableName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
+import com.sksamuel.avro4s.{SchemaFor, Decoder as AvroDecoder, Encoder as AvroEncoder}
 import frameless.TypedEncoder
 
 final case class TableDef[A] private (

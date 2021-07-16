@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.aws
 import cats.Applicative
 import cats.effect.Sync
 import com.amazonaws.regions.Regions
-import com.amazonaws.services.simpleemail.model._
+import com.amazonaws.services.simpleemail.model.*
 import com.amazonaws.services.simpleemail.{AmazonSimpleEmailService, AmazonSimpleEmailServiceClientBuilder}
 
 final case class EmailContent(from: String, to: List[String], subject: String, body: String)
@@ -15,7 +15,7 @@ trait Email[F[_]] {
 object Email {
   def apply[F[_]: Sync](regions: Regions): Email[F]    = new EmailImpl(regions)
   def apply[F[_]: Sync]: Email[F]                      = apply[F](defaultRegion)
-  def fake[F[_]](implicit F: Applicative[F]): Email[F] = (txt: EmailContent) => F.pure(new SendEmailResult)
+  def fake[F[_]](implicit F: Applicative[F]): Email[F] = (_: EmailContent) => F.pure(new SendEmailResult)
 
   final private class EmailImpl[F[_]](regions: Regions)(implicit F: Sync[F]) extends Email[F] {
 
@@ -24,7 +24,7 @@ object Email {
 
     override def send(content: EmailContent): F[SendEmailResult] = {
       val request = new SendEmailRequest()
-        .withDestination(new Destination().withToAddresses(content.to: _*))
+        .withDestination(new Destination().withToAddresses(content.to *))
         .withMessage(
           new Message()
             .withBody(new Body().withHtml(new Content().withCharset("UTF-8").withData(content.body)))

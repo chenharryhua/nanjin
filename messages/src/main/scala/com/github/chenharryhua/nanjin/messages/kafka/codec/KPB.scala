@@ -27,7 +27,7 @@ final class KPB[A <: GeneratedMessage] private (val value: A) extends GeneratedM
   override def writeTo(output: CodedOutputStream): Unit = value.writeTo(output)
   override def getFieldByNumber(fieldNumber: Int): Any  = value.getFieldByNumber(fieldNumber)
   override def getField(field: FieldDescriptor): PValue = value.getField(field)
-  override def companion: GeneratedMessageCompanion[_]  = value.companion
+  override def companion: GeneratedMessageCompanion[?]  = value.companion
   override def serializedSize: Int                      = value.serializedSize
   override def toProtoString: String                    = value.toProtoString
   override def productElement(n: Int): Any              = value.productElement(n)
@@ -50,14 +50,14 @@ object KPB {
       override def javaDescriptor: Descriptors.Descriptor            = ev.javaDescriptor
       override def scalaDescriptor: Descriptor                       = ev.scalaDescriptor
 
-      override def nestedMessagesCompanions: Seq[GeneratedMessageCompanion[_ <: GeneratedMessage]] =
+      override def nestedMessagesCompanions: Seq[GeneratedMessageCompanion[? <: GeneratedMessage]] =
         ev.nestedMessagesCompanions
       override def messageReads: Reads[KPB[A]] = Reads(pv => KPB(ev.messageReads.read(pv)))
 
-      override def messageCompanionForFieldNumber(field: Int): GeneratedMessageCompanion[_] =
+      override def messageCompanionForFieldNumber(field: Int): GeneratedMessageCompanion[?] =
         ev.messageCompanionForFieldNumber(field)
 
-      override def enumCompanionForFieldNumber(field: Int): GeneratedEnumCompanion[_] =
+      override def enumCompanionForFieldNumber(field: Int): GeneratedEnumCompanion[?] =
         ev.enumCompanionForFieldNumber(field)
       override def defaultInstance: KPB[A] = KPB(ev.defaultInstance)
 
@@ -73,7 +73,7 @@ object KPB {
           @transient private[this] lazy val ser: KafkaProtobufSerializer[DynamicMessage] =
             new KafkaProtobufSerializer[DynamicMessage]()
 
-          override def configure(configs: util.Map[String, _], isKey: Boolean): Unit =
+          override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
             ser.configure(configs, isKey)
 
           override def close(): Unit =
@@ -94,7 +94,7 @@ object KPB {
           @transient private[this] lazy val deSer: KafkaProtobufDeserializer[DynamicMessage] =
             new KafkaProtobufDeserializer[DynamicMessage]()
 
-          override def configure(configs: util.Map[String, _], isKey: Boolean): Unit =
+          override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
             deSer.configure(configs, isKey)
 
           override def close(): Unit =

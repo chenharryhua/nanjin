@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.database.DatabaseSettings
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, SerdeOf}
 import com.github.chenharryhua.nanjin.pipes
-import com.github.chenharryhua.nanjin.spark.database._
+import com.github.chenharryhua.nanjin.spark.database.*
 import com.github.chenharryhua.nanjin.spark.kafka.{SKConfig, SparKafkaTopic}
 import com.github.chenharryhua.nanjin.spark.persist.{
   DatasetAvroFileHoarder,
@@ -15,7 +15,7 @@ import com.github.chenharryhua.nanjin.spark.persist.{
   RddAvroFileHoarder,
   RddFileHoarder
 }
-import com.sksamuel.avro4s.{SchemaFor, Decoder => AvroDecoder, Encoder => AvroEncoder}
+import com.sksamuel.avro4s.{SchemaFor, Decoder as AvroDecoder, Encoder as AvroEncoder}
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import io.circe.Json
