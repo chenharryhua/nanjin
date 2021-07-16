@@ -17,7 +17,6 @@ import shapeless.cachedImplicit
 @AvroNamespace("nj.spark.kafka")
 @AvroName("NJProducerRecord")
 @Lenses
-@SerialVersionUID(-4546372013111197410L)
 final case class NJProducerRecord[K, V](
   partition: Option[Int],
   offset: Option[Long], // for sort

@@ -25,7 +25,6 @@ import shapeless.cachedImplicit
 @AvroDoc("kafka record, optional Key and Value")
 @AvroNamespace("nj.spark.kafka")
 @AvroName("NJConsumerRecord")
-@SerialVersionUID(-1867003775402832701L)
 final case class NJConsumerRecord[K, V](
   @AvroDoc("kafka partition") partition: Int,
   @AvroDoc("kafka offset") offset: Long,

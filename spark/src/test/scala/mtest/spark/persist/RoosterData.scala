@@ -6,13 +6,15 @@ import org.apache.spark.sql.Dataset
 
 import java.sql.Timestamp
 import java.time.Instant
-import mtest.spark._
+import mtest.spark.*
+
+import java.time.temporal.ChronoUnit
 
 object RoosterData {
   val instant: Instant     = Instant.parse("2012-10-26T18:00:00Z")
   val timestamp: Timestamp = Timestamp.from(instant)
 
-  val nowInstant: Instant     = Instant.now
+  val nowInstant: Instant     = Instant.now.truncatedTo(ChronoUnit.MILLIS)
   val nowTimestamp: Timestamp = Timestamp.from(nowInstant)
 
   val data: List[Rooster] =
