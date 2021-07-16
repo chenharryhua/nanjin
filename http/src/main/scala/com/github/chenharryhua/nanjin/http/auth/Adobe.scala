@@ -30,7 +30,7 @@ object AdobeToken {
     expires_in: Long, // in milliseconds
     access_token: String)
 
-  final case class IMS[F[_]](auth_endpoint: Uri, client_id: String, client_code: String, client_secret: String)
+  final class IMS[F[_]] private (auth_endpoint: Uri, client_id: String, client_code: String, client_secret: String)
       extends AdobeToken("access_token") with Http4sClientDsl[F] with Login[F] {
 
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
@@ -59,9 +59,13 @@ object AdobeToken {
       }
     }
   }
+  object IMS {
+    def apply[F[_]](auth_endpoint: Uri, client_id: String, client_code: String, client_secret: String): IMS[F] =
+      new IMS[F](auth_endpoint, client_id, client_code, client_secret)
+  }
 
   // https://www.adobe.io/authentication/auth-methods.html#!AdobeDocs/adobeio-auth/master/JWT/JWT.md
-  final case class JWT[F[_]](
+  final class JWT[F[_]](
     auth_endpoint: Uri,
     ims_org_id: String,
     client_id: String,
@@ -74,7 +78,7 @@ object AdobeToken {
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val audience: String = auth_endpoint.withPath(path"c" / Segment(client_id)).renderString
       val claims: java.util.Map[String, AnyRef] = metascopes.map { ms =>
-        (auth_endpoint.withPath(path"s" / Segment(ms.name)).renderString, TRUE: AnyRef)
+        auth_endpoint.withPath(path"s" / Segment(ms.name)).renderString -> (TRUE: AnyRef)
       }.toList.toMap.asJava
 
       val getToken: Stream[F, TokenResponse] =
@@ -114,5 +118,34 @@ object AdobeToken {
         }).concurrently(refresh)
       }
     }
+  }
+
+  object JWT {
+    def apply[F[_]](
+      auth_endpoint: Uri,
+      ims_org_id: String,
+      client_id: String,
+      client_secret: String,
+      technical_account_key: String,
+      metascopes: NonEmptyList[AdobeMetascope],
+      private_key: PrivateKey): JWT[F] =
+      new JWT[F](auth_endpoint, ims_org_id, client_id, client_secret, technical_account_key, metascopes, private_key)
+
+    def apply[F[_]](
+      auth_endpoint: Uri,
+      ims_org_id: String,
+      client_id: String,
+      client_secret: String,
+      technical_account_key: String,
+      metascope: AdobeMetascope,
+      private_key: PrivateKey): JWT[F] =
+      apply[F](
+        auth_endpoint,
+        ims_org_id,
+        client_id,
+        client_secret,
+        technical_account_key,
+        NonEmptyList.one(metascope),
+        private_key)
   }
 }

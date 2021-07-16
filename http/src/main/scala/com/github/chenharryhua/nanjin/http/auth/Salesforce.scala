@@ -33,12 +33,12 @@ object SalesforceToken {
     soap_instance_url: String,
     rest_instance_url: String)
 
-  sealed trait InstanceURL
+  sealed private trait InstanceURL
   private case object Rest extends InstanceURL
   private case object Soap extends InstanceURL
 
   //https://developer.salesforce.com/docs/atlas.en-us.mc-app-development.meta/mc-app-development/authorization-code.htm
-  final case class MarketingCloud[F[_]] private (
+  final class MarketingCloud[F[_]] private (
     auth_endpoint: Uri,
     client_id: String,
     client_secret: String,
@@ -75,13 +75,13 @@ object SalesforceToken {
   }
   object MarketingCloud {
     def rest[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): MarketingCloud[F] =
-      MarketingCloud[F](auth_endpoint, client_id, client_secret, Rest)
+      new MarketingCloud[F](auth_endpoint, client_id, client_secret, Rest)
     def soap[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): MarketingCloud[F] =
-      MarketingCloud[F](auth_endpoint, client_id, client_secret, Soap)
+      new MarketingCloud[F](auth_endpoint, client_id, client_secret, Soap)
   }
 
   //https://developer.salesforce.com/docs/atlas.en-us.api_iot.meta/api_iot/qs_auth_access_token.htm
-  final case class Iot[F[_]](
+  final class Iot[F[_]] private (
     auth_endpoint: Uri,
     client_id: String,
     client_secret: String,
@@ -116,5 +116,14 @@ object SalesforceToken {
         }).concurrently(refresh)
       }
     }
+  }
+  object Iot {
+    def apply[F[_]](
+      auth_endpoint: Uri,
+      client_id: String,
+      client_secret: String,
+      username: String,
+      password: String): Iot[F] =
+      new Iot[F](auth_endpoint, client_id, client_secret, username, password)
   }
 }
