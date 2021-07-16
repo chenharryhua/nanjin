@@ -417,7 +417,7 @@ lazy val spark = (project in file("spark"))
       "com.thesamet.scalapb" %% "sparksql-scalapb" % "0.11.0",
       // override dependency
       "io.netty"                               % "netty"      % "3.10.6.Final",
-      "io.netty"                               % "netty-all"  % "4.1.65.Final",
+      "io.netty"                               % "netty-all"  % "4.1.66.Final",
       "com.julianpeeters" %% "avrohugger-core" % "1.0.0-RC24" % Test
     ) ++ baseLib ++ sparkLib ++ serdeLib ++ kantanLib ++ hadoopLib ++ kafkaLib ++ effectLib ++
       akkaLib ++ json4sLib ++ fs2Lib ++ monocleLib ++ dbLib ++ logLib ++ ftpLib ++ testLib,
