@@ -3,9 +3,9 @@ package mtest.spark.persist
 import cats.kernel.Order
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.spark.injection._
+import com.github.chenharryhua.nanjin.spark.injection.*
 import frameless.TypedEncoder
-import io.circe.generic.auto._
+import io.circe.generic.auto.*
 import io.circe.parser.parse
 import io.circe.{Codec, Json}
 import org.apache.spark.rdd.RDD
@@ -14,7 +14,9 @@ import org.apache.spark.sql.Dataset
 import java.sql.{Date, Timestamp}
 import java.time.{Instant, LocalDate}
 import scala.util.Random
-import mtest.spark._
+import mtest.spark.*
+
+import java.time.temporal.ChronoUnit
 
 object Pocket extends Enumeration {
   val R, L = Value
@@ -40,7 +42,7 @@ object JacketData {
           p = if (Random.nextBoolean()) Pocket.L else Pocket.R,
           neck = KJson(Neck(
             d = Date.valueOf(LocalDate.now()),
-            t = Timestamp.from(Instant.now),
+            t = Timestamp.from(Instant.now.truncatedTo(ChronoUnit.MILLIS)),
             j = parse(s""" {"jsonFloat":"${Random.nextFloat()}","jsonInt":${Random.nextInt()}} """).right.get
           ))
         ))

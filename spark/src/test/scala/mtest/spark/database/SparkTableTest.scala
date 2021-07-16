@@ -2,27 +2,29 @@ package mtest.spark.database
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.syntax.all._
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.database.TableName
-import com.github.chenharryhua.nanjin.common.transformers._
-import com.github.chenharryhua.nanjin.datetime._
+import com.github.chenharryhua.nanjin.common.transformers.*
+import com.github.chenharryhua.nanjin.datetime.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.database._
-import com.github.chenharryhua.nanjin.spark.injection._
+import com.github.chenharryhua.nanjin.spark.database.*
+import com.github.chenharryhua.nanjin.spark.injection.*
 import com.github.chenharryhua.nanjin.spark.persist.DatasetAvroFileHoarder
-import doobie.implicits._
+import doobie.implicits.*
 import frameless.{TypedDataset, TypedEncoder}
-import io.circe.generic.auto._
-import io.scalaland.chimney.dsl._
-import kantan.csv.generic._
-import kantan.csv.java8._
+import io.circe.generic.auto.*
+import io.scalaland.chimney.dsl.*
+import kantan.csv.generic.*
+import kantan.csv.java8.*
 import kantan.csv.{CsvConfiguration, RowEncoder}
 import mtest.spark.sparkSession
 import org.apache.spark.sql.SparkSession
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.sql.Date
-import java.time._
+import java.time.*
+import java.time.temporal.ChronoUnit
+import java.util.concurrent.TimeUnit
 import scala.util.Random
 final case class DomainObject(a: LocalDate, b: Date, c: ZonedDateTime, d: OffsetDateTime, e: Option[Instant])
 
@@ -61,9 +63,10 @@ class SparkTableTest extends AnyFunSuite {
     DomainObject(
       LocalDate.now,
       Date.valueOf(LocalDate.now),
-      ZonedDateTime.now(zoneId),
-      OffsetDateTime.now(zoneId),
-      if (Random.nextBoolean()) Some(Instant.now) else None)
+      ZonedDateTime.now(zoneId).truncatedTo(ChronoUnit.MILLIS),
+      OffsetDateTime.now(zoneId).truncatedTo(ChronoUnit.MILLIS),
+      if (Random.nextBoolean()) Some(Instant.now.truncatedTo(ChronoUnit.MILLIS)) else None
+    )
 
   val dbData: DBTable = sample.transformInto[DBTable]
 
