@@ -6,7 +6,7 @@ import cats.kernel.PartialOrder
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.TopicDef
-import com.github.chenharryhua.nanjin.messages.kafka._
+import com.github.chenharryhua.nanjin.messages.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.sksamuel.avro4s.*
@@ -25,6 +25,7 @@ import shapeless.cachedImplicit
 @AvroDoc("kafka record, optional Key and Value")
 @AvroNamespace("nj.spark.kafka")
 @AvroName("NJConsumerRecord")
+@SerialVersionUID(-1867003775402832701L)
 final case class NJConsumerRecord[K, V](
   @AvroDoc("kafka partition") partition: Int,
   @AvroDoc("kafka offset") offset: Long,
