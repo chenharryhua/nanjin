@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.http.auth
 
 import cats.effect.Async
 import cats.effect.kernel.Resource
+import com.github.chenharryhua.nanjin.common.UpdateConfig
 import fs2.Stream
 import io.circe.generic.auto.*
 import org.http4s.*
@@ -9,7 +10,6 @@ import org.http4s.Method.POST
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
-import org.http4s.client.middleware.Retry
 import org.http4s.implicits.http4sLiteralsSyntax
 
 import scala.concurrent.duration.*
@@ -42,25 +42,34 @@ object SalesforceToken {
     auth_endpoint: Uri,
     client_id: String,
     client_secret: String,
-    instanceURL: InstanceURL
-  ) extends SalesforceToken("salesforce_mc") with Http4sClientDsl[F] with Login[F] {
+    instanceURL: InstanceURL,
+    config: AuthRetryConfig
+  ) extends SalesforceToken("salesforce_mc") with Http4sClientDsl[F] with Login[F]
+      with UpdateConfig[AuthRetryConfig, MarketingCloud[F]] {
+
+    val params: AuthRetryParams = config.evalConfig
 
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val getToken: Stream[F, McToken] =
         Stream.eval(
-          Retry(authPolicy[F])(client).expect[McToken](
-            POST(
-              UrlForm(
-                "grant_type" -> "client_credentials",
-                "client_id" -> client_id,
-                "client_secret" -> client_secret
-              ),
-              auth_endpoint.withPath(path"/v2/token")
-            ).putHeaders("Cache-Control" -> "no-cache")))
+          params
+            .retriableClient(client)
+            .expect[McToken](
+              POST(
+                UrlForm(
+                  "grant_type" -> "client_credentials",
+                  "client_id" -> client_id,
+                  "client_secret" -> client_secret
+                ),
+                auth_endpoint.withPath(path"/v2/token")
+              ).putHeaders("Cache-Control" -> "no-cache")))
 
       getToken.evalMap(F.ref).flatMap { token =>
         val refresh: Stream[F, Unit] =
-          Stream.eval(token.get).flatMap(t => getToken.delayBy(t.expires_in.seconds).evalMap(token.set)).repeat
+          Stream
+            .eval(token.get)
+            .flatMap(t => getToken.delayBy(params.offset(t.expires_in.seconds)).evalMap(token.set))
+            .repeat
         Stream[F, Client[F]](Client[F] { req =>
           Resource.eval(token.get).flatMap { t =>
             val iu: Uri = instanceURL match {
@@ -72,12 +81,15 @@ object SalesforceToken {
         }).concurrently(refresh)
       }
     }
+
+    override def updateConfig(f: AuthRetryConfig => AuthRetryConfig): MarketingCloud[F] =
+      new MarketingCloud[F](auth_endpoint, client_id, client_secret, instanceURL, f(config))
   }
   object MarketingCloud {
     def rest[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): MarketingCloud[F] =
-      new MarketingCloud[F](auth_endpoint, client_id, client_secret, Rest)
+      new MarketingCloud[F](auth_endpoint, client_id, client_secret, Rest, AuthRetryConfig())
     def soap[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): MarketingCloud[F] =
-      new MarketingCloud[F](auth_endpoint, client_id, client_secret, Soap)
+      new MarketingCloud[F](auth_endpoint, client_id, client_secret, Soap, AuthRetryConfig())
   }
 
   //https://developer.salesforce.com/docs/atlas.en-us.api_iot.meta/api_iot/qs_auth_access_token.htm
@@ -86,25 +98,31 @@ object SalesforceToken {
     client_id: String,
     client_secret: String,
     username: String,
-    password: String
-  ) extends SalesforceToken("salesforce_iot") with Http4sClientDsl[F] with Login[F] {
+    password: String,
+    config: AuthRetryConfig
+  ) extends SalesforceToken("salesforce_iot") with Http4sClientDsl[F] with Login[F]
+      with UpdateConfig[AuthRetryConfig, Iot[F]] {
+
+    val params: AuthRetryParams = config.evalConfig
 
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val getToken: Stream[F, IotToken] =
         Stream.eval(
-          Retry(authPolicy[F])(client).expect[IotToken](POST(
-            UrlForm(
-              "grant_type" -> "password",
-              "client_id" -> client_id,
-              "client_secret" -> client_secret,
-              "username" -> username,
-              "password" -> password
-            ),
-            auth_endpoint.withPath(path"/services/oauth2/token")
-          ).putHeaders("Cache-Control" -> "no-cache")))
+          params
+            .retriableClient(client)
+            .expect[IotToken](POST(
+              UrlForm(
+                "grant_type" -> "password",
+                "client_id" -> client_id,
+                "client_secret" -> client_secret,
+                "username" -> username,
+                "password" -> password
+              ),
+              auth_endpoint.withPath(path"/services/oauth2/token")
+            ).putHeaders("Cache-Control" -> "no-cache")))
 
       getToken.evalMap(F.ref).flatMap { token =>
-        val refresh: Stream[F, Unit] = getToken.delayBy(1.hour).evalMap(token.set).repeat
+        val refresh: Stream[F, Unit] = getToken.delayBy(params.offset(2.hour)).evalMap(token.set).repeat
         Stream[F, Client[F]](Client[F] { req =>
           Resource
             .eval(token.get)
@@ -116,6 +134,9 @@ object SalesforceToken {
         }).concurrently(refresh)
       }
     }
+
+    override def updateConfig(f: AuthRetryConfig => AuthRetryConfig): Iot[F] =
+      new Iot[F](auth_endpoint, client_id, client_secret, username, password, f(config))
   }
   object Iot {
     def apply[F[_]](
@@ -124,6 +145,6 @@ object SalesforceToken {
       client_secret: String,
       username: String,
       password: String): Iot[F] =
-      new Iot[F](auth_endpoint, client_id, client_secret, username, password)
+      new Iot[F](auth_endpoint, client_id, client_secret, username, password, AuthRetryConfig())
   }
 }

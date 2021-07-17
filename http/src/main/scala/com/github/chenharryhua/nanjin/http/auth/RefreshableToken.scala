@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.http.auth
 import cats.effect.Async
 import cats.effect.kernel.Resource
 import cats.effect.syntax.all.*
+import com.github.chenharryhua.nanjin.common.UpdateConfig
 import fs2.Stream
 import io.circe.generic.auto.*
 import org.http4s.Method.POST
@@ -22,17 +23,26 @@ final private case class RefreshableTokenResponse(
   expires_in: Long,
   refresh_token: String)
 
-final class RefreshableToken[F[_]] private (auth_endpoint: Uri, client_id: String, client_secret: String)
-    extends Http4sClientDsl[F] with Login[F] {
+final class RefreshableToken[F[_]] private (
+  auth_endpoint: Uri,
+  client_id: String,
+  client_secret: String,
+  config: AuthRetryConfig)
+    extends Http4sClientDsl[F] with Login[F] with UpdateConfig[AuthRetryConfig, RefreshableToken[F]] {
+
+  val params: AuthRetryParams = config.evalConfig
+
   override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
 
     val authURI: Uri = auth_endpoint.withPath(path"oauth/token")
     val getToken: Stream[F, RefreshableTokenResponse] =
       Stream.eval(
-        Retry(authPolicy[F])(client).expect[RefreshableTokenResponse](
-          POST(
-            UrlForm("grant_type" -> "client_credentials", "client_id" -> client_id, "client_secret" -> client_secret),
-            authURI).putHeaders("Cache-Control" -> "no-cache")))
+        params
+          .retriableClient(client)
+          .expect[RefreshableTokenResponse](
+            POST(
+              UrlForm("grant_type" -> "client_credentials", "client_id" -> client_id, "client_secret" -> client_secret),
+              authURI).putHeaders("Cache-Control" -> "no-cache")))
 
     getToken.evalMap(F.ref).flatMap { token =>
       val refresh: Stream[F, Unit] =
@@ -46,7 +56,7 @@ final class RefreshableToken[F[_]] private (auth_endpoint: Uri, client_id: Strin
                   authURI,
                   Authorization(BasicCredentials(client_id, client_secret))
                 ).putHeaders("Cache-Control" -> "no-cache"))
-              .delayBy(t.expires_in.seconds)
+              .delayBy(params.offset(t.expires_in.seconds))
           }
           .evalMap(token.set)
           .repeat
@@ -57,8 +67,11 @@ final class RefreshableToken[F[_]] private (auth_endpoint: Uri, client_id: Strin
       }).concurrently(refresh)
     }
   }
+
+  override def updateConfig(f: AuthRetryConfig => AuthRetryConfig): RefreshableToken[F] =
+    new RefreshableToken[F](auth_endpoint, client_id, client_secret, f(config))
 }
 object RefreshableToken {
   def apply[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): RefreshableToken[F] =
-    new RefreshableToken[F](auth_endpoint, client_id, client_secret)
+    new RefreshableToken[F](auth_endpoint, client_id, client_secret, AuthRetryConfig())
 }
