@@ -26,10 +26,10 @@ final class RefreshableToken[F[_]] private (
   auth_endpoint: Uri,
   client_id: String,
   client_secret: String,
-  config: AuthRetryConfig)
-    extends Http4sClientDsl[F] with Login[F] with UpdateConfig[AuthRetryConfig, RefreshableToken[F]] {
+  config: AuthConfig)
+    extends Http4sClientDsl[F] with Login[F] with UpdateConfig[AuthConfig, RefreshableToken[F]] {
 
-  val params: AuthRetryParams = config.evalConfig
+  val params: AuthParams = config.evalConfig
 
   override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
 
@@ -37,7 +37,7 @@ final class RefreshableToken[F[_]] private (
     val getToken: Stream[F, RefreshableTokenResponse] =
       Stream.eval(
         params
-          .retriableClient(client)
+          .authClient(client)
           .expect[RefreshableTokenResponse](
             POST(
               UrlForm("grant_type" -> "client_credentials", "client_id" -> client_id, "client_secret" -> client_secret),
@@ -49,7 +49,7 @@ final class RefreshableToken[F[_]] private (
           .eval(token.get)
           .evalMap { t =>
             params
-              .retriableClient(client)
+              .authClient(client)
               .expect[RefreshableTokenResponse](
                 POST(
                   UrlForm("grant_type" -> "refresh_token", "refresh_token" -> t.refresh_token),
@@ -68,10 +68,10 @@ final class RefreshableToken[F[_]] private (
     }
   }
 
-  override def updateConfig(f: AuthRetryConfig => AuthRetryConfig): RefreshableToken[F] =
+  override def updateConfig(f: AuthConfig => AuthConfig): RefreshableToken[F] =
     new RefreshableToken[F](auth_endpoint, client_id, client_secret, f(config))
 }
 object RefreshableToken {
   def apply[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): RefreshableToken[F] =
-    new RefreshableToken[F](auth_endpoint, client_id, client_secret, AuthRetryConfig())
+    new RefreshableToken[F](auth_endpoint, client_id, client_secret, AuthConfig())
 }

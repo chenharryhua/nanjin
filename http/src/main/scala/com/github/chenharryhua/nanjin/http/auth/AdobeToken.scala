@@ -35,17 +35,16 @@ object AdobeToken {
     client_id: String,
     client_code: String,
     client_secret: String,
-    config: AuthRetryConfig)
-      extends AdobeToken("access_token") with Http4sClientDsl[F] with Login[F]
-      with UpdateConfig[AuthRetryConfig, IMS[F]] {
+    config: AuthConfig)
+      extends AdobeToken("access_token") with Http4sClientDsl[F] with Login[F] with UpdateConfig[AuthConfig, IMS[F]] {
 
-    val params: AuthRetryParams = config.evalConfig
+    val params: AuthParams = config.evalConfig
 
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val getToken: Stream[F, TokenResponse] =
         Stream.eval(
           params
-            .retriableClient(client)
+            .authClient(client)
             .expect[TokenResponse](POST(
               UrlForm(
                 "grant_type" -> "authorization_code",
@@ -71,12 +70,12 @@ object AdobeToken {
       }
     }
 
-    override def updateConfig(f: AuthRetryConfig => AuthRetryConfig): IMS[F] =
+    override def updateConfig(f: AuthConfig => AuthConfig): IMS[F] =
       new IMS[F](auth_endpoint, client_id, client_code, client_secret, f(config))
   }
   object IMS {
     def apply[F[_]](auth_endpoint: Uri, client_id: String, client_code: String, client_secret: String): IMS[F] =
-      new IMS[F](auth_endpoint, client_id, client_code, client_secret, AuthRetryConfig())
+      new IMS[F](auth_endpoint, client_id, client_code, client_secret, AuthConfig())
   }
 
   // https://www.adobe.io/authentication/auth-methods.html#!AdobeDocs/adobeio-auth/master/JWT/JWT.md
@@ -88,10 +87,10 @@ object AdobeToken {
     technical_account_key: String,
     metascopes: NonEmptyList[AdobeMetascope],
     private_key: PrivateKey,
-    config: AuthRetryConfig)
-      extends AdobeToken("jwt_token") with Http4sClientDsl[F] with Login[F] with UpdateConfig[AuthRetryConfig, JWT[F]] {
+    config: AuthConfig)
+      extends AdobeToken("jwt_token") with Http4sClientDsl[F] with Login[F] with UpdateConfig[AuthConfig, JWT[F]] {
 
-    val params: AuthRetryParams = config.evalConfig
+    val params: AuthParams = config.evalConfig
 
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val audience: String = auth_endpoint.withPath(path"c" / Segment(client_id)).renderString
@@ -112,7 +111,7 @@ object AdobeToken {
               .compact
           }.flatMap(jwt =>
             params
-              .retriableClient(client)
+              .authClient(client)
               .expect[TokenResponse](
                 POST(
                   UrlForm("client_id" -> client_id, "client_secret" -> client_secret, "jwt_token" -> jwt),
@@ -139,7 +138,7 @@ object AdobeToken {
       }
     }
 
-    override def updateConfig(f: AuthRetryConfig => AuthRetryConfig): JWT[F] =
+    override def updateConfig(f: AuthConfig => AuthConfig): JWT[F] =
       new JWT[F](
         auth_endpoint,
         ims_org_id,
@@ -168,7 +167,7 @@ object AdobeToken {
         technical_account_key,
         metascopes,
         private_key,
-        AuthRetryConfig())
+        AuthConfig())
 
     def apply[F[_]](
       auth_endpoint: Uri,

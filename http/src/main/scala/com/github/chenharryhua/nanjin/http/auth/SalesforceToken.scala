@@ -43,17 +43,17 @@ object SalesforceToken {
     client_id: String,
     client_secret: String,
     instanceURL: InstanceURL,
-    config: AuthRetryConfig
+    config: AuthConfig
   ) extends SalesforceToken("salesforce_mc") with Http4sClientDsl[F] with Login[F]
-      with UpdateConfig[AuthRetryConfig, MarketingCloud[F]] {
+      with UpdateConfig[AuthConfig, MarketingCloud[F]] {
 
-    val params: AuthRetryParams = config.evalConfig
+    val params: AuthParams = config.evalConfig
 
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val getToken: Stream[F, McToken] =
         Stream.eval(
           params
-            .retriableClient(client)
+            .authClient(client)
             .expect[McToken](
               POST(
                 UrlForm(
@@ -82,14 +82,14 @@ object SalesforceToken {
       }
     }
 
-    override def updateConfig(f: AuthRetryConfig => AuthRetryConfig): MarketingCloud[F] =
+    override def updateConfig(f: AuthConfig => AuthConfig): MarketingCloud[F] =
       new MarketingCloud[F](auth_endpoint, client_id, client_secret, instanceURL, f(config))
   }
   object MarketingCloud {
     def rest[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): MarketingCloud[F] =
-      new MarketingCloud[F](auth_endpoint, client_id, client_secret, Rest, AuthRetryConfig())
+      new MarketingCloud[F](auth_endpoint, client_id, client_secret, Rest, AuthConfig())
     def soap[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): MarketingCloud[F] =
-      new MarketingCloud[F](auth_endpoint, client_id, client_secret, Soap, AuthRetryConfig())
+      new MarketingCloud[F](auth_endpoint, client_id, client_secret, Soap, AuthConfig())
   }
 
   //https://developer.salesforce.com/docs/atlas.en-us.api_iot.meta/api_iot/qs_auth_access_token.htm
@@ -99,17 +99,17 @@ object SalesforceToken {
     client_secret: String,
     username: String,
     password: String,
-    config: AuthRetryConfig
+    config: AuthConfig
   ) extends SalesforceToken("salesforce_iot") with Http4sClientDsl[F] with Login[F]
-      with UpdateConfig[AuthRetryConfig, Iot[F]] {
+      with UpdateConfig[AuthConfig, Iot[F]] {
 
-    val params: AuthRetryParams = config.evalConfig
+    val params: AuthParams = config.evalConfig
 
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val getToken: Stream[F, IotToken] =
         Stream.eval(
           params
-            .retriableClient(client)
+            .authClient(client)
             .expect[IotToken](POST(
               UrlForm(
                 "grant_type" -> "password",
@@ -135,7 +135,7 @@ object SalesforceToken {
       }
     }
 
-    override def updateConfig(f: AuthRetryConfig => AuthRetryConfig): Iot[F] =
+    override def updateConfig(f: AuthConfig => AuthConfig): Iot[F] =
       new Iot[F](auth_endpoint, client_id, client_secret, username, password, f(config))
   }
   object Iot {
@@ -145,6 +145,6 @@ object SalesforceToken {
       client_secret: String,
       username: String,
       password: String): Iot[F] =
-      new Iot[F](auth_endpoint, client_id, client_secret, username, password, AuthRetryConfig())
+      new Iot[F](auth_endpoint, client_id, client_secret, username, password, AuthConfig())
   }
 }
