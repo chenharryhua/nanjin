@@ -151,6 +151,6 @@ final case class ActionConfig private (value: Fix[ActionConfigF]) {
 
 private[guard] object ActionConfig {
 
-  def apply(serviceParams: ServiceParams): ActionConfig = new ActionConfig(
-    Fix(ActionConfigF.InitParams[Fix[ActionConfigF]](serviceParams)))
+  def apply(serviceParams: ServiceParams): ActionConfig =
+    ActionConfig(Fix(ActionConfigF.InitParams[Fix[ActionConfigF]](serviceParams)))
 }
