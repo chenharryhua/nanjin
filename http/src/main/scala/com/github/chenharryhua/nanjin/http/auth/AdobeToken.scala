@@ -19,7 +19,7 @@ import java.lang.Boolean.TRUE
 import java.security.PrivateKey
 import java.util.Date
 import scala.collection.JavaConverters.*
-import scala.concurrent.duration.*
+import scala.concurrent.duration.DurationLong
 
 sealed abstract class AdobeToken(val name: String)
 
@@ -75,7 +75,7 @@ object AdobeToken {
   }
   object IMS {
     def apply[F[_]](auth_endpoint: Uri, client_id: String, client_code: String, client_secret: String): IMS[F] =
-      new IMS[F](auth_endpoint, client_id, client_code, client_secret, AuthConfig())
+      new IMS[F](auth_endpoint, client_id, client_code, client_secret, AuthConfig(0.seconds))
   }
 
   // https://www.adobe.io/authentication/auth-methods.html#!AdobeDocs/adobeio-auth/master/JWT/JWT.md
@@ -105,7 +105,7 @@ object AdobeToken {
               .setSubject(technical_account_key)
               .setIssuer(ims_org_id)
               .setAudience(audience)
-              .setExpiration(new Date(ts.plusSeconds(86400).toEpochMilli))
+              .setExpiration(Date.from(ts.plusSeconds(params.expiresIn.toSeconds)))
               .addClaims(claims)
               .signWith(private_key, SignatureAlgorithm.RS256)
               .compact
@@ -167,7 +167,7 @@ object AdobeToken {
         technical_account_key,
         metascopes,
         private_key,
-        AuthConfig())
+        AuthConfig(1.day))
 
     def apply[F[_]](
       auth_endpoint: Uri,

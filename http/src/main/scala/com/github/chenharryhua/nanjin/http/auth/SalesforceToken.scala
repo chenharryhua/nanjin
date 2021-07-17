@@ -12,7 +12,7 @@ import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
 import org.http4s.implicits.http4sLiteralsSyntax
 
-import scala.concurrent.duration.*
+import scala.concurrent.duration.DurationLong
 
 sealed abstract class SalesforceToken(val name: String)
 
@@ -87,9 +87,9 @@ object SalesforceToken {
   }
   object MarketingCloud {
     def rest[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): MarketingCloud[F] =
-      new MarketingCloud[F](auth_endpoint, client_id, client_secret, Rest, AuthConfig())
+      new MarketingCloud[F](auth_endpoint, client_id, client_secret, Rest, AuthConfig(0.seconds))
     def soap[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): MarketingCloud[F] =
-      new MarketingCloud[F](auth_endpoint, client_id, client_secret, Soap, AuthConfig())
+      new MarketingCloud[F](auth_endpoint, client_id, client_secret, Soap, AuthConfig(0.seconds))
   }
 
   //https://developer.salesforce.com/docs/atlas.en-us.api_iot.meta/api_iot/qs_auth_access_token.htm
@@ -122,7 +122,7 @@ object SalesforceToken {
             ).putHeaders("Cache-Control" -> "no-cache")))
 
       getToken.evalMap(F.ref).flatMap { token =>
-        val refresh: Stream[F, Unit] = getToken.delayBy(params.offset(2.hour)).evalMap(token.set).repeat
+        val refresh: Stream[F, Unit] = getToken.delayBy(params.offset(params.expiresIn)).evalMap(token.set).repeat
         Stream[F, Client[F]](Client[F] { req =>
           Resource
             .eval(token.get)
@@ -145,6 +145,6 @@ object SalesforceToken {
       client_secret: String,
       username: String,
       password: String): Iot[F] =
-      new Iot[F](auth_endpoint, client_id, client_secret, username, password, AuthConfig())
+      new Iot[F](auth_endpoint, client_id, client_secret, username, password, AuthConfig(2.hours))
   }
 }
