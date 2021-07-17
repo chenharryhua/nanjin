@@ -73,5 +73,5 @@ final class RefreshableToken[F[_]] private (
 }
 object RefreshableToken {
   def apply[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): RefreshableToken[F] =
-    new RefreshableToken[F](auth_endpoint, client_id, client_secret, AuthConfig())
+    new RefreshableToken[F](auth_endpoint, client_id, client_secret, AuthConfig(0.seconds))
 }
