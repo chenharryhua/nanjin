@@ -13,7 +13,7 @@ import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
 import org.http4s.client.middleware.Retry
 import org.http4s.implicits.http4sLiteralsSyntax
-import org.http4s.{Headers, Uri}
+import org.http4s.{Headers, Uri, UrlForm}
 
 import java.lang.Boolean.TRUE
 import java.security.PrivateKey
@@ -36,15 +36,14 @@ object AdobeToken {
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val getToken: Stream[F, TokenResponse] =
         Stream.eval(
-          Retry(authPolicy[F])(client).expect[TokenResponse](
-            POST(
-              auth_endpoint
-                .withPath(path"/ims/token/v1")
-                .withQueryParam("grant_type", "authorization_code")
-                .withQueryParam("client_id", client_id)
-                .withQueryParam("client_secret", client_secret)
-                .withQueryParam("code", client_code)
-            ).withHeaders("Content-Type" -> "application/x-www-form-urlencoded")))
+          Retry(authPolicy[F])(client).expect[TokenResponse](POST(
+            UrlForm(
+              "grant_type" -> "authorization_code",
+              "client_id" -> client_id,
+              "client_secret" -> client_secret,
+              "code" -> client_code),
+            auth_endpoint.withPath(path"/ims/token/v1")
+          ).putHeaders("Cache-Control" -> "no-cache")))
 
       getToken.evalMap(F.ref).flatMap { token =>
         val refresh: Stream[F, Unit] =
@@ -95,12 +94,9 @@ object AdobeToken {
           }.flatMap(jwt =>
             Retry(authPolicy[F])(client).expect[TokenResponse](
               POST(
-                auth_endpoint
-                  .withPath(path"/ims/exchange/jwt")
-                  .withQueryParam("client_id", client_id)
-                  .withQueryParam("client_secret", client_secret)
-                  .withQueryParam("jwt_token", jwt))
-                .putHeaders("Content-Type" -> "application/x-www-form-urlencoded", "Cache-Control" -> "no-cache"))))
+                UrlForm("client_id" -> client_id, "client_secret" -> client_secret, "jwt_token" -> jwt),
+                auth_endpoint.withPath(path"/ims/exchange/jwt")
+              ).putHeaders("Cache-Control" -> "no-cache"))))
 
       getToken.evalMap(F.ref).flatMap { token =>
         val refresh: Stream[F, Unit] =

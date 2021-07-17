@@ -56,7 +56,7 @@ object SalesforceToken {
                 "client_secret" -> client_secret
               ),
               auth_endpoint.withPath(path"/v2/token")
-            )))
+            ).putHeaders("Cache-Control" -> "no-cache")))
 
       getToken.evalMap(F.ref).flatMap { token =>
         val refresh: Stream[F, Unit] =
@@ -101,7 +101,7 @@ object SalesforceToken {
               "password" -> password
             ),
             auth_endpoint.withPath(path"/services/oauth2/token")
-          )))
+          ).putHeaders("Cache-Control" -> "no-cache")))
 
       getToken.evalMap(F.ref).flatMap { token =>
         val refresh: Stream[F, Unit] = getToken.delayBy(1.hour).evalMap(token.set).repeat
