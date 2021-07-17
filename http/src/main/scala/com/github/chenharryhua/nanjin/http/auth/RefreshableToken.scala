@@ -10,7 +10,6 @@ import org.http4s.Method.POST
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
-import org.http4s.client.middleware.Retry
 import org.http4s.headers.Authorization
 import org.http4s.implicits.http4sLiteralsSyntax
 import org.http4s.{BasicCredentials, Headers, Uri, UrlForm}
@@ -49,7 +48,8 @@ final class RefreshableToken[F[_]] private (
         Stream
           .eval(token.get)
           .evalMap { t =>
-            Retry(authPolicy[F])(client)
+            params
+              .retriableClient(client)
               .expect[RefreshableTokenResponse](
                 POST(
                   UrlForm("grant_type" -> "refresh_token", "refresh_token" -> t.refresh_token),
