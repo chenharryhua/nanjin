@@ -208,8 +208,8 @@ class ServiceTest extends AnyFunSuite {
         assert(g.params.alertMask.alertFirstRetry)
         assert(g.params.alertMask.alertRetry)
         assert(g.params.shouldTerminate)
-        assert(g.params.maxRetries == 5)
-        assert(g.params.retryPolicy.isInstanceOf[ConstantDelay])
+        assert(g.params.retry.maxRetries == 5)
+        assert(g.params.retry.njRetryPolicy.isInstanceOf[ConstantDelay])
       })
     }.compile.drain.unsafeRunSync()
   }
@@ -223,8 +223,8 @@ class ServiceTest extends AnyFunSuite {
         assert(!g.params.alertMask.alertFirstRetry)
         assert(!g.params.alertMask.alertRetry)
         assert(!g.params.shouldTerminate)
-        assert(g.params.maxRetries == 0)
-        assert(g.params.retryPolicy.isInstanceOf[FibonacciBackoff])
+        assert(g.params.retry.maxRetries == 0)
+        assert(g.params.retry.njRetryPolicy.isInstanceOf[FibonacciBackoff])
       })
     }.interruptAfter(3.seconds).compile.drain.unsafeRunSync()
   }

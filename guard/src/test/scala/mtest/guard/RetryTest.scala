@@ -76,6 +76,7 @@ class RetryTest extends AnyFunSuite {
           .retry(1)(x => IO.raiseError[Int](new Exception("oops")))
           .run
       }
+      .debug()
       .observe(_.evalMap(logging.alert).drain)
       .interruptAfter(5.seconds)
       .compile
@@ -95,7 +96,7 @@ class RetryTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream(ag =>
         ag("null exception")
-          .updateConfig(_.withConstantDelay(1.second).withMaxRetries(2))
+          .updateConfig(_.withMaxWait(1.second).withMaxRetries(2))
           .loudly(IO.raiseError(new NullPointerException)))
       .observe(_.evalMap(logging.alert).drain)
       .interruptAfter(5.seconds)

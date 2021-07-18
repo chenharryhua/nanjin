@@ -50,13 +50,19 @@ final case class JitterBackoff(value: FiniteDuration) extends NJRetryPolicy
   alertFirstRetry: Boolean, // alert first time failure of the action
   alertStart: Boolean) // alert action start
 
+@Lenses final case class ActionRetryParams private (
+  maxRetries: Int,
+  maxWait: FiniteDuration,
+  njRetryPolicy: NJRetryPolicy) {
+  def policy[F[_]: Applicative]: RetryPolicy[F] =
+    RetryPolicies.capDelay(maxWait, njRetryPolicy.policy[F]).join(RetryPolicies.limitRetries(maxRetries))
+}
+
 @Lenses final case class ActionParams private (
   serviceParams: ServiceParams,
   alertMask: SlackAlertMask, // whether display succNotes and failNotes
-  maxRetries: Int,
-  retryPolicy: NJRetryPolicy,
-  shouldTerminate: Boolean
-)
+  shouldTerminate: Boolean,
+  retry: ActionRetryParams)
 
 object ActionParams {
 
@@ -68,9 +74,8 @@ object ActionParams {
       alertRetry = false,
       alertFirstRetry = false,
       alertStart = false),
-    maxRetries = 0,
-    retryPolicy = ConstantDelay(10.seconds),
-    shouldTerminate = true
+    shouldTerminate = true,
+    retry = ActionRetryParams(maxRetries = 0, maxWait = 365.days, njRetryPolicy = ConstantDelay(10.seconds))
   )
 }
 
@@ -82,6 +87,7 @@ private object ActionConfigF {
   final case class InitParams[K](serviceParams: ServiceParams) extends ActionConfigF[K]
 
   final case class WithMaxRetries[K](value: Int, cont: K) extends ActionConfigF[K]
+  final case class WithMaxWait[K](value: FiniteDuration, cont: K) extends ActionConfigF[K]
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends ActionConfigF[K]
 
   final case class WithAlertMaskSucc[K](value: Boolean, cont: K) extends ActionConfigF[K]
@@ -95,8 +101,9 @@ private object ActionConfigF {
   val algebra: Algebra[ActionConfigF, ActionParams] =
     Algebra[ActionConfigF, ActionParams] {
       case InitParams(v)                 => ActionParams(v)
-      case WithRetryPolicy(v, c)         => ActionParams.retryPolicy.set(v)(c)
-      case WithMaxRetries(v, c)          => ActionParams.maxRetries.set(v)(c)
+      case WithRetryPolicy(v, c)         => ActionParams.retry.composeLens(ActionRetryParams.njRetryPolicy).set(v)(c)
+      case WithMaxRetries(v, c)          => ActionParams.retry.composeLens(ActionRetryParams.maxRetries).set(v)(c)
+      case WithMaxWait(v, c)             => ActionParams.retry.composeLens(ActionRetryParams.maxWait).set(v)(c)
       case WithAlertMaskSucc(v, c)       => ActionParams.alertMask.composeLens(SlackAlertMask.alertSucc).set(v)(c)
       case WithAlertMaskFail(v, c)       => ActionParams.alertMask.composeLens(SlackAlertMask.alertFail).set(v)(c)
       case WithAlertMaskRetry(v, c)      => ActionParams.alertMask.composeLens(SlackAlertMask.alertRetry).set(v)(c)
@@ -129,7 +136,8 @@ final case class ActionConfig private (value: Fix[ActionConfigF]) {
   def withSlackNone: ActionConfig =
     withSlackSuccOff.withSlackFailOff.withSlackRetryOff.withSlackFirstFailOff.withSlackStartOff
 
-  def withMaxRetries(num: Int): ActionConfig = ActionConfig(Fix(WithMaxRetries(num, value)))
+  def withMaxRetries(num: Int): ActionConfig         = ActionConfig(Fix(WithMaxRetries(num, value)))
+  def withMaxWait(dur: FiniteDuration): ActionConfig = ActionConfig(Fix(WithMaxWait(dur, value)))
 
   def withConstantDelay(delay: FiniteDuration): ActionConfig =
     ActionConfig(Fix(WithRetryPolicy(ConstantDelay(delay), value)))
