@@ -96,8 +96,11 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withConstantDelay(delay: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(ConstantDelay(delay), value)))
 
-  def withJitterBackoff(minDelay: FiniteDuration, maxDelay: FiniteDuration): ServiceConfig =
+  def withJitterBackoff(minDelay: FiniteDuration, maxDelay: FiniteDuration): ServiceConfig = {
+    require(maxDelay > minDelay, s"maxDelay($maxDelay) should be strickly bigger than minDelay($minDelay)")
     ServiceConfig(Fix(WithRetryPolicy(JitterBackoff(minDelay, maxDelay), value)))
+  }
+
   def withJitterBackoff(maxDelay: FiniteDuration): ServiceConfig =
     withJitterBackoff(FiniteDuration(0, TimeUnit.SECONDS), maxDelay)
 

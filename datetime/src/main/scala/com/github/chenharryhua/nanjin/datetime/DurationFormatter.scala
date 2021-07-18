@@ -24,7 +24,7 @@ trait DurationFormatter {
 
 object DurationFormatter {
 
-  val default: DurationFormatter = (duration: Duration) => {
+  val defaultFormatter: DurationFormatter = (duration: Duration) => {
     val dur: Duration = if (duration < Duration.Zero) duration.neg() else duration
     if (dur < oneMillisec) {
       val nano = dur.toNanos

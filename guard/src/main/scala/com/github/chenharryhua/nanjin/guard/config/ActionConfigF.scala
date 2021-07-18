@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import cats.syntax.show.*
 import cats.{Applicative, Functor, Show}
+import com.github.chenharryhua.nanjin.datetime.DurationFormatter.defaultFormatter
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
@@ -17,7 +18,7 @@ sealed abstract class NJRetryPolicy {
       _ =>
         DelayAndRetry(
           FiniteDuration(ThreadLocalRandom.current().nextLong(min.toNanos, max.toNanos), TimeUnit.NANOSECONDS)),
-      show"Jitter(minDelay=$min, maxDelay=$max)"
+      show"jitterBackoff(minDelay=${defaultFormatter.format(min)}, maxDelay=${defaultFormatter.format(max)})"
     )
 
   final def policy[F[_]](implicit F: Applicative[F]): RetryPolicy[F] = this match {

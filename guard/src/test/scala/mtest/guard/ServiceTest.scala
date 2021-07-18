@@ -42,7 +42,7 @@ class ServiceTest extends AnyFunSuite {
   val slack2 = SlackService[IO](
     SnsArn("arn:aws:sns:ap-southeast-2:123456789012:abc-123xyz"),
     Regions.AP_SOUTHEAST_2,
-    DurationFormatter.default)
+    DurationFormatter.defaultFormatter)
 
   val guard = TaskGuard[IO]("service-level-guard")
     .updateConfig(
@@ -84,10 +84,10 @@ class ServiceTest extends AnyFunSuite {
 
   test("escalate to up level if retry failed") {
     val Vector(a, b, c, d, e, f) = guard
-      .updateConfig(_.withConstantDelay(1.hour))
+      .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
       .eventStream { gd =>
         gd("escalate-after-3-time")
-          .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
+          .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second).withSlackRetryOn)
           .croak(IO.raiseError(new Exception("oops")))(_ => null)
       }
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
