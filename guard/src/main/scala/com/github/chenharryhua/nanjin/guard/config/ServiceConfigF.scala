@@ -23,7 +23,7 @@ import scala.concurrent.duration.*
   serviceName: String,
   taskParams: TaskParams,
   healthCheck: NJHealthCheck,
-  retryPolicy: NJRetryPolicy,
+  retry: NJRetryPolicy,
   startUpEventDelay: FiniteDuration, // delay to sent out ServiceStarted event
   maxCauseSize: Int, // number of chars allowed to display in slack
   notes: String
@@ -40,7 +40,7 @@ object ServiceParams {
         LocalTime.of(7, 0), // business open
         FiniteDuration(24, TimeUnit.HOURS) // working hours
       ),
-      retryPolicy = ConstantDelay(30.seconds),
+      retry = ConstantDelay(30.seconds),
       startUpEventDelay = 15.seconds,
       maxCauseSize = 500,
       notes = ""
@@ -71,7 +71,7 @@ private object ServiceConfigF {
       case WithHealthCheckInterval(v, c) => ServiceParams.healthCheck.composeLens(NJHealthCheck.interval).set(v)(c)
       case WithHealthCheckOpenTime(v, c) => ServiceParams.healthCheck.composeLens(NJHealthCheck.openTime).set(v)(c)
       case WithHealthCheckSpan(v, c)     => ServiceParams.healthCheck.composeLens(NJHealthCheck.span).set(v)(c)
-      case WithRetryPolicy(v, c)         => ServiceParams.retryPolicy.set(v)(c)
+      case WithRetryPolicy(v, c)         => ServiceParams.retry.set(v)(c)
       case WithStartUpDelay(v, c)        => ServiceParams.startUpEventDelay.set(v)(c)
       case WithMaxCauseSize(v, c)        => ServiceParams.maxCauseSize.set(v)(c)
       case WithNotes(v, c)               => ServiceParams.notes.set(v)(c)

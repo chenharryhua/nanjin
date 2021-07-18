@@ -8,17 +8,13 @@ import monocle.macros.Lenses
 import retry.PolicyDecision.DelayAndRetry
 import retry.{RetryPolicies, RetryPolicy}
 
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
 import scala.concurrent.duration.*
-import scala.util.Random
 
 sealed abstract class NJRetryPolicy {
   private def jitterBackoff[F[_]: Applicative](maxDelay: FiniteDuration): RetryPolicy[F] =
     RetryPolicy.liftWithShow(
-      { _ =>
-        val delay: Long = Random.nextInt(maxDelay.toMillis.toInt).toLong
-        DelayAndRetry(new FiniteDuration(delay, TimeUnit.MILLISECONDS))
-      },
+      _ => DelayAndRetry(FiniteDuration(ThreadLocalRandom.current().nextLong(maxDelay.toNanos), TimeUnit.NANOSECONDS)),
       show"Jitter(maxDelay=$maxDelay)"
     )
 
