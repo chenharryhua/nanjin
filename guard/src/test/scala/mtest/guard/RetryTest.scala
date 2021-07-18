@@ -2,10 +2,10 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.syntax.all._
+import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
-import com.github.chenharryhua.nanjin.guard._
+import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.action.ActionException
 import com.github.chenharryhua.nanjin.guard.alert.{
   ActionFailed,
@@ -20,7 +20,7 @@ import com.github.chenharryhua.nanjin.guard.alert.{
 }
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 final case class MyException() extends Exception("my exception")
 
@@ -96,7 +96,7 @@ class RetryTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream(ag =>
         ag("null exception")
-          .updateConfig(_.withMaxWait(1.second).withMaxRetries(2))
+          .updateConfig(_.withCapDelay(1.second).withMaxRetries(2))
           .loudly(IO.raiseError(new NullPointerException)))
       .observe(_.evalMap(logging.alert).drain)
       .interruptAfter(5.seconds)
