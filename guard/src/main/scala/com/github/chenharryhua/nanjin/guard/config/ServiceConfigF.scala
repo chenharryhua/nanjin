@@ -79,7 +79,7 @@ private object ServiceConfigF {
 }
 
 final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
-  import ServiceConfigF._
+  import ServiceConfigF.*
 
   def withHealthCheckInterval(interval: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithHealthCheckInterval(interval, value)))
@@ -96,8 +96,10 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withConstantDelay(delay: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(ConstantDelay(delay), value)))
 
+  def withJitterBackoff(minDelay: FiniteDuration, maxDelay: FiniteDuration): ServiceConfig =
+    ServiceConfig(Fix(WithRetryPolicy(JitterBackoff(minDelay, maxDelay), value)))
   def withJitterBackoff(maxDelay: FiniteDuration): ServiceConfig =
-    ServiceConfig(Fix(WithRetryPolicy(JitterBackoff(maxDelay), value)))
+    withJitterBackoff(FiniteDuration(0, TimeUnit.SECONDS), maxDelay)
 
   def withSlackMaximumCauseSize(size: Int): ServiceConfig =
     ServiceConfig(Fix(WithMaxCauseSize(size, value)))
