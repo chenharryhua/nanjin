@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.http.auth
 
 import cats.effect.Async
 import cats.effect.kernel.Resource
-import com.github.chenharryhua.nanjin.common.UpdateConfig
 import fs2.Stream
 import io.circe.generic.auto.*
 import org.http4s.*
@@ -12,7 +11,7 @@ import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
 import org.http4s.implicits.http4sLiteralsSyntax
 
-import scala.concurrent.duration.DurationLong
+import scala.concurrent.duration.{DurationLong, FiniteDuration}
 
 sealed abstract class SalesforceToken(val name: String)
 
@@ -44,8 +43,7 @@ object SalesforceToken {
     client_secret: String,
     instanceURL: InstanceURL,
     config: AuthConfig
-  ) extends SalesforceToken("salesforce_mc") with Http4sClientDsl[F] with Login[F]
-      with UpdateConfig[AuthConfig, MarketingCloud[F]] {
+  ) extends SalesforceToken("salesforce_mc") with Http4sClientDsl[F] with Login[F] {
 
     val params: AuthParams = config.evalConfig
 
@@ -82,8 +80,12 @@ object SalesforceToken {
       }
     }
 
-    override def updateConfig(f: AuthConfig => AuthConfig): MarketingCloud[F] =
+    private def updateConfig(f: AuthConfig => AuthConfig): MarketingCloud[F] =
       new MarketingCloud[F](auth_endpoint, client_id, client_secret, instanceURL, f(config))
+
+    def withMaxRetries(times: Int): MarketingCloud[F]       = updateConfig(_.withMaxRetries(times))
+    def withMaxWait(dur: FiniteDuration): MarketingCloud[F] = updateConfig(_.withMaxWait(dur))
+
   }
   object MarketingCloud {
     def rest[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): MarketingCloud[F] =
@@ -100,8 +102,7 @@ object SalesforceToken {
     username: String,
     password: String,
     config: AuthConfig
-  ) extends SalesforceToken("salesforce_iot") with Http4sClientDsl[F] with Login[F]
-      with UpdateConfig[AuthConfig, Iot[F]] {
+  ) extends SalesforceToken("salesforce_iot") with Http4sClientDsl[F] with Login[F] {
 
     val params: AuthParams = config.evalConfig
 
@@ -135,8 +136,12 @@ object SalesforceToken {
       }
     }
 
-    override def updateConfig(f: AuthConfig => AuthConfig): Iot[F] =
+    private def updateConfig(f: AuthConfig => AuthConfig): Iot[F] =
       new Iot[F](auth_endpoint, client_id, client_secret, username, password, f(config))
+
+    def withMaxRetries(times: Int): Iot[F]         = updateConfig(_.withMaxRetries(times))
+    def withMaxWait(dur: FiniteDuration): Iot[F]   = updateConfig(_.withMaxWait(dur))
+    def withExpiresIn(dur: FiniteDuration): Iot[F] = updateConfig(_.withExpiresIn(dur))
   }
   object Iot {
     def apply[F[_]](

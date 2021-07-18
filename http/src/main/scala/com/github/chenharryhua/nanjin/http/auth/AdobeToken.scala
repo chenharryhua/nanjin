@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.http.auth
 import cats.data.NonEmptyList
 import cats.effect.{Async, Resource}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.UpdateConfig
 import fs2.Stream
 import io.circe.generic.auto.*
 import io.jsonwebtoken.{Jwts, SignatureAlgorithm}
@@ -19,7 +18,7 @@ import java.lang.Boolean.TRUE
 import java.security.PrivateKey
 import java.util.Date
 import scala.collection.JavaConverters.*
-import scala.concurrent.duration.DurationLong
+import scala.concurrent.duration.{DurationLong, FiniteDuration}
 
 sealed abstract class AdobeToken(val name: String)
 
@@ -36,7 +35,7 @@ object AdobeToken {
     client_code: String,
     client_secret: String,
     config: AuthConfig)
-      extends AdobeToken("access_token") with Http4sClientDsl[F] with Login[F] with UpdateConfig[AuthConfig, IMS[F]] {
+      extends AdobeToken("access_token") with Http4sClientDsl[F] with Login[F] {
 
     val params: AuthParams = config.evalConfig
 
@@ -70,8 +69,12 @@ object AdobeToken {
       }
     }
 
-    override def updateConfig(f: AuthConfig => AuthConfig): IMS[F] =
+    private def updateConfig(f: AuthConfig => AuthConfig): IMS[F] =
       new IMS[F](auth_endpoint, client_id, client_code, client_secret, f(config))
+
+    def withMaxRetries(times: Int): IMS[F]       = updateConfig(_.withMaxRetries(times))
+    def withMaxWait(dur: FiniteDuration): IMS[F] = updateConfig(_.withMaxWait(dur))
+
   }
   object IMS {
     def apply[F[_]](auth_endpoint: Uri, client_id: String, client_code: String, client_secret: String): IMS[F] =
@@ -88,7 +91,7 @@ object AdobeToken {
     metascopes: NonEmptyList[AdobeMetascope],
     private_key: PrivateKey,
     config: AuthConfig)
-      extends AdobeToken("jwt_token") with Http4sClientDsl[F] with Login[F] with UpdateConfig[AuthConfig, JWT[F]] {
+      extends AdobeToken("jwt_token") with Http4sClientDsl[F] with Login[F] {
 
     val params: AuthParams = config.evalConfig
 
@@ -138,7 +141,7 @@ object AdobeToken {
       }
     }
 
-    override def updateConfig(f: AuthConfig => AuthConfig): JWT[F] =
+    private def updateConfig(f: AuthConfig => AuthConfig): JWT[F] =
       new JWT[F](
         auth_endpoint,
         ims_org_id,
@@ -148,6 +151,10 @@ object AdobeToken {
         metascopes,
         private_key,
         f(config))
+
+    def withMaxRetries(times: Int): JWT[F]         = updateConfig(_.withMaxRetries(times))
+    def withMaxWait(dur: FiniteDuration): JWT[F]   = updateConfig(_.withMaxWait(dur))
+    def withExpiresIn(dur: FiniteDuration): JWT[F] = updateConfig(_.withExpiresIn(dur))
   }
 
   object JWT {
