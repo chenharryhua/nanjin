@@ -81,25 +81,25 @@ private object ServiceConfigF {
 final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   import ServiceConfigF._
 
-  def health_check_interval(interval: FiniteDuration): ServiceConfig =
+  def withHealthCheckInterval(interval: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithHealthCheckInterval(interval, value)))
 
-  def health_check_open_time(openTime: LocalTime): ServiceConfig =
+  def withHealthCheckOpenTime(openTime: LocalTime): ServiceConfig =
     ServiceConfig(Fix(WithHealthCheckOpenTime(openTime, value)))
 
-  def health_check_span(duration: FiniteDuration): ServiceConfig =
+  def withHealthCheckSpan(duration: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithHealthCheckSpan(duration, value)))
 
-  def startup_delay(delay: FiniteDuration): ServiceConfig = ServiceConfig(Fix(WithStartUpDelay(delay, value)))
-  def startup_notes(notes: String): ServiceConfig         = ServiceConfig(Fix(WithNotes(notes, value)))
+  def withStartupDelay(delay: FiniteDuration): ServiceConfig = ServiceConfig(Fix(WithStartUpDelay(delay, value)))
+  def withStartupNotes(notes: String): ServiceConfig         = ServiceConfig(Fix(WithNotes(notes, value)))
 
-  def constant_delay(delay: FiniteDuration): ServiceConfig =
+  def withConstantDelay(delay: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(ConstantDelay(delay), value)))
 
-  def jitter_backoff(maxDelay: FiniteDuration): ServiceConfig =
+  def withJitterBackoff(maxDelay: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(JitterBackoff(maxDelay), value)))
 
-  def maximum_cause_size(size: Int): ServiceConfig =
+  def withSlackMaximumCauseSize(size: Int): ServiceConfig =
     ServiceConfig(Fix(WithMaxCauseSize(size, value)))
 
   def evalConfig: ServiceParams = scheme.cata(algebra).apply(value)

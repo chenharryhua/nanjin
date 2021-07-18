@@ -70,20 +70,20 @@ private object TaskConfigF {
 final case class TaskConfig private (value: Fix[TaskConfigF]) {
   import TaskConfigF._
 
-  def zone_id(zoneId: ZoneId): TaskConfig = TaskConfig(Fix(WithZoneId(zoneId, value)))
+  def withZoneId(zoneId: ZoneId): TaskConfig = TaskConfig(Fix(WithZoneId(zoneId, value)))
 
-  def daily_summary_reset_hour(hour: Refined[Int, And[GreaterEqual[W.`0`.T], LessEqual[W.`23`.T]]]): TaskConfig =
+  def withDailySummaryReset(hour: Refined[Int, And[GreaterEqual[W.`0`.T], LessEqual[W.`23`.T]]]): TaskConfig =
     TaskConfig(Fix(WithDSRHour(hour.value, value)))
 
-  def daily_summary_reset_disabled: TaskConfig =
+  def withDailySummaryResetDisabled: TaskConfig =
     TaskConfig(Fix(WithDSREnable(value = false, value)))
 
-  def slack_succ_color(v: String): TaskConfig = TaskConfig(Fix(WithSlackSuccColor(v, value)))
-  def slack_fail_color(v: String): TaskConfig = TaskConfig(Fix(WithSlackFailColor(v, value)))
-  def slack_warn_color(v: String): TaskConfig = TaskConfig(Fix(WithSlackWarnColor(v, value)))
-  def slack_info_color(v: String): TaskConfig = TaskConfig(Fix(WithSlackInfoColor(v, value)))
+  def withSlackSuccColor(v: String): TaskConfig = TaskConfig(Fix(WithSlackSuccColor(v, value)))
+  def withSlackFailColor(v: String): TaskConfig = TaskConfig(Fix(WithSlackFailColor(v, value)))
+  def withSlackWarnColor(v: String): TaskConfig = TaskConfig(Fix(WithSlackWarnColor(v, value)))
+  def withSlackInfoColor(v: String): TaskConfig = TaskConfig(Fix(WithSlackInfoColor(v, value)))
 
-  def host_name(hostName: HostName): TaskConfig = TaskConfig(Fix(WithHostName(hostName, value)))
+  def withHostName(hostName: HostName): TaskConfig = TaskConfig(Fix(WithHostName(hostName, value)))
 
   def evalConfig: TaskParams = scheme.cata(algebra).apply(value)
 }

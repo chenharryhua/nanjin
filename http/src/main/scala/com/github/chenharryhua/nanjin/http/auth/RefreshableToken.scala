@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.http.auth
 import cats.effect.Async
 import cats.effect.kernel.Resource
 import cats.effect.syntax.all.*
-import com.github.chenharryhua.nanjin.common.UpdateConfig
 import fs2.Stream
 import io.circe.generic.auto.*
 import org.http4s.Method.POST
@@ -14,7 +13,7 @@ import org.http4s.headers.Authorization
 import org.http4s.implicits.http4sLiteralsSyntax
 import org.http4s.{BasicCredentials, Headers, Uri, UrlForm}
 
-import scala.concurrent.duration.DurationLong
+import scala.concurrent.duration.{DurationLong, FiniteDuration}
 
 final private case class RefreshableTokenResponse(
   token_type: String,
@@ -27,7 +26,7 @@ final class RefreshableToken[F[_]] private (
   client_id: String,
   client_secret: String,
   config: AuthConfig)
-    extends Http4sClientDsl[F] with Login[F] with UpdateConfig[AuthConfig, RefreshableToken[F]] {
+    extends Http4sClientDsl[F] with Login[F] {
 
   val params: AuthParams = config.evalConfig
 
@@ -68,8 +67,10 @@ final class RefreshableToken[F[_]] private (
     }
   }
 
-  override def updateConfig(f: AuthConfig => AuthConfig): RefreshableToken[F] =
+  private def updateConfig(f: AuthConfig => AuthConfig): RefreshableToken[F] =
     new RefreshableToken[F](auth_endpoint, client_id, client_secret, f(config))
+  def withMaxRetries(times: Int): RefreshableToken[F]       = updateConfig(_.withMaxRetries(times))
+  def withMaxWait(dur: FiniteDuration): RefreshableToken[F] = updateConfig(_.withMaxWait(dur))
 }
 object RefreshableToken {
   def apply[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): RefreshableToken[F] =
