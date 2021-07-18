@@ -331,7 +331,7 @@ lazy val http = (project in file("http"))
   .settings(
     libraryDependencies ++=
       Seq(
-        "org.cometd.java"  % "cometd-java-client-common" % "7.0.3",
+        "org.cometd.java"  % "cometd-java-client-common" % "7.0.4",
         "org.bouncycastle" % "bcpkix-jdk15on"            % "1.69",
         "io.jsonwebtoken"  % "jjwt-api"                  % "0.11.2",
         "io.jsonwebtoken"  % "jjwt-impl"                 % "0.11.2",
