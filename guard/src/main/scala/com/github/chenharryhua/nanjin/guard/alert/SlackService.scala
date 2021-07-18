@@ -315,9 +315,9 @@ object SlackService {
     new SlackService[F](SimpleNotificationService(topic, region), fmt)
 
   def apply[F[_]: Sync](topic: SnsArn): AlertService[F] =
-    new SlackService[F](SimpleNotificationService(topic), DurationFormatter.default)
+    new SlackService[F](SimpleNotificationService(topic), DurationFormatter.defaultFormatter)
 
   def apply[F[_]: Sync](service: SimpleNotificationService[F]): AlertService[F] =
-    new SlackService[F](service, DurationFormatter.default)
+    new SlackService[F](service, DurationFormatter.defaultFormatter)
 
 }
