@@ -46,7 +46,7 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) extends UpdateConfi
       event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
         val service: F[A] = retry.mtl
           .retryingOnAllErrors(
-            params.retryPolicy.policy[F],
+            params.retry.policy[F],
             (ex: Throwable, rd) =>
               for {
                 ts <- realZonedDateTime(params)

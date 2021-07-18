@@ -8,7 +8,6 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.alert.{ActionStart, DailySummaries, NJEvent, ServiceInfo}
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import fs2.concurrent.Channel
-import retry.RetryPolicies
 
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
 final class ActionRetry[F[_], A, B](
@@ -98,7 +97,7 @@ final class ActionRetry[F[_], A, B](
       res <- F.uncancelable(poll =>
         retry.mtl
           .retryingOnSomeErrors[B](
-            params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
+            params.retry.policy[F],
             isWorthRetry.map(F.pure).run,
             base.onError(actionInfo)
           ) {
