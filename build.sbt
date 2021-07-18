@@ -1,9 +1,9 @@
-ThisBuild / scalaVersion      := "2.13.6"
-ThisBuild / scapegoatVersion := "1.3.11"
+ThisBuild / scalaVersion      := "2.12.14"
+ThisBuild / scapegoatVersion  := "1.3.11"
 ThisBuild / parallelExecution := false
-Global / cancelable            := true
+Global / cancelable           := true
 
-ThisBuild / version := "0.12.14-SNAPSHOT"
+ThisBuild / version := "0.12.15-SNAPSHOT"
 
 // generic
 val shapeless  = "2.3.7"
@@ -331,10 +331,11 @@ lazy val http = (project in file("http"))
   .settings(
     libraryDependencies ++=
       Seq(
-        "org.bouncycastle" % "bcpkix-jdk15on" % "1.69",
-        "io.jsonwebtoken"  % "jjwt-api"       % "0.11.2",
-        "io.jsonwebtoken"  % "jjwt-impl"      % "0.11.2",
-        "io.jsonwebtoken"  % "jjwt-jackson"   % "0.11.2"
+        "org.cometd.java"  % "cometd-java-client-common" % "7.0.3",
+        "org.bouncycastle" % "bcpkix-jdk15on"            % "1.69",
+        "io.jsonwebtoken"  % "jjwt-api"                  % "0.11.2",
+        "io.jsonwebtoken"  % "jjwt-impl"                 % "0.11.2",
+        "io.jsonwebtoken"  % "jjwt-jackson"              % "0.11.2"
       ) ++ http4sLib ++ fs2Lib ++ effectLib ++ logLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib)
 
 lazy val aws = (project in file("aws"))
@@ -417,7 +418,7 @@ lazy val spark = (project in file("spark"))
       "com.thesamet.scalapb" %% "sparksql-scalapb" % "0.11.0",
       // override dependency
       "io.netty"                               % "netty"      % "3.10.6.Final",
-      "io.netty"                               % "netty-all"  % "4.1.65.Final",
+      "io.netty"                               % "netty-all"  % "4.1.66.Final",
       "com.julianpeeters" %% "avrohugger-core" % "1.0.0-RC24" % Test
     ) ++ baseLib ++ sparkLib ++ serdeLib ++ kantanLib ++ hadoopLib ++ kafkaLib ++ effectLib ++
       akkaLib ++ json4sLib ++ fs2Lib ++ monocleLib ++ dbLib ++ logLib ++ ftpLib ++ testLib,

@@ -56,7 +56,7 @@ object AvroTypedEncoderTestData {
   implicit val encoder: TypedEncoder[Lion] = shapeless.cachedImplicit
   val ate: AvroTypedEncoder[Lion]          = AvroTypedEncoder[Lion](codec)
 
-  val now: Instant = Instant.now
+  val now: Instant = Instant.ofEpochMilli(Instant.now.toEpochMilli)
 
   val lions: List[Lion] = List(
     Lion(1, now, BigDecimal("1234.567")),
