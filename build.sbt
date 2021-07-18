@@ -1,4 +1,4 @@
-ThisBuild / scalaVersion      := "2.12.14"
+ThisBuild / scalaVersion      := "2.13.6"
 ThisBuild / scapegoatVersion  := "1.3.11"
 ThisBuild / parallelExecution := false
 Global / cancelable           := true
