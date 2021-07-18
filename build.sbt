@@ -425,6 +425,13 @@ lazy val spark = (project in file("spark"))
     excludeDependencies ++= Seq(ExclusionRule(organization = "io.netty"))
   )
 
+lazy val bundle = (project in file("bundle"))
+  .dependsOn(spark)
+  .dependsOn(http)
+  .dependsOn(guard)
+  .settings(commonSettings: _*)
+  .settings(name := "nj-bundle")
+
 lazy val example = (project in file("example"))
   .dependsOn(spark)
   .dependsOn(guard)
@@ -435,5 +442,5 @@ lazy val example = (project in file("example"))
 lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
-    .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
+    .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark, bundle)
 
