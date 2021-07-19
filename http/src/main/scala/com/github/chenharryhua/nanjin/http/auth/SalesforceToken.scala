@@ -83,8 +83,8 @@ object SalesforceToken {
     private def updateConfig(f: AuthConfig => AuthConfig): MarketingCloud[F] =
       new MarketingCloud[F](auth_endpoint, client_id, client_secret, instanceURL, f(config))
 
-    def withMaxRetries(times: Int): MarketingCloud[F]       = updateConfig(_.withMaxRetries(times))
-    def withMaxWait(dur: FiniteDuration): MarketingCloud[F] = updateConfig(_.withMaxWait(dur))
+    def withAuthMaxRetries(times: Int): MarketingCloud[F]       = updateConfig(_.withAuthMaxRetries(times))
+    def withAuthMaxWait(dur: FiniteDuration): MarketingCloud[F] = updateConfig(_.withAuthMaxWait(dur))
 
   }
   object MarketingCloud {
@@ -140,9 +140,9 @@ object SalesforceToken {
     private def updateConfig(f: AuthConfig => AuthConfig): Iot[F] =
       new Iot[F](auth_endpoint, client_id, client_secret, username, password, f(config))
 
-    def withMaxRetries(times: Int): Iot[F]         = updateConfig(_.withMaxRetries(times))
-    def withMaxWait(dur: FiniteDuration): Iot[F]   = updateConfig(_.withMaxWait(dur))
-    def withExpiresIn(dur: FiniteDuration): Iot[F] = updateConfig(_.withExpiresIn(dur))
+    def withAuthMaxRetries(times: Int): Iot[F]         = updateConfig(_.withAuthMaxRetries(times))
+    def withAuthMaxWait(dur: FiniteDuration): Iot[F]   = updateConfig(_.withAuthMaxWait(dur))
+    def withAuthExpiresIn(dur: FiniteDuration): Iot[F] = updateConfig(_.withAuthExpiresIn(dur))
   }
   object Iot {
     def apply[F[_]](

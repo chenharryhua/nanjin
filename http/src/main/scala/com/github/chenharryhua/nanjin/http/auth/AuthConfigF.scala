@@ -28,24 +28,24 @@ private object AuthConfigF {
   implicit val functorAuthConfigF: Functor[AuthConfigF] = cats.derived.semiauto.functor
 
   final case class InitParams[K](expiresIn: FiniteDuration) extends AuthConfigF[K]
-  final case class WithMaxRetries[K](value: Int, cont: K) extends AuthConfigF[K]
-  final case class WithMaxWait[K](value: FiniteDuration, cont: K) extends AuthConfigF[K]
-  final case class WithExpiresIn[K](value: FiniteDuration, cont: K) extends AuthConfigF[K]
+  final case class WithAuthMaxRetries[K](value: Int, cont: K) extends AuthConfigF[K]
+  final case class WithAuthMaxWait[K](value: FiniteDuration, cont: K) extends AuthConfigF[K]
+  final case class WithAuthExpiresIn[K](value: FiniteDuration, cont: K) extends AuthConfigF[K]
 
   val algebra: Algebra[AuthConfigF, AuthParams] = Algebra[AuthConfigF, AuthParams] {
-    case InitParams(value)           => AuthParams(value)
-    case WithMaxRetries(value, cont) => AuthParams.maxRetries.set(value)(cont)
-    case WithMaxWait(value, cont)    => AuthParams.maxWait.set(value)(cont)
-    case WithExpiresIn(value, cont)  => AuthParams.expiresIn.set(value)(cont)
+    case InitParams(value)               => AuthParams(value)
+    case WithAuthMaxRetries(value, cont) => AuthParams.maxRetries.set(value)(cont)
+    case WithAuthMaxWait(value, cont)    => AuthParams.maxWait.set(value)(cont)
+    case WithAuthExpiresIn(value, cont)  => AuthParams.expiresIn.set(value)(cont)
   }
 }
 
 final private[auth] case class AuthConfig private (value: Fix[AuthConfigF]) {
   import AuthConfigF.*
-  def withMaxRetries(times: Int): AuthConfig       = AuthConfig(Fix(WithMaxRetries(value = times, value)))
-  def withMaxWait(dur: FiniteDuration): AuthConfig = AuthConfig(Fix(WithMaxWait(value = dur, value)))
+  def withAuthMaxRetries(times: Int): AuthConfig       = AuthConfig(Fix(WithAuthMaxRetries(value = times, value)))
+  def withAuthMaxWait(dur: FiniteDuration): AuthConfig = AuthConfig(Fix(WithAuthMaxWait(value = dur, value)))
 
-  def withExpiresIn(dur: FiniteDuration): AuthConfig = AuthConfig(Fix(WithExpiresIn(value = dur, value)))
+  def withAuthExpiresIn(dur: FiniteDuration): AuthConfig = AuthConfig(Fix(WithAuthExpiresIn(value = dur, value)))
 
   def evalConfig: AuthParams = scheme.cata(algebra).apply(value)
 }

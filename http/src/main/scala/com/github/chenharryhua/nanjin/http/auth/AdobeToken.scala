@@ -72,8 +72,8 @@ object AdobeToken {
     private def updateConfig(f: AuthConfig => AuthConfig): IMS[F] =
       new IMS[F](auth_endpoint, client_id, client_code, client_secret, f(config))
 
-    def withMaxRetries(times: Int): IMS[F]       = updateConfig(_.withMaxRetries(times))
-    def withMaxWait(dur: FiniteDuration): IMS[F] = updateConfig(_.withMaxWait(dur))
+    def withAuthMaxRetries(times: Int): IMS[F]       = updateConfig(_.withAuthMaxRetries(times))
+    def withAuthMaxWait(dur: FiniteDuration): IMS[F] = updateConfig(_.withAuthMaxWait(dur))
 
   }
   object IMS {
@@ -153,9 +153,9 @@ object AdobeToken {
         private_key,
         f(config))
 
-    def withMaxRetries(times: Int): JWT[F]         = updateConfig(_.withMaxRetries(times))
-    def withMaxWait(dur: FiniteDuration): JWT[F]   = updateConfig(_.withMaxWait(dur))
-    def withExpiresIn(dur: FiniteDuration): JWT[F] = updateConfig(_.withExpiresIn(dur))
+    def withAuthMaxRetries(times: Int): JWT[F]         = updateConfig(_.withAuthMaxRetries(times))
+    def withAuthMaxWait(dur: FiniteDuration): JWT[F]   = updateConfig(_.withAuthMaxWait(dur))
+    def withAuthExpiresIn(dur: FiniteDuration): JWT[F] = updateConfig(_.withAuthExpiresIn(dur))
   }
 
   object JWT {
