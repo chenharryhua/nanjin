@@ -71,8 +71,8 @@ final class RefreshableToken[F[_]] private (
     new RefreshableToken[F](auth_endpoint, client_id, client_secret, f(config))
   def withAuthMaxRetries(times: Int): RefreshableToken[F]       = updateConfig(_.withAuthMaxRetries(times))
   def withAuthMaxWait(dur: FiniteDuration): RefreshableToken[F] = updateConfig(_.withAuthMaxWait(dur))
-  def withAuthHeaderLog: RefreshableToken[F]                    = updateConfig(_.withAuthHeaderLog)
-  def withAuthBodyLog: RefreshableToken[F]                      = updateConfig(_.withAuthBodyLog)
+  def withUnsecureLoggingAuthHeader: RefreshableToken[F]        = updateConfig(_.withAuthHeaderLog)
+  def withUnsecureLoggingAuthBody: RefreshableToken[F]          = updateConfig(_.withAuthBodyLog)
 }
 object RefreshableToken {
   def apply[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): RefreshableToken[F] =

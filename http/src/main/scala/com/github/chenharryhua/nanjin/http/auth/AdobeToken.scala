@@ -75,8 +75,8 @@ object AdobeToken {
     def withAuthMaxRetries(times: Int): IMS[F]       = updateConfig(_.withAuthMaxRetries(times))
     def withAuthMaxWait(dur: FiniteDuration): IMS[F] = updateConfig(_.withAuthMaxWait(dur))
 
-    def withAuthHeaderLog: IMS[F] = updateConfig(_.withAuthHeaderLog)
-    def withAuthBodyLog: IMS[F]   = updateConfig(_.withAuthBodyLog)
+    def withUnsecureLoggingAuthHeader: IMS[F] = updateConfig(_.withAuthHeaderLog)
+    def withUnsecureLoggingAuthBody: IMS[F]   = updateConfig(_.withAuthBodyLog)
 
   }
   object IMS {
@@ -160,8 +160,8 @@ object AdobeToken {
     def withAuthMaxWait(dur: FiniteDuration): JWT[F]   = updateConfig(_.withAuthMaxWait(dur))
     def withAuthExpiresIn(dur: FiniteDuration): JWT[F] = updateConfig(_.withAuthExpiresIn(dur))
 
-    def withAuthHeaderLog: JWT[F] = updateConfig(_.withAuthHeaderLog)
-    def withAuthBodyLog: JWT[F]   = updateConfig(_.withAuthBodyLog)
+    def withUnsecureLoggingAuthHeader: JWT[F] = updateConfig(_.withAuthHeaderLog)
+    def withUnsecureLoggingAuthBody: JWT[F]   = updateConfig(_.withAuthBodyLog)
   }
 
   object JWT {
