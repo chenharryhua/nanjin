@@ -69,8 +69,8 @@ final class RefreshableToken[F[_]] private (
 
   private def updateConfig(f: AuthConfig => AuthConfig): RefreshableToken[F] =
     new RefreshableToken[F](auth_endpoint, client_id, client_secret, f(config))
-  def withMaxRetries(times: Int): RefreshableToken[F]       = updateConfig(_.withMaxRetries(times))
-  def withMaxWait(dur: FiniteDuration): RefreshableToken[F] = updateConfig(_.withMaxWait(dur))
+  def withAuthMaxRetries(times: Int): RefreshableToken[F]       = updateConfig(_.withAuthMaxRetries(times))
+  def withAuthMaxWait(dur: FiniteDuration): RefreshableToken[F] = updateConfig(_.withAuthMaxWait(dur))
 }
 object RefreshableToken {
   def apply[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): RefreshableToken[F] =
