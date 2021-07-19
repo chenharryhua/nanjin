@@ -57,7 +57,7 @@ object AdobeToken {
         val refresh: Stream[F, Unit] =
           Stream
             .eval(token.get)
-            .flatMap(t => getToken.delayBy(params.offset(t.expires_in.millisecond)).evalMap(token.set))
+            .flatMap(t => getToken.delayBy(t.expires_in.millisecond - params.offset).evalMap(token.set))
             .repeat
         Stream[F, Client[F]](Client[F] { req =>
           Resource
@@ -125,8 +125,9 @@ object AdobeToken {
         val refresh: Stream[F, Unit] =
           Stream
             .eval(token.get)
-            .flatMap(t => getToken.delayBy(params.offset(t.expires_in.millisecond)).evalMap(token.set))
+            .flatMap(t => getToken.delayBy(t.expires_in.millisecond - params.offset).evalMap(token.set))
             .repeat
+
         Stream[F, Client[F]](Client[F] { req =>
           Resource
             .eval(token.get)

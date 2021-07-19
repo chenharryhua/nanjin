@@ -12,10 +12,9 @@ import org.http4s.client.middleware.{Retry, RetryPolicy}
 import scala.concurrent.duration.*
 
 @Lenses final case class AuthParams(maxRetries: Int, maxWait: FiniteDuration, expiresIn: FiniteDuration) {
-  def offset(expireIn: FiniteDuration): FiniteDuration = expireIn - (maxWait * maxRetries.toLong)
+  def offset: FiniteDuration = maxWait.mul(maxRetries.toLong)
   def authClient[F[_]](client: Client[F])(implicit F: Temporal[F]): Client[F] =
-    Retry[F](RetryPolicy[F](exponentialBackoff(maxWait, maxRetries), (_, result) => isErrorOrRetriableStatus(result)))(
-      client)
+    Retry[F](RetryPolicy[F](exponentialBackoff(maxWait, maxRetries), (_, r) => isErrorOrRetriableStatus(r)))(client)
 }
 
 object AuthParams {

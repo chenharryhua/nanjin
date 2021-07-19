@@ -201,25 +201,23 @@ class RetryTest extends AnyFunSuite {
   }
 
   test("nonterminating - should retry") {
-    val Vector(a, b, c, d, e, f) = serviceGuard
-      .updateConfig(_.withConstantDelay(1.hour))
-      .eventStream { gd =>
-        gd("nonterminating")
-          .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second).withNonTermination)
-          .retry(IO(1))
-          .run
-      }
+    val a :: b :: c :: d :: e :: f :: g :: h :: i :: rest = serviceGuard
+      .updateConfig(_.withConstantDelay(1.second).withStartupDelay(1.hour))
+      .eventStream(_.forever(fs2.Stream(1))) // suppose run forever but...
       .observe(_.evalMap(logging.alert).drain)
       .interruptAfter(5.seconds)
       .compile
-      .toVector
+      .toList
       .unsafeRunSync()
 
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionRetrying].error.throwable.isInstanceOf[ActionException.UnexpectedlyTerminated])
-    assert(c.asInstanceOf[ActionRetrying].error.throwable.isInstanceOf[ActionException.UnexpectedlyTerminated])
-    assert(d.asInstanceOf[ActionRetrying].error.throwable.isInstanceOf[ActionException.UnexpectedlyTerminated])
+    assert(b.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.UnexpectedlyTerminated])
+    assert(c.isInstanceOf[ServicePanic])
+    assert(d.isInstanceOf[ActionStart])
     assert(e.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.UnexpectedlyTerminated])
     assert(f.isInstanceOf[ServicePanic])
+    assert(g.isInstanceOf[ActionStart])
+    assert(h.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.UnexpectedlyTerminated])
+    assert(i.isInstanceOf[ServicePanic])
   }
 }

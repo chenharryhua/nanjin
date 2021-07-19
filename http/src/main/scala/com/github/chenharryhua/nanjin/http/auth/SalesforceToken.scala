@@ -66,7 +66,7 @@ object SalesforceToken {
         val refresh: Stream[F, Unit] =
           Stream
             .eval(token.get)
-            .flatMap(t => getToken.delayBy(params.offset(t.expires_in.seconds)).evalMap(token.set))
+            .flatMap(t => getToken.delayBy(t.expires_in.seconds - params.offset).evalMap(token.set))
             .repeat
         Stream[F, Client[F]](Client[F] { req =>
           Resource.eval(token.get).flatMap { t =>
@@ -123,7 +123,8 @@ object SalesforceToken {
             ).putHeaders("Cache-Control" -> "no-cache")))
 
       getToken.evalMap(F.ref).flatMap { token =>
-        val refresh: Stream[F, Unit] = getToken.delayBy(params.offset(params.expiresIn)).evalMap(token.set).repeat
+        val refresh: Stream[F, Unit] = getToken.delayBy(params.expiresIn - params.offset).evalMap(token.set).repeat
+
         Stream[F, Client[F]](Client[F] { req =>
           Resource
             .eval(token.get)

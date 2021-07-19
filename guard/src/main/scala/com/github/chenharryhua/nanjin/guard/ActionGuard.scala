@@ -16,12 +16,12 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ServiceInfo
 }
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams}
+import fs2.Stream
 import fs2.concurrent.Channel
 import io.circe.Encoder
 import io.circe.syntax.*
 
 import java.time.ZoneId
-
 final class ActionGuard[F[_]](
   serviceInfo: ServiceInfo,
   dispatcher: Dispatcher[F],
@@ -105,6 +105,14 @@ final class ActionGuard[F[_]](
 
   def loudly[B](fb: F[B])(implicit F: Async[F]): F[B] =
     updateConfig(_.withSlackSuccOn.withSlackFailOn).run(fb)
+
+  def forever[B](fb: F[B])(implicit F: Async[F]): F[Unit] =
+    apply("supervise-run-forever-action")
+      .updateConfig(_.withSlackNone.withNonTermination.withMaxRetries(0))
+      .run(fb)
+      .void
+  def forever[B](sb: Stream[F, B])(implicit F: Async[F]): F[Unit] =
+    forever(sb.compile.drain)
 
   def run[B](fb: F[B])(implicit F: Async[F]): F[B] = retry[B](fb).run
 
