@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.http.auth
 import cats.data.NonEmptyList
 import cats.effect.{Async, Resource}
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.UpdateConfig
 import fs2.Stream
 import io.circe.generic.auto.*
 import io.jsonwebtoken.{Jwts, SignatureAlgorithm}
@@ -35,7 +36,7 @@ object AdobeToken {
     client_code: String,
     client_secret: String,
     config: AuthConfig)
-      extends AdobeToken("access_token") with Http4sClientDsl[F] with Login[F] {
+      extends AdobeToken("access_token") with Http4sClientDsl[F] with Login[F] with UpdateConfig[AuthConfig, IMS[F]] {
 
     val params: AuthParams = config.evalConfig
 
@@ -57,7 +58,7 @@ object AdobeToken {
         val refresh: Stream[F, Unit] =
           Stream
             .eval(token.get)
-            .flatMap(t => getToken.delayBy(t.expires_in.millisecond - params.offset).evalMap(token.set))
+            .flatMap(t => getToken.delayBy(params.delay(Some(t.expires_in.millisecond))).evalMap(token.set))
             .repeat
         Stream[F, Client[F]](Client[F] { req =>
           Resource
@@ -69,16 +70,13 @@ object AdobeToken {
       }
     }
 
-    private def updateConfig(f: AuthConfig => AuthConfig): IMS[F] =
+    def updateConfig(f: AuthConfig => AuthConfig): IMS[F] =
       new IMS[F](auth_endpoint, client_id, client_code, client_secret, f(config))
-
-    def withAuthMaxRetries(times: Int): IMS[F]       = updateConfig(_.withAuthMaxRetries(times))
-    def withAuthMaxWait(dur: FiniteDuration): IMS[F] = updateConfig(_.withAuthMaxWait(dur))
 
   }
   object IMS {
     def apply[F[_]](auth_endpoint: Uri, client_id: String, client_code: String, client_secret: String): IMS[F] =
-      new IMS[F](auth_endpoint, client_id, client_code, client_secret, AuthConfig(0.seconds))
+      new IMS[F](auth_endpoint, client_id, client_code, client_secret, AuthConfig(None))
   }
 
   // https://www.adobe.io/authentication/auth-methods.html#!AdobeDocs/adobeio-auth/master/JWT/JWT.md
@@ -91,7 +89,7 @@ object AdobeToken {
     metascopes: NonEmptyList[AdobeMetascope],
     private_key: PrivateKey,
     config: AuthConfig)
-      extends AdobeToken("jwt_token") with Http4sClientDsl[F] with Login[F] {
+      extends AdobeToken("jwt_token") with Http4sClientDsl[F] with Login[F] with UpdateConfig[AuthConfig, JWT[F]] {
 
     val params: AuthParams = config.evalConfig
 
@@ -108,7 +106,7 @@ object AdobeToken {
               .setSubject(technical_account_key)
               .setIssuer(ims_org_id)
               .setAudience(audience)
-              .setExpiration(Date.from(ts.plusSeconds(params.expiresIn.toSeconds)))
+              .setExpiration(Date.from(ts.plusSeconds(params.tokenExpiresIn.toSeconds)))
               .addClaims(claims)
               .signWith(private_key, SignatureAlgorithm.RS256)
               .compact
@@ -125,7 +123,7 @@ object AdobeToken {
         val refresh: Stream[F, Unit] =
           Stream
             .eval(token.get)
-            .flatMap(t => getToken.delayBy(t.expires_in.millisecond - params.offset).evalMap(token.set))
+            .flatMap(t => getToken.delayBy(params.delay(Some(t.expires_in.millisecond))).evalMap(token.set))
             .repeat
 
         Stream[F, Client[F]](Client[F] { req =>
@@ -142,7 +140,7 @@ object AdobeToken {
       }
     }
 
-    private def updateConfig(f: AuthConfig => AuthConfig): JWT[F] =
+    def updateConfig(f: AuthConfig => AuthConfig): JWT[F] =
       new JWT[F](
         auth_endpoint,
         ims_org_id,
@@ -152,10 +150,6 @@ object AdobeToken {
         metascopes,
         private_key,
         f(config))
-
-    def withAuthMaxRetries(times: Int): JWT[F]         = updateConfig(_.withAuthMaxRetries(times))
-    def withAuthMaxWait(dur: FiniteDuration): JWT[F]   = updateConfig(_.withAuthMaxWait(dur))
-    def withAuthExpiresIn(dur: FiniteDuration): JWT[F] = updateConfig(_.withAuthExpiresIn(dur))
   }
 
   object JWT {
@@ -175,7 +169,7 @@ object AdobeToken {
         technical_account_key,
         metascopes,
         private_key,
-        AuthConfig(1.day))
+        AuthConfig(Some(1.day)))
 
     def apply[F[_]](
       auth_endpoint: Uri,

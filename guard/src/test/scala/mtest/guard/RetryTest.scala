@@ -203,7 +203,7 @@ class RetryTest extends AnyFunSuite {
   test("nonterminating - should retry") {
     val a :: b :: c :: d :: e :: f :: g :: h :: i :: rest = serviceGuard
       .updateConfig(_.withConstantDelay(1.second).withStartupDelay(1.hour))
-      .eventStream(_.forever(fs2.Stream(1))) // suppose run forever but...
+      .eventStream(_.nonStop(fs2.Stream(1))) // suppose run forever but...
       .observe(_.evalMap(logging.alert).drain)
       .interruptAfter(5.seconds)
       .compile

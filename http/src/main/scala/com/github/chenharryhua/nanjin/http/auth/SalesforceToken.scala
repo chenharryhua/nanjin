@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.http.auth
 
 import cats.effect.Async
 import cats.effect.kernel.Resource
+import com.github.chenharryhua.nanjin.common.UpdateConfig
 import fs2.Stream
 import io.circe.generic.auto.*
 import org.http4s.*
@@ -11,7 +12,7 @@ import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
 import org.http4s.implicits.http4sLiteralsSyntax
 
-import scala.concurrent.duration.{DurationLong, FiniteDuration}
+import scala.concurrent.duration.DurationLong
 
 sealed abstract class SalesforceToken(val name: String)
 
@@ -43,7 +44,8 @@ object SalesforceToken {
     client_secret: String,
     instanceURL: InstanceURL,
     config: AuthConfig
-  ) extends SalesforceToken("salesforce_mc") with Http4sClientDsl[F] with Login[F] {
+  ) extends SalesforceToken("salesforce_mc") with Http4sClientDsl[F] with Login[F]
+      with UpdateConfig[AuthConfig, MarketingCloud[F]] {
 
     val params: AuthParams = config.evalConfig
 
@@ -66,7 +68,7 @@ object SalesforceToken {
         val refresh: Stream[F, Unit] =
           Stream
             .eval(token.get)
-            .flatMap(t => getToken.delayBy(t.expires_in.seconds - params.offset).evalMap(token.set))
+            .flatMap(t => getToken.delayBy(params.delay(Some(t.expires_in.seconds))).evalMap(token.set))
             .repeat
         Stream[F, Client[F]](Client[F] { req =>
           Resource.eval(token.get).flatMap { t =>
@@ -80,18 +82,15 @@ object SalesforceToken {
       }
     }
 
-    private def updateConfig(f: AuthConfig => AuthConfig): MarketingCloud[F] =
+    def updateConfig(f: AuthConfig => AuthConfig): MarketingCloud[F] =
       new MarketingCloud[F](auth_endpoint, client_id, client_secret, instanceURL, f(config))
-
-    def withAuthMaxRetries(times: Int): MarketingCloud[F]       = updateConfig(_.withAuthMaxRetries(times))
-    def withAuthMaxWait(dur: FiniteDuration): MarketingCloud[F] = updateConfig(_.withAuthMaxWait(dur))
 
   }
   object MarketingCloud {
     def rest[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): MarketingCloud[F] =
-      new MarketingCloud[F](auth_endpoint, client_id, client_secret, Rest, AuthConfig(0.seconds))
+      new MarketingCloud[F](auth_endpoint, client_id, client_secret, Rest, AuthConfig(None))
     def soap[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): MarketingCloud[F] =
-      new MarketingCloud[F](auth_endpoint, client_id, client_secret, Soap, AuthConfig(0.seconds))
+      new MarketingCloud[F](auth_endpoint, client_id, client_secret, Soap, AuthConfig(None))
   }
 
   //https://developer.salesforce.com/docs/atlas.en-us.api_iot.meta/api_iot/qs_auth_access_token.htm
@@ -102,7 +101,8 @@ object SalesforceToken {
     username: String,
     password: String,
     config: AuthConfig
-  ) extends SalesforceToken("salesforce_iot") with Http4sClientDsl[F] with Login[F] {
+  ) extends SalesforceToken("salesforce_iot") with Http4sClientDsl[F] with Login[F]
+      with UpdateConfig[AuthConfig, Iot[F]] {
 
     val params: AuthParams = config.evalConfig
 
@@ -123,7 +123,7 @@ object SalesforceToken {
             ).putHeaders("Cache-Control" -> "no-cache")))
 
       getToken.evalMap(F.ref).flatMap { token =>
-        val refresh: Stream[F, Unit] = getToken.delayBy(params.expiresIn - params.offset).evalMap(token.set).repeat
+        val refresh: Stream[F, Unit] = getToken.delayBy(params.delay(None)).evalMap(token.set).repeat
 
         Stream[F, Client[F]](Client[F] { req =>
           Resource
@@ -137,12 +137,8 @@ object SalesforceToken {
       }
     }
 
-    private def updateConfig(f: AuthConfig => AuthConfig): Iot[F] =
+    def updateConfig(f: AuthConfig => AuthConfig): Iot[F] =
       new Iot[F](auth_endpoint, client_id, client_secret, username, password, f(config))
-
-    def withAuthMaxRetries(times: Int): Iot[F]         = updateConfig(_.withAuthMaxRetries(times))
-    def withAuthMaxWait(dur: FiniteDuration): Iot[F]   = updateConfig(_.withAuthMaxWait(dur))
-    def withAuthExpiresIn(dur: FiniteDuration): Iot[F] = updateConfig(_.withAuthExpiresIn(dur))
   }
   object Iot {
     def apply[F[_]](
@@ -151,6 +147,6 @@ object SalesforceToken {
       client_secret: String,
       username: String,
       password: String): Iot[F] =
-      new Iot[F](auth_endpoint, client_id, client_secret, username, password, AuthConfig(2.hours))
+      new Iot[F](auth_endpoint, client_id, client_secret, username, password, AuthConfig(Some(2.hours)))
   }
 }
