@@ -215,8 +215,8 @@ val testLib = Seq(
   "org.typelevel" %% "algebra-laws"                           % algebra         % Test,
   "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % akkaKafka       % Test,
   "com.github.pathikrit" %% "better-files"                    % betterFiles     % Test,
-  "org.slf4j"                                                 % "slf4j-api"     % "1.7.31" % Test,
-  "org.slf4j"                                                 % "slf4j-log4j12" % "1.7.31" % Test,
+  "org.slf4j"                                                 % "slf4j-api"     % "1.7.32" % Test,
+  "org.slf4j"                                                 % "slf4j-log4j12" % "1.7.32" % Test,
   "log4j"                                                     % "log4j"         % "1.2.17" % Test
 )
 
