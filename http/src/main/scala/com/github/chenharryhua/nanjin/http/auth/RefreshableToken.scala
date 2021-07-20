@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.http.auth
 import cats.effect.Async
 import cats.effect.kernel.Resource
 import cats.effect.syntax.all.*
+import com.github.chenharryhua.nanjin.common.UpdateConfig
 import fs2.Stream
 import io.circe.generic.auto.*
 import org.http4s.Method.POST
@@ -26,7 +27,7 @@ final class RefreshableToken[F[_]] private (
   client_id: String,
   client_secret: String,
   config: AuthConfig)
-    extends Http4sClientDsl[F] with Login[F] {
+    extends Http4sClientDsl[F] with Login[F] with UpdateConfig[AuthConfig, RefreshableToken[F]] {
 
   val params: AuthParams = config.evalConfig
 
@@ -55,7 +56,7 @@ final class RefreshableToken[F[_]] private (
                   authURI,
                   Authorization(BasicCredentials(client_id, client_secret))
                 ).putHeaders("Cache-Control" -> "no-cache"))
-              .delayBy(t.expires_in.seconds - params.offset)
+              .delayBy(params.delay(Some(t.expires_in.seconds)))
           }
           .evalMap(token.set)
           .repeat
@@ -67,14 +68,10 @@ final class RefreshableToken[F[_]] private (
     }
   }
 
-  private def updateConfig(f: AuthConfig => AuthConfig): RefreshableToken[F] =
+  def updateConfig(f: AuthConfig => AuthConfig): RefreshableToken[F] =
     new RefreshableToken[F](auth_endpoint, client_id, client_secret, f(config))
-  def withAuthMaxRetries(times: Int): RefreshableToken[F]       = updateConfig(_.withAuthMaxRetries(times))
-  def withAuthMaxWait(dur: FiniteDuration): RefreshableToken[F] = updateConfig(_.withAuthMaxWait(dur))
-  def withUnsecureLoggingAuthHeader: RefreshableToken[F]        = updateConfig(_.withAuthHeaderLog)
-  def withUnsecureLoggingAuthBody: RefreshableToken[F]          = updateConfig(_.withAuthBodyLog)
 }
 object RefreshableToken {
   def apply[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): RefreshableToken[F] =
-    new RefreshableToken[F](auth_endpoint, client_id, client_secret, AuthConfig(0.seconds))
+    new RefreshableToken[F](auth_endpoint, client_id, client_secret, AuthConfig(None))
 }
