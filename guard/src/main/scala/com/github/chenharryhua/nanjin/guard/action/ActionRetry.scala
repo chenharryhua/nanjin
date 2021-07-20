@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
+import cats.collections.Predicate
 import cats.data.{Kleisli, Reader}
 import cats.effect.syntax.all.*
 import cats.effect.{Async, Outcome, Ref}
@@ -7,7 +8,6 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.alert.{ActionStart, DailySummaries, NJEvent, ServiceInfo}
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import fs2.concurrent.Channel
-import retry.RetryPolicies
 
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
 final class ActionRetry[F[_], A, B](
@@ -21,7 +21,7 @@ final class ActionRetry[F[_], A, B](
   succ: Reader[(A, B), String],
   fail: Reader[(A, Throwable), String],
   isWorthRetry: Reader[Throwable, Boolean],
-  postCondition: Reader[B, Boolean]) {
+  postCondition: Predicate[B]) {
 
   def withSuccNotes(succ: (A, B) => String): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
@@ -77,7 +77,7 @@ final class ActionRetry[F[_], A, B](
       succ = succ,
       fail = fail,
       isWorthRetry = isWorthRetry,
-      postCondition = Reader(postCondition))
+      postCondition = Predicate(postCondition))
 
   def run(implicit F: Async[F]): F[B] =
     for {
@@ -97,7 +97,7 @@ final class ActionRetry[F[_], A, B](
       res <- F.uncancelable(poll =>
         retry.mtl
           .retryingOnSomeErrors[B](
-            params.retryPolicy.policy[F].join(RetryPolicies.limitRetries(params.maxRetries)),
+            params.retry.policy[F],
             isWorthRetry.map(F.pure).run,
             base.onError(actionInfo)
           ) {
@@ -125,7 +125,7 @@ final class ActionRetryUnit[F[_], B](
   succ: Reader[B, String],
   fail: Reader[Throwable, String],
   isWorthRetry: Reader[Throwable, Boolean],
-  postCondition: Reader[B, Boolean]) {
+  postCondition: Predicate[B]) {
 
   def withSuccNotes(succ: B => String): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
@@ -177,7 +177,7 @@ final class ActionRetryUnit[F[_], B](
       succ = succ,
       fail = fail,
       isWorthRetry = isWorthRetry,
-      postCondition = Reader(postCondition))
+      postCondition = Predicate(postCondition))
 
   def run(implicit F: Async[F]): F[B] =
     new ActionRetry[F, Unit, B](

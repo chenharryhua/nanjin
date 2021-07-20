@@ -11,14 +11,14 @@ import monocle.Iso
   */
 private[datetime] trait DateTimeInstances extends all {
 
-  implicit final val timestampInstance: Hash[Timestamp] with Order[Timestamp] with Show[Timestamp] =
+  implicit final val timestampInstance: Hash[Timestamp] & Order[Timestamp] & Show[Timestamp] =
     new Hash[Timestamp] with Order[Timestamp] with Show[Timestamp] {
       override def hash(x: Timestamp): Int                  = x.hashCode
       override def compare(x: Timestamp, y: Timestamp): Int = x.compareTo(y)
       override def show(x: Timestamp): String               = x.toString
     }
 
-  implicit final val dateInstance: Hash[Date] with Order[Date] with Show[Date] =
+  implicit final val dateInstance: Hash[Date] & Order[Date] & Show[Date] =
     new Hash[Date] with Order[Date] with Show[Date] {
       override def hash(x: Date): Int             = x.hashCode
       override def compare(x: Date, y: Date): Int = x.compareTo(y)

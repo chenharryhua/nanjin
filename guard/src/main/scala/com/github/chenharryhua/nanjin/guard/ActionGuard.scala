@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard
 
+import cats.collections.Predicate
 import cats.data.{Kleisli, Reader}
 import cats.effect.kernel.Temporal
 import cats.effect.std.Dispatcher
@@ -15,12 +16,12 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ServiceInfo
 }
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams}
+import fs2.Stream
 import fs2.concurrent.Channel
 import io.circe.Encoder
 import io.circe.syntax.*
 
 import java.time.ZoneId
-
 final class ActionGuard[F[_]](
   serviceInfo: ServiceInfo,
   dispatcher: Dispatcher[F],
@@ -49,7 +50,7 @@ final class ActionGuard[F[_]](
       succ = Reader(_ => ""),
       fail = Reader(_ => ""),
       isWorthRetry = Reader(_ => true),
-      postCondition = Reader(_ => true))
+      postCondition = Predicate(_ => true))
 
   def retry[B](fb: F[B]): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
@@ -62,7 +63,7 @@ final class ActionGuard[F[_]](
       succ = Reader(_ => ""),
       fail = Reader(_ => ""),
       isWorthRetry = Reader(_ => true),
-      postCondition = Reader(_ => true))
+      postCondition = Predicate(_ => true))
 
   def fyi(msg: String)(implicit F: Temporal[F]): F[Unit] =
     realZonedDateTime(params.serviceParams)
@@ -89,21 +90,29 @@ final class ActionGuard[F[_]](
     dispatcher.unsafeRunSync(passThrough(a))
 
   // maximum retries
-  def max(retries: Int): ActionGuard[F] = updateConfig(_.max_retries(retries))
+  def max(retries: Int): ActionGuard[F] = updateConfig(_.withMaxRetries(retries))
 
   // post good news
   def magpie[B](fb: F[B])(f: B => String)(implicit F: Async[F]): F[B] =
-    updateConfig(_.slack_succ_on.slack_fail_off).retry(fb).withSuccNotes(f).run
+    updateConfig(_.withSlackSuccOn.withSlackFailOff).retry(fb).withSuccNotes(f).run
 
   // post bad news
   def croak[B](fb: F[B])(f: Throwable => String)(implicit F: Async[F]): F[B] =
-    updateConfig(_.slack_succ_off.slack_fail_on).retry(fb).withFailNotes(f).run
+    updateConfig(_.withSlackSuccOff.withSlackFailOn).retry(fb).withFailNotes(f).run
 
   def quietly[B](fb: F[B])(implicit F: Async[F]): F[B] =
-    updateConfig(_.slack_succ_off.slack_fail_off).run(fb)
+    updateConfig(_.withSlackSuccOff.withSlackFailOff).run(fb)
 
   def loudly[B](fb: F[B])(implicit F: Async[F]): F[B] =
-    updateConfig(_.slack_succ_on.slack_fail_on).run(fb)
+    updateConfig(_.withSlackSuccOn.withSlackFailOn).run(fb)
+
+  def nonStop[B](fb: F[B])(implicit F: Async[F]): F[Unit] =
+    apply("supervise-run-forever-action")
+      .updateConfig(_.withSlackNone.withNonTermination.withMaxRetries(0))
+      .run(fb)
+      .void
+  def nonStop[B](sb: Stream[F, B])(implicit F: Async[F]): F[Unit] =
+    nonStop(sb.compile.drain)
 
   def run[B](fb: F[B])(implicit F: Async[F]): F[B] = retry[B](fb).run
 

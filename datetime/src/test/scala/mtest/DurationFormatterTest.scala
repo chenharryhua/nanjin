@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
 
 class DurationFormatterTest extends AnyFunSuite {
-  val fmt = com.github.chenharryhua.nanjin.datetime.DurationFormatter.default
+  val fmt = com.github.chenharryhua.nanjin.datetime.DurationFormatter.defaultFormatter
   test("duration always positive") {
     val now   = Instant.now()
     val after = now.plusSeconds(100)

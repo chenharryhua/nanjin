@@ -42,20 +42,22 @@ class ServiceTest extends AnyFunSuite {
   val slack2 = SlackService[IO](
     SnsArn("arn:aws:sns:ap-southeast-2:123456789012:abc-123xyz"),
     Regions.AP_SOUTHEAST_2,
-    DurationFormatter.default)
+    DurationFormatter.defaultFormatter)
 
   val guard = TaskGuard[IO]("service-level-guard")
     .updateConfig(
-      _.slack_warn_color("danger")
-        .slack_fail_color("danger")
-        .slack_succ_color("good")
-        .slack_info_color("good")
-        .host_name(HostName.local_host)
-        .daily_summary_reset_disabled
-        .daily_summary_reset_hour(1))
+      _.withSlackWarnColor("danger")
+        .withSlackFailColor("danger")
+        .withSlackSuccColor("good")
+        .withSlackInfoColor("good")
+        .withHostName(HostName.local_host)
+        .withDailySummaryResetDisabled
+        .withDailySummaryReset(1))
     .service("service")
-    .updateConfig(
-      _.health_check_interval(3.hours).constant_delay(1.seconds).maximum_cause_size(100).startup_notes("ok"))
+    .updateConfig(_.withHealthCheckInterval(3.hours)
+      .withConstantDelay(1.seconds)
+      .withSlackMaximumCauseSize(100)
+      .withStartupNotes("ok"))
 
   val metrics = new MetricRegistry
   val logging = Monoid[AlertService[IO]].empty |+|
@@ -66,7 +68,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("should stopped if the operation normally exits") {
     val Vector(a, b, c, d) = guard
-      .updateConfig(_.startup_delay(0.second).jitter_backoff(3.second))
+      .updateConfig(_.withStartupDelay(0.second).withJitterBackoff(3.second))
       .eventStream(gd => gd("normal-exit-action").max(10).magpie(IO(1))(_ => null).delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
@@ -82,10 +84,10 @@ class ServiceTest extends AnyFunSuite {
 
   test("escalate to up level if retry failed") {
     val Vector(a, b, c, d, e, f) = guard
-      .updateConfig(_.constant_delay(1.hour))
+      .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
       .eventStream { gd =>
         gd("escalate-after-3-time")
-          .updateConfig(_.max_retries(3).fibonacci_backoff(0.1.second))
+          .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second).withSlackRetryOn)
           .croak(IO.raiseError(new Exception("oops")))(_ => null)
       }
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
@@ -106,7 +108,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("should receive 3 health check event") {
     val a :: b :: c :: d :: e :: rest = guard
-      .updateConfig(_.health_check_interval(1.second).startup_delay(0.1.second))
+      .updateConfig(_.withHealthCheckInterval(1.second).withStartupDelay(0.1.second))
       .eventStream(_.run(IO.never))
       .observe(_.evalMap(m => logging.alert(m)).drain)
       .interruptAfter(5.second)
@@ -170,7 +172,7 @@ class ServiceTest extends AnyFunSuite {
     val s     = guard.service("metrics-service")
     s.eventStream { gd =>
       (gd("metrics-action-fail")
-        .updateConfig(_.constant_delay(10.milliseconds))
+        .updateConfig(_.withConstantDelay(10.milliseconds))
         .retry(IO.raiseError(new Exception))
         .run)
         .replicateA(20)
@@ -198,7 +200,7 @@ class ServiceTest extends AnyFunSuite {
   }
   test("all alert on") {
     guard.eventStream { ag =>
-      val g = ag("").updateConfig(_.slack_none.slack_all.max_retries(5))
+      val g = ag("").updateConfig(_.withSlackNone.withSlackAll.withMaxRetries(5))
       g.run(IO {
         assert(g.params.alertMask.alertStart)
         assert(g.params.alertMask.alertSucc)
@@ -206,14 +208,14 @@ class ServiceTest extends AnyFunSuite {
         assert(g.params.alertMask.alertFirstRetry)
         assert(g.params.alertMask.alertRetry)
         assert(g.params.shouldTerminate)
-        assert(g.params.maxRetries == 5)
-        assert(g.params.retryPolicy.isInstanceOf[ConstantDelay])
+        assert(g.params.retry.maxRetries == 5)
+        assert(g.params.retry.njRetryPolicy.isInstanceOf[ConstantDelay])
       })
     }.compile.drain.unsafeRunSync()
   }
   test("all alert off") {
     guard.eventStream { ag =>
-      val g = ag("").updateConfig(_.slack_all.slack_none.non_termination.fibonacci_backoff(1.second))
+      val g = ag("").updateConfig(_.withSlackAll.withSlackNone.withNonTermination.withFibonacciBackoff(1.second))
       g.run(IO {
         assert(!g.params.alertMask.alertStart)
         assert(!g.params.alertMask.alertSucc)
@@ -221,8 +223,8 @@ class ServiceTest extends AnyFunSuite {
         assert(!g.params.alertMask.alertFirstRetry)
         assert(!g.params.alertMask.alertRetry)
         assert(!g.params.shouldTerminate)
-        assert(g.params.maxRetries == 0)
-        assert(g.params.retryPolicy.isInstanceOf[FibonacciBackoff])
+        assert(g.params.retry.maxRetries == 0)
+        assert(g.params.retry.njRetryPolicy.isInstanceOf[FibonacciBackoff])
       })
     }.interruptAfter(3.seconds).compile.drain.unsafeRunSync()
   }
