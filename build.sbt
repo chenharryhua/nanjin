@@ -215,9 +215,7 @@ val testLib = Seq(
   "org.typelevel" %% "algebra-laws"                           % algebra         % Test,
   "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % akkaKafka       % Test,
   "com.github.pathikrit" %% "better-files"                    % betterFiles     % Test,
-  "org.slf4j"                                                 % "slf4j-api"     % "1.7.32" % Test,
-  "org.slf4j"                                                 % "slf4j-log4j12" % "1.7.32" % Test,
-  "log4j"                                                     % "log4j"         % "1.2.17" % Test
+  "org.slf4j"                                                 % "slf4j-log4j12" % "1.7.32" % Test
 )
 
 val kafkaLib = Seq(
@@ -259,7 +257,6 @@ val refinedLib = Seq(
 ).map(_ % refined)
 
 val baseLib = Seq(
-  "org.log4s" %% "log4s"                           % "1.10.0",
   "org.typelevel" %% "squants"                     % "1.8.0",
   "org.scala-lang.modules" %% "scala-java8-compat" % "1.0.0",
   "org.typelevel" %% "case-insensitive"            % "1.1.4",
@@ -274,7 +271,6 @@ val akkaLib = Seq(
   "com.typesafe.akka" %% "akka-actor-typed",
   "com.typesafe.akka" %% "akka-actor",
   "com.typesafe.akka" %% "akka-protobuf",
-  "com.typesafe.akka" %% "akka-slf4j",
   "com.typesafe.akka" %% "akka-stream-typed",
   "com.typesafe.akka" %% "akka-stream"
 ).map(_ % akka26)
@@ -315,11 +311,19 @@ val http4sLib = Seq(
 
 val dbLib = doobieLib ++ quillLib ++ neotypesLib
 
+val logLib = Seq(
+  "org.log4s" %% "log4s" % "1.10.0",
+  "org.slf4j"            % "slf4j-api" % "1.7.32"
+)
+
 lazy val common = (project in file("common"))
   .settings(commonSettings: _*)
   .settings(name := "nj-common")
-  .settings(libraryDependencies ++= Seq("org.apache.commons" % "commons-lang3" % "3.12.0") ++
-    baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ testLib)
+  .settings(
+    libraryDependencies ++= Seq("org.apache.commons" % "commons-lang3" % "3.12.0") ++
+      baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ testLib ++ logLib,
+    excludeDependencies ++= Seq(ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
+  )
 
 lazy val http = (project in file("http"))
   .dependsOn(common)
@@ -333,7 +337,8 @@ lazy val http = (project in file("http"))
         "io.jsonwebtoken"  % "jjwt-api"                       % "0.11.2",
         "io.jsonwebtoken"  % "jjwt-impl"                      % "0.11.2",
         "io.jsonwebtoken"  % "jjwt-jackson"                   % "0.11.2"
-      ) ++ http4sLib ++ fs2Lib ++ effectLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib
+      ) ++ http4sLib ++ fs2Lib ++ effectLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ logLib,
+    excludeDependencies ++= Seq(ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
   )
 
 lazy val aws = (project in file("aws"))
@@ -345,7 +350,9 @@ lazy val aws = (project in file("aws"))
       Seq(
         "com.typesafe.akka" %% "akka-http"                % "10.2.4",
         "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % "3.0.2"
-      ) ++ akkaLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ awsLib.map(_ % Provided))
+      ) ++ akkaLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ logLib ++ awsLib.map(_ % Provided),
+    excludeDependencies ++= Seq(ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
+  )
 
 lazy val datetime = (project in file("datetime"))
   .dependsOn(common)
@@ -355,7 +362,9 @@ lazy val datetime = (project in file("datetime"))
     libraryDependencies ++= Seq(
       "com.lihaoyi" %% "fastparse"       % "2.3.2",
       "io.chrisdavenport" %% "cats-time" % catsTime) ++
-      baseLib ++ monocleLib ++ testLib)
+      baseLib ++ monocleLib ++ testLib ++ logLib,
+    excludeDependencies ++= Seq(ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
+  )
 
 lazy val guard = (project in file("guard"))
   .dependsOn(aws)
@@ -366,29 +375,39 @@ lazy val guard = (project in file("guard"))
     libraryDependencies ++= Seq(
       "com.github.cb372" %% "cats-retry-mtl" % "3.0.0",
       "eu.timepit" %% "fs2-cron-cron4s"      % "0.7.1",
-      "io.dropwizard.metrics"                % "metrics-core" % "4.2.3") ++
-      circeLib ++ baseLib ++ monocleLib ++ testLib ++ awsLib.map(_ % Provided)
+      "io.dropwizard.metrics"                % "metrics-core" % "4.2.3"
+    ) ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ logLib ++ awsLib.map(_ % Provided),
+    excludeDependencies ++= Seq(ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
   )
 
 lazy val messages = (project in file("messages"))
   .settings(commonSettings: _*)
   .settings(name := "nj-messages")
-  .settings(libraryDependencies ++= Seq(
-    compilerPlugin(("com.github.ghik" % "silencer-plugin" % silencer).cross(CrossVersion.full)),
-    ("com.github.ghik"                % "silencer-lib"    % silencer % Provided).cross(CrossVersion.full)
-  ) ++ baseLib ++ effectLib ++ fs2Lib ++ serdeLib ++ kafkaLib ++ monocleLib ++ testLib)
+  .settings(
+    libraryDependencies ++= Seq(
+      compilerPlugin(("com.github.ghik" % "silencer-plugin" % silencer).cross(CrossVersion.full)),
+      ("com.github.ghik"                % "silencer-lib"    % silencer % Provided).cross(CrossVersion.full)
+    ) ++ baseLib ++ effectLib ++ fs2Lib ++ serdeLib ++ kafkaLib ++ monocleLib ++ testLib ++ logLib,
+    excludeDependencies ++= Seq(ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
+  )
 
 lazy val pipes = (project in file("pipes"))
   .settings(commonSettings: _*)
   .settings(name := "nj-pipes")
-  .settings(libraryDependencies ++=
-    baseLib ++ fs2Lib ++ effectLib ++ kantanLib ++ ftpLib ++ akkaLib ++ hadoopLib ++ serdeLib ++ testLib)
+  .settings(
+    libraryDependencies ++= baseLib ++ fs2Lib ++ effectLib ++ kantanLib ++ ftpLib ++ akkaLib ++
+      hadoopLib ++ serdeLib ++ testLib ++ logLib,
+    excludeDependencies ++= Seq(ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
+  )
 
 lazy val database = (project in file("database"))
   .dependsOn(common)
   .settings(commonSettings: _*)
   .settings(name := "nj-database")
-  .settings(libraryDependencies ++= baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ dbLib ++ testLib)
+  .settings(
+    libraryDependencies ++= baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ dbLib ++ testLib ++ logLib,
+    excludeDependencies ++= Seq(ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
+  )
 
 lazy val kafka = (project in file("kafka"))
   .dependsOn(messages)
@@ -397,9 +416,11 @@ lazy val kafka = (project in file("kafka"))
   .settings(commonSettings: _*)
   .settings(name := "nj-kafka")
   .settings(
-    libraryDependencies ++= baseLib ++ fs2Lib ++ serdeLib ++
-      effectLib ++ monocleLib ++ kafkaLib ++ akkaLib ++ testLib,
-    excludeDependencies += "javax.ws.rs" % "javax.ws.rs-api"
+    libraryDependencies ++=
+      baseLib ++ fs2Lib ++ serdeLib ++ effectLib ++ monocleLib ++ kafkaLib ++ akkaLib ++ testLib ++ logLib,
+    excludeDependencies ++= Seq(
+      ExclusionRule(organization = "javax.ws.rs", name = "javax.ws.rs-api"),
+      ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
   )
 
 lazy val spark = (project in file("spark"))
@@ -420,8 +441,10 @@ lazy val spark = (project in file("spark"))
       "io.netty"                               % "netty-all"  % "4.1.66.Final",
       "com.julianpeeters" %% "avrohugger-core" % "1.0.0-RC24" % Test
     ) ++ baseLib ++ sparkLib ++ serdeLib ++ kantanLib ++ hadoopLib ++ kafkaLib ++ effectLib ++
-      akkaLib ++ json4sLib ++ fs2Lib ++ monocleLib ++ dbLib ++ ftpLib ++ testLib,
-    excludeDependencies ++= Seq(ExclusionRule(organization = "io.netty"))
+      akkaLib ++ json4sLib ++ fs2Lib ++ monocleLib ++ dbLib ++ ftpLib ++ testLib ++ logLib,
+    excludeDependencies ++= Seq(
+      ExclusionRule(organization = "io.netty"),
+      ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
   )
 
 lazy val bundle = (project in file("bundle"))

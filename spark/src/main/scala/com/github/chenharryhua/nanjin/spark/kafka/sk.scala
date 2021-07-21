@@ -22,7 +22,7 @@ import java.util
 import scala.collection.JavaConverters._
 
 private[kafka] object sk {
-  private val logger: Logger = org.log4s.getLogger("nj.spark.kafka")
+  private[this] val logger: Logger = org.log4s.getLogger("nj.spark.kafka")
 
   implicit val tell: Tell[Writer[Chain[Throwable], *], Chain[Throwable]] = shapeless.cachedImplicit
 
