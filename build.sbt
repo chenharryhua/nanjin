@@ -27,10 +27,6 @@ val monix      = "3.4.0"
 val catsEffect = "3.1.1"
 val akka26     = "2.6.15"
 
-// kafka
-val akkaKafka = "2.1.0"
-val fs2Kafka  = "2.1.0"
-
 // spark
 val spark3    = "3.1.2"
 val frameless = "0.10.1"
@@ -213,17 +209,20 @@ val testLib = Seq(
   "org.tpolecat" %% "doobie-postgres"                         % doobie          % Test,
   "com.typesafe.akka" %% "akka-stream-testkit"                % akka26          % Test,
   "org.typelevel" %% "algebra-laws"                           % algebra         % Test,
-  "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % akkaKafka       % Test,
+  "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % "2.1.0"         % Test,
   "com.github.pathikrit" %% "better-files"                    % betterFiles     % Test,
   "org.slf4j"                                                 % "slf4j-log4j12" % "1.7.32" % Test
 )
 
 val kafkaLib = Seq(
-  "org.apache.kafka" % "kafka-clients",
-  "org.apache.kafka" % "kafka-streams",
-  "org.apache.kafka" %% "kafka-streams-scala").map(_ % "6.2.0-ce") ++
-  Seq("com.typesafe.akka" %% "akka-stream-kafka"     % akkaKafka, "com.github.fd4s" %% "fs2-kafka" % fs2Kafka) ++
-  Seq("io.confluent" % "kafka-schema-registry-client", "io.confluent" % "kafka-schema-serializer").map(_ % "6.2.0")
+  "org.apache.kafka"                          % "kafka-clients"                % "6.2.0-ce",
+  "org.apache.kafka"                          % "kafka-streams"                % "6.2.0-ce",
+  "io.confluent"                              % "kafka-schema-registry-client" % "6.2.0",
+  "io.confluent"                              % "kafka-schema-serializer"      % "6.2.0",
+  "org.apache.kafka" %% "kafka-streams-scala" % "6.2.0-ce",
+  "com.typesafe.akka" %% "akka-stream-kafka"  % "2.1.0",
+  "com.github.fd4s" %% "fs2-kafka"            % "2.1.0"
+)
 
 val enumLib = Seq(
   "com.beachape" %% "enumeratum-cats",
