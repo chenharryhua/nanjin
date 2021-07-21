@@ -1,10 +1,29 @@
 package com.github.chenharryhua.nanjin.http.longpoll
 
 import cats.effect.Async
-import org.cometd.bayeux.client.ClientSession.MessageListener
 import org.cometd.bayeux.client.ClientSessionChannel
 import org.cometd.bayeux.{Channel, Message}
 import org.cometd.client.BayeuxClient
+
+sealed trait BayeuxState[F[_]] {
+  def client: BayeuxClient
+}
+object BayeuxState {
+  final case class Initialized[F[_]](client: BayeuxClient) extends BayeuxState[F] {
+    def handshake(implicit F: Async[F]): F[Handshaked[F]] =
+      F.async_ { (callback: Either[Throwable, Handshaked[F]] => Unit) =>
+        client.handshake((message: Message) =>
+          if (message.isSuccessful) callback(Right(Handshaked[F](client)))
+          else callback(Left(BayeuxException.HandshakeException(message))))
+      }
+  }
+  final case class Handshaked[F[_]](client: BayeuxClient) extends BayeuxState[F]
+  final case class Connected[F[_]](client: BayeuxClient) extends BayeuxState[F]
+  final case class Subscribed[F[_]](client: BayeuxClient) extends BayeuxState[F]
+  final case class DataExchanging[F[_]](client: BayeuxClient) extends BayeuxState[F]
+  final case class Unsubscribed[F[_]](client: BayeuxClient) extends BayeuxState[F]
+  final case class Disconnected[F[_]](client: BayeuxClient) extends BayeuxState[F]
+}
 
 class BayeuxFsm[F[_]](client: BayeuxClient)(implicit F: Async[F]) {
 
@@ -31,7 +50,7 @@ class BayeuxFsm[F[_]](client: BayeuxClient)(implicit F: Async[F]) {
       .subscribe((channel: ClientSessionChannel, message: Message) =>
         if (message.isSuccessful) callback(Right(message))
         else callback(Left(BayeuxException.SubscribeException(message))))
-        ()
+    ()
   }
   def subscribe: F[Message] = subscribe(Channel.META_SUBSCRIBE)
 
