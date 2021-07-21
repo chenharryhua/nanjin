@@ -15,7 +15,7 @@ sealed trait SimpleNotificationService[F[_]] {
 object SimpleNotificationService {
 
   def fake[F[_]](implicit F: Sync[F]): SimpleNotificationService[F] = new SimpleNotificationService[F] {
-    private val logger: Logger = org.log4s.getLogger("Fake_SNS")
+    private[this] val logger: Logger = org.log4s.getLogger("Fake_SNS")
 
     override def publish(msg: String): F[PublishResult] =
       F.blocking(logger.info(msg)) *> F.pure(new PublishResult())
