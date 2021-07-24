@@ -15,19 +15,18 @@ import scala.concurrent.duration.*
   maxRetries: Int,
   maxWait: FiniteDuration,
   tokenExpiresIn: FiniteDuration,
-  logHeader: Boolean,
-  logBody: Boolean) {
+  unsecureLog: Boolean) {
   def delay(tokenExpire: Option[FiniteDuration]): FiniteDuration =
     tokenExpire.filter(_ < tokenExpiresIn).getOrElse(tokenExpiresIn) - maxWait * maxRetries.toLong
 
   def authClient[F[_]](client: Client[F])(implicit F: Async[F]): Client[F] =
     Retry[F](RetryPolicy[F](exponentialBackoff(maxWait, maxRetries), (_, r) => isErrorOrRetriableStatus(r)))(
-      Logger(logHeader, logBody)(client))
+      Logger(unsecureLog, unsecureLog, _ => !unsecureLog)(client))
 }
 
 object AuthParams {
   def apply(expiresIn: FiniteDuration): AuthParams =
-    AuthParams(maxRetries = 8, maxWait = 5.second, tokenExpiresIn = expiresIn, logHeader = false, logBody = false)
+    AuthParams(maxRetries = 8, maxWait = 5.second, tokenExpiresIn = expiresIn, unsecureLog = false)
 }
 
 sealed private[auth] trait AuthConfigF[K]
@@ -39,15 +38,13 @@ private object AuthConfigF {
   final case class WithAuthMaxRetries[K](value: Int, cont: K) extends AuthConfigF[K]
   final case class WithAuthMaxWait[K](value: FiniteDuration, cont: K) extends AuthConfigF[K]
   final case class WithAuthTokenExpiresIn[K](value: FiniteDuration, cont: K) extends AuthConfigF[K]
-  final case class WithAuthHeaderLog[K](value: Boolean, cont: K) extends AuthConfigF[K]
-  final case class WithAuthBodyLog[K](value: Boolean, cont: K) extends AuthConfigF[K]
+  final case class WithAuthUnsecureLog[K](value: Boolean, cont: K) extends AuthConfigF[K]
   val algebra: Algebra[AuthConfigF, AuthParams] = Algebra[AuthConfigF, AuthParams] {
     case InitParams(value)                   => AuthParams(value)
     case WithAuthMaxRetries(value, cont)     => AuthParams.maxRetries.set(value)(cont)
     case WithAuthMaxWait(value, cont)        => AuthParams.maxWait.set(value)(cont)
     case WithAuthTokenExpiresIn(value, cont) => AuthParams.tokenExpiresIn.set(value)(cont)
-    case WithAuthHeaderLog(value, cont)      => AuthParams.logHeader.set(value)(cont)
-    case WithAuthBodyLog(value, cont)        => AuthParams.logBody.set(value)(cont)
+    case WithAuthUnsecureLog(value, cont)    => AuthParams.unsecureLog.set(value)(cont)
   }
 }
 
@@ -59,8 +56,7 @@ final private[auth] case class AuthConfig private (value: Fix[AuthConfigF]) {
   def withAuthTokenExpiresIn(dur: FiniteDuration): AuthConfig =
     AuthConfig(Fix(WithAuthTokenExpiresIn(value = dur, value)))
 
-  def withUnsecureLoggingAuthHeader: AuthConfig = AuthConfig(Fix(WithAuthHeaderLog(value = true, value)))
-  def withUnsecureLoggingAuthBody: AuthConfig   = AuthConfig(Fix(WithAuthBodyLog(value = true, value)))
+  def withAuthUnsecureLogging: AuthConfig = AuthConfig(Fix(WithAuthUnsecureLog(value = true, value)))
 
   def evalConfig: AuthParams = scheme.cata(algebra).apply(value)
 }
