@@ -10,7 +10,9 @@ import org.http4s.Method.POST
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
+import org.http4s.headers.Authorization
 import org.http4s.implicits.http4sLiteralsSyntax
+import org.typelevel.ci.CIString
 
 import scala.concurrent.duration.DurationLong
 
@@ -78,7 +80,7 @@ object SalesforceToken {
             }
             params
               .httpClient(client)
-              .run(req.withUri(iu).putHeaders("Authorization" -> s"${t.token_type} ${t.access_token}"))
+              .run(req.withUri(iu).putHeaders(Authorization(Credentials.Token(CIString(t.token_type), t.access_token))))
           }
         }).concurrently(refresh)
       }
@@ -135,7 +137,7 @@ object SalesforceToken {
                 .httpClient(client)
                 .run(req
                   .withUri(Uri.unsafeFromString(t.instance_url).withPath(req.pathInfo))
-                  .putHeaders("Authorization" -> s"${t.token_type} ${t.access_token}")))
+                  .putHeaders(Authorization(Credentials.Token(CIString(t.token_type), t.access_token)))))
         }).concurrently(refresh)
       }
     }

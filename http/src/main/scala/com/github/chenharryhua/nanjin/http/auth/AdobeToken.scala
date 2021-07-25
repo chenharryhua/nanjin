@@ -12,14 +12,16 @@ import org.http4s.Uri.Path.Segment
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
+import org.http4s.headers.Authorization
 import org.http4s.implicits.http4sLiteralsSyntax
-import org.http4s.{Headers, Uri, UrlForm}
+import org.http4s.{Credentials, Uri, UrlForm}
+import org.typelevel.ci.CIString
 
 import java.lang.Boolean.TRUE
 import java.security.PrivateKey
 import java.util.Date
 import scala.collection.JavaConverters.*
-import scala.concurrent.duration.{DurationLong, FiniteDuration}
+import scala.concurrent.duration.DurationLong
 
 sealed abstract class AdobeToken(val name: String)
 
@@ -66,7 +68,9 @@ object AdobeToken {
             .flatMap(t =>
               params
                 .httpClient(client)
-                .run(req.putHeaders("Authorization" -> s"${t.token_type} ${t.access_token}", "x-api-key" -> client_id)))
+                .run(req.putHeaders(
+                  Authorization(Credentials.Token(CIString(t.token_type), t.access_token)),
+                  "x-api-key" -> client_id)))
         }).concurrently(refresh)
       }
     }
@@ -135,7 +139,7 @@ object AdobeToken {
                 .httpClient(client)
                 .run(
                   req.putHeaders(
-                    "Authorization" -> s"${t.token_type} ${t.access_token}",
+                    Authorization(Credentials.Token(CIString(t.token_type), t.access_token)),
                     "x-gw-ims-org-id" -> ims_org_id,
                     "x-api-key" -> client_id)))
         }).concurrently(refresh)
