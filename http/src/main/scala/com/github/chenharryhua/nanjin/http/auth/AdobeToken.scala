@@ -35,15 +35,15 @@ object AdobeToken {
     client_id: String,
     client_code: String,
     client_secret: String,
-    config: AuthConfig)
-      extends AdobeToken("access_token") with Http4sClientDsl[F] with Login[F] with UpdateConfig[AuthConfig, IMS[F]] {
+    config: HttpConfig)
+      extends AdobeToken("access_token") with Http4sClientDsl[F] with Login[F] with UpdateConfig[HttpConfig, IMS[F]] {
 
-    val params: AuthParams = config.evalConfig
+    val params: HttpParams = config.evalConfig
 
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val getToken: Stream[F, TokenResponse] =
         Stream.eval(
-          params
+          params.auth
             .authClient(client)
             .expect[TokenResponse](POST(
               UrlForm(
@@ -58,25 +58,27 @@ object AdobeToken {
         val refresh: Stream[F, Unit] =
           Stream
             .eval(token.get)
-            .flatMap(t => getToken.delayBy(params.delay(Some(t.expires_in.millisecond))).evalMap(token.set))
+            .flatMap(t => getToken.delayBy(params.auth.delay(Some(t.expires_in.millisecond))).evalMap(token.set))
             .repeat
         Stream[F, Client[F]](Client[F] { req =>
           Resource
             .eval(token.get)
             .flatMap(t =>
-              client.run(req.putHeaders(
-                Headers("Authorization" -> s"${t.token_type} ${t.access_token}", "x-api-key" -> client_id))))
+              params
+                .httpClient(client)
+                .run(req.putHeaders(
+                  Headers("Authorization" -> s"${t.token_type} ${t.access_token}", "x-api-key" -> client_id))))
         }).concurrently(refresh)
       }
     }
 
-    def updateConfig(f: AuthConfig => AuthConfig): IMS[F] =
+    def updateConfig(f: HttpConfig => HttpConfig): IMS[F] =
       new IMS[F](auth_endpoint, client_id, client_code, client_secret, f(config))
 
   }
   object IMS {
     def apply[F[_]](auth_endpoint: Uri, client_id: String, client_code: String, client_secret: String): IMS[F] =
-      new IMS[F](auth_endpoint, client_id, client_code, client_secret, AuthConfig(None))
+      new IMS[F](auth_endpoint, client_id, client_code, client_secret, HttpConfig(None))
   }
 
   // https://www.adobe.io/authentication/auth-methods.html#!AdobeDocs/adobeio-auth/master/JWT/JWT.md
@@ -88,10 +90,10 @@ object AdobeToken {
     technical_account_key: String,
     metascopes: NonEmptyList[AdobeMetascope],
     private_key: PrivateKey,
-    config: AuthConfig)
-      extends AdobeToken("jwt_token") with Http4sClientDsl[F] with Login[F] with UpdateConfig[AuthConfig, JWT[F]] {
+    config: HttpConfig)
+      extends AdobeToken("jwt_token") with Http4sClientDsl[F] with Login[F] with UpdateConfig[HttpConfig, JWT[F]] {
 
-    val params: AuthParams = config.evalConfig
+    val params: HttpParams = config.evalConfig
 
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val audience: String = auth_endpoint.withPath(path"c" / Segment(client_id)).renderString
@@ -106,12 +108,12 @@ object AdobeToken {
               .setSubject(technical_account_key)
               .setIssuer(ims_org_id)
               .setAudience(audience)
-              .setExpiration(Date.from(ts.plusSeconds(params.tokenExpiresIn.toSeconds)))
+              .setExpiration(Date.from(ts.plusSeconds(params.auth.tokenExpiresIn.toSeconds)))
               .addClaims(claims)
               .signWith(private_key, SignatureAlgorithm.RS256)
               .compact
           }.flatMap(jwt =>
-            params
+            params.auth
               .authClient(client)
               .expect[TokenResponse](
                 POST(
@@ -123,24 +125,26 @@ object AdobeToken {
         val refresh: Stream[F, Unit] =
           Stream
             .eval(token.get)
-            .flatMap(t => getToken.delayBy(params.delay(Some(t.expires_in.millisecond))).evalMap(token.set))
+            .flatMap(t => getToken.delayBy(params.auth.delay(Some(t.expires_in.millisecond))).evalMap(token.set))
             .repeat
 
         Stream[F, Client[F]](Client[F] { req =>
           Resource
             .eval(token.get)
             .flatMap(t =>
-              client.run(
-                req.putHeaders(
-                  Headers(
-                    "Authorization" -> s"${t.token_type} ${t.access_token}",
-                    "x-gw-ims-org-id" -> ims_org_id,
-                    "x-api-key" -> client_id))))
+              params
+                .httpClient(client)
+                .run(
+                  req.putHeaders(
+                    Headers(
+                      "Authorization" -> s"${t.token_type} ${t.access_token}",
+                      "x-gw-ims-org-id" -> ims_org_id,
+                      "x-api-key" -> client_id))))
         }).concurrently(refresh)
       }
     }
 
-    def updateConfig(f: AuthConfig => AuthConfig): JWT[F] =
+    def updateConfig(f: HttpConfig => HttpConfig): JWT[F] =
       new JWT[F](
         auth_endpoint,
         ims_org_id,
@@ -169,7 +173,7 @@ object AdobeToken {
         technical_account_key,
         metascopes,
         private_key,
-        AuthConfig(Some(1.day)))
+        HttpConfig(Some(1.day)))
 
     def apply[F[_]](
       auth_endpoint: Uri,

@@ -26,29 +26,28 @@ final class RefreshableToken[F[_]] private (
   auth_endpoint: Uri,
   client_id: String,
   client_secret: String,
-  config: AuthConfig)
-    extends Http4sClientDsl[F] with Login[F] with UpdateConfig[AuthConfig, RefreshableToken[F]] {
+  config: HttpConfig)
+    extends Http4sClientDsl[F] with Login[F] with UpdateConfig[HttpConfig, RefreshableToken[F]] {
 
-  val params: AuthParams = config.evalConfig
+  val params: HttpParams = config.evalConfig
 
   override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
 
     val authURI: Uri = auth_endpoint.withPath(path"oauth/token")
     val getToken: Stream[F, RefreshableTokenResponse] =
       Stream.eval(
-        params
+        params.auth
           .authClient(client)
-          .expect[RefreshableTokenResponse](
-            POST(
-              UrlForm("grant_type" -> "client_credentials", "client_id" -> client_id, "client_secret" -> client_secret),
-              authURI).putHeaders("Cache-Control" -> "no-cache")))
+          .expect[RefreshableTokenResponse](POST(
+            UrlForm("grant_type" -> "client_credentials", "client_id" -> client_id, "client_secret" -> client_secret),
+            authURI).putHeaders("Cache-Control" -> "no-cache")))
 
     getToken.evalMap(F.ref).flatMap { token =>
       val refresh: Stream[F, Unit] =
         Stream
           .eval(token.get)
           .evalMap { t =>
-            params
+            params.auth
               .authClient(client)
               .expect[RefreshableTokenResponse](
                 POST(
@@ -56,22 +55,25 @@ final class RefreshableToken[F[_]] private (
                   authURI,
                   Authorization(BasicCredentials(client_id, client_secret))
                 ).putHeaders("Cache-Control" -> "no-cache"))
-              .delayBy(params.delay(Some(t.expires_in.seconds)))
+              .delayBy(params.auth.delay(Some(t.expires_in.seconds)))
           }
           .evalMap(token.set)
           .repeat
       Stream[F, Client[F]](Client[F] { req =>
         Resource
           .eval(token.get)
-          .flatMap(t => client.run(req.putHeaders(Headers("Authorization" -> s"${t.token_type} ${t.access_token}"))))
+          .flatMap(t =>
+            params
+              .httpClient(client)
+              .run(req.putHeaders(Headers("Authorization" -> s"${t.token_type} ${t.access_token}"))))
       }).concurrently(refresh)
     }
   }
 
-  def updateConfig(f: AuthConfig => AuthConfig): RefreshableToken[F] =
+  def updateConfig(f: HttpConfig => HttpConfig): RefreshableToken[F] =
     new RefreshableToken[F](auth_endpoint, client_id, client_secret, f(config))
 }
 object RefreshableToken {
   def apply[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): RefreshableToken[F] =
-    new RefreshableToken[F](auth_endpoint, client_id, client_secret, AuthConfig(None))
+    new RefreshableToken[F](auth_endpoint, client_id, client_secret, HttpConfig(None))
 }

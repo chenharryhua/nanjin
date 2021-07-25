@@ -43,16 +43,16 @@ object SalesforceToken {
     client_id: String,
     client_secret: String,
     instanceURL: InstanceURL,
-    config: AuthConfig
+    config: HttpConfig
   ) extends SalesforceToken("salesforce_mc") with Http4sClientDsl[F] with Login[F]
-      with UpdateConfig[AuthConfig, MarketingCloud[F]] {
+      with UpdateConfig[HttpConfig, MarketingCloud[F]] {
 
-    val params: AuthParams = config.evalConfig
+    val params: HttpParams = config.evalConfig
 
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val getToken: Stream[F, McToken] =
         Stream.eval(
-          params
+          params.auth
             .authClient(client)
             .expect[McToken](
               POST(
@@ -68,7 +68,7 @@ object SalesforceToken {
         val refresh: Stream[F, Unit] =
           Stream
             .eval(token.get)
-            .flatMap(t => getToken.delayBy(params.delay(Some(t.expires_in.seconds))).evalMap(token.set))
+            .flatMap(t => getToken.delayBy(params.auth.delay(Some(t.expires_in.seconds))).evalMap(token.set))
             .repeat
         Stream[F, Client[F]](Client[F] { req =>
           Resource.eval(token.get).flatMap { t =>
@@ -76,21 +76,23 @@ object SalesforceToken {
               case Rest => Uri.unsafeFromString(t.rest_instance_url).withPath(req.pathInfo)
               case Soap => Uri.unsafeFromString(t.soap_instance_url).withPath(req.pathInfo)
             }
-            client.run(req.withUri(iu).putHeaders(Headers("Authorization" -> s"${t.token_type} ${t.access_token}")))
+            params
+              .httpClient(client)
+              .run(req.withUri(iu).putHeaders(Headers("Authorization" -> s"${t.token_type} ${t.access_token}")))
           }
         }).concurrently(refresh)
       }
     }
 
-    def updateConfig(f: AuthConfig => AuthConfig): MarketingCloud[F] =
+    def updateConfig(f: HttpConfig => HttpConfig): MarketingCloud[F] =
       new MarketingCloud[F](auth_endpoint, client_id, client_secret, instanceURL, f(config))
 
   }
   object MarketingCloud {
     def rest[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): MarketingCloud[F] =
-      new MarketingCloud[F](auth_endpoint, client_id, client_secret, Rest, AuthConfig(None))
+      new MarketingCloud[F](auth_endpoint, client_id, client_secret, Rest, HttpConfig(None))
     def soap[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): MarketingCloud[F] =
-      new MarketingCloud[F](auth_endpoint, client_id, client_secret, Soap, AuthConfig(None))
+      new MarketingCloud[F](auth_endpoint, client_id, client_secret, Soap, HttpConfig(None))
   }
 
   //https://developer.salesforce.com/docs/atlas.en-us.api_iot.meta/api_iot/qs_auth_access_token.htm
@@ -100,16 +102,16 @@ object SalesforceToken {
     client_secret: String,
     username: String,
     password: String,
-    config: AuthConfig
+    config: HttpConfig
   ) extends SalesforceToken("salesforce_iot") with Http4sClientDsl[F] with Login[F]
-      with UpdateConfig[AuthConfig, Iot[F]] {
+      with UpdateConfig[HttpConfig, Iot[F]] {
 
-    val params: AuthParams = config.evalConfig
+    val params: HttpParams = config.evalConfig
 
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val getToken: Stream[F, IotToken] =
         Stream.eval(
-          params
+          params.auth
             .authClient(client)
             .expect[IotToken](POST(
               UrlForm(
@@ -123,21 +125,22 @@ object SalesforceToken {
             ).putHeaders("Cache-Control" -> "no-cache")))
 
       getToken.evalMap(F.ref).flatMap { token =>
-        val refresh: Stream[F, Unit] = getToken.delayBy(params.delay(None)).evalMap(token.set).repeat
+        val refresh: Stream[F, Unit] = getToken.delayBy(params.auth.delay(None)).evalMap(token.set).repeat
 
         Stream[F, Client[F]](Client[F] { req =>
           Resource
             .eval(token.get)
             .flatMap(t =>
-              client.run(
-                req
+              params
+                .httpClient(client)
+                .run(req
                   .withUri(Uri.unsafeFromString(t.instance_url).withPath(req.pathInfo))
                   .putHeaders(Headers("Authorization" -> s"${t.token_type} ${t.access_token}"))))
         }).concurrently(refresh)
       }
     }
 
-    def updateConfig(f: AuthConfig => AuthConfig): Iot[F] =
+    def updateConfig(f: HttpConfig => HttpConfig): Iot[F] =
       new Iot[F](auth_endpoint, client_id, client_secret, username, password, f(config))
   }
   object Iot {
@@ -147,6 +150,6 @@ object SalesforceToken {
       client_secret: String,
       username: String,
       password: String): Iot[F] =
-      new Iot[F](auth_endpoint, client_id, client_secret, username, password, AuthConfig(Some(2.hours)))
+      new Iot[F](auth_endpoint, client_id, client_secret, username, password, HttpConfig(Some(2.hours)))
   }
 }
