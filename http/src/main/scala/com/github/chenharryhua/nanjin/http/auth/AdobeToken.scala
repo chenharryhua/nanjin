@@ -66,8 +66,7 @@ object AdobeToken {
             .flatMap(t =>
               params
                 .httpClient(client)
-                .run(req.putHeaders(
-                  Headers("Authorization" -> s"${t.token_type} ${t.access_token}", "x-api-key" -> client_id))))
+                .run(req.putHeaders("Authorization" -> s"${t.token_type} ${t.access_token}", "x-api-key" -> client_id)))
         }).concurrently(refresh)
       }
     }
@@ -136,10 +135,9 @@ object AdobeToken {
                 .httpClient(client)
                 .run(
                   req.putHeaders(
-                    Headers(
-                      "Authorization" -> s"${t.token_type} ${t.access_token}",
-                      "x-gw-ims-org-id" -> ims_org_id,
-                      "x-api-key" -> client_id))))
+                    "Authorization" -> s"${t.token_type} ${t.access_token}",
+                    "x-gw-ims-org-id" -> ims_org_id,
+                    "x-api-key" -> client_id)))
         }).concurrently(refresh)
       }
     }

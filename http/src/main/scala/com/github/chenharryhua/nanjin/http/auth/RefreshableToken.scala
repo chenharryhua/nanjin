@@ -63,9 +63,7 @@ final class RefreshableToken[F[_]] private (
         Resource
           .eval(token.get)
           .flatMap(t =>
-            params
-              .httpClient(client)
-              .run(req.putHeaders(Headers("Authorization" -> s"${t.token_type} ${t.access_token}"))))
+            params.httpClient(client).run(req.putHeaders("Authorization" -> s"${t.token_type} ${t.access_token}")))
       }).concurrently(refresh)
     }
   }

@@ -78,7 +78,7 @@ object SalesforceToken {
             }
             params
               .httpClient(client)
-              .run(req.withUri(iu).putHeaders(Headers("Authorization" -> s"${t.token_type} ${t.access_token}")))
+              .run(req.withUri(iu).putHeaders("Authorization" -> s"${t.token_type} ${t.access_token}"))
           }
         }).concurrently(refresh)
       }
@@ -135,7 +135,7 @@ object SalesforceToken {
                 .httpClient(client)
                 .run(req
                   .withUri(Uri.unsafeFromString(t.instance_url).withPath(req.pathInfo))
-                  .putHeaders(Headers("Authorization" -> s"${t.token_type} ${t.access_token}"))))
+                  .putHeaders("Authorization" -> s"${t.token_type} ${t.access_token}")))
         }).concurrently(refresh)
       }
     }
