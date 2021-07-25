@@ -302,7 +302,6 @@ val ftpLib = Seq(
 )
 
 val http4sLib = Seq(
-  "org.http4s" %% "http4s-blaze-server",
   "org.http4s" %% "http4s-blaze-client",
   "org.http4s" %% "http4s-circe",
   "org.http4s" %% "http4s-dsl"
@@ -331,11 +330,11 @@ lazy val http = (project in file("http"))
   .settings(
     libraryDependencies ++=
       Seq(
-        "org.cometd.java"  % "cometd-java-client-http-common" % "7.0.3",
-        "org.bouncycastle" % "bcpkix-jdk15on"                 % "1.69",
-        "io.jsonwebtoken"  % "jjwt-api"                       % "0.11.2",
-        "io.jsonwebtoken"  % "jjwt-impl"                      % "0.11.2",
-        "io.jsonwebtoken"  % "jjwt-jackson"                   % "0.11.2"
+        "org.bouncycastle"                    % "bcpkix-jdk15on" % "1.69",
+        "io.jsonwebtoken"                     % "jjwt-api"       % "0.11.2",
+        "io.jsonwebtoken"                     % "jjwt-impl"      % "0.11.2",
+        "io.jsonwebtoken"                     % "jjwt-jackson"   % "0.11.2",
+        "org.http4s" %% "http4s-blaze-server" % http4s           % Test
       ) ++ http4sLib ++ fs2Lib ++ effectLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ logLib,
     excludeDependencies ++= Seq(ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
   )
@@ -470,4 +469,3 @@ lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
     .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark, bundle)
-
