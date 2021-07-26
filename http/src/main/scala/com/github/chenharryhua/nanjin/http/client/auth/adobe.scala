@@ -64,12 +64,12 @@ object adobe {
             .repeat
         Stream
           .eval(middleware(client))
-          .map { c =>
+          .map { client =>
             Client[F] { req =>
               Resource
                 .eval(token.get)
                 .flatMap(t =>
-                  c.run(req.putHeaders(
+                  client.run(req.putHeaders(
                     Authorization(Credentials.Token(CIString(t.token_type), t.access_token)),
                     "x-api-key" -> client_id)))
             }
@@ -158,12 +158,12 @@ object adobe {
 
         Stream
           .eval(middleware(client))
-          .map { c =>
+          .map { client =>
             Client[F] { req =>
               Resource
                 .eval(token.get)
                 .flatMap(t =>
-                  c.run(
+                  client.run(
                     req.putHeaders(
                       Authorization(Credentials.Token(CIString(t.token_type), t.access_token)),
                       "x-gw-ims-org-id" -> ims_org_id,

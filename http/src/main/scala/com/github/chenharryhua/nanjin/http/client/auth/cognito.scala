@@ -85,12 +85,12 @@ object cognito {
             .repeat
         Stream
           .eval(middleware(client))
-          .map { c =>
+          .map { client =>
             Client[F] { req =>
               Resource
                 .eval(token.get)
                 .flatMap(t =>
-                  c.run(req.putHeaders(Authorization(Credentials.Token(CIString(t.token_type), t.access_token)))))
+                  client.run(req.putHeaders(Authorization(Credentials.Token(CIString(t.token_type), t.access_token)))))
             }
           }
           .concurrently(refresh)

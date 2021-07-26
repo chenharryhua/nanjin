@@ -67,14 +67,14 @@ object salesforce {
             .repeat
         Stream
           .eval(middleware(client))
-          .map { c =>
+          .map { client =>
             Client[F] { req =>
               Resource.eval(token.get).flatMap { t =>
                 val iu: Uri = instanceURL match {
                   case Rest => Uri.unsafeFromString(t.rest_instance_url).withPath(req.pathInfo)
                   case Soap => Uri.unsafeFromString(t.soap_instance_url).withPath(req.pathInfo)
                 }
-                c.run(
+                client.run(
                   req.withUri(iu).putHeaders(Authorization(Credentials.Token(CIString(t.token_type), t.access_token))))
               }
             }
