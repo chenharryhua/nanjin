@@ -209,7 +209,7 @@ val testLib = Seq(
   "org.tpolecat" %% "doobie-postgres"                         % doobie          % Test,
   "com.typesafe.akka" %% "akka-stream-testkit"                % akka26          % Test,
   "org.typelevel" %% "algebra-laws"                           % algebra         % Test,
-  "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % "2.1.0"         % Test,
+  "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % "2.1.1"         % Test,
   "com.github.pathikrit" %% "better-files"                    % betterFiles     % Test,
   "org.slf4j"                                                 % "slf4j-log4j12" % "1.7.32" % Test
 )
@@ -220,7 +220,7 @@ val kafkaLib = Seq(
   "io.confluent"                              % "kafka-schema-registry-client" % "6.2.0",
   "io.confluent"                              % "kafka-schema-serializer"      % "6.2.0",
   "org.apache.kafka" %% "kafka-streams-scala" % "6.2.0-ce",
-  "com.typesafe.akka" %% "akka-stream-kafka"  % "2.1.0",
+  "com.typesafe.akka" %% "akka-stream-kafka"  % "2.1.1",
   "com.github.fd4s" %% "fs2-kafka"            % "2.1.0"
 )
 
