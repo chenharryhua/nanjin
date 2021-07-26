@@ -1,10 +1,10 @@
 package com.github.chenharryhua.nanjin.http.auth
 
 import cats.data.Kleisli
-import cats.{Applicative, Monad}
 import cats.effect.Async
 import cats.effect.kernel.Resource
 import cats.effect.syntax.all.*
+import cats.{Applicative, Monad}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import fs2.Stream
 import io.circe.generic.auto.*
@@ -14,7 +14,8 @@ import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
 import org.http4s.headers.Authorization
 import org.http4s.implicits.http4sLiteralsSyntax
-import org.http4s.{BasicCredentials, Uri, UrlForm}
+import org.http4s.{BasicCredentials, Credentials, Uri, UrlForm}
+import org.typelevel.ci.CIString
 
 import scala.concurrent.duration.DurationLong
 
@@ -69,7 +70,8 @@ final class RefreshableToken[F[_]] private (
           Client[F] { req =>
             Resource
               .eval(token.get)
-              .flatMap(t => c.run(req.putHeaders("Authorization" -> s"${t.token_type} ${t.access_token}")))
+              .flatMap(t =>
+                c.run(req.putHeaders(Authorization(Credentials.Token(CIString(t.token_type), t.access_token)))))
           }
         }
         .concurrently(refresh)
