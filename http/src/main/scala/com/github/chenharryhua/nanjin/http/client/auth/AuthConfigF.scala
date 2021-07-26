@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.http.auth
+package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.Functor
 import cats.effect.Async
