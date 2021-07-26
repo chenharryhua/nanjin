@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.http.auth
 
-import cats.data.NonEmptyList
+import cats.data.{Kleisli, NonEmptyList}
 import cats.effect.{Async, Resource}
 import cats.syntax.all.*
 import cats.{Applicative, Monad}
@@ -38,10 +38,10 @@ object AdobeToken {
     client_id: String,
     client_code: String,
     client_secret: String,
-    config: HttpConfig,
-    middleware: Client[F] => F[Client[F]])
+    config: AuthConfig,
+    middleware: Kleisli[F, Client[F], Client[F]])
       extends AdobeToken("access_token") with Http4sClientDsl[F] with Login[F, IMS[F]]
-      with UpdateConfig[HttpConfig, IMS[F]] {
+      with UpdateConfig[AuthConfig, IMS[F]] {
 
     val params: AuthParams = config.evalConfig
 
@@ -81,16 +81,34 @@ object AdobeToken {
       }
     }
 
-    def updateConfig(f: HttpConfig => HttpConfig): IMS[F] =
-      new IMS[F](auth_endpoint, client_id, client_code, client_secret, f(config), middleware)
+    override def updateConfig(f: AuthConfig => AuthConfig): IMS[F] =
+      new IMS[F](
+        auth_endpoint = auth_endpoint,
+        client_id = client_id,
+        client_code = client_code,
+        client_secret = client_secret,
+        config = f(config),
+        middleware = middleware)
 
     override def withMiddlewareM(f: Client[F] => F[Client[F]])(implicit F: Monad[F]): IMS[F] =
-      new IMS[F](auth_endpoint, client_id, client_code, client_secret, config, compose(f, middleware))
+      new IMS[F](
+        auth_endpoint = auth_endpoint,
+        client_id = client_id,
+        client_code = client_code,
+        client_secret = client_secret,
+        config = config,
+        middleware = compose(f, middleware))
   }
   object IMS {
     def apply[F[_]](auth_endpoint: Uri, client_id: String, client_code: String, client_secret: String)(implicit
       F: Applicative[F]): IMS[F] =
-      new IMS[F](auth_endpoint, client_id, client_code, client_secret, HttpConfig(None), F.pure)
+      new IMS[F](
+        auth_endpoint = auth_endpoint,
+        client_id = client_id,
+        client_code = client_code,
+        client_secret = client_secret,
+        config = AuthConfig(None),
+        middleware = Kleisli(F.pure))
   }
 
   // https://www.adobe.io/authentication/auth-methods.html#!AdobeDocs/adobeio-auth/master/JWT/JWT.md
@@ -102,10 +120,10 @@ object AdobeToken {
     technical_account_key: String,
     metascopes: NonEmptyList[AdobeMetascope],
     private_key: PrivateKey,
-    config: HttpConfig,
-    middleware: Client[F] => F[Client[F]])
+    config: AuthConfig,
+    middleware: Kleisli[F, Client[F], Client[F]])
       extends AdobeToken("jwt_token") with Http4sClientDsl[F] with Login[F, JWT[F]]
-      with UpdateConfig[HttpConfig, JWT[F]] {
+      with UpdateConfig[AuthConfig, JWT[F]] {
 
     val params: AuthParams = config.evalConfig
 
@@ -160,29 +178,29 @@ object AdobeToken {
       }
     }
 
-    def updateConfig(f: HttpConfig => HttpConfig): JWT[F] =
+    override def updateConfig(f: AuthConfig => AuthConfig): JWT[F] =
       new JWT[F](
-        auth_endpoint,
-        ims_org_id,
-        client_id,
-        client_secret,
-        technical_account_key,
-        metascopes,
-        private_key,
-        f(config),
-        middleware)
+        auth_endpoint = auth_endpoint,
+        ims_org_id = ims_org_id,
+        client_id = client_id,
+        client_secret = client_secret,
+        technical_account_key = technical_account_key,
+        metascopes = metascopes,
+        private_key = private_key,
+        config = f(config),
+        middleware = middleware)
 
     override def withMiddlewareM(f: Client[F] => F[Client[F]])(implicit F: Monad[F]): JWT[F] =
       new JWT[F](
-        auth_endpoint,
-        ims_org_id,
-        client_id,
-        client_secret,
-        technical_account_key,
-        metascopes,
-        private_key,
-        config,
-        compose(f, middleware))
+        auth_endpoint = auth_endpoint,
+        ims_org_id = ims_org_id,
+        client_id = client_id,
+        client_secret = client_secret,
+        technical_account_key = technical_account_key,
+        metascopes = metascopes,
+        private_key = private_key,
+        config = config,
+        middleware = compose(f, middleware))
   }
 
   object JWT {
@@ -195,15 +213,15 @@ object AdobeToken {
       metascopes: NonEmptyList[AdobeMetascope],
       private_key: PrivateKey)(implicit F: Applicative[F]): JWT[F] =
       new JWT[F](
-        auth_endpoint,
-        ims_org_id,
-        client_id,
-        client_secret,
-        technical_account_key,
-        metascopes,
-        private_key,
-        HttpConfig(Some(1.day)),
-        F.pure)
+        auth_endpoint = auth_endpoint,
+        ims_org_id = ims_org_id,
+        client_id = client_id,
+        client_secret = client_secret,
+        technical_account_key = technical_account_key,
+        metascopes = metascopes,
+        private_key = private_key,
+        config = AuthConfig(Some(1.day)),
+        middleware = Kleisli(F.pure))
 
     def apply[F[_]: Applicative](
       auth_endpoint: Uri,

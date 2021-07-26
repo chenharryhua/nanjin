@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.http.auth
 
+import cats.data.Kleisli
 import cats.{Applicative, Monad}
 import cats.effect.Async
 import cats.effect.kernel.Resource
@@ -27,9 +28,9 @@ final class RefreshableToken[F[_]] private (
   auth_endpoint: Uri,
   client_id: String,
   client_secret: String,
-  config: HttpConfig,
-  middleware: Client[F] => F[Client[F]])
-    extends Http4sClientDsl[F] with Login[F, RefreshableToken[F]] with UpdateConfig[HttpConfig, RefreshableToken[F]] {
+  config: AuthConfig,
+  middleware: Kleisli[F, Client[F], Client[F]])
+    extends Http4sClientDsl[F] with Login[F, RefreshableToken[F]] with UpdateConfig[AuthConfig, RefreshableToken[F]] {
 
   val params: AuthParams = config.evalConfig
 
@@ -75,15 +76,30 @@ final class RefreshableToken[F[_]] private (
     }
   }
 
-  def updateConfig(f: HttpConfig => HttpConfig): RefreshableToken[F] =
-    new RefreshableToken[F](auth_endpoint, client_id, client_secret, f(config), middleware)
+  override def updateConfig(f: AuthConfig => AuthConfig): RefreshableToken[F] =
+    new RefreshableToken[F](
+      auth_endpoint = auth_endpoint,
+      client_id = client_id,
+      client_secret = client_secret,
+      config = f(config),
+      middleware = middleware)
 
   override def withMiddlewareM(f: Client[F] => F[Client[F]])(implicit F: Monad[F]): RefreshableToken[F] =
-    new RefreshableToken[F](auth_endpoint, client_id, client_secret, config, compose(f, middleware))
+    new RefreshableToken[F](
+      auth_endpoint = auth_endpoint,
+      client_id = client_id,
+      client_secret = client_secret,
+      config = config,
+      middleware = compose(f, middleware))
 }
 
 object RefreshableToken {
   def apply[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String)(implicit
     F: Applicative[F]): RefreshableToken[F] =
-    new RefreshableToken[F](auth_endpoint, client_id, client_secret, HttpConfig(None), F.pure)
+    new RefreshableToken[F](
+      auth_endpoint = auth_endpoint,
+      client_id = client_id,
+      client_secret = client_secret,
+      config = AuthConfig(None),
+      middleware = Kleisli(F.pure))
 }

@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.http.auth
 
+import cats.data.Kleisli
 import cats.effect.Async
 import cats.effect.kernel.Resource
 import cats.{Applicative, Monad}
@@ -39,10 +40,10 @@ object SalesforceToken {
     client_id: String,
     client_secret: String,
     instanceURL: InstanceURL,
-    config: HttpConfig,
-    middleware: Client[F] => F[Client[F]]
+    config: AuthConfig,
+    middleware: Kleisli[F, Client[F], Client[F]]
   ) extends SalesforceToken("salesforce_mc") with Http4sClientDsl[F] with Login[F, MarketingCloud[F]]
-      with UpdateConfig[HttpConfig, MarketingCloud[F]] {
+      with UpdateConfig[AuthConfig, MarketingCloud[F]] {
 
     val params: AuthParams = config.evalConfig
 
@@ -67,32 +68,61 @@ object SalesforceToken {
             .eval(token.get)
             .flatMap(t => getToken.delayBy(params.delay(Some(t.expires_in.seconds))).evalMap(token.set))
             .repeat
-        Stream[F, Client[F]](Client[F] { req =>
-          Resource.eval(token.get).flatMap { t =>
-            val iu: Uri = instanceURL match {
-              case Rest => Uri.unsafeFromString(t.rest_instance_url).withPath(req.pathInfo)
-              case Soap => Uri.unsafeFromString(t.soap_instance_url).withPath(req.pathInfo)
+        Stream
+          .eval(middleware(client))
+          .map { c =>
+            Client[F] { req =>
+              Resource.eval(token.get).flatMap { t =>
+                val iu: Uri = instanceURL match {
+                  case Rest => Uri.unsafeFromString(t.rest_instance_url).withPath(req.pathInfo)
+                  case Soap => Uri.unsafeFromString(t.soap_instance_url).withPath(req.pathInfo)
+                }
+                c.run(
+                  req.withUri(iu).putHeaders(Authorization(Credentials.Token(CIString(t.token_type), t.access_token))))
+              }
             }
-            client.run(
-              req.withUri(iu).putHeaders(Authorization(Credentials.Token(CIString(t.token_type), t.access_token))))
           }
-        }).concurrently(refresh)
+          .concurrently(refresh)
       }
     }
 
-    def updateConfig(f: HttpConfig => HttpConfig): MarketingCloud[F] =
-      new MarketingCloud[F](auth_endpoint, client_id, client_secret, instanceURL, f(config), middleware)
+    override def updateConfig(f: AuthConfig => AuthConfig): MarketingCloud[F] =
+      new MarketingCloud[F](
+        auth_endpoint = auth_endpoint,
+        client_id = client_id,
+        client_secret = client_secret,
+        instanceURL = instanceURL,
+        config = f(config),
+        middleware = middleware)
 
     override def withMiddlewareM(f: Client[F] => F[Client[F]])(implicit F: Monad[F]): MarketingCloud[F] =
-      new MarketingCloud[F](auth_endpoint, client_id, client_secret, instanceURL, config, compose(f, middleware))
+      new MarketingCloud[F](
+        auth_endpoint = auth_endpoint,
+        client_id = client_id,
+        client_secret = client_secret,
+        instanceURL = instanceURL,
+        config = config,
+        middleware = compose(f, middleware))
   }
   object MarketingCloud {
     def rest[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String)(implicit
       F: Applicative[F]): MarketingCloud[F] =
-      new MarketingCloud[F](auth_endpoint, client_id, client_secret, Rest, HttpConfig(None), F.pure)
+      new MarketingCloud[F](
+        auth_endpoint = auth_endpoint,
+        client_id = client_id,
+        client_secret = client_secret,
+        instanceURL = Rest,
+        config = AuthConfig(None),
+        middleware = Kleisli(F.pure))
     def soap[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String)(implicit
       F: Applicative[F]): MarketingCloud[F] =
-      new MarketingCloud[F](auth_endpoint, client_id, client_secret, Soap, HttpConfig(None), F.pure)
+      new MarketingCloud[F](
+        auth_endpoint = auth_endpoint,
+        client_id = client_id,
+        client_secret = client_secret,
+        instanceURL = Soap,
+        config = AuthConfig(None),
+        middleware = Kleisli(F.pure))
   }
 
   //https://developer.salesforce.com/docs/atlas.en-us.api_iot.meta/api_iot/qs_auth_access_token.htm
@@ -111,10 +141,10 @@ object SalesforceToken {
     client_secret: String,
     username: String,
     password: String,
-    config: HttpConfig,
-    middleware: Client[F] => F[Client[F]]
+    config: AuthConfig,
+    middleware: Kleisli[F, Client[F], Client[F]]
   ) extends SalesforceToken("salesforce_iot") with Http4sClientDsl[F] with Login[F, Iot[F]]
-      with UpdateConfig[HttpConfig, Iot[F]] {
+      with UpdateConfig[AuthConfig, Iot[F]] {
 
     val params: AuthParams = config.evalConfig
 
@@ -153,15 +183,36 @@ object SalesforceToken {
       }
     }
 
-    def updateConfig(f: HttpConfig => HttpConfig): Iot[F] =
-      new Iot[F](auth_endpoint, client_id, client_secret, username, password, f(config), middleware)
+    override def updateConfig(f: AuthConfig => AuthConfig): Iot[F] =
+      new Iot[F](
+        auth_endpoint = auth_endpoint,
+        client_id = client_id,
+        client_secret = client_secret,
+        username = username,
+        password = password,
+        config = f(config),
+        middleware = middleware)
 
     def withMiddlewareM(f: Client[F] => F[Client[F]])(implicit F: Monad[F]): Iot[F] =
-      new Iot[F](auth_endpoint, client_id, client_secret, username, password, config, compose(f, middleware))
+      new Iot[F](
+        auth_endpoint = auth_endpoint,
+        client_id = client_id,
+        client_secret = client_secret,
+        username = username,
+        password = password,
+        config = config,
+        middleware = compose(f, middleware))
   }
   object Iot {
     def apply[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String, username: String, password: String)(
       implicit F: Applicative[F]): Iot[F] =
-      new Iot[F](auth_endpoint, client_id, client_secret, username, password, HttpConfig(Some(2.hours)), F.pure)
+      new Iot[F](
+        auth_endpoint = auth_endpoint,
+        client_id = client_id,
+        client_secret = client_secret,
+        username = username,
+        password = password,
+        config = AuthConfig(Some(2.hours)),
+        middleware = Kleisli(F.pure))
   }
 }

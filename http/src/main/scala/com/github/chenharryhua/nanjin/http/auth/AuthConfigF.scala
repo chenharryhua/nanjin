@@ -38,30 +38,30 @@ private object AuthConfigF {
   final case class WithAuthMaxRetries[K](value: Int, cont: K) extends AuthConfigF[K]
   final case class WithAuthMaxWait[K](value: FiniteDuration, cont: K) extends AuthConfigF[K]
   final case class WithAuthTokenExpiresIn[K](value: FiniteDuration, cont: K) extends AuthConfigF[K]
-  final case class WithUnsecureLog[K](value: Boolean, cont: K) extends AuthConfigF[K]
+  final case class WithAuthUnsecureLog[K](value: Boolean, cont: K) extends AuthConfigF[K]
 
   val algebra: Algebra[AuthConfigF, AuthParams] = Algebra[AuthConfigF, AuthParams] {
     case InitParams(value)                   => AuthParams(value)
     case WithAuthMaxRetries(value, cont)     => AuthParams.maxRetries.set(value)(cont)
     case WithAuthMaxWait(value, cont)        => AuthParams.maxWait.set(value)(cont)
     case WithAuthTokenExpiresIn(value, cont) => AuthParams.tokenExpiresIn.set(value)(cont)
-    case WithUnsecureLog(value, cont)        => AuthParams.unsecureLog.set(value)(cont)
+    case WithAuthUnsecureLog(value, cont)    => AuthParams.unsecureLog.set(value)(cont)
   }
 }
 
-final private[auth] case class HttpConfig private (value: Fix[AuthConfigF]) {
+final private[auth] case class AuthConfig private (value: Fix[AuthConfigF]) {
   import AuthConfigF.*
-  def withAuthMaxRetries(times: Int): HttpConfig       = HttpConfig(Fix(WithAuthMaxRetries(value = times, value)))
-  def withAuthMaxWait(dur: FiniteDuration): HttpConfig = HttpConfig(Fix(WithAuthMaxWait(value = dur, value)))
+  def withAuthMaxRetries(times: Int): AuthConfig       = AuthConfig(Fix(WithAuthMaxRetries(value = times, value)))
+  def withAuthMaxWait(dur: FiniteDuration): AuthConfig = AuthConfig(Fix(WithAuthMaxWait(value = dur, value)))
 
-  def withAuthTokenExpiresIn(dur: FiniteDuration): HttpConfig =
-    HttpConfig(Fix(WithAuthTokenExpiresIn(value = dur, value)))
+  def withAuthTokenExpiresIn(dur: FiniteDuration): AuthConfig =
+    AuthConfig(Fix(WithAuthTokenExpiresIn(value = dur, value)))
 
-  def withUnsecureLogging: HttpConfig = HttpConfig(Fix(WithUnsecureLog(value = true, value)))
+  def withAuthUnsecureLogging: AuthConfig = AuthConfig(Fix(WithAuthUnsecureLog(value = true, value)))
 
   def evalConfig: AuthParams = scheme.cata(algebra).apply(value)
 }
-private object HttpConfig {
-  def apply(expiresIn: Option[FiniteDuration]): HttpConfig = HttpConfig(
+private object AuthConfig {
+  def apply(expiresIn: Option[FiniteDuration]): AuthConfig = AuthConfig(
     Fix(AuthConfigF.InitParams[Fix[AuthConfigF]](expiresIn.getOrElse(365.days))))
 }
