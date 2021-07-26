@@ -155,20 +155,18 @@ object AwsToken {
     val params: AuthParams = config.evalConfig
 
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
-      val authURI = auth_endpoint.withPath(path"/oauth2/token")
       val getToken: Stream[F, ClientCredentialsToken] =
         Stream.eval(
           params
             .authClient(client)
-            .expect[ClientCredentialsToken](
-              POST(
-                UrlForm(
-                  "grant_type" -> "client_credentials",
-                  "scope" -> scopes.toList.mkString(" ")
-                ),
-                authURI,
-                Authorization(BasicCredentials(client_id, client_secret))
-              ).putHeaders("Cache-Control" -> "no-cache")))
+            .expect[ClientCredentialsToken](POST(
+              UrlForm(
+                "grant_type" -> "client_credentials",
+                "scope" -> scopes.toList.mkString(" ")
+              ),
+              auth_endpoint.withPath(path"/oauth2/token"),
+              Authorization(BasicCredentials(client_id, client_secret))
+            ).putHeaders("Cache-Control" -> "no-cache")))
 
       getToken.evalMap(F.ref).flatMap { token =>
         val refresh: Stream[F, Unit] =
@@ -187,7 +185,6 @@ object AwsToken {
           }
           .concurrently(refresh)
       }
-
     }
 
     override def withMiddlewareM(f: Client[F] => F[Client[F]])(implicit F: Monad[F]): ClientCredentials[F] =
@@ -219,7 +216,7 @@ object AwsToken {
         client_id = client_id,
         client_secret = client_secret,
         scopes = scopes,
-        config = AuthConfig(Some(1.hour)),
+        config = AuthConfig(None),
         Kleisli(F.pure)
       )
 
