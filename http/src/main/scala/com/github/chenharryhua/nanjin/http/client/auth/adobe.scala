@@ -24,9 +24,7 @@ import java.util.Date
 import scala.collection.JavaConverters.*
 import scala.concurrent.duration.DurationLong
 
-sealed abstract class AdobeToken(val name: String)
-
-object AdobeToken {
+object adobe {
 
   final private case class TokenResponse(
     token_type: String,
@@ -40,8 +38,7 @@ object AdobeToken {
     client_secret: String,
     config: AuthConfig,
     middleware: Kleisli[F, Client[F], Client[F]])
-      extends AdobeToken("access_token") with Http4sClientDsl[F] with Login[F, IMS[F]]
-      with UpdateConfig[AuthConfig, IMS[F]] {
+      extends Http4sClientDsl[F] with Login[F, IMS[F]] with UpdateConfig[AuthConfig, IMS[F]] {
 
     val params: AuthParams = config.evalConfig
 
@@ -112,7 +109,7 @@ object AdobeToken {
   }
 
   // https://www.adobe.io/authentication/auth-methods.html#!AdobeDocs/adobeio-auth/master/JWT/JWT.md
-  final class JWT[F[_]](
+  final class JWT[F[_]] private (
     auth_endpoint: Uri,
     ims_org_id: String,
     client_id: String,
@@ -122,8 +119,7 @@ object AdobeToken {
     private_key: PrivateKey,
     config: AuthConfig,
     middleware: Kleisli[F, Client[F], Client[F]])
-      extends AdobeToken("jwt_token") with Http4sClientDsl[F] with Login[F, JWT[F]]
-      with UpdateConfig[AuthConfig, JWT[F]] {
+      extends Http4sClientDsl[F] with Login[F, JWT[F]] with UpdateConfig[AuthConfig, JWT[F]] {
 
     val params: AuthParams = config.evalConfig
 

@@ -18,9 +18,7 @@ import org.typelevel.ci.CIString
 
 import scala.concurrent.duration.DurationLong
 
-sealed abstract class SalesforceToken(val name: String)
-
-object SalesforceToken {
+object salesforce {
 
   //https://developer.salesforce.com/docs/atlas.en-us.mc-app-development.meta/mc-app-development/authorization-code.htm
   final private case class McToken(
@@ -42,8 +40,7 @@ object SalesforceToken {
     instanceURL: InstanceURL,
     config: AuthConfig,
     middleware: Kleisli[F, Client[F], Client[F]]
-  ) extends SalesforceToken("salesforce_mc") with Http4sClientDsl[F] with Login[F, MarketingCloud[F]]
-      with UpdateConfig[AuthConfig, MarketingCloud[F]] {
+  ) extends Http4sClientDsl[F] with Login[F, MarketingCloud[F]] with UpdateConfig[AuthConfig, MarketingCloud[F]] {
 
     val params: AuthParams = config.evalConfig
 
@@ -143,8 +140,7 @@ object SalesforceToken {
     password: String,
     config: AuthConfig,
     middleware: Kleisli[F, Client[F], Client[F]]
-  ) extends SalesforceToken("salesforce_iot") with Http4sClientDsl[F] with Login[F, Iot[F]]
-      with UpdateConfig[AuthConfig, Iot[F]] {
+  ) extends Http4sClientDsl[F] with Login[F, Iot[F]] with UpdateConfig[AuthConfig, Iot[F]] {
 
     val params: AuthParams = config.evalConfig
 

@@ -22,7 +22,7 @@ import scala.concurrent.duration.*
 /** https://docs.aws.amazon.com/cognito/latest/developerguide/token-endpoint.html
   */
 
-object AwsToken {
+object cognito {
   final private case class AuthorizationCodeToken(
     access_token: String,
     refresh_token: String,
@@ -31,7 +31,7 @@ object AwsToken {
     expires_in: Int // in second
   )
 
-  final class AuthorizationCode[F[_]](
+  final class AuthorizationCode[F[_]] private (
     auth_endpoint: Uri,
     client_id: String,
     client_secret: String,
@@ -145,7 +145,7 @@ object AwsToken {
     expires_in: Int // in second
   )
 
-  final class ClientCredentials[F[_]](
+  final class ClientCredentials[F[_]] private (
     auth_endpoint: Uri,
     client_id: String,
     client_secret: String,
