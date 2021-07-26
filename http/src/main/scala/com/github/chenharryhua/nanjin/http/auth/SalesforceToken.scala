@@ -1,7 +1,9 @@
 package com.github.chenharryhua.nanjin.http.auth
 
+import cats.data.Kleisli
 import cats.effect.Async
 import cats.effect.kernel.Resource
+import cats.{Applicative, Monad}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import fs2.Stream
 import io.circe.generic.auto.*
@@ -19,14 +21,8 @@ import scala.concurrent.duration.DurationLong
 sealed abstract class SalesforceToken(val name: String)
 
 object SalesforceToken {
-  final private case class IotToken(
-    access_token: String,
-    instance_url: String,
-    id: String,
-    token_type: String,
-    issued_at: String,
-    signature: String)
 
+  //https://developer.salesforce.com/docs/atlas.en-us.mc-app-development.meta/mc-app-development/authorization-code.htm
   final private case class McToken(
     access_token: String,
     token_type: String,
@@ -39,22 +35,22 @@ object SalesforceToken {
   private case object Rest extends InstanceURL
   private case object Soap extends InstanceURL
 
-  //https://developer.salesforce.com/docs/atlas.en-us.mc-app-development.meta/mc-app-development/authorization-code.htm
   final class MarketingCloud[F[_]] private (
     auth_endpoint: Uri,
     client_id: String,
     client_secret: String,
     instanceURL: InstanceURL,
-    config: HttpConfig
-  ) extends SalesforceToken("salesforce_mc") with Http4sClientDsl[F] with Login[F]
-      with UpdateConfig[HttpConfig, MarketingCloud[F]] {
+    config: AuthConfig,
+    middleware: Kleisli[F, Client[F], Client[F]]
+  ) extends SalesforceToken("salesforce_mc") with Http4sClientDsl[F] with Login[F, MarketingCloud[F]]
+      with UpdateConfig[AuthConfig, MarketingCloud[F]] {
 
-    val params: HttpParams = config.evalConfig
+    val params: AuthParams = config.evalConfig
 
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val getToken: Stream[F, McToken] =
         Stream.eval(
-          params.auth
+          params
             .authClient(client)
             .expect[McToken](
               POST(
@@ -70,50 +66,92 @@ object SalesforceToken {
         val refresh: Stream[F, Unit] =
           Stream
             .eval(token.get)
-            .flatMap(t => getToken.delayBy(params.auth.delay(Some(t.expires_in.seconds))).evalMap(token.set))
+            .flatMap(t => getToken.delayBy(params.delay(Some(t.expires_in.seconds))).evalMap(token.set))
             .repeat
-        Stream[F, Client[F]](Client[F] { req =>
-          Resource.eval(token.get).flatMap { t =>
-            val iu: Uri = instanceURL match {
-              case Rest => Uri.unsafeFromString(t.rest_instance_url).withPath(req.pathInfo)
-              case Soap => Uri.unsafeFromString(t.soap_instance_url).withPath(req.pathInfo)
+        Stream
+          .eval(middleware(client))
+          .map { c =>
+            Client[F] { req =>
+              Resource.eval(token.get).flatMap { t =>
+                val iu: Uri = instanceURL match {
+                  case Rest => Uri.unsafeFromString(t.rest_instance_url).withPath(req.pathInfo)
+                  case Soap => Uri.unsafeFromString(t.soap_instance_url).withPath(req.pathInfo)
+                }
+                c.run(
+                  req.withUri(iu).putHeaders(Authorization(Credentials.Token(CIString(t.token_type), t.access_token))))
+              }
             }
-            params
-              .httpClient(client)
-              .run(req.withUri(iu).putHeaders(Authorization(Credentials.Token(CIString(t.token_type), t.access_token))))
           }
-        }).concurrently(refresh)
+          .concurrently(refresh)
       }
     }
 
-    def updateConfig(f: HttpConfig => HttpConfig): MarketingCloud[F] =
-      new MarketingCloud[F](auth_endpoint, client_id, client_secret, instanceURL, f(config))
+    override def updateConfig(f: AuthConfig => AuthConfig): MarketingCloud[F] =
+      new MarketingCloud[F](
+        auth_endpoint = auth_endpoint,
+        client_id = client_id,
+        client_secret = client_secret,
+        instanceURL = instanceURL,
+        config = f(config),
+        middleware = middleware)
 
+    override def withMiddlewareM(f: Client[F] => F[Client[F]])(implicit F: Monad[F]): MarketingCloud[F] =
+      new MarketingCloud[F](
+        auth_endpoint = auth_endpoint,
+        client_id = client_id,
+        client_secret = client_secret,
+        instanceURL = instanceURL,
+        config = config,
+        middleware = compose(f, middleware))
   }
   object MarketingCloud {
-    def rest[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): MarketingCloud[F] =
-      new MarketingCloud[F](auth_endpoint, client_id, client_secret, Rest, HttpConfig(None))
-    def soap[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): MarketingCloud[F] =
-      new MarketingCloud[F](auth_endpoint, client_id, client_secret, Soap, HttpConfig(None))
+    def rest[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String)(implicit
+      F: Applicative[F]): MarketingCloud[F] =
+      new MarketingCloud[F](
+        auth_endpoint = auth_endpoint,
+        client_id = client_id,
+        client_secret = client_secret,
+        instanceURL = Rest,
+        config = AuthConfig(None),
+        middleware = Kleisli(F.pure))
+    def soap[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String)(implicit
+      F: Applicative[F]): MarketingCloud[F] =
+      new MarketingCloud[F](
+        auth_endpoint = auth_endpoint,
+        client_id = client_id,
+        client_secret = client_secret,
+        instanceURL = Soap,
+        config = AuthConfig(None),
+        middleware = Kleisli(F.pure))
   }
 
   //https://developer.salesforce.com/docs/atlas.en-us.api_iot.meta/api_iot/qs_auth_access_token.htm
+
+  final private case class IotToken(
+    access_token: String,
+    instance_url: String,
+    id: String,
+    token_type: String,
+    issued_at: String,
+    signature: String)
+
   final class Iot[F[_]] private (
     auth_endpoint: Uri,
     client_id: String,
     client_secret: String,
     username: String,
     password: String,
-    config: HttpConfig
-  ) extends SalesforceToken("salesforce_iot") with Http4sClientDsl[F] with Login[F]
-      with UpdateConfig[HttpConfig, Iot[F]] {
+    config: AuthConfig,
+    middleware: Kleisli[F, Client[F], Client[F]]
+  ) extends SalesforceToken("salesforce_iot") with Http4sClientDsl[F] with Login[F, Iot[F]]
+      with UpdateConfig[AuthConfig, Iot[F]] {
 
-    val params: HttpParams = config.evalConfig
+    val params: AuthParams = config.evalConfig
 
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val getToken: Stream[F, IotToken] =
         Stream.eval(
-          params.auth
+          params
             .authClient(client)
             .expect[IotToken](POST(
               UrlForm(
@@ -127,31 +165,54 @@ object SalesforceToken {
             ).putHeaders("Cache-Control" -> "no-cache")))
 
       getToken.evalMap(F.ref).flatMap { token =>
-        val refresh: Stream[F, Unit] = getToken.delayBy(params.auth.delay(None)).evalMap(token.set).repeat
+        val refresh: Stream[F, Unit] = getToken.delayBy(params.delay(None)).evalMap(token.set).repeat
 
-        Stream[F, Client[F]](Client[F] { req =>
-          Resource
-            .eval(token.get)
-            .flatMap(t =>
-              params
-                .httpClient(client)
-                .run(req
-                  .withUri(Uri.unsafeFromString(t.instance_url).withPath(req.pathInfo))
-                  .putHeaders(Authorization(Credentials.Token(CIString(t.token_type), t.access_token)))))
-        }).concurrently(refresh)
+        Stream
+          .eval(middleware(client))
+          .map { client =>
+            Client[F] { req =>
+              Resource
+                .eval(token.get)
+                .flatMap(t =>
+                  client.run(req
+                    .withUri(Uri.unsafeFromString(t.instance_url).withPath(req.pathInfo))
+                    .putHeaders(Authorization(Credentials.Token(CIString(t.token_type), t.access_token)))))
+            }
+          }
+          .concurrently(refresh)
       }
     }
 
-    def updateConfig(f: HttpConfig => HttpConfig): Iot[F] =
-      new Iot[F](auth_endpoint, client_id, client_secret, username, password, f(config))
+    override def updateConfig(f: AuthConfig => AuthConfig): Iot[F] =
+      new Iot[F](
+        auth_endpoint = auth_endpoint,
+        client_id = client_id,
+        client_secret = client_secret,
+        username = username,
+        password = password,
+        config = f(config),
+        middleware = middleware)
+
+    def withMiddlewareM(f: Client[F] => F[Client[F]])(implicit F: Monad[F]): Iot[F] =
+      new Iot[F](
+        auth_endpoint = auth_endpoint,
+        client_id = client_id,
+        client_secret = client_secret,
+        username = username,
+        password = password,
+        config = config,
+        middleware = compose(f, middleware))
   }
   object Iot {
-    def apply[F[_]](
-      auth_endpoint: Uri,
-      client_id: String,
-      client_secret: String,
-      username: String,
-      password: String): Iot[F] =
-      new Iot[F](auth_endpoint, client_id, client_secret, username, password, HttpConfig(Some(2.hours)))
+    def apply[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String, username: String, password: String)(
+      implicit F: Applicative[F]): Iot[F] =
+      new Iot[F](
+        auth_endpoint = auth_endpoint,
+        client_id = client_id,
+        client_secret = client_secret,
+        username = username,
+        password = password,
+        config = AuthConfig(Some(2.hours)),
+        middleware = Kleisli(F.pure))
   }
 }

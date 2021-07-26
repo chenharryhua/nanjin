@@ -1,8 +1,9 @@
 package com.github.chenharryhua.nanjin.http.auth
 
-import cats.data.NonEmptyList
+import cats.data.{Kleisli, NonEmptyList}
 import cats.effect.{Async, Resource}
 import cats.syntax.all.*
+import cats.{Applicative, Monad}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import fs2.Stream
 import io.circe.generic.auto.*
@@ -37,15 +38,17 @@ object AdobeToken {
     client_id: String,
     client_code: String,
     client_secret: String,
-    config: HttpConfig)
-      extends AdobeToken("access_token") with Http4sClientDsl[F] with Login[F] with UpdateConfig[HttpConfig, IMS[F]] {
+    config: AuthConfig,
+    middleware: Kleisli[F, Client[F], Client[F]])
+      extends AdobeToken("access_token") with Http4sClientDsl[F] with Login[F, IMS[F]]
+      with UpdateConfig[AuthConfig, IMS[F]] {
 
-    val params: HttpParams = config.evalConfig
+    val params: AuthParams = config.evalConfig
 
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val getToken: Stream[F, TokenResponse] =
         Stream.eval(
-          params.auth
+          params
             .authClient(client)
             .expect[TokenResponse](POST(
               UrlForm(
@@ -60,28 +63,52 @@ object AdobeToken {
         val refresh: Stream[F, Unit] =
           Stream
             .eval(token.get)
-            .flatMap(t => getToken.delayBy(params.auth.delay(Some(t.expires_in.millisecond))).evalMap(token.set))
+            .flatMap(t => getToken.delayBy(params.delay(Some(t.expires_in.millisecond))).evalMap(token.set))
             .repeat
-        Stream[F, Client[F]](Client[F] { req =>
-          Resource
-            .eval(token.get)
-            .flatMap(t =>
-              params
-                .httpClient(client)
-                .run(req.putHeaders(
-                  Authorization(Credentials.Token(CIString(t.token_type), t.access_token)),
-                  "x-api-key" -> client_id)))
-        }).concurrently(refresh)
+        Stream
+          .eval(middleware(client))
+          .map { c =>
+            Client[F] { req =>
+              Resource
+                .eval(token.get)
+                .flatMap(t =>
+                  c.run(req.putHeaders(
+                    Authorization(Credentials.Token(CIString(t.token_type), t.access_token)),
+                    "x-api-key" -> client_id)))
+            }
+          }
+          .concurrently(refresh)
       }
     }
 
-    def updateConfig(f: HttpConfig => HttpConfig): IMS[F] =
-      new IMS[F](auth_endpoint, client_id, client_code, client_secret, f(config))
+    override def updateConfig(f: AuthConfig => AuthConfig): IMS[F] =
+      new IMS[F](
+        auth_endpoint = auth_endpoint,
+        client_id = client_id,
+        client_code = client_code,
+        client_secret = client_secret,
+        config = f(config),
+        middleware = middleware)
 
+    override def withMiddlewareM(f: Client[F] => F[Client[F]])(implicit F: Monad[F]): IMS[F] =
+      new IMS[F](
+        auth_endpoint = auth_endpoint,
+        client_id = client_id,
+        client_code = client_code,
+        client_secret = client_secret,
+        config = config,
+        middleware = compose(f, middleware))
   }
   object IMS {
-    def apply[F[_]](auth_endpoint: Uri, client_id: String, client_code: String, client_secret: String): IMS[F] =
-      new IMS[F](auth_endpoint, client_id, client_code, client_secret, HttpConfig(None))
+    def apply[F[_]](auth_endpoint: Uri, client_id: String, client_code: String, client_secret: String)(implicit
+      F: Applicative[F]): IMS[F] =
+      new IMS[F](
+        auth_endpoint = auth_endpoint,
+        client_id = client_id,
+        client_code = client_code,
+        client_secret = client_secret,
+        config = AuthConfig(None),
+        middleware = Kleisli(F.pure))
   }
 
   // https://www.adobe.io/authentication/auth-methods.html#!AdobeDocs/adobeio-auth/master/JWT/JWT.md
@@ -93,10 +120,12 @@ object AdobeToken {
     technical_account_key: String,
     metascopes: NonEmptyList[AdobeMetascope],
     private_key: PrivateKey,
-    config: HttpConfig)
-      extends AdobeToken("jwt_token") with Http4sClientDsl[F] with Login[F] with UpdateConfig[HttpConfig, JWT[F]] {
+    config: AuthConfig,
+    middleware: Kleisli[F, Client[F], Client[F]])
+      extends AdobeToken("jwt_token") with Http4sClientDsl[F] with Login[F, JWT[F]]
+      with UpdateConfig[AuthConfig, JWT[F]] {
 
-    val params: HttpParams = config.evalConfig
+    val params: AuthParams = config.evalConfig
 
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val audience: String = auth_endpoint.withPath(path"c" / Segment(client_id)).renderString
@@ -111,12 +140,12 @@ object AdobeToken {
               .setSubject(technical_account_key)
               .setIssuer(ims_org_id)
               .setAudience(audience)
-              .setExpiration(Date.from(ts.plusSeconds(params.auth.tokenExpiresIn.toSeconds)))
+              .setExpiration(Date.from(ts.plusSeconds(params.tokenExpiresIn.toSeconds)))
               .addClaims(claims)
               .signWith(private_key, SignatureAlgorithm.RS256)
               .compact
           }.flatMap(jwt =>
-            params.auth
+            params
               .authClient(client)
               .expect[TokenResponse](
                 POST(
@@ -128,34 +157,50 @@ object AdobeToken {
         val refresh: Stream[F, Unit] =
           Stream
             .eval(token.get)
-            .flatMap(t => getToken.delayBy(params.auth.delay(Some(t.expires_in.millisecond))).evalMap(token.set))
+            .flatMap(t => getToken.delayBy(params.delay(Some(t.expires_in.millisecond))).evalMap(token.set))
             .repeat
 
-        Stream[F, Client[F]](Client[F] { req =>
-          Resource
-            .eval(token.get)
-            .flatMap(t =>
-              params
-                .httpClient(client)
-                .run(
-                  req.putHeaders(
-                    Authorization(Credentials.Token(CIString(t.token_type), t.access_token)),
-                    "x-gw-ims-org-id" -> ims_org_id,
-                    "x-api-key" -> client_id)))
-        }).concurrently(refresh)
+        Stream
+          .eval(middleware(client))
+          .map { c =>
+            Client[F] { req =>
+              Resource
+                .eval(token.get)
+                .flatMap(t =>
+                  c.run(
+                    req.putHeaders(
+                      Authorization(Credentials.Token(CIString(t.token_type), t.access_token)),
+                      "x-gw-ims-org-id" -> ims_org_id,
+                      "x-api-key" -> client_id)))
+            }
+          }
+          .concurrently(refresh)
       }
     }
 
-    def updateConfig(f: HttpConfig => HttpConfig): JWT[F] =
+    override def updateConfig(f: AuthConfig => AuthConfig): JWT[F] =
       new JWT[F](
-        auth_endpoint,
-        ims_org_id,
-        client_id,
-        client_secret,
-        technical_account_key,
-        metascopes,
-        private_key,
-        f(config))
+        auth_endpoint = auth_endpoint,
+        ims_org_id = ims_org_id,
+        client_id = client_id,
+        client_secret = client_secret,
+        technical_account_key = technical_account_key,
+        metascopes = metascopes,
+        private_key = private_key,
+        config = f(config),
+        middleware = middleware)
+
+    override def withMiddlewareM(f: Client[F] => F[Client[F]])(implicit F: Monad[F]): JWT[F] =
+      new JWT[F](
+        auth_endpoint = auth_endpoint,
+        ims_org_id = ims_org_id,
+        client_id = client_id,
+        client_secret = client_secret,
+        technical_account_key = technical_account_key,
+        metascopes = metascopes,
+        private_key = private_key,
+        config = config,
+        middleware = compose(f, middleware))
   }
 
   object JWT {
@@ -166,18 +211,19 @@ object AdobeToken {
       client_secret: String,
       technical_account_key: String,
       metascopes: NonEmptyList[AdobeMetascope],
-      private_key: PrivateKey): JWT[F] =
+      private_key: PrivateKey)(implicit F: Applicative[F]): JWT[F] =
       new JWT[F](
-        auth_endpoint,
-        ims_org_id,
-        client_id,
-        client_secret,
-        technical_account_key,
-        metascopes,
-        private_key,
-        HttpConfig(Some(1.day)))
+        auth_endpoint = auth_endpoint,
+        ims_org_id = ims_org_id,
+        client_id = client_id,
+        client_secret = client_secret,
+        technical_account_key = technical_account_key,
+        metascopes = metascopes,
+        private_key = private_key,
+        config = AuthConfig(Some(1.day)),
+        middleware = Kleisli(F.pure))
 
-    def apply[F[_]](
+    def apply[F[_]: Applicative](
       auth_endpoint: Uri,
       ims_org_id: String,
       client_id: String,
