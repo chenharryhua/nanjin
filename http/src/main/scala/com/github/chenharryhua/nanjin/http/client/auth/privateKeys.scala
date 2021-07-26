@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.http.auth
+package com.github.chenharryhua.nanjin.http.client.auth
 
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter

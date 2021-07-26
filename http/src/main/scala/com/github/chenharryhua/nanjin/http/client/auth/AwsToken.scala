@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.http.auth
+package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.data.{Kleisli, NonEmptyList}
 import cats.effect.Async
@@ -18,6 +18,9 @@ import org.http4s.{BasicCredentials, Credentials, Uri, UrlForm}
 import org.typelevel.ci.CIString
 
 import scala.concurrent.duration.*
+
+/** https://docs.aws.amazon.com/cognito/latest/developerguide/token-endpoint.html
+  */
 
 object AwsToken {
   final private case class AuthorizationCodeToken(
@@ -172,7 +175,9 @@ object AwsToken {
         val refresh: Stream[F, Unit] =
           Stream
             .eval(token.get)
-            .flatMap(t => getToken.delayBy(params.delay(Some(t.expires_in.seconds))).evalMap(token.set).repeat)
+            .flatMap(t => getToken.delayBy(params.delay(Some(t.expires_in.seconds))).evalMap(token.set))
+            .repeat
+
         Stream
           .eval(middleware(client))
           .map { client =>
