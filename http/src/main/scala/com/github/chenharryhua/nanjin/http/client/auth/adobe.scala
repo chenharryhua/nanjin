@@ -64,12 +64,12 @@ object adobe {
             .repeat
         Stream
           .eval(middleware(client))
-          .map { c =>
+          .map { client =>
             Client[F] { req =>
               Resource
                 .eval(token.get)
                 .flatMap(t =>
-                  c.run(req.putHeaders(
+                  client.run(req.putHeaders(
                     Authorization(Credentials.Token(CIString(t.token_type), t.access_token)),
                     "x-api-key" -> client_id)))
             }
@@ -96,6 +96,7 @@ object adobe {
         config = config,
         middleware = compose(f, middleware))
   }
+
   object IMS {
     def apply[F[_]](auth_endpoint: Uri, client_id: String, client_code: String, client_secret: String)(implicit
       F: Applicative[F]): IMS[F] =
@@ -158,12 +159,12 @@ object adobe {
 
         Stream
           .eval(middleware(client))
-          .map { c =>
+          .map { client =>
             Client[F] { req =>
               Resource
                 .eval(token.get)
                 .flatMap(t =>
-                  c.run(
+                  client.run(
                     req.putHeaders(
                       Authorization(Credentials.Token(CIString(t.token_type), t.access_token)),
                       "x-gw-ims-org-id" -> ims_org_id,

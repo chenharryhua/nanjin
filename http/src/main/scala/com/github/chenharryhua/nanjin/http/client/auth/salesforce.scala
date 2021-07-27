@@ -67,14 +67,14 @@ object salesforce {
             .repeat
         Stream
           .eval(middleware(client))
-          .map { c =>
+          .map { client =>
             Client[F] { req =>
               Resource.eval(token.get).flatMap { t =>
                 val iu: Uri = instanceURL match {
                   case Rest => Uri.unsafeFromString(t.rest_instance_url).withPath(req.pathInfo)
                   case Soap => Uri.unsafeFromString(t.soap_instance_url).withPath(req.pathInfo)
                 }
-                c.run(
+                client.run(
                   req.withUri(iu).putHeaders(Authorization(Credentials.Token(CIString(t.token_type), t.access_token))))
               }
             }
@@ -101,6 +101,7 @@ object salesforce {
         config = config,
         middleware = compose(f, middleware))
   }
+
   object MarketingCloud {
     def rest[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String)(implicit
       F: Applicative[F]): MarketingCloud[F] =
@@ -199,6 +200,7 @@ object salesforce {
         config = config,
         middleware = compose(f, middleware))
   }
+
   object Iot {
     def apply[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String, username: String, password: String)(
       implicit F: Applicative[F]): Iot[F] =

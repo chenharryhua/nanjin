@@ -85,12 +85,12 @@ object cognito {
             .repeat
         Stream
           .eval(middleware(client))
-          .map { c =>
+          .map { client =>
             Client[F] { req =>
               Resource
                 .eval(token.get)
                 .flatMap(t =>
-                  c.run(req.putHeaders(Authorization(Credentials.Token(CIString(t.token_type), t.access_token)))))
+                  client.run(req.putHeaders(Authorization(Credentials.Token(CIString(t.token_type), t.access_token)))))
             }
           }
           .concurrently(refresh)
@@ -225,8 +225,11 @@ object cognito {
         Kleisli(F.pure)
       )
 
-    def apply[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String, scope: String)(implicit
-      F: Applicative[F]): ClientCredentials[F] =
+    def apply[F[_]: Applicative](
+      auth_endpoint: Uri,
+      client_id: String,
+      client_secret: String,
+      scope: String): ClientCredentials[F] =
       apply(auth_endpoint, client_id, client_secret, NonEmptyList.one(scope))
   }
 }
