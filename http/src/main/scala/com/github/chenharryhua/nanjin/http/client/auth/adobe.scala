@@ -96,6 +96,7 @@ object adobe {
         config = config,
         middleware = compose(f, middleware))
   }
+
   object IMS {
     def apply[F[_]](auth_endpoint: Uri, client_id: String, client_code: String, client_secret: String)(implicit
       F: Applicative[F]): IMS[F] =

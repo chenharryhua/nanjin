@@ -101,6 +101,7 @@ object salesforce {
         config = config,
         middleware = compose(f, middleware))
   }
+
   object MarketingCloud {
     def rest[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String)(implicit
       F: Applicative[F]): MarketingCloud[F] =
@@ -199,6 +200,7 @@ object salesforce {
         config = config,
         middleware = compose(f, middleware))
   }
+
   object Iot {
     def apply[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String, username: String, password: String)(
       implicit F: Applicative[F]): Iot[F] =
