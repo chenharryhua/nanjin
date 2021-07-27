@@ -225,8 +225,11 @@ object cognito {
         Kleisli(F.pure)
       )
 
-    def apply[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String, scope: String)(implicit
-      F: Applicative[F]): ClientCredentials[F] =
+    def apply[F[_]: Applicative](
+      auth_endpoint: Uri,
+      client_id: String,
+      client_secret: String,
+      scope: String): ClientCredentials[F] =
       apply(auth_endpoint, client_id, client_secret, NonEmptyList.one(scope))
   }
 }
