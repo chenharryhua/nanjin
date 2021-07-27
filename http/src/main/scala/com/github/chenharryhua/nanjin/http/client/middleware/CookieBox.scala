@@ -1,9 +1,10 @@
 package com.github.chenharryhua.nanjin.http.client.middleware
 
 import cats.effect.{Async, Resource}
+import cats.syntax.eq.*
 import org.http4s.RequestCookie
 import org.http4s.client.Client
-import org.typelevel.ci.CIString
+import org.http4s.headers.`Set-Cookie`
 
 import java.net.{CookieManager, CookieStore, HttpCookie, URI}
 import scala.collection.JavaConverters.*
@@ -26,7 +27,7 @@ private[middleware] trait CookieBox {
         out <- client.run(cookies.foldLeft(req) { case (r, c) => r.addCookie(c) })
       } yield {
         out.headers.headers
-          .filter(_.name == CIString("Set-Cookie"))
+          .filter(_.name === `Set-Cookie`.name)
           .flatMap(c => HttpCookie.parse(c.value).asScala)
           .foreach(hc => cookieStore.add(URI.create(req.uri.renderString), hc))
         out
