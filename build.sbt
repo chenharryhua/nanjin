@@ -301,18 +301,31 @@ val ftpLib = Seq(
   "com.lightbend.akka" %% "akka-stream-alpakka-ftp" % akkaFtp
 )
 
-val http4sLib = Seq(
-  "org.http4s" %% "http4s-blaze-client",
-  "org.http4s" %% "http4s-circe",
-  "org.http4s" %% "http4s-dsl"
-).map(_ % http4s)
-
 val dbLib = doobieLib ++ quillLib ++ neotypesLib
 
 val logLib = Seq(
   "org.log4s" %% "log4s" % "1.10.0",
   "org.slf4j"            % "slf4j-api" % "1.7.32"
 )
+
+val http4sLib = Seq(
+  "org.http4s" %% "http4s-blaze-server",
+  "org.http4s" %% "http4s-blaze-client",
+  "org.http4s" %% "http4s-circe",
+  "org.http4s" %% "http4s-dsl"
+).map(_ % http4s)
+
+val jwtLib = Seq(
+  "org.bouncycastle" % "bcpkix-jdk15on" % "1.69",
+  "io.jsonwebtoken"  % "jjwt-api"       % "0.11.2",
+  "io.jsonwebtoken"  % "jjwt-impl"      % "0.11.2",
+  "io.jsonwebtoken"  % "jjwt-jackson"   % "0.11.2"
+)
+
+val cometdLib = Seq(
+  "org.eclipse.jetty" % "jetty-util-ajax"                % "11.0.6",
+  "org.eclipse.jetty" % "jetty-client"                   % "11.0.6",
+  "org.cometd.java"   % "cometd-java-client-http-common" % "7.0.3")
 
 lazy val common = (project in file("common"))
   .settings(commonSettings: _*)
@@ -328,14 +341,8 @@ lazy val http = (project in file("http"))
   .settings(commonSettings: _*)
   .settings(name := "nj-http")
   .settings(
-    libraryDependencies ++=
-      Seq(
-        "org.bouncycastle"                    % "bcpkix-jdk15on" % "1.69",
-        "io.jsonwebtoken"                     % "jjwt-api"       % "0.11.2",
-        "io.jsonwebtoken"                     % "jjwt-impl"      % "0.11.2",
-        "io.jsonwebtoken"                     % "jjwt-jackson"   % "0.11.2",
-        "org.http4s" %% "http4s-blaze-server" % http4s           % Test
-      ) ++ http4sLib ++ fs2Lib ++ effectLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ logLib,
+    libraryDependencies ++= jwtLib ++ cometdLib ++ http4sLib ++
+      fs2Lib ++ effectLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ logLib,
     excludeDependencies ++= Seq(ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
   )
 
@@ -469,3 +476,4 @@ lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
     .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark, bundle)
+
