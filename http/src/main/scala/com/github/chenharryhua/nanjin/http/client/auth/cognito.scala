@@ -47,7 +47,7 @@ object cognito {
 
     val params: AuthParams = config.evalConfig
 
-    override def login(client: Client[F])(implicit F: Async[F]): fs2.Stream[F, Client[F]] = {
+    override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
 
       val authURI = auth_endpoint.withPath(path"/oauth2/token")
       val getToken: Stream[F, AuthorizationCodeToken] =
