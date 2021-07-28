@@ -29,6 +29,8 @@ object salesforce {
     soap_instance_url: String,
     rest_instance_url: String)
 
+  implicit private val expiralbeMcToken: IsExpirableToken[McToken] = (a: McToken) => a.expires_in.seconds
+
   sealed private trait InstanceURL
   private case object Rest extends InstanceURL
   private case object Soap extends InstanceURL
@@ -61,10 +63,8 @@ object salesforce {
 
       getToken.evalMap(F.ref).flatMap { token =>
         val refresh: Stream[F, Unit] =
-          Stream
-            .eval(token.get)
-            .flatMap(t => getToken.delayBy(params.delay(Some(t.expires_in.seconds))).evalMap(token.set))
-            .repeat
+          Stream.eval(token.get).flatMap(t => getToken.delayBy(params.calcDelay(t)).evalMap(token.set)).repeat
+
         Stream
           .eval(middleware(client))
           .map { client =>
@@ -110,7 +110,7 @@ object salesforce {
         client_id = client_id,
         client_secret = client_secret,
         instanceURL = Rest,
-        config = AuthConfig(None),
+        config = AuthConfig(2.hour),
         middleware = Kleisli(F.pure))
     def soap[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String)(implicit
       F: Applicative[F]): MarketingCloud[F] =
@@ -119,7 +119,7 @@ object salesforce {
         client_id = client_id,
         client_secret = client_secret,
         instanceURL = Soap,
-        config = AuthConfig(None),
+        config = AuthConfig(2.hour),
         middleware = Kleisli(F.pure))
   }
 
@@ -162,7 +162,7 @@ object salesforce {
             ).putHeaders("Cache-Control" -> "no-cache")))
 
       getToken.evalMap(F.ref).flatMap { token =>
-        val refresh: Stream[F, Unit] = getToken.delayBy(params.delay(None)).evalMap(token.set).repeat
+        val refresh: Stream[F, Unit] = getToken.delayBy(params.calcDelay).evalMap(token.set).repeat
 
         Stream
           .eval(middleware(client))
@@ -210,7 +210,7 @@ object salesforce {
         client_secret = client_secret,
         username = username,
         password = password,
-        config = AuthConfig(Some(2.hours)),
+        config = AuthConfig(2.hours),
         middleware = Kleisli(F.pure))
   }
 }

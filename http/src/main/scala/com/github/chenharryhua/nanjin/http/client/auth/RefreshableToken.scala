@@ -22,8 +22,13 @@ import scala.concurrent.duration.DurationLong
 final private case class RefreshableTokenResponse(
   token_type: String,
   access_token: String,
-  expires_in: Long,
+  expires_in: Long, // in seconds
   refresh_token: String)
+
+private object RefreshableTokenResponse {
+  implicit val expirableRefreshableTokenResponse: IsExpirableToken[RefreshableTokenResponse] =
+    (a: RefreshableTokenResponse) => a.expires_in.seconds
+}
 
 final class RefreshableToken[F[_]] private (
   auth_endpoint: Uri,
@@ -60,7 +65,7 @@ final class RefreshableToken[F[_]] private (
                   authURI,
                   Authorization(BasicCredentials(client_id, client_secret))
                 ).putHeaders("Cache-Control" -> "no-cache"))
-              .delayBy(params.delay(Some(t.expires_in.seconds)))
+              .delayBy(params.calcDelay(t))
           }
           .evalMap(token.set)
           .repeat
@@ -102,6 +107,6 @@ object RefreshableToken {
       auth_endpoint = auth_endpoint,
       client_id = client_id,
       client_secret = client_secret,
-      config = AuthConfig(None),
+      config = AuthConfig(1.day),
       middleware = Kleisli(F.pure))
 }

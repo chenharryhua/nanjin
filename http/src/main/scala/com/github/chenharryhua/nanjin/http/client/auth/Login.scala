@@ -6,6 +6,8 @@ import cats.effect.Async
 import fs2.Stream
 import org.http4s.client.Client
 
+import scala.concurrent.duration.FiniteDuration
+
 trait Login[F[_], A] {
   def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]]
 
@@ -16,4 +18,8 @@ trait Login[F[_], A] {
   def withMiddlewareM(f: Client[F] => F[Client[F]])(implicit F: Monad[F]): A
   final def withMiddleware(f: Client[F] => Client[F])(implicit F: Monad[F]): A =
     withMiddlewareM(a => F.pure(f(a)))
+}
+
+private[auth] trait IsExpirableToken[A] {
+  def expiresIn(a: A): FiniteDuration
 }

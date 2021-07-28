@@ -12,11 +12,11 @@ package object middleware extends CookieBox {
   def exponentialRetry[F[_]: Temporal](maxWait: FiniteDuration, maxRetries: Int)(client: Client[F]): Client[F] =
     Retry[F](RetryPolicy[F](exponentialBackoff(maxWait, maxRetries), (_, r) => isErrorOrRetriableStatus(r)))(client)
 
-  def unsecureLogging[F[_]: Async](client: Client[F]): Client[F] =
+  def logUnsecurely[F[_]: Async](client: Client[F]): Client[F] =
     Logger(logHeaders = true, logBody = true, _ => false)(client)
-
-  def simpleLogging[F[_]: Async](client: Client[F]): Client[F] =
-    Logger(logHeaders = false, logBody = false)(client)
+  def logBoth[F[_]: Async](client: Client[F]): Client[F] = Logger(logHeaders = true, logBody = true)(client)
+  def logHead[F[_]: Async](client: Client[F]): Client[F] = Logger(logHeaders = true, logBody = false)(client)
+  def logBody[F[_]: Async](client: Client[F]): Client[F] = Logger(logHeaders = false, logBody = true)(client)
 
   def cookieJar[F[_]: Async](client: Client[F]): F[Client[F]] = CookieJar.impl[F](client)
 }

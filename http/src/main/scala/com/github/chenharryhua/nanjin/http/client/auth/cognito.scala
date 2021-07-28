@@ -30,6 +30,8 @@ object cognito {
     token_type: String,
     expires_in: Int // in second
   )
+  implicit private val expirableAuthorizationCodeToken: IsExpirableToken[AuthorizationCodeToken] =
+    (a: AuthorizationCodeToken) => a.expires_in.seconds
 
   final class AuthorizationCode[F[_]] private (
     auth_endpoint: Uri,
@@ -79,7 +81,7 @@ object cognito {
                   authURI,
                   Authorization(BasicCredentials(client_id, client_secret))
                 ).putHeaders("Cache-Control" -> "no-cache"))
-                .delayBy(params.delay(Some(t.expires_in.seconds)))
+                .delayBy(params.calcDelay(t))
             }
             .evalMap(token.set)
             .repeat
@@ -135,7 +137,7 @@ object cognito {
         code = code,
         redirect_uri = redirect_uri,
         code_verifier = code_verifier,
-        config = AuthConfig(None),
+        config = AuthConfig(1.day),
         Kleisli(F.pure))
   }
 
@@ -144,6 +146,9 @@ object cognito {
     token_type: String,
     expires_in: Int // in second
   )
+
+  implicit private val expirableClientCredentialsToken: IsExpirableToken[ClientCredentialsToken] =
+    (a: ClientCredentialsToken) => a.expires_in.seconds
 
   final class ClientCredentials[F[_]] private (
     auth_endpoint: Uri,
@@ -173,10 +178,7 @@ object cognito {
 
       getToken.evalMap(F.ref).flatMap { token =>
         val refresh: Stream[F, Unit] =
-          Stream
-            .eval(token.get)
-            .flatMap(t => getToken.delayBy(params.delay(Some(t.expires_in.seconds))).evalMap(token.set))
-            .repeat
+          Stream.eval(token.get).flatMap(t => getToken.delayBy(params.calcDelay(t))).evalMap(token.set).repeat
 
         Stream
           .eval(middleware(client))
@@ -221,7 +223,7 @@ object cognito {
         client_id = client_id,
         client_secret = client_secret,
         scopes = scopes,
-        config = AuthConfig(None),
+        config = AuthConfig(1.day),
         Kleisli(F.pure)
       )
 
