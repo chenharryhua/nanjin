@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.Functor
 import cats.effect.Async
+import cats.kernel.Order
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
@@ -16,8 +17,9 @@ import scala.concurrent.duration.*
   maxWait: FiniteDuration,
   tokenExpiresIn: FiniteDuration,
   unsecureLog: Boolean) {
-  def delay(tokenExpire: Option[FiniteDuration]): FiniteDuration =
-    tokenExpire.filter(_ < tokenExpiresIn).getOrElse(tokenExpiresIn) - maxWait * maxRetries.toLong
+  def calcDelay: FiniteDuration = tokenExpiresIn - maxWait * maxRetries.toLong
+  def calcDelay[A](a: A)(implicit T: IsExpirableToken[A]): FiniteDuration =
+    Order.min(T.expiresIn(a), tokenExpiresIn) - maxWait * maxRetries.toLong
 
   def authClient[F[_]](client: Client[F])(implicit F: Async[F]): Client[F] =
     Retry[F](RetryPolicy[F](exponentialBackoff(maxWait, maxRetries), (_, r) => isErrorOrRetriableStatus(r)))(
@@ -62,6 +64,6 @@ final private[auth] case class AuthConfig private (value: Fix[AuthConfigF]) {
   def evalConfig: AuthParams = scheme.cata(algebra).apply(value)
 }
 private object AuthConfig {
-  def apply(expiresIn: Option[FiniteDuration]): AuthConfig = AuthConfig(
-    Fix(AuthConfigF.InitParams[Fix[AuthConfigF]](expiresIn.getOrElse(365.days))))
+  def apply(expiresIn: FiniteDuration): AuthConfig =
+    AuthConfig(Fix(AuthConfigF.InitParams[Fix[AuthConfigF]](expiresIn)))
 }

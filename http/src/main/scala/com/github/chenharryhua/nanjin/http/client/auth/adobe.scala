@@ -31,6 +31,9 @@ object adobe {
     expires_in: Long, // in milliseconds
     access_token: String)
 
+  implicit private val expirableTokenResponse: IsExpirableToken[TokenResponse] = (a: TokenResponse) =>
+    a.expires_in.millisecond
+
   final class IMS[F[_]] private (
     auth_endpoint: Uri,
     client_id: String,
@@ -58,10 +61,7 @@ object adobe {
 
       getToken.evalMap(F.ref).flatMap { token =>
         val refresh: Stream[F, Unit] =
-          Stream
-            .eval(token.get)
-            .flatMap(t => getToken.delayBy(params.delay(Some(t.expires_in.millisecond))).evalMap(token.set))
-            .repeat
+          Stream.eval(token.get).flatMap(t => getToken.delayBy(params.calcDelay(t)).evalMap(token.set)).repeat
         Stream
           .eval(middleware(client))
           .map { client =>
@@ -105,7 +105,7 @@ object adobe {
         client_id = client_id,
         client_code = client_code,
         client_secret = client_secret,
-        config = AuthConfig(None),
+        config = AuthConfig(1.day),
         middleware = Kleisli(F.pure))
   }
 
@@ -152,10 +152,7 @@ object adobe {
 
       getToken.evalMap(F.ref).flatMap { token =>
         val refresh: Stream[F, Unit] =
-          Stream
-            .eval(token.get)
-            .flatMap(t => getToken.delayBy(params.delay(Some(t.expires_in.millisecond))).evalMap(token.set))
-            .repeat
+          Stream.eval(token.get).flatMap(t => getToken.delayBy(params.calcDelay(t)).evalMap(token.set)).repeat
 
         Stream
           .eval(middleware(client))
@@ -217,7 +214,7 @@ object adobe {
         technical_account_key = technical_account_key,
         metascopes = metascopes,
         private_key = private_key,
-        config = AuthConfig(Some(1.day)),
+        config = AuthConfig(1.day),
         middleware = Kleisli(F.pure))
 
     def apply[F[_]: Applicative](
