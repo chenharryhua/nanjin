@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.data.{Kleisli, NonEmptyList}
+import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.Supervisor
 import cats.effect.syntax.all.*
-import cats.effect.kernel.{Async, Ref, Resource}
 import cats.syntax.all.*
 import cats.{Applicative, Monad}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
