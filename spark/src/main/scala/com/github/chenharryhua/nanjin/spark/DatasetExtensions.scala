@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark
 
-import cats.effect.Sync
+import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.database.TableName
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.database.DatabaseSettings

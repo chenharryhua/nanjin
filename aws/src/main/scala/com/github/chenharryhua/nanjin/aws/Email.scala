@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.aws
 
 import cats.Applicative
-import cats.effect.Sync
+import cats.effect.kernel.Sync
 import com.amazonaws.regions.Regions
 import com.amazonaws.services.simpleemail.model.*
 import com.amazonaws.services.simpleemail.{AmazonSimpleEmailService, AmazonSimpleEmailServiceClientBuilder}
@@ -24,7 +24,7 @@ object Email {
 
     override def send(content: EmailContent): F[SendEmailResult] = {
       val request = new SendEmailRequest()
-        .withDestination(new Destination().withToAddresses(content.to *))
+        .withDestination(new Destination().withToAddresses(content.to*))
         .withMessage(
           new Message()
             .withBody(new Body().withHtml(new Content().withCharset("UTF-8").withData(content.body)))

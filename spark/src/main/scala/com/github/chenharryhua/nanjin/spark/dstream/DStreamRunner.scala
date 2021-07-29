@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.dstream
 
 import cats.data.Kleisli
-import cats.effect.Async
+import cats.effect.kernel.Async
 import cats.effect.std.Dispatcher
 import fs2.Stream
 import org.apache.spark.SparkContext

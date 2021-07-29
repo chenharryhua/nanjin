@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.sstream
 
-import cats.effect.Async
+import cats.effect.kernel.Async
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.utils.random4d
 import fs2.Stream

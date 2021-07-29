@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark
 
-import cats.effect.{Resource, Sync}
+import cats.effect.kernel.{Resource, Sync}
 import com.github.chenharryhua.nanjin.common.{NJLogLevel, UpdateConfig}
 import fs2.Stream
 import monocle.macros.Lenses

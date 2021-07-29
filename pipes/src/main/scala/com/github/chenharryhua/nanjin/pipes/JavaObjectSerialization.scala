@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.pipes
 
-import cats.effect.{Async, Resource, Sync}
+import cats.effect.kernel.{Async, Resource, Sync}
 import cats.syntax.all.*
 import fs2.io.toInputStream
 import fs2.{Pipe, Pull, Stream}

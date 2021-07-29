@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.effect.Async
+import cats.effect.kernel.Async
 import com.github.chenharryhua.nanjin.spark.RddExt
 import fs2.Stream
 import org.apache.hadoop.conf.Configuration

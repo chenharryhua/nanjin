@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.alert
 
-import cats.effect.Sync
+import cats.effect.kernel.Sync
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ServiceParams}
 

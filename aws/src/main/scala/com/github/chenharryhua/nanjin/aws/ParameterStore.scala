@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.aws
 
 import cats.Applicative
-import cats.effect.Sync
+import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.amazonaws.regions.Regions
 import com.amazonaws.services.simplesystemsmanagement.model.GetParametersRequest

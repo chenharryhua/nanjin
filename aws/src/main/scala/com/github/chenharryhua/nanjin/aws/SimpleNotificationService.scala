@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.aws
 
-import cats.effect.Sync
+import cats.effect.kernel.Sync
 import cats.syntax.apply.*
 import com.amazonaws.regions.Regions
 import com.amazonaws.services.sns.model.{PublishRequest, PublishResult}

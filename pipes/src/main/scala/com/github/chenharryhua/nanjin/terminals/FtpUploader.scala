@@ -5,7 +5,7 @@ import akka.stream.alpakka.ftp.{FtpSettings, FtpsSettings, RemoteFileSettings, S
 import akka.stream.scaladsl.Source
 import akka.stream.{IOResult, Materializer}
 import akka.util.ByteString
-import cats.effect.Async
+import cats.effect.kernel.Async
 import com.github.chenharryhua.nanjin.pipes
 import fs2.interop.reactivestreams.StreamOps
 import fs2.{Pipe, Stream}

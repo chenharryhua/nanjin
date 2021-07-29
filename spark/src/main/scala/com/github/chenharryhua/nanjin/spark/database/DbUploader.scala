@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.database
 
-import cats.effect.Sync
+import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.database.TableName
 import com.github.chenharryhua.nanjin.database.DatabaseSettings
 import org.apache.spark.sql.{Dataset, SaveMode}

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.data.{Chain, Writer}
-import cats.effect.Sync
+import cats.effect.kernel.Sync
 import cats.mtl.Tell
 import cats.syntax.functor.*
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}

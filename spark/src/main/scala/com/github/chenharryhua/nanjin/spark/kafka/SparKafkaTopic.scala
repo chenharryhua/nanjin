@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import akka.actor.ActorSystem
 import cats.Foldable
 import cats.data.Kleisli
-import cats.effect.{Async, Sync}
+import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
