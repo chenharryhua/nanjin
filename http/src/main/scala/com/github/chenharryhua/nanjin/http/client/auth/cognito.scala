@@ -1,12 +1,12 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.data.{Kleisli, NonEmptyList}
-import cats.effect.Async
-import cats.effect.kernel.Resource
+import cats.effect.std.Supervisor
 import cats.effect.syntax.all.*
+import cats.effect.kernel.{Async, Ref, Resource}
+import cats.syntax.all.*
 import cats.{Applicative, Monad}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import fs2.Stream
 import io.circe.generic.auto.*
 import org.http4s.Method.POST
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
@@ -47,55 +47,47 @@ object cognito {
 
     val params: AuthParams = config.evalConfig
 
-    override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
+    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
 
       val authURI = auth_endpoint.withPath(path"/oauth2/token")
-      val getToken: Stream[F, Token] =
-        Stream.eval(
-          params
-            .authClient(client)
-            .expect[Token](POST(
-              UrlForm(
-                "grant_type" -> "authorization_code",
-                "client_id" -> client_id,
-                "code" -> code,
-                "redirect_uri" -> redirect_uri,
-                "code_verifier" -> code_verifier
-              ),
-              authURI,
-              Authorization(BasicCredentials(client_id, client_secret))
-            ).putHeaders("Cache-Control" -> "no-cache")))
+      val getToken: F[Token] =
+        params
+          .authClient(client)
+          .expect[Token](POST(
+            UrlForm(
+              "grant_type" -> "authorization_code",
+              "client_id" -> client_id,
+              "code" -> code,
+              "redirect_uri" -> redirect_uri,
+              "code_verifier" -> code_verifier
+            ),
+            authURI,
+            Authorization(BasicCredentials(client_id, client_secret))
+          ).putHeaders("Cache-Control" -> "no-cache"))
 
-      getToken.evalMap(F.ref).flatMap { token =>
-        val refresh: Stream[F, Unit] =
-          Stream
-            .eval(token.get)
-            .evalMap { t =>
-              params
-                .authClient(client)
-                .expect[Token](POST(
-                  UrlForm(
-                    "grant_type" -> "refresh_token",
-                    "client_id" -> client_id,
-                    "refresh_token" -> t.refresh_token),
-                  authURI,
-                  Authorization(BasicCredentials(client_id, client_secret))
-                ).putHeaders("Cache-Control" -> "no-cache"))
-                .delayBy(params.whenNext(t))
-            }
-            .evalMap(token.set)
-            .repeat
-        Stream
-          .eval(middleware(client))
-          .map { client =>
-            Client[F] { req =>
-              Resource
-                .eval(token.get)
-                .flatMap(t =>
-                  client.run(req.putHeaders(Authorization(Credentials.Token(CIString(t.token_type), t.access_token)))))
-            }
-          }
-          .concurrently(refresh)
+      def updateToken(ref: Ref[F, Token]): F[Unit] = for {
+        old <- ref.get
+        newToken <- params
+          .authClient(client)
+          .expect[Token](POST(
+            UrlForm("grant_type" -> "refresh_token", "client_id" -> client_id, "refresh_token" -> old.refresh_token),
+            authURI,
+            Authorization(BasicCredentials(client_id, client_secret))
+          ).putHeaders("Cache-Control" -> "no-cache"))
+          .delayBy(params.whenNext(old))
+        _ <- ref.set(newToken)
+      } yield ()
+
+      for {
+        supervisor <- Supervisor[F]
+        ref <- Resource.eval(getToken.flatMap(F.ref))
+        _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
+        c <- Resource.eval(middleware(client))
+      } yield Client[F] { req =>
+        for {
+          token <- Resource.eval(ref.get)
+          out <- c.run(req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token))))
+        } yield out
       }
     }
 
@@ -159,35 +151,35 @@ object cognito {
 
     val params: AuthParams = config.evalConfig
 
-    override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
-      val getToken: Stream[F, Token] =
-        Stream.eval(
-          params
-            .authClient(client)
-            .expect[Token](POST(
-              UrlForm(
-                "grant_type" -> "client_credentials",
-                "scope" -> scopes.toList.mkString(" ")
-              ),
-              auth_endpoint.withPath(path"/oauth2/token"),
-              Authorization(BasicCredentials(client_id, client_secret))
-            ).putHeaders("Cache-Control" -> "no-cache")))
+    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
+      val getToken: F[Token] =
+        params
+          .authClient(client)
+          .expect[Token](POST(
+            UrlForm(
+              "grant_type" -> "client_credentials",
+              "scope" -> scopes.toList.mkString(" ")
+            ),
+            auth_endpoint.withPath(path"/oauth2/token"),
+            Authorization(BasicCredentials(client_id, client_secret))
+          ).putHeaders("Cache-Control" -> "no-cache"))
 
-      getToken.evalMap(F.ref).flatMap { token =>
-        val refresh: Stream[F, Unit] =
-          Stream.eval(token.get).flatMap(t => getToken.delayBy(params.whenNext(t))).evalMap(token.set).repeat
+      def updateToken(ref: Ref[F, Token]): F[Unit] = for {
+        old <- ref.get
+        newToken <- getToken.delayBy(params.whenNext(old))
+        _ <- ref.set(newToken)
+      } yield ()
 
-        Stream
-          .eval(middleware(client))
-          .map { client =>
-            Client[F] { req =>
-              Resource
-                .eval(token.get)
-                .flatMap(t =>
-                  client.run(req.putHeaders(Authorization(Credentials.Token(CIString(t.token_type), t.access_token)))))
-            }
-          }
-          .concurrently(refresh)
+      for {
+        supervisor <- Supervisor[F]
+        ref <- Resource.eval(getToken.flatMap(F.ref))
+        _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
+        c <- Resource.eval(middleware(client))
+      } yield Client[F] { req =>
+        for {
+          token <- Resource.eval(ref.get)
+          out <- c.run(req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token))))
+        } yield out
       }
     }
 

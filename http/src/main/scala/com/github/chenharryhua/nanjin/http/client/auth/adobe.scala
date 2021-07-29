@@ -1,11 +1,12 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.data.{Kleisli, NonEmptyList}
-import cats.effect.{Async, Resource}
+import cats.effect.std.Supervisor
+import cats.effect.syntax.all.*
+import cats.effect.kernel.{Async, Ref, Resource}
 import cats.syntax.all.*
 import cats.{Applicative, Monad}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import fs2.Stream
 import io.circe.generic.auto.*
 import io.jsonwebtoken.{Jwts, SignatureAlgorithm}
 import org.http4s.Method.*
@@ -43,36 +44,38 @@ object adobe {
 
     val params: AuthParams = config.evalConfig
 
-    override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
-      val getToken: Stream[F, Token] =
-        Stream.eval(
-          params
-            .authClient(client)
-            .expect[Token](POST(
-              UrlForm(
-                "grant_type" -> "authorization_code",
-                "client_id" -> client_id,
-                "client_secret" -> client_secret,
-                "code" -> client_code),
-              auth_endpoint.withPath(path"/ims/token/v1")
-            ).putHeaders("Cache-Control" -> "no-cache")))
+    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
+      val getToken: F[Token] =
+        params
+          .authClient(client)
+          .expect[Token](POST(
+            UrlForm(
+              "grant_type" -> "authorization_code",
+              "client_id" -> client_id,
+              "client_secret" -> client_secret,
+              "code" -> client_code),
+            auth_endpoint.withPath(path"/ims/token/v1")
+          ).putHeaders("Cache-Control" -> "no-cache"))
 
-      getToken.evalMap(F.ref).flatMap { token =>
-        val refresh: Stream[F, Unit] =
-          Stream.eval(token.get).flatMap(t => getToken.delayBy(params.whenNext(t)).evalMap(token.set)).repeat
-        Stream
-          .eval(middleware(client))
-          .map { client =>
-            Client[F] { req =>
-              Resource
-                .eval(token.get)
-                .flatMap(t =>
-                  client.run(req.putHeaders(
-                    Authorization(Credentials.Token(CIString(t.token_type), t.access_token)),
-                    "x-api-key" -> client_id)))
-            }
-          }
-          .concurrently(refresh)
+      def updateToken(ref: Ref[F, Token]): F[Unit] = for {
+        old <- ref.get
+        newToken <- getToken.delayBy(params.whenNext(old))
+        _ <- ref.set(newToken)
+      } yield ()
+
+      for {
+        supervisor <- Supervisor[F]
+        ref <- Resource.eval(getToken.flatMap(F.ref))
+        _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
+        c <- Resource.eval(middleware(client))
+      } yield Client[F] { req =>
+        for {
+          token <- Resource.eval(ref.get)
+          out <- c.run(
+            req.putHeaders(
+              Authorization(Credentials.Token(CIString(token.token_type), token.access_token)),
+              "x-api-key" -> client_id))
+        } yield out
       }
     }
 
@@ -128,51 +131,51 @@ object adobe {
 
     val params: AuthParams = config.evalConfig
 
-    override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
+    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
       val audience: String = auth_endpoint.withPath(path"c" / Segment(client_id)).renderString
       val claims: java.util.Map[String, AnyRef] = metascopes.map { ms =>
         auth_endpoint.withPath(path"s" / Segment(ms.name)).renderString -> (TRUE: AnyRef)
       }.toList.toMap.asJava
 
-      val getToken: Stream[F, Token] =
-        Stream.eval(
-          F.realTimeInstant.map { ts =>
-            Jwts.builder
-              .setSubject(technical_account_key)
-              .setIssuer(ims_org_id)
-              .setAudience(audience)
-              .setExpiration(Date.from(ts.plusSeconds(params.tokenExpiresIn.toSeconds)))
-              .addClaims(claims)
-              .signWith(private_key, SignatureAlgorithm.RS256)
-              .compact
-          }.flatMap(jwt =>
-            params
-              .authClient(client)
-              .expect[Token](
-                POST(
-                  UrlForm("client_id" -> client_id, "client_secret" -> client_secret, "jwt_token" -> jwt),
-                  auth_endpoint.withPath(path"/ims/exchange/jwt")
-                ).putHeaders("Cache-Control" -> "no-cache"))))
+      val getToken: F[Token] =
+        F.realTimeInstant.map { ts =>
+          Jwts.builder
+            .setSubject(technical_account_key)
+            .setIssuer(ims_org_id)
+            .setAudience(audience)
+            .setExpiration(Date.from(ts.plusSeconds(params.tokenExpiresIn.toSeconds)))
+            .addClaims(claims)
+            .signWith(private_key, SignatureAlgorithm.RS256)
+            .compact
+        }.flatMap(jwt =>
+          params
+            .authClient(client)
+            .expect[Token](
+              POST(
+                UrlForm("client_id" -> client_id, "client_secret" -> client_secret, "jwt_token" -> jwt),
+                auth_endpoint.withPath(path"/ims/exchange/jwt")
+              ).putHeaders("Cache-Control" -> "no-cache")))
 
-      getToken.evalMap(F.ref).flatMap { token =>
-        val refresh: Stream[F, Unit] =
-          Stream.eval(token.get).flatMap(t => getToken.delayBy(params.whenNext(t)).evalMap(token.set)).repeat
+      def updateToken(ref: Ref[F, Token]): F[Unit] = for {
+        old <- ref.get
+        newToken <- getToken.delayBy(params.whenNext(old))
+        _ <- ref.set(newToken)
+      } yield ()
 
-        Stream
-          .eval(middleware(client))
-          .map { client =>
-            Client[F] { req =>
-              Resource
-                .eval(token.get)
-                .flatMap(t =>
-                  client.run(
-                    req.putHeaders(
-                      Authorization(Credentials.Token(CIString(t.token_type), t.access_token)),
-                      "x-gw-ims-org-id" -> ims_org_id,
-                      "x-api-key" -> client_id)))
-            }
-          }
-          .concurrently(refresh)
+      for {
+        supervisor <- Supervisor[F]
+        ref <- Resource.eval(getToken.flatMap(F.ref))
+        _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
+        c <- Resource.eval(middleware(client))
+      } yield Client[F] { req =>
+        for {
+          token <- Resource.eval(ref.get)
+          out <- c.run(
+            req.putHeaders(
+              Authorization(Credentials.Token(CIString(token.token_type), token.access_token)),
+              "x-gw-ims-org-id" -> ims_org_id,
+              "x-api-key" -> client_id))
+        } yield out
       }
     }
 
