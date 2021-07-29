@@ -23,15 +23,6 @@ import scala.concurrent.duration.*
   */
 
 object cognito {
-  final private case class AuthorizationCodeToken(
-    access_token: String,
-    refresh_token: String,
-    id_token: String,
-    token_type: String,
-    expires_in: Int // in second
-  )
-  implicit private val expirableAuthorizationCodeToken: IsExpirableToken[AuthorizationCodeToken] =
-    (a: AuthorizationCodeToken) => a.expires_in.seconds
 
   final class AuthorizationCode[F[_]] private (
     auth_endpoint: Uri,
@@ -45,16 +36,25 @@ object cognito {
       extends Http4sClientDsl[F] with Login[F, AuthorizationCode[F]]
       with UpdateConfig[AuthConfig, AuthorizationCode[F]] {
 
+    private case class Token(
+      access_token: String,
+      refresh_token: String,
+      id_token: String,
+      token_type: String,
+      expires_in: Int // in second
+    )
+    implicit private val expirable: IsExpirableToken[Token] = (a: Token) => a.expires_in.seconds
+
     val params: AuthParams = config.evalConfig
 
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
 
       val authURI = auth_endpoint.withPath(path"/oauth2/token")
-      val getToken: Stream[F, AuthorizationCodeToken] =
+      val getToken: Stream[F, Token] =
         Stream.eval(
           params
             .authClient(client)
-            .expect[AuthorizationCodeToken](POST(
+            .expect[Token](POST(
               UrlForm(
                 "grant_type" -> "authorization_code",
                 "client_id" -> client_id,
@@ -73,7 +73,7 @@ object cognito {
             .evalMap { t =>
               params
                 .authClient(client)
-                .expect[AuthorizationCodeToken](POST(
+                .expect[Token](POST(
                   UrlForm(
                     "grant_type" -> "refresh_token",
                     "client_id" -> client_id,
@@ -141,15 +141,6 @@ object cognito {
         Kleisli(F.pure))
   }
 
-  final private case class ClientCredentialsToken(
-    access_token: String,
-    token_type: String,
-    expires_in: Int // in second
-  )
-
-  implicit private val expirableClientCredentialsToken: IsExpirableToken[ClientCredentialsToken] =
-    (a: ClientCredentialsToken) => a.expires_in.seconds
-
   final class ClientCredentials[F[_]] private (
     auth_endpoint: Uri,
     client_id: String,
@@ -159,15 +150,21 @@ object cognito {
     middleware: Kleisli[F, Client[F], Client[F]])
       extends Http4sClientDsl[F] with Login[F, ClientCredentials[F]]
       with UpdateConfig[AuthConfig, ClientCredentials[F]] {
+    private case class Token(
+      access_token: String,
+      token_type: String,
+      expires_in: Int // in second
+    )
+    implicit private val expirable: IsExpirableToken[Token] = (a: Token) => a.expires_in.seconds
 
     val params: AuthParams = config.evalConfig
 
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
-      val getToken: Stream[F, ClientCredentialsToken] =
+      val getToken: Stream[F, Token] =
         Stream.eval(
           params
             .authClient(client)
-            .expect[ClientCredentialsToken](POST(
+            .expect[Token](POST(
               UrlForm(
                 "grant_type" -> "client_credentials",
                 "scope" -> scopes.toList.mkString(" ")

@@ -26,14 +26,6 @@ import scala.concurrent.duration.DurationLong
 
 object adobe {
 
-  final private case class TokenResponse(
-    token_type: String,
-    expires_in: Long, // in milliseconds
-    access_token: String)
-
-  implicit private val expirableTokenResponse: IsExpirableToken[TokenResponse] = (a: TokenResponse) =>
-    a.expires_in.millisecond
-
   final class IMS[F[_]] private (
     auth_endpoint: Uri,
     client_id: String,
@@ -42,15 +34,21 @@ object adobe {
     config: AuthConfig,
     middleware: Kleisli[F, Client[F], Client[F]])
       extends Http4sClientDsl[F] with Login[F, IMS[F]] with UpdateConfig[AuthConfig, IMS[F]] {
+    private case class Token(
+      token_type: String,
+      expires_in: Long, // in milliseconds
+      access_token: String)
+
+    implicit private val expirable: IsExpirableToken[Token] = (a: Token) => a.expires_in.millisecond
 
     val params: AuthParams = config.evalConfig
 
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
-      val getToken: Stream[F, TokenResponse] =
+      val getToken: Stream[F, Token] =
         Stream.eval(
           params
             .authClient(client)
-            .expect[TokenResponse](POST(
+            .expect[Token](POST(
               UrlForm(
                 "grant_type" -> "authorization_code",
                 "client_id" -> client_id,
@@ -121,6 +119,12 @@ object adobe {
     config: AuthConfig,
     middleware: Kleisli[F, Client[F], Client[F]])
       extends Http4sClientDsl[F] with Login[F, JWT[F]] with UpdateConfig[AuthConfig, JWT[F]] {
+    private case class Token(
+      token_type: String,
+      expires_in: Long, // in milliseconds
+      access_token: String)
+
+    implicit private val expirable: IsExpirableToken[Token] = (a: Token) => a.expires_in.millisecond
 
     val params: AuthParams = config.evalConfig
 
@@ -130,7 +134,7 @@ object adobe {
         auth_endpoint.withPath(path"s" / Segment(ms.name)).renderString -> (TRUE: AnyRef)
       }.toList.toMap.asJava
 
-      val getToken: Stream[F, TokenResponse] =
+      val getToken: Stream[F, Token] =
         Stream.eval(
           F.realTimeInstant.map { ts =>
             Jwts.builder
@@ -144,7 +148,7 @@ object adobe {
           }.flatMap(jwt =>
             params
               .authClient(client)
-              .expect[TokenResponse](
+              .expect[Token](
                 POST(
                   UrlForm("client_id" -> client_id, "client_secret" -> client_secret, "jwt_token" -> jwt),
                   auth_endpoint.withPath(path"/ims/exchange/jwt")

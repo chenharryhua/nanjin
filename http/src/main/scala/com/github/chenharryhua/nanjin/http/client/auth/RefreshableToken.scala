@@ -19,17 +19,6 @@ import org.typelevel.ci.CIString
 
 import scala.concurrent.duration.DurationLong
 
-final private case class RefreshableTokenResponse(
-  token_type: String,
-  access_token: String,
-  expires_in: Long, // in seconds
-  refresh_token: String)
-
-private object RefreshableTokenResponse {
-  implicit val expirableRefreshableTokenResponse: IsExpirableToken[RefreshableTokenResponse] =
-    (a: RefreshableTokenResponse) => a.expires_in.seconds
-}
-
 final class RefreshableToken[F[_]] private (
   auth_endpoint: Uri,
   client_id: String,
@@ -37,17 +26,23 @@ final class RefreshableToken[F[_]] private (
   config: AuthConfig,
   middleware: Kleisli[F, Client[F], Client[F]])
     extends Http4sClientDsl[F] with Login[F, RefreshableToken[F]] with UpdateConfig[AuthConfig, RefreshableToken[F]] {
+  private case class Token(
+    token_type: String,
+    access_token: String,
+    expires_in: Long, // in seconds
+    refresh_token: String)
+  implicit private val expirable: IsExpirableToken[Token] = (a: Token) => a.expires_in.seconds
 
   val params: AuthParams = config.evalConfig
 
   override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
 
     val authURI: Uri = auth_endpoint.withPath(path"oauth/token")
-    val getToken: Stream[F, RefreshableTokenResponse] =
+    val getToken: Stream[F, Token] =
       Stream.eval(
         params
           .authClient(client)
-          .expect[RefreshableTokenResponse](
+          .expect[Token](
             POST(
               UrlForm("grant_type" -> "client_credentials", "client_id" -> client_id, "client_secret" -> client_secret),
               authURI).putHeaders("Cache-Control" -> "no-cache")))
@@ -59,7 +54,7 @@ final class RefreshableToken[F[_]] private (
           .evalMap { t =>
             params
               .authClient(client)
-              .expect[RefreshableTokenResponse](
+              .expect[Token](
                 POST(
                   UrlForm("grant_type" -> "refresh_token", "refresh_token" -> t.refresh_token),
                   authURI,

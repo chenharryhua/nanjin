@@ -21,15 +21,6 @@ import scala.concurrent.duration.DurationLong
 object salesforce {
 
   //https://developer.salesforce.com/docs/atlas.en-us.mc-app-development.meta/mc-app-development/authorization-code.htm
-  final private case class McToken(
-    access_token: String,
-    token_type: String,
-    expires_in: Long, // in seconds
-    scope: String,
-    soap_instance_url: String,
-    rest_instance_url: String)
-
-  implicit private val expiralbeMcToken: IsExpirableToken[McToken] = (a: McToken) => a.expires_in.seconds
 
   sealed private trait InstanceURL
   private case object Rest extends InstanceURL
@@ -43,15 +34,24 @@ object salesforce {
     config: AuthConfig,
     middleware: Kleisli[F, Client[F], Client[F]]
   ) extends Http4sClientDsl[F] with Login[F, MarketingCloud[F]] with UpdateConfig[AuthConfig, MarketingCloud[F]] {
+    private case class Token(
+      access_token: String,
+      token_type: String,
+      expires_in: Long, // in seconds
+      scope: String,
+      soap_instance_url: String,
+      rest_instance_url: String)
+
+    implicit private val expirable: IsExpirableToken[Token] = (a: Token) => a.expires_in.seconds
 
     val params: AuthParams = config.evalConfig
 
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
-      val getToken: Stream[F, McToken] =
+      val getToken: Stream[F, Token] =
         Stream.eval(
           params
             .authClient(client)
-            .expect[McToken](
+            .expect[Token](
               POST(
                 UrlForm(
                   "grant_type" -> "client_credentials",
@@ -124,15 +124,6 @@ object salesforce {
   }
 
   //https://developer.salesforce.com/docs/atlas.en-us.api_iot.meta/api_iot/qs_auth_access_token.htm
-
-  final private case class IotToken(
-    access_token: String,
-    instance_url: String,
-    id: String,
-    token_type: String,
-    issued_at: String,
-    signature: String)
-
   final class Iot[F[_]] private (
     auth_endpoint: Uri,
     client_id: String,
@@ -142,15 +133,22 @@ object salesforce {
     config: AuthConfig,
     middleware: Kleisli[F, Client[F], Client[F]]
   ) extends Http4sClientDsl[F] with Login[F, Iot[F]] with UpdateConfig[AuthConfig, Iot[F]] {
+    private case class Token(
+      access_token: String,
+      instance_url: String,
+      id: String,
+      token_type: String,
+      issued_at: String,
+      signature: String)
 
     val params: AuthParams = config.evalConfig
 
     override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
-      val getToken: Stream[F, IotToken] =
+      val getToken: Stream[F, Token] =
         Stream.eval(
           params
             .authClient(client)
-            .expect[IotToken](POST(
+            .expect[Token](POST(
               UrlForm(
                 "grant_type" -> "password",
                 "client_id" -> client_id,
