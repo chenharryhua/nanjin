@@ -60,7 +60,7 @@ final class RefreshableToken[F[_]] private (
                   authURI,
                   Authorization(BasicCredentials(client_id, client_secret))
                 ).putHeaders("Cache-Control" -> "no-cache"))
-              .delayBy(params.calcDelay(t))
+              .delayBy(params.whenNext(t))
           }
           .evalMap(token.set)
           .repeat

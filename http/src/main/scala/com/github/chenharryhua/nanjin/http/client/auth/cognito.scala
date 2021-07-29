@@ -81,7 +81,7 @@ object cognito {
                   authURI,
                   Authorization(BasicCredentials(client_id, client_secret))
                 ).putHeaders("Cache-Control" -> "no-cache"))
-                .delayBy(params.calcDelay(t))
+                .delayBy(params.whenNext(t))
             }
             .evalMap(token.set)
             .repeat
@@ -175,7 +175,7 @@ object cognito {
 
       getToken.evalMap(F.ref).flatMap { token =>
         val refresh: Stream[F, Unit] =
-          Stream.eval(token.get).flatMap(t => getToken.delayBy(params.calcDelay(t))).evalMap(token.set).repeat
+          Stream.eval(token.get).flatMap(t => getToken.delayBy(params.whenNext(t))).evalMap(token.set).repeat
 
         Stream
           .eval(middleware(client))

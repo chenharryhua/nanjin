@@ -59,7 +59,7 @@ object adobe {
 
       getToken.evalMap(F.ref).flatMap { token =>
         val refresh: Stream[F, Unit] =
-          Stream.eval(token.get).flatMap(t => getToken.delayBy(params.calcDelay(t)).evalMap(token.set)).repeat
+          Stream.eval(token.get).flatMap(t => getToken.delayBy(params.whenNext(t)).evalMap(token.set)).repeat
         Stream
           .eval(middleware(client))
           .map { client =>
@@ -156,7 +156,7 @@ object adobe {
 
       getToken.evalMap(F.ref).flatMap { token =>
         val refresh: Stream[F, Unit] =
-          Stream.eval(token.get).flatMap(t => getToken.delayBy(params.calcDelay(t)).evalMap(token.set)).repeat
+          Stream.eval(token.get).flatMap(t => getToken.delayBy(params.whenNext(t)).evalMap(token.set)).repeat
 
         Stream
           .eval(middleware(client))
