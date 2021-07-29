@@ -23,18 +23,16 @@ class PrivateKeyTest extends AnyFunSuite {
 
   test("supervisor") {
     import cats.effect.Resource
-    val logger = org.log4s.getLogger
-    val problemOperation: IO[Int] =
-      (IO(logger.warn("problem computing")) >> IO.raiseError(new Exception("oops")).delayBy(1.second))
-        //.handleErrorWith(ex => IO(logger.warn(ex.getMessage)) >> IO(1))
-        .guarantee(IO(logger.warn("finish problem computing")))
+    val problemOperation =
+      (IO.println("problem computing") >> IO.raiseError[Int](new Exception("oops")).attempt.delayBy(1.second))
+        .guarantee(IO.println("finish problem computing"))
 
     val run = for {
       sv <- Supervisor[IO]
-      _ <- Resource.eval(IO(1))
+      ret <- Resource.eval(IO(1))
       fib <- Resource.eval(sv.supervise(problemOperation.foreverM))
-      _ <- Resource.eval(IO(logger.warn("main compute")))
-    } yield ()
+      _ <- Resource.eval(IO.println("main compute"))
+    } yield ret
 
     run.use(_ => IO.sleep(10.seconds)).unsafeRunSync()
     //problemOperation.unsafeRunSync()

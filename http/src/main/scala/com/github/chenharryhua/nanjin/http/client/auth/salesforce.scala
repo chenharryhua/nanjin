@@ -1,11 +1,10 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
-import cats.data.Kleisli
+import cats.data.Reader
 import cats.effect.implicits.genTemporalOps_
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.Supervisor
 import cats.syntax.all.*
-import cats.{Applicative, Monad}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import io.circe.generic.auto.*
 import org.http4s.*
@@ -33,7 +32,7 @@ object salesforce {
     client_secret: String,
     instanceURL: InstanceURL,
     config: AuthConfig,
-    middleware: Kleisli[F, Client[F], Client[F]]
+    middleware: Reader[Client[F], Resource[F, Client[F]]]
   ) extends Http4sClientDsl[F] with Login[F, MarketingCloud[F]] with UpdateConfig[AuthConfig, MarketingCloud[F]] {
     private case class Token(
       access_token: String,
@@ -73,7 +72,7 @@ object salesforce {
         supervisor <- Supervisor[F]
         ref <- Resource.eval(getToken.attempt.flatMap(F.ref))
         _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
-        c <- Resource.eval(middleware(client))
+        c <- middleware(client)
       } yield Client[F] { req =>
         for {
           token <- Resource.eval(ref.get.rethrow)
@@ -98,7 +97,7 @@ object salesforce {
         config = f(config),
         middleware = middleware)
 
-    override def withMiddlewareM(f: Client[F] => F[Client[F]])(implicit F: Monad[F]): MarketingCloud[F] =
+    override def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): MarketingCloud[F] =
       new MarketingCloud[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
@@ -109,24 +108,22 @@ object salesforce {
   }
 
   object MarketingCloud {
-    def rest[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String)(implicit
-      F: Applicative[F]): MarketingCloud[F] =
+    def rest[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): MarketingCloud[F] =
       new MarketingCloud[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
         client_secret = client_secret,
         instanceURL = Rest,
         config = AuthConfig(2.hour),
-        middleware = Kleisli(F.pure))
-    def soap[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String)(implicit
-      F: Applicative[F]): MarketingCloud[F] =
+        middleware = Reader(Resource.pure))
+    def soap[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): MarketingCloud[F] =
       new MarketingCloud[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
         client_secret = client_secret,
         instanceURL = Soap,
         config = AuthConfig(2.hour),
-        middleware = Kleisli(F.pure))
+        middleware = Reader(Resource.pure))
   }
 
   //https://developer.salesforce.com/docs/atlas.en-us.api_iot.meta/api_iot/qs_auth_access_token.htm
@@ -137,7 +134,7 @@ object salesforce {
     username: String,
     password: String,
     config: AuthConfig,
-    middleware: Kleisli[F, Client[F], Client[F]]
+    middleware: Reader[Client[F], Resource[F, Client[F]]]
   ) extends Http4sClientDsl[F] with Login[F, Iot[F]] with UpdateConfig[AuthConfig, Iot[F]] {
     private case class Token(
       access_token: String,
@@ -173,7 +170,7 @@ object salesforce {
         supervisor <- Supervisor[F]
         ref <- Resource.eval(getToken.attempt.flatMap(F.ref))
         _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
-        c <- Resource.eval(middleware(client))
+        c <- middleware(client)
       } yield Client[F] { req =>
         for {
           token <- Resource.eval(ref.get.rethrow)
@@ -195,7 +192,7 @@ object salesforce {
         config = f(config),
         middleware = middleware)
 
-    def withMiddlewareM(f: Client[F] => F[Client[F]])(implicit F: Monad[F]): Iot[F] =
+    override def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): Iot[F] =
       new Iot[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
@@ -207,8 +204,12 @@ object salesforce {
   }
 
   object Iot {
-    def apply[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String, username: String, password: String)(
-      implicit F: Applicative[F]): Iot[F] =
+    def apply[F[_]](
+      auth_endpoint: Uri,
+      client_id: String,
+      client_secret: String,
+      username: String,
+      password: String): Iot[F] =
       new Iot[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
@@ -216,6 +217,6 @@ object salesforce {
         username = username,
         password = password,
         config = AuthConfig(2.hours),
-        middleware = Kleisli(F.pure))
+        middleware = Reader(Resource.pure))
   }
 }

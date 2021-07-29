@@ -1,11 +1,10 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
-import cats.data.{Kleisli, NonEmptyList}
+import cats.data.{NonEmptyList, Reader}
+import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.Supervisor
 import cats.effect.syntax.all.*
-import cats.effect.kernel.{Async, Ref, Resource}
 import cats.syntax.all.*
-import cats.{Applicative, Monad}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import io.circe.generic.auto.*
 import io.jsonwebtoken.{Jwts, SignatureAlgorithm}
@@ -33,7 +32,7 @@ object adobe {
     client_code: String,
     client_secret: String,
     config: AuthConfig,
-    middleware: Kleisli[F, Client[F], Client[F]])
+    middleware: Reader[Client[F], Resource[F, Client[F]]])
       extends Http4sClientDsl[F] with Login[F, IMS[F]] with UpdateConfig[AuthConfig, IMS[F]] {
     private case class Token(
       token_type: String,
@@ -69,7 +68,7 @@ object adobe {
         supervisor <- Supervisor[F]
         ref <- Resource.eval(getToken.attempt.flatMap(F.ref))
         _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
-        c <- Resource.eval(middleware(client))
+        c <- middleware(client)
       } yield Client[F] { req =>
         for {
           token <- Resource.eval(ref.get.rethrow)
@@ -90,7 +89,7 @@ object adobe {
         config = f(config),
         middleware = middleware)
 
-    override def withMiddlewareM(f: Client[F] => F[Client[F]])(implicit F: Monad[F]): IMS[F] =
+    override def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): IMS[F] =
       new IMS[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
@@ -101,15 +100,14 @@ object adobe {
   }
 
   object IMS {
-    def apply[F[_]](auth_endpoint: Uri, client_id: String, client_code: String, client_secret: String)(implicit
-      F: Applicative[F]): IMS[F] =
+    def apply[F[_]](auth_endpoint: Uri, client_id: String, client_code: String, client_secret: String): IMS[F] =
       new IMS[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
         client_code = client_code,
         client_secret = client_secret,
         config = AuthConfig(2.hours),
-        middleware = Kleisli(F.pure))
+        middleware = Reader(Resource.pure))
   }
 
   // https://www.adobe.io/authentication/auth-methods.html#!AdobeDocs/adobeio-auth/master/JWT/JWT.md
@@ -122,7 +120,7 @@ object adobe {
     metascopes: NonEmptyList[AdobeMetascope],
     private_key: PrivateKey,
     config: AuthConfig,
-    middleware: Kleisli[F, Client[F], Client[F]])
+    middleware: Reader[Client[F], Resource[F, Client[F]]])
       extends Http4sClientDsl[F] with Login[F, JWT[F]] with UpdateConfig[AuthConfig, JWT[F]] {
     private case class Token(
       token_type: String,
@@ -170,7 +168,7 @@ object adobe {
         supervisor <- Supervisor[F]
         ref <- Resource.eval(getToken.attempt.flatMap(F.ref))
         _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
-        c <- Resource.eval(middleware(client))
+        c <- middleware(client)
       } yield Client[F] { req =>
         for {
           token <- Resource.eval(ref.get.rethrow)
@@ -195,7 +193,7 @@ object adobe {
         config = f(config),
         middleware = middleware)
 
-    override def withMiddlewareM(f: Client[F] => F[Client[F]])(implicit F: Monad[F]): JWT[F] =
+    override def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): JWT[F] =
       new JWT[F](
         auth_endpoint = auth_endpoint,
         ims_org_id = ims_org_id,
@@ -216,7 +214,7 @@ object adobe {
       client_secret: String,
       technical_account_key: String,
       metascopes: NonEmptyList[AdobeMetascope],
-      private_key: PrivateKey)(implicit F: Applicative[F]): JWT[F] =
+      private_key: PrivateKey): JWT[F] =
       new JWT[F](
         auth_endpoint = auth_endpoint,
         ims_org_id = ims_org_id,
@@ -226,9 +224,9 @@ object adobe {
         metascopes = metascopes,
         private_key = private_key,
         config = AuthConfig(2.hours),
-        middleware = Kleisli(F.pure))
+        middleware = Reader(Resource.pure))
 
-    def apply[F[_]: Applicative](
+    def apply[F[_]](
       auth_endpoint: Uri,
       ims_org_id: String,
       client_id: String,
