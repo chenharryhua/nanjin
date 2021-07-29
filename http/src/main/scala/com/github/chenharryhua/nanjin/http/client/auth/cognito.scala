@@ -1,11 +1,10 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
-import cats.data.{Kleisli, NonEmptyList}
+import cats.data.{NonEmptyList, Reader}
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.Supervisor
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
-import cats.{Applicative, Monad}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import io.circe.generic.auto.*
 import org.http4s.Method.POST
@@ -32,7 +31,7 @@ object cognito {
     redirect_uri: String,
     code_verifier: String,
     config: AuthConfig,
-    middleware: Kleisli[F, Client[F], Client[F]])
+    middleware: Reader[Client[F], Resource[F, Client[F]]])
       extends Http4sClientDsl[F] with Login[F, AuthorizationCode[F]]
       with UpdateConfig[AuthConfig, AuthorizationCode[F]] {
 
@@ -86,7 +85,7 @@ object cognito {
         supervisor <- Supervisor[F]
         ref <- Resource.eval(getToken.attempt.flatMap(F.ref))
         _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
-        c <- Resource.eval(middleware(client))
+        c <- middleware(client)
       } yield Client[F] { req =>
         for {
           token <- Resource.eval(ref.get.rethrow)
@@ -95,7 +94,7 @@ object cognito {
       }
     }
 
-    override def withMiddlewareM(f: Client[F] => F[Client[F]])(implicit F: Monad[F]): AuthorizationCode[F] =
+    override def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): AuthorizationCode[F] =
       new AuthorizationCode[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
@@ -125,7 +124,7 @@ object cognito {
       client_secret: String,
       code: String,
       redirect_uri: String,
-      code_verifier: String)(implicit F: Applicative[F]) =
+      code_verifier: String): AuthorizationCode[F] =
       new AuthorizationCode[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
@@ -134,7 +133,7 @@ object cognito {
         redirect_uri = redirect_uri,
         code_verifier = code_verifier,
         config = AuthConfig(1.day),
-        Kleisli(F.pure))
+        middleware = Reader(Resource.pure))
   }
 
   final class ClientCredentials[F[_]] private (
@@ -143,7 +142,7 @@ object cognito {
     client_secret: String,
     scopes: NonEmptyList[String],
     config: AuthConfig,
-    middleware: Kleisli[F, Client[F], Client[F]])
+    middleware: Reader[Client[F], Resource[F, Client[F]]])
       extends Http4sClientDsl[F] with Login[F, ClientCredentials[F]]
       with UpdateConfig[AuthConfig, ClientCredentials[F]] {
     private case class Token(
@@ -180,7 +179,7 @@ object cognito {
         supervisor <- Supervisor[F]
         ref <- Resource.eval(getToken.attempt.flatMap(F.ref))
         _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
-        c <- Resource.eval(middleware(client))
+        c <- middleware(client)
       } yield Client[F] { req =>
         for {
           token <- Resource.eval(ref.get.rethrow)
@@ -189,7 +188,7 @@ object cognito {
       }
     }
 
-    override def withMiddlewareM(f: Client[F] => F[Client[F]])(implicit F: Monad[F]): ClientCredentials[F] =
+    override def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): ClientCredentials[F] =
       new ClientCredentials[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
@@ -206,27 +205,25 @@ object cognito {
         client_secret = client_secret,
         scopes = scopes,
         config = f(config),
-        middleware
+        middleware = middleware
       )
   }
 
   object ClientCredentials {
-    def apply[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String, scopes: NonEmptyList[String])(implicit
-      F: Applicative[F]): ClientCredentials[F] =
+    def apply[F[_]](
+      auth_endpoint: Uri,
+      client_id: String,
+      client_secret: String,
+      scopes: NonEmptyList[String]): ClientCredentials[F] =
       new ClientCredentials[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
         client_secret = client_secret,
         scopes = scopes,
         config = AuthConfig(1.day),
-        Kleisli(F.pure)
-      )
+        Reader(Resource.pure))
 
-    def apply[F[_]: Applicative](
-      auth_endpoint: Uri,
-      client_id: String,
-      client_secret: String,
-      scope: String): ClientCredentials[F] =
+    def apply[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String, scope: String): ClientCredentials[F] =
       apply(auth_endpoint, client_id, client_secret, NonEmptyList.one(scope))
   }
 }

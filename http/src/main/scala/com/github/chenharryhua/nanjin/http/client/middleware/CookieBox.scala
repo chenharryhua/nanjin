@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.http.client.middleware
 
-import cats.effect.{Async, Resource}
+import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.eq.*
 import org.http4s.RequestCookie
 import org.http4s.client.Client
@@ -13,7 +13,7 @@ import scala.collection.JavaConverters.*
   */
 private[middleware] trait CookieBox {
 
-  def cookieBox[F[_]](cookieManager: CookieManager)(client: Client[F])(implicit F: Async[F]): Client[F] = {
+  def cookieBox[F[_]](cookieManager: CookieManager)(client: Client[F])(implicit F: Sync[F]): Client[F] = {
     val cookieStore: CookieStore = cookieManager.getCookieStore
     Client[F] { req =>
       for {

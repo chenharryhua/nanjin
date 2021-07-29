@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
-import cats.Monad
-import cats.data.Kleisli
+import cats.data.Reader
 import cats.effect.kernel.{Async, Resource}
 import fs2.Stream
 import org.http4s.client.Client
@@ -12,13 +11,14 @@ trait Login[F[_], A] {
   def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]]
   final def loginS(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = Stream.resource(loginR(client))
 
-  final protected def compose(f: Client[F] => F[Client[F]], g: Kleisli[F, Client[F], Client[F]])(implicit
-    F: Monad[F]): Kleisli[F, Client[F], Client[F]] =
-    Kleisli[F, Client[F], Client[F]](c => F.flatMap(f(c))(g.run))
+  final protected def compose(
+    f: Client[F] => Resource[F, Client[F]],
+    g: Reader[Client[F], Resource[F, Client[F]]]): Reader[Client[F], Resource[F, Client[F]]] =
+    Reader((a: Client[F]) => f(a).flatMap(g.run))
 
-  def withMiddlewareM(f: Client[F] => F[Client[F]])(implicit F: Monad[F]): A
-  final def withMiddleware(f: Client[F] => Client[F])(implicit F: Monad[F]): A =
-    withMiddlewareM(a => F.pure(f(a)))
+  def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): A
+  final def withMiddlewareM(f: Client[F] => F[Client[F]]): A = withMiddlewareR(a => Resource.eval(f(a)))
+  final def withMiddleware(f: Client[F] => Client[F]): A     = withMiddlewareR(a => Resource.pure(f(a)))
 }
 
 private[auth] trait IsExpirableToken[A] {
