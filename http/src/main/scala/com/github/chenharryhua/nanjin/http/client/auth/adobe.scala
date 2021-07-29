@@ -57,20 +57,22 @@ object adobe {
             auth_endpoint.withPath(path"/ims/token/v1")
           ).putHeaders("Cache-Control" -> "no-cache"))
 
-      def updateToken(ref: Ref[F, Token]): F[Unit] = for {
-        old <- ref.get
-        newToken <- getToken.delayBy(params.whenNext(old))
+      def updateToken(ref: Ref[F, Either[Throwable, Token]]): F[Unit] = for {
+        newToken <- ref.get.flatMap {
+          case Left(_)      => getToken.delayBy(params.whenNext).attempt
+          case Right(value) => getToken.delayBy(params.whenNext(value)).attempt
+        }
         _ <- ref.set(newToken)
       } yield ()
 
       for {
         supervisor <- Supervisor[F]
-        ref <- Resource.eval(getToken.flatMap(F.ref))
+        ref <- Resource.eval(getToken.attempt.flatMap(F.ref))
         _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
         c <- Resource.eval(middleware(client))
       } yield Client[F] { req =>
         for {
-          token <- Resource.eval(ref.get)
+          token <- Resource.eval(ref.get.rethrow)
           out <- c.run(
             req.putHeaders(
               Authorization(Credentials.Token(CIString(token.token_type), token.access_token)),
@@ -106,7 +108,7 @@ object adobe {
         client_id = client_id,
         client_code = client_code,
         client_secret = client_secret,
-        config = AuthConfig(1.day),
+        config = AuthConfig(2.hours),
         middleware = Kleisli(F.pure))
   }
 
@@ -156,20 +158,22 @@ object adobe {
                 auth_endpoint.withPath(path"/ims/exchange/jwt")
               ).putHeaders("Cache-Control" -> "no-cache")))
 
-      def updateToken(ref: Ref[F, Token]): F[Unit] = for {
-        old <- ref.get
-        newToken <- getToken.delayBy(params.whenNext(old))
+      def updateToken(ref: Ref[F, Either[Throwable, Token]]): F[Unit] = for {
+        newToken <- ref.get.flatMap {
+          case Left(_)      => getToken.delayBy(params.whenNext).attempt
+          case Right(value) => getToken.delayBy(params.whenNext(value)).attempt
+        }
         _ <- ref.set(newToken)
       } yield ()
 
       for {
         supervisor <- Supervisor[F]
-        ref <- Resource.eval(getToken.flatMap(F.ref))
+        ref <- Resource.eval(getToken.attempt.flatMap(F.ref))
         _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
         c <- Resource.eval(middleware(client))
       } yield Client[F] { req =>
         for {
-          token <- Resource.eval(ref.get)
+          token <- Resource.eval(ref.get.rethrow)
           out <- c.run(
             req.putHeaders(
               Authorization(Credentials.Token(CIString(token.token_type), token.access_token)),
@@ -221,7 +225,7 @@ object adobe {
         technical_account_key = technical_account_key,
         metascopes = metascopes,
         private_key = private_key,
-        config = AuthConfig(1.day),
+        config = AuthConfig(2.hours),
         middleware = Kleisli(F.pure))
 
     def apply[F[_]: Applicative](

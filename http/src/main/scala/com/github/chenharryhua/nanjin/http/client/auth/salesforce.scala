@@ -61,25 +61,27 @@ object salesforce {
               auth_endpoint.withPath(path"/v2/token")
             ).putHeaders("Cache-Control" -> "no-cache"))
 
-      def updateToken(ref: Ref[F, Token]): F[Unit] = for {
-        old <- ref.get
-        newToken <- getToken.delayBy(params.whenNext(old))
+      def updateToken(ref: Ref[F, Either[Throwable, Token]]): F[Unit] = for {
+        newToken <- ref.get.flatMap {
+          case Left(_)      => getToken.delayBy(params.whenNext).attempt
+          case Right(value) => getToken.delayBy(params.whenNext(value)).attempt
+        }
         _ <- ref.set(newToken)
       } yield ()
 
       for {
         supervisor <- Supervisor[F]
-        ref <- Resource.eval(getToken.flatMap(F.ref))
+        ref <- Resource.eval(getToken.attempt.flatMap(F.ref))
         _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
         c <- Resource.eval(middleware(client))
       } yield Client[F] { req =>
         for {
-          token <- Resource.eval(ref.get)
+          token <- Resource.eval(ref.get.rethrow)
           iu: Uri = instanceURL match {
             case Rest => Uri.unsafeFromString(token.rest_instance_url).withPath(req.pathInfo)
             case Soap => Uri.unsafeFromString(token.soap_instance_url).withPath(req.pathInfo)
           }
-          out <- client.run(
+          out <- c.run(
             req
               .withUri(iu)
               .putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token))))
@@ -162,19 +164,19 @@ object salesforce {
             auth_endpoint.withPath(path"/services/oauth2/token")
           ).putHeaders("Cache-Control" -> "no-cache"))
 
-      def updateToken(ref: Ref[F, Token]): F[Unit] = for {
-        newToken <- getToken.delayBy(params.whenNext)
+      def updateToken(ref: Ref[F, Either[Throwable, Token]]): F[Unit] = for {
+        newToken <- getToken.delayBy(params.whenNext).attempt
         _ <- ref.set(newToken)
       } yield ()
 
       for {
         supervisor <- Supervisor[F]
-        ref <- Resource.eval(getToken.flatMap(F.ref))
+        ref <- Resource.eval(getToken.attempt.flatMap(F.ref))
         _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
         c <- Resource.eval(middleware(client))
       } yield Client[F] { req =>
         for {
-          token <- Resource.eval(ref.get)
+          token <- Resource.eval(ref.get.rethrow)
           out <- c.run(
             req
               .withUri(Uri.unsafeFromString(token.instance_url).withPath(req.pathInfo))

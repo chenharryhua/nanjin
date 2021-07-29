@@ -46,28 +46,32 @@ final class RefreshableToken[F[_]] private (
             UrlForm("grant_type" -> "client_credentials", "client_id" -> client_id, "client_secret" -> client_secret),
             authURI).putHeaders("Cache-Control" -> "no-cache"))
 
-    def updateToken(ref: Ref[F, Token]): F[Unit] = for {
-      old <- ref.get
-      newToken <- params
+    def refreshToken(pre: Token): F[Token] =
+      params
         .authClient(client)
         .expect[Token](
           POST(
-            UrlForm("grant_type" -> "refresh_token", "refresh_token" -> old.refresh_token),
+            UrlForm("grant_type" -> "refresh_token", "refresh_token" -> pre.refresh_token),
             authURI,
             Authorization(BasicCredentials(client_id, client_secret))
           ).putHeaders("Cache-Control" -> "no-cache"))
-        .delayBy(params.whenNext(old))
+
+    def updateToken(ref: Ref[F, Either[Throwable, Token]]): F[Unit] = for {
+      newToken <- ref.get.flatMap {
+        case Left(_)      => getToken.delayBy(params.whenNext).attempt
+        case Right(value) => refreshToken(value).delayBy(params.whenNext(value)).attempt
+      }
       _ <- ref.set(newToken)
     } yield ()
 
     for {
       supervisor <- Supervisor[F]
-      ref <- Resource.eval(getToken.flatMap(F.ref))
+      ref <- Resource.eval(getToken.attempt.flatMap(F.ref))
       _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
       c <- Resource.eval(middleware(client))
     } yield Client[F] { req =>
       for {
-        token <- Resource.eval(ref.get)
+        token <- Resource.eval(ref.get.rethrow)
         out <- c.run(req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token))))
       } yield out
     }

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
 import better.files.Resource
-import cats.effect.IO
+import cats.effect.{Async, IO}
 import cats.effect.std.Supervisor
 import cats.effect.unsafe.implicits.global
 import org.scalatest.funsuite.AnyFunSuite
@@ -22,15 +22,22 @@ class PrivateKeyTest extends AnyFunSuite {
   }
 
   test("supervisor") {
+    import cats.effect.Resource
+    val logger = org.log4s.getLogger
+    val problemOperation: IO[Int] =
+      (IO(logger.warn("problem computing")) >> IO.raiseError(new Exception("oops")).delayBy(1.second))
+        //.handleErrorWith(ex => IO(logger.warn(ex.getMessage)) >> IO(1))
+        .guarantee(IO(logger.warn("finish problem computing")))
+
     val run = for {
-      _ <- IO(1)
-      fib <- Supervisor[IO]
-        .use(s => s.supervise(IO.sleep(1.second) >> IO.raiseError(new Exception)).guarantee(IO.println("raise error")))
-        .guarantee(IO.println("supervisor done"))
-      _ <- IO.println("compute")
-      _ <- IO.sleep(3.seconds)
-      r <- IO(2)
-    } yield r
-    assert(2 == run.guarantee(IO.println("accomplished")).unsafeRunSync)
+      sv <- Supervisor[IO]
+      _ <- Resource.eval(IO(1))
+      fib <- Resource.eval(sv.supervise(problemOperation.foreverM))
+      _ <- Resource.eval(IO(logger.warn("main compute")))
+    } yield ()
+
+    run.use(_ => IO.sleep(10.seconds)).unsafeRunSync()
+    //problemOperation.unsafeRunSync()
+    // assert(2 == run.guarantee(IO.println("accomplished")).unsafeRunSync)
   }
 }
