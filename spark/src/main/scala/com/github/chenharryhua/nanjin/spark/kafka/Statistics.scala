@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.effect.Sync
+import cats.effect.kernel.Sync
 import cats.syntax.functor.*
 import com.github.chenharryhua.nanjin.datetime.*
 import com.github.chenharryhua.nanjin.spark.injection.*

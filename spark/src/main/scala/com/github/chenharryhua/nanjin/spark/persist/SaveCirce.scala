@@ -1,11 +1,12 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.effect.Sync
+import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.spark.RddExt
 import fs2.Stream
 import io.circe.Encoder as JsonEncoder
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.rdd.RDD
+
 final class SaveCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull: Boolean) extends Serializable {
   def keepNull: SaveCirce[F, A] = new SaveCirce[F, A](rdd, cfg, true)
   def dropNull: SaveCirce[F, A] = new SaveCirce[F, A](rdd, cfg, false)

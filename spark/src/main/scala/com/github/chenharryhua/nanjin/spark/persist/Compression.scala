@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.effect.Sync
+import cats.effect.kernel.Sync
 import fs2.Pipe
 import fs2.compression.DeflateParams
 import fs2.compression.DeflateParams.Level

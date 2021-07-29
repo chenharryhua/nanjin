@@ -112,6 +112,7 @@ val neotypesLib = Seq(
 ).map(_ % neotypes) ++ Seq("org.neo4j.driver" % "neo4j-java-driver" % "4.3.3")
 
 val circeLib = Seq(
+  "io.circe" %% "circe-literal"        % "0.14.1",
   "io.circe" %% "circe-core"           % "0.14.1",
   "io.circe" %% "circe-generic"        % "0.14.1",
   "io.circe" %% "circe-parser"         % "0.14.1",
@@ -277,9 +278,9 @@ val akkaLib = Seq(
 val effectLib = Seq(
   "org.typelevel" %% "cats-effect" % catsEffect,
   "dev.zio" %% "zio"               % "1.0.10" % Provided,
-  "dev.zio" %% "zio-interop-cats"  % zioCats % Provided,
-  "io.monix" %% "monix-eval"       % monix   % Provided,
-  "io.monix" %% "monix"            % monix   % Provided
+  "dev.zio" %% "zio-interop-cats"  % zioCats  % Provided,
+  "io.monix" %% "monix-eval"       % monix    % Provided,
+  "io.monix" %% "monix"            % monix    % Provided
 )
 
 val quillLib = Seq(

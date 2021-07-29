@@ -2,9 +2,8 @@ package com.github.chenharryhua.nanjin.guard
 
 import cats.collections.Predicate
 import cats.data.{Kleisli, Reader}
-import cats.effect.kernel.Temporal
+import cats.effect.kernel.{Async, Ref, Temporal}
 import cats.effect.std.Dispatcher
-import cats.effect.{Async, Ref}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.action.{ActionRetry, ActionRetryUnit, QuasiSucc, QuasiSuccUnit}

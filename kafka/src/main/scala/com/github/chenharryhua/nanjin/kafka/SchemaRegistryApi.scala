@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.Show
-import cats.effect.{Resource, Sync}
+import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import io.confluent.kafka.schemaregistry.avro.AvroSchema

@@ -4,10 +4,10 @@ import akka.actor.ActorSystem
 import akka.kafka.ConsumerSettings
 import akka.stream.Materializer
 import akka.stream.scaladsl.Sink
-import cats.effect.{Async, Sync}
+import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, akkaUpdater, stages}
-import com.github.chenharryhua.nanjin.spark.persist.{Compression, sinks}
+import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, stages, KafkaTopic}
+import com.github.chenharryhua.nanjin.spark.persist.{sinks, Compression}
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import fs2.Stream
 import fs2.interop.reactivestreams.*

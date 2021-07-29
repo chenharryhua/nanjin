@@ -5,7 +5,7 @@ import akka.actor.ActorSystem
 import akka.kafka.{ProducerMessage, ProducerSettings as AkkaProducerSettings}
 import akka.stream.scaladsl.{Sink, Source}
 import akka.stream.{Materializer, OverflowStrategy}
-import cats.effect.{Async, Sync}
+import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, fs2Updater, KafkaTopic}

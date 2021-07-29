@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Show
+import cats.syntax.show.*
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.sksamuel.avro4s.{AvroOutputStream, Encoder as AvroEncoder}
 import io.circe.{Json, Encoder as JsonEncoder}
@@ -13,7 +14,7 @@ import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.util.CompressionCodecs
 import scalapb.GeneratedMessage
-import cats.syntax.show.*
+
 import java.io.ByteArrayOutputStream
 
 object saveRDD {

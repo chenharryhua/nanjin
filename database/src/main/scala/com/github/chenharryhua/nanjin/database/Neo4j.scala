@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.database
 
-import cats.effect.Async
+import cats.effect.kernel.Async
 import com.github.chenharryhua.nanjin.common.database.*
 import monocle.macros.Lenses
 import neotypes.cats.effect.implicits.*

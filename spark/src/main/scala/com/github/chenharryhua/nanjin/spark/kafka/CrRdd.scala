@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Eq
-import cats.effect.Sync
+import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic

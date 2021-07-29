@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.terminals
 
-import cats.effect.{Resource, Sync}
+import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.pipes
 import fs2.io.{readInputStream, writeOutputStream}

@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.pipes
 
-import cats.effect.Async
+import cats.effect.kernel.Async
 import fs2.io.{readOutputStream, toInputStream}
 import fs2.{Pipe, Stream}
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}

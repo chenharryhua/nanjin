@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.stream.Materializer
 import akka.{Done, NotUsed}
 import cats.data.{NonEmptyList, Reader}
-import cats.effect.*
+import cats.effect.kernel.*
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
@@ -105,9 +105,9 @@ object KafkaChannels {
     csUpdater: akkaUpdater.Consumer,
     psUpdater: akkaUpdater.Producer[K, V],
     ctUpdater: akkaUpdater.Committer) {
+    import akka.kafka.*
     import akka.kafka.ConsumerMessage.CommittableMessage
     import akka.kafka.ProducerMessage.Envelope
-    import akka.kafka._
     import akka.kafka.scaladsl.{Committer, Consumer, Producer, Transactional}
     import akka.stream.scaladsl.{Flow, Sink, Source}
 

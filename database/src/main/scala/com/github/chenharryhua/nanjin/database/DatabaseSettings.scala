@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.database
 
-import cats.effect.{Async, Concurrent, Resource}
+import cats.effect.kernel.{Async, Concurrent, Resource}
 import cats.syntax.functor.*
 import com.github.chenharryhua.nanjin.common.database.*
 import com.zaxxer.hikari.HikariConfig

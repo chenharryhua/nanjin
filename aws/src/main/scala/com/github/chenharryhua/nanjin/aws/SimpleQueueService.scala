@@ -5,7 +5,7 @@ import akka.stream.Materializer
 import akka.stream.alpakka.sqs.scaladsl.{SqsAckFlow, SqsSource}
 import akka.stream.alpakka.sqs.{MessageAction, SqsAckResult, SqsSourceSettings}
 import akka.stream.scaladsl.Sink
-import cats.effect.Async
+import cats.effect.kernel.Async
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.aws.{S3Path, SqsUrl}
 import com.github.matsluni.akkahttpspi.AkkaHttpClient

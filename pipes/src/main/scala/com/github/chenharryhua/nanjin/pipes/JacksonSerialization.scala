@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.pipes
 
 import java.io.{ByteArrayOutputStream, EOFException, InputStream}
-import cats.effect.Async
+import cats.effect.kernel.Async
 import com.fasterxml.jackson.databind.ObjectMapper
 import fs2.io.toInputStream
 import fs2.{Chunk, Pipe, Pull, Stream}

@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.Monad
 import cats.data.Kleisli
-import cats.effect.{Resource, Sync}
+import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import cats.mtl.Ask
 import com.github.chenharryhua.nanjin.common.kafka.TopicName

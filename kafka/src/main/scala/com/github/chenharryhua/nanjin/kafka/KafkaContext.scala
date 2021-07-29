@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.data.Reader
-import cats.effect.{IO, Sync}
+import cats.effect.IO
+import cats.effect.kernel.Sync
 import cats.syntax.functor.*
 import cats.syntax.show.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName

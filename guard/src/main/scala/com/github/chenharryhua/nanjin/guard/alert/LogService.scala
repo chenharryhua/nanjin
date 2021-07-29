@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.alert
 
-import cats.effect.Sync
+import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import org.log4s.Logger
 
