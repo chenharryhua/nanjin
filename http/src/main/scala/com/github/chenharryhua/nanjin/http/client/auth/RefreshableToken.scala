@@ -67,7 +67,7 @@ final class RefreshableToken[F[_]] private (
       supervisor <- Supervisor[F]
       ref <- Resource.eval(getToken.attempt.flatMap(F.ref))
       _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
-      c <- middleware(client)
+      c <- middleware.run(client)
     } yield Client[F] { req =>
       for {
         token <- Resource.eval(ref.get.rethrow)
@@ -99,6 +99,6 @@ object RefreshableToken {
       auth_endpoint = auth_endpoint,
       client_id = client_id,
       client_secret = client_secret,
-      config = AuthConfig(1.day),
+      config = AuthConfig(3.hours),
       middleware = Reader(Resource.pure))
 }

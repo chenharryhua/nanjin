@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.http.client.longpoll
 
-import cats.effect.Async
+import cats.effect.kernel.Async
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import io.circe.Json
@@ -16,7 +16,7 @@ import org.http4s.client.dsl.Http4sClientDsl
 
 import java.util
 import java.util.concurrent.Executors
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.*
 
 class LongpollTransport[F[_]](url: String, client: Client[F], dispatcher: Dispatcher[F])(implicit F: Async[F])
     extends AbstractHttpClientTransport(url, new util.HashMap[String, AnyRef](), Executors.newScheduledThreadPool(0))

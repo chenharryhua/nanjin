@@ -68,7 +68,7 @@ object adobe {
         supervisor <- Supervisor[F]
         ref <- Resource.eval(getToken.attempt.flatMap(F.ref))
         _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
-        c <- middleware(client)
+        c <- middleware.run(client)
       } yield Client[F] { req =>
         for {
           token <- Resource.eval(ref.get.rethrow)
@@ -168,7 +168,7 @@ object adobe {
         supervisor <- Supervisor[F]
         ref <- Resource.eval(getToken.attempt.flatMap(F.ref))
         _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
-        c <- middleware(client)
+        c <- middleware.run(client)
       } yield Client[F] { req =>
         for {
           token <- Resource.eval(ref.get.rethrow)

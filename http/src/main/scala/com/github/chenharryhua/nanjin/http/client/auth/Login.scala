@@ -16,6 +16,14 @@ trait Login[F[_], A] {
     g: Reader[Client[F], Resource[F, Client[F]]]): Reader[Client[F], Resource[F, Client[F]]] =
     Reader((a: Client[F]) => f(a).flatMap(g.run))
 
+  /** the order of apply withMiddleware matters:
+    *
+    * {{{
+    *   cred.withMiddleware(cookieBox(cm)).withMiddleware(logHead) // show cookies
+    *   cred.withMiddleware(logHead).withMiddleware(cookieBox(cm)) // not show cookies
+    *
+    * }}}
+    */
   def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): A
   final def withMiddlewareM(f: Client[F] => F[Client[F]]): A = withMiddlewareR(a => Resource.eval(f(a)))
   final def withMiddleware(f: Client[F] => Client[F]): A     = withMiddlewareR(a => Resource.pure(f(a)))

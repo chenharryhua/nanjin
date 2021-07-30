@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.http.client.longpoll
 
-import cats.effect.Async
+import cats.effect.kernel.Async
 import io.circe.generic.auto.*
 import io.circe.literal.JsonStringContext
 import org.http4s.Method.POST
