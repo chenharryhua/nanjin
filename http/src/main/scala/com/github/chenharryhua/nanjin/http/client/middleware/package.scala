@@ -1,10 +1,10 @@
 package com.github.chenharryhua.nanjin.http.client
 
-import cats.effect.Async
 import cats.effect.kernel.Temporal
+import cats.effect.{Async, Concurrent}
 import org.http4s.client.Client
+import org.http4s.client.middleware.*
 import org.http4s.client.middleware.RetryPolicy.{exponentialBackoff, isErrorOrRetriableStatus}
-import org.http4s.client.middleware.{CookieJar, Logger, Retry, RetryPolicy}
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -19,4 +19,9 @@ package object middleware extends CookieBox {
   def logBody[F[_]: Async](client: Client[F]): Client[F] = Logger(logHeaders = false, logBody = true)(client)
 
   def cookieJar[F[_]: Async](client: Client[F]): F[Client[F]] = CookieJar.impl[F](client)
+
+  def gzip[F[_]: Async](bufferSize: Int)(client: Client[F]): Client[F] = GZip[F](bufferSize)(client)
+
+  def forwardRedirect[F[_]: Concurrent](maxRedirects: Int)(client: Client[F]): Client[F] =
+    FollowRedirect[F](maxRedirects)(client)
 }
