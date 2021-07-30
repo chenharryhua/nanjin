@@ -109,7 +109,7 @@ val hadoopLib = Seq(
 val neotypesLib = Seq(
   "com.dimafeng" %% "neotypes",
   "com.dimafeng" %% "neotypes-cats-effect"
-).map(_ % neotypes) ++ Seq("org.neo4j.driver" % "neo4j-java-driver" % "4.3.3")
+).map(_ % neotypes) ++ Seq("org.neo4j.driver" % "neo4j-java-driver" % "4.3.4")
 
 val circeLib = Seq(
   "io.circe" %% "circe-literal"        % "0.14.1",
