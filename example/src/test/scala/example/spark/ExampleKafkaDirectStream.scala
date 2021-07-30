@@ -20,9 +20,8 @@ class ExampleKafkaDirectStream extends AnyFunSuite {
     runner
       .signup(sparKafka.topic(fooTopic).dstream)(_.coalesce.circe(path))
       .run
-      .interruptAfter(3.seconds)
-      .compile
-      .drain
+      .background
+      .use(_ => IO.sleep(3.seconds))
       .unsafeRunSync()
   }
 }

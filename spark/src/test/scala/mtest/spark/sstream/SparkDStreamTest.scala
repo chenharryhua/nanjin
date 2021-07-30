@@ -39,6 +39,7 @@ class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
     }
     .debug()
     .through(topic.topic.fs2Channel.updateProducer(_.withClientId("spark.kafka.dstream.test")).producerPipe)
+    .interruptAfter(10.seconds)
 
   test("dstream") {
     val jackson    = root + "jackson/"
@@ -48,14 +49,11 @@ class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
 
     val runner: DStreamRunner[IO] = DStreamRunner[IO](sparKafka.sparkSession.sparkContext, checkpoint, 3.second)
 
-    Stream(
-      sender,
       runner
         .signup(topic.dstream)(_.avro(avro))
         .signup(topic.dstream)(_.coalesce.jackson(jackson))
         .signup(topic.dstream)(_.coalesce.circe(circe))
-        .run
-    ).parJoin(2).interruptAfter(10.seconds).compile.drain.map(_ => println("dstream complete")).unsafeRunSync()
+        .run.background.use(_ => sender.compile.drain).unsafeRunSync()
 
     val now = NJTimestamp.now().`Year=yyyy/Month=mm/Day=dd`(sydneyTime)
     val j   = topic.load.jackson(jackson + now).unsafeRunSync().transform(_.distinct())

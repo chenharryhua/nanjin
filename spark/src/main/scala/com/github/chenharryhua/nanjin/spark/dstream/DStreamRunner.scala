@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.spark.dstream
 import cats.data.Kleisli
 import cats.effect.kernel.Async
 import cats.effect.std.Dispatcher
-import fs2.Stream
 import org.apache.spark.SparkContext
 import org.apache.spark.streaming.{Duration, Seconds, StreamingContext}
 
@@ -26,17 +25,15 @@ sealed abstract class DStreamRunner[F[_]] private (
     ssc
   }
 
-  def run: Stream[F, Unit] =
-    for {
-      dispatcher <- Stream.resource(Dispatcher[F])
-      _ <- Stream
-        .bracket(F.blocking {
-          val ssc: StreamingContext = StreamingContext.getOrCreate(checkpoint, createContext(dispatcher))
-          ssc.start()
-          ssc
-        })(ssc => F.blocking(ssc.stop(stopSparkContext = false, stopGracefully = true)))
-        .evalMap(ssc => F.interruptible(many = false)(ssc.awaitTermination()))
-    } yield ()
+  def run: F[Unit] =
+    Dispatcher[F].use { dispatcher =>
+      F.bracket(F.blocking {
+        val ssc: StreamingContext = StreamingContext.getOrCreate(checkpoint, createContext(dispatcher))
+        ssc.start()
+        ssc
+      })(ssc => F.interruptible(many = false)(ssc.awaitTermination()))(ssc =>
+        F.blocking(ssc.stop(stopSparkContext = false, stopGracefully = true)))
+    }
 }
 
 object DStreamRunner {
