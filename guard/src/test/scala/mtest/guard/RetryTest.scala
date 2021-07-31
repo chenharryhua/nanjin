@@ -33,7 +33,7 @@ class RetryTest extends AnyFunSuite {
   val logging =
     SlackService(SimpleNotificationService.fake[IO]) |+| MetricsService[IO](new MetricRegistry()) |+| LogService[IO]
 
-  test("success") {
+  test("retry - success") {
     var i = 0
     val Vector(a, b, c) = serviceGuard.eventStream { gd =>
       gd("succ")
@@ -49,7 +49,7 @@ class RetryTest extends AnyFunSuite {
     assert(c.isInstanceOf[ServiceStopped])
   }
 
-  test("should retry 2 times when operation fail") {
+  test("retry - should retry 2 times when operation fail") {
     var i = 0
     val Vector(a, b, c, d, e) = serviceGuard.eventStream { gd =>
       gd("1-time-succ")("2-time-succ") // funny syntax
@@ -67,7 +67,7 @@ class RetryTest extends AnyFunSuite {
     assert(e.isInstanceOf[ServiceStopped])
   }
 
-  test("should escalate to up level if retry failed") {
+  test("retry - should escalate to up level if retry failed") {
     val Vector(a, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
@@ -91,7 +91,7 @@ class RetryTest extends AnyFunSuite {
     assert(f.isInstanceOf[ServicePanic])
   }
 
-  test("Null pointer exception") {
+  test("retry - Null pointer exception") {
     val a :: b :: c :: d :: e :: rest = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream(ag =>
@@ -111,7 +111,7 @@ class RetryTest extends AnyFunSuite {
     assert(e.isInstanceOf[ServicePanic])
   }
 
-  test("predicate - should retry") {
+  test("retry - predicate - should retry") {
     val Vector(a, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
@@ -135,7 +135,7 @@ class RetryTest extends AnyFunSuite {
     assert(f.isInstanceOf[ServicePanic])
   }
 
-  test("predicate - should not retry") {
+  test("retry - predicate - should not retry") {
     val Vector(a, b, c) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
@@ -155,7 +155,7 @@ class RetryTest extends AnyFunSuite {
     assert(c.isInstanceOf[ServicePanic])
   }
 
-  test("should fail the action if post condition is unsatisfied") {
+  test("retry - should fail the action if post condition is unsatisfied") {
     val Vector(a, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
@@ -177,7 +177,7 @@ class RetryTest extends AnyFunSuite {
     assert(e.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.PostConditionUnsatisfied])
     assert(f.isInstanceOf[ServicePanic])
   }
-  test("should fail the action if post condition is unsatisfied - 2") {
+  test("retry - should fail the action if post condition is unsatisfied - 2") {
     val Vector(a, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
@@ -200,7 +200,7 @@ class RetryTest extends AnyFunSuite {
     assert(f.isInstanceOf[ServicePanic])
   }
 
-  test("nonterminating - should retry") {
+  test("retry - nonterminating - should retry") {
     val a :: b :: c :: d :: e :: f :: g :: h :: i :: rest = serviceGuard
       .updateConfig(_.withConstantDelay(1.second).withStartupDelay(1.hour))
       .eventStream(_.nonStop(fs2.Stream(1))) // suppose run forever but...
@@ -218,6 +218,49 @@ class RetryTest extends AnyFunSuite {
     assert(f.isInstanceOf[ServicePanic])
     assert(g.isInstanceOf[ActionStart])
     assert(h.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.UnexpectedlyTerminated])
+    assert(i.isInstanceOf[ServicePanic])
+  }
+
+  test("retry - nonterminating - exception") {
+
+    val a :: b :: c :: d :: e :: f :: g :: h :: i :: rest = serviceGuard
+      .updateConfig(_.withConstantDelay(1.second).withStartupDelay(1.hour))
+      .eventStream(_.nonStop(IO.raiseError(new Exception("ex"))))
+      .observe(_.evalMap(logging.alert).drain)
+      .interruptAfter(5.seconds)
+      .compile
+      .toList
+      .unsafeRunSync()
+
+    assert(a.isInstanceOf[ActionStart])
+    assert(b.asInstanceOf[ActionFailed].error.throwable.asInstanceOf[Exception].getMessage == "ex")
+    assert(c.isInstanceOf[ServicePanic])
+    assert(d.isInstanceOf[ActionStart])
+    assert(e.asInstanceOf[ActionFailed].error.throwable.asInstanceOf[Exception].getMessage == "ex")
+    assert(f.isInstanceOf[ServicePanic])
+    assert(g.isInstanceOf[ActionStart])
+    assert(h.asInstanceOf[ActionFailed].error.throwable.asInstanceOf[Exception].getMessage == "ex")
+    assert(i.isInstanceOf[ServicePanic])
+  }
+
+  test("retry - nonterminating - cancelation") {
+    val a :: b :: c :: d :: e :: f :: g :: h :: i :: rest = serviceGuard
+      .updateConfig(_.withConstantDelay(1.second).withStartupDelay(1.hour))
+      .eventStream(_.nonStop(IO(1) >> IO.canceled)) 
+      .observe(_.evalMap(logging.alert).drain)
+      .interruptAfter(5.seconds)
+      .compile
+      .toList
+      .unsafeRunSync()
+
+    assert(a.isInstanceOf[ActionStart])
+    assert(b.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.ActionCanceledInternally])
+    assert(c.isInstanceOf[ServicePanic])
+    assert(d.isInstanceOf[ActionStart])
+    assert(e.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.ActionCanceledInternally])
+    assert(f.isInstanceOf[ServicePanic])
+    assert(g.isInstanceOf[ActionStart])
+    assert(h.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.ActionCanceledInternally])
     assert(i.isInstanceOf[ServicePanic])
   }
 }
