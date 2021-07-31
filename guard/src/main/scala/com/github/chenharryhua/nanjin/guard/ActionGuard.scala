@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard
 
 import cats.collections.Predicate
 import cats.data.{Kleisli, Reader}
-import cats.effect.kernel.{Async, Ref, Resource, Temporal}
+import cats.effect.kernel.{Async, Ref, Temporal}
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.UpdateConfig
@@ -106,9 +106,10 @@ final class ActionGuard[F[_]](
     updateConfig(_.withSlackSuccOn.withSlackFailOn).run(fb)
 
   def nonStop[B](fb: F[B])(implicit F: Async[F]): F[Nothing] =
-    Resource
-      .eval(apply("nonstop-guard").updateConfig(_.withSlackNone.withNonTermination.withMaxRetries(0)).run(fb))
-      .use[Nothing](_ => F.never)
+    apply("nonstop-guard")
+      .updateConfig(_.withSlackNone.withNonTermination.withMaxRetries(0))
+      .run(fb)
+      .flatMap[Nothing](_ => F.never)
 
   def nonStop[B](sb: Stream[F, B])(implicit F: Async[F]): F[Nothing] =
     nonStop(sb.compile.drain)
