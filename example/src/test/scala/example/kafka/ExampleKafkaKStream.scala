@@ -25,6 +25,6 @@ class ExampleKafkaKStream extends AnyFunSuite {
     val top: Kleisli[Id, StreamsBuilder, Unit] =
       fooTopic.kafkaStream.kstream.map(_.mapValues(foo => Bar(Random.nextInt(), foo.a.toLong)).to(barTopic))
 
-    (ctx.buildStreams(top).stateStream >> Stream.never[IO]).interruptAfter(3.seconds).compile.drain.unsafeRunSync()
+    ctx.buildStreams(top).stream.interruptAfter(3.seconds).compile.drain.unsafeRunSync()
   }
 }

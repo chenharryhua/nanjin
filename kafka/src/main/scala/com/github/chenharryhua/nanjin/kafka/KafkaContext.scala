@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.data.Reader
 import cats.effect.IO
-import cats.effect.kernel.Sync
+import cats.effect.kernel.{Async, Sync}
 import cats.syntax.functor.*
 import cats.syntax.show.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
@@ -28,8 +28,8 @@ sealed abstract class KafkaContext[F[_]](val settings: KafkaSettings) extends Se
   final def topic[K: SerdeOf, V: SerdeOf](topicName: String): KafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](TopicName.unsafeFrom(topicName)))
 
-  final def buildStreams(topology: Reader[StreamsBuilder, Unit]): KafkaStreamsBuilder[F] =
-    new KafkaStreamsBuilder[F](settings.streamSettings, topology, Nil)
+  final def buildStreams(topology: Reader[StreamsBuilder, Unit])(implicit F: Async[F]): KafkaStreamsBuilder[F] =
+    KafkaStreamsBuilder[F](settings.streamSettings, topology)
 
   final def schema(topicName: String)(implicit F: Sync[F]): F[String] =
     new SchemaRegistryApi[F](settings.schemaRegistrySettings).kvSchema(TopicName.unsafeFrom(topicName)).map(_.show)
