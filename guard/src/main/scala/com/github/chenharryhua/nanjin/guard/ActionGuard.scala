@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard
 
 import cats.collections.Predicate
 import cats.data.{Kleisli, Reader}
-import cats.effect.kernel.{Async, Ref, Temporal}
+import cats.effect.kernel.{Async, Ref, Resource, Temporal}
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.UpdateConfig
@@ -105,12 +105,12 @@ final class ActionGuard[F[_]](
   def loudly[B](fb: F[B])(implicit F: Async[F]): F[B] =
     updateConfig(_.withSlackSuccOn.withSlackFailOn).run(fb)
 
-  def nonStop[B](fb: F[B])(implicit F: Async[F]): F[Unit] =
-    apply("supervise-run-forever-action")
-      .updateConfig(_.withSlackNone.withNonTermination.withMaxRetries(0))
-      .run(fb)
-      .void
-  def nonStop[B](sb: Stream[F, B])(implicit F: Async[F]): F[Unit] =
+  def nonStop[B](fb: F[B])(implicit F: Async[F]): F[Nothing] =
+    Resource
+      .eval(apply("nonstop-guard").updateConfig(_.withSlackNone.withNonTermination.withMaxRetries(0)).run(fb))
+      .use[Nothing](_ => F.never[Nothing])
+
+  def nonStop[B](sb: Stream[F, B])(implicit F: Async[F]): F[Nothing] =
     nonStop(sb.compile.drain)
 
   def run[B](fb: F[B])(implicit F: Async[F]): F[B] = retry[B](fb).run
