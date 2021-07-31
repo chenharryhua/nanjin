@@ -1,8 +1,9 @@
 package com.github.chenharryhua.nanjin.spark.dstream
 
 import cats.data.Kleisli
-import cats.effect.kernel.Async
+import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Dispatcher
+import fs2.Stream
 import org.apache.spark.SparkContext
 import org.apache.spark.streaming.{Duration, Seconds, StreamingContext}
 
@@ -25,8 +26,10 @@ final class DStreamRunner[F[_]] private (
     ssc
   }
 
-  def run: F[Unit] =
-    Dispatcher[F].use { dispatcher =>
+  /** non-terminating function
+    */
+  def run: F[Nothing] = {
+    val exec: Resource[F, Unit] = Dispatcher[F].evalMap { dispatcher =>
       F.bracket(F.blocking {
         val ssc: StreamingContext = StreamingContext.getOrCreate(checkpoint, createContext(dispatcher))
         ssc.start()
@@ -34,6 +37,10 @@ final class DStreamRunner[F[_]] private (
       })(ssc => F.interruptible(many = false)(ssc.awaitTermination()))(ssc =>
         F.blocking(ssc.stop(stopSparkContext = false, stopGracefully = true)))
     }
+    exec.use[Nothing](_ => F.never)
+  }
+
+  def stream: Stream[F, Nothing] = Stream.eval(run)
 }
 
 object DStreamRunner {
