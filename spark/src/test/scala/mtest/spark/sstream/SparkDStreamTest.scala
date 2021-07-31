@@ -48,13 +48,15 @@ class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
 
     val runner: DStreamRunner[IO] = DStreamRunner[IO](sparKafka.sparkSession.sparkContext, checkpoint, 3.second)
 
-    runner
-      .signup(topic.dstream)(_.avro(avro))
-      .signup(topic.dstream)(_.coalesce.jackson(jackson))
-      .signup(topic.dstream)(_.coalesce.circe(circe))
-      .run
-      .background
-      .use(_ => sender.compile.drain)
+    sender
+      .concurrently(
+        runner
+          .signup(topic.dstream)(_.avro(avro))
+          .signup(topic.dstream)(_.coalesce.jackson(jackson))
+          .signup(topic.dstream)(_.coalesce.circe(circe))
+          .stream)
+      .compile
+      .drain
       .unsafeRunSync()
 
     val now = NJTimestamp.now().`Year=yyyy/Month=mm/Day=dd`(sydneyTime)
