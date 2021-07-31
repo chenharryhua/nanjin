@@ -4,7 +4,7 @@ import cats.Id
 import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.kafka.{KafkaStreamException, KafkaTopic}
+import com.github.chenharryhua.nanjin.kafka.{KafkaStreamsException, KafkaTopic}
 import fs2.Stream
 import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords, ProducerResult}
 import mtest.kafka._
@@ -81,7 +81,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
     val res: Set[StreamTarget] =
       harvest
         .concurrently(sendS1Data)
-        .concurrently(ctx.buildStreams(top).stateStream.debug().delayBy(2.seconds))
+        .concurrently(ctx.buildStreams(top).stream.delayBy(2.seconds))
         .interruptAfter(15.seconds)
         .compile
         .toList
@@ -136,13 +136,9 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       Stream.fixedRate[IO](1.seconds).zipRight(s1Data).through(s1TopicBin.fs2Channel.producerPipe).debug()
 
     val res = s1Topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >> IO.sleep(1.seconds) >>
-      harvest
-        .concurrently(sendS1Data)
-        .concurrently(ctx.buildStreams(top).stateStream.debug().delayBy(1.seconds))
-        .compile
-        .toList
+      harvest.concurrently(sendS1Data).concurrently(ctx.buildStreams(top).stream.delayBy(1.seconds)).compile.toList
 
-    assertThrows[KafkaStreamException.UncaughtException](res.unsafeRunSync())
+    assertThrows[KafkaStreamsException](res.unsafeRunSync())
 
   }
 
