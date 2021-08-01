@@ -4,18 +4,19 @@ import cats.Id
 import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.kafka.{KafkaStreamsException, KafkaTopic}
+import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import fs2.Stream
 import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords, ProducerResult}
-import mtest.kafka._
+import mtest.kafka.*
 import org.apache.kafka.common.serialization.Serde
-import org.apache.kafka.streams.scala.ImplicitConversions._
+import org.apache.kafka.streams.errors.StreamsException
+import org.apache.kafka.streams.scala.ImplicitConversions.*
 import org.apache.kafka.streams.scala.StreamsBuilder
-import org.apache.kafka.streams.scala.serialization.Serdes._
+import org.apache.kafka.streams.scala.serialization.Serdes.*
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 object KafkaStreamingData {
 
   case class StreamOne(name: String, size: Int)
@@ -58,7 +59,7 @@ object KafkaStreamingData {
 
 @DoNotDiscover
 class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
-  import KafkaStreamingData._
+  import KafkaStreamingData.*
 
   implicit val oneValue: Serde[StreamOne]    = s1Topic.codec.valSerde
   implicit val twoValue: Serde[TableTwo]     = t2Topic.codec.valSerde
@@ -81,7 +82,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
     val res: Set[StreamTarget] =
       harvest
         .concurrently(sendS1Data)
-        .concurrently(ctx.buildStreams(top).stream.delayBy(2.seconds))
+        .concurrently(ctx.buildStreams(top).stream.debug().delayBy(2.seconds))
         .interruptAfter(15.seconds)
         .compile
         .toList
@@ -136,10 +137,12 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       Stream.fixedRate[IO](1.seconds).zipRight(s1Data).through(s1TopicBin.fs2Channel.producerPipe).debug()
 
     val res = s1Topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >> IO.sleep(1.seconds) >>
-      harvest.concurrently(sendS1Data).concurrently(ctx.buildStreams(top).stream.delayBy(1.seconds)).compile.toList
+      harvest
+        .concurrently(sendS1Data)
+        .concurrently(ctx.buildStreams(top).stream.debug().delayBy(1.seconds))
+        .compile
+        .toList
 
-    assertThrows[KafkaStreamsException](res.unsafeRunSync())
-
+    assertThrows[StreamsException](res.unsafeRunSync())
   }
-
 }

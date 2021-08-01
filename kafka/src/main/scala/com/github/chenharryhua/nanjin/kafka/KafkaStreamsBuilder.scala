@@ -5,8 +5,8 @@ import cats.effect.kernel.{Async, Deferred, Resource}
 import cats.effect.std.{CountDownLatch, Dispatcher}
 import cats.syntax.all.*
 import fs2.Stream
+import fs2.concurrent.Channel
 import monocle.function.At.at
-import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.kafka.streams.KafkaStreams.State
 import org.apache.kafka.streams.errors.StreamsUncaughtExceptionHandler
 import org.apache.kafka.streams.processor.StateStore
@@ -16,38 +16,41 @@ import org.apache.kafka.streams.{KafkaStreams, Topology}
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
-final case class KafkaStreamsException(msg: String) extends Exception(msg)
+final case class KafkaStreamsStoppedException() extends Exception("Kafka Streams were stopped")
 
 final class KafkaStreamsBuilder[F[_]] private (
   settings: KafkaStreamSettings,
   top: Reader[StreamsBuilder, Unit],
   localStateStores: List[Reader[StreamsBuilder, StreamsBuilder]],
   startUpTimeout: FiniteDuration)(implicit F: Async[F]) {
-  final private class StreamErrorHandler(dispatcher: Dispatcher[F], errorListener: Deferred[F, KafkaStreamsException])
+  final private class StreamErrorHandler(dispatcher: Dispatcher[F], err: Deferred[F, Either[Throwable, Unit]])
       extends StreamsUncaughtExceptionHandler {
 
     override def handle(throwable: Throwable): StreamsUncaughtExceptionHandler.StreamThreadExceptionResponse = {
-      dispatcher.unsafeRunSync(errorListener.complete(KafkaStreamsException(ExceptionUtils.getMessage(throwable))))
+      dispatcher.unsafeRunSync(err.complete(Left(throwable)))
       StreamsUncaughtExceptionHandler.StreamThreadExceptionResponse.SHUTDOWN_APPLICATION
     }
   }
 
   final private class StateChange(
     dispatcher: Dispatcher[F],
-    stopSignal: Deferred[F, KafkaStreamsException],
-    latch: CountDownLatch[F])
+    bus: Channel[F, State],
+    latch: CountDownLatch[F],
+    stop: Deferred[F, Either[Throwable, Unit]])
       extends KafkaStreams.StateListener {
 
     override def onChange(newState: State, oldState: State): Unit =
       dispatcher.unsafeRunSync(
-        latch.release.whenA(newState == State.RUNNING) >>
-          stopSignal.complete(KafkaStreamsException("Kafka streams were stopped")).whenA(newState == State.NOT_RUNNING))
+        bus.send(newState) *>
+          latch.release.whenA(newState == State.RUNNING) *>
+          stop.complete(Left(KafkaStreamsStoppedException())).whenA(newState == State.NOT_RUNNING))
   }
 
   private def kickoff(
     dispatcher: Dispatcher[F],
-    errorListener: Deferred[F, KafkaStreamsException],
-    stopSignal: Deferred[F, KafkaStreamsException]): Resource[F, KafkaStreams] =
+    err: Deferred[F, Either[Throwable, Unit]],
+    stop: Deferred[F, Either[Throwable, Unit]],
+    bus: Channel[F, State]): Resource[F, KafkaStreams] =
     Resource
       .make(F.blocking(new KafkaStreams(topology, settings.javaProperties)))(ks =>
         F.blocking(ks.close()) >> F.blocking(ks.cleanUp()))
@@ -56,8 +59,8 @@ final class KafkaStreamsBuilder[F[_]] private (
           latch <- CountDownLatch[F](1)
           _ <- F.blocking(ks.cleanUp())
           _ <- F.blocking {
-            ks.setUncaughtExceptionHandler(new StreamErrorHandler(dispatcher, errorListener))
-            ks.setStateListener(new StateChange(dispatcher, stopSignal, latch))
+            ks.setUncaughtExceptionHandler(new StreamErrorHandler(dispatcher, err))
+            ks.setStateListener(new StateChange(dispatcher, bus, latch, stop))
             ks.start()
           }
           _ <- latch.await
@@ -65,21 +68,23 @@ final class KafkaStreamsBuilder[F[_]] private (
         F.timeout(start, startUpTimeout)
       }
 
-  private val resource: Resource[F, (KafkaStreams, F[KafkaStreamsException])] =
+  val query: Stream[F, KafkaStreams] =
     for {
-      dispatcher <- Dispatcher[F]
-      errorListener <- Resource.eval(F.deferred[KafkaStreamsException])
-      stopSignal <- Resource.eval(F.deferred[KafkaStreamsException])
-      ks <- kickoff(dispatcher, errorListener, stopSignal)
-    } yield (ks, F.race(errorListener.get, stopSignal.get).map(_.fold(identity, identity)))
+      dispatcher <- Stream.resource(Dispatcher[F])
+      err <- Stream.eval(F.deferred[Either[Throwable, Unit]])
+      stop <- Stream.eval(F.deferred[Either[Throwable, Unit]])
+      bus <- Stream.eval(Channel.unbounded[F, State])
+      ks <- Stream.resource(kickoff(dispatcher, err, stop, bus)).interruptWhen(err).interruptWhen(stop)
+    } yield ks
 
-  def stream: Stream[F, Nothing] =
-    Stream.resource(resource).evalMap(_._2.flatMap[Nothing](F.raiseError))
-
-  def query: Stream[F, KafkaStreams] =
-    Stream.resource(resource).flatMap { case (ks, err) =>
-      Stream(ks).concurrently(Stream.eval(err.flatMap[Nothing](F.raiseError)))
-    }
+  def stream: Stream[F, State] = for {
+    dispatcher <- Stream.resource(Dispatcher[F])
+    err <- Stream.eval(F.deferred[Either[Throwable, Unit]])
+    stop <- Stream.eval(F.deferred[Either[Throwable, Unit]])
+    bus <- Stream.eval(Channel.unbounded[F, State])
+    _ <- Stream.resource(kickoff(dispatcher, err, stop, bus))
+    state <- bus.stream.interruptWhen(err).interruptWhen(stop)
+  } yield state
 
   def withStartUpTimeout(value: FiniteDuration): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](

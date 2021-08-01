@@ -14,4 +14,5 @@ package object kafka {
     final val BulkSize: Int               = 1024 * 1024
     final val BatchSize: Int              = 1000
   }
+
 }
