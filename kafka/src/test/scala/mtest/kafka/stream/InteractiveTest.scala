@@ -4,6 +4,7 @@ import cats.data.Reader
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.kafka.KafkaStreamsStoppedException
 import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import mtest.kafka.*
@@ -62,5 +63,11 @@ class InteractiveTest extends AnyFunSuite {
     assertThrows[TimeoutException](to1.unsafeRunSync())
     val to2 = ctx.buildStreams(top).withStartUpTimeout(100.seconds).query.compile.drain
     to2.unsafeRunSync()
+  }
+
+  test("detect stream stop") {
+    val to1 =
+      ctx.buildStreams(top).query.evalMap(ks => IO.sleep(1.seconds) >> IO(ks.close())) >> Stream.sleep[IO](1.hour)
+    assertThrows[KafkaStreamsStoppedException](to1.compile.drain.unsafeRunSync())
   }
 }

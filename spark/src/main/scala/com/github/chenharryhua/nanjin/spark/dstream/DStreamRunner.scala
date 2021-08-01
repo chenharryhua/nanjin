@@ -29,35 +29,34 @@ final class DStreamRunner[F[_]] private (
     ssc
   }
 
-  private class Listener(dispatcher: Dispatcher[F], channel: Channel[F, StreamingListenerEvent])
-      extends StreamingListener {
+  private class Listener(dispatcher: Dispatcher[F], bus: Channel[F, StreamingListenerEvent]) extends StreamingListener {
 
     override def onStreamingStarted(event: StreamingListenerStreamingStarted): Unit =
-      dispatcher.unsafeRunSync(channel.send(event).void)
+      dispatcher.unsafeRunSync(bus.send(event).void)
 
     override def onReceiverStarted(event: StreamingListenerReceiverStarted): Unit =
-      dispatcher.unsafeRunSync(channel.send(event).void)
+      dispatcher.unsafeRunSync(bus.send(event).void)
 
     override def onReceiverError(event: StreamingListenerReceiverError): Unit =
-      dispatcher.unsafeRunSync(channel.send(event).void)
+      dispatcher.unsafeRunSync(bus.send(event).void)
 
     override def onReceiverStopped(event: StreamingListenerReceiverStopped): Unit =
-      dispatcher.unsafeRunSync(channel.send(event).void)
+      dispatcher.unsafeRunSync(bus.send(event).void)
 
     override def onBatchSubmitted(event: StreamingListenerBatchSubmitted): Unit =
-      dispatcher.unsafeRunSync(channel.send(event).void)
+      dispatcher.unsafeRunSync(bus.send(event).void)
 
     override def onBatchStarted(event: StreamingListenerBatchStarted): Unit =
-      dispatcher.unsafeRunSync(channel.send(event).void)
+      dispatcher.unsafeRunSync(bus.send(event).void)
 
     override def onBatchCompleted(event: StreamingListenerBatchCompleted): Unit =
-      dispatcher.unsafeRunSync(channel.send(event).void)
+      dispatcher.unsafeRunSync(bus.send(event).void)
 
     override def onOutputOperationStarted(event: StreamingListenerOutputOperationStarted): Unit =
-      dispatcher.unsafeRunSync(channel.send(event).void)
+      dispatcher.unsafeRunSync(bus.send(event).void)
 
     override def onOutputOperationCompleted(event: StreamingListenerOutputOperationCompleted): Unit =
-      dispatcher.unsafeRunSync(channel.send(event).void)
+      dispatcher.unsafeRunSync(bus.send(event).void)
 
   }
 
