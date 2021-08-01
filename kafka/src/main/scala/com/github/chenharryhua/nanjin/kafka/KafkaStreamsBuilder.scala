@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.data.Reader
 import cats.effect.kernel.{Async, Deferred, Resource}
-import cats.effect.std.Dispatcher
+import cats.effect.std.{CountDownLatch, Dispatcher}
 import cats.syntax.all.*
 import fs2.Stream
 import monocle.function.At.at
@@ -29,12 +29,16 @@ final class KafkaStreamsBuilder[F[_]] private (
     }
   }
 
-  final private class StateUpdateEvent(dispatcher: Dispatcher[F], stopSignal: Deferred[F, KafkaStreamsException])
+  final private class StateChange(
+    dispatcher: Dispatcher[F],
+    stopSignal: Deferred[F, KafkaStreamsException],
+    latch: CountDownLatch[F])
       extends KafkaStreams.StateListener {
 
     override def onChange(newState: State, oldState: State): Unit =
       dispatcher.unsafeRunSync(
-        stopSignal.complete(KafkaStreamsException("Kafka streams were stopped")).whenA(newState == State.NOT_RUNNING))
+        latch.release.whenA(newState == State.RUNNING) >>
+          stopSignal.complete(KafkaStreamsException("Kafka streams were stopped")).whenA(newState == State.NOT_RUNNING))
   }
 
   private def kickoff(
@@ -44,14 +48,18 @@ final class KafkaStreamsBuilder[F[_]] private (
     Resource
       .make(F.blocking(new KafkaStreams(topology, settings.javaProperties)))(ks =>
         F.blocking(ks.close()) >> F.blocking(ks.cleanUp()))
-      .evalMap(ks =>
-        F.blocking(ks.cleanUp()) >>
-          F.blocking {
+      .evalMap { ks =>
+        for {
+          latch <- CountDownLatch[F](1)
+          _ <- F.blocking(ks.cleanUp())
+          _ <- F.blocking {
             ks.setUncaughtExceptionHandler(new StreamErrorHandler(dispatcher, errorListener))
-            ks.setStateListener(new StateUpdateEvent(dispatcher, stopSignal))
+            ks.setStateListener(new StateChange(dispatcher, stopSignal, latch))
             ks.start()
-            ks
-          })
+          }
+          _ <- latch.await
+        } yield ks
+      }
 
   private val resource: Resource[F, (KafkaStreams, F[KafkaStreamsException])] =
     for {
