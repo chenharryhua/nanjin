@@ -53,33 +53,21 @@ final class KafkaStreamsBuilder[F[_]] private (
             ks
           })
 
-  def stream: Stream[F, Nothing] = {
-    val exec: Resource[F, KafkaStreamsException] = for {
+  private val resource: Resource[F, (KafkaStreams, F[KafkaStreamsException])] =
+    for {
       dispatcher <- Dispatcher[F]
       errorListener <- Resource.eval(F.deferred[KafkaStreamsException])
       stopSignal <- Resource.eval(F.deferred[KafkaStreamsException])
-      _ <- kickoff(dispatcher, errorListener, stopSignal)
-      ex <- Resource.eval(F.race(errorListener.get, stopSignal.get)).map(_.fold(identity, identity))
-    } yield ex
+      ks <- kickoff(dispatcher, errorListener, stopSignal)
+    } yield (ks, F.race(errorListener.get, stopSignal.get).map(_.fold(identity, identity)))
 
-    Stream.resource(exec.evalMap(F.raiseError))
-  }
+  def stream: Stream[F, Nothing] =
+    Stream.resource(resource).evalMap(_._2.flatMap[Nothing](F.raiseError))
 
-  /** cancel friendly
-    */
-  def query: Stream[F, KafkaStreams] = {
-    val ssks: Stream[F, Stream[F, KafkaStreams]] = for {
-      dispatcher <- Stream.resource(Dispatcher[F])
-      errorListener <- Stream.eval(F.deferred[KafkaStreamsException])
-      stopSignal <- Stream.eval(F.deferred[KafkaStreamsException])
-      ks <- Stream.resource(kickoff(dispatcher, errorListener, stopSignal))
-    } yield {
-      val err = F.race(errorListener.get, stopSignal.get).map(_.fold(identity, identity))
+  def query: Stream[F, KafkaStreams] =
+    Stream.resource(resource).flatMap { case (ks, err) =>
       Stream(ks).concurrently(Stream.eval(err.flatMap[Nothing](F.raiseError)))
     }
-
-    ssks.flatten
-  }
 
   def withProperty(key: String, value: String): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
