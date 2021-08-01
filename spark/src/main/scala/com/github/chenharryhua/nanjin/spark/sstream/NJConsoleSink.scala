@@ -29,7 +29,7 @@ final class NJConsoleSink[F[_], A](
   def complete: NJConsoleSink[F, A]                = updateConfig(_.complete_mode)
   def queryName(name: String): NJConsoleSink[F, A] = updateConfig(_.query_name(name))
 
-  override def queryStream(implicit F: Async[F]): Stream[F, StreamingQueryProgress] =
+  override def stream(implicit F: Async[F]): Stream[F, StreamingQueryProgress] =
     ss.queryStream(
       dsw
         .trigger(params.trigger)

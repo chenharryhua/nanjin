@@ -10,7 +10,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import java.util
 
 class JettyTest extends AnyFunSuite {
-  test("jetty") {
+  ignore("jetty") {
     val httpClient = new HttpClient()
     // Here configure Jetty's HttpClient.
     // httpClient.setMaxConnectionsPerDestination(2);
@@ -28,7 +28,7 @@ class JettyTest extends AnyFunSuite {
     //   override def onMessage(message: Message): Unit = {
     //     bayeuxClient.getChannel(Channel.META_CONNECT).subscribe { (channel: ClientSessionChannel, message: Message) =>
     //       println(message)
-    //     } 
+    //     }
     //     ()
     //   }
     // })
